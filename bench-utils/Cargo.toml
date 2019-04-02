@@ -1,0 +1,28 @@
+[package]
+name = "bench-utils"
+version = "0.1.0"
+authors = [
+    "Sean Bowe",
+    "Alessandro Chiesa",
+    "Matthew Green",
+    "Ian Miers",
+    "Pratyush Mishra",
+    "Howard Wu"
+]
+description = "A helper library for profiling performance in ZEXE"
+homepage = "https://libzexe.org"
+repository = "https://github.com/scipr/zexe"
+documentation = "https://docs.rs/bench-utils/"
+keywords = ["profiling"]
+categories = ["development-tools::profiling"]
+include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
+license = "MIT/Apache-2.0"
+edition = "2018"
+
+################################# Dependencies ################################
+
+[dependencies]
+colored = { version = "1", optional = true }
+
+[features]
+timer = [ "colored" ]

@@ -1,0 +1,25 @@
+[workspace]
+
+members = [ "dpc", "algebra", "snark", "snark-gadgets", "bench-utils" ]
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+incremental = true
+
+[profile.bench]
+opt-level = 3
+debug = false
+rpath = false
+lto = "thin"
+incremental = true
+debug-assertions = false
+
+[profile.dev]
+opt-level = 0
+
+[profile.test]
+opt-level = 3
+incremental = true
+debug-assertions = true
+debug = true

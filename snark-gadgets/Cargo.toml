@@ -1,0 +1,31 @@
+[package]
+name = "snark-gadgets"
+version = "0.1.0"
+authors = [
+    "Sean Bowe",
+    "Alessandro Chiesa",
+    "Matthew Green",
+    "Ian Miers",
+    "Pratyush Mishra",
+    "Howard Wu"
+]
+description = "A library for constraint system gadgets"
+homepage = "https://libzexe.org"
+repository = "https://github.com/scipr/zexe"
+documentation = "https://docs.rs/snark-gadgets/"
+keywords = ["zero knowledge", "cryptography", "zkSNARK", "SNARK"]
+categories = ["cryptography"]
+include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
+license = "MIT/Apache-2.0"
+edition = "2018"
+
+################################# Dependencies ################################
+
+[dependencies]
+algebra = { path = "../algebra" }
+snark = { path = "../snark" }
+derivative = "1"
+radix_trie = "0.1"
+
+[dev-dependencies]
+rand = { version = "0.4" }

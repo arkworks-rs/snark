@@ -1,0 +1,40 @@
+[package]
+name = "snark"
+version = "0.1.0"
+authors = [
+    "Sean Bowe",
+    "Alessandro Chiesa",
+    "Matthew Green",
+    "Ian Miers",
+    "Pratyush Mishra",
+    "Howard Wu"
+]
+description = "A library for zkSNARK proof systems"
+homepage = "https://libzexe.org"
+repository = "https://github.com/scipr/zexe"
+documentation = "https://docs.rs/snark/"
+keywords = ["zero knowledge", "cryptography", "zkSNARK", "SNARK"]
+categories = ["cryptography"]
+include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
+license = "MIT/Apache-2.0"
+edition = "2018"
+
+################################# Dependencies ################################
+
+[dependencies]
+algebra = { path = "../algebra", features = [ "parallel" ] }
+bench-utils = { path = "../bench-utils" }
+rand = { version = "0.4" }
+byteorder = { version = "1" }
+rayon = { version = "1" }
+smallvec = { version = "0.6" }
+
+[dev-dependencies]
+csv = { version = "1" }
+
+[features]
+timer = [ "bench-utils/timer" ]
+
+[[example]]
+name = "gm17"
+path = "examples/snark-scalability/gm17.rs"

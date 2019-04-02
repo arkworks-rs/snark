@@ -1,0 +1,74 @@
+[package]
+name = "dpc"
+version = "0.1.0"
+authors = [
+    "Sean Bowe",
+    "Alessandro Chiesa",
+    "Matthew Green",
+    "Ian Miers",
+    "Pratyush Mishra",
+    "Howard Wu"
+]
+description = "A library for decentralized private computation"
+homepage = "https://libzexe.org"
+repository = "https://github.com/scipr/zexe"
+documentation = "https://docs.rs/zexe/"
+keywords = ["zero knowledge", "cryptography", "smart contracts", "cryptocurrency"]
+categories = ["cryptography"]
+include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
+license = "MIT/Apache-2.0"
+edition = "2018"
+
+################################# Dependencies ################################
+
+[dependencies]
+algebra = { path = "../algebra" }
+snark = { path = "../snark" }
+snark-gadgets = { path = "../snark-gadgets" }
+bench-utils = { path = "../bench-utils" }
+
+digest = "0.7"
+blake2 = "0.7"
+
+rand = "0.4"
+derivative = "1"
+rayon = "1"
+
+failure = { version = "0.1.1" }
+failure_derive = { version = "0.1.1" }
+
+clippy = { version = "*", optional = true }
+
+[dev-dependencies]
+criterion = "0.2"
+
+###############################################################################
+
+################################## Features ###################################
+
+[features]
+timer = [ "bench-utils/timer" ]
+
+###############################################################################
+
+################################# Benchmarks ##################################
+
+[[bench]]
+name = "pedersen_crh"
+path = "benches/crypto_primitives/crh.rs"
+harness = false
+
+[[bench]]
+name = "pedersen_comm"
+path = "benches/crypto_primitives/comm.rs"
+harness = false
+
+[[bench]]
+name = "blake2s_prf"
+path = "benches/crypto_primitives/prf.rs"
+harness = false
+
+[[bench]]
+name = "schnorr_sig"
+path = "benches/crypto_primitives/signature.rs"
+harness = false
