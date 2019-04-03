@@ -1,6 +1,7 @@
 <h1 align="center">ZEXE (Zero knowledge EXEcution)</h1>
 
 <p align="center">
+    <a href="https://travis-ci.org/scipr-lab/zexe"><img src="https://travis-ci.org/scipr-lab/zexe.svg?branch=master"></a>
     <a href="https://github.com/scipr-lab/zexe/blob/master/AUTHORS"><img src="https://img.shields.io/badge/authors-SCIPR%20Lab-orange.svg"></a>
     <a href="https://github.com/scipr-lab/zexe/blob/master/LICENSE-APACHE"><img src="https://img.shields.io/badge/license-APACHE-blue.svg"></a>
    <a href="https://github.com/scipr-lab/zexe/blob/master/LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
