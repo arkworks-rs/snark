@@ -46,10 +46,7 @@ fn test_bls12_381_fq() {
 
 #[test]
 fn test_bls12_381_fq2() {
-    use crate::fields::{
-        bls12_381::{Fq, Fq2},
-        PrimeField,
-    };
+    use crate::fields::bls12_381::{Fq, Fq2};
 
     for _ in 0..ITERATIONS {
         let a: Fq2 = rand::random();
@@ -57,37 +54,31 @@ fn test_bls12_381_fq2() {
         field_test(a, b);
         sqrt_field_test(a);
     }
-    frobenius_test::<Fq2, _>(Fq::characteristic().0, 13);
+    frobenius_test::<Fq2, _>(Fq::characteristic(), 13);
 }
 
 #[test]
 fn test_bls12_381_fq6() {
-    use crate::fields::{
-        bls12_381::{Fq, Fq6},
-        PrimeField,
-    };
+    use crate::fields::bls12_381::{Fq, Fq6};
 
     for _ in 0..ITERATIONS {
         let g: Fq6 = rand::random();
         let h: Fq6 = rand::random();
         field_test(g, h);
     }
-    frobenius_test::<Fq6, _>(Fq::characteristic().0, 13);
+    frobenius_test::<Fq6, _>(Fq::characteristic(), 13);
 }
 
 #[test]
 fn test_bls12_381_fq12() {
-    use crate::fields::{
-        bls12_381::{Fq, Fq12},
-        PrimeField,
-    };
+    use crate::fields::bls12_381::{Fq, Fq12};
 
     for _ in 0..ITERATIONS {
         let g: Fq12 = rand::random();
         let h: Fq12 = rand::random();
         field_test(g, h);
     }
-    frobenius_test::<Fq12, _>(Fq::characteristic().0, 13);
+    frobenius_test::<Fq12, _>(Fq::characteristic(), 13);
 }
 
 #[test]
@@ -1644,7 +1635,7 @@ fn test_fq_pow() {
         // Exponentiating by the modulus should have no effect in a prime field.
         let a = Fq::rand(&mut rng);
 
-        assert_eq!(a, a.pow(Fq::characteristic().0));
+        assert_eq!(a, a.pow(Fq::characteristic()));
     }
 }
 

@@ -1,4 +1,7 @@
-use crate::fields::tests::{field_test, frobenius_test, primefield_test, sqrt_field_test};
+use crate::{
+    fields::tests::{field_test, frobenius_test, primefield_test, sqrt_field_test},
+    Field,
+};
 
 #[test]
 fn test_sw6_fr() {
@@ -24,27 +27,21 @@ fn test_sw6_fq() {
 
 #[test]
 fn test_sw6_fq3() {
-    use crate::fields::{
-        sw6::{Fq, Fq3},
-        PrimeField,
-    };
+    use crate::fields::sw6::{Fq, Fq3};
 
     let a: Fq3 = rand::random();
     let b: Fq3 = rand::random();
     field_test(a, b);
     sqrt_field_test(a);
-    frobenius_test::<Fq3, _>(Fq::characteristic().0, 13);
+    frobenius_test::<Fq3, _>(Fq::characteristic(), 13);
 }
 
 #[test]
 fn test_sw6_fq6() {
-    use crate::fields::{
-        sw6::{Fq, Fq6},
-        PrimeField,
-    };
+    use crate::fields::sw6::{Fq, Fq6};
 
     let a: Fq6 = rand::random();
     let b: Fq6 = rand::random();
     field_test(a, b);
-    frobenius_test::<Fq6, _>(Fq::characteristic().0, 13);
+    frobenius_test::<Fq6, _>(Fq::characteristic(), 13);
 }
