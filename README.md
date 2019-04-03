@@ -71,7 +71,7 @@ Unless you explicitly state otherwise, any contribution submitted for inclusion 
 ## Reference paper
 
 [_ZEXE: Enabling Decentralized Private Computation_][zexe]    
-Sean Bowe, Alessandro Chiesa, Matthew Green, Ian Miers, [Pratyush Mishra](https://www.github.com/pratyush), [Howard Wu](https://www.github.com/howardwu)    
+[Sean Bowe](https://www.github.com/ebfull), Alessandro Chiesa, Matthew Green, Ian Miers, [Pratyush Mishra](https://www.github.com/pratyush), [Howard Wu](https://www.github.com/howardwu)    
 *IACR ePrint Report 2018/962*
 
 ## Acknowledgements
