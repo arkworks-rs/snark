@@ -311,7 +311,6 @@ impl<P: Fp256Parameters> PrimeField for Fp256<P> {
 
     #[inline]
     fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
-        use std::io::Read;
         let mut result = Self::zero();
         if result.0.read_le((&bytes[..]).by_ref()).is_ok() {
             result.0.as_mut()[3] &= 0xffffffffffffffff >> P::REPR_SHAVE_BITS;
