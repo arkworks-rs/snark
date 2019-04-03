@@ -4,6 +4,12 @@ rust:
   - stable
   - nightly
 
+matrix:
+  allow_failures:
+    - rust: stable
+  fast_finish: true
+
+cache: cargo
+
 script:
-  - cargo build
-  - cargo test
+  - cargo build --verbose --all
