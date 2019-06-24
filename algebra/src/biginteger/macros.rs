@@ -215,7 +215,7 @@ macro_rules! bigint_impl {
         impl Display for $name {
             fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
                 for i in self.0.iter().rev() {
-                    write!(f, "{:020}", *i)?;
+                    write!(f, "{:016X}", *i)?;
                 }
                 Ok(())
             }
