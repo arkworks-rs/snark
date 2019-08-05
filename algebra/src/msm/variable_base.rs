@@ -11,7 +11,6 @@ impl VariableBaseMSM {
         bases: &[G],
         scalars: &[<<G::Engine as PairingEngine>::Fr as PrimeField>::BigInt],
     ) -> <G as AffineCurve>::Projective {
-        assert_eq!(bases.len(), scalars.len());
         let c = if scalars.len() < 32 {
             3
         } else {
