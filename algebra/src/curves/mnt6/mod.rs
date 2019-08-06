@@ -1,3 +1,4 @@
+use crate::field_new;
 use crate::{
     biginteger::BigInteger320,
     curves::{PairingCurve, PairingEngine, ProjectiveCurve},
@@ -203,7 +204,7 @@ impl MNT6 {
     }
 
     pub fn ate_miller_loop(p: &G1Prepared, q: &G2Prepared) -> Fq6 {
-        let l1_coeff = Fq3::new(p.x, Fq::zero(), Fq::zero()) - &q.x_over_twist;
+        let l1_coeff = field_new!(Fq3, p.x, Fq::zero(), Fq::zero()) - &q.x_over_twist;
 
         let mut f = Fq6::one();
 
@@ -298,13 +299,13 @@ impl MNT6 {
     }
 }
 
-pub const TWIST: Fq3 = Fq3::new(FQ_ZERO, FQ_ONE, FQ_ZERO);
-pub const FQ_ZERO: Fq = Fq::new(BigInteger320([0, 0, 0, 0, 0]));
-pub const FQ_ONE: Fq = Fq::new(FqParameters::R);
-pub const TWIST_COEFF_A: Fq3 = Fq3::new(
+pub const TWIST: Fq3 = field_new!(Fq3, FQ_ZERO, FQ_ONE, FQ_ZERO);
+pub const FQ_ZERO: Fq = field_new!(Fq, BigInteger320([0, 0, 0, 0, 0]));
+pub const FQ_ONE: Fq = field_new!(Fq, FqParameters::R);
+pub const TWIST_COEFF_A: Fq3 = field_new!(Fq3, 
     FQ_ZERO,
     FQ_ZERO,
-    Fq::new(BigInteger320([
+    field_new!(Fq, BigInteger320([
         0xb9b2411bfd0eafef,
         0xc61a10fadd9fecbd,
         0x89f128e59811f3fb,

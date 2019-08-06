@@ -1,3 +1,4 @@
+use crate::field_new;
 use crate::{
     biginteger::BigInteger320,
     bytes::ToBytes,
@@ -40,7 +41,7 @@ impl ModelParameters for MNT6G2Parameters {
 }
 
 /// MUL_BY_A_C0 = NONRESIDUE * COEFF_A
-pub const MUL_BY_A_C0: Fq = Fq::new(BigInteger320([
+pub const MUL_BY_A_C0: Fq = field_new!(Fq, BigInteger320([
     0xa07b458bf1496fab,
     0xde8254e6541f9fb4,
     0xb1b5cc7bf859c3ea,
@@ -49,7 +50,7 @@ pub const MUL_BY_A_C0: Fq = Fq::new(BigInteger320([
 ]));
 
 /// MUL_BY_A_C1 = NONRESIDUE * COEFF_A
-pub const MUL_BY_A_C1: Fq = Fq::new(BigInteger320([
+pub const MUL_BY_A_C1: Fq = field_new!(Fq, BigInteger320([
     0xa07b458bf1496fab,
     0xde8254e6541f9fb4,
     0xb1b5cc7bf859c3ea,
@@ -62,16 +63,16 @@ pub const MUL_BY_A_C2: Fq = MNT6G1Parameters::COEFF_A;
 
 impl SWModelParameters for MNT6G2Parameters {
     const COEFF_A: Fq3 = TWIST_COEFF_A;
-    const COEFF_B: Fq3 = Fq3::new(
-        Fq::new(BigInteger320([
+    const COEFF_B: Fq3 = field_new!(Fq3, 
+        field_new!(Fq, BigInteger320([
             0x79a4c2cea3c84026,
             0x4b50cad0f3233baa,
             0x9ded82770e7a4410,
             0x5ade8b105838b95d,
             0xe4036e0a3a,
         ])),
-        Fq::new(BigInteger320([0, 0, 0, 0, 0])),
-        Fq::new(BigInteger320([0, 0, 0, 0, 0])),
+        field_new!(Fq, BigInteger320([0, 0, 0, 0, 0])),
+        field_new!(Fq, BigInteger320([0, 0, 0, 0, 0])),
     );
 
     /// COFACTOR =
@@ -91,7 +92,7 @@ impl SWModelParameters for MNT6G2Parameters {
 
     /// COFACTOR^(-1) mod r =
     /// 79320381028210220958891541608841408590854146655427655872973753568875979721417185067925504
-    const COFACTOR_INV: Fr = Fr::new(BigInteger320([
+    const COFACTOR_INV: Fr = field_new!(Fr, BigInteger320([
         5837598184463018016,
         7845868194417674836,
         12170332588914158076,
@@ -105,7 +106,7 @@ impl SWModelParameters for MNT6G2Parameters {
 
     #[inline(always)]
     fn mul_by_a(elt: &Fq3) -> Fq3 {
-        Fq3::new(
+        field_new!(Fq3, 
             MUL_BY_A_C0 * &elt.c1,
             MUL_BY_A_C1 * &elt.c2,
             MUL_BY_A_C2 * &elt.c0,
@@ -113,10 +114,10 @@ impl SWModelParameters for MNT6G2Parameters {
     }
 }
 
-const G2_GENERATOR_X: Fq3 = Fq3::new(G2_GENERATOR_X_C0, G2_GENERATOR_X_C1, G2_GENERATOR_X_C2);
-const G2_GENERATOR_Y: Fq3 = Fq3::new(G2_GENERATOR_Y_C0, G2_GENERATOR_Y_C1, G2_GENERATOR_Y_C2);
+const G2_GENERATOR_X: Fq3 = field_new!(Fq3, G2_GENERATOR_X_C0, G2_GENERATOR_X_C1, G2_GENERATOR_X_C2);
+const G2_GENERATOR_Y: Fq3 = field_new!(Fq3, G2_GENERATOR_Y_C0, G2_GENERATOR_Y_C1, G2_GENERATOR_Y_C2);
 
-pub const G2_GENERATOR_X_C0: Fq = Fq::new(BigInteger320([
+pub const G2_GENERATOR_X_C0: Fq = field_new!(Fq, BigInteger320([
     0x15ca12fc5d551ea7,
     0x9e0b2b2b2bb8b979,
     0xe6e66283ad5a786a,
@@ -124,7 +125,7 @@ pub const G2_GENERATOR_X_C0: Fq = Fq::new(BigInteger320([
     0x243853463ed,
 ]));
 
-pub const G2_GENERATOR_X_C1: Fq = Fq::new(BigInteger320([
+pub const G2_GENERATOR_X_C1: Fq = field_new!(Fq, BigInteger320([
     0x2c0e3dd7be176130,
     0x27a15d879495904b,
     0x6f1f0d2dd1502a82,
@@ -132,7 +133,7 @@ pub const G2_GENERATOR_X_C1: Fq = Fq::new(BigInteger320([
     0x2c28bb71862,
 ]));
 
-pub const G2_GENERATOR_X_C2: Fq = Fq::new(BigInteger320([
+pub const G2_GENERATOR_X_C2: Fq = field_new!(Fq, BigInteger320([
     0xf3e5f4eb9631e1f1,
     0x657801e80c50778,
     0x2d2abb128fee90f3,
@@ -140,7 +141,7 @@ pub const G2_GENERATOR_X_C2: Fq = Fq::new(BigInteger320([
     0x100b8026b9d,
 ]));
 
-pub const G2_GENERATOR_Y_C0: Fq = Fq::new(BigInteger320([
+pub const G2_GENERATOR_Y_C0: Fq = field_new!(Fq, BigInteger320([
     0xb1cddd6c64a67c5f,
     0xa01e90d89aa5d2ba,
     0x39e9a733be49ed1,
@@ -148,7 +149,7 @@ pub const G2_GENERATOR_Y_C0: Fq = Fq::new(BigInteger320([
     0x12cc928ef10,
 ]));
 
-pub const G2_GENERATOR_Y_C1: Fq = Fq::new(BigInteger320([
+pub const G2_GENERATOR_Y_C1: Fq = field_new!(Fq, BigInteger320([
     0xa1529b7265ad4be7,
     0x21c5e827cf309306,
     0x9b3d647bd8c70b22,
@@ -156,7 +157,7 @@ pub const G2_GENERATOR_Y_C1: Fq = Fq::new(BigInteger320([
     0xd3c77c9ff9,
 ]));
 
-pub const G2_GENERATOR_Y_C2: Fq = Fq::new(BigInteger320([
+pub const G2_GENERATOR_Y_C2: Fq = field_new!(Fq, BigInteger320([
     0x610557ec4b58b8df,
     0x51a23865b52045f1,
     0x9dcfd915a09da608,

@@ -1,3 +1,4 @@
+use crate::field_new;
 use crate::{
     biginteger::BigInteger256,
     curves::{
@@ -24,7 +25,7 @@ impl ModelParameters for EdwardsParameters {
 
 impl TEModelParameters for EdwardsParameters {
     /// COEFF_A = -1
-    const COEFF_A: Fq = Fq::new(BigInteger256([
+    const COEFF_A: Fq = field_new!(Fq, BigInteger256([
         0x8cf500000000000e,
         0xe75281ef6000000e,
         0x49dc37a90b0ba012,
@@ -32,7 +33,7 @@ impl TEModelParameters for EdwardsParameters {
     ]));
 
     /// COEFF_D = 3021
-    const COEFF_D: Fq = Fq::new(BigInteger256([
+    const COEFF_D: Fq = field_new!(Fq, BigInteger256([
         0xd047ffffffff5e30,
         0xf0a91026ffff57d2,
         0x9013f560d102582,
@@ -44,7 +45,7 @@ impl TEModelParameters for EdwardsParameters {
 
     /// COFACTOR_INV =
     /// 527778859339273151515551558673846658209717731602102048798421311598680340096
-    const COFACTOR_INV: Fr = Fr::new(BigInteger256([
+    const COFACTOR_INV: Fr = field_new!(Fr, BigInteger256([
         10836190823041854989,
         14880086764632731920,
         5023208332782666747,
@@ -97,7 +98,7 @@ impl FromStr for EdwardsAffine {
 
 /// GENERATOR_X =
 /// 7810607721416582242904415504650443951498042435501746664987470571546413371306
-const GENERATOR_X: Fq = Fq::new(BigInteger256([
+const GENERATOR_X: Fq = field_new!(Fq, BigInteger256([
     0x5bbc9878d817221d,
     0xd2b03489424e720,
     0x6b66f128c16bb3c9,
@@ -106,7 +107,7 @@ const GENERATOR_X: Fq = Fq::new(BigInteger256([
 
 /// GENERATOR_Y =
 /// 1867362672570137759132108893390349941423731440336755218616442213142473202417
-const GENERATOR_Y: Fq = Fq::new(BigInteger256([
+const GENERATOR_Y: Fq = field_new!(Fq, BigInteger256([
     0x471517ae5e5e979e,
     0xd9c97f6a73a7ff83,
     0x85a95b45a5494402,

@@ -1,3 +1,4 @@
+use crate::field_new;
 use crate::{
     biginteger::{BigInteger256, BigInteger384},
     curves::{
@@ -40,10 +41,10 @@ impl ModelParameters for Bls12_381G1Parameters {
 
 impl SWModelParameters for Bls12_381G1Parameters {
     /// COEFF_A = 0
-    const COEFF_A: Fq = Fq::new(BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0]));
+    const COEFF_A: Fq = field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0]));
 
     /// COEFF_B = 4
-    const COEFF_B: Fq = Fq::new(BigInteger384([
+    const COEFF_B: Fq = field_new!(Fq, BigInteger384([
         0xaa270000000cfff3,
         0x53cc0032fc34000a,
         0x478fe97a6b0a807f,
@@ -57,7 +58,7 @@ impl SWModelParameters for Bls12_381G1Parameters {
 
     /// COFACTOR_INV = COFACTOR^{-1} mod r
     /// = 52435875175126190458656871551744051925719901746859129887267498875565241663483
-    const COFACTOR_INV: Fr = Fr::new(BigInteger256([
+    const COFACTOR_INV: Fr = field_new!(Fr, BigInteger256([
         288839107172787499,
         1152722415086798946,
         2612889808468387987,
@@ -76,7 +77,7 @@ impl SWModelParameters for Bls12_381G1Parameters {
 
 /// G1_GENERATOR_X =
 /// 3685416753713387016781088315183077757961620795782546409894578378688607592378376318836054947676345821548104185464507
-pub const G1_GENERATOR_X: Fq = Fq::new(BigInteger384([
+pub const G1_GENERATOR_X: Fq = field_new!(Fq, BigInteger384([
     0x5cb38790fd530c16,
     0x7817fc679976fff5,
     0x154f95c7143ba1c1,
@@ -87,7 +88,7 @@ pub const G1_GENERATOR_X: Fq = Fq::new(BigInteger384([
 
 /// G1_GENERATOR_Y =
 /// 1339506544944476473020471379941921221584933875938349620426543736416511423956333506472724655353366534992391756441569
-pub const G1_GENERATOR_Y: Fq = Fq::new(BigInteger384([
+pub const G1_GENERATOR_Y: Fq = field_new!(Fq, BigInteger384([
     0xbaac93d50ce72271,
     0x8c22631a7918fd8e,
     0xdd595f13570725ce,

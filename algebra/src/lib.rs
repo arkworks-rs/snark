@@ -32,7 +32,6 @@
     unsafe_code
 )]
 #![forbid(unsafe_code)]
-#![feature(const_fn)]
 
 #[macro_use]
 extern crate derivative;
@@ -47,6 +46,7 @@ pub use self::biginteger::*;
 pub mod curves;
 pub use self::curves::*;
 
+#[macro_use]
 pub mod fields;
 pub use self::fields::*;
 

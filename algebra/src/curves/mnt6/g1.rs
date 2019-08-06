@@ -1,3 +1,4 @@
+use crate::field_new;
 use crate::{
     biginteger::BigInteger320,
     bytes::ToBytes,
@@ -39,7 +40,7 @@ impl ModelParameters for MNT6G1Parameters {
 
 impl SWModelParameters for MNT6G1Parameters {
     /// COEFF_A =
-    const COEFF_A: Fq = Fq::new(BigInteger320([
+    const COEFF_A: Fq = field_new!(Fq, BigInteger320([
         0xb9b2411bfd0eafef,
         0xc61a10fadd9fecbd,
         0x89f128e59811f3fb,
@@ -48,7 +49,7 @@ impl SWModelParameters for MNT6G1Parameters {
     ]));
 
     /// COEFF_B =
-    const COEFF_B: Fq = Fq::new(BigInteger320([
+    const COEFF_B: Fq = field_new!(Fq, BigInteger320([
         0xa94cb16ed8e733b,
         0xe1ed15e8119bae6,
         0xae927592157c8121,
@@ -61,7 +62,7 @@ impl SWModelParameters for MNT6G1Parameters {
 
     /// COFACTOR^(-1) mod r =
     /// 1
-    const COFACTOR_INV: Fr = Fr::new(BigInteger320([
+    const COFACTOR_INV: Fr = field_new!(Fr, BigInteger320([
         1784298994435064924,
         16852041090100268533,
         14258261760832875328,
@@ -75,7 +76,7 @@ impl SWModelParameters for MNT6G1Parameters {
 }
 
 /// G1_GENERATOR_X =
-pub const G1_GENERATOR_X: Fq = Fq::new(BigInteger320([
+pub const G1_GENERATOR_X: Fq = field_new!(Fq, BigInteger320([
     0x1a663562f74e1d24,
     0xc1d1d583fccd1b79,
     0xda077538a9763df2,
@@ -84,7 +85,7 @@ pub const G1_GENERATOR_X: Fq = Fq::new(BigInteger320([
 ]));
 
 /// G1_GENERATOR_Y =
-pub const G1_GENERATOR_Y: Fq = Fq::new(BigInteger320([
+pub const G1_GENERATOR_Y: Fq = field_new!(Fq, BigInteger320([
     0x7ad5bfd16dcfffb2,
     0x88dd739252215070,
     0x43f137a8b517b339,

@@ -1,3 +1,4 @@
+use crate::field_new;
 use super::g1::Bls12_377G1Parameters;
 use crate::{
     biginteger::{BigInteger256, BigInteger384},
@@ -18,7 +19,7 @@ impl ModelParameters for Bls12_377G2Parameters {
 
 impl SWModelParameters for Bls12_377G2Parameters {
     /// COEFF_A = [0, 0]
-    const COEFF_A: Fq2 = Fq2::new(
+    const COEFF_A: Fq2 = field_new!(Fq2, 
         Bls12_377G1Parameters::COEFF_A,
         Bls12_377G1Parameters::COEFF_A,
     );
@@ -29,9 +30,9 @@ impl SWModelParameters for Bls12_377G2Parameters {
     // In our case, i = u (App A.3, T_6).
     /// COEFF_B = [0,
     /// 155198655607781456406391640216936120121836107652948796323930557600032281009004493664981332883744016074664192874906]
-    const COEFF_B: Fq2 = Fq2::new(
-        Fq::new(BigInteger384([0, 0, 0, 0, 0, 0])),
-        Fq::new(BigInteger384([
+    const COEFF_B: Fq2 = field_new!(Fq2, 
+        field_new!(Fq, BigInteger384([0, 0, 0, 0, 0, 0])),
+        field_new!(Fq, BigInteger384([
             9255502405446297221,
             10229180150694123945,
             9215585410771530959,
@@ -56,7 +57,7 @@ impl SWModelParameters for Bls12_377G2Parameters {
 
     /// COFACTOR_INV = COFACTOR^{-1} mod r
     /// = 6764900296503390671038341982857278410319949526107311149686707033187604810669
-    const COFACTOR_INV: Fr = Fr::new(BigInteger256([
+    const COFACTOR_INV: Fr = field_new!(Fr, BigInteger256([
         15499857013495546999,
         4613531467548868169,
         14546778081091178013,
@@ -73,12 +74,12 @@ impl SWModelParameters for Bls12_377G2Parameters {
     }
 }
 
-pub const G2_GENERATOR_X: Fq2 = Fq2::new(G2_GENERATOR_X_C0, G2_GENERATOR_X_C1);
-pub const G2_GENERATOR_Y: Fq2 = Fq2::new(G2_GENERATOR_Y_C0, G2_GENERATOR_Y_C1);
+pub const G2_GENERATOR_X: Fq2 = field_new!(Fq2, G2_GENERATOR_X_C0, G2_GENERATOR_X_C1);
+pub const G2_GENERATOR_Y: Fq2 = field_new!(Fq2, G2_GENERATOR_Y_C0, G2_GENERATOR_Y_C1);
 
 /// G2_GENERATOR_X_C0 =
 /// 234578317943903156414447896945035370700304028234853167447393856512937666360375779588739582059160128921763932828251
-pub const G2_GENERATOR_X_C0: Fq = Fq::new(BigInteger384([
+pub const G2_GENERATOR_X_C0: Fq = field_new!(Fq, BigInteger384([
     0x68904082f268725b,
     0x668f2ea74f45328b,
     0xebca7a65802be84f,
@@ -89,7 +90,7 @@ pub const G2_GENERATOR_X_C0: Fq = Fq::new(BigInteger384([
 
 /// G2_GENERATOR_X_C1 =
 /// 3059144344244213709971259814753781636986470325476647558659373206291635324768958432433509563104347017837885763365758
-pub const G2_GENERATOR_X_C1: Fq = Fq::new(BigInteger384([
+pub const G2_GENERATOR_X_C1: Fq = field_new!(Fq, BigInteger384([
     0x5f02a915c91c7f39,
     0xf8c553ba388da2a7,
     0xd51a416dbd198850,
@@ -100,7 +101,7 @@ pub const G2_GENERATOR_X_C1: Fq = Fq::new(BigInteger384([
 
 /// G2_GENERATOR_Y_C0 =
 /// 1985150602287291935568054521177171638300868978215655730859378665066344726373823718423869104263333984641494340347905
-pub const G2_GENERATOR_Y_C0: Fq = Fq::new(BigInteger384([
+pub const G2_GENERATOR_Y_C0: Fq = field_new!(Fq, BigInteger384([
     0xd5b19b897881430f,
     0x5be9118a5b371ed,
     0x6063f91f86c131ee,
@@ -111,7 +112,7 @@ pub const G2_GENERATOR_Y_C0: Fq = Fq::new(BigInteger384([
 
 /// G2_GENERATOR_Y_C1 =
 /// 927553665492332455747201965776037880757740193453592970025027978793976877002675564980949289727957565575433344219582
-pub const G2_GENERATOR_Y_C1: Fq = Fq::new(BigInteger384([
+pub const G2_GENERATOR_Y_C1: Fq = field_new!(Fq, BigInteger384([
     0x57601ac71a5b96f5,
     0xe99acc1714f2440e,
     0x2339612f10118ea9,
