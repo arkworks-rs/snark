@@ -1,3 +1,4 @@
+use crate::field_new;
 use crate::{
     biginteger::BigInteger832,
     curves::{PairingCurve, PairingEngine},
@@ -168,13 +169,13 @@ impl SW6 {
 }
 
 /// FQ_ZERO = 0
-pub const FQ_ZERO: Fq = Fq::new(BigInteger832([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
+pub const FQ_ZERO: Fq = field_new!(Fq, BigInteger832([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
 
 /// FQ_ONE = 1
-pub const FQ_ONE: Fq = Fq::new(FqParameters::R);
+pub const FQ_ONE: Fq = field_new!(Fq, FqParameters::R);
 
 /// TWIST = (0, 1, 0)
-pub const TWIST: Fq3 = Fq3::new(FQ_ZERO, FQ_ONE, FQ_ZERO);
+pub const TWIST: Fq3 = field_new!(Fq3, FQ_ZERO, FQ_ONE, FQ_ZERO);
 
 /// ATE_IS_LOOP_COUNT_NEG = false
 pub const ATE_IS_LOOP_COUNT_NEG: bool = false;

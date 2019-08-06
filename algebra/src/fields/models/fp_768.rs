@@ -27,13 +27,16 @@ pub trait Fp768Parameters: FpParameters<BigInt = BigInteger> {}
     Eq(bound = "P: Fp768Parameters")
 )]
 pub struct Fp768<P: Fp768Parameters>(
-    pub(crate) BigInteger,
-    #[derivative(Debug = "ignore")] PhantomData<P>,
+    pub BigInteger,
+
+    #[derivative(Debug = "ignore")]
+    #[doc(hidden)]
+    pub PhantomData<P>,
 );
 
 impl<P: Fp768Parameters> Fp768<P> {
     #[inline]
-    pub const fn new(element: BigInteger) -> Self {
+    pub fn new(element: BigInteger) -> Self {
         Fp768::<P>(element, PhantomData)
     }
 

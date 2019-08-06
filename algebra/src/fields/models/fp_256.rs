@@ -27,13 +27,16 @@ pub trait Fp256Parameters: FpParameters<BigInt = BigInteger> {}
     Eq(bound = "P: Fp256Parameters")
 )]
 pub struct Fp256<P: Fp256Parameters>(
-    pub(crate) BigInteger,
-    #[derivative(Debug = "ignore")] PhantomData<P>,
+    pub BigInteger,
+
+    #[derivative(Debug = "ignore")]
+    #[doc(hidden)]
+    pub PhantomData<P>,
 );
 
 impl<P: Fp256Parameters> Fp256<P> {
     #[inline]
-    pub const fn new(element: BigInteger) -> Self {
+    pub fn new(element: BigInteger) -> Self {
         Fp256::<P>(element, PhantomData)
     }
 

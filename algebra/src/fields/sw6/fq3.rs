@@ -1,3 +1,4 @@
+use crate::field_new;
 use crate::{
     biginteger::BigInteger832 as BigInteger,
     fields::{
@@ -14,7 +15,7 @@ impl Fp3Parameters for Fq3Parameters {
     type Fp = Fq;
 
     /// NONRESIDUE = 13
-    const NONRESIDUE: Fq = Fq::new(BigInteger([
+    const NONRESIDUE: Fq = field_new!(Fq, BigInteger([
         0xe755952f4650755e,
         0x16c44ce1331ef791,
         0x162f8835b467306f,
@@ -73,7 +74,7 @@ impl Fp3Parameters for Fq3Parameters {
     ];
 
     const QUADRATIC_NONRESIDUE_TO_T: (Fq, Fq, Fq) = (
-        Fq::new(BigInteger([
+        field_new!(Fq, BigInteger([
             0x59987c0ef8e31739,
             0x59578d750d6f57dd,
             0x9672547570dddab8,
@@ -88,12 +89,12 @@ impl Fp3Parameters for Fq3Parameters {
             0x1796ce4ed605d49e,
             0x68b,
         ])),
-        Fq::new(BigInteger([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])),
-        Fq::new(BigInteger([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])),
+        field_new!(Fq, BigInteger([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])),
+        field_new!(Fq, BigInteger([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])),
     );
 
     const FROBENIUS_COEFF_FP3_C1: [Fq; 3] = [
-        Fq::new(BigInteger([
+        field_new!(Fq, BigInteger([
             0x9b4e60b420910c71,
             0xe068d7c83f284a6e,
             0x1f708acc7c452c43,
@@ -108,7 +109,7 @@ impl Fp3Parameters for Fq3Parameters {
             0xd92c8b4aab19f288,
             0x21d3,
         ])),
-        Fq::new(BigInteger([
+        field_new!(Fq, BigInteger([
             0xe793e750fc0c0fdc,
             0x28cd75f5634a867e,
             0xde5e9b1261eb3c33,
@@ -123,7 +124,7 @@ impl Fp3Parameters for Fq3Parameters {
             0x5acb70be0613a307,
             0x11bb,
         ])),
-        Fq::new(BigInteger([
+        field_new!(Fq, BigInteger([
             0x57ec31b05ef70e9c,
             0x4b273803cb8a715d,
             0xf0443627811cbe40,
@@ -141,7 +142,7 @@ impl Fp3Parameters for Fq3Parameters {
     ];
 
     const FROBENIUS_COEFF_FP3_C2: [Fq; 3] = [
-        Fq::new(BigInteger([
+        field_new!(Fq, BigInteger([
             0x9b4e60b420910c71,
             0xe068d7c83f284a6e,
             0x1f708acc7c452c43,
@@ -156,7 +157,7 @@ impl Fp3Parameters for Fq3Parameters {
             0xd92c8b4aab19f288,
             0x21d3,
         ])),
-        Fq::new(BigInteger([
+        field_new!(Fq, BigInteger([
             0x57ec31b05ef70e9c,
             0x4b273803cb8a715d,
             0xf0443627811cbe40,
@@ -171,7 +172,7 @@ impl Fp3Parameters for Fq3Parameters {
             0x90da2a32facafe8f,
             0x4b9,
         ])),
-        Fq::new(BigInteger([
+        field_new!(Fq, BigInteger([
             0xe793e750fc0c0fdc,
             0x28cd75f5634a867e,
             0xde5e9b1261eb3c33,

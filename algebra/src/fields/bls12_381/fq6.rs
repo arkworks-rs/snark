@@ -1,3 +1,4 @@
+use crate::field_new;
 use crate::{
     biginteger::BigInteger384,
     fields::{
@@ -18,8 +19,8 @@ impl Fp6Parameters for Fq6Parameters {
     type Fp2Params = Fq2Parameters;
 
     /// NONRESIDUE = (U + 1)
-    const NONRESIDUE: Fq2 = Fq2::new(
-        Fq::new(BigInteger384([
+    const NONRESIDUE: Fq2 = field_new!(Fq2, 
+        field_new!(Fq, BigInteger384([
             0x760900000002fffd,
             0xebf4000bc40c0002,
             0x5f48985753c758ba,
@@ -27,7 +28,7 @@ impl Fp6Parameters for Fq6Parameters {
             0x5c071a97a256ec6d,
             0x15f65ec3fa80e493,
         ])),
-        Fq::new(BigInteger384([
+        field_new!(Fq, BigInteger384([
             0x760900000002fffd,
             0xebf4000bc40c0002,
             0x5f48985753c758ba,
@@ -39,8 +40,8 @@ impl Fp6Parameters for Fq6Parameters {
 
     const FROBENIUS_COEFF_FP6_C1: [Fq2; 6] = [
         // Fq2(u + 1)**(((q^0) - 1) / 3)
-        Fq2::new(
-            Fq::new(BigInteger384([
+        field_new!(Fq2, 
+            field_new!(Fq, BigInteger384([
                 0x760900000002fffd,
                 0xebf4000bc40c0002,
                 0x5f48985753c758ba,
@@ -48,12 +49,12 @@ impl Fp6Parameters for Fq6Parameters {
                 0x5c071a97a256ec6d,
                 0x15f65ec3fa80e493,
             ])),
-            Fq::new(BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+            field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
         // Fq2(u + 1)**(((q^1) - 1) / 3)
-        Fq2::new(
-            Fq::new(BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
-            Fq::new(BigInteger384([
+        field_new!(Fq2, 
+            field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+            field_new!(Fq, BigInteger384([
                 0xcd03c9e48671f071,
                 0x5dab22461fcda5d2,
                 0x587042afd3851b95,
@@ -63,8 +64,8 @@ impl Fp6Parameters for Fq6Parameters {
             ])),
         ),
         // Fq2(u + 1)**(((q^2) - 1) / 3)
-        Fq2::new(
-            Fq::new(BigInteger384([
+        field_new!(Fq2, 
+            field_new!(Fq, BigInteger384([
                 0x30f1361b798a64e8,
                 0xf3b8ddab7ece5a2a,
                 0x16a8ca3ac61577f7,
@@ -72,12 +73,12 @@ impl Fp6Parameters for Fq6Parameters {
                 0x3636b76660701c6e,
                 0x51ba4ab241b6160,
             ])),
-            Fq::new(BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+            field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
         // Fq2(u + 1)**(((q^3) - 1) / 3)
-        Fq2::new(
-            Fq::new(BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
-            Fq::new(BigInteger384([
+        field_new!(Fq2, 
+            field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+            field_new!(Fq, BigInteger384([
                 0x760900000002fffd,
                 0xebf4000bc40c0002,
                 0x5f48985753c758ba,
@@ -87,8 +88,8 @@ impl Fp6Parameters for Fq6Parameters {
             ])),
         ),
         // Fq2(u + 1)**(((q^4) - 1) / 3)
-        Fq2::new(
-            Fq::new(BigInteger384([
+        field_new!(Fq2, 
+            field_new!(Fq, BigInteger384([
                 0xcd03c9e48671f071,
                 0x5dab22461fcda5d2,
                 0x587042afd3851b95,
@@ -96,12 +97,12 @@ impl Fp6Parameters for Fq6Parameters {
                 0x3f97d6e83d050d2,
                 0x18f0206554638741,
             ])),
-            Fq::new(BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+            field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
         // Fq2(u + 1)**(((q^5) - 1) / 3)
-        Fq2::new(
-            Fq::new(BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
-            Fq::new(BigInteger384([
+        field_new!(Fq2, 
+            field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+            field_new!(Fq, BigInteger384([
                 0x30f1361b798a64e8,
                 0xf3b8ddab7ece5a2a,
                 0x16a8ca3ac61577f7,
@@ -114,8 +115,8 @@ impl Fp6Parameters for Fq6Parameters {
 
     const FROBENIUS_COEFF_FP6_C2: [Fq2; 6] = [
         // Fq2(u + 1)**(((2q^0) - 2) / 3)
-        Fq2::new(
-            Fq::new(BigInteger384([
+        field_new!(Fq2, 
+            field_new!(Fq, BigInteger384([
                 0x760900000002fffd,
                 0xebf4000bc40c0002,
                 0x5f48985753c758ba,
@@ -123,11 +124,11 @@ impl Fp6Parameters for Fq6Parameters {
                 0x5c071a97a256ec6d,
                 0x15f65ec3fa80e493,
             ])),
-            Fq::new(BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+            field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
         // Fq2(u + 1)**(((2q^1) - 2) / 3)
-        Fq2::new(
-            Fq::new(BigInteger384([
+        field_new!(Fq2, 
+            field_new!(Fq, BigInteger384([
                 0x890dc9e4867545c3,
                 0x2af322533285a5d5,
                 0x50880866309b7e2c,
@@ -135,11 +136,11 @@ impl Fp6Parameters for Fq6Parameters {
                 0x14e4f04fe2db9068,
                 0x14e56d3f1564853a,
             ])),
-            Fq::new(BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+            field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
         // Fq2(u + 1)**(((2q^2) - 2) / 3)
-        Fq2::new(
-            Fq::new(BigInteger384([
+        field_new!(Fq2, 
+            field_new!(Fq, BigInteger384([
                 0xcd03c9e48671f071,
                 0x5dab22461fcda5d2,
                 0x587042afd3851b95,
@@ -147,11 +148,11 @@ impl Fp6Parameters for Fq6Parameters {
                 0x3f97d6e83d050d2,
                 0x18f0206554638741,
             ])),
-            Fq::new(BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+            field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
         // Fq2(u + 1)**(((2q^3) - 2) / 3)
-        Fq2::new(
-            Fq::new(BigInteger384([
+        field_new!(Fq2, 
+            field_new!(Fq, BigInteger384([
                 0x43f5fffffffcaaae,
                 0x32b7fff2ed47fffd,
                 0x7e83a49a2e99d69,
@@ -159,11 +160,11 @@ impl Fp6Parameters for Fq6Parameters {
                 0xef148d1ea0f4c069,
                 0x40ab3263eff0206,
             ])),
-            Fq::new(BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+            field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
         // Fq2(u + 1)**(((2q^4) - 2) / 3)
-        Fq2::new(
-            Fq::new(BigInteger384([
+        field_new!(Fq2, 
+            field_new!(Fq, BigInteger384([
                 0x30f1361b798a64e8,
                 0xf3b8ddab7ece5a2a,
                 0x16a8ca3ac61577f7,
@@ -171,11 +172,11 @@ impl Fp6Parameters for Fq6Parameters {
                 0x3636b76660701c6e,
                 0x51ba4ab241b6160,
             ])),
-            Fq::new(BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+            field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
         // Fq2(u + 1)**(((2q^5) - 2) / 3)
-        Fq2::new(
-            Fq::new(BigInteger384([
+        field_new!(Fq2, 
+            field_new!(Fq, BigInteger384([
                 0xecfb361b798dba3a,
                 0xc100ddb891865a2c,
                 0xec08ff1232bda8e,
@@ -183,7 +184,7 @@ impl Fp6Parameters for Fq6Parameters {
                 0x47222a47bf7b5c04,
                 0x110f184e51c5f59,
             ])),
-            Fq::new(BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+            field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
     ];
 

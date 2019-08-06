@@ -40,7 +40,8 @@ pub struct Fp6<P: Fp6Parameters> {
     pub c0: Fp3<P::Fp3Params>,
     pub c1: Fp3<P::Fp3Params>,
     #[derivative(Debug = "ignore")]
-    _parameters: PhantomData<P>,
+    #[doc(hidden)]
+    pub _parameters: PhantomData<P>,
 }
 
 impl<P: Fp6Parameters> Fp6<P> {

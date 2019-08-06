@@ -1,3 +1,4 @@
+use crate::field_new;
 use crate::{
     biginteger::{BigInteger256, BigInteger384},
     curves::{
@@ -43,13 +44,13 @@ impl ModelParameters for Bls12_381G2Parameters {
 
 impl SWModelParameters for Bls12_381G2Parameters {
     /// COEFF_A = [0, 0]
-    const COEFF_A: Fq2 = Fq2::new(
+    const COEFF_A: Fq2 = field_new!(Fq2,
         Bls12_381G1Parameters::COEFF_A,
         Bls12_381G1Parameters::COEFF_A,
     );
 
     /// COEFF_B = [4, 4]
-    const COEFF_B: Fq2 = Fq2::new(
+    const COEFF_B: Fq2 = field_new!(Fq2,
         Bls12_381G1Parameters::COEFF_B,
         Bls12_381G1Parameters::COEFF_B,
     );
@@ -70,7 +71,7 @@ impl SWModelParameters for Bls12_381G2Parameters {
 
     /// COFACTOR_INV = COFACTOR^{-1} mod r
     /// 26652489039290660355457965112010883481355318854675681319708643586776743290055
-    const COFACTOR_INV: Fr = Fr::new(BigInteger256([
+    const COFACTOR_INV: Fr = field_new!(Fr, BigInteger256([
         6746407649509787816,
         1304054119431494378,
         2461312685643913071,
@@ -87,12 +88,12 @@ impl SWModelParameters for Bls12_381G2Parameters {
     }
 }
 
-pub const G2_GENERATOR_X: Fq2 = Fq2::new(G2_GENERATOR_X_C0, G2_GENERATOR_X_C1);
-pub const G2_GENERATOR_Y: Fq2 = Fq2::new(G2_GENERATOR_Y_C0, G2_GENERATOR_Y_C1);
+pub const G2_GENERATOR_X: Fq2 = field_new!(Fq2, G2_GENERATOR_X_C0, G2_GENERATOR_X_C1);
+pub const G2_GENERATOR_Y: Fq2 = field_new!(Fq2, G2_GENERATOR_Y_C0, G2_GENERATOR_Y_C1);
 
 /// G2_GENERATOR_X_C0 =
 /// 352701069587466618187139116011060144890029952792775240219908644239793785735715026873347600343865175952761926303160
-pub const G2_GENERATOR_X_C0: Fq = Fq::new(BigInteger384([
+pub const G2_GENERATOR_X_C0: Fq = field_new!(Fq, BigInteger384([
     0xf5f28fa202940a10,
     0xb3f5fb2687b4961a,
     0xa1a893b53e2ae580,
@@ -103,7 +104,7 @@ pub const G2_GENERATOR_X_C0: Fq = Fq::new(BigInteger384([
 
 /// G2_GENERATOR_X_C1 =
 /// 3059144344244213709971259814753781636986470325476647558659373206291635324768958432433509563104347017837885763365758
-pub const G2_GENERATOR_X_C1: Fq = Fq::new(BigInteger384([
+pub const G2_GENERATOR_X_C1: Fq = field_new!(Fq, BigInteger384([
     0xa5a9c0759e23f606,
     0xaaa0c59dbccd60c3,
     0x3bb17e18e2867806,
@@ -114,7 +115,7 @@ pub const G2_GENERATOR_X_C1: Fq = Fq::new(BigInteger384([
 
 /// G2_GENERATOR_Y_C0 =
 /// 1985150602287291935568054521177171638300868978215655730859378665066344726373823718423869104263333984641494340347905
-pub const G2_GENERATOR_Y_C0: Fq = Fq::new(BigInteger384([
+pub const G2_GENERATOR_Y_C0: Fq = field_new!(Fq, BigInteger384([
     0x4c730af860494c4a,
     0x597cfa1f5e369c5a,
     0xe7e6856caa0a635a,
@@ -125,7 +126,7 @@ pub const G2_GENERATOR_Y_C0: Fq = Fq::new(BigInteger384([
 
 /// G2_GENERATOR_Y_C1 =
 /// 927553665492332455747201965776037880757740193453592970025027978793976877002675564980949289727957565575433344219582
-pub const G2_GENERATOR_Y_C1: Fq = Fq::new(BigInteger384([
+pub const G2_GENERATOR_Y_C1: Fq = field_new!(Fq, BigInteger384([
     0xadc0fc92df64b05d,
     0x18aa270a2b1461dc,
     0x86adac6a3be4eba0,

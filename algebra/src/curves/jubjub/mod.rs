@@ -1,3 +1,4 @@
+use crate::field_new;
 use crate::{
     biginteger::BigInteger256,
     curves::{
@@ -14,13 +15,13 @@ mod tests;
 pub type JubJubAffine = GroupAffine<JubJubParameters>;
 pub type JubJubProjective = GroupProjective<JubJubParameters>;
 
-const GENERATOR_X: Fq = Fq::new(BigInteger256([
+const GENERATOR_X: Fq = field_new!(Fq, BigInteger256([
     14080349899812819339,
     4104857150246327429,
     8293216003873356624,
     7400363483732984990,
 ]));
-const GENERATOR_Y: Fq = Fq::new(BigInteger256([
+const GENERATOR_Y: Fq = field_new!(Fq, BigInteger256([
     13388310974700241893,
     7654361511478576605,
     8037907163910805792,
@@ -58,7 +59,7 @@ impl ModelParameters for JubJubParameters {
 
 impl TEModelParameters for JubJubParameters {
     /// COEFF_A = -1
-    const COEFF_A: Fq = Fq::new(BigInteger256([
+    const COEFF_A: Fq = field_new!(Fq, BigInteger256([
         18446744060824649731,
         18102478225614246908,
         11073656695919314959,
@@ -66,7 +67,7 @@ impl TEModelParameters for JubJubParameters {
     ]));
 
     /// COEFF_D = (10240/10241) mod q
-    const COEFF_D: Fq = Fq::new(BigInteger256([
+    const COEFF_D: Fq = field_new!(Fq, BigInteger256([
         3049539848285517488,
         18189135023605205683,
         8793554888777148625,
@@ -78,7 +79,7 @@ impl TEModelParameters for JubJubParameters {
 
     /// COFACTOR^(-1) mod r =
     /// 819310549611346726241370945440405716213240158234039660170669895299022906775
-    const COFACTOR_INV: Fr = Fr::new(BigInteger256([
+    const COFACTOR_INV: Fr = field_new!(Fr, BigInteger256([
         6832491983681988242,
         12911748493335322362,
         17523939349049608702,
