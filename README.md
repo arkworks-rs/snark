@@ -39,16 +39,16 @@ In addition, there is a  [`bench-utils`](bench-utils) crate which contains infra
 
 ## Build guide
 
-The library relies on the `nightly` toolchain of the Rust compiler (only for the relatively well-tested `const_fn` feature). To install the latest Rust nightly, first install `rustup` by following the instructions [here](https://rustup.rs/), or via your platform's package manager. Once `rustup` is installed, install the latest nightly by invoking:
+The library compiles on the `stable` toolchain of the Rust compiler. To install the latest version of Rust, first install `rustup` by following the instructions [here](https://rustup.rs/), or via your platform's package manager. Once `rustup` is installed, install the Rust toolchain by invoking:
 ```bash
-rustup install nightly
+rustup install stable
 ```
 
 After that, use `cargo`, the standard Rust build tool, to build the library:
 ```bash
 git clone https://github.com/scipr-lab/zexe.git
 cd zexe/dpc
-cargo +nightly build --release
+cargo build --release
 ```
 
 This library comes with unit tests for each of the provided crates. Run the tests with:
@@ -61,9 +61,9 @@ Lastly, this library comes with benchmarks for the following crates:
 - [`algebra`](algebra)
 - [`dpc`](dpc)
 
-To perform the benchmarks, run the following command:
+These benchmarks require the nightly Rust toolchain; to install this, run `rustup install nightly`. Then, to run benchmarks, run the following command:
 ```bash
-cargo bench
+cargo +nightly bench
 ```
 
 ## License
