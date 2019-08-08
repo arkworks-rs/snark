@@ -11,7 +11,6 @@ impl VariableBaseMSM {
         bases: &[G],
         scalars: &[<<G::Engine as PairingEngine>::Fr as PrimeField>::BigInt],
     ) -> <G as AffineCurve>::Projective {
-        assert_eq!(bases.len(), scalars.len());
         let c = if scalars.len() < 32 {
             3
         } else {
@@ -106,8 +105,6 @@ mod test {
         bases: &[G],
         scalars: &[<G::ScalarField as PrimeField>::BigInt],
     ) -> G::Projective {
-        assert_eq!(bases.len(), scalars.len());
-
         let mut acc = G::Projective::zero();
 
         for (base, scalar) in bases.iter().zip(scalars.iter()) {
@@ -123,6 +120,26 @@ mod test {
         let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         let v = (0..SAMPLES)
+            .map(|_| <Bls12_381 as PairingEngine>::Fr::rand(&mut rng).into_repr())
+            .collect::<Vec<_>>();
+        let g = (0..SAMPLES)
+            .map(|_| <Bls12_381 as PairingEngine>::G1Projective::rand(&mut rng).into_affine())
+            .collect::<Vec<_>>();
+
+        let naive = naive_var_base_msm(g.as_slice(), v.as_slice());
+        let fast = VariableBaseMSM::multi_scalar_mul(g.as_slice(), v.as_slice());
+
+        assert_eq!(naive.into_affine(), fast.into_affine());
+    }
+
+
+    #[test]
+    fn test_with_bls12_unequal_numbers() {
+        const SAMPLES: usize = 1 << 10;
+
+        let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+
+        let v = (0..SAMPLES-1)
             .map(|_| <Bls12_381 as PairingEngine>::Fr::rand(&mut rng).into_repr())
             .collect::<Vec<_>>();
         let g = (0..SAMPLES)

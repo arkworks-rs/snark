@@ -27,13 +27,16 @@ pub trait Fp384Parameters: FpParameters<BigInt = BigInteger> {}
     Eq(bound = "P: Fp384Parameters")
 )]
 pub struct Fp384<P: Fp384Parameters>(
-    pub(crate) BigInteger,
-    #[derivative(Debug = "ignore")] PhantomData<P>,
+    pub BigInteger,
+
+    #[derivative(Debug = "ignore")]
+    #[doc(hidden)]
+    pub PhantomData<P>,
 );
 
 impl<P: Fp384Parameters> Fp384<P> {
     #[inline]
-    pub const fn new(element: BigInteger) -> Self {
+    pub fn new(element: BigInteger) -> Self {
         Fp384::<P>(element, PhantomData)
     }
 

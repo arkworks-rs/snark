@@ -45,11 +45,12 @@ pub struct Fp3<P: Fp3Parameters> {
     pub c1: P::Fp,
     pub c2: P::Fp,
     #[derivative(Debug = "ignore")]
-    _parameters: PhantomData<P>,
+    #[doc(hidden)]
+    pub _parameters: PhantomData<P>,
 }
 
 impl<P: Fp3Parameters> Fp3<P> {
-    pub const fn new(c0: P::Fp, c1: P::Fp, c2: P::Fp) -> Self {
+    pub fn new(c0: P::Fp, c1: P::Fp, c2: P::Fp) -> Self {
         Fp3 {
             c0,
             c1,
@@ -77,7 +78,7 @@ impl<P: Fp3Parameters> Fp3<P> {
 
     // Returns the value of QNR^T.
     #[inline]
-    pub const fn qnr_to_t() -> Self {
+    pub fn qnr_to_t() -> Self {
         Self::new(
             P::QUADRATIC_NONRESIDUE_TO_T.0,
             P::QUADRATIC_NONRESIDUE_TO_T.1,

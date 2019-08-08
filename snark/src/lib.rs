@@ -23,16 +23,8 @@
     unused_comparisons,
     bare_trait_objects
 )]
-#![deny(
-    const_err,
-    unused_must_use,
-    unused_mut,
-    unused_unsafe,
-    private_in_public,
-    unsafe_code
-)]
+#![deny(const_err, unused_must_use, unused_mut, unused_unsafe, private_in_public)]
 #![forbid(unsafe_code)]
-#![feature(is_sorted)]
 
 #[macro_use]
 extern crate bench_utils;
@@ -193,7 +185,6 @@ impl<E: PairingEngine> AddAssign<(E::Fr, Variable)> for LinearCombination<E> {
             Ok(found) => self.0[found].1 += &coeff,
             Err(not_found) => self.0.insert(not_found, (var, coeff)),
         }
-        debug_assert!(self.0.iter().is_sorted_by_key(|&(cur_var, _)| cur_var));
     }
 }
 
@@ -284,7 +275,6 @@ where
         new_vec.push((other.0[j].0, push_fn(other.0[j].1)));
         j += 1;
     }
-    debug_assert!(new_vec.iter().is_sorted_by_key(|&(cur_var, _)| cur_var));
     LinearCombination(new_vec)
 }
 

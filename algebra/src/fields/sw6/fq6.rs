@@ -1,3 +1,4 @@
+use crate::field_new;
 use crate::{
     biginteger::BigInteger832 as BigInteger,
     fields::{
@@ -17,8 +18,8 @@ impl Fp6Parameters for Fq6Parameters {
     type Fp3Params = Fq3Parameters;
 
     /// NONRESIDUE = 13
-    const NONRESIDUE: Fq3 = Fq3::new(
-        Fq::new(BigInteger([
+    const NONRESIDUE: Fq3 = field_new!(Fq3,
+        field_new!(Fq, BigInteger([
             0xe755952f4650755e,
             0x16c44ce1331ef791,
             0x162f8835b467306f,
@@ -33,16 +34,16 @@ impl Fp6Parameters for Fq6Parameters {
             0xa5840728fc854414,
             0x2dc4,
         ])),
-        Fq::new(BigInteger([
+        field_new!(Fq, BigInteger([
             0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
         ])),
-        Fq::new(BigInteger([
+        field_new!(Fq, BigInteger([
             0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
         ])),
     );
 
     const FROBENIUS_COEFF_FP6_C1: [Fq; 6] = [
-        Fq::new(BigInteger([
+        field_new!(Fq, BigInteger([
             0x9b4e60b420910c71,
             0xe068d7c83f284a6e,
             0x1f708acc7c452c43,
@@ -57,7 +58,7 @@ impl Fp6Parameters for Fq6Parameters {
             0xd92c8b4aab19f288,
             0x21d3,
         ])),
-        Fq::new(BigInteger([
+        field_new!(Fq, BigInteger([
             0x82e248051c9d1c4d,
             0x9364dbda272d0ed,
             0xfdcf25dede306877,
@@ -72,7 +73,7 @@ impl Fp6Parameters for Fq6Parameters {
             0x33f7fc08b12d9590,
             0x338f,
         ])),
-        Fq::new(BigInteger([
+        field_new!(Fq, BigInteger([
             0xe793e750fc0c0fdc,
             0x28cd75f5634a867e,
             0xde5e9b1261eb3c33,
@@ -87,7 +88,7 @@ impl Fp6Parameters for Fq6Parameters {
             0x5acb70be0613a307,
             0x11bb,
         ])),
-        Fq::new(BigInteger([
+        field_new!(Fq, BigInteger([
             0x3f8019015b031e78,
             0x73f4adf92ed4f7dc,
             0xcea2d139e307fa73,
@@ -102,7 +103,7 @@ impl Fp6Parameters for Fq6Parameters {
             0xeba59af100dea197,
             0x1674,
         ])),
-        Fq::new(BigInteger([
+        field_new!(Fq, BigInteger([
             0x57ec31b05ef70e9c,
             0x4b273803cb8a715d,
             0xf0443627811cbe40,
@@ -117,7 +118,7 @@ impl Fp6Parameters for Fq6Parameters {
             0x90da2a32facafe8f,
             0x4b9,
         ])),
-        Fq::new(BigInteger([
+        field_new!(Fq, BigInteger([
             0xf33a92647f881b0d,
             0x2b900fcc0ab2bbcb,
             0xfb4c0f3fd61ea84,

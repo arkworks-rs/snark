@@ -42,11 +42,12 @@ pub struct Fp6<P: Fp6Parameters> {
     pub c1: Fp2<P::Fp2Params>,
     pub c2: Fp2<P::Fp2Params>,
     #[derivative(Debug = "ignore")]
+    #[doc(hidden)]
     pub params: PhantomData<P>,
 }
 
 impl<P: Fp6Parameters> Fp6<P> {
-    pub const fn new(c0: Fp2<P::Fp2Params>, c1: Fp2<P::Fp2Params>, c2: Fp2<P::Fp2Params>) -> Self {
+    pub fn new(c0: Fp2<P::Fp2Params>, c1: Fp2<P::Fp2Params>, c2: Fp2<P::Fp2Params>) -> Self {
         Self {
             c0,
             c1,

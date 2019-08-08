@@ -35,7 +35,7 @@ impl<P: Parameters> Display for GroupAffine<P> {
 }
 
 impl<P: Parameters> GroupAffine<P> {
-    pub const fn new(x: P::BaseField, y: P::BaseField) -> Self {
+    pub fn new(x: P::BaseField, y: P::BaseField) -> Self {
         Self {
             x,
             y,
@@ -350,7 +350,7 @@ impl<P: Parameters> Default for GroupProjective<P> {
 }
 
 impl<P: Parameters> GroupProjective<P> {
-    pub const fn new(x: P::BaseField, y: P::BaseField, t: P::BaseField, z: P::BaseField) -> Self {
+    pub fn new(x: P::BaseField, y: P::BaseField, t: P::BaseField, z: P::BaseField) -> Self {
         Self {
             x,
             y,

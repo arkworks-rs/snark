@@ -1,4 +1,5 @@
 use crate::{
+    field_new,
     biginteger::BigInteger384 as BigInteger,
     fields::{
         bls12_377::fq::Fq,
@@ -15,7 +16,7 @@ impl Fp2Parameters for Fq2Parameters {
     type Fp = Fq;
 
     /// NONRESIDUE = -5
-    const NONRESIDUE: Fq = Fq::new(BigInteger([
+    const NONRESIDUE: Fq = field_new!(Fq, BigInteger([
         0xfc0b8000000002fa,
         0x97d39cf6e000018b,
         0x2072420fbfa05044,
@@ -26,8 +27,8 @@ impl Fp2Parameters for Fq2Parameters {
 
     /// QUADRATIC_NONRESIDUE = U
     const QUADRATIC_NONRESIDUE: (Fq, Fq) = (
-        Fq::new(BigInteger([0, 0, 0, 0, 0, 0])),
-        Fq::new(BigInteger([
+        field_new!(Fq, BigInteger([0, 0, 0, 0, 0, 0])),
+        field_new!(Fq, BigInteger([
             202099033278250856u64,
             5854854902718660529u64,
             11492539364873682930u64,
@@ -40,7 +41,7 @@ impl Fp2Parameters for Fq2Parameters {
     /// Coefficients for the Frobenius automorphism.
     const FROBENIUS_COEFF_FP2_C1: [Fq; 2] = [
         // NONRESIDUE**(((q^0) - 1) / 2)
-        Fq::new(BigInteger([
+        field_new!(Fq, BigInteger([
             0x2cdffffffffff68,
             0x51409f837fffffb1,
             0x9f7db3a98a7d3ff2,
@@ -49,7 +50,7 @@ impl Fp2Parameters for Fq2Parameters {
             0x8d6661e2fdf49a,
         ])),
         // NONRESIDUE**(((q^1) - 1) / 2)
-        Fq::new(BigInteger([
+        field_new!(Fq, BigInteger([
             0x823ac00000000099,
             0xc5cabdc0b000004f,
             0x7f75ae862f8c080d,
