@@ -26,8 +26,6 @@ byteorder = { version = "1" }
 rand = { version = "0.4" }
 derivative = { version = "1" }
 
-failure = { version = "0.1.1" }
-
 colored = { version = "1", optional = true }
 rayon = { version = "1", optional = true }
 clippy = { version = "*", optional = true }
