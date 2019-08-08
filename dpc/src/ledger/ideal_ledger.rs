@@ -1,4 +1,4 @@
-use failure::Error;
+use crate::Error;
 use rand::Rng;
 use std::{
     collections::{HashMap, HashSet},
@@ -15,16 +15,32 @@ use crate::{
 };
 use algebra::bytes::ToBytes;
 
-#[derive(Debug, Fail)]
+#[derive(Debug)]
 pub enum LedgerError {
-    #[fail(display = "duplicate sn pushed to ledger")]
     DuplicateSn,
-    #[fail(display = "invalid cm pushed to ledger")]
-    InvalidCm,
-    #[fail(display = "duplicate memo pushed to ledger.")]
     DuplicateMemo,
-    #[fail(display = "invalid cm index during proving.")]
+    InvalidCm,
     InvalidCmIndex,
+}
+
+impl std::fmt::Display for LedgerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let msg = match self {
+            LedgerError::DuplicateSn => "duplicate sn pushed to ledger",
+            LedgerError::DuplicateMemo => "duplicate memo pushed to ledger",
+            LedgerError::InvalidCm => "invalid cm pushed to ledger",
+            LedgerError::InvalidCmIndex => "invalid cm index during proving",
+
+        };
+        write!(f, "{}", msg)
+    }
+}
+
+impl std::error::Error for LedgerError {
+    #[inline]
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        None
+    }
 }
 
 #[derive(Derivative)]

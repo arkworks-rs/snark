@@ -1,7 +1,30 @@
 use crate::{config::MAX_MERKLE_TREE_HEIGHT, crypto_primitives::crh::FixedLengthCRH};
 use algebra::bytes::ToBytes;
-use failure::{format_err, Error};
+use crate::Error;
 use std::{fmt, marker::PhantomData, rc::Rc};
+
+#[derive(Debug)]
+pub enum MHTError {
+    IncorrectLeafIndex(usize),
+    IncorrectPathLength(usize),
+}
+
+impl std::fmt::Display for MHTError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let msg = match self {
+            MHTError::IncorrectLeafIndex(index) => format!("incorrect leaf index: {}", index),
+            MHTError::IncorrectPathLength(len) => format!("incorrect path length: {}", len),
+        };
+        write!(f, "{}", msg)
+    }
+}
+
+impl std::error::Error for MHTError {
+    #[inline]
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        None
+    }
+}
 
 /// Returns the log2 value of the given number.
 #[inline]
@@ -290,7 +313,7 @@ impl<H: FixedLengthCRH, L: ToBytes + Eq + Clone> MerkleHashTree<H, L> {
 
         // Check that the given index corresponds to the correct leaf.
         if leaf_hash != self.tree[tree_index] {
-            return Err(format_err!("incorrect leaf index."));
+            Err(MHTError::IncorrectLeafIndex(tree_index))?
         }
 
         // Iterate from the leaf up to the root, storing all intermediate hash values.
@@ -320,7 +343,7 @@ impl<H: FixedLengthCRH, L: ToBytes + Eq + Clone> MerkleHashTree<H, L> {
         }
         timer_end!(prove_time);
         if path.len() != (Self::MAX_HEIGHT - 1) as usize {
-            return Err(format_err!("incorrect path length."));
+            Err(MHTError::IncorrectPathLength(path.len()))?
         } else {
             Ok(HashMembershipProof {
                 path,

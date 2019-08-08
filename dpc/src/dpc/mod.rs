@@ -1,4 +1,4 @@
-use failure::Error;
+use crate::Error;
 use rand::Rng;
 use std::hash::Hash;
 

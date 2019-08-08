@@ -48,9 +48,6 @@ extern crate bench_utils;
 #[macro_use]
 extern crate derivative;
 
-#[macro_use]
-extern crate failure_derive;
-
 pub mod common;
 pub mod config;
 pub mod crypto_primitives;
@@ -58,5 +55,7 @@ pub(crate) mod dpc;
 pub mod gadgets;
 pub mod ledger;
 pub mod predicates;
+
+pub type Error  = Box<dyn std::error::Error>;
 
 pub use crate::dpc::*;

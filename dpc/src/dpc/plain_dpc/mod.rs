@@ -1,5 +1,5 @@
 use algebra::{to_bytes, PairingEngine};
-use failure::{format_err, Error};
+use crate::Error;
 use rand::{Rand, Rng};
 use std::marker::PhantomData;
 
@@ -508,7 +508,7 @@ impl<Components: PlainDPCComponents> DPC<Components> {
         };
         timer_end!(pred_hash_comm_timer);
 
-        let ledger_digest = ledger.digest().ok_or(format_err!("could not get digest"))?;
+        let ledger_digest = ledger.digest().expect("could not get digest");
 
         let context = ExecuteContext {
             comm_and_crh_pp: parameters,

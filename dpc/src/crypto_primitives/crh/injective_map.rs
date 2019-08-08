@@ -1,6 +1,6 @@
 use crate::crypto_primitives::CryptoError;
 use algebra::bytes::ToBytes;
-use failure::Error;
+use crate::Error;
 use rand::Rng;
 use std::{fmt::Debug, hash::Hash, marker::PhantomData};
 

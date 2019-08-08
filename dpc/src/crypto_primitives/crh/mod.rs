@@ -5,7 +5,7 @@ use std::hash::Hash;
 pub mod injective_map;
 pub mod pedersen;
 
-use failure::Error;
+use crate::Error;
 
 pub trait FixedLengthCRH {
     const INPUT_SIZE_BITS: usize;

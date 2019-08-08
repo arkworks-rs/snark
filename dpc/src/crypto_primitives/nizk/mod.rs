@@ -4,7 +4,7 @@ use rand::Rng;
 pub mod gm17;
 pub use self::gm17::Gm17;
 
-use failure::Error;
+use crate::Error;
 
 pub trait NIZK {
     type Circuit;

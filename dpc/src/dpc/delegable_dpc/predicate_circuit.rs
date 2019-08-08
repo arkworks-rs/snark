@@ -12,7 +12,7 @@ use algebra::{bytes::ToBytes, utils::ToEngineFr, PairingEngine};
 // We'll use these interfaces to construct our circuit.
 use snark::{Circuit, ConstraintSystem, SynthesisError};
 
-use failure::Error;
+use crate::Error;
 
 pub struct PredicateHashInput<C: DelegableDPCComponents> {
     pub old_rec_comms:      Vec<<C::RecC as CommitmentScheme>::Output>,
