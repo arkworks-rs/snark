@@ -1794,8 +1794,8 @@ mod test {
         {
             let mut cs = TestConstraintSystem::<Bls12_381>::new();
 
-            Boolean::enforce_nand(&mut cs, &[Boolean::constant(false)]).is_ok();
-            Boolean::enforce_nand(&mut cs, &[Boolean::constant(true)]).is_err();
+            assert!(Boolean::enforce_nand(&mut cs, &[Boolean::constant(false)]).is_ok());
+            assert!(Boolean::enforce_nand(&mut cs, &[Boolean::constant(true)]).is_err());
         }
 
         for i in 1..5 {
