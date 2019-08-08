@@ -8,7 +8,8 @@ use crate::{
     },
     Fp2, Fp2Parameters, FpParameters, PairingEngine, PrimeField, SquareRootField,
 };
-use failure::Error;
+
+type Error = Box<dyn std::error::Error>;
 
 pub trait ToEngineFr<E: PairingEngine> {
     fn to_engine_fr(&self) -> Result<Vec<E::Fr>, Error>;

@@ -18,15 +18,15 @@ pub trait Fp256Parameters: FpParameters<BigInt = BigInteger> {}
 
 #[derive(Derivative)]
 #[derivative(
-    Default(bound = "P: Fp256Parameters"),
-    Hash(bound = "P: Fp256Parameters"),
-    Clone(bound = "P: Fp256Parameters"),
-    Copy(bound = "P: Fp256Parameters"),
-    Debug(bound = "P: Fp256Parameters"),
-    PartialEq(bound = "P: Fp256Parameters"),
-    Eq(bound = "P: Fp256Parameters")
+    Default(bound = ""),
+    Hash(bound = ""),
+    Clone(bound = ""),
+    Copy(bound = ""),
+    Debug(bound = ""),
+    PartialEq(bound = ""),
+    Eq(bound = "")
 )]
-pub struct Fp256<P: Fp256Parameters>(
+pub struct Fp256<P>(
     pub BigInteger,
 
     #[derivative(Debug = "ignore")]
