@@ -7,7 +7,7 @@ pub mod blake2s;
 pub mod injective_map;
 pub mod pedersen;
 
-use failure::Error;
+use crate::Error;
 
 pub trait CommitmentScheme {
     type Output: ToBytes + Clone + Default + Eq + Hash + Debug;

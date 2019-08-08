@@ -11,7 +11,7 @@ use algebra::{bytes::ToBytes, utils::ToEngineFr, PairingEngine};
 
 use snark::{Circuit, ConstraintSystem, SynthesisError};
 
-use failure::Error;
+use crate::Error;
 
 pub struct PredicateHashInput<C: PlainDPCComponents> {
     pub old_rec_comms:      Vec<<C::RecC as CommitmentScheme>::Output>,

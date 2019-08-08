@@ -17,7 +17,7 @@ use snark::{
     SynthesisError
 };
 
-use failure::Error;
+use crate::Error;
 
 pub struct ConserveCircuit<C: PlainDPCComponents> {
     // Parameters

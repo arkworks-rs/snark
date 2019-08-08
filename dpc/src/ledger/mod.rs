@@ -1,6 +1,6 @@
 use crate::dpc::Transaction;
 use algebra::bytes::ToBytes;
-use failure::Error;
+use crate::Error;
 use rand::Rng;
 
 pub mod ideal_ledger;

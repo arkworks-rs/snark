@@ -1,5 +1,5 @@
 use algebra::{bytes::ToBytes, to_bytes, PairingEngine};
-use failure::Error;
+use crate::Error;
 use snark::{Circuit, ConstraintSystem, SynthesisError};
 
 use crate::{

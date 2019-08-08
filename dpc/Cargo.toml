@@ -34,9 +34,6 @@ rand = "0.4"
 derivative = "1"
 rayon = "1"
 
-failure = { version = "0.1.1" }
-failure_derive = { version = "0.1.1" }
-
 clippy = { version = "*", optional = true }
 
 [dev-dependencies]

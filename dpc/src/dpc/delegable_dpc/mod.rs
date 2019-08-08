@@ -1,7 +1,6 @@
 use algebra::{to_bytes, PairingEngine};
-use failure::{format_err, Error};
+use crate::Error;
 use rand::{Rand, Rng};
-use rayon::prelude::*;
 use std::marker::PhantomData;
 
 use crate::{
@@ -532,7 +531,7 @@ impl<Components: DelegableDPCComponents> DPC<Components> {
         };
         timer_end!(pred_hash_comm_timer);
 
-        let ledger_digest = ledger.digest().ok_or(format_err!("could not get digest"))?;
+        let ledger_digest = ledger.digest().expect("could not get digest");
 
         let context = ExecuteContext {
             comm_crh_sig_pp: parameters,
@@ -839,18 +838,10 @@ where
 
         let sig_time = timer_start!(|| "Signature verification (in parallel)");
         let sig_pp = &parameters.comm_crh_sig_pp.sig_pp;
-        let sigs_check = transaction
-            .old_serial_numbers()
-            .par_iter()
-            .zip(&transaction.stuff.signatures)
-            .map(|(pk, sig)| Components::S::verify(sig_pp, pk, signature_message, sig))
-            .reduce(
-                || Ok(true),
-                |a, b| a.and_then(|a_val| b.map(|b_val| a_val && b_val)),
-            );
+        for (pk, sig) in  transaction.old_serial_numbers().iter().zip(&transaction.stuff.signatures) {
+            result &= Components::S::verify(sig_pp, pk, signature_message, sig)?;
+        }
         timer_end!(sig_time);
-        result &= sigs_check?;
-
         timer_end!(verify_time);
         Ok(result)
     }

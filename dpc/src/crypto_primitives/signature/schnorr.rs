@@ -6,7 +6,7 @@ use algebra::{
     to_bytes,
 };
 use digest::Digest;
-use failure::Error;
+use crate::Error;
 use rand::{Rand, Rng};
 use std::{
     hash::Hash,
