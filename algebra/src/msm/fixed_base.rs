@@ -75,9 +75,6 @@ impl FixedBaseMSM {
         let outerc = (scalar_size + window - 1) / window;
         assert!(outerc <= table.len());
 
-        let num_chunks = rayon::current_num_threads();
-        v.par_chunks(num_chunks).flat_map(|chunk| {
-            chunk.iter().map(|e| Self::windowed_mul::<T>(outerc, window, table, e)).collect::<Vec<_>>()
-        }).collect::<Vec<_>>()
+        v.par_iter().map(|e| Self::windowed_mul::<T>(outerc, window, table, e)).collect::<Vec<_>>()
     }
 }
