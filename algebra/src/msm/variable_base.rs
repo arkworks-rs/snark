@@ -1,5 +1,5 @@
 use crate::{
-    AffineCurve, BigInteger, Field, FpParameters, PairingCurve, PairingEngine, PrimeField,
+    AffineCurve, BigInteger, Field, FpParameters, PrimeField,
     ProjectiveCurve,
 };
 use rayon::prelude::*;
@@ -7,19 +7,19 @@ use rayon::prelude::*;
 pub struct VariableBaseMSM;
 
 impl VariableBaseMSM {
-    fn msm_inner<G: PairingCurve>(
+    fn msm_inner<G: AffineCurve>(
         bases: &[G],
-        scalars: &[<<G::Engine as PairingEngine>::Fr as PrimeField>::BigInt],
-    ) -> <G as AffineCurve>::Projective {
+        scalars: &[<G::ScalarField as PrimeField>::BigInt],
+    ) -> G::Projective {
         let c = if scalars.len() < 32 {
             3
         } else {
-            (f64::from(scalars.len() as u32)).ln().ceil() as usize
+            (2.0 / 3.0 * (f64::from(scalars.len() as u32)).log2() + 2.0).ceil() as usize
         };
 
         let num_bits =
-            <<G::Engine as PairingEngine>::Fr as PrimeField>::Params::MODULUS_BITS as usize;
-        let fr_one = <G::Engine as PairingEngine>::Fr::one().into_repr();
+            <G::ScalarField as PrimeField>::Params::MODULUS_BITS as usize;
+        let fr_one = G::ScalarField::one().into_repr();
 
         let zero = G::zero().into_projective();
         let window_starts: Vec<_> = (0..num_bits).step_by(c).collect();
@@ -33,10 +33,7 @@ impl VariableBaseMSM {
                 let mut res = zero;
                 // We don't need the "zero" bucket, so we only have 2^c - 1 buckets
                 let mut buckets = vec![zero; (1 << c) - 1];
-                for (&scalar, base) in scalars.iter().zip(bases) {
-                    if scalar.is_zero() {
-                        continue;
-                    }
+                scalars.iter().zip(bases).filter(|(s, _)| !s.is_zero()).for_each(|(&scalar, base)|  {
                     if scalar == fr_one {
                         // We only process unit scalars once in the first window.
                         if w_start == 0 {
@@ -57,14 +54,14 @@ impl VariableBaseMSM {
                         // (Recall that `buckets` doesn't have a zero bucket.)
                         if scalar != 0 {
                             buckets[(scalar - 1) as usize].add_assign_mixed(&base);
-                        } else {
-                            continue;
                         }
                     }
-                }
+                });
+                G::Projective::batch_normalization(&mut buckets);
+
                 let mut running_sum = G::Projective::zero();
-                for b in buckets.iter().rev() {
-                    running_sum += &b;
+                for b in buckets.into_iter().map(|g| g.into_affine()).rev() {
+                    running_sum.add_assign_mixed(&b);
                     res += &running_sum;
                 }
 
@@ -73,24 +70,22 @@ impl VariableBaseMSM {
             .collect();
 
         // We store the sum for the lowest window.
-        let lowest = *window_sums.first().unwrap();
+        let lowest = window_sums.first().unwrap();
 
         // We're traversing windows from high to low.
-        let num_windows = window_sums.len();
-        let mut total = zero;
-        for i in (1..num_windows).rev() {
-            total += &window_sums[i];
+        window_sums[1..].iter().rev().fold(zero, |mut total, sum_i| {
+            total += sum_i;
             for _ in 0..c {
                 total.double_in_place();
             }
-        }
-        total + &lowest
+            total
+        }) + lowest
     }
 
-    pub fn multi_scalar_mul<G: PairingCurve>(
+    pub fn multi_scalar_mul<G: AffineCurve>(
         bases: &[G],
-        scalars: &[<<G::Engine as PairingEngine>::Fr as PrimeField>::BigInt],
-    ) -> <G as AffineCurve>::Projective {
+        scalars: &[<G::ScalarField as PrimeField>::BigInt],
+    ) -> G::Projective {
         Self::msm_inner(bases, scalars)
     }
 }
@@ -98,7 +93,8 @@ impl VariableBaseMSM {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::curves::bls12_381::Bls12_381;
+    use crate::curves::bls12_381::G1Projective;
+    use crate::fields::bls12_381::Fr;
     use rand::{self, Rand, SeedableRng, XorShiftRng};
 
     fn naive_var_base_msm<G: AffineCurve>(
@@ -120,10 +116,10 @@ mod test {
         let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         let v = (0..SAMPLES)
-            .map(|_| <Bls12_381 as PairingEngine>::Fr::rand(&mut rng).into_repr())
+            .map(|_| Fr::rand(&mut rng).into_repr())
             .collect::<Vec<_>>();
         let g = (0..SAMPLES)
-            .map(|_| <Bls12_381 as PairingEngine>::G1Projective::rand(&mut rng).into_affine())
+            .map(|_| G1Projective::rand(&mut rng).into_affine())
             .collect::<Vec<_>>();
 
         let naive = naive_var_base_msm(g.as_slice(), v.as_slice());
@@ -140,10 +136,10 @@ mod test {
         let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         let v = (0..SAMPLES-1)
-            .map(|_| <Bls12_381 as PairingEngine>::Fr::rand(&mut rng).into_repr())
+            .map(|_| Fr::rand(&mut rng).into_repr())
             .collect::<Vec<_>>();
         let g = (0..SAMPLES)
-            .map(|_| <Bls12_381 as PairingEngine>::G1Projective::rand(&mut rng).into_affine())
+            .map(|_| G1Projective::rand(&mut rng).into_affine())
             .collect::<Vec<_>>();
 
         let naive = naive_var_base_msm(g.as_slice(), v.as_slice());

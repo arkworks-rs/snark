@@ -237,17 +237,17 @@ where
 
     // Compute the A-query
     let a_time = timer_start!(|| "Calculate A");
-    let mut a_query = FixedBaseMSM::batch_mul::<E, E::G1Projective>(
+    let mut a_query = FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(
         scalar_bits,
         g_window,
         &g_table,
-        &a.par_iter().map(|a| *a * &gamma).collect(),
+        &a.par_iter().map(|a| *a * &gamma).collect::<Vec<_>>(),
     );
     timer_end!(a_time);
 
     // Compute the B-query
     let b_time = timer_start!(|| "Calculate B");
-    let mut b_query = FixedBaseMSM::batch_mul::<E, E::G2Projective>(
+    let mut b_query = FixedBaseMSM::multi_scalar_mul::<E::G2Projective>(
         scalar_bits,
         h_gamma_window,
         &h_gamma_table,
@@ -268,27 +268,27 @@ where
 
     // Compute the vector G_gamma2_z_t := Z(t) * t^i * gamma^2 * G
     let gamma2_z_t = gamma_z * &gamma;
-    let mut g_gamma2_z_t = FixedBaseMSM::batch_mul::<E, E::G1Projective>(
+    let mut g_gamma2_z_t = FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(
         scalar_bits,
         g_window,
         &g_table,
         &(0..m_raw + 1)
             .into_par_iter()
             .map(|i| gamma2_z_t * &(t.pow([i as u64])))
-            .collect(),
+            .collect::<Vec<_>>(),
     );
     timer_end!(g_gamma_time);
 
     // Compute the C_1-query
     let c1_time = timer_start!(|| "Calculate C1");
-    let result = FixedBaseMSM::batch_mul::<E, E::G1Projective>(
+    let result = FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(
         scalar_bits,
         g_window,
         &g_table,
         &(0..sap_num_variables + 1)
             .into_par_iter()
             .map(|i| c[i] * &gamma + &(a[i] * &alpha_beta))
-            .collect(),
+            .collect::<Vec<_>>(),
     );
     let (verifier_query, c_query_1) = result.split_at(assembly.num_inputs);
     timer_end!(c1_time);
@@ -296,14 +296,14 @@ where
     // Compute the C_2-query
     let c2_time = timer_start!(|| "Calculate C2");
     let double_gamma2_z = (zt * &gamma.square()).double();
-    let mut c_query_2 = FixedBaseMSM::batch_mul::<E, E::G1Projective>(
+    let mut c_query_2 = FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(
         scalar_bits,
         g_window,
         &g_table,
         &(0..sap_num_variables + 1)
             .into_par_iter()
             .map(|i| a[i] * &double_gamma2_z)
-            .collect(),
+            .collect::<Vec<_>>(),
     );
     timer_end!(c2_time);
 
