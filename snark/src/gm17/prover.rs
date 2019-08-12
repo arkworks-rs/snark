@@ -22,7 +22,7 @@ type CoeffVec<T> = SmallVec<[T; 2]>;
 
 #[inline]
 fn eval<E: PairingEngine>(
-    lc: &LinearCombination<E>,
+    lc: &LinearCombination<E::Fr>,
     constraints: &mut [CoeffVec<(E::Fr, Index)>],
     input_assignment: &[E::Fr],
     aux_assignment: &[E::Fr],
@@ -88,7 +88,7 @@ impl<E: PairingEngine> ProvingAssignment<E> {
     }
 }
 
-impl<E: PairingEngine> ConstraintSystem<E> for ProvingAssignment<E> {
+impl<E: PairingEngine> ConstraintSystem<E::Fr> for ProvingAssignment<E> {
     type Root = Self;
 
     #[inline]
@@ -124,29 +124,29 @@ impl<E: PairingEngine> ConstraintSystem<E> for ProvingAssignment<E> {
     where
         A: FnOnce() -> AR,
         AR: Into<String>,
-        LA: FnOnce(LinearCombination<E>) -> LinearCombination<E>,
-        LB: FnOnce(LinearCombination<E>) -> LinearCombination<E>,
-        LC: FnOnce(LinearCombination<E>) -> LinearCombination<E>,
+        LA: FnOnce(LinearCombination<E::Fr>) -> LinearCombination<E::Fr>,
+        LB: FnOnce(LinearCombination<E::Fr>) -> LinearCombination<E::Fr>,
+        LC: FnOnce(LinearCombination<E::Fr>) -> LinearCombination<E::Fr>,
     {
         self.at.push(CoeffVec::new());
         self.bt.push(CoeffVec::new());
         self.ct.push(CoeffVec::new());
 
-        self.a.push(Scalar(eval(
+        self.a.push(Scalar(eval::<E>(
             &a(LinearCombination::zero()),
             &mut self.at,
             &self.input_assignment,
             &self.aux_assignment,
             self.num_constraints,
         )));
-        self.b.push(Scalar(eval(
+        self.b.push(Scalar(eval::<E>(
             &b(LinearCombination::zero()),
             &mut self.bt,
             &self.input_assignment,
             &self.aux_assignment,
             self.num_constraints,
         )));
-        self.c.push(Scalar(eval(
+        self.c.push(Scalar(eval::<E>(
             &c(LinearCombination::zero()),
             &mut self.ct,
             &self.input_assignment,
@@ -185,7 +185,7 @@ pub fn create_random_proof<E, C, R>(
 ) -> Result<Proof<E>, SynthesisError>
 where
     E: PairingEngine,
-    C: Circuit<E>,
+    C: Circuit<E::Fr>,
     R: Rng,
 {
     let d1 = rng.gen();
@@ -204,7 +204,7 @@ pub fn create_proof<E, C>(
 ) -> Result<Proof<E>, SynthesisError>
 where
     E: PairingEngine,
-    C: Circuit<E>,
+    C: Circuit<E::Fr>,
 {
     let prover_time = timer_start!(|| "Prover");
     let mut prover = ProvingAssignment {
@@ -230,7 +230,7 @@ where
     timer_end!(synthesis_time);
 
     let witness_map_time = timer_start!(|| "R1CS to SAP witness map");
-    let (full_input_assignment, h, _) = R1CStoSAP::witness_map(&prover, &d1, &d2)?;
+    let (full_input_assignment, h, _) = R1CStoSAP::witness_map::<E>(&prover, &d1, &d2)?;
     timer_end!(witness_map_time);
 
     let input_assignment = Arc::new(

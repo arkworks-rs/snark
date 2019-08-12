@@ -21,7 +21,7 @@ pub fn generate_random_parameters<E, C, R>(
 ) -> Result<Parameters<E>, SynthesisError>
 where
     E: PairingEngine,
-    C: Circuit<E>,
+    C: Circuit<E::Fr>,
     R: Rng,
 {
     let alpha = rng.gen();
@@ -44,7 +44,7 @@ pub struct KeypairAssembly<E: PairingEngine> {
     pub(crate) ct:              Vec<Vec<(E::Fr, Index)>>,
 }
 
-impl<E: PairingEngine> ConstraintSystem<E> for KeypairAssembly<E> {
+impl<E: PairingEngine> ConstraintSystem<E::Fr> for KeypairAssembly<E> {
     type Root = Self;
 
     #[inline]
@@ -83,12 +83,12 @@ impl<E: PairingEngine> ConstraintSystem<E> for KeypairAssembly<E> {
     where
         A: FnOnce() -> AR,
         AR: Into<String>,
-        LA: FnOnce(LinearCombination<E>) -> LinearCombination<E>,
-        LB: FnOnce(LinearCombination<E>) -> LinearCombination<E>,
-        LC: FnOnce(LinearCombination<E>) -> LinearCombination<E>,
+        LA: FnOnce(LinearCombination<E::Fr>) -> LinearCombination<E::Fr>,
+        LB: FnOnce(LinearCombination<E::Fr>) -> LinearCombination<E::Fr>,
+        LC: FnOnce(LinearCombination<E::Fr>) -> LinearCombination<E::Fr>,
     {
         fn eval<E: PairingEngine>(
-            l: LinearCombination<E>,
+            l: LinearCombination<E::Fr>,
             constraints: &mut [Vec<(E::Fr, Index)>],
             this_constraint: usize,
         ) {
@@ -104,17 +104,17 @@ impl<E: PairingEngine> ConstraintSystem<E> for KeypairAssembly<E> {
         self.bt.push(vec![]);
         self.ct.push(vec![]);
 
-        eval(
+        eval::<E>(
             a(LinearCombination::zero()),
             &mut self.at,
             self.num_constraints,
         );
-        eval(
+        eval::<E>(
             b(LinearCombination::zero()),
             &mut self.bt,
             self.num_constraints,
         );
-        eval(
+        eval::<E>(
             c(LinearCombination::zero()),
             &mut self.ct,
             self.num_constraints,
@@ -156,7 +156,7 @@ pub fn generate_parameters<E, C, R>(
 ) -> Result<Parameters<E>, SynthesisError>
 where
     E: PairingEngine,
-    C: Circuit<E>,
+    C: Circuit<E::Fr>,
     R: Rng,
 {
     let mut assembly = KeypairAssembly {
@@ -197,7 +197,7 @@ where
 
     let reduction_time = timer_start!(|| "R1CS to SAP Instance Map with Evaluation");
     let (a, c, zt, sap_num_variables, m_raw) =
-        R1CStoSAP::instance_map_with_evaluation(&assembly, &t)?;
+        R1CStoSAP::instance_map_with_evaluation::<E>(&assembly, &t)?;
     timer_end!(reduction_time);
 
     // Compute query densities

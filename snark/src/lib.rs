@@ -31,7 +31,7 @@ extern crate bench_utils;
 
 pub mod gm17;
 
-use algebra::{Field, PairingEngine};
+use algebra::Field;
 
 use smallvec::{smallvec, SmallVec as StackVec};
 use std::{
@@ -42,15 +42,15 @@ use std::{
     ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub},
 };
 
-type SmallVec<E> = StackVec<[(Variable, <E as PairingEngine>::Fr); 16]>;
+type SmallVec<F> = StackVec<[(Variable, F); 16]>;
 
 /// Computations are expressed in terms of arithmetic circuits, in particular
 /// rank-1 quadratic constraint systems. The `Circuit` trait represents a
 /// circuit that can be synthesized. The `synthesize` method is called during
 /// CRS generation and during proving.
-pub trait Circuit<E: PairingEngine> {
+pub trait Circuit<F: Field> {
     /// Synthesize the circuit into a rank-1 quadratic constraint system
-    fn synthesize<CS: ConstraintSystem<E>>(self, cs: &mut CS) -> Result<(), SynthesisError>;
+    fn synthesize<CS: ConstraintSystem<F>>(self, cs: &mut CS) -> Result<(), SynthesisError>;
 }
 
 /// Represents a variable in our constraint system.
@@ -101,33 +101,33 @@ pub enum Index {
 /// The `(coeff, var)` pairs in a `LinearCombination` are kept sorted according
 /// to the index of the variable.
 #[derive(Debug, Clone)]
-pub struct LinearCombination<E: PairingEngine>(pub SmallVec<E>);
+pub struct LinearCombination<F: Field>(pub SmallVec<F>);
 
-impl<E: PairingEngine> AsRef<[(Variable, E::Fr)]> for LinearCombination<E> {
+impl<F: Field> AsRef<[(Variable, F)]> for LinearCombination<F> {
     #[inline]
-    fn as_ref(&self) -> &[(Variable, E::Fr)] {
+    fn as_ref(&self) -> &[(Variable, F)] {
         &self.0
     }
 }
 
-impl<E: PairingEngine> From<(E::Fr, Variable)> for LinearCombination<E> {
+impl<F: Field> From<(F, Variable)> for LinearCombination<F> {
     #[inline]
-    fn from((coeff, var): (E::Fr, Variable)) -> Self {
+    fn from((coeff, var): (F, Variable)) -> Self {
         LinearCombination(smallvec![(var, coeff)])
     }
 }
 
-impl<E: PairingEngine> From<Variable> for LinearCombination<E> {
+impl<F: Field> From<Variable> for LinearCombination<F> {
     #[inline]
     fn from(var: Variable) -> Self {
-        LinearCombination(smallvec![(var, E::Fr::one())])
+        LinearCombination(smallvec![(var, F::one())])
     }
 }
 
-impl<E: PairingEngine> LinearCombination<E> {
+impl<F: Field> LinearCombination<F> {
     #[inline]
-    pub fn zero() -> LinearCombination<E> {
-        LinearCombination(SmallVec::<E>::new())
+    pub fn zero() -> LinearCombination<F> {
+        LinearCombination(SmallVec::<F>::new())
     }
 
     #[inline]
@@ -168,19 +168,19 @@ impl<E: PairingEngine> LinearCombination<E> {
     }
 }
 
-impl<E: PairingEngine> Add<(E::Fr, Variable)> for LinearCombination<E> {
+impl<F: Field> Add<(F, Variable)> for LinearCombination<F> {
     type Output = Self;
 
     #[inline]
-    fn add(mut self, coeff_var: (E::Fr, Variable)) -> Self {
+    fn add(mut self, coeff_var: (F, Variable)) -> Self {
         self += coeff_var;
         self
     }
 }
 
-impl<E: PairingEngine> AddAssign<(E::Fr, Variable)> for LinearCombination<E> {
+impl<F: Field> AddAssign<(F, Variable)> for LinearCombination<F> {
     #[inline]
-    fn add_assign(&mut self, (coeff, var): (E::Fr, Variable)) {
+    fn add_assign(&mut self, (coeff, var): (F, Variable)) {
         match self.get_var_loc(&var) {
             Ok(found) => self.0[found].1 += &coeff,
             Err(not_found) => self.0.insert(not_found, (var, coeff)),
@@ -188,16 +188,16 @@ impl<E: PairingEngine> AddAssign<(E::Fr, Variable)> for LinearCombination<E> {
     }
 }
 
-impl<E: PairingEngine> Sub<(E::Fr, Variable)> for LinearCombination<E> {
+impl<F: Field> Sub<(F, Variable)> for LinearCombination<F> {
     type Output = Self;
 
     #[inline]
-    fn sub(self, (coeff, var): (E::Fr, Variable)) -> Self {
+    fn sub(self, (coeff, var): (F, Variable)) -> Self {
         self + (-coeff, var)
     }
 }
 
-impl<E: PairingEngine> Neg for LinearCombination<E> {
+impl<F: Field> Neg for LinearCombination<F> {
     type Output = Self;
 
     #[inline]
@@ -207,52 +207,52 @@ impl<E: PairingEngine> Neg for LinearCombination<E> {
     }
 }
 
-impl<E: PairingEngine> Mul<E::Fr> for LinearCombination<E> {
+impl<F: Field> Mul<F> for LinearCombination<F> {
     type Output = Self;
 
     #[inline]
-    fn mul(mut self, scalar: E::Fr) -> Self {
+    fn mul(mut self, scalar: F) -> Self {
         self *= scalar;
         self
     }
 }
 
-impl<E: PairingEngine> MulAssign<E::Fr> for LinearCombination<E> {
+impl<F: Field> MulAssign<F> for LinearCombination<F> {
     #[inline]
-    fn mul_assign(&mut self, scalar: E::Fr) {
+    fn mul_assign(&mut self, scalar: F) {
         self.0.iter_mut().for_each(|(_, coeff)| *coeff *= &scalar);
     }
 }
 
-impl<E: PairingEngine> Add<Variable> for LinearCombination<E> {
+impl<F: Field> Add<Variable> for LinearCombination<F> {
     type Output = Self;
 
     #[inline]
-    fn add(self, other: Variable) -> LinearCombination<E> {
-        self + (E::Fr::one(), other)
+    fn add(self, other: Variable) -> LinearCombination<F> {
+        self + (F::one(), other)
     }
 }
 
-impl<E: PairingEngine> Sub<Variable> for LinearCombination<E> {
-    type Output = LinearCombination<E>;
+impl<F: Field> Sub<Variable> for LinearCombination<F> {
+    type Output = LinearCombination<F>;
 
     #[inline]
-    fn sub(self, other: Variable) -> LinearCombination<E> {
-        self - (E::Fr::one(), other)
+    fn sub(self, other: Variable) -> LinearCombination<F> {
+        self - (F::one(), other)
     }
 }
 
-fn op_impl<E: PairingEngine, F1, F2>(
-    cur: &LinearCombination<E>,
-    other: &LinearCombination<E>,
+fn op_impl<F: Field, F1, F2>(
+    cur: &LinearCombination<F>,
+    other: &LinearCombination<F>,
     push_fn: F1,
     combine_fn: F2,
-) -> LinearCombination<E>
+) -> LinearCombination<F>
 where
-    F1: Fn(E::Fr) -> E::Fr,
-    F2: Fn(E::Fr, E::Fr) -> E::Fr,
+    F1: Fn(F) -> F,
+    F2: Fn(F, F) -> F,
 {
-    let mut new_vec = SmallVec::<E>::new(); // with_capacity($self.0.len() + $other.0.len());
+    let mut new_vec = SmallVec::<F>::new(); // with_capacity($self.0.len() + $other.0.len());
     let mut i = 0;
     let mut j = 0;
     while i < cur.0.len() && j < other.0.len() {
@@ -278,10 +278,10 @@ where
     LinearCombination(new_vec)
 }
 
-impl<E: PairingEngine> Add<&LinearCombination<E>> for &LinearCombination<E> {
-    type Output = LinearCombination<E>;
+impl<F: Field> Add<&LinearCombination<F>> for &LinearCombination<F> {
+    type Output = LinearCombination<F>;
 
-    fn add(self, other: &LinearCombination<E>) -> LinearCombination<E> {
+    fn add(self, other: &LinearCombination<F>) -> LinearCombination<F> {
         if other.0.is_empty() {
             return self.clone();
         } else if self.0.is_empty() {
@@ -296,10 +296,10 @@ impl<E: PairingEngine> Add<&LinearCombination<E>> for &LinearCombination<E> {
     }
 }
 
-impl<E: PairingEngine> Add<LinearCombination<E>> for &LinearCombination<E> {
-    type Output = LinearCombination<E>;
+impl<F: Field> Add<LinearCombination<F>> for &LinearCombination<F> {
+    type Output = LinearCombination<F>;
 
-    fn add(self, other: LinearCombination<E>) -> LinearCombination<E> {
+    fn add(self, other: LinearCombination<F>) -> LinearCombination<F> {
         if self.0.is_empty() {
             return other;
         } else if other.0.is_empty() {
@@ -314,10 +314,10 @@ impl<E: PairingEngine> Add<LinearCombination<E>> for &LinearCombination<E> {
     }
 }
 
-impl<'a, E: PairingEngine> Add<&'a LinearCombination<E>> for LinearCombination<E> {
-    type Output = LinearCombination<E>;
+impl<'a, F: Field> Add<&'a LinearCombination<F>> for LinearCombination<F> {
+    type Output = LinearCombination<F>;
 
-    fn add(self, other: &'a LinearCombination<E>) -> LinearCombination<E> {
+    fn add(self, other: &'a LinearCombination<F>) -> LinearCombination<F> {
         if other.0.is_empty() {
             return self;
         } else if self.0.is_empty() {
@@ -332,7 +332,7 @@ impl<'a, E: PairingEngine> Add<&'a LinearCombination<E>> for LinearCombination<E
     }
 }
 
-impl<E: PairingEngine> Add<LinearCombination<E>> for LinearCombination<E> {
+impl<F: Field> Add<LinearCombination<F>> for LinearCombination<F> {
     type Output = Self;
 
     fn add(self, other: Self) -> Self {
@@ -350,10 +350,10 @@ impl<E: PairingEngine> Add<LinearCombination<E>> for LinearCombination<E> {
     }
 }
 
-impl<E: PairingEngine> Sub<&LinearCombination<E>> for &LinearCombination<E> {
-    type Output = LinearCombination<E>;
+impl<F: Field> Sub<&LinearCombination<F>> for &LinearCombination<F> {
+    type Output = LinearCombination<F>;
 
-    fn sub(self, other: &LinearCombination<E>) -> LinearCombination<E> {
+    fn sub(self, other: &LinearCombination<F>) -> LinearCombination<F> {
         if other.0.is_empty() {
             let cur = self.clone();
             return cur;
@@ -372,10 +372,10 @@ impl<E: PairingEngine> Sub<&LinearCombination<E>> for &LinearCombination<E> {
     }
 }
 
-impl<'a, E: PairingEngine> Sub<&'a LinearCombination<E>> for LinearCombination<E> {
-    type Output = LinearCombination<E>;
+impl<'a, F: Field> Sub<&'a LinearCombination<F>> for LinearCombination<F> {
+    type Output = LinearCombination<F>;
 
-    fn sub(self, other: &'a LinearCombination<E>) -> LinearCombination<E> {
+    fn sub(self, other: &'a LinearCombination<F>) -> LinearCombination<F> {
         if other.0.is_empty() {
             return self;
         } else if self.0.is_empty() {
@@ -392,10 +392,10 @@ impl<'a, E: PairingEngine> Sub<&'a LinearCombination<E>> for LinearCombination<E
     }
 }
 
-impl<E: PairingEngine> Sub<LinearCombination<E>> for &LinearCombination<E> {
-    type Output = LinearCombination<E>;
+impl<F: Field> Sub<LinearCombination<F>> for &LinearCombination<F> {
+    type Output = LinearCombination<F>;
 
-    fn sub(self, mut other: LinearCombination<E>) -> LinearCombination<E> {
+    fn sub(self, mut other: LinearCombination<F>) -> LinearCombination<F> {
         if self.0.is_empty() {
             other.negate_in_place();
             return other;
@@ -412,10 +412,10 @@ impl<E: PairingEngine> Sub<LinearCombination<E>> for &LinearCombination<E> {
     }
 }
 
-impl<E: PairingEngine> Sub<LinearCombination<E>> for LinearCombination<E> {
-    type Output = LinearCombination<E>;
+impl<F: Field> Sub<LinearCombination<F>> for LinearCombination<F> {
+    type Output = LinearCombination<F>;
 
-    fn sub(self, mut other: LinearCombination<E>) -> LinearCombination<E> {
+    fn sub(self, mut other: LinearCombination<F>) -> LinearCombination<F> {
         if other.0.is_empty() {
             return self;
         } else if self.0.is_empty() {
@@ -431,10 +431,10 @@ impl<E: PairingEngine> Sub<LinearCombination<E>> for LinearCombination<E> {
     }
 }
 
-impl<E: PairingEngine> Add<(E::Fr, &LinearCombination<E>)> for &LinearCombination<E> {
-    type Output = LinearCombination<E>;
+impl<F: Field> Add<(F, &LinearCombination<F>)> for &LinearCombination<F> {
+    type Output = LinearCombination<F>;
 
-    fn add(self, (mul_coeff, other): (E::Fr, &LinearCombination<E>)) -> LinearCombination<E> {
+    fn add(self, (mul_coeff, other): (F, &LinearCombination<F>)) -> LinearCombination<F> {
         if other.0.is_empty() {
             return self.clone();
         } else if self.0.is_empty() {
@@ -451,10 +451,10 @@ impl<E: PairingEngine> Add<(E::Fr, &LinearCombination<E>)> for &LinearCombinatio
     }
 }
 
-impl<'a, E: PairingEngine> Add<(E::Fr, &'a LinearCombination<E>)> for LinearCombination<E> {
-    type Output = LinearCombination<E>;
+impl<'a, F: Field> Add<(F, &'a LinearCombination<F>)> for LinearCombination<F> {
+    type Output = LinearCombination<F>;
 
-    fn add(self, (mul_coeff, other): (E::Fr, &'a LinearCombination<E>)) -> LinearCombination<E> {
+    fn add(self, (mul_coeff, other): (F, &'a LinearCombination<F>)) -> LinearCombination<F> {
         if other.0.is_empty() {
             return self;
         } else if self.0.is_empty() {
@@ -471,10 +471,10 @@ impl<'a, E: PairingEngine> Add<(E::Fr, &'a LinearCombination<E>)> for LinearComb
     }
 }
 
-impl<E: PairingEngine> Add<(E::Fr, LinearCombination<E>)> for &LinearCombination<E> {
-    type Output = LinearCombination<E>;
+impl<F: Field> Add<(F, LinearCombination<F>)> for &LinearCombination<F> {
+    type Output = LinearCombination<F>;
 
-    fn add(self, (mul_coeff, mut other): (E::Fr, LinearCombination<E>)) -> LinearCombination<E> {
+    fn add(self, (mul_coeff, mut other): (F, LinearCombination<F>)) -> LinearCombination<F> {
         if other.0.is_empty() {
             return self.clone();
         } else if self.0.is_empty() {
@@ -490,10 +490,10 @@ impl<E: PairingEngine> Add<(E::Fr, LinearCombination<E>)> for &LinearCombination
     }
 }
 
-impl<E: PairingEngine> Add<(E::Fr, Self)> for LinearCombination<E> {
+impl<F: Field> Add<(F, Self)> for LinearCombination<F> {
     type Output = Self;
 
-    fn add(self, (mul_coeff, other): (E::Fr, Self)) -> Self {
+    fn add(self, (mul_coeff, other): (F, Self)) -> Self {
         if other.0.is_empty() {
             return self;
         } else if self.0.is_empty() {
@@ -510,34 +510,34 @@ impl<E: PairingEngine> Add<(E::Fr, Self)> for LinearCombination<E> {
     }
 }
 
-impl<E: PairingEngine> Sub<(E::Fr, &LinearCombination<E>)> for &LinearCombination<E> {
-    type Output = LinearCombination<E>;
+impl<F: Field> Sub<(F, &LinearCombination<F>)> for &LinearCombination<F> {
+    type Output = LinearCombination<F>;
 
-    fn sub(self, (coeff, other): (E::Fr, &LinearCombination<E>)) -> LinearCombination<E> {
+    fn sub(self, (coeff, other): (F, &LinearCombination<F>)) -> LinearCombination<F> {
         self + (-coeff, other)
     }
 }
 
-impl<'a, E: PairingEngine> Sub<(E::Fr, &'a LinearCombination<E>)> for LinearCombination<E> {
-    type Output = LinearCombination<E>;
+impl<'a, F: Field> Sub<(F, &'a LinearCombination<F>)> for LinearCombination<F> {
+    type Output = LinearCombination<F>;
 
-    fn sub(self, (coeff, other): (E::Fr, &'a LinearCombination<E>)) -> LinearCombination<E> {
+    fn sub(self, (coeff, other): (F, &'a LinearCombination<F>)) -> LinearCombination<F> {
         self + (-coeff, other)
     }
 }
 
-impl<E: PairingEngine> Sub<(E::Fr, LinearCombination<E>)> for &LinearCombination<E> {
-    type Output = LinearCombination<E>;
+impl<F: Field> Sub<(F, LinearCombination<F>)> for &LinearCombination<F> {
+    type Output = LinearCombination<F>;
 
-    fn sub(self, (coeff, other): (E::Fr, LinearCombination<E>)) -> LinearCombination<E> {
+    fn sub(self, (coeff, other): (F, LinearCombination<F>)) -> LinearCombination<F> {
         self + (-coeff, other)
     }
 }
 
-impl<'a, E: PairingEngine> Sub<(E::Fr, LinearCombination<E>)> for LinearCombination<E> {
-    type Output = LinearCombination<E>;
+impl<'a, F: Field> Sub<(F, LinearCombination<F>)> for LinearCombination<F> {
+    type Output = LinearCombination<F>;
 
-    fn sub(self, (coeff, other): (E::Fr, LinearCombination<E>)) -> LinearCombination<E> {
+    fn sub(self, (coeff, other): (F, LinearCombination<F>)) -> LinearCombination<F> {
         self + (-coeff, other)
     }
 }
@@ -600,10 +600,10 @@ impl fmt::Display for SynthesisError {
 
 /// Represents a constraint system which can have new variables
 /// allocated and constrains between them formed.
-pub trait ConstraintSystem<E: PairingEngine>: Sized {
+pub trait ConstraintSystem<F: Field>: Sized {
     /// Represents the type of the "root" of this constraint system
     /// so that nested namespaces can minimize indirection.
-    type Root: ConstraintSystem<E>;
+    type Root: ConstraintSystem<F>;
 
     /// Return the "one" input variable
     fn one() -> Variable {
@@ -614,17 +614,17 @@ pub trait ConstraintSystem<E: PairingEngine>: Sized {
     /// function is used to determine the assignment of the variable. The
     /// given `annotation` function is invoked in testing contexts in order
     /// to derive a unique name for this variable in the current namespace.
-    fn alloc<F, A, AR>(&mut self, annotation: A, f: F) -> Result<Variable, SynthesisError>
+    fn alloc<FN, A, AR>(&mut self, annotation: A, f: FN) -> Result<Variable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError>,
+        FN: FnOnce() -> Result<F, SynthesisError>,
         A: FnOnce() -> AR,
         AR: Into<String>;
 
     /// Allocate a public variable in the constraint system. The provided
     /// function is used to determine the assignment of the variable.
-    fn alloc_input<F, A, AR>(&mut self, annotation: A, f: F) -> Result<Variable, SynthesisError>
+    fn alloc_input<FN, A, AR>(&mut self, annotation: A, f: FN) -> Result<Variable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError>,
+        FN: FnOnce() -> Result<F, SynthesisError>,
         A: FnOnce() -> AR,
         AR: Into<String>;
 
@@ -635,9 +635,9 @@ pub trait ConstraintSystem<E: PairingEngine>: Sized {
     where
         A: FnOnce() -> AR,
         AR: Into<String>,
-        LA: FnOnce(LinearCombination<E>) -> LinearCombination<E>,
-        LB: FnOnce(LinearCombination<E>) -> LinearCombination<E>,
-        LC: FnOnce(LinearCombination<E>) -> LinearCombination<E>;
+        LA: FnOnce(LinearCombination<F>) -> LinearCombination<F>,
+        LB: FnOnce(LinearCombination<F>) -> LinearCombination<F>,
+        LC: FnOnce(LinearCombination<F>) -> LinearCombination<F>;
 
     /// Create a new (sub)namespace and enter into it. Not intended
     /// for downstream use; use `namespace` instead.
@@ -655,7 +655,7 @@ pub trait ConstraintSystem<E: PairingEngine>: Sized {
     fn get_root(&mut self) -> &mut Self::Root;
 
     /// Begin a namespace for this constraint system.
-    fn ns<'a, NR, N>(&'a mut self, name_fn: N) -> Namespace<'a, E, Self::Root>
+    fn ns<'a, NR, N>(&'a mut self, name_fn: N) -> Namespace<'a, F, Self::Root>
     where
         NR: Into<String>,
         N: FnOnce() -> NR,
@@ -672,9 +672,9 @@ pub trait ConstraintSystem<E: PairingEngine>: Sized {
 /// This is a "namespaced" constraint system which borrows a constraint system
 /// (pushing a namespace context) and, when dropped, pops out of the namespace
 /// context.
-pub struct Namespace<'a, E: PairingEngine, CS: ConstraintSystem<E>>(&'a mut CS, PhantomData<E>);
+pub struct Namespace<'a, F: Field, CS: ConstraintSystem<F>>(&'a mut CS, PhantomData<F>);
 
-impl<E: PairingEngine, CS: ConstraintSystem<E>> ConstraintSystem<E> for Namespace<'_, E, CS> {
+impl<F: Field, CS: ConstraintSystem<F>> ConstraintSystem<F> for Namespace<'_, F, CS> {
     type Root = CS::Root;
 
     #[inline]
@@ -683,9 +683,9 @@ impl<E: PairingEngine, CS: ConstraintSystem<E>> ConstraintSystem<E> for Namespac
     }
 
     #[inline]
-    fn alloc<F, A, AR>(&mut self, annotation: A, f: F) -> Result<Variable, SynthesisError>
+    fn alloc<FN, A, AR>(&mut self, annotation: A, f: FN) -> Result<Variable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError>,
+        FN: FnOnce() -> Result<F, SynthesisError>,
         A: FnOnce() -> AR,
         AR: Into<String>,
     {
@@ -693,9 +693,9 @@ impl<E: PairingEngine, CS: ConstraintSystem<E>> ConstraintSystem<E> for Namespac
     }
 
     #[inline]
-    fn alloc_input<F, A, AR>(&mut self, annotation: A, f: F) -> Result<Variable, SynthesisError>
+    fn alloc_input<FN, A, AR>(&mut self, annotation: A, f: FN) -> Result<Variable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError>,
+        FN: FnOnce() -> Result<F, SynthesisError>,
         A: FnOnce() -> AR,
         AR: Into<String>,
     {
@@ -707,9 +707,9 @@ impl<E: PairingEngine, CS: ConstraintSystem<E>> ConstraintSystem<E> for Namespac
     where
         A: FnOnce() -> AR,
         AR: Into<String>,
-        LA: FnOnce(LinearCombination<E>) -> LinearCombination<E>,
-        LB: FnOnce(LinearCombination<E>) -> LinearCombination<E>,
-        LC: FnOnce(LinearCombination<E>) -> LinearCombination<E>,
+        LA: FnOnce(LinearCombination<F>) -> LinearCombination<F>,
+        LB: FnOnce(LinearCombination<F>) -> LinearCombination<F>,
+        LC: FnOnce(LinearCombination<F>) -> LinearCombination<F>,
     {
         self.0.enforce(annotation, a, b, c)
     }
@@ -743,16 +743,16 @@ impl<E: PairingEngine, CS: ConstraintSystem<E>> ConstraintSystem<E> for Namespac
     }
 }
 
-impl<E: PairingEngine, CS: ConstraintSystem<E>> Drop for Namespace<'_, E, CS> {
+impl<F: Field, CS: ConstraintSystem<F>> Drop for Namespace<'_, F, CS> {
     #[inline]
     fn drop(&mut self) {
         self.get_root().pop_namespace()
     }
 }
 
-/// Convenience implementation of ConstraintSystem<E> for mutable references to
+/// Convenience implementation of ConstraintSystem<F> for mutable references to
 /// constraint systems.
-impl<E: PairingEngine, CS: ConstraintSystem<E>> ConstraintSystem<E> for &mut CS {
+impl<F: Field, CS: ConstraintSystem<F>> ConstraintSystem<F> for &mut CS {
     type Root = CS::Root;
 
     #[inline]
@@ -761,9 +761,9 @@ impl<E: PairingEngine, CS: ConstraintSystem<E>> ConstraintSystem<E> for &mut CS 
     }
 
     #[inline]
-    fn alloc<F, A, AR>(&mut self, annotation: A, f: F) -> Result<Variable, SynthesisError>
+    fn alloc<FN, A, AR>(&mut self, annotation: A, f: FN) -> Result<Variable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError>,
+        FN: FnOnce() -> Result<F, SynthesisError>,
         A: FnOnce() -> AR,
         AR: Into<String>,
     {
@@ -771,9 +771,9 @@ impl<E: PairingEngine, CS: ConstraintSystem<E>> ConstraintSystem<E> for &mut CS 
     }
 
     #[inline]
-    fn alloc_input<F, A, AR>(&mut self, annotation: A, f: F) -> Result<Variable, SynthesisError>
+    fn alloc_input<FN, A, AR>(&mut self, annotation: A, f: FN) -> Result<Variable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError>,
+        FN: FnOnce() -> Result<F, SynthesisError>,
         A: FnOnce() -> AR,
         AR: Into<String>,
     {
@@ -785,9 +785,9 @@ impl<E: PairingEngine, CS: ConstraintSystem<E>> ConstraintSystem<E> for &mut CS 
     where
         A: FnOnce() -> AR,
         AR: Into<String>,
-        LA: FnOnce(LinearCombination<E>) -> LinearCombination<E>,
-        LB: FnOnce(LinearCombination<E>) -> LinearCombination<E>,
-        LC: FnOnce(LinearCombination<E>) -> LinearCombination<E>,
+        LA: FnOnce(LinearCombination<F>) -> LinearCombination<F>,
+        LB: FnOnce(LinearCombination<F>) -> LinearCombination<F>,
+        LC: FnOnce(LinearCombination<F>) -> LinearCombination<F>,
     {
         (**self).enforce(annotation, a, b, c)
     }
