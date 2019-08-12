@@ -1,46 +1,46 @@
+use algebra::Field;
+use crate::{Circuit, ConstraintSystem, SynthesisError};
+struct MySillyCircuit<F: Field> {
+    a: Option<F>,
+    b: Option<F>,
+}
+
+impl<ConstraintF: Field> Circuit<ConstraintF> for MySillyCircuit<ConstraintF> {
+    fn synthesize<CS: ConstraintSystem<ConstraintF>>(
+        self,
+        cs: &mut CS,
+    ) -> Result<(), SynthesisError> {
+        let a = cs.alloc(|| "a", || self.a.ok_or(SynthesisError::AssignmentMissing))?;
+        let b = cs.alloc(|| "b", || self.b.ok_or(SynthesisError::AssignmentMissing))?;
+        let c = cs.alloc_input(
+            || "c",
+            || {
+                let mut a = self.a.ok_or(SynthesisError::AssignmentMissing)?;
+                let b = self.b.ok_or(SynthesisError::AssignmentMissing)?;
+
+                a.mul_assign(&b);
+                Ok(a)
+            },
+            )?;
+
+        cs.enforce(|| "a*b=c", |lc| lc + a, |lc| lc + b, |lc| lc + c);
+
+        Ok(())
+    }
+}
+
 mod bls12_377 {
-    use crate::{
-        gm17::{
-            create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
-        },
-        Circuit, ConstraintSystem, SynthesisError,
+    use super::*;
+    use crate::gm17::{
+        create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
     };
 
-    use algebra::{curves::bls12_377::Bls12_377, fields::bls12_377::Fr, PairingEngine};
+    use algebra::{curves::bls12_377::Bls12_377, fields::bls12_377::Fr};
     use rand::{thread_rng, Rand};
     use std::ops::MulAssign;
 
     #[test]
     fn prove_and_verify() {
-        struct MySillyCircuit<E: PairingEngine> {
-            a: Option<E::Fr>,
-            b: Option<E::Fr>,
-        }
-
-        impl<E: PairingEngine> Circuit<E> for MySillyCircuit<E> {
-            fn synthesize<CS: ConstraintSystem<E>>(
-                self,
-                cs: &mut CS,
-            ) -> Result<(), SynthesisError> {
-                let a = cs.alloc(|| "a", || self.a.ok_or(SynthesisError::AssignmentMissing))?;
-                let b = cs.alloc(|| "b", || self.b.ok_or(SynthesisError::AssignmentMissing))?;
-                let c = cs.alloc_input(
-                    || "c",
-                    || {
-                        let mut a = self.a.ok_or(SynthesisError::AssignmentMissing)?;
-                        let b = self.b.ok_or(SynthesisError::AssignmentMissing)?;
-
-                        a.mul_assign(&b);
-                        Ok(a)
-                    },
-                )?;
-
-                cs.enforce(|| "a*b=c", |lc| lc + a, |lc| lc + b, |lc| lc + c);
-
-                Ok(())
-            }
-        }
-
         let rng = &mut thread_rng();
 
         let params =
@@ -72,49 +72,17 @@ mod bls12_377 {
 }
 
 mod sw6 {
-    use crate::{
-        gm17::{
-            create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
-        },
-        Circuit, ConstraintSystem, SynthesisError,
+    use super::*;
+    use crate::gm17::{
+        create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
     };
 
     use rand::{thread_rng, Rand};
 
-    use algebra::{curves::sw6::SW6, fields::sw6::Fr as SW6Fr, Field, PairingEngine};
-    use std::ops::MulAssign;
+    use algebra::{curves::sw6::SW6, fields::sw6::Fr as SW6Fr, Field};
 
     #[test]
     fn prove_and_verify() {
-        struct MySillyCircuit<E: PairingEngine> {
-            a: Option<E::Fr>,
-            b: Option<E::Fr>,
-        }
-
-        impl<E: PairingEngine> Circuit<E> for MySillyCircuit<E> {
-            fn synthesize<CS: ConstraintSystem<E>>(
-                self,
-                cs: &mut CS,
-            ) -> Result<(), SynthesisError> {
-                let a = cs.alloc(|| "a", || self.a.ok_or(SynthesisError::AssignmentMissing))?;
-                let b = cs.alloc(|| "b", || self.b.ok_or(SynthesisError::AssignmentMissing))?;
-                let c = cs.alloc_input(
-                    || "c",
-                    || {
-                        let mut a = self.a.ok_or(SynthesisError::AssignmentMissing)?;
-                        let b = self.b.ok_or(SynthesisError::AssignmentMissing)?;
-
-                        a.mul_assign(&b);
-                        Ok(a)
-                    },
-                )?;
-
-                cs.enforce(|| "a*b=c", |lc| lc + a, |lc| lc + b, |lc| lc + c);
-
-                Ok(())
-            }
-        }
-
         let rng = &mut thread_rng();
 
         let params =
