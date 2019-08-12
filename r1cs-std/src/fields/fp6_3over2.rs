@@ -1,4 +1,3 @@
-use crate::Assignment;
 use algebra::{
     fields::{
         fp6_3over2::{Fp6, Fp6Parameters},
@@ -9,16 +8,9 @@ use algebra::{
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use std::{borrow::Borrow, marker::PhantomData};
 
-use super::FieldGadget;
-use crate::{
-    bits::boolean::Boolean,
-    uint8::UInt8,
-    utils::{
-        AllocGadget, CondSelectGadget, ConditionalEqGadget, EqGadget, NEqGadget, ToBitsGadget,
-        ToBytesGadget, TwoBitLookupGadget,
-    },
-    ConstraintVar,
-};
+use crate::prelude::*;
+use crate::ConstraintVar;
+use crate::Assignment;
 
 type Fp2Gadget<P, ConstraintF> = super::fp2::Fp2Gadget<<P as Fp6Parameters>::Fp2Params, ConstraintF>;
 

@@ -2,12 +2,9 @@ use algebra::{FpParameters, PrimeField, Field};
 
 use r1cs_core::{ConstraintSystem, LinearCombination, SynthesisError};
 
-use super::boolean::{AllocatedBit, Boolean};
-use crate::{
-    bits::uint8::UInt8,
-    utils::{AllocGadget, ConditionalEqGadget, ToBytesGadget},
-    Assignment,
-};
+use crate::boolean::{AllocatedBit, Boolean};
+use crate::Assignment;
+use crate::prelude::*;
 
 /// Represents an interpretation of 32 `Boolean` objects as an
 /// unsigned integer.

@@ -1,4 +1,3 @@
-use crate::groups::{curves::short_weierstrass::AffineGadget, GroupGadget};
 use algebra::{
     curves::bls12::{Bls12Parameters, G1Prepared, TwistType},
     fields::Field,
@@ -6,11 +5,10 @@ use algebra::{
 };
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
-use crate::{
-    fields::{fp::FpGadget, fp2::Fp2Gadget, FieldGadget},
-    uint8::UInt8,
-    utils::{NEqGadget, ToBytesGadget},
-};
+
+use crate::prelude::*;
+use crate::fields::{fp::FpGadget, fp2::Fp2Gadget, FieldGadget};
+use crate::groups::curves::short_weierstrass::AffineGadget;
 
 use std::fmt::Debug;
 

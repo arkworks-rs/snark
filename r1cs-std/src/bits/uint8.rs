@@ -1,13 +1,11 @@
 use algebra::{ToConstraintField, FpParameters, Field, PrimeField};
 
-use crate::fields::fp::FpGadget;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
-use super::boolean::{AllocatedBit, Boolean};
-use crate::{
-    utils::{AllocGadget, ConditionalEqGadget, EqGadget, ToBitsGadget},
-    Assignment,
-};
+use crate::boolean::AllocatedBit;
+use crate::fields::fp::FpGadget;
+use crate::prelude::*;
+use crate::Assignment;
 use std::borrow::Borrow;
 
 /// Represents an interpretation of 8 `Boolean` objects as an

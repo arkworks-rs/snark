@@ -1,4 +1,4 @@
-use crate::{fields::FieldGadget, groups::GroupGadget, utils::ToBytesGadget};
+use crate::prelude::*;
 use algebra::{Field, PairingEngine};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use std::fmt::Debug;

@@ -1,26 +1,18 @@
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
-use crate::Assignment;
 use algebra::{
-    PrimeField,
+    PrimeField, Field,
     fields::{
         fp12_2over3over2::{Fp12, Fp12Parameters},
         fp6_3over2::{Fp6, Fp6Parameters},
-        Field, Fp2Parameters,
+        Fp2Parameters,
     },
     BitIterator,
 };
 use std::{borrow::Borrow, marker::PhantomData};
 
-use super::FieldGadget;
-use crate::{
-    boolean::Boolean,
-    uint8::UInt8,
-    utils::{
-        AllocGadget, CondSelectGadget, ConditionalEqGadget, EqGadget, NEqGadget, ToBitsGadget,
-        ToBytesGadget, TwoBitLookupGadget,
-    },
-};
+use crate::prelude::*;
+use crate::Assignment;
 
 type Fp2Gadget<P, ConstraintF> =
     super::fp2::Fp2Gadget<<<P as Fp12Parameters>::Fp6Params as Fp6Parameters>::Fp2Params, ConstraintF>;

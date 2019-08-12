@@ -1,3 +1,4 @@
+use algebra::{AffineCurve, Field, ProjectiveCurve};
 use algebra::{
     curves::{
         short_weierstrass_jacobian::{GroupAffine as SWAffine, GroupProjective as SWProjective},
@@ -8,18 +9,8 @@ use algebra::{
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use std::{borrow::Borrow, marker::PhantomData, ops::Neg};
 
-use crate::{
-    boolean::Boolean,
-    fields::FieldGadget,
-    groups::GroupGadget,
-    uint8::UInt8,
-    utils::{
-        AllocGadget, CondSelectGadget, ConditionalEqGadget, EqGadget, NEqGadget, ToBitsGadget,
-        ToBytesGadget,
-    },
-    Assignment,
-};
-use algebra::{AffineCurve, Field, ProjectiveCurve};
+use crate::Assignment;
+use crate::prelude::*;
 
 pub mod bls12;
 
