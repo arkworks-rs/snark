@@ -1,13 +1,13 @@
-use algebra::{Field, PairingEngine};
+use algebra::Field;
 use snark::{Circuit, ConstraintSystem, LinearCombination, SynthesisError};
 use std::marker::PhantomData;
 
-pub struct Benchmark<E: PairingEngine> {
+pub struct Benchmark<F: Field> {
     num_constraints: usize,
-    _engine:         PhantomData<E>,
+    _engine:         PhantomData<F>,
 }
 
-impl<E: PairingEngine> Benchmark<E> {
+impl<F: Field> Benchmark<F> {
     pub fn new(num_constraints: usize) -> Self {
         Self {
             num_constraints,
@@ -16,15 +16,15 @@ impl<E: PairingEngine> Benchmark<E> {
     }
 }
 
-impl<E: PairingEngine> Circuit<E> for Benchmark<E> {
-    fn synthesize<CS: ConstraintSystem<E>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
+impl<F: Field> Circuit<F> for Benchmark<F> {
+    fn synthesize<CS: ConstraintSystem<F>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
         let mut assignments = Vec::new();
 
-        let mut a_val = E::Fr::one();
+        let mut a_val = F::one();
         let mut a_var = cs.alloc_input(|| "a", || Ok(a_val))?;
         assignments.push((a_val, a_var));
 
-        let mut b_val = E::Fr::one();
+        let mut b_val = F::one();
         let mut b_var = cs.alloc_input(|| "b", || Ok(b_val))?;
         assignments.push((a_val, a_var));
 
@@ -66,7 +66,7 @@ impl<E: PairingEngine> Circuit<E> for Benchmark<E> {
 
         let mut a_lc = LinearCombination::zero();
         let mut b_lc = LinearCombination::zero();
-        let mut c_val = E::Fr::zero();
+        let mut c_val = F::zero();
 
         for (val, var) in assignments {
             a_lc = a_lc + var;
