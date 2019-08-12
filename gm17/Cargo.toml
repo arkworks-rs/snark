@@ -23,9 +23,10 @@ edition = "2018"
 
 [dependencies]
 algebra = { path = "../algebra", features = [ "parallel" ] }
+r1cs-core = { path = "../r1cs-core" }
 bench-utils = { path = "../bench-utils" }
+
 rand = { version = "0.4" }
-byteorder = { version = "1" }
 rayon = { version = "1" }
 smallvec = { version = "0.6" }
 

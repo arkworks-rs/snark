@@ -6,12 +6,10 @@ use algebra::{
 
 use rand::Rng;
 use rayon::prelude::*;
+use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable};
 
-use super::{Parameters, VerifyingKey};
+use crate::{Parameters, VerifyingKey, r1cs_to_sap::R1CStoSAP};
 
-use crate::{Circuit, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable};
-
-use crate::gm17::r1cs_to_sap::R1CStoSAP;
 
 /// Generates a random common reference string for
 /// a circuit.
@@ -21,7 +19,7 @@ pub fn generate_random_parameters<E, C, R>(
 ) -> Result<Parameters<E>, SynthesisError>
 where
     E: PairingEngine,
-    C: Circuit<E::Fr>,
+    C: ConstraintSynthesizer<E::Fr>,
     R: Rng,
 {
     let alpha = rng.gen();
@@ -156,7 +154,7 @@ pub fn generate_parameters<E, C, R>(
 ) -> Result<Parameters<E>, SynthesisError>
 where
     E: PairingEngine,
-    C: Circuit<E::Fr>,
+    C: ConstraintSynthesizer<E::Fr>,
     R: Rng,
 {
     let mut assembly = KeypairAssembly {
@@ -172,8 +170,8 @@ where
     assembly.alloc_input(|| "", || Ok(E::Fr::one()))?;
 
     // Synthesize the circuit.
-    let synthesis_time = timer_start!(|| "Circuit synthesis");
-    circuit.synthesize(&mut assembly)?;
+    let synthesis_time = timer_start!(|| "Constraint synthesis");
+    circuit.generate_constraints(&mut assembly)?;
     timer_end!(synthesis_time);
 
     ///////////////////////////////////////////////////////////////////////////
