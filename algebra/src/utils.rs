@@ -1,126 +1,110 @@
 use crate::{
-    bytes::FromBytes,
     curves::{
-        models::{ModelParameters, SWModelParameters, TEModelParameters},
+        models::{SWModelParameters, TEModelParameters},
         short_weierstrass_jacobian::{GroupAffine as SWAffine, GroupProjective as SWProjective},
         twisted_edwards_extended::{GroupAffine as TEAffine, GroupProjective as TEProjective},
         ProjectiveCurve,
     },
-    Fp2, Fp2Parameters, FpParameters, PairingEngine, PrimeField, SquareRootField,
+    Fp2, Fp2Parameters, FpParameters, Field, PrimeField,
 };
 
 type Error = Box<dyn std::error::Error>;
 
-pub trait ToEngineFr<E: PairingEngine> {
-    fn to_engine_fr(&self) -> Result<Vec<E::Fr>, Error>;
+pub trait ToConstraintField<F: Field> {
+    fn to_field_elements(&self) -> Result<Vec<F>, Error>;
 }
 
-// Impl for base field
-impl<F, E: PairingEngine<Fr = F>> ToEngineFr<E> for F
-where
-    F: PrimeField + SquareRootField + Into<<E::Fr as PrimeField>::BigInt>,
-{
-    #[inline]
-    fn to_engine_fr(&self) -> Result<Vec<E::Fr>, Error> {
+impl<F: PrimeField> ToConstraintField<F> for F {
+    fn to_field_elements(&self) -> Result<Vec<F>, Error> {
         Ok(vec![*self])
     }
 }
 
 // Impl for base field
-impl<F, E: PairingEngine<Fr = F>> ToEngineFr<E> for [F]
-where
-    F: PrimeField + SquareRootField + Into<<E::Fr as PrimeField>::BigInt>,
-{
+impl<F: Field> ToConstraintField<F> for [F] {
     #[inline]
-    fn to_engine_fr(&self) -> Result<Vec<E::Fr>, Error> {
+    fn to_field_elements(&self) -> Result<Vec<F>, Error> {
         Ok(self.to_vec())
     }
 }
 
-impl<E: PairingEngine> ToEngineFr<E> for () {
+impl<ConstraintF: Field> ToConstraintField<ConstraintF> for () {
     #[inline]
-    fn to_engine_fr(&self) -> Result<Vec<E::Fr>, Error> {
+    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
         Ok(Vec::new())
     }
 }
 
-// Impl for Fp2<E::Fr>
-impl<E: PairingEngine, P: Fp2Parameters<Fp = E::Fr>> ToEngineFr<E> for Fp2<P> {
+// Impl for Fp2<ConstraintF>
+impl<P: Fp2Parameters> ToConstraintField<P::Fp> for Fp2<P> 
+{
     #[inline]
-    fn to_engine_fr(&self) -> Result<Vec<E::Fr>, Error> {
-        let mut c0 = <E::Fr as ToEngineFr<E>>::to_engine_fr(&self.c0)?;
-        let c1 = <E::Fr as ToEngineFr<E>>::to_engine_fr(&self.c1)?;
+    fn to_field_elements(&self) -> Result<Vec<P::Fp>, Error> {
+        let mut c0 = self.c0.to_field_elements()?;
+        let c1 = self.c1.to_field_elements()?;
         c0.extend_from_slice(&c1);
         Ok(c0)
     }
 }
 
-impl<E, M> ToEngineFr<E> for TEAffine<M>
+impl<M: TEModelParameters, ConstraintF: Field> ToConstraintField<ConstraintF> for TEAffine<M>
 where
-    E: PairingEngine,
-    M: TEModelParameters,
-    <M as ModelParameters>::BaseField: ToEngineFr<E>,
+    M::BaseField: ToConstraintField<ConstraintF>,
 {
     #[inline]
-    fn to_engine_fr(&self) -> Result<Vec<E::Fr>, Error> {
-        let mut x_fe = self.x.to_engine_fr()?;
-        let y_fe = self.y.to_engine_fr()?;
+    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
+        let mut x_fe = self.x.to_field_elements()?;
+        let y_fe = self.y.to_field_elements()?;
         x_fe.extend_from_slice(&y_fe);
         Ok(x_fe)
     }
 }
 
-impl<E, M> ToEngineFr<E> for TEProjective<M>
+impl<M: TEModelParameters, ConstraintF: Field> ToConstraintField<ConstraintF> for TEProjective<M>
 where
-    E: PairingEngine,
-    M: TEModelParameters,
-    <M as ModelParameters>::BaseField: ToEngineFr<E>,
+    M::BaseField: ToConstraintField<ConstraintF>,
 {
     #[inline]
-    fn to_engine_fr(&self) -> Result<Vec<E::Fr>, Error> {
+    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
         let affine = self.into_affine();
-        let mut x_fe = affine.x.to_engine_fr()?;
-        let y_fe = affine.y.to_engine_fr()?;
+        let mut x_fe = affine.x.to_field_elements()?;
+        let y_fe = affine.y.to_field_elements()?;
         x_fe.extend_from_slice(&y_fe);
         Ok(x_fe)
     }
 }
 
-impl<E, M> ToEngineFr<E> for SWAffine<M>
+impl<M: SWModelParameters, ConstraintF: Field> ToConstraintField<ConstraintF> for SWAffine<M>
 where
-    E: PairingEngine,
-    M: SWModelParameters,
-    <M as ModelParameters>::BaseField: ToEngineFr<E>,
+    M::BaseField: ToConstraintField<ConstraintF>,
 {
     #[inline]
-    fn to_engine_fr(&self) -> Result<Vec<E::Fr>, Error> {
-        let mut x_fe = self.x.to_engine_fr()?;
-        let y_fe = self.y.to_engine_fr()?;
+    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
+        let mut x_fe = self.x.to_field_elements()?;
+        let y_fe = self.y.to_field_elements()?;
         x_fe.extend_from_slice(&y_fe);
         Ok(x_fe)
     }
 }
 
-impl<E, M> ToEngineFr<E> for SWProjective<M>
+impl<M: SWModelParameters, ConstraintF: Field> ToConstraintField<ConstraintF> for SWProjective<M>
 where
-    E: PairingEngine,
-    M: SWModelParameters,
-    <M as ModelParameters>::BaseField: ToEngineFr<E>,
+    M::BaseField: ToConstraintField<ConstraintF>,
 {
     #[inline]
-    fn to_engine_fr(&self) -> Result<Vec<E::Fr>, Error> {
+    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
         let affine = self.into_affine();
-        let mut x_fe = affine.x.to_engine_fr()?;
-        let y_fe = affine.y.to_engine_fr()?;
+        let mut x_fe = affine.x.to_field_elements()?;
+        let y_fe = affine.y.to_field_elements()?;
         x_fe.extend_from_slice(&y_fe);
         Ok(x_fe)
     }
 }
 
-impl<E: PairingEngine> ToEngineFr<E> for [u8] {
+impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for [u8] {
     #[inline]
-    fn to_engine_fr(&self) -> Result<Vec<E::Fr>, Error> {
-        let max_size = <E::Fr as PrimeField>::Params::CAPACITY / 8;
+    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
+        let max_size = <ConstraintF as PrimeField>::Params::CAPACITY / 8;
         let max_size = max_size as usize;
         let fes = self
             .chunks(max_size)
@@ -130,16 +114,16 @@ impl<E: PairingEngine> ToEngineFr<E> for [u8] {
                 for _ in len..(max_size + 1) {
                     chunk.push(0u8);
                 }
-                E::Fr::read(chunk.as_slice())
+                ConstraintF::read(chunk.as_slice())
             })
             .collect::<Result<Vec<_>, _>>()?;
         Ok(fes)
     }
 }
 
-impl<E: PairingEngine> ToEngineFr<E> for [u8; 32] {
+impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for [u8; 32] {
     #[inline]
-    fn to_engine_fr(&self) -> Result<Vec<E::Fr>, Error> {
-        ToEngineFr::<E>::to_engine_fr(self.as_ref())
+    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
+        self.as_ref().to_field_elements()
     }
 }

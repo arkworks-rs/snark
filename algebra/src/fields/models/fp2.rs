@@ -12,7 +12,7 @@ use crate::{
 };
 
 pub trait Fp2Parameters: 'static + Send + Sync {
-    type Fp: PrimeField + SquareRootField;
+    type Fp: PrimeField;
 
     const NONRESIDUE: Self::Fp;
 
@@ -160,7 +160,9 @@ impl<P: Fp2Parameters> Field for Fp2<P> {
     }
 }
 
-impl<'a, P: Fp2Parameters> SquareRootField for Fp2<P> {
+impl<'a, P: Fp2Parameters> SquareRootField for Fp2<P> 
+where P::Fp: SquareRootField
+{
     fn legendre(&self) -> LegendreSymbol {
         self.norm().legendre()
     }
