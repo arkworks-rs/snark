@@ -1,9 +1,9 @@
 use algebra::{
     fields::{Field, Fp2, Fp2Parameters},
-    PairingEngine,
+    PrimeField,
 };
 use snark::{ConstraintSystem, SynthesisError};
-use std::{borrow::Borrow, fmt::Debug, marker::PhantomData};
+use std::{borrow::Borrow, marker::PhantomData};
 
 use super::{fp::FpGadget, FieldGadget};
 
@@ -18,16 +18,17 @@ use crate::{
 };
 
 #[derive(Derivative)]
-#[derivative(Debug(bound = "P: Fp2Parameters, E::Fr: Debug"))]
-pub struct Fp2Gadget<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> {
-    pub c0: FpGadget<E>,
-    pub c1: FpGadget<E>,
+#[derivative(Debug(bound = "P: Fp2Parameters, ConstraintF: PrimeField"))]
+#[must_use]
+pub struct Fp2Gadget<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> {
+    pub c0: FpGadget<ConstraintF>,
+    pub c1: FpGadget<ConstraintF>,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
 }
 
-impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> Fp2Gadget<P, E> {
-    pub fn new(c0: FpGadget<E>, c1: FpGadget<E>) -> Self {
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> Fp2Gadget<P, ConstraintF> {
+    pub fn new(c0: FpGadget<ConstraintF>, c1: FpGadget<ConstraintF>) -> Self {
         Self {
             c0,
             c1,
@@ -37,16 +38,16 @@ impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> Fp2Gadget<P, E> {
 
     /// Multiply a FpGadget by quadratic nonresidue P::NONRESIDUE.
     #[inline]
-    pub fn mul_fp_gadget_by_nonresidue<CS: ConstraintSystem<E>>(
+    pub fn mul_fp_gadget_by_nonresidue<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
-        fe: &FpGadget<E>,
-    ) -> Result<FpGadget<E>, SynthesisError> {
+        fe: &FpGadget<ConstraintF>,
+    ) -> Result<FpGadget<ConstraintF>, SynthesisError> {
         fe.mul_by_constant(cs, &P::NONRESIDUE)
     }
 
     /// Multiply a Fp2Gadget by an element of fp.
     #[inline]
-    pub fn mul_by_fp_constant_in_place<CS: ConstraintSystem<E>>(
+    pub fn mul_by_fp_constant_in_place<CS: ConstraintSystem<ConstraintF>>(
         &mut self,
         mut cs: CS,
         fe: &P::Fp,
@@ -58,7 +59,7 @@ impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> Fp2Gadget<P, E> {
 
     /// Multiply a Fp2Gadget by an element of fp.
     #[inline]
-    pub fn mul_by_fp_constant<CS: ConstraintSystem<E>>(
+    pub fn mul_by_fp_constant<CS: ConstraintSystem<ConstraintF>>(
         &self,
         cs: CS,
         fe: &P::Fp,
@@ -69,8 +70,8 @@ impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> Fp2Gadget<P, E> {
     }
 }
 
-impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> FieldGadget<Fp2<P>, E> for Fp2Gadget<P, E> {
-    type Variable = (ConstraintVar<E>, ConstraintVar<E>);
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> FieldGadget<Fp2<P>, ConstraintF> for Fp2Gadget<P, ConstraintF> {
+    type Variable = (ConstraintVar<ConstraintF>, ConstraintVar<ConstraintF>);
 
     #[inline]
     fn get_value(&self) -> Option<Fp2<P>> {
@@ -89,21 +90,21 @@ impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> FieldGadget<Fp2<P>, E> for 
     }
 
     #[inline]
-    fn zero<CS: ConstraintSystem<E>>(mut cs: CS) -> Result<Self, SynthesisError> {
+    fn zero<CS: ConstraintSystem<ConstraintF>>(mut cs: CS) -> Result<Self, SynthesisError> {
         let c0 = FpGadget::zero(cs.ns(|| "c0"))?;
         let c1 = FpGadget::zero(cs.ns(|| "c1"))?;
         Ok(Self::new(c0, c1))
     }
 
     #[inline]
-    fn one<CS: ConstraintSystem<E>>(mut cs: CS) -> Result<Self, SynthesisError> {
+    fn one<CS: ConstraintSystem<ConstraintF>>(mut cs: CS) -> Result<Self, SynthesisError> {
         let c0 = FpGadget::one(cs.ns(|| "c0"))?;
         let c1 = FpGadget::zero(cs.ns(|| "c1"))?;
         Ok(Self::new(c0, c1))
     }
 
     #[inline]
-    fn add<CS: ConstraintSystem<E>>(
+    fn add<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -114,7 +115,7 @@ impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> FieldGadget<Fp2<P>, E> for 
     }
 
     #[inline]
-    fn sub<CS: ConstraintSystem<E>>(
+    fn sub<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -125,14 +126,14 @@ impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> FieldGadget<Fp2<P>, E> for 
     }
 
     #[inline]
-    fn double<CS: ConstraintSystem<E>>(&self, cs: CS) -> Result<Self, SynthesisError> {
+    fn double<CS: ConstraintSystem<ConstraintF>>(&self, cs: CS) -> Result<Self, SynthesisError> {
         let mut result = self.clone();
         result.double_in_place(cs)?;
         Ok(result)
     }
 
     #[inline]
-    fn double_in_place<CS: ConstraintSystem<E>>(
+    fn double_in_place<CS: ConstraintSystem<ConstraintF>>(
         &mut self,
         mut cs: CS,
     ) -> Result<&mut Self, SynthesisError> {
@@ -142,14 +143,14 @@ impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> FieldGadget<Fp2<P>, E> for 
     }
 
     #[inline]
-    fn negate<CS: ConstraintSystem<E>>(&self, cs: CS) -> Result<Self, SynthesisError> {
+    fn negate<CS: ConstraintSystem<ConstraintF>>(&self, cs: CS) -> Result<Self, SynthesisError> {
         let mut result = self.clone();
         result.negate_in_place(cs)?;
         Ok(result)
     }
 
     #[inline]
-    fn negate_in_place<CS: ConstraintSystem<E>>(
+    fn negate_in_place<CS: ConstraintSystem<ConstraintF>>(
         &mut self,
         mut cs: CS,
     ) -> Result<&mut Self, SynthesisError> {
@@ -159,7 +160,7 @@ impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> FieldGadget<Fp2<P>, E> for 
     }
 
     #[inline]
-    fn mul<CS: ConstraintSystem<E>>(
+    fn mul<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -198,7 +199,7 @@ impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> FieldGadget<Fp2<P>, E> for 
     }
 
     #[inline]
-    fn square<CS: ConstraintSystem<E>>(&self, mut cs: CS) -> Result<Self, SynthesisError> {
+    fn square<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Self, SynthesisError> {
         // From Libsnark/fp2_gadget.tcc
         // Complex multiplication for Fp2:
         //     v0 = A.c0 * A.c1
@@ -239,7 +240,7 @@ impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> FieldGadget<Fp2<P>, E> for 
     }
 
     #[inline]
-    fn square_in_place<CS: ConstraintSystem<E>>(
+    fn square_in_place<CS: ConstraintSystem<ConstraintF>>(
         &mut self,
         mut cs: CS,
     ) -> Result<&mut Self, SynthesisError> {
@@ -281,7 +282,7 @@ impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> FieldGadget<Fp2<P>, E> for 
     }
 
     #[inline]
-    fn inverse<CS: ConstraintSystem<E>>(&self, mut cs: CS) -> Result<Self, SynthesisError> {
+    fn inverse<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Self, SynthesisError> {
         let inverse = Self::alloc(&mut cs.ns(|| "alloc inverse"), || {
             self.get_value().and_then(|val| val.inverse()).get()
         })?;
@@ -318,7 +319,7 @@ impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> FieldGadget<Fp2<P>, E> for 
         Ok(inverse)
     }
 
-    fn mul_equals<CS: ConstraintSystem<E>>(
+    fn mul_equals<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -370,7 +371,7 @@ impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> FieldGadget<Fp2<P>, E> for 
         Ok(())
     }
 
-    fn frobenius_map<CS: ConstraintSystem<E>>(
+    fn frobenius_map<CS: ConstraintSystem<ConstraintF>>(
         &self,
         cs: CS,
         power: usize,
@@ -380,7 +381,7 @@ impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> FieldGadget<Fp2<P>, E> for 
         Ok(result)
     }
 
-    fn frobenius_map_in_place<CS: ConstraintSystem<E>>(
+    fn frobenius_map_in_place<CS: ConstraintSystem<ConstraintF>>(
         &mut self,
         cs: CS,
         power: usize,
@@ -391,7 +392,7 @@ impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> FieldGadget<Fp2<P>, E> for 
     }
 
     #[inline]
-    fn add_constant<CS: ConstraintSystem<E>>(
+    fn add_constant<CS: ConstraintSystem<ConstraintF>>(
         &self,
         cs: CS,
         other: &Fp2<P>,
@@ -402,7 +403,7 @@ impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> FieldGadget<Fp2<P>, E> for 
     }
 
     #[inline]
-    fn add_constant_in_place<CS: ConstraintSystem<E>>(
+    fn add_constant_in_place<CS: ConstraintSystem<ConstraintF>>(
         &mut self,
         mut cs: CS,
         other: &Fp2<P>,
@@ -412,7 +413,7 @@ impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> FieldGadget<Fp2<P>, E> for 
         Ok(self)
     }
 
-    fn mul_by_constant<CS: ConstraintSystem<E>>(
+    fn mul_by_constant<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         fe: &Fp2<P>,
@@ -446,19 +447,19 @@ impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> FieldGadget<Fp2<P>, E> for 
     }
 }
 
-impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> PartialEq for Fp2Gadget<P, E> {
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> PartialEq for Fp2Gadget<P, ConstraintF> {
     fn eq(&self, other: &Self) -> bool {
         self.c0 == other.c0 && self.c1 == other.c1
     }
 }
 
-impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> Eq for Fp2Gadget<P, E> {}
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> Eq for Fp2Gadget<P, ConstraintF> {}
 
-impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> EqGadget<E> for Fp2Gadget<P, E> {}
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> EqGadget<ConstraintF> for Fp2Gadget<P, ConstraintF> {}
 
-impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> ConditionalEqGadget<E> for Fp2Gadget<P, E> {
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> ConditionalEqGadget<ConstraintF> for Fp2Gadget<P, ConstraintF> {
     #[inline]
-    fn conditional_enforce_equal<CS: ConstraintSystem<E>>(
+    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -476,9 +477,9 @@ impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> ConditionalEqGadget<E> for 
     }
 }
 
-impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> NEqGadget<E> for Fp2Gadget<P, E> {
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> NEqGadget<ConstraintF> for Fp2Gadget<P, ConstraintF> {
     #[inline]
-    fn enforce_not_equal<CS: ConstraintSystem<E>>(
+    fn enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -493,15 +494,15 @@ impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> NEqGadget<E> for Fp2Gadget<
     }
 }
 
-impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> ToBitsGadget<E> for Fp2Gadget<P, E> {
-    fn to_bits<CS: ConstraintSystem<E>>(&self, mut cs: CS) -> Result<Vec<Boolean>, SynthesisError> {
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> ToBitsGadget<ConstraintF> for Fp2Gadget<P, ConstraintF> {
+    fn to_bits<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Vec<Boolean>, SynthesisError> {
         let mut c0 = self.c0.to_bits(&mut cs)?;
         let mut c1 = self.c1.to_bits(cs)?;
         c0.append(&mut c1);
         Ok(c0)
     }
 
-    fn to_bits_strict<CS: ConstraintSystem<E>>(
+    fn to_bits_strict<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<Boolean>, SynthesisError> {
@@ -512,15 +513,15 @@ impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> ToBitsGadget<E> for Fp2Gadg
     }
 }
 
-impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> ToBytesGadget<E> for Fp2Gadget<P, E> {
-    fn to_bytes<CS: ConstraintSystem<E>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> ToBytesGadget<ConstraintF> for Fp2Gadget<P, ConstraintF> {
+    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
         let mut c0 = self.c0.to_bytes(cs.ns(|| "c0"))?;
         let mut c1 = self.c1.to_bytes(cs.ns(|| "c1"))?;
         c0.append(&mut c1);
         Ok(c0)
     }
 
-    fn to_bytes_strict<CS: ConstraintSystem<E>>(
+    fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
@@ -531,7 +532,7 @@ impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> ToBytesGadget<E> for Fp2Gad
     }
 }
 
-impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> Clone for Fp2Gadget<P, E> {
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> Clone for Fp2Gadget<P, ConstraintF> {
     fn clone(&self) -> Self {
         Self {
             c0:      self.c0.clone(),
@@ -541,18 +542,18 @@ impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> Clone for Fp2Gadget<P, E> {
     }
 }
 
-impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> CondSelectGadget<E> for Fp2Gadget<P, E> {
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> CondSelectGadget<ConstraintF> for Fp2Gadget<P, ConstraintF> {
     #[inline]
-    fn conditionally_select<CS: ConstraintSystem<E>>(
+    fn conditionally_select<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         cond: &Boolean,
         first: &Self,
         second: &Self,
     ) -> Result<Self, SynthesisError> {
         let c0 =
-            FpGadget::<E>::conditionally_select(&mut cs.ns(|| "c0"), cond, &first.c0, &second.c0)?;
+            FpGadget::<ConstraintF>::conditionally_select(&mut cs.ns(|| "c0"), cond, &first.c0, &second.c0)?;
         let c1 =
-            FpGadget::<E>::conditionally_select(&mut cs.ns(|| "c1"), cond, &first.c1, &second.c1)?;
+            FpGadget::<ConstraintF>::conditionally_select(&mut cs.ns(|| "c1"), cond, &first.c1, &second.c1)?;
 
         Ok(Self::new(c0, c1))
     }
@@ -562,9 +563,9 @@ impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> CondSelectGadget<E> for Fp2
     }
 }
 
-impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> TwoBitLookupGadget<E> for Fp2Gadget<P, E> {
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> TwoBitLookupGadget<ConstraintF> for Fp2Gadget<P, ConstraintF> {
     type TableConstant = Fp2<P>;
-    fn two_bit_lookup<CS: ConstraintSystem<E>>(
+    fn two_bit_lookup<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         b: &[Boolean],
         c: &[Self::TableConstant],
@@ -577,13 +578,13 @@ impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> TwoBitLookupGadget<E> for F
     }
 
     fn cost() -> usize {
-        2 * <FpGadget<E> as TwoBitLookupGadget<E>>::cost()
+        2 * <FpGadget<ConstraintF> as TwoBitLookupGadget<ConstraintF>>::cost()
     }
 }
 
-impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> AllocGadget<Fp2<P>, E> for Fp2Gadget<P, E> {
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> AllocGadget<Fp2<P>, ConstraintF> for Fp2Gadget<P, ConstraintF> {
     #[inline]
-    fn alloc<F, T, CS: ConstraintSystem<E>>(
+    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
@@ -608,7 +609,7 @@ impl<P: Fp2Parameters<Fp = E::Fr>, E: PairingEngine> AllocGadget<Fp2<P>, E> for 
     }
 
     #[inline]
-    fn alloc_input<F, T, CS: ConstraintSystem<E>>(
+    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>

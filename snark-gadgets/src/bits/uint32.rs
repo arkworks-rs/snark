@@ -1,4 +1,4 @@
-use algebra::{Field, FpParameters, PairingEngine, PrimeField};
+use algebra::{FpParameters, PrimeField, Field};
 
 use snark::{ConstraintSystem, LinearCombination, SynthesisError};
 
@@ -41,10 +41,10 @@ impl UInt32 {
     }
 
     /// Allocate a `UInt32` in the constraint system
-    pub fn alloc<E, CS>(mut cs: CS, value: Option<u32>) -> Result<Self, SynthesisError>
+    pub fn alloc<ConstraintF, CS>(mut cs: CS, value: Option<u32>) -> Result<Self, SynthesisError>
     where
-        E: PairingEngine,
-        CS: ConstraintSystem<E>,
+        ConstraintF: Field,
+        CS: ConstraintSystem<ConstraintF>,
     {
         let values = match value {
             Some(mut val) => {
@@ -135,10 +135,10 @@ impl UInt32 {
     }
 
     /// XOR this `UInt32` with another `UInt32`
-    pub fn xor<E, CS>(&self, mut cs: CS, other: &Self) -> Result<Self, SynthesisError>
+    pub fn xor<ConstraintF, CS>(&self, mut cs: CS, other: &Self) -> Result<Self, SynthesisError>
     where
-        E: PairingEngine,
-        CS: ConstraintSystem<E>,
+        ConstraintF: Field,
+        CS: ConstraintSystem<ConstraintF>,
     {
         let new_value = match (self.value, other.value) {
             (Some(a), Some(b)) => Some(a ^ b),
@@ -160,14 +160,14 @@ impl UInt32 {
     }
 
     /// Perform modular addition of several `UInt32` objects.
-    pub fn addmany<E, CS>(mut cs: CS, operands: &[Self]) -> Result<Self, SynthesisError>
+    pub fn addmany<ConstraintF, CS>(mut cs: CS, operands: &[Self]) -> Result<Self, SynthesisError>
     where
-        E: PairingEngine,
-        CS: ConstraintSystem<E>,
+        ConstraintF: PrimeField,
+        CS: ConstraintSystem<ConstraintF>,
     {
         // Make some arbitrary bounds for ourselves to avoid overflows
         // in the scalar field
-        assert!(<E::Fr as PrimeField>::Params::MODULUS_BITS >= 64);
+        assert!(ConstraintF::Params::MODULUS_BITS >= 64);
         assert!(operands.len() >= 2); // Weird trivial cases that should never happen
         assert!(operands.len() <= 10);
 
@@ -199,7 +199,7 @@ impl UInt32 {
 
             // Iterate over each bit_gadget of the operand and add the operand to
             // the linear combination
-            let mut coeff = E::Fr::one();
+            let mut coeff = ConstraintF::one();
             for bit in &op.bits {
                 match *bit {
                     Boolean::Is(ref bit) => {
@@ -239,7 +239,7 @@ impl UInt32 {
         let mut result_bits = vec![];
 
         // Allocate each bit_gadget of the result
-        let mut coeff = E::Fr::one();
+        let mut coeff = ConstraintF::one();
         let mut i = 0;
         while max_value != 0 {
             // Allocate the bit_gadget
@@ -271,9 +271,9 @@ impl UInt32 {
     }
 }
 
-impl<E: PairingEngine> ToBytesGadget<E> for UInt32 {
+impl<ConstraintF: Field> ToBytesGadget<ConstraintF> for UInt32 {
     #[inline]
-    fn to_bytes<CS: ConstraintSystem<E>>(&self, _cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
+    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(&self, _cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
         let value_chunks = match self.value.map(|val| {
             use algebra::bytes::ToBytes;
             let mut bytes = [0u8; 4];
@@ -300,7 +300,7 @@ impl<E: PairingEngine> ToBytesGadget<E> for UInt32 {
         Ok(bytes)
     }
 
-    fn to_bytes_strict<CS: ConstraintSystem<E>>(
+    fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
         &self,
         cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
@@ -316,8 +316,8 @@ impl PartialEq for UInt32 {
 
 impl Eq for UInt32 {}
 
-impl<E: PairingEngine> ConditionalEqGadget<E> for UInt32 {
-    fn conditional_enforce_equal<CS: ConstraintSystem<E>>(
+impl<ConstraintF: Field> ConditionalEqGadget<ConstraintF> for UInt32 {
+    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -334,7 +334,7 @@ impl<E: PairingEngine> ConditionalEqGadget<E> for UInt32 {
     }
 
     fn cost() -> usize {
-        32 * <Boolean as ConditionalEqGadget<E>>::cost()
+        32 * <Boolean as ConditionalEqGadget<ConstraintF>>::cost()
     }
 }
 
@@ -342,7 +342,7 @@ impl<E: PairingEngine> ConditionalEqGadget<E> for UInt32 {
 mod test {
     use super::UInt32;
     use crate::{bits::boolean::Boolean, test_constraint_system::TestConstraintSystem};
-    use algebra::{curves::bls12_381::Bls12_381, Field};
+    use algebra::fields::{bls12_381::Fr, Field};
     use rand::{Rng, SeedableRng, XorShiftRng};
     use snark::ConstraintSystem;
 
@@ -383,7 +383,7 @@ mod test {
         let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0653]);
 
         for _ in 0..1000 {
-            let mut cs = TestConstraintSystem::<Bls12_381>::new();
+            let mut cs = TestConstraintSystem::<Fr>::new();
 
             let a: u32 = rng.gen();
             let b: u32 = rng.gen();
@@ -425,7 +425,7 @@ mod test {
         let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for _ in 0..1000 {
-            let mut cs = TestConstraintSystem::<Bls12_381>::new();
+            let mut cs = TestConstraintSystem::<Fr>::new();
 
             let a: u32 = rng.gen();
             let b: u32 = rng.gen();
@@ -460,7 +460,7 @@ mod test {
         let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
         for _ in 0..1000 {
-            let mut cs = TestConstraintSystem::<Bls12_381>::new();
+            let mut cs = TestConstraintSystem::<Fr>::new();
 
             let a: u32 = rng.gen();
             let b: u32 = rng.gen();

@@ -1,12 +1,12 @@
 use crate::bits::{boolean::Boolean, uint8::UInt8};
-use algebra::PairingEngine;
+use algebra::Field;
 use snark::{ConstraintSystem, SynthesisError};
 use std::borrow::Borrow;
 
 /// If `condition == 1`, then enforces that `self` and `other` are equal;
 /// otherwise, it doesn't enforce anything.
-pub trait ConditionalEqGadget<E: PairingEngine>: Eq {
-    fn conditional_enforce_equal<CS: ConstraintSystem<E>>(
+pub trait ConditionalEqGadget<ConstraintF: Field>: Eq {
+    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         cs: CS,
         other: &Self,
@@ -15,8 +15,8 @@ pub trait ConditionalEqGadget<E: PairingEngine>: Eq {
 
     fn cost() -> usize;
 }
-impl<T: ConditionalEqGadget<E>, E: PairingEngine> ConditionalEqGadget<E> for [T] {
-    fn conditional_enforce_equal<CS: ConstraintSystem<E>>(
+impl<T: ConditionalEqGadget<ConstraintF>, ConstraintF: Field> ConditionalEqGadget<ConstraintF> for [T] {
+    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -34,11 +34,11 @@ impl<T: ConditionalEqGadget<E>, E: PairingEngine> ConditionalEqGadget<E> for [T]
     }
 }
 
-pub trait EqGadget<E: PairingEngine>: Eq
+pub trait EqGadget<ConstraintF: Field>: Eq
 where
-    Self: ConditionalEqGadget<E>,
+    Self: ConditionalEqGadget<ConstraintF>,
 {
-    fn enforce_equal<CS: ConstraintSystem<E>>(
+    fn enforce_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         cs: CS,
         other: &Self,
@@ -47,14 +47,14 @@ where
     }
 
     fn cost() -> usize {
-        <Self as ConditionalEqGadget<E>>::cost()
+        <Self as ConditionalEqGadget<ConstraintF>>::cost()
     }
 }
 
-impl<T: EqGadget<E>, E: PairingEngine> EqGadget<E> for [T] {}
+impl<T: EqGadget<ConstraintF>, ConstraintF: Field> EqGadget<ConstraintF> for [T] {}
 
-pub trait NEqGadget<E: PairingEngine>: Eq {
-    fn enforce_not_equal<CS: ConstraintSystem<E>>(
+pub trait NEqGadget<ConstraintF: Field>: Eq {
+    fn enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         cs: CS,
         other: &Self,
@@ -63,22 +63,22 @@ pub trait NEqGadget<E: PairingEngine>: Eq {
     fn cost() -> usize;
 }
 
-pub trait ToBitsGadget<E: PairingEngine> {
-    fn to_bits<CS: ConstraintSystem<E>>(&self, cs: CS) -> Result<Vec<Boolean>, SynthesisError>;
+pub trait ToBitsGadget<ConstraintF: Field> {
+    fn to_bits<CS: ConstraintSystem<ConstraintF>>(&self, cs: CS) -> Result<Vec<Boolean>, SynthesisError>;
 
     /// Additionally checks if the produced list of booleans is 'valid'.
-    fn to_bits_strict<CS: ConstraintSystem<E>>(
+    fn to_bits_strict<CS: ConstraintSystem<ConstraintF>>(
         &self,
         cs: CS,
     ) -> Result<Vec<Boolean>, SynthesisError>;
 }
 
-impl<E: PairingEngine> ToBitsGadget<E> for Boolean {
-    fn to_bits<CS: ConstraintSystem<E>>(&self, _: CS) -> Result<Vec<Boolean>, SynthesisError> {
+impl<ConstraintF: Field> ToBitsGadget<ConstraintF> for Boolean {
+    fn to_bits<CS: ConstraintSystem<ConstraintF>>(&self, _: CS) -> Result<Vec<Boolean>, SynthesisError> {
         Ok(vec![self.clone()])
     }
 
-    fn to_bits_strict<CS: ConstraintSystem<E>>(
+    fn to_bits_strict<CS: ConstraintSystem<ConstraintF>>(
         &self,
         _: CS,
     ) -> Result<Vec<Boolean>, SynthesisError> {
@@ -86,24 +86,24 @@ impl<E: PairingEngine> ToBitsGadget<E> for Boolean {
     }
 }
 
-impl<E: PairingEngine> ToBitsGadget<E> for [Boolean] {
-    fn to_bits<CS: ConstraintSystem<E>>(&self, _cs: CS) -> Result<Vec<Boolean>, SynthesisError> {
+impl<ConstraintF: Field> ToBitsGadget<ConstraintF> for [Boolean] {
+    fn to_bits<CS: ConstraintSystem<ConstraintF>>(&self, _cs: CS) -> Result<Vec<Boolean>, SynthesisError> {
         Ok(self.to_vec())
     }
 
-    fn to_bits_strict<CS: ConstraintSystem<E>>(
+    fn to_bits_strict<CS: ConstraintSystem<ConstraintF>>(
         &self,
         _cs: CS,
     ) -> Result<Vec<Boolean>, SynthesisError> {
         Ok(self.to_vec())
     }
 }
-impl<E: PairingEngine> ToBitsGadget<E> for Vec<Boolean> {
-    fn to_bits<CS: ConstraintSystem<E>>(&self, _cs: CS) -> Result<Vec<Boolean>, SynthesisError> {
+impl<ConstraintF: Field> ToBitsGadget<ConstraintF> for Vec<Boolean> {
+    fn to_bits<CS: ConstraintSystem<ConstraintF>>(&self, _cs: CS) -> Result<Vec<Boolean>, SynthesisError> {
         Ok(self.clone())
     }
 
-    fn to_bits_strict<CS: ConstraintSystem<E>>(
+    fn to_bits_strict<CS: ConstraintSystem<ConstraintF>>(
         &self,
         _cs: CS,
     ) -> Result<Vec<Boolean>, SynthesisError> {
@@ -111,8 +111,8 @@ impl<E: PairingEngine> ToBitsGadget<E> for Vec<Boolean> {
     }
 }
 
-impl<E: PairingEngine> ToBitsGadget<E> for [UInt8] {
-    fn to_bits<CS: ConstraintSystem<E>>(&self, _cs: CS) -> Result<Vec<Boolean>, SynthesisError> {
+impl<ConstraintF: Field> ToBitsGadget<ConstraintF> for [UInt8] {
+    fn to_bits<CS: ConstraintSystem<ConstraintF>>(&self, _cs: CS) -> Result<Vec<Boolean>, SynthesisError> {
         let mut result = Vec::with_capacity(&self.len() * 8);
         for byte in self {
             result.extend_from_slice(&byte.into_bits_le());
@@ -120,7 +120,7 @@ impl<E: PairingEngine> ToBitsGadget<E> for [UInt8] {
         Ok(result)
     }
 
-    fn to_bits_strict<CS: ConstraintSystem<E>>(
+    fn to_bits_strict<CS: ConstraintSystem<ConstraintF>>(
         &self,
         cs: CS,
     ) -> Result<Vec<Boolean>, SynthesisError> {
@@ -128,22 +128,22 @@ impl<E: PairingEngine> ToBitsGadget<E> for [UInt8] {
     }
 }
 
-pub trait ToBytesGadget<E: PairingEngine> {
-    fn to_bytes<CS: ConstraintSystem<E>>(&self, cs: CS) -> Result<Vec<UInt8>, SynthesisError>;
+pub trait ToBytesGadget<ConstraintF: Field> {
+    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(&self, cs: CS) -> Result<Vec<UInt8>, SynthesisError>;
 
     /// Additionally checks if the produced list of booleans is 'valid'.
-    fn to_bytes_strict<CS: ConstraintSystem<E>>(
+    fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
         &self,
         cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError>;
 }
 
 /// If condition is `true`, return `first`; else, select `second`.
-pub trait CondSelectGadget<E: PairingEngine>
+pub trait CondSelectGadget<ConstraintF: Field>
 where
     Self: Sized,
 {
-    fn conditionally_select<CS: ConstraintSystem<E>>(
+    fn conditionally_select<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
         cond: &Boolean,
         first: &Self,
@@ -154,12 +154,12 @@ where
 }
 
 /// Uses two bits to perform a lookup into a table
-pub trait TwoBitLookupGadget<E: PairingEngine>
+pub trait TwoBitLookupGadget<ConstraintF: Field>
 where
     Self: Sized,
 {
     type TableConstant;
-    fn two_bit_lookup<CS: ConstraintSystem<E>>(
+    fn two_bit_lookup<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
         bits: &[Boolean],
         constants: &[Self::TableConstant],
@@ -168,11 +168,11 @@ where
     fn cost() -> usize;
 }
 
-pub trait OrEqualsGadget<E: PairingEngine>
+pub trait OrEqualsGadget<ConstraintF: Field>
 where
     Self: Sized,
 {
-    fn enforce_equal_or<CS: ConstraintSystem<E>>(
+    fn enforce_equal_or<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
         cond: &Boolean,
         var: &Self,
@@ -183,8 +183,8 @@ where
     fn cost() -> usize;
 }
 
-impl<E: PairingEngine, T: Sized + ConditionalOrEqualsGadget<E>> OrEqualsGadget<E> for T {
-    fn enforce_equal_or<CS: ConstraintSystem<E>>(
+impl<ConstraintF: Field, T: Sized + ConditionalOrEqualsGadget<ConstraintF>> OrEqualsGadget<ConstraintF> for T {
+    fn enforce_equal_or<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
         cond: &Boolean,
         var: &Self,
@@ -195,15 +195,15 @@ impl<E: PairingEngine, T: Sized + ConditionalOrEqualsGadget<E>> OrEqualsGadget<E
     }
 
     fn cost() -> usize {
-        <Self as ConditionalOrEqualsGadget<E>>::cost()
+        <Self as ConditionalOrEqualsGadget<ConstraintF>>::cost()
     }
 }
 
-pub trait ConditionalOrEqualsGadget<E: PairingEngine>
+pub trait ConditionalOrEqualsGadget<ConstraintF: Field>
 where
     Self: Sized,
 {
-    fn conditional_enforce_equal_or<CS: ConstraintSystem<E>>(
+    fn conditional_enforce_equal_or<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
         cond: &Boolean,
         var: &Self,
@@ -215,10 +215,10 @@ where
     fn cost() -> usize;
 }
 
-impl<E: PairingEngine, T: Sized + ConditionalEqGadget<E> + CondSelectGadget<E>>
-    ConditionalOrEqualsGadget<E> for T
+impl<ConstraintF: Field, T: Sized + ConditionalEqGadget<ConstraintF> + CondSelectGadget<ConstraintF>>
+    ConditionalOrEqualsGadget<ConstraintF> for T
 {
-    fn conditional_enforce_equal_or<CS: ConstraintSystem<E>>(
+    fn conditional_enforce_equal_or<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         cond: &Boolean,
         var: &Self,
@@ -236,21 +236,21 @@ impl<E: PairingEngine, T: Sized + ConditionalEqGadget<E> + CondSelectGadget<E>>
     }
 
     fn cost() -> usize {
-        <Self as ConditionalEqGadget<E>>::cost() + <Self as CondSelectGadget<E>>::cost()
+        <Self as ConditionalEqGadget<ConstraintF>>::cost() + <Self as CondSelectGadget<ConstraintF>>::cost()
     }
 }
 
-pub trait AllocGadget<V, E: PairingEngine>
+pub trait AllocGadget<V, ConstraintF: Field>
 where
     Self: Sized,
     V: ?Sized,
 {
-    fn alloc<F, T, CS: ConstraintSystem<E>>(cs: CS, f: F) -> Result<Self, SynthesisError>
+    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, f: F) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<V>;
 
-    fn alloc_checked<F, T, CS: ConstraintSystem<E>>(cs: CS, f: F) -> Result<Self, SynthesisError>
+    fn alloc_checked<F, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, f: F) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<V>,
@@ -258,12 +258,12 @@ where
         Self::alloc(cs, f)
     }
 
-    fn alloc_input<F, T, CS: ConstraintSystem<E>>(cs: CS, f: F) -> Result<Self, SynthesisError>
+    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, f: F) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<V>;
 
-    fn alloc_input_checked<F, T, CS: ConstraintSystem<E>>(
+    fn alloc_input_checked<F, T, CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
         f: F,
     ) -> Result<Self, SynthesisError>
@@ -275,8 +275,8 @@ where
     }
 }
 
-impl<I, E: PairingEngine, A: AllocGadget<I, E>> AllocGadget<[I], E> for Vec<A> {
-    fn alloc<F, T, CS: ConstraintSystem<E>>(mut cs: CS, f: F) -> Result<Self, SynthesisError>
+impl<I, ConstraintF: Field, A: AllocGadget<I, ConstraintF>> AllocGadget<[I], ConstraintF> for Vec<A> {
+    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, f: F) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<[I]>,
@@ -290,7 +290,7 @@ impl<I, E: PairingEngine, A: AllocGadget<I, E>> AllocGadget<[I], E> for Vec<A> {
         Ok(vec)
     }
 
-    fn alloc_input<F, T, CS: ConstraintSystem<E>>(mut cs: CS, f: F) -> Result<Self, SynthesisError>
+    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, f: F) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<[I]>,
@@ -305,7 +305,7 @@ impl<I, E: PairingEngine, A: AllocGadget<I, E>> AllocGadget<[I], E> for Vec<A> {
         Ok(vec)
     }
 
-    fn alloc_checked<F, T, CS: ConstraintSystem<E>>(
+    fn alloc_checked<F, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         f: F,
     ) -> Result<Self, SynthesisError>
@@ -323,7 +323,7 @@ impl<I, E: PairingEngine, A: AllocGadget<I, E>> AllocGadget<[I], E> for Vec<A> {
         Ok(vec)
     }
 
-    fn alloc_input_checked<F, T, CS: ConstraintSystem<E>>(
+    fn alloc_input_checked<F, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         f: F,
     ) -> Result<Self, SynthesisError>

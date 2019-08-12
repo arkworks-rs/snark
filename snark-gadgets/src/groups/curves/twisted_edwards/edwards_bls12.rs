@@ -1,9 +1,10 @@
 use crate::groups::curves::twisted_edwards::AffineGadget;
-use algebra::curves::{bls12_377::Bls12_377, edwards_bls12::EdwardsParameters};
+use algebra::curves::edwards_bls12::EdwardsParameters;
+use algebra::fields::edwards_bls12::fq::Fq;
 
 use crate::fields::edwards_bls12::FqGadget;
 
-pub type EdwardsBlsGadget = AffineGadget<EdwardsParameters, Bls12_377, FqGadget>;
+pub type EdwardsBlsGadget = AffineGadget<EdwardsParameters, Fq, FqGadget>;
 
 #[cfg(test)]
 mod test {
@@ -12,18 +13,19 @@ mod test {
         groups::curves::twisted_edwards::test::{edwards_constraint_costs, edwards_test},
         test_constraint_system::TestConstraintSystem,
     };
-    use algebra::curves::{bls12_377::Bls12_377, edwards_bls12::EdwardsParameters};
+    use algebra::fields::edwards_bls12::fq::Fq;
+    use algebra::curves::edwards_bls12::EdwardsParameters;
 
     #[test]
     fn edwards_constraint_costs_test() {
-        let mut cs = TestConstraintSystem::<Bls12_377>::new();
+        let mut cs = TestConstraintSystem::<Fq>::new();
         edwards_constraint_costs::<_, EdwardsParameters, EdwardsG, _>(&mut cs);
         assert!(cs.is_satisfied());
     }
 
     #[test]
     fn edwards_bls12_gadget_test() {
-        let mut cs = TestConstraintSystem::<Bls12_377>::new();
+        let mut cs = TestConstraintSystem::<Fq>::new();
         edwards_test::<_, EdwardsParameters, EdwardsG, _>(&mut cs);
         assert!(cs.is_satisfied());
     }

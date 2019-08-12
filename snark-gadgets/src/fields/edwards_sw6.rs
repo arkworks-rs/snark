@@ -1,6 +1,4 @@
-use algebra::curves::sw6::SW6;
-
+use algebra::fields::edwards_sw6::fq::Fq;
 use crate::fields::fp::FpGadget;
 
-// Edwards_SW6 Fq uses SW6 Fr.
-pub type FqGadget = FpGadget<SW6>;
+pub type FqGadget = FpGadget<Fq>;

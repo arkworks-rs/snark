@@ -1,7 +1,7 @@
 use algebra::{
     curves::{
         short_weierstrass_jacobian::{GroupAffine as SWAffine, GroupProjective as SWProjective},
-        PairingEngine, SWModelParameters,
+        SWModelParameters,
     },
     BitIterator, PrimeField,
 };
@@ -26,15 +26,15 @@ pub mod bls12;
 #[derive(Derivative)]
 #[derivative(Debug, Clone)]
 #[must_use]
-pub struct AffineGadget<P: SWModelParameters, E: PairingEngine, F: FieldGadget<P::BaseField, E>> {
+pub struct AffineGadget<P: SWModelParameters, ConstraintF: Field, F: FieldGadget<P::BaseField, ConstraintF>> {
     pub x:   F,
     pub y:   F,
     _params: PhantomData<P>,
-    _engine: PhantomData<E>,
+    _engine: PhantomData<ConstraintF>,
 }
 
-impl<P: SWModelParameters, E: PairingEngine, F: FieldGadget<P::BaseField, E>>
-    AffineGadget<P, E, F>
+impl<P: SWModelParameters, ConstraintF: Field, F: FieldGadget<P::BaseField, ConstraintF>>
+    AffineGadget<P, ConstraintF, F>
 {
     pub fn new(x: F, y: F) -> Self {
         Self {
@@ -45,7 +45,7 @@ impl<P: SWModelParameters, E: PairingEngine, F: FieldGadget<P::BaseField, E>>
         }
     }
 
-    pub fn alloc_without_check<FN, CS: ConstraintSystem<E>>(
+    pub fn alloc_without_check<FN, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
@@ -70,30 +70,30 @@ impl<P: SWModelParameters, E: PairingEngine, F: FieldGadget<P::BaseField, E>>
     }
 }
 
-impl<P, E, F> PartialEq for AffineGadget<P, E, F>
+impl<P, ConstraintF, F> PartialEq for AffineGadget<P, ConstraintF, F>
 where
     P: SWModelParameters,
-    E: PairingEngine,
-    F: FieldGadget<P::BaseField, E>,
+    ConstraintF: Field,
+    F: FieldGadget<P::BaseField, ConstraintF>,
 {
     fn eq(&self, other: &Self) -> bool {
         self.x == other.x && self.y == other.y
     }
 }
 
-impl<P, E, F> Eq for AffineGadget<P, E, F>
+impl<P, ConstraintF, F> Eq for AffineGadget<P, ConstraintF, F>
 where
     P: SWModelParameters,
-    E: PairingEngine,
-    F: FieldGadget<P::BaseField, E>,
+    ConstraintF: Field,
+    F: FieldGadget<P::BaseField, ConstraintF>,
 {
 }
 
-impl<P, E, F> GroupGadget<SWProjective<P>, E> for AffineGadget<P, E, F>
+impl<P, ConstraintF, F> GroupGadget<SWProjective<P>, ConstraintF> for AffineGadget<P, ConstraintF, F>
 where
     P: SWModelParameters,
-    E: PairingEngine,
-    F: FieldGadget<P::BaseField, E>,
+    ConstraintF: Field,
+    F: FieldGadget<P::BaseField, ConstraintF>,
 {
     type Value = SWProjective<P>;
     type Variable = (F::Variable, F::Variable);
@@ -116,7 +116,7 @@ where
     }
 
     #[inline]
-    fn zero<CS: ConstraintSystem<E>>(mut cs: CS) -> Result<Self, SynthesisError> {
+    fn zero<CS: ConstraintSystem<ConstraintF>>(mut cs: CS) -> Result<Self, SynthesisError> {
         Ok(Self::new(
             F::zero(cs.ns(|| "zero"))?,
             F::one(cs.ns(|| "one"))?,
@@ -126,7 +126,7 @@ where
     #[inline]
     /// Incomplete addition: neither `self` nor `other` can be the neutral
     /// element.
-    fn add<CS: ConstraintSystem<E>>(
+    fn add<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -191,7 +191,7 @@ where
 
     /// Incomplete addition: neither `self` nor `other` can be the neutral
     /// element.
-    fn add_constant<CS: ConstraintSystem<E>>(
+    fn add_constant<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &SWProjective<P>,
@@ -267,7 +267,7 @@ where
     }
 
     #[inline]
-    fn double_in_place<CS: ConstraintSystem<E>>(
+    fn double_in_place<CS: ConstraintSystem<ConstraintF>>(
         &mut self,
         mut cs: CS,
     ) -> Result<(), SynthesisError> {
@@ -306,7 +306,7 @@ where
         Ok(())
     }
 
-    fn negate<CS: ConstraintSystem<E>>(&self, mut cs: CS) -> Result<Self, SynthesisError> {
+    fn negate<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Self, SynthesisError> {
         Ok(Self::new(
             self.x.clone(),
             self.y.negate(cs.ns(|| "negate y"))?,
@@ -322,14 +322,14 @@ where
     }
 }
 
-impl<P, E, F> CondSelectGadget<E> for AffineGadget<P, E, F>
+impl<P, ConstraintF, F> CondSelectGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
 where
     P: SWModelParameters,
-    E: PairingEngine,
-    F: FieldGadget<P::BaseField, E>,
+    ConstraintF: Field,
+    F: FieldGadget<P::BaseField, ConstraintF>,
 {
     #[inline]
-    fn conditionally_select<CS: ConstraintSystem<E>>(
+    fn conditionally_select<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         cond: &Boolean,
         first: &Self,
@@ -342,26 +342,26 @@ where
     }
 
     fn cost() -> usize {
-        2 * <F as CondSelectGadget<E>>::cost()
+        2 * <F as CondSelectGadget<ConstraintF>>::cost()
     }
 }
 
-impl<P, E, F> EqGadget<E> for AffineGadget<P, E, F>
+impl<P, ConstraintF, F> EqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
 where
     P: SWModelParameters,
-    E: PairingEngine,
-    F: FieldGadget<P::BaseField, E>,
+    ConstraintF: Field,
+    F: FieldGadget<P::BaseField, ConstraintF>,
 {
 }
 
-impl<P, E, F> ConditionalEqGadget<E> for AffineGadget<P, E, F>
+impl<P, ConstraintF, F> ConditionalEqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
 where
     P: SWModelParameters,
-    E: PairingEngine,
-    F: FieldGadget<P::BaseField, E>,
+    ConstraintF: Field,
+    F: FieldGadget<P::BaseField, ConstraintF>,
 {
     #[inline]
-    fn conditional_enforce_equal<CS: ConstraintSystem<E>>(
+    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -381,18 +381,18 @@ where
     }
 
     fn cost() -> usize {
-        2 * <F as ConditionalEqGadget<E>>::cost()
+        2 * <F as ConditionalEqGadget<ConstraintF>>::cost()
     }
 }
 
-impl<P, E, F> NEqGadget<E> for AffineGadget<P, E, F>
+impl<P, ConstraintF, F> NEqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
 where
     P: SWModelParameters,
-    E: PairingEngine,
-    F: FieldGadget<P::BaseField, E>,
+    ConstraintF: Field,
+    F: FieldGadget<P::BaseField, ConstraintF>,
 {
     #[inline]
-    fn enforce_not_equal<CS: ConstraintSystem<E>>(
+    fn enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -405,18 +405,18 @@ where
     }
 
     fn cost() -> usize {
-        2 * <F as NEqGadget<E>>::cost()
+        2 * <F as NEqGadget<ConstraintF>>::cost()
     }
 }
 
-impl<P, E, F> AllocGadget<SWProjective<P>, E> for AffineGadget<P, E, F>
+impl<P, ConstraintF, F> AllocGadget<SWProjective<P>, ConstraintF> for AffineGadget<P, ConstraintF, F>
 where
     P: SWModelParameters,
-    E: PairingEngine,
-    F: FieldGadget<P::BaseField, E>,
+    ConstraintF: Field,
+    F: FieldGadget<P::BaseField, ConstraintF>,
 {
     #[inline]
-    fn alloc<FN, T, CS: ConstraintSystem<E>>(
+    fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         value_gen: FN,
     ) -> Result<Self, SynthesisError>
@@ -456,7 +456,7 @@ where
     }
 
     #[inline]
-    fn alloc_checked<FN, T, CS: ConstraintSystem<E>>(
+    fn alloc_checked<FN, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         value_gen: FN,
     ) -> Result<Self, SynthesisError>
@@ -536,7 +536,7 @@ where
     }
 
     #[inline]
-    fn alloc_input<FN, T, CS: ConstraintSystem<E>>(
+    fn alloc_input<FN, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         value_gen: FN,
     ) -> Result<Self, SynthesisError>
@@ -575,20 +575,20 @@ where
     }
 }
 
-impl<P, E, F> ToBitsGadget<E> for AffineGadget<P, E, F>
+impl<P, ConstraintF, F> ToBitsGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
 where
     P: SWModelParameters,
-    E: PairingEngine,
-    F: FieldGadget<P::BaseField, E>,
+    ConstraintF: Field,
+    F: FieldGadget<P::BaseField, ConstraintF>,
 {
-    fn to_bits<CS: ConstraintSystem<E>>(&self, mut cs: CS) -> Result<Vec<Boolean>, SynthesisError> {
+    fn to_bits<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Vec<Boolean>, SynthesisError> {
         let mut x_bits = self.x.to_bits(&mut cs.ns(|| "X Coordinate To Bits"))?;
         let y_bits = self.y.to_bits(&mut cs.ns(|| "Y Coordinate To Bits"))?;
         x_bits.extend_from_slice(&y_bits);
         Ok(x_bits)
     }
 
-    fn to_bits_strict<CS: ConstraintSystem<E>>(
+    fn to_bits_strict<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<Boolean>, SynthesisError> {
@@ -604,20 +604,20 @@ where
     }
 }
 
-impl<P, E, F> ToBytesGadget<E> for AffineGadget<P, E, F>
+impl<P, ConstraintF, F> ToBytesGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
 where
     P: SWModelParameters,
-    E: PairingEngine,
-    F: FieldGadget<P::BaseField, E>,
+    ConstraintF: Field,
+    F: FieldGadget<P::BaseField, ConstraintF>,
 {
-    fn to_bytes<CS: ConstraintSystem<E>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
+    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
         let mut x_bytes = self.x.to_bytes(&mut cs.ns(|| "X Coordinate To Bytes"))?;
         let y_bytes = self.y.to_bytes(&mut cs.ns(|| "Y Coordinate To Bytes"))?;
         x_bytes.extend_from_slice(&y_bytes);
         Ok(x_bytes)
     }
 
-    fn to_bytes_strict<CS: ConstraintSystem<E>>(
+    fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {

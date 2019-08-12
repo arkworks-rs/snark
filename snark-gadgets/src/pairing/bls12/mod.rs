@@ -16,7 +16,6 @@ use algebra::{
         PairingCurve,
     },
     fields::{fp12_2over3over2::Fp12, BitIterator},
-    PairingEngine,
 };
 use std::marker::PhantomData;
 
@@ -24,24 +23,23 @@ pub mod bls12_377;
 
 pub struct PairingGadget<P: Bls12Parameters>(PhantomData<P>);
 
-type Fp2G<P, E> = Fp2Gadget<<P as Bls12Parameters>::Fp2Params, E>;
-type FpG<E> = FpGadget<E>;
+type Fp2G<P> = Fp2Gadget<<P as Bls12Parameters>::Fp2Params, <P as Bls12Parameters>::Fp>;
 
 impl<P: Bls12Parameters> PairingGadget<P> {
     // Evaluate the line function at point p.
-    fn ell<E: PairingEngine<Fr = P::Fp>, CS: ConstraintSystem<E>>(
+    fn ell<CS: ConstraintSystem<P::Fp>>(
         mut cs: CS,
-        f: &mut Fp12Gadget<P::Fp12Params, E>,
-        coeffs: &(Fp2G<P, E>, Fp2G<P, E>),
-        p: &G1Gadget<P, E>,
+        f: &mut Fp12Gadget<P::Fp12Params, P::Fp>,
+        coeffs: &(Fp2G<P>, Fp2G<P>),
+        p: &G1Gadget<P>,
     ) -> Result<(), SynthesisError> {
-        let zero = FpG::zero(cs.ns(|| "fpg zero"))?;
+        let zero = FpGadget::<P::Fp>::zero(cs.ns(|| "fpg zero"))?;
 
         match P::TWIST_TYPE {
             TwistType::M => {
                 let c0 = coeffs.0.clone();
                 let mut c1 = coeffs.1.clone();
-                let c2 = Fp2G::<P, E>::new(p.y.clone(), zero.clone());
+                let c2 = Fp2G::<P>::new(p.y.clone(), zero.clone());
 
                 c1.c0 = c1.c0.mul(cs.ns(|| "mul c1.c0"), &p.x)?;
                 c1.c1 = c1.c1.mul(cs.ns(|| "mul c1.c1"), &p.x)?;
@@ -49,7 +47,7 @@ impl<P: Bls12Parameters> PairingGadget<P> {
                 Ok(())
             },
             TwistType::D => {
-                let c0 = Fp2G::<P, E>::new(p.y.clone(), zero.clone());
+                let c0 = Fp2G::<P>::new(p.y.clone(), zero.clone());
                 let mut c1 = coeffs.0.clone();
                 let c2 = coeffs.1.clone();
 
@@ -61,10 +59,10 @@ impl<P: Bls12Parameters> PairingGadget<P> {
         }
     }
 
-    fn exp_by_x<E: PairingEngine<Fr = P::Fp>, CS: ConstraintSystem<E>>(
+    fn exp_by_x<CS: ConstraintSystem<P::Fp>>(
         mut cs: CS,
-        f: &Fp12Gadget<P::Fp12Params, E>,
-    ) -> Result<Fp12Gadget<P::Fp12Params, E>, SynthesisError> {
+        f: &Fp12Gadget<P::Fp12Params, P::Fp>,
+    ) -> Result<Fp12Gadget<P::Fp12Params, P::Fp>, SynthesisError> {
         let mut result = f.cyclotomic_exp(cs.ns(|| "exp_by_x"), P::X)?;
         if P::X_IS_NEGATIVE {
             result.conjugate_in_place(cs.ns(|| "conjugate"))?;
@@ -73,7 +71,7 @@ impl<P: Bls12Parameters> PairingGadget<P> {
     }
 }
 
-impl<P: Bls12Parameters<Fp = E::Fr>, E: PairingEngine> PG<Bls12<P>, E> for PairingGadget<P>
+impl<P: Bls12Parameters> PG<Bls12<P>, P::Fp> for PairingGadget<P>
 where
     G1Affine<P>: PairingCurve<
         BaseField = <P::G1Parameters as ModelParameters>::BaseField,
@@ -92,13 +90,13 @@ where
         PairingResult = Fp12<P::Fp12Params>,
     >,
 {
-    type G1Gadget = G1Gadget<P, E>;
-    type G2Gadget = G2Gadget<P, E>;
-    type G1PreparedGadget = G1PreparedGadget<P, E>;
-    type G2PreparedGadget = G2PreparedGadget<P, E>;
-    type GTGadget = Fp12Gadget<P::Fp12Params, E>;
+    type G1Gadget = G1Gadget<P>;
+    type G2Gadget = G2Gadget<P>;
+    type G1PreparedGadget = G1PreparedGadget<P>;
+    type G2PreparedGadget = G2PreparedGadget<P>;
+    type GTGadget = Fp12Gadget<P::Fp12Params, P::Fp>;
 
-    fn miller_loop<CS: ConstraintSystem<E>>(
+    fn miller_loop<CS: ConstraintSystem<P::Fp>>(
         mut cs: CS,
         ps: &[Self::G1PreparedGadget],
         qs: &[Self::G2PreparedGadget],
@@ -133,7 +131,7 @@ where
         Ok(f)
     }
 
-    fn final_exponentiation<CS: ConstraintSystem<E>>(
+    fn final_exponentiation<CS: ConstraintSystem<P::Fp>>(
         mut cs: CS,
         f: &Self::GTGadget,
     ) -> Result<Self::GTGadget, SynthesisError> {
@@ -192,14 +190,14 @@ where
         })
     }
 
-    fn prepare_g1<CS: ConstraintSystem<E>>(
+    fn prepare_g1<CS: ConstraintSystem<P::Fp>>(
         cs: CS,
         p: &Self::G1Gadget,
     ) -> Result<Self::G1PreparedGadget, SynthesisError> {
         Self::G1PreparedGadget::from_affine(cs, p)
     }
 
-    fn prepare_g2<CS: ConstraintSystem<E>>(
+    fn prepare_g2<CS: ConstraintSystem<P::Fp>>(
         cs: CS,
         q: &Self::G2Gadget,
     ) -> Result<Self::G2PreparedGadget, SynthesisError> {

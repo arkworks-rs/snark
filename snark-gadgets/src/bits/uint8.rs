@@ -1,4 +1,4 @@
-use algebra::{utils::ToEngineFr, FpParameters, PairingEngine, PrimeField};
+use algebra::{utils::ToConstraintField, FpParameters, Field, PrimeField};
 
 use crate::fields::fp::FpGadget;
 use snark::{ConstraintSystem, SynthesisError};
@@ -55,10 +55,10 @@ impl UInt8 {
         }
     }
 
-    pub fn alloc_vec<E, CS, T>(mut cs: CS, values: &[T]) -> Result<Vec<Self>, SynthesisError>
+    pub fn alloc_vec<ConstraintF, CS, T>(mut cs: CS, values: &[T]) -> Result<Vec<Self>, SynthesisError>
     where
-        E: PairingEngine,
-        CS: ConstraintSystem<E>,
+        ConstraintF: Field,
+        CS: ConstraintSystem<ConstraintF>,
         T: Into<Option<u8>> + Copy,
     {
         let mut output_vec = Vec::with_capacity(values.len());
@@ -71,17 +71,17 @@ impl UInt8 {
     }
 
     /// Allocates a vector of `u8`'s by first converting (chunks of) them to
-    /// `E::Fr` elements, (thus reducing the number of input allocations), and
-    /// then converts this list of `E::Fr` gadgets back into bytes.
-    pub fn alloc_input_vec<E, CS>(mut cs: CS, values: &[u8]) -> Result<Vec<Self>, SynthesisError>
+    /// `ConstraintF` elements, (thus reducing the number of input allocations), and
+    /// then converts this list of `ConstraintF` gadgets back into bytes.
+    pub fn alloc_input_vec<ConstraintF, CS>(mut cs: CS, values: &[u8]) -> Result<Vec<Self>, SynthesisError>
     where
-        E: PairingEngine,
-        CS: ConstraintSystem<E>,
+        ConstraintF: PrimeField,
+        CS: ConstraintSystem<ConstraintF>,
     {
         let values_len = values.len();
-        let field_elements: Vec<E::Fr> = ToEngineFr::<E>::to_engine_fr(values).unwrap();
+        let field_elements: Vec<ConstraintF> = ToConstraintField::<ConstraintF>::to_field_elements(values).unwrap();
 
-        let max_size = 8 * (<E::Fr as PrimeField>::Params::CAPACITY / 8) as usize;
+        let max_size = 8 * (ConstraintF::Params::CAPACITY / 8) as usize;
         let mut allocated_bits = Vec::new();
         for (i, field_element) in field_elements.into_iter().enumerate() {
             let fe = FpGadget::alloc_input(&mut cs.ns(|| format!("Field element {}", i)), || {
@@ -94,9 +94,9 @@ impl UInt8 {
             fe_bits.reverse();
 
             // Remove the most significant bit, because we know it should be zero
-            // because `values.to_engine_fr()` only
+            // because `values.to_field_elements()` only
             // packs field elements up to the penultimate bit.
-            // That is, the most significant bit (`E::Fr::NUM_BITS`-th bit) is
+            // That is, the most significant bit (`ConstraintF::NUM_BITS`-th bit) is
             // unset, so we can just pop it off.
             allocated_bits.extend_from_slice(&fe_bits[0..max_size]);
         }
@@ -153,10 +153,10 @@ impl UInt8 {
     }
 
     /// XOR this `UInt8` with another `UInt8`
-    pub fn xor<E, CS>(&self, mut cs: CS, other: &Self) -> Result<Self, SynthesisError>
+    pub fn xor<ConstraintF, CS>(&self, mut cs: CS, other: &Self) -> Result<Self, SynthesisError>
     where
-        E: PairingEngine,
-        CS: ConstraintSystem<E>,
+        ConstraintF: Field,
+        CS: ConstraintSystem<ConstraintF>,
     {
         let new_value = match (self.value, other.value) {
             (Some(a), Some(b)) => Some(a ^ b),
@@ -186,8 +186,8 @@ impl PartialEq for UInt8 {
 
 impl Eq for UInt8 {}
 
-impl<E: PairingEngine> ConditionalEqGadget<E> for UInt8 {
-    fn conditional_enforce_equal<CS: ConstraintSystem<E>>(
+impl<ConstraintF: Field> ConditionalEqGadget<ConstraintF> for UInt8 {
+    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -204,14 +204,14 @@ impl<E: PairingEngine> ConditionalEqGadget<E> for UInt8 {
     }
 
     fn cost() -> usize {
-        8 * <Boolean as ConditionalEqGadget<E>>::cost()
+        8 * <Boolean as ConditionalEqGadget<ConstraintF>>::cost()
     }
 }
 
-impl<E: PairingEngine> EqGadget<E> for UInt8 {}
+impl<ConstraintF: Field> EqGadget<ConstraintF> for UInt8 {}
 
-impl<E: PairingEngine> AllocGadget<u8, E> for UInt8 {
-    fn alloc<F, T, CS: ConstraintSystem<E>>(
+impl<ConstraintF: Field> AllocGadget<u8, ConstraintF> for UInt8 {
+    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
@@ -251,7 +251,7 @@ impl<E: PairingEngine> AllocGadget<u8, E> for UInt8 {
         })
     }
 
-    fn alloc_input<F, T, CS: ConstraintSystem<E>>(
+    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
@@ -297,13 +297,13 @@ mod test {
     use crate::{
         bits::boolean::Boolean, test_constraint_system::TestConstraintSystem, utils::AllocGadget,
     };
-    use algebra::curves::bls12_381::Bls12_381;
+    use algebra::fields::bls12_381::Fr;
     use rand::{Rng, SeedableRng, XorShiftRng};
     use snark::ConstraintSystem;
 
     #[test]
     fn test_uint8_from_bits_to_bits() {
-        let mut cs = TestConstraintSystem::<Bls12_381>::new();
+        let mut cs = TestConstraintSystem::<Fr>::new();
         let byte_val = 0b01110001;
         let byte = UInt8::alloc(cs.ns(|| "alloc value"), || Ok(byte_val)).unwrap();
         let bits = byte.into_bits_le();
@@ -314,7 +314,7 @@ mod test {
 
     #[test]
     fn test_uint8_alloc_input_vec() {
-        let mut cs = TestConstraintSystem::<Bls12_381>::new();
+        let mut cs = TestConstraintSystem::<Fr>::new();
         let byte_vals = (64u8..128u8).into_iter().collect::<Vec<_>>();
         let bytes = UInt8::alloc_input_vec(cs.ns(|| "alloc value"), &byte_vals).unwrap();
         for (native_byte, gadget_byte) in byte_vals.into_iter().zip(bytes) {
@@ -362,7 +362,7 @@ mod test {
         let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0653]);
 
         for _ in 0..1000 {
-            let mut cs = TestConstraintSystem::<Bls12_381>::new();
+            let mut cs = TestConstraintSystem::<Fr>::new();
 
             let a: u8 = rng.gen();
             let b: u8 = rng.gen();

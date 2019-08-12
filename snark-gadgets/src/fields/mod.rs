@@ -1,5 +1,5 @@
 // use std::ops::{Mul, MulAssign};
-use algebra::{Field, PairingEngine};
+use algebra::Field;
 use snark::{ConstraintSystem, SynthesisError};
 use std::fmt::Debug;
 
@@ -21,17 +21,17 @@ pub mod edwards_bls12;
 pub mod edwards_sw6;
 pub mod jubjub;
 
-pub trait FieldGadget<F: Field, E: PairingEngine>:
+pub trait FieldGadget<F: Field, ConstraintF: Field>:
     Sized
     + Clone
-    + EqGadget<E>
-    + NEqGadget<E>
-    + ConditionalEqGadget<E>
-    + ToBitsGadget<E>
-    + AllocGadget<F, E>
-    + ToBytesGadget<E>
-    + CondSelectGadget<E>
-    + TwoBitLookupGadget<E, TableConstant = F>
+    + EqGadget<ConstraintF>
+    + NEqGadget<ConstraintF>
+    + ConditionalEqGadget<ConstraintF>
+    + ToBitsGadget<ConstraintF>
+    + AllocGadget<F, ConstraintF>
+    + ToBytesGadget<ConstraintF>
+    + CondSelectGadget<ConstraintF>
+    + TwoBitLookupGadget<ConstraintF, TableConstant = F>
     + Debug
 {
     type Variable: Clone + Debug;
@@ -40,13 +40,13 @@ pub trait FieldGadget<F: Field, E: PairingEngine>:
 
     fn get_variable(&self) -> Self::Variable;
 
-    fn zero<CS: ConstraintSystem<E>>(_: CS) -> Result<Self, SynthesisError>;
+    fn zero<CS: ConstraintSystem<ConstraintF>>(_: CS) -> Result<Self, SynthesisError>;
 
-    fn one<CS: ConstraintSystem<E>>(_: CS) -> Result<Self, SynthesisError>;
+    fn one<CS: ConstraintSystem<ConstraintF>>(_: CS) -> Result<Self, SynthesisError>;
 
-    fn add<CS: ConstraintSystem<E>>(&self, _: CS, _: &Self) -> Result<Self, SynthesisError>;
+    fn add<CS: ConstraintSystem<ConstraintF>>(&self, _: CS, _: &Self) -> Result<Self, SynthesisError>;
 
-    fn add_in_place<CS: ConstraintSystem<E>>(
+    fn add_in_place<CS: ConstraintSystem<ConstraintF>>(
         &mut self,
         cs: CS,
         other: &Self,
@@ -55,11 +55,11 @@ pub trait FieldGadget<F: Field, E: PairingEngine>:
         Ok(self)
     }
 
-    fn double<CS: ConstraintSystem<E>>(&self, cs: CS) -> Result<Self, SynthesisError> {
+    fn double<CS: ConstraintSystem<ConstraintF>>(&self, cs: CS) -> Result<Self, SynthesisError> {
         self.add(cs, &self)
     }
 
-    fn double_in_place<CS: ConstraintSystem<E>>(
+    fn double_in_place<CS: ConstraintSystem<ConstraintF>>(
         &mut self,
         cs: CS,
     ) -> Result<&mut Self, SynthesisError> {
@@ -67,9 +67,9 @@ pub trait FieldGadget<F: Field, E: PairingEngine>:
         Ok(self)
     }
 
-    fn sub<CS: ConstraintSystem<E>>(&self, _: CS, _: &Self) -> Result<Self, SynthesisError>;
+    fn sub<CS: ConstraintSystem<ConstraintF>>(&self, _: CS, _: &Self) -> Result<Self, SynthesisError>;
 
-    fn sub_in_place<CS: ConstraintSystem<E>>(
+    fn sub_in_place<CS: ConstraintSystem<ConstraintF>>(
         &mut self,
         cs: CS,
         other: &Self,
@@ -78,10 +78,10 @@ pub trait FieldGadget<F: Field, E: PairingEngine>:
         Ok(self)
     }
 
-    fn negate<CS: ConstraintSystem<E>>(&self, _: CS) -> Result<Self, SynthesisError>;
+    fn negate<CS: ConstraintSystem<ConstraintF>>(&self, _: CS) -> Result<Self, SynthesisError>;
 
     #[inline]
-    fn negate_in_place<CS: ConstraintSystem<E>>(
+    fn negate_in_place<CS: ConstraintSystem<ConstraintF>>(
         &mut self,
         cs: CS,
     ) -> Result<&mut Self, SynthesisError> {
@@ -89,9 +89,9 @@ pub trait FieldGadget<F: Field, E: PairingEngine>:
         Ok(self)
     }
 
-    fn mul<CS: ConstraintSystem<E>>(&self, _: CS, _: &Self) -> Result<Self, SynthesisError>;
+    fn mul<CS: ConstraintSystem<ConstraintF>>(&self, _: CS, _: &Self) -> Result<Self, SynthesisError>;
 
-    fn mul_in_place<CS: ConstraintSystem<E>>(
+    fn mul_in_place<CS: ConstraintSystem<ConstraintF>>(
         &mut self,
         cs: CS,
         other: &Self,
@@ -100,11 +100,11 @@ pub trait FieldGadget<F: Field, E: PairingEngine>:
         Ok(self)
     }
 
-    fn square<CS: ConstraintSystem<E>>(&self, cs: CS) -> Result<Self, SynthesisError> {
+    fn square<CS: ConstraintSystem<ConstraintF>>(&self, cs: CS) -> Result<Self, SynthesisError> {
         self.mul(cs, &self)
     }
 
-    fn square_in_place<CS: ConstraintSystem<E>>(
+    fn square_in_place<CS: ConstraintSystem<ConstraintF>>(
         &mut self,
         cs: CS,
     ) -> Result<&mut Self, SynthesisError> {
@@ -112,7 +112,7 @@ pub trait FieldGadget<F: Field, E: PairingEngine>:
         Ok(self)
     }
 
-    fn mul_equals<CS: ConstraintSystem<E>>(
+    fn mul_equals<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -122,7 +122,7 @@ pub trait FieldGadget<F: Field, E: PairingEngine>:
         result.enforce_equal(&mut cs.ns(|| "test_equals"), &actual_result)
     }
 
-    fn square_equals<CS: ConstraintSystem<E>>(
+    fn square_equals<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         result: &Self,
@@ -131,9 +131,9 @@ pub trait FieldGadget<F: Field, E: PairingEngine>:
         result.enforce_equal(&mut cs.ns(|| "test_equals"), &actual_result)
     }
 
-    fn add_constant<CS: ConstraintSystem<E>>(&self, _: CS, _: &F) -> Result<Self, SynthesisError>;
+    fn add_constant<CS: ConstraintSystem<ConstraintF>>(&self, _: CS, _: &F) -> Result<Self, SynthesisError>;
 
-    fn add_constant_in_place<CS: ConstraintSystem<E>>(
+    fn add_constant_in_place<CS: ConstraintSystem<ConstraintF>>(
         &mut self,
         cs: CS,
         other: &F,
@@ -142,7 +142,7 @@ pub trait FieldGadget<F: Field, E: PairingEngine>:
         Ok(self)
     }
 
-    fn sub_constant<CS: ConstraintSystem<E>>(
+    fn sub_constant<CS: ConstraintSystem<ConstraintF>>(
         &self,
         cs: CS,
         fe: &F,
@@ -150,7 +150,7 @@ pub trait FieldGadget<F: Field, E: PairingEngine>:
         self.add_constant(cs, &(-(*fe)))
     }
 
-    fn sub_constant_in_place<CS: ConstraintSystem<E>>(
+    fn sub_constant_in_place<CS: ConstraintSystem<ConstraintF>>(
         &mut self,
         cs: CS,
         other: &F,
@@ -158,13 +158,13 @@ pub trait FieldGadget<F: Field, E: PairingEngine>:
         self.add_constant_in_place(cs, &(-(*other)))
     }
 
-    fn mul_by_constant<CS: ConstraintSystem<E>>(
+    fn mul_by_constant<CS: ConstraintSystem<ConstraintF>>(
         &self,
         _: CS,
         _: &F,
     ) -> Result<Self, SynthesisError>;
 
-    fn mul_by_constant_in_place<CS: ConstraintSystem<E>>(
+    fn mul_by_constant_in_place<CS: ConstraintSystem<ConstraintF>>(
         &mut self,
         cs: CS,
         other: &F,
@@ -173,15 +173,15 @@ pub trait FieldGadget<F: Field, E: PairingEngine>:
         Ok(self)
     }
 
-    fn inverse<CS: ConstraintSystem<E>>(&self, _: CS) -> Result<Self, SynthesisError>;
+    fn inverse<CS: ConstraintSystem<ConstraintF>>(&self, _: CS) -> Result<Self, SynthesisError>;
 
-    fn frobenius_map<CS: ConstraintSystem<E>>(
+    fn frobenius_map<CS: ConstraintSystem<ConstraintF>>(
         &self,
         _: CS,
         power: usize,
     ) -> Result<Self, SynthesisError>;
 
-    fn frobenius_map_in_place<CS: ConstraintSystem<E>>(
+    fn frobenius_map_in_place<CS: ConstraintSystem<ConstraintF>>(
         &mut self,
         cs: CS,
         power: usize,
@@ -193,7 +193,7 @@ pub trait FieldGadget<F: Field, E: PairingEngine>:
     /// Accepts as input a list of bits which, when interpreted in big-endian
     /// form, are a scalar.
     #[inline]
-    fn pow<CS: ConstraintSystem<E>>(
+    fn pow<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         bits: &[Boolean],
@@ -225,10 +225,10 @@ mod test {
     use crate::{
         bits::boolean::Boolean, test_constraint_system::TestConstraintSystem, utils::AllocGadget,
     };
-    use algebra::{curves::PairingEngine, fields::Field, BitIterator};
+    use algebra::{fields::Field, BitIterator};
     use snark::ConstraintSystem;
 
-    fn field_test<FE: Field, E: PairingEngine, F: FieldGadget<FE, E>, CS: ConstraintSystem<E>>(
+    fn field_test<FE: Field, ConstraintF: Field, F: FieldGadget<FE, ConstraintF>, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         a: F,
         b: F,
@@ -414,9 +414,9 @@ mod test {
 
     fn random_frobenius_tests<
         FE: Field,
-        E: PairingEngine,
-        F: FieldGadget<FE, E>,
-        CS: ConstraintSystem<E>,
+        ConstraintF: Field,
+        F: FieldGadget<FE, ConstraintF>,
+        CS: ConstraintSystem<ConstraintF>,
     >(
         mut cs: CS,
         maxpower: usize,
@@ -437,12 +437,9 @@ mod test {
     #[test]
     fn bls12_377_field_gadgets_test() {
         use crate::fields::bls12_377::{Fq12Gadget, Fq2Gadget, Fq6Gadget, FqGadget};
-        use algebra::{
-            curves::sw6::SW6,
-            fields::bls12_377::{Fq, Fq12, Fq2, Fq6},
-        };
+        use algebra::fields::bls12_377::{Fq, Fq12, Fq2, Fq6};
 
-        let mut cs = TestConstraintSystem::<SW6>::new();
+        let mut cs = TestConstraintSystem::<Fq>::new();
 
         let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0653]);
 
@@ -486,9 +483,9 @@ mod test {
     #[test]
     fn jubjub_field_gadgets_test() {
         use crate::fields::jubjub::FqGadget;
-        use algebra::{curves::bls12_381::Bls12_381, fields::jubjub::fq::Fq};
+        use algebra::fields::jubjub::fq::Fq;
 
-        let mut cs = TestConstraintSystem::<Bls12_381>::new();
+        let mut cs = TestConstraintSystem::<Fq>::new();
 
         let mut rng = thread_rng();
 
@@ -504,9 +501,9 @@ mod test {
     #[test]
     fn edwards_field_gadgets_test() {
         use crate::fields::edwards_bls12::FqGadget;
-        use algebra::{curves::bls12_377::Bls12_377, fields::edwards_bls12::fq::Fq};
+        use algebra::fields::edwards_bls12::fq::Fq;
 
-        let mut cs = TestConstraintSystem::<Bls12_377>::new();
+        let mut cs = TestConstraintSystem::<Fq>::new();
 
         let mut rng = thread_rng();
 
