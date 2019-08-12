@@ -1,6 +1,7 @@
 use super::instantiated::*;
 use algebra::{
-    curves::{bls12_377::Bls12_377, sw6::SW6},
+    fields::bls12_377::fr::Fr,
+    fields::bls12_377::fq::Fq,
     to_bytes, ToBytes,
 };
 use rand::{SeedableRng, XorShiftRng};
@@ -132,7 +133,7 @@ fn test_execute_constraint_systems() {
 
     //////////////////////////////////////////////////////////////////////////
     // Check that the core check constraint system was satisfied.
-    let mut core_cs = TestConstraintSystem::<Bls12_377>::new();
+    let mut core_cs = TestConstraintSystem::<Fr>::new();
 
     execute_core_checks_gadget::<_, _>(
         &mut core_cs.ns(|| "Core checks"),
@@ -173,7 +174,7 @@ fn test_execute_constraint_systems() {
     assert!(core_cs.is_satisfied());
 
     // Check that the proof check constraint system was satisfied.
-    let mut pf_check_cs = TestConstraintSystem::<SW6>::new();
+    let mut pf_check_cs = TestConstraintSystem::<Fq>::new();
 
     let mut old_proof_and_vk = vec![];
     for i in 0..NUM_INPUT_RECORDS {

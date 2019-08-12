@@ -1,6 +1,6 @@
 use crate::plain_dpc::*;
 use crate::dpc::Record;
-use crate::common::ToEngineFr;
+use crate::common::ToConstraintField;
 use algebra::bytes::ToBytes;
 use std::io::{Write, Result as IoResult};
 use crate::crypto_primitives::{CommitmentScheme, PRF};

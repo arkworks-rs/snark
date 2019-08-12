@@ -7,7 +7,7 @@ use crate::{
 use snark_gadgets::{uint8::UInt8, utils::AllocGadget};
 use std::io::{Result as IoResult, Write};
 
-use algebra::{bytes::ToBytes, utils::ToEngineFr, PairingEngine};
+use algebra::{bytes::ToBytes, utils::ToConstraintField};
 
 use snark::{Circuit, ConstraintSystem, SynthesisError};
 
@@ -108,15 +108,15 @@ pub struct PredicateLocalData<C: PlainDPCComponents> {
 }
 
 // Convert each component to bytes and pack into field elements.
-impl<C: PlainDPCComponents> ToEngineFr<C::E> for PredicateLocalData<C>
+impl<C: PlainDPCComponents> ToConstraintField<C::CoreCheckF> for PredicateLocalData<C>
 where
-    <C::LocalDataComm as CommitmentScheme>::Output: ToEngineFr<C::E>,
-    <C::LocalDataComm as CommitmentScheme>::Parameters: ToEngineFr<C::E>,
+    <C::LocalDataComm as CommitmentScheme>::Output: ToConstraintField<C::CoreCheckF>,
+    <C::LocalDataComm as CommitmentScheme>::Parameters: ToConstraintField<C::CoreCheckF>,
 {
-    fn to_engine_fr(&self) -> Result<Vec<<C::E as PairingEngine>::Fr>, Error> {
-        let mut v = ToEngineFr::<C::E>::to_engine_fr([self.position].as_ref())?;
-        v.extend_from_slice(&self.local_data_comm_pp.to_engine_fr()?);
-        v.extend_from_slice(&self.local_data_comm.to_engine_fr()?);
+    fn to_field_elements(&self) -> Result<Vec<C::CoreCheckF>, Error> {
+        let mut v = ToConstraintField::<C::CoreCheckF>::to_field_elements([self.position].as_ref())?;
+        v.extend_from_slice(&self.local_data_comm_pp.to_field_elements()?);
+        v.extend_from_slice(&self.local_data_comm.to_field_elements()?);
         Ok(v)
     }
 }
@@ -157,8 +157,8 @@ impl<C: PlainDPCComponents> EmptyPredicateCircuit<C> {
     }
 }
 
-impl<C: PlainDPCComponents> Circuit<C::E> for EmptyPredicateCircuit<C> {
-    fn synthesize<CS: ConstraintSystem<C::E>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
+impl<C: PlainDPCComponents> Circuit<C::CoreCheckF> for EmptyPredicateCircuit<C> {
+    fn synthesize<CS: ConstraintSystem<C::CoreCheckF>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
         let _position = UInt8::alloc_input_vec(cs.ns(|| "Alloc position"), &[self.position])?;
 
         let _local_data_comm_pp =

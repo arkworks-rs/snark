@@ -1,4 +1,4 @@
-use algebra::PairingEngine;
+use algebra::{Field, PrimeField};
 
 use crate::gadgets::commitment::{
     pedersen::{
@@ -20,36 +20,36 @@ use std::marker::PhantomData;
 pub struct PedersenCommitmentCompressorGadget<
     G: Group,
     I: InjectiveMap<G>,
-    E: PairingEngine,
-    GG: GroupGadget<G, E>,
-    IG: InjectiveMapGadget<G, I, E, GG>,
+    ConstraintF: Field,
+    GG: GroupGadget<G, ConstraintF>,
+    IG: InjectiveMapGadget<G, I, ConstraintF, GG>,
 > {
     _compressor:        PhantomData<I>,
     _compressor_gadget: PhantomData<IG>,
-    _crh:               PedersenCommitmentGadget<G, E, GG>,
+    _crh:               PedersenCommitmentGadget<G, ConstraintF, GG>,
 }
 
-impl<G, I, E, GG, IG, W> CommitmentGadget<PedersenCommCompressor<G, I, W>, E>
-    for PedersenCommitmentCompressorGadget<G, I, E, GG, IG>
+impl<G, I, ConstraintF, GG, IG, W> CommitmentGadget<PedersenCommCompressor<G, I, W>, ConstraintF>
+    for PedersenCommitmentCompressorGadget<G, I, ConstraintF, GG, IG>
 where
     G: Group,
     I: InjectiveMap<G>,
-    E: PairingEngine,
-    GG: GroupGadget<G, E>,
-    IG: InjectiveMapGadget<G, I, E, GG>,
+    ConstraintF: PrimeField,
+    GG: GroupGadget<G, ConstraintF>,
+    IG: InjectiveMapGadget<G, I, ConstraintF, GG>,
     W: PedersenWindow,
 {
     type OutputGadget = IG::OutputGadget;
-    type ParametersGadget = PedersenCommitmentGadgetParameters<G, W, E>;
+    type ParametersGadget = PedersenCommitmentGadgetParameters<G, W, ConstraintF>;
     type RandomnessGadget = PedersenRandomnessGadget;
 
-    fn check_commitment_gadget<CS: ConstraintSystem<E>>(
+    fn check_commitment_gadget<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         parameters: &Self::ParametersGadget,
         input: &[UInt8],
         r: &Self::RandomnessGadget,
     ) -> Result<Self::OutputGadget, SynthesisError> {
-        let result = PedersenCommitmentGadget::<G, E, GG>::check_commitment_gadget(
+        let result = PedersenCommitmentGadget::<G, ConstraintF, GG>::check_commitment_gadget(
             cs.ns(|| "PedersenComm"),
             parameters,
             input,

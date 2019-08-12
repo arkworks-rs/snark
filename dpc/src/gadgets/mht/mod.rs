@@ -1,4 +1,4 @@
-use algebra::PairingEngine;
+use algebra::Field;
 use snark::{ConstraintSystem, SynthesisError};
 
 use crate::crypto_primitives::{mht::HashMembershipProof, CommitmentScheme, FixedLengthCRH};
@@ -13,13 +13,13 @@ use crate::ledger::{CommPath, Digest, LedgerDigest, LedgerWitness};
 
 use std::{borrow::Borrow, marker::PhantomData};
 
-pub trait LCWGadget<C: CommitmentScheme, D: LedgerDigest, CW: LedgerWitness<D>, E: PairingEngine> {
-    type ParametersGadget: AllocGadget<D::Parameters, E>;
-    type CommitmentGadget: AllocGadget<C::Output, E>;
-    type DigestGadget: AllocGadget<D, E>;
-    type WitnessGadget: AllocGadget<CW, E>;
+pub trait LCWGadget<C: CommitmentScheme, D: LedgerDigest, CW: LedgerWitness<D>, ConstraintF: Field> {
+    type ParametersGadget: AllocGadget<D::Parameters, ConstraintF>;
+    type CommitmentGadget: AllocGadget<C::Output, ConstraintF>;
+    type DigestGadget: AllocGadget<D, ConstraintF>;
+    type WitnessGadget: AllocGadget<CW, ConstraintF>;
 
-    fn check_witness_gadget<CS: ConstraintSystem<E>>(
+    fn check_witness_gadget<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
         parameters: &Self::ParametersGadget,
         ledger_state_digest: &Self::DigestGadget,
@@ -36,7 +36,7 @@ pub trait LCWGadget<C: CommitmentScheme, D: LedgerDigest, CW: LedgerWitness<D>, 
         )
     }
 
-    fn conditionally_check_witness_gadget<CS: ConstraintSystem<E>>(
+    fn conditionally_check_witness_gadget<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
         parameters: &Self::ParametersGadget,
         ledger_state_digest: &Self::DigestGadget,
@@ -47,50 +47,56 @@ pub trait LCWGadget<C: CommitmentScheme, D: LedgerDigest, CW: LedgerWitness<D>, 
 }
 
 pub struct IdealLedgerGadget<C, H, HGadget, CGadget> {
+    #[doc(hidden)]
     _comm_scheme: PhantomData<C>,
+    #[doc(hidden)]
     _hash:        PhantomData<H>,
+    #[doc(hidden)]
     _comm_gadget: PhantomData<CGadget>,
+    #[doc(hidden)]
     _hash_gadget: PhantomData<HGadget>,
 }
 
 pub struct CommitmentWitness<
     H: FixedLengthCRH,
     C: CommitmentScheme,
-    HGadget: FixedLengthCRHGadget<H, E>,
-    E: PairingEngine,
+    HGadget: FixedLengthCRHGadget<H, ConstraintF>,
+    ConstraintF: Field,
 > {
     path:    Vec<(HGadget::OutputGadget, HGadget::OutputGadget)>,
     _crh:    PhantomData<H>,
     _comm:   PhantomData<C>,
-    _engine: PhantomData<E>,
+    _engine: PhantomData<ConstraintF>,
 }
 
-pub struct DigestGadget<H: FixedLengthCRH, HGadget: FixedLengthCRHGadget<H, E>, E: PairingEngine> {
+pub struct DigestGadget<H: FixedLengthCRH, HGadget: FixedLengthCRHGadget<H, ConstraintF>, ConstraintF: Field> {
     digest:  HGadget::OutputGadget,
+    #[doc(hidden)]
     _crh:    PhantomData<H>,
-    _engine: PhantomData<E>,
+    #[doc(hidden)]
+    _engine: PhantomData<ConstraintF>,
 }
 
-impl<C, E, H, CGadget, HGadget> LCWGadget<C, Digest<H>, CommPath<H, C::Output>, E>
+impl<C, ConstraintF, H, CGadget, HGadget> LCWGadget<C, Digest<H>, CommPath<H, C::Output>, ConstraintF>
     for IdealLedgerGadget<C, H, HGadget, CGadget>
 where
     C: CommitmentScheme,
     C::Output: Eq,
-    E: PairingEngine,
+    ConstraintF: Field,
     H: FixedLengthCRH,
-    CGadget: CommitmentGadget<C, E>,
-    HGadget: FixedLengthCRHGadget<H, E>,
+    CGadget: CommitmentGadget<C, ConstraintF>,
+    HGadget: FixedLengthCRHGadget<H, ConstraintF>,
 {
-    type ParametersGadget = <HGadget as FixedLengthCRHGadget<H, E>>::ParametersGadget;
-    type DigestGadget = DigestGadget<H, HGadget, E>;
+    type ParametersGadget = <HGadget as FixedLengthCRHGadget<H, ConstraintF>>::ParametersGadget;
+    type DigestGadget = DigestGadget<H, HGadget, ConstraintF>;
 
-    type CommitmentGadget = <CGadget as CommitmentGadget<C, E>>::OutputGadget;
-    type WitnessGadget = CommitmentWitness<H, C, HGadget, E>;
+    type CommitmentGadget = <CGadget as CommitmentGadget<C, ConstraintF>>::OutputGadget;
+    type WitnessGadget = CommitmentWitness<H, C, HGadget, ConstraintF>;
 
     /// Given a `leaf` and `path`, check that the `path` is a valid
     /// authentication path for the `leaf` in a Merkle tree.
     /// Note: It is assumed that the root is contained in the `path`.
-    fn conditionally_check_witness_gadget<CS: ConstraintSystem<E>>(
+    fn conditionally_check_witness_gadget<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         parameters: &Self::ParametersGadget,
         root_hash: &Self::DigestGadget,
@@ -144,7 +150,7 @@ where
                 should_enforce,
             )?;
 
-            previous_hash = hash_inner_node_gadget::<H, HGadget, E, _>(
+            previous_hash = hash_inner_node_gadget::<H, HGadget, ConstraintF, _>(
                 &mut cs.ns(|| format!("hash_inner_node_{}", i)),
                 parameters,
                 left_hash,
@@ -160,17 +166,17 @@ where
     }
 }
 
-pub(crate) fn hash_inner_node_gadget<H, HG, E, CS>(
+pub(crate) fn hash_inner_node_gadget<H, HG, ConstraintF, CS>(
     mut cs: CS,
     parameters: &HG::ParametersGadget,
     left_child: &HG::OutputGadget,
     right_child: &HG::OutputGadget,
 ) -> Result<HG::OutputGadget, SynthesisError>
 where
-    E: PairingEngine,
-    CS: ConstraintSystem<E>,
+    ConstraintF: Field,
+    CS: ConstraintSystem<ConstraintF>,
     H: FixedLengthCRH,
-    HG: FixedLengthCRHGadget<H, E>,
+    HG: FixedLengthCRHGadget<H, ConstraintF>,
 {
     let left_bytes = left_child.to_bytes(&mut cs.ns(|| "left_to_bytes"))?;
     let right_bytes = right_child.to_bytes(&mut cs.ns(|| "right_to_bytes"))?;
@@ -180,13 +186,13 @@ where
     HG::check_evaluation_gadget(cs, parameters, &bytes)
 }
 
-impl<H, HGadget, E> AllocGadget<Digest<H>, E> for DigestGadget<H, HGadget, E>
+impl<H, HGadget, ConstraintF> AllocGadget<Digest<H>, ConstraintF> for DigestGadget<H, HGadget, ConstraintF>
 where
     H: FixedLengthCRH,
-    HGadget: FixedLengthCRHGadget<H, E>,
-    E: PairingEngine,
+    HGadget: FixedLengthCRHGadget<H, ConstraintF>,
+    ConstraintF: Field,
 {
-    fn alloc<F, T, CS: ConstraintSystem<E>>(
+    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
@@ -205,7 +211,7 @@ where
         })
     }
 
-    fn alloc_input<F, T, CS: ConstraintSystem<E>>(
+    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
@@ -224,15 +230,15 @@ where
     }
 }
 
-impl<H, C, HGadget, E> AllocGadget<CommPath<H, C::Output>, E>
-    for CommitmentWitness<H, C, HGadget, E>
+impl<H, C, HGadget, ConstraintF> AllocGadget<CommPath<H, C::Output>, ConstraintF>
+    for CommitmentWitness<H, C, HGadget, ConstraintF>
 where
     H: FixedLengthCRH,
     C: CommitmentScheme,
-    HGadget: FixedLengthCRHGadget<H, E>,
-    E: PairingEngine,
+    HGadget: FixedLengthCRHGadget<H, ConstraintF>,
+    ConstraintF: Field,
 {
-    fn alloc<F, T, CS: ConstraintSystem<E>>(
+    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
@@ -260,7 +266,7 @@ where
         })
     }
 
-    fn alloc_input<F, T, CS: ConstraintSystem<E>>(
+    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
@@ -294,8 +300,6 @@ where
 mod test {
     use std::rc::Rc;
 
-    use algebra::curves::bls12_381::Bls12_381;
-
     use crate::crypto_primitives::{
         commitment::{
             pedersen::{PedersenCommitment, PedersenRandomness},
@@ -307,7 +311,12 @@ mod test {
         },
         mht::*,
     };
-    use algebra::{curves::jubjub::JubJubAffine as JubJub, fields::jubjub::fr::Fr, Group};
+    use algebra::{
+        curves::jubjub::JubJubAffine as JubJub,
+        fields::jubjub::fr::Fr,
+        fields::jubjub::fq::Fq,
+        Group
+    };
     use rand::{ChaChaRng, Rand, SeedableRng};
     use snark::ConstraintSystem;
 
@@ -331,13 +340,13 @@ mod test {
     }
 
     type H = PedersenCRH<JubJub, Window4x256>;
-    type HG = PedersenCRHGadget<JubJub, Bls12_381, JubJubGadget>;
+    type HG = PedersenCRHGadget<JubJub, Fq, JubJubGadget>;
     type C = PedersenCommitment<JubJub, Window4x256>;
-    type CG = PedersenCommitmentGadget<JubJub, Bls12_381, JubJubGadget>;
+    type CG = PedersenCommitmentGadget<JubJub, Fq, JubJubGadget>;
     type JubJubMHT = MerkleHashTree<H, <C as CommitmentScheme>::Output>;
     type LG = IdealLedgerGadget<C, H, HG, CG>;
-    type DG = DigestGadget<H, HG, Bls12_381>;
-    type LCWG = CommitmentWitness<H, C, HG, Bls12_381>;
+    type DG = DigestGadget<H, HG, Fq>;
+    type LCWG = CommitmentWitness<H, C, HG, Fq>;
 
     fn generate_merkle_tree(leaves: &[<C as CommitmentScheme>::Output]) -> () {
         let seed: [u32; 8] = [
@@ -351,7 +360,7 @@ mod test {
         let root = tree.root();
         let mut satisfied = true;
         for (i, leaf) in leaves.iter().enumerate() {
-            let mut cs = TestConstraintSystem::<Bls12_381>::new();
+            let mut cs = TestConstraintSystem::<Fq>::new();
             let proof = tree.generate_proof(i, &leaf).unwrap();
             assert!(proof.verify(&crh_parameters, &root, &leaf).unwrap());
 
@@ -363,7 +372,7 @@ mod test {
             println!("constraints from digest: {}", constraints_from_digest);
 
             let crh_parameters =
-                <HG as FixedLengthCRHGadget<H, Bls12_381>>::ParametersGadget::alloc(
+                <HG as FixedLengthCRHGadget<H, Fq>>::ParametersGadget::alloc(
                     &mut cs.ns(|| format!("new_parameters_{}", i)),
                     || Ok(crh_parameters.clone()),
                 )
@@ -374,7 +383,7 @@ mod test {
                 constraints_from_parameters
             );
 
-            let comm = <CG as CommitmentGadget<C, Bls12_381>>::OutputGadget::alloc(
+            let comm = <CG as CommitmentGadget<C, Fq>>::OutputGadget::alloc(
                 &mut cs.ns(|| format!("new_comm_{}", i)),
                 || {
                     let leaf: JubJub = *leaf;
@@ -455,7 +464,7 @@ mod test {
         let tree = JubJubMHT::new(crh_parameters.clone(), &leaves).unwrap();
         let root = tree.root();
         for (i, leaf) in leaves.iter().enumerate() {
-            let mut cs = TestConstraintSystem::<Bls12_381>::new();
+            let mut cs = TestConstraintSystem::<Fq>::new();
             let proof = tree.generate_proof(i, &leaf).unwrap();
             assert!(proof.verify(&crh_parameters, &root, &leaf).unwrap());
 
@@ -464,12 +473,12 @@ mod test {
             })
             .unwrap();
             let crh_parameters =
-                <HG as FixedLengthCRHGadget<H, Bls12_381>>::ParametersGadget::alloc(
+                <HG as FixedLengthCRHGadget<H, Fq>>::ParametersGadget::alloc(
                     &mut cs.ns(|| format!("new_parameters_{}", i)),
                     || Ok(crh_parameters.clone()),
                 )
                 .unwrap();
-            let comm = <CG as CommitmentGadget<C, Bls12_381>>::OutputGadget::alloc(
+            let comm = <CG as CommitmentGadget<C, Fq>>::OutputGadget::alloc(
                 &mut cs.ns(|| format!("new_comm_{}", i)),
                 || {
                     let leaf = *leaf;

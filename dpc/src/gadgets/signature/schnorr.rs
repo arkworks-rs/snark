@@ -1,4 +1,4 @@
-use algebra::{groups::Group, PairingEngine};
+use algebra::{groups::Group, Field};
 use snark::{ConstraintSystem, SynthesisError};
 
 use crate::gadgets::signature::SigRandomizePkGadget;
@@ -16,14 +16,14 @@ use crate::crypto_primitives::signature::schnorr::{
 };
 use digest::Digest;
 
-pub struct SchnorrSigGadgetParameters<G: Group, E: PairingEngine, GG: GroupGadget<G, E>> {
+pub struct SchnorrSigGadgetParameters<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> {
     generator: GG,
     _group:    PhantomData<*const G>,
-    _engine:   PhantomData<*const E>,
+    _engine:   PhantomData<*const ConstraintF>,
 }
 
-impl<G: Group, E: PairingEngine, GG: GroupGadget<G, E>> Clone
-    for SchnorrSigGadgetParameters<G, E, GG>
+impl<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> Clone
+    for SchnorrSigGadgetParameters<G, ConstraintF, GG>
 {
     fn clone(&self) -> Self {
         Self {
@@ -36,35 +36,40 @@ impl<G: Group, E: PairingEngine, GG: GroupGadget<G, E>> Clone
 
 #[derive(Derivative)]
 #[derivative(
-    Debug(bound = "G: Group, E: PairingEngine, GG: GroupGadget<G, E>"),
-    Clone(bound = "G: Group, E: PairingEngine, GG: GroupGadget<G, E>"),
-    PartialEq(bound = "G: Group, E: PairingEngine, GG: GroupGadget<G, E>"),
-    Eq(bound = "G: Group, E: PairingEngine, GG: GroupGadget<G, E>")
+    Debug(bound = "G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>"),
+    Clone(bound = "G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>"),
+    PartialEq(bound = "G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>"),
+    Eq(bound = "G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>")
 )]
-pub struct SchnorrSigGadgetPk<G: Group, E: PairingEngine, GG: GroupGadget<G, E>> {
+pub struct SchnorrSigGadgetPk<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> {
     pub_key: GG,
+    #[doc(hidden)]
     _group:  PhantomData<*const G>,
-    _engine: PhantomData<*const E>,
+    #[doc(hidden)]
+    _engine: PhantomData<*const ConstraintF>,
 }
 
-pub struct SchnorrRandomizePkGadget<G: Group, E: PairingEngine, GG: GroupGadget<G, E>> {
+pub struct SchnorrRandomizePkGadget<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> {
+    #[doc(hidden)]
     _group:        PhantomData<*const G>,
+    #[doc(hidden)]
     _group_gadget: PhantomData<*const GG>,
-    _engine:       PhantomData<*const E>,
+    #[doc(hidden)]
+    _engine:       PhantomData<*const ConstraintF>,
 }
 
-impl<G, GG, D, E> SigRandomizePkGadget<SchnorrSignature<G, D>, E>
-    for SchnorrRandomizePkGadget<G, E, GG>
+impl<G, GG, D, ConstraintF> SigRandomizePkGadget<SchnorrSignature<G, D>, ConstraintF>
+    for SchnorrRandomizePkGadget<G, ConstraintF, GG>
 where
     G: Group,
-    GG: GroupGadget<G, E>,
+    GG: GroupGadget<G, ConstraintF>,
     D: Digest + Send + Sync,
-    E: PairingEngine,
+    ConstraintF: Field,
 {
-    type ParametersGadget = SchnorrSigGadgetParameters<G, E, GG>;
-    type PublicKeyGadget = SchnorrSigGadgetPk<G, E, GG>;
+    type ParametersGadget = SchnorrSigGadgetParameters<G, ConstraintF, GG>;
+    type PublicKeyGadget = SchnorrSigGadgetPk<G, ConstraintF, GG>;
 
-    fn check_randomization_gadget<CS: ConstraintSystem<E>>(
+    fn check_randomization_gadget<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         parameters: &Self::ParametersGadget,
         public_key: &Self::PublicKeyGadget,
@@ -88,15 +93,15 @@ where
     }
 }
 
-impl<G, E, GG, D> AllocGadget<SchnorrSigParameters<G, D>, E>
-    for SchnorrSigGadgetParameters<G, E, GG>
+impl<G, ConstraintF, GG, D> AllocGadget<SchnorrSigParameters<G, D>, ConstraintF>
+    for SchnorrSigGadgetParameters<G, ConstraintF, GG>
 where
     G: Group,
-    E: PairingEngine,
-    GG: GroupGadget<G, E>,
+    ConstraintF: Field,
+    GG: GroupGadget<G, ConstraintF>,
     D: Digest,
 {
-    fn alloc<F, T, CS: ConstraintSystem<E>>(cs: CS, f: F) -> Result<Self, SynthesisError>
+    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, f: F) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<SchnorrSigParameters<G, D>>,
@@ -109,7 +114,7 @@ where
         })
     }
 
-    fn alloc_input<F, T, CS: ConstraintSystem<E>>(cs: CS, f: F) -> Result<Self, SynthesisError>
+    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, f: F) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<SchnorrSigParameters<G, D>>,
@@ -123,13 +128,13 @@ where
     }
 }
 
-impl<G, E, GG> AllocGadget<SchnorrPublicKey<G>, E> for SchnorrSigGadgetPk<G, E, GG>
+impl<G, ConstraintF, GG> AllocGadget<SchnorrPublicKey<G>, ConstraintF> for SchnorrSigGadgetPk<G, ConstraintF, GG>
 where
     G: Group,
-    E: PairingEngine,
-    GG: GroupGadget<G, E>,
+    ConstraintF: Field,
+    GG: GroupGadget<G, ConstraintF>,
 {
-    fn alloc<F, T, CS: ConstraintSystem<E>>(cs: CS, f: F) -> Result<Self, SynthesisError>
+    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, f: F) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<SchnorrPublicKey<G>>,
@@ -142,7 +147,7 @@ where
         })
     }
 
-    fn alloc_input<F, T, CS: ConstraintSystem<E>>(cs: CS, f: F) -> Result<Self, SynthesisError>
+    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, f: F) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<SchnorrPublicKey<G>>,
@@ -156,14 +161,14 @@ where
     }
 }
 
-impl<G, E, GG> ConditionalEqGadget<E> for SchnorrSigGadgetPk<G, E, GG>
+impl<G, ConstraintF, GG> ConditionalEqGadget<ConstraintF> for SchnorrSigGadgetPk<G, ConstraintF, GG>
 where
     G: Group,
-    E: PairingEngine,
-    GG: GroupGadget<G, E>,
+    ConstraintF: Field,
+    GG: GroupGadget<G, ConstraintF>,
 {
     #[inline]
-    fn conditional_enforce_equal<CS: ConstraintSystem<E>>(
+    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -178,29 +183,29 @@ where
     }
 
     fn cost() -> usize {
-        <GG as ConditionalEqGadget<E>>::cost()
+        <GG as ConditionalEqGadget<ConstraintF>>::cost()
     }
 }
 
-impl<G, E, GG> EqGadget<E> for SchnorrSigGadgetPk<G, E, GG>
+impl<G, ConstraintF, GG> EqGadget<ConstraintF> for SchnorrSigGadgetPk<G, ConstraintF, GG>
 where
     G: Group,
-    E: PairingEngine,
-    GG: GroupGadget<G, E>,
+    ConstraintF: Field,
+    GG: GroupGadget<G, ConstraintF>,
 {
 }
 
-impl<G, E, GG> ToBytesGadget<E> for SchnorrSigGadgetPk<G, E, GG>
+impl<G, ConstraintF, GG> ToBytesGadget<ConstraintF> for SchnorrSigGadgetPk<G, ConstraintF, GG>
 where
     G: Group,
-    E: PairingEngine,
-    GG: GroupGadget<G, E>,
+    ConstraintF: Field,
+    GG: GroupGadget<G, ConstraintF>,
 {
-    fn to_bytes<CS: ConstraintSystem<E>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
+    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
         self.pub_key.to_bytes(&mut cs.ns(|| "PubKey To Bytes"))
     }
 
-    fn to_bytes_strict<CS: ConstraintSystem<E>>(
+    fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {

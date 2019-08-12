@@ -1,4 +1,5 @@
-use algebra::{to_bytes, PairingEngine};
+use algebra::bytes::{FromBytes, ToBytes};
+use algebra::{to_bytes, PrimeField};
 use crate::Error;
 use rand::{Rand, Rng};
 use std::marker::PhantomData;
@@ -9,7 +10,6 @@ use crate::{
     gadgets::{CommitmentGadget, FixedLengthCRHGadget, LCWGadget, NIZKVerifierGadget, PRFGadget},
     ledger::{Ledger, LedgerDigest, LedgerWitness},
 };
-use algebra::bytes::{FromBytes, ToBytes};
 
 pub mod address;
 use self::address::*;
@@ -49,41 +49,41 @@ pub trait PlainDPCComponents: 'static + Sized {
     const NUM_INPUT_RECORDS: usize;
     const NUM_OUTPUT_RECORDS: usize;
 
-    type E: PairingEngine<Fq = <Self::ProofCheckE as PairingEngine>::Fr>;
-    type ProofCheckE: PairingEngine;
+    type CoreCheckF: PrimeField;
+    type ProofCheckF: PrimeField;
 
-    // Commitment scheme for address contents. Invoked only over `Self::E`.
+    // Commitment scheme for address contents. Invoked only over `Self::CoreCheckF`.
     type AddrC: CommitmentScheme;
-    type AddrCGadget: CommitmentGadget<Self::AddrC, Self::E>;
+    type AddrCGadget: CommitmentGadget<Self::AddrC, Self::CoreCheckF>;
 
-    // Commitment scheme for record contents. Invoked only over `Self::E`.
+    // Commitment scheme for record contents. Invoked only over `Self::CoreCheckF`.
     type RecC: CommitmentScheme;
-    type RecCGadget: CommitmentGadget<Self::RecC, Self::E>;
+    type RecCGadget: CommitmentGadget<Self::RecC, Self::CoreCheckF>;
 
     // Ledger digest type.
     type D: LedgerDigest + Clone;
 
-    // CRH for computing the serial number nonce. Invoked only over `Self::E`.
+    // CRH for computing the serial number nonce. Invoked only over `Self::CoreCheckF`.
     type SnNonceH: FixedLengthCRH;
-    type SnNonceHGadget: FixedLengthCRHGadget<Self::SnNonceH, Self::E>;
+    type SnNonceHGadget: FixedLengthCRHGadget<Self::SnNonceH, Self::CoreCheckF>;
 
     // CRH for hashes of birth and death verification keys.
     // This is invoked only on the larger curve.
     type PredVkH: FixedLengthCRH;
-    type PredVkHGadget: FixedLengthCRHGadget<Self::PredVkH, Self::ProofCheckE>;
+    type PredVkHGadget: FixedLengthCRHGadget<Self::PredVkH, Self::ProofCheckF>;
 
     // Commitment scheme for committing to hashes of birth and death verification
     // keys
     type PredVkComm: CommitmentScheme;
     // Used to commit to hashes of vkeys on the smaller curve and to decommit hashes
     // of vkeys on the larger curve
-    type PredVkCommGadget: CommitmentGadget<Self::PredVkComm, Self::E>
-        + CommitmentGadget<Self::PredVkComm, Self::ProofCheckE>;
+    type PredVkCommGadget: CommitmentGadget<Self::PredVkComm, Self::CoreCheckF>
+        + CommitmentGadget<Self::PredVkComm, Self::ProofCheckF>;
 
     // Commitment scheme for committing to predicate input. Invoked inside
     // `Self::MainN` and every predicate NIZK.
     type LocalDataComm: CommitmentScheme;
-    type LocalDataCommGadget: CommitmentGadget<Self::LocalDataComm, Self::E>;
+    type LocalDataCommGadget: CommitmentGadget<Self::LocalDataComm, Self::CoreCheckF>;
 
     // NIZK for non-proof-verification checks
     type MainNIZK: NIZK<
@@ -108,20 +108,20 @@ pub trait PlainDPCComponents: 'static + Sized {
 
     // NIZK Verifier gadget for the "dummy predicate" that does nothing with its
     // input.
-    type PredicateNIZKGadget: NIZKVerifierGadget<Self::PredicateNIZK, Self::ProofCheckE>;
+    type PredicateNIZKGadget: NIZKVerifierGadget<Self::PredicateNIZK, Self::ProofCheckF>;
 
     type LCW: LedgerWitness<Self::D> + Clone;
     type LCWGadget: LCWGadget<
         Self::RecC,
         Self::D,
         Self::LCW,
-        Self::E,
-        CommitmentGadget = <Self::RecCGadget as CommitmentGadget<Self::RecC, Self::E>>::OutputGadget,
+        Self::CoreCheckF,
+        CommitmentGadget = <Self::RecCGadget as CommitmentGadget<Self::RecC, Self::CoreCheckF>>::OutputGadget,
     >;
 
-    // PRF for computing serial numbers. Invoked only over `Self::E`.
+    // PRF for computing serial numbers. Invoked only over `Self::CoreCheckF`.
     type P: PRF;
-    type PGadget: PRFGadget<Self::P, Self::E>;
+    type PGadget: PRFGadget<Self::P, Self::CoreCheckF>;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

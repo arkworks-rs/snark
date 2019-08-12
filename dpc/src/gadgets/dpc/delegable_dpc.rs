@@ -10,7 +10,7 @@ use crate::{
     gadgets::verifier::NIZKVerifierGadget,
     ledger::{LedgerDigest, LedgerWitness},
 };
-use algebra::{to_bytes, utils::ToEngineFr, FpParameters, PairingEngine, PrimeField};
+use algebra::{to_bytes, utils::ToConstraintField, FpParameters, PrimeField};
 use snark::{ConstraintSystem, SynthesisError};
 use snark_gadgets::{
     uint8::UInt8,
@@ -23,7 +23,7 @@ use crate::gadgets::{
 use algebra::bytes::ToBytes;
 use snark_gadgets::boolean::Boolean;
 
-pub fn execute_core_checks_gadget<C: DelegableDPCComponents, CS: ConstraintSystem<C::E>>(
+pub fn execute_core_checks_gadget<C: DelegableDPCComponents, CS: ConstraintSystem<C::CoreCheckF>>(
     cs: &mut CS,
     // Parameters
     comm_crh_sig_parameters: &CommCRHSigPublicParameters<C>,
@@ -93,7 +93,7 @@ pub fn execute_core_checks_gadget<C: DelegableDPCComponents, CS: ConstraintSyste
 
 fn delegable_dpc_execute_gadget_helper<
     C,
-    CS: ConstraintSystem<C::E>,
+    CS: ConstraintSystem<C::CoreCheckF>,
     AddrC,
     RecC,
     SnNonceH,
@@ -155,16 +155,16 @@ where
     D: LedgerDigest,
     CW: LedgerWitness<D>,
     RecC::Output: Eq,
-    AddrCGadget: CommitmentGadget<AddrC, C::E>,
-    RecCGadget: CommitmentGadget<RecC, C::E>,
-    SnNonceHGadget: FixedLengthCRHGadget<SnNonceH, C::E>,
-    PGadget: PRFGadget<P, C::E>,
+    AddrCGadget: CommitmentGadget<AddrC, C::CoreCheckF>,
+    RecCGadget: CommitmentGadget<RecC, C::CoreCheckF>,
+    SnNonceHGadget: FixedLengthCRHGadget<SnNonceH, C::CoreCheckF>,
+    PGadget: PRFGadget<P, C::CoreCheckF>,
     LGadget: LCWGadget<
         RecC,
         D,
         CW,
-        C::E,
-        CommitmentGadget = <RecCGadget as CommitmentGadget<RecC, C::E>>::OutputGadget,
+        C::CoreCheckF,
+        CommitmentGadget = <RecCGadget as CommitmentGadget<RecC, C::CoreCheckF>>::OutputGadget,
     >,
 {
     let mut old_sns = Vec::with_capacity(old_records.len());
@@ -216,7 +216,7 @@ where
             )?;
 
         let pred_vk_comm_pp =
-            <C::PredVkCommGadget as CommitmentGadget<_, C::E>>::ParametersGadget::alloc_input(
+            <C::PredVkCommGadget as CommitmentGadget<_, C::CoreCheckF>>::ParametersGadget::alloc_input(
                 &mut cs.ns(|| "Declare Pred Vk COMM parameters"),
                 || Ok(&comm_crh_sig_parameters.pred_vk_comm_pp),
             )?;
@@ -634,19 +634,19 @@ where
         }
 
         let given_comm_rand =
-            <C::PredVkCommGadget as CommitmentGadget<_, C::E>>::RandomnessGadget::alloc(
+            <C::PredVkCommGadget as CommitmentGadget<_, C::CoreCheckF>>::RandomnessGadget::alloc(
                 &mut comm_cs.ns(|| "Commitment randomness"),
                 || Ok(predicate_rand),
             )?;
 
         let given_comm =
-            <C::PredVkCommGadget as CommitmentGadget<_, C::E>>::OutputGadget::alloc_input(
+            <C::PredVkCommGadget as CommitmentGadget<_, C::CoreCheckF>>::OutputGadget::alloc_input(
                 &mut comm_cs.ns(|| "Commitment output"),
                 || Ok(predicate_comm),
             )?;
 
         let candidate_commitment =
-            <C::PredVkCommGadget as CommitmentGadget<_, C::E>>::check_commitment_gadget(
+            <C::PredVkCommGadget as CommitmentGadget<_, C::CoreCheckF>>::check_commitment_gadget(
                 &mut comm_cs.ns(|| "Compute commitment"),
                 &pred_vk_comm_pp,
                 &input,
@@ -719,7 +719,7 @@ where
     Ok(())
 }
 
-pub fn execute_proof_check_gadget<C: DelegableDPCComponents, CS: ConstraintSystem<C::ProofCheckE>>(
+pub fn execute_proof_check_gadget<C: DelegableDPCComponents, CS: ConstraintSystem<C::ProofCheckF>>(
     cs: &mut CS,
     // Parameters
     comm_crh_sig_parameters: &CommCRHSigPublicParameters<C>,
@@ -737,19 +737,19 @@ pub fn execute_proof_check_gadget<C: DelegableDPCComponents, CS: ConstraintSyste
     local_data_comm: &<C::LocalDataComm as CommitmentScheme>::Output,
 ) -> Result<(), SynthesisError>
 where
-    <C::LocalDataComm as CommitmentScheme>::Output: ToEngineFr<C::E>,
-    <C::LocalDataComm as CommitmentScheme>::Parameters: ToEngineFr<C::E>,
+    <C::LocalDataComm as CommitmentScheme>::Output: ToConstraintField<C::CoreCheckF>,
+    <C::LocalDataComm as CommitmentScheme>::Parameters: ToConstraintField<C::CoreCheckF>,
 {
     // Declare public parameters.
     let (pred_vk_comm_pp, pred_vk_crh_pp) = {
         let cs = &mut cs.ns(|| "Declare Comm and CRH parameters");
 
-        let pred_vk_comm_pp = <C::PredVkCommGadget as CommitmentGadget<_, C::ProofCheckE>>::ParametersGadget::alloc_input(
+        let pred_vk_comm_pp = <C::PredVkCommGadget as CommitmentGadget<_, C::ProofCheckF>>::ParametersGadget::alloc_input(
             &mut cs.ns(|| "Declare Pred Vk COMM parameters"),
             || Ok(&comm_crh_sig_parameters.pred_vk_comm_pp),
         )?;
 
-        let pred_vk_crh_pp = <C::PredVkHGadget as FixedLengthCRHGadget<_, C::ProofCheckE>>::ParametersGadget::alloc_input(
+        let pred_vk_crh_pp = <C::PredVkHGadget as FixedLengthCRHGadget<_, C::ProofCheckF>>::ParametersGadget::alloc_input(
             &mut cs.ns(|| "Declare Pred Vk CRH parameters"),
             || Ok(&comm_crh_sig_parameters.pred_vk_crh_pp),
         )?;
@@ -761,11 +761,11 @@ where
     // Construct predicate input
     // ************************************************************************
 
-    // First we convert the input for the predicates into `E::Fr` field elements
+    // First we convert the input for the predicates into `CoreCheckF` field elements
     let local_data_comm_pp_fe =
-        ToEngineFr::<C::E>::to_engine_fr(&comm_crh_sig_parameters.local_data_comm_pp)
+        ToConstraintField::<C::CoreCheckF>::to_field_elements(&comm_crh_sig_parameters.local_data_comm_pp)
             .map_err(|_| SynthesisError::AssignmentMissing)?;
-    let local_data_comm_fe = ToEngineFr::<C::E>::to_engine_fr(local_data_comm)
+    let local_data_comm_fe = ToConstraintField::<C::CoreCheckF>::to_field_elements(local_data_comm)
         .map_err(|_| SynthesisError::AssignmentMissing)?;
 
     // Then we convert these field elements back into bytes
@@ -778,7 +778,7 @@ where
         &local_data_bytes,
     )?;
 
-    let e_fr_num_bits = <<C::E as PairingEngine>::Fr as PrimeField>::Params::MODULUS_BITS as usize;
+    let e_fr_num_bits = <C::CoreCheckF as PrimeField>::Params::MODULUS_BITS as usize;
     let e_fr_num_bits_nearest_64 =
         e_fr_num_bits / 64 * 64 + (if e_fr_num_bits % 64 == 0 { 0 } else { 64 });
 
@@ -887,18 +887,18 @@ where
         }
 
         let given_comm_rand =
-            <C::PredVkCommGadget as CommitmentGadget<_, C::ProofCheckE>>::RandomnessGadget::alloc(
+            <C::PredVkCommGadget as CommitmentGadget<_, C::ProofCheckF>>::RandomnessGadget::alloc(
                 &mut comm_cs.ns(|| "Commitment randomness"),
                 || Ok(predicate_rand),
             )?;
 
-        let given_comm = <C::PredVkCommGadget as CommitmentGadget<_, C::ProofCheckE>>::OutputGadget::alloc_input(
+        let given_comm = <C::PredVkCommGadget as CommitmentGadget<_, C::ProofCheckF>>::OutputGadget::alloc_input(
             &mut comm_cs.ns(|| "Commitment output"),
             || Ok(predicate_comm),
         )?;
 
         let candidate_commitment =
-            <C::PredVkCommGadget as CommitmentGadget<_, C::ProofCheckE>>::check_commitment_gadget(
+            <C::PredVkCommGadget as CommitmentGadget<_, C::ProofCheckF>>::check_commitment_gadget(
                 &mut comm_cs.ns(|| "Compute commitment"),
                 &pred_vk_comm_pp,
                 &input,

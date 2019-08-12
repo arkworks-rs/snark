@@ -1,4 +1,3 @@
-use algebra::PairingEngine;
 use std::{fmt::Debug, marker::PhantomData};
 
 use crate::gadgets::crh::{
@@ -10,6 +9,7 @@ use algebra::{
         models::{ModelParameters, TEModelParameters},
         twisted_edwards_extended::{GroupAffine as TEAffine, GroupProjective as TEProjective},
     },
+    fields::{Field, PrimeField, SquareRootField},
     groups::Group,
 };
 use snark::{ConstraintSystem, SynthesisError};
@@ -25,17 +25,17 @@ use crate::crypto_primitives::crh::{
     pedersen::{PedersenCRH, PedersenWindow},
 };
 
-pub trait InjectiveMapGadget<G: Group, I: InjectiveMap<G>, E: PairingEngine, GG: GroupGadget<G, E>>
+pub trait InjectiveMapGadget<G: Group, I: InjectiveMap<G>, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>>
 {
-    type OutputGadget: EqGadget<E>
-        + ToBytesGadget<E>
-        + CondSelectGadget<E>
-        + AllocGadget<I::Output, E>
+    type OutputGadget: EqGadget<ConstraintF>
+        + ToBytesGadget<ConstraintF>
+        + CondSelectGadget<ConstraintF>
+        + AllocGadget<I::Output, ConstraintF>
         + Debug
         + Clone
         + Sized;
 
-    fn evaluate_map<CS: ConstraintSystem<E>>(
+    fn evaluate_map<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
         ge: &GG,
     ) -> Result<Self::OutputGadget, SynthesisError>;
@@ -44,17 +44,17 @@ pub trait InjectiveMapGadget<G: Group, I: InjectiveMap<G>, E: PairingEngine, GG:
 
 pub struct TECompressorGadget;
 
-impl<E, P> InjectiveMapGadget<TEAffine<P>, TECompressor, E, TwistedEdwardsGadget<P, E, FpGadget<E>>>
+impl<ConstraintF, P> InjectiveMapGadget<TEAffine<P>, TECompressor, ConstraintF, TwistedEdwardsGadget<P, ConstraintF, FpGadget<ConstraintF>>>
     for TECompressorGadget
 where
-    E: PairingEngine,
-    P: TEModelParameters + ModelParameters<BaseField = E::Fr>,
+    ConstraintF: PrimeField + SquareRootField,
+    P: TEModelParameters + ModelParameters<BaseField = ConstraintF>,
 {
-    type OutputGadget = FpGadget<E>;
+    type OutputGadget = FpGadget<ConstraintF>;
 
-    fn evaluate_map<CS: ConstraintSystem<E>>(
+    fn evaluate_map<CS: ConstraintSystem<ConstraintF>>(
         _cs: CS,
-        ge: &TwistedEdwardsGadget<P, E, FpGadget<E>>,
+        ge: &TwistedEdwardsGadget<P, ConstraintF, FpGadget<ConstraintF>>,
     ) -> Result<Self::OutputGadget, SynthesisError> {
         Ok(ge.x.clone())
     }
@@ -64,18 +64,18 @@ where
     }
 }
 
-impl<E, P>
-    InjectiveMapGadget<TEProjective<P>, TECompressor, E, TwistedEdwardsGadget<P, E, FpGadget<E>>>
+impl<ConstraintF, P>
+    InjectiveMapGadget<TEProjective<P>, TECompressor, ConstraintF, TwistedEdwardsGadget<P, ConstraintF, FpGadget<ConstraintF>>>
     for TECompressorGadget
 where
-    E: PairingEngine,
-    P: TEModelParameters + ModelParameters<BaseField = E::Fr>,
+    ConstraintF: PrimeField + SquareRootField,
+    P: TEModelParameters + ModelParameters<BaseField = ConstraintF>,
 {
-    type OutputGadget = FpGadget<E>;
+    type OutputGadget = FpGadget<ConstraintF>;
 
-    fn evaluate_map<CS: ConstraintSystem<E>>(
+    fn evaluate_map<CS: ConstraintSystem<ConstraintF>>(
         _cs: CS,
-        ge: &TwistedEdwardsGadget<P, E, FpGadget<E>>,
+        ge: &TwistedEdwardsGadget<P, ConstraintF, FpGadget<ConstraintF>>,
     ) -> Result<Self::OutputGadget, SynthesisError> {
         Ok(ge.x.clone())
     }
@@ -88,34 +88,34 @@ where
 pub struct PedersenCRHCompressorGadget<
     G: Group,
     I: InjectiveMap<G>,
-    E: PairingEngine,
-    GG: GroupGadget<G, E>,
-    IG: InjectiveMapGadget<G, I, E, GG>,
+    ConstraintF: Field,
+    GG: GroupGadget<G, ConstraintF>,
+    IG: InjectiveMapGadget<G, I, ConstraintF, GG>,
 > {
     _compressor:        PhantomData<I>,
     _compressor_gadget: PhantomData<IG>,
-    _crh:               PedersenCRHGadget<G, E, GG>,
+    _crh:               PedersenCRHGadget<G, ConstraintF, GG>,
 }
 
-impl<G, I, E, GG, IG, W> FixedLengthCRHGadget<PedersenCRHCompressor<G, I, W>, E>
-    for PedersenCRHCompressorGadget<G, I, E, GG, IG>
+impl<G, I, ConstraintF, GG, IG, W> FixedLengthCRHGadget<PedersenCRHCompressor<G, I, W>, ConstraintF>
+    for PedersenCRHCompressorGadget<G, I, ConstraintF, GG, IG>
 where
     G: Group,
     I: InjectiveMap<G>,
-    E: PairingEngine,
-    GG: GroupGadget<G, E>,
-    IG: InjectiveMapGadget<G, I, E, GG>,
+    ConstraintF: Field,
+    GG: GroupGadget<G, ConstraintF>,
+    IG: InjectiveMapGadget<G, I, ConstraintF, GG>,
     W: PedersenWindow,
 {
     type OutputGadget = IG::OutputGadget;
-    type ParametersGadget = PedersenCRHGadgetParameters<G, W, E, GG>;
+    type ParametersGadget = PedersenCRHGadgetParameters<G, W, ConstraintF, GG>;
 
-    fn check_evaluation_gadget<CS: ConstraintSystem<E>>(
+    fn check_evaluation_gadget<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         parameters: &Self::ParametersGadget,
         input: &[UInt8],
     ) -> Result<Self::OutputGadget, SynthesisError> {
-        let result = PedersenCRHGadget::<G, E, GG>::check_evaluation_gadget(
+        let result = PedersenCRHGadget::<G, ConstraintF, GG>::check_evaluation_gadget(
             cs.ns(|| "PedCRH"),
             parameters,
             input,
@@ -124,7 +124,7 @@ where
     }
 
     fn cost() -> usize {
-        <PedersenCRHGadget<G, E, GG> as FixedLengthCRHGadget<PedersenCRH<G, W>, E>>::cost()
+        <PedersenCRHGadget<G, ConstraintF, GG> as FixedLengthCRHGadget<PedersenCRH<G, W>, ConstraintF>>::cost()
             + IG::cost()
     }
 }
