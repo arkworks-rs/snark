@@ -6,7 +6,7 @@ use algebra::{
     },
     PrimeField,
 };
-use snark::{ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSystem, SynthesisError};
 use std::{borrow::Borrow, marker::PhantomData};
 
 use super::FieldGadget;

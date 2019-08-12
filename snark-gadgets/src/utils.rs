@@ -1,6 +1,6 @@
 use crate::bits::{boolean::Boolean, uint8::UInt8};
 use algebra::Field;
-use snark::{ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSystem, SynthesisError};
 use std::borrow::Borrow;
 
 /// If `condition == 1`, then enforces that `self` and `other` are equal;

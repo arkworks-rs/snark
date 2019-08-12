@@ -1,6 +1,6 @@
 // use std::ops::{Mul, MulAssign};
 use algebra::Field;
-use snark::{ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSystem, SynthesisError};
 use std::fmt::Debug;
 
 use crate::{
@@ -226,7 +226,7 @@ mod test {
         bits::boolean::Boolean, test_constraint_system::TestConstraintSystem, utils::AllocGadget,
     };
     use algebra::{fields::Field, BitIterator};
-    use snark::ConstraintSystem;
+    use r1cs_core::ConstraintSystem;
 
     fn field_test<FE: Field, ConstraintF: Field, F: FieldGadget<FE, ConstraintF>, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,

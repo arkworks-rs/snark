@@ -2,7 +2,7 @@ use algebra::{
     fields::{Field, Fp2, Fp2Parameters},
     PrimeField,
 };
-use snark::{ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSystem, SynthesisError};
 use std::{borrow::Borrow, marker::PhantomData};
 
 use super::{fp::FpGadget, FieldGadget};

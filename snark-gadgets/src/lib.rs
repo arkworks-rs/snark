@@ -40,7 +40,7 @@ extern crate derivative;
 
 use crate::ConstraintVar::*;
 use algebra::Field;
-use snark::{LinearCombination, SynthesisError, Variable};
+use r1cs_core::{LinearCombination, SynthesisError, Variable};
 use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub};
 
 pub mod test_constraint_system;

@@ -3,7 +3,7 @@ use algebra::{
     BitIterator, Field
 };
 
-use snark::{ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSystem, SynthesisError};
 
 use crate::{
     boolean::Boolean,

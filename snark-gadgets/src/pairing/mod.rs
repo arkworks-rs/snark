@@ -1,6 +1,6 @@
 use crate::{fields::FieldGadget, groups::GroupGadget, utils::ToBytesGadget};
 use algebra::{Field, PairingEngine};
-use snark::{ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSystem, SynthesisError};
 use std::fmt::Debug;
 
 pub mod bls12;
@@ -60,7 +60,7 @@ mod test {
     // use rand;
     use crate::{boolean::Boolean, test_constraint_system::TestConstraintSystem};
     use algebra::{BitIterator, Field};
-    use snark::ConstraintSystem;
+    use r1cs_core::ConstraintSystem;
 
     #[test]
     fn bls12_377_gadget_bilinearity_test() {

@@ -1,5 +1,5 @@
 use algebra::Field;
-use snark::{ConstraintSystem, Index, LinearCombination, SynthesisError, Variable};
+use r1cs_core::{ConstraintSystem, Index, LinearCombination, SynthesisError, Variable};
 
 use radix_trie::Trie;
 
