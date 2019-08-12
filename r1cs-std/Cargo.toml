@@ -1,5 +1,5 @@
 [package]
-name = "snark-gadgets"
+name = "r1cs-std"
 version = "0.1.0"
 authors = [
     "Sean Bowe",
@@ -9,7 +9,7 @@ authors = [
     "Pratyush Mishra",
     "Howard Wu"
 ]
-description = "A library for constraint system gadgets"
+description = "A standard library for constraint system gadgets"
 homepage = "https://libzexe.org"
 repository = "https://github.com/scipr/zexe"
 documentation = "https://docs.rs/snark-gadgets/"

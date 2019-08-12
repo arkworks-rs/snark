@@ -44,7 +44,6 @@ use r1cs_core::{LinearCombination, SynthesisError, Variable};
 use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub};
 
 pub mod test_constraint_system;
-pub mod utils;
 
 pub mod bits;
 pub use self::bits::*;
@@ -54,6 +53,19 @@ pub mod fields;
 pub mod groups;
 
 pub mod pairing;
+
+pub mod eq;
+pub mod select;
+pub mod alloc;
+
+pub mod prelude {
+    pub use crate::eq::*;
+    pub use crate::select::*;
+    pub use crate::alloc::*;
+    pub use crate::fields::FieldGadget;
+    pub use crate::groups::GroupGadget;
+    pub use crate::bits::{ToBitsGadget, ToBytesGadget, boolean::Boolean, uint8::UInt8, uint32::UInt32};
+}
 
 pub trait Assignment<T> {
     fn get(self) -> Result<T, SynthesisError>;

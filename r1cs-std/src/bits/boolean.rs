@@ -1,10 +1,7 @@
 use algebra::{BitIterator, Field, FpParameters, PrimeField};
 
-use crate::{
-    bits::uint8::UInt8,
-    utils::{AllocGadget, CondSelectGadget, ConditionalEqGadget, EqGadget, ToBytesGadget},
-    Assignment,
-};
+use crate::prelude::*;
+use crate::Assignment;
 use r1cs_core::{ConstraintSystem, LinearCombination, SynthesisError, Variable};
 use std::borrow::Borrow;
 

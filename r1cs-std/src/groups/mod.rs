@@ -1,7 +1,4 @@
-use crate::{
-    bits::boolean::Boolean,
-    utils::{AllocGadget, CondSelectGadget, EqGadget, NEqGadget, ToBitsGadget, ToBytesGadget},
-};
+use crate::prelude::*;
 use algebra::{Group, Field};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 

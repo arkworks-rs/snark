@@ -5,16 +5,7 @@ use algebra::{
 
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
-use crate::{
-    boolean::Boolean,
-    fields::FieldGadget,
-    groups::GroupGadget,
-    uint8::UInt8,
-    utils::{
-        AllocGadget, CondSelectGadget, ConditionalEqGadget, EqGadget, NEqGadget, ToBitsGadget,
-        ToBytesGadget,
-    },
-};
+use crate::prelude::*;
 
 use std::{borrow::Borrow, marker::PhantomData};
 

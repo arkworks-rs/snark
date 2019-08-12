@@ -3,13 +3,7 @@ use algebra::Field;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use std::fmt::Debug;
 
-use crate::{
-    bits::boolean::Boolean,
-    utils::{
-        AllocGadget, CondSelectGadget, ConditionalEqGadget, EqGadget, NEqGadget, ToBitsGadget,
-        ToBytesGadget, TwoBitLookupGadget,
-    },
-};
+use crate::prelude::*;
 
 pub mod fp;
 pub mod fp12;
