@@ -3,6 +3,8 @@ use algebra::curves::{
     edwards_sw6::EdwardsProjective as EdwardsSW, sw6::SW6,
 };
 
+use algebra::fields::bls12_377::{fr::Fr as Bls12_377Fr, fq::Fq as Bls12_377Fq};
+
 use crate::crypto_primitives::{
     commitment::{blake2s::Blake2sCommitment, injective_map::PedersenCommCompressor},
     crh::{
@@ -93,8 +95,9 @@ pub struct Components;
 impl PlainDPCComponents for Components {
     const NUM_INPUT_RECORDS: usize = NUM_INPUT_RECORDS;
     const NUM_OUTPUT_RECORDS: usize = NUM_OUTPUT_RECORDS;
-    type E = CoreEngine;
-    type ProofCheckE = ProofCheckEngine;
+
+    type CoreCheckF = CoreCheckF;
+    type ProofCheckF = ProofCheckF;
 
     type AddrC = AddressComm;
     type RecC = RecordComm;
@@ -125,8 +128,10 @@ impl PlainDPCComponents for Components {
 
 // Native primitives
 pub type EdwardsCompressor = TECompressor;
-pub type CoreEngine = Bls12_377;
-pub type ProofCheckEngine = SW6;
+pub type CoreCheckPairing = Bls12_377;
+pub type ProofCheckPairing = SW6;
+pub type CoreCheckF = Bls12_377Fr;
+pub type ProofCheckF = Bls12_377Fq;
 
 pub type AddressComm = PedersenCommCompressor<EdwardsBls, EdwardsCompressor, AddressWindow>;
 pub type RecordComm = PedersenCommCompressor<EdwardsBls, EdwardsCompressor, RecordWindow>;
@@ -139,10 +144,10 @@ pub type PredVkCRH = PedersenCRHCompressor<EdwardsSW, EdwardsCompressor, PredVkH
 
 pub type Predicate = DPCPredicate<Components>;
 pub type CoreCheckNIZK =
-    Gm17<CoreEngine, CoreChecksCircuit<Components>, CoreChecksVerifierInput<Components>>;
+    Gm17<CoreCheckPairing, CoreChecksCircuit<Components>, CoreChecksVerifierInput<Components>>;
 pub type ProofCheckNIZK =
-    Gm17<ProofCheckEngine, ProofCheckCircuit<Components>, ProofCheckVerifierInput<Components>>;
-pub type PredicateNIZK<C> = Gm17<CoreEngine, EmptyPredicateCircuit<C>, PredicateLocalData<C>>;
+    Gm17<ProofCheckPairing, ProofCheckCircuit<Components>, ProofCheckVerifierInput<Components>>;
+pub type PredicateNIZK<C> = Gm17<CoreCheckPairing, EmptyPredicateCircuit<C>, PredicateLocalData<C>>;
 pub type PRF = Blake2s;
 
 pub type MerkleTreeDigest = Digest<MerkleTreeCRH>;
@@ -155,14 +160,14 @@ pub type EdwardsCompressorGadget = TECompressorGadget;
 pub type RecordCommGadget = PedersenCommitmentCompressorGadget<
     EdwardsBls,
     EdwardsCompressor,
-    CoreEngine,
+    CoreCheckF,
     EdwardsBlsGadget,
     EdwardsCompressorGadget,
 >;
 pub type AddressCommGadget = PedersenCommitmentCompressorGadget<
     EdwardsBls,
     EdwardsCompressor,
-    CoreEngine,
+    CoreCheckF,
     EdwardsBlsGadget,
     EdwardsCompressorGadget,
 >;
@@ -170,7 +175,7 @@ pub type PredicateCommGadget = Blake2sCommitmentGadget;
 pub type LocalDataCommGadget = PedersenCommitmentCompressorGadget<
     EdwardsBls,
     EdwardsCompressor,
-    CoreEngine,
+    CoreCheckF,
     EdwardsBlsGadget,
     EdwardsCompressorGadget,
 >;
@@ -178,21 +183,21 @@ pub type LocalDataCommGadget = PedersenCommitmentCompressorGadget<
 pub type SnNonceCRHGadget = PedersenCRHCompressorGadget<
     EdwardsBls,
     EdwardsCompressor,
-    CoreEngine,
+    CoreCheckF,
     EdwardsBlsGadget,
     EdwardsCompressorGadget,
 >;
 pub type MerkleTreeCRHGadget = PedersenCRHCompressorGadget<
     EdwardsBls,
     EdwardsCompressor,
-    CoreEngine,
+    CoreCheckF,
     EdwardsBlsGadget,
     EdwardsCompressorGadget,
 >;
 pub type PredVkCRHGadget = PedersenCRHCompressorGadget<
     EdwardsSW,
     EdwardsCompressor,
-    ProofCheckEngine,
+    ProofCheckF,
     EdwardsSWGadget,
     EdwardsCompressorGadget,
 >;
@@ -200,7 +205,7 @@ pub type PredVkCRHGadget = PedersenCRHCompressorGadget<
 pub type MerkleTreeWitnessGadget =
     IdealLedgerGadget<RecordComm, MerkleTreeCRH, MerkleTreeCRHGadget, RecordCommGadget>;
 pub type PRFGadget = Blake2sGadget;
-pub type PredicateNIZKGadget = Gm17VerifierGadget<CoreEngine, ProofCheckEngine, PairingGadget>;
+pub type PredicateNIZKGadget = Gm17VerifierGadget<CoreCheckPairing, ProofCheckF, PairingGadget>;
 //
 
 pub type MerkleTreeIdealLedger = IdealLedger<Tx, MerkleTreeCRH>;

@@ -1,4 +1,3 @@
-use algebra::PairingEngine;
 use crate::Error;
 use snark::{Circuit, ConstraintSystem, SynthesisError};
 
@@ -13,7 +12,7 @@ use crate::{
     ledger::LedgerDigest,
 };
 
-use algebra::utils::ToEngineFr;
+use algebra::utils::ToConstraintField;
 
 pub struct CoreChecksVerifierInput<C: PlainDPCComponents> {
     // Commitment and CRH parameters
@@ -35,51 +34,51 @@ pub struct CoreChecksVerifierInput<C: PlainDPCComponents> {
     pub memo:            [u8; 32],
 }
 
-impl<C: PlainDPCComponents> ToEngineFr<C::E> for CoreChecksVerifierInput<C>
+impl<C: PlainDPCComponents> ToConstraintField<C::CoreCheckF> for CoreChecksVerifierInput<C>
 where
-    <C::AddrC as CommitmentScheme>::Parameters: ToEngineFr<C::E>,
-    <C::AddrC as CommitmentScheme>::Output: ToEngineFr<C::E>,
+    <C::AddrC as CommitmentScheme>::Parameters: ToConstraintField<C::CoreCheckF>,
+    <C::AddrC as CommitmentScheme>::Output: ToConstraintField<C::CoreCheckF>,
 
-    <C::RecC as CommitmentScheme>::Parameters: ToEngineFr<C::E>,
-    <C::RecC as CommitmentScheme>::Output: ToEngineFr<C::E>,
+    <C::RecC as CommitmentScheme>::Parameters: ToConstraintField<C::CoreCheckF>,
+    <C::RecC as CommitmentScheme>::Output: ToConstraintField<C::CoreCheckF>,
 
-    <C::SnNonceH as FixedLengthCRH>::Parameters: ToEngineFr<C::E>,
+    <C::SnNonceH as FixedLengthCRH>::Parameters: ToConstraintField<C::CoreCheckF>,
 
-    <C::PredVkComm as CommitmentScheme>::Parameters: ToEngineFr<C::E>,
-    <C::PredVkComm as CommitmentScheme>::Output: ToEngineFr<C::E>,
+    <C::PredVkComm as CommitmentScheme>::Parameters: ToConstraintField<C::CoreCheckF>,
+    <C::PredVkComm as CommitmentScheme>::Output: ToConstraintField<C::CoreCheckF>,
 
-    <C::LocalDataComm as CommitmentScheme>::Parameters: ToEngineFr<C::E>,
-    <C::LocalDataComm as CommitmentScheme>::Output: ToEngineFr<C::E>,
+    <C::LocalDataComm as CommitmentScheme>::Parameters: ToConstraintField<C::CoreCheckF>,
+    <C::LocalDataComm as CommitmentScheme>::Output: ToConstraintField<C::CoreCheckF>,
 
-    <C::P as PRF>::Output: ToEngineFr<C::E>,
+    <C::P as PRF>::Output: ToConstraintField<C::CoreCheckF>,
 
-    C::D: ToEngineFr<C::E>,
-    <C::D as LedgerDigest>::Parameters: ToEngineFr<C::E>,
+    C::D: ToConstraintField<C::CoreCheckF>,
+    <C::D as LedgerDigest>::Parameters: ToConstraintField<C::CoreCheckF>,
 {
-    fn to_engine_fr(&self) -> Result<Vec<<C::E as PairingEngine>::Fr>, Error> {
+    fn to_field_elements(&self) -> Result<Vec<C::CoreCheckF>, Error> {
         let mut v = Vec::new();
 
-        v.extend_from_slice(&self.comm_and_crh_pp.addr_comm_pp.to_engine_fr()?);
-        v.extend_from_slice(&self.comm_and_crh_pp.rec_comm_pp.to_engine_fr()?);
-        v.extend_from_slice(&self.comm_and_crh_pp.local_data_comm_pp.to_engine_fr()?);
-        v.extend_from_slice(&self.comm_and_crh_pp.pred_vk_comm_pp.to_engine_fr()?);
+        v.extend_from_slice(&self.comm_and_crh_pp.addr_comm_pp.to_field_elements()?);
+        v.extend_from_slice(&self.comm_and_crh_pp.rec_comm_pp.to_field_elements()?);
+        v.extend_from_slice(&self.comm_and_crh_pp.local_data_comm_pp.to_field_elements()?);
+        v.extend_from_slice(&self.comm_and_crh_pp.pred_vk_comm_pp.to_field_elements()?);
 
-        v.extend_from_slice(&self.comm_and_crh_pp.sn_nonce_crh_pp.to_engine_fr()?);
+        v.extend_from_slice(&self.comm_and_crh_pp.sn_nonce_crh_pp.to_field_elements()?);
 
-        v.extend_from_slice(&self.ledger_pp.to_engine_fr()?);
-        v.extend_from_slice(&self.ledger_digest.to_engine_fr()?);
+        v.extend_from_slice(&self.ledger_pp.to_field_elements()?);
+        v.extend_from_slice(&self.ledger_digest.to_field_elements()?);
 
         for sn in &self.old_serial_numbers {
-            v.extend_from_slice(&sn.to_engine_fr()?);
+            v.extend_from_slice(&sn.to_field_elements()?);
         }
 
         for cm in &self.new_commitments {
-            v.extend_from_slice(&cm.to_engine_fr()?);
+            v.extend_from_slice(&cm.to_field_elements()?);
         }
 
-        v.extend_from_slice(&self.predicate_comm.to_engine_fr()?);
-        v.extend_from_slice(&ToEngineFr::<C::E>::to_engine_fr(self.memo.as_ref())?);
-        v.extend_from_slice(&self.local_data_comm.to_engine_fr()?);
+        v.extend_from_slice(&self.predicate_comm.to_field_elements()?);
+        v.extend_from_slice(&ToConstraintField::<C::CoreCheckF>::to_field_elements(self.memo.as_ref())?);
+        v.extend_from_slice(&self.local_data_comm.to_field_elements()?);
 
         Ok(v)
     }
@@ -245,8 +244,8 @@ impl<C: PlainDPCComponents> CoreChecksCircuit<C> {
     }
 }
 
-impl<C: PlainDPCComponents> Circuit<C::E> for CoreChecksCircuit<C> {
-    fn synthesize<CS: ConstraintSystem<C::E>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
+impl<C: PlainDPCComponents> Circuit<C::CoreCheckF> for CoreChecksCircuit<C> {
+    fn synthesize<CS: ConstraintSystem<C::CoreCheckF>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
         execute_core_checks_gadget::<C, CS>(
             cs,
             // Params

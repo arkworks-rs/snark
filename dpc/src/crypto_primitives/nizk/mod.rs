@@ -67,8 +67,8 @@ mod test {
             }
         }
 
-        impl Circuit<Bls12_381> for R1CSCircuit {
-            fn synthesize<CS: ConstraintSystem<Bls12_381>>(
+        impl Circuit<Fr> for R1CSCircuit {
+            fn synthesize<CS: ConstraintSystem<Fr>>(
                 self,
                 cs: &mut CS,
             ) -> Result<(), SynthesisError> {

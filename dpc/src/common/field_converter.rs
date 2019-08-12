@@ -1,4 +1,4 @@
-use algebra::{utils::*, Group, PairingEngine};
+use algebra::{utils::*, Group, Field};
 use crate::Error;
 
 use crate::{
@@ -11,35 +11,35 @@ use crate::{
 };
 use digest::Digest as HashDigest;
 
-impl<E: PairingEngine, G: Group + ToEngineFr<E>> ToEngineFr<E> for PCParameters<G> {
+impl<ConstraintF: Field, G: Group + ToConstraintField<ConstraintF>> ToConstraintField<ConstraintF> for PCParameters<G> {
     #[inline]
-    fn to_engine_fr(&self) -> Result<Vec<E::Fr>, Error> {
+    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
         Ok(Vec::new())
     }
 }
 
-impl<E: PairingEngine, G: Group + ToEngineFr<E>> ToEngineFr<E> for PHParameters<G> {
+impl<ConstraintF: Field, G: Group + ToConstraintField<ConstraintF>> ToConstraintField<ConstraintF> for PHParameters<G> {
     #[inline]
-    fn to_engine_fr(&self) -> Result<Vec<E::Fr>, Error> {
+    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
         Ok(Vec::new())
     }
 }
 
-impl<E: PairingEngine, G: Group + ToEngineFr<E>, D: HashDigest> ToEngineFr<E>
+impl<ConstraintF: Field, G: Group + ToConstraintField<ConstraintF>, D: HashDigest> ToConstraintField<ConstraintF>
     for SchnorrSigParameters<G, D>
 {
     #[inline]
-    fn to_engine_fr(&self) -> Result<Vec<E::Fr>, Error> {
-        self.generator.to_engine_fr()
+    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
+        self.generator.to_field_elements()
     }
 }
 
-impl<E: PairingEngine, H: FixedLengthCRH> ToEngineFr<E> for Digest<H>
+impl<ConstraintF: Field, H: FixedLengthCRH> ToConstraintField<ConstraintF> for Digest<H>
 where
-    H::Output: ToEngineFr<E>,
+    H::Output: ToConstraintField<ConstraintF>,
 {
     #[inline]
-    fn to_engine_fr(&self) -> Result<Vec<E::Fr>, Error> {
-        self.0.to_engine_fr()
+    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
+        self.0.to_field_elements()
     }
 }

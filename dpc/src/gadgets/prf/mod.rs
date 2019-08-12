@@ -1,4 +1,4 @@
-use algebra::PairingEngine;
+use algebra::Field;
 use std::fmt::Debug;
 
 use crate::crypto_primitives::prf::PRF;
@@ -11,12 +11,12 @@ use snark_gadgets::{
 
 pub mod blake2s;
 
-pub trait PRFGadget<P: PRF, E: PairingEngine> {
-    type OutputGadget: EqGadget<E> + ToBytesGadget<E> + AllocGadget<P::Output, E> + Clone + Debug;
+pub trait PRFGadget<P: PRF, ConstraintF: Field> {
+    type OutputGadget: EqGadget<ConstraintF> + ToBytesGadget<ConstraintF> + AllocGadget<P::Output, ConstraintF> + Clone + Debug;
 
-    fn new_seed<CS: ConstraintSystem<E>>(cs: CS, output: &P::Seed) -> Vec<UInt8>;
+    fn new_seed<CS: ConstraintSystem<ConstraintF>>(cs: CS, output: &P::Seed) -> Vec<UInt8>;
 
-    fn check_evaluation_gadget<CS: ConstraintSystem<E>>(
+    fn check_evaluation_gadget<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
         seed: &[UInt8],
         input: &[UInt8],

@@ -1,4 +1,4 @@
-use algebra::{bytes::ToBytes, to_bytes, PairingEngine};
+use algebra::{bytes::ToBytes, to_bytes, utils::ToConstraintField};
 use crate::Error;
 use snark::{Circuit, ConstraintSystem, SynthesisError};
 
@@ -12,7 +12,6 @@ use crate::{
     gadgets::dpc::plain_dpc::execute_proof_check_gadget,
 };
 
-use algebra::utils::ToEngineFr;
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "C: PlainDPCComponents"))]
@@ -22,27 +21,27 @@ pub struct ProofCheckVerifierInput<C: PlainDPCComponents> {
     pub local_data_comm: <C::LocalDataComm as CommitmentScheme>::Output,
 }
 
-impl<C: PlainDPCComponents> ToEngineFr<C::ProofCheckE> for ProofCheckVerifierInput<C>
+impl<C: PlainDPCComponents> ToConstraintField<C::ProofCheckF> for ProofCheckVerifierInput<C>
 where
-    <C::PredVkComm as CommitmentScheme>::Parameters: ToEngineFr<C::ProofCheckE>,
-    <C::PredVkComm as CommitmentScheme>::Output: ToEngineFr<C::ProofCheckE>,
+    <C::PredVkComm as CommitmentScheme>::Parameters: ToConstraintField<C::ProofCheckF>,
+    <C::PredVkComm as CommitmentScheme>::Output: ToConstraintField<C::ProofCheckF>,
 
-    <C::PredVkH as FixedLengthCRH>::Parameters: ToEngineFr<C::ProofCheckE>,
+    <C::PredVkH as FixedLengthCRH>::Parameters: ToConstraintField<C::ProofCheckF>,
 
-    <C::LocalDataComm as CommitmentScheme>::Parameters: ToEngineFr<C::E>,
-    <C::LocalDataComm as CommitmentScheme>::Output: ToEngineFr<C::E>,
+    <C::LocalDataComm as CommitmentScheme>::Parameters: ToConstraintField<C::CoreCheckF>,
+    <C::LocalDataComm as CommitmentScheme>::Output: ToConstraintField<C::CoreCheckF>,
 {
-    fn to_engine_fr(&self) -> Result<Vec<<C::ProofCheckE as PairingEngine>::Fr>, Error> {
+    fn to_field_elements(&self) -> Result<Vec<C::ProofCheckF>, Error> {
         let mut v = Vec::new();
 
-        v.extend_from_slice(&self.comm_and_crh_pp.pred_vk_comm_pp.to_engine_fr()?);
-        v.extend_from_slice(&self.comm_and_crh_pp.pred_vk_crh_pp.to_engine_fr()?);
+        v.extend_from_slice(&self.comm_and_crh_pp.pred_vk_comm_pp.to_field_elements()?);
+        v.extend_from_slice(&self.comm_and_crh_pp.pred_vk_crh_pp.to_field_elements()?);
 
         let local_data_comm_pp_fe =
-            ToEngineFr::<C::E>::to_engine_fr(&self.comm_and_crh_pp.local_data_comm_pp)
+            ToConstraintField::<C::CoreCheckF>::to_field_elements(&self.comm_and_crh_pp.local_data_comm_pp)
                 .map_err(|_| SynthesisError::AssignmentMissing)?;
 
-        let local_data_comm_fe = ToEngineFr::<C::E>::to_engine_fr(&self.local_data_comm)
+        let local_data_comm_fe = ToConstraintField::<C::CoreCheckF>::to_field_elements(&self.local_data_comm)
             .map_err(|_| SynthesisError::AssignmentMissing)?;
 
         // Then we convert these field elements into bytes
@@ -51,15 +50,15 @@ where
             to_bytes![local_data_comm_fe].map_err(|_| SynthesisError::AssignmentMissing)?,
         ];
 
-        // Then we convert them into `C::ProofCheckE::Fr` elements.
-        v.extend_from_slice(&ToEngineFr::<C::ProofCheckE>::to_engine_fr(
+        // Then we convert them into `C::ProofCheckF::Fr` elements.
+        v.extend_from_slice(&ToConstraintField::<C::ProofCheckF>::to_field_elements(
             pred_input[0].as_slice(),
         )?);
-        v.extend_from_slice(&ToEngineFr::<C::ProofCheckE>::to_engine_fr(
+        v.extend_from_slice(&ToConstraintField::<C::ProofCheckF>::to_field_elements(
             pred_input[1].as_slice(),
         )?);
 
-        v.extend_from_slice(&self.predicate_comm.to_engine_fr()?);
+        v.extend_from_slice(&self.predicate_comm.to_field_elements()?);
         Ok(v)
     }
 }
@@ -144,12 +143,12 @@ impl<C: PlainDPCComponents> ProofCheckCircuit<C> {
     }
 }
 
-impl<C: PlainDPCComponents> Circuit<C::ProofCheckE> for ProofCheckCircuit<C>
+impl<C: PlainDPCComponents> Circuit<C::ProofCheckF> for ProofCheckCircuit<C>
 where
-    <C::LocalDataComm as CommitmentScheme>::Output: ToEngineFr<C::E>,
-    <C::LocalDataComm as CommitmentScheme>::Parameters: ToEngineFr<C::E>,
+    <C::LocalDataComm as CommitmentScheme>::Output: ToConstraintField<C::CoreCheckF>,
+    <C::LocalDataComm as CommitmentScheme>::Parameters: ToConstraintField<C::CoreCheckF>,
 {
-    fn synthesize<CS: ConstraintSystem<C::ProofCheckE>>(
+    fn synthesize<CS: ConstraintSystem<C::ProofCheckF>>(
         self,
         cs: &mut CS,
     ) -> Result<(), SynthesisError> {

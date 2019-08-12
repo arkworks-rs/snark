@@ -9,20 +9,23 @@ use snark::{
     Circuit,
 };
 
-use algebra::utils::ToEngineFr;
+use algebra::utils::ToConstraintField;
 use std::marker::PhantomData;
 
 use super::NIZK;
 
 /// Note: V should serialize its contents to `Vec<E::Fr>` in the same order as
 /// during the constraint generation.
-pub struct Gm17<E: PairingEngine, C: Circuit<E>, V: ToEngineFr<E> + ?Sized> {
+pub struct Gm17<E: PairingEngine, C: Circuit<E::Fr>, V: ToConstraintField<E::Fr> + ?Sized> {
+    #[doc(hidden)]
     _engine:         PhantomData<E>,
+    #[doc(hidden)]
     _circuit:        PhantomData<C>,
+    #[doc(hidden)]
     _verifier_input: PhantomData<V>,
 }
 
-impl<E: PairingEngine, C: Circuit<E>, V: ToEngineFr<E> + ?Sized> NIZK for Gm17<E, C, V> {
+impl<E: PairingEngine, C: Circuit<E::Fr>, V: ToConstraintField<E::Fr> + ?Sized> NIZK for Gm17<E, C, V> {
     type Circuit = C;
     type AssignedCircuit = C;
     type ProvingParameters = Parameters<E>;
@@ -66,7 +69,7 @@ impl<E: PairingEngine, C: Circuit<E>, V: ToEngineFr<E> + ?Sized> NIZK for Gm17<E
     ) -> Result<bool, Error> {
         let verify_time = timer_start!(|| "{Groth-Maller 2017}::Verify");
         let conversion_time = timer_start!(|| "Convert input to E::Fr");
-        let input = input.to_engine_fr()?;
+        let input = input.to_field_elements()?;
         timer_end!(conversion_time);
         let verification = timer_start!(|| format!("Verify proof w/ input len: {}", input.len()));
         let result = verify_proof(&vk, proof, &input)?;

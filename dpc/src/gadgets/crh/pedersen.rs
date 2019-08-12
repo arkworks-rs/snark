@@ -1,4 +1,4 @@
-use algebra::PairingEngine;
+use algebra::Field;
 use std::hash::Hash;
 
 use crate::{
@@ -13,37 +13,40 @@ use std::{borrow::Borrow, marker::PhantomData};
 
 #[derive(Derivative)]
 #[derivative(Clone(
-    bound = "G: Group, W: PedersenWindow, E: PairingEngine, GG: GroupGadget<G, E>"
+    bound = "G: Group, W: PedersenWindow, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>"
 ))]
 pub struct PedersenCRHGadgetParameters<
     G: Group,
     W: PedersenWindow,
-    E: PairingEngine,
-    GG: GroupGadget<G, E>,
+    ConstraintF: Field,
+    GG: GroupGadget<G, ConstraintF>,
 > {
     params:   PedersenParameters<G>,
     _group_g: PhantomData<GG>,
-    _engine:  PhantomData<E>,
+    _engine:  PhantomData<ConstraintF>,
     _window:  PhantomData<W>,
 }
 
-pub struct PedersenCRHGadget<G: Group, E: PairingEngine, GG: GroupGadget<G, E>> {
+pub struct PedersenCRHGadget<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> {
+    #[doc(hideen)]
     _group:        PhantomData<*const G>,
+    #[doc(hideen)]
     _group_gadget: PhantomData<*const GG>,
-    _engine:       PhantomData<E>,
+    #[doc(hideen)]
+    _engine:       PhantomData<ConstraintF>,
 }
 
-impl<E, G, GG, W> FixedLengthCRHGadget<PedersenCRH<G, W>, E> for PedersenCRHGadget<G, E, GG>
+impl<ConstraintF, G, GG, W> FixedLengthCRHGadget<PedersenCRH<G, W>, ConstraintF> for PedersenCRHGadget<G, ConstraintF, GG>
 where
-    E: PairingEngine,
+    ConstraintF: Field,
     G: Group + Hash,
-    GG: GroupGadget<G, E>,
+    GG: GroupGadget<G, ConstraintF>,
     W: PedersenWindow,
 {
     type OutputGadget = GG;
-    type ParametersGadget = PedersenCRHGadgetParameters<G, W, E, GG>;
+    type ParametersGadget = PedersenCRHGadgetParameters<G, W, ConstraintF, GG>;
 
-    fn check_evaluation_gadget<CS: ConstraintSystem<E>>(
+    fn check_evaluation_gadget<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
         parameters: &Self::ParametersGadget,
         input: &[UInt8],
@@ -73,14 +76,14 @@ where
 
     fn cost() -> usize {
         use snark_gadgets::utils::CondSelectGadget;
-        W::NUM_WINDOWS * W::WINDOW_SIZE * (GG::cost_of_add() + <GG as CondSelectGadget<E>>::cost())
+        W::NUM_WINDOWS * W::WINDOW_SIZE * (GG::cost_of_add() + <GG as CondSelectGadget<ConstraintF>>::cost())
     }
 }
 
-impl<G: Group, W: PedersenWindow, E: PairingEngine, GG: GroupGadget<G, E>>
-    AllocGadget<PedersenParameters<G>, E> for PedersenCRHGadgetParameters<G, W, E, GG>
+impl<G: Group, W: PedersenWindow, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>>
+    AllocGadget<PedersenParameters<G>, ConstraintF> for PedersenCRHGadgetParameters<G, W, ConstraintF, GG>
 {
-    fn alloc<F, T, CS: ConstraintSystem<E>>(_cs: CS, value_gen: F) -> Result<Self, SynthesisError>
+    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(_cs: CS, value_gen: F) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<PedersenParameters<G>>,
@@ -94,7 +97,7 @@ impl<G: Group, W: PedersenWindow, E: PairingEngine, GG: GroupGadget<G, E>>
         })
     }
 
-    fn alloc_input<F, T, CS: ConstraintSystem<E>>(
+    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
         _cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
@@ -114,7 +117,7 @@ impl<G: Group, W: PedersenWindow, E: PairingEngine, GG: GroupGadget<G, E>>
 
 #[cfg(test)]
 mod test {
-    use algebra::curves::bls12_381::Bls12_381;
+    use algebra::fields::bls12_381::fr::Fr;
     use rand::{thread_rng, Rng};
 
     use crate::{
@@ -132,7 +135,7 @@ mod test {
     };
 
     type TestCRH = PedersenCRH<JubJub, Window>;
-    type TestCRHGadget = PedersenCRHGadget<JubJub, Bls12_381, JubJubGadget>;
+    type TestCRHGadget = PedersenCRHGadget<JubJub, Fr, JubJubGadget>;
 
     #[derive(Clone, PartialEq, Eq, Hash)]
     pub(super) struct Window;
@@ -145,7 +148,7 @@ mod test {
     #[test]
     fn num_constraints() {
         let rng = &mut thread_rng();
-        let mut cs = TestConstraintSystem::<Bls12_381>::new();
+        let mut cs = TestConstraintSystem::<Fr>::new();
 
         let (_input, input_bytes) = generate_input(&mut cs, rng);
         let input_constraints = cs.num_constraints();
@@ -154,7 +157,7 @@ mod test {
         let parameters = TestCRH::setup(rng).unwrap();
 
         let gadget_parameters =
-            <TestCRHGadget as FixedLengthCRHGadget<TestCRH, Bls12_381>>::ParametersGadget::alloc(
+            <TestCRHGadget as FixedLengthCRHGadget<TestCRH, Fr>>::ParametersGadget::alloc(
                 &mut cs.ns(|| "gadget_parameters"),
                 || Ok(&parameters),
             )
@@ -166,7 +169,7 @@ mod test {
         );
 
         let _ =
-            <TestCRHGadget as FixedLengthCRHGadget<TestCRH, Bls12_381>>::check_evaluation_gadget(
+            <TestCRHGadget as FixedLengthCRHGadget<TestCRH, Fr>>::check_evaluation_gadget(
                 &mut cs.ns(|| "gadget_evaluation"),
                 &gadget_parameters,
                 &input_bytes,
@@ -176,16 +179,16 @@ mod test {
         println!("number of constraints total: {}", cs.num_constraints());
         let eval_constraints = cs.num_constraints() - param_constraints - input_constraints;
         assert_eq!(
-            <TestCRHGadget as FixedLengthCRHGadget<TestCRH, Bls12_381>>::cost(),
+            <TestCRHGadget as FixedLengthCRHGadget<TestCRH, Fr>>::cost(),
             eval_constraints
         );
         assert_eq!(
-            <TestCRHGadget as FixedLengthCRHGadget<TestCRH, Bls12_381>>::cost(),
+            <TestCRHGadget as FixedLengthCRHGadget<TestCRH, Fr>>::cost(),
             256 * (6 + 4 * (6 + 2))
         );
     }
 
-    fn generate_input<CS: ConstraintSystem<Bls12_381>>(
+    fn generate_input<CS: ConstraintSystem<Fr>>(
         mut cs: CS,
         rng: &mut dyn Rng,
     ) -> ([u8; 128], Vec<UInt8>) {
@@ -203,7 +206,7 @@ mod test {
     #[test]
     fn crh_primitive_gadget_test() {
         let rng = &mut thread_rng();
-        let mut cs = TestConstraintSystem::<Bls12_381>::new();
+        let mut cs = TestConstraintSystem::<Fr>::new();
 
         let (input, input_bytes) = generate_input(&mut cs, rng);
         println!("number of constraints for input: {}", cs.num_constraints());
@@ -212,7 +215,7 @@ mod test {
         let primitive_result = TestCRH::evaluate(&parameters, &input).unwrap();
 
         let gadget_parameters =
-            <TestCRHGadget as FixedLengthCRHGadget<TestCRH, Bls12_381>>::ParametersGadget::alloc(
+            <TestCRHGadget as FixedLengthCRHGadget<TestCRH, Fr>>::ParametersGadget::alloc(
                 &mut cs.ns(|| "gadget_parameters"),
                 || Ok(&parameters),
             )
@@ -223,7 +226,7 @@ mod test {
         );
 
         let gadget_result =
-            <TestCRHGadget as FixedLengthCRHGadget<TestCRH, Bls12_381>>::check_evaluation_gadget(
+            <TestCRHGadget as FixedLengthCRHGadget<TestCRH, Fr>>::check_evaluation_gadget(
                 &mut cs.ns(|| "gadget_evaluation"),
                 &gadget_parameters,
                 &input_bytes,

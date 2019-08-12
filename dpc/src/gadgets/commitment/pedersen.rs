@@ -6,41 +6,46 @@ use algebra::{to_bytes, Group, ToBytes};
 use snark::{ConstraintSystem, SynthesisError};
 
 use crate::gadgets::CommitmentGadget;
-use algebra::PairingEngine;
+use algebra::fields::{Field, PrimeField};
 use snark_gadgets::{groups::GroupGadget, uint8::UInt8, utils::AllocGadget};
 use std::{borrow::Borrow, marker::PhantomData};
 
 #[derive(Derivative)]
-#[derivative(Clone(bound = "G: Group, W: PedersenWindow, E: PairingEngine"))]
-pub struct PedersenCommitmentGadgetParameters<G: Group, W: PedersenWindow, E: PairingEngine> {
+#[derivative(Clone(bound = "G: Group, W: PedersenWindow, ConstraintF: Field"))]
+pub struct PedersenCommitmentGadgetParameters<G: Group, W: PedersenWindow, ConstraintF: Field> {
     params:  PedersenParameters<G>,
+    #[doc(hidden)]
     _group:  PhantomData<G>,
-    _engine: PhantomData<E>,
+    #[doc(hidden)]
+    _engine: PhantomData<ConstraintF>,
+    #[doc(hidden)]
     _window: PhantomData<W>,
 }
 
 #[derive(Clone, Debug)]
 pub struct PedersenRandomnessGadget(Vec<UInt8>);
 
-pub struct PedersenCommitmentGadget<G: Group, E: PairingEngine, GG: GroupGadget<G, E>>(
+pub struct PedersenCommitmentGadget<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>>(
+    #[doc(hidden)]
     PhantomData<*const G>,
+    #[doc(hidden)]
     PhantomData<*const GG>,
-    PhantomData<E>,
+    PhantomData<ConstraintF>,
 );
 
-impl<E, G, GG, W> CommitmentGadget<PedersenCommitment<G, W>, E>
-    for PedersenCommitmentGadget<G, E, GG>
+impl<ConstraintF, G, GG, W> CommitmentGadget<PedersenCommitment<G, W>, ConstraintF>
+    for PedersenCommitmentGadget<G, ConstraintF, GG>
 where
-    E: PairingEngine,
+    ConstraintF: PrimeField,
     G: Group,
-    GG: GroupGadget<G, E>,
+    GG: GroupGadget<G, ConstraintF>,
     W: PedersenWindow,
 {
     type OutputGadget = GG;
-    type ParametersGadget = PedersenCommitmentGadgetParameters<G, W, E>;
+    type ParametersGadget = PedersenCommitmentGadgetParameters<G, W, ConstraintF>;
     type RandomnessGadget = PedersenRandomnessGadget;
 
-    fn check_commitment_gadget<CS: ConstraintSystem<E>>(
+    fn check_commitment_gadget<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         parameters: &Self::ParametersGadget,
         input: &[UInt8],
@@ -85,13 +90,13 @@ where
     }
 }
 
-impl<G, W, E> AllocGadget<PedersenParameters<G>, E> for PedersenCommitmentGadgetParameters<G, W, E>
+impl<G, W, ConstraintF> AllocGadget<PedersenParameters<G>, ConstraintF> for PedersenCommitmentGadgetParameters<G, W, ConstraintF>
 where
     G: Group,
     W: PedersenWindow,
-    E: PairingEngine,
+    ConstraintF: PrimeField,
 {
-    fn alloc<F, T, CS: ConstraintSystem<E>>(_cs: CS, value_gen: F) -> Result<Self, SynthesisError>
+    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(_cs: CS, value_gen: F) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<PedersenParameters<G>>,
@@ -107,7 +112,7 @@ where
         })
     }
 
-    fn alloc_input<F, T, CS: ConstraintSystem<E>>(
+    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
         _cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
@@ -127,12 +132,12 @@ where
     }
 }
 
-impl<G, E> AllocGadget<PedersenRandomness<G>, E> for PedersenRandomnessGadget
+impl<G, ConstraintF> AllocGadget<PedersenRandomness<G>, ConstraintF> for PedersenRandomnessGadget
 where
     G: Group,
-    E: PairingEngine,
+    ConstraintF: PrimeField,
 {
-    fn alloc<F, T, CS: ConstraintSystem<E>>(cs: CS, value_gen: F) -> Result<Self, SynthesisError>
+    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, value_gen: F) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<PedersenRandomness<G>>,
@@ -142,7 +147,7 @@ where
         Ok(PedersenRandomnessGadget(UInt8::alloc_vec(cs, &randomness)?))
     }
 
-    fn alloc_input<F, T, CS: ConstraintSystem<E>>(
+    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
@@ -161,7 +166,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use algebra::{curves::bls12_381::Bls12_381, fields::jubjub::fr::Fr};
+    use algebra::{fields::jubjub::{fq::Fq, fr::Fr}};
     use rand::{thread_rng, Rand};
 
     use crate::{
@@ -183,7 +188,7 @@ mod test {
 
     #[test]
     fn commitment_gadget_test() {
-        let mut cs = TestConstraintSystem::<Bls12_381>::new();
+        let mut cs = TestConstraintSystem::<Fq>::new();
 
         #[derive(Clone, PartialEq, Eq, Hash)]
         pub(super) struct Window;
@@ -198,7 +203,7 @@ mod test {
         let rng = &mut thread_rng();
 
         type TestCOMM = PedersenCommitment<JubJub, Window>;
-        type TestCOMMGadget = PedersenCommitmentGadget<JubJub, Bls12_381, JubJubGadget>;
+        type TestCOMMGadget = PedersenCommitmentGadget<JubJub, Fq, JubJubGadget>;
 
         let randomness = PedersenRandomness(Fr::rand(rng));
 
@@ -213,19 +218,19 @@ mod test {
         }
 
         let randomness =
-            <TestCOMMGadget as CommitmentGadget<TestCOMM, Bls12_381>>::RandomnessGadget::alloc(
+            <TestCOMMGadget as CommitmentGadget<TestCOMM, Fq>>::RandomnessGadget::alloc(
                 &mut cs.ns(|| "gadget_randomness"),
                 || Ok(&randomness),
             )
             .unwrap();
         let gadget_parameters =
-            <TestCOMMGadget as CommitmentGadget<TestCOMM, Bls12_381>>::ParametersGadget::alloc(
+            <TestCOMMGadget as CommitmentGadget<TestCOMM, Fq>>::ParametersGadget::alloc(
                 &mut cs.ns(|| "gadget_parameters"),
                 || Ok(&parameters),
             )
             .unwrap();
         let gadget_result =
-            <TestCOMMGadget as CommitmentGadget<TestCOMM, Bls12_381>>::check_commitment_gadget(
+            <TestCOMMGadget as CommitmentGadget<TestCOMM, Fq>>::check_commitment_gadget(
                 &mut cs.ns(|| "gadget_evaluation"),
                 &gadget_parameters,
                 &input_bytes,
