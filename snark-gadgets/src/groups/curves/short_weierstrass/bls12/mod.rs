@@ -2,7 +2,7 @@ use crate::groups::{curves::short_weierstrass::AffineGadget, GroupGadget};
 use algebra::{
     curves::bls12::{Bls12Parameters, G1Prepared, TwistType},
     fields::Field,
-    BitIterator, PairingEngine, ProjectiveCurve,
+    BitIterator, ProjectiveCurve,
 };
 use snark::{ConstraintSystem, SynthesisError};
 
@@ -16,38 +16,38 @@ use std::fmt::Debug;
 
 pub mod bls12_377;
 
-pub type G1Gadget<P, E> = AffineGadget<<P as Bls12Parameters>::G1Parameters, E, FpGadget<E>>;
-pub type G2Gadget<P, E> = AffineGadget<<P as Bls12Parameters>::G2Parameters, E, Fp2G<P, E>>;
+pub type G1Gadget<P> = AffineGadget<<P as Bls12Parameters>::G1Parameters, <P as Bls12Parameters>::Fp, FpGadget<<P as Bls12Parameters>::Fp>>;
+pub type G2Gadget<P> = AffineGadget<<P as Bls12Parameters>::G2Parameters, <P as Bls12Parameters>::Fp, Fp2G<P>>;
 
 #[derive(Derivative)]
 #[derivative(
-    Clone(bound = "G1Gadget<P, E>: Clone"),
-    Debug(bound = "G1Gadget<P, E>: Debug")
+    Clone(bound = "G1Gadget<P>: Clone"),
+    Debug(bound = "G1Gadget<P>: Debug")
 )]
-pub struct G1PreparedGadget<P: Bls12Parameters<Fp = E::Fr>, E: PairingEngine>(pub G1Gadget<P, E>);
+pub struct G1PreparedGadget<P: Bls12Parameters>(pub G1Gadget<P>);
 
-impl<P: Bls12Parameters<Fp = E::Fr>, E: PairingEngine> G1PreparedGadget<P, E> {
+impl<P: Bls12Parameters> G1PreparedGadget<P> {
     pub fn get_value(&self) -> Option<G1Prepared<P>> {
         Some(G1Prepared::from_affine(
             self.0.get_value().unwrap().into_affine(),
         ))
     }
 
-    pub fn from_affine<CS: ConstraintSystem<E>>(
+    pub fn from_affine<CS: ConstraintSystem<P::Fp>>(
         _cs: CS,
-        q: &G1Gadget<P, E>,
+        q: &G1Gadget<P>,
     ) -> Result<Self, SynthesisError> {
         Ok(G1PreparedGadget(q.clone()))
     }
 }
 
-impl<P: Bls12Parameters<Fp = E::Fr>, E: PairingEngine> ToBytesGadget<E> for G1PreparedGadget<P, E> {
+impl<P: Bls12Parameters> ToBytesGadget<P::Fp> for G1PreparedGadget<P> {
     #[inline]
-    fn to_bytes<CS: ConstraintSystem<E>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
+    fn to_bytes<CS: ConstraintSystem<P::Fp>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
         self.0.to_bytes(&mut cs.ns(|| "g_alpha to bytes"))
     }
 
-    fn to_bytes_strict<CS: ConstraintSystem<E>>(
+    fn to_bytes_strict<CS: ConstraintSystem<P::Fp>>(
         &self,
         cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
@@ -55,20 +55,20 @@ impl<P: Bls12Parameters<Fp = E::Fr>, E: PairingEngine> ToBytesGadget<E> for G1Pr
     }
 }
 
-type Fp2G<P, E> = Fp2Gadget<<P as Bls12Parameters>::Fp2Params, E>;
-type LCoeff<P, E> = (Fp2G<P, E>, Fp2G<P, E>);
+type Fp2G<P> = Fp2Gadget<<P as Bls12Parameters>::Fp2Params, <P as Bls12Parameters>::Fp>;
+type LCoeff<P> = (Fp2G<P>, Fp2G<P>);
 #[derive(Derivative)]
 #[derivative(
-    Clone(bound = "Fp2Gadget<P::Fp2Params, E>: Clone"),
-    Debug(bound = "Fp2Gadget<P::Fp2Params, E>: Debug")
+    Clone(bound = "Fp2Gadget<P::Fp2Params, P::Fp>: Clone"),
+    Debug(bound = "Fp2Gadget<P::Fp2Params, P::Fp>: Debug")
 )]
-pub struct G2PreparedGadget<P: Bls12Parameters<Fp = E::Fr>, E: PairingEngine> {
-    pub ell_coeffs: Vec<LCoeff<P, E>>,
+pub struct G2PreparedGadget<P: Bls12Parameters> {
+    pub ell_coeffs: Vec<LCoeff<P>>,
 }
 
-impl<P: Bls12Parameters<Fp = E::Fr>, E: PairingEngine> ToBytesGadget<E> for G2PreparedGadget<P, E> {
+impl<P: Bls12Parameters> ToBytesGadget<P::Fp> for G2PreparedGadget<P> {
     #[inline]
-    fn to_bytes<CS: ConstraintSystem<E>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
+    fn to_bytes<CS: ConstraintSystem<P::Fp>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
         let mut bytes = Vec::new();
         for (i, coeffs) in self.ell_coeffs.iter().enumerate() {
             let mut cs = cs.ns(|| format!("Iteration {}", i));
@@ -78,7 +78,7 @@ impl<P: Bls12Parameters<Fp = E::Fr>, E: PairingEngine> ToBytesGadget<E> for G2Pr
         Ok(bytes)
     }
 
-    fn to_bytes_strict<CS: ConstraintSystem<E>>(
+    fn to_bytes_strict<CS: ConstraintSystem<P::Fp>>(
         &self,
         cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
@@ -86,13 +86,13 @@ impl<P: Bls12Parameters<Fp = E::Fr>, E: PairingEngine> ToBytesGadget<E> for G2Pr
     }
 }
 
-impl<P: Bls12Parameters<Fp = E::Fr>, E: PairingEngine> G2PreparedGadget<P, E> {
-    pub fn from_affine<CS: ConstraintSystem<E>>(
+impl<P: Bls12Parameters> G2PreparedGadget<P> {
+    pub fn from_affine<CS: ConstraintSystem<P::Fp>>(
         mut cs: CS,
-        q: &G2Gadget<P, E>,
+        q: &G2Gadget<P>,
     ) -> Result<Self, SynthesisError> {
         let two_inv = P::Fp::one().double().inverse().unwrap();
-        let zero = G2Gadget::<P, E>::zero(cs.ns(|| "zero"))?;
+        let zero = G2Gadget::<P>::zero(cs.ns(|| "zero"))?;
         q.enforce_not_equal(cs.ns(|| "enforce not zero"), &zero)?;
         let mut ell_coeffs = vec![];
         let mut r = q.clone();
@@ -109,11 +109,11 @@ impl<P: Bls12Parameters<Fp = E::Fr>, E: PairingEngine> G2PreparedGadget<P, E> {
         Ok(Self { ell_coeffs })
     }
 
-    fn double<CS: ConstraintSystem<E>>(
+    fn double<CS: ConstraintSystem<P::Fp>>(
         mut cs: CS,
-        r: &mut G2Gadget<P, E>,
+        r: &mut G2Gadget<P>,
         two_inv: &P::Fp,
-    ) -> Result<LCoeff<P, E>, SynthesisError> {
+    ) -> Result<LCoeff<P>, SynthesisError> {
         let a = r.y.inverse(cs.ns(|| "Inverse"))?;
         let mut b = r.x.square(cs.ns(|| "square x"))?;
         let b_tmp = b.clone();
@@ -138,11 +138,11 @@ impl<P: Bls12Parameters<Fp = E::Fr>, E: PairingEngine> G2PreparedGadget<P, E> {
         }
     }
 
-    fn add<CS: ConstraintSystem<E>>(
+    fn add<CS: ConstraintSystem<P::Fp>>(
         mut cs: CS,
-        r: &mut G2Gadget<P, E>,
-        q: &G2Gadget<P, E>,
-    ) -> Result<LCoeff<P, E>, SynthesisError> {
+        r: &mut G2Gadget<P>,
+        q: &G2Gadget<P>,
+    ) -> Result<LCoeff<P>, SynthesisError> {
         let a =
             q.x.sub(cs.ns(|| "q.x - r.x"), &r.x)?
                 .inverse(cs.ns(|| "calc a"))?;

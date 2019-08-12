@@ -2,7 +2,7 @@ use crate::{
     bits::boolean::Boolean,
     utils::{AllocGadget, CondSelectGadget, EqGadget, NEqGadget, ToBitsGadget, ToBytesGadget},
 };
-use algebra::{Group, PairingEngine};
+use algebra::{Group, Field};
 use snark::{ConstraintSystem, SynthesisError};
 
 use std::{borrow::Borrow, fmt::Debug};
@@ -14,14 +14,14 @@ pub use self::curves::{
     twisted_edwards::{edwards_sw6, jubjub},
 };
 
-pub trait GroupGadget<G: Group, E: PairingEngine>:
+pub trait GroupGadget<G: Group, ConstraintF: Field>:
     Sized
-    + ToBytesGadget<E>
-    + NEqGadget<E>
-    + EqGadget<E>
-    + ToBitsGadget<E>
-    + CondSelectGadget<E>
-    + AllocGadget<G, E>
+    + ToBytesGadget<ConstraintF>
+    + NEqGadget<ConstraintF>
+    + EqGadget<ConstraintF>
+    + ToBitsGadget<ConstraintF>
+    + CondSelectGadget<ConstraintF>
+    + AllocGadget<G, ConstraintF>
     + Clone
     + Debug
 {
@@ -32,11 +32,11 @@ pub trait GroupGadget<G: Group, E: PairingEngine>:
 
     fn get_variable(&self) -> Self::Variable;
 
-    fn zero<CS: ConstraintSystem<E>>(cs: CS) -> Result<Self, SynthesisError>;
+    fn zero<CS: ConstraintSystem<ConstraintF>>(cs: CS) -> Result<Self, SynthesisError>;
 
-    fn add<CS: ConstraintSystem<E>>(&self, cs: CS, other: &Self) -> Result<Self, SynthesisError>;
+    fn add<CS: ConstraintSystem<ConstraintF>>(&self, cs: CS, other: &Self) -> Result<Self, SynthesisError>;
 
-    fn sub<CS: ConstraintSystem<E>>(
+    fn sub<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -45,13 +45,13 @@ pub trait GroupGadget<G: Group, E: PairingEngine>:
         self.add(cs.ns(|| "Self - other"), &neg_other)
     }
 
-    fn add_constant<CS: ConstraintSystem<E>>(
+    fn add_constant<CS: ConstraintSystem<ConstraintF>>(
         &self,
         cs: CS,
         other: &G,
     ) -> Result<Self, SynthesisError>;
 
-    fn sub_constant<CS: ConstraintSystem<E>>(
+    fn sub_constant<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &G,
@@ -60,14 +60,14 @@ pub trait GroupGadget<G: Group, E: PairingEngine>:
         self.add_constant(cs.ns(|| "Self - other"), &neg_other)
     }
 
-    fn double_in_place<CS: ConstraintSystem<E>>(&mut self, cs: CS) -> Result<(), SynthesisError>;
+    fn double_in_place<CS: ConstraintSystem<ConstraintF>>(&mut self, cs: CS) -> Result<(), SynthesisError>;
 
-    fn negate<CS: ConstraintSystem<E>>(&self, cs: CS) -> Result<Self, SynthesisError>;
+    fn negate<CS: ConstraintSystem<ConstraintF>>(&self, cs: CS) -> Result<Self, SynthesisError>;
 
     /// Inputs must be specified in *little-endian* form.
     /// If the addition law is incomplete for the identity element,
     /// `result` must not be the identity element.
-    fn mul_bits<'a, CS: ConstraintSystem<E>>(
+    fn mul_bits<'a, CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         result: &Self,
@@ -94,7 +94,7 @@ pub trait GroupGadget<G: Group, E: PairingEngine>:
         scalar_bits_with_base_powers: I,
     ) -> Result<(), SynthesisError>
     where
-        CS: ConstraintSystem<E>,
+        CS: ConstraintSystem<ConstraintF>,
         I: Iterator<Item = (B, &'a G)>,
         B: Borrow<Boolean>,
         G: 'a,
@@ -120,8 +120,8 @@ pub trait GroupGadget<G: Group, E: PairingEngine>:
         scalars: I,
     ) -> Result<Self, SynthesisError>
     where
-        CS: ConstraintSystem<E>,
-        T: 'a + ToBitsGadget<E> + ?Sized,
+        CS: ConstraintSystem<ConstraintF>,
+        T: 'a + ToBitsGadget<ConstraintF> + ?Sized,
         I: Iterator<Item = &'a T>,
         B: Borrow<[G]>,
     {
@@ -145,7 +145,7 @@ pub trait GroupGadget<G: Group, E: PairingEngine>:
 
 #[cfg(test)]
 mod test {
-    use algebra::PairingEngine;
+    use algebra::Field;
     use snark::ConstraintSystem;
 
     use crate::{
@@ -155,10 +155,10 @@ mod test {
     use rand;
 
     pub(crate) fn group_test<
-        E: PairingEngine,
+        ConstraintF: Field,
         G: Group,
-        GG: GroupGadget<G, E>,
-        CS: ConstraintSystem<E>,
+        GG: GroupGadget<G, ConstraintF>,
+        CS: ConstraintSystem<ConstraintF>,
     >(
         cs: &mut CS,
         a: GG,
@@ -206,9 +206,10 @@ mod test {
     #[test]
     fn jubjub_group_gadgets_test() {
         use crate::groups::jubjub::JubJubGadget;
-        use algebra::curves::{bls12_381::Bls12_381, jubjub::JubJubProjective};
+        use algebra::fields::jubjub::fq::Fq;
+        use algebra::curves::jubjub::JubJubProjective;
 
-        let mut cs = TestConstraintSystem::<Bls12_381>::new();
+        let mut cs = TestConstraintSystem::<Fq>::new();
 
         let a: JubJubProjective = rand::random();
         let b: JubJubProjective = rand::random();

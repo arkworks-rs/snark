@@ -1,6 +1,5 @@
-use algebra::{Field, PairingEngine};
+use algebra::Field;
 use snark::{ConstraintSystem, Index, LinearCombination, SynthesisError, Variable};
-use std::ops::{AddAssign, MulAssign};
 
 use radix_trie::Trie;
 
@@ -12,52 +11,54 @@ enum NamedObject {
 }
 
 /// Constraint system for testing purposes.
-pub struct TestConstraintSystem<E: PairingEngine> {
+pub struct TestConstraintSystem<ConstraintF: Field> {
     named_objects:     Trie<String, NamedObject>,
     current_namespace: Vec<String>,
     pub constraints: Vec<(
-        LinearCombination<E>,
-        LinearCombination<E>,
-        LinearCombination<E>,
+        LinearCombination<ConstraintF>,
+        LinearCombination<ConstraintF>,
+        LinearCombination<ConstraintF>,
         String,
     )>,
-    inputs:            Vec<(E::Fr, String)>,
-    aux:               Vec<(E::Fr, String)>,
+    inputs:            Vec<(ConstraintF, String)>,
+    aux:               Vec<(ConstraintF, String)>,
 }
 
-fn eval_lc<E: PairingEngine>(
-    terms: &[(Variable, E::Fr)],
-    inputs: &[(E::Fr, String)],
-    aux: &[(E::Fr, String)],
-) -> E::Fr {
-    let mut acc = E::Fr::zero();
+impl<ConstraintF: Field> TestConstraintSystem<ConstraintF> {
+    fn eval_lc(
+        terms: &[(Variable, ConstraintF)],
+        inputs: &[(ConstraintF, String)],
+        aux: &[(ConstraintF, String)],
+    ) -> ConstraintF {
+        let mut acc = ConstraintF::zero();
 
-    for &(var, ref coeff) in terms {
-        let mut tmp = match var.get_unchecked() {
-            Index::Input(index) => inputs[index].0,
-            Index::Aux(index) => aux[index].0,
-        };
+        for &(var, ref coeff) in terms {
+            let mut tmp = match var.get_unchecked() {
+                Index::Input(index) => inputs[index].0,
+                Index::Aux(index) => aux[index].0,
+            };
 
-        tmp.mul_assign(&coeff);
-        acc.add_assign(&tmp);
+            tmp.mul_assign(&coeff);
+            acc.add_assign(&tmp);
+        }
+
+        acc
     }
-
-    acc
 }
 
-impl<E: PairingEngine> TestConstraintSystem<E> {
-    pub fn new() -> TestConstraintSystem<E> {
+impl<ConstraintF: Field> TestConstraintSystem<ConstraintF> {
+    pub fn new() -> TestConstraintSystem<ConstraintF> {
         let mut map = Trie::new();
         map.insert(
             "ONE".into(),
-            NamedObject::Var(TestConstraintSystem::<E>::one()),
+            NamedObject::Var(TestConstraintSystem::<ConstraintF>::one()),
         );
 
         TestConstraintSystem {
             named_objects:     map,
             current_namespace: vec![],
             constraints:       vec![],
-            inputs:            vec![(E::Fr::one(), "ONE".into())],
+            inputs:            vec![(ConstraintF::one(), "ONE".into())],
             aux:               vec![],
         }
     }
@@ -70,9 +71,9 @@ impl<E: PairingEngine> TestConstraintSystem<E> {
 
     pub fn which_is_unsatisfied(&self) -> Option<&str> {
         for &(ref a, ref b, ref c, ref path) in &self.constraints {
-            let mut a = eval_lc::<E>(a.as_ref(), &self.inputs, &self.aux);
-            let b = eval_lc::<E>(b.as_ref(), &self.inputs, &self.aux);
-            let c = eval_lc::<E>(c.as_ref(), &self.inputs, &self.aux);
+            let mut a = Self::eval_lc(a.as_ref(), &self.inputs, &self.aux);
+            let b = Self::eval_lc(b.as_ref(), &self.inputs, &self.aux);
+            let c = Self::eval_lc(c.as_ref(), &self.inputs, &self.aux);
 
             a.mul_assign(&b);
 
@@ -92,7 +93,7 @@ impl<E: PairingEngine> TestConstraintSystem<E> {
         self.constraints.len()
     }
 
-    pub fn set(&mut self, path: &str, to: E::Fr) {
+    pub fn set(&mut self, path: &str, to: ConstraintF) {
         match self.named_objects.get(path) {
             Some(&NamedObject::Var(ref v)) => match v.get_unchecked() {
                 Index::Input(index) => self.inputs[index].0 = to,
@@ -106,7 +107,7 @@ impl<E: PairingEngine> TestConstraintSystem<E> {
         }
     }
 
-    pub fn get(&mut self, path: &str) -> E::Fr {
+    pub fn get(&mut self, path: &str) -> ConstraintF {
         match self.named_objects.get(path) {
             Some(&NamedObject::Var(ref v)) => match v.get_unchecked() {
                 Index::Input(index) => self.inputs[index].0,
@@ -149,12 +150,12 @@ fn compute_path(ns: &[String], this: String) -> String {
     name
 }
 
-impl<E: PairingEngine> ConstraintSystem<E> for TestConstraintSystem<E> {
+impl<ConstraintF: Field> ConstraintSystem<ConstraintF> for TestConstraintSystem<ConstraintF> {
     type Root = Self;
 
     fn alloc<F, A, AR>(&mut self, annotation: A, f: F) -> Result<Variable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError>,
+        F: FnOnce() -> Result<ConstraintF, SynthesisError>,
         A: FnOnce() -> AR,
         AR: Into<String>,
     {
@@ -169,7 +170,7 @@ impl<E: PairingEngine> ConstraintSystem<E> for TestConstraintSystem<E> {
 
     fn alloc_input<F, A, AR>(&mut self, annotation: A, f: F) -> Result<Variable, SynthesisError>
     where
-        F: FnOnce() -> Result<E::Fr, SynthesisError>,
+        F: FnOnce() -> Result<ConstraintF, SynthesisError>,
         A: FnOnce() -> AR,
         AR: Into<String>,
     {
@@ -186,9 +187,9 @@ impl<E: PairingEngine> ConstraintSystem<E> for TestConstraintSystem<E> {
     where
         A: FnOnce() -> AR,
         AR: Into<String>,
-        LA: FnOnce(LinearCombination<E>) -> LinearCombination<E>,
-        LB: FnOnce(LinearCombination<E>) -> LinearCombination<E>,
-        LC: FnOnce(LinearCombination<E>) -> LinearCombination<E>,
+        LA: FnOnce(LinearCombination<ConstraintF>) -> LinearCombination<ConstraintF>,
+        LB: FnOnce(LinearCombination<ConstraintF>) -> LinearCombination<ConstraintF>,
+        LC: FnOnce(LinearCombination<ConstraintF>) -> LinearCombination<ConstraintF>,
     {
         let path = compute_path(&self.current_namespace, annotation().into());
         let index = self.constraints.len();

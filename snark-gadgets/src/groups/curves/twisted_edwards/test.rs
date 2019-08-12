@@ -8,17 +8,17 @@ use crate::{
 
 use algebra::{
     curves::{models::TEModelParameters, twisted_edwards_extended::GroupAffine as TEAffine},
-    BitIterator, Group, PairingEngine, PrimeField,
+    BitIterator, Group, PrimeField, Field,
 };
 
 use snark::ConstraintSystem;
 
-pub(crate) fn edwards_test<E, P, GG, CS>(cs: &mut CS)
+pub(crate) fn edwards_test<ConstraintF, P, GG, CS>(cs: &mut CS)
 where
-    E: PairingEngine,
+    ConstraintF: Field,
     P: TEModelParameters,
-    GG: GroupGadget<TEAffine<P>, E, Value = TEAffine<P>>,
-    CS: ConstraintSystem<E>,
+    GG: GroupGadget<TEAffine<P>, ConstraintF, Value = TEAffine<P>>,
+    CS: ConstraintSystem<ConstraintF>,
 {
     let a: TEAffine<P> = rand::random();
     let b: TEAffine<P> = rand::random();
@@ -26,7 +26,7 @@ where
     let gadget_b = GG::alloc(&mut cs.ns(|| "b"), || Ok(b)).unwrap();
     assert_eq!(gadget_a.get_value().unwrap(), a);
     assert_eq!(gadget_b.get_value().unwrap(), b);
-    group_test::<E, TEAffine<P>, GG, _>(
+    group_test::<ConstraintF, TEAffine<P>, GG, _>(
         &mut cs.ns(|| "GroupTest(a, b)"),
         gadget_a.clone(),
         gadget_b,
@@ -48,12 +48,12 @@ where
     assert_eq!(native_result, gadget_value);
 }
 
-pub(crate) fn edwards_constraint_costs<E, P, GG, CS>(cs: &mut CS)
+pub(crate) fn edwards_constraint_costs<ConstraintF, P, GG, CS>(cs: &mut CS)
 where
-    E: PairingEngine,
+    ConstraintF: Field,
     P: TEModelParameters,
-    GG: GroupGadget<TEAffine<P>, E, Value = TEAffine<P>>,
-    CS: ConstraintSystem<E>,
+    GG: GroupGadget<TEAffine<P>, ConstraintF, Value = TEAffine<P>>,
+    CS: ConstraintSystem<ConstraintF>,
 {
     use crate::boolean::AllocatedBit;
 

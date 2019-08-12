@@ -1,7 +1,7 @@
-use algebra::{bytes::ToBytes, Field, FpParameters, PairingEngine, PrimeField};
+use algebra::{bytes::ToBytes, FpParameters, PrimeField};
 use snark::{ConstraintSystem, LinearCombination, SynthesisError};
 
-use std::{borrow::Borrow, fmt::Debug};
+use std::borrow::Borrow;
 
 use super::FieldGadget;
 use crate::{
@@ -19,25 +19,24 @@ use crate::{
     ConstraintVar::{self, *},
 };
 
-#[derive(Derivative)]
-#[derivative(Debug(bound = "E: Debug"))]
-pub struct FpGadget<E: PairingEngine> {
-    pub value:    Option<E::Fr>,
-    pub variable: ConstraintVar<E>,
+#[derive(Debug)]
+pub struct FpGadget<F: PrimeField> {
+    pub value:    Option<F>,
+    pub variable: ConstraintVar<F>,
 }
 
-impl<E: PairingEngine> FpGadget<E> {
+impl<F: PrimeField> FpGadget<F> {
     #[inline]
-    pub fn from<CS: ConstraintSystem<E>>(mut cs: CS, value: &E::Fr) -> Self {
+    pub fn from<CS: ConstraintSystem<F>>(mut cs: CS, value: &F) -> Self {
         Self::alloc(cs.ns(|| "from"), || Ok(*value)).unwrap()
     }
 }
 
-impl<E: PairingEngine> FieldGadget<E::Fr, E> for FpGadget<E> {
-    type Variable = ConstraintVar<E>;
+impl<F: PrimeField> FieldGadget<F, F> for FpGadget<F> {
+    type Variable = ConstraintVar<F>;
 
     #[inline]
-    fn get_value(&self) -> Option<E::Fr> {
+    fn get_value(&self) -> Option<F> {
         self.value
     }
 
@@ -47,8 +46,8 @@ impl<E: PairingEngine> FieldGadget<E::Fr, E> for FpGadget<E> {
     }
 
     #[inline]
-    fn zero<CS: ConstraintSystem<E>>(_cs: CS) -> Result<Self, SynthesisError> {
-        let value = Some(E::Fr::zero());
+    fn zero<CS: ConstraintSystem<F>>(_cs: CS) -> Result<Self, SynthesisError> {
+        let value = Some(F::zero());
         Ok(FpGadget {
             value,
             variable: ConstraintVar::zero(),
@@ -56,8 +55,8 @@ impl<E: PairingEngine> FieldGadget<E::Fr, E> for FpGadget<E> {
     }
 
     #[inline]
-    fn one<CS: ConstraintSystem<E>>(_cs: CS) -> Result<Self, SynthesisError> {
-        let value = Some(E::Fr::one());
+    fn one<CS: ConstraintSystem<F>>(_cs: CS) -> Result<Self, SynthesisError> {
+        let value = Some(F::one());
         Ok(FpGadget {
             value,
             variable: CS::one().into(),
@@ -65,7 +64,7 @@ impl<E: PairingEngine> FieldGadget<E::Fr, E> for FpGadget<E> {
     }
 
     #[inline]
-    fn add<CS: ConstraintSystem<E>>(
+    fn add<CS: ConstraintSystem<F>>(
         &self,
         mut _cs: CS,
         other: &Self,
@@ -81,14 +80,14 @@ impl<E: PairingEngine> FieldGadget<E::Fr, E> for FpGadget<E> {
         })
     }
 
-    fn double<CS: ConstraintSystem<E>>(&self, _cs: CS) -> Result<Self, SynthesisError> {
+    fn double<CS: ConstraintSystem<F>>(&self, _cs: CS) -> Result<Self, SynthesisError> {
         let value = self.value.map(|val| val.double());
         let mut variable = self.variable.clone();
         variable.double_in_place();
         Ok(FpGadget { value, variable })
     }
 
-    fn double_in_place<CS: ConstraintSystem<E>>(
+    fn double_in_place<CS: ConstraintSystem<F>>(
         &mut self,
         _cs: CS,
     ) -> Result<&mut Self, SynthesisError> {
@@ -98,7 +97,7 @@ impl<E: PairingEngine> FieldGadget<E::Fr, E> for FpGadget<E> {
     }
 
     #[inline]
-    fn sub<CS: ConstraintSystem<E>>(
+    fn sub<CS: ConstraintSystem<F>>(
         &self,
         mut _cs: CS,
         other: &Self,
@@ -115,14 +114,14 @@ impl<E: PairingEngine> FieldGadget<E::Fr, E> for FpGadget<E> {
     }
 
     #[inline]
-    fn negate<CS: ConstraintSystem<E>>(&self, cs: CS) -> Result<Self, SynthesisError> {
+    fn negate<CS: ConstraintSystem<F>>(&self, cs: CS) -> Result<Self, SynthesisError> {
         let mut result = self.clone();
         result.negate_in_place(cs)?;
         Ok(result)
     }
 
     #[inline]
-    fn negate_in_place<CS: ConstraintSystem<E>>(
+    fn negate_in_place<CS: ConstraintSystem<F>>(
         &mut self,
         _cs: CS,
     ) -> Result<&mut Self, SynthesisError> {
@@ -132,7 +131,7 @@ impl<E: PairingEngine> FieldGadget<E::Fr, E> for FpGadget<E> {
     }
 
     #[inline]
-    fn mul<CS: ConstraintSystem<E>>(
+    fn mul<CS: ConstraintSystem<F>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -150,10 +149,10 @@ impl<E: PairingEngine> FieldGadget<E::Fr, E> for FpGadget<E> {
     }
 
     #[inline]
-    fn add_constant<CS: ConstraintSystem<E>>(
+    fn add_constant<CS: ConstraintSystem<F>>(
         &self,
         _cs: CS,
-        other: &E::Fr,
+        other: &F,
     ) -> Result<Self, SynthesisError> {
         let value = self.value.map(|val| val + other);
         Ok(FpGadget {
@@ -163,10 +162,10 @@ impl<E: PairingEngine> FieldGadget<E::Fr, E> for FpGadget<E> {
     }
 
     #[inline]
-    fn add_constant_in_place<CS: ConstraintSystem<E>>(
+    fn add_constant_in_place<CS: ConstraintSystem<F>>(
         &mut self,
         _cs: CS,
-        other: &E::Fr,
+        other: &F,
     ) -> Result<&mut Self, SynthesisError> {
         self.value.as_mut().map(|val| *val += other);
         self.variable += (*other, CS::one());
@@ -174,10 +173,10 @@ impl<E: PairingEngine> FieldGadget<E::Fr, E> for FpGadget<E> {
     }
 
     #[inline]
-    fn mul_by_constant<CS: ConstraintSystem<E>>(
+    fn mul_by_constant<CS: ConstraintSystem<F>>(
         &self,
         cs: CS,
-        other: &E::Fr,
+        other: &F,
     ) -> Result<Self, SynthesisError> {
         let mut result = self.clone();
         result.mul_by_constant_in_place(cs, other)?;
@@ -185,10 +184,10 @@ impl<E: PairingEngine> FieldGadget<E::Fr, E> for FpGadget<E> {
     }
 
     #[inline]
-    fn mul_by_constant_in_place<CS: ConstraintSystem<E>>(
+    fn mul_by_constant_in_place<CS: ConstraintSystem<F>>(
         &mut self,
         mut _cs: CS,
-        other: &E::Fr,
+        other: &F,
     ) -> Result<&mut Self, SynthesisError> {
         self.value.as_mut().map(|val| *val *= other);
         self.variable *= *other;
@@ -196,7 +195,7 @@ impl<E: PairingEngine> FieldGadget<E::Fr, E> for FpGadget<E> {
     }
 
     #[inline]
-    fn inverse<CS: ConstraintSystem<E>>(&self, mut cs: CS) -> Result<Self, SynthesisError> {
+    fn inverse<CS: ConstraintSystem<F>>(&self, mut cs: CS) -> Result<Self, SynthesisError> {
         let inverse = Self::alloc(cs.ns(|| "inverse"), || {
             let result = self.value.get()?;
             let inv = result.inverse().expect("Inverse doesn't exist!");
@@ -213,7 +212,7 @@ impl<E: PairingEngine> FieldGadget<E::Fr, E> for FpGadget<E> {
         Ok(inverse)
     }
 
-    fn frobenius_map<CS: ConstraintSystem<E>>(
+    fn frobenius_map<CS: ConstraintSystem<F>>(
         &self,
         _: CS,
         _: usize,
@@ -221,7 +220,7 @@ impl<E: PairingEngine> FieldGadget<E::Fr, E> for FpGadget<E> {
         Ok(self.clone())
     }
 
-    fn frobenius_map_in_place<CS: ConstraintSystem<E>>(
+    fn frobenius_map_in_place<CS: ConstraintSystem<F>>(
         &mut self,
         _: CS,
         _: usize,
@@ -229,7 +228,7 @@ impl<E: PairingEngine> FieldGadget<E::Fr, E> for FpGadget<E> {
         Ok(self)
     }
 
-    fn mul_equals<CS: ConstraintSystem<E>>(
+    fn mul_equals<CS: ConstraintSystem<F>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -244,7 +243,7 @@ impl<E: PairingEngine> FieldGadget<E::Fr, E> for FpGadget<E> {
         Ok(())
     }
 
-    fn square_equals<CS: ConstraintSystem<E>>(
+    fn square_equals<CS: ConstraintSystem<F>>(
         &self,
         mut cs: CS,
         result: &Self,
@@ -267,19 +266,19 @@ impl<E: PairingEngine> FieldGadget<E::Fr, E> for FpGadget<E> {
     }
 }
 
-impl<E: PairingEngine> PartialEq for FpGadget<E> {
+impl<F: PrimeField> PartialEq for FpGadget<F> {
     fn eq(&self, other: &Self) -> bool {
         !self.value.is_none() && !other.value.is_none() && self.value == other.value
     }
 }
 
-impl<E: PairingEngine> Eq for FpGadget<E> {}
+impl<F: PrimeField> Eq for FpGadget<F> {}
 
-impl<E: PairingEngine> EqGadget<E> for FpGadget<E> {}
+impl<F: PrimeField> EqGadget<F> for FpGadget<F> {}
 
-impl<E: PairingEngine> ConditionalEqGadget<E> for FpGadget<E> {
+impl<F: PrimeField> ConditionalEqGadget<F> for FpGadget<F> {
     #[inline]
-    fn conditional_enforce_equal<CS: ConstraintSystem<E>>(
+    fn conditional_enforce_equal<CS: ConstraintSystem<F>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -287,7 +286,7 @@ impl<E: PairingEngine> ConditionalEqGadget<E> for FpGadget<E> {
     ) -> Result<(), SynthesisError> {
         let difference = self.sub(cs.ns(|| "difference"), other)?;
         let one = CS::one();
-        let one_const = E::Fr::one();
+        let one_const = F::one();
         cs.enforce(
             || "conditional_equals",
             |lc| &difference.variable + lc,
@@ -302,9 +301,9 @@ impl<E: PairingEngine> ConditionalEqGadget<E> for FpGadget<E> {
     }
 }
 
-impl<E: PairingEngine> NEqGadget<E> for FpGadget<E> {
+impl<F: PrimeField> NEqGadget<F> for FpGadget<F> {
     #[inline]
-    fn enforce_not_equal<CS: ConstraintSystem<E>>(
+    fn enforce_not_equal<CS: ConstraintSystem<F>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -319,15 +318,15 @@ impl<E: PairingEngine> NEqGadget<E> for FpGadget<E> {
     }
 }
 
-impl<E: PairingEngine> ToBitsGadget<E> for FpGadget<E> {
+impl<F: PrimeField> ToBitsGadget<F> for FpGadget<F> {
     /// Outputs the binary representation of the value in `self` in *big-endian*
     /// form.
-    fn to_bits<CS: ConstraintSystem<E>>(&self, mut cs: CS) -> Result<Vec<Boolean>, SynthesisError> {
-        let num_bits = <E::Fr as PrimeField>::Params::MODULUS_BITS;
+    fn to_bits<CS: ConstraintSystem<F>>(&self, mut cs: CS) -> Result<Vec<Boolean>, SynthesisError> {
+        let num_bits = F::Params::MODULUS_BITS;
         use algebra::BitIterator;
         let bit_values = match self.value {
             Some(value) => {
-                let mut field_char = BitIterator::new(E::Fr::characteristic());
+                let mut field_char = BitIterator::new(F::characteristic());
                 let mut tmp = Vec::with_capacity(num_bits as usize);
                 let mut found_one = false;
                 for b in BitIterator::new(value.into_repr()) {
@@ -355,7 +354,7 @@ impl<E: PairingEngine> ToBitsGadget<E> for FpGadget<E> {
         }
 
         let mut lc = LinearCombination::zero();
-        let mut coeff = E::Fr::one();
+        let mut coeff = F::one();
 
         for bit in bits.iter().rev() {
             lc = lc + (coeff, bit.get_variable());
@@ -370,26 +369,26 @@ impl<E: PairingEngine> ToBitsGadget<E> for FpGadget<E> {
         Ok(bits.into_iter().map(Boolean::from).collect())
     }
 
-    fn to_bits_strict<CS: ConstraintSystem<E>>(
+    fn to_bits_strict<CS: ConstraintSystem<F>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<Boolean>, SynthesisError> {
         let bits = self.to_bits(&mut cs)?;
-        Boolean::enforce_in_field::<_, _, E::Fr>(&mut cs, &bits)?;
+        Boolean::enforce_in_field::<_, _, F>(&mut cs, &bits)?;
 
         Ok(bits)
     }
 }
 
-impl<E: PairingEngine> ToBytesGadget<E> for FpGadget<E> {
-    fn to_bytes<CS: ConstraintSystem<E>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
+impl<F: PrimeField> ToBytesGadget<F> for FpGadget<F> {
+    fn to_bytes<CS: ConstraintSystem<F>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
         let byte_values = match self.value {
             Some(value) => to_bytes![&value.into_repr()]?
                 .into_iter()
                 .map(Some)
                 .collect::<Vec<_>>(),
             None => {
-                let default = E::Fr::default();
+                let default = F::default();
                 let default_len = to_bytes![&default].unwrap().len();
                 vec![None; default_len]
             },
@@ -398,7 +397,7 @@ impl<E: PairingEngine> ToBytesGadget<E> for FpGadget<E> {
         let bytes = UInt8::alloc_vec(cs.ns(|| "Alloc bytes"), &byte_values)?;
 
         let mut lc = LinearCombination::zero();
-        let mut coeff = E::Fr::one();
+        let mut coeff = F::one();
 
         for bit in bytes
             .iter()
@@ -420,12 +419,12 @@ impl<E: PairingEngine> ToBytesGadget<E> for FpGadget<E> {
         Ok(bytes)
     }
 
-    fn to_bytes_strict<CS: ConstraintSystem<E>>(
+    fn to_bytes_strict<CS: ConstraintSystem<F>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
         let bytes = self.to_bytes(&mut cs)?;
-        Boolean::enforce_in_field::<_, _, E::Fr>(
+        Boolean::enforce_in_field::<_, _, F>(
             &mut cs,
             &bytes.iter()
                 .flat_map(|byte_gadget| byte_gadget.into_bits_le())
@@ -438,9 +437,9 @@ impl<E: PairingEngine> ToBytesGadget<E> for FpGadget<E> {
     }
 }
 
-impl<E: PairingEngine> CondSelectGadget<E> for FpGadget<E> {
+impl<F: PrimeField> CondSelectGadget<F> for FpGadget<F> {
     #[inline]
-    fn conditionally_select<CS: ConstraintSystem<E>>(
+    fn conditionally_select<CS: ConstraintSystem<F>>(
         mut cs: CS,
         cond: &Boolean,
         first: &Self,
@@ -466,7 +465,7 @@ impl<E: PairingEngine> CondSelectGadget<E> for FpGadget<E> {
             let one = CS::one();
             cs.enforce(
                 || "conditionally_select",
-                |_| cond.lc(one, E::Fr::one()),
+                |_| cond.lc(one, F::one()),
                 |lc| (&first.variable - &second.variable) + lc,
                 |lc| (&result.variable - &second.variable) + lc,
             );
@@ -481,9 +480,9 @@ impl<E: PairingEngine> CondSelectGadget<E> for FpGadget<E> {
 }
 /// Uses two bits to perform a lookup into a table
 /// `b` is little-endian: `b[0]` is LSB.
-impl<E: PairingEngine> TwoBitLookupGadget<E> for FpGadget<E> {
-    type TableConstant = E::Fr;
-    fn two_bit_lookup<CS: ConstraintSystem<E>>(
+impl<F: PrimeField> TwoBitLookupGadget<F> for FpGadget<F> {
+    type TableConstant = F;
+    fn two_bit_lookup<CS: ConstraintSystem<F>>(
         mut cs: CS,
         b: &[Boolean],
         c: &[Self::TableConstant],
@@ -503,7 +502,7 @@ impl<E: PairingEngine> TwoBitLookupGadget<E> for FpGadget<E> {
         cs.enforce(
             || "Enforce lookup",
             |lc| lc + b[1].lc(one, c[3] - &c[2] - &c[1] + &c[0]) + (c[1] - &c[0], one),
-            |lc| lc + b[0].lc(one, E::Fr::one()),
+            |lc| lc + b[0].lc(one, F::one()),
             |lc| result.get_variable() + lc + (-c[0], one) + b[1].lc(one, c[0] - &c[2]),
         );
 
@@ -515,7 +514,7 @@ impl<E: PairingEngine> TwoBitLookupGadget<E> for FpGadget<E> {
     }
 }
 
-impl<E: PairingEngine> Clone for FpGadget<E> {
+impl<F: PrimeField> Clone for FpGadget<F> {
     fn clone(&self) -> Self {
         Self {
             value:    self.value.clone(),
@@ -524,15 +523,15 @@ impl<E: PairingEngine> Clone for FpGadget<E> {
     }
 }
 
-impl<E: PairingEngine> AllocGadget<E::Fr, E> for FpGadget<E> {
+impl<F: PrimeField> AllocGadget<F, F> for FpGadget<F> {
     #[inline]
-    fn alloc<F, T, CS: ConstraintSystem<E>>(
+    fn alloc<FN, T, CS: ConstraintSystem<F>>(
         mut cs: CS,
-        value_gen: F,
+        value_gen: FN,
     ) -> Result<Self, SynthesisError>
     where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<E::Fr>,
+        FN: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<F>,
     {
         let mut value = None;
         let variable = cs.alloc(
@@ -550,13 +549,13 @@ impl<E: PairingEngine> AllocGadget<E::Fr, E> for FpGadget<E> {
     }
 
     #[inline]
-    fn alloc_input<F, T, CS: ConstraintSystem<E>>(
+    fn alloc_input<FN, T, CS: ConstraintSystem<F>>(
         mut cs: CS,
-        value_gen: F,
+        value_gen: FN,
     ) -> Result<Self, SynthesisError>
     where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<E::Fr>,
+        FN: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<F>,
     {
         let mut value = None;
         let variable = cs.alloc_input(

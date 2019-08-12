@@ -2,13 +2,13 @@ use crate::groups::bls12::{
     G1Gadget as Bls12G1Gadget, G1PreparedGadget as Bls12G1PreparedGadget,
     G2Gadget as Bls12G2Gadget, G2PreparedGadget as Bls12G2PreparedGadget,
 };
-use algebra::curves::{bls12_377::Bls12_377Parameters, sw6::SW6};
+use algebra::curves::bls12_377::Bls12_377Parameters;
 
-pub type G1Gadget = Bls12G1Gadget<Bls12_377Parameters, SW6>;
-pub type G2Gadget = Bls12G2Gadget<Bls12_377Parameters, SW6>;
+pub type G1Gadget = Bls12G1Gadget<Bls12_377Parameters>;
+pub type G2Gadget = Bls12G2Gadget<Bls12_377Parameters>;
 
-pub type G1PreparedGadget = Bls12G1PreparedGadget<Bls12_377Parameters, SW6>;
-pub type G2PreparedGadget = Bls12G2PreparedGadget<Bls12_377Parameters, SW6>;
+pub type G1PreparedGadget = Bls12G1PreparedGadget<Bls12_377Parameters>;
+pub type G2PreparedGadget = Bls12G2PreparedGadget<Bls12_377Parameters>;
 
 #[cfg(test)]
 mod test {
@@ -23,11 +23,9 @@ mod test {
         utils::{AllocGadget, CondSelectGadget, EqGadget},
     };
     use algebra::{
-        curves::{
-            bls12_377::{G1Projective as G1, G2Projective as G2},
-            sw6::SW6,
-        },
+        curves::bls12_377::{G1Projective as G1, G2Projective as G2},
         fields::bls12_377::Fr,
+        fields::bls12_377::Fq,
         AffineCurve, BitIterator, PrimeField, ProjectiveCurve,
     };
     use snark::ConstraintSystem;
@@ -36,7 +34,7 @@ mod test {
     fn bls12_g1_constraint_costs() {
         use crate::boolean::AllocatedBit;
 
-        let mut cs = TestConstraintSystem::<SW6>::new();
+        let mut cs = TestConstraintSystem::<Fq>::new();
 
         let bit = AllocatedBit::alloc(&mut cs.ns(|| "bool"), || Ok(true))
             .unwrap()
@@ -62,7 +60,7 @@ mod test {
         assert!(cs.is_satisfied());
         assert_eq!(
             cond_select_cost,
-            <G1Gadget as CondSelectGadget<SW6>>::cost()
+            <G1Gadget as CondSelectGadget<Fq>>::cost()
         );
         assert_eq!(add_cost, G1Gadget::cost_of_add());
     }
@@ -71,7 +69,7 @@ mod test {
     fn bls12_g2_constraint_costs() {
         use crate::boolean::AllocatedBit;
 
-        let mut cs = TestConstraintSystem::<SW6>::new();
+        let mut cs = TestConstraintSystem::<Fq>::new();
 
         let bit = AllocatedBit::alloc(&mut cs.ns(|| "bool"), || Ok(true))
             .unwrap()
@@ -97,7 +95,7 @@ mod test {
         assert!(cs.is_satisfied());
         assert_eq!(
             cond_select_cost,
-            <G2Gadget as CondSelectGadget<SW6>>::cost()
+            <G2Gadget as CondSelectGadget<Fq>>::cost()
         );
         assert_eq!(add_cost, G2Gadget::cost_of_add());
     }
@@ -107,7 +105,7 @@ mod test {
         use rand::{Rand, SeedableRng, XorShiftRng};
         let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
 
-        let mut cs = TestConstraintSystem::<SW6>::new();
+        let mut cs = TestConstraintSystem::<Fq>::new();
 
         let a = G1::rand(&mut rng);
         let b = G1::rand(&mut rng);
@@ -175,7 +173,7 @@ mod test {
 
     #[test]
     fn bls12_g2_gadget_test() {
-        let mut cs = TestConstraintSystem::<SW6>::new();
+        let mut cs = TestConstraintSystem::<Fq>::new();
 
         let a: G2 = rand::random();
         let b: G2 = rand::random();

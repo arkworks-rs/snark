@@ -1,30 +1,30 @@
 use crate::{fields::FieldGadget, groups::GroupGadget, utils::ToBytesGadget};
-use algebra::PairingEngine;
+use algebra::{Field, PairingEngine};
 use snark::{ConstraintSystem, SynthesisError};
 use std::fmt::Debug;
 
 pub mod bls12;
 pub use self::bls12::bls12_377;
 
-pub trait PairingGadget<PairingE: PairingEngine, ConstraintE: PairingEngine> {
-    type G1Gadget: GroupGadget<PairingE::G1Projective, ConstraintE>;
-    type G2Gadget: GroupGadget<PairingE::G2Projective, ConstraintE>;
-    type G1PreparedGadget: ToBytesGadget<ConstraintE> + Clone + Debug;
-    type G2PreparedGadget: ToBytesGadget<ConstraintE> + Clone + Debug;
-    type GTGadget: FieldGadget<PairingE::Fqk, ConstraintE> + Clone;
+pub trait PairingGadget<PairingE: PairingEngine, ConstraintF: Field> {
+    type G1Gadget: GroupGadget<PairingE::G1Projective, ConstraintF>;
+    type G2Gadget: GroupGadget<PairingE::G2Projective, ConstraintF>;
+    type G1PreparedGadget: ToBytesGadget<ConstraintF> + Clone + Debug;
+    type G2PreparedGadget: ToBytesGadget<ConstraintF> + Clone + Debug;
+    type GTGadget: FieldGadget<PairingE::Fqk, ConstraintF> + Clone;
 
-    fn miller_loop<CS: ConstraintSystem<ConstraintE>>(
+    fn miller_loop<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
         p: &[Self::G1PreparedGadget],
         q: &[Self::G2PreparedGadget],
     ) -> Result<Self::GTGadget, SynthesisError>;
 
-    fn final_exponentiation<CS: ConstraintSystem<ConstraintE>>(
+    fn final_exponentiation<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
         p: &Self::GTGadget,
     ) -> Result<Self::GTGadget, SynthesisError>;
 
-    fn pairing<CS: ConstraintSystem<ConstraintE>>(
+    fn pairing<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         p: Self::G1PreparedGadget,
         q: Self::G2PreparedGadget,
@@ -35,7 +35,7 @@ pub trait PairingGadget<PairingE: PairingEngine, ConstraintE: PairingEngine> {
 
     /// Computes a product of pairings.
     #[must_use]
-    fn product_of_pairings<CS: ConstraintSystem<ConstraintE>>(
+    fn product_of_pairings<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         p: &[Self::G1PreparedGadget],
         q: &[Self::G2PreparedGadget],
@@ -44,12 +44,12 @@ pub trait PairingGadget<PairingE: PairingEngine, ConstraintE: PairingEngine> {
         Self::final_exponentiation(&mut cs.ns(|| "Final Exp"), &miller_result)
     }
 
-    fn prepare_g1<CS: ConstraintSystem<ConstraintE>>(
+    fn prepare_g1<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
         q: &Self::G1Gadget,
     ) -> Result<Self::G1PreparedGadget, SynthesisError>;
 
-    fn prepare_g2<CS: ConstraintSystem<ConstraintE>>(
+    fn prepare_g2<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
         q: &Self::G2Gadget,
     ) -> Result<Self::G2PreparedGadget, SynthesisError>;
@@ -65,7 +65,7 @@ mod test {
     #[test]
     fn bls12_377_gadget_bilinearity_test() {
         use algebra::{
-            fields::{bls12_377::fr::Fr, PrimeField},
+            fields::{bls12_377::{fr::Fr, fq::Fq}, PrimeField},
             PairingEngine, ProjectiveCurve,
         };
 
@@ -76,13 +76,10 @@ mod test {
             pairing::PairingGadget as _,
             utils::{AllocGadget, EqGadget},
         };
-        use algebra::curves::{
-            bls12_377::{Bls12_377, G1Projective, G2Projective},
-            sw6::SW6,
-        };
+        use algebra::curves::bls12_377::{Bls12_377, G1Projective, G2Projective};
         use std::ops::Mul;
 
-        let mut cs = TestConstraintSystem::<SW6>::new();
+        let mut cs = TestConstraintSystem::<Fq>::new();
 
         // let a: G1Projective = rand::random();
         // let b: G2Projective = rand::random();

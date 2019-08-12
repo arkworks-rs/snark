@@ -39,7 +39,7 @@ extern crate algebra;
 extern crate derivative;
 
 use crate::ConstraintVar::*;
-use algebra::{Field, PairingEngine};
+use algebra::Field;
 use snark::{LinearCombination, SynthesisError, Variable};
 use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub};
 
@@ -69,36 +69,36 @@ impl<T> Assignment<T> for Option<T> {
 }
 
 #[derive(Clone, Debug)]
-pub enum ConstraintVar<E: PairingEngine> {
-    LC(LinearCombination<E>),
+pub enum ConstraintVar<F: Field> {
+    LC(LinearCombination<F>),
     Var(Variable),
 }
 
-impl<E: PairingEngine> From<Variable> for ConstraintVar<E> {
+impl<F: Field> From<Variable> for ConstraintVar<F> {
     #[inline]
     fn from(var: Variable) -> Self {
         Var(var)
     }
 }
 
-impl<E: PairingEngine> From<(E::Fr, Variable)> for ConstraintVar<E> {
+impl<F: Field> From<(F, Variable)> for ConstraintVar<F> {
     #[inline]
-    fn from(coeff_var: (E::Fr, Variable)) -> Self {
+    fn from(coeff_var: (F, Variable)) -> Self {
         LC(coeff_var.into())
     }
 }
 
-impl<E: PairingEngine> From<(E::Fr, LinearCombination<E>)> for ConstraintVar<E> {
+impl<F: Field> From<(F, LinearCombination<F>)> for ConstraintVar<F> {
     #[inline]
-    fn from((coeff, mut lc): (E::Fr, LinearCombination<E>)) -> Self {
+    fn from((coeff, mut lc): (F, LinearCombination<F>)) -> Self {
         lc *= coeff;
         LC(lc)
     }
 }
 
-impl<E: PairingEngine> From<(E::Fr, ConstraintVar<E>)> for ConstraintVar<E> {
+impl<F: Field> From<(F, ConstraintVar<F>)> for ConstraintVar<F> {
     #[inline]
-    fn from((coeff, var): (E::Fr, ConstraintVar<E>)) -> Self {
+    fn from((coeff, var): (F, ConstraintVar<F>)) -> Self {
         match var {
             LC(lc) => (coeff, lc).into(),
             Var(var) => (coeff, var).into(),
@@ -106,7 +106,7 @@ impl<E: PairingEngine> From<(E::Fr, ConstraintVar<E>)> for ConstraintVar<E> {
     }
 }
 
-impl<E: PairingEngine> ConstraintVar<E> {
+impl<F: Field> ConstraintVar<F> {
     #[inline]
     pub fn zero() -> Self {
         LC(LinearCombination::zero())
@@ -115,23 +115,23 @@ impl<E: PairingEngine> ConstraintVar<E> {
     pub fn negate_in_place(&mut self) {
         match self {
             LC(ref mut lc) => lc.negate_in_place(),
-            Var(var) => *self = (-E::Fr::one(), *var).into(),
+            Var(var) => *self = (-F::one(), *var).into(),
         }
     }
 
     pub fn double_in_place(&mut self) {
         match self {
             LC(lc) => lc.double_in_place(),
-            Var(var) => *self = (E::Fr::one().double(), *var).into(),
+            Var(var) => *self = (F::one().double(), *var).into(),
         }
     }
 }
 
-impl<E: PairingEngine> Add<LinearCombination<E>> for ConstraintVar<E> {
-    type Output = LinearCombination<E>;
+impl<F: Field> Add<LinearCombination<F>> for ConstraintVar<F> {
+    type Output = LinearCombination<F>;
 
     #[inline]
-    fn add(self, other_lc: LinearCombination<E>) -> LinearCombination<E> {
+    fn add(self, other_lc: LinearCombination<F>) -> LinearCombination<F> {
         match self {
             LC(lc) => other_lc + lc,
             Var(var) => other_lc + var,
@@ -139,11 +139,11 @@ impl<E: PairingEngine> Add<LinearCombination<E>> for ConstraintVar<E> {
     }
 }
 
-impl<E: PairingEngine> Sub<LinearCombination<E>> for ConstraintVar<E> {
-    type Output = LinearCombination<E>;
+impl<F: Field> Sub<LinearCombination<F>> for ConstraintVar<F> {
+    type Output = LinearCombination<F>;
 
     #[inline]
-    fn sub(self, other_lc: LinearCombination<E>) -> LinearCombination<E> {
+    fn sub(self, other_lc: LinearCombination<F>) -> LinearCombination<F> {
         let result = match self {
             LC(lc) => other_lc - lc,
             Var(var) => other_lc - var,
@@ -152,11 +152,11 @@ impl<E: PairingEngine> Sub<LinearCombination<E>> for ConstraintVar<E> {
     }
 }
 
-impl<E: PairingEngine> Add<LinearCombination<E>> for &ConstraintVar<E> {
-    type Output = LinearCombination<E>;
+impl<F: Field> Add<LinearCombination<F>> for &ConstraintVar<F> {
+    type Output = LinearCombination<F>;
 
     #[inline]
-    fn add(self, other_lc: LinearCombination<E>) -> LinearCombination<E> {
+    fn add(self, other_lc: LinearCombination<F>) -> LinearCombination<F> {
         match self {
             LC(lc) => other_lc + lc,
             Var(var) => other_lc + *var,
@@ -164,11 +164,11 @@ impl<E: PairingEngine> Add<LinearCombination<E>> for &ConstraintVar<E> {
     }
 }
 
-impl<E: PairingEngine> Sub<LinearCombination<E>> for &ConstraintVar<E> {
-    type Output = LinearCombination<E>;
+impl<F: Field> Sub<LinearCombination<F>> for &ConstraintVar<F> {
+    type Output = LinearCombination<F>;
 
     #[inline]
-    fn sub(self, other_lc: LinearCombination<E>) -> LinearCombination<E> {
+    fn sub(self, other_lc: LinearCombination<F>) -> LinearCombination<F> {
         let result = match self {
             LC(lc) => other_lc - lc,
             Var(var) => other_lc - *var,
@@ -177,11 +177,11 @@ impl<E: PairingEngine> Sub<LinearCombination<E>> for &ConstraintVar<E> {
     }
 }
 
-impl<E: PairingEngine> Add<(E::Fr, Variable)> for ConstraintVar<E> {
+impl<F: Field> Add<(F, Variable)> for ConstraintVar<F> {
     type Output = Self;
 
     #[inline]
-    fn add(self, var: (E::Fr, Variable)) -> Self {
+    fn add(self, var: (F, Variable)) -> Self {
         let lc = match self {
             LC(lc) => lc + var,
             Var(var2) => LinearCombination::from(var2) + var,
@@ -190,9 +190,9 @@ impl<E: PairingEngine> Add<(E::Fr, Variable)> for ConstraintVar<E> {
     }
 }
 
-impl<E: PairingEngine> AddAssign<(E::Fr, Variable)> for ConstraintVar<E> {
+impl<F: Field> AddAssign<(F, Variable)> for ConstraintVar<F> {
     #[inline]
-    fn add_assign(&mut self, var: (E::Fr, Variable)) {
+    fn add_assign(&mut self, var: (F, Variable)) {
         match self {
             LC(ref mut lc) => *lc += var,
             Var(var2) => *self = LC(LinearCombination::from(*var2) + var),
@@ -200,7 +200,7 @@ impl<E: PairingEngine> AddAssign<(E::Fr, Variable)> for ConstraintVar<E> {
     }
 }
 
-impl<E: PairingEngine> Neg for ConstraintVar<E> {
+impl<F: Field> Neg for ConstraintVar<F> {
     type Output = Self;
 
     #[inline]
@@ -210,11 +210,11 @@ impl<E: PairingEngine> Neg for ConstraintVar<E> {
     }
 }
 
-impl<E: PairingEngine> Mul<E::Fr> for ConstraintVar<E> {
+impl<F: Field> Mul<F> for ConstraintVar<F> {
     type Output = Self;
 
     #[inline]
-    fn mul(self, scalar: E::Fr) -> Self {
+    fn mul(self, scalar: F) -> Self {
         match self {
             LC(lc) => LC(lc * scalar),
             Var(var) => (scalar, var).into(),
@@ -222,9 +222,9 @@ impl<E: PairingEngine> Mul<E::Fr> for ConstraintVar<E> {
     }
 }
 
-impl<E: PairingEngine> MulAssign<E::Fr> for ConstraintVar<E> {
+impl<F: Field> MulAssign<F> for ConstraintVar<F> {
     #[inline]
-    fn mul_assign(&mut self, scalar: E::Fr) {
+    fn mul_assign(&mut self, scalar: F) {
         match self {
             LC(lc) => *lc *= scalar,
             Var(var) => *self = (scalar, *var).into(),
@@ -232,33 +232,33 @@ impl<E: PairingEngine> MulAssign<E::Fr> for ConstraintVar<E> {
     }
 }
 
-impl<E: PairingEngine> Sub<(E::Fr, Variable)> for ConstraintVar<E> {
+impl<F: Field> Sub<(F, Variable)> for ConstraintVar<F> {
     type Output = Self;
 
     #[inline]
-    fn sub(self, (coeff, var): (E::Fr, Variable)) -> Self {
+    fn sub(self, (coeff, var): (F, Variable)) -> Self {
         self + (-coeff, var)
     }
 }
 
-impl<E: PairingEngine> Add<Variable> for ConstraintVar<E> {
+impl<F: Field> Add<Variable> for ConstraintVar<F> {
     type Output = Self;
 
     fn add(self, other: Variable) -> Self {
-        self + (E::Fr::one(), other)
+        self + (F::one(), other)
     }
 }
 
-impl<E: PairingEngine> Sub<Variable> for ConstraintVar<E> {
+impl<F: Field> Sub<Variable> for ConstraintVar<F> {
     type Output = Self;
 
     #[inline]
     fn sub(self, other: Variable) -> Self {
-        self - (E::Fr::one(), other)
+        self - (F::one(), other)
     }
 }
 
-impl<'a, E: PairingEngine> Add<&'a Self> for ConstraintVar<E> {
+impl<'a, F: Field> Add<&'a Self> for ConstraintVar<F> {
     type Output = Self;
 
     #[inline]
@@ -275,7 +275,7 @@ impl<'a, E: PairingEngine> Add<&'a Self> for ConstraintVar<E> {
     }
 }
 
-impl<'a, E: PairingEngine> Sub<&'a Self> for ConstraintVar<E> {
+impl<'a, F: Field> Sub<&'a Self> for ConstraintVar<F> {
     type Output = Self;
 
     #[inline]
@@ -292,29 +292,29 @@ impl<'a, E: PairingEngine> Sub<&'a Self> for ConstraintVar<E> {
     }
 }
 
-impl<E: PairingEngine> Add<&ConstraintVar<E>> for &ConstraintVar<E> {
-    type Output = ConstraintVar<E>;
+impl<F: Field> Add<&ConstraintVar<F>> for &ConstraintVar<F> {
+    type Output = ConstraintVar<F>;
 
     #[inline]
-    fn add(self, other: &ConstraintVar<E>) -> Self::Output {
+    fn add(self, other: &ConstraintVar<F>) -> Self::Output {
         (ConstraintVar::zero() + self) + other
     }
 }
 
-impl<E: PairingEngine> Sub<&ConstraintVar<E>> for &ConstraintVar<E> {
-    type Output = ConstraintVar<E>;
+impl<F: Field> Sub<&ConstraintVar<F>> for &ConstraintVar<F> {
+    type Output = ConstraintVar<F>;
 
     #[inline]
-    fn sub(self, other: &ConstraintVar<E>) -> Self::Output {
+    fn sub(self, other: &ConstraintVar<F>) -> Self::Output {
         (ConstraintVar::zero() + self) - other
     }
 }
 
-impl<'a, E: PairingEngine> Add<(E::Fr, &'a Self)> for ConstraintVar<E> {
+impl<'a, F: Field> Add<(F, &'a Self)> for ConstraintVar<F> {
     type Output = Self;
 
     #[inline]
-    fn add(self, (coeff, other): (E::Fr, &'a Self)) -> Self {
+    fn add(self, (coeff, other): (F, &'a Self)) -> Self {
         let mut lc = match self {
             LC(lc2) => lc2,
             Var(var) => LinearCombination::zero() + var,
@@ -328,11 +328,11 @@ impl<'a, E: PairingEngine> Add<(E::Fr, &'a Self)> for ConstraintVar<E> {
     }
 }
 
-impl<'a, E: PairingEngine> Sub<(E::Fr, &'a Self)> for ConstraintVar<E> {
+impl<'a, F: Field> Sub<(F, &'a Self)> for ConstraintVar<F> {
     type Output = Self;
 
     #[inline]
-    fn sub(self, (coeff, other): (E::Fr, &'a Self)) -> Self {
+    fn sub(self, (coeff, other): (F, &'a Self)) -> Self {
         let mut lc = match self {
             LC(lc2) => lc2,
             Var(var) => LinearCombination::zero() + var,
