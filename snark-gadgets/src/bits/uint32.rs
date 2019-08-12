@@ -1,6 +1,6 @@
 use algebra::{FpParameters, PrimeField, Field};
 
-use snark::{ConstraintSystem, LinearCombination, SynthesisError};
+use r1cs_core::{ConstraintSystem, LinearCombination, SynthesisError};
 
 use super::boolean::{AllocatedBit, Boolean};
 use crate::{
@@ -344,7 +344,7 @@ mod test {
     use crate::{bits::boolean::Boolean, test_constraint_system::TestConstraintSystem};
     use algebra::fields::{bls12_381::Fr, Field};
     use rand::{Rng, SeedableRng, XorShiftRng};
-    use snark::ConstraintSystem;
+    use r1cs_core::ConstraintSystem;
 
     #[test]
     fn test_uint32_from_bits() {

@@ -11,7 +11,7 @@ use algebra::{
     BitIterator, Group, PrimeField, Field,
 };
 
-use snark::ConstraintSystem;
+use r1cs_core::ConstraintSystem;
 
 pub(crate) fn edwards_test<ConstraintF, P, GG, CS>(cs: &mut CS)
 where

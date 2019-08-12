@@ -1,4 +1,4 @@
-use snark::{ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSystem, SynthesisError};
 
 use super::PairingGadget as PG;
 

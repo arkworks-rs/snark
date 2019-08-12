@@ -1,5 +1,5 @@
 use algebra::{bytes::ToBytes, FpParameters, PrimeField};
-use snark::{ConstraintSystem, LinearCombination, SynthesisError};
+use r1cs_core::{ConstraintSystem, LinearCombination, SynthesisError};
 
 use std::borrow::Borrow;
 

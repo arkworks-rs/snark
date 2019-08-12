@@ -1,7 +1,7 @@
-use algebra::{utils::ToConstraintField, FpParameters, Field, PrimeField};
+use algebra::{ToConstraintField, FpParameters, Field, PrimeField};
 
 use crate::fields::fp::FpGadget;
-use snark::{ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSystem, SynthesisError};
 
 use super::boolean::{AllocatedBit, Boolean};
 use crate::{
@@ -299,7 +299,7 @@ mod test {
     };
     use algebra::fields::bls12_381::Fr;
     use rand::{Rng, SeedableRng, XorShiftRng};
-    use snark::ConstraintSystem;
+    use r1cs_core::ConstraintSystem;
 
     #[test]
     fn test_uint8_from_bits_to_bits() {

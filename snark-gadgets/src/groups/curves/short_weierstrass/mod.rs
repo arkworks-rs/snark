@@ -5,7 +5,7 @@ use algebra::{
     },
     BitIterator, PrimeField,
 };
-use snark::{ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSystem, SynthesisError};
 use std::{borrow::Borrow, marker::PhantomData, ops::Neg};
 
 use crate::{

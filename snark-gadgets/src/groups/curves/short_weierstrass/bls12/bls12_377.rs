@@ -28,7 +28,7 @@ mod test {
         fields::bls12_377::Fq,
         AffineCurve, BitIterator, PrimeField, ProjectiveCurve,
     };
-    use snark::ConstraintSystem;
+    use r1cs_core::ConstraintSystem;
 
     #[test]
     fn bls12_g1_constraint_costs() {

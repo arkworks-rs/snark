@@ -5,7 +5,7 @@ use crate::{
     utils::{AllocGadget, CondSelectGadget, ConditionalEqGadget, EqGadget, ToBytesGadget},
     Assignment,
 };
-use snark::{ConstraintSystem, LinearCombination, SynthesisError, Variable};
+use r1cs_core::{ConstraintSystem, LinearCombination, SynthesisError, Variable};
 use std::borrow::Borrow;
 
 /// Represents a variable in the constraint system which is guaranteed
@@ -743,7 +743,7 @@ mod test {
     };
     use algebra::{fields::bls12_381::Fr, BitIterator, Field, PrimeField};
     use rand::{Rand, SeedableRng, XorShiftRng};
-    use snark::ConstraintSystem;
+    use r1cs_core::ConstraintSystem;
     use std::str::FromStr;
 
     #[test]

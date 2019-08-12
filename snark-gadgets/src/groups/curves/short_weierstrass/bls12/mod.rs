@@ -4,7 +4,7 @@ use algebra::{
     fields::Field,
     BitIterator, ProjectiveCurve,
 };
-use snark::{ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSystem, SynthesisError};
 
 use crate::{
     fields::{fp::FpGadget, fp2::Fp2Gadget, FieldGadget},

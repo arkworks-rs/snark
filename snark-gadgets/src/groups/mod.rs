@@ -3,7 +3,7 @@ use crate::{
     utils::{AllocGadget, CondSelectGadget, EqGadget, NEqGadget, ToBitsGadget, ToBytesGadget},
 };
 use algebra::{Group, Field};
-use snark::{ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSystem, SynthesisError};
 
 use std::{borrow::Borrow, fmt::Debug};
 
@@ -146,7 +146,7 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
 #[cfg(test)]
 mod test {
     use algebra::Field;
-    use snark::ConstraintSystem;
+    use r1cs_core::ConstraintSystem;
 
     use crate::{
         groups::GroupGadget, test_constraint_system::TestConstraintSystem, utils::AllocGadget,

@@ -23,7 +23,7 @@ edition = "2018"
 
 [dependencies]
 algebra = { path = "../algebra" }
-snark = { path = "../snark" }
+r1cs-core = { path = "../r1cs-core" }
 derivative = "1"
 radix_trie = "0.1"
 
