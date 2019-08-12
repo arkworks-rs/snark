@@ -6,11 +6,11 @@ use algebra::{
     ProjectiveCurve,
 };
 
-use super::{Parameters, Proof};
+use crate::{Parameters, Proof};
+use crate::r1cs_to_sap::R1CStoSAP;
 
-use crate::{Circuit, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable};
+use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable};
 
-use crate::gm17::r1cs_to_sap::R1CStoSAP;
 use smallvec::SmallVec;
 
 use std::{
@@ -185,7 +185,7 @@ pub fn create_random_proof<E, C, R>(
 ) -> Result<Proof<E>, SynthesisError>
 where
     E: PairingEngine,
-    C: Circuit<E::Fr>,
+    C: ConstraintSynthesizer<E::Fr>,
     R: Rng,
 {
     let d1 = rng.gen();
@@ -204,7 +204,7 @@ pub fn create_proof<E, C>(
 ) -> Result<Proof<E>, SynthesisError>
 where
     E: PairingEngine,
-    C: Circuit<E::Fr>,
+    C: ConstraintSynthesizer<E::Fr>,
 {
     let prover_time = timer_start!(|| "Prover");
     let mut prover = ProvingAssignment {
@@ -225,8 +225,8 @@ where
     prover.alloc_input(|| "", || Ok(E::Fr::one()))?;
 
     // Synthesize the circuit.
-    let synthesis_time = timer_start!(|| "Circuit synthesis");
-    circuit.synthesize(&mut prover)?;
+    let synthesis_time = timer_start!(|| "Constraint synthesis");
+    circuit.generate_constraints(&mut prover)?;
     timer_end!(synthesis_time);
 
     let witness_map_time = timer_start!(|| "R1CS to SAP witness map");

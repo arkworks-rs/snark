@@ -6,10 +6,8 @@ use algebra::{
     Field, PairingEngine,
 };
 
-use crate::{
-    gm17::{generator::KeypairAssembly, prover::ProvingAssignment},
-    Index, SynthesisError,
-};
+use crate::{generator::KeypairAssembly, prover::ProvingAssignment};
+use r1cs_core::{Index, SynthesisError};
 
 use rayon::prelude::*;
 use std::ops::{AddAssign, SubAssign};
