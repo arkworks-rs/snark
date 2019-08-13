@@ -42,7 +42,7 @@ use algebra::curves::bls12_377::Bls12_377;
 use algebra::fields::{bls12_377::fr::Fr, Field};
 
 // We're going to use the Groth-Maller 17 proving system.
-use snark::gm17::{
+use gm17::{
     create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
 };
 

@@ -1,5 +1,5 @@
 use algebra::Field;
-use snark::{Circuit, ConstraintSystem, LinearCombination, SynthesisError};
+use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, LinearCombination, SynthesisError};
 use std::marker::PhantomData;
 
 pub struct Benchmark<F: Field> {
@@ -16,8 +16,8 @@ impl<F: Field> Benchmark<F> {
     }
 }
 
-impl<F: Field> Circuit<F> for Benchmark<F> {
-    fn synthesize<CS: ConstraintSystem<F>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
+impl<F: Field> ConstraintSynthesizer<F> for Benchmark<F> {
+    fn generate_constraints<CS: ConstraintSystem<F>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
         let mut assignments = Vec::new();
 
         let mut a_val = F::one();

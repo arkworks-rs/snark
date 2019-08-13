@@ -1,12 +1,12 @@
 use algebra::Field;
-use crate::{Circuit, ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 struct MySillyCircuit<F: Field> {
     a: Option<F>,
     b: Option<F>,
 }
 
-impl<ConstraintF: Field> Circuit<ConstraintF> for MySillyCircuit<ConstraintF> {
-    fn synthesize<CS: ConstraintSystem<ConstraintF>>(
+impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for MySillyCircuit<ConstraintF> {
+    fn generate_constraints<CS: ConstraintSystem<ConstraintF>>(
         self,
         cs: &mut CS,
     ) -> Result<(), SynthesisError> {
@@ -31,7 +31,7 @@ impl<ConstraintF: Field> Circuit<ConstraintF> for MySillyCircuit<ConstraintF> {
 
 mod bls12_377 {
     use super::*;
-    use crate::gm17::{
+    use crate::{
         create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
     };
 
@@ -73,7 +73,7 @@ mod bls12_377 {
 
 mod sw6 {
     use super::*;
-    use crate::gm17::{
+    use crate::{
         create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
     };
 
