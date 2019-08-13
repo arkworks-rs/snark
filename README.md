@@ -32,10 +32,13 @@ This repository contains several Rust crates that implement the different buildi
 
 * [`algebra`](algebra): Rust crate that provides finite fields and elliptic curves
 * [`dpc`](dpc): Rust crate that implements DPC schemes (the main cryptographic primitive in this repository)
-* [`snark`](snark): Rust crate that provides succinct zero-knowledge arguments
-* [`snark-gadgets`](snark-gadgets): Rust crate that provides various gadgets used to construct constraint systems
+* [`r1cs-core`](r1cs-core): Rust crate that defines core interfaces for a Rank-1 Constraint System (R1CS)
+* [`r1cs-std`](r1cs-std): Rust crate that provides various gadgets used to construct R1CS
+* [`gm17`](gm17): Rust crate that implements the zkSNARK of [Groth and Maller][GM17]
 
 In addition, there is a  [`bench-utils`](bench-utils) crate which contains infrastructure for benchmarking. This crate includes macros for timing code segments and is used for profiling the building blocks of ZEXE.
+
+[GM17]: https://ia.cr/2017/540
 
 ## Build guide
 
