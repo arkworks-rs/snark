@@ -1,13 +1,11 @@
 use algebra::Field;
-use snark::{ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_std::prelude::*;
+use r1cs_std::boolean::AllocatedBit;
 
 use crate::crypto_primitives::{mht::HashMembershipProof, CommitmentScheme, FixedLengthCRH};
 
 use crate::gadgets::{commitment::CommitmentGadget, crh::FixedLengthCRHGadget};
-use snark_gadgets::{
-    boolean::{AllocatedBit, Boolean},
-    utils::{AllocGadget, ConditionalEqGadget, ConditionalOrEqualsGadget, ToBytesGadget},
-};
 
 use crate::ledger::{CommPath, Digest, LedgerDigest, LedgerWitness};
 
@@ -318,16 +316,16 @@ mod test {
         Group
     };
     use rand::{ChaChaRng, Rand, SeedableRng};
-    use snark::ConstraintSystem;
+    use r1cs_core::ConstraintSystem;
 
     use super::*;
     use crate::gadgets::{
         commitment::pedersen::PedersenCommitmentGadget,
         crh::{pedersen::PedersenCRHGadget, FixedLengthCRHGadget},
     };
-    use snark_gadgets::{
+    use r1cs_std::{
         groups::curves::twisted_edwards::jubjub::JubJubGadget,
-        test_constraint_system::TestConstraintSystem, utils::AllocGadget,
+        test_constraint_system::TestConstraintSystem,
     };
 
     use crate::ledger::{CommPath, Digest};

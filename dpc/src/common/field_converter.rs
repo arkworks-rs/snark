@@ -1,4 +1,4 @@
-use algebra::{utils::*, Group, Field};
+use algebra::{ToConstraintField, Group, Field};
 use crate::Error;
 
 use crate::{

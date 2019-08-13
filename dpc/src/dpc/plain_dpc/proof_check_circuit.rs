@@ -1,6 +1,6 @@
-use algebra::{bytes::ToBytes, to_bytes, utils::ToConstraintField};
+use algebra::{bytes::ToBytes, to_bytes, ToConstraintField};
 use crate::Error;
-use snark::{Circuit, ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 
 use crate::{
     crypto_primitives::{CommitmentScheme, FixedLengthCRH},
@@ -143,12 +143,12 @@ impl<C: PlainDPCComponents> ProofCheckCircuit<C> {
     }
 }
 
-impl<C: PlainDPCComponents> Circuit<C::ProofCheckF> for ProofCheckCircuit<C>
+impl<C: PlainDPCComponents> ConstraintSynthesizer<C::ProofCheckF> for ProofCheckCircuit<C>
 where
     <C::LocalDataComm as CommitmentScheme>::Output: ToConstraintField<C::CoreCheckF>,
     <C::LocalDataComm as CommitmentScheme>::Parameters: ToConstraintField<C::CoreCheckF>,
 {
-    fn synthesize<CS: ConstraintSystem<C::ProofCheckF>>(
+    fn generate_constraints<CS: ConstraintSystem<C::ProofCheckF>>(
         self,
         cs: &mut CS,
     ) -> Result<(), SynthesisError> {

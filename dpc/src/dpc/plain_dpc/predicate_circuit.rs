@@ -4,12 +4,12 @@ use crate::{
     gadgets::Assignment,
     plain_dpc::*,
 };
-use snark_gadgets::{uint8::UInt8, utils::AllocGadget};
+use r1cs_std::prelude::*;
 use std::io::{Result as IoResult, Write};
 
-use algebra::{bytes::ToBytes, utils::ToConstraintField};
+use algebra::{bytes::ToBytes, ToConstraintField};
 
-use snark::{Circuit, ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 
 use crate::Error;
 
@@ -157,8 +157,8 @@ impl<C: PlainDPCComponents> EmptyPredicateCircuit<C> {
     }
 }
 
-impl<C: PlainDPCComponents> Circuit<C::CoreCheckF> for EmptyPredicateCircuit<C> {
-    fn synthesize<CS: ConstraintSystem<C::CoreCheckF>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
+impl<C: PlainDPCComponents> ConstraintSynthesizer<C::CoreCheckF> for EmptyPredicateCircuit<C> {
+    fn generate_constraints<CS: ConstraintSystem<C::CoreCheckF>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
         let _position = UInt8::alloc_input_vec(cs.ns(|| "Alloc position"), &[self.position])?;
 
         let _local_data_comm_pp =

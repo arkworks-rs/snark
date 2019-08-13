@@ -2,12 +2,9 @@ use algebra::Field;
 use std::fmt::Debug;
 
 use crate::crypto_primitives::prf::PRF;
-use snark::{ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSystem, SynthesisError};
 
-use snark_gadgets::{
-    uint8::UInt8,
-    utils::{AllocGadget, EqGadget, ToBytesGadget},
-};
+use r1cs_std::prelude::*;
 
 pub mod blake2s;
 

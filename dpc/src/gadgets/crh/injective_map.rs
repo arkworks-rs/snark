@@ -12,12 +12,11 @@ use algebra::{
     fields::{Field, PrimeField, SquareRootField},
     groups::Group,
 };
-use snark::{ConstraintSystem, SynthesisError};
-use snark_gadgets::{
+use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_std::{
     fields::fp::FpGadget,
     groups::{curves::twisted_edwards::AffineGadget as TwistedEdwardsGadget, GroupGadget},
-    uint8::UInt8,
-    utils::{AllocGadget, CondSelectGadget, EqGadget, ToBytesGadget},
+    prelude::*,
 };
 
 use crate::crypto_primitives::crh::{

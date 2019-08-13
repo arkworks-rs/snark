@@ -25,7 +25,7 @@ use crate::gadgets::{
     prf::blake2s::Blake2sGadget,
     verifier::gm17::Gm17VerifierGadget,
 };
-use snark_gadgets::{
+use r1cs_std::{
     groups::curves::twisted_edwards::{
         edwards_bls12::EdwardsBlsGadget, edwards_sw6::EdwardsSWGadget,
     },

@@ -1,13 +1,8 @@
 use algebra::{groups::Group, Field};
-use snark::{ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_std::prelude::*;
 
 use crate::gadgets::signature::SigRandomizePkGadget;
-use snark_gadgets::{
-    boolean::Boolean,
-    groups::GroupGadget,
-    uint8::UInt8,
-    utils::{AllocGadget, ConditionalEqGadget, EqGadget, ToBytesGadget},
-};
 
 use std::{borrow::Borrow, marker::PhantomData};
 

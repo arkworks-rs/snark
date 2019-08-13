@@ -1,13 +1,8 @@
 use algebra::PrimeField;
-use snark::{ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSystem, SynthesisError};
 
 use crate::gadgets::prf::PRFGadget;
-use snark_gadgets::{
-    boolean::Boolean,
-    uint32::UInt32,
-    uint8::UInt8,
-    utils::{AllocGadget, ConditionalEqGadget, EqGadget, ToBytesGadget},
-};
+use r1cs_std::prelude::*;
 
 use std::borrow::Borrow;
 
@@ -504,16 +499,11 @@ mod test {
 
     use crate::crypto_primitives::prf::blake2s::Blake2s as B2SPRF;
     use blake2::Blake2s;
-    use snark::ConstraintSystem;
+    use r1cs_core::ConstraintSystem;
 
     use super::Blake2sGadget;
     use crate::gadgets::prf::blake2s::blake2s_gadget;
-    use snark_gadgets::{
-        boolean::{AllocatedBit, Boolean},
-        test_constraint_system::TestConstraintSystem,
-        uint8::UInt8,
-        utils::AllocGadget,
-    };
+    use r1cs_std::{prelude::*, boolean::AllocatedBit, test_constraint_system::TestConstraintSystem};
 
     #[test]
     fn test_blake2s_constraints() {
@@ -534,7 +524,6 @@ mod test {
     fn test_blake2s_prf() {
         use crate::{crypto_primitives::prf::PRF, gadgets::prf::PRFGadget};
         use rand::Rng;
-        use snark_gadgets::utils::EqGadget;
 
         let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
         let mut cs = TestConstraintSystem::<Fr>::new();

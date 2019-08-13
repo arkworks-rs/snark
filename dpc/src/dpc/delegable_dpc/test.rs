@@ -23,20 +23,20 @@ use crate::crypto_primitives::{
 use blake2::Blake2s as Blake2sHash;
 use crate::crypto_primitives::{CommitmentScheme, FixedLengthCRH};
 
-use snark::ConstraintSystem;
+use r1cs_core::ConstraintSystem;
 
 use crate::gadgets::dpc::delegable_dpc::execute_core_checks_gadget;
 use crate::gadgets::dpc::delegable_dpc::execute_proof_check_gadget;
-use snark_gadgets::test_constraint_system::TestConstraintSystem;
+use r1cs_std::test_constraint_system::TestConstraintSystem;
 use crate::gadgets::commitment::{
     injective_map::PedersenCommitmentCompressorGadget,
     blake2s::Blake2sCommitmentGadget,
 };
 use crate::gadgets::crh::injective_map::{PedersenCRHCompressorGadget, TECompressorGadget};
 use crate::gadgets::verifier::gm17::Gm17VerifierGadget;
-use snark_gadgets::groups::curves::twisted_edwards::edwards_sw6::EdwardsSWGadget;
-use snark_gadgets::groups::curves::twisted_edwards::edwards_bls12::EdwardsBlsGadget;
-use snark_gadgets::pairing::bls12_377::PairingGadget;
+use r1cs_std::groups::curves::twisted_edwards::edwards_sw6::EdwardsSWGadget;
+use r1cs_std::groups::curves::twisted_edwards::edwards_bls12::EdwardsBlsGadget;
+use r1cs_std::pairing::bls12_377::PairingGadget;
 use crate::gadgets::mht::IdealLedgerGadget;
 use crate::gadgets::prf::blake2s::Blake2sGadget;
 

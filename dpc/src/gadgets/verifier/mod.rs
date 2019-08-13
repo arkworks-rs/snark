@@ -1,8 +1,8 @@
 use algebra::Field;
-use snark::{ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_std::prelude::*;
 
 use crate::crypto_primitives::nizk::NIZK;
-use snark_gadgets::utils::{AllocGadget, ToBitsGadget, ToBytesGadget};
 
 pub mod gm17;
 
