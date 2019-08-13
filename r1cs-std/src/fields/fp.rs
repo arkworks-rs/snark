@@ -1,20 +1,12 @@
 use algebra::{bytes::ToBytes, FpParameters, PrimeField};
-use r1cs_core::{ConstraintSystem, LinearCombination, SynthesisError};
+use r1cs_core::{ConstraintSystem, LinearCombination, SynthesisError, ConstraintVar::{self, *}};
 
 use std::borrow::Borrow;
 
-use super::FieldGadget;
-use crate::{
-    boolean::{AllocatedBit, Boolean},
-    uint8::UInt8,
-};
-
+use crate::boolean::AllocatedBit;
+use crate::Assignment;
 use crate::prelude::*;
 
-use crate::{
-    Assignment,
-    ConstraintVar::{self, *},
-};
 
 #[derive(Debug)]
 pub struct FpGadget<F: PrimeField> {
