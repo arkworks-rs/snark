@@ -12,6 +12,7 @@
 mod constraint_system;
 mod error;
 mod impl_lc;
+mod impl_constraint_var;
 
 pub use constraint_system::{ConstraintSystem, ConstraintSynthesizer, Namespace};
 pub use error::SynthesisError;
@@ -74,3 +75,13 @@ pub enum Index {
 /// to the index of the variable in its constraint system.
 #[derive(Debug, Clone)]
 pub struct LinearCombination<F: Field>(pub SmallVec<F>);
+
+
+/// Either a `Variable` or a `LinearCombination`.
+#[derive(Clone, Debug)]
+pub enum ConstraintVar<F: Field> {
+    /// A wrapper around a `LinearCombination`.
+    LC(LinearCombination<F>),
+    /// A wrapper around a `Variable`.
+    Var(Variable),
+}
