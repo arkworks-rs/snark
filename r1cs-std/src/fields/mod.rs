@@ -215,10 +215,7 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
 mod test {
     use rand::{self, thread_rng, Rand, SeedableRng, XorShiftRng};
 
-    use super::FieldGadget;
-    use crate::{
-        bits::boolean::Boolean, test_constraint_system::TestConstraintSystem, utils::AllocGadget,
-    };
+    use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
     use algebra::{fields::Field, BitIterator};
     use r1cs_core::ConstraintSystem;
 

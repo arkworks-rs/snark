@@ -58,7 +58,7 @@ pub trait PairingGadget<PairingE: PairingEngine, ConstraintF: Field> {
 #[cfg(test)]
 mod test {
     // use rand;
-    use crate::{boolean::Boolean, test_constraint_system::TestConstraintSystem};
+    use crate::test_constraint_system::TestConstraintSystem;
     use algebra::{BitIterator, Field};
     use r1cs_core::ConstraintSystem;
 
@@ -71,10 +71,8 @@ mod test {
 
         use super::bls12_377::PairingGadget;
         use crate::{
-            fields::FieldGadget,
             groups::bls12::bls12_377::{G1Gadget, G1PreparedGadget, G2Gadget, G2PreparedGadget},
-            pairing::PairingGadget as _,
-            utils::{AllocGadget, EqGadget},
+            prelude::*, pairing::PairingGadget as _,
         };
         use algebra::curves::bls12_377::{Bls12_377, G1Projective, G2Projective};
         use std::ops::Mul;

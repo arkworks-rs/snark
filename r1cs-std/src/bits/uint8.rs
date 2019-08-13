@@ -292,9 +292,7 @@ impl<ConstraintF: Field> AllocGadget<u8, ConstraintF> for UInt8 {
 #[cfg(test)]
 mod test {
     use super::UInt8;
-    use crate::{
-        bits::boolean::Boolean, test_constraint_system::TestConstraintSystem, utils::AllocGadget,
-    };
+    use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
     use algebra::fields::bls12_381::Fr;
     use rand::{Rng, SeedableRng, XorShiftRng};
     use r1cs_core::ConstraintSystem;

@@ -1,10 +1,6 @@
 use rand;
 
-use crate::{
-    boolean::Boolean,
-    groups::{test::group_test, GroupGadget},
-    utils::{AllocGadget, CondSelectGadget},
-};
+use crate::{prelude::*, groups::test::group_test};
 
 use algebra::{
     curves::{models::TEModelParameters, twisted_edwards_extended::GroupAffine as TEAffine},
