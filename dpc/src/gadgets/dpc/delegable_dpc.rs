@@ -10,18 +10,15 @@ use crate::{
     gadgets::verifier::NIZKVerifierGadget,
     ledger::{LedgerDigest, LedgerWitness},
 };
-use algebra::{to_bytes, utils::ToConstraintField, FpParameters, PrimeField};
-use snark::{ConstraintSystem, SynthesisError};
-use snark_gadgets::{
-    uint8::UInt8,
-    utils::{AllocGadget, EqGadget, ToBytesGadget},
-};
+use algebra::{to_bytes, ToConstraintField, FpParameters, PrimeField};
+use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_std::prelude::*;
 
 use crate::gadgets::{
     CommitmentGadget, FixedLengthCRHGadget, LCWGadget, PRFGadget, SigRandomizePkGadget,
 };
 use algebra::bytes::ToBytes;
-use snark_gadgets::boolean::Boolean;
+use r1cs_std::boolean::Boolean;
 
 pub fn execute_core_checks_gadget<C: DelegableDPCComponents, CS: ConstraintSystem<C::CoreCheckF>>(
     cs: &mut CS,

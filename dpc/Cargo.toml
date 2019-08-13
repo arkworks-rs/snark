@@ -24,8 +24,8 @@ edition = "2018"
 [dependencies]
 algebra = { path = "../algebra" }
 r1cs-core = { path = "../r1cs-core" }
+r1cs-std = { path = "../r1cs-std" }
 gm17 = { path = "../gm17" }
-snark-gadgets = { path = "../snark-gadgets" }
 bench-utils = { path = "../bench-utils" }
 
 digest = "0.7"

@@ -1,5 +1,5 @@
 use crate::Error;
-use snark::{Circuit, ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 
 use crate::{
     crypto_primitives::{CommitmentScheme, FixedLengthCRH, PRF},
@@ -12,7 +12,7 @@ use crate::{
     ledger::LedgerDigest,
 };
 
-use algebra::utils::ToConstraintField;
+use algebra::ToConstraintField;
 
 pub struct CoreChecksVerifierInput<C: PlainDPCComponents> {
     // Commitment and CRH parameters
@@ -244,8 +244,8 @@ impl<C: PlainDPCComponents> CoreChecksCircuit<C> {
     }
 }
 
-impl<C: PlainDPCComponents> Circuit<C::CoreCheckF> for CoreChecksCircuit<C> {
-    fn synthesize<CS: ConstraintSystem<C::CoreCheckF>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
+impl<C: PlainDPCComponents> ConstraintSynthesizer<C::CoreCheckF> for CoreChecksCircuit<C> {
+    fn generate_constraints<CS: ConstraintSystem<C::CoreCheckF>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
         execute_core_checks_gadget::<C, CS>(
             cs,
             // Params

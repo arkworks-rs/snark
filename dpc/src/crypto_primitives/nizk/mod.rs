@@ -48,7 +48,7 @@ mod test {
     fn test_gm17() {
         use crate::crypto_primitives::nizk::{gm17::Gm17, NIZK};
         use algebra::{curves::bls12_381::Bls12_381, fields::bls12_381::Fr, Field};
-        use snark::{Circuit, ConstraintSystem, SynthesisError};
+        use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 
         #[derive(Copy, Clone)]
         struct R1CSCircuit {
@@ -67,8 +67,8 @@ mod test {
             }
         }
 
-        impl Circuit<Fr> for R1CSCircuit {
-            fn synthesize<CS: ConstraintSystem<Fr>>(
+        impl ConstraintSynthesizer<Fr> for R1CSCircuit {
+            fn generate_constraints<CS: ConstraintSystem<Fr>>(
                 self,
                 cs: &mut CS,
             ) -> Result<(), SynthesisError> {

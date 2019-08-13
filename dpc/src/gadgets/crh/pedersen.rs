@@ -1,13 +1,12 @@
 use algebra::Field;
-use std::hash::Hash;
 
 use crate::{
     crypto_primitives::crh::pedersen::{PedersenCRH, PedersenParameters, PedersenWindow},
     gadgets::crh::FixedLengthCRHGadget,
 };
 use algebra::groups::Group;
-use snark::{ConstraintSystem, SynthesisError};
-use snark_gadgets::{groups::GroupGadget, uint8::UInt8, utils::AllocGadget};
+use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_std::prelude::*;
 
 use std::{borrow::Borrow, marker::PhantomData};
 
@@ -39,7 +38,7 @@ pub struct PedersenCRHGadget<G: Group, ConstraintF: Field, GG: GroupGadget<G, Co
 impl<ConstraintF, G, GG, W> FixedLengthCRHGadget<PedersenCRH<G, W>, ConstraintF> for PedersenCRHGadget<G, ConstraintF, GG>
 where
     ConstraintF: Field,
-    G: Group + Hash,
+    G: Group,
     GG: GroupGadget<G, ConstraintF>,
     W: PedersenWindow,
 {
@@ -75,7 +74,6 @@ where
     }
 
     fn cost() -> usize {
-        use snark_gadgets::utils::CondSelectGadget;
         W::NUM_WINDOWS * W::WINDOW_SIZE * (GG::cost_of_add() + <GG as CondSelectGadget<ConstraintF>>::cost())
     }
 }
@@ -128,10 +126,10 @@ mod test {
         gadgets::crh::{pedersen::PedersenCRHGadget, FixedLengthCRHGadget},
     };
     use algebra::curves::{jubjub::JubJubProjective as JubJub, ProjectiveCurve};
-    use snark::ConstraintSystem;
-    use snark_gadgets::{
+    use r1cs_core::ConstraintSystem;
+    use r1cs_std::{
         groups::curves::twisted_edwards::jubjub::JubJubGadget,
-        test_constraint_system::TestConstraintSystem, uint8::UInt8, utils::AllocGadget,
+        test_constraint_system::TestConstraintSystem, prelude::*,
     };
 
     type TestCRH = PedersenCRH<JubJub, Window>;

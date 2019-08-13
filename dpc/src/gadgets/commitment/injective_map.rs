@@ -8,8 +8,8 @@ use crate::gadgets::commitment::{
 };
 pub use crate::gadgets::crh::injective_map::InjectiveMapGadget;
 use algebra::groups::Group;
-use snark::{ConstraintSystem, SynthesisError};
-use snark_gadgets::{groups::GroupGadget, uint8::UInt8};
+use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_std::{groups::GroupGadget, uint8::UInt8};
 
 use crate::crypto_primitives::commitment::{
     injective_map::{InjectiveMap, PedersenCommCompressor},

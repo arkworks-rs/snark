@@ -6,14 +6,14 @@ use algebra::{
 };
 use rand::{SeedableRng, XorShiftRng};
 #[cfg(debug_assertions)]
-use snark::gm17::PreparedVerifyingKey;
+use gm17::PreparedVerifyingKey;
 
 use crate::crypto_primitives::FixedLengthCRH;
 
-use snark::ConstraintSystem;
+use r1cs_core::ConstraintSystem;
 
 use crate::gadgets::dpc::plain_dpc::{execute_core_checks_gadget, execute_proof_check_gadget};
-use snark_gadgets::test_constraint_system::TestConstraintSystem;
+use r1cs_std::test_constraint_system::TestConstraintSystem;
 
 use crate::dpc::{
     plain_dpc::{predicate::PrivatePredInput, predicate_circuit::*, ExecuteContext, DPC},

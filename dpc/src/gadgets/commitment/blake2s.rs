@@ -1,15 +1,13 @@
 use crate::crypto_primitives::commitment::blake2s::Blake2sCommitment;
-use snark::{ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSystem, SynthesisError};
 
 use crate::gadgets::{
     prf::blake2s::{blake2s_gadget, Blake2sOutputGadget},
     CommitmentGadget,
 };
 use algebra::{PrimeField, Field};
-use snark_gadgets::{
-    uint8::UInt8,
-    utils::{AllocGadget, ToBytesGadget},
-};
+use r1cs_std::prelude::*;
+
 use std::borrow::Borrow;
 
 #[derive(Clone)]
@@ -114,10 +112,9 @@ mod test {
             CommitmentGadget,
         },
     };
-    use snark::ConstraintSystem;
-    use snark_gadgets::{
-        test_constraint_system::TestConstraintSystem, uint8::UInt8, utils::AllocGadget,
-    };
+    use r1cs_core::ConstraintSystem;
+    use r1cs_std::prelude::*;
+    use r1cs_std::test_constraint_system::TestConstraintSystem;
 
     #[test]
     fn commitment_gadget_test() {

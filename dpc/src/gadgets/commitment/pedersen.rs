@@ -3,11 +3,11 @@ use crate::crypto_primitives::{
     crh::pedersen::PedersenWindow,
 };
 use algebra::{to_bytes, Group, ToBytes};
-use snark::{ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSystem, SynthesisError};
 
 use crate::gadgets::CommitmentGadget;
 use algebra::fields::{Field, PrimeField};
-use snark_gadgets::{groups::GroupGadget, uint8::UInt8, utils::AllocGadget};
+use r1cs_std::prelude::*;
 use std::{borrow::Borrow, marker::PhantomData};
 
 #[derive(Derivative)]
@@ -180,10 +180,9 @@ mod test {
         gadgets::commitment::{pedersen::PedersenCommitmentGadget, CommitmentGadget},
     };
     use algebra::curves::{jubjub::JubJubProjective as JubJub, ProjectiveCurve};
-    use snark::ConstraintSystem;
-    use snark_gadgets::{
-        groups::jubjub::JubJubGadget, test_constraint_system::TestConstraintSystem, uint8::UInt8,
-        utils::AllocGadget,
+    use r1cs_core::ConstraintSystem;
+    use r1cs_std::{
+        groups::jubjub::JubJubGadget, test_constraint_system::TestConstraintSystem, prelude::*,
     };
 
     #[test]

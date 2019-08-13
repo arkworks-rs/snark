@@ -1,7 +1,8 @@
+use algebra::ToConstraintField;
 use algebra::{bytes::ToBytes, to_bytes};
-use crate::Error;
-use snark::{Circuit, ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 
+use crate::Error;
 use crate::{
     crypto_primitives::{CommitmentScheme, FixedLengthCRH},
     gadgets::Assignment,
@@ -12,7 +13,6 @@ use crate::{
     gadgets::dpc::delegable_dpc::execute_proof_check_gadget,
 };
 
-use algebra::utils::ToConstraintField;
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "C: DelegableDPCComponents"))]
@@ -140,12 +140,12 @@ impl<C: DelegableDPCComponents> ProofCheckCircuit<C> {
     }
 }
 
-impl<C: DelegableDPCComponents> Circuit<C::ProofCheckF> for ProofCheckCircuit<C>
+impl<C: DelegableDPCComponents> ConstraintSynthesizer<C::ProofCheckF> for ProofCheckCircuit<C>
 where
     <C::LocalDataComm as CommitmentScheme>::Output: ToConstraintField<C::CoreCheckF>,
     <C::LocalDataComm as CommitmentScheme>::Parameters: ToConstraintField<C::CoreCheckF>,
 {
-    fn synthesize<CS: ConstraintSystem<C::ProofCheckF>>(
+    fn generate_constraints<CS: ConstraintSystem<C::ProofCheckF>>(
         self,
         cs: &mut CS,
     ) -> Result<(), SynthesisError> {

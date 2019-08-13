@@ -1,9 +1,6 @@
 use algebra::Field;
-use snark::{ConstraintSystem, SynthesisError};
-use snark_gadgets::{
-    uint8::UInt8,
-    utils::{AllocGadget, EqGadget, ToBytesGadget},
-};
+use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_std::prelude::*;
 
 use crate::crypto_primitives::signature::SignatureScheme;
 

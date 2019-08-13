@@ -1,16 +1,9 @@
 use crate::{crypto_primitives::nizk::gm17::Gm17, gadgets::verifier::NIZKVerifierGadget};
-use algebra::{Field, utils::ToConstraintField, AffineCurve, PairingEngine};
-use snark::{
-    gm17::{Proof, VerifyingKey},
-    Circuit, ConstraintSystem, SynthesisError,
-};
-use snark_gadgets::{
-    fields::FieldGadget,
-    groups::GroupGadget,
-    pairing::PairingGadget,
-    uint8::UInt8,
-    utils::{AllocGadget, EqGadget, ToBitsGadget, ToBytesGadget},
-};
+use algebra::{Field, ToConstraintField, AffineCurve, PairingEngine};
+use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
+use r1cs_std::prelude::*;
+
+use gm17::{Proof, VerifyingKey};
 use std::{borrow::Borrow, marker::PhantomData};
 
 #[derive(Derivative)]
@@ -108,7 +101,7 @@ impl<PairingE, ConstraintF, P, C, V> NIZKVerifierGadget<Gm17<PairingE, C, V>, Co
 where
     PairingE: PairingEngine,
     ConstraintF: Field,
-    C: Circuit<PairingE::Fr>,
+    C: ConstraintSynthesizer<PairingE::Fr>,
     V: ToConstraintField<PairingE::Fr>,
     P: PairingGadget<PairingE, ConstraintF>,
 {
@@ -409,7 +402,8 @@ where
 
 #[cfg(test)]
 mod test {
-    use snark::{gm17::*, Circuit, ConstraintSystem, SynthesisError};
+    use gm17::*;
+    use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 
     use super::*;
     use algebra::{
@@ -419,9 +413,9 @@ mod test {
         BitIterator, PrimeField,
     };
     use rand::{thread_rng, Rng};
-    use snark_gadgets::{
+    use r1cs_std::{
         boolean::Boolean, pairing::bls12_377::PairingGadget as Bls12_377PairingGadget,
-        test_constraint_system::TestConstraintSystem, utils::AllocGadget,
+        test_constraint_system::TestConstraintSystem,
     };
 
     type TestProofSystem = Gm17<Bls12_377, Bench<Fr>, Fr>;
@@ -434,8 +428,8 @@ mod test {
         num_constraints: usize,
     }
 
-    impl<F: Field> Circuit<F> for Bench<F> {
-        fn synthesize<CS: ConstraintSystem<F>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
+    impl<F: Field> ConstraintSynthesizer<F> for Bench<F> {
+        fn generate_constraints<CS: ConstraintSystem<F>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
             assert!(self.inputs.len() >= 2);
             assert!(self.num_constraints >= self.inputs.len());
 
