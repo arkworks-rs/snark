@@ -146,7 +146,7 @@ mod test {
     use r1cs_core::ConstraintSystem;
 
     use crate::{
-        groups::GroupGadget, test_constraint_system::TestConstraintSystem, utils::AllocGadget,
+        prelude::*, test_constraint_system::TestConstraintSystem,
     };
     use algebra::groups::Group;
     use rand;

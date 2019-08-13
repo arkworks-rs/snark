@@ -64,6 +64,7 @@ pub mod prelude {
     pub use crate::alloc::*;
     pub use crate::fields::FieldGadget;
     pub use crate::groups::GroupGadget;
+    pub use crate::pairing::PairingGadget;
     pub use crate::bits::{ToBitsGadget, ToBytesGadget, boolean::Boolean, uint8::UInt8, uint32::UInt32};
 }
 

@@ -736,7 +736,7 @@ mod test {
     use super::{AllocatedBit, Boolean};
     use crate::{
         test_constraint_system::TestConstraintSystem,
-        utils::{AllocGadget, ConditionalEqGadget, EqGadget, ToBytesGadget},
+        prelude::*
     };
     use algebra::{fields::bls12_381::Fr, BitIterator, Field, PrimeField};
     use rand::{Rand, SeedableRng, XorShiftRng};

@@ -12,16 +12,10 @@ pub type G2PreparedGadget = Bls12G2PreparedGadget<Bls12_377Parameters>;
 
 #[cfg(test)]
 mod test {
-    use crate::fields::FieldGadget;
     use rand;
 
     use super::{G1Gadget, G2Gadget};
-    use crate::{
-        boolean::Boolean,
-        groups::GroupGadget,
-        test_constraint_system::TestConstraintSystem,
-        utils::{AllocGadget, CondSelectGadget, EqGadget},
-    };
+    use crate::{test_constraint_system::TestConstraintSystem, prelude::*};
     use algebra::{
         curves::bls12_377::{G1Projective as G1, G2Projective as G2},
         fields::bls12_377::Fr,
