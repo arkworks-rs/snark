@@ -18,7 +18,6 @@ pub use constraint_system::{ConstraintSystem, ConstraintSynthesizer, Namespace};
 pub use error::SynthesisError;
 pub use algebra::ToConstraintField;
 
-
 use algebra::Field;
 use smallvec::SmallVec as StackVec;
 use std::cmp::Ordering;
