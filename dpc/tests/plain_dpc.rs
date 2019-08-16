@@ -1,7 +1,7 @@
 use algebra::{to_bytes, ToBytes};
 use rand::{SeedableRng, XorShiftRng};
 #[cfg(debug_assertions)]
-use snark::gm17::PreparedVerifyingKey;
+use gm17::PreparedVerifyingKey;
 
 use dpc::crypto_primitives::{nizk::NIZK, FixedLengthCRH};
 

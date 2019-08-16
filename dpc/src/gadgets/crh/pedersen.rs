@@ -72,10 +72,6 @@ where
 
         Ok(result)
     }
-
-    fn cost() -> usize {
-        W::NUM_WINDOWS * W::WINDOW_SIZE * (GG::cost_of_add() + <GG as CondSelectGadget<ConstraintF>>::cost())
-    }
 }
 
 impl<G: Group, W: PedersenWindow, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>>
@@ -141,49 +137,6 @@ mod test {
     impl PedersenWindow for Window {
         const WINDOW_SIZE: usize = 128;
         const NUM_WINDOWS: usize = 8;
-    }
-
-    #[test]
-    fn num_constraints() {
-        let rng = &mut thread_rng();
-        let mut cs = TestConstraintSystem::<Fr>::new();
-
-        let (_input, input_bytes) = generate_input(&mut cs, rng);
-        let input_constraints = cs.num_constraints();
-        println!("number of constraints for input: {}", cs.num_constraints());
-
-        let parameters = TestCRH::setup(rng).unwrap();
-
-        let gadget_parameters =
-            <TestCRHGadget as FixedLengthCRHGadget<TestCRH, Fr>>::ParametersGadget::alloc(
-                &mut cs.ns(|| "gadget_parameters"),
-                || Ok(&parameters),
-            )
-            .unwrap();
-        let param_constraints = cs.num_constraints() - input_constraints;
-        println!(
-            "number of constraints for input + params: {}",
-            cs.num_constraints()
-        );
-
-        let _ =
-            <TestCRHGadget as FixedLengthCRHGadget<TestCRH, Fr>>::check_evaluation_gadget(
-                &mut cs.ns(|| "gadget_evaluation"),
-                &gadget_parameters,
-                &input_bytes,
-            )
-            .unwrap();
-
-        println!("number of constraints total: {}", cs.num_constraints());
-        let eval_constraints = cs.num_constraints() - param_constraints - input_constraints;
-        assert_eq!(
-            <TestCRHGadget as FixedLengthCRHGadget<TestCRH, Fr>>::cost(),
-            eval_constraints
-        );
-        assert_eq!(
-            <TestCRHGadget as FixedLengthCRHGadget<TestCRH, Fr>>::cost(),
-            256 * (6 + 4 * (6 + 2))
-        );
     }
 
     fn generate_input<CS: ConstraintSystem<Fr>>(
