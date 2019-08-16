@@ -32,14 +32,16 @@ use rand::{thread_rng, Rng};
 use std::time::{Duration, Instant};
 
 // Bring in some tools for using pairing-friendly curves
-use algebra::{curves::bls12_381::Bls12_381, Field, PairingEngine};
+use algebra::{
+    curves::bls12_381::Bls12_381,
+    fields::bls12_381::fr::Fr, 
+    Field
+};
 
 // We're going to use the BLS12-381 pairing-friendly elliptic curve.
 
 // We'll use these interfaces to construct our circuit.
-use snark::{Circuit, ConstraintSystem, SynthesisError};
-
-use std::ops::{AddAssign, MulAssign};
+use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 
 const MIMC_ROUNDS: usize = 322;
 
@@ -56,7 +58,7 @@ const MIMC_ROUNDS: usize = 322;
 ///     return xL
 /// }
 /// ```
-fn mimc<E: PairingEngine>(mut xl: E::Fr, mut xr: E::Fr, constants: &[E::Fr]) -> E::Fr {
+fn mimc<F: Field>(mut xl: F, mut xr: F, constants: &[F]) -> F {
     assert_eq!(constants.len(), MIMC_ROUNDS);
 
     for i in 0..MIMC_ROUNDS {
@@ -75,17 +77,17 @@ fn mimc<E: PairingEngine>(mut xl: E::Fr, mut xr: E::Fr, constants: &[E::Fr]) -> 
 
 /// This is our demo circuit for proving knowledge of the
 /// preimage of a MiMC hash invocation.
-struct MiMCDemo<'a, E: PairingEngine> {
-    xl:        Option<E::Fr>,
-    xr:        Option<E::Fr>,
-    constants: &'a [E::Fr],
+struct MiMCDemo<'a, F: Field> {
+    xl:        Option<F>,
+    xr:        Option<F>,
+    constants: &'a [F],
 }
 
 /// Our demo circuit implements this `Circuit` trait which
 /// is used during paramgen and proving in order to
 /// synthesize the constraint system.
-impl<'a, E: PairingEngine> Circuit<E> for MiMCDemo<'a, E> {
-    fn synthesize<CS: ConstraintSystem<E>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
+impl<'a, F: Field> ConstraintSynthesizer<F> for MiMCDemo<'a, F> {
+    fn generate_constraints<CS: ConstraintSystem<F>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
         assert_eq!(self.constants.len(), MIMC_ROUNDS);
 
         // Allocate the first component of the preimage.
@@ -171,7 +173,7 @@ impl<'a, E: PairingEngine> Circuit<E> for MiMCDemo<'a, E> {
 #[test]
 fn test_mimc_groth_maller_17() {
     // We're going to use the GM17 proving system.
-    use snark::gm17::{
+    use gm17::{
         create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
     };
 
@@ -186,13 +188,13 @@ fn test_mimc_groth_maller_17() {
 
     // Create parameters for our circuit
     let params = {
-        let c = MiMCDemo::<Bls12_381> {
+        let c = MiMCDemo::<Fr> {
             xl:        None,
             xr:        None,
             constants: &constants,
         };
 
-        generate_random_parameters(c, rng).unwrap()
+        generate_random_parameters::<Bls12_381, _, _>(c, rng).unwrap()
     };
 
     // Prepare the verification key (for proof verification)
@@ -213,7 +215,7 @@ fn test_mimc_groth_maller_17() {
         // Generate a random preimage and compute the image
         let xl = rng.gen();
         let xr = rng.gen();
-        let image = mimc::<Bls12_381>(xl, xr, &constants);
+        let image = mimc(xl, xr, &constants);
 
         // proof_vec.truncate(0);
 
