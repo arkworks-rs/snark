@@ -10,4 +10,4 @@ matrix:
 cache: cargo
 
 script:
-  - cargo check
+  - cargo check --profile test
