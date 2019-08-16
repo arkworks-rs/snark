@@ -215,7 +215,7 @@ fn test_mimc_groth_maller_17() {
         // Generate a random preimage and compute the image
         let xl = rng.gen();
         let xr = rng.gen();
-        let image = mimc::<Fr>(xl, xr, &constants);
+        let image = mimc(xl, xr, &constants);
 
         // proof_vec.truncate(0);
 
