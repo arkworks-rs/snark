@@ -32,14 +32,16 @@ use rand::{thread_rng, Rng};
 use std::time::{Duration, Instant};
 
 // Bring in some tools for using pairing-friendly curves
-use algebra::{curves::bls12_381::Bls12_381, Field};
+use algebra::{
+    curves::bls12_381::Bls12_381,
+    fields::bls12_381::fr::Fr, 
+    Field
+};
 
 // We're going to use the BLS12-381 pairing-friendly elliptic curve.
 
 // We'll use these interfaces to construct our circuit.
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
-
-use std::ops::{AddAssign, MulAssign};
 
 const MIMC_ROUNDS: usize = 322;
 
@@ -186,13 +188,13 @@ fn test_mimc_groth_maller_17() {
 
     // Create parameters for our circuit
     let params = {
-        let c = MiMCDemo::<Bls12_381> {
+        let c = MiMCDemo::<Fr> {
             xl:        None,
             xr:        None,
             constants: &constants,
         };
 
-        generate_random_parameters(c, rng).unwrap()
+        generate_random_parameters::<Bls12_381, _, _>(c, rng).unwrap()
     };
 
     // Prepare the verification key (for proof verification)
@@ -213,7 +215,7 @@ fn test_mimc_groth_maller_17() {
         // Generate a random preimage and compute the image
         let xl = rng.gen();
         let xr = rng.gen();
-        let image = mimc::<Bls12_381>(xl, xr, &constants);
+        let image = mimc::<Fr>(xl, xr, &constants);
 
         // proof_vec.truncate(0);
 
