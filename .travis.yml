@@ -10,15 +10,5 @@ matrix:
 cache: cargo
 
 script:
-  - cd algebra
-  - cargo test
-  - cargo check --profile bench
-  - cd ../r1cs-core
-  - cargo check
-  - cd ../r1cs-std
-  - cargo test
-  - cd ../gm17
-  - cargo test
-  - cargo check --examples
-  - cd ../dpc
-  - cargo check --profile test
+  - cargo test --all --release
+  - cargo check --examples --all
