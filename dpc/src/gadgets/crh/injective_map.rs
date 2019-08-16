@@ -21,7 +21,7 @@ use r1cs_std::{
 
 use crate::crypto_primitives::crh::{
     injective_map::{InjectiveMap, PedersenCRHCompressor, TECompressor},
-    pedersen::{PedersenCRH, PedersenWindow},
+    pedersen::PedersenWindow,
 };
 
 pub trait InjectiveMapGadget<G: Group, I: InjectiveMap<G>, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>>
@@ -38,7 +38,6 @@ pub trait InjectiveMapGadget<G: Group, I: InjectiveMap<G>, ConstraintF: Field, G
         cs: CS,
         ge: &GG,
     ) -> Result<Self::OutputGadget, SynthesisError>;
-    fn cost() -> usize;
 }
 
 pub struct TECompressorGadget;
@@ -57,10 +56,6 @@ where
     ) -> Result<Self::OutputGadget, SynthesisError> {
         Ok(ge.x.clone())
     }
-
-    fn cost() -> usize {
-        0
-    }
 }
 
 impl<ConstraintF, P>
@@ -77,10 +72,6 @@ where
         ge: &TwistedEdwardsGadget<P, ConstraintF, FpGadget<ConstraintF>>,
     ) -> Result<Self::OutputGadget, SynthesisError> {
         Ok(ge.x.clone())
-    }
-
-    fn cost() -> usize {
-        0
     }
 }
 
@@ -120,10 +111,5 @@ where
             input,
         )?;
         IG::evaluate_map(cs.ns(|| "InjectiveMap"), &result)
-    }
-
-    fn cost() -> usize {
-        <PedersenCRHGadget<G, ConstraintF, GG> as FixedLengthCRHGadget<PedersenCRH<G, W>, ConstraintF>>::cost()
-            + IG::cost()
     }
 }

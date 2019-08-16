@@ -25,6 +25,4 @@ pub trait FixedLengthCRHGadget<H: FixedLengthCRH, ConstraintF: Field>: Sized {
         parameters: &Self::ParametersGadget,
         input: &[UInt8],
     ) -> Result<Self::OutputGadget, SynthesisError>;
-
-    fn cost() -> usize;
 }
