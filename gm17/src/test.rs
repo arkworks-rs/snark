@@ -6,6 +6,10 @@ struct MySillyCircuit<F: Field> {
 }
 
 impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for MySillyCircuit<ConstraintF> {
+    fn has_witness(&self) -> bool {
+        self.a.is_some() && self.b.is_some()
+    }
+
     fn generate_constraints<CS: ConstraintSystem<ConstraintF>>(
         self,
         cs: &mut CS,

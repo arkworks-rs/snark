@@ -148,6 +148,18 @@ where
     <C::LocalDataComm as CommitmentScheme>::Output: ToConstraintField<C::CoreCheckF>,
     <C::LocalDataComm as CommitmentScheme>::Parameters: ToConstraintField<C::CoreCheckF>,
 {
+    fn has_witness(&self) -> bool {
+        self.comm_and_crh_parameters.is_some()
+
+        && self.old_private_pred_inputs.is_some()
+
+        && self.new_private_pred_inputs.is_some()
+
+        && self.predicate_comm.is_some()
+        && self.predicate_rand.is_some()
+        && self.local_data_comm.is_some()
+    }
+
     fn generate_constraints<CS: ConstraintSystem<C::ProofCheckF>>(
         self,
         cs: &mut CS,

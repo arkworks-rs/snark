@@ -250,6 +250,31 @@ impl<C: DelegableDPCComponents> CoreChecksCircuit<C> {
 }
 
 impl<C: DelegableDPCComponents> ConstraintSynthesizer<C::CoreCheckF> for CoreChecksCircuit<C> {
+    fn has_witness(&self) -> bool {
+        self.comm_crh_sig_parameters.is_some()
+        && self.ledger_parameters.is_some()
+
+        && self.ledger_digest.is_some()
+
+        && self.old_records.is_some()
+        && self.old_witnesses.is_some()
+        && self.old_address_secret_keys.is_some()
+        && self.old_serial_numbers.is_some()
+
+        && self.new_records.is_some()
+        && self.new_sn_nonce_randomness.is_some()
+        && self.new_commitments.is_some()
+
+        && self.predicate_comm.is_some()
+        && self.predicate_rand.is_some()
+
+        && self.local_data_comm.is_some()
+        && self.local_data_rand.is_some()
+
+        && self.memo.is_some()
+        && self.auxiliary.is_some()
+    }
+
     fn generate_constraints<CS: ConstraintSystem<C::CoreCheckF>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
         execute_core_checks_gadget::<C, CS>(
             cs,

@@ -17,6 +17,11 @@ impl<F: Field> Benchmark<F> {
 }
 
 impl<F: Field> ConstraintSynthesizer<F> for Benchmark<F> {
+    fn has_witness(&self) -> bool {
+        // we always generate a witness, so this is always true.
+        true
+    }
+
     fn generate_constraints<CS: ConstraintSystem<F>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
         let mut assignments = Vec::new();
 

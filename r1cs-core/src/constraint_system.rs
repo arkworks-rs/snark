@@ -83,6 +83,10 @@ pub struct Namespace<'a, F: Field, CS: ConstraintSystem<F>>(&'a mut CS, PhantomD
 /// The `generate_constraints` method is called to generate constraints for
 /// both CRS generation and for proving.
 pub trait ConstraintSynthesizer<F: Field> {
+    /// Does `self` have a witness for the constraint system? This should 
+    /// return false when in CRS generation mode, and true in proving mode.
+    fn has_witness(&self) -> bool;
+
     /// Drives generation of new constraints inside `CS`.
     fn generate_constraints<CS: ConstraintSystem<F>>(self, cs: &mut CS) -> Result<(), SynthesisError>;
 }

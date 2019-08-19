@@ -68,6 +68,10 @@ mod test {
         }
 
         impl ConstraintSynthesizer<Fr> for R1CSCircuit {
+            fn has_witness(&self) -> bool {
+                self.x.is_some() && self.sum.is_some() && self.w.is_some()
+            }
+
             fn generate_constraints<CS: ConstraintSystem<Fr>>(
                 self,
                 cs: &mut CS,

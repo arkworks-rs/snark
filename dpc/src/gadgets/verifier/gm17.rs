@@ -429,6 +429,10 @@ mod test {
     }
 
     impl<F: Field> ConstraintSynthesizer<F> for Bench<F> {
+        fn has_witness(&self) -> bool {
+            self.inputs.iter().all(|inp| inp.is_some())
+        }
+
         fn generate_constraints<CS: ConstraintSystem<F>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
             assert!(self.inputs.len() >= 2);
             assert!(self.num_constraints >= self.inputs.len());

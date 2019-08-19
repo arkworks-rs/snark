@@ -158,6 +158,10 @@ impl<C: PlainDPCComponents> EmptyPredicateCircuit<C> {
 }
 
 impl<C: PlainDPCComponents> ConstraintSynthesizer<C::CoreCheckF> for EmptyPredicateCircuit<C> {
+    fn has_witness(&self) -> bool {
+        self.comm_and_crh_parameters.is_some() && self.local_data_comm.is_some()
+    }
+
     fn generate_constraints<CS: ConstraintSystem<C::CoreCheckF>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
         let _position = UInt8::alloc_input_vec(cs.ns(|| "Alloc position"), &[self.position])?;
 

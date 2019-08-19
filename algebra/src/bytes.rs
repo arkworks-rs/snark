@@ -123,7 +123,7 @@ array_bytes!(31);
 array_bytes!(32);
 
 /// Takes as input a sequence of structs, and converts them to a series of
-/// bytes. All traits that implement `Bytes` can be automatically converted to
+/// bytes. All traits that implement `ToBytes` can be automatically converted to
 /// bytes in this manner.
 #[macro_export]
 macro_rules! to_bytes {
