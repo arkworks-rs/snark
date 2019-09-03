@@ -1,5 +1,5 @@
+use ff_fft::EvaluationDomain;
 use algebra::{
-    fft::domain::EvaluationDomain,
     msm::FixedBaseMSM,
     AffineCurve, Field, PairingEngine, PrimeField, ProjectiveCurve,
 };
@@ -180,7 +180,7 @@ where
     let domain_size = 2 * assembly.num_constraints + 2 * assembly.num_inputs - 1;
     let domain = EvaluationDomain::<E::Fr>::new(domain_size)
         .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
-    let t = domain.sample_element(rng);
+    let t = domain.sample_element_outside_domain(rng);
 
     timer_end!(domain_time);
     ///////////////////////////////////////////////////////////////////////////

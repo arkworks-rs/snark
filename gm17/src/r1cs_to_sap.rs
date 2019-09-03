@@ -1,4 +1,5 @@
-use algebra::{fft::domain::EvaluationDomain, Field, PairingEngine};
+use ff_fft::EvaluationDomain;
+use algebra::{Field, PairingEngine};
 
 use crate::{generator::KeypairAssembly, prover::ProvingAssignment};
 use r1cs_core::{Index, SynthesisError};
