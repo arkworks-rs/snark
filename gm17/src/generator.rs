@@ -1,5 +1,5 @@
 use algebra::{
-    fft::domain::{EvaluationDomain, Scalar},
+    fft::domain::EvaluationDomain,
     msm::FixedBaseMSM,
     AffineCurve, Field, PairingEngine, PrimeField, ProjectiveCurve,
 };
@@ -177,18 +177,10 @@ where
     ///////////////////////////////////////////////////////////////////////////
     let domain_time = timer_start!(|| "Constructing evaluation domain");
 
-    let domain = vec![
-        Scalar::<E>(E::Fr::zero());
-        2 * assembly.num_constraints + 2 * assembly.num_inputs - 1
-    ];
-
-    let domain = EvaluationDomain::<E, _>::from_coeffs(domain)
+    let domain_size = 2 * assembly.num_constraints + 2 * assembly.num_inputs - 1;
+    let domain = EvaluationDomain::<E::Fr>::new(domain_size)
         .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
-    let mut t = rng.gen();
-
-    while domain.z(&t).is_zero() {
-        t = rng.gen();
-    }
+    let t = domain.sample_element(rng);
 
     timer_end!(domain_time);
     ///////////////////////////////////////////////////////////////////////////

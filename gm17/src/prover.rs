@@ -2,8 +2,7 @@ use rand::Rng;
 use rayon::prelude::*;
 
 use algebra::{
-    fft::domain::Scalar, msm::VariableBaseMSM, AffineCurve, Field, PairingEngine, PrimeField,
-    ProjectiveCurve,
+    msm::VariableBaseMSM, AffineCurve, Field, PairingEngine, PrimeField, ProjectiveCurve,
 };
 
 use crate::{Parameters, Proof};
@@ -62,9 +61,9 @@ pub struct ProvingAssignment<E: PairingEngine> {
     pub(crate) ct: Vec<CoeffVec<(E::Fr, Index)>>,
 
     // Evaluations of A and C polynomials
-    pub(crate) a: Vec<Scalar<E>>,
-    pub(crate) b: Vec<Scalar<E>>,
-    pub(crate) c: Vec<Scalar<E>>,
+    pub(crate) a: Vec<E::Fr>,
+    pub(crate) b: Vec<E::Fr>,
+    pub(crate) c: Vec<E::Fr>,
 
     // Assignments of variables
     pub(crate) input_assignment: Vec<E::Fr>,
@@ -80,7 +79,7 @@ impl<E: PairingEngine> ProvingAssignment<E> {
             .zip(self.c.iter())
             .enumerate()
         {
-            if a_i.0 * &b_i.0 != c_i.0 {
+            if *a_i * b_i != *c_i {
                 return Some(i);
             }
         }
@@ -132,27 +131,27 @@ impl<E: PairingEngine> ConstraintSystem<E::Fr> for ProvingAssignment<E> {
         self.bt.push(CoeffVec::new());
         self.ct.push(CoeffVec::new());
 
-        self.a.push(Scalar(eval::<E>(
+        self.a.push(eval::<E>(
             &a(LinearCombination::zero()),
             &mut self.at,
             &self.input_assignment,
             &self.aux_assignment,
             self.num_constraints,
-        )));
-        self.b.push(Scalar(eval::<E>(
+        ));
+        self.b.push(eval::<E>(
             &b(LinearCombination::zero()),
             &mut self.bt,
             &self.input_assignment,
             &self.aux_assignment,
             self.num_constraints,
-        )));
-        self.c.push(Scalar(eval::<E>(
+        ));
+        self.c.push(eval::<E>(
             &c(LinearCombination::zero()),
             &mut self.ct,
             &self.input_assignment,
             &self.aux_assignment,
             self.num_constraints,
-        )));
+        ));
 
         self.num_constraints += 1;
     }
