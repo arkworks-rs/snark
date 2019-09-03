@@ -1,8 +1,10 @@
-use std::ops::{Add, Sub, Mul, Div, AddAssign, SubAssign, MulAssign, DivAssign};
-use crate::PrimeField;
-use crate::fft::{polynomial::Polynomial, domain::EvaluationDomain};
+//! A polynomial represented in evaluations form.
 
-/// Stores a polynomial in coefficient form.
+use std::ops::{Add, Sub, Mul, Div, AddAssign, SubAssign, MulAssign, DivAssign};
+use algebra::PrimeField;
+use crate::{polynomial::Polynomial, domain::EvaluationDomain};
+
+/// Stores a polynomial in evaluation form.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Evaluations<F: PrimeField> {
     /// The evaluations of a polynomial over the domain `D`
@@ -13,6 +15,7 @@ pub struct Evaluations<F: PrimeField> {
 
 
 impl<F: PrimeField> Evaluations<F> {
+    /// Construct `Self` from evaluations and a domain.
     pub fn from_vec_and_domain(evals: Vec<F>, domain: EvaluationDomain<F>) -> Self {
         Self {
             evals,
@@ -20,11 +23,14 @@ impl<F: PrimeField> Evaluations<F> {
         }
     }
 
-    pub fn evaluate_polynomial_over_domain(poly: &Polynomial<F>, domain: EvaluationDomain<F>) -> Self {
+    /// Construct `Self` by evaluating a polynomial over the domain `domain`.
+    pub fn evaluate_polynomial_over_domain_by_ref(poly: &Polynomial<F>, domain: EvaluationDomain<F>) -> Self {
         Self::from_vec_and_domain(domain.fft(&poly.coeffs), domain)
     }
 
-    pub fn evaluate_polynomial_over_domain_in_place(mut poly: Polynomial<F>, domain: EvaluationDomain<F>) -> Self {
+    /// Evaluates the polynomial `poly` over the domain `domain`, consuming `poly`
+    /// in the process.
+    pub fn evaluate_polynomial_over_domain(mut poly: Polynomial<F>, domain: EvaluationDomain<F>) -> Self {
         domain.fft_in_place(&mut poly.coeffs);
         Self::from_vec_and_domain(poly.coeffs, domain)
     }

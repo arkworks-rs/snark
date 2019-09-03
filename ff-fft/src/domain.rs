@@ -11,20 +11,31 @@
 //! by performing an O(n log n) FFT over such a domain.
 
 use std::fmt;
-use crate::{FpParameters, PrimeField};
+use algebra::{FpParameters, PrimeField};
 use rayon::prelude::*;
 use rand::Rng;
 
 use super::multicore::Worker;
 
+/// Defines a domain over which finite field (I)FFTs can be performed. Works
+/// only for fields that have a large multiplicative subgroup of size that is
+/// a power-of-2.
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 pub struct EvaluationDomain<F: PrimeField> {
-    pub(crate) size:              u64,
-    pub(crate) log_size_of_group: u32,
-    pub(crate) size_inv:          F,
-    pub(crate) subgroup_gen:      F,
-    pub(crate) subgroup_gen_inv:  F,
-    pub(crate) generator_inv:     F,
+    /// The size of the domain.
+    pub size:                  u64,
+    /// `log_2(self.size)`.
+    pub log_size_of_group:     u32,
+    /// Size of the domain as a field element.
+    pub size_as_field_element: F,
+    /// Inverse of the size in the field.
+    pub size_inv:              F,
+    /// A generator of the subgroup.
+    pub subgroup_gen:          F,
+    /// Inverse of the generator of the subgroup.
+    pub subgroup_gen_inv:      F,
+    /// Multiplicative generator of the finite field.
+    pub generator_inv:         F,
 }
 
 impl<F: PrimeField> fmt::Debug for EvaluationDomain<F> {
@@ -39,7 +50,8 @@ impl<F: PrimeField> EvaluationDomain<F> {
         size / rayon::current_num_threads()
     }
 
-    pub fn sample_element<R: Rng>(&self, rng: &mut R) -> F {
+    /// Sample an element that is *not* in the domain.
+    pub fn sample_element_outside_domain<R: Rng>(&self, rng: &mut R) -> F {
         let mut t = rng.gen();
         while self.evaluate_vanishing_polynomial(t).is_zero() {
             t = rng.gen();
@@ -47,6 +59,9 @@ impl<F: PrimeField> EvaluationDomain<F> {
         t
     }
 
+
+    /// Construct a domain that is large enough for evaluations of a polynomial
+    /// having `num_coeffs` coefficients.
     pub fn new(num_coeffs: usize) -> Option<Self> {
         // Compute the size of our evaluation domain
         let size = num_coeffs.next_power_of_two() as u64;
@@ -64,11 +79,13 @@ impl<F: PrimeField> EvaluationDomain<F> {
         }
 
         let size_as_bigint = F::BigInt::from(size);
-        let size_inv = F::from_repr(size_as_bigint).inverse()?;
+        let size_as_field_element = F::from_repr(size_as_bigint);
+        let size_inv = size_as_field_element.inverse()?;
 
         Some(EvaluationDomain {
             size,
             log_size_of_group,
+            size_as_field_element,
             size_inv,
             subgroup_gen,
             subgroup_gen_inv: subgroup_gen.inverse()?,
@@ -76,6 +93,8 @@ impl<F: PrimeField> EvaluationDomain<F> {
         })
     }
 
+    /// Return the size of a domain that is large enough for evaluations of a polynomial
+    /// having `num_coeffs` coefficients.
     pub fn compute_size_of_domain(num_coeffs: usize) -> Option<usize> {
         let size = num_coeffs.next_power_of_two();
         if size.trailing_zeros() < F::Params::TWO_ADICITY {
@@ -85,27 +104,32 @@ impl<F: PrimeField> EvaluationDomain<F> {
         }
     }
 
+    /// Return the size of `self`. 
     pub fn size(&self) -> usize {
         self.size as usize
     }
 
+    /// Compute a FFT.
     pub fn fft(&self, coeffs: &[F]) -> Vec<F> {
         let mut coeffs = coeffs.to_vec();
         self.fft_in_place(&mut coeffs);
         coeffs
     }
 
+    /// Compute a FFT, modifying the vector in place.
     pub fn fft_in_place(&self, coeffs: &mut Vec<F>)  {
         coeffs.resize(self.size(), F::zero());
         best_fft(coeffs, &Worker::new(), self.subgroup_gen, self.log_size_of_group)
     }
 
+    /// Compute a IFFT.
     pub fn ifft(&self, evals: &[F]) -> Vec<F> {
         let mut evals = evals.to_vec();
         self.ifft_in_place(&mut evals);
         evals
     }
 
+    /// Compute a IFFT, modifying the vector in place.
     #[inline]
     pub fn ifft_in_place(&self, evals: &mut Vec<F>) {
         evals.resize(self.size(), F::zero());
@@ -127,28 +151,35 @@ impl<F: PrimeField> EvaluationDomain<F> {
         });
     }
 
+    /// Compute a FFT over a coset of the domain.
     pub fn coset_fft(&self, coeffs: &[F]) -> Vec<F> {
         let mut coeffs = coeffs.to_vec();
         self.coset_fft_in_place(&mut coeffs);
         coeffs
     }
 
+    /// Compute a FFT over a coset of the domain, modifying the input vector 
+    /// in place.
     pub fn coset_fft_in_place(&self, coeffs: &mut Vec<F>) {
         Self::distribute_powers(coeffs, F::multiplicative_generator());
         self.fft_in_place(coeffs);
     }
 
+    /// Compute a IFFT over a coset of the domain.
     pub fn coset_ifft(&self, evals: &[F]) -> Vec<F> {
         let mut evals = evals.to_vec();
         self.coset_ifft_in_place(&mut evals);
         evals
     }
 
+    /// Compute a IFFT over a coset of the domain, modifying the input vector in place.
     pub fn coset_ifft_in_place(&self, evals: &mut Vec<F>) {
         self.ifft_in_place(evals);
         Self::distribute_powers(evals, self.generator_inv);
     }
 
+    /// Evaluate all the lagrange polynomials defined by this domain at the point
+    /// `tau`.
     pub fn evaluate_all_lagrange_coefficients(&self, tau: F) -> Vec<F> {
         // Evaluate all Lagrange polynomials
         let size = self.size as usize;
@@ -166,7 +197,7 @@ impl<F: PrimeField> EvaluationDomain<F> {
             }
             u
         } else {
-            use crate::fields::batch_inversion;
+            use algebra::fields::batch_inversion;
 
             let mut l = (t_size - &one) * &self.size_inv;
             let mut r = one;

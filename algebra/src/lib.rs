@@ -61,8 +61,3 @@ pub use to_field_vec::ToConstraintField;
 pub mod msm;
 #[cfg(feature = "parallel")]
 pub use self::msm::*;
-
-#[cfg(feature = "parallel")]
-pub mod fft;
-#[cfg(feature = "parallel")]
-pub use self::fft::*;

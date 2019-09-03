@@ -1,5 +1,5 @@
 [package]
-name = "r1cs-std"
+name = "ff-fft"
 version = "0.1.0"
 authors = [
     "Sean Bowe",
@@ -9,23 +9,17 @@ authors = [
     "Pratyush Mishra",
     "Howard Wu"
 ]
-description = "A standard library for constraint system gadgets"
+description = "A library for evaluating FFTs over prime finite fields"
 homepage = "https://libzexe.org"
 repository = "https://github.com/scipr/zexe"
-documentation = "https://docs.rs/r1cs-std/"
-keywords = ["zero knowledge", "cryptography", "zkSNARK", "SNARK"]
+documentation = "https://docs.rs/ff-fft/"
+keywords = ["cryptography", "finite fields", "fft"]
 categories = ["cryptography"]
 include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
 license = "MIT/Apache-2.0"
 edition = "2018"
 
-################################# Dependencies ################################
-
 [dependencies]
-algebra = { path = "../algebra" }
-r1cs-core = { path = "../r1cs-core" }
-derivative = "1"
-radix_trie = "0.1"
-
-[dev-dependencies]
 rand = { version = "0.4" }
+algebra = { path = "../algebra", features = [ "parallel" ] }
+rayon = { version = "1" }

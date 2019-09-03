@@ -1,16 +1,18 @@
+//! A polynomial represented in coefficient form.
+
 use std::fmt;
 use std::ops::{Add, AddAssign, Deref, DerefMut, Div, Mul, Neg, Sub, SubAssign};
 
-use crate::{Field, PrimeField};
-use crate::fft::domain::EvaluationDomain;
-use crate::fft::evaluations::Evaluations;
+use algebra::{Field, PrimeField};
+use crate::domain::EvaluationDomain;
+use crate::evaluations::Evaluations;
 use rand::Rng;
 use rayon::prelude::*;
 
 /// Stores a polynomial in coefficient form.
 #[derive(Clone, PartialEq, Eq, Hash, Default)]
 pub struct Polynomial<F: Field> {
-    /// The coefficient of `x^i` is stored at location `i` in the `coeffs` vector.
+    /// The coefficient of `x^i` is stored at location `i` in `self.coeffs`.
     pub coeffs: Vec<F>,
 }
 
@@ -102,6 +104,7 @@ impl<F: Field> Polynomial<F> {
             .reduce(|| zero, |a, b| a + &b)
     }
 
+    /// Perform a naive n^2 multiplicatoin of `self` by `other`.
     pub fn naive_mul(&self, other: &Self) -> Self {
         if self.is_zero() || other.is_zero() {
             Polynomial::zero()
@@ -347,8 +350,8 @@ impl<'a, 'b, F: PrimeField> Mul<&'a Polynomial<F>> for &'b Polynomial<F> {
             Polynomial::zero()
         } else {
             let domain = EvaluationDomain::new(self.coeffs.len() + other.coeffs.len()).expect("field is not smooth enough to construct domain");
-            let mut self_evals = Evaluations::evaluate_polynomial_over_domain(self, domain);
-            let other_evals = Evaluations::evaluate_polynomial_over_domain(other, domain);
+            let mut self_evals = Evaluations::evaluate_polynomial_over_domain_by_ref(self, domain);
+            let other_evals = Evaluations::evaluate_polynomial_over_domain_by_ref(other, domain);
             self_evals *= &other_evals;
             self_evals.interpolate_over_domain(domain)
         }
@@ -357,8 +360,8 @@ impl<'a, 'b, F: PrimeField> Mul<&'a Polynomial<F>> for &'b Polynomial<F> {
 
 #[cfg(test)]
 mod tests {
-    use crate::fft::polynomial::*;
-    use crate::fields::{bls12_381::fr::Fr, Field};
+    use crate::polynomial::*;
+    use algebra::fields::{bls12_381::fr::Fr, Field};
     use rand::{thread_rng, Rand};
 
     #[test]

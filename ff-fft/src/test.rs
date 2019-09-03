@@ -1,7 +1,5 @@
-use crate::{
-    curves::{bls12_381::Bls12_381, PairingEngine},
-    fft::{domain::*, multicore::*},
-};
+use algebra::curves::{bls12_381::Bls12_381, PairingEngine};
+use crate::{domain::*, multicore::*};
 use rand::{self, Rand};
 use std::cmp::min;
 
