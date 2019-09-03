@@ -10,171 +10,173 @@
 //! This allows us to perform polynomial operations in O(n)
 //! by performing an O(n log n) FFT over such a domain.
 
-use crate::{Field, FpParameters, PairingEngine, PrimeField, ProjectiveCurve, SquareRootField};
+use std::fmt;
+use crate::{FpParameters, PrimeField};
+use rayon::prelude::*;
+use rand::Rng;
 
 use super::multicore::Worker;
-use std::{
-    marker::PhantomData,
-    ops::{AddAssign, MulAssign, SubAssign},
-};
 
-pub struct EvaluationDomain<E: PairingEngine<Fr = G::ScalarField>, G: DomainGroup> {
-    pub(crate) coeffs:    Vec<G>,
-    pub(crate) exp:       u32,
-    pub(crate) omega:     G::ScalarField,
-    pub(crate) omega_inv: G::ScalarField,
-    pub(crate) geninv:    G::ScalarField,
-    pub(crate) m_inv:     G::ScalarField,
-    pub(crate) m:         u64,
-    _engine:              PhantomData<E>,
+#[derive(Copy, Clone, Hash, Eq, PartialEq)]
+pub struct EvaluationDomain<F: PrimeField> {
+    pub(crate) size:              u64,
+    pub(crate) log_size_of_group: u32,
+    pub(crate) size_inv:          F,
+    pub(crate) subgroup_gen:      F,
+    pub(crate) subgroup_gen_inv:  F,
+    pub(crate) generator_inv:     F,
 }
 
-impl<E: PairingEngine<Fr = G::ScalarField>, G: DomainGroup> Clone for EvaluationDomain<E, G> {
-    fn clone(&self) -> Self {
-        Self {
-            coeffs: self.coeffs.clone(),
-            ..*self
-        }
+impl<F: PrimeField> fmt::Debug for EvaluationDomain<F> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Multiplicative subgroup of size {}", self.size)
     }
+
 }
 
-impl<E: PairingEngine<Fr = G::ScalarField>, G: DomainGroup> EvaluationDomain<E, G> {
-    pub fn compute_m_from_num_coeffs(num_coeffs: usize) -> Option<usize> {
-        let m = num_coeffs.next_power_of_two();
-        let exp = m.trailing_zeros(); // exp = log_2(m)
-        if exp < <G::ScalarField as PrimeField>::Params::TWO_ADICITY {
-            Some(m)
+impl<F: PrimeField> EvaluationDomain<F> {
+    fn calculate_chunk_size(size: usize) -> usize {
+        size / rayon::current_num_threads()
+    }
+
+    pub fn sample_element<R: Rng>(&self, rng: &mut R) -> F {
+        let mut t = rng.gen();
+        while self.evaluate_vanishing_polynomial(t).is_zero() {
+            t = rng.gen();
+        }
+        t
+    }
+
+    pub fn new(num_coeffs: usize) -> Option<Self> {
+        // Compute the size of our evaluation domain
+        let size = num_coeffs.next_power_of_two() as u64;
+        let log_size_of_group = size.trailing_zeros();
+
+        if log_size_of_group >= F::Params::TWO_ADICITY {
+            return None;
+        }
+
+        // Compute the generator for the multiplicative subgroup.
+        // It should be 2^(log_size_of_group) root of unity.
+        let mut subgroup_gen = F::root_of_unity();
+        for _ in log_size_of_group..F::Params::TWO_ADICITY {
+            subgroup_gen.square_in_place();
+        }
+
+        let size_as_bigint = F::BigInt::from(size);
+        let size_inv = F::from_repr(size_as_bigint).inverse()?;
+
+        Some(EvaluationDomain {
+            size,
+            log_size_of_group,
+            size_inv,
+            subgroup_gen,
+            subgroup_gen_inv: subgroup_gen.inverse()?,
+            generator_inv: F::multiplicative_generator().inverse()?
+        })
+    }
+
+    pub fn compute_size_of_domain(num_coeffs: usize) -> Option<usize> {
+        let size = num_coeffs.next_power_of_two();
+        if size.trailing_zeros() < F::Params::TWO_ADICITY {
+            Some(size)
         } else {
             None
         }
     }
 
-    pub fn m(&self) -> usize {
-        self.m as usize
+    pub fn size(&self) -> usize {
+        self.size as usize
     }
 
-    pub fn as_ref(&self) -> &[G] {
-        &self.coeffs
+    pub fn fft(&self, coeffs: &[F]) -> Vec<F> {
+        let mut coeffs = coeffs.to_vec();
+        self.fft_in_place(&mut coeffs);
+        coeffs
     }
 
-    pub fn as_mut(&mut self) -> &mut [G] {
-        &mut self.coeffs
+    pub fn fft_in_place(&self, coeffs: &mut Vec<F>)  {
+        coeffs.resize(self.size(), F::zero());
+        best_fft(coeffs, &Worker::new(), self.subgroup_gen, self.log_size_of_group)
     }
 
-    pub fn into_coeffs(self) -> Vec<G> {
-        self.coeffs
+    pub fn ifft(&self, evals: &[F]) -> Vec<F> {
+        let mut evals = evals.to_vec();
+        self.ifft_in_place(&mut evals);
+        evals
     }
 
-    pub fn from_coeffs(mut coeffs: Vec<G>) -> Option<EvaluationDomain<E, G>> {
-        // Compute the size of our evaluation domain
-        let m = coeffs.len().next_power_of_two() as u64;
-        let exp = m.trailing_zeros(); // exp = log_2(m)
-
-        if exp >= <G::ScalarField as PrimeField>::Params::TWO_ADICITY {
-            return None;
-        }
-
-        // Compute omega, the 2^exp primitive root of unity
-        let mut omega = G::ScalarField::root_of_unity();
-        for _ in exp..<G::ScalarField as PrimeField>::Params::TWO_ADICITY {
-            omega.square_in_place();
-        }
-
-        // Extend the coeffs vector with zeroes if necessary
-        coeffs.resize(m as usize, G::group_zero());
-
-        let m_bigint = <<E as PairingEngine>::Fr as PrimeField>::BigInt::from(m);
-        let m_inv = G::ScalarField::from_repr(m_bigint).inverse().unwrap();
-
-        Some(EvaluationDomain {
-            coeffs,
-            exp,
-            omega,
-            omega_inv: omega.inverse().unwrap(),
-            geninv: G::ScalarField::multiplicative_generator()
-                .inverse()
-                .unwrap(),
-            m_inv,
-            m,
-            _engine: PhantomData,
-        })
+    #[inline]
+    pub fn ifft_in_place(&self, evals: &mut Vec<F>) {
+        evals.resize(self.size(), F::zero());
+        best_fft(evals, &Worker::new(), self.subgroup_gen_inv, self.log_size_of_group);
+        evals.par_iter_mut().for_each(|val| *val *= &self.size_inv);
     }
 
-    pub fn fft(&mut self, worker: &Worker) {
-        best_fft(&mut self.coeffs, worker, &self.omega, self.exp);
-    }
-
-    pub fn ifft(&mut self, worker: &Worker) {
-        best_fft(&mut self.coeffs, worker, &self.omega_inv, self.exp);
-
-        worker.scope(self.coeffs.len(), |scope, chunk| {
-            let m_inv = self.m_inv;
-
-            for v in self.coeffs.chunks_mut(chunk) {
-                scope.spawn(move |_| {
-                    for v in v {
-                        v.group_mul_assign(&m_inv);
-                    }
-                });
-            }
-        });
-    }
-
-    pub fn distribute_powers(&mut self, worker: &Worker, g: G::ScalarField) {
-        worker.scope(self.coeffs.len(), |scope, chunk| {
-            for (i, v) in self.coeffs.chunks_mut(chunk).enumerate() {
+    fn distribute_powers(coeffs: &mut Vec<F>, g: F) {
+        Worker::new().scope(coeffs.len(), |scope, chunk| {
+            for (i, v) in coeffs.chunks_mut(chunk).enumerate() {
                 scope.spawn(move |_| {
                     let mut u = g.pow(&[(i * chunk) as u64]);
                     for v in v.iter_mut() {
-                        v.group_mul_assign(&u);
-                        u.mul_assign(&g);
+                        *v *= &u;
+                        u *= &g;
                     }
                 });
             }
         });
     }
 
-    pub fn coset_fft(&mut self, worker: &Worker) {
-        self.distribute_powers(worker, G::ScalarField::multiplicative_generator());
-        self.fft(worker);
+    pub fn coset_fft(&self, coeffs: &[F]) -> Vec<F> {
+        let mut coeffs = coeffs.to_vec();
+        self.coset_fft_in_place(&mut coeffs);
+        coeffs
     }
 
-    pub fn icoset_fft(&mut self, worker: &Worker) {
-        let geninv = self.geninv;
-
-        self.ifft(worker);
-        self.distribute_powers(worker, geninv);
+    pub fn coset_fft_in_place(&self, coeffs: &mut Vec<F>) {
+        Self::distribute_powers(coeffs, F::multiplicative_generator());
+        self.fft_in_place(coeffs);
     }
 
-    pub fn evaluate_all_lagrange_coefficients(&self, tau: &G::ScalarField) -> Vec<G::ScalarField> {
+    pub fn coset_ifft(&self, evals: &[F]) -> Vec<F> {
+        let mut evals = evals.to_vec();
+        self.coset_ifft_in_place(&mut evals);
+        evals
+    }
+
+    pub fn coset_ifft_in_place(&self, evals: &mut Vec<F>) {
+        self.ifft_in_place(evals);
+        Self::distribute_powers(evals, self.generator_inv);
+    }
+
+    pub fn evaluate_all_lagrange_coefficients(&self, tau: F) -> Vec<F> {
         // Evaluate all Lagrange polynomials
-        let m = self.m as usize;
-        let t_m = tau.pow(&[self.m]);
-        let one = G::ScalarField::one();
-        if t_m == one {
-            let mut u = vec![G::ScalarField::zero(); m];
+        let size = self.size as usize;
+        let t_size = tau.pow(&[self.size]);
+        let one = F::one();
+        if t_size.is_one() {
+            let mut u = vec![F::zero(); size];
             let mut omega_i = one;
-            for i in 0..m {
-                if omega_i == *tau {
+            for i in 0..size {
+                if omega_i == tau {
                     u[i] = one;
                     break;
                 }
-                omega_i.mul_assign(&self.omega);
+                omega_i *= &self.subgroup_gen;
             }
             u
         } else {
             use crate::fields::batch_inversion;
-            use rayon::prelude::*;
 
-            let mut l = (t_m - &one) * &self.m_inv;
+            let mut l = (t_size - &one) * &self.size_inv;
             let mut r = one;
-            let mut u = vec![G::ScalarField::zero(); m];
-            let mut ls = vec![G::ScalarField::zero(); m];
-            for i in 0..m {
-                u[i] = *tau - &r;
+            let mut u = vec![F::zero(); size];
+            let mut ls = vec![F::zero(); size];
+            for i in 0..size {
+                u[i] = tau - &r;
                 ls[i] = l;
-                l.mul_assign(&self.omega);
-                r.mul_assign(&self.omega);
+                l *= &self.subgroup_gen;
+                r *= &self.subgroup_gen;
             }
 
             batch_inversion(u.as_mut_slice());
@@ -185,152 +187,49 @@ impl<E: PairingEngine<Fr = G::ScalarField>, G: DomainGroup> EvaluationDomain<E, 
         }
     }
 
-    /// This evaluates t(tau) for this domain, which is
-    /// tau^m - 1 for these radix-2 domains.
-    pub fn z(&self, tau: &G::ScalarField) -> G::ScalarField {
-        let mut tmp = tau.pow(&[self.coeffs.len() as u64]);
-        tmp.sub_assign(&G::ScalarField::one());
-
-        tmp
+    /// This evaluates the vanishing polynomial for this domain at tau.
+    /// For multiplicative subgroups, this polynomial is z(X) = X^self.size - 1.
+    pub fn evaluate_vanishing_polynomial(&self, tau: F) -> F {
+        tau.pow(&[self.size]) - &F::one()
     }
 
     /// The target polynomial is the zero polynomial in our
     /// evaluation domain, so we must perform division over
     /// a coset.
-    pub fn divide_by_z_on_coset(&mut self, worker: &Worker) {
+    pub fn divide_by_z_on_coset_in_place(&self, evals: &mut [F]) {
         let i = self
-            .z(&G::ScalarField::multiplicative_generator())
+            .evaluate_vanishing_polynomial(F::multiplicative_generator())
             .inverse()
             .unwrap();
 
-        worker.scope(self.coeffs.len(), |scope, chunk| {
-            for v in self.coeffs.chunks_mut(chunk) {
-                scope.spawn(move |_| {
-                    for v in v {
-                        v.group_mul_assign(&i);
-                    }
-                });
+        Worker::new().scope(evals.len(), |scope, chunk| {
+            for evals in evals.chunks_mut(chunk) {
+                scope.spawn(move |_| evals.iter_mut().for_each(|eval| *eval *= &i));
             }
         });
     }
 
-    /// Perform O(n) multiplication of two polynomials in the domain.
-    pub fn mul_assign(&mut self, worker: &Worker, other: &EvaluationDomain<E, Scalar<E>>) {
-        assert_eq!(self.coeffs.len(), other.coeffs.len());
-
-        worker.scope(self.coeffs.len(), |scope, chunk| {
-            for (a, b) in self
-                .coeffs
-                .chunks_mut(chunk)
-                .zip(other.coeffs.chunks(chunk))
-            {
-                scope.spawn(move |_| {
-                    for (a, b) in a.iter_mut().zip(b.iter()) {
-                        a.group_mul_assign(&b.0);
-                    }
-                });
-            }
-        });
-    }
-
-    /// Perform O(n) subtraction of one polynomial from another in the domain.
-    pub fn sub_assign(&mut self, worker: &Worker, other: &EvaluationDomain<E, G>) {
-        assert_eq!(self.coeffs.len(), other.coeffs.len());
-
-        worker.scope(self.coeffs.len(), |scope, chunk| {
-            for (a, b) in self
-                .coeffs
-                .chunks_mut(chunk)
-                .zip(other.coeffs.chunks(chunk))
-            {
-                scope.spawn(move |_| {
-                    for (a, b) in a.iter_mut().zip(b.iter()) {
-                        a.group_sub_assign(&b);
-                    }
-                });
-            }
-        });
+    /// Perform O(n) multiplication of two polynomials that are presented by their
+    /// evaluations in the domain.
+    /// Returns the evaluations of the product over the domain.
+    #[must_use]
+    pub fn mul_polynomials_in_evaluation_domain(&self, self_evals: &[F], other_evals: &[F]) -> Vec<F> {
+        assert_eq!(self_evals.len(), other_evals.len());
+        let mut result = self_evals.to_vec();
+        let chunk_size = Self::calculate_chunk_size(self.size());
+        result
+            .par_chunks_mut(chunk_size)
+            .zip(other_evals.par_chunks(chunk_size))
+            .for_each(|(a, b)| {
+                for (a, b) in a.iter_mut().zip(b) {
+                    *a *= b;
+                }
+            });
+        result
     }
 }
 
-pub trait DomainGroup: Sized + Copy + Clone + Send + Sync {
-    type ScalarField: PrimeField + SquareRootField + Into<<Self::ScalarField as PrimeField>::BigInt>;
-    fn group_zero() -> Self;
-    fn group_mul_assign(&mut self, by: &Self::ScalarField);
-    fn group_add_assign(&mut self, other: &Self);
-    fn group_sub_assign(&mut self, other: &Self);
-}
-
-pub struct Point<G: ProjectiveCurve>(pub G);
-
-impl<G: ProjectiveCurve> PartialEq for Point<G> {
-    fn eq(&self, other: &Point<G>) -> bool {
-        self.0 == other.0
-    }
-}
-
-impl<G: ProjectiveCurve> Copy for Point<G> {}
-
-impl<G: ProjectiveCurve> Clone for Point<G> {
-    fn clone(&self) -> Point<G> {
-        *self
-    }
-}
-
-impl<G: ProjectiveCurve> DomainGroup for Point<G> {
-    type ScalarField = G::ScalarField;
-
-    fn group_zero() -> Self {
-        Point(G::zero())
-    }
-
-    fn group_mul_assign(&mut self, by: &Self::ScalarField) {
-        self.0.mul_assign(by.into_repr());
-    }
-
-    fn group_add_assign(&mut self, other: &Self) {
-        self.0.add_assign(&other.0);
-    }
-
-    fn group_sub_assign(&mut self, other: &Self) {
-        self.0.sub_assign(&other.0);
-    }
-}
-
-pub struct Scalar<E: PairingEngine>(pub E::Fr);
-
-impl<E: PairingEngine> PartialEq for Scalar<E> {
-    fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0
-    }
-}
-
-impl<E: PairingEngine> Copy for Scalar<E> {}
-
-impl<E: PairingEngine> Clone for Scalar<E> {
-    fn clone(&self) -> Scalar<E> {
-        *self
-    }
-}
-
-impl<E: PairingEngine> DomainGroup for Scalar<E> {
-    type ScalarField = E::Fr;
-
-    fn group_zero() -> Self {
-        Scalar(E::Fr::zero())
-    }
-    fn group_mul_assign(&mut self, by: &Self::ScalarField) {
-        self.0.mul_assign(by);
-    }
-    fn group_add_assign(&mut self, other: &Self) {
-        self.0.add_assign(&other.0);
-    }
-    fn group_sub_assign(&mut self, other: &Self) {
-        self.0.sub_assign(&other.0);
-    }
-}
-
-fn best_fft<G: DomainGroup>(a: &mut [G], worker: &Worker, omega: &G::ScalarField, log_n: u32) {
+fn best_fft<F: PrimeField>(a: &mut [F], worker: &Worker, omega: F, log_n: u32) {
     let log_cpus = worker.log_num_cpus();
 
     if log_n <= log_cpus {
@@ -340,7 +239,7 @@ fn best_fft<G: DomainGroup>(a: &mut [G], worker: &Worker, omega: &G::ScalarField
     }
 }
 
-pub(crate) fn serial_fft<G: DomainGroup>(a: &mut [G], omega: &G::ScalarField, log_n: u32) {
+pub(crate) fn serial_fft<F: PrimeField>(a: &mut [F], omega: F, log_n: u32) {
     #[inline]
     fn bitreverse(mut n: u32, l: u32) -> u32 {
         let mut r = 0;
@@ -367,14 +266,14 @@ pub(crate) fn serial_fft<G: DomainGroup>(a: &mut [G], omega: &G::ScalarField, lo
 
         let mut k = 0;
         while k < n {
-            let mut w = G::ScalarField::one();
+            let mut w = F::one();
             for j in 0..m {
                 let mut t = a[(k + j + m) as usize];
-                t.group_mul_assign(&w);
+                t *= &w;
                 let mut tmp = a[(k + j) as usize];
-                tmp.group_sub_assign(&t);
+                tmp -= &t;
                 a[(k + j + m) as usize] = tmp;
-                a[(k + j) as usize].group_add_assign(&t);
+                a[(k + j) as usize] += &t;
                 w.mul_assign(&w_m);
             }
 
@@ -385,10 +284,10 @@ pub(crate) fn serial_fft<G: DomainGroup>(a: &mut [G], omega: &G::ScalarField, lo
     }
 }
 
-pub(crate) fn parallel_fft<G: DomainGroup>(
-    a: &mut [G],
+pub(crate) fn parallel_fft<F: PrimeField>(
+    a: &mut [F],
     worker: &Worker,
-    omega: &G::ScalarField,
+    omega: F,
     log_n: u32,
     log_cpus: u32,
 ) {
@@ -396,7 +295,7 @@ pub(crate) fn parallel_fft<G: DomainGroup>(
 
     let num_cpus = 1 << log_cpus;
     let log_new_n = log_n - log_cpus;
-    let mut tmp = vec![vec![G::group_zero(); 1 << log_new_n]; num_cpus];
+    let mut tmp = vec![vec![F::zero(); 1 << log_new_n]; num_cpus];
     let new_omega = omega.pow(&[num_cpus as u64]);
 
     worker.scope(0, |scope, _| {
@@ -408,20 +307,20 @@ pub(crate) fn parallel_fft<G: DomainGroup>(
                 let omega_j = omega.pow(&[j as u64]);
                 let omega_step = omega.pow(&[(j as u64) << log_new_n]);
 
-                let mut elt = G::ScalarField::one();
+                let mut elt = F::one();
                 for i in 0..(1 << log_new_n) {
                     for s in 0..num_cpus {
                         let idx = (i + (s << log_new_n)) % (1 << log_n);
                         let mut t = a[idx];
-                        t.group_mul_assign(&elt);
-                        tmp[i].group_add_assign(&t);
-                        elt.mul_assign(&omega_step);
+                        t *= &elt;
+                        tmp[i] += &t;
+                        elt *= &omega_step;
                     }
-                    elt.mul_assign(&omega_j);
+                    elt *= &omega_j;
                 }
 
                 // Perform sub-FFT
-                serial_fft(tmp, &new_omega, log_new_n);
+                serial_fft(tmp, new_omega, log_new_n);
             });
         }
     });
