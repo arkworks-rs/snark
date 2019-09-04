@@ -773,6 +773,11 @@ impl<P: Fp768Parameters> PartialOrd for Fp768<P> {
     }
 }
 
+impl_prime_field_from_int!(Fp768, u64, Fp768Parameters);
+impl_prime_field_from_int!(Fp768, u32, Fp768Parameters);
+impl_prime_field_from_int!(Fp768, u16, Fp768Parameters);
+impl_prime_field_from_int!(Fp768, u8, Fp768Parameters);
+
 impl<P: Fp768Parameters> ToBytes for Fp768<P> {
     #[inline]
     fn write<W: Write>(&self, writer: W) -> IoResult<()> {

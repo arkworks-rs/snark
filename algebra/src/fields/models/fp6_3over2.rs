@@ -410,6 +410,32 @@ impl<P: Fp6Parameters> PartialOrd for Fp6<P> {
     }
 }
 
+impl<P: Fp6Parameters> From<u64> for Fp6<P> {
+    fn from(other: u64) -> Self {
+        Self::new(other.into(), Fp2::zero(), Fp2::zero())
+    }
+}
+
+impl<P: Fp6Parameters> From<u32> for Fp6<P> {
+    fn from(other: u32) -> Self {
+        Self::new(other.into(), Fp2::zero(), Fp2::zero())
+    }
+}
+
+impl<P: Fp6Parameters> From<u16> for Fp6<P> {
+    fn from(other: u16) -> Self {
+        Self::new(other.into(), Fp2::zero(), Fp2::zero())
+    }
+}
+
+impl<P: Fp6Parameters> From<u8> for Fp6<P> {
+    fn from(other: u8) -> Self {
+        Self::new(other.into(), Fp2::zero(), Fp2::zero())
+    }
+}
+
+
+
 impl<P: Fp6Parameters> ToBytes for Fp6<P> {
     #[inline]
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {

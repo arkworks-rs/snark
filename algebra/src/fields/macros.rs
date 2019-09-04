@@ -8,6 +8,16 @@ macro_rules! impl_field_into_bigint {
     };
 }
 
+macro_rules! impl_prime_field_from_int {
+    ($field: ident, $int: ident, $params: ident) => {
+        impl<P: $params> From<$int> for $field<P> {
+            fn from(other: $int) -> Self {
+                Self::from_repr(P::BigInt::from(u64::from(other)))
+            }
+        }
+    };
+}
+
 macro_rules! sqrt_impl {
     ($Self:ident, $P:tt, $self:expr) => {{
         use crate::fields::LegendreSymbol::*;
