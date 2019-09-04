@@ -269,6 +269,34 @@ impl<P: Fp3Parameters> PartialOrd for Fp3<P> {
     }
 }
 
+impl<P: Fp3Parameters> From<u64> for Fp3<P> {
+    fn from(other: u64) -> Self {
+        let fe: P::Fp = other.into();
+        Self::new(fe, P::Fp::zero(), P::Fp::zero())
+    }
+}
+
+impl<P: Fp3Parameters> From<u32> for Fp3<P> {
+    fn from(other: u32) -> Self {
+        let fe: P::Fp = other.into();
+        Self::new(fe, P::Fp::zero(), P::Fp::zero())
+    }
+}
+
+impl<P: Fp3Parameters> From<u16> for Fp3<P> {
+    fn from(other: u16) -> Self {
+        let fe: P::Fp = other.into();
+        Self::new(fe, P::Fp::zero(), P::Fp::zero())
+    }
+}
+
+impl<P: Fp3Parameters> From<u8> for Fp3<P> {
+    fn from(other: u8) -> Self {
+        let fe: P::Fp = other.into();
+        Self::new(fe, P::Fp::zero(), P::Fp::zero())
+    }
+}
+
 impl<P: Fp3Parameters> ToBytes for Fp3<P> {
     #[inline]
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {

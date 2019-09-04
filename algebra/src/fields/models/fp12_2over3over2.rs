@@ -433,6 +433,30 @@ impl<P: Fp12Parameters> PartialOrd for Fp12<P> {
     }
 }
 
+impl<P: Fp12Parameters> From<u64> for Fp12<P> {
+    fn from(other: u64) -> Self {
+        Self::new(other.into(), Fp6::zero())
+    }
+}
+
+impl<P: Fp12Parameters> From<u32> for Fp12<P> {
+    fn from(other: u32) -> Self {
+        Self::new(other.into(), Fp6::zero())
+    }
+}
+
+impl<P: Fp12Parameters> From<u16> for Fp12<P> {
+    fn from(other: u16) -> Self {
+        Self::new(other.into(), Fp6::zero())
+    }
+}
+
+impl<P: Fp12Parameters> From<u8> for Fp12<P> {
+    fn from(other: u8) -> Self {
+        Self::new(other.into(), Fp6::zero())
+    }
+}
+
 impl<P: Fp12Parameters> ToBytes for Fp12<P> {
     #[inline]
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {

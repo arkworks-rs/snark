@@ -69,6 +69,10 @@ pub trait Field:
     + Rand
     + Sized
     + Hash
+    + From<u64>
+    + From<u32>
+    + From<u16>
+    + From<u8>
     + for<'a> Add<&'a Self, Output = Self>
     + for<'a> Sub<&'a Self, Output = Self>
     + for<'a> Mul<&'a Self, Output = Self>

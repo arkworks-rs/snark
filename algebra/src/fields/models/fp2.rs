@@ -224,6 +224,30 @@ impl<P: Fp2Parameters> PartialOrd for Fp2<P> {
     }
 }
 
+impl<P: Fp2Parameters> From<u64> for Fp2<P> {
+    fn from(other: u64) -> Self {
+        Self::new(other.into(), P::Fp::zero())
+    }
+}
+
+impl<P: Fp2Parameters> From<u32> for Fp2<P> {
+    fn from(other: u32) -> Self {
+        Self::new(other.into(), P::Fp::zero())
+    }
+}
+
+impl<P: Fp2Parameters> From<u16> for Fp2<P> {
+    fn from(other: u16) -> Self {
+        Self::new(other.into(), P::Fp::zero())
+    }
+}
+
+impl<P: Fp2Parameters> From<u8> for Fp2<P> {
+    fn from(other: u8) -> Self {
+        Self::new(other.into(), P::Fp::zero())
+    }
+}
+
 impl<P: Fp2Parameters> ToBytes for Fp2<P> {
     #[inline]
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
