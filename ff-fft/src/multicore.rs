@@ -3,22 +3,22 @@
 //! currently just a thin wrapper around `rayon`.
 use rayon::{self, Scope};
 
-#[derive(Clone)]
-pub struct Worker {
+#[derive(Copy, Clone)]
+pub(crate) struct Worker {
     cpus: usize,
 }
 
 impl Worker {
-    pub fn new() -> Worker {
+    pub(crate) fn new() -> Worker {
         let cpus = rayon::current_num_threads();
         Self { cpus }
     }
 
-    pub fn log_num_cpus(&self) -> u32 {
+    pub(crate) fn log_num_cpus(&self) -> u32 {
         log2_floor(self.cpus)
     }
 
-    pub fn scope<'a, F, R>(&self, elements: usize, f: F) -> R
+    pub(crate) fn scope<'a, F, R>(&self, elements: usize, f: F) -> R
     where
         F: 'a + Send + FnOnce(&Scope<'a>, usize) -> R,
         R: Send,
@@ -33,7 +33,7 @@ impl Worker {
     }
 }
 
-fn log2_floor(num: usize) -> u32 {
+pub(crate) fn log2_floor(num: usize) -> u32 {
     assert!(num > 0);
 
     let mut pow = 0;

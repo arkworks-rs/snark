@@ -1,10 +1,5 @@
-use algebra::{
-    fft::{
-        domain::{EvaluationDomain, Scalar},
-        multicore::Worker,
-    },
-    Field, PairingEngine,
-};
+use ff_fft::EvaluationDomain;
+use algebra::{Field, PairingEngine};
 
 use crate::{generator::KeypairAssembly, prover::ProvingAssignment};
 use r1cs_core::{Index, SynthesisError};
@@ -20,19 +15,16 @@ impl R1CStoSAP {
         assembly: &KeypairAssembly<E>,
         t: &E::Fr,
     ) -> Result<(Vec<E::Fr>, Vec<E::Fr>, E::Fr, usize, usize), SynthesisError> {
-        let domain = vec![
-            Scalar::<E>(E::Fr::zero());
-            2 * assembly.num_constraints + 2 * (assembly.num_inputs - 1) + 1
-        ];
-        let domain = EvaluationDomain::<E, _>::from_coeffs(domain)
+        let domain_size = 2 * assembly.num_constraints + 2 * (assembly.num_inputs - 1) + 1;
+        let domain = EvaluationDomain::<E::Fr>::new(domain_size)
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
-        let m = domain.m();
+        let domain_size = domain.size();
 
-        let zt = domain.z(&t);
+        let zt = domain.evaluate_vanishing_polynomial(*t);
 
         // Evaluate all Lagrange polynomials
         let coefficients_time = timer_start!(|| "Evaluate Lagrange coefficients");
-        let u = domain.evaluate_all_lagrange_coefficients(&t);
+        let u = domain.evaluate_all_lagrange_coefficients(*t);
         timer_end!(coefficients_time);
 
         let sap_num_variables =
@@ -101,7 +93,7 @@ impl R1CStoSAP {
             c[extra_var_offset2 + i].add_assign(&u[extra_constr_offset + 2 * i]);
         }
 
-        Ok((a, c, zt, sap_num_variables, m))
+        Ok((a, c, zt, sap_num_variables, domain_size))
     }
 
     #[inline]
@@ -158,16 +150,17 @@ impl R1CStoSAP {
             full_input_assignment.push(extra_var);
         }
 
-        let m = EvaluationDomain::<E, Scalar<E>>::compute_m_from_num_coeffs(
+        let domain = EvaluationDomain::<E::Fr>::new(
             2 * prover.num_constraints + 2 * (prover.num_inputs - 1) + 1,
         )
         .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let domain_size = domain.size();
 
         let extra_constr_offset = 2 * prover.num_constraints;
         let extra_var_offset = prover.num_inputs + prover.num_aux;
         let extra_var_offset2 = prover.num_inputs + prover.num_aux + prover.num_constraints - 1;
 
-        let mut a = vec![zero; m];
+        let mut a = vec![zero; domain_size];
         a[..2 * prover.num_constraints]
             .par_chunks_mut(2)
             .zip(&prover.at)
@@ -195,29 +188,22 @@ impl R1CStoSAP {
             a[extra_constr_offset + 2 * i] = full_input_assignment[i] - &one;
         }
 
-        let worker = Worker::new();
-
-        let mut a =
-            EvaluationDomain::from_coeffs(a.iter().map(|s| Scalar::<E>(*s)).collect::<Vec<_>>())
-                .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
-        a.ifft(&worker);
+        domain.ifft_in_place(&mut a);
 
         let d1_double = d1.double();
-        let mut h = vec![d1_double; m];
-        h.par_iter_mut()
-            .zip(a.as_ref())
-            .for_each(|(h_i, a_i)| *h_i *= &a_i.0);
+        let mut h: Vec<E::Fr> = vec![d1_double; domain_size];
+        h.par_iter_mut().zip(&a).for_each(|(h_i, a_i)| *h_i *= a_i);
         h[0].sub_assign(&d2);
         let d1d1 = d1.square();
         h[0].sub_assign(&d1d1);
         h.push(d1d1);
 
-        a.coset_fft(&worker);
+        domain.coset_fft_in_place(&mut a);
 
-        let mut aa = a.clone();
-        aa.mul_assign(&worker, &a);
+        let mut aa = domain.mul_polynomials_in_evaluation_domain(&a, &a);
+        drop(a);
 
-        let mut c = vec![zero; m];
+        let mut c = vec![zero; domain_size];
         c[..2 * prover.num_constraints]
             .par_chunks_mut(2)
             .enumerate()
@@ -245,28 +231,19 @@ impl R1CStoSAP {
             c[extra_constr_offset + 2 * i] = assignment;
         }
 
-        let mut c = EvaluationDomain::<E, _>::from_coeffs(
-            c.iter().map(|s| Scalar::<E>(*s)).collect::<Vec<_>>(),
-        )
-        .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
-        c.ifft(&worker);
-        c.coset_fft(&worker);
+        domain.ifft_in_place(&mut c);
+        domain.coset_fft_in_place(&mut c);
 
-        let c = c.into_coeffs();
-        aa.as_mut()
-            .par_iter_mut()
-            .zip(c)
-            .for_each(|(aa_i, c_i)| aa_i.0 -= &c_i.0);
+        aa.par_iter_mut().zip(c).for_each(|(aa_i, c_i)| *aa_i -= &c_i);
 
-        aa.divide_by_z_on_coset(&worker);
-        aa.icoset_fft(&worker);
+        domain.divide_by_vanishing_poly_on_coset_in_place(&mut aa);
+        domain.coset_ifft_in_place(&mut aa);
 
-        let aa = aa.into_coeffs();
-        h[..m - 1]
+        h[..domain_size - 1]
             .par_iter_mut()
             .enumerate()
-            .for_each(|(i, e)| e.add_assign(&aa[i].0));
+            .for_each(|(i, e)| e.add_assign(&aa[i]));
 
-        Ok((full_input_assignment, h, m))
+        Ok((full_input_assignment, h, domain_size))
     }
 }

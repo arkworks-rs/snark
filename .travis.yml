@@ -10,5 +10,5 @@ matrix:
 cache: cargo
 
 script:
-  - cargo test --all --release -- --skip "plain_dpc" --skip "integration_test"
+  - cargo test --all -- --skip "dpc" --skip "integration_test"
   - cargo check --examples --all

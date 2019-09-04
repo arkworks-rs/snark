@@ -9,11 +9,11 @@ authors = [
     "Pratyush Mishra",
     "Howard Wu"
 ]
-description = "A library for zkSNARK proof systems"
+description = "An implementation of the Groth-Maller 2017 zkSNARK proof system"
 homepage = "https://libzexe.org"
 repository = "https://github.com/scipr/zexe"
-documentation = "https://docs.rs/snark/"
-keywords = ["zero knowledge", "cryptography", "zkSNARK", "SNARK"]
+documentation = "https://docs.rs/gm17/"
+keywords = ["zero knowledge", "cryptography", "zkSNARK", "SNARK", "Groth-Maller"]
 categories = ["cryptography"]
 include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
 license = "MIT/Apache-2.0"
@@ -23,6 +23,7 @@ edition = "2018"
 
 [dependencies]
 algebra = { path = "../algebra", features = [ "parallel" ] }
+ff-fft = { path = "../ff-fft" }
 r1cs-core = { path = "../r1cs-core" }
 bench-utils = { path = "../bench-utils" }
 
