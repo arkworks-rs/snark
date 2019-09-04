@@ -56,8 +56,8 @@ fn parallel_fft_consistency() {
                 let domain = EvaluationDomain::new(v1.len()).unwrap();
 
                 for log_cpus in log_d..min(log_d + 1, 3) {
-                    parallel_fft(&mut v1, &worker, domain.subgroup_gen, log_d, log_cpus);
-                    serial_fft(&mut v2, domain.subgroup_gen, log_d);
+                    parallel_fft(&mut v1, &worker, domain.group_gen, log_d, log_cpus);
+                    serial_fft(&mut v2, domain.group_gen, log_d);
 
                     assert_eq!(v1, v2);
                 }

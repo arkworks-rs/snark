@@ -132,6 +132,7 @@ mod tests {
     use algebra::Field;
 
     #[test]
+    #[ignore]
     fn evaluate_over_domain() {
         for size in 2..10 {
             let domain_size = 1 << size;
