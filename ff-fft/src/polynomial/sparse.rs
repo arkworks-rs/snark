@@ -103,13 +103,15 @@ impl<F: PrimeField> SparsePolynomial<F> {
     /// Evaluate `self` over `domain`.
     pub fn evaluate_over_domain_by_ref(&self, domain: EvaluationDomain<F>) -> Evaluations<F> {
         let poly: DenseOrSparsePolynomial<'_, F> = self.into();
-        DenseOrSparsePolynomial::<F>::evaluate_over_domain(poly, domain)
+        let _ = DenseOrSparsePolynomial::<F>::evaluate_over_domain(poly, domain);
+        unimplemented!("current implementation does not produce evals in correct order")
     }
 
     /// Evaluate `self` over `domain`.
     pub fn evaluate_over_domain(self, domain: EvaluationDomain<F>) -> Evaluations<F> {
         let poly: DenseOrSparsePolynomial<'_, F> = self.into();
-        DenseOrSparsePolynomial::<F>::evaluate_over_domain(poly, domain)
+        let _ = DenseOrSparsePolynomial::<F>::evaluate_over_domain(poly, domain);
+        unimplemented!("current implementation does not produce evals in correct order")
     }
 }
 

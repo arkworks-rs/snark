@@ -31,9 +31,9 @@ pub struct EvaluationDomain<F: PrimeField> {
     /// Inverse of the size in the field.
     pub size_inv:              F,
     /// A generator of the subgroup.
-    pub subgroup_gen:          F,
+    pub group_gen:          F,
     /// Inverse of the generator of the subgroup.
-    pub subgroup_gen_inv:      F,
+    pub group_gen_inv:      F,
     /// Multiplicative generator of the finite field.
     pub generator_inv:         F,
 }
@@ -73,9 +73,9 @@ impl<F: PrimeField> EvaluationDomain<F> {
 
         // Compute the generator for the multiplicative subgroup.
         // It should be 2^(log_size_of_group) root of unity.
-        let mut subgroup_gen = F::root_of_unity();
+        let mut group_gen = F::root_of_unity();
         for _ in log_size_of_group..F::Params::TWO_ADICITY {
-            subgroup_gen.square_in_place();
+            group_gen.square_in_place();
         }
 
         let size_as_bigint = F::BigInt::from(size);
@@ -87,8 +87,8 @@ impl<F: PrimeField> EvaluationDomain<F> {
             log_size_of_group,
             size_as_field_element,
             size_inv,
-            subgroup_gen,
-            subgroup_gen_inv: subgroup_gen.inverse()?,
+            group_gen,
+            group_gen_inv: group_gen.inverse()?,
             generator_inv: F::multiplicative_generator().inverse()?
         })
     }
@@ -119,7 +119,7 @@ impl<F: PrimeField> EvaluationDomain<F> {
     /// Compute a FFT, modifying the vector in place.
     pub fn fft_in_place(&self, coeffs: &mut Vec<F>)  {
         coeffs.resize(self.size(), F::zero());
-        best_fft(coeffs, &Worker::new(), self.subgroup_gen, self.log_size_of_group)
+        best_fft(coeffs, &Worker::new(), self.group_gen, self.log_size_of_group)
     }
 
     /// Compute a IFFT.
@@ -133,7 +133,7 @@ impl<F: PrimeField> EvaluationDomain<F> {
     #[inline]
     pub fn ifft_in_place(&self, evals: &mut Vec<F>) {
         evals.resize(self.size(), F::zero());
-        best_fft(evals, &Worker::new(), self.subgroup_gen_inv, self.log_size_of_group);
+        best_fft(evals, &Worker::new(), self.group_gen_inv, self.log_size_of_group);
         evals.par_iter_mut().for_each(|val| *val *= &self.size_inv);
     }
 
@@ -193,7 +193,7 @@ impl<F: PrimeField> EvaluationDomain<F> {
                     u[i] = one;
                     break;
                 }
-                omega_i *= &self.subgroup_gen;
+                omega_i *= &self.group_gen;
             }
             u
         } else {
@@ -206,8 +206,8 @@ impl<F: PrimeField> EvaluationDomain<F> {
             for i in 0..size {
                 u[i] = tau - &r;
                 ls[i] = l;
-                l *= &self.subgroup_gen;
-                r *= &self.subgroup_gen;
+                l *= &self.group_gen;
+                r *= &self.group_gen;
             }
 
             batch_inversion(u.as_mut_slice());
@@ -402,7 +402,7 @@ impl<F: PrimeField> Iterator for Elements<F> {
             None
         } else {
             let cur_elem = self.cur_elem;
-            self.cur_elem *= &self.domain.subgroup_gen;
+            self.cur_elem *= &self.domain.group_gen;
             self.cur_pow += 1;
             Some(cur_elem)
         }

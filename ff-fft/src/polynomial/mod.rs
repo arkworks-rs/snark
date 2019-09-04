@@ -166,6 +166,4 @@ impl<F: PrimeField> DenseOrSparsePolynomial<'_, F> {
         }
 
     }
-
-    
 }

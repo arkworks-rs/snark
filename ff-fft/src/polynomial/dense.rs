@@ -126,40 +126,6 @@ impl<F: Field> DensePolynomial<F> {
         }
         Self::from_coefficients_vec(random_coeffs)
     }
-
-    /// Divide `self` by `divisor` to obtain quotient and remainder.
-    pub fn divide_with_q_and_r(&self, divisor: &Self) -> Option<(Self, Self)> {
-        if self.is_zero() {
-            Some((DensePolynomial::zero(), divisor.clone()))
-        } else if divisor.is_zero() {
-            panic!("Dividing by zero polynomial")
-        } else if self.degree() < divisor.degree() {
-            Some((Self::zero(), self.clone()))
-        } else {
-            let mut quotient = vec![F::zero(); self.degree() - divisor.degree() + 1];
-            let mut remainder = self.clone();
-            // Can unwrap here because we know self is not zero.
-            let divisor_leading_inv = divisor.last().unwrap().inverse().unwrap();
-            let divisor_is_monic = divisor_leading_inv.is_one();
-            while !remainder.is_zero() && remainder.degree() >= divisor.degree() {
-                let cur_q_coeff = if divisor_is_monic {
-                    *remainder.last().unwrap()
-                } else {
-                    *remainder.last().unwrap() * &divisor_leading_inv
-                };
-                let cur_q_degree = remainder.degree() - divisor.degree();
-                quotient[cur_q_degree] = cur_q_coeff;
-
-                divisor.iter().zip(&mut remainder[cur_q_degree..]).for_each(|(div_coeff, rem_coeff)| {
-                    *rem_coeff -= &(cur_q_coeff * div_coeff);
-                });
-                while let Some(true) = remainder.coeffs.last().map(|c| c.is_zero()) {
-                    remainder.coeffs.pop();
-                }
-            }
-            Some((DensePolynomial::from_coefficients_vec(quotient), remainder))
-        }
-    }
 }
 
 impl<F: PrimeField> DensePolynomial<F> {
@@ -360,7 +326,9 @@ impl<'a, 'b, F: Field> Div<&'a DensePolynomial<F>> for &'b DensePolynomial<F> {
 
     #[inline]
     fn div(self, divisor: &'a DensePolynomial<F>) -> DensePolynomial<F> {
-        self.divide_with_q_and_r(divisor).expect("division failed").0
+        let a: DenseOrSparsePolynomial<_> = self.into();
+        let b: DenseOrSparsePolynomial<_> = divisor.into();
+        a.divide_with_q_and_r(&b).expect("division failed").0
     }
 }
 
