@@ -104,7 +104,7 @@ impl<F: PrimeField> EvaluationDomain<F> {
         }
     }
 
-    /// Return the size of `self`. 
+    /// Return the size of `self`.
     pub fn size(&self) -> usize {
         self.size as usize
     }
@@ -158,7 +158,7 @@ impl<F: PrimeField> EvaluationDomain<F> {
         coeffs
     }
 
-    /// Compute a FFT over a coset of the domain, modifying the input vector 
+    /// Compute a FFT over a coset of the domain, modifying the input vector
     /// in place.
     pub fn coset_fft_in_place(&self, coeffs: &mut Vec<F>) {
         Self::distribute_powers(coeffs, F::multiplicative_generator());
@@ -218,16 +218,31 @@ impl<F: PrimeField> EvaluationDomain<F> {
         }
     }
 
+    /// Return the sparse vanishing polynomial.
+    pub fn vanishing_polynomial(&self) -> crate::SparsePolynomial<F> {
+        let coeffs = vec![(0, -F::one()), (self.size(), F::one())];
+        crate::SparsePolynomial::from_coefficients_vec(coeffs)
+    }
+
     /// This evaluates the vanishing polynomial for this domain at tau.
-    /// For multiplicative subgroups, this polynomial is z(X) = X^self.size - 1.
+    /// For multiplicative subgroups, this polynomial is `z(X) = X^self.size - 1`.
     pub fn evaluate_vanishing_polynomial(&self, tau: F) -> F {
         tau.pow(&[self.size]) - &F::one()
+    }
+
+    /// Return an iterator over the elements of the domain.
+    pub fn elements(&self) -> Elements<F> {
+        Elements {
+            cur_elem: F::one(),
+            cur_pow: 0,
+            domain: *self,
+        }
     }
 
     /// The target polynomial is the zero polynomial in our
     /// evaluation domain, so we must perform division over
     /// a coset.
-    pub fn divide_by_z_on_coset_in_place(&self, evals: &mut [F]) {
+    pub fn divide_by_vanishing_poly_on_coset_in_place(&self, evals: &mut [F]) {
         let i = self
             .evaluate_vanishing_polynomial(F::multiplicative_generator())
             .inverse()
@@ -371,4 +386,45 @@ pub(crate) fn parallel_fft<F: PrimeField>(
             });
         }
     });
+}
+
+/// An iterator over the elements of the domain.
+pub struct Elements<F: PrimeField> {
+    cur_elem: F,
+    cur_pow: u64,
+    domain: EvaluationDomain<F>,
+}
+
+impl<F: PrimeField> Iterator for Elements<F> {
+    type Item = F;
+    fn next(&mut self) -> Option<F> {
+        if self.cur_pow == self.domain.size {
+            None
+        } else {
+            let cur_elem = self.cur_elem;
+            self.cur_elem *= &self.domain.subgroup_gen;
+            self.cur_pow += 1;
+            Some(cur_elem)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::EvaluationDomain;
+    use algebra::fields::bls12_381::fr::Fr;
+    use rand::{Rng, thread_rng};
+
+    #[test]
+    fn test_vanish_polynomial() {
+        let rng = &mut thread_rng();
+        for coeffs in 0..10 {
+            let domain = EvaluationDomain::<Fr>::new(coeffs).unwrap();
+            let z = domain.vanishing_polynomial();
+            for _ in 0..100 {
+                let point = rng.gen();
+                assert_eq!(z.evaluate(point), domain.evaluate_vanishing_polynomial(point))
+            }
+        }
+    }
 }

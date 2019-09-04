@@ -2,7 +2,7 @@
 
 use std::ops::{Add, Sub, Mul, Div, AddAssign, SubAssign, MulAssign, DivAssign};
 use algebra::PrimeField;
-use crate::{polynomial::Polynomial, domain::EvaluationDomain};
+use crate::{DensePolynomial, EvaluationDomain};
 
 /// Stores a polynomial in evaluation form.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -23,22 +23,11 @@ impl<F: PrimeField> Evaluations<F> {
         }
     }
 
-    /// Construct `Self` by evaluating a polynomial over the domain `domain`.
-    pub fn evaluate_polynomial_over_domain_by_ref(poly: &Polynomial<F>, domain: EvaluationDomain<F>) -> Self {
-        Self::from_vec_and_domain(domain.fft(&poly.coeffs), domain)
-    }
-
-    /// Evaluates the polynomial `poly` over the domain `domain`, consuming `poly`
-    /// in the process.
-    pub fn evaluate_polynomial_over_domain(mut poly: Polynomial<F>, domain: EvaluationDomain<F>) -> Self {
-        domain.fft_in_place(&mut poly.coeffs);
-        Self::from_vec_and_domain(poly.coeffs, domain)
-    }
-
     /// Interpolate a polynomial from a list of evaluations
-    pub fn interpolate_over_domain(&self, domain: EvaluationDomain<F>) -> Polynomial<F> {
-        Polynomial::from_coefficients_vec(domain.ifft(&self.evals))
+    pub fn interpolate_over_domain(&self, domain: EvaluationDomain<F>) -> DensePolynomial<F> {
+        DensePolynomial::from_coefficients_vec(domain.ifft(&self.evals))
     }
+    
 }
 
 impl<'a, 'b, F: PrimeField> Mul<&'a Evaluations<F>> for &'b Evaluations<F> {
