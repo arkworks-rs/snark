@@ -345,7 +345,7 @@ impl<'a, 'b, F: PrimeField> Mul<&'a DensePolynomial<F>> for &'b DensePolynomial<
             let mut self_evals = self.evaluate_over_domain_by_ref(domain);
             let other_evals = other.evaluate_over_domain_by_ref(domain);
             self_evals *= &other_evals;
-            self_evals.interpolate_over_domain(domain)
+            self_evals.interpolate()
         }
     }
 }

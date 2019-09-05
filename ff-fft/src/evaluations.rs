@@ -24,10 +24,16 @@ impl<F: PrimeField> Evaluations<F> {
     }
 
     /// Interpolate a polynomial from a list of evaluations
-    pub fn interpolate_over_domain(&self, domain: EvaluationDomain<F>) -> DensePolynomial<F> {
-        DensePolynomial::from_coefficients_vec(domain.ifft(&self.evals))
+    pub fn interpolate_by_ref(&self) -> DensePolynomial<F> {
+        DensePolynomial::from_coefficients_vec(self.domain.ifft(&self.evals))
     }
-    
+
+    /// Interpolate a polynomial from a list of evaluations
+    pub fn interpolate(self) -> DensePolynomial<F> {
+        let Self { mut evals, domain } = self;
+        domain.ifft_in_place(&mut evals);
+        DensePolynomial::from_coefficients_vec(evals)
+    }
 }
 
 impl<'a, 'b, F: PrimeField> Mul<&'a Evaluations<F>> for &'b Evaluations<F> {
