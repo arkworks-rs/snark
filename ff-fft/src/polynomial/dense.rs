@@ -150,7 +150,7 @@ impl<'a, 'b, F: Field> Add<&'a DensePolynomial<F>> for &'b DensePolynomial<F> {
         } else if other.is_zero() {
             self.clone()
         } else {
-            if self.degree() > other.degree() {
+            if self.degree() >= other.degree() {
                 let mut result = self.clone();
                 for (a, b) in result.coeffs.iter_mut().zip(&other.coeffs) {
                     *a += b
@@ -179,7 +179,7 @@ impl<'a, 'b, F: Field> AddAssign<&'a DensePolynomial<F>> for DensePolynomial<F> 
         } else if other.is_zero() {
             return;
         } else {
-            if self.degree() > other.degree() {
+            if self.degree() >= other.degree() {
                 for (a, b) in self.coeffs.iter_mut().zip(&other.coeffs) {
                     *a += b
                 }
@@ -207,7 +207,7 @@ impl<'a, 'b, F: Field> AddAssign<(F, &'a DensePolynomial<F>)> for DensePolynomia
         } else if other.is_zero() {
             return;
         } else {
-            if self.degree() > other.degree() {
+            if self.degree() >= other.degree() {
                 for (a, b) in self.coeffs.iter_mut().zip(&other.coeffs) {
                     *a += &(f * b);
                 }
@@ -266,7 +266,7 @@ impl<'a, 'b, F: Field> Sub<&'a DensePolynomial<F>> for &'b DensePolynomial<F> {
         } else if other.is_zero() {
             self.clone()
         } else {
-            if self.degree() > other.degree() {
+            if self.degree() >= other.degree() {
                 let mut result = self.clone();
                 for (a, b) in result.coeffs.iter_mut().zip(&other.coeffs) {
                     *a -= b
@@ -302,7 +302,7 @@ impl<'a, 'b, F: Field> SubAssign<&'a DensePolynomial<F>> for DensePolynomial<F> 
         } else if other.is_zero() {
             return;
         } else {
-            if self.degree() > other.degree() {
+            if self.degree() >= other.degree() {
                 for (a, b) in self.coeffs.iter_mut().zip(&other.coeffs) {
                     *a -= b
                 }
@@ -359,35 +359,43 @@ mod tests {
     #[test]
     fn double_polynomials_random() {
         let rng = &mut thread_rng();
-        let p = DensePolynomial::<Fr>::rand(5, rng);
-        let p_double = &p + &p;
-        let p_quad = &p_double + &p_double;
-        assert_eq!(&(&(&p + &p) + &p) + &p, p_quad);
+        for degree in 0..70 {
+            let p = DensePolynomial::<Fr>::rand(degree, rng);
+            let p_double = &p + &p;
+            let p_quad = &p_double + &p_double;
+            assert_eq!(&(&(&p + &p) + &p) + &p, p_quad);
+        }
     }
 
     #[test]
     fn add_polynomials() {
         let rng = &mut thread_rng();
-        let p1 = DensePolynomial::<Fr>::rand(5, rng);
-        let p2 = DensePolynomial::<Fr>::rand(4, rng);
-        let res1 = &p1 + &p2;
-        let res2 = &p2 + &p1;
-        assert_eq!(res1, res2);
+        for a_degree in 0..70 {
+            for b_degree in 0..70 {
+                let p1 = DensePolynomial::<Fr>::rand(a_degree, rng);
+                let p2 = DensePolynomial::<Fr>::rand(b_degree, rng);
+                let res1 = &p1 + &p2;
+                let res2 = &p2 + &p1;
+                assert_eq!(res1, res2);
+            }
+        }
     }
 
     #[test]
     fn add_polynomials_with_mul() {
         let rng = &mut thread_rng();
-        let mut p1 = DensePolynomial::rand(5, rng);
-        let p2 = DensePolynomial::rand(4, rng);
-        let f = Fr::rand(rng);
-
-        let f_p2 = DensePolynomial::from_coefficients_vec(p2.coeffs.iter().map(|c| f * c).collect());
-
-        let res2 = &f_p2 + &p1;
-        p1 += (f, &p2);
-        let res1 = p1;
-        assert_eq!(res1, res2);
+        for a_degree in 0..70 {
+            for b_degree in 0..70 {
+                let mut p1 = DensePolynomial::rand(a_degree, rng);
+                let p2 = DensePolynomial::rand(b_degree, rng);
+                let f = Fr::rand(rng);
+                let f_p2 = DensePolynomial::from_coefficients_vec(p2.coeffs.iter().map(|c| f * c).collect());
+                let res2 = &f_p2 + &p1;
+                p1 += (f, &p2);
+                let res1 = p1;
+                assert_eq!(res1, res2);
+            }
+        }
     }
 
     #[test]
@@ -427,25 +435,29 @@ mod tests {
     fn divide_polynomials_random() {
         let rng = &mut thread_rng();
 
-        let factor1 = DensePolynomial::<Fr>::rand(5, rng);
-        let factor2 = DensePolynomial::<Fr>::rand(5, rng);
-        let prod = &factor1 * &factor2;
-        let result1 = &prod / &factor1;
-        let result2 = &prod / &factor2;
-        assert_eq!(factor2, result1);
-        assert_eq!(factor1, result2);
+        for a_degree in 0..70 {
+            for b_degree in 0..70 {
+                let dividend = DensePolynomial::<Fr>::rand(a_degree, rng);
+                let divisor = DensePolynomial::<Fr>::rand(b_degree, rng);
+                if let Some((quotient, remainder)) = DenseOrSparsePolynomial::divide_with_q_and_r(&(&dividend).into(), &(&divisor).into()) {
+                    assert_eq!(dividend, &(&divisor * &quotient) + &remainder)
+                }
+            }
+        }
     }
 
     #[test]
     fn evaluate_polynomials() {
         let rng = &mut thread_rng();
-        let p = DensePolynomial::rand(5, rng);
-        let point: Fr = "10".parse().unwrap();
-        let mut total = Fr::zero();
-        for (i, coeff) in p.coeffs.iter().enumerate() {
-            total += &(point.pow(&[i as u64]) * coeff);
+        for a_degree in 0..70 {
+            let p = DensePolynomial::rand(a_degree, rng);
+            let point: Fr = Fr::from(10u64);
+            let mut total = Fr::zero();
+            for (i, coeff) in p.coeffs.iter().enumerate() {
+                total += &(point.pow(&[i as u64]) * coeff);
+            }
+            assert_eq!(p.evaluate(point), total);
         }
-        assert_eq!(p.evaluate(point), total);
     }
 
     #[test]
