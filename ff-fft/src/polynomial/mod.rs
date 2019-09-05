@@ -120,12 +120,8 @@ impl<F: Field> DenseOrSparsePolynomial<'_, F> {
                 let cur_q_degree = remainder.degree() - divisor.degree();
                 quotient[cur_q_degree] = cur_q_coeff;
 
-                for (j, rem_coeff) in remainder[cur_q_degree..].iter_mut().enumerate() {
-                    for (i, div_coeff) in divisor.iter_with_index() {
-                        if j + cur_q_degree == i {
-                            *rem_coeff -= &(cur_q_coeff * &div_coeff);
-                        }
-                    }
+                for (i, div_coeff) in divisor.iter_with_index() {
+                    remainder[cur_q_degree + i] -= &(cur_q_coeff * &div_coeff);
                 }
                 while let Some(true) = remainder.coeffs.last().map(|c| c.is_zero()) {
                     remainder.coeffs.pop();
