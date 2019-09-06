@@ -25,25 +25,8 @@ use std::cmp::Ordering;
 type SmallVec<F> = StackVec<[(Variable, F); 16]>;
 
 /// Represents a variable in a constraint system.
-#[derive(PartialEq, Eq, Copy, Clone, Debug)]
+#[derive(PartialOrd, Ord, PartialEq, Eq, Copy, Clone, Debug)]
 pub struct Variable(Index);
-
-impl PartialOrd for Variable {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for Variable {
-    fn cmp(&self, other: &Self) -> Ordering {
-        match (self.0, other.0) {
-            (Index::Input(ref idx1), Index::Input(ref idx2))
-            | (Index::Aux(ref idx1), Index::Aux(ref idx2)) => idx1.cmp(idx2),
-            (Index::Input(_), Index::Aux(_)) => Ordering::Less,
-            (Index::Aux(_), Index::Input(_)) => Ordering::Greater,
-        }
-    }
-}
 
 impl Variable {
     /// This constructs a variable with an arbitrary index.
@@ -67,6 +50,24 @@ pub enum Index {
     /// Index of an auxiliary (or private) variable.
     Aux(usize),
 }
+
+impl PartialOrd for Index {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Index {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self, other) {
+            (Index::Input(ref idx1), Index::Input(ref idx2))
+            | (Index::Aux(ref idx1), Index::Aux(ref idx2)) => idx1.cmp(idx2),
+            (Index::Input(_), Index::Aux(_)) => Ordering::Less,
+            (Index::Aux(_), Index::Input(_)) => Ordering::Greater,
+        }
+    }
+}
+
 
 /// This represents a linear combination of some variables, with coefficients
 /// in the field `F`.
