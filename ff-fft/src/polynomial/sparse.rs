@@ -146,7 +146,7 @@ mod tests {
             let dense_poly: DensePolynomial<Fr> = poly.into();
             println!("dense {:?}", dense_poly);
             let evals2 = dense_poly.evaluate_over_domain(domain);
-            assert_eq!(evals1.interpolate_over_domain(domain), evals2.interpolate_over_domain(domain));
+            assert_eq!(evals1.interpolate(), evals2.interpolate());
         }
     }
 }
