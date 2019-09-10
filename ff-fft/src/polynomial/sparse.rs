@@ -103,15 +103,15 @@ impl<F: PrimeField> SparsePolynomial<F> {
     /// Evaluate `self` over `domain`.
     pub fn evaluate_over_domain_by_ref(&self, domain: EvaluationDomain<F>) -> Evaluations<F> {
         let poly: DenseOrSparsePolynomial<'_, F> = self.into();
-        let _ = DenseOrSparsePolynomial::<F>::evaluate_over_domain(poly, domain);
-        unimplemented!("current implementation does not produce evals in correct order")
+        DenseOrSparsePolynomial::<F>::evaluate_over_domain(poly, domain)
+        // unimplemented!("current implementation does not produce evals in correct order")
     }
 
     /// Evaluate `self` over `domain`.
     pub fn evaluate_over_domain(self, domain: EvaluationDomain<F>) -> Evaluations<F> {
         let poly: DenseOrSparsePolynomial<'_, F> = self.into();
-        let _ = DenseOrSparsePolynomial::<F>::evaluate_over_domain(poly, domain);
-        unimplemented!("current implementation does not produce evals in correct order")
+        DenseOrSparsePolynomial::<F>::evaluate_over_domain(poly, domain)
+        // unimplemented!("current implementation does not produce evals in correct order")
     }
 }
 
@@ -127,26 +127,24 @@ impl<F: Field> Into<DensePolynomial<F>> for SparsePolynomial<F> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{EvaluationDomain, DensePolynomial};
+    use crate::{EvaluationDomain, DensePolynomial, SparsePolynomial};
     use algebra::fields::bls12_381::fr::Fr;
     use algebra::Field;
 
     #[test]
-    #[ignore]
     fn evaluate_over_domain() {
         for size in 2..10 {
             let domain_size = 1 << size;
             let domain = EvaluationDomain::new(domain_size).unwrap();
-            let poly = domain.vanishing_polynomial();
-            let _two = Fr::one() + &Fr::one();
-            // poly.coeffs[0] = (0, two);
-            let evals1 = poly.evaluate_over_domain_by_ref(domain);
-            println!("sparse {:?}", poly);
+            let two = Fr::one() + &Fr::one();
+            let sparse_poly = SparsePolynomial::from_coefficients_vec(vec![(0, two), (1, two)]);
+            let evals1 = sparse_poly.evaluate_over_domain_by_ref(domain);
 
-            let dense_poly: DensePolynomial<Fr> = poly.into();
-            println!("dense {:?}", dense_poly);
-            let evals2 = dense_poly.evaluate_over_domain(domain);
-            assert_eq!(evals1.interpolate(), evals2.interpolate());
+            let dense_poly: DensePolynomial<Fr> = sparse_poly.into();
+            let evals2 = dense_poly.clone().evaluate_over_domain(domain);
+            assert_eq!(evals1.clone().interpolate(), evals2.clone().interpolate());
+            assert_eq!(evals1.interpolate(), dense_poly);
+            assert_eq!(evals2.interpolate(), dense_poly);
         }
     }
 }

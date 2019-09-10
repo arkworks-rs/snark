@@ -412,11 +412,12 @@ impl<F: PrimeField> Iterator for Elements<F> {
 #[cfg(test)]
 mod tests {
     use crate::EvaluationDomain;
+    use algebra::Field;
     use algebra::fields::bls12_381::fr::Fr;
     use rand::{Rng, thread_rng};
 
     #[test]
-    fn test_vanish_polynomial() {
+    fn vanishing_polynomial_evaluation() {
         let rng = &mut thread_rng();
         for coeffs in 0..10 {
             let domain = EvaluationDomain::<Fr>::new(coeffs).unwrap();
@@ -424,6 +425,38 @@ mod tests {
             for _ in 0..100 {
                 let point = rng.gen();
                 assert_eq!(z.evaluate(point), domain.evaluate_vanishing_polynomial(point))
+            }
+        }
+    }
+
+    #[test]
+    fn vanishing_polynomial_vanishes_on_domain() {
+        for coeffs in 0..1000 {
+            let domain = EvaluationDomain::<Fr>::new(coeffs).unwrap();
+            let z = domain.vanishing_polynomial();
+            for point in domain.elements() {
+                assert!(z.evaluate(point).is_zero())
+            }
+        }
+    }
+
+    #[test]
+    fn size_of_elements() {
+        for coeffs in 1..10 {
+            let size = 1 << coeffs;
+            let domain = EvaluationDomain::<Fr>::new(size).unwrap();
+            let domain_size = domain.size();
+            assert_eq!(domain_size, domain.elements().collect::<Vec<_>>().len());
+        }
+    }
+
+    #[test]
+    fn elements_contents() {
+        for coeffs in 1..10 {
+            let size = 1 << coeffs;
+            let domain = EvaluationDomain::<Fr>::new(size).unwrap();
+            for (i, element) in domain.elements().enumerate() {
+                assert_eq!(element, domain.group_gen.pow([i as u64]));
             }
         }
     }
