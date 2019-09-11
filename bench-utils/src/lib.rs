@@ -122,7 +122,7 @@ mod inner {
     #[macro_export]
     macro_rules! timer_start {
         ($msg:expr) => {
-            TimerInfo
+            $crate::TimerInfo
         };
     }
 
