@@ -84,13 +84,6 @@ pub mod inner {
         
     }
 
-    impl Drop for TimerInfo {
-        fn drop(&mut self) {
-            timer_end!(self)
-        }
-    }
-
-
     pub fn compute_indent(indent_amount: usize) -> String {
         use std::env::var;
         let mut indent = String::new();
@@ -115,9 +108,6 @@ pub mod inner {
 #[macro_use]
 mod inner {
     pub struct TimerInfo;
-    impl Drop for TimerInfo {
-        fn drop(&mut self) {}
-    }
 
     #[macro_export]
     macro_rules! timer_start {
