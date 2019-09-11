@@ -31,6 +31,9 @@ pub mod inner {
     #[macro_export]
     macro_rules! timer_end {
         ($time:expr) => {{
+            timer_end!($time, || "");
+        }};
+        ($time:expr, $msg:expr) => {{
             use bench_utils::{compute_indent, Colorize, NUM_INDENT, PAD_CHAR};
             use std::sync::atomic::Ordering;
 
@@ -53,7 +56,7 @@ pub mod inner {
             };
 
             let end_info = "End:".green().bold();
-            let message = format!("{}", $time.0);
+            let message = format!("{} {}", $time.0, $msg());
 
             NUM_INDENT.fetch_sub(1, Ordering::Relaxed);
             let indent_amount = 2 * NUM_INDENT.fetch_add(0, Ordering::Relaxed);
@@ -69,7 +72,9 @@ pub mod inner {
                 final_time,
                 pad = 75 - indent_amount
             );
+
         }};
+        
     }
 
     pub fn compute_indent(indent_amount: usize) -> String {
@@ -105,6 +110,10 @@ mod inner {
 
     #[macro_export]
     macro_rules! timer_end {
+        ($time:expr, $msg:expr) => {
+            let _ = $msg;
+            let _ = $time;
+        };
         ($time:expr) => {
             let _ = $time;
         };
