@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 #[cfg(feature = "timer")]
 extern crate colored;
 
@@ -10,11 +11,17 @@ pub mod inner {
     use std::sync::atomic::AtomicUsize;
     pub static NUM_INDENT: AtomicUsize = AtomicUsize::new(0);
     pub const PAD_CHAR: &'static str = "·";
+    use std::time::Instant;
+
+    pub struct TimerInfo {
+        pub msg: String,
+        pub time: Instant,
+    }
 
     #[macro_export]
     macro_rules! timer_start {
         ($msg:expr) => {{
-            use bench_utils::{compute_indent, Colorize, NUM_INDENT, PAD_CHAR};
+            use $crate::{compute_indent, Colorize, NUM_INDENT, PAD_CHAR};
             use std::{sync::atomic::Ordering, time::Instant};
 
             let result = $msg();
@@ -24,7 +31,7 @@ pub mod inner {
 
             println!("{}{:8} {}", indent, start_info, result);
             NUM_INDENT.fetch_add(1, Ordering::Relaxed);
-            (result, Instant::now())
+            $crate::TimerInfo { msg: result.to_string(), time: Instant::now() }
         }};
     }
 
@@ -34,10 +41,10 @@ pub mod inner {
             timer_end!($time, || "");
         }};
         ($time:expr, $msg:expr) => {{
-            use bench_utils::{compute_indent, Colorize, NUM_INDENT, PAD_CHAR};
+            use $crate::{compute_indent, Colorize, NUM_INDENT, PAD_CHAR};
             use std::sync::atomic::Ordering;
 
-            let time = $time.1;
+            let time = $time.time;
             let final_time = time.elapsed();
             let final_time = {
                 let secs = final_time.as_secs();
@@ -56,7 +63,7 @@ pub mod inner {
             };
 
             let end_info = "End:".green().bold();
-            let message = format!("{} {}", $time.0, $msg());
+            let message = format!("{} {}", $time.msg, $msg());
 
             NUM_INDENT.fetch_sub(1, Ordering::Relaxed);
             let indent_amount = 2 * NUM_INDENT.fetch_add(0, Ordering::Relaxed);
@@ -76,6 +83,13 @@ pub mod inner {
         }};
         
     }
+
+    impl Drop for TimerInfo {
+        fn drop(&mut self) {
+            timer_end!(self)
+        }
+    }
+
 
     pub fn compute_indent(indent_amount: usize) -> String {
         use std::env::var;
@@ -100,11 +114,15 @@ pub mod inner {
 #[cfg(not(feature = "timer"))]
 #[macro_use]
 mod inner {
+    pub struct TimerInfo;
+    impl Drop for TimerInfo {
+        fn drop(&mut self) {}
+    }
 
     #[macro_export]
     macro_rules! timer_start {
         ($msg:expr) => {
-            ()
+            TimerInfo
         };
     }
 
