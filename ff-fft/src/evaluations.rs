@@ -36,6 +36,14 @@ impl<F: PrimeField> Evaluations<F> {
     }
 }
 
+impl<F: PrimeField> std::ops::Index<usize> for Evaluations<F> {
+    type Output = F;
+
+    fn index(&self, index: usize) -> &F {
+        &self.evals[index]
+    }
+}
+
 impl<'a, 'b, F: PrimeField> Mul<&'a Evaluations<F>> for &'b Evaluations<F> {
 
     type Output = Evaluations<F>;
