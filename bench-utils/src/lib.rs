@@ -78,13 +78,13 @@ pub mod inner {
             );
 
         }};
-        
+
     }
 
     #[macro_export]
     macro_rules! add_to_trace {
         ($title:expr, $msg:expr) => {{
-            use $crate::{compute_indent_whitespace, Colorize, NUM_INDENT, PAD_CHAR};
+            use $crate::{compute_indent, compute_indent_whitespace, Colorize, NUM_INDENT, PAD_CHAR};
             use std::sync::atomic::Ordering;
 
             let start_msg = "StartMsg".yellow().bold();
