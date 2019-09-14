@@ -1,10 +1,7 @@
 #![allow(unused_imports)]
-#[cfg(feature = "timer")]
-extern crate colored;
-
 pub use self::inner::*;
 
-#[cfg(feature = "timer")]
+#[cfg(feature = "print-trace")]
 #[macro_use]
 pub mod inner {
     pub use colored::Colorize;
@@ -150,7 +147,7 @@ pub mod inner {
     }
 }
 
-#[cfg(not(feature = "timer"))]
+#[cfg(not(feature = "print-trace"))]
 #[macro_use]
 mod inner {
     pub struct TimerInfo;
