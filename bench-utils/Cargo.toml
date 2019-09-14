@@ -25,4 +25,4 @@ edition = "2018"
 colored = { version = "1", optional = true }
 
 [features]
-timer = [ "colored" ]
+print-trace = [ "colored" ]
