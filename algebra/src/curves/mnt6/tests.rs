@@ -73,3 +73,20 @@ fn test_bilinearity() {
     assert_eq!(ans2.pow(Fr::characteristic()), Fq6::one());
     assert_eq!(ans3.pow(Fr::characteristic()), Fq6::one());
 }
+
+#[test]
+fn test_product_of_pairings() {
+    use crate::curves::{ProjectiveCurve, PairingCurve};
+    use rand::Rand;
+    let rng = &mut rand::thread_rng();
+
+    let a = G1Projective::rand(rng).into_affine();
+    let b = G2Projective::rand(rng).into_affine();
+    let c = G1Projective::rand(rng).into_affine();
+    let d = G2Projective::rand(rng).into_affine();
+    let ans1 = MNT6::pairing(a, b) * &MNT6::pairing(c, d);
+    let ans2 = MNT6::product_of_pairings(&[
+        (&a.prepare(), &b.prepare()), (&c.prepare(), &d.prepare())
+    ]);
+    assert_eq!(ans1, ans2);
+}

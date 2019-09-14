@@ -129,6 +129,15 @@ impl<F: Field> DensePolynomial<F> {
 }
 
 impl<F: PrimeField> DensePolynomial<F> {
+    /// Multiply `self` by the vanishing polynomial for the domain `domain`.
+    /// Returns the quotient and remainder of the division.
+    pub fn mul_by_vanishing_poly(&self, domain: EvaluationDomain<F>) -> DensePolynomial<F> {
+        let mut shifted = vec![F::zero(); domain.size()];
+        shifted.extend_from_slice(&self.coeffs);
+        shifted.par_iter_mut().zip(&self.coeffs).for_each(|(s, c)| *s -= c);
+        DensePolynomial::from_coefficients_vec(shifted)
+    }
+
     /// Divide `self` by the vanishing polynomial for the domain `domain`.
     /// Returns the quotient and remainder of the division.
     pub fn divide_by_vanishing_poly(&self, domain: EvaluationDomain<F>) -> Option<(DensePolynomial<F>, DensePolynomial<F>)> {
@@ -465,6 +474,20 @@ mod tests {
                 let a = DensePolynomial::<Fr>::rand(a_degree, rng);
                 let b = DensePolynomial::<Fr>::rand(b_degree, rng);
                 assert_eq!(&a * &b, a.naive_mul(&b))
+            }
+        }
+    }
+
+    #[test]
+    fn mul_by_vanishing_poly() {
+        let rng = &mut thread_rng();
+        for size in 1..10 {
+            let domain = EvaluationDomain::new(1 << size).unwrap();
+            for degree in 0..70 {
+                let p = DensePolynomial::<Fr>::rand(degree, rng);
+                let ans1 = p.mul_by_vanishing_poly(domain);
+                let ans2 = &p * &domain.vanishing_polynomial().into();
+                assert_eq!(ans1, ans2);
             }
         }
     }
