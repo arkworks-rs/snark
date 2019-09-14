@@ -52,7 +52,7 @@ impl<G: Group, W: PedersenWindow> CommitmentScheme for PedersenCommitment<G, W> 
     type Output = G;
 
     fn setup<R: Rng>(rng: &mut R) -> Result<Self::Parameters, Error> {
-        let time = timer_start!(|| format!(
+        let time = start_timer!(|| format!(
             "PedersenCOMM::Setup: {} {}-bit windows; {{0,1}}^{{{}}} -> G",
             W::NUM_WINDOWS,
             W::WINDOW_SIZE,
@@ -61,7 +61,7 @@ impl<G: Group, W: PedersenWindow> CommitmentScheme for PedersenCommitment<G, W> 
         let num_powers = <G::ScalarField as PrimeField>::Params::MODULUS_BITS as usize;
         let randomness_generator = PedersenCRH::<_, W>::generator_powers(num_powers, rng);
         let generators = PedersenCRH::<_, W>::create_generators(rng);
-        timer_end!(time);
+        end_timer!(time);
 
         Ok(Self::Parameters {
             randomness_generator,
@@ -74,7 +74,7 @@ impl<G: Group, W: PedersenWindow> CommitmentScheme for PedersenCommitment<G, W> 
         input: &[u8],
         randomness: &Self::Randomness,
     ) -> Result<Self::Output, Error> {
-        let commit_time = timer_start!(|| "PedersenCOMM::Commit");
+        let commit_time = start_timer!(|| "PedersenCOMM::Commit");
         // If the input is too long, return an error.
         if input.len() > W::WINDOW_SIZE * W::NUM_WINDOWS {
             panic!("incorrect input length: {:?}", input.len());
@@ -98,7 +98,7 @@ impl<G: Group, W: PedersenWindow> CommitmentScheme for PedersenCommitment<G, W> 
             generators: parameters.generators.clone(),
         };
         let mut result = PedersenCRH::<_, W>::evaluate(&crh_parameters, &input)?;
-        let randomize_time = timer_start!(|| "Randomize");
+        let randomize_time = start_timer!(|| "Randomize");
 
         // Compute h^r.
         let mut scalar_bits = BitIterator::new(randomness.0.into_repr()).collect::<Vec<_>>();
@@ -111,8 +111,8 @@ impl<G: Group, W: PedersenWindow> CommitmentScheme for PedersenCommitment<G, W> 
                 result += power
             }
         }
-        timer_end!(randomize_time);
-        timer_end!(commit_time);
+        end_timer!(randomize_time);
+        end_timer!(commit_time);
 
         Ok(result)
     }

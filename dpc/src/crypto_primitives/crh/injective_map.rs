@@ -57,16 +57,16 @@ impl<G: Group, I: InjectiveMap<G>, W: PedersenWindow> FixedLengthCRH
     type Parameters = PedersenParameters<G>;
 
     fn setup<R: Rng>(rng: &mut R) -> Result<Self::Parameters, Error> {
-        let time = timer_start!(|| format!("PedersenCRHCompressor::Setup"));
+        let time = start_timer!(|| format!("PedersenCRHCompressor::Setup"));
         let params = PedersenCRH::<G, W>::setup(rng);
-        timer_end!(time);
+        end_timer!(time);
         params
     }
 
     fn evaluate(parameters: &Self::Parameters, input: &[u8]) -> Result<Self::Output, Error> {
-        let eval_time = timer_start!(|| "PedersenCRHCompressor::Eval");
+        let eval_time = start_timer!(|| "PedersenCRHCompressor::Eval");
         let result = I::injective_map(&PedersenCRH::<G, W>::evaluate(parameters, input)?)?;
-        timer_end!(eval_time);
+        end_timer!(eval_time);
         Ok(result)
     }
 }

@@ -170,25 +170,25 @@ where
     assembly.alloc_input(|| "", || Ok(E::Fr::one()))?;
 
     // Synthesize the circuit.
-    let synthesis_time = timer_start!(|| "Constraint synthesis");
+    let synthesis_time = start_timer!(|| "Constraint synthesis");
     circuit.generate_constraints(&mut assembly)?;
-    timer_end!(synthesis_time);
+    end_timer!(synthesis_time);
 
     ///////////////////////////////////////////////////////////////////////////
-    let domain_time = timer_start!(|| "Constructing evaluation domain");
+    let domain_time = start_timer!(|| "Constructing evaluation domain");
 
     let domain_size = 2 * assembly.num_constraints + 2 * assembly.num_inputs - 1;
     let domain = EvaluationDomain::<E::Fr>::new(domain_size)
         .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
     let t = domain.sample_element_outside_domain(rng);
 
-    timer_end!(domain_time);
+    end_timer!(domain_time);
     ///////////////////////////////////////////////////////////////////////////
 
-    let reduction_time = timer_start!(|| "R1CS to SAP Instance Map with Evaluation");
+    let reduction_time = start_timer!(|| "R1CS to SAP Instance Map with Evaluation");
     let (a, c, zt, sap_num_variables, m_raw) =
         R1CStoSAP::instance_map_with_evaluation::<E>(&assembly, &t)?;
-    timer_end!(reduction_time);
+    end_timer!(reduction_time);
 
     // Compute query densities
     let non_zero_a = (0..sap_num_variables)
@@ -198,7 +198,7 @@ where
     let scalar_bits = E::Fr::size_in_bits();
 
     // Compute G window table
-    let g_window_time = timer_start!(|| "Compute G window table");
+    let g_window_time = start_timer!(|| "Compute G window table");
     let g_window = FixedBaseMSM::get_mul_window_size(
         // Verifier query
         assembly.num_inputs
@@ -212,41 +212,41 @@ where
         + m_raw + 1,
     );
     let g_table = FixedBaseMSM::get_window_table::<E::G1Projective>(scalar_bits, g_window, g);
-    timer_end!(g_window_time);
+    end_timer!(g_window_time);
 
     // Compute H_gamma window table
-    let h_gamma_time = timer_start!(|| "Compute H table");
+    let h_gamma_time = start_timer!(|| "Compute H table");
     let h_gamma = h.into_affine().mul(gamma.into_repr());
     let h_gamma_window = FixedBaseMSM::get_mul_window_size(non_zero_a);
     let h_gamma_table =
         FixedBaseMSM::get_window_table::<E::G2Projective>(scalar_bits, h_gamma_window, h_gamma);
-    timer_end!(h_gamma_time);
+    end_timer!(h_gamma_time);
 
     // Generate the R1CS proving key
-    let proving_key_time = timer_start!(|| "Generate the R1CS proving key");
+    let proving_key_time = start_timer!(|| "Generate the R1CS proving key");
 
     // Compute the A-query
-    let a_time = timer_start!(|| "Calculate A");
+    let a_time = start_timer!(|| "Calculate A");
     let mut a_query = FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(
         scalar_bits,
         g_window,
         &g_table,
         &a.par_iter().map(|a| *a * &gamma).collect::<Vec<_>>(),
     );
-    timer_end!(a_time);
+    end_timer!(a_time);
 
     // Compute the B-query
-    let b_time = timer_start!(|| "Calculate B");
+    let b_time = start_timer!(|| "Calculate B");
     let mut b_query = FixedBaseMSM::multi_scalar_mul::<E::G2Projective>(
         scalar_bits,
         h_gamma_window,
         &h_gamma_table,
         &a,
     );
-    timer_end!(b_time);
+    end_timer!(b_time);
 
     // Compute the G_gamma-query
-    let g_gamma_time = timer_start!(|| "Calculate G gamma");
+    let g_gamma_time = start_timer!(|| "Calculate G gamma");
     let gamma_z = zt * &gamma;
     let alpha_beta = alpha + &beta;
     let ab_gamma_z = alpha_beta * &gamma * &zt;
@@ -267,10 +267,10 @@ where
             .map(|i| gamma2_z_t * &(t.pow([i as u64])))
             .collect::<Vec<_>>(),
     );
-    timer_end!(g_gamma_time);
+    end_timer!(g_gamma_time);
 
     // Compute the C_1-query
-    let c1_time = timer_start!(|| "Calculate C1");
+    let c1_time = start_timer!(|| "Calculate C1");
     let result = FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(
         scalar_bits,
         g_window,
@@ -281,10 +281,10 @@ where
             .collect::<Vec<_>>(),
     );
     let (verifier_query, c_query_1) = result.split_at(assembly.num_inputs);
-    timer_end!(c1_time);
+    end_timer!(c1_time);
 
     // Compute the C_2-query
-    let c2_time = timer_start!(|| "Calculate C2");
+    let c2_time = start_timer!(|| "Calculate C2");
     let double_gamma2_z = (zt * &gamma.square()).double();
     let mut c_query_2 = FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(
         scalar_bits,
@@ -295,15 +295,15 @@ where
             .map(|i| a[i] * &double_gamma2_z)
             .collect::<Vec<_>>(),
     );
-    timer_end!(c2_time);
+    end_timer!(c2_time);
 
-    timer_end!(proving_key_time);
+    end_timer!(proving_key_time);
 
     // Generate R1CS verification key
-    let verifying_key_time = timer_start!(|| "Generate the R1CS verification key");
+    let verifying_key_time = start_timer!(|| "Generate the R1CS verification key");
     let g_alpha = g.into_affine().mul(alpha.into_repr());
     let h_beta = h.into_affine().mul(beta.into_repr());
-    timer_end!(verifying_key_time);
+    end_timer!(verifying_key_time);
 
     let vk = VerifyingKey::<E> {
         h_g2:       h.into_affine(),
@@ -319,13 +319,13 @@ where
 
     let mut c_query_1 = c_query_1.to_vec();
 
-    let batch_normalization_time = timer_start!(|| "Convert proving key elements to affine");
+    let batch_normalization_time = start_timer!(|| "Convert proving key elements to affine");
     E::G1Projective::batch_normalization(a_query.as_mut_slice());
     E::G2Projective::batch_normalization(b_query.as_mut_slice());
     E::G1Projective::batch_normalization(c_query_1.as_mut_slice());
     E::G1Projective::batch_normalization(c_query_2.as_mut_slice());
     E::G1Projective::batch_normalization(g_gamma2_z_t.as_mut_slice());
-    timer_end!(batch_normalization_time);
+    end_timer!(batch_normalization_time);
 
     Ok(Parameters {
         vk,

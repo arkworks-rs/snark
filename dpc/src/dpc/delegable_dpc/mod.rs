@@ -201,33 +201,33 @@ impl<Components: DelegableDPCComponents> DPC<Components> {
     pub fn generate_comm_crh_sig_parameters<R: Rng>(
         rng: &mut R,
     ) -> Result<CommCRHSigPublicParameters<Components>, Error> {
-        let time = timer_start!(|| "Address commitment scheme setup");
+        let time = start_timer!(|| "Address commitment scheme setup");
         let addr_comm_pp = Components::AddrC::setup(rng)?;
-        timer_end!(time);
+        end_timer!(time);
 
-        let time = timer_start!(|| "Record commitment scheme setup");
+        let time = start_timer!(|| "Record commitment scheme setup");
         let rec_comm_pp = Components::RecC::setup(rng)?;
-        timer_end!(time);
+        end_timer!(time);
 
-        let time = timer_start!(|| "Verification Key Commitment setup");
+        let time = start_timer!(|| "Verification Key Commitment setup");
         let pred_vk_comm_pp = Components::PredVkComm::setup(rng)?;
-        timer_end!(time);
+        end_timer!(time);
 
-        let time = timer_start!(|| "Local Data Commitment setup");
+        let time = start_timer!(|| "Local Data Commitment setup");
         let local_data_comm_pp = Components::LocalDataComm::setup(rng)?;
-        timer_end!(time);
+        end_timer!(time);
 
-        let time = timer_start!(|| "Serial Nonce CRH setup");
+        let time = start_timer!(|| "Serial Nonce CRH setup");
         let sn_nonce_crh_pp = Components::SnNonceH::setup(rng)?;
-        timer_end!(time);
+        end_timer!(time);
 
-        let time = timer_start!(|| "Verification Key CRH setup");
+        let time = start_timer!(|| "Verification Key CRH setup");
         let pred_vk_crh_pp = Components::PredVkH::setup(rng)?;
-        timer_end!(time);
+        end_timer!(time);
 
-        let time = timer_start!(|| "Signature setup");
+        let time = start_timer!(|| "Signature setup");
         let sig_pp = Components::S::setup(rng)?;
-        timer_end!(time);
+        end_timer!(time);
 
         Ok(CommCRHSigPublicParameters {
             addr_comm_pp,
@@ -264,7 +264,7 @@ impl<Components: DelegableDPCComponents> DPC<Components> {
         record: &DPCRecord<Components>,
         address_secret_key: &AddressSecretKey<Components>,
     ) -> Result<(<Components::S as SignatureScheme>::PublicKey, Vec<u8>), Error> {
-        let sn_time = timer_start!(|| "Generate serial number");
+        let sn_time = start_timer!(|| "Generate serial number");
         let sk_prf = &address_secret_key.sk_prf;
         let sn_nonce = to_bytes!(record.serial_number_nonce())?;
         // Compute the serial number.
@@ -277,7 +277,7 @@ impl<Components: DelegableDPCComponents> DPC<Components> {
             &address_secret_key.pk_sig,
             &sig_and_pk_randomizer,
         )?;
-        timer_end!(sn_time);
+        end_timer!(sn_time);
         Ok((sn, sig_and_pk_randomizer))
     }
 
@@ -291,7 +291,7 @@ impl<Components: DelegableDPCComponents> DPC<Components> {
         death_predicate: &DPCPredicate<Components>,
         rng: &mut R,
     ) -> Result<DPCRecord<Components>, Error> {
-        let record_time = timer_start!(|| "Generate record");
+        let record_time = start_timer!(|| "Generate record");
 
         // Sample new commitment randomness.
         let commitment_randomness = <Components::RecC as CommitmentScheme>::Randomness::rand(rng);
@@ -326,7 +326,7 @@ impl<Components: DelegableDPCComponents> DPC<Components> {
             commitment_randomness,
             _components: PhantomData,
         };
-        timer_end!(record_time);
+        end_timer!(record_time);
         Ok(record)
     }
 
@@ -413,7 +413,7 @@ impl<Components: DelegableDPCComponents> DPC<Components> {
 
         // Compute the ledger membership witness and serial number from the old records.
         for (i, record) in old_records.iter().enumerate() {
-            let input_record_time = timer_start!(|| format!("Process input record {}", i));
+            let input_record_time = start_timer!(|| format!("Process input record {}", i));
 
             if record.is_dummy() {
                 old_witnesses.push(Components::LCW::dummy_witness());
@@ -430,7 +430,7 @@ impl<Components: DelegableDPCComponents> DPC<Components> {
             old_randomizers.push(randomizer);
             old_death_pred_hashes.push(record.death_predicate_repr().to_vec());
 
-            timer_end!(input_record_time);
+            end_timer!(input_record_time);
         }
 
         let mut new_records = Vec::with_capacity(Components::NUM_OUTPUT_RECORDS);
@@ -440,8 +440,8 @@ impl<Components: DelegableDPCComponents> DPC<Components> {
 
         // Generate new records and commitments for them.
         for j in 0..Components::NUM_OUTPUT_RECORDS {
-            let output_record_time = timer_start!(|| format!("Process output record {}", j));
-            let sn_nonce_time = timer_start!(|| "Generate serial number nonce");
+            let output_record_time = start_timer!(|| format!("Process output record {}", j));
+            let sn_nonce_time = start_timer!(|| "Generate serial number nonce");
 
             // Sample randomness sn_randomness for the CRH input.
             let sn_randomness: [u8; 32] = rng.gen();
@@ -449,7 +449,7 @@ impl<Components: DelegableDPCComponents> DPC<Components> {
             let crh_input = to_bytes![j as u8, sn_randomness, joint_serial_numbers]?;
             let sn_nonce = Components::SnNonceH::evaluate(&parameters.sn_nonce_crh_pp, &crh_input)?;
 
-            timer_end!(sn_nonce_time);
+            end_timer!(sn_nonce_time);
 
             let record = Self::generate_record(
                 parameters,
@@ -467,10 +467,10 @@ impl<Components: DelegableDPCComponents> DPC<Components> {
             new_birth_pred_hashes.push(record.birth_predicate_repr().to_vec());
             new_records.push(record);
 
-            timer_end!(output_record_time);
+            end_timer!(output_record_time);
         }
 
-        let local_data_comm_timer = timer_start!(|| "Compute predicate input commitment");
+        let local_data_comm_timer = start_timer!(|| "Compute predicate input commitment");
         let mut predicate_input = Vec::new();
         for i in 0..Components::NUM_INPUT_RECORDS {
             let record = &old_records[i];
@@ -508,9 +508,9 @@ impl<Components: DelegableDPCComponents> DPC<Components> {
             &predicate_input,
             &local_data_rand,
         )?;
-        timer_end!(local_data_comm_timer);
+        end_timer!(local_data_comm_timer);
 
-        let pred_hash_comm_timer = timer_start!(|| "Compute predicate commitment");
+        let pred_hash_comm_timer = start_timer!(|| "Compute predicate commitment");
         let (predicate_comm, predicate_rand) = {
             let mut input = Vec::new();
             for hash in old_death_pred_hashes {
@@ -529,7 +529,7 @@ impl<Components: DelegableDPCComponents> DPC<Components> {
             )?;
             (predicate_comm, predicate_rand)
         };
-        timer_end!(pred_hash_comm_timer);
+        end_timer!(pred_hash_comm_timer);
 
         let ledger_digest = ledger.digest().expect("could not get digest");
 
@@ -579,32 +579,32 @@ where
     type LocalData = LocalData<Components>;
 
     fn setup<R: Rng>(ledger_pp: &L::Parameters, rng: &mut R) -> Result<Self::Parameters, Error> {
-        let setup_time = timer_start!(|| "DelegableDPC::Setup");
+        let setup_time = start_timer!(|| "DelegableDPC::Setup");
         let comm_crh_sig_pp = Self::generate_comm_crh_sig_parameters(rng)?;
 
-        let pred_nizk_setup_time = timer_start!(|| "Dummy Predicate NIZK Setup");
+        let pred_nizk_setup_time = start_timer!(|| "Dummy Predicate NIZK Setup");
         let pred_nizk_pp = Self::generate_pred_nizk_parameters(&comm_crh_sig_pp, rng)?;
-        timer_end!(pred_nizk_setup_time);
+        end_timer!(pred_nizk_setup_time);
 
         let private_pred_input = PrivatePredInput {
             vk:    pred_nizk_pp.vk.clone(),
             proof: pred_nizk_pp.proof.clone(),
         };
 
-        let nizk_setup_time = timer_start!(|| "Execute Tx Core Checks NIZK Setup");
+        let nizk_setup_time = start_timer!(|| "Execute Tx Core Checks NIZK Setup");
         let core_nizk_pp = Components::MainNIZK::setup(
             CoreChecksCircuit::blank(&comm_crh_sig_pp, ledger_pp),
             rng,
         )?;
-        timer_end!(nizk_setup_time);
+        end_timer!(nizk_setup_time);
 
-        let nizk_setup_time = timer_start!(|| "Execute Tx Proof Checks NIZK Setup");
+        let nizk_setup_time = start_timer!(|| "Execute Tx Proof Checks NIZK Setup");
         let proof_check_nizk_pp = Components::ProofCheckNIZK::setup(
             ProofCheckCircuit::blank(&comm_crh_sig_pp, &private_pred_input),
             rng,
         )?;
-        timer_end!(nizk_setup_time);
-        timer_end!(setup_time);
+        end_timer!(nizk_setup_time);
+        end_timer!(setup_time);
         Ok(PublicParameters {
             comm_crh_sig_pp,
             pred_nizk_pp,
@@ -618,9 +618,9 @@ where
         metadata: &Self::Metadata,
         rng: &mut R,
     ) -> Result<Self::AddressKeyPair, Error> {
-        let create_addr_time = timer_start!(|| "DelegableDPC::CreateAddr");
+        let create_addr_time = start_timer!(|| "DelegableDPC::CreateAddr");
         let result = Self::create_address_helper(&parameters.comm_crh_sig_pp, metadata, rng)?;
-        timer_end!(create_addr_time);
+        end_timer!(create_addr_time);
         Ok(result)
     }
 
@@ -643,7 +643,7 @@ where
         ledger: &L,
         rng: &mut R,
     ) -> Result<(Vec<Self::Record>, Self::Transaction), Error> {
-        let exec_time = timer_start!(|| "DelegableDPC::Exec");
+        let exec_time = start_timer!(|| "DelegableDPC::Exec");
         let context = Self::execute_helper(
             &parameters.comm_crh_sig_pp,
             old_records,
@@ -731,7 +731,7 @@ where
 
         let mut signatures = Vec::with_capacity(Components::NUM_INPUT_RECORDS);
         for i in 0..Components::NUM_INPUT_RECORDS {
-            let sig_time = timer_start!(|| format!("Sign and randomize Tx contents {}", i));
+            let sig_time = start_timer!(|| format!("Sign and randomize Tx contents {}", i));
 
             let sk_sig = &old_address_secret_keys[i].sk_sig;
             let randomizer = &old_randomizers[i];
@@ -745,7 +745,7 @@ where
             )?;
             signatures.push(randomized_signature);
 
-            timer_end!(sig_time);
+            end_timer!(sig_time);
         }
 
         let transaction = Self::Transaction::new(
@@ -760,7 +760,7 @@ where
             signatures,
         );
 
-        timer_end!(exec_time);
+        end_timer!(exec_time);
         Ok((new_records, transaction))
     }
 
@@ -770,8 +770,8 @@ where
         ledger: &L,
     ) -> Result<bool, Error> {
         let mut result = true;
-        let verify_time = timer_start!(|| "DelegableDPC::Verify");
-        let ledger_time = timer_start!(|| "Ledger checks");
+        let verify_time = start_timer!(|| "DelegableDPC::Verify");
+        let ledger_time = start_timer!(|| "Ledger checks");
         for sn in transaction.old_serial_numbers() {
             if ledger.contains_sn(sn) {
                 eprintln!("Ledger contains this serial number already.");
@@ -793,7 +793,7 @@ where
             eprintln!("Ledger digest is invalid.");
             result &= false;
         }
-        timer_end!(ledger_time);
+        end_timer!(ledger_time);
 
         let input = CoreChecksVerifierInput {
             comm_crh_sig_pp:    parameters.comm_crh_sig_pp.clone(),
@@ -836,13 +836,13 @@ where
             transaction.stuff.predicate_proof
         ]?;
 
-        let sig_time = timer_start!(|| "Signature verification (in parallel)");
+        let sig_time = start_timer!(|| "Signature verification (in parallel)");
         let sig_pp = &parameters.comm_crh_sig_pp.sig_pp;
         for (pk, sig) in  transaction.old_serial_numbers().iter().zip(&transaction.stuff.signatures) {
             result &= Components::S::verify(sig_pp, pk, signature_message, sig)?;
         }
-        timer_end!(sig_time);
-        timer_end!(verify_time);
+        end_timer!(sig_time);
+        end_timer!(verify_time);
         Ok(result)
     }
 }

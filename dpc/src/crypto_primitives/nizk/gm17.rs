@@ -42,10 +42,10 @@ impl<E: PairingEngine, C: ConstraintSynthesizer<E::Fr>, V: ToConstraintField<E::
         ),
         Error,
     > {
-        let nizk_time = timer_start!(|| "{Groth-Maller 2017}::Setup");
+        let nizk_time = start_timer!(|| "{Groth-Maller 2017}::Setup");
         let pp = generate_random_parameters::<E, Self::Circuit, R>(circuit, rng)?;
         let vk = prepare_verifying_key(&pp.vk);
-        timer_end!(nizk_time);
+        end_timer!(nizk_time);
         Ok((pp, vk))
     }
 
@@ -54,9 +54,9 @@ impl<E: PairingEngine, C: ConstraintSynthesizer<E::Fr>, V: ToConstraintField<E::
         input_and_witness: Self::AssignedCircuit,
         rng: &mut R,
     ) -> Result<Self::Proof, Error> {
-        let proof_time = timer_start!(|| "{Groth-Maller 2017}::Prove");
+        let proof_time = start_timer!(|| "{Groth-Maller 2017}::Prove");
         let result = create_random_proof::<E, _, _>(input_and_witness, pp, rng)?;
-        timer_end!(proof_time);
+        end_timer!(proof_time);
         Ok(result)
     }
 
@@ -65,14 +65,14 @@ impl<E: PairingEngine, C: ConstraintSynthesizer<E::Fr>, V: ToConstraintField<E::
         input: &Self::VerifierInput,
         proof: &Self::Proof,
     ) -> Result<bool, Error> {
-        let verify_time = timer_start!(|| "{Groth-Maller 2017}::Verify");
-        let conversion_time = timer_start!(|| "Convert input to E::Fr");
+        let verify_time = start_timer!(|| "{Groth-Maller 2017}::Verify");
+        let conversion_time = start_timer!(|| "Convert input to E::Fr");
         let input = input.to_field_elements()?;
-        timer_end!(conversion_time);
-        let verification = timer_start!(|| format!("Verify proof w/ input len: {}", input.len()));
+        end_timer!(conversion_time);
+        let verification = start_timer!(|| format!("Verify proof w/ input len: {}", input.len()));
         let result = verify_proof(&vk, proof, &input)?;
-        timer_end!(verification);
-        timer_end!(verify_time);
+        end_timer!(verification);
+        end_timer!(verify_time);
         Ok(result)
     }
 }

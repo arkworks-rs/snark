@@ -13,13 +13,13 @@ impl PRF for Blake2s {
     type Seed = [u8; 32];
 
     fn evaluate(seed: &Self::Seed, input: &Self::Input) -> Result<Self::Output, CryptoError> {
-        let eval_time = timer_start!(|| "Blake2s::Eval");
+        let eval_time = start_timer!(|| "Blake2s::Eval");
         let mut h = b2s::new();
         h.input(seed.as_ref());
         h.input(input.as_ref());
         let mut result = [0u8; 32];
         result.copy_from_slice(&h.result());
-        timer_end!(eval_time);
+        end_timer!(eval_time);
         Ok(result)
     }
 }

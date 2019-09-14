@@ -205,7 +205,7 @@ where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
 {
-    let prover_time = timer_start!(|| "Prover");
+    let prover_time = start_timer!(|| "Prover");
     let mut prover = ProvingAssignment {
         at:               vec![],
         bt:               vec![],
@@ -224,13 +224,13 @@ where
     prover.alloc_input(|| "", || Ok(E::Fr::one()))?;
 
     // Synthesize the circuit.
-    let synthesis_time = timer_start!(|| "Constraint synthesis");
+    let synthesis_time = start_timer!(|| "Constraint synthesis");
     circuit.generate_constraints(&mut prover)?;
-    timer_end!(synthesis_time);
+    end_timer!(synthesis_time);
 
-    let witness_map_time = timer_start!(|| "R1CS to SAP witness map");
+    let witness_map_time = start_timer!(|| "R1CS to SAP witness map");
     let (full_input_assignment, h, _) = R1CStoSAP::witness_map::<E>(&prover, &d1, &d2)?;
-    timer_end!(witness_map_time);
+    end_timer!(witness_map_time);
 
     let input_assignment = Arc::new(
         full_input_assignment[1..prover.num_inputs]
@@ -262,7 +262,7 @@ where
     drop(h);
 
     // Compute A
-    let a_acc_time = timer_start!(|| "Compute A");
+    let a_acc_time = start_timer!(|| "Compute A");
     let (a_inputs_source, a_aux_source) = params.get_a_query(prover.num_inputs)?;
     let a_inputs_acc = VariableBaseMSM::multi_scalar_mul(a_inputs_source, &input_assignment);
     let a_aux_acc = VariableBaseMSM::multi_scalar_mul(a_aux_source, &aux_assignment);
@@ -275,10 +275,10 @@ where
     g_a.add_assign(&d1_g);
     g_a.add_assign(&a_inputs_acc);
     g_a.add_assign(&a_aux_acc);
-    timer_end!(a_acc_time);
+    end_timer!(a_acc_time);
 
     // Compute B
-    let b_acc_time = timer_start!(|| "Compute B");
+    let b_acc_time = start_timer!(|| "Compute B");
 
     let (b_inputs_source, b_aux_source) = params.get_b_query(prover.num_inputs)?;
     let b_inputs_acc = VariableBaseMSM::multi_scalar_mul(b_inputs_source, &input_assignment);
@@ -292,37 +292,37 @@ where
     g_b.add_assign(&d1_h);
     g_b.add_assign(&b_inputs_acc);
     g_b.add_assign(&b_aux_acc);
-    timer_end!(b_acc_time);
+    end_timer!(b_acc_time);
 
     // Compute C
-    let c_acc_time = timer_start!(|| "Compute C");
+    let c_acc_time = start_timer!(|| "Compute C");
     let r_2 = r + &r;
     let r2 = r * &r;
     let d1_r_2 = d1 * &r_2;
 
-    let c1_acc_time = timer_start!(|| "Compute C1");
+    let c1_acc_time = start_timer!(|| "Compute C1");
     let (_, c1_aux_source) = params.get_c_query_1(0)?;
     let c1_acc = VariableBaseMSM::multi_scalar_mul(c1_aux_source, &aux_assignment);
-    timer_end!(c1_acc_time);
+    end_timer!(c1_acc_time);
 
-    let c2_acc_time = timer_start!(|| "Compute C2");
+    let c2_acc_time = start_timer!(|| "Compute C2");
 
     let (c2_inputs_source, c2_aux_source) = params.get_c_query_2(prover.num_inputs)?;
     let c2_inputs_acc = VariableBaseMSM::multi_scalar_mul(c2_inputs_source, &input_assignment);
     let c2_aux_acc = VariableBaseMSM::multi_scalar_mul(c2_aux_source, &aux_assignment);
 
     let c2_acc = c2_inputs_acc + &c2_aux_acc;
-    timer_end!(c2_acc_time);
+    end_timer!(c2_acc_time);
 
     // Compute G
-    let g_acc_time = timer_start!(|| "Compute G");
+    let g_acc_time = start_timer!(|| "Compute G");
 
     let (g_inputs_source, g_aux_source) = params.get_g_gamma2_z_t(prover.num_inputs)?;
     let g_inputs_acc = VariableBaseMSM::multi_scalar_mul(g_inputs_source, &h_input);
     let g_aux_acc = VariableBaseMSM::multi_scalar_mul(g_aux_source, &h_aux);
 
     let g_acc = g_inputs_acc + &g_aux_acc;
-    timer_end!(g_acc_time);
+    end_timer!(g_acc_time);
 
     let r2_g_gamma2_z2 = params.get_g_gamma2_z2()?.mul(r2);
     let r_g_ab_gamma_z = params.get_g_ab_gamma_z()?.mul(r);
@@ -342,9 +342,9 @@ where
     g_c.add_assign(&r_c2_exp);
     g_c.add_assign(&d2_g_gamma2_z_t0);
     g_c.add_assign(&g_acc);
-    timer_end!(c_acc_time);
+    end_timer!(c_acc_time);
 
-    timer_end!(prover_time);
+    end_timer!(prover_time);
 
     Ok(Proof {
         a: g_a.into_affine(),

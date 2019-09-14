@@ -186,7 +186,7 @@ where
     }
 
     fn push(&mut self, transaction: Self::Transaction) -> Result<(), Error> {
-        let push_time = timer_start!(|| "IdealLedger::PushTx");
+        let push_time = start_timer!(|| "IdealLedger::PushTx");
 
         let mut cur_sn_index = self.cur_sn_index;
         for sn in transaction.old_serial_numbers() {
@@ -237,7 +237,7 @@ where
 
         self.transactions.push(transaction);
 
-        timer_end!(push_time);
+        end_timer!(push_time);
         Ok(())
     }
 
@@ -262,7 +262,7 @@ where
     }
 
     fn prove_cm(&self, cm: &Self::Commitment) -> Result<Self::CommWitness, Error> {
-        let witness_time = timer_start!(|| "Generate membership witness");
+        let witness_time = start_timer!(|| "Generate membership witness");
 
         let cm_index = self
             .comm_to_index
@@ -271,7 +271,7 @@ where
 
         let result = CommPath(self.cm_merkle_tree.generate_proof(*cm_index, cm)?);
 
-        timer_end!(witness_time);
+        end_timer!(witness_time);
         Ok(result)
     }
 

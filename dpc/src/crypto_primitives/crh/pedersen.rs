@@ -50,19 +50,19 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for PedersenCRH<G, W> {
     type Parameters = PedersenParameters<G>;
 
     fn setup<R: Rng>(rng: &mut R) -> Result<Self::Parameters, Error> {
-        let time = timer_start!(|| format!(
+        let time = start_timer!(|| format!(
             "PedersenCRH::Setup: {} {}-bit windows; {{0,1}}^{{{}}} -> G",
             W::NUM_WINDOWS,
             W::WINDOW_SIZE,
             W::NUM_WINDOWS * W::WINDOW_SIZE
         ));
         let generators = Self::create_generators(rng);
-        timer_end!(time);
+        end_timer!(time);
         Ok(Self::Parameters { generators })
     }
 
     fn evaluate(parameters: &Self::Parameters, input: &[u8]) -> Result<Self::Output, Error> {
-        let eval_time = timer_start!(|| "PedersenCRH::Eval");
+        let eval_time = start_timer!(|| "PedersenCRH::Eval");
 
         if (input.len() * 8) > W::WINDOW_SIZE * W::NUM_WINDOWS {
             panic!(
@@ -109,7 +109,7 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for PedersenCRH<G, W> {
                 encoded
             })
             .reduce(|| G::zero(), |a, b| a + &b);
-        timer_end!(eval_time);
+        end_timer!(eval_time);
 
         Ok(result)
     }

@@ -19,26 +19,26 @@ pub mod inner {
     }
 
     #[macro_export]
-    macro_rules! timer_start {
+    macro_rules! start_timer {
         ($msg:expr) => {{
             use $crate::{compute_indent, Colorize, NUM_INDENT, PAD_CHAR};
             use std::{sync::atomic::Ordering, time::Instant};
 
-            let result = $msg();
+            let msg = $msg();
             let start_info = "Start:".yellow().bold();
             let indent_amount = 2 * NUM_INDENT.fetch_add(0, Ordering::Relaxed);
             let indent = compute_indent(indent_amount);
 
-            println!("{}{:8} {}", indent, start_info, result);
+            println!("{}{:8} {}", indent, start_info, msg);
             NUM_INDENT.fetch_add(1, Ordering::Relaxed);
-            $crate::TimerInfo { msg: result.to_string(), time: Instant::now() }
+            $crate::TimerInfo { msg: msg.to_string(), time: Instant::now() }
         }};
     }
 
     #[macro_export]
-    macro_rules! timer_end {
+    macro_rules! end_timer {
         ($time:expr) => {{
-            timer_end!($time, || "");
+            end_timer!($time, || "");
         }};
         ($time:expr, $msg:expr) => {{
             use $crate::{compute_indent, Colorize, NUM_INDENT, PAD_CHAR};
@@ -84,6 +84,52 @@ pub mod inner {
         
     }
 
+    #[macro_export]
+    macro_rules! add_to_trace {
+        ($title:expr, $msg:expr) => {{
+            use $crate::{compute_indent_whitespace, Colorize, NUM_INDENT, PAD_CHAR};
+            use std::sync::atomic::Ordering;
+
+            let start_msg = "StartMsg".yellow().bold();
+            let end_msg = "EndMsg".green().bold();
+            let title = $title();
+            let start_msg = format!("{}: {}", start_msg, title);
+            let end_msg = format!("{}: {}", end_msg, title);
+
+            let start_indent_amount = 2 * NUM_INDENT.fetch_add(0, Ordering::Relaxed);
+            let start_indent = compute_indent(start_indent_amount);
+
+            let msg_indent_amount = 2 * NUM_INDENT.fetch_add(0, Ordering::Relaxed) + 2;
+            let msg_indent = compute_indent_whitespace(msg_indent_amount);
+            let mut final_message = "\n".to_string();
+            for line in  $msg().lines() {
+                final_message += &format!(
+                    "{}{}\n",
+                    msg_indent,
+                    line,
+                );
+            }
+
+            // Todo: Recursively ensure that *entire* string is of appropriate
+            // width (not just message).
+            println!("{}{}", start_indent, start_msg);
+            println!(
+                "{}{}",
+                msg_indent,
+                final_message,
+            );
+            println!("{}{}", start_indent, end_msg);
+        }}
+    }
+
+    pub fn compute_indent_whitespace(indent_amount: usize) -> String {
+        let mut indent = String::new();
+        for _ in 0..indent_amount {
+            indent.push_str(" ");
+        }
+        indent
+    }
+
     pub fn compute_indent(indent_amount: usize) -> String {
         use std::env::var;
         let mut indent = String::new();
@@ -110,14 +156,20 @@ mod inner {
     pub struct TimerInfo;
 
     #[macro_export]
-    macro_rules! timer_start {
+    macro_rules! start_timer {
         ($msg:expr) => {
             $crate::TimerInfo
         };
     }
+    #[macro_export]
+    macro_rules! add_to_trace {
+        ($msg:expr) => {
+            let _ = $msg;
+        }
+    }
 
     #[macro_export]
-    macro_rules! timer_end {
+    macro_rules! end_timer {
         ($time:expr, $msg:expr) => {
             let _ = $msg;
             let _ = $time;
@@ -125,5 +177,22 @@ mod inner {
         ($time:expr) => {
             let _ = $time;
         };
+    }
+}
+
+mod tests {
+    use super::*;
+
+    #[test]
+    fn print_start_end() {
+        let start = start_timer!(|| "Hello");
+        end_timer!(start);
+    }
+
+    #[test]
+    fn print_add() {
+        let start = start_timer!(|| "Hello");
+        add_to_trace!(|| "HelloMsg", || "Hello, I\nAm\nA\nMessage");
+        end_timer!(start);
     }
 }

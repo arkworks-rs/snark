@@ -219,7 +219,7 @@ impl<H: FixedLengthCRH, L: ToBytes + Eq + Clone> MerkleHashTree<H, L> {
     }
 
     pub fn new(parameters: Rc<H::Parameters>, leaves: &[L]) -> Result<Self, Error> {
-        let new_time = timer_start!(|| "MHT::New");
+        let new_time = start_timer!(|| "MHT::New");
 
         let last_level_size = leaves.len().next_power_of_two();
         let tree_size = 2 * last_level_size - 1;
@@ -281,7 +281,7 @@ impl<H: FixedLengthCRH, L: ToBytes + Eq + Clone> MerkleHashTree<H, L> {
 
         let root_hash = hash_inner_node::<H>(&parameters, &cur_hash, &empty_hash, &mut buffer)?;
 
-        timer_end!(new_time);
+        end_timer!(new_time);
 
         Ok(MerkleHashTree {
             tree,
@@ -302,7 +302,7 @@ impl<H: FixedLengthCRH, L: ToBytes + Eq + Clone> MerkleHashTree<H, L> {
         index: usize,
         leaf: &L,
     ) -> Result<HashMembershipProof<H, L>, Error> {
-        let prove_time = timer_start!(|| "MHT::GenProof");
+        let prove_time = start_timer!(|| "MHT::GenProof");
         let mut path = Vec::new();
 
         let mut buffer = [0u8; 128];
@@ -341,7 +341,7 @@ impl<H: FixedLengthCRH, L: ToBytes + Eq + Clone> MerkleHashTree<H, L> {
                 path.push((hash.clone(), sibling_hash.clone()));
             }
         }
-        timer_end!(prove_time);
+        end_timer!(prove_time);
         if path.len() != (Self::MAX_HEIGHT - 1) as usize {
             Err(MHTError::IncorrectPathLength(path.len()))?
         } else {

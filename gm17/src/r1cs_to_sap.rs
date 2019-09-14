@@ -23,9 +23,9 @@ impl R1CStoSAP {
         let zt = domain.evaluate_vanishing_polynomial(*t);
 
         // Evaluate all Lagrange polynomials
-        let coefficients_time = timer_start!(|| "Evaluate Lagrange coefficients");
+        let coefficients_time = start_timer!(|| "Evaluate Lagrange coefficients");
         let u = domain.evaluate_all_lagrange_coefficients(*t);
-        timer_end!(coefficients_time);
+        end_timer!(coefficients_time);
 
         let sap_num_variables =
             2 * (assembly.num_inputs - 1) + assembly.num_aux + assembly.num_constraints;

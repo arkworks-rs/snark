@@ -23,9 +23,9 @@ impl<G: Group, I: InjectiveMap<G>, W: PedersenWindow> CommitmentScheme
     type Randomness = PedersenRandomness<G>;
 
     fn setup<R: Rng>(rng: &mut R) -> Result<Self::Parameters, Error> {
-        let time = timer_start!(|| format!("PedersenCompressor::Setup"));
+        let time = start_timer!(|| format!("PedersenCompressor::Setup"));
         let params = PedersenCommitment::<G, W>::setup(rng);
-        timer_end!(time);
+        end_timer!(time);
         params
     }
 
@@ -34,11 +34,11 @@ impl<G: Group, I: InjectiveMap<G>, W: PedersenWindow> CommitmentScheme
         input: &[u8],
         randomness: &Self::Randomness,
     ) -> Result<Self::Output, Error> {
-        let eval_time = timer_start!(|| "PedersenCompressor::Eval");
+        let eval_time = start_timer!(|| "PedersenCompressor::Eval");
         let result = I::injective_map(&PedersenCommitment::<G, W>::commit(
             parameters, input, randomness,
         )?)?;
-        timer_end!(eval_time);
+        end_timer!(eval_time);
         Ok(result)
     }
 }
