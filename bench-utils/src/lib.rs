@@ -163,7 +163,7 @@ mod inner {
     }
     #[macro_export]
     macro_rules! add_to_trace {
-        ($msg:expr) => {
+        ($title:expr, $msg:expr) => {
             let _ = $msg;
         }
     }
