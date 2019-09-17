@@ -370,6 +370,7 @@ impl<P: Fp256Parameters> SquareRootField for Fp256<P> {
     }
 }
 
+impl_prime_field_from_int!(Fp256, u128, Fp256Parameters);
 impl_prime_field_from_int!(Fp256, u64, Fp256Parameters);
 impl_prime_field_from_int!(Fp256, u32, Fp256Parameters);
 impl_prime_field_from_int!(Fp256, u16, Fp256Parameters);

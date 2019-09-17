@@ -442,6 +442,7 @@ impl<P: Fp384Parameters> PartialOrd for Fp384<P> {
     }
 }
 
+impl_prime_field_from_int!(Fp384, u128, Fp384Parameters);
 impl_prime_field_from_int!(Fp384, u64, Fp384Parameters);
 impl_prime_field_from_int!(Fp384, u32, Fp384Parameters);
 impl_prime_field_from_int!(Fp384, u16, Fp384Parameters);

@@ -224,6 +224,12 @@ impl<P: Fp2Parameters> PartialOrd for Fp2<P> {
     }
 }
 
+impl<P: Fp2Parameters> From<u128> for Fp2<P> {
+    fn from(other: u128) -> Self {
+        Self::new(other.into(), P::Fp::zero())
+    }
+}
+
 impl<P: Fp2Parameters> From<u64> for Fp2<P> {
     fn from(other: u64) -> Self {
         Self::new(other.into(), P::Fp::zero())

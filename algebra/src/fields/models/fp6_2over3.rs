@@ -220,6 +220,12 @@ impl<P: Fp6Parameters> PartialOrd for Fp6<P> {
     }
 }
 
+impl<P: Fp6Parameters> From<u128> for Fp6<P> {
+    fn from(other: u128) -> Self {
+        Self::new(other.into(), Fp3::zero())
+    }
+}
+
 impl<P: Fp6Parameters> From<u64> for Fp6<P> {
     fn from(other: u64) -> Self {
         Self::new(other.into(), Fp3::zero())

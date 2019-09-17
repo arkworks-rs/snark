@@ -269,6 +269,13 @@ impl<P: Fp3Parameters> PartialOrd for Fp3<P> {
     }
 }
 
+impl<P: Fp3Parameters> From<u128> for Fp3<P> {
+    fn from(other: u128) -> Self {
+        let fe: P::Fp = other.into();
+        Self::new(fe, P::Fp::zero(), P::Fp::zero())
+    }
+}
+
 impl<P: Fp3Parameters> From<u64> for Fp3<P> {
     fn from(other: u64) -> Self {
         let fe: P::Fp = other.into();
@@ -434,12 +441,6 @@ impl<'a, P: Fp3Parameters> DivAssign<&'a Self> for Fp3<P> {
     #[inline]
     fn div_assign(&mut self, other: &Self) {
         self.mul_assign(&other.inverse().unwrap());
-    }
-}
-
-impl<'a, P: Fp3Parameters> From<&'a [bool]> for Fp3<P> {
-    fn from(_bits: &[bool]) -> Self {
-        unimplemented!()
     }
 }
 

@@ -741,6 +741,7 @@ impl<P: Fp832Parameters> PartialOrd for Fp832<P> {
     }
 }
 
+impl_prime_field_from_int!(Fp832, u128, Fp832Parameters);
 impl_prime_field_from_int!(Fp832, u64, Fp832Parameters);
 impl_prime_field_from_int!(Fp832, u32, Fp832Parameters);
 impl_prime_field_from_int!(Fp832, u16, Fp832Parameters);

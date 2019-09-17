@@ -69,6 +69,7 @@ pub trait Field:
     + Rand
     + Sized
     + Hash
+    + From<u128>
     + From<u64>
     + From<u32>
     + From<u16>

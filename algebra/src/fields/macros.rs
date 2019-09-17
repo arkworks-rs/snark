@@ -9,6 +9,18 @@ macro_rules! impl_field_into_bigint {
 }
 
 macro_rules! impl_prime_field_from_int {
+    ($field: ident, u128, $params: ident) => {
+        impl<P: $params> From<u128> for $field<P> {
+            fn from(other: u128) -> Self {
+                let upper = (other >> 64) as u64;
+                let lower = ((other << 64) >> 64) as u64;
+                let mut default_int = P::BigInt::default();
+                default_int.0[0] = lower;
+                default_int.0[1] = upper;
+                Self::from_repr(default_int)
+            }
+        }
+    };
     ($field: ident, $int: ident, $params: ident) => {
         impl<P: $params> From<$int> for $field<P> {
             fn from(other: $int) -> Self {

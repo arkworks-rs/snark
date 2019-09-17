@@ -408,12 +408,6 @@ impl<'a, P: Fp12Parameters> DivAssign<&'a Self> for Fp12<P> {
     }
 }
 
-impl<'a, P: Fp12Parameters> From<&'a [bool]> for Fp12<P> {
-    fn from(_bits: &[bool]) -> Self {
-        unimplemented!()
-    }
-}
-
 impl<P: Fp12Parameters> Ord for Fp12<P> {
     #[inline(always)]
     fn cmp(&self, other: &Self) -> Ordering {
@@ -430,6 +424,13 @@ impl<P: Fp12Parameters> PartialOrd for Fp12<P> {
     #[inline(always)]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
+    }
+}
+
+
+impl<P: Fp12Parameters> From<u128> for Fp12<P> {
+    fn from(other: u128) -> Self {
+        Self::new(other.into(), Fp6::zero())
     }
 }
 

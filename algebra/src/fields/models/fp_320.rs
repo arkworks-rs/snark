@@ -411,6 +411,7 @@ impl<P: Fp320Parameters> PartialOrd for Fp320<P> {
     }
 }
 
+impl_prime_field_from_int!(Fp320, u128, Fp320Parameters);
 impl_prime_field_from_int!(Fp320, u64, Fp320Parameters);
 impl_prime_field_from_int!(Fp320, u32, Fp320Parameters);
 impl_prime_field_from_int!(Fp320, u16, Fp320Parameters);
