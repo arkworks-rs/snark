@@ -28,4 +28,4 @@ derivative = "1"
 radix_trie = "0.1"
 
 [dev-dependencies]
-rand = { version = "0.4" }
+rand = { version = "0.7" }

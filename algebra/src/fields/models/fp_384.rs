@@ -1,4 +1,3 @@
-use rand::Rand;
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
     fmt::{Display, Formatter, Result as FmtResult},
@@ -12,6 +11,7 @@ use crate::{
     biginteger::{arithmetic as fa, BigInteger as _BigInteger, BigInteger384 as BigInteger},
     bytes::{FromBytes, ToBytes},
     fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
+    Rand,
 };
 
 pub trait Fp384Parameters: FpParameters<BigInt = BigInteger> {}

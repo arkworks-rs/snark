@@ -1,8 +1,9 @@
 use crate::{
     bytes::{FromBytes, ToBytes},
     fields::BitIterator,
+    Rand,
 };
-use rand::{Rand, Rng};
+use rand::Rng;
 use std::{
     fmt::{Debug, Display},
     io::{Read, Result as IoResult, Write},

@@ -1,8 +1,8 @@
 use crate::{
     biginteger::BigInteger,
     bytes::{FromBytes, ToBytes},
+    Rand,
 };
-use rand::Rand;
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
