@@ -12,40 +12,40 @@ mod affine {
     fn schnorr_signature_setup(c: &mut Criterion) {
         c.bench_function("SchnorrEdwardsAffine: Setup", move |b| {
             b.iter(|| {
-                let mut rng = rand::OsRng::new().unwrap();
+                let mut rng = &mut rand::thread_rng();
                 SchnorrEdwards::setup(&mut rng).unwrap()
             })
         });
     }
 
     fn schnorr_signature_keygen(c: &mut Criterion) {
-        let mut rng = rand::OsRng::new().unwrap();
+        let mut rng = &mut rand::thread_rng();
         let parameters = SchnorrEdwards::setup(&mut rng).unwrap();
 
         c.bench_function("SchnorrEdwardsAffine: KeyGen", move |b| {
             b.iter(|| {
-                let mut rng = rand::OsRng::new().unwrap();
+                let mut rng = &mut rand::thread_rng();
                 SchnorrEdwards::keygen(&parameters, &mut rng).unwrap()
             })
         });
     }
 
     fn schnorr_signature_sign(c: &mut Criterion) {
-        let mut rng = rand::OsRng::new().unwrap();
+        let mut rng = &mut rand::thread_rng();
         let parameters = SchnorrEdwards::setup(&mut rng).unwrap();
         let (_, sk) = SchnorrEdwards::keygen(&parameters, &mut rng).unwrap();
         let message = [100u8; 128];
 
         c.bench_function("SchnorrEdwardsAffine: Sign", move |b| {
             b.iter(|| {
-                let mut rng = rand::OsRng::new().unwrap();
+                let mut rng = &mut rand::thread_rng();
                 SchnorrEdwards::sign(&parameters, &sk, &message, &mut rng).unwrap()
             })
         });
     }
 
     fn schnorr_signature_verify(c: &mut Criterion) {
-        let mut rng = rand::OsRng::new().unwrap();
+        let mut rng = &mut rand::thread_rng();
         let parameters = SchnorrEdwards::setup(&mut rng).unwrap();
         let (pk, sk) = SchnorrEdwards::keygen(&parameters, &mut rng).unwrap();
         let message = [100u8; 128];
@@ -57,7 +57,7 @@ mod affine {
     }
 
     fn schnorr_signature_randomize_pk(c: &mut Criterion) {
-        let mut rng = rand::OsRng::new().unwrap();
+        let mut rng = &mut rand::thread_rng();
         let parameters = SchnorrEdwards::setup(&mut rng).unwrap();
         let (pk, _) = SchnorrEdwards::keygen(&parameters, &mut rng).unwrap();
         let randomness: [u8; 32] = rng.gen();
@@ -68,7 +68,7 @@ mod affine {
     }
 
     fn schnorr_signature_randomize_signature(c: &mut Criterion) {
-        let mut rng = rand::OsRng::new().unwrap();
+        let mut rng = &mut rand::thread_rng();
         let parameters = SchnorrEdwards::setup(&mut rng).unwrap();
         let (_, sk) = SchnorrEdwards::keygen(&parameters, &mut rng).unwrap();
         let randomness: [u8; 32] = rng.gen();
@@ -100,40 +100,40 @@ mod projective {
     fn schnorr_signature_setup(c: &mut Criterion) {
         c.bench_function("SchnorrEdwardsProjective: Setup", move |b| {
             b.iter(|| {
-                let mut rng = rand::OsRng::new().unwrap();
+                let mut rng = &mut rand::thread_rng();
                 SchnorrEdwards::setup(&mut rng).unwrap()
             })
         });
     }
 
     fn schnorr_signature_keygen(c: &mut Criterion) {
-        let mut rng = rand::OsRng::new().unwrap();
+        let mut rng = &mut rand::thread_rng();
         let parameters = SchnorrEdwards::setup(&mut rng).unwrap();
 
         c.bench_function("SchnorrEdwardsProjective: KeyGen", move |b| {
             b.iter(|| {
-                let mut rng = rand::OsRng::new().unwrap();
+                let mut rng = &mut rand::thread_rng();
                 SchnorrEdwards::keygen(&parameters, &mut rng).unwrap()
             })
         });
     }
 
     fn schnorr_signature_sign(c: &mut Criterion) {
-        let mut rng = rand::OsRng::new().unwrap();
+        let mut rng = &mut rand::thread_rng();
         let parameters = SchnorrEdwards::setup(&mut rng).unwrap();
         let (_, sk) = SchnorrEdwards::keygen(&parameters, &mut rng).unwrap();
         let message = [100u8; 128];
 
         c.bench_function("SchnorrEdwardsProjective: Sign", move |b| {
             b.iter(|| {
-                let mut rng = rand::OsRng::new().unwrap();
+                let mut rng = &mut rand::thread_rng();
                 SchnorrEdwards::sign(&parameters, &sk, &message, &mut rng).unwrap()
             })
         });
     }
 
     fn schnorr_signature_verify(c: &mut Criterion) {
-        let mut rng = rand::OsRng::new().unwrap();
+        let mut rng = &mut rand::thread_rng();
         let parameters = SchnorrEdwards::setup(&mut rng).unwrap();
         let (pk, sk) = SchnorrEdwards::keygen(&parameters, &mut rng).unwrap();
         let message = [100u8; 128];
@@ -145,7 +145,7 @@ mod projective {
     }
 
     fn schnorr_signature_randomize_pk(c: &mut Criterion) {
-        let mut rng = rand::OsRng::new().unwrap();
+        let mut rng = &mut rand::thread_rng();
         let parameters = SchnorrEdwards::setup(&mut rng).unwrap();
         let (pk, _) = SchnorrEdwards::keygen(&parameters, &mut rng).unwrap();
         let randomness: [u8; 32] = rng.gen();
@@ -156,7 +156,7 @@ mod projective {
     }
 
     fn schnorr_signature_randomize_signature(c: &mut Criterion) {
-        let mut rng = rand::OsRng::new().unwrap();
+        let mut rng = &mut rand::thread_rng();
         let parameters = SchnorrEdwards::setup(&mut rng).unwrap();
         let (_, sk) = SchnorrEdwards::keygen(&parameters, &mut rng).unwrap();
         let randomness: [u8; 32] = rng.gen();

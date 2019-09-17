@@ -8,7 +8,7 @@ use dpc::crypto_primitives::prf::*;
 use rand::Rng;
 
 fn blake2s_prf_eval(c: &mut Criterion) {
-    let mut rng = rand::OsRng::new().unwrap();
+    let mut rng = &mut rand::thread_rng();
     let input: [u8; 32] = rng.gen();
     let seed: [u8; 32] = rng.gen();
     c.bench_function("Blake2s PRF Eval", move |b| {
