@@ -1,4 +1,4 @@
-use rand::Rand;
+use crate::Rand;
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
     fmt::{Display, Formatter, Result as FmtResult},

@@ -3,7 +3,7 @@ use crate::{
     fields::{Field, PrimeField, SquareRootField},
     groups::Group,
 };
-use rand::Rand;
+use crate::Rand;
 use std::{
     fmt::{Debug, Display},
     hash::Hash,

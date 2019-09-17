@@ -77,7 +77,7 @@ fn test_bilinearity() {
 #[test]
 fn test_product_of_pairings() {
     use crate::curves::{ProjectiveCurve, PairingCurve};
-    use rand::Rand;
+    use crate::Rand;
     let rng = &mut rand::thread_rng();
 
     let a = G1Projective::rand(rng).into_affine();

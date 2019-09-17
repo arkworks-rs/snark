@@ -1,5 +1,6 @@
 use crate::curves::models::SWModelParameters as Parameters;
-use rand::{Rand, Rng};
+use crate::Rand;
+use rand::Rng ;
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
     io::{Read, Result as IoResult, Write},

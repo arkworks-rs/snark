@@ -1,5 +1,5 @@
 use crate::BitIterator;
-use rand::Rand;
+use crate::Rand;
 use std::{
     fmt::{Debug, Display},
     hash::Hash,

@@ -1,4 +1,5 @@
-use rand::{Rand, Rng};
+use crate::Rand;
+use rand::Rng ;
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
     io::{Read, Result as IoResult, Write},
