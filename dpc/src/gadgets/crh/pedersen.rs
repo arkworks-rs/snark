@@ -139,9 +139,9 @@ mod test {
         const NUM_WINDOWS: usize = 8;
     }
 
-    fn generate_input<CS: ConstraintSystem<Fr>>(
+    fn generate_input<CS: ConstraintSystem<Fr>, R: Rng>(
         mut cs: CS,
-        rng: &mut dyn Rng,
+        rng: &mut R,
     ) -> ([u8; 128], Vec<UInt8>) {
         let mut input = [1u8; 128];
         rng.fill_bytes(&mut input);

@@ -1,5 +1,6 @@
 use crate::curves::models::SWModelParameters as Parameters;
-use rand::{Rand, Rng};
+use rand::{Rng, distributions::{Standard, Distribution}};
+use crate::UniformRand;
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
     io::{Read, Result as IoResult, Write},
@@ -230,13 +231,17 @@ impl<P: Parameters> PartialEq for GroupProjective<P> {
     }
 }
 
-impl<P: Parameters> Rand for GroupProjective<P> {
-    fn rand<R: Rng>(rng: &mut R) -> Self {
-        let res = Self::prime_subgroup_generator() * &P::ScalarField::rand(rng);
+
+impl<P: Parameters> Distribution<GroupProjective<P>> for Standard {
+    #[inline]
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> GroupProjective<P> {
+        let res = GroupProjective::prime_subgroup_generator() * &P::ScalarField::rand(rng);
         debug_assert!(res.into_affine().is_in_correct_subgroup_assuming_on_curve());
         res
     }
 }
+
+
 
 impl<P: Parameters> ToBytes for GroupProjective<P> {
     #[inline]

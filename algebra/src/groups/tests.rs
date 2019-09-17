@@ -1,9 +1,11 @@
 use super::Group;
 use crate::fields::Field;
-use rand::{Rand, SeedableRng, XorShiftRng};
+use crate::UniformRand;
+use rand::SeedableRng;
+use rand_xorshift::XorShiftRng;
 
 pub fn group_test<G: Group>(a: G, mut b: G) {
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
     let zero = G::zero();
     let fr_zero = G::ScalarField::zero();
     let fr_one = G::ScalarField::one();

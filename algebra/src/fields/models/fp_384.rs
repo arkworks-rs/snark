@@ -1,4 +1,3 @@
-use rand::Rand;
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
     fmt::{Display, Formatter, Result as FmtResult},
@@ -448,6 +447,8 @@ impl_prime_field_from_int!(Fp384, u32, Fp384Parameters);
 impl_prime_field_from_int!(Fp384, u16, Fp384Parameters);
 impl_prime_field_from_int!(Fp384, u8, Fp384Parameters);
 
+impl_prime_field_standard_sample!(Fp384, Fp384Parameters);
+
 impl<P: Fp384Parameters> ToBytes for Fp384<P> {
     #[inline]
     fn write<W: Write>(&self, writer: W) -> IoResult<()> {
@@ -531,22 +532,6 @@ impl<P: Fp384Parameters> Neg for Fp384<P> {
             Fp384::<P>(tmp, PhantomData)
         } else {
             self
-        }
-    }
-}
-
-impl<P: Fp384Parameters> Rand for Fp384<P> {
-    #[inline]
-    fn rand<R: ::rand::Rng>(rng: &mut R) -> Self {
-        loop {
-            let mut tmp = Fp384::<P>(BigInteger::rand(rng), PhantomData);
-
-            // Mask away the unused bits at the beginning.
-            tmp.0.as_mut()[5] &= 0xffffffffffffffff >> P::REPR_SHAVE_BITS;
-
-            if tmp.is_valid() {
-                return tmp;
-            }
         }
     }
 }

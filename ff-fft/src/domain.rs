@@ -52,9 +52,9 @@ impl<F: PrimeField> EvaluationDomain<F> {
 
     /// Sample an element that is *not* in the domain.
     pub fn sample_element_outside_domain<R: Rng>(&self, rng: &mut R) -> F {
-        let mut t = rng.gen();
+        let mut t = F::rand(rng);
         while self.evaluate_vanishing_polynomial(t).is_zero() {
-            t = rng.gen();
+            t = F::rand(rng);
         }
         t
     }

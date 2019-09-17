@@ -1,4 +1,5 @@
-use rand::{Rand, Rng};
+use rand::{Rng, distributions::{Standard, Distribution}};
+use crate::UniformRand;
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
     io::{Read, Result as IoResult, Write},
@@ -223,13 +224,14 @@ impl<P: Parameters> Default for GroupAffine<P> {
     }
 }
 
-impl<P: Parameters> Rand for GroupAffine<P> {
-    fn rand<R: Rng>(rng: &mut R) -> Self {
+impl<P: Parameters> Distribution<GroupAffine<P>> for Standard {
+    #[inline]
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> GroupAffine<P> {
         loop {
-            let x = rng.gen();
+            let x = P::BaseField::rand(rng);
             let greatest = rng.gen();
 
-            if let Some(p) = Self::get_point_from_x(x, greatest) {
+            if let Some(p) = GroupAffine::get_point_from_x(x, greatest) {
                 return p.scale_by_cofactor().into();
             }
         }
@@ -308,10 +310,11 @@ impl<P: Parameters> PartialEq for GroupProjective<P> {
     }
 }
 
-impl<P: Parameters> Rand for GroupProjective<P> {
-    fn rand<R: Rng>(rng: &mut R) -> Self {
+impl<P: Parameters> Distribution<GroupProjective<P>> for Standard {
+    #[inline]
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> GroupProjective<P> {
         loop {
-            let x = rng.gen();
+            let x = P::BaseField::rand(rng);
             let greatest = rng.gen();
 
             if let Some(p) = GroupAffine::get_point_from_x(x, greatest) {

@@ -340,12 +340,13 @@ mod test {
     use super::UInt32;
     use crate::{bits::boolean::Boolean, test_constraint_system::TestConstraintSystem};
     use algebra::fields::{bls12_381::Fr, Field};
-    use rand::{Rng, SeedableRng, XorShiftRng};
+    use rand::{Rng, SeedableRng};
+    use rand_xorshift::XorShiftRng;
     use r1cs_core::ConstraintSystem;
 
     #[test]
     fn test_uint32_from_bits() {
-        let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0653]);
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         for _ in 0..1000 {
             let v = (0..32)
@@ -377,7 +378,7 @@ mod test {
 
     #[test]
     fn test_uint32_xor() {
-        let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0653]);
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         for _ in 0..1000 {
             let mut cs = TestConstraintSystem::<Fr>::new();
@@ -419,7 +420,7 @@ mod test {
 
     #[test]
     fn test_uint32_addmany_constants() {
-        let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         for _ in 0..1000 {
             let mut cs = TestConstraintSystem::<Fr>::new();
@@ -454,7 +455,7 @@ mod test {
 
     #[test]
     fn test_uint32_addmany() {
-        let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         for _ in 0..1000 {
             let mut cs = TestConstraintSystem::<Fr>::new();
@@ -505,7 +506,7 @@ mod test {
 
     #[test]
     fn test_uint32_rotr() {
-        let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         let mut num = rng.gen();
 

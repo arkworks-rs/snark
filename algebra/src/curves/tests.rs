@@ -2,12 +2,14 @@ use crate::{
     curves::{AffineCurve, ProjectiveCurve},
     fields::{Field, PrimeField},
 };
-use rand::{Rand, SeedableRng, XorShiftRng};
+use crate::UniformRand;
+use rand::SeedableRng;
+use rand_xorshift::XorShiftRng;
 
 pub const ITERATIONS: usize = 10;
 
 fn random_addition_test<G: ProjectiveCurve>() {
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     for _ in 0..ITERATIONS {
         let a = G::rand(&mut rng);
@@ -86,7 +88,7 @@ fn random_addition_test<G: ProjectiveCurve>() {
 }
 
 fn random_multiplication_test<G: ProjectiveCurve>() {
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     for _ in 0..ITERATIONS {
         let mut a = G::rand(&mut rng);
@@ -118,7 +120,7 @@ fn random_multiplication_test<G: ProjectiveCurve>() {
 }
 
 fn random_doubling_test<G: ProjectiveCurve>() {
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     for _ in 0..ITERATIONS {
         let mut a = G::rand(&mut rng);
@@ -145,7 +147,7 @@ fn random_doubling_test<G: ProjectiveCurve>() {
 }
 
 fn random_negation_test<G: ProjectiveCurve>() {
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     for _ in 0..ITERATIONS {
         let r = G::rand(&mut rng);
@@ -175,7 +177,7 @@ fn random_negation_test<G: ProjectiveCurve>() {
 }
 
 fn random_transformation_test<G: ProjectiveCurve>() {
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     for _ in 0..ITERATIONS {
         let g = G::rand(&mut rng);
@@ -194,14 +196,14 @@ fn random_transformation_test<G: ProjectiveCurve>() {
             assert!(!i.is_normalized());
         }
 
-        use rand::distributions::{IndependentSample, Range};
-        let between = Range::new(0, ITERATIONS);
+        use rand::distributions::{Distribution, Uniform};
+        let between = Uniform::from(0..ITERATIONS);
         // Sprinkle in some normalized points
         for _ in 0..5 {
-            v[between.ind_sample(&mut rng)] = G::zero();
+            v[between.sample(&mut rng)] = G::zero();
         }
         for _ in 0..5 {
-            let s = between.ind_sample(&mut rng);
+            let s = between.sample(&mut rng);
             v[s] = v[s].into_affine().into_projective();
         }
 
@@ -220,7 +222,7 @@ fn random_transformation_test<G: ProjectiveCurve>() {
 }
 
 pub fn curve_tests<G: ProjectiveCurve>() {
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     // Negation edge case with zero.
     {

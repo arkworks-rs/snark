@@ -1,5 +1,5 @@
 use crate::BitIterator;
-use rand::Rand;
+use crate::UniformRand;
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
@@ -28,7 +28,7 @@ pub trait Group:
     + Eq
     + Hash
     + Neg<Output = Self>
-    + Rand
+    + UniformRand
     + for<'a> Add<&'a Self, Output = Self>
     + for<'a> Sub<&'a Self, Output = Self>
     + for<'a> AddAssign<&'a Self>

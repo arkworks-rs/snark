@@ -20,6 +20,6 @@ license = "MIT/Apache-2.0"
 edition = "2018"
 
 [dependencies]
-rand = { version = "0.4" }
+rand = { version = "0.7" }
 algebra = { path = "../algebra", features = [ "parallel" ] }
 rayon = { version = "1" }

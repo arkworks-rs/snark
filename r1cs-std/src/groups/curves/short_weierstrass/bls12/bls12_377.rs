@@ -96,8 +96,10 @@ mod test {
 
     #[test]
     fn bls12_g1_gadget_test() {
-        use rand::{Rand, SeedableRng, XorShiftRng};
-        let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+        use algebra::UniformRand;
+        use rand::SeedableRng;
+        use rand_xorshift::XorShiftRng;
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         let mut cs = TestConstraintSystem::<Fq>::new();
 

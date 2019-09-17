@@ -194,11 +194,13 @@ impl Fp6Parameters for Fq6Parameters {
 mod test {
     use super::*;
     use crate::fields::Field;
-    use rand::{Rand, SeedableRng, XorShiftRng};
+    use crate::UniformRand;
+use rand::SeedableRng;
+use rand_xorshift::XorShiftRng;
 
     #[test]
     fn test_fq2_mul_nonresidue() {
-        let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         let nqr = Fq2::new(Fq::zero(), Fq::one());
         println!("One: {:?}", Fq::one());

@@ -315,7 +315,9 @@ mod test {
         fields::jubjub::fq::Fq,
         Group
     };
-    use rand::{ChaChaRng, Rand, SeedableRng};
+    use rand::SeedableRng;
+    use algebra::UniformRand;
+    use rand_xorshift::XorShiftRng;
     use r1cs_core::ConstraintSystem;
 
     use super::*;
@@ -347,11 +349,7 @@ mod test {
     type LCWG = CommitmentWitness<H, C, HG, Fq>;
 
     fn generate_merkle_tree(leaves: &[<C as CommitmentScheme>::Output]) -> () {
-        let seed: [u32; 8] = [
-            2053759276, 152413135, 1690980041, 4293109333, 2390175708, 686052238, 1844363894,
-            1379683288,
-        ];
-        let mut rng = ChaChaRng::from_seed(&seed);
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         let crh_parameters = Rc::new(H::setup(&mut rng).unwrap());
         let tree = JubJubMHT::new(crh_parameters.clone(), &leaves).unwrap();
@@ -432,11 +430,7 @@ mod test {
     #[test]
     fn mht_gadget_test() {
         let mut leaves = Vec::new();
-        let seed: [u32; 8] = [
-            2053759276, 152413135, 1690980041, 4293109333, 2390175708, 686052238, 1844363894,
-            1379683288,
-        ];
-        let mut rng = ChaChaRng::from_seed(&seed);
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
         let comm_parameters = C::setup(&mut rng).unwrap();
         for i in 0..4u8 {
             let r = PedersenRandomness(Fr::rand(&mut rng));
@@ -452,11 +446,7 @@ mod test {
     }
 
     fn bad_merkle_tree_verify(leaves: &[<C as CommitmentScheme>::Output]) -> () {
-        let seed: [u32; 8] = [
-            2053759276, 152413135, 1690980041, 4293109333, 2390175708, 686052238, 1844363894,
-            1379683288,
-        ];
-        let mut rng = ChaChaRng::from_seed(&seed);
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         let crh_parameters = Rc::new(H::setup(&mut rng).unwrap());
         let tree = JubJubMHT::new(crh_parameters.clone(), &leaves).unwrap();
@@ -510,11 +500,7 @@ mod test {
     #[test]
     fn bad_root_test() {
         let mut leaves = Vec::new();
-        let seed: [u32; 8] = [
-            2053759276, 152413135, 1690980041, 4293109333, 2390175708, 686052238, 1844363894,
-            1379683288,
-        ];
-        let mut rng = ChaChaRng::from_seed(&seed);
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
         let comm_parameters = C::setup(&mut rng).unwrap();
         for i in 0..4u8 {
             let r = PedersenRandomness(Fr::rand(&mut rng));

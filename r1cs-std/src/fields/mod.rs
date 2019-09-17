@@ -213,10 +213,11 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
 
 #[cfg(test)]
 mod test {
-    use rand::{self, thread_rng, Rand, SeedableRng, XorShiftRng};
+    use rand::{self, thread_rng, SeedableRng};
+    use rand_xorshift::XorShiftRng;
 
     use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
-    use algebra::{fields::Field, BitIterator};
+    use algebra::{UniformRand, Field, BitIterator};
     use r1cs_core::ConstraintSystem;
 
     fn field_test<FE: Field, ConstraintF: Field, F: FieldGadget<FE, ConstraintF>, CS: ConstraintSystem<ConstraintF>>(
@@ -388,7 +389,7 @@ mod test {
         // a * a * a = a^3
         let mut constants = [FE::zero(); 4];
         for c in &mut constants {
-            *c = rand::random();
+            *c = UniformRand::rand(&mut thread_rng());
             println!("Current c[i]: {:?}", c);
         }
         let bits = [Boolean::constant(false), Boolean::constant(true)];
@@ -396,7 +397,7 @@ mod test {
             F::two_bit_lookup(cs.ns(|| "Lookup"), &bits, constants.as_ref()).unwrap();
         assert_eq!(lookup_result.get_value().unwrap(), constants[2]);
 
-        let negone: FE = rand::random();
+        let negone: FE = UniformRand::rand(&mut thread_rng());
 
         let n = F::alloc(&mut cs.ns(|| "alloc new var"), || Ok(negone)).unwrap();
         let _ = n.to_bytes(&mut cs.ns(|| "ToBytes")).unwrap();
@@ -412,7 +413,7 @@ mod test {
         mut cs: CS,
         maxpower: usize,
     ) {
-        let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
         for i in 0..(maxpower + 1) {
             let mut a = FE::rand(&mut rng);
             let mut a_gadget = F::alloc(cs.ns(|| format!("a_gadget_{:?}", i)), || Ok(a)).unwrap();
@@ -432,7 +433,7 @@ mod test {
 
         let mut cs = TestConstraintSystem::<Fq>::new();
 
-        let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0653]);
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         let a = FqGadget::alloc(&mut cs.ns(|| "generate_a"), || Ok(Fq::rand(&mut rng))).unwrap();
         let b = FqGadget::alloc(&mut cs.ns(|| "generate_b"), || Ok(Fq::rand(&mut rng))).unwrap();

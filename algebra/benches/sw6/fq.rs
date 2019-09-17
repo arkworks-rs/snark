@@ -1,4 +1,6 @@
-use rand::{Rand, SeedableRng, XorShiftRng};
+use algebra::UniformRand;
+use rand::SeedableRng;
+use rand_xorshift::XorShiftRng;
 
 use algebra::{
     biginteger::BigInteger832 as FqRepr, fields::sw6::fq::Fq, BigInteger, Field, PrimeField,
@@ -10,7 +12,7 @@ use std::ops::{AddAssign, MulAssign, SubAssign};
 fn bench_fq_repr_add_nocarry(b: &mut ::test::Bencher) {
     const SAMPLES: usize = 1000;
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     let v: Vec<(FqRepr, FqRepr)> = (0..SAMPLES)
         .map(|_| {
@@ -38,7 +40,7 @@ fn bench_fq_repr_add_nocarry(b: &mut ::test::Bencher) {
 fn bench_fq_repr_sub_noborrow(b: &mut ::test::Bencher) {
     const SAMPLES: usize = 1000;
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     let v: Vec<(FqRepr, FqRepr)> = (0..SAMPLES)
         .map(|_| {
@@ -65,7 +67,7 @@ fn bench_fq_repr_sub_noborrow(b: &mut ::test::Bencher) {
 fn bench_fq_repr_num_bits(b: &mut ::test::Bencher) {
     const SAMPLES: usize = 1000;
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     let v: Vec<FqRepr> = (0..SAMPLES).map(|_| FqRepr::rand(&mut rng)).collect();
 
@@ -81,7 +83,7 @@ fn bench_fq_repr_num_bits(b: &mut ::test::Bencher) {
 fn bench_fq_repr_mul2(b: &mut ::test::Bencher) {
     const SAMPLES: usize = 1000;
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     let v: Vec<FqRepr> = (0..SAMPLES).map(|_| FqRepr::rand(&mut rng)).collect();
 
@@ -98,7 +100,7 @@ fn bench_fq_repr_mul2(b: &mut ::test::Bencher) {
 fn bench_fq_repr_div2(b: &mut ::test::Bencher) {
     const SAMPLES: usize = 1000;
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     let v: Vec<FqRepr> = (0..SAMPLES).map(|_| FqRepr::rand(&mut rng)).collect();
 
@@ -115,7 +117,7 @@ fn bench_fq_repr_div2(b: &mut ::test::Bencher) {
 fn bench_fq_add_assign(b: &mut ::test::Bencher) {
     const SAMPLES: usize = 1000;
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     let v: Vec<(Fq, Fq)> = (0..SAMPLES)
         .map(|_| (Fq::rand(&mut rng), Fq::rand(&mut rng)))
@@ -134,7 +136,7 @@ fn bench_fq_add_assign(b: &mut ::test::Bencher) {
 fn bench_fq_sub_assign(b: &mut ::test::Bencher) {
     const SAMPLES: usize = 1000;
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     let v: Vec<(Fq, Fq)> = (0..SAMPLES)
         .map(|_| (Fq::rand(&mut rng), Fq::rand(&mut rng)))
@@ -153,7 +155,7 @@ fn bench_fq_sub_assign(b: &mut ::test::Bencher) {
 fn bench_fq_mul_assign(b: &mut ::test::Bencher) {
     const SAMPLES: usize = 1000;
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     let v: Vec<(Fq, Fq)> = (0..SAMPLES)
         .map(|_| (Fq::rand(&mut rng), Fq::rand(&mut rng)))
@@ -172,7 +174,7 @@ fn bench_fq_mul_assign(b: &mut ::test::Bencher) {
 fn bench_fq_double(b: &mut ::test::Bencher) {
     const SAMPLES: usize = 1000;
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     let v: Vec<Fq> = (0..SAMPLES).map(|_| Fq::rand(&mut rng)).collect();
 
@@ -189,7 +191,7 @@ fn bench_fq_double(b: &mut ::test::Bencher) {
 fn bench_fq_square(b: &mut ::test::Bencher) {
     const SAMPLES: usize = 1000;
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     let v: Vec<Fq> = (0..SAMPLES).map(|_| Fq::rand(&mut rng)).collect();
 
@@ -206,7 +208,7 @@ fn bench_fq_square(b: &mut ::test::Bencher) {
 fn bench_fq_inverse(b: &mut ::test::Bencher) {
     const SAMPLES: usize = 1000;
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     let v: Vec<Fq> = (0..SAMPLES).map(|_| Fq::rand(&mut rng)).collect();
 
@@ -221,7 +223,7 @@ fn bench_fq_inverse(b: &mut ::test::Bencher) {
 fn bench_fq_negate(b: &mut ::test::Bencher) {
     const SAMPLES: usize = 1000;
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     let v: Vec<Fq> = (0..SAMPLES).map(|_| Fq::rand(&mut rng)).collect();
 
@@ -238,7 +240,7 @@ fn bench_fq_negate(b: &mut ::test::Bencher) {
 fn bench_fq_sqrt(b: &mut ::test::Bencher) {
     const SAMPLES: usize = 1000;
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     let v: Vec<Fq> = (0..SAMPLES)
         .map(|_| {
@@ -259,7 +261,7 @@ fn bench_fq_sqrt(b: &mut ::test::Bencher) {
 fn bench_fq_into_repr(b: &mut ::test::Bencher) {
     const SAMPLES: usize = 1000;
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     let v: Vec<Fq> = (0..SAMPLES).map(|_| Fq::rand(&mut rng)).collect();
 
@@ -274,7 +276,7 @@ fn bench_fq_into_repr(b: &mut ::test::Bencher) {
 fn bench_fq_from_repr(b: &mut ::test::Bencher) {
     const SAMPLES: usize = 1000;
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     let v: Vec<FqRepr> = (0..SAMPLES)
         .map(|_| Fq::rand(&mut rng).into_repr())

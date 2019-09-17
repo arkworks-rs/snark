@@ -1,8 +1,9 @@
 use crate::{
     bytes::{FromBytes, ToBytes},
     fields::BitIterator,
+    UniformRand,
 };
-use rand::{Rand, Rng};
+use rand::{Rng, distributions::{Distribution, Standard}};
 use std::{
     fmt::{Debug, Display},
     io::{Read, Result as IoResult, Write},
@@ -38,7 +39,7 @@ pub trait BigInteger:
     + Sized
     + Sync
     + 'static
-    + Rand
+    + UniformRand
     + AsMut<[u64]>
     + AsRef<[u64]>
     + From<u64>

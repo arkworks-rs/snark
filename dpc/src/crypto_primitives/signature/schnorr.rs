@@ -7,7 +7,8 @@ use algebra::{
 };
 use digest::Digest;
 use crate::Error;
-use rand::{Rand, Rng};
+use algebra::UniformRand;
+use rand::Rng;
 use std::{
     hash::Hash,
     io::{Result as IoResult, Write},

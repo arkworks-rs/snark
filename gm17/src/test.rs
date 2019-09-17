@@ -35,8 +35,8 @@ mod bls12_377 {
         create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
     };
 
-    use algebra::{curves::bls12_377::Bls12_377, fields::bls12_377::Fr};
-    use rand::{thread_rng, Rand};
+    use algebra::{UniformRand, curves::bls12_377::Bls12_377, fields::bls12_377::Fr};
+    use rand::thread_rng;
     use std::ops::MulAssign;
 
     #[test]
@@ -77,9 +77,9 @@ mod sw6 {
         create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
     };
 
-    use rand::{thread_rng, Rand};
+    use rand::thread_rng;
 
-    use algebra::{curves::sw6::SW6, fields::sw6::Fr as SW6Fr, Field};
+    use algebra::{UniformRand, curves::sw6::SW6, fields::sw6::Fr as SW6Fr, Field};
 
     #[test]
     fn prove_and_verify() {

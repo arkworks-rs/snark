@@ -1,8 +1,8 @@
 use crate::{
     biginteger::BigInteger,
     bytes::{FromBytes, ToBytes},
+    UniformRand,
 };
-use rand::Rand;
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
@@ -66,7 +66,7 @@ pub trait Field:
     + Eq
     + Ord
     + Neg<Output = Self>
-    + Rand
+    + UniformRand
     + Sized
     + Hash
     + From<u128>

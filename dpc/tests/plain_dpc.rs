@@ -1,5 +1,6 @@
 use algebra::{to_bytes, ToBytes};
-use rand::{SeedableRng, XorShiftRng};
+use rand::SeedableRng;
+use rand_xorshift::XorShiftRng;
 #[cfg(debug_assertions)]
 use gm17::PreparedVerifyingKey;
 
@@ -16,7 +17,7 @@ use dpc::ledger::Ledger;
 
 #[test]
 fn integration_test() {
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(23472342u64);
     // Generate parameters for the ledger, commitment schemes, CRH, and the
     // "always-accept" predicate.
     let ledger_parameters = MerkleTreeIdealLedger::setup(&mut rng).expect("Ledger setup failed");
@@ -108,7 +109,7 @@ fn integration_test() {
     let memo = [4u8; 32];
 
     let old_death_vk_and_proof_generator = |local_data: &LocalData<Components>| {
-        let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+        let mut rng = XorShiftRng::seed_from_u64(23472342u64);
         let mut old_proof_and_vk = vec![];
         for i in 0..NUM_INPUT_RECORDS {
             let proof = PredicateNIZK::prove(
@@ -143,7 +144,7 @@ fn integration_test() {
         old_proof_and_vk
     };
     let new_birth_vk_and_proof_generator = |local_data: &LocalData<Components>| {
-        let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+        let mut rng = XorShiftRng::seed_from_u64(23472342u64);
         let mut new_proof_and_vk = vec![];
         for i in 0..NUM_OUTPUT_RECORDS {
             let proof = PredicateNIZK::prove(

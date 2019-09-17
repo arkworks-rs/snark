@@ -360,7 +360,8 @@ mod test {
         mht::*,
     };
     use algebra::curves::jubjub::JubJubAffine as JubJub;
-    use rand::{ChaChaRng, SeedableRng};
+    use rand::SeedableRng;
+    use rand_xorshift::XorShiftRng;
 
     #[derive(Clone)]
     pub(super) struct Window4x256;
@@ -373,11 +374,7 @@ mod test {
     type JubJubMHT<L> = MerkleHashTree<H, L>;
 
     fn generate_merkle_tree<L: ToBytes + Clone + Eq>(leaves: &[L]) -> () {
-        let seed: [u32; 8] = [
-            2053759276, 152413135, 1690980041, 4293109333, 2390175708, 686052238, 1844363894,
-            1379683288,
-        ];
-        let mut rng = ChaChaRng::from_seed(&seed);
+        let mut rng = XorShiftRng::seed_from_u64(9174123u64);
 
         let crh_parameters = Rc::new(H::setup(&mut rng).unwrap());
         let tree = JubJubMHT::<L>::new(crh_parameters.clone(), &leaves).unwrap();
@@ -404,11 +401,7 @@ mod test {
 
     fn bad_merkle_tree_verify<L: ToBytes + Clone + Eq>(leaves: &[L]) -> () {
         use algebra::groups::Group;
-        let seed: [u32; 8] = [
-            2053759276, 152413135, 1690980041, 4293109333, 2390175708, 686052238, 1844363894,
-            1379683288,
-        ];
-        let mut rng = ChaChaRng::from_seed(&seed);
+        let mut rng = XorShiftRng::seed_from_u64(13423423u64);
 
         let crh_parameters = Rc::new(H::setup(&mut rng).unwrap());
         let tree = JubJubMHT::<L>::new(crh_parameters.clone(), &leaves).unwrap();

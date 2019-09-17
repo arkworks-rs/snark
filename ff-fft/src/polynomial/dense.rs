@@ -360,7 +360,8 @@ impl<'a, 'b, F: PrimeField> Mul<&'a DensePolynomial<F>> for &'b DensePolynomial<
 mod tests {
     use crate::polynomial::*;
     use algebra::fields::{bls12_381::fr::Fr, Field};
-    use rand::{thread_rng, Rand};
+    use algebra::UniformRand; 
+    use rand::thread_rng;
 
     #[test]
     fn double_polynomials_random() {

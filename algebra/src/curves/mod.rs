@@ -3,7 +3,7 @@ use crate::{
     fields::{Field, PrimeField, SquareRootField},
     groups::Group,
 };
-use rand::Rand;
+use crate::UniformRand;
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
@@ -125,7 +125,7 @@ pub trait ProjectiveCurve:
     + Hash
     + Debug
     + Display
-    + Rand
+    + UniformRand
     + 'static
     + Neg<Output = Self>
     + for<'a> Add<&'a Self, Output = Self>

@@ -3,10 +3,9 @@ use rand;
 #[macro_use]
 extern crate criterion;
 
-use algebra::curves::edwards_bls12::EdwardsAffine as Edwards;
+use algebra::{UniformRand, curves::edwards_bls12::EdwardsAffine as Edwards};
 use criterion::Criterion;
 use dpc::crypto_primitives::commitment::{pedersen::*, CommitmentScheme};
-use rand::Rng;
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct CommWindow;
@@ -19,20 +18,20 @@ impl PedersenWindow for CommWindow {
 fn pedersen_comm_setup(c: &mut Criterion) {
     c.bench_function("Pedersen Commitment Setup", move |b| {
         b.iter(|| {
-            let mut rng = rand::OsRng::new().unwrap();
+            let mut rng = &mut rand::thread_rng();
             PedersenCommitment::<Edwards, CommWindow>::setup(&mut rng).unwrap()
         })
     });
 }
 
 fn pedersen_comm_eval(c: &mut Criterion) {
-    let mut rng = rand::OsRng::new().unwrap();
+    let mut rng = &mut rand::thread_rng();
     let parameters = PedersenCommitment::<Edwards, CommWindow>::setup(&mut rng).unwrap();
     let input = vec![5u8; 128];
     c.bench_function("Pedersen Commitment Eval", move |b| {
         b.iter(|| {
-            let mut rng = rand::OsRng::new().unwrap();
-            let commitment_randomness: PedersenRandomness<_> = rng.gen();
+            let rng = &mut rand::thread_rng();
+            let commitment_randomness = PedersenRandomness::rand(rng);
             PedersenCommitment::<Edwards, CommWindow>::commit(
                 &parameters,
                 &input,

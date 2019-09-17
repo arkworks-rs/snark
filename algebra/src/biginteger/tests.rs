@@ -1,5 +1,7 @@
 use crate::biginteger::BigInteger;
-use rand;
+use rand::SeedableRng;
+use crate::UniformRand;
+use rand_xorshift::XorShiftRng;
 
 fn biginteger_arithmetic_test<B: BigInteger>(a: B, b: B, zero: B) {
     // zero == zero
@@ -50,15 +52,17 @@ fn biginteger_bits_test<B: BigInteger>() {
 
 fn biginteger_bytes_test<B: BigInteger>() {
     let mut bytes = [0u8; 256];
-    let x: B = rand::random();
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+    let x: B = UniformRand::rand(&mut rng);
     x.write(bytes.as_mut()).unwrap();
     let y = B::read(bytes.as_ref()).unwrap();
     assert_eq!(x, y);
 }
 
 fn test_biginteger<B: BigInteger>(zero: B) {
-    let a: B = rand::random();
-    let b: B = rand::random();
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+    let a: B = UniformRand::rand(&mut rng);
+    let b: B = UniformRand::rand(&mut rng);
     biginteger_arithmetic_test(a, b, zero);
     biginteger_bytes_test::<B>();
     biginteger_bits_test::<B>();

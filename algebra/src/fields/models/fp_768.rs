@@ -1,4 +1,3 @@
-use rand::Rand;
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
     fmt::{Display, Formatter, Result as FmtResult},
@@ -779,6 +778,8 @@ impl_prime_field_from_int!(Fp768, u32, Fp768Parameters);
 impl_prime_field_from_int!(Fp768, u16, Fp768Parameters);
 impl_prime_field_from_int!(Fp768, u8, Fp768Parameters);
 
+impl_prime_field_standard_sample!(Fp768, Fp768Parameters);
+
 impl<P: Fp768Parameters> ToBytes for Fp768<P> {
     #[inline]
     fn write<W: Write>(&self, writer: W) -> IoResult<()> {
@@ -862,22 +863,6 @@ impl<P: Fp768Parameters> Neg for Fp768<P> {
             Fp768::<P>(tmp, PhantomData)
         } else {
             self
-        }
-    }
-}
-
-impl<P: Fp768Parameters> Rand for Fp768<P> {
-    #[inline]
-    fn rand<R: ::rand::Rng>(rng: &mut R) -> Self {
-        loop {
-            let mut tmp = Fp768::<P>(BigInteger::rand(rng), PhantomData);
-
-            // Mask away the unused bits at the beginning.
-            tmp.0.as_mut()[11] &= 0xffffffffffffffff >> P::REPR_SHAVE_BITS;
-
-            if tmp.is_valid() {
-                return tmp;
-            }
         }
     }
 }

@@ -1,10 +1,11 @@
-use rand::{Rand, Rng};
+use crate::UniformRand;
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
     io::{Read, Result as IoResult, Write},
     marker::PhantomData,
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
+use rand::{Rng, distributions::{Standard, Distribution}};
 
 use crate::{
     bytes::{FromBytes, ToBytes},
@@ -283,9 +284,10 @@ impl<P: Fp2Parameters> Neg for Fp2<P> {
     }
 }
 
-impl<P: Fp2Parameters> Rand for Fp2<P> {
-    fn rand<R: Rng>(rng: &mut R) -> Self {
-        Fp2::new(rng.gen(), rng.gen())
+impl<P: Fp2Parameters> Distribution<Fp2<P>> for Standard {
+    #[inline]
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Fp2<P> {
+        Fp2::new(UniformRand::rand(rng), UniformRand::rand(rng))
     }
 }
 

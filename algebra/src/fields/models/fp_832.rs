@@ -3,7 +3,6 @@ use crate::{
     bytes::{FromBytes, ToBytes},
     fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
 };
-use rand::Rand;
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
     fmt::{Display, Formatter, Result as FmtResult},
@@ -747,6 +746,8 @@ impl_prime_field_from_int!(Fp832, u32, Fp832Parameters);
 impl_prime_field_from_int!(Fp832, u16, Fp832Parameters);
 impl_prime_field_from_int!(Fp832, u8, Fp832Parameters);
 
+impl_prime_field_standard_sample!(Fp832, Fp832Parameters);
+
 impl<P: Fp832Parameters> ToBytes for Fp832<P> {
     #[inline]
     fn write<W: Write>(&self, writer: W) -> IoResult<()> {
@@ -830,22 +831,6 @@ impl<P: Fp832Parameters> Neg for Fp832<P> {
             Fp832::<P>(tmp, PhantomData)
         } else {
             self
-        }
-    }
-}
-
-impl<P: Fp832Parameters> Rand for Fp832<P> {
-    #[inline]
-    fn rand<R: ::rand::Rng>(rng: &mut R) -> Self {
-        loop {
-            let mut tmp = Fp832::<P>(BigInteger::rand(rng), PhantomData);
-
-            // Mask away the unused bits at the beginning.
-            tmp.0.as_mut()[12] &= 0xffffffffffffffff >> P::REPR_SHAVE_BITS;
-
-            if tmp.is_valid() {
-                return tmp;
-            }
         }
     }
 }

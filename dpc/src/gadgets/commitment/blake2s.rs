@@ -128,7 +128,7 @@ mod test {
         type TestCOMMGadget = Blake2sCommitmentGadget;
 
         let mut randomness = [0u8; 32];
-        rng.fill_bytes(&mut randomness);
+        rng.fill(&mut randomness);
 
         let parameters = ();
         let primitive_result = Blake2sCommitment::commit(&parameters, &input, &randomness).unwrap();

@@ -243,9 +243,8 @@ macro_rules! bigint_impl {
             }
         }
 
-        impl Rand for $name {
-            #[inline]
-            fn rand<R: Rng>(rng: &mut R) -> Self {
+        impl Distribution<$name> for Standard {
+            fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> $name {
                 $name(rng.gen())
             }
         }

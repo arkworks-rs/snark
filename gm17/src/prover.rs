@@ -2,7 +2,7 @@ use rand::Rng;
 use rayon::prelude::*;
 
 use algebra::{
-    msm::VariableBaseMSM, AffineCurve, Field, PairingEngine, PrimeField, ProjectiveCurve,
+    UniformRand, msm::VariableBaseMSM, AffineCurve, Field, PairingEngine, PrimeField, ProjectiveCurve,
 };
 
 use crate::{Parameters, Proof};
@@ -187,9 +187,9 @@ where
     C: ConstraintSynthesizer<E::Fr>,
     R: Rng,
 {
-    let d1 = rng.gen();
-    let d2 = rng.gen();
-    let r = rng.gen();
+    let d1 = E::Fr::rand(rng);
+    let d2 = E::Fr::rand(rng);
+    let r = E::Fr::rand(rng);
 
     create_proof::<E, C>(circuit, params, d1, d2, r)
 }

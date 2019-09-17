@@ -1,4 +1,5 @@
-use rand::{Rand, Rng};
+use rand::{Rng, distributions::{Standard, Distribution}};
+use crate::UniformRand;
 use std::{
     cmp::Ordering,
     io::{Read, Result as IoResult, Write},
@@ -208,9 +209,10 @@ impl<P: Fp12Parameters> std::fmt::Display for Fp12<P> {
     }
 }
 
-impl<P: Fp12Parameters> Rand for Fp12<P> {
-    fn rand<R: Rng>(rng: &mut R) -> Self {
-        Fp12::new(rng.gen(), rng.gen())
+impl<P: Fp12Parameters> Distribution<Fp12<P>> for Standard {
+    #[inline]
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Fp12<P> {
+        Fp12::new(UniformRand::rand(rng), UniformRand::rand(rng))
     }
 }
 

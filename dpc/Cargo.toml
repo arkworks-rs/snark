@@ -31,7 +31,7 @@ bench-utils = { path = "../bench-utils" }
 digest = "0.7"
 blake2 = "0.7"
 
-rand = "0.4"
+rand = { version = "0.7" }
 derivative = "1"
 rayon = "1"
 
@@ -39,6 +39,7 @@ clippy = { version = "*", optional = true }
 
 [dev-dependencies]
 criterion = "0.2"
+rand_xorshift = { version = "0.2" }
 
 ###############################################################################
 

@@ -167,7 +167,8 @@ where
 #[cfg(test)]
 mod test {
     use algebra::{fields::jubjub::{fq::Fq, fr::Fr}};
-    use rand::{thread_rng, Rand};
+    use rand::thread_rng;
+    use algebra::UniformRand;
 
     use crate::{
         crypto_primitives::{

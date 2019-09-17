@@ -739,7 +739,9 @@ mod test {
         prelude::*
     };
     use algebra::{fields::bls12_381::Fr, BitIterator, Field, PrimeField};
-    use rand::{Rand, SeedableRng, XorShiftRng};
+    use algebra::UniformRand;
+use rand::SeedableRng;
+use rand_xorshift::XorShiftRng;
     use r1cs_core::ConstraintSystem;
     use std::str::FromStr;
 
@@ -1736,7 +1738,7 @@ mod test {
             assert!(!cs.is_satisfied());
         }
 
-        let mut rng = XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         for _ in 0..1000 {
             let r = Fr::rand(&mut rng);
