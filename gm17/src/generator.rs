@@ -1,6 +1,6 @@
 use ff_fft::EvaluationDomain;
 use algebra::{
-    msm::FixedBaseMSM,
+    msm::FixedBaseMSM, UniformRand,
     AffineCurve, Field, PairingEngine, PrimeField, ProjectiveCurve,
 };
 
@@ -22,11 +22,11 @@ where
     C: ConstraintSynthesizer<E::Fr>,
     R: Rng,
 {
-    let alpha = rng.gen();
-    let beta = rng.gen();
+    let alpha = E::Fr::rand(rng);
+    let beta = E::Fr::rand(rng);
     let gamma = E::Fr::one();
-    let g = rng.gen();
-    let h = rng.gen();
+    let g = E::G1Projective::rand(rng);
+    let h = E::G2Projective::rand(rng);
 
     generate_parameters::<E, C, R>(circuit, alpha, beta, gamma, g, h, rng)
 }

@@ -29,3 +29,4 @@ radix_trie = "0.1"
 
 [dev-dependencies]
 rand = { version = "0.7" }
+rand_xorshift = { version = "0.2" }
