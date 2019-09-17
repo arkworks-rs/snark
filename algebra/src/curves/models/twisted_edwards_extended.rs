@@ -228,7 +228,7 @@ impl<P: Parameters> Distribution<GroupAffine<P>> for Standard {
     #[inline]
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> GroupAffine<P> {
         loop {
-            let x = P::BaseField::rand(rng);;
+            let x = P::BaseField::rand(rng);
             let greatest = rng.gen();
 
             if let Some(p) = GroupAffine::get_point_from_x(x, greatest) {
@@ -314,7 +314,7 @@ impl<P: Parameters> Distribution<GroupProjective<P>> for Standard {
     #[inline]
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> GroupProjective<P> {
         loop {
-            let x = P::BaseField::rand(rng);;
+            let x = P::BaseField::rand(rng);
             let greatest = rng.gen();
 
             if let Some(p) = GroupAffine::get_point_from_x(x, greatest) {
