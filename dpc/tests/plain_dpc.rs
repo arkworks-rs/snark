@@ -1,5 +1,6 @@
 use algebra::{to_bytes, ToBytes};
-use rand::{SeedableRng, XorShiftRng};
+use rand::SeedableRng;
+use rand_xorshift::XorShiftRng;
 #[cfg(debug_assertions)]
 use gm17::PreparedVerifyingKey;
 

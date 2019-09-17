@@ -39,6 +39,7 @@ clippy = { version = "*", optional = true }
 
 [dev-dependencies]
 criterion = "0.2"
+rand_xorshift = { version = "0.2" }
 
 ###############################################################################
 

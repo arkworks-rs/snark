@@ -1,4 +1,5 @@
-use rand::{Rand, Rng};
+use rand::Rng;
+use algebra::UniformRand;
 use std::{fmt::Debug, hash::Hash};
 
 use algebra::bytes::ToBytes;
@@ -12,9 +13,10 @@ use crate::Error;
 pub trait CommitmentScheme {
     type Output: ToBytes + Clone + Default + Eq + Hash + Debug;
     type Parameters: Clone;
-    type Randomness: Clone + ToBytes + Default + Eq + Rand + Debug;
+    type Randomness: Clone + ToBytes + Default + Eq + UniformRand + Debug;
 
     fn setup<R: Rng>(r: &mut R) -> Result<Self::Parameters, Error>;
+
     fn commit(
         parameters: &Self::Parameters,
         input: &[u8],

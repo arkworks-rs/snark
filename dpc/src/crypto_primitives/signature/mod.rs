@@ -52,7 +52,8 @@ mod test {
         curves::edwards_sw6::EdwardsAffine as Edwards, groups::Group, to_bytes, ToBytes,
     };
     use blake2::Blake2s;
-    use rand::{thread_rng, Rand};
+    use rand::thread_rng;
+    use algebra::UniformRand;
 
     fn sign_and_verify<S: SignatureScheme>(message: &[u8]) {
         let rng = &mut thread_rng();

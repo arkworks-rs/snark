@@ -4,7 +4,8 @@ use algebra::{
     fields::bls12_377::fq::Fq,
     to_bytes, ToBytes,
 };
-use rand::{SeedableRng, XorShiftRng};
+use rand::SeedableRng;
+use rand_xorshift::XorShiftRng;
 #[cfg(debug_assertions)]
 use gm17::PreparedVerifyingKey;
 
@@ -24,7 +25,7 @@ use crate::ledger::Ledger;
 
 #[test]
 fn test_execute_constraint_systems() {
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
     // Generate parameters for the ledger, commitment schemes, CRH, and the
     // "always-accept" predicate.
     let ledger_parameters = MerkleTreeIdealLedger::setup(&mut rng).expect("Ledger setup failed");

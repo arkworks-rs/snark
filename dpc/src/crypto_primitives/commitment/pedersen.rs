@@ -1,5 +1,6 @@
 use crate::Error;
-use rand::{Rand, Rng};
+use algebra::UniformRand;
+use rand::Rng;
 use std::marker::PhantomData;
 
 use super::CommitmentScheme;
@@ -33,10 +34,10 @@ pub struct PedersenCommitment<G: Group, W: PedersenWindow> {
 )]
 pub struct PedersenRandomness<G: Group>(pub G::ScalarField);
 
-impl<G: Group> Rand for PedersenRandomness<G> {
+impl<G: Group> UniformRand for PedersenRandomness<G> {
     #[inline]
-    fn rand<R: Rng>(rng: &mut R) -> Self {
-        PedersenRandomness(Rand::rand(rng))
+    fn rand<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        PedersenRandomness(UniformRand::rand(rng))
     }
 }
 

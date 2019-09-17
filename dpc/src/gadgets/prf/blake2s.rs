@@ -495,7 +495,8 @@ impl<ConstraintF: PrimeField> PRFGadget<Blake2s, ConstraintF> for Blake2sGadget 
 mod test {
     use algebra::fields::bls12_377::fr::Fr;
     use digest::{FixedOutput, Input};
-    use rand::{Rng, SeedableRng, XorShiftRng};
+    use rand::{Rng, SeedableRng};
+    use rand_xorshift::XorShiftRng;
 
     use crate::crypto_primitives::prf::blake2s::Blake2s as B2SPRF;
     use blake2::Blake2s;
@@ -525,14 +526,14 @@ mod test {
         use crate::{crypto_primitives::prf::PRF, gadgets::prf::PRFGadget};
         use rand::Rng;
 
-        let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
         let mut cs = TestConstraintSystem::<Fr>::new();
 
         let mut seed = [0u8; 32];
-        rng.fill_bytes(&mut seed);
+        rng.fill(&mut seed);
 
         let mut input = [0u8; 32];
-        rng.fill_bytes(&mut input);
+        rng.fill(&mut input);
 
         let seed_gadget = Blake2sGadget::new_seed(&mut cs.ns(|| "declare_seed"), &seed);
         let input_gadget = UInt8::alloc_vec(&mut cs.ns(|| "declare_input"), &input).unwrap();
@@ -568,7 +569,7 @@ mod test {
         // doesn't result in more constraints.
 
         let mut cs = TestConstraintSystem::<Fr>::new();
-        let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
         let input_bits: Vec<_> = (0..512)
             .map(|_| Boolean::constant(rng.gen()))
             .chain((0..512).map(|i| {
@@ -585,7 +586,7 @@ mod test {
     #[test]
     fn test_blake2s_constant_constraints() {
         let mut cs = TestConstraintSystem::<Fr>::new();
-        let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
         let input_bits: Vec<_> = (0..512).map(|_| Boolean::constant(rng.gen())).collect();
         blake2s_gadget(&mut cs, &input_bits).unwrap();
         assert_eq!(cs.num_constraints(), 0);
@@ -593,7 +594,7 @@ mod test {
 
     #[test]
     fn test_blake2s() {
-        let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         for input_len in (0..32).chain((32..256).filter(|a| a % 8 == 0)) {
             let mut h = Blake2s::new_keyed(&[], 32);
