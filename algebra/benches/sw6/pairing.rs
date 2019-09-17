@@ -6,13 +6,15 @@ mod pairing {
         },
         fields::sw6::Fq6,
     };
-    use rand::{Rand, SeedableRng, XorShiftRng};
+    use algebra::UniformRand;
+use rand::SeedableRng;
+use rand_xorshift::XorShiftRng;
 
     #[bench]
     fn bench_pairing_miller_loop(b: &mut ::test::Bencher) {
         const SAMPLES: usize = 1000;
 
-        let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         let v: Vec<(G1Affine, G2Affine)> = (0..SAMPLES)
             .map(|_| {
@@ -35,7 +37,7 @@ mod pairing {
     fn bench_pairing_final_exponentiation(b: &mut ::test::Bencher) {
         const SAMPLES: usize = 1000;
 
-        let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         let v: Vec<Fq6> = (0..SAMPLES)
             .map(|_| {
@@ -59,7 +61,7 @@ mod pairing {
     fn bench_pairing_full(b: &mut ::test::Bencher) {
         const SAMPLES: usize = 1000;
 
-        let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         let v: Vec<(G1, G2)> = (0..SAMPLES)
             .map(|_| (G1::rand(&mut rng), G2::rand(&mut rng)))
