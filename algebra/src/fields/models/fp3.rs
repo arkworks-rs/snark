@@ -1,5 +1,5 @@
-use crate::Rand;
-use rand::Rng ;
+use rand::{Rng, distributions::{Standard, Distribution}};
+use crate::UniformRand;
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
     io::{Read, Result as IoResult, Write},
@@ -336,14 +336,10 @@ impl<P: Fp3Parameters> Neg for Fp3<P> {
     }
 }
 
-impl<P: Fp3Parameters> Rand for Fp3<P> {
-    fn rand<R: Rng>(rng: &mut R) -> Self {
-        Fp3 {
-            c0:          rng.gen(),
-            c1:          rng.gen(),
-            c2:          rng.gen(),
-            _parameters: PhantomData,
-        }
+impl<P: Fp3Parameters> Distribution<Fp3<P>> for Standard {
+    #[inline]
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Fp3<P> {
+        Fp3::new(UniformRand::rand(rng), UniformRand::rand(rng), UniformRand::rand(rng))
     }
 }
 

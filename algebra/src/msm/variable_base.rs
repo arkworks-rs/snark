@@ -95,7 +95,7 @@ mod test {
     use super::*;
     use crate::curves::bls12_381::G1Projective;
     use crate::fields::bls12_381::Fr;
-    use rand::{self, Rand, SeedableRng, XorShiftRng};
+    use rand::{self, UniformRand, SeedableRng, XorShiftRng};
 
     fn naive_var_base_msm<G: AffineCurve>(
         bases: &[G],

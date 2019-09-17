@@ -212,7 +212,9 @@ mod test {
         bls12_381::{fq2::Fq2, fq6::Fq6},
         Field,
     };
-    use rand::{Rand, SeedableRng, XorShiftRng};
+    use crate::UniformRand;
+use rand::SeedableRng;
+use rand_xorshift::XorShiftRng;
 
     #[test]
     fn test_fq6_mul_nonresidue() {

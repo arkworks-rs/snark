@@ -11,7 +11,6 @@ use crate::{
     biginteger::{arithmetic as fa, BigInteger as _BigInteger, BigInteger320 as BigInteger},
     bytes::{FromBytes, ToBytes},
     fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
-    Rand,
 };
 
 pub trait Fp320Parameters: FpParameters<BigInt = BigInteger> {}
@@ -417,6 +416,8 @@ impl_prime_field_from_int!(Fp320, u32, Fp320Parameters);
 impl_prime_field_from_int!(Fp320, u16, Fp320Parameters);
 impl_prime_field_from_int!(Fp320, u8, Fp320Parameters);
 
+impl_prime_field_standard_sample!(Fp320, Fp320Parameters);
+
 impl<P: Fp320Parameters> ToBytes for Fp320<P> {
     #[inline]
     fn write<W: Write>(&self, writer: W) -> IoResult<()> {
@@ -500,22 +501,6 @@ impl<P: Fp320Parameters> Neg for Fp320<P> {
             Fp320::<P>(tmp, PhantomData)
         } else {
             self
-        }
-    }
-}
-
-impl<P: Fp320Parameters> Rand for Fp320<P> {
-    #[inline]
-    fn rand<R: ::rand::Rng>(rng: &mut R) -> Self {
-        loop {
-            let mut tmp = Fp320::<P>(BigInteger::rand(rng), PhantomData);
-
-            // Mask away the unused bits at the beginning.
-            tmp.0.as_mut()[4] &= 0xffffffffffffffff >> P::REPR_SHAVE_BITS;
-
-            if tmp.is_valid() {
-                return tmp;
-            }
         }
     }
 }

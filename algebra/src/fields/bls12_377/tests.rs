@@ -7,7 +7,9 @@ use crate::{
         Field, Fp2Parameters, FpParameters, PrimeField, SquareRootField,
     },
 };
-use rand::{Rand, SeedableRng, XorShiftRng};
+use crate::UniformRand;
+use rand::SeedableRng;
+use rand_xorshift::XorShiftRng;
 use std::{
     cmp::Ordering,
     ops::{AddAssign, MulAssign, SubAssign},

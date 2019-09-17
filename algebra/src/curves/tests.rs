@@ -2,7 +2,9 @@ use crate::{
     curves::{AffineCurve, ProjectiveCurve},
     fields::{Field, PrimeField},
 };
-use rand::{Rand, SeedableRng, XorShiftRng};
+use crate::UniformRand;
+use rand::SeedableRng;
+use rand_xorshift::XorShiftRng;
 
 pub const ITERATIONS: usize = 10;
 

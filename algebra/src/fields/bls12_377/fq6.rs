@@ -194,7 +194,9 @@ impl Fp6Parameters for Fq6Parameters {
 mod test {
     use super::*;
     use crate::fields::Field;
-    use rand::{Rand, SeedableRng, XorShiftRng};
+    use crate::UniformRand;
+use rand::SeedableRng;
+use rand_xorshift::XorShiftRng;
 
     #[test]
     fn test_fq2_mul_nonresidue() {
