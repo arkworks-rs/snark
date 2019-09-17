@@ -214,14 +214,6 @@ where
     let g_table = FixedBaseMSM::get_window_table::<E::G1Projective>(scalar_bits, g_window, g);
     end_timer!(g_window_time);
 
-    // Compute H_gamma window table
-    let h_gamma_time = start_timer!(|| "Compute H table");
-    let h_gamma = h.into_affine().mul(gamma.into_repr());
-    let h_gamma_window = FixedBaseMSM::get_mul_window_size(non_zero_a);
-    let h_gamma_table =
-        FixedBaseMSM::get_window_table::<E::G2Projective>(scalar_bits, h_gamma_window, h_gamma);
-    end_timer!(h_gamma_time);
-
     // Generate the R1CS proving key
     let proving_key_time = start_timer!(|| "Generate the R1CS proving key");
 
@@ -235,16 +227,6 @@ where
     );
     end_timer!(a_time);
 
-    // Compute the B-query
-    let b_time = start_timer!(|| "Calculate B");
-    let mut b_query = FixedBaseMSM::multi_scalar_mul::<E::G2Projective>(
-        scalar_bits,
-        h_gamma_window,
-        &h_gamma_table,
-        &a,
-    );
-    end_timer!(b_time);
-
     // Compute the G_gamma-query
     let g_gamma_time = start_timer!(|| "Calculate G gamma");
     let gamma_z = zt * &gamma;
@@ -252,6 +234,7 @@ where
     let ab_gamma_z = alpha_beta * &gamma * &zt;
     let g_gamma = g.into_affine().mul(gamma.into_repr());
     let g_gamma_z = g.into_affine().mul(gamma_z.into_repr());
+    let h_gamma = h.into_affine().mul(gamma.into_repr());
     let h_gamma_z = h_gamma.into_affine().mul(zt.into_repr());
     let g_ab_gamma_z = g.into_affine().mul(ab_gamma_z.into_repr());
     let g_gamma2_z2 = g.into_affine().mul(gamma_z.square().into_repr());
@@ -295,7 +278,27 @@ where
             .map(|i| a[i] * &double_gamma2_z)
             .collect::<Vec<_>>(),
     );
+    drop(g_table);
     end_timer!(c2_time);
+
+    // Compute H_gamma window table
+    let h_gamma_time = start_timer!(|| "Compute H table");
+    let h_gamma_window = FixedBaseMSM::get_mul_window_size(non_zero_a);
+    let h_gamma_table =
+        FixedBaseMSM::get_window_table::<E::G2Projective>(scalar_bits, h_gamma_window, h_gamma);
+    end_timer!(h_gamma_time);
+
+    // Compute the B-query
+    let b_time = start_timer!(|| "Calculate B");
+    let mut b_query = FixedBaseMSM::multi_scalar_mul::<E::G2Projective>(
+        scalar_bits,
+        h_gamma_window,
+        &h_gamma_table,
+        &a,
+    );
+    end_timer!(b_time);
+
+
 
     end_timer!(proving_key_time);
 
