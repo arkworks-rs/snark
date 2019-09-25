@@ -81,4 +81,41 @@ pub trait ToBytesGadget<ConstraintF: Field> {
     ) -> Result<Vec<UInt8>, SynthesisError>;
 }
 
+impl<ConstraintF: Field> ToBytesGadget<ConstraintF> for [UInt8] {
+    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(&self, _cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
+        Ok(self.to_vec())
+    }
 
+    fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+    ) -> Result<Vec<UInt8>, SynthesisError> {
+        self.to_bytes(cs)
+    }
+}
+
+impl<'a, ConstraintF: Field, T: 'a + ToBytesGadget<ConstraintF>> ToBytesGadget<ConstraintF> for &'a T {
+    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(&self, cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
+        (*self).to_bytes(cs)
+    }
+
+    fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+    ) -> Result<Vec<UInt8>, SynthesisError> {
+        self.to_bytes(cs)
+    }
+}
+
+impl<'a, ConstraintF: Field> ToBytesGadget<ConstraintF> for &'a [UInt8] {
+    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(&self, _cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
+        Ok(self.to_vec())
+    }
+
+    fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+    ) -> Result<Vec<UInt8>, SynthesisError> {
+        self.to_bytes(cs)
+    }
+}

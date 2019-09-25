@@ -236,16 +236,6 @@ impl FromBytes for bool {
     }
 }
 
-impl<T: ToBytes> ToBytes for [T] {
-    #[inline]
-    fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
-        for item in self {
-            item.write(&mut writer)?;
-        }
-        Ok(())
-    }
-}
-
 impl<T: ToBytes> ToBytes for Vec<T> {
     #[inline]
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
