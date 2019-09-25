@@ -51,7 +51,6 @@ extern crate derivative;
 pub mod common;
 pub mod config;
 pub(crate) mod dpc;
-pub mod gadgets;
 pub mod ledger;
 pub mod predicates;
 

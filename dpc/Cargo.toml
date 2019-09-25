@@ -25,6 +25,7 @@ edition = "2018"
 algebra = { path = "../algebra" }
 r1cs-core = { path = "../r1cs-core" }
 r1cs-std = { path = "../r1cs-std" }
+crypto-primitives = { path = "../crypto-primitives", features = [ "gm17", "r1cs" ] }
 gm17 = { path = "../gm17" }
 bench-utils = { path = "../bench-utils" }
 
@@ -49,25 +50,3 @@ rand_xorshift = { version = "0.2" }
 print-trace = [ "bench-utils/print-trace" ]
 
 ###############################################################################
-
-################################# Benchmarks ##################################
-
-[[bench]]
-name = "pedersen_crh"
-path = "benches/crypto_primitives/crh.rs"
-harness = false
-
-[[bench]]
-name = "pedersen_comm"
-path = "benches/crypto_primitives/comm.rs"
-harness = false
-
-[[bench]]
-name = "blake2s_prf"
-path = "benches/crypto_primitives/prf.rs"
-harness = false
-
-[[bench]]
-name = "schnorr_sig"
-path = "benches/crypto_primitives/signature.rs"
-harness = false

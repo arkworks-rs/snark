@@ -3,9 +3,9 @@ use rand;
 #[macro_use]
 extern crate criterion;
 
-use algebra::curves::edwards_bls12::EdwardsAffine as Edwards;
+use algebra::curves::edwards_bls12::EdwardsProjective as Edwards;
 use criterion::Criterion;
-use dpc::crypto_primitives::crh::{pedersen::*, FixedLengthCRH};
+use crypto_primitives::crh::{pedersen::*, FixedLengthCRH};
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct HashWindow;
