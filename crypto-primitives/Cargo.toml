@@ -1,10 +1,25 @@
 [package]
 name = "crypto-primitives"
 version = "0.1.0"
-authors = ["Pratyush Mishra <pratyushmishra@berkeley.edu>"]
+authors = [
+    "Sean Bowe",
+    "Alessandro Chiesa",
+    "Matthew Green",
+    "Ian Miers",
+    "Pratyush Mishra",
+    "Howard Wu"
+]
+description = "A library of cryptographic primitives that are used by Zexe"
+homepage = "https://libzexe.org"
+repository = "https://github.com/scipr/zexe"
+documentation = "https://docs.rs/crypto-primitives/"
+keywords = ["r1cs", "gm17", "pedersen", "blake2s"]
+categories = ["cryptography"]
+include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
+license = "MIT/Apache-2.0"
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+################################# Dependencies ################################
 
 [dependencies]
 algebra = { path = "../algebra" }
@@ -27,3 +42,24 @@ r1cs = [ "r1cs-core", "r1cs-std" ]
 criterion = "0.2"
 rand_xorshift = { version = "0.2" }
 
+################################# Benchmarks ##################################
+
+[[bench]]
+name = "pedersen_crh"
+path = "benches/crypto_primitives/crh.rs"
+harness = false
+
+[[bench]]
+name = "pedersen_comm"
+path = "benches/crypto_primitives/comm.rs"
+harness = false
+
+[[bench]]
+name = "blake2s_prf"
+path = "benches/crypto_primitives/prf.rs"
+harness = false
+
+[[bench]]
+name = "schnorr_sig"
+path = "benches/crypto_primitives/signature.rs"
+harness = false

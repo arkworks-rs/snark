@@ -5,7 +5,7 @@ mod affine {
     use algebra::curves::edwards_bls12::EdwardsAffine as Edwards;
     use blake2::Blake2s;
     use criterion::Criterion;
-    use dpc::crypto_primitives::signature::{schnorr::*, SignatureScheme};
+    use crypto_primitives::signature::{schnorr::*, SignatureScheme};
     use rand::{self, Rng};
 
     type SchnorrEdwards = SchnorrSignature<Edwards, Blake2s>;
@@ -93,7 +93,7 @@ mod projective {
     use algebra::curves::edwards_bls12::EdwardsProjective as Edwards;
     use blake2::Blake2s;
     use criterion::Criterion;
-    use dpc::crypto_primitives::signature::{schnorr::*, SignatureScheme};
+    use crypto_primitives::signature::{schnorr::*, SignatureScheme};
     use rand::{self, Rng};
 
     type SchnorrEdwards = SchnorrSignature<Edwards, Blake2s>;
