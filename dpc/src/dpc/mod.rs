@@ -5,7 +5,7 @@ use std::hash::Hash;
 pub mod delegable_dpc;
 pub mod plain_dpc;
 
-use crate::ledger::Ledger;
+use crate::ledger::*;
 
 pub trait AddressKeyPair {
     type AddressPublicKey: Default;
@@ -92,7 +92,7 @@ pub trait DPCScheme<L: Ledger> {
 
     /// Returns public parameters for the DPC.
     fn setup<R: Rng>(
-        ledger_parameters: &L::Parameters,
+        ledger_parameters: &MHTParams<L::Parameters>,
         rng: &mut R,
     ) -> Result<Self::Parameters, Error>;
 

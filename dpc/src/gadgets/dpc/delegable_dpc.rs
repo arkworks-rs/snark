@@ -1,5 +1,8 @@
+use crypto_primitives::{CommitmentScheme, FixedLengthCRH, SignatureScheme, PRF, mht::*};
+use crypto_primitives::{CommitmentGadget, FixedLengthCRHGadget, PRFGadget, SigRandomizePkGadget, NIZKVerifierGadget};
+use crypto_primitives::mht::constraints::*;
+
 use crate::{
-    crypto_primitives::{CommitmentScheme, FixedLengthCRH, SignatureScheme, PRF},
     dpc::{
         delegable_dpc::{
             address::AddressSecretKey, parameters::CommCRHSigPublicParameters,
@@ -7,31 +10,27 @@ use crate::{
         },
         Record,
     },
-    gadgets::verifier::NIZKVerifierGadget,
-    ledger::{LedgerDigest, LedgerWitness},
+    ledger::*,
 };
 use algebra::{to_bytes, ToConstraintField, FpParameters, PrimeField};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
-
-use crate::gadgets::{
-    CommitmentGadget, FixedLengthCRHGadget, LCWGadget, PRFGadget, SigRandomizePkGadget,
-};
-use algebra::bytes::ToBytes;
 use r1cs_std::boolean::Boolean;
+
+use algebra::bytes::ToBytes;
 
 pub fn execute_core_checks_gadget<C: DelegableDPCComponents, CS: ConstraintSystem<C::CoreCheckF>>(
     cs: &mut CS,
     // Parameters
     comm_crh_sig_parameters: &CommCRHSigPublicParameters<C>,
-    ledger_parameters: &<C::D as LedgerDigest>::Parameters,
+    ledger_parameters: &MHTParams<C::MHTParameters>,
 
     // Digest
-    ledger_digest: &C::D,
+    ledger_digest: &MHTDigest<C::MHTParameters>,
 
     // Old record stuff
     old_records: &[DPCRecord<C>],
-    old_witnesses: &[C::LCW],
+    old_witnesses: &[HashMembershipProof<C::MHTParameters>],
     old_address_secret_keys: &[AddressSecretKey<C>],
     old_serial_numbers: &[<C::S as SignatureScheme>::PublicKey],
 
@@ -55,13 +54,10 @@ pub fn execute_core_checks_gadget<C: DelegableDPCComponents, CS: ConstraintSyste
         C::RecC,
         C::SnNonceH,
         C::P,
-        C::D,
-        C::LCW,
         C::AddrCGadget,
         C::RecCGadget,
         C::SnNonceHGadget,
         C::PGadget,
-        C::LCWGadget,
     >(
         cs,
         //
@@ -95,26 +91,23 @@ fn delegable_dpc_execute_gadget_helper<
     RecC,
     SnNonceH,
     P,
-    D,
-    CW,
     AddrCGadget,
     RecCGadget,
     SnNonceHGadget,
     PGadget,
-    LGadget,
 >(
     cs: &mut CS,
 
     //
     comm_crh_sig_parameters: &CommCRHSigPublicParameters<C>,
-    ledger_parameters: &D::Parameters,
+    ledger_parameters: &MHTParams<C::MHTParameters>,
 
     //
-    ledger_digest: &D,
+    ledger_digest: &MHTDigest<C::MHTParameters>,
 
     //
     old_records: &[DPCRecord<C>],
-    old_witnesses: &[CW],
+    old_witnesses: &[HashMembershipProof<C::MHTParameters>],
     old_address_secret_keys: &[AddressSecretKey<C>],
     old_serial_numbers: &[<C::S as SignatureScheme>::PublicKey],
 
@@ -137,32 +130,20 @@ where
         RecC = RecC,
         SnNonceH = SnNonceH,
         P = P,
-        LCW = CW,
-        D = D,
         AddrCGadget = AddrCGadget,
         SnNonceHGadget = SnNonceHGadget,
         RecCGadget = RecCGadget,
         PGadget = PGadget,
-        LCWGadget = LGadget,
     >,
     AddrC: CommitmentScheme,
     RecC: CommitmentScheme,
     SnNonceH: FixedLengthCRH,
     P: PRF,
-    D: LedgerDigest,
-    CW: LedgerWitness<D>,
     RecC::Output: Eq,
     AddrCGadget: CommitmentGadget<AddrC, C::CoreCheckF>,
     RecCGadget: CommitmentGadget<RecC, C::CoreCheckF>,
     SnNonceHGadget: FixedLengthCRHGadget<SnNonceH, C::CoreCheckF>,
     PGadget: PRFGadget<P, C::CoreCheckF>,
-    LGadget: LCWGadget<
-        RecC,
-        D,
-        CW,
-        C::CoreCheckF,
-        CommitmentGadget = <RecCGadget as CommitmentGadget<RecC, C::CoreCheckF>>::OutputGadget,
-    >,
 {
     let mut old_sns = Vec::with_capacity(old_records.len());
     let mut old_rec_comms = Vec::with_capacity(old_records.len());
@@ -228,7 +209,7 @@ where
             || Ok(&comm_crh_sig_parameters.sig_pp),
         )?;
 
-        let ledger_pp = LGadget::ParametersGadget::alloc_input(
+        let ledger_pp = <C::MHT_HGadget as FixedLengthCRHGadget<_, _>>::ParametersGadget::alloc_input(
             &mut cs.ns(|| "Declare Ledger Parameters"),
             || Ok(ledger_parameters),
         )?;
@@ -244,7 +225,7 @@ where
     };
 
     let digest_gadget =
-        LGadget::DigestGadget::alloc_input(&mut cs.ns(|| "Declare ledger digest"), || {
+        <C::MHT_HGadget as FixedLengthCRHGadget<_, _>>::OutputGadget::alloc_input(&mut cs.ns(|| "Declare ledger digest"), || {
             Ok(ledger_digest)
         })?;
 
@@ -335,11 +316,11 @@ where
             let witness_cs = &mut cs.ns(|| format!("Check membership witness {}", i));
 
             let witness_gadget =
-                LGadget::WitnessGadget::alloc(&mut witness_cs.ns(|| "Declare witness"), || {
+                MerklePath::<_, C::MHT_HGadget, _>::alloc(&mut witness_cs.ns(|| "Declare witness"), || {
                     Ok(witness)
                 })?;
 
-            LGadget::conditionally_check_witness_gadget(
+            MerklePathVerifierGadget::<_, C::MHT_HGadget, _>::conditionally_check_membership(
                 &mut witness_cs.ns(|| "Perform check"),
                 &ledger_pp,
                 &digest_gadget,

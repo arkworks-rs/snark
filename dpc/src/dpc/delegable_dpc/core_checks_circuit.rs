@@ -1,17 +1,15 @@
 use crate::Error;
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 
-use crate::{
-    crypto_primitives::{CommitmentScheme, FixedLengthCRH, SignatureScheme},
-    gadgets::Assignment,
-};
+use crypto_primitives::{CommitmentScheme, FixedLengthCRH, SignatureScheme, mht::*};
 
 use crate::{
     dpc::delegable_dpc::{
         AddressSecretKey, CommCRHSigPublicParameters, DPCRecord, DelegableDPCComponents,
     },
     gadgets::dpc::delegable_dpc::execute_core_checks_gadget,
-    ledger::LedgerDigest,
+    gadgets::Assignment,
+    ledger::*,
 };
 
 use algebra::ToConstraintField;
@@ -21,8 +19,8 @@ pub struct CoreChecksVerifierInput<C: DelegableDPCComponents> {
     pub comm_crh_sig_pp: CommCRHSigPublicParameters<C>,
 
     // Ledger parameters and digest
-    pub ledger_pp:     <C::D as LedgerDigest>::Parameters,
-    pub ledger_digest: C::D,
+    pub ledger_pp:     MHTParams<C::MHTParameters>,
+    pub ledger_digest: MHTDigest<C::MHTParameters>,
 
     // Input record serial numbers and death predicate commitments
     pub old_serial_numbers: Vec<<C::S as SignatureScheme>::PublicKey>,
@@ -55,8 +53,8 @@ where
     <C::S as SignatureScheme>::Parameters: ToConstraintField<C::CoreCheckF>,
     <C::S as SignatureScheme>::PublicKey: ToConstraintField<C::CoreCheckF>,
 
-    C::D: ToConstraintField<C::CoreCheckF>,
-    <C::D as LedgerDigest>::Parameters: ToConstraintField<C::CoreCheckF>,
+    MHTParams<C::MHTParameters>: ToConstraintField<C::CoreCheckF>,
+    MHTDigest<C::MHTParameters>: ToConstraintField<C::CoreCheckF>,
 {
     fn to_field_elements(&self) -> Result<Vec<C::CoreCheckF>, Error> {
         let mut v = Vec::new();
@@ -94,13 +92,13 @@ where
 pub struct CoreChecksCircuit<C: DelegableDPCComponents> {
     // Parameters
     comm_crh_sig_parameters: Option<CommCRHSigPublicParameters<C>>,
-    ledger_parameters:       Option<<C::D as LedgerDigest>::Parameters>,
+    ledger_parameters:       Option<MHTParams<C::MHTParameters>>,
 
-    ledger_digest: Option<C::D>,
+    ledger_digest: Option<MHTDigest<C::MHTParameters>>,
 
     // Inputs for old records.
     old_records:             Option<Vec<DPCRecord<C>>>,
-    old_witnesses:           Option<Vec<C::LCW>>,
+    old_witnesses:           Option<Vec<HashMembershipProof<C::MHTParameters>>>,
     old_address_secret_keys: Option<Vec<AddressSecretKey<C>>>,
     old_serial_numbers:      Option<Vec<<C::S as SignatureScheme>::PublicKey>>,
 
@@ -123,15 +121,15 @@ pub struct CoreChecksCircuit<C: DelegableDPCComponents> {
 impl<C: DelegableDPCComponents> CoreChecksCircuit<C> {
     pub fn blank(
         comm_crh_sig_parameters: &CommCRHSigPublicParameters<C>,
-        ledger_parameters: &<C::D as LedgerDigest>::Parameters,
+        ledger_parameters:       &MHTParams<C::MHTParameters>,
     ) -> Self {
         let num_input_records = C::NUM_INPUT_RECORDS;
         let num_output_records = C::NUM_OUTPUT_RECORDS;
-        let digest = C::D::default();
+        let digest = MHTDigest::<C::MHTParameters>::default();
 
         let old_sn = vec![<C::S as SignatureScheme>::PublicKey::default(); num_input_records];
         let old_records = vec![DPCRecord::default(); num_input_records];
-        let old_witnesses = vec![C::LCW::default(); num_input_records];
+        let old_witnesses = vec![HashMembershipProof::default(); num_input_records];
         let old_address_secret_keys = vec![AddressSecretKey::default(); num_input_records];
 
         let new_cm = vec![<C::RecC as CommitmentScheme>::Output::default(); num_output_records];
@@ -153,7 +151,7 @@ impl<C: DelegableDPCComponents> CoreChecksCircuit<C> {
             ledger_parameters:       Some(ledger_parameters.clone()),
 
             // Digest
-            ledger_digest: Some(digest.clone()),
+            ledger_digest: Some(digest),
 
             // Input records
             old_records:             Some(old_records),
@@ -179,14 +177,14 @@ impl<C: DelegableDPCComponents> CoreChecksCircuit<C> {
     pub fn new(
         // Parameters
         comm_amd_crh_parameters: &CommCRHSigPublicParameters<C>,
-        ledger_parameters: &<C::D as LedgerDigest>::Parameters,
+        ledger_parameters:       &MHTParams<C::MHTParameters>,
 
         // Digest
-        ledger_digest: &C::D,
+        ledger_digest: &MHTDigest<C::MHTParameters>,
 
         // Old records
         old_records: &[DPCRecord<C>],
-        old_witnesses: &[C::LCW],
+        old_witnesses: &[HashMembershipProof<C::MHTParameters>],
         old_address_secret_keys: &[AddressSecretKey<C>],
         old_serial_numbers: &[<C::S as SignatureScheme>::PublicKey],
 

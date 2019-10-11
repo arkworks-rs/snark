@@ -1,7 +1,5 @@
-use crate::{
-    crypto_primitives::NIZK,
-    dpc::{delegable_dpc::DelegableDPCComponents, Predicate},
-};
+use crypto_primitives::NIZK;
+use crate::dpc::{delegable_dpc::DelegableDPCComponents, Predicate};
 use std::marker::PhantomData;
 
 pub struct PrivatePredInput<C: DelegableDPCComponents> {

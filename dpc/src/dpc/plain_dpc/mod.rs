@@ -5,11 +5,11 @@ use algebra::UniformRand;
 use rand::Rng;
 use std::marker::PhantomData;
 
+use crypto_primitives::{CommitmentScheme, FixedLengthCRH, NIZK, PRF, mht::*};
+use crypto_primitives::{CommitmentGadget, FixedLengthCRHGadget, NIZKVerifierGadget, PRFGadget};
 use crate::{
-    crypto_primitives::{CommitmentScheme, FixedLengthCRH, NIZK, PRF},
     dpc::{AddressKeyPair, DPCScheme, Predicate, Record, Transaction},
-    gadgets::{CommitmentGadget, FixedLengthCRHGadget, LCWGadget, NIZKVerifierGadget, PRFGadget},
-    ledger::{Ledger, LedgerDigest, LedgerWitness},
+    ledger::*,
 };
 
 pub mod address;
@@ -62,7 +62,8 @@ pub trait PlainDPCComponents: 'static + Sized {
     type RecCGadget: CommitmentGadget<Self::RecC, Self::CoreCheckF>;
 
     // Ledger digest type.
-    type D: LedgerDigest + Clone;
+    type MHTParameters: MHTParameters;
+    type MHT_HGadget: FixedLengthCRHGadget<<Self::MHTParameters as MHTParameters>::H, Self::CoreCheckF>;
 
     // CRH for computing the serial number nonce. Invoked only over `Self::CoreCheckF`.
     type SnNonceH: FixedLengthCRH;
@@ -111,15 +112,6 @@ pub trait PlainDPCComponents: 'static + Sized {
     // input.
     type PredicateNIZKGadget: NIZKVerifierGadget<Self::PredicateNIZK, Self::ProofCheckF>;
 
-    type LCW: LedgerWitness<Self::D> + Clone;
-    type LCWGadget: LCWGadget<
-        Self::RecC,
-        Self::D,
-        Self::LCW,
-        Self::CoreCheckF,
-        CommitmentGadget = <Self::RecCGadget as CommitmentGadget<Self::RecC, Self::CoreCheckF>>::OutputGadget,
-    >;
-
     // PRF for computing serial numbers. Invoked only over `Self::CoreCheckF`.
     type P: PRF;
     type PGadget: PRFGadget<Self::P, Self::CoreCheckF>;
@@ -137,12 +129,12 @@ pub struct DPC<Components: PlainDPCComponents> {
 /// stores references to existing information like old records and secret keys.
 pub(crate) struct ExecuteContext<'a, Components: PlainDPCComponents> {
     comm_and_crh_pp: &'a CommAndCRHPublicParameters<Components>,
-    ledger_digest:   Components::D,
+    ledger_digest:   MHTDigest<Components::MHTParameters>,
 
     // Old record stuff
     old_address_secret_keys: &'a [AddressSecretKey<Components>],
     old_records:             &'a [DPCRecord<Components>],
-    old_witnesses:           Vec<Components::LCW>,
+    old_witnesses:           Vec<HashMembershipProof<Components::MHTParameters>>,
     old_serial_numbers:      Vec<<Components::P as PRF>::Output>,
 
     // New record stuff
@@ -365,14 +357,10 @@ impl<Components: PlainDPCComponents> DPC<Components> {
     ) -> Result<ExecuteContext<'a, Components>, Error>
     where
         L: Ledger<
-            Parameters = <Components::D as LedgerDigest>::Parameters,
+            Parameters = Components::MHTParameters,
             Commitment = <Components::RecC as CommitmentScheme>::Output,
             SerialNumber = <Components::P as PRF>::Output,
-            LedgerStateDigest = Components::D,
-            CommWitness = Components::LCW,
         >,
-        <L as Ledger>::SnWitness: LedgerWitness<Components::D>,
-        <L as Ledger>::MemoWitness: LedgerWitness<Components::D>,
     {
         assert_eq!(Components::NUM_INPUT_RECORDS, old_records.len());
         assert_eq!(Components::NUM_INPUT_RECORDS, old_address_secret_keys.len());
@@ -396,7 +384,7 @@ impl<Components: PlainDPCComponents> DPC<Components> {
             let input_record_time = start_timer!(|| format!("Process input record {}", i));
 
             if record.is_dummy() {
-                old_witnesses.push(Components::LCW::dummy_witness());
+                old_witnesses.push(HashMembershipProof::default());
             } else {
                 let comm = &record.commitment();
                 let witness = ledger.prove_cm(comm)?;
@@ -536,14 +524,10 @@ impl<Components: PlainDPCComponents> DPC<Components> {
 impl<Components: PlainDPCComponents, L: Ledger> DPCScheme<L> for DPC<Components>
 where
     L: Ledger<
-        Parameters = <Components::D as LedgerDigest>::Parameters,
+        Parameters = Components::MHTParameters,
         Commitment = <Components::RecC as CommitmentScheme>::Output,
         SerialNumber = <Components::P as PRF>::Output,
-        LedgerStateDigest = Components::D,
-        CommWitness = Components::LCW,
     >,
-    <L as Ledger>::SnWitness: LedgerWitness<Components::D>,
-    <L as Ledger>::MemoWitness: LedgerWitness<Components::D>,
 {
     type AddressKeyPair = AddressPair<Components>;
     type Auxiliary = [u8; 32];
@@ -556,7 +540,7 @@ where
     type Transaction = DPCTransaction<Components>;
     type LocalData = LocalData<Components>;
 
-    fn setup<R: Rng>(ledger_pp: &L::Parameters, rng: &mut R) -> Result<Self::Parameters, Error> {
+    fn setup<R: Rng>(ledger_pp: &MHTParams<Components::MHTParameters>, rng: &mut R) -> Result<Self::Parameters, Error> {
         let setup_time = start_timer!(|| "PlainDPC::Setup");
         let comm_and_crh_pp = Self::generate_comm_and_crh_parameters(rng)?;
 

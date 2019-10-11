@@ -1,7 +1,5 @@
-use crate::{
-    crypto_primitives::{CommitmentScheme, FixedLengthCRH, SignatureScheme, NIZK},
-    dpc::delegable_dpc::DelegableDPCComponents,
-};
+use crypto_primitives::{CommitmentScheme, FixedLengthCRH, SignatureScheme, NIZK};
+use crate::dpc::delegable_dpc::DelegableDPCComponents;
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "C: DelegableDPCComponents"))]

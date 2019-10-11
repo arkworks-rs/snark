@@ -3,14 +3,12 @@ use algebra::{bytes::ToBytes, to_bytes};
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 
 use crate::Error;
-use crate::{
-    crypto_primitives::{CommitmentScheme, FixedLengthCRH},
-    gadgets::Assignment,
-};
+use crypto_primitives::{CommitmentScheme, FixedLengthCRH};
 
 use crate::{
     dpc::delegable_dpc::{CommCRHSigPublicParameters, DelegableDPCComponents, PrivatePredInput},
     gadgets::dpc::delegable_dpc::execute_proof_check_gadget,
+    gadgets::Assignment,
 };
 
 
