@@ -1,5 +1,5 @@
+use crypto_primitives::CommitmentScheme;
 use crate::{
-    crypto_primitives::CommitmentScheme,
     delegable_dpc::*,
     dpc::{delegable_dpc::DPCRecord, Record},
     gadgets::Assignment,

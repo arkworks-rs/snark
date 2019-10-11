@@ -5,25 +5,26 @@ use algebra::curves::{
 
 use algebra::fields::bls12_377::{fr::Fr as Bls12_377Fr, fq::Fq as Bls12_377Fq};
 
-use crate::crypto_primitives::{
+use crypto_primitives::{
     commitment::{blake2s::Blake2sCommitment, injective_map::PedersenCommCompressor},
     crh::{
         injective_map::{PedersenCRHCompressor, TECompressor},
         pedersen::PedersenWindow,
     },
     nizk::Gm17,
+    mht::*,
     prf::blake2s::Blake2s,
-    CommitmentScheme,
 };
 
-use crate::gadgets::{
+use crypto_primitives::{
     commitment::{
-        blake2s::Blake2sCommitmentGadget, injective_map::PedersenCommitmentCompressorGadget,
+        blake2s::constraints::Blake2sCommitmentGadget, 
+        injective_map::constraints::PedersenCommitmentCompressorGadget,
     },
-    crh::injective_map::{PedersenCRHCompressorGadget, TECompressorGadget},
-    mht::IdealLedgerGadget,
-    prf::blake2s::Blake2sGadget,
-    verifier::gm17::Gm17VerifierGadget,
+    crh::injective_map::constraints::{PedersenCRHCompressorGadget, TECompressorGadget},
+    mht::constraints::MerklePathVerifierGadget,
+    prf::blake2s::constraints::Blake2sGadget,
+    nizk::gm17::constraints::Gm17VerifierGadget,
 };
 use r1cs_std::{
     groups::curves::twisted_edwards::{
@@ -37,7 +38,7 @@ use crate::dpc::plain_dpc::{
     transaction::DPCTransaction, LocalData as DPCLocalData, PlainDPCComponents, DPC,
 };
 
-use crate::ledger::{CommPath, Digest, IdealLedger};
+use crate::ledger::*;
 
 pub const NUM_INPUT_RECORDS: usize = 2;
 pub const NUM_OUTPUT_RECORDS: usize = 2;
@@ -76,6 +77,12 @@ impl PedersenWindow for TwoToOneWindow {
     const NUM_WINDOWS: usize = 4;
 }
 
+pub struct MerkleTreeParameters;
+impl MHTParameters for MerkleTreeParameters {
+    const HEIGHT: usize = 32;
+    type H = MerkleTreeCRH;
+}
+
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct RecordWindow;
 impl PedersenWindow for RecordWindow {
@@ -99,19 +106,19 @@ impl PlainDPCComponents for Components {
     type CoreCheckF = CoreCheckF;
     type ProofCheckF = ProofCheckF;
 
+    type MHTParameters = MerkleTreeParameters;
+    type MHT_HGadget = MerkleTreeCRHGadget;
+
     type AddrC = AddressComm;
     type RecC = RecordComm;
 
     type AddrCGadget = AddressCommGadget;
     type RecCGadget = RecordCommGadget;
 
-    type D = MerkleTreeDigest;
     type SnNonceH = SnNonceCRH;
     type SnNonceHGadget = SnNonceCRHGadget;
     type MainNIZK = CoreCheckNIZK;
     type ProofCheckNIZK = ProofCheckNIZK;
-    type LCW = MerkleTreeWitness;
-    type LCWGadget = MerkleTreeWitnessGadget;
     type P = PRF;
     type PGadget = PRFGadget;
 
@@ -149,10 +156,6 @@ pub type ProofCheckNIZK =
     Gm17<ProofCheckPairing, ProofCheckCircuit<Components>, ProofCheckVerifierInput<Components>>;
 pub type PredicateNIZK<C> = Gm17<CoreCheckPairing, EmptyPredicateCircuit<C>, PredicateLocalData<C>>;
 pub type PRF = Blake2s;
-
-pub type MerkleTreeDigest = Digest<MerkleTreeCRH>;
-pub type MerkleTreeWitness = CommPath<MerkleTreeCRH, <RecordComm as CommitmentScheme>::Output>;
-//
 
 // Gadgets
 pub type EdwardsCompressorGadget = TECompressorGadget;
@@ -202,13 +205,12 @@ pub type PredVkCRHGadget = PedersenCRHCompressorGadget<
     EdwardsCompressorGadget,
 >;
 
-pub type MerkleTreeWitnessGadget =
-    IdealLedgerGadget<RecordComm, MerkleTreeCRH, MerkleTreeCRHGadget, RecordCommGadget>;
+pub type MerkleTreeWitnessGadget = MerklePathVerifierGadget<MerkleTreeParameters, MerkleTreeCRH, CoreCheckF>;
 pub type PRFGadget = Blake2sGadget;
 pub type PredicateNIZKGadget = Gm17VerifierGadget<CoreCheckPairing, ProofCheckF, PairingGadget>;
 //
 
-pub type MerkleTreeIdealLedger = IdealLedger<Tx, MerkleTreeCRH>;
+pub type MerkleTreeIdealLedger = IdealLedger<Tx, MerkleTreeParameters>;
 pub type Tx = DPCTransaction<Components>;
 
 pub type InstantiatedDPC = DPC<Components>;

@@ -1,5 +1,5 @@
+use crypto_primitives::{CommitmentScheme, FixedLengthCRH, SignatureScheme};
 use crate::{
-    crypto_primitives::{CommitmentScheme, FixedLengthCRH, SignatureScheme},
     dpc::{
         delegable_dpc::{AddressPublicKey, DPCPredicate, DelegableDPCComponents},
         Record,

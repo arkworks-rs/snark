@@ -2,159 +2,67 @@ use crate::Error;
 use rand::Rng;
 use std::{
     collections::{HashMap, HashSet},
-    fmt,
     hash::Hash,
-    io::{Result as IoResult, Write},
     rc::Rc,
 };
 
-use crate::{
-    crypto_primitives::{FixedLengthCRH, HashMembershipProof, MerkleHashTree},
-    dpc::Transaction,
-    ledger::{Ledger, LedgerDigest, LedgerWitness},
-};
+use crypto_primitives::{FixedLengthCRH, mht::{HashMembershipProof, MerkleHashTree, MHTParameters}};
+use crate::{dpc::Transaction, ledger::*};
 use algebra::bytes::ToBytes;
 
-#[derive(Debug)]
-pub enum LedgerError {
-    DuplicateSn,
-    DuplicateMemo,
-    InvalidCm,
-    InvalidCmIndex,
-}
-
-impl std::fmt::Display for LedgerError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let msg = match self {
-            LedgerError::DuplicateSn => "duplicate sn pushed to ledger",
-            LedgerError::DuplicateMemo => "duplicate memo pushed to ledger",
-            LedgerError::InvalidCm => "invalid cm pushed to ledger",
-            LedgerError::InvalidCmIndex => "invalid cm index during proving",
-
-        };
-        write!(f, "{}", msg)
-    }
-}
-
-impl std::error::Error for LedgerError {
-    #[inline]
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        None
-    }
-}
-
-#[derive(Derivative)]
-#[derivative(
-    Default(bound = "H: FixedLengthCRH"),
-    Clone(bound = "H: FixedLengthCRH"),
-    PartialEq(bound = "H: FixedLengthCRH"),
-    Eq(bound = "H: FixedLengthCRH"),
-    Hash(bound = "H: FixedLengthCRH"),
-    Debug(bound = "H: FixedLengthCRH, H::Output: fmt::Debug")
-)]
-pub struct Digest<H: FixedLengthCRH>(pub(crate) H::Output);
-
-impl<H: FixedLengthCRH> ToBytes for Digest<H> {
-    #[inline]
-    fn write<W: Write>(&self, writer: W) -> IoResult<()> {
-        self.0.write(writer)
-    }
-}
-
-impl<H: FixedLengthCRH> LedgerDigest for Digest<H> {
-    type Parameters = H::Parameters;
-}
-
-#[derive(Derivative)]
-#[derivative(
-    Default(bound = "H: FixedLengthCRH, L: ToBytes + Eq"),
-    Clone(bound = "H: FixedLengthCRH, L: ToBytes + Eq"),
-    Debug(bound = "H: FixedLengthCRH, L: ToBytes + Eq, H::Output: fmt::Debug")
-)]
-pub struct CommPath<H: FixedLengthCRH, L: ToBytes + Eq>(pub(crate) HashMembershipProof<H, L>);
-
-#[derive(Default, Clone)]
-pub struct SnPath;
-
-#[derive(Default, Clone)]
-pub struct MemoPath;
-
-impl<H: FixedLengthCRH> LedgerWitness<Digest<H>> for SnPath {
-    fn dummy_witness() -> Self {
-        SnPath
-    }
-}
-
-impl<H: FixedLengthCRH> LedgerWitness<Digest<H>> for MemoPath {
-    fn dummy_witness() -> Self {
-        MemoPath
-    }
-}
-
-impl<H: FixedLengthCRH, L: ToBytes + Eq> LedgerWitness<Digest<H>> for CommPath<H, L> {
-    fn dummy_witness() -> Self {
-        CommPath(HashMembershipProof::default())
-    }
-}
-
-pub struct IdealLedger<T: Transaction, H: FixedLengthCRH>
+pub struct IdealLedger<T: Transaction, P: MHTParameters>
 where
     T::Commitment: ToBytes,
 {
-    crh_params:     Rc<H::Parameters>,
+    crh_params:     Rc<<P::H as FixedLengthCRH>::Parameters>,
     transactions:   Vec<T>,
-    cm_merkle_tree: MerkleHashTree<H, T::Commitment>,
+    cm_merkle_tree: MerkleHashTree<P>,
     cur_cm_index:   usize,
     cur_sn_index:   usize,
     cur_memo_index: usize,
     comm_to_index:  HashMap<T::Commitment, usize>,
     sn_to_index:    HashMap<T::SerialNumber, usize>,
     memo_to_index:  HashMap<T::Memorandum, usize>,
-    current_digest: Option<Digest<H>>,
-    past_digests:   HashSet<Digest<H>>,
+    current_digest: Option<MHTDigest<P>>,
+    past_digests:   HashSet<MHTDigest<P>>,
     genesis_cm:     T::Commitment,
     genesis_sn:     T::SerialNumber,
     genesis_memo:   T::Memorandum,
 }
 
-impl<T: Transaction, H: FixedLengthCRH> Ledger for IdealLedger<T, H>
+impl<T: Transaction, P: MHTParameters> Ledger for IdealLedger<T, P>
 where
     T: Eq,
     T::Commitment: ToBytes + Clone,
     T::SerialNumber: ToBytes + Clone,
     T::Memorandum: Hash + Clone,
 {
-    type Parameters = H::Parameters;
-    type LedgerStateDigest = Digest<H>;
+    type Parameters = P;
+
     type Commitment = T::Commitment;
-    type CommWitness = CommPath<H, T::Commitment>;
-
     type SerialNumber = T::SerialNumber;
-    type SnWitness = SnPath;
-
     type Memo = T::Memorandum;
-    type MemoWitness = MemoPath;
     type Transaction = T;
 
-    fn setup<R: Rng>(rng: &mut R) -> Result<Self::Parameters, Error> {
-        H::setup(rng)
+    fn setup<R: Rng>(rng: &mut R) -> Result<MHTParams<Self::Parameters>, Error> {
+        P::H::setup(rng)
     }
 
     fn new(
-        parameters: Self::Parameters,
+        parameters: <P::H as FixedLengthCRH>::Parameters,
         genesis_cm: Self::Commitment,
         genesis_sn: Self::SerialNumber,
         genesis_memo: Self::Memo,
     ) -> Self {
         let params = Rc::new(parameters);
-        let cm_merkle_tree = MerkleHashTree::new(params.clone(), &[genesis_cm.clone()]).unwrap();
+        let cm_merkle_tree = MerkleHashTree::<P>::new(params.clone(), &[genesis_cm.clone()]).unwrap();
 
         let mut cur_cm_index = 0;
         let mut comm_to_index = HashMap::new();
         comm_to_index.insert(genesis_cm.clone(), cur_cm_index);
         cur_cm_index += 1;
 
-        let root = Digest(cm_merkle_tree.root());
+        let root = cm_merkle_tree.root();
         let mut past_digests = HashSet::new();
         past_digests.insert(root.clone());
 
@@ -181,7 +89,7 @@ where
         self.transactions.len()
     }
 
-    fn parameters(&self) -> &Self::Parameters {
+    fn parameters(&self) -> &MHTParams<Self::Parameters> {
         &self.crh_params
     }
 
@@ -231,7 +139,7 @@ where
         assert!(commitments[0] == self.genesis_cm);
         self.cm_merkle_tree = MerkleHashTree::new(self.crh_params.clone(), &commitments)?;
 
-        let new_digest = Digest(self.cm_merkle_tree.root());
+        let new_digest = self.cm_merkle_tree.root();
         self.past_digests.insert(new_digest.clone());
         self.current_digest = Some(new_digest);
 
@@ -241,11 +149,11 @@ where
         Ok(())
     }
 
-    fn digest(&self) -> Option<Self::LedgerStateDigest> {
+    fn digest(&self) -> Option<MHTDigest<Self::Parameters>> {
         self.current_digest.clone()
     }
 
-    fn validate_digest(&self, digest: &Self::LedgerStateDigest) -> bool {
+    fn validate_digest(&self, digest: &MHTDigest<Self::Parameters>) -> bool {
         self.past_digests.contains(digest)
     }
 
@@ -261,7 +169,7 @@ where
         self.memo_to_index.contains_key(memo)
     }
 
-    fn prove_cm(&self, cm: &Self::Commitment) -> Result<Self::CommWitness, Error> {
+    fn prove_cm(&self, cm: &Self::Commitment) -> Result<HashMembershipProof<Self::Parameters>, Error> {
         let witness_time = start_timer!(|| "Generate membership witness");
 
         let cm_index = self
@@ -269,44 +177,75 @@ where
             .get(cm)
             .ok_or(LedgerError::InvalidCmIndex)?;
 
-        let result = CommPath(self.cm_merkle_tree.generate_proof(*cm_index, cm)?);
+        let result = self.cm_merkle_tree.generate_proof(*cm_index, cm)?;
 
         end_timer!(witness_time);
         Ok(result)
     }
 
-    fn prove_sn(&self, _sn: &Self::SerialNumber) -> Result<Self::SnWitness, Error> {
-        Ok(SnPath)
+    fn prove_sn(&self, _sn: &Self::SerialNumber) -> Result<HashMembershipProof<Self::Parameters>, Error> {
+        Ok(HashMembershipProof::default())
     }
 
-    fn prove_memo(&self, _memo: &Self::Memo) -> Result<Self::MemoWitness, Error> {
-        Ok(MemoPath)
+    fn prove_memo(&self, _memo: &Self::Memo) -> Result<HashMembershipProof<Self::Parameters>, Error> {
+        Ok(HashMembershipProof::default())
     }
+
 
     fn verify_cm(
-        params: &Self::Parameters,
-        digest: &Self::LedgerStateDigest,
+        parameters: &MHTParams<Self::Parameters>,
+        digest: &MHTDigest<Self::Parameters>,
         cm: &Self::Commitment,
-        witness: &Self::CommWitness,
+        witness: &HashMembershipProof<Self::Parameters>,
     ) -> bool {
-        witness.0.verify(params, &digest.0, cm).unwrap()
+        witness.verify(parameters, &digest, cm).unwrap()
     }
 
     fn verify_sn(
-        _params: &Self::Parameters,
-        _digest: &Self::LedgerStateDigest,
+        _parameters: &MHTParams<Self::Parameters>,
+        _digest: &MHTDigest<Self::Parameters>,
         _sn: &Self::SerialNumber,
-        _witness: &Self::SnWitness,
+        _witness: &HashMembershipProof<Self::Parameters>,
     ) -> bool {
         true
     }
 
     fn verify_memo(
-        _params: &Self::Parameters,
-        _digest: &Self::LedgerStateDigest,
+        _parameters: &MHTParams<Self::Parameters>,
+        _digest: &MHTDigest<Self::Parameters>,
         _memo: &Self::Memo,
-        _witness: &Self::MemoWitness,
+        _witness: &HashMembershipProof<Self::Parameters>,
     ) -> bool {
         true
     }
 }
+
+#[derive(Debug)]
+pub enum LedgerError {
+    DuplicateSn,
+    DuplicateMemo,
+    InvalidCm,
+    InvalidCmIndex,
+}
+
+impl std::fmt::Display for LedgerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let msg = match self {
+            LedgerError::DuplicateSn => "duplicate sn pushed to ledger",
+            LedgerError::DuplicateMemo => "duplicate memo pushed to ledger",
+            LedgerError::InvalidCm => "invalid cm pushed to ledger",
+            LedgerError::InvalidCmIndex => "invalid cm index during proving",
+
+        };
+        write!(f, "{}", msg)
+    }
+}
+
+impl std::error::Error for LedgerError {
+    #[inline]
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        None
+    }
+}
+
+

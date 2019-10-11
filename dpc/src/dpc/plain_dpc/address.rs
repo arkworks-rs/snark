@@ -1,5 +1,5 @@
+use crypto_primitives::{CommitmentScheme, PRF};
 use crate::{
-    crypto_primitives::{CommitmentScheme, PRF},
     dpc::{plain_dpc::PlainDPCComponents, AddressKeyPair},
 };
 use algebra::bytes::ToBytes;

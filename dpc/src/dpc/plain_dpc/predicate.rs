@@ -1,5 +1,5 @@
+use crypto_primitives::NIZK;
 use crate::{
-    crypto_primitives::NIZK,
     dpc::{plain_dpc::PlainDPCComponents, Predicate},
 };
 use std::marker::PhantomData;

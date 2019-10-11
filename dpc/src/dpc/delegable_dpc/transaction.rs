@@ -1,7 +1,6 @@
-use crate::{
-    crypto_primitives::{CommitmentScheme, SignatureScheme, NIZK},
-    dpc::{delegable_dpc::DelegableDPCComponents, Transaction},
-};
+use crypto_primitives::{CommitmentScheme, SignatureScheme, NIZK};
+use crate::ledger::*;
+use crate::dpc::delegable_dpc::{DelegableDPCComponents, Transaction};
 
 #[derive(Derivative)]
 #[derivative(
@@ -23,7 +22,7 @@ pub struct DPCTransaction<C: DelegableDPCComponents> {
     Eq(bound = "C: DelegableDPCComponents")
 )]
 pub struct DPCStuff<C: DelegableDPCComponents> {
-    pub digest: C::D,
+    pub digest: MHTDigest<C::MHTParameters>,
 
     #[derivative(PartialEq = "ignore")]
     pub core_proof: <C::MainNIZK as NIZK>::Proof,
@@ -46,7 +45,7 @@ impl<C: DelegableDPCComponents> DPCTransaction<C> {
         old_serial_numbers: Vec<<Self as Transaction>::SerialNumber>,
         new_commitments: Vec<<Self as Transaction>::Commitment>,
         memorandum: <Self as Transaction>::Memorandum,
-        digest: C::D,
+        digest: MHTDigest<C::MHTParameters>,
         core_proof: <C::MainNIZK as NIZK>::Proof,
         predicate_proof: <C::ProofCheckNIZK as NIZK>::Proof,
         predicate_comm: <C::PredVkComm as CommitmentScheme>::Output,
