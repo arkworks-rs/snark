@@ -24,8 +24,7 @@ use r1cs_std::{
     prelude::*,
 };
 
-pub trait InjectiveMapGadget<G: Group, I: InjectiveMap<G>, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>>
-{
+pub trait InjectiveMapGadget<G: Group, I: InjectiveMap<G>, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> {
     type OutputGadget: EqGadget<ConstraintF>
         + ToBytesGadget<ConstraintF>
         + CondSelectGadget<ConstraintF>
@@ -75,13 +74,14 @@ where
     }
 }
 
-pub struct PedersenCRHCompressorGadget<
+pub struct PedersenCRHCompressorGadget<G, I, ConstraintF, GG, IG>
+where
     G: Group,
     I: InjectiveMap<G>,
     ConstraintF: Field,
     GG: GroupGadget<G, ConstraintF>,
     IG: InjectiveMapGadget<G, I, ConstraintF, GG>,
-> {
+{
     _compressor:        PhantomData<I>,
     _compressor_gadget: PhantomData<IG>,
     _crh:               PedersenCRHGadget<G, ConstraintF, GG>,

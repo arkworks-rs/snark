@@ -1,10 +1,12 @@
 use crate::Error;
 use algebra::UniformRand;
+use algebra::{Field, ToConstraintField};
+use algebra::{bytes::ToBytes, groups::Group, BitIterator, FpParameters, PrimeField};
+
 use rand::Rng;
 use std::marker::PhantomData;
 
 use super::CommitmentScheme;
-use algebra::{bytes::ToBytes, groups::Group, BitIterator, FpParameters, PrimeField};
 use std::io::{Result as IoResult, Write};
 
 pub use crate::crh::pedersen::PedersenWindow;
@@ -119,5 +121,13 @@ impl<G: Group, W: PedersenWindow> CommitmentScheme for PedersenCommitment<G, W> 
         end_timer!(commit_time);
 
         Ok(result)
+    }
+}
+
+
+impl<ConstraintF: Field, G: Group + ToConstraintField<ConstraintF>> ToConstraintField<ConstraintF> for PedersenParameters<G> {
+    #[inline]
+    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
+        Ok(Vec::new())
     }
 }

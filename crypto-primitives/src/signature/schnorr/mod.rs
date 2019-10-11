@@ -1,5 +1,6 @@
 use crate::SignatureScheme;
 use algebra::{
+    ToConstraintField,
     bytes::ToBytes,
     fields::{Field, PrimeField},
     groups::Group,
@@ -220,4 +221,13 @@ pub fn bytes_to_bits(bytes: &[u8]) -> Vec<bool> {
         }
     }
     bits
+}
+
+impl<ConstraintF: Field, G: Group + ToConstraintField<ConstraintF>, D: Digest> ToConstraintField<ConstraintF>
+    for SchnorrSigParameters<G, D>
+{
+    #[inline]
+    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
+        self.generator.to_field_elements()
+    }
 }

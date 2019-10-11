@@ -28,13 +28,12 @@ where
     _f: PhantomData<ConstraintF>,
 }
 
-impl<P, CRHGadget, ConstraintF>  MerklePathVerifierGadget<P, CRHGadget, ConstraintF>
+impl<P, CRHGadget, ConstraintF> MerklePathVerifierGadget<P, CRHGadget, ConstraintF>
 where
     P: MHTParameters,
     ConstraintF: Field,
     CRHGadget: FixedLengthCRHGadget<P::H, ConstraintF>,
 {
-
     pub fn check_membership<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
         parameters: &CRHGadget::ParametersGadget,
