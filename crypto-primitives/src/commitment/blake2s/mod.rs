@@ -6,6 +6,10 @@ use rand::Rng;
 
 pub struct Blake2sCommitment;
 
+#[cfg(feature = "r1cs")]
+pub mod constraints;
+
+
 impl CommitmentScheme for Blake2sCommitment {
     type Parameters = ();
     type Randomness = [u8; 32];

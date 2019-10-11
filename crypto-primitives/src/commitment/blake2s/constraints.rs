@@ -1,8 +1,8 @@
-use crate::crypto_primitives::commitment::blake2s::Blake2sCommitment;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
-use crate::gadgets::{
-    prf::blake2s::{blake2s_gadget, Blake2sOutputGadget},
+use crate::{
+    commitment::blake2s::Blake2sCommitment,
+    prf::blake2s::constraints::{blake2s_gadget, Blake2sOutputGadget},
     CommitmentGadget,
 };
 use algebra::{PrimeField, Field};
@@ -105,12 +105,10 @@ mod test {
     use algebra::fields::bls12_381::Fr;
     use rand::{thread_rng, Rng};
 
+    use crate::*;
     use crate::{
-        crypto_primitives::commitment::{blake2s::Blake2sCommitment, CommitmentScheme},
-        gadgets::commitment::{
-            blake2s::{Blake2sCommitmentGadget, Blake2sRandomnessGadget},
-            CommitmentGadget,
-        },
+        commitment::blake2s::Blake2sCommitment,
+        commitment::blake2s::constraints::{Blake2sCommitmentGadget, Blake2sRandomnessGadget},
     };
     use r1cs_core::ConstraintSystem;
     use r1cs_std::prelude::*;
