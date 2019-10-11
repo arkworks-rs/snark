@@ -7,8 +7,8 @@ use crate::{
     dpc::delegable_dpc::{
         AddressSecretKey, CommCRHSigPublicParameters, DPCRecord, DelegableDPCComponents,
     },
-    gadgets::dpc::delegable_dpc::execute_core_checks_gadget,
-    gadgets::Assignment,
+    constraints::delegable_dpc::execute_core_checks_gadget,
+    constraints::Assignment,
     ledger::*,
 };
 

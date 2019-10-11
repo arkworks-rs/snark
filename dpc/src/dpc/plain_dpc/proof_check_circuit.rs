@@ -6,9 +6,9 @@ use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 use crypto_primitives::{CommitmentScheme, FixedLengthCRH};
 
 use crate::{
-    gadgets::Assignment,
+    constraints::Assignment,
     dpc::plain_dpc::{CommAndCRHPublicParameters, PlainDPCComponents, PrivatePredInput},
-    gadgets::dpc::plain_dpc::execute_proof_check_gadget,
+    constraints::plain_dpc::execute_proof_check_gadget,
 };
 
 

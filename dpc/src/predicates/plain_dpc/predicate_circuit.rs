@@ -6,7 +6,7 @@ use std::io::{Write, Result as IoResult};
 use crate::crypto_primitives::{CommitmentScheme, PRF};
 use crate::dpc::plain_dpc::DPCRecord;
 use r1cs_std::{utils::AllocGadget, uint8::UInt8};
-use crate::gadgets::Assignment;
+use crate::constraints::Assignment;
 
 
 use algebra::PairingEngine;

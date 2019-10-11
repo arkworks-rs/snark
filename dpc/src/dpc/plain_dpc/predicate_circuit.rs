@@ -1,7 +1,7 @@
 use crypto_primitives::{CommitmentScheme, PRF};
 use crate::{
     dpc::{plain_dpc::DPCRecord, Record},
-    gadgets::Assignment,
+    constraints::Assignment,
     plain_dpc::*,
 };
 use r1cs_std::prelude::*;

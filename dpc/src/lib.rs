@@ -49,7 +49,7 @@ extern crate bench_utils;
 extern crate derivative;
 
 pub(crate) mod dpc;
-pub mod gadgets;
+pub mod constraints;
 pub mod ledger;
 pub mod predicates;
 

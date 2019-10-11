@@ -5,8 +5,8 @@ use crypto_primitives::{CommitmentScheme, FixedLengthCRH, PRF, mht::*};
 
 use crate::{
     dpc::plain_dpc::{AddressSecretKey, CommAndCRHPublicParameters, DPCRecord, PlainDPCComponents},
-    gadgets::dpc::plain_dpc::execute_core_checks_gadget,
-    gadgets::Assignment,
+    constraints::plain_dpc::execute_core_checks_gadget,
+    constraints::Assignment,
     ledger::*,
 };
 
