@@ -16,13 +16,15 @@ use r1cs_std::{groups::GroupGadget, uint8::UInt8};
 
 use std::marker::PhantomData;
 
-pub struct PedersenCommitmentCompressorGadget<
+pub struct PedersenCommitmentCompressorGadget<G, I, ConstraintF, GG, IG>
+where
     G: Group,
     I: InjectiveMap<G>,
     ConstraintF: Field,
     GG: GroupGadget<G, ConstraintF>,
     IG: InjectiveMapGadget<G, I, ConstraintF, GG>,
-> {
+
+{
     _compressor:        PhantomData<I>,
     _compressor_gadget: PhantomData<IG>,
     _crh:               PedersenCommitmentGadget<G, ConstraintF, GG>,

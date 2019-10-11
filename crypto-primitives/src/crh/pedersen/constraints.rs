@@ -1,10 +1,9 @@
-use algebra::Field;
 
 use crate::crh::{
     FixedLengthCRHGadget,
     pedersen::{PedersenCRH, PedersenParameters, PedersenWindow},
 };
-use algebra::groups::Group;
+use algebra::{Field, Group};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
 
