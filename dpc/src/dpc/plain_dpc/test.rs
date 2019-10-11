@@ -13,7 +13,7 @@ use crate::crypto_primitives::FixedLengthCRH;
 
 use r1cs_core::ConstraintSystem;
 
-use crate::gadgets::dpc::plain_dpc::{execute_core_checks_gadget, execute_proof_check_gadget};
+use crate::constraints::plain_dpc::{execute_core_checks_gadget, execute_proof_check_gadget};
 use r1cs_std::test_constraint_system::TestConstraintSystem;
 
 use crate::dpc::{

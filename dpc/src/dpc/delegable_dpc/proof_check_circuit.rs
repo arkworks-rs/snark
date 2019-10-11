@@ -7,8 +7,8 @@ use crypto_primitives::{CommitmentScheme, FixedLengthCRH};
 
 use crate::{
     dpc::delegable_dpc::{CommCRHSigPublicParameters, DelegableDPCComponents, PrivatePredInput},
-    gadgets::dpc::delegable_dpc::execute_proof_check_gadget,
-    gadgets::Assignment,
+    constraints::delegable_dpc::execute_proof_check_gadget,
+    constraints::Assignment,
 };
 
 

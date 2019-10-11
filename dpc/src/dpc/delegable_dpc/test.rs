@@ -25,22 +25,22 @@ use crate::crypto_primitives::{CommitmentScheme, FixedLengthCRH};
 
 use r1cs_core::ConstraintSystem;
 
-use crate::gadgets::dpc::delegable_dpc::execute_core_checks_gadget;
-use crate::gadgets::dpc::delegable_dpc::execute_proof_check_gadget;
+use crate::constraints::delegable_dpc::execute_core_checks_gadget;
+use crate::constraints::delegable_dpc::execute_proof_check_gadget;
 use r1cs_std::test_constraint_system::TestConstraintSystem;
-use crate::gadgets::commitment::{
+use crate::constraints::commitment::{
     injective_map::PedersenCommitmentCompressorGadget,
     blake2s::Blake2sCommitmentGadget,
 };
-use crate::gadgets::crh::injective_map::{PedersenCRHCompressorGadget, TECompressorGadget};
-use crate::gadgets::verifier::gm17::Gm17VerifierGadget;
+use crate::constraints::crh::injective_map::{PedersenCRHCompressorGadget, TECompressorGadget};
+use crate::constraints::verifier::gm17::Gm17VerifierGadget;
 use r1cs_std::groups::curves::twisted_edwards::edwards_sw6::EdwardsSWGadget;
 use r1cs_std::groups::curves::twisted_edwards::edwards_bls12::EdwardsBlsGadget;
 use r1cs_std::pairing::bls12_377::PairingGadget;
-use crate::gadgets::mht::IdealLedgerGadget;
-use crate::gadgets::prf::blake2s::Blake2sGadget;
+use crate::constraints::mht::IdealLedgerGadget;
+use crate::constraints::prf::blake2s::Blake2sGadget;
 
-use crate::gadgets::signature::schnorr::SchnorrRandomizePkGadget;
+use crate::constraints::signature::schnorr::SchnorrRandomizePkGadget;
 
 use crate::dpc::{DPCScheme, Record};
 
