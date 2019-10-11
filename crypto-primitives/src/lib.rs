@@ -20,6 +20,17 @@ pub use self::{
     signature::SignatureScheme,
 };
 
+#[cfg(feature = "r1cs")]
+pub use self::{
+    commitment::CommitmentGadget,
+    crh::FixedLengthCRHGadget,
+    mht::constraints::{MerklePath, MerklePathVerifierGadget},
+    nizk::NIZKVerifierGadget,
+    prf::PRFGadget,
+    signature::SigRandomizePkGadget,
+};
+
+
 pub type Error  = Box<dyn std::error::Error>;
 
 #[derive(Debug)]
