@@ -1,7 +1,7 @@
-use crypto_primitives::{CommitmentScheme, FixedLengthCRH, PRF, mht::*};
+use crypto_primitives::{CommitmentScheme, FixedLengthCRH, PRF, merkle_tree::*};
 
 use crypto_primitives::{NIZKVerifierGadget,CommitmentGadget, FixedLengthCRHGadget, PRFGadget};
-use crypto_primitives::mht::constraints::*;
+use crypto_primitives::merkle_tree::constraints::*;
 use crate::{
     dpc::{
         plain_dpc::{
@@ -10,7 +10,6 @@ use crate::{
         },
         Record,
     },
-    ledger::*,
 };
 use algebra::{to_bytes, ToConstraintField};
 use r1cs_core::{ConstraintSystem, SynthesisError};
@@ -23,14 +22,14 @@ pub fn execute_core_checks_gadget<C: PlainDPCComponents, CS: ConstraintSystem<C:
     cs: &mut CS,
     // Parameters
     comm_crh_parameters: &CommAndCRHPublicParameters<C>,
-    ledger_parameters: &MHTParams<C::MHTParameters>,
+    ledger_parameters: &MerkleTreeParams<C::MerkleTreeConfig>,
 
     // Digest
-    ledger_digest: &MHTDigest<C::MHTParameters>,
+    ledger_digest: &MerkleTreeDigest<C::MerkleTreeConfig>,
 
     // Old record stuff
     old_records: &[DPCRecord<C>],
-    old_witnesses: &[HashMembershipProof<C::MHTParameters>],
+    old_witnesses: &[MerkleTreePath<C::MerkleTreeConfig>],
     old_address_secret_keys: &[AddressSecretKey<C>],
     old_serial_numbers: &[<C::P as PRF>::Output],
 
@@ -100,14 +99,14 @@ fn execute_core_checks_gadget_helper<
 
     //
     comm_crh_parameters: &CommAndCRHPublicParameters<C>,
-    ledger_parameters: &MHTParams<C::MHTParameters>,
+    ledger_parameters: &MerkleTreeParams<C::MerkleTreeConfig>,
 
     //
-    ledger_digest: &MHTDigest<C::MHTParameters>,
+    ledger_digest: &MerkleTreeDigest<C::MerkleTreeConfig>,
 
     //
     old_records: &[DPCRecord<C>],
-    old_witnesses: &[HashMembershipProof<C::MHTParameters>],
+    old_witnesses: &[MerkleTreePath<C::MerkleTreeConfig>],
     old_address_secret_keys: &[AddressSecretKey<C>],
     old_serial_numbers: &[P::Output],
 
@@ -204,7 +203,7 @@ where
             || Ok(&comm_crh_parameters.sn_nonce_crh_pp),
         )?;
 
-        let ledger_pp = <C::MHT_HGadget as FixedLengthCRHGadget<_, _>>::ParametersGadget::alloc_input(
+        let ledger_pp = <C::MerkleTree_HGadget as FixedLengthCRHGadget<_, _>>::ParametersGadget::alloc_input(
             &mut cs.ns(|| "Declare Ledger Parameters"),
             || Ok(ledger_parameters),
         )?;
@@ -219,7 +218,7 @@ where
     };
 
     let digest_gadget =
-        <C::MHT_HGadget as FixedLengthCRHGadget<_, _>>::OutputGadget::alloc_input(&mut cs.ns(|| "Declare ledger digest"), || {
+        <C::MerkleTree_HGadget as FixedLengthCRHGadget<_, _>>::OutputGadget::alloc_input(&mut cs.ns(|| "Declare ledger digest"), || {
             Ok(ledger_digest)
         })?;
 
@@ -310,16 +309,15 @@ where
             let witness_cs = &mut cs.ns(|| "Check membership witness");
 
             let witness_gadget =
-                MerklePath::<_, C::MHT_HGadget, _>::alloc(&mut witness_cs.ns(|| "Declare witness"), || {
+                MerkleTreePathGadget::<_, C::MerkleTree_HGadget, _>::alloc(&mut witness_cs.ns(|| "Declare witness"), || {
                     Ok(witness)
                 })?;
 
-            MerklePathVerifierGadget::<_, C::MHT_HGadget, _>::conditionally_check_membership(
+            witness_gadget.conditionally_check_membership(
                 &mut witness_cs.ns(|| "Perform check"),
                 &ledger_pp,
                 &digest_gadget,
                 &given_commitment,
-                &witness_gadget,
                 &given_is_dummy.not(),
             )?;
         }

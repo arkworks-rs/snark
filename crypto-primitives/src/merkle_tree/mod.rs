@@ -7,7 +7,7 @@ use std::{fmt, rc::Rc};
 #[cfg(feature = "r1cs")]
 pub mod constraints;
 
-pub trait MHTParameters {
+pub trait MerkleTreeConfig {
     const HEIGHT: usize;
     type H: FixedLengthCRH;
 }
@@ -16,14 +16,18 @@ pub trait MHTParameters {
 /// Our path `is_left_child()` if the boolean in `path` is true.
 #[derive(Derivative)]
 #[derivative(
-    Clone(bound = "P: MHTParameters"),
-    Debug(bound = "P: MHTParameters, <P::H as FixedLengthCRH>::Output: fmt::Debug")
+    Clone(bound = "P: MerkleTreeConfig"),
+    Debug(bound = "P: MerkleTreeConfig, <P::H as FixedLengthCRH>::Output: fmt::Debug")
 )]
-pub struct HashMembershipProof<P: MHTParameters> {
+pub struct MerkleTreePath<P: MerkleTreeConfig> {
     pub(crate) path: Vec<(<P::H as FixedLengthCRH>::Output, <P::H as FixedLengthCRH>::Output)>,
 }
 
-impl<P: MHTParameters> Default for HashMembershipProof<P> {
+pub type MerkleTreeParams<P> = <<P as MerkleTreeConfig>::H as FixedLengthCRH>::Parameters;
+pub type MerkleTreeDigest<P> = <<P as MerkleTreeConfig>::H as FixedLengthCRH>::Output;
+
+
+impl<P: MerkleTreeConfig> Default for MerkleTreePath<P> {
     fn default() -> Self {
         let mut path = Vec::with_capacity(P::HEIGHT as usize);
         for _i in 1..P::HEIGHT as usize {
@@ -35,7 +39,7 @@ impl<P: MHTParameters> Default for HashMembershipProof<P> {
     }
 }
 
-impl<P: MHTParameters> HashMembershipProof<P> {
+impl<P: MerkleTreeConfig> MerkleTreePath<P> {
     pub fn verify<L: ToBytes>(
         &self,
         parameters: &<P::H as FixedLengthCRH>::Parameters,
@@ -76,14 +80,14 @@ impl<P: MHTParameters> HashMembershipProof<P> {
     }
 }
 
-pub struct MerkleHashTree<P: MHTParameters> {
+pub struct MerkleHashTree<P: MerkleTreeConfig> {
     tree:         Vec<<P::H as FixedLengthCRH>::Output>,
     padding_tree: Vec<(<P::H as FixedLengthCRH>::Output, <P::H as FixedLengthCRH>::Output)>,
     parameters:   Rc<<P::H as FixedLengthCRH>::Parameters>,
     root:         Option<<P::H as FixedLengthCRH>::Output>,
 }
 
-impl<P: MHTParameters> MerkleHashTree<P> {
+impl<P: MerkleTreeConfig> MerkleHashTree<P> {
     pub const HEIGHT: u8 = P::HEIGHT as u8;
 
     pub fn blank(parameters: Rc<<P::H as FixedLengthCRH>::Parameters>) -> Self {
@@ -96,7 +100,7 @@ impl<P: MHTParameters> MerkleHashTree<P> {
     }
 
     pub fn new<L: ToBytes>(parameters: Rc<<P::H as FixedLengthCRH>::Parameters>, leaves: &[L]) -> Result<Self, Error> {
-        let new_time = start_timer!(|| "MHT::New");
+        let new_time = start_timer!(|| "MerkleTree::New");
 
         let last_level_size = leaves.len().next_power_of_two();
         let tree_size = 2 * last_level_size - 1;
@@ -177,8 +181,8 @@ impl<P: MHTParameters> MerkleHashTree<P> {
         &self,
         index: usize,
         leaf: &L,
-    ) -> Result<HashMembershipProof<P>, Error> {
-        let prove_time = start_timer!(|| "MHT::GenProof");
+    ) -> Result<MerkleTreePath<P>, Error> {
+        let prove_time = start_timer!(|| "MerkleTree::GenProof");
         let mut path = Vec::new();
 
         let mut buffer = [0u8; 128];
@@ -189,7 +193,7 @@ impl<P: MHTParameters> MerkleHashTree<P> {
 
         // Check that the given index corresponds to the correct leaf.
         if leaf_hash != self.tree[tree_index] {
-            Err(MHTError::IncorrectLeafIndex(tree_index))?
+            Err(MerkleTreeError::IncorrectLeafIndex(tree_index))?
         }
 
         // Iterate from the leaf up to the root, storing all intermediate hash values.
@@ -219,9 +223,9 @@ impl<P: MHTParameters> MerkleHashTree<P> {
         }
         end_timer!(prove_time);
         if path.len() != (Self::HEIGHT - 1) as usize {
-            Err(MHTError::IncorrectPathLength(path.len()))?
+            Err(MerkleTreeError::IncorrectPathLength(path.len()))?
         } else {
-            Ok(HashMembershipProof {
+            Ok(MerkleTreePath {
                 path,
             })
         }
@@ -229,22 +233,22 @@ impl<P: MHTParameters> MerkleHashTree<P> {
 }
 
 #[derive(Debug)]
-pub enum MHTError {
+pub enum MerkleTreeError {
     IncorrectLeafIndex(usize),
     IncorrectPathLength(usize),
 }
 
-impl std::fmt::Display for MHTError {
+impl std::fmt::Display for MerkleTreeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let msg = match self {
-            MHTError::IncorrectLeafIndex(index) => format!("incorrect leaf index: {}", index),
-            MHTError::IncorrectPathLength(len) => format!("incorrect path length: {}", len),
+            MerkleTreeError::IncorrectLeafIndex(index) => format!("incorrect leaf index: {}", index),
+            MerkleTreeError::IncorrectPathLength(len) => format!("incorrect path length: {}", len),
         };
         write!(f, "{}", msg)
     }
 }
 
-impl std::error::Error for MHTError {
+impl std::error::Error for MerkleTreeError {
     #[inline]
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         None
@@ -357,7 +361,7 @@ pub(crate) fn hash_empty<H: FixedLengthCRH>(
 
 #[cfg(test)]
 mod test {
-    use crate::{crh::{pedersen::*, *}, mht::*};
+    use crate::{crh::{pedersen::*, *}, merkle_tree::*};
     use algebra::curves::jubjub::JubJubAffine as JubJub;
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
@@ -372,20 +376,20 @@ mod test {
 
     type H = PedersenCRH<JubJub, Window4x256>;
 
-    struct JubJubMHTParams;
+    struct JubJubMerkleTreeParams;
     
-    impl MHTParameters for JubJubMHTParams {
+    impl MerkleTreeConfig for JubJubMerkleTreeParams {
         const HEIGHT: usize = 32;
         type H = H;
     }
-    type JubJubMHT = MerkleHashTree<JubJubMHTParams>;
+    type JubJubMerkleTree = MerkleHashTree<JubJubMerkleTreeParams>;
 
 
     fn generate_merkle_tree<L: ToBytes + Clone + Eq>(leaves: &[L]) -> () {
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
 
         let crh_parameters = Rc::new(H::setup(&mut rng).unwrap());
-        let tree = JubJubMHT::new(crh_parameters.clone(), &leaves).unwrap();
+        let tree = JubJubMerkleTree::new(crh_parameters.clone(), &leaves).unwrap();
         let root = tree.root();
         for (i, leaf) in leaves.iter().enumerate() {
             let proof = tree.generate_proof(i, &leaf).unwrap();
@@ -394,7 +398,7 @@ mod test {
     }
 
     #[test]
-    fn mht_test() {
+    fn good_root_test() {
         let mut leaves = Vec::new();
         for i in 0..4u8 {
             leaves.push([i, i, i, i, i, i, i, i]);
@@ -412,7 +416,7 @@ mod test {
         let mut rng = XorShiftRng::seed_from_u64(13423423u64);
 
         let crh_parameters = Rc::new(H::setup(&mut rng).unwrap());
-        let tree = JubJubMHT::new(crh_parameters.clone(), &leaves).unwrap();
+        let tree = JubJubMerkleTree::new(crh_parameters.clone(), &leaves).unwrap();
         let root = JubJub::zero();
         for (i, leaf) in leaves.iter().enumerate() {
             let proof = tree.generate_proof(i, &leaf).unwrap();
@@ -422,7 +426,7 @@ mod test {
 
     #[should_panic]
     #[test]
-    fn bad_root_mht_test() {
+    fn bad_root_test() {
         let mut leaves = Vec::new();
         for i in 0..4u8 {
             leaves.push([i, i, i, i, i, i, i, i]);

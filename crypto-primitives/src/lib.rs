@@ -6,7 +6,7 @@ extern crate derivative;
 
 pub mod commitment;
 pub mod crh;
-pub mod mht;
+pub mod merkle_tree;
 pub mod nizk;
 pub mod prf;
 pub mod signature;
@@ -14,7 +14,7 @@ pub mod signature;
 pub use self::{
     commitment::CommitmentScheme,
     crh::FixedLengthCRH,
-    mht::{HashMembershipProof, MerkleHashTree},
+    merkle_tree::{MerkleTreePath, MerkleHashTree},
     nizk::NIZK,
     prf::PRF,
     signature::SignatureScheme,
@@ -24,7 +24,7 @@ pub use self::{
 pub use self::{
     commitment::CommitmentGadget,
     crh::FixedLengthCRHGadget,
-    mht::constraints::{MerklePath, MerklePathVerifierGadget},
+    merkle_tree::constraints::MerkleTreePathGadget,
     nizk::NIZKVerifierGadget,
     prf::PRFGadget,
     signature::SigRandomizePkGadget,
