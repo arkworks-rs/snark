@@ -4,7 +4,7 @@ use rand_xorshift::XorShiftRng;
 #[cfg(debug_assertions)]
 use gm17::PreparedVerifyingKey;
 
-use dpc::crypto_primitives::{nizk::NIZK, FixedLengthCRH};
+use crypto_primitives::{nizk::NIZK, FixedLengthCRH};
 
 use dpc::{
     plain_dpc::{
