@@ -9,7 +9,7 @@ use rand_xorshift::XorShiftRng;
 #[cfg(debug_assertions)]
 use gm17::PreparedVerifyingKey;
 
-use crate::crypto_primitives::FixedLengthCRH;
+use crypto_primitives::FixedLengthCRH;
 
 use r1cs_core::ConstraintSystem;
 
@@ -179,7 +179,7 @@ fn test_execute_constraint_systems() {
 
     let mut old_proof_and_vk = vec![];
     for i in 0..NUM_INPUT_RECORDS {
-        use crate::crypto_primitives::nizk::NIZK;
+        use crypto_primitives::nizk::NIZK;
         let proof = PredicateNIZK::prove(
             &pred_nizk_pp.pk,
             EmptyPredicateCircuit::new(&comm_and_crh_pp, &local_data_comm, i as u8),
@@ -207,7 +207,7 @@ fn test_execute_constraint_systems() {
 
     let mut new_proof_and_vk = vec![];
     for i in 0..NUM_OUTPUT_RECORDS {
-        use crate::crypto_primitives::nizk::NIZK;
+        use crypto_primitives::nizk::NIZK;
         let proof = PredicateNIZK::prove(
             &pred_nizk_pp.pk,
             EmptyPredicateCircuit::new(&comm_and_crh_pp, &local_data_comm, i as u8),
