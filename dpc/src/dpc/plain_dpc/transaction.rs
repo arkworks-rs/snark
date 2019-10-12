@@ -22,7 +22,7 @@ pub struct DPCTransaction<C: PlainDPCComponents> {
     Eq(bound = "C: PlainDPCComponents")
 )]
 pub struct DPCStuff<C: PlainDPCComponents> {
-    pub digest: MHTDigest<C::MHTParameters>,
+    pub digest: MerkleTreeDigest<C::MerkleTreeConfig>,
     #[derivative(PartialEq = "ignore")]
     pub core_proof: <C::MainNIZK as NIZK>::Proof,
     #[derivative(PartialEq = "ignore")]
@@ -38,7 +38,7 @@ impl<C: PlainDPCComponents> DPCTransaction<C> {
         old_serial_numbers: Vec<<Self as Transaction>::SerialNumber>,
         new_commitments: Vec<<Self as Transaction>::Commitment>,
         memorandum: <Self as Transaction>::Memorandum,
-        digest: MHTDigest<C::MHTParameters>,
+        digest: MerkleTreeDigest<C::MerkleTreeConfig>,
         core_proof: <C::MainNIZK as NIZK>::Proof,
         predicate_proof: <C::ProofCheckNIZK as NIZK>::Proof,
         predicate_comm: <C::PredVkComm as CommitmentScheme>::Output,

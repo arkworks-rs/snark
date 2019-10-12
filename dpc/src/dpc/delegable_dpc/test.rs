@@ -37,7 +37,7 @@ use crate::constraints::verifier::gm17::Gm17VerifierGadget;
 use r1cs_std::groups::curves::twisted_edwards::edwards_sw6::EdwardsSWGadget;
 use r1cs_std::groups::curves::twisted_edwards::edwards_bls12::EdwardsBlsGadget;
 use r1cs_std::pairing::bls12_377::PairingGadget;
-use crate::constraints::mht::IdealLedgerGadget;
+use crate::constraints::merkle_tree::IdealLedgerGadget;
 use crate::constraints::prf::blake2s::Blake2sGadget;
 
 use crate::constraints::signature::schnorr::SchnorrRandomizePkGadget;

@@ -5,7 +5,7 @@ use algebra::UniformRand;
 use rand::Rng;
 use std::marker::PhantomData;
 
-use crypto_primitives::{CommitmentScheme, FixedLengthCRH, NIZK, PRF, mht::*};
+use crypto_primitives::{CommitmentScheme, FixedLengthCRH, NIZK, PRF, merkle_tree::*};
 use crypto_primitives::{CommitmentGadget, FixedLengthCRHGadget, NIZKVerifierGadget, PRFGadget};
 use crate::{
     dpc::{AddressKeyPair, DPCScheme, Predicate, Record, Transaction},
@@ -62,8 +62,8 @@ pub trait PlainDPCComponents: 'static + Sized {
     type RecCGadget: CommitmentGadget<Self::RecC, Self::CoreCheckF>;
 
     // Ledger digest type.
-    type MHTParameters: MHTParameters;
-    type MHT_HGadget: FixedLengthCRHGadget<<Self::MHTParameters as MHTParameters>::H, Self::CoreCheckF>;
+    type MerkleTreeConfig: MerkleTreeConfig;
+    type MerkleTree_HGadget: FixedLengthCRHGadget<<Self::MerkleTreeConfig as MerkleTreeConfig>::H, Self::CoreCheckF>;
 
     // CRH for computing the serial number nonce. Invoked only over `Self::CoreCheckF`.
     type SnNonceH: FixedLengthCRH;
@@ -129,12 +129,12 @@ pub struct DPC<Components: PlainDPCComponents> {
 /// stores references to existing information like old records and secret keys.
 pub(crate) struct ExecuteContext<'a, Components: PlainDPCComponents> {
     comm_and_crh_pp: &'a CommAndCRHPublicParameters<Components>,
-    ledger_digest:   MHTDigest<Components::MHTParameters>,
+    ledger_digest:   MerkleTreeDigest<Components::MerkleTreeConfig>,
 
     // Old record stuff
     old_address_secret_keys: &'a [AddressSecretKey<Components>],
     old_records:             &'a [DPCRecord<Components>],
-    old_witnesses:           Vec<HashMembershipProof<Components::MHTParameters>>,
+    old_witnesses:           Vec<MerkleTreePath<Components::MerkleTreeConfig>>,
     old_serial_numbers:      Vec<<Components::P as PRF>::Output>,
 
     // New record stuff
@@ -357,7 +357,7 @@ impl<Components: PlainDPCComponents> DPC<Components> {
     ) -> Result<ExecuteContext<'a, Components>, Error>
     where
         L: Ledger<
-            Parameters = Components::MHTParameters,
+            Parameters = Components::MerkleTreeConfig,
             Commitment = <Components::RecC as CommitmentScheme>::Output,
             SerialNumber = <Components::P as PRF>::Output,
         >,
@@ -384,7 +384,7 @@ impl<Components: PlainDPCComponents> DPC<Components> {
             let input_record_time = start_timer!(|| format!("Process input record {}", i));
 
             if record.is_dummy() {
-                old_witnesses.push(HashMembershipProof::default());
+                old_witnesses.push(MerkleTreePath::default());
             } else {
                 let comm = &record.commitment();
                 let witness = ledger.prove_cm(comm)?;
@@ -524,7 +524,7 @@ impl<Components: PlainDPCComponents> DPC<Components> {
 impl<Components: PlainDPCComponents, L: Ledger> DPCScheme<L> for DPC<Components>
 where
     L: Ledger<
-        Parameters = Components::MHTParameters,
+        Parameters = Components::MerkleTreeConfig,
         Commitment = <Components::RecC as CommitmentScheme>::Output,
         SerialNumber = <Components::P as PRF>::Output,
     >,
@@ -540,7 +540,7 @@ where
     type Transaction = DPCTransaction<Components>;
     type LocalData = LocalData<Components>;
 
-    fn setup<R: Rng>(ledger_pp: &MHTParams<Components::MHTParameters>, rng: &mut R) -> Result<Self::Parameters, Error> {
+    fn setup<R: Rng>(ledger_pp: &MerkleTreeParams<Components::MerkleTreeConfig>, rng: &mut R) -> Result<Self::Parameters, Error> {
         let setup_time = start_timer!(|| "PlainDPC::Setup");
         let comm_and_crh_pp = Self::generate_comm_and_crh_parameters(rng)?;
 

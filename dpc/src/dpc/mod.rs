@@ -92,7 +92,7 @@ pub trait DPCScheme<L: Ledger> {
 
     /// Returns public parameters for the DPC.
     fn setup<R: Rng>(
-        ledger_parameters: &MHTParams<L::Parameters>,
+        ledger_parameters: &MerkleTreeParams<L::Parameters>,
         rng: &mut R,
     ) -> Result<Self::Parameters, Error>;
 

@@ -6,11 +6,11 @@ use std::{
     rc::Rc,
 };
 
-use crypto_primitives::{FixedLengthCRH, mht::{HashMembershipProof, MerkleHashTree, MHTParameters}};
+use crypto_primitives::{FixedLengthCRH, merkle_tree::{MerkleTreePath, MerkleHashTree, MerkleTreeConfig}};
 use crate::{dpc::Transaction, ledger::*};
 use algebra::bytes::ToBytes;
 
-pub struct IdealLedger<T: Transaction, P: MHTParameters>
+pub struct IdealLedger<T: Transaction, P: MerkleTreeConfig>
 where
     T::Commitment: ToBytes,
 {
@@ -23,14 +23,14 @@ where
     comm_to_index:  HashMap<T::Commitment, usize>,
     sn_to_index:    HashMap<T::SerialNumber, usize>,
     memo_to_index:  HashMap<T::Memorandum, usize>,
-    current_digest: Option<MHTDigest<P>>,
-    past_digests:   HashSet<MHTDigest<P>>,
+    current_digest: Option<MerkleTreeDigest<P>>,
+    past_digests:   HashSet<MerkleTreeDigest<P>>,
     genesis_cm:     T::Commitment,
     genesis_sn:     T::SerialNumber,
     genesis_memo:   T::Memorandum,
 }
 
-impl<T: Transaction, P: MHTParameters> Ledger for IdealLedger<T, P>
+impl<T: Transaction, P: MerkleTreeConfig> Ledger for IdealLedger<T, P>
 where
     T: Eq,
     T::Commitment: ToBytes + Clone,
@@ -44,7 +44,7 @@ where
     type Memo = T::Memorandum;
     type Transaction = T;
 
-    fn setup<R: Rng>(rng: &mut R) -> Result<MHTParams<Self::Parameters>, Error> {
+    fn setup<R: Rng>(rng: &mut R) -> Result<MerkleTreeParams<Self::Parameters>, Error> {
         P::H::setup(rng)
     }
 
@@ -89,7 +89,7 @@ where
         self.transactions.len()
     }
 
-    fn parameters(&self) -> &MHTParams<Self::Parameters> {
+    fn parameters(&self) -> &MerkleTreeParams<Self::Parameters> {
         &self.crh_params
     }
 
@@ -149,11 +149,11 @@ where
         Ok(())
     }
 
-    fn digest(&self) -> Option<MHTDigest<Self::Parameters>> {
+    fn digest(&self) -> Option<MerkleTreeDigest<Self::Parameters>> {
         self.current_digest.clone()
     }
 
-    fn validate_digest(&self, digest: &MHTDigest<Self::Parameters>) -> bool {
+    fn validate_digest(&self, digest: &MerkleTreeDigest<Self::Parameters>) -> bool {
         self.past_digests.contains(digest)
     }
 
@@ -169,7 +169,7 @@ where
         self.memo_to_index.contains_key(memo)
     }
 
-    fn prove_cm(&self, cm: &Self::Commitment) -> Result<HashMembershipProof<Self::Parameters>, Error> {
+    fn prove_cm(&self, cm: &Self::Commitment) -> Result<MerkleTreePath<Self::Parameters>, Error> {
         let witness_time = start_timer!(|| "Generate membership witness");
 
         let cm_index = self
@@ -183,38 +183,38 @@ where
         Ok(result)
     }
 
-    fn prove_sn(&self, _sn: &Self::SerialNumber) -> Result<HashMembershipProof<Self::Parameters>, Error> {
-        Ok(HashMembershipProof::default())
+    fn prove_sn(&self, _sn: &Self::SerialNumber) -> Result<MerkleTreePath<Self::Parameters>, Error> {
+        Ok(MerkleTreePath::default())
     }
 
-    fn prove_memo(&self, _memo: &Self::Memo) -> Result<HashMembershipProof<Self::Parameters>, Error> {
-        Ok(HashMembershipProof::default())
+    fn prove_memo(&self, _memo: &Self::Memo) -> Result<MerkleTreePath<Self::Parameters>, Error> {
+        Ok(MerkleTreePath::default())
     }
 
 
     fn verify_cm(
-        parameters: &MHTParams<Self::Parameters>,
-        digest: &MHTDigest<Self::Parameters>,
+        parameters: &MerkleTreeParams<Self::Parameters>,
+        digest: &MerkleTreeDigest<Self::Parameters>,
         cm: &Self::Commitment,
-        witness: &HashMembershipProof<Self::Parameters>,
+        witness: &MerkleTreePath<Self::Parameters>,
     ) -> bool {
         witness.verify(parameters, &digest, cm).unwrap()
     }
 
     fn verify_sn(
-        _parameters: &MHTParams<Self::Parameters>,
-        _digest: &MHTDigest<Self::Parameters>,
+        _parameters: &MerkleTreeParams<Self::Parameters>,
+        _digest: &MerkleTreeDigest<Self::Parameters>,
         _sn: &Self::SerialNumber,
-        _witness: &HashMembershipProof<Self::Parameters>,
+        _witness: &MerkleTreePath<Self::Parameters>,
     ) -> bool {
         true
     }
 
     fn verify_memo(
-        _parameters: &MHTParams<Self::Parameters>,
-        _digest: &MHTDigest<Self::Parameters>,
+        _parameters: &MerkleTreeParams<Self::Parameters>,
+        _digest: &MerkleTreeDigest<Self::Parameters>,
         _memo: &Self::Memo,
-        _witness: &HashMembershipProof<Self::Parameters>,
+        _witness: &MerkleTreePath<Self::Parameters>,
     ) -> bool {
         true
     }

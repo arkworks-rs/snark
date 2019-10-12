@@ -12,7 +12,7 @@ use crypto_primitives::{
         pedersen::PedersenWindow,
     },
     nizk::Gm17,
-    mht::*,
+    merkle_tree::MerkleTreeConfig,
     prf::blake2s::Blake2s,
 };
 
@@ -22,7 +22,6 @@ use crypto_primitives::{
         injective_map::constraints::PedersenCommitmentCompressorGadget,
     },
     crh::injective_map::constraints::{PedersenCRHCompressorGadget, TECompressorGadget},
-    mht::constraints::MerklePathVerifierGadget,
     prf::blake2s::constraints::Blake2sGadget,
     nizk::gm17::constraints::Gm17VerifierGadget,
 };
@@ -77,8 +76,8 @@ impl PedersenWindow for TwoToOneWindow {
     const NUM_WINDOWS: usize = 4;
 }
 
-pub struct MerkleTreeParameters;
-impl MHTParameters for MerkleTreeParameters {
+pub struct CommitmentMerkleTreeConfig;
+impl MerkleTreeConfig for CommitmentMerkleTreeConfig {
     const HEIGHT: usize = 32;
     type H = MerkleTreeCRH;
 }
@@ -106,8 +105,8 @@ impl PlainDPCComponents for Components {
     type CoreCheckF = CoreCheckF;
     type ProofCheckF = ProofCheckF;
 
-    type MHTParameters = MerkleTreeParameters;
-    type MHT_HGadget = MerkleTreeCRHGadget;
+    type MerkleTreeConfig = CommitmentMerkleTreeConfig;
+    type MerkleTree_HGadget = MerkleTreeCRHGadget;
 
     type AddrC = AddressComm;
     type RecC = RecordComm;
@@ -205,12 +204,11 @@ pub type PredVkCRHGadget = PedersenCRHCompressorGadget<
     EdwardsCompressorGadget,
 >;
 
-pub type MerkleTreeWitnessGadget = MerklePathVerifierGadget<MerkleTreeParameters, MerkleTreeCRH, CoreCheckF>;
 pub type PRFGadget = Blake2sGadget;
 pub type PredicateNIZKGadget = Gm17VerifierGadget<CoreCheckPairing, ProofCheckF, PairingGadget>;
 //
 
-pub type MerkleTreeIdealLedger = IdealLedger<Tx, MerkleTreeParameters>;
+pub type MerkleTreeIdealLedger = IdealLedger<Tx, CommitmentMerkleTreeConfig>;
 pub type Tx = DPCTransaction<Components>;
 
 pub type InstantiatedDPC = DPC<Components>;

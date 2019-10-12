@@ -3,63 +3,51 @@ use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
 use r1cs_std::boolean::AllocatedBit;
 
-use crate::mht::*;
+use crate::merkle_tree::*;
 use crate::crh::{FixedLengthCRH, FixedLengthCRHGadget};
 
-use std::{borrow::Borrow, marker::PhantomData};
+use std::borrow::Borrow;
 
-pub struct MerklePath<P, HGadget, ConstraintF>
+pub struct MerkleTreePathGadget<P, HGadget, ConstraintF>
 where
-    P: MHTParameters,
+    P: MerkleTreeConfig,
     HGadget: FixedLengthCRHGadget<P::H, ConstraintF>,
     ConstraintF: Field,
 {
     path:    Vec<(HGadget::OutputGadget, HGadget::OutputGadget)>,
 }
 
-pub struct MerklePathVerifierGadget<P, CRHGadget, ConstraintF>
+impl<P, CRHGadget, ConstraintF> MerkleTreePathGadget<P, CRHGadget, ConstraintF>
 where
-    P: MHTParameters,
-    ConstraintF: Field,
-    CRHGadget: FixedLengthCRHGadget<P::H, ConstraintF>,
-{
-    _p: PhantomData<CRHGadget>,
-    _p2: PhantomData<P>,
-    _f: PhantomData<ConstraintF>,
-}
-
-impl<P, CRHGadget, ConstraintF> MerklePathVerifierGadget<P, CRHGadget, ConstraintF>
-where
-    P: MHTParameters,
+    P: MerkleTreeConfig,
     ConstraintF: Field,
     CRHGadget: FixedLengthCRHGadget<P::H, ConstraintF>,
 {
     pub fn check_membership<CS: ConstraintSystem<ConstraintF>>(
+        &self,
         cs: CS,
         parameters: &CRHGadget::ParametersGadget,
         root: &CRHGadget::OutputGadget,
         leaf: impl ToBytesGadget<ConstraintF>,
-        witness: &MerklePath<P, CRHGadget, ConstraintF>,
     ) -> Result<(), SynthesisError> {
-    Self::conditionally_check_membership(
+    self.conditionally_check_membership(
             cs,
             parameters,
             root,
             leaf,
-            witness,
             &Boolean::Constant(true),
         )
     }
 
     pub fn conditionally_check_membership<CS: ConstraintSystem<ConstraintF>>(
+        &self,
         mut cs: CS,
         parameters: &CRHGadget::ParametersGadget,
         root: &CRHGadget::OutputGadget,
         leaf: impl ToBytesGadget<ConstraintF>,
-        witness: &MerklePath<P, CRHGadget, ConstraintF>,
         should_enforce: &Boolean,
     ) -> Result<(), SynthesisError> {
-        assert_eq!(witness.path.len(), P::HEIGHT - 1);
+        assert_eq!(self.path.len(), P::HEIGHT - 1);
         // Check that the hash of the given leaf matches the leaf hash in the membership
         // proof.
         let leaf_bits = leaf.to_bytes(&mut cs.ns(|| "leaf_to_bytes"))?;
@@ -71,21 +59,21 @@ where
 
         // Check if leaf is one of the bottom-most siblings.
         let leaf_is_left = AllocatedBit::alloc(&mut cs.ns(|| "leaf_is_left"), || {
-            Ok(leaf_hash == witness.path[0].0)
+            Ok(leaf_hash == self.path[0].0)
         })?
         .into();
         CRHGadget::OutputGadget::conditional_enforce_equal_or(
             &mut cs.ns(|| "check_leaf_is_left"),
             &leaf_is_left,
             &leaf_hash,
-            &witness.path[0].0,
-            &witness.path[0].1,
+            &self.path[0].0,
+            &self.path[0].1,
             should_enforce,
         )?;
 
         // Check levels between leaf level and root.
         let mut previous_hash = leaf_hash;
-        for (i, &(ref left_hash, ref right_hash)) in witness.path.iter().enumerate() {
+        for (i, &(ref left_hash, ref right_hash)) in self.path.iter().enumerate() {
             // Check if the previous_hash matches the correct current hash.
             let previous_is_left =
                 AllocatedBit::alloc(&mut cs.ns(|| format!("previous_is_left_{}", i)), || {
@@ -138,10 +126,10 @@ where
     HG::check_evaluation_gadget(cs, parameters, &bytes)
 }
 
-impl<P, HGadget, ConstraintF> AllocGadget<HashMembershipProof<P>, ConstraintF>
-    for MerklePath<P, HGadget, ConstraintF>
+impl<P, HGadget, ConstraintF> AllocGadget<MerkleTreePath<P>, ConstraintF>
+    for MerkleTreePathGadget<P, HGadget, ConstraintF>
 where
-    P: MHTParameters,
+    P: MerkleTreeConfig,
     HGadget: FixedLengthCRHGadget<P::H, ConstraintF>,
     ConstraintF: Field,
 {
@@ -151,7 +139,7 @@ where
     ) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<HashMembershipProof<P>>,
+        T: Borrow<MerkleTreePath<P>>,
     {
         let mut path = Vec::new();
         for (i, &(ref l, ref r)) in value_gen()?.borrow().path.iter().enumerate() {
@@ -165,7 +153,7 @@ where
                 })?;
             path.push((l_hash, r_hash));
         }
-        Ok(MerklePath {
+        Ok(MerkleTreePathGadget {
             path,
         })
     }
@@ -176,7 +164,7 @@ where
     ) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<HashMembershipProof<P>>,
+        T: Borrow<MerkleTreePath<P>>,
     {
         let mut path = Vec::new();
         for (i, &(ref l, ref r)) in value_gen()?.borrow().path.iter().enumerate() {
@@ -191,7 +179,7 @@ where
             path.push((l_hash, r_hash));
         }
 
-        Ok(MerklePath {
+        Ok(MerkleTreePathGadget {
             path,
         })
     }
@@ -208,7 +196,7 @@ mod test {
             FixedLengthCRH,
             FixedLengthCRHGadget,
         },
-        mht::*,
+        merkle_tree::*,
     };
     use algebra::{
         curves::jubjub::JubJubAffine as JubJub,
@@ -234,20 +222,20 @@ mod test {
     type H = PedersenCRH<JubJub, Window4x256>;
     type HG = PedersenCRHGadget<JubJub, Fq, JubJubGadget>;
 
-    struct JubJubMHTParams;
+    struct JubJubMerkleTreeParams;
     
-    impl MHTParameters for JubJubMHTParams {
+    impl MerkleTreeConfig for JubJubMerkleTreeParams {
         const HEIGHT: usize = 32;
         type H = H;
     }
 
-    type JubJubMHT = MerkleHashTree<JubJubMHTParams>;
+    type JubJubMerkleTree = MerkleHashTree<JubJubMerkleTreeParams>;
 
     fn generate_merkle_tree(leaves: &[[u8; 30]], use_bad_root: bool) -> () {
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
 
         let crh_parameters = Rc::new(H::setup(&mut rng).unwrap());
-        let tree = JubJubMHT::new(crh_parameters.clone(), leaves).unwrap();
+        let tree = JubJubMerkleTree::new(crh_parameters.clone(), leaves).unwrap();
         let root = tree.root();
         let mut satisfied = true;
         for (i, leaf) in leaves.iter().enumerate() {
@@ -290,7 +278,7 @@ mod test {
             println!("constraints from leaf: {}", constraints_from_leaf);
 
             // Allocate Merkle Tree Path
-            let cw = MerklePath::<_, HG, _>::alloc(&mut cs.ns(|| format!("new_witness_{}", i)), || {
+            let cw = MerkleTreePathGadget::<_, HG, _>::alloc(&mut cs.ns(|| format!("new_witness_{}", i)), || {
                 Ok(proof)
             })
             .unwrap();
@@ -301,12 +289,11 @@ mod test {
                 - constraints_from_leaf;
             println!("constraints from path: {}", constraints_from_path);
             let leaf_g: &[UInt8] = leaf_g.as_slice();
-            MerklePathVerifierGadget::<_, HG, _>::check_membership(
+            cw.check_membership(
                 &mut cs.ns(|| format!("new_witness_check_{}", i)),
                 &crh_parameters,
                 &root,
                 &leaf_g,
-                &cw,
             )
             .unwrap();
             if !cs.is_satisfied() {
@@ -330,7 +317,7 @@ mod test {
     }
 
     #[test]
-    fn mht_gadget_test() {
+    fn good_root_test() {
         let mut leaves = Vec::new();
         for i in 0..4u8 {
             let input = [i ; 30];
