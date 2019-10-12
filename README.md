@@ -31,8 +31,9 @@ Informally, the library provides the ability to create transactions that run arb
 This repository contains several Rust crates that implement the different building blocks of ZEXE. The high-level structure of the repository is as follows.
 
 * [`algebra`](algebra): Rust crate that provides finite fields and elliptic curves
+* [`crypto-primitives`](crypto-primitives): Rust crate that implements some useful cryptographic primitives (and constraints for them)
 * [`dpc`](dpc): Rust crate that implements DPC schemes (the main cryptographic primitive in this repository)
-* [`ff-fft`](ff-fft): Rust crate that provides efficient finite field polynomial arithmetic based on finite field FFTs.
+* [`ff-fft`](ff-fft): Rust crate that provides efficient finite field polynomial arithmetic based on finite field FFTs
 * [`r1cs-core`](r1cs-core): Rust crate that defines core interfaces for a Rank-1 Constraint System (R1CS)
 * [`r1cs-std`](r1cs-std): Rust crate that provides various gadgets used to construct R1CS
 * [`gm17`](gm17): Rust crate that implements the zkSNARK of [Groth and Maller][GM17]
@@ -85,7 +86,7 @@ Unless you explicitly state otherwise, any contribution submitted for inclusion 
 
 [_ZEXE: Enabling Decentralized Private Computation_][zexe]    
 [Sean Bowe](https://www.github.com/ebfull), Alessandro Chiesa, Matthew Green, Ian Miers, [Pratyush Mishra](https://www.github.com/pratyush), [Howard Wu](https://www.github.com/howardwu)    
-*IACR ePrint Report 2018/962*
+*IEEE S&P 2020* (*IACR ePrint Report 2018/962*)
 
 ## Acknowledgements
 
