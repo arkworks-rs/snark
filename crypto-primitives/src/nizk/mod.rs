@@ -6,6 +6,11 @@ pub mod gm17;
 #[cfg(feature = "gm17")]
 pub use self::gm17::Gm17;
 
+#[cfg(feature = "groth16")]
+pub mod groth16;
+#[cfg(feature = "groth16")]
+pub use self::groth16::Groth16;
+
 #[cfg(feature = "r1cs")]
 pub mod constraints;
 #[cfg(feature = "r1cs")]
