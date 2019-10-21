@@ -1,4 +1,4 @@
-//! An implementation of the [Groth][Groth16] simulation extractable zkSNARK.
+//! An implementation of the [Groth][Groth16] zkSNARK.
 //! [Groth16]: https://eprint.iacr.org/2016/260.pdf
 #![deny(unused_import_braces, unused_qualifications, trivial_casts)]
 #![deny(trivial_numeric_casts, private_in_public, variant_size_differences)]
