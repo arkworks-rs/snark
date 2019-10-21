@@ -74,7 +74,7 @@ impl<E: PairingEngine, C: ConstraintSynthesizer<E::Fr>, V: ToConstraintField<E::
         input: &Self::VerifierInput,
         proof: &Self::Proof,
     ) -> Result<bool, Error> {
-        let verify_time = start_timer!(|| "{Groth-Maller 2017}::Verify");
+        let verify_time = start_timer!(|| "{Groth 2016}::Verify");
         let conversion_time = start_timer!(|| "Convert input to E::Fr");
         let input = input.to_field_elements()?;
         end_timer!(conversion_time);
