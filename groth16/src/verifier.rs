@@ -1,4 +1,4 @@
-use algebra::{AffineCurve, PairingCurve, PairingEngine, ProjectiveCurve, PrimeField};
+use algebra::{AffineCurve, PairingCurve, PairingEngine, PrimeField, ProjectiveCurve};
 
 use super::{PreparedVerifyingKey, Proof, VerifyingKey};
 
@@ -8,13 +8,11 @@ use std::ops::{AddAssign, Neg};
 
 pub fn prepare_verifying_key<E: PairingEngine>(vk: &VerifyingKey<E>) -> PreparedVerifyingKey<E> {
     PreparedVerifyingKey {
-        vk:                vk.clone(),
-        alpha_g1_beta_g2: E::pairing(
-            vk.alpha_g1.clone(), vk.beta_g2.clone(),
-        ),
-        gamma_g2_neg_pc:        vk.gamma_g2.neg().prepare(),
-        delta_g2_neg_pc:        vk.delta_g2.neg().prepare(),
-        gamma_abc_g1:             vk.gamma_abc_g1.clone(),
+        vk:               vk.clone(),
+        alpha_g1_beta_g2: E::pairing(vk.alpha_g1.clone(), vk.beta_g2.clone()),
+        gamma_g2_neg_pc:  vk.gamma_g2.neg().prepare(),
+        delta_g2_neg_pc:  vk.delta_g2.neg().prepare(),
+        gamma_abc_g1:     vk.gamma_abc_g1.clone(),
     }
 }
 

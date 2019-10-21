@@ -7,7 +7,10 @@ use crate::signature::SignatureScheme;
 pub trait SigRandomizePkGadget<S: SignatureScheme, ConstraintF: Field> {
     type ParametersGadget: AllocGadget<S::Parameters, ConstraintF> + Clone;
 
-    type PublicKeyGadget: ToBytesGadget<ConstraintF> + EqGadget<ConstraintF> + AllocGadget<S::PublicKey, ConstraintF> + Clone;
+    type PublicKeyGadget: ToBytesGadget<ConstraintF>
+        + EqGadget<ConstraintF>
+        + AllocGadget<S::PublicKey, ConstraintF>
+        + Clone;
 
     fn check_randomization_gadget<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,

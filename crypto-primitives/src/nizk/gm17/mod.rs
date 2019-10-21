@@ -1,11 +1,11 @@
-use algebra::PairingEngine;
 use crate::Error;
-use rand::Rng;
+use algebra::PairingEngine;
 use gm17::{
     create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
     Parameters, PreparedVerifyingKey, Proof, VerifyingKey,
 };
 use r1cs_core::ConstraintSynthesizer;
+use rand::Rng;
 
 use algebra::ToConstraintField;
 use std::marker::PhantomData;
@@ -17,16 +17,22 @@ pub mod constraints;
 
 /// Note: V should serialize its contents to `Vec<E::Fr>` in the same order as
 /// during the constraint generation.
-pub struct Gm17<E: PairingEngine, C: ConstraintSynthesizer<E::Fr>, V: ToConstraintField<E::Fr> + ?Sized> {
+pub struct Gm17<
+    E: PairingEngine,
+    C: ConstraintSynthesizer<E::Fr>,
+    V: ToConstraintField<E::Fr> + ?Sized,
+> {
     #[doc(hidden)]
-    _engine:         PhantomData<E>,
+    _engine: PhantomData<E>,
     #[doc(hidden)]
-    _circuit:        PhantomData<C>,
+    _circuit: PhantomData<C>,
     #[doc(hidden)]
     _verifier_input: PhantomData<V>,
 }
 
-impl<E: PairingEngine, C: ConstraintSynthesizer<E::Fr>, V: ToConstraintField<E::Fr> + ?Sized> NIZK for Gm17<E, C, V> {
+impl<E: PairingEngine, C: ConstraintSynthesizer<E::Fr>, V: ToConstraintField<E::Fr> + ?Sized> NIZK
+    for Gm17<E, C, V>
+{
     type Circuit = C;
     type AssignedCircuit = C;
     type ProvingParameters = Parameters<E>;

@@ -2,9 +2,11 @@ use algebra::{Field, PrimeField};
 
 use crate::commitment::{
     injective_map::{InjectiveMap, PedersenCommCompressor},
-    pedersen::PedersenWindow,
-    pedersen::constraints::{
-        PedersenCommitmentGadget, PedersenCommitmentGadgetParameters, PedersenRandomnessGadget,
+    pedersen::{
+        constraints::{
+            PedersenCommitmentGadget, PedersenCommitmentGadgetParameters, PedersenRandomnessGadget,
+        },
+        PedersenWindow,
     },
     CommitmentGadget,
 };
@@ -23,7 +25,6 @@ where
     ConstraintF: Field,
     GG: GroupGadget<G, ConstraintF>,
     IG: InjectiveMapGadget<G, I, ConstraintF, GG>,
-
 {
     _compressor:        PhantomData<I>,
     _compressor_gadget: PhantomData<IG>,

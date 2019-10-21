@@ -1,12 +1,12 @@
 use std::{fmt::Debug, marker::PhantomData};
 
 use crate::crh::{
-    FixedLengthCRHGadget,
     injective_map::{InjectiveMap, PedersenCRHCompressor, TECompressor},
     pedersen::{
-        PedersenWindow,
         constraints::{PedersenCRHGadget, PedersenCRHGadgetParameters},
-    }
+        PedersenWindow,
+    },
+    FixedLengthCRHGadget,
 };
 
 use algebra::{
@@ -24,7 +24,13 @@ use r1cs_std::{
     prelude::*,
 };
 
-pub trait InjectiveMapGadget<G: Group, I: InjectiveMap<G>, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> {
+pub trait InjectiveMapGadget<
+    G: Group,
+    I: InjectiveMap<G>,
+    ConstraintF: Field,
+    GG: GroupGadget<G, ConstraintF>,
+>
+{
     type OutputGadget: EqGadget<ConstraintF>
         + ToBytesGadget<ConstraintF>
         + CondSelectGadget<ConstraintF>
@@ -41,8 +47,13 @@ pub trait InjectiveMapGadget<G: Group, I: InjectiveMap<G>, ConstraintF: Field, G
 
 pub struct TECompressorGadget;
 
-impl<ConstraintF, P> InjectiveMapGadget<TEAffine<P>, TECompressor, ConstraintF, TwistedEdwardsGadget<P, ConstraintF, FpGadget<ConstraintF>>>
-    for TECompressorGadget
+impl<ConstraintF, P>
+    InjectiveMapGadget<
+        TEAffine<P>,
+        TECompressor,
+        ConstraintF,
+        TwistedEdwardsGadget<P, ConstraintF, FpGadget<ConstraintF>>,
+    > for TECompressorGadget
 where
     ConstraintF: PrimeField + SquareRootField,
     P: TEModelParameters + ModelParameters<BaseField = ConstraintF>,
@@ -58,8 +69,12 @@ where
 }
 
 impl<ConstraintF, P>
-    InjectiveMapGadget<TEProjective<P>, TECompressor, ConstraintF, TwistedEdwardsGadget<P, ConstraintF, FpGadget<ConstraintF>>>
-    for TECompressorGadget
+    InjectiveMapGadget<
+        TEProjective<P>,
+        TECompressor,
+        ConstraintF,
+        TwistedEdwardsGadget<P, ConstraintF, FpGadget<ConstraintF>>,
+    > for TECompressorGadget
 where
     ConstraintF: PrimeField + SquareRootField,
     P: TEModelParameters + ModelParameters<BaseField = ConstraintF>,

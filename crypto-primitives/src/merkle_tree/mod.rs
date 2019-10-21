@@ -1,8 +1,6 @@
-use crate::crh::FixedLengthCRH;
+use crate::{crh::FixedLengthCRH, Error};
 use algebra::bytes::ToBytes;
-use crate::Error;
 use std::{fmt, rc::Rc};
-
 
 #[cfg(feature = "r1cs")]
 pub mod constraints;
@@ -20,22 +18,25 @@ pub trait MerkleTreeConfig {
     Debug(bound = "P: MerkleTreeConfig, <P::H as FixedLengthCRH>::Output: fmt::Debug")
 )]
 pub struct MerkleTreePath<P: MerkleTreeConfig> {
-    pub(crate) path: Vec<(<P::H as FixedLengthCRH>::Output, <P::H as FixedLengthCRH>::Output)>,
+    pub(crate) path: Vec<(
+        <P::H as FixedLengthCRH>::Output,
+        <P::H as FixedLengthCRH>::Output,
+    )>,
 }
 
 pub type MerkleTreeParams<P> = <<P as MerkleTreeConfig>::H as FixedLengthCRH>::Parameters;
 pub type MerkleTreeDigest<P> = <<P as MerkleTreeConfig>::H as FixedLengthCRH>::Output;
 
-
 impl<P: MerkleTreeConfig> Default for MerkleTreePath<P> {
     fn default() -> Self {
         let mut path = Vec::with_capacity(P::HEIGHT as usize);
         for _i in 1..P::HEIGHT as usize {
-            path.push((<P::H as FixedLengthCRH>::Output::default(), <P::H as FixedLengthCRH>::Output::default()));
+            path.push((
+                <P::H as FixedLengthCRH>::Output::default(),
+                <P::H as FixedLengthCRH>::Output::default(),
+            ));
         }
-        Self {
-            path,
-        }
+        Self { path }
     }
 }
 
@@ -82,7 +83,10 @@ impl<P: MerkleTreeConfig> MerkleTreePath<P> {
 
 pub struct MerkleHashTree<P: MerkleTreeConfig> {
     tree:         Vec<<P::H as FixedLengthCRH>::Output>,
-    padding_tree: Vec<(<P::H as FixedLengthCRH>::Output, <P::H as FixedLengthCRH>::Output)>,
+    padding_tree: Vec<(
+        <P::H as FixedLengthCRH>::Output,
+        <P::H as FixedLengthCRH>::Output,
+    )>,
     parameters:   Rc<<P::H as FixedLengthCRH>::Parameters>,
     root:         Option<<P::H as FixedLengthCRH>::Output>,
 }
@@ -99,7 +103,10 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
         }
     }
 
-    pub fn new<L: ToBytes>(parameters: Rc<<P::H as FixedLengthCRH>::Parameters>, leaves: &[L]) -> Result<Self, Error> {
+    pub fn new<L: ToBytes>(
+        parameters: Rc<<P::H as FixedLengthCRH>::Parameters>,
+        leaves: &[L],
+    ) -> Result<Self, Error> {
         let new_time = start_timer!(|| "MerkleTree::New");
 
         let last_level_size = leaves.len().next_power_of_two();
@@ -225,9 +232,7 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
         if path.len() != (Self::HEIGHT - 1) as usize {
             Err(MerkleTreeError::IncorrectPathLength(path.len()))?
         } else {
-            Ok(MerkleTreePath {
-                path,
-            })
+            Ok(MerkleTreePath { path })
         }
     }
 }
@@ -241,7 +246,9 @@ pub enum MerkleTreeError {
 impl std::fmt::Display for MerkleTreeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let msg = match self {
-            MerkleTreeError::IncorrectLeafIndex(index) => format!("incorrect leaf index: {}", index),
+            MerkleTreeError::IncorrectLeafIndex(index) => {
+                format!("incorrect leaf index: {}", index)
+            },
             MerkleTreeError::IncorrectPathLength(len) => format!("incorrect path length: {}", len),
         };
         write!(f, "{}", msg)
@@ -358,10 +365,12 @@ pub(crate) fn hash_empty<H: FixedLengthCRH>(
     H::evaluate(parameters, &empty_buffer)
 }
 
-
 #[cfg(test)]
 mod test {
-    use crate::{crh::{pedersen::*, *}, merkle_tree::*};
+    use crate::{
+        crh::{pedersen::*, *},
+        merkle_tree::*,
+    };
     use algebra::curves::jubjub::JubJubAffine as JubJub;
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
@@ -373,17 +382,15 @@ mod test {
         const NUM_WINDOWS: usize = 256;
     }
 
-
     type H = PedersenCRH<JubJub, Window4x256>;
 
     struct JubJubMerkleTreeParams;
-    
+
     impl MerkleTreeConfig for JubJubMerkleTreeParams {
         const HEIGHT: usize = 32;
         type H = H;
     }
     type JubJubMerkleTree = MerkleHashTree<JubJubMerkleTreeParams>;
-
 
     fn generate_merkle_tree<L: ToBytes + Clone + Eq>(leaves: &[L]) -> () {
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);

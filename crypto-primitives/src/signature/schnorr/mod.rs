@@ -1,14 +1,11 @@
-use crate::SignatureScheme;
+use crate::{Error, SignatureScheme};
 use algebra::{
-    ToConstraintField,
     bytes::ToBytes,
     fields::{Field, PrimeField},
     groups::Group,
-    to_bytes,
+    to_bytes, ToConstraintField, UniformRand,
 };
 use digest::Digest;
-use crate::Error;
-use algebra::UniformRand;
 use rand::Rng;
 use std::{
     hash::Hash,
@@ -223,8 +220,8 @@ pub fn bytes_to_bits(bytes: &[u8]) -> Vec<bool> {
     bits
 }
 
-impl<ConstraintF: Field, G: Group + ToConstraintField<ConstraintF>, D: Digest> ToConstraintField<ConstraintF>
-    for SchnorrSigParameters<G, D>
+impl<ConstraintF: Field, G: Group + ToConstraintField<ConstraintF>, D: Digest>
+    ToConstraintField<ConstraintF> for SchnorrSigParameters<G, D>
 {
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {

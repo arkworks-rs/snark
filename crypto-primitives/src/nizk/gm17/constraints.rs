@@ -1,5 +1,5 @@
 use crate::nizk::{gm17::Gm17, NIZKVerifierGadget};
-use algebra::{Field, ToConstraintField, AffineCurve, PairingEngine};
+use algebra::{AffineCurve, Field, PairingEngine, ToConstraintField};
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
 
@@ -36,11 +36,8 @@ pub struct VerifyingKeyGadget<
     pub query:      Vec<P::G1Gadget>,
 }
 
-impl<
-        PairingE: PairingEngine,
-        ConstraintF: Field,
-        P: PairingGadget<PairingE, ConstraintF>,
-    > VerifyingKeyGadget<PairingE, ConstraintF, P>
+impl<PairingE: PairingEngine, ConstraintF: Field, P: PairingGadget<PairingE, ConstraintF>>
+    VerifyingKeyGadget<PairingE, ConstraintF, P>
 {
     pub fn prepare<CS: ConstraintSystem<ConstraintF>>(
         &self,
@@ -408,15 +405,14 @@ mod test {
     use super::*;
     use algebra::{
         curves::bls12_377::Bls12_377,
-        fields::bls12_377::Fr,
-        fields::bls12_377::Fq,
+        fields::bls12_377::{Fq, Fr},
         BitIterator, PrimeField,
     };
-    use rand::{thread_rng, Rng};
     use r1cs_std::{
         boolean::Boolean, pairing::bls12_377::PairingGadget as Bls12_377PairingGadget,
         test_constraint_system::TestConstraintSystem,
     };
+    use rand::{thread_rng, Rng};
 
     type TestProofSystem = Gm17<Bls12_377, Bench<Fr>, Fr>;
     type TestVerifierGadget = Gm17VerifierGadget<Bls12_377, Fq, Bls12_377PairingGadget>;
@@ -429,7 +425,10 @@ mod test {
     }
 
     impl<F: Field> ConstraintSynthesizer<F> for Bench<F> {
-        fn generate_constraints<CS: ConstraintSystem<F>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
+        fn generate_constraints<CS: ConstraintSystem<F>>(
+            self,
+            cs: &mut CS,
+        ) -> Result<(), SynthesisError> {
             assert!(self.inputs.len() >= 2);
             assert!(self.num_constraints >= self.inputs.len());
 

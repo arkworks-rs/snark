@@ -1,14 +1,13 @@
 use super::CommitmentScheme;
+use crate::Error;
 use blake2::Blake2s as b2s;
 use digest::Digest;
-use crate::Error;
 use rand::Rng;
 
 pub struct Blake2sCommitment;
 
 #[cfg(feature = "r1cs")]
 pub mod constraints;
-
 
 impl CommitmentScheme for Blake2sCommitment {
     type Parameters = ();

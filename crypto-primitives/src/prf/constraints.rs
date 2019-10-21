@@ -7,7 +7,11 @@ use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
 
 pub trait PRFGadget<P: PRF, ConstraintF: Field> {
-    type OutputGadget: EqGadget<ConstraintF> + ToBytesGadget<ConstraintF> + AllocGadget<P::Output, ConstraintF> + Clone + Debug;
+    type OutputGadget: EqGadget<ConstraintF>
+        + ToBytesGadget<ConstraintF>
+        + AllocGadget<P::Output, ConstraintF>
+        + Clone
+        + Debug;
 
     fn new_seed<CS: ConstraintSystem<ConstraintF>>(cs: CS, output: &P::Seed) -> Vec<UInt8>;
 

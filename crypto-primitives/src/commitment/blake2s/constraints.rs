@@ -5,7 +5,7 @@ use crate::{
     prf::blake2s::constraints::{blake2s_gadget, Blake2sOutputGadget},
     CommitmentGadget,
 };
-use algebra::{PrimeField, Field};
+use algebra::{Field, PrimeField};
 use r1cs_std::prelude::*;
 
 use std::borrow::Borrow;
@@ -18,7 +18,9 @@ pub struct Blake2sRandomnessGadget(pub Vec<UInt8>);
 
 pub struct Blake2sCommitmentGadget;
 
-impl<ConstraintF: PrimeField> CommitmentGadget<Blake2sCommitment, ConstraintF> for Blake2sCommitmentGadget {
+impl<ConstraintF: PrimeField> CommitmentGadget<Blake2sCommitment, ConstraintF>
+    for Blake2sCommitmentGadget
+{
     type OutputGadget = Blake2sOutputGadget;
     type ParametersGadget = Blake2sParametersGadget;
     type RandomnessGadget = Blake2sRandomnessGadget;
@@ -54,7 +56,10 @@ impl<ConstraintF: Field> AllocGadget<(), ConstraintF> for Blake2sParametersGadge
         Ok(Blake2sParametersGadget)
     }
 
-    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(_: CS, _: F) -> Result<Self, SynthesisError>
+    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
+        _: CS,
+        _: F,
+    ) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<()>,
@@ -65,7 +70,10 @@ impl<ConstraintF: Field> AllocGadget<(), ConstraintF> for Blake2sParametersGadge
 
 impl<ConstraintF: PrimeField> AllocGadget<[u8; 32], ConstraintF> for Blake2sRandomnessGadget {
     #[inline]
-    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, value_gen: F) -> Result<Self, SynthesisError>
+    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
+        value_gen: F,
+    ) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<[u8; 32]>,
@@ -105,14 +113,15 @@ mod test {
     use algebra::fields::bls12_381::Fr;
     use rand::{thread_rng, Rng};
 
-    use crate::*;
     use crate::{
-        commitment::blake2s::Blake2sCommitment,
-        commitment::blake2s::constraints::{Blake2sCommitmentGadget, Blake2sRandomnessGadget},
+        commitment::blake2s::{
+            constraints::{Blake2sCommitmentGadget, Blake2sRandomnessGadget},
+            Blake2sCommitment,
+        },
+        *,
     };
     use r1cs_core::ConstraintSystem;
-    use r1cs_std::prelude::*;
-    use r1cs_std::test_constraint_system::TestConstraintSystem;
+    use r1cs_std::{prelude::*, test_constraint_system::TestConstraintSystem};
 
     #[test]
     fn commitment_gadget_test() {

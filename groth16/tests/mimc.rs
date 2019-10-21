@@ -32,11 +32,7 @@ use rand::{thread_rng, Rng};
 use std::time::{Duration, Instant};
 
 // Bring in some tools for using pairing-friendly curves
-use algebra::{
-    curves::bls12_381::Bls12_381,
-    fields::bls12_381::fr::Fr, 
-    Field
-};
+use algebra::{curves::bls12_381::Bls12_381, fields::bls12_381::fr::Fr, Field};
 
 // We're going to use the BLS12-381 pairing-friendly elliptic curve.
 
@@ -87,7 +83,10 @@ struct MiMCDemo<'a, F: Field> {
 /// is used during paramgen and proving in order to
 /// synthesize the constraint system.
 impl<'a, F: Field> ConstraintSynthesizer<F> for MiMCDemo<'a, F> {
-    fn generate_constraints<CS: ConstraintSystem<F>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
+    fn generate_constraints<CS: ConstraintSystem<F>>(
+        self,
+        cs: &mut CS,
+    ) -> Result<(), SynthesisError> {
         assert_eq!(self.constants.len(), MIMC_ROUNDS);
 
         // Allocate the first component of the preimage.

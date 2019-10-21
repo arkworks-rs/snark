@@ -7,9 +7,7 @@ use std::{
 };
 
 use crate::crh::FixedLengthCRH;
-use algebra::{Field, ToConstraintField};
-use algebra::groups::Group;
-
+use algebra::{groups::Group, Field, ToConstraintField};
 
 #[cfg(feature = "r1cs")]
 pub mod constraints;
@@ -141,8 +139,9 @@ impl<G: Group> Debug for PedersenParameters<G> {
     }
 }
 
-
-impl<ConstraintF: Field, G: Group + ToConstraintField<ConstraintF>> ToConstraintField<ConstraintF> for PedersenParameters<G> {
+impl<ConstraintF: Field, G: Group + ToConstraintField<ConstraintF>> ToConstraintField<ConstraintF>
+    for PedersenParameters<G>
+{
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
         Ok(Vec::new())

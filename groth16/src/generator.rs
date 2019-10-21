@@ -1,16 +1,16 @@
-use ff_fft::EvaluationDomain;
 use algebra::{
-    groups::Group,
-    msm::FixedBaseMSM, UniformRand,
-    Field, PairingEngine, PrimeField, ProjectiveCurve,
+    groups::Group, msm::FixedBaseMSM, Field, PairingEngine, PrimeField, ProjectiveCurve,
+    UniformRand,
 };
+use ff_fft::EvaluationDomain;
 
+use r1cs_core::{
+    ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable,
+};
 use rand::Rng;
 use rayon::prelude::*;
-use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable};
 
-use crate::{Parameters, VerifyingKey, r1cs_to_qap::R1CStoQAP};
-
+use crate::{r1cs_to_qap::R1CStoQAP, Parameters, VerifyingKey};
 
 /// Generates a random common reference string for
 /// a circuit.
@@ -207,18 +207,14 @@ where
         .par_iter()
         .zip(&b[0..assembly.num_inputs])
         .zip(&c[0..assembly.num_inputs])
-        .map(|((a, b), c)| {
-            (beta * a + &(alpha * b) + c) * &gamma_inverse
-        })
+        .map(|((a, b), c)| (beta * a + &(alpha * b) + c) * &gamma_inverse)
         .collect::<Vec<_>>();
 
     let l = a
         .par_iter()
         .zip(&b)
         .zip(&c)
-        .map(|((a, b), c)| {
-            (beta * a + &(alpha * b) + c) * &delta_inverse
-        })
+        .map(|((a, b), c)| (beta * a + &(alpha * b) + c) * &delta_inverse)
         .collect::<Vec<_>>();
 
     let g1_generator = E::G1Projective::rand(rng);
@@ -226,13 +222,10 @@ where
 
     // Compute G window table
     let g1_window_time = start_timer!(|| "Compute G1 window table");
-    let g1_window = FixedBaseMSM::get_mul_window_size(
-        non_zero_a
-        + non_zero_b
-        + qap_num_variables
-        + m_raw + 1
-    );
-    let g1_table = FixedBaseMSM::get_window_table::<E::G1Projective>(scalar_bits, g1_window, g1_generator);
+    let g1_window =
+        FixedBaseMSM::get_mul_window_size(non_zero_a + non_zero_b + qap_num_variables + m_raw + 1);
+    let g1_table =
+        FixedBaseMSM::get_window_table::<E::G1Projective>(scalar_bits, g1_window, g1_generator);
     end_timer!(g1_window_time);
 
     // Generate the R1CS proving key
@@ -246,23 +239,14 @@ where
 
     // Compute the A-query
     let a_time = start_timer!(|| "Calculate A");
-    let mut a_query = FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(
-        scalar_bits,
-        g1_window,
-        &g1_table,
-        &a,
-    );
+    let mut a_query =
+        FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(scalar_bits, g1_window, &g1_table, &a);
     end_timer!(a_time);
-
 
     // Compute the B-query in G1
     let b_g1_time = start_timer!(|| "Calculate B G1");
-    let mut b_g1_query = FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(
-        scalar_bits,
-        g1_window,
-        &g1_table,
-        &b,
-    );
+    let mut b_g1_query =
+        FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(scalar_bits, g1_window, &g1_table, &b);
     end_timer!(b_g1_time);
 
     // Compute B window table
@@ -272,15 +256,10 @@ where
         FixedBaseMSM::get_window_table::<E::G2Projective>(scalar_bits, g2_window, g2_generator);
     end_timer!(g2_time);
 
-
     // Compute the B-query in G2
     let b_g2_time = start_timer!(|| "Calculate B G2");
-    let mut b_g2_query = FixedBaseMSM::multi_scalar_mul::<E::G2Projective>(
-        scalar_bits,
-        g2_window,
-        &g2_table,
-        &b,
-    );
+    let mut b_g2_query =
+        FixedBaseMSM::multi_scalar_mul::<E::G2Projective>(scalar_bits, g2_window, &g2_table, &b);
     end_timer!(b_g2_time);
 
     // Compute the H-query
@@ -293,18 +272,14 @@ where
             .into_par_iter()
             .map(|i| zt * &delta_inverse * &t.pow([i as u64]))
             .collect::<Vec<_>>(),
-        );
+    );
 
     end_timer!(h_time);
 
     // Compute the L-query
     let l_time = start_timer!(|| "Calculate L");
-    let mut l_query = FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(
-        scalar_bits,
-        g1_window,
-        &g1_table,
-    &l,
-    );
+    let mut l_query =
+        FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(scalar_bits, g1_window, &g1_table, &l);
     end_timer!(l_time);
 
     end_timer!(proving_key_time);
@@ -324,11 +299,14 @@ where
     end_timer!(verifying_key_time);
 
     let vk = VerifyingKey::<E> {
-        alpha_g1: alpha_g1.into_affine(),
-        beta_g2:       beta_g2.into_affine(),
-        gamma_g2: gamma_g2.into_affine(),
-        delta_g2:  delta_g2.into_affine(),
-        gamma_abc_g1:  gamma_abc_g1.par_iter().map(|p| p.into_affine()).collect::<Vec<_>>(),
+        alpha_g1:     alpha_g1.into_affine(),
+        beta_g2:      beta_g2.into_affine(),
+        gamma_g2:     gamma_g2.into_affine(),
+        delta_g2:     delta_g2.into_affine(),
+        gamma_abc_g1: gamma_abc_g1
+            .par_iter()
+            .map(|p| p.into_affine())
+            .collect::<Vec<_>>(),
     };
 
     let batch_normalization_time = start_timer!(|| "Convert proving key elements to affine");
