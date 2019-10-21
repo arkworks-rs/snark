@@ -1,6 +1,5 @@
-use crate::CryptoError;
+use crate::{CryptoError, Error};
 use algebra::bytes::ToBytes;
-use crate::Error;
 use rand::Rng;
 use std::{fmt::Debug, hash::Hash, marker::PhantomData};
 
@@ -16,7 +15,6 @@ use algebra::{
     },
     groups::Group,
 };
-
 
 #[cfg(feature = "r1cs")]
 pub mod constraints;

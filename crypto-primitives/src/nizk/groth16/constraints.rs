@@ -1,5 +1,5 @@
 use crate::nizk::{groth16::Groth16, NIZKVerifierGadget};
-use algebra::{Field, ToConstraintField, AffineCurve, PairingEngine};
+use algebra::{AffineCurve, Field, PairingEngine, ToConstraintField};
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
 
@@ -28,18 +28,15 @@ pub struct VerifyingKeyGadget<
     ConstraintF: Field,
     P: PairingGadget<PairingE, ConstraintF>,
 > {
-    pub alpha_g1:       P::G1Gadget,
-    pub beta_g2:       P::G2Gadget,
-    pub gamma_g2: P::G2Gadget,
-    pub delta_g2:  P::G2Gadget,
-    pub gamma_abc_g1:  Vec<P::G1Gadget>,
+    pub alpha_g1:     P::G1Gadget,
+    pub beta_g2:      P::G2Gadget,
+    pub gamma_g2:     P::G2Gadget,
+    pub delta_g2:     P::G2Gadget,
+    pub gamma_abc_g1: Vec<P::G1Gadget>,
 }
 
-impl<
-        PairingE: PairingEngine,
-        ConstraintF: Field,
-        P: PairingGadget<PairingE, ConstraintF>,
-    > VerifyingKeyGadget<PairingE, ConstraintF, P>
+impl<PairingE: PairingEngine, ConstraintF: Field, P: PairingGadget<PairingE, ConstraintF>>
+    VerifyingKeyGadget<PairingE, ConstraintF, P>
 {
     pub fn prepare<CS: ConstraintSystem<ConstraintF>>(
         &self,
@@ -49,7 +46,11 @@ impl<
         let alpha_g1_pc = P::prepare_g1(&mut cs.ns(|| "Prepare alpha_g1"), &self.alpha_g1)?;
         let beta_g2_pc = P::prepare_g2(&mut cs.ns(|| "Prepare beta_g2"), &self.beta_g2)?;
 
-        let alpha_g1_beta_g2 = P::pairing(&mut cs.ns(|| "Precompute e(alpha_g1, beta_g2)"), alpha_g1_pc, beta_g2_pc)?;
+        let alpha_g1_beta_g2 = P::pairing(
+            &mut cs.ns(|| "Precompute e(alpha_g1, beta_g2)"),
+            alpha_g1_pc,
+            beta_g2_pc,
+        )?;
 
         let gamma_g2_neg = self.gamma_g2.negate(&mut cs.ns(|| "Negate gamma_g2"))?;
         let gamma_g2_neg_pc = P::prepare_g2(&mut cs.ns(|| "Prepare gamma_g2_neg"), &gamma_g2_neg)?;
@@ -58,10 +59,10 @@ impl<
         let delta_g2_neg_pc = P::prepare_g2(&mut cs.ns(|| "Prepare delta_g2_neg"), &delta_g2_neg)?;
 
         Ok(PreparedVerifyingKeyGadget {
-            alpha_g1_beta_g2:  alpha_g1_beta_g2,
-            gamma_g2_neg_pc:       gamma_g2_neg_pc,
-            delta_g2_neg_pc:       delta_g2_neg_pc,
-            gamma_abc_g1:      self.gamma_abc_g1.clone(),
+            alpha_g1_beta_g2,
+            gamma_g2_neg_pc,
+            delta_g2_neg_pc,
+            gamma_abc_g1:     self.gamma_abc_g1.clone(),
         })
     }
 }
@@ -76,10 +77,10 @@ pub struct PreparedVerifyingKeyGadget<
     ConstraintF: Field,
     P: PairingGadget<PairingE, ConstraintF>,
 > {
-    pub alpha_g1_beta_g2:  P::GTGadget,
-    pub gamma_g2_neg_pc:       P::G2PreparedGadget,
-    pub delta_g2_neg_pc:       P::G2PreparedGadget,
-    pub gamma_abc_g1:      Vec<P::G1Gadget>,
+    pub alpha_g1_beta_g2: P::GTGadget,
+    pub gamma_g2_neg_pc:  P::G2PreparedGadget,
+    pub delta_g2_neg_pc:  P::G2PreparedGadget,
+    pub gamma_abc_g1:     Vec<P::G1Gadget>,
 }
 
 pub struct Groth16VerifierGadget<PairingE, ConstraintF, P>
@@ -146,11 +147,7 @@ where
 
             P::miller_loop(
                 cs.ns(|| "Miller loop 1"),
-                &[
-                    proof_a_prep,
-                    g_ic_prep,
-                    proof_c_prep,
-                ],
+                &[proof_a_prep, g_ic_prep, proof_c_prep],
                 &[
                     proof_b_prep,
                     pvk.gamma_g2_neg_pc.clone(),
@@ -190,7 +187,8 @@ where
                 delta_g2,
                 gamma_abc_g1,
             } = vk.borrow().clone();
-            let alpha_g1 = P::G1Gadget::alloc(cs.ns(|| "alpha_g1"), || Ok(alpha_g1.into_projective()))?;
+            let alpha_g1 =
+                P::G1Gadget::alloc(cs.ns(|| "alpha_g1"), || Ok(alpha_g1.into_projective()))?;
             let beta_g2 =
                 P::G2Gadget::alloc(cs.ns(|| "beta_g2"), || Ok(beta_g2.into_projective()))?;
             let gamma_g2 =
@@ -236,7 +234,8 @@ where
                 delta_g2,
                 gamma_abc_g1,
             } = vk.borrow().clone();
-            let alpha_g1 = P::G1Gadget::alloc_input(cs.ns(|| "alpha_g1"), || Ok(alpha_g1.into_projective()))?;
+            let alpha_g1 =
+                P::G1Gadget::alloc_input(cs.ns(|| "alpha_g1"), || Ok(alpha_g1.into_projective()))?;
             let beta_g2 =
                 P::G2Gadget::alloc_input(cs.ns(|| "beta_g2"), || Ok(beta_g2.into_projective()))?;
             let gamma_g2 =
@@ -327,21 +326,9 @@ where
     ) -> Result<Vec<UInt8>, SynthesisError> {
         let mut bytes = Vec::new();
         bytes.extend_from_slice(&self.alpha_g1.to_bytes(&mut cs.ns(|| "alpha_g1 to bytes"))?);
-        bytes.extend_from_slice(
-            &self
-                .beta_g2
-                .to_bytes(&mut cs.ns(|| "beta_g2 to bytes"))?,
-        );
-        bytes.extend_from_slice(
-            &self
-                .gamma_g2
-                .to_bytes(&mut cs.ns(|| "gamma_g2 to bytes"))?,
-        );
-        bytes.extend_from_slice(
-            &self
-                .delta_g2
-                .to_bytes(&mut cs.ns(|| "delta_g2 to bytes"))?,
-        );
+        bytes.extend_from_slice(&self.beta_g2.to_bytes(&mut cs.ns(|| "beta_g2 to bytes"))?);
+        bytes.extend_from_slice(&self.gamma_g2.to_bytes(&mut cs.ns(|| "gamma_g2 to bytes"))?);
+        bytes.extend_from_slice(&self.delta_g2.to_bytes(&mut cs.ns(|| "delta_g2 to bytes"))?);
         for (i, g) in self.gamma_abc_g1.iter().enumerate() {
             let mut cs = cs.ns(|| format!("Iteration {}", i));
             bytes.extend_from_slice(&g.to_bytes(&mut cs.ns(|| "g"))?);
@@ -365,15 +352,14 @@ mod test {
     use super::*;
     use algebra::{
         curves::bls12_377::Bls12_377,
-        fields::bls12_377::Fr,
-        fields::bls12_377::Fq,
+        fields::bls12_377::{Fq, Fr},
         BitIterator, PrimeField,
     };
-    use rand::{thread_rng, Rng};
     use r1cs_std::{
         boolean::Boolean, pairing::bls12_377::PairingGadget as Bls12_377PairingGadget,
         test_constraint_system::TestConstraintSystem,
     };
+    use rand::{thread_rng, Rng};
 
     type TestProofSystem = Groth16<Bls12_377, Bench<Fr>, Fr>;
     type TestVerifierGadget = Groth16VerifierGadget<Bls12_377, Fq, Bls12_377PairingGadget>;
@@ -386,7 +372,10 @@ mod test {
     }
 
     impl<F: Field> ConstraintSynthesizer<F> for Bench<F> {
-        fn generate_constraints<CS: ConstraintSystem<F>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
+        fn generate_constraints<CS: ConstraintSystem<F>>(
+            self,
+            cs: &mut CS,
+        ) -> Result<(), SynthesisError> {
             assert!(self.inputs.len() >= 2);
             assert!(self.num_constraints >= self.inputs.len());
 

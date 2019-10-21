@@ -1,5 +1,5 @@
-use algebra::bytes::ToBytes;
 use crate::Error;
+use algebra::bytes::ToBytes;
 use rand::Rng;
 use std::hash::Hash;
 
@@ -7,7 +7,6 @@ use std::hash::Hash;
 pub mod constraints;
 #[cfg(feature = "r1cs")]
 pub use constraints::*;
-
 
 pub mod schnorr;
 
@@ -56,10 +55,10 @@ mod test {
     use crate::{signature::schnorr::SchnorrSignature, SignatureScheme};
     use algebra::{
         curves::edwards_sw6::EdwardsAffine as Edwards, groups::Group, to_bytes, ToBytes,
+        UniformRand,
     };
     use blake2::Blake2s;
     use rand::thread_rng;
-    use algebra::UniformRand;
 
     fn sign_and_verify<S: SignatureScheme>(message: &[u8]) {
         let rng = &mut thread_rng();

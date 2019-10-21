@@ -7,12 +7,10 @@ pub mod pedersen;
 
 use crate::Error;
 
-
 #[cfg(feature = "r1cs")]
 pub mod constraints;
 #[cfg(feature = "r1cs")]
 pub use constraints::*;
-
 
 pub trait FixedLengthCRH {
     const INPUT_SIZE_BITS: usize;

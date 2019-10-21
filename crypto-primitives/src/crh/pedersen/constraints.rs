@@ -1,7 +1,6 @@
-
 use crate::crh::{
-    FixedLengthCRHGadget,
     pedersen::{PedersenCRH, PedersenParameters, PedersenWindow},
+    FixedLengthCRHGadget,
 };
 use algebra::{Field, Group};
 use r1cs_core::{ConstraintSystem, SynthesisError};
@@ -27,14 +26,15 @@ pub struct PedersenCRHGadgetParameters<
 
 pub struct PedersenCRHGadget<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> {
     #[doc(hideen)]
-    _group:        PhantomData<*const G>,
+    _group: PhantomData<*const G>,
     #[doc(hideen)]
     _group_gadget: PhantomData<*const GG>,
     #[doc(hideen)]
-    _engine:       PhantomData<ConstraintF>,
+    _engine: PhantomData<ConstraintF>,
 }
 
-impl<ConstraintF, G, GG, W> FixedLengthCRHGadget<PedersenCRH<G, W>, ConstraintF> for PedersenCRHGadget<G, ConstraintF, GG>
+impl<ConstraintF, G, GG, W> FixedLengthCRHGadget<PedersenCRH<G, W>, ConstraintF>
+    for PedersenCRHGadget<G, ConstraintF, GG>
 where
     ConstraintF: Field,
     G: Group,
@@ -74,9 +74,13 @@ where
 }
 
 impl<G: Group, W: PedersenWindow, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>>
-    AllocGadget<PedersenParameters<G>, ConstraintF> for PedersenCRHGadgetParameters<G, W, ConstraintF, GG>
+    AllocGadget<PedersenParameters<G>, ConstraintF>
+    for PedersenCRHGadgetParameters<G, W, ConstraintF, GG>
 {
-    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(_cs: CS, value_gen: F) -> Result<Self, SynthesisError>
+    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
+        _cs: CS,
+        value_gen: F,
+    ) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<PedersenParameters<G>>,
@@ -114,16 +118,14 @@ mod test {
     use rand::{thread_rng, Rng};
 
     use crate::crh::{
-        pedersen::{PedersenCRH, PedersenWindow},
-        pedersen::constraints::PedersenCRHGadget, 
-        FixedLengthCRH,
-        FixedLengthCRHGadget
+        pedersen::{constraints::PedersenCRHGadget, PedersenCRH, PedersenWindow},
+        FixedLengthCRH, FixedLengthCRHGadget,
     };
     use algebra::curves::{jubjub::JubJubProjective as JubJub, ProjectiveCurve};
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
-        groups::curves::twisted_edwards::jubjub::JubJubGadget,
-        test_constraint_system::TestConstraintSystem, prelude::*,
+        groups::curves::twisted_edwards::jubjub::JubJubGadget, prelude::*,
+        test_constraint_system::TestConstraintSystem,
     };
 
     type TestCRH = PedersenCRH<JubJub, Window>;

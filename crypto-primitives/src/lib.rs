@@ -14,7 +14,7 @@ pub mod signature;
 pub use self::{
     commitment::CommitmentScheme,
     crh::FixedLengthCRH,
-    merkle_tree::{MerkleTreePath, MerkleHashTree},
+    merkle_tree::{MerkleHashTree, MerkleTreePath},
     nizk::NIZK,
     prf::PRF,
     signature::SignatureScheme,
@@ -22,16 +22,12 @@ pub use self::{
 
 #[cfg(feature = "r1cs")]
 pub use self::{
-    commitment::CommitmentGadget,
-    crh::FixedLengthCRHGadget,
-    merkle_tree::constraints::MerkleTreePathGadget,
-    nizk::NIZKVerifierGadget,
-    prf::PRFGadget,
+    commitment::CommitmentGadget, crh::FixedLengthCRHGadget,
+    merkle_tree::constraints::MerkleTreePathGadget, nizk::NIZKVerifierGadget, prf::PRFGadget,
     signature::SigRandomizePkGadget,
 };
 
-
-pub type Error  = Box<dyn std::error::Error>;
+pub type Error = Box<dyn std::error::Error>;
 
 #[derive(Debug)]
 pub enum CryptoError {

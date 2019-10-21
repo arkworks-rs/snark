@@ -1,5 +1,5 @@
-use ff_fft::EvaluationDomain;
 use algebra::{Field, PairingEngine};
+use ff_fft::EvaluationDomain;
 
 use crate::{generator::KeypairAssembly, prover::ProvingAssignment};
 use r1cs_core::{Index, SynthesisError};
@@ -97,10 +97,9 @@ impl R1CStoQAP {
         let mut full_input_assignment = prover.input_assignment.clone();
         full_input_assignment.extend(prover.aux_assignment.clone());
 
-        let domain = EvaluationDomain::<E::Fr>::new(
-            prover.num_constraints + (prover.num_inputs - 1) + 1,
-        )
-        .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let domain =
+            EvaluationDomain::<E::Fr>::new(prover.num_constraints + (prover.num_inputs - 1) + 1)
+                .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
         let domain_size = domain.size();
 
         let mut a = vec![zero; domain_size];
@@ -123,7 +122,10 @@ impl R1CStoQAP {
         domain.ifft_in_place(&mut b);
 
         let mut h: Vec<E::Fr> = vec![zero; domain_size];
-        h.par_iter_mut().zip(&a).zip(&b).for_each(|((h_i, a_i), b_i)| *h_i *= &(*d2*&a_i + &(*d1*&b_i)));
+        h.par_iter_mut()
+            .zip(&a)
+            .zip(&b)
+            .for_each(|((h_i, a_i), b_i)| *h_i *= &(*d2 * &a_i + &(*d1 * &b_i)));
         h[0].sub_assign(&d3);
         let d1d2 = *d1 * d2;
         h[0].sub_assign(&d1d2);
@@ -151,7 +153,9 @@ impl R1CStoQAP {
         domain.ifft_in_place(&mut c);
         domain.coset_fft_in_place(&mut c);
 
-        ab.par_iter_mut().zip(c).for_each(|(ab_i, c_i)| *ab_i -= &c_i);
+        ab.par_iter_mut()
+            .zip(c)
+            .for_each(|(ab_i, c_i)| *ab_i -= &c_i);
 
         domain.divide_by_vanishing_poly_on_coset_in_place(&mut ab);
         domain.coset_ifft_in_place(&mut ab);

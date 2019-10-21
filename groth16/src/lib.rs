@@ -6,7 +6,6 @@
 #![deny(unused_attributes, unused_imports, unused_mut)]
 #![deny(renamed_and_removed_lints, stable_features, unused_allocation)]
 #![deny(unused_comparisons, bare_trait_objects, unused_must_use, const_err)]
-
 #![forbid(unsafe_code)]
 
 #[macro_use]
@@ -67,7 +66,7 @@ impl<E: PairingEngine> Default for Proof<E> {
 }
 
 impl<E: PairingEngine> Proof<E> {
-    /// Serialize the proof into bytes, for storage on disk or transmission 
+    /// Serialize the proof into bytes, for storage on disk or transmission
     /// over the network.
     pub fn write<W: Write>(&self, mut _writer: W) -> io::Result<()> {
         // TODO: implement serialization
@@ -84,11 +83,11 @@ impl<E: PairingEngine> Proof<E> {
 /// A verification key in the Groth16 SNARK.
 #[derive(Clone)]
 pub struct VerifyingKey<E: PairingEngine> {
-    pub alpha_g1:       E::G1Affine,
-    pub beta_g2:       E::G2Affine,
-    pub gamma_g2: E::G2Affine,
-    pub delta_g2:  E::G2Affine,
-    pub gamma_abc_g1:  Vec<E::G1Affine>,
+    pub alpha_g1:     E::G1Affine,
+    pub beta_g2:      E::G2Affine,
+    pub gamma_g2:     E::G2Affine,
+    pub delta_g2:     E::G2Affine,
+    pub gamma_abc_g1: Vec<E::G1Affine>,
 }
 
 impl<E: PairingEngine> ToBytes for VerifyingKey<E> {
@@ -107,11 +106,11 @@ impl<E: PairingEngine> ToBytes for VerifyingKey<E> {
 impl<E: PairingEngine> Default for VerifyingKey<E> {
     fn default() -> Self {
         Self {
-            alpha_g1:       E::G1Affine::default(),
-            beta_g2:       E::G2Affine::default(),
-            gamma_g2: E::G2Affine::default(),
-            delta_g2:  E::G2Affine::default(),
-            gamma_abc_g1:      Vec::new(),
+            alpha_g1:     E::G1Affine::default(),
+            beta_g2:      E::G2Affine::default(),
+            gamma_g2:     E::G2Affine::default(),
+            delta_g2:     E::G2Affine::default(),
+            gamma_abc_g1: Vec::new(),
         }
     }
 }
@@ -127,7 +126,7 @@ impl<E: PairingEngine> PartialEq for VerifyingKey<E> {
 }
 
 impl<E: PairingEngine> VerifyingKey<E> {
-    /// Serialize the verification key into bytes, for storage on disk 
+    /// Serialize the verification key into bytes, for storage on disk
     /// or transmission over the network.
     pub fn write<W: Write>(&self, mut _writer: W) -> io::Result<()> {
         // TODO: implement serialization
@@ -144,15 +143,15 @@ impl<E: PairingEngine> VerifyingKey<E> {
 /// Full public (prover and verifier) parameters for the Groth16 zkSNARK.
 #[derive(Clone)]
 pub struct Parameters<E: PairingEngine> {
-    pub vk:           VerifyingKey<E>,
-    pub alpha_g1:       E::G1Affine,
-    pub beta_g1:       E::G1Affine,
-    pub beta_g2:       E::G2Affine,
-    pub delta_g1: E::G1Affine,
-    pub delta_g2:  E::G2Affine,
-    pub a_query:      Vec<E::G1Affine>,
-    pub b_g1_query:      Vec<E::G1Affine>,
-    pub b_g2_query:      Vec<E::G2Affine>,
+    pub vk:         VerifyingKey<E>,
+    pub alpha_g1:   E::G1Affine,
+    pub beta_g1:    E::G1Affine,
+    pub beta_g2:    E::G2Affine,
+    pub delta_g1:   E::G1Affine,
+    pub delta_g2:   E::G2Affine,
+    pub a_query:    Vec<E::G1Affine>,
+    pub b_g1_query: Vec<E::G1Affine>,
+    pub b_g2_query: Vec<E::G2Affine>,
     pub h_query:    Vec<E::G1Affine>,
     pub l_query:    Vec<E::G1Affine>,
 }
@@ -191,11 +190,11 @@ impl<E: PairingEngine> Parameters<E> {
 /// at the expense of larger size in memory.
 #[derive(Clone)]
 pub struct PreparedVerifyingKey<E: PairingEngine> {
-    pub vk:                VerifyingKey<E>,
-    pub alpha_g1_beta_g2:  E::Fqk,
-    pub gamma_g2_neg_pc:       <E::G2Affine as PairingCurve>::Prepared,
-    pub delta_g2_neg_pc:       <E::G2Affine as PairingCurve>::Prepared,
-    pub gamma_abc_g1:      Vec<E::G1Affine>,
+    pub vk:               VerifyingKey<E>,
+    pub alpha_g1_beta_g2: E::Fqk,
+    pub gamma_g2_neg_pc:  <E::G2Affine as PairingCurve>::Prepared,
+    pub delta_g2_neg_pc:  <E::G2Affine as PairingCurve>::Prepared,
+    pub gamma_abc_g1:     Vec<E::G1Affine>,
 }
 
 impl<E: PairingEngine> From<PreparedVerifyingKey<E>> for VerifyingKey<E> {
@@ -213,11 +212,11 @@ impl<E: PairingEngine> From<VerifyingKey<E>> for PreparedVerifyingKey<E> {
 impl<E: PairingEngine> Default for PreparedVerifyingKey<E> {
     fn default() -> Self {
         Self {
-            vk:                VerifyingKey::default(),
-            alpha_g1_beta_g2:           E::Fqk::default(),
-            gamma_g2_neg_pc:        <E::G2Affine as PairingCurve>::Prepared::default(),
-            delta_g2_neg_pc:        <E::G2Affine as PairingCurve>::Prepared::default(),
-            gamma_abc_g1:             Vec::new(),
+            vk:               VerifyingKey::default(),
+            alpha_g1_beta_g2: E::Fqk::default(),
+            gamma_g2_neg_pc:  <E::G2Affine as PairingCurve>::Prepared::default(),
+            delta_g2_neg_pc:  <E::G2Affine as PairingCurve>::Prepared::default(),
+            gamma_abc_g1:     Vec::new(),
         }
     }
 }
@@ -251,24 +250,27 @@ impl<E: PairingEngine> Parameters<E> {
         &self,
         num_inputs: usize,
     ) -> Result<(&[E::G1Affine], &[E::G1Affine]), SynthesisError> {
-        Ok((&self.b_g1_query[1..num_inputs], &self.b_g1_query[num_inputs..]))
+        Ok((
+            &self.b_g1_query[1..num_inputs],
+            &self.b_g1_query[num_inputs..],
+        ))
     }
 
     pub fn get_b_g2_query(
         &self,
         num_inputs: usize,
     ) -> Result<(&[E::G2Affine], &[E::G2Affine]), SynthesisError> {
-        Ok((&self.b_g2_query[1..num_inputs], &self.b_g2_query[num_inputs..]))
+        Ok((
+            &self.b_g2_query[1..num_inputs],
+            &self.b_g2_query[num_inputs..],
+        ))
     }
 
     pub fn get_h_query(
         &self,
         num_inputs: usize,
     ) -> Result<(&[E::G1Affine], &[E::G1Affine]), SynthesisError> {
-        Ok((
-            &self.h_query[0..num_inputs],
-            &self.h_query[num_inputs..],
-        ))
+        Ok((&self.h_query[0..num_inputs], &self.h_query[num_inputs..]))
     }
 
     pub fn get_l_query(

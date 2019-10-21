@@ -13,9 +13,9 @@ use std::{borrow::Borrow, marker::PhantomData};
 #[derive(Derivative)]
 #[derivative(Clone(bound = "G: Group, W: PedersenWindow, ConstraintF: Field"))]
 pub struct PedersenCommitmentGadgetParameters<G: Group, W: PedersenWindow, ConstraintF: Field> {
-    params:  PedersenParameters<G>,
+    params: PedersenParameters<G>,
     #[doc(hidden)]
-    _group:  PhantomData<G>,
+    _group: PhantomData<G>,
     #[doc(hidden)]
     _engine: PhantomData<ConstraintF>,
     #[doc(hidden)]
@@ -26,10 +26,8 @@ pub struct PedersenCommitmentGadgetParameters<G: Group, W: PedersenWindow, Const
 pub struct PedersenRandomnessGadget(Vec<UInt8>);
 
 pub struct PedersenCommitmentGadget<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>>(
-    #[doc(hidden)]
-    PhantomData<*const G>,
-    #[doc(hidden)]
-    PhantomData<*const GG>,
+    #[doc(hidden)] PhantomData<*const G>,
+    #[doc(hidden)] PhantomData<*const GG>,
     PhantomData<ConstraintF>,
 );
 
@@ -90,13 +88,17 @@ where
     }
 }
 
-impl<G, W, ConstraintF> AllocGadget<PedersenParameters<G>, ConstraintF> for PedersenCommitmentGadgetParameters<G, W, ConstraintF>
+impl<G, W, ConstraintF> AllocGadget<PedersenParameters<G>, ConstraintF>
+    for PedersenCommitmentGadgetParameters<G, W, ConstraintF>
 where
     G: Group,
     W: PedersenWindow,
     ConstraintF: PrimeField,
 {
-    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(_cs: CS, value_gen: F) -> Result<Self, SynthesisError>
+    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
+        _cs: CS,
+        value_gen: F,
+    ) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<PedersenParameters<G>>,
@@ -137,7 +139,10 @@ where
     G: Group,
     ConstraintF: PrimeField,
 {
-    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, value_gen: F) -> Result<Self, SynthesisError>
+    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
+        value_gen: F,
+    ) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<PedersenRandomness<G>>,
@@ -166,22 +171,25 @@ where
 
 #[cfg(test)]
 mod test {
-    use algebra::{fields::jubjub::{fq::Fq, fr::Fr}};
+    use algebra::{
+        fields::jubjub::{fq::Fq, fr::Fr},
+        UniformRand,
+    };
     use rand::thread_rng;
-    use algebra::UniformRand;
 
     use crate::{
         commitment::{
-            pedersen::{PedersenCommitment, PedersenRandomness, constraints::PedersenCommitmentGadget},
-            CommitmentScheme,
-            CommitmentGadget,
+            pedersen::{
+                constraints::PedersenCommitmentGadget, PedersenCommitment, PedersenRandomness,
+            },
+            CommitmentGadget, CommitmentScheme,
         },
         crh::pedersen::PedersenWindow,
     };
     use algebra::curves::{jubjub::JubJubProjective as JubJub, ProjectiveCurve};
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
-        groups::jubjub::JubJubGadget, test_constraint_system::TestConstraintSystem, prelude::*,
+        groups::jubjub::JubJubGadget, prelude::*, test_constraint_system::TestConstraintSystem,
     };
 
     #[test]

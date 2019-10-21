@@ -411,7 +411,10 @@ impl<ConstraintF: PrimeField> ConditionalEqGadget<ConstraintF> for Blake2sOutput
 
 impl<ConstraintF: PrimeField> ToBytesGadget<ConstraintF> for Blake2sOutputGadget {
     #[inline]
-    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(&self, _cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
+    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        _cs: CS,
+    ) -> Result<Vec<UInt8>, SynthesisError> {
         Ok(self.0.clone())
     }
 
@@ -426,7 +429,10 @@ impl<ConstraintF: PrimeField> ToBytesGadget<ConstraintF> for Blake2sOutputGadget
 
 impl<ConstraintF: PrimeField> AllocGadget<[u8; 32], ConstraintF> for Blake2sOutputGadget {
     #[inline]
-    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, value_gen: F) -> Result<Self, SynthesisError>
+    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
+        value_gen: F,
+    ) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<[u8; 32]>,
@@ -498,12 +504,14 @@ mod test {
     use rand::{Rng, SeedableRng};
     use rand_xorshift::XorShiftRng;
 
-    use crate::prf::blake2s::{Blake2s as B2SPRF, constraints::blake2s_gadget};
+    use crate::prf::blake2s::{constraints::blake2s_gadget, Blake2s as B2SPRF};
     use blake2::Blake2s;
     use r1cs_core::ConstraintSystem;
 
     use super::Blake2sGadget;
-    use r1cs_std::{prelude::*, boolean::AllocatedBit, test_constraint_system::TestConstraintSystem};
+    use r1cs_std::{
+        boolean::AllocatedBit, prelude::*, test_constraint_system::TestConstraintSystem,
+    };
 
     #[test]
     fn test_blake2s_constraints() {
@@ -522,7 +530,7 @@ mod test {
 
     #[test]
     fn test_blake2s_prf() {
-        use crate::prf::{PRF, PRFGadget};
+        use crate::prf::{PRFGadget, PRF};
         use rand::Rng;
 
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);

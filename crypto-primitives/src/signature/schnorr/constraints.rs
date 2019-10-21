@@ -6,12 +6,11 @@ use crate::signature::SigRandomizePkGadget;
 
 use std::{borrow::Borrow, marker::PhantomData};
 
-use crate::signature::schnorr::{
-    SchnorrPublicKey, SchnorrSigParameters, SchnorrSignature,
-};
+use crate::signature::schnorr::{SchnorrPublicKey, SchnorrSigParameters, SchnorrSignature};
 use digest::Digest;
 
-pub struct SchnorrSigGadgetParameters<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> {
+pub struct SchnorrSigGadgetParameters<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>>
+{
     generator: GG,
     _group:    PhantomData<*const G>,
     _engine:   PhantomData<*const ConstraintF>,
@@ -39,18 +38,18 @@ impl<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> Clone
 pub struct SchnorrSigGadgetPk<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> {
     pub_key: GG,
     #[doc(hidden)]
-    _group:  PhantomData<*const G>,
+    _group: PhantomData<*const G>,
     #[doc(hidden)]
     _engine: PhantomData<*const ConstraintF>,
 }
 
 pub struct SchnorrRandomizePkGadget<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> {
     #[doc(hidden)]
-    _group:        PhantomData<*const G>,
+    _group: PhantomData<*const G>,
     #[doc(hidden)]
     _group_gadget: PhantomData<*const GG>,
     #[doc(hidden)]
-    _engine:       PhantomData<*const ConstraintF>,
+    _engine: PhantomData<*const ConstraintF>,
 }
 
 impl<G, GG, D, ConstraintF> SigRandomizePkGadget<SchnorrSignature<G, D>, ConstraintF>
@@ -109,7 +108,10 @@ where
         })
     }
 
-    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, f: F) -> Result<Self, SynthesisError>
+    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
+        f: F,
+    ) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<SchnorrSigParameters<G, D>>,
@@ -123,7 +125,8 @@ where
     }
 }
 
-impl<G, ConstraintF, GG> AllocGadget<SchnorrPublicKey<G>, ConstraintF> for SchnorrSigGadgetPk<G, ConstraintF, GG>
+impl<G, ConstraintF, GG> AllocGadget<SchnorrPublicKey<G>, ConstraintF>
+    for SchnorrSigGadgetPk<G, ConstraintF, GG>
 where
     G: Group,
     ConstraintF: Field,
@@ -142,7 +145,10 @@ where
         })
     }
 
-    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, f: F) -> Result<Self, SynthesisError>
+    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
+        f: F,
+    ) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<SchnorrPublicKey<G>>,
@@ -196,7 +202,10 @@ where
     ConstraintF: Field,
     GG: GroupGadget<G, ConstraintF>,
 {
-    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
+    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Vec<UInt8>, SynthesisError> {
         self.pub_key.to_bytes(&mut cs.ns(|| "PubKey To Bytes"))
     }
 

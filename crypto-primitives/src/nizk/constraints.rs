@@ -5,7 +5,8 @@ use r1cs_std::prelude::*;
 use crate::nizk::NIZK;
 
 pub trait NIZKVerifierGadget<N: NIZK, ConstraintF: Field> {
-    type VerificationKeyGadget: AllocGadget<N::VerificationParameters, ConstraintF> + ToBytesGadget<ConstraintF>;
+    type VerificationKeyGadget: AllocGadget<N::VerificationParameters, ConstraintF>
+        + ToBytesGadget<ConstraintF>;
 
     type ProofGadget: AllocGadget<N::Proof, ConstraintF>;
 

@@ -1,7 +1,8 @@
 use crate::Error;
-use algebra::UniformRand;
-use algebra::{Field, ToConstraintField};
-use algebra::{bytes::ToBytes, groups::Group, BitIterator, FpParameters, PrimeField};
+use algebra::{
+    bytes::ToBytes, groups::Group, BitIterator, Field, FpParameters, PrimeField, ToConstraintField,
+    UniformRand,
+};
 
 use rand::Rng;
 use std::marker::PhantomData;
@@ -124,8 +125,9 @@ impl<G: Group, W: PedersenWindow> CommitmentScheme for PedersenCommitment<G, W> 
     }
 }
 
-
-impl<ConstraintF: Field, G: Group + ToConstraintField<ConstraintF>> ToConstraintField<ConstraintF> for PedersenParameters<G> {
+impl<ConstraintF: Field, G: Group + ToConstraintField<ConstraintF>> ToConstraintField<ConstraintF>
+    for PedersenParameters<G>
+{
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
         Ok(Vec::new())

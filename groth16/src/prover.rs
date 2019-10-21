@@ -2,14 +2,15 @@ use rand::Rng;
 use rayon::prelude::*;
 
 use algebra::{
-    groups::Group,
-    UniformRand, msm::VariableBaseMSM, AffineCurve, Field, PairingEngine, PrimeField, ProjectiveCurve,
+    groups::Group, msm::VariableBaseMSM, AffineCurve, Field, PairingEngine, PrimeField,
+    ProjectiveCurve, UniformRand,
 };
 
-use crate::{Parameters, Proof};
-use crate::r1cs_to_qap::R1CStoQAP;
+use crate::{r1cs_to_qap::R1CStoQAP, Parameters, Proof};
 
-use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable};
+use r1cs_core::{
+    ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable,
+};
 
 use smallvec::SmallVec;
 
