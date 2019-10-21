@@ -51,7 +51,7 @@ impl<E: PairingEngine, C: ConstraintSynthesizer<E::Fr>, V: ToConstraintField<E::
         ),
         Error,
     > {
-        let nizk_time = start_timer!(|| "{Groth-Maller 2017}::Setup");
+        let nizk_time = start_timer!(|| "{Groth 2016}::Setup");
         let pp = generate_random_parameters::<E, Self::Circuit, R>(circuit, rng)?;
         let vk = prepare_verifying_key(&pp.vk);
         end_timer!(nizk_time);
