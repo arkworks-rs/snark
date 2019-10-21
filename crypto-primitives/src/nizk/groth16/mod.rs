@@ -63,7 +63,7 @@ impl<E: PairingEngine, C: ConstraintSynthesizer<E::Fr>, V: ToConstraintField<E::
         input_and_witness: Self::AssignedCircuit,
         rng: &mut R,
     ) -> Result<Self::Proof, Error> {
-        let proof_time = start_timer!(|| "{Groth-Maller 2017}::Prove");
+        let proof_time = start_timer!(|| "{Groth 2016}::Prove");
         let result = create_random_proof::<E, _, _>(input_and_witness, pp, rng)?;
         end_timer!(proof_time);
         Ok(result)
