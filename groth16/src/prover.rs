@@ -321,7 +321,7 @@ where
     let h_inputs_acc = VariableBaseMSM::multi_scalar_mul(h_inputs_source, &h_input_assignment);
     let h_aux_acc = VariableBaseMSM::multi_scalar_mul(h_aux_source, &h_aux_assignment);
 
-    let (_, l_aux_source) = params.get_l_query(prover.num_inputs)?;
+    let l_aux_source = params.get_l_query_full()?;
     let l_aux_acc = VariableBaseMSM::multi_scalar_mul(l_aux_source, &aux_assignment);
 
     let s_g_a = g_a.clone().mul(&s);

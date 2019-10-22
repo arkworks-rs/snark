@@ -273,13 +273,6 @@ impl<E: PairingEngine> Parameters<E> {
         Ok((&self.h_query[0..num_inputs], &self.h_query[num_inputs..]))
     }
 
-    pub fn get_l_query(
-        &self,
-        num_inputs: usize,
-    ) -> Result<(&[E::G1Affine], &[E::G1Affine]), SynthesisError> {
-        Ok((&self.l_query[1..num_inputs], &self.l_query[num_inputs..]))
-    }
-
     pub fn get_a_query_full(&self) -> Result<&[E::G1Affine], SynthesisError> {
         Ok(&self.a_query)
     }
