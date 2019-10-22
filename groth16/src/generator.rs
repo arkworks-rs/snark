@@ -268,7 +268,7 @@ where
         scalar_bits,
         g1_window,
         &g1_table,
-        &(0..m_raw + 1)
+        &(0..m_raw - 1)
             .into_par_iter()
             .map(|i| zt * &delta_inverse * &t.pow([i as u64]))
             .collect::<Vec<_>>(),
@@ -278,8 +278,9 @@ where
 
     // Compute the L-query
     let l_time = start_timer!(|| "Calculate L");
-    let mut l_query =
+    let l_query =
         FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(scalar_bits, g1_window, &g1_table, &l);
+    let mut l_query = l_query[assembly.num_inputs..].to_vec();
     end_timer!(l_time);
 
     end_timer!(proving_key_time);
