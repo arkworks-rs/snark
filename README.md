@@ -37,10 +37,14 @@ This repository contains several Rust crates that implement the different buildi
 * [`r1cs-core`](r1cs-core): Rust crate that defines core interfaces for a Rank-1 Constraint System (R1CS)
 * [`r1cs-std`](r1cs-std): Rust crate that provides various gadgets used to construct R1CS
 * [`gm17`](gm17): Rust crate that implements the zkSNARK of [Groth and Maller][GM17]
+* [`groth16`](groth16): Rust crate that implements the zkSNARK of [Groth][Groth16]
+
 
 In addition, there is a  [`bench-utils`](bench-utils) crate which contains infrastructure for benchmarking. This crate includes macros for timing code segments and is used for profiling the building blocks of ZEXE.
 
 [GM17]: https://ia.cr/2017/540
+[Groth16]: https://ia.cr/2016/260
+
 
 ## Build guide
 
