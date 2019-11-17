@@ -15,11 +15,10 @@ mod test {
     use rand;
 
     use super::{G1Gadget, G2Gadget};
-    use crate::{test_constraint_system::TestConstraintSystem, prelude::*};
+    use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
     use algebra::{
         curves::bls12_377::{G1Projective as G1, G2Projective as G2},
-        fields::bls12_377::Fr,
-        fields::bls12_377::Fq,
+        fields::bls12_377::{Fq, Fr},
         AffineCurve, BitIterator, PrimeField, ProjectiveCurve,
     };
     use r1cs_core::ConstraintSystem;
@@ -52,10 +51,7 @@ mod test {
         let add_cost = cs.num_constraints() - cond_select_cost - alloc_cost;
 
         assert!(cs.is_satisfied());
-        assert_eq!(
-            cond_select_cost,
-            <G1Gadget as CondSelectGadget<Fq>>::cost()
-        );
+        assert_eq!(cond_select_cost, <G1Gadget as CondSelectGadget<Fq>>::cost());
         assert_eq!(add_cost, G1Gadget::cost_of_add());
     }
 
@@ -87,10 +83,7 @@ mod test {
         let add_cost = cs.num_constraints() - cond_select_cost - alloc_cost;
 
         assert!(cs.is_satisfied());
-        assert_eq!(
-            cond_select_cost,
-            <G2Gadget as CondSelectGadget<Fq>>::cost()
-        );
+        assert_eq!(cond_select_cost, <G2Gadget as CondSelectGadget<Fq>>::cost());
         assert_eq!(add_cost, G2Gadget::cost_of_add());
     }
 

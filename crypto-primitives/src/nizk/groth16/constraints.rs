@@ -62,7 +62,7 @@ impl<PairingE: PairingEngine, ConstraintF: Field, P: PairingGadget<PairingE, Con
             alpha_g1_beta_g2,
             gamma_g2_neg_pc,
             delta_g2_neg_pc,
-            gamma_abc_g1:     self.gamma_abc_g1.clone(),
+            gamma_abc_g1: self.gamma_abc_g1.clone(),
         })
     }
 }

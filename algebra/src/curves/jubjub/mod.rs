@@ -2,7 +2,7 @@ use crate::field_new;
 use crate::{
     biginteger::BigInteger256,
     curves::{
-        models::{ModelParameters, TEModelParameters},
+        models::{ModelParameters, TEModelParameters, MontgomeryModelParameters},
         twisted_edwards_extended::{GroupAffine, GroupProjective},
     },
     fields::jubjub::{fq::Fq, fr::Fr},
@@ -89,11 +89,32 @@ impl TEModelParameters for JubJubParameters {
     /// AFFINE_GENERATOR_COEFFS = (GENERATOR_X, GENERATOR_Y)
     const AFFINE_GENERATOR_COEFFS: (Self::BaseField, Self::BaseField) = (GENERATOR_X, GENERATOR_Y);
 
+    type MontgomeryModelParameters = JubJubParameters;
+
     /// Multiplication by `a` is simply negation here.
     #[inline(always)]
     fn mul_by_a(elem: &Self::BaseField) -> Self::BaseField {
         -(*elem)
     }
+}
+
+impl MontgomeryModelParameters for JubJubParameters {
+    /// COEFF_A = 0xA002
+    const COEFF_A: Fq = field_new!(Fq, BigInteger256([
+        388496971701930u64,
+        6855257088226130262u64,
+        553476580979119549u64,
+        6516741293351590684u64,
+    ]));
+    /// COEFF_B = 0x73EDA753299D7D483339D80809A1D80553BDA402FFFE5BFEFFFFFFFEFFFF5FFD
+    const COEFF_B: Fq = field_new!(Fq, BigInteger256([
+        18446355550968045916u64,
+        10902955289292811939u64,
+        3147092737149958754u64,
+        6710871716016002197u64,
+    ]));
+
+    type TEModelParameters = JubJubParameters;
 }
 
 impl FromStr for JubJubAffine {

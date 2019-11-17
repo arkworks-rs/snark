@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use algebra::{Group, Field};
+use algebra::{Field, Group};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
 use std::{borrow::Borrow, fmt::Debug};
@@ -31,7 +31,11 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
 
     fn zero<CS: ConstraintSystem<ConstraintF>>(cs: CS) -> Result<Self, SynthesisError>;
 
-    fn add<CS: ConstraintSystem<ConstraintF>>(&self, cs: CS, other: &Self) -> Result<Self, SynthesisError>;
+    fn add<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+        other: &Self,
+    ) -> Result<Self, SynthesisError>;
 
     fn sub<CS: ConstraintSystem<ConstraintF>>(
         &self,
@@ -57,7 +61,10 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
         self.add_constant(cs.ns(|| "Self - other"), &neg_other)
     }
 
-    fn double_in_place<CS: ConstraintSystem<ConstraintF>>(&mut self, cs: CS) -> Result<(), SynthesisError>;
+    fn double_in_place<CS: ConstraintSystem<ConstraintF>>(
+        &mut self,
+        cs: CS,
+    ) -> Result<(), SynthesisError>;
 
     fn negate<CS: ConstraintSystem<ConstraintF>>(&self, cs: CS) -> Result<Self, SynthesisError>;
 
@@ -111,6 +118,20 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
         Ok(())
     }
 
+    fn precomputed_base_3_bit_signed_digit_scalar_mul<'a, CS, I, J, B>(
+        _: CS,
+        _: &[B],
+        _: &[J],
+    ) -> Result<Self, SynthesisError>
+    where
+        CS: ConstraintSystem<ConstraintF>,
+        I: Borrow<[Boolean]>,
+        J: Borrow<[I]>,
+        B: Borrow<[G]>,
+    {
+        Err(SynthesisError::AssignmentMissing)
+    }
+
     fn precomputed_base_multiscalar_mul<'a, CS, T, I, B>(
         mut cs: CS,
         bases: &[B],
@@ -145,9 +166,7 @@ mod test {
     use algebra::Field;
     use r1cs_core::ConstraintSystem;
 
-    use crate::{
-        prelude::*, test_constraint_system::TestConstraintSystem,
-    };
+    use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
     use algebra::groups::Group;
     use rand;
 
@@ -203,8 +222,7 @@ mod test {
     #[test]
     fn jubjub_group_gadgets_test() {
         use crate::groups::jubjub::JubJubGadget;
-        use algebra::fields::jubjub::fq::Fq;
-        use algebra::curves::jubjub::JubJubProjective;
+        use algebra::{curves::jubjub::JubJubProjective, fields::jubjub::fq::Fq};
 
         let mut cs = TestConstraintSystem::<Fq>::new();
 

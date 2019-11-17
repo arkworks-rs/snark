@@ -58,7 +58,12 @@ impl FpParameters for FrParameters {
         50861023252832611u64,
     ]);
 
-    const MODULUS_MINUS_ONE_DIV_TWO: BigInteger = BigInteger([0x0, 0x0, 0x0, 0x0]);
+    const MODULUS_MINUS_ONE_DIV_TWO: BigInteger = BigInteger([
+        6678124996694371583u64,
+        2975139753996731775u64,
+        14706092969812227584u64,
+        168160046336021674u64,
+    ]);
 
     const T: BigInteger = BigInteger([0x0, 0x0, 0x0, 0x0]);
 

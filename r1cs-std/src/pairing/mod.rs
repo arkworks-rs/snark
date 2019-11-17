@@ -65,14 +65,18 @@ mod test {
     #[test]
     fn bls12_377_gadget_bilinearity_test() {
         use algebra::{
-            fields::{bls12_377::{fr::Fr, fq::Fq}, PrimeField},
+            fields::{
+                bls12_377::{fq::Fq, fr::Fr},
+                PrimeField,
+            },
             PairingEngine, ProjectiveCurve,
         };
 
         use super::bls12_377::PairingGadget;
         use crate::{
             groups::bls12::bls12_377::{G1Gadget, G1PreparedGadget, G2Gadget, G2PreparedGadget},
-            prelude::*, pairing::PairingGadget as _,
+            pairing::PairingGadget as _,
+            prelude::*,
         };
         use algebra::curves::bls12_377::{Bls12_377, G1Projective, G2Projective};
         use std::ops::Mul;

@@ -26,6 +26,7 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
     + ToBytesGadget<ConstraintF>
     + CondSelectGadget<ConstraintF>
     + TwoBitLookupGadget<ConstraintF, TableConstant = F>
+    + ThreeBitCondNegLookupGadget<ConstraintF, TableConstant = F>
     + Debug
 {
     type Variable: Clone + Debug;
@@ -38,7 +39,18 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
 
     fn one<CS: ConstraintSystem<ConstraintF>>(_: CS) -> Result<Self, SynthesisError>;
 
-    fn add<CS: ConstraintSystem<ConstraintF>>(&self, _: CS, _: &Self) -> Result<Self, SynthesisError>;
+    fn conditionally_add_constant<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        _: CS,
+        _: &Boolean,
+        _: F,
+    ) -> Result<Self, SynthesisError>;
+
+    fn add<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        _: CS,
+        _: &Self,
+    ) -> Result<Self, SynthesisError>;
 
     fn add_in_place<CS: ConstraintSystem<ConstraintF>>(
         &mut self,
@@ -61,7 +73,11 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
         Ok(self)
     }
 
-    fn sub<CS: ConstraintSystem<ConstraintF>>(&self, _: CS, _: &Self) -> Result<Self, SynthesisError>;
+    fn sub<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        _: CS,
+        _: &Self,
+    ) -> Result<Self, SynthesisError>;
 
     fn sub_in_place<CS: ConstraintSystem<ConstraintF>>(
         &mut self,
@@ -83,7 +99,11 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
         Ok(self)
     }
 
-    fn mul<CS: ConstraintSystem<ConstraintF>>(&self, _: CS, _: &Self) -> Result<Self, SynthesisError>;
+    fn mul<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        _: CS,
+        _: &Self,
+    ) -> Result<Self, SynthesisError>;
 
     fn mul_in_place<CS: ConstraintSystem<ConstraintF>>(
         &mut self,
@@ -125,7 +145,11 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
         result.enforce_equal(&mut cs.ns(|| "test_equals"), &actual_result)
     }
 
-    fn add_constant<CS: ConstraintSystem<ConstraintF>>(&self, _: CS, _: &F) -> Result<Self, SynthesisError>;
+    fn add_constant<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        _: CS,
+        _: &F,
+    ) -> Result<Self, SynthesisError>;
 
     fn add_constant_in_place<CS: ConstraintSystem<ConstraintF>>(
         &mut self,
@@ -217,10 +241,15 @@ mod test {
     use rand_xorshift::XorShiftRng;
 
     use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
-    use algebra::{UniformRand, Field, BitIterator};
+    use algebra::{BitIterator, Field, UniformRand};
     use r1cs_core::ConstraintSystem;
 
-    fn field_test<FE: Field, ConstraintF: Field, F: FieldGadget<FE, ConstraintF>, CS: ConstraintSystem<ConstraintF>>(
+    fn field_test<
+        FE: Field,
+        ConstraintF: Field,
+        F: FieldGadget<FE, ConstraintF>,
+        CS: ConstraintSystem<ConstraintF>,
+    >(
         mut cs: CS,
         a: F,
         b: F,
@@ -402,6 +431,23 @@ mod test {
         let n = F::alloc(&mut cs.ns(|| "alloc new var"), || Ok(negone)).unwrap();
         let _ = n.to_bytes(&mut cs.ns(|| "ToBytes")).unwrap();
         let _ = n.to_bytes_strict(&mut cs.ns(|| "ToBytes Strict")).unwrap();
+
+        let ab_false = a
+            .conditionally_add_constant(
+                cs.ns(|| "Add bool with coeff false"),
+                &Boolean::constant(false),
+                b_native,
+            )
+            .unwrap();
+        assert_eq!(ab_false.get_value().unwrap(), a_native);
+        let ab_true = a
+            .conditionally_add_constant(
+                cs.ns(|| "Add bool with coeff true"),
+                &Boolean::constant(true),
+                b_native,
+            )
+            .unwrap();
+        assert_eq!(ab_true.get_value().unwrap(), a_native + &b_native);
     }
 
     fn random_frobenius_tests<

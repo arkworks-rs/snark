@@ -1,6 +1,6 @@
 use crate::prelude::*;
-use r1cs_core::{ConstraintSystem, SynthesisError};
 use algebra::Field;
+use r1cs_core::{ConstraintSystem, SynthesisError};
 
 /// If `condition == 1`, then enforces that `self` and `other` are equal;
 /// otherwise, it doesn't enforce anything.
@@ -14,7 +14,9 @@ pub trait ConditionalEqGadget<ConstraintF: Field>: Eq {
 
     fn cost() -> usize;
 }
-impl<T: ConditionalEqGadget<ConstraintF>, ConstraintF: Field> ConditionalEqGadget<ConstraintF> for [T] {
+impl<T: ConditionalEqGadget<ConstraintF>, ConstraintF: Field> ConditionalEqGadget<ConstraintF>
+    for [T]
+{
     fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
@@ -77,7 +79,9 @@ where
     fn cost() -> usize;
 }
 
-impl<ConstraintF: Field, T: Sized + ConditionalOrEqualsGadget<ConstraintF>> OrEqualsGadget<ConstraintF> for T {
+impl<ConstraintF: Field, T: Sized + ConditionalOrEqualsGadget<ConstraintF>>
+    OrEqualsGadget<ConstraintF> for T
+{
     fn enforce_equal_or<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
         cond: &Boolean,
@@ -109,8 +113,10 @@ where
     fn cost() -> usize;
 }
 
-impl<ConstraintF: Field, T: Sized + ConditionalEqGadget<ConstraintF> + CondSelectGadget<ConstraintF>>
-    ConditionalOrEqualsGadget<ConstraintF> for T
+impl<
+        ConstraintF: Field,
+        T: Sized + ConditionalEqGadget<ConstraintF> + CondSelectGadget<ConstraintF>,
+    > ConditionalOrEqualsGadget<ConstraintF> for T
 {
     fn conditional_enforce_equal_or<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
@@ -130,8 +136,7 @@ impl<ConstraintF: Field, T: Sized + ConditionalEqGadget<ConstraintF> + CondSelec
     }
 
     fn cost() -> usize {
-        <Self as ConditionalEqGadget<ConstraintF>>::cost() + <Self as CondSelectGadget<ConstraintF>>::cost()
+        <Self as ConditionalEqGadget<ConstraintF>>::cost()
+            + <Self as CondSelectGadget<ConstraintF>>::cost()
     }
 }
-
-

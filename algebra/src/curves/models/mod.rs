@@ -71,6 +71,8 @@ pub trait TEModelParameters: ModelParameters {
     const COFACTOR_INV: Self::ScalarField;
     const AFFINE_GENERATOR_COEFFS: (Self::BaseField, Self::BaseField);
 
+    type MontgomeryModelParameters: MontgomeryModelParameters<BaseField = Self::BaseField>;
+
     #[inline(always)]
     fn mul_by_a(elem: &Self::BaseField) -> Self::BaseField {
         let mut copy = *elem;
@@ -110,3 +112,11 @@ pub trait TEModelParameters: ModelParameters {
         ret
     }
 }
+
+pub trait MontgomeryModelParameters: ModelParameters {
+    const COEFF_A: Self::BaseField;
+    const COEFF_B: Self::BaseField;
+
+    type TEModelParameters: TEModelParameters<BaseField = Self::BaseField>;
+}
+

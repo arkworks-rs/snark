@@ -1,12 +1,13 @@
 use algebra::{bytes::ToBytes, FpParameters, PrimeField};
-use r1cs_core::{ConstraintSystem, LinearCombination, SynthesisError, ConstraintVar::{self, *}};
+use r1cs_core::{
+    ConstraintSystem,
+    ConstraintVar::{self, *},
+    LinearCombination, SynthesisError,
+};
 
 use std::borrow::Borrow;
 
-use crate::boolean::AllocatedBit;
-use crate::Assignment;
-use crate::prelude::*;
-
+use crate::{boolean::AllocatedBit, prelude::*, Assignment};
 
 #[derive(Debug)]
 pub struct FpGadget<F: PrimeField> {
@@ -49,6 +50,23 @@ impl<F: PrimeField> FieldGadget<F, F> for FpGadget<F> {
         Ok(FpGadget {
             value,
             variable: CS::one().into(),
+        })
+    }
+
+    #[inline]
+    fn conditionally_add_constant<CS: ConstraintSystem<F>>(
+        &self,
+        mut _cs: CS,
+        bit: &Boolean,
+        coeff: F,
+    ) -> Result<Self, SynthesisError> {
+        let value = match (self.value, bit.get_value()) {
+            (Some(v), Some(b)) => Some(if b { v + &coeff } else { v }),
+            (..) => None,
+        };
+        Ok(FpGadget {
+            value,
+            variable: LC(bit.lc(CS::one(), coeff)) + &self.variable,
         })
     }
 
@@ -500,6 +518,52 @@ impl<F: PrimeField> TwoBitLookupGadget<F> for FpGadget<F> {
 
     fn cost() -> usize {
         1
+    }
+}
+
+impl<F: PrimeField> ThreeBitCondNegLookupGadget<F> for FpGadget<F> {
+    type TableConstant = F;
+
+    fn three_bit_cond_neg_lookup<CS: ConstraintSystem<F>>(
+        mut cs: CS,
+        b: &[Boolean],
+        b0b1: &Boolean,
+        c: &[Self::TableConstant],
+    ) -> Result<Self, SynthesisError> {
+        debug_assert!(b.len() == 3);
+        debug_assert!(c.len() == 4);
+
+        let result = Self::alloc(cs.ns(|| "Allocate lookup result"), || {
+            let y = match (b[0].get_value().get()?, b[1].get_value().get()?) {
+                (false, false) => c[0],
+                (false, true) => c[2],
+                (true, false) => c[1],
+                (true, true) => c[3],
+            };
+            if b[2].get_value().get()? {
+                Ok(-y)
+            } else {
+                Ok(y)
+            }
+        })?;
+
+        let one = CS::one();
+        let y_lc = b0b1.lc(one, c[3] - &c[2] - &c[1] + &c[0])
+            + b[0].lc(one, c[1] - &c[0])
+            + b[1].lc(one, c[2] - &c[0])
+            + (c[0], one);
+        cs.enforce(
+            || "Enforce lookup",
+            |_| y_lc.clone() + y_lc.clone(),
+            |lc| lc + b[2].lc(one, F::one()),
+            |_| -result.get_variable() + y_lc.clone(),
+        );
+
+        Ok(result)
+    }
+
+    fn cost() -> usize {
+        2
     }
 }
 

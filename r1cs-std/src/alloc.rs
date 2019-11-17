@@ -12,7 +12,10 @@ where
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<V>;
 
-    fn alloc_checked<F, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, f: F) -> Result<Self, SynthesisError>
+    fn alloc_checked<F, T, CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
+        f: F,
+    ) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<V>,
@@ -20,7 +23,10 @@ where
         Self::alloc(cs, f)
     }
 
-    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, f: F) -> Result<Self, SynthesisError>
+    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
+        f: F,
+    ) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<V>;
@@ -37,8 +43,13 @@ where
     }
 }
 
-impl<I, ConstraintF: Field, A: AllocGadget<I, ConstraintF>> AllocGadget<[I], ConstraintF> for Vec<A> {
-    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, f: F) -> Result<Self, SynthesisError>
+impl<I, ConstraintF: Field, A: AllocGadget<I, ConstraintF>> AllocGadget<[I], ConstraintF>
+    for Vec<A>
+{
+    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        f: F,
+    ) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<[I]>,
@@ -52,7 +63,10 @@ impl<I, ConstraintF: Field, A: AllocGadget<I, ConstraintF>> AllocGadget<[I], Con
         Ok(vec)
     }
 
-    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, f: F) -> Result<Self, SynthesisError>
+    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        f: F,
+    ) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<[I]>,

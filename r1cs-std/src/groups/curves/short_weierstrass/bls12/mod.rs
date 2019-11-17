@@ -5,17 +5,23 @@ use algebra::{
 };
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
-
-use crate::prelude::*;
-use crate::fields::{fp::FpGadget, fp2::Fp2Gadget, FieldGadget};
-use crate::groups::curves::short_weierstrass::AffineGadget;
+use crate::{
+    fields::{fp::FpGadget, fp2::Fp2Gadget, FieldGadget},
+    groups::curves::short_weierstrass::AffineGadget,
+    prelude::*,
+};
 
 use std::fmt::Debug;
 
 pub mod bls12_377;
 
-pub type G1Gadget<P> = AffineGadget<<P as Bls12Parameters>::G1Parameters, <P as Bls12Parameters>::Fp, FpGadget<<P as Bls12Parameters>::Fp>>;
-pub type G2Gadget<P> = AffineGadget<<P as Bls12Parameters>::G2Parameters, <P as Bls12Parameters>::Fp, Fp2G<P>>;
+pub type G1Gadget<P> = AffineGadget<
+    <P as Bls12Parameters>::G1Parameters,
+    <P as Bls12Parameters>::Fp,
+    FpGadget<<P as Bls12Parameters>::Fp>,
+>;
+pub type G2Gadget<P> =
+    AffineGadget<<P as Bls12Parameters>::G2Parameters, <P as Bls12Parameters>::Fp, Fp2G<P>>;
 
 #[derive(Derivative)]
 #[derivative(
@@ -41,7 +47,10 @@ impl<P: Bls12Parameters> G1PreparedGadget<P> {
 
 impl<P: Bls12Parameters> ToBytesGadget<P::Fp> for G1PreparedGadget<P> {
     #[inline]
-    fn to_bytes<CS: ConstraintSystem<P::Fp>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
+    fn to_bytes<CS: ConstraintSystem<P::Fp>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Vec<UInt8>, SynthesisError> {
         self.0.to_bytes(&mut cs.ns(|| "g_alpha to bytes"))
     }
 
@@ -66,7 +75,10 @@ pub struct G2PreparedGadget<P: Bls12Parameters> {
 
 impl<P: Bls12Parameters> ToBytesGadget<P::Fp> for G2PreparedGadget<P> {
     #[inline]
-    fn to_bytes<CS: ConstraintSystem<P::Fp>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
+    fn to_bytes<CS: ConstraintSystem<P::Fp>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Vec<UInt8>, SynthesisError> {
         let mut bytes = Vec::new();
         for (i, coeffs) in self.ell_coeffs.iter().enumerate() {
             let mut cs = cs.ns(|| format!("Iteration {}", i));

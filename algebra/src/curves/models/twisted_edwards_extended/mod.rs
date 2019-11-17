@@ -9,9 +9,12 @@ use std::{
 
 use crate::{
     bytes::{FromBytes, ToBytes},
-    curves::{models::TEModelParameters as Parameters, AffineCurve, ProjectiveCurve},
+    curves::{models::TEModelParameters as Parameters, models::MontgomeryModelParameters as MontgomeryParameters, AffineCurve, ProjectiveCurve},
     fields::{BitIterator, Field, PrimeField, SquareRootField},
 };
+
+#[cfg(test)]
+pub mod tests;
 
 #[derive(Derivative)]
 #[derivative(
@@ -617,3 +620,36 @@ impl<P: Parameters> From<GroupProjective<P>> for GroupAffine<P> {
         }
     }
 }
+
+#[derive(Derivative)]
+#[derivative(
+Copy(bound = "P: MontgomeryParameters"),
+Clone(bound = "P: MontgomeryParameters"),
+PartialEq(bound = "P: MontgomeryParameters"),
+Eq(bound = "P: MontgomeryParameters"),
+Debug(bound = "P: MontgomeryParameters"),
+Hash(bound = "P: MontgomeryParameters")
+)]
+pub struct MontgomeryGroupAffine<P: MontgomeryParameters> {
+    pub x: P::BaseField,
+    pub y: P::BaseField,
+    #[derivative(Debug = "ignore")]
+    _params: PhantomData<P>,
+}
+
+impl<P: MontgomeryParameters> Display for MontgomeryGroupAffine<P> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        write!(f, "MontgomeryGroupAffine(x={}, y={})", self.x, self.y)
+    }
+}
+
+impl<P: MontgomeryParameters> MontgomeryGroupAffine<P> {
+    pub fn new(x: P::BaseField, y: P::BaseField) -> Self {
+        Self {
+            x,
+            y,
+            _params: PhantomData,
+        }
+    }
+}
+
