@@ -1,10 +1,12 @@
-use algebra::{FpParameters, PrimeField, Field};
+use algebra::{Field, FpParameters, PrimeField};
 
 use r1cs_core::{ConstraintSystem, LinearCombination, SynthesisError};
 
-use crate::boolean::{AllocatedBit, Boolean};
-use crate::Assignment;
-use crate::prelude::*;
+use crate::{
+    boolean::{AllocatedBit, Boolean},
+    prelude::*,
+    Assignment,
+};
 
 /// Represents an interpretation of 32 `Boolean` objects as an
 /// unsigned integer.
@@ -270,7 +272,10 @@ impl UInt32 {
 
 impl<ConstraintF: Field> ToBytesGadget<ConstraintF> for UInt32 {
     #[inline]
-    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(&self, _cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
+    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        _cs: CS,
+    ) -> Result<Vec<UInt8>, SynthesisError> {
         let value_chunks = match self.value.map(|val| {
             use algebra::bytes::ToBytes;
             let mut bytes = [0u8; 4];
@@ -340,9 +345,9 @@ mod test {
     use super::UInt32;
     use crate::{bits::boolean::Boolean, test_constraint_system::TestConstraintSystem};
     use algebra::fields::{bls12_381::Fr, Field};
+    use r1cs_core::ConstraintSystem;
     use rand::{Rng, SeedableRng};
     use rand_xorshift::XorShiftRng;
-    use r1cs_core::ConstraintSystem;
 
     #[test]
     fn test_uint32_from_bits() {

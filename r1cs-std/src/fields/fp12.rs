@@ -1,24 +1,27 @@
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
 use algebra::{
-    PrimeField, Field,
     fields::{
         fp12_2over3over2::{Fp12, Fp12Parameters},
         fp6_3over2::{Fp6, Fp6Parameters},
         Fp2Parameters,
     },
-    BitIterator,
+    BitIterator, Field, PrimeField,
 };
 use std::{borrow::Borrow, marker::PhantomData};
 
-use crate::prelude::*;
-use crate::Assignment;
+use crate::{prelude::*, Assignment};
 
-type Fp2Gadget<P, ConstraintF> =
-    super::fp2::Fp2Gadget<<<P as Fp12Parameters>::Fp6Params as Fp6Parameters>::Fp2Params, ConstraintF>;
-type Fp6Gadget<P, ConstraintF> = super::fp6_3over2::Fp6Gadget<<P as Fp12Parameters>::Fp6Params, ConstraintF>;
-type Fp6GadgetVariable<P, ConstraintF> =
-    <Fp6Gadget<P, ConstraintF> as FieldGadget<Fp6<<P as Fp12Parameters>::Fp6Params>, ConstraintF>>::Variable;
+type Fp2Gadget<P, ConstraintF> = super::fp2::Fp2Gadget<
+    <<P as Fp12Parameters>::Fp6Params as Fp6Parameters>::Fp2Params,
+    ConstraintF,
+>;
+type Fp6Gadget<P, ConstraintF> =
+    super::fp6_3over2::Fp6Gadget<<P as Fp12Parameters>::Fp6Params, ConstraintF>;
+type Fp6GadgetVariable<P, ConstraintF> = <Fp6Gadget<P, ConstraintF> as FieldGadget<
+    Fp6<<P as Fp12Parameters>::Fp6Params>,
+    ConstraintF,
+>>::Variable;
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = "ConstraintF: PrimeField"))]
@@ -272,7 +275,10 @@ where
     P: Fp12Parameters,
     <P::Fp6Params as Fp6Parameters>::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
 {
-    type Variable = (Fp6GadgetVariable<P, ConstraintF>, Fp6GadgetVariable<P, ConstraintF>);
+    type Variable = (
+        Fp6GadgetVariable<P, ConstraintF>,
+        Fp6GadgetVariable<P, ConstraintF>,
+    );
 
     #[inline]
     fn get_value(&self) -> Option<Fp12<P>> {
@@ -295,6 +301,22 @@ where
     fn one<CS: ConstraintSystem<ConstraintF>>(mut cs: CS) -> Result<Self, SynthesisError> {
         let c0 = Fp6Gadget::<P, ConstraintF>::one(cs.ns(|| "c0"))?;
         let c1 = Fp6Gadget::<P, ConstraintF>::zero(cs.ns(|| "c1"))?;
+        Ok(Self::new(c0, c1))
+    }
+
+    #[inline]
+    fn conditionally_add_constant<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        bit: &Boolean,
+        coeff: Fp12<P>,
+    ) -> Result<Self, SynthesisError> {
+        let c0 = self
+            .c0
+            .conditionally_add_constant(cs.ns(|| "c0"), bit, coeff.c0)?;
+        let c1 = self
+            .c1
+            .conditionally_add_constant(cs.ns(|| "c1"), bit, coeff.c1)?;
         Ok(Self::new(c0, c1))
     }
 
@@ -343,7 +365,10 @@ where
     }
 
     #[inline]
-    fn negate<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Self, SynthesisError> {
+    fn negate<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Self, SynthesisError> {
         let c0 = self.c0.negate(cs.ns(|| "c0"))?;
         let c1 = self.c1.negate(cs.ns(|| "c1"))?;
         Ok(Self::new(c0, c1))
@@ -396,7 +421,10 @@ where
         Ok(Self::new(c0, c1))
     }
 
-    fn square<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Self, SynthesisError> {
+    fn square<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Self, SynthesisError> {
         // From Libsnark/fp2_gadget.tcc
         // Complex multiplication for Fp2:
         //     v0 = A.c0 * A.c1
@@ -518,7 +546,10 @@ where
         Ok(self)
     }
 
-    fn inverse<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Self, SynthesisError> {
+    fn inverse<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Self, SynthesisError> {
         let inverse = Self::alloc(&mut cs.ns(|| "alloc inverse"), || {
             self.get_value().and_then(|val| val.inverse()).get()
         })?;
@@ -690,7 +721,10 @@ where
     P: Fp12Parameters,
     <P::Fp6Params as Fp6Parameters>::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
 {
-    fn to_bits<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Vec<Boolean>, SynthesisError> {
+    fn to_bits<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Vec<Boolean>, SynthesisError> {
         let mut c0 = self.c0.to_bits(&mut cs)?;
         let mut c1 = self.c1.to_bits(cs)?;
         c0.append(&mut c1);
@@ -713,7 +747,10 @@ where
     P: Fp12Parameters,
     <P::Fp6Params as Fp6Parameters>::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
 {
-    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
+    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Vec<UInt8>, SynthesisError> {
         let mut c0 = self.c0.to_bytes(cs.ns(|| "c0"))?;
         let mut c1 = self.c1.to_bytes(cs.ns(|| "c1"))?;
         c0.append(&mut c1);
@@ -794,6 +831,42 @@ where
 
     fn cost() -> usize {
         2 * <Fp6Gadget<P, ConstraintF> as TwoBitLookupGadget<ConstraintF>>::cost()
+    }
+}
+
+impl<P, ConstraintF: PrimeField> ThreeBitCondNegLookupGadget<ConstraintF>
+    for Fp12Gadget<P, ConstraintF>
+where
+    P: Fp12Parameters,
+    <P::Fp6Params as Fp6Parameters>::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
+{
+    type TableConstant = Fp12<P>;
+
+    fn three_bit_cond_neg_lookup<CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        b: &[Boolean],
+        b0b1: &Boolean,
+        c: &[Self::TableConstant],
+    ) -> Result<Self, SynthesisError> {
+        let c0s = c.iter().map(|f| f.c0).collect::<Vec<_>>();
+        let c1s = c.iter().map(|f| f.c1).collect::<Vec<_>>();
+        let c0 = Fp6Gadget::<P, ConstraintF>::three_bit_cond_neg_lookup(
+            cs.ns(|| "Lookup c0"),
+            b,
+            b0b1,
+            &c0s,
+        )?;
+        let c1 = Fp6Gadget::<P, ConstraintF>::three_bit_cond_neg_lookup(
+            cs.ns(|| "Lookup c1"),
+            b,
+            b0b1,
+            &c1s,
+        )?;
+        Ok(Self::new(c0, c1))
+    }
+
+    fn cost() -> usize {
+        2 * <Fp6Gadget<P, ConstraintF> as ThreeBitCondNegLookupGadget<ConstraintF>>::cost()
     }
 }
 

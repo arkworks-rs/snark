@@ -1,7 +1,6 @@
 use algebra::{BitIterator, Field, FpParameters, PrimeField};
 
-use crate::prelude::*;
-use crate::Assignment;
+use crate::{prelude::*, Assignment};
 use r1cs_core::{ConstraintSystem, LinearCombination, SynthesisError, Variable};
 use std::borrow::Borrow;
 
@@ -346,7 +345,11 @@ impl Boolean {
         }
     }
 
-    pub fn lc<ConstraintF: Field>(&self, one: Variable, coeff: ConstraintF) -> LinearCombination<ConstraintF> {
+    pub fn lc<ConstraintF: Field>(
+        &self,
+        one: Variable,
+        coeff: ConstraintF,
+    ) -> LinearCombination<ConstraintF> {
         match *self {
             Boolean::Constant(c) => {
                 if c {
@@ -396,7 +399,11 @@ impl Boolean {
     }
 
     /// Perform XOR over two boolean operands
-    pub fn xor<'a, ConstraintF, CS>(cs: CS, a: &'a Self, b: &'a Self) -> Result<Self, SynthesisError>
+    pub fn xor<'a, ConstraintF, CS>(
+        cs: CS,
+        a: &'a Self,
+        b: &'a Self,
+    ) -> Result<Self, SynthesisError>
     where
         ConstraintF: Field,
         CS: ConstraintSystem<ConstraintF>,
@@ -441,7 +448,11 @@ impl Boolean {
     }
 
     /// Perform AND over two boolean operands
-    pub fn and<'a, ConstraintF, CS>(cs: CS, a: &'a Self, b: &'a Self) -> Result<Self, SynthesisError>
+    pub fn and<'a, ConstraintF, CS>(
+        cs: CS,
+        a: &'a Self,
+        b: &'a Self,
+    ) -> Result<Self, SynthesisError>
     where
         ConstraintF: Field,
         CS: ConstraintSystem<ConstraintF>,
@@ -629,7 +640,10 @@ impl From<AllocatedBit> for Boolean {
 }
 
 impl<ConstraintF: Field> AllocGadget<bool, ConstraintF> for Boolean {
-    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, value_gen: F) -> Result<Self, SynthesisError>
+    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
+        value_gen: F,
+    ) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<bool>,
@@ -713,7 +727,10 @@ impl<ConstraintF: Field> ConditionalEqGadget<ConstraintF> for Boolean {
 }
 
 impl<ConstraintF: Field> ToBytesGadget<ConstraintF> for Boolean {
-    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(&self, _cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
+    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        _cs: CS,
+    ) -> Result<Vec<UInt8>, SynthesisError> {
         let mut bits = vec![Boolean::constant(false); 7];
         bits.push(*self);
         bits.reverse();
@@ -734,15 +751,11 @@ impl<ConstraintF: Field> ToBytesGadget<ConstraintF> for Boolean {
 #[cfg(test)]
 mod test {
     use super::{AllocatedBit, Boolean};
-    use crate::{
-        test_constraint_system::TestConstraintSystem,
-        prelude::*
-    };
-    use algebra::{fields::bls12_381::Fr, BitIterator, Field, PrimeField};
-    use algebra::UniformRand;
-use rand::SeedableRng;
-use rand_xorshift::XorShiftRng;
+    use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
+    use algebra::{fields::bls12_381::Fr, BitIterator, Field, PrimeField, UniformRand};
     use r1cs_core::ConstraintSystem;
+    use rand::SeedableRng;
+    use rand_xorshift::XorShiftRng;
     use std::str::FromStr;
 
     #[test]
@@ -1775,8 +1788,8 @@ use rand_xorshift::XorShiftRng;
         //     let mut bits = vec![];
         //     for (i, b) in BitIterator::new(r).skip(1).enumerate() {
         //         bits.push(Boolean::from(
-        //             AllocatedBit::alloc(cs.ns(|| format!("bit_gadget {}", i)),
-        // Some(b))                 .unwrap(),
+        //             AllocatedBit::alloc(cs.ns(|| format!("bit_gadget {}",
+        // i)), Some(b))                 .unwrap(),
         //         ));
         //     }
 

@@ -1,6 +1,9 @@
 use algebra::{
-    curves::{twisted_edwards_extended::GroupAffine as TEAffine, TEModelParameters},
-    BitIterator, Field
+    curves::{
+        twisted_edwards_extended::GroupAffine as TEAffine, MontgomeryModelParameters,
+        TEModelParameters,
+    },
+    BitIterator, Field,
 };
 
 use r1cs_core::{ConstraintSystem, SynthesisError};
@@ -19,9 +22,187 @@ mod test;
 #[derivative(Debug, Clone)]
 #[derivative(Debug(bound = "P: TEModelParameters, ConstraintF: Field"))]
 #[must_use]
-pub struct AffineGadget<P: TEModelParameters, ConstraintF: Field, F: FieldGadget<P::BaseField, ConstraintF>> {
-    pub x:   F,
-    pub y:   F,
+pub struct MontgomeryAffineGadget<
+    P: TEModelParameters,
+    ConstraintF: Field,
+    F: FieldGadget<P::BaseField, ConstraintF>,
+> {
+    pub x: F,
+    pub y: F,
+    #[derivative(Debug = "ignore")]
+    _params: PhantomData<P>,
+    #[derivative(Debug = "ignore")]
+    _engine: PhantomData<ConstraintF>,
+}
+
+mod montgomery_affine_impl {
+    use super::*;
+    use crate::Assignment;
+    use algebra::{twisted_edwards_extended::GroupAffine, AffineCurve, Field};
+    use std::ops::{AddAssign, MulAssign, SubAssign};
+
+    impl<P: TEModelParameters, ConstraintF: Field, F: FieldGadget<P::BaseField, ConstraintF>>
+        MontgomeryAffineGadget<P, ConstraintF, F>
+    {
+        pub fn new(x: F, y: F) -> Self {
+            Self {
+                x,
+                y,
+                _params: PhantomData,
+                _engine: PhantomData,
+            }
+        }
+
+        pub fn from_edwards_to_coords(
+            p: &TEAffine<P>,
+        ) -> Result<(P::BaseField, P::BaseField), SynthesisError> {
+            let montgomery_point: GroupAffine<P> = if p.y == P::BaseField::one() {
+                GroupAffine::zero()
+            } else {
+                if p.x == P::BaseField::zero() {
+                    GroupAffine::new(P::BaseField::zero(), P::BaseField::zero())
+                } else {
+                    let u = (P::BaseField::one() + &p.y)
+                        * &(P::BaseField::one() - &p.y).inverse().unwrap();
+                    let v = u * &p.x.inverse().unwrap();
+                    GroupAffine::new(u, v)
+                }
+            };
+
+            Ok((montgomery_point.x, montgomery_point.y))
+        }
+
+        pub fn from_edwards<CS: ConstraintSystem<ConstraintF>>(
+            mut cs: CS,
+            p: &TEAffine<P>,
+        ) -> Result<Self, SynthesisError> {
+            let montgomery_coords = Self::from_edwards_to_coords(p)?;
+
+            let u = F::alloc(cs.ns(|| "u"), || Ok(montgomery_coords.0))?;
+
+            let v = F::alloc(cs.ns(|| "v"), || Ok(montgomery_coords.1))?;
+
+            Ok(Self::new(u, v))
+        }
+
+        pub fn into_edwards<CS: ConstraintSystem<ConstraintF>>(
+            &self,
+            mut cs: CS,
+        ) -> Result<AffineGadget<P, ConstraintF, F>, SynthesisError> {
+            // Compute u = x / y
+            let u = F::alloc(cs.ns(|| "u"), || {
+                let mut t0 = self.x.get_value().get()?;
+
+                match self.y.get_value().get()?.inverse() {
+                    Some(invy) => {
+                        t0.mul_assign(&invy);
+
+                        Ok(t0)
+                    },
+                    None => Err(SynthesisError::DivisionByZero),
+                }
+            })?;
+
+            u.mul_equals(cs.ns(|| "u equals"), &self.y, &self.x)?;
+
+            let v = F::alloc(cs.ns(|| "v"), || {
+                let mut t0 = self.x.get_value().get()?;
+                let mut t1 = t0.clone();
+                t0.sub_assign(&P::BaseField::one());
+                t1.add_assign(&P::BaseField::one());
+
+                match t1.inverse() {
+                    Some(t1) => {
+                        t0.mul_assign(&t1);
+
+                        Ok(t0)
+                    },
+                    None => Err(SynthesisError::DivisionByZero),
+                }
+            })?;
+
+            let xplusone = self
+                .x
+                .add_constant(cs.ns(|| "x plus one"), &P::BaseField::one())?;
+            let xminusone = self
+                .x
+                .sub_constant(cs.ns(|| "x minus one"), &P::BaseField::one())?;
+            v.mul_equals(cs.ns(|| "v equals"), &xplusone, &xminusone)?;
+
+            Ok(AffineGadget::new(u, v))
+        }
+
+        pub fn add<CS: ConstraintSystem<ConstraintF>>(
+            &self,
+            mut cs: CS,
+            other: &Self,
+        ) -> Result<Self, SynthesisError> {
+            let lambda = F::alloc(cs.ns(|| "lambda"), || {
+                let mut n = other.y.get_value().get()?;
+                n.sub_assign(&self.y.get_value().get()?);
+
+                let mut d = other.x.get_value().get()?;
+                d.sub_assign(&self.x.get_value().get()?);
+
+                match d.inverse() {
+                    Some(d) => {
+                        n.mul_assign(&d);
+                        Ok(n)
+                    },
+                    None => Err(SynthesisError::DivisionByZero),
+                }
+            })?;
+            let lambda_n = other.y.sub(cs.ns(|| "other.y - self.y"), &self.y)?;
+            let lambda_d = other.x.sub(cs.ns(|| "other.x - self.x"), &self.x)?;
+            lambda_d.mul_equals(cs.ns(|| "lambda equals"), &lambda, &lambda_n)?;
+
+            // Compute x'' = B*lambda^2 - A - x - x'
+            let xprime = F::alloc(cs.ns(|| "xprime"), || {
+                Ok(
+                    lambda.get_value().get()?.square() * &P::MontgomeryModelParameters::COEFF_B
+                        - &P::MontgomeryModelParameters::COEFF_A
+                        - &self.x.get_value().get()?
+                        - &other.x.get_value().get()?,
+                )
+            })?;
+
+            let xprime_lc = self
+                .x
+                .add(cs.ns(|| "self.x + other.x"), &other.x)?
+                .add(cs.ns(|| "+ xprime"), &xprime)?
+                .add_constant(cs.ns(|| "+ A"), &P::MontgomeryModelParameters::COEFF_A)?;
+            // (lambda) * (lambda) = (A + x + x' + x'')
+            let lambda_b = lambda.mul_by_constant(
+                cs.ns(|| "lambda * b"),
+                &P::MontgomeryModelParameters::COEFF_B,
+            )?;
+            lambda_b.mul_equals(cs.ns(|| "xprime equals"), &lambda, &xprime_lc)?;
+
+            let yprime = F::alloc(cs.ns(|| "yprime"), || {
+                Ok(-(self.y.get_value().get()?
+                    + &(lambda.get_value().get()?
+                        * &(xprime.get_value().get()? - &self.x.get_value().get()?))))
+            })?;
+
+            let xres = self.x.sub(cs.ns(|| "xres"), &xprime)?;
+            let yres = self.y.add(cs.ns(|| "yres"), &yprime)?;
+            lambda.mul_equals(cs.ns(|| "yprime equals"), &xres, &yres)?;
+            Ok(MontgomeryAffineGadget::new(xprime, yprime))
+        }
+    }
+}
+
+#[derive(Derivative)]
+#[derivative(Debug, Clone)]
+#[derivative(Debug(bound = "P: TEModelParameters, ConstraintF: Field"))]
+#[must_use]
+pub struct AffineGadget<
+    P: TEModelParameters,
+    ConstraintF: Field,
+    F: FieldGadget<P::BaseField, ConstraintF>,
+> {
+    pub x: F,
+    pub y: F,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
     #[derivative(Debug = "ignore")]
@@ -293,7 +474,10 @@ mod affine_impl {
             Ok(())
         }
 
-        fn negate<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Self, SynthesisError> {
+        fn negate<CS: ConstraintSystem<ConstraintF>>(
+            &self,
+            mut cs: CS,
+        ) -> Result<Self, SynthesisError> {
             Ok(Self::new(
                 self.x.negate(cs.ns(|| "negate x"))?,
                 self.y.clone(),
@@ -487,7 +671,8 @@ mod projective_impl {
     };
     use std::ops::Neg;
 
-    impl<P, ConstraintF, F> GroupGadget<TEProjective<P>, ConstraintF> for AffineGadget<P, ConstraintF, F>
+    impl<P, ConstraintF, F> GroupGadget<TEProjective<P>, ConstraintF>
+        for AffineGadget<P, ConstraintF, F>
     where
         P: TEModelParameters,
         ConstraintF: Field,
@@ -694,7 +879,10 @@ mod projective_impl {
             Ok(())
         }
 
-        fn negate<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Self, SynthesisError> {
+        fn negate<CS: ConstraintSystem<ConstraintF>>(
+            &self,
+            mut cs: CS,
+        ) -> Result<Self, SynthesisError> {
             Ok(Self::new(
                 self.x.negate(cs.ns(|| "negate x"))?,
                 self.y.clone(),
@@ -757,6 +945,141 @@ mod projective_impl {
             Ok(())
         }
 
+        fn precomputed_base_3_bit_signed_digit_scalar_mul<'a, CS, I, J, B>(
+            mut cs: CS,
+            bases: &[B],
+            scalars: &[J],
+        ) -> Result<Self, SynthesisError>
+        where
+            CS: ConstraintSystem<ConstraintF>,
+            I: Borrow<[Boolean]>,
+            J: Borrow<[I]>,
+            B: Borrow<[TEProjective<P>]>,
+        {
+            const CHUNK_SIZE: usize = 3;
+            let mut edwards_result: Option<AffineGadget<P, ConstraintF, F>> = None;
+            let mut result: Option<MontgomeryAffineGadget<P, ConstraintF, F>> = None;
+
+            let mut process_segment_result =
+                |mut cs: r1cs_core::Namespace<_, _>,
+                 result: &MontgomeryAffineGadget<P, ConstraintF, F>|
+                 -> Result<(), SynthesisError> {
+                    let segment_result = result.into_edwards(cs.ns(|| "segment result"))?;
+                    match edwards_result {
+                        None => {
+                            edwards_result = Some(segment_result);
+                        },
+                        Some(ref mut edwards_result) => {
+                            *edwards_result = GroupGadget::<TEAffine<P>, ConstraintF>::add(
+                                &segment_result,
+                                cs.ns(|| "edwards addition"),
+                                edwards_result,
+                            )?;
+                        },
+                    }
+
+                    Ok(())
+                };
+
+            // Compute ∏(h_i^{m_i}) for all i.
+            for (segment_i, (segment_bits_chunks, segment_powers)) in
+                scalars.into_iter().zip(bases.iter()).enumerate()
+            {
+                for (i, (bits, base_power)) in segment_bits_chunks
+                    .borrow()
+                    .into_iter()
+                    .zip(segment_powers.borrow().iter())
+                    .enumerate()
+                {
+                    let base_power = base_power.borrow();
+                    let mut acc_power = *base_power;
+                    let mut coords = vec![];
+                    for _ in 0..4 {
+                        coords.push(acc_power);
+                        acc_power = acc_power + base_power;
+                    }
+
+                    let bits = bits.borrow().to_bits(
+                        &mut cs.ns(|| format!("Convert Scalar {}, {} to bits", segment_i, i)),
+                    )?;
+                    if bits.len() != CHUNK_SIZE {
+                        return Err(SynthesisError::Unsatisfiable);
+                    }
+
+                    let coords = coords
+                        .iter()
+                        .map(|p| {
+                            let p = p.into_affine();
+                            MontgomeryAffineGadget::<P, ConstraintF, F>::from_edwards_to_coords(&p)
+                                .unwrap()
+                        })
+                        .collect::<Vec<_>>();
+
+                    let x_coeffs = coords.iter().map(|p| p.0).collect::<Vec<_>>();
+                    let y_coeffs = coords.iter().map(|p| p.1).collect::<Vec<_>>();
+
+                    let precomp = Boolean::and(
+                        cs.ns(|| format!("precomp in window {}, {}", segment_i, i)),
+                        &bits[0],
+                        &bits[1],
+                    )?;
+
+                    let x = F::zero(cs.ns(|| format!("x in window {}, {}", segment_i, i)))?
+                        .conditionally_add_constant(
+                            cs.ns(|| format!("add bool 00 in window {}, {}", segment_i, i)),
+                            &Boolean::constant(true),
+                            x_coeffs[0],
+                        )?
+                        .conditionally_add_constant(
+                            cs.ns(|| format!("add bool 01 in window {}, {}", segment_i, i)),
+                            &bits[0],
+                            x_coeffs[1] - &x_coeffs[0],
+                        )?
+                        .conditionally_add_constant(
+                            cs.ns(|| format!("add bool 10 in window {}, {}", segment_i, i)),
+                            &bits[1],
+                            x_coeffs[2] - &x_coeffs[0],
+                        )?
+                        .conditionally_add_constant(
+                            cs.ns(|| format!("add bool 11 in window {}, {}", segment_i, i)),
+                            &precomp,
+                            x_coeffs[3] - &x_coeffs[2] - &x_coeffs[1] + &x_coeffs[0],
+                        )?;
+
+                    let y = F::three_bit_cond_neg_lookup(
+                        cs.ns(|| format!("y lookup in window {}, {}", segment_i, i)),
+                        &bits,
+                        &precomp,
+                        &y_coeffs,
+                    )?;
+
+                    let tmp = MontgomeryAffineGadget::new(x, y);
+
+                    match result {
+                        None => {
+                            result = Some(tmp);
+                        },
+                        Some(ref mut result) => {
+                            *result = tmp.add(
+                                cs.ns(|| format!("addition of window {}, {}", segment_i, i)),
+                                result,
+                            )?;
+                        },
+                    }
+                }
+
+                process_segment_result(
+                    cs.ns(|| format!("window {}", segment_i)),
+                    &result.unwrap(),
+                )?;
+                result = None;
+            }
+            if result.is_some() {
+                process_segment_result(cs.ns(|| "leftover"), &result.unwrap())?;
+            }
+            Ok(edwards_result.unwrap())
+        }
+
         fn cost_of_add() -> usize {
             4 + 2 * F::cost_of_mul()
         }
@@ -766,7 +1089,8 @@ mod projective_impl {
         }
     }
 
-    impl<P, ConstraintF, F> AllocGadget<TEProjective<P>, ConstraintF> for AffineGadget<P, ConstraintF, F>
+    impl<P, ConstraintF, F> AllocGadget<TEProjective<P>, ConstraintF>
+        for AffineGadget<P, ConstraintF, F>
     where
         P: TEModelParameters,
         ConstraintF: Field,
@@ -1033,7 +1357,10 @@ where
     ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
-    fn to_bits<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Vec<Boolean>, SynthesisError> {
+    fn to_bits<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Vec<Boolean>, SynthesisError> {
         let mut x_bits = self.x.to_bits(cs.ns(|| "X Coordinate To Bits"))?;
         let y_bits = self.y.to_bits(cs.ns(|| "Y Coordinate To Bits"))?;
         x_bits.extend_from_slice(&y_bits);
@@ -1058,7 +1385,10 @@ where
     ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
-    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
+    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Vec<UInt8>, SynthesisError> {
         let mut x_bytes = self.x.to_bytes(cs.ns(|| "x"))?;
         let y_bytes = self.y.to_bytes(cs.ns(|| "y"))?;
         x_bytes.extend_from_slice(&y_bytes);

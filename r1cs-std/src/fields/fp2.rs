@@ -2,12 +2,10 @@ use algebra::{
     fields::{Fp2, Fp2Parameters},
     Field, PrimeField,
 };
-use r1cs_core::{ConstraintSystem, SynthesisError, ConstraintVar};
+use r1cs_core::{ConstraintSystem, ConstraintVar, SynthesisError};
 use std::{borrow::Borrow, marker::PhantomData};
 
-use crate::fields::fp::FpGadget;
-use crate::prelude::*;
-use crate::Assignment;
+use crate::{fields::fp::FpGadget, prelude::*, Assignment};
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = "P: Fp2Parameters, ConstraintF: PrimeField"))]
@@ -62,7 +60,9 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> Fp2Gadget<P, C
     }
 }
 
-impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> FieldGadget<Fp2<P>, ConstraintF> for Fp2Gadget<P, ConstraintF> {
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> FieldGadget<Fp2<P>, ConstraintF>
+    for Fp2Gadget<P, ConstraintF>
+{
     type Variable = (ConstraintVar<ConstraintF>, ConstraintVar<ConstraintF>);
 
     #[inline]
@@ -92,6 +92,22 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> FieldGadget<Fp
     fn one<CS: ConstraintSystem<ConstraintF>>(mut cs: CS) -> Result<Self, SynthesisError> {
         let c0 = FpGadget::one(cs.ns(|| "c0"))?;
         let c1 = FpGadget::zero(cs.ns(|| "c1"))?;
+        Ok(Self::new(c0, c1))
+    }
+
+    #[inline]
+    fn conditionally_add_constant<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        bit: &Boolean,
+        coeff: Fp2<P>,
+    ) -> Result<Self, SynthesisError> {
+        let c0 = self
+            .c0
+            .conditionally_add_constant(cs.ns(|| "c0"), bit, coeff.c0)?;
+        let c1 = self
+            .c1
+            .conditionally_add_constant(cs.ns(|| "c1"), bit, coeff.c1)?;
         Ok(Self::new(c0, c1))
     }
 
@@ -191,7 +207,10 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> FieldGadget<Fp
     }
 
     #[inline]
-    fn square<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Self, SynthesisError> {
+    fn square<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Self, SynthesisError> {
         // From Libsnark/fp2_gadget.tcc
         // Complex multiplication for Fp2:
         //     v0 = A.c0 * A.c1
@@ -274,7 +293,10 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> FieldGadget<Fp
     }
 
     #[inline]
-    fn inverse<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Self, SynthesisError> {
+    fn inverse<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Self, SynthesisError> {
         let inverse = Self::alloc(&mut cs.ns(|| "alloc inverse"), || {
             self.get_value().and_then(|val| val.inverse()).get()
         })?;
@@ -439,7 +461,9 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> FieldGadget<Fp
     }
 }
 
-impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> PartialEq for Fp2Gadget<P, ConstraintF> {
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> PartialEq
+    for Fp2Gadget<P, ConstraintF>
+{
     fn eq(&self, other: &Self) -> bool {
         self.c0 == other.c0 && self.c1 == other.c1
     }
@@ -447,9 +471,14 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> PartialEq for 
 
 impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> Eq for Fp2Gadget<P, ConstraintF> {}
 
-impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> EqGadget<ConstraintF> for Fp2Gadget<P, ConstraintF> {}
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> EqGadget<ConstraintF>
+    for Fp2Gadget<P, ConstraintF>
+{
+}
 
-impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> ConditionalEqGadget<ConstraintF> for Fp2Gadget<P, ConstraintF> {
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> ConditionalEqGadget<ConstraintF>
+    for Fp2Gadget<P, ConstraintF>
+{
     #[inline]
     fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
@@ -469,7 +498,9 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> ConditionalEqG
     }
 }
 
-impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> NEqGadget<ConstraintF> for Fp2Gadget<P, ConstraintF> {
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> NEqGadget<ConstraintF>
+    for Fp2Gadget<P, ConstraintF>
+{
     #[inline]
     fn enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
@@ -486,8 +517,13 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> NEqGadget<Cons
     }
 }
 
-impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> ToBitsGadget<ConstraintF> for Fp2Gadget<P, ConstraintF> {
-    fn to_bits<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Vec<Boolean>, SynthesisError> {
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> ToBitsGadget<ConstraintF>
+    for Fp2Gadget<P, ConstraintF>
+{
+    fn to_bits<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Vec<Boolean>, SynthesisError> {
         let mut c0 = self.c0.to_bits(&mut cs)?;
         let mut c1 = self.c1.to_bits(cs)?;
         c0.append(&mut c1);
@@ -505,8 +541,13 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> ToBitsGadget<C
     }
 }
 
-impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> ToBytesGadget<ConstraintF> for Fp2Gadget<P, ConstraintF> {
-    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> ToBytesGadget<ConstraintF>
+    for Fp2Gadget<P, ConstraintF>
+{
+    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Vec<UInt8>, SynthesisError> {
         let mut c0 = self.c0.to_bytes(cs.ns(|| "c0"))?;
         let mut c1 = self.c1.to_bytes(cs.ns(|| "c1"))?;
         c0.append(&mut c1);
@@ -524,7 +565,9 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> ToBytesGadget<
     }
 }
 
-impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> Clone for Fp2Gadget<P, ConstraintF> {
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> Clone
+    for Fp2Gadget<P, ConstraintF>
+{
     fn clone(&self) -> Self {
         Self {
             c0:      self.c0.clone(),
@@ -534,7 +577,9 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> Clone for Fp2G
     }
 }
 
-impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> CondSelectGadget<ConstraintF> for Fp2Gadget<P, ConstraintF> {
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> CondSelectGadget<ConstraintF>
+    for Fp2Gadget<P, ConstraintF>
+{
     #[inline]
     fn conditionally_select<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
@@ -542,10 +587,18 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> CondSelectGadg
         first: &Self,
         second: &Self,
     ) -> Result<Self, SynthesisError> {
-        let c0 =
-            FpGadget::<ConstraintF>::conditionally_select(&mut cs.ns(|| "c0"), cond, &first.c0, &second.c0)?;
-        let c1 =
-            FpGadget::<ConstraintF>::conditionally_select(&mut cs.ns(|| "c1"), cond, &first.c1, &second.c1)?;
+        let c0 = FpGadget::<ConstraintF>::conditionally_select(
+            &mut cs.ns(|| "c0"),
+            cond,
+            &first.c0,
+            &second.c0,
+        )?;
+        let c1 = FpGadget::<ConstraintF>::conditionally_select(
+            &mut cs.ns(|| "c1"),
+            cond,
+            &first.c1,
+            &second.c1,
+        )?;
 
         Ok(Self::new(c0, c1))
     }
@@ -555,7 +608,9 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> CondSelectGadg
     }
 }
 
-impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> TwoBitLookupGadget<ConstraintF> for Fp2Gadget<P, ConstraintF> {
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> TwoBitLookupGadget<ConstraintF>
+    for Fp2Gadget<P, ConstraintF>
+{
     type TableConstant = Fp2<P>;
     fn two_bit_lookup<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
@@ -574,7 +629,32 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> TwoBitLookupGa
     }
 }
 
-impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> AllocGadget<Fp2<P>, ConstraintF> for Fp2Gadget<P, ConstraintF> {
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField>
+    ThreeBitCondNegLookupGadget<ConstraintF> for Fp2Gadget<P, ConstraintF>
+{
+    type TableConstant = Fp2<P>;
+
+    fn three_bit_cond_neg_lookup<CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        b: &[Boolean],
+        b0b1: &Boolean,
+        c: &[Self::TableConstant],
+    ) -> Result<Self, SynthesisError> {
+        let c0s = c.iter().map(|f| f.c0).collect::<Vec<_>>();
+        let c1s = c.iter().map(|f| f.c1).collect::<Vec<_>>();
+        let c0 = FpGadget::three_bit_cond_neg_lookup(cs.ns(|| "Lookup c0"), b, b0b1, &c0s)?;
+        let c1 = FpGadget::three_bit_cond_neg_lookup(cs.ns(|| "Lookup c1"), b, b0b1, &c1s)?;
+        Ok(Self::new(c0, c1))
+    }
+
+    fn cost() -> usize {
+        2 * <FpGadget<ConstraintF> as ThreeBitCondNegLookupGadget<ConstraintF>>::cost()
+    }
+}
+
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> AllocGadget<Fp2<P>, ConstraintF>
+    for Fp2Gadget<P, ConstraintF>
+{
     #[inline]
     fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,

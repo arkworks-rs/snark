@@ -2,7 +2,7 @@ use crate::field_new;
 use crate::{
     biginteger::BigInteger384 as BigInteger,
     curves::{
-        models::{ModelParameters, TEModelParameters},
+        models::{ModelParameters, TEModelParameters, MontgomeryModelParameters},
         twisted_edwards_extended::{GroupAffine, GroupProjective},
     },
     fields::edwards_sw6::{fq::Fq, fr::Fr},
@@ -62,11 +62,36 @@ impl TEModelParameters for EdwardsParameters {
     /// AFFINE_GENERATOR_COEFFS = (GENERATOR_X, GENERATOR_Y)
     const AFFINE_GENERATOR_COEFFS: (Self::BaseField, Self::BaseField) = (GENERATOR_X, GENERATOR_Y);
 
+    type MontgomeryModelParameters = EdwardsParameters;
+
     /// Multiplication by `a` is just negation.
     #[inline(always)]
     fn mul_by_a(elem: &Self::BaseField) -> Self::BaseField {
         -*elem
     }
+}
+
+impl MontgomeryModelParameters for EdwardsParameters {
+    /// COEFF_A = 0x95D53EB3F6AC3F7A53C26020144439DC6073BCAE513E03FD06B6B3BAA390F25E51534B26719E33F4CD906D4DA9B535
+    const COEFF_A: Fq = field_new!(Fq, BigInteger([
+        7594254284108454966u64,
+        14287343397973578077u64,
+        6490358977072726023u64,
+        8023375322051995268u64,
+        8242802613686040715u64,
+        100541941146122331u64,
+    ]));
+    /// COEFF_B = 0x118650763CE64AB4BE743604C8D05013DC2663652A3D58B21ECAB7BFF65B70DB8BA09F9098E61CC903B2F92B2564ACA
+    const COEFF_B: Fq = field_new!(Fq, BigInteger([
+        11173793475516310780u64,
+        14217481814129454913u64,
+        11878518835804377107u64,
+        14866315431314324110u64,
+        9234787938768687129u64,
+        62053599622152261u64,
+    ]));
+
+    type TEModelParameters = EdwardsParameters;
 }
 
 impl FromStr for EdwardsAffine {

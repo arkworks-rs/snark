@@ -1,7 +1,6 @@
 use crate::prelude::*;
-use r1cs_core::{ConstraintSystem, SynthesisError};
 use algebra::Field;
-
+use r1cs_core::{ConstraintSystem, SynthesisError};
 
 /// If condition is `true`, return `first`; else, select `second`.
 pub trait CondSelectGadget<ConstraintF: Field>
@@ -33,4 +32,19 @@ where
     fn cost() -> usize;
 }
 
+/// Uses three bits to perform a lookup into a table, where the last bit
+/// performs negation
+pub trait ThreeBitCondNegLookupGadget<ConstraintF: Field>
+where
+    Self: Sized,
+{
+    type TableConstant;
+    fn three_bit_cond_neg_lookup<CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
+        bits: &[Boolean],
+        b0b1: &Boolean,
+        constants: &[Self::TableConstant],
+    ) -> Result<Self, SynthesisError>;
 
+    fn cost() -> usize;
+}

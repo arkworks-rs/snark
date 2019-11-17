@@ -49,18 +49,20 @@ pub mod groups;
 
 pub mod pairing;
 
+pub mod alloc;
 pub mod eq;
 pub mod select;
-pub mod alloc;
 
 pub mod prelude {
-    pub use crate::eq::*;
-    pub use crate::select::*;
-    pub use crate::alloc::*;
-    pub use crate::fields::FieldGadget;
-    pub use crate::groups::GroupGadget;
-    pub use crate::pairing::PairingGadget;
-    pub use crate::bits::{ToBitsGadget, ToBytesGadget, boolean::Boolean, uint8::UInt8, uint32::UInt32};
+    pub use crate::{
+        alloc::*,
+        bits::{boolean::Boolean, uint32::UInt32, uint8::UInt8, ToBitsGadget, ToBytesGadget},
+        eq::*,
+        fields::FieldGadget,
+        groups::GroupGadget,
+        pairing::PairingGadget,
+        select::*,
+    };
 }
 
 pub trait Assignment<T> {

@@ -1,10 +1,10 @@
 use rand::thread_rng;
 
-use crate::{prelude::*, groups::test::group_test};
+use crate::{groups::test::group_test, prelude::*};
 
 use algebra::{
     curves::{models::TEModelParameters, twisted_edwards_extended::GroupAffine as TEAffine},
-    BitIterator, Group, PrimeField, Field, UniformRand,
+    BitIterator, Field, Group, PrimeField, UniformRand,
 };
 
 use r1cs_core::ConstraintSystem;

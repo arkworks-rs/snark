@@ -1,11 +1,8 @@
-use algebra::{ToConstraintField, FpParameters, Field, PrimeField};
+use algebra::{Field, FpParameters, PrimeField, ToConstraintField};
 
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
-use crate::boolean::AllocatedBit;
-use crate::fields::fp::FpGadget;
-use crate::prelude::*;
-use crate::Assignment;
+use crate::{boolean::AllocatedBit, fields::fp::FpGadget, prelude::*, Assignment};
 use std::borrow::Borrow;
 
 /// Represents an interpretation of 8 `Boolean` objects as an
@@ -53,7 +50,10 @@ impl UInt8 {
         }
     }
 
-    pub fn alloc_vec<ConstraintF, CS, T>(mut cs: CS, values: &[T]) -> Result<Vec<Self>, SynthesisError>
+    pub fn alloc_vec<ConstraintF, CS, T>(
+        mut cs: CS,
+        values: &[T],
+    ) -> Result<Vec<Self>, SynthesisError>
     where
         ConstraintF: Field,
         CS: ConstraintSystem<ConstraintF>,
@@ -69,15 +69,20 @@ impl UInt8 {
     }
 
     /// Allocates a vector of `u8`'s by first converting (chunks of) them to
-    /// `ConstraintF` elements, (thus reducing the number of input allocations), and
-    /// then converts this list of `ConstraintF` gadgets back into bytes.
-    pub fn alloc_input_vec<ConstraintF, CS>(mut cs: CS, values: &[u8]) -> Result<Vec<Self>, SynthesisError>
+    /// `ConstraintF` elements, (thus reducing the number of input allocations),
+    /// and then converts this list of `ConstraintF` gadgets back into
+    /// bytes.
+    pub fn alloc_input_vec<ConstraintF, CS>(
+        mut cs: CS,
+        values: &[u8],
+    ) -> Result<Vec<Self>, SynthesisError>
     where
         ConstraintF: PrimeField,
         CS: ConstraintSystem<ConstraintF>,
     {
         let values_len = values.len();
-        let field_elements: Vec<ConstraintF> = ToConstraintField::<ConstraintF>::to_field_elements(values).unwrap();
+        let field_elements: Vec<ConstraintF> =
+            ToConstraintField::<ConstraintF>::to_field_elements(values).unwrap();
 
         let max_size = 8 * (ConstraintF::Params::CAPACITY / 8) as usize;
         let mut allocated_bits = Vec::new();
@@ -294,9 +299,9 @@ mod test {
     use super::UInt8;
     use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
     use algebra::fields::bls12_381::Fr;
+    use r1cs_core::ConstraintSystem;
     use rand::{Rng, SeedableRng};
     use rand_xorshift::XorShiftRng;
-    use r1cs_core::ConstraintSystem;
 
     #[test]
     fn test_uint8_from_bits_to_bits() {

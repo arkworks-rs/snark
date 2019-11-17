@@ -1,6 +1,5 @@
 use crate::groups::curves::twisted_edwards::AffineGadget;
-use algebra::curves::jubjub::JubJubParameters;
-use algebra::fields::jubjub::fq::Fq;
+use algebra::{curves::jubjub::JubJubParameters, fields::jubjub::fq::Fq};
 
 use crate::fields::jubjub::FqGadget;
 
@@ -13,8 +12,7 @@ mod test {
         groups::curves::twisted_edwards::test::{edwards_constraint_costs, edwards_test},
         test_constraint_system::TestConstraintSystem,
     };
-    use algebra::fields::jubjub::fq::Fq;
-    use algebra::curves::jubjub::JubJubParameters as EdwardsParameters;
+    use algebra::{curves::jubjub::JubJubParameters as EdwardsParameters, fields::jubjub::fq::Fq};
 
     #[test]
     fn edwards_constraint_costs_test() {

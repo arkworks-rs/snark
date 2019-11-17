@@ -2,6 +2,7 @@ use algebra::bytes::ToBytes;
 use rand::Rng;
 use std::hash::Hash;
 
+pub mod bowe_hopwood;
 pub mod injective_map;
 pub mod pedersen;
 

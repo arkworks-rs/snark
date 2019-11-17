@@ -1,6 +1,6 @@
 use crate::{
     bytes::{FromBytes, ToBytes},
-    curves::{jubjub::*, tests::curve_tests, AffineCurve, ProjectiveCurve},
+    curves::{jubjub::*, tests::curve_tests, AffineCurve, ProjectiveCurve, models::twisted_edwards_extended::tests::montgomery_conversion_test},
     fields::jubjub::fr::Fr,
     groups::tests::group_test,
 };
@@ -101,4 +101,9 @@ fn test_bytes() {
     let g_bytes = to_bytes![g_from_repr].unwrap();
     let g = JubJubAffine::read(g_bytes.as_slice()).unwrap();
     assert_eq!(g_from_repr, g);
+}
+
+#[test]
+fn test_montgomery_conversion() {
+    montgomery_conversion_test::<JubJubParameters>();
 }

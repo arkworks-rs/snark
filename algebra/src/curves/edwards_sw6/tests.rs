@@ -1,5 +1,5 @@
 use crate::{
-    curves::{edwards_sw6::*, tests::curve_tests, AffineCurve, ProjectiveCurve},
+    curves::{edwards_sw6::*, tests::curve_tests, AffineCurve, ProjectiveCurve, models::twisted_edwards_extended::tests::montgomery_conversion_test},
     groups::tests::group_test,
 };
 use rand;
@@ -47,4 +47,9 @@ fn test_conversion() {
         .double();
     assert_eq!(a_b, a_b2.into_affine());
     assert_eq!(a_b.into_projective(), a_b2);
+}
+
+#[test]
+fn test_montgomery_conversion() {
+    montgomery_conversion_test::<EdwardsParameters>();
 }
