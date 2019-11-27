@@ -18,6 +18,8 @@ pub mod bls12_381;
 pub mod edwards_bls12;
 pub mod edwards_sw6;
 pub mod jubjub;
+pub mod mnt4753;
+pub mod mnt6753;
 pub mod mnt6;
 pub mod models;
 pub mod sw6;
@@ -94,6 +96,9 @@ pub trait Field:
 
     /// Returns true if and only if `self == Self::one()`.
     fn is_one(&self) -> bool;
+
+    /// Returns true iff self is odd
+    fn is_odd(&self) -> bool;
 
     /// Returns the characteristic of the field.
     fn characteristic<'a>() -> &'a [u64];
@@ -197,6 +202,15 @@ pub trait FpParameters: 'static + Send + Sync + Sized {
 
     /// (Self::MODULUS - 1) / 2
     const MODULUS_MINUS_ONE_DIV_TWO: Self::BigInt;
+
+    const SMALL_SUBGROUP_DEFINED: bool = false;
+
+    const SMALL_SUBGROUP_BASE: Option<u64> = None;
+
+    const SMALL_SUBGROUP_POWER: Option<u64> = None;
+
+    // generator^((modulus-1) / (2^s * small_subgroup_base^small_subgroup_power))
+    const FULL_ROOT_OF_UNITY: Option<Self::BigInt> = None;
 }
 
 /// The interface for a prime field.
@@ -225,6 +239,9 @@ pub trait PrimeField: Field + FromStr {
 
     /// Returns the 2^s root of unity.
     fn root_of_unity() -> Self;
+
+    ///Returns the full root of unity
+    fn full_root_of_unity() -> Self;
 
     /// Return the a QNR^T
     fn qnr_to_t() -> Self {

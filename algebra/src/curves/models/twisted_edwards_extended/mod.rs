@@ -1,5 +1,6 @@
 use rand::{Rng, distributions::{Standard, Distribution}};
-use crate::UniformRand;
+use crate::{UniformRand, ToCompressed, FromCompressed};
+use crate::to_bytes;
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
     io::{Read, Result as IoResult, Write},
@@ -81,7 +82,8 @@ impl<P: Parameters> GroupAffine<P> {
         let y2 = denominator.inverse().map(|denom| denom * &numerator);
         y2.and_then(|y2| y2.sqrt()).map(|y| {
             let negy = -y;
-            let y = if (y < negy) ^ greatest { y } else { negy };
+            let is_even = !y.is_odd();
+            let y = if is_even ^ greatest { y } else { negy };
             Self::new(x, y)
         })
     }
@@ -217,6 +219,80 @@ impl<P: Parameters> FromBytes for GroupAffine<P> {
         let x = P::BaseField::read(&mut reader)?;
         let y = P::BaseField::read(&mut reader)?;
         Ok(Self::new(x, y))
+    }
+}
+
+impl<P: Parameters> ToCompressed for GroupAffine<P> {
+
+    #[inline]
+    fn compress(&self) -> Vec<u8> {
+
+        let is_zero = self.is_zero();
+        let p = if is_zero {P::BaseField::zero()} else {self.x};
+        let mut res = to_bytes!(p).unwrap();
+        let len = res.len() - 1;
+
+        // Is this point zero? If so, set the most significant bit.
+        let infinity = if is_zero {1u8 << 7} else {0u8};
+        res[len] |= infinity;
+
+        // Is the y-coordinate the lexicographically largest of the two associated with the
+        // x-coordinate? If so, set the third-most significant bit so long as this is not
+        // the point at infinity.
+
+        let lexicographically_largest = self.y.is_odd();
+
+        let greater = if !is_zero && lexicographically_largest {1u8 << 6} else {0u8};
+        res[len] |= greater;
+
+        res
+    }
+}
+
+impl<P: Parameters> FromCompressed for GroupAffine<P> {
+
+    #[inline]
+    fn decompress(compressed: Vec<u8>) -> Option<Self> {
+        let len = compressed.len() - 1;
+        let infinity_flag_set = bool::read([(compressed[len] >> 7) & 1].as_ref()).unwrap();
+        let sort_flag_set = bool::read([(compressed[len] >> 6) & 1].as_ref()).unwrap();
+
+        //Mask away the flag bits and try to get the x coordinate
+        let val = {
+            let mut tmp = compressed;
+            tmp[len] &= 0b0011_1111;
+            P::BaseField::read(tmp.as_slice())
+        };
+
+        match val {
+            Ok(x) => {
+                match (infinity_flag_set, sort_flag_set, x.is_zero()) {
+
+                    //If the infinity flag is set, return the value assuming
+                    //the x-coordinate is zero and the sort bit is not set.
+                    (true, false, true) => Some(Self::zero()),
+
+                    //If x is not zero, then infinity flag should not be set and all the others
+                    //should be set
+                    (false, _, false) => {
+
+                        //Attempt to get the y coordinate from its lexicographic order and x
+                        match Self::get_point_from_x(x, sort_flag_set) {
+
+                            //Check p belongs to the subgroup we expect
+                            Some(p) => if p.is_in_correct_subgroup_assuming_on_curve() {Some(p)} else {None},
+                            _ => None,
+                        }
+                    },
+
+                    //Other combinations are illegal
+                    _ => None,
+                }
+            }
+
+            //Unable to retrieve a valid x coordinate
+            _ => None,
+        }
     }
 }
 

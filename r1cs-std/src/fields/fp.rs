@@ -20,6 +20,44 @@ impl<F: PrimeField> FpGadget<F> {
     pub fn from<CS: ConstraintSystem<F>>(mut cs: CS, value: &F) -> Self {
         Self::alloc(cs.ns(|| "from"), || Ok(*value)).unwrap()
     }
+
+    fn to_bytes_raw<CS: ConstraintSystem<F>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
+        let byte_values = match self.value {
+            Some(value) => to_bytes![&value.into_repr_raw()]?
+                .into_iter()
+                .map(Some)
+                .collect::<Vec<_>>(),
+            None => {
+                let default = F::default();
+                let default_len = to_bytes![&default].unwrap().len();
+                vec![None; default_len]
+            },
+        };
+
+        let bytes = UInt8::alloc_vec(cs.ns(|| "Alloc bytes"), &byte_values.clone())?;
+
+        let mut lc = LinearCombination::zero();
+        let mut coeff = F::from_repr_raw(F::BigInt::from(1));
+
+        for bit in bytes
+            .iter()
+            .flat_map(|byte_gadget| byte_gadget.bits.clone())
+            {
+                match bit {
+                    Boolean::Is(bit) => {
+                        lc = lc + (coeff, bit.get_variable());
+                        coeff.double_in_place();
+                    },
+                    Boolean::Constant(_) | Boolean::Not(_) => unreachable!(),
+                }
+            }
+
+        lc = &self.variable - lc;
+
+        cs.enforce(|| "unpacking_constraint", |lc| lc, |lc| lc, |_| lc);
+
+        Ok(bytes)
+    }
 }
 
 impl<F: PrimeField> FieldGadget<F, F> for FpGadget<F> {
@@ -51,6 +89,23 @@ impl<F: PrimeField> FieldGadget<F, F> for FpGadget<F> {
             value,
             variable: CS::one().into(),
         })
+    }
+
+    #[inline]
+    fn is_odd<CS: ConstraintSystem<F>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Boolean, SynthesisError> {
+        let bytes = self.to_bytes_raw(cs.ns(|| "to bytes raw"))?;
+        Boolean::enforce_in_field::<_, _, F>(
+            &mut cs,
+            &bytes.iter()
+                .flat_map(|byte_gadget| byte_gadget.into_bits_le())
+                // This reverse maps the bits into big-endian form, as required by `enforce_in_field`.
+                .rev()
+                .collect::<Vec<_>>(),
+        )?;
+        Ok(bytes[0].bits[0])
     }
 
     #[inline]
@@ -512,6 +567,30 @@ impl<F: PrimeField> TwoBitLookupGadget<F> for FpGadget<F> {
             |lc| lc + b[0].lc(one, F::one()),
             |lc| result.get_variable() + lc + (-c[0], one) + b[1].lc(one, c[0] - &c[2]),
         );
+
+        Ok(result)
+    }
+
+    fn two_bit_lookup_lc<CS: ConstraintSystem<F>>
+    (   mut cs: CS,
+        precomp: &Boolean,
+        b: &[Boolean],
+        c: &[Self::TableConstant]
+    ) -> Result<Self, SynthesisError> {
+
+        let result = Self::zero(cs.ns(|| "alloc result"))?
+            .conditionally_add_constant(cs.ns(|| "add constant"),
+                                        &Boolean::constant(true),
+                                        c[0])?
+            .conditionally_add_constant(cs.ns(|| "add b0"),
+                                        &b[0],
+                                        c[1] - &c[0])?
+            .conditionally_add_constant(cs.ns(|| "add b1"),
+                                        &b[1],
+                                        c[2] - &c[0])?
+            .conditionally_add_constant(cs.ns(|| "add b0 AND b1"),
+                                        &precomp,
+                                        c[3] + &c[0] - &c[1] - &c[2])?;
 
         Ok(result)
     }

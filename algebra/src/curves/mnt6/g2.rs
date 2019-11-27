@@ -1,4 +1,4 @@
-use crate::field_new;
+use crate::{field_new, FromBytes};
 use crate::{
     biginteger::BigInteger320,
     bytes::ToBytes,
@@ -10,7 +10,9 @@ use crate::{
     },
     fields::mnt6::{Fq, Fq3, Fq6, Fr},
 };
-use std::io::{Result as IoResult, Write};
+use std::io::{Result as IoResult, Write, Read};
+use std::io;
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
 pub type G2Affine = GroupAffine<MNT6G2Parameters>;
 pub type G2Projective = GroupProjective<MNT6G2Parameters>;
@@ -176,8 +178,51 @@ pub struct G2Prepared {
 }
 
 impl ToBytes for G2Prepared {
-    fn write<W: Write>(&self, _writer: W) -> IoResult<()> {
-        unimplemented!()
+    fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
+        self.x.write(&mut writer)?;
+        self.y.write(&mut writer)?;
+        self.x_over_twist.write(&mut writer)?;
+        self.y_over_twist.write(&mut writer)?;
+        writer.write_u32::<BigEndian>(self.double_coefficients.len() as u32)?;
+        for dc in self.double_coefficients.clone() {
+            dc.write(&mut writer)?;
+        }
+        writer.write_u32::<BigEndian>(self.addition_coefficients.len() as u32)?;
+        for ac in self.addition_coefficients.clone(){
+            ac.write(&mut writer)?;
+        }
+        Ok(())
+    }
+}
+
+impl FromBytes for G2Prepared {
+    fn read<R: Read>(mut reader: R) -> IoResult<Self> {
+        let x = Fq3::read(&mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let y = Fq3::read(&mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let x_over_twist = Fq3::read(&mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let y_over_twist = Fq3::read(&mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+
+        let double_coeffs_len = reader.read_u32::<BigEndian>()? as usize;
+        let mut double_coefficients = vec![];
+        for _ in 0..double_coeffs_len {
+            let dc = AteDoubleCoefficients::read(&mut reader)
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+            double_coefficients.push(dc);
+        }
+
+        let add_coeffs_len = reader.read_u32::<BigEndian>()? as usize;
+        let mut addition_coefficients = vec![];
+        for _ in 0..add_coeffs_len {
+            let ac = AteAdditionCoefficients::read(&mut reader)
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+            addition_coefficients.push(ac);
+        }
+
+        Ok(G2Prepared{x, y, x_over_twist, y_over_twist, double_coefficients, addition_coefficients})
     }
 }
 
@@ -208,8 +253,50 @@ pub struct AteDoubleCoefficients {
     pub(crate) c_l:  Fq3,
 }
 
+impl FromBytes for AteDoubleCoefficients{
+    fn read<R: Read>(mut reader: R) -> IoResult<Self> {
+        let c_h = Fq3::read(&mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let c_4c = Fq3::read(&mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let c_j = Fq3::read(&mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let c_l = Fq3::read(&mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        Ok(AteDoubleCoefficients{c_h, c_4c, c_j, c_l})
+    }
+}
+
+impl ToBytes for AteDoubleCoefficients{
+    fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
+        self.c_h.write(&mut writer)?;
+        self.c_4c.write(&mut writer)?;
+        self.c_j.write(&mut writer)?;
+        self.c_l.write(&mut writer)?;
+        Ok(())
+    }
+}
+
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub struct AteAdditionCoefficients {
     pub(crate) c_l1: Fq3,
     pub(crate) c_rz: Fq3,
+}
+
+impl FromBytes for AteAdditionCoefficients{
+    fn read<R: Read>(mut reader: R) -> IoResult<Self> {
+        let c_l1 = Fq3::read(&mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let c_rz = Fq3::read(&mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        Ok(AteAdditionCoefficients{c_l1, c_rz})
+    }
+}
+
+impl ToBytes for AteAdditionCoefficients{
+    fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
+        self.c_l1.write(&mut writer)?;
+        self.c_rz.write(&mut writer)?;
+        Ok(())
+    }
 }

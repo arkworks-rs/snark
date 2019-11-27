@@ -10,6 +10,7 @@ pub use self::curves::{
     short_weierstrass::bls12,
     twisted_edwards::{edwards_sw6, jubjub},
 };
+use crate::ToCompressedGadget;
 
 pub trait GroupGadget<G: Group, ConstraintF: Field>:
     Sized
@@ -19,6 +20,8 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
     + ToBitsGadget<ConstraintF>
     + CondSelectGadget<ConstraintF>
     + AllocGadget<G, ConstraintF>
+    + HardCodedGadget<G, ConstraintF>
+    + ToCompressedGadget<ConstraintF>
     + Clone
     + Debug
 {
@@ -163,10 +166,10 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
 
 #[cfg(test)]
 mod test {
-    use algebra::Field;
+    use algebra::{Field, ProjectiveCurve, ToCompressed};
     use r1cs_core::ConstraintSystem;
 
-    use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
+    use crate::{prelude::*, test_constraint_system::TestConstraintSystem, ToCompressedGadget};
     use algebra::groups::Group;
     use rand;
 
@@ -179,18 +182,22 @@ mod test {
         cs: &mut CS,
         a: GG,
         b: GG,
+        zero_alert: bool,
     ) {
         let zero = GG::zero(cs.ns(|| "Zero")).unwrap();
         assert_eq!(zero, zero);
 
         // a == a
         assert_eq!(a, a);
-        // a + 0 = a
-        assert_eq!(a.add(cs.ns(|| "a_plus_zero"), &zero).unwrap(), a);
-        // a - 0 = a
-        assert_eq!(a.sub(cs.ns(|| "a_minus_zero"), &zero).unwrap(), a);
-        // a - a = 0
-        assert_eq!(a.sub(cs.ns(|| "a_minus_a"), &a).unwrap(), zero);
+
+        if !zero_alert {
+            // a + 0 = a
+            assert_eq!(a.add(cs.ns(|| "a_plus_zero"), &zero).unwrap(), a);
+            // a - 0 = a
+            assert_eq!(a.sub(cs.ns(|| "a_minus_zero"), &zero).unwrap(), a);
+            // a - a = 0
+            assert_eq!(a.sub(cs.ns(|| "a_minus_a"), &a).unwrap(), zero);
+        }
         // a + b = b + a
         let a_b = a.add(cs.ns(|| "a_plus_b"), &b).unwrap();
         let b_a = b.add(cs.ns(|| "b_plus_a"), &a).unwrap();
@@ -199,17 +206,18 @@ mod test {
         let ab_a = a_b.add(&mut cs.ns(|| "a_b_plus_a"), &a).unwrap();
         let a_ba = a.add(&mut cs.ns(|| "a_plus_b_a"), &b_a).unwrap();
         assert_eq!(ab_a, a_ba);
-        // a.double() = a + a
-        let a_a = a.add(cs.ns(|| "a + a"), &a).unwrap();
-        let mut a2 = a.clone();
-        a2.double_in_place(cs.ns(|| "2a")).unwrap();
-        assert_eq!(a2, a_a);
-        // b.double() = b + b
-        let mut b2 = b.clone();
-        b2.double_in_place(cs.ns(|| "2b")).unwrap();
-        let b_b = b.add(cs.ns(|| "b + b"), &b).unwrap();
-        assert_eq!(b2, b_b);
-
+        if !zero_alert {
+            // a.double() = a + a
+            let a_a = a.add(cs.ns(|| "a + a"), &a).unwrap();
+            let mut a2 = a.clone();
+            a2.double_in_place(cs.ns(|| "2a")).unwrap();
+            assert_eq!(a2, a_a);
+            // b.double() = b + b
+            let mut b2 = b.clone();
+            b2.double_in_place(cs.ns(|| "2b")).unwrap();
+            let b_b = b.add(cs.ns(|| "b + b"), &b).unwrap();
+            assert_eq!(b2, b_b);
+        }
         let _ = a.to_bytes(&mut cs.ns(|| "ToBytes")).unwrap();
         let _ = a.to_bytes_strict(&mut cs.ns(|| "ToBytes Strict")).unwrap();
 
@@ -231,6 +239,102 @@ mod test {
 
         let a = JubJubGadget::alloc(&mut cs.ns(|| "generate_a"), || Ok(a)).unwrap();
         let b = JubJubGadget::alloc(&mut cs.ns(|| "generate_b"), || Ok(b)).unwrap();
-        group_test::<_, JubJubProjective, _, _>(&mut cs.ns(|| "GroupTest(a, b)"), a, b);
+        group_test::<_, JubJubProjective, _, _>(&mut cs.ns(|| "GroupTest(a, b)"), a, b, false);
+    }
+
+    #[test]
+    fn mnt4_group_gadgets_test() {
+        use crate::groups::curves::short_weierstrass::mnt::mnt4::mnt4753::{MNT4G1Gadget, MNT4G2Gadget};
+        use algebra::{
+            curves::mnt4753::{G1Projective as MNT4G1Projective, G2Projective as MNT4G2Projective},
+            fields::mnt4753::Fq,
+        };
+
+        let mut cs = TestConstraintSystem::<Fq>::new();
+
+        //Test G1
+        let a: MNT4G1Projective = rand::random();
+        let b: MNT4G1Projective = rand::random();
+
+        let a = MNT4G1Gadget::alloc(&mut cs.ns(|| "generate_a_g1"), || Ok(a)).unwrap();
+        let b = MNT4G1Gadget::alloc(&mut cs.ns(|| "generate_b_g1"), || Ok(b)).unwrap();
+        group_test::<_, MNT4G1Projective, _, _>(&mut cs.ns(|| "GroupTest(a, b)_g1"), a, b, true);
+
+        let c: MNT4G1Projective = rand::random();
+        let c_val_compressed = c.into_affine().compress();
+        let c = MNT4G1Gadget::alloc(&mut cs.ns(|| "generate_c_g1"), || Ok(c)).unwrap();
+        let c_compressed = c.to_compressed(cs.ns(|| "c compressed g1")).unwrap();
+        let mut c_val_compressed_from_gadget = vec![];
+        for b in c_compressed {
+            c_val_compressed_from_gadget.push(b.value.unwrap());
+        }
+        assert_eq!(c_val_compressed, c_val_compressed_from_gadget);
+
+        //Test G2
+        let a: MNT4G2Projective = rand::random();
+        let b: MNT4G2Projective = rand::random();
+
+        let a = MNT4G2Gadget::alloc(&mut cs.ns(|| "generate_a_g2"), || Ok(a)).unwrap();
+        let b = MNT4G2Gadget::alloc(&mut cs.ns(|| "generate_b_g2"), || Ok(b)).unwrap();
+        group_test::<_, MNT4G2Projective, _, _>(&mut cs.ns(|| "GroupTest(a, b)_g2"), a, b, true);
+
+        let c: MNT4G2Projective = rand::random();
+        let c_val_compressed = c.into_affine().compress();
+        let c = MNT4G2Gadget::alloc(&mut cs.ns(|| "generate_c_g2"), || Ok(c)).unwrap();
+        let c_compressed = c.to_compressed(cs.ns(|| "c compressed g2")).unwrap();
+        let mut c_val_compressed_from_gadget = vec![];
+        for b in c_compressed {
+            c_val_compressed_from_gadget.push(b.value.unwrap());
+        }
+        assert_eq!(c_val_compressed, c_val_compressed_from_gadget);
+
+    }
+
+    #[test]
+    fn mnt6_group_gadgets_test() {
+        use crate::groups::curves::short_weierstrass::mnt::mnt6::mnt6753::{MNT6G1Gadget, MNT6G2Gadget};
+        use algebra::{
+            curves::mnt6753::{G1Projective as MNT6G1Projective, G2Projective as MNT6G2Projective},
+            fields::mnt6753::Fq,
+        };
+
+        let mut cs = TestConstraintSystem::<Fq>::new();
+
+        //Test G1
+        let a: MNT6G1Projective = rand::random();
+        let b: MNT6G1Projective = rand::random();
+
+        let a = MNT6G1Gadget::alloc(&mut cs.ns(|| "generate_a_g1"), || Ok(a)).unwrap();
+        let b = MNT6G1Gadget::alloc(&mut cs.ns(|| "generate_b_g1"), || Ok(b)).unwrap();
+        group_test::<_, MNT6G1Projective, _, _>(&mut cs.ns(|| "GroupTest(a, b)_g1"), a, b, true);
+
+        let c: MNT6G1Projective = rand::random();
+        let c_val_compressed = c.into_affine().compress();
+        let c = MNT6G1Gadget::alloc(&mut cs.ns(|| "generate_c_g1"), || Ok(c)).unwrap();
+        let c_compressed = c.to_compressed(cs.ns(|| "c compressed g1")).unwrap();
+        let mut c_val_compressed_from_gadget = vec![];
+        for b in c_compressed {
+            c_val_compressed_from_gadget.push(b.value.unwrap());
+        }
+        assert_eq!(c_val_compressed, c_val_compressed_from_gadget);
+
+
+        //Test G2
+        let a: MNT6G2Projective = rand::random();
+        let b: MNT6G2Projective = rand::random();
+
+        let a = MNT6G2Gadget::alloc(&mut cs.ns(|| "generate_a_g2"), || Ok(a)).unwrap();
+        let b = MNT6G2Gadget::alloc(&mut cs.ns(|| "generate_b_g2"), || Ok(b)).unwrap();
+        group_test::<_, MNT6G2Projective, _, _>(&mut cs.ns(|| "GroupTest(a, b)_g2"), a, b, true);
+
+        let c: MNT6G2Projective = rand::random();
+        let c_val_compressed = c.into_affine().compress();
+        let c = MNT6G2Gadget::alloc(&mut cs.ns(|| "generate_c_g2"), || Ok(c)).unwrap();
+        let c_compressed = c.to_compressed(cs.ns(|| "c compressed g2")).unwrap();
+        let mut c_val_compressed_from_gadget = vec![];
+        for b in c_compressed {
+            c_val_compressed_from_gadget.push(b.value.unwrap());
+        }
+        assert_eq!(c_val_compressed, c_val_compressed_from_gadget);
     }
 }

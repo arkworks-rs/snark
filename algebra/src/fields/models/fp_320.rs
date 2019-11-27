@@ -160,6 +160,11 @@ impl<P: Fp320Parameters> Field for Fp320<P> {
     }
 
     #[inline]
+    fn is_odd(&self) -> bool {
+        self.0.is_odd()
+    }
+
+    #[inline]
     fn characteristic<'a>() -> &'a [u64] {
         P::MODULUS.as_ref()
     }
@@ -361,6 +366,11 @@ impl<P: Fp320Parameters> PrimeField for Fp320<P> {
     #[inline]
     fn root_of_unity() -> Self {
         Fp320::<P>(P::ROOT_OF_UNITY, PhantomData)
+    }
+
+    #[inline]
+    fn full_root_of_unity() -> Self {
+        Fp320::<P>(P::FULL_ROOT_OF_UNITY.unwrap(), PhantomData)
     }
 }
 

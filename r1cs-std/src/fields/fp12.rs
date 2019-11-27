@@ -6,11 +6,11 @@ use algebra::{
         fp6_3over2::{Fp6, Fp6Parameters},
         Fp2Parameters,
     },
-    BitIterator, Field, PrimeField,
+    BitIterator, Field, PrimeField, SquareRootField
 };
 use std::{borrow::Borrow, marker::PhantomData};
 
-use crate::{prelude::*, Assignment};
+use crate::{prelude::*, Assignment, ToCompressedGadget};
 
 type Fp2Gadget<P, ConstraintF> = super::fp2::Fp2Gadget<
     <<P as Fp12Parameters>::Fp6Params as Fp6Parameters>::Fp2Params,
@@ -24,9 +24,9 @@ type Fp6GadgetVariable<P, ConstraintF> = <Fp6Gadget<P, ConstraintF> as FieldGadg
 >>::Variable;
 
 #[derive(Derivative)]
-#[derivative(Debug(bound = "ConstraintF: PrimeField"))]
+#[derivative(Debug(bound = "ConstraintF: PrimeField + SquareRootField"))]
 #[must_use]
-pub struct Fp12Gadget<P, ConstraintF: PrimeField>
+pub struct Fp12Gadget<P, ConstraintF: PrimeField + SquareRootField>
 where
     P: Fp12Parameters,
     <P::Fp6Params as Fp6Parameters>::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
@@ -37,7 +37,7 @@ where
     _params: PhantomData<P>,
 }
 
-impl<P, ConstraintF: PrimeField> Fp12Gadget<P, ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> Fp12Gadget<P, ConstraintF>
 where
     P: Fp12Parameters,
     <P::Fp6Params as Fp6Parameters>::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
@@ -270,7 +270,7 @@ where
     }
 }
 
-impl<P, ConstraintF: PrimeField> FieldGadget<Fp12<P>, ConstraintF> for Fp12Gadget<P, ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> FieldGadget<Fp12<P>, ConstraintF> for Fp12Gadget<P, ConstraintF>
 where
     P: Fp12Parameters,
     <P::Fp6Params as Fp6Parameters>::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
@@ -302,6 +302,16 @@ where
         let c0 = Fp6Gadget::<P, ConstraintF>::one(cs.ns(|| "c0"))?;
         let c1 = Fp6Gadget::<P, ConstraintF>::zero(cs.ns(|| "c1"))?;
         Ok(Self::new(c0, c1))
+    }
+
+    #[inline]
+    fn is_odd<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Boolean, SynthesisError> {
+        let zero = Fp6Gadget::<P, ConstraintF>::zero(cs.ns(|| "alloc zero"))?;
+        self.c1.enforce_not_equal(cs.ns(|| "enforce c1 not zero"), &zero)?;
+        self.c1.is_odd(cs.ns(|| "check c1 odd"))
     }
 
     #[inline]
@@ -647,7 +657,7 @@ where
     }
 }
 
-impl<P, ConstraintF: PrimeField> PartialEq for Fp12Gadget<P, ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> PartialEq for Fp12Gadget<P, ConstraintF>
 where
     P: Fp12Parameters,
     <P::Fp6Params as Fp6Parameters>::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
@@ -657,21 +667,21 @@ where
     }
 }
 
-impl<P, ConstraintF: PrimeField> Eq for Fp12Gadget<P, ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> Eq for Fp12Gadget<P, ConstraintF>
 where
     P: Fp12Parameters,
     <P::Fp6Params as Fp6Parameters>::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
 {
 }
 
-impl<P, ConstraintF: PrimeField> EqGadget<ConstraintF> for Fp12Gadget<P, ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> EqGadget<ConstraintF> for Fp12Gadget<P, ConstraintF>
 where
     P: Fp12Parameters,
     <P::Fp6Params as Fp6Parameters>::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
 {
 }
 
-impl<P, ConstraintF: PrimeField> ConditionalEqGadget<ConstraintF> for Fp12Gadget<P, ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> ConditionalEqGadget<ConstraintF> for Fp12Gadget<P, ConstraintF>
 where
     P: Fp12Parameters,
     <P::Fp6Params as Fp6Parameters>::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
@@ -695,7 +705,7 @@ where
     }
 }
 
-impl<P, ConstraintF: PrimeField> NEqGadget<ConstraintF> for Fp12Gadget<P, ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> NEqGadget<ConstraintF> for Fp12Gadget<P, ConstraintF>
 where
     P: Fp12Parameters,
     <P::Fp6Params as Fp6Parameters>::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
@@ -716,7 +726,7 @@ where
     }
 }
 
-impl<P, ConstraintF: PrimeField> ToBitsGadget<ConstraintF> for Fp12Gadget<P, ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> ToBitsGadget<ConstraintF> for Fp12Gadget<P, ConstraintF>
 where
     P: Fp12Parameters,
     <P::Fp6Params as Fp6Parameters>::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
@@ -742,7 +752,36 @@ where
     }
 }
 
-impl<P, ConstraintF: PrimeField> ToBytesGadget<ConstraintF> for Fp12Gadget<P, ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> ToCompressedGadget<ConstraintF> for Fp12Gadget<P, ConstraintF>
+    where
+        P: Fp12Parameters,
+        <P::Fp6Params as Fp6Parameters>::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
+{
+    fn to_compressed<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
+
+        //Enforce c1 to bytes
+        let c1_to_bytes = self.c1.to_bytes(cs.ns(|| "c1_to_bytes"))?;
+
+        //Set correct flags
+        let is_odd = self.c0.is_odd(cs.ns(|| "odd flag"))?;
+
+        //Add flags byte to x_serialization
+        let len = c1_to_bytes.len() - 1;
+        let mut f_compressed = c1_to_bytes.clone();
+        let mut last_byte = f_compressed[len].clone().bits;
+
+        last_byte[7] = Boolean::or(
+            cs.ns(|| "add is_odd flag"),
+            &last_byte[7],
+            &is_odd
+        )?;
+
+        f_compressed[len] = UInt8::from_bits_le(&last_byte);
+        Ok(f_compressed)
+    }
+}
+
+impl<P, ConstraintF: PrimeField + SquareRootField> ToBytesGadget<ConstraintF> for Fp12Gadget<P, ConstraintF>
 where
     P: Fp12Parameters,
     <P::Fp6Params as Fp6Parameters>::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
@@ -768,7 +807,7 @@ where
     }
 }
 
-impl<P, ConstraintF: PrimeField> Clone for Fp12Gadget<P, ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> Clone for Fp12Gadget<P, ConstraintF>
 where
     P: Fp12Parameters,
     <P::Fp6Params as Fp6Parameters>::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
@@ -778,7 +817,7 @@ where
     }
 }
 
-impl<P, ConstraintF: PrimeField> CondSelectGadget<ConstraintF> for Fp12Gadget<P, ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> CondSelectGadget<ConstraintF> for Fp12Gadget<P, ConstraintF>
 where
     P: Fp12Parameters,
     <P::Fp6Params as Fp6Parameters>::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
@@ -811,7 +850,7 @@ where
     }
 }
 
-impl<P, ConstraintF: PrimeField> TwoBitLookupGadget<ConstraintF> for Fp12Gadget<P, ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> TwoBitLookupGadget<ConstraintF> for Fp12Gadget<P, ConstraintF>
 where
     P: Fp12Parameters,
     <P::Fp6Params as Fp6Parameters>::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
@@ -829,12 +868,25 @@ where
         Ok(Self::new(c0, c1))
     }
 
+    fn two_bit_lookup_lc<CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        precomp: &Boolean,
+        b: &[Boolean],
+        c: &[Self::TableConstant])
+        -> Result<Self, SynthesisError> {
+        let c0s = c.iter().map(|f| f.c0).collect::<Vec<_>>();
+        let c1s = c.iter().map(|f| f.c1).collect::<Vec<_>>();
+        let c0 = Fp6Gadget::<P, ConstraintF>::two_bit_lookup_lc(cs.ns(|| "Lookup c0"), precomp, b, &c0s)?;
+        let c1 = Fp6Gadget::<P, ConstraintF>::two_bit_lookup_lc(cs.ns(|| "Lookup c1"), precomp, b, &c1s)?;
+        Ok(Self::new(c0, c1))
+    }
+
     fn cost() -> usize {
         2 * <Fp6Gadget<P, ConstraintF> as TwoBitLookupGadget<ConstraintF>>::cost()
     }
 }
 
-impl<P, ConstraintF: PrimeField> ThreeBitCondNegLookupGadget<ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> ThreeBitCondNegLookupGadget<ConstraintF>
     for Fp12Gadget<P, ConstraintF>
 where
     P: Fp12Parameters,
@@ -870,7 +922,7 @@ where
     }
 }
 
-impl<P, ConstraintF: PrimeField> AllocGadget<Fp12<P>, ConstraintF> for Fp12Gadget<P, ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> AllocGadget<Fp12<P>, ConstraintF> for Fp12Gadget<P, ConstraintF>
 where
     P: Fp12Parameters,
     <P::Fp6Params as Fp6Parameters>::Fp2Params: Fp2Parameters<Fp = ConstraintF>,

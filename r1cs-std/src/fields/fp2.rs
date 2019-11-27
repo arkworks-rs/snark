@@ -1,6 +1,6 @@
 use algebra::{
     fields::{Fp2, Fp2Parameters},
-    Field, PrimeField,
+    Field, PrimeField, SquareRootField,
 };
 use r1cs_core::{ConstraintSystem, ConstraintVar, SynthesisError};
 use std::{borrow::Borrow, marker::PhantomData};
@@ -8,16 +8,16 @@ use std::{borrow::Borrow, marker::PhantomData};
 use crate::{fields::fp::FpGadget, prelude::*, Assignment};
 
 #[derive(Derivative)]
-#[derivative(Debug(bound = "P: Fp2Parameters, ConstraintF: PrimeField"))]
+#[derivative(Debug(bound = "P: Fp2Parameters, ConstraintF: PrimeField + SquareRootField"))]
 #[must_use]
-pub struct Fp2Gadget<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> {
+pub struct Fp2Gadget<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootField> {
     pub c0: FpGadget<ConstraintF>,
     pub c1: FpGadget<ConstraintF>,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
 }
 
-impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> Fp2Gadget<P, ConstraintF> {
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootField> Fp2Gadget<P, ConstraintF> {
     pub fn new(c0: FpGadget<ConstraintF>, c1: FpGadget<ConstraintF>) -> Self {
         Self {
             c0,
@@ -33,6 +33,19 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> Fp2Gadget<P, C
         fe: &FpGadget<ConstraintF>,
     ) -> Result<FpGadget<ConstraintF>, SynthesisError> {
         fe.mul_by_constant(cs, &P::NONRESIDUE)
+    }
+
+    /// Multiply a Fp2Gadget by a FpGadget.
+    #[inline]
+    pub fn mul_assign_by_fp_gadget<CS: ConstraintSystem<ConstraintF>>(
+        &mut self,
+        mut cs: CS,
+        fe: &FpGadget<ConstraintF>,
+    ) -> Result<&mut Self, SynthesisError>
+    {
+        self.c0.mul_in_place(cs.ns(||"compute new_c0"), &fe)?;
+        self.c1.mul_in_place(cs.ns(||"compute new_c1"), &fe)?;
+        Ok(self)
     }
 
     /// Multiply a Fp2Gadget by an element of fp.
@@ -60,7 +73,7 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> Fp2Gadget<P, C
     }
 }
 
-impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> FieldGadget<Fp2<P>, ConstraintF>
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootField> FieldGadget<Fp2<P>, ConstraintF>
     for Fp2Gadget<P, ConstraintF>
 {
     type Variable = (ConstraintVar<ConstraintF>, ConstraintVar<ConstraintF>);
@@ -96,6 +109,16 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> FieldGadget<Fp
     }
 
     #[inline]
+    fn is_odd<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Boolean, SynthesisError> {
+        let zero = FpGadget::zero(cs.ns(|| "alloc zero"))?;
+        self.c1.enforce_not_equal(cs.ns(|| "enforce c1 not zero"), &zero)?;
+        self.c1.is_odd(cs.ns(|| "check c1 odd"))
+    }
+
+    #[inline]
     fn conditionally_add_constant<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
@@ -123,17 +146,6 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> FieldGadget<Fp
     }
 
     #[inline]
-    fn sub<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        mut cs: CS,
-        other: &Self,
-    ) -> Result<Self, SynthesisError> {
-        let c0 = self.c0.sub(&mut cs.ns(|| "sub c0"), &other.c0)?;
-        let c1 = self.c1.sub(&mut cs.ns(|| "sub c1"), &other.c1)?;
-        Ok(Self::new(c0, c1))
-    }
-
-    #[inline]
     fn double<CS: ConstraintSystem<ConstraintF>>(&self, cs: CS) -> Result<Self, SynthesisError> {
         let mut result = self.clone();
         result.double_in_place(cs)?;
@@ -148,6 +160,17 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> FieldGadget<Fp
         self.c0.double_in_place(&mut cs.ns(|| "double c0"))?;
         self.c1.double_in_place(&mut cs.ns(|| "double c1"))?;
         Ok(self)
+    }
+
+    #[inline]
+    fn sub<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        other: &Self,
+    ) -> Result<Self, SynthesisError> {
+        let c0 = self.c0.sub(&mut cs.ns(|| "sub c0"), &other.c0)?;
+        let c1 = self.c1.sub(&mut cs.ns(|| "sub c1"), &other.c1)?;
+        Ok(Self::new(c0, c1))
     }
 
     #[inline]
@@ -292,47 +315,6 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> FieldGadget<Fp
         Ok(self)
     }
 
-    #[inline]
-    fn inverse<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        mut cs: CS,
-    ) -> Result<Self, SynthesisError> {
-        let inverse = Self::alloc(&mut cs.ns(|| "alloc inverse"), || {
-            self.get_value().and_then(|val| val.inverse()).get()
-        })?;
-
-        // Karatsuba multiplication for Fp2 with the inverse:
-        //     v0 = A.c0 * B.c0
-        //     v1 = A.c1 * B.c1
-        //
-        //      1 = v0 + non_residue * v1
-        //  => v0 = 1 - non_residue * v1
-        //
-        //      0 = result.c1 = (A.c0 + A.c1) * (B.c0 + B.c1) - v0 - v1
-        //  => v0 + v1 = (A.c0 + A.c1) * (B.c0 + B.c1)
-        //  => 1 + (1 - non_residue) * v1 = (A.c0 + A.c1) * (B.c0 + B.c1)
-        // Enforced with 2 constraints:
-        //     A.c1 * B.c1 = v1
-        //  => 1 + (1 - non_residue) * v1 = (A.c0 + A.c1) * (B.c0 + B.c1)
-        // Reference:
-        // "Multiplication and Squaring on Pairing-Friendly Fields"
-        // Devegili, OhEigeartaigh, Scott, Dahab
-
-        // Constraint 1
-        let mut v1 = self.c1.mul(cs.ns(|| "inv_constraint_1"), &inverse.c1)?;
-
-        // Constraint 2
-        let a0_plus_a1 = self.c0.add(cs.ns(|| "a0 + a1"), &self.c1)?;
-        let b0_plus_b1 = inverse.c0.add(cs.ns(|| "b0 + b1"), &inverse.c1)?;
-
-        let one = P::Fp::one();
-        let rhs = v1
-            .mul_by_constant_in_place(cs.ns(|| "(1 - nonresidue) * v1"), &(one - &P::NONRESIDUE))?
-            .add_constant_in_place(cs.ns(|| "add one"), &one)?;
-        a0_plus_a1.mul_equals(cs.ns(|| "inv_constraint_2"), &b0_plus_b1, rhs)?;
-        Ok(inverse)
-    }
-
     fn mul_equals<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
@@ -385,26 +367,6 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> FieldGadget<Fp
         Ok(())
     }
 
-    fn frobenius_map<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        cs: CS,
-        power: usize,
-    ) -> Result<Self, SynthesisError> {
-        let mut result = self.clone();
-        let _ = result.frobenius_map_in_place(cs, power)?;
-        Ok(result)
-    }
-
-    fn frobenius_map_in_place<CS: ConstraintSystem<ConstraintF>>(
-        &mut self,
-        cs: CS,
-        power: usize,
-    ) -> Result<&mut Self, SynthesisError> {
-        self.c1
-            .mul_by_constant_in_place(cs, &P::FROBENIUS_COEFF_FP2_C1[power % 2])?;
-        Ok(self)
-    }
-
     #[inline]
     fn add_constant<CS: ConstraintSystem<ConstraintF>>(
         &self,
@@ -452,6 +414,67 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> FieldGadget<Fp
         Ok(Self::new(c0, c1))
     }
 
+    #[inline]
+    fn inverse<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Self, SynthesisError> {
+        let inverse = Self::alloc(&mut cs.ns(|| "alloc inverse"), || {
+            self.get_value().and_then(|val| val.inverse()).get()
+        })?;
+
+        // Karatsuba multiplication for Fp2 with the inverse:
+        //     v0 = A.c0 * B.c0
+        //     v1 = A.c1 * B.c1
+        //
+        //      1 = v0 + non_residue * v1
+        //  => v0 = 1 - non_residue * v1
+        //
+        //      0 = result.c1 = (A.c0 + A.c1) * (B.c0 + B.c1) - v0 - v1
+        //  => v0 + v1 = (A.c0 + A.c1) * (B.c0 + B.c1)
+        //  => 1 + (1 - non_residue) * v1 = (A.c0 + A.c1) * (B.c0 + B.c1)
+        // Enforced with 2 constraints:
+        //     A.c1 * B.c1 = v1
+        //  => 1 + (1 - non_residue) * v1 = (A.c0 + A.c1) * (B.c0 + B.c1)
+        // Reference:
+        // "Multiplication and Squaring on Pairing-Friendly Fields"
+        // Devegili, OhEigeartaigh, Scott, Dahab
+
+        // Constraint 1
+        let mut v1 = self.c1.mul(cs.ns(|| "inv_constraint_1"), &inverse.c1)?;
+
+        // Constraint 2
+        let a0_plus_a1 = self.c0.add(cs.ns(|| "a0 + a1"), &self.c1)?;
+        let b0_plus_b1 = inverse.c0.add(cs.ns(|| "b0 + b1"), &inverse.c1)?;
+
+        let one = P::Fp::one();
+        let rhs = v1
+            .mul_by_constant_in_place(cs.ns(|| "(1 - nonresidue) * v1"), &(one - &P::NONRESIDUE))?
+            .add_constant_in_place(cs.ns(|| "add one"), &one)?;
+        a0_plus_a1.mul_equals(cs.ns(|| "inv_constraint_2"), &b0_plus_b1, rhs)?;
+        Ok(inverse)
+    }
+
+    fn frobenius_map<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+        power: usize,
+    ) -> Result<Self, SynthesisError> {
+        let mut result = self.clone();
+        let _ = result.frobenius_map_in_place(cs, power)?;
+        Ok(result)
+    }
+
+    fn frobenius_map_in_place<CS: ConstraintSystem<ConstraintF>>(
+        &mut self,
+        cs: CS,
+        power: usize,
+    ) -> Result<&mut Self, SynthesisError> {
+        self.c1
+            .mul_by_constant_in_place(cs, &P::FROBENIUS_COEFF_FP2_C1[power % 2])?;
+        Ok(self)
+    }
+
     fn cost_of_mul() -> usize {
         3
     }
@@ -461,7 +484,7 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> FieldGadget<Fp
     }
 }
 
-impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> PartialEq
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootField> PartialEq
     for Fp2Gadget<P, ConstraintF>
 {
     fn eq(&self, other: &Self) -> bool {
@@ -469,14 +492,14 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> PartialEq
     }
 }
 
-impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> Eq for Fp2Gadget<P, ConstraintF> {}
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootField> Eq for Fp2Gadget<P, ConstraintF> {}
 
-impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> EqGadget<ConstraintF>
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootField> EqGadget<ConstraintF>
     for Fp2Gadget<P, ConstraintF>
 {
 }
 
-impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> ConditionalEqGadget<ConstraintF>
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootField> ConditionalEqGadget<ConstraintF>
     for Fp2Gadget<P, ConstraintF>
 {
     #[inline]
@@ -498,7 +521,7 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> ConditionalEqG
     }
 }
 
-impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> NEqGadget<ConstraintF>
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootField> NEqGadget<ConstraintF>
     for Fp2Gadget<P, ConstraintF>
 {
     #[inline]
@@ -517,7 +540,7 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> NEqGadget<Cons
     }
 }
 
-impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> ToBitsGadget<ConstraintF>
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootField> ToBitsGadget<ConstraintF>
     for Fp2Gadget<P, ConstraintF>
 {
     fn to_bits<CS: ConstraintSystem<ConstraintF>>(
@@ -541,7 +564,7 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> ToBitsGadget<C
     }
 }
 
-impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> ToBytesGadget<ConstraintF>
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootField> ToBytesGadget<ConstraintF>
     for Fp2Gadget<P, ConstraintF>
 {
     fn to_bytes<CS: ConstraintSystem<ConstraintF>>(
@@ -565,7 +588,7 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> ToBytesGadget<
     }
 }
 
-impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> Clone
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootField> Clone
     for Fp2Gadget<P, ConstraintF>
 {
     fn clone(&self) -> Self {
@@ -577,7 +600,7 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> Clone
     }
 }
 
-impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> CondSelectGadget<ConstraintF>
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootField> CondSelectGadget<ConstraintF>
     for Fp2Gadget<P, ConstraintF>
 {
     #[inline]
@@ -608,7 +631,7 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> CondSelectGadg
     }
 }
 
-impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> TwoBitLookupGadget<ConstraintF>
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootField> TwoBitLookupGadget<ConstraintF>
     for Fp2Gadget<P, ConstraintF>
 {
     type TableConstant = Fp2<P>;
@@ -624,12 +647,25 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> TwoBitLookupGa
         Ok(Self::new(c0, c1))
     }
 
+    fn two_bit_lookup_lc<CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        precomp: &Boolean,
+        b: &[Boolean],
+        c: &[Self::TableConstant])
+        -> Result<Self, SynthesisError> {
+        let c0s = c.iter().map(|f| f.c0).collect::<Vec<_>>();
+        let c1s = c.iter().map(|f| f.c1).collect::<Vec<_>>();
+        let c0 = FpGadget::two_bit_lookup_lc(cs.ns(|| "Lookup c0"), precomp, b, &c0s)?;
+        let c1 = FpGadget::two_bit_lookup_lc(cs.ns(|| "Lookup c1"), precomp, b, &c1s)?;
+        Ok(Self::new(c0, c1))
+    }
+
     fn cost() -> usize {
         2 * <FpGadget<ConstraintF> as TwoBitLookupGadget<ConstraintF>>::cost()
     }
 }
 
-impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField>
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootField>
     ThreeBitCondNegLookupGadget<ConstraintF> for Fp2Gadget<P, ConstraintF>
 {
     type TableConstant = Fp2<P>;
@@ -652,7 +688,7 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField>
     }
 }
 
-impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> AllocGadget<Fp2<P>, ConstraintF>
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootField> AllocGadget<Fp2<P>, ConstraintF>
     for Fp2Gadget<P, ConstraintF>
 {
     #[inline]

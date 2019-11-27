@@ -117,3 +117,14 @@ impl<I, ConstraintF: Field, A: AllocGadget<I, ConstraintF>> AllocGadget<[I], Con
         Ok(vec)
     }
 }
+
+pub trait HardCodedGadget<V, ConstraintF: Field>
+    where
+        Self: Sized,
+        V: ?Sized,
+{
+    fn alloc_hardcoded<F, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, f: F) -> Result<Self, SynthesisError>
+        where
+            F: FnOnce() -> Result<T, SynthesisError>,
+            T: Borrow<V>;
+}

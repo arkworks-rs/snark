@@ -1,19 +1,18 @@
 use crate::UniformRand;
+use rand::{Rng, distributions::{Standard, Distribution}};
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
     io::{Read, Result as IoResult, Write},
     marker::PhantomData,
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
-use rand::{Rng, distributions::{Standard, Distribution}};
-
 use crate::{
     bytes::{FromBytes, ToBytes},
     fields::{Field, LegendreSymbol, PrimeField, SquareRootField},
 };
 
 pub trait Fp2Parameters: 'static + Send + Sync {
-    type Fp: PrimeField;
+    type Fp: PrimeField + SquareRootField;
 
     const NONRESIDUE: Self::Fp;
 
@@ -85,6 +84,11 @@ impl<P: Fp2Parameters> Field for Fp2<P> {
 
     fn is_one(&self) -> bool {
         self.c0.is_one() && self.c1.is_zero()
+    }
+
+    #[inline]
+    fn is_odd(&self) -> bool {
+        self.c1.is_odd() || ( self.c1.is_zero() && self.c0.is_odd())
     }
 
     #[inline]

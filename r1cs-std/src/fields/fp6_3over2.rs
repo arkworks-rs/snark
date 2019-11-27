@@ -1,7 +1,7 @@
 use algebra::{
     fields::{
         fp6_3over2::{Fp6, Fp6Parameters},
-        Field, Fp2Parameters,
+        Field, SquareRootField, Fp2Parameters,
     },
     PrimeField,
 };
@@ -14,9 +14,9 @@ type Fp2Gadget<P, ConstraintF> =
     super::fp2::Fp2Gadget<<P as Fp6Parameters>::Fp2Params, ConstraintF>;
 
 #[derive(Derivative)]
-#[derivative(Debug(bound = "ConstraintF: PrimeField"))]
+#[derivative(Debug(bound = "ConstraintF: PrimeField + SquareRootField"))]
 #[must_use]
-pub struct Fp6Gadget<P, ConstraintF: PrimeField>
+pub struct Fp6Gadget<P, ConstraintF: PrimeField + SquareRootField>
 where
     P: Fp6Parameters,
     P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
@@ -28,7 +28,7 @@ where
     _params: PhantomData<P>,
 }
 
-impl<P, ConstraintF: PrimeField> Fp6Gadget<P, ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> Fp6Gadget<P, ConstraintF>
 where
     P: Fp6Parameters,
     P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
@@ -139,7 +139,7 @@ where
     }
 }
 
-impl<P, ConstraintF: PrimeField> FieldGadget<Fp6<P>, ConstraintF> for Fp6Gadget<P, ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> FieldGadget<Fp6<P>, ConstraintF> for Fp6Gadget<P, ConstraintF>
 where
     P: Fp6Parameters,
     P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
@@ -185,6 +185,13 @@ where
         let c1 = Fp2Gadget::<P, ConstraintF>::zero(cs.ns(|| "c1"))?;
         let c2 = Fp2Gadget::<P, ConstraintF>::zero(cs.ns(|| "c2"))?;
         Ok(Self::new(c0, c1, c2))
+    }
+
+    #[inline]
+    fn is_odd<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Boolean, SynthesisError> {
+        let zero = Fp2Gadget::<P, ConstraintF>::zero(cs.ns(|| "alloc zero"))?;
+        self.c1.enforce_not_equal(cs.ns(|| "enforce c1 not zero"), &zero)?;
+        self.c1.is_odd(cs.ns(|| "check c1 odd"))
     }
 
     #[inline]
@@ -709,7 +716,7 @@ where
     }
 }
 
-impl<P, ConstraintF: PrimeField> PartialEq for Fp6Gadget<P, ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> PartialEq for Fp6Gadget<P, ConstraintF>
 where
     P: Fp6Parameters,
     P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
@@ -719,21 +726,21 @@ where
     }
 }
 
-impl<P, ConstraintF: PrimeField> Eq for Fp6Gadget<P, ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> Eq for Fp6Gadget<P, ConstraintF>
 where
     P: Fp6Parameters,
     P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
 {
 }
 
-impl<P, ConstraintF: PrimeField> EqGadget<ConstraintF> for Fp6Gadget<P, ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> EqGadget<ConstraintF> for Fp6Gadget<P, ConstraintF>
 where
     P: Fp6Parameters,
     P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
 {
 }
 
-impl<P, ConstraintF: PrimeField> ConditionalEqGadget<ConstraintF> for Fp6Gadget<P, ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> ConditionalEqGadget<ConstraintF> for Fp6Gadget<P, ConstraintF>
 where
     P: Fp6Parameters,
     P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
@@ -759,7 +766,7 @@ where
     }
 }
 
-impl<P, ConstraintF: PrimeField> NEqGadget<ConstraintF> for Fp6Gadget<P, ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> NEqGadget<ConstraintF> for Fp6Gadget<P, ConstraintF>
 where
     P: Fp6Parameters,
     P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
@@ -781,7 +788,7 @@ where
     }
 }
 
-impl<P, ConstraintF: PrimeField> ToBitsGadget<ConstraintF> for Fp6Gadget<P, ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> ToBitsGadget<ConstraintF> for Fp6Gadget<P, ConstraintF>
 where
     P: Fp6Parameters,
     P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
@@ -815,7 +822,7 @@ where
     }
 }
 
-impl<P, ConstraintF: PrimeField> ToBytesGadget<ConstraintF> for Fp6Gadget<P, ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> ToBytesGadget<ConstraintF> for Fp6Gadget<P, ConstraintF>
 where
     P: Fp6Parameters,
     P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
@@ -842,7 +849,7 @@ where
     }
 }
 
-impl<P, ConstraintF: PrimeField> Clone for Fp6Gadget<P, ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> Clone for Fp6Gadget<P, ConstraintF>
 where
     P: Fp6Parameters,
     P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
@@ -852,7 +859,7 @@ where
     }
 }
 
-impl<P, ConstraintF: PrimeField> CondSelectGadget<ConstraintF> for Fp6Gadget<P, ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> CondSelectGadget<ConstraintF> for Fp6Gadget<P, ConstraintF>
 where
     P: Fp6Parameters,
     P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
@@ -891,7 +898,7 @@ where
     }
 }
 
-impl<P, ConstraintF: PrimeField> TwoBitLookupGadget<ConstraintF> for Fp6Gadget<P, ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> TwoBitLookupGadget<ConstraintF> for Fp6Gadget<P, ConstraintF>
 where
     P: Fp6Parameters,
     P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
@@ -911,12 +918,27 @@ where
         Ok(Self::new(c0, c1, c2))
     }
 
+    fn two_bit_lookup_lc<CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        precomp: &Boolean,
+        b: &[Boolean],
+        c: &[Self::TableConstant])
+        -> Result<Self, SynthesisError> {
+        let c0s = c.iter().map(|f| f.c0).collect::<Vec<_>>();
+        let c1s = c.iter().map(|f| f.c1).collect::<Vec<_>>();
+        let c2s = c.iter().map(|f| f.c2).collect::<Vec<_>>();
+        let c0 = Fp2Gadget::<P, ConstraintF>::two_bit_lookup_lc(cs.ns(|| "Lookup c0"), precomp, b, &c0s)?;
+        let c1 = Fp2Gadget::<P, ConstraintF>::two_bit_lookup_lc(cs.ns(|| "Lookup c1"), precomp, b, &c1s)?;
+        let c2 = Fp2Gadget::<P, ConstraintF>::two_bit_lookup_lc(cs.ns(|| "Lookup c2"), precomp, b, &c2s)?;
+        Ok(Self::new(c0, c1, c2))
+    }
+
     fn cost() -> usize {
         3 * <Fp2Gadget<P, ConstraintF> as TwoBitLookupGadget<ConstraintF>>::cost()
     }
 }
 
-impl<P, ConstraintF: PrimeField> ThreeBitCondNegLookupGadget<ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> ThreeBitCondNegLookupGadget<ConstraintF>
     for Fp6Gadget<P, ConstraintF>
 where
     P: Fp6Parameters,
@@ -959,7 +981,7 @@ where
     }
 }
 
-impl<P, ConstraintF: PrimeField> AllocGadget<Fp6<P>, ConstraintF> for Fp6Gadget<P, ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> AllocGadget<Fp6<P>, ConstraintF> for Fp6Gadget<P, ConstraintF>
 where
     P: Fp6Parameters,
     P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,

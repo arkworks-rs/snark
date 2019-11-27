@@ -4,6 +4,8 @@ use crate::{
 };
 
 pub mod bls12;
+pub mod mnt4;
+pub mod mnt6;
 pub mod short_weierstrass_jacobian;
 pub mod short_weierstrass_projective;
 pub mod twisted_edwards_extended;

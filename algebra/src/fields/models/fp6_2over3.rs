@@ -1,5 +1,5 @@
 use rand::{Rng, distributions::{Standard, Distribution}};
-use crate::UniformRand;
+use crate::{UniformRand, ToCompressed, FromCompressed};
 use std::{
     cmp::Ordering,
     io::{Read, Result as IoResult, Write},
@@ -10,7 +10,8 @@ use std::{
 use crate::{
     biginteger::BigInteger,
     bytes::{FromBytes, ToBytes},
-    fields::{Field, Fp3, Fp3Parameters},
+    fields::{Field, SquareRootField, Fp3, Fp3Parameters},
+    to_bytes,
 };
 
 pub trait Fp6Parameters: 'static + Send + Sync {
@@ -94,6 +95,21 @@ impl<P: Fp6Parameters> Fp6<P> {
 
         res
     }
+
+    //Mul by an element of the form [c0: (0, 0, a), c1: (b, c, d)]
+    pub fn mul_by_2345(self, other: &Self) -> Self
+    /* Devegili OhEig Scott Dahab --- Multiplication and Squaring on Pairing-Friendly Fields.pdf; Section 3 (Karatsuba) */
+    {
+        let v0 = {
+            let t = other.c0.c2 * &<P::Fp3Params as Fp3Parameters>::NONRESIDUE;
+            Fp3::<P::Fp3Params>::new(self.c0.c1 * &t, self.c0.c2 * &t, self.c0.c0 * &other.c0.c2)
+        };
+        let v1 = self.c1 * &other.c1;
+        let beta_v1 = Self::mul_by_nonresidue(&v1);
+        let c0 = v0 + &beta_v1;
+        let c1 = (self.c0 + &self.c1) * &(other.c0 + &other.c1) -&v0 -&v1;
+        Self::new(c0, c1)
+    }
 }
 
 impl<P: Fp6Parameters> Field for Fp6<P> {
@@ -119,6 +135,11 @@ impl<P: Fp6Parameters> Field for Fp6<P> {
 
     fn is_one(&self) -> bool {
         self.c0.is_one() && self.c1.is_zero()
+    }
+
+    #[inline]
+    fn is_odd(&self) -> bool {
+        self.c1.is_odd() || ( self.c1.is_zero() && self.c0.is_odd())
     }
 
     #[inline]
@@ -385,5 +406,75 @@ impl<'a, P: Fp6Parameters> From<&'a [bool]> for Fp6<P> {
 impl<P: Fp6Parameters> ::std::fmt::Display for Fp6<P> {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         write!(f, "Fp6_2over3({}, {})", self.c0, self.c1)
+    }
+}
+
+/*  Note: compression and decompression of a Fqk element is possible thanks to a property of Ate pairing.
+    if c0 + i*c1 is the output of an Ate pairing, then holds that c0^2 - nr * c1^2 = 1.
+    Therefore, we can save c1 and compute c0 as sqrt(1 + nr*c1^2), dedicating a bit also for the sign
+    of the result.
+*/
+
+//Fq6_2_over_3 is the output type of a pairing using MNT6_753 as pairing curve. Therefore we
+//can compress/decompress it.
+
+impl<P: Fp6Parameters> ToCompressed for Fp6<P> {
+
+    #[inline]
+    fn compress(&self) -> Vec<u8> {
+
+        //Serialize c1
+        let mut res = to_bytes!(self.c1).unwrap();
+        let len = res.len() - 1;
+
+        let lexicographically_largest = self.c0.is_odd();
+
+        //Set the MSB to indicate the sign of c0
+        let greater = if lexicographically_largest {1u8 << 7} else {0u8};
+        res[len] |= greater;
+        res
+    }
+}
+
+impl<P: Fp6Parameters> FromCompressed for Fp6<P> {
+
+    #[inline]
+    fn decompress(compressed: Vec<u8>) -> Option<Self> {
+        let len = compressed.len() - 1;
+        let sort_flag_set = bool::read([(compressed[len] >> 7) & 1].as_ref()).unwrap();
+
+        //Mask away the flag bits and try to get the c1 component
+        let val = {
+            let mut tmp = compressed;
+            tmp[len] &= 0b0111_1111;
+            Fp3::read(tmp.as_slice())
+        };
+
+        match val {
+            Ok(c1) => {
+
+                //Compute c0
+                let c0 = {
+                    let t = Fp3::one() + &Self::mul_by_nonresidue(&(c1.square()));
+                    t.sqrt()
+                };
+
+                match c0 {
+
+                    //Estabilish c0 sign
+                    Some(c0_u) => {
+                        let neg_c0u = c0_u.neg();
+                        let c0_s = if !c0_u.is_odd() ^ sort_flag_set {c0_u} else {neg_c0u};
+                        Some(Self::new(c0_s, c1))
+                    },
+
+                    //sqrt(1 + nr*c1^2) doesn't exists in the field
+                    _ => None,
+                }
+            },
+
+            //Unable to deserialize c1
+            _ => None
+        }
     }
 }

@@ -1,5 +1,5 @@
 use rand::{Rng, distributions::{Standard, Distribution}};
-use crate::UniformRand;
+use crate::{UniformRand, FromCompressed, ToCompressed};
 use std::{
     cmp::Ordering,
     io::{Read, Result as IoResult, Write},
@@ -231,6 +231,11 @@ impl<P: Fp12Parameters> Field for Fp12<P> {
 
     fn is_one(&self) -> bool {
         self.c0.is_one() && self.c1.is_zero()
+    }
+
+    #[inline]
+    fn is_odd(&self) -> bool {
+        self.c1.is_odd() || ( self.c1.is_zero() && self.c0.is_odd())
     }
 
     #[inline]
@@ -474,5 +479,19 @@ impl<P: Fp12Parameters> FromBytes for Fp12<P> {
         let c0 = Fp6::read(&mut reader)?;
         let c1 = Fp6::read(&mut reader)?;
         Ok(Fp12::new(c0, c1))
+    }
+}
+
+impl<P: Fp12Parameters> ToCompressed for Fp12<P> {
+    #[inline]
+    fn compress(&self) -> Vec<u8> {
+        unimplemented!()
+    }
+}
+
+impl<P: Fp12Parameters> FromCompressed for Fp12<P> {
+    #[inline]
+    fn decompress(_compressed: Vec<u8>) -> Option<Self> {
+        unimplemented!();
     }
 }

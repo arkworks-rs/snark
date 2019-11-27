@@ -116,6 +116,11 @@ impl<P: Fp3Parameters> Field for Fp3<P> {
     }
 
     #[inline]
+    fn is_odd(&self) -> bool {
+        self.c1.is_odd() || ( self.c1.is_zero() && self.c0.is_odd())
+    }
+
+    #[inline]
     fn characteristic<'a>() -> &'a [u64] {
         P::Fp::characteristic()
     }

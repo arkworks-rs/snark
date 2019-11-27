@@ -354,6 +354,11 @@ impl<P: Fp832Parameters> Field for Fp832<P> {
     }
 
     #[inline]
+    fn is_odd(&self) -> bool {
+        self.0.is_odd()
+    }
+
+    #[inline]
     fn characteristic<'a>() -> &'a [u64] {
         P::MODULUS.as_ref()
     }
@@ -672,6 +677,11 @@ impl<P: Fp832Parameters> PrimeField for Fp832<P> {
     #[inline]
     fn root_of_unity() -> Self {
         Fp832::<P>(P::ROOT_OF_UNITY, PhantomData)
+    }
+
+    #[inline]
+    fn full_root_of_unity() -> Self {
+        Fp832::<P>(P::FULL_ROOT_OF_UNITY.unwrap(), PhantomData)
     }
 
     #[inline]

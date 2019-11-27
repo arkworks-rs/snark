@@ -99,6 +99,11 @@ pub trait ToBytesGadget<ConstraintF: Field> {
     ) -> Result<Vec<UInt8>, SynthesisError>;
 }
 
+pub trait ToCompressedGadget<ConstraintF: Field> {
+    fn to_compressed<CS: ConstraintSystem<ConstraintF>>(&self, cs: CS) -> Result<Vec<UInt8>, SynthesisError>;
+}
+
+
 impl<ConstraintF: Field> ToBytesGadget<ConstraintF> for [UInt8] {
     fn to_bytes<CS: ConstraintSystem<ConstraintF>>(
         &self,

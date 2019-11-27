@@ -8,12 +8,17 @@ use crate::prelude::*;
 pub mod fp;
 pub mod fp12;
 pub mod fp2;
+pub mod fp3;
+pub mod fp4;
 pub mod fp6_3over2;
+pub mod fp6_2over3;
 
 pub mod bls12_377;
 pub mod edwards_bls12;
 pub mod edwards_sw6;
 pub mod jubjub;
+pub mod mnt4753;
+pub mod mnt6753;
 
 pub trait FieldGadget<F: Field, ConstraintF: Field>:
     Sized
@@ -38,6 +43,12 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
     fn zero<CS: ConstraintSystem<ConstraintF>>(_: CS) -> Result<Self, SynthesisError>;
 
     fn one<CS: ConstraintSystem<ConstraintF>>(_: CS) -> Result<Self, SynthesisError>;
+
+    #[inline]
+    fn is_odd<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        _: CS
+    ) -> Result<Boolean, SynthesisError>;
 
     fn conditionally_add_constant<CS: ConstraintSystem<ConstraintF>>(
         &self,
@@ -550,6 +561,137 @@ mod test {
         field_test(cs.ns(|| "test_fq"), a, b);
         if !cs.is_satisfied() {
             println!("{:?}", cs.which_is_unsatisfied().unwrap());
+        }
+        assert!(cs.is_satisfied());
+    }
+
+    #[test]
+    fn mnt4_field_gadgets_test() {
+        use crate::fields::mnt4753::{Fq4Gadget, Fq2Gadget, FqGadget};
+        use algebra::{
+            fields::mnt4753::{Fq, Fq2, Fq4},
+        };
+
+        let mut cs = TestConstraintSystem::<Fq>::new();
+
+        let mut rng = thread_rng();
+
+        let a = FqGadget::alloc(&mut cs.ns(|| "generate_a"), || Ok(Fq::rand(&mut rng))).unwrap();
+        let b = FqGadget::alloc(&mut cs.ns(|| "generate_b"), || Ok(Fq::rand(&mut rng))).unwrap();
+        field_test(cs.ns(|| "test_fq"), a, b);
+        if !cs.is_satisfied() {
+            println!("{:?}", cs.which_is_unsatisfied().unwrap());
+        }
+
+        let c = Fq2Gadget::alloc(&mut cs.ns(|| "generate_c"), || Ok(Fq2::rand(&mut rng))).unwrap();
+        let d = Fq2Gadget::alloc(&mut cs.ns(|| "generate_d"), || Ok(Fq2::rand(&mut rng))).unwrap();
+        field_test(cs.ns(|| "test_fq2"), c, d);
+        random_frobenius_tests::<Fq2, _, Fq2Gadget, _>(cs.ns(|| "test_frob_fq2"), 13);
+        if !cs.is_satisfied() {
+            println!("{:?}", cs.which_is_unsatisfied().unwrap());
+        }
+
+        let a = Fq4Gadget::alloc(&mut cs.ns(|| "generate_e"), || Ok(Fq4::rand(&mut rng))).unwrap();
+        let b = Fq4Gadget::alloc(&mut cs.ns(|| "generate_f"), || Ok(Fq4::rand(&mut rng))).unwrap();
+        field_test(cs.ns(|| "test_fq4"), a, b);
+        random_frobenius_tests::<Fq4, _, Fq4Gadget, _>(cs.ns(|| "test_frob_fq4"), 13);
+        if !cs.is_satisfied() {
+            println!("{:?}", cs.which_is_unsatisfied().unwrap());
+        }
+        assert!(cs.is_satisfied());
+    }
+
+    #[test]
+    fn mnt6_field_gadgets_test() {
+        use crate::fields::mnt6753::{Fq6Gadget, Fq3Gadget, FqGadget};
+        use algebra::{
+            fields::mnt6753::{Fq, Fq3, Fq6},
+        };
+
+        let mut cs = TestConstraintSystem::<Fq>::new();
+
+        let mut rng = thread_rng();
+
+        let a = FqGadget::alloc(&mut cs.ns(|| "generate_a"), || Ok(Fq::rand(&mut rng))).unwrap();
+        let b = FqGadget::alloc(&mut cs.ns(|| "generate_b"), || Ok(Fq::rand(&mut rng))).unwrap();
+        field_test(cs.ns(|| "test_fq"), a, b);
+        if !cs.is_satisfied() {
+            println!("{:?}", cs.which_is_unsatisfied().unwrap());
+        }
+
+        let c = Fq3Gadget::alloc(&mut cs.ns(|| "generate_c"), || Ok(Fq3::rand(&mut rng))).unwrap();
+        let d = Fq3Gadget::alloc(&mut cs.ns(|| "generate_d"), || Ok(Fq3::rand(&mut rng))).unwrap();
+        field_test(cs.ns(|| "test_fq2"), c, d);
+        random_frobenius_tests::<Fq3, _, Fq3Gadget, _>(cs.ns(|| "test_frob_fq3"), 13);
+        if !cs.is_satisfied() {
+            println!("{:?}", cs.which_is_unsatisfied().unwrap());
+        }
+
+        let a = Fq6Gadget::alloc(&mut cs.ns(|| "generate_e"), || Ok(Fq6::rand(&mut rng))).unwrap();
+        let b = Fq6Gadget::alloc(&mut cs.ns(|| "generate_f"), || Ok(Fq6::rand(&mut rng))).unwrap();
+        field_test(cs.ns(|| "test_fq4"), a, b);
+        random_frobenius_tests::<Fq6, _, Fq6Gadget, _>(cs.ns(|| "test_frob_fq4"), 13);
+        if !cs.is_satisfied() {
+            println!("{:?}", cs.which_is_unsatisfied().unwrap());
+        }
+        assert!(cs.is_satisfied());
+    }
+
+    #[test]
+    fn field_compression_gadgets_test() {
+
+        use algebra::curves::{
+            mnt4753::{G1Projective as MNT4G1Projective, G2Projective as MNT4G2Projective, MNT4},
+            mnt6753::{G1Projective as MNT6G1Projective, G2Projective as MNT6G2Projective, MNT6},
+
+        };
+        use algebra::fields::{
+            mnt4753::Fq as FqMnt4,
+            mnt6753::Fq as FqMnt6,
+        };
+        use crate::{
+            fields::mnt4753::Fq4Gadget,
+            fields::mnt6753::Fq6Gadget,
+        };
+        use crate::ToCompressedGadget;
+        use algebra::bytes::ToCompressed;
+        use algebra::PairingEngine;
+
+        let mut cs = TestConstraintSystem::<FqMnt4>::new();
+
+        //Test Fq4 compression
+        let a: MNT4G1Projective = rand::random();
+        let b: MNT4G2Projective = rand::random();
+
+        let c = MNT4::pairing(a, b);
+        let c_c = c.compress();
+        let c_g_c_correct = UInt8::alloc_vec(cs.ns(|| "alloc c compressed correct"), &c_c).unwrap();
+
+        let c_g = Fq4Gadget::alloc(cs.ns(|| "alloc c"), || Ok(c)).unwrap();
+        let c_g_c = c_g.to_compressed(cs.ns(||"compress c_g")).unwrap();
+        c_g_c.enforce_equal(cs.ns(|| "check correct compression"), &c_g_c_correct).unwrap();
+
+        if !cs.is_satisfied() {
+            println!("{:?}", cs.which_is_unsatisfied());
+        }
+        assert!(cs.is_satisfied());
+
+        //Test Fq6 compression
+        let mut cs = TestConstraintSystem::<FqMnt6>::new();
+
+        let a: MNT6G1Projective = rand::random();
+        let b: MNT6G2Projective = rand::random();
+
+        let c = MNT6::pairing(a, b);
+        let c_c = c.compress();
+        let c_g_c_correct = UInt8::alloc_vec(cs.ns(|| "alloc c compressed correct"), &c_c).unwrap();
+
+        let c_g = Fq6Gadget::alloc(cs.ns(|| "alloc c"), || Ok(c)).unwrap();
+        let c_g_c = c_g.to_compressed(cs.ns(||"compress c_g")).unwrap();
+        c_g_c.enforce_equal(cs.ns(|| "check correct compression"), &c_g_c_correct).unwrap();
+
+        if !cs.is_satisfied() {
+            println!("{:?}", cs.which_is_unsatisfied());
         }
         assert!(cs.is_satisfied());
     }

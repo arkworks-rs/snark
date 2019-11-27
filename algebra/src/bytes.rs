@@ -11,6 +11,14 @@ pub trait FromBytes: Sized {
     fn read<R: Read>(reader: R) -> IoResult<Self>;
 }
 
+pub trait ToCompressed {
+    fn compress(&self) -> Vec<u8>;
+}
+
+pub trait FromCompressed: Sized {
+    fn decompress(compressed: Vec<u8>) -> Option<Self>;
+}
+
 macro_rules! array_bytes {
     ($N:expr) => {
         impl ToBytes for [u8; $N] {

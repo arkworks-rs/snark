@@ -660,6 +660,48 @@ mod affine_impl {
             Ok(Self::new(x, y))
         }
     }
+
+    impl<P, ConstraintF, F> HardCodedGadget<TEAffine<P>, ConstraintF> for AffineGadget<P, ConstraintF, F>
+        where
+            P: TEModelParameters,
+            ConstraintF: Field,
+            F: FieldGadget<P::BaseField, ConstraintF>,
+            Self: GroupGadget<TEAffine<P>, ConstraintF>,
+    {
+        fn alloc_hardcoded<FN, T, CS: ConstraintSystem<ConstraintF>>(
+            mut cs: CS,
+            value_gen: FN,
+        ) -> Result<Self, SynthesisError>
+            where
+                FN: FnOnce() -> Result<T, SynthesisError>,
+                T: Borrow<TEAffine<P>>,
+        {
+            let (x, y) = match value_gen() {
+                Ok(ge) => {
+                    let ge = *ge.borrow();
+                    (Ok(ge.x), Ok(ge.y))
+                },
+                _ => (
+                    Err(SynthesisError::AssignmentMissing),
+                    Err(SynthesisError::AssignmentMissing),
+                ),
+            };
+
+            let x = {
+                let mut t = F::zero(cs.ns(|| "alloc zero for x"))?;
+                t.add_constant_in_place(cs.ns(|| "hardcode x"), &x.unwrap())?;
+                t
+            };
+
+            let y = {
+                let mut t = F::zero(cs.ns(|| "alloc zero for y"))?;
+                t.add_constant_in_place(cs.ns(|| "hardcode y"), &y.unwrap())?;
+                t
+            };
+
+            Ok(Self::new(x, y))
+        }
+    }
 }
 
 mod projective_impl {
@@ -1024,27 +1066,12 @@ mod projective_impl {
                         &bits[1],
                     )?;
 
-                    let x = F::zero(cs.ns(|| format!("x in window {}, {}", segment_i, i)))?
-                        .conditionally_add_constant(
-                            cs.ns(|| format!("add bool 00 in window {}, {}", segment_i, i)),
-                            &Boolean::constant(true),
-                            x_coeffs[0],
-                        )?
-                        .conditionally_add_constant(
-                            cs.ns(|| format!("add bool 01 in window {}, {}", segment_i, i)),
-                            &bits[0],
-                            x_coeffs[1] - &x_coeffs[0],
-                        )?
-                        .conditionally_add_constant(
-                            cs.ns(|| format!("add bool 10 in window {}, {}", segment_i, i)),
-                            &bits[1],
-                            x_coeffs[2] - &x_coeffs[0],
-                        )?
-                        .conditionally_add_constant(
-                            cs.ns(|| format!("add bool 11 in window {}, {}", segment_i, i)),
-                            &precomp,
-                            x_coeffs[3] - &x_coeffs[2] - &x_coeffs[1] + &x_coeffs[0],
-                        )?;
+                    let x = F::two_bit_lookup_lc(
+                        cs.ns(|| format!("x in window {}, {}", segment_i, i)),
+                        &precomp,
+                        &[bits[0], bits[1]],
+                        &x_coeffs
+                    )?;
 
                     let y = F::three_bit_cond_neg_lookup(
                         cs.ns(|| format!("y lookup in window {}, {}", segment_i, i)),
@@ -1262,7 +1289,51 @@ mod projective_impl {
             Ok(Self::new(x, y))
         }
     }
+
+    impl<P, ConstraintF, F> HardCodedGadget<TEProjective<P>, ConstraintF> for AffineGadget<P, ConstraintF, F>
+        where
+            P: TEModelParameters,
+            ConstraintF: Field,
+            F: FieldGadget<P::BaseField, ConstraintF>,
+            Self: GroupGadget<TEProjective<P>, ConstraintF>,
+    {
+        fn alloc_hardcoded<FN, T, CS: ConstraintSystem<ConstraintF>>(
+            mut cs: CS,
+            value_gen: FN,
+        ) -> Result<Self, SynthesisError>
+            where
+                FN: FnOnce() -> Result<T, SynthesisError>,
+                T: Borrow<TEProjective<P>>,
+        {
+            let (x, y) = match value_gen() {
+                Ok(ge) => {
+                    let ge = *ge.borrow();
+                    (Ok(ge.x), Ok(ge.y))
+                },
+                _ => (
+                    Err(SynthesisError::AssignmentMissing),
+                    Err(SynthesisError::AssignmentMissing),
+                ),
+            };
+
+            let x = {
+                let mut t = F::zero(cs.ns(|| "alloc zero for x"))?;
+                t.add_constant_in_place(cs.ns(|| "hardcode x"), &x.unwrap())?;
+                t
+            };
+
+            let y = {
+                let mut t = F::zero(cs.ns(|| "alloc zero for y"))?;
+                t.add_constant_in_place(cs.ns(|| "hardcode y"), &y.unwrap())?;
+                t
+            };
+
+            Ok(Self::new(x, y))
+        }
+    }
 }
+
+
 
 impl<P, ConstraintF, F> CondSelectGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
 where
@@ -1404,5 +1475,43 @@ where
         x_bytes.extend_from_slice(&y_bytes);
 
         Ok(x_bytes)
+    }
+}
+
+use crate::ToCompressedGadget;
+
+impl<P, ConstraintF, F> ToCompressedGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
+    where
+        P: TEModelParameters,
+        ConstraintF: Field,
+        F: FieldGadget<P::BaseField, ConstraintF>,
+{
+    fn to_compressed<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
+        //Enforce x_coordinate to bytes
+        let x_to_bytes = self.x.to_bytes(cs.ns(|| "x_to_bytes"))?;
+
+        //Set correct flags
+        let zero = Boolean::constant(false);
+        let is_odd = self.y.is_odd(cs.ns(|| "odd flag"))?;
+
+        //Add flags byte to x_serialization
+        let len = x_to_bytes.len() - 1;
+        let mut p_compressed = x_to_bytes.clone();
+        let mut last_byte = p_compressed[len].clone().bits;
+
+        last_byte[7] = Boolean::or(
+            cs.ns(|| "add zero flag"),
+            &last_byte[7],
+            &zero
+        )?;
+
+        last_byte[6] = Boolean::or(
+            cs.ns(|| "add is_odd flag"),
+            &last_byte[6],
+            &is_odd
+        )?;
+
+        p_compressed[len] = UInt8::from_bits_le(&last_byte);
+        Ok(p_compressed)
     }
 }

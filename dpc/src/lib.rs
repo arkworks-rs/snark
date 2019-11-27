@@ -32,6 +32,7 @@
     private_in_public,
     unsafe_code
 )]
+/*
 #![forbid(unsafe_code)]
 #![cfg_attr(feature = "clippy", deny(warnings))]
 #![cfg_attr(feature = "clippy", feature(plugin))]
@@ -40,7 +41,7 @@
 #![cfg_attr(feature = "clippy", allow(too_many_arguments))]
 #![cfg_attr(feature = "clippy", allow(unreadable_literal))]
 #![cfg_attr(feature = "clippy", allow(many_single_char_names))]
-#![cfg_attr(feature = "clippy", allow(new_without_default_derive))]
+#![cfg_attr(feature = "clippy", allow(new_without_default_derive))]*/
 
 #[macro_use]
 extern crate bench_utils;

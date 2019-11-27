@@ -179,6 +179,31 @@ impl UInt8 {
             value: new_value,
         })
     }
+
+    /// OR this `UInt8` with another `UInt8`
+    pub fn or<ConstraintF, CS>(&self, mut cs: CS, other: &Self) -> Result<Self, SynthesisError>
+        where
+            ConstraintF: Field,
+            CS: ConstraintSystem<ConstraintF>,
+    {
+        let new_value = match (self.value, other.value) {
+            (Some(a), Some(b)) => Some(a | b),
+            _ => None,
+        };
+
+        let bits = self
+            .bits
+            .iter()
+            .zip(other.bits.iter())
+            .enumerate()
+            .map(|(i, (a, b))| Boolean::or(cs.ns(|| format!("or of bit_gadget {}", i)), a, b))
+            .collect::<Result<_, _>>()?;
+
+        Ok(Self {
+            bits,
+            value: new_value,
+        })
+    }
 }
 
 impl PartialEq for UInt8 {

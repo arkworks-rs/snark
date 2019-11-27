@@ -29,6 +29,13 @@ where
         constants: &[Self::TableConstant],
     ) -> Result<Self, SynthesisError>;
 
+    fn two_bit_lookup_lc<CS: ConstraintSystem<ConstraintF>>
+    (   cs: CS,
+        precomp: &Boolean,
+        b: &[Boolean],
+        c: &[Self::TableConstant]
+    ) -> Result<Self, SynthesisError>;
+
     fn cost() -> usize;
 }
 

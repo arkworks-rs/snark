@@ -11,6 +11,7 @@ use std::{borrow::Borrow, marker::PhantomData, ops::Neg};
 use crate::{prelude::*, Assignment};
 
 pub mod bls12;
+pub mod mnt;
 
 #[derive(Derivative)]
 #[derivative(Debug, Clone)]
@@ -144,10 +145,9 @@ where
         let x2_minus_x1 = other.x.sub(cs.ns(|| "x2 - x1"), &self.x)?;
         let y2_minus_y1 = other.y.sub(cs.ns(|| "y2 - y1"), &self.y)?;
 
-        let inv = x2_minus_x1.inverse(cs.ns(|| "compute inv"))?;
-
         let lambda = F::alloc(cs.ns(|| "lambda"), || {
-            Ok(y2_minus_y1.get_value().get()? * &inv.get_value().get()?)
+            let inv = x2_minus_x1.get_value().get()?.inverse().get()?;
+            Ok(y2_minus_y1.get_value().get()? * &inv)
         })?;
 
         let x_3 = F::alloc(&mut cs.ns(|| "x_3"), || {
@@ -221,10 +221,9 @@ where
             .sub_constant(cs.ns(|| "y2 - y1"), &other_y)?
             .negate(cs.ns(|| "neg2"))?;
 
-        let inv = x2_minus_x1.inverse(cs.ns(|| "compute inv"))?;
-
         let lambda = F::alloc(cs.ns(|| "lambda"), || {
-            Ok(y2_minus_y1.get_value().get()? * &inv.get_value().get()?)
+            let inv = x2_minus_x1.get_value().get()?.inverse().get()?;
+            Ok(y2_minus_y1.get_value().get()? * &inv)
         })?;
 
         let x_3 = F::alloc(&mut cs.ns(|| "x_3"), || {
@@ -311,7 +310,7 @@ where
     }
 
     fn cost_of_add() -> usize {
-        3 * F::cost_of_mul() + F::cost_of_inv()
+        3 * F::cost_of_mul()
     }
 
     fn cost_of_double() -> usize {
@@ -573,6 +572,43 @@ where
     }
 }
 
+impl<P, ConstraintF, F> HardCodedGadget<SWProjective<P>, ConstraintF> for AffineGadget<P, ConstraintF, F>
+    where
+        P: SWModelParameters,
+        ConstraintF: Field,
+        F: FieldGadget<P::BaseField, ConstraintF>,
+{
+    fn alloc_hardcoded<FN, T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, value_gen: FN) -> Result<Self, SynthesisError> where
+        FN: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<SWProjective<P>>
+    {
+        let (x, y) = match value_gen() {
+            Ok(ge) => {
+                let ge = ge.borrow().into_affine();
+                (Ok(ge.x), Ok(ge.y))
+            },
+            _ => (
+                Err(SynthesisError::AssignmentMissing),
+                Err(SynthesisError::AssignmentMissing),
+            ),
+        };
+
+        let x = {
+            let mut t = F::zero(cs.ns(|| "alloc zero for x"))?;
+            t.add_constant_in_place(cs.ns(|| "hardcode x"), &x.unwrap())?;
+            t
+        };
+
+        let y = {
+            let mut t = F::zero(cs.ns(|| "alloc zero for y"))?;
+            t.add_constant_in_place(cs.ns(|| "hardcode y"), &y.unwrap())?;
+            t
+        };
+
+        Ok(Self::new(x, y))
+    }
+}
+
 impl<P, ConstraintF, F> ToBitsGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
 where
     P: SWModelParameters,
@@ -634,5 +670,44 @@ where
         x_bytes.extend_from_slice(&y_bytes);
 
         Ok(x_bytes)
+    }
+}
+
+use crate::ToCompressedGadget;
+
+impl<P, ConstraintF, F> ToCompressedGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
+    where
+        P: SWModelParameters,
+        ConstraintF: Field,
+        F: FieldGadget<P::BaseField, ConstraintF>,
+{
+    fn to_compressed<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
+
+        //Enforce x_coordinate to bytes
+        let x_to_bytes = self.x.to_bytes(cs.ns(|| "x_to_bytes"))?;
+
+        //Set correct flags
+        let zero = Boolean::constant(false);
+        let is_odd = self.y.is_odd(cs.ns(|| "odd flag"))?;
+
+        //Add flags byte to x_serialization
+        let len = x_to_bytes.len() - 1;
+        let mut p_compressed = x_to_bytes.clone();
+        let mut last_byte = p_compressed[len].clone().bits;
+
+        last_byte[7] = Boolean::or(
+            cs.ns(|| "add infinity flag"),
+            &last_byte[7],
+            &zero
+        )?;
+
+        last_byte[6] = Boolean::or(
+            cs.ns(|| "add is_odd flag"),
+            &last_byte[6],
+            &is_odd
+        )?;
+
+        p_compressed[len] = UInt8::from_bits_le(&last_byte);
+        Ok(p_compressed)
     }
 }

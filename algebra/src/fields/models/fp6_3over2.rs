@@ -159,6 +159,11 @@ impl<P: Fp6Parameters> Field for Fp6<P> {
     }
 
     #[inline]
+    fn is_odd(&self) -> bool {
+        self.c1.is_odd() || ( self.c1.is_zero() && self.c0.is_odd())
+    }
+
+    #[inline]
     fn characteristic<'a>() -> &'a [u64] {
         Fp2::<P::Fp2Params>::characteristic()
     }
