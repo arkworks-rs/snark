@@ -507,7 +507,7 @@ where
         Ok(Self::new(c0, c1, c2))
     }
 
-    // 18 constaints, we can probably do better but not sure it's worth it.
+    // 18 constraints, we can probably do better but not sure it's worth it.
     #[inline]
     fn inverse<CS: ConstraintSystem<ConstraintF>>(
         &self,

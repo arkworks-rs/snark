@@ -65,61 +65,6 @@ impl<P: MNT4Parameters> ToBytesGadget<P::Fp> for G1PreparedGadget<P> {
     }
 }
 
-impl<P: MNT4Parameters> AllocGadget<G1Prepared<P>, P::Fp> for G1PreparedGadget<P> {
-
-    #[inline]
-    fn alloc<F, T, CS: ConstraintSystem<P::Fp>>(
-        mut cs: CS,
-        value_gen: F,
-    ) -> Result<Self, SynthesisError>
-        where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<G1Prepared<P>> {
-        value_gen().and_then(|g1p| {
-            let G1Prepared {
-                p,
-                py_twist_squared,
-            } = g1p.borrow().clone();
-
-            let p = G1Gadget::<P>::alloc(cs.ns(|| "alloc p"), || Ok(p.into_projective()))?;
-            let p_y_twist_squared = Fp2G::<P>::alloc(cs.ns(|| "alloc p_y_twist_squared"), || {
-                Ok(py_twist_squared)
-            })?;
-
-            Ok(Self {
-                p,
-                p_y_twist_squared,
-            })
-        })
-    }
-
-    #[inline]
-    fn alloc_input<F, T, CS: ConstraintSystem<P::Fp>>(
-        mut cs: CS,
-        value_gen: F,
-    ) -> Result<Self, SynthesisError>
-        where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<G1Prepared<P>> {
-        value_gen().and_then(|g1p| {
-            let G1Prepared {
-                p,
-                py_twist_squared,
-            } = g1p.borrow().clone();
-
-            let p = G1Gadget::<P>::alloc_input(cs.ns(|| "alloc p"), || Ok(p.into_projective()))?;
-            let p_y_twist_squared = Fp2G::<P>::alloc_input(cs.ns(|| "alloc p_y_twist_squared"), || {
-                Ok(py_twist_squared)
-            })?;
-
-            Ok(Self {
-                p,
-                p_y_twist_squared,
-            })
-        })
-    }
-}
-
 impl<P: MNT4Parameters> HardCodedGadget<G1Prepared<P>, P::Fp> for G1PreparedGadget<P> {
     #[inline]
     fn alloc_hardcoded<F, T, CS: ConstraintSystem<P::Fp>>(mut cs: CS, value_gen: F) -> Result<Self, SynthesisError> where
@@ -170,63 +115,6 @@ impl<P: MNT4Parameters> ToBytesGadget<P::Fp> for G2CoefficientsGadget<P> {
 
     fn to_bytes_strict<CS: ConstraintSystem<P::Fp>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
         self.to_bytes(cs.ns(|| "to_bytes AteDoubleCoefficients"))
-    }
-}
-
-impl<P: MNT4Parameters> AllocGadget<G2PreparedCoefficients<P>, P::Fp> for G2CoefficientsGadget<P> {
-
-    #[inline]
-    fn alloc<F, T, CS: ConstraintSystem<P::Fp>>(
-        mut cs: CS,
-        value_gen: F,
-    ) -> Result<Self, SynthesisError>
-        where
-            F: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<G2PreparedCoefficients<P>> {
-        value_gen().and_then(|g2pc| {
-            let G2PreparedCoefficients {
-                r_y,
-                gamma,
-                gamma_x,
-            } = g2pc.borrow().clone();
-
-            let r_y = Fp2G::<P>::alloc(cs.ns(|| "alloc r_y"), || Ok(r_y))?;
-            let gamma = Fp2G::<P>::alloc(cs.ns(|| "alloc gamma"), || Ok(gamma))?;
-            let gamma_x = Fp2G::<P>::alloc(cs.ns(|| "alloc gamma_x"), || Ok(gamma_x))?;
-
-            Ok(Self {
-                r_y,
-                gamma,
-                gamma_x,
-            })
-        })
-    }
-
-    #[inline]
-    fn alloc_input<F, T, CS: ConstraintSystem<P::Fp>>(
-        mut cs: CS,
-        value_gen: F,
-    ) -> Result<Self, SynthesisError>
-        where
-            F: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<G2PreparedCoefficients<P>> {
-        value_gen().and_then(|g2pc| {
-            let G2PreparedCoefficients {
-                r_y,
-                gamma,
-                gamma_x,
-            } = g2pc.borrow().clone();
-
-            let r_y = Fp2G::<P>::alloc_input(cs.ns(|| "alloc r_y"), || Ok(r_y))?;
-            let gamma = Fp2G::<P>::alloc_input(cs.ns(|| "alloc gamma"), || Ok(gamma))?;
-            let gamma_x = Fp2G::<P>::alloc_input(cs.ns(|| "alloc gamma_x"), || Ok(gamma_x))?;
-
-            Ok(Self {
-                r_y,
-                gamma,
-                gamma_x,
-            })
-        })
     }
 }
 
@@ -450,76 +338,6 @@ impl<P: MNT4Parameters> ToBytesGadget<P::Fp> for G2PreparedGadget<P>
 
     fn to_bytes_strict<CS: ConstraintSystem<P::Fp>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
         self.to_bytes(cs.ns(|| "to_bytes_g2_prepared"))
-    }
-}
-
-impl<P: MNT4Parameters> AllocGadget<G2Prepared<P>, P::Fp> for G2PreparedGadget<P> {
-
-    #[inline]
-    fn alloc<F, T, CS: ConstraintSystem<P::Fp>>(
-        mut cs: CS,
-        value_gen: F,
-    ) -> Result<Self, SynthesisError>
-        where
-            F: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<G2Prepared<P>> {
-        value_gen().and_then(|g2p| {
-            let G2Prepared {
-                q,
-                coeffs,
-            } = g2p.borrow().clone();
-
-            let q = G2Gadget::<P>::alloc(cs.ns(|| "alloc q"), || Ok(q.into_projective()))?;
-            let coeffs = coeffs
-                .into_iter()
-                .enumerate()
-                .map(|(i, query_i)| {
-                     G2CoefficientsGadget::<P>::alloc(cs.ns(|| format!("coeff_{}", i)), || {
-                        Ok(query_i)
-                    })
-                })
-                .collect::<Vec<_>>()
-                .into_iter()
-                .collect::<Result<_, _>>()?;
-
-            Ok(Self {
-                q,
-                coeffs
-            })
-        })
-    }
-
-    #[inline]
-    fn alloc_input<F, T, CS: ConstraintSystem<P::Fp>>(
-        mut cs: CS,
-        value_gen: F,
-    ) -> Result<Self, SynthesisError>
-        where
-            F: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<G2Prepared<P>> {
-        value_gen().and_then(|g2p| {
-            let G2Prepared {
-                q,
-                coeffs,
-            } = g2p.borrow().clone();
-
-            let q = G2Gadget::<P>::alloc_input(cs.ns(|| "alloc q"), || Ok(q.into_projective()))?;
-            let coeffs = coeffs
-                .into_iter()
-                .enumerate()
-                .map(|(i, query_i)| {
-                    G2CoefficientsGadget::<P>::alloc_input(cs.ns(|| format!("coeff_{}", i)), || {
-                        Ok(query_i)
-                    })
-                })
-                .collect::<Vec<_>>()
-                .into_iter()
-                .collect::<Result<_, _>>()?;
-            Ok(Self {
-                q,
-                coeffs,
-            })
-        })
     }
 }
 

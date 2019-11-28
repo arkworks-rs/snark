@@ -506,13 +506,12 @@ impl<P, ConstraintF: PrimeField + SquareRootField> FieldGadget<Fp4<P>, Constrain
         Ok(self)
     }
 
-    //TBD
     fn cost_of_mul() -> usize {
-       unimplemented!()
+        3 * Fp2Gadget::<P, ConstraintF>::cost_of_mul()
     }
 
     fn cost_of_inv() -> usize {
-        Self::cost_of_mul() + <Self as EqGadget<ConstraintF>>::cost()
+        2 * Fp2Gadget::<P, ConstraintF>::cost_of_mul()
     }
 }
 

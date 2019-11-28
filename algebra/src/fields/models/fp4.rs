@@ -461,12 +461,6 @@ impl<'a, P: Fp4Parameters> DivAssign<&'a Self> for Fp4<P> {
     }
 }
 
-impl<'a, P: Fp4Parameters> From<&'a [bool]> for Fp4<P> {
-    fn from(_bits: &[bool]) -> Self {
-        unimplemented!()
-    }
-}
-
 impl<P: Fp4Parameters> ::std::fmt::Display for Fp4<P> {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         write!(f, "Fp4({}, {})", self.c0, self.c1)

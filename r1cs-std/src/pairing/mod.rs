@@ -18,12 +18,10 @@ pub trait PairingGadget<PairingE: PairingEngine, ConstraintF: Field> {
 
     type G1PreparedGadget:
     HardCodedGadget<<PairingE::G1Affine as PairingCurve>::Prepared, ConstraintF> +
-    AllocGadget<<PairingE::G1Affine as PairingCurve>::Prepared, ConstraintF> +
     ToBytesGadget<ConstraintF> + Clone + Debug;
 
     type G2PreparedGadget:
     HardCodedGadget<<PairingE::G2Affine as PairingCurve>::Prepared, ConstraintF> +
-    AllocGadget<<PairingE::G2Affine as PairingCurve>::Prepared, ConstraintF> +
     ToBytesGadget<ConstraintF> + Clone + Debug;
 
     type GTGadget: FieldGadget<PairingE::Fqk, ConstraintF> + Clone + ToCompressedGadget<ConstraintF>;

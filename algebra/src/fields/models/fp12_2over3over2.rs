@@ -10,7 +10,7 @@ use std::{
 use crate::{
     bytes::{FromBytes, ToBytes},
     fields::{fp6_3over2::*, Field, Fp2, Fp2Parameters},
-    BitIterator,
+    BitIterator, to_bytes,
 };
 
 pub trait Fp12Parameters: 'static + Send + Sync + Copy {
@@ -485,7 +485,16 @@ impl<P: Fp12Parameters> FromBytes for Fp12<P> {
 impl<P: Fp12Parameters> ToCompressed for Fp12<P> {
     #[inline]
     fn compress(&self) -> Vec<u8> {
-        unimplemented!()
+        //Serialize c1
+        let mut res = to_bytes!(self.c1).unwrap();
+        let len = res.len() - 1;
+
+        let lexicographically_largest = self.c0.is_odd();
+
+        //Set the MSB to indicate the sign of c0
+        let greater = if lexicographically_largest {1u8 << 7} else {0u8};
+        res[len] |= greater;
+        res
     }
 }
 

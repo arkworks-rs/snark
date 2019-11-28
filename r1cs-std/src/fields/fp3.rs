@@ -103,8 +103,8 @@ impl<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootFie
         mut cs: CS,
     ) -> Result<Boolean, SynthesisError> {
         let zero = FpGadget::zero(cs.ns(|| "alloc zero"))?;
-        self.c1.enforce_not_equal(cs.ns(|| "enforce c1 not zero"), &zero)?;
-        self.c1.is_odd(cs.ns(|| "check c1 odd"))
+        self.c2.enforce_not_equal(cs.ns(|| "enforce c2 not zero"), &zero)?;
+        self.c2.is_odd(cs.ns(|| "check c2 odd"))
     }
 
     #[inline]
@@ -308,135 +308,6 @@ impl<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootFie
             result
         };
         Ok(Self::new(c0, c1, c2))
-    }
-
-    #[inline]
-    fn mul_equals<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        mut cs: CS,
-        other: &Self,
-        result: &Self,
-    ) -> Result<(), SynthesisError> {
-
-        // v0 = a(0)b(0)   = a0 * b0
-        let v0 = self.c0.mul(&mut cs.ns(|| "Compute v0"), &other.c0)?;
-
-        // v1 = a(1)b(1)   = (a0 + a1 + a2)(b0 + b1 + b2)
-        let a0_plus_a1_plus_a2 = self
-            .c0
-            .add(cs.ns(|| "a0 + a1"), &self.c1)?
-            .add(cs.ns(|| "a0 + a1 + a2"), &self.c2)?;
-        let b0_plus_b1_plus_b2 = other
-            .c0
-            .add(cs.ns(|| "b0 + b1"), &other.c1)?
-            .add(cs.ns(|| "b0 + b1 + b2"), &other.c2)?;
-
-        // v2 = a(−1)b(−1) = (a0 − a1 + a2)(b0 − b1 + b2)
-        let v2 = {
-            let mut v2_cs = cs.ns(|| "compute v2");
-
-            let a0_minus_a1_plus_a2 = self
-                .c0
-                .sub(v2_cs.ns(|| "a0 - a1"), &self.c1)?
-                .add(v2_cs.ns(|| "a0 - a1 + a2"), &self.c2)?;
-
-            let b0_minus_b1_plus_b2 = other
-                .c0
-                .sub(v2_cs.ns(|| "b0 - b1"), &other.c1)?
-                .add(v2_cs.ns(|| "b0 - b1 + b2"), &other.c2)?;
-
-            a0_minus_a1_plus_a2.mul(
-                v2_cs.ns(|| "(a0 - a1 + a2)(b0 - b1 + b2)"),
-                &b0_minus_b1_plus_b2,
-            )?
-        };
-
-        // v3 = a(2)b(2)   = (a0 + 2a1 + 4a2)(b0 + 2b1 + 4b2)
-        let v3 = {
-            let v3_cs = &mut cs.ns(|| "compute v3");
-
-            let a1_double = self.c1.double(v3_cs.ns(|| "2 * a1"))?;
-            let a2_quad = self
-                .c2
-                .double(v3_cs.ns(|| "2 * a2"))?
-                .double(v3_cs.ns(|| "4 * a2"))?;
-
-            let a0_plus_2_a1_plus_4_a2 = self
-                .c0
-                .add(v3_cs.ns(|| "a0 + 2a1"), &a1_double)?
-                .add(v3_cs.ns(|| "a0 + 2a1 + 4a2"), &a2_quad)?;
-
-            let b1_double = other.c1.double(v3_cs.ns(|| "2 * b1"))?;
-            let b2_quad = other
-                .c2
-                .double(v3_cs.ns(|| "2 * b2"))?
-                .double(v3_cs.ns(|| "4 * b2"))?;
-            let b0_plus_2_b1_plus_4_b2 = other
-                .c0
-                .add(v3_cs.ns(|| "b0 + 2b1"), &b1_double)?
-                .add(v3_cs.ns(|| "b0 + 2b1 + 4b2"), &b2_quad)?;
-
-            a0_plus_2_a1_plus_4_a2.mul(
-                v3_cs.ns(|| "(a0 + 2a1 + 4a2)(b0 + 2b1 + 4b2)"),
-                &b0_plus_2_b1_plus_4_b2,
-            )?
-        };
-
-        // v4 = a(∞)b(∞)   = a2 * b2
-        let v4 = self.c2.mul(cs.ns(|| "v2: a2 * b2"), &other.c2)?;
-
-        //Create constants we need
-        let one = P::Fp::one();
-        let two = one.double();
-        let four = two.double();
-        let three = two + &one;
-        let six = three.double();
-
-        let mut v = [two, three, six, P::NONRESIDUE];
-        algebra::fields::batch_inversion(&mut v);
-        let (two_inverse, three_inverse, six_inverse, beta_inverse) = (v[0], v[1], v[2], v[3]);
-
-        let one_over_two = one * &two_inverse;
-        let one_over_three = one * &three_inverse;
-        let one_over_six = one * &six_inverse;
-
-        //Check c2
-        let two_v0 = v0.mul_by_constant(cs.ns(|| "2v0"), &two)?;
-        let two_v4 = v4.mul_by_constant(cs.ns(|| "2v4"), &two)?;
-        let two_c2 = result.c2.mul_by_constant(cs.ns(|| "2c2"), &two)?;
-        let to_check = two_v0
-            .sub(cs.ns(|| "2v0 - v2"), &v2)?
-            .add(cs.ns(|| "2v0 - v2 + 2v4"), &two_v4)?
-            .add(cs.ns(|| "2v0 - v2 + 2v4 + 2 res.c2"), &two_c2)?;
-        a0_plus_a1_plus_a2.mul_equals(cs.ns(|| "check res.c2"), &b0_plus_b1_plus_b2, &to_check)?;
-
-        //Check c1
-        let v0_over_two = v0.mul_by_constant(cs.ns(|| "v0 div 2"), &one_over_two)?;
-        let v2_over_three = v2.mul_by_constant(cs.ns(|| "v2 div 3"), &one_over_three)?;
-        let v3_over_six = v3.mul_by_constant(cs.ns(|| "v3 div 6"), &one_over_six)?;
-        let c_v4 = v4.mul_by_constant(cs.ns(|| " v4 * (2 + beta)"), &(two + &P::NONRESIDUE))?;
-        let to_check = v0_over_two
-            .add(cs.ns(|| "c1: add1"), &v2_over_three)?
-            .add(cs.ns(|| "c1: add2"), &v3_over_six)?
-            .sub(cs.ns(|| "c1: sub3"), &c_v4)?
-            .add(cs.ns(|| "c1: add4"), &result.c1)?;
-        a0_plus_a1_plus_a2.mul_equals(cs.ns(|| "check res.c1"), &b0_plus_b1_plus_b2, &to_check)?;
-
-        //Check c0
-        let two_over_beta = two * &beta_inverse;
-        let two_over_beta_plus_one = two_over_beta + &one;
-        let two_over_beta_plus_one_times_v0 = v0.mul_by_constant(cs.ns(|| "(two_div_beta + 1) * v0"), &two_over_beta_plus_one)?;
-        let v3_over_three = v3.mul_by_constant(cs.ns(|| "v3_div_3"), &one_over_three)?;
-        let four_v4 = v4.mul_by_constant(cs.ns(|| "4v4"), &four)?;
-        let two_over_beta_times_c0 = result.c0.mul_by_constant(cs.ns(|| "two_div_beta * res.c0"), &two_over_beta)?;
-        let to_check = two_over_beta_plus_one_times_v0
-            .sub(cs.ns(|| "c0: sub1"), &v2_over_three)?
-            .add(cs.ns(|| "c0: add2"), &v3_over_three)?
-            .sub(cs.ns(|| "c0: sub3"), &four_v4)?
-            .sub(cs.ns(|| "c0: sub4"), &two_over_beta_times_c0)?;
-        a0_plus_a1_plus_a2.mul_equals(cs.ns(|| "check res.c0"), &b0_plus_b1_plus_b2, &to_check)?;
-
-        Ok(())
     }
 
     /// Use the Toom-Cook-3x method to compute multiplication.
@@ -693,7 +564,7 @@ impl<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootFie
         Ok(Self::new(c0, c1, c2))
     }
 
-    //Must find a better implementation (even if we are not really using it, because we adopt non determinism)
+    //8 constraints, we can probably do better but not sure it's worth it.
     #[inline]
     fn inverse<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Self, SynthesisError> {
         let inverse = Self::alloc(&mut cs.ns(|| "alloc inverse"), || {
