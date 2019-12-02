@@ -39,7 +39,7 @@ impl<P: Bls12Parameters> PairingGadget<P> {
             TwistType::M => {
                 let c0 = coeffs.0.clone();
                 let mut c1 = coeffs.1.clone();
-                let c2 = Fp2G::<P>::new(p.y.clone(), zero.clone());
+                let c2 = Fp2G::<P>::new(p.y.clone(), zero);
 
                 c1.c0 = c1.c0.mul(cs.ns(|| "mul c1.c0"), &p.x)?;
                 c1.c1 = c1.c1.mul(cs.ns(|| "mul c1.c1"), &p.x)?;
@@ -47,7 +47,7 @@ impl<P: Bls12Parameters> PairingGadget<P> {
                 Ok(())
             },
             TwistType::D => {
-                let c0 = Fp2G::<P>::new(p.y.clone(), zero.clone());
+                let c0 = Fp2G::<P>::new(p.y.clone(), zero);
                 let mut c1 = coeffs.0.clone();
                 let c2 = coeffs.1.clone();
 

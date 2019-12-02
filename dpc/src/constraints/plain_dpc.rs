@@ -255,7 +255,7 @@ where
 
             let given_commitment =
                 RecCGadget::OutputGadget::alloc(&mut declare_cs.ns(|| "Commitment"), || {
-                    Ok(record.commitment().clone())
+                    Ok(record.commitment())
                 })?;
             old_rec_comms.push(given_commitment.clone());
 

@@ -73,8 +73,8 @@ fn test_execute_constraint_systems() {
     );
 
     // Set the input records for our transaction to be the initial dummy records.
-    let old_records = vec![genesis_record.clone(); NUM_INPUT_RECORDS];
-    let old_asks = vec![genesis_address.secret_key.clone(); NUM_INPUT_RECORDS];
+    let old_records = vec![genesis_record; NUM_INPUT_RECORDS];
+    let old_asks = vec![genesis_address.secret_key; NUM_INPUT_RECORDS];
 
     // Construct new records.
 
@@ -86,12 +86,12 @@ fn test_execute_constraint_systems() {
     // Create a payload.
     let new_payload = [1u8; 32];
     // Set the new record's predicate to be the "always-accept" predicate.
-    let new_predicate = Predicate::new(pred_nizk_vk_bytes.clone());
+    let new_predicate = Predicate::new(pred_nizk_vk_bytes);
 
-    let new_apks = vec![new_address.public_key.clone(); NUM_OUTPUT_RECORDS];
+    let new_apks = vec![new_address.public_key; NUM_OUTPUT_RECORDS];
     let new_payloads = vec![new_payload.clone(); NUM_OUTPUT_RECORDS];
     let new_birth_predicates = vec![new_predicate.clone(); NUM_OUTPUT_RECORDS];
-    let new_death_predicates = vec![new_predicate.clone(); NUM_OUTPUT_RECORDS];
+    let new_death_predicates = vec![new_predicate; NUM_OUTPUT_RECORDS];
     let new_dummy_flags = vec![false; NUM_OUTPUT_RECORDS];
     let auxiliary = [122u8; 32];
     let memo = [238u8; 32];

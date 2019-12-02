@@ -212,7 +212,7 @@ impl<ConstraintF: Field> ConstraintSystem<ConstraintF> for TestConstraintSystem<
     {
         let name = name_fn().into();
         let path = compute_path(&self.current_namespace, name.clone());
-        self.set_named_obj(path.clone(), NamedObject::Namespace);
+        self.set_named_obj(path, NamedObject::Namespace);
         self.current_namespace.push(name);
     }
 
