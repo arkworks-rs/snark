@@ -983,11 +983,11 @@ mod projective_impl {
 
             // Compute ∏(h_i^{m_i}) for all i.
             for (segment_i, (segment_bits_chunks, segment_powers)) in
-                scalars.into_iter().zip(bases.iter()).enumerate()
+                scalars.iter().zip(bases.iter()).enumerate()
             {
                 for (i, (bits, base_power)) in segment_bits_chunks
                     .borrow()
-                    .into_iter()
+                    .iter()
                     .zip(segment_powers.borrow().iter())
                     .enumerate()
                 {

@@ -60,7 +60,7 @@ impl UInt8 {
         T: Into<Option<u8>> + Copy,
     {
         let mut output_vec = Vec::with_capacity(values.len());
-        for (i, value) in values.into_iter().enumerate() {
+        for (i, value) in values.iter().enumerate() {
             let byte: Option<u8> = Into::into(*value);
             let alloc_byte = Self::alloc(&mut cs.ns(|| format!("byte_{}", i)), || byte.get())?;
             output_vec.push(alloc_byte);
@@ -115,7 +115,7 @@ impl UInt8 {
     /// LSB-first means that we can easily get the corresponding field element
     /// via double and add.
     pub fn into_bits_le(&self) -> Vec<Boolean> {
-        self.bits.iter().cloned().collect()
+        self.bits.to_vec()
     }
 
     /// Converts a little-endian byte order representation of bits into a
@@ -317,7 +317,7 @@ mod test {
     #[test]
     fn test_uint8_alloc_input_vec() {
         let mut cs = TestConstraintSystem::<Fr>::new();
-        let byte_vals = (64u8..128u8).into_iter().collect::<Vec<_>>();
+        let byte_vals = (64u8..128u8).collect::<Vec<_>>();
         let bytes = UInt8::alloc_input_vec(cs.ns(|| "alloc value"), &byte_vals).unwrap();
         for (native_byte, gadget_byte) in byte_vals.into_iter().zip(bytes) {
             let bits = gadget_byte.into_bits_le();

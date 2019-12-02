@@ -217,7 +217,7 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
         bits: &[Boolean],
     ) -> Result<Self, SynthesisError> {
         let mut res = Self::one(cs.ns(|| "Alloc result"))?;
-        for (i, bit) in bits.into_iter().enumerate() {
+        for (i, bit) in bits.iter().enumerate() {
             res = res.square(cs.ns(|| format!("Double {}", i)))?;
             let tmp = res.mul(cs.ns(|| format!("Add {}-th base power", i)), self)?;
             res = Self::conditionally_select(

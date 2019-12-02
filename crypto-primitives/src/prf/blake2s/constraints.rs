@@ -482,7 +482,7 @@ impl<ConstraintF: PrimeField> PRFGadget<Blake2s, ConstraintF> for Blake2sGadget 
         assert_eq!(seed.len(), 32);
         // assert_eq!(input.len(), 32);
         let mut gadget_input = Vec::with_capacity(512);
-        for byte in seed.into_iter().chain(input) {
+        for byte in seed.iter().chain(input) {
             gadget_input.extend_from_slice(&byte.into_bits_le());
         }
         let mut result = Vec::new();

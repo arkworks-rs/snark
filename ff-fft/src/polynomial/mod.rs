@@ -96,7 +96,7 @@ impl<F: Field> DenseOrSparsePolynomial<'_, F> {
     #[inline]
     fn iter_with_index<'a>(&'a self) -> Vec<(usize, F)> {
         match self {
-            SPolynomial(p) => p.coeffs.iter().cloned().collect(),
+            SPolynomial(p) => p.coeffs.to_vec(),
             DPolynomial(p) => p.iter().cloned().enumerate().collect(),
         }
     }

@@ -104,7 +104,7 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send {
         G2: Into<Self::G2Affine>,
     {
         Self::final_exponentiation(&Self::miller_loop(
-            [(&(p.into().prepare()), &(q.into().prepare()))].into_iter(),
+            [(&(p.into().prepare()), &(q.into().prepare()))].iter(),
         ))
         .unwrap()
     }
