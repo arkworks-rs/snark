@@ -460,7 +460,7 @@ mod test {
         maxpower: usize,
     ) {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-        for i in 0..(maxpower + 1) {
+        for i in 0..=maxpower {
             let mut a = FE::rand(&mut rng);
             let mut a_gadget = F::alloc(cs.ns(|| format!("a_gadget_{:?}", i)), || Ok(a)).unwrap();
             a_gadget = a_gadget

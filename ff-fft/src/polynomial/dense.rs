@@ -121,7 +121,7 @@ impl<F: Field> DensePolynomial<F> {
     /// from the field `F`.
     pub fn rand<R: Rng>(d: usize, rng: &mut R) -> Self {
         let mut random_coeffs = Vec::new();
-        for _ in 0..(d + 1) {
+        for _ in 0..=d {
             random_coeffs.push(F::rand(rng));
         }
         Self::from_coefficients_vec(random_coeffs)

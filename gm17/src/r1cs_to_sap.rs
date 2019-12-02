@@ -75,7 +75,7 @@ impl R1CStoSAP {
         a[0].add_assign(&u[extra_constr_offset]);
         c[0].add_assign(&u[extra_constr_offset]);
 
-        for i in 1..(assembly.num_inputs - 1) + 1 {
+        for i in 1..assembly.num_inputs {
             // First extra constraint
 
             a[i].add_assign(&u[extra_constr_offset + 2 * i - 1]);
