@@ -205,7 +205,7 @@ impl UInt32 {
                         all_constants = false;
 
                         // Add coeff * bit_gadget
-                        lc = lc + (coeff, bit.get_variable());
+                        lc += (coeff, bit.get_variable());
                     },
                     Boolean::Not(ref bit) => {
                         all_constants = false;
@@ -215,7 +215,7 @@ impl UInt32 {
                     },
                     Boolean::Constant(bit) => {
                         if bit {
-                            lc = lc + (coeff, CS::one());
+                            lc += (coeff, CS::one());
                         }
                     },
                 }

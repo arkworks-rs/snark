@@ -241,7 +241,7 @@ impl MNT6 {
                     ac.c_rz * &p.y_twist,
                     -(q.y_over_twist * &ac.c_rz + &(l1_coeff * &ac.c_l1)),
                 );
-                f = f * &g_rq_at_p;
+                f *= &g_rq_at_p;
             }
         }
 
@@ -272,7 +272,7 @@ impl MNT6 {
         let mut elt_q3 = elt.clone();
         elt_q3.frobenius_map(3);
         // elt_q3_over_elt = elt^(q^3-1)
-        let elt_q3_over_elt = elt_q3 * &elt_inv;
+        let elt_q3_over_elt = elt_q3 * elt_inv;
         // alpha = elt^((q^3-1) * q)
         let mut alpha = elt_q3_over_elt.clone();
         alpha.frobenius_map(1);

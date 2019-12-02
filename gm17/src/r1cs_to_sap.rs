@@ -49,7 +49,7 @@ impl R1CStoSAP {
                     Index::Aux(i) => assembly.num_inputs + i,
                 };
 
-                a[index] += &(u_add * &coeff);
+                a[index] += &(u_add * coeff);
             }
 
             for &(ref coeff, index) in assembly.bt[i].iter() {
@@ -58,7 +58,7 @@ impl R1CStoSAP {
                     Index::Aux(i) => assembly.num_inputs + i,
                 };
 
-                a[index] += &(u_sub * &coeff);
+                a[index] += &(u_sub * coeff);
             }
 
             for &(ref coeff, index) in assembly.ct[i].iter() {
@@ -67,7 +67,7 @@ impl R1CStoSAP {
                     Index::Aux(i) => assembly.num_inputs + i,
                 };
 
-                c[index] += &((u_2i * &coeff).double().double());
+                c[index] += &((u_2i * coeff).double().double());
             }
             c[extra_var_offset + i].add_assign(&u_add);
         }
