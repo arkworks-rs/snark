@@ -308,10 +308,11 @@ where
     fn is_odd<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
+        in_field: bool,
     ) -> Result<Boolean, SynthesisError> {
         let zero = Fp6Gadget::<P, ConstraintF>::zero(cs.ns(|| "alloc zero"))?;
         self.c1.enforce_not_equal(cs.ns(|| "enforce c1 not zero"), &zero)?;
-        self.c1.is_odd(cs.ns(|| "check c1 odd"))
+        self.c1.is_odd(cs.ns(|| "check c1 odd"), in_field)
     }
 
     #[inline]
@@ -757,28 +758,6 @@ impl<P, ConstraintF: PrimeField + SquareRootField> ToCompressedGadget<Constraint
         P: Fp12Parameters,
         <P::Fp6Params as Fp6Parameters>::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
 {
-    fn to_compressed<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
-
-        //Enforce c1 to bytes
-        let c1_to_bytes = self.c1.to_bytes(cs.ns(|| "c1_to_bytes"))?;
-
-        //Set correct flags
-        let is_odd = self.c0.is_odd(cs.ns(|| "odd flag"))?;
-
-        //Add flags byte to x_serialization
-        let len = c1_to_bytes.len() - 1;
-        let mut f_compressed = c1_to_bytes.clone();
-        let mut last_byte = f_compressed[len].clone().bits;
-
-        last_byte[7] = Boolean::or(
-            cs.ns(|| "add is_odd flag"),
-            &last_byte[7],
-            &is_odd
-        )?;
-
-        f_compressed[len] = UInt8::from_bits_le(&last_byte);
-        Ok(f_compressed)
-    }
 }
 
 impl<P, ConstraintF: PrimeField + SquareRootField> ToBytesGadget<ConstraintF> for Fp12Gadget<P, ConstraintF>

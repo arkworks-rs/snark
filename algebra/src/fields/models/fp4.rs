@@ -97,6 +97,7 @@ impl<P: Fp4Parameters> Fp4<P> {
         res
     }
 
+    //Mul by an element of the form (c0: [c0, 0] c1: [c2, c3])
     pub fn mul_by_023(self, other: &Self) -> Self
     {
         let v0 =
@@ -306,11 +307,9 @@ impl<P: Fp4Parameters> ToCompressed for Fp4<P> {
         let mut res = to_bytes!(self.c1).unwrap();
         let len = res.len() - 1;
 
-        let lexicographically_largest = self.c0.is_odd();
-
-        //Set the MSB to indicate the sign of c0
-        let greater = if lexicographically_largest {1u8 << 7} else {0u8};
-        res[len] |= greater;
+        //Set the MSB to indicate the parity of c0
+        let parity = if self.c0.is_odd() {1u8 << 7} else {0u8};
+        res[len] |= parity;
         res
     }
 }
@@ -320,7 +319,7 @@ impl<P: Fp4Parameters> FromCompressed for Fp4<P> {
     #[inline]
     fn decompress(compressed: Vec<u8>) -> Option<Self> {
         let len = compressed.len() - 1;
-        let sort_flag_set = bool::read([(compressed[len] >> 7) & 1].as_ref()).unwrap();
+        let parity_flag_set = bool::read([(compressed[len] >> 7) & 1].as_ref()).unwrap();
 
         //Mask away the flag bits and try to get the c1 component
         let val = {
@@ -340,10 +339,10 @@ impl<P: Fp4Parameters> FromCompressed for Fp4<P> {
 
                 match c0 {
 
-                    //Estabilish c0 sign
+                    //Estabilish c0 parity
                     Some(c0_u) => {
                         let neg_c0u = c0_u.neg();
-                        let c0_s = if !c0_u.is_odd() ^ sort_flag_set {c0_u} else {neg_c0u};
+                        let c0_s = if c0_u.is_odd() ^ parity_flag_set {neg_c0u} else {c0u};
                         Some(Self::new(c0_s, c1))
                     },
 

@@ -47,7 +47,8 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
     #[inline]
     fn is_odd<CS: ConstraintSystem<ConstraintF>>(
         &self,
-        _: CS
+        cs: CS,
+        in_field: bool,
     ) -> Result<Boolean, SynthesisError>;
 
     fn conditionally_add_constant<CS: ConstraintSystem<ConstraintF>>(
@@ -522,7 +523,6 @@ mod test {
         field_test(cs.ns(|| "test_fq12"), c, d);
         random_frobenius_tests::<Fq12, _, Fq12Gadget, _>(cs.ns(|| "test_frob_fq12"), 13);
         if !cs.is_satisfied() {
-            println!("Here!");
             println!("{:?}", cs.which_is_unsatisfied().unwrap());
         }
 
@@ -668,7 +668,7 @@ mod test {
         let c_g_c_correct = UInt8::alloc_vec(cs.ns(|| "alloc c compressed correct"), &c_c).unwrap();
 
         let c_g = Fq4Gadget::alloc(cs.ns(|| "alloc c"), || Ok(c)).unwrap();
-        let c_g_c = c_g.to_compressed(cs.ns(||"compress c_g")).unwrap();
+        let c_g_c = c_g.to_compressed(cs.ns(||"compress c_g"), rand::random(), rand::random()).unwrap();
         c_g_c.enforce_equal(cs.ns(|| "check correct compression"), &c_g_c_correct).unwrap();
 
         if !cs.is_satisfied() {
@@ -687,7 +687,7 @@ mod test {
         let c_g_c_correct = UInt8::alloc_vec(cs.ns(|| "alloc c compressed correct"), &c_c).unwrap();
 
         let c_g = Fq6Gadget::alloc(cs.ns(|| "alloc c"), || Ok(c)).unwrap();
-        let c_g_c = c_g.to_compressed(cs.ns(||"compress c_g")).unwrap();
+        let c_g_c = c_g.to_compressed(cs.ns(||"compress c_g"), rand::random(), rand::random()).unwrap();
         c_g_c.enforce_equal(cs.ns(|| "check correct compression"), &c_g_c_correct).unwrap();
 
         if !cs.is_satisfied() {

@@ -112,10 +112,11 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootFie
     fn is_odd<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
+        in_field: bool,
     ) -> Result<Boolean, SynthesisError> {
         let zero = FpGadget::zero(cs.ns(|| "alloc zero"))?;
         self.c1.enforce_not_equal(cs.ns(|| "enforce c1 not zero"), &zero)?;
-        self.c1.is_odd(cs.ns(|| "check c1 odd"))
+        self.c1.is_odd(cs.ns(|| "check c1 odd"), in_field)
     }
 
     #[inline]

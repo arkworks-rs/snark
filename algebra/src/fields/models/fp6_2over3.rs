@@ -427,11 +427,9 @@ impl<P: Fp6Parameters> ToCompressed for Fp6<P> {
         let mut res = to_bytes!(self.c1).unwrap();
         let len = res.len() - 1;
 
-        let lexicographically_largest = self.c0.is_odd();
-
-        //Set the MSB to indicate the sign of c0
-        let greater = if lexicographically_largest {1u8 << 7} else {0u8};
-        res[len] |= greater;
+        //Set the MSB to indicate the parity of c0
+        let parity = if self.c0.is_odd() {1u8 << 7} else {0u8};
+        res[len] |= parity;
         res
     }
 }
@@ -441,7 +439,7 @@ impl<P: Fp6Parameters> FromCompressed for Fp6<P> {
     #[inline]
     fn decompress(compressed: Vec<u8>) -> Option<Self> {
         let len = compressed.len() - 1;
-        let sort_flag_set = bool::read([(compressed[len] >> 7) & 1].as_ref()).unwrap();
+        let parity_flag_set = bool::read([(compressed[len] >> 7) & 1].as_ref()).unwrap();
 
         //Mask away the flag bits and try to get the c1 component
         let val = {
@@ -464,7 +462,7 @@ impl<P: Fp6Parameters> FromCompressed for Fp6<P> {
                     //Estabilish c0 sign
                     Some(c0_u) => {
                         let neg_c0u = c0_u.neg();
-                        let c0_s = if !c0_u.is_odd() ^ sort_flag_set {c0_u} else {neg_c0u};
+                        let c0_s = if c0_u.is_odd() ^ parity_flag_set {neg_c0u} else {c0_u};
                         Some(Self::new(c0_s, c1))
                     },
 

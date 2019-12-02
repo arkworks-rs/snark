@@ -99,10 +99,22 @@ pub trait ToBytesGadget<ConstraintF: Field> {
     ) -> Result<Vec<UInt8>, SynthesisError>;
 }
 
-pub trait ToCompressedGadget<ConstraintF: Field> {
-    fn to_compressed<CS: ConstraintSystem<ConstraintF>>(&self, cs: CS) -> Result<Vec<UInt8>, SynthesisError>;
-}
+pub trait ToCompressedGadget<ConstraintF: Field>: ToBytesGadget<ConstraintF> {
 
+    /// Enforce compression of a group point through serialization of the x coordinate and storing
+    /// a sign bit for the y coordinate. For GT elements we assume x <-> c1 and y <-> c0 to avoid
+    /// confusion. When enforcing byte serialization of a field element, "x_in_field" and "y_in_field"
+    /// flags could be set in order to enforce too that their bit representation is under the
+    /// field modulus (default behaviour is both set to false).
+    fn to_compressed<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        _x_in_field: bool,
+        _y_in_field: bool
+    ) -> Result<Vec<UInt8>, SynthesisError> {
+        self.to_bytes(cs.ns(|| "self_to_bytes"))
+    }
+}
 
 impl<ConstraintF: Field> ToBytesGadget<ConstraintF> for [UInt8] {
     fn to_bytes<CS: ConstraintSystem<ConstraintF>>(

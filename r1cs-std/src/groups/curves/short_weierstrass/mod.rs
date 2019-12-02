@@ -681,14 +681,20 @@ impl<P, ConstraintF, F> ToCompressedGadget<ConstraintF> for AffineGadget<P, Cons
         ConstraintF: Field,
         F: FieldGadget<P::BaseField, ConstraintF>,
 {
-    fn to_compressed<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
-
+    fn to_compressed<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS, x_in_field: bool, y_in_field: bool)
+                                                        -> Result<Vec<UInt8>, SynthesisError> {
         //Enforce x_coordinate to bytes
-        let x_to_bytes = self.x.to_bytes(cs.ns(|| "x_to_bytes"))?;
+        let x_to_bytes = {
+            if x_in_field {
+                self.x.to_bytes_strict(cs.ns(|| "x_to_bytes_strict"))?
+            } else {
+                self.x.to_bytes(cs.ns(|| "x_to_bytes"))?
+            }
+        };
 
         //Set correct flags
         let zero = Boolean::constant(false);
-        let is_odd = self.y.is_odd(cs.ns(|| "odd flag"))?;
+        let is_odd = self.y.is_odd(cs.ns(|| "y parity"), y_in_field)?;
 
         //Add flags byte to x_serialization
         let len = x_to_bytes.len() - 1;
@@ -696,13 +702,13 @@ impl<P, ConstraintF, F> ToCompressedGadget<ConstraintF> for AffineGadget<P, Cons
         let mut last_byte = p_compressed[len].clone().bits;
 
         last_byte[7] = Boolean::or(
-            cs.ns(|| "add infinity flag"),
+            cs.ns(|| "add zero flag"),
             &last_byte[7],
             &zero
         )?;
 
         last_byte[6] = Boolean::or(
-            cs.ns(|| "add is_odd flag"),
+            cs.ns(|| "add parity bit"),
             &last_byte[6],
             &is_odd
         )?;

@@ -263,7 +263,7 @@ mod test {
         let c: MNT4G1Projective = rand::random();
         let c_val_compressed = c.into_affine().compress();
         let c = MNT4G1Gadget::alloc(&mut cs.ns(|| "generate_c_g1"), || Ok(c)).unwrap();
-        let c_compressed = c.to_compressed(cs.ns(|| "c compressed g1")).unwrap();
+        let c_compressed = c.to_compressed(cs.ns(|| "c compressed g1"), rand::random(), rand::random()).unwrap();
         let mut c_val_compressed_from_gadget = vec![];
         for b in c_compressed {
             c_val_compressed_from_gadget.push(b.value.unwrap());
@@ -281,7 +281,7 @@ mod test {
         let c: MNT4G2Projective = rand::random();
         let c_val_compressed = c.into_affine().compress();
         let c = MNT4G2Gadget::alloc(&mut cs.ns(|| "generate_c_g2"), || Ok(c)).unwrap();
-        let c_compressed = c.to_compressed(cs.ns(|| "c compressed g2")).unwrap();
+        let c_compressed = c.to_compressed(cs.ns(|| "c compressed g2"), rand::random(), rand::random()).unwrap();
         let mut c_val_compressed_from_gadget = vec![];
         for b in c_compressed {
             c_val_compressed_from_gadget.push(b.value.unwrap());
@@ -311,7 +311,7 @@ mod test {
         let c: MNT6G1Projective = rand::random();
         let c_val_compressed = c.into_affine().compress();
         let c = MNT6G1Gadget::alloc(&mut cs.ns(|| "generate_c_g1"), || Ok(c)).unwrap();
-        let c_compressed = c.to_compressed(cs.ns(|| "c compressed g1")).unwrap();
+        let c_compressed = c.to_compressed(cs.ns(|| "c compressed g1"), rand::random(), rand::random()).unwrap();
         let mut c_val_compressed_from_gadget = vec![];
         for b in c_compressed {
             c_val_compressed_from_gadget.push(b.value.unwrap());
@@ -330,7 +330,7 @@ mod test {
         let c: MNT6G2Projective = rand::random();
         let c_val_compressed = c.into_affine().compress();
         let c = MNT6G2Gadget::alloc(&mut cs.ns(|| "generate_c_g2"), || Ok(c)).unwrap();
-        let c_compressed = c.to_compressed(cs.ns(|| "c compressed g2")).unwrap();
+        let c_compressed = c.to_compressed(cs.ns(|| "c compressed g2"), rand::random(), rand::random()).unwrap();
         let mut c_val_compressed_from_gadget = vec![];
         for b in c_compressed {
             c_val_compressed_from_gadget.push(b.value.unwrap());

@@ -82,8 +82,25 @@ impl<P: Parameters> GroupAffine<P> {
         let y2 = denominator.inverse().map(|denom| denom * &numerator);
         y2.and_then(|y2| y2.sqrt()).map(|y| {
             let negy = -y;
-            let is_even = !y.is_odd();
-            let y = if is_even ^ greatest { y } else { negy };
+            let y = if (y < negy) ^ greatest { y } else { negy };
+            Self::new(x, y)
+        })
+    }
+
+    /// Attempts to construct an affine point given an x-coordinate. The
+    /// point is not guaranteed to be in the prime order subgroup.
+    ///
+    /// If and only if `parity` is set will the odd y-coordinate be selected.
+    #[allow(dead_code)]
+    pub(crate) fn get_point_from_x_and_parity(x: P::BaseField, parity: bool) -> Option<Self> {
+        let x2 = x.square();
+        let one = P::BaseField::one();
+        let numerator = P::mul_by_a(&x2) - &one;
+        let denominator = P::COEFF_D * &x2 - &one;
+        let y2 = denominator.inverse().map(|denom| denom * &numerator);
+        y2.and_then(|y2| y2.sqrt()).map(|y| {
+            let negy = -y;
+            let y = if y.is_odd() ^ parity { negy } else { y };
             Self::new(x, y)
         })
     }
@@ -236,13 +253,13 @@ impl<P: Parameters> ToCompressed for GroupAffine<P> {
         let infinity = if is_zero {1u8 << 7} else {0u8};
         res[len] |= infinity;
 
-        // Is the y-coordinate the lexicographically largest of the two associated with the
+        // Is the y-coordinate the odd one of the two associated with the
         // x-coordinate? If so, set the third-most significant bit so long as this is not
         // the point at infinity.
 
-        let lexicographically_largest = self.y.is_odd();
+        let parity = self.y.is_odd();
 
-        let greater = if !is_zero && lexicographically_largest {1u8 << 6} else {0u8};
+        let greater = if !is_zero && parity {1u8 << 6} else {0u8};
         res[len] |= greater;
 
         res
@@ -255,7 +272,7 @@ impl<P: Parameters> FromCompressed for GroupAffine<P> {
     fn decompress(compressed: Vec<u8>) -> Option<Self> {
         let len = compressed.len() - 1;
         let infinity_flag_set = bool::read([(compressed[len] >> 7) & 1].as_ref()).unwrap();
-        let sort_flag_set = bool::read([(compressed[len] >> 6) & 1].as_ref()).unwrap();
+        let parity_flag_set = bool::read([(compressed[len] >> 6) & 1].as_ref()).unwrap();
 
         //Mask away the flag bits and try to get the x coordinate
         let val = {
@@ -266,18 +283,18 @@ impl<P: Parameters> FromCompressed for GroupAffine<P> {
 
         match val {
             Ok(x) => {
-                match (infinity_flag_set, sort_flag_set, x.is_zero()) {
+                match (infinity_flag_set, parity_flag_set, x.is_zero()) {
 
                     //If the infinity flag is set, return the value assuming
-                    //the x-coordinate is zero and the sort bit is not set.
+                    //the x-coordinate is zero and the parity bit is not set.
                     (true, false, true) => Some(Self::zero()),
 
                     //If x is not zero, then infinity flag should not be set and all the others
                     //should be set
                     (false, _, false) => {
 
-                        //Attempt to get the y coordinate from its lexicographic order and x
-                        match Self::get_point_from_x(x, sort_flag_set) {
+                        //Attempt to get the y coordinate from its parity and x
+                        match Self::get_point_from_x_and_parity(x, parity_flag_set) {
 
                             //Check p belongs to the subgroup we expect
                             Some(p) => if p.is_in_correct_subgroup_assuming_on_curve() {Some(p)} else {None},

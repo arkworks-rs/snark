@@ -11,12 +11,21 @@ pub trait FromBytes: Sized {
     fn read<R: Read>(reader: R) -> IoResult<Self>;
 }
 
-pub trait ToCompressed {
-    fn compress(&self) -> Vec<u8>;
+pub trait ToCompressed: ToBytes {
+    fn compress(&self) -> Vec<u8> {
+        let mut v = vec![];
+        self.write(&mut v).unwrap();
+        v
+    }
 }
 
-pub trait FromCompressed: Sized {
-    fn decompress(compressed: Vec<u8>) -> Option<Self>;
+pub trait FromCompressed: Sized + FromBytes {
+    fn decompress(compressed: Vec<u8>) -> Option<Self> {
+        match Self::read(compressed.as_slice()) {
+            Ok(e) => Some(e),
+            _ => None
+        }
+    }
 }
 
 macro_rules! array_bytes {

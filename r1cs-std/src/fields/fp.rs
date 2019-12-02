@@ -95,16 +95,19 @@ impl<F: PrimeField> FieldGadget<F, F> for FpGadget<F> {
     fn is_odd<CS: ConstraintSystem<F>>(
         &self,
         mut cs: CS,
+        in_field: bool,
     ) -> Result<Boolean, SynthesisError> {
         let bytes = self.to_bytes_raw(cs.ns(|| "to bytes raw"))?;
-        Boolean::enforce_in_field::<_, _, F>(
-            &mut cs,
-            &bytes.iter()
-                .flat_map(|byte_gadget| byte_gadget.into_bits_le())
-                // This reverse maps the bits into big-endian form, as required by `enforce_in_field`.
-                .rev()
-                .collect::<Vec<_>>(),
-        )?;
+        if in_field {
+            Boolean::enforce_in_field::<_, _, F>(
+                &mut cs,
+                &bytes.iter()
+                    .flat_map(|byte_gadget| byte_gadget.into_bits_le())
+                    // This reverse maps the bits into big-endian form, as required by `enforce_in_field`.
+                    .rev()
+                    .collect::<Vec<_>>(),
+            )?;
+        }
         Ok(bytes[0].bits[0])
     }
 

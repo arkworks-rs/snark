@@ -1,5 +1,5 @@
 use rand::{Rng, distributions::{Standard, Distribution}};
-use crate::{UniformRand, FromCompressed, ToCompressed};
+use crate::UniformRand;
 use std::{
     cmp::Ordering,
     io::{Read, Result as IoResult, Write},
@@ -10,7 +10,7 @@ use std::{
 use crate::{
     bytes::{FromBytes, ToBytes},
     fields::{fp6_3over2::*, Field, Fp2, Fp2Parameters},
-    BitIterator, to_bytes,
+    BitIterator,FromCompressed, ToCompressed,
 };
 
 pub trait Fp12Parameters: 'static + Send + Sync + Copy {
@@ -482,25 +482,10 @@ impl<P: Fp12Parameters> FromBytes for Fp12<P> {
     }
 }
 
-impl<P: Fp12Parameters> ToCompressed for Fp12<P> {
-    #[inline]
-    fn compress(&self) -> Vec<u8> {
-        //Serialize c1
-        let mut res = to_bytes!(self.c1).unwrap();
-        let len = res.len() - 1;
-
-        let lexicographically_largest = self.c0.is_odd();
-
-        //Set the MSB to indicate the sign of c0
-        let greater = if lexicographically_largest {1u8 << 7} else {0u8};
-        res[len] |= greater;
-        res
-    }
+impl<P: Fp12Parameters> ToCompressed for Fp12<P>
+{
 }
 
-impl<P: Fp12Parameters> FromCompressed for Fp12<P> {
-    #[inline]
-    fn decompress(_compressed: Vec<u8>) -> Option<Self> {
-        unimplemented!();
-    }
+impl<P: Fp12Parameters> FromCompressed for Fp12<P>
+{
 }
