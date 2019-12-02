@@ -994,7 +994,7 @@ mod projective_impl {
                     let mut coords = vec![];
                     for _ in 0..4 {
                         coords.push(acc_power);
-                        acc_power = acc_power + base_power;
+                        acc_power += base_power;
                     }
 
                     let bits = bits.borrow().to_bits(

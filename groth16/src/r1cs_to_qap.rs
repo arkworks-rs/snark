@@ -44,7 +44,7 @@ impl R1CStoQAP {
                     Index::Aux(i) => assembly.num_inputs + i,
                 };
 
-                a[index] += &(u[i] * &coeff);
+                a[index] += &(u[i] * coeff);
             }
             for &(ref coeff, index) in assembly.bt[i].iter() {
                 let index = match index {
@@ -52,7 +52,7 @@ impl R1CStoQAP {
                     Index::Aux(i) => assembly.num_inputs + i,
                 };
 
-                b[index] += &(u[i] * &coeff);
+                b[index] += &(u[i] * coeff);
             }
             for &(ref coeff, index) in assembly.ct[i].iter() {
                 let index = match index {
@@ -60,7 +60,7 @@ impl R1CStoQAP {
                     Index::Aux(i) => assembly.num_inputs + i,
                 };
 
-                c[index] += &(u[i] * &coeff);
+                c[index] += &(u[i] * coeff);
             }
         }
 
@@ -125,7 +125,7 @@ impl R1CStoQAP {
         h.par_iter_mut()
             .zip(&a)
             .zip(&b)
-            .for_each(|((h_i, a_i), b_i)| *h_i *= &(*d2 * &a_i + &(*d1 * &b_i)));
+            .for_each(|((h_i, a_i), b_i)| *h_i *= &(*d2 * a_i + &(*d1 * b_i)));
         h[0].sub_assign(&d3);
         let d1d2 = *d1 * d2;
         h[0].sub_assign(&d1d2);

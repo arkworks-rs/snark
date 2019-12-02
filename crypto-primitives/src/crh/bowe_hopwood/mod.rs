@@ -134,10 +134,10 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for BoweHopwoodPedersenCRH<G, W
                     .map(|(chunk_bits, generator)| {
                         let mut encoded = generator.clone();
                         if chunk_bits[0] {
-                            encoded = encoded + &generator;
+                            encoded = encoded + generator;
                         }
                         if chunk_bits[1] {
-                            encoded = encoded + &generator.double();
+                            encoded += &generator.double();
                         }
                         if chunk_bits[2] {
                             encoded = encoded.neg();

@@ -106,7 +106,7 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for PedersenCRH<G, W> {
                 let mut encoded = G::zero();
                 for (bit, base) in bits.iter().zip(generator_powers.iter()) {
                     if *bit {
-                        encoded = encoded + base;
+                        encoded += base;
                     }
                 }
                 encoded
