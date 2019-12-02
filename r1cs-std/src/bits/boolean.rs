@@ -681,7 +681,7 @@ impl<ConstraintF: Field> ConditionalEqGadget<ConstraintF> for Boolean {
             // 1 - 1 = 0 - 0 = 0
             (Constant(true), Constant(true)) | (Constant(false), Constant(false)) => return Ok(()),
             // false != true
-            (Constant(_), Constant(_)) => Err(SynthesisError::AssignmentMissing)?,
+            (Constant(_), Constant(_)) => return Err(SynthesisError::AssignmentMissing),
             // 1 - a
             (Constant(true), Is(a)) | (Is(a), Constant(true)) => {
                 LinearCombination::zero() + one - a.get_variable()

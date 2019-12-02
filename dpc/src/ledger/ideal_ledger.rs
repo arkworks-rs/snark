@@ -100,7 +100,7 @@ where
         for sn in transaction.old_serial_numbers() {
             if sn != &self.genesis_sn {
                 if self.sn_to_index.contains_key(sn) {
-                    Err(LedgerError::DuplicateSn)?;
+                    return Err(LedgerError::DuplicateSn.into());
                 }
                 self.sn_to_index.insert(sn.clone(), cur_sn_index);
                 cur_sn_index += 1;
@@ -111,7 +111,7 @@ where
         let mut cur_cm_index = self.cur_cm_index;
         for cm in transaction.new_commitments() {
             if cm == &self.genesis_cm || self.comm_to_index.contains_key(cm) {
-                Err(LedgerError::InvalidCm)?;
+                return Err(LedgerError::InvalidCm.into());
             }
             self.comm_to_index.insert(cm.clone(), cur_cm_index);
             cur_cm_index += 1;
@@ -120,7 +120,7 @@ where
 
         if transaction.memorandum() != &self.genesis_memo {
             if self.memo_to_index.contains_key(transaction.memorandum()) {
-                Err(LedgerError::DuplicateMemo)?;
+                return Err(LedgerError::DuplicateMemo.into());
             } else {
                 self.memo_to_index
                     .insert(transaction.memorandum().clone(), self.cur_memo_index);
