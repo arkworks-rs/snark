@@ -223,11 +223,7 @@ impl<P: Parameters> PartialEq for GroupProjective<P> {
 
         if self.x * &z2 != other.x * &z1 {
             false
-        } else if self.y * &(z2 * &other.z) != other.y * &(z1 * &self.z) {
-            false
-        } else {
-            true
-        }
+        } else { self.y * &(z2 * &other.z) == other.y * &(z1 * &self.z) }
     }
 }
 

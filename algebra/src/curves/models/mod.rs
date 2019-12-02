@@ -55,10 +55,7 @@ pub trait SWModelParameters: ModelParameters {
 
         let mut result = 4;
         for r in &RECOMMENDATIONS {
-            match num_scalars > *r {
-                true => result += 1,
-                false => break,
-            }
+            if num_scalars > *r { result += 1 } else { break }
         }
         result
     }

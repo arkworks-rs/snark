@@ -159,9 +159,10 @@ impl SW6 {
         elt_q.frobenius_map(1);
 
         let w1_part = elt_q.cyclotomic_exp(&FINAL_EXPONENT_LAST_CHUNK_W1);
-        let w0_part = match FINAL_EXPONENT_LAST_CHUNK_W0_IS_NEG {
-            true => elt_inv.cyclotomic_exp(&FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0),
-            false => elt.cyclotomic_exp(&FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0),
+        let w0_part = if FINAL_EXPONENT_LAST_CHUNK_W0_IS_NEG {
+            elt_inv.cyclotomic_exp(&FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0)
+        } else {
+            elt.cyclotomic_exp(&FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0)
         };
 
         w1_part * &w0_part
