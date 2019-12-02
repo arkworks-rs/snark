@@ -342,7 +342,7 @@ impl<P: Fp4Parameters> FromCompressed for Fp4<P> {
                     //Estabilish c0 parity
                     Some(c0_u) => {
                         let neg_c0u = c0_u.neg();
-                        let c0_s = if c0_u.is_odd() ^ parity_flag_set {neg_c0u} else {c0u};
+                        let c0_s = if c0_u.is_odd() ^ parity_flag_set {neg_c0u} else {c0_u};
                         Some(Self::new(c0_s, c1))
                     },
 

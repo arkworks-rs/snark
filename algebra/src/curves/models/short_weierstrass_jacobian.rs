@@ -210,11 +210,8 @@ impl<P: Parameters> ToCompressed for GroupAffine<P> {
         // Is the y-coordinate the odd one of the two associated with the
         // x-coordinate? If so, set the third-most significant bit so long as this is not
         // the point at infinity.
-
-        let parity = self.y.is_odd();
-
-        let greater = if !self.infinity && parity {1u8 << 6} else {0u8};
-        res[len] |= greater;
+        let parity = if !self.infinity && self.y.is_odd() {1u8 << 6} else {0u8};
+        res[len] |= parity;
 
         res
     }
