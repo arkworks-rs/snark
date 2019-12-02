@@ -114,7 +114,7 @@ impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for [u8] {
             .map(|chunk| {
                 let mut chunk = chunk.to_vec();
                 let len = chunk.len();
-                for _ in len..(max_size + 1) {
+                for _ in len..=max_size {
                     chunk.push(0u8);
                 }
                 ConstraintF::read(chunk.as_slice())
