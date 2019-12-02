@@ -180,7 +180,7 @@ where
             P::miller_loop(
                 cs.ns(|| "Miller loop 4"),
                 &[a_prep, pvk.g_gamma_pc.clone()],
-                &[pvk.h_gamma_pc.clone(), b_prep],
+                &[pvk.h_gamma_pc, b_prep],
             )?
         };
         let test2 = P::final_exponentiation(cs.ns(|| "Final Exp 2"), &test2_exp)?;

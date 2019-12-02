@@ -108,7 +108,7 @@ mod test {
         let (ans1_g, ans1_n) = {
             let ans_g = PairingGadget::pairing(
                 cs.ns(|| "pair(sa, b)"),
-                sa_prep_g.clone(),
+                sa_prep_g,
                 b_prep_g.clone(),
             )
             .unwrap();
@@ -120,7 +120,7 @@ mod test {
             let ans_g = PairingGadget::pairing(
                 cs.ns(|| "pair(a, sb)"),
                 a_prep_g.clone(),
-                sb_prep_g.clone(),
+                sb_prep_g,
             )
             .unwrap();
             let ans_n = Bls12_377::pairing(a, sb);
@@ -129,11 +129,11 @@ mod test {
 
         let (ans3_g, ans3_n) = {
             let s_iter = BitIterator::new(s.into_repr())
-                .map(|bit| Boolean::constant(bit))
+                .map(Boolean::constant)
                 .collect::<Vec<_>>();
 
             let mut ans_g =
-                PairingGadget::pairing(cs.ns(|| "pair(a, b)"), a_prep_g.clone(), b_prep_g.clone())
+                PairingGadget::pairing(cs.ns(|| "pair(a, b)"), a_prep_g, b_prep_g)
                     .unwrap();
             let mut ans_n = Bls12_377::pairing(a, b);
             ans_n = ans_n.pow(s.into_repr());

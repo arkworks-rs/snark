@@ -97,12 +97,12 @@ fn integration_test() {
     // Create a payload.
     let new_payload = [2u8; 32];
     // Set the new records' predicate to be the "always-accept" predicate.
-    let new_predicate = Predicate::new(genesis_pred_vk_bytes.clone());
+    let new_predicate = Predicate::new(genesis_pred_vk_bytes);
 
-    let new_apks = vec![new_address.public_key.clone(); NUM_OUTPUT_RECORDS];
+    let new_apks = vec![new_address.public_key; NUM_OUTPUT_RECORDS];
     let new_payloads = vec![new_payload.clone(); NUM_OUTPUT_RECORDS];
     let new_birth_predicates = vec![new_predicate.clone(); NUM_OUTPUT_RECORDS];
-    let new_death_predicates = vec![new_predicate.clone(); NUM_OUTPUT_RECORDS];
+    let new_death_predicates = vec![new_predicate; NUM_OUTPUT_RECORDS];
     let new_dummy_flags = vec![false; NUM_OUTPUT_RECORDS];
 
     let auxiliary = [3u8; 32];
