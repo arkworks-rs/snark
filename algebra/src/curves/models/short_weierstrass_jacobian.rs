@@ -197,14 +197,14 @@ impl<P: Parameters> ToCompressed for GroupAffine<P> {
 
     #[inline]
     fn compress(&self) -> Vec<u8> {
-
-        let is_zero = self.is_zero();
-        let p = if is_zero {P::BaseField::zero()} else {self.x};
+        // Strictly speaking, self.x is zero already when self.infinity is true, but
+        // to guard against implementation mistakes we do not assume this.
+        let p = if self.infinity {P::BaseField::zero()} else {self.x};
         let mut res = to_bytes!(p).unwrap();
         let len = res.len() - 1;
 
-        // Is this point zero? If so, set the most significant bit.
-        let infinity = if is_zero {1u8 << 7} else {0u8};
+        // Is this the point at infinity? If so, set the most significant bit.
+        let infinity = if self.infinity {1u8 << 7} else {0u8};
         res[len] |= infinity;
 
         // Is the y-coordinate the odd one of the two associated with the
@@ -213,7 +213,7 @@ impl<P: Parameters> ToCompressed for GroupAffine<P> {
 
         let parity = self.y.is_odd();
 
-        let greater = if !is_zero && parity {1u8 << 6} else {0u8};
+        let greater = if !self.infinity && parity {1u8 << 6} else {0u8};
         res[len] |= greater;
 
         res
