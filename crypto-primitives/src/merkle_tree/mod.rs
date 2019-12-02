@@ -200,7 +200,7 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
 
         // Check that the given index corresponds to the correct leaf.
         if leaf_hash != self.tree[tree_index] {
-            Err(MerkleTreeError::IncorrectLeafIndex(tree_index))?
+            return Err(MerkleTreeError::IncorrectLeafIndex(tree_index).into())
         }
 
         // Iterate from the leaf up to the root, storing all intermediate hash values.
@@ -230,7 +230,7 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
         }
         end_timer!(prove_time);
         if path.len() != (Self::HEIGHT - 1) as usize {
-            Err(MerkleTreeError::IncorrectPathLength(path.len()))?
+            return Err(MerkleTreeError::IncorrectPathLength(path.len()).into())
         } else {
             Ok(MerkleTreePath { path })
         }
