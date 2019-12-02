@@ -36,7 +36,7 @@ pub fn verify_proof<E: PairingEngine>(
             (&g_ic.into_affine().prepare(), &pvk.gamma_g2_neg_pc),
             (&proof.c.prepare(), &pvk.delta_g2_neg_pc),
         ]
-        .into_iter(),
+        .iter(),
     );
 
     let test = E::final_exponentiation(&qap).ok_or(SynthesisError::UnexpectedIdentity)?;

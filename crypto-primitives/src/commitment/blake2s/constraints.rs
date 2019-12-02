@@ -32,7 +32,7 @@ impl<ConstraintF: PrimeField> CommitmentGadget<Blake2sCommitment, ConstraintF>
         r: &Self::RandomnessGadget,
     ) -> Result<Self::OutputGadget, SynthesisError> {
         let mut input_bits = Vec::with_capacity(512);
-        for byte in input.into_iter().chain(r.0.iter()) {
+        for byte in input.iter().chain(r.0.iter()) {
             input_bits.extend_from_slice(&byte.into_bits_le());
         }
         let mut result = Vec::new();
@@ -141,13 +141,13 @@ mod test {
         let primitive_result = Blake2sCommitment::commit(&parameters, &input, &randomness).unwrap();
 
         let mut input_bytes = vec![];
-        for (byte_i, input_byte) in input.into_iter().enumerate() {
+        for (byte_i, input_byte) in input.iter().enumerate() {
             let cs = cs.ns(|| format!("input_byte_gadget_{}", byte_i));
             input_bytes.push(UInt8::alloc(cs, || Ok(*input_byte)).unwrap());
         }
 
         let mut randomness_bytes = vec![];
-        for (byte_i, random_byte) in randomness.into_iter().enumerate() {
+        for (byte_i, random_byte) in randomness.iter().enumerate() {
             let cs = cs.ns(|| format!("randomness_byte_gadget_{}", byte_i));
             randomness_bytes.push(UInt8::alloc(cs, || Ok(*random_byte)).unwrap());
         }

@@ -72,7 +72,7 @@ where
         // Allocate new variable for the result.
         let input_in_bits = input_in_bits
             .chunks(W::WINDOW_SIZE * CHUNK_SIZE)
-            .map(|x| x.chunks(CHUNK_SIZE).into_iter().collect::<Vec<_>>())
+            .map(|x| x.chunks(CHUNK_SIZE).collect::<Vec<_>>())
             .collect::<Vec<_>>();
         let result = GG::precomputed_base_3_bit_signed_digit_scalar_mul(
             cs,
@@ -159,7 +159,7 @@ mod test {
         rng.fill_bytes(&mut input);
 
         let mut input_bytes = vec![];
-        for (byte_i, input_byte) in input.into_iter().enumerate() {
+        for (byte_i, input_byte) in input.iter().enumerate() {
             let cs = cs.ns(|| format!("input_byte_gadget_{}", byte_i));
             input_bytes.push(UInt8::alloc(cs, || Ok(*input_byte)).unwrap());
         }

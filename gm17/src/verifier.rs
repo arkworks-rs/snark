@@ -12,7 +12,7 @@ pub fn prepare_verifying_key<E: PairingEngine>(vk: &VerifyingKey<E>) -> Prepared
         g_alpha:           vk.g_alpha_g1,
         h_beta:            vk.h_beta_g2,
         g_alpha_h_beta_ml: E::miller_loop(
-            [(&vk.g_alpha_g1.prepare(), &vk.h_beta_g2.prepare())].into_iter(),
+            [(&vk.g_alpha_g1.prepare(), &vk.h_beta_g2.prepare())].iter(),
         ),
         g_gamma_pc:        vk.g_gamma_g1.prepare(),
         h_gamma_pc:        vk.h_gamma_g2.prepare(),
@@ -53,7 +53,7 @@ pub fn verify_proof<E: PairingEngine>(
             (&g_psi.into_affine().prepare(), &pvk.h_gamma_pc),
             (&proof.c.prepare(), &pvk.h_pc),
         ]
-        .into_iter(),
+        .iter(),
     );
     let mut test1_exp = test1_r2;
     test1_exp.mul_assign(&test1_r1);
@@ -67,7 +67,7 @@ pub fn verify_proof<E: PairingEngine>(
             (&proof.a.prepare(), &pvk.h_gamma_pc),
             (&pvk.g_gamma_pc, &proof.b.neg().prepare()),
         ]
-        .into_iter(),
+        .iter(),
     );
 
     let test2 = E::final_exponentiation(&test2_exp).unwrap();

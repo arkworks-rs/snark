@@ -371,7 +371,7 @@ impl Boolean {
         values: &[u8],
     ) -> Vec<Self> {
         let mut input_bits = vec![];
-        for (byte_i, input_byte) in values.into_iter().enumerate() {
+        for (byte_i, input_byte) in values.iter().enumerate() {
             for bit_i in (0..8).rev() {
                 let cs = cs.ns(|| format!("input_bit_gadget {} {}", byte_i, bit_i));
                 input_bits.push(

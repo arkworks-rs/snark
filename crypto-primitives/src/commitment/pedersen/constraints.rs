@@ -218,7 +218,7 @@ mod test {
             PedersenCommitment::<JubJub, Window>::commit(&parameters, &input, &randomness).unwrap();
 
         let mut input_bytes = vec![];
-        for (byte_i, input_byte) in input.into_iter().enumerate() {
+        for (byte_i, input_byte) in input.iter().enumerate() {
             let cs = cs.ns(|| format!("input_byte_gadget_{}", byte_i));
             input_bytes.push(UInt8::alloc(cs, || Ok(*input_byte)).unwrap());
         }
