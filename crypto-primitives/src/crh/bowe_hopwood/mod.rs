@@ -144,9 +144,9 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for BoweHopwoodPedersenCRH<G, W
                         }
                         encoded
                     })
-                    .reduce(|| G::zero(), |a, b| a + &b)
+                    .reduce(G::zero, |a, b| a + &b)
             })
-            .reduce(|| G::zero(), |a, b| a + &b);
+            .reduce(G::zero, |a, b| a + &b);
         end_timer!(eval_time);
 
         Ok(result)

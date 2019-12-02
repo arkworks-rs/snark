@@ -311,13 +311,10 @@ impl<P: Fp12Parameters> Field for Fp12<P> {
     }
 
     fn inverse_in_place(&mut self) -> Option<&mut Self> {
-        match self.inverse() {
-            Some(inv) => {
+        self.inverse().and_then(|inv| { {
                 *self = inv;
                 Some(self)
-            },
-            None => None,
-        }
+            } })
     }
 }
 

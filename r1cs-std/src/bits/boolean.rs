@@ -586,7 +586,7 @@ impl Boolean {
                 // This is part of a run of ones.
                 current_run.push(a.clone());
             } else {
-                if current_run.len() > 0 {
+                if !current_run.is_empty() {
                     // This is the start of a run of zeros, but we need
                     // to k-ary AND against `last_run` first.
 

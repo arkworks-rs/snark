@@ -235,10 +235,7 @@ impl<P: Fp6Parameters> Field for Fp6<P> {
             tmp2.mul_assign(&c0);
             tmp1.add_assign(&tmp2);
 
-            match tmp1.inverse() {
-                Some(t) => Some(Self::new(t * &c0, t * &c1, t * &c2)),
-                None => None,
-            }
+            tmp1.inverse().map(|t| Self::new(t * &c0, t * &c1, t * &c2))
         }
     }
 

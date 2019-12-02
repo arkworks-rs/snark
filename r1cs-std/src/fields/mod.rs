@@ -405,7 +405,7 @@ mod test {
         assert_eq!(a_inv.get_value().unwrap(), a_native.inverse().unwrap());
         // a * a * a = a^3
         let bits = BitIterator::new([0x3])
-            .map(|bit| Boolean::constant(bit))
+            .map(Boolean::constant)
             .collect::<Vec<_>>();
         assert_eq!(
             a_native * &(a_native * &a_native),
