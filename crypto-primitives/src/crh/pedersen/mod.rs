@@ -111,7 +111,7 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for PedersenCRH<G, W> {
                 }
                 encoded
             })
-            .reduce(|| G::zero(), |a, b| a + &b);
+            .reduce(G::zero, |a, b| a + &b);
         end_timer!(eval_time);
 
         Ok(result)
