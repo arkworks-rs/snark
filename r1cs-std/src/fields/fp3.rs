@@ -825,7 +825,8 @@ ThreeBitCondNegLookupGadget<ConstraintF> for Fp3Gadget<P, ConstraintF>
     }
 }
 
-impl<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootField> AllocGadget<Fp3<P>, ConstraintF> for Fp3Gadget<P, ConstraintF>
+impl<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootField>
+AllocGadget<Fp3<P>, ConstraintF> for Fp3Gadget<P, ConstraintF>
 {
     #[inline]
     fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
@@ -878,6 +879,37 @@ impl<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootFie
         let c0 = FpGadget::<ConstraintF>::alloc_input(&mut cs.ns(|| "c0"), || c0)?;
         let c1 = FpGadget::<ConstraintF>::alloc_input(&mut cs.ns(|| "c1"), || c1)?;
         let c2 = FpGadget::<ConstraintF>::alloc_input(&mut cs.ns(|| "c2"), || c2)?;
+        Ok(Self::new(c0, c1, c2))
+    }
+}
+
+impl<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootField>
+HardCodedGadget<Fp3<P>, ConstraintF> for Fp3Gadget<P, ConstraintF>
+{
+    #[inline]
+    fn alloc_hardcoded<F, T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        value_gen: F,
+    ) -> Result<Self, SynthesisError>
+        where
+            F: FnOnce() -> Result<T, SynthesisError>,
+            T: Borrow<Fp3<P>>,
+    {
+        let (c0, c1, c2) = match value_gen() {
+            Ok(fe) => {
+                let fe = *fe.borrow();
+                (Ok(fe.c0), Ok(fe.c1), Ok(fe.c2))
+            },
+            _ => (
+                Err(SynthesisError::AssignmentMissing),
+                Err(SynthesisError::AssignmentMissing),
+                Err(SynthesisError::AssignmentMissing),
+            ),
+        };
+
+        let c0 = FpGadget::<ConstraintF>::alloc_hardcoded(&mut cs.ns(|| "c0"), || c0)?;
+        let c1 = FpGadget::<ConstraintF>::alloc_hardcoded(&mut cs.ns(|| "c1"), || c1)?;
+        let c2 = FpGadget::<ConstraintF>::alloc_hardcoded(&mut cs.ns(|| "c2"), || c2)?;
         Ok(Self::new(c0, c1, c2))
     }
 }

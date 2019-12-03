@@ -687,17 +687,8 @@ mod affine_impl {
                 ),
             };
 
-            let x = {
-                let mut t = F::zero(cs.ns(|| "alloc zero for x"))?;
-                t.add_constant_in_place(cs.ns(|| "hardcode x"), &x.unwrap())?;
-                t
-            };
-
-            let y = {
-                let mut t = F::zero(cs.ns(|| "alloc zero for y"))?;
-                t.add_constant_in_place(cs.ns(|| "hardcode y"), &y.unwrap())?;
-                t
-            };
+            let x = F::alloc_hardcoded(cs.ns(|| "hardcode x"), || Ok(x.unwrap()))?;
+            let y = F::alloc_hardcoded(cs.ns(|| "hardcode y"), || Ok(y.unwrap()))?;
 
             Ok(Self::new(x, y))
         }
@@ -1316,17 +1307,8 @@ mod projective_impl {
                 ),
             };
 
-            let x = {
-                let mut t = F::zero(cs.ns(|| "alloc zero for x"))?;
-                t.add_constant_in_place(cs.ns(|| "hardcode x"), &x.unwrap())?;
-                t
-            };
-
-            let y = {
-                let mut t = F::zero(cs.ns(|| "alloc zero for y"))?;
-                t.add_constant_in_place(cs.ns(|| "hardcode y"), &y.unwrap())?;
-                t
-            };
+            let x = F::alloc_hardcoded(cs.ns(|| "hardcode x"), || Ok(x.unwrap()))?;
+            let y = F::alloc_hardcoded(cs.ns(|| "hardcode y"), || Ok(y.unwrap()))?;
 
             Ok(Self::new(x, y))
         }

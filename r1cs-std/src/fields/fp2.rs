@@ -742,3 +742,32 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootFie
         Ok(Self::new(c0, c1))
     }
 }
+
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootField>
+HardCodedGadget<Fp2<P>, ConstraintF> for Fp2Gadget<P, ConstraintF>
+{
+    #[inline]
+    fn alloc_hardcoded<F, T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        value_gen: F,
+    ) -> Result<Self, SynthesisError>
+        where
+            F: FnOnce() -> Result<T, SynthesisError>,
+            T: Borrow<Fp2<P>>,
+    {
+        let (c0, c1) = match value_gen() {
+            Ok(fe) => {
+                let fe = *fe.borrow();
+                (Ok(fe.c0), Ok(fe.c1))
+            },
+            Err(_) => (
+                Err(SynthesisError::AssignmentMissing),
+                Err(SynthesisError::AssignmentMissing),
+            ),
+        };
+
+        let c0 = FpGadget::alloc_hardcoded(&mut cs.ns(|| "hardcode c0"), || c0)?;
+        let c1 = FpGadget::alloc_hardcoded(&mut cs.ns(|| "hardcode c1"), || c1)?;
+        Ok(Self::new(c0, c1))
+    }
+}

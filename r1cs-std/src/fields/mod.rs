@@ -28,6 +28,7 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
     + ConditionalEqGadget<ConstraintF>
     + ToBitsGadget<ConstraintF>
     + AllocGadget<F, ConstraintF>
+    + HardCodedGadget<F, ConstraintF>
     + ToBytesGadget<ConstraintF>
     + CondSelectGadget<ConstraintF>
     + TwoBitLookupGadget<ConstraintF, TableConstant = F>

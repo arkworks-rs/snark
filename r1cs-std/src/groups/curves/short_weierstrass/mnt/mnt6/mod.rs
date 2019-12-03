@@ -83,11 +83,7 @@ impl<P: MNT6Parameters> HardCodedGadget<G1Prepared<P>, P::Fp> for G1PreparedGadg
             } = g1p.borrow().clone();
 
             let p = G1Gadget::<P>::alloc_hardcoded(cs.ns(|| "hardcode p"), || Ok(p.into_projective()))?;
-            let p_y_twist_squared = {
-                let mut t = Fp3G::<P>::zero(cs.ns(|| "alloc zero for p_y_twist_squared"))?;
-                t.add_constant_in_place(cs.ns(|| "hardcode p_y_twist_squared"), &py_twist_squared)?;
-                t
-            };
+            let p_y_twist_squared = Fp3G::<P>::alloc_hardcoded(cs.ns(|| "hardcode p_y_twist_squared"), || Ok(py_twist_squared))?;
 
             Ok(Self {
                 p,
@@ -134,23 +130,9 @@ impl<P: MNT6Parameters> HardCodedGadget<G2PreparedCoefficients<P>, P::Fp> for G2
                 gamma_x,
             } = g2pc.borrow().clone();
 
-            let r_y = {
-                let mut t = Fp3G::<P>::zero(cs.ns(|| "alloc zero for r_y"))?;
-                t.add_constant_in_place(cs.ns(|| "hardcode r_y"), &r_y)?;
-                t
-            };
-
-            let gamma = {
-                let mut t = Fp3G::<P>::zero(cs.ns(|| "alloc zero for gamma"))?;
-                t.add_constant_in_place(cs.ns(|| "hardcode gamma"), &gamma)?;
-                t
-            };
-
-            let gamma_x = {
-                let mut t = Fp3G::<P>::zero(cs.ns(|| "alloc zero for gamma_x"))?;
-                t.add_constant_in_place(cs.ns(|| "hardcode gamma_x"), &gamma_x)?;
-                t
-            };
+            let r_y = Fp3G::<P>::alloc_hardcoded(cs.ns(|| "hardcode r_y"), || Ok(r_y))?;
+            let gamma = Fp3G::<P>::alloc_hardcoded(cs.ns(|| "hardcode gamma"), || Ok(gamma))?;
+            let gamma_x = Fp3G::<P>::alloc_hardcoded(cs.ns(|| "hardcode gamma_x"), || Ok(gamma_x))?;
 
             Ok(Self {
                 r_y,

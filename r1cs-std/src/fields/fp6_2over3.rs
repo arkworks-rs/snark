@@ -942,3 +942,34 @@ impl<P, ConstraintF: PrimeField + SquareRootField> AllocGadget<Fp6<P>, Constrain
         Ok(Self::new(c0, c1))
     }
 }
+
+impl<P, ConstraintF: PrimeField + SquareRootField> HardCodedGadget<Fp6<P>, ConstraintF> for Fp6Gadget<P, ConstraintF>
+    where
+        P: Fp6Parameters,
+        P::Fp3Params: Fp3Parameters<Fp = ConstraintF>,
+{
+    #[inline]
+    fn alloc_hardcoded<F, T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        value_gen: F,
+    ) -> Result<Self, SynthesisError>
+        where
+            F: FnOnce() -> Result<T, SynthesisError>,
+            T: Borrow<Fp6<P>>,
+    {
+        let (c0, c1) = match value_gen() {
+            Ok(fe) => {
+                let fe = *fe.borrow();
+                (Ok(fe.c0), Ok(fe.c1))
+            },
+            Err(_) => (
+                Err(SynthesisError::AssignmentMissing),
+                Err(SynthesisError::AssignmentMissing),
+            ),
+        };
+
+        let c0 = Fp3Gadget::<P, ConstraintF>::alloc_hardcoded(&mut cs.ns(|| "c0"), || c0)?;
+        let c1 = Fp3Gadget::<P, ConstraintF>::alloc_hardcoded(&mut cs.ns(|| "c1"), || c1)?;
+        Ok(Self::new(c0, c1))
+    }
+}

@@ -707,3 +707,23 @@ impl<F: PrimeField> AllocGadget<F, F> for FpGadget<F> {
         })
     }
 }
+
+impl<F: PrimeField> HardCodedGadget<F, F> for FpGadget<F> {
+    #[inline]
+    fn alloc_hardcoded<FN, T, CS: ConstraintSystem<F>>(
+        _cs: CS,
+        value_gen: FN,
+    ) -> Result<Self, SynthesisError>
+        where
+            FN: FnOnce() -> Result<T, SynthesisError>,
+            T: Borrow<F>,
+    {
+        value_gen().and_then(|c| {
+            let c = *c.borrow();
+            Ok(FpGadget {
+                value: Some(c),
+                variable: ConstraintVar::zero() + (c, CS::one()),
+            })
+        })
+    }
+}
