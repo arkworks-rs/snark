@@ -4,6 +4,7 @@ use crate::{
 };
 
 pub mod bls12;
+pub mod bn;
 pub mod short_weierstrass_jacobian;
 pub mod short_weierstrass_projective;
 pub mod twisted_edwards_extended;
@@ -55,7 +56,11 @@ pub trait SWModelParameters: ModelParameters {
 
         let mut result = 4;
         for r in &RECOMMENDATIONS {
-            if num_scalars > *r { result += 1 } else { break }
+            if num_scalars > *r {
+                result += 1
+            } else {
+                break;
+            }
         }
         result
     }
@@ -116,4 +121,3 @@ pub trait MontgomeryModelParameters: ModelParameters {
 
     type TEModelParameters: TEModelParameters<BaseField = Self::BaseField>;
 }
-
