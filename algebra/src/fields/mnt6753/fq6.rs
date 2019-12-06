@@ -17,27 +17,28 @@ pub struct Fq6b7Parameters;
 impl Fp6Parameters for Fq6b7Parameters {
     type Fp3Params = Fq3b7Parameters;
 
-// 15664CB51F657D6070F328598582FA2EC8A689E11FE486C43D93CD263C4661714868F67A7CF4BDB24398ACBB12E86EB5409814CC7808279A5240144C32F00B32E3562232D379FF502478C2D062EDF76AA224C87975C57CB1308DB6D9215A2
-    const NONRESIDUE: Fq3 = field_new!(Fq3, 
+    const NONRESIDUE: Fq3 = field_new!(Fq3,
         field_new!(Fq, BigInteger([
-            0xCB1308DB6D9215A2,
-            0x76AA224C87975C57,
-            0xF502478C2D062EDF,
-            0xB32E3562232D379F,
-            0x79A5240144C32F00,
-            0xEB5409814CC78082,
-            0xDB24398ACBB12E86,
-            0x1714868F67A7CF4B,
-            0x6C43D93CD263C466,
-            0xA2EC8A689E11FE48,
-            0xD6070F328598582F,
-            0x15664CB51F657,
+            0x4768931cfff9c7d4,
+            0xc45e46d6ada96ca0,
+            0x479b0bdb0b3c0107,
+            0x362a089610f8d41b,
+            0xdbafcec2c8a91aaf,
+            0x78428b0ff9d96a06,
+            0xf2e4472a9080c353,
+            0xc9006ed33f0e971c,
+            0x0794d9d10bdb7288,
+            0x3c1e44cab5419e2c,
+            0x49b5fc6c81f4560c,
+            0x1c287777c30ba,
         ])),
         field_new!(Fq, BigInteger([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])),
         field_new!(Fq, BigInteger([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])),
     );
 
     const FROBENIUS_COEFF_FP6_C1: [Fq; 6] = [
+
+        //NONRESIDUE^((q^0 - 1)/ 6)
         field_new!(Fq, BigInteger([
             0xb99680147fff6f42,
             0x4eb16817b589cea8,
@@ -52,7 +53,8 @@ impl Fp6Parameters for Fq6b7Parameters {
             0x95455fb31ff9a195,
             0x7b479ec8e242,
         ])),
-// Fq6 Frobenius_coeffs_c1[1]  19897d1eb1ca04df5e7055d775a97c45deb6fc774821ee7cb22af3bb2a0123f3ec8159c1da9be186cec139ca9d216943d1b65fbd3ae53fd566bac405fc44b4ed706302c0e2b723da2c7145efc7815622b1a03ad8db3c724fd77ccbf95f5c2
+
+        //NONRESIDUE^((q^1 - 1)/ 6)
         field_new!(Fq, BigInteger([
             0x24fd77ccbf95f5c2,
             0x622b1a03ad8db3c7,
@@ -67,7 +69,8 @@ impl Fp6Parameters for Fq6b7Parameters {
             0x4df5e7055d775a97,
             0x19897d1eb1ca0,
         ])),
-// Fq6 Frobenius_coeffs_c1[2]  11d5033223a5db8b087523d7db902b4b96c948f0e9992a75658e33e25f9f0e5b38512c92d9f5be660b05c89764d7df480725d1dc6e2f1524a1cc56c78e9773f64a98166c46a979bb6f43b5282969c1379b1ebf803e51e6b66f7b83f968680
+
+        //NONRESIDUE^((q^2 - 1)/ 6)
         field_new!(Fq, BigInteger([
             0x6b66f7b83f968680,
             0x1379b1ebf803e51e,
@@ -82,7 +85,8 @@ impl Fp6Parameters for Fq6b7Parameters {
             0xb8b087523d7db902,
             0x11d5033223a5d,
         ])),
-// Fq6 Frobenius_coeffs_c1[3]  1497e8ec9e1ce7add306fcee92c18a85518752329c7611e431f2d6f0b3251ae72762315b0e32b67c4e9228e27730512afb31fea4cde3893df7bad553a4b62aa6d9cc76f4f79ca34d7aee33286761dffef30ff5a176ba71f70f6cdc00090bf
+
+        //NONRESIDUE^((q^3 - 1)/ 6)
         field_new!(Fq, BigInteger([
             0x1f70f6cdc00090bf,
             0xffef30ff5a176ba7,
@@ -97,7 +101,8 @@ impl Fp6Parameters for Fq6b7Parameters {
             0x7add306fcee92c18,
             0x1497e8ec9e1ce,
         ])),
-// Fq6 Frobenius_coeffs_c1[4]  2c2e5ba7a770c22ca91d916b7315f39babe0941b2dce76ecc64a30e53860c8bef1104c8343cf816438c604b125871e2f40c2cc85fb4741955ee7e8c161eb6b08f346088b0f329920baa7e003df81ec757f1362138688b409ff15806a0a3f
+
+        //NONRESIDUE^((q^4 - 1)/ 6)
         field_new!(Fq, BigInteger([
             0xb409ff15806a0a3f,
             0xec757f1362138688,
@@ -112,7 +117,8 @@ impl Fp6Parameters for Fq6b7Parameters {
             0xc22ca91d916b7315,
             0x2c2e5ba7a770,
         ])),
-// Fq6 Frobenius_coeffs_c1[5]  a775fa7089b3577208d0b16514ab03402abbcc81165ab76190162e71de82224a34131f734e31b370747d17e4aa1fbdebe9cbaa92c6a9eca1adcebca83cbf7a7b4ff4cdd4d00d3b0c8d80ec7dc0fb3b26e72b179d55316da07f2a00697981
+
+        //NONRESIDUE^((q^5 - 1)/ 6)
         field_new!(Fq, BigInteger([
             0x6da07f2a00697981,
             0x3b26e72b179d5531,

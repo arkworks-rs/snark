@@ -66,6 +66,7 @@ impl Fp2Parameters for Fq2Parameters {
     /// Coefficients for the Frobenius automorphism.
     const FROBENIUS_COEFF_FP2_C1: [Fq; 2] = [
 
+        //NONRESIDUE^((q^0 - 1)/2)
         field_new!(Fq, BigInteger([
             11000302312691101506,
             10506108233708684934,
@@ -81,6 +82,7 @@ impl Fp2Parameters for Fq2Parameters {
             135547536859714
         ])),
 
+        //NONRESIDUE^((q^1 - 1)/2)
         field_new!(Fq, BigInteger([
             14260497802974073023,
             5895249896161266456,

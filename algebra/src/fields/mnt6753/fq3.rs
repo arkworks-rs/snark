@@ -14,8 +14,7 @@ pub struct Fq3b7Parameters;
 impl Fp3Parameters for Fq3b7Parameters {
     type Fp = Fq;
 
-// 11
-
+    // 11
     const NONRESIDUE: Fq = field_new!(Fq, BigInteger([
         0x4768931cfff9c7d4,
         0xc45e46d6ada96ca0,
@@ -92,7 +91,8 @@ impl Fp3Parameters for Fq3b7Parameters {
     );
 
     const FROBENIUS_COEFF_FP3_C1: [Fq; 3] = [
-// Fq3 Frobenius_coeffs_c1[0]  7b479ec8e24295455fb31ff9a1950fa47edb3865e88c4074c9cbfd8ca621598b4302d2f00a62320c3bb7133384989fbca908de0ccb62ab0c4ee6d3e6dad40f725caec549c0daa1ebd2d90c79e1794eb16817b589cea8b99680147fff6f42
+
+        //NONRESIDUE^((q^0 - 1) / 3)
         field_new!(Fq, BigInteger([
             0xb99680147fff6f42,
             0x4eb16817b589cea8,
@@ -107,7 +107,8 @@ impl Fp3Parameters for Fq3b7Parameters {
             0x95455fb31ff9a195,
             0x7b479ec8e242,
         ])),
-// Fq3 Frobenius_coeffs_c1[1]  11d5033223a5db8b087523d7db902b4b96c948f0e9992a75658e33e25f9f0e5b38512c92d9f5be660b05c89764d7df480725d1dc6e2f1524a1cc56c78e9773f64a98166c46a979bb6f43b5282969c1379b1ebf803e51e6b66f7b83f968680
+
+        //NONRESIDUE^((q^1 - 1) / 3)
         field_new!(Fq, BigInteger([
             0x6b66f7b83f968680,
             0x1379b1ebf803e51e,
@@ -122,7 +123,8 @@ impl Fp3Parameters for Fq3b7Parameters {
             0xb8b087523d7db902,
             0x11d5033223a5d,
         ])),
-// Fq3 Frobenius_coeffs_c1[2]  2c2e5ba7a770c22ca91d916b7315f39babe0941b2dce76ecc64a30e53860c8bef1104c8343cf816438c604b125871e2f40c2cc85fb4741955ee7e8c161eb6b08f346088b0f329920baa7e003df81ec757f1362138688b409ff15806a0a3f
+
+        //NONRESIDUE^((q^2 - 1) / 3)
         field_new!(Fq, BigInteger([
             0xb409ff15806a0a3f,
             0xec757f1362138688,
@@ -140,7 +142,8 @@ impl Fp3Parameters for Fq3b7Parameters {
     ];
 
     const FROBENIUS_COEFF_FP3_C2: [Fq; 3] = [
-// Fq3 Frobenius_coeffs_c2[0]  7b479ec8e24295455fb31ff9a1950fa47edb3865e88c4074c9cbfd8ca621598b4302d2f00a62320c3bb7133384989fbca908de0ccb62ab0c4ee6d3e6dad40f725caec549c0daa1ebd2d90c79e1794eb16817b589cea8b99680147fff6f42
+
+        //NONRESIDUE^(2(q^0 - 1)/ 3)
         field_new!(Fq, BigInteger([
             0xb99680147fff6f42,
             0x4eb16817b589cea8,
@@ -155,8 +158,9 @@ impl Fp3Parameters for Fq3b7Parameters {
             0x95455fb31ff9a195,
             0x7b479ec8e242,
         ])),
+
+        //NONRESIDUE^(2(q^1 - 1)/ 3)
         field_new!(Fq, BigInteger([
-// Fq3 Frobenius_coeffs_c2[1]  2c2e5ba7a770c22ca91d916b7315f39babe0941b2dce76ecc64a30e53860c8bef1104c8343cf816438c604b125871e2f40c2cc85fb4741955ee7e8c161eb6b08f346088b0f329920baa7e003df81ec757f1362138688b409ff15806a0a3f
             0xb409ff15806a0a3f,
             0xec757f1362138688,
             0x9920baa7e003df81,
@@ -170,7 +174,8 @@ impl Fp3Parameters for Fq3b7Parameters {
             0xc22ca91d916b7315,
             0x2c2e5ba7a770,
         ])),
-// Fq3 Frobenius_coeffs_c2[2]  11d5033223a5db8b087523d7db902b4b96c948f0e9992a75658e33e25f9f0e5b38512c92d9f5be660b05c89764d7df480725d1dc6e2f1524a1cc56c78e9773f64a98166c46a979bb6f43b5282969c1379b1ebf803e51e6b66f7b83f968680
+
+        //NONRESIDUE^(2(q^2 - 1)/ 3)
         field_new!(Fq, BigInteger([
             0x6b66f7b83f968680,
             0x1379b1ebf803e51e,

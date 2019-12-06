@@ -17,8 +17,23 @@ pub struct Fq4Parameters;
 impl Fp4Parameters for Fq4Parameters {
     type Fp2Params = Fq2Parameters;
 
-    /// NONRESIDUE = 13
-    const NONRESIDUE: Fq2 = field_new!(Fq2, 
+    /// NONRESIDUE = (8,1)
+    const NONRESIDUE: Fq2 = field_new!(Fq2,
+        field_new!(Fq, BigInteger([
+            587330122779359758,
+            14352661462510473462,
+            17802452401246596498,
+            18018663494943049411,
+            17948754733747257098,
+            10253180574146027531,
+            6683223122694781837,
+            13573468617269213174,
+            5059368039312883748,
+            950479668716233863,
+            9936591501985804621,
+            88719447132658
+        ])),
+
         field_new!(Fq, BigInteger([
             11000302312691101506,
             10506108233708684934,
@@ -32,12 +47,12 @@ impl Fp4Parameters for Fq4Parameters {
             1127165286758606988,
             10756108507984535957,
             135547536859714
-        ])),
-        field_new!(Fq, BigInteger([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])),
+        ]))
     );
     /// Coefficients for the Frobenius automorphism.
     const FROBENIUS_COEFF_FP4_C1: [Fq; 4] = [
 
+        //NONRESIDUE^((q^0 - 1)/4)
         field_new!(Fq, BigInteger([
             11000302312691101506,
             10506108233708684934,
@@ -53,6 +68,7 @@ impl Fp4Parameters for Fq4Parameters {
             135547536859714,
         ])),
 
+        //NONRESIDUE^((q^1 - 1)/4)
         field_new!(Fq, BigInteger([
             2732208433323581659,
             2172983777736624684,
@@ -68,6 +84,7 @@ impl Fp4Parameters for Fq4Parameters {
             163570781165682,
         ])),
 
+        //NONRESIDUE^((q^2 - 1)/4)
         field_new!(Fq, BigInteger([
             14260497802974073023,
             5895249896161266456,
@@ -83,19 +100,20 @@ impl Fp4Parameters for Fq4Parameters {
             362282887012814,
         ])),
 
+        //NONRESIDUE^((q^3 - 1)/4)
         field_new!(Fq, BigInteger([
-            0x5b165393e9171977,
-            0x85e4d6139d19a91f,
-            0x8d167cebf81b6ee0,
-            0x668ce015564b3e5d,
-            0x252688f361ca7b4f,
-            0x674aea3e694b975c,
-            0x66662591101c81fb,
-            0x754728edf269f85,
-            0xedf54cbcc77095bf,
-            0x990e725ae1234548,
-            0xbdbd13b0778b9df6,
-            0xb92d2855cd8a,
+            4081847608632041254,
+            14228374352133326707,
+            11267574244067947896,
+            1174247187748832530,
+            10065542319823237575,
+            10873259071217986508,
+            12902564573729719519,
+            17180267336735511666,
+            11808206507871910973,
+            12535793096497356591,
+            18394626215023595103,
+            334259642706846
         ])),
     ];
 }
