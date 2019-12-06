@@ -27,6 +27,6 @@ impl BnParameters for Bn_382Parameters {
     type Fp2Params = Fq2Parameters;
     type Fp6Params = Fq6Parameters;
     type Fp12Params = Fq12Parameters;
-    type G1Parameters = Bls12_381G1Parameters;
-    type G2Parameters = Bls12_381G2Parameters;
+    type G1Parameters = Bn_382G1Parameters;
+    type G2Parameters = Bn_382G2Parameters;
 }

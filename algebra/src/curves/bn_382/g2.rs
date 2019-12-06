@@ -10,7 +10,7 @@ use crate::{
     },
     field_new,
     fields::{
-        bls12_381::{Fq, Fq12, Fq2, Fr},
+        bn_382::{Fq, Fq12, Fq2, Fp},
         Field,
     },
 };
@@ -38,26 +38,26 @@ pub type G2Projective = BnG2Projective<Bn_382Parameters>;
 // }
 // }
 #[derive(Copy, Clone, Default, PartialEq, Eq)]
-pub struct Bls12_381G2Parameters;
+pub struct Bn_381G2Parameters;
 
-impl ModelParameters for Bls12_381G2Parameters {
+impl ModelParameters for Bn_381G2Parameters {
     type BaseField = Fq2;
     type ScalarField = Fr;
 }
 
-impl SWModelParameters for Bls12_381G2Parameters {
+impl SWModelParameters for Bn_381G2Parameters {
     /// COEFF_A = [0, 0]
     const COEFF_A: Fq2 = field_new!(
         Fq2,
-        Bls12_381G1Parameters::COEFF_A,
-        Bls12_381G1Parameters::COEFF_A,
+        Bn_382G1Parameters::COEFF_A,
+        Bn_382G1Parameters::COEFF_A,
     );
 
     /// COEFF_B = [4, 4]
     const COEFF_B: Fq2 = field_new!(
         Fq2,
-        Bls12_381G1Parameters::COEFF_B,
-        Bls12_381G1Parameters::COEFF_B,
+        Bn_382G1Parameters::COEFF_B,
+        Bn_382G1Parameters::COEFF_B,
     );
 
     /// COFACTOR = (x^8 - 4 x^7 + 5 x^6) - (4 x^4 + 6 x^3 - 4 x^2 - 4 x + 13) //
