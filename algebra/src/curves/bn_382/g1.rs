@@ -1,32 +1,10 @@
 use crate::{
     biginteger::BigInteger384,
-    curves::{
-        bn::g1::{G1Affine as BnG1Affine, G1Prepared, G1Projective as BnG1Projective},
-        bn_382::{g2::G2Affine, Bn_382, Bn_382Parameters},
-        ModelParameters, SWModelParameters,
-    },
+    curves::{ModelParameters, SWModelParameters},
     field_new,
-    fields::bn_382::{fp::Fp, fq::Fq, fq12::Fq12},
-    Field, PairingCurve,
+    fields::bn_382::{Fp, Fq},
+    Field,
 };
-
-pub type G1Affine = BnG1Affine<Bn_382Parameters>;
-pub type G1Projective = BnG1Projective<Bn_382Parameters>;
-
-impl PairingCurve for G1Affine {
-    type Engine = Bn_382;
-    type Prepared = G1Prepared<Bn_382Parameters>;
-    type PairWith = G2Affine;
-    type PairingResult = Fq12;
-
-    fn prepare(&self) -> Self::Prepared {
-        Self::Prepared::from_affine(*self)
-    }
-
-    fn pairing_with(&self, other: &Self::PairWith) -> Self::PairingResult {
-        Bn_382::pairing(*self, *other)
-    }
-}
 
 #[derive(Copy, Clone, Default, PartialEq, Eq)]
 pub struct Bn_382G1Parameters;
