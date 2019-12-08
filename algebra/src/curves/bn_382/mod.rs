@@ -1,5 +1,6 @@
 pub mod g1;
 pub mod g2;
+mod tests;
 
 use crate::{
     biginteger::BigInteger384 as BigInteger,

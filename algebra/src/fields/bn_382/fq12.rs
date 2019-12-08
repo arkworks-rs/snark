@@ -273,7 +273,7 @@ impl Fp12Parameters for Fq12Parameters {
 #[cfg(test)]
 mod test {
     use super::*;
-    use algebra::{Field, UniformRand};
+    use crate::{Field, UniformRand};
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
 

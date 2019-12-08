@@ -85,8 +85,9 @@ impl Fp2Parameters for Fq2Parameters {
 
 #[cfg(test)]
 mod test {
+    #![allow(unused_imports)]
     use super::*;
-    use algebra::{Field, UniformRand};
+    use crate::{Field, UniformRand};
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
 

@@ -258,7 +258,7 @@ impl Fp6Parameters for Fq6Parameters {
 #[cfg(test)]
 mod test {
     use super::*;
-    use algebra::{Field, UniformRand};
+    use crate::{Field, UniformRand};
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
 
