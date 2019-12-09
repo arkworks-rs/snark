@@ -257,7 +257,7 @@ impl<P: Parameters> ToCompressed for GroupAffine<P> {
         // x-coordinate? If so, set the third-most significant bit so long as this is not
         // the point at infinity.
 
-        let parity = if !is_zero && parity {1u8 << 6} else {0u8};
+        let parity = if !is_zero && self.y.is_odd() {1u8 << 6} else {0u8};
         res[len] |= parity;
 
         res

@@ -4,7 +4,8 @@ use crate::{
     fields::mnt6753::{Fq, Fq3, Fq6, Fq7bParameters, Fq3b7Parameters, Fq6b7Parameters},
     fields::FpParameters, fields::models::{Fp3Parameters, Fp6Parameters},
     Field, PrimeField, SquareRootField,
-    UniformRand, 
+    UniformRand,
+    bytes::ToBytes, to_bytes,
 };
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
@@ -1041,6 +1042,37 @@ fn test_fq_pow() {
 
 #[test]
 fn test_fq_sqrt() {
+
+    let a_squared = Fq::new(BigInteger768([
+        0x815f0a0b6846238c,
+        0x5949c2aef4191aac,
+        0x7dd3ce5c3e2aca9b,
+        0x33626ad4f94ccca5,
+        0xef5d495e9555b4ff,
+        0x8414d5bd8de49ef4,
+        0x5b16424c19676079,
+        0x58a9a5ebe1c0a51f,
+        0xe5fd980f6f8e1385,
+        0x4dab45076384cd54,
+        0x5fb2e86d6a180aa0,
+        0x18cd3d7d0d32c,
+    ]));
+    let a = a_squared.sqrt().unwrap();
+    assert_eq!(a, Fq::new(BigInteger768([
+        0x9696cbd70f683946,
+        0x2fbe984a7f99fb5e,
+        0x4152df84cdbbce30,
+        0x5ebe5c628d5a355e,
+        0xd448a5598db83394,
+        0x5c8ba2124ebab55b,
+        0xe8ef67a51612340,
+        0x3c7382380f2f323f,
+        0x93e740b12eec5af3,
+        0x89a625f9546373f2,
+        0xb2c2be3f0e9c1b51,
+        0xafc892d9432f,
+    ])));
+
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     assert_eq!(Fq::zero().sqrt().unwrap(), Fq::zero());
@@ -1167,6 +1199,26 @@ fn test_fq_legendre() {
     assert_eq!(QuadraticResidue, Fq::from_repr(e).legendre());
 }
 
+#[test]
+fn test_fq_bytes() {
+    let a = Fq::from_repr(BigInteger768([
+        0xecb23e0a2f1bd245,
+        0x31b80c631edc39ae,
+        0x590554649da78d85,
+        0xc12a5b2366697d8c,
+        0x1c4d1238bc71b6b2,
+        0x8d0b219cdb2c21d4,
+        0xa4a93f04ec97df4a,
+        0x67ca57a5e41af3f0,
+        0xd8ac205142b50568,
+        0xc2a674c3ef59f6de,
+        0x40067f9930800bb5,
+        0x129bc5bbcc439,
+    ]));
+    let a_b = to_bytes!(a).unwrap();
+    let a_b_read = std::fs::read("src/fields/mnt6753/test_vec/mnt6753_tobyte").unwrap();
+    assert_eq!(a_b, a_b_read);
+}
 
 #[test]
 fn test_fq3_ordering() {

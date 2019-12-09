@@ -6,6 +6,7 @@ use crate::{
     fields::models::{fp2::Fp2Parameters, fp4::Fp4Parameters},
     Field, PrimeField, SquareRootField,
     UniformRand,
+    bytes::{ToBytes, FromBytes}, to_bytes,
 };
 
 use rand::SeedableRng;
@@ -744,7 +745,6 @@ fn test_fq_squaring() {
     }
 }
 
-
 #[test]
 fn test_fq_inverse() {
     assert!(Fq::zero().inverse().is_none());
@@ -826,6 +826,38 @@ fn test_fq_pow() {
 
 #[test]
 fn test_fq_sqrt() {
+
+    let a_squared = Fq::new(BigInteger768([
+        0xd9ddf9cba96cc287,
+        0xd4a37d9a7f28d94c,
+        0x2fbe515c4feaefd3,
+        0x39cf73ff8cf508d7,
+        0xbc4da230bc9f52c,
+        0x3e1f0132e1f0851c,
+        0x7e7c04b6a099574e,
+        0xa7b18147273defee,
+        0x4d41983dd4323832,
+        0xf85193e73b78a121,
+        0x9b111ff50e57db2d,
+        0x186a7dede838e,
+    ]));
+    let a = a_squared.sqrt().unwrap();
+    assert_eq!(a, Fq::new(BigInteger768([
+        0x2246981b0859aa51,
+        0x2c27b2a6d58c0be4,
+        0xd12541e352f9bff1,
+        0x70401d9ca2890cde,
+        0xfe3a5678bfaeb0f7,
+        0x7c1f5e5cfd935e01,
+        0x4f7f6b949a430333,
+        0x31a49135470aeee2,
+        0xffff8d5b9eab0d02,
+        0x989ffec98fb0ed77,
+        0xccfebe585ad372c8,
+        0x13dc68aa6edec,
+    ])));
+
+
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     assert_eq!(Fq::zero().sqrt().unwrap(), Fq::zero());
@@ -859,6 +891,29 @@ fn test_fq_sqrt() {
 fn test_fq_num_bits() {
     assert_eq!(FqParameters::MODULUS_BITS, 753);
     assert_eq!(FqParameters::CAPACITY, 752);
+}
+
+#[test]
+fn test_fq_bytes() {
+    let a = Fq::from_repr(BigInteger768([
+        0xc2eb1a79dcc80fb,
+        0x8b74b0048ccc0f85,
+        0x1395ff13d91ce297,
+        0x651b4e825addab48,
+        0x8bb827faf35476a9,
+        0x4139332c620ccbbc,
+        0x81fac1a457bf1d18,
+        0xc9e4a3f3eda6e267,
+        0x7204a9a538c2a1e0,
+        0xa08a8a70b10f136a,
+        0x6fb145bda6920c42,
+        0x2c646dfb3edc,
+    ]));
+    let a_b = to_bytes!(a).unwrap();
+    let a_b_read = std::fs::read("src/fields/mnt4753/test_vec/mnt4753_tobyte").unwrap();
+    assert_eq!(a_b, a_b_read);
+    let a_read = Fq::read(a_b_read.as_slice()).unwrap();
+    assert_eq!(a, a_read);
 }
 
 
@@ -986,21 +1041,20 @@ fn test_fq2_basics() {
 
 #[test]
 fn test_fq2_squaring() {
-    // TODO: Understand what's going on here
+    // i = sqrt(13) in mnt4_753 fq2
 
-    let a = Fq2::new(Fq::one(), Fq::one()).square(); // u + 1
+    //(1+i)^2 = 2i
+    let a = Fq2::new(Fq::from_repr(BigInteger768::from(8)), Fq::one()).square();
     assert_eq!(
         a,
-        Fq2::new(Fq::zero(), Fq::from_repr(BigInteger768::from(2)),)
-    ); // 2u
+        Fq2::new(Fq::from_repr(BigInteger768::from(77)), Fq::from_repr(BigInteger768::from(16)))
+    );
 
-    /*let a = Fq2::new(Fq::zero(), Fq::one()).square(); // u
+    //i^2 = 13
+    let a = Fq2::new(Fq::zero(), Fq::one()).square();
     assert_eq!(a,
-               {
-        let neg1 = -Fq::one();
-        Fq2::new(neg1, Fq::zero())
-    }); // -1
-    */
+               Fq2::new(Fq::from_repr(BigInteger768::from(13)), Fq::zero())
+    );
 
     let mut a = Fq2::new(
         Fq::from_repr(BigInteger768([
