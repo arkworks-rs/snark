@@ -15,257 +15,185 @@ impl Fp12Parameters for Fq12Parameters {
     type Fp6Params = Fq6Parameters;
 
     const FROBENIUS_COEFF_FP12_C1: [Fq2; 12] = [
-        // Fq2(u + 1)**(((q^0) - 1) / 6)
         field_new!(
             Fq2,
             field_new!(
                 Fq,
                 BigInteger384([
-                    0x760900000002fffd,
-                    0xebf4000bc40c0002,
-                    0x5f48985753c758ba,
-                    0x77ce585370525745,
-                    0x5c071a97a256ec6d,
-                    0x15f65ec3fa80e493,
+                    0xfffffffffffffff9,
+                    0xfffffff57fab5757,
+                    0x7f56ac056aeaf57f,
+                    0x10388572e3c2c0f5,
+                    0xe6ce591c2bafc343,
+                    0x3e03f4104144b1a
                 ])
             ),
             field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
-        // Fq2(u + 1)**(((q^1) - 1) / 6)
         field_new!(
             Fq2,
             field_new!(
                 Fq,
                 BigInteger384([
-                    0x7089552b319d465,
-                    0xc6695f92b50a8313,
-                    0x97e83cccd117228f,
-                    0xa35baecab2dc29ee,
-                    0x1ce393ea5daace4d,
-                    0x8f2220fb0fb66eb,
-                ])
-            ),
-            field_new!(
-                Fq,
-                BigInteger384([
-                    0xb2f66aad4ce5d646,
-                    0x5842a06bfc497cec,
-                    0xcf4895d42599d394,
-                    0xc11b9cba40a8e8d0,
-                    0x2e3813cbe5a0de89,
-                    0x110eefda88847faf,
-                ])
-            ),
-        ),
-        // Fq2(u + 1)**(((q^2) - 1) / 6)
-        field_new!(
-            Fq2,
-            field_new!(
-                Fq,
-                BigInteger384([
-                    0xecfb361b798dba3a,
-                    0xc100ddb891865a2c,
-                    0xec08ff1232bda8e,
-                    0xd5c13cc6f1ca4721,
-                    0x47222a47bf7b5c04,
-                    0x110f184e51c5f59,
+                    0xc505aa299ebdd989,
+                    0x8e9201186b0dc570,
+                    0x1b8a5c2a1771876a,
+                    0x608bab122fa766ff,
+                    0x33f4e436f0a63ea7,
+                    0x1587b3a0cb438841
                 ])
             ),
             field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
-        // Fq2(u + 1)**(((q^3) - 1) / 6)
         field_new!(
             Fq2,
             field_new!(
                 Fq,
                 BigInteger384([
-                    0x3e2f585da55c9ad1,
-                    0x4294213d86c18183,
-                    0x382844c88b623732,
-                    0x92ad2afd19103e18,
-                    0x1d794e4fac7cf0b9,
-                    0xbd592fc7d825ec8,
-                ])
-            ),
-            field_new!(
-                Fq,
-                BigInteger384([
-                    0x7bcfa7a25aa30fda,
-                    0xdc17dec12a927e7c,
-                    0x2f088dd86b4ebef1,
-                    0xd1ca2087da74d4a7,
-                    0x2da2596696cebc1d,
-                    0xe2b7eedbbfd87d2,
-                ])
-            ),
-        ),
-        // Fq2(u + 1)**(((q^4) - 1) / 6)
-        field_new!(
-            Fq2,
-            field_new!(
-                Fq,
-                BigInteger384([
-                    0x30f1361b798a64e8,
-                    0xf3b8ddab7ece5a2a,
-                    0x16a8ca3ac61577f7,
-                    0xc26a2ff874fd029b,
-                    0x3636b76660701c6e,
-                    0x51ba4ab241b6160,
+                    0xbc53ef09632f798c,
+                    0x4989a7227b70fe75,
+                    0x9b1ed1eacd0a16a9,
+                    0xde2a63b0719e09f4,
+                    0x600b642eff55005,
+                    0x190429c6be8cecd1
                 ])
             ),
             field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
-        // Fq2(u + 1)**(((q^5) - 1) / 6)
         field_new!(
             Fq2,
             field_new!(
                 Fq,
                 BigInteger384([
-                    0x3726c30af242c66c,
-                    0x7c2ac1aad1b6fe70,
-                    0xa04007fbba4b14a2,
-                    0xef517c3266341429,
-                    0x95ba654ed2226b,
-                    0x2e370eccc86f7dd,
-                ])
-            ),
-            field_new!(
-                Fq,
-                BigInteger384([
-                    0x82d83cf50dbce43f,
-                    0xa2813e53df9d018f,
-                    0xc6f0caa53c65e181,
-                    0x7525cf528d50fe95,
-                    0x4a85ed50f4798a6b,
-                    0x171da0fd6cf8eebd,
-                ])
-            ),
-        ),
-        // Fq2(u + 1)**(((q^6) - 1) / 6)
-        field_new!(
-            Fq2,
-            field_new!(
-                Fq,
-                BigInteger384([
-                    0x43f5fffffffcaaae,
-                    0x32b7fff2ed47fffd,
-                    0x7e83a49a2e99d69,
-                    0xeca8f3318332bb7a,
-                    0xef148d1ea0f4c069,
-                    0x40ab3263eff0206,
+                    0x16b744a7d72fb912,
+                    0x8db76da14b98776d,
+                    0xd7d0fda03758326c,
+                    0x9a05f3af0ce04699,
+                    0x1c8a66ecb161efb2,
+                    0x13a9f1d5f1261bfe
                 ])
             ),
             field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
-        // Fq2(u + 1)**(((q^7) - 1) / 6)
         field_new!(
             Fq2,
             field_new!(
                 Fq,
                 BigInteger384([
-                    0xb2f66aad4ce5d646,
-                    0x5842a06bfc497cec,
-                    0xcf4895d42599d394,
-                    0xc11b9cba40a8e8d0,
-                    0x2e3813cbe5a0de89,
-                    0x110eefda88847faf,
-                ])
-            ),
-            field_new!(
-                Fq,
-                BigInteger384([
-                    0x7089552b319d465,
-                    0xc6695f92b50a8313,
-                    0x97e83cccd117228f,
-                    0xa35baecab2dc29ee,
-                    0x1ce393ea5daace4d,
-                    0x8f2220fb0fb66eb,
-                ])
-            ),
-        ),
-        // Fq2(u + 1)**(((q^8) - 1) / 6)
-        field_new!(
-            Fq2,
-            field_new!(
-                Fq,
-                BigInteger384([
-                    0xcd03c9e48671f071,
-                    0x5dab22461fcda5d2,
-                    0x587042afd3851b95,
-                    0x8eb60ebe01bacb9e,
-                    0x3f97d6e83d050d2,
-                    0x18f0206554638741,
+                    0xbc53ef09632f7993,
+                    0x4989a72cfbc5a71d,
+                    0x1bc825e5621f2129,
+                    0xcdf1de3d8ddb48ff,
+                    0x1f325d26c4458cc2,
+                    0x1523ea85ba78a1b6
                 ])
             ),
             field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
-        // Fq2(u + 1)**(((q^9) - 1) / 6)
         field_new!(
             Fq2,
             field_new!(
                 Fq,
                 BigInteger384([
-                    0x7bcfa7a25aa30fda,
-                    0xdc17dec12a927e7c,
-                    0x2f088dd86b4ebef1,
-                    0xd1ca2087da74d4a7,
-                    0x2da2596696cebc1d,
-                    0xe2b7eedbbfd87d2,
-                ])
-            ),
-            field_new!(
-                Fq,
-                BigInteger384([
-                    0x3e2f585da55c9ad1,
-                    0x4294213d86c18183,
-                    0x382844c88b623732,
-                    0x92ad2afd19103e18,
-                    0x1d794e4fac7cf0b9,
-                    0xbd592fc7d825ec8,
-                ])
-            ),
-        ),
-        // Fq2(u + 1)**(((q^10) - 1) / 6)
-        field_new!(
-            Fq2,
-            field_new!(
-                Fq,
-                BigInteger384([
-                    0x890dc9e4867545c3,
-                    0x2af322533285a5d5,
-                    0x50880866309b7e2c,
-                    0xa20d1b8c7e881024,
-                    0x14e4f04fe2db9068,
-                    0x14e56d3f1564853a,
+                    0x51b19a7e3871df8a,
+                    0xff256c8a6096ca14,
+                    0x3c5ed207a2e9ac81,
+                    0xee047eb105d3e89c,
+                    0x59e5bf1f71597093,
+                    0x2226c77500bb1b4b
                 ])
             ),
             field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
-        // Fq2(u + 1)**(((q^11) - 1) / 6)
         field_new!(
             Fq2,
             field_new!(
                 Fq,
                 BigInteger384([
-                    0x82d83cf50dbce43f,
-                    0xa2813e53df9d018f,
-                    0xc6f0caa53c65e181,
-                    0x7525cf528d50fe95,
-                    0x4a85ed50f4798a6b,
-                    0x171da0fd6cf8eebd,
+                    0x8,
+                    0xc0060c0c0,
+                    0xc1848c18180c00,
+                    0xa451b0a144d8480c,
+                    0x8a81e34d84edfc45,
+                    0x202449fed6c43c73
                 ])
             ),
+            field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+        ),
+        field_new!(
+            Fq2,
             field_new!(
                 Fq,
                 BigInteger384([
-                    0x3726c30af242c66c,
-                    0x7c2ac1aad1b6fe70,
-                    0xa04007fbba4b14a2,
-                    0xef517c3266341429,
-                    0x95ba654ed2226b,
-                    0x2e370eccc86f7dd,
+                    0x3afa55d661422678,
+                    0x716dfee914fe52a7,
+                    0x648dd4676b917a15,
+                    0x53fe8b01f8f3a202,
+                    0x3d5b5832bff780e1,
+                    0xe7cd59f0f94ff4d
                 ])
             ),
+            field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+        ),
+        field_new!(
+            Fq2,
+            field_new!(
+                Fq,
+                BigInteger384([
+                    0x43ac10f69cd08675,
+                    0xb67658df049b19a2,
+                    0xe4f95ea6b5f8ead6,
+                    0xd65fd263b6fcff0c,
+                    0x6b4f8626c0a86f82,
+                    0xb005f791c4b9abd
+                ])
+            ),
+            field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+        ),
+        field_new!(
+            Fq2,
+            field_new!(
+                Fq,
+                BigInteger384([
+                    0xe948bb5828d046ef,
+                    0x724892603473a0aa,
+                    0xa84732f14baacf13,
+                    0x1a8442651bbac267,
+                    0x54c5d57cff3bcfd6,
+                    0x105a9769e9b26b90
+                ])
+            ),
+            field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+        ),
+        field_new!(
+            Fq2,
+            field_new!(
+                Fq,
+                BigInteger384([
+                    0x43ac10f69cd0866e,
+                    0xb67658d4844670fa,
+                    0x64500aac20e3e056,
+                    0xe69857d69abfc002,
+                    0x521ddf42ec5832c5,
+                    0xee09eba205fe5d8
+                ])
+            ),
+            field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+        ),
+        field_new!(
+            Fq2,
+            field_new!(
+                Fq,
+                BigInteger384([
+                    0xae4e6581c78e2077,
+                    0xda93771f754e03,
+                    0x43b95e89e01954fe,
+                    0xc685b76322c72065,
+                    0x176a7d4a3f444ef4,
+                    0x1ddc1cada1d6c43
+                ])
+            ),
+            field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
     ];
 }

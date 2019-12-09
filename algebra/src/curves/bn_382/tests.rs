@@ -55,31 +55,31 @@ fn test_g2_generator() {
     assert!(generator.is_in_correct_subgroup_assuming_on_curve());
 }
 
-// #[test]
-// fn test_bilinearity() {
-// let a: G1Projective = G1Projective::prime_subgroup_generator();
-// let b: G2Projective = G2Projective::prime_subgroup_generator();
-// let s: Fp = Fp::one() + &Fp::one();
-//
-// let sa = a * &s;
-// let sb = b * &s;
-//
-// println!("a\n{:?}\n", a.into_affine());
-// println!("b\n{:?}\n", b.into_affine());
-// println!("s\n{:?}\n", s);
-// println!("sa\n{:?}\n", sa.into_affine());
-// println!("sb\n{:?}\n", sb.into_affine());
-//
-// let ans1 = Bn_382::pairing(sa, b);
-// let ans2 = Bn_382::pairing(a, sb);
-//
-// assert_eq!(ans1, ans2);
-//
-// assert_ne!(ans1, Fq12::one());
-// assert_ne!(ans2, Fq12::one());
-// assert_eq!(ans1.pow(Fp::characteristic()), Fq12::one());
-// assert_eq!(ans2.pow(Fp::characteristic()), Fq12::one());
-// }
+#[test]
+fn test_bilinearity() {
+    let a: G1Projective = G1Projective::prime_subgroup_generator();
+    let b: G2Projective = G2Projective::prime_subgroup_generator();
+    let s: Fp = Fp::one() + &Fp::one();
+
+    let sa: G1Projective = (a * &s).into_affine().into();
+    let sb: G2Projective = (b * &s).into_affine().into();
+
+    println!("a\n{:?}\n", a.into_affine());
+    println!("b\n{:?}\n", b.into_affine());
+    println!("s\n{:?}\n", s);
+    println!("sa\n{:?}\n", sa.into_affine());
+    println!("sb\n{:?}\n", sb.into_affine());
+
+    let ans1 = Bn_382::pairing(sa, b);
+    let ans2 = Bn_382::pairing(a, sb);
+
+    assert_eq!(ans1, ans2);
+
+    assert_ne!(ans1, Fq12::one());
+    assert_ne!(ans2, Fq12::one());
+    assert_eq!(ans1.pow(Fp::characteristic()), Fq12::one());
+    assert_eq!(ans2.pow(Fp::characteristic()), Fq12::one());
+}
 
 #[test]
 fn test_g1_generator_raw() {
