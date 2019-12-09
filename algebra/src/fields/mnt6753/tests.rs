@@ -1254,19 +1254,14 @@ fn test_fq3_basics() {
 
 #[test]
 fn test_fq3_squaring() {
-    // TODO: Understand what's going on here
+    // i = sqrt(11) in mnt6_753 fq3
 
-    /*let a = Fq3::new(Fq::one(), Fq::one()).square(); // u + 1
+    //(11 + 0i + 0j)^2 = 121 + 0i + 0j = 121
+    let a = Fq3::new(Fq::from_repr(BigInteger768::from(11)), Fq::zero(), Fq::zero()).square();
     assert_eq!(
         a,
-        Fq3::new(Fq::zero(), Fq::from_repr(BigInteger768::from(2)),)
-    ); // 2u
-
-    let a = Fq3::new(Fq::zero(), Fq::one()).square(); // u
-    assert_eq!(a, {
-        let neg1 = -Fq::one();
-        Fq3::new(neg1, Fq::zero())
-    }); // -1*/
+        Fq3::new(Fq::from_repr(BigInteger768::from(121)), Fq::zero(), Fq::zero())
+    );
 
     let mut a = Fq3::new(
         Fq::from_repr(BigInteger768([

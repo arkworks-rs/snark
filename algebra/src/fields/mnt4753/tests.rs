@@ -1043,7 +1043,7 @@ fn test_fq2_basics() {
 fn test_fq2_squaring() {
     // i = sqrt(13) in mnt4_753 fq2
 
-    //(1+i)^2 = 2i
+    //(8+i)^2 = 77 + 16i
     let a = Fq2::new(Fq::from_repr(BigInteger768::from(8)), Fq::one()).square();
     assert_eq!(
         a,
