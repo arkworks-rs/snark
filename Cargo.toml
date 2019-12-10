@@ -1,6 +1,16 @@
 [workspace]
 
-members = [ "algebra", "ff-fft", "r1cs-core", "r1cs-std", "groth16", "gm17", "crypto-primitives", "dpc", "bench-utils" ]
+members = [
+    "algebra"
+  , "ff-fft"
+  , "r1cs-core"
+  , "r1cs-std"
+  , "groth16"
+  , "gm17"
+  , "crypto-primitives"
+  , "dpc"
+  , "bench-utils"
+  , "snarky-bn382" ]
 
 [profile.release]
 opt-level = 3

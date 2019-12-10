@@ -1,0 +1,10 @@
+(data_only_dirs
+  algebra
+  bench-utils
+  crypto-primitives
+  dpc
+  ff-fft
+  gm17
+  groth16
+  r1cs-core
+  r1cs-std)
