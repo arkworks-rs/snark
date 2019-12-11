@@ -1,4 +1,5 @@
 #![allow(unused_imports)]
+#[cfg(test)]
 use crate::{
     biginteger::BigInteger384,
     curves::{

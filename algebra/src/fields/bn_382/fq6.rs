@@ -141,6 +141,7 @@ impl Fp6Parameters for Fq6Parameters {
     ];
 
     const FROBENIUS_COEFF_FP6_C2: [Fq2; 6] = [
+        // (Fq2(2*u) ** (2/3)) ** (q^0) / (Fq2(2*u) ** (2/3))
         // Fq2(2*u)**(((2q^0) - 2) / 3)
         field_new!(
             Fq2,
