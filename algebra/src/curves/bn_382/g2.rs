@@ -29,19 +29,18 @@ impl SWModelParameters for Bn_382G2Parameters {
     // (14 / (2*sqrt(7))^5
     // == 0 + sqrt7 *
     // 671741409037656549287655731709824109253980562797465531047568917158473772953357661607607074171171789249425365013734
-    /// COEFF_B = [4, 4]
     const COEFF_B: Fq2 = field_new!(
         Fq2,
         field_new!(Fq, BigInteger([0, 0, 0, 0, 0, 0])),
         field_new!(
             Fq,
             BigInteger([
-                0x1f58d0fac687d635,
-                0x4924924a4690f812,
-                0x7065db87ffa97412,
-                0x63c12e0f38c8a8c2,
-                0x849567165657c4df,
-                0x1b860998b4eca50d
+                0xaaaaaaaaaaaaaaa6,
+                0xaaaaaaa3aa723a3a,
+                0xaa39c8039c9ca3aa,
+                0xb57b03a1ed2c80a3,
+                0x99dee612c7ca822c,
+                0x2957f80ad62dcbc
             ])
         ),
     );
@@ -92,12 +91,12 @@ pub const G2_GENERATOR_Y: Fq2 = field_new!(Fq2, G2_GENERATOR_Y_C0, G2_GENERATOR_
 pub const G2_GENERATOR_X_C0: Fq = field_new!(
     Fq,
     BigInteger([
-        0xaa14afc8b159ead4,
-        0x277e239ba378f9a2,
-        0x53af3b32c1685d95,
-        0x5ba7b0850c1229e6,
-        0x9b26be1e9ea6773c,
-        0x10b027422ad1ccfa
+        0x2761a83ee6ccb6c6,
+        0x681d8b2b656ce886,
+        0x3540fb52bab89b4,
+        0x81e6427c08680553,
+        0xa9ccf8c26dcf6e1,
+        0x1851476ea8077fc6
     ])
 );
 
@@ -106,12 +105,12 @@ pub const G2_GENERATOR_X_C0: Fq = field_new!(
 pub const G2_GENERATOR_X_C1: Fq = field_new!(
     Fq,
     BigInteger([
-        0x54a865e3edc90bb9,
-        0x7f5128acfea3ee45,
-        0xf2a0887d3d43fc7,
-        0x638886d3adde77dc,
-        0x40357f01221b9804,
-        0x1e9051d8c102908
+        0x14498e69e5b53113,
+        0xee8cd774d8d88e77,
+        0xc6f3b5ce2ace1aef,
+        0x3502bb8b846944a9,
+        0xc95e755dd7927cae,
+        0x7c0beebd73ab8f5
     ])
 );
 
@@ -120,12 +119,12 @@ pub const G2_GENERATOR_X_C1: Fq = field_new!(
 pub const G2_GENERATOR_Y_C0: Fq = field_new!(
     Fq,
     BigInteger([
-        0x82c0caabec3e17d3,
-        0x8c65a2ca682b24ae,
-        0x44686fe645fd5f7d,
-        0xfc711a7c8fdb18fa,
-        0x7113b7187965708b,
-        0xe837725a5a84e1d
+        0xe8028a161e1bbc9a,
+        0x266bd5d118d75d9b,
+        0xacc76640f1e4baa9,
+        0xa70bd81b6be756f4,
+        0x5161ebf3eef9a86e,
+        0x657061a71f10b07
     ])
 );
 
@@ -134,11 +133,11 @@ pub const G2_GENERATOR_Y_C0: Fq = field_new!(
 pub const G2_GENERATOR_Y_C1: Fq = field_new!(
     Fq,
     BigInteger([
-        0xc97b8db7d421302e,
-        0x2cfd45fb7e39854c,
-        0x31bf077f06393b01,
-        0x2e5cbd509a1ab02c,
-        0xbbbde4f85ef3a1aa,
-        0xe10c91e02074189
+        0xc981004fff54161b,
+        0x12540e2eb9d55972,
+        0xf89981d85302a29a,
+        0xb69dcab62945321d,
+        0x841115a42fc75e00,
+        0x65c141e4b7455c1
     ])
 );

@@ -21,28 +21,28 @@ impl Fp6Parameters for Fq6Parameters {
     type Fp2Params = Fq2Parameters;
 
     // u = sqrt(7)
-    // 2 * u has no cube nor square nor sixth root
+    // 3 * u has no cube nor square nor sixth root
     /// NONRESIDUE = (2 * U)
     const NONRESIDUE: Fq2 = field_new!(
         Fq2,
         // 0
         field_new!(Fq, BigInteger([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
-        // 2
+        // 3
         field_new!(
             Fq,
             BigInteger([
-                0xfffffffffffffff2,
-                0xffffffeaff56aeaf,
-                0xfead580ad5d5eaff,
-                0x20710ae5c78581ea,
-                0xcd9cb238575f8686,
-                0x7c07e8208289635
+                0xffffffffffffffeb,
+                0xffffffe07f020607,
+                0x7e04041040c0e07f,
+                0x30a99058ab4842e0,
+                0xb46b0b54830f49c9,
+                0xba0bdc30c3ce150
             ])
         ),
     );
 
     const FROBENIUS_COEFF_FP6_C1: [Fq2; 6] = [
-        // Fq2(2*u)**(((q^0) - 1) / 3)
+        // Fq2(nqr)**(((q^0) - 1) / 3)
         field_new!(
             Fq2,
             field_new!(
@@ -58,71 +58,7 @@ impl Fp6Parameters for Fq6Parameters {
             ),
             field_new!(Fq, BigInteger([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
-        // Fq2(2*u)**(((q^1) - 1) / 3)
-        field_new!(
-            Fq2,
-            field_new!(
-                Fq,
-                BigInteger([
-                    0xbc53ef09632f798c,
-                    0x4989a7227b70fe75,
-                    0x9b1ed1eacd0a16a9,
-                    0xde2a63b0719e09f4,
-                    0x600b642eff55005,
-                    0x190429c6be8cecd1
-                ])
-            ),
-            field_new!(Fq, BigInteger([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
-        ),
-        // Fq2(2*u)**(((q^2) - 1) / 3)
-        field_new!(
-            Fq2,
-            field_new!(
-                Fq,
-                BigInteger([
-                    0xbc53ef09632f7993,
-                    0x4989a72cfbc5a71d,
-                    0x1bc825e5621f2129,
-                    0xcdf1de3d8ddb48ff,
-                    0x1f325d26c4458cc2,
-                    0x1523ea85ba78a1b6
-                ])
-            ),
-            field_new!(Fq, BigInteger([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
-        ),
-        // Fq2(2*u)**(((q^3) - 1) / 3)
-        field_new!(
-            Fq2,
-            field_new!(
-                Fq,
-                BigInteger([
-                    0x8,
-                    0xc0060c0c0,
-                    0xc1848c18180c00,
-                    0xa451b0a144d8480c,
-                    0x8a81e34d84edfc45,
-                    0x202449fed6c43c73
-                ])
-            ),
-            field_new!(Fq, BigInteger([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
-        ),
-        // Fq2(2*u)**(((q^4) - 1) / 3)
-        field_new!(
-            Fq2,
-            field_new!(
-                Fq,
-                BigInteger([
-                    0x43ac10f69cd08675,
-                    0xb67658df049b19a2,
-                    0xe4f95ea6b5f8ead6,
-                    0xd65fd263b6fcff0c,
-                    0x6b4f8626c0a86f82,
-                    0xb005f791c4b9abd
-                ])
-            ),
-            field_new!(Fq, BigInteger([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
-        ),
-        // Fq2(2*u)**(((q^5) - 1) / 3)
+        // Fq2(nqr)**(((q^1) - 1) / 3)
         field_new!(
             Fq2,
             field_new!(
@@ -138,11 +74,75 @@ impl Fp6Parameters for Fq6Parameters {
             ),
             field_new!(Fq, BigInteger([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
+        // Fq2(nqr)**(((q^2) - 1) / 3)
+        field_new!(
+            Fq2,
+            field_new!(
+                Fq,
+                BigInteger([
+                    0x43ac10f69cd08675,
+                    0xb67658df049b19a2,
+                    0xe4f95ea6b5f8ead6,
+                    0xd65fd263b6fcff0c,
+                    0x6b4f8626c0a86f82,
+                    0xb005f791c4b9abd
+                ])
+            ),
+            field_new!(Fq, BigInteger([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+        ),
+        // Fq2(nqr)**(((q^3) - 1) / 3)
+        field_new!(
+            Fq2,
+            field_new!(
+                Fq,
+                BigInteger([
+                    0x8,
+                    0xc0060c0c0,
+                    0xc1848c18180c00,
+                    0xa451b0a144d8480c,
+                    0x8a81e34d84edfc45,
+                    0x202449fed6c43c73
+                ])
+            ),
+            field_new!(Fq, BigInteger([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+        ),
+        // Fq2(nqr)**(((q^4) - 1) / 3)
+        field_new!(
+            Fq2,
+            field_new!(
+                Fq,
+                BigInteger([
+                    0xbc53ef09632f7993,
+                    0x4989a72cfbc5a71d,
+                    0x1bc825e5621f2129,
+                    0xcdf1de3d8ddb48ff,
+                    0x1f325d26c4458cc2,
+                    0x1523ea85ba78a1b6
+                ])
+            ),
+            field_new!(Fq, BigInteger([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+        ),
+        // Fq2(nqr)**(((q^5) - 1) / 3)
+        field_new!(
+            Fq2,
+            field_new!(
+                Fq,
+                BigInteger([
+                    0xbc53ef09632f798c,
+                    0x4989a7227b70fe75,
+                    0x9b1ed1eacd0a16a9,
+                    0xde2a63b0719e09f4,
+                    0x600b642eff55005,
+                    0x190429c6be8cecd1
+                ])
+            ),
+            field_new!(Fq, BigInteger([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+        ),
     ];
 
     const FROBENIUS_COEFF_FP6_C2: [Fq2; 6] = [
-        // (Fq2(2*u) ** (2/3)) ** (q^0) / (Fq2(2*u) ** (2/3))
-        // Fq2(2*u)**(((2q^0) - 2) / 3)
+        // (Fq2(nqr) ** (2/3)) ** (q^0) / (Fq2(nqr) ** (2/3))
+        // Fq2(nqr)**(((2q^0) - 2) / 3)
         field_new!(
             Fq2,
             field_new!(
@@ -158,23 +158,7 @@ impl Fp6Parameters for Fq6Parameters {
             ),
             field_new!(Fq, BigInteger([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
-        // Fq2(2*u)**(((2q^1) - 2) / 3)
-        field_new!(
-            Fq2,
-            field_new!(
-                Fq,
-                BigInteger([
-                    0xbc53ef09632f7993,
-                    0x4989a72cfbc5a71d,
-                    0x1bc825e5621f2129,
-                    0xcdf1de3d8ddb48ff,
-                    0x1f325d26c4458cc2,
-                    0x1523ea85ba78a1b6
-                ])
-            ),
-            field_new!(Fq, BigInteger([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
-        ),
-        // Fq2(2*u)**(((2q^2) - 2) / 3)
+        // Fq2(nqr)**(((2q^1) - 2) / 3)
         field_new!(
             Fq2,
             field_new!(
@@ -190,7 +174,23 @@ impl Fp6Parameters for Fq6Parameters {
             ),
             field_new!(Fq, BigInteger([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
-        // Fq2(2*u)**(((2q^3) - 2) / 3)
+        // Fq2(nqr)**(((2q^2) - 2) / 3)
+        field_new!(
+            Fq2,
+            field_new!(
+                Fq,
+                BigInteger([
+                    0xbc53ef09632f7993,
+                    0x4989a72cfbc5a71d,
+                    0x1bc825e5621f2129,
+                    0xcdf1de3d8ddb48ff,
+                    0x1f325d26c4458cc2,
+                    0x1523ea85ba78a1b6
+                ])
+            ),
+            field_new!(Fq, BigInteger([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+        ),
+        // Fq2(nqr)**(((2q^3) - 2) / 3)
         field_new!(
             Fq2,
             field_new!(
@@ -206,23 +206,7 @@ impl Fp6Parameters for Fq6Parameters {
             ),
             field_new!(Fq, BigInteger([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
-        // Fq2(2*u)**(((2q^4) - 2) / 3)
-        field_new!(
-            Fq2,
-            field_new!(
-                Fq,
-                BigInteger([
-                    0xbc53ef09632f7993,
-                    0x4989a72cfbc5a71d,
-                    0x1bc825e5621f2129,
-                    0xcdf1de3d8ddb48ff,
-                    0x1f325d26c4458cc2,
-                    0x1523ea85ba78a1b6
-                ])
-            ),
-            field_new!(Fq, BigInteger([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
-        ),
-        // Fq2(2*u)**(((2q^5) - 2) / 3)
+        // Fq2(nqr)**(((2q^4) - 2) / 3)
         field_new!(
             Fq2,
             field_new!(
@@ -234,6 +218,22 @@ impl Fp6Parameters for Fq6Parameters {
                     0xd65fd263b6fcff0c,
                     0x6b4f8626c0a86f82,
                     0xb005f791c4b9abd
+                ])
+            ),
+            field_new!(Fq, BigInteger([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+        ),
+        // Fq2(nqr)**(((2q^5) - 2) / 3)
+        field_new!(
+            Fq2,
+            field_new!(
+                Fq,
+                BigInteger([
+                    0xbc53ef09632f7993,
+                    0x4989a72cfbc5a71d,
+                    0x1bc825e5621f2129,
+                    0xcdf1de3d8ddb48ff,
+                    0x1f325d26c4458cc2,
+                    0x1523ea85ba78a1b6
                 ])
             ),
             field_new!(Fq, BigInteger([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
@@ -243,14 +243,17 @@ impl Fp6Parameters for Fq6Parameters {
     /// Multiply this element by the quadratic nonresidue 0 + 2 * u.
     /// Make this generic.
     fn mul_fp2_by_nonresidue(fe: &Fq2) -> Fq2 {
-        // 2 U (c0 + U * c1)
-        // == 2*7*c1 + U (2 c0)
+        // 3 U (c0 + U * c1)
+        // == 3*7*c1 + U (3 c0)
 
-        let mut c0 = Fq2Parameters::mul_fp_by_nonresidue(&fe.c1); // 7*c1
+        let seven_c1 = Fq2Parameters::mul_fp_by_nonresidue(&fe.c1); // 7*c1
+        let mut c0 = seven_c1.clone();
         c0.double_in_place(); // 2*7*c1
+        c0 += &seven_c1; // 3*7*c1
 
         let mut c1 = fe.c0;
         c1.double_in_place();
+        c1 += &fe.c0;
 
         Fq2::new(c0, c1)
     }
