@@ -17,6 +17,13 @@ impl<F: Field> From<(F, Variable)> for ConstraintVar<F> {
     }
 }
 
+impl<F: Field> From<LinearCombination<F>> for ConstraintVar<F> {
+    #[inline]
+    fn from(lc: LinearCombination<F>) -> Self {
+        LC(lc)
+    }
+}
+
 impl<F: Field> From<(F, LinearCombination<F>)> for ConstraintVar<F> {
     #[inline]
     fn from((coeff, mut lc): (F, LinearCombination<F>)) -> Self {
