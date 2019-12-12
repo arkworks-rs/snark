@@ -22,6 +22,7 @@ pub struct AffineGadget<
 > {
     pub x:   F,
     pub y:   F,
+    pub infinity: Boolean,
     _params: PhantomData<P>,
     _engine: PhantomData<ConstraintF>,
 }
@@ -29,10 +30,11 @@ pub struct AffineGadget<
 impl<P: SWModelParameters, ConstraintF: Field, F: FieldGadget<P::BaseField, ConstraintF>>
     AffineGadget<P, ConstraintF, F>
 {
-    pub fn new(x: F, y: F) -> Self {
+    pub fn new(x: F, y: F, infinity: Boolean) -> Self {
         Self {
             x,
             y,
+            infinity,
             _params: PhantomData,
             _engine: PhantomData,
         }
@@ -45,12 +47,13 @@ impl<P: SWModelParameters, ConstraintF: Field, F: FieldGadget<P::BaseField, Cons
     where
         F: FnOnce() -> Result<SWProjective<P>, SynthesisError>,
     {
-        let (x, y) = match value_gen() {
-            Ok(fe) => {
-                let fe = fe.into_affine();
-                (Ok(fe.x), Ok(fe.y))
+        let (x, y, infinity) = match value_gen() {
+            Ok(ge) => {
+                let ge = ge.into_affine();
+                (Ok(ge.x), Ok(ge.y), Ok(ge.infinity))
             },
             _ => (
+                Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),
             ),
@@ -58,8 +61,9 @@ impl<P: SWModelParameters, ConstraintF: Field, F: FieldGadget<P::BaseField, Cons
 
         let x = F::alloc(&mut cs.ns(|| "x"), || x)?;
         let y = F::alloc(&mut cs.ns(|| "y"), || y)?;
+        let infinity = Boolean::alloc(&mut cs.ns(|| "infinity"), || infinity)?;
 
-        Ok(Self::new(x, y))
+        Ok(Self::new(x, y, infinity))
     }
 }
 
@@ -94,12 +98,11 @@ where
 
     #[inline]
     fn get_value(&self) -> Option<Self::Value> {
-        match (self.x.get_value(), self.y.get_value()) {
-            (Some(x), Some(y)) => {
-                let is_zero = x.is_zero() && y.is_one();
-                Some(SWAffine::new(x, y, is_zero).into_projective())
+        match (self.x.get_value(), self.y.get_value(), self.infinity.get_value()) {
+            (Some(x), Some(y), Some(infinity)) => {
+                Some(SWAffine::new(x, y, infinity).into_projective())
             },
-            (None, None) => None,
+            (None, None, None) => None,
             _ => unreachable!(),
         }
     }
@@ -114,6 +117,7 @@ where
         Ok(Self::new(
             F::zero(cs.ns(|| "zero"))?,
             F::one(cs.ns(|| "one"))?,
+            Boolean::Constant(true),
         ))
     }
 
@@ -140,6 +144,7 @@ where
         //
         // So we need to check that A.x - B.x != 0, which can be done by
         // enforcing I * (B.x - A.x) = 1
+        // This is done below when we calculate inv (by F::inverse)
 
         let x2_minus_x1 = other.x.sub(cs.ns(|| "x2 - x1"), &self.x)?;
         let y2_minus_y1 = other.y.sub(cs.ns(|| "y2 - y1"), &self.y)?;
@@ -180,7 +185,7 @@ where
 
         lambda.mul_equals(cs.ns(|| ""), &x1_minus_x3, &y3_plus_y1)?;
 
-        Ok(Self::new(x_3, y_3))
+        Ok(Self::new(x_3, y_3, Boolean::Constant(false)))
     }
 
     /// Incomplete addition: neither `self` nor `other` can be the neutral
@@ -257,7 +262,7 @@ where
 
         lambda.mul_equals(cs.ns(|| ""), &x1_minus_x3, &y3_plus_y1)?;
 
-        Ok(Self::new(x_3, y_3))
+        Ok(Self::new(x_3, y_3, Boolean::Constant(false)))
     }
 
     #[inline]
@@ -296,7 +301,7 @@ where
             .mul(cs.ns(|| "times lambda"), &lambda)?
             .sub(cs.ns(|| "plus self.y"), &self.y)?;
 
-        *self = Self::new(x, y);
+        *self = Self::new(x, y, Boolean::Constant(false));
         Ok(())
     }
 
@@ -307,6 +312,7 @@ where
         Ok(Self::new(
             self.x.clone(),
             self.y.negate(cs.ns(|| "negate y"))?,
+            self.infinity,
         ))
     }
 
@@ -334,12 +340,14 @@ where
     ) -> Result<Self, SynthesisError> {
         let x = F::conditionally_select(&mut cs.ns(|| "x"), cond, &first.x, &second.x)?;
         let y = F::conditionally_select(&mut cs.ns(|| "y"), cond, &first.y, &second.y)?;
+        let infinity = Boolean::conditionally_select(&mut cs.ns(|| "infinity"), cond, &first.infinity, &second.infinity)?;
 
-        Ok(Self::new(x, y))
+        Ok(Self::new(x, y, infinity))
     }
 
     fn cost() -> usize {
-        2 * <F as CondSelectGadget<ConstraintF>>::cost()
+        2 * <F as CondSelectGadget<ConstraintF>>::cost() +
+        <Boolean as CondSelectGadget<ConstraintF>>::cost()
     }
 }
 
@@ -372,6 +380,11 @@ where
         self.y.conditional_enforce_equal(
             &mut cs.ns(|| "Y Coordinate Conditional Equality"),
             &other.y,
+            condition,
+        )?;
+        self.infinity.conditional_enforce_equal(
+            &mut cs.ns(|| "Infinity Conditional Equality"),
+            &other.infinity,
             condition,
         )?;
         Ok(())
@@ -422,12 +435,13 @@ where
         FN: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<SWProjective<P>>,
     {
-        let (x, y) = match value_gen() {
+        let (x, y, infinity) = match value_gen() {
             Ok(ge) => {
                 let ge = ge.borrow().into_affine();
-                (Ok(ge.x), Ok(ge.y))
+                (Ok(ge.x), Ok(ge.y), Ok(ge.infinity))
             },
             _ => (
+                Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),
             ),
@@ -439,6 +453,7 @@ where
 
         let x = F::alloc(&mut cs.ns(|| "x"), || x)?;
         let y = F::alloc(&mut cs.ns(|| "y"), || y)?;
+        let infinity = Boolean::alloc(&mut cs.ns(|| "infinity"), || infinity)?;
 
         // Check that y^2 = x^3 + ax +b
         // We do this by checking that y^2 - b = x * (x^2 +a)
@@ -450,7 +465,7 @@ where
 
         x2_plus_a.mul_equals(cs.ns(|| "on curve check"), &x, &y2_minus_b)?;
 
-        Ok(Self::new(x, y))
+        Ok(Self::new(x, y, infinity))
     }
 
     #[inline]
@@ -542,34 +557,25 @@ where
         FN: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<SWProjective<P>>,
     {
-        let (x, y) = match value_gen() {
+        // When allocating the input we assume that the verifier has performed 
+        // any on curve checks already.
+        let (x, y, infinity) = match value_gen() {
             Ok(ge) => {
                 let ge = ge.borrow().into_affine();
-                (Ok(ge.x), Ok(ge.y))
+                (Ok(ge.x), Ok(ge.y), Ok(ge.infinity))
             },
             _ => (
+                Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),
             ),
         };
 
-        let b = P::COEFF_B;
-        let a = P::COEFF_A;
-
         let x = F::alloc_input(&mut cs.ns(|| "x"), || x)?;
         let y = F::alloc_input(&mut cs.ns(|| "y"), || y)?;
+        let infinity = Boolean::alloc_input(&mut cs.ns(|| "infinity"), || infinity)?;
 
-        // Check that y^2 = x^3 + ax +b
-        // We do this by checking that y^2 - b = x * (x^2 +a)
-        let x2 = x.square(&mut cs.ns(|| "x^2"))?;
-        let y2 = y.square(&mut cs.ns(|| "y^2"))?;
-
-        let x2_plus_a = x2.add_constant(cs.ns(|| "x^2 + a"), &a)?;
-        let y2_minus_b = y2.add_constant(cs.ns(|| "y^2 - b"), &b.neg())?;
-
-        x2_plus_a.mul_equals(cs.ns(|| "on curve check"), &x, &y2_minus_b)?;
-
-        Ok(Self::new(x, y))
+        Ok(Self::new(x, y, infinity))
     }
 }
 
@@ -586,6 +592,7 @@ where
         let mut x_bits = self.x.to_bits(&mut cs.ns(|| "X Coordinate To Bits"))?;
         let y_bits = self.y.to_bits(&mut cs.ns(|| "Y Coordinate To Bits"))?;
         x_bits.extend_from_slice(&y_bits);
+        x_bits.push(self.infinity);
         Ok(x_bits)
     }
 
@@ -600,6 +607,7 @@ where
             .y
             .to_bits_strict(&mut cs.ns(|| "Y Coordinate To Bits"))?;
         x_bits.extend_from_slice(&y_bits);
+        x_bits.push(self.infinity);
 
         Ok(x_bits)
     }
@@ -617,7 +625,9 @@ where
     ) -> Result<Vec<UInt8>, SynthesisError> {
         let mut x_bytes = self.x.to_bytes(&mut cs.ns(|| "X Coordinate To Bytes"))?;
         let y_bytes = self.y.to_bytes(&mut cs.ns(|| "Y Coordinate To Bytes"))?;
+        let inf_bytes = self.infinity.to_bytes(&mut cs.ns(|| "Infinity to Bytes"))?;
         x_bytes.extend_from_slice(&y_bytes);
+        x_bytes.extend_from_slice(&inf_bytes);
         Ok(x_bytes)
     }
 
@@ -631,7 +641,9 @@ where
         let y_bytes = self
             .y
             .to_bytes_strict(&mut cs.ns(|| "Y Coordinate To Bytes"))?;
+        let inf_bytes = self.infinity.to_bytes(&mut cs.ns(|| "Infinity to Bytes"))?;
         x_bytes.extend_from_slice(&y_bytes);
+        x_bytes.extend_from_slice(&inf_bytes);
 
         Ok(x_bytes)
     }
