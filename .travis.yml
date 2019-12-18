@@ -1,5 +1,12 @@
 language: rust
 
+addons:
+  apt:
+    packages:
+      - "python3"
+      - "python3-pip"
+      - "python3-setuptools"
+
 rust:
   - stable
   - nightly
@@ -9,6 +16,9 @@ matrix:
 
 cache: cargo
 
+before_script:
+  - pip3 install --user travis-wait-improved
+
 script:
-  - cargo test --all -- --skip "dpc" --skip "integration_test"
-  - cargo check --examples --all
+  - python3 ~/.local/bin/travis-wait-improved --timeout=30m 'cargo test --all -- --skip "dpc" --skip "integration_test"'
+  - python3 ~/.local/bin/travis-wait-improved --timeout=30m 'cargo check --examples --all'
