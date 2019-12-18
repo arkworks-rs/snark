@@ -5,6 +5,7 @@ use std::hash::Hash;
 pub mod bowe_hopwood;
 pub mod injective_map;
 pub mod pedersen;
+pub mod poseidon;
 
 use crate::Error;
 
@@ -21,3 +22,4 @@ pub trait FixedLengthCRH {
     fn setup<R: Rng>(r: &mut R) -> Result<Self::Parameters, Error>;
     fn evaluate(parameters: &Self::Parameters, input: &[u8]) -> Result<Self::Output, Error>;
 }
+
