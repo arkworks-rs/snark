@@ -13,6 +13,8 @@ pub trait HashParameters {
     const T: usize;  // Number of S-Boxes
     const R_F:i32;   // Number of full rounds
     const R_P:i32;   // Number of partial rounds
+    const ZERO:Fr;
+    const C2:Fr;
     const ROUND_CST: [Fr; 195];
     const MDS_CST: [Fr; 9];
 }
@@ -24,6 +26,9 @@ impl HashParameters for PoseidonParameters {
     const T:usize = 3;  // Number of S-Boxes
     const R_F:i32 = 4;  // Number of full rounds
     const R_P:i32 = 57; // Number of partial rounds
+
+    const ZERO:Fr = field_new!(Fr, BigInteger768([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
+    const C2:Fr = field_new!(Fr, BigInteger768([3225562759756139974, 17011283570626227194, 16556209194167805035, 3339161890853831311, 82450953113211004, 16084037735897522728, 10818969177312366025, 910229637929377574, 13933676981085663844, 3381495860275820964, 13821581450244056255, 406642610579143]));
 
     const ROUND_CST: [Fr; 195]  = [
         field_new!(Fr,BigInteger768([7915174607273826982, 16079326147582823613, 9355658796035144992, 8510081566408291108, 3376666811880675611, 12465481858448862741, 16757727699625303609, 1360281042866297348, 3235275994684364202, 2493522768116896899, 13832550841775647162, 320729468055567])),
@@ -373,24 +378,11 @@ fn poseidon_perm (state: &mut Vec<Fr>) {
 
 }
 
-#[test]
-fn test_cst() {
-
-//    print_cst();
-//    print_mds();
-
-
-    let d1 = Fr::from_str("1").map_err(|_| ()).unwrap();
-    let d2 = Fr::from_str("2").map_err(|_| ()).unwrap();
-
-    let _c1 = Fr::from_str("3").map_err(|_| ()).unwrap();
-
-    let mut input = Vec::new();
-    input.push (d1);
-    input.push (d2);
+pub fn poseidon_engine(input: &mut Vec<Fr>) -> Fr {
 
     // The state vector contains three field elements
-    let zero = Fr::from_str("0").map_err(|_| ()).unwrap();
+    let zero = PoseidonParameters::ZERO;
+
     let mut state = Vec::new();
     state.push(zero.clone());
     state.push(zero.clone());
@@ -399,19 +391,38 @@ fn test_cst() {
     // apply permutation to all zeros state vector
     poseidon_perm(&mut state);
 
-    state[0] += &d1;
-    state[1] += &d2;
-    state[2] += &_c1;
+    state[0] += &input[0];
+    state[1] += &input[1];
+    state[2] += &PoseidonParameters::C2;
 
     // apply permutation after adding the input vector
     poseidon_perm(&mut state);
 
+    state[0]
+}
+
+#[test]
+fn test_cst() {
+
+//    print_cst();
+//    print_mds();
+
+    let d1 = Fr::from_str("1").map_err(|_| ()).unwrap();
+    let d2 = Fr::from_str("2").map_err(|_| ()).unwrap();
+
+    let mut input = Vec::new();
+    input.push (d1);
+    input.push (d2);
+
+    let output = poseidon_engine(&mut input);
+
+    // Reverse order to output the data
     let mut d_in_0 = to_bytes!(input[0]).unwrap();
     d_in_0.reverse();
     let mut d_in_1 = to_bytes!(input[1]).unwrap();
     d_in_1.reverse();
 
-    let mut d_out = to_bytes!(state[0]).unwrap();
+    let mut d_out = to_bytes!(output).unwrap();
     d_out.reverse();
 
     println!("input[0] = {:?}", hex::encode(d_in_0));
