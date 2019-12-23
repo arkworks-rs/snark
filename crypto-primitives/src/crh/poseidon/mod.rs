@@ -256,7 +256,7 @@ impl PoseidonParameters for MNT6753PoseidonParameters {
     // The zero element of the field
     const ZERO:Fr = field_new!(Fr, BigInteger768([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
     // The constant 3 to add to the position corresponding to the capacity
-    const C2:Fr = field_new!(Fr, BigInteger768([3225562759756139974, 17011283570626227194, 16556209194167805035, 3339161890853831311, 82450953113211004, 16084037735897522728, 10818969177312366025, 910229637929377574, 13933676981085663844, 3381495860275820964, 13821581450244056255, 406642610579143]));
+    const C2:Fr = field_new!(Fr, BigInteger768([14554162864363752902, 13071580627416503187, 14360763024707224971, 7784973665377591812, 14372065840962586190, 6498105613087234106, 10818969177312366603, 910229637929377574, 13933676981085663844, 3381495860275820964, 13821581450244056255, 406642610579143]));
 
     // Array of round constants
     const ROUND_CST: [Fr; 195]  = [
@@ -523,6 +523,17 @@ fn matrix_mix (state: &mut Vec<Fr>) {
 }
 
 //fn print_cst () {
+//    let cst = Fr::from_str("3").map_err(|_| ()).unwrap();
+//    println!("{:?}", cst);
+//
+//    let mut d_out = to_bytes!(cst).unwrap();
+//    d_out.reverse();
+//
+//    println!("constant = {:?}", hex::encode(d_out));
+//
+//}
+
+//fn print_cst () {
 //    for i in 0..195 {
 //        let cst = Fr::from_str(ROUND_CST[i]).map_err(|_| ()).unwrap();
 //        println!("{:?}", cst);
@@ -683,6 +694,7 @@ fn test_cst() {
 
 //    print_cst();
 //    print_mds();
+//    print_cst();
 
     // Test the Poseidon hash for a vector of 2 elements
     let d1 = Fr::from_str("1").map_err(|_| ()).unwrap();
