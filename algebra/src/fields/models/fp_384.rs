@@ -354,21 +354,6 @@ impl<P: Fp384Parameters> PrimeField for Fp384<P> {
     }
 
     #[inline]
-    fn from_repr_raw(r: BigInteger) -> Self {
-        let r = Fp384(r, PhantomData);
-        if r.is_valid() {
-            r
-        } else {
-            Self::zero()
-        }
-    }
-
-    #[inline]
-    fn into_repr_raw(&self) -> BigInteger {
-        self.0
-    }
-
-    #[inline]
     fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
         let mut result_bytes = vec![0u8; (Self::zero().0).0.len() * 8];
         for (result_byte, in_byte) in result_bytes.iter_mut().zip(bytes.iter()) {
