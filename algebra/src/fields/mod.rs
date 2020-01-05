@@ -210,12 +210,6 @@ pub trait PrimeField: Field + FromStr {
     /// Returns the underlying representation of the prime field element.
     fn into_repr(&self) -> Self::BigInt;
 
-    /// Returns a prime field element from its underlying raw representation.
-    fn from_repr_raw(repr: Self::BigInt) -> Self;
-
-    /// Returns the underlying raw representation of the prime field element.
-    fn into_repr_raw(&self) -> Self::BigInt;
-
     /// Returns a field element if the set of bytes forms a valid field element,
     /// otherwise returns None.
     fn from_random_bytes(bytes: &[u8]) -> Option<Self>;

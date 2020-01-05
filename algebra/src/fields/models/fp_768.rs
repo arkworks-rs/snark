@@ -666,22 +666,6 @@ impl<P: Fp768Parameters> PrimeField for Fp768<P> {
     }
 
     #[inline]
-    fn from_repr_raw(r: BigInteger) -> Self {
-        let r = Fp768(r, PhantomData);
-        if r.is_valid() {
-            r
-        } else {
-            Self::zero()
-        }
-    }
-
-    #[inline]
-    fn into_repr_raw(&self) -> BigInteger {
-        let r = *self;
-        r.0
-    }
-
-    #[inline]
     fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
         let mut result = Self::zero();
         if result.0.read_le((&bytes[..]).by_ref()).is_ok() {
