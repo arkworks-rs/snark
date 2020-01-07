@@ -6,6 +6,8 @@ use algebra::Field;
 //use algebra::{fields::mnt6753::Fr, Field };
 use std::ops::Mul;
 
+use std::time::{Duration, Instant};
+
 use std::str::FromStr;
 use algebra::biginteger::BigInteger768;
 use algebra::{to_bytes, ToBytes};
@@ -475,6 +477,7 @@ impl PoseidonParameters for MNT6753PoseidonParameters {
 }
 */
 
+
 // Function that does the mix matrix
 fn matrix_mix (state: &mut Vec<MNT4753Fr>) {
 
@@ -652,16 +655,57 @@ fn poseidon_perm (state: &mut Vec<MNT4753Fr>) {
         }
     }
 }
+//
+//pub fn poseidon_engine(input: &mut Vec<MNT4753Fr>) -> MNT4753Fr {
+//
+//    // state is a vector of 3 elements. They are initialized to zero elements
+//    let mut state = vec![MNT4753PoseidonParameters::ZERO, MNT4753PoseidonParameters::ZERO, MNT4753PoseidonParameters::ZERO];
+//
+//    // calculate the number of cycles to process the input dividing in portions of rate elements
+//    let num_cycles = input.len() / MNT4753PoseidonParameters::R;
+//    // check if the input is a multiple of the rate by calculating the remainder of the division
+//    let rem = input.len() % MNT4753PoseidonParameters::R;
+//
+//    // apply permutation to all zeros state vector
+//    poseidon_perm(&mut state);
+//
+//    // index to process the input
+//    let mut input_idx = 0;
+//    // iterate of the portions of rate elements
+//    for _i in 0..num_cycles {
+//        // add the elements to the state vector. Add rate elements
+//        for j in 0..MNT4753PoseidonParameters::R {
+//            state[j] += &input[input_idx];
+//            input_idx += 1;
+//        }
+//        // for application to a 2-1 Merkle tree, add the constant 3 to the third state vector
+//        state[MNT4753PoseidonParameters::R] += &MNT4753PoseidonParameters::C2;
+//        // apply permutation after adding the input vector
+//        poseidon_perm(&mut state);
+//
+//    }
+//
+//    // in case the input is not a multiple of the rate process the remainder part padding a zero
+//    if rem != 0 {
+//        state[0] += &input[input_idx];
+//        state[MNT4753PoseidonParameters::R] += &MNT4753PoseidonParameters::C2;
+//        // apply permutation after adding the input vector
+//        poseidon_perm(&mut state);
+//    }
+//
+//    // return the first element of the state vector as the hash digest
+//    state[0]
+//}
 
-pub fn poseidon_engine(input: &mut Vec<MNT4753Fr>) -> MNT4753Fr {
+pub fn poseidon_engine<T: PoseidonParameters>(input: &mut Vec<MNT4753Fr>) -> MNT4753Fr {
 
     // state is a vector of 3 elements. They are initialized to zero elements
-    let mut state = vec![MNT4753PoseidonParameters::ZERO, MNT4753PoseidonParameters::ZERO, MNT4753PoseidonParameters::ZERO];
+    let mut state = vec![T::ZERO, T::ZERO, T::ZERO];
 
     // calculate the number of cycles to process the input dividing in portions of rate elements
-    let num_cycles = input.len() / MNT4753PoseidonParameters::R;
+    let num_cycles = input.len() / T::R;
     // check if the input is a multiple of the rate by calculating the remainder of the division
-    let rem = input.len() % MNT4753PoseidonParameters::R;
+    let rem = input.len() % T::R;
 
     // apply permutation to all zeros state vector
     poseidon_perm(&mut state);
@@ -671,12 +715,12 @@ pub fn poseidon_engine(input: &mut Vec<MNT4753Fr>) -> MNT4753Fr {
     // iterate of the portions of rate elements
     for _i in 0..num_cycles {
         // add the elements to the state vector. Add rate elements
-        for j in 0..MNT4753PoseidonParameters::R {
+        for j in 0..T::R {
             state[j] += &input[input_idx];
             input_idx += 1;
         }
         // for application to a 2-1 Merkle tree, add the constant 3 to the third state vector
-        state[MNT4753PoseidonParameters::R] += &MNT4753PoseidonParameters::C2;
+        state[T::R] += &T::C2;
         // apply permutation after adding the input vector
         poseidon_perm(&mut state);
 
@@ -685,7 +729,7 @@ pub fn poseidon_engine(input: &mut Vec<MNT4753Fr>) -> MNT4753Fr {
     // in case the input is not a multiple of the rate process the remainder part padding a zero
     if rem != 0 {
         state[0] += &input[input_idx];
-        state[MNT4753PoseidonParameters::R] += &MNT4753PoseidonParameters::C2;
+        state[T::R] += &T::C2;
         // apply permutation after adding the input vector
         poseidon_perm(&mut state);
     }
@@ -710,7 +754,12 @@ fn test_cst() {
     input.push (d2);
 
     // Call the poseidon hash
-    let output = poseidon_engine(&mut input);
+//    let output = poseidon_engine(&mut input);
+
+    let now = Instant::now();
+    let output = poseidon_engine::<MNT4753PoseidonParameters>(&mut input);
+    let new_now  = Instant::now();
+    println!("{:?}", new_now.duration_since(now));
 
     // Reverse order to output the data
     let mut d_in_0 = to_bytes!(input[0]).unwrap();
