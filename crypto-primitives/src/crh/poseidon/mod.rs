@@ -1,17 +1,22 @@
 extern crate hex;
+extern crate rand;
 
-use algebra::fields::mnt6753::Fr as MNT6753Fr;
+use algebra::fields::mnt6753::{Fr as MNT6753Fr, Fq7bParameters};
 use algebra::fields::mnt4753::Fr as MNT4753Fr;
-use algebra::Field;
+use algebra::{Field, Fp768};
 //use algebra::{fields::mnt6753::Fr, Field };
 use std::ops::Mul;
 
-use std::time::{Duration, Instant};
+//use std::time::{Duration, Instant};
+use std::time::Instant;
+
+use rand::{thread_rng, Rng};
 
 use std::str::FromStr;
 use algebra::biginteger::BigInteger768;
 use algebra::{to_bytes, ToBytes};
 use algebra::field_new;
+//use self::rand::RngCore;
 
 pub trait PoseidonParameters {
     const T: usize;  // Number of S-Boxesb
@@ -738,41 +743,84 @@ pub fn poseidon_engine<T: PoseidonParameters>(input: &mut Vec<MNT4753Fr>) -> MNT
     state[0]
 }
 
+fn get_rand_string(len: usize) -> String {
+
+    let mut rstr = String::with_capacity(len);
+
+    // exclude the 0 for the first digit
+    let c: u8 = thread_rng().gen_range(49,57);
+    rstr.push(c as char);
+
+    // complete with digits from 0..9
+    for _ in 0..(len-1) {
+        let c: u8 = thread_rng().gen_range(48,57);
+        rstr.push(c as char);
+    }
+
+    rstr
+}
+
 #[test]
 fn test_cst() {
 
-//    print_cst();
-//    print_mds();
-//    print_cst();
+    let num_rounds = 1000;
+
+    let mut vec_cst:Vec<String> = Vec::new();
+
+    for _ in 0..(2*num_rounds) {
+        let s = get_rand_string(225);
+   //     println!("{:?}", s);
+        vec_cst.push(s);
+    }
+
+    let mut vec_elem = Vec::new();
 
     // Test the Poseidon hash for a vector of 2 elements
-    let d1 = MNT4753Fr::from_str("1").map_err(|_| ()).unwrap();
-    let d2 = MNT4753Fr::from_str("2").map_err(|_| ()).unwrap();
-
-    let mut input = Vec::new();
-    input.push (d1);
-    input.push (d2);
-
-    // Call the poseidon hash
-//    let output = poseidon_engine(&mut input);
+    for i in 0..num_rounds {
+ //       println!("{}", i);
+        let el1 = MNT4753Fr::from_str(&vec_cst[2*i]).map_err(|_| ()).unwrap();
+        let el2 = MNT4753Fr::from_str(&vec_cst[2*i + 1]).map_err(|_| ()).unwrap();
+        vec_elem.push(el1);
+        vec_elem.push(el2);
+    }
 
     let now = Instant::now();
-    let output = poseidon_engine::<MNT4753PoseidonParameters>(&mut input);
+
+    let mut output = Vec::new();
+
+    for i in 0..num_rounds {
+        let mut input = Vec::new();
+
+        let d1 = vec_elem[2*i];
+        let d2 = vec_elem[2*i+1];
+
+        input.push(d1);
+        input.push(d2);
+
+        // Call the poseidon hash
+        output.push(poseidon_engine::<MNT4753PoseidonParameters>(&mut input));
+    }
     let new_now  = Instant::now();
-    println!("{:?}", new_now.duration_since(now));
 
-    // Reverse order to output the data
-    let mut d_in_0 = to_bytes!(input[0]).unwrap();
-    d_in_0.reverse();
-    let mut d_in_1 = to_bytes!(input[1]).unwrap();
-    d_in_1.reverse();
+    for i in 0..num_rounds {
+        // Reverse order to output the data
+        let mut d_in_0 = to_bytes!(vec_elem[2*i]).unwrap();
+        d_in_0.reverse();
+        let mut d_in_1 = to_bytes!(vec_elem[2*i + 1]).unwrap();
+        d_in_1.reverse();
 
-    let mut d_out = to_bytes!(output).unwrap();
-    d_out.reverse();
+        let mut d_out = to_bytes!(output[i/2]).unwrap();
+        d_out.reverse();
 
-    println!("input[0] = {:?}", hex::encode(d_in_0));
-    println!("input[1] = {:?}", hex::encode(d_in_1));
-    println!("hash = {:?}", hex::encode(d_out));
+        println!("input[0] = {:?}", hex::encode(d_in_0));
+        println!("input[1] = {:?}", hex::encode(d_in_1));
+        println!("hash = {:?}", hex::encode(d_out));
+    }
+
+    let duration =  new_now.duration_since(now);
+    println!("Time for {} rounds = {:?}", num_rounds, duration.as_millis());
+    //(num_rounds as u128));
+
 
 
 }
