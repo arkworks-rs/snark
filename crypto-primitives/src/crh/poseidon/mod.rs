@@ -1,15 +1,11 @@
 extern crate hex;
 extern crate rand;
 
-//use algebra::fields::mnt6753::{Fr as MNT6753Fr, Fq7bParameters};
 use algebra::fields::mnt6753::Fr as MNT6753Fr;
 use algebra::fields::mnt4753::Fr as MNT4753Fr;
-//use algebra::{Field, Fp768};
-use algebra::{Field, PrimeField, SquareRootField, Group};
-//use algebra::{fields::mnt6753::Fr, Field };
+use algebra::{Field, PrimeField, SquareRootField};
 use std::ops::Mul;
 
-//use std::time::{Duration, Instant};
 use std::time::Instant;
 
 use rand::{thread_rng, Rng};
@@ -18,7 +14,6 @@ use std::str::FromStr;
 use algebra::biginteger::BigInteger768;
 use algebra::{to_bytes, ToBytes};
 use algebra::field_new;
-//use self::rand::RngCore;
 
 pub trait PoseidonParameters: 'static{
 
@@ -261,10 +256,11 @@ impl PoseidonParameters for MNT4753PoseidonParameters {
         field_new!(MNT4753Fr,BigInteger768([11361781006295149227, 1888565551852535322, 17456281179168360413, 4464566034302352950, 1511313395857515026, 10434498813391747209, 3694560225023032628, 12489769349086727983, 8423974663993073019, 4418931116510362276, 6536464735745229967, 165943474624176]))];
 }
 
-/*
 pub struct MNT6753PoseidonParameters;
 
 impl PoseidonParameters for MNT6753PoseidonParameters {
+
+    type Fr = MNT6753Fr;
 
     const T:usize = 3;  // Number of S-Boxes
     const R_F:i32 = 4;  // Number of full rounds
@@ -277,7 +273,7 @@ impl PoseidonParameters for MNT6753PoseidonParameters {
     const C2:MNT6753Fr = field_new!(MNT6753Fr, BigInteger768([14554162864363752902, 13071580627416503187, 14360763024707224971, 7784973665377591812, 14372065840962586190, 6498105613087234106, 10818969177312366603, 910229637929377574, 13933676981085663844, 3381495860275820964, 13821581450244056255, 406642610579143]));
 
     // Array of round constants
-    const ROUND_CST: [MNT6753Fr; 195]  = [
+    const ROUND_CST: &'static[MNT6753Fr]  = &[
         field_new!(MNT6753Fr,BigInteger768([6100645159411241843, 4437092042933367721, 14633206837520675567, 14132525331246840125, 7916387847448802337, 1534785714090075142, 11237977169615927803, 3207039815273148905, 4989784921523695772, 1202906363519139529, 7070073453042582516, 83610874962385])),
         field_new!(MNT6753Fr,BigInteger768([14266341507534758972, 14411502543800310761, 4296091759163549302, 11601706919289112291, 1150282200813486063, 17939828339660383206, 719380922275762394, 16018189017056790808, 12199580259786369692, 6301145066241616731, 13884244072279668375, 372804072722746])),
         field_new!(MNT6753Fr,BigInteger768([15742213426091363323, 2243588114780244501, 7720176180823075008, 10318969947110534933, 12479394060605622832, 18394991536696273888, 4120173738420565822, 15584249486220119895, 7563269863285019835, 4315496356767297708, 8417994768638160981, 456693141492472])),
@@ -475,7 +471,7 @@ impl PoseidonParameters for MNT6753PoseidonParameters {
         field_new!(MNT6753Fr,BigInteger768([16442753925943525135, 15290184883378048775, 1912142392979470280, 11007932060934244721, 14819186284358200871, 2450601222027738088, 684307793129383504, 7370623899155938419, 5145475809740512670, 1686910539835571792, 6183915117686211375, 295866003793276]))];
 
     // The MDS matrix
-    const MDS_CST: [MNT6753Fr; 9]  = [
+    const MDS_CST: &'static[MNT6753Fr]  = &[
         field_new!(MNT6753Fr,BigInteger768([12566585130538644626, 15236006376106777474, 1225745424770484098, 6503788358818947849, 14176325074469459508, 1166653438262698821, 610689621564733940, 14175279125225255453, 17793842093328406413, 1141157283585495645, 12388061355778041528, 95225479940195])),
         field_new!(MNT6753Fr,BigInteger768([2521755612982047753, 5887312284340591297, 8773579303766242905, 14069948510328436328, 4103905942595423108, 7149118940171687044, 13955752323931272033, 16699762052145242872, 3330599511569426636, 10958691845174746158, 17398200927097232264, 127425543948942])),
         field_new!(MNT6753Fr,BigInteger768([15191548119487423277, 15575377435153408606, 4469620831949320669, 17658111107022913658, 15417405191616234109, 3774055881120590571, 9893487941578930083, 4933544538950609628, 3766811065340490861, 13276507076472878602, 8446522251922543548, 55812774482030])),
@@ -485,10 +481,7 @@ impl PoseidonParameters for MNT6753PoseidonParameters {
         field_new!(MNT6753Fr,BigInteger768([15191548119487423277, 15575377435153408606, 4469620831949320669, 17658111107022913658, 15417405191616234109, 3774055881120590571, 9893487941578930083, 4933544538950609628, 3766811065340490861, 13276507076472878602, 8446522251922543548, 55812774482030])),
         field_new!(MNT6753Fr,BigInteger768([9947410736270134834, 102446083962795063, 4613113107389303266, 11918885118817469808, 14320088230537371980, 6019592556555980185, 12909714936841230341, 4032940534208822320, 15198296359165977358, 6939461075090444288, 9946075335368340796, 222518234521777])),
         field_new!(MNT6753Fr,BigInteger768([12566585130538644626, 15236006376106777474, 1225745424770484098, 6503788358818947849, 14176325074469459508, 1166653438262698821, 610689621564733940, 14175279125225255453, 17793842093328406413, 1141157283585495645, 12388061355778041528, 95225479940195]))];
-
 }
-*/
-
 
 // Function that does the mix matrix
 fn matrix_mix<P:PoseidonParameters> (state: &mut Vec<P::Fr>) {
@@ -667,47 +660,6 @@ fn poseidon_perm<T:PoseidonParameters> (state: &mut Vec<T::Fr>) {
         }
     }
 }
-//
-//pub fn poseidon_engine(input: &mut Vec<MNT4753Fr>) -> MNT4753Fr {
-//
-//    // state is a vector of 3 elements. They are initialized to zero elements
-//    let mut state = vec![MNT4753PoseidonParameters::ZERO, MNT4753PoseidonParameters::ZERO, MNT4753PoseidonParameters::ZERO];
-//
-//    // calculate the number of cycles to process the input dividing in portions of rate elements
-//    let num_cycles = input.len() / MNT4753PoseidonParameters::R;
-//    // check if the input is a multiple of the rate by calculating the remainder of the division
-//    let rem = input.len() % MNT4753PoseidonParameters::R;
-//
-//    // apply permutation to all zeros state vector
-//    poseidon_perm(&mut state);
-//
-//    // index to process the input
-//    let mut input_idx = 0;
-//    // iterate of the portions of rate elements
-//    for _i in 0..num_cycles {
-//        // add the elements to the state vector. Add rate elements
-//        for j in 0..MNT4753PoseidonParameters::R {
-//            state[j] += &input[input_idx];
-//            input_idx += 1;
-//        }
-//        // for application to a 2-1 Merkle tree, add the constant 3 to the third state vector
-//        state[MNT4753PoseidonParameters::R] += &MNT4753PoseidonParameters::C2;
-//        // apply permutation after adding the input vector
-//        poseidon_perm(&mut state);
-//
-//    }
-//
-//    // in case the input is not a multiple of the rate process the remainder part padding a zero
-//    if rem != 0 {
-//        state[0] += &input[input_idx];
-//        state[MNT4753PoseidonParameters::R] += &MNT4753PoseidonParameters::C2;
-//        // apply permutation after adding the input vector
-//        poseidon_perm(&mut state);
-//    }
-//
-//    // return the first element of the state vector as the hash digest
-//    state[0]
-//}
 
 pub fn poseidon_engine<T: PoseidonParameters>(input: &mut Vec<T::Fr>) -> T::Fr {
 
@@ -776,58 +728,97 @@ fn test_cst() {
 
     for _ in 0..(2*num_rounds) {
         let s = get_rand_string(225);
-   //     println!("{:?}", s);
         vec_cst.push(s);
     }
 
-    let mut vec_elem = Vec::new();
+    let mut vec_elem_4753 = Vec::new();
+    let mut vec_elem_6753 = Vec::new();
 
     // Test the Poseidon hash for a vector of 2 elements
     for i in 0..num_rounds {
- //       println!("{}", i);
-        let el1 = MNT4753Fr::from_str(&vec_cst[2*i]).map_err(|_| ()).unwrap();
-        let el2 = MNT4753Fr::from_str(&vec_cst[2*i + 1]).map_err(|_| ()).unwrap();
-        vec_elem.push(el1);
-        vec_elem.push(el2);
+        let el1_4753 = MNT4753Fr::from_str(&vec_cst[2*i]).map_err(|_| ()).unwrap();
+        let el2_4753 = MNT4753Fr::from_str(&vec_cst[2*i + 1]).map_err(|_| ()).unwrap();
+        vec_elem_4753.push(el1_4753);
+        vec_elem_4753.push(el2_4753);
+        let el1_6753 = MNT6753Fr::from_str(&vec_cst[2*i]).map_err(|_| ()).unwrap();
+        let el2_6753 = MNT6753Fr::from_str(&vec_cst[2*i + 1]).map_err(|_| ()).unwrap();
+        vec_elem_6753.push(el1_6753);
+        vec_elem_6753.push(el2_6753);
     }
 
-    let now = Instant::now();
+    // Calculate Poseidon Hash for mnt4753
+    let now_4753 = Instant::now();
 
-    let mut output = Vec::new();
+    let mut output_4753 = Vec::new();
 
     for i in 0..num_rounds {
         let mut input = Vec::new();
 
-        let d1 = vec_elem[2*i];
-        let d2 = vec_elem[2*i+1];
+        let d1 = vec_elem_4753[2*i];
+        let d2 = vec_elem_4753[2*i+1];
 
         input.push(d1);
         input.push(d2);
 
         // Call the poseidon hash
-        output.push(poseidon_engine::<MNT4753PoseidonParameters>(&mut input));
+        output_4753.push(poseidon_engine::<MNT4753PoseidonParameters>(&mut input));
     }
-    let new_now  = Instant::now();
+    let new_now_4753  = Instant::now();
+
+    // Calculate Poseidon Hash for mnt6753
+    let now_6753 = Instant::now();
+
+    let mut output_6753 = Vec::new();
+
+    for i in 0..num_rounds {
+        let mut input = Vec::new();
+
+        let d1 = vec_elem_6753[2*i];
+        let d2 = vec_elem_6753[2*i+1];
+
+        input.push(d1);
+        input.push(d2);
+
+        // Call the poseidon hash
+        output_6753.push(poseidon_engine::<MNT6753PoseidonParameters>(&mut input));
+    }
+    let new_now_6753  = Instant::now();
 
     for i in 0..num_rounds {
         // Reverse order to output the data
-        let mut d_in_0 = to_bytes!(vec_elem[2*i]).unwrap();
+        let mut d_in_0 = to_bytes!(vec_elem_4753[2*i]).unwrap();
         d_in_0.reverse();
-        let mut d_in_1 = to_bytes!(vec_elem[2*i + 1]).unwrap();
+        let mut d_in_1 = to_bytes!(vec_elem_4753[2*i + 1]).unwrap();
         d_in_1.reverse();
 
-        let mut d_out = to_bytes!(output[i/2]).unwrap();
+        let mut d_out = to_bytes!(output_4753[i/2]).unwrap();
         d_out.reverse();
 
         println!("input[0] = {:?}", hex::encode(d_in_0));
         println!("input[1] = {:?}", hex::encode(d_in_1));
-        println!("hash = {:?}", hex::encode(d_out));
+        println!("hash MNT4753= {:?}", hex::encode(d_out));
     }
 
-    let duration =  new_now.duration_since(now);
-    println!("Time for {} rounds = {:?}", num_rounds, duration.as_millis());
-    //(num_rounds as u128));
+    for i in 0..num_rounds {
+        // Reverse order to output the data
+        let mut d_in_0 = to_bytes!(vec_elem_6753[2*i]).unwrap();
+        d_in_0.reverse();
+        let mut d_in_1 = to_bytes!(vec_elem_6753[2*i + 1]).unwrap();
+        d_in_1.reverse();
+
+        let mut d_out = to_bytes!(output_6753[i/2]).unwrap();
+        d_out.reverse();
+
+        println!("input[0] = {:?}", hex::encode(d_in_0));
+        println!("input[1] = {:?}", hex::encode(d_in_1));
+        println!("hash MNT6753= {:?}", hex::encode(d_out));
+    }
 
 
+    let duration_4753 =  new_now_4753.duration_since(now_4753);
+    println!("Time for {} rounds MNT4753 = {:?}", num_rounds, duration_4753.as_millis());
+
+    let duration_6753 =  new_now_6753.duration_since(now_6753);
+    println!("Time for {} rounds MNT6753 = {:?}", num_rounds, duration_6753.as_millis());
 
 }
