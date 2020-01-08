@@ -1,9 +1,11 @@
 extern crate hex;
 extern crate rand;
 
-use algebra::fields::mnt6753::{Fr as MNT6753Fr, Fq7bParameters};
+//use algebra::fields::mnt6753::{Fr as MNT6753Fr, Fq7bParameters};
+use algebra::fields::mnt6753::Fr as MNT6753Fr;
 use algebra::fields::mnt4753::Fr as MNT4753Fr;
-use algebra::{Field, Fp768};
+//use algebra::{Field, Fp768};
+use algebra::{Field, PrimeField, SquareRootField, Group};
 //use algebra::{fields::mnt6753::Fr, Field };
 use std::ops::Mul;
 
@@ -18,20 +20,25 @@ use algebra::{to_bytes, ToBytes};
 use algebra::field_new;
 //use self::rand::RngCore;
 
-pub trait PoseidonParameters {
+pub trait PoseidonParameters: 'static{
+
+    type Fr: PrimeField + SquareRootField + Into<<Self::Fr as PrimeField>::BigInt>;
+
     const T: usize;  // Number of S-Boxesb
     const R_F:i32;   // Number of full rounds
     const R_P:i32;   // Number of partial rounds
     const R:usize;   // The rate of the hash function
-    const ZERO:MNT4753Fr;   // The zero element in the field
-    const C2:MNT4753Fr;     // The constant 3 to add in the position corresponding to the capacity
-    const ROUND_CST: [MNT4753Fr; 195];  // Array of round constants
-    const MDS_CST: [MNT4753Fr; 9];  // The MDS matrix
+    const ZERO:Self::Fr;   // The zero element in the field
+    const C2:Self::Fr;     // The constant 3 to add in the position corresponding to the capacity
+    const ROUND_CST: &'static[Self::Fr];  // Array of round constants
+    const MDS_CST: &'static[Self::Fr];  // The MDS matrix
 }
 
 pub struct MNT4753PoseidonParameters;
 
 impl PoseidonParameters for MNT4753PoseidonParameters {
+
+    type Fr = MNT4753Fr;
 
     const T:usize = 3;  // Number of S-Boxes
     const R_F:i32 = 4;  // Number of full rounds
@@ -44,7 +51,7 @@ impl PoseidonParameters for MNT4753PoseidonParameters {
     const C2:MNT4753Fr = field_new!(MNT4753Fr, BigInteger768([3225562759756139974, 17011283570626227194, 16556209194167805035, 3339161890853831311, 82450953113211004, 16084037735897522728, 10818969177312366025, 910229637929377574, 13933676981085663844, 3381495860275820964, 13821581450244056255, 406642610579143]));
 
     // Array of round constants
-    const ROUND_CST: [MNT4753Fr; 195]  = [
+    const ROUND_CST: &'static[MNT4753Fr]  = &[
         field_new!(MNT4753Fr,BigInteger768([7915174607273826982, 16079326147582823613, 9355658796035144992, 8510081566408291108, 3376666811880675611, 12465481858448862741, 16757727699625303609, 1360281042866297348, 3235275994684364202, 2493522768116896899, 13832550841775647162, 320729468055567])),
         field_new!(MNT4753Fr,BigInteger768([10140345286399379338, 7170990822955787519, 16709096773545678217, 11012077889687991061, 15003362665544646695, 7185406982957425389, 15985965997138387760, 16070072767008919814, 951616737537661688, 9982011654689747015, 11049913383537753030, 187034104926785])),
         field_new!(MNT4753Fr,BigInteger768([7562571679821236800, 15460058153391563764, 94617581249909890, 15684158351571526208, 1989616031468145412, 10847911418215377018, 12128423221754563084, 1120519188194687702, 13814379307197026635, 14924824919589768296, 6576056369320084789, 30129334743492])),
@@ -242,7 +249,7 @@ impl PoseidonParameters for MNT4753PoseidonParameters {
         field_new!(MNT4753Fr,BigInteger768([16623947759047688442, 4113361732006110262, 4610753917712625002, 6829415850376296011, 11589075297491659514, 3127687688898024567, 15962999368389834898, 9429673367335304346, 14745869979673018733, 1907662886172548165, 15105446604508210016, 229092266812089]))];
 
     // The MDS matrix
-    const MDS_CST: [MNT4753Fr; 9]  = [
+    const MDS_CST: &'static[MNT4753Fr]  = &[
         field_new!(MNT4753Fr,BigInteger768([11361781006295149227, 1888565551852535322, 17456281179168360413, 4464566034302352950, 1511313395857515026, 10434498813391747209, 3694560225023032628, 12489769349086727983, 8423974663993073019, 4418931116510362276, 6536464735745229967, 165943474624176])),
         field_new!(MNT4753Fr,BigInteger768([2273389936509229880, 17321947645212953453, 18292335065464818694, 7368388608105444890, 12251686918320756133, 110845207732535298, 16759611807051043208, 2054223516148535013, 15077627709804002581, 10594589362218047461, 2708574013677961667, 347303160241987])),
         field_new!(MNT4753Fr,BigInteger768([8527140660990281304, 7706984021475240729, 8761449026931617341, 5257484898569227466, 540926552397865661, 10975112827615211208, 14794011487427377511, 5598388269794404150, 15880918633348940546, 4681511907347937692, 6210571956987430752, 378321253898783])),
@@ -484,14 +491,14 @@ impl PoseidonParameters for MNT6753PoseidonParameters {
 
 
 // Function that does the mix matrix
-fn matrix_mix (state: &mut Vec<MNT4753Fr>) {
+fn matrix_mix<P:PoseidonParameters> (state: &mut Vec<P::Fr>) {
 
     // the new state where the result will be stored initialized to zero elements
-    let mut new_state = vec![MNT4753Fr::zero(); MNT4753PoseidonParameters::T];
+    let mut new_state = vec![P::Fr::zero(); P::T];
 
-    let m_11 = MNT4753PoseidonParameters::MDS_CST[0];
-    let m_12 = MNT4753PoseidonParameters::MDS_CST[1];
-    let m_13 = MNT4753PoseidonParameters::MDS_CST[2];
+    let m_11 = P::MDS_CST[0];
+    let m_12 = P::MDS_CST[1];
+    let m_13 = P::MDS_CST[2];
 
     // scalar multiplication for position 0 of the state vector
     let elem_0 = state[0].mul(&m_11);
@@ -503,9 +510,9 @@ fn matrix_mix (state: &mut Vec<MNT4753Fr>) {
     new_state[0] += &elem_2;
 
     // scalar multiplication for position 1 of the state vector
-    let m_21 = MNT4753PoseidonParameters::MDS_CST[3];
-    let m_22 = MNT4753PoseidonParameters::MDS_CST[4];
-    let m_23 = MNT4753PoseidonParameters::MDS_CST[5];
+    let m_21 = P::MDS_CST[3];
+    let m_22 = P::MDS_CST[4];
+    let m_23 = P::MDS_CST[5];
 
     let elem_3 = state[0].mul(&m_21);
     let elem_4 = state[1].mul(&m_22);
@@ -516,9 +523,9 @@ fn matrix_mix (state: &mut Vec<MNT4753Fr>) {
     new_state[1] += &elem_5;
 
     // scalar multiplication for the position 2 of the state vector
-    let m_31 = MNT4753PoseidonParameters::MDS_CST[6];
-    let m_32 = MNT4753PoseidonParameters::MDS_CST[7];
-    let m_33 = MNT4753PoseidonParameters::MDS_CST[8];
+    let m_31 = P::MDS_CST[6];
+    let m_32 = P::MDS_CST[7];
+    let m_33 = P::MDS_CST[8];
 
     let elem_6 = state[0].mul(&m_31);
     let elem_7 = state[1].mul(&m_32);
@@ -560,17 +567,17 @@ fn matrix_mix (state: &mut Vec<MNT4753Fr>) {
 //    }
 //}
 
-fn poseidon_perm (state: &mut Vec<MNT4753Fr>) {
+fn poseidon_perm<T:PoseidonParameters> (state: &mut Vec<T::Fr>) {
 
     // index that goes over the round constants
     let mut round_cst_idx = 0;
 
     // First full rounds
-    for _i in 0..MNT4753PoseidonParameters::R_F {
+    for _i in 0..T::R_F {
 
         // Add the round constants to the state vector
         for d in state.iter_mut() {
-            let rc = MNT4753PoseidonParameters::ROUND_CST[round_cst_idx];
+            let rc = T::ROUND_CST[round_cst_idx];
             *d += &rc;
             round_cst_idx += 1;
         }
@@ -588,15 +595,15 @@ fn poseidon_perm (state: &mut Vec<MNT4753Fr>) {
             }
         }
         // Perform the matrix mix
-        matrix_mix (state);
+        matrix_mix::<T> (state);
     }
 
     // Partial rounds
-    for _i in 0..MNT4753PoseidonParameters::R_P {
+    for _i in 0..T::R_P {
 
         // Add the round constants to the state vector
         for d in state.iter_mut() {
-            let rc = MNT4753PoseidonParameters::ROUND_CST[round_cst_idx];
+            let rc = T::ROUND_CST[round_cst_idx];
             *d += &rc;
             round_cst_idx += 1;
         }
@@ -611,17 +618,17 @@ fn poseidon_perm (state: &mut Vec<MNT4753Fr>) {
         }
 
         // Apply the matrix mix
-        matrix_mix (state);
+        matrix_mix::<T> (state);
     }
 
     // Second full rounds
     // Process only to R_F -1 iterations. The last iteration does not contain a matrix mix
-    for _i in 0..(MNT4753PoseidonParameters::R_F-1) {
+    for _i in 0..(T::R_F-1) {
 
         // Add the round constants
         for d in state.iter_mut() {
             //let rc = MNT4753Fr::from_str(ROUND_CST[round_cst_idx]).map_err(|_| ()).unwrap();
-            let rc = MNT4753PoseidonParameters::ROUND_CST[round_cst_idx];
+            let rc = T::ROUND_CST[round_cst_idx];
             *d += &rc;
             round_cst_idx += 1;
         }
@@ -638,13 +645,13 @@ fn poseidon_perm (state: &mut Vec<MNT4753Fr>) {
         }
 
         // Apply matrix mix
-        matrix_mix (state);
+        matrix_mix::<T> (state);
     }
 
     // Last full round does not perform the matrix_mix
     // Add the round constants
     for d in state.iter_mut() {
-        let rc = MNT4753PoseidonParameters::ROUND_CST[round_cst_idx];
+        let rc = T::ROUND_CST[round_cst_idx];
         *d += &rc;
         round_cst_idx += 1;
     }
@@ -702,7 +709,7 @@ fn poseidon_perm (state: &mut Vec<MNT4753Fr>) {
 //    state[0]
 //}
 
-pub fn poseidon_engine<T: PoseidonParameters>(input: &mut Vec<MNT4753Fr>) -> MNT4753Fr {
+pub fn poseidon_engine<T: PoseidonParameters>(input: &mut Vec<T::Fr>) -> T::Fr {
 
     // state is a vector of 3 elements. They are initialized to zero elements
     let mut state = vec![T::ZERO, T::ZERO, T::ZERO];
@@ -713,7 +720,7 @@ pub fn poseidon_engine<T: PoseidonParameters>(input: &mut Vec<MNT4753Fr>) -> MNT
     let rem = input.len() % T::R;
 
     // apply permutation to all zeros state vector
-    poseidon_perm(&mut state);
+    poseidon_perm::<T>(&mut state);
 
     // index to process the input
     let mut input_idx = 0;
@@ -727,7 +734,7 @@ pub fn poseidon_engine<T: PoseidonParameters>(input: &mut Vec<MNT4753Fr>) -> MNT
         // for application to a 2-1 Merkle tree, add the constant 3 to the third state vector
         state[T::R] += &T::C2;
         // apply permutation after adding the input vector
-        poseidon_perm(&mut state);
+        poseidon_perm::<T>(&mut state);
 
     }
 
@@ -736,7 +743,7 @@ pub fn poseidon_engine<T: PoseidonParameters>(input: &mut Vec<MNT4753Fr>) -> MNT
         state[0] += &input[input_idx];
         state[T::R] += &T::C2;
         // apply permutation after adding the input vector
-        poseidon_perm(&mut state);
+        poseidon_perm::<T>(&mut state);
     }
 
     // return the first element of the state vector as the hash digest
