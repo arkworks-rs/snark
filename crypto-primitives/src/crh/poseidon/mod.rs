@@ -3,14 +3,13 @@ extern crate rand;
 
 use algebra::fields::mnt6753::Fr as MNT6753Fr;
 use algebra::fields::mnt4753::Fr as MNT4753Fr;
-use algebra::{Field, PrimeField, SquareRootField};
+use algebra::{Field, PrimeField, SquareRootField, UniformRand};
 use std::ops::Mul;
 
 use std::time::Instant;
 
-use rand::{thread_rng, Rng};
+use rand::thread_rng;
 
-use std::str::FromStr;
 use algebra::biginteger::BigInteger768;
 use algebra::{to_bytes, ToBytes};
 use algebra::field_new;
@@ -702,50 +701,26 @@ pub fn poseidon_engine<T: PoseidonParameters>(input: &mut Vec<T::Fr>) -> T::Fr {
     state[0]
 }
 
-fn get_rand_string(len: usize) -> String {
-
-    let mut rstr = String::with_capacity(len);
-
-    // exclude the 0 for the first digit
-    let c: u8 = thread_rng().gen_range(49,57);
-    rstr.push(c as char);
-
-    // complete with digits from 0..9
-    for _ in 0..(len-1) {
-        let c: u8 = thread_rng().gen_range(48,57);
-        rstr.push(c as char);
-    }
-
-    rstr
-}
-
 #[test]
 fn test_cst() {
 
+    //  the number of rounds to test
     let num_rounds = 1000;
 
-    let mut vec_cst:Vec<String> = Vec::new();
+    // the vectors that store random input data
+    let mut vec_elem_4753:Vec<MNT4753Fr> = Vec::new();
+    let mut vec_elem_6753:Vec<MNT6753Fr> = Vec::new();
 
+    // the random number generator to generate random input data
+    let rng = &mut thread_rng();
+
+    // we need the double of number of rounds because we have two inputs
     for _ in 0..(2*num_rounds) {
-        let s = get_rand_string(225);
-        vec_cst.push(s);
+        vec_elem_4753.push(MNT4753Fr::rand(rng));
+        vec_elem_6753.push(MNT6753Fr::rand(rng));
     }
 
-    let mut vec_elem_4753 = Vec::new();
-    let mut vec_elem_6753 = Vec::new();
-
-    // Test the Poseidon hash for a vector of 2 elements
-    for i in 0..num_rounds {
-        let el1_4753 = MNT4753Fr::from_str(&vec_cst[2*i]).map_err(|_| ()).unwrap();
-        let el2_4753 = MNT4753Fr::from_str(&vec_cst[2*i + 1]).map_err(|_| ()).unwrap();
-        vec_elem_4753.push(el1_4753);
-        vec_elem_4753.push(el2_4753);
-        let el1_6753 = MNT6753Fr::from_str(&vec_cst[2*i]).map_err(|_| ()).unwrap();
-        let el2_6753 = MNT6753Fr::from_str(&vec_cst[2*i + 1]).map_err(|_| ()).unwrap();
-        vec_elem_6753.push(el1_6753);
-        vec_elem_6753.push(el2_6753);
-    }
-
+    // =============================================================================
     // Calculate Poseidon Hash for mnt4753
     let now_4753 = Instant::now();
 
@@ -764,7 +739,9 @@ fn test_cst() {
         output_4753.push(poseidon_engine::<MNT4753PoseidonParameters>(&mut input));
     }
     let new_now_4753  = Instant::now();
+    // =============================================================================
 
+    // =============================================================================
     // Calculate Poseidon Hash for mnt6753
     let now_6753 = Instant::now();
 
@@ -783,8 +760,12 @@ fn test_cst() {
         output_6753.push(poseidon_engine::<MNT6753PoseidonParameters>(&mut input));
     }
     let new_now_6753  = Instant::now();
+    // =============================================================================
 
+    // =============================================================================
+    // Print the result of for mnt4753
     for i in 0..num_rounds {
+
         // Reverse order to output the data
         let mut d_in_0 = to_bytes!(vec_elem_4753[2*i]).unwrap();
         d_in_0.reverse();
@@ -798,7 +779,10 @@ fn test_cst() {
         println!("input[1] = {:?}", hex::encode(d_in_1));
         println!("hash MNT4753= {:?}", hex::encode(d_out));
     }
+    // =============================================================================
 
+    // =============================================================================
+    // Print the result of for mnt6753
     for i in 0..num_rounds {
         // Reverse order to output the data
         let mut d_in_0 = to_bytes!(vec_elem_6753[2*i]).unwrap();
@@ -813,12 +797,16 @@ fn test_cst() {
         println!("input[1] = {:?}", hex::encode(d_in_1));
         println!("hash MNT6753= {:?}", hex::encode(d_out));
     }
+    // =============================================================================
 
+    // =============================================================================
+    // Report the timing results
 
     let duration_4753 =  new_now_4753.duration_since(now_4753);
     println!("Time for {} rounds MNT4753 = {:?}", num_rounds, duration_4753.as_millis());
 
     let duration_6753 =  new_now_6753.duration_since(now_6753);
     println!("Time for {} rounds MNT6753 = {:?}", num_rounds, duration_6753.as_millis());
+    // =============================================================================
 
 }
