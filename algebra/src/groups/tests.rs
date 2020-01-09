@@ -1,5 +1,7 @@
 use super::Group;
+use crate::{AffineCurve, PairingEngine};
 use crate::fields::Field;
+use crate::bytes::{ToCompressed, FromCompressed, FromBytes};
 use crate::UniformRand;
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
@@ -72,4 +74,68 @@ pub fn group_test<G: Group>(a: G, mut b: G) {
         a.mul(&(fr_rand1 * &fr_rand2)),
         "(a * r1) * r2 != a * (r1 * r2)"
     );
+}
+
+pub fn compression_test<G: AffineCurve>(even: G, odd: G) {
+
+    //Test correct compression/de-compression of a non-zero point with even y
+    let even_compressed = even.compress();
+    let even_len = even_compressed.len();
+
+    let infinity_flag_set = bool::read([(even_compressed[even_len - 1] >> 7) & 1].as_ref()).unwrap();
+    assert!(!infinity_flag_set);
+    let parity_flag_set = bool::read([(even_compressed[even_len - 1] >> 6) & 1].as_ref()).unwrap();
+    assert!(!parity_flag_set);
+
+    let even_decompressed = G::decompress(even_compressed.clone()).unwrap();
+    assert_eq!(even, even_decompressed);
+
+    //Test correct compression/de-compression of a non-zero point with odd y
+    let odd_compressed = odd.compress();
+    let odd_len = odd_compressed.len();
+
+    let infinity_flag_set = bool::read([(odd_compressed[odd_len - 1] >> 7) & 1].as_ref()).unwrap();
+    assert!(!infinity_flag_set);
+    let parity_flag_set = bool::read([(odd_compressed[odd_len - 1] >> 6) & 1].as_ref()).unwrap();
+    assert!(parity_flag_set);
+
+    let odd_decompressed = G::decompress(odd_compressed.clone()).unwrap();
+    assert_eq!(odd, odd_decompressed);
+
+    //Test correct compression/decompression of a zero point
+    let z = G::zero();
+    let z_compressed = z.compress();
+    let z_len = z_compressed.len();
+
+    let infinity_flag_set = bool::read([(z_compressed[z_len - 1] >> 7) & 1].as_ref()).unwrap();
+    assert!(infinity_flag_set);
+    // When the point is zero, parity flag is set to zero too.
+    let parity_flag_set = bool::read([(z_compressed[z_len - 1] >> 6) & 1].as_ref()).unwrap();
+    assert!(!parity_flag_set);
+
+    let z_decompressed = G::decompress(z_compressed).unwrap();
+    assert_eq!(z, z_decompressed);
+}
+
+pub fn gt_compression_test<E: PairingEngine>(even: E::Fqk, odd: E::Fqk)
+{
+    //Test correct compression/de-compression of a non-zero point with even c0
+    let even_compressed = even.compress();
+    let even_len = even_compressed.len();
+
+    let parity_flag_set = bool::read([(even_compressed[even_len - 1] >> 7) & 1].as_ref()).unwrap();
+    assert!(!parity_flag_set);
+
+    let even_decompressed = E::Fqk::decompress(even_compressed.clone()).unwrap();
+    assert_eq!(even, even_decompressed);
+
+    //Test correct compression/de-compression of a non-zero point with odd c0
+    let odd_compressed = odd.compress();
+    let odd_len = odd_compressed.len();
+
+    let parity_flag_set = bool::read([(odd_compressed[odd_len - 1] >> 7) & 1].as_ref()).unwrap();
+    assert!(parity_flag_set);
+
+    let odd_decompressed = E::Fqk::decompress(odd_compressed.clone()).unwrap();
+    assert_eq!(odd, odd_decompressed);
 }

@@ -439,13 +439,14 @@ impl<P, ConstraintF: PrimeField + SquareRootField> FieldGadget<Fp6<P>, Constrain
         })
     }
 
+    //6 constraints. Can we do better ?
     fn mul_equals<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
         result: &Self,
     ) -> Result<(), SynthesisError> {
-        // Karatsuba multiplication for Fp2:
+        // Karatsuba multiplication for Fp6 using 2 Fp3:
         //     v0 = A.c0 * B.c0
         //     v1 = A.c1 * B.c1
         //     result.c0 = v0 + non_residue * v1

@@ -119,8 +119,8 @@ impl<P: Parameters> GroupAffine<P> {
 }
 
 impl<P: Parameters> AffineCurve for GroupAffine<P> {
-    type BaseField = P::BaseField;
     type ScalarField = P::ScalarField;
+    type BaseField = P::BaseField;
     type Projective = GroupProjective<P>;
 
     #[inline]
@@ -148,17 +148,17 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
         self.mul_bits(bits)
     }
 
+    #[inline]
+    fn into_projective(&self) -> GroupProjective<P> {
+        (*self).into()
+    }
+
     fn mul_by_cofactor(&self) -> Self {
         self.scale_by_cofactor().into()
     }
 
     fn mul_by_cofactor_inv(&self) -> Self {
         self.mul(P::COFACTOR_INV).into()
-    }
-
-    #[inline]
-    fn into_projective(&self) -> GroupProjective<P> {
-        (*self).into()
     }
 }
 
@@ -179,7 +179,8 @@ impl<P: Parameters> ToBytes for GroupAffine<P> {
     #[inline]
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
         self.x.write(&mut writer)?;
-        self.y.write(&mut writer)
+        self.y.write(&mut writer)?;
+        self.infinity.write(&mut writer)
     }
 }
 
@@ -188,7 +189,7 @@ impl<P: Parameters> FromBytes for GroupAffine<P> {
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
         let x = P::BaseField::read(&mut reader)?;
         let y = P::BaseField::read(&mut reader)?;
-        let infinity = x.is_zero() && y.is_one();
+        let infinity = bool::read(reader)?;
         Ok(Self::new(x, y, infinity))
     }
 }
@@ -329,7 +330,6 @@ impl<P: Parameters> Distribution<GroupProjective<P>> for Standard {
 }
 
 
-
 impl<P: Parameters> ToBytes for GroupProjective<P> {
     #[inline]
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
@@ -372,12 +372,11 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
     type ScalarField = P::ScalarField;
     type Affine = GroupAffine<P>;
 
-    // The point at infinity is always represented by
-    // Z = 0.
+    // The point at infinity is conventionally represented as (1:1:0)
     #[inline]
     fn zero() -> Self {
         Self::new(
-            P::BaseField::zero(),
+            P::BaseField::one(),
             P::BaseField::one(),
             P::BaseField::zero(),
         )

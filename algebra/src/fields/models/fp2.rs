@@ -88,7 +88,7 @@ impl<P: Fp2Parameters> Field for Fp2<P> {
 
     #[inline]
     fn is_odd(&self) -> bool {
-        self.c1.is_odd() || ( self.c1.is_zero() && self.c0.is_odd())
+        self.c1.is_odd() || ( self.c1.is_zero() & self.c0.is_odd())
     }
 
     #[inline]

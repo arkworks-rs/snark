@@ -2,23 +2,32 @@ use algebra::Field;
 
 use crate::{fields::{
     FieldGadget, fp::FpGadget, fp3::Fp3Gadget,
-}, groups::curves::short_weierstrass::AffineGadget,
+}, groups::curves::short_weierstrass::short_weierstrass_projective::AffineGadget,
     bits::ToBytesGadget, alloc::{AllocGadget, HardCodedGadget}, 
             bits::uint8::UInt8, Assignment};
 
 use r1cs_core::{ConstraintSystem, SynthesisError};
-use algebra::curves::models::mnt6::{MNT6Parameters, G1Prepared, G2Prepared};
+use algebra::curves::models::mnt6::{MNT6Parameters, G1Prepared, G2Prepared, g2::G2PreparedCoefficients};
+
 use std::fmt::Debug;
 use std::ops::{Add, Mul, Sub};
 use crate::groups::GroupGadget;
 use std::borrow::Borrow;
-use algebra::curves::models::mnt6::g2::G2PreparedCoefficients;
 use crate::algebra::AffineCurve;
+use crate::bits::boolean::Boolean;
 
 pub mod mnt6753;
 
-pub type G1Gadget<P> = AffineGadget<<P as MNT6Parameters>::G1Parameters, <P as MNT6Parameters>::Fp, FpG<P>>;
-pub type G2Gadget<P> = AffineGadget<<P as MNT6Parameters>::G2Parameters, <P as MNT6Parameters>::Fp, Fp3G<P>>;
+pub type G1Gadget<P> = AffineGadget<
+    <P as MNT6Parameters>::G1Parameters,
+    <P as MNT6Parameters>::Fp,
+    FpG<P>
+>;
+pub type G2Gadget<P> = AffineGadget<
+    <P as MNT6Parameters>::G2Parameters,
+    <P as MNT6Parameters>::Fp,
+    Fp3G<P>
+>;
 
 type FpG<P> = FpGadget<<P as MNT6Parameters>::Fp>;
 type Fp3G<P> = Fp3Gadget<<P as MNT6Parameters>::Fp3Params, <P as MNT6Parameters>::Fp>;
@@ -237,7 +246,7 @@ impl<P: MNT6Parameters>G2PreparedGadget<P> {
         gamma.mul_equals(cs.ns(|| "Check new_sy"), &s_x_minus_new_s_x, &new_sy_plus_s_y)?;
 
         let c = G2CoefficientsGadget{r_y: s.y.clone(), gamma, gamma_x};
-        let s2 = G2Gadget::<P>::new(new_sx, new_sy);
+        let s2 = G2Gadget::<P>::new(new_sx, new_sy, Boolean::constant(false));
 
         Ok((s2, c))
     }
@@ -299,7 +308,7 @@ impl<P: MNT6Parameters>G2PreparedGadget<P> {
         gamma.mul_equals(cs.ns(|| "Check new_sy"), &s_x_minus_new_s_x, &new_sy_plus_s_y)?;
 
         let c = G2CoefficientsGadget{r_y: s.y.clone(), gamma, gamma_x};
-        let s2 = G2Gadget::<P>::new(new_sx, new_sy);
+        let s2 = G2Gadget::<P>::new(new_sx, new_sy, Boolean::constant(false));
 
         Ok((s2, c))
     }

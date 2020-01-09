@@ -450,7 +450,6 @@ impl<P: Fp6Parameters> FromCompressed for Fp6<P> {
 
         match val {
             Ok(c1) => {
-
                 //Compute c0
                 let c0 = {
                     let t = Fp3::one() + &Self::mul_by_nonresidue(&(c1.square()));

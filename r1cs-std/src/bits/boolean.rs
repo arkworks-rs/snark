@@ -1,7 +1,7 @@
 use algebra::{BitIterator, Field, FpParameters, PrimeField};
 
 use crate::{prelude::*, Assignment};
-use r1cs_core::{ConstraintSystem, LinearCombination, SynthesisError, Variable};
+use r1cs_core::{ConstraintSystem, LinearCombination, SynthesisError, Variable, ConstraintVar};
 use std::borrow::Borrow;
 
 /// Represents a variable in the constraint system which is guaranteed
@@ -24,9 +24,9 @@ impl AllocatedBit {
     /// Performs an XOR operation over the two operands, returning
     /// an `AllocatedBit`.
     pub fn xor<ConstraintF, CS>(mut cs: CS, a: &Self, b: &Self) -> Result<Self, SynthesisError>
-    where
-        ConstraintF: Field,
-        CS: ConstraintSystem<ConstraintF>,
+        where
+            ConstraintF: Field,
+            CS: ConstraintSystem<ConstraintF>,
     {
         let mut result_value = None;
 
@@ -76,9 +76,9 @@ impl AllocatedBit {
     /// Performs an AND operation over the two operands, returning
     /// an `AllocatedBit`.
     pub fn and<ConstraintF, CS>(mut cs: CS, a: &Self, b: &Self) -> Result<Self, SynthesisError>
-    where
-        ConstraintF: Field,
-        CS: ConstraintSystem<ConstraintF>,
+        where
+            ConstraintF: Field,
+            CS: ConstraintSystem<ConstraintF>,
     {
         let mut result_value = None;
 
@@ -114,19 +114,46 @@ impl AllocatedBit {
 
     /// Performs an OR operation over the two operands, returning
     /// an `AllocatedBit`.
-    pub fn or<ConstraintF, CS>(cs: CS, a: &Self, b: &Self) -> Result<Self, SynthesisError>
-    where
-        ConstraintF: Field,
-        CS: ConstraintSystem<ConstraintF>,
+    pub fn or<ConstraintF, CS>(mut cs: CS, a: &Self, b: &Self) -> Result<Self, SynthesisError>
+        where
+            ConstraintF: Field,
+            CS: ConstraintSystem<ConstraintF>,
     {
-        Self::conditionally_select(cs, &Boolean::from(*a), a, b)
+        let mut result_value = None;
+
+        let result_var = cs.alloc(
+            || "or result",
+            || {
+                if a.value.get()? | b.value.get()? {
+                    result_value = Some(true);
+                    Ok(ConstraintF::one())
+                } else {
+                    result_value = Some(false);
+                    Ok(ConstraintF::zero())
+                }
+            },
+        )?;
+
+        // Constrain (1 - a) * (1 - b) = (c), ensuring c is 1 iff
+        // a and b are both false, and otherwise c is 0.
+        cs.enforce(
+            || "nor constraint",
+            |lc| lc + CS::one() - a.variable,
+            |lc| lc + CS::one() - b.variable,
+            |lc| lc + CS::one() - result_var,
+        );
+
+        Ok(AllocatedBit {
+            variable: result_var,
+            value:    result_value,
+        })
     }
 
     /// Calculates `a AND (NOT b)`.
     pub fn and_not<ConstraintF, CS>(mut cs: CS, a: &Self, b: &Self) -> Result<Self, SynthesisError>
-    where
-        ConstraintF: Field,
-        CS: ConstraintSystem<ConstraintF>,
+        where
+            ConstraintF: Field,
+            CS: ConstraintSystem<ConstraintF>,
     {
         let mut result_value = None;
 
@@ -162,9 +189,9 @@ impl AllocatedBit {
 
     /// Calculates `(NOT a) AND (NOT b)`.
     pub fn nor<ConstraintF, CS>(mut cs: CS, a: &Self, b: &Self) -> Result<Self, SynthesisError>
-    where
-        ConstraintF: Field,
-        CS: ConstraintSystem<ConstraintF>,
+        where
+            ConstraintF: Field,
+            CS: ConstraintSystem<ConstraintF>,
     {
         let mut result_value = None;
 
@@ -201,7 +228,7 @@ impl AllocatedBit {
 
 impl PartialEq for AllocatedBit {
     fn eq(&self, other: &Self) -> bool {
-        !self.value.is_none() && !other.value.is_none() && self.value == other.value
+        self.value.is_some() && other.value.is_some() && self.value == other.value
     }
 }
 
@@ -212,9 +239,9 @@ impl<ConstraintF: Field> AllocGadget<bool, ConstraintF> for AllocatedBit {
         mut cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<bool>,
+        where
+            F: FnOnce() -> Result<T, SynthesisError>,
+            T: Borrow<bool>,
     {
         let mut value = None;
         let var = cs.alloc(
@@ -248,9 +275,9 @@ impl<ConstraintF: Field> AllocGadget<bool, ConstraintF> for AllocatedBit {
         mut cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<bool>,
+        where
+            F: FnOnce() -> Result<T, SynthesisError>,
+            T: Borrow<bool>,
     {
         let mut value = None;
         let var = cs.alloc_input(
@@ -283,45 +310,56 @@ impl<ConstraintF: Field> AllocGadget<bool, ConstraintF> for AllocatedBit {
 
 impl<ConstraintF: Field> CondSelectGadget<ConstraintF> for AllocatedBit {
     fn conditionally_select<CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
+        cs: CS,
         cond: &Boolean,
         first: &Self,
         second: &Self,
     ) -> Result<Self, SynthesisError> {
-        let result = Self::alloc(cs.ns(|| ""), || {
-            cond.get_value()
-                .and_then(|cond| {
-                    {
-                        if cond {
-                            first
-                        } else {
-                            second
-                        }
-                    }
-                    .get_value()
-                })
-                .get()
-        })?;
-
-        // a = self; b = other; c = cond;
-        //
-        // r = c * a + (1  - c) * b
-        // r = b + c * (a - b)
-        // c * (a - b) = r - b
-        let one = CS::one();
-        cs.enforce(
-            || "conditionally_select",
-            |_| cond.lc(one, ConstraintF::one()),
-            |lc| lc + first.variable - second.variable,
-            |lc| lc + result.variable - second.variable,
-        );
-
-        Ok(result)
+        cond_select_helper(
+            cs,
+            cond,
+            (first.value, first.variable),
+            (second.value, second.variable),
+        )
     }
 
     fn cost() -> usize {
         1
     }
+}
+
+fn cond_select_helper<F: Field, CS: ConstraintSystem<F>>(
+    mut cs: CS,
+    cond: &Boolean,
+    first: (Option<bool>, impl Into<ConstraintVar<F>>),
+    second: (Option<bool>, impl Into<ConstraintVar<F>>),
+) -> Result<AllocatedBit, SynthesisError> {
+    let mut result_val = None;
+    let result_var = cs.alloc(
+        || "cond_select_result",
+        || {
+            result_val = cond.get_value().and_then(|c| if c { first.0 } else { second.0 });
+            result_val.get().map(|v| F::from(v as u8))
+        })?;
+
+    let first_var = first.1.into();
+    let second_var = second.1.into();
+
+    // a = self; b = other; c = cond;
+    //
+    // r = c * a + (1  - c) * b
+    // r = b + c * (a - b)
+    // c * (a - b) = r - b
+    let one = CS::one();
+    cs.enforce(
+        || "conditionally_select",
+        |_| cond.lc(one, F::one()),
+        |lc| (&first_var - &second_var) + lc,
+        |lc| ConstraintVar::from(result_var) - &second_var + lc,
+    );
+
+    Ok(AllocatedBit { value: result_val, variable: result_var })
+
 }
 
 /// This is a boolean value which may be either a constant or
@@ -371,7 +409,7 @@ impl Boolean {
         values: &[u8],
     ) -> Vec<Self> {
         let mut input_bits = vec![];
-        for (byte_i, input_byte) in values.into_iter().enumerate() {
+        for (byte_i, input_byte) in values.iter().enumerate() {
             for bit_i in (0..8).rev() {
                 let cs = cs.ns(|| format!("input_bit_gadget {} {}", byte_i, bit_i));
                 input_bits.push(
@@ -404,9 +442,9 @@ impl Boolean {
         a: &'a Self,
         b: &'a Self,
     ) -> Result<Self, SynthesisError>
-    where
-        ConstraintF: Field,
-        CS: ConstraintSystem<ConstraintF>,
+        where
+            ConstraintF: Field,
+            CS: ConstraintSystem<ConstraintF>,
     {
         match (a, b) {
             (&Boolean::Constant(false), x) | (x, &Boolean::Constant(false)) => Ok(*x),
@@ -426,9 +464,9 @@ impl Boolean {
 
     /// Perform OR over two boolean operands
     pub fn or<'a, ConstraintF, CS>(cs: CS, a: &'a Self, b: &'a Self) -> Result<Self, SynthesisError>
-    where
-        ConstraintF: Field,
-        CS: ConstraintSystem<ConstraintF>,
+        where
+            ConstraintF: Field,
+            CS: ConstraintSystem<ConstraintF>,
     {
         match (a, b) {
             (&Boolean::Constant(false), x) | (x, &Boolean::Constant(false)) => Ok(*x),
@@ -453,9 +491,9 @@ impl Boolean {
         a: &'a Self,
         b: &'a Self,
     ) -> Result<Self, SynthesisError>
-    where
-        ConstraintF: Field,
-        CS: ConstraintSystem<ConstraintF>,
+        where
+            ConstraintF: Field,
+            CS: ConstraintSystem<ConstraintF>,
     {
         match (a, b) {
             // false AND x is always false
@@ -481,9 +519,9 @@ impl Boolean {
     }
 
     pub fn kary_and<ConstraintF, CS>(mut cs: CS, bits: &[Self]) -> Result<Self, SynthesisError>
-    where
-        ConstraintF: Field,
-        CS: ConstraintSystem<ConstraintF>,
+        where
+            ConstraintF: Field,
+            CS: ConstraintSystem<ConstraintF>,
     {
         assert!(!bits.is_empty());
         let mut bits = bits.iter();
@@ -498,9 +536,9 @@ impl Boolean {
 
     /// Asserts that at least one operand is false.
     pub fn enforce_nand<ConstraintF, CS>(mut cs: CS, bits: &[Self]) -> Result<(), SynthesisError>
-    where
-        ConstraintF: Field,
-        CS: ConstraintSystem<ConstraintF>,
+        where
+            ConstraintF: Field,
+            CS: ConstraintSystem<ConstraintF>,
     {
         let res = Self::kary_and(&mut cs, bits)?;
 
@@ -536,9 +574,9 @@ impl Boolean {
         mut cs: CS,
         bits: &[Self],
     ) -> Result<(), SynthesisError>
-    where
-        ConstraintF: Field,
-        CS: ConstraintSystem<ConstraintF>,
+        where
+            ConstraintF: Field,
+            CS: ConstraintSystem<ConstraintF>,
     {
         let mut bits_iter = bits.iter();
 
@@ -586,7 +624,7 @@ impl Boolean {
                 // This is part of a run of ones.
                 current_run.push(a.clone());
             } else {
-                if current_run.len() > 0 {
+                if !current_run.is_empty() {
                     // This is the start of a run of zeros, but we need
                     // to k-ary AND against `last_run` first.
 
@@ -644,9 +682,9 @@ impl<ConstraintF: Field> AllocGadget<bool, ConstraintF> for Boolean {
         cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<bool>,
+        where
+            F: FnOnce() -> Result<T, SynthesisError>,
+            T: Borrow<bool>,
     {
         AllocatedBit::alloc(cs, value_gen).map(Boolean::from)
     }
@@ -655,9 +693,9 @@ impl<ConstraintF: Field> AllocGadget<bool, ConstraintF> for Boolean {
         cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<bool>,
+        where
+            F: FnOnce() -> Result<T, SynthesisError>,
+            T: Borrow<bool>,
     {
         AllocatedBit::alloc_input(cs, value_gen).map(Boolean::from)
     }
@@ -672,8 +710,8 @@ impl<ConstraintF: Field> ConditionalEqGadget<ConstraintF> for Boolean {
         other: &Self,
         condition: &Boolean,
     ) -> Result<(), SynthesisError>
-    where
-        CS: ConstraintSystem<ConstraintF>,
+        where
+            CS: ConstraintSystem<ConstraintF>,
     {
         use self::Boolean::*;
         let one = CS::one();
@@ -681,7 +719,7 @@ impl<ConstraintF: Field> ConditionalEqGadget<ConstraintF> for Boolean {
             // 1 - 1 = 0 - 0 = 0
             (Constant(true), Constant(true)) | (Constant(false), Constant(false)) => return Ok(()),
             // false != true
-            (Constant(_), Constant(_)) => Err(SynthesisError::AssignmentMissing)?,
+            (Constant(_), Constant(_)) => return Err(SynthesisError::AssignmentMissing),
             // 1 - a
             (Constant(true), Is(a)) | (Is(a), Constant(true)) => {
                 LinearCombination::zero() + one - a.get_variable()
@@ -747,6 +785,54 @@ impl<ConstraintF: Field> ToBytesGadget<ConstraintF> for Boolean {
         self.to_bytes(cs)
     }
 }
+impl<ConstraintF: Field> CondSelectGadget<ConstraintF> for Boolean {
+    fn conditionally_select<CS>(
+        mut cs: CS,
+        cond: &Self,
+        first: &Self,
+        second: &Self,
+    ) -> Result<Self, SynthesisError>
+        where
+            CS: ConstraintSystem<ConstraintF>,
+    {
+        match cond {
+            Boolean::Constant(true) => Ok(first.clone()),
+            Boolean::Constant(false) => Ok(second.clone()),
+            cond @ Boolean::Not(_) => Self::conditionally_select(cs, &cond.not(), second, first),
+            cond @ Boolean::Is(_) => {
+                match (first, second) {
+                    (x, &Boolean::Constant(false)) => {
+                        Boolean::and(cs.ns(|| "and"), cond, x).into()
+                    },
+                    (&Boolean::Constant(false), x) => {
+                        Boolean::and(cs.ns(|| "and"), &cond.not(), x)
+                    },
+                    (&Boolean::Constant(true), x)  => {
+                        Boolean::or(cs.ns(|| "or"), cond, x).into()
+                    },
+                    (x, &Boolean::Constant(true)) => {
+                        Boolean::or(cs.ns(|| "or"), &cond.not(), x)
+                    },
+                    (a @ Boolean::Is(_), b @ Boolean::Is(_))
+                    | (a @ Boolean::Not(_), b @ Boolean::Not(_))
+                    | (a @ Boolean::Is(_), b @ Boolean::Not(_))
+                    | (a @ Boolean::Not(_), b @ Boolean::Is(_)) => {
+                        let a_lc = a.lc(CS::one(), ConstraintF::one());
+                        let b_lc = b.lc(CS::one(), ConstraintF::one());
+                        Ok(cond_select_helper(cs, cond, (a.get_value(), a_lc), (b.get_value(), b_lc))?.into())
+                    },
+                }
+
+            }
+        }
+    }
+
+    fn cost() -> usize {
+        1
+    }
+}
+
+
 
 #[cfg(test)]
 mod test {
@@ -839,10 +925,10 @@ mod test {
                 assert!(
                     cs.get("and result")
                         == if *a_val & *b_val {
-                            Field::one()
-                        } else {
-                            Field::zero()
-                        }
+                        Field::one()
+                    } else {
+                        Field::zero()
+                    }
                 );
 
                 // Invert the result and check if the constraint system is still satisfied
@@ -875,10 +961,10 @@ mod test {
                 assert!(
                     cs.get("and not result")
                         == if *a_val & !*b_val {
-                            Field::one()
-                        } else {
-                            Field::zero()
-                        }
+                        Field::one()
+                    } else {
+                        Field::zero()
+                    }
                 );
 
                 // Invert the result and check if the constraint system is still satisfied
@@ -911,10 +997,10 @@ mod test {
                 assert!(
                     cs.get("nor result")
                         == if !*a_val & !*b_val {
-                            Field::one()
-                        } else {
-                            Field::zero()
-                        }
+                        Field::one()
+                    } else {
+                        Field::zero()
+                    }
                 );
 
                 // Invert the result and check if the constraint system is still satisfied
@@ -1283,6 +1369,71 @@ mod test {
                     },
 
                     _ => panic!("this should never be encountered"),
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_boolean_cond_select() {
+        let variants = [
+            OperandType::True,
+            OperandType::False,
+            OperandType::AllocatedTrue,
+            OperandType::AllocatedFalse,
+            OperandType::NegatedAllocatedTrue,
+            OperandType::NegatedAllocatedFalse,
+        ];
+
+        for condition in variants.iter().cloned() {
+            for first_operand in variants.iter().cloned() {
+                for second_operand in variants.iter().cloned() {
+                    let mut cs = TestConstraintSystem::<Fr>::new();
+
+                    let cond;
+                    let a;
+                    let b;
+
+                    {
+                        let mut dyn_construct = |operand, name| {
+                            let cs = cs.ns(|| name);
+
+                            match operand {
+                                OperandType::True => Boolean::constant(true),
+                                OperandType::False => Boolean::constant(false),
+                                OperandType::AllocatedTrue => {
+                                    Boolean::from(AllocatedBit::alloc(cs, || Ok(true)).unwrap())
+                                },
+                                OperandType::AllocatedFalse => {
+                                    Boolean::from(AllocatedBit::alloc(cs, || Ok(false)).unwrap())
+                                },
+                                OperandType::NegatedAllocatedTrue => {
+                                    Boolean::from(AllocatedBit::alloc(cs, || Ok(true)).unwrap()).not()
+                                },
+                                OperandType::NegatedAllocatedFalse => {
+                                    Boolean::from(AllocatedBit::alloc(cs, || Ok(false)).unwrap()).not()
+                                },
+                            }
+                        };
+
+                        cond = dyn_construct(condition, "cond");
+                        a = dyn_construct(first_operand, "a");
+                        b = dyn_construct(second_operand, "b");
+                    }
+
+                    let before = cs.num_constraints();
+                    let c = Boolean::conditionally_select(&mut cs, &cond, &a, &b).unwrap();
+                    let after = cs.num_constraints();
+
+                    assert!(
+                        cs.is_satisfied(),
+                        "failed with operands: cond: {:?}, a: {:?}, b: {:?}",
+                        condition,
+                        first_operand,
+                        second_operand,
+                    );
+                    assert_eq!(c.get_value(), if cond.get_value().unwrap() { a.get_value() } else { b.get_value() });
+                    assert!(<Boolean as CondSelectGadget<Fr>>::cost() >= after - before);
                 }
             }
         }
@@ -1826,7 +1977,7 @@ mod test {
                                 AllocatedBit::alloc(cs.ns(|| format!("bit_gadget {}", j)), || {
                                     Ok(b & 1 == 1)
                                 })
-                                .unwrap(),
+                                    .unwrap(),
                             ));
                         } else {
                             bits.push(
@@ -1835,9 +1986,9 @@ mod test {
                                         cs.ns(|| format!("bit_gadget {}", j)),
                                         || Ok(b & 1 == 0),
                                     )
-                                    .unwrap(),
+                                        .unwrap(),
                                 )
-                                .not(),
+                                    .not(),
                             );
                         }
 
@@ -1877,7 +2028,7 @@ mod test {
                         AllocatedBit::alloc(cs.ns(|| format!("bit_gadget {}", j)), || {
                             Ok(b & 1 == 1)
                         })
-                        .unwrap(),
+                            .unwrap(),
                     ));
                     b >>= 1;
                 }

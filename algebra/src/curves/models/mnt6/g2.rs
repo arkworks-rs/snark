@@ -1,5 +1,5 @@
 use crate::curves::models::mnt6::{MNT6Parameters, MNT6p};
-use crate::curves::short_weierstrass_jacobian::{GroupAffine, GroupProjective};
+use crate::curves::short_weierstrass_projective::{GroupAffine, GroupProjective};
 use crate::{Fp3, ToBytes, AffineCurve, FromBytes};
 use std::io::{Write, Result as IoResult, Read};
 use std::io;

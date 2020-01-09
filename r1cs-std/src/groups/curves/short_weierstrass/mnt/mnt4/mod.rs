@@ -3,7 +3,7 @@ use algebra::curves::models::mnt4::{g1::G1Prepared, g2::{G2PreparedCoefficients,
 
 use crate::{fields::{
     FieldGadget, fp::FpGadget, fp2::Fp2Gadget,
-}, groups::curves::short_weierstrass::AffineGadget,
+}, groups::curves::short_weierstrass::short_weierstrass_projective::AffineGadget,
     bits::uint8::UInt8, Assignment,
     alloc::{AllocGadget, HardCodedGadget},
     ToBytesGadget,
@@ -15,11 +15,20 @@ use std::fmt::Debug;
 use std::ops::{Mul, Sub};
 use crate::groups::GroupGadget;
 use std::borrow::Borrow;
+use crate::bits::boolean::Boolean;
 
 pub mod mnt4753;
 
-pub type G1Gadget<P> = AffineGadget<<P as MNT4Parameters>::G1Parameters, <P as MNT4Parameters>::Fp, FpG<P>>;
-pub type G2Gadget<P> = AffineGadget<<P as MNT4Parameters>::G2Parameters, <P as MNT4Parameters>::Fp, Fp2G<P>>;
+pub type G1Gadget<P> = AffineGadget<
+    <P as MNT4Parameters>::G1Parameters,
+    <P as MNT4Parameters>::Fp,
+    FpG<P>
+>;
+pub type G2Gadget<P> = AffineGadget<
+    <P as MNT4Parameters>::G2Parameters,
+    <P as MNT4Parameters>::Fp,
+    Fp2G<P>
+>;
 
 type FpG<P> = FpGadget<<P as MNT4Parameters>::Fp>;
 type Fp2G<P> = Fp2Gadget<<P as MNT4Parameters>::Fp2Params, <P as MNT4Parameters>::Fp>;
@@ -235,7 +244,7 @@ impl<P: MNT4Parameters>G2PreparedGadget<P> {
         gamma.mul_equals(cs.ns(|| "Check new_sy"), &s_x_minus_new_s_x, &new_sy_plus_s_y)?;
 
         let c = G2CoefficientsGadget{r_y: s.y.clone(), gamma, gamma_x};
-        let s2 = G2Gadget::<P>::new(new_sx, new_sy);
+        let s2 = G2Gadget::<P>::new(new_sx, new_sy, Boolean::constant(false));
 
         Ok((s2, c))
     }
@@ -297,7 +306,7 @@ impl<P: MNT4Parameters>G2PreparedGadget<P> {
         gamma.mul_equals(cs.ns(|| "Check new_sy"), &s_x_minus_new_s_x, &new_sy_plus_s_y)?;
 
         let c = G2CoefficientsGadget{r_y: s.y.clone(), gamma, gamma_x};
-        let s2 = G2Gadget::<P>::new(new_sx, new_sy);
+        let s2 = G2Gadget::<P>::new(new_sx, new_sy, Boolean::constant(false));
 
         Ok((s2, c))
     }

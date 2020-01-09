@@ -1,9 +1,19 @@
-use crate::{curves::{
-    mnt6753::{G1Affine, G1Projective, G2Affine, G2Projective, MNT6},
-    tests::curve_tests,
-    AffineCurve, PairingEngine,
-}, fields::mnt6753::fr753b::Fr, groups::tests::group_test, ToCompressed, FromCompressed, ToBytes, to_bytes, ProjectiveCurve, Field};
+use crate::{
+    curves::{
+        mnt6753::{
+            G1Affine, G1Projective, G2Affine, G2Projective, MNT6
+        },
+        tests::curve_tests,
+        AffineCurve, PairingEngine,
+    },
+    biginteger::BigInteger768,
+    fields::mnt6753::{fq753b::Fq, fq3::Fq3, fq6::Fq6, fr753b::Fr},
+    groups::tests::group_test,
+    ProjectiveCurve, Field, PrimeField
+};
 use rand;
+use std::ops::AddAssign;
+use crate::groups::tests::{compression_test, gt_compression_test};
 
 #[test]
 fn test_g1_projective_curve() {
@@ -26,38 +36,71 @@ fn test_g1_generator() {
 
 #[test]
 fn test_g1_compression_decompression() {
-    let a: G1Projective = rand::random();
-    let a = a.into_affine();
-    let a_len = to_bytes!(a).unwrap().len();
+    let even = G1Affine::new(
+        Fq::from_repr(BigInteger768([
+            0x3cd03c6b6ec25d1,
+            0x78edb4f6cd87a09d,
+            0x340771e0ebe09dec,
+            0xcd0482046a4edc0c,
+            0x29b6b88c6a0f1173,
+            0x163475c53aa2d18,
+            0x970825199438fc2,
+            0xeba100200da78dad,
+            0x98ee8998a2d53c82,
+            0x1cb6fcd41a949b5d,
+            0x7525d2225c811bcb,
+            0x7856001a46ed,
+        ])),
+        Fq::from_repr(BigInteger768([
+            0xc03f5776ce4155bc,
+            0xb4b0cf1d9252b514,
+            0x7c2629e81dcd39e2,
+            0xef22cae93288b67c,
+            0x5aaa737d25df88ec,
+            0x90393751da027702,
+            0x847a554768d83571,
+            0xa1fb40101e14e34f,
+            0xb1013cd2a638f0ec,
+            0xbe2ef9be6fda5327,
+            0x77f96b2643dac6ab,
+            0xdbc437613c91,
+        ])),
+        false,
+    );
 
-    //Test correct compression/de-compression of a random point
-    let a_compressed = a.compress();
-    let a_decompressed = G1Affine::decompress(a_compressed.clone()).unwrap();
-    assert_eq!(a, a_decompressed);
-    assert_eq!(a_compressed.len(), (a_len/2));
+    let odd = G1Affine::new(
+        Fq::from_repr(BigInteger768([
+            0xb8d38bbe9c25c105,
+            0xbc1448b8eb87395e,
+            0x35b9e895016002ab,
+            0x20e890ebd368b285,
+            0x55b73014d2826472,
+            0xcb3843058895d18b,
+            0xc3542107bb06fbd6,
+            0xa080b3b51ba782fd,
+            0x6b4a0acf60176132,
+            0xe5c3d1f17d7df3e7,
+            0x2c141ea3abfac478,
+            0xb7c24c40e1f8,
+        ])),
+        Fq::from_repr(BigInteger768([
+            0xf49a4edf87e92ceb,
+            0xc47c9db5baea2cc7,
+            0x3fb4c0d5856bd262,
+            0xe0a9e1bb5d566302,
+            0xc1be7e4f66e4ca3,
+            0xc1ec3045de88b8aa,
+            0xd18243791d59a9d8,
+            0x6a6c3fcb2d20d203,
+            0xde2179f539134fc0,
+            0x76465dddb7fddc50,
+            0xc824c064e445e4b6,
+            0x131cee77c1144,
+        ])),
+        false,
+    );
 
-    //Test correct compression/decompression of a zero point
-    let b = G1Affine::zero();
-    let b_compressed = b.compress();
-    let b_decompressed = G1Affine::decompress(b_compressed).unwrap();
-    assert_eq!(b, b_decompressed);
-
-    //Test wrong compression/de-compression of a random point by masking with 0s a random byte
-    let mut a_compressed_modified = a_compressed.clone();
-    loop {
-        let index: usize = rand::random();
-        let max_idx = (a_len/2) - 4;
-        if a_compressed_modified[index % max_idx] != 0u8 {
-            a_compressed_modified[index % max_idx] &= 0u8;
-            break;
-        }
-    }
-    let a_decompressed_modified = G1Affine::decompress(a_compressed_modified);
-    if a_decompressed_modified.is_some() {
-        //a_decompressed_modified should be or a point that doesn't belong to the group, or a valid
-        //point but different from the original one.
-        assert_ne!(a, a_decompressed_modified.unwrap());
-    }
+    compression_test::<G1Affine>(even, odd);
 }
 
 #[test]
@@ -81,43 +124,464 @@ fn test_g2_generator() {
 
 #[test]
 fn test_g2_compression_decompression() {
-    let a: G2Projective = rand::random();
-    let a = a.into_affine();
-    let a_len = to_bytes!(a).unwrap().len();
+    let odd = G2Affine::new(
+        Fq3::new(
+            Fq::from_repr(BigInteger768([
+                0x31e9cce2f24c7595,
+                0xa84fa8d124db51aa,
+                0x3b9465e68ffb13e3,
+                0xd757ffaa05bde5f9,
+                0xfd0901d9aa36fd8b,
+                0xb6745ae4d9523d06,
+                0xa8edaf9f48f8915b,
+                0x5f4c3d53c39d1c6,
+                0xe54cedfc722e0c90,
+                0xd200330e421423f2,
+                0x52720332534210cc,
+                0xdbb81bcb2f00,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0xe04545a23405da4b,
+                0x838c4eae50567737,
+                0x60b32a253e70b415,
+                0xdd3417890dc8eecb,
+                0xb4538b1d5287861,
+                0xc51813c91c3024b6,
+                0x4463212ded24d766,
+                0xec5b580d7592d27d,
+                0x61df36050c827154,
+                0x3bea3ceb8cb33dc,
+                0x591c2cdf45b12a7c,
+                0x102d0c96a1c8f,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x82fad396d3fcf08f,
+                0x5bd97e432692dd8d,
+                0x3ec0e3eae8bebb3c,
+                0x29c896f188a5dcf3,
+                0x44bec491ca7b927f,
+                0x1cc524b0e7be39ac,
+                0x8ef71d86775ebeb2,
+                0x737bde2a3828dc1a,
+                0x5b54705d68a13d6d,
+                0xef6f6a916d566639,
+                0x4c681a0edc8c2bb6,
+                0x158d1c1591e67,
+            ])),
+        ),
+        Fq3::new(
+            Fq::from_repr(BigInteger768([
+                0x30296f10a3c097ad,
+                0x9200e9087b82b479,
+                0x61e60ab6107f162d,
+                0x5d356daeebe23e4d,
+                0xc6d15b2caaadc2e,
+                0xc2e0e8c9e1ddc5a3,
+                0x31690e9ef8d312a6,
+                0x6d623784baedfbed,
+                0xed75d44f49c471b5,
+                0x56c952d87c677714,
+                0x53dae6e98442ac27,
+                0x17edc24de5083,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x4579c9f77307c281,
+                0x63f6e783c090524a,
+                0xb063b75f73260c41,
+                0x4c10e1f36ae52f97,
+                0x9cfa1761a18a43bb,
+                0xde2f786cb31f71fa,
+                0x3266cac232472b03,
+                0xce1c7b6a25c572d1,
+                0x691941d351a016bb,
+                0xa061c9a277c99e6d,
+                0x1bb882bb3b6377ec,
+                0x17a1a5e46ad44,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0xedb8753f932954e4,
+                0xa83ffd7a249cc0d3,
+                0xec6d1e6b772b2ed1,
+                0x1138db03f0c77881,
+                0x30baa79dd87fd724,
+                0x6b24554093d74f8d,
+                0x883673d9eb50cba8,
+                0xaccfd837a4b5851f,
+                0x2e0d9e553dfcb172,
+                0xf79796455bcf8003,
+                0xe323b759c6721895,
+                0x14e163e77983d,
+            ])),
+        ),
+        false,
+    );
 
-    //Test correct compression/de-compression of a random point
-    let a_compressed = a.compress();
-    let a_decompressed = G2Affine::decompress(a_compressed.clone()).unwrap();
-    assert_eq!(a, a_decompressed);
-    assert_eq!(a_compressed.len(), (a_len/2));
-
-    //Test correct compression/decompression of a zero point
-    let b = G2Affine::zero();
-    let b_compressed = b.compress();
-    let b_decompressed = G2Affine::decompress(b_compressed).unwrap();
-    assert_eq!(b, b_decompressed);
-
-    //Test wrong compression/de-compression of a random point by masking with 0s a random byte
-    let mut a_compressed_modified = a_compressed.clone();
-    loop {
-        let index: usize = rand::random();
-        let max_idx = (a_len/2) - 4;
-        if a_compressed_modified[index % max_idx] != 0u8 {
-            a_compressed_modified[index % max_idx] &= 0u8;
-            break;
-        }
-    }
-    let a_decompressed_modified = G2Affine::decompress(a_compressed_modified);
-    if a_decompressed_modified.is_some(){
-        //a_decompressed_modified should be or a point that doesn't belong to the group, or a valid
-        //point but different from the original one.
-        assert_ne!(a, a_decompressed_modified.unwrap());
-    }
+    let even = G2Affine::new(
+        Fq3::new(
+            Fq::from_repr(BigInteger768([
+                0x8dff984bcc66face,
+                0x667c7b07901266e,
+                0x9c6e270a186bd84c,
+                0x471df86de8cab5ae,
+                0xfda4e3cc20391d29,
+                0xa538cd669dd64dce,
+                0xab27b238e69b1fec,
+                0x72f2f63c3e678265,
+                0x64b1cc403c96d1b8,
+                0xb844c9f39d76ff5f,
+                0x1b8ef360f1037b9,
+                0x75fff29b2569,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x42b609f9c2bcb69,
+                0xeb922dbc1edd04d5,
+                0xd5dbb3176d7600c4,
+                0xd002531f237cdaa1,
+                0x174e73b9325783f4,
+                0xbf876951d67ef87f,
+                0x3bccd0f5dd5369b6,
+                0xda3801b3b9ebabce,
+                0xbf40c24e99c58496,
+                0x95b05c7893047751,
+                0xb20d0f644296f304,
+                0xdacd5f4266d,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0xca45b4bca23f8fdd,
+                0x1355afaf529bf6e6,
+                0x55aa0348fa589e30,
+                0xea0d0ebcd8b236ab,
+                0xfaa74dfd03d2f2d0,
+                0x4a63da8ff458710c,
+                0xdf16279ee53ea68f,
+                0x644c779b9109304a,
+                0x16029a03704efe36,
+                0x13f9163f1c7b9c4a,
+                0x1bff8512c77b155a,
+                0xfde76feb7347,
+            ])),
+        ),
+        Fq3::new(
+            Fq::from_repr(BigInteger768([
+                0x35f78ceeb4330842,
+                0x541efec0fb90038c,
+                0xc2aa4ffe1fbf9331,
+                0xd06f6970971d11b1,
+                0xdd02b7c30cefe1e6,
+                0x6ebd5a3e05aa4db2,
+                0xdf90e99a95e64ee1,
+                0xaec696491de96348,
+                0x325b4aa683c897e9,
+                0xec05dfdcd4e9a4e0,
+                0x605abb8824577521,
+                0x2fa8b50f1bee,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0xf4810aacb1c0ef20,
+                0x9518b723efe3aca1,
+                0xd03c4918cc29957d,
+                0x67b8418625f06a63,
+                0xe0d2dc8c475d5ae5,
+                0x8a230164dbcbc854,
+                0x10978980971f8b61,
+                0x4b72cea374064130,
+                0xc6d114abd20990de,
+                0x8f4b9dca16734665,
+                0xccdc935a415cc301,
+                0xa81af6721cee,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0xc8f58a387a5fdbd9,
+                0x8319c2f3226889c5,
+                0x3612b30d88ff30d9,
+                0xe33234e6282fca2a,
+                0xedb5bade8e1a2695,
+                0x874afc3bc8f50513,
+                0xbc39ec4af946eb88,
+                0x7de752e11524334d,
+                0xb08b4538e2a2bdca,
+                0xdc965fa3cf80742e,
+                0x2c4954df1b22a0bc,
+                0x3bfa9bb703d8,
+            ])),
+        ),
+        false,
+    );
+    compression_test::<G2Affine>(even, odd);
 }
 
 #[test]
 fn test_bilinearity() {
-    use crate::fields::{mnt6753::fq6::Fq6, PrimeField};
+    let a = G1Projective::new(
+        Fq::from_repr(BigInteger768([
+            0x44cb89d53cf0cebb,
+            0x7e51a3a8684bb228,
+            0xeaafa2a6860f2fba,
+            0x673182d55c5799ae,
+            0x757d15e274f59a08,
+            0x36eea65e87cacf3c,
+            0x4295a6f7d5385150,
+            0x54c89f24dd4d1d2a,
+            0xa84db78018b02e50,
+            0x3e620d5b2c6872fa,
+            0x65b393e9e43c7c51,
+            0x50a7bf6cf77f,
+        ])),
+        Fq::from_repr(BigInteger768([
+            0xaa1f9e2b4be0d1ad,
+            0x458579717a37043b,
+            0xda1d35153b470713,
+            0x175154289303d42a,
+            0xd18dce9b75867c3b,
+            0xe15c86d7bd5b441f,
+            0xd8df23c1b9d94522,
+            0x1f315d78de56d451,
+            0x320140f5565562b7,
+            0x925f710b3a38f9bf,
+            0x670ca1d776017d36,
+            0x5197e8a59768,
+        ])),
+        Fq::from_repr(BigInteger768([
+            0xfeaa1a546ecc60f4,
+            0x74c9ff1b87d9856e,
+            0xfdc309ac6d154ca5,
+            0x20384970a5bfe054,
+            0xa8c5d9d771aa84ec,
+            0xad3f7a4fd731501f,
+            0x95a0691b052cb8e,
+            0x181f547f89ada784,
+            0x5b0c5110f593bdba,
+            0xcfa9f5ae6dca09a4,
+            0x2c33337c769a9528,
+            0x120bb1dac4cb5,
+        ])),
+    );
+
+    let b = G2Projective::new(
+        Fq3::new(
+            Fq::from_repr(BigInteger768([
+                0xca0f4cc9895356b6,
+                0x5a71355378b64e71,
+                0xf30bfe522ffa77fe,
+                0x9ecd6bb276562126,
+                0x574fc9c5a4b767e4,
+                0x232b47cc17e6508e,
+                0x22295c5c1853dfe0,
+                0x9f3e415c4a52b7ee,
+                0xc89da20d1dd87af7,
+                0x871156d78c9b63e9,
+                0xe8427d011935e667,
+                0x70d77d24ea1a,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0xe10a63be4ce50dfb,
+                0xd64b891b0f2e1c54,
+                0x3fb53e373d3df377,
+                0xf995549d9813c01d,
+                0xb86ed6b9bdfc120,
+                0xbf4cf6cf871b6923,
+                0xbd61c286c3b25f06,
+                0x8c85f06989c409c8,
+                0x1de95d73b5f62ad4,
+                0x70358f4d230064d9,
+                0x16d457a347d44dba,
+                0x137d36f35ca14,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0xfd36f90d371cb2d9,
+                0x995ce399801db8c0,
+                0xc1e229b3b413ac45,
+                0x446795cca839016a,
+                0x957fa55bf892e7f7,
+                0xb8d1f69bbc19ef72,
+                0x104e8574e45ef400,
+                0x75f77a64705fbe24,
+                0x74a5239775d86179,
+                0x9c6792c16f1ba58f,
+                0x873c7197a839a600,
+                0x1b12cd4278601,
+            ])),
+        ),
+        Fq3::new(
+            Fq::from_repr(BigInteger768([
+                0x37d3207a0533192d,
+                0xbe7caa1770c52335,
+                0xba7d851be3128b2a,
+                0x886910371f91a391,
+                0x6079325975637505,
+                0x6c76bf50f81a05c2,
+                0x7a24ba99b4e3082b,
+                0x97ef0d48bd492e2f,
+                0x108ac409bd4fb2e1,
+                0x7e9bd4c6549b47c5,
+                0xa9efd4443ccdf059,
+                0x2470e4b0ca7e,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x7dafbd40fcf052c4,
+                0x91d5cacef71ef09b,
+                0x31a27ec65716465b,
+                0xa690c8b57779718,
+                0x714377bf6d161d2c,
+                0x8c81260a7fb59fb,
+                0xa71297bf0a2196fe,
+                0x3a9929bbdd6b9e03,
+                0x8c96fd771e3a66e2,
+                0x400903c2b53d5c7,
+                0x5071706a1cf55a25,
+                0x1aa93643c3add,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x61484f00a668a158,
+                0x2ae1b990608a327f,
+                0xe1d27a574273d534,
+                0xc266cd46c1479e37,
+                0x1fc1bbcb13fc9fbc,
+                0x9e2504211cca36f8,
+                0xea39ec399413762e,
+                0xa5834aa4baaa3a35,
+                0x4791c23d53a5fa0,
+                0x9e5a33a5ea18f48f,
+                0xb909e1becf6c4cdd,
+                0x759cfa11f64d,
+            ])),
+        ),
+        Fq3::new(
+            Fq::from_repr(BigInteger768([
+                0x78bb63bc749ef777,
+                0x238a3388bb04820a,
+                0x20bfaf55ead52a8,
+                0x9d15d6a539c2b387,
+                0x42aff87009883b81,
+                0x202429d9da964904,
+                0x32912681d0adb328,
+                0xc803c429a2672a02,
+                0x3aaa785eb48f0d21,
+                0x5c7c0b7958dbb951,
+                0x8efbdbe749859515,
+                0x1a2fe0702e57a,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x912e383f0c0f65cf,
+                0xbb9f8160a7eca401,
+                0x7991db6d3abddd41,
+                0x7ee4b47d635d07aa,
+                0xd0424b7c0eb9e291,
+                0xd0ccdb4c72d5d9d9,
+                0xfb4b882042e764f2,
+                0x343945306a41819a,
+                0xa908506042853c39,
+                0x2b47d41dcf80acdd,
+                0x7eb9d44943ae07e2,
+                0xa3c3cec3c34b,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x281f510811a45df1,
+                0x7b17e85318e18e60,
+                0x5d30c32e608ec707,
+                0x8e471f3d001204ae,
+                0x1a02b3ecaa2e4404,
+                0xee44a80a613cc440,
+                0xcd3a36919073fb09,
+                0x7de94a95b8ca2dbb,
+                0x62af97cc5fb78ac9,
+                0xb47f9ed219dc6401,
+                0x2ed168653ec16d78,
+                0x36b35e829ce9,
+            ])),
+        ),
+    );
+
+    assert_eq!(MNT6::pairing(a, b), Fq6::new(
+        Fq3::new(
+            Fq::from_repr(BigInteger768([
+                0x4973db8f9e0c6a01,
+                0x2e478b37756da90a,
+                0x64f5334bcd538cc9,
+                0xa980fcdcea14ce4d,
+                0x2825a091b67134e7,
+                0x466e80adf109b770,
+                0xf72f0250d5c8ac64,
+                0x3bd327df1ef1bdea,
+                0x19fafede64f96b0d,
+                0xe14026c6304fdb8b,
+                0x64cbccd1fb225dc0,
+                0xff6e18c2af9d,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0xef8fbbcb5e4ee19a,
+                0x947873abf6b92ee7,
+                0x7db6525747ea40ac,
+                0x61f798c8c520b790,
+                0xf32bf6e5d3f6dc22,
+                0xaca05c6de8435637,
+                0x75275a187612410f,
+                0x656e90b4f4fdba8f,
+                0x74cf89d49c5e3acb,
+                0x20e14c925e0c35fe,
+                0xcf7d0a0947d1594f,
+                0xa6ee211b76e7,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x4e6d5a9f15f097ec,
+                0x5979bd4d8bdcab28,
+                0x464952d692555f02,
+                0xf22b6fbdf213bcba,
+                0xdab41e46e10c5d68,
+                0xadb11d499dd5fa7b,
+                0x7e4c8202b7606ec0,
+                0x4e5bcb0fad16246,
+                0x3e4ca36174be1bc0,
+                0xe98640a01d21b8f9,
+                0x46354859fe867b0c,
+                0x2e4a1f995379,
+            ])),
+        ),
+        Fq3::new(
+            Fq::from_repr(BigInteger768([
+                0x91a052cebc704029,
+                0x8244eb8da1145976,
+                0x960b6ce1cc518c8c,
+                0xafbec0740dee324d,
+                0xa000406fcf0cd5c4,
+                0xfbeb19adc5caa23b,
+                0xa1f79c4ddacd257d,
+                0x5256f6dc895daeda,
+                0xc931c1fbf7434ae6,
+                0xb815c355235d17bf,
+                0xe5c1ef55ab557fa6,
+                0xd150a454ca87,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x1397facfe0661e69,
+                0x19fccd25f753fd5e,
+                0xb388e0240e9b59f4,
+                0xbe0eae789c1770f1,
+                0x7f071181c09d7939,
+                0x7c6ac3e3359ee780,
+                0xda51382d9887bef3,
+                0x4d053295a9cc44ac,
+                0xa89134f10dd5ff1c,
+                0xc9bc93dd1610afe2,
+                0xe9092cf272ae3bd7,
+                0xe752c1fb8be8,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0xaa764bb93445f82f,
+                0x3143d85e145bd12,
+                0xc4966f31e8d61904,
+                0x2645d68dea8e318,
+                0x1ab50ff754496936,
+                0x9903331506187746,
+                0xacb063acdbe55f30,
+                0xcc62af58875c3efc,
+                0x7a3433785926382e,
+                0xd0d941ef439f8a67,
+                0x8f661437dbd0c371,
+                0x10448bd9f714e,
+            ])),
+        ),
+    ));
 
     let a: G1Projective = rand::random();
     let b: G2Projective = rand::random();
@@ -142,42 +606,1346 @@ fn test_bilinearity() {
     assert_eq!(ans3.pow(Fr::characteristic()), Fq6::one());
 }
 
+/*
 #[test]
 fn test_gt_compression(){
-    use crate::fields::mnt6753::Fq6;
 
-    let a: G1Projective = rand::random();
-    let b: G2Projective = rand::random();
-    let c = MNT6::pairing(a, b);
+    let even = Fq6::new(
+        Fq3::new(
+            Fq::from_repr(BigInteger768([9073346891655245229, 1262862984384283653, 12030399949711843916, 2232185603539006733, 13938355547434977348, 7709033859666227859, 5656595719234657967, 9904890265563184808, 10780772117843368411, 13128313029679938070, 16553297390426305934, 261844920217156])
+            ),
+            Fq::from_repr(BigInteger768([6568806194937734635, 7041205905207152794, 14173792077969420451, 15775514405567132795, 2455342088404540667, 14858860320330108805, 5925292188001708650, 11531066204397524398, 9230814321514469978, 8892037528618771913, 680997615735340738, 42300532659146])
+            ),
+            Fq::from_repr(BigInteger768([2349081138508214730, 13874740066342588605, 6972032549621034548, 12491262502784573107, 9609168392367691041, 3862458050896931024, 6580863101908983824, 3859230192675798795, 5652987601279061571, 17290113462259513704, 9775177710762180229, 148463644825068])
+            ),
+        ),
+        Fq3::new(
+            Fq::from_repr(BigInteger768([9485159691781901528, 23048695448808347, 11611303187366440863, 3310594231900313399, 2035835890535939901, 8157071482213892656, 6978390423569806449, 10489721729869144929, 8513561439964906264, 464705645637426417, 2939870154459571327, 63539342099756])
+            ),
+            Fq::from_repr(BigInteger768([15104592198686087902, 15051923940526364717, 11856144139362906173, 1421113871806584763, 1681599951900948908, 8444045555041467735, 2360687339881256976, 8922107473961656595, 12331516428509842061, 16615652601328969887, 13871069252435653281, 96913695641346])
+            ),
+            Fq::from_repr(BigInteger768([609771165429403647, 7046262191285583230, 17112725323412707204, 15967104184072100073, 16700644779392332880, 1793312801899100657, 7721005282689898198, 2955641511989642750, 1058270792790065717, 1228390521761107580, 13631625822376268839, 256334715830532])
+            ),
+        ),
+    );
 
-    //Compression/decompression works only if the element of Fq6 is the output of a pairing
-    let c_len = to_bytes!(c).unwrap().len();
-    let c_compressed = c.compress();
-    let c_decompressed = Fq6::decompress(c_compressed.clone()).unwrap();
-    assert_eq!(c_decompressed.pow(Fr::characteristic()), Fq6::one());
-    assert_eq!(c, c_decompressed);
-    assert_eq!(c_compressed.len(), c_len/2);
+    let odd = Fq6::new(
+        Fq3::new(
+            Fq::from_repr(BigInteger768([
+                0xf383b5581b34b728,
+                0x9742d05535720dce,
+                0x9889210bb08d2d59,
+                0x4ce52afd0e4439ee,
+                0xf3732b56c51dd8d2,
+                0x7cd20fe08f11fcce,
+                0xcf150a10c2f48097,
+                0xf50f4560e17d1aa,
+                0x80b7c93161210455,
+                0x259a7c3ca518faea,
+                0x9f54d2939af0f093,
+                0x5b53e2345863,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0xda561195d7e23f55,
+                0x668650a1e2903fcb,
+                0xbedc1a64496b3565,
+                0xaa1f2582e0e910fd,
+                0x798bc5e5e639d62e,
+                0x85349be96b998f78,
+                0x8055fb95d44f78b6,
+                0xaccc987002cdc116,
+                0x7c395a49861af1c9,
+                0xe9e3fb0ccef49e8b,
+                0x7a65f8197936f8c5,
+                0x16cb8e0f36fa0,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0xb14522cdbcbe8c80,
+                0x2ac4ded20d29f554,
+                0x7176abb85d71dd20,
+                0x6ac2fee03ca33bf5,
+                0x356370019ff29396,
+                0x37ef0959bcd7fb09,
+                0x7916c12ca7431ded,
+                0x9e933e08de46427d,
+                0x2f494335502d657a,
+                0xa520a90a5b2aecef,
+                0xe4db362b42b3bf77,
+                0xd8edac7255af,
+            ])),
+        ),
+        Fq3::new(
+            Fq::from_repr(BigInteger768([
+                0x1efb96a2dc8656c0,
+                0x1d5aef6784719ee8,
+                0x44bb207fd287d802,
+                0xf5b379abbf075bf3,
+                0x6d1b084f20ab5471,
+                0x26c5f80577e00ab5,
+                0xcd12a21d6299aa91,
+                0xb2fdee850a7305d6,
+                0xc7e569524457d516,
+                0xb463c13a7f784599,
+                0x72cd772fbbd8657b,
+                0x1b39c545cecfb,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x96acfb3155e0fad2,
+                0x8e39899933963596,
+                0x26628d21b50c54,
+                0x74a0d146abbd3b7,
+                0x4f4e6db9d538e1e5,
+                0xd3659ee2540e4a10,
+                0x18799794b3b04a38,
+                0x3cd8fd7012bf79e5,
+                0x89770a378f45a626,
+                0x65cac4b67d86573a,
+                0xc063478fd8363398,
+                0xff80bab3a1ff,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0xc7297d04b4af149,
+                0xdc039f6040bf90e0,
+                0x2b44a464138a353e,
+                0xe2ef42682ef4ef96,
+                0x5a8fa5f7be7d1e06,
+                0x59f8dd168328ed50,
+                0x3741f9bef8fcf548,
+                0xc0011d9cc08feff5,
+                0xa8470ce51d40ded5,
+                0xc5629af7c70e4af0,
+                0x97533a61b3373b58,
+                0x19ec8870558e5,
+            ])),
+        ),
+    );
 
-    //Negative case test
-    let mut c_compressed_modified = c_compressed.clone();
-    loop {
-        let index: usize = rand::random();
-        let max_idx = (c_len/2) - 4;
-        if c_compressed_modified[index % max_idx] != 0u8 {
-            c_compressed_modified[index % max_idx] &= 0u8;
-            break;
-        }
-    }
-    let c_decompressed_modified = Fq6::decompress(c_compressed_modified);
-    if c_decompressed_modified.is_some() {
-        assert_ne!(c, c_decompressed_modified.unwrap());
-    }
+    gt_compression_test::<MNT6>(even, odd);
+}*/
 
-    //Test that compression/decompression won't work for a Fq6 element which is not a pairing output
-    let d: Fq6 = rand::random();
-    let d_compressed = d.compress();
-    let d_decompressed = Fq6::decompress(d_compressed);
-    if d_decompressed.is_some(){
-        assert_ne!(d, d_decompressed.unwrap());
-    }
+#[test]
+fn test_g1_addition_correctness() {
+    let mut p = G1Projective::new(
+        Fq::from_repr(BigInteger768([
+            0x74cd16dc1278d2e5,
+            0x155a38dcb4a1d8ab,
+            0x7162afcac539f6c6,
+            0xf4a36afb9ec89077,
+            0x8c8f83a89cd6504e,
+            0x6b086d2058ce3ebe,
+            0x922aced322b92eba,
+            0xd30405d7ef7c0d0c,
+            0x93d275dd3858da28,
+            0x98b3cf0b734dacd7,
+            0xe36898fae0b28b62,
+            0x198b33fd53d9a,
+        ])),
+        Fq::from_repr(BigInteger768([
+            0x915b2561c17401bd,
+            0xc7cbdb3028c8bc40,
+            0xc6201ddda2b4df74,
+            0x928c15f3e3d098f6,
+            0xccb665d7d712fc5,
+            0x6bf073e186de9eae,
+            0xb3975cae8768dc4b,
+            0xed8e62ba78b9a5ac,
+            0x355ebc8ee9629986,
+            0xc7a11bcf109d1094,
+            0x8bf41c64ec8e56e7,
+            0xa8b5d3b9be22,
+        ])),
+        Fq::from_repr(BigInteger768([
+            0x44466636c89ecdc0,
+            0x457754cde5ee05ed,
+            0x6cde11b62fb7f106,
+            0x9e2654d04cf56fc2,
+            0x2a0fd8f40c6e8ba4,
+            0x7ae892d02e00750e,
+            0x7c7e61b8be840ba9,
+            0x40130535aeded1da,
+            0xd9d4eec220199dbd,
+            0x805008a8cb8a6c92,
+            0xdbae11d3b374d0fb,
+            0x1a388b228cf78,
+        ])),
+    );
+
+    p.add_assign(&G1Projective::new(
+        Fq::from_repr(BigInteger768([
+            0x682bbfc83478a2cf,
+            0x15ce9dfe142665a7,
+            0xf1f4170c46dabade,
+            0x1f643d1ef8ef467,
+            0x7f67c851e4546def,
+            0xe3bd12196c7cdd37,
+            0x655f6600803e9e92,
+            0x56a7900f3aec385e,
+            0xda5c308e83e49742,
+            0xee4bbce6cf3c0a5d,
+            0x2db08ab54032e671,
+            0x1599ce55ea10a,
+        ])),
+        Fq::from_repr(BigInteger768([
+            0xa59905ad98a34028,
+            0xe7900dbe0f37fb42,
+            0x3f1d72edd9ac7285,
+            0x4ef0aa4c42db61be,
+            0x6dabf8008b4b0d39,
+            0x3e006344fda452e0,
+            0xec75e3654731d6e1,
+            0xeb1b89e3cfda3f6f,
+            0xdeaf07302369f077,
+            0x9a41131e741ef51c,
+            0x7aeafe29d511daeb,
+            0xc0ccbe69a06,
+        ])),
+        Fq::from_repr(BigInteger768([
+            0xf55be8c2752dcf55,
+            0xe1fd14eac8e5cf99,
+            0x4b3bc0325c9acfe0,
+            0xc83f959c187fcd72,
+            0x3ca981ad51bb2af7,
+            0xef2560adf77cc18d,
+            0xb1ae5de76cb56de2,
+            0x52d1d0e20446b89f,
+            0x90a1116ff3e615a3,
+            0x41e89da6e7d00d4c,
+            0x389b2848eb2376cb,
+            0x9f425c5726d3,
+        ])),
+    ));
+
+    let p = G1Affine::from(p);
+
+    assert_eq!(
+        p,
+        G1Affine::new(
+            Fq::from_repr(BigInteger768([
+                0xf40492cfbc948c2,
+                0xf8722a2e7c82fdc7,
+                0x5403f3895f3335fb,
+                0xa67afc09b1a58bd5,
+                0xef56150662db1087,
+                0x5d22e7428c1313d1,
+                0xdc3c3cecdd3e3c29,
+                0xd62034d6f1a69e56,
+                0xe42ca03d032998d0,
+                0xb34165090279c69c,
+                0xb8ede4b8815d8cd6,
+                0x9bd9ea2bcbdd,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0xc5a198c226745576,
+                0x46732574fd5f1975,
+                0xf1233308889f7fe6,
+                0x6371bd7696561ec,
+                0xb8a223ad94594fc2,
+                0x9a77f49715d38658,
+                0x6b92086852972827,
+                0x79e6cc85a716a8ae,
+                0x2d66012e875a95cc,
+                0x1125bd274d3c0065,
+                0x19214ef3131d3962,
+                0xd5fb521864fc,
+            ])),
+            false,
+        )
+    );
+}
+
+#[test]
+fn test_g1_doubling_correctness() {
+    let mut p = G1Projective::new(
+        Fq::from_repr(BigInteger768([
+            0x3a93ea6748f7987b,
+            0xe328ef650632c30,
+            0x8a696681c7200035,
+            0x9b4cf31e8ddb599a,
+            0x5224868a08d68be8,
+            0x111ec87e758908cb,
+            0xf796719c43f502c2,
+            0xe3b3f6caf88f9e98,
+            0xbccb89afad0c2273,
+            0x16355558bdc8e08a,
+            0x12036bc1964996b6,
+            0x178b698527d42,
+        ])),
+        Fq::from_repr(BigInteger768([
+            0x2c244db8c1d6a919,
+            0x2e19bf0d59757d49,
+            0xbbbab8ab80772c5a,
+            0xb51af63ede1c0cd,
+            0x9aae778b9898d308,
+            0xf997441afaa69d20,
+            0x81c8e294802e4b1c,
+            0xec947ba17362adff,
+            0xcb828c228963b675,
+            0xb2d8f154275984df,
+            0x1f27a21c2d31fe81,
+            0x18f8935911ad6,
+        ])),
+        Fq::from_repr(BigInteger768([
+            0x4b8cbb1f978f97ed,
+            0xd81513efbd50a824,
+            0x2bfe080db4752907,
+            0x82aed3d0a7bd4378,
+            0x57cf4668c00980d8,
+            0xcc76ae8523d63d17,
+            0x6a93398572c3ba97,
+            0x73a1b52c3dd91343,
+            0xbb1f184615cff69d,
+            0xf3aec1d1825c9fbf,
+            0xd65801dfd4904c07,
+            0xa68a307e5c1a,
+        ])),
+    );
+
+    p.double_in_place();
+
+    let p = G1Affine::from(p);
+
+    assert_eq!(
+        p,
+        G1Affine::new(
+            Fq::from_repr(BigInteger768([
+                0x1a063deb58259910,
+                0x383543b69937a9f2,
+                0xd1a244d98796ab8c,
+                0x33ad012fcf91c3c7,
+                0xbf0c235af07597e6,
+                0xf841a64f6fc94ab9,
+                0xee213134dee2207d,
+                0x7c2401e621332b90,
+                0x7933b297c783384b,
+                0x933e679f9fabf659,
+                0x4df83d8b84453fc,
+                0x128dfb73076e5,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x38f37de4b342e481,
+                0x1ddd995f61998b54,
+                0x465facfd3c0b43c8,
+                0x5a0472437546dd65,
+                0xfe94db35bdb3efb,
+                0x8b230826ca6eed99,
+                0xdac96ef16315ca84,
+                0x538d11eaebe44e0b,
+                0xb088c279e6636a6a,
+                0x55acc4298caf1af,
+                0xb3d7e86834a2f03e,
+                0x1388b4603c20a,
+            ])),
+            false,
+        )
+    );
+}
+
+#[test]
+fn test_g1_scalar_multiplication(){
+
+    let a = G1Affine::new(
+        Fq::from_repr(BigInteger768([
+            0x72b88f68dc11d3c2,
+            0x7129d0e09ee9d3e2,
+            0xb9ce32d3a7620558,
+            0x5063ef2476ad672f,
+            0x9ce5492597a81d4d,
+            0x705ba56d6b2ea919,
+            0x3add6cd95ac14517,
+            0x8ac6d148f43941fe,
+            0x932fe7ef4f668401,
+            0x8f1a2c1e32a18f9e,
+            0xaabbf64b65df3231,
+            0xefc256a27831,
+        ])),
+        Fq::from_repr(BigInteger768([
+            0xc0e92e5cb097be88,
+            0xacadb4d52625f385,
+            0x5ef4ad4d0e8d826e,
+            0xb4b5a2b9725c8951,
+            0x51587371a7efece8,
+            0x9f0816360152388d,
+            0xe7e6cc50a00b3c25,
+            0x3a548b8e3e5ad515,
+            0xd97e38b50999669c,
+            0xc58d48e75d4a0ad,
+            0x46686d4ce0ac95b7,
+            0x94c96320a821,
+        ])),
+        false
+    );
+
+    let scalar = Fr::from_repr(BigInteger768([
+        0x2048113fffc2df67,
+        0xa87114570b53169b,
+        0xc6970a1d1aff1ff0,
+        0xfac736c1d3464a1b,
+        0xbad3e7f6dd911fb1,
+        0x8f6fa902997ba46a,
+        0xe5fd3baf7f89860b,
+        0x6075eb309c220ead,
+        0xe002dcd6a945b3ae,
+        0x7e2e9255bdd343b7,
+        0xefcaf3c92c21b95b,
+        0x41dbf8953d3f,
+    ]));
+
+
+    assert_eq!((a.mul(scalar)).into_affine(),
+       G1Affine::new(
+           Fq::from_repr(BigInteger768([
+               0xa69f6f3b4b896566,
+               0x2ffb3a607a90885,
+               0x49f92f17fa7f97f8,
+               0xe046b541d930a716,
+               0x6993f94d9013788c,
+               0x2c70272247c490d0,
+               0xd2a3753b2595d40d,
+               0xdd5bea4924ed3021,
+               0x5732fecdf688097f,
+               0xc9dbfd651ad23de1,
+               0x672d66e6f00ed4a1,
+               0x92be1f538380,
+           ])),
+           Fq::from_repr(BigInteger768([
+               0xeb571917089203d6,
+               0x8eb5a047296674a9,
+               0x8e6beb782691f765,
+               0x53535da732d949d4,
+               0xd67d9d03d162c6bb,
+               0x579309d137e2eb1f,
+               0x4ff015cd97588158,
+               0xddac7ace7e38692d,
+               0x718c6ef1a19767f8,
+               0xe242c8a178a4ed8d,
+               0x57469e3c84742451,
+               0x1b54ebf98990a,
+           ])),
+           false
+       )
+    );
+}
+
+#[test]
+fn test_g1_affine_projective_conversion() {
+
+    let a = G1Projective::new(
+        Fq::from_repr(BigInteger768([
+            0x8787de3c97f90440,
+            0xfb55f79e497ebd0f,
+            0x825bf93b0a74be51,
+            0x3f1bf94a410e44d7,
+            0xee091d53ba6e0f17,
+            0x74c196530e0c4920,
+            0xea497e1bbf678b4e,
+            0x82ac69bd4ff295fb,
+            0xfca44436531d7f4e,
+            0x2253c48087956354,
+            0x7eea9631a7bdc979,
+            0xb41fb5d7435e,
+        ])),
+        Fq::from_repr(BigInteger768([
+            0xd3517fa41cface32,
+            0x48fdde207fe0781,
+            0xde658f54c73da2af,
+            0x4673c94817cc09d5,
+            0x8edb5982288306d0,
+            0x42bb35cf918580fd,
+            0xad5ab9f1083042ad,
+            0xe986ed52d8d749cb,
+            0xac78cd89ff80dd86,
+            0xeff61f4b93ca5c22,
+            0x99493ede99313887,
+            0xb4b4b1dedf0c,
+        ])),
+        Fq::from_repr(BigInteger768([
+            0x27b2ab042056c401,
+            0x63a57e6e785a129d,
+            0x754c682b0618ff78,
+            0x782563a8c914271b,
+            0x98dd8b15cee9aaf,
+            0xa9204abe016ae066,
+            0xf498e0e599050fc8,
+            0xa7c7bccd9247bc62,
+            0xe075dcf0d561710f,
+            0x2038f7f59d3f3221,
+            0x320753d1a593c036,
+            0x36b51c6a3288,
+        ])),
+    );
+
+    let a_a = a.into_affine();
+    assert_eq!(a_a, G1Affine::new(
+        Fq::from_repr(BigInteger768([
+            0xeed5a0a2eeed0d6e,
+            0xd10e0f23a0015544,
+            0xa9cd701b711a8cd6,
+            0xe9ff46772ea6b4dd,
+            0x43627948f5f3db53,
+            0x60a618188f984bcd,
+            0x93b59b8613f58256,
+            0x80029a27200b574a,
+            0xe6ec300b016a46b4,
+            0x15ba5933dd5ef67f,
+            0x34db9748360f7839,
+            0x77a97c7c1bda,
+        ])),
+        Fq::from_repr(BigInteger768([
+            0xa49849bec0126bc9,
+            0x14ca6d280ad3ffeb,
+            0x24ec1fb3556606af,
+            0xf143f8356a18aea7,
+            0xa0ad66feb5509c89,
+            0x16017b6db5fb0270,
+            0x79acdd8c40b4a4b5,
+            0xefd191a5a8b5edab,
+            0x5f5772c11538c5,
+            0xe617fdb412017225,
+            0xc48e08711cf34f90,
+            0xab3d7ca90f35,
+        ])),
+        false,
+    ));
+
+    assert_eq!(a_a.into_projective(), a);
+}
+
+#[test]
+fn test_g2_addition_correctness() {
+    let mut p = G2Projective::new(
+        Fq3::new(
+            Fq::from_repr(BigInteger768([
+                0x56137b39ca3baa56,
+                0x4e175aa64a816b1b,
+                0x43ed6b11b6c24ae2,
+                0x1705dc580518f1e0,
+                0x11065f0eb0e9f3a3,
+                0x7ebb4de367aae2f9,
+                0x1f0daeeaafa50239,
+                0xa1ea4776f5b9fec8,
+                0x421c73837df79369,
+                0xad5e7dddc84622d1,
+                0xfe6bff8f6e765d9b,
+                0xa059ca6fd913,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x8222b231da8226e7,
+                0xef48723c32aaed65,
+                0xfb4d639c55232f9f,
+                0x85979276fa91a41b,
+                0xa952af3fb4117312,
+                0xb43a682e90015ce2,
+                0xaa5160964563b39b,
+                0xf85abe21b79d1ccd,
+                0x7c726d60087dcaf0,
+                0xb605e0bf214f0546,
+                0x4eb0e0d1af6f42d8,
+                0x742a1f09a424,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0xe9193f6bc74a71fb,
+                0x752db640eef11b33,
+                0xafc82bf2971994e8,
+                0xd396a76406e27cd0,
+                0xddb4e60cb29487a3,
+                0xfe78fb36dbd81345,
+                0xbf5eeef63f16c83,
+                0xacb50a53a0139200,
+                0x9c7b026eeac16f7d,
+                0xefa924fa0af2e067,
+                0xeae103739c7a774a,
+                0x10286f11c0e37,
+            ])),
+        ),
+        Fq3::new(
+            Fq::from_repr(BigInteger768([
+                0x9efca51744ec95f6,
+                0xce2ad499c315a0e4,
+                0x85cf10ed7f27ae00,
+                0x7e2fb8024566b4f,
+                0x63f4c15ea6210e0a,
+                0x135b769017f511bb,
+                0xc10697d4dab452cf,
+                0x5131c69ee7d949af,
+                0xa73eab679aeae7ad,
+                0xae481fcc2a460779,
+                0x48648e1845166fc,
+                0x18da7b539225f,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x8423d98c63df5bfb,
+                0x2996fec9375c3b4c,
+                0xc78d3d1d2c1170cf,
+                0x321bdfd136fe4a61,
+                0x2dd8b4df8154b566,
+                0xb7dba21d040f4b55,
+                0x101813cbecc124e2,
+                0x47c1d3775809961d,
+                0xfa738937858d01c2,
+                0x8237ff3f772b92cc,
+                0xa07bfffae050d905,
+                0x70d4e3802f7c,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0xa892d09cdd56cc4f,
+                0xfd22abb5df4de495,
+                0xcdc0655dbf94738c,
+                0x1a25f804e73e1af8,
+                0x303d6e340cb27a28,
+                0xbbe199058cfe8f69,
+                0xc7b54f0cbcfffd5b,
+                0xd57cf2a7fe4ff048,
+                0x748296fd1af4f8f3,
+                0xd5565794175ef065,
+                0xf22a317b0a2d8f72,
+                0x1746e5451f11b,
+            ])),
+        ),
+        Fq3::new(
+            Fq::from_repr(BigInteger768([
+                0x57badc8119db3c16,
+                0xdf5dc30a6ead73ff,
+                0x76ac1333ec7ca622,
+                0x6f5016a67a7fdba9,
+                0x66863174e9ac17b7,
+                0xc4cfff8809bb5c0d,
+                0xf83d68d9368628e1,
+                0x5dccfbe1e0f6131b,
+                0x693ab99d505173f1,
+                0xaeefb5cc09d99915,
+                0x84870d7dc93dd99a,
+                0x18287c5840351,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x4bf035b2e7a28c41,
+                0xc13e76b1e1e36f67,
+                0xb37a47e61a2c237f,
+                0xb4f840700d620bf7,
+                0xd145a02775c29822,
+                0xeb6b22852568d00b,
+                0x6093cb1e767d740f,
+                0x26227a1e920ee30d,
+                0x643304287c7f44b,
+                0xa9259221ca83a643,
+                0x1c095c2ef3f99a13,
+                0x11910b984af58,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0xe3f6840613cd4e1c,
+                0x89721b0b56ecd1a9,
+                0x5b127782085cde39,
+                0xc2136ce7149f4659,
+                0xa821a5272d0c09b4,
+                0x7d2704f3b36aacae,
+                0x66391a17126b4a0c,
+                0x7db12ad20e00888b,
+                0xc63688993bc14345,
+                0x20a77edce34ab2ca,
+                0x4f221db70ba49935,
+                0x192e3dbd61ab1,
+            ])),
+        ),
+    );
+
+    p.add_assign(&G2Projective::new(
+        Fq3::new(
+            Fq::from_repr(BigInteger768([
+                0x87863ba63bea72c3,
+                0x301f24c22eb25b2f,
+                0x655c8281915afb6,
+                0xc47c966fcbb7db52,
+                0xdc575c69687e9eed,
+                0xa3e5795b4e7c250c,
+                0x3e112c2fdfd8e340,
+                0x74a6fbb8f663ff7,
+                0xce47f3f8d454cb0,
+                0x69b127abf29e1633,
+                0x4c7e8fa7652bc991,
+                0x1970dc821883d,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x95fa49aafdfd4387,
+                0x382d7b8c16bae294,
+                0x344921db0ccf8f7c,
+                0xf8b1524b6636e881,
+                0x98cd7764a0cefca8,
+                0xe6828fb3e8201b8b,
+                0x16e27a6a16e1bb2b,
+                0x18f07a858db62506,
+                0x483f6ae56ed0c07,
+                0x67e8fab20c445e7d,
+                0x3f1e78100b6c0982,
+                0x77724fbde868,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0xc9d7abeb69398180,
+                0xa1ae85412d41caec,
+                0x9b2e4aaa34e0328a,
+                0xc27a88d15f92be18,
+                0xd3d6cf48c076fc94,
+                0x72816881f09d4bb6,
+                0xbf6eef3e9874ae55,
+                0x5c19e198010d8fc3,
+                0x1fb14a9016da8d2a,
+                0xac3385fd6116dbf3,
+                0x37a04821c9a4d7cb,
+                0x4941dcb96830,
+            ])),
+        ),
+        Fq3::new(
+            Fq::from_repr(BigInteger768([
+                0x4b056a07a62f0d5e,
+                0x8c462239f6da102e,
+                0x483b3f91ffbb69c1,
+                0x9f37442128120ef5,
+                0x553f8d818f7ac1b0,
+                0x658780ad849d7806,
+                0x6fba4cb2b981ddd9,
+                0x75dbbf19d9a33c81,
+                0xaa8b3def948b3b14,
+                0x6f4b61d89717664f,
+                0x636d4d2f896909b9,
+                0x13b0ac87fa18e,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x4b6995aee58e16fa,
+                0xf9d3edd1132af029,
+                0xe9c2c37b3f6faf43,
+                0x932bec74d762de96,
+                0x4ef739318975f2bb,
+                0xef7e5ec88408551d,
+                0xa4e5914ca671ae00,
+                0x29d67af1a2206c57,
+                0x18223036e6672b3f,
+                0x9cbb5024df2f2952,
+                0xcd6bb55e807dd909,
+                0xece87353533e,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x2ba1521408d8f353,
+                0x8714509e69a0ebc0,
+                0xe341880ff720f681,
+                0xeee75a395e4142cf,
+                0x6c3cb88e6ac3b2c8,
+                0x5bbe18dda8eff671,
+                0x377fa52e7460d3d4,
+                0x56663efc856db27d,
+                0x1d9b169247f08fad,
+                0xc26362a5b8aa24d,
+                0x4eb32cb0380924b2,
+                0x10bd00eddaf04,
+            ])),
+        ),
+        Fq3::new(
+            Fq::from_repr(BigInteger768([
+                0x77251d37877143f7,
+                0x1cd02dbe37de5d46,
+                0x718a19dfbbeefdfc,
+                0x61b0e6b5fa015ed1,
+                0xb9c43ec9a538b3f3,
+                0xa26f4bef388b5b22,
+                0x7e72eef204f0cd5f,
+                0x6f0560b81fce20b3,
+                0x3e0594edff904b59,
+                0xd6730d8bab21bf25,
+                0xfa6285765f99e955,
+                0xb0977f21c2ae,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0xda63eac44e5015f9,
+                0x6f4c27cb33273e56,
+                0x4a429b8ad6b0a1db,
+                0x127ec46b400d7c07,
+                0xb314d64cd340267b,
+                0x8a6eb9a6e4d8c2ef,
+                0xa0cbe7b0d4aacf01,
+                0xa44e4842f334a0e7,
+                0x2f0cccb48756a1d1,
+                0x1d6d6f87bb53c8ec,
+                0x6e2ec2cb0fa7c47a,
+                0xe617aac6b091,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x729c58e3f8d7bf46,
+                0x19b41fc9a34d6a4b,
+                0x570d9c67ea4dc0e9,
+                0x80c1d4a76974ecb9,
+                0xddbc6c455c6c9926,
+                0x6daab77be12bff96,
+                0x4adb0be62b4ea876,
+                0xa02b63f7e770e3d7,
+                0x88791ec7c8656be0,
+                0xe7ef1dc8258d8f13,
+                0x6e514c1b1e756d6b,
+                0x2e0de242b6fd,
+            ])),
+        ),
+    ));
+
+    let p = G2Affine::from(p);
+
+    assert_eq!(
+        p,
+        G2Affine::new(
+            Fq3::new(
+                Fq::from_repr(BigInteger768([
+                    0x72da42b16ed21b5,
+                    0x19cf95a1944ba199,
+                    0x2f2ef35977f4612f,
+                    0xa6726a9d7715720d,
+                    0x79ce35f04bd3d22a,
+                    0xacfa48485f98c45f,
+                    0xdcc7be3ac3086ab7,
+                    0xb7f8c1903c80cc65,
+                    0x45ef7c43e7bf0bc6,
+                    0x369df576c884a7d0,
+                    0xd55f95f56fc5b458,
+                    0x1936b58c2060a,
+                ])),
+                Fq::from_repr(BigInteger768([
+                    0x56d1c3d314335ae,
+                    0x892f2640e9c523a9,
+                    0xb8f98e09aa4f187a,
+                    0x6dae73b4cbd791ac,
+                    0x8a93f4bcd21ab495,
+                    0x1d2d365143faf727,
+                    0x9c32e3949dc2a6f4,
+                    0xf72b53f119a2b2fd,
+                    0xb33a098dc9e8cb09,
+                    0xebbf6c603331bc89,
+                    0xb25216f9437c9b06,
+                    0x1b66fafc3d177,
+                ])),
+                Fq::from_repr(BigInteger768([
+                    0xa9586414497d2bcf,
+                    0x79d532ec02ebf370,
+                    0xf2529e4e4c76e177,
+                    0x73a7ebc86c84b20e,
+                    0x25dcfd184b12f6e6,
+                    0xc847183685424711,
+                    0x669d2c5314f33983,
+                    0x5650db7ee1dc3c89,
+                    0xe633d4ea9dfc90e9,
+                    0x878e6e14abb5d677,
+                    0x9c78d0699f1d989,
+                    0x17b2dbc818c22,
+                ])),
+            ),
+            Fq3::new(
+                Fq::from_repr(BigInteger768([
+                    0xcced23ebafe5da2f,
+                    0x4b5e7a869f6fd391,
+                    0x7e80b5a845677da2,
+                    0x6142c907ac5aa6df,
+                    0x41a59ec52c30f77a,
+                    0x3f7506b4c2493219,
+                    0x95bb55d3c3e7ec87,
+                    0x82cd4321482fbc0e,
+                    0x585232bd450510e9,
+                    0x24c5a40ee13b8f54,
+                    0x2a76e1d7c3e717e0,
+                    0x85fd06c1e238,
+                ])),
+                Fq::from_repr(BigInteger768([
+                    0x2474f29e22fc2cc8,
+                    0xaed5873b7cf54927,
+                    0x931bffcf40540924,
+                    0x6bdab65f570af4e1,
+                    0x64dbba9a1fb71802,
+                    0xa061718296b0ae16,
+                    0x365e09d1dba4189d,
+                    0xb834da127d42fcda,
+                    0x184278ed73195df5,
+                    0xd0ca1f94504615ee,
+                    0xf2b837b8435a5b14,
+                    0x24571737f8cf,
+                ])),
+                Fq::from_repr(BigInteger768([
+                    0x2db90bcac593cd62,
+                    0x2229bed918d53817,
+                    0x78e7e563ec6edce8,
+                    0xa8666e7cd8aeef2e,
+                    0xe4cdc7ba2bc82094,
+                    0xa4defb4f3d4dfe7d,
+                    0xc952ccad822b2dc7,
+                    0x7aee0227acca18f8,
+                    0x8fe25b5fbed66fdf,
+                    0x351c9e37debbfe2a,
+                    0x987d2e0aaf7337ae,
+                    0x11f7551db14d4,
+                ])),
+            ),
+            false,
+        )
+    );
+}
+
+#[test]
+fn test_g2_doubling_correctness() {
+    let mut p = G2Projective::new(
+        Fq3::new(
+            Fq::from_repr(BigInteger768([
+                0x7afe33d9581ac612,
+                0x3b268f3f5ca15ba0,
+                0x9a1dcdd2085fbd87,
+                0xaf30d12d461cc9de,
+                0x81019caa6d7cdec8,
+                0xa18a577f1ece49b3,
+                0x19b9a3a5b155dd9,
+                0x9a2b4b6a71057c0,
+                0xd5d9136ee4cd338,
+                0xc2250f3bceb91e90,
+                0xf53f9b8034f443ae,
+                0x15f4f4d546f0e,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0xd5bbb40e1d42d978,
+                0x30dde24b67f69204,
+                0xf0f93c04bc826600,
+                0xa8508ddc54bf0099,
+                0x647f0bc6baf72f76,
+                0x50f2e01975fb88d1,
+                0x78f440535d7d4933,
+                0xbebb4004e9bee0bb,
+                0x31828cdf310ebd79,
+                0xd3a0491c0171d440,
+                0x98ea5571387b76ac,
+                0x1464d36e83747,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x189fe2dcffb8f02f,
+                0x133f51926365621,
+                0xb17b7dfce86ca0b,
+                0x135856cacdb04ae0,
+                0xbf4d3961a67be656,
+                0x1f5adbe45fcace2d,
+                0xacca868c6335b0a5,
+                0xf35031ee481b1484,
+                0x33e4417949cfbdcc,
+                0x7dc4a7523a1d58ca,
+                0xc18e99e82854d4e8,
+                0x478c0805f8f6,
+            ])),
+        ),
+        Fq3::new(
+            Fq::from_repr(BigInteger768([
+                0x7d06d45904b4d189,
+                0x337ab423aec2b700,
+                0x73350955d364b1e6,
+                0xc76ba597d1b2b296,
+                0xe60ad65d2163cfa4,
+                0x1c8f81ad1c18a9b3,
+                0xa138d4547eb1ae27,
+                0x808a5a826e268b90,
+                0x6a2a2fc1c76b542,
+                0x23b8f5cc380ec615,
+                0xe3a822c99280d9a6,
+                0x1341cdf7cb49f,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x85d37be6902ce66d,
+                0x532f9ab02d35ee94,
+                0x7b935a4919f632f0,
+                0xec9b4311bde9a7f7,
+                0xdfdf2d38069abf2c,
+                0x50a960ad1bfee92d,
+                0x6e802205eef2409b,
+                0x1289ea7184837b86,
+                0x109d7ac0d1c2824b,
+                0x738215ef7a81abd3,
+                0x4efd91632bee964d,
+                0xe8e73d65776e,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x3ed24bd014a23862,
+                0x2e1377d1970eb489,
+                0x6fd4b852de87f3f6,
+                0x97e95bc699904128,
+                0x9472d3bdf91ecb0a,
+                0xf0d4cfdbcec1c557,
+                0x8bc8f4ce61da016b,
+                0xe78142d8d22f029,
+                0x344505a275cb212d,
+                0x744552fcf8a5ba69,
+                0x2ec189ba35e37137,
+                0x117c24e8845ab,
+            ])),
+        ),
+        Fq3::new(
+            Fq::from_repr(BigInteger768([
+                0x1feaac2dc9634757,
+                0xc24edf5a193b4a14,
+                0xa140a8e32516f595,
+                0x4a1554f8b4fe7b27,
+                0x5c2cff9d8721ca9b,
+                0x1e1d40f932f2a73,
+                0xb933994dc579696d,
+                0xfacb4b38216bd0a8,
+                0x5b5d77d5d3172073,
+                0xfae1cc4ca6bad372,
+                0x102bca76726133ff,
+                0x124763fe07e8c,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0xd7893b5ed1d3d3ee,
+                0x665b7cd06c1c4ab,
+                0xdd13f4f06796a91c,
+                0xfd17a943fa771314,
+                0x6101d82cd2aba4b8,
+                0xd61fb9c0e0afdf1c,
+                0xc31d17943aff8d11,
+                0x4f4ca8cd62f3b64f,
+                0x26025dd5d125483f,
+                0x25a8d763d7e77a3a,
+                0x8e574854bb3551f7,
+                0xf606417c6e90,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x53b490fcfd62fd9c,
+                0x1f8c0d5492b3889b,
+                0x1897f9a3b4ef96e,
+                0x3613a8121c42b956,
+                0xb00635a0e1d582b1,
+                0xe8f3552df325e79,
+                0x343f100cbca33566,
+                0xa717479aecd717,
+                0x6f796b4bea4c3e4b,
+                0xcbbbe4c9fae9252f,
+                0xf604f47a62d6bbed,
+                0x11f5a0052ab8d,
+            ])),
+        ),
+    );
+
+    p.double_in_place();
+
+    let p = G2Affine::from(p);
+
+    assert_eq!(
+        p,
+        G2Affine::new(
+            Fq3::new(
+                Fq::from_repr(BigInteger768([
+                    0xc42fccbc0ebd24e,
+                    0x6d62787fa9c49d68,
+                    0x74158ed70cc7ea2f,
+                    0x85bfaedfcd7079ba,
+                    0x44d75b4f3617df1a,
+                    0x6af3e27d7c66ddcf,
+                    0x761cef1b00bd15e8,
+                    0x92a10d76c9b8bb04,
+                    0x870d7614b448c619,
+                    0xdf11d2c479669c96,
+                    0xce570fed502bd378,
+                    0x1521406dcbdb1,
+                ])),
+                Fq::from_repr(BigInteger768([
+                    0x1c6b9fa0ab40353d,
+                    0x3ae58b92b72d1b57,
+                    0x928a70b5c5aac718,
+                    0x534c846e80bf3665,
+                    0xd2fc2b8efa91bdb6,
+                    0xef6b5b763fc52b13,
+                    0xbc78dfc64c32adfd,
+                    0x4bca8998505aa365,
+                    0xf474c8f4ec4b5a57,
+                    0x61b6a5778ade5d32,
+                    0x3ececc75ffd000be,
+                    0xbe7ead6e2b6a,
+                ])),
+                Fq::from_repr(BigInteger768([
+                    0xeb462784ce36d20,
+                    0x19afacb028edb474,
+                    0x7b63449b34bc1546,
+                    0x3a3192f34400a705,
+                    0x6c5205b699393a35,
+                    0xe84e35a9c81e33d4,
+                    0xe782722bae243c8a,
+                    0x6336b9ffb63333d,
+                    0xf7a8dab344df1bc2,
+                    0xd3f22b53b86f98bc,
+                    0x55c2259b3977c817,
+                    0x1177c4edc045e,
+                ])),
+            ),
+            Fq3::new(
+                Fq::from_repr(BigInteger768([
+                    0x679d27f0d14d23cc,
+                    0x72f06b4af5d1ae38,
+                    0xb71d244cbbce3153,
+                    0x69b918b26499443c,
+                    0xa751ce9d28a9c780,
+                    0xcdd5ed47544a203b,
+                    0xa03cbd3570c5d0fb,
+                    0x711d8d09d74a846c,
+                    0x9c7759b54b8e9621,
+                    0x2f6cf020aea0c6df,
+                    0x8b49561208464c5b,
+                    0xfe0f4a20fb24,
+                ])),
+                Fq::from_repr(BigInteger768([
+                    0x114fdb086bf1d66d,
+                    0xbb6ebb6eae3a5399,
+                    0xc4d1b90a1f69275a,
+                    0xa02beacc7f7da147,
+                    0x6bdcc45f93b93bdd,
+                    0x2c93d518759bab56,
+                    0x7f87120c9250f290,
+                    0x79ef07dc5347cd12,
+                    0x9043ff4e1d54795b,
+                    0xfa771af5f9256ba4,
+                    0x94b428d0806ab9a3,
+                    0xccfd53d1f36a,
+                ])),
+                Fq::from_repr(BigInteger768([
+                    0xa4dda82fb971e5f2,
+                    0x1d997e1b1fc2081a,
+                    0xc126799731c79522,
+                    0xe92e379f0f698fc0,
+                    0xf0676c22d4b46e19,
+                    0x360422ae07dfe5a1,
+                    0x1412adbb5a48f783,
+                    0xa485c3f2e8d765c4,
+                    0x6addc78671c92e1e,
+                    0x8020137d9f8c3c27,
+                    0x8a1e77734bbb942f,
+                    0xaf59db8c96cd,
+                ])),
+            ),
+            false,
+        )
+    );
+}
+
+#[test]
+fn test_g2_affine_projective_conversion() {
+
+    let a = G2Projective::new(
+        Fq3::new(
+            Fq::from_repr(BigInteger768([
+                0x41da74b6053ef6b7,
+                0xd2d8e66a97d6d70c,
+                0x7ac76da0c57d242a,
+                0x1d9994979ca6320c,
+                0x5efaa7068db278e,
+                0x69b7a027a94b9108,
+                0xc4c418b25cc6eec4,
+                0xc6c9c0462a4d19fa,
+                0x13eb8645580a636d,
+                0xe67b196f93af2efe,
+                0x3f32311effb99d62,
+                0xe19ac924921e,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x7bd707b87e0e6222,
+                0xcdfab711016889ae,
+                0x634f1fa69bdc4f18,
+                0x3507a4d5a6dfd5e4,
+                0xae02ba638117d237,
+                0x5e5c63c1213d494c,
+                0xafe728fee241bc51,
+                0xaf9b3ddb385c369b,
+                0xd4c7962e8bec7d01,
+                0xa54484aa9f628d35,
+                0x36c49e7a019dec56,
+                0x649ebb4f5333,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0xb7a546922fc19e28,
+                0x6ada12bbed8ed05b,
+                0xe16262c6dc7c3c11,
+                0x396d30ea665ae084,
+                0x93edaaa2cb3f00c5,
+                0xc720b2f2c22b7687,
+                0x2e3fb425356cfa7e,
+                0x37f4c4de2f231b14,
+                0xd7adad21893cf6f3,
+                0x1fe165bd106320e6,
+                0x247462136540f12a,
+                0x5a38ebea92db,
+            ])),
+        ),
+        Fq3::new(
+            Fq::from_repr(BigInteger768([
+                0x636589ed41345edd,
+                0x5a0af3b90740340b,
+                0xa3f3fb75c5e4658a,
+                0x4fcf6da494e13f6e,
+                0x8163bd5eb479c7d8,
+                0x8af37fa2be2a5c2e,
+                0xaa2fb7892bc86cc8,
+                0x30485a615f090784,
+                0x572462ac652d2ec4,
+                0x16b1b0838c7f2dfa,
+                0xc7c82b124d29523a,
+                0xc7da75251aa1,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x962dcd61817dfd4a,
+                0x1c25d6b360c1f469,
+                0xddd1cd7de4f543fd,
+                0xf759ff375d871cbc,
+                0xc9b86b9eb0e5ee7b,
+                0x6f5ea5194e34ad18,
+                0x3a71767058bc090d,
+                0x6bf80049c4df2cbc,
+                0xecdfd40e0520dd23,
+                0x3e96694f5e910f07,
+                0x966e652c58da6a65,
+                0x19a8d8200b537,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x14063f5aec0647c9,
+                0x20cc135f9e10e87f,
+                0xb76da867efb027bb,
+                0x493f81882ecfb443,
+                0x3676f338e99490bc,
+                0x9116c97756658116,
+                0xf3d9a565be6f2ed0,
+                0xe22538518acb9972,
+                0x297e33b59e7ef8b3,
+                0x3d4318ac29bca429,
+                0x6d6c7143fadc8936,
+                0x127539501b00,
+            ])),
+        ),
+        Fq3::new(
+            Fq::from_repr(BigInteger768([
+                0x82097d42bd51ef66,
+                0xfd4e094113627162,
+                0x9904b731c1295e5c,
+                0xd5313acfbe8ed8da,
+                0xe8ddede77f6811e1,
+                0x4599037eb2ea8540,
+                0xab814af32d579073,
+                0x5412cda7259ad5b7,
+                0x303aea9509ee9fde,
+                0xbe2cf5ae8ace7169,
+                0xa2524a26b1b23670,
+                0xab4c0f1bb6c3,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0xaf9e5ec686a89b2,
+                0xdbb9b911cae18cf6,
+                0x6d36515a9cb6df09,
+                0xf01d546cbb00a4a4,
+                0xc2fdb6026e919b9d,
+                0x55a2a96991b7bde8,
+                0x8d508b496a2568b,
+                0xf2fdc71a935caf9a,
+                0xd829d521f3e24f9d,
+                0x50b601c1c50ec227,
+                0x430ab40c9b76faee,
+                0x14663e29c98ea,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0xb5952e77b6134df1,
+                0x9b51dd7361aa4ba5,
+                0x4fd7f2636bb78b8d,
+                0x7590912e38e12e5e,
+                0xd84570d9476b8ed8,
+                0xf30c8c4fecaea147,
+                0xc75fed655656096,
+                0x3b383b273e1990e3,
+                0x382e7f2ba28b60da,
+                0x84f723f168eaf40a,
+                0x8255394604ca40ca,
+                0x4f19f455187a,
+            ])),
+        ),
+    );
+
+    let a_a = a.into_affine();
+    assert_eq!(a_a, G2Affine::new(
+        Fq3::new(
+            Fq::from_repr(BigInteger768([
+                0xb489155cde461e70,
+                0xd4fb0aa23bdee915,
+                0x98a581a47b4966f5,
+                0xad8deeb38229260f,
+                0xe48a999e485599b5,
+                0xb12fb18448b87286,
+                0x3b664f193f8d15fc,
+                0xddee53205b649f66,
+                0x9d4b7d1bc72cf5bc,
+                0xf9b0ba487e16d623,
+                0x368732a518cd82b9,
+                0xd396ab6cedc4,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0xc090f5e604fd0c5d,
+                0xa60929023cb4396e,
+                0x6a36c13d14bca950,
+                0xf193928a62537ad8,
+                0x5dd422653a0ab7cf,
+                0xfeb169cf1ac20c11,
+                0x5028e997a66c4c6f,
+                0x672f2b840a15ba5c,
+                0xee196d6c275be00c,
+                0xdd870928ef5ae447,
+                0x237ecf9425954948,
+                0x72ec91495c31,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x1b3cd2c07cfde588,
+                0xf2bf2e55ef070a26,
+                0xeeba31b5b21e2304,
+                0x4a421ab6976aea8b,
+                0xae1ead99e11944a,
+                0xfd8c5279a8e81f7f,
+                0x3ec0e0cc678f7305,
+                0xa69cc9e2bba8167a,
+                0xcd82059011ddf04e,
+                0xeee99d47a09a4593,
+                0xe15c3735be0d602e,
+                0x194096f789dd1,
+            ])),
+        ),
+        Fq3::new(
+            Fq::from_repr(BigInteger768([
+                0x1bb831bb71581013,
+                0x1321eec3da1b5d46,
+                0xe40687d26234d94,
+                0x54c2753a84bbb000,
+                0x881aa3b8009029e2,
+                0xedb67e94eaf66d46,
+                0xb90b6645ddfdbb0,
+                0x90a3da91d292f192,
+                0x6a26f0b35c5f4127,
+                0xdbfe15c28bf71d7e,
+                0x1f4547885a7b4235,
+                0x1ae49be53f3be,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x6cd6b15339a2335,
+                0xb73bc2ffca948e20,
+                0x1f931f92eef44939,
+                0x38d36c80c753f143,
+                0x5ead901f39b982c9,
+                0xc1f0f883d77d095c,
+                0x22c4cd08073bad9,
+                0x4be9b344c77cdeac,
+                0xe82884569e2f9635,
+                0xf4ce3b57da7d19a8,
+                0xa25a6d5b197fd61e,
+                0x3f2060253ae9,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x1b4fe8c3e6fcce8e,
+                0x58ce396c473c8fd2,
+                0x213f3665465425d8,
+                0x68fb0af18b762781,
+                0xba9202c133a484c1,
+                0x549aaaf8d7e0a2b5,
+                0x45a35501b854e77,
+                0x816fa402bc80c4d0,
+                0x35466ff2460a7d0f,
+                0x5b39026cd7730aa7,
+                0xcafe3fc6740e4da6,
+                0xf3b25e7206d0,
+            ])),
+        ),
+        false
+    ));
+    assert_eq!(a_a.into_projective(), a);
 }
