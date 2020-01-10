@@ -13,7 +13,7 @@ use crate::{
 };
 use rand;
 use std::ops::AddAssign;
-use crate::groups::tests::{compression_test, gt_compression_test};
+use crate::groups::tests::compression_test;
 
 #[test]
 fn test_g1_projective_curve() {

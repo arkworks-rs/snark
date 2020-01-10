@@ -439,7 +439,6 @@ impl<P, ConstraintF: PrimeField + SquareRootField> FieldGadget<Fp6<P>, Constrain
         })
     }
 
-    //6 constraints. Can we do better ?
     fn mul_equals<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,

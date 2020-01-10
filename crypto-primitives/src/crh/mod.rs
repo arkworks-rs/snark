@@ -12,7 +12,6 @@ use crate::Error;
 pub mod constraints;
 #[cfg(feature = "r1cs")]
 pub use constraints::*;
-use std::marker::PhantomData;
 
 pub trait FixedLengthCRH {
     const INPUT_SIZE_BITS: usize;
