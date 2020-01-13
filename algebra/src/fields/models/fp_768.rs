@@ -27,7 +27,6 @@ pub trait Fp768Parameters: FpParameters<BigInt = BigInteger> {}
 )]
 pub struct Fp768<P: Fp768Parameters>(
     pub BigInteger,
-
     #[derivative(Debug = "ignore")]
     #[doc(hidden)]
     pub PhantomData<P>,
@@ -851,6 +850,17 @@ impl<P: Fp768Parameters> Neg for Fp768<P> {
     }
 }
 
+impl<P: Fp768Parameters> Add<Fp768<P>> for Fp768<P> {
+    type Output = Self;
+
+    #[inline]
+    fn add(self, other: Self) -> Self {
+        let mut result = self.clone();
+        result.add_assign(&other);
+        result
+    }
+}
+
 impl<'a, P: Fp768Parameters> Add<&'a Fp768<P>> for Fp768<P> {
     type Output = Self;
 
@@ -869,6 +879,17 @@ impl<'a, P: Fp768Parameters> Sub<&'a Fp768<P>> for Fp768<P> {
     fn sub(self, other: &Self) -> Self {
         let mut result = self.clone();
         result.sub_assign(other);
+        result
+    }
+}
+
+impl<P: Fp768Parameters> Mul<Fp768<P>> for Fp768<P> {
+    type Output = Self;
+
+    #[inline]
+    fn mul(self, other: Self) -> Self {
+        let mut result = self.clone();
+        result.mul_assign(&other);
         result
     }
 }

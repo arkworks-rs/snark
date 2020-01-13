@@ -27,7 +27,6 @@ pub trait Fp256Parameters: FpParameters<BigInt = BigInteger> {}
 )]
 pub struct Fp256<P>(
     pub BigInteger,
-
     #[derivative(Debug = "ignore")]
     #[doc(hidden)]
     pub PhantomData<P>,
@@ -461,6 +460,17 @@ impl<P: Fp256Parameters> Neg for Fp256<P> {
     }
 }
 
+impl<P: Fp256Parameters> Add<Fp256<P>> for Fp256<P> {
+    type Output = Self;
+
+    #[inline]
+    fn add(self, other: Self) -> Self {
+        let mut result = self;
+        result.add_assign(&other);
+        result
+    }
+}
+
 impl<'a, P: Fp256Parameters> Add<&'a Fp256<P>> for Fp256<P> {
     type Output = Self;
 
@@ -479,6 +489,17 @@ impl<'a, P: Fp256Parameters> Sub<&'a Fp256<P>> for Fp256<P> {
     fn sub(self, other: &Self) -> Self {
         let mut result = self;
         result.sub_assign(other);
+        result
+    }
+}
+
+impl<P: Fp256Parameters> Mul<Fp256<P>> for Fp256<P> {
+    type Output = Self;
+
+    #[inline]
+    fn mul(self, other: Self) -> Self {
+        let mut result = self;
+        result.mul_assign(&other);
         result
     }
 }
