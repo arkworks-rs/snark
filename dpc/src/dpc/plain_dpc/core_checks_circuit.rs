@@ -1,5 +1,5 @@
 use crate::Error;
-use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSynthesizer, R1CS, SynthesisError};
 
 use crypto_primitives::{CommitmentScheme, FixedLengthCRH, PRF, merkle_tree::*};
 
@@ -242,7 +242,7 @@ impl<C: PlainDPCComponents> CoreChecksCircuit<C> {
 }
 
 impl<C: PlainDPCComponents> ConstraintSynthesizer<C::CoreCheckF> for CoreChecksCircuit<C> {
-    fn generate_constraints<CS: ConstraintSystem<C::CoreCheckF>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
+    fn generate_constraints<CS: R1CS<C::CoreCheckF>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
         execute_core_checks_gadget::<C, CS>(
             cs,
             // Params

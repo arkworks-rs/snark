@@ -1,5 +1,5 @@
 use algebra::PrimeField;
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_core::{R1CS, SynthesisError};
 
 use crate::prf::PRFGadget;
 use r1cs_std::prelude::*;
@@ -76,7 +76,7 @@ const SIGMA: [[usize; 16]; 10] = [
 // END FUNCTION.
 //
 
-fn mixing_g<ConstraintF: PrimeField, CS: ConstraintSystem<ConstraintF>>(
+fn mixing_g<ConstraintF: PrimeField, CS: R1CS<ConstraintF>>(
     mut cs: CS,
     v: &mut [UInt32],
     a: usize,
@@ -151,7 +151,7 @@ fn mixing_g<ConstraintF: PrimeField, CS: ConstraintSystem<ConstraintF>>(
 // END FUNCTION.
 //
 
-fn blake2s_compression<ConstraintF: PrimeField, CS: ConstraintSystem<ConstraintF>>(
+fn blake2s_compression<ConstraintF: PrimeField, CS: R1CS<ConstraintF>>(
     mut cs: CS,
     h: &mut [UInt32],
     m: &[UInt32],
@@ -312,7 +312,7 @@ fn blake2s_compression<ConstraintF: PrimeField, CS: ConstraintSystem<ConstraintF
 // END FUNCTION.
 //
 
-pub fn blake2s_gadget<ConstraintF: PrimeField, CS: ConstraintSystem<ConstraintF>>(
+pub fn blake2s_gadget<ConstraintF: PrimeField, CS: R1CS<ConstraintF>>(
     mut cs: CS,
     input: &[Boolean],
 ) -> Result<Vec<UInt32>, SynthesisError> {
@@ -388,7 +388,7 @@ impl<ConstraintF: PrimeField> EqGadget<ConstraintF> for Blake2sOutputGadget {}
 
 impl<ConstraintF: PrimeField> ConditionalEqGadget<ConstraintF> for Blake2sOutputGadget {
     #[inline]
-    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
+    fn conditional_enforce_equal<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -411,7 +411,7 @@ impl<ConstraintF: PrimeField> ConditionalEqGadget<ConstraintF> for Blake2sOutput
 
 impl<ConstraintF: PrimeField> ToBytesGadget<ConstraintF> for Blake2sOutputGadget {
     #[inline]
-    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(
+    fn to_bytes<CS: R1CS<ConstraintF>>(
         &self,
         _cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
@@ -419,7 +419,7 @@ impl<ConstraintF: PrimeField> ToBytesGadget<ConstraintF> for Blake2sOutputGadget
     }
 
     #[inline]
-    fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
+    fn to_bytes_strict<CS: R1CS<ConstraintF>>(
         &self,
         cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
@@ -429,7 +429,7 @@ impl<ConstraintF: PrimeField> ToBytesGadget<ConstraintF> for Blake2sOutputGadget
 
 impl<ConstraintF: PrimeField> AllocGadget<[u8; 32], ConstraintF> for Blake2sOutputGadget {
     #[inline]
-    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
+    fn alloc<F, T, CS: R1CS<ConstraintF>>(
         cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
@@ -448,7 +448,7 @@ impl<ConstraintF: PrimeField> AllocGadget<[u8; 32], ConstraintF> for Blake2sOutp
     }
 
     #[inline]
-    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
+    fn alloc_input<F, T, CS: R1CS<ConstraintF>>(
         cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
@@ -470,11 +470,11 @@ impl<ConstraintF: PrimeField> AllocGadget<[u8; 32], ConstraintF> for Blake2sOutp
 impl<ConstraintF: PrimeField> PRFGadget<Blake2s, ConstraintF> for Blake2sGadget {
     type OutputGadget = Blake2sOutputGadget;
 
-    fn new_seed<CS: ConstraintSystem<ConstraintF>>(mut cs: CS, seed: &[u8; 32]) -> Vec<UInt8> {
+    fn new_seed<CS: R1CS<ConstraintF>>(mut cs: CS, seed: &[u8; 32]) -> Vec<UInt8> {
         UInt8::alloc_vec(&mut cs.ns(|| "alloc_seed"), seed).unwrap()
     }
 
-    fn check_evaluation_gadget<CS: ConstraintSystem<ConstraintF>>(
+    fn check_evaluation_gadget<CS: R1CS<ConstraintF>>(
         mut cs: CS,
         seed: &[UInt8],
         input: &[UInt8],
@@ -506,16 +506,16 @@ mod test {
 
     use crate::prf::blake2s::{constraints::blake2s_gadget, Blake2s as B2SPRF};
     use blake2::Blake2s;
-    use r1cs_core::ConstraintSystem;
+    use r1cs_core::R1CS;
 
     use super::Blake2sGadget;
     use r1cs_std::{
-        boolean::AllocatedBit, prelude::*, test_constraint_system::TestConstraintSystem,
+        boolean::AllocatedBit, prelude::*, test_constraint_system::TestR1CS,
     };
 
     #[test]
     fn test_blake2s_constraints() {
-        let mut cs = TestConstraintSystem::<Fr>::new();
+        let mut cs = TestR1CS::<Fr>::new();
         let input_bits: Vec<_> = (0..512)
             .map(|i| {
                 AllocatedBit::alloc(cs.ns(|| format!("input bit_gadget {}", i)), || Ok(true))
@@ -534,7 +534,7 @@ mod test {
         use rand::Rng;
 
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-        let mut cs = TestConstraintSystem::<Fr>::new();
+        let mut cs = TestR1CS::<Fr>::new();
 
         let mut seed = [0u8; 32];
         rng.fill(&mut seed);
@@ -575,7 +575,7 @@ mod test {
         // Test that 512 fixed leading bits (constants)
         // doesn't result in more constraints.
 
-        let mut cs = TestConstraintSystem::<Fr>::new();
+        let mut cs = TestR1CS::<Fr>::new();
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
         let input_bits: Vec<_> = (0..512)
             .map(|_| Boolean::constant(rng.gen()))
@@ -592,7 +592,7 @@ mod test {
 
     #[test]
     fn test_blake2s_constant_constraints() {
-        let mut cs = TestConstraintSystem::<Fr>::new();
+        let mut cs = TestR1CS::<Fr>::new();
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
         let input_bits: Vec<_> = (0..512).map(|_| Boolean::constant(rng.gen())).collect();
         blake2s_gadget(&mut cs, &input_bits).unwrap();
@@ -612,7 +612,7 @@ mod test {
 
             let hash_result = h.fixed_result();
 
-            let mut cs = TestConstraintSystem::<Fr>::new();
+            let mut cs = TestR1CS::<Fr>::new();
 
             let mut input_bits = vec![];
 

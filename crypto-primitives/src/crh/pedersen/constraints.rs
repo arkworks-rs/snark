@@ -3,7 +3,7 @@ use crate::crh::{
     FixedLengthCRHGadget,
 };
 use algebra::{Field, Group};
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_core::{R1CS, SynthesisError};
 use r1cs_std::prelude::*;
 
 use std::{borrow::Borrow, marker::PhantomData};
@@ -44,7 +44,7 @@ where
     type OutputGadget = GG;
     type ParametersGadget = PedersenCRHGadgetParameters<G, W, ConstraintF, GG>;
 
-    fn check_evaluation_gadget<CS: ConstraintSystem<ConstraintF>>(
+    fn check_evaluation_gadget<CS: R1CS<ConstraintF>>(
         cs: CS,
         parameters: &Self::ParametersGadget,
         input: &[UInt8],
@@ -77,7 +77,7 @@ impl<G: Group, W: PedersenWindow, ConstraintF: Field, GG: GroupGadget<G, Constra
     AllocGadget<PedersenParameters<G>, ConstraintF>
     for PedersenCRHGadgetParameters<G, W, ConstraintF, GG>
 {
-    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
+    fn alloc<F, T, CS: R1CS<ConstraintF>>(
         _cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
@@ -94,7 +94,7 @@ impl<G: Group, W: PedersenWindow, ConstraintF: Field, GG: GroupGadget<G, Constra
         })
     }
 
-    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
+    fn alloc_input<F, T, CS: R1CS<ConstraintF>>(
         _cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
@@ -122,10 +122,10 @@ mod test {
         FixedLengthCRH, FixedLengthCRHGadget,
     };
     use algebra::curves::{jubjub::JubJubProjective as JubJub, ProjectiveCurve};
-    use r1cs_core::ConstraintSystem;
+    use r1cs_core::R1CS;
     use r1cs_std::{
         groups::curves::twisted_edwards::jubjub::JubJubGadget, prelude::*,
-        test_constraint_system::TestConstraintSystem,
+        test_constraint_system::TestR1CS,
     };
 
     type TestCRH = PedersenCRH<JubJub, Window>;
@@ -139,7 +139,7 @@ mod test {
         const NUM_WINDOWS: usize = 8;
     }
 
-    fn generate_input<CS: ConstraintSystem<Fr>, R: Rng>(
+    fn generate_input<CS: R1CS<Fr>, R: Rng>(
         mut cs: CS,
         rng: &mut R,
     ) -> ([u8; 128], Vec<UInt8>) {
@@ -157,7 +157,7 @@ mod test {
     #[test]
     fn crh_primitive_gadget_test() {
         let rng = &mut thread_rng();
-        let mut cs = TestConstraintSystem::<Fr>::new();
+        let mut cs = TestR1CS::<Fr>::new();
 
         let (input, input_bytes) = generate_input(&mut cs, rng);
         println!("number of constraints for input: {}", cs.num_constraints());

@@ -13,7 +13,7 @@ use algebra::PairingEngine;
 
 use r1cs_core::{
     ConstraintSynthesizer,
-    ConstraintSystem,
+    R1CS,
     SynthesisError
 };
 
@@ -59,7 +59,7 @@ impl<C: PlainDPCComponents> EmptyPredicateCircuit<C> {
 }
 
 impl<C: PlainDPCComponents> ConstraintSynthesizer<C::E> for EmptyPredicateCircuit<C> {
-    fn generate_constraints<CS: ConstraintSystem<C::E>>(
+    fn generate_constraints<CS: R1CS<C::E>>(
         self,
         cs: &mut CS
     ) -> Result<(), SynthesisError> {

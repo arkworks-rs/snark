@@ -23,11 +23,11 @@ use crate::crypto_primitives::{
 use blake2::Blake2s as Blake2sHash;
 use crate::crypto_primitives::{CommitmentScheme, FixedLengthCRH};
 
-use r1cs_core::ConstraintSystem;
+use r1cs_core::R1CS;
 
 use crate::constraints::delegable_dpc::execute_core_checks_gadget;
 use crate::constraints::delegable_dpc::execute_proof_check_gadget;
-use r1cs_std::test_constraint_system::TestConstraintSystem;
+use r1cs_std::test_constraint_system::TestR1CS;
 use crate::constraints::commitment::{
     injective_map::PedersenCommitmentCompressorGadget,
     blake2s::Blake2sCommitmentGadget,
@@ -303,7 +303,7 @@ fn core_checks_gadget() {
         local_data_rand,
     } = context;
 
-    let mut core_cs = TestConstraintSystem::<Bls12_377>::new();
+    let mut core_cs = TestR1CS::<Bls12_377>::new();
 
     execute_core_checks_gadget::<_, _>(
         &mut core_cs.ns(|| "Core checks"),
@@ -449,7 +449,7 @@ fn proof_check_gadget() {
     } = context;
 
 
-    let mut pf_check_cs = TestConstraintSystem::<SW6>::new();
+    let mut pf_check_cs = TestR1CS::<SW6>::new();
 
     execute_proof_check_gadget::<_, _>(
         &mut pf_check_cs.ns(|| "Check predicate proofs"),

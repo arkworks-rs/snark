@@ -1,13 +1,13 @@
 use crate::prelude::*;
 use algebra::Field;
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_core::{R1CS, SynthesisError};
 
 /// If condition is `true`, return `first`; else, select `second`.
 pub trait CondSelectGadget<ConstraintF: Field>
 where
     Self: Sized,
 {
-    fn conditionally_select<CS: ConstraintSystem<ConstraintF>>(
+    fn conditionally_select<CS: R1CS<ConstraintF>>(
         cs: CS,
         cond: &Boolean,
         first: &Self,
@@ -23,7 +23,7 @@ where
     Self: Sized,
 {
     type TableConstant;
-    fn two_bit_lookup<CS: ConstraintSystem<ConstraintF>>(
+    fn two_bit_lookup<CS: R1CS<ConstraintF>>(
         cs: CS,
         bits: &[Boolean],
         constants: &[Self::TableConstant],
@@ -39,7 +39,7 @@ where
     Self: Sized,
 {
     type TableConstant;
-    fn three_bit_cond_neg_lookup<CS: ConstraintSystem<ConstraintF>>(
+    fn three_bit_cond_neg_lookup<CS: R1CS<ConstraintF>>(
         cs: CS,
         bits: &[Boolean],
         b0b1: &Boolean,

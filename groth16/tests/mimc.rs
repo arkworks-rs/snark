@@ -37,7 +37,7 @@ use algebra::{curves::bls12_381::Bls12_381, fields::bls12_381::fr::Fr, Field};
 // We're going to use the BLS12-381 pairing-friendly elliptic curve.
 
 // We'll use these interfaces to construct our circuit.
-use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSynthesizer, R1CS, SynthesisError};
 
 const MIMC_ROUNDS: usize = 322;
 
@@ -83,7 +83,7 @@ struct MiMCDemo<'a, F: Field> {
 /// is used during paramgen and proving in order to
 /// synthesize the constraint system.
 impl<'a, F: Field> ConstraintSynthesizer<F> for MiMCDemo<'a, F> {
-    fn generate_constraints<CS: ConstraintSystem<F>>(
+    fn generate_constraints<CS: R1CS<F>>(
         self,
         cs: &mut CS,
     ) -> Result<(), SynthesisError> {

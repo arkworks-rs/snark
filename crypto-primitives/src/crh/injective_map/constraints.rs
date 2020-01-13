@@ -17,7 +17,7 @@ use algebra::{
     fields::{Field, PrimeField, SquareRootField},
     groups::Group,
 };
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_core::{R1CS, SynthesisError};
 use r1cs_std::{
     fields::fp::FpGadget,
     groups::{curves::twisted_edwards::AffineGadget as TwistedEdwardsGadget, GroupGadget},
@@ -39,7 +39,7 @@ pub trait InjectiveMapGadget<
         + Clone
         + Sized;
 
-    fn evaluate_map<CS: ConstraintSystem<ConstraintF>>(
+    fn evaluate_map<CS: R1CS<ConstraintF>>(
         cs: CS,
         ge: &GG,
     ) -> Result<Self::OutputGadget, SynthesisError>;
@@ -60,7 +60,7 @@ where
 {
     type OutputGadget = FpGadget<ConstraintF>;
 
-    fn evaluate_map<CS: ConstraintSystem<ConstraintF>>(
+    fn evaluate_map<CS: R1CS<ConstraintF>>(
         _cs: CS,
         ge: &TwistedEdwardsGadget<P, ConstraintF, FpGadget<ConstraintF>>,
     ) -> Result<Self::OutputGadget, SynthesisError> {
@@ -81,7 +81,7 @@ where
 {
     type OutputGadget = FpGadget<ConstraintF>;
 
-    fn evaluate_map<CS: ConstraintSystem<ConstraintF>>(
+    fn evaluate_map<CS: R1CS<ConstraintF>>(
         _cs: CS,
         ge: &TwistedEdwardsGadget<P, ConstraintF, FpGadget<ConstraintF>>,
     ) -> Result<Self::OutputGadget, SynthesisError> {
@@ -115,7 +115,7 @@ where
     type OutputGadget = IG::OutputGadget;
     type ParametersGadget = PedersenCRHGadgetParameters<G, W, ConstraintF, GG>;
 
-    fn check_evaluation_gadget<CS: ConstraintSystem<ConstraintF>>(
+    fn check_evaluation_gadget<CS: R1CS<ConstraintF>>(
         mut cs: CS,
         parameters: &Self::ParametersGadget,
         input: &[UInt8],

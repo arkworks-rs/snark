@@ -2,7 +2,7 @@ use algebra::Field;
 use std::fmt::Debug;
 
 use crate::crh::FixedLengthCRH;
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_core::{R1CS, SynthesisError};
 
 use r1cs_std::prelude::*;
 
@@ -17,7 +17,7 @@ pub trait FixedLengthCRHGadget<H: FixedLengthCRH, ConstraintF: Field>: Sized {
         + Sized;
     type ParametersGadget: AllocGadget<H::Parameters, ConstraintF> + Clone;
 
-    fn check_evaluation_gadget<CS: ConstraintSystem<ConstraintF>>(
+    fn check_evaluation_gadget<CS: R1CS<ConstraintF>>(
         cs: CS,
         parameters: &Self::ParametersGadget,
         input: &[UInt8],

@@ -1,11 +1,11 @@
 use crate::prelude::*;
 use algebra::Field;
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_core::{R1CS, SynthesisError};
 
 /// If `condition == 1`, then enforces that `self` and `other` are equal;
 /// otherwise, it doesn't enforce anything.
 pub trait ConditionalEqGadget<ConstraintF: Field>: Eq {
-    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
+    fn conditional_enforce_equal<CS: R1CS<ConstraintF>>(
         &self,
         cs: CS,
         other: &Self,
@@ -17,7 +17,7 @@ pub trait ConditionalEqGadget<ConstraintF: Field>: Eq {
 impl<T: ConditionalEqGadget<ConstraintF>, ConstraintF: Field> ConditionalEqGadget<ConstraintF>
     for [T]
 {
-    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
+    fn conditional_enforce_equal<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -39,7 +39,7 @@ pub trait EqGadget<ConstraintF: Field>: Eq
 where
     Self: ConditionalEqGadget<ConstraintF>,
 {
-    fn enforce_equal<CS: ConstraintSystem<ConstraintF>>(
+    fn enforce_equal<CS: R1CS<ConstraintF>>(
         &self,
         cs: CS,
         other: &Self,
@@ -55,7 +55,7 @@ where
 impl<T: EqGadget<ConstraintF>, ConstraintF: Field> EqGadget<ConstraintF> for [T] {}
 
 pub trait NEqGadget<ConstraintF: Field>: Eq {
-    fn enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
+    fn enforce_not_equal<CS: R1CS<ConstraintF>>(
         &self,
         cs: CS,
         other: &Self,
@@ -68,7 +68,7 @@ pub trait OrEqualsGadget<ConstraintF: Field>
 where
     Self: Sized,
 {
-    fn enforce_equal_or<CS: ConstraintSystem<ConstraintF>>(
+    fn enforce_equal_or<CS: R1CS<ConstraintF>>(
         cs: CS,
         cond: &Boolean,
         var: &Self,
@@ -82,7 +82,7 @@ where
 impl<ConstraintF: Field, T: Sized + ConditionalOrEqualsGadget<ConstraintF>>
     OrEqualsGadget<ConstraintF> for T
 {
-    fn enforce_equal_or<CS: ConstraintSystem<ConstraintF>>(
+    fn enforce_equal_or<CS: R1CS<ConstraintF>>(
         cs: CS,
         cond: &Boolean,
         var: &Self,
@@ -101,7 +101,7 @@ pub trait ConditionalOrEqualsGadget<ConstraintF: Field>
 where
     Self: Sized,
 {
-    fn conditional_enforce_equal_or<CS: ConstraintSystem<ConstraintF>>(
+    fn conditional_enforce_equal_or<CS: R1CS<ConstraintF>>(
         cs: CS,
         cond: &Boolean,
         var: &Self,
@@ -118,7 +118,7 @@ impl<
         T: Sized + ConditionalEqGadget<ConstraintF> + CondSelectGadget<ConstraintF>,
     > ConditionalOrEqualsGadget<ConstraintF> for T
 {
-    fn conditional_enforce_equal_or<CS: ConstraintSystem<ConstraintF>>(
+    fn conditional_enforce_equal_or<CS: R1CS<ConstraintF>>(
         mut cs: CS,
         cond: &Boolean,
         var: &Self,

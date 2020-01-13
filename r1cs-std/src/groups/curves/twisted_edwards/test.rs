@@ -7,14 +7,14 @@ use algebra::{
     BitIterator, Field, Group, PrimeField, UniformRand,
 };
 
-use r1cs_core::ConstraintSystem;
+use r1cs_core::R1CS;
 
 pub(crate) fn edwards_test<ConstraintF, P, GG, CS>(cs: &mut CS)
 where
     ConstraintF: Field,
     P: TEModelParameters,
     GG: GroupGadget<TEAffine<P>, ConstraintF, Value = TEAffine<P>>,
-    CS: ConstraintSystem<ConstraintF>,
+    CS: R1CS<ConstraintF>,
 {
     let a: TEAffine<P> = UniformRand::rand(&mut thread_rng());
     let b: TEAffine<P> = UniformRand::rand(&mut thread_rng());
@@ -49,7 +49,7 @@ where
     ConstraintF: Field,
     P: TEModelParameters,
     GG: GroupGadget<TEAffine<P>, ConstraintF, Value = TEAffine<P>>,
-    CS: ConstraintSystem<ConstraintF>,
+    CS: R1CS<ConstraintF>,
 {
     use crate::boolean::AllocatedBit;
 

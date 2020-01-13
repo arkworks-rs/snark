@@ -5,7 +5,7 @@ use algebra::{
 use ff_fft::EvaluationDomain;
 
 use r1cs_core::{
-    ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable,
+    ConstraintSynthesizer, R1CS, Index, LinearCombination, SynthesisError, Variable,
 };
 use rand::Rng;
 use rayon::prelude::*;
@@ -42,7 +42,7 @@ pub struct KeypairAssembly<E: PairingEngine> {
     pub(crate) ct:              Vec<Vec<(E::Fr, Index)>>,
 }
 
-impl<E: PairingEngine> ConstraintSystem<E::Fr> for KeypairAssembly<E> {
+impl<E: PairingEngine> R1CS<E::Fr> for KeypairAssembly<E> {
     type Root = Self;
 
     #[inline]

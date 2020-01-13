@@ -5,7 +5,7 @@ use algebra::{
     },
     AffineCurve, BitIterator, Field, PrimeField, ProjectiveCurve,
 };
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_core::{R1CS, SynthesisError};
 use std::{borrow::Borrow, marker::PhantomData, ops::Neg};
 
 use crate::{prelude::*, Assignment};
@@ -40,7 +40,7 @@ impl<P: SWModelParameters, ConstraintF: Field, F: FieldGadget<P::BaseField, Cons
         }
     }
 
-    pub fn alloc_without_check<FN, CS: ConstraintSystem<ConstraintF>>(
+    pub fn alloc_without_check<FN, CS: R1CS<ConstraintF>>(
         mut cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
@@ -113,7 +113,7 @@ where
     }
 
     #[inline]
-    fn zero<CS: ConstraintSystem<ConstraintF>>(mut cs: CS) -> Result<Self, SynthesisError> {
+    fn zero<CS: R1CS<ConstraintF>>(mut cs: CS) -> Result<Self, SynthesisError> {
         Ok(Self::new(
             F::zero(cs.ns(|| "zero"))?,
             F::one(cs.ns(|| "one"))?,
@@ -124,7 +124,7 @@ where
     #[inline]
     /// Incomplete addition: neither `self` nor `other` can be the neutral
     /// element.
-    fn add<CS: ConstraintSystem<ConstraintF>>(
+    fn add<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -190,7 +190,7 @@ where
 
     /// Incomplete addition: neither `self` nor `other` can be the neutral
     /// element.
-    fn add_constant<CS: ConstraintSystem<ConstraintF>>(
+    fn add_constant<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &SWProjective<P>,
@@ -266,7 +266,7 @@ where
     }
 
     #[inline]
-    fn double_in_place<CS: ConstraintSystem<ConstraintF>>(
+    fn double_in_place<CS: R1CS<ConstraintF>>(
         &mut self,
         mut cs: CS,
     ) -> Result<(), SynthesisError> {
@@ -305,7 +305,7 @@ where
         Ok(())
     }
 
-    fn negate<CS: ConstraintSystem<ConstraintF>>(
+    fn negate<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Self, SynthesisError> {
@@ -332,7 +332,7 @@ where
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
     #[inline]
-    fn conditionally_select<CS: ConstraintSystem<ConstraintF>>(
+    fn conditionally_select<CS: R1CS<ConstraintF>>(
         mut cs: CS,
         cond: &Boolean,
         first: &Self,
@@ -366,7 +366,7 @@ where
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
     #[inline]
-    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
+    fn conditional_enforce_equal<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -402,7 +402,7 @@ where
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
     #[inline]
-    fn enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
+    fn enforce_not_equal<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -427,7 +427,7 @@ where
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
     #[inline]
-    fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(
+    fn alloc<FN, T, CS: R1CS<ConstraintF>>(
         mut cs: CS,
         value_gen: FN,
     ) -> Result<Self, SynthesisError>
@@ -469,7 +469,7 @@ where
     }
 
     #[inline]
-    fn alloc_checked<FN, T, CS: ConstraintSystem<ConstraintF>>(
+    fn alloc_checked<FN, T, CS: R1CS<ConstraintF>>(
         mut cs: CS,
         value_gen: FN,
     ) -> Result<Self, SynthesisError>
@@ -549,7 +549,7 @@ where
     }
 
     #[inline]
-    fn alloc_input<FN, T, CS: ConstraintSystem<ConstraintF>>(
+    fn alloc_input<FN, T, CS: R1CS<ConstraintF>>(
         mut cs: CS,
         value_gen: FN,
     ) -> Result<Self, SynthesisError>
@@ -585,7 +585,7 @@ where
     ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
-    fn to_bits<CS: ConstraintSystem<ConstraintF>>(
+    fn to_bits<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<Boolean>, SynthesisError> {
@@ -596,7 +596,7 @@ where
         Ok(x_bits)
     }
 
-    fn to_bits_strict<CS: ConstraintSystem<ConstraintF>>(
+    fn to_bits_strict<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<Boolean>, SynthesisError> {
@@ -619,7 +619,7 @@ where
     ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
-    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(
+    fn to_bytes<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
@@ -631,7 +631,7 @@ where
         Ok(x_bytes)
     }
 
-    fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
+    fn to_bytes_strict<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {

@@ -1,6 +1,6 @@
 use crate::prelude::*;
 use algebra::{Field, Group};
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_core::{R1CS, SynthesisError};
 
 use std::{borrow::Borrow, fmt::Debug};
 
@@ -29,15 +29,15 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
 
     fn get_variable(&self) -> Self::Variable;
 
-    fn zero<CS: ConstraintSystem<ConstraintF>>(cs: CS) -> Result<Self, SynthesisError>;
+    fn zero<CS: R1CS<ConstraintF>>(cs: CS) -> Result<Self, SynthesisError>;
 
-    fn add<CS: ConstraintSystem<ConstraintF>>(
+    fn add<CS: R1CS<ConstraintF>>(
         &self,
         cs: CS,
         other: &Self,
     ) -> Result<Self, SynthesisError>;
 
-    fn sub<CS: ConstraintSystem<ConstraintF>>(
+    fn sub<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -46,13 +46,13 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
         self.add(cs.ns(|| "Self - other"), &neg_other)
     }
 
-    fn add_constant<CS: ConstraintSystem<ConstraintF>>(
+    fn add_constant<CS: R1CS<ConstraintF>>(
         &self,
         cs: CS,
         other: &G,
     ) -> Result<Self, SynthesisError>;
 
-    fn sub_constant<CS: ConstraintSystem<ConstraintF>>(
+    fn sub_constant<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &G,
@@ -61,17 +61,17 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
         self.add_constant(cs.ns(|| "Self - other"), &neg_other)
     }
 
-    fn double_in_place<CS: ConstraintSystem<ConstraintF>>(
+    fn double_in_place<CS: R1CS<ConstraintF>>(
         &mut self,
         cs: CS,
     ) -> Result<(), SynthesisError>;
 
-    fn negate<CS: ConstraintSystem<ConstraintF>>(&self, cs: CS) -> Result<Self, SynthesisError>;
+    fn negate<CS: R1CS<ConstraintF>>(&self, cs: CS) -> Result<Self, SynthesisError>;
 
     /// Inputs must be specified in *little-endian* form.
     /// If the addition law is incomplete for the identity element,
     /// `result` must not be the identity element.
-    fn mul_bits<'a, CS: ConstraintSystem<ConstraintF>>(
+    fn mul_bits<'a, CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
         result: &Self,
@@ -98,7 +98,7 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
         scalar_bits_with_base_powers: I,
     ) -> Result<(), SynthesisError>
     where
-        CS: ConstraintSystem<ConstraintF>,
+        CS: R1CS<ConstraintF>,
         I: Iterator<Item = (B, &'a G)>,
         B: Borrow<Boolean>,
         G: 'a,
@@ -124,7 +124,7 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
         _: &[J],
     ) -> Result<Self, SynthesisError>
     where
-        CS: ConstraintSystem<ConstraintF>,
+        CS: R1CS<ConstraintF>,
         I: Borrow<[Boolean]>,
         J: Borrow<[I]>,
         B: Borrow<[G]>,
@@ -138,7 +138,7 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
         scalars: I,
     ) -> Result<Self, SynthesisError>
     where
-        CS: ConstraintSystem<ConstraintF>,
+        CS: R1CS<ConstraintF>,
         T: 'a + ToBitsGadget<ConstraintF> + ?Sized,
         I: Iterator<Item = &'a T>,
         B: Borrow<[G]>,
@@ -164,9 +164,9 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
 #[cfg(test)]
 mod test {
     use algebra::Field;
-    use r1cs_core::ConstraintSystem;
+    use r1cs_core::R1CS;
 
-    use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
+    use crate::{prelude::*, test_constraint_system::TestR1CS};
     use algebra::groups::Group;
     use rand;
 
@@ -174,7 +174,7 @@ mod test {
         ConstraintF: Field,
         G: Group,
         GG: GroupGadget<G, ConstraintF>,
-        CS: ConstraintSystem<ConstraintF>,
+        CS: R1CS<ConstraintF>,
     >(
         cs: &mut CS,
         a: GG,
@@ -224,7 +224,7 @@ mod test {
         use crate::groups::jubjub::JubJubGadget;
         use algebra::{curves::jubjub::JubJubProjective, fields::jubjub::fq::Fq};
 
-        let mut cs = TestConstraintSystem::<Fq>::new();
+        let mut cs = TestR1CS::<Fq>::new();
 
         let a: JubJubProjective = rand::random();
         let b: JubJubProjective = rand::random();

@@ -15,19 +15,19 @@ mod test {
     use rand;
 
     use super::{G1Gadget, G2Gadget};
-    use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
+    use crate::{prelude::*, test_constraint_system::TestR1CS};
     use algebra::{
         curves::bls12_377::{G1Projective as G1, G2Projective as G2},
         fields::bls12_377::{Fq, Fr},
         AffineCurve, BitIterator, PrimeField, ProjectiveCurve,
     };
-    use r1cs_core::ConstraintSystem;
+    use r1cs_core::R1CS;
 
     #[test]
     fn bls12_g1_constraint_costs() {
         use crate::boolean::AllocatedBit;
 
-        let mut cs = TestConstraintSystem::<Fq>::new();
+        let mut cs = TestR1CS::<Fq>::new();
 
         let bit = AllocatedBit::alloc(&mut cs.ns(|| "bool"), || Ok(true))
             .unwrap()
@@ -59,7 +59,7 @@ mod test {
     fn bls12_g2_constraint_costs() {
         use crate::boolean::AllocatedBit;
 
-        let mut cs = TestConstraintSystem::<Fq>::new();
+        let mut cs = TestR1CS::<Fq>::new();
 
         let bit = AllocatedBit::alloc(&mut cs.ns(|| "bool"), || Ok(true))
             .unwrap()
@@ -94,7 +94,7 @@ mod test {
         use rand_xorshift::XorShiftRng;
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-        let mut cs = TestConstraintSystem::<Fq>::new();
+        let mut cs = TestR1CS::<Fq>::new();
 
         let a = G1::rand(&mut rng);
         let b = G1::rand(&mut rng);
@@ -162,7 +162,7 @@ mod test {
 
     #[test]
     fn bls12_g2_gadget_test() {
-        let mut cs = TestConstraintSystem::<Fq>::new();
+        let mut cs = TestR1CS::<Fq>::new();
 
         let a: G2 = rand::random();
         let b: G2 = rand::random();

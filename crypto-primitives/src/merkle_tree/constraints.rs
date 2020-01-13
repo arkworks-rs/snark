@@ -1,5 +1,5 @@
 use algebra::Field;
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_core::{R1CS, SynthesisError};
 use r1cs_std::{boolean::AllocatedBit, prelude::*};
 
 use crate::{
@@ -24,7 +24,7 @@ where
     ConstraintF: Field,
     CRHGadget: FixedLengthCRHGadget<P::H, ConstraintF>,
 {
-    pub fn check_membership<CS: ConstraintSystem<ConstraintF>>(
+    pub fn check_membership<CS: R1CS<ConstraintF>>(
         &self,
         cs: CS,
         parameters: &CRHGadget::ParametersGadget,
@@ -34,7 +34,7 @@ where
         self.conditionally_check_membership(cs, parameters, root, leaf, &Boolean::Constant(true))
     }
 
-    pub fn conditionally_check_membership<CS: ConstraintSystem<ConstraintF>>(
+    pub fn conditionally_check_membership<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
         parameters: &CRHGadget::ParametersGadget,
@@ -109,7 +109,7 @@ pub(crate) fn hash_inner_node_gadget<H, HG, ConstraintF, CS>(
 ) -> Result<HG::OutputGadget, SynthesisError>
 where
     ConstraintF: Field,
-    CS: ConstraintSystem<ConstraintF>,
+    CS: R1CS<ConstraintF>,
     H: FixedLengthCRH,
     HG: FixedLengthCRHGadget<H, ConstraintF>,
 {
@@ -128,7 +128,7 @@ where
     HGadget: FixedLengthCRHGadget<P::H, ConstraintF>,
     ConstraintF: Field,
 {
-    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
+    fn alloc<F, T, CS: R1CS<ConstraintF>>(
         mut cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
@@ -151,7 +151,7 @@ where
         Ok(MerkleTreePathGadget { path })
     }
 
-    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
+    fn alloc_input<F, T, CS: R1CS<ConstraintF>>(
         mut cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
@@ -188,14 +188,14 @@ mod test {
         merkle_tree::*,
     };
     use algebra::{curves::jubjub::JubJubAffine as JubJub, fields::jubjub::fq::Fq};
-    use r1cs_core::ConstraintSystem;
+    use r1cs_core::R1CS;
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
 
     use super::*;
     use r1cs_std::{
         groups::curves::twisted_edwards::jubjub::JubJubGadget,
-        test_constraint_system::TestConstraintSystem,
+        test_constraint_system::TestR1CS,
     };
 
     #[derive(Clone)]
@@ -225,7 +225,7 @@ mod test {
         let root = tree.root();
         let mut satisfied = true;
         for (i, leaf) in leaves.iter().enumerate() {
-            let mut cs = TestConstraintSystem::<Fq>::new();
+            let mut cs = TestR1CS::<Fq>::new();
             let proof = tree.generate_proof(i, &leaf).unwrap();
             assert!(proof.verify(&crh_parameters, &root, &leaf).unwrap());
 

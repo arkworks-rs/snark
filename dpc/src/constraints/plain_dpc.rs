@@ -12,13 +12,13 @@ use crate::{
     },
 };
 use algebra::{to_bytes, ToConstraintField};
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_core::{R1CS, SynthesisError};
 use r1cs_std::prelude::*;
 
 use algebra::bytes::ToBytes;
 use r1cs_std::boolean::Boolean;
 
-pub fn execute_core_checks_gadget<C: PlainDPCComponents, CS: ConstraintSystem<C::CoreCheckF>>(
+pub fn execute_core_checks_gadget<C: PlainDPCComponents, CS: R1CS<C::CoreCheckF>>(
     cs: &mut CS,
     // Parameters
     comm_crh_parameters: &CommAndCRHPublicParameters<C>,
@@ -85,7 +85,7 @@ pub fn execute_core_checks_gadget<C: PlainDPCComponents, CS: ConstraintSystem<C:
 
 fn execute_core_checks_gadget_helper<
     C,
-    CS: ConstraintSystem<C::CoreCheckF>,
+    CS: R1CS<C::CoreCheckF>,
     AddrC,
     RecC,
     SnNonceH,
@@ -672,7 +672,7 @@ where
     Ok(())
 }
 
-pub fn execute_proof_check_gadget<C: PlainDPCComponents, CS: ConstraintSystem<C::ProofCheckF>>(
+pub fn execute_proof_check_gadget<C: PlainDPCComponents, CS: R1CS<C::ProofCheckF>>(
     cs: &mut CS,
     // Parameters
     comm_crh_parameters: &CommAndCRHPublicParameters<C>,

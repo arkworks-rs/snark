@@ -1,5 +1,5 @@
 use algebra::Field;
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_core::{R1CS, SynthesisError};
 use r1cs_std::prelude::*;
 
 use crate::nizk::NIZK;
@@ -17,7 +17,7 @@ pub trait NIZKVerifierGadget<N: NIZK, ConstraintF: Field> {
         proof: &Self::ProofGadget,
     ) -> Result<(), SynthesisError>
     where
-        CS: ConstraintSystem<ConstraintF>,
+        CS: R1CS<ConstraintF>,
         I: Iterator<Item = &'a T>,
         T: 'a + ToBitsGadget<ConstraintF> + ?Sized;
 }

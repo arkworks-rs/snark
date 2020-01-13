@@ -6,7 +6,7 @@ use algebra::{
 
 use rand::Rng;
 use rayon::prelude::*;
-use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable};
+use r1cs_core::{ConstraintSynthesizer, R1CS, Index, LinearCombination, SynthesisError, Variable};
 
 use crate::{Parameters, VerifyingKey, r1cs_to_sap::R1CStoSAP};
 
@@ -42,7 +42,7 @@ pub struct KeypairAssembly<E: PairingEngine> {
     pub(crate) ct:              Vec<Vec<(E::Fr, Index)>>,
 }
 
-impl<E: PairingEngine> ConstraintSystem<E::Fr> for KeypairAssembly<E> {
+impl<E: PairingEngine> R1CS<E::Fr> for KeypairAssembly<E> {
     type Root = Self;
 
     #[inline]

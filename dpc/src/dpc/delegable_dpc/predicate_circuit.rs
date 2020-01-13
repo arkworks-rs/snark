@@ -10,7 +10,7 @@ use std::io::{Result as IoResult, Write};
 use algebra::{bytes::ToBytes, ToConstraintField};
 
 // We'll use these interfaces to construct our circuit.
-use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSynthesizer, R1CS, SynthesisError};
 
 use crate::Error;
 
@@ -162,7 +162,7 @@ impl<C: DelegableDPCComponents> EmptyPredicateCircuit<C> {
 }
 
 impl<C: DelegableDPCComponents> ConstraintSynthesizer<C::CoreCheckF> for EmptyPredicateCircuit<C> {
-    fn generate_constraints<CS: ConstraintSystem<C::CoreCheckF>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
+    fn generate_constraints<CS: R1CS<C::CoreCheckF>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
         let _position = UInt8::alloc_input_vec(cs.ns(|| "Alloc position"), &[self.position])?;
 
         let _local_data_comm_pp =

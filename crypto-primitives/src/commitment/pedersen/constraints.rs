@@ -3,7 +3,7 @@ use crate::{
     crh::pedersen::PedersenWindow,
 };
 use algebra::{to_bytes, Group, ToBytes};
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_core::{R1CS, SynthesisError};
 
 use crate::commitment::CommitmentGadget;
 use algebra::fields::{Field, PrimeField};
@@ -43,7 +43,7 @@ where
     type ParametersGadget = PedersenCommitmentGadgetParameters<G, W, ConstraintF>;
     type RandomnessGadget = PedersenRandomnessGadget;
 
-    fn check_commitment_gadget<CS: ConstraintSystem<ConstraintF>>(
+    fn check_commitment_gadget<CS: R1CS<ConstraintF>>(
         mut cs: CS,
         parameters: &Self::ParametersGadget,
         input: &[UInt8],
@@ -95,7 +95,7 @@ where
     W: PedersenWindow,
     ConstraintF: PrimeField,
 {
-    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
+    fn alloc<F, T, CS: R1CS<ConstraintF>>(
         _cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
@@ -114,7 +114,7 @@ where
         })
     }
 
-    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
+    fn alloc_input<F, T, CS: R1CS<ConstraintF>>(
         _cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
@@ -139,7 +139,7 @@ where
     G: Group,
     ConstraintF: PrimeField,
 {
-    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
+    fn alloc<F, T, CS: R1CS<ConstraintF>>(
         cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
@@ -152,7 +152,7 @@ where
         Ok(PedersenRandomnessGadget(UInt8::alloc_vec(cs, &randomness)?))
     }
 
-    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
+    fn alloc_input<F, T, CS: R1CS<ConstraintF>>(
         cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
@@ -187,14 +187,14 @@ mod test {
         crh::pedersen::PedersenWindow,
     };
     use algebra::curves::{jubjub::JubJubProjective as JubJub, ProjectiveCurve};
-    use r1cs_core::ConstraintSystem;
+    use r1cs_core::R1CS;
     use r1cs_std::{
-        groups::jubjub::JubJubGadget, prelude::*, test_constraint_system::TestConstraintSystem,
+        groups::jubjub::JubJubGadget, prelude::*, test_constraint_system::TestR1CS,
     };
 
     #[test]
     fn commitment_gadget_test() {
-        let mut cs = TestConstraintSystem::<Fq>::new();
+        let mut cs = TestR1CS::<Fq>::new();
 
         #[derive(Clone, PartialEq, Eq, Hash)]
         pub(super) struct Window;

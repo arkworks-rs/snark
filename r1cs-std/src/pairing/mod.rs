@@ -1,6 +1,6 @@
 use crate::prelude::*;
 use algebra::{Field, PairingEngine};
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_core::{R1CS, SynthesisError};
 use std::fmt::Debug;
 
 pub mod bls12;
@@ -13,18 +13,18 @@ pub trait PairingGadget<PairingE: PairingEngine, ConstraintF: Field> {
     type G2PreparedGadget: ToBytesGadget<ConstraintF> + Clone + Debug;
     type GTGadget: FieldGadget<PairingE::Fqk, ConstraintF> + Clone;
 
-    fn miller_loop<CS: ConstraintSystem<ConstraintF>>(
+    fn miller_loop<CS: R1CS<ConstraintF>>(
         cs: CS,
         p: &[Self::G1PreparedGadget],
         q: &[Self::G2PreparedGadget],
     ) -> Result<Self::GTGadget, SynthesisError>;
 
-    fn final_exponentiation<CS: ConstraintSystem<ConstraintF>>(
+    fn final_exponentiation<CS: R1CS<ConstraintF>>(
         cs: CS,
         p: &Self::GTGadget,
     ) -> Result<Self::GTGadget, SynthesisError>;
 
-    fn pairing<CS: ConstraintSystem<ConstraintF>>(
+    fn pairing<CS: R1CS<ConstraintF>>(
         mut cs: CS,
         p: Self::G1PreparedGadget,
         q: Self::G2PreparedGadget,
@@ -35,7 +35,7 @@ pub trait PairingGadget<PairingE: PairingEngine, ConstraintF: Field> {
 
     /// Computes a product of pairings.
     #[must_use]
-    fn product_of_pairings<CS: ConstraintSystem<ConstraintF>>(
+    fn product_of_pairings<CS: R1CS<ConstraintF>>(
         mut cs: CS,
         p: &[Self::G1PreparedGadget],
         q: &[Self::G2PreparedGadget],
@@ -44,12 +44,12 @@ pub trait PairingGadget<PairingE: PairingEngine, ConstraintF: Field> {
         Self::final_exponentiation(&mut cs.ns(|| "Final Exp"), &miller_result)
     }
 
-    fn prepare_g1<CS: ConstraintSystem<ConstraintF>>(
+    fn prepare_g1<CS: R1CS<ConstraintF>>(
         cs: CS,
         q: &Self::G1Gadget,
     ) -> Result<Self::G1PreparedGadget, SynthesisError>;
 
-    fn prepare_g2<CS: ConstraintSystem<ConstraintF>>(
+    fn prepare_g2<CS: R1CS<ConstraintF>>(
         cs: CS,
         q: &Self::G2Gadget,
     ) -> Result<Self::G2PreparedGadget, SynthesisError>;
@@ -58,9 +58,9 @@ pub trait PairingGadget<PairingE: PairingEngine, ConstraintF: Field> {
 #[cfg(test)]
 mod test {
     // use rand;
-    use crate::test_constraint_system::TestConstraintSystem;
+    use crate::test_constraint_system::TestR1CS;
     use algebra::{BitIterator, Field};
-    use r1cs_core::ConstraintSystem;
+    use r1cs_core::R1CS;
 
     #[test]
     fn bls12_377_gadget_bilinearity_test() {
@@ -81,7 +81,7 @@ mod test {
         use algebra::curves::bls12_377::{Bls12_377, G1Projective, G2Projective};
         use std::ops::Mul;
 
-        let mut cs = TestConstraintSystem::<Fq>::new();
+        let mut cs = TestR1CS::<Fq>::new();
 
         // let a: G1Projective = rand::random();
         // let b: G2Projective = rand::random();

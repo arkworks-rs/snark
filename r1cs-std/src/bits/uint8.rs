@@ -1,6 +1,6 @@
 use algebra::{Field, FpParameters, PrimeField, ToConstraintField};
 
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_core::{R1CS, SynthesisError};
 
 use crate::{boolean::AllocatedBit, fields::fp::FpGadget, prelude::*, Assignment};
 use std::borrow::Borrow;
@@ -56,7 +56,7 @@ impl UInt8 {
     ) -> Result<Vec<Self>, SynthesisError>
     where
         ConstraintF: Field,
-        CS: ConstraintSystem<ConstraintF>,
+        CS: R1CS<ConstraintF>,
         T: Into<Option<u8>> + Copy,
     {
         let mut output_vec = Vec::with_capacity(values.len());
@@ -78,7 +78,7 @@ impl UInt8 {
     ) -> Result<Vec<Self>, SynthesisError>
     where
         ConstraintF: PrimeField,
-        CS: ConstraintSystem<ConstraintF>,
+        CS: R1CS<ConstraintF>,
     {
         let values_len = values.len();
         let field_elements: Vec<ConstraintF> =
@@ -159,7 +159,7 @@ impl UInt8 {
     pub fn xor<ConstraintF, CS>(&self, mut cs: CS, other: &Self) -> Result<Self, SynthesisError>
     where
         ConstraintF: Field,
-        CS: ConstraintSystem<ConstraintF>,
+        CS: R1CS<ConstraintF>,
     {
         let new_value = match (self.value, other.value) {
             (Some(a), Some(b)) => Some(a ^ b),
@@ -190,7 +190,7 @@ impl PartialEq for UInt8 {
 impl Eq for UInt8 {}
 
 impl<ConstraintF: Field> ConditionalEqGadget<ConstraintF> for UInt8 {
-    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
+    fn conditional_enforce_equal<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -214,7 +214,7 @@ impl<ConstraintF: Field> ConditionalEqGadget<ConstraintF> for UInt8 {
 impl<ConstraintF: Field> EqGadget<ConstraintF> for UInt8 {}
 
 impl<ConstraintF: Field> AllocGadget<u8, ConstraintF> for UInt8 {
-    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
+    fn alloc<F, T, CS: R1CS<ConstraintF>>(
         mut cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
@@ -254,7 +254,7 @@ impl<ConstraintF: Field> AllocGadget<u8, ConstraintF> for UInt8 {
         })
     }
 
-    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
+    fn alloc_input<F, T, CS: R1CS<ConstraintF>>(
         mut cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
@@ -297,15 +297,15 @@ impl<ConstraintF: Field> AllocGadget<u8, ConstraintF> for UInt8 {
 #[cfg(test)]
 mod test {
     use super::UInt8;
-    use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
+    use crate::{prelude::*, test_constraint_system::TestR1CS};
     use algebra::fields::bls12_381::Fr;
-    use r1cs_core::ConstraintSystem;
+    use r1cs_core::R1CS;
     use rand::{Rng, SeedableRng};
     use rand_xorshift::XorShiftRng;
 
     #[test]
     fn test_uint8_from_bits_to_bits() {
-        let mut cs = TestConstraintSystem::<Fr>::new();
+        let mut cs = TestR1CS::<Fr>::new();
         let byte_val = 0b01110001;
         let byte = UInt8::alloc(cs.ns(|| "alloc value"), || Ok(byte_val)).unwrap();
         let bits = byte.into_bits_le();
@@ -316,7 +316,7 @@ mod test {
 
     #[test]
     fn test_uint8_alloc_input_vec() {
-        let mut cs = TestConstraintSystem::<Fr>::new();
+        let mut cs = TestR1CS::<Fr>::new();
         let byte_vals = (64u8..128u8).collect::<Vec<_>>();
         let bytes = UInt8::alloc_input_vec(cs.ns(|| "alloc value"), &byte_vals).unwrap();
         for (native_byte, gadget_byte) in byte_vals.into_iter().zip(bytes) {
@@ -364,7 +364,7 @@ mod test {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         for _ in 0..1000 {
-            let mut cs = TestConstraintSystem::<Fr>::new();
+            let mut cs = TestR1CS::<Fr>::new();
 
             let a: u8 = rng.gen();
             let b: u8 = rng.gen();

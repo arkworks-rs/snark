@@ -5,7 +5,7 @@ use algebra::{
     },
     PrimeField,
 };
-use r1cs_core::{ConstraintSystem, ConstraintVar, SynthesisError};
+use r1cs_core::{R1CS, ConstraintVar, SynthesisError};
 use std::{borrow::Borrow, marker::PhantomData};
 
 use crate::{prelude::*, Assignment};
@@ -48,7 +48,7 @@ where
     }
     /// Multiply a Fp2Gadget by cubic nonresidue P::NONRESIDUE.
     #[inline]
-    pub fn mul_fp2_gadget_by_nonresidue<CS: ConstraintSystem<ConstraintF>>(
+    pub fn mul_fp2_gadget_by_nonresidue<CS: R1CS<ConstraintF>>(
         cs: CS,
         fe: &Fp2Gadget<P, ConstraintF>,
     ) -> Result<Fp2Gadget<P, ConstraintF>, SynthesisError> {
@@ -56,7 +56,7 @@ where
     }
 
     #[inline]
-    pub fn mul_by_0_c1_0<CS: ConstraintSystem<ConstraintF>>(
+    pub fn mul_by_0_c1_0<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
         c1: &Fp2Gadget<P, ConstraintF>,
@@ -93,7 +93,7 @@ where
     }
 
     // #[inline]
-    pub fn mul_by_c0_c1_0<CS: ConstraintSystem<ConstraintF>>(
+    pub fn mul_by_c0_c1_0<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
         c0: &Fp2Gadget<P, ConstraintF>,
@@ -172,7 +172,7 @@ where
     }
 
     #[inline]
-    fn zero<CS: ConstraintSystem<ConstraintF>>(mut cs: CS) -> Result<Self, SynthesisError> {
+    fn zero<CS: R1CS<ConstraintF>>(mut cs: CS) -> Result<Self, SynthesisError> {
         let c0 = Fp2Gadget::<P, ConstraintF>::zero(cs.ns(|| "c0"))?;
         let c1 = Fp2Gadget::<P, ConstraintF>::zero(cs.ns(|| "c1"))?;
         let c2 = Fp2Gadget::<P, ConstraintF>::zero(cs.ns(|| "c2"))?;
@@ -180,7 +180,7 @@ where
     }
 
     #[inline]
-    fn one<CS: ConstraintSystem<ConstraintF>>(mut cs: CS) -> Result<Self, SynthesisError> {
+    fn one<CS: R1CS<ConstraintF>>(mut cs: CS) -> Result<Self, SynthesisError> {
         let c0 = Fp2Gadget::<P, ConstraintF>::one(cs.ns(|| "c0"))?;
         let c1 = Fp2Gadget::<P, ConstraintF>::zero(cs.ns(|| "c1"))?;
         let c2 = Fp2Gadget::<P, ConstraintF>::zero(cs.ns(|| "c2"))?;
@@ -188,7 +188,7 @@ where
     }
 
     #[inline]
-    fn conditionally_add_constant<CS: ConstraintSystem<ConstraintF>>(
+    fn conditionally_add_constant<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
         bit: &Boolean,
@@ -207,7 +207,7 @@ where
     }
 
     #[inline]
-    fn add<CS: ConstraintSystem<ConstraintF>>(
+    fn add<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -219,7 +219,7 @@ where
     }
 
     #[inline]
-    fn sub<CS: ConstraintSystem<ConstraintF>>(
+    fn sub<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -231,7 +231,7 @@ where
     }
 
     #[inline]
-    fn negate<CS: ConstraintSystem<ConstraintF>>(
+    fn negate<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Self, SynthesisError> {
@@ -242,7 +242,7 @@ where
     }
 
     #[inline]
-    fn negate_in_place<CS: ConstraintSystem<ConstraintF>>(
+    fn negate_in_place<CS: R1CS<ConstraintF>>(
         &mut self,
         mut cs: CS,
     ) -> Result<&mut Self, SynthesisError> {
@@ -254,7 +254,7 @@ where
 
     /// Use the Toom-Cook-3x method to compute multiplication.
     #[inline]
-    fn mul<CS: ConstraintSystem<ConstraintF>>(
+    fn mul<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -400,7 +400,7 @@ where
 
     /// Use the Toom-Cook-3x method to compute multiplication.
     #[inline]
-    fn square<CS: ConstraintSystem<ConstraintF>>(
+    fn square<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Self, SynthesisError> {
@@ -502,7 +502,7 @@ where
 
     // 18 constaints, we can probably do better but not sure it's worth it.
     #[inline]
-    fn inverse<CS: ConstraintSystem<ConstraintF>>(
+    fn inverse<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Self, SynthesisError> {
@@ -515,7 +515,7 @@ where
     }
 
     #[inline]
-    fn add_constant<CS: ConstraintSystem<ConstraintF>>(
+    fn add_constant<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Fp6<P>,
@@ -528,7 +528,7 @@ where
     }
 
     #[inline]
-    fn add_constant_in_place<CS: ConstraintSystem<ConstraintF>>(
+    fn add_constant_in_place<CS: R1CS<ConstraintF>>(
         &mut self,
         mut cs: CS,
         other: &Fp6<P>,
@@ -541,7 +541,7 @@ where
 
     /// Use the Toom-Cook-3x method to compute multiplication.
     #[inline]
-    fn mul_by_constant<CS: ConstraintSystem<ConstraintF>>(
+    fn mul_by_constant<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Fp6<P>,
@@ -669,7 +669,7 @@ where
         Ok(Self::new(c0, c1, c2))
     }
 
-    fn frobenius_map<CS: ConstraintSystem<ConstraintF>>(
+    fn frobenius_map<CS: R1CS<ConstraintF>>(
         &self,
         cs: CS,
         power: usize,
@@ -679,7 +679,7 @@ where
         Ok(result)
     }
 
-    fn frobenius_map_in_place<CS: ConstraintSystem<ConstraintF>>(
+    fn frobenius_map_in_place<CS: R1CS<ConstraintF>>(
         &mut self,
         mut cs: CS,
         power: usize,
@@ -739,7 +739,7 @@ where
     P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
 {
     #[inline]
-    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
+    fn conditional_enforce_equal<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -765,7 +765,7 @@ where
     P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
 {
     #[inline]
-    fn enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
+    fn enforce_not_equal<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -786,7 +786,7 @@ where
     P: Fp6Parameters,
     P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
 {
-    fn to_bits<CS: ConstraintSystem<ConstraintF>>(
+    fn to_bits<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<Boolean>, SynthesisError> {
@@ -800,7 +800,7 @@ where
         Ok(c0)
     }
 
-    fn to_bits_strict<CS: ConstraintSystem<ConstraintF>>(
+    fn to_bits_strict<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<Boolean>, SynthesisError> {
@@ -820,7 +820,7 @@ where
     P: Fp6Parameters,
     P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
 {
-    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(
+    fn to_bytes<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
@@ -834,7 +834,7 @@ where
         Ok(c0)
     }
 
-    fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
+    fn to_bytes_strict<CS: R1CS<ConstraintF>>(
         &self,
         cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
@@ -858,7 +858,7 @@ where
     P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
 {
     #[inline]
-    fn conditionally_select<CS: ConstraintSystem<ConstraintF>>(
+    fn conditionally_select<CS: R1CS<ConstraintF>>(
         mut cs: CS,
         cond: &Boolean,
         first: &Self,
@@ -897,7 +897,7 @@ where
     P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
 {
     type TableConstant = Fp6<P>;
-    fn two_bit_lookup<CS: ConstraintSystem<ConstraintF>>(
+    fn two_bit_lookup<CS: R1CS<ConstraintF>>(
         mut cs: CS,
         b: &[Boolean],
         c: &[Self::TableConstant],
@@ -924,7 +924,7 @@ where
 {
     type TableConstant = Fp6<P>;
 
-    fn three_bit_cond_neg_lookup<CS: ConstraintSystem<ConstraintF>>(
+    fn three_bit_cond_neg_lookup<CS: R1CS<ConstraintF>>(
         mut cs: CS,
         b: &[Boolean],
         b0b1: &Boolean,
@@ -965,7 +965,7 @@ where
     P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
 {
     #[inline]
-    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
+    fn alloc<F, T, CS: R1CS<ConstraintF>>(
         mut cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
@@ -992,7 +992,7 @@ where
     }
 
     #[inline]
-    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
+    fn alloc_input<F, T, CS: R1CS<ConstraintF>>(
         mut cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>

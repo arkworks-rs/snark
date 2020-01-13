@@ -1,6 +1,6 @@
 use algebra::{Field, FpParameters, PrimeField};
 
-use r1cs_core::{ConstraintSystem, LinearCombination, SynthesisError};
+use r1cs_core::{R1CS, LinearCombination, SynthesisError};
 
 use crate::{
     boolean::{AllocatedBit, Boolean},
@@ -43,7 +43,7 @@ impl UInt32 {
     pub fn alloc<ConstraintF, CS>(mut cs: CS, value: Option<u32>) -> Result<Self, SynthesisError>
     where
         ConstraintF: Field,
-        CS: ConstraintSystem<ConstraintF>,
+        CS: R1CS<ConstraintF>,
     {
         let values = match value {
             Some(mut val) => {
@@ -137,7 +137,7 @@ impl UInt32 {
     pub fn xor<ConstraintF, CS>(&self, mut cs: CS, other: &Self) -> Result<Self, SynthesisError>
     where
         ConstraintF: Field,
-        CS: ConstraintSystem<ConstraintF>,
+        CS: R1CS<ConstraintF>,
     {
         let new_value = match (self.value, other.value) {
             (Some(a), Some(b)) => Some(a ^ b),
@@ -162,7 +162,7 @@ impl UInt32 {
     pub fn addmany<ConstraintF, CS>(mut cs: CS, operands: &[Self]) -> Result<Self, SynthesisError>
     where
         ConstraintF: PrimeField,
-        CS: ConstraintSystem<ConstraintF>,
+        CS: R1CS<ConstraintF>,
     {
         // Make some arbitrary bounds for ourselves to avoid overflows
         // in the scalar field
@@ -272,7 +272,7 @@ impl UInt32 {
 
 impl<ConstraintF: Field> ToBytesGadget<ConstraintF> for UInt32 {
     #[inline]
-    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(
+    fn to_bytes<CS: R1CS<ConstraintF>>(
         &self,
         _cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
@@ -302,7 +302,7 @@ impl<ConstraintF: Field> ToBytesGadget<ConstraintF> for UInt32 {
         Ok(bytes)
     }
 
-    fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
+    fn to_bytes_strict<CS: R1CS<ConstraintF>>(
         &self,
         cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
@@ -319,7 +319,7 @@ impl PartialEq for UInt32 {
 impl Eq for UInt32 {}
 
 impl<ConstraintF: Field> ConditionalEqGadget<ConstraintF> for UInt32 {
-    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
+    fn conditional_enforce_equal<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -343,9 +343,9 @@ impl<ConstraintF: Field> ConditionalEqGadget<ConstraintF> for UInt32 {
 #[cfg(test)]
 mod test {
     use super::UInt32;
-    use crate::{bits::boolean::Boolean, test_constraint_system::TestConstraintSystem};
+    use crate::{bits::boolean::Boolean, test_constraint_system::TestR1CS};
     use algebra::fields::{bls12_381::Fr, Field};
-    use r1cs_core::ConstraintSystem;
+    use r1cs_core::R1CS;
     use rand::{Rng, SeedableRng};
     use rand_xorshift::XorShiftRng;
 
@@ -386,7 +386,7 @@ mod test {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         for _ in 0..1000 {
-            let mut cs = TestConstraintSystem::<Fr>::new();
+            let mut cs = TestR1CS::<Fr>::new();
 
             let a: u32 = rng.gen();
             let b: u32 = rng.gen();
@@ -428,7 +428,7 @@ mod test {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         for _ in 0..1000 {
-            let mut cs = TestConstraintSystem::<Fr>::new();
+            let mut cs = TestR1CS::<Fr>::new();
 
             let a: u32 = rng.gen();
             let b: u32 = rng.gen();
@@ -463,7 +463,7 @@ mod test {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         for _ in 0..1000 {
-            let mut cs = TestConstraintSystem::<Fr>::new();
+            let mut cs = TestR1CS::<Fr>::new();
 
             let a: u32 = rng.gen();
             let b: u32 = rng.gen();

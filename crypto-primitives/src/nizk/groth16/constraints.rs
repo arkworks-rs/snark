@@ -1,6 +1,6 @@
 use crate::nizk::{groth16::Groth16, NIZKVerifierGadget};
 use algebra::{AffineCurve, Field, PairingEngine, ToConstraintField};
-use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSynthesizer, R1CS, SynthesisError};
 use r1cs_std::prelude::*;
 
 use groth16::{Proof, VerifyingKey};
@@ -38,7 +38,7 @@ pub struct VerifyingKeyGadget<
 impl<PairingE: PairingEngine, ConstraintF: Field, P: PairingGadget<PairingE, ConstraintF>>
     VerifyingKeyGadget<PairingE, ConstraintF, P>
 {
-    pub fn prepare<CS: ConstraintSystem<ConstraintF>>(
+    pub fn prepare<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<PreparedVerifyingKeyGadget<PairingE, ConstraintF, P>, SynthesisError> {
@@ -113,7 +113,7 @@ where
         proof: &Self::ProofGadget,
     ) -> Result<(), SynthesisError>
     where
-        CS: ConstraintSystem<ConstraintF>,
+        CS: R1CS<ConstraintF>,
         I: Iterator<Item = &'a T>,
         T: 'a + ToBitsGadget<ConstraintF> + ?Sized,
     {
@@ -171,7 +171,7 @@ where
     P: PairingGadget<PairingE, ConstraintF>,
 {
     #[inline]
-    fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(
+    fn alloc<FN, T, CS: R1CS<ConstraintF>>(
         mut cs: CS,
         value_gen: FN,
     ) -> Result<Self, SynthesisError>
@@ -218,7 +218,7 @@ where
     }
 
     #[inline]
-    fn alloc_input<FN, T, CS: ConstraintSystem<ConstraintF>>(
+    fn alloc_input<FN, T, CS: R1CS<ConstraintF>>(
         mut cs: CS,
         value_gen: FN,
     ) -> Result<Self, SynthesisError>
@@ -274,7 +274,7 @@ where
     P: PairingGadget<PairingE, ConstraintF>,
 {
     #[inline]
-    fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(
+    fn alloc<FN, T, CS: R1CS<ConstraintF>>(
         mut cs: CS,
         value_gen: FN,
     ) -> Result<Self, SynthesisError>
@@ -292,7 +292,7 @@ where
     }
 
     #[inline]
-    fn alloc_input<FN, T, CS: ConstraintSystem<ConstraintF>>(
+    fn alloc_input<FN, T, CS: R1CS<ConstraintF>>(
         mut cs: CS,
         value_gen: FN,
     ) -> Result<Self, SynthesisError>
@@ -320,7 +320,7 @@ where
     P: PairingGadget<PairingE, ConstraintF>,
 {
     #[inline]
-    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(
+    fn to_bytes<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
@@ -336,7 +336,7 @@ where
         Ok(bytes)
     }
 
-    fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
+    fn to_bytes_strict<CS: R1CS<ConstraintF>>(
         &self,
         cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
@@ -347,7 +347,7 @@ where
 #[cfg(test)]
 mod test {
     use groth16::*;
-    use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
+    use r1cs_core::{ConstraintSynthesizer, R1CS, SynthesisError};
 
     use super::*;
     use algebra::{
@@ -357,7 +357,7 @@ mod test {
     };
     use r1cs_std::{
         boolean::Boolean, pairing::bls12_377::PairingGadget as Bls12_377PairingGadget,
-        test_constraint_system::TestConstraintSystem,
+        test_constraint_system::TestR1CS,
     };
     use rand::{thread_rng, Rng};
 
@@ -372,7 +372,7 @@ mod test {
     }
 
     impl<F: Field> ConstraintSynthesizer<F> for Bench<F> {
-        fn generate_constraints<CS: ConstraintSystem<F>>(
+        fn generate_constraints<CS: R1CS<F>>(
             self,
             cs: &mut CS,
         ) -> Result<(), SynthesisError> {
@@ -443,7 +443,7 @@ mod test {
             };
 
             // assert!(!verify_proof(&pvk, &proof, &[a]).unwrap());
-            let mut cs = TestConstraintSystem::<Fq>::new();
+            let mut cs = TestR1CS::<Fq>::new();
 
             let inputs: Vec<_> = inputs.into_iter().map(|input| input.unwrap()).collect();
             let mut input_gadgets = Vec::new();

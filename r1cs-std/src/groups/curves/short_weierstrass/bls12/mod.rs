@@ -3,7 +3,7 @@ use algebra::{
     fields::Field,
     BitIterator, ProjectiveCurve,
 };
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_core::{R1CS, SynthesisError};
 
 use crate::{
     fields::{fp::FpGadget, fp2::Fp2Gadget, FieldGadget},
@@ -37,7 +37,7 @@ impl<P: Bls12Parameters> G1PreparedGadget<P> {
         ))
     }
 
-    pub fn from_affine<CS: ConstraintSystem<P::Fp>>(
+    pub fn from_affine<CS: R1CS<P::Fp>>(
         _cs: CS,
         q: &G1Gadget<P>,
     ) -> Result<Self, SynthesisError> {
@@ -47,14 +47,14 @@ impl<P: Bls12Parameters> G1PreparedGadget<P> {
 
 impl<P: Bls12Parameters> ToBytesGadget<P::Fp> for G1PreparedGadget<P> {
     #[inline]
-    fn to_bytes<CS: ConstraintSystem<P::Fp>>(
+    fn to_bytes<CS: R1CS<P::Fp>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
         self.0.to_bytes(&mut cs.ns(|| "g_alpha to bytes"))
     }
 
-    fn to_bytes_strict<CS: ConstraintSystem<P::Fp>>(
+    fn to_bytes_strict<CS: R1CS<P::Fp>>(
         &self,
         cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
@@ -75,7 +75,7 @@ pub struct G2PreparedGadget<P: Bls12Parameters> {
 
 impl<P: Bls12Parameters> ToBytesGadget<P::Fp> for G2PreparedGadget<P> {
     #[inline]
-    fn to_bytes<CS: ConstraintSystem<P::Fp>>(
+    fn to_bytes<CS: R1CS<P::Fp>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
@@ -88,7 +88,7 @@ impl<P: Bls12Parameters> ToBytesGadget<P::Fp> for G2PreparedGadget<P> {
         Ok(bytes)
     }
 
-    fn to_bytes_strict<CS: ConstraintSystem<P::Fp>>(
+    fn to_bytes_strict<CS: R1CS<P::Fp>>(
         &self,
         cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
@@ -97,7 +97,7 @@ impl<P: Bls12Parameters> ToBytesGadget<P::Fp> for G2PreparedGadget<P> {
 }
 
 impl<P: Bls12Parameters> G2PreparedGadget<P> {
-    pub fn from_affine<CS: ConstraintSystem<P::Fp>>(
+    pub fn from_affine<CS: R1CS<P::Fp>>(
         mut cs: CS,
         q: &G2Gadget<P>,
     ) -> Result<Self, SynthesisError> {
@@ -119,7 +119,7 @@ impl<P: Bls12Parameters> G2PreparedGadget<P> {
         Ok(Self { ell_coeffs })
     }
 
-    fn double<CS: ConstraintSystem<P::Fp>>(
+    fn double<CS: R1CS<P::Fp>>(
         mut cs: CS,
         r: &mut G2Gadget<P>,
         two_inv: &P::Fp,
@@ -148,7 +148,7 @@ impl<P: Bls12Parameters> G2PreparedGadget<P> {
         }
     }
 
-    fn add<CS: ConstraintSystem<P::Fp>>(
+    fn add<CS: R1CS<P::Fp>>(
         mut cs: CS,
         r: &mut G2Gadget<P>,
         q: &G2Gadget<P>,

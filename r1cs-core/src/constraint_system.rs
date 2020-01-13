@@ -5,10 +5,10 @@ use crate::{Index, Variable, LinearCombination, SynthesisError};
 
 /// Represents a constraint system which can have new variables
 /// allocated and constrains between them formed.
-pub trait ConstraintSystem<F: Field>: Sized {
+pub trait R1CS<F: Field>: Sized {
     /// Represents the type of the "root" of this constraint system
     /// so that nested namespaces can minimize indirection.
-    type Root: ConstraintSystem<F>;
+    type Root: R1CS<F>;
 
     /// Return the "one" input variable
     fn one() -> Variable {
@@ -77,18 +77,18 @@ pub trait ConstraintSystem<F: Field>: Sized {
 /// This is a "namespaced" constraint system which borrows a constraint system
 /// (pushing a namespace context) and, when dropped, pops out of the namespace
 /// context.
-pub struct Namespace<'a, F: Field, CS: ConstraintSystem<F>>(&'a mut CS, PhantomData<F>);
+pub struct Namespace<'a, F: Field, CS: R1CS<F>>(&'a mut CS, PhantomData<F>);
 
 /// Computations are expressed in terms of rank-1 constraint systems (R1CS).
 /// The `generate_constraints` method is called to generate constraints for
 /// both CRS generation and for proving.
 pub trait ConstraintSynthesizer<F: Field> {
     /// Drives generation of new constraints inside `CS`.
-    fn generate_constraints<CS: ConstraintSystem<F>>(self, cs: &mut CS) -> Result<(), SynthesisError>;
+    fn generate_constraints<CS: R1CS<F>>(self, cs: &mut CS) -> Result<(), SynthesisError>;
 }
 
 
-impl<F: Field, CS: ConstraintSystem<F>> ConstraintSystem<F> for Namespace<'_, F, CS> {
+impl<F: Field, CS: R1CS<F>> R1CS<F> for Namespace<'_, F, CS> {
     type Root = CS::Root;
 
     #[inline]
@@ -157,16 +157,16 @@ impl<F: Field, CS: ConstraintSystem<F>> ConstraintSystem<F> for Namespace<'_, F,
     }
 }
 
-impl<F: Field, CS: ConstraintSystem<F>> Drop for Namespace<'_, F, CS> {
+impl<F: Field, CS: R1CS<F>> Drop for Namespace<'_, F, CS> {
     #[inline]
     fn drop(&mut self) {
         self.get_root().pop_namespace()
     }
 }
 
-/// Convenience implementation of ConstraintSystem<F> for mutable references to
+/// Convenience implementation of R1CS<F> for mutable references to
 /// constraint systems.
-impl<F: Field, CS: ConstraintSystem<F>> ConstraintSystem<F> for &mut CS {
+impl<F: Field, CS: R1CS<F>> R1CS<F> for &mut CS {
     type Root = CS::Root;
 
     #[inline]

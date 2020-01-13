@@ -11,10 +11,10 @@ use gm17::PreparedVerifyingKey;
 
 use crypto_primitives::FixedLengthCRH;
 
-use r1cs_core::ConstraintSystem;
+use r1cs_core::R1CS;
 
 use crate::constraints::plain_dpc::{execute_core_checks_gadget, execute_proof_check_gadget};
-use r1cs_std::test_constraint_system::TestConstraintSystem;
+use r1cs_std::test_constraint_system::TestR1CS;
 
 use crate::dpc::{
     plain_dpc::{predicate::PrivatePredInput, predicate_circuit::*, ExecuteContext, DPC},
@@ -134,7 +134,7 @@ fn test_execute_constraint_systems() {
 
     //////////////////////////////////////////////////////////////////////////
     // Check that the core check constraint system was satisfied.
-    let mut core_cs = TestConstraintSystem::<Fr>::new();
+    let mut core_cs = TestR1CS::<Fr>::new();
 
     execute_core_checks_gadget::<_, _>(
         &mut core_cs.ns(|| "Core checks"),
@@ -175,7 +175,7 @@ fn test_execute_constraint_systems() {
     assert!(core_cs.is_satisfied());
 
     // Check that the proof check constraint system was satisfied.
-    let mut pf_check_cs = TestConstraintSystem::<Fq>::new();
+    let mut pf_check_cs = TestR1CS::<Fq>::new();
 
     let mut old_proof_and_vk = vec![];
     for i in 0..NUM_INPUT_RECORDS {

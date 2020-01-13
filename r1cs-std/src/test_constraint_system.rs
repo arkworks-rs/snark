@@ -1,5 +1,5 @@
 use algebra::Field;
-use r1cs_core::{ConstraintSystem, Index, LinearCombination, SynthesisError, Variable};
+use r1cs_core::{R1CS, Index, LinearCombination, SynthesisError, Variable};
 
 use radix_trie::Trie;
 
@@ -11,7 +11,7 @@ enum NamedObject {
 }
 
 /// Constraint system for testing purposes.
-pub struct TestConstraintSystem<ConstraintF: Field> {
+pub struct TestR1CS<ConstraintF: Field> {
     named_objects:     Trie<String, NamedObject>,
     current_namespace: Vec<String>,
     pub constraints: Vec<(
@@ -24,7 +24,7 @@ pub struct TestConstraintSystem<ConstraintF: Field> {
     aux:               Vec<(ConstraintF, String)>,
 }
 
-impl<ConstraintF: Field> TestConstraintSystem<ConstraintF> {
+impl<ConstraintF: Field> TestR1CS<ConstraintF> {
     fn eval_lc(
         terms: &[(Variable, ConstraintF)],
         inputs: &[(ConstraintF, String)],
@@ -46,15 +46,15 @@ impl<ConstraintF: Field> TestConstraintSystem<ConstraintF> {
     }
 }
 
-impl<ConstraintF: Field> TestConstraintSystem<ConstraintF> {
-    pub fn new() -> TestConstraintSystem<ConstraintF> {
+impl<ConstraintF: Field> TestR1CS<ConstraintF> {
+    pub fn new() -> TestR1CS<ConstraintF> {
         let mut map = Trie::new();
         map.insert(
             "ONE".into(),
-            NamedObject::Var(TestConstraintSystem::<ConstraintF>::one()),
+            NamedObject::Var(TestR1CS::<ConstraintF>::one()),
         );
 
-        TestConstraintSystem {
+        TestR1CS {
             named_objects:     map,
             current_namespace: vec![],
             constraints:       vec![],
@@ -150,7 +150,7 @@ fn compute_path(ns: &[String], this: String) -> String {
     name
 }
 
-impl<ConstraintF: Field> ConstraintSystem<ConstraintF> for TestConstraintSystem<ConstraintF> {
+impl<ConstraintF: Field> R1CS<ConstraintF> for TestR1CS<ConstraintF> {
     type Root = Self;
 
     fn alloc<F, A, AR>(&mut self, annotation: A, f: F) -> Result<Variable, SynthesisError>

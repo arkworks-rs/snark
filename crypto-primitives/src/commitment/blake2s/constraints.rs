@@ -1,4 +1,4 @@
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_core::{R1CS, SynthesisError};
 
 use crate::{
     commitment::blake2s::Blake2sCommitment,
@@ -25,7 +25,7 @@ impl<ConstraintF: PrimeField> CommitmentGadget<Blake2sCommitment, ConstraintF>
     type ParametersGadget = Blake2sParametersGadget;
     type RandomnessGadget = Blake2sRandomnessGadget;
 
-    fn check_commitment_gadget<CS: ConstraintSystem<ConstraintF>>(
+    fn check_commitment_gadget<CS: R1CS<ConstraintF>>(
         mut cs: CS,
         _: &Self::ParametersGadget,
         input: &[UInt8],
@@ -48,7 +48,7 @@ impl<ConstraintF: PrimeField> CommitmentGadget<Blake2sCommitment, ConstraintF>
 }
 
 impl<ConstraintF: Field> AllocGadget<(), ConstraintF> for Blake2sParametersGadget {
-    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(_: CS, _: F) -> Result<Self, SynthesisError>
+    fn alloc<F, T, CS: R1CS<ConstraintF>>(_: CS, _: F) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<()>,
@@ -56,7 +56,7 @@ impl<ConstraintF: Field> AllocGadget<(), ConstraintF> for Blake2sParametersGadge
         Ok(Blake2sParametersGadget)
     }
 
-    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
+    fn alloc_input<F, T, CS: R1CS<ConstraintF>>(
         _: CS,
         _: F,
     ) -> Result<Self, SynthesisError>
@@ -70,7 +70,7 @@ impl<ConstraintF: Field> AllocGadget<(), ConstraintF> for Blake2sParametersGadge
 
 impl<ConstraintF: PrimeField> AllocGadget<[u8; 32], ConstraintF> for Blake2sRandomnessGadget {
     #[inline]
-    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
+    fn alloc<F, T, CS: R1CS<ConstraintF>>(
         cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
@@ -89,7 +89,7 @@ impl<ConstraintF: PrimeField> AllocGadget<[u8; 32], ConstraintF> for Blake2sRand
     }
 
     #[inline]
-    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
+    fn alloc_input<F, T, CS: R1CS<ConstraintF>>(
         cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
@@ -120,12 +120,12 @@ mod test {
         },
         *,
     };
-    use r1cs_core::ConstraintSystem;
-    use r1cs_std::{prelude::*, test_constraint_system::TestConstraintSystem};
+    use r1cs_core::R1CS;
+    use r1cs_std::{prelude::*, test_constraint_system::TestR1CS};
 
     #[test]
     fn commitment_gadget_test() {
-        let mut cs = TestConstraintSystem::<Fr>::new();
+        let mut cs = TestR1CS::<Fr>::new();
 
         let input = [1u8; 32];
 

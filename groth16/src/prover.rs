@@ -9,7 +9,7 @@ use algebra::{
 use crate::{r1cs_to_qap::R1CStoQAP, Parameters, Proof};
 
 use r1cs_core::{
-    ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable,
+    ConstraintSynthesizer, R1CS, Index, LinearCombination, SynthesisError, Variable,
 };
 
 use smallvec::SmallVec;
@@ -89,7 +89,7 @@ impl<E: PairingEngine> ProvingAssignment<E> {
     }
 }
 
-impl<E: PairingEngine> ConstraintSystem<E::Fr> for ProvingAssignment<E> {
+impl<E: PairingEngine> R1CS<E::Fr> for ProvingAssignment<E> {
     type Root = Self;
 
     #[inline]

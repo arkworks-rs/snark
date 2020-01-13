@@ -6,7 +6,7 @@ use algebra::{
     BitIterator, Field,
 };
 
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_core::{R1CS, SynthesisError};
 
 use crate::prelude::*;
 
@@ -70,7 +70,7 @@ mod montgomery_affine_impl {
             Ok((montgomery_point.x, montgomery_point.y))
         }
 
-        pub fn from_edwards<CS: ConstraintSystem<ConstraintF>>(
+        pub fn from_edwards<CS: R1CS<ConstraintF>>(
             mut cs: CS,
             p: &TEAffine<P>,
         ) -> Result<Self, SynthesisError> {
@@ -83,7 +83,7 @@ mod montgomery_affine_impl {
             Ok(Self::new(u, v))
         }
 
-        pub fn into_edwards<CS: ConstraintSystem<ConstraintF>>(
+        pub fn into_edwards<CS: R1CS<ConstraintF>>(
             &self,
             mut cs: CS,
         ) -> Result<AffineGadget<P, ConstraintF, F>, SynthesisError> {
@@ -130,7 +130,7 @@ mod montgomery_affine_impl {
             Ok(AffineGadget::new(u, v))
         }
 
-        pub fn add<CS: ConstraintSystem<ConstraintF>>(
+        pub fn add<CS: R1CS<ConstraintF>>(
             &self,
             mut cs: CS,
             other: &Self,
@@ -219,7 +219,7 @@ impl<P: TEModelParameters, ConstraintF: Field, F: FieldGadget<P::BaseField, Cons
         }
     }
 
-    pub fn alloc_without_check<FN, CS: ConstraintSystem<ConstraintF>>(
+    pub fn alloc_without_check<FN, CS: R1CS<ConstraintF>>(
         mut cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
@@ -289,7 +289,7 @@ mod affine_impl {
         }
 
         #[inline]
-        fn zero<CS: ConstraintSystem<ConstraintF>>(mut cs: CS) -> Result<Self, SynthesisError> {
+        fn zero<CS: R1CS<ConstraintF>>(mut cs: CS) -> Result<Self, SynthesisError> {
             Ok(Self::new(
                 F::zero(cs.ns(|| "zero"))?,
                 F::one(cs.ns(|| "one"))?,
@@ -299,7 +299,7 @@ mod affine_impl {
         /// Optimized constraints for checking Edwards point addition from ZCash
         /// developers Daira Hopwood and Sean Bowe. Requires only 6 constraints
         /// compared to 7 for the straightforward version we had earlier.
-        fn add<CS: ConstraintSystem<ConstraintF>>(
+        fn add<CS: R1CS<ConstraintF>>(
             &self,
             mut cs: CS,
             other: &Self,
@@ -360,7 +360,7 @@ mod affine_impl {
             Ok(Self::new(x3, y3))
         }
 
-        fn add_constant<CS: ConstraintSystem<ConstraintF>>(
+        fn add_constant<CS: R1CS<ConstraintF>>(
             &self,
             mut cs: CS,
             other: &TEAffine<P>,
@@ -423,7 +423,7 @@ mod affine_impl {
             Ok(Self::new(x3, y3))
         }
 
-        fn double_in_place<CS: ConstraintSystem<ConstraintF>>(
+        fn double_in_place<CS: R1CS<ConstraintF>>(
             &mut self,
             mut cs: CS,
         ) -> Result<(), SynthesisError> {
@@ -472,7 +472,7 @@ mod affine_impl {
             Ok(())
         }
 
-        fn negate<CS: ConstraintSystem<ConstraintF>>(
+        fn negate<CS: R1CS<ConstraintF>>(
             &self,
             mut cs: CS,
         ) -> Result<Self, SynthesisError> {
@@ -498,7 +498,7 @@ mod affine_impl {
         F: FieldGadget<P::BaseField, ConstraintF>,
         Self: GroupGadget<TEAffine<P>, ConstraintF>,
     {
-        fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(
+        fn alloc<FN, T, CS: R1CS<ConstraintF>>(
             mut cs: CS,
             value_gen: FN,
         ) -> Result<Self, SynthesisError>
@@ -541,7 +541,7 @@ mod affine_impl {
             Ok(Self::new(x, y))
         }
 
-        fn alloc_checked<FN, T, CS: ConstraintSystem<ConstraintF>>(
+        fn alloc_checked<FN, T, CS: R1CS<ConstraintF>>(
             mut cs: CS,
             value_gen: FN,
         ) -> Result<Self, SynthesisError>
@@ -615,7 +615,7 @@ mod affine_impl {
             }
         }
 
-        fn alloc_input<FN, T, CS: ConstraintSystem<ConstraintF>>(
+        fn alloc_input<FN, T, CS: R1CS<ConstraintF>>(
             mut cs: CS,
             value_gen: FN,
         ) -> Result<Self, SynthesisError>
@@ -693,7 +693,7 @@ mod projective_impl {
         }
 
         #[inline]
-        fn zero<CS: ConstraintSystem<ConstraintF>>(mut cs: CS) -> Result<Self, SynthesisError> {
+        fn zero<CS: R1CS<ConstraintF>>(mut cs: CS) -> Result<Self, SynthesisError> {
             Ok(Self::new(
                 F::zero(cs.ns(|| "zero"))?,
                 F::one(cs.ns(|| "one"))?,
@@ -703,7 +703,7 @@ mod projective_impl {
         /// Optimized constraints for checking Edwards point addition from ZCash
         /// developers Daira Hopwood and Sean Bowe. Requires only 6 constraints
         /// compared to 7 for the straightforward version we had earlier.
-        fn add<CS: ConstraintSystem<ConstraintF>>(
+        fn add<CS: R1CS<ConstraintF>>(
             &self,
             mut cs: CS,
             other: &Self,
@@ -764,7 +764,7 @@ mod projective_impl {
             Ok(Self::new(x3, y3))
         }
 
-        fn add_constant<CS: ConstraintSystem<ConstraintF>>(
+        fn add_constant<CS: R1CS<ConstraintF>>(
             &self,
             mut cs: CS,
             other: &TEProjective<P>,
@@ -828,7 +828,7 @@ mod projective_impl {
             Ok(Self::new(x3, y3))
         }
 
-        fn double_in_place<CS: ConstraintSystem<ConstraintF>>(
+        fn double_in_place<CS: R1CS<ConstraintF>>(
             &mut self,
             mut cs: CS,
         ) -> Result<(), SynthesisError> {
@@ -877,7 +877,7 @@ mod projective_impl {
             Ok(())
         }
 
-        fn negate<CS: ConstraintSystem<ConstraintF>>(
+        fn negate<CS: R1CS<ConstraintF>>(
             &self,
             mut cs: CS,
         ) -> Result<Self, SynthesisError> {
@@ -893,7 +893,7 @@ mod projective_impl {
             scalar_bits_with_base_powers: I,
         ) -> Result<(), SynthesisError>
         where
-            CS: ConstraintSystem<ConstraintF>,
+            CS: R1CS<ConstraintF>,
             I: Iterator<Item = (B, &'a TEProjective<P>)>,
             B: Borrow<Boolean>,
         {
@@ -949,7 +949,7 @@ mod projective_impl {
             scalars: &[J],
         ) -> Result<Self, SynthesisError>
         where
-            CS: ConstraintSystem<ConstraintF>,
+            CS: R1CS<ConstraintF>,
             I: Borrow<[Boolean]>,
             J: Borrow<[I]>,
             B: Borrow<[TEProjective<P>]>,
@@ -1095,7 +1095,7 @@ mod projective_impl {
         F: FieldGadget<P::BaseField, ConstraintF>,
         Self: GroupGadget<TEProjective<P>, ConstraintF>,
     {
-        fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(
+        fn alloc<FN, T, CS: R1CS<ConstraintF>>(
             mut cs: CS,
             value_gen: FN,
         ) -> Result<Self, SynthesisError>
@@ -1138,7 +1138,7 @@ mod projective_impl {
             Ok(Self::new(x, y))
         }
 
-        fn alloc_checked<FN, T, CS: ConstraintSystem<ConstraintF>>(
+        fn alloc_checked<FN, T, CS: R1CS<ConstraintF>>(
             mut cs: CS,
             value_gen: FN,
         ) -> Result<Self, SynthesisError>
@@ -1217,7 +1217,7 @@ mod projective_impl {
             }
         }
 
-        fn alloc_input<FN, T, CS: ConstraintSystem<ConstraintF>>(
+        fn alloc_input<FN, T, CS: R1CS<ConstraintF>>(
             mut cs: CS,
             value_gen: FN,
         ) -> Result<Self, SynthesisError>
@@ -1269,7 +1269,7 @@ where
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
     #[inline]
-    fn conditionally_select<CS: ConstraintSystem<ConstraintF>>(
+    fn conditionally_select<CS: R1CS<ConstraintF>>(
         mut cs: CS,
         cond: &Boolean,
         first: &Self,
@@ -1301,7 +1301,7 @@ where
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
     #[inline]
-    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
+    fn conditional_enforce_equal<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -1332,7 +1332,7 @@ where
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
     #[inline]
-    fn enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
+    fn enforce_not_equal<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
@@ -1355,7 +1355,7 @@ where
     ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
-    fn to_bits<CS: ConstraintSystem<ConstraintF>>(
+    fn to_bits<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<Boolean>, SynthesisError> {
@@ -1365,7 +1365,7 @@ where
         Ok(x_bits)
     }
 
-    fn to_bits_strict<CS: ConstraintSystem<ConstraintF>>(
+    fn to_bits_strict<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<Boolean>, SynthesisError> {
@@ -1383,7 +1383,7 @@ where
     ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
-    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(
+    fn to_bytes<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
@@ -1393,7 +1393,7 @@ where
         Ok(x_bytes)
     }
 
-    fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
+    fn to_bytes_strict<CS: R1CS<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
