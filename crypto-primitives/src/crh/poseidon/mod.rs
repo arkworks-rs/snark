@@ -562,7 +562,174 @@ fn matrix_mix<P:PoseidonParameters> (state: &mut Vec<P::Fr>) {
 //    }
 //}
 
-fn poseidon_perm<T:PoseidonParameters> (state: &mut Vec<T::Fr>) {
+// /* ORIGINAL */
+//fn poseidon_perm<T:PoseidonParameters> (state: &mut Vec<T::Fr>) {
+//
+//    // index that goes over the round constants
+//    let mut round_cst_idx = 0;
+//
+//    // First full rounds
+//    for _i in 0..T::R_F {
+//
+//        // Add the round constants to the state vector
+//        for d in state.iter_mut() {
+//            let rc = T::ROUND_CST[round_cst_idx];
+//            *d += &rc;
+//            round_cst_idx += 1;
+//        }
+//
+//
+////        // Apply the S-BOX to each of the elements of the state vector
+////        for d in state.iter_mut() {
+////
+////            // The S-BOX is an inversion function
+////            let elem_state = (*d).inverse();
+////            match elem_state {
+////                None => println!("Field inversion error"),
+////                Some(inv) => {
+////                    *d = inv;
+////                },
+////            }
+////        }
+//
+//        // Apply the S-BOX to each of the elements of the state vector
+//        // Optimization for the inversion S-Box
+//        // Assuming state vector of 3 elements
+//
+//        let abc = state[0]*&state[1]*&state[2];
+//        let elem_inv = abc.inverse();
+//        let mut abc_inv = T::ZERO;
+//        match elem_inv {
+//            None => println!("Field inversion error"),
+//            Some(inv) => {
+//                abc_inv = inv;
+//            }
+//        }
+//        let a_inv = abc_inv*&state[1]*&state[2];
+//        let b_inv = abc_inv*&state[0]*&state[2];
+//        let c_inv = abc_inv*&state[0]*&state[1];
+//
+//        state[0] = a_inv;
+//        state[1] = b_inv;
+//        state[2] = c_inv;
+//
+//        // Perform the matrix mix
+//        matrix_mix::<T> (state);
+//    }
+//
+//    // Partial rounds
+//    for _i in 0..T::R_P {
+//
+//        // Add the round constants to the state vector
+//        for d in state.iter_mut() {
+//            let rc = T::ROUND_CST[round_cst_idx];
+//            *d += &rc;
+//            round_cst_idx += 1;
+//        }
+//
+//        // Apply S-BOX only to the first element of the state vector
+//        let t1 = (state[0]).inverse();
+//        match t1 {
+//            None => println!("Field inversion error"),
+//            Some(inv) => {
+//                state[0] = inv;
+//            },
+//        }
+//
+//        // Apply the matrix mix
+//        matrix_mix::<T> (state);
+//    }
+//
+//    // Second full rounds
+//    // Process only to R_F -1 iterations. The last iteration does not contain a matrix mix
+//    for _i in 0..(T::R_F-1) {
+//
+//        // Add the round constants
+//        for d in state.iter_mut() {
+//            //let rc = MNT4753Fr::from_str(ROUND_CST[round_cst_idx]).map_err(|_| ()).unwrap();
+//            let rc = T::ROUND_CST[round_cst_idx];
+//            *d += &rc;
+//            round_cst_idx += 1;
+//        }
+//
+////        // Apply the S-BOX to each element of the state vector
+////        for d in state.iter_mut() {
+////            let elem_state = (*d).inverse();
+////            match elem_state {
+////                None => println!("Field inversion error"),
+////                Some(inv) => {
+////                    *d = inv;
+////                },
+////            }
+////        }
+//
+//        // Optimization for the inversion S-Box
+//        // Assuming state vector of 3 elements
+//
+//        let abc = state[0]*&state[1]*&state[2];
+//        let elem_inv = abc.inverse();
+//        let mut abc_inv = T::ZERO;
+//        match elem_inv {
+//            None => println!("Field inversion error"),
+//            Some(inv) => {
+//                abc_inv = inv;
+//            }
+//        }
+//        let a_inv = abc_inv*&state[1]*&state[2];
+//        let b_inv = abc_inv*&state[0]*&state[2];
+//        let c_inv = abc_inv*&state[0]*&state[1];
+//
+//        state[0] = a_inv;
+//        state[1] = b_inv;
+//        state[2] = c_inv;
+//
+//
+//        // Apply matrix mix
+//        matrix_mix::<T> (state);
+//    }
+//
+//    // Last full round does not perform the matrix_mix
+//    // Add the round constants
+//    for d in state.iter_mut() {
+//        let rc = T::ROUND_CST[round_cst_idx];
+//        *d += &rc;
+//        round_cst_idx += 1;
+//    }
+//
+////    // Apply the S-BOX to each element of the state vector
+////    for d in state.iter_mut() {
+////        let elem_state = (*d).inverse();
+////        match elem_state {
+////            None => println!("Field inversion error"),
+////            Some(inv) => {
+////                *d = inv;
+////            },
+////        }
+////    }
+//
+//    // Apply the S-BOX to each element of the state vector
+//    // Optimization for the inversion S-Box
+//    // Assuming state vector of 3 elements
+//
+//    let abc = state[0]*&state[1]*&state[2];
+//    let elem_inv = abc.inverse();
+//    let mut abc_inv = T::ZERO;
+//    match elem_inv {
+//        None => println!("Field inversion error"),
+//        Some(inv) => {
+//            abc_inv = inv;
+//        }
+//    }
+//    let a_inv = abc_inv*&state[1]*&state[2];
+//    let b_inv = abc_inv*&state[0]*&state[2];
+//    let c_inv = abc_inv*&state[0]*&state[1];
+//
+//    state[0] = a_inv;
+//    state[1] = b_inv;
+//    state[2] = c_inv;
+//}
+
+fn poseidon_perm_dual<T:PoseidonParameters> (state1: &mut Vec<T::Fr>, state2: &mut Vec<T::Fr>) {
 
     // index that goes over the round constants
     let mut round_cst_idx = 0;
@@ -571,12 +738,14 @@ fn poseidon_perm<T:PoseidonParameters> (state: &mut Vec<T::Fr>) {
     for _i in 0..T::R_F {
 
         // Add the round constants to the state vector
-        for d in state.iter_mut() {
+        for j in 0..state1.len() {
+        //for d in state1.iter_mut() {
             let rc = T::ROUND_CST[round_cst_idx];
-            *d += &rc;
+            //*d += &rc;
+            state1[j] += &rc;
+            state2[j] += &rc;
             round_cst_idx += 1;
         }
-
 
 //        // Apply the S-BOX to each of the elements of the state vector
 //        for d in state.iter_mut() {
@@ -595,48 +764,97 @@ fn poseidon_perm<T:PoseidonParameters> (state: &mut Vec<T::Fr>) {
         // Optimization for the inversion S-Box
         // Assuming state vector of 3 elements
 
-        let abc = state[0]*&state[1]*&state[2];
-        let elem_inv = abc.inverse();
-        let mut abc_inv = T::ZERO;
+//        let abc = state[0]*&state[1]*&state[2];
+//        let elem_inv = abc.inverse();
+//        let mut abc_inv = T::ZERO;
+//        match elem_inv {
+//            None => println!("Field inversion error"),
+//            Some(inv) => {
+//                abc_inv = inv;
+//            }
+//        }
+//        let a_inv = abc_inv*&state[1]*&state[2];
+//        let b_inv = abc_inv*&state[0]*&state[2];
+//        let c_inv = abc_inv*&state[0]*&state[1];
+//
+//        state[0] = a_inv;
+//        state[1] = b_inv;
+//        state[2] = c_inv;
+//
+//        // Perform the matrix mix
+//        matrix_mix::<T> (state);
+
+        let abcdef = state1[0]*&state1[1]*&state1[2]*&state2[0]*&state2[1]*&state2[2];
+        let elem_inv = abcdef.inverse();
+        let mut abcdef_inv = T::ZERO;
         match elem_inv {
             None => println!("Field inversion error"),
             Some(inv) => {
-                abc_inv = inv;
+                abcdef_inv = inv;
             }
         }
-        let a_inv = abc_inv*&state[1]*&state[2];
-        let b_inv = abc_inv*&state[0]*&state[2];
-        let c_inv = abc_inv*&state[0]*&state[1];
+        let abc = state1[0]*&state1[1]*&state1[2];
+        let cde = state2[0]*&state2[1]*&state2[2];
+        let a_inv = abcdef_inv*&state1[1]*&state1[2]*&cde;
+        let b_inv = abcdef_inv*&state1[0]*&state1[2]*&cde;
+        let c_inv = abcdef_inv*&state1[0]*&state1[1]*&cde;
+        let d_inv = abcdef_inv*&abc*&state2[1]*&state2[2];
+        let e_inv = abcdef_inv*&abc*&state2[0]*&state2[2];
+        let f_inv = abcdef_inv*&abc*&state2[0]*&state2[1];
 
-        state[0] = a_inv;
-        state[1] = b_inv;
-        state[2] = c_inv;
+        state1[0] = a_inv;
+        state1[1] = b_inv;
+        state1[2] = c_inv;
+
+        state2[0] = d_inv;
+        state2[1] = e_inv;
+        state2[2] = f_inv;
 
         // Perform the matrix mix
-        matrix_mix::<T> (state);
+        matrix_mix::<T> (state1);
+        matrix_mix::<T> (state2);
     }
 
     // Partial rounds
     for _i in 0..T::R_P {
 
         // Add the round constants to the state vector
-        for d in state.iter_mut() {
+        //for d in state.iter_mut() {
+        for j in 0..state1.len() {
             let rc = T::ROUND_CST[round_cst_idx];
-            *d += &rc;
+            state1[j] += &rc;
+            state2[j] += &rc;
+            //*d += &rc;
             round_cst_idx += 1;
         }
 
         // Apply S-BOX only to the first element of the state vector
-        let t1 = (state[0]).inverse();
-        match t1 {
+        let ab = state1[0]*&state2[0];
+        let elem_inv = ab.inverse();
+        let mut ab_inv = T::ZERO;
+        match elem_inv {
             None => println!("Field inversion error"),
             Some(inv) => {
-                state[0] = inv;
-            },
+                ab_inv = inv;
+            }
         }
+        let a_inv = ab_inv*&state2[0];
+        let b_inv = ab_inv*&state1[0];
+
+        state1[0] = a_inv;
+        state2[0] = b_inv;
+
+//        let t1 = (state[0]).inverse();
+//        match t1 {
+//            None => println!("Field inversion error"),
+//            Some(inv) => {
+//                state[0] = inv;
+//            },
+//        }
 
         // Apply the matrix mix
-        matrix_mix::<T> (state);
+        matrix_mix::<T> (state1);
+        matrix_mix::<T> (state2);
     }
 
     // Second full rounds
@@ -644,10 +862,12 @@ fn poseidon_perm<T:PoseidonParameters> (state: &mut Vec<T::Fr>) {
     for _i in 0..(T::R_F-1) {
 
         // Add the round constants
-        for d in state.iter_mut() {
-            //let rc = MNT4753Fr::from_str(ROUND_CST[round_cst_idx]).map_err(|_| ()).unwrap();
+        for j in 0..state1.len() {
+            //for d in state1.iter_mut() {
             let rc = T::ROUND_CST[round_cst_idx];
-            *d += &rc;
+            //*d += &rc;
+            state1[j] += &rc;
+            state2[j] += &rc;
             round_cst_idx += 1;
         }
 
@@ -665,33 +885,46 @@ fn poseidon_perm<T:PoseidonParameters> (state: &mut Vec<T::Fr>) {
         // Optimization for the inversion S-Box
         // Assuming state vector of 3 elements
 
-        let abc = state[0]*&state[1]*&state[2];
-        let elem_inv = abc.inverse();
-        let mut abc_inv = T::ZERO;
+        let abcdef = state1[0]*&state1[1]*&state1[2]*&state2[0]*&state2[1]*&state2[2];
+        let elem_inv = abcdef.inverse();
+        let mut abcdef_inv = T::ZERO;
         match elem_inv {
             None => println!("Field inversion error"),
             Some(inv) => {
-                abc_inv = inv;
+                abcdef_inv = inv;
             }
         }
-        let a_inv = abc_inv*&state[1]*&state[2];
-        let b_inv = abc_inv*&state[0]*&state[2];
-        let c_inv = abc_inv*&state[0]*&state[1];
+        let abc = state1[0]*&state1[1]*&state1[2];
+        let cde = state2[0]*&state2[1]*&state2[2];
+        let a_inv = abcdef_inv*&state1[1]*&state1[2]*&cde;
+        let b_inv = abcdef_inv*&state1[0]*&state1[2]*&cde;
+        let c_inv = abcdef_inv*&state1[0]*&state1[1]*&cde;
+        let d_inv = abcdef_inv*&abc*&state2[1]*&state2[2];
+        let e_inv = abcdef_inv*&abc*&state2[0]*&state2[2];
+        let f_inv = abcdef_inv*&abc*&state2[0]*&state2[1];
 
-        state[0] = a_inv;
-        state[1] = b_inv;
-        state[2] = c_inv;
+        state1[0] = a_inv;
+        state1[1] = b_inv;
+        state1[2] = c_inv;
 
+        state2[0] = d_inv;
+        state2[1] = e_inv;
+        state2[2] = f_inv;
 
         // Apply matrix mix
-        matrix_mix::<T> (state);
+        matrix_mix::<T> (state1);
+        matrix_mix::<T> (state2);
     }
 
     // Last full round does not perform the matrix_mix
     // Add the round constants
-    for d in state.iter_mut() {
+    // Add the round constants
+    for j in 0..state1.len() {
+        //for d in state1.iter_mut() {
         let rc = T::ROUND_CST[round_cst_idx];
-        *d += &rc;
+        //*d += &rc;
+        state1[j] += &rc;
+        state2[j] += &rc;
         round_cst_idx += 1;
     }
 
@@ -709,37 +942,91 @@ fn poseidon_perm<T:PoseidonParameters> (state: &mut Vec<T::Fr>) {
     // Apply the S-BOX to each element of the state vector
     // Optimization for the inversion S-Box
     // Assuming state vector of 3 elements
-
-    let abc = state[0]*&state[1]*&state[2];
-    let elem_inv = abc.inverse();
-    let mut abc_inv = T::ZERO;
+    let abcdef = state1[0]*&state1[1]*&state1[2]*&state2[0]*&state2[1]*&state2[2];
+    let elem_inv = abcdef.inverse();
+    let mut abcdef_inv = T::ZERO;
     match elem_inv {
         None => println!("Field inversion error"),
         Some(inv) => {
-            abc_inv = inv;
+            abcdef_inv = inv;
         }
     }
-    let a_inv = abc_inv*&state[1]*&state[2];
-    let b_inv = abc_inv*&state[0]*&state[2];
-    let c_inv = abc_inv*&state[0]*&state[1];
+    let abc = state1[0]*&state1[1]*&state1[2];
+    let cde = state2[0]*&state2[1]*&state2[2];
+    let a_inv = abcdef_inv*&state1[1]*&state1[2]*&cde;
+    let b_inv = abcdef_inv*&state1[0]*&state1[2]*&cde;
+    let c_inv = abcdef_inv*&state1[0]*&state1[1]*&cde;
+    let d_inv = abcdef_inv*&abc*&state2[1]*&state2[2];
+    let e_inv = abcdef_inv*&abc*&state2[0]*&state2[2];
+    let f_inv = abcdef_inv*&abc*&state2[0]*&state2[1];
 
-    state[0] = a_inv;
-    state[1] = b_inv;
-    state[2] = c_inv;
+    state1[0] = a_inv;
+    state1[1] = b_inv;
+    state1[2] = c_inv;
+
+    state2[0] = d_inv;
+    state2[1] = e_inv;
+    state2[2] = f_inv;
+
 }
 
-pub fn poseidon_engine<T: PoseidonParameters>(input: &mut Vec<T::Fr>) -> T::Fr {
+// /* ORIGINAL */
+//pub fn poseidon_engine<T: PoseidonParameters>(input: &mut Vec<T::Fr>) -> T::Fr {
+//
+//    // state is a vector of 3 elements. They are initialized to zero elements
+//    let mut state = vec![T::ZERO, T::ZERO, T::ZERO];
+//
+//    // calculate the number of cycles to process the input dividing in portions of rate elements
+//    let num_cycles = input.len() / T::R;
+//    // check if the input is a multiple of the rate by calculating the remainder of the division
+//    let rem = input.len() % T::R;
+//
+//    // apply permutation to all zeros state vector
+//    poseidon_perm::<T>(&mut state);
+//
+//    // index to process the input
+//    let mut input_idx = 0;
+//    // iterate of the portions of rate elements
+//    for _i in 0..num_cycles {
+//        // add the elements to the state vector. Add rate elements
+//        for j in 0..T::R {
+//            state[j] += &input[input_idx];
+//            input_idx += 1;
+//        }
+//        // for application to a 2-1 Merkle tree, add the constant 3 to the third state vector
+//        state[T::R] += &T::C2;
+//        // apply permutation after adding the input vector
+//        poseidon_perm::<T>(&mut state);
+//
+//    }
+//
+//    // in case the input is not a multiple of the rate process the remainder part padding a zero
+//    if rem != 0 {
+//        state[0] += &input[input_idx];
+//        state[T::R] += &T::C2;
+//        // apply permutation after adding the input vector
+//        poseidon_perm::<T>(&mut state);
+//    }
+//
+//    // return the first element of the state vector as the hash digest
+//    state[0]
+//}
+
+pub fn poseidon_engine_dual<T: PoseidonParameters>(input1: &mut Vec<T::Fr>, input2: &mut Vec<T::Fr>) -> Vec<T::Fr> {
 
     // state is a vector of 3 elements. They are initialized to zero elements
-    let mut state = vec![T::ZERO, T::ZERO, T::ZERO];
+    let mut state1 = vec![T::ZERO, T::ZERO, T::ZERO];
+    let mut state2 = vec![T::ZERO, T::ZERO, T::ZERO];
 
     // calculate the number of cycles to process the input dividing in portions of rate elements
-    let num_cycles = input.len() / T::R;
+    // we assume the inputs lengths are the same for input1 and input2
+    let num_cycles = input1.len() / T::R;
     // check if the input is a multiple of the rate by calculating the remainder of the division
-    let rem = input.len() % T::R;
+    let rem = input1.len() % T::R;
 
     // apply permutation to all zeros state vector
-    poseidon_perm::<T>(&mut state);
+    poseidon_perm_dual::<T>(&mut state1, &mut state2);
+    state2 = state1.clone();
 
     // index to process the input
     let mut input_idx = 0;
@@ -747,26 +1034,33 @@ pub fn poseidon_engine<T: PoseidonParameters>(input: &mut Vec<T::Fr>) -> T::Fr {
     for _i in 0..num_cycles {
         // add the elements to the state vector. Add rate elements
         for j in 0..T::R {
-            state[j] += &input[input_idx];
+            state1[j] += &input1[input_idx];
+            state2[j] += &input2[input_idx];
             input_idx += 1;
         }
         // for application to a 2-1 Merkle tree, add the constant 3 to the third state vector
-        state[T::R] += &T::C2;
+        state1[T::R] += &T::C2;
+        state2[T::R] += &T::C2;
         // apply permutation after adding the input vector
-        poseidon_perm::<T>(&mut state);
-
+        poseidon_perm_dual::<T>(&mut state1, &mut state2);
     }
 
     // in case the input is not a multiple of the rate process the remainder part padding a zero
     if rem != 0 {
-        state[0] += &input[input_idx];
-        state[T::R] += &T::C2;
+        state1[0] += &input1[input_idx];
+        state1[T::R] += &T::C2;
+        state2[0] += &input2[input_idx];
+        state2[T::R] += &T::C2;
         // apply permutation after adding the input vector
-        poseidon_perm::<T>(&mut state);
+        poseidon_perm_dual::<T>(&mut state1, &mut state2);
     }
 
     // return the first element of the state vector as the hash digest
-    state[0]
+    // state
+
+    let output:Vec<T::Fr> = vec![state1[0],state2[0]];
+
+    output
 }
 
 //fn poseidon_perm<T:PoseidonParameters> (state: &mut Vec<T::Fr>) {
@@ -935,6 +1229,7 @@ pub fn poseidon_engine<T: PoseidonParameters>(input: &mut Vec<T::Fr>) -> T::Fr {
 //    state[2] = c_inv;
 //}
 
+
 #[test]
 fn test_cst() {
 
@@ -946,10 +1241,8 @@ fn test_cst() {
     let mut vec_elem_6753:Vec<MNT6753Fr> = Vec::new();
 
     // the random number generator to generate random input data
-//    let mut rng = &mut thread_rng();
+    // let mut rng = &mut thread_rng();
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-
-
 
     // we need the double of number of rounds because we have two inputs
     for _ in 0..(2*num_rounds) {
@@ -958,17 +1251,77 @@ fn test_cst() {
     }
 
     // =============================================================================
+    // Calculate multiplication time MNT4
+    let mut vec_mul_out_4753 = Vec::new();
+    let now_mul_4753 = Instant::now();
+
+    for i in 0..num_rounds {
+        let o1 = vec_elem_4753[2 * i] * &vec_elem_4753[2 * i + 1];
+        vec_mul_out_4753.push(o1);
+    }
+
+    let new_now_mul_4753 = Instant::now();
+    println!("Last mul MNT4 = {:?}", vec_mul_out_4753[num_rounds-1]);
+    // =============================================================================
+    // =============================================================================
+    // Calculate multiplication time MNT6
+    let mut vec_mul_out_6753 = Vec::new();
+    let now_mul_6753 = Instant::now();
+
+    for i in 0..num_rounds {
+        let o1 = vec_elem_6753[2 * i] * &vec_elem_6753[2 * i + 1];
+        vec_mul_out_6753.push(o1);
+    }
+
+    let new_now_mul_6753 = Instant::now();
+    println!("Last mul MNT6 = {:?}", vec_mul_out_6753[num_rounds-1]);
+    // =============================================================================
+
+
+    // =============================================================================
+    // Calculate inversion time MNT4
+    let mut vec_inv_out_4753 = Vec::new();
+    let now_inv_4753 = Instant::now();
+
+    for i in 0..num_rounds {
+        let o1 = vec_elem_4753[i].inverse();
+        vec_inv_out_4753.push(o1);
+    }
+
+    let new_now_inv_4753 = Instant::now();
+    println!("Last inv = {:?}", vec_inv_out_4753[num_rounds-1]);
+    // =============================================================================
+    // =============================================================================
+    // Calculate inversion time MNT6
+    let mut vec_inv_out_6753 = Vec::new();
+    let now_inv_6753 = Instant::now();
+
+    for i in 0..num_rounds {
+        let o1 = vec_elem_6753[i].inverse();
+        vec_inv_out_6753.push(o1);
+    }
+
+    let new_now_inv_6753 = Instant::now();
+    println!("Last inv = {:?}", vec_inv_out_6753[num_rounds-1]);
+    // =============================================================================
+
+
+    // =============================================================================
     // Calculate Poseidon Hash for mnt4753
     let now_4753 = Instant::now();
 
     let mut output_4753 = Vec::new();
 
-    for i in 0..num_rounds {
-        let mut input = vec![vec_elem_4753[2*i], vec_elem_4753[2*i+1]];
+    for i in 0..num_rounds/2 {
+        let mut input1 = vec![vec_elem_4753[4*i], vec_elem_4753[4*i+1]];
+        let mut input2 = vec![vec_elem_4753[4*i+2], vec_elem_4753[4*i+3]];
 
         // Call the poseidon hash
-        output_4753.push(poseidon_engine::<MNT4753PoseidonParameters>(&mut input));
+        let output = poseidon_engine_dual::<MNT4753PoseidonParameters>(&mut input1, &mut input2);
+        output_4753.push(output[0]);
+        output_4753.push(output[1]);
     }
+
     let new_now_4753  = Instant::now();
     // =============================================================================
 
@@ -978,12 +1331,16 @@ fn test_cst() {
 
     let mut output_6753 = Vec::new();
 
-    for i in 0..num_rounds {
+    for i in 0..num_rounds/2 {
         //let mut input = Vec::new();
-        let mut input = vec![vec_elem_6753[2*i],vec_elem_6753[2*i+1]];
+        let mut input1 = vec![vec_elem_6753[4*i],vec_elem_6753[4*i+1]];
+        let mut input2 = vec![vec_elem_6753[4*i+2],vec_elem_6753[4*i+3]];
 
         // Call the poseidon hash
-        output_6753.push(poseidon_engine::<MNT6753PoseidonParameters>(&mut input));
+
+        let output = poseidon_engine_dual::<MNT6753PoseidonParameters>(&mut input1, &mut input2);
+        output_6753.push(output[0]);
+        output_6753.push(output[1]);
     }
     let new_now_6753  = Instant::now();
     // =============================================================================
@@ -1027,6 +1384,18 @@ fn test_cst() {
 
     // =============================================================================
     // Report the timing results
+
+    let duration_mul_4753 =  new_now_mul_4753.duration_since(now_mul_4753);
+    println!("Time for {} mul  rounds MNT4753 = {:?}", num_rounds, duration_mul_4753.as_micros());
+
+    let duration_mul_6753 =  new_now_mul_6753.duration_since(now_mul_6753);
+    println!("Time for {} mul  rounds MNT6753 = {:?}", num_rounds, duration_mul_6753.as_micros());
+
+    let duration_inv_4753 =  new_now_inv_4753.duration_since(now_inv_4753);
+    println!("Time for {} inv  rounds MNT4753 = {:?}", num_rounds, duration_inv_4753.as_micros());
+
+    let duration_inv_6753 =  new_now_inv_6753.duration_since(now_inv_6753);
+    println!("Time for {} inv  rounds MNT6753 = {:?}", num_rounds, duration_inv_6753.as_micros());
 
     let duration_4753 =  new_now_4753.duration_since(now_4753);
     println!("Time for {} rounds MNT4753 = {:?}", num_rounds, duration_4753.as_millis());
