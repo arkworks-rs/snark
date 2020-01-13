@@ -3,7 +3,7 @@ use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 
 use algebra::{
-    biginteger::BigInteger768 as FqRepr, fields::mnt6753::fq753b::Fq, BigInteger, Field, PrimeField,
+    biginteger::BigInteger768 as FqRepr, fields::mnt6753::fq::Fq, BigInteger, Field, PrimeField,
     SquareRootField,
 };
 use std::ops::{AddAssign, MulAssign, SubAssign};

@@ -4,18 +4,18 @@ use crate::{
     fields::{
         fp6_2over3::{Fp6, Fp6Parameters},
         mnt6753::{
-            fq753b::Fq,
-            fq3::{Fq3, Fq3b7Parameters},
+            fq::Fq,
+            fq3::{Fq3, Fq3Parameters},
         },
     },
 };
 
-pub type Fq6 = Fp6<Fq6b7Parameters>;
+pub type Fq6 = Fp6<Fq6Parameters>;
 
-pub struct Fq6b7Parameters;
+pub struct Fq6Parameters;
 
-impl Fp6Parameters for Fq6b7Parameters {
-    type Fp3Params = Fq3b7Parameters;
+impl Fp6Parameters for Fq6Parameters {
+    type Fp3Params = Fq3Parameters;
 
     const NONRESIDUE: Fq3 = field_new!(Fq3,
         field_new!(Fq, BigInteger([

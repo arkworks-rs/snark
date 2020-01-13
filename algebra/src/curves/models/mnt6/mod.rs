@@ -1,4 +1,6 @@
-use crate::{Fp3, BigInteger768 as BigInteger, PrimeField, SquareRootField, Fp3Parameters, Fp6Parameters, SWModelParameters, ModelParameters, PairingEngine, Fp6, PairingCurve, ProjectiveCurve, Field};
+use crate::{Fp3, BigInteger768 as BigInteger, PrimeField, SquareRootField, Fp3Parameters,
+            Fp6Parameters, SWModelParameters, ModelParameters, PairingEngine, Fp6, PairingCurve,
+            Field};
 use std::marker::PhantomData;
 use std::ops::{Add, Mul, Sub, MulAssign};
 
@@ -35,26 +37,26 @@ use crate::curves::models::mnt6::g2::G2PreparedCoefficients;
 pub struct MNT6p<P: MNT6Parameters>(PhantomData<fn() -> P>);
 
 impl<P: MNT6Parameters> MNT6p<P> {
+
     /// Takes as input a point in G1 in projective coordinates, and outputs a
     /// precomputed version of it for pairing purposes.
-    fn ate_precompute_g1(value: &G1Projective<P>) -> G1Prepared<P> {
-        let g1 = value.into_affine();
+    fn ate_precompute_g1(value: &G1Affine<P>) -> G1Prepared<P> {
         let mut py_twist_squared = P::TWIST.square();
-        py_twist_squared.mul_assign_by_fp(&g1.y);
+        py_twist_squared.mul_assign_by_fp(&value.y);
 
-        G1Prepared {p: g1, py_twist_squared}
+        G1Prepared {p: *value, py_twist_squared}
     }
 
     /// Takes as input a point in `G2` in projective coordinates, and outputs a
     /// precomputed version of it for pairing purposes.
-    fn ate_precompute_g2(value: &G2Projective<P>) -> G2Prepared<P> {
+    fn ate_precompute_g2(value: &G2Affine<P>) -> G2Prepared<P> {
 
         let mut g2p = G2Prepared {
-            q: value.into_affine(),
+            q: *value,
             coeffs: vec![],
         };
 
-        let mut s = value.into_affine();
+        let mut s = value.clone();
 
         for &n in P::WNAF.iter().rev() {
 
@@ -171,7 +173,6 @@ impl<P: MNT6Parameters> MNT6p<P> {
         elt_q3_over_elt
     }
 
-    //Checked
     fn final_exponentiation_last_chunk(elt: &Fp6<P::Fp6Params>, elt_inv: &Fp6<P::Fp6Params>) -> Fp6<P::Fp6Params> {
         let elt_clone = elt.clone();
         let elt_inv_clone = elt_inv.clone();

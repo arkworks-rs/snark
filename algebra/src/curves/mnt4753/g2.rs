@@ -86,7 +86,6 @@ impl SWModelParameters for MNT4G2Parameters {
         0x1c4c62d92c411,
     ];
 
-    /// COFACTOR^(-1) mod r
     const COFACTOR_INV: Fr = field_new!(Fr, BigInteger768([
         0x1a14ef94372dbc2a,
         0x6e01a14d0f55ad00,
@@ -102,7 +101,6 @@ impl SWModelParameters for MNT4G2Parameters {
         0x4747058a5c42,
     ]));
 
-    /// AFFINE_GENERATOR_COEFFS = (G2_GENERATOR_X, G2_GENERATOR_Y)
     const AFFINE_GENERATOR_COEFFS: (Self::BaseField, Self::BaseField) =
         (G2_GENERATOR_X, G2_GENERATOR_Y);
 

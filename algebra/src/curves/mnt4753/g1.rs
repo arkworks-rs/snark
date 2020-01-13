@@ -49,8 +49,6 @@ impl SWModelParameters for MNT4G1Parameters {
     /// COFACTOR = 1
     const COFACTOR: &'static [u64] = &[1];
 
-    /// COFACTOR^(-1) mod r =
-    /// 1
     const COFACTOR_INV: Fr = field_new!(Fr, BigInteger768([
         0xb99680147fff6f42,
         0x4eb16817b589cea8,

@@ -3,8 +3,8 @@ use crate::{
     curves::{PairingCurve, PairingEngine},
     fields::{
         mnt6753::{
-            fq753b::{Fq, Fq7bParameters},
-            fq3::Fq3b7Parameters, fq6::Fq6b7Parameters,
+            fq::{Fq, FqParameters},
+            fq3::Fq3Parameters, fq6::Fq6Parameters,
             Fq3, Fq6,
         },
         FpParameters,
@@ -15,7 +15,7 @@ use crate::curves::models::mnt6::{MNT6Parameters, MNT6p,
                                   G1Affine as MNT6G1Affine, G1Projective as MNT6G1Projective, G1Prepared,
                                   G2Affine as MNT6G2Affine, G2Projective as MNT6G2Projective, G2Prepared,
 };
-use self::{g1::MNT6b7G1Parameters, g2::MNT6b7G2Parameters};
+use self::{g1::MNT6G1Parameters, g2::MNT6G2Parameters};
 
 pub mod g1;
 pub mod g2;
@@ -36,7 +36,17 @@ impl MNT6Parameters for MNT6_753Parameters {
     ];
 
     //Output of find_wnaf(ate_loop_count), already trimmed of leading zeros and MSB
-    const WNAF: &'static [i32] = &[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-1,0,1,0,0,0,1,0,-1,0,0,-1,0,0,1,0,0,0,0,1,0,0,0,0,0,-1,0,1,0,1,0,0,0,-1,0,0,-1,0,0,0,1,0,1,0,-1,0,0,0,1,0,0,0,0,-1,0,-1,0,1,0,0,1,0,1,0,0,0,0,1,0,0,0,-1,0,-1,0,1,0,0,-1,0,0,1,0,1,0,0,0,-1,0,1,0,1,0,0,0,1,0,-1,0,1,0,0,0,0,0,-1,0,-1,0,-1,0,0,1,0,-1,0,1,0,1,0,-1,0,1,0,0,-1,0,1,0,0,0,-1,0,0,0,1,0,0,0,1,0,0,1,0,1,0,1,0,1,0,0,1,0,1,0,0,0,-1,0,0,-1,0,0,-1,0,0,0,1,0,-1,0,1,0,-1,0,0,1,0,0,0,0,0,0,0,0,0,-1,0,1,0,-1,0,0,-1,0,0,1,0,1,0,0,0,-1,0,0,0,0,-1,0,1,0,-1,0,1,0,0,1,0,0,-1,0,-1,0,1,0,1,0,1,0,0,0,0,-1,0,1,0,0,1,0,1,0,0,-1,0,0,0,0,0,0,0,0,0,1,0,1,0,-1,0,-1,0,0,1,0,-1,0,0,-1,0,0,0,-1,0,1,0,-1,0,0,-1,0,0,0,1,0,-1,0,0,0,-1,0,1,0,-1,0,0,-1,0,0,-1,0,0,1,0,0,0,-1,0,-1,0,0,0,0,0,0,0,0,1,0,0,1,0,-1,0,1,0,0,0,0,1,0,0,-1,0,-1,0,-1,0,0,0,1,0,0,-1,0,-1,0,1,0,1,0,-1,0,0,1,0,0,1,0,1,0,1,0];
+    const WNAF: &'static [i32] = &[
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-1,0,1,0,0,0,1,0,-1,0,0,-1,0,0,1,0,0,0,0,1,0,0,0,0,0,-1,0,1,0,
+        1,0,0,0,-1,0,0,-1,0,0,0,1,0,1,0,-1,0,0,0,1,0,0,0,0,-1,0,-1,0,1,0,0,1,0,1,0,0,0,0,1,0,0,0,-1,
+        0,-1,0,1,0,0,-1,0,0,1,0,1,0,0,0,-1,0,1,0,1,0,0,0,1,0,-1,0,1,0,0,0,0,0,-1,0,-1,0,-1,0,0,1,0,
+        -1,0,1,0,1,0,-1,0,1,0,0,-1,0,1,0,0,0,-1,0,0,0,1,0,0,0,1,0,0,1,0,1,0,1,0,1,0,0,1,0,1,0,0,0,-1
+        ,0,0,-1,0,0,-1,0,0,0,1,0,-1,0,1,0,-1,0,0,1,0,0,0,0,0,0,0,0,0,-1,0,1,0,-1,0,0,-1,0,0,1,0,1,0,
+        0,0,-1,0,0,0,0,-1,0,1,0,-1,0,1,0,0,1,0,0,-1,0,-1,0,1,0,1,0,1,0,0,0,0,-1,0,1,0,0,1,0,1,0,0,
+        -1,0,0,0,0,0,0,0,0,0,1,0,1,0,-1,0,-1,0,0,1,0,-1,0,0,-1,0,0,0,-1,0,1,0,-1,0,0,-1,0,0,0,1,0,
+        -1,0,0,0,-1,0,1,0,-1,0,0,-1,0,0,-1,0,0,1,0,0,0,-1,0,-1,0,0,0,0,0,0,0,0,1,0,0,1,0,-1,0,1,0,0,
+        0,0,1,0,0,-1,0,-1,0,-1,0,0,0,1,0,0,-1,0,-1,0,1,0,1,0,-1,0,0,1,0,0,1,0,1,0,1,0
+    ];
 
     const ATE_IS_LOOP_COUNT_NEG: bool = false;
 
@@ -82,10 +92,10 @@ impl MNT6Parameters for MNT6_753Parameters {
     const FINAL_EXPONENT_LAST_CHUNK_W0_IS_NEG: bool = false;
 
     type Fp = Fq;
-    type Fp3Params = Fq3b7Parameters;
-    type Fp6Params = Fq6b7Parameters;
-    type G1Parameters = MNT6b7G1Parameters;
-    type G2Parameters = MNT6b7G2Parameters;
+    type Fp3Params = Fq3Parameters;
+    type Fp6Params = Fq6Parameters;
+    type G1Parameters = MNT6G1Parameters;
+    type G2Parameters = MNT6G2Parameters;
 }
 
 pub type MNT6 = MNT6p<MNT6_753Parameters>;
@@ -125,4 +135,4 @@ impl PairingCurve for G2Affine {
 }
 
 pub const FQ_ZERO: Fq = field_new!(Fq, BigInteger([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
-pub const FQ_ONE: Fq = field_new!(Fq, Fq7bParameters::R);
+pub const FQ_ONE: Fq = field_new!(Fq, FqParameters::R);

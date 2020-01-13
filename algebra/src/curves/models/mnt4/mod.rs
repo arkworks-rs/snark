@@ -1,4 +1,4 @@
-use crate::{Fp2, BigInteger768 as BigInteger, PrimeField, SquareRootField, Fp2Parameters, Fp4Parameters, SWModelParameters, ModelParameters, PairingEngine, Fp4, PairingCurve, ProjectiveCurve, Field};
+use crate::{Fp2, BigInteger768 as BigInteger, PrimeField, SquareRootField, Fp2Parameters, Fp4Parameters, SWModelParameters, ModelParameters, PairingEngine, Fp4, PairingCurve, Field};
 use std::marker::PhantomData;
 use std::ops::{Add, Mul, Sub};
 
@@ -37,24 +37,23 @@ pub struct MNT4p<P: MNT4Parameters>(PhantomData<fn() -> P>);
 impl<P: MNT4Parameters> MNT4p<P> {
     /// Takes as input a point in G1 in projective coordinates, and outputs a
     /// precomputed version of it for pairing purposes.
-    fn ate_precompute_g1(value: &G1Projective<P>) -> G1Prepared<P> {
-        let g1 = value.into_affine();
+    fn ate_precompute_g1(value: &G1Affine<P>) -> G1Prepared<P> {
         let mut py_twist_squared = P::TWIST.square();
-        py_twist_squared.mul_by_fp(&g1.y);
+        py_twist_squared.mul_by_fp(&value.y);
 
-        G1Prepared {p: g1, py_twist_squared}
+        G1Prepared {p: *value, py_twist_squared}
     }
 
     /// Takes as input a point in `G2` in projective coordinates, and outputs a
     /// precomputed version of it for pairing purposes.
-    fn ate_precompute_g2(value: &G2Projective<P>) -> G2Prepared<P> {
+    fn ate_precompute_g2(value: &G2Affine<P>) -> G2Prepared<P> {
 
         let mut g2p = G2Prepared {
-            q: value.into_affine(),
+            q: *value,
             coeffs: vec![],
         };
 
-        let mut s = value.into_affine();
+        let mut s = value.clone();
 
         for &n in P::WNAF.iter().rev() {
 

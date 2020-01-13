@@ -7,7 +7,7 @@ use crate::{
         AffineCurve, PairingEngine,
     },
     biginteger::BigInteger768,
-    fields::mnt6753::{fq753b::Fq, fq3::Fq3, fq6::Fq6, fr753b::Fr},
+    fields::mnt6753::{fq::Fq, fq3::Fq3, fq6::Fq6, fr::Fr},
     groups::tests::group_test,
     ProjectiveCurve, Field, PrimeField
 };

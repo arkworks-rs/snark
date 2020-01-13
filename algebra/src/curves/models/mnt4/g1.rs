@@ -40,7 +40,7 @@ impl<P: MNT4Parameters> FromBytes for G1Prepared<P> {
 
 impl<P: MNT4Parameters> G1Prepared<P> {
     pub fn from_affine(point: &G1Affine<P>) -> Self {
-        MNT4p::<P>::ate_precompute_g1(&point.into_projective())
+        MNT4p::<P>::ate_precompute_g1(&point)
     }
 }
 

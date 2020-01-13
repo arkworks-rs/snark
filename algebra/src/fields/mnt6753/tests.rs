@@ -1,7 +1,7 @@
 use crate::{
     BigInteger, BigInteger768,
-    fields::tests::{field_test, frobenius_test, primefield_test, sqrt_field_test}, 
-    fields::mnt6753::{Fq, Fq3, Fq6, Fq7bParameters, Fq3b7Parameters, Fq6b7Parameters},
+    fields::tests::{field_test, frobenius_test, primefield_test, sqrt_field_test},
+    fields::mnt6753::{Fq, Fq3, Fq6, FqParameters, Fq3Parameters, Fq6Parameters},
     fields::FpParameters, fields::models::{Fp3Parameters, Fp6Parameters},
     Field, PrimeField, SquareRootField,
     UniformRand,
@@ -91,9 +91,9 @@ fn test_frob_coeffs() {
         0x1c287777c30ba,
     ]));
 
-    assert_eq!(Fq3b7Parameters::FROBENIUS_COEFF_FP3_C1[0], Fq::one());
+    assert_eq!(Fq3Parameters::FROBENIUS_COEFF_FP3_C1[0], Fq::one());
     assert_eq!(
-        Fq3b7Parameters::FROBENIUS_COEFF_FP3_C1[1],
+        Fq3Parameters::FROBENIUS_COEFF_FP3_C1[1],
         nqr.pow([
             0x9dad27a0c0000000,
             0x1a35885d0535be1a,
@@ -110,7 +110,7 @@ fn test_frob_coeffs() {
         ])
     );
     assert_eq!(
-        Fq3b7Parameters::FROBENIUS_COEFF_FP3_C1[2],
+        Fq3Parameters::FROBENIUS_COEFF_FP3_C1[2],
         nqr.pow([
             0xeb5a4f4180000000,
             0x11ef14dc4d1d1a86,
@@ -139,9 +139,9 @@ fn test_frob_coeffs() {
         ])
     );
 
-    assert_eq!(Fq3b7Parameters::FROBENIUS_COEFF_FP3_C2[0], Fq::one());
+    assert_eq!(Fq3Parameters::FROBENIUS_COEFF_FP3_C2[0], Fq::one());
     assert_eq!(
-        Fq3b7Parameters::FROBENIUS_COEFF_FP3_C2[1],
+        Fq3Parameters::FROBENIUS_COEFF_FP3_C2[1],
         nqr.pow([
             0x3b5a4f4180000000,
             0x346b10ba0a6b7c35,
@@ -158,9 +158,9 @@ fn test_frob_coeffs() {
         ])
     );
 
-    assert_eq!(Fq3b7Parameters::FROBENIUS_COEFF_FP3_C2[0], Fq::one());
+    assert_eq!(Fq3Parameters::FROBENIUS_COEFF_FP3_C2[0], Fq::one());
     assert_eq!(
-        Fq3b7Parameters::FROBENIUS_COEFF_FP3_C2[2],
+        Fq3Parameters::FROBENIUS_COEFF_FP3_C2[2],
         nqr.pow([
             0xd6b49e8300000000,
             0x23de29b89a3a350d,
@@ -190,9 +190,9 @@ fn test_frob_coeffs() {
     );
 
     //Fq6 coefficients tests
-    assert_eq!(Fq6b7Parameters::FROBENIUS_COEFF_FP6_C1[0], Fq::one());
+    assert_eq!(Fq6Parameters::FROBENIUS_COEFF_FP6_C1[0], Fq::one());
     assert_eq!(
-        Fq6b7Parameters::FROBENIUS_COEFF_FP6_C1[1],
+        Fq6Parameters::FROBENIUS_COEFF_FP6_C1[1],
         nqr.pow([
             0x4ed693d060000000,
             0x8d1ac42e829adf0d,
@@ -210,7 +210,7 @@ fn test_frob_coeffs() {
     );
 
     assert_eq!(
-        Fq6b7Parameters::FROBENIUS_COEFF_FP6_C1[2],
+        Fq6Parameters::FROBENIUS_COEFF_FP6_C1[2],
         nqr.pow([
             0x75ad27a0c0000000,
             0x88f78a6e268e8d43,
@@ -280,7 +280,7 @@ fn test_frob_coeffs() {
     ];
 
     assert_eq!(
-        Fq6b7Parameters::FROBENIUS_COEFF_FP6_C1[3],
+        Fq6Parameters::FROBENIUS_COEFF_FP6_C1[3],
         nqr.pow(t)
     );
 
@@ -337,7 +337,7 @@ fn test_frob_coeffs() {
     ];
 
     assert_eq!(
-        Fq6b7Parameters::FROBENIUS_COEFF_FP6_C1[4],
+        Fq6Parameters::FROBENIUS_COEFF_FP6_C1[4],
         nqr.pow(t)
     );
 
@@ -405,7 +405,7 @@ fn test_frob_coeffs() {
     ];
 
     assert_eq!(
-        Fq6b7Parameters::FROBENIUS_COEFF_FP6_C1[5],
+        Fq6Parameters::FROBENIUS_COEFF_FP6_C1[5],
         nqr.pow(t)
     );
 }
@@ -433,7 +433,7 @@ fn test_neg_one() {
 
 #[test]
 fn test_fq_is_valid() {
-    let mut a = Fq::new(Fq7bParameters::MODULUS);
+    let mut a = Fq::new(FqParameters::MODULUS);
     assert!(!a.is_valid());
     a.0.sub_noborrow(&BigInteger768::from(1));
     assert!(a.is_valid());
@@ -1104,14 +1104,14 @@ fn test_fq_sqrt() {
 
 #[test]
 fn test_fq_num_bits() {
-    assert_eq!(Fq7bParameters::MODULUS_BITS, 753);
-    assert_eq!(Fq7bParameters::CAPACITY, 752);
+    assert_eq!(FqParameters::MODULUS_BITS, 753);
+    assert_eq!(FqParameters::CAPACITY, 752);
 }
 
 
 #[test]
 fn test_fq_root_of_unity() {
-    assert_eq!(Fq7bParameters::TWO_ADICITY, 30);
+    assert_eq!(FqParameters::TWO_ADICITY, 30);
     assert_eq!(
         Fq::multiplicative_generator(),
         Fq::from_repr(BigInteger768::from(17))
@@ -1134,7 +1134,7 @@ fn test_fq_root_of_unity() {
         Fq::root_of_unity()
     );
     assert_eq!(
-        Fq::root_of_unity().pow([1 << Fq7bParameters::TWO_ADICITY]),
+        Fq::root_of_unity().pow([1 << FqParameters::TWO_ADICITY]),
         Fq::one()
     );
     assert!(Fq::multiplicative_generator().sqrt().is_none());
@@ -2311,14 +2311,14 @@ fn test_fq3_legendre() {
     use crate::fields::LegendreSymbol::*;
 
     assert_eq!(Zero, Fq3::zero().legendre());
-    assert_eq!(QuadraticNonResidue, Fq3b7Parameters::NONRESIDUE.legendre());
+    assert_eq!(QuadraticNonResidue, Fq3Parameters::NONRESIDUE.legendre());
     // i^2 = -1
     let mut m1 = -Fq3::one();
     assert_eq!(QuadraticResidue, m1.legendre());
-    m1 = Fq6b7Parameters::mul_fp3_by_nonresidue(&m1);
+    m1 = Fq6Parameters::mul_fp3_by_nonresidue(&m1);
     assert_eq!(QuadraticNonResidue, m1.legendre());
 
-    assert_eq!(QuadraticNonResidue, Fq6b7Parameters::NONRESIDUE.legendre());
+    assert_eq!(QuadraticNonResidue, Fq6Parameters::NONRESIDUE.legendre());
 }
 
 #[test]
@@ -2347,7 +2347,7 @@ fn test_fq3_mul_nonresidue() {
     for _ in 0..1000 {
         let mut a = Fq3::rand(&mut rng);
         let mut b = a;
-        a = Fq6b7Parameters::mul_fp3_by_nonresidue(&a);
+        a = Fq6Parameters::mul_fp3_by_nonresidue(&a);
         b.mul_assign(&nqr);
 
         assert_eq!(a, b);

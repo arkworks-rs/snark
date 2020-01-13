@@ -3,15 +3,15 @@ use crate::{
     biginteger::BigInteger768 as BigInteger,
     fields::{
         fp3::{Fp3, Fp3Parameters},
-        mnt6753::fq753b::Fq,
+        mnt6753::fq::Fq,
     },
 };
 
-pub type Fq3 = Fp3<Fq3b7Parameters>;
+pub type Fq3 = Fp3<Fq3Parameters>;
 
-pub struct Fq3b7Parameters;
+pub struct Fq3Parameters;
 
-impl Fp3Parameters for Fq3b7Parameters {
+impl Fp3Parameters for Fq3Parameters {
     type Fp = Fq;
 
     // 11
@@ -71,7 +71,6 @@ impl Fp3Parameters for Fq3b7Parameters {
     ];
 
     const QUADRATIC_NONRESIDUE_TO_T: (Fq, Fq, Fq) = (
-// c0  6157c1dabadf97cc7da5fef0c28af0b43af4e2ce8c2e820481f8ecaea6f82891082620e9a3e67d23df9a20eabf7a74d377e9be5fc824dc90acba889c8eff915ac7dfd6cbc9270e1391d4fa199ab868216255ea00e2142217cbfb0feb469c
         field_new!(Fq, BigInteger([
             0x2217cbfb0feb469c,
             0x68216255ea00e214,

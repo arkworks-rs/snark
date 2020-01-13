@@ -4,7 +4,7 @@ use rand_xorshift::XorShiftRng;
 
 use algebra::{
     biginteger::{BigInteger, BigInteger768 as FrRepr},
-    fields::{mnt6753::fr753b::Fr, Field, PrimeField, SquareRootField},
+    fields::{mnt6753::fr::Fr, Field, PrimeField, SquareRootField},
 };
 use std::ops::{AddAssign, MulAssign, SubAssign};
 
