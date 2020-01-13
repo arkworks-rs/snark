@@ -1,5 +1,8 @@
-use rand::{Rng, distributions::{Standard, Distribution}};
 use crate::UniformRand;
+use rand::{
+    distributions::{Distribution, Standard},
+    Rng,
+};
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
     io::{Read, Result as IoResult, Write},
@@ -339,7 +342,22 @@ impl<P: Fp3Parameters> Neg for Fp3<P> {
 impl<P: Fp3Parameters> Distribution<Fp3<P>> for Standard {
     #[inline]
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Fp3<P> {
-        Fp3::new(UniformRand::rand(rng), UniformRand::rand(rng), UniformRand::rand(rng))
+        Fp3::new(
+            UniformRand::rand(rng),
+            UniformRand::rand(rng),
+            UniformRand::rand(rng),
+        )
+    }
+}
+
+impl<P: Fp3Parameters> Add<Fp3<P>> for Fp3<P> {
+    type Output = Self;
+
+    #[inline]
+    fn add(self, other: Self) -> Self {
+        let mut result = self;
+        result.add_assign(&other);
+        result
     }
 }
 
@@ -361,6 +379,17 @@ impl<'a, P: Fp3Parameters> Sub<&'a Fp3<P>> for Fp3<P> {
     fn sub(self, other: &Self) -> Self {
         let mut result = self;
         result.sub_assign(&other);
+        result
+    }
+}
+
+impl<'a, P: Fp3Parameters> Mul<Fp3<P>> for Fp3<P> {
+    type Output = Self;
+
+    #[inline]
+    fn mul(self, other: Self) -> Self {
+        let mut result = self;
+        result.mul_assign(&other);
         result
     }
 }

@@ -330,6 +330,17 @@ impl<P: Fp12Parameters> Neg for Fp12<P> {
     }
 }
 
+impl<P: Fp12Parameters> Add<Self> for Fp12<P> {
+    type Output = Self;
+
+    #[inline]
+    fn add(self, other: Self) -> Self {
+        let mut result = self;
+        result.add_assign(&other);
+        result
+    }
+}
+
 impl<'a, P: Fp12Parameters> Add<&'a Self> for Fp12<P> {
     type Output = Self;
 
@@ -348,6 +359,17 @@ impl<'a, P: Fp12Parameters> Sub<&'a Self> for Fp12<P> {
     fn sub(self, other: &Self) -> Self {
         let mut result = self;
         result.sub_assign(&other);
+        result
+    }
+}
+
+impl<P: Fp12Parameters> Mul<Self> for Fp12<P> {
+    type Output = Self;
+
+    #[inline]
+    fn mul(self, other: Self) -> Self {
+        let mut result = self;
+        result.mul_assign(&other);
         result
     }
 }

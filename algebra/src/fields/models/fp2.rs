@@ -1,11 +1,14 @@
 use crate::UniformRand;
+use rand::{
+    distributions::{Distribution, Standard},
+    Rng,
+};
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
     io::{Read, Result as IoResult, Write},
     marker::PhantomData,
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
-use rand::{Rng, distributions::{Standard, Distribution}};
 
 use crate::{
     bytes::{FromBytes, ToBytes},
@@ -162,7 +165,8 @@ impl<P: Fp2Parameters> Field for Fp2<P> {
 }
 
 impl<'a, P: Fp2Parameters> SquareRootField for Fp2<P> 
-where P::Fp: SquareRootField
+where
+    P::Fp: SquareRootField,
 {
     fn legendre(&self) -> LegendreSymbol {
         self.norm().legendre()
@@ -291,6 +295,17 @@ impl<P: Fp2Parameters> Distribution<Fp2<P>> for Standard {
     }
 }
 
+impl<P: Fp2Parameters> Add<Fp2<P>> for Fp2<P> {
+    type Output = Self;
+
+    #[inline]
+    fn add(self, other: Self) -> Self {
+        let mut result = self;
+        result.add_assign(&other);
+        result
+    }
+}
+
 impl<'a, P: Fp2Parameters> Add<&'a Fp2<P>> for Fp2<P> {
     type Output = Self;
 
@@ -309,6 +324,17 @@ impl<'a, P: Fp2Parameters> Sub<&'a Fp2<P>> for Fp2<P> {
     fn sub(self, other: &Self) -> Self {
         let mut result = self;
         result.sub_assign(&other);
+        result
+    }
+}
+
+impl<P: Fp2Parameters> Mul<Fp2<P>> for Fp2<P> {
+    type Output = Self;
+
+    #[inline]
+    fn mul(self, other: Self) -> Self {
+        let mut result = self;
+        result.mul_assign(&other);
         result
     }
 }

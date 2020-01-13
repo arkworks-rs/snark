@@ -27,7 +27,6 @@ pub trait Fp320Parameters: FpParameters<BigInt = BigInteger> {}
 )]
 pub struct Fp320<P: Fp320Parameters>(
     pub BigInteger,
-
     #[derivative(Debug = "ignore")]
     #[doc(hidden)]
     pub PhantomData<P>,
@@ -489,6 +488,17 @@ impl<P: Fp320Parameters> Neg for Fp320<P> {
     }
 }
 
+impl<P: Fp320Parameters> Add<Fp320<P>> for Fp320<P> {
+    type Output = Self;
+
+    #[inline]
+    fn add(self, other: Self) -> Self {
+        let mut result = self.clone();
+        result.add_assign(&other);
+        result
+    }
+}
+
 impl<'a, P: Fp320Parameters> Add<&'a Fp320<P>> for Fp320<P> {
     type Output = Self;
 
@@ -507,6 +517,17 @@ impl<'a, P: Fp320Parameters> Sub<&'a Fp320<P>> for Fp320<P> {
     fn sub(self, other: &Self) -> Self {
         let mut result = self.clone();
         result.sub_assign(other);
+        result
+    }
+}
+
+impl<P: Fp320Parameters> Mul<Fp320<P>> for Fp320<P> {
+    type Output = Self;
+
+    #[inline]
+    fn mul(self, other: Self) -> Self {
+        let mut result = self.clone();
+        result.mul_assign(&other);
         result
     }
 }

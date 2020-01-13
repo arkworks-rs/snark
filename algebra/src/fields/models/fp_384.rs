@@ -27,7 +27,6 @@ pub trait Fp384Parameters: FpParameters<BigInt = BigInteger> {}
 )]
 pub struct Fp384<P: Fp384Parameters>(
     pub BigInteger,
-
     #[derivative(Debug = "ignore")]
     #[doc(hidden)]
     pub PhantomData<P>,
@@ -521,6 +520,17 @@ impl<P: Fp384Parameters> Neg for Fp384<P> {
     }
 }
 
+impl<P: Fp384Parameters> Add<Fp384<P>> for Fp384<P> {
+    type Output = Self;
+
+    #[inline]
+    fn add(self, other: Self) -> Self {
+        let mut result = self.clone();
+        result.add_assign(&other);
+        result
+    }
+}
+
 impl<'a, P: Fp384Parameters> Add<&'a Fp384<P>> for Fp384<P> {
     type Output = Self;
 
@@ -539,6 +549,17 @@ impl<'a, P: Fp384Parameters> Sub<&'a Fp384<P>> for Fp384<P> {
     fn sub(self, other: &Self) -> Self {
         let mut result = self.clone();
         result.sub_assign(other);
+        result
+    }
+}
+
+impl<P: Fp384Parameters> Mul<Fp384<P>> for Fp384<P> {
+    type Output = Self;
+
+    #[inline]
+    fn mul(self, other: Self) -> Self {
+        let mut result = self.clone();
+        result.mul_assign(&other);
         result
     }
 }

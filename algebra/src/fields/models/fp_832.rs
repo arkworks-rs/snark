@@ -26,7 +26,6 @@ pub trait Fp832Parameters: FpParameters<BigInt = BigInteger> {}
 )]
 pub struct Fp832<P: Fp832Parameters>(
     pub BigInteger,
-
     #[derivative(Debug = "ignore")]
     #[doc(hidden)]
     pub PhantomData<P>,
@@ -819,6 +818,17 @@ impl<P: Fp832Parameters> Neg for Fp832<P> {
     }
 }
 
+impl<P: Fp832Parameters> Add<Fp832<P>> for Fp832<P> {
+    type Output = Self;
+
+    #[inline]
+    fn add(self, other: Self) -> Self {
+        let mut result = self.clone();
+        result.add_assign(&other);
+        result
+    }
+}
+
 impl<'a, P: Fp832Parameters> Add<&'a Fp832<P>> for Fp832<P> {
     type Output = Self;
 
@@ -837,6 +847,17 @@ impl<'a, P: Fp832Parameters> Sub<&'a Fp832<P>> for Fp832<P> {
     fn sub(self, other: &Self) -> Self {
         let mut result = self.clone();
         result.sub_assign(other);
+        result
+    }
+}
+
+impl<P: Fp832Parameters> Mul<Fp832<P>> for Fp832<P> {
+    type Output = Self;
+
+    #[inline]
+    fn mul(self, other: Self) -> Self {
+        let mut result = self.clone();
+        result.mul_assign(&other);
         result
     }
 }
