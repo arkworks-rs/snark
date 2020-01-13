@@ -16,6 +16,7 @@ use crate::{
     },
     groups::tests::group_test,
 };
+use num_traits::{One, Zero};
 use rand;
 use std::ops::{AddAssign, MulAssign};
 

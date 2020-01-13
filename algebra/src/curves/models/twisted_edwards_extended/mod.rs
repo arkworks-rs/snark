@@ -1,5 +1,6 @@
 use rand::{Rng, distributions::{Standard, Distribution}};
 use crate::UniformRand;
+use num_traits::{One, Zero};
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
     io::{Read, Result as IoResult, Write},
@@ -105,21 +106,23 @@ impl<P: Parameters> GroupAffine<P> {
     }
 }
 
+impl<P: Parameters> Zero for GroupAffine<P> {
+    fn zero() -> Self {
+        Self::new(P::BaseField::zero(), P::BaseField::one())
+    }
+
+    fn is_zero(&self) -> bool {
+        self.x.is_zero() & self.y.is_one()
+    }
+}
+
 impl<P: Parameters> AffineCurve for GroupAffine<P> {
     type BaseField = P::BaseField;
     type ScalarField = P::ScalarField;
     type Projective = GroupProjective<P>;
 
-    fn zero() -> Self {
-        Self::new(Self::BaseField::zero(), Self::BaseField::one())
-    }
-
     fn prime_subgroup_generator() -> Self {
         Self::new(P::AFFINE_GENERATOR_COEFFS.0, P::AFFINE_GENERATOR_COEFFS.1)
-    }
-
-    fn is_zero(&self) -> bool {
-        self.x.is_zero() & self.y.is_one()
     }
 
     fn mul<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(&self, by: S) -> GroupProjective<P> {
@@ -144,6 +147,15 @@ impl<P: Parameters> Neg for GroupAffine<P> {
 
     fn neg(self) -> Self {
         Self::new(-self.x, self.y)
+    }
+}
+
+impl<P: Parameters> Add<Self> for GroupAffine<P> {
+    type Output = Self;
+    fn add(self, other: Self) -> Self {
+        let mut copy = self;
+        copy += &other;
+        copy
     }
 }
 
@@ -188,11 +200,11 @@ impl<'a, P: Parameters> SubAssign<&'a Self> for GroupAffine<P> {
     }
 }
 
-impl<'a, P: Parameters> Mul<&'a P::ScalarField> for GroupAffine<P> {
+impl<P: Parameters> Mul<P::ScalarField> for GroupAffine<P> {
     type Output = Self;
-    fn mul(self, other: &'a P::ScalarField) -> Self {
+    fn mul(self, other: P::ScalarField) -> Self {
         let mut copy = self;
-        copy *= other;
+        copy *= &other;
         copy
     }
 }
@@ -247,13 +259,6 @@ mod group_impl {
 
     impl<P: Parameters> Group for GroupAffine<P> {
         type ScalarField = P::ScalarField;
-        fn zero() -> Self {
-            <Self as AffineCurve>::zero()
-        }
-
-        fn is_zero(&self) -> bool {
-            <Self as AffineCurve>::is_zero(&self)
-        }
 
         #[inline]
         #[must_use]
@@ -367,11 +372,7 @@ impl<P: Parameters> GroupProjective<P> {
     }
 }
 
-impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
-    type BaseField = P::BaseField;
-    type ScalarField = P::ScalarField;
-    type Affine = GroupAffine<P>;
-
+impl<P: Parameters> Zero for GroupProjective<P> {
     fn zero() -> Self {
         Self::new(
             P::BaseField::zero(),
@@ -381,12 +382,18 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
         )
     }
 
-    fn prime_subgroup_generator() -> Self {
-        GroupAffine::prime_subgroup_generator().into()
-    }
-
     fn is_zero(&self) -> bool {
         self.x.is_zero() && self.y == self.z && !self.y.is_zero() && self.t.is_zero()
+    }
+}
+
+impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
+    type BaseField = P::BaseField;
+    type ScalarField = P::ScalarField;
+    type Affine = GroupAffine<P>;
+
+    fn prime_subgroup_generator() -> Self {
+        GroupAffine::prime_subgroup_generator().into()
     }
 
     fn is_normalized(&self) -> bool {
@@ -511,11 +518,11 @@ impl<P: Parameters> Neg for GroupProjective<P> {
     }
 }
 
-impl<'a, P: Parameters> Add<&'a Self> for GroupProjective<P> {
+impl<P: Parameters> Add<Self> for GroupProjective<P> {
     type Output = Self;
-    fn add(self, other: &'a Self) -> Self {
+    fn add(self, other: Self) -> Self {
         let mut copy = self;
-        copy += other;
+        copy += &other;
         copy
     }
 }
@@ -652,4 +659,3 @@ impl<P: MontgomeryParameters> MontgomeryGroupAffine<P> {
         }
     }
 }
-

@@ -10,6 +10,7 @@ use crate::{
         BitIterator, Field, FpParameters,
     },
 };
+use num_traits::{One, Zero};
 
 pub mod g1;
 pub mod g2;

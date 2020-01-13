@@ -8,6 +8,7 @@ use crate::{
     },
 };
 use crate::UniformRand;
+use num_traits::{One, Zero};
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 use std::{

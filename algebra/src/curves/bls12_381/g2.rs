@@ -12,9 +12,9 @@ use crate::{
     },
     fields::{
         bls12_381::{Fq, Fq12, Fq2, Fr},
-        Field,
     },
 };
+use num_traits::Zero;
 
 pub type G2Affine = Bls12G2Affine<Bls12_381Parameters>;
 pub type G2Projective = Bls12G2Projective<Bls12_381Parameters>;

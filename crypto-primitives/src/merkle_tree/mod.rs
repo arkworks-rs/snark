@@ -372,6 +372,7 @@ mod test {
         merkle_tree::*,
     };
     use algebra::curves::jubjub::JubJubAffine as JubJub;
+    use num_traits::Zero;
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
 
@@ -419,7 +420,6 @@ mod test {
     }
 
     fn bad_merkle_tree_verify<L: ToBytes + Clone + Eq>(leaves: &[L]) -> () {
-        use algebra::groups::Group;
         let mut rng = XorShiftRng::seed_from_u64(13423423u64);
 
         let crh_parameters = Rc::new(H::setup(&mut rng).unwrap());

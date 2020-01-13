@@ -34,7 +34,6 @@ impl<'a, F: 'a + Field> From<&'a DensePolynomial<F>> for DenseOrSparsePolynomial
     }
 }
 
-
 impl<F: Field> From<SparsePolynomial<F>> for DenseOrSparsePolynomial<'_, F> {
     fn from(other: SparsePolynomial<F>) -> Self {
         SPolynomial(Cow::Owned(other))
@@ -46,7 +45,6 @@ impl<'a, F: Field> From<&'a SparsePolynomial<F>> for DenseOrSparsePolynomial<'a,
         SPolynomial(Cow::Borrowed(other))
     }
 }
-
 
 impl<F: Field> Into<DensePolynomial<F>> for DenseOrSparsePolynomial<'_, F> {
     fn into(self) -> DensePolynomial<F> {

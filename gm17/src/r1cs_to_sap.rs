@@ -2,6 +2,7 @@ use ff_fft::EvaluationDomain;
 use algebra::{Field, PairingEngine};
 
 use crate::{generator::KeypairAssembly, prover::ProvingAssignment};
+use num_traits::{One, Zero};
 use r1cs_core::{Index, SynthesisError};
 
 use rayon::prelude::*;
@@ -227,7 +228,7 @@ impl R1CStoSAP {
             tmp.double_in_place();
 
             let assignment = full_input_assignment[extra_var_offset2 + i];
-            c[extra_constr_offset + 2 * i - 1] = tmp + &assignment;
+            c[extra_constr_offset + 2 * i - 1] = tmp + assignment;
             c[extra_constr_offset + 2 * i] = assignment;
         }
 

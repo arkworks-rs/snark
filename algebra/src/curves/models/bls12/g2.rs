@@ -8,6 +8,7 @@ use crate::{
     },
     fields::{BitIterator, Field, Fp2},
 };
+use num_traits::{One, Zero};
 use std::io::{Result as IoResult, Write};
 
 pub type G2Affine<P> = GroupAffine<<P as Bls12Parameters>::G2Parameters>;

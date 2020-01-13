@@ -6,6 +6,7 @@ use crate::{
         AffineCurve,
     },
 };
+use num_traits::Zero;
 use std::io::{Result as IoResult, Write};
 
 pub type G1Affine<P> = GroupAffine<<P as Bls12Parameters>::G1Parameters>;

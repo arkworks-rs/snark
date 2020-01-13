@@ -4,6 +4,7 @@ use algebra::{
 };
 use ff_fft::EvaluationDomain;
 
+use num_traits::{One, Zero};
 use r1cs_core::{
     ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable,
 };

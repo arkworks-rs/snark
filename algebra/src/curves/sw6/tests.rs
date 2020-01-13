@@ -6,6 +6,7 @@ use crate::{
     },
     groups::tests::group_test,
 };
+use num_traits::One;
 
 #[test]
 fn test_g1_projective_curve() {

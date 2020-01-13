@@ -10,6 +10,7 @@ use crate::{
         BitIterator, Field, Fp2, PrimeField, SquareRootField,
     },
 };
+use num_traits::One;
 
 use std::marker::PhantomData;
 

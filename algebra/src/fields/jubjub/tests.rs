@@ -9,6 +9,7 @@ use crate::{
         PrimeField, SquareRootField,
     },
 };
+use num_traits::{One, Zero};
 use std::str::FromStr;
 
 #[test]

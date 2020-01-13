@@ -27,6 +27,7 @@ ff-fft = { path = "../ff-fft" }
 r1cs-core = { path = "../r1cs-core" }
 bench-utils = { path = "../bench-utils" }
 
+num-traits = { version = "0.2.11" }
 rand = { version = "0.7" }
 rayon = { version = "1" }
 smallvec = { version = "0.6" }

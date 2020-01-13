@@ -1,4 +1,5 @@
 use crate::UniformRand;
+use num_traits::{One, Zero};
 use rand::{
     distributions::{Distribution, Standard},
     Rng,
@@ -144,7 +145,7 @@ impl<P: Fp6Parameters> Fp6<P> {
     }
 }
 
-impl<P: Fp6Parameters> Field for Fp6<P> {
+impl<P: Fp6Parameters> Zero for Fp6<P> {
     fn zero() -> Self {
         Self::new(Fp2::zero(), Fp2::zero(), Fp2::zero())
     }
@@ -152,7 +153,9 @@ impl<P: Fp6Parameters> Field for Fp6<P> {
     fn is_zero(&self) -> bool {
         self.c0.is_zero() && self.c1.is_zero() && self.c2.is_zero()
     }
+}
 
+impl<P: Fp6Parameters> One for Fp6<P> {
     fn one() -> Self {
         Self::new(Fp2::one(), Fp2::zero(), Fp2::zero())
     }
@@ -160,7 +163,9 @@ impl<P: Fp6Parameters> Field for Fp6<P> {
     fn is_one(&self) -> bool {
         self.c0.is_one() && self.c1.is_zero() && self.c2.is_zero()
     }
+}
 
+impl<P: Fp6Parameters> Field for Fp6<P> {
     #[inline]
     fn characteristic<'a>() -> &'a [u64] {
         Fp2::<P::Fp2Params>::characteristic()

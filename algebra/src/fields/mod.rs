@@ -3,6 +3,7 @@ use crate::{
     bytes::{FromBytes, ToBytes},
     UniformRand,
 };
+use num_traits::{One, Zero};
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
@@ -64,9 +65,11 @@ pub trait Field:
     + Sync
     + 'static
     + Eq
+    + One
     + Ord
     + Neg<Output = Self>
     + UniformRand
+    + Zero
     + Sized
     + Hash
     + From<u128>
@@ -75,26 +78,16 @@ pub trait Field:
     + From<u16>
     + From<u8>
     + for<'a> Add<&'a Self, Output = Self>
+    + Add<Self, Output = Self>
     + for<'a> Sub<&'a Self, Output = Self>
     + for<'a> Mul<&'a Self, Output = Self>
+    + Mul<Self, Output = Self>
     + for<'a> Div<&'a Self, Output = Self>
     + for<'a> AddAssign<&'a Self>
     + for<'a> SubAssign<&'a Self>
     + for<'a> MulAssign<&'a Self>
     + for<'a> DivAssign<&'a Self>
 {
-    /// Returns the zero element of the field, the additive identity.
-    fn zero() -> Self;
-
-    /// Returns true if and only if `self == Self::zero()`.
-    fn is_zero(&self) -> bool;
-
-    /// Returns the one element of the field, a field generator.
-    fn one() -> Self;
-
-    /// Returns true if and only if `self == Self::one()`.
-    fn is_one(&self) -> bool;
-
     /// Returns the characteristic of the field.
     fn characteristic<'a>() -> &'a [u64];
 

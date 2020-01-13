@@ -1,5 +1,6 @@
 use crate::BitIterator;
 use crate::UniformRand;
+use num_traits::Zero;
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
@@ -29,18 +30,13 @@ pub trait Group:
     + Hash
     + Neg<Output = Self>
     + UniformRand
-    + for<'a> Add<&'a Self, Output = Self>
+    + Zero
+    + Add<Self, Output = Self>
     + for<'a> Sub<&'a Self, Output = Self>
     + for<'a> AddAssign<&'a Self>
     + for<'a> SubAssign<&'a Self>
 {
     type ScalarField: PrimeField + Into<<Self::ScalarField as PrimeField>::BigInt>;
-
-    /// Returns the additive identity.
-    fn zero() -> Self;
-
-    /// Returns `self == zero`.
-    fn is_zero(&self) -> bool;
 
     /// Returns `self + self`.
     #[must_use]

@@ -82,9 +82,9 @@ mod sw6 {
         create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
     };
 
+    use algebra::{curves::sw6::SW6, fields::sw6::Fr as SW6Fr, UniformRand};
+    use num_traits::Zero;
     use rand::thread_rng;
-
-    use algebra::{curves::sw6::SW6, fields::sw6::Fr as SW6Fr, Field, UniformRand};
 
     #[test]
     fn prove_and_verify() {

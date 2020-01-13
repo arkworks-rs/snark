@@ -1,5 +1,7 @@
-use algebra::Field;
+use algebra::fields::Field;
+use num_traits::Zero;
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
+
 struct MySillyCircuit<F: Field> {
     a: Option<F>,
     b: Option<F>,
@@ -79,7 +81,7 @@ mod sw6 {
 
     use rand::thread_rng;
 
-    use algebra::{UniformRand, curves::sw6::SW6, fields::sw6::Fr as SW6Fr, Field};
+    use algebra::{UniformRand, curves::sw6::SW6, fields::sw6::Fr as SW6Fr};
 
     #[test]
     fn prove_and_verify() {

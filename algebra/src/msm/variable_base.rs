@@ -1,8 +1,8 @@
 use crate::{
-    AffineCurve, BigInteger, Field, FpParameters, PrimeField,
+    AffineCurve, BigInteger, FpParameters, PrimeField,
     ProjectiveCurve,
 };
-#[cfg(feature = "parallel")]
+use num_traits::{One, Zero};
 use rayon::prelude::*;
 
 pub struct VariableBaseMSM;
@@ -84,7 +84,7 @@ impl VariableBaseMSM {
                 total.double_in_place();
             }
             total
-        }) + lowest
+        }) + *lowest
     }
 
     pub fn multi_scalar_mul<G: AffineCurve>(
@@ -134,7 +134,6 @@ mod test {
 
         assert_eq!(naive.into_affine(), fast.into_affine());
     }
-
 
     #[test]
     fn test_with_bls12_unequal_numbers() {

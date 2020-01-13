@@ -3,6 +3,7 @@ use crate::{
     bytes::{FromBytes, ToBytes},
     fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
 };
+use num_traits::{One, Zero};
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
     fmt::{Display, Formatter, Result as FmtResult},
@@ -315,7 +316,7 @@ impl<P: Fp832Parameters> Fp832<P> {
     }
 }
 
-impl<P: Fp832Parameters> Field for Fp832<P> {
+impl<P: Fp832Parameters> Zero for Fp832<P> {
     #[inline]
     fn zero() -> Self {
         Fp832::<P>(BigInteger::from(0), PhantomData)
@@ -325,7 +326,21 @@ impl<P: Fp832Parameters> Field for Fp832<P> {
     fn is_zero(&self) -> bool {
         self.0.is_zero()
     }
+}
 
+impl<P: Fp832Parameters> One for Fp832<P> {
+    #[inline]
+    fn one() -> Self {
+        Fp832::<P>(P::R, PhantomData)
+    }
+
+    #[inline]
+    fn is_one(&self) -> bool {
+        self.0 == P::R
+    }
+}
+
+impl<P: Fp832Parameters> Field for Fp832<P> {
     #[inline]
     fn double(&self) -> Self {
         let mut temp = *self;
@@ -340,16 +355,6 @@ impl<P: Fp832Parameters> Field for Fp832<P> {
         // However, it may need to be reduced.
         self.reduce();
         self
-    }
-
-    #[inline]
-    fn one() -> Self {
-        Fp832::<P>(P::R, PhantomData)
-    }
-
-    #[inline]
-    fn is_one(&self) -> bool {
-        self.0 == P::R
     }
 
     #[inline]

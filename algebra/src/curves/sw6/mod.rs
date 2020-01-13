@@ -10,6 +10,7 @@ use crate::{
         BitIterator, Field, FpParameters,
     },
 };
+use num_traits::One;
 
 pub mod g1;
 pub use self::g1::{G1Affine, G1Projective};
