@@ -14,6 +14,7 @@ use crate::{
     },
     groups::tests::group_test,
 };
+use num_traits::{One, Zero};
 use std::ops::{AddAssign, MulAssign};
 
 #[test]

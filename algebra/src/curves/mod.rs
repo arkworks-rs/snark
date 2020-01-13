@@ -4,6 +4,7 @@ use crate::{
     groups::Group,
 };
 use crate::UniformRand;
+use num_traits::Zero;
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
@@ -126,9 +127,11 @@ pub trait ProjectiveCurve:
     + Debug
     + Display
     + UniformRand
+    + Zero
     + 'static
     + Neg<Output = Self>
     + for<'a> Add<&'a Self, Output = Self>
+    + Add<Self, Output = Self>
     + for<'a> Sub<&'a Self, Output = Self>
     + for<'a> AddAssign<&'a Self>
     + for<'a> SubAssign<&'a Self>
@@ -137,17 +140,9 @@ pub trait ProjectiveCurve:
     type BaseField: Field;
     type Affine: AffineCurve<Projective = Self, ScalarField = Self::ScalarField>;
 
-    /// Returns the additive identity.
-    #[must_use]
-    fn zero() -> Self;
-
     /// Returns a fixed generator of unknown exponent.
     #[must_use]
     fn prime_subgroup_generator() -> Self;
-
-    /// Determines if this point is the point at infinity.
-    #[must_use]
-    fn is_zero(&self) -> bool;
 
     /// Normalizes a slice of projective elements so that
     /// conversion to affine is cheap.
@@ -205,6 +200,7 @@ pub trait AffineCurve:
     + Hash
     + Debug
     + Display
+    + Zero
     + Neg<Output = Self>
     + 'static
 {
@@ -212,18 +208,9 @@ pub trait AffineCurve:
     type BaseField: Field;
     type Projective: ProjectiveCurve<Affine = Self, ScalarField = Self::ScalarField>;
 
-    /// Returns the additive identity.
-    #[must_use]
-    fn zero() -> Self;
-
     /// Returns a fixed generator of unknown exponent.
     #[must_use]
     fn prime_subgroup_generator() -> Self;
-
-    /// Determines if this point represents the point at infinity; the
-    /// additive identity.
-    #[must_use]
-    fn is_zero(&self) -> bool;
 
     /// Performs scalar multiplication of this element with mixed addition.
     #[must_use]
@@ -261,15 +248,6 @@ pub trait PairingCurve: AffineCurve {
 
 impl<C: ProjectiveCurve> Group for C {
     type ScalarField = C::ScalarField;
-    #[must_use]
-    fn zero() -> Self {
-        <C as ProjectiveCurve>::zero()
-    }
-
-    #[must_use]
-    fn is_zero(&self) -> bool {
-        <C as ProjectiveCurve>::is_zero(&self)
-    }
 
     #[inline]
     #[must_use]

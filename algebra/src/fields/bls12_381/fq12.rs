@@ -210,9 +210,9 @@ mod test {
     use super::*;
     use crate::fields::{
         bls12_381::{fq2::Fq2, fq6::Fq6},
-        Field,
     };
     use crate::UniformRand;
+    use num_traits::{One, Zero};
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 

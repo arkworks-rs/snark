@@ -1,6 +1,6 @@
 use super::Group;
-use crate::fields::Field;
 use crate::UniformRand;
+use num_traits::{One, Zero};
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 

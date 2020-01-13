@@ -2,7 +2,7 @@ use rand::Rng;
 use rayon::prelude::*;
 
 use algebra::{
-    UniformRand, msm::VariableBaseMSM, AffineCurve, Field, PairingEngine, PrimeField, ProjectiveCurve,
+    UniformRand, msm::VariableBaseMSM, AffineCurve, PairingEngine, PrimeField, ProjectiveCurve,
 };
 
 use crate::{Parameters, Proof};
@@ -10,6 +10,7 @@ use crate::r1cs_to_sap::R1CStoSAP;
 
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable};
 
+use num_traits::{One, Zero};
 use smallvec::SmallVec;
 
 use std::{

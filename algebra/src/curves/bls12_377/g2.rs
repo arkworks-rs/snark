@@ -5,9 +5,9 @@ use crate::{
     curves::models::{ModelParameters, SWModelParameters},
     fields::{
         bls12_377::{Fq, Fq2, Fr},
-        Field,
     },
 };
+use num_traits::Zero;
 
 #[derive(Copy, Clone, Default, PartialEq, Eq)]
 pub struct Bls12_377G2Parameters;

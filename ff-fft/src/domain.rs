@@ -42,7 +42,6 @@ impl<F: PrimeField> fmt::Debug for EvaluationDomain<F> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Multiplicative subgroup of size {}", self.size)
     }
-
 }
 
 impl<F: PrimeField> EvaluationDomain<F> {
@@ -58,7 +57,6 @@ impl<F: PrimeField> EvaluationDomain<F> {
         }
         t
     }
-
 
     /// Construct a domain that is large enough for evaluations of a polynomial
     /// having `num_coeffs` coefficients.
@@ -442,6 +440,7 @@ mod tests {
     use algebra::Field;
     use algebra::fields::bls12_381::fr::Fr;
     use rand::{Rng, thread_rng};
+    use num_traits::Zero;
 
     #[test]
     fn vanishing_polynomial_evaluation() {

@@ -181,7 +181,6 @@ impl<'a, 'b, F: Field> AddAssign<&'a DensePolynomial<F>> for DensePolynomial<F> 
             self.coeffs.truncate(0);
             self.coeffs.extend_from_slice(&other.coeffs);
         } else if other.is_zero() {
-
         } else if self.degree() >= other.degree() {
             for (a, b) in self.coeffs.iter_mut().zip(&other.coeffs) {
                 *a += b
@@ -298,7 +297,6 @@ impl<'a, 'b, F: Field> SubAssign<&'a DensePolynomial<F>> for DensePolynomial<F> 
                 self.coeffs[i] -= coeff;
             }
         } else if other.is_zero() {
-
         } else if self.degree() >= other.degree() {
             for (a, b) in self.coeffs.iter_mut().zip(&other.coeffs) {
                 *a -= b
@@ -351,6 +349,7 @@ mod tests {
     use crate::polynomial::*;
     use algebra::fields::{bls12_381::fr::Fr, Field};
     use algebra::UniformRand; 
+    use num_traits::{One, Zero};
     use rand::thread_rng;
 
     #[test]

@@ -344,7 +344,8 @@ impl<ConstraintF: Field> ConditionalEqGadget<ConstraintF> for UInt32 {
 mod test {
     use super::UInt32;
     use crate::{bits::boolean::Boolean, test_constraint_system::TestConstraintSystem};
-    use algebra::fields::{bls12_381::Fr, Field};
+    use algebra::fields::bls12_381::Fr;
+    use num_traits::{One, Zero};
     use r1cs_core::ConstraintSystem;
     use rand::{Rng, SeedableRng};
     use rand_xorshift::XorShiftRng;
@@ -500,9 +501,9 @@ mod test {
 
             // Flip a bit_gadget and see if the addition constraint still works
             if cs.get("addition/result bit_gadget 0/boolean").is_zero() {
-                cs.set("addition/result bit_gadget 0/boolean", Field::one());
+                cs.set("addition/result bit_gadget 0/boolean", Fr::one());
             } else {
-                cs.set("addition/result bit_gadget 0/boolean", Field::zero());
+                cs.set("addition/result bit_gadget 0/boolean", Fr::zero());
             }
 
             assert!(!cs.is_satisfied());

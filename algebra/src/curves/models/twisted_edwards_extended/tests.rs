@@ -1,4 +1,5 @@
 use crate::{fields::Field, TEModelParameters, MontgomeryModelParameters};
+use num_traits::One;
 
 pub(crate) fn montgomery_conversion_test<P>()
     where

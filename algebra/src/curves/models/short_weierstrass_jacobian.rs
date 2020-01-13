@@ -1,6 +1,7 @@
 use crate::curves::models::SWModelParameters as Parameters;
 use rand::{Rng, distributions::{Standard, Distribution}};
 use crate::UniformRand;
+use num_traits::{One, Zero};
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
     io::{Read, Result as IoResult, Write},
@@ -102,15 +103,42 @@ impl<P: Parameters> GroupAffine<P> {
     }
 }
 
+impl<P: Parameters> Zero for GroupAffine<P> {
+    #[inline]
+    fn zero() -> Self {
+        Self::new(P::BaseField::zero(), P::BaseField::one(), true)
+    }
+
+    #[inline]
+    fn is_zero(&self) -> bool {
+        self.infinity
+    }
+}
+
+impl<P: Parameters> Add<Self> for GroupAffine<P> {
+    type Output = Self;
+    fn add(self, other: Self) -> Self {
+        let mut copy = self;
+        copy += &other;
+        copy
+    }
+}
+
+impl<'a, P: Parameters> AddAssign<&'a Self> for GroupAffine<P> {
+    fn add_assign(&mut self, other: &'a Self) {
+        let lambda = (other.y - &self.y) / &(other.x - &self.y);
+        let x3 = lambda * lambda - &self.x - &other.x;
+        let y3 = (self.x - &x3) * lambda - &self.y;
+
+        self.x = x3;
+        self.y = y3;
+    }
+}
+
 impl<P: Parameters> AffineCurve for GroupAffine<P> {
     type BaseField = P::BaseField;
     type ScalarField = P::ScalarField;
     type Projective = GroupProjective<P>;
-
-    #[inline]
-    fn zero() -> Self {
-        Self::new(Self::BaseField::zero(), Self::BaseField::one(), true)
-    }
 
     #[inline]
     fn prime_subgroup_generator() -> Self {
@@ -119,11 +147,6 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
             P::AFFINE_GENERATOR_COEFFS.1,
             false,
         )
-    }
-
-    #[inline]
-    fn is_zero(&self) -> bool {
-        self.infinity
     }
 
     #[inline]
@@ -238,8 +261,6 @@ impl<P: Parameters> Distribution<GroupProjective<P>> for Standard {
     }
 }
 
-
-
 impl<P: Parameters> ToBytes for GroupProjective<P> {
     #[inline]
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
@@ -277,11 +298,7 @@ impl<P: Parameters> GroupProjective<P> {
     }
 }
 
-impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
-    type BaseField = P::BaseField;
-    type ScalarField = P::ScalarField;
-    type Affine = GroupAffine<P>;
-
+impl<P: Parameters> Zero for GroupProjective<P> {
     // The point at infinity is always represented by
     // Z = 0.
     #[inline]
@@ -293,16 +310,22 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
         )
     }
 
-    #[inline]
-    fn prime_subgroup_generator() -> Self {
-        GroupAffine::prime_subgroup_generator().into()
-    }
-
     // The point at infinity is always represented by
     // Z = 0.
     #[inline]
     fn is_zero(&self) -> bool {
         self.z.is_zero()
+    }
+}
+
+impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
+    type BaseField = P::BaseField;
+    type ScalarField = P::ScalarField;
+    type Affine = GroupAffine<P>;
+
+    #[inline]
+    fn prime_subgroup_generator() -> Self {
+        GroupAffine::prime_subgroup_generator().into()
     }
 
     #[inline]
@@ -557,13 +580,13 @@ impl<P: Parameters> Neg for GroupProjective<P> {
     }
 }
 
-impl<'a, P: Parameters> Add<&'a Self> for GroupProjective<P> {
+impl<P: Parameters> Add<Self> for GroupProjective<P> {
     type Output = Self;
 
     #[inline]
-    fn add(self, other: &'a Self) -> Self {
+    fn add(self, other: Self) -> Self {
         let mut copy = self;
-        copy += other;
+        copy += &other;
         copy
     }
 }

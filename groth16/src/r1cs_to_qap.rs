@@ -1,7 +1,8 @@
-use algebra::{Field, PairingEngine};
+use algebra::PairingEngine;
 use ff_fft::EvaluationDomain;
 
 use crate::{generator::KeypairAssembly, prover::ProvingAssignment};
+use num_traits::{One, Zero};
 use r1cs_core::{Index, SynthesisError};
 
 use rayon::prelude::*;

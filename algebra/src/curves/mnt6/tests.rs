@@ -7,6 +7,7 @@ use crate::{
     fields::mnt6::fr::Fr,
     groups::tests::group_test,
 };
+use num_traits::One;
 use rand;
 
 #[test]

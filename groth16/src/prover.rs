@@ -2,11 +2,12 @@ use rand::Rng;
 use rayon::prelude::*;
 
 use algebra::{
-    groups::Group, msm::VariableBaseMSM, AffineCurve, Field, PairingEngine, PrimeField,
+    groups::Group, msm::VariableBaseMSM, AffineCurve, PairingEngine, PrimeField,
     ProjectiveCurve, UniformRand,
 };
 
 use crate::{r1cs_to_qap::R1CStoQAP, Parameters, Proof};
+use num_traits::{One, Zero};
 
 use r1cs_core::{
     ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable,
