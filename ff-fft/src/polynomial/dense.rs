@@ -102,7 +102,7 @@ impl<F: Field> DensePolynomial<F> {
             .reduce(|| zero, |a, b| a + &b)
     }
 
-    /// Perform a naive n^2 multiplicatoin of `self` by `other`.
+    /// Perform a naive n^2 multiplication of `self` by `other`.
     pub fn naive_mul(&self, other: &Self) -> Self {
         if self.is_zero() || other.is_zero() {
             DensePolynomial::zero()
@@ -130,7 +130,7 @@ impl<F: Field> DensePolynomial<F> {
 
 impl<F: PrimeField> DensePolynomial<F> {
     /// Multiply `self` by the vanishing polynomial for the domain `domain`.
-    /// Returns the quotient and remainder of the division.
+    /// Returns the result of the multiplication.
     pub fn mul_by_vanishing_poly(&self, domain: EvaluationDomain<F>) -> DensePolynomial<F> {
         let mut shifted = vec![F::zero(); domain.size()];
         shifted.extend_from_slice(&self.coeffs);
