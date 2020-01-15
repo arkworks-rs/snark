@@ -32,6 +32,7 @@ pub trait Group:
     + UniformRand
     + Zero
     + Add<Self, Output = Self>
+    + for<'a> Add<&'a Self, Output = Self>
     + for<'a> Sub<&'a Self, Output = Self>
     + for<'a> AddAssign<&'a Self>
     + for<'a> SubAssign<&'a Self>

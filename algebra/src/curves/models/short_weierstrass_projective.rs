@@ -130,8 +130,8 @@ impl<P: Parameters> Add<Self> for GroupAffine<P> {
 impl<'a, P: Parameters> AddAssign<&'a Self> for GroupAffine<P> {
     fn add_assign(&mut self, other: &'a Self) {
         let lambda = (other.y - &self.y) / &(other.x - &self.y);
-        let x3 = lambda * lambda - &self.x - &other.x;
-        let y3 = (self.x - &x3) * lambda - &self.y;
+        let x3 = lambda * &lambda - &self.x - &other.x;
+        let y3 = (self.x - &x3) * &lambda - &self.y;
 
         self.x = x3;
         self.y = y3;
