@@ -527,6 +527,15 @@ impl<P: Parameters> Add<Self> for GroupProjective<P> {
     }
 }
 
+impl<'a, P: Parameters> Add<&'a Self> for GroupProjective<P> {
+    type Output = Self;
+    fn add(self, other: &'a Self) -> Self {
+        let mut copy = self;
+        copy += other;
+        copy
+    }
+}
+
 impl<'a, P: Parameters> AddAssign<&'a Self> for GroupProjective<P> {
     fn add_assign(&mut self, other: &'a Self) {
         // See "Twisted Edwards Curves Revisited"

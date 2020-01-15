@@ -241,7 +241,9 @@ impl<P: Parameters> PartialEq for GroupProjective<P> {
         // x1/z1 == x2/z2  <==> x1 * z2 == x2 * z1
         if (self.x * &other.z) != (other.x * &self.z) {
             false
-        } else { (self.y * &other.z) == (other.y * &self.z) }
+        } else {
+            (self.y * &other.z) == (other.y * &self.z)
+        }
     }
 }
 
@@ -493,6 +495,15 @@ impl<P: Parameters> Add<Self> for GroupProjective<P> {
     fn add(self, other: Self) -> Self {
         let mut copy = self;
         copy += &other;
+        copy
+    }
+}
+
+impl<'a, P: Parameters> Add<&'a Self> for GroupProjective<P> {
+    type Output = Self;
+    fn add(self, other: &'a Self) -> Self {
+        let mut copy = self;
+        copy += other;
         copy
     }
 }
