@@ -1,4 +1,5 @@
 use crate::{BigInteger, FpParameters, PrimeField, ProjectiveCurve};
+#[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
 pub struct FixedBaseMSM;
@@ -75,6 +76,11 @@ impl FixedBaseMSM {
         let outerc = (scalar_size + window - 1) / window;
         assert!(outerc <= table.len());
 
-        v.par_iter().map(|e| Self::windowed_mul::<T>(outerc, window, table, e)).collect::<Vec<_>>()
+        #[cfg(feature = "parallel")]
+        let v_iter = v.par_iter();
+        #[cfg(not(feature = "parallel"))]
+        let v_iter = v.iter();
+
+        v_iter.map(|e| Self::windowed_mul::<T>(outerc, window, table, e)).collect::<Vec<_>>()
     }
 }
