@@ -210,7 +210,7 @@ impl<F: PrimeField> EvaluationDomain<F> {
 
             batch_inversion(u.as_mut_slice());
             u.par_iter_mut().zip(ls).for_each(|(tau_minus_r, l)| {
-                *tau_minus_r = l * tau_minus_r;
+                *tau_minus_r = l * *tau_minus_r;
             });
             u
         }
@@ -223,7 +223,8 @@ impl<F: PrimeField> EvaluationDomain<F> {
     }
 
     /// This evaluates the vanishing polynomial for this domain at tau.
-    /// For multiplicative subgroups, this polynomial is `z(X) = X^self.size - 1`.
+    /// For multiplicative subgroups, this polynomial is `z(X) = X^self.size -
+    /// 1`.
     pub fn evaluate_vanishing_polynomial(&self, tau: F) -> F {
         tau.pow(&[self.size]) - &F::one()
     }
