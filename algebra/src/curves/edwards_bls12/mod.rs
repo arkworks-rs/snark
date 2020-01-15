@@ -15,7 +15,7 @@ mod tests;
 pub type EdwardsAffine = GroupAffine<EdwardsParameters>;
 pub type EdwardsProjective = GroupProjective<EdwardsParameters>;
 
-#[derive(Copy, Clone, Default, PartialEq, Eq)]
+#[derive(Clone, Default, PartialEq, Eq)]
 pub struct EdwardsParameters;
 
 impl ModelParameters for EdwardsParameters {

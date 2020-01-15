@@ -28,7 +28,7 @@ impl PairingCurve for G1Affine {
     }
 }
 
-#[derive(Copy, Clone, Default, PartialEq, Eq)]
+#[derive(Clone, Default, PartialEq, Eq)]
 pub struct SW6G1Parameters;
 
 impl ModelParameters for SW6G1Parameters {
