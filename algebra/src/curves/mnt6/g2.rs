@@ -32,7 +32,7 @@ impl PairingCurve for G2Affine {
     }
 }
 
-#[derive(Copy, Clone, Default, PartialEq, Eq)]
+#[derive(Clone, Default, PartialEq, Eq)]
 pub struct MNT6G2Parameters;
 
 impl ModelParameters for MNT6G2Parameters {
@@ -211,7 +211,7 @@ pub(super) struct G2ProjectiveExtended {
     pub(crate) t: Fq3,
 }
 
-#[derive(Eq, PartialEq, Copy, Clone, Debug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct AteDoubleCoefficients {
     pub(crate) c_h:  Fq3,
     pub(crate) c_4c: Fq3,
@@ -219,7 +219,7 @@ pub struct AteDoubleCoefficients {
     pub(crate) c_l:  Fq3,
 }
 
-#[derive(Eq, PartialEq, Copy, Clone, Debug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct AteAdditionCoefficients {
     pub(crate) c_l1: Fq3,
     pub(crate) c_rz: Fq3,

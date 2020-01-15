@@ -51,7 +51,7 @@ const GENERATOR_Y: Fq = field_new!(Fq, BigInteger256([
 /// ```
 /// These parameters and the sage script obtained from:
 /// <https://github.com/zcash/zcash/issues/2230#issuecomment-317182190>
-#[derive(Copy, Clone, Default, PartialEq, Eq)]
+#[derive(Clone, Default, PartialEq, Eq)]
 pub struct JubJubParameters;
 
 impl ModelParameters for JubJubParameters {

@@ -8,7 +8,7 @@ use crate::{
 };
 use num_traits::Zero;
 
-#[derive(Copy, Clone, Default, PartialEq, Eq)]
+#[derive(Clone, Default, PartialEq, Eq)]
 pub struct Bls12_377G1Parameters;
 
 impl ModelParameters for Bls12_377G1Parameters {

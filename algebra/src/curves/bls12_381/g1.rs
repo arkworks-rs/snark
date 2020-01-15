@@ -31,7 +31,7 @@ impl PairingCurve for G1Affine {
     }
 }
 
-#[derive(Copy, Clone, Default, PartialEq, Eq)]
+#[derive(Clone, Default, PartialEq, Eq)]
 pub struct Bls12_381G1Parameters;
 
 impl ModelParameters for Bls12_381G1Parameters {

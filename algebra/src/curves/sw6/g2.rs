@@ -28,7 +28,7 @@ impl PairingCurve for G2Affine {
     }
 }
 
-#[derive(Copy, Clone, Default, PartialEq, Eq)]
+#[derive( Clone, Default, PartialEq, Eq)]
 pub struct SW6G2Parameters;
 
 impl ModelParameters for SW6G2Parameters {

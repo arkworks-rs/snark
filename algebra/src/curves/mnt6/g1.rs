@@ -30,7 +30,7 @@ impl PairingCurve for G1Affine {
     }
 }
 
-#[derive(Copy, Clone, Default, PartialEq, Eq)]
+#[derive(Clone, Default, PartialEq, Eq)]
 pub struct MNT6G1Parameters;
 
 impl ModelParameters for MNT6G1Parameters {
@@ -98,7 +98,7 @@ pub const G1_GENERATOR_Y: Fq = field_new!(Fq, BigInteger320([
     0x3140fbc3593,
 ]));
 
-#[derive(Eq, PartialEq, Copy, Clone, Debug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct G1Prepared {
     pub x:       Fq,
     pub y:       Fq,
