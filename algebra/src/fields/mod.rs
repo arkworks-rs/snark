@@ -77,11 +77,11 @@ pub trait Field:
     + From<u32>
     + From<u16>
     + From<u8>
-    + for<'a> Add<&'a Self, Output = Self>
     + Add<Self, Output = Self>
+    + for<'a> Add<&'a Self, Output = Self>
     + for<'a> Sub<&'a Self, Output = Self>
-    + for<'a> Mul<&'a Self, Output = Self>
     + Mul<Self, Output = Self>
+    + for<'a> Mul<&'a Self, Output = Self>
     + for<'a> Div<&'a Self, Output = Self>
     + for<'a> AddAssign<&'a Self>
     + for<'a> SubAssign<&'a Self>
@@ -339,7 +339,7 @@ pub fn batch_inversion<F: Field>(v: &mut [F]) {
         .zip(prod.into_iter().rev().skip(1).chain(Some(F::one())))
     {
         // tmp := tmp * g.z; g.z := tmp * s = 1/z
-        let newtmp = tmp * &f;
+        let newtmp = tmp * *f;
         *f = tmp * &s;
         tmp = newtmp;
     }

@@ -85,13 +85,13 @@ fn test_scalar_multiplication() {
     assert!(!g.is_zero());
     assert!(!f1f2g.is_zero());
 
-    let f1g = g * &f1;
+    let f1g = g * f1;
     println!("f1: {:?}", f1);
     println!("f2: {:?}", f2);
     println!("g: {:?}", g);
     println!("f1f2g: {:?}", f1f2g);
-    assert_eq!(g * &(f1 * &f2), f1f2g);
-    assert_eq!(f1g * &f2, f1f2g);
+    assert_eq!(g * (f1 * &f2), f1f2g);
+    assert_eq!(f1g * f2, f1f2g);
 }
 
 #[test]
