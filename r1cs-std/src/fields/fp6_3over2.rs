@@ -790,9 +790,9 @@ where
         &self,
         mut cs: CS,
     ) -> Result<Vec<Boolean>, SynthesisError> {
-        let mut c0 = self.c0.to_bits(&mut cs)?;
-        let mut c1 = self.c1.to_bits(&mut cs)?;
-        let mut c2 = self.c2.to_bits(cs)?;
+        let mut c0 = self.c0.to_bits(cs.ns(|| "c0"))?;
+        let mut c1 = self.c1.to_bits(cs.ns(|| "c1"))?;
+        let mut c2 = self.c2.to_bits(cs.ns(|| "c2"))?;
 
         c0.append(&mut c1);
         c0.append(&mut c2);
@@ -804,9 +804,9 @@ where
         &self,
         mut cs: CS,
     ) -> Result<Vec<Boolean>, SynthesisError> {
-        let mut c0 = self.c0.to_bits_strict(&mut cs)?;
-        let mut c1 = self.c1.to_bits_strict(&mut cs)?;
-        let mut c2 = self.c2.to_bits_strict(cs)?;
+        let mut c0 = self.c0.to_bits_strict(cs.ns(|| "c0"))?;
+        let mut c1 = self.c1.to_bits_strict(cs.ns(|| "c1"))?;
+        let mut c2 = self.c2.to_bits_strict(cs.ns(|| "c2"))?;
 
         c0.append(&mut c1);
         c0.append(&mut c2);
