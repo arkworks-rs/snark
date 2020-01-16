@@ -12,6 +12,7 @@ impl FpParameters for FrParameters {
     type BigInt = BigInteger;
 
     // MODULUS = 32333053251621136751331591711861691692049189094364332567435817881934511297123972799646723302813083835942624121493
+    #[rustfmt::skip]
     const MODULUS: BigInteger = BigInteger([
         4684667634276979349u64,
         3748803659444032385u64,
@@ -27,6 +28,7 @@ impl FpParameters for FrParameters {
 
     const REPR_SHAVE_BITS: u32 = 10;
 
+    #[rustfmt::skip]
     const R: BigInteger = BigInteger([
         12565484300600153878u64,
         8749673077137355528u64,
@@ -36,6 +38,7 @@ impl FpParameters for FrParameters {
         9525964145733727u64,
     ]);
 
+    #[rustfmt::skip]
     const R2: BigInteger = BigInteger([
         17257035094703902127u64,
         16096159112880350050u64,
@@ -48,6 +51,7 @@ impl FpParameters for FrParameters {
     const INV: u64 = 16242011933465909059u64;
 
     // 2
+    #[rustfmt::skip]
     const GENERATOR: BigInteger = BigInteger([
         1999556893213776791u64,
         13750542494830678672u64,
@@ -59,6 +63,7 @@ impl FpParameters for FrParameters {
 
     const TWO_ADICITY: u32 = 2u32;
 
+    #[rustfmt::skip]
     const ROOT_OF_UNITY: BigInteger = BigInteger([
         12119792640622387781u64,
         8318439284650634613u64,
@@ -68,6 +73,7 @@ impl FpParameters for FrParameters {
         1893962574900431u64,
     ]);
 
+    #[rustfmt::skip]
     const MODULUS_MINUS_ONE_DIV_TWO: BigInteger = BigInteger([
         11565705853993265482u64,
         1874401829722016192u64,

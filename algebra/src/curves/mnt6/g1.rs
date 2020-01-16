@@ -40,6 +40,7 @@ impl ModelParameters for MNT6G1Parameters {
 
 impl SWModelParameters for MNT6G1Parameters {
     /// COEFF_A =
+    #[rustfmt::skip]
     const COEFF_A: Fq = field_new!(Fq, BigInteger320([
         0xb9b2411bfd0eafef,
         0xc61a10fadd9fecbd,
@@ -49,6 +50,7 @@ impl SWModelParameters for MNT6G1Parameters {
     ]));
 
     /// COEFF_B =
+    #[rustfmt::skip]
     const COEFF_B: Fq = field_new!(Fq, BigInteger320([
         0xa94cb16ed8e733b,
         0xe1ed15e8119bae6,
@@ -62,6 +64,7 @@ impl SWModelParameters for MNT6G1Parameters {
 
     /// COFACTOR^(-1) mod r =
     /// 1
+    #[rustfmt::skip]
     const COFACTOR_INV: Fr = field_new!(Fr, BigInteger320([
         1784298994435064924,
         16852041090100268533,

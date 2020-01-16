@@ -26,6 +26,7 @@ impl ModelParameters for EdwardsParameters {
 impl TEModelParameters for EdwardsParameters {
     /// COEFF_A = -1 =
     /// 258664426012969094010652733694893533536393512754914660539884262666720468348340822774968888139573360124440321458176
+    #[rustfmt::skip]
     const COEFF_A: Fq = field_new!(Fq, BigInteger([
         9384023879812382873,
         14252412606051516495,
@@ -36,6 +37,7 @@ impl TEModelParameters for EdwardsParameters {
     ]));
 
     /// COEFF_D = 79743
+    #[rustfmt::skip]
     const COEFF_D: Fq = field_new!(Fq, BigInteger([
         0x4669ffffff46a638,
         0xa56bbe0a7f9fae05,
@@ -50,6 +52,7 @@ impl TEModelParameters for EdwardsParameters {
 
     /// COFACTOR^(-1) mod r =
     /// 12124894969357926281749346891948134384518445910386624712788431705725441736421489799867521238554906438478484045560
+    #[rustfmt::skip]
     const COFACTOR_INV: Fr = field_new!(Fr, BigInteger([
         7353538464571651976,
         2030910049503177537,
@@ -73,6 +76,7 @@ impl TEModelParameters for EdwardsParameters {
 
 impl MontgomeryModelParameters for EdwardsParameters {
     /// COEFF_A = 0x95D53EB3F6AC3F7A53C26020144439DC6073BCAE513E03FD06B6B3BAA390F25E51534B26719E33F4CD906D4DA9B535
+    #[rustfmt::skip]
     const COEFF_A: Fq = field_new!(Fq, BigInteger([
         7594254284108454966u64,
         14287343397973578077u64,
@@ -82,6 +86,7 @@ impl MontgomeryModelParameters for EdwardsParameters {
         100541941146122331u64,
     ]));
     /// COEFF_B = 0x118650763CE64AB4BE743604C8D05013DC2663652A3D58B21ECAB7BFF65B70DB8BA09F9098E61CC903B2F92B2564ACA
+    #[rustfmt::skip]
     const COEFF_B: Fq = field_new!(Fq, BigInteger([
         11173793475516310780u64,
         14217481814129454913u64,
@@ -129,6 +134,7 @@ impl FromStr for EdwardsAffine {
 
 /// GENERATOR_X =
 /// 174701772324485506941690903512423551998294352968833659960042362742684869862495746426366187462669992073196420267127
+#[rustfmt::skip]
 const GENERATOR_X: Fq = field_new!(Fq, BigInteger([
     3737364149926089590,
     13002967008679663837,
@@ -140,6 +146,7 @@ const GENERATOR_X: Fq = field_new!(Fq, BigInteger([
 
 /// GENERATOR_Y =
 /// 208487200052258845495340374451540775445408439654930191324011635560142523886549663106522691296420655144190624954833
+#[rustfmt::skip]
 const GENERATOR_Y: Fq = field_new!(Fq, BigInteger([
     6027299446526298157,
     12854429557810467099,

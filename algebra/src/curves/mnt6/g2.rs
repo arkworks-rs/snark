@@ -41,7 +41,7 @@ impl ModelParameters for MNT6G2Parameters {
 }
 
 /// MUL_BY_A_C0 = NONRESIDUE * COEFF_A
-#[rustfmt::skip]
+    #[rustfmt::skip]
 pub const MUL_BY_A_C0: Fq = field_new!(Fq, BigInteger320([
     0xa07b458bf1496fab,
     0xde8254e6541f9fb4,
@@ -51,7 +51,7 @@ pub const MUL_BY_A_C0: Fq = field_new!(Fq, BigInteger320([
 ]));
 
 /// MUL_BY_A_C1 = NONRESIDUE * COEFF_A
-#[rustfmt::skip]
+    #[rustfmt::skip]
 pub const MUL_BY_A_C1: Fq = field_new!(Fq, BigInteger320([
     0xa07b458bf1496fab,
     0xde8254e6541f9fb4,
@@ -65,7 +65,8 @@ pub const MUL_BY_A_C2: Fq = MNT6G1Parameters::COEFF_A;
 
 impl SWModelParameters for MNT6G2Parameters {
     const COEFF_A: Fq3 = TWIST_COEFF_A;
-    const COEFF_B: Fq3 = field_new!(Fq3, 
+    #[rustfmt::skip]
+    const COEFF_B: Fq3 = field_new!(Fq3,
         field_new!(Fq, BigInteger320([
             0x79a4c2cea3c84026,
             0x4b50cad0f3233baa,
@@ -79,6 +80,7 @@ impl SWModelParameters for MNT6G2Parameters {
 
     /// COFACTOR =
     /// 226502022472576270196498690498308461791828762732602586162207535351960270082712694977333372361549082214519252261735048131889018501404377856786623430385820659037970876666767495659520
+    #[rustfmt::skip]
     const COFACTOR: &'static [u64] = &[
         15308190245346869248,
         10669098443577192943,
@@ -94,6 +96,7 @@ impl SWModelParameters for MNT6G2Parameters {
 
     /// COFACTOR^(-1) mod r =
     /// 79320381028210220958891541608841408590854146655427655872973753568875979721417185067925504
+    #[rustfmt::skip]
     const COFACTOR_INV: Fr = field_new!(Fr, BigInteger320([
         5837598184463018016,
         7845868194417674836,

@@ -12,6 +12,7 @@ impl FpParameters for FqParameters {
     type BigInt = BigInteger;
 
     // MODULUS = 258664426012969094010652733694893533536393512754914660539884262666720468348340822774968888139573360124440321458177
+    #[rustfmt::skip]
     const MODULUS: BigInteger = BigInteger([
         0x8508c00000000001,
         0x170b5d4430000000,
@@ -27,6 +28,7 @@ impl FpParameters for FqParameters {
 
     const REPR_SHAVE_BITS: u32 = 7;
 
+    #[rustfmt::skip]
     const R: BigInteger = BigInteger([
         202099033278250856u64,
         5854854902718660529u64,
@@ -36,6 +38,7 @@ impl FpParameters for FqParameters {
         39800542322357402u64,
     ]);
 
+    #[rustfmt::skip]
     const R2: BigInteger = BigInteger([
         0xb786686c9400cd22,
         0x329fcaab00431b1,
@@ -48,6 +51,7 @@ impl FpParameters for FqParameters {
     const INV: u64 = 9586122913090633727u64;
 
     // GENERATOR = -5
+    #[rustfmt::skip]
     const GENERATOR: BigInteger = BigInteger([
         0xfc0b8000000002fa,
         0x97d39cf6e000018b,
@@ -59,6 +63,7 @@ impl FpParameters for FqParameters {
 
     const TWO_ADICITY: u32 = 46u32;
 
+    #[rustfmt::skip]
     const ROOT_OF_UNITY: BigInteger = BigInteger([
         2022196864061697551u64,
         17419102863309525423u64,
@@ -68,6 +73,7 @@ impl FpParameters for FqParameters {
         68610905582439508u64,
     ]);
 
+    #[rustfmt::skip]
     const MODULUS_MINUS_ONE_DIV_TWO: BigInteger = BigInteger([
         0x4284600000000000,
         0xb85aea218000000,
@@ -81,6 +87,7 @@ impl FpParameters for FqParameters {
 
     // T = (MODULUS - 1) // 2^S =
     // 3675842578061421676390135839012792950148785745837396071634149488243117337281387659330802195819009059
+    #[rustfmt::skip]
     const T: BigInteger = BigInteger([
         0x7510c00000021423,
         0x88bee82520005c2d,
@@ -92,6 +99,7 @@ impl FpParameters for FqParameters {
 
     // (T - 1) // 2 =
     // 1837921289030710838195067919506396475074392872918698035817074744121558668640693829665401097909504529
+    #[rustfmt::skip]
     const T_MINUS_ONE_DIV_TWO: BigInteger = BigInteger([
         0xba88600000010a11,
         0xc45f741290002e16,

@@ -12,6 +12,7 @@ impl FpParameters for FqParameters {
     type BigInt = BigInteger;
 
     /// MODULUS = 22369874298875696930346742206501054934775599465297184582183496627646774052458024540232479018147881220178054575403841904557897715222633333372134756426301062487682326574958588001132586331462553235407484089304633076250782629492557320825577
+    #[rustfmt::skip]
     const MODULUS: BigInteger = BigInteger([
         0xdace79b57b942ae9,
         0x545d85c16dfd424a,
@@ -34,6 +35,7 @@ impl FpParameters for FqParameters {
 
     const REPR_SHAVE_BITS: u32 = 50;
 
+    #[rustfmt::skip]
     const R: BigInteger = BigInteger([
         11190988450819017841u64,
         16170411717126802030u64,
@@ -50,6 +52,7 @@ impl FpParameters for FqParameters {
         8659u64,
     ]);
 
+    #[rustfmt::skip]
     const R2: BigInteger = BigInteger([
         13983406830510863714u64,
         17863856572171232656u64,
@@ -69,6 +72,7 @@ impl FpParameters for FqParameters {
     const INV: u64 = 14469047335842394791u64;
 
     /// GENERATOR = 13
+    #[rustfmt::skip]
     const GENERATOR: BigInteger = BigInteger([
         16669393626057438558u64,
         1640520694378723217u64,
@@ -87,6 +91,7 @@ impl FpParameters for FqParameters {
 
     const TWO_ADICITY: u32 = 3;
 
+    #[rustfmt::skip]
     const ROOT_OF_UNITY: BigInteger = BigInteger([
         18044746167194862600u64,
         63590321303744709u64,
@@ -103,6 +108,7 @@ impl FpParameters for FqParameters {
         1328u64,
     ]);
 
+    #[rustfmt::skip]
     const MODULUS_MINUS_ONE_DIV_TWO: BigInteger = BigInteger([
         0x6d673cdabdca1574,
         0xaa2ec2e0b6fea125,
@@ -121,6 +127,7 @@ impl FpParameters for FqParameters {
 
     // (T - 1)/2 =
     // 1398117143679731058146671387906315933423474966581074036386468539227923378278626533764529938634242576261128410962740119034868607201414583335758422276643816405480145410934911750070786645716409577212967755581539567265673914343284832551598
+    #[rustfmt::skip]
     const T_MINUS_ONE_DIV_TWO: BigInteger = BigInteger([
         0xadace79b57b942ae,
         0x7545d85c16dfd424,
@@ -139,6 +146,7 @@ impl FpParameters for FqParameters {
 
     // T =
     // 2796234287359462116293342775812631866846949933162148072772937078455846756557253067529059877268485152522256821925480238069737214402829166671516844553287632810960290821869823500141573291432819154425935511163079134531347828686569665103197
+    #[rustfmt::skip]
     const T: BigInteger = BigInteger([
         0x5b59cf36af72855d,
         0xea8bb0b82dbfa849,
