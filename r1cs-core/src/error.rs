@@ -24,36 +24,38 @@ pub enum SynthesisError {
     UnconstrainedVariable,
 }
 
+impl Error for SynthesisError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        None
+    }
+}
+
+
 impl From<io::Error> for SynthesisError {
     fn from(e: io::Error) -> SynthesisError {
         SynthesisError::IoError(e)
     }
 }
 
-impl Error for SynthesisError {
-    fn description(&self) -> &str {
-        match *self {
-            SynthesisError::AssignmentMissing => {
-                "an assignment for a variable could not be computed"
-            },
-            SynthesisError::DivisionByZero => "division by zero",
-            SynthesisError::Unsatisfiable => "unsatisfiable constraint system",
-            SynthesisError::PolynomialDegreeTooLarge => "polynomial degree is too large",
-            SynthesisError::UnexpectedIdentity => "encountered an identity element in the CRS",
-            SynthesisError::IoError(_) => "encountered an I/O error",
-            SynthesisError::MalformedVerifyingKey => "malformed verifying key",
-            SynthesisError::UnconstrainedVariable => "auxiliary variable was unconstrained",
-        }
-    }
-}
-
 impl fmt::Display for SynthesisError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        if let &SynthesisError::IoError(ref e) = self {
+        if let SynthesisError::IoError(e) = self {
             write!(f, "I/O error: ")?;
             e.fmt(f)
         } else {
-            write!(f, "{}", self.description())
+            let description = match self {
+                SynthesisError::AssignmentMissing => {
+                    "an assignment for a variable could not be computed"
+                },
+                SynthesisError::DivisionByZero => "division by zero",
+                SynthesisError::Unsatisfiable => "unsatisfiable constraint system",
+                SynthesisError::PolynomialDegreeTooLarge => "polynomial degree is too large",
+                SynthesisError::UnexpectedIdentity => "encountered an identity element in the CRS",
+                SynthesisError::IoError(_) => "encountered an I/O error",
+                SynthesisError::MalformedVerifyingKey => "malformed verifying key",
+                SynthesisError::UnconstrainedVariable => "auxiliary variable was unconstrained",
+            };
+            write!(f, "{}", description)
         }
     }
 }

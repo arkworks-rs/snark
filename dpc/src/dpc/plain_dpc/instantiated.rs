@@ -106,7 +106,7 @@ impl PlainDPCComponents for Components {
     type ProofCheckF = ProofCheckF;
 
     type MerkleTreeConfig = CommitmentMerkleTreeConfig;
-    type MerkleTree_HGadget = MerkleTreeCRHGadget;
+    type MerkleTreeHGadget = MerkleTreeCRHGadget;
 
     type AddrC = AddressComm;
     type RecC = RecordComm;

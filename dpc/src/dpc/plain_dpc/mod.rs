@@ -63,7 +63,7 @@ pub trait PlainDPCComponents: 'static + Sized {
 
     // Ledger digest type.
     type MerkleTreeConfig: MerkleTreeConfig;
-    type MerkleTree_HGadget: FixedLengthCRHGadget<<Self::MerkleTreeConfig as MerkleTreeConfig>::H, Self::CoreCheckF>;
+    type MerkleTreeHGadget: FixedLengthCRHGadget<<Self::MerkleTreeConfig as MerkleTreeConfig>::H, Self::CoreCheckF>;
 
     // CRH for computing the serial number nonce. Invoked only over `Self::CoreCheckF`.
     type SnNonceH: FixedLengthCRH;
