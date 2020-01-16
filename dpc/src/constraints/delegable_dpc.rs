@@ -208,7 +208,7 @@ where
             || Ok(&comm_crh_sig_parameters.sig_pp),
         )?;
 
-        let ledger_pp = <C::MerkleTree_HGadget as FixedLengthCRHGadget<_, _>>::ParametersGadget::alloc_input(
+        let ledger_pp = <C::MerkleTreeHGadget as FixedLengthCRHGadget<_, _>>::ParametersGadget::alloc_input(
             &mut cs.ns(|| "Declare Ledger Parameters"),
             || Ok(ledger_parameters),
         )?;
@@ -224,7 +224,7 @@ where
     };
 
     let digest_gadget =
-        <C::MerkleTree_HGadget as FixedLengthCRHGadget<_, _>>::OutputGadget::alloc_input(&mut cs.ns(|| "Declare ledger digest"), || {
+        <C::MerkleTreeHGadget as FixedLengthCRHGadget<_, _>>::OutputGadget::alloc_input(&mut cs.ns(|| "Declare ledger digest"), || {
             Ok(ledger_digest)
         })?;
 
@@ -315,7 +315,7 @@ where
             let witness_cs = &mut cs.ns(|| format!("Check membership witness {}", i));
 
             let witness_gadget =
-                MerkleTreePathGadget::<_, C::MerkleTree_HGadget, _>::alloc(&mut witness_cs.ns(|| "Declare witness"), || {
+                MerkleTreePathGadget::<_, C::MerkleTreeHGadget, _>::alloc(&mut witness_cs.ns(|| "Declare witness"), || {
                     Ok(witness)
                 })?;
 
