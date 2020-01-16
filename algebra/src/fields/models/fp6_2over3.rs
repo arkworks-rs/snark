@@ -305,7 +305,7 @@ impl<'a, P: Fp6Parameters> Add<&'a Fp6<P>> for Fp6<P> {
     #[inline]
     fn add(self, other: &Self) -> Self {
         let mut result = self;
-        result.add_assign(&other);
+        result.add_assign(other);
         result
     }
 }
@@ -327,7 +327,7 @@ impl<P: Fp6Parameters> Mul<Fp6<P>> for Fp6<P> {
     #[inline]
     fn mul(self, other: Self) -> Self {
         let mut result = self;
-        result.mul_assign(&other);
+        result.mul_assign(other);
         result
     }
 }
@@ -338,7 +338,7 @@ impl<'a, P: Fp6Parameters> Mul<&'a Fp6<P>> for Fp6<P> {
     #[inline]
     fn mul(self, other: &Self) -> Self {
         let mut result = self;
-        result.mul_assign(&other);
+        result.mul_assign(other);
         result
     }
 }
@@ -354,6 +354,7 @@ impl<'a, P: Fp6Parameters> Div<&'a Fp6<P>> for Fp6<P> {
     }
 }
 
+impl_addassign_from_ref!(Fp6, Fp6Parameters);
 impl<'a, P: Fp6Parameters> AddAssign<&'a Self> for Fp6<P> {
     #[inline]
     fn add_assign(&mut self, other: &Self) {
@@ -370,6 +371,7 @@ impl<'a, P: Fp6Parameters> SubAssign<&'a Self> for Fp6<P> {
     }
 }
 
+impl_mulassign_from_ref!(Fp6, Fp6Parameters);
 impl<'a, P: Fp6Parameters> MulAssign<&'a Self> for Fp6<P> {
     #[inline]
     fn mul_assign(&mut self, other: &Self) {

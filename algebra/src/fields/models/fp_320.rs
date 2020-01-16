@@ -554,6 +554,7 @@ impl<'a, P: Fp320Parameters> Div<&'a Fp320<P>> for Fp320<P> {
     }
 }
 
+impl_addassign_from_ref!(Fp320, Fp320Parameters);
 impl<'a, P: Fp320Parameters> AddAssign<&'a Self> for Fp320<P> {
     #[inline]
     fn add_assign(&mut self, other: &Self) {
@@ -576,6 +577,7 @@ impl<'a, P: Fp320Parameters> SubAssign<&'a Self> for Fp320<P> {
     }
 }
 
+impl_mulassign_from_ref!(Fp320, Fp320Parameters);
 impl<'a, P: Fp320Parameters> MulAssign<&'a Self> for Fp320<P> {
     #[inline]
     fn mul_assign(&mut self, other: &Self) {

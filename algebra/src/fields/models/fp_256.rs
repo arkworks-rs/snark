@@ -526,6 +526,7 @@ impl<'a, P: Fp256Parameters> Div<&'a Fp256<P>> for Fp256<P> {
     }
 }
 
+impl_addassign_from_ref!(Fp256, Fp256Parameters);
 impl<'a, P: Fp256Parameters> AddAssign<&'a Self> for Fp256<P> {
     #[inline]
     fn add_assign(&mut self, other: &Self) {
@@ -549,6 +550,7 @@ impl<'a, P: Fp256Parameters> SubAssign<&'a Self> for Fp256<P> {
     }
 }
 
+impl_mulassign_from_ref!(Fp256, Fp256Parameters);
 impl<'a, P: Fp256Parameters> MulAssign<&'a Self> for Fp256<P> {
     #[inline]
     fn mul_assign(&mut self, other: &Self) {

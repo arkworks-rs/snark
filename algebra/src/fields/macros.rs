@@ -105,3 +105,25 @@ macro_rules! sqrt_impl {
         }
     }};
 }
+
+// Implements AddAssign on Self by deferring to an implementation on &Self
+macro_rules! impl_addassign_from_ref {
+    ($field: ident, $params: ident) => {
+        impl<P: $params> AddAssign<Self> for $field<P> {
+            fn add_assign(&mut self, other: Self) {
+                self.add_assign(&other)
+            }
+        }
+    };
+}
+
+// Implements MulAssign on Self by deferring to an implementation on &Self
+macro_rules! impl_mulassign_from_ref {
+    ($field: ident, $params: ident) => {
+        impl<P: $params> MulAssign<Self> for $field<P> {
+            fn mul_assign(&mut self, other: Self) {
+                self.mul_assign(&other)
+            }
+        }
+    };
+}

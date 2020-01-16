@@ -916,6 +916,7 @@ impl<'a, P: Fp768Parameters> Div<&'a Fp768<P>> for Fp768<P> {
     }
 }
 
+impl_addassign_from_ref!(Fp768, Fp768Parameters);
 impl<'a, P: Fp768Parameters> AddAssign<&'a Self> for Fp768<P> {
     #[inline]
     fn add_assign(&mut self, other: &Self) {
@@ -938,6 +939,7 @@ impl<'a, P: Fp768Parameters> SubAssign<&'a Self> for Fp768<P> {
     }
 }
 
+impl_mulassign_from_ref!(Fp768, Fp768Parameters);
 impl<'a, P: Fp768Parameters> MulAssign<&'a Self> for Fp768<P> {
     #[inline]
     fn mul_assign(&mut self, other: &Self) {

@@ -884,6 +884,7 @@ impl<'a, P: Fp832Parameters> Div<&'a Fp832<P>> for Fp832<P> {
     }
 }
 
+impl_addassign_from_ref!(Fp832, Fp832Parameters);
 impl<'a, P: Fp832Parameters> AddAssign<&'a Self> for Fp832<P> {
     #[inline]
     fn add_assign(&mut self, other: &Self) {
@@ -906,6 +907,7 @@ impl<'a, P: Fp832Parameters> SubAssign<&'a Self> for Fp832<P> {
     }
 }
 
+impl_mulassign_from_ref!(Fp832, Fp832Parameters);
 impl<'a, P: Fp832Parameters> MulAssign<&'a Self> for Fp832<P> {
     #[inline]
     fn mul_assign(&mut self, other: &Self) {

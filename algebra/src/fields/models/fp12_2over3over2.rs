@@ -347,7 +347,7 @@ impl<'a, P: Fp12Parameters> Add<&'a Self> for Fp12<P> {
     #[inline]
     fn add(self, other: &Self) -> Self {
         let mut result = self;
-        result.add_assign(&other);
+        result.add_assign(other);
         result
     }
 }
@@ -369,7 +369,7 @@ impl<P: Fp12Parameters> Mul<Self> for Fp12<P> {
     #[inline]
     fn mul(self, other: Self) -> Self {
         let mut result = self;
-        result.mul_assign(&other);
+        result.mul_assign(other);
         result
     }
 }
@@ -380,7 +380,7 @@ impl<'a, P: Fp12Parameters> Mul<&'a Self> for Fp12<P> {
     #[inline]
     fn mul(self, other: &Self) -> Self {
         let mut result = self;
-        result.mul_assign(&other);
+        result.mul_assign(other);
         result
     }
 }
@@ -396,6 +396,7 @@ impl<'a, P: Fp12Parameters> Div<&'a Self> for Fp12<P> {
     }
 }
 
+impl_addassign_from_ref!(Fp12, Fp12Parameters);
 impl<'a, P: Fp12Parameters> AddAssign<&'a Self> for Fp12<P> {
     #[inline]
     fn add_assign(&mut self, other: &Self) {
@@ -412,6 +413,7 @@ impl<'a, P: Fp12Parameters> SubAssign<&'a Self> for Fp12<P> {
     }
 }
 
+impl_mulassign_from_ref!(Fp12, Fp12Parameters);
 impl<'a, P: Fp12Parameters> MulAssign<&'a Self> for Fp12<P> {
     #[inline]
     fn mul_assign(&mut self, other: &Self) {
@@ -447,7 +449,6 @@ impl<P: Fp12Parameters> PartialOrd for Fp12<P> {
         Some(self.cmp(other))
     }
 }
-
 
 impl<P: Fp12Parameters> From<u128> for Fp12<P> {
     fn from(other: u128) -> Self {
