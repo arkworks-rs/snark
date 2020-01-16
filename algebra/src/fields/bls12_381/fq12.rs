@@ -15,9 +15,10 @@ pub struct Fq12Parameters;
 impl Fp12Parameters for Fq12Parameters {
     type Fp6Params = Fq6Parameters;
 
+    #[rustfmt::skip]
     const FROBENIUS_COEFF_FP12_C1: [Fq2; 12] = [
         // Fq2(u + 1)**(((q^0) - 1) / 6)
-        field_new!(Fq2, 
+        field_new!(Fq2,
             field_new!(Fq, BigInteger384([
                 0x760900000002fffd,
                 0xebf4000bc40c0002,
@@ -29,7 +30,7 @@ impl Fp12Parameters for Fq12Parameters {
             field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
         // Fq2(u + 1)**(((q^1) - 1) / 6)
-        field_new!(Fq2, 
+        field_new!(Fq2,
             field_new!(Fq, BigInteger384([
                 0x7089552b319d465,
                 0xc6695f92b50a8313,
@@ -48,7 +49,7 @@ impl Fp12Parameters for Fq12Parameters {
             ])),
         ),
         // Fq2(u + 1)**(((q^2) - 1) / 6)
-        field_new!(Fq2, 
+        field_new!(Fq2,
             field_new!(Fq, BigInteger384([
                 0xecfb361b798dba3a,
                 0xc100ddb891865a2c,
@@ -60,7 +61,7 @@ impl Fp12Parameters for Fq12Parameters {
             field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
         // Fq2(u + 1)**(((q^3) - 1) / 6)
-        field_new!(Fq2, 
+        field_new!(Fq2,
             field_new!(Fq, BigInteger384([
                 0x3e2f585da55c9ad1,
                 0x4294213d86c18183,
@@ -79,7 +80,7 @@ impl Fp12Parameters for Fq12Parameters {
             ])),
         ),
         // Fq2(u + 1)**(((q^4) - 1) / 6)
-        field_new!(Fq2, 
+        field_new!(Fq2,
             field_new!(Fq, BigInteger384([
                 0x30f1361b798a64e8,
                 0xf3b8ddab7ece5a2a,
@@ -91,7 +92,7 @@ impl Fp12Parameters for Fq12Parameters {
             field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
         // Fq2(u + 1)**(((q^5) - 1) / 6)
-        field_new!(Fq2, 
+        field_new!(Fq2,
             field_new!(Fq, BigInteger384([
                 0x3726c30af242c66c,
                 0x7c2ac1aad1b6fe70,
@@ -110,7 +111,7 @@ impl Fp12Parameters for Fq12Parameters {
             ])),
         ),
         // Fq2(u + 1)**(((q^6) - 1) / 6)
-        field_new!(Fq2, 
+        field_new!(Fq2,
             field_new!(Fq, BigInteger384([
                 0x43f5fffffffcaaae,
                 0x32b7fff2ed47fffd,
@@ -122,7 +123,7 @@ impl Fp12Parameters for Fq12Parameters {
             field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
         // Fq2(u + 1)**(((q^7) - 1) / 6)
-        field_new!(Fq2, 
+        field_new!(Fq2,
             field_new!(Fq, BigInteger384([
                 0xb2f66aad4ce5d646,
                 0x5842a06bfc497cec,
@@ -141,7 +142,7 @@ impl Fp12Parameters for Fq12Parameters {
             ])),
         ),
         // Fq2(u + 1)**(((q^8) - 1) / 6)
-        field_new!(Fq2, 
+        field_new!(Fq2,
             field_new!(Fq, BigInteger384([
                 0xcd03c9e48671f071,
                 0x5dab22461fcda5d2,
@@ -153,7 +154,7 @@ impl Fp12Parameters for Fq12Parameters {
             field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
         // Fq2(u + 1)**(((q^9) - 1) / 6)
-        field_new!(Fq2, 
+        field_new!(Fq2,
             field_new!(Fq, BigInteger384([
                 0x7bcfa7a25aa30fda,
                 0xdc17dec12a927e7c,
@@ -172,7 +173,7 @@ impl Fp12Parameters for Fq12Parameters {
             ])),
         ),
         // Fq2(u + 1)**(((q^10) - 1) / 6)
-        field_new!(Fq2, 
+        field_new!(Fq2,
             field_new!(Fq, BigInteger384([
                 0x890dc9e4867545c3,
                 0x2af322533285a5d5,
@@ -184,7 +185,7 @@ impl Fp12Parameters for Fq12Parameters {
             field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
         // Fq2(u + 1)**(((q^11) - 1) / 6)
-        field_new!(Fq2, 
+        field_new!(Fq2,
             field_new!(Fq, BigInteger384([
                 0x82d83cf50dbce43f,
                 0xa2813e53df9d018f,

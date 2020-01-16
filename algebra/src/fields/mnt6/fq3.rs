@@ -43,6 +43,7 @@ impl Fp3Parameters for Fq3Parameters {
         0x6878f58,
     ];
 
+    #[rustfmt::skip]
     const QUADRATIC_NONRESIDUE_TO_T: (Fq, Fq, Fq) = (
         field_new!(Fq, BigInteger([
             0x44a4178610a3a4e6,
@@ -55,6 +56,7 @@ impl Fp3Parameters for Fq3Parameters {
         field_new!(Fq, BigInteger([0, 0, 0, 0, 0])),
     );
 
+    #[rustfmt::skip]
     const FROBENIUS_COEFF_FP3_C1: [Fq; 3] = [
         field_new!(Fq, BigInteger([
             0xc3177aefffbb845c,
@@ -79,6 +81,7 @@ impl Fp3Parameters for Fq3Parameters {
         ])),
     ];
 
+    #[rustfmt::skip]
     const FROBENIUS_COEFF_FP3_C2: [Fq; 3] = [
         field_new!(Fq, BigInteger([
             0xc3177aefffbb845c,

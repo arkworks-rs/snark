@@ -111,7 +111,7 @@ impl SWModelParameters for MNT6G2Parameters {
 
     #[inline(always)]
     fn mul_by_a(elt: &Fq3) -> Fq3 {
-        field_new!(Fq3, 
+        field_new!(Fq3,
             MUL_BY_A_C0 * &elt.c1,
             MUL_BY_A_C1 * &elt.c2,
             MUL_BY_A_C2 * &elt.c0,
