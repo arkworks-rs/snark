@@ -41,6 +41,7 @@ impl ModelParameters for MNT6G2Parameters {
 }
 
 /// MUL_BY_A_C0 = NONRESIDUE * COEFF_A
+#[rustfmt::skip]
 pub const MUL_BY_A_C0: Fq = field_new!(Fq, BigInteger320([
     0xa07b458bf1496fab,
     0xde8254e6541f9fb4,
@@ -50,6 +51,7 @@ pub const MUL_BY_A_C0: Fq = field_new!(Fq, BigInteger320([
 ]));
 
 /// MUL_BY_A_C1 = NONRESIDUE * COEFF_A
+#[rustfmt::skip]
 pub const MUL_BY_A_C1: Fq = field_new!(Fq, BigInteger320([
     0xa07b458bf1496fab,
     0xde8254e6541f9fb4,
@@ -117,6 +119,7 @@ impl SWModelParameters for MNT6G2Parameters {
 const G2_GENERATOR_X: Fq3 = field_new!(Fq3, G2_GENERATOR_X_C0, G2_GENERATOR_X_C1, G2_GENERATOR_X_C2);
 const G2_GENERATOR_Y: Fq3 = field_new!(Fq3, G2_GENERATOR_Y_C0, G2_GENERATOR_Y_C1, G2_GENERATOR_Y_C2);
 
+#[rustfmt::skip]
 pub const G2_GENERATOR_X_C0: Fq = field_new!(Fq, BigInteger320([
     0x15ca12fc5d551ea7,
     0x9e0b2b2b2bb8b979,
@@ -125,6 +128,7 @@ pub const G2_GENERATOR_X_C0: Fq = field_new!(Fq, BigInteger320([
     0x243853463ed,
 ]));
 
+#[rustfmt::skip]
 pub const G2_GENERATOR_X_C1: Fq = field_new!(Fq, BigInteger320([
     0x2c0e3dd7be176130,
     0x27a15d879495904b,
@@ -133,6 +137,7 @@ pub const G2_GENERATOR_X_C1: Fq = field_new!(Fq, BigInteger320([
     0x2c28bb71862,
 ]));
 
+#[rustfmt::skip]
 pub const G2_GENERATOR_X_C2: Fq = field_new!(Fq, BigInteger320([
     0xf3e5f4eb9631e1f1,
     0x657801e80c50778,
@@ -141,6 +146,7 @@ pub const G2_GENERATOR_X_C2: Fq = field_new!(Fq, BigInteger320([
     0x100b8026b9d,
 ]));
 
+#[rustfmt::skip]
 pub const G2_GENERATOR_Y_C0: Fq = field_new!(Fq, BigInteger320([
     0xb1cddd6c64a67c5f,
     0xa01e90d89aa5d2ba,
@@ -149,6 +155,7 @@ pub const G2_GENERATOR_Y_C0: Fq = field_new!(Fq, BigInteger320([
     0x12cc928ef10,
 ]));
 
+#[rustfmt::skip]
 pub const G2_GENERATOR_Y_C1: Fq = field_new!(Fq, BigInteger320([
     0xa1529b7265ad4be7,
     0x21c5e827cf309306,
@@ -157,6 +164,7 @@ pub const G2_GENERATOR_Y_C1: Fq = field_new!(Fq, BigInteger320([
     0xd3c77c9ff9,
 ]));
 
+#[rustfmt::skip]
 pub const G2_GENERATOR_Y_C2: Fq = field_new!(Fq, BigInteger320([
     0x610557ec4b58b8df,
     0x51a23865b52045f1,

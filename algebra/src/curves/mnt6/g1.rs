@@ -76,6 +76,7 @@ impl SWModelParameters for MNT6G1Parameters {
 }
 
 /// G1_GENERATOR_X =
+#[rustfmt::skip]
 pub const G1_GENERATOR_X: Fq = field_new!(Fq, BigInteger320([
     0x1a663562f74e1d24,
     0xc1d1d583fccd1b79,
@@ -85,6 +86,7 @@ pub const G1_GENERATOR_X: Fq = field_new!(Fq, BigInteger320([
 ]));
 
 /// G1_GENERATOR_Y =
+#[rustfmt::skip]
 pub const G1_GENERATOR_Y: Fq = field_new!(Fq, BigInteger320([
     0x7ad5bfd16dcfffb2,
     0x88dd739252215070,
