@@ -26,6 +26,7 @@ impl Fp2Parameters for Fq2Parameters {
     ]));
 
     /// QUADRATIC_NONRESIDUE = (U + 1)
+    #[rustfmt::skip]
     const QUADRATIC_NONRESIDUE: (Fq, Fq) = (
         field_new!(Fq, BigInteger([
             0x760900000002fffd,
@@ -46,6 +47,7 @@ impl Fp2Parameters for Fq2Parameters {
     );
 
     /// Coefficients for the Frobenius automorphism.
+    #[rustfmt::skip]
     const FROBENIUS_COEFF_FP2_C1: [Fq; 2] = [
         // Fq(-1)**(((q^0) - 1) / 2)
         field_new!(Fq, BigInteger([

@@ -43,6 +43,7 @@ impl Fp6Parameters for Fq6Parameters {
         ])),
     );
 
+    #[rustfmt::skip]
     const FROBENIUS_COEFF_FP6_C1: [Fq; 6] = [
         field_new!(Fq, BigInteger([
             0x9b4e60b420910c71,

@@ -33,9 +33,10 @@ impl Fp6Parameters for Fq6Parameters {
         ])),
     );
 
+    #[rustfmt::skip]
     const FROBENIUS_COEFF_FP6_C1: [Fq2; 6] = [
         // Fp2::NONRESIDUE^(((q^0) - 1) / 3)
-        field_new!(Fq2, 
+        field_new!(Fq2,
             field_new!(Fq, BigInteger384([
                 0x2cdffffffffff68,
                 0x51409f837fffffb1,
@@ -47,7 +48,7 @@ impl Fp6Parameters for Fq6Parameters {
             field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
         // Fp2::NONRESIDUE^(((q^1) - 1) / 3)
-        field_new!(Fq2, 
+        field_new!(Fq2,
             field_new!(Fq, BigInteger384([
                 0x5892506da58478da,
                 0x133366940ac2a74b,
@@ -59,7 +60,7 @@ impl Fp6Parameters for Fq6Parameters {
             field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
         // Fp2::NONRESIDUE^(((q^2) - 1) / 3)
-        field_new!(Fq2, 
+        field_new!(Fq2,
             field_new!(Fq, BigInteger384([
                 0xdacd106da5847973,
                 0xd8fe2454bac2a79a,
@@ -71,7 +72,7 @@ impl Fp6Parameters for Fq6Parameters {
             field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
         // Fp2::NONRESIDUE^(((q^3) - 1) / 3)
-        field_new!(Fq2, 
+        field_new!(Fq2,
             field_new!(Fq, BigInteger384([
                 0x823ac00000000099,
                 0xc5cabdc0b000004f,
@@ -83,7 +84,7 @@ impl Fp6Parameters for Fq6Parameters {
             field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
         // Fp2::NONRESIDUE^(((q^4) - 1) / 3)
-        field_new!(Fq2, 
+        field_new!(Fq2,
             field_new!(Fq, BigInteger384([
                 0x2c766f925a7b8727,
                 0x3d7f6b0253d58b5,
@@ -95,7 +96,7 @@ impl Fp6Parameters for Fq6Parameters {
             field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
         // Fp2::NONRESIDUE^(((q^5) - 1) / 3)
-        field_new!(Fq2, 
+        field_new!(Fq2,
             field_new!(Fq, BigInteger384([
                 0xaa3baf925a7b868e,
                 0x3e0d38ef753d5865,
@@ -107,9 +108,10 @@ impl Fp6Parameters for Fq6Parameters {
             field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
     ];
+    #[rustfmt::skip]
     const FROBENIUS_COEFF_FP6_C2: [Fq2; 6] = [
         // Fp2::NONRESIDUE^((2*(q^0) - 2) / 3)
-        field_new!(Fq2, 
+        field_new!(Fq2,
             field_new!(Fq, BigInteger384([
                 0x2cdffffffffff68,
                 0x51409f837fffffb1,
@@ -121,7 +123,7 @@ impl Fp6Parameters for Fq6Parameters {
             field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
         // Fp2::NONRESIDUE^((2*(q^1) - 2) / 3)
-        field_new!(Fq2, 
+        field_new!(Fq2,
             field_new!(Fq, BigInteger384([
                 0xdacd106da5847973,
                 0xd8fe2454bac2a79a,
@@ -133,7 +135,7 @@ impl Fp6Parameters for Fq6Parameters {
             field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
         // Fp2::NONRESIDUE^((2*(q^2) - 2) / 3)
-        field_new!(Fq2, 
+        field_new!(Fq2,
             field_new!(Fq, BigInteger384([
                 0x2c766f925a7b8727,
                 0x3d7f6b0253d58b5,
@@ -145,7 +147,7 @@ impl Fp6Parameters for Fq6Parameters {
             field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
         // Fp2::NONRESIDUE^((2*(q^3) - 2) / 3)
-        field_new!(Fq2, 
+        field_new!(Fq2,
             field_new!(Fq, BigInteger384([
                 0x2cdffffffffff68,
                 0x51409f837fffffb1,
@@ -157,7 +159,7 @@ impl Fp6Parameters for Fq6Parameters {
             field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
         // Fp2::NONRESIDUE^((2*(q^4) - 2) / 3)
-        field_new!(Fq2, 
+        field_new!(Fq2,
             field_new!(Fq, BigInteger384([
                 0xdacd106da5847973,
                 0xd8fe2454bac2a79a,
@@ -169,7 +171,7 @@ impl Fp6Parameters for Fq6Parameters {
             field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
         // Fp2::NONRESIDUE^((2*(q^5) - 2) / 3)
-        field_new!(Fq2, 
+        field_new!(Fq2,
             field_new!(Fq, BigInteger384([
                 0x2c766f925a7b8727,
                 0x3d7f6b0253d58b5,

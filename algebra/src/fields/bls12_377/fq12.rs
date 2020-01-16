@@ -15,6 +15,7 @@ pub struct Fq12Parameters;
 impl Fp12Parameters for Fq12Parameters {
     type Fp6Params = Fq6Parameters;
 
+    #[rustfmt::skip]
     const FROBENIUS_COEFF_FP12_C1: [Fq2; 12] = [
         // Fp2::NONRESIDUE^(((q^0) - 1) / 6)
         field_new!(Fq2,
