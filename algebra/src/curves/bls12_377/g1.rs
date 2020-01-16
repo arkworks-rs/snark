@@ -21,6 +21,7 @@ impl SWModelParameters for Bls12_377G1Parameters {
     const COEFF_A: Fq = field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0]));
 
     /// COEFF_B = 1
+    #[rustfmt::skip]
     const COEFF_B: Fq = field_new!(Fq, BigInteger384([
         0x2cdffffffffff68,
         0x51409f837fffffb1,
@@ -35,6 +36,7 @@ impl SWModelParameters for Bls12_377G1Parameters {
 
     /// COFACTOR_INV = COFACTOR^{-1} mod r
     /// = 5285428838741532253824584287042945485047145357130994810877
+    #[rustfmt::skip]
     const COFACTOR_INV: Fr = field_new!(Fr, BigInteger256([
         2013239619100046060,
         4201184776506987597,

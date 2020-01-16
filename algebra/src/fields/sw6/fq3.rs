@@ -15,6 +15,7 @@ impl Fp3Parameters for Fq3Parameters {
     type Fp = Fq;
 
     /// NONRESIDUE = 13
+    #[rustfmt::skip]
     const NONRESIDUE: Fq = field_new!(Fq, BigInteger([
         0xe755952f4650755e,
         0x16c44ce1331ef791,
@@ -33,6 +34,7 @@ impl Fp3Parameters for Fq3Parameters {
 
     const TWO_ADICITY: u32 = 3;
 
+    #[rustfmt::skip]
     const T_MINUS_ONE_DIV_TWO: &'static [u64] = &[
         0x62730e2cd2029617,
         0x660647f735cb88cf,

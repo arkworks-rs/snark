@@ -19,7 +19,8 @@ impl ModelParameters for Bls12_377G2Parameters {
 
 impl SWModelParameters for Bls12_377G2Parameters {
     /// COEFF_A = [0, 0]
-    const COEFF_A: Fq2 = field_new!(Fq2, 
+    #[rustfmt::skip]
+    const COEFF_A: Fq2 = field_new!(Fq2,
         Bls12_377G1Parameters::COEFF_A,
         Bls12_377G1Parameters::COEFF_A,
     );
@@ -30,7 +31,8 @@ impl SWModelParameters for Bls12_377G2Parameters {
     // In our case, i = u (App A.3, T_6).
     /// COEFF_B = [0,
     /// 155198655607781456406391640216936120121836107652948796323930557600032281009004493664981332883744016074664192874906]
-    const COEFF_B: Fq2 = field_new!(Fq2, 
+    #[rustfmt::skip]
+    const COEFF_B: Fq2 = field_new!(Fq2,
         field_new!(Fq, BigInteger384([0, 0, 0, 0, 0, 0])),
         field_new!(Fq, BigInteger384([
             9255502405446297221,
@@ -44,6 +46,7 @@ impl SWModelParameters for Bls12_377G2Parameters {
 
     /// COFACTOR =
     /// 7923214915284317143930293550643874566881017850177945424769256759165301436616933228209277966774092486467289478618404761412630691835764674559376407658497
+    #[rustfmt::skip]
     const COFACTOR: &'static [u64] = &[
         0x0000000000000001,
         0x452217cc90000000,
@@ -57,6 +60,7 @@ impl SWModelParameters for Bls12_377G2Parameters {
 
     /// COFACTOR_INV = COFACTOR^{-1} mod r
     /// = 6764900296503390671038341982857278410319949526107311149686707033187604810669
+    #[rustfmt::skip]
     const COFACTOR_INV: Fr = field_new!(Fr, BigInteger256([
         15499857013495546999,
         4613531467548868169,

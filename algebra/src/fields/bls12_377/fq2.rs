@@ -16,6 +16,8 @@ impl Fp2Parameters for Fq2Parameters {
     type Fp = Fq;
 
     /// NONRESIDUE = -5
+    #[rustfmt::skip]
+    #[rustfmt::skip]
     const NONRESIDUE: Fq = field_new!(Fq, BigInteger([
         0xfc0b8000000002fa,
         0x97d39cf6e000018b,

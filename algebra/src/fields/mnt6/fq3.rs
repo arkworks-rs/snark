@@ -14,6 +14,7 @@ pub struct Fq3Parameters;
 impl Fp3Parameters for Fq3Parameters {
     type Fp = Fq;
 
+    #[rustfmt::skip]
     const NONRESIDUE: Fq = field_new!(Fq, BigInteger([
         0x58eefd67fea995ca,
         0x12f14affbb33a004,
@@ -24,6 +25,7 @@ impl Fp3Parameters for Fq3Parameters {
 
     const TWO_ADICITY: u32 = 34;
 
+    #[rustfmt::skip]
     const T_MINUS_ONE_DIV_TWO: &'static [u64] = &[
         0x69232b75663933bd,
         0xca650efcfc00ee0,

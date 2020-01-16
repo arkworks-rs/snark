@@ -20,7 +20,8 @@ impl Fp6Parameters for Fq6Parameters {
     type Fp2Params = Fq2Parameters;
 
     /// NONRESIDUE = U
-    const NONRESIDUE: Fq2 = field_new!(Fq2, 
+    #[rustfmt::skip]
+    const NONRESIDUE: Fq2 = field_new!(Fq2,
         field_new!(Fq, BigInteger384([0, 0, 0, 0, 0, 0])),
         field_new!(Fq, BigInteger384([
             202099033278250856u64,

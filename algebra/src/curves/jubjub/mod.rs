@@ -15,12 +15,14 @@ mod tests;
 pub type JubJubAffine = GroupAffine<JubJubParameters>;
 pub type JubJubProjective = GroupProjective<JubJubParameters>;
 
+#[rustfmt::skip]
 const GENERATOR_X: Fq = field_new!(Fq, BigInteger256([
     14080349899812819339,
     4104857150246327429,
     8293216003873356624,
     7400363483732984990,
 ]));
+#[rustfmt::skip]
 const GENERATOR_Y: Fq = field_new!(Fq, BigInteger256([
     13388310974700241893,
     7654361511478576605,
@@ -59,6 +61,7 @@ impl ModelParameters for JubJubParameters {
 
 impl TEModelParameters for JubJubParameters {
     /// COEFF_A = -1
+    #[rustfmt::skip]
     const COEFF_A: Fq = field_new!(Fq, BigInteger256([
         18446744060824649731,
         18102478225614246908,
@@ -67,6 +70,7 @@ impl TEModelParameters for JubJubParameters {
     ]));
 
     /// COEFF_D = (10240/10241) mod q
+    #[rustfmt::skip]
     const COEFF_D: Fq = field_new!(Fq, BigInteger256([
         3049539848285517488,
         18189135023605205683,
@@ -79,6 +83,7 @@ impl TEModelParameters for JubJubParameters {
 
     /// COFACTOR^(-1) mod r =
     /// 819310549611346726241370945440405716213240158234039660170669895299022906775
+    #[rustfmt::skip]
     const COFACTOR_INV: Fr = field_new!(Fr, BigInteger256([
         6832491983681988242,
         12911748493335322362,
@@ -100,6 +105,7 @@ impl TEModelParameters for JubJubParameters {
 
 impl MontgomeryModelParameters for JubJubParameters {
     /// COEFF_A = 0xA002
+    #[rustfmt::skip]
     const COEFF_A: Fq = field_new!(Fq, BigInteger256([
         388496971701930u64,
         6855257088226130262u64,
@@ -107,6 +113,7 @@ impl MontgomeryModelParameters for JubJubParameters {
         6516741293351590684u64,
     ]));
     /// COEFF_B = 0x73EDA753299D7D483339D80809A1D80553BDA402FFFE5BFEFFFFFFFEFFFF5FFD
+    #[rustfmt::skip]
     const COEFF_B: Fq = field_new!(Fq, BigInteger256([
         18446355550968045916u64,
         10902955289292811939u64,
