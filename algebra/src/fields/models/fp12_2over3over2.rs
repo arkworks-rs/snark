@@ -16,6 +16,7 @@ use crate::{
     fields::{fp6_3over2::*, Field, Fp2, Fp2Parameters},
     BitIterator,
 };
+use algebra_derive::{AddAssignFromRef, AddFromRef, MulAssignFromRef, MulFromRef};
 
 pub trait Fp12Parameters: 'static + Send + Sync + Copy {
     type Fp6Params: Fp6Parameters;
@@ -25,7 +26,7 @@ pub trait Fp12Parameters: 'static + Send + Sync + Copy {
 }
 
 /// An element of Fp12, represented by c0 + c1 * v
-#[derive(Derivative)]
+#[derive(AddFromRef, MulFromRef, AddAssignFromRef, MulAssignFromRef, Derivative)]
 #[derivative(
     Default(bound = "P: Fp12Parameters"),
     Hash(bound = "P: Fp12Parameters"),
@@ -337,17 +338,6 @@ impl<P: Fp12Parameters> Neg for Fp12<P> {
     }
 }
 
-impl<P: Fp12Parameters> Add<Self> for Fp12<P> {
-    type Output = Self;
-
-    #[inline]
-    fn add(self, other: Self) -> Self {
-        let mut result = self;
-        result.add_assign(&other);
-        result
-    }
-}
-
 impl<'a, P: Fp12Parameters> Add<&'a Self> for Fp12<P> {
     type Output = Self;
 
@@ -366,17 +356,6 @@ impl<'a, P: Fp12Parameters> Sub<&'a Self> for Fp12<P> {
     fn sub(self, other: &Self) -> Self {
         let mut result = self;
         result.sub_assign(&other);
-        result
-    }
-}
-
-impl<P: Fp12Parameters> Mul<Self> for Fp12<P> {
-    type Output = Self;
-
-    #[inline]
-    fn mul(self, other: Self) -> Self {
-        let mut result = self;
-        result.mul_assign(other);
         result
     }
 }
@@ -403,7 +382,6 @@ impl<'a, P: Fp12Parameters> Div<&'a Self> for Fp12<P> {
     }
 }
 
-impl_addassign_from_ref!(Fp12, Fp12Parameters);
 impl<'a, P: Fp12Parameters> AddAssign<&'a Self> for Fp12<P> {
     #[inline]
     fn add_assign(&mut self, other: &Self) {
@@ -420,7 +398,6 @@ impl<'a, P: Fp12Parameters> SubAssign<&'a Self> for Fp12<P> {
     }
 }
 
-impl_mulassign_from_ref!(Fp12, Fp12Parameters);
 impl<'a, P: Fp12Parameters> MulAssign<&'a Self> for Fp12<P> {
     #[inline]
     fn mul_assign(&mut self, other: &Self) {

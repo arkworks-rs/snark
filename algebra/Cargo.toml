@@ -22,6 +22,7 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
+algebra-derive = { path = "../algebra-derive" }
 byteorder = { version = "1" }
 rand = { version = "0.7" }
 derivative = { version = "1" }

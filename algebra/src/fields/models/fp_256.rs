@@ -13,10 +13,11 @@ use crate::{
     bytes::{FromBytes, ToBytes},
     fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
 };
+use algebra_derive::{AddAssignFromRef, AddFromRef, MulAssignFromRef, MulFromRef};
 
 pub trait Fp256Parameters: FpParameters<BigInt = BigInteger> {}
 
-#[derive(Derivative)]
+#[derive(AddFromRef, MulFromRef, AddAssignFromRef, MulAssignFromRef, Derivative)]
 #[derivative(
     Default(bound = ""),
     Hash(bound = ""),
@@ -26,7 +27,7 @@ pub trait Fp256Parameters: FpParameters<BigInt = BigInteger> {}
     PartialEq(bound = ""),
     Eq(bound = "")
 )]
-pub struct Fp256<P>(
+pub struct Fp256<P: Fp256Parameters>(
     pub BigInteger,
     #[derivative(Debug = "ignore")]
     #[doc(hidden)]
@@ -467,17 +468,6 @@ impl<P: Fp256Parameters> Neg for Fp256<P> {
     }
 }
 
-impl<P: Fp256Parameters> Add<Fp256<P>> for Fp256<P> {
-    type Output = Self;
-
-    #[inline]
-    fn add(self, other: Self) -> Self {
-        let mut result = self;
-        result.add_assign(&other);
-        result
-    }
-}
-
 impl<'a, P: Fp256Parameters> Add<&'a Fp256<P>> for Fp256<P> {
     type Output = Self;
 
@@ -496,17 +486,6 @@ impl<'a, P: Fp256Parameters> Sub<&'a Fp256<P>> for Fp256<P> {
     fn sub(self, other: &Self) -> Self {
         let mut result = self;
         result.sub_assign(other);
-        result
-    }
-}
-
-impl<P: Fp256Parameters> Mul<Fp256<P>> for Fp256<P> {
-    type Output = Self;
-
-    #[inline]
-    fn mul(self, other: Self) -> Self {
-        let mut result = self;
-        result.mul_assign(&other);
         result
     }
 }
@@ -533,7 +512,6 @@ impl<'a, P: Fp256Parameters> Div<&'a Fp256<P>> for Fp256<P> {
     }
 }
 
-impl_addassign_from_ref!(Fp256, Fp256Parameters);
 impl<'a, P: Fp256Parameters> AddAssign<&'a Self> for Fp256<P> {
     #[inline]
     fn add_assign(&mut self, other: &Self) {
@@ -557,7 +535,6 @@ impl<'a, P: Fp256Parameters> SubAssign<&'a Self> for Fp256<P> {
     }
 }
 
-impl_mulassign_from_ref!(Fp256, Fp256Parameters);
 impl<'a, P: Fp256Parameters> MulAssign<&'a Self> for Fp256<P> {
     #[inline]
     fn mul_assign(&mut self, other: &Self) {

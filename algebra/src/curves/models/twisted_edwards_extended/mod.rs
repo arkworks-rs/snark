@@ -21,11 +21,12 @@ use crate::{
     },
     fields::{BitIterator, Field, PrimeField, SquareRootField},
 };
+use algebra_derive::AddFromRef;
 
 #[cfg(test)]
 pub mod tests;
 
-#[derive(Derivative)]
+#[derive(AddFromRef, Derivative)]
 #[derivative(
     Copy(bound = "P: Parameters"),
     Clone(bound = "P: Parameters"),
@@ -158,15 +159,6 @@ impl<P: Parameters> Neg for GroupAffine<P> {
     }
 }
 
-impl<P: Parameters> Add<Self> for GroupAffine<P> {
-    type Output = Self;
-    fn add(self, other: Self) -> Self {
-        let mut copy = self;
-        copy += &other;
-        copy
-    }
-}
-
 impl<'a, P: Parameters> Add<&'a Self> for GroupAffine<P> {
     type Output = Self;
     fn add(self, other: &'a Self) -> Self {
@@ -288,7 +280,7 @@ mod group_impl {
 
 //////////////////////////////////////////////////////////////////////////////
 
-#[derive(Derivative)]
+#[derive(AddFromRef, Derivative)]
 #[derivative(
     Copy(bound = "P: Parameters"),
     Clone(bound = "P: Parameters"),
@@ -523,15 +515,6 @@ impl<P: Parameters> Neg for GroupProjective<P> {
         self.x = -self.x;
         self.t = -self.t;
         self
-    }
-}
-
-impl<P: Parameters> Add<Self> for GroupProjective<P> {
-    type Output = Self;
-    fn add(self, other: Self) -> Self {
-        let mut copy = self;
-        copy += &other;
-        copy
     }
 }
 

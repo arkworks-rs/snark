@@ -15,6 +15,7 @@ use crate::{
     bytes::{FromBytes, ToBytes},
     fields::{Field, LegendreSymbol, PrimeField, SquareRootField},
 };
+use algebra_derive::{AddAssignFromRef, AddFromRef, MulAssignFromRef, MulFromRef};
 
 pub trait Fp2Parameters: 'static + Send + Sync {
     type Fp: PrimeField;
@@ -32,7 +33,7 @@ pub trait Fp2Parameters: 'static + Send + Sync {
     }
 }
 
-#[derive(Derivative)]
+#[derive(AddFromRef, MulFromRef, AddAssignFromRef, MulAssignFromRef, Derivative)]
 #[derivative(
     Default(bound = "P: Fp2Parameters"),
     Hash(bound = "P: Fp2Parameters"),
@@ -300,17 +301,6 @@ impl<P: Fp2Parameters> Distribution<Fp2<P>> for Standard {
     }
 }
 
-impl<P: Fp2Parameters> Add<Fp2<P>> for Fp2<P> {
-    type Output = Self;
-
-    #[inline]
-    fn add(self, other: Self) -> Self {
-        let mut result = self;
-        result.add_assign(&other);
-        result
-    }
-}
-
 impl<'a, P: Fp2Parameters> Add<&'a Fp2<P>> for Fp2<P> {
     type Output = Self;
 
@@ -329,17 +319,6 @@ impl<'a, P: Fp2Parameters> Sub<&'a Fp2<P>> for Fp2<P> {
     fn sub(self, other: &Self) -> Self {
         let mut result = self;
         result.sub_assign(&other);
-        result
-    }
-}
-
-impl<P: Fp2Parameters> Mul<Fp2<P>> for Fp2<P> {
-    type Output = Self;
-
-    #[inline]
-    fn mul(self, other: Self) -> Self {
-        let mut result = self;
-        result.mul_assign(&other);
         result
     }
 }
@@ -366,7 +345,6 @@ impl<'a, P: Fp2Parameters> Div<&'a Fp2<P>> for Fp2<P> {
     }
 }
 
-impl_addassign_from_ref!(Fp2, Fp2Parameters);
 impl<'a, P: Fp2Parameters> AddAssign<&'a Self> for Fp2<P> {
     #[inline]
     fn add_assign(&mut self, other: &Self) {
@@ -383,7 +361,6 @@ impl<'a, P: Fp2Parameters> SubAssign<&'a Self> for Fp2<P> {
     }
 }
 
-impl_mulassign_from_ref!(Fp2, Fp2Parameters);
 impl<'a, P: Fp2Parameters> MulAssign<&'a Self> for Fp2<P> {
     #[inline]
     fn mul_assign(&mut self, other: &Self) {

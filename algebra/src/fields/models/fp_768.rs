@@ -13,10 +13,11 @@ use crate::{
     bytes::{FromBytes, ToBytes},
     fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
 };
+use algebra_derive::{AddAssignFromRef, AddFromRef, MulAssignFromRef, MulFromRef};
 
 pub trait Fp768Parameters: FpParameters<BigInt = BigInteger> {}
 
-#[derive(Derivative)]
+#[derive(AddFromRef, MulFromRef, AddAssignFromRef, MulAssignFromRef, Derivative)]
 #[derivative(
     Default(bound = ""),
     Hash(bound = ""),
@@ -857,17 +858,6 @@ impl<P: Fp768Parameters> Neg for Fp768<P> {
     }
 }
 
-impl<P: Fp768Parameters> Add<Fp768<P>> for Fp768<P> {
-    type Output = Self;
-
-    #[inline]
-    fn add(self, other: Self) -> Self {
-        let mut result = self.clone();
-        result.add_assign(&other);
-        result
-    }
-}
-
 impl<'a, P: Fp768Parameters> Add<&'a Fp768<P>> for Fp768<P> {
     type Output = Self;
 
@@ -886,17 +876,6 @@ impl<'a, P: Fp768Parameters> Sub<&'a Fp768<P>> for Fp768<P> {
     fn sub(self, other: &Self) -> Self {
         let mut result = self.clone();
         result.sub_assign(other);
-        result
-    }
-}
-
-impl<P: Fp768Parameters> Mul<Fp768<P>> for Fp768<P> {
-    type Output = Self;
-
-    #[inline]
-    fn mul(self, other: Self) -> Self {
-        let mut result = self.clone();
-        result.mul_assign(&other);
         result
     }
 }
@@ -923,7 +902,6 @@ impl<'a, P: Fp768Parameters> Div<&'a Fp768<P>> for Fp768<P> {
     }
 }
 
-impl_addassign_from_ref!(Fp768, Fp768Parameters);
 impl<'a, P: Fp768Parameters> AddAssign<&'a Self> for Fp768<P> {
     #[inline]
     fn add_assign(&mut self, other: &Self) {
@@ -946,7 +924,6 @@ impl<'a, P: Fp768Parameters> SubAssign<&'a Self> for Fp768<P> {
     }
 }
 
-impl_mulassign_from_ref!(Fp768, Fp768Parameters);
 impl<'a, P: Fp768Parameters> MulAssign<&'a Self> for Fp768<P> {
     #[inline]
     fn mul_assign(&mut self, other: &Self) {
