@@ -61,15 +61,14 @@ impl<F: Field> DensePolynomial<F> {
     }
 
     /// Constructs a new polynomial from a list of coefficients.
-    pub fn from_coefficients_vec(mut coeffs: Vec<F>) -> Self {
+    pub fn from_coefficients_vec(coeffs: Vec<F>) -> Self {
+        let mut result = Self { coeffs };
         // While there are zeros at the end of the coefficient vector, pop them off.
-        while coeffs.last().map_or(false, |c| c.is_zero()) {
-            coeffs.pop();
-        }
+        result.truncate_leading_zeros();
         // Check that either the coefficients vec is empty or that the last coeff is non-zero.
-        assert!(coeffs.last().map_or(true, |coeff| !coeff.is_zero()));
+        assert!(result.coeffs.last().map_or(true, |coeff| !coeff.is_zero()));
 
-        Self { coeffs }
+        result
     }
 
     /// Returns the degree of the polynomial.
@@ -79,6 +78,12 @@ impl<F: Field> DensePolynomial<F> {
         } else {
             assert!(self.coeffs.last().map_or(false, |coeff| !coeff.is_zero()));
             self.coeffs.len() - 1
+        }
+    }
+
+    fn truncate_leading_zeros(&mut self) {
+        while self.coeffs.last().map_or(false, |c| c.is_zero()) {
+            self.coeffs.pop();
         }
     }
 
@@ -135,6 +140,7 @@ impl<F: PrimeField> DensePolynomial<F> {
         let mut shifted = vec![F::zero(); domain.size()];
         shifted.extend_from_slice(&self.coeffs);
         shifted.par_iter_mut().zip(&self.coeffs).for_each(|(s, c)| *s -= c);
+
         DensePolynomial::from_coefficients_vec(shifted)
     }
 
@@ -151,7 +157,7 @@ impl<'a, 'b, F: Field> Add<&'a DensePolynomial<F>> for &'b DensePolynomial<F> {
     type Output = DensePolynomial<F>;
 
     fn add(self, other: &'a DensePolynomial<F>) -> DensePolynomial<F> {
-        if self.is_zero() {
+        let mut result = if self.is_zero() {
             other.clone()
         } else if other.is_zero() {
             self.clone()
@@ -166,12 +172,10 @@ impl<'a, 'b, F: Field> Add<&'a DensePolynomial<F>> for &'b DensePolynomial<F> {
             for (a, b) in result.coeffs.iter_mut().zip(&self.coeffs) {
                 *a += b
             }
-            // If the leading coefficient ends up being zero, pop it off.
-            while result.coeffs.last().unwrap().is_zero() {
-                result.coeffs.pop();
-            }
             result
-        }
+        };
+        result.truncate_leading_zeros();
+        result
     }
 }
 
@@ -191,10 +195,7 @@ impl<'a, 'b, F: Field> AddAssign<&'a DensePolynomial<F>> for DensePolynomial<F> 
             for (a, b) in self.coeffs.iter_mut().zip(&other.coeffs) {
                 *a += b
             }
-            // If the leading coefficient ends up being zero, pop it off.
-            while self.coeffs.last().unwrap().is_zero() {
-                self.coeffs.pop();
-            }
+            self.truncate_leading_zeros();
         }
     }
 }
@@ -217,10 +218,7 @@ impl<'a, 'b, F: Field> AddAssign<(F, &'a DensePolynomial<F>)> for DensePolynomia
             for (a, b) in self.coeffs.iter_mut().zip(&other.coeffs) {
                 *a += &(f * b);
             }
-            // If the leading coefficient ends up being zero, pop it off.
-            while self.coeffs.last().unwrap().is_zero() {
-                self.coeffs.pop();
-            }
+            self.truncate_leading_zeros();
         }
     }
 }
@@ -256,7 +254,7 @@ impl<'a, 'b, F: Field> Sub<&'a DensePolynomial<F>> for &'b DensePolynomial<F> {
 
     #[inline]
     fn sub(self, other: &'a DensePolynomial<F>) -> DensePolynomial<F> {
-        if self.is_zero() {
+        let mut result = if self.is_zero() {
             let mut result = other.clone();
             for coeff in &mut result.coeffs {
                 *coeff = -(*coeff);
@@ -276,15 +274,10 @@ impl<'a, 'b, F: Field> Sub<&'a DensePolynomial<F>> for &'b DensePolynomial<F> {
             for (a, b) in result.coeffs.iter_mut().zip(&other.coeffs) {
                 *a -= b;
             }
-            if !result.is_zero() {
-                // If the leading coefficient ends up being zero, pop it off.
-                while result.coeffs.last().unwrap().is_zero() {
-                    result.coeffs.pop();
-                }
-            }
-
             result
-        }
+        };
+        result.truncate_leading_zeros();
+        result
     }
 }
 
@@ -308,9 +301,7 @@ impl<'a, 'b, F: Field> SubAssign<&'a DensePolynomial<F>> for DensePolynomial<F> 
                 *a -= b
             }
             // If the leading coefficient ends up being zero, pop it off.
-            while self.coeffs.last().unwrap().is_zero() {
-                self.coeffs.pop();
-            }
+            self.truncate_leading_zeros();
         }
     }
 }
