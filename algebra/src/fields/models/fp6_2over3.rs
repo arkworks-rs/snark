@@ -16,7 +16,10 @@ use crate::{
     bytes::{FromBytes, ToBytes},
     fields::{Field, Fp3, Fp3Parameters},
 };
-use algebra_derive::{AddAssignFromRef, AddFromRef, MulAssignFromRef, MulFromRef};
+use algebra_derive::{
+    AddAssignFromRef, AddFromRef, DivAssignFromRef, DivFromRef, MulAssignFromRef, MulFromRef,
+    SubAssignFromRef, SubFromRef,
+};
 
 pub trait Fp6Parameters: 'static + Send + Sync {
     type Fp3Params: Fp3Parameters;
@@ -32,7 +35,17 @@ pub trait Fp6Parameters: 'static + Send + Sync {
     }
 }
 
-#[derive(AddFromRef, MulFromRef, AddAssignFromRef, MulAssignFromRef, Derivative)]
+#[derive(
+    AddFromRef,
+    MulFromRef,
+    AddAssignFromRef,
+    MulAssignFromRef,
+    Derivative,
+    SubFromRef,
+    SubAssignFromRef,
+    DivFromRef,
+    DivAssignFromRef,
+)]
 #[derivative(
     Default(bound = "P: Fp6Parameters"),
     Hash(bound = "P: Fp6Parameters"),
@@ -311,7 +324,7 @@ impl<'a, P: Fp6Parameters> Sub<&'a Fp6<P>> for Fp6<P> {
     #[inline]
     fn sub(self, other: &Self) -> Self {
         let mut result = self;
-        result.sub_assign(&other);
+        result.sub_assign(other);
         result
     }
 }

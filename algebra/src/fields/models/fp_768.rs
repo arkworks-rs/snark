@@ -13,11 +13,24 @@ use crate::{
     bytes::{FromBytes, ToBytes},
     fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
 };
-use algebra_derive::{AddAssignFromRef, AddFromRef, MulAssignFromRef, MulFromRef};
+use algebra_derive::{
+    AddAssignFromRef, AddFromRef, DivAssignFromRef, DivFromRef, MulAssignFromRef, MulFromRef,
+    SubAssignFromRef, SubFromRef,
+};
 
 pub trait Fp768Parameters: FpParameters<BigInt = BigInteger> {}
 
-#[derive(AddFromRef, MulFromRef, AddAssignFromRef, MulAssignFromRef, Derivative)]
+#[derive(
+    AddFromRef,
+    MulFromRef,
+    AddAssignFromRef,
+    MulAssignFromRef,
+    Derivative,
+    SubFromRef,
+    SubAssignFromRef,
+    DivFromRef,
+    DivAssignFromRef,
+)]
 #[derivative(
     Default(bound = ""),
     Hash(bound = ""),
@@ -27,7 +40,7 @@ pub trait Fp768Parameters: FpParameters<BigInt = BigInteger> {}
     PartialEq(bound = ""),
     Eq(bound = "")
 )]
-pub struct Fp768<P>(
+pub struct Fp768<P: Fp768Parameters>(
     pub BigInteger,
     #[derivative(Debug = "ignore")]
     #[doc(hidden)]

@@ -5,7 +5,10 @@ use crate::{
 };
 use num_traits::{One, Zero};
 
-use algebra_derive::{AddAssignFromRef, AddFromRef, MulAssignFromRef, MulFromRef};
+use algebra_derive::{
+    AddAssignFromRef, AddFromRef, DivAssignFromRef, DivFromRef, MulAssignFromRef, MulFromRef,
+    SubAssignFromRef, SubFromRef,
+};
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
     fmt::{Display, Formatter, Result as FmtResult},
@@ -17,7 +20,17 @@ use std::{
 
 pub trait Fp832Parameters: FpParameters<BigInt = BigInteger> {}
 
-#[derive(AddFromRef, MulFromRef, AddAssignFromRef, MulAssignFromRef, Derivative)]
+#[derive(
+    AddFromRef,
+    MulFromRef,
+    AddAssignFromRef,
+    MulAssignFromRef,
+    Derivative,
+    SubFromRef,
+    SubAssignFromRef,
+    DivFromRef,
+    DivAssignFromRef,
+)]
 #[derivative(
     Default(bound = ""),
     Hash(bound = ""),
@@ -27,21 +40,19 @@ pub trait Fp832Parameters: FpParameters<BigInt = BigInteger> {}
     PartialEq(bound = ""),
     Eq(bound = "")
 )]
-pub struct Fp832<P>(
+pub struct Fp832<P: Fp832Parameters>(
     pub BigInteger,
     #[derivative(Debug = "ignore")]
     #[doc(hidden)]
     pub PhantomData<P>,
 );
 
-impl<P> Fp832<P> {
+impl<P: Fp832Parameters> Fp832<P> {
     #[inline]
-    pub const fn new(element: BigInteger) -> Self {
+    pub fn new(element: BigInteger) -> Self {
         Self(element, PhantomData)
     }
-}
 
-impl<P: Fp832Parameters> Fp832<P> {
     #[inline]
     pub(crate) fn is_valid(&self) -> bool {
         self.0 < P::MODULUS

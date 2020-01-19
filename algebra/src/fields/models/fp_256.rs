@@ -13,11 +13,24 @@ use crate::{
     bytes::{FromBytes, ToBytes},
     fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
 };
-use algebra_derive::{AddAssignFromRef, AddFromRef, MulAssignFromRef, MulFromRef};
+use algebra_derive::{
+    AddAssignFromRef, AddFromRef, DivAssignFromRef, DivFromRef, MulAssignFromRef, MulFromRef,
+    SubAssignFromRef, SubFromRef,
+};
 
 pub trait Fp256Parameters: FpParameters<BigInt = BigInteger> {}
 
-#[derive(AddFromRef, MulFromRef, AddAssignFromRef, MulAssignFromRef, Derivative)]
+#[derive(
+    AddFromRef,
+    MulFromRef,
+    AddAssignFromRef,
+    MulAssignFromRef,
+    Derivative,
+    SubFromRef,
+    SubAssignFromRef,
+    DivFromRef,
+    DivAssignFromRef,
+)]
 #[derivative(
     Default(bound = ""),
     Hash(bound = ""),
@@ -34,14 +47,12 @@ pub struct Fp256<P: Fp256Parameters>(
     pub PhantomData<P>,
 );
 
-impl<P> Fp256<P> {
+impl<P: Fp256Parameters> Fp256<P> {
     #[inline]
-    pub const fn new(element: BigInteger) -> Self {
+    pub fn new(element: BigInteger) -> Self {
         Self(element, PhantomData)
     }
-}
 
-impl<P: Fp256Parameters> Fp256<P> {
     #[inline]
     fn is_valid(&self) -> bool {
         self.0 < P::MODULUS

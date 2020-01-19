@@ -16,7 +16,10 @@ use crate::{
     fields::{fp6_3over2::*, Field, Fp2, Fp2Parameters},
     BitIterator,
 };
-use algebra_derive::{AddAssignFromRef, AddFromRef, MulAssignFromRef, MulFromRef};
+use algebra_derive::{
+    AddAssignFromRef, AddFromRef, DivAssignFromRef, DivFromRef, MulAssignFromRef, MulFromRef,
+    SubAssignFromRef, SubFromRef,
+};
 
 pub trait Fp12Parameters: 'static + Send + Sync + Copy {
     type Fp6Params: Fp6Parameters;
@@ -26,7 +29,17 @@ pub trait Fp12Parameters: 'static + Send + Sync + Copy {
 }
 
 /// An element of Fp12, represented by c0 + c1 * v
-#[derive(AddFromRef, MulFromRef, AddAssignFromRef, MulAssignFromRef, Derivative)]
+#[derive(
+    AddFromRef,
+    MulFromRef,
+    AddAssignFromRef,
+    MulAssignFromRef,
+    Derivative,
+    SubFromRef,
+    SubAssignFromRef,
+    DivFromRef,
+    DivAssignFromRef,
+)]
 #[derivative(
     Default(bound = "P: Fp12Parameters"),
     Hash(bound = "P: Fp12Parameters"),
@@ -355,7 +368,7 @@ impl<'a, P: Fp12Parameters> Sub<&'a Self> for Fp12<P> {
     #[inline]
     fn sub(self, other: &Self) -> Self {
         let mut result = self;
-        result.sub_assign(&other);
+        result.sub_assign(other);
         result
     }
 }

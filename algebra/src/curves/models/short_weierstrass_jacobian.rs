@@ -18,10 +18,10 @@ use crate::{
     curves::{AffineCurve, ProjectiveCurve},
     fields::{BitIterator, Field, PrimeField, SquareRootField},
 };
-use algebra_derive::AddFromRef;
+use algebra_derive::{AddAssignFromRef, AddFromRef, SubAssignFromRef, SubFromRef};
 use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
-#[derive(Derivative)]
+#[derive(AddAssignFromRef, Derivative)]
 #[derivative(
     Copy(bound = "P: Parameters"),
     Clone(bound = "P: Parameters"),
@@ -211,7 +211,7 @@ impl<P: Parameters> Default for GroupAffine<P> {
     }
 }
 
-#[derive(AddFromRef, Derivative)]
+#[derive(AddFromRef, AddAssignFromRef, SubFromRef, SubAssignFromRef, Derivative)]
 #[derivative(
     Copy(bound = "P: Parameters"),
     Clone(bound = "P: Parameters"),
@@ -548,7 +548,8 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
             }
 
             if i {
-                res.add_assign(self);
+                let im_self = &*self;
+                res.add_assign(im_self);
             }
         }
 
