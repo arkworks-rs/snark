@@ -129,7 +129,7 @@ impl<F: Field> Into<DensePolynomial<F>> for SparsePolynomial<F> {
 mod tests {
     use crate::{EvaluationDomain, DensePolynomial, SparsePolynomial};
     use algebra::fields::bls12_381::fr::Fr;
-    use num_traits::One;
+    use algebra::One;
 
     #[test]
     fn evaluate_over_domain() {

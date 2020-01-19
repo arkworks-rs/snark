@@ -4,7 +4,7 @@ use algebra::{
     AffineCurve, Field, PairingEngine, PrimeField, ProjectiveCurve,
 };
 
-use num_traits::{One, Zero};
+use algebra::{One, Zero};
 use rand::Rng;
 use rayon::prelude::*;
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable};

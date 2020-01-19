@@ -837,7 +837,7 @@ mod test {
     use super::{AllocatedBit, Boolean};
     use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
     use algebra::{fields::bls12_381::Fr, BitIterator, Field, PrimeField, UniformRand};
-    use num_traits::{One, Zero};
+    use algebra::{One, Zero};
     use r1cs_core::ConstraintSystem;
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;

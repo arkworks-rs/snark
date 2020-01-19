@@ -340,7 +340,7 @@ mod tests {
     use crate::polynomial::*;
     use algebra::fields::{bls12_381::fr::Fr, Field};
     use algebra::UniformRand; 
-    use num_traits::{One, Zero};
+    use algebra::{One, Zero};
     use rand::thread_rng;
 
     #[test]

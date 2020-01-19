@@ -1,5 +1,5 @@
 use algebra::fields::Field;
-use num_traits::Zero;
+use algebra::Zero;
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 
 struct MySillyCircuit<F: Field> {

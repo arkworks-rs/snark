@@ -5,7 +5,7 @@ use algebra::{
     },
     AffineCurve, BitIterator, Field, PrimeField, ProjectiveCurve,
 };
-use num_traits::{One, Zero};
+use algebra::{One, Zero};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use std::{borrow::Borrow, marker::PhantomData, ops::Neg};
 

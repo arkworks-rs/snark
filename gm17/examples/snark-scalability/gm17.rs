@@ -27,7 +27,7 @@
 
 use csv;
 
-use num_traits::One;
+use algebra::One;
 // For randomness (during paramgen and proof generation)
 use rand::thread_rng;
 

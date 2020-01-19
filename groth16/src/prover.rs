@@ -7,7 +7,7 @@ use algebra::{
 };
 
 use crate::{r1cs_to_qap::R1CStoQAP, Parameters, Proof};
-use num_traits::{One, Zero};
+use algebra::{One, Zero};
 
 use r1cs_core::{
     ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable,

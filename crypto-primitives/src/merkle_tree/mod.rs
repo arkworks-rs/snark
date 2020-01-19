@@ -372,7 +372,7 @@ mod test {
         merkle_tree::*,
     };
     use algebra::curves::jubjub::JubJubAffine as JubJub;
-    use num_traits::Zero;
+    use algebra::Zero;
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
 

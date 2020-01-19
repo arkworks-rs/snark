@@ -6,7 +6,7 @@ use algebra::{
     to_bytes, ToConstraintField, UniformRand,
 };
 use digest::Digest;
-use num_traits::{One, Zero};
+use algebra::{One, Zero};
 use rand::Rng;
 use std::{
     hash::Hash,

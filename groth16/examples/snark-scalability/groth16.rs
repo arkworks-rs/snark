@@ -48,7 +48,7 @@ use groth16::{
     create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
 };
 
-use num_traits::One;
+use algebra::One;
 use std::{env, fs::OpenOptions, path::PathBuf, process};
 
 mod constraints;

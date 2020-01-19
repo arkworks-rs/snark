@@ -5,7 +5,7 @@ use algebra::{
     },
     BitIterator, Field,
 };
-use num_traits::{One, Zero};
+use algebra::{One, Zero};
 
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
