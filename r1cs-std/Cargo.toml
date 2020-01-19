@@ -25,7 +25,6 @@ edition = "2018"
 algebra = { path = "../algebra" }
 r1cs-core = { path = "../r1cs-core" }
 derivative = "1"
-num-traits = { version = "0.2.11" }
 radix_trie = "0.1"
 
 [dev-dependencies]
