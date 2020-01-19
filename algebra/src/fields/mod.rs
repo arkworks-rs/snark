@@ -162,7 +162,7 @@ pub trait FpParameters: 'static + Send + Sync + Sized {
     /// R2 = R^2 % Self::MODULUS
     const R2: Self::BigInt;
 
-    /// INV = -(MODULUS^{-1} mod MODULUS) mod MODULUS
+    /// INV = -MODULUS^{-1} mod 2^64
     const INV: u64;
 
     /// A multiplicative generator that is also a quadratic nonresidue.
