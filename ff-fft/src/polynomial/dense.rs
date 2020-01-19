@@ -472,4 +472,32 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn test_leading_zero() {
+        let n = 10;
+        let rand_poly = DensePolynomial::rand(n, &mut thread_rng());
+        let coefficients = rand_poly.coeffs.clone();
+        let leading_coefficient: Fr = coefficients[n];
+
+        let negative_leading_coefficient = -leading_coefficient;
+        let inverse_leading_coefficient = leading_coefficient.inverse().unwrap();
+
+        let mut inverse_coefficients = coefficients.clone();
+        inverse_coefficients[n] = inverse_leading_coefficient;
+
+        let mut negative_coefficients = coefficients;
+        negative_coefficients[n] = negative_leading_coefficient;
+
+        let negative_poly = DensePolynomial::from_coefficients_vec(negative_coefficients);
+        let inverse_poly = DensePolynomial::from_coefficients_vec(inverse_coefficients);
+
+        let x = &inverse_poly * &rand_poly;
+        assert_eq!(x.degree(), 2 * n);
+        assert!(!x.coeffs.last().unwrap().is_zero());
+
+        let y = &negative_poly + &rand_poly;
+        assert_eq!(y.degree(), n - 1);
+        assert!(!y.coeffs.last().unwrap().is_zero());
+    }
 }
