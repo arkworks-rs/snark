@@ -8,7 +8,7 @@ use algebra::{
     },
     BitIterator, Field, PrimeField,
 };
-use num_traits::One;
+use algebra::One;
 use std::{borrow::Borrow, marker::PhantomData};
 
 use crate::{prelude::*, Assignment};

@@ -2,7 +2,7 @@ use ff_fft::EvaluationDomain;
 use algebra::{Field, PairingEngine};
 
 use crate::{generator::KeypairAssembly, prover::ProvingAssignment};
-use num_traits::{One, Zero};
+use algebra::{One, Zero};
 use r1cs_core::{Index, SynthesisError};
 
 use rayon::prelude::*;

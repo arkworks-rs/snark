@@ -1,5 +1,5 @@
 use algebra::{AffineCurve, PairingCurve, PairingEngine, PrimeField, ProjectiveCurve};
-use num_traits::One;
+use algebra::One;
 
 use super::{PreparedVerifyingKey, Proof, VerifyingKey};
 

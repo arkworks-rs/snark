@@ -441,7 +441,7 @@ mod tests {
     use algebra::Field;
     use algebra::fields::bls12_381::fr::Fr;
     use rand::{Rng, thread_rng};
-    use num_traits::Zero;
+    use algebra::Zero;
 
     #[test]
     fn vanishing_polynomial_evaluation() {

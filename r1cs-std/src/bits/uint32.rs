@@ -345,7 +345,7 @@ mod test {
     use super::UInt32;
     use crate::{bits::boolean::Boolean, test_constraint_system::TestConstraintSystem};
     use algebra::fields::bls12_381::Fr;
-    use num_traits::{One, Zero};
+    use algebra::{One, Zero};
     use r1cs_core::ConstraintSystem;
     use rand::{Rng, SeedableRng};
     use rand_xorshift::XorShiftRng;

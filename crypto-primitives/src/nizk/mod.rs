@@ -60,7 +60,7 @@ mod test {
     fn test_gm17() {
         use crate::nizk::{gm17::Gm17, NIZK};
         use algebra::{curves::bls12_381::Bls12_381, fields::bls12_381::Fr};
-        use num_traits::One;
+        use algebra::One;
         use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 
         #[derive(Copy, Clone)]

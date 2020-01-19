@@ -83,7 +83,7 @@ mod sw6 {
     };
 
     use algebra::{curves::sw6::SW6, fields::sw6::Fr as SW6Fr, UniformRand};
-    use num_traits::Zero;
+    use algebra::Zero;
     use rand::thread_rng;
 
     #[test]

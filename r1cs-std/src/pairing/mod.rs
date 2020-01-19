@@ -60,7 +60,7 @@ mod test {
     // use rand;
     use crate::test_constraint_system::TestConstraintSystem;
     use algebra::{BitIterator, Field};
-    use num_traits::One;
+    use algebra::One;
     use r1cs_core::ConstraintSystem;
 
     #[test]

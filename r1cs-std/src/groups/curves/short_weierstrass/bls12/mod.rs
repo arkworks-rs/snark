@@ -3,7 +3,7 @@ use algebra::{
     fields::Field,
     BitIterator, ProjectiveCurve,
 };
-use num_traits::One;
+use algebra::One;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
 use crate::{
