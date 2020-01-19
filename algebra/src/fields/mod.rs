@@ -165,11 +165,9 @@ pub trait FpParameters: 'static + Send + Sync + Sized {
     /// INV = -MODULUS^{-1} mod 2^64
     const INV: u64;
 
-    /// A multiplicative generator that is also a quadratic nonresidue.
+    /// A multiplicative generator of the field.
     /// `Self::GENERATOR` is an element having multiplicative order
     /// `Self::MODULUS - 1`.
-    /// There also does not exist `x` such that `Self::GENERATOR = x^2 %
-    /// Self::MODULUS`
     const GENERATOR: Self::BigInt;
 
     /// The number of bits that can be reliably stored.
