@@ -10,8 +10,8 @@ use crate::{DenseOrSparsePolynomial, EvaluationDomain, Evaluations};
 #[derive(Clone, PartialEq, Eq, Hash, Default)]
 pub struct SparsePolynomial<F: Field> {
     /// The coefficient a_i of `x^i` is stored as (i, a_i) in `self.coeffs`.
-    /// the entries in `self.coeffs` are sorted in increasing order of `i`.
-    pub coeffs: Vec<(usize, F)>,
+    /// the entries in `self.coeffs` *must*  be sorted in increasing order of `i`.
+    coeffs: Vec<(usize, F)>,
 }
 
 impl<F: Field> fmt::Debug for SparsePolynomial<F> {
@@ -26,6 +26,14 @@ impl<F: Field> fmt::Debug for SparsePolynomial<F> {
             }
         }
         Ok(())
+    }
+}
+
+impl<F: Field> std::ops::Deref for SparsePolynomial<F> {
+    type Target = [(usize, F)];
+
+    fn deref(&self) -> &[(usize, F)] {
+        &self.coeffs
     }
 }
 
@@ -51,6 +59,8 @@ impl<F: Field> SparsePolynomial<F> {
         while coeffs.last().map_or(false, |(_, c)| c.is_zero()) {
             coeffs.pop();
         }
+        // Ensure that coeffs are in ascending order.
+        coeffs.sort_by(|(c1, _), (c2, _)| c1.cmp(c2));
         // Check that either the coefficients vec is empty or that the last coeff is non-zero.
         assert!(coeffs.last().map_or(true, |(_, c)| !c.is_zero()));
 
@@ -104,14 +114,12 @@ impl<F: PrimeField> SparsePolynomial<F> {
     pub fn evaluate_over_domain_by_ref(&self, domain: EvaluationDomain<F>) -> Evaluations<F> {
         let poly: DenseOrSparsePolynomial<'_, F> = self.into();
         DenseOrSparsePolynomial::<F>::evaluate_over_domain(poly, domain)
-        // unimplemented!("current implementation does not produce evals in correct order")
     }
 
     /// Evaluate `self` over `domain`.
     pub fn evaluate_over_domain(self, domain: EvaluationDomain<F>) -> Evaluations<F> {
         let poly: DenseOrSparsePolynomial<'_, F> = self.into();
         DenseOrSparsePolynomial::<F>::evaluate_over_domain(poly, domain)
-        // unimplemented!("current implementation does not produce evals in correct order")
     }
 }
 
