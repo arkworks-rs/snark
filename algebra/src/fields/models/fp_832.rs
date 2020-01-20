@@ -17,27 +17,29 @@ pub trait Fp832Parameters: FpParameters<BigInt = BigInteger> {}
 
 #[derive(Derivative)]
 #[derivative(
-    Default(bound = "P: Fp832Parameters"),
-    Hash(bound = "P: Fp832Parameters"),
-    Clone(bound = "P: Fp832Parameters"),
-    Copy(bound = "P: Fp832Parameters"),
-    Debug(bound = "P: Fp832Parameters"),
-    PartialEq(bound = "P: Fp832Parameters"),
-    Eq(bound = "P: Fp832Parameters")
+    Default(bound = ""),
+    Hash(bound = ""),
+    Clone(bound = ""),
+    Copy(bound = ""),
+    Debug(bound = ""),
+    PartialEq(bound = ""),
+    Eq(bound = "")
 )]
-pub struct Fp832<P: Fp832Parameters>(
+pub struct Fp832<P>(
     pub BigInteger,
     #[derivative(Debug = "ignore")]
     #[doc(hidden)]
     pub PhantomData<P>,
 );
 
-impl<P: Fp832Parameters> Fp832<P> {
+impl<P> Fp832<P> {
     #[inline]
-    pub fn new(element: BigInteger) -> Self {
-        Fp832::<P>(element, PhantomData)
+    pub const fn new(element: BigInteger) -> Self {
+        Self(element, PhantomData)
     }
+}
 
+impl<P: Fp832Parameters> Fp832<P> {
     #[inline]
     pub(crate) fn is_valid(&self) -> bool {
         self.0 < P::MODULUS

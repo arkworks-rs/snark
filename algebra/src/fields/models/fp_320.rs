@@ -18,26 +18,30 @@ pub trait Fp320Parameters: FpParameters<BigInt = BigInteger> {}
 
 #[derive(Derivative)]
 #[derivative(
-    Default(bound = "P: Fp320Parameters"),
-    Hash(bound = "P: Fp320Parameters"),
-    Clone(bound = "P: Fp320Parameters"),
-    Copy(bound = "P: Fp320Parameters"),
-    Debug(bound = "P: Fp320Parameters"),
-    PartialEq(bound = "P: Fp320Parameters"),
-    Eq(bound = "P: Fp320Parameters")
+    Default(bound = ""),
+    Hash(bound = ""),
+    Clone(bound = ""),
+    Copy(bound = ""),
+    Debug(bound = ""),
+    PartialEq(bound = ""),
+    Eq(bound = "")
 )]
-pub struct Fp320<P: Fp320Parameters>(
+pub struct Fp320<P>(
     pub BigInteger,
     #[derivative(Debug = "ignore")]
     #[doc(hidden)]
     pub PhantomData<P>,
 );
 
-impl<P: Fp320Parameters> Fp320<P> {
+impl<P> Fp320<P> {
     #[inline]
-    pub fn new(element: BigInteger) -> Self {
-        Fp320::<P>(element, PhantomData)
+    pub const fn new(element: BigInteger) -> Self {
+        Self(element, PhantomData)
     }
+}
+
+impl<P: Fp320Parameters> Fp320<P> {
+    
 
     #[inline]
     fn is_valid(&self) -> bool {

@@ -153,7 +153,8 @@ pub trait FpParameters: 'static + Send + Sync + Sized {
     /// the representation when randomly sampling.
     const REPR_SHAVE_BITS: u32;
 
-    /// R = 2^256 % Self::MODULUS
+    /// Let `M` be the power of 2^64 nearest to `Self::MODULUS_BITS`. Then
+    /// `R = M % Self::MODULUS`.
     const R: Self::BigInt;
 
     /// R2 = R^2 % Self::MODULUS
@@ -171,14 +172,14 @@ pub trait FpParameters: 'static + Send + Sync + Sized {
     /// (Should equal `SELF::MODULUS_BITS - 1`)
     const CAPACITY: u32;
 
-    /// 2^s * t = MODULUS - 1 with t odd. This is the two-adicity of the prime.
+    /// 2^s * t = MODULUS - 1 with t odd. This is the two-adicity of `Self::MODULUS`.
     const TWO_ADICITY: u32;
-
-    /// 2^s root of unity computed by GENERATOR^t
-    const ROOT_OF_UNITY: Self::BigInt;
 
     /// t for 2^s * t = MODULUS - 1
     const T: Self::BigInt;
+
+    /// 2^s root of unity computed by GENERATOR^t
+    const ROOT_OF_UNITY: Self::BigInt;
 
     /// (t - 1) / 2
     const T_MINUS_ONE_DIV_TWO: Self::BigInt;
@@ -343,9 +344,9 @@ pub fn batch_inversion<F: Field>(v: &mut [F]) {
         // Backwards, skip last element, fill in one for last term.
         .zip(prod.into_iter().rev().skip(1).chain(Some(F::one())))
     {
-        // tmp := tmp * g.z; g.z := tmp * s = 1/z
-        let newtmp = tmp * *f;
+        // tmp := tmp * f; f := tmp * s = 1/f
+        let new_tmp = tmp * *f;
         *f = tmp * &s;
-        tmp = newtmp;
+        tmp = new_tmp;
     }
 }

@@ -18,27 +18,29 @@ pub trait Fp384Parameters: FpParameters<BigInt = BigInteger> {}
 
 #[derive(Derivative)]
 #[derivative(
-    Default(bound = "P: Fp384Parameters"),
-    Hash(bound = "P: Fp384Parameters"),
-    Clone(bound = "P: Fp384Parameters"),
-    Copy(bound = "P: Fp384Parameters"),
-    Debug(bound = "P: Fp384Parameters"),
-    PartialEq(bound = "P: Fp384Parameters"),
-    Eq(bound = "P: Fp384Parameters")
+    Default(bound = ""),
+    Hash(bound = ""),
+    Clone(bound = ""),
+    Copy(bound = ""),
+    Debug(bound = ""),
+    PartialEq(bound = ""),
+    Eq(bound = "")
 )]
-pub struct Fp384<P: Fp384Parameters>(
+pub struct Fp384<P>(
     pub BigInteger,
     #[derivative(Debug = "ignore")]
     #[doc(hidden)]
     pub PhantomData<P>,
 );
 
-impl<P: Fp384Parameters> Fp384<P> {
+impl<P> Fp384<P> {
     #[inline]
-    pub fn new(element: BigInteger) -> Self {
-        Fp384::<P>(element, PhantomData)
+    pub const fn new(element: BigInteger) -> Self {
+        Self(element, PhantomData)
     }
+}
 
+impl<P: Fp384Parameters> Fp384<P> {
     #[inline]
     pub(crate) fn is_valid(&self) -> bool {
         self.0 < P::MODULUS
