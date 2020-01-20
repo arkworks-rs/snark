@@ -4,7 +4,7 @@ macro_rules! bigint_impl {
         pub struct $name(pub [u64; $num_limbs]);
 
         impl $name {
-            pub fn new(value: [u64; $num_limbs]) -> Self {
+            pub const fn new(value: [u64; $num_limbs]) -> Self {
                 $name(value)
             }
         }

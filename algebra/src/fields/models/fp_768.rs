@@ -18,26 +18,30 @@ pub trait Fp768Parameters: FpParameters<BigInt = BigInteger> {}
 
 #[derive(Derivative)]
 #[derivative(
-    Default(bound = "P: Fp768Parameters"),
-    Hash(bound = "P: Fp768Parameters"),
-    Clone(bound = "P: Fp768Parameters"),
-    Copy(bound = "P: Fp768Parameters"),
-    Debug(bound = "P: Fp768Parameters"),
-    PartialEq(bound = "P: Fp768Parameters"),
-    Eq(bound = "P: Fp768Parameters")
+    Default(bound = ""),
+    Hash(bound = ""),
+    Clone(bound = ""),
+    Copy(bound = ""),
+    Debug(bound = ""),
+    PartialEq(bound = ""),
+    Eq(bound = "")
 )]
-pub struct Fp768<P: Fp768Parameters>(
+pub struct Fp768<P>(
     pub BigInteger,
     #[derivative(Debug = "ignore")]
     #[doc(hidden)]
     pub PhantomData<P>,
 );
 
-impl<P: Fp768Parameters> Fp768<P> {
+
+impl<P> Fp768<P> {
     #[inline]
-    pub fn new(element: BigInteger) -> Self {
-        Fp768::<P>(element, PhantomData)
+    pub const fn new(element: BigInteger) -> Self {
+        Self(element, PhantomData)
     }
+}
+
+impl<P: Fp768Parameters> Fp768<P> {
 
     #[inline]
     pub(crate) fn is_valid(&self) -> bool {
