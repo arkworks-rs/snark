@@ -308,7 +308,7 @@ impl<ConstraintF: Field> AllocGadget<bool, ConstraintF> for AllocatedBit {
     }
 }
 
-impl<ConstraintF: Field> CondSelectGadget<ConstraintF> for AllocatedBit {
+impl<ConstraintF: PrimeField> CondSelectGadget<ConstraintF> for AllocatedBit {
     fn conditionally_select<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
         cond: &Boolean,
@@ -328,7 +328,7 @@ impl<ConstraintF: Field> CondSelectGadget<ConstraintF> for AllocatedBit {
     }
 }
 
-fn cond_select_helper<F: Field, CS: ConstraintSystem<F>>(
+fn cond_select_helper<F: PrimeField, CS: ConstraintSystem<F>>(
     mut cs: CS,
     cond: &Boolean,
     first: (Option<bool>, impl Into<ConstraintVar<F>>),
@@ -785,7 +785,8 @@ impl<ConstraintF: Field> ToBytesGadget<ConstraintF> for Boolean {
         self.to_bytes(cs)
     }
 }
-impl<ConstraintF: Field> CondSelectGadget<ConstraintF> for Boolean {
+
+impl<ConstraintF: PrimeField> CondSelectGadget<ConstraintF> for Boolean {
     fn conditionally_select<CS>(
         mut cs: CS,
         cond: &Self,
