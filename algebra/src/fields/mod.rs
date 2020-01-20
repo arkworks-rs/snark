@@ -72,11 +72,7 @@ pub trait Field:
     + Zero
     + Sized
     + Hash
-    + From<u128>
-    + From<u64>
-    + From<u32>
-    + From<u16>
-    + From<u8>
+    
     + Add<Self, Output = Self>
     + for<'a> Add<&'a Self, Output = Self>
     + for<'a> Sub<&'a Self, Output = Self>
@@ -118,6 +114,7 @@ pub trait Field:
 
     /// Exponentiates this element by a number represented with `u64` limbs,
     /// least significant limb first.
+    #[must_use]
     fn pow<S: AsRef<[u64]>>(&self, exp: S) -> Self {
         let mut res = Self::one();
 
@@ -191,7 +188,17 @@ pub trait FpParameters: 'static + Send + Sync + Sized {
 }
 
 /// The interface for a prime field.
-pub trait PrimeField: Field + FromStr {
+pub trait PrimeField: 
+    Field 
+    + FromStr 
+    + From<<Self as PrimeField>::BigInt>
+    + Into<<Self as PrimeField>::BigInt> 
+    + From<u128>
+    + From<u64>
+    + From<u32>
+    + From<u16>
+    + From<u8>
+{
     type Params: FpParameters<BigInt = Self::BigInt>;
     type BigInt: BigInteger;
 
@@ -305,11 +312,11 @@ use crate::biginteger::{
     BigInteger256, BigInteger320, BigInteger384, BigInteger768, BigInteger832,
 };
 
-impl_field_into_bigint!(Fp256, BigInteger256, Fp256Parameters);
-impl_field_into_bigint!(Fp320, BigInteger320, Fp320Parameters);
-impl_field_into_bigint!(Fp384, BigInteger384, Fp384Parameters);
-impl_field_into_bigint!(Fp768, BigInteger768, Fp768Parameters);
-impl_field_into_bigint!(Fp832, BigInteger832, Fp832Parameters);
+impl_field_bigint_conv!(Fp256, BigInteger256, Fp256Parameters);
+impl_field_bigint_conv!(Fp320, BigInteger320, Fp320Parameters);
+impl_field_bigint_conv!(Fp384, BigInteger384, Fp384Parameters);
+impl_field_bigint_conv!(Fp768, BigInteger768, Fp768Parameters);
+impl_field_bigint_conv!(Fp832, BigInteger832, Fp832Parameters);
 
 pub fn batch_inversion<F: Field>(v: &mut [F]) {
     // Montgomery’s Trick and Fast Implementation of Masked AES

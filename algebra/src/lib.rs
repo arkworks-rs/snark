@@ -68,7 +68,7 @@ pub use num_traits::{One, Zero};
 pub mod prelude {
     pub use crate::biginteger::BigInteger;
 
-    pub use crate::fields::{Field, PrimeField, SquareRootField};
+    pub use crate::fields::{Field, PrimeField, SquareRootField, FpParameters};
 
     pub use crate::groups::Group;
 

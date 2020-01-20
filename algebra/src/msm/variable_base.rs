@@ -1,8 +1,7 @@
-use crate::{
-    AffineCurve, BigInteger, FpParameters, PrimeField,
-    ProjectiveCurve,
+use crate::prelude::{
+    AffineCurve, BigInteger, FpParameters, PrimeField, ProjectiveCurve, One, Zero
 };
-use num_traits::{One, Zero};
+#[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
 pub struct VariableBaseMSM;
