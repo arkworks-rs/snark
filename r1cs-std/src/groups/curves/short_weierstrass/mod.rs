@@ -91,7 +91,7 @@ impl<P, ConstraintF, F> GroupGadget<SWProjective<P>, ConstraintF>
     for AffineGadget<P, ConstraintF, F>
 where
     P: SWModelParameters,
-    ConstraintF: Field,
+    ConstraintF: PrimeField,
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
     type Value = SWProjective<P>;
@@ -329,7 +329,7 @@ where
 impl<P, ConstraintF, F> CondSelectGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
 where
     P: SWModelParameters,
-    ConstraintF: Field,
+    ConstraintF: PrimeField,
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
     #[inline]
@@ -424,7 +424,7 @@ impl<P, ConstraintF, F> AllocGadget<SWProjective<P>, ConstraintF>
     for AffineGadget<P, ConstraintF, F>
 where
     P: SWModelParameters,
-    ConstraintF: Field,
+    ConstraintF: PrimeField,
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
     #[inline]
