@@ -1,8 +1,14 @@
-macro_rules! impl_field_into_bigint {
+macro_rules! impl_field_bigint_conv {
     ($field: ident, $bigint: ident, $params: ident) => {
         impl<P: $params> Into<$bigint> for $field<P> {
             fn into(self) -> $bigint {
                 self.into_repr()
+            }
+        }
+
+        impl<P: $params> From<$bigint> for $field<P> {
+            fn from(int: $bigint) -> Self {
+                Self::from_repr(int)
             }
         }
     };
