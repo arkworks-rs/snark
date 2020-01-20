@@ -86,7 +86,7 @@ impl<F: Field> DenseOrSparsePolynomial<'_, F> {
     #[inline]
     fn leading_coefficient(&self) -> Option<&F> {
         match self {
-            SPolynomial(p) => p.coeffs.last().map(|(_, c)| c),
+            SPolynomial(p) => p.last().map(|(_, c)| c),
             DPolynomial(p) => p.last(),
         }
     }
@@ -94,7 +94,7 @@ impl<F: Field> DenseOrSparsePolynomial<'_, F> {
     #[inline]
     fn iter_with_index<'a>(&'a self) -> Vec<(usize, F)> {
         match self {
-            SPolynomial(p) => p.coeffs.to_vec(),
+            SPolynomial(p) => p.to_vec(),
             DPolynomial(p) => p.iter().cloned().enumerate().collect(),
         }
     }
