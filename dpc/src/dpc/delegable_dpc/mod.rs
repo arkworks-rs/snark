@@ -1,15 +1,18 @@
-use algebra::bytes::{FromBytes, ToBytes};
-use algebra::{to_bytes, PrimeField};
 use crate::Error;
-use algebra::UniformRand;
+use algebra::{
+    bytes::{FromBytes, ToBytes},
+    to_bytes, PrimeField, UniformRand,
+};
 use rand::Rng;
 use std::marker::PhantomData;
 
-use crypto_primitives::{CommitmentScheme, FixedLengthCRH, SignatureScheme, NIZK, PRF, merkle_tree::*};
-use crypto_primitives::{CommitmentGadget, FixedLengthCRHGadget, NIZKVerifierGadget, PRFGadget, SigRandomizePkGadget};
 use crate::{
     dpc::{AddressKeyPair, DPCScheme, Predicate, Record, Transaction},
     ledger::*,
+};
+use crypto_primitives::{
+    merkle_tree::*, CommitmentGadget, CommitmentScheme, FixedLengthCRH, FixedLengthCRHGadget,
+    NIZKVerifierGadget, PRFGadget, SigRandomizePkGadget, SignatureScheme, NIZK, PRF,
 };
 
 pub mod address;
@@ -61,9 +64,13 @@ pub trait DelegableDPCComponents: 'static + Sized {
 
     // Parameters for MerkleTree
     type MerkleTreeConfig: MerkleTreeConfig;
-    type MerkleTreeHGadget: FixedLengthCRHGadget<<Self::MerkleTreeConfig as MerkleTreeConfig>::H, Self::CoreCheckF>;
+    type MerkleTreeHGadget: FixedLengthCRHGadget<
+        <Self::MerkleTreeConfig as MerkleTreeConfig>::H,
+        Self::CoreCheckF,
+    >;
 
-    // CRH for computing the serial number nonce. Invoked only over `Self::CoreCheckF`.
+    // CRH for computing the serial number nonce. Invoked only over
+    // `Self::CoreCheckF`.
     type SnNonceH: FixedLengthCRH;
     type SnNonceHGadget: FixedLengthCRHGadget<Self::SnNonceH, Self::CoreCheckF>;
 
@@ -560,7 +567,10 @@ where
     type Transaction = DPCTransaction<Components>;
     type LocalData = LocalData<Components>;
 
-    fn setup<R: Rng>(ledger_pp: &MerkleTreeParams<Components::MerkleTreeConfig>, rng: &mut R) -> Result<Self::Parameters, Error> {
+    fn setup<R: Rng>(
+        ledger_pp: &MerkleTreeParams<Components::MerkleTreeConfig>,
+        rng: &mut R,
+    ) -> Result<Self::Parameters, Error> {
         let setup_time = start_timer!(|| "DelegableDPC::Setup");
         let comm_crh_sig_pp = Self::generate_comm_crh_sig_parameters(rng)?;
 
@@ -820,7 +830,11 @@ where
 
         let sig_time = start_timer!(|| "Signature verification (in parallel)");
         let sig_pp = &parameters.comm_crh_sig_pp.sig_pp;
-        for (pk, sig) in  transaction.old_serial_numbers().iter().zip(&transaction.stuff.signatures) {
+        for (pk, sig) in transaction
+            .old_serial_numbers()
+            .iter()
+            .zip(&transaction.stuff.signatures)
+        {
             result &= Components::S::verify(sig_pp, pk, signature_message, sig)?;
         }
         end_timer!(sig_time);

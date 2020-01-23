@@ -26,11 +26,11 @@ pub struct PedersenCRHGadgetParameters<
 
 pub struct PedersenCRHGadget<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> {
     #[doc(hideen)]
-    _group: PhantomData<*const G>,
+    _group:        PhantomData<*const G>,
     #[doc(hideen)]
     _group_gadget: PhantomData<*const GG>,
     #[doc(hideen)]
-    _engine: PhantomData<ConstraintF>,
+    _engine:       PhantomData<ConstraintF>,
 }
 
 impl<ConstraintF, G, GG, W> FixedLengthCRHGadget<PedersenCRH<G, W>, ConstraintF>

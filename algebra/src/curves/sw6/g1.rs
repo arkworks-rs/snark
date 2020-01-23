@@ -1,4 +1,3 @@
-use crate::field_new;
 use super::{G2Affine, SW6};
 use crate::{
     biginteger::{BigInteger384, BigInteger832},
@@ -7,6 +6,7 @@ use crate::{
         short_weierstrass_jacobian::{GroupAffine, GroupProjective},
         PairingCurve, PairingEngine,
     },
+    field_new,
     fields::sw6::{Fq, Fq6, Fr},
 };
 

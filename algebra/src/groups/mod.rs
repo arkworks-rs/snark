@@ -1,5 +1,4 @@
-use crate::BitIterator;
-use crate::UniformRand;
+use crate::{BitIterator, UniformRand};
 use num_traits::Zero;
 use std::{
     fmt::{Debug, Display},

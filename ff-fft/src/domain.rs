@@ -10,10 +10,10 @@
 //! This allows us to perform polynomial operations in O(n)
 //! by performing an O(n log n) FFT over such a domain.
 
-use std::fmt;
 use algebra::{FpParameters, PrimeField};
-use rayon::prelude::*;
 use rand::Rng;
+use rayon::prelude::*;
+use std::fmt;
 
 use super::multicore::Worker;
 
@@ -31,9 +31,9 @@ pub struct EvaluationDomain<F: PrimeField> {
     /// Inverse of the size in the field.
     pub size_inv:              F,
     /// A generator of the subgroup.
-    pub group_gen:          F,
+    pub group_gen:             F,
     /// Inverse of the generator of the subgroup.
-    pub group_gen_inv:      F,
+    pub group_gen_inv:         F,
     /// Multiplicative generator of the finite field.
     pub generator_inv:         F,
 }
@@ -87,12 +87,12 @@ impl<F: PrimeField> EvaluationDomain<F> {
             size_inv,
             group_gen,
             group_gen_inv: group_gen.inverse()?,
-            generator_inv: F::multiplicative_generator().inverse()?
+            generator_inv: F::multiplicative_generator().inverse()?,
         })
     }
 
-    /// Return the size of a domain that is large enough for evaluations of a polynomial
-    /// having `num_coeffs` coefficients.
+    /// Return the size of a domain that is large enough for evaluations of a
+    /// polynomial having `num_coeffs` coefficients.
     pub fn compute_size_of_domain(num_coeffs: usize) -> Option<usize> {
         let size = num_coeffs.next_power_of_two();
         if size.trailing_zeros() < F::Params::TWO_ADICITY {
@@ -115,9 +115,14 @@ impl<F: PrimeField> EvaluationDomain<F> {
     }
 
     /// Compute a FFT, modifying the vector in place.
-    pub fn fft_in_place(&self, coeffs: &mut Vec<F>)  {
+    pub fn fft_in_place(&self, coeffs: &mut Vec<F>) {
         coeffs.resize(self.size(), F::zero());
-        best_fft(coeffs, &Worker::new(), self.group_gen, self.log_size_of_group)
+        best_fft(
+            coeffs,
+            &Worker::new(),
+            self.group_gen,
+            self.log_size_of_group,
+        )
     }
 
     /// Compute a IFFT.
@@ -131,7 +136,12 @@ impl<F: PrimeField> EvaluationDomain<F> {
     #[inline]
     pub fn ifft_in_place(&self, evals: &mut Vec<F>) {
         evals.resize(self.size(), F::zero());
-        best_fft(evals, &Worker::new(), self.group_gen_inv, self.log_size_of_group);
+        best_fft(
+            evals,
+            &Worker::new(),
+            self.group_gen_inv,
+            self.log_size_of_group,
+        );
         evals.par_iter_mut().for_each(|val| *val *= &self.size_inv);
     }
 
@@ -170,14 +180,15 @@ impl<F: PrimeField> EvaluationDomain<F> {
         evals
     }
 
-    /// Compute a IFFT over a coset of the domain, modifying the input vector in place.
+    /// Compute a IFFT over a coset of the domain, modifying the input vector in
+    /// place.
     pub fn coset_ifft_in_place(&self, evals: &mut Vec<F>) {
         self.ifft_in_place(evals);
         Self::distribute_powers(evals, self.generator_inv);
     }
 
-    /// Evaluate all the lagrange polynomials defined by this domain at the point
-    /// `tau`.
+    /// Evaluate all the lagrange polynomials defined by this domain at the
+    /// point `tau`.
     pub fn evaluate_all_lagrange_coefficients(&self, tau: F) -> Vec<F> {
         // Evaluate all Lagrange polynomials
         let size = self.size as usize;
@@ -233,8 +244,8 @@ impl<F: PrimeField> EvaluationDomain<F> {
     pub fn elements(&self) -> Elements<F> {
         Elements {
             cur_elem: F::one(),
-            cur_pow: 0,
-            domain: *self,
+            cur_pow:  0,
+            domain:   *self,
         }
     }
 
@@ -254,25 +265,26 @@ impl<F: PrimeField> EvaluationDomain<F> {
         });
     }
 
-    /// Given an index which assumes the first elements of this domain are the elements of
-    /// another (sub)domain with size size_s,
+    /// Given an index which assumes the first elements of this domain are the
+    /// elements of another (sub)domain with size size_s,
     /// this returns the actual index into this domain.
     pub fn reindex_by_subdomain(&self, other: Self, index: usize) -> usize {
         assert!(self.size() >= other.size());
         // Let this subgroup be G, and the subgroup we're re-indexing by be S.
-        // Since its a subgroup, the 0th element of S is at index 0 in G, the first element of S is at
-        // index |G|/|S|, the second at 2*|G|/|S|, etc.
+        // Since its a subgroup, the 0th element of S is at index 0 in G, the first
+        // element of S is at index |G|/|S|, the second at 2*|G|/|S|, etc.
         // Thus for an index i that corresponds to S, the index in G is i*|G|/|S|
         let period = self.size() / other.size();
         if index < other.size() {
             index * period
         } else {
             // Let i now be the index of this element in G \ S
-            // Let x be the number of elements in G \ S, for every element in S. Then x = (|G|/|S| - 1).
-            // At index i in G \ S, the number of elements in S that appear before the index in G to which
-            // i corresponds to, is floor(i / x) + 1.
-            // The +1 is because index 0 of G is S_0, so the position is offset by at least one.
-            // The floor(i / x) term is because after x elements in G \ S, there is one more element from S
+            // Let x be the number of elements in G \ S, for every element in S. Then x =
+            // (|G|/|S| - 1). At index i in G \ S, the number of elements in S
+            // that appear before the index in G to which i corresponds to, is
+            // floor(i / x) + 1. The +1 is because index 0 of G is S_0, so the
+            // position is offset by at least one. The floor(i / x) term is
+            // because after x elements in G \ S, there is one more element from S
             // that will have appeared in G.
             let i = index - other.size();
             let x = period - 1;
@@ -280,12 +292,15 @@ impl<F: PrimeField> EvaluationDomain<F> {
         }
     }
 
-   
-    /// Perform O(n) multiplication of two polynomials that are presented by their
-    /// evaluations in the domain.
+    /// Perform O(n) multiplication of two polynomials that are presented by
+    /// their evaluations in the domain.
     /// Returns the evaluations of the product over the domain.
     #[must_use]
-    pub fn mul_polynomials_in_evaluation_domain(&self, self_evals: &[F], other_evals: &[F]) -> Vec<F> {
+    pub fn mul_polynomials_in_evaluation_domain(
+        &self,
+        self_evals: &[F],
+        other_evals: &[F],
+    ) -> Vec<F> {
         assert_eq!(self_evals.len(), other_evals.len());
         let mut result = self_evals.to_vec();
         let chunk_size = Self::calculate_chunk_size(self.size());
@@ -417,8 +432,8 @@ pub(crate) fn parallel_fft<F: PrimeField>(
 /// An iterator over the elements of the domain.
 pub struct Elements<F: PrimeField> {
     cur_elem: F,
-    cur_pow: u64,
-    domain: EvaluationDomain<F>,
+    cur_pow:  u64,
+    domain:   EvaluationDomain<F>,
 }
 
 impl<F: PrimeField> Iterator for Elements<F> {
@@ -438,10 +453,8 @@ impl<F: PrimeField> Iterator for Elements<F> {
 #[cfg(test)]
 mod tests {
     use crate::EvaluationDomain;
-    use algebra::Field;
-    use algebra::fields::bls12_381::fr::Fr;
-    use rand::{Rng, thread_rng};
-    use algebra::Zero;
+    use algebra::{fields::bls12_381::fr::Fr, Field, Zero};
+    use rand::{thread_rng, Rng};
 
     #[test]
     fn vanishing_polynomial_evaluation() {
@@ -451,7 +464,10 @@ mod tests {
             let z = domain.vanishing_polynomial();
             for _ in 0..100 {
                 let point = rng.gen();
-                assert_eq!(z.evaluate(point), domain.evaluate_vanishing_polynomial(point))
+                assert_eq!(
+                    z.evaluate(point),
+                    domain.evaluate_vanishing_polynomial(point)
+                )
             }
         }
     }

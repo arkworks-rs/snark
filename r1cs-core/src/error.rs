@@ -1,6 +1,4 @@
-use std::fmt;
-use std::io;
-use std::error::Error;
+use std::{error::Error, fmt, io};
 
 /// This is an error that could occur during circuit synthesis contexts,
 /// such as CRS generation, proving or verification.
@@ -29,7 +27,6 @@ impl Error for SynthesisError {
         None
     }
 }
-
 
 impl From<io::Error> for SynthesisError {
     fn from(e: io::Error) -> SynthesisError {

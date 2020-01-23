@@ -2,11 +2,10 @@ mod g1 {
     use algebra::{
         curves::sw6::{G1Affine, G1Projective as G1},
         fields::sw6::Fr,
-        ProjectiveCurve,
+        ProjectiveCurve, UniformRand,
     };
-    use algebra::UniformRand;
-use rand::SeedableRng;
-use rand_xorshift::XorShiftRng;
+    use rand::SeedableRng;
+    use rand_xorshift::XorShiftRng;
     use std::ops::AddAssign;
 
     #[bench]
@@ -96,11 +95,10 @@ mod g2 {
     use algebra::{
         curves::sw6::{G2Affine, G2Projective as G2},
         fields::sw6::Fr,
-        ProjectiveCurve,
+        ProjectiveCurve, UniformRand,
     };
-    use algebra::UniformRand;
-use rand::SeedableRng;
-use rand_xorshift::XorShiftRng;
+    use rand::SeedableRng;
+    use rand_xorshift::XorShiftRng;
     use std::ops::AddAssign;
 
     #[bench]

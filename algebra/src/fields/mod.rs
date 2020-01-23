@@ -1,4 +1,8 @@
-use crate::{biginteger::BigInteger, bytes::{FromBytes, ToBytes}, UniformRand, CanonicalSerialize, CanonicalDeserialize};
+use crate::{
+    biginteger::BigInteger,
+    bytes::{FromBytes, ToBytes},
+    CanonicalDeserialize, CanonicalSerialize, UniformRand,
+};
 use num_traits::{One, Zero};
 use std::{
     fmt::{Debug, Display},
@@ -27,22 +31,22 @@ pub use self::models::*;
 macro_rules! field_new {
     ($name:ident, $c0:expr) => {
         $name {
-            0: $c0, 
-            1: std::marker::PhantomData
+            0: $c0,
+            1: std::marker::PhantomData,
         }
     };
     ($name:ident, $c0:expr, $c1:expr $(,)?) => {
         $name {
-            c0: $c0,
-            c1: $c1,
+            c0:          $c0,
+            c1:          $c1,
             _parameters: std::marker::PhantomData,
         }
     };
     ($name:ident, $c0:expr, $c1:expr, $c2:expr $(,)?) => {
         $name {
-            c0: $c0,
-            c1: $c1,
-            c2: $c2,
+            c0:          $c0,
+            c1:          $c1,
+            c2:          $c2,
             _parameters: std::marker::PhantomData,
         }
     };
@@ -70,8 +74,7 @@ pub trait Field:
     + Hash
     + CanonicalSerialize
     + CanonicalDeserialize
-
-+ Add<Self, Output = Self>
+    + Add<Self, Output = Self>
     + for<'a> Add<&'a Self, Output = Self>
     + for<'a> Sub<&'a Self, Output = Self>
     + Mul<Self, Output = Self>
@@ -170,7 +173,8 @@ pub trait FpParameters: 'static + Send + Sync + Sized {
     /// (Should equal `SELF::MODULUS_BITS - 1`)
     const CAPACITY: u32;
 
-    /// 2^s * t = MODULUS - 1 with t odd. This is the two-adicity of `Self::MODULUS`.
+    /// 2^s * t = MODULUS - 1 with t odd. This is the two-adicity of
+    /// `Self::MODULUS`.
     const TWO_ADICITY: u32;
 
     /// t for 2^s * t = MODULUS - 1
@@ -187,11 +191,11 @@ pub trait FpParameters: 'static + Send + Sync + Sized {
 }
 
 /// The interface for a prime field.
-pub trait PrimeField: 
-    Field 
-    + FromStr 
+pub trait PrimeField:
+    Field
+    + FromStr
     + From<<Self as PrimeField>::BigInt>
-    + Into<<Self as PrimeField>::BigInt> 
+    + Into<<Self as PrimeField>::BigInt>
     + From<u128>
     + From<u64>
     + From<u32>
@@ -322,7 +326,6 @@ impl_prime_field_serializer!(Fp320, Fp320Parameters, 40);
 impl_prime_field_serializer!(Fp384, Fp384Parameters, 48);
 impl_prime_field_serializer!(Fp768, Fp768Parameters, 96);
 impl_prime_field_serializer!(Fp832, Fp832Parameters, 104);
-
 
 pub fn batch_inversion<F: Field>(v: &mut [F]) {
     // Montgomery’s Trick and Fast Implementation of Masked AES

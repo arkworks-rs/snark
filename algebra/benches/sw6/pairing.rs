@@ -5,10 +5,10 @@ mod pairing {
             PairingCurve, PairingEngine,
         },
         fields::sw6::Fq6,
+        UniformRand,
     };
-    use algebra::UniformRand;
-use rand::SeedableRng;
-use rand_xorshift::XorShiftRng;
+    use rand::SeedableRng;
+    use rand_xorshift::XorShiftRng;
 
     #[bench]
     fn bench_pairing_miller_loop(b: &mut ::test::Bencher) {

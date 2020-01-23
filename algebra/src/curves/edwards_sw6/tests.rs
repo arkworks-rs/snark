@@ -1,13 +1,23 @@
-use crate::{curves::{edwards_sw6::*, tests::curve_tests, AffineCurve, ProjectiveCurve, models::twisted_edwards_extended::tests::montgomery_conversion_test}, groups::tests::group_test, CanonicalSerialize};
+use crate::{
+    curves::{
+        edwards_sw6::*,
+        models::twisted_edwards_extended::{
+            tests::{edwards_curve_serialization_test, montgomery_conversion_test},
+            GroupAffine,
+        },
+        tests::curve_tests,
+        AffineCurve, ProjectiveCurve,
+    },
+    groups::tests::group_test,
+    CanonicalSerialize,
+};
 use rand;
-use crate::curves::models::twisted_edwards_extended::tests::edwards_curve_serialization_test;
-use crate::curves::models::twisted_edwards_extended::GroupAffine;
 
 #[test]
 fn test_projective_curve() {
     curve_tests::<EdwardsProjective>();
 
-    let byte_size = <GroupAffine::<EdwardsParameters> as CanonicalSerialize>::buffer_size();
+    let byte_size = <GroupAffine<EdwardsParameters> as CanonicalSerialize>::buffer_size();
     edwards_curve_serialization_test::<EdwardsParameters>(byte_size);
 }
 

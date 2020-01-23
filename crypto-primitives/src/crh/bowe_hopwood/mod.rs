@@ -122,8 +122,10 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for BoweHopwoodPedersenCRH<G, W
         }
         assert_eq!(CHUNK_SIZE, 3);
 
-        // Compute sum of h_i^{sum of (1-2*c_{i,j,2})*(1+c_{i,j,0}+2*c_{i,j,1})*2^{4*(j-1)} for all j in segment} for all i. 
-        // Described in section 5.4.1.7 in the Zcash protocol specification.
+        // Compute sum of h_i^{sum of
+        // (1-2*c_{i,j,2})*(1+c_{i,j,0}+2*c_{i,j,1})*2^{4*(j-1)} for all j in segment}
+        // for all i. Described in section 5.4.1.7 in the Zcash protocol
+        // specification.
         let result = padded_input
             .par_chunks(W::WINDOW_SIZE * CHUNK_SIZE)
             .zip(&parameters.generators)

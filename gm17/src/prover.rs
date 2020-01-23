@@ -2,13 +2,14 @@ use rand::Rng;
 use rayon::prelude::*;
 
 use algebra::{
-    UniformRand, msm::VariableBaseMSM, AffineCurve, PairingEngine, PrimeField, ProjectiveCurve,
+    msm::VariableBaseMSM, AffineCurve, PairingEngine, PrimeField, ProjectiveCurve, UniformRand,
 };
 
-use crate::{Parameters, Proof};
-use crate::r1cs_to_sap::R1CStoSAP;
+use crate::{r1cs_to_sap::R1CStoSAP, Parameters, Proof};
 
-use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable};
+use r1cs_core::{
+    ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable,
+};
 
 use algebra::{One, Zero};
 use smallvec::SmallVec;

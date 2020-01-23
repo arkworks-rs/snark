@@ -60,7 +60,6 @@ pub use self::groups::*;
 mod rand;
 pub use self::rand::*;
 
-
 mod to_field_vec;
 pub use to_field_vec::ToConstraintField;
 
@@ -72,11 +71,11 @@ pub use num_traits::{One, Zero};
 pub mod prelude {
     pub use crate::biginteger::BigInteger;
 
-    pub use crate::fields::{Field, PrimeField, SquareRootField, FpParameters};
+    pub use crate::fields::{Field, FpParameters, PrimeField, SquareRootField};
 
     pub use crate::groups::Group;
 
-    pub use crate::curves::{ProjectiveCurve, AffineCurve, PairingCurve, PairingEngine};
+    pub use crate::curves::{AffineCurve, PairingCurve, PairingEngine, ProjectiveCurve};
 
     pub use crate::rand::UniformRand;
 

@@ -1,15 +1,18 @@
-use algebra::bytes::{FromBytes, ToBytes};
-use algebra::{to_bytes, PrimeField};
 use crate::Error;
-use algebra::UniformRand;
+use algebra::{
+    bytes::{FromBytes, ToBytes},
+    to_bytes, PrimeField, UniformRand,
+};
 use rand::Rng;
 use std::marker::PhantomData;
 
-use crypto_primitives::{CommitmentScheme, FixedLengthCRH, NIZK, PRF, merkle_tree::*};
-use crypto_primitives::{CommitmentGadget, FixedLengthCRHGadget, NIZKVerifierGadget, PRFGadget};
 use crate::{
     dpc::{AddressKeyPair, DPCScheme, Predicate, Record, Transaction},
     ledger::*,
+};
+use crypto_primitives::{
+    merkle_tree::*, CommitmentGadget, CommitmentScheme, FixedLengthCRH, FixedLengthCRHGadget,
+    NIZKVerifierGadget, PRFGadget, NIZK, PRF,
 };
 
 pub mod address;
@@ -63,9 +66,13 @@ pub trait PlainDPCComponents: 'static + Sized {
 
     // Ledger digest type.
     type MerkleTreeConfig: MerkleTreeConfig;
-    type MerkleTreeHGadget: FixedLengthCRHGadget<<Self::MerkleTreeConfig as MerkleTreeConfig>::H, Self::CoreCheckF>;
+    type MerkleTreeHGadget: FixedLengthCRHGadget<
+        <Self::MerkleTreeConfig as MerkleTreeConfig>::H,
+        Self::CoreCheckF,
+    >;
 
-    // CRH for computing the serial number nonce. Invoked only over `Self::CoreCheckF`.
+    // CRH for computing the serial number nonce. Invoked only over
+    // `Self::CoreCheckF`.
     type SnNonceH: FixedLengthCRH;
     type SnNonceHGadget: FixedLengthCRHGadget<Self::SnNonceH, Self::CoreCheckF>;
 
@@ -540,7 +547,10 @@ where
     type Transaction = DPCTransaction<Components>;
     type LocalData = LocalData<Components>;
 
-    fn setup<R: Rng>(ledger_pp: &MerkleTreeParams<Components::MerkleTreeConfig>, rng: &mut R) -> Result<Self::Parameters, Error> {
+    fn setup<R: Rng>(
+        ledger_pp: &MerkleTreeParams<Components::MerkleTreeConfig>,
+        rng: &mut R,
+    ) -> Result<Self::Parameters, Error> {
         let setup_time = start_timer!(|| "PlainDPC::Setup");
         let comm_and_crh_pp = Self::generate_comm_and_crh_parameters(rng)?;
 

@@ -1,6 +1,6 @@
-use crate::field_new;
 use crate::{
     biginteger::BigInteger832 as BigInteger,
+    field_new,
     fields::{
         fp6_2over3::{Fp6, Fp6Parameters},
         sw6::{

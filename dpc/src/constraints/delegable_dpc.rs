@@ -1,24 +1,26 @@
-use crypto_primitives::{CommitmentScheme, FixedLengthCRH, SignatureScheme, PRF, merkle_tree::*};
-use crypto_primitives::{CommitmentGadget, FixedLengthCRHGadget, PRFGadget, SigRandomizePkGadget, NIZKVerifierGadget};
-use crypto_primitives::merkle_tree::constraints::*;
-
-use crate::{
-    dpc::{
-        delegable_dpc::{
-            address::AddressSecretKey, parameters::CommCRHSigPublicParameters,
-            predicate::PrivatePredInput, record::DPCRecord, DelegableDPCComponents,
-        },
-        Record,
-    },
+use crypto_primitives::{
+    merkle_tree::{constraints::*, *},
+    CommitmentGadget, CommitmentScheme, FixedLengthCRH, FixedLengthCRHGadget, NIZKVerifierGadget,
+    PRFGadget, SigRandomizePkGadget, SignatureScheme, PRF,
 };
-use algebra::{to_bytes, ToConstraintField, FpParameters, PrimeField};
+
+use crate::dpc::{
+    delegable_dpc::{
+        address::AddressSecretKey, parameters::CommCRHSigPublicParameters,
+        predicate::PrivatePredInput, record::DPCRecord, DelegableDPCComponents,
+    },
+    Record,
+};
+use algebra::{to_bytes, FpParameters, PrimeField, ToConstraintField};
 use r1cs_core::{ConstraintSystem, SynthesisError};
-use r1cs_std::prelude::*;
-use r1cs_std::boolean::Boolean;
+use r1cs_std::{boolean::Boolean, prelude::*};
 
 use algebra::bytes::ToBytes;
 
-pub fn execute_core_checks_gadget<C: DelegableDPCComponents, CS: ConstraintSystem<C::CoreCheckF>>(
+pub fn execute_core_checks_gadget<
+    C: DelegableDPCComponents,
+    CS: ConstraintSystem<C::CoreCheckF>,
+>(
     cs: &mut CS,
     // Parameters
     comm_crh_sig_parameters: &CommCRHSigPublicParameters<C>,
@@ -208,10 +210,11 @@ where
             || Ok(&comm_crh_sig_parameters.sig_pp),
         )?;
 
-        let ledger_pp = <C::MerkleTreeHGadget as FixedLengthCRHGadget<_, _>>::ParametersGadget::alloc_input(
-            &mut cs.ns(|| "Declare Ledger Parameters"),
-            || Ok(ledger_parameters),
-        )?;
+        let ledger_pp =
+            <C::MerkleTreeHGadget as FixedLengthCRHGadget<_, _>>::ParametersGadget::alloc_input(
+                &mut cs.ns(|| "Declare Ledger Parameters"),
+                || Ok(ledger_parameters),
+            )?;
         (
             addr_comm_pp,
             rec_comm_pp,
@@ -224,9 +227,10 @@ where
     };
 
     let digest_gadget =
-        <C::MerkleTreeHGadget as FixedLengthCRHGadget<_, _>>::OutputGadget::alloc_input(&mut cs.ns(|| "Declare ledger digest"), || {
-            Ok(ledger_digest)
-        })?;
+        <C::MerkleTreeHGadget as FixedLengthCRHGadget<_, _>>::OutputGadget::alloc_input(
+            &mut cs.ns(|| "Declare ledger digest"),
+            || Ok(ledger_digest),
+        )?;
 
     for (i, (((record, witness), secret_key), given_serial_number)) in old_records
         .iter()
@@ -314,10 +318,10 @@ where
         {
             let witness_cs = &mut cs.ns(|| format!("Check membership witness {}", i));
 
-            let witness_gadget =
-                MerkleTreePathGadget::<_, C::MerkleTreeHGadget, _>::alloc(&mut witness_cs.ns(|| "Declare witness"), || {
-                    Ok(witness)
-                })?;
+            let witness_gadget = MerkleTreePathGadget::<_, C::MerkleTreeHGadget, _>::alloc(
+                &mut witness_cs.ns(|| "Declare witness"),
+                || Ok(witness),
+            )?;
 
             witness_gadget.conditionally_check_membership(
                 &mut witness_cs.ns(|| "Perform check"),
@@ -737,10 +741,12 @@ where
     // Construct predicate input
     // ************************************************************************
 
-    // First we convert the input for the predicates into `CoreCheckF` field elements
-    let local_data_comm_pp_fe =
-        ToConstraintField::<C::CoreCheckF>::to_field_elements(&comm_crh_sig_parameters.local_data_comm_pp)
-            .map_err(|_| SynthesisError::AssignmentMissing)?;
+    // First we convert the input for the predicates into `CoreCheckF` field
+    // elements
+    let local_data_comm_pp_fe = ToConstraintField::<C::CoreCheckF>::to_field_elements(
+        &comm_crh_sig_parameters.local_data_comm_pp,
+    )
+    .map_err(|_| SynthesisError::AssignmentMissing)?;
     let local_data_comm_fe = ToConstraintField::<C::CoreCheckF>::to_field_elements(local_data_comm)
         .map_err(|_| SynthesisError::AssignmentMissing)?;
 

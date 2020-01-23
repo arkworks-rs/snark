@@ -39,13 +39,10 @@ use std::{
 
 // Bring in some tools for using pairing-friendly curves
 // We're going to use the BLS12-377 pairing-friendly elliptic curve.
-use algebra::curves::bls12_377::Bls12_377;
-use algebra::fields::bls12_377::fr::Fr;
+use algebra::{curves::bls12_377::Bls12_377, fields::bls12_377::fr::Fr};
 
 // We're going to use the Groth-Maller 17 proving system.
-use gm17::{
-    create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
-};
+use gm17::{create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof};
 
 use std::{env, fs::OpenOptions, path::PathBuf, process};
 

@@ -1,6 +1,5 @@
-use crate::biginteger::BigInteger;
+use crate::{biginteger::BigInteger, UniformRand};
 use rand::SeedableRng;
-use crate::UniformRand;
 use rand_xorshift::XorShiftRng;
 
 fn biginteger_arithmetic_test<B: BigInteger>(a: B, b: B, zero: B) {

@@ -3,7 +3,7 @@ use algebra::curves::{
     edwards_sw6::EdwardsProjective as EdwardsSW, sw6::SW6,
 };
 
-use algebra::fields::bls12_377::{fr::Fr as Bls12_377Fr, fq::Fq as Bls12_377Fq};
+use algebra::fields::bls12_377::{fq::Fq as Bls12_377Fq, fr::Fr as Bls12_377Fr};
 
 use crypto_primitives::{
     commitment::{blake2s::Blake2sCommitment, injective_map::PedersenCommCompressor},
@@ -11,19 +11,19 @@ use crypto_primitives::{
         injective_map::{PedersenCRHCompressor, TECompressor},
         pedersen::PedersenWindow,
     },
-    nizk::Gm17,
     merkle_tree::MerkleTreeConfig,
+    nizk::Gm17,
     prf::blake2s::Blake2s,
 };
 
 use crypto_primitives::{
     commitment::{
-        blake2s::constraints::Blake2sCommitmentGadget, 
+        blake2s::constraints::Blake2sCommitmentGadget,
         injective_map::constraints::PedersenCommitmentCompressorGadget,
     },
     crh::injective_map::constraints::{PedersenCRHCompressorGadget, TECompressorGadget},
-    prf::blake2s::constraints::Blake2sGadget,
     nizk::gm17::constraints::Gm17VerifierGadget,
+    prf::blake2s::constraints::Blake2sGadget,
 };
 use r1cs_std::{
     groups::curves::twisted_edwards::{

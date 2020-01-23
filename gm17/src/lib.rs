@@ -1,12 +1,11 @@
-//! An implementation of the [Groth-Maller][GM17] simulation extractable zkSNARK.
-//! [GM17]: https://eprint.iacr.org/2017/540
+//! An implementation of the [Groth-Maller][GM17] simulation extractable
+//! zkSNARK. [GM17]: https://eprint.iacr.org/2017/540
 #![deny(unused_import_braces, unused_qualifications, trivial_casts)]
 #![deny(trivial_numeric_casts, private_in_public, variant_size_differences)]
 #![deny(stable_features, unreachable_pub, non_shorthand_field_patterns)]
 #![deny(unused_attributes, unused_imports, unused_mut)]
 #![deny(renamed_and_removed_lints, stable_features, unused_allocation)]
 #![deny(unused_comparisons, bare_trait_objects, unused_must_use, const_err)]
-
 #![forbid(unsafe_code)]
 
 #[macro_use]
@@ -67,7 +66,7 @@ impl<E: PairingEngine> Default for Proof<E> {
 }
 
 impl<E: PairingEngine> Proof<E> {
-    /// Serialize the proof into bytes, for storage on disk or transmission 
+    /// Serialize the proof into bytes, for storage on disk or transmission
     /// over the network.
     pub fn write<W: Write>(&self, mut _writer: W) -> io::Result<()> {
         // TODO: implement serialization
@@ -131,7 +130,7 @@ impl<E: PairingEngine> PartialEq for VerifyingKey<E> {
 }
 
 impl<E: PairingEngine> VerifyingKey<E> {
-    /// Serialize the verification key into bytes, for storage on disk 
+    /// Serialize the verification key into bytes, for storage on disk
     /// or transmission over the network.
     pub fn write<W: Write>(&self, mut _writer: W) -> io::Result<()> {
         // TODO: implement serialization

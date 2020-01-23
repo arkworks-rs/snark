@@ -1,13 +1,12 @@
 use super::instantiated::*;
 use algebra::{
-    fields::bls12_377::fr::Fr,
-    fields::bls12_377::fq::Fq,
+    fields::bls12_377::{fq::Fq, fr::Fr},
     to_bytes, ToBytes,
 };
-use rand::SeedableRng;
-use rand_xorshift::XorShiftRng;
 #[cfg(debug_assertions)]
 use gm17::PreparedVerifyingKey;
+use rand::SeedableRng;
+use rand_xorshift::XorShiftRng;
 
 use crypto_primitives::FixedLengthCRH;
 

@@ -1,10 +1,15 @@
-use crate::{biginteger::{BigInteger, BigInteger384}, fields::{
-    bls12_377::{Fq, Fq12, Fq2, Fq2Parameters, Fq6, Fq6Parameters, FqParameters},
-    fp6_3over2::Fp6Parameters,
-    tests::{field_test, frobenius_test, primefield_test, sqrt_field_test},
-    Field, Fp2Parameters, FpParameters, PrimeField, SquareRootField,
-}, CanonicalSerialize};
-use crate::UniformRand;
+use crate::{
+    biginteger::{BigInteger, BigInteger384},
+    fields::{
+        bls12_377::{Fq, Fq12, Fq2, Fq2Parameters, Fq6, Fq6Parameters, FqParameters},
+        fp6_3over2::Fp6Parameters,
+        tests::{
+            field_serialization_test, field_test, frobenius_test, primefield_test, sqrt_field_test,
+        },
+        Field, Fp2Parameters, FpParameters, PrimeField, SquareRootField,
+    },
+    CanonicalSerialize, UniformRand,
+};
 use num_traits::{One, Zero};
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
@@ -12,7 +17,6 @@ use std::{
     cmp::Ordering,
     ops::{AddAssign, MulAssign, SubAssign},
 };
-use crate::fields::tests::field_serialization_test;
 
 pub(crate) const ITERATIONS: usize = 5;
 

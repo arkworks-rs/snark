@@ -1,4 +1,4 @@
-use crate::{UniformRand, CanonicalSerialize, CanonicalDeserialize, SerializationError};
+use crate::{CanonicalDeserialize, CanonicalSerialize, SerializationError, UniformRand};
 use num_traits::{One, Zero};
 use rand::{
     distributions::{Distribution, Standard},
@@ -43,8 +43,8 @@ pub trait Fp2Parameters: 'static + Send + Sync {
     Eq(bound = "P: Fp2Parameters")
 )]
 pub struct Fp2<P: Fp2Parameters> {
-    pub c0: P::Fp,
-    pub c1: P::Fp,
+    pub c0:          P::Fp,
+    pub c1:          P::Fp,
     #[derivative(Debug = "ignore")]
     #[doc(hidden)]
     pub _parameters: PhantomData<P>,
@@ -169,7 +169,7 @@ impl<P: Fp2Parameters> Field for Fp2<P> {
     }
 }
 
-impl<'a, P: Fp2Parameters> SquareRootField for Fp2<P> 
+impl<'a, P: Fp2Parameters> SquareRootField for Fp2<P>
 where
     P::Fp: SquareRootField,
 {
@@ -414,32 +414,38 @@ impl<P: Fp2Parameters> std::fmt::Display for Fp2<P> {
 }
 
 impl<P: Fp2Parameters> CanonicalSerialize for Fp2<P> {
-    fn serialize(&self, extra_info: &[bool], output_buf: &mut [u8]) -> Result<(), SerializationError> {
+    fn serialize(
+        &self,
+        extra_info: &[bool],
+        output_buf: &mut [u8],
+    ) -> Result<(), SerializationError> {
         let fp_byte_size = <P::Fp as CanonicalSerialize>::buffer_size();
-        if output_buf.len() != 2*fp_byte_size {
+        if output_buf.len() != 2 * fp_byte_size {
             return Err(SerializationError::BufferWrongSize);
         }
         self.c0.serialize(&[], &mut output_buf[..fp_byte_size])?;
-        self.c1.serialize(extra_info, &mut output_buf[fp_byte_size..2*fp_byte_size])?;
+        self.c1
+            .serialize(extra_info, &mut output_buf[fp_byte_size..2 * fp_byte_size])?;
         Ok(())
     }
 
     fn buffer_size() -> usize {
-        2*<P::Fp as CanonicalSerialize>::buffer_size()
+        2 * <P::Fp as CanonicalSerialize>::buffer_size()
     }
 }
 
-
 impl<P: Fp2Parameters> CanonicalDeserialize for Fp2<P> {
     fn deserialize(bytes: &[u8], extra_info_buf: &mut [bool]) -> Result<Self, SerializationError>
-        where Self: Sized {
+    where
+        Self: Sized,
+    {
         let fp_byte_size = <P::Fp as CanonicalSerialize>::buffer_size();
-        if bytes.len() != 2*fp_byte_size {
+        if bytes.len() != 2 * fp_byte_size {
             return Err(SerializationError::BufferWrongSize);
         }
         let mut dummy_mutable_slice = [false; 0];
         let c0 = P::Fp::deserialize(&bytes[..fp_byte_size], &mut dummy_mutable_slice)?;
-        let c1 = P::Fp::deserialize(&bytes[fp_byte_size..2*fp_byte_size], extra_info_buf)?;
+        let c1 = P::Fp::deserialize(&bytes[fp_byte_size..2 * fp_byte_size], extra_info_buf)?;
         Ok(Fp2::new(c0, c1))
     }
 }

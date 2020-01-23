@@ -1,5 +1,4 @@
-use algebra::{AffineCurve, PairingCurve, PairingEngine, PrimeField, ProjectiveCurve};
-use algebra::One;
+use algebra::{AffineCurve, One, PairingCurve, PairingEngine, PrimeField, ProjectiveCurve};
 
 use super::{PreparedVerifyingKey, Proof, VerifyingKey};
 

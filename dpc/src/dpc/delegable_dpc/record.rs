@@ -1,11 +1,9 @@
-use crypto_primitives::{CommitmentScheme, FixedLengthCRH, SignatureScheme};
-use crate::{
-    dpc::{
-        delegable_dpc::{AddressPublicKey, DPCPredicate, DelegableDPCComponents},
-        Record,
-    },
+use crate::dpc::{
+    delegable_dpc::{AddressPublicKey, DPCPredicate, DelegableDPCComponents},
+    Record,
 };
 use algebra::to_bytes;
+use crypto_primitives::{CommitmentScheme, FixedLengthCRH, SignatureScheme};
 use std::marker::PhantomData;
 
 #[derive(Derivative)]

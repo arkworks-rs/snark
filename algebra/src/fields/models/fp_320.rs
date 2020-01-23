@@ -41,8 +41,6 @@ impl<P> Fp320<P> {
 }
 
 impl<P: Fp320Parameters> Fp320<P> {
-    
-
     #[inline]
     fn is_valid(&self) -> bool {
         self.0 < P::MODULUS

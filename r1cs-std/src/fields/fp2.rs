@@ -11,8 +11,8 @@ use crate::{fields::fp::FpGadget, prelude::*, Assignment};
 #[derivative(Debug(bound = "P: Fp2Parameters, ConstraintF: PrimeField"))]
 #[must_use]
 pub struct Fp2Gadget<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> {
-    pub c0: FpGadget<ConstraintF>,
-    pub c1: FpGadget<ConstraintF>,
+    pub c0:  FpGadget<ConstraintF>,
+    pub c1:  FpGadget<ConstraintF>,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
 }
@@ -75,10 +75,7 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> FieldGadget<Fp
 
     #[inline]
     fn get_variable(&self) -> Self::Variable {
-        (
-            self.c0.get_variable(),
-            self.c1.get_variable(),
-        )
+        (self.c0.get_variable(), self.c1.get_variable())
     }
 
     #[inline]
