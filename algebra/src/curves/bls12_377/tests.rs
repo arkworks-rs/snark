@@ -1,25 +1,29 @@
 #![allow(unused_imports)]
-use crate::{curves::{
-    bls12_377::{
-        g1::Bls12_377G1Parameters, g2::Bls12_377G2Parameters, Bls12_377, G1Affine, G1Projective, G2Affine, G2Projective,
+use crate::{
+    curves::{
+        bls12_377::{
+            g1::Bls12_377G1Parameters, g2::Bls12_377G2Parameters, Bls12_377, G1Affine,
+            G1Projective, G2Affine, G2Projective,
+        },
+        models::{short_weierstrass_jacobian::GroupAffine, SWModelParameters},
+        tests::{curve_tests, sw_curve_serialization_test},
+        AffineCurve, PairingEngine, ProjectiveCurve,
     },
-    models::SWModelParameters,
-    tests::curve_tests,
-    AffineCurve, PairingEngine, ProjectiveCurve,
-}, fields::{
-    bls12_377::{Fq, Fq12, Fq2, Fr},
-    Field, FpParameters, SquareRootField,
-}, groups::tests::group_test, CanonicalSerialize};
+    fields::{
+        bls12_377::{Fq, Fq12, Fq2, Fr},
+        Field, FpParameters, SquareRootField,
+    },
+    groups::tests::group_test,
+    CanonicalSerialize,
+};
 use num_traits::{One, Zero};
 use std::ops::{AddAssign, MulAssign};
-use crate::curves::tests::sw_curve_serialization_test;
-use crate::curves::models::short_weierstrass_jacobian::GroupAffine;
 
 #[test]
 fn test_g1_projective_curve() {
     curve_tests::<G1Projective>();
 
-    let byte_size = <GroupAffine::<Bls12_377G1Parameters> as CanonicalSerialize>::buffer_size();
+    let byte_size = <GroupAffine<Bls12_377G1Parameters> as CanonicalSerialize>::buffer_size();
     sw_curve_serialization_test::<Bls12_377G1Parameters>(byte_size);
 }
 
@@ -41,7 +45,7 @@ fn test_g1_generator() {
 fn test_g2_projective_curve() {
     curve_tests::<G2Projective>();
 
-    let byte_size = <GroupAffine::<Bls12_377G2Parameters> as CanonicalSerialize>::buffer_size();
+    let byte_size = <GroupAffine<Bls12_377G2Parameters> as CanonicalSerialize>::buffer_size();
     sw_curve_serialization_test::<Bls12_377G2Parameters>(byte_size);
 }
 

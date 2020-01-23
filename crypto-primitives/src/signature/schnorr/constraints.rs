@@ -38,18 +38,18 @@ impl<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> Clone
 pub struct SchnorrSigGadgetPk<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> {
     pub_key: GG,
     #[doc(hidden)]
-    _group: PhantomData<*const G>,
+    _group:  PhantomData<*const G>,
     #[doc(hidden)]
     _engine: PhantomData<*const ConstraintF>,
 }
 
 pub struct SchnorrRandomizePkGadget<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> {
     #[doc(hidden)]
-    _group: PhantomData<*const G>,
+    _group:        PhantomData<*const G>,
     #[doc(hidden)]
     _group_gadget: PhantomData<*const GG>,
     #[doc(hidden)]
-    _engine: PhantomData<*const ConstraintF>,
+    _engine:       PhantomData<*const ConstraintF>,
 }
 
 impl<G, GG, D, ConstraintF> SigRandomizePkGadget<SchnorrSignature<G, D>, ConstraintF>

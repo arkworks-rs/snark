@@ -1,5 +1,5 @@
-use ff_fft::EvaluationDomain;
 use algebra::{Field, PairingEngine};
+use ff_fft::EvaluationDomain;
 
 use crate::{generator::KeypairAssembly, prover::ProvingAssignment};
 use algebra::{One, Zero};
@@ -235,7 +235,9 @@ impl R1CStoSAP {
         domain.ifft_in_place(&mut c);
         domain.coset_fft_in_place(&mut c);
 
-        aa.par_iter_mut().zip(c).for_each(|(aa_i, c_i)| *aa_i -= &c_i);
+        aa.par_iter_mut()
+            .zip(c)
+            .for_each(|(aa_i, c_i)| *aa_i -= &c_i);
 
         domain.divide_by_vanishing_poly_on_coset_in_place(&mut aa);
         domain.coset_ifft_in_place(&mut aa);

@@ -1,10 +1,8 @@
-use crate::field_new;
 use crate::{
     biginteger::{BigInteger256, BigInteger384},
     curves::models::{ModelParameters, SWModelParameters},
-    fields::{
-        bls12_377::{Fq, Fr},
-    },
+    field_new,
+    fields::bls12_377::{Fq, Fr},
 };
 use num_traits::Zero;
 

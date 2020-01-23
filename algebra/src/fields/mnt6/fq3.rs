@@ -1,6 +1,6 @@
-use crate::field_new;
 use crate::{
     biginteger::BigInteger320 as BigInteger,
+    field_new,
     fields::{
         fp3::{Fp3, Fp3Parameters},
         mnt6::fq::Fq,

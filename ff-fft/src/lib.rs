@@ -1,5 +1,5 @@
-//! This crate implements functions for manipulating polynomials over finite fields,
-//! including FFTs.
+//! This crate implements functions for manipulating polynomials over finite
+//! fields, including FFTs.
 #![deny(unused_import_braces, trivial_casts, bare_trait_objects, missing_docs)]
 #![deny(unused_qualifications, variant_size_differences, stable_features)]
 #![deny(non_shorthand_field_patterns, unused_attributes, unused_imports)]
@@ -16,7 +16,7 @@ pub(crate) mod multicore;
 
 pub use domain::EvaluationDomain;
 pub use evaluations::Evaluations;
-pub use polynomial::{DensePolynomial, SparsePolynomial, DenseOrSparsePolynomial};
+pub use polynomial::{DenseOrSparsePolynomial, DensePolynomial, SparsePolynomial};
 
 #[cfg(test)]
 mod test;

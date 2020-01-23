@@ -1,7 +1,7 @@
 mod pairing {
     use algebra::UniformRand;
-use rand::SeedableRng;
-use rand_xorshift::XorShiftRng;
+    use rand::SeedableRng;
+    use rand_xorshift::XorShiftRng;
 
     use algebra::{
         curves::{

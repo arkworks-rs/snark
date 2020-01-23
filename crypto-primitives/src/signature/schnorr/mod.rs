@@ -3,10 +3,9 @@ use algebra::{
     bytes::ToBytes,
     fields::{Field, PrimeField},
     groups::Group,
-    to_bytes, ToConstraintField, UniformRand,
+    to_bytes, One, ToConstraintField, UniformRand, Zero,
 };
 use digest::Digest;
-use algebra::{One, Zero};
 use rand::Rng;
 use std::{
     hash::Hash,

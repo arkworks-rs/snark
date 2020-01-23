@@ -3,9 +3,8 @@ use algebra::{
         twisted_edwards_extended::GroupAffine as TEAffine, MontgomeryModelParameters,
         TEModelParameters,
     },
-    BitIterator, Field,
+    BitIterator, Field, One, Zero,
 };
-use algebra::{One, Zero};
 
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
@@ -28,8 +27,8 @@ pub struct MontgomeryAffineGadget<
     ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 > {
-    pub x: F,
-    pub y: F,
+    pub x:   F,
+    pub y:   F,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
     #[derivative(Debug = "ignore")]
@@ -62,8 +61,8 @@ mod montgomery_affine_impl {
             } else if p.x == P::BaseField::zero() {
                 GroupAffine::new(P::BaseField::zero(), P::BaseField::zero())
             } else {
-                let u = (P::BaseField::one() + &p.y)
-                    * &(P::BaseField::one() - &p.y).inverse().unwrap();
+                let u =
+                    (P::BaseField::one() + &p.y) * &(P::BaseField::one() - &p.y).inverse().unwrap();
                 let v = u * &p.x.inverse().unwrap();
                 GroupAffine::new(u, v)
             };
@@ -200,8 +199,8 @@ pub struct AffineGadget<
     ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 > {
-    pub x: F,
-    pub y: F,
+    pub x:   F,
+    pub y:   F,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
     #[derivative(Debug = "ignore")]

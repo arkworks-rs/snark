@@ -344,8 +344,7 @@ impl<ConstraintF: Field> ConditionalEqGadget<ConstraintF> for UInt32 {
 mod test {
     use super::UInt32;
     use crate::{bits::boolean::Boolean, test_constraint_system::TestConstraintSystem};
-    use algebra::fields::bls12_381::Fr;
-    use algebra::{One, Zero};
+    use algebra::{fields::bls12_381::Fr, One, Zero};
     use r1cs_core::ConstraintSystem;
     use rand::{Rng, SeedableRng};
     use rand_xorshift::XorShiftRng;

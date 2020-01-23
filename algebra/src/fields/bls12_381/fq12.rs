@@ -1,6 +1,6 @@
-use crate::field_new;
 use crate::{
     biginteger::BigInteger384,
+    field_new,
     fields::{
         bls12_381::{fq::Fq, fq2::Fq2, fq6::Fq6Parameters},
         fp12_2over3over2::{Fp12, Fp12Parameters},
@@ -209,13 +209,13 @@ impl Fp12Parameters for Fq12Parameters {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::fields::{
-        bls12_381::{fq2::Fq2, fq6::Fq6},
+    use crate::{
+        fields::bls12_381::{fq2::Fq2, fq6::Fq6},
+        UniformRand,
     };
-    use crate::UniformRand;
     use num_traits::{One, Zero};
-use rand::SeedableRng;
-use rand_xorshift::XorShiftRng;
+    use rand::SeedableRng;
+    use rand_xorshift::XorShiftRng;
 
     #[test]
     fn test_fq6_mul_nonresidue() {

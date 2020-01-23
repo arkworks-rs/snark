@@ -1,10 +1,12 @@
 //! A polynomial represented in coefficient form.
 
-use std::fmt;
-use std::ops::{Add, AddAssign, Deref, DerefMut, Div, Mul, Neg, Sub, SubAssign};
+use std::{
+    fmt,
+    ops::{Add, AddAssign, Deref, DerefMut, Div, Mul, Neg, Sub, SubAssign},
+};
 
+use crate::{DenseOrSparsePolynomial, EvaluationDomain, Evaluations};
 use algebra::{Field, PrimeField};
-use crate::{Evaluations, EvaluationDomain, DenseOrSparsePolynomial};
 use rand::Rng;
 use rayon::prelude::*;
 
@@ -65,7 +67,8 @@ impl<F: Field> DensePolynomial<F> {
         let mut result = Self { coeffs };
         // While there are zeros at the end of the coefficient vector, pop them off.
         result.truncate_leading_zeros();
-        // Check that either the coefficients vec is empty or that the last coeff is non-zero.
+        // Check that either the coefficients vec is empty or that the last coeff is
+        // non-zero.
         assert!(result.coeffs.last().map_or(true, |coeff| !coeff.is_zero()));
 
         result
@@ -122,8 +125,8 @@ impl<F: Field> DensePolynomial<F> {
         }
     }
 
-    /// Outputs a polynomial of degree `d` where each coefficient is sampled uniformly at random
-    /// from the field `F`.
+    /// Outputs a polynomial of degree `d` where each coefficient is sampled
+    /// uniformly at random from the field `F`.
     pub fn rand<R: Rng>(d: usize, rng: &mut R) -> Self {
         let mut random_coeffs = Vec::new();
         for _ in 0..=d {
@@ -139,14 +142,20 @@ impl<F: PrimeField> DensePolynomial<F> {
     pub fn mul_by_vanishing_poly(&self, domain: EvaluationDomain<F>) -> DensePolynomial<F> {
         let mut shifted = vec![F::zero(); domain.size()];
         shifted.extend_from_slice(&self.coeffs);
-        shifted.par_iter_mut().zip(&self.coeffs).for_each(|(s, c)| *s -= c);
+        shifted
+            .par_iter_mut()
+            .zip(&self.coeffs)
+            .for_each(|(s, c)| *s -= c);
 
         DensePolynomial::from_coefficients_vec(shifted)
     }
 
     /// Divide `self` by the vanishing polynomial for the domain `domain`.
     /// Returns the quotient and remainder of the division.
-    pub fn divide_by_vanishing_poly(&self, domain: EvaluationDomain<F>) -> Option<(DensePolynomial<F>, DensePolynomial<F>)> {
+    pub fn divide_by_vanishing_poly(
+        &self,
+        domain: EvaluationDomain<F>,
+    ) -> Option<(DensePolynomial<F>, DensePolynomial<F>)> {
         let self_poly: DenseOrSparsePolynomial<F> = self.into();
         let vanishing_poly: DenseOrSparsePolynomial<F> = domain.vanishing_polynomial().into();
         self_poly.divide_with_q_and_r(&vanishing_poly)
@@ -207,7 +216,6 @@ impl<'a, 'b, F: Field> AddAssign<(F, &'a DensePolynomial<F>)> for DensePolynomia
             self.coeffs.extend_from_slice(&other.coeffs);
             self.coeffs.iter_mut().for_each(|c| *c *= &f);
         } else if other.is_zero() {
-
         } else if self.degree() >= other.degree() {
             for (a, b) in self.coeffs.iter_mut().zip(&other.coeffs) {
                 *a += &(f * b);
@@ -326,7 +334,8 @@ impl<'a, 'b, F: PrimeField> Mul<&'a DensePolynomial<F>> for &'b DensePolynomial<
         if self.is_zero() || other.is_zero() {
             DensePolynomial::zero()
         } else {
-            let domain = EvaluationDomain::new(self.coeffs.len() + other.coeffs.len()).expect("field is not smooth enough to construct domain");
+            let domain = EvaluationDomain::new(self.coeffs.len() + other.coeffs.len())
+                .expect("field is not smooth enough to construct domain");
             let mut self_evals = self.evaluate_over_domain_by_ref(domain);
             let other_evals = other.evaluate_over_domain_by_ref(domain);
             self_evals *= &other_evals;
@@ -338,9 +347,10 @@ impl<'a, 'b, F: PrimeField> Mul<&'a DensePolynomial<F>> for &'b DensePolynomial<
 #[cfg(test)]
 mod tests {
     use crate::polynomial::*;
-    use algebra::fields::{bls12_381::fr::Fr, Field};
-    use algebra::UniformRand; 
-    use algebra::{One, Zero};
+    use algebra::{
+        fields::{bls12_381::fr::Fr, Field},
+        One, UniformRand, Zero,
+    };
     use rand::thread_rng;
 
     #[test]
@@ -376,7 +386,9 @@ mod tests {
                 let mut p1 = DensePolynomial::rand(a_degree, rng);
                 let p2 = DensePolynomial::rand(b_degree, rng);
                 let f = Fr::rand(rng);
-                let f_p2 = DensePolynomial::from_coefficients_vec(p2.coeffs.iter().map(|c| f * c).collect());
+                let f_p2 = DensePolynomial::from_coefficients_vec(
+                    p2.coeffs.iter().map(|c| f * c).collect(),
+                );
                 let res2 = &f_p2 + &p1;
                 p1 += (f, &p2);
                 let res1 = p1;
@@ -426,7 +438,10 @@ mod tests {
             for b_degree in 0..70 {
                 let dividend = DensePolynomial::<Fr>::rand(a_degree, rng);
                 let divisor = DensePolynomial::<Fr>::rand(b_degree, rng);
-                if let Some((quotient, remainder)) = DenseOrSparsePolynomial::divide_with_q_and_r(&(&dividend).into(), &(&divisor).into()) {
+                if let Some((quotient, remainder)) = DenseOrSparsePolynomial::divide_with_q_and_r(
+                    &(&dividend).into(),
+                    &(&divisor).into(),
+                ) {
                     assert_eq!(dividend, &(&divisor * &quotient) + &remainder)
                 }
             }

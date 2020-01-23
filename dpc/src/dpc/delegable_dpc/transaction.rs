@@ -1,6 +1,8 @@
+use crate::{
+    dpc::delegable_dpc::{DelegableDPCComponents, Transaction},
+    ledger::*,
+};
 use crypto_primitives::{CommitmentScheme, SignatureScheme, NIZK};
-use crate::ledger::*;
-use crate::dpc::delegable_dpc::{DelegableDPCComponents, Transaction};
 
 #[derive(Derivative)]
 #[derivative(

@@ -55,7 +55,11 @@ pub trait SWModelParameters: ModelParameters {
 
         let mut result = 4;
         for r in &RECOMMENDATIONS {
-            if num_scalars > *r { result += 1 } else { break }
+            if num_scalars > *r {
+                result += 1
+            } else {
+                break;
+            }
         }
         result
     }
@@ -116,4 +120,3 @@ pub trait MontgomeryModelParameters: ModelParameters {
 
     type TEModelParameters: TEModelParameters<BaseField = Self::BaseField>;
 }
-

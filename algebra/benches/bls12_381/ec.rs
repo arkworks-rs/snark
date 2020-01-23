@@ -1,7 +1,7 @@
 mod g1 {
     use algebra::UniformRand;
-use rand::SeedableRng;
-use rand_xorshift::XorShiftRng;
+    use rand::SeedableRng;
+    use rand_xorshift::XorShiftRng;
     use std::ops::AddAssign;
 
     use algebra::{
@@ -95,8 +95,8 @@ use rand_xorshift::XorShiftRng;
 
 mod g2 {
     use algebra::UniformRand;
-use rand::SeedableRng;
-use rand_xorshift::XorShiftRng;
+    use rand::SeedableRng;
+    use rand_xorshift::XorShiftRng;
     use std::ops::AddAssign;
 
     use algebra::{

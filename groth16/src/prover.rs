@@ -2,8 +2,8 @@ use rand::Rng;
 use rayon::prelude::*;
 
 use algebra::{
-    groups::Group, msm::VariableBaseMSM, AffineCurve, PairingEngine, PrimeField,
-    ProjectiveCurve, UniformRand,
+    groups::Group, msm::VariableBaseMSM, AffineCurve, PairingEngine, PrimeField, ProjectiveCurve,
+    UniformRand,
 };
 
 use crate::{r1cs_to_qap::R1CStoQAP, Parameters, Proof};

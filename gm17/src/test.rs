@@ -1,5 +1,4 @@
-use algebra::fields::Field;
-use algebra::Zero;
+use algebra::{fields::Field, Zero};
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 
 struct MySillyCircuit<F: Field> {
@@ -23,7 +22,7 @@ impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for MySillyCircuit<C
                 a.mul_assign(&b);
                 Ok(a)
             },
-            )?;
+        )?;
 
         cs.enforce(|| "a*b=c", |lc| lc + a, |lc| lc + b, |lc| lc + c);
 
@@ -37,7 +36,7 @@ mod bls12_377 {
         create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
     };
 
-    use algebra::{UniformRand, curves::bls12_377::Bls12_377, fields::bls12_377::Fr};
+    use algebra::{curves::bls12_377::Bls12_377, fields::bls12_377::Fr, UniformRand};
     use rand::thread_rng;
     use std::ops::MulAssign;
 
@@ -81,7 +80,7 @@ mod sw6 {
 
     use rand::thread_rng;
 
-    use algebra::{UniformRand, curves::sw6::SW6, fields::sw6::Fr as SW6Fr};
+    use algebra::{curves::sw6::SW6, fields::sw6::Fr as SW6Fr, UniformRand};
 
     #[test]
     fn prove_and_verify() {

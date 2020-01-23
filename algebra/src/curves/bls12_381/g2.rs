@@ -1,4 +1,3 @@
-use crate::field_new;
 use crate::{
     biginteger::{BigInteger256, BigInteger384},
     curves::{
@@ -10,9 +9,8 @@ use crate::{
         models::{ModelParameters, SWModelParameters},
         PairingCurve, PairingEngine,
     },
-    fields::{
-        bls12_381::{Fq, Fq12, Fq2, Fr},
-    },
+    field_new,
+    fields::bls12_381::{Fq, Fq12, Fq2, Fr},
 };
 use num_traits::Zero;
 
@@ -44,13 +42,15 @@ impl ModelParameters for Bls12_381G2Parameters {
 
 impl SWModelParameters for Bls12_381G2Parameters {
     /// COEFF_A = [0, 0]
-    const COEFF_A: Fq2 = field_new!(Fq2,
+    const COEFF_A: Fq2 = field_new!(
+        Fq2,
         Bls12_381G1Parameters::COEFF_A,
         Bls12_381G1Parameters::COEFF_A,
     );
 
     /// COEFF_B = [4, 4]
-    const COEFF_B: Fq2 = field_new!(Fq2,
+    const COEFF_B: Fq2 = field_new!(
+        Fq2,
         Bls12_381G1Parameters::COEFF_B,
         Bls12_381G1Parameters::COEFF_B,
     );

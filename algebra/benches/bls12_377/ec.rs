@@ -1,7 +1,7 @@
 mod g1 {
     use algebra::UniformRand;
-use rand::SeedableRng;
-use rand_xorshift::XorShiftRng;
+    use rand::SeedableRng;
+    use rand_xorshift::XorShiftRng;
     use std::ops::AddAssign;
 
     use algebra::{
@@ -97,11 +97,10 @@ mod g2 {
     use algebra::{
         curves::bls12_377::{G2Affine, G2Projective as G2},
         fields::bls12_377::Fr,
-        ProjectiveCurve,
+        ProjectiveCurve, UniformRand,
     };
-    use algebra::UniformRand;
-use rand::SeedableRng;
-use rand_xorshift::XorShiftRng;
+    use rand::SeedableRng;
+    use rand_xorshift::XorShiftRng;
     use std::ops::AddAssign;
 
     #[bench]

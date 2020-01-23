@@ -1,4 +1,4 @@
-use crate::{UniformRand, CanonicalSerialize, CanonicalDeserialize, SerializationError};
+use crate::{CanonicalDeserialize, CanonicalSerialize, SerializationError, UniformRand};
 use num_traits::{One, Zero};
 use rand::{
     distributions::{Distribution, Standard},
@@ -42,8 +42,8 @@ pub trait Fp6Parameters: 'static + Send + Sync {
     Eq(bound = "P: Fp6Parameters")
 )]
 pub struct Fp6<P: Fp6Parameters> {
-    pub c0: Fp3<P::Fp3Params>,
-    pub c1: Fp3<P::Fp3Params>,
+    pub c0:          Fp3<P::Fp3Params>,
+    pub c1:          Fp3<P::Fp3Params>,
     #[derivative(Debug = "ignore")]
     #[doc(hidden)]
     pub _parameters: PhantomData<P>,
@@ -420,31 +420,43 @@ impl<P: Fp6Parameters> ::std::fmt::Display for Fp6<P> {
 }
 
 impl<P: Fp6Parameters> CanonicalSerialize for Fp6<P> {
-    fn serialize(&self, extra_info: &[bool], output_buf: &mut [u8]) -> Result<(), SerializationError> {
-        let fp_byte_size = <<P::Fp3Params as Fp3Parameters>::Fp as CanonicalSerialize>::buffer_size();
-        if output_buf.len() != 6*fp_byte_size {
+    fn serialize(
+        &self,
+        extra_info: &[bool],
+        output_buf: &mut [u8],
+    ) -> Result<(), SerializationError> {
+        let fp_byte_size =
+            <<P::Fp3Params as Fp3Parameters>::Fp as CanonicalSerialize>::buffer_size();
+        if output_buf.len() != 6 * fp_byte_size {
             return Err(SerializationError::BufferWrongSize);
         }
-        self.c0.serialize(&[], &mut output_buf[..3*fp_byte_size])?;
-        self.c1.serialize(extra_info, &mut output_buf[3*fp_byte_size..6*fp_byte_size])?;
+        self.c0
+            .serialize(&[], &mut output_buf[..3 * fp_byte_size])?;
+        self.c1.serialize(
+            extra_info,
+            &mut output_buf[3 * fp_byte_size..6 * fp_byte_size],
+        )?;
         Ok(())
     }
 
     fn buffer_size() -> usize {
-        6*<<P::Fp3Params as Fp3Parameters>::Fp as CanonicalSerialize>::buffer_size()
+        6 * <<P::Fp3Params as Fp3Parameters>::Fp as CanonicalSerialize>::buffer_size()
     }
 }
 
 impl<P: Fp6Parameters> CanonicalDeserialize for Fp6<P> {
     fn deserialize(bytes: &[u8], extra_info_buf: &mut [bool]) -> Result<Self, SerializationError>
-        where Self: Sized {
-        let fp_byte_size = <<P::Fp3Params as Fp3Parameters>::Fp as CanonicalSerialize>::buffer_size();
-        if bytes.len() != 6*fp_byte_size {
+    where
+        Self: Sized,
+    {
+        let fp_byte_size =
+            <<P::Fp3Params as Fp3Parameters>::Fp as CanonicalSerialize>::buffer_size();
+        if bytes.len() != 6 * fp_byte_size {
             return Err(SerializationError::BufferWrongSize);
         }
         let mut dummy_mutable_slice = [false; 0];
-        let c0 = Fp3::deserialize(&bytes[..3*fp_byte_size], &mut dummy_mutable_slice)?;
-        let c1 = Fp3::deserialize(&bytes[3*fp_byte_size..6*fp_byte_size], extra_info_buf)?;
+        let c0 = Fp3::deserialize(&bytes[..3 * fp_byte_size], &mut dummy_mutable_slice)?;
+        let c1 = Fp3::deserialize(&bytes[3 * fp_byte_size..6 * fp_byte_size], extra_info_buf)?;
         Ok(Fp6::new(c0, c1))
     }
 }

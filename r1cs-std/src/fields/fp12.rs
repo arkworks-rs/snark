@@ -6,9 +6,8 @@ use algebra::{
         fp6_3over2::{Fp6, Fp6Parameters},
         Fp2Parameters,
     },
-    BitIterator, Field, PrimeField,
+    BitIterator, Field, One, PrimeField,
 };
-use algebra::One;
 use std::{borrow::Borrow, marker::PhantomData};
 
 use crate::{prelude::*, Assignment};
@@ -32,8 +31,8 @@ where
     P: Fp12Parameters,
     <P::Fp6Params as Fp6Parameters>::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
 {
-    pub c0: Fp6Gadget<P, ConstraintF>,
-    pub c1: Fp6Gadget<P, ConstraintF>,
+    pub c0:  Fp6Gadget<P, ConstraintF>,
+    pub c1:  Fp6Gadget<P, ConstraintF>,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
 }

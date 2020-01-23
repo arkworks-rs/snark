@@ -1,4 +1,3 @@
-use crate::field_new;
 use crate::{
     biginteger::BigInteger320,
     bytes::ToBytes,
@@ -8,6 +7,7 @@ use crate::{
         short_weierstrass_projective::{GroupAffine, GroupProjective},
         AffineCurve, PairingCurve, PairingEngine,
     },
+    field_new,
     fields::mnt6::{Fq, Fq3, Fq6, Fr},
 };
 use std::io::{Result as IoResult, Write};

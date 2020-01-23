@@ -56,7 +56,8 @@ impl FixedBaseMSM {
         for outer in 0..outerc {
             let mut inner = 0usize;
             for i in 0..window {
-                if outer * window + i < (<T::ScalarField as PrimeField>::Params::MODULUS_BITS as usize)
+                if outer * window + i
+                    < (<T::ScalarField as PrimeField>::Params::MODULUS_BITS as usize)
                     && scalar_val[outer * window + i]
                 {
                     inner |= 1 << i;
@@ -81,6 +82,8 @@ impl FixedBaseMSM {
         #[cfg(not(feature = "parallel"))]
         let v_iter = v.iter();
 
-        v_iter.map(|e| Self::windowed_mul::<T>(outerc, window, table, e)).collect::<Vec<_>>()
+        v_iter
+            .map(|e| Self::windowed_mul::<T>(outerc, window, table, e))
+            .collect::<Vec<_>>()
     }
 }

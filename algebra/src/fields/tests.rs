@@ -378,37 +378,41 @@ pub fn field_serialization_test<F: Field>(buf_size: usize) {
         use crate::serialize::SerializationError;
         {
             let mut serialized = vec![0; buf_size];
-            assert!(
-                if let SerializationError::NotEnoughSpace =
-                a.serialize(&[true; 200], &mut serialized).unwrap_err() {
-                    true
-                } else { false }
-            );
+            assert!(if let SerializationError::NotEnoughSpace =
+                a.serialize(&[true; 200], &mut serialized).unwrap_err()
+            {
+                true
+            } else {
+                false
+            });
             let mut extra_info_buf = [false; 200];
-            assert!(
-                if let SerializationError::NotEnoughSpace =
-                F::deserialize(&serialized, &mut extra_info_buf).unwrap_err() {
-                    true
-                } else { false }
-            );
+            assert!(if let SerializationError::NotEnoughSpace =
+                F::deserialize(&serialized, &mut extra_info_buf).unwrap_err()
+            {
+                true
+            } else {
+                false
+            });
         }
 
         {
-            let mut serialized = vec![0; buf_size+1];
-            assert!(
-                if let SerializationError::BufferWrongSize =
-                a.serialize(&[true; 2], &mut serialized).unwrap_err() {
-                    true
-                } else { false }
-            );
+            let mut serialized = vec![0; buf_size + 1];
+            assert!(if let SerializationError::BufferWrongSize =
+                a.serialize(&[true; 2], &mut serialized).unwrap_err()
+            {
+                true
+            } else {
+                false
+            });
 
             let mut extra_info_buf = [false; 2];
-            assert!(
-                if let SerializationError::BufferWrongSize =
-                F::deserialize(&serialized, &mut extra_info_buf).unwrap_err() {
-                    true
-                } else { false }
-            );
+            assert!(if let SerializationError::BufferWrongSize =
+                F::deserialize(&serialized, &mut extra_info_buf).unwrap_err()
+            {
+                true
+            } else {
+                false
+            });
         }
     }
 }

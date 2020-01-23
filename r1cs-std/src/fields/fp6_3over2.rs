@@ -21,9 +21,9 @@ where
     P: Fp6Parameters,
     P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
 {
-    pub c0: Fp2Gadget<P, ConstraintF>,
-    pub c1: Fp2Gadget<P, ConstraintF>,
-    pub c2: Fp2Gadget<P, ConstraintF>,
+    pub c0:  Fp2Gadget<P, ConstraintF>,
+    pub c1:  Fp2Gadget<P, ConstraintF>,
+    pub c2:  Fp2Gadget<P, ConstraintF>,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
 }

@@ -1,5 +1,4 @@
-use crate::field_new;
-use crate::biginteger::BigInteger384;
+use crate::{biginteger::BigInteger384, field_new};
 
 use crate::fields::{
     fp2::Fp2Parameters,
@@ -196,11 +195,11 @@ impl Fp6Parameters for Fq6Parameters {
 #[cfg(test)]
 mod test {
     use super::*;
-    
+
     use crate::UniformRand;
     use num_traits::{One, Zero};
-use rand::SeedableRng;
-use rand_xorshift::XorShiftRng;
+    use rand::SeedableRng;
+    use rand_xorshift::XorShiftRng;
 
     #[test]
     fn test_fq2_mul_nonresidue() {
