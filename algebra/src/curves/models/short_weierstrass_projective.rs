@@ -1,7 +1,6 @@
 use rand::{Rng, distributions::{Standard, Distribution}};
-use crate::{UniformRand, ToCompressed, FromCompressed};
+use crate::{UniformRand, ToCompressedBits, FromCompressedBits};
 use crate::curves::models::SWModelParameters as Parameters;
-use crate::to_bytes;
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
     io::{Read, Result as IoResult, Write},
@@ -193,14 +192,14 @@ impl<P: Parameters> FromBytes for GroupAffine<P> {
     }
 }
 
-impl<P: Parameters> ToCompressed for GroupAffine<P> {
+impl<P: Parameters> ToCompressedBits for GroupAffine<P> {
 
     #[inline]
-    fn compress(&self) -> Vec<u8> {
+    fn compress(&self) -> Vec<bool> {
         // Strictly speaking, self.x is zero already when self.infinity is true, but
         // to guard against implementation mistakes we do not assume this.
         let p = if self.infinity {P::BaseField::zero()} else {self.x};
-        let mut res = to_bytes!(p).unwrap();
+        let mut res = p.to_bits();
         let len = res.len() - 1;
 
         // Is this the point at infinity? If so, set the most significant bit.
@@ -218,10 +217,10 @@ impl<P: Parameters> ToCompressed for GroupAffine<P> {
     }
 }
 
-impl<P: Parameters> FromCompressed for GroupAffine<P> {
+impl<P: Parameters> FromCompressedBits for GroupAffine<P> {
 
     #[inline]
-    fn decompress(compressed: Vec<u8>) -> Option<Self> {
+    fn decompress(compressed: Vec<bool>) -> Option<Self> {
         let len = compressed.len() - 1;
         let infinity_flag_set = bool::read([(compressed[len] >> 7) & 1].as_ref()).unwrap();
         let parity_flag_set = bool::read([(compressed[len] >> 6) & 1].as_ref()).unwrap();
@@ -322,9 +321,6 @@ impl<P: Parameters> Distribution<GroupProjective<P>> for Standard {
         res
     }
 }
-
-
-
 
 impl<P: Parameters> ToBytes for GroupProjective<P> {
     #[inline]

@@ -21,43 +21,15 @@ impl<F: PrimeField> FpGadget<F> {
         Self::alloc(cs.ns(|| "from"), || Ok(*value)).unwrap()
     }
 
-    fn to_bytes_raw<CS: ConstraintSystem<F>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
-        let byte_values = match self.value {
-            Some(value) => to_bytes![&value.into_repr_raw()]?
-                .into_iter()
-                .map(Some)
-                .collect::<Vec<_>>(),
-            None => {
-                let default = F::default();
-                let default_len = to_bytes![&default].unwrap().len();
-                vec![None; default_len]
-            },
-        };
-
-        let bytes = UInt8::alloc_vec(cs.ns(|| "Alloc bytes"), &byte_values.clone())?;
-
-        let mut lc = LinearCombination::zero();
-        let mut coeff = F::from_repr_raw(F::BigInt::from(1));
-
-        for bit in bytes
-            .iter()
-            .flat_map(|byte_gadget| byte_gadget.bits.clone())
-            {
-                match bit {
-                    Boolean::Is(bit) => {
-                        lc = lc + (coeff, bit.get_variable());
-                        coeff.double_in_place();
-                    },
-                    Boolean::Constant(_) | Boolean::Not(_) => unreachable!(),
-                }
-            }
-
-        lc = &self.variable - lc;
-
-        cs.enforce(|| "unpacking_constraint", |lc| lc, |lc| lc, |_| lc);
-
-        Ok(bytes)
+    #[inline]
+    pub fn is_odd<CS: ConstraintSystem<F>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Boolean, SynthesisError> {
+        let bits = self.to_bits_strict(cs.ns(|| "to bits strict"))?;
+        Ok(bits[bits.len() - 1])
     }
+
 }
 
 impl<F: PrimeField> FieldGadget<F, F> for FpGadget<F> {
@@ -89,26 +61,6 @@ impl<F: PrimeField> FieldGadget<F, F> for FpGadget<F> {
             value,
             variable: CS::one().into(),
         })
-    }
-
-    #[inline]
-    fn is_odd<CS: ConstraintSystem<F>>(
-        &self,
-        mut cs: CS,
-        in_field: bool,
-    ) -> Result<Boolean, SynthesisError> {
-        let bytes = self.to_bytes_raw(cs.ns(|| "to bytes raw"))?;
-        if in_field {
-            Boolean::enforce_in_field::<_, _, F>(
-                &mut cs,
-                &bytes.iter()
-                    .flat_map(|byte_gadget| byte_gadget.into_bits_le())
-                    // This reverse maps the bits into big-endian form, as required by `enforce_in_field`.
-                    .rev()
-                    .collect::<Vec<_>>(),
-            )?;
-        }
-        Ok(bytes[0].bits[0])
     }
 
     #[inline]
@@ -387,25 +339,12 @@ impl<F: PrimeField> ToBitsGadget<F> for FpGadget<F> {
     /// Outputs the binary representation of the value in `self` in *big-endian*
     /// form.
     fn to_bits<CS: ConstraintSystem<F>>(&self, mut cs: CS) -> Result<Vec<Boolean>, SynthesisError> {
-        let num_bits = F::Params::MODULUS_BITS;
-        use algebra::BitIterator;
         let bit_values = match self.value {
             Some(value) => {
-                let mut field_char = BitIterator::new(F::characteristic());
-                let mut tmp = Vec::with_capacity(num_bits as usize);
-                let mut found_one = false;
-                for b in BitIterator::new(value.into_repr()) {
-                    // Skip leading bits
-                    found_one |= field_char.next().unwrap();
-                    if !found_one {
-                        continue;
-                    }
-
+                let mut tmp = Vec::new();
+                for b in value.to_bits() {
                     tmp.push(Some(b));
                 }
-
-                assert_eq!(tmp.len(), num_bits as usize);
-
                 tmp
             },
             None => vec![None; num_bits as usize],

@@ -9,7 +9,7 @@ use std::{
 };
 
 use crate::{bytes::{FromBytes, ToBytes}, to_bytes, fields::{Field, Fp2, Fp2Parameters},
-            biginteger::BigInteger, ToCompressed, FromCompressed};
+            biginteger::BigInteger, ToCompressedBits, FromCompressedBits};
 use crate::fields::SquareRootField;
 
 pub trait Fp4Parameters: 'static + Send + Sync {
@@ -298,10 +298,10 @@ impl<P: Fp4Parameters> FromBytes for Fp4<P> {
 //Fq4 is the output type of a pairing using MNT4_753 as pairing curve. Therefore we
 //can compress/decompress it.
 
-impl<P: Fp4Parameters> ToCompressed for Fp4<P> {
+impl<P: Fp4Parameters> ToCompressedBits for Fp4<P> {
 
     #[inline]
-    fn compress(&self) -> Vec<u8> {
+    fn compress(&self) -> Vec<bool> {
 
         //Serialize c1
         let mut res = to_bytes!(self.c1).unwrap();
@@ -314,10 +314,10 @@ impl<P: Fp4Parameters> ToCompressed for Fp4<P> {
     }
 }
 
-impl<P: Fp4Parameters> FromCompressed for Fp4<P> {
+impl<P: Fp4Parameters> FromCompressedBits for Fp4<P> {
 
     #[inline]
-    fn decompress(compressed: Vec<u8>) -> Option<Self> {
+    fn decompress(compressed: Vec<bool>) -> Option<Self> {
         let len = compressed.len() - 1;
         let parity_flag_set = bool::read([(compressed[len] >> 7) & 1].as_ref()).unwrap();
 

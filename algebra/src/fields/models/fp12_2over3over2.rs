@@ -10,7 +10,7 @@ use std::{
 use crate::{
     bytes::{FromBytes, ToBytes},
     fields::{fp6_3over2::*, Field, Fp2, Fp2Parameters},
-    BitIterator,FromCompressed, ToCompressed,
+    BitIterator,
 };
 
 pub trait Fp12Parameters: 'static + Send + Sync + Copy {
@@ -480,12 +480,4 @@ impl<P: Fp12Parameters> FromBytes for Fp12<P> {
         let c1 = Fp6::read(&mut reader)?;
         Ok(Fp12::new(c0, c1))
     }
-}
-
-impl<P: Fp12Parameters> ToCompressed for Fp12<P>
-{
-}
-
-impl<P: Fp12Parameters> FromCompressed for Fp12<P>
-{
 }

@@ -9,12 +9,11 @@ pub mod bls12;
 pub use self::mnt4::mnt4753;
 pub use self::mnt6::mnt6753;
 pub use self::bls12::bls12_377;
-use crate::ToCompressedGadget;
 
 pub trait PairingGadget<PairingE: PairingEngine, ConstraintF: Field> {
 
-    type G1Gadget: GroupGadget<PairingE::G1Projective, ConstraintF> + ToCompressedGadget<ConstraintF>;
-    type G2Gadget: GroupGadget<PairingE::G2Projective, ConstraintF> + ToCompressedGadget<ConstraintF>;
+    type G1Gadget: GroupGadget<PairingE::G1Projective, ConstraintF>;
+    type G2Gadget: GroupGadget<PairingE::G2Projective, ConstraintF>;
 
     type G1PreparedGadget:
     HardCodedGadget<<PairingE::G1Affine as PairingCurve>::Prepared, ConstraintF> +
@@ -24,7 +23,7 @@ pub trait PairingGadget<PairingE: PairingEngine, ConstraintF: Field> {
     HardCodedGadget<<PairingE::G2Affine as PairingCurve>::Prepared, ConstraintF> +
     ToBytesGadget<ConstraintF> + Clone + Debug;
 
-    type GTGadget: FieldGadget<PairingE::Fqk, ConstraintF> + Clone + ToCompressedGadget<ConstraintF>;
+    type GTGadget: FieldGadget<PairingE::Fqk, ConstraintF> + Clone;
 
     fn miller_loop<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,

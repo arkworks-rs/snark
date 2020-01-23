@@ -355,7 +355,7 @@ impl<P: Fp832Parameters> Field for Fp832<P> {
 
     #[inline]
     fn is_odd(&self) -> bool {
-        self.0.is_odd()
+        self.into_repr().is_odd()
     }
 
     #[inline]

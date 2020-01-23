@@ -10,7 +10,7 @@ use algebra::{
 };
 use std::{borrow::Borrow, marker::PhantomData};
 
-use crate::{prelude::*, Assignment, ToCompressedGadget};
+use crate::{prelude::*, Assignment};
 
 type Fp2Gadget<P, ConstraintF> = super::fp2::Fp2Gadget<
     <<P as Fp12Parameters>::Fp6Params as Fp6Parameters>::Fp2Params,
@@ -304,16 +304,6 @@ where
         Ok(Self::new(c0, c1))
     }
 
-    #[inline]
-    fn is_odd<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        mut cs: CS,
-        in_field: bool,
-    ) -> Result<Boolean, SynthesisError> {
-        let zero = Fp6Gadget::<P, ConstraintF>::zero(cs.ns(|| "alloc zero"))?;
-        self.c1.enforce_not_equal(cs.ns(|| "enforce c1 not zero"), &zero)?;
-        self.c1.is_odd(cs.ns(|| "check c1 odd"), in_field)
-    }
 
     #[inline]
     fn conditionally_add_constant<CS: ConstraintSystem<ConstraintF>>(
@@ -751,13 +741,6 @@ where
         c0.append(&mut c1);
         Ok(c0)
     }
-}
-
-impl<P, ConstraintF: PrimeField + SquareRootField> ToCompressedGadget<ConstraintF> for Fp12Gadget<P, ConstraintF>
-    where
-        P: Fp12Parameters,
-        <P::Fp6Params as Fp6Parameters>::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
-{
 }
 
 impl<P, ConstraintF: PrimeField + SquareRootField> ToBytesGadget<ConstraintF> for Fp12Gadget<P, ConstraintF>

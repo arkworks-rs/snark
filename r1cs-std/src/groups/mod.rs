@@ -10,7 +10,6 @@ pub use self::curves::{
     short_weierstrass::bls12,
     twisted_edwards::{edwards_sw6, jubjub},
 };
-use crate::ToCompressedGadget;
 
 pub trait GroupGadget<G: Group, ConstraintF: Field>:
     Sized
@@ -21,7 +20,6 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
     + CondSelectGadget<ConstraintF>
     + AllocGadget<G, ConstraintF>
     + HardCodedGadget<G, ConstraintF>
-    + ToCompressedGadget<ConstraintF>
     + Clone
     + Debug
 {
@@ -169,9 +167,10 @@ mod test {
     use algebra::{Field, ProjectiveCurve, ToCompressed};
     use r1cs_core::ConstraintSystem;
 
-    use crate::{prelude::*, test_constraint_system::TestConstraintSystem, ToCompressedGadget};
+    use crate::{prelude::*, test_constraint_system::TestConstraintSystem, ToCompressedBitsGadget};
     use algebra::groups::Group;
     use rand;
+    use crate::groups::curves::short_weierstrass::short_weierstrass_projective::CompressAffinePointGadget;
 
     pub(crate) fn group_test<
         ConstraintF: Field,
@@ -260,33 +259,16 @@ mod test {
         let b = MNT4G1Gadget::alloc(&mut cs.ns(|| "generate_b_g1"), || Ok(b)).unwrap();
         group_test::<_, MNT4G1Projective, _, _>(&mut cs.ns(|| "GroupTest(a, b)_g1"), a, b, true);
 
-        let c: MNT4G1Projective = rand::random();
-        let c_val_compressed = c.into_affine().compress();
-        let c = MNT4G1Gadget::alloc(&mut cs.ns(|| "generate_c_g1"), || Ok(c)).unwrap();
-        let c_compressed = c.to_compressed(cs.ns(|| "c compressed g1"), rand::random(), rand::random()).unwrap();
-        let mut c_val_compressed_from_gadget = vec![];
-        for b in c_compressed {
-            c_val_compressed_from_gadget.push(b.value.unwrap());
+        let p1: MNT4G1Projective = rand::random();
+        let p1_compressed = p1.into_affine().compress();
+        let p1_gadget = MNT4G1Gadget::alloc(&mut cs.ns(|| "generate_p1"), || Ok(p1)).unwrap();
+        let p1_compression_gadget = CompressAffinePointGadget::<Fq>::new(p1_gadget.x, p1_gadget.y, p1_gadget.infinity);
+        let p1_compressed_by_gadget = p1_compression_gadget.to_compressed(cs.ns(|| "p1 compressed g1")).unwrap();
+        let mut p1_compressed_by_gadget_conv = vec![];
+        for b in p1_compressed_by_gadget {
+            p1_compressed_by_gadget_conv.push(b.get_value().unwrap());
         }
-        assert_eq!(c_val_compressed, c_val_compressed_from_gadget);
-
-        //Test G2
-        let a: MNT4G2Projective = rand::random();
-        let b: MNT4G2Projective = rand::random();
-
-        let a = MNT4G2Gadget::alloc(&mut cs.ns(|| "generate_a_g2"), || Ok(a)).unwrap();
-        let b = MNT4G2Gadget::alloc(&mut cs.ns(|| "generate_b_g2"), || Ok(b)).unwrap();
-        group_test::<_, MNT4G2Projective, _, _>(&mut cs.ns(|| "GroupTest(a, b)_g2"), a, b, true);
-
-        let c: MNT4G2Projective = rand::random();
-        let c_val_compressed = c.into_affine().compress();
-        let c = MNT4G2Gadget::alloc(&mut cs.ns(|| "generate_c_g2"), || Ok(c)).unwrap();
-        let c_compressed = c.to_compressed(cs.ns(|| "c compressed g2"), rand::random(), rand::random()).unwrap();
-        let mut c_val_compressed_from_gadget = vec![];
-        for b in c_compressed {
-            c_val_compressed_from_gadget.push(b.value.unwrap());
-        }
-        assert_eq!(c_val_compressed, c_val_compressed_from_gadget);
+        assert_eq!(p1_compressed_by_gadget_conv, p1_compressed);
 
     }
 
@@ -308,33 +290,16 @@ mod test {
         let b = MNT6G1Gadget::alloc(&mut cs.ns(|| "generate_b_g1"), || Ok(b)).unwrap();
         group_test::<_, MNT6G1Projective, _, _>(&mut cs.ns(|| "GroupTest(a, b)_g1"), a, b, true);
 
-        let c: MNT6G1Projective = rand::random();
-        let c_val_compressed = c.into_affine().compress();
-        let c = MNT6G1Gadget::alloc(&mut cs.ns(|| "generate_c_g1"), || Ok(c)).unwrap();
-        let c_compressed = c.to_compressed(cs.ns(|| "c compressed g1"), rand::random(), rand::random()).unwrap();
-        let mut c_val_compressed_from_gadget = vec![];
-        for b in c_compressed {
-            c_val_compressed_from_gadget.push(b.value.unwrap());
+        let p1: MNT6G1Projective = rand::random();
+        let p1_compressed = p1.into_affine().compress();
+        let p1_gadget = MNT6G1Gadget::alloc(&mut cs.ns(|| "generate_p1"), || Ok(p1)).unwrap();
+        let p1_compression_gadget = CompressAffinePointGadget::<Fq>::new(p1_gadget.x, p1_gadget.y, p1_gadget.infinity);
+        let p1_compressed_by_gadget = p1_compression_gadget.to_compressed(cs.ns(|| "p1 compressed g1")).unwrap();
+        let mut p1_compressed_by_gadget_conv = vec![];
+        for b in p1_compressed_by_gadget {
+            p1_compressed_by_gadget_conv.push(b.get_value().unwrap());
         }
-        assert_eq!(c_val_compressed, c_val_compressed_from_gadget);
+        assert_eq!(p1_compressed_by_gadget_conv, p1_compressed);
 
-
-        //Test G2
-        let a: MNT6G2Projective = rand::random();
-        let b: MNT6G2Projective = rand::random();
-
-        let a = MNT6G2Gadget::alloc(&mut cs.ns(|| "generate_a_g2"), || Ok(a)).unwrap();
-        let b = MNT6G2Gadget::alloc(&mut cs.ns(|| "generate_b_g2"), || Ok(b)).unwrap();
-        group_test::<_, MNT6G2Projective, _, _>(&mut cs.ns(|| "GroupTest(a, b)_g2"), a, b, true);
-
-        let c: MNT6G2Projective = rand::random();
-        let c_val_compressed = c.into_affine().compress();
-        let c = MNT6G2Gadget::alloc(&mut cs.ns(|| "generate_c_g2"), || Ok(c)).unwrap();
-        let c_compressed = c.to_compressed(cs.ns(|| "c compressed g2"), rand::random(), rand::random()).unwrap();
-        let mut c_val_compressed_from_gadget = vec![];
-        for b in c_compressed {
-            c_val_compressed_from_gadget.push(b.value.unwrap());
-        }
-        assert_eq!(c_val_compressed, c_val_compressed_from_gadget);
     }
 }

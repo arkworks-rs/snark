@@ -145,7 +145,7 @@ impl<P: Fp256Parameters> Field for Fp256<P> {
 
     #[inline]
     fn is_odd(&self) -> bool {
-        self.0.is_odd()
+        self.into_repr().is_odd()
     }
 
     #[inline]

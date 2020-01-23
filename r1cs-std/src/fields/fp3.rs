@@ -98,17 +98,6 @@ impl<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootFie
     }
 
     #[inline]
-    fn is_odd<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        mut cs: CS,
-        in_field: bool,
-    ) -> Result<Boolean, SynthesisError> {
-        let zero = FpGadget::zero(cs.ns(|| "alloc zero"))?;
-        self.c2.enforce_not_equal(cs.ns(|| "enforce c2 not zero"), &zero)?;
-        self.c2.is_odd(cs.ns(|| "check c2 odd"), in_field)
-    }
-
-    #[inline]
     fn conditionally_add_constant<CS: ConstraintSystem<ConstraintF>>
     (&self, mut cs: CS, bit: &Boolean, coeff: Fp3<P>) -> Result<Self, SynthesisError> {
         let c0 = self

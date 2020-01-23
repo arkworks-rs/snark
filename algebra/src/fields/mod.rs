@@ -1,8 +1,4 @@
-use crate::{
-    biginteger::BigInteger,
-    bytes::{FromBytes, ToBytes},
-    UniformRand,
-};
+use crate::{biginteger::BigInteger, bytes::{FromBytes, ToBytes}, UniformRand};
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
@@ -266,6 +262,27 @@ pub trait PrimeField: Field + FromStr {
     /// Returns the modulus minus one divided by two.
     fn modulus_minus_one_div_two() -> Self::BigInt {
         Self::Params::MODULUS_MINUS_ONE_DIV_TWO
+    }
+
+    fn to_bits(&self) -> Vec<bool> {
+        let num_bits = Self::Params::MODULUS_BITS;
+
+        let mut field_char = BitIterator::new(Self::characteristic());
+        let mut tmp = Vec::with_capacity(num_bits as usize);
+        let mut found_one = false;
+        for b in BitIterator::new(self.into_repr()) {
+            // Skip leading bits
+            found_one |= field_char.next().unwrap();
+            if !found_one {
+                continue;
+            }
+
+            tmp.push(b);
+        }
+
+        assert_eq!(tmp.len(), num_bits as usize);
+
+        tmp
     }
 }
 

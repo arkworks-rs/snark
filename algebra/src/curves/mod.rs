@@ -1,5 +1,4 @@
-use crate::{bytes::{FromBytes, ToBytes}, fields::{Field, PrimeField, SquareRootField}, groups::Group,
-            ToCompressed, FromCompressed};
+use crate::{bytes::{FromBytes, ToBytes}, fields::{Field, PrimeField, SquareRootField}, groups::Group};
 use crate::UniformRand;
 use std::{
     fmt::{Debug, Display},
@@ -64,7 +63,7 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send {
     type Fqe: SquareRootField;
 
     /// The extension field that hosts the target group of the pairing.
-    type Fqk: Field + ToCompressed + FromCompressed;
+    type Fqk: Field;
 
     /// Perform a miller loop with some number of (G1, G2) pairs.
     #[must_use]
@@ -196,8 +195,6 @@ pub trait AffineCurve:
     + Sized
     + ToBytes
     + FromBytes
-    + ToCompressed
-    + FromCompressed
     + Copy
     + Clone
     + Default

@@ -324,7 +324,7 @@ impl<P: Fp768Parameters> Field for Fp768<P> {
 
     #[inline]
     fn is_odd(&self) -> bool {
-        self.0.is_odd()
+        self.into_repr().is_odd()
     }
 
     #[inline]

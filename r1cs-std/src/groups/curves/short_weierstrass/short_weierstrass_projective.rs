@@ -686,47 +686,54 @@ impl<P, ConstraintF, F> ToBytesGadget<ConstraintF> for AffineGadget<P, Constrain
     }
 }
 
-use crate::ToCompressedGadget;
 
-impl<P, ConstraintF, F> ToCompressedGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
+#[derive(Derivative)]
+#[derivative(Debug, Clone)]
+#[must_use]
+pub struct CompressAffinePointGadget<
+    ConstraintF: PrimeField,
+> {
+    pub x:   FpGadget<ConstraintF>,
+    pub y:   FpGadget<ConstraintF>,
+    pub infinity:   Boolean,
+    _engine: PhantomData<ConstraintF>,
+}
+
+impl<ConstraintF> CompressAffinePointGadget<ConstraintF>
     where
-        P: SWModelParameters,
-        ConstraintF: Field,
-        F: FieldGadget<P::BaseField, ConstraintF>,
+        ConstraintF: PrimeField,
 {
-    fn to_compressed<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS, x_in_field: bool, y_in_field: bool)
-                                                        -> Result<Vec<UInt8>, SynthesisError> {
-        //Enforce x_coordinate to bytes
-        let x_to_bytes = {
-            if x_in_field {
-                self.x.to_bytes_strict(cs.ns(|| "x_to_bytes_strict"))?
-            } else {
-                self.x.to_bytes(cs.ns(|| "x_to_bytes"))?
-            }
-        };
-
-        //Set correct flags
-        let zero = self.infinity;
-        let is_odd = self.y.is_odd(cs.ns(|| "y parity"), y_in_field)?;
-
-        //Add flags byte to x_serialization
-        let len = x_to_bytes.len() - 1;
-        let mut p_compressed = x_to_bytes.clone();
-        let mut last_byte = p_compressed[len].clone().bits;
-
-        last_byte[7] = Boolean::or(
-            cs.ns(|| "add zero flag"),
-            &last_byte[7],
-            &zero
-        )?;
-
-        last_byte[6] = Boolean::or(
-            cs.ns(|| "add parity bit"),
-            &last_byte[6],
-            &is_odd
-        )?;
-
-        p_compressed[len] = UInt8::from_bits_le(&last_byte);
-        Ok(p_compressed)
+    pub fn new(x: FpGadget<ConstraintF>, y: FpGadget<ConstraintF>, infinity: Boolean) -> Self {
+        Self {
+            x,
+            y,
+            infinity,
+            _engine: PhantomData,
+        }
     }
 }
+
+use crate::ToCompressedBitsGadget;
+use crate::fields::fp::FpGadget;
+
+impl<ConstraintF> ToCompressedBitsGadget<ConstraintF> for CompressAffinePointGadget<ConstraintF>
+    where
+        ConstraintF: PrimeField,
+{
+
+    /// Enforce compression of a point through serialization of the x coordinate and storing
+    /// a sign bit for the y coordinate.
+    fn to_compressed<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS)
+                                                        -> Result<Vec<Boolean>, SynthesisError> {
+        //Enforce x_coordinate to bytes
+        let mut compressed_bits = self.x.to_bits_strict(cs.ns(|| "x_to_bits_strict"))?;
+
+        let is_odd = self.y.is_odd(cs.ns(|| "y parity"))?;
+
+        compressed_bits.push(is_odd);
+        compressed_bits.push(self.infinity);
+        Ok(compressed_bits)
+    }
+}
+
+

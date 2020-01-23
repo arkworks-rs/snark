@@ -45,13 +45,6 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
 
     fn one<CS: ConstraintSystem<ConstraintF>>(_: CS) -> Result<Self, SynthesisError>;
 
-    #[inline]
-    fn is_odd<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        cs: CS,
-        in_field: bool,
-    ) -> Result<Boolean, SynthesisError>;
-
     fn conditionally_add_constant<CS: ConstraintSystem<ConstraintF>>(
         &self,
         _: CS,
@@ -638,62 +631,5 @@ mod test {
         assert!(cs.is_satisfied());
     }
 
-    #[test]
-    fn field_compression_gadgets_test() {
 
-        use algebra::curves::{
-            mnt4753::{G1Projective as MNT4G1Projective, G2Projective as MNT4G2Projective, MNT4},
-            mnt6753::{G1Projective as MNT6G1Projective, G2Projective as MNT6G2Projective, MNT6},
-
-        };
-        use algebra::fields::{
-            mnt4753::Fq as FqMnt4,
-            mnt6753::Fq as FqMnt6,
-        };
-        use crate::{
-            fields::mnt4753::Fq4Gadget,
-            fields::mnt6753::Fq6Gadget,
-        };
-        use crate::ToCompressedGadget;
-        use algebra::bytes::ToCompressed;
-        use algebra::PairingEngine;
-
-        let mut cs = TestConstraintSystem::<FqMnt4>::new();
-
-        //Test Fq4 compression
-        let a: MNT4G1Projective = rand::random();
-        let b: MNT4G2Projective = rand::random();
-
-        let c = MNT4::pairing(a, b);
-        let c_c = c.compress();
-        let c_g_c_correct = UInt8::alloc_vec(cs.ns(|| "alloc c compressed correct"), &c_c).unwrap();
-
-        let c_g = Fq4Gadget::alloc(cs.ns(|| "alloc c"), || Ok(c)).unwrap();
-        let c_g_c = c_g.to_compressed(cs.ns(||"compress c_g"), rand::random(), rand::random()).unwrap();
-        c_g_c.enforce_equal(cs.ns(|| "check correct compression"), &c_g_c_correct).unwrap();
-
-        if !cs.is_satisfied() {
-            println!("{:?}", cs.which_is_unsatisfied());
-        }
-        assert!(cs.is_satisfied());
-
-        //Test Fq6 compression
-        let mut cs = TestConstraintSystem::<FqMnt6>::new();
-
-        let a: MNT6G1Projective = rand::random();
-        let b: MNT6G2Projective = rand::random();
-
-        let c = MNT6::pairing(a, b);
-        let c_c = c.compress();
-        let c_g_c_correct = UInt8::alloc_vec(cs.ns(|| "alloc c compressed correct"), &c_c).unwrap();
-
-        let c_g = Fq6Gadget::alloc(cs.ns(|| "alloc c"), || Ok(c)).unwrap();
-        let c_g_c = c_g.to_compressed(cs.ns(||"compress c_g"), rand::random(), rand::random()).unwrap();
-        c_g_c.enforce_equal(cs.ns(|| "check correct compression"), &c_g_c_correct).unwrap();
-
-        if !cs.is_satisfied() {
-            println!("{:?}", cs.which_is_unsatisfied());
-        }
-        assert!(cs.is_satisfied());
-    }
 }

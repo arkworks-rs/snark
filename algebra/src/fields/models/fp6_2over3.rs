@@ -1,5 +1,5 @@
 use rand::{Rng, distributions::{Standard, Distribution}};
-use crate::{UniformRand, ToCompressed, FromCompressed};
+use crate::{UniformRand, ToCompressedBits, FromCompressedBits};
 use std::{
     cmp::Ordering,
     io::{Read, Result as IoResult, Write},
@@ -418,7 +418,7 @@ impl<P: Fp6Parameters> ::std::fmt::Display for Fp6<P> {
 //Fq6_2_over_3 is the output type of a pairing using MNT6_753 as pairing curve. Therefore we
 //can compress/decompress it.
 
-impl<P: Fp6Parameters> ToCompressed for Fp6<P> {
+impl<P: Fp6Parameters> ToCompressedBits for Fp6<P> {
 
     #[inline]
     fn compress(&self) -> Vec<u8> {
@@ -434,7 +434,7 @@ impl<P: Fp6Parameters> ToCompressed for Fp6<P> {
     }
 }
 
-impl<P: Fp6Parameters> FromCompressed for Fp6<P> {
+impl<P: Fp6Parameters> FromCompressedBits for Fp6<P> {
 
     #[inline]
     fn decompress(compressed: Vec<u8>) -> Option<Self> {
