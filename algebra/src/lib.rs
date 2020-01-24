@@ -40,6 +40,10 @@ extern crate derivative;
 pub mod bytes;
 pub use self::bytes::*;
 
+#[macro_use]
+pub mod serialize;
+pub use self::serialize::*;
+
 pub mod biginteger;
 pub use self::biginteger::*;
 

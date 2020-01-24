@@ -1,4 +1,4 @@
-use crate::UniformRand;
+use crate::{UniformRand, CanonicalSerialize, CanonicalDeserialize, SerializationError, buffer_bit_byte_size};
 use num_traits::{One, Zero};
 use rand::{
     distributions::{Distribution, Standard},
@@ -410,5 +410,32 @@ impl<'a, P: Fp2Parameters> DivAssign<&'a Self> for Fp2<P> {
 impl<P: Fp2Parameters> std::fmt::Display for Fp2<P> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Fp2({} + {} * u)", self.c0, self.c1)
+    }
+}
+
+impl<P: Fp2Parameters> CanonicalSerialize for Fp2<P> {
+    fn serialize(&self, extra_info: &[bool], output_buf: &mut [u8]) -> Result<(), SerializationError> {
+        let (_, fp_byte_size) = buffer_bit_byte_size(<P::Fp as PrimeField>::size_in_bits());
+        if output_buf.len() != 2*fp_byte_size {
+            return Err(SerializationError::BufferWrongSize);
+        }
+        self.c0.serialize(&[], &mut output_buf[..fp_byte_size])?;
+        self.c1.serialize(extra_info, &mut output_buf[fp_byte_size..2*fp_byte_size])?;
+        Ok(())
+    }
+}
+
+
+impl<P: Fp2Parameters> CanonicalDeserialize for Fp2<P> {
+    fn deserialize(bytes: &[u8], extra_info_buf: &mut [bool]) -> Result<Self, SerializationError>
+        where Self: Sized {
+        let (_, fp_byte_size) = buffer_bit_byte_size(<P::Fp as PrimeField>::size_in_bits());
+        if bytes.len() != 2*fp_byte_size {
+            return Err(SerializationError::BufferWrongSize);
+        }
+        let mut dummy_mutable_slice = [false; 0];
+        let c0 = P::Fp::deserialize(&bytes[..fp_byte_size], &mut dummy_mutable_slice)?;
+        let c1 = P::Fp::deserialize(&bytes[fp_byte_size..2*fp_byte_size], extra_info_buf)?;
+        Ok(Fp2::new(c0, c1))
     }
 }

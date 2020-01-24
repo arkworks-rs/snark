@@ -1,11 +1,9 @@
-use crate::{
-    curves::{AffineCurve, ProjectiveCurve},
-    fields::PrimeField,
-};
+use crate::{curves::{AffineCurve, ProjectiveCurve}, fields::PrimeField, SWModelParameters, CanonicalSerialize, CanonicalDeserialize};
 use crate::UniformRand;
 use num_traits::Zero;
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
+use crate::curves::models::short_weierstrass_jacobian::{GroupAffine, GroupProjective};
 
 pub const ITERATIONS: usize = 10;
 
@@ -280,4 +278,33 @@ pub fn curve_tests<G: ProjectiveCurve>() {
     random_doubling_test::<G>();
     random_negation_test::<G>();
     random_transformation_test::<G>();
+}
+
+pub fn sw_curve_serialization_test<P: SWModelParameters>(buf_size: usize) {
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+    for _ in 0..ITERATIONS {
+        let a = GroupProjective::<P>::rand(&mut rng);
+        let mut a = a.into_affine();
+        let mut serialized = vec![0; buf_size];
+        a.serialize(&[], &mut serialized).unwrap();
+
+        let mut extra_info_buf = [false; 0];
+        let b = GroupAffine::<P>::deserialize(&serialized, &mut extra_info_buf).unwrap();
+        assert_eq!(a, b);
+
+        a.y = -a.y;
+        let mut serialized = vec![0; buf_size];
+        a.serialize(&[], &mut serialized).unwrap();
+        let mut extra_info_buf = [false; 0];
+        let b = GroupAffine::<P>::deserialize(&serialized, &mut extra_info_buf).unwrap();
+        assert_eq!(a, b);
+
+        let a = GroupAffine::<P>::zero();
+        let mut serialized = vec![0; buf_size];
+        a.serialize(&[], &mut serialized).unwrap();
+        let mut extra_info_buf = [false; 0];
+        let b = GroupAffine::<P>::deserialize(&serialized, &mut extra_info_buf).unwrap();
+        assert_eq!(a, b);
+    }
 }

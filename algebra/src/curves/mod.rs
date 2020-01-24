@@ -1,8 +1,4 @@
-use crate::{
-    bytes::{FromBytes, ToBytes},
-    fields::{Field, PrimeField, SquareRootField},
-    groups::Group,
-};
+use crate::{bytes::{FromBytes, ToBytes}, fields::{Field, PrimeField, SquareRootField}, groups::Group};
 use crate::UniformRand;
 use num_traits::Zero;
 use std::{

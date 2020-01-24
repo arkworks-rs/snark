@@ -1,16 +1,20 @@
-use crate::{
-    curves::{
-        sw6::{G1Affine, G1Projective, G2Affine, G2Projective, SW6},
-        tests::curve_tests,
-        AffineCurve, PairingEngine,
-    },
-    groups::tests::group_test,
-};
+use crate::{curves::{
+    sw6::{G1Affine, G1Projective, G2Affine, G2Projective, SW6},
+    tests::curve_tests,
+    AffineCurve, PairingEngine,
+}, groups::tests::group_test, buffer_bit_byte_size};
 use num_traits::One;
+use crate::fields::{PrimeField, sw6::Fq};
+use crate::curves::sw6::g1::SW6G1Parameters;
+use crate::curves::tests::sw_curve_serialization_test;
+use crate::curves::sw6::g2::SW6G2Parameters;
 
 #[test]
 fn test_g1_projective_curve() {
     curve_tests::<G1Projective>();
+
+    let (_, byte_size) = buffer_bit_byte_size(Fq::size_in_bits());
+    sw_curve_serialization_test::<SW6G1Parameters>(byte_size);
 }
 
 #[test]
@@ -30,6 +34,9 @@ fn test_g1_generator() {
 #[test]
 fn test_g2_projective_curve() {
     curve_tests::<G2Projective>();
+
+    let (_, byte_size) = buffer_bit_byte_size(Fq::size_in_bits());
+    sw_curve_serialization_test::<SW6G2Parameters>(2*byte_size);
 }
 
 #[test]
