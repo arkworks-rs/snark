@@ -11,6 +11,8 @@ pub enum SerializationError {
     NotEnoughSpace,
     /// During serialization, the data was invalid.
     InvalidData,
+    /// During serialization, extra info was of the wrong size.
+    ExtraInfoWrongSize,
     /// During serialization, we countered an I/O error.
     IoError(io::Error),
 }
@@ -42,6 +44,9 @@ impl fmt::Display for SerializationError {
                 },
                 SerializationError::InvalidData => {
                     "the input buffer contained invalid data"
+                },
+                SerializationError::ExtraInfoWrongSize => {
+                    "extra info is of the wrong size"
                 },
                 SerializationError::IoError(_) => "encountered an I/O error",
             };
