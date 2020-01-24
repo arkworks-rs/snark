@@ -1,5 +1,5 @@
 use rand::{Rng, distributions::{Standard, Distribution}};
-use crate::{UniformRand, CanonicalSerialize, CanonicalDeserialize, SerializationError};
+use crate::{UniformRand, CanonicalSerialize, CanonicalDeserialize};
 use num_traits::{One, Zero};
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
@@ -669,4 +669,4 @@ impl<P: MontgomeryParameters> MontgomeryGroupAffine<P> {
     }
 }
 
-impl_curve_serializer!(Parameters);
+impl_edwards_curve_serializer!(Parameters);

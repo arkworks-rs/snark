@@ -11,57 +11,58 @@ pub trait CanonicalDeserialize: CanonicalSerialize {
 }
 
 pub fn buffer_bit_byte_size(modulus_bits: usize) -> (usize, usize) {
-    let byte_size = (modulus_bits + 63)/64;
-    ((byte_size*64), byte_size*8)
+    let byte_size = (modulus_bits + 7)/8;
+    ((byte_size*8), byte_size)
 }
 
 macro_rules! impl_prime_field_serializer {
     ($field: ident, $params: ident, $byte_size: expr) => {
         impl<P: $params> CanonicalSerialize for $field<P> {
-            fn serialize(&self, extra_info: &[bool], output_buf: &mut [u8]) -> Result<(), SerializationError> {
+            fn serialize(&self, extra_info: &[bool], output_buf: &mut [u8]) -> Result<(), crate::serialize::SerializationError> {
                 const BYTE_SIZE: usize = $byte_size;
-                const BIT_SIZE: usize = 8*BYTE_SIZE;
 
                 let mut bytes = [0u8; BYTE_SIZE];
                 self.write(&mut bytes[..])?;
 
-                if BYTE_SIZE != output_buf.len() {
-                    return Err(SerializationError::BufferWrongSize);
+                let (output_bit_size, output_byte_size) = crate::serialize::buffer_bit_byte_size($field::<P>::size_in_bits());
+                if output_byte_size != output_buf.len() {
+                    return Err(crate::serialize::SerializationError::BufferWrongSize);
                 }
                 let extra_info_len = extra_info.len();
-                if  extra_info_len > (BIT_SIZE - P::MODULUS_BITS as usize) {
-                    return Err(SerializationError::NotEnoughSpace);
+                if  extra_info_len > (output_bit_size - P::MODULUS_BITS as usize) {
+                    return Err(crate::serialize::SerializationError::NotEnoughSpace);
                 }
 
                 for i in 0..extra_info_len {
                     if extra_info[i] {
-                        bytes[BYTE_SIZE - 1] |= 1 << (8 - extra_info_len + i);
+                        bytes[output_byte_size - 1] |= 1 << (8 - extra_info_len + i);
                     }
                 }
-                output_buf.copy_from_slice(&bytes[..]);
+
+                output_buf.copy_from_slice(&bytes[..output_byte_size]);
                 Ok(())
             }
         }
 
         impl<P: $params> CanonicalDeserialize for $field<P> {
-            fn deserialize(bytes: &[u8], extra_info_buf: &mut [bool]) -> Result<Self, SerializationError>
+            fn deserialize(bytes: &[u8], extra_info_buf: &mut [bool]) -> Result<Self, crate::serialize::SerializationError>
                 where Self: Sized {
                 const BYTE_SIZE: usize = $byte_size;
-                const BIT_SIZE: usize = 8*BYTE_SIZE;
-                if BYTE_SIZE != bytes.len() {
-                    return Err(SerializationError::BufferWrongSize);
+                let (input_bit_size, input_byte_size) = crate::serialize::buffer_bit_byte_size($field::<P>::size_in_bits());
+                if input_byte_size != bytes.len() {
+                    return Err(crate::serialize::SerializationError::BufferWrongSize);
                 }
                 let extra_info_len = extra_info_buf.len();
-                if  extra_info_len > (BIT_SIZE - P::MODULUS_BITS as usize) {
-                    return Err(SerializationError::NotEnoughSpace);
+                if  extra_info_len > (input_bit_size - P::MODULUS_BITS as usize) {
+                    return Err(crate::serialize::SerializationError::NotEnoughSpace);
                 }
 
                 let mut masked_bytes = [0; BYTE_SIZE];
-                masked_bytes[..BYTE_SIZE].copy_from_slice(bytes);
+                masked_bytes[..input_byte_size].copy_from_slice(bytes);
                 for i in 0..extra_info_len {
                     let bitmask = 1 << (8 - extra_info_len + i);
-                    extra_info_buf[i] = bytes[BYTE_SIZE - 1] & bitmask == bitmask;
-                    masked_bytes[BYTE_SIZE - 1] &= 0xFF - bitmask;
+                    extra_info_buf[i] = bytes[input_byte_size - 1] & bitmask == bitmask;
+                    masked_bytes[input_byte_size - 1] &= 0xFF - bitmask;
                 }
                 Ok(Self::read(&masked_bytes[..])?)
             }
@@ -69,10 +70,10 @@ macro_rules! impl_prime_field_serializer {
     }
 }
 
-macro_rules! impl_curve_serializer {
+macro_rules! impl_sw_curve_serializer {
     ($params: ident) => {
         impl<P: $params> CanonicalSerialize for GroupAffine<P> {
-            fn serialize(&self, _: &[bool], output_buf: &mut [u8]) -> Result<(), SerializationError> {
+            fn serialize(&self, _: &[bool], output_buf: &mut [u8]) -> Result<(), crate::serialize::SerializationError> {
                 if self.is_zero() {
                     P::BaseField::zero().serialize(&[false, true], output_buf)
                 } else {
@@ -86,7 +87,7 @@ macro_rules! impl_curve_serializer {
         }
 
         impl<P: $params> CanonicalDeserialize for GroupAffine<P> {
-            fn deserialize(bytes: &[u8], _: &mut [bool]) -> Result<Self, SerializationError>
+            fn deserialize(bytes: &[u8], _: &mut [bool]) -> Result<Self, crate::serialize::SerializationError>
                 where Self: Sized {
                 let mut extra_info_buf = [false; 2];
                 let x = P::BaseField::deserialize(bytes, &mut extra_info_buf)?;
@@ -94,7 +95,38 @@ macro_rules! impl_curve_serializer {
                     return Ok(Self::zero())
                 }
                 GroupAffine::<P>::get_point_from_x(x, extra_info_buf[0])
-                    .ok_or(SerializationError::InvalidData)
+                    .ok_or(crate::serialize::SerializationError::InvalidData)
+            }
+        }
+    }
+}
+
+macro_rules! impl_edwards_curve_serializer {
+    ($params: ident) => {
+        impl<P: $params> CanonicalSerialize for GroupAffine<P> {
+            fn serialize(&self, _: &[bool], output_buf: &mut [u8]) -> Result<(), crate::serialize::SerializationError> {
+                if self.is_zero() {
+                    P::BaseField::zero().serialize(&[false], output_buf)
+                } else {
+                    if self.y > -self.y {
+                        self.x.serialize(&[true], output_buf)
+                    } else {
+                        self.x.serialize(&[false], output_buf)
+                    }
+                }
+            }
+        }
+
+        impl<P: $params> CanonicalDeserialize for GroupAffine<P> {
+            fn deserialize(bytes: &[u8], _: &mut [bool]) -> Result<Self, crate::serialize::SerializationError>
+                where Self: Sized {
+                let mut extra_info_buf = [false; 1];
+                let x = P::BaseField::deserialize(bytes, &mut extra_info_buf)?;
+                if x == P::BaseField::zero() {
+                    return Ok(Self::zero())
+                }
+                GroupAffine::<P>::get_point_from_x(x, extra_info_buf[0])
+                    .ok_or(crate::serialize::SerializationError::InvalidData)
             }
         }
     }

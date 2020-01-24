@@ -1,4 +1,4 @@
-use crate::{biginteger::BigInteger, bytes::{FromBytes, ToBytes}, UniformRand, CanonicalSerialize, CanonicalDeserialize, SerializationError};
+use crate::{biginteger::BigInteger, bytes::{FromBytes, ToBytes}, UniformRand, CanonicalSerialize, CanonicalDeserialize};
 use num_traits::{One, Zero};
 use std::{
     fmt::{Debug, Display},
