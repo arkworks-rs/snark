@@ -36,7 +36,7 @@ fn test_g2_projective_curve() {
     curve_tests::<G2Projective>();
 
     let (_, byte_size) = buffer_bit_byte_size(Fq::size_in_bits());
-    sw_curve_serialization_test::<SW6G2Parameters>(2*byte_size);
+    sw_curve_serialization_test::<SW6G2Parameters>(3*byte_size);
 }
 
 #[test]
