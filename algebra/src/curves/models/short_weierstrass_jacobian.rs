@@ -1,6 +1,6 @@
 use crate::curves::models::SWModelParameters as Parameters;
 use rand::{Rng, distributions::{Standard, Distribution}};
-use crate::UniformRand;
+use crate::{UniformRand, CanonicalSerialize, CanonicalDeserialize, SerializationError};
 use num_traits::{One, Zero};
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
@@ -738,3 +738,5 @@ impl<P: Parameters> From<GroupProjective<P>> for GroupAffine<P> {
         }
     }
 }
+
+impl_curve_serializer!(Parameters);

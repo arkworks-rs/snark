@@ -1,18 +1,21 @@
-use crate::{
-    curves::{
-        mnt6::{G1Affine, G1Projective, G2Affine, G2Projective, MNT6},
-        tests::curve_tests,
-        AffineCurve, PairingEngine,
-    },
-    fields::mnt6::fr::Fr,
-    groups::tests::group_test,
-};
+use crate::{curves::{
+    mnt6::{G1Affine, G1Projective, G2Affine, G2Projective, MNT6},
+    tests::curve_tests,
+    AffineCurve, PairingEngine,
+}, fields::{PrimeField, mnt6::fr::Fr}, groups::tests::group_test, buffer_bit_byte_size};
 use num_traits::One;
 use rand;
+use crate::curves::mnt6::g1::MNT6G1Parameters;
+use crate::curves::tests::sw_curve_serialization_test;
+use crate::fields::mnt6::Fq;
+use crate::curves::mnt6::g2::MNT6G2Parameters;
 
 #[test]
 fn test_g1_projective_curve() {
     curve_tests::<G1Projective>();
+
+    let (_, byte_size) = buffer_bit_byte_size(Fq::size_in_bits());
+    sw_curve_serialization_test::<MNT6G1Parameters>(byte_size);
 }
 
 #[test]
@@ -32,6 +35,9 @@ fn test_g1_generator() {
 #[test]
 fn test_g2_projective_curve() {
     curve_tests::<G2Projective>();
+
+    let (_, byte_size) = buffer_bit_byte_size(Fq::size_in_bits());
+    sw_curve_serialization_test::<MNT6G2Parameters>(2*byte_size);
 }
 
 #[test]

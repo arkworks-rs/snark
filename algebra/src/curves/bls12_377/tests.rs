@@ -1,25 +1,25 @@
 #![allow(unused_imports)]
-use crate::{
-    curves::{
-        bls12_377::{
-            g1::Bls12_377G1Parameters, Bls12_377, G1Affine, G1Projective, G2Affine, G2Projective,
-        },
-        models::SWModelParameters,
-        tests::curve_tests,
-        AffineCurve, PairingEngine, ProjectiveCurve,
+use crate::{curves::{
+    bls12_377::{
+        g1::Bls12_377G1Parameters, g2::Bls12_377G2Parameters, Bls12_377, G1Affine, G1Projective, G2Affine, G2Projective,
     },
-    fields::{
-        bls12_377::{Fq, Fq12, Fq2, Fr},
-        Field, FpParameters, PrimeField, SquareRootField,
-    },
-    groups::tests::group_test,
-};
+    models::SWModelParameters,
+    tests::curve_tests,
+    AffineCurve, PairingEngine, ProjectiveCurve,
+}, fields::{
+    bls12_377::{Fq, Fq12, Fq2, Fr},
+    Field, FpParameters, PrimeField, SquareRootField,
+}, groups::tests::group_test, buffer_bit_byte_size};
 use num_traits::{One, Zero};
 use std::ops::{AddAssign, MulAssign};
+use crate::curves::tests::sw_curve_serialization_test;
 
 #[test]
 fn test_g1_projective_curve() {
     curve_tests::<G1Projective>();
+
+    let (_, byte_size) = buffer_bit_byte_size(Fq::size_in_bits());
+    sw_curve_serialization_test::<Bls12_377G1Parameters>(byte_size);
 }
 
 #[test]
@@ -39,6 +39,9 @@ fn test_g1_generator() {
 #[test]
 fn test_g2_projective_curve() {
     curve_tests::<G2Projective>();
+
+    let (_, byte_size) = buffer_bit_byte_size(Fq::size_in_bits());
+    sw_curve_serialization_test::<Bls12_377G2Parameters>(2*byte_size);
 }
 
 #[test]

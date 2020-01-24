@@ -351,3 +351,24 @@ pub fn frobenius_test<F: Field, C: AsRef<[u64]>>(characteristic: C, maxpower: us
         }
     }
 }
+
+pub fn field_serialization_test<F: Field>(buf_size: usize) {
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+    for _ in 0..ITERATIONS {
+        let a = F::rand(&mut rng);
+        let mut serialized = vec![0; buf_size];
+        a.serialize(&[], &mut serialized).unwrap();
+
+        let mut extra_info_buf = [false; 0];
+        let b = F::deserialize(&serialized, &mut extra_info_buf).unwrap();
+        assert_eq!(a, b);
+
+        let mut serialized = vec![0; buf_size];
+        a.serialize(&[true; 2], &mut serialized).unwrap();
+        let mut extra_info_buf = [false; 2];
+        let b = F::deserialize(&serialized, &mut extra_info_buf).unwrap();
+        assert_eq!(extra_info_buf, [true; 2]);
+        assert_eq!(a, b);
+    }
+}

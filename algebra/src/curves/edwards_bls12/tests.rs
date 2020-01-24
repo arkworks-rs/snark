@@ -1,12 +1,14 @@
-use crate::{
-    curves::{edwards_bls12::*, tests::curve_tests, AffineCurve, ProjectiveCurve, models::twisted_edwards_extended::tests::montgomery_conversion_test},
-    groups::tests::group_test,
-};
+use crate::{curves::{edwards_bls12::*, tests::curve_tests, AffineCurve, ProjectiveCurve, models::twisted_edwards_extended::tests::montgomery_conversion_test}, groups::tests::group_test, buffer_bit_byte_size};
 use rand;
+use crate::curves::models::twisted_edwards_extended::tests::edwards_curve_serialization_test;
+use crate::fields::{PrimeField, edwards_bls12::fq::Fq};
 
 #[test]
 fn test_projective_curve() {
     curve_tests::<EdwardsProjective>();
+
+    let (_, byte_size) = buffer_bit_byte_size(Fq::size_in_bits());
+    edwards_curve_serialization_test::<EdwardsParameters>(byte_size);
 }
 
 #[test]
