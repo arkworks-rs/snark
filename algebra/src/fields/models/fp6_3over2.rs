@@ -1,5 +1,5 @@
 use rand::{Rng, distributions::{Standard, Distribution}};
-use crate::UniformRand;
+use crate::{UniformRand, ToBits, FromBits, PrimeField};
 use std::{
     cmp::Ordering,
     io::{Read, Result as IoResult, Write},
@@ -9,7 +9,7 @@ use std::{
 
 use crate::{
     bytes::{FromBytes, ToBytes},
-    fields::{Field, Fp2, Fp2Parameters},
+    fields::{Field, Fp2, Fp2Parameters, FpParameters},
 };
 
 pub trait Fp6Parameters: 'static + Send + Sync + Copy {
@@ -161,8 +161,8 @@ impl<P: Fp6Parameters> Field for Fp6<P> {
     #[inline]
     fn is_odd(&self) -> bool {
         self.c2.is_odd() ||
-            (self.c2.is_zero() & self.c1.is_odd()) ||
-            ( self.c2.is_zero() & self.c1.is_zero() & self.c0.is_odd())
+            (self.c2.is_zero() && self.c1.is_odd()) ||
+            ( self.c2.is_zero() && self.c1.is_zero() && self.c0.is_odd())
     }
 
     #[inline]
@@ -450,8 +450,6 @@ impl<P: Fp6Parameters> From<u8> for Fp6<P> {
     }
 }
 
-
-
 impl<P: Fp6Parameters> ToBytes for Fp6<P> {
     #[inline]
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
@@ -468,5 +466,25 @@ impl<P: Fp6Parameters> FromBytes for Fp6<P> {
         let c1 = Fp2::read(&mut reader)?;
         let c2 = Fp2::read(&mut reader)?;
         Ok(Fp6::new(c0, c1, c2))
+    }
+}
+
+impl<P: Fp6Parameters> ToBits for Fp6<P> {
+    fn write_bits(&self) -> Vec<bool> {
+        let mut bits = self.c0.write_bits();
+        bits.extend_from_slice(self.c1.write_bits().as_slice());
+        bits.extend_from_slice(self.c2.write_bits().as_slice());
+        bits
+
+    }
+}
+
+impl<P: Fp6Parameters> FromBits for Fp6<P> {
+    fn read_bits(bits: Vec<bool>) -> Self {
+        let size = 2 * <<P::Fp2Params as Fp2Parameters>::Fp as PrimeField>::Params::MODULUS_BITS as usize;
+        let c0 = Fp2::read_bits(bits[..size].to_vec());
+        let c1 = Fp2::read_bits(bits[size..(2*size)].to_vec());
+        let c2 = Fp2::read_bits(bits[(2*size)..].to_vec());
+        Fp6::new(c0, c1, c2)
     }
 }

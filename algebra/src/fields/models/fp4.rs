@@ -1,5 +1,5 @@
 use rand::{Rng, distributions::{Standard, Distribution}};
-use crate::UniformRand;
+use crate::{UniformRand, ToBits, FromBits, PrimeField};
 
 use std::{
     cmp::Ordering,
@@ -8,7 +8,7 @@ use std::{
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
 
-use crate::{bytes::{FromBytes, ToBytes}, to_bytes, fields::{Field, Fp2, Fp2Parameters},
+use crate::{bytes::{FromBytes, ToBytes}, fields::{Field, Fp2, Fp2Parameters, FpParameters},
             biginteger::BigInteger, ToCompressedBits, FromCompressedBits};
 use crate::fields::SquareRootField;
 
@@ -289,6 +289,25 @@ impl<P: Fp4Parameters> FromBytes for Fp4<P> {
     }
 }
 
+impl<P: Fp4Parameters> ToBits for Fp4<P> {
+    fn write_bits(&self) -> Vec<bool> {
+        let mut bits = self.c0.write_bits();
+        bits.extend_from_slice(self.c1.write_bits().as_slice());
+        bits
+
+    }
+}
+
+impl<P: Fp4Parameters> FromBits for Fp4<P> {
+    fn read_bits(bits: Vec<bool>) -> Self {
+        let size = 2 * <<P::Fp2Params as Fp2Parameters>::Fp as PrimeField>::Params::MODULUS_BITS as usize;
+        let c0 = Fp2::read_bits(bits[..size].to_vec());
+        let c1 = Fp2::read_bits(bits[size..].to_vec());
+        Fp4::new(c0, c1)
+    }
+}
+
+
 /*  Note: compression and decompression of a Fqk element is possible thanks to a property of Ate pairing.
     if c0 + i*c1 is the output of an Ate pairing, then holds that c0^2 - nr * c1^2 = 1.
     Therefore, we can save c1 and compute c0 as sqrt(1 + nr*c1^2), dedicating a bit also for the sign
@@ -304,12 +323,12 @@ impl<P: Fp4Parameters> ToCompressedBits for Fp4<P> {
     fn compress(&self) -> Vec<bool> {
 
         //Serialize c1
-        let mut res = to_bytes!(self.c1).unwrap();
-        let len = res.len() - 1;
+        let mut res = self.c1.write_bits();
 
         //Set the MSB to indicate the parity of c0
-        let parity = if self.c0.is_odd() {1u8 << 7} else {0u8};
-        res[len] |= parity;
+        let parity = self.c0.is_odd();
+        res.push(parity);
+
         res
     }
 }
@@ -319,40 +338,28 @@ impl<P: Fp4Parameters> FromCompressedBits for Fp4<P> {
     #[inline]
     fn decompress(compressed: Vec<bool>) -> Option<Self> {
         let len = compressed.len() - 1;
-        let parity_flag_set = bool::read([(compressed[len] >> 7) & 1].as_ref()).unwrap();
+        let parity_flag_set = compressed[len];
 
         //Mask away the flag bits and try to get the c1 component
-        let val = {
-            let mut tmp = compressed;
-            tmp[len] &= 0b0111_1111;
-            Fp2::read(tmp.as_slice())
+        let c1 = Fp2::read_bits(compressed[..len].to_vec());
+
+        //Compute c0
+        let c0 = {
+            let t = Fp2::one() + &Self::mul_by_nonresidue(&(c1.square()));
+            t.sqrt()
         };
 
-        match val {
-            Ok(c1) => {
+        match c0 {
 
-                //Compute c0
-                let c0 = {
-                    let t = Fp2::one() + &Self::mul_by_nonresidue(&(c1.square()));
-                    t.sqrt()
-                };
-
-                match c0 {
-
-                    //Estabilish c0 parity
-                    Some(c0_u) => {
-                        let neg_c0u = c0_u.neg();
-                        let c0_s = if c0_u.is_odd() ^ parity_flag_set {neg_c0u} else {c0_u};
-                        Some(Self::new(c0_s, c1))
-                    },
-
-                    //sqrt(1 + nr*c1^2) doesn't exists in the field
-                    _ => None,
-                }
+            //Estabilish c0 parity
+            Some(c0_u) => {
+                let neg_c0u = c0_u.neg();
+                let c0_s = if c0_u.is_odd() ^ parity_flag_set {neg_c0u} else {c0_u};
+                Some(Self::new(c0_s, c1))
             },
 
-            //Unable to deserialize c1
-            _ => None
+            //sqrt(1 + nr*c1^2) doesn't exists in the field
+            _ => None,
         }
     }
 }

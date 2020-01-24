@@ -1,5 +1,5 @@
 use rand::{Rng, distributions::{Standard, Distribution}};
-use crate::{UniformRand, ToCompressedBits, FromCompressedBits};
+use crate::{UniformRand, ToCompressedBits, FromCompressedBits, ToBits, FromBits, PrimeField};
 use std::{
     cmp::Ordering,
     io::{Read, Result as IoResult, Write},
@@ -10,8 +10,7 @@ use std::{
 use crate::{
     biginteger::BigInteger,
     bytes::{FromBytes, ToBytes},
-    fields::{Field, SquareRootField, Fp3, Fp3Parameters},
-    to_bytes,
+    fields::{Field, SquareRootField, Fp3, Fp3Parameters, FpParameters},
 };
 
 pub trait Fp6Parameters: 'static + Send + Sync {
@@ -289,6 +288,24 @@ impl<P: Fp6Parameters> FromBytes for Fp6<P> {
     }
 }
 
+impl<P: Fp6Parameters> ToBits for Fp6<P> {
+    fn write_bits(&self) -> Vec<bool> {
+        let mut bits = self.c0.write_bits();
+        bits.extend_from_slice(self.c1.write_bits().as_slice());
+        bits
+
+    }
+}
+
+impl<P: Fp6Parameters> FromBits for Fp6<P> {
+    fn read_bits(bits: Vec<bool>) -> Self {
+        let size = 3 * <<P::Fp3Params as Fp3Parameters>::Fp as PrimeField>::Params::MODULUS_BITS as usize;
+        let c0 = Fp3::read_bits(bits[..size].to_vec());
+        let c1 = Fp3::read_bits(bits[size..].to_vec());
+        Fp6::new(c0, c1)
+    }
+}
+
 impl<P: Fp6Parameters> Neg for Fp6<P> {
     type Output = Self;
     #[inline]
@@ -409,6 +426,7 @@ impl<P: Fp6Parameters> ::std::fmt::Display for Fp6<P> {
     }
 }
 
+
 /*  Note: compression and decompression of a Fqk element is possible thanks to a property of Ate pairing.
     if c0 + i*c1 is the output of an Ate pairing, then holds that c0^2 - nr * c1^2 = 1.
     Therefore, we can save c1 and compute c0 as sqrt(1 + nr*c1^2), dedicating a bit also for the sign
@@ -421,15 +439,15 @@ impl<P: Fp6Parameters> ::std::fmt::Display for Fp6<P> {
 impl<P: Fp6Parameters> ToCompressedBits for Fp6<P> {
 
     #[inline]
-    fn compress(&self) -> Vec<u8> {
+    fn compress(&self) -> Vec<bool> {
 
         //Serialize c1
-        let mut res = to_bytes!(self.c1).unwrap();
-        let len = res.len() - 1;
+        let mut res = self.c1.write_bits();
 
         //Set the MSB to indicate the parity of c0
-        let parity = if self.c0.is_odd() {1u8 << 7} else {0u8};
-        res[len] |= parity;
+        let parity = self.c0.is_odd();
+        res.push(parity);
+
         res
     }
 }
@@ -437,41 +455,30 @@ impl<P: Fp6Parameters> ToCompressedBits for Fp6<P> {
 impl<P: Fp6Parameters> FromCompressedBits for Fp6<P> {
 
     #[inline]
-    fn decompress(compressed: Vec<u8>) -> Option<Self> {
+    fn decompress(compressed: Vec<bool>) -> Option<Self> {
         let len = compressed.len() - 1;
-        let parity_flag_set = bool::read([(compressed[len] >> 7) & 1].as_ref()).unwrap();
+        let parity_flag_set = compressed[len];
 
         //Mask away the flag bits and try to get the c1 component
-        let val = {
-            let mut tmp = compressed;
-            tmp[len] &= 0b0111_1111;
-            Fp3::read(tmp.as_slice())
+        let c1 = Fp3::read_bits(compressed[..len].to_vec());
+
+        //Compute c0
+        let c0 = {
+            let t = Fp3::one() + &Self::mul_by_nonresidue(&(c1.square()));
+            t.sqrt()
         };
 
-        match val {
-            Ok(c1) => {
-                //Compute c0
-                let c0 = {
-                    let t = Fp3::one() + &Self::mul_by_nonresidue(&(c1.square()));
-                    t.sqrt()
-                };
+        match c0 {
 
-                match c0 {
-
-                    //Estabilish c0 sign
-                    Some(c0_u) => {
-                        let neg_c0u = c0_u.neg();
-                        let c0_s = if c0_u.is_odd() ^ parity_flag_set {neg_c0u} else {c0_u};
-                        Some(Self::new(c0_s, c1))
-                    },
-
-                    //sqrt(1 + nr*c1^2) doesn't exists in the field
-                    _ => None,
-                }
+            //Estabilish c0 parity
+            Some(c0_u) => {
+                let neg_c0u = c0_u.neg();
+                let c0_s = if c0_u.is_odd() ^ parity_flag_set {neg_c0u} else {c0_u};
+                Some(Self::new(c0_s, c1))
             },
 
-            //Unable to deserialize c1
-            _ => None
+            //sqrt(1 + nr*c1^2) doesn't exists in the field
+            _ => None,
         }
     }
 }

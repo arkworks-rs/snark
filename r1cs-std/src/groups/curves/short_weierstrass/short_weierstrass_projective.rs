@@ -727,13 +727,11 @@ impl<ConstraintF> ToCompressedBitsGadget<ConstraintF> for CompressAffinePointGad
                                                         -> Result<Vec<Boolean>, SynthesisError> {
         //Enforce x_coordinate to bytes
         let mut compressed_bits = self.x.to_bits_strict(cs.ns(|| "x_to_bits_strict"))?;
+        compressed_bits.push(self.infinity);
 
         let is_odd = self.y.is_odd(cs.ns(|| "y parity"))?;
-
         compressed_bits.push(is_odd);
-        compressed_bits.push(self.infinity);
+
         Ok(compressed_bits)
     }
 }
-
-

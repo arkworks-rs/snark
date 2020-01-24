@@ -1,4 +1,4 @@
-use crate::UniformRand;
+use crate::{UniformRand, ToBits, FromBits};
 use rand::{Rng, distributions::{Standard, Distribution}};
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
@@ -8,7 +8,7 @@ use std::{
 };
 use crate::{
     bytes::{FromBytes, ToBytes},
-    fields::{Field, LegendreSymbol, PrimeField, SquareRootField},
+    fields::{Field, LegendreSymbol, PrimeField, SquareRootField, FpParameters},
 };
 
 pub trait Fp2Parameters: 'static + Send + Sync {
@@ -88,7 +88,7 @@ impl<P: Fp2Parameters> Field for Fp2<P> {
 
     #[inline]
     fn is_odd(&self) -> bool {
-        self.c1.is_odd() || ( self.c1.is_zero() & self.c0.is_odd())
+        self.c1.is_odd() || ( self.c1.is_zero() && self.c0.is_odd())
     }
 
     #[inline]
@@ -273,6 +273,24 @@ impl<P: Fp2Parameters> FromBytes for Fp2<P> {
         let c0 = P::Fp::read(&mut reader)?;
         let c1 = P::Fp::read(reader)?;
         Ok(Fp2::new(c0, c1))
+    }
+}
+
+impl<P: Fp2Parameters> ToBits for Fp2<P> {
+    fn write_bits(&self) -> Vec<bool> {
+        let mut bits = self.c0.write_bits();
+        bits.extend_from_slice(self.c1.write_bits().as_slice());
+        bits
+
+    }
+}
+
+impl<P: Fp2Parameters> FromBits for Fp2<P> {
+    fn read_bits(bits: Vec<bool>) -> Self {
+        let size = <P::Fp as PrimeField>::Params::MODULUS_BITS as usize;
+        let c0 = P::Fp::read_bits(bits[..size].to_vec());
+        let c1 = P::Fp::read_bits(bits[size..].to_vec());
+        Fp2::new(c0, c1)
     }
 }
 

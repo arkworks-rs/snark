@@ -1,4 +1,4 @@
-use crate::{biginteger::BigInteger, bytes::{FromBytes, ToBytes}, UniformRand};
+use crate::{biginteger::BigInteger, bytes::{FromBytes, ToBytes}, UniformRand, bits::{ToBits, FromBits}};
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
@@ -53,6 +53,8 @@ macro_rules! field_new {
 pub trait Field:
     ToBytes
     + FromBytes
+    + ToBits
+    + FromBits
     + Copy
     + Clone
     + Debug
@@ -264,8 +266,12 @@ pub trait PrimeField: Field + FromStr {
         Self::Params::MODULUS_MINUS_ONE_DIV_TWO
     }
 
-    fn to_bits(&self) -> Vec<bool> {
-        let num_bits = Self::Params::MODULUS_BITS;
+}
+
+impl<F: PrimeField> ToBits for F {
+    #[inline]
+    fn write_bits(&self) -> Vec<bool> {
+        let num_bits = <Self as PrimeField>::Params::MODULUS_BITS;
 
         let mut field_char = BitIterator::new(Self::characteristic());
         let mut tmp = Vec::with_capacity(num_bits as usize);
@@ -283,6 +289,14 @@ pub trait PrimeField: Field + FromStr {
         assert_eq!(tmp.len(), num_bits as usize);
 
         tmp
+    }
+}
+
+impl<F: PrimeField> FromBits for F {
+    #[inline]
+    fn read_bits(bits: Vec<bool>) -> Self {
+        assert_eq!(bits.len(), <Self as PrimeField>::Params::MODULUS_BITS as usize);
+        Self::from_repr(<Self as PrimeField>::BigInt::from_bits(bits.as_slice()))
     }
 }
 

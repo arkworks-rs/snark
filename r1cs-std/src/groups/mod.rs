@@ -164,7 +164,7 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
 
 #[cfg(test)]
 mod test {
-    use algebra::{Field, ProjectiveCurve, ToCompressed};
+    use algebra::{Field, ProjectiveCurve, ToCompressedBits};
     use r1cs_core::ConstraintSystem;
 
     use crate::{prelude::*, test_constraint_system::TestConstraintSystem, ToCompressedBitsGadget};
@@ -243,9 +243,9 @@ mod test {
 
     #[test]
     fn mnt4_group_gadgets_test() {
-        use crate::groups::curves::short_weierstrass::mnt::mnt4::mnt4753::{MNT4G1Gadget, MNT4G2Gadget};
+        use crate::groups::curves::short_weierstrass::mnt::mnt4::mnt4753::MNT4G1Gadget;
         use algebra::{
-            curves::mnt4753::{G1Projective as MNT4G1Projective, G2Projective as MNT4G2Projective},
+            curves::mnt4753::G1Projective as MNT4G1Projective,
             fields::mnt4753::Fq,
         };
 
@@ -274,9 +274,9 @@ mod test {
 
     #[test]
     fn mnt6_group_gadgets_test() {
-        use crate::groups::curves::short_weierstrass::mnt::mnt6::mnt6753::{MNT6G1Gadget, MNT6G2Gadget};
+        use crate::groups::curves::short_weierstrass::mnt::mnt6::mnt6753::MNT6G1Gadget;
         use algebra::{
-            curves::mnt6753::{G1Projective as MNT6G1Projective, G2Projective as MNT6G2Projective},
+            curves::mnt6753::G1Projective as MNT6G1Projective,
             fields::mnt6753::Fq,
         };
 
