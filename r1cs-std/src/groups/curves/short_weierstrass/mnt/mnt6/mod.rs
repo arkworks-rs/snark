@@ -11,7 +11,6 @@ use algebra::curves::models::mnt6::{MNT6Parameters, G1Prepared, G2Prepared, g2::
 
 use std::fmt::Debug;
 use std::ops::{Add, Mul, Sub};
-use crate::groups::GroupGadget;
 use std::borrow::Borrow;
 use crate::algebra::AffineCurve;
 use crate::bits::boolean::Boolean;
@@ -50,9 +49,7 @@ impl<P: MNT6Parameters> G1PreparedGadget<P> {
         value: &G1Gadget<P>,
     ) -> Result<Self, SynthesisError> {
 
-        //Workaround to convert into affine without using unwrap
-        let p = G1Gadget::<P>::alloc(cs.ns(|| "value into affine"),
-                                        || value.clone().get_value().ok_or(SynthesisError::AssignmentMissing))?;
+        let p = value.clone();
 
         //Compute and check p_y_twist_squared
         let twist_squared = P::TWIST.square();
@@ -169,9 +166,7 @@ impl<P: MNT6Parameters>G2PreparedGadget<P> {
         value: &G2Gadget<P>,
     ) -> Result<Self, SynthesisError> {
 
-        //Workaround to convert into affine without using unwrap
-        let mut s = G2Gadget::<P>::alloc(cs.ns(|| "value into affine"),
-                                            || value.clone().get_value().ok_or(SynthesisError::AssignmentMissing))?;
+        let mut s = value.clone();
 
         let mut g2p = G2PreparedGadget{
             q: s.clone(),

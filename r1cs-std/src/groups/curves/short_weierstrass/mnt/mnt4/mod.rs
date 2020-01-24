@@ -13,7 +13,6 @@ use r1cs_core::{ConstraintSystem, SynthesisError};
 use algebra::curves::models::mnt4::MNT4Parameters;
 use std::fmt::Debug;
 use std::ops::{Mul, Sub};
-use crate::groups::GroupGadget;
 use std::borrow::Borrow;
 use crate::bits::boolean::Boolean;
 
@@ -51,8 +50,7 @@ impl<P: MNT4Parameters> G1PreparedGadget<P> {
         value: &G1Gadget<P>,
     ) -> Result<Self, SynthesisError> {
 
-        let p = G1Gadget::<P>::alloc(cs.ns(|| "value into affine"),
-                                        || value.clone().get_value().ok_or(SynthesisError::AssignmentMissing))?;
+        let p = value.clone();
         let twist_squared = P::TWIST.square();
         let c0 = p.y.mul_by_constant(cs.ns(||"p.y * twist_squared.c0"), &twist_squared.c0)?;
         let c1 = p.y.mul_by_constant(cs.ns(||"p.y * twist_squared.c1"), &twist_squared.c1)?;
@@ -167,9 +165,7 @@ impl<P: MNT4Parameters>G2PreparedGadget<P> {
         value: &G2Gadget<P>,
     ) -> Result<Self, SynthesisError> {
 
-        //Workaround to convert into affine without using unwrap
-        let mut s = G2Gadget::<P>::alloc(cs.ns(|| "value into affine"),
-                                || value.clone().get_value().ok_or(SynthesisError::AssignmentMissing))?;
+        let mut s = value.clone();
 
         let mut g2p = G2PreparedGadget{
             q: s.clone(),
