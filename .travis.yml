@@ -5,6 +5,7 @@ before_install:
   - export SCCACHE_DIR="$TRAVIS_HOME/.cache/sccache"
 
 install:
+  - (rustup component add rustfmt --toolchain nightly || true)
   - (cargo install sccache || true)
   - export PATH="$PATH:$TRAVIS_HOME/.cargo/bin"
   - export RUSTC_WRAPPER="sccache"
@@ -29,5 +30,6 @@ matrix:
   fast_finish: true
 
 script:
+  - if [ "$TRAVIS_RUST_VERSION" == "nightly" ]; then cargo fmt -- --check; fi
   - cargo test --all -- --skip "dpc" --skip "integration_test"
   - cargo check --examples --all
