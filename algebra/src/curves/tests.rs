@@ -1,4 +1,4 @@
-use crate::{curves::{AffineCurve, ProjectiveCurve}, fields::PrimeField, SWModelParameters, CanonicalSerialize, CanonicalDeserialize};
+use crate::{curves::{AffineCurve, ProjectiveCurve}, fields::PrimeField, SWModelParameters, CanonicalSerialize, CanonicalDeserialize, SerializationError};
 use crate::UniformRand;
 use num_traits::Zero;
 use rand::SeedableRng;
@@ -286,25 +286,77 @@ pub fn sw_curve_serialization_test<P: SWModelParameters>(buf_size: usize) {
     for _ in 0..ITERATIONS {
         let a = GroupProjective::<P>::rand(&mut rng);
         let mut a = a.into_affine();
-        let mut serialized = vec![0; buf_size];
-        a.serialize(&[], &mut serialized).unwrap();
+        {
+            let mut serialized = vec![0; buf_size];
+            a.serialize(&[], &mut serialized).unwrap();
 
-        let mut extra_info_buf = [false; 0];
-        let b = GroupAffine::<P>::deserialize(&serialized, &mut extra_info_buf).unwrap();
-        assert_eq!(a, b);
+            let mut extra_info_buf = [false; 0];
+            let b = GroupAffine::<P>::deserialize(&serialized, &mut extra_info_buf).unwrap();
+            assert_eq!(a, b);
+        }
 
-        a.y = -a.y;
-        let mut serialized = vec![0; buf_size];
-        a.serialize(&[], &mut serialized).unwrap();
-        let mut extra_info_buf = [false; 0];
-        let b = GroupAffine::<P>::deserialize(&serialized, &mut extra_info_buf).unwrap();
-        assert_eq!(a, b);
+        {
+            a.y = -a.y;
+            let mut serialized = vec![0; buf_size];
+            a.serialize(&[], &mut serialized).unwrap();
+            let mut extra_info_buf = [false; 0];
+            let b = GroupAffine::<P>::deserialize(&serialized, &mut extra_info_buf).unwrap();
+            assert_eq!(a, b);
+        }
 
-        let a = GroupAffine::<P>::zero();
-        let mut serialized = vec![0; buf_size];
-        a.serialize(&[], &mut serialized).unwrap();
-        let mut extra_info_buf = [false; 0];
-        let b = GroupAffine::<P>::deserialize(&serialized, &mut extra_info_buf).unwrap();
-        assert_eq!(a, b);
+        {
+            let a = GroupAffine::<P>::zero();
+            let mut serialized = vec![0; buf_size];
+            a.serialize(&[], &mut serialized).unwrap();
+            let mut extra_info_buf = [false; 0];
+            let b = GroupAffine::<P>::deserialize(&serialized, &mut extra_info_buf).unwrap();
+            assert_eq!(a, b);
+        }
+
+        {
+            let a = GroupAffine::<P>::zero();
+            let mut serialized = vec![0; buf_size];
+            assert!(
+                if let SerializationError::ExtraInfoWrongSize =
+                a.serialize(&[false; 1], &mut serialized).unwrap_err() {
+                    true
+                } else { false }
+            );
+        }
+
+        {
+            let a = GroupAffine::<P>::zero();
+            let mut serialized = vec![0; buf_size];
+            a.serialize(&[], &mut serialized).unwrap();
+            let mut extra_info_buf = [false; 1];
+            assert!(
+                if let SerializationError::ExtraInfoWrongSize =
+                GroupAffine::<P>::deserialize(&serialized, &mut extra_info_buf).unwrap_err() {
+                    true
+                } else { false }
+            );
+        }
+
+        {
+            let a = GroupAffine::<P>::zero();
+            let mut serialized = vec![0; buf_size+1];
+            assert!(
+                if let SerializationError::BufferWrongSize =
+                a.serialize(&[false; 0], &mut serialized).unwrap_err() {
+                    true
+                } else { false }
+            );
+        }
+
+        {
+            let serialized = vec![0; buf_size+1];
+            let mut extra_info_buf = [false; 0];
+            assert!(
+                if let SerializationError::BufferWrongSize =
+                GroupAffine::<P>::deserialize(&serialized, &mut extra_info_buf).unwrap_err() {
+                    true
+                } else { false }
+            );
+        }
     }
 }

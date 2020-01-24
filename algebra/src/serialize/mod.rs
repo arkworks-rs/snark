@@ -73,7 +73,10 @@ macro_rules! impl_prime_field_serializer {
 macro_rules! impl_sw_curve_serializer {
     ($params: ident) => {
         impl<P: $params> CanonicalSerialize for GroupAffine<P> {
-            fn serialize(&self, _: &[bool], output_buf: &mut [u8]) -> Result<(), crate::serialize::SerializationError> {
+            fn serialize(&self, extra_info_buf: &[bool], output_buf: &mut [u8]) -> Result<(), crate::serialize::SerializationError> {
+                if extra_info_buf.len() != 0 {
+                    return Err(crate::serialize::SerializationError::ExtraInfoWrongSize)
+                }
                 if self.is_zero() {
                     P::BaseField::zero().serialize(&[false, true], output_buf)
                 } else {
@@ -87,15 +90,22 @@ macro_rules! impl_sw_curve_serializer {
         }
 
         impl<P: $params> CanonicalDeserialize for GroupAffine<P> {
-            fn deserialize(bytes: &[u8], _: &mut [bool]) -> Result<Self, crate::serialize::SerializationError>
+            fn deserialize(bytes: &[u8], extra_info_buf: &mut [bool]) -> Result<Self, crate::serialize::SerializationError>
                 where Self: Sized {
-                let mut extra_info_buf = [false; 2];
-                let x = P::BaseField::deserialize(bytes, &mut extra_info_buf)?;
-                if extra_info_buf[1] {
+                if extra_info_buf.len() != 0 {
+                    return Err(crate::serialize::SerializationError::ExtraInfoWrongSize)
+                }
+                let mut extra_info = [false; 2];
+                let x = P::BaseField::deserialize(bytes, &mut extra_info)?;
+                if extra_info[1] {
                     return Ok(Self::zero())
                 }
-                GroupAffine::<P>::get_point_from_x(x, extra_info_buf[0])
-                    .ok_or(crate::serialize::SerializationError::InvalidData)
+                let p = GroupAffine::<P>::get_point_from_x(x, extra_info[0])
+                    .ok_or(crate::serialize::SerializationError::InvalidData)?;
+                if !p.is_in_correct_subgroup_assuming_on_curve() {
+                    return Err(crate::serialize::SerializationError::InvalidData)
+                }
+                Ok(p)
             }
         }
     }
@@ -104,7 +114,10 @@ macro_rules! impl_sw_curve_serializer {
 macro_rules! impl_edwards_curve_serializer {
     ($params: ident) => {
         impl<P: $params> CanonicalSerialize for GroupAffine<P> {
-            fn serialize(&self, _: &[bool], output_buf: &mut [u8]) -> Result<(), crate::serialize::SerializationError> {
+            fn serialize(&self, extra_info_buf: &[bool], output_buf: &mut [u8]) -> Result<(), crate::serialize::SerializationError> {
+                if extra_info_buf.len() != 0 {
+                    return Err(crate::serialize::SerializationError::ExtraInfoWrongSize)
+                }
                 if self.is_zero() {
                     P::BaseField::zero().serialize(&[false], output_buf)
                 } else {
@@ -118,15 +131,22 @@ macro_rules! impl_edwards_curve_serializer {
         }
 
         impl<P: $params> CanonicalDeserialize for GroupAffine<P> {
-            fn deserialize(bytes: &[u8], _: &mut [bool]) -> Result<Self, crate::serialize::SerializationError>
+            fn deserialize(bytes: &[u8], extra_info_buf: &mut [bool]) -> Result<Self, crate::serialize::SerializationError>
                 where Self: Sized {
-                let mut extra_info_buf = [false; 1];
-                let x = P::BaseField::deserialize(bytes, &mut extra_info_buf)?;
+                if extra_info_buf.len() != 0 {
+                    return Err(crate::serialize::SerializationError::ExtraInfoWrongSize)
+                }
+                let mut extra_info = [false; 1];
+                let x = P::BaseField::deserialize(bytes, &mut extra_info)?;
                 if x == P::BaseField::zero() {
                     return Ok(Self::zero())
                 }
-                GroupAffine::<P>::get_point_from_x(x, extra_info_buf[0])
-                    .ok_or(crate::serialize::SerializationError::InvalidData)
+                let p = GroupAffine::<P>::get_point_from_x(x, extra_info[0])
+                    .ok_or(crate::serialize::SerializationError::InvalidData)?;
+                if !p.is_in_correct_subgroup_assuming_on_curve() {
+                    return Err(crate::serialize::SerializationError::InvalidData)
+                }
+                Ok(p)
             }
         }
     }

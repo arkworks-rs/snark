@@ -1,4 +1,4 @@
-use crate::{fields::Field, TEModelParameters, MontgomeryModelParameters, ProjectiveCurve, CanonicalSerialize, CanonicalDeserialize};
+use crate::{fields::Field, TEModelParameters, MontgomeryModelParameters, ProjectiveCurve, CanonicalSerialize, CanonicalDeserialize, SerializationError};
 use num_traits::One;
 use crate::curves::models::twisted_edwards_extended::{GroupProjective, GroupAffine};
 use crate::UniformRand;
@@ -26,26 +26,69 @@ pub fn edwards_curve_serialization_test<P: TEModelParameters>(buf_size: usize) {
 
     for _ in 0..ITERATIONS {
         let a = GroupProjective::<P>::rand(&mut rng);
-        let mut a = a.into_affine();
-        let mut serialized = vec![0; buf_size];
-        a.serialize(&[], &mut serialized).unwrap();
+        let a = a.into_affine();
+        {
+            let mut serialized = vec![0; buf_size];
+            a.serialize(&[], &mut serialized).unwrap();
 
-        let mut extra_info_buf = [false; 0];
-        let b = GroupAffine::<P>::deserialize(&serialized, &mut extra_info_buf).unwrap();
-        assert_eq!(a, b);
+            let mut extra_info_buf = [false; 0];
+            let b = GroupAffine::<P>::deserialize(&serialized, &mut extra_info_buf).unwrap();
+            assert_eq!(a, b);
+        }
 
-        a.y = -a.y;
-        let mut serialized = vec![0; buf_size];
-        a.serialize(&[], &mut serialized).unwrap();
-        let mut extra_info_buf = [false; 0];
-        let b = GroupAffine::<P>::deserialize(&serialized, &mut extra_info_buf).unwrap();
-        assert_eq!(a, b);
+        {
+            let a = GroupAffine::<P>::zero();
+            let mut serialized = vec![0; buf_size];
+            a.serialize(&[], &mut serialized).unwrap();
+            let mut extra_info_buf = [false; 0];
+            let b = GroupAffine::<P>::deserialize(&serialized, &mut extra_info_buf).unwrap();
+            assert_eq!(a, b);
+        }
 
-        let a = GroupAffine::<P>::zero();
-        let mut serialized = vec![0; buf_size];
-        a.serialize(&[], &mut serialized).unwrap();
-        let mut extra_info_buf = [false; 0];
-        let b = GroupAffine::<P>::deserialize(&serialized, &mut extra_info_buf).unwrap();
-        assert_eq!(a, b);
+        {
+            let a = GroupAffine::<P>::zero();
+            let mut serialized = vec![0; buf_size];
+            assert!(
+                if let SerializationError::ExtraInfoWrongSize =
+                a.serialize(&[false; 1], &mut serialized).unwrap_err() {
+                    true
+                } else { false }
+            );
+        }
+
+        {
+            let a = GroupAffine::<P>::zero();
+            let mut serialized = vec![0; buf_size];
+            a.serialize(&[], &mut serialized).unwrap();
+            let mut extra_info_buf = [false; 1];
+            assert!(
+                if let SerializationError::ExtraInfoWrongSize =
+                GroupAffine::<P>::deserialize(&serialized, &mut extra_info_buf).unwrap_err() {
+                    true
+                } else { false }
+            );
+        }
+
+        {
+            let a = GroupAffine::<P>::zero();
+            let mut serialized = vec![0; buf_size+1];
+            assert!(
+                if let SerializationError::BufferWrongSize =
+                a.serialize(&[false; 0], &mut serialized).unwrap_err() {
+                    true
+                } else { false }
+            );
+        }
+
+        {
+            let serialized = vec![0; buf_size+1];
+            let mut extra_info_buf = [false; 0];
+            assert!(
+                if let SerializationError::BufferWrongSize =
+                GroupAffine::<P>::deserialize(&serialized, &mut extra_info_buf).unwrap_err() {
+                    true
+                } else { false }
+            );
+        }
     }
 }
