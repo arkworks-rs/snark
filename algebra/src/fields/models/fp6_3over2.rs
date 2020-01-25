@@ -47,6 +47,7 @@ pub trait Fp6Parameters: 'static + Send + Sync + Copy {
     DivFromRef,
     DivAssignFromRef,
 )]
+#[ArithmeticBound = "Fp6Parameters"]
 #[derivative(
     Default(bound = "P: Fp6Parameters"),
     Hash(bound = "P: Fp6Parameters"),

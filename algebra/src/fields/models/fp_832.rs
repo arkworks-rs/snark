@@ -31,6 +31,7 @@ pub trait Fp832Parameters: FpParameters<BigInt = BigInteger> {}
     DivFromRef,
     DivAssignFromRef,
 )]
+#[ArithmeticBound = "Fp832Parameters"]
 #[derivative(
     Default(bound = ""),
     Hash(bound = ""),

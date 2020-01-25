@@ -27,6 +27,7 @@ use algebra_derive::AddFromRef;
 pub mod tests;
 
 #[derive(AddFromRef, Derivative)]
+#[ArithmeticBound = "Parameters"]
 #[derivative(
     Copy(bound = "P: Parameters"),
     Clone(bound = "P: Parameters"),
@@ -281,6 +282,7 @@ mod group_impl {
 //////////////////////////////////////////////////////////////////////////////
 
 #[derive(AddFromRef, Derivative)]
+#[ArithmeticBound = "Parameters"]
 #[derivative(
     Copy(bound = "P: Parameters"),
     Clone(bound = "P: Parameters"),

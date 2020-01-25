@@ -22,6 +22,7 @@ use algebra_derive::{AddAssignFromRef, AddFromRef, SubAssignFromRef, SubFromRef}
 use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 #[derive(AddAssignFromRef, Derivative)]
+#[ArithmeticBound = "Parameters"]
 #[derivative(
     Copy(bound = "P: Parameters"),
     Clone(bound = "P: Parameters"),
@@ -212,6 +213,7 @@ impl<P: Parameters> Default for GroupAffine<P> {
 }
 
 #[derive(AddFromRef, AddAssignFromRef, SubFromRef, SubAssignFromRef, Derivative)]
+#[ArithmeticBound = "Parameters"]
 #[derivative(
     Copy(bound = "P: Parameters"),
     Clone(bound = "P: Parameters"),

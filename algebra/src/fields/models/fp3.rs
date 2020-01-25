@@ -50,6 +50,7 @@ pub trait Fp3Parameters: 'static + Send + Sync {
     DivFromRef,
     DivAssignFromRef,
 )]
+#[ArithmeticBound = "Fp3Parameters"]
 #[derivative(
     Default(bound = "P: Fp3Parameters"),
     Hash(bound = "P: Fp3Parameters"),

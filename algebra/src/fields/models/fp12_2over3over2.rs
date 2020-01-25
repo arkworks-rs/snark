@@ -40,6 +40,7 @@ pub trait Fp12Parameters: 'static + Send + Sync + Copy {
     DivFromRef,
     DivAssignFromRef,
 )]
+#[ArithmeticBound = "Fp12Parameters"]
 #[derivative(
     Default(bound = "P: Fp12Parameters"),
     Hash(bound = "P: Fp12Parameters"),

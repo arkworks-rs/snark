@@ -211,6 +211,7 @@ impl<P: Parameters> Default for GroupAffine<P> {
 }
 
 #[derive(AddFromRef, Derivative)]
+#[ArithmeticBound = "Parameters"]
 #[derivative(
     Copy(bound = "P: Parameters"),
     Clone(bound = "P: Parameters"),

@@ -47,6 +47,7 @@ pub trait Fp2Parameters: 'static + Send + Sync {
     DivAssignFromRef,
     Derivative,
 )]
+#[ArithmeticBound = "Fp2Parameters"]
 #[derivative(
     Default(bound = "P: Fp2Parameters"),
     Hash(bound = "P: Fp2Parameters"),
