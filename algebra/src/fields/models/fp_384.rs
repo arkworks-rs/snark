@@ -41,19 +41,21 @@ pub trait Fp384Parameters: FpParameters<BigInt = BigInteger> {}
     PartialEq(bound = ""),
     Eq(bound = "")
 )]
-pub struct Fp384<P: Fp384Parameters>(
+pub struct Fp384<P>(
     pub BigInteger,
     #[derivative(Debug = "ignore")]
     #[doc(hidden)]
     pub PhantomData<P>,
 );
 
-impl<P: Fp384Parameters> Fp384<P> {
+impl<P> Fp384<P> {
     #[inline]
-    pub fn new(element: BigInteger) -> Self {
+    pub const fn new(element: BigInteger) -> Self {
         Self(element, PhantomData)
     }
+}
 
+impl<P: Fp384Parameters> Fp384<P> {
     #[inline]
     pub(crate) fn is_valid(&self) -> bool {
         self.0 < P::MODULUS

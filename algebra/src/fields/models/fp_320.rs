@@ -41,7 +41,7 @@ pub trait Fp320Parameters: FpParameters<BigInt = BigInteger> {}
     PartialEq(bound = ""),
     Eq(bound = "")
 )]
-pub struct Fp320<P: Fp320Parameters>(
+pub struct Fp320<P>(
     pub BigInteger,
     #[derivative(Debug = "ignore")]
     #[doc(hidden)]

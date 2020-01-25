@@ -41,19 +41,21 @@ pub trait Fp256Parameters: FpParameters<BigInt = BigInteger> {}
     PartialEq(bound = ""),
     Eq(bound = "")
 )]
-pub struct Fp256<P: Fp256Parameters>(
+pub struct Fp256<P>(
     pub BigInteger,
     #[derivative(Debug = "ignore")]
     #[doc(hidden)]
     pub PhantomData<P>,
 );
 
-impl<P: Fp256Parameters> Fp256<P> {
+impl<P> Fp256<P> {
     #[inline]
-    pub fn new(element: BigInteger) -> Self {
+    pub const fn new(element: BigInteger) -> Self {
         Self(element, PhantomData)
     }
+}
 
+impl<P: Fp256Parameters> Fp256<P> {
     #[inline]
     fn is_valid(&self) -> bool {
         self.0 < P::MODULUS
