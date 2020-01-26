@@ -1,13 +1,32 @@
 language: rust
 
+before_install:
+  - export SCCACHE_CACHE_SIZE=200M
+  - export SCCACHE_DIR="$TRAVIS_HOME/.cache/sccache"
+
+install:
+  - cargo install sccache
+  - export PATH="$PATH:$TRAVIS_HOME/.cargo/bin"
+  - export RUSTC_WRAPPER="sccache"
+
+cache:
+  directories:
+    - $TRAVIS_HOME/.cache/sccache
+    - $TRAVIS_HOME/.cargo
+
+# See https://levans.fr/rust_travis_cache.html
+before_cache:
+  - rm -rf "$TRAVIS_HOME/.cargo/registry"
+
+after_script:
+  - sccache -s
+
 rust:
   - stable
   - nightly
 
 matrix:
   fast_finish: true
-
-cache: cargo
 
 script:
   - cargo test --all -- --skip "dpc" --skip "integration_test"
