@@ -1,17 +1,19 @@
+use crate::Vec;
 use crate::{UniformRand, CanonicalSerialize, CanonicalDeserialize, SerializationError, buffer_bit_byte_size};
 use num_traits::{One, Zero};
 use rand::{
     distributions::{Distribution, Standard},
     Rng,
 };
-use std::{
+use core::{
     cmp::{Ord, Ordering, PartialOrd},
-    io::{Read, Result as IoResult, Write},
     marker::PhantomData,
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
     str::FromStr,
+    fmt,
 };
 
+use crate::fake_io::{Read, Result as IoResult, Write};
 use crate::{
     bytes::{FromBytes, ToBytes},
     fields::{Field, LegendreSymbol, PrimeField, SquareRootField},
@@ -510,8 +512,8 @@ impl<P: Fp3Parameters> FromStr for Fp3<P> {
     }
 }
 
-impl<P: Fp3Parameters> ::std::fmt::Display for Fp3<P> {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+impl<P: Fp3Parameters> fmt::Display for Fp3<P> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Fp3({}, {}, {})", self.c0, self.c1, self.c2)
     }
 }

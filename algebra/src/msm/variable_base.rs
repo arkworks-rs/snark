@@ -1,3 +1,4 @@
+use crate::Vec;
 use crate::prelude::{
     AffineCurve, BigInteger, FpParameters, PrimeField, ProjectiveCurve, One, Zero
 };
@@ -36,7 +37,7 @@ impl VariableBaseMSM {
             .map(|w_start| {
                 let mut res = zero;
                 // We don't need the "zero" bucket, so we only have 2^c - 1 buckets
-                let mut buckets = vec![zero; (1 << c) - 1];
+                let mut buckets = crate::vec![zero; (1 << c) - 1];
                 scalars.iter().zip(bases).filter(|(s, _)| !s.is_zero()).for_each(|(&scalar, base)|  {
                     if scalar == fr_one {
                         // We only process unit scalars once in the first window.

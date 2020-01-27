@@ -1,12 +1,13 @@
+use crate::Vec;
 use rand::{Rng, distributions::{Standard, Distribution}};
 use crate::{UniformRand, CanonicalSerialize, CanonicalDeserialize};
 use num_traits::{One, Zero};
-use std::{
+use core::{
     fmt::{Display, Formatter, Result as FmtResult},
-    io::{Read, Result as IoResult, Write},
     marker::PhantomData,
     ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
+use crate::fake_io::{Result as IoResult, Write, Read};
 
 use crate::{
     bytes::{FromBytes, ToBytes},

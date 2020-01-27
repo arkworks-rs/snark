@@ -14,7 +14,7 @@ use crate::UniformRand;
 use num_traits::{One, Zero};
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
-use std::{
+use core::{
     cmp::Ordering,
     ops::{AddAssign, MulAssign, SubAssign},
 };
@@ -388,7 +388,7 @@ fn test_frob_coeffs() {
     );
     assert_eq!(
         Fq12Parameters::FROBENIUS_COEFF_FP12_C1[3],
-        nqr.pow(vec![
+        nqr.pow(crate::alloc::vec![
             0x6de37e6b79adcf03,
             0x4cbef56885f66b55,
             0x4edde9260b903230,
@@ -411,7 +411,7 @@ fn test_frob_coeffs() {
     );
     assert_eq!(
         Fq12Parameters::FROBENIUS_COEFF_FP12_C1[4],
-        nqr.pow(vec![
+        nqr.pow(crate::alloc::vec![
             0xa324d6e9e38e36c8,
             0xa1e5532944b95432,
             0x66d4222ddd5507dd,
@@ -440,7 +440,7 @@ fn test_frob_coeffs() {
     );
     assert_eq!(
         Fq12Parameters::FROBENIUS_COEFF_FP12_C1[5],
-        nqr.pow(vec![
+        nqr.pow(crate::alloc::vec![
             0xfc4b7bc93997595f,
             0xa4e435368ee2c9d0,
             0xf2d98f4a2c0fc8e1,
@@ -475,7 +475,7 @@ fn test_frob_coeffs() {
     );
     assert_eq!(
         Fq12Parameters::FROBENIUS_COEFF_FP12_C1[6],
-        nqr.pow(vec![
+        nqr.pow(crate::alloc::vec![
             0x21219610a012ba3c,
             0xa5c19ad35375325,
             0x4e9df1e497674396,
@@ -516,7 +516,7 @@ fn test_frob_coeffs() {
     );
     assert_eq!(
         Fq12Parameters::FROBENIUS_COEFF_FP12_C1[7],
-        nqr.pow(vec![
+        nqr.pow(crate::alloc::vec![
             0x742754a1f22fdb,
             0x2a1955c2dec3a702,
             0x9747b28c796d134e,
@@ -563,7 +563,7 @@ fn test_frob_coeffs() {
     );
     assert_eq!(
         Fq12Parameters::FROBENIUS_COEFF_FP12_C1[8],
-        nqr.pow(vec![
+        nqr.pow(crate::alloc::vec![
             0x802f5720d0b25710,
             0x6714f0a258b85c7c,
             0x31394c90afdf16e,
@@ -616,7 +616,7 @@ fn test_frob_coeffs() {
     );
     assert_eq!(
         Fq12Parameters::FROBENIUS_COEFF_FP12_C1[9],
-        nqr.pow(vec![
+        nqr.pow(crate::alloc::vec![
             0x4af4accf7de0b977,
             0x742485e21805b4ee,
             0xee388fbc4ac36dec,
@@ -675,7 +675,7 @@ fn test_frob_coeffs() {
     );
     assert_eq!(
         Fq12Parameters::FROBENIUS_COEFF_FP12_C1[10],
-        nqr.pow(vec![
+        nqr.pow(crate::alloc::vec![
             0xe5953a4f96cdda44,
             0x336b2d734cbc32bb,
             0x3f79bfe3cd7410e,
@@ -740,7 +740,7 @@ fn test_frob_coeffs() {
     );
     assert_eq!(
         Fq12Parameters::FROBENIUS_COEFF_FP12_C1[11],
-        nqr.pow(vec![
+        nqr.pow(crate::alloc::vec![
             0x107db680942de533,
             0x6262b24d2052393b,
             0x6136df824159ebc,

@@ -11,7 +11,7 @@ use crate::{curves::{
     Field, FpParameters, PrimeField, SquareRootField,
 }, groups::tests::group_test, buffer_bit_byte_size};
 use num_traits::{One, Zero};
-use std::ops::{AddAssign, MulAssign};
+use core::ops::{AddAssign, MulAssign};
 use crate::curves::tests::sw_curve_serialization_test;
 
 #[test]
@@ -145,6 +145,6 @@ fn test_g1_generator_raw() {
 fn bls12_377_unique() {
     use crate::fields::bls12_377::fq::Fq;
 
-    use std::str::FromStr;
+    use core::str::FromStr;
     println!("{}", Fq::from_str("155198655607781456406391640216936120121836107652948796323930557600032281009004493664981332883744016074664192874906").unwrap());
 }

@@ -13,7 +13,7 @@ use crate::{biginteger::BigInteger384, curves::{
 }, groups::tests::group_test, buffer_bit_byte_size};
 use num_traits::{One, Zero};
 use rand;
-use std::ops::{AddAssign, MulAssign};
+use core::ops::{AddAssign, MulAssign};
 use crate::curves::tests::sw_curve_serialization_test;
 
 #[test]

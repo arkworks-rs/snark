@@ -1,3 +1,5 @@
+use crate::{vec::Vec, Box};
+
 use crate::{
     curves::{
         models::{SWModelParameters, TEModelParameters},
@@ -6,9 +8,10 @@ use crate::{
         ProjectiveCurve,
     },
     Fp2, Fp2Parameters, FpParameters, Field, PrimeField,
+    serialize::SerializationError,
 };
 
-type Error = Box<dyn std::error::Error>;
+type Error = Box<SerializationError>;
 
 /// Types that can be converted to a vector of `F` elements. Useful for specifying
 /// how public inputs to a constraint system should be represented inside
@@ -19,7 +22,7 @@ pub trait ToConstraintField<F: Field> {
 
 impl<F: PrimeField> ToConstraintField<F> for F {
     fn to_field_elements(&self) -> Result<Vec<F>, Error> {
-        Ok(vec![*self])
+        Ok(crate::vec![*self])
     }
 }
 
@@ -119,7 +122,8 @@ impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for [u8] {
                 }
                 ConstraintF::read(chunk.as_slice())
             })
-            .collect::<Result<Vec<_>, _>>()?;
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| Box::new(e.into()))?;
         Ok(fes)
     }
 }

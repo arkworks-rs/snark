@@ -1,6 +1,7 @@
+use crate::Vec;
 use crate::{biginteger::BigInteger, bytes::{FromBytes, ToBytes}, UniformRand, CanonicalSerialize, CanonicalDeserialize};
 use num_traits::{One, Zero};
-use std::{
+use core::{
     fmt::{Debug, Display},
     hash::Hash,
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
@@ -28,14 +29,14 @@ macro_rules! field_new {
     ($name:ident, $c0:expr) => {
         $name {
             0: $c0, 
-            1: std::marker::PhantomData
+            1: core::marker::PhantomData
         }
     };
     ($name:ident, $c0:expr, $c1:expr $(,)?) => {
         $name {
             c0: $c0,
             c1: $c1,
-            _parameters: std::marker::PhantomData,
+            _parameters: core::marker::PhantomData,
         }
     };
     ($name:ident, $c0:expr, $c1:expr, $c2:expr $(,)?) => {
@@ -43,7 +44,7 @@ macro_rules! field_new {
             c0: $c0,
             c1: $c1,
             c2: $c2,
-            _parameters: std::marker::PhantomData,
+            _parameters: core::marker::PhantomData,
         }
     };
 }

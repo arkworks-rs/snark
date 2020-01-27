@@ -12,7 +12,7 @@ use crate::{
 };
 use num_traits::One;
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 pub enum TwistType {
     M,
@@ -117,7 +117,7 @@ where
             ),
         >,
     {
-        let mut pairs = vec![];
+        let mut pairs = crate::vec![];
         for &(p, q) in i {
             if !p.is_zero() && !q.is_zero() {
                 pairs.push((p, q.ell_coeffs.iter()));

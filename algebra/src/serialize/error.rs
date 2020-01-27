@@ -1,6 +1,7 @@
-use std::fmt;
-use std::io;
-use std::error::Error;
+use core::fmt;
+//use std::io;
+//use std::error::Error;
+use crate::fake_io;
 
 /// This is an error that could occur during serialization
 #[derive(Debug)]
@@ -14,26 +15,26 @@ pub enum SerializationError {
     /// During serialization, extra info was of the wrong size.
     ExtraInfoWrongSize,
     /// During serialization, we countered an I/O error.
-    IoError(io::Error),
+    IoError(fake_io::Error),
 }
 
-impl Error for SerializationError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        None
-    }
-}
+//impl Error for SerializationError {
+    //fn source(&self) -> Option<&(dyn Error + 'static)> {
+        //None
+    //}
+//}
 
-impl From<io::Error> for SerializationError {
-    fn from(e: io::Error) -> SerializationError {
+impl From<fake_io::Error> for SerializationError {
+    fn from(e: fake_io::Error) -> SerializationError {
         SerializationError::IoError(e)
     }
 }
 
 impl fmt::Display for SerializationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        if let SerializationError::IoError(e) = self {
-            write!(f, "I/O error: ")?;
-            e.fmt(f)
+        if let SerializationError::IoError(_) = self {
+            write!(f, "I/O error")
+            //e.fmt(f)
         } else {
             let description = match self {
                 SerializationError::BufferWrongSize => {

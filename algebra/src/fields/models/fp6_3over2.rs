@@ -4,12 +4,14 @@ use rand::{
     distributions::{Distribution, Standard},
     Rng,
 };
-use std::{
+use core::{
     cmp::Ordering,
-    io::{Read, Result as IoResult, Write},
+    //io::{Read, Result as IoResult, Write},
     marker::PhantomData,
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+    fmt,
 };
+use crate::fake_io::{Read, Result as IoResult, Write};
 
 use crate::{
     bytes::{FromBytes, ToBytes},
@@ -266,8 +268,8 @@ impl<P: Fp6Parameters> Field for Fp6<P> {
     }
 }
 
-impl<P: Fp6Parameters> std::fmt::Display for Fp6<P> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<P: Fp6Parameters> fmt::Display for Fp6<P> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "Fq6_3over2({} + {} * v, {} * v^2)",

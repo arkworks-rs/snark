@@ -1,12 +1,14 @@
 use rand::{Rng, distributions::{Standard, Distribution}};
 use crate::{UniformRand, CanonicalSerialize, CanonicalDeserialize, SerializationError, PrimeField, buffer_bit_byte_size};
 use num_traits::{One, Zero};
-use std::{
+use core::{
     cmp::Ordering,
-    io::{Read, Result as IoResult, Write},
+    //io::{Read, Result as IoResult, Write},
     marker::PhantomData,
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+    fmt,
 };
+use crate::fake_io::{Read, Result as IoResult, Write};
 
 use crate::{
     bytes::{FromBytes, ToBytes},
@@ -204,8 +206,8 @@ impl<P: Fp12Parameters> Fp12<P> {
     }
 }
 
-impl<P: Fp12Parameters> std::fmt::Display for Fp12<P> {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+impl<P: Fp12Parameters> fmt::Display for Fp12<P> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Fp12({} + {} * w)", self.c0, self.c1)
     }
 }

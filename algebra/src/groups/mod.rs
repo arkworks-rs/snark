@@ -1,7 +1,7 @@
 use crate::BitIterator;
 use crate::UniformRand;
 use num_traits::Zero;
-use std::{
+use core::{
     fmt::{Debug, Display},
     hash::Hash,
     ops::{Add, AddAssign, Neg, Sub, SubAssign},

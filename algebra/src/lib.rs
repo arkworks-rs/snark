@@ -1,3 +1,4 @@
+#![cfg_attr(not(feature = "std"), no_std)]
 #![deny(
     unused_import_braces,
     unused_qualifications,
@@ -14,7 +15,7 @@
     non_shorthand_field_patterns,
     unused_attributes,
     unused_imports,
-    unused_extern_crates
+    //unused_extern_crates
 )]
 #![deny(
     renamed_and_removed_lints,
@@ -32,6 +33,20 @@
     unsafe_code
 )]
 #![forbid(unsafe_code)]
+
+#[cfg(not(feature = "std"))]
+macro_rules! println {
+    () => ();
+    ($($arg:tt)*) => ()
+}
+
+#[cfg(not(feature = "std"))]
+extern crate alloc;
+#[cfg(not(feature = "std"))]
+pub(crate) use alloc::{vec, vec::Vec, boxed::Box};
+
+#[cfg(feature = "std")]
+pub(crate) use std::{vec, vec::Vec, boxed::Box};
 
 #[macro_use]
 extern crate derivative;
@@ -82,3 +97,5 @@ pub mod prelude {
 
     pub use num_traits::{One, Zero};
 }
+
+mod fake_io;

@@ -1,3 +1,4 @@
+use crate::Vec;
 use crate::{
     bytes::ToBytes,
     curves::{
@@ -9,7 +10,7 @@ use crate::{
     fields::{BitIterator, Field, Fp2},
 };
 use num_traits::{One, Zero};
-use std::io::{Result as IoResult, Write};
+use crate::fake_io::{Result as IoResult, Write};
 
 pub type G2Affine<P> = GroupAffine<<P as Bls12Parameters>::G2Parameters>;
 pub type G2Projective<P> = GroupProjective<<P as Bls12Parameters>::G2Parameters>;
@@ -66,12 +67,12 @@ impl<P: Bls12Parameters> G2Prepared<P> {
         let two_inv = P::Fp::one().double().inverse().unwrap();
         if q.is_zero() {
             return Self {
-                ell_coeffs: vec![],
+                ell_coeffs: crate::vec![],
                 infinity:   true,
             };
         }
 
-        let mut ell_coeffs = vec![];
+        let mut ell_coeffs = crate::vec![];
         let mut r = G2HomProjective {
             x: q.x,
             y: q.y,

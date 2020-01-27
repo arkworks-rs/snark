@@ -1,3 +1,4 @@
+use crate::Vec;
 use crate::field_new;
 use crate::{
     biginteger::BigInteger256,
@@ -7,7 +8,7 @@ use crate::{
     },
     fields::edwards_bls12::{fq::Fq, fr::Fr},
 };
-use std::str::FromStr;
+use core::str::FromStr;
 
 #[cfg(test)]
 mod tests;

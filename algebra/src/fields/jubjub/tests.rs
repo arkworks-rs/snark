@@ -10,7 +10,7 @@ use crate::{
     },
 };
 use num_traits::{One, Zero};
-use std::str::FromStr;
+use core::str::FromStr;
 
 #[test]
 fn test_jubjub_fr() {

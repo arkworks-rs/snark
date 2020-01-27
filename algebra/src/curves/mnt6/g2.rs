@@ -1,3 +1,4 @@
+use crate::Vec;
 use crate::field_new;
 use crate::{
     biginteger::BigInteger320,
@@ -10,7 +11,8 @@ use crate::{
     },
     fields::mnt6::{Fq, Fq3, Fq6, Fr},
 };
-use std::io::{Result as IoResult, Write};
+//use std::io::{Result as IoResult, Write};
+use crate::fake_io::{Result as IoResult, Write};
 
 pub type G2Affine = GroupAffine<MNT6G2Parameters>;
 pub type G2Projective = GroupProjective<MNT6G2Parameters>;

@@ -1,3 +1,4 @@
+use crate::alloc::vec::Vec;
 use crate::{curves::{AffineCurve, ProjectiveCurve}, fields::PrimeField, SWModelParameters, CanonicalSerialize, CanonicalDeserialize, SerializationError};
 use crate::UniformRand;
 use num_traits::Zero;
@@ -33,7 +34,7 @@ fn random_addition_test<G: ProjectiveCurve>() {
             assert_eq!(aplusa, aplusamixed);
         }
 
-        let mut tmp = vec![G::zero(); 6];
+        let mut tmp = crate::alloc::vec![G::zero(); 6];
 
         // (a + b) + c
         tmp[0] = (a + &b) + &c;
@@ -287,7 +288,7 @@ pub fn sw_curve_serialization_test<P: SWModelParameters>(buf_size: usize) {
         let a = GroupProjective::<P>::rand(&mut rng);
         let mut a = a.into_affine();
         {
-            let mut serialized = vec![0; buf_size];
+            let mut serialized = crate::alloc::vec![0; buf_size];
             a.serialize(&[], &mut serialized).unwrap();
 
             let mut extra_info_buf = [false; 0];
@@ -297,7 +298,7 @@ pub fn sw_curve_serialization_test<P: SWModelParameters>(buf_size: usize) {
 
         {
             a.y = -a.y;
-            let mut serialized = vec![0; buf_size];
+            let mut serialized = crate::alloc::vec![0; buf_size];
             a.serialize(&[], &mut serialized).unwrap();
             let mut extra_info_buf = [false; 0];
             let b = GroupAffine::<P>::deserialize(&serialized, &mut extra_info_buf).unwrap();
@@ -306,7 +307,7 @@ pub fn sw_curve_serialization_test<P: SWModelParameters>(buf_size: usize) {
 
         {
             let a = GroupAffine::<P>::zero();
-            let mut serialized = vec![0; buf_size];
+            let mut serialized = crate::alloc::vec![0; buf_size];
             a.serialize(&[], &mut serialized).unwrap();
             let mut extra_info_buf = [false; 0];
             let b = GroupAffine::<P>::deserialize(&serialized, &mut extra_info_buf).unwrap();
@@ -315,7 +316,7 @@ pub fn sw_curve_serialization_test<P: SWModelParameters>(buf_size: usize) {
 
         {
             let a = GroupAffine::<P>::zero();
-            let mut serialized = vec![0; buf_size];
+            let mut serialized = crate::alloc::vec![0; buf_size];
             assert!(
                 if let SerializationError::ExtraInfoWrongSize =
                 a.serialize(&[false; 1], &mut serialized).unwrap_err() {
@@ -326,7 +327,7 @@ pub fn sw_curve_serialization_test<P: SWModelParameters>(buf_size: usize) {
 
         {
             let a = GroupAffine::<P>::zero();
-            let mut serialized = vec![0; buf_size];
+            let mut serialized = crate::alloc::vec![0; buf_size];
             a.serialize(&[], &mut serialized).unwrap();
             let mut extra_info_buf = [false; 1];
             assert!(
@@ -339,7 +340,7 @@ pub fn sw_curve_serialization_test<P: SWModelParameters>(buf_size: usize) {
 
         {
             let a = GroupAffine::<P>::zero();
-            let mut serialized = vec![0; buf_size+1];
+            let mut serialized = crate::alloc::vec![0; buf_size+1];
             assert!(
                 if let SerializationError::BufferWrongSize =
                 a.serialize(&[false; 0], &mut serialized).unwrap_err() {
@@ -349,7 +350,7 @@ pub fn sw_curve_serialization_test<P: SWModelParameters>(buf_size: usize) {
         }
 
         {
-            let serialized = vec![0; buf_size+1];
+            let serialized = crate::alloc::vec![0; buf_size+1];
             let mut extra_info_buf = [false; 0];
             assert!(
                 if let SerializationError::BufferWrongSize =

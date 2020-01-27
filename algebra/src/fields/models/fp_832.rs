@@ -4,14 +4,15 @@ use crate::{
     fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
 };
 use num_traits::{One, Zero};
-use std::{
+use core::{
     cmp::{Ord, Ordering, PartialOrd},
     fmt::{Display, Formatter, Result as FmtResult},
-    io::{Read, Result as IoResult, Write},
+    //io::{Read, Result as IoResult, Write},
     marker::PhantomData,
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
     str::FromStr,
 };
+use crate::fake_io::{Read, Result as IoResult, Write};
 
 pub trait Fp832Parameters: FpParameters<BigInt = BigInteger> {}
 
@@ -642,7 +643,7 @@ impl<P: Fp832Parameters> PrimeField for Fp832<P> {
     #[inline]
     fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
         let mut result = Self::zero();
-        if result.0.read_le((&bytes[..]).by_ref()).is_ok() {
+        if result.0.read_le(&mut (&bytes[..])).is_ok() {
             result.0.as_mut()[12] &= 0xffffffffffffffff >> P::REPR_SHAVE_BITS;
             if result.is_valid() {
                 Some(result)

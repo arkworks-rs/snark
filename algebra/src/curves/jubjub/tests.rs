@@ -4,7 +4,7 @@ use crate::{bytes::{FromBytes, ToBytes}, curves::{
 }, fields::{PrimeField, jubjub::{fq::Fq, fr::Fr}}, groups::tests::group_test, buffer_bit_byte_size};
 use num_traits::Zero;
 use rand;
-use std::str::FromStr;
+use core::str::FromStr;
 use crate::curves::models::twisted_edwards_extended::tests::edwards_curve_serialization_test;
 
 #[test]
