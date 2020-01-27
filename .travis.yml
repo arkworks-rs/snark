@@ -5,7 +5,7 @@ before_install:
   - export SCCACHE_DIR="$TRAVIS_HOME/.cache/sccache"
 
 install:
-  - cargo install sccache
+  - (cargo install sccache || true)
   - export PATH="$PATH:$TRAVIS_HOME/.cargo/bin"
   - export RUSTC_WRAPPER="sccache"
 
