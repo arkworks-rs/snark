@@ -1,4 +1,3 @@
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io::{Read, Result as IoResult, Write};
 
 pub trait ToBytes {
@@ -33,7 +32,7 @@ macro_rules! array_bytes {
             #[inline]
             fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
                 for num in self {
-                    writer.write_u16::<LittleEndian>(*num)?;
+                    writer.write_all(&num.to_le_bytes())?;
                 }
                 Ok(())
             }
@@ -43,7 +42,11 @@ macro_rules! array_bytes {
             #[inline]
             fn read<R: Read>(mut reader: R) -> IoResult<Self> {
                 let mut res = [0u16; $N];
-                reader.read_u16_into::<LittleEndian>(&mut res)?;
+                for num in res.iter_mut() {
+                    let mut bytes = [0u8; 2];
+                    reader.read_exact(&mut bytes)?;
+                    *num = u16::from_le_bytes(bytes);
+                }
                 Ok(res)
             }
         }
@@ -52,7 +55,7 @@ macro_rules! array_bytes {
             #[inline]
             fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
                 for num in self {
-                    writer.write_u32::<LittleEndian>(*num)?;
+                    writer.write_all(&num.to_le_bytes())?;
                 }
                 Ok(())
             }
@@ -62,7 +65,11 @@ macro_rules! array_bytes {
             #[inline]
             fn read<R: Read>(mut reader: R) -> IoResult<Self> {
                 let mut res = [0u32; $N];
-                reader.read_u32_into::<LittleEndian>(&mut res)?;
+                for num in res.iter_mut() {
+                    let mut bytes = [0u8; 4];
+                    reader.read_exact(&mut bytes)?;
+                    *num = u32::from_le_bytes(bytes);
+                }
                 Ok(res)
             }
         }
@@ -71,7 +78,7 @@ macro_rules! array_bytes {
             #[inline]
             fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
                 for num in self {
-                    writer.write_u64::<LittleEndian>(*num)?;
+                    writer.write_all(&num.to_le_bytes())?;
                 }
                 Ok(())
             }
@@ -81,7 +88,11 @@ macro_rules! array_bytes {
             #[inline]
             fn read<R: Read>(mut reader: R) -> IoResult<Self> {
                 let mut res = [0u64; $N];
-                reader.read_u64_into::<LittleEndian>(&mut res)?;
+                for num in res.iter_mut() {
+                    let mut bytes = [0u8; 8];
+                    reader.read_exact(&mut bytes)?;
+                    *num = u64::from_le_bytes(bytes);
+                }
                 Ok(res)
             }
         }
@@ -150,56 +161,64 @@ macro_rules! push_to_vec {
 impl ToBytes for u8 {
     #[inline]
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
-        writer.write_u8(*self)
+        writer.write_all(&[*self])
     }
 }
 
 impl FromBytes for u8 {
     #[inline]
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
-        reader.read_u8()
+        let mut byte = [0u8];
+        reader.read_exact(&mut byte)?;
+        Ok(byte[0])
     }
 }
 
 impl ToBytes for u16 {
     #[inline]
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
-        writer.write_u16::<LittleEndian>(*self)
+        writer.write_all(&self.to_le_bytes())
     }
 }
 
 impl FromBytes for u16 {
     #[inline]
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
-        reader.read_u16::<LittleEndian>()
+        let mut bytes = [0u8; 2];
+        reader.read_exact(&mut bytes)?;
+        Ok(u16::from_le_bytes(bytes))
     }
 }
 
 impl ToBytes for u32 {
     #[inline]
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
-        writer.write_u32::<LittleEndian>(*self)
+        writer.write_all(&self.to_le_bytes())
     }
 }
 
 impl FromBytes for u32 {
     #[inline]
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
-        reader.read_u32::<LittleEndian>()
+        let mut bytes = [0u8; 4];
+        reader.read_exact(&mut bytes)?;
+        Ok(u32::from_le_bytes(bytes))
     }
 }
 
 impl ToBytes for u64 {
     #[inline]
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
-        writer.write_u64::<LittleEndian>(*self)
+        writer.write_all(&self.to_le_bytes())
     }
 }
 
 impl FromBytes for u64 {
     #[inline]
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
-        reader.read_u64::<LittleEndian>()
+        let mut bytes = [0u8; 8];
+        reader.read_exact(&mut bytes)?;
+        Ok(u64::from_le_bytes(bytes))
     }
 }
 
