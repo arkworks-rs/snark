@@ -1,6 +1,5 @@
-use smallvec::smallvec;
 use crate::SmallVec;
-use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub};
+use core::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub};
 use algebra::Field;
 use crate::{LinearCombination, Variable};
 
@@ -14,14 +13,18 @@ impl<F: Field> AsRef<[(Variable, F)]> for LinearCombination<F> {
 impl<F: Field> From<(F, Variable)> for LinearCombination<F> {
     #[inline]
     fn from((coeff, var): (F, Variable)) -> Self {
-        LinearCombination(smallvec![(var, coeff)])
+        let mut vec = SmallVec::new();
+        vec.push((var, coeff));
+        LinearCombination(vec)
     }
 }
 
 impl<F: Field> From<Variable> for LinearCombination<F> {
     #[inline]
     fn from(var: Variable) -> Self {
-        LinearCombination(smallvec![(var, F::one())])
+        let mut vec = SmallVec::new();
+        vec.push((var, F::one()));
+        LinearCombination(vec)
     }
 }
 

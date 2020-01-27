@@ -42,6 +42,7 @@ macro_rules! println {
 
 #[cfg(not(feature = "std"))]
 extern crate alloc;
+
 #[cfg(not(feature = "std"))]
 pub(crate) use alloc::{vec, vec::Vec, boxed::Box};
 

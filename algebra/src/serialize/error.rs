@@ -1,6 +1,4 @@
 use core::fmt;
-//use std::io;
-//use std::error::Error;
 use crate::fake_io;
 
 /// This is an error that could occur during serialization
@@ -18,12 +16,6 @@ pub enum SerializationError {
     IoError(fake_io::Error),
 }
 
-//impl Error for SerializationError {
-    //fn source(&self) -> Option<&(dyn Error + 'static)> {
-        //None
-    //}
-//}
-
 impl From<fake_io::Error> for SerializationError {
     fn from(e: fake_io::Error) -> SerializationError {
         SerializationError::IoError(e)
@@ -34,7 +26,6 @@ impl fmt::Display for SerializationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         if let SerializationError::IoError(_) = self {
             write!(f, "I/O error")
-            //e.fmt(f)
         } else {
             let description = match self {
                 SerializationError::BufferWrongSize => {

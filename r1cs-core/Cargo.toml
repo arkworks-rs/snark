@@ -22,3 +22,6 @@ edition = "2018"
 [dependencies]
 algebra = { path = "../algebra" }
 smallvec = { version = "0.6" }
+
+[features]
+std = ["algebra/std"]

@@ -1,4 +1,5 @@
-use std::marker::PhantomData;
+use crate::String;
+use core::marker::PhantomData;
 use algebra::Field;
 
 use crate::{Index, Variable, LinearCombination, SynthesisError};
