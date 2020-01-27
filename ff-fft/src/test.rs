@@ -2,7 +2,7 @@ use algebra::UniformRand;
 use algebra::curves::{bls12_381::Bls12_381, PairingEngine};
 use crate::{domain::*, multicore::*};
 use rand;
-use std::cmp::min;
+use core::cmp::min;
 
 // Test multiplying various (low degree) polynomials together and
 // comparing with naive evaluations.

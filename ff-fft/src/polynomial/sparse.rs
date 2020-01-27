@@ -1,8 +1,9 @@
 //! A sparse polynomial represented in coefficient form.
 
-use std::fmt;
+use core::fmt;
 
 use algebra::{Field, PrimeField};
+use crate::{Vec, BTreeMap};
 use crate::DensePolynomial;
 use crate::{DenseOrSparsePolynomial, EvaluationDomain, Evaluations};
 
@@ -29,7 +30,7 @@ impl<F: Field> fmt::Debug for SparsePolynomial<F> {
     }
 }
 
-impl<F: Field> std::ops::Deref for SparsePolynomial<F> {
+impl<F: Field> core::ops::Deref for SparsePolynomial<F> {
     type Target = [(usize, F)];
 
     fn deref(&self) -> &[(usize, F)] {
@@ -94,15 +95,14 @@ impl<F: Field> SparsePolynomial<F> {
         if self.is_zero() || other.is_zero() {
             SparsePolynomial::zero()
         } else {
-            let mut result = std::collections::HashMap::new();
+            let mut result = BTreeMap::new();
             for (i, self_coeff) in self.coeffs.iter() {
                 for (j, other_coeff) in other.coeffs.iter() {
                     let cur_coeff = result.entry(i + j).or_insert(F::zero());
                     *cur_coeff += &(*self_coeff * other_coeff);
                 }
             }
-            let mut result = result.into_iter().collect::<Vec<_>>();
-            result.sort_by(|a, b| a.0.cmp(&b.0));
+            let result = result.into_iter().collect::<Vec<_>>();
             SparsePolynomial::from_coefficients_vec(result)
         }
     }
@@ -125,7 +125,7 @@ impl<F: PrimeField> SparsePolynomial<F> {
 
 impl<F: Field> Into<DensePolynomial<F>> for SparsePolynomial<F> {
     fn into(self) -> DensePolynomial<F> {
-        let mut other = vec![F::zero(); self.degree() + 1];
+        let mut other = crate::vec![F::zero(); self.degree() + 1];
         for (i, coeff) in self.coeffs {
             other[i] = coeff;
         }
@@ -145,7 +145,7 @@ mod tests {
             let domain_size = 1 << size;
             let domain = EvaluationDomain::new(domain_size).unwrap();
             let two = Fr::one() + &Fr::one();
-            let sparse_poly = SparsePolynomial::from_coefficients_vec(vec![(0, two), (1, two)]);
+            let sparse_poly = SparsePolynomial::from_coefficients_vec(crate::vec![(0, two), (1, two)]);
             let evals1 = sparse_poly.evaluate_over_domain_by_ref(domain);
 
             let dense_poly: DensePolynomial<Fr> = sparse_poly.into();

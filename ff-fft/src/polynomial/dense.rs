@@ -1,7 +1,8 @@
 //! A polynomial represented in coefficient form.
 
-use std::fmt;
-use std::ops::{Add, AddAssign, Deref, DerefMut, Div, Mul, Neg, Sub, SubAssign};
+use core::fmt;
+use core::ops::{Add, AddAssign, Deref, DerefMut, Div, Mul, Neg, Sub, SubAssign};
+use crate::Vec;
 
 use algebra::{Field, PrimeField};
 use crate::{Evaluations, EvaluationDomain, DenseOrSparsePolynomial};
@@ -92,7 +93,7 @@ impl<F: Field> DensePolynomial<F> {
         if self.is_zero() {
             return F::zero();
         }
-        let mut powers_of_point = vec![F::one()];
+        let mut powers_of_point = crate::vec![F::one()];
         let mut cur = point;
         for _ in 0..self.degree() {
             powers_of_point.push(cur);
@@ -112,7 +113,7 @@ impl<F: Field> DensePolynomial<F> {
         if self.is_zero() || other.is_zero() {
             DensePolynomial::zero()
         } else {
-            let mut result = vec![F::zero(); self.degree() + other.degree() + 1];
+            let mut result = crate::vec![F::zero(); self.degree() + other.degree() + 1];
             for (i, self_coeff) in self.coeffs.iter().enumerate() {
                 for (j, other_coeff) in other.coeffs.iter().enumerate() {
                     result[i + j] += &(*self_coeff * other_coeff);
@@ -137,7 +138,7 @@ impl<F: PrimeField> DensePolynomial<F> {
     /// Multiply `self` by the vanishing polynomial for the domain `domain`.
     /// Returns the result of the multiplication.
     pub fn mul_by_vanishing_poly(&self, domain: EvaluationDomain<F>) -> DensePolynomial<F> {
-        let mut shifted = vec![F::zero(); domain.size()];
+        let mut shifted = crate::vec![F::zero(); domain.size()];
         shifted.extend_from_slice(&self.coeffs);
         shifted.par_iter_mut().zip(&self.coeffs).for_each(|(s, c)| *s -= c);
 

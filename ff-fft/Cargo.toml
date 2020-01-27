@@ -23,3 +23,6 @@ edition = "2018"
 rand = { version = "0.7" }
 algebra = { path = "../algebra", features = [ "parallel" ] }
 rayon = { version = "1" }
+
+[features]
+std = ["algebra/std"]

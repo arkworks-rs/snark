@@ -1,6 +1,7 @@
 //! A polynomial represented in evaluations form.
 
-use std::ops::{Add, Sub, Mul, Div, AddAssign, SubAssign, MulAssign, DivAssign};
+use core::ops::{Add, Sub, Mul, Div, AddAssign, SubAssign, MulAssign, DivAssign, Index};
+use crate::Vec;
 use algebra::PrimeField;
 use crate::{DensePolynomial, EvaluationDomain};
 
@@ -36,7 +37,7 @@ impl<F: PrimeField> Evaluations<F> {
     }
 }
 
-impl<F: PrimeField> std::ops::Index<usize> for Evaluations<F> {
+impl<F: PrimeField> Index<usize> for Evaluations<F> {
     type Output = F;
 
     fn index(&self, index: usize) -> &F {
