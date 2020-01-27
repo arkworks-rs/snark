@@ -3,6 +3,7 @@ pub use error::*;
 
 pub trait CanonicalSerialize {
     fn serialize(&self, extra_info: &[bool], output_buf: &mut [u8]) -> Result<(), SerializationError>;
+    fn buffer_size() -> usize;
 }
 
 pub trait CanonicalDeserialize: CanonicalSerialize {
@@ -41,6 +42,11 @@ macro_rules! impl_prime_field_serializer {
 
                 output_buf.copy_from_slice(&bytes[..output_byte_size]);
                 Ok(())
+            }
+
+            fn buffer_size() -> usize {
+                let (_, byte_size) = crate::serialize::buffer_bit_byte_size($field::<P>::size_in_bits());
+                byte_size
             }
         }
 
@@ -87,6 +93,10 @@ macro_rules! impl_sw_curve_serializer {
                     }
                 }
             }
+
+            fn buffer_size() -> usize {
+                <P::BaseField as CanonicalSerialize>::buffer_size()
+            }
         }
 
         impl<P: $params> CanonicalDeserialize for GroupAffine<P> {
@@ -127,6 +137,10 @@ macro_rules! impl_edwards_curve_serializer {
                         self.x.serialize(&[false], output_buf)
                     }
                 }
+            }
+
+            fn buffer_size() -> usize {
+                <P::BaseField as CanonicalSerialize>::buffer_size()
             }
         }
 

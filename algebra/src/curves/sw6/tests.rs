@@ -2,18 +2,18 @@ use crate::{curves::{
     sw6::{G1Affine, G1Projective, G2Affine, G2Projective, SW6},
     tests::curve_tests,
     AffineCurve, PairingEngine,
-}, groups::tests::group_test, buffer_bit_byte_size};
+}, groups::tests::group_test, CanonicalSerialize};
 use num_traits::One;
-use crate::fields::{PrimeField, sw6::Fq};
 use crate::curves::sw6::g1::SW6G1Parameters;
 use crate::curves::tests::sw_curve_serialization_test;
 use crate::curves::sw6::g2::SW6G2Parameters;
+use crate::curves::models::short_weierstrass_jacobian::GroupAffine;
 
 #[test]
 fn test_g1_projective_curve() {
     curve_tests::<G1Projective>();
 
-    let (_, byte_size) = buffer_bit_byte_size(Fq::size_in_bits());
+    let byte_size = <GroupAffine::<SW6G1Parameters> as CanonicalSerialize>::buffer_size();
     sw_curve_serialization_test::<SW6G1Parameters>(byte_size);
 }
 
@@ -35,8 +35,8 @@ fn test_g1_generator() {
 fn test_g2_projective_curve() {
     curve_tests::<G2Projective>();
 
-    let (_, byte_size) = buffer_bit_byte_size(Fq::size_in_bits());
-    sw_curve_serialization_test::<SW6G2Parameters>(3*byte_size);
+    let byte_size = <GroupAffine::<SW6G2Parameters> as CanonicalSerialize>::buffer_size();
+    sw_curve_serialization_test::<SW6G2Parameters>(byte_size);
 }
 
 #[test]
