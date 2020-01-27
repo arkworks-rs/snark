@@ -1,4 +1,4 @@
-use crate::{UniformRand, CanonicalSerialize, CanonicalDeserialize, SerializationError, buffer_bit_byte_size};
+use crate::{UniformRand, CanonicalSerialize, CanonicalDeserialize, SerializationError};
 use num_traits::{One, Zero};
 use rand::{
     distributions::{Distribution, Standard},
@@ -518,7 +518,7 @@ impl<P: Fp3Parameters> ::std::fmt::Display for Fp3<P> {
 
 impl<P: Fp3Parameters> CanonicalSerialize for Fp3<P> {
     fn serialize(&self, extra_info: &[bool], output_buf: &mut [u8]) -> Result<(), SerializationError> {
-        let (_, fp_byte_size) = buffer_bit_byte_size(<P::Fp as PrimeField>::size_in_bits());
+        let fp_byte_size= <P::Fp as CanonicalSerialize>::buffer_size();
         if output_buf.len() != 3*fp_byte_size {
             return Err(SerializationError::BufferWrongSize);
         }
@@ -527,12 +527,16 @@ impl<P: Fp3Parameters> CanonicalSerialize for Fp3<P> {
         self.c2.serialize(extra_info, &mut output_buf[2*fp_byte_size..3*fp_byte_size])?;
         Ok(())
     }
+
+    fn buffer_size() -> usize {
+        3*<P::Fp as CanonicalSerialize>::buffer_size()
+    }
 }
 
 impl<P: Fp3Parameters> CanonicalDeserialize for Fp3<P> {
     fn deserialize(bytes: &[u8], extra_info_buf: &mut [bool]) -> Result<Self, SerializationError>
         where Self: Sized {
-        let (_, fp_byte_size) = buffer_bit_byte_size(<P::Fp as PrimeField>::size_in_bits());
+        let fp_byte_size= <P::Fp as CanonicalSerialize>::buffer_size();
         if bytes.len() != 3*fp_byte_size {
             return Err(SerializationError::BufferWrongSize);
         }

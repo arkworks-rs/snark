@@ -3,7 +3,7 @@ use crate::{biginteger::{BigInteger, BigInteger384}, fields::{
     fp6_3over2::Fp6Parameters,
     tests::{field_test, frobenius_test, primefield_test, sqrt_field_test},
     Field, Fp2Parameters, FpParameters, PrimeField, SquareRootField,
-}, buffer_bit_byte_size};
+}, CanonicalSerialize};
 use crate::UniformRand;
 use num_traits::{One, Zero};
 use rand::SeedableRng;
@@ -26,7 +26,7 @@ fn test_bls12_377_fr() {
         field_test(a, b);
         primefield_test::<Fr>();
         sqrt_field_test(b);
-        let (_, byte_size) = buffer_bit_byte_size(Fr::size_in_bits());
+        let byte_size = <Fr as CanonicalSerialize>::buffer_size();
         field_serialization_test::<Fr>(byte_size);
     }
 }
@@ -41,7 +41,7 @@ fn test_bls12_377_fq() {
         field_test(a, b);
         primefield_test::<Fq>();
         sqrt_field_test(a);
-        let (_, byte_size) = buffer_bit_byte_size(Fq::size_in_bits());
+        let byte_size = <Fq as CanonicalSerialize>::buffer_size();
         field_serialization_test::<Fq>(byte_size);
     }
 }
@@ -57,8 +57,8 @@ fn test_bls12_377_fq2() {
         sqrt_field_test(a);
     }
     frobenius_test::<Fq2, _>(Fq::characteristic(), 13);
-    let (_, byte_size) = buffer_bit_byte_size(Fq::size_in_bits());
-    field_serialization_test::<Fq2>(2*byte_size);
+    let byte_size = <Fq2 as CanonicalSerialize>::buffer_size();
+    field_serialization_test::<Fq2>(byte_size);
 }
 
 #[test]
@@ -71,8 +71,8 @@ fn test_bls12_377_fq6() {
         field_test(g, h);
     }
     frobenius_test::<Fq6, _>(Fq::characteristic(), 13);
-    let (_, byte_size) = buffer_bit_byte_size(Fq::size_in_bits());
-    field_serialization_test::<Fq6>(6*byte_size);
+    let byte_size = <Fq6 as CanonicalSerialize>::buffer_size();
+    field_serialization_test::<Fq6>(byte_size);
 }
 
 #[test]
@@ -85,8 +85,8 @@ fn test_bls12_377_fq12() {
         field_test(g, h);
     }
     frobenius_test::<Fq12, _>(Fq::characteristic(), 13);
-    let (_, byte_size) = buffer_bit_byte_size(Fq::size_in_bits());
-    field_serialization_test::<Fq12>(12*byte_size);
+    let byte_size = <Fq12 as CanonicalSerialize>::buffer_size();
+    field_serialization_test::<Fq12>(byte_size);
 }
 
 #[test]

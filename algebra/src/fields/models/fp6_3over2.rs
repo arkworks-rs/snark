@@ -1,4 +1,4 @@
-use crate::{UniformRand, CanonicalSerialize, CanonicalDeserialize, SerializationError, PrimeField, buffer_bit_byte_size};
+use crate::{UniformRand, CanonicalSerialize, CanonicalDeserialize, SerializationError};
 use num_traits::{One, Zero};
 use rand::{
     distributions::{Distribution, Standard},
@@ -496,7 +496,7 @@ impl<P: Fp6Parameters> FromBytes for Fp6<P> {
 
 impl<P: Fp6Parameters> CanonicalSerialize for Fp6<P> {
     fn serialize(&self, extra_info: &[bool], output_buf: &mut [u8]) -> Result<(), SerializationError> {
-        let (_, fp_byte_size) = buffer_bit_byte_size(<<P::Fp2Params as Fp2Parameters>::Fp as PrimeField>::size_in_bits());
+        let fp_byte_size = <<P::Fp2Params as Fp2Parameters>::Fp as CanonicalSerialize>::buffer_size();
         if output_buf.len() != 6*fp_byte_size {
             return Err(SerializationError::BufferWrongSize);
         }
@@ -505,12 +505,16 @@ impl<P: Fp6Parameters> CanonicalSerialize for Fp6<P> {
         self.c2.serialize(extra_info, &mut output_buf[4*fp_byte_size..6*fp_byte_size])?;
         Ok(())
     }
+
+    fn buffer_size() -> usize {
+        6*<<P::Fp2Params as Fp2Parameters>::Fp as CanonicalSerialize>::buffer_size()
+    }
 }
 
 impl<P: Fp6Parameters> CanonicalDeserialize for Fp6<P> {
     fn deserialize(bytes: &[u8], extra_info_buf: &mut [bool]) -> Result<Self, SerializationError>
         where Self: Sized {
-        let (_, fp_byte_size) = buffer_bit_byte_size(<<P::Fp2Params as Fp2Parameters>::Fp as PrimeField>::size_in_bits());
+        let fp_byte_size = <<P::Fp2Params as Fp2Parameters>::Fp as CanonicalSerialize>::buffer_size();
         if bytes.len() != 6*fp_byte_size {
             return Err(SerializationError::BufferWrongSize);
         }
