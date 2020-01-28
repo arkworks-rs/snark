@@ -26,10 +26,7 @@ byteorder = { version = "1" }
 rand = { version = "0.7" }
 derivative = { version = "1" }
 num-traits = { version = "0.2", default-features = false }
-
-colored = { version = "1", optional = true }
 rayon = { version = "1", optional = true }
-clippy = { version = "*", optional = true }
 
 [dev-dependencies]
 blake2 = "0.8.1"
