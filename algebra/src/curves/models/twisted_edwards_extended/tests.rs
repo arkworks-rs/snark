@@ -28,7 +28,7 @@ pub fn edwards_curve_serialization_test<P: TEModelParameters>(buf_size: usize) {
         let a = GroupProjective::<P>::rand(&mut rng);
         let a = a.into_affine();
         {
-            let mut serialized = crate::alloc::vec![0; buf_size];
+            let mut serialized = vec![0; buf_size];
             a.serialize(&[], &mut serialized).unwrap();
 
             let mut extra_info_buf = [false; 0];
@@ -38,7 +38,7 @@ pub fn edwards_curve_serialization_test<P: TEModelParameters>(buf_size: usize) {
 
         {
             let a = GroupAffine::<P>::zero();
-            let mut serialized = crate::alloc::vec![0; buf_size];
+            let mut serialized = vec![0; buf_size];
             a.serialize(&[], &mut serialized).unwrap();
             let mut extra_info_buf = [false; 0];
             let b = GroupAffine::<P>::deserialize(&serialized, &mut extra_info_buf).unwrap();
@@ -47,7 +47,7 @@ pub fn edwards_curve_serialization_test<P: TEModelParameters>(buf_size: usize) {
 
         {
             let a = GroupAffine::<P>::zero();
-            let mut serialized = crate::alloc::vec![0; buf_size];
+            let mut serialized = vec![0; buf_size];
             assert!(
                 if let SerializationError::ExtraInfoWrongSize =
                 a.serialize(&[false; 1], &mut serialized).unwrap_err() {
@@ -58,7 +58,7 @@ pub fn edwards_curve_serialization_test<P: TEModelParameters>(buf_size: usize) {
 
         {
             let a = GroupAffine::<P>::zero();
-            let mut serialized = crate::alloc::vec![0; buf_size];
+            let mut serialized = vec![0; buf_size];
             a.serialize(&[], &mut serialized).unwrap();
             let mut extra_info_buf = [false; 1];
             assert!(
@@ -71,7 +71,7 @@ pub fn edwards_curve_serialization_test<P: TEModelParameters>(buf_size: usize) {
 
         {
             let a = GroupAffine::<P>::zero();
-            let mut serialized = crate::alloc::vec![0; buf_size+1];
+            let mut serialized = vec![0; buf_size+1];
             assert!(
                 if let SerializationError::BufferWrongSize =
                 a.serialize(&[false; 0], &mut serialized).unwrap_err() {
@@ -81,7 +81,7 @@ pub fn edwards_curve_serialization_test<P: TEModelParameters>(buf_size: usize) {
         }
 
         {
-            let serialized = crate::alloc::vec![0; buf_size+1];
+            let serialized = vec![0; buf_size+1];
             let mut extra_info_buf = [false; 0];
             assert!(
                 if let SerializationError::BufferWrongSize =

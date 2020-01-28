@@ -23,7 +23,7 @@ impl FixedBaseMSM {
         let outerc = (scalar_size + window - 1) / window;
         let last_in_window = 1 << (scalar_size - (outerc - 1) * window);
 
-        let mut multiples_of_g = crate::vec![crate::vec![T::zero(); in_window]; outerc];
+        let mut multiples_of_g = vec![vec![T::zero(); in_window]; outerc];
 
         let mut g_outer = g;
         for outer in 0..outerc {

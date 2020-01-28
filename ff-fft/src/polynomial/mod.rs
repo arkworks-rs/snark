@@ -108,7 +108,7 @@ impl<F: Field> DenseOrSparsePolynomial<'_, F> {
             Some((DensePolynomial::zero(), self.clone().into()))
         } else {
             // Now we know that self.degree() >= divisor.degree();
-            let mut quotient = crate::vec![F::zero(); self.degree() - divisor.degree() + 1];
+            let mut quotient = vec![F::zero(); self.degree() - divisor.degree() + 1];
             let mut remainder: DensePolynomial<F> = self.clone().into();
             // Can unwrap here because we know self is not zero.
             let divisor_leading_inv = divisor.leading_coefficient().unwrap().inverse().unwrap();

@@ -1,4 +1,4 @@
-use crate::{vec::Vec, Box};
+use crate::{Vec, Box};
 
 use crate::{
     curves::{
@@ -22,7 +22,7 @@ pub trait ToConstraintField<F: Field> {
 
 impl<F: PrimeField> ToConstraintField<F> for F {
     fn to_field_elements(&self) -> Result<Vec<F>, Error> {
-        Ok(crate::vec![*self])
+        Ok(vec![*self])
     }
 }
 

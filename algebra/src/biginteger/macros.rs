@@ -175,7 +175,7 @@ macro_rules! bigint_impl {
 
             #[inline]
             fn find_wnaf(&self) -> Vec<i64> {
-                let mut res = crate::vec![];
+                let mut res = vec![];
 
                 let mut e = self.clone();
                 while !e.is_zero() {

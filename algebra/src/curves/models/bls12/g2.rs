@@ -67,12 +67,12 @@ impl<P: Bls12Parameters> G2Prepared<P> {
         let two_inv = P::Fp::one().double().inverse().unwrap();
         if q.is_zero() {
             return Self {
-                ell_coeffs: crate::vec![],
+                ell_coeffs: vec![],
                 infinity:   true,
             };
         }
 
-        let mut ell_coeffs = crate::vec![];
+        let mut ell_coeffs = vec![];
         let mut r = G2HomProjective {
             x: q.x,
             y: q.y,

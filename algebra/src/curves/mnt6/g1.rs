@@ -10,7 +10,6 @@ use crate::{
     },
     fields::mnt6::{Fq, Fq3, Fq6, Fr},
 };
-//use std::io::{Result as IoResult, Write};
 use crate::fake_io::{Result as IoResult, Write};
 
 pub type G1Affine = GroupAffine<MNT6G1Parameters>;

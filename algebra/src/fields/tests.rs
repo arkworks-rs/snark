@@ -358,7 +358,7 @@ pub fn field_serialization_test<F: Field>(buf_size: usize) {
     for _ in 0..ITERATIONS {
         let a = F::rand(&mut rng);
         {
-            let mut serialized = crate::alloc::vec![0; buf_size];
+            let mut serialized = vec![0; buf_size];
             a.serialize(&[], &mut serialized).unwrap();
 
             let mut extra_info_buf = [false; 0];
@@ -367,7 +367,7 @@ pub fn field_serialization_test<F: Field>(buf_size: usize) {
         }
 
         {
-            let mut serialized = crate::alloc::vec![0; buf_size];
+            let mut serialized = vec![0; buf_size];
             a.serialize(&[true; 2], &mut serialized).unwrap();
             let mut extra_info_buf = [false; 2];
             let b = F::deserialize(&serialized, &mut extra_info_buf).unwrap();
@@ -377,7 +377,7 @@ pub fn field_serialization_test<F: Field>(buf_size: usize) {
 
         use crate::serialize::SerializationError;
         {
-            let mut serialized = crate::alloc::vec![0; buf_size];
+            let mut serialized = vec![0; buf_size];
             assert!(
                 if let SerializationError::NotEnoughSpace =
                 a.serialize(&[true; 200], &mut serialized).unwrap_err() {
@@ -394,7 +394,7 @@ pub fn field_serialization_test<F: Field>(buf_size: usize) {
         }
 
         {
-            let mut serialized = crate::alloc::vec![0; buf_size+1];
+            let mut serialized = vec![0; buf_size+1];
             assert!(
                 if let SerializationError::BufferWrongSize =
                 a.serialize(&[true; 2], &mut serialized).unwrap_err() {

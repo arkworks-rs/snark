@@ -117,7 +117,7 @@ where
             ),
         >,
     {
-        let mut pairs = crate::vec![];
+        let mut pairs = vec![];
         for &(p, q) in i {
             if !p.is_zero() && !q.is_zero() {
                 pairs.push((p, q.ell_coeffs.iter()));

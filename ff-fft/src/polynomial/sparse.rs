@@ -125,7 +125,7 @@ impl<F: PrimeField> SparsePolynomial<F> {
 
 impl<F: Field> Into<DensePolynomial<F>> for SparsePolynomial<F> {
     fn into(self) -> DensePolynomial<F> {
-        let mut other = crate::vec![F::zero(); self.degree() + 1];
+        let mut other = vec![F::zero(); self.degree() + 1];
         for (i, coeff) in self.coeffs {
             other[i] = coeff;
         }
@@ -145,7 +145,7 @@ mod tests {
             let domain_size = 1 << size;
             let domain = EvaluationDomain::new(domain_size).unwrap();
             let two = Fr::one() + &Fr::one();
-            let sparse_poly = SparsePolynomial::from_coefficients_vec(crate::vec![(0, two), (1, two)]);
+            let sparse_poly = SparsePolynomial::from_coefficients_vec(vec![(0, two), (1, two)]);
             let evals1 = sparse_poly.evaluate_over_domain_by_ref(domain);
 
             let dense_poly: DensePolynomial<Fr> = sparse_poly.into();

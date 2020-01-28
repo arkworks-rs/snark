@@ -92,8 +92,8 @@ impl MNT6 {
             y:                     g2.y,
             x_over_twist:          g2.x * &twist_inv,
             y_over_twist:          g2.y * &twist_inv,
-            double_coefficients:   crate::vec![],
-            addition_coefficients: crate::vec![],
+            double_coefficients:   vec![],
+            addition_coefficients: vec![],
         };
 
         let mut r = G2ProjectiveExtended {

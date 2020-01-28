@@ -185,7 +185,7 @@ impl<F: PrimeField> EvaluationDomain<F> {
         let t_size = tau.pow(&[self.size]);
         let one = F::one();
         if t_size.is_one() {
-            let mut u = crate::vec![F::zero(); size];
+            let mut u = vec![F::zero(); size];
             let mut omega_i = one;
             for i in 0..size {
                 if omega_i == tau {
@@ -200,8 +200,8 @@ impl<F: PrimeField> EvaluationDomain<F> {
 
             let mut l = (t_size - &one) * &self.size_inv;
             let mut r = one;
-            let mut u = crate::vec![F::zero(); size];
-            let mut ls = crate::vec![F::zero(); size];
+            let mut u = vec![F::zero(); size];
+            let mut ls = vec![F::zero(); size];
             for i in 0..size {
                 u[i] = tau - &r;
                 ls[i] = l;
@@ -219,7 +219,7 @@ impl<F: PrimeField> EvaluationDomain<F> {
 
     /// Return the sparse vanishing polynomial.
     pub fn vanishing_polynomial(&self) -> crate::SparsePolynomial<F> {
-        let coeffs = crate::vec![(0, -F::one()), (self.size(), F::one())];
+        let coeffs = vec![(0, -F::one()), (self.size(), F::one())];
         crate::SparsePolynomial::from_coefficients_vec(coeffs)
     }
 
@@ -368,7 +368,7 @@ pub(crate) fn parallel_fft<F: PrimeField>(
 
     let num_cpus = 1 << log_cpus;
     let log_new_n = log_n - log_cpus;
-    let mut tmp = crate::vec![crate::vec![F::zero(); 1 << log_new_n]; num_cpus];
+    let mut tmp = vec![vec![F::zero(); 1 << log_new_n]; num_cpus];
     let new_omega = omega.pow(&[num_cpus as u64]);
 
     worker.scope(0, |scope, _| {

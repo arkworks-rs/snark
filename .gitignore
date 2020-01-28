@@ -7,3 +7,5 @@ Cargo.lock
 *.pyc
 *.sage.py
 params
+*.swp
+*.swo

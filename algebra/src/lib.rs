@@ -41,13 +41,19 @@ macro_rules! println {
 }
 
 #[cfg(not(feature = "std"))]
-extern crate alloc;
+#[macro_use]
+#[doc(hidden)]
+/// this crate needs to be public, cause we expose `to_bytes!` macro
+/// see similar issue in [`smallvec#198`]
+///
+/// [`smallvec#198`]: https://github.com/servo/rust-smallvec/pull/198
+pub extern crate alloc;
 
 #[cfg(not(feature = "std"))]
-pub(crate) use alloc::{vec, vec::Vec, boxed::Box};
+pub(crate) use alloc::{vec::Vec, boxed::Box};
 
 #[cfg(feature = "std")]
-pub(crate) use std::{vec, vec::Vec, boxed::Box};
+pub(crate) use std::{vec::Vec, boxed::Box};
 
 #[macro_use]
 extern crate derivative;
