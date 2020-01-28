@@ -50,10 +50,10 @@ macro_rules! println {
 pub extern crate alloc;
 
 #[cfg(not(feature = "std"))]
-pub(crate) use alloc::{boxed::Box, vec::Vec};
+pub(crate) use alloc::vec::Vec;
 
 #[cfg(feature = "std")]
-pub(crate) use std::{boxed::Box, vec::Vec};
+pub(crate) use std::vec::Vec;
 
 #[macro_use]
 extern crate derivative;
