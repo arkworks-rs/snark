@@ -39,7 +39,7 @@ rayon = "1"
 clippy = { version = "*", optional = true }
 
 [dev-dependencies]
-criterion = "0.2"
+criterion = "0.3.1"
 rand_xorshift = { version = "0.2" }
 
 ###############################################################################
