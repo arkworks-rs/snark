@@ -1,5 +1,3 @@
-use crate::Vec;
-
 use crate::{
     curves::{
         models::{SWModelParameters, TEModelParameters},
@@ -7,19 +5,20 @@ use crate::{
         twisted_edwards_extended::{GroupAffine as TEAffine, GroupProjective as TEProjective},
         ProjectiveCurve,
     },
-    serialize::SerializationError,
-    Field, Fp2, Fp2Parameters, FpParameters, PrimeField,
+    Box, Field, Fp2, Fp2Parameters, FpParameters, PrimeField, Vec,
 };
+
+type Error = Box<dyn crate::Error>;
 
 /// Types that can be converted to a vector of `F` elements. Useful for
 /// specifying how public inputs to a constraint system should be represented
 /// inside that constraint system.
 pub trait ToConstraintField<F: Field> {
-    fn to_field_elements(&self) -> Result<Vec<F>, SerializationError>;
+    fn to_field_elements(&self) -> Result<Vec<F>, Error>;
 }
 
 impl<F: PrimeField> ToConstraintField<F> for F {
-    fn to_field_elements(&self) -> Result<Vec<F>, SerializationError> {
+    fn to_field_elements(&self) -> Result<Vec<F>, Error> {
         Ok(vec![*self])
     }
 }
@@ -27,14 +26,14 @@ impl<F: PrimeField> ToConstraintField<F> for F {
 // Impl for base field
 impl<F: Field> ToConstraintField<F> for [F] {
     #[inline]
-    fn to_field_elements(&self) -> Result<Vec<F>, SerializationError> {
+    fn to_field_elements(&self) -> Result<Vec<F>, Error> {
         Ok(self.to_vec())
     }
 }
 
 impl<ConstraintF: Field> ToConstraintField<ConstraintF> for () {
     #[inline]
-    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, SerializationError> {
+    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
         Ok(Vec::new())
     }
 }
@@ -42,7 +41,7 @@ impl<ConstraintF: Field> ToConstraintField<ConstraintF> for () {
 // Impl for Fp2<ConstraintF>
 impl<P: Fp2Parameters> ToConstraintField<P::Fp> for Fp2<P> {
     #[inline]
-    fn to_field_elements(&self) -> Result<Vec<P::Fp>, SerializationError> {
+    fn to_field_elements(&self) -> Result<Vec<P::Fp>, Error> {
         let mut c0 = self.c0.to_field_elements()?;
         let c1 = self.c1.to_field_elements()?;
         c0.extend_from_slice(&c1);
@@ -55,7 +54,7 @@ where
     M::BaseField: ToConstraintField<ConstraintF>,
 {
     #[inline]
-    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, SerializationError> {
+    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
         let mut x_fe = self.x.to_field_elements()?;
         let y_fe = self.y.to_field_elements()?;
         x_fe.extend_from_slice(&y_fe);
@@ -68,7 +67,7 @@ where
     M::BaseField: ToConstraintField<ConstraintF>,
 {
     #[inline]
-    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, SerializationError> {
+    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
         let affine = self.into_affine();
         let mut x_fe = affine.x.to_field_elements()?;
         let y_fe = affine.y.to_field_elements()?;
@@ -82,7 +81,7 @@ where
     M::BaseField: ToConstraintField<ConstraintF>,
 {
     #[inline]
-    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, SerializationError> {
+    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
         let mut x_fe = self.x.to_field_elements()?;
         let y_fe = self.y.to_field_elements()?;
         x_fe.extend_from_slice(&y_fe);
@@ -95,7 +94,7 @@ where
     M::BaseField: ToConstraintField<ConstraintF>,
 {
     #[inline]
-    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, SerializationError> {
+    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
         let affine = self.into_affine();
         let mut x_fe = affine.x.to_field_elements()?;
         let y_fe = affine.y.to_field_elements()?;
@@ -106,7 +105,7 @@ where
 
 impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for [u8] {
     #[inline]
-    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, SerializationError> {
+    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
         let max_size = <ConstraintF as PrimeField>::Params::CAPACITY / 8;
         let max_size = max_size as usize;
         let fes = self
@@ -119,14 +118,16 @@ impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for [u8] {
                 }
                 ConstraintF::read(chunk.as_slice())
             })
-            .collect::<Result<Vec<_>, _>>()?;
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(crate::SerializationError::from)
+            .map_err(|e| Box::new(e))?;
         Ok(fes)
     }
 }
 
 impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for [u8; 32] {
     #[inline]
-    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, SerializationError> {
+    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
         self.as_ref().to_field_elements()
     }
 }

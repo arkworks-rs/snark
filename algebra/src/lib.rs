@@ -52,12 +52,12 @@ pub extern crate alloc;
 #[cfg(not(feature = "std"))]
 #[allow(unused_imports)]
 #[doc(hidden)]
-pub use alloc::{format, vec, vec::Vec};
+pub use alloc::{boxed::Box, format, vec, vec::Vec};
 
 #[cfg(feature = "std")]
 #[allow(unused_imports)]
 #[doc(hidden)]
-pub use std::{format, vec, vec::Vec};
+pub use std::{boxed::Box, format, vec, vec::Vec};
 
 #[macro_use]
 extern crate derivative;

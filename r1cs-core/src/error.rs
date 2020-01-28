@@ -29,10 +29,12 @@ impl From<io::Error> for SynthesisError {
     }
 }
 
-// impl Error for SynthesisError {
-// fn source(&self) -> Option<&(dyn Error + 'static)> {
-// None
-//}
+#[cfg(feature = "std")]
+impl std::error::Error for SynthesisError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        None
+    }
+}
 
 impl fmt::Display for SynthesisError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {

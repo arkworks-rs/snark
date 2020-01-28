@@ -17,11 +17,20 @@ pub enum SerializationError {
 }
 
 #[cfg(feature = "std")]
-impl std::error::Error for SerializationError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+pub(crate) use std::error::Error;
+
+#[cfg(feature = "std")]
+impl Error for SerializationError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
         None
     }
 }
+
+#[cfg(not(feature = "std"))]
+pub trait Error: fmt::Debug + fmt::Display {}
+
+#[cfg(not(feature = "std"))]
+impl Error for SerializationError {}
 
 impl From<io::Error> for SerializationError {
     fn from(e: io::Error) -> SerializationError {
