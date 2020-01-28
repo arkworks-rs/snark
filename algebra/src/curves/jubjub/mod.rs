@@ -1,11 +1,11 @@
 use crate::Vec;
-use crate::field_new;
 use crate::{
     biginteger::BigInteger256,
     curves::{
-        models::{ModelParameters, TEModelParameters, MontgomeryModelParameters},
+        models::{ModelParameters, MontgomeryModelParameters, TEModelParameters},
         twisted_edwards_extended::{GroupAffine, GroupProjective},
     },
+    field_new,
     fields::jubjub::{fq::Fq, fr::Fr},
 };
 use core::str::FromStr;

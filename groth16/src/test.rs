@@ -82,8 +82,7 @@ mod sw6 {
         create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
     };
 
-    use algebra::{curves::sw6::SW6, fields::sw6::Fr as SW6Fr, UniformRand};
-    use algebra::Zero;
+    use algebra::{curves::sw6::SW6, fields::sw6::Fr as SW6Fr, UniformRand, Zero};
     use rand::thread_rng;
 
     #[test]

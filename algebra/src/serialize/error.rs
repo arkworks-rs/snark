@@ -28,18 +28,12 @@ impl fmt::Display for SerializationError {
             write!(f, "I/O error")
         } else {
             let description = match self {
-                SerializationError::BufferWrongSize => {
-                    "the output buffer is of the wrong size"
-                },
+                SerializationError::BufferWrongSize => "the output buffer is of the wrong size",
                 SerializationError::NotEnoughSpace => {
                     "the last byte does not have enough space to encode the extra info bits"
                 },
-                SerializationError::InvalidData => {
-                    "the input buffer contained invalid data"
-                },
-                SerializationError::ExtraInfoWrongSize => {
-                    "extra info is of the wrong size"
-                },
+                SerializationError::InvalidData => "the input buffer contained invalid data",
+                SerializationError::ExtraInfoWrongSize => "extra info is of the wrong size",
                 SerializationError::IoError(_) => "encountered an I/O error",
             };
             write!(f, "{}", description)

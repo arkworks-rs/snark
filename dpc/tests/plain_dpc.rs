@@ -1,8 +1,8 @@
 use algebra::{to_bytes, ToBytes};
-use rand::SeedableRng;
-use rand_xorshift::XorShiftRng;
 #[cfg(debug_assertions)]
 use gm17::PreparedVerifyingKey;
+use rand::SeedableRng;
+use rand_xorshift::XorShiftRng;
 
 use crypto_primitives::{nizk::NIZK, FixedLengthCRH};
 

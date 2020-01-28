@@ -3,9 +3,12 @@ use crate::{
     bytes::{FromBytes, ToBytes},
     fields::BitIterator,
     UniformRand,
+    fake_io::{Read, Write, Result as IoResult},
 };
-use rand::{Rng, distributions::{Distribution, Standard}};
-use crate::fake_io::{Read, Result as IoResult, Write};
+use rand::{
+    distributions::{Distribution, Standard},
+    Rng,
+};
 use core::fmt::{Debug, Display};
 
 #[macro_use]

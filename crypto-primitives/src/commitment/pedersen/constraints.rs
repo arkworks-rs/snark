@@ -13,9 +13,9 @@ use std::{borrow::Borrow, marker::PhantomData};
 #[derive(Derivative)]
 #[derivative(Clone(bound = "G: Group, W: PedersenWindow, ConstraintF: Field"))]
 pub struct PedersenCommitmentGadgetParameters<G: Group, W: PedersenWindow, ConstraintF: Field> {
-    params: PedersenParameters<G>,
+    params:  PedersenParameters<G>,
     #[doc(hidden)]
-    _group: PhantomData<G>,
+    _group:  PhantomData<G>,
     #[doc(hidden)]
     _engine: PhantomData<ConstraintF>,
     #[doc(hidden)]

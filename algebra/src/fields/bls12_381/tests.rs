@@ -9,8 +9,8 @@ use crate::{
         tests::{field_test, frobenius_test, primefield_test, sqrt_field_test},
         Field, Fp2Parameters, FpParameters, PrimeField, SquareRootField,
     },
+    UniformRand,
 };
-use crate::UniformRand;
 use num_traits::{One, Zero};
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;

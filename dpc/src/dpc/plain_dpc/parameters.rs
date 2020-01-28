@@ -1,5 +1,5 @@
-use crypto_primitives::{CommitmentScheme, FixedLengthCRH, NIZK};
 use crate::dpc::plain_dpc::PlainDPCComponents;
+use crypto_primitives::{CommitmentScheme, FixedLengthCRH, NIZK};
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "C: PlainDPCComponents"))]

@@ -1,5 +1,5 @@
-use crypto_primitives::NIZK;
 use crate::dpc::{delegable_dpc::DelegableDPCComponents, Predicate};
+use crypto_primitives::NIZK;
 use std::marker::PhantomData;
 
 pub struct PrivatePredInput<C: DelegableDPCComponents> {
@@ -32,7 +32,7 @@ impl<C: DelegableDPCComponents> Clone for PrivatePredInput<C> {
 )]
 pub struct DPCPredicate<C: DelegableDPCComponents> {
     #[derivative(Default(value = "vec![0u8; 32]"))]
-    identity: Vec<u8>,
+    identity:    Vec<u8>,
     _components: PhantomData<C>,
 }
 

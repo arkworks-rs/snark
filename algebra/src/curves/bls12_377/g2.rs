@@ -1,11 +1,9 @@
-use crate::field_new;
 use super::g1::Bls12_377G1Parameters;
 use crate::{
     biginteger::{BigInteger256, BigInteger384},
     curves::models::{ModelParameters, SWModelParameters},
-    fields::{
-        bls12_377::{Fq, Fq2, Fr},
-    },
+    field_new,
+    fields::bls12_377::{Fq, Fq2, Fr},
 };
 use num_traits::Zero;
 

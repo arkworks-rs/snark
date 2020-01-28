@@ -1,16 +1,13 @@
-use algebra::ToConstraintField;
-use algebra::{bytes::ToBytes, to_bytes};
+use algebra::{bytes::ToBytes, to_bytes, ToConstraintField};
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 
 use crate::Error;
 use crypto_primitives::{CommitmentScheme, FixedLengthCRH};
 
 use crate::{
+    constraints::{delegable_dpc::execute_proof_check_gadget, Assignment},
     dpc::delegable_dpc::{CommCRHSigPublicParameters, DelegableDPCComponents, PrivatePredInput},
-    constraints::delegable_dpc::execute_proof_check_gadget,
-    constraints::Assignment,
 };
-
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "C: DelegableDPCComponents"))]
@@ -37,11 +34,13 @@ where
         v.extend_from_slice(&self.comm_crh_sig_pp.pred_vk_crh_pp.to_field_elements()?);
 
         // First we convert the input for the predicates into `E::Fr` field elements
-        let local_data_comm_pp_fe =
-            ToConstraintField::<C::CoreCheckF>::to_field_elements(&self.comm_crh_sig_pp.local_data_comm_pp)
+        let local_data_comm_pp_fe = ToConstraintField::<C::CoreCheckF>::to_field_elements(
+            &self.comm_crh_sig_pp.local_data_comm_pp,
+        )
+        .map_err(|_| SynthesisError::AssignmentMissing)?;
+        let local_data_comm_fe =
+            ToConstraintField::<C::CoreCheckF>::to_field_elements(&self.local_data_comm)
                 .map_err(|_| SynthesisError::AssignmentMissing)?;
-        let local_data_comm_fe = ToConstraintField::<C::CoreCheckF>::to_field_elements(&self.local_data_comm)
-            .map_err(|_| SynthesisError::AssignmentMissing)?;
 
         // Then we convert these field elements into bytes
         let pred_input_bytes = to_bytes![local_data_comm_pp_fe, local_data_comm_fe]

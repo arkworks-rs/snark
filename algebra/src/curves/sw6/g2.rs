@@ -1,4 +1,3 @@
-use crate::field_new;
 use super::{G1Affine, FQ_ZERO, SW6};
 use crate::{
     biginteger::{BigInteger384, BigInteger832},
@@ -7,6 +6,7 @@ use crate::{
         short_weierstrass_jacobian::{GroupAffine, GroupProjective},
         PairingCurve, PairingEngine,
     },
+    field_new,
     fields::sw6::{Fq, Fq3, Fq6, Fr},
 };
 
@@ -28,7 +28,7 @@ impl PairingCurve for G2Affine {
     }
 }
 
-#[derive( Clone, Default, PartialEq, Eq)]
+#[derive(Clone, Default, PartialEq, Eq)]
 pub struct SW6G2Parameters;
 
 impl ModelParameters for SW6G2Parameters {
@@ -137,8 +137,10 @@ impl SWModelParameters for SW6G2Parameters {
         (G2_GENERATOR_X, G2_GENERATOR_Y);
 }
 
-const G2_GENERATOR_X: Fq3 = field_new!(Fq3, G2_GENERATOR_X_C0, G2_GENERATOR_X_C1, G2_GENERATOR_X_C2);
-const G2_GENERATOR_Y: Fq3 = field_new!(Fq3, G2_GENERATOR_Y_C0, G2_GENERATOR_Y_C1, G2_GENERATOR_Y_C2);
+const G2_GENERATOR_X: Fq3 =
+    field_new!(Fq3, G2_GENERATOR_X_C0, G2_GENERATOR_X_C1, G2_GENERATOR_X_C2);
+const G2_GENERATOR_Y: Fq3 =
+    field_new!(Fq3, G2_GENERATOR_Y_C0, G2_GENERATOR_Y_C1, G2_GENERATOR_Y_C2);
 
 /// G2_GENERATOR_X_C0 =
 /// 13426761183630949215425595811885033211332897733228446437546263564078445562454176776915160094418980045665397361295624472103734543457352048745726512354895954850428989867542989474136256025045975283415690491751906307188562464175510373683338

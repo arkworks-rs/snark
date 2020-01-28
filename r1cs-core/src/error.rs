@@ -27,6 +27,12 @@ pub enum SynthesisError {
         //SynthesisError::IoError(e)
     //}
 //}
+//impl Error for SynthesisError {
+    //fn source(&self) -> Option<&(dyn Error + 'static)> {
+        //None
+    //}
+//}
+
 
 impl fmt::Display for SynthesisError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {

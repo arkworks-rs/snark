@@ -1,16 +1,13 @@
-use algebra::{bytes::ToBytes, to_bytes, ToConstraintField};
 use crate::Error;
+use algebra::{bytes::ToBytes, to_bytes, ToConstraintField};
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
-
 
 use crypto_primitives::{CommitmentScheme, FixedLengthCRH};
 
 use crate::{
-    constraints::Assignment,
+    constraints::{plain_dpc::execute_proof_check_gadget, Assignment},
     dpc::plain_dpc::{CommAndCRHPublicParameters, PlainDPCComponents, PrivatePredInput},
-    constraints::plain_dpc::execute_proof_check_gadget,
 };
-
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "C: PlainDPCComponents"))]
@@ -36,12 +33,14 @@ where
         v.extend_from_slice(&self.comm_and_crh_pp.pred_vk_comm_pp.to_field_elements()?);
         v.extend_from_slice(&self.comm_and_crh_pp.pred_vk_crh_pp.to_field_elements()?);
 
-        let local_data_comm_pp_fe =
-            ToConstraintField::<C::CoreCheckF>::to_field_elements(&self.comm_and_crh_pp.local_data_comm_pp)
-                .map_err(|_| SynthesisError::AssignmentMissing)?;
+        let local_data_comm_pp_fe = ToConstraintField::<C::CoreCheckF>::to_field_elements(
+            &self.comm_and_crh_pp.local_data_comm_pp,
+        )
+        .map_err(|_| SynthesisError::AssignmentMissing)?;
 
-        let local_data_comm_fe = ToConstraintField::<C::CoreCheckF>::to_field_elements(&self.local_data_comm)
-            .map_err(|_| SynthesisError::AssignmentMissing)?;
+        let local_data_comm_fe =
+            ToConstraintField::<C::CoreCheckF>::to_field_elements(&self.local_data_comm)
+                .map_err(|_| SynthesisError::AssignmentMissing)?;
 
         // Then we convert these field elements into bytes
         let pred_input = [

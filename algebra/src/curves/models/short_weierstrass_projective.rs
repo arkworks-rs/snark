@@ -1,8 +1,13 @@
 use crate::Vec;
-use crate::curves::models::SWModelParameters as Parameters;
-use rand::{Rng, distributions::{Standard, Distribution}};
-use crate::{UniformRand, CanonicalSerialize, CanonicalDeserialize};
+use crate::{
+    curves::models::SWModelParameters as Parameters, CanonicalDeserialize, CanonicalSerialize,
+    UniformRand,
+};
 use num_traits::{One, Zero};
+use rand::{
+    distributions::{Distribution, Standard},
+    Rng,
+};
 use core::{
     fmt::{Display, Formatter, Result as FmtResult},
     marker::PhantomData,
@@ -26,11 +31,11 @@ use core::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
     Hash(bound = "P: Parameters")
 )]
 pub struct GroupAffine<P: Parameters> {
-    pub x: P::BaseField,
-    pub y: P::BaseField,
+    pub x:        P::BaseField,
+    pub y:        P::BaseField,
     pub infinity: bool,
     #[derivative(Debug = "ignore")]
-    _params: PhantomData<P>,
+    _params:      PhantomData<P>,
 }
 
 impl<P: Parameters> Display for GroupAffine<P> {

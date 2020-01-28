@@ -1,4 +1,3 @@
-use crate::field_new;
 use crate::{
     biginteger::{BigInteger256, BigInteger384},
     curves::{
@@ -7,9 +6,8 @@ use crate::{
         models::{ModelParameters, SWModelParameters},
         PairingCurve, PairingEngine,
     },
-    fields::{
-        bls12_381::{Fq, Fq12, Fr},
-    },
+    field_new,
+    fields::bls12_381::{Fq, Fq12, Fr},
 };
 use num_traits::Zero;
 

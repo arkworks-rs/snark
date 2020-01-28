@@ -1,14 +1,13 @@
 use crate::Error;
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 
-use crypto_primitives::{CommitmentScheme, FixedLengthCRH, SignatureScheme, merkle_tree::*};
+use crypto_primitives::{merkle_tree::*, CommitmentScheme, FixedLengthCRH, SignatureScheme};
 
 use crate::{
+    constraints::{delegable_dpc::execute_core_checks_gadget, Assignment},
     dpc::delegable_dpc::{
         AddressSecretKey, CommCRHSigPublicParameters, DPCRecord, DelegableDPCComponents,
     },
-    constraints::delegable_dpc::execute_core_checks_gadget,
-    constraints::Assignment,
 };
 
 use algebra::ToConstraintField;
@@ -60,7 +59,12 @@ where
 
         v.extend_from_slice(&self.comm_crh_sig_pp.addr_comm_pp.to_field_elements()?);
         v.extend_from_slice(&self.comm_crh_sig_pp.rec_comm_pp.to_field_elements()?);
-        v.extend_from_slice(&self.comm_crh_sig_pp.local_data_comm_pp.to_field_elements()?);
+        v.extend_from_slice(
+            &self
+                .comm_crh_sig_pp
+                .local_data_comm_pp
+                .to_field_elements()?,
+        );
         v.extend_from_slice(&self.comm_crh_sig_pp.pred_vk_comm_pp.to_field_elements()?);
 
         v.extend_from_slice(&self.comm_crh_sig_pp.sn_nonce_crh_pp.to_field_elements()?);
@@ -79,7 +83,9 @@ where
         }
 
         v.extend_from_slice(&self.predicate_comm.to_field_elements()?);
-        v.extend_from_slice(&ToConstraintField::<C::CoreCheckF>::to_field_elements(self.memo.as_ref())?);
+        v.extend_from_slice(&ToConstraintField::<C::CoreCheckF>::to_field_elements(
+            self.memo.as_ref(),
+        )?);
         v.extend_from_slice(&self.local_data_comm.to_field_elements()?);
 
         Ok(v)
@@ -120,7 +126,7 @@ pub struct CoreChecksCircuit<C: DelegableDPCComponents> {
 impl<C: DelegableDPCComponents> CoreChecksCircuit<C> {
     pub fn blank(
         comm_crh_sig_parameters: &CommCRHSigPublicParameters<C>,
-        ledger_parameters:       &MerkleTreeParams<C::MerkleTreeConfig>,
+        ledger_parameters: &MerkleTreeParams<C::MerkleTreeConfig>,
     ) -> Self {
         let num_input_records = C::NUM_INPUT_RECORDS;
         let num_output_records = C::NUM_OUTPUT_RECORDS;
@@ -176,7 +182,7 @@ impl<C: DelegableDPCComponents> CoreChecksCircuit<C> {
     pub fn new(
         // Parameters
         comm_amd_crh_parameters: &CommCRHSigPublicParameters<C>,
-        ledger_parameters:       &MerkleTreeParams<C::MerkleTreeConfig>,
+        ledger_parameters: &MerkleTreeParams<C::MerkleTreeConfig>,
 
         // Digest
         ledger_digest: &MerkleTreeDigest<C::MerkleTreeConfig>,
@@ -247,7 +253,10 @@ impl<C: DelegableDPCComponents> CoreChecksCircuit<C> {
 }
 
 impl<C: DelegableDPCComponents> ConstraintSynthesizer<C::CoreCheckF> for CoreChecksCircuit<C> {
-    fn generate_constraints<CS: ConstraintSystem<C::CoreCheckF>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
+    fn generate_constraints<CS: ConstraintSystem<C::CoreCheckF>>(
+        self,
+        cs: &mut CS,
+    ) -> Result<(), SynthesisError> {
         execute_core_checks_gadget::<C, CS>(
             cs,
             // Params

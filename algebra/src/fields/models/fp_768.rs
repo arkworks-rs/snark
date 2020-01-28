@@ -33,7 +33,6 @@ pub struct Fp768<P>(
     pub PhantomData<P>,
 );
 
-
 impl<P> Fp768<P> {
     #[inline]
     pub const fn new(element: BigInteger) -> Self {
@@ -42,7 +41,6 @@ impl<P> Fp768<P> {
 }
 
 impl<P: Fp768Parameters> Fp768<P> {
-
     #[inline]
     pub(crate) fn is_valid(&self) -> bool {
         self.0 < P::MODULUS

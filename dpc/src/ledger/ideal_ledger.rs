@@ -6,9 +6,12 @@ use std::{
     rc::Rc,
 };
 
-use crypto_primitives::{FixedLengthCRH, merkle_tree::{MerkleTreePath, MerkleHashTree, MerkleTreeConfig}};
 use crate::{dpc::Transaction, ledger::*};
 use algebra::bytes::ToBytes;
+use crypto_primitives::{
+    merkle_tree::{MerkleHashTree, MerkleTreeConfig, MerkleTreePath},
+    FixedLengthCRH,
+};
 
 pub struct IdealLedger<T: Transaction, P: MerkleTreeConfig>
 where
@@ -55,7 +58,8 @@ where
         genesis_memo: Self::Memo,
     ) -> Self {
         let params = Rc::new(parameters);
-        let cm_merkle_tree = MerkleHashTree::<P>::new(params.clone(), &[genesis_cm.clone()]).unwrap();
+        let cm_merkle_tree =
+            MerkleHashTree::<P>::new(params.clone(), &[genesis_cm.clone()]).unwrap();
 
         let mut cur_cm_index = 0;
         let mut comm_to_index = HashMap::new();
@@ -183,14 +187,16 @@ where
         Ok(result)
     }
 
-    fn prove_sn(&self, _sn: &Self::SerialNumber) -> Result<MerkleTreePath<Self::Parameters>, Error> {
+    fn prove_sn(
+        &self,
+        _sn: &Self::SerialNumber,
+    ) -> Result<MerkleTreePath<Self::Parameters>, Error> {
         Ok(MerkleTreePath::default())
     }
 
     fn prove_memo(&self, _memo: &Self::Memo) -> Result<MerkleTreePath<Self::Parameters>, Error> {
         Ok(MerkleTreePath::default())
     }
-
 
     fn verify_cm(
         parameters: &MerkleTreeParams<Self::Parameters>,
@@ -235,7 +241,6 @@ impl std::fmt::Display for LedgerError {
             LedgerError::DuplicateMemo => "duplicate memo pushed to ledger",
             LedgerError::InvalidCm => "invalid cm pushed to ledger",
             LedgerError::InvalidCmIndex => "invalid cm index during proving",
-
         };
         write!(f, "{}", msg)
     }
@@ -247,5 +252,3 @@ impl std::error::Error for LedgerError {
         None
     }
 }
-
-

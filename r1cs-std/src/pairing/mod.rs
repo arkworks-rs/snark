@@ -59,8 +59,7 @@ pub trait PairingGadget<PairingE: PairingEngine, ConstraintF: Field> {
 mod test {
     // use rand;
     use crate::test_constraint_system::TestConstraintSystem;
-    use algebra::{BitIterator, Field};
-    use algebra::One;
+    use algebra::{BitIterator, Field, One};
     use r1cs_core::ConstraintSystem;
 
     #[test]
@@ -107,23 +106,17 @@ mod test {
         let sb_prep_g = G2PreparedGadget::from_affine(&mut cs.ns(|| "sb_prep"), &sb_g).unwrap();
 
         let (ans1_g, ans1_n) = {
-            let ans_g = PairingGadget::pairing(
-                cs.ns(|| "pair(sa, b)"),
-                sa_prep_g,
-                b_prep_g.clone(),
-            )
-            .unwrap();
+            let ans_g =
+                PairingGadget::pairing(cs.ns(|| "pair(sa, b)"), sa_prep_g, b_prep_g.clone())
+                    .unwrap();
             let ans_n = Bls12_377::pairing(sa, b);
             (ans_g, ans_n)
         };
 
         let (ans2_g, ans2_n) = {
-            let ans_g = PairingGadget::pairing(
-                cs.ns(|| "pair(a, sb)"),
-                a_prep_g.clone(),
-                sb_prep_g,
-            )
-            .unwrap();
+            let ans_g =
+                PairingGadget::pairing(cs.ns(|| "pair(a, sb)"), a_prep_g.clone(), sb_prep_g)
+                    .unwrap();
             let ans_n = Bls12_377::pairing(a, sb);
             (ans_g, ans_n)
         };
@@ -134,8 +127,7 @@ mod test {
                 .collect::<Vec<_>>();
 
             let mut ans_g =
-                PairingGadget::pairing(cs.ns(|| "pair(a, b)"), a_prep_g, b_prep_g)
-                    .unwrap();
+                PairingGadget::pairing(cs.ns(|| "pair(a, b)"), a_prep_g, b_prep_g).unwrap();
             let mut ans_n = Bls12_377::pairing(a, b);
             ans_n = ans_n.pow(s.into_repr());
             ans_g = ans_g.pow(cs.ns(|| "pow"), &s_iter).unwrap();

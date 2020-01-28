@@ -1,26 +1,31 @@
-use crate::{biginteger::BigInteger384, curves::{
-    bls12_381::{
-        g1::{Bls12_381G1Parameters, G1Affine, G1Projective},
-        g2::{Bls12_381G2Parameters, G2Affine, G2Projective},
-        Bls12_381,
+use crate::{
+    biginteger::BigInteger384,
+    curves::{
+        bls12_381::{
+            g1::{Bls12_381G1Parameters, G1Affine, G1Projective},
+            g2::{Bls12_381G2Parameters, G2Affine, G2Projective},
+            Bls12_381,
+        },
+        models::{short_weierstrass_jacobian::GroupAffine, SWModelParameters},
+        tests::{curve_tests, sw_curve_serialization_test},
+        AffineCurve, PairingEngine, ProjectiveCurve,
     },
-    models::SWModelParameters,
-    tests::curve_tests,
-    AffineCurve, PairingEngine, ProjectiveCurve,
-}, fields::{
-    bls12_381::{Fq, Fq12, Fq2, Fr},
-    Field, PrimeField, SquareRootField,
-}, groups::tests::group_test, buffer_bit_byte_size};
+    fields::{
+        bls12_381::{Fq, Fq12, Fq2, Fr},
+        Field, PrimeField, SquareRootField,
+    },
+    groups::tests::group_test,
+    CanonicalSerialize,
+};
 use num_traits::{One, Zero};
 use rand;
 use core::ops::{AddAssign, MulAssign};
-use crate::curves::tests::sw_curve_serialization_test;
 
 #[test]
 fn test_g1_projective_curve() {
     curve_tests::<G1Projective>();
 
-    let (_, byte_size) = buffer_bit_byte_size(Fq::size_in_bits());
+    let byte_size = <GroupAffine<Bls12_381G1Parameters> as CanonicalSerialize>::buffer_size();
     sw_curve_serialization_test::<Bls12_381G1Parameters>(byte_size);
 }
 
@@ -42,8 +47,8 @@ fn test_g1_generator() {
 fn test_g2_projective_curve() {
     curve_tests::<G2Projective>();
 
-    let (_, byte_size) = buffer_bit_byte_size(Fq::size_in_bits());
-    sw_curve_serialization_test::<Bls12_381G2Parameters>(2*byte_size);
+    let byte_size = <GroupAffine<Bls12_381G2Parameters> as CanonicalSerialize>::buffer_size();
+    sw_curve_serialization_test::<Bls12_381G2Parameters>(byte_size);
 }
 
 #[test]

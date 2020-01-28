@@ -13,9 +13,9 @@ use crate::{
 
 type Error = Box<SerializationError>;
 
-/// Types that can be converted to a vector of `F` elements. Useful for specifying
-/// how public inputs to a constraint system should be represented inside
-/// that constraint system.
+/// Types that can be converted to a vector of `F` elements. Useful for
+/// specifying how public inputs to a constraint system should be represented
+/// inside that constraint system.
 pub trait ToConstraintField<F: Field> {
     fn to_field_elements(&self) -> Result<Vec<F>, Error>;
 }
@@ -42,8 +42,7 @@ impl<ConstraintF: Field> ToConstraintField<ConstraintF> for () {
 }
 
 // Impl for Fp2<ConstraintF>
-impl<P: Fp2Parameters> ToConstraintField<P::Fp> for Fp2<P>
-{
+impl<P: Fp2Parameters> ToConstraintField<P::Fp> for Fp2<P> {
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<P::Fp>, Error> {
         let mut c0 = self.c0.to_field_elements()?;

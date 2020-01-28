@@ -1,8 +1,8 @@
 use crate::Vec;
-use crate::field_new;
 use crate::{
     biginteger::BigInteger320,
     curves::{PairingCurve, PairingEngine, ProjectiveCurve},
+    field_new,
     fields::{
         mnt6::{
             fq::{Fq, FqParameters},

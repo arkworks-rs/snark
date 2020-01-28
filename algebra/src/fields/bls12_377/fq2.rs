@@ -1,6 +1,6 @@
 use crate::{
-    field_new,
     biginteger::BigInteger384 as BigInteger,
+    field_new,
     fields::{
         bls12_377::fq::Fq,
         fp2::{Fp2, Fp2Parameters},

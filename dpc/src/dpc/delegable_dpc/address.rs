@@ -1,6 +1,6 @@
-use crypto_primitives::{CommitmentScheme, SignatureScheme, PRF};
 use crate::dpc::{delegable_dpc::DelegableDPCComponents, AddressKeyPair};
 use algebra::bytes::ToBytes;
+use crypto_primitives::{CommitmentScheme, SignatureScheme, PRF};
 use std::io::{Result as IoResult, Write};
 
 #[derive(Derivative)]

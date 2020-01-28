@@ -1,5 +1,4 @@
 use crate::Vec;
-use crate::field_new;
 use crate::{
     biginteger::BigInteger320,
     bytes::ToBytes,
@@ -9,6 +8,7 @@ use crate::{
         short_weierstrass_projective::{GroupAffine, GroupProjective},
         AffineCurve, PairingCurve, PairingEngine,
     },
+    field_new,
     fields::mnt6::{Fq, Fq3, Fq6, Fr},
 };
 use crate::fake_io::{Result as IoResult, Write};
@@ -112,7 +112,8 @@ impl SWModelParameters for MNT6G2Parameters {
 
     #[inline(always)]
     fn mul_by_a(elt: &Fq3) -> Fq3 {
-        field_new!(Fq3,
+        field_new!(
+            Fq3,
             MUL_BY_A_C0 * &elt.c1,
             MUL_BY_A_C1 * &elt.c2,
             MUL_BY_A_C2 * &elt.c0,
@@ -120,8 +121,10 @@ impl SWModelParameters for MNT6G2Parameters {
     }
 }
 
-const G2_GENERATOR_X: Fq3 = field_new!(Fq3, G2_GENERATOR_X_C0, G2_GENERATOR_X_C1, G2_GENERATOR_X_C2);
-const G2_GENERATOR_Y: Fq3 = field_new!(Fq3, G2_GENERATOR_Y_C0, G2_GENERATOR_Y_C1, G2_GENERATOR_Y_C2);
+const G2_GENERATOR_X: Fq3 =
+    field_new!(Fq3, G2_GENERATOR_X_C0, G2_GENERATOR_X_C1, G2_GENERATOR_X_C2);
+const G2_GENERATOR_Y: Fq3 =
+    field_new!(Fq3, G2_GENERATOR_Y_C0, G2_GENERATOR_Y_C1, G2_GENERATOR_Y_C2);
 
 #[rustfmt::skip]
 pub const G2_GENERATOR_X_C0: Fq = field_new!(Fq, BigInteger320([

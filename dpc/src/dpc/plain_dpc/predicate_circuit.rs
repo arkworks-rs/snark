@@ -1,9 +1,9 @@
-use crypto_primitives::{CommitmentScheme, PRF};
 use crate::{
-    dpc::{plain_dpc::DPCRecord, Record},
     constraints::Assignment,
+    dpc::{plain_dpc::DPCRecord, Record},
     plain_dpc::*,
 };
+use crypto_primitives::{CommitmentScheme, PRF};
 use r1cs_std::prelude::*;
 use std::io::{Result as IoResult, Write};
 
@@ -114,7 +114,8 @@ where
     <C::LocalDataComm as CommitmentScheme>::Parameters: ToConstraintField<C::CoreCheckF>,
 {
     fn to_field_elements(&self) -> Result<Vec<C::CoreCheckF>, Error> {
-        let mut v = ToConstraintField::<C::CoreCheckF>::to_field_elements([self.position].as_ref())?;
+        let mut v =
+            ToConstraintField::<C::CoreCheckF>::to_field_elements([self.position].as_ref())?;
         v.extend_from_slice(&self.local_data_comm_pp.to_field_elements()?);
         v.extend_from_slice(&self.local_data_comm.to_field_elements()?);
         Ok(v)
@@ -158,7 +159,10 @@ impl<C: PlainDPCComponents> EmptyPredicateCircuit<C> {
 }
 
 impl<C: PlainDPCComponents> ConstraintSynthesizer<C::CoreCheckF> for EmptyPredicateCircuit<C> {
-    fn generate_constraints<CS: ConstraintSystem<C::CoreCheckF>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
+    fn generate_constraints<CS: ConstraintSystem<C::CoreCheckF>>(
+        self,
+        cs: &mut CS,
+    ) -> Result<(), SynthesisError> {
         let _position = UInt8::alloc_input_vec(cs.ns(|| "Alloc position"), &[self.position])?;
 
         let _local_data_comm_pp =

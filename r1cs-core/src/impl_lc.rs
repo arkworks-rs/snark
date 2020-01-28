@@ -1,7 +1,7 @@
-use crate::SmallVec;
-use core::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub};
+use crate::{LinearCombination, SmallVec, Variable};
 use algebra::Field;
-use crate::{LinearCombination, Variable};
+use smallvec::smallvec;
+use core::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub};
 
 impl<F: Field> AsRef<[(Variable, F)]> for LinearCombination<F> {
     #[inline]
@@ -13,18 +13,14 @@ impl<F: Field> AsRef<[(Variable, F)]> for LinearCombination<F> {
 impl<F: Field> From<(F, Variable)> for LinearCombination<F> {
     #[inline]
     fn from((coeff, var): (F, Variable)) -> Self {
-        let mut vec = SmallVec::new();
-        vec.push((var, coeff));
-        LinearCombination(vec)
+        LinearCombination(smallvec!((var, coeff)))
     }
 }
 
 impl<F: Field> From<Variable> for LinearCombination<F> {
     #[inline]
     fn from(var: Variable) -> Self {
-        let mut vec = SmallVec::new();
-        vec.push((var, F::one()));
-        LinearCombination(vec)
+        LinearCombination(smallvec!((var, F::one())))
     }
 }
 

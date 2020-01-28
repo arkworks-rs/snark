@@ -2,7 +2,7 @@ use crate::String;
 use core::marker::PhantomData;
 use algebra::Field;
 
-use crate::{Index, Variable, LinearCombination, SynthesisError};
+use crate::{Index, LinearCombination, SynthesisError, Variable};
 
 /// Represents a constraint system which can have new variables
 /// allocated and constrains between them formed.
@@ -85,9 +85,11 @@ pub struct Namespace<'a, F: Field, CS: ConstraintSystem<F>>(&'a mut CS, PhantomD
 /// both CRS generation and for proving.
 pub trait ConstraintSynthesizer<F: Field> {
     /// Drives generation of new constraints inside `CS`.
-    fn generate_constraints<CS: ConstraintSystem<F>>(self, cs: &mut CS) -> Result<(), SynthesisError>;
+    fn generate_constraints<CS: ConstraintSystem<F>>(
+        self,
+        cs: &mut CS,
+    ) -> Result<(), SynthesisError>;
 }
-
 
 impl<F: Field, CS: ConstraintSystem<F>> ConstraintSystem<F> for Namespace<'_, F, CS> {
     type Root = CS::Root;

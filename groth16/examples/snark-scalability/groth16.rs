@@ -38,10 +38,7 @@ use std::{
 
 // Bring in some tools for using pairing-friendly curves
 // We're going to use the BLS12-377 pairing-friendly elliptic curve.
-use algebra::{
-    curves::bls12_377::Bls12_377,
-    fields::bls12_377::fr::Fr,
-};
+use algebra::{curves::bls12_377::Bls12_377, fields::bls12_377::fr::Fr};
 
 // We're going to use the Groth 16 proving system.
 use groth16::{
