@@ -104,4 +104,19 @@ pub mod prelude {
     pub use num_traits::{One, Zero};
 }
 
-pub mod fake_io;
+#[cfg(not(feature = "std"))]
+pub mod io;
+
+#[cfg(feature = "std")]
+pub use std::io;
+
+
+#[cfg(not(feature = "std"))]
+fn error(_msg: &'static str) -> io::Error {
+    io::Error
+}
+
+#[cfg(feature = "std")]
+fn error(msg: &'static str) -> io::Error {
+    io::Error::new(io::ErrorKind::Other, msg)
+}

@@ -6,7 +6,7 @@ use crate::{
         short_weierstrass_jacobian::{GroupAffine, GroupProjective},
         AffineCurve,
     },
-    fake_io::{Result as IoResult, Write},
+    io::{Result as IoResult, Write},
     fields::{BitIterator, Field, Fp2},
     Vec,
 };

@@ -1,5 +1,5 @@
 use crate::{
-    fake_io::{Read, Result as IoResult, Write},
+    io::{Read, Result as IoResult, Write},
     CanonicalDeserialize, CanonicalSerialize, UniformRand, Vec,
 };
 use core::{

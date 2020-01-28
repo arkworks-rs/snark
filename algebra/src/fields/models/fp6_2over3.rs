@@ -14,7 +14,7 @@ use rand::{
 use crate::{
     biginteger::BigInteger,
     bytes::{FromBytes, ToBytes},
-    fake_io::{Read, Result as IoResult, Write},
+    io::{Read, Result as IoResult, Write},
     fields::{Field, Fp3, Fp3Parameters},
 };
 

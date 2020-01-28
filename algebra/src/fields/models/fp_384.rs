@@ -10,7 +10,7 @@ use num_traits::{One, Zero};
 use crate::{
     biginteger::{arithmetic as fa, BigInteger as _BigInteger, BigInteger384 as BigInteger},
     bytes::{FromBytes, ToBytes},
-    fake_io::{Read, Result as IoResult, Write},
+    io::{Read, Result as IoResult, Write},
     fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
 };
 

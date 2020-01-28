@@ -14,7 +14,7 @@ use rand::{
 
 use crate::{
     bytes::{FromBytes, ToBytes},
-    fake_io::{Read, Result as IoResult, Write},
+    io::{Read, Result as IoResult, Write},
     fields::{Field, LegendreSymbol, PrimeField, SquareRootField},
 };
 

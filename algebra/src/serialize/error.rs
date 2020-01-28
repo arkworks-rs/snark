@@ -1,4 +1,4 @@
-use crate::fake_io;
+use crate::io;
 use core::fmt;
 
 /// This is an error that could occur during serialization
@@ -13,11 +13,11 @@ pub enum SerializationError {
     /// During serialization, extra info was of the wrong size.
     ExtraInfoWrongSize,
     /// During serialization, we countered an I/O error.
-    IoError(fake_io::Error),
+    IoError(io::Error),
 }
 
-impl From<fake_io::Error> for SerializationError {
-    fn from(e: fake_io::Error) -> SerializationError {
+impl From<io::Error> for SerializationError {
+    fn from(e: io::Error) -> SerializationError {
         SerializationError::IoError(e)
     }
 }

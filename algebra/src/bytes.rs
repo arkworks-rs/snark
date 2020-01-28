@@ -1,5 +1,6 @@
 use crate::{
-    fake_io::{Error as IoError, Read, Result as IoResult, Write},
+    error,
+    io::{Read, Result as IoResult, Write},
     Vec,
 };
 
@@ -251,7 +252,7 @@ impl FromBytes for bool {
         match u8::read(reader) {
             Ok(0) => Ok(false),
             Ok(1) => Ok(true),
-            Ok(_) => Err(IoError),
+            Ok(_) => Err(error("FromBytes::read failed")),
             Err(err) => Err(err),
         }
     }

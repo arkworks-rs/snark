@@ -1,7 +1,7 @@
 use crate::{
     biginteger::{arithmetic as fa, BigInteger as _BigInteger, BigInteger832 as BigInteger},
     bytes::{FromBytes, ToBytes},
-    fake_io::{Read, Result as IoResult, Write},
+    io::{Read, Result as IoResult, Write},
     fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
 };
 use core::{
