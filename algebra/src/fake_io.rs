@@ -5,7 +5,7 @@ use crate::Vec;
 #[derive(Debug)]
 pub struct Error;
 
-pub(crate) type Result<T> = core::result::Result<T, Error>;
+pub type Result<T> = core::result::Result<T, Error>;
 
 pub trait Read {
     fn read_exact(&mut self, data: &mut [u8]) -> Result<()>;

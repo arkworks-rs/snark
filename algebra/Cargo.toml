@@ -22,7 +22,7 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-rand = { version = "0.7" }
+rand = { version = "0.7", default-features = false }
 derivative = { version = "1", features = ["use_core"] }
 num-traits = { version = "0.2", default-features = false }
 

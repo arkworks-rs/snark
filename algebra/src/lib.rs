@@ -9,7 +9,7 @@
     unused_qualifications,
     variant_size_differences,
     stable_features,
-    unreachable_pub
+    //unreachable_pub
 )]
 #![deny(
     non_shorthand_field_patterns,
@@ -99,4 +99,4 @@ pub mod prelude {
     pub use num_traits::{One, Zero};
 }
 
-mod fake_io;
+pub mod fake_io;

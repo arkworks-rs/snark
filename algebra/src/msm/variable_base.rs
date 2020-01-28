@@ -15,7 +15,7 @@ impl VariableBaseMSM {
         let c = if scalars.len() < 32 {
             3
         } else {
-            (2.0 / 3.0 * (f64::from(scalars.len() as u32)).log2() + 2.0).ceil() as usize
+            super::ln_without_floats(scalars.len()) + 2
         };
 
         let num_bits =

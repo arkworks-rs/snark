@@ -10,7 +10,7 @@ impl FixedBaseMSM {
         if num_scalars < 32 {
             3
         } else {
-            (f64::from(num_scalars as u32)).ln().ceil() as usize
+            super::ln_without_floats(num_scalars)
         }
     }
 
