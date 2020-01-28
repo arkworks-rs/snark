@@ -1,13 +1,12 @@
 mod g1 {
-    use algebra::UniformRand;
-    use rand::SeedableRng;
-    use rand_xorshift::XorShiftRng;
-    use core::ops::AddAssign;
     use algebra::{
         curves::bls12_377::{G1Affine, G1Projective as G1},
         fields::bls12_377::Fr,
-        ProjectiveCurve,
+        ProjectiveCurve, UniformRand,
     };
+    use core::ops::AddAssign;
+    use rand::SeedableRng;
+    use rand_xorshift::XorShiftRng;
 
     #[bench]
     fn bench_g1_rand(b: &mut ::test::Bencher) {
@@ -98,16 +97,9 @@ mod g2 {
         fields::bls12_377::Fr,
         ProjectiveCurve, UniformRand,
     };
-<<<<<<< HEAD
-    use algebra::UniformRand;
+    use core::ops::AddAssign;
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
-    use core::ops::AddAssign;
-=======
-    use rand::SeedableRng;
-    use rand_xorshift::XorShiftRng;
-    use core::ops::AddAssign;
->>>>>>> ee885534fcd0d64eda0a356fb7929ccbc770ffcc
 
     #[bench]
     fn bench_g2_rand(b: &mut ::test::Bencher) {

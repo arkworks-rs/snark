@@ -1,16 +1,17 @@
-use crate::Vec;
-use crate::{CanonicalDeserialize, CanonicalSerialize, UniformRand};
-use num_traits::{One, Zero};
-use rand::{
-    distributions::{Distribution, Standard},
-    Rng,
+use crate::{
+    fake_io::{Read, Result as IoResult, Write},
+    CanonicalDeserialize, CanonicalSerialize, UniformRand, Vec,
 };
 use core::{
     fmt::{Display, Formatter, Result as FmtResult},
     marker::PhantomData,
     ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
-use crate::fake_io::{Result as IoResult, Write, Read};
+use num_traits::{One, Zero};
+use rand::{
+    distributions::{Distribution, Standard},
+    Rng,
+};
 
 use crate::{
     bytes::{FromBytes, ToBytes},

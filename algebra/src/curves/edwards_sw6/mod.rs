@@ -1,4 +1,3 @@
-use crate::Vec;
 use crate::{
     biginteger::BigInteger384 as BigInteger,
     curves::{
@@ -7,6 +6,7 @@ use crate::{
     },
     field_new,
     fields::edwards_sw6::{fq::Fq, fr::Fr},
+    Vec,
 };
 use core::str::FromStr;
 

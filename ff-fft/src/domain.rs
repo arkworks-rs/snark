@@ -10,9 +10,9 @@
 //! This allows us to perform polynomial operations in O(n)
 //! by performing an O(n log n) FFT over such a domain.
 
-use core::fmt;
 use crate::Vec;
 use algebra::{FpParameters, PrimeField};
+use core::fmt;
 use rand::Rng;
 use rayon::prelude::*;
 

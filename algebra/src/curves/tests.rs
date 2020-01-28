@@ -1,4 +1,3 @@
-use crate::Vec;
 use crate::{
     curves::{
         models::short_weierstrass_jacobian::{GroupAffine, GroupProjective},
@@ -6,6 +5,7 @@ use crate::{
     },
     fields::PrimeField,
     CanonicalDeserialize, CanonicalSerialize, SWModelParameters, SerializationError, UniformRand,
+    Vec,
 };
 use num_traits::Zero;
 use rand::SeedableRng;

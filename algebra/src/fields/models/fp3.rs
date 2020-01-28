@@ -1,21 +1,20 @@
-use crate::Vec;
-use crate::{CanonicalDeserialize, CanonicalSerialize, SerializationError, UniformRand};
+use crate::{CanonicalDeserialize, CanonicalSerialize, SerializationError, UniformRand, Vec};
+use core::{
+    cmp::{Ord, Ordering, PartialOrd},
+    fmt,
+    marker::PhantomData,
+    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+    str::FromStr,
+};
 use num_traits::{One, Zero};
 use rand::{
     distributions::{Distribution, Standard},
     Rng,
 };
-use core::{
-    cmp::{Ord, Ordering, PartialOrd},
-    marker::PhantomData,
-    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
-    str::FromStr,
-    fmt,
-};
 
-use crate::fake_io::{Read, Result as IoResult, Write};
 use crate::{
     bytes::{FromBytes, ToBytes},
+    fake_io::{Read, Result as IoResult, Write},
     fields::{Field, LegendreSymbol, PrimeField, SquareRootField},
 };
 

@@ -1,6 +1,6 @@
-use crate::Vec;
-use crate::prelude::{
-    AffineCurve, BigInteger, FpParameters, One, PrimeField, ProjectiveCurve, Zero,
+use crate::{
+    prelude::{AffineCurve, BigInteger, FpParameters, One, PrimeField, ProjectiveCurve, Zero},
+    Vec,
 };
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;

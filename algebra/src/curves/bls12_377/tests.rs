@@ -16,8 +16,8 @@ use crate::{
     groups::tests::group_test,
     CanonicalSerialize,
 };
-use num_traits::{One, Zero};
 use core::ops::{AddAssign, MulAssign};
+use num_traits::{One, Zero};
 
 #[test]
 fn test_g1_projective_curve() {

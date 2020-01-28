@@ -1,4 +1,3 @@
-use crate::Vec;
 use crate::{
     biginteger::BigInteger320,
     bytes::ToBytes,
@@ -8,10 +7,11 @@ use crate::{
         short_weierstrass_projective::{GroupAffine, GroupProjective},
         AffineCurve, PairingCurve, PairingEngine,
     },
+    fake_io::{Result as IoResult, Write},
     field_new,
     fields::mnt6::{Fq, Fq3, Fq6, Fr},
+    Vec,
 };
-use crate::fake_io::{Result as IoResult, Write};
 
 pub type G2Affine = GroupAffine<MNT6G2Parameters>;
 pub type G2Projective = GroupProjective<MNT6G2Parameters>;

@@ -1,18 +1,17 @@
-use crate::Vec;
 use crate::{
-    curves::models::SWModelParameters as Parameters, CanonicalDeserialize, CanonicalSerialize,
-    UniformRand,
+    curves::models::SWModelParameters as Parameters,
+    fake_io::{Read, Result as IoResult, Write},
+    CanonicalDeserialize, CanonicalSerialize, UniformRand, Vec,
+};
+use core::{
+    fmt::{Display, Formatter, Result as FmtResult},
+    marker::PhantomData,
 };
 use num_traits::{One, Zero};
 use rand::{
     distributions::{Distribution, Standard},
     Rng,
 };
-use core::{
-    fmt::{Display, Formatter, Result as FmtResult},
-    marker::PhantomData,
-};
-use crate::fake_io::{Result as IoResult, Write, Read};
 
 use crate::{
     bytes::{FromBytes, ToBytes},

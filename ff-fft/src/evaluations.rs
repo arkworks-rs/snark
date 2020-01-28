@@ -1,9 +1,8 @@
 //! A polynomial represented in evaluations form.
 
-use core::ops::{Add, Sub, Mul, Div, AddAssign, SubAssign, MulAssign, DivAssign, Index};
-use crate::Vec;
+use crate::{DensePolynomial, EvaluationDomain, Vec};
 use algebra::PrimeField;
-use crate::{DensePolynomial, EvaluationDomain};
+use core::ops::{Add, AddAssign, Div, DivAssign, Index, Mul, MulAssign, Sub, SubAssign};
 
 /// Stores a polynomial in evaluation form.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

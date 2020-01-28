@@ -7,10 +7,10 @@ use crate::{
         short_weierstrass_projective::{GroupAffine, GroupProjective},
         AffineCurve, PairingCurve, PairingEngine,
     },
+    fake_io::{Result as IoResult, Write},
     field_new,
     fields::mnt6::{Fq, Fq3, Fq6, Fr},
 };
-use crate::fake_io::{Result as IoResult, Write};
 
 pub type G1Affine = GroupAffine<MNT6G1Parameters>;
 pub type G1Projective = GroupProjective<MNT6G1Parameters>;

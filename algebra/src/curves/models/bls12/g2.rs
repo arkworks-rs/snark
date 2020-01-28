@@ -1,4 +1,3 @@
-use crate::Vec;
 use crate::{
     bytes::ToBytes,
     curves::{
@@ -7,10 +6,11 @@ use crate::{
         short_weierstrass_jacobian::{GroupAffine, GroupProjective},
         AffineCurve,
     },
+    fake_io::{Result as IoResult, Write},
     fields::{BitIterator, Field, Fp2},
+    Vec,
 };
 use num_traits::{One, Zero};
-use crate::fake_io::{Result as IoResult, Write};
 
 pub type G2Affine<P> = GroupAffine<<P as Bls12Parameters>::G2Parameters>;
 pub type G2Projective<P> = GroupProjective<<P as Bls12Parameters>::G2Parameters>;

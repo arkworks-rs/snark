@@ -3,8 +3,8 @@ use algebra::{
     curves::{bls12_381::Bls12_381, PairingEngine},
     UniformRand,
 };
-use rand;
 use core::cmp::min;
+use rand;
 
 // Test multiplying various (low degree) polynomials together and
 // comparing with naive evaluations.

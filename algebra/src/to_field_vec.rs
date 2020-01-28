@@ -1,4 +1,4 @@
-use crate::{Vec, Box};
+use crate::{Box, Vec};
 
 use crate::{
     curves::{
@@ -7,8 +7,8 @@ use crate::{
         twisted_edwards_extended::{GroupAffine as TEAffine, GroupProjective as TEProjective},
         ProjectiveCurve,
     },
-    Fp2, Fp2Parameters, FpParameters, Field, PrimeField,
     serialize::SerializationError,
+    Field, Fp2, Fp2Parameters, FpParameters, PrimeField,
 };
 
 type Error = Box<SerializationError>;

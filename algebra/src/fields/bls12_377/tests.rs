@@ -10,13 +10,13 @@ use crate::{
     },
     CanonicalSerialize, UniformRand,
 };
-use num_traits::{One, Zero};
-use rand::SeedableRng;
-use rand_xorshift::XorShiftRng;
 use core::{
     cmp::Ordering,
     ops::{AddAssign, MulAssign, SubAssign},
 };
+use num_traits::{One, Zero};
+use rand::SeedableRng;
+use rand_xorshift::XorShiftRng;
 
 pub(crate) const ITERATIONS: usize = 5;
 

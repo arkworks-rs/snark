@@ -1,6 +1,6 @@
 use crate::String;
-use core::marker::PhantomData;
 use algebra::Field;
+use core::marker::PhantomData;
 
 use crate::{Index, LinearCombination, SynthesisError, Variable};
 

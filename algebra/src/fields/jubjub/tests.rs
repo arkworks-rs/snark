@@ -9,8 +9,8 @@ use crate::{
         PrimeField, SquareRootField,
     },
 };
-use num_traits::{One, Zero};
 use core::str::FromStr;
+use num_traits::{One, Zero};
 
 #[test]
 fn test_jubjub_fr() {

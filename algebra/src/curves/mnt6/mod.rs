@@ -1,4 +1,3 @@
-use crate::Vec;
 use crate::{
     biginteger::BigInteger320,
     curves::{PairingCurve, PairingEngine, ProjectiveCurve},
@@ -10,6 +9,7 @@ use crate::{
         },
         BitIterator, Field, FpParameters,
     },
+    Vec,
 };
 use num_traits::{One, Zero};
 

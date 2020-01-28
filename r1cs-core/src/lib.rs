@@ -29,8 +29,8 @@ pub use constraint_system::{ConstraintSynthesizer, ConstraintSystem, Namespace};
 pub use error::SynthesisError;
 
 use algebra::Field;
-use smallvec::SmallVec as StackVec;
 use core::cmp::Ordering;
+use smallvec::SmallVec as StackVec;
 
 type SmallVec<F> = StackVec<[(Variable, F); 16]>;
 

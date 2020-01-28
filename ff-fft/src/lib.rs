@@ -14,10 +14,10 @@
 extern crate alloc;
 
 #[cfg(not(feature = "std"))]
-pub(crate) use alloc::{vec::Vec, borrow::Cow, collections::BTreeMap};
+pub(crate) use alloc::{borrow::Cow, collections::BTreeMap, vec::Vec};
 
 #[cfg(feature = "std")]
-pub(crate) use std::{vec::Vec, borrow::Cow, collections::BTreeMap};
+pub(crate) use std::{borrow::Cow, collections::BTreeMap, vec::Vec};
 
 pub mod domain;
 pub mod evaluations;

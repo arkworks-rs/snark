@@ -1,9 +1,9 @@
 use crate::{
     biginteger::{arithmetic as fa, BigInteger as _BigInteger, BigInteger832 as BigInteger},
     bytes::{FromBytes, ToBytes},
+    fake_io::{Read, Result as IoResult, Write},
     fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
 };
-use num_traits::{One, Zero};
 use core::{
     cmp::{Ord, Ordering, PartialOrd},
     fmt::{Display, Formatter, Result as FmtResult},
@@ -11,7 +11,7 @@ use core::{
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
     str::FromStr,
 };
-use crate::fake_io::{Read, Result as IoResult, Write};
+use num_traits::{One, Zero};
 
 pub trait Fp832Parameters: FpParameters<BigInt = BigInteger> {}
 

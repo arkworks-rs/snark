@@ -1,5 +1,5 @@
-use core::fmt;
 use crate::fake_io;
+use core::fmt;
 
 /// This is an error that could occur during serialization
 #[derive(Debug)]

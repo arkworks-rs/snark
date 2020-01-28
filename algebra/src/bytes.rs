@@ -1,5 +1,7 @@
-use crate::Vec;
-use crate::fake_io::{Read, Result as IoResult, Write, Error as IoError};
+use crate::{
+    fake_io::{Error as IoError, Read, Result as IoResult, Write},
+    Vec,
+};
 
 pub trait ToBytes {
     /// Serializes `self` into `writer`.
@@ -282,19 +284,18 @@ impl<'a, T: 'a + ToBytes> ToBytes for &'a T {
     }
 }
 
-//impl FromBytes for Vec<u8> {
-    //#[inline]
-    //fn read<R: Read>(mut reader: R) -> IoResult<Self> {
-        //let mut buf = Vec::new();
-        //let _ = reader.read_to_end(&mut buf)?;
-        //Ok(buf)
-    //}
+// impl FromBytes for Vec<u8> {
+//#[inline]
+// fn read<R: Read>(mut reader: R) -> IoResult<Self> {
+// let mut buf = Vec::new();
+// let _ = reader.read_to_end(&mut buf)?;
+// Ok(buf)
 //}
 
 #[cfg(test)]
 mod test {
-    use crate::alloc::{vec, vec::Vec};
     use super::ToBytes;
+    use crate::alloc::{vec, vec::Vec};
     #[test]
     fn test_macro_empty() {
         let array: Vec<u8> = vec![];

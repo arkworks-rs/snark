@@ -1,6 +1,6 @@
 //! no-std io replacement
-use core::{cmp, mem};
 use crate::Vec;
+use core::{cmp, mem};
 
 #[derive(Debug)]
 pub struct Error;
@@ -15,7 +15,7 @@ pub trait Write {
     fn write_all(&mut self, data: &[u8]) -> Result<()>;
 }
 
-impl <R: Read + ?Sized> Read for &mut R {
+impl<R: Read + ?Sized> Read for &mut R {
     #[inline]
     fn read_exact(&mut self, data: &mut [u8]) -> Result<()> {
         (**self).read_exact(data)
@@ -40,13 +40,13 @@ impl Read for &[u8] {
 
         *self = b;
         Ok(())
-	}
+    }
 }
 
 impl<W: Write + ?Sized> Write for &mut W {
     #[inline]
-    fn write_all(&mut self, data: &[u8]) -> Result<()> { 
-        (**self).write_all(data) 
+    fn write_all(&mut self, data: &[u8]) -> Result<()> {
+        (**self).write_all(data)
     }
 }
 

@@ -1,7 +1,7 @@
 use crate::{LinearCombination, SmallVec, Variable};
 use algebra::Field;
-use smallvec::smallvec;
 use core::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub};
+use smallvec::smallvec;
 
 impl<F: Field> AsRef<[(Variable, F)]> for LinearCombination<F> {
     #[inline]

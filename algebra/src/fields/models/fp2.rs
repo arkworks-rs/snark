@@ -1,16 +1,18 @@
-use crate::{CanonicalDeserialize, CanonicalSerialize, SerializationError, UniformRand};
+use crate::{
+    fake_io::{Read, Result as IoResult, Write},
+    CanonicalDeserialize, CanonicalSerialize, SerializationError, UniformRand,
+};
+use core::{
+    cmp::{Ord, Ordering, PartialOrd},
+    fmt,
+    marker::PhantomData,
+    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+};
 use num_traits::{One, Zero};
 use rand::{
     distributions::{Distribution, Standard},
     Rng,
 };
-use core::{
-    cmp::{Ord, Ordering, PartialOrd},
-    marker::PhantomData,
-    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
-    fmt,
-};
-use crate::fake_io::{Read, Result as IoResult, Write};
 
 use crate::{
     bytes::{FromBytes, ToBytes},

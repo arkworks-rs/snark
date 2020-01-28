@@ -13,9 +13,9 @@ use crate::{
     groups::tests::group_test,
     CanonicalSerialize,
 };
+use core::str::FromStr;
 use num_traits::Zero;
 use rand;
-use core::str::FromStr;
 
 #[test]
 fn test_projective_curve() {

@@ -36,8 +36,8 @@
 
 #[cfg(not(feature = "std"))]
 macro_rules! println {
-    () => ();
-    ($($arg:tt)*) => ()
+    () => {};
+    ($($arg:tt)*) => {};
 }
 
 #[cfg(not(feature = "std"))]
@@ -50,10 +50,10 @@ macro_rules! println {
 pub extern crate alloc;
 
 #[cfg(not(feature = "std"))]
-pub(crate) use alloc::{vec::Vec, boxed::Box};
+pub(crate) use alloc::{boxed::Box, vec::Vec};
 
 #[cfg(feature = "std")]
-pub(crate) use std::{vec::Vec, boxed::Box};
+pub(crate) use std::{boxed::Box, vec::Vec};
 
 #[macro_use]
 extern crate derivative;

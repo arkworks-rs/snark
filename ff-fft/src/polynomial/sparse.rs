@@ -2,9 +2,10 @@
 
 use core::fmt;
 
-use crate::{DenseOrSparsePolynomial, DensePolynomial, EvaluationDomain, Evaluations};
+use crate::{
+    BTreeMap, DenseOrSparsePolynomial, DensePolynomial, EvaluationDomain, Evaluations, Vec,
+};
 use algebra::{Field, PrimeField};
-use crate::{Vec, BTreeMap};
 
 /// Stores a sparse polynomial in coefficient form.
 #[derive(Clone, PartialEq, Eq, Hash, Default)]

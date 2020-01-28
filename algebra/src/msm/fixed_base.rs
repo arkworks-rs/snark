@@ -1,5 +1,4 @@
-use crate::Vec;
-use crate::{BigInteger, FpParameters, PrimeField, ProjectiveCurve};
+use crate::{BigInteger, FpParameters, PrimeField, ProjectiveCurve, Vec};
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 

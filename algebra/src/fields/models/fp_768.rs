@@ -1,4 +1,3 @@
-use num_traits::{One, Zero};
 use core::{
     cmp::{Ord, Ordering, PartialOrd},
     fmt::{Display, Formatter, Result as FmtResult},
@@ -6,11 +5,12 @@ use core::{
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
     str::FromStr,
 };
+use num_traits::{One, Zero};
 
-use crate::fake_io::{Read, Result as IoResult, Write};
 use crate::{
     biginteger::{arithmetic as fa, BigInteger as _BigInteger, BigInteger768 as BigInteger},
     bytes::{FromBytes, ToBytes},
+    fake_io::{Read, Result as IoResult, Write},
     fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
 };
 
