@@ -14,8 +14,8 @@ use rand::{
 use crate::{
     biginteger::BigInteger,
     bytes::{FromBytes, ToBytes},
-    io::{Read, Result as IoResult, Write},
     fields::{Field, Fp3, Fp3Parameters},
+    io::{Read, Result as IoResult, Write},
 };
 
 pub trait Fp6Parameters: 'static + Send + Sync {

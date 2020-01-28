@@ -110,7 +110,6 @@ pub mod io;
 #[cfg(feature = "std")]
 pub use std::io;
 
-
 #[cfg(not(feature = "std"))]
 fn error(_msg: &'static str) -> io::Error {
     io::Error

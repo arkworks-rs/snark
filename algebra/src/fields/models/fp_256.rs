@@ -10,8 +10,8 @@ use num_traits::{One, Zero};
 use crate::{
     biginteger::{arithmetic as fa, BigInteger as _BigInteger, BigInteger256 as BigInteger},
     bytes::{FromBytes, ToBytes},
-    io::{Read, Result as IoResult, Write},
     fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
+    io::{Read, Result as IoResult, Write},
 };
 
 pub trait Fp256Parameters: FpParameters<BigInt = BigInteger> {}

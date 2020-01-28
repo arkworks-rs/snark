@@ -6,8 +6,8 @@ use crate::{
         short_weierstrass_jacobian::{GroupAffine, GroupProjective},
         AffineCurve,
     },
-    io::{Result as IoResult, Write},
     fields::{BitIterator, Field, Fp2},
+    io::{Result as IoResult, Write},
     Vec,
 };
 use num_traits::{One, Zero};

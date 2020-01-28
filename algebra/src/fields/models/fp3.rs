@@ -14,8 +14,8 @@ use rand::{
 
 use crate::{
     bytes::{FromBytes, ToBytes},
-    io::{Read, Result as IoResult, Write},
     fields::{Field, LegendreSymbol, PrimeField, SquareRootField},
+    io::{Read, Result as IoResult, Write},
 };
 
 pub trait Fp3Parameters: 'static + Send + Sync {

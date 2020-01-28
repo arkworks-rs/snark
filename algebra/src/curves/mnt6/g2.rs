@@ -7,9 +7,9 @@ use crate::{
         short_weierstrass_projective::{GroupAffine, GroupProjective},
         AffineCurve, PairingCurve, PairingEngine,
     },
-    io::{Result as IoResult, Write},
     field_new,
     fields::mnt6::{Fq, Fq3, Fq6, Fr},
+    io::{Result as IoResult, Write},
     Vec,
 };
 

@@ -1,7 +1,7 @@
 use crate::{
     bytes::{FromBytes, ToBytes},
-    io::{Read, Result as IoResult, Write},
     fields::BitIterator,
+    io::{Read, Result as IoResult, Write},
     UniformRand, Vec,
 };
 use core::fmt::{Debug, Display};
