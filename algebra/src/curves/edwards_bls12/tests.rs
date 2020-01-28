@@ -11,7 +11,7 @@ use crate::{
     groups::tests::group_test,
     CanonicalSerialize,
 };
-use rand;
+use rand::{rngs::OsRng, Rng};
 
 #[test]
 fn test_projective_curve() {
@@ -23,8 +23,8 @@ fn test_projective_curve() {
 
 #[test]
 fn test_projective_group() {
-    let a = rand::random();
-    let b = rand::random();
+    let a = OsRng.gen();
+    let b = OsRng.gen();
     for _i in 0..100 {
         group_test::<EdwardsProjective>(a, b);
     }
@@ -32,8 +32,8 @@ fn test_projective_group() {
 
 #[test]
 fn test_affine_group() {
-    let a: EdwardsAffine = rand::random();
-    let b: EdwardsAffine = rand::random();
+    let a: EdwardsAffine = OsRng.gen();
+    let b: EdwardsAffine = OsRng.gen();
     for _i in 0..100 {
         group_test::<EdwardsAffine>(a, b);
     }
@@ -48,8 +48,8 @@ fn test_generator() {
 
 #[test]
 fn test_conversion() {
-    let a: EdwardsAffine = rand::random();
-    let b: EdwardsAffine = rand::random();
+    let a: EdwardsAffine = OsRng.gen();
+    let b: EdwardsAffine = OsRng.gen();
     let a_b = {
         use crate::groups::Group;
         (a + &b).double().double()

@@ -15,7 +15,7 @@ use core::{
     ops::{AddAssign, MulAssign, SubAssign},
 };
 use num_traits::{One, Zero};
-use rand::SeedableRng;
+use rand::{rngs::OsRng, Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 
 pub(crate) const ITERATIONS: usize = 5;
@@ -25,8 +25,8 @@ fn test_bls12_377_fr() {
     use crate::fields::bls12_377::Fr;
 
     for _ in 0..ITERATIONS {
-        let a: Fr = rand::random();
-        let b: Fr = rand::random();
+        let a: Fr = OsRng.gen();
+        let b: Fr = OsRng.gen();
         field_test(a, b);
         primefield_test::<Fr>();
         sqrt_field_test(b);
@@ -40,8 +40,8 @@ fn test_bls12_377_fq() {
     use crate::fields::bls12_377::Fq;
 
     for _ in 0..ITERATIONS {
-        let a: Fq = rand::random();
-        let b: Fq = rand::random();
+        let a: Fq = OsRng.gen();
+        let b: Fq = OsRng.gen();
         field_test(a, b);
         primefield_test::<Fq>();
         sqrt_field_test(a);
@@ -55,8 +55,8 @@ fn test_bls12_377_fq2() {
     use crate::fields::bls12_377::{Fq, Fq2};
 
     for _ in 0..ITERATIONS {
-        let a: Fq2 = rand::random();
-        let b: Fq2 = rand::random();
+        let a: Fq2 = OsRng.gen();
+        let b: Fq2 = OsRng.gen();
         field_test(a, b);
         sqrt_field_test(a);
     }
@@ -70,8 +70,8 @@ fn test_bls12_377_fq6() {
     use crate::fields::bls12_377::{Fq, Fq6};
 
     for _ in 0..ITERATIONS {
-        let g: Fq6 = rand::random();
-        let h: Fq6 = rand::random();
+        let g: Fq6 = OsRng.gen();
+        let h: Fq6 = OsRng.gen();
         field_test(g, h);
     }
     frobenius_test::<Fq6, _>(Fq::characteristic(), 13);
@@ -84,8 +84,8 @@ fn test_bls12_377_fq12() {
     use crate::fields::bls12_377::{Fq, Fq12};
 
     for _ in 0..ITERATIONS {
-        let g: Fq12 = rand::random();
-        let h: Fq12 = rand::random();
+        let g: Fq12 = OsRng.gen();
+        let h: Fq12 = OsRng.gen();
         field_test(g, h);
     }
     frobenius_test::<Fq12, _>(Fq::characteristic(), 13);

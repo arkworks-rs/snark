@@ -35,6 +35,7 @@
 
 #[macro_use]
 extern crate algebra;
+
 #[macro_use]
 extern crate derivative;
 

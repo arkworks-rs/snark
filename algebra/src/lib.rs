@@ -50,10 +50,14 @@ macro_rules! println {
 pub extern crate alloc;
 
 #[cfg(not(feature = "std"))]
-pub(crate) use alloc::vec::Vec;
+#[allow(unused_imports)]
+#[doc(hidden)]
+pub use alloc::{format, vec, vec::Vec};
 
 #[cfg(feature = "std")]
-pub(crate) use std::vec::Vec;
+#[allow(unused_imports)]
+#[doc(hidden)]
+pub use std::{format, vec, vec::Vec};
 
 #[macro_use]
 extern crate derivative;

@@ -1,4 +1,4 @@
-use crate::{Vec, domain::*, multicore::*};
+use crate::{domain::*, multicore::*, Vec};
 use algebra::{
     curves::{bls12_381::Bls12_381, PairingEngine},
     UniformRand,

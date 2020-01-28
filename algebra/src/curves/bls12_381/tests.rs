@@ -19,7 +19,7 @@ use crate::{
 };
 use core::ops::{AddAssign, MulAssign};
 use num_traits::{One, Zero};
-use rand;
+use rand::{rngs::OsRng, Rng};
 
 #[test]
 fn test_g1_projective_curve() {
@@ -31,8 +31,8 @@ fn test_g1_projective_curve() {
 
 #[test]
 fn test_g1_projective_group() {
-    let a: G1Projective = rand::random();
-    let b: G1Projective = rand::random();
+    let a: G1Projective = OsRng.gen();
+    let b: G1Projective = OsRng.gen();
     group_test(a, b);
 }
 
@@ -53,8 +53,8 @@ fn test_g2_projective_curve() {
 
 #[test]
 fn test_g2_projective_group() {
-    let a: G2Projective = rand::random();
-    let b: G2Projective = rand::random();
+    let a: G2Projective = OsRng.gen();
+    let b: G2Projective = OsRng.gen();
     group_test(a, b);
 }
 
@@ -67,9 +67,9 @@ fn test_g2_generator() {
 
 #[test]
 fn test_bilinearity() {
-    let a: G1Projective = rand::random();
-    let b: G2Projective = rand::random();
-    let s: Fr = rand::random();
+    let a: G1Projective = OsRng.gen();
+    let b: G2Projective = OsRng.gen();
+    let s: Fr = OsRng.gen();
 
     let sa = a * &s;
     let sb = b * &s;

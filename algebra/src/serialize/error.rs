@@ -16,6 +16,13 @@ pub enum SerializationError {
     IoError(io::Error),
 }
 
+#[cfg(feature = "std")]
+impl std::error::Error for SerializationError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        None
+    }
+}
+
 impl From<io::Error> for SerializationError {
     fn from(e: io::Error) -> SerializationError {
         SerializationError::IoError(e)

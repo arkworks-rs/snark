@@ -11,19 +11,20 @@ use crate::{
 };
 use core::str::FromStr;
 use num_traits::{One, Zero};
+use rand::{rngs::OsRng, Rng};
 
 #[test]
 fn test_jubjub_fr() {
-    let a: Fr = rand::random();
-    let b: Fr = rand::random();
+    let a: Fr = OsRng.gen();
+    let b: Fr = OsRng.gen();
     field_test(a, b);
     primefield_test::<Fr>();
 }
 
 #[test]
 fn test_jubjub_fq() {
-    let a: Fq = rand::random();
-    let b: Fq = rand::random();
+    let a: Fq = OsRng.gen();
+    let b: Fq = OsRng.gen();
     field_test(a, b);
     primefield_test::<Fq>();
 }

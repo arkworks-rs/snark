@@ -143,7 +143,7 @@ array_bytes!(32);
 #[macro_export]
 macro_rules! to_bytes {
     ($($x:expr),*) => ({
-        let mut buf = $crate::alloc::vec![];
+        let mut buf = $crate::vec![];
         {$crate::push_to_vec!(buf, $($x),*)}.map(|_| buf)
     });
 }
@@ -296,7 +296,7 @@ impl<'a, T: 'a + ToBytes> ToBytes for &'a T {
 #[cfg(test)]
 mod test {
     use super::ToBytes;
-    use crate::alloc::{vec, vec::Vec};
+    use crate::Vec;
     #[test]
     fn test_macro_empty() {
         let array: Vec<u8> = vec![];

@@ -1,3 +1,4 @@
+use algebra::io;
 use core::fmt;
 
 /// This is an error that could occur during circuit synthesis contexts,
@@ -14,18 +15,20 @@ pub enum SynthesisError {
     PolynomialDegreeTooLarge,
     /// During proof generation, we encountered an identity in the CRS
     UnexpectedIdentity,
-    // During proof generation, we encountered an I/O error with the CRS
-    // IoError(io::Error),
+    /// During proof generation, we encountered an I/O error with the CRS
+    IoError(io::Error),
     /// During verification, our verifying key was malformed.
     MalformedVerifyingKey,
     /// During CRS generation, we observed an unconstrained auxiliary variable
     UnconstrainedVariable,
 }
 
-// impl From<io::Error> for SynthesisError {
-// fn from(e: io::Error) -> SynthesisError {
-// SynthesisError::IoError(e)
-//}
+impl From<io::Error> for SynthesisError {
+    fn from(e: io::Error) -> SynthesisError {
+        SynthesisError::IoError(e)
+    }
+}
+
 // impl Error for SynthesisError {
 // fn source(&self) -> Option<&(dyn Error + 'static)> {
 // None
@@ -44,7 +47,7 @@ impl fmt::Display for SynthesisError {
             SynthesisError::Unsatisfiable => "unsatisfiable constraint system",
             SynthesisError::PolynomialDegreeTooLarge => "polynomial degree is too large",
             SynthesisError::UnexpectedIdentity => "encountered an identity element in the CRS",
-            // SynthesisError::IoError(_) => "encountered an I/O error",
+            SynthesisError::IoError(_) => "encountered an I/O error",
             SynthesisError::MalformedVerifyingKey => "malformed verifying key",
             SynthesisError::UnconstrainedVariable => "auxiliary variable was unconstrained",
         };
