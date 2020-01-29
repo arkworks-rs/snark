@@ -29,14 +29,8 @@ crypto-primitives = { path = "../crypto-primitives", features = [ "gm17", "r1cs"
 gm17 = { path = "../gm17" }
 bench-utils = { path = "../bench-utils" }
 
-digest = "0.7"
-blake2 = "0.7"
-
 rand = { version = "0.7" }
 derivative = "1"
-rayon = "1"
-
-clippy = { version = "*", optional = true }
 
 [dev-dependencies]
 criterion = "0.3.1"

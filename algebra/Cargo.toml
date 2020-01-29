@@ -25,10 +25,7 @@ edition = "2018"
 rand = { version = "0.7", default-features = false, features = ["getrandom"] }
 derivative = { version = "1", features = ["use_core"] }
 num-traits = { version = "0.2", default-features = false }
-
-colored = { version = "1", optional = true }
 rayon = { version = "1", optional = true }
-clippy = { version = "*", optional = true }
 
 [dev-dependencies]
 blake2 = "0.8.1"
