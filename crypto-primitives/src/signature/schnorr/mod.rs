@@ -268,8 +268,25 @@ mod field_impl {
         fn project<FromF: PrimeField, ToF: PrimeField>(from: FromF) -> ToF {
             //ToF::from_random_bytes(to_bytes!(from).unwrap().as_slice()).unwrap()
 
-            //Is this safe ?
-            ToF::from_repr_raw(ToF::BigInt::from_bits(from.into_repr_raw().to_bits().as_slice()))
+            // This gives different MontRepr from primitive and gadget (since we are in two different
+            // fields), but the same bit representation (since into_repr() is called whenever
+            // passing to bits), and the same bit representation is what we need for the mul_bits
+            // gadget that works on bits.
+            let new = ToF::from_repr(ToF::BigInt::from_bits(from.into_repr().to_bits().as_slice()));
+
+
+            // The one below, instead, gives the same MontRepr but different bit representation, and the
+            // gadget verification of the primitive signature fails.
+            //
+            //ToF::from_repr_raw(ToF::BigInt::from_bits(from.into_repr_raw().to_bits().as_slice()))
+
+            //However, we should decide whether this conversion is "safe", i.e. if there aren't collisions
+            //or situations in which ToF::from_repr(...) returns zero, resulting in a null signature.
+            //Note that the to_bits algorithm looks the same as the Coda "project" which is used
+            //in signatures.
+
+            debug_assert!(new != ToF::zero());
+            new
         }
     }
 
@@ -391,8 +408,8 @@ mod field_impl {
             //Compute R' = s*G - e' * pk
             let r_prime = {
                 let s_times_g = G::prime_subgroup_generator().mul(&s);
-                let e_times_pk = pk.neg().mul(e_prime);
-                (s_times_g + &e_times_pk).into_affine()
+                let neg_e_times_pk = pk.neg().mul(e_prime);
+                (s_times_g + &neg_e_times_pk).into_affine()
             };
 
             Ok((r_prime.get_x() == signature.r) && !r_prime.is_zero() && !r_prime.get_y().is_odd())

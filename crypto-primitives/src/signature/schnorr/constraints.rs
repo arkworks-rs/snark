@@ -353,21 +353,21 @@ mod field_impl
 
             //Enforce R' = s*G - e'*pk
             let e_prime_bits = e_prime
-                .to_bytes(cs.ns(|| "e_prime to bytes"))?
+                .to_bytes(cs.ns(|| "e_prime_to_bytes"))?
                 .to_bits(cs.ns(|| "e_prime_to_bits"))?;
 
             //We exploit hardcoded generator as `result` param here to avoid edge cases in addition
             let neg_e_prime_times_pk = public_key
-                .mul_bits(cs.ns(|| "e_prime * pk"), &g, e_prime_bits.as_slice().iter())?
-                .negate(cs.ns(|| " -(e_prime * pk)"))?;
+                .mul_bits(cs.ns(|| "pk * e_prime + g"), &g, e_prime_bits.as_slice().iter())?
+                .sub(cs.ns(|| "subtract g"), &g)?
+                .negate(cs.ns(|| "- (e_prime * pk)"))?;
 
             //Enforce signature.s * G
             let s_bits = signature.s.to_bits(cs.ns(|| "s to bits"))?;
 
             //We must subtract the g previously added too.
             let r_prime = g
-                .mul_bits_precomputed(cs.ns(|| "s * G"), &neg_e_prime_times_pk, s_bits.as_slice())?
-                .sub(cs.ns(|| "sub g"), &g)?;
+                .mul_bits_precomputed(cs.ns(|| "(s * G) - (e_prime * pk)"), &neg_e_prime_times_pk, s_bits.as_slice())?;
 
             //Enforce R'.x == r
             signature.r.enforce_equal(cs.ns(|| "sig.r == R'.x"), &r_prime.get_x())?;
@@ -423,24 +423,23 @@ mod test {
         MNT6Fr, MNT4G1Projective, MNT4G1Gadget, MNT6PoseidonHash, MNT6PoseidonHashGadget
     >;
 
-    fn sign<S: FieldBasedSignatureScheme>(message: &[S::Data]) -> (S::Signature, S::PublicKey)
+    fn sign<S: FieldBasedSignatureScheme>(message: &[S::Data]) -> (S::Signature, S::PublicKey, S::SecretKey)
     {
         let rng = &mut thread_rng();
         let (pk, sk) = S::keygen(rng).unwrap();
         let sig = S::sign(&pk, &sk, &message).unwrap();
-        (sig, pk)
+        (sig, pk, sk)
     }
 
     #[test]
     fn mnt4_schnorr_gadget_test() {
 
+        let mut cs = TestConstraintSystem::<MNT4Fr>::new();
+
         //Sign a random field element f and get the signature and the public key
         let rng = &mut thread_rng();
         let message: MNT4Fr = rng.gen();
-        let (sig, pk) = sign::<SchnorrMNT4>(&[message]);
-
-
-        let mut cs = TestConstraintSystem::<MNT4Fr>::new();
+        let (sig, pk, sk) = sign::<SchnorrMNT4>(&[message]);
 
         //Alloc signature, pk and message
         let sig_g = <SchnorrMNT4Gadget as FieldBasedSigGadget<SchnorrMNT4, MNT4Fr>>::SignatureGadget::alloc(
@@ -455,17 +454,16 @@ mod test {
 
         //Verify sig
         SchnorrMNT4Gadget::check_verify_gadget(
-            cs.ns(|| "verify sig"),
+            cs.ns(|| "verify sig1"),
             &pk_g,
             &sig_g,
-            &[message_g]
+            &[message_g.clone()]
         ).unwrap();
-
-        println!("{:?}", cs.which_is_unsatisfied());
 
         assert!(cs.is_satisfied());
 
-        //Alter message
+        /*
+        //Wrong message
         let message_new: MNT4Fr = rng.gen();
         let message_new_g = <SchnorrMNT4Gadget as FieldBasedSigGadget<SchnorrMNT4, MNT4Fr>>::DataGadget::alloc(
             cs.ns(|| "alloc message_new"),
@@ -473,27 +471,41 @@ mod test {
         ).unwrap();
 
         SchnorrMNT4Gadget::check_verify_gadget(
-            cs.ns(|| "verify sig"),
+            cs.ns(|| "verify sig2"),
             &pk_g,
             &sig_g,
             &[message_new_g]
+        ).unwrap();*/
+
+        //Wrong sig: generate a signature for a different message and check constraints fail
+        let new_message: MNT4Fr = rng.gen();
+        let new_sig = SchnorrMNT4::sign(&pk, &sk, &[new_message]).unwrap();
+        let new_sig_g = <SchnorrMNT4Gadget as FieldBasedSigGadget<SchnorrMNT4, MNT4Fr>>::SignatureGadget::alloc(
+            cs.ns(|| "alloc new sig"),
+            || Ok(new_sig)
+        ).unwrap();
+
+        //Verify new sig: expected to fail
+        SchnorrMNT4Gadget::check_verify_gadget(
+            cs.ns(|| "verify sig2"),
+            &pk_g,
+            &new_sig_g,
+            &[message_g]
         ).unwrap();
 
         assert!(!cs.is_satisfied());
-
         println!("{:?}", cs.which_is_unsatisfied());
     }
 
     #[test]
     fn mnt6_schnorr_gadget_test() {
 
+        let mut cs = TestConstraintSystem::<MNT6Fr>::new();
+
         //Sign a random field element f and get the signature and the public key
         let rng = &mut thread_rng();
         let message: MNT6Fr = rng.gen();
-        let (sig, pk) = sign::<SchnorrMNT6>(&[message]);
-
-
-        let mut cs = TestConstraintSystem::<MNT6Fr>::new();
+        let (sig, pk, sk) = sign::<SchnorrMNT6>(&[message]);
 
         //Alloc signature, pk and message
         let sig_g = <SchnorrMNT6Gadget as FieldBasedSigGadget<SchnorrMNT6, MNT6Fr>>::SignatureGadget::alloc(
@@ -508,17 +520,18 @@ mod test {
 
         //Verify sig
         SchnorrMNT6Gadget::check_verify_gadget(
-            cs.ns(|| "verify sig"),
+            cs.ns(|| "verify sig1"),
             &pk_g,
             &sig_g,
-            &[message_g]
+            &[message_g.clone()]
         ).unwrap();
 
         println!("{:?}", cs.which_is_unsatisfied());
 
         assert!(cs.is_satisfied());
 
-        //Alter message
+        /*
+        //Wrong message
         let message_new: MNT6Fr = rng.gen();
         let message_new_g = <SchnorrMNT6Gadget as FieldBasedSigGadget<SchnorrMNT6, MNT6Fr>>::DataGadget::alloc(
             cs.ns(|| "alloc message_new"),
@@ -526,14 +539,69 @@ mod test {
         ).unwrap();
 
         SchnorrMNT6Gadget::check_verify_gadget(
-            cs.ns(|| "verify sig"),
+            cs.ns(|| "verify sig2"),
             &pk_g,
             &sig_g,
             &[message_new_g]
+        ).unwrap();*/
+
+        //Wrong sig: let's generate a signature for a different message
+        let new_message: MNT6Fr = rng.gen();
+        let new_sig = SchnorrMNT6::sign(&pk, &sk, &[new_message]).unwrap();
+        let new_sig_g = <SchnorrMNT6Gadget as FieldBasedSigGadget<SchnorrMNT6, MNT6Fr>>::SignatureGadget::alloc(
+            cs.ns(|| "alloc new sig"),
+            || Ok(new_sig)
+        ).unwrap();
+
+        //Verify new sig: expected to fail
+        SchnorrMNT6Gadget::check_verify_gadget(
+            cs.ns(|| "verify sig2"),
+            &pk_g,
+            &new_sig_g,
+            &[message_g]
         ).unwrap();
 
         assert!(!cs.is_satisfied());
 
         println!("{:?}", cs.which_is_unsatisfied());
+    }
+
+    #[test]
+    fn random_schnorr_gadget_test() {
+
+        //Sign a random field element f and get the signature and the public key
+        let rng = &mut thread_rng();
+
+        let samples = 10;
+        for _ in 0..samples {
+            let message: MNT4Fr = rng.gen();
+            let (sig, pk, _) = sign::<SchnorrMNT4>(&[message]);
+            let mut cs = TestConstraintSystem::<MNT4Fr>::new();
+
+            //Alloc signature, pk and message
+            let sig_g = <SchnorrMNT4Gadget as FieldBasedSigGadget<SchnorrMNT4, MNT4Fr>>::SignatureGadget::alloc(
+                cs.ns(|| "alloc sig"),
+                || Ok(sig)
+            ).unwrap();
+
+            let pk_g = <SchnorrMNT4Gadget as FieldBasedSigGadget<SchnorrMNT4, MNT4Fr>>::PublicKeyGadget::alloc(
+                cs.ns(|| "alloc pk"),
+                || Ok(pk)
+            ).unwrap();
+
+            let message_g = <SchnorrMNT4Gadget as FieldBasedSigGadget<SchnorrMNT4, MNT4Fr>>::DataGadget::alloc(
+                cs.ns(|| "alloc message"),
+                || Ok(message)
+            ).unwrap();
+
+            //Verify sig
+            SchnorrMNT4Gadget::check_verify_gadget(
+                cs.ns(|| "verify sig"),
+                &pk_g,
+                &sig_g,
+                &[message_g.clone()]
+            ).unwrap();
+            assert!(cs.is_satisfied());
+        }
     }
 }
