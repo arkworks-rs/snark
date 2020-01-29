@@ -484,15 +484,12 @@ impl<P: Fp3Parameters> FromStr for Fp3<P> {
     fn from_str(mut s: &str) -> Result<Self, Self::Err> {
         s = s.trim();
         if s.is_empty() {
-            println!("is empty");
             return Err(());
         }
         if s.len() < 3 {
-            println!("len is less than 3");
             return Err(());
         }
         if !(s.starts_with('[') && s.ends_with(']')) {
-            println!("doesn't start and end with square brackets");
             return Err(());
         }
         let mut point = Vec::new();
@@ -503,7 +500,6 @@ impl<P: Fp3Parameters> FromStr for Fp3<P> {
             }
         }
         if point.len() != 3 {
-            println!("not enough points");
             return Err(());
         }
         let point = Fp3::new(point[0], point[1], point[2]);

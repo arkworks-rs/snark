@@ -791,7 +791,6 @@ impl<P: Fp768Parameters> FromStr for Fp768<P> {
     /// Does not accept unnecessary leading zeroes or a blank string.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.is_empty() {
-            println!("Is empty!");
             return Err(());
         }
 
@@ -822,7 +821,6 @@ impl<P: Fp768Parameters> FromStr for Fp768<P> {
                     )));
                 },
                 None => {
-                    println!("Not valid digit!");
                     return Err(());
                 },
             }

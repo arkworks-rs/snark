@@ -34,19 +34,17 @@
 )]
 #![forbid(unsafe_code)]
 
-#[cfg(not(feature = "std"))]
-macro_rules! println {
-    () => {};
-    ($($arg:tt)*) => {};
-}
-
-#[cfg(not(feature = "std"))]
+#[cfg(all(test, not(feature = "std")))]
 #[macro_use]
-#[doc(hidden)]
+extern crate std;
+
 /// this crate needs to be public, cause we expose `to_bytes!` macro
 /// see similar issue in [`smallvec#198`]
 ///
 /// [`smallvec#198`]: https://github.com/servo/rust-smallvec/pull/198
+#[cfg(not(feature = "std"))]
+#[macro_use]
+#[doc(hidden)]
 pub extern crate alloc;
 
 #[cfg(not(feature = "std"))]

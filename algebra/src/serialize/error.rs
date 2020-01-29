@@ -30,6 +30,16 @@ impl Error for SerializationError {
 pub trait Error: fmt::Debug + fmt::Display {}
 
 #[cfg(not(feature = "std"))]
+impl<'a, E: Error + 'a> From<E> for crate::Box<dyn Error + 'a> {
+    fn from(err: E) -> crate::Box<dyn Error + 'a> {
+        crate::Box::new(err)
+    }
+}
+
+#[cfg(not(feature = "std"))]
+impl<T: Error> Error for crate::Box<T> {}
+
+#[cfg(not(feature = "std"))]
 impl Error for SerializationError {}
 
 impl From<io::Error> for SerializationError {

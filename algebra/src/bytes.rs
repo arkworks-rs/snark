@@ -285,14 +285,6 @@ impl<'a, T: 'a + ToBytes> ToBytes for &'a T {
     }
 }
 
-// impl FromBytes for Vec<u8> {
-//#[inline]
-// fn read<R: Read>(mut reader: R) -> IoResult<Self> {
-// let mut buf = Vec::new();
-// let _ = reader.read_to_end(&mut buf)?;
-// Ok(buf)
-//}
-
 #[cfg(test)]
 mod test {
     use super::ToBytes;

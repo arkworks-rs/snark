@@ -38,22 +38,21 @@ impl std::error::Error for SynthesisError {
 
 impl fmt::Display for SynthesisError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        // if let SynthesisError::IoError(_) = self {
-        // write!(f, "I/O error")
-        //} else {
-        let description = match self {
+        match self {
             SynthesisError::AssignmentMissing => {
-                "an assignment for a variable could not be computed"
+                write!(f, "an assignment for a variable could not be computed")
             },
-            SynthesisError::DivisionByZero => "division by zero",
-            SynthesisError::Unsatisfiable => "unsatisfiable constraint system",
-            SynthesisError::PolynomialDegreeTooLarge => "polynomial degree is too large",
-            SynthesisError::UnexpectedIdentity => "encountered an identity element in the CRS",
-            SynthesisError::IoError(_) => "encountered an I/O error",
-            SynthesisError::MalformedVerifyingKey => "malformed verifying key",
-            SynthesisError::UnconstrainedVariable => "auxiliary variable was unconstrained",
-        };
-        write!(f, "{}", description)
-        //}
+            SynthesisError::DivisionByZero => write!(f, "division by zero"),
+            SynthesisError::Unsatisfiable => write!(f, "unsatisfiable constraint system"),
+            SynthesisError::PolynomialDegreeTooLarge => write!(f, "polynomial degree is too large"),
+            SynthesisError::UnexpectedIdentity => {
+                write!(f, "encountered an identity element in the CRS")
+            },
+            SynthesisError::IoError(err) => write!(f, "I/O error: {:?}", err),
+            SynthesisError::MalformedVerifyingKey => write!(f, "malformed verifying key"),
+            SynthesisError::UnconstrainedVariable => {
+                write!(f, "auxiliary variable was unconstrained")
+            },
+        }
     }
 }
