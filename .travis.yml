@@ -22,14 +22,20 @@ before_cache:
 after_script:
   - sccache -s
 
-rust:
-  - stable
-  - nightly
-
 matrix:
   fast_finish: true
+  include:
+    - env: TEST="test --all -- --skip dpc --skip integration_test" CHECK="check --examples --all"
+      rust: stable
+
+    - env: TEST="test --all -- --skip dpc --skip integration_test" CHECK="check --examples --all"
+      rust: nightly
+
+    - env: TEST="test -p algebra -p ff-fft -p r1cs-core" CHECK="check --examples -p algebra -p ff-fft -p r1cs-core"
+      rust: stable
+
 
 script:
   - if [ "$TRAVIS_RUST_VERSION" == "nightly" ]; then cargo fmt -- --check; fi
-  - cargo test --all -- --skip "dpc" --skip "integration_test"
-  - cargo check --examples --all
+  - cargo $TEST
+  - cargo $CHECK
