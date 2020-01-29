@@ -110,11 +110,6 @@ impl<P: Parameters> GroupAffine<P> {
             y2 == x3b
         }
     }
-
-    pub fn is_in_correct_subgroup_assuming_on_curve(&self) -> bool {
-        self.mul_bits(BitIterator::new(P::ScalarField::characteristic()))
-            .is_zero()
-    }
 }
 
 impl<P: Parameters> AffineCurve for GroupAffine<P> {
@@ -139,6 +134,22 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
     #[inline]
     fn is_zero(&self) -> bool {
         self.infinity
+    }
+
+    #[inline]
+    fn is_in_correct_subgroup_assuming_on_curve(&self) -> bool {
+        self.mul_bits(BitIterator::new(P::ScalarField::characteristic()))
+            .is_zero()
+    }
+
+    #[inline]
+    fn get_x(&self) -> Self::BaseField {
+        self.x.clone()
+    }
+
+    #[inline]
+    fn get_y(&self) -> Self::BaseField {
+        self.y.clone()
     }
 
     #[inline]

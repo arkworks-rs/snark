@@ -85,6 +85,23 @@ impl<P, ConstraintF, F> Eq for AffineGadget<P, ConstraintF, F>
 {
 }
 
+impl<P, ConstraintF, F> AffineGroupGadget<SWProjective<P>, ConstraintF, F>
+for AffineGadget<P, ConstraintF, F>
+    where
+        P: SWModelParameters,
+        ConstraintF: Field,
+        F: FieldGadget<P::BaseField, ConstraintF>,
+{
+
+    fn get_x(&self) -> F {
+        self.x.clone()
+    }
+
+    fn get_y(&self) -> F {
+        self.y.clone()
+    }
+}
+
 impl<P, ConstraintF, F> GroupGadget<SWProjective<P>, ConstraintF>
 for AffineGadget<P, ConstraintF, F>
     where
@@ -310,6 +327,58 @@ for AffineGadget<P, ConstraintF, F>
             self.y.negate(cs.ns(|| "negate y"))?,
             self.infinity
         ))
+    }
+
+    ///This will take [(3 + 1) * ceil(len(bits)/2)] + 6 constraints to put the x lookup constraint
+    ///into the addition formula. See coda/src/lib/snarky_curves/snarky_curves.ml "scale_known"
+    ///Note: `self` must be different from `result` due to SW incomplete addition.
+    #[inline]
+    fn mul_bits_precomputed<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        result: &Self,
+        bits: &[Boolean],
+    ) -> Result<Self, SynthesisError>{
+
+        let mut to_sub = SWProjective::<P>::zero();
+
+        let mut t = self.clone().get_value().get()?;
+        let sigma = self.clone().get_value().get()?;
+        let mut result = result.clone();
+        let mut i = 0;
+
+        while i < bits.len() {
+            let ti = t.clone();
+            let two_ti = ti.double();
+            let mut table = [
+                sigma,
+                sigma + &ti,
+                sigma + &two_ti,
+                sigma + &ti + &two_ti,
+            ];
+
+            //Compute constants
+            SWProjective::batch_normalization(&mut table);
+            let x_coords = [table[0].x, table[1].x, table[2].x, table[3].x];
+            let y_coords = [table[0].y, table[1].y, table[2].y, table[3].y];
+            let precomp = Boolean::and(cs.ns(|| format!("b0 AND b1_{}", i)), &bits[i], &bits[i+1])?;
+
+            //Lookup x and y
+            let x = F::two_bit_lookup_lc(cs.ns(|| format!("Lookup x_{}", i)), &precomp, &[bits[i], bits[i + 1]],  &x_coords)?;
+            let y = F::two_bit_lookup_lc(cs.ns(|| format!("Lookup y_{}", i)), &precomp, &[bits[i], bits[i + 1]],  &y_coords)?;
+
+            //Perform addition
+            let adder: Self = Self::new(x, y, Boolean::constant(false));
+            result = result.add(cs.ns(||format!("Add_{}", i)), &adder)?;
+            t = t.double().double();
+            to_sub += &sigma;
+            i = i + 2;
+        }
+        //Is this safe ? Maybe we can hardcode to_sub since that `self` and `bits` will always
+        //be the same for a given precomputed value.
+        let subber = Self::alloc(cs.ns(||"alloc final count"), || Ok(to_sub))?;
+        result = result.sub(cs.ns(|| "result - sigma*n_div_2"), &subber)?;
+        Ok(result)
     }
 
     fn cost_of_add() -> usize {
@@ -715,6 +784,7 @@ impl<ConstraintF> CompressAffinePointGadget<ConstraintF>
 
 use crate::ToCompressedBitsGadget;
 use crate::fields::fp::FpGadget;
+use crate::groups::AffineGroupGadget;
 
 impl<ConstraintF> ToCompressedBitsGadget<ConstraintF> for CompressAffinePointGadget<ConstraintF>
     where

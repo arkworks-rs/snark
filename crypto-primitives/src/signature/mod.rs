@@ -2,6 +2,7 @@ use crate::Error;
 use algebra::bytes::ToBytes;
 use rand::Rng;
 use std::hash::Hash;
+use std::fmt::Debug;
 
 #[cfg(feature = "r1cs")]
 pub mod constraints;
@@ -48,6 +49,32 @@ pub trait SignatureScheme {
         signature: &Self::Signature,
         randomness: &[u8],
     ) -> Result<Self::Signature, Error>;
+}
+
+use algebra::{Field, FromBytes};
+
+pub trait FieldBasedSignatureScheme {
+
+    type Data: Field;
+    type PublicKey: ToBytes + Hash + Eq + Clone + Default + Send + Sync;
+    type SecretKey: ToBytes + Clone + Default;
+    type Signature: Clone + Default + Send + Sync + Debug + Eq + PartialEq + ToBytes + FromBytes;
+
+    fn keygen<R: Rng>(
+        rng: &mut R,
+    ) -> Result<(Self::PublicKey, Self::SecretKey), Error>;
+
+    fn sign(
+        pk: &Self::PublicKey,
+        sk: &Self::SecretKey,
+        message: &[Self::Data],
+    ) -> Result<Self::Signature, Error>;
+
+    fn verify(
+        pk: &Self::PublicKey,
+        message: &[Self::Data],
+        signature: &Self::Signature,
+    ) -> Result<bool, Error>;
 }
 
 #[cfg(test)]

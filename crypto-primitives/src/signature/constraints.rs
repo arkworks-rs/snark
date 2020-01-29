@@ -19,3 +19,19 @@ pub trait SigRandomizePkGadget<S: SignatureScheme, ConstraintF: Field> {
         randomness: &[UInt8],
     ) -> Result<Self::PublicKeyGadget, SynthesisError>;
 }
+
+use crate::signature::FieldBasedSignatureScheme;
+
+pub trait FieldBasedSigGadget<S: FieldBasedSignatureScheme, ConstraintF: Field> {
+
+    type DataGadget:      FieldGadget<ConstraintF, ConstraintF>;
+    type SignatureGadget: AllocGadget<S::Signature, ConstraintF>;
+    type PublicKeyGadget: AllocGadget<S::PublicKey, ConstraintF>;
+
+    fn check_verify_gadget<CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
+        public_key: &Self::PublicKeyGadget,
+        signature:  &Self::SignatureGadget,
+        message:    &[Self::DataGadget],
+    ) -> Result<(), SynthesisError>;
+}

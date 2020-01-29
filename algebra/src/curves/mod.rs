@@ -223,6 +223,19 @@ pub trait AffineCurve:
     #[must_use]
     fn is_zero(&self) -> bool;
 
+    /// Checks that the current point is in the prime order subgroup given
+    /// the point is on the curve.
+    #[must_use]
+    fn is_in_correct_subgroup_assuming_on_curve(&self) -> bool;
+
+    /// Get the x coordinate of the point
+    #[must_use]
+    fn get_x(&self) -> Self::BaseField;
+
+    /// Get the y coordinate of the point
+    #[must_use]
+    fn get_y(&self) -> Self::BaseField;
+
     /// Performs scalar multiplication of this element with mixed addition.
     #[must_use]
     fn mul<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(&self, other: S)

@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use algebra::{Field, Group};
+use algebra::{Field, Group, ProjectiveCurve};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
 use std::{borrow::Borrow, fmt::Debug};
@@ -119,6 +119,15 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
         Ok(())
     }
 
+    fn mul_bits_precomputed<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+        result: &Self,
+        bits: &[Boolean],
+    ) -> Result<Self, SynthesisError> {
+        self.mul_bits(cs, result, bits.into_iter())
+    }
+
     fn precomputed_base_3_bit_signed_digit_scalar_mul<'a, CS, I, J, B>(
         _: CS,
         _: &[B],
@@ -160,6 +169,17 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
     fn cost_of_add() -> usize;
 
     fn cost_of_double() -> usize;
+}
+
+pub trait AffineGroupGadget<
+    G: ProjectiveCurve,
+    ConstraintF: Field,
+    F: FieldGadget<G::BaseField, ConstraintF>
+>:  GroupGadget<G, ConstraintF>
+
+{
+    fn get_x(&self) -> F;
+    fn get_y(&self) -> F;
 }
 
 #[cfg(test)]
