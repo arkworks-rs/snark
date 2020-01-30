@@ -17,7 +17,6 @@ where
     }
 }
 
-#[cfg(test)]
 pub fn test_rng() -> rand::rngs::StdRng {
     use rand::SeedableRng;
 

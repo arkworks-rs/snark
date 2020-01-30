@@ -1,10 +1,10 @@
 use crate::{domain::*, multicore::*, Vec};
 use algebra::{
+    test_rng,
     curves::{bls12_381::Bls12_381, PairingEngine},
     UniformRand,
 };
 use core::cmp::min;
-use rand::rngs::OsRng;
 
 // Test multiplying various (low degree) polynomials together and
 // comparing with naive evaluations.
@@ -39,7 +39,7 @@ fn fft_composition() {
         }
     }
 
-    let rng = &mut OsRng;
+    let rng = &mut test_rng();
 
     test_fft_composition::<Bls12_381, _>(rng);
 }
@@ -68,7 +68,7 @@ fn parallel_fft_consistency() {
         }
     }
 
-    let rng = &mut OsRng;
+    let rng = &mut test_rng();
 
     test_consistency::<Bls12_381, _>(rng);
 }

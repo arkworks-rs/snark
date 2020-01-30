@@ -1,6 +1,7 @@
 //! This crate implements functions for manipulating polynomials over finite
 //! fields, including FFTs.
-#![cfg_attr(not(feature = "std"), no_std)]
+// this crate is not yet no_std
+#![no_std]
 #![deny(unused_import_braces, trivial_casts, bare_trait_objects, missing_docs)]
 #![deny(unused_qualifications, variant_size_differences, stable_features)]
 #![deny(non_shorthand_field_patterns, unused_attributes, unused_imports)]
@@ -10,8 +11,10 @@
 #![forbid(unsafe_code)]
 
 #[cfg(not(feature = "std"))]
-#[macro_use]
 extern crate alloc;
+
+#[macro_use]
+extern crate std;
 
 #[cfg(not(feature = "std"))]
 pub(crate) use alloc::{borrow::Cow, collections::BTreeMap, vec::Vec};

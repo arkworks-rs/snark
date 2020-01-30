@@ -454,12 +454,12 @@ impl<F: PrimeField> Iterator for Elements<F> {
 #[cfg(test)]
 mod tests {
     use crate::EvaluationDomain;
-    use algebra::{fields::bls12_381::fr::Fr, Field, Zero};
-    use rand::{rngs::OsRng, Rng};
+    use algebra::{test_rng, fields::bls12_381::fr::Fr, Field, Zero};
+    use rand::Rng;
 
     #[test]
     fn vanishing_polynomial_evaluation() {
-        let rng = &mut OsRng;
+        let rng = &mut test_rng();
         for coeffs in 0..10 {
             let domain = EvaluationDomain::<Fr>::new(coeffs).unwrap();
             let z = domain.vanishing_polynomial();

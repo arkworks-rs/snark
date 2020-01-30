@@ -9,7 +9,7 @@ authors = [
     "Pratyush Mishra",
     "Howard Wu"
 ]
-description = "A library for finite fields and elliptic curves"
+description = "A benchmark library for finite fields and elliptic curves"
 homepage = "https://libzexe.org"
 repository = "https://github.com/scipr/zexe"
 documentation = "https://docs.rs/algebra/"
@@ -25,3 +25,5 @@ edition = "2018"
 algebra = { path = "../algebra", features = ["std"] }
 blake2 = "0.8.1"
 criterion = "0.3.1"
+rand = "0.7"
+rand_xorshift = { version = "0.2" }
