@@ -1,5 +1,4 @@
 use crate::{
-    test_rng,
     biginteger::BigInteger384,
     curves::{
         bls12_381::{
@@ -16,7 +15,7 @@ use crate::{
         Field, PrimeField, SquareRootField,
     },
     groups::tests::group_test,
-    CanonicalSerialize,
+    test_rng, CanonicalSerialize,
 };
 use core::ops::{AddAssign, MulAssign};
 use num_traits::{One, Zero};

@@ -1,5 +1,4 @@
 use crate::{
-    test_rng,
     curves::{
         mnt6::{
             g1::MNT6G1Parameters, g2::MNT6G2Parameters, G1Affine, G1Projective, G2Affine,
@@ -11,7 +10,7 @@ use crate::{
     },
     fields::mnt6::fr::Fr,
     groups::tests::group_test,
-    CanonicalSerialize,
+    test_rng, CanonicalSerialize,
 };
 use num_traits::One;
 use rand::Rng;

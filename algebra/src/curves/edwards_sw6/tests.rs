@@ -1,5 +1,4 @@
 use crate::{
-    test_rng,
     curves::{
         edwards_sw6::*,
         models::twisted_edwards_extended::{
@@ -10,7 +9,7 @@ use crate::{
         AffineCurve, ProjectiveCurve,
     },
     groups::tests::group_test,
-    CanonicalSerialize,
+    test_rng, CanonicalSerialize,
 };
 use rand::Rng;
 

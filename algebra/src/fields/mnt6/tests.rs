@@ -1,7 +1,6 @@
 use crate::{
-    test_rng,
     fields::tests::{field_test, frobenius_test, primefield_test, sqrt_field_test},
-    Field,
+    test_rng, Field,
 };
 use rand::Rng;
 

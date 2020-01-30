@@ -1,6 +1,5 @@
 #![allow(unused_imports)]
 use crate::{
-    test_rng,
     curves::{
         bls12_377::{
             g1::Bls12_377G1Parameters, g2::Bls12_377G2Parameters, Bls12_377, G1Affine,
@@ -15,7 +14,7 @@ use crate::{
         Field, FpParameters, SquareRootField,
     },
     groups::tests::group_test,
-    CanonicalSerialize,
+    test_rng, CanonicalSerialize,
 };
 use core::ops::{AddAssign, MulAssign};
 use num_traits::{One, Zero};

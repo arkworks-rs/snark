@@ -1,5 +1,4 @@
 use crate::{
-    test_rng,
     biginteger::BigInteger256 as BigInteger,
     bytes::{FromBytes, ToBytes},
     fields::{
@@ -9,6 +8,7 @@ use crate::{
         LegendreSymbol::*,
         PrimeField, SquareRootField,
     },
+    test_rng,
 };
 use core::str::FromStr;
 use num_traits::{One, Zero};

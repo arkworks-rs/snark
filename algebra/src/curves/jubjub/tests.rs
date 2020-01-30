@@ -1,5 +1,4 @@
 use crate::{
-    test_rng,
     bytes::{FromBytes, ToBytes},
     curves::{
         jubjub::*,
@@ -12,7 +11,7 @@ use crate::{
     },
     fields::jubjub::fr::Fr,
     groups::tests::group_test,
-    CanonicalSerialize,
+    test_rng, CanonicalSerialize,
 };
 use core::str::FromStr;
 use num_traits::Zero;

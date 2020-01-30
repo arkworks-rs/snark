@@ -1,5 +1,4 @@
 use crate::{
-    test_rng,
     biginteger::{BigInteger, BigInteger384},
     fields::{
         bls12_377::{Fq, Fq12, Fq2, Fq2Parameters, Fq6, Fq6Parameters, FqParameters},
@@ -9,7 +8,7 @@ use crate::{
         },
         Field, Fp2Parameters, FpParameters, PrimeField, SquareRootField,
     },
-    CanonicalSerialize, UniformRand,
+    test_rng, CanonicalSerialize, UniformRand,
 };
 use core::{
     cmp::Ordering,

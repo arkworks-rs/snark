@@ -1,5 +1,4 @@
 use crate::{
-    test_rng,
     curves::{
         models::short_weierstrass_jacobian::GroupAffine,
         sw6::{
@@ -10,7 +9,7 @@ use crate::{
         AffineCurve, PairingEngine,
     },
     groups::tests::group_test,
-    CanonicalSerialize,
+    test_rng, CanonicalSerialize,
 };
 use num_traits::One;
 use rand::Rng;
