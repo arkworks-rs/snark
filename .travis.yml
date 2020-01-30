@@ -42,4 +42,5 @@ matrix:
 
 
 script:
-  - sudo bash $SCRIPT
+  - chmod +x $SCRIPT
+  - bash $SCRIPT
