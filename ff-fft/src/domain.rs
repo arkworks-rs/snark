@@ -14,6 +14,7 @@ use std::fmt;
 use algebra::{FpParameters, PrimeField};
 use rayon::prelude::*;
 use rand::Rng;
+use std::time::Instant;
 
 use super::multicore::Worker;
 
@@ -118,8 +119,11 @@ impl<F: PrimeField> EvaluationDomain<F> {
 
     /// Compute a FFT, modifying the vector in place.
     pub fn fft_in_place(&self, coeffs: &mut Vec<F>)  {
+        let start = Instant::now();
         coeffs.resize(self.size(), F::zero());
-        best_fft(coeffs, &Worker::new(), self.group_gen, self.log_size_of_group)
+        best_fft(coeffs, &Worker::new(), self.group_gen, self.log_size_of_group) ;
+        let after = start.elapsed();
+        println!("fft_in_place {} {:?}", coeffs.len(), after);
     }
 
     /// Compute a IFFT.
