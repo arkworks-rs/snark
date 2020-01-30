@@ -13,14 +13,14 @@ impl<F: Field> AsRef<[(Variable, F)]> for LinearCombination<F> {
 impl<F: Field> From<(F, Variable)> for LinearCombination<F> {
     #[inline]
     fn from((coeff, var): (F, Variable)) -> Self {
-        LinearCombination(smallvec!((var, coeff)))
+        LinearCombination(smallvec![(var, coeff)])
     }
 }
 
 impl<F: Field> From<Variable> for LinearCombination<F> {
     #[inline]
     fn from(var: Variable) -> Self {
-        LinearCombination(smallvec!((var, F::one())))
+        LinearCombination(smallvec![(var, F::one())])
     }
 }
 

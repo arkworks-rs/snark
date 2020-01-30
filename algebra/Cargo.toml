@@ -31,5 +31,6 @@ rayon = { version = "1", optional = true }
 rand_xorshift = "0.2"
 
 [features]
+default = ["std"]
 std = []
 parallel = ["std", "rayon"]

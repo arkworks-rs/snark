@@ -17,6 +17,7 @@ where
     }
 }
 
+/// Should be used only for tests, not for any real world usage.
 pub fn test_rng() -> rand::rngs::StdRng {
     use rand::SeedableRng;
 

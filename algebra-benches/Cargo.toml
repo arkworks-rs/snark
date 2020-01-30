@@ -18,11 +18,12 @@ categories = ["cryptography"]
 include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
 license = "MIT/Apache-2.0"
 edition = "2018"
+publish = false
 
 ################################# Dependencies ################################
 
 [dev-dependencies]
-algebra = { path = "../algebra", features = ["std"] }
+algebra = { path = "../algebra" }
 blake2 = "0.8.1"
 criterion = "0.3.1"
 rand = "0.7"

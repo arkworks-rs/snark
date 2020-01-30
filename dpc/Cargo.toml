@@ -22,8 +22,8 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-algebra = { path = "../algebra", features = ["std"] }
-r1cs-core = { path = "../r1cs-core", features = ["std"] }
+algebra = { path = "../algebra" }
+r1cs-core = { path = "../r1cs-core" }
 r1cs-std = { path = "../r1cs-std" }
 crypto-primitives = { path = "../crypto-primitives", features = [ "gm17", "r1cs" ] }
 gm17 = { path = "../gm17" }
