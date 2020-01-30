@@ -4,6 +4,8 @@ use std::{
     hash::Hash,
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
     str::FromStr,
+    error::Error,
+    io::{Error as ErrorImpl, ErrorKind},
 };
 
 #[macro_use]
@@ -316,6 +318,36 @@ impl<F: PrimeField> FromBits for F {
                 Err(e)
             }
         }
+    }
+}
+
+/// Converts an element belonging to field FromF to an element belonging to field ToF.
+/// If `from` is not a valid element for field ToF, this function returns None.
+pub fn project<FromF: PrimeField, ToF: PrimeField>(from: FromF) -> Result<ToF, Box<dyn Error>> {
+    //ToF::from_random_bytes(to_bytes!(from).unwrap().as_slice()).unwrap()
+
+    // This gives different MontRepr from primitive and gadget (since we are in two different
+    // fields), but the same bit representation (since into_repr() is called whenever
+    // passing to bits), and the same bit representation is what we need for the mul_bits
+    // gadget that works on bits.
+    let new = ToF::read_bits(from.write_bits());
+
+    // The one below, instead, gives the same MontRepr but different bit representation, and the
+    // gadget verification of the primitive signature fails.
+    //
+    //ToF::from_repr_raw(ToF::BigInt::from_bits(from.into_repr_raw().to_bits().as_slice()))
+
+    //However, we should decide whether this conversion is "safe", i.e. if there aren't collisions
+    //or situations in which ToF::from_repr(...) returns zero, resulting in a null signature.
+    //Note that the to_bits algorithm looks the same as the Coda "project" which is used
+    //in signatures, that basically reconstruct a vector of u64 as a BigInteger from an
+    //underlying bit representation which is the result of "unpacking" a field element.
+    match new == ToF::zero() {
+        true => {
+            let e = ErrorImpl::new(ErrorKind::Other, "Invalid element for destination field");
+            Err(Box::new(e))
+        },
+        false => Ok(new)
     }
 }
 

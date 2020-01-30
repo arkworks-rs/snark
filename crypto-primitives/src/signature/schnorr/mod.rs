@@ -229,6 +229,7 @@ impl<ConstraintF: Field, G: Group + ToConstraintField<ConstraintF>, D: Digest>
     }
 }
 
+//TODO: Replace to_bytes with to_bits
 mod field_impl {
 
     use crate::{
@@ -238,7 +239,7 @@ mod field_impl {
     };
     use algebra::{
         Field, PrimeField, Group, UniformRand, to_bytes, ToBytes, FromBytes,
-        AffineCurve, ProjectiveCurve, BigInteger,
+        AffineCurve, ProjectiveCurve, project,
     };
     use std::marker::PhantomData;
     use rand::Rng;
@@ -256,38 +257,6 @@ mod field_impl {
         _field:    PhantomData<F>,
         _group:    PhantomData<G>,
         _hash:     PhantomData<H>,
-    }
-
-    //TODO: Move this method elsewhere
-    impl<F, G, H> FieldBasedSchnorrSignatureScheme<F, G, H>
-        where
-            F: PrimeField,
-            G: ProjectiveCurve<BaseField = F>,
-            H: FieldBasedHash<Data = F>
-    {
-        fn project<FromF: PrimeField, ToF: PrimeField>(from: FromF) -> ToF {
-            //ToF::from_random_bytes(to_bytes!(from).unwrap().as_slice()).unwrap()
-
-            // This gives different MontRepr from primitive and gadget (since we are in two different
-            // fields), but the same bit representation (since into_repr() is called whenever
-            // passing to bits), and the same bit representation is what we need for the mul_bits
-            // gadget that works on bits.
-            let new = ToF::from_repr(ToF::BigInt::from_bits(from.into_repr().to_bits().as_slice()));
-
-
-            // The one below, instead, gives the same MontRepr but different bit representation, and the
-            // gadget verification of the primitive signature fails.
-            //
-            //ToF::from_repr_raw(ToF::BigInt::from_bits(from.into_repr_raw().to_bits().as_slice()))
-
-            //However, we should decide whether this conversion is "safe", i.e. if there aren't collisions
-            //or situations in which ToF::from_repr(...) returns zero, resulting in a null signature.
-            //Note that the to_bits algorithm looks the same as the Coda "project" which is used
-            //in signatures.
-
-            debug_assert!(new != ToF::zero());
-            new
-        }
     }
 
     #[derive(Derivative)]
@@ -345,14 +314,15 @@ mod field_impl {
         {
             // Compute k' = H(m || pk || sk)
             let pk = pk.into_affine();
+            let sk_b = project::<G::ScalarField, F>(*sk)?;
             let mut hash_input = Vec::new();
             hash_input.extend_from_slice(message);
             hash_input.push(pk.get_x());
             hash_input.push(pk.get_y());
-            hash_input.push(Self::project::<G::ScalarField, F>(*sk));
+            hash_input.push(sk_b);
             let hr = H::evaluate(hash_input.as_ref())?;
 
-            let k_prime = Self::project::<F, G::ScalarField>(hr);
+            let k_prime = project::<F, G::ScalarField>(hr)?;
 
             // Assert k' != 0
             assert!(!k_prime.is_zero());
@@ -371,7 +341,7 @@ mod field_impl {
             hash_input.push(pk.get_x());
             hash_input.push(pk.get_y());
             let hr = H::evaluate(hash_input.as_ref())?;
-            let e =  Self::project::<F, G::ScalarField>(hr);
+            let e =  project::<F, G::ScalarField>(hr)?;
 
             let signature = FieldBasedSchnorrSignature {
                 r: r.get_x(),
@@ -403,7 +373,7 @@ mod field_impl {
             hash_input.push(pk.get_y());
             let hr = H::evaluate(hash_input.as_ref())?;
 
-            let e_prime =  Self::project::<F, G::ScalarField>(hr);
+            let e_prime =  project::<F, G::ScalarField>(hr)?;
 
             //Compute R' = s*G - e' * pk
             let r_prime = {
