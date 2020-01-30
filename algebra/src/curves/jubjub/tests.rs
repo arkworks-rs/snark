@@ -1,4 +1,5 @@
 use crate::{
+    test_rng,
     bytes::{FromBytes, ToBytes},
     curves::{
         jubjub::*,
@@ -15,7 +16,7 @@ use crate::{
 };
 use core::str::FromStr;
 use num_traits::Zero;
-use rand::{rngs::OsRng, Rng};
+use rand::Rng;
 
 #[test]
 fn test_projective_curve() {
@@ -27,8 +28,9 @@ fn test_projective_curve() {
 
 #[test]
 fn test_projective_group() {
-    let a = OsRng.gen();
-    let b = OsRng.gen();
+    let mut rng = test_rng();
+    let a = rng.gen();
+    let b = rng.gen();
     for _i in 0..100 {
         group_test::<JubJubProjective>(a, b);
     }
@@ -36,8 +38,9 @@ fn test_projective_group() {
 
 #[test]
 fn test_affine_group() {
-    let a: JubJubAffine = OsRng.gen();
-    let b: JubJubAffine = OsRng.gen();
+    let mut rng = test_rng();
+    let a: JubJubAffine = rng.gen();
+    let b: JubJubAffine = rng.gen();
     for _i in 0..100 {
         group_test::<JubJubAffine>(a, b);
     }
@@ -52,8 +55,9 @@ fn test_generator() {
 
 #[test]
 fn test_conversion() {
-    let a: JubJubAffine = OsRng.gen();
-    let b: JubJubAffine = OsRng.gen();
+    let mut rng = test_rng();
+    let a: JubJubAffine = rng.gen();
+    let b: JubJubAffine = rng.gen();
     let a_b = {
         use crate::groups::Group;
         (a + &b).double().double()

@@ -1,4 +1,5 @@
 use crate::{
+    test_rng,
     curves::{
         models::short_weierstrass_jacobian::GroupAffine,
         sw6::{
@@ -12,7 +13,7 @@ use crate::{
     CanonicalSerialize,
 };
 use num_traits::One;
-use rand::{rngs::OsRng, Rng};
+use rand::Rng;
 
 #[test]
 fn test_g1_projective_curve() {
@@ -24,8 +25,9 @@ fn test_g1_projective_curve() {
 
 #[test]
 fn test_g1_projective_group() {
-    let a: G1Projective = OsRng.gen();
-    let b: G1Projective = OsRng.gen();
+    let mut rng = test_rng();
+    let a: G1Projective = rng.gen();
+    let b: G1Projective = rng.gen();
     group_test(a, b);
 }
 
@@ -46,8 +48,9 @@ fn test_g2_projective_curve() {
 
 #[test]
 fn test_g2_projective_group() {
-    let a: G2Projective = OsRng.gen();
-    let b: G2Projective = OsRng.gen();
+    let mut rng = test_rng();
+    let a: G2Projective = rng.gen();
+    let b: G2Projective = rng.gen();
     group_test(a, b);
 }
 
@@ -65,9 +68,10 @@ fn test_bilinearity() {
         Field, PrimeField,
     };
 
-    let a: G1Projective = OsRng.gen();
-    let b: G2Projective = OsRng.gen();
-    let s: Fr = OsRng.gen();
+    let mut rng = test_rng();
+    let a: G1Projective = rng.gen();
+    let b: G2Projective = rng.gen();
+    let s: Fr = rng.gen();
 
     let sa = a * &s;
     let sb = b * &s;

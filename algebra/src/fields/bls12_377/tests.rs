@@ -1,4 +1,5 @@
 use crate::{
+    test_rng,
     biginteger::{BigInteger, BigInteger384},
     fields::{
         bls12_377::{Fq, Fq12, Fq2, Fq2Parameters, Fq6, Fq6Parameters, FqParameters},
@@ -15,7 +16,7 @@ use core::{
     ops::{AddAssign, MulAssign, SubAssign},
 };
 use num_traits::{One, Zero};
-use rand::{rngs::OsRng, Rng, SeedableRng};
+use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 
 pub(crate) const ITERATIONS: usize = 5;
@@ -24,9 +25,10 @@ pub(crate) const ITERATIONS: usize = 5;
 fn test_bls12_377_fr() {
     use crate::fields::bls12_377::Fr;
 
+    let mut rng = test_rng();
     for _ in 0..ITERATIONS {
-        let a: Fr = OsRng.gen();
-        let b: Fr = OsRng.gen();
+        let a: Fr = rng.gen();
+        let b: Fr = rng.gen();
         field_test(a, b);
         primefield_test::<Fr>();
         sqrt_field_test(b);
@@ -39,9 +41,10 @@ fn test_bls12_377_fr() {
 fn test_bls12_377_fq() {
     use crate::fields::bls12_377::Fq;
 
+    let mut rng = test_rng();
     for _ in 0..ITERATIONS {
-        let a: Fq = OsRng.gen();
-        let b: Fq = OsRng.gen();
+        let a: Fq = rng.gen();
+        let b: Fq = rng.gen();
         field_test(a, b);
         primefield_test::<Fq>();
         sqrt_field_test(a);
@@ -54,9 +57,10 @@ fn test_bls12_377_fq() {
 fn test_bls12_377_fq2() {
     use crate::fields::bls12_377::{Fq, Fq2};
 
+    let mut rng = test_rng();
     for _ in 0..ITERATIONS {
-        let a: Fq2 = OsRng.gen();
-        let b: Fq2 = OsRng.gen();
+        let a: Fq2 = rng.gen();
+        let b: Fq2 = rng.gen();
         field_test(a, b);
         sqrt_field_test(a);
     }
@@ -69,9 +73,10 @@ fn test_bls12_377_fq2() {
 fn test_bls12_377_fq6() {
     use crate::fields::bls12_377::{Fq, Fq6};
 
+    let mut rng = test_rng();
     for _ in 0..ITERATIONS {
-        let g: Fq6 = OsRng.gen();
-        let h: Fq6 = OsRng.gen();
+        let g: Fq6 = rng.gen();
+        let h: Fq6 = rng.gen();
         field_test(g, h);
     }
     frobenius_test::<Fq6, _>(Fq::characteristic(), 13);
@@ -83,9 +88,10 @@ fn test_bls12_377_fq6() {
 fn test_bls12_377_fq12() {
     use crate::fields::bls12_377::{Fq, Fq12};
 
+    let mut rng = test_rng();
     for _ in 0..ITERATIONS {
-        let g: Fq12 = OsRng.gen();
-        let h: Fq12 = OsRng.gen();
+        let g: Fq12 = rng.gen();
+        let h: Fq12 = rng.gen();
         field_test(g, h);
     }
     frobenius_test::<Fq12, _>(Fq::characteristic(), 13);

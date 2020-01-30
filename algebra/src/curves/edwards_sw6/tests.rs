@@ -1,4 +1,5 @@
 use crate::{
+    test_rng,
     curves::{
         edwards_sw6::*,
         models::twisted_edwards_extended::{
@@ -11,7 +12,7 @@ use crate::{
     groups::tests::group_test,
     CanonicalSerialize,
 };
-use rand::{rngs::OsRng, Rng};
+use rand::Rng;
 
 #[test]
 fn test_projective_curve() {
@@ -23,8 +24,9 @@ fn test_projective_curve() {
 
 #[test]
 fn test_projective_group() {
-    let a = OsRng.gen();
-    let b = OsRng.gen();
+    let mut rng = test_rng();
+    let a = rng.gen();
+    let b = rng.gen();
     for _i in 0..100 {
         group_test::<EdwardsProjective>(a, b);
     }
@@ -32,8 +34,9 @@ fn test_projective_group() {
 
 #[test]
 fn test_affine_group() {
-    let a: EdwardsAffine = OsRng.gen();
-    let b: EdwardsAffine = OsRng.gen();
+    let mut rng = test_rng();
+    let a: EdwardsAffine = rng.gen();
+    let b: EdwardsAffine = rng.gen();
     for _i in 0..100 {
         group_test::<EdwardsAffine>(a, b);
     }
@@ -48,8 +51,9 @@ fn test_generator() {
 
 #[test]
 fn test_conversion() {
-    let a: EdwardsAffine = OsRng.gen();
-    let b: EdwardsAffine = OsRng.gen();
+    let mut rng = test_rng();
+    let a: EdwardsAffine = rng.gen();
+    let b: EdwardsAffine = rng.gen();
     let a_b = {
         use crate::groups::Group;
         (a + &b).double().double()

@@ -1,5 +1,5 @@
 [package]
-name = "algebra"
+name = "algebra-benches"
 version = "0.1.0"
 authors = [
     "Sean Bowe",
@@ -21,15 +21,7 @@ edition = "2018"
 
 ################################# Dependencies ################################
 
-[dependencies]
-rand = { version = "0.7", default-features = false }
-derivative = { version = "1", features = ["use_core"] }
-num-traits = { version = "0.2", default-features = false }
-rayon = { version = "1", optional = true }
-
 [dev-dependencies]
-rand_xorshift = { version = "0.2" }
-
-[features]
-std = []
-parallel = ["std", "rayon"]
+algebra = { path = "../algebra", features = ["std"] }
+blake2 = "0.8.1"
+criterion = "0.3.1"

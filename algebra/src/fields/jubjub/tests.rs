@@ -1,4 +1,5 @@
 use crate::{
+    test_rng,
     biginteger::BigInteger256 as BigInteger,
     bytes::{FromBytes, ToBytes},
     fields::{
@@ -11,20 +12,22 @@ use crate::{
 };
 use core::str::FromStr;
 use num_traits::{One, Zero};
-use rand::{rngs::OsRng, Rng};
+use rand::Rng;
 
 #[test]
 fn test_jubjub_fr() {
-    let a: Fr = OsRng.gen();
-    let b: Fr = OsRng.gen();
+    let mut rng = test_rng();
+    let a: Fr = rng.gen();
+    let b: Fr = rng.gen();
     field_test(a, b);
     primefield_test::<Fr>();
 }
 
 #[test]
 fn test_jubjub_fq() {
-    let a: Fq = OsRng.gen();
-    let b: Fq = OsRng.gen();
+    let mut rng = test_rng();
+    let a: Fq = rng.gen();
+    let b: Fq = rng.gen();
     field_test(a, b);
     primefield_test::<Fq>();
 }

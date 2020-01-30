@@ -1,12 +1,16 @@
-use crate::fields::tests::{field_test, primefield_test};
-use rand::{rngs::OsRng, Rng};
+use crate::{
+    test_rng,
+    fields::tests::{field_test, primefield_test}
+};
+use rand::Rng;
 
 #[test]
 fn test_edwards_sw6_fr() {
     use crate::fields::edwards_sw6::fr::Fr;
 
-    let a: Fr = OsRng.gen();
-    let b: Fr = OsRng.gen();
+    let mut rng = test_rng();
+    let a: Fr = rng.gen();
+    let b: Fr = rng.gen();
     field_test(a, b);
     primefield_test::<Fr>();
 }
@@ -15,8 +19,9 @@ fn test_edwards_sw6_fr() {
 fn test_edwards_sw6_fq() {
     use crate::fields::edwards_sw6::fq::Fq;
 
-    let a: Fq = OsRng.gen();
-    let b: Fq = OsRng.gen();
+    let mut rng = test_rng();
+    let a: Fq = rng.gen();
+    let b: Fq = rng.gen();
     field_test(a, b);
     primefield_test::<Fq>();
 }
