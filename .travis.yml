@@ -42,4 +42,4 @@ matrix:
 
 
 script:
-  - bash $SCRIPT
+  - sudo bash $SCRIPT
