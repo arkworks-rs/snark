@@ -35,7 +35,7 @@ matrix:
     - env: TARGET="x86_64-unknown-linux-gnu" TEST="test --all -- --skip dpc --skip integration_test" CHECK="check --examples --all"
       rust: nightly
 
-    - env: TARGET="thumbv6m-none-eabi" TEST="test -p algebra -p r1cs-core" CHECK="check --examples -p algebra -p r1cs-core"
+    - env: TARGET="thumbv6m-none-eabi" TEST="build -p algebra -p r1cs-core" CHECK="check --examples -p algebra -p r1cs-core"
       rust: stable
 
 
