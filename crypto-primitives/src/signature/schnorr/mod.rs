@@ -405,41 +405,49 @@ mod test {
     type SchnorrMNT4 = FieldBasedSchnorrSignatureScheme<MNT4Fr, MNT6G1Projective, MNT4PoseidonHash>;
     type SchnorrMNT6 = FieldBasedSchnorrSignatureScheme<MNT6Fr, MNT4G1Projective, MNT6PoseidonHash>;
 
-    fn sign_and_verify<S: FieldBasedSignatureScheme>(message: &[S::Data]) {
-        let rng = &mut thread_rng();
+    fn sign_and_verify<S: FieldBasedSignatureScheme, R: Rng>(rng: &mut R, message: &[S::Data]) {
         let (pk, sk) = S::keygen(rng).unwrap();
         let sig = S::sign(&pk, &sk, &message).unwrap();
         assert!(S::verify(&pk, &message, &sig).unwrap());
     }
 
-    fn failed_verification<S: FieldBasedSignatureScheme>(message: &[S::Data], bad_message: &[S::Data]) {
-        let rng = &mut thread_rng();
+    fn failed_verification<S: FieldBasedSignatureScheme, R: Rng>(rng: &mut R, message: &[S::Data], bad_message: &[S::Data]) {
         let (pk, sk) = S::keygen(rng).unwrap();
+
+        //Attempt to verify a signature for a different message
         let sig = S::sign(&pk, &sk, message).unwrap();
         assert!(!S::verify(&pk, bad_message, &sig).unwrap());
+
+        //Attempt to verify a different signature for a message
+        let bad_sig = S::sign(&pk, &sk, bad_message).unwrap();
+        assert!(!S::verify(&pk, message, &bad_sig).unwrap());
+
+        //Attempt to verify a signature for a message but with different public key
+        let (new_pk, _) = S::keygen(rng).unwrap();
+        assert!(!S::verify(&new_pk, message, &sig).unwrap());
     }
 
     #[test]
     fn mnt4_schnorr_test() {
+        let rng = &mut thread_rng();
         let samples = 100;
         for _ in 0..samples {
-            let rng = &mut thread_rng();
             let f: MNT4Fr = rng.gen();
             let g: MNT4Fr = rng.gen();
-            sign_and_verify::<SchnorrMNT4>(&[f, g]);
-            failed_verification::<SchnorrMNT4>(&[f], &[g]);
+            sign_and_verify::<SchnorrMNT4, _>(rng, &[f, g]);
+            failed_verification::<SchnorrMNT4, _>(rng, &[f], &[g]);
         }
     }
 
     #[test]
     fn mnt6_schnorr_test() {
+        let rng = &mut thread_rng();
         let samples = 100;
         for _ in 0..samples{
-            let rng = &mut thread_rng();
             let f: MNT6Fr = rng.gen();
             let g: MNT6Fr = rng.gen();
-            sign_and_verify::<SchnorrMNT6>(&[f, g]);
-            failed_verification::<SchnorrMNT6>(&[f], &[g]);
+            sign_and_verify::<SchnorrMNT6, _>(rng,&[f, g]);
+            failed_verification::<SchnorrMNT6, _>(rng, &[f], &[g]);
         }
     }
 }

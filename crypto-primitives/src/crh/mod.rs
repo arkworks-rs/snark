@@ -67,7 +67,10 @@ impl<F: Field, P: FieldBasedHashParameters<Fr = F>> FieldBasedHash for PoseidonH
     type Parameters = P;
 
     fn evaluate(input: &[F]) -> Result<F, Error> {
-        Ok(input[0])
+        //Dummy impl, just for test
+        let mut res = F::zero();
+        input.iter().for_each(|f| res += f);
+        Ok(res)
     }
 }
 

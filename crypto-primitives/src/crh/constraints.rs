@@ -101,11 +101,17 @@ for PoseidonHashGadget<ConstraintF, P>
 
     fn check_evaluation_gadget<CS: ConstraintSystem<ConstraintF>>
     (
-        _cs: CS,
+        mut cs: CS,
         input: &[Self::DataGadget]
     ) -> Result<Self::DataGadget, SynthesisError>
+
     {
-        Ok(input[0].clone())
+        //Dummy impl, just for test
+        let mut res = Self::DataGadget::zero(cs.ns(|| "alloc result"))?;
+        for (i, fg) in input.iter().enumerate() {
+            res = res.add(cs.ns(|| format!("add_{}", i)), fg)?;
+        }
+        Ok(res)
     }
 }
 

@@ -10,6 +10,7 @@ pub mod merkle_tree;
 pub mod nizk;
 pub mod prf;
 pub mod signature;
+pub mod vrf;
 
 pub use self::{
     commitment::CommitmentScheme,
@@ -33,6 +34,7 @@ pub type Error = Box<dyn std::error::Error>;
 pub enum CryptoError {
     IncorrectInputLength(usize),
     NotPrimeOrder,
+    FailedVerification,
 }
 
 impl std::fmt::Display for CryptoError {
@@ -40,6 +42,7 @@ impl std::fmt::Display for CryptoError {
         let msg = match self {
             CryptoError::IncorrectInputLength(len) => format!("input length is wrong: {}", len),
             CryptoError::NotPrimeOrder => "element is not prime order".to_owned(),
+            CryptoError::FailedVerification => "verification failed".to_owned(),
         };
         write!(f, "{}", msg)
     }
