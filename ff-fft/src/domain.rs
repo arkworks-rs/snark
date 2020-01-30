@@ -454,7 +454,7 @@ impl<F: PrimeField> Iterator for Elements<F> {
 #[cfg(test)]
 mod tests {
     use crate::EvaluationDomain;
-    use algebra::{test_rng, fields::bls12_381::fr::Fr, Field, Zero};
+    use algebra::{fields::bls12_381::fr::Fr, test_rng, Field, Zero};
     use rand::Rng;
 
     #[test]

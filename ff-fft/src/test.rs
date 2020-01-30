@@ -1,8 +1,7 @@
 use crate::{domain::*, multicore::*, Vec};
 use algebra::{
-    test_rng,
     curves::{bls12_381::Bls12_381, PairingEngine},
-    UniformRand,
+    test_rng, UniformRand,
 };
 use core::cmp::min;
 

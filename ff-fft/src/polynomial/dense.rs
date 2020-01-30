@@ -349,9 +349,8 @@ impl<'a, 'b, F: PrimeField> Mul<&'a DensePolynomial<F>> for &'b DensePolynomial<
 mod tests {
     use crate::polynomial::*;
     use algebra::{
-        test_rng,
         fields::{bls12_381::fr::Fr, Field},
-        One, UniformRand, Zero,
+        test_rng, One, UniformRand, Zero,
     };
 
     #[test]
