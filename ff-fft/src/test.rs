@@ -1,4 +1,4 @@
-use crate::{domain::*, multicore::*, Vec};
+use crate::{domain::*, Vec};
 use algebra::{
     curves::{bls12_381::Bls12_381, PairingEngine},
     test_rng, UniformRand,
@@ -30,7 +30,7 @@ fn fft_composition() {
 
             domain.coset_ifft_in_place(&mut v2);
             domain.coset_fft_in_place(&mut v2);
-            assert_eq!(v, v2, "coset_ifft(coset_fft(.)) != iden");
+            assert_eq!(v, v2, "coset_fft(coset_ifft(.)) != iden");
 
             domain.coset_fft_in_place(&mut v2);
             domain.coset_ifft_in_place(&mut v2);
@@ -46,8 +46,6 @@ fn fft_composition() {
 #[test]
 fn parallel_fft_consistency() {
     fn test_consistency<E: PairingEngine, R: rand::Rng>(rng: &mut R) {
-        let worker = Worker::new();
-
         for _ in 0..5 {
             for log_d in 0..10 {
                 let d = 1 << log_d;
@@ -58,7 +56,7 @@ fn parallel_fft_consistency() {
                 let domain = EvaluationDomain::new(v1.len()).unwrap();
 
                 for log_cpus in log_d..min(log_d + 1, 3) {
-                    parallel_fft(&mut v1, &worker, domain.group_gen, log_d, log_cpus);
+                    parallel_fft(&mut v1, domain.group_gen, log_d, log_cpus);
                     serial_fft(&mut v2, domain.group_gen, log_d);
 
                     assert_eq!(v1, v2);
