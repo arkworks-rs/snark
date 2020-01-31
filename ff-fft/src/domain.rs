@@ -16,8 +16,6 @@ use core::fmt;
 use rand::Rng;
 use rayon::prelude::*;
 
-use super::multicore::Worker;
-
 /// Defines a domain over which finite field (I)FFTs can be performed. Works
 /// only for fields that have a large multiplicative subgroup of size that is
 /// a power-of-2.
@@ -46,10 +44,6 @@ impl<F: PrimeField> fmt::Debug for EvaluationDomain<F> {
 }
 
 impl<F: PrimeField> EvaluationDomain<F> {
-    fn calculate_chunk_size(size: usize) -> usize {
-        size / rayon::current_num_threads()
-    }
-
     /// Sample an element that is *not* in the domain.
     pub fn sample_element_outside_domain<R: Rng>(&self, rng: &mut R) -> F {
         let mut t = F::rand(rng);
@@ -118,12 +112,7 @@ impl<F: PrimeField> EvaluationDomain<F> {
     /// Compute a FFT, modifying the vector in place.
     pub fn fft_in_place(&self, coeffs: &mut Vec<F>) {
         coeffs.resize(self.size(), F::zero());
-        best_fft(
-            coeffs,
-            &Worker::new(),
-            self.group_gen,
-            self.log_size_of_group,
-        )
+        best_fft(coeffs, self.group_gen, self.log_size_of_group)
     }
 
     /// Compute a IFFT.
@@ -137,27 +126,16 @@ impl<F: PrimeField> EvaluationDomain<F> {
     #[inline]
     pub fn ifft_in_place(&self, evals: &mut Vec<F>) {
         evals.resize(self.size(), F::zero());
-        best_fft(
-            evals,
-            &Worker::new(),
-            self.group_gen_inv,
-            self.log_size_of_group,
-        );
+        best_fft(evals, self.group_gen_inv, self.log_size_of_group);
         evals.par_iter_mut().for_each(|val| *val *= &self.size_inv);
     }
 
-    fn distribute_powers(coeffs: &mut Vec<F>, g: F) {
-        Worker::new().scope(coeffs.len(), |scope, chunk| {
-            for (i, v) in coeffs.chunks_mut(chunk).enumerate() {
-                scope.spawn(move |_| {
-                    let mut u = g.pow(&[(i * chunk) as u64]);
-                    for v in v.iter_mut() {
-                        *v *= &u;
-                        u *= &g;
-                    }
-                });
-            }
-        });
+    fn distribute_powers(coeffs: &mut [F], g: F) {
+        let mut pow = F::one();
+        coeffs.iter_mut().for_each(|c| {
+            *c *= &pow;
+            pow *= &g
+        })
     }
 
     /// Compute a FFT over a coset of the domain.
@@ -258,12 +236,7 @@ impl<F: PrimeField> EvaluationDomain<F> {
             .evaluate_vanishing_polynomial(F::multiplicative_generator())
             .inverse()
             .unwrap();
-
-        Worker::new().scope(evals.len(), |scope, chunk| {
-            for evals in evals.chunks_mut(chunk) {
-                scope.spawn(move |_| evals.iter_mut().for_each(|eval| *eval *= &i));
-            }
-        });
+        evals.par_iter_mut().for_each(|eval| *eval *= &i);
     }
 
     /// Given an index which assumes the first elements of this domain are the
@@ -296,6 +269,9 @@ impl<F: PrimeField> EvaluationDomain<F> {
     /// Perform O(n) multiplication of two polynomials that are presented by
     /// their evaluations in the domain.
     /// Returns the evaluations of the product over the domain.
+    ///
+    /// Assumes that the domain is large enough to allow for successful
+    /// interpolation after multiplication.
     #[must_use]
     pub fn mul_polynomials_in_evaluation_domain(
         &self,
@@ -304,40 +280,35 @@ impl<F: PrimeField> EvaluationDomain<F> {
     ) -> Vec<F> {
         assert_eq!(self_evals.len(), other_evals.len());
         let mut result = self_evals.to_vec();
-        let chunk_size = Self::calculate_chunk_size(self.size());
         result
-            .par_chunks_mut(chunk_size)
-            .zip(other_evals.par_chunks(chunk_size))
-            .for_each(|(a, b)| {
-                for (a, b) in a.iter_mut().zip(b) {
-                    *a *= b;
-                }
-            });
+            .par_iter_mut()
+            .zip(other_evals)
+            .for_each(|(a, b)| *a *= b);
         result
     }
 }
 
-fn best_fft<F: PrimeField>(a: &mut [F], worker: &Worker, omega: F, log_n: u32) {
-    let log_cpus = worker.log_num_cpus();
-
+fn best_fft<F: PrimeField>(a: &mut [F], omega: F, log_n: u32) {
+    let num_cpus = rayon::current_num_threads();
+    let log_cpus = log2_floor(num_cpus);
     if log_n <= log_cpus {
         serial_fft(a, omega, log_n);
     } else {
-        parallel_fft(a, worker, omega, log_n, log_cpus);
+        parallel_fft(a, omega, log_n, log_cpus);
     }
 }
 
-pub(crate) fn serial_fft<F: PrimeField>(a: &mut [F], omega: F, log_n: u32) {
-    #[inline]
-    fn bitreverse(mut n: u32, l: u32) -> u32 {
-        let mut r = 0;
-        for _ in 0..l {
-            r = (r << 1) | (n & 1);
-            n >>= 1;
-        }
-        r
+#[inline]
+fn bitreverse(mut n: u32, l: u32) -> u32 {
+    let mut r = 0;
+    for _ in 0..l {
+        r = (r << 1) | (n & 1);
+        n >>= 1;
     }
+    r
+}
 
+pub(crate) fn serial_fft<F: PrimeField>(a: &mut [F], omega: F, log_n: u32) {
     let n = a.len() as u32;
     assert_eq!(n, 1 << log_n);
 
@@ -372,13 +343,19 @@ pub(crate) fn serial_fft<F: PrimeField>(a: &mut [F], omega: F, log_n: u32) {
     }
 }
 
-pub(crate) fn parallel_fft<F: PrimeField>(
-    a: &mut [F],
-    worker: &Worker,
-    omega: F,
-    log_n: u32,
-    log_cpus: u32,
-) {
+pub(crate) fn log2_floor(num: usize) -> u32 {
+    assert!(num > 0);
+
+    let mut pow = 0;
+
+    while (1 << (pow + 1)) <= num {
+        pow += 1;
+    }
+
+    pow
+}
+
+pub(crate) fn parallel_fft<F: PrimeField>(a: &mut [F], omega: F, log_n: u32, log_cpus: u32) {
     assert!(log_n >= log_cpus);
 
     let num_cpus = 1 << log_cpus;
@@ -386,48 +363,31 @@ pub(crate) fn parallel_fft<F: PrimeField>(
     let mut tmp = vec![vec![F::zero(); 1 << log_new_n]; num_cpus];
     let new_omega = omega.pow(&[num_cpus as u64]);
 
-    worker.scope(0, |scope, _| {
-        let a = &*a;
+    tmp.par_iter_mut().enumerate().for_each(|(j, tmp)| {
+        // Shuffle into a sub-FFT
+        let omega_j = omega.pow(&[j as u64]);
+        let omega_step = omega.pow(&[(j as u64) << log_new_n]);
 
-        for (j, tmp) in tmp.iter_mut().enumerate() {
-            scope.spawn(move |_| {
-                // Shuffle into a sub-FFT
-                let omega_j = omega.pow(&[j as u64]);
-                let omega_step = omega.pow(&[(j as u64) << log_new_n]);
-
-                let mut elt = F::one();
-                for i in 0..(1 << log_new_n) {
-                    for s in 0..num_cpus {
-                        let idx = (i + (s << log_new_n)) % (1 << log_n);
-                        let mut t = a[idx];
-                        t *= &elt;
-                        tmp[i] += &t;
-                        elt *= &omega_step;
-                    }
-                    elt *= &omega_j;
-                }
-
-                // Perform sub-FFT
-                serial_fft(tmp, new_omega, log_new_n);
-            });
+        let mut elt = F::one();
+        for i in 0..(1 << log_new_n) {
+            for s in 0..num_cpus {
+                let idx = (i + (s << log_new_n)) % (1 << log_n);
+                let mut t = a[idx];
+                t *= &elt;
+                tmp[i] += &t;
+                elt *= &omega_step;
+            }
+            elt *= &omega_j;
         }
+
+        // Perform sub-FFT
+        serial_fft(tmp, new_omega, log_new_n);
     });
 
-    // TODO: does this hurt or help?
-    worker.scope(a.len(), |scope, chunk| {
-        let tmp = &tmp;
-
-        for (idx, a) in a.chunks_mut(chunk).enumerate() {
-            scope.spawn(move |_| {
-                let mut idx = idx * chunk;
-                let mask = (1 << log_cpus) - 1;
-                for a in a {
-                    *a = tmp[idx & mask][idx >> log_cpus];
-                    idx += 1;
-                }
-            });
-        }
-    });
+    let mask = (1 << log_cpus) - 1;
+    a.iter_mut()
+        .enumerate()
+        .for_each(|(i, a)| *a = tmp[i & mask][i >> log_cpus]);
 }
 
 /// An iterator over the elements of the domain.
