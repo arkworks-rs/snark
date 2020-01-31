@@ -1,3 +1,4 @@
+#![cfg_attr(not(feature = "std"), no_std)]
 #![deny(
     unused_import_braces,
     unused_qualifications,
@@ -32,6 +33,29 @@
     unsafe_code
 )]
 #![forbid(unsafe_code)]
+
+#[cfg(all(test, not(feature = "std")))]
+#[macro_use]
+extern crate std;
+
+/// this crate needs to be public, cause we expose `to_bytes!` macro
+/// see similar issue in [`smallvec#198`]
+///
+/// [`smallvec#198`]: https://github.com/servo/rust-smallvec/pull/198
+#[cfg(not(feature = "std"))]
+#[macro_use]
+#[doc(hidden)]
+pub extern crate alloc;
+
+#[cfg(not(feature = "std"))]
+#[allow(unused_imports)]
+#[doc(hidden)]
+pub use alloc::{boxed::Box, format, vec, vec::Vec};
+
+#[cfg(feature = "std")]
+#[allow(unused_imports)]
+#[doc(hidden)]
+pub use std::{boxed::Box, format, vec, vec::Vec};
 
 #[macro_use]
 extern crate derivative;
@@ -80,4 +104,20 @@ pub mod prelude {
     pub use crate::rand::UniformRand;
 
     pub use num_traits::{One, Zero};
+}
+
+#[cfg(not(feature = "std"))]
+pub mod io;
+
+#[cfg(feature = "std")]
+pub use std::io;
+
+#[cfg(not(feature = "std"))]
+fn error(_msg: &'static str) -> io::Error {
+    io::Error
+}
+
+#[cfg(feature = "std")]
+fn error(msg: &'static str) -> io::Error {
+    io::Error::new(io::ErrorKind::Other, msg)
 }

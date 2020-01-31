@@ -1,6 +1,7 @@
 //! A polynomial represented in coefficient form.
 
-use std::{
+use crate::Vec;
+use core::{
     fmt,
     ops::{Add, AddAssign, Deref, DerefMut, Div, Mul, Neg, Sub, SubAssign},
 };
@@ -349,13 +350,12 @@ mod tests {
     use crate::polynomial::*;
     use algebra::{
         fields::{bls12_381::fr::Fr, Field},
-        One, UniformRand, Zero,
+        test_rng, One, UniformRand, Zero,
     };
-    use rand::thread_rng;
 
     #[test]
     fn double_polynomials_random() {
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
         for degree in 0..70 {
             let p = DensePolynomial::<Fr>::rand(degree, rng);
             let p_double = &p + &p;
@@ -366,7 +366,7 @@ mod tests {
 
     #[test]
     fn add_polynomials() {
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
         for a_degree in 0..70 {
             for b_degree in 0..70 {
                 let p1 = DensePolynomial::<Fr>::rand(a_degree, rng);
@@ -380,7 +380,7 @@ mod tests {
 
     #[test]
     fn add_polynomials_with_mul() {
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
         for a_degree in 0..70 {
             for b_degree in 0..70 {
                 let mut p1 = DensePolynomial::rand(a_degree, rng);
@@ -399,7 +399,7 @@ mod tests {
 
     #[test]
     fn sub_polynomials() {
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
         let p1 = DensePolynomial::<Fr>::rand(5, rng);
         let p2 = DensePolynomial::<Fr>::rand(3, rng);
         let res1 = &p1 - &p2;
@@ -432,7 +432,7 @@ mod tests {
 
     #[test]
     fn divide_polynomials_random() {
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
 
         for a_degree in 0..70 {
             for b_degree in 0..70 {
@@ -450,7 +450,7 @@ mod tests {
 
     #[test]
     fn evaluate_polynomials() {
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
         for a_degree in 0..70 {
             let p = DensePolynomial::rand(a_degree, rng);
             let point: Fr = Fr::from(10u64);
@@ -464,7 +464,7 @@ mod tests {
 
     #[test]
     fn mul_polynomials_random() {
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
         for a_degree in 0..70 {
             for b_degree in 0..70 {
                 let a = DensePolynomial::<Fr>::rand(a_degree, rng);
@@ -476,7 +476,7 @@ mod tests {
 
     #[test]
     fn mul_by_vanishing_poly() {
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
         for size in 1..10 {
             let domain = EvaluationDomain::new(1 << size).unwrap();
             for degree in 0..70 {
@@ -491,7 +491,7 @@ mod tests {
     #[test]
     fn test_leading_zero() {
         let n = 10;
-        let rand_poly = DensePolynomial::rand(n, &mut thread_rng());
+        let rand_poly = DensePolynomial::rand(n, &mut test_rng());
         let coefficients = rand_poly.coeffs.clone();
         let leading_coefficient: Fr = coefficients[n];
 

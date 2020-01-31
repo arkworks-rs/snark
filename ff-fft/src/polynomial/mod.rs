@@ -1,8 +1,8 @@
 //! Work with sparse and dense polynomials.
 
-use crate::{EvaluationDomain, Evaluations};
+use crate::{Cow, EvaluationDomain, Evaluations, Vec};
 use algebra::{Field, PrimeField};
-use std::{borrow::Cow, convert::TryInto};
+use core::convert::TryInto;
 use DenseOrSparsePolynomial::*;
 
 mod dense;

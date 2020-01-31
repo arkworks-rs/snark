@@ -1,5 +1,6 @@
-use crate::prelude::{
-    AffineCurve, BigInteger, FpParameters, One, PrimeField, ProjectiveCurve, Zero,
+use crate::{
+    prelude::{AffineCurve, BigInteger, FpParameters, One, PrimeField, ProjectiveCurve, Zero},
+    Vec,
 };
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
@@ -14,7 +15,7 @@ impl VariableBaseMSM {
         let c = if scalars.len() < 32 {
             3
         } else {
-            (2.0 / 3.0 * (f64::from(scalars.len() as u32)).log2() + 2.0).ceil() as usize
+            super::ln_without_floats(scalars.len()) + 2
         };
 
         let num_bits = <G::ScalarField as PrimeField>::Params::MODULUS_BITS as usize;

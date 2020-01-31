@@ -11,11 +11,11 @@ use crate::{
     },
     fields::jubjub::fr::Fr,
     groups::tests::group_test,
-    CanonicalSerialize,
+    test_rng, CanonicalSerialize,
 };
+use core::str::FromStr;
 use num_traits::Zero;
-use rand;
-use std::str::FromStr;
+use rand::Rng;
 
 #[test]
 fn test_projective_curve() {
@@ -27,8 +27,9 @@ fn test_projective_curve() {
 
 #[test]
 fn test_projective_group() {
-    let a = rand::random();
-    let b = rand::random();
+    let mut rng = test_rng();
+    let a = rng.gen();
+    let b = rng.gen();
     for _i in 0..100 {
         group_test::<JubJubProjective>(a, b);
     }
@@ -36,8 +37,9 @@ fn test_projective_group() {
 
 #[test]
 fn test_affine_group() {
-    let a: JubJubAffine = rand::random();
-    let b: JubJubAffine = rand::random();
+    let mut rng = test_rng();
+    let a: JubJubAffine = rng.gen();
+    let b: JubJubAffine = rng.gen();
     for _i in 0..100 {
         group_test::<JubJubAffine>(a, b);
     }
@@ -52,8 +54,9 @@ fn test_generator() {
 
 #[test]
 fn test_conversion() {
-    let a: JubJubAffine = rand::random();
-    let b: JubJubAffine = rand::random();
+    let mut rng = test_rng();
+    let a: JubJubAffine = rng.gen();
+    let b: JubJubAffine = rng.gen();
     let a_b = {
         use crate::groups::Group;
         (a + &b).double().double()

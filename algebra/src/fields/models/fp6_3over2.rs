@@ -1,14 +1,17 @@
-use crate::{CanonicalDeserialize, CanonicalSerialize, SerializationError, UniformRand};
+use crate::{
+    io::{Read, Result as IoResult, Write},
+    CanonicalDeserialize, CanonicalSerialize, SerializationError, UniformRand,
+};
+use core::{
+    cmp::Ordering,
+    fmt,
+    marker::PhantomData,
+    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+};
 use num_traits::{One, Zero};
 use rand::{
     distributions::{Distribution, Standard},
     Rng,
-};
-use std::{
-    cmp::Ordering,
-    io::{Read, Result as IoResult, Write},
-    marker::PhantomData,
-    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
 
 use crate::{
@@ -266,8 +269,8 @@ impl<P: Fp6Parameters> Field for Fp6<P> {
     }
 }
 
-impl<P: Fp6Parameters> std::fmt::Display for Fp6<P> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<P: Fp6Parameters> fmt::Display for Fp6<P> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "Fq6_3over2({} + {} * v, {} * v^2)",

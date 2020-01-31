@@ -4,12 +4,12 @@ use crate::{
     groups::Group,
     UniformRand,
 };
-use num_traits::Zero;
-use std::{
+use core::{
     fmt::{Debug, Display},
     hash::Hash,
     ops::{Add, AddAssign, Neg, Sub, SubAssign},
 };
+use num_traits::Zero;
 
 pub mod bls12_377;
 pub mod bls12_381;

@@ -1,20 +1,21 @@
 use crate::{CanonicalDeserialize, CanonicalSerialize, SerializationError, UniformRand};
+use core::{
+    cmp::Ordering,
+    fmt,
+    marker::PhantomData,
+    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+};
 use num_traits::{One, Zero};
 use rand::{
     distributions::{Distribution, Standard},
     Rng,
-};
-use std::{
-    cmp::Ordering,
-    io::{Read, Result as IoResult, Write},
-    marker::PhantomData,
-    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
 
 use crate::{
     biginteger::BigInteger,
     bytes::{FromBytes, ToBytes},
     fields::{Field, Fp3, Fp3Parameters},
+    io::{Read, Result as IoResult, Write},
 };
 
 pub trait Fp6Parameters: 'static + Send + Sync {
@@ -413,8 +414,8 @@ impl<'a, P: Fp6Parameters> From<&'a [bool]> for Fp6<P> {
     }
 }
 
-impl<P: Fp6Parameters> ::std::fmt::Display for Fp6<P> {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+impl<P: Fp6Parameters> fmt::Display for Fp6<P> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Fp6_2over3({}, {})", self.c0, self.c1)
     }
 }

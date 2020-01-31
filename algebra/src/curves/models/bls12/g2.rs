@@ -7,9 +7,10 @@ use crate::{
         AffineCurve,
     },
     fields::{BitIterator, Field, Fp2},
+    io::{Result as IoResult, Write},
+    Vec,
 };
 use num_traits::{One, Zero};
-use std::io::{Result as IoResult, Write};
 
 pub type G2Affine<P> = GroupAffine<<P as Bls12Parameters>::G2Parameters>;
 pub type G2Projective<P> = GroupProjective<<P as Bls12Parameters>::G2Parameters>;

@@ -1,15 +1,13 @@
 use crate::{
     bytes::{FromBytes, ToBytes},
     fields::BitIterator,
-    UniformRand,
+    io::{Read, Result as IoResult, Write},
+    UniformRand, Vec,
 };
+use core::fmt::{Debug, Display};
 use rand::{
     distributions::{Distribution, Standard},
     Rng,
-};
-use std::{
-    fmt::{Debug, Display},
-    io::{Read, Result as IoResult, Write},
 };
 
 #[macro_use]

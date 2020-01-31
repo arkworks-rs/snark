@@ -1,4 +1,4 @@
-use crate::{BigInteger, FpParameters, PrimeField, ProjectiveCurve};
+use crate::{BigInteger, FpParameters, PrimeField, ProjectiveCurve, Vec};
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
@@ -9,7 +9,7 @@ impl FixedBaseMSM {
         if num_scalars < 32 {
             3
         } else {
-            (f64::from(num_scalars as u32)).ln().ceil() as usize
+            super::ln_without_floats(num_scalars)
         }
     }
 

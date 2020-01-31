@@ -1,8 +1,10 @@
 //! A sparse polynomial represented in coefficient form.
 
-use std::fmt;
+use core::fmt;
 
-use crate::{DenseOrSparsePolynomial, DensePolynomial, EvaluationDomain, Evaluations};
+use crate::{
+    BTreeMap, DenseOrSparsePolynomial, DensePolynomial, EvaluationDomain, Evaluations, Vec,
+};
 use algebra::{Field, PrimeField};
 
 /// Stores a sparse polynomial in coefficient form.
@@ -29,7 +31,7 @@ impl<F: Field> fmt::Debug for SparsePolynomial<F> {
     }
 }
 
-impl<F: Field> std::ops::Deref for SparsePolynomial<F> {
+impl<F: Field> core::ops::Deref for SparsePolynomial<F> {
     type Target = [(usize, F)];
 
     fn deref(&self) -> &[(usize, F)] {
@@ -95,15 +97,14 @@ impl<F: Field> SparsePolynomial<F> {
         if self.is_zero() || other.is_zero() {
             SparsePolynomial::zero()
         } else {
-            let mut result = std::collections::HashMap::new();
+            let mut result = BTreeMap::new();
             for (i, self_coeff) in self.coeffs.iter() {
                 for (j, other_coeff) in other.coeffs.iter() {
                     let cur_coeff = result.entry(i + j).or_insert(F::zero());
                     *cur_coeff += &(*self_coeff * other_coeff);
                 }
             }
-            let mut result = result.into_iter().collect::<Vec<_>>();
-            result.sort_by(|a, b| a.0.cmp(&b.0));
+            let result = result.into_iter().collect::<Vec<_>>();
             SparsePolynomial::from_coefficients_vec(result)
         }
     }

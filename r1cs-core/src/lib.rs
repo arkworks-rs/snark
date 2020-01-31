@@ -1,5 +1,6 @@
 //! Core interface for working with Rank-1 Constraint Systems (R1CS).
 
+#![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unused_import_braces, unused_qualifications, trivial_casts)]
 #![deny(trivial_numeric_casts, private_in_public, variant_size_differences)]
 #![deny(stable_features, unreachable_pub, non_shorthand_field_patterns)]
@@ -7,6 +8,15 @@
 #![deny(renamed_and_removed_lints, stable_features, unused_allocation)]
 #![deny(unused_comparisons, bare_trait_objects, unused_must_use, const_err)]
 #![forbid(unsafe_code)]
+
+#[cfg(not(feature = "std"))]
+extern crate alloc;
+
+#[cfg(not(feature = "std"))]
+pub(crate) use alloc::string::String;
+
+#[cfg(feature = "std")]
+pub(crate) use std::string::String;
 
 mod constraint_system;
 mod error;
@@ -18,8 +28,8 @@ pub use constraint_system::{ConstraintSynthesizer, ConstraintSystem, Namespace};
 pub use error::SynthesisError;
 
 use algebra::Field;
+use core::cmp::Ordering;
 use smallvec::SmallVec as StackVec;
-use std::cmp::Ordering;
 
 type SmallVec<F> = StackVec<[(Variable, F); 16]>;
 

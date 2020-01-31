@@ -5,10 +5,10 @@ use crate::{
         twisted_edwards_extended::{GroupAffine as TEAffine, GroupProjective as TEProjective},
         ProjectiveCurve,
     },
-    Field, Fp2, Fp2Parameters, FpParameters, PrimeField,
+    Box, Field, Fp2, Fp2Parameters, FpParameters, PrimeField, Vec,
 };
 
-type Error = Box<dyn std::error::Error>;
+type Error = Box<dyn crate::Error>;
 
 /// Types that can be converted to a vector of `F` elements. Useful for
 /// specifying how public inputs to a constraint system should be represented
@@ -118,7 +118,9 @@ impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for [u8] {
                 }
                 ConstraintF::read(chunk.as_slice())
             })
-            .collect::<Result<Vec<_>, _>>()?;
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(crate::SerializationError::from)
+            .map_err(|e| Box::new(e))?;
         Ok(fes)
     }
 }

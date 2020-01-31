@@ -235,7 +235,9 @@ pub fn from_str_test<F: PrimeField>() {
         for _ in 0..ITERATIONS {
             let n: u64 = rng.gen();
 
-            let a = F::from_str(&format!("{}", n)).map_err(|_| ()).unwrap();
+            let a = F::from_str(&crate::format!("{}", n))
+                .map_err(|_| ())
+                .unwrap();
             let b = F::from_repr(n.into());
 
             assert_eq!(a, b);

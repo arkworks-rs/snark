@@ -6,8 +6,9 @@ use crate::{
     },
     field_new,
     fields::edwards_sw6::{fq::Fq, fr::Fr},
+    Vec,
 };
-use std::str::FromStr;
+use core::str::FromStr;
 
 #[cfg(test)]
 mod tests;

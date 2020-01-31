@@ -1,17 +1,17 @@
-use num_traits::{One, Zero};
-use std::{
+use core::{
     cmp::{Ord, Ordering, PartialOrd},
     fmt::{Display, Formatter, Result as FmtResult},
-    io::{Read, Result as IoResult, Write},
     marker::PhantomData,
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
     str::FromStr,
 };
+use num_traits::{One, Zero};
 
 use crate::{
     biginteger::{arithmetic as fa, BigInteger as _BigInteger, BigInteger256 as BigInteger},
     bytes::{FromBytes, ToBytes},
     fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
+    io::{Read, Result as IoResult, Write},
 };
 
 pub trait Fp256Parameters: FpParameters<BigInt = BigInteger> {}
@@ -304,7 +304,7 @@ impl<P: Fp256Parameters> PrimeField for Fp256<P> {
     #[inline]
     fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
         let mut result = Self::zero();
-        if result.0.read_le((&bytes[..]).by_ref()).is_ok() {
+        if result.0.read_le(&mut (&bytes[..])).is_ok() {
             result.0.as_mut()[3] &= 0xffffffffffffffff >> P::REPR_SHAVE_BITS;
             if result.is_valid() {
                 Some(result)

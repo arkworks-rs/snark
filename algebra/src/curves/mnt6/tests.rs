@@ -10,10 +10,10 @@ use crate::{
     },
     fields::mnt6::fr::Fr,
     groups::tests::group_test,
-    CanonicalSerialize,
+    test_rng, CanonicalSerialize,
 };
 use num_traits::One;
-use rand;
+use rand::Rng;
 
 #[test]
 fn test_g1_projective_curve() {
@@ -25,8 +25,9 @@ fn test_g1_projective_curve() {
 
 #[test]
 fn test_g1_projective_group() {
-    let a: G1Projective = rand::random();
-    let b: G1Projective = rand::random();
+    let mut rng = test_rng();
+    let a: G1Projective = rng.gen();
+    let b: G1Projective = rng.gen();
     group_test(a, b);
 }
 
@@ -47,8 +48,9 @@ fn test_g2_projective_curve() {
 
 #[test]
 fn test_g2_projective_group() {
-    let a: G2Projective = rand::random();
-    let b: G2Projective = rand::random();
+    let mut rng = test_rng();
+    let a: G2Projective = rng.gen();
+    let b: G2Projective = rng.gen();
     group_test(a, b);
 }
 
@@ -63,9 +65,10 @@ fn test_g2_generator() {
 fn test_bilinearity() {
     use crate::fields::{mnt6::fq6::Fq6, Field, PrimeField};
 
-    let a: G1Projective = rand::random();
-    let b: G2Projective = rand::random();
-    let s: Fr = rand::random();
+    let mut rng = test_rng();
+    let a: G1Projective = rng.gen();
+    let b: G2Projective = rng.gen();
+    let s: Fr = rng.gen();
 
     let sa = a * &s;
     let sb = b * &s;
@@ -92,7 +95,7 @@ fn test_product_of_pairings() {
         curves::{PairingCurve, ProjectiveCurve},
         UniformRand,
     };
-    let rng = &mut rand::thread_rng();
+    let rng = &mut test_rng();
 
     let a = G1Projective::rand(rng).into_affine();
     let b = G2Projective::rand(rng).into_affine();

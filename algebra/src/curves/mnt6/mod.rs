@@ -9,6 +9,7 @@ use crate::{
         },
         BitIterator, Field, FpParameters,
     },
+    Vec,
 };
 use num_traits::{One, Zero};
 

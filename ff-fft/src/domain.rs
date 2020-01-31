@@ -10,10 +10,11 @@
 //! This allows us to perform polynomial operations in O(n)
 //! by performing an O(n log n) FFT over such a domain.
 
+use crate::Vec;
 use algebra::{FpParameters, PrimeField};
+use core::fmt;
 use rand::Rng;
 use rayon::prelude::*;
-use std::fmt;
 
 use super::multicore::Worker;
 
@@ -453,12 +454,12 @@ impl<F: PrimeField> Iterator for Elements<F> {
 #[cfg(test)]
 mod tests {
     use crate::EvaluationDomain;
-    use algebra::{fields::bls12_381::fr::Fr, Field, Zero};
-    use rand::{thread_rng, Rng};
+    use algebra::{fields::bls12_381::fr::Fr, test_rng, Field, Zero};
+    use rand::Rng;
 
     #[test]
     fn vanishing_polynomial_evaluation() {
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
         for coeffs in 0..10 {
             let domain = EvaluationDomain::<Fr>::new(coeffs).unwrap();
             let z = domain.vanishing_polynomial();

@@ -1,17 +1,17 @@
-use num_traits::{One, Zero};
-use std::{
+use core::{
     cmp::{Ord, Ordering, PartialOrd},
     fmt::{Display, Formatter, Result as FmtResult},
-    io::{Read, Result as IoResult, Write},
     marker::PhantomData,
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
     str::FromStr,
 };
+use num_traits::{One, Zero};
 
 use crate::{
     biginteger::{arithmetic as fa, BigInteger as _BigInteger, BigInteger768 as BigInteger},
     bytes::{FromBytes, ToBytes},
     fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
+    io::{Read, Result as IoResult, Write},
 };
 
 pub trait Fp768Parameters: FpParameters<BigInt = BigInteger> {}
@@ -674,7 +674,7 @@ impl<P: Fp768Parameters> PrimeField for Fp768<P> {
     #[inline]
     fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
         let mut result = Self::zero();
-        if result.0.read_le((&bytes[..]).by_ref()).is_ok() {
+        if result.0.read_le(&mut (&bytes[..])).is_ok() {
             result.0.as_mut()[11] &= 0xffffffffffffffff >> P::REPR_SHAVE_BITS;
             if result.is_valid() {
                 Some(result)
@@ -791,7 +791,6 @@ impl<P: Fp768Parameters> FromStr for Fp768<P> {
     /// Does not accept unnecessary leading zeroes or a blank string.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.is_empty() {
-            println!("Is empty!");
             return Err(());
         }
 
@@ -822,7 +821,6 @@ impl<P: Fp768Parameters> FromStr for Fp768<P> {
                     )));
                 },
                 None => {
-                    println!("Not valid digit!");
                     return Err(());
                 },
             }

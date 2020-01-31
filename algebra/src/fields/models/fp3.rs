@@ -1,20 +1,21 @@
-use crate::{CanonicalDeserialize, CanonicalSerialize, SerializationError, UniformRand};
+use crate::{CanonicalDeserialize, CanonicalSerialize, SerializationError, UniformRand, Vec};
+use core::{
+    cmp::{Ord, Ordering, PartialOrd},
+    fmt,
+    marker::PhantomData,
+    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+    str::FromStr,
+};
 use num_traits::{One, Zero};
 use rand::{
     distributions::{Distribution, Standard},
     Rng,
 };
-use std::{
-    cmp::{Ord, Ordering, PartialOrd},
-    io::{Read, Result as IoResult, Write},
-    marker::PhantomData,
-    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
-    str::FromStr,
-};
 
 use crate::{
     bytes::{FromBytes, ToBytes},
     fields::{Field, LegendreSymbol, PrimeField, SquareRootField},
+    io::{Read, Result as IoResult, Write},
 };
 
 pub trait Fp3Parameters: 'static + Send + Sync {
@@ -483,15 +484,12 @@ impl<P: Fp3Parameters> FromStr for Fp3<P> {
     fn from_str(mut s: &str) -> Result<Self, Self::Err> {
         s = s.trim();
         if s.is_empty() {
-            println!("is empty");
             return Err(());
         }
         if s.len() < 3 {
-            println!("len is less than 3");
             return Err(());
         }
         if !(s.starts_with('[') && s.ends_with(']')) {
-            println!("doesn't start and end with square brackets");
             return Err(());
         }
         let mut point = Vec::new();
@@ -502,7 +500,6 @@ impl<P: Fp3Parameters> FromStr for Fp3<P> {
             }
         }
         if point.len() != 3 {
-            println!("not enough points");
             return Err(());
         }
         let point = Fp3::new(point[0], point[1], point[2]);
@@ -510,8 +507,8 @@ impl<P: Fp3Parameters> FromStr for Fp3<P> {
     }
 }
 
-impl<P: Fp3Parameters> ::std::fmt::Display for Fp3<P> {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+impl<P: Fp3Parameters> fmt::Display for Fp3<P> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Fp3({}, {}, {})", self.c0, self.c1, self.c2)
     }
 }

@@ -53,7 +53,7 @@ macro_rules! bigint_impl {
                 while n >= 64 {
                     let mut t = 0;
                     for i in &mut self.0 {
-                        ::std::mem::swap(&mut t, i);
+                        core::mem::swap(&mut t, i);
                     }
                     n -= 64;
                 }
@@ -90,7 +90,7 @@ macro_rules! bigint_impl {
                 while n >= 64 {
                     let mut t = 0;
                     for i in self.0.iter_mut().rev() {
-                        ::std::mem::swap(&mut t, i);
+                        core::mem::swap(&mut t, i);
                     }
                     n -= 64;
                 }
@@ -213,7 +213,7 @@ macro_rules! bigint_impl {
         }
 
         impl Display for $name {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
                 for i in self.0.iter().rev() {
                     write!(f, "{:016X}", *i)?;
                 }
@@ -223,22 +223,22 @@ macro_rules! bigint_impl {
 
         impl Ord for $name {
             #[inline]
-            fn cmp(&self, other: &Self) -> ::std::cmp::Ordering {
+            fn cmp(&self, other: &Self) -> ::core::cmp::Ordering {
                 for (a, b) in self.0.iter().rev().zip(other.0.iter().rev()) {
                     if a < b {
-                        return ::std::cmp::Ordering::Less;
+                        return ::core::cmp::Ordering::Less;
                     } else if a > b {
-                        return ::std::cmp::Ordering::Greater;
+                        return ::core::cmp::Ordering::Greater;
                     }
                 }
 
-                ::std::cmp::Ordering::Equal
+                ::core::cmp::Ordering::Equal
             }
         }
 
         impl PartialOrd for $name {
             #[inline]
-            fn partial_cmp(&self, other: &Self) -> Option<::std::cmp::Ordering> {
+            fn partial_cmp(&self, other: &Self) -> Option<::core::cmp::Ordering> {
                 Some(self.cmp(other))
             }
         }

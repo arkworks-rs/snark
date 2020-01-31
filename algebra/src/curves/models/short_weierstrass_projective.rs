@@ -1,16 +1,16 @@
 use crate::{
-    curves::models::SWModelParameters as Parameters, CanonicalDeserialize, CanonicalSerialize,
-    UniformRand,
+    curves::models::SWModelParameters as Parameters,
+    io::{Read, Result as IoResult, Write},
+    CanonicalDeserialize, CanonicalSerialize, UniformRand, Vec,
+};
+use core::{
+    fmt::{Display, Formatter, Result as FmtResult},
+    marker::PhantomData,
 };
 use num_traits::{One, Zero};
 use rand::{
     distributions::{Distribution, Standard},
     Rng,
-};
-use std::{
-    fmt::{Display, Formatter, Result as FmtResult},
-    io::{Read, Result as IoResult, Write},
-    marker::PhantomData,
 };
 
 use crate::{
@@ -18,7 +18,7 @@ use crate::{
     curves::{AffineCurve, ProjectiveCurve},
     fields::{BitIterator, Field, PrimeField, SquareRootField},
 };
-use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+use core::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 #[derive(Derivative)]
 #[derivative(

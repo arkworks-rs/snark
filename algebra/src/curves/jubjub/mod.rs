@@ -6,8 +6,9 @@ use crate::{
     },
     field_new,
     fields::jubjub::{fq::Fq, fr::Fr},
+    Vec,
 };
-use std::str::FromStr;
+use core::str::FromStr;
 
 #[cfg(test)]
 mod tests;

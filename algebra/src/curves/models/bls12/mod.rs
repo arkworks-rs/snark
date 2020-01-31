@@ -12,7 +12,7 @@ use crate::{
 };
 use num_traits::One;
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 pub enum TwistType {
     M,

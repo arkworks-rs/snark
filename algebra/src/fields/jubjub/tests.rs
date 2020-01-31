@@ -8,22 +8,26 @@ use crate::{
         LegendreSymbol::*,
         PrimeField, SquareRootField,
     },
+    test_rng,
 };
+use core::str::FromStr;
 use num_traits::{One, Zero};
-use std::str::FromStr;
+use rand::Rng;
 
 #[test]
 fn test_jubjub_fr() {
-    let a: Fr = rand::random();
-    let b: Fr = rand::random();
+    let mut rng = test_rng();
+    let a: Fr = rng.gen();
+    let b: Fr = rng.gen();
     field_test(a, b);
     primefield_test::<Fr>();
 }
 
 #[test]
 fn test_jubjub_fq() {
-    let a: Fq = rand::random();
-    let b: Fq = rand::random();
+    let mut rng = test_rng();
+    let a: Fq = rng.gen();
+    let b: Fq = rng.gen();
     field_test(a, b);
     primefield_test::<Fq>();
 }

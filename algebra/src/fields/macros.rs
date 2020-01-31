@@ -27,7 +27,7 @@ macro_rules! impl_prime_field_standard_sample {
                     tmp.0
                         .as_mut()
                         .last_mut()
-                        .map(|val| *val &= std::u64::MAX >> P::REPR_SHAVE_BITS);
+                        .map(|val| *val &= core::u64::MAX >> P::REPR_SHAVE_BITS);
 
                     if tmp.is_valid() {
                         return tmp;

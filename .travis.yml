@@ -1,11 +1,13 @@
 language: rust
+services: docker
+sudo: required
 
 before_install:
+  - set -e
   - export SCCACHE_CACHE_SIZE=200M
   - export SCCACHE_DIR="$TRAVIS_HOME/.cache/sccache"
 
 install:
-  - (rustup component add rustfmt --toolchain nightly || true)
   - (cargo install sccache || true)
   - export PATH="$PATH:$TRAVIS_HOME/.cargo/bin"
   - export RUSTC_WRAPPER="sccache"
@@ -21,15 +23,38 @@ before_cache:
 
 after_script:
   - sccache -s
-
-rust:
-  - stable
-  - nightly
+  - set +e
 
 matrix:
   fast_finish: true
+  include:
+    - rust: stable
+      script:
+        - cargo test --all -- --skip dpc --skip integration_test
+        - cargo check --examples --all
+
+    - rust: nightly
+      install:
+        - rustup component add rustfmt
+      script:
+        - cargo fmt -- --check
+        - cargo test --all -- --skip dpc --skip integration_test
+        - cargo check --examples --all
+
+    - rust: stable
+      install:
+        - rustup target add thumbv6m-none-eabi
+      script:
+        # test algebra
+        - cd algebra
+        - cargo build -p algebra --no-default-features --target thumbv6m-none-eabi
+        - cargo check --examples -p algebra --no-default-features --target thumbv6m-none-eabi
+        - cd ..
+        # test r1cs-core
+        - cd r1cs-core 
+        - cargo build -p r1cs-core --no-default-features --target thumbv6m-none-eabi
+        - cargo check --examples -p r1cs-core --no-default-features --target thumbv6m-none-eabi
+        - cd ..
 
 script:
-  - if [ "$TRAVIS_RUST_VERSION" == "nightly" ]; then cargo fmt -- --check; fi
-  - cargo test --all -- --skip "dpc" --skip "integration_test"
-  - cargo check --examples --all
+  - echo "script!"

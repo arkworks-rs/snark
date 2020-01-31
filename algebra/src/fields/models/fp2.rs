@@ -1,14 +1,17 @@
-use crate::{CanonicalDeserialize, CanonicalSerialize, SerializationError, UniformRand};
+use crate::{
+    io::{Read, Result as IoResult, Write},
+    CanonicalDeserialize, CanonicalSerialize, SerializationError, UniformRand,
+};
+use core::{
+    cmp::{Ord, Ordering, PartialOrd},
+    fmt,
+    marker::PhantomData,
+    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+};
 use num_traits::{One, Zero};
 use rand::{
     distributions::{Distribution, Standard},
     Rng,
-};
-use std::{
-    cmp::{Ord, Ordering, PartialOrd},
-    io::{Read, Result as IoResult, Write},
-    marker::PhantomData,
-    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
 
 use crate::{
@@ -407,8 +410,8 @@ impl<'a, P: Fp2Parameters> DivAssign<&'a Self> for Fp2<P> {
     }
 }
 
-impl<P: Fp2Parameters> std::fmt::Display for Fp2<P> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<P: Fp2Parameters> fmt::Display for Fp2<P> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Fp2({} + {} * u)", self.c0, self.c1)
     }
 }
