@@ -1,0 +1,32 @@
+[package]
+name = "r1cs-std-derive"
+version = "0.1.0"
+authors = [
+    "Sean Bowe",
+    "Alessandro Chiesa",
+    "Matthew Green",
+    "Ian Miers",
+    "Pratyush Mishra",
+    "Howard Wu"
+]
+description = "Derive macros for r1cs-std traits"
+homepage = "https://libzexe.org"
+repository = "https://github.com/scipr/zexe"
+documentation = "https://docs.rs/r1cs-std/"
+keywords = ["zero knowledge", "cryptography", "zkSNARK", "SNARK"]
+categories = ["cryptography"]
+include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
+license = "MIT/Apache-2.0"
+edition = "2018"
+
+################################# Dependencies ################################
+[lib]
+proc_macro = true
+
+[dependencies]
+syn = { version = "1", features = ["derive"] }
+quote = "1"
+proc-macro2 = "1"
+
+[dev-dependencies]
+anyhow = "1.0" 
