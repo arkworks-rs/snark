@@ -8,9 +8,6 @@ before_install:
   - export SCCACHE_DIR="$TRAVIS_HOME/.cache/sccache"
 
 install:
-  - (cargo install cross || true)
-  - source ~/.cargo/env || true
-  - (rustup component add rustfmt --toolchain nightly || true)
   - (cargo install sccache || true)
   - export PATH="$PATH:$TRAVIS_HOME/.cargo/bin"
   - export RUSTC_WRAPPER="sccache"
@@ -31,16 +28,33 @@ after_script:
 matrix:
   fast_finish: true
   include:
-    - env: SCRIPT="ci/stable.sh"
-      rust: stable
+    - rust: stable
+      script:
+        - cargo test --all -- --skip dpc --skip integration_test
+        - cargo check --examples --all
 
-    - env: SCRIPT="ci/nightly.sh"
-      rust: nightly
+    - rust: nightly
+      install:
+        - rustup component add rustfmt
+      script:
+        - cargo fmt -- --check
+        - cargo test --all -- --skip dpc --skip integration_test
+        - cargo check --examples --all
 
-    - env: SCRIPT="ci/no_std.sh"
-      rust: stable
-
+    - rust: stable
+      install:
+        - rustup target add thumbv6m-none-eabi
+      script:
+        # test algebra
+        - cd algebra
+        - cargo build -p algebra --no-default-features --target thumbv6m-none-eabi
+        - cargo check --examples -p algebra --no-default-features --target thumbv6m-none-eabi
+        - cd ..
+        # test r1cs-core
+        - cd r1cs-core 
+        - cargo build -p r1cs-core --no-default-features --target thumbv6m-none-eabi
+        - cargo check --examples -p r1cs-core --no-default-features --target thumbv6m-none-eabi
+        - cd ..
 
 script:
-  - chmod +x $SCRIPT
-  - bash $SCRIPT
+  - echo "script!"
