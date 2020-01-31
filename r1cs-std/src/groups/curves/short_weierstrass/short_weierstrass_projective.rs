@@ -381,6 +381,128 @@ for AffineGadget<P, ConstraintF, F>
         Ok(result)
     }
 
+    // I decided here to keep the same logic as TE implementation for future extensibility:
+    // in fact there is no actual difference between "outer" and "inner" sums since they all
+    // are SW unsafe additions. The code could be simplified, but nothing changes from a number
+    // of constraints point of view.
+    fn precomputed_base_3_bit_signed_digit_scalar_mul<'a, CS, I, J, B>(
+        mut cs: CS,
+        bases: &[B],
+        scalars: &[J],
+    ) -> Result<Self, SynthesisError>
+        where
+            CS: ConstraintSystem<ConstraintF>,
+            I: Borrow<[Boolean]>,
+            J: Borrow<[I]>,
+            B: Borrow<[SWProjective<P>]>,
+    {
+        const CHUNK_SIZE: usize = 3;
+        let mut sw_result: Option<AffineGadget<P, ConstraintF, F>> = None;
+        let mut result: Option<AffineGadget<P, ConstraintF, F>> = None;
+
+        let mut process_segment_result =
+            |mut cs: r1cs_core::Namespace<_, _>,
+             result: &AffineGadget<P, ConstraintF, F>|
+             -> Result<(), SynthesisError> {
+                let segment_result = result.clone();
+                match sw_result {
+                    None => {
+                        sw_result = Some(segment_result);
+                    },
+                    Some(ref mut sw_result) => {
+                        *sw_result = GroupGadget::<SWProjective<P>, ConstraintF>::add(
+                            &segment_result,
+                            cs.ns(|| "sw outer addition"),
+                            sw_result,
+                        )?;
+                    },
+                }
+
+                Ok(())
+            };
+
+        // Compute ∏(h_i^{m_i}) for all i.
+        for (segment_i, (segment_bits_chunks, segment_powers)) in
+            scalars.into_iter().zip(bases.iter()).enumerate()
+            {
+                for (i, (bits, base_power)) in segment_bits_chunks
+                    .borrow()
+                    .into_iter()
+                    .zip(segment_powers.borrow().iter())
+                    .enumerate()
+                    {
+                        let base_power = base_power.borrow();
+                        let mut acc_power = *base_power;
+                        let mut coords = vec![];
+                        for _ in 0..4 {
+                            coords.push(acc_power);
+                            acc_power = acc_power + base_power;
+                        }
+
+                        let bits = bits.borrow().to_bits(
+                            &mut cs.ns(|| format!("Convert Scalar {}, {} to bits", segment_i, i)),
+                        )?;
+                        if bits.len() != CHUNK_SIZE {
+                            return Err(SynthesisError::Unsatisfiable);
+                        }
+
+                        let coords = coords
+                            .iter()
+                            .map(|p| {
+                                p.into_affine()
+                            })
+                            .collect::<Vec<_>>();
+
+                        let x_coeffs = coords.iter().map(|p| p.x).collect::<Vec<_>>();
+                        let y_coeffs = coords.iter().map(|p| p.y).collect::<Vec<_>>();
+
+                        let precomp = Boolean::and(
+                            cs.ns(|| format!("precomp in window {}, {}", segment_i, i)),
+                            &bits[0],
+                            &bits[1],
+                        )?;
+
+                        let x = F::two_bit_lookup_lc(
+                            cs.ns(|| format!("x in window {}, {}", segment_i, i)),
+                            &precomp,
+                            &[bits[0], bits[1]],
+                            &x_coeffs
+                        )?;
+
+                        let y = F::three_bit_cond_neg_lookup(
+                            cs.ns(|| format!("y lookup in window {}, {}", segment_i, i)),
+                            &bits,
+                            &precomp,
+                            &y_coeffs,
+                        )?;
+
+                        let tmp = Self::new(x, y, Boolean::constant(false));
+
+                        match result {
+                            None => {
+                                result = Some(tmp);
+                            },
+                            Some(ref mut result) => {
+                                *result = tmp.add(
+                                    cs.ns(|| format!("addition of window {}, {}", segment_i, i)),
+                                    result,
+                                )?;
+                            },
+                        }
+                    }
+
+                process_segment_result(
+                    cs.ns(|| format!("window {}", segment_i)),
+                    &result.unwrap(),
+                )?;
+                result = None;
+            }
+        if result.is_some() {
+            process_segment_result(cs.ns(|| "leftover"), &result.unwrap())?;
+        }
+        Ok(sw_result.unwrap())
+    }
+
     fn cost_of_add() -> usize {
         3 * F::cost_of_mul()
     }

@@ -423,9 +423,8 @@ mod test {
         MNT6Fr, MNT4G1Projective, MNT4G1Gadget, MNT6PoseidonHash, MNT6PoseidonHashGadget
     >;
 
-    fn sign<S: FieldBasedSignatureScheme>(message: &[S::Data]) -> (S::Signature, S::PublicKey, S::SecretKey)
+    fn sign<S: FieldBasedSignatureScheme, R: Rng>(rng: &mut R, message: &[S::Data]) -> (S::Signature, S::PublicKey, S::SecretKey)
     {
-        let rng = &mut thread_rng();
         let (pk, sk) = S::keygen(rng).unwrap();
         let sig = S::sign(&pk, &sk, &message).unwrap();
         (sig, pk, sk)
@@ -439,7 +438,7 @@ mod test {
         //Sign a random field element f and get the signature and the public key
         let rng = &mut thread_rng();
         let message: MNT4Fr = rng.gen();
-        let (sig, pk, sk) = sign::<SchnorrMNT4>(&[message]);
+        let (sig, pk, sk) = sign::<SchnorrMNT4, _>(rng, &[message]);
 
         //Alloc signature, pk and message
         let sig_g = <SchnorrMNT4Gadget as FieldBasedSigGadget<SchnorrMNT4, MNT4Fr>>::SignatureGadget::alloc(
@@ -505,7 +504,7 @@ mod test {
         //Sign a random field element f and get the signature and the public key
         let rng = &mut thread_rng();
         let message: MNT6Fr = rng.gen();
-        let (sig, pk, sk) = sign::<SchnorrMNT6>(&[message]);
+        let (sig, pk, sk) = sign::<SchnorrMNT6, _>(rng, &[message]);
 
         //Alloc signature, pk and message
         let sig_g = <SchnorrMNT6Gadget as FieldBasedSigGadget<SchnorrMNT6, MNT6Fr>>::SignatureGadget::alloc(
@@ -575,7 +574,7 @@ mod test {
         let samples = 10;
         for _ in 0..samples {
             let message: MNT4Fr = rng.gen();
-            let (sig, pk, _) = sign::<SchnorrMNT4>(&[message]);
+            let (sig, pk, _) = sign::<SchnorrMNT4, _>(rng, &[message]);
             let mut cs = TestConstraintSystem::<MNT4Fr>::new();
 
             //Alloc signature, pk and message

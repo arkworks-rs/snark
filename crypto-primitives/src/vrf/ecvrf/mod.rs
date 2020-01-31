@@ -4,12 +4,18 @@ use algebra::{
     ToBytes, to_bytes, FromBytes,
     UniformRand,
 };
-use crate::{crh::{
+use crate::{
+    crh::{
     FieldBasedHash, FixedLengthCRH,
-}, vrf::FieldBasedVrf, Error, CryptoError};
+    },
+    vrf::FieldBasedVrf, Error, CryptoError
+};
 use std::marker::PhantomData;
 use std::io::{Write, Read, Result as IoResult};
 use rand::Rng;
+
+#[cfg(feature = "r1cs")]
+pub mod constraints;
 
 pub struct FieldBasedEcVrf<
     F: PrimeField,
@@ -26,11 +32,11 @@ pub struct FieldBasedEcVrf<
 
 #[derive(Derivative)]
 #[derivative(
-Clone(bound = "F: PrimeField, G: ProjectiveCurve<BaseField = F>"),
-Default(bound = "F: PrimeField, G: ProjectiveCurve<BaseField = F>"),
-Eq(bound = "F: PrimeField, G: ProjectiveCurve<BaseField = F>"),
-PartialEq(bound = "F: PrimeField, G: ProjectiveCurve<BaseField = F>"),
-Debug(bound = "F: PrimeField, G: ProjectiveCurve<BaseField = F>")
+Clone(bound = "F: PrimeField, G: ProjectiveCurve"),
+Default(bound = "F: PrimeField, G: ProjectiveCurve"),
+Eq(bound = "F: PrimeField, G: ProjectiveCurve"),
+PartialEq(bound = "F: PrimeField, G: ProjectiveCurve"),
+Debug(bound = "F: PrimeField, G: ProjectiveCurve")
 )]
 pub struct FieldBasedEcVrfProof<F: PrimeField, G: ProjectiveCurve<BaseField = F>> {
     pub gamma:  G,

@@ -6,12 +6,14 @@ use algebra::Field;
 
 pub trait FieldBasedVrfGadget<S: FieldBasedVrf, ConstraintF: Field> {
 
-    type DataGadget:      FieldGadget<ConstraintF, ConstraintF>;
-    type ProofGadget:     AllocGadget<S::Proof, ConstraintF>;
-    type PublicKeyGadget: AllocGadget<S::PublicKey, ConstraintF>;
+    type DataGadget:            FieldGadget<ConstraintF, ConstraintF>;
+    type ProofGadget:           AllocGadget<S::Proof, ConstraintF>;
+    type PublicKeyGadget:       AllocGadget<S::PublicKey, ConstraintF>;
+    type GHParametersGadget:    AllocGadget<S::GHParams, ConstraintF>;
 
     fn check_verify_gadget<CS: ConstraintSystem<ConstraintF>>(
         cs:         CS,
+        pp:         &Self::GHParametersGadget,
         public_key: &Self::PublicKeyGadget,
         proof:      &Self::ProofGadget,
         message:    &[Self::DataGadget],
