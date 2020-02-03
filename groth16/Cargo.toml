@@ -23,19 +23,21 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-algebra = { path = "../algebra", features = [ "parallel" ] }
-ff-fft = { path = "../ff-fft" }
-r1cs-core = { path = "../r1cs-core" }
+algebra = { path = "../algebra", default-features = false }
 bench-utils = { path = "../bench-utils" }
-
-rand = { version = "0.7" }
-rayon = { version = "1" }
+ff-fft = { path = "../ff-fft", default-features = false }
+r1cs-core = { path = "../r1cs-core" }
+rand = { version = "0.7", default-features = false }
+rayon = { version = "1", optional = true }
 smallvec = "1.2.0"
 
 [dev-dependencies]
 csv = { version = "1" }
 
 [features]
+default = ["parallel"]
+std = ["algebra/std", "ff-fft/std"]
+parallel = ["std", "algebra/parallel", "ff-fft/parallel"]
 print-trace = [ "bench-utils/print-trace" ]
 
 [[example]]
