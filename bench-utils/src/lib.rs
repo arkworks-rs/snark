@@ -1,3 +1,4 @@
+#![cfg_attr(not(feature = "print_trace"), no_std)]
 #![allow(unused_imports)]
 pub use self::inner::*;
 

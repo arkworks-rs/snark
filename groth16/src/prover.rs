@@ -1,4 +1,6 @@
 use rand::Rng;
+
+#[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
 use algebra::{
@@ -6,7 +8,7 @@ use algebra::{
     UniformRand,
 };
 
-use crate::{r1cs_to_qap::R1CStoQAP, Parameters, Proof};
+use crate::{r1cs_to_qap::R1CStoQAP, Parameters, Proof, String, Vec};
 use algebra::{One, Zero};
 
 use r1cs_core::{
@@ -15,10 +17,7 @@ use r1cs_core::{
 
 use smallvec::SmallVec;
 
-use std::{
-    ops::{AddAssign, MulAssign, SubAssign},
-    sync::Arc,
-};
+use core::ops::{AddAssign, MulAssign, SubAssign};
 
 type CoeffVec<T> = SmallVec<[T; 2]>;
 
@@ -239,33 +238,38 @@ where
     let (full_input_assignment, h, _) = R1CStoQAP::witness_map::<E>(&prover, &d1, &d2, &d3)?;
     end_timer!(witness_map_time);
 
-    let input_assignment = Arc::new(
-        full_input_assignment[1..prover.num_inputs]
-            .into_iter()
-            .map(|s| s.into_repr())
-            .collect::<Vec<_>>(),
-    );
+    let input_assignment = full_input_assignment[1..prover.num_inputs]
+        .into_iter()
+        .map(|s| s.into_repr())
+        .collect::<Vec<_>>();
 
-    let aux_assignment = Arc::new(
-        full_input_assignment[prover.num_inputs..]
-            .into_par_iter()
-            .map(|s| s.into_repr())
-            .collect::<Vec<_>>(),
-    );
+    let aux_assignment = {
+        #[cfg(feature = "parallel")]
+        let input_iter = full_input_assignment[prover.num_inputs..].into_par_iter();
+
+        #[cfg(not(feature = "parallel"))]
+        let input_iter = full_input_assignment[prover.num_inputs..].into_iter();
+
+        input_iter.map(|s| s.into_repr()).collect::<Vec<_>>()
+    };
+
     drop(full_input_assignment);
 
-    let h_input_assignment = Arc::new(
-        h[0..prover.num_inputs]
-            .into_iter()
-            .map(|s| s.into_repr())
-            .collect::<Vec<_>>(),
-    );
-    let h_aux_assignment = Arc::new(
-        h[prover.num_inputs..]
-            .into_par_iter()
-            .map(|s| s.into_repr())
-            .collect::<Vec<_>>(),
-    );
+    let h_input_assignment = h[0..prover.num_inputs]
+        .into_iter()
+        .map(|s| s.into_repr())
+        .collect::<Vec<_>>();
+
+    let h_aux_assignment = {
+        #[cfg(feature = "parallel")]
+        let input_iter = h[prover.num_inputs..].into_par_iter();
+
+        #[cfg(not(feature = "parallel"))]
+        let input_iter = h[prover.num_inputs..].into_iter();
+
+        input_iter.map(|s| s.into_repr()).collect::<Vec<_>>()
+    };
+
     drop(h);
 
     // Compute A
