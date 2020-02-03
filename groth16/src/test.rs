@@ -40,13 +40,12 @@ mod bls12_377 {
         create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
     };
 
-    use algebra::{curves::bls12_377::Bls12_377, fields::bls12_377::Fr, UniformRand};
-    use rand::thread_rng;
-    use std::ops::MulAssign;
+    use algebra::{curves::bls12_377::Bls12_377, fields::bls12_377::Fr, test_rng, UniformRand};
+    use core::ops::MulAssign;
 
     #[test]
     fn prove_and_verify() {
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
 
         let params =
             generate_random_parameters::<Bls12_377, _, _>(MySillyCircuit { a: None, b: None }, rng)
@@ -82,12 +81,11 @@ mod sw6 {
         create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
     };
 
-    use algebra::{curves::sw6::SW6, fields::sw6::Fr as SW6Fr, UniformRand, Zero};
-    use rand::thread_rng;
+    use algebra::{curves::sw6::SW6, fields::sw6::Fr as SW6Fr, test_rng, UniformRand, Zero};
 
     #[test]
     fn prove_and_verify() {
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
 
         let params =
             generate_random_parameters::<SW6, _, _>(MySillyCircuit { a: None, b: None }, rng)

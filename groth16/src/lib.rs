@@ -1,5 +1,6 @@
 //! An implementation of the [Groth][Groth16] zkSNARK.
 //! [Groth16]: https://eprint.iacr.org/2016/260.pdf
+#![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unused_import_braces, unused_qualifications, trivial_casts)]
 #![deny(trivial_numeric_casts, private_in_public, variant_size_differences)]
 #![deny(stable_features, unreachable_pub, non_shorthand_field_patterns)]
@@ -11,9 +12,20 @@
 #[macro_use]
 extern crate bench_utils;
 
+#[cfg(not(feature = "std"))]
+#[macro_use]
+extern crate alloc;
+
+#[cfg(not(feature = "std"))]
+use alloc::{string::String, vec::Vec};
+
+#[cfg(feature = "std")]
+use std::{string::String, vec::Vec};
+
 use algebra::{bytes::ToBytes, PairingCurve, PairingEngine};
 use r1cs_core::SynthesisError;
-use std::io::{self, Read, Result as IoResult, Write};
+
+use algebra::io::{self, Read, Result as IoResult, Write};
 
 /// Reduce an R1CS instance to a *Quadratic Arithmetic Program* instance.
 pub mod r1cs_to_qap;

@@ -206,7 +206,6 @@ impl<F: PrimeField> EvaluationDomain<F> {
 
             batch_inversion(u.as_mut_slice());
 
-
             #[cfg(feature = "parallel")]
             u.par_iter_mut().zip(ls).for_each(|(tau_minus_r, l)| {
                 *tau_minus_r = l * *tau_minus_r;

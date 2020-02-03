@@ -4,7 +4,7 @@ use super::{PreparedVerifyingKey, Proof, VerifyingKey};
 
 use crate::SynthesisError;
 
-use std::ops::{AddAssign, Neg};
+use core::ops::{AddAssign, Neg};
 
 pub fn prepare_verifying_key<E: PairingEngine>(vk: &VerifyingKey<E>) -> PreparedVerifyingKey<E> {
     PreparedVerifyingKey {
