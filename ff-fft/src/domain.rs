@@ -14,6 +14,7 @@ use crate::Vec;
 use algebra::{FpParameters, PrimeField};
 use core::fmt;
 use rand::Rng;
+#[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
 /// Defines a domain over which finite field (I)FFTs can be performed. Works
@@ -127,7 +128,12 @@ impl<F: PrimeField> EvaluationDomain<F> {
     pub fn ifft_in_place(&self, evals: &mut Vec<F>) {
         evals.resize(self.size(), F::zero());
         best_fft(evals, self.group_gen_inv, self.log_size_of_group);
+
+        #[cfg(feature = "parallel")]
         evals.par_iter_mut().for_each(|val| *val *= &self.size_inv);
+
+        #[cfg(not(feature = "parallel"))]
+        evals.iter_mut().for_each(|val| *val *= &self.size_inv);
     }
 
     fn distribute_powers(coeffs: &mut [F], g: F) {
@@ -199,9 +205,18 @@ impl<F: PrimeField> EvaluationDomain<F> {
             }
 
             batch_inversion(u.as_mut_slice());
+
+
+            #[cfg(feature = "parallel")]
             u.par_iter_mut().zip(ls).for_each(|(tau_minus_r, l)| {
                 *tau_minus_r = l * *tau_minus_r;
             });
+
+            #[cfg(not(feature = "parallel"))]
+            u.iter_mut().zip(ls).for_each(|(tau_minus_r, l)| {
+                *tau_minus_r = l * *tau_minus_r;
+            });
+
             u
         }
     }
@@ -236,7 +251,12 @@ impl<F: PrimeField> EvaluationDomain<F> {
             .evaluate_vanishing_polynomial(F::multiplicative_generator())
             .inverse()
             .unwrap();
+
+        #[cfg(feature = "parallel")]
         evals.par_iter_mut().for_each(|eval| *eval *= &i);
+
+        #[cfg(not(feature = "parallel"))]
+        evals.iter_mut().for_each(|eval| *eval *= &i);
     }
 
     /// Given an index which assumes the first elements of this domain are the
@@ -280,15 +300,38 @@ impl<F: PrimeField> EvaluationDomain<F> {
     ) -> Vec<F> {
         assert_eq!(self_evals.len(), other_evals.len());
         let mut result = self_evals.to_vec();
-        result
-            .par_iter_mut()
-            .zip(other_evals)
-            .for_each(|(a, b)| *a *= b);
+
+        #[cfg(feature = "parallel")]
+        {
+            result
+                .par_iter_mut()
+                .zip(other_evals)
+                .for_each(|(a, b)| *a *= b);
+        }
+
+        #[cfg(not(feature = "parallel"))]
+        {
+            result
+                .iter_mut()
+                .zip(other_evals)
+                .for_each(|(a, b)| *a *= b);
+        }
+
         result
     }
 }
 
+#[cfg(feature = "parallel")]
 fn best_fft<F: PrimeField>(a: &mut [F], omega: F, log_n: u32) {
+    fn log2_floor(num: usize) -> u32 {
+        assert!(num > 0);
+        let mut pow = 0;
+        while (1 << (pow + 1)) <= num {
+            pow += 1;
+        }
+        pow
+    }
+
     let num_cpus = rayon::current_num_threads();
     let log_cpus = log2_floor(num_cpus);
     if log_n <= log_cpus {
@@ -296,6 +339,11 @@ fn best_fft<F: PrimeField>(a: &mut [F], omega: F, log_n: u32) {
     } else {
         parallel_fft(a, omega, log_n, log_cpus);
     }
+}
+
+#[cfg(not(feature = "parallel"))]
+fn best_fft<F: PrimeField>(a: &mut [F], omega: F, log_n: u32) {
+    serial_fft(a, omega, log_n)
 }
 
 #[inline]
@@ -343,18 +391,7 @@ pub(crate) fn serial_fft<F: PrimeField>(a: &mut [F], omega: F, log_n: u32) {
     }
 }
 
-pub(crate) fn log2_floor(num: usize) -> u32 {
-    assert!(num > 0);
-
-    let mut pow = 0;
-
-    while (1 << (pow + 1)) <= num {
-        pow += 1;
-    }
-
-    pow
-}
-
+#[cfg(feature = "parallel")]
 pub(crate) fn parallel_fft<F: PrimeField>(a: &mut [F], omega: F, log_n: u32, log_cpus: u32) {
     assert!(log_n >= log_cpus);
 

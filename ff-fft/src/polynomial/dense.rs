@@ -9,6 +9,8 @@ use core::{
 use crate::{DenseOrSparsePolynomial, EvaluationDomain, Evaluations};
 use algebra::{Field, PrimeField};
 use rand::Rng;
+
+#[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
 /// Stores a polynomial in coefficient form.
@@ -104,11 +106,24 @@ impl<F: Field> DensePolynomial<F> {
         }
         assert_eq!(powers_of_point.len(), self.coeffs.len());
         let zero = F::zero();
-        powers_of_point
-            .into_par_iter()
-            .zip(&self.coeffs)
-            .map(|(power, coeff)| power * coeff)
-            .reduce(|| zero, |a, b| a + &b)
+
+        #[cfg(feature = "parallel")]
+        {
+            powers_of_point
+                .into_par_iter()
+                .zip(&self.coeffs)
+                .map(|(power, coeff)| power * coeff)
+                .reduce(|| zero, |a, b| a + &b)
+        }
+
+        #[cfg(not(feature = "parallel"))]
+        {
+            powers_of_point
+                .into_iter()
+                .zip(&self.coeffs)
+                .map(|(power, coeff)| power * coeff)
+                .fold(zero, |a, b| a + &b)
+        }
     }
 
     /// Perform a naive n^2 multiplication of `self` by `other`.
@@ -143,10 +158,22 @@ impl<F: PrimeField> DensePolynomial<F> {
     pub fn mul_by_vanishing_poly(&self, domain: EvaluationDomain<F>) -> DensePolynomial<F> {
         let mut shifted = vec![F::zero(); domain.size()];
         shifted.extend_from_slice(&self.coeffs);
-        shifted
-            .par_iter_mut()
-            .zip(&self.coeffs)
-            .for_each(|(s, c)| *s -= c);
+
+        #[cfg(feature = "parallel")]
+        {
+            shifted
+                .par_iter_mut()
+                .zip(&self.coeffs)
+                .for_each(|(s, c)| *s -= c);
+        }
+
+        #[cfg(not(feature = "parallel"))]
+        {
+            shifted
+                .iter_mut()
+                .zip(&self.coeffs)
+                .for_each(|(s, c)| *s -= c);
+        }
 
         DensePolynomial::from_coefficients_vec(shifted)
     }

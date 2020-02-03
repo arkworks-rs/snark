@@ -1,9 +1,8 @@
-use crate::{domain::*, Vec};
+use crate::domain::*;
 use algebra::{
     curves::{bls12_381::Bls12_381, PairingEngine},
     test_rng, UniformRand,
 };
-use core::cmp::min;
 
 // Test multiplying various (low degree) polynomials together and
 // comparing with naive evaluations.
@@ -44,7 +43,11 @@ fn fft_composition() {
 }
 
 #[test]
+#[cfg(feature = "parallel")]
 fn parallel_fft_consistency() {
+    use crate::Vec;
+    use core::cmp::min;
+
     fn test_consistency<E: PairingEngine, R: rand::Rng>(rng: &mut R) {
         for _ in 0..5 {
             for log_d in 0..10 {
