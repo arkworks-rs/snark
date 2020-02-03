@@ -160,20 +160,12 @@ impl<F: PrimeField> DensePolynomial<F> {
         shifted.extend_from_slice(&self.coeffs);
 
         #[cfg(feature = "parallel")]
-        {
-            shifted
-                .par_iter_mut()
-                .zip(&self.coeffs)
-                .for_each(|(s, c)| *s -= c);
-        }
+        let shifted_iter = shifted.par_iter_mut();
 
         #[cfg(not(feature = "parallel"))]
-        {
-            shifted
-                .iter_mut()
-                .zip(&self.coeffs)
-                .for_each(|(s, c)| *s -= c);
-        }
+        let shifted_iter = shifted.iter_mut();
+
+        shifted_iter.zip(&self.coeffs).for_each(|(s, c)| *s -= c);
 
         DensePolynomial::from_coefficients_vec(shifted)
     }
