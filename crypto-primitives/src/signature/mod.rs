@@ -51,14 +51,14 @@ pub trait SignatureScheme {
     ) -> Result<Self::Signature, Error>;
 }
 
-use algebra::{Field, FromBytes};
+use algebra::Field;
 
 pub trait FieldBasedSignatureScheme {
 
     type Data: Field;
     type PublicKey: ToBytes + Hash + Eq + Clone + Default + Send + Sync;
     type SecretKey: ToBytes + Clone + Default;
-    type Signature: Clone + Default + Send + Sync + Debug + Eq + PartialEq + ToBytes + FromBytes;
+    type Signature: Clone + Default + Send + Sync + Debug + Eq + PartialEq;
 
     fn keygen<R: Rng>(
         rng: &mut R,

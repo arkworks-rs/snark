@@ -50,8 +50,8 @@ pub struct SchnorrSig<G: Group> {
 }
 
 impl<G: Group + Hash, D: Digest + Send + Sync> SignatureScheme for SchnorrSignature<G, D>
-where
-    G::ScalarField: PrimeField,
+    where
+        G::ScalarField: PrimeField,
 {
     type Parameters = SchnorrSigParameters<G, D>;
     type PublicKey = G;
@@ -109,7 +109,7 @@ where
 
             // Compute the supposed verifier response: e := H(salt || r || msg);
             if let Some(verifier_challenge) =
-                G::ScalarField::from_random_bytes(&D::digest(&hash_input))
+            G::ScalarField::from_random_bytes(&D::digest(&hash_input))
             {
                 break (random_scalar, verifier_challenge);
             };
@@ -148,7 +148,7 @@ where
         hash_input.extend_from_slice(&message);
 
         let obtained_verifier_challenge = if let Some(obtained_verifier_challenge) =
-            G::ScalarField::from_random_bytes(&D::digest(&hash_input))
+        G::ScalarField::from_random_bytes(&D::digest(&hash_input))
         {
             obtained_verifier_challenge
         } else {
@@ -221,7 +221,7 @@ pub fn bytes_to_bits(bytes: &[u8]) -> Vec<bool> {
 }
 
 impl<ConstraintF: Field, G: Group + ToConstraintField<ConstraintF>, D: Digest>
-    ToConstraintField<ConstraintF> for SchnorrSigParameters<G, D>
+ToConstraintField<ConstraintF> for SchnorrSigParameters<G, D>
 {
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
@@ -229,7 +229,6 @@ impl<ConstraintF: Field, G: Group + ToConstraintField<ConstraintF>, D: Digest>
     }
 }
 
-//TODO: Replace to_bytes with to_bits
 mod field_impl {
 
     use crate::{
@@ -238,14 +237,13 @@ mod field_impl {
         Error,
     };
     use algebra::{
-        Field, PrimeField, Group, UniformRand, to_bytes, ToBytes, FromBytes,
-        AffineCurve, ProjectiveCurve, project,
+        Field, PrimeField, Group, UniformRand,
+        AffineCurve, ProjectiveCurve, project, ToBits, FromBits,
     };
     use std::marker::PhantomData;
     use rand::Rng;
     use std::{
         ops::Neg,
-        io::{Write, Read, Result as IoResult}
     };
 
     pub struct FieldBasedSchnorrSignatureScheme<
@@ -269,23 +267,7 @@ mod field_impl {
     )]
     pub struct FieldBasedSchnorrSignature<F: PrimeField> {
         pub r:    F,
-        pub s:    Vec<u8>,
-    }
-
-    impl<F: PrimeField> ToBytes for FieldBasedSchnorrSignature<F> {
-        #[inline]
-        fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
-            self.r.write(&mut writer)?;
-            self.s.write(&mut writer)
-        }
-    }
-
-    impl<F: PrimeField> FromBytes for FieldBasedSchnorrSignature<F> {
-        fn read<R: Read>(mut reader: R) -> IoResult<Self> {
-            let r = F::read(&mut reader)?;
-            let s = Vec::<u8>::read(&mut reader)?;
-            Ok(Self{r, s})
-        }
+        pub s:    Vec<bool>,
     }
 
     impl<F: PrimeField, G: ProjectiveCurve<BaseField = F>, H: FieldBasedHash<Data = F>> FieldBasedSignatureScheme for
@@ -345,7 +327,7 @@ mod field_impl {
 
             let signature = FieldBasedSchnorrSignature {
                 r: r.get_x(),
-                s: to_bytes!((k + &(e * sk))).unwrap(),
+                s: (k + &(e * sk)).write_bits(),
             };
 
             Ok(signature)
@@ -358,7 +340,7 @@ mod field_impl {
         )
             -> Result<bool, Error>
         {
-            let s = G::ScalarField::read(signature.s.as_slice())?;
+            let s = G::ScalarField::read_bits(signature.clone().s);
             let pk = pk.into_affine();
 
             debug_assert!(pk.is_in_correct_subgroup_assuming_on_curve());

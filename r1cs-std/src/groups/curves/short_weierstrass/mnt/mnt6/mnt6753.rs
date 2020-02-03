@@ -153,6 +153,15 @@ mod test {
             "gadget & native values are diff. after scalar mul"
         );
 
+        //Check mul_bits precomputed
+        let result_precomp = gadget_a
+            .mul_bits_precomputed(cs.ns(|| "mul_bits_precomp"), &gadget_b, input.as_slice())
+            .unwrap();
+        assert_eq!(
+            result, result_precomp,
+            "result of mul_bits and mul_bits_precomputed differ"
+        );
+
         if !cs.is_satisfied() {
             println!("{:?}", cs.which_is_unsatisfied().unwrap());
         }

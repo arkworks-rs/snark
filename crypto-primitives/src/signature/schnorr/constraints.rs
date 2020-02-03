@@ -17,7 +17,7 @@ pub struct SchnorrSigGadgetParameters<G: Group, ConstraintF: Field, GG: GroupGad
 }
 
 impl<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> Clone
-    for SchnorrSigGadgetParameters<G, ConstraintF, GG>
+for SchnorrSigGadgetParameters<G, ConstraintF, GG>
 {
     fn clone(&self) -> Self {
         Self {
@@ -30,10 +30,10 @@ impl<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> Clone
 
 #[derive(Derivative)]
 #[derivative(
-    Debug(bound = "G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>"),
-    Clone(bound = "G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>"),
-    PartialEq(bound = "G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>"),
-    Eq(bound = "G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>")
+Debug(bound = "G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>"),
+Clone(bound = "G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>"),
+PartialEq(bound = "G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>"),
+Eq(bound = "G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>")
 )]
 pub struct SchnorrSigGadgetPk<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> {
     pub_key: GG,
@@ -53,12 +53,12 @@ pub struct SchnorrRandomizePkGadget<G: Group, ConstraintF: Field, GG: GroupGadge
 }
 
 impl<G, GG, D, ConstraintF> SigRandomizePkGadget<SchnorrSignature<G, D>, ConstraintF>
-    for SchnorrRandomizePkGadget<G, ConstraintF, GG>
-where
-    G: Group,
-    GG: GroupGadget<G, ConstraintF>,
-    D: Digest + Send + Sync,
-    ConstraintF: Field,
+for SchnorrRandomizePkGadget<G, ConstraintF, GG>
+    where
+        G: Group,
+        GG: GroupGadget<G, ConstraintF>,
+        D: Digest + Send + Sync,
+        ConstraintF: Field,
 {
     type ParametersGadget = SchnorrSigGadgetParameters<G, ConstraintF, GG>;
     type PublicKeyGadget = SchnorrSigGadgetPk<G, ConstraintF, GG>;
@@ -88,17 +88,17 @@ where
 }
 
 impl<G, ConstraintF, GG, D> AllocGadget<SchnorrSigParameters<G, D>, ConstraintF>
-    for SchnorrSigGadgetParameters<G, ConstraintF, GG>
-where
-    G: Group,
-    ConstraintF: Field,
-    GG: GroupGadget<G, ConstraintF>,
-    D: Digest,
+for SchnorrSigGadgetParameters<G, ConstraintF, GG>
+    where
+        G: Group,
+        ConstraintF: Field,
+        GG: GroupGadget<G, ConstraintF>,
+        D: Digest,
 {
     fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, f: F) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<SchnorrSigParameters<G, D>>,
+        where
+            F: FnOnce() -> Result<T, SynthesisError>,
+            T: Borrow<SchnorrSigParameters<G, D>>,
     {
         let generator = GG::alloc_checked(cs, || f().map(|pp| pp.borrow().generator))?;
         Ok(Self {
@@ -112,9 +112,9 @@ where
         cs: CS,
         f: F,
     ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<SchnorrSigParameters<G, D>>,
+        where
+            F: FnOnce() -> Result<T, SynthesisError>,
+            T: Borrow<SchnorrSigParameters<G, D>>,
     {
         let generator = GG::alloc_input(cs, || f().map(|pp| pp.borrow().generator))?;
         Ok(Self {
@@ -126,16 +126,16 @@ where
 }
 
 impl<G, ConstraintF, GG> AllocGadget<SchnorrPublicKey<G>, ConstraintF>
-    for SchnorrSigGadgetPk<G, ConstraintF, GG>
-where
-    G: Group,
-    ConstraintF: Field,
-    GG: GroupGadget<G, ConstraintF>,
+for SchnorrSigGadgetPk<G, ConstraintF, GG>
+    where
+        G: Group,
+        ConstraintF: Field,
+        GG: GroupGadget<G, ConstraintF>,
 {
     fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, f: F) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<SchnorrPublicKey<G>>,
+        where
+            F: FnOnce() -> Result<T, SynthesisError>,
+            T: Borrow<SchnorrPublicKey<G>>,
     {
         let pub_key = GG::alloc_input(cs, || f().map(|pk| *pk.borrow()))?;
         Ok(Self {
@@ -149,9 +149,9 @@ where
         cs: CS,
         f: F,
     ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<SchnorrPublicKey<G>>,
+        where
+            F: FnOnce() -> Result<T, SynthesisError>,
+            T: Borrow<SchnorrPublicKey<G>>,
     {
         let pub_key = GG::alloc_input(cs, || f().map(|pk| *pk.borrow()))?;
         Ok(Self {
@@ -163,10 +163,10 @@ where
 }
 
 impl<G, ConstraintF, GG> ConditionalEqGadget<ConstraintF> for SchnorrSigGadgetPk<G, ConstraintF, GG>
-where
-    G: Group,
-    ConstraintF: Field,
-    GG: GroupGadget<G, ConstraintF>,
+    where
+        G: Group,
+        ConstraintF: Field,
+        GG: GroupGadget<G, ConstraintF>,
 {
     #[inline]
     fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
@@ -189,18 +189,18 @@ where
 }
 
 impl<G, ConstraintF, GG> EqGadget<ConstraintF> for SchnorrSigGadgetPk<G, ConstraintF, GG>
-where
-    G: Group,
-    ConstraintF: Field,
-    GG: GroupGadget<G, ConstraintF>,
+    where
+        G: Group,
+        ConstraintF: Field,
+        GG: GroupGadget<G, ConstraintF>,
 {
 }
 
 impl<G, ConstraintF, GG> ToBytesGadget<ConstraintF> for SchnorrSigGadgetPk<G, ConstraintF, GG>
-where
-    G: Group,
-    ConstraintF: Field,
-    GG: GroupGadget<G, ConstraintF>,
+    where
+        G: Group,
+        ConstraintF: Field,
+        GG: GroupGadget<G, ConstraintF>,
 {
     fn to_bytes<CS: ConstraintSystem<ConstraintF>>(
         &self,
@@ -218,7 +218,6 @@ where
     }
 }
 
-//TODO: Replace to_bytes with to_bits
 mod field_impl
 {
     use algebra::{AffineCurve, PrimeField, ProjectiveCurve};
@@ -235,7 +234,6 @@ mod field_impl
         eq::EqGadget,
         groups::GroupGadget,
         bits::ToBitsGadget,
-        ToBytesGadget,
         boolean::Boolean
     };
     use r1cs_core::{ConstraintSystem, SynthesisError};
@@ -243,7 +241,6 @@ mod field_impl
         borrow::Borrow,
         marker::PhantomData,
     };
-    use r1cs_std::bits::uint8::UInt8;
     use r1cs_std::groups::AffineGroupGadget;
 
     #[derive(Derivative)]
@@ -258,7 +255,7 @@ mod field_impl
     >
     {
         pub r:       FpGadget<ConstraintF>,
-        pub s:       Vec<UInt8>,
+        pub s:       Vec<Boolean>,
         _field:      PhantomData<ConstraintF>,
     }
 
@@ -278,7 +275,7 @@ mod field_impl
                     s
                 } = sig.borrow().clone();
                 let r = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc r"), || Ok(r))?;
-                let s = UInt8::alloc_vec(cs.ns(|| "alloc s"), s.as_slice())?;
+                let s = Vec::<Boolean>::alloc(cs.ns(|| "alloc s"), || Ok(s.as_slice()))?;
                 Ok(Self{r, s, _field: PhantomData})
             })
         }
@@ -294,7 +291,7 @@ mod field_impl
                     s
                 } = sig.borrow().clone();
                 let r = FpGadget::<ConstraintF>::alloc_input(cs.ns(|| "alloc r"), || Ok(r))?;
-                let s = UInt8::alloc_input_vec(cs.ns(|| "alloc s"), s.as_slice())?;
+                let s = Vec::<Boolean>::alloc_input(cs.ns(|| "alloc s"), || Ok(s.as_slice()))?;
                 Ok(Self{r, s, _field: PhantomData})
             })
         }
@@ -353,21 +350,23 @@ mod field_impl
 
             //Enforce R' = s*G - e'*pk
             let e_prime_bits = e_prime
-                .to_bytes(cs.ns(|| "e_prime_to_bytes"))?
                 .to_bits(cs.ns(|| "e_prime_to_bits"))?;
 
             //We exploit hardcoded generator as `result` param here to avoid edge cases in addition
             let neg_e_prime_times_pk = public_key
-                .mul_bits(cs.ns(|| "pk * e_prime + g"), &g, e_prime_bits.as_slice().iter())?
+                .mul_bits(cs.ns(|| "pk * e_prime + g"), &g, e_prime_bits.as_slice().iter().rev())?
                 .sub(cs.ns(|| "subtract g"), &g)?
                 .negate(cs.ns(|| "- (e_prime * pk)"))?;
 
             //Enforce signature.s * G
-            let s_bits = signature.s.to_bits(cs.ns(|| "s to bits"))?;
-
-            //We must subtract the g previously added too.
+            let mut s = signature.s.clone();
+            s.reverse();
             let r_prime = g
-                .mul_bits_precomputed(cs.ns(|| "(s * G) - (e_prime * pk)"), &neg_e_prime_times_pk, s_bits.as_slice())?;
+                .mul_bits_precomputed(
+                    cs.ns(|| "(s * G) - (e_prime * pk)"),
+                    &neg_e_prime_times_pk,
+                    s.as_slice()
+                )?;
 
             //Enforce R'.x == r
             signature.r.enforce_equal(cs.ns(|| "sig.r == R'.x"), &r_prime.get_x())?;

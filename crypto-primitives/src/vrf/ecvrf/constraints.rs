@@ -1,11 +1,11 @@
 use algebra::{PrimeField, ProjectiveCurve, AffineCurve};
 use r1cs_std::{
-    bits::uint8::UInt8,
     fields::fp::FpGadget,
     alloc::AllocGadget,
     groups::{GroupGadget, AffineGroupGadget},
     eq::EqGadget,
     ToBytesGadget, ToBitsGadget,
+    boolean::Boolean,
 };
 use crate::{
     vrf::{
@@ -38,7 +38,7 @@ where
 {
     pub gamma:   GG,
     pub c:       FpGadget<ConstraintF>,
-    pub s:       Vec<UInt8>,
+    pub s:       Vec<Boolean>,
     _field:      PhantomData<ConstraintF>,
     _group:      PhantomData<G>,
 }
@@ -63,7 +63,7 @@ for FieldBasedEcVrfProofGadget<ConstraintF, G, GG>
             } = proof.borrow().clone();
             let gamma = GG::alloc(cs.ns(|| "alloc gamma"), || Ok(gamma))?;
             let c = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc r"), || Ok(c))?;
-            let s = UInt8::alloc_vec(cs.ns(|| "alloc s"), s.as_slice())?;
+            let s = Vec::<Boolean>::alloc(cs.ns(|| "alloc s"), || Ok(s.as_slice()))?;
             Ok(Self{gamma, c, s, _field: PhantomData, _group: PhantomData})
         })
     }
@@ -81,7 +81,7 @@ for FieldBasedEcVrfProofGadget<ConstraintF, G, GG>
             } = proof.borrow().clone();
             let gamma = GG::alloc_input(cs.ns(|| "alloc gamma"), || Ok(gamma))?;
             let c = FpGadget::<ConstraintF>::alloc_input(cs.ns(|| "alloc r"), || Ok(c))?;
-            let s = UInt8::alloc_input_vec(cs.ns(|| "alloc s"), s.as_slice())?;
+            let s = Vec::<Boolean>::alloc_input(cs.ns(|| "alloc s"), || Ok(s.as_slice()))?;
             Ok(Self{gamma, c, s, _field: PhantomData, _group: PhantomData})
         })
     }
@@ -152,16 +152,18 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
             cs.ns(|| "hardcode generator"),
             || Ok(G::prime_subgroup_generator())
         )?;
-        let s_bits = proof.s.to_bits(cs.ns(|| "proof.s to bits"))?;
+
+        let mut s_bits = proof.s.clone();
+        s_bits.reverse();
+
         let c_bits = proof.c
-            .to_bytes(cs.ns(|| "proof.c to bytes"))?
             .to_bits(cs.ns(|| "proof.c to bits"))?;
 
         //Check u = g^s - pk^c
         let u =
         {
             let neg_c_times_pk = public_key
-                .mul_bits(cs.ns(|| "pk * c + g"), &g, c_bits.as_slice().iter())?
+                .mul_bits(cs.ns(|| "pk * c + g"), &g, c_bits.as_slice().iter().rev())?
                 .sub(cs.ns(|| "c * pk"), &g)?
                 .negate(cs.ns(|| "- (c * pk)"))?;
             g.mul_bits_precomputed(cs.ns(|| "(s * G) - (c * pk)"), &neg_c_times_pk, s_bits.as_slice())?
@@ -171,7 +173,7 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
         let v =
         {
             let neg_c_times_gamma = proof.gamma
-                .mul_bits(cs.ns(|| "c * gamma + g"), &g, c_bits.as_slice().iter())?
+                .mul_bits(cs.ns(|| "c * gamma + g"), &g, c_bits.as_slice().iter().rev())?
                 .sub(cs.ns(|| "c * gamma"), &g)?
                 .negate(cs.ns(|| "- (c * gamma)"))?;
             mh.mul_bits(cs.ns(|| "(s * mh) - (c * gamma)"), &neg_c_times_gamma, s_bits.as_slice().iter())?
@@ -260,11 +262,22 @@ mod test {
     type EcVrfMNT6 = FieldBasedEcVrf<MNT6Fr, MNT4G1Projective, MNT6PoseidonHash, BHMNT4>;
 
     type EcVrfMNT4Gadget = FieldBasedEcVrfProofVerificationGadget<
-        MNT4Fr, MNT6G1Projective, MNT6G1Gadget, MNT4PoseidonHash, MNT4PoseidonHashGadget, BHMNT6, BHMNT4Gadget
-    >;
+        MNT4Fr,
+        MNT6G1Projective,
+        MNT6G1Gadget,
+        MNT4PoseidonHash,
+        MNT4PoseidonHashGadget,
+        BHMNT6,
+        BHMNT4Gadget>;
+
     type EcVrfMNT6Gadget = FieldBasedEcVrfProofVerificationGadget<
-        MNT6Fr, MNT4G1Projective, MNT4G1Gadget, MNT6PoseidonHash, MNT6PoseidonHashGadget, BHMNT4, BHMNT6Gadget
-    >;
+        MNT6Fr,
+        MNT4G1Projective,
+        MNT4G1Gadget,
+        MNT6PoseidonHash,
+        MNT6PoseidonHashGadget,
+        BHMNT4,
+        BHMNT6Gadget>;
 
     fn prove<S: FieldBasedVrf, R: Rng>(rng: &mut R, pp: &S::GHParams, message: &[S::Data])
         -> (S::Proof, S::PublicKey, S::SecretKey)

@@ -201,7 +201,6 @@ mod test {
         cs: &mut CS,
         a: GG,
         b: GG,
-        zero_alert: bool,
     ) {
         let zero = GG::zero(cs.ns(|| "Zero")).unwrap();
         assert_eq!(zero, zero);
@@ -209,14 +208,13 @@ mod test {
         // a == a
         assert_eq!(a, a);
 
-        if !zero_alert {
-            // a + 0 = a
-            assert_eq!(a.add(cs.ns(|| "a_plus_zero"), &zero).unwrap(), a);
-            // a - 0 = a
-            assert_eq!(a.sub(cs.ns(|| "a_minus_zero"), &zero).unwrap(), a);
-            // a - a = 0
-            assert_eq!(a.sub(cs.ns(|| "a_minus_a"), &a).unwrap(), zero);
-        }
+        // a + 0 = a
+        assert_eq!(a.add(cs.ns(|| "a_plus_zero"), &zero).unwrap(), a);
+        // a - 0 = a
+        assert_eq!(a.sub(cs.ns(|| "a_minus_zero"), &zero).unwrap(), a);
+        // a - a = 0
+        assert_eq!(a.sub(cs.ns(|| "a_minus_a"), &a).unwrap(), zero);
+
         // a + b = b + a
         let a_b = a.add(cs.ns(|| "a_plus_b"), &b).unwrap();
         let b_a = b.add(cs.ns(|| "b_plus_a"), &a).unwrap();
@@ -225,18 +223,53 @@ mod test {
         let ab_a = a_b.add(&mut cs.ns(|| "a_b_plus_a"), &a).unwrap();
         let a_ba = a.add(&mut cs.ns(|| "a_plus_b_a"), &b_a).unwrap();
         assert_eq!(ab_a, a_ba);
-        if !zero_alert {
-            // a.double() = a + a
-            let a_a = a.add(cs.ns(|| "a + a"), &a).unwrap();
-            let mut a2 = a.clone();
-            a2.double_in_place(cs.ns(|| "2a")).unwrap();
-            assert_eq!(a2, a_a);
-            // b.double() = b + b
-            let mut b2 = b.clone();
-            b2.double_in_place(cs.ns(|| "2b")).unwrap();
-            let b_b = b.add(cs.ns(|| "b + b"), &b).unwrap();
-            assert_eq!(b2, b_b);
-        }
+
+        // a.double() = a + a
+        let a_a = a.add(cs.ns(|| "a + a"), &a).unwrap();
+        let mut a2 = a.clone();
+        a2.double_in_place(cs.ns(|| "2a")).unwrap();
+        assert_eq!(a2, a_a);
+        // b.double() = b + b
+        let mut b2 = b.clone();
+        b2.double_in_place(cs.ns(|| "2b")).unwrap();
+        let b_b = b.add(cs.ns(|| "b + b"), &b).unwrap();
+        assert_eq!(b2, b_b);
+
+        let _ = a.to_bytes(&mut cs.ns(|| "ToBytes")).unwrap();
+        let _ = a.to_bytes_strict(&mut cs.ns(|| "ToBytes Strict")).unwrap();
+
+        let _ = b.to_bytes(&mut cs.ns(|| "b ToBytes")).unwrap();
+        let _ = b
+            .to_bytes_strict(&mut cs.ns(|| "b ToBytes Strict"))
+            .unwrap();
+    }
+
+    pub(crate) fn group_test_with_unsafe_add<
+        ConstraintF: Field,
+        G: Group,
+        GG: GroupGadget<G, ConstraintF>,
+        CS: ConstraintSystem<ConstraintF>,
+    >(
+        cs: &mut CS,
+        a: GG,
+        b: GG,
+    ) {
+        let zero = GG::zero(cs.ns(|| "Zero")).unwrap();
+        assert_eq!(zero, zero);
+
+        // a == a
+        assert_eq!(a, a);
+
+        // a + b = b + a
+        let a_b = a.add(cs.ns(|| "a_plus_b"), &b).unwrap();
+        let b_a = b.add(cs.ns(|| "b_plus_a"), &a).unwrap();
+        assert_eq!(a_b, b_a);
+
+        // (a + b) + a = a + (b + a)
+        let ab_a = a_b.add(&mut cs.ns(|| "a_b_plus_a"), &a).unwrap();
+        let a_ba = a.add(&mut cs.ns(|| "a_plus_b_a"), &b_a).unwrap();
+        assert_eq!(ab_a, a_ba);
+
         let _ = a.to_bytes(&mut cs.ns(|| "ToBytes")).unwrap();
         let _ = a.to_bytes_strict(&mut cs.ns(|| "ToBytes Strict")).unwrap();
 
@@ -258,7 +291,7 @@ mod test {
 
         let a = JubJubGadget::alloc(&mut cs.ns(|| "generate_a"), || Ok(a)).unwrap();
         let b = JubJubGadget::alloc(&mut cs.ns(|| "generate_b"), || Ok(b)).unwrap();
-        group_test::<_, JubJubProjective, _, _>(&mut cs.ns(|| "GroupTest(a, b)"), a, b, false);
+        group_test::<_, JubJubProjective, _, _>(&mut cs.ns(|| "GroupTest(a, b)"), a, b);
     }
 
     #[test]
@@ -277,7 +310,7 @@ mod test {
 
         let a = MNT4G1Gadget::alloc(&mut cs.ns(|| "generate_a_g1"), || Ok(a)).unwrap();
         let b = MNT4G1Gadget::alloc(&mut cs.ns(|| "generate_b_g1"), || Ok(b)).unwrap();
-        group_test::<_, MNT4G1Projective, _, _>(&mut cs.ns(|| "GroupTest(a, b)_g1"), a, b, true);
+        group_test_with_unsafe_add::<_, MNT4G1Projective, _, _>(&mut cs.ns(|| "GroupTest(a, b)_g1"), a, b);
 
         let p1: MNT4G1Projective = rand::random();
         let p1_compressed = p1.into_affine().compress();
@@ -308,7 +341,7 @@ mod test {
 
         let a = MNT6G1Gadget::alloc(&mut cs.ns(|| "generate_a_g1"), || Ok(a)).unwrap();
         let b = MNT6G1Gadget::alloc(&mut cs.ns(|| "generate_b_g1"), || Ok(b)).unwrap();
-        group_test::<_, MNT6G1Projective, _, _>(&mut cs.ns(|| "GroupTest(a, b)_g1"), a, b, true);
+        group_test_with_unsafe_add::<_, MNT6G1Projective, _, _>(&mut cs.ns(|| "GroupTest(a, b)_g1"), a, b);
 
         let p1: MNT6G1Projective = rand::random();
         let p1_compressed = p1.into_affine().compress();

@@ -345,9 +345,16 @@ for AffineGadget<P, ConstraintF, F>
         let mut t = self.clone().get_value().get()?;
         let sigma = self.clone().get_value().get()?;
         let mut result = result.clone();
-        let mut i = 0;
 
-        while i < bits.len() {
+        let mut bit_vec = Vec::new();
+        bit_vec.extend_from_slice(bits);
+        //Simply add padding. This should be safe, since the padding bit will be part of the
+        //circuit. (It is also done elsewhere).
+        if bits.len() % 2 != 0 {
+            bit_vec.push(Boolean::constant(false))
+        }
+
+        for (i, bits) in bit_vec.chunks(2).enumerate() {
             let ti = t.clone();
             let two_ti = ti.double();
             let mut table = [
@@ -361,18 +368,18 @@ for AffineGadget<P, ConstraintF, F>
             SWProjective::batch_normalization(&mut table);
             let x_coords = [table[0].x, table[1].x, table[2].x, table[3].x];
             let y_coords = [table[0].y, table[1].y, table[2].y, table[3].y];
-            let precomp = Boolean::and(cs.ns(|| format!("b0 AND b1_{}", i)), &bits[i], &bits[i+1])?;
+            let precomp = Boolean::and(cs.ns(|| format!("b0 AND b1_{}", i)), &bits[0], &bits[1])?;
 
             //Lookup x and y
-            let x = F::two_bit_lookup_lc(cs.ns(|| format!("Lookup x_{}", i)), &precomp, &[bits[i], bits[i + 1]],  &x_coords)?;
-            let y = F::two_bit_lookup_lc(cs.ns(|| format!("Lookup y_{}", i)), &precomp, &[bits[i], bits[i + 1]],  &y_coords)?;
+            let x = F::two_bit_lookup_lc(cs.ns(|| format!("Lookup x_{}", i)), &precomp, &[bits[0], bits[1]],  &x_coords)?;
+            let y = F::two_bit_lookup_lc(cs.ns(|| format!("Lookup y_{}", i)), &precomp, &[bits[0], bits[1]],  &y_coords)?;
 
             //Perform addition
             let adder: Self = Self::new(x, y, Boolean::constant(false));
             result = result.add(cs.ns(||format!("Add_{}", i)), &adder)?;
             t = t.double().double();
             to_sub += &sigma;
-            i = i + 2;
+            //i = i + 2;
         }
         //Is this safe ? Maybe we can hardcode to_sub since that `self` and `bits` will always
         //be the same for a given precomputed value.

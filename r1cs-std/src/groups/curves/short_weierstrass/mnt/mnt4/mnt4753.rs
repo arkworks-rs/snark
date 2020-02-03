@@ -13,11 +13,7 @@ mod test {
 
     use super::{MNT4G1Gadget as G1Gadget, MNT4G2Gadget as G2Gadget};
     use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
-    use algebra::{
-        curves::mnt4753::{G1Projective as G1, G2Projective as G2},
-        fields::mnt4753::{Fq, Fr},
-        AffineCurve, BitIterator, PrimeField, ProjectiveCurve,
-    };
+    use algebra::{curves::mnt4753::{G1Projective as G1, G2Projective as G2}, fields::mnt4753::{Fq, Fr}, AffineCurve, BitIterator, PrimeField, ProjectiveCurve};
     use r1cs_core::ConstraintSystem;
 
     #[test]
@@ -148,6 +144,15 @@ mod test {
         assert_eq!(
             result_val, native_result,
             "gadget & native values are diff. after scalar mul"
+        );
+
+        //Check mul_bits precomputed
+        let result_precomp = gadget_a
+            .mul_bits_precomputed(cs.ns(|| "mul_bits_precomp"), &gadget_b, input.as_slice())
+            .unwrap();
+        assert_eq!(
+            result, result_precomp,
+            "result of mul_bits and mul_bits_precomputed differ"
         );
 
         if !cs.is_satisfied() {

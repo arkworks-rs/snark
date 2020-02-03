@@ -1,7 +1,8 @@
 use algebra::{
     Field, PrimeField, project,
     Group, AffineCurve, ProjectiveCurve,
-    ToBytes, to_bytes, FromBytes,
+    ToBytes, to_bytes,
+    ToBits, FromBits,
     UniformRand,
 };
 use crate::{
@@ -11,7 +12,6 @@ use crate::{
     vrf::FieldBasedVrf, Error, CryptoError
 };
 use std::marker::PhantomData;
-use std::io::{Write, Read, Result as IoResult};
 use rand::Rng;
 
 #[cfg(feature = "r1cs")]
@@ -41,27 +41,7 @@ Debug(bound = "F: PrimeField, G: ProjectiveCurve")
 pub struct FieldBasedEcVrfProof<F: PrimeField, G: ProjectiveCurve<BaseField = F>> {
     pub gamma:  G,
     pub c:      F,
-    pub s:      Vec<u8>,
-}
-
-impl<F: PrimeField, G: ProjectiveCurve<BaseField = F>> ToBytes for FieldBasedEcVrfProof<F, G>
-{
-    #[inline]
-    fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
-        self.gamma.write(&mut writer)?;
-        self.c.write(&mut writer)?;
-        self.s.write(&mut writer)
-    }
-}
-
-impl <F: PrimeField, G: ProjectiveCurve<BaseField = F>> FromBytes for FieldBasedEcVrfProof<F, G>
-{
-    fn read<R: Read>(mut reader: R) -> IoResult<Self> {
-        let gamma = G::read(&mut reader)?;
-        let c = F::read(&mut reader)?;
-        let s = Vec::<u8>::read(&mut reader)?;
-        Ok(Self{gamma, c, s})
-    }
+    pub s:      Vec<bool>,
 }
 
 impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
@@ -126,7 +106,7 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
         //Compute gamma = mh^sk
         let gamma = mh.mul(sk);
 
-        Ok(FieldBasedEcVrfProof {gamma, c, s: to_bytes!(s).unwrap()})
+        Ok(FieldBasedEcVrfProof {gamma, c, s: s.write_bits()})
     }
 
     fn verify(
@@ -138,7 +118,7 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
         -> Result<Self::Data, Error>
     {
         //Read s from proof
-        let s = G::ScalarField::read(proof.s.as_slice())?;
+        let s = G::ScalarField::read_bits(proof.s.clone());
 
         //Checks;
         let pk = pk.into_affine();

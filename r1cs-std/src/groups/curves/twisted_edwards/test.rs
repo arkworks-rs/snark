@@ -26,7 +26,6 @@ where
         &mut cs.ns(|| "GroupTest(a, b)"),
         gadget_a.clone(),
         gadget_b,
-        false
     );
 
     // Check mul_bits
