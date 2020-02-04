@@ -1,5 +1,6 @@
-//! An implementation of the [Groth][Groth16] zkSNARK.
-//! [Groth16]: https://eprint.iacr.org/2016/260.pdf
+//! An implementation of the [`Groth16`] zkSNARK.
+//!
+//! [`Groth16`]: https://eprint.iacr.org/2016/260.pdf
 #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unused_import_braces, unused_qualifications, trivial_casts)]
 #![deny(trivial_numeric_casts, private_in_public, variant_size_differences)]
