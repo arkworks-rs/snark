@@ -1,5 +1,5 @@
 use rand::{Rng, distributions::{Standard, Distribution}};
-use crate::{UniformRand, ToBits, FromBits, PrimeField};
+use crate::{UniformRand, ToBits, FromBits, PrimeField, Error};
 use std::{
     cmp::Ordering,
     io::{Read, Result as IoResult, Write},
@@ -480,11 +480,11 @@ impl<P: Fp6Parameters> ToBits for Fp6<P> {
 }
 
 impl<P: Fp6Parameters> FromBits for Fp6<P> {
-    fn read_bits(bits: Vec<bool>) -> Self {
+    fn read_bits(bits: Vec<bool>) -> Result<Self, Error> {
         let size = 2 * <<P::Fp2Params as Fp2Parameters>::Fp as PrimeField>::Params::MODULUS_BITS as usize;
-        let c0 = Fp2::read_bits(bits[..size].to_vec());
-        let c1 = Fp2::read_bits(bits[size..(2*size)].to_vec());
-        let c2 = Fp2::read_bits(bits[(2*size)..].to_vec());
-        Fp6::new(c0, c1, c2)
+        let c0 = Fp2::read_bits(bits[..size].to_vec())?;
+        let c1 = Fp2::read_bits(bits[size..(2*size)].to_vec())?;
+        let c2 = Fp2::read_bits(bits[(2*size)..].to_vec())?;
+        Ok(Fp6::new(c0, c1, c2))
     }
 }

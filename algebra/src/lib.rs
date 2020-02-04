@@ -67,3 +67,5 @@ pub use to_field_vec::ToConstraintField;
 pub mod msm;
 #[cfg(feature = "parallel")]
 pub use self::msm::*;
+
+pub type Error = Box<dyn std::error::Error>;

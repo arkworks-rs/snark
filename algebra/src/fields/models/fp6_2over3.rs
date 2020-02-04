@@ -1,5 +1,5 @@
 use rand::{Rng, distributions::{Standard, Distribution}};
-use crate::{UniformRand, ToCompressedBits, FromCompressedBits, ToBits, FromBits, PrimeField};
+use crate::{UniformRand, ToCompressedBits, FromCompressedBits, ToBits, FromBits, PrimeField, Error, BitSerializationError};
 use std::{
     cmp::Ordering,
     io::{Read, Result as IoResult, Write},
@@ -298,11 +298,11 @@ impl<P: Fp6Parameters> ToBits for Fp6<P> {
 }
 
 impl<P: Fp6Parameters> FromBits for Fp6<P> {
-    fn read_bits(bits: Vec<bool>) -> Self {
+    fn read_bits(bits: Vec<bool>) -> Result<Self, Error> {
         let size = 3 * <<P::Fp3Params as Fp3Parameters>::Fp as PrimeField>::Params::MODULUS_BITS as usize;
-        let c0 = Fp3::read_bits(bits[..size].to_vec());
-        let c1 = Fp3::read_bits(bits[size..].to_vec());
-        Fp6::new(c0, c1)
+        let c0 = Fp3::read_bits(bits[..size].to_vec())?;
+        let c1 = Fp3::read_bits(bits[size..].to_vec())?;
+        Ok(Fp6::new(c0, c1))
     }
 }
 
@@ -455,12 +455,12 @@ impl<P: Fp6Parameters> ToCompressedBits for Fp6<P> {
 impl<P: Fp6Parameters> FromCompressedBits for Fp6<P> {
 
     #[inline]
-    fn decompress(compressed: Vec<bool>) -> Option<Self> {
+    fn decompress(compressed: Vec<bool>) -> Result<Self, Error> {
         let len = compressed.len() - 1;
         let parity_flag_set = compressed[len];
 
         //Mask away the flag bits and try to get the c1 component
-        let c1 = Fp3::read_bits(compressed[..len].to_vec());
+        let c1 = Fp3::read_bits(compressed[..len].to_vec())?;
 
         //Compute c0
         let c0 = {
@@ -474,11 +474,11 @@ impl<P: Fp6Parameters> FromCompressedBits for Fp6<P> {
             Some(c0_u) => {
                 let neg_c0u = c0_u.neg();
                 let c0_s = if c0_u.is_odd() ^ parity_flag_set {neg_c0u} else {c0_u};
-                Some(Self::new(c0_s, c1))
+                Ok(Self::new(c0_s, c1))
             },
 
             //sqrt(1 + nr*c1^2) doesn't exists in the field
-            _ => None,
+            _ => Err(Box::new(BitSerializationError::UndefinedSqrt)),
         }
     }
 }

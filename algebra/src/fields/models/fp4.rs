@@ -1,5 +1,5 @@
 use rand::{Rng, distributions::{Standard, Distribution}};
-use crate::{UniformRand, ToBits, FromBits, PrimeField};
+use crate::{UniformRand, ToBits, FromBits, PrimeField, Error, BitSerializationError};
 
 use std::{
     cmp::Ordering,
@@ -299,11 +299,11 @@ impl<P: Fp4Parameters> ToBits for Fp4<P> {
 }
 
 impl<P: Fp4Parameters> FromBits for Fp4<P> {
-    fn read_bits(bits: Vec<bool>) -> Self {
+    fn read_bits(bits: Vec<bool>) -> Result<Self, Error> {
         let size = 2 * <<P::Fp2Params as Fp2Parameters>::Fp as PrimeField>::Params::MODULUS_BITS as usize;
-        let c0 = Fp2::read_bits(bits[..size].to_vec());
-        let c1 = Fp2::read_bits(bits[size..].to_vec());
-        Fp4::new(c0, c1)
+        let c0 = Fp2::read_bits(bits[..size].to_vec())?;
+        let c1 = Fp2::read_bits(bits[size..].to_vec())?;
+        Ok(Fp4::new(c0, c1))
     }
 }
 
@@ -336,12 +336,12 @@ impl<P: Fp4Parameters> ToCompressedBits for Fp4<P> {
 impl<P: Fp4Parameters> FromCompressedBits for Fp4<P> {
 
     #[inline]
-    fn decompress(compressed: Vec<bool>) -> Option<Self> {
+    fn decompress(compressed: Vec<bool>) -> Result<Self, Error> {
         let len = compressed.len() - 1;
         let parity_flag_set = compressed[len];
 
         //Mask away the flag bits and try to get the c1 component
-        let c1 = Fp2::read_bits(compressed[..len].to_vec());
+        let c1 = Fp2::read_bits(compressed[..len].to_vec())?;
 
         //Compute c0
         let c0 = {
@@ -355,11 +355,11 @@ impl<P: Fp4Parameters> FromCompressedBits for Fp4<P> {
             Some(c0_u) => {
                 let neg_c0u = c0_u.neg();
                 let c0_s = if c0_u.is_odd() ^ parity_flag_set {neg_c0u} else {c0_u};
-                Some(Self::new(c0_s, c1))
+                Ok(Self::new(c0_s, c1))
             },
 
             //sqrt(1 + nr*c1^2) doesn't exists in the field
-            _ => None,
+            _ => Err(Box::new(BitSerializationError::UndefinedSqrt)),
         }
     }
 }

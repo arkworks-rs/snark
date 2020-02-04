@@ -1,4 +1,4 @@
-use crate::{biginteger::BigInteger, bytes::{FromBytes, ToBytes}, UniformRand, bits::{ToBits, FromBits}};
+use crate::{biginteger::BigInteger, bytes::{FromBytes, ToBytes}, UniformRand, bits::{ToBits, FromBits}, Error, BitSerializationError};
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
@@ -294,9 +294,28 @@ impl<F: PrimeField> ToBits for F {
 
 impl<F: PrimeField> FromBits for F {
     #[inline]
-    fn read_bits(bits: Vec<bool>) -> Self {
-        assert_eq!(bits.len(), <Self as PrimeField>::Params::MODULUS_BITS as usize);
-        Self::from_repr(<Self as PrimeField>::BigInt::from_bits(bits.as_slice()))
+    fn read_bits(bits: Vec<bool>) -> Result<Self, Error> {
+        let modulus_bits = <Self as PrimeField>::Params::MODULUS_BITS as usize;
+        match bits.len() ==  modulus_bits {
+            true => {
+                let read_bigint = <Self as PrimeField>::BigInt::from_bits(bits.as_slice());
+                match read_bigint < F::Params::MODULUS {
+                    true => Ok(Self::from_repr(read_bigint)),
+                    false => {
+                        let e = Box::new(
+                            BitSerializationError::InvalidFieldElement("element is over the field modulus".to_owned())
+                        );
+                        Err(e)
+                    }
+                }
+            },
+            false => {
+               let e = Box::new(
+                   BitSerializationError::InvalidFieldElement(format!("bit vec length is greater than the modulus bits ({})", modulus_bits))
+               );
+                Err(e)
+            }
+        }
     }
 }
 

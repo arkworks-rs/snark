@@ -1,4 +1,4 @@
-use crate::{UniformRand, ToBits, FromBits};
+use crate::{UniformRand, ToBits, FromBits, Error};
 use rand::{Rng, distributions::{Standard, Distribution}};
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
@@ -286,11 +286,11 @@ impl<P: Fp2Parameters> ToBits for Fp2<P> {
 }
 
 impl<P: Fp2Parameters> FromBits for Fp2<P> {
-    fn read_bits(bits: Vec<bool>) -> Self {
+    fn read_bits(bits: Vec<bool>) -> Result<Self, Error> {
         let size = <P::Fp as PrimeField>::Params::MODULUS_BITS as usize;
-        let c0 = P::Fp::read_bits(bits[..size].to_vec());
-        let c1 = P::Fp::read_bits(bits[size..].to_vec());
-        Fp2::new(c0, c1)
+        let c0 = P::Fp::read_bits(bits[..size].to_vec())?;
+        let c1 = P::Fp::read_bits(bits[size..].to_vec())?;
+        Ok(Fp2::new(c0, c1))
     }
 }
 

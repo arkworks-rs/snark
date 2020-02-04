@@ -1,5 +1,5 @@
 use rand::{Rng, distributions::{Standard, Distribution}};
-use crate::{UniformRand, ToCompressedBits, FromCompressedBits};
+use crate::{UniformRand, ToCompressedBits, FromCompressedBits, Error, BitSerializationError};
 use crate::curves::models::SWModelParameters as Parameters;
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
@@ -218,18 +218,18 @@ impl<P: Parameters> ToCompressedBits for GroupAffine<P>
 impl<P: Parameters> FromCompressedBits for GroupAffine<P>
 {
     #[inline]
-    fn decompress(compressed: Vec<bool>) -> Option<Self> {
+    fn decompress(compressed: Vec<bool>) -> Result<Self, Error> {
         let len = compressed.len() - 1;
         let parity_flag_set = compressed[len];
         let infinity_flag_set = compressed[len - 1];
 
         //Mask away the flag bits and try to get the x coordinate
-        let x = P::BaseField::read_bits(compressed[0..(len - 1)].to_vec());
+        let x = P::BaseField::read_bits(compressed[0..(len - 1)].to_vec())?;
         match (infinity_flag_set, parity_flag_set, x.is_zero()) {
 
             //If the infinity flag is set, return the value assuming
             //the x-coordinate is zero and the parity bit is not set.
-            (true, false, true) => Some(Self::zero()),
+            (true, false, true) => Ok(Self::zero()),
 
             //If x is not zero, then infinity flag should not be set and all the others
             //should be set
@@ -239,13 +239,21 @@ impl<P: Parameters> FromCompressedBits for GroupAffine<P>
                 match Self::get_point_from_x_and_parity(x, parity_flag_set) {
 
                     //Check p belongs to the subgroup we expect
-                    Some(p) => if p.is_in_correct_subgroup_assuming_on_curve() {Some(p)} else {None},
-                    _ => None,
+                    Some(p) => {
+                        if p.is_in_correct_subgroup_assuming_on_curve() {
+                            Ok(p)
+                        }
+                        else {
+                            let e = BitSerializationError::NotPrimeOrder;
+                            Err(Box::new(e))
+                        }
+                    }
+                    _ => Err(Box::new(BitSerializationError::UndefinedSqrt)),
                 }
             },
 
             //Other combinations are illegal
-            _ => None,
+            _ => Err(Box::new(BitSerializationError::InvalidFlags)),
         }
     }
 }
