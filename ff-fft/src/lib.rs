@@ -19,6 +19,48 @@ pub(crate) use alloc::{borrow::Cow, collections::BTreeMap, vec::Vec};
 #[cfg(feature = "std")]
 pub(crate) use std::{borrow::Cow, collections::BTreeMap, vec::Vec};
 
+/// Creates parallel iterator over refs if `parallel` feature is enabled.
+#[macro_export]
+macro_rules! cfg_iter {
+    ($e: expr) => {{
+        #[cfg(feature = "parallel")]
+        let result = $e.par_iter();
+
+        #[cfg(not(feature = "parallel"))]
+        let result = $e.iter();
+
+        result
+    }};
+}
+
+/// Creates parallel iterator over mut refs if `parallel` feature is enabled.
+#[macro_export]
+macro_rules! cfg_iter_mut {
+    ($e: expr) => {{
+        #[cfg(feature = "parallel")]
+        let result = $e.par_iter_mut();
+
+        #[cfg(not(feature = "parallel"))]
+        let result = $e.iter_mut();
+
+        result
+    }};
+}
+
+/// Creates parallel iterator if `parallel` feature is enabled.
+#[macro_export]
+macro_rules! cfg_into_iter {
+    ($e: expr) => {{
+        #[cfg(feature = "parallel")]
+        let result = $e.into_par_iter();
+
+        #[cfg(not(feature = "parallel"))]
+        let result = $e.into_iter();
+
+        result
+    }};
+}
+
 pub mod domain;
 
 pub mod evaluations;

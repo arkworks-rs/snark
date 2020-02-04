@@ -2,7 +2,7 @@ use algebra::{
     groups::Group, msm::FixedBaseMSM, Field, PairingEngine, PrimeField, ProjectiveCurve,
     UniformRand,
 };
-use ff_fft::EvaluationDomain;
+use ff_fft::{cfg_into_iter, cfg_iter, EvaluationDomain};
 
 use algebra::{One, Zero};
 use r1cs_core::{
@@ -193,58 +193,30 @@ where
     end_timer!(reduction_time);
 
     // Compute query densities
-    let non_zero_a: usize = {
-        #[cfg(feature = "parallel")]
-        let q_num_iter = (0..qap_num_variables).into_par_iter();
+    let non_zero_a: usize = cfg_into_iter!(0..qap_num_variables)
+        .map(|i| (!a[i].is_zero()) as usize)
+        .sum();
 
-        #[cfg(not(feature = "parallel"))]
-        let q_num_iter = (0..qap_num_variables).into_iter();
-
-        q_num_iter.map(|i| (!a[i].is_zero()) as usize).sum()
-    };
-
-    let non_zero_b: usize = {
-        #[cfg(feature = "parallel")]
-        let q_num_iter = (0..qap_num_variables).into_par_iter();
-
-        #[cfg(not(feature = "parallel"))]
-        let q_num_iter = (0..qap_num_variables).into_iter();
-
-        q_num_iter.map(|i| (!b[i].is_zero()) as usize).sum()
-    };
+    let non_zero_b: usize = cfg_into_iter!(0..qap_num_variables)
+        .map(|i| (!b[i].is_zero()) as usize)
+        .sum();
 
     let scalar_bits = E::Fr::size_in_bits();
 
     let gamma_inverse = gamma.inverse().ok_or(SynthesisError::UnexpectedIdentity)?;
     let delta_inverse = delta.inverse().ok_or(SynthesisError::UnexpectedIdentity)?;
 
-    let gamma_abc = {
-        #[cfg(feature = "parallel")]
-        let a_iter = a[0..assembly.num_inputs].par_iter();
+    let gamma_abc = cfg_iter!(a[0..assembly.num_inputs])
+        .zip(&b[0..assembly.num_inputs])
+        .zip(&c[0..assembly.num_inputs])
+        .map(|((a, b), c)| (beta * a + &(alpha * b) + c) * &gamma_inverse)
+        .collect::<Vec<_>>();
 
-        #[cfg(not(feature = "parallel"))]
-        let a_iter = a[0..assembly.num_inputs].iter();
-
-        a_iter
-            .zip(&b[0..assembly.num_inputs])
-            .zip(&c[0..assembly.num_inputs])
-            .map(|((a, b), c)| (beta * a + &(alpha * b) + c) * &gamma_inverse)
-            .collect::<Vec<_>>()
-    };
-
-    let l = {
-        #[cfg(feature = "parallel")]
-        let a_iter = a.par_iter();
-
-        #[cfg(not(feature = "parallel"))]
-        let a_iter = a.iter();
-
-        a_iter
-            .zip(&b)
-            .zip(&c)
-            .map(|((a, b), c)| (beta * a + &(alpha * b) + c) * &delta_inverse)
-            .collect::<Vec<_>>()
-    };
+    let l = cfg_iter!(a)
+        .zip(&b)
+        .zip(&c)
+        .map(|((a, b), c)| (beta * a + &(alpha * b) + c) * &delta_inverse)
+        .collect::<Vec<_>>();
 
     let g1_generator = E::G1Projective::rand(rng);
     let g2_generator = E::G2Projective::rand(rng);
@@ -293,22 +265,14 @@ where
 
     // Compute the H-query
     let h_time = start_timer!(|| "Calculate H");
-    let mut h_query = {
-        #[cfg(feature = "parallel")]
-        let m_iter = (0..m_raw - 1).into_par_iter();
-
-        #[cfg(not(feature = "parallel"))]
-        let m_iter = (0..m_raw - 1).into_iter();
-
-        FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(
-            scalar_bits,
-            g1_window,
-            &g1_table,
-            &m_iter
-                .map(|i| zt * &delta_inverse * &t.pow([i as u64]))
-                .collect::<Vec<_>>(),
-        )
-    };
+    let mut h_query = FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(
+        scalar_bits,
+        g1_window,
+        &g1_table,
+        &cfg_into_iter!(0..m_raw - 1)
+            .map(|i| zt * &delta_inverse * &t.pow([i as u64]))
+            .collect::<Vec<_>>(),
+    );
 
     end_timer!(h_time);
 
@@ -340,15 +304,9 @@ where
         beta_g2:      beta_g2.into_affine(),
         gamma_g2:     gamma_g2.into_affine(),
         delta_g2:     delta_g2.into_affine(),
-        gamma_abc_g1: {
-            #[cfg(feature = "parallel")]
-            let gamma_iter = gamma_abc_g1.par_iter();
-
-            #[cfg(not(feature = "parallel"))]
-            let gamma_iter = gamma_abc_g1.iter();
-
-            gamma_iter.map(|p| p.into_affine()).collect::<Vec<_>>()
-        },
+        gamma_abc_g1: cfg_iter!(gamma_abc_g1)
+            .map(|p| p.into_affine())
+            .collect::<Vec<_>>(),
     };
 
     let batch_normalization_time = start_timer!(|| "Convert proving key elements to affine");

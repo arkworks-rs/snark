@@ -158,15 +158,9 @@ impl<F: PrimeField> DensePolynomial<F> {
     pub fn mul_by_vanishing_poly(&self, domain: EvaluationDomain<F>) -> DensePolynomial<F> {
         let mut shifted = vec![F::zero(); domain.size()];
         shifted.extend_from_slice(&self.coeffs);
-
-        #[cfg(feature = "parallel")]
-        let shifted_iter = shifted.par_iter_mut();
-
-        #[cfg(not(feature = "parallel"))]
-        let shifted_iter = shifted.iter_mut();
-
-        shifted_iter.zip(&self.coeffs).for_each(|(s, c)| *s -= c);
-
+        cfg_iter_mut!(shifted)
+            .zip(&self.coeffs)
+            .for_each(|(s, c)| *s -= c);
         DensePolynomial::from_coefficients_vec(shifted)
     }
 

@@ -1,8 +1,5 @@
 use rand::Rng;
 
-#[cfg(feature = "parallel")]
-use rayon::prelude::*;
-
 use algebra::{
     groups::Group, msm::VariableBaseMSM, AffineCurve, PairingEngine, PrimeField, ProjectiveCurve,
     UniformRand,
@@ -15,9 +12,13 @@ use r1cs_core::{
     ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable,
 };
 
+use core::ops::{AddAssign, MulAssign, SubAssign};
 use smallvec::SmallVec;
 
-use core::ops::{AddAssign, MulAssign, SubAssign};
+use ff_fft::cfg_into_iter;
+
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
 
 type CoeffVec<T> = SmallVec<[T; 2]>;
 
@@ -243,15 +244,9 @@ where
         .map(|s| s.into_repr())
         .collect::<Vec<_>>();
 
-    let aux_assignment = {
-        #[cfg(feature = "parallel")]
-        let input_iter = full_input_assignment[prover.num_inputs..].into_par_iter();
-
-        #[cfg(not(feature = "parallel"))]
-        let input_iter = full_input_assignment[prover.num_inputs..].into_iter();
-
-        input_iter.map(|s| s.into_repr()).collect::<Vec<_>>()
-    };
+    let aux_assignment = cfg_into_iter!(full_input_assignment[prover.num_inputs..])
+        .map(|s| s.into_repr())
+        .collect::<Vec<_>>();
 
     drop(full_input_assignment);
 
@@ -260,15 +255,9 @@ where
         .map(|s| s.into_repr())
         .collect::<Vec<_>>();
 
-    let h_aux_assignment = {
-        #[cfg(feature = "parallel")]
-        let input_iter = h[prover.num_inputs..].into_par_iter();
-
-        #[cfg(not(feature = "parallel"))]
-        let input_iter = h[prover.num_inputs..].into_iter();
-
-        input_iter.map(|s| s.into_repr()).collect::<Vec<_>>()
-    };
+    let h_aux_assignment = cfg_into_iter!(h[prover.num_inputs..])
+        .map(|s| s.into_repr())
+        .collect::<Vec<_>>();
 
     drop(h);
 
