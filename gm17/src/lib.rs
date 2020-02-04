@@ -1,5 +1,6 @@
-//! An implementation of the [Groth-Maller][GM17] simulation extractable
-//! zkSNARK. [GM17]: https://eprint.iacr.org/2017/540
+//! An implementation of the [`Groth-Maller`] simulation extractable zkSNARK.
+//!
+//! [`Groth-Maller`]: https://eprint.iacr.org/2017/540
 #![deny(unused_import_braces, unused_qualifications, trivial_casts)]
 #![deny(trivial_numeric_casts, private_in_public, variant_size_differences)]
 #![deny(stable_features, unreachable_pub, non_shorthand_field_patterns)]
