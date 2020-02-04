@@ -124,6 +124,26 @@ impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for [u8] {
     }
 }
 
+impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for [bool] {
+    #[inline]
+    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
+        let max_size = <ConstraintF as PrimeField>::Params::CAPACITY;
+        let max_size = max_size as usize;
+        let fes = self
+            .chunks(max_size)
+            .map(|chunk| {
+                let mut chunk = chunk.to_vec();
+                let len = chunk.len();
+                for _ in len..(max_size + 1) {
+                    chunk.push(false);
+                }
+                ConstraintF::read_bits(chunk)
+            })
+            .collect::<Vec<_>>();
+        Ok(fes)
+    }
+}
+
 impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for [u8; 32] {
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {

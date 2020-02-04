@@ -1,8 +1,9 @@
-use algebra::{BitIterator, Field, FpParameters, PrimeField};
+use algebra::{BitIterator, Field, FpParameters, PrimeField, ToConstraintField};
 
 use crate::{prelude::*, Assignment};
 use r1cs_core::{ConstraintSystem, LinearCombination, SynthesisError, Variable, ConstraintVar};
 use std::borrow::Borrow;
+use crate::fields::fp::FpGadget;
 
 /// Represents a variable in the constraint system which is guaranteed
 /// to be either zero or one.
@@ -422,6 +423,41 @@ impl Boolean {
         input_bits
     }
 
+    /// Allocates a vector of `bool`'s by first converting (chunks of) them to
+    /// `ConstraintF` elements, (thus reducing the number of input allocations),
+    /// and then converts this list of `ConstraintF` gadgets back into
+    /// bits.
+    pub fn alloc_input_vec<ConstraintF, CS>(
+        mut cs: CS,
+        values: &[bool],
+    ) -> Result<Vec<Self>, SynthesisError>
+        where
+            ConstraintF: PrimeField,
+            CS: ConstraintSystem<ConstraintF>,
+    {
+        let field_elements: Vec<ConstraintF> =
+            ToConstraintField::<ConstraintF>::to_field_elements(values).unwrap();
+        let values_len = values.len();
+
+        let max_size = ConstraintF::Params::CAPACITY as usize;
+        let mut allocated_bits = Vec::new();
+        for (i, field_element) in field_elements.into_iter().enumerate() {
+            let fe = FpGadget::<ConstraintF>::alloc_input(&mut cs.ns(|| format!("Field element {}", i)), || {
+                Ok(field_element)
+            })?;
+            let fe_bits = fe.to_bits(cs.ns(|| format!("Convert fe to bits {}", i)))?;
+
+            // Remove the most significant bit, because we know it should be zero
+            // because `values.to_field_elements()` only
+            // packs field elements up to the penultimate bit.
+            // That is, the most significant bit (`ConstraintF::NUM_BITS`-th bit) is
+            // unset, so we can just pop it off.
+            allocated_bits.extend_from_slice(&fe_bits[0..max_size]);
+        }
+
+        Ok(allocated_bits[0..values_len].to_vec())
+    }
+
     /// Construct a boolean from a known constant
     pub fn constant(b: bool) -> Self {
         Boolean::Constant(b)
@@ -838,7 +874,7 @@ impl<ConstraintF: Field> CondSelectGadget<ConstraintF> for Boolean {
 mod test {
     use super::{AllocatedBit, Boolean};
     use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
-    use algebra::{fields::bls12_381::Fr, BitIterator, Field, PrimeField, UniformRand};
+    use algebra::{fields::bls12_381::Fr, BitIterator, Field, PrimeField, UniformRand, ToBits};
     use r1cs_core::ConstraintSystem;
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
@@ -875,6 +911,17 @@ mod test {
         cs.set("boolean", Fr::from_str("2").unwrap());
         assert!(!cs.is_satisfied());
         assert!(cs.which_is_unsatisfied() == Some("boolean constraint"));
+    }
+
+    #[test]
+    fn test_boolean_alloc_input_vec() {
+        let mut cs = TestConstraintSystem::<Fr>::new();
+        let bit_vals = Fr::one().write_bits();
+        let bits = Boolean::alloc_input_vec(cs.ns(|| "alloc value"), &bit_vals).unwrap();
+        assert_eq!(bit_vals.len(), bits.len());
+        for (native_bit, gadget_bit) in bit_vals.into_iter().zip(bits) {
+            assert_eq!(gadget_bit.get_value().unwrap(), native_bit);
+        }
     }
 
     #[test]

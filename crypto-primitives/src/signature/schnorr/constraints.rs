@@ -291,7 +291,7 @@ mod field_impl
                     s
                 } = sig.borrow().clone();
                 let r = FpGadget::<ConstraintF>::alloc_input(cs.ns(|| "alloc r"), || Ok(r))?;
-                let s = Vec::<Boolean>::alloc_input(cs.ns(|| "alloc s"), || Ok(s.as_slice()))?;
+                let s = Boolean::alloc_input_vec(cs.ns(|| "alloc s"), || Ok(s.as_slice()))?;
                 Ok(Self{r, s, _field: PhantomData})
             })
         }
