@@ -1,9 +1,10 @@
-#![cfg_attr(not(feature = "print_trace"), no_std)]
+#![cfg_attr(not(feature = "print-trace"), no_std)]
 #![allow(unused_imports)]
+
 pub use self::inner::*;
 
-#[cfg(feature = "print-trace")]
 #[macro_use]
+#[cfg(feature = "print-trace")]
 pub mod inner {
     pub use colored::Colorize;
     use std::sync::atomic::AtomicUsize;
@@ -124,27 +125,16 @@ pub mod inner {
     }
 
     pub fn compute_indent(indent_amount: usize) -> String {
-        use std::env::var;
         let mut indent = String::new();
-        let pad_string = match var("CLICOLOR") {
-            Ok(val) => {
-                if val == "0" {
-                    " "
-                } else {
-                    PAD_CHAR
-                }
-            },
-            Err(_) => PAD_CHAR,
-        };
         for _ in 0..indent_amount {
-            indent.push_str(&pad_string.white());
+            indent.push_str(&PAD_CHAR.white());
         }
         indent
     }
 }
 
-#[cfg(not(feature = "print-trace"))]
 #[macro_use]
+#[cfg(not(feature = "print-trace"))]
 mod inner {
     pub struct TimerInfo;
 
