@@ -81,7 +81,7 @@ for FieldBasedEcVrfProofGadget<ConstraintF, G, GG>
             } = proof.borrow().clone();
             let gamma = GG::alloc_input(cs.ns(|| "alloc gamma"), || Ok(gamma))?;
             let c = FpGadget::<ConstraintF>::alloc_input(cs.ns(|| "alloc r"), || Ok(c))?;
-            let s = Boolean::alloc_input_vec(cs.ns(|| "alloc s"), || Ok(s.as_slice()))?;
+            let s = Boolean::alloc_input_vec(cs.ns(|| "alloc s"), s.as_slice())?;
             Ok(Self{gamma, c, s, _field: PhantomData, _group: PhantomData})
         })
     }
