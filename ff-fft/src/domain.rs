@@ -128,12 +128,7 @@ impl<F: PrimeField> EvaluationDomain<F> {
     pub fn ifft_in_place(&self, evals: &mut Vec<F>) {
         evals.resize(self.size(), F::zero());
         best_fft(evals, self.group_gen_inv, self.log_size_of_group);
-
-        #[cfg(feature = "parallel")]
-        evals.par_iter_mut().for_each(|val| *val *= &self.size_inv);
-
-        #[cfg(not(feature = "parallel"))]
-        evals.iter_mut().for_each(|val| *val *= &self.size_inv);
+        cfg_iter_mut!(evals).for_each(|val| *val *= &self.size_inv);
     }
 
     fn distribute_powers(coeffs: &mut [F], g: F) {
@@ -206,13 +201,7 @@ impl<F: PrimeField> EvaluationDomain<F> {
 
             batch_inversion(u.as_mut_slice());
 
-            #[cfg(feature = "parallel")]
-            u.par_iter_mut().zip(ls).for_each(|(tau_minus_r, l)| {
-                *tau_minus_r = l * *tau_minus_r;
-            });
-
-            #[cfg(not(feature = "parallel"))]
-            u.iter_mut().zip(ls).for_each(|(tau_minus_r, l)| {
+            cfg_iter_mut!(u).zip(ls).for_each(|(tau_minus_r, l)| {
                 *tau_minus_r = l * *tau_minus_r;
             });
 
@@ -251,11 +240,7 @@ impl<F: PrimeField> EvaluationDomain<F> {
             .inverse()
             .unwrap();
 
-        #[cfg(feature = "parallel")]
-        evals.par_iter_mut().for_each(|eval| *eval *= &i);
-
-        #[cfg(not(feature = "parallel"))]
-        evals.iter_mut().for_each(|eval| *eval *= &i);
+        cfg_iter_mut!(evals).for_each(|eval| *eval *= &i);
     }
 
     /// Given an index which assumes the first elements of this domain are the
@@ -300,21 +285,9 @@ impl<F: PrimeField> EvaluationDomain<F> {
         assert_eq!(self_evals.len(), other_evals.len());
         let mut result = self_evals.to_vec();
 
-        #[cfg(feature = "parallel")]
-        {
-            result
-                .par_iter_mut()
-                .zip(other_evals)
-                .for_each(|(a, b)| *a *= b);
-        }
-
-        #[cfg(not(feature = "parallel"))]
-        {
-            result
-                .iter_mut()
-                .zip(other_evals)
-                .for_each(|(a, b)| *a *= b);
-        }
+        cfg_iter_mut!(result)
+            .zip(other_evals)
+            .for_each(|(a, b)| *a *= b);
 
         result
     }

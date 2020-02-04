@@ -1,5 +1,5 @@
 use algebra::PairingEngine;
-use ff_fft::EvaluationDomain;
+use ff_fft::{cfg_iter, cfg_iter_mut, EvaluationDomain};
 
 use crate::{generator::KeypairAssembly, prover::ProvingAssignment, Vec};
 use algebra::{One, Zero};
@@ -107,31 +107,14 @@ impl R1CStoQAP {
         let mut a = vec![zero; domain_size];
         let mut b = vec![zero; domain_size];
 
-        #[cfg(feature = "parallel")]
-        {
-            a[..prover.num_constraints]
-                .par_iter_mut()
-                .zip(b[..prover.num_constraints].par_iter_mut())
-                .zip((&prover.at).par_iter())
-                .zip((&prover.bt).par_iter())
-                .for_each(|(((a, b), at_i), bt_i)| {
-                    *a = evaluate_constraint::<E>(&at_i, &full_input_assignment, prover.num_inputs);
-                    *b = evaluate_constraint::<E>(&bt_i, &full_input_assignment, prover.num_inputs);
-                });
-        }
-
-        #[cfg(not(feature = "parallel"))]
-        {
-            a[..prover.num_constraints]
-                .iter_mut()
-                .zip(b[..prover.num_constraints].iter_mut())
-                .zip((&prover.at).iter())
-                .zip((&prover.bt).iter())
-                .for_each(|(((a, b), at_i), bt_i)| {
-                    *a = evaluate_constraint::<E>(&at_i, &full_input_assignment, prover.num_inputs);
-                    *b = evaluate_constraint::<E>(&bt_i, &full_input_assignment, prover.num_inputs);
-                });
-        }
+        cfg_iter_mut!(a[..prover.num_constraints])
+            .zip(cfg_iter_mut!(b[..prover.num_constraints]))
+            .zip(cfg_iter!(&prover.at))
+            .zip(cfg_iter!(&prover.bt))
+            .for_each(|(((a, b), at_i), bt_i)| {
+                *a = evaluate_constraint::<E>(&at_i, &full_input_assignment, prover.num_inputs);
+                *b = evaluate_constraint::<E>(&bt_i, &full_input_assignment, prover.num_inputs);
+            });
 
         for i in 0..prover.num_inputs {
             a[prover.num_constraints + i] = if i > 0 { full_input_assignment[i] } else { one };
@@ -141,18 +124,10 @@ impl R1CStoQAP {
         domain.ifft_in_place(&mut b);
 
         let mut h: Vec<E::Fr> = vec![zero; domain_size];
-        {
-            #[cfg(feature = "parallel")]
-            let h_iter = h.par_iter_mut();
-
-            #[cfg(not(feature = "parallel"))]
-            let h_iter = h.iter_mut();
-
-            h_iter
-                .zip(&a)
-                .zip(&b)
-                .for_each(|((h_i, a_i), b_i)| *h_i *= &(*d2 * a_i + &(*d1 * b_i)));
-        }
+        cfg_iter_mut!(h)
+            .zip(&a)
+            .zip(&b)
+            .for_each(|((h_i, a_i), b_i)| *h_i *= &(*d2 * a_i + &(*d1 * b_i)));
 
         h[0].sub_assign(&d3);
         let d1d2 = *d1 * d2;
@@ -167,47 +142,29 @@ impl R1CStoQAP {
         drop(b);
 
         let mut c = vec![zero; domain_size];
-        {
-            #[cfg(feature = "parallel")]
-            let c_iter = c[..prover.num_constraints].par_iter_mut();
-
-            #[cfg(not(feature = "parallel"))]
-            let c_iter = c[..prover.num_constraints].iter_mut();
-
-            c_iter.enumerate().for_each(|(i, c)| {
+        cfg_iter_mut!(c[..prover.num_constraints])
+            .enumerate()
+            .for_each(|(i, c)| {
                 *c = evaluate_constraint::<E>(
                     &prover.ct[i],
                     &full_input_assignment,
                     prover.num_inputs,
                 );
             });
-        }
 
         domain.ifft_in_place(&mut c);
         domain.coset_fft_in_place(&mut c);
 
-        {
-            #[cfg(feature = "parallel")]
-            let ab_iter = ab.par_iter_mut();
-
-            #[cfg(not(feature = "parallel"))]
-            let ab_iter = ab.iter_mut();
-
-            ab_iter.zip(c).for_each(|(ab_i, c_i)| *ab_i -= &c_i);
-        }
+        cfg_iter_mut!(ab)
+            .zip(c)
+            .for_each(|(ab_i, c_i)| *ab_i -= &c_i);
 
         domain.divide_by_vanishing_poly_on_coset_in_place(&mut ab);
         domain.coset_ifft_in_place(&mut ab);
 
-        {
-            #[cfg(feature = "parallel")]
-            let h_iter = h[..domain_size - 1].par_iter_mut();
-
-            #[cfg(not(feature = "parallel"))]
-            let h_iter = h[..domain_size - 1].iter_mut();
-
-            h_iter.enumerate().for_each(|(i, e)| e.add_assign(&ab[i]));
-        }
+        cfg_iter_mut!(h[..domain_size - 1])
+            .enumerate()
+            .for_each(|(i, e)| e.add_assign(&ab[i]));
 
         Ok((full_input_assignment, h, domain_size))
     }
