@@ -50,15 +50,15 @@ extern crate derivative;
 /// used by test_constraint_system
 #[cfg(not(feature = "std"))]
 macro_rules! println {
-    () => { };
-    ($($arg: tt)*) => { };
+    () => {};
+    ($($arg: tt)*) => {};
 }
 
 #[cfg(not(feature = "std"))]
-use ralloc::{collections::BTreeMap, vec::Vec, string::String};
+use ralloc::{collections::BTreeMap, string::String, vec::Vec};
 
 #[cfg(feature = "std")]
-use std::{collections::BTreeMap, vec::Vec, string::String};
+use std::{collections::BTreeMap, string::String, vec::Vec};
 
 pub mod test_constraint_system;
 

@@ -408,9 +408,11 @@ mod test {
         fields::bls12_377::{Fq, Fr},
         BitIterator, PrimeField,
     };
-    use r1cs_std::{boolean::Boolean, pairing::bls12_377::PairingGadget as Bls12_377PairingGadget};
+    use r1cs_std::{
+        boolean::Boolean, pairing::bls12_377::PairingGadget as Bls12_377PairingGadget,
+        test_constraint_system::TestConstraintSystem,
+    };
     use rand::{thread_rng, Rng};
-    use r1cs_std::test_constraint_system::TestConstraintSystem;
 
     type TestProofSystem = Gm17<Bls12_377, Bench<Fr>, Fr>;
     type TestVerifierGadget = Gm17VerifierGadget<Bls12_377, Fq, Bls12_377PairingGadget>;

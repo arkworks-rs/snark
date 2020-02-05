@@ -121,8 +121,7 @@ mod test {
         *,
     };
     use r1cs_core::ConstraintSystem;
-    use r1cs_std::prelude::*;
-    use r1cs_std::test_constraint_system::TestConstraintSystem;
+    use r1cs_std::{prelude::*, test_constraint_system::TestConstraintSystem};
 
     #[test]
     fn commitment_gadget_test() {

@@ -1,4 +1,4 @@
-use crate::{Vec, String, BTreeMap};
+use crate::{BTreeMap, String, Vec};
 use algebra::Field;
 use r1cs_core::{ConstraintSystem, Index, LinearCombination, SynthesisError, Variable};
 
@@ -62,7 +62,7 @@ impl<ConstraintF: Field> TestConstraintSystem<ConstraintF> {
         }
     }
 
-    #[allow(unused_variables)]	
+    #[allow(unused_variables)]
     pub fn print_named_objects(&self) {
         for &(_, _, _, ref name) in &self.constraints {
             println!("{}", name);

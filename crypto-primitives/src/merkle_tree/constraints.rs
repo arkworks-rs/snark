@@ -193,8 +193,10 @@ mod test {
     use rand_xorshift::XorShiftRng;
 
     use super::*;
-    use r1cs_std::groups::curves::twisted_edwards::jubjub::JubJubGadget;
-    use r1cs_std::test_constraint_system::TestConstraintSystem;
+    use r1cs_std::{
+        groups::curves::twisted_edwards::jubjub::JubJubGadget,
+        test_constraint_system::TestConstraintSystem,
+    };
 
     #[derive(Clone)]
     pub(super) struct Window4x256;
