@@ -1,10 +1,9 @@
 use crate::{groups::test::group_test, prelude::*, Vec};
-use rand::Rng;
 use algebra::{
-    test_rng,
     curves::{models::TEModelParameters, twisted_edwards_extended::GroupAffine as TEAffine},
-    BitIterator, Field, Group, PrimeField, UniformRand,
+    test_rng, BitIterator, Field, Group, PrimeField, UniformRand,
 };
+use rand::Rng;
 
 use r1cs_core::ConstraintSystem;
 

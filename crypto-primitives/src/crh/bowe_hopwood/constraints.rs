@@ -137,8 +137,9 @@ mod test {
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
         alloc::AllocGadget, groups::curves::twisted_edwards::edwards_sw6::EdwardsSWGadget,
-        test_constraint_system::TestConstraintSystem, uint8::UInt8,
+        uint8::UInt8,
     };
+    use test_constraint_system::TestConstraintSystem;
 
     type TestCRH = BoweHopwoodPedersenCRH<Edwards, Window>;
     type TestCRHGadget = BoweHopwoodPedersenCRHGadget<Edwards, Fr, EdwardsSWGadget>;

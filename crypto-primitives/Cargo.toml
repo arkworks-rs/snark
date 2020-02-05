@@ -42,6 +42,7 @@ r1cs = [ "r1cs-core", "r1cs-std" ]
 [dev-dependencies]
 criterion = "0.3.1"
 rand_xorshift = { version = "0.2" }
+test-constraint-system = { path = "../test-constraint-system" }
 
 ################################# Benchmarks ##################################
 

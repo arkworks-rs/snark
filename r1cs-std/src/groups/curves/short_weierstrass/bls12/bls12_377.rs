@@ -17,10 +17,9 @@ mod test {
     use super::{G1Gadget, G2Gadget};
     use crate::{prelude::*, Vec};
     use algebra::{
-        test_rng,
         curves::bls12_377::{G1Projective as G1, G2Projective as G2},
         fields::bls12_377::{Fq, Fr},
-        AffineCurve, BitIterator, PrimeField, ProjectiveCurve,
+        test_rng, AffineCurve, BitIterator, PrimeField, ProjectiveCurve,
     };
     use r1cs_core::ConstraintSystem;
     use test_constraint_system::TestConstraintSystem;

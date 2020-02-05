@@ -163,9 +163,9 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
 
 #[cfg(test)]
 mod test {
-    use rand::Rng;
-    use algebra::{Field, test_rng};
+    use algebra::{test_rng, Field};
     use r1cs_core::ConstraintSystem;
+    use rand::Rng;
 
     use crate::prelude::*;
     use algebra::groups::Group;

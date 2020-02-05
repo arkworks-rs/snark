@@ -48,14 +48,10 @@ extern crate algebra;
 extern crate derivative;
 
 #[cfg(not(feature = "std"))]
-#[allow(unused_imports)]
-#[doc(hidden)]
-use ralloc::{boxed::Box, format, vec, vec::Vec};
+use ralloc::vec::Vec;
 
 #[cfg(feature = "std")]
-#[allow(unused_imports)]
-#[doc(hidden)]
-use std::{boxed::Box, format, vec, vec::Vec};
+use std::vec::Vec;
 
 pub mod bits;
 pub use self::bits::*;
