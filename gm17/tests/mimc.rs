@@ -26,13 +26,13 @@
 )]
 
 // For randomness (during paramgen and proof generation)
-use rand::{thread_rng, Rng};
+use rand::Rng;
 
 // For benchmarking
 use std::time::{Duration, Instant};
 
 // Bring in some tools for using pairing-friendly curves
-use algebra::{curves::bls12_381::Bls12_381, fields::bls12_381::fr::Fr, Field};
+use algebra::{curves::bls12_381::Bls12_381, fields::bls12_381::fr::Fr, test_rng, Field};
 
 // We're going to use the BLS12-381 pairing-friendly elliptic curve.
 
@@ -178,7 +178,7 @@ fn test_mimc_groth_maller_17() {
 
     // This may not be cryptographically safe, use
     // `OsRng` (for example) in production software.
-    let rng = &mut thread_rng();
+    let rng = &mut test_rng();
 
     // Generate the MiMC round constants
     let constants = (0..MIMC_ROUNDS).map(|_| rng.gen()).collect::<Vec<_>>();

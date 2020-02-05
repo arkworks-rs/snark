@@ -23,10 +23,12 @@ use alloc::{string::String, vec::Vec};
 #[cfg(feature = "std")]
 use std::{string::String, vec::Vec};
 
-use algebra::{bytes::ToBytes, PairingCurve, PairingEngine};
+use algebra::{
+    bytes::ToBytes,
+    io::{self, Read, Result as IoResult, Write},
+    PairingCurve, PairingEngine,
+};
 use r1cs_core::SynthesisError;
-
-use algebra::io::{self, Read, Result as IoResult, Write};
 
 /// Reduce an R1CS instance to a *Quadratic Arithmetic Program* instance.
 pub mod r1cs_to_qap;
