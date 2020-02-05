@@ -246,6 +246,7 @@ mod field_impl {
         ops::Neg,
     };
 
+    #[allow(dead_code)]
     pub struct FieldBasedSchnorrSignatureScheme<
         F: PrimeField,
         G: ProjectiveCurve<BaseField = F>,
@@ -340,7 +341,7 @@ mod field_impl {
         )
             -> Result<bool, Error>
         {
-            let s = G::ScalarField::read_bits(signature.clone().s);
+            let s = G::ScalarField::read_bits(signature.clone().s)?;
             let pk = pk.into_affine();
 
             debug_assert!(pk.is_in_correct_subgroup_assuming_on_curve());

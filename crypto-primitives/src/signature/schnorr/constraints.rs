@@ -297,6 +297,7 @@ mod field_impl
         }
     }
 
+    #[allow(dead_code)]
     pub struct FieldBasedSchnorrSigVerificationGadget<
         ConstraintF: PrimeField,
         G:  ProjectiveCurve<BaseField = ConstraintF>,

@@ -119,8 +119,8 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
         Ok(())
     }
 
-    fn mul_bits_precomputed<CS: ConstraintSystem<ConstraintF>>(
-        &self,
+    fn mul_bits_precomputed<'a, CS: ConstraintSystem<ConstraintF>>(
+        &'a self,
         cs: CS,
         result: &Self,
         bits: &[Boolean],

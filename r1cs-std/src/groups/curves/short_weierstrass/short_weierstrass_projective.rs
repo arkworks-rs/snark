@@ -333,8 +333,8 @@ for AffineGadget<P, ConstraintF, F>
     ///into the addition formula. See coda/src/lib/snarky_curves/snarky_curves.ml "scale_known"
     ///Note: `self` must be different from `result` due to SW incomplete addition.
     #[inline]
-    fn mul_bits_precomputed<CS: ConstraintSystem<ConstraintF>>(
-        &self,
+    fn mul_bits_precomputed<'a, CS: ConstraintSystem<ConstraintF>>(
+        &'a self,
         mut cs: CS,
         result: &Self,
         bits: &[Boolean],
@@ -379,16 +379,12 @@ for AffineGadget<P, ConstraintF, F>
             result = result.add(cs.ns(||format!("Add_{}", i)), &adder)?;
             t = t.double().double();
             to_sub += &sigma;
-            //i = i + 2;
         }
-        //Is this safe ? Maybe we can hardcode to_sub since that `self` and `bits` will always
-        //be the same for a given precomputed value.
-        let subber = Self::alloc(cs.ns(||"alloc final count"), || Ok(to_sub))?;
-        result = result.sub(cs.ns(|| "result - sigma*n_div_2"), &subber)?;
+        result = result.sub_constant(cs.ns(|| "result - sigma*n_div_2"), &to_sub)?;
         Ok(result)
     }
 
-    // I decided here to keep the same logic as TE implementation for future extensibility:
+    // I decided here to keep the same logic as TE implementation  for future extensibility:
     // in fact there is no actual difference between "outer" and "inner" sums since they all
     // are SW unsafe additions. The code could be simplified, but nothing changes from a number
     // of constraints point of view.

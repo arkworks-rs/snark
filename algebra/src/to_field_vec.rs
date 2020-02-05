@@ -139,7 +139,7 @@ impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for [bool] {
                 }
                 ConstraintF::read_bits(chunk)
             })
-            .collect::<Vec<_>>();
+            .collect::<Result<Vec<_>, _>>()?;
         Ok(fes)
     }
 }

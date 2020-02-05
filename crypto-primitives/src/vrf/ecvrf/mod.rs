@@ -118,7 +118,7 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
         -> Result<Self::Data, Error>
     {
         //Read s from proof
-        let s = G::ScalarField::read_bits(proof.s.clone());
+        let s = G::ScalarField::read_bits(proof.s.clone())?;
 
         //Checks;
         let pk = pk.into_affine();
