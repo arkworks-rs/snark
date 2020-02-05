@@ -5,10 +5,10 @@ use algebra::{
     },
     PrimeField,
 };
+use core::{borrow::Borrow, marker::PhantomData};
 use r1cs_core::{ConstraintSystem, ConstraintVar, SynthesisError};
-use std::{borrow::Borrow, marker::PhantomData};
 
-use crate::{prelude::*, Assignment};
+use crate::{prelude::*, Assignment, Vec};
 
 type Fp2Gadget<P, ConstraintF> =
     super::fp2::Fp2Gadget<<P as Fp6Parameters>::Fp2Params, ConstraintF>;

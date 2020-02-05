@@ -11,6 +11,7 @@ members = [
     "groth16",
     "r1cs-core",
     "r1cs-std",
+    "test-constraint-system"
 ]
 
 [profile.release]

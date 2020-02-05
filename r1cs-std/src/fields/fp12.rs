@@ -8,9 +8,9 @@ use algebra::{
     },
     BitIterator, Field, One, PrimeField,
 };
-use std::{borrow::Borrow, marker::PhantomData};
+use core::{borrow::Borrow, marker::PhantomData};
 
-use crate::{prelude::*, Assignment};
+use crate::{prelude::*, Assignment, Vec};
 
 type Fp2Gadget<P, ConstraintF> = super::fp2::Fp2Gadget<
     <<P as Fp12Parameters>::Fp6Params as Fp6Parameters>::Fp2Params,

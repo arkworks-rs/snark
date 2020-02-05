@@ -5,9 +5,9 @@ use r1cs_core::{
     LinearCombination, SynthesisError,
 };
 
-use std::borrow::Borrow;
+use core::borrow::Borrow;
 
-use crate::{boolean::AllocatedBit, prelude::*, Assignment};
+use crate::{boolean::AllocatedBit, prelude::*, Assignment, Vec};
 
 #[derive(Debug)]
 pub struct FpGadget<F: PrimeField> {

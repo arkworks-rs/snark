@@ -1,3 +1,4 @@
+#![cfg_attr(not(feature = "std"), no_std)]
 #![deny(
     unused_import_braces,
     unused_qualifications,
@@ -33,13 +34,28 @@
 )]
 #![forbid(unsafe_code)]
 
+#[cfg(all(test, not(feature = "std")))]
+#[macro_use]
+extern crate std;
+
+#[cfg(not(feature = "std"))]
+extern crate alloc as ralloc;
+
 #[macro_use]
 extern crate algebra;
 
 #[macro_use]
 extern crate derivative;
 
-pub mod test_constraint_system;
+#[cfg(not(feature = "std"))]
+#[allow(unused_imports)]
+#[doc(hidden)]
+use ralloc::{boxed::Box, format, vec, vec::Vec};
+
+#[cfg(feature = "std")]
+#[allow(unused_imports)]
+#[doc(hidden)]
+use std::{boxed::Box, format, vec, vec::Vec};
 
 pub mod bits;
 pub use self::bits::*;
