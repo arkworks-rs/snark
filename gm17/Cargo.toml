@@ -42,3 +42,4 @@ print-trace = [ "bench-utils/print-trace" ]
 [[example]]
 name = "gm17"
 path = "examples/snark-scalability/gm17.rs"
+required-features = ["std"]
