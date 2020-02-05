@@ -5,7 +5,7 @@ use r1cs_core::{ConstraintSystem, LinearCombination, SynthesisError};
 use crate::{
     boolean::{AllocatedBit, Boolean},
     prelude::*,
-    Assignment,
+    Assignment, Vec,
 };
 
 /// Represents an interpretation of 32 `Boolean` objects as an
@@ -343,7 +343,7 @@ impl<ConstraintF: Field> ConditionalEqGadget<ConstraintF> for UInt32 {
 #[cfg(test)]
 mod test {
     use super::UInt32;
-    use crate::{bits::boolean::Boolean, test_constraint_system::TestConstraintSystem};
+    use crate::{bits::boolean::Boolean, test_constraint_system::TestConstraintSystem, Vec};
     use algebra::{fields::bls12_381::Fr, One, Zero};
     use r1cs_core::ConstraintSystem;
     use rand::{Rng, SeedableRng};

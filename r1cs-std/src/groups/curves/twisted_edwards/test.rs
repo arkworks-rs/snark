@@ -1,11 +1,9 @@
-use rand::thread_rng;
-
-use crate::{groups::test::group_test, prelude::*};
-
+use crate::{groups::test::group_test, prelude::*, Vec};
 use algebra::{
     curves::{models::TEModelParameters, twisted_edwards_extended::GroupAffine as TEAffine},
-    BitIterator, Field, Group, PrimeField, UniformRand,
+    test_rng, BitIterator, Field, Group, PrimeField, UniformRand,
 };
+use rand::Rng;
 
 use r1cs_core::ConstraintSystem;
 
@@ -16,8 +14,8 @@ where
     GG: GroupGadget<TEAffine<P>, ConstraintF, Value = TEAffine<P>>,
     CS: ConstraintSystem<ConstraintF>,
 {
-    let a: TEAffine<P> = UniformRand::rand(&mut thread_rng());
-    let b: TEAffine<P> = UniformRand::rand(&mut thread_rng());
+    let a: TEAffine<P> = UniformRand::rand(&mut test_rng());
+    let b: TEAffine<P> = UniformRand::rand(&mut test_rng());
     let gadget_a = GG::alloc(&mut cs.ns(|| "a"), || Ok(a)).unwrap();
     let gadget_b = GG::alloc(&mut cs.ns(|| "b"), || Ok(b)).unwrap();
     assert_eq!(gadget_a.get_value().unwrap(), a);
@@ -29,7 +27,7 @@ where
     );
 
     // Check mul_bits
-    let scalar: <TEAffine<P> as Group>::ScalarField = UniformRand::rand(&mut thread_rng());
+    let scalar: <TEAffine<P> as Group>::ScalarField = UniformRand::rand(&mut test_rng());
     let native_result = a.mul(&scalar);
 
     let mut scalar: Vec<bool> = BitIterator::new(scalar.into_repr()).collect();
@@ -57,8 +55,9 @@ where
         .unwrap()
         .into();
 
-    let a: TEAffine<P> = rand::random();
-    let b: TEAffine<P> = rand::random();
+    let mut rng = test_rng();
+    let a: TEAffine<P> = rng.gen();
+    let b: TEAffine<P> = rng.gen();
     let gadget_a = GG::alloc(&mut cs.ns(|| "a"), || Ok(a)).unwrap();
     let gadget_b = GG::alloc(&mut cs.ns(|| "b"), || Ok(b)).unwrap();
     let alloc_cost = cs.num_constraints();

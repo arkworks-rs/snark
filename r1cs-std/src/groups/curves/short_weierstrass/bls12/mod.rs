@@ -9,9 +9,10 @@ use crate::{
     fields::{fp::FpGadget, fp2::Fp2Gadget, FieldGadget},
     groups::curves::short_weierstrass::AffineGadget,
     prelude::*,
+    Vec,
 };
 
-use std::fmt::Debug;
+use core::fmt::Debug;
 
 pub mod bls12_377;
 

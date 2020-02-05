@@ -1,6 +1,7 @@
+use crate::Vec;
 use algebra::Field;
+use core::borrow::Borrow;
 use r1cs_core::{ConstraintSystem, SynthesisError};
-use std::borrow::Borrow;
 
 pub trait AllocGadget<V, ConstraintF: Field>
 where

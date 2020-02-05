@@ -22,11 +22,14 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-algebra = { path = "../algebra" }
-r1cs-core = { path = "../r1cs-core" }
-derivative = "1"
-radix_trie = "0.1"
+algebra = { path = "../algebra", default-features = false }
+r1cs-core = { path = "../r1cs-core", default-features = false }
+derivative = { version = "1", features = ["use_core"] }
 
 [dev-dependencies]
-rand = { version = "0.7" }
+rand = { version = "0.7", default-features = false }
 rand_xorshift = { version = "0.2" }
+
+[features]
+default = ["std"]
+std = ["algebra/std", "r1cs-core/std"]

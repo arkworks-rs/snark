@@ -1,3 +1,4 @@
+#![cfg_attr(not(feature = "std"), no_std)]
 #![deny(
     unused_import_braces,
     unused_qualifications,
@@ -33,11 +34,31 @@
 )]
 #![forbid(unsafe_code)]
 
+#[cfg(all(test, not(feature = "std")))]
+#[macro_use]
+extern crate std;
+
+#[cfg(not(feature = "std"))]
+extern crate alloc as ralloc;
+
 #[macro_use]
 extern crate algebra;
 
 #[macro_use]
 extern crate derivative;
+
+/// used by test_constraint_system
+#[cfg(not(feature = "std"))]
+macro_rules! println {
+    () => {};
+    ($($arg: tt)*) => {};
+}
+
+#[cfg(not(feature = "std"))]
+use ralloc::{collections::BTreeMap, string::String, vec::Vec};
+
+#[cfg(feature = "std")]
+use std::{collections::BTreeMap, string::String, vec::Vec};
 
 pub mod test_constraint_system;
 

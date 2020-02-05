@@ -2,7 +2,7 @@ use crate::prelude::*;
 use algebra::{Field, Group};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
-use std::{borrow::Borrow, fmt::Debug};
+use core::{borrow::Borrow, fmt::Debug};
 
 pub mod curves;
 
@@ -163,12 +163,12 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
 
 #[cfg(test)]
 mod test {
-    use algebra::Field;
+    use algebra::{test_rng, Field};
     use r1cs_core::ConstraintSystem;
+    use rand::Rng;
 
     use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
     use algebra::groups::Group;
-    use rand;
 
     pub(crate) fn group_test<
         ConstraintF: Field,
@@ -226,8 +226,9 @@ mod test {
 
         let mut cs = TestConstraintSystem::<Fq>::new();
 
-        let a: JubJubProjective = rand::random();
-        let b: JubJubProjective = rand::random();
+        let mut rng = test_rng();
+        let a: JubJubProjective = rng.gen();
+        let b: JubJubProjective = rng.gen();
 
         let a = JubJubGadget::alloc(&mut cs.ns(|| "generate_a"), || Ok(a)).unwrap();
         let b = JubJubGadget::alloc(&mut cs.ns(|| "generate_b"), || Ok(b)).unwrap();

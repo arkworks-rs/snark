@@ -8,9 +8,9 @@ use algebra::{
 
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
-use crate::prelude::*;
+use crate::{prelude::*, Vec};
 
-use std::{borrow::Borrow, marker::PhantomData};
+use core::{borrow::Borrow, marker::PhantomData};
 
 pub mod edwards_bls12;
 pub mod edwards_sw6;
@@ -39,7 +39,7 @@ mod montgomery_affine_impl {
     use super::*;
     use crate::Assignment;
     use algebra::{twisted_edwards_extended::GroupAffine, Field};
-    use std::ops::{AddAssign, MulAssign, SubAssign};
+    use core::ops::{AddAssign, MulAssign, SubAssign};
 
     impl<P: TEModelParameters, ConstraintF: Field, F: FieldGadget<P::BaseField, ConstraintF>>
         MontgomeryAffineGadget<P, ConstraintF, F>
@@ -264,7 +264,7 @@ mod affine_impl {
     use super::*;
     use crate::Assignment;
     use algebra::{curves::AffineCurve, Field, PrimeField};
-    use std::ops::Neg;
+    use core::ops::Neg;
 
     impl<P, ConstraintF, F> GroupGadget<TEAffine<P>, ConstraintF> for AffineGadget<P, ConstraintF, F>
     where
@@ -662,12 +662,12 @@ mod affine_impl {
 
 mod projective_impl {
     use super::*;
-    use crate::Assignment;
+    use crate::{Assignment, Vec};
     use algebra::{
         curves::twisted_edwards_extended::GroupProjective as TEProjective, AffineCurve, Field,
         PrimeField, ProjectiveCurve,
     };
-    use std::ops::Neg;
+    use core::ops::Neg;
 
     impl<P, ConstraintF, F> GroupGadget<TEProjective<P>, ConstraintF>
         for AffineGadget<P, ConstraintF, F>

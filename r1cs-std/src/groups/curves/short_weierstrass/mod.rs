@@ -5,10 +5,10 @@ use algebra::{
     },
     AffineCurve, BitIterator, Field, One, PrimeField, ProjectiveCurve, Zero,
 };
+use core::{borrow::Borrow, marker::PhantomData, ops::Neg};
 use r1cs_core::{ConstraintSystem, SynthesisError};
-use std::{borrow::Borrow, marker::PhantomData, ops::Neg};
 
-use crate::{prelude::*, Assignment};
+use crate::{prelude::*, Assignment, Vec};
 
 pub mod bls12;
 

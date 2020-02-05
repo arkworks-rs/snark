@@ -1,4 +1,7 @@
-use crate::bits::{boolean::Boolean, uint8::UInt8};
+use crate::{
+    bits::{boolean::Boolean, uint8::UInt8},
+    Vec,
+};
 use algebra::Field;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 

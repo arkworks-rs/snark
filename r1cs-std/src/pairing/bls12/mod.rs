@@ -17,7 +17,7 @@ use algebra::{
     },
     fields::{fp12_2over3over2::Fp12, BitIterator},
 };
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 pub mod bls12_377;
 

@@ -1,7 +1,6 @@
-// use std::ops::{Mul, MulAssign};
 use algebra::Field;
+use core::fmt::Debug;
 use r1cs_core::{ConstraintSystem, SynthesisError};
-use std::fmt::Debug;
 
 use crate::prelude::*;
 
@@ -237,11 +236,11 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
 
 #[cfg(test)]
 mod test {
-    use rand::{self, thread_rng, SeedableRng};
+    use rand::{self, SeedableRng};
     use rand_xorshift::XorShiftRng;
 
-    use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
-    use algebra::{BitIterator, Field, UniformRand};
+    use crate::{prelude::*, test_constraint_system::TestConstraintSystem, Vec};
+    use algebra::{test_rng, BitIterator, Field, UniformRand};
     use r1cs_core::ConstraintSystem;
 
     fn field_test<
@@ -418,7 +417,7 @@ mod test {
         // a * a * a = a^3
         let mut constants = [FE::zero(); 4];
         for c in &mut constants {
-            *c = UniformRand::rand(&mut thread_rng());
+            *c = UniformRand::rand(&mut test_rng());
             println!("Current c[i]: {:?}", c);
         }
         let bits = [Boolean::constant(false), Boolean::constant(true)];
@@ -426,7 +425,7 @@ mod test {
             F::two_bit_lookup(cs.ns(|| "Lookup"), &bits, constants.as_ref()).unwrap();
         assert_eq!(lookup_result.get_value().unwrap(), constants[2]);
 
-        let negone: FE = UniformRand::rand(&mut thread_rng());
+        let negone: FE = UniformRand::rand(&mut test_rng());
 
         let n = F::alloc(&mut cs.ns(|| "alloc new var"), || Ok(negone)).unwrap();
         let _ = n.to_bytes(&mut cs.ns(|| "ToBytes")).unwrap();
@@ -525,7 +524,7 @@ mod test {
 
         let mut cs = TestConstraintSystem::<Fq>::new();
 
-        let mut rng = thread_rng();
+        let mut rng = test_rng();
 
         let a = FqGadget::alloc(&mut cs.ns(|| "generate_a"), || Ok(Fq::rand(&mut rng))).unwrap();
         let b = FqGadget::alloc(&mut cs.ns(|| "generate_b"), || Ok(Fq::rand(&mut rng))).unwrap();
@@ -543,7 +542,7 @@ mod test {
 
         let mut cs = TestConstraintSystem::<Fq>::new();
 
-        let mut rng = thread_rng();
+        let mut rng = test_rng();
 
         let a = FqGadget::alloc(&mut cs.ns(|| "generate_a"), || Ok(Fq::rand(&mut rng))).unwrap();
         let b = FqGadget::alloc(&mut cs.ns(|| "generate_b"), || Ok(Fq::rand(&mut rng))).unwrap();

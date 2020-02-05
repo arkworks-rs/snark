@@ -60,6 +60,11 @@ matrix:
         - cargo build -p r1cs-core --no-default-features --target thumbv6m-none-eabi
         - cargo check --examples -p r1cs-core --no-default-features --target thumbv6m-none-eabi
         - cd ..
+        # test r1cs-std
+        - cd r1cs-std
+        - cargo build -p r1cs-std --no-default-features --target thumbv6m-none-eabi
+        - cargo check --examples -p r1cs-std --no-default-features --target thumbv6m-none-eabi
+        - cd ..
         # test ff-fft
         - cd ff-fft
         - cargo build -p ff-fft --no-default-features --target thumbv6m-none-eabi

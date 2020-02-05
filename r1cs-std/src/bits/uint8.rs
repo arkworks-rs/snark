@@ -2,8 +2,8 @@ use algebra::{Field, FpParameters, PrimeField, ToConstraintField};
 
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
-use crate::{boolean::AllocatedBit, fields::fp::FpGadget, prelude::*, Assignment};
-use std::borrow::Borrow;
+use crate::{boolean::AllocatedBit, fields::fp::FpGadget, prelude::*, Assignment, Vec};
+use core::borrow::Borrow;
 
 /// Represents an interpretation of 8 `Boolean` objects as an
 /// unsigned integer.
@@ -297,7 +297,7 @@ impl<ConstraintF: Field> AllocGadget<u8, ConstraintF> for UInt8 {
 #[cfg(test)]
 mod test {
     use super::UInt8;
-    use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
+    use crate::{prelude::*, test_constraint_system::TestConstraintSystem, Vec};
     use algebra::fields::bls12_381::Fr;
     use r1cs_core::ConstraintSystem;
     use rand::{Rng, SeedableRng};

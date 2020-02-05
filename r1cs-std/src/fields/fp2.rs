@@ -2,10 +2,10 @@ use algebra::{
     fields::{Fp2, Fp2Parameters},
     Field, PrimeField,
 };
+use core::{borrow::Borrow, marker::PhantomData};
 use r1cs_core::{ConstraintSystem, ConstraintVar, SynthesisError};
-use std::{borrow::Borrow, marker::PhantomData};
 
-use crate::{fields::fp::FpGadget, prelude::*, Assignment};
+use crate::{fields::fp::FpGadget, prelude::*, Assignment, Vec};
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = "P: Fp2Parameters, ConstraintF: PrimeField"))]

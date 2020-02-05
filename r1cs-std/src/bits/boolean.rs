@@ -1,8 +1,8 @@
 use algebra::{BitIterator, Field, FpParameters, PrimeField};
 
-use crate::{prelude::*, Assignment};
+use crate::{prelude::*, Assignment, Vec};
+use core::borrow::Borrow;
 use r1cs_core::{ConstraintSystem, ConstraintVar, LinearCombination, SynthesisError, Variable};
-use std::borrow::Borrow;
 
 /// Represents a variable in the constraint system which is guaranteed
 /// to be either zero or one.
@@ -835,10 +835,10 @@ mod test {
     use super::{AllocatedBit, Boolean};
     use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
     use algebra::{fields::bls12_381::Fr, BitIterator, Field, One, PrimeField, UniformRand, Zero};
+    use core::str::FromStr;
     use r1cs_core::ConstraintSystem;
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
-    use std::str::FromStr;
 
     #[test]
     fn test_boolean_to_byte() {

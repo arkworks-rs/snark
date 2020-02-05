@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use algebra::{Field, PairingEngine};
+use core::fmt::Debug;
 use r1cs_core::{ConstraintSystem, SynthesisError};
-use std::fmt::Debug;
 
 pub mod bls12;
 pub use self::bls12::bls12_377;
@@ -57,8 +57,7 @@ pub trait PairingGadget<PairingE: PairingEngine, ConstraintF: Field> {
 
 #[cfg(test)]
 mod test {
-    // use rand;
-    use crate::test_constraint_system::TestConstraintSystem;
+    use crate::{test_constraint_system::TestConstraintSystem, Vec};
     use algebra::{BitIterator, Field, One};
     use r1cs_core::ConstraintSystem;
 
@@ -79,7 +78,7 @@ mod test {
             prelude::*,
         };
         use algebra::curves::bls12_377::{Bls12_377, G1Projective, G2Projective};
-        use std::ops::Mul;
+        use core::ops::Mul;
 
         let mut cs = TestConstraintSystem::<Fq>::new();
 
