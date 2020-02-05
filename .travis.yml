@@ -32,6 +32,7 @@ matrix:
       script:
         - cargo test --all -- --skip dpc --skip integration_test
         - cargo check --examples --all
+        - cargo check --all-features --examples --all
 
     - rust: nightly
       install:
@@ -40,10 +41,14 @@ matrix:
         - cargo fmt -- --check
         - cargo test --all -- --skip dpc --skip integration_test
         - cargo check --examples --all
+        - cargo check --all-features --examples --all
 
     - rust: stable
       install:
         - rustup target add thumbv6m-none-eabi
+      env: RUSTFLAGS='-C target-cpu=cortex-a7'
+      after_script:
+        - set +e
       script:
         # test algebra
         - cd algebra
