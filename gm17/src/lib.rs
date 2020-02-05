@@ -1,6 +1,7 @@
 //! An implementation of the [`Groth-Maller`] simulation extractable zkSNARK.
 //!
 //! [`Groth-Maller`]: https://eprint.iacr.org/2017/540
+#![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unused_import_braces, unused_qualifications, trivial_casts)]
 #![deny(trivial_numeric_casts, private_in_public, variant_size_differences)]
 #![deny(stable_features, unreachable_pub, non_shorthand_field_patterns)]
@@ -12,9 +13,22 @@
 #[macro_use]
 extern crate bench_utils;
 
-use algebra::{bytes::ToBytes, PairingCurve, PairingEngine};
+#[cfg(not(feature = "std"))]
+#[macro_use]
+extern crate alloc;
+
+#[cfg(not(feature = "std"))]
+use alloc::{string::String, vec::Vec};
+
+#[cfg(feature = "std")]
+use std::{string::String, vec::Vec};
+
+use algebra::{
+    bytes::ToBytes,
+    io::{self, Read, Result as IoResult, Write},
+    PairingCurve, PairingEngine,
+};
 use r1cs_core::SynthesisError;
-use std::io::{self, Read, Result as IoResult, Write};
 
 /// Reduce an R1CS instance to a *Square Arithmetic Program* instance.
 pub mod r1cs_to_sap;

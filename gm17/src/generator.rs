@@ -1,16 +1,17 @@
 use algebra::{
     msm::FixedBaseMSM, AffineCurve, Field, PairingEngine, PrimeField, ProjectiveCurve, UniformRand,
 };
-use ff_fft::EvaluationDomain;
+use ff_fft::{cfg_into_iter, cfg_iter, EvaluationDomain};
 
 use algebra::{One, Zero};
 use r1cs_core::{
     ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable,
 };
 use rand::Rng;
+#[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
-use crate::{r1cs_to_sap::R1CStoSAP, Parameters, VerifyingKey};
+use crate::{r1cs_to_sap::R1CStoSAP, Parameters, String, Vec, VerifyingKey};
 
 /// Generates a random common reference string for
 /// a circuit.
@@ -192,8 +193,7 @@ where
     end_timer!(reduction_time);
 
     // Compute query densities
-    let non_zero_a = (0..sap_num_variables)
-        .into_par_iter()
+    let non_zero_a = cfg_into_iter!(0..sap_num_variables)
         .map(|i| (!a[i].is_zero()) as usize)
         .sum();
     let scalar_bits = E::Fr::size_in_bits();
@@ -224,7 +224,7 @@ where
         scalar_bits,
         g_window,
         &g_table,
-        &a.par_iter().map(|a| *a * &gamma).collect::<Vec<_>>(),
+        &cfg_iter!(a).map(|a| *a * &gamma).collect::<Vec<_>>(),
     );
     end_timer!(a_time);
 
@@ -246,8 +246,7 @@ where
         scalar_bits,
         g_window,
         &g_table,
-        &(0..m_raw + 1)
-            .into_par_iter()
+        &cfg_into_iter!(0..m_raw + 1)
             .map(|i| gamma2_z_t * &(t.pow([i as u64])))
             .collect::<Vec<_>>(),
     );
@@ -259,8 +258,7 @@ where
         scalar_bits,
         g_window,
         &g_table,
-        &(0..sap_num_variables + 1)
-            .into_par_iter()
+        &cfg_into_iter!(0..sap_num_variables + 1)
             .map(|i| c[i] * &gamma + &(a[i] * &alpha_beta))
             .collect::<Vec<_>>(),
     );
@@ -274,8 +272,7 @@ where
         scalar_bits,
         g_window,
         &g_table,
-        &(0..sap_num_variables + 1)
-            .into_par_iter()
+        &cfg_into_iter!(0..sap_num_variables + 1)
             .map(|i| a[i] * &double_gamma2_z)
             .collect::<Vec<_>>(),
     );
@@ -313,8 +310,7 @@ where
         h_beta_g2:  h_beta.into_affine(),
         g_gamma_g1: g_gamma.into_affine(),
         h_gamma_g2: h_gamma.into_affine(),
-        query:      verifier_query
-            .into_par_iter()
+        query:      cfg_into_iter!(verifier_query)
             .map(|e| e.into_affine())
             .collect(),
     };

@@ -61,6 +61,20 @@ macro_rules! cfg_into_iter {
     }};
 }
 
+/// Returns an iterator over `chunk_size` elements of the slice at a time.
+#[macro_export]
+macro_rules! cfg_chunks_mut {
+    ($e: expr, $size: expr) => {{
+        #[cfg(feature = "parallel")]
+        let result = $e.par_chunks_mut($size);
+
+        #[cfg(not(feature = "parallel"))]
+        let result = $e.chunks_mut($size);
+
+        result
+    }};
+}
+
 pub mod domain;
 
 pub mod evaluations;

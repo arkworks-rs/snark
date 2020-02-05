@@ -70,6 +70,11 @@ matrix:
         - cargo build -p groth16 --no-default-features --target thumbv6m-none-eabi
         - cargo check --examples -p groth16 --no-default-features --target thumbv6m-none-eabi
         - cd ..
+        # test gm17 
+        - cd gm17
+        - cargo build -p gm17 --no-default-features --target thumbv6m-none-eabi
+        - cargo check --examples -p gm17 --no-default-features --target thumbv6m-none-eabi
+        - cd ..
 
 script:
   - echo "script!"

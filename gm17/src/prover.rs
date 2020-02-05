@@ -1,11 +1,13 @@
 use rand::Rng;
+#[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
 use algebra::{
     msm::VariableBaseMSM, AffineCurve, PairingEngine, PrimeField, ProjectiveCurve, UniformRand,
 };
 
-use crate::{r1cs_to_sap::R1CStoSAP, Parameters, Proof};
+use crate::{r1cs_to_sap::R1CStoSAP, Parameters, Proof, String, Vec};
+use ff_fft::cfg_into_iter;
 
 use r1cs_core::{
     ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable,
@@ -14,10 +16,7 @@ use r1cs_core::{
 use algebra::{One, Zero};
 use smallvec::SmallVec;
 
-use std::{
-    ops::{AddAssign, MulAssign},
-    sync::Arc,
-};
+use core::ops::{AddAssign, MulAssign};
 
 type CoeffVec<T> = SmallVec<[T; 2]>;
 
@@ -234,33 +233,23 @@ where
     let (full_input_assignment, h, _) = R1CStoSAP::witness_map::<E>(&prover, &d1, &d2)?;
     end_timer!(witness_map_time);
 
-    let input_assignment = Arc::new(
-        full_input_assignment[1..prover.num_inputs]
-            .iter()
-            .map(|s| s.into_repr())
-            .collect::<Vec<_>>(),
-    );
+    let input_assignment = full_input_assignment[1..prover.num_inputs]
+        .iter()
+        .map(|s| s.into_repr())
+        .collect::<Vec<_>>();
 
-    let aux_assignment = Arc::new(
-        full_input_assignment[prover.num_inputs..]
-            .into_par_iter()
-            .map(|s| s.into_repr())
-            .collect::<Vec<_>>(),
-    );
+    let aux_assignment = cfg_into_iter!(full_input_assignment[prover.num_inputs..])
+        .map(|s| s.into_repr())
+        .collect::<Vec<_>>();
     drop(full_input_assignment);
 
-    let h_input = Arc::new(
-        h[0..prover.num_inputs]
-            .iter()
-            .map(|s| s.into_repr())
-            .collect::<Vec<_>>(),
-    );
-    let h_aux = Arc::new(
-        h[prover.num_inputs..]
-            .into_par_iter()
-            .map(|s| s.into_repr())
-            .collect::<Vec<_>>(),
-    );
+    let h_input = h[0..prover.num_inputs]
+        .iter()
+        .map(|s| s.into_repr())
+        .collect::<Vec<_>>();
+    let h_aux = cfg_into_iter!(h[prover.num_inputs..])
+        .map(|s| s.into_repr())
+        .collect::<Vec<_>>();
     drop(h);
 
     // Compute A
