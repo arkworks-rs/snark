@@ -1,8 +1,8 @@
-use algebra::{PrimeField, ProjectiveCurve, AffineCurve};
+use algebra::{PrimeField, ProjectiveCurve, Group};
 use r1cs_std::{
     fields::fp::FpGadget,
     alloc::AllocGadget,
-    groups::{GroupGadget, AffineGroupGadget},
+    groups::GroupGadget,
     eq::EqGadget,
     ToBytesGadget, ToBitsGadget,
     boolean::Boolean,
@@ -17,23 +17,24 @@ use crate::{
         FieldBasedHash, FieldBasedHashGadget,
     },
 };
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSystem, SynthesisError, ToConstraintField};
 use std::{
     marker::PhantomData,
     borrow::Borrow,
 };
+use r1cs_std::to_field_gadget_vec::ToConstraintFieldGadget;
 
 #[derive(Derivative)]
 #[derivative(
-Debug(bound = "ConstraintF: PrimeField, G: ProjectiveCurve, GG: GroupGadget<G, ConstraintF>"),
-Clone(bound = "ConstraintF: PrimeField, G: ProjectiveCurve, GG: GroupGadget<G, ConstraintF>"),
-PartialEq(bound = "ConstraintF: PrimeField, G: ProjectiveCurve, GG: GroupGadget<G, ConstraintF>"),
-Eq(bound = "ConstraintF: PrimeField, G: ProjectiveCurve, GG: GroupGadget<G, ConstraintF>")
+Debug(bound = "ConstraintF: PrimeField, G: Group, GG: GroupGadget<G, ConstraintF>"),
+Clone(bound = "ConstraintF: PrimeField, G: Group, GG: GroupGadget<G, ConstraintF>"),
+PartialEq(bound = "ConstraintF: PrimeField, G: Group, GG: GroupGadget<G, ConstraintF>"),
+Eq(bound = "ConstraintF: PrimeField, G: Group, GG: GroupGadget<G, ConstraintF>")
 )]
 pub struct FieldBasedEcVrfProofGadget<ConstraintF, G, GG>
 where
     ConstraintF: PrimeField,
-    G:           ProjectiveCurve<BaseField = ConstraintF>,
+    G:           Group,
     GG:          GroupGadget<G, ConstraintF>,
 {
     pub gamma:   GG,
@@ -47,7 +48,7 @@ impl<ConstraintF, G, GG> AllocGadget<FieldBasedEcVrfProof<ConstraintF, G>, Const
 for FieldBasedEcVrfProofGadget<ConstraintF, G, GG>
     where
         ConstraintF: PrimeField,
-        G:           ProjectiveCurve<BaseField = ConstraintF>,
+        G:           ProjectiveCurve,
         GG:          GroupGadget<G, ConstraintF>,
 {
     fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, f: FN) -> Result<Self, SynthesisError>
@@ -89,7 +90,7 @@ for FieldBasedEcVrfProofGadget<ConstraintF, G, GG>
 
 pub struct FieldBasedEcVrfProofVerificationGadget<
     ConstraintF: PrimeField,
-    G:  ProjectiveCurve<BaseField = ConstraintF>,
+    G:  ProjectiveCurve,
     GG: GroupGadget<G, ConstraintF>,
     FH:  FieldBasedHash<Data = ConstraintF>,
     FHG: FieldBasedHashGadget<FH, ConstraintF>,
@@ -111,9 +112,8 @@ impl<ConstraintF, G, GG, FH, FHG, GH, GHG> FieldBasedVrfGadget<FieldBasedEcVrf<C
 for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
     where
         ConstraintF: PrimeField,
-        G:           ProjectiveCurve<BaseField = ConstraintF>,
-        G::Affine:   AffineCurve<BaseField = ConstraintF>,
-        GG:          AffineGroupGadget<G, ConstraintF, FpGadget<ConstraintF>>,
+        G:           ProjectiveCurve + ToConstraintField<ConstraintF>,
+        GG:          GroupGadget<G, ConstraintF> + ToConstraintFieldGadget<ConstraintF>,
         FH:          FieldBasedHash<Data = ConstraintF>,
         FHG:         FieldBasedHashGadget<FH, ConstraintF, DataGadget = FpGadget<ConstraintF>>,
         GH:          FixedLengthCRH<Output = G>,
@@ -182,12 +182,9 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
         //Check c' = H(m||pk||u||v)
         let mut hash_input = Vec::new();
         hash_input.extend_from_slice(message);
-        hash_input.push(public_key.get_x());
-        hash_input.push(public_key.get_y());
-        hash_input.push(u.get_x());
-        hash_input.push(u.get_y());
-        hash_input.push(v.get_x());
-        hash_input.push(v.get_y());
+        hash_input.extend_from_slice(public_key.to_field_gadget_elements().unwrap().as_slice());
+        hash_input.extend_from_slice(u.to_field_gadget_elements().unwrap().as_slice());
+        hash_input.extend_from_slice(v.to_field_gadget_elements().unwrap().as_slice());
 
         let c_prime = FHG::check_evaluation_gadget(
             cs.ns(|| "check c_prime"),
@@ -200,8 +197,7 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
         //Check and return VRF output
         hash_input = Vec::new();
         hash_input.extend_from_slice(message);
-        hash_input.push(public_key.get_x());
-        hash_input.push(public_key.get_y());
+        hash_input.extend_from_slice(public_key.to_field_gadget_elements().unwrap().as_slice());
 
         let vrf_output = FHG::check_evaluation_gadget(
             cs.ns(|| "check vrf_output"),

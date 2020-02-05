@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use algebra::{Field, Group, ProjectiveCurve};
+use algebra::{Field, Group};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
 use std::{borrow::Borrow, fmt::Debug};
@@ -169,17 +169,6 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
     fn cost_of_add() -> usize;
 
     fn cost_of_double() -> usize;
-}
-
-pub trait AffineGroupGadget<
-    G: ProjectiveCurve,
-    ConstraintF: Field,
-    F: FieldGadget<G::BaseField, ConstraintF>
->:  GroupGadget<G, ConstraintF>
-
-{
-    fn get_x(&self) -> F;
-    fn get_y(&self) -> F;
 }
 
 #[cfg(test)]

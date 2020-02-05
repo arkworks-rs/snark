@@ -139,16 +139,6 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
             .is_zero()
     }
 
-    #[inline]
-    fn get_x(&self) -> Self::BaseField {
-        self.x.clone()
-    }
-
-    #[inline]
-    fn get_y(&self) -> Self::BaseField {
-        self.y.clone()
-    }
-
     fn mul<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(&self, by: S) -> GroupProjective<P> {
         self.mul_bits(BitIterator::new(by.into()))
     }

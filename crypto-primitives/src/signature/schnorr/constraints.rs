@@ -220,7 +220,7 @@ impl<G, ConstraintF, GG> ToBytesGadget<ConstraintF> for SchnorrSigGadgetPk<G, Co
 
 mod field_impl
 {
-    use algebra::{AffineCurve, PrimeField, ProjectiveCurve};
+    use algebra::{PrimeField, ProjectiveCurve, Group, ToConstraintField};
     use crate::{
         signature::{
             schnorr::field_impl::{FieldBasedSchnorrSignature, FieldBasedSchnorrSignatureScheme},
@@ -241,7 +241,7 @@ mod field_impl
         borrow::Borrow,
         marker::PhantomData,
     };
-    use r1cs_std::groups::AffineGroupGadget;
+    use r1cs_std::to_field_gadget_vec::ToConstraintFieldGadget;
 
     #[derive(Derivative)]
     #[derivative(
@@ -300,7 +300,7 @@ mod field_impl
     #[allow(dead_code)]
     pub struct FieldBasedSchnorrSigVerificationGadget<
         ConstraintF: PrimeField,
-        G:  ProjectiveCurve<BaseField = ConstraintF>,
+        G:  Group,
         GG: GroupGadget<G, ConstraintF>,
         H:  FieldBasedHash<Data = ConstraintF>,
         HG: FieldBasedHashGadget<H, ConstraintF>,
@@ -317,9 +317,8 @@ mod field_impl
     for FieldBasedSchnorrSigVerificationGadget<ConstraintF, G, GG, H, HG>
         where
             ConstraintF: PrimeField,
-            G:           ProjectiveCurve<BaseField = ConstraintF>,
-            G::Affine:   AffineCurve<BaseField = ConstraintF>,
-            GG:          AffineGroupGadget<G, ConstraintF, FpGadget<ConstraintF>>,
+            G:           ProjectiveCurve + ToConstraintField<ConstraintF>,
+            GG:          GroupGadget<G, ConstraintF> + ToConstraintFieldGadget<ConstraintF>,
             H:           FieldBasedHash<Data = ConstraintF>,
             HG:          FieldBasedHashGadget<H, ConstraintF, DataGadget = FpGadget<ConstraintF>>,
     {
@@ -341,8 +340,7 @@ mod field_impl
             let mut hash_input = Vec::new();
             hash_input.extend_from_slice(message);
             hash_input.push(signature.r.clone());
-            hash_input.push(public_key.get_x());
-            hash_input.push(public_key.get_y());
+            hash_input.extend_from_slice(public_key.to_field_gadget_elements().unwrap().as_slice());
 
             let e_prime = HG::check_evaluation_gadget(
                 cs.ns(|| "check e_prime"),
@@ -368,12 +366,16 @@ mod field_impl
                     &neg_e_prime_times_pk,
                     s.as_slice()
                 )?;
+            let (r_prime_x, r_prime_y) = {
+                let r_prime_coords = r_prime.to_field_gadget_elements()?;
+                (r_prime_coords[0].clone(), r_prime_coords[1].clone())
+            };
 
             //Enforce R'.x == r
-            signature.r.enforce_equal(cs.ns(|| "sig.r == R'.x"), &r_prime.get_x())?;
+            signature.r.enforce_equal(cs.ns(|| "sig.r == R'.x"), &r_prime_x)?;
 
             //Enforce R'.y is even
-            let y_odd = r_prime.get_y().is_odd(cs.ns(|| "R'.y is_odd"))?;
+            let y_odd = r_prime_y.is_odd(cs.ns(|| "R'.y is_odd"))?;
             y_odd.enforce_equal(cs.ns(||"enforce R'.y not odd"), &Boolean::constant(false))?;
             Ok(())
         }

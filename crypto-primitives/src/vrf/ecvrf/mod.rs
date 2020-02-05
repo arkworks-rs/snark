@@ -1,10 +1,4 @@
-use algebra::{
-    Field, PrimeField, project,
-    Group, AffineCurve, ProjectiveCurve,
-    ToBytes, to_bytes,
-    ToBits, FromBits,
-    UniformRand,
-};
+use algebra::{Field, PrimeField, project, Group, AffineCurve, ProjectiveCurve, ToBytes, to_bytes, ToBits, FromBits, UniformRand, ToConstraintField};
 use crate::{
     crh::{
     FieldBasedHash, FixedLengthCRH,
@@ -19,9 +13,9 @@ pub mod constraints;
 
 pub struct FieldBasedEcVrf<
     F: PrimeField,
-    G: ProjectiveCurve<BaseField = F>,
-    FH: FieldBasedHash<Data = F>,
-    GH: FixedLengthCRH<Output = G>,
+    G: Group,
+    FH: FieldBasedHash,
+    GH: FixedLengthCRH,
 >
 {
     _field:         PhantomData<F>,
@@ -38,7 +32,7 @@ Eq(bound = "F: PrimeField, G: ProjectiveCurve"),
 PartialEq(bound = "F: PrimeField, G: ProjectiveCurve"),
 Debug(bound = "F: PrimeField, G: ProjectiveCurve")
 )]
-pub struct FieldBasedEcVrfProof<F: PrimeField, G: ProjectiveCurve<BaseField = F>> {
+pub struct FieldBasedEcVrfProof<F: PrimeField, G: Group> {
     pub gamma:  G,
     pub c:      F,
     pub s:      Vec<bool>,
@@ -47,8 +41,7 @@ pub struct FieldBasedEcVrfProof<F: PrimeField, G: ProjectiveCurve<BaseField = F>
 impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
     where
         F: PrimeField,
-        G: ProjectiveCurve<BaseField = F>,
-        G::Affine: AffineCurve<BaseField = F>,
+        G: ProjectiveCurve + ToConstraintField<F>,
         FH: FieldBasedHash<Data = F>,
         GH: FixedLengthCRH<Output = G>,
 {
@@ -83,21 +76,17 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
         let r = G::ScalarField::rand(rng);
 
         //Compute a = g^r
-        let a = G::prime_subgroup_generator().mul(&r).into_affine();
+        let a = G::prime_subgroup_generator().mul(&r);
 
         //Compute b = mh^r
-        let b = mh.mul(&r).into_affine();
+        let b = mh.mul(&r);
 
         //Compute c = H(m||pk||a||b)
-        let pk = pk.into_affine();
         let mut hash_input = Vec::new();
         hash_input.extend_from_slice(message);
-        hash_input.push(pk.get_x());
-        hash_input.push(pk.get_y());
-        hash_input.push(a.get_x());
-        hash_input.push(a.get_y());
-        hash_input.push(b.get_x());
-        hash_input.push(b.get_y());
+        hash_input.extend_from_slice(pk.to_field_elements().unwrap().as_slice());
+        hash_input.extend_from_slice(a.to_field_elements().unwrap().as_slice());
+        hash_input.extend_from_slice(b.to_field_elements().unwrap().as_slice());
         let c = FH::evaluate(hash_input.as_ref())?;
 
         //Compute s = r + sk * c
@@ -121,10 +110,8 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
         let s = G::ScalarField::read_bits(proof.s.clone())?;
 
         //Checks;
-        let pk = pk.into_affine();
-        let gamma = proof.gamma.into_affine();
-        debug_assert!(pk.is_in_correct_subgroup_assuming_on_curve());
-        debug_assert!(gamma.is_in_correct_subgroup_assuming_on_curve());
+        debug_assert!(pk.into_affine().is_in_correct_subgroup_assuming_on_curve());
+        debug_assert!(proof.gamma.into_affine().is_in_correct_subgroup_assuming_on_curve());
         debug_assert!(s.pow(&G::ScalarField::characteristic()) == s);
         debug_assert!(proof.c.pow(&G::BaseField::characteristic()) == proof.c);
 
@@ -136,20 +123,18 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
         let c_projected = project::<F, G::ScalarField>(proof.c)?;
 
         //Compute u = g^s - pk^c
-        let u = (G::prime_subgroup_generator().mul(&s) - &(pk.mul(c_projected))).into_affine();
+        let u = G::prime_subgroup_generator().mul(&s) - &(pk.mul(&c_projected));
 
         //Compute v = mh^s - gamma^c
-        let v = (mh.mul(&s) - &gamma.mul(c_projected)).into_affine();
+        let v = mh.mul(&s) - &proof.gamma.mul(&c_projected);
 
         //Compute c' = H(m||pk||u||v)
         let mut hash_input = Vec::new();
+        let pk_coords = pk.to_field_elements()?;
         hash_input.extend_from_slice(message);
-        hash_input.push(pk.get_x());
-        hash_input.push(pk.get_y());
-        hash_input.push(u.get_x());
-        hash_input.push(u.get_y());
-        hash_input.push(v.get_x());
-        hash_input.push(v.get_y());
+        hash_input.extend_from_slice(pk_coords.as_slice());
+        hash_input.extend_from_slice(u.to_field_elements().unwrap().as_slice());
+        hash_input.extend_from_slice(v.to_field_elements().unwrap().as_slice());
         let c_prime = FH::evaluate(hash_input.as_ref())?;
 
         //Verify valid proof
@@ -160,8 +145,7 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
                 //Compute VRF output
                 hash_input = Vec::new();
                 hash_input.extend_from_slice(message);
-                hash_input.push(pk.get_x());
-                hash_input.push(pk.get_y());
+                hash_input.extend_from_slice(pk_coords.as_slice());
                 let output = FH::evaluate(hash_input.as_ref())?;
 
                 //Return VRF output

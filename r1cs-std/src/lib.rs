@@ -52,6 +52,7 @@ pub mod pairing;
 pub mod alloc;
 pub mod eq;
 pub mod select;
+pub mod to_field_gadget_vec;
 
 pub mod prelude {
     pub use crate::{

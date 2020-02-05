@@ -236,10 +236,7 @@ mod field_impl {
         signature::FieldBasedSignatureScheme,
         Error,
     };
-    use algebra::{
-        Field, PrimeField, Group, UniformRand,
-        AffineCurve, ProjectiveCurve, project, ToBits, FromBits,
-    };
+    use algebra::{Field, PrimeField, Group, UniformRand, AffineCurve, ProjectiveCurve, project, ToBits, FromBits, ToConstraintField};
     use std::marker::PhantomData;
     use rand::Rng;
     use std::{
@@ -249,8 +246,8 @@ mod field_impl {
     #[allow(dead_code)]
     pub struct FieldBasedSchnorrSignatureScheme<
         F: PrimeField,
-        G: ProjectiveCurve<BaseField = F>,
-        H: FieldBasedHash<Data = F>
+        G: Group,
+        H: FieldBasedHash,
     >
     {
         _field:    PhantomData<F>,
@@ -271,10 +268,8 @@ mod field_impl {
         pub s:    Vec<bool>,
     }
 
-    impl<F: PrimeField, G: ProjectiveCurve<BaseField = F>, H: FieldBasedHash<Data = F>> FieldBasedSignatureScheme for
+    impl<F: PrimeField, G: ProjectiveCurve + ToConstraintField<F>, H: FieldBasedHash<Data = F>> FieldBasedSignatureScheme for
     FieldBasedSchnorrSignatureScheme<F, G, H>
-        where
-            G::Affine: AffineCurve<BaseField = F>,
     {
         type Data = H::Data;
         type PublicKey = G;
@@ -296,12 +291,11 @@ mod field_impl {
         )-> Result<Self::Signature, Error>
         {
             // Compute k' = H(m || pk || sk)
-            let pk = pk.into_affine();
+            let pk_coords = pk.to_field_elements()?;
             let sk_b = project::<G::ScalarField, F>(*sk)?;
             let mut hash_input = Vec::new();
             hash_input.extend_from_slice(message);
-            hash_input.push(pk.get_x());
-            hash_input.push(pk.get_y());
+            hash_input.extend_from_slice(pk_coords.as_slice());
             hash_input.push(sk_b);
             let hr = H::evaluate(hash_input.as_ref())?;
 
@@ -312,22 +306,25 @@ mod field_impl {
 
             //R = k' * G
             let r = G::prime_subgroup_generator()
-                .mul(&k_prime).into_affine();
+                .mul(&k_prime);
+            let (r_x, r_y) = {
+                let r_coords = r.to_field_elements()?;
+                (r_coords[0], r_coords[1])
+            };
 
             //Set k = -k' if r.y is odd otherwise k = k'
-            let k = if r.get_y().is_odd() { k_prime.neg() } else { k_prime };
+            let k = if r_y.is_odd() { k_prime.neg() } else { k_prime };
 
             // Compute e = H(m || R.x || pk)
             let mut hash_input = Vec::new();
             hash_input.extend_from_slice(message);
-            hash_input.push(r.get_x());
-            hash_input.push(pk.get_x());
-            hash_input.push(pk.get_y());
+            hash_input.push(r_x);
+            hash_input.extend_from_slice(pk_coords.as_slice());
             let hr = H::evaluate(hash_input.as_ref())?;
             let e =  project::<F, G::ScalarField>(hr)?;
 
             let signature = FieldBasedSchnorrSignature {
-                r: r.get_x(),
+                r: r_x,
                 s: (k + &(e * sk)).write_bits(),
             };
 
@@ -342,9 +339,9 @@ mod field_impl {
             -> Result<bool, Error>
         {
             let s = G::ScalarField::read_bits(signature.clone().s)?;
-            let pk = pk.into_affine();
+            let pk_coords = pk.to_field_elements()?;
 
-            debug_assert!(pk.is_in_correct_subgroup_assuming_on_curve());
+            debug_assert!(pk.into_affine().is_in_correct_subgroup_assuming_on_curve());
             debug_assert!(s.pow(&G::ScalarField::characteristic()) == s);
             debug_assert!(signature.r.pow(&G::BaseField::characteristic()) == signature.r);
 
@@ -352,8 +349,7 @@ mod field_impl {
             let mut hash_input = Vec::new();
             hash_input.extend_from_slice(message);
             hash_input.push(signature.r);
-            hash_input.push(pk.get_x());
-            hash_input.push(pk.get_y());
+            hash_input.extend_from_slice(pk_coords.as_slice());
             let hr = H::evaluate(hash_input.as_ref())?;
 
             let e_prime =  project::<F, G::ScalarField>(hr)?;
@@ -361,11 +357,16 @@ mod field_impl {
             //Compute R' = s*G - e' * pk
             let r_prime = {
                 let s_times_g = G::prime_subgroup_generator().mul(&s);
-                let neg_e_times_pk = pk.neg().mul(e_prime);
-                (s_times_g + &neg_e_times_pk).into_affine()
+                let neg_e_times_pk = pk.neg().mul(&e_prime);
+                (s_times_g + &neg_e_times_pk)
             };
 
-            Ok((r_prime.get_x() == signature.r) && !r_prime.is_zero() && !r_prime.get_y().is_odd())
+            let (r_prime_x, r_prime_y) = {
+                let r_prime_coords = r_prime.to_field_elements()?;
+                (r_prime_coords[0], r_prime_coords[1])
+            };
+
+            Ok((r_prime_x == signature.r) && !r_prime.is_zero() && !r_prime_y.is_odd())
         }
     }
 }

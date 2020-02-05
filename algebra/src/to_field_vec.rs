@@ -2,6 +2,7 @@ use crate::{
     curves::{
         models::{SWModelParameters, TEModelParameters},
         short_weierstrass_jacobian::{GroupAffine as SWAffine, GroupProjective as SWProjective},
+        short_weierstrass_projective::{GroupAffine as SWPAffine, GroupProjective as SWPProjective},
         twisted_edwards_extended::{GroupAffine as TEAffine, GroupProjective as TEProjective},
         ProjectiveCurve,
     },
@@ -93,6 +94,33 @@ where
 impl<M: SWModelParameters, ConstraintF: Field> ToConstraintField<ConstraintF> for SWProjective<M>
 where
     M::BaseField: ToConstraintField<ConstraintF>,
+{
+    #[inline]
+    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
+        let affine = self.into_affine();
+        let mut x_fe = affine.x.to_field_elements()?;
+        let y_fe = affine.y.to_field_elements()?;
+        x_fe.extend_from_slice(&y_fe);
+        Ok(x_fe)
+    }
+}
+
+impl<M: SWModelParameters, ConstraintF: Field> ToConstraintField<ConstraintF> for SWPAffine<M>
+    where
+        M::BaseField: ToConstraintField<ConstraintF>,
+{
+    #[inline]
+    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
+        let mut x_fe = self.x.to_field_elements()?;
+        let y_fe = self.y.to_field_elements()?;
+        x_fe.extend_from_slice(&y_fe);
+        Ok(x_fe)
+    }
+}
+
+impl<M: SWModelParameters, ConstraintF: Field> ToConstraintField<ConstraintF> for SWPProjective<M>
+    where
+        M::BaseField: ToConstraintField<ConstraintF>,
 {
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {

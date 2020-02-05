@@ -85,23 +85,6 @@ impl<P, ConstraintF, F> Eq for AffineGadget<P, ConstraintF, F>
 {
 }
 
-impl<P, ConstraintF, F> AffineGroupGadget<SWProjective<P>, ConstraintF, F>
-for AffineGadget<P, ConstraintF, F>
-    where
-        P: SWModelParameters,
-        ConstraintF: Field,
-        F: FieldGadget<P::BaseField, ConstraintF>,
-{
-
-    fn get_x(&self) -> F {
-        self.x.clone()
-    }
-
-    fn get_y(&self) -> F {
-        self.y.clone()
-    }
-}
-
 impl<P, ConstraintF, F> GroupGadget<SWProjective<P>, ConstraintF>
 for AffineGadget<P, ConstraintF, F>
     where
@@ -909,7 +892,6 @@ impl<ConstraintF> CompressAffinePointGadget<ConstraintF>
 
 use crate::ToCompressedBitsGadget;
 use crate::fields::fp::FpGadget;
-use crate::groups::AffineGroupGadget;
 
 impl<ConstraintF> ToCompressedBitsGadget<ConstraintF> for CompressAffinePointGadget<ConstraintF>
     where
