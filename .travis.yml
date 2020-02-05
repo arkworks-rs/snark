@@ -46,6 +46,9 @@ matrix:
     - rust: stable
       install:
         - rustup target add thumbv6m-none-eabi
+      env: RUSTFLAGS='-C target-cpu=cortex-a7'
+      after_script:
+        - set +e
       script:
         # test algebra
         - cd algebra
