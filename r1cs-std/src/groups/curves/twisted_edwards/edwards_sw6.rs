@@ -8,9 +8,11 @@ pub type EdwardsSWGadget = AffineGadget<EdwardsParameters, Fq, FqGadget>;
 #[cfg(test)]
 mod test {
     use super::EdwardsSWGadget as EdwardsG;
-    use crate::groups::curves::twisted_edwards::test::{edwards_constraint_costs, edwards_test};
+    use crate::{
+        groups::curves::twisted_edwards::test::{edwards_constraint_costs, edwards_test},
+        test_constraint_system::TestConstraintSystem,
+    };
     use algebra::{curves::edwards_sw6::EdwardsParameters, fields::edwards_sw6::fq::Fq};
-    use test_constraint_system::TestConstraintSystem;
 
     #[test]
     fn edwards_constraint_costs_test() {

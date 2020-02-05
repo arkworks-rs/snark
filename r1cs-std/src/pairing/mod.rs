@@ -57,10 +57,9 @@ pub trait PairingGadget<PairingE: PairingEngine, ConstraintF: Field> {
 
 #[cfg(test)]
 mod test {
-    use crate::Vec;
+    use crate::{test_constraint_system::TestConstraintSystem, Vec};
     use algebra::{BitIterator, Field, One};
     use r1cs_core::ConstraintSystem;
-    use test_constraint_system::TestConstraintSystem;
 
     #[test]
     fn bls12_377_gadget_bilinearity_test() {

@@ -510,7 +510,7 @@ mod test {
 
     use super::Blake2sGadget;
     use r1cs_std::{boolean::AllocatedBit, prelude::*};
-    use test_constraint_system::TestConstraintSystem;
+    use r1cs_std::test_constraint_system::TestConstraintSystem;
 
     #[test]
     fn test_blake2s_constraints() {

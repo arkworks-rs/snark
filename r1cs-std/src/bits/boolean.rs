@@ -833,13 +833,12 @@ impl<ConstraintF: PrimeField> CondSelectGadget<ConstraintF> for Boolean {
 #[cfg(test)]
 mod test {
     use super::{AllocatedBit, Boolean};
-    use crate::prelude::*;
+    use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
     use algebra::{fields::bls12_381::Fr, BitIterator, Field, One, PrimeField, UniformRand, Zero};
     use core::str::FromStr;
     use r1cs_core::ConstraintSystem;
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
-    use test_constraint_system::TestConstraintSystem;
 
     #[test]
     fn test_boolean_to_byte() {

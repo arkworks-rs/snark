@@ -239,10 +239,9 @@ mod test {
     use rand::{self, SeedableRng};
     use rand_xorshift::XorShiftRng;
 
-    use crate::{prelude::*, Vec};
+    use crate::{prelude::*, test_constraint_system::TestConstraintSystem, Vec};
     use algebra::{test_rng, BitIterator, Field, UniformRand};
     use r1cs_core::ConstraintSystem;
-    use test_constraint_system::TestConstraintSystem;
 
     fn field_test<
         FE: Field,

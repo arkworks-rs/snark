@@ -29,7 +29,6 @@ derivative = { version = "1", features = ["use_core"] }
 [dev-dependencies]
 rand = { version = "0.7", default-features = false }
 rand_xorshift = { version = "0.2" }
-test-constraint-system = { path = "../test-constraint-system" }
 
 [features]
 default = ["std"]

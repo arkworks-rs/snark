@@ -47,11 +47,20 @@ extern crate algebra;
 #[macro_use]
 extern crate derivative;
 
+/// used by test_constraint_system
 #[cfg(not(feature = "std"))]
-use ralloc::vec::Vec;
+macro_rules! println {
+    () => { };
+    ($($arg: tt)*) => { };
+}
+
+#[cfg(not(feature = "std"))]
+use ralloc::{collections::BTreeMap, vec::Vec, string::String};
 
 #[cfg(feature = "std")]
-use std::vec::Vec;
+use std::{collections::BTreeMap, vec::Vec, string::String};
+
+pub mod test_constraint_system;
 
 pub mod bits;
 pub use self::bits::*;

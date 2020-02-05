@@ -167,9 +167,8 @@ mod test {
     use r1cs_core::ConstraintSystem;
     use rand::Rng;
 
-    use crate::prelude::*;
+    use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
     use algebra::groups::Group;
-    use test_constraint_system::TestConstraintSystem;
 
     pub(crate) fn group_test<
         ConstraintF: Field,

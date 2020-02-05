@@ -343,12 +343,11 @@ impl<ConstraintF: Field> ConditionalEqGadget<ConstraintF> for UInt32 {
 #[cfg(test)]
 mod test {
     use super::UInt32;
-    use crate::{bits::boolean::Boolean, Vec};
+    use crate::{bits::boolean::Boolean, test_constraint_system::TestConstraintSystem, Vec};
     use algebra::{fields::bls12_381::Fr, One, Zero};
     use r1cs_core::ConstraintSystem;
     use rand::{Rng, SeedableRng};
     use rand_xorshift::XorShiftRng;
-    use test_constraint_system::TestConstraintSystem;
 
     #[test]
     fn test_uint32_from_bits() {

@@ -15,14 +15,13 @@ mod test {
     use rand::Rng;
 
     use super::{G1Gadget, G2Gadget};
-    use crate::{prelude::*, Vec};
+    use crate::{prelude::*, test_constraint_system::TestConstraintSystem, Vec};
     use algebra::{
         curves::bls12_377::{G1Projective as G1, G2Projective as G2},
         fields::bls12_377::{Fq, Fr},
         test_rng, AffineCurve, BitIterator, PrimeField, ProjectiveCurve,
     };
     use r1cs_core::ConstraintSystem;
-    use test_constraint_system::TestConstraintSystem;
 
     #[test]
     fn bls12_g1_constraint_costs() {
