@@ -4,6 +4,7 @@ members = [
     "algebra",
     "algebra-benches",
     "bench-utils",
+    "cp-benches",
     "crypto-primitives",
     "dpc",
     "ff-fft",

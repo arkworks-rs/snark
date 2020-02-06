@@ -54,7 +54,7 @@ pub trait NIZK {
 #[cfg(all(feature = "gm17", test))]
 mod test {
     use rand::thread_rng;
-    use std::ops::AddAssign;
+    use core::ops::AddAssign;
 
     #[test]
     fn test_gm17() {

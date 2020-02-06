@@ -8,7 +8,7 @@ use crate::{
 use algebra::{Field, PrimeField};
 use r1cs_std::prelude::*;
 
-use std::borrow::Borrow;
+use core::borrow::Borrow;
 
 #[derive(Clone)]
 pub struct Blake2sParametersGadget;

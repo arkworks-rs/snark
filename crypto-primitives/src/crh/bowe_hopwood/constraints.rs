@@ -1,5 +1,5 @@
 use algebra::Field;
-use std::hash::Hash;
+use core::hash::Hash;
 
 use crate::crh::{
     bowe_hopwood::{BoweHopwoodPedersenCRH, BoweHopwoodPedersenParameters, CHUNK_SIZE},
@@ -11,7 +11,7 @@ use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::{alloc::AllocGadget, groups::GroupGadget, uint8::UInt8};
 
 use r1cs_std::bits::boolean::Boolean;
-use std::{borrow::Borrow, marker::PhantomData};
+use core::{borrow::Borrow, marker::PhantomData};
 
 #[derive(Derivative)]
 #[derivative(Clone(

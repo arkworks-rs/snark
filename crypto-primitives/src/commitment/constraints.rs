@@ -2,7 +2,7 @@ use crate::CommitmentScheme;
 use algebra::Field;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
-use std::fmt::Debug;
+use core::fmt::Debug;
 
 pub trait CommitmentGadget<C: CommitmentScheme, ConstraintF: Field> {
     type OutputGadget: EqGadget<ConstraintF>

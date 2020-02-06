@@ -16,7 +16,7 @@ use algebra::groups::Group;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::{groups::GroupGadget, uint8::UInt8};
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 pub struct PedersenCommitmentCompressorGadget<G, I, ConstraintF, GG, IG>
 where

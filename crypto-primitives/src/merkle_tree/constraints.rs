@@ -7,7 +7,7 @@ use crate::{
     merkle_tree::*,
 };
 
-use std::borrow::Borrow;
+use core::borrow::Borrow;
 
 pub struct MerkleTreePathGadget<P, HGadget, ConstraintF>
 where
@@ -178,7 +178,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use std::rc::Rc;
+    use core::rc::Rc;
 
     use crate::{
         crh::{

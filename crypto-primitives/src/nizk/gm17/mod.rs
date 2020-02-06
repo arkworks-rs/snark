@@ -8,7 +8,7 @@ use r1cs_core::ConstraintSynthesizer;
 use rand::Rng;
 
 use algebra::ToConstraintField;
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 use super::NIZK;
 

@@ -1,6 +1,6 @@
 use algebra::UniformRand;
 use rand::Rng;
-use std::{fmt::Debug, hash::Hash};
+use core::{fmt::Debug, hash::Hash};
 
 use algebra::bytes::ToBytes;
 

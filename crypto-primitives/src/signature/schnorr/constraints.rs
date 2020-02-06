@@ -4,7 +4,7 @@ use r1cs_std::prelude::*;
 
 use crate::signature::SigRandomizePkGadget;
 
-use std::{borrow::Borrow, marker::PhantomData};
+use core::{borrow::Borrow, marker::PhantomData};
 
 use crate::signature::schnorr::{SchnorrPublicKey, SchnorrSigParameters, SchnorrSignature};
 use digest::Digest;

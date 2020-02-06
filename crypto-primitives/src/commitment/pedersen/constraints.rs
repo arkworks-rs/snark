@@ -8,7 +8,7 @@ use r1cs_core::{ConstraintSystem, SynthesisError};
 use crate::commitment::CommitmentGadget;
 use algebra::fields::{Field, PrimeField};
 use r1cs_std::prelude::*;
-use std::{borrow::Borrow, marker::PhantomData};
+use core::{borrow::Borrow, marker::PhantomData};
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "G: Group, W: PedersenWindow, ConstraintF: Field"))]

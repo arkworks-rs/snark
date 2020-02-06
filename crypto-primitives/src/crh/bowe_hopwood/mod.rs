@@ -1,7 +1,8 @@
-use crate::Error;
+use crate::{Error, Vec};
 use rand::Rng;
+#[cfg(feature = "parallel")]
 use rayon::prelude::*;
-use std::{
+use core::{
     fmt::{Debug, Formatter, Result as FmtResult},
     marker::PhantomData,
 };
@@ -126,6 +127,8 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for BoweHopwoodPedersenCRH<G, W
         // (1-2*c_{i,j,2})*(1+c_{i,j,0}+2*c_{i,j,1})*2^{4*(j-1)} for all j in segment}
         // for all i. Described in section 5.4.1.7 in the Zcash protocol
         // specification.
+        
+        #[cfg(feature = "parallel")]
         let result = padded_input
             .par_chunks(W::WINDOW_SIZE * CHUNK_SIZE)
             .zip(&parameters.generators)
@@ -149,6 +152,33 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for BoweHopwoodPedersenCRH<G, W
                     .reduce(G::zero, |a, b| a + &b)
             })
             .reduce(G::zero, |a, b| a + &b);
+
+
+        #[cfg(not(feature = "parallel"))]
+        let result = padded_input
+            .chunks(W::WINDOW_SIZE * CHUNK_SIZE)
+            .zip(&parameters.generators)
+            .map(|(segment_bits, segment_generators)| {
+                segment_bits
+                    .chunks(CHUNK_SIZE)
+                    .zip(segment_generators)
+                    .map(|(chunk_bits, generator)| {
+                        let mut encoded = generator.clone();
+                        if chunk_bits[0] {
+                            encoded = encoded + generator;
+                        }
+                        if chunk_bits[1] {
+                            encoded += &generator.double();
+                        }
+                        if chunk_bits[2] {
+                            encoded = encoded.neg();
+                        }
+                        encoded
+                    })
+                    .fold(G::zero(), |a, b| a + &b)
+            })
+            .fold(G::zero(), |a, b| a + &b);
+
         end_timer!(eval_time);
 
         Ok(result)
@@ -172,7 +202,7 @@ mod test {
         FixedLengthCRH,
     };
     use algebra::curves::edwards_sw6::EdwardsProjective;
-    use rand::thread_rng;
+    use algebra::test_rng;
 
     #[test]
     fn test_simple_bh() {
@@ -183,7 +213,7 @@ mod test {
             const NUM_WINDOWS: usize = 8;
         }
 
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
         let params =
             <BoweHopwoodPedersenCRH<EdwardsProjective, TestWindow> as FixedLengthCRH>::setup(rng)
                 .unwrap();
