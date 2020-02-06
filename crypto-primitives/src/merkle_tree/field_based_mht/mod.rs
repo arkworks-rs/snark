@@ -4,6 +4,9 @@ use crate::{
 use super::*;
 use algebra::ToConstraintField;
 
+#[cfg(feature = "r1cs")]
+pub mod constraints;
+
 pub trait FieldBasedMerkleTreeConfig {
     const HEIGHT: usize;
     type H: FieldBasedHash;
