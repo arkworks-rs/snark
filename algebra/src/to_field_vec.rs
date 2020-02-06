@@ -1,7 +1,7 @@
 use crate::{
     curves::{
         models::{SWModelParameters, TEModelParameters},
-        short_weierstrass_jacobian::{GroupAffine as SWAffine, GroupProjective as SWProjective},
+        short_weierstrass_jacobian::{GroupAffine as SWJAffine, GroupProjective as SWJProjective},
         short_weierstrass_projective::{GroupAffine as SWPAffine, GroupProjective as SWPProjective},
         twisted_edwards_extended::{GroupAffine as TEAffine, GroupProjective as TEProjective},
         ProjectiveCurve,
@@ -78,7 +78,7 @@ where
     }
 }
 
-impl<M: SWModelParameters, ConstraintF: Field> ToConstraintField<ConstraintF> for SWAffine<M>
+impl<M: SWModelParameters, ConstraintF: Field> ToConstraintField<ConstraintF> for SWJAffine<M>
 where
     M::BaseField: ToConstraintField<ConstraintF>,
 {
@@ -91,7 +91,7 @@ where
     }
 }
 
-impl<M: SWModelParameters, ConstraintF: Field> ToConstraintField<ConstraintF> for SWProjective<M>
+impl<M: SWModelParameters, ConstraintF: Field> ToConstraintField<ConstraintF> for SWJProjective<M>
 where
     M::BaseField: ToConstraintField<ConstraintF>,
 {

@@ -2,6 +2,8 @@ use crate::{crh::FixedLengthCRH, Error};
 use algebra::bytes::ToBytes;
 use std::{fmt, rc::Rc};
 
+pub mod field_based_mht;
+
 #[cfg(feature = "r1cs")]
 pub mod constraints;
 
