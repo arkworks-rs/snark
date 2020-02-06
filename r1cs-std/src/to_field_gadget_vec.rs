@@ -9,31 +9,38 @@ use crate::{
 };
 use crate::fields::fp::FpGadget;
 
-
 type Error = r1cs_core::SynthesisError;
 
-//TODO: Maybe generalize to FieldGadget<F, ConstraintF> instead of FpGadget<ConstraintF> ?
-/// Types that can be converted to a vector of `FpGadget` elements.
+/// Types that can be converted to a vector of elements that implement the `Field Gadget` trait.
 pub trait ToConstraintFieldGadget<ConstraintF: PrimeField> {
-    fn to_field_gadget_elements(&self) -> Result<Vec<FpGadget<ConstraintF>>, Error>;
+
+    type FieldGadget: FieldGadget<ConstraintF, ConstraintF>;
+
+    fn to_field_gadget_elements(&self) -> Result<Vec<Self::FieldGadget>, Error>;
 }
 
 impl<ConstraintF: PrimeField> ToConstraintFieldGadget<ConstraintF> for FpGadget<ConstraintF> {
-    fn to_field_gadget_elements(&self) -> Result<Vec<FpGadget<ConstraintF>>, Error> {
+    type FieldGadget = Self;
+
+    fn to_field_gadget_elements(&self) -> Result<Vec<Self::FieldGadget>, Error> {
         Ok(vec![self.clone()])
     }
 }
 
 impl<ConstraintF: PrimeField> ToConstraintFieldGadget<ConstraintF> for [FpGadget<ConstraintF>] {
+    type FieldGadget = FpGadget<ConstraintF>;
+
     #[inline]
-    fn to_field_gadget_elements(&self) -> Result<Vec<FpGadget<ConstraintF>>, Error> {
+    fn to_field_gadget_elements(&self) -> Result<Vec<Self::FieldGadget>, Error> {
         Ok(self.to_vec())
     }
 }
 
 impl<ConstraintF: PrimeField> ToConstraintFieldGadget<ConstraintF> for () {
+    type FieldGadget = FpGadget<ConstraintF>;
+
     #[inline]
-    fn to_field_gadget_elements(&self) -> Result<Vec<FpGadget<ConstraintF>>, Error> {
+    fn to_field_gadget_elements(&self) -> Result<Vec<Self::FieldGadget>, Error> {
         Ok(Vec::new())
     }
 }
@@ -42,10 +49,13 @@ impl<M, ConstraintF, FG> ToConstraintFieldGadget<ConstraintF> for SWPAffineGadge
     where
         M:              SWModelParameters,
         ConstraintF:    PrimeField,
-        FG:             FieldGadget<M::BaseField, ConstraintF> + ToConstraintFieldGadget<ConstraintF>,
+        FG:             FieldGadget<M::BaseField, ConstraintF> +
+        ToConstraintFieldGadget<ConstraintF, FieldGadget = FpGadget<ConstraintF>>,
 {
+    type FieldGadget = FpGadget<ConstraintF>;
+
     #[inline]
-    fn to_field_gadget_elements(&self) -> Result<Vec<FpGadget<ConstraintF>>, Error> {
+    fn to_field_gadget_elements(&self) -> Result<Vec<Self::FieldGadget>, Error> {
         let mut x_fe = self.x.to_field_gadget_elements()?;
         let y_fe = self.y.to_field_gadget_elements()?;
         x_fe.extend_from_slice(&y_fe);

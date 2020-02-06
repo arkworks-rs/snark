@@ -113,7 +113,7 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
     where
         ConstraintF: PrimeField,
         G:           ProjectiveCurve + ToConstraintField<ConstraintF>,
-        GG:          GroupGadget<G, ConstraintF> + ToConstraintFieldGadget<ConstraintF>,
+        GG:          GroupGadget<G, ConstraintF> + ToConstraintFieldGadget<ConstraintF, FieldGadget = FHG::DataGadget>,
         FH:          FieldBasedHash<Data = ConstraintF>,
         FHG:         FieldBasedHashGadget<FH, ConstraintF, DataGadget = FpGadget<ConstraintF>>,
         GH:          FixedLengthCRH<Output = G>,

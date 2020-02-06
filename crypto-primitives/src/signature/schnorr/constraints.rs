@@ -318,7 +318,7 @@ mod field_impl
         where
             ConstraintF: PrimeField,
             G:           ProjectiveCurve + ToConstraintField<ConstraintF>,
-            GG:          GroupGadget<G, ConstraintF> + ToConstraintFieldGadget<ConstraintF>,
+            GG:          GroupGadget<G, ConstraintF> + ToConstraintFieldGadget<ConstraintF, FieldGadget = HG::DataGadget>,
             H:           FieldBasedHash<Data = ConstraintF>,
             HG:          FieldBasedHashGadget<H, ConstraintF, DataGadget = FpGadget<ConstraintF>>,
     {
