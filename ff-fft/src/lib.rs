@@ -61,7 +61,8 @@ macro_rules! cfg_into_iter {
     }};
 }
 
-/// Returns an iterator over `chunk_size` mutable elements of the slice at a time.
+/// Returns an iterator over `chunk_size` mutable elements of the slice at a
+/// time.
 #[macro_export]
 macro_rules! cfg_chunks_mut {
     ($e: expr, $size: expr) => {{

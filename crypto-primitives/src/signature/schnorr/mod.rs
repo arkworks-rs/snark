@@ -3,15 +3,12 @@ use algebra::{
     bytes::ToBytes,
     fields::{Field, PrimeField},
     groups::Group,
+    io::{Result as IoResult, Write},
     to_bytes, One, ToConstraintField, UniformRand, Zero,
 };
+use core::{hash::Hash, marker::PhantomData};
 use digest::Digest;
 use rand::Rng;
-use core::{
-    hash::Hash,
-    marker::PhantomData,
-};
-use algebra::io::{Result as IoResult, Write};
 
 #[cfg(feature = "r1cs")]
 pub mod constraints;

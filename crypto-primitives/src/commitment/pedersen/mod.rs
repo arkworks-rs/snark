@@ -4,8 +4,8 @@ use algebra::{
     UniformRand,
 };
 
-use rand::Rng;
 use core::marker::PhantomData;
+use rand::Rng;
 
 use super::CommitmentScheme;
 use algebra::io::{Result as IoResult, Write};

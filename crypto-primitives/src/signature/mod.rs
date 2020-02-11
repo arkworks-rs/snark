@@ -1,7 +1,7 @@
 use crate::Error;
 use algebra::bytes::ToBytes;
-use rand::Rng;
 use core::hash::Hash;
+use rand::Rng;
 
 #[cfg(feature = "r1cs")]
 pub mod constraints;
@@ -54,11 +54,10 @@ pub trait SignatureScheme {
 mod test {
     use crate::{signature::schnorr::SchnorrSignature, SignatureScheme};
     use algebra::{
-        curves::edwards_sw6::EdwardsAffine as Edwards, groups::Group, to_bytes, ToBytes,
+        curves::edwards_sw6::EdwardsAffine as Edwards, groups::Group, test_rng, to_bytes, ToBytes,
         UniformRand,
     };
     use blake2::Blake2s;
-    use algebra::test_rng;
 
     fn sign_and_verify<S: SignatureScheme>(message: &[u8]) {
         let rng = &mut test_rng();

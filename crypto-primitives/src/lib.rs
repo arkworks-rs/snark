@@ -10,10 +10,10 @@ extern crate derivative;
 extern crate alloc;
 
 #[cfg(not(feature = "std"))]
-pub(crate) use alloc::{vec::Vec, boxed::Box, borrow::ToOwned};
+pub(crate) use alloc::{borrow::ToOwned, boxed::Box, vec::Vec};
 
 #[cfg(feature = "std")]
-pub(crate) use std::{vec::Vec, boxed::Box, borrow::ToOwned};
+pub(crate) use std::{borrow::ToOwned, boxed::Box, vec::Vec};
 
 pub mod commitment;
 pub mod crh;

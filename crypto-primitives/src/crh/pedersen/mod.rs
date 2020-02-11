@@ -1,11 +1,11 @@
 use crate::{Error, Vec};
-use rand::Rng;
-#[cfg(feature = "parallel")]
-use rayon::prelude::*;
 use core::{
     fmt::{Debug, Formatter, Result as FmtResult},
     marker::PhantomData,
 };
+use rand::Rng;
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
 
 use crate::crh::FixedLengthCRH;
 use algebra::{groups::Group, Field, ToConstraintField};

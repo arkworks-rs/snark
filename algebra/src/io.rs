@@ -1,6 +1,6 @@
 //! no-std io replacement
 use crate::Vec;
-use core::{cmp, mem, fmt};
+use core::{cmp, fmt, mem};
 
 #[derive(Debug)]
 pub struct Error;
@@ -80,19 +80,16 @@ impl Write for Vec<u8> {
     }
 }
 
-/// This data structure is used as a workaround for current design of `ToBytes` which does not
-/// allow multiple writes to `&mut [u8]`.
+/// This data structure is used as a workaround for current design of `ToBytes`
+/// which does not allow multiple writes to `&mut [u8]`.
 pub struct Cursor<T> {
     inner: T,
-    pos: usize,
+    pos:   usize,
 }
 
 impl<T> Cursor<T> {
     pub fn new(inner: T) -> Self {
-        Cursor {
-            inner,
-            pos: 0,
-        }
+        Cursor { inner, pos: 0 }
     }
 }
 

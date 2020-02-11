@@ -1,11 +1,11 @@
 use crate::{Error, Vec};
-use rand::Rng;
-#[cfg(feature = "parallel")]
-use rayon::prelude::*;
 use core::{
     fmt::{Debug, Formatter, Result as FmtResult},
     marker::PhantomData,
 };
+use rand::Rng;
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
 
 use super::pedersen::{bytes_to_bits, PedersenCRH, PedersenWindow};
 use crate::crh::FixedLengthCRH;
@@ -127,7 +127,7 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for BoweHopwoodPedersenCRH<G, W
         // (1-2*c_{i,j,2})*(1+c_{i,j,0}+2*c_{i,j,1})*2^{4*(j-1)} for all j in segment}
         // for all i. Described in section 5.4.1.7 in the Zcash protocol
         // specification.
-        
+
         #[cfg(feature = "parallel")]
         let result = padded_input
             .par_chunks(W::WINDOW_SIZE * CHUNK_SIZE)
@@ -152,7 +152,6 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for BoweHopwoodPedersenCRH<G, W
                     .reduce(G::zero, |a, b| a + &b)
             })
             .reduce(G::zero, |a, b| a + &b);
-
 
         #[cfg(not(feature = "parallel"))]
         let result = padded_input
@@ -201,8 +200,7 @@ mod test {
         crh::{bowe_hopwood::BoweHopwoodPedersenCRH, pedersen::PedersenWindow},
         FixedLengthCRH,
     };
-    use algebra::curves::edwards_sw6::EdwardsProjective;
-    use algebra::test_rng;
+    use algebra::{curves::edwards_sw6::EdwardsProjective, test_rng};
 
     #[test]
     fn test_simple_bh() {

@@ -1,6 +1,6 @@
 use crate::Error;
-use rand::Rng;
 use core::marker::PhantomData;
+use rand::Rng;
 
 use super::{
     pedersen::{PedersenCommitment, PedersenParameters, PedersenRandomness, PedersenWindow},
