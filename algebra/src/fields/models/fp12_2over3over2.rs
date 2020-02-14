@@ -340,17 +340,6 @@ impl<P: Fp12Parameters> Neg for Fp12<P> {
     }
 }
 
-impl<P: Fp12Parameters> Add<Self> for Fp12<P> {
-    type Output = Self;
-
-    #[inline]
-    fn add(self, other: Self) -> Self {
-        let mut result = self;
-        result.add_assign(&other);
-        result
-    }
-}
-
 impl<'a, P: Fp12Parameters> Add<&'a Self> for Fp12<P> {
     type Output = Self;
 
@@ -368,18 +357,7 @@ impl<'a, P: Fp12Parameters> Sub<&'a Self> for Fp12<P> {
     #[inline]
     fn sub(self, other: &Self) -> Self {
         let mut result = self;
-        result.sub_assign(&other);
-        result
-    }
-}
-
-impl<P: Fp12Parameters> Mul<Self> for Fp12<P> {
-    type Output = Self;
-
-    #[inline]
-    fn mul(self, other: Self) -> Self {
-        let mut result = self;
-        result.mul_assign(other);
+        result.sub_assign(other);
         result
     }
 }
@@ -406,7 +384,10 @@ impl<'a, P: Fp12Parameters> Div<&'a Self> for Fp12<P> {
     }
 }
 
-impl_addassign_from_ref!(Fp12, Fp12Parameters);
+
+impl_additive_ops_from_ref!(Fp12, Fp12Parameters);
+impl_multiplicative_ops_from_ref!(Fp12, Fp12Parameters);
+
 impl<'a, P: Fp12Parameters> AddAssign<&'a Self> for Fp12<P> {
     #[inline]
     fn add_assign(&mut self, other: &Self) {
@@ -423,7 +404,6 @@ impl<'a, P: Fp12Parameters> SubAssign<&'a Self> for Fp12<P> {
     }
 }
 
-impl_mulassign_from_ref!(Fp12, Fp12Parameters);
 impl<'a, P: Fp12Parameters> MulAssign<&'a Self> for Fp12<P> {
     #[inline]
     fn mul_assign(&mut self, other: &Self) {

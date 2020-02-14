@@ -356,17 +356,6 @@ impl<P: Fp3Parameters> Distribution<Fp3<P>> for Standard {
     }
 }
 
-impl<P: Fp3Parameters> Add<Fp3<P>> for Fp3<P> {
-    type Output = Self;
-
-    #[inline]
-    fn add(self, other: Self) -> Self {
-        let mut result = self;
-        result.add_assign(&other);
-        result
-    }
-}
-
 impl<'a, P: Fp3Parameters> Add<&'a Fp3<P>> for Fp3<P> {
     type Output = Self;
 
@@ -384,18 +373,7 @@ impl<'a, P: Fp3Parameters> Sub<&'a Fp3<P>> for Fp3<P> {
     #[inline]
     fn sub(self, other: &Self) -> Self {
         let mut result = self;
-        result.sub_assign(&other);
-        result
-    }
-}
-
-impl<'a, P: Fp3Parameters> Mul<Fp3<P>> for Fp3<P> {
-    type Output = Self;
-
-    #[inline]
-    fn mul(self, other: Self) -> Self {
-        let mut result = self;
-        result.mul_assign(&other);
+        result.sub_assign(other);
         result
     }
 }
@@ -422,7 +400,8 @@ impl<'a, P: Fp3Parameters> Div<&'a Fp3<P>> for Fp3<P> {
     }
 }
 
-impl_addassign_from_ref!(Fp3, Fp3Parameters);
+impl_additive_ops_from_ref!(Fp3, Fp3Parameters);
+impl_multiplicative_ops_from_ref!(Fp3, Fp3Parameters);
 impl<'a, P: Fp3Parameters> AddAssign<&'a Self> for Fp3<P> {
     #[inline]
     fn add_assign(&mut self, other: &Self) {
@@ -441,7 +420,6 @@ impl<'a, P: Fp3Parameters> SubAssign<&'a Self> for Fp3<P> {
     }
 }
 
-impl_mulassign_from_ref!(Fp3, Fp3Parameters);
 impl<'a, P: Fp3Parameters> MulAssign<&'a Self> for Fp3<P> {
     #[inline]
     fn mul_assign(&mut self, other: &Self) {

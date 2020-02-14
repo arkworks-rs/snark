@@ -493,17 +493,6 @@ impl<P: Fp320Parameters> Neg for Fp320<P> {
     }
 }
 
-impl<P: Fp320Parameters> Add<Fp320<P>> for Fp320<P> {
-    type Output = Self;
-
-    #[inline]
-    fn add(self, other: Self) -> Self {
-        let mut result = self.clone();
-        result.add_assign(&other);
-        result
-    }
-}
-
 impl<'a, P: Fp320Parameters> Add<&'a Fp320<P>> for Fp320<P> {
     type Output = Self;
 
@@ -522,17 +511,6 @@ impl<'a, P: Fp320Parameters> Sub<&'a Fp320<P>> for Fp320<P> {
     fn sub(self, other: &Self) -> Self {
         let mut result = self.clone();
         result.sub_assign(other);
-        result
-    }
-}
-
-impl<P: Fp320Parameters> Mul<Fp320<P>> for Fp320<P> {
-    type Output = Self;
-
-    #[inline]
-    fn mul(self, other: Self) -> Self {
-        let mut result = self.clone();
-        result.mul_assign(&other);
         result
     }
 }
@@ -559,7 +537,9 @@ impl<'a, P: Fp320Parameters> Div<&'a Fp320<P>> for Fp320<P> {
     }
 }
 
-impl_addassign_from_ref!(Fp320, Fp320Parameters);
+impl_additive_ops_from_ref!(Fp320, Fp320Parameters);
+impl_multiplicative_ops_from_ref!(Fp320, Fp320Parameters);
+
 impl<'a, P: Fp320Parameters> AddAssign<&'a Self> for Fp320<P> {
     #[inline]
     fn add_assign(&mut self, other: &Self) {
@@ -582,7 +562,6 @@ impl<'a, P: Fp320Parameters> SubAssign<&'a Self> for Fp320<P> {
     }
 }
 
-impl_mulassign_from_ref!(Fp320, Fp320Parameters);
 impl<'a, P: Fp320Parameters> MulAssign<&'a Self> for Fp320<P> {
     #[inline]
     fn mul_assign(&mut self, other: &Self) {

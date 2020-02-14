@@ -75,15 +75,25 @@ pub trait Field:
     + CanonicalSerialize
     + CanonicalDeserialize
     + Add<Self, Output = Self>
+    + Sub<Self, Output = Self>
+    + Mul<Self, Output = Self>
+    + Div<Self, Output = Self>
+    + AddAssign<Self>
+    + SubAssign<Self>
+    + MulAssign<Self>
+    + DivAssign<Self>
     + for<'a> Add<&'a Self, Output = Self>
     + for<'a> Sub<&'a Self, Output = Self>
-    + Mul<Self, Output = Self>
     + for<'a> Mul<&'a Self, Output = Self>
     + for<'a> Div<&'a Self, Output = Self>
     + for<'a> AddAssign<&'a Self>
     + for<'a> SubAssign<&'a Self>
     + for<'a> MulAssign<&'a Self>
     + for<'a> DivAssign<&'a Self>
+    + core::iter::Sum<Self>
+    + for<'a> core::iter::Sum<&'a Self>
+    + core::iter::Product<Self>
+    + for<'a> core::iter::Product<&'a Self>
 {
     /// Returns the characteristic of the field.
     fn characteristic<'a>() -> &'a [u64];
@@ -336,7 +346,7 @@ pub fn batch_inversion<F: Field>(v: &mut [F]) {
     let mut prod = Vec::with_capacity(v.len());
     let mut tmp = F::one();
     for f in v.iter().filter(|f| !f.is_zero()) {
-        tmp.mul_assign(&f);
+        tmp.mul_assign(f);
         prod.push(tmp);
     }
 

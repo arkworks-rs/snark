@@ -118,22 +118,115 @@ macro_rules! sqrt_impl {
 }
 
 // Implements AddAssign on Self by deferring to an implementation on &Self
-macro_rules! impl_addassign_from_ref {
+macro_rules! impl_additive_ops_from_ref {
     ($field: ident, $params: ident) => {
-        impl<P: $params> AddAssign<Self> for $field<P> {
+        #[allow(unused_qualifications)]
+        impl<P: $params> core::ops::Add<Self> for $field<P> {
+            type Output = Self;
+
+            #[inline]
+            fn add(self, other: Self) -> Self {
+                let mut result = self;
+                result.add_assign(&other);
+                result
+            }
+        }
+
+        #[allow(unused_qualifications)]
+        impl<P: $params> core::ops::Sub<Self> for $field<P> {
+            type Output = Self;
+
+            #[inline]
+            fn sub(self, other: Self) -> Self {
+                let mut result = self;
+                result.sub_assign(&other);
+                result
+            }
+        }
+
+        #[allow(unused_qualifications)]
+        impl<P: $params> core::iter::Sum<Self> for $field<P> {
+            fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+                iter.fold(Self::zero(), core::ops::Add::add)
+            }
+        }
+
+        #[allow(unused_qualifications)]
+        impl<'a, P: $params> core::iter::Sum<&'a Self> for $field<P> {
+            fn sum<I: Iterator<Item = &'a Self>>(iter: I) -> Self {
+                iter.fold(Self::zero(), core::ops::Add::add)
+            }
+        }
+
+        #[allow(unused_qualifications)]
+        impl<P: $params> core::ops::AddAssign<Self> for $field<P> {
             fn add_assign(&mut self, other: Self) {
                 self.add_assign(&other)
+            }
+        }
+
+        #[allow(unused_qualifications)]
+        impl<P: $params> core::ops::SubAssign<Self> for $field<P> {
+            fn sub_assign(&mut self, other: Self) {
+                self.sub_assign(&other)
             }
         }
     };
 }
 
-// Implements MulAssign on Self by deferring to an implementation on &Self
-macro_rules! impl_mulassign_from_ref {
+// Implements AddAssign on Self by deferring to an implementation on &Self
+macro_rules! impl_multiplicative_ops_from_ref {
     ($field: ident, $params: ident) => {
-        impl<P: $params> MulAssign<Self> for $field<P> {
+        #[allow(unused_qualifications)]
+        impl<P: $params> core::ops::Mul<Self> for $field<P> {
+            type Output = Self;
+
+            #[inline]
+            fn mul(self, other: Self) -> Self {
+                let mut result = self;
+                result.mul_assign(&other);
+                result
+            }
+        }
+
+        #[allow(unused_qualifications)]
+        impl<P: $params> core::ops::Div<Self> for $field<P> {
+            type Output = Self;
+
+            #[inline]
+            fn div(self, other: Self) -> Self {
+                let mut result = self;
+                result.div_assign(&other);
+                result
+            }
+        }
+
+        #[allow(unused_qualifications)]
+        impl<P: $params> core::iter::Product<Self> for $field<P> {
+            fn product<I: Iterator<Item = Self>>(iter: I) -> Self {
+                iter.fold(Self::one(), core::ops::Mul::mul)
+            }
+        }
+
+        #[allow(unused_qualifications)]
+        impl<'a, P: $params> core::iter::Product<&'a Self> for $field<P> {
+            fn product<I: Iterator<Item = &'a Self>>(iter: I) -> Self {
+                iter.fold(Self::one(), Mul::mul)
+            }
+        }
+
+
+        #[allow(unused_qualifications)]
+        impl<P: $params> core::ops::MulAssign<Self> for $field<P> {
             fn mul_assign(&mut self, other: Self) {
                 self.mul_assign(&other)
+            }
+        }
+
+        #[allow(unused_qualifications)]
+        impl<P: $params> core::ops::DivAssign<Self> for $field<P> {
+            fn div_assign(&mut self, other: Self) {
+                self.div_assign(&other)
             }
         }
     };
