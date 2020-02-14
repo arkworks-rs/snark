@@ -336,13 +336,14 @@ pub(crate) fn hash_inner_node<H: FixedLengthCRH>(
     right: &H::Output,
     buffer: &mut [u8],
 ) -> Result<H::Output, Error> {
-    let mut writer = Cursor::new(&mut *buffer);
+    let mut writer = Cursor::new(buffer);
     // Construct left input.
     left.write(&mut writer)?;
 
     // Construct right input.
     right.write(&mut writer)?;
 
+    let buffer = writer.into_inner();
     H::evaluate(parameters, &buffer[..(H::INPUT_SIZE_BITS / 8)])
 }
 
@@ -352,8 +353,10 @@ pub(crate) fn hash_leaf<H: FixedLengthCRH, L: ToBytes>(
     leaf: &L,
     buffer: &mut [u8],
 ) -> Result<H::Output, Error> {
-    leaf.write(&mut *buffer)?;
+    let mut writer = Cursor::new(buffer);
+    leaf.write(&mut writer)?;
 
+    let buffer = writer.into_inner();
     H::evaluate(parameters, &buffer[..(H::INPUT_SIZE_BITS / 8)])
 }
 
