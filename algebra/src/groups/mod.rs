@@ -31,10 +31,15 @@ pub trait Group:
     + UniformRand
     + Zero
     + Add<Self, Output = Self>
+    + Sub<Self, Output = Self>
+    + AddAssign<Self>
+    + SubAssign<Self>
     + for<'a> Add<&'a Self, Output = Self>
     + for<'a> Sub<&'a Self, Output = Self>
     + for<'a> AddAssign<&'a Self>
     + for<'a> SubAssign<&'a Self>
+    + core::iter::Sum<Self>
+    + for<'a> core::iter::Sum<&'a Self>
 {
     type ScalarField: PrimeField + Into<<Self::ScalarField as PrimeField>::BigInt>;
 
@@ -57,7 +62,7 @@ pub trait Group:
         for i in BitIterator::new(other.into_repr()) {
             res.double_in_place();
             if i {
-                res += self
+                res += &*self
             }
         }
         *self = res

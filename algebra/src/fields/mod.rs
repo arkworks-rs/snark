@@ -12,7 +12,7 @@ use core::{
 use num_traits::{One, Zero};
 
 #[macro_use]
-mod macros;
+pub mod macros;
 
 pub mod bls12_377;
 pub mod bls12_381;
