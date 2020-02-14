@@ -547,7 +547,7 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
             }
 
             if i {
-                res.add_assign(self);
+                res += &*self;
             }
         }
 
@@ -583,16 +583,7 @@ impl<P: Parameters> Neg for GroupProjective<P> {
     }
 }
 
-impl<P: Parameters> Add<Self> for GroupProjective<P> {
-    type Output = Self;
-
-    #[inline]
-    fn add(self, other: Self) -> Self {
-        let mut copy = self;
-        copy += &other;
-        copy
-    }
-}
+crate::impl_additive_ops_from_ref!(GroupProjective, Parameters);
 
 impl<'a, P: Parameters> Add<&'a Self> for GroupProjective<P> {
     type Output = Self;

@@ -109,8 +109,6 @@ impl<F: Field> DensePolynomial<F> {
             .zip(&self.coeffs)
             .map(|(power, coeff)| power * coeff)
             .sum()
-
-        
     }
 
     /// Perform a naive n^2 multiplication of `self` by `other`.

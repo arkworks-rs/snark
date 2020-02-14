@@ -91,7 +91,7 @@ impl VariableBaseMSM {
                 }
                 total
             })
-            + *lowest
+            + lowest
     }
 
     pub fn multi_scalar_mul<G: AffineCurve>(
