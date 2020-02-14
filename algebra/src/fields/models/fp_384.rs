@@ -525,17 +525,6 @@ impl<P: Fp384Parameters> Neg for Fp384<P> {
     }
 }
 
-impl<P: Fp384Parameters> Add<Fp384<P>> for Fp384<P> {
-    type Output = Self;
-
-    #[inline]
-    fn add(self, other: Self) -> Self {
-        let mut result = self.clone();
-        result.add_assign(&other);
-        result
-    }
-}
-
 impl<'a, P: Fp384Parameters> Add<&'a Fp384<P>> for Fp384<P> {
     type Output = Self;
 
@@ -554,17 +543,6 @@ impl<'a, P: Fp384Parameters> Sub<&'a Fp384<P>> for Fp384<P> {
     fn sub(self, other: &Self) -> Self {
         let mut result = self.clone();
         result.sub_assign(other);
-        result
-    }
-}
-
-impl<P: Fp384Parameters> Mul<Fp384<P>> for Fp384<P> {
-    type Output = Self;
-
-    #[inline]
-    fn mul(self, other: Self) -> Self {
-        let mut result = self.clone();
-        result.mul_assign(&other);
         result
     }
 }
@@ -591,7 +569,9 @@ impl<'a, P: Fp384Parameters> Div<&'a Fp384<P>> for Fp384<P> {
     }
 }
 
-impl_addassign_from_ref!(Fp384, Fp384Parameters);
+impl_additive_ops_from_ref!(Fp384, Fp384Parameters);
+impl_multiplicative_ops_from_ref!(Fp384, Fp384Parameters);
+
 impl<'a, P: Fp384Parameters> AddAssign<&'a Self> for Fp384<P> {
     #[inline]
     fn add_assign(&mut self, other: &Self) {
@@ -614,7 +594,6 @@ impl<'a, P: Fp384Parameters> SubAssign<&'a Self> for Fp384<P> {
     }
 }
 
-impl_mulassign_from_ref!(Fp384, Fp384Parameters);
 impl<'a, P: Fp384Parameters> MulAssign<&'a Self> for Fp384<P> {
     #[inline]
     fn mul_assign(&mut self, other: &Self) {

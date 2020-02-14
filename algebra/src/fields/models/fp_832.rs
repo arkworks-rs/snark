@@ -823,17 +823,6 @@ impl<P: Fp832Parameters> Neg for Fp832<P> {
     }
 }
 
-impl<P: Fp832Parameters> Add<Fp832<P>> for Fp832<P> {
-    type Output = Self;
-
-    #[inline]
-    fn add(self, other: Self) -> Self {
-        let mut result = self.clone();
-        result.add_assign(&other);
-        result
-    }
-}
-
 impl<'a, P: Fp832Parameters> Add<&'a Fp832<P>> for Fp832<P> {
     type Output = Self;
 
@@ -852,17 +841,6 @@ impl<'a, P: Fp832Parameters> Sub<&'a Fp832<P>> for Fp832<P> {
     fn sub(self, other: &Self) -> Self {
         let mut result = self.clone();
         result.sub_assign(other);
-        result
-    }
-}
-
-impl<P: Fp832Parameters> Mul<Fp832<P>> for Fp832<P> {
-    type Output = Self;
-
-    #[inline]
-    fn mul(self, other: Self) -> Self {
-        let mut result = self.clone();
-        result.mul_assign(&other);
         result
     }
 }
@@ -889,7 +867,9 @@ impl<'a, P: Fp832Parameters> Div<&'a Fp832<P>> for Fp832<P> {
     }
 }
 
-impl_addassign_from_ref!(Fp832, Fp832Parameters);
+impl_additive_ops_from_ref!(Fp832, Fp832Parameters);
+impl_multiplicative_ops_from_ref!(Fp832, Fp832Parameters);
+
 impl<'a, P: Fp832Parameters> AddAssign<&'a Self> for Fp832<P> {
     #[inline]
     fn add_assign(&mut self, other: &Self) {
@@ -912,7 +892,6 @@ impl<'a, P: Fp832Parameters> SubAssign<&'a Self> for Fp832<P> {
     }
 }
 
-impl_mulassign_from_ref!(Fp832, Fp832Parameters);
 impl<'a, P: Fp832Parameters> MulAssign<&'a Self> for Fp832<P> {
     #[inline]
     fn mul_assign(&mut self, other: &Self) {
