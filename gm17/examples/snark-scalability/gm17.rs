@@ -27,9 +27,7 @@
 
 use csv;
 
-use algebra::One;
-// For randomness (during paramgen and proof generation)
-use rand::thread_rng;
+use algebra::{One, test_rng};
 
 // For benchmarking
 use std::{
@@ -83,7 +81,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
     // This may not be cryptographically safe, use
     // `OsRng` (for example) in production software.
-    let rng = &mut thread_rng();
+    let rng = &mut test_rng();
 
     // Let's benchmark stuff!
     let samples = if num_constraints > 10000 {
