@@ -27,7 +27,7 @@
 
 use csv;
 
-use algebra::{One, test_rng};
+use algebra::{test_rng, One};
 
 // For benchmarking
 use std::{

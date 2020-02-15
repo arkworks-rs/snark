@@ -2,8 +2,7 @@ use crate::{
     bytes::{FromBytes, ToBytes},
     fields::{Field, PrimeField, SquareRootField},
     groups::Group,
-    UniformRand,
-    Vec,
+    UniformRand, Vec,
 };
 use core::{
     fmt::{Debug, Display},
