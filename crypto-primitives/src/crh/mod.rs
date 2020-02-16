@@ -23,3 +23,10 @@ pub trait FixedLengthCRH {
     fn evaluate(parameters: &Self::Parameters, input: &[u8]) -> Result<Self::Output, Error>;
 }
 
+pub trait Batched2to1CRH {
+    const INPUT_NUM_PAIRS: usize;
+    type Output: ToBytes + Clone + Eq + Hash + Default;
+    type Parameters: Clone + 'static;
+
+    fn evaluate(input: &[u8]) -> Result<Self::Output, Error>;
+}

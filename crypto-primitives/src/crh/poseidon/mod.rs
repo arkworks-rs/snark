@@ -19,6 +19,9 @@ use crate::crh::poseidon::parameters::{MNT4753PoseidonParameters, MNT6753Poseido
 use crate::crh::poseidon::poseidon_dual::poseidon_engine_dual;
 use crate::crh::poseidon::poseidon_original::poseidon_engine;
 use crate::crh::poseidon::mul_inv::bench_mul_inv;
+use std::marker::PhantomData;
+use crate::crh::Batched2to1CRH;
+use std::error::Error;
 
 pub mod poseidon_original;
 pub mod poseidon_dual;
@@ -37,6 +40,22 @@ pub trait PoseidonParameters: 'static{
     const C2:Self::Fr;     // The constant 3 to add in the position corresponding to the capacity
     const ROUND_CST: &'static[Self::Fr];  // Array of round constants
     const MDS_CST: &'static[Self::Fr];  // The MDS matrix
+
+}
+
+pub struct PoseidonCRH<P: PoseidonParameters> {
+    parameters: PhantomData<P>
+
+    //fn evaluate(parameters: &Self::Parameters, input: &[u8]) -> Result<Self::Output, Error> {}
+
+}
+
+impl<P: PoseidonParameters> Batched2to1CRH for PoseidonCRH<P> {
+    const INPUT_NUM_PAIRS: usize = unimplemented!();
+    type Output = P::Fr;
+    type Parameters = P;
+
+    fn evaluate(input: &[u8]) -> Result<Self::Output, Error> {}
 
 }
 
