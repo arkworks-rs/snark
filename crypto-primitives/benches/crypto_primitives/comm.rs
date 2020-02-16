@@ -44,7 +44,7 @@ fn pedersen_comm_eval(c: &mut Criterion) {
 
 criterion_group! {
     name = comm_setup;
-    config = Criterion::default().sample_size(5);
+    config = Criterion::default().sample_size(10);
     targets = pedersen_comm_setup
 }
 
