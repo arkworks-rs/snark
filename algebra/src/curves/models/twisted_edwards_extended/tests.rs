@@ -1,7 +1,7 @@
 use crate::{
     curves::models::twisted_edwards_extended::{GroupAffine, GroupProjective},
     fields::Field,
-    CanonicalDeserialize, CanonicalSerialize, MontgomeryModelParameters, ProjectiveCurve,
+    CanonicalDeserialize, CanonicalSerialize, GroupDeserialize, GroupSerialize, MontgomeryModelParameters, ProjectiveCurve,
     SerializationError, TEModelParameters, UniformRand,
 };
 use num_traits::{One, Zero};
@@ -31,6 +31,14 @@ pub fn edwards_curve_serialization_test<P: TEModelParameters>(buf_size: usize) {
     for _ in 0..ITERATIONS {
         let a = GroupProjective::<P>::rand(&mut rng);
         let a = a.into_affine();
+
+        {
+            let mut serialized = vec![0; 2 * buf_size];
+            a.serialize_uncompressed(&mut serialized).unwrap();
+            let b = GroupAffine::<P>::deserialize_uncompressed(&serialized).unwrap();
+            assert_eq!(a, b);
+        }
+
         {
             let mut serialized = vec![0; buf_size];
             a.serialize(&[], &mut serialized).unwrap();

@@ -161,7 +161,7 @@ macro_rules! impl_sw_curve_serializer {
                 &self,
                 output_buf: &mut [u8],
             ) -> Result<(), crate::serialize::SerializationError> {
-                let len = <Self as CanonicalSerialize>::buffer_size();
+                let len = <P as crate::curves::models::ModelParameters>::BaseField::buffer_size();
                 self.x.serialize(&[], &mut output_buf[..len])?;
                 self.y.serialize(&[], &mut output_buf[len..2 * len])?;
                 Ok(())

@@ -2,8 +2,8 @@ use crate::{
     bytes::{FromBytes, ToBytes},
     fields::{Field, PrimeField, SquareRootField},
     groups::Group,
-    UniformRand, Vec,
     serialize::{GroupDeserialize, GroupSerialize, CanonicalDeserialize, CanonicalSerialize},
+    UniformRand, Vec,
 };
 use core::{
     fmt::{Debug, Display},
