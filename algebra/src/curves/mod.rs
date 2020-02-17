@@ -2,8 +2,8 @@ use crate::{
     bytes::{FromBytes, ToBytes},
     fields::{Field, PrimeField, SquareRootField},
     groups::Group,
-    UniformRand,
-    Vec,
+    UniformRand, Vec,
+    serialize::{GroupDeserialize, GroupSerialize, CanonicalDeserialize, CanonicalSerialize},
 };
 use core::{
     fmt::{Debug, Display},
@@ -203,6 +203,10 @@ pub trait AffineCurve:
     + Debug
     + Display
     + Zero
+    + CanonicalSerialize
+    + CanonicalDeserialize
+    + GroupSerialize
+    + GroupDeserialize
     + Neg<Output = Self>
     + 'static
 {
