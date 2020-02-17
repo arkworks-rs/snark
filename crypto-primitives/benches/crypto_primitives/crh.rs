@@ -37,7 +37,7 @@ fn pedersen_crh_eval(c: &mut Criterion) {
 
 criterion_group! {
     name = crh_setup;
-    config = Criterion::default().sample_size(5);
+    config = Criterion::default().sample_size(10);
     targets = pedersen_crh_setup
 }
 
