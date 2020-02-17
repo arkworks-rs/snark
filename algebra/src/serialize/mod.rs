@@ -7,11 +7,22 @@ pub trait CanonicalSerialize {
         extra_info: &[bool],
         output_buf: &mut [u8],
     ) -> Result<(), SerializationError>;
+
     fn buffer_size() -> usize;
+}
+
+pub trait GroupSerialize: CanonicalSerialize {
+    fn serialize_uncompressed(&self, output_buf: &mut [u8]) -> Result<(), SerializationError>;
 }
 
 pub trait CanonicalDeserialize: CanonicalSerialize {
     fn deserialize(bytes: &[u8], extra_info_buf: &mut [bool]) -> Result<Self, SerializationError>
+    where
+        Self: Sized;
+}
+
+pub trait GroupDeserialize: CanonicalDeserialize {
+    fn deserialize_uncompressed(bytes: &[u8]) -> Result<Self, SerializationError>
     where
         Self: Sized;
 }
@@ -144,6 +155,34 @@ macro_rules! impl_sw_curve_serializer {
                 Ok(p)
             }
         }
+
+        impl<P: $params> GroupSerialize for GroupAffine<P> {
+            fn serialize_uncompressed(
+                &self,
+                output_buf: &mut [u8],
+            ) -> Result<(), crate::serialize::SerializationError> {
+                let len = <Self as CanonicalSerialize>::buffer_size();
+                self.x.serialize(&[], &mut output_buf[..len])?;
+                self.y.serialize(&[], &mut output_buf[len..2 * len])?;
+                Ok(())
+            }
+        }
+
+        impl<P: $params> GroupDeserialize for GroupAffine<P> {
+            fn deserialize_uncompressed(
+                bytes: &[u8],
+            ) -> Result<Self, crate::serialize::SerializationError>
+            where
+                Self: Sized,
+            {
+                let len = <Self as CanonicalSerialize>::buffer_size();
+                let x: P::BaseField =
+                    CanonicalDeserialize::deserialize(&bytes[..len], &mut [false; 0])?;
+                let y: P::BaseField =
+                    CanonicalDeserialize::deserialize(&bytes[len..2 * len], &mut [false; 0])?;
+                Ok(GroupAffine::new(x, y, false))
+            }
+        }
     };
 }
 
@@ -196,6 +235,34 @@ macro_rules! impl_edwards_curve_serializer {
                     return Err(crate::serialize::SerializationError::InvalidData);
                 }
                 Ok(p)
+            }
+        }
+
+        impl<P: $params> GroupSerialize for GroupAffine<P> {
+            fn serialize_uncompressed(
+                &self,
+                output_buf: &mut [u8],
+            ) -> Result<(), crate::serialize::SerializationError> {
+                let len = <Self as CanonicalSerialize>::buffer_size();
+                self.x.serialize(&[], &mut output_buf[..len])?;
+                self.y.serialize(&[], &mut output_buf[len..2 * len])?;
+                Ok(())
+            }
+        }
+
+        impl<P: $params> GroupDeserialize for GroupAffine<P> {
+            fn deserialize_uncompressed(
+                bytes: &[u8],
+            ) -> Result<Self, crate::serialize::SerializationError>
+            where
+                Self: Sized,
+            {
+                let len = <Self as CanonicalSerialize>::buffer_size();
+                let x: P::BaseField =
+                    CanonicalDeserialize::deserialize(&bytes[..len], &mut [false; 0])?;
+                let y: P::BaseField =
+                    CanonicalDeserialize::deserialize(&bytes[len..2 * len], &mut [false; 0])?;
+                Ok(GroupAffine::new(x, y))
             }
         }
     };

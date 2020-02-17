@@ -1,6 +1,6 @@
 use crate::{
     io::{Read, Result as IoResult, Write},
-    CanonicalDeserialize, CanonicalSerialize, UniformRand, Vec,
+    CanonicalDeserialize, CanonicalSerialize, GroupSerialize, GroupDeserialize, UniformRand, Vec,
 };
 use core::{
     fmt::{Display, Formatter, Result as FmtResult},
