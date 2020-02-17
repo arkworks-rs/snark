@@ -120,12 +120,13 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
     }
 
     fn mul_bits_precomputed<'a, CS: ConstraintSystem<ConstraintF>>(
-        &'a self,
-        cs: CS,
+        base: &'a G,
+        mut cs: CS,
         result: &Self,
         bits: &[Boolean],
     ) -> Result<Self, SynthesisError> {
-        self.mul_bits(cs, result, bits.into_iter())
+        let base_g = Self::alloc_hardcoded(cs.ns(|| "hardcode base"), || Ok(base))?;
+        base_g.mul_bits(cs, result, bits.into_iter())
     }
 
     fn precomputed_base_3_bit_signed_digit_scalar_mul<'a, CS, I, J, B>(

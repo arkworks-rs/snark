@@ -154,9 +154,11 @@ mod test {
         );
 
         //Check mul_bits precomputed
-        let result_precomp = gadget_a
-            .mul_bits_precomputed(cs.ns(|| "mul_bits_precomp"), &gadget_b, input.as_slice())
-            .unwrap();
+        let result_precomp = G1Gadget::mul_bits_precomputed(&(gadget_a.get_value().unwrap()),
+                                                            cs.ns(|| "mul_bits_precomp"),
+                                                            &gadget_b,
+                                                            input.as_slice()
+        ).unwrap();
         assert_eq!(
             result, result_precomp,
             "result of mul_bits and mul_bits_precomputed differ"

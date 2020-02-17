@@ -317,7 +317,7 @@ for AffineGadget<P, ConstraintF, F>
     ///Note: `self` must be different from `result` due to SW incomplete addition.
     #[inline]
     fn mul_bits_precomputed<'a, CS: ConstraintSystem<ConstraintF>>(
-        &'a self,
+        base: &'a SWProjective<P>,
         mut cs: CS,
         result: &Self,
         bits: &[Boolean],
@@ -325,8 +325,8 @@ for AffineGadget<P, ConstraintF, F>
 
         let mut to_sub = SWProjective::<P>::zero();
 
-        let mut t = self.clone().get_value().get()?;
-        let sigma = self.clone().get_value().get()?;
+        let mut t = base.clone();
+        let sigma = base.clone();
         let mut result = result.clone();
 
         let mut bit_vec = Vec::new();

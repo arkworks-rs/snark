@@ -318,7 +318,7 @@ mod field_impl
         where
             ConstraintF: PrimeField,
             G:           ProjectiveCurve + ToConstraintField<ConstraintF>,
-            GG:          GroupGadget<G, ConstraintF> + ToConstraintFieldGadget<ConstraintF, FieldGadget = HG::DataGadget>,
+            GG:          GroupGadget<G, ConstraintF, Value = G> + ToConstraintFieldGadget<ConstraintF, FieldGadget = HG::DataGadget>,
             H:           FieldBasedHash<Data = ConstraintF>,
             HG:          FieldBasedHashGadget<H, ConstraintF, DataGadget = FpGadget<ConstraintF>>,
     {
@@ -332,9 +332,6 @@ mod field_impl
             signature: &Self::SignatureGadget,
             message: &[Self::DataGadget]
         ) -> Result<(), SynthesisError> {
-
-            //Hardcode generator
-            let g = GG::alloc_hardcoded(cs.ns(|| "hardcode generator"), || Ok(G::prime_subgroup_generator()))?;
 
             // Check e' = H(m || signature.r || pk)
             let mut hash_input = Vec::new();
@@ -351,7 +348,8 @@ mod field_impl
             let e_prime_bits = e_prime
                 .to_bits(cs.ns(|| "e_prime_to_bits"))?;
 
-            //We exploit hardcoded generator as `result` param here to avoid edge cases in addition
+            //Let's hardcode generator and use it as `result` param here to avoid edge cases in addition
+            let g = GG::alloc_hardcoded(cs.ns(|| "hardcode generator"), || Ok(G::prime_subgroup_generator()))?;
             let neg_e_prime_times_pk = public_key
                 .mul_bits(cs.ns(|| "pk * e_prime + g"), &g, e_prime_bits.as_slice().iter().rev())?
                 .sub(cs.ns(|| "subtract g"), &g)?
@@ -360,8 +358,8 @@ mod field_impl
             //Enforce signature.s * G
             let mut s = signature.s.clone();
             s.reverse();
-            let r_prime = g
-                .mul_bits_precomputed(
+            let r_prime = GG::mul_bits_precomputed(
+                    &(g.get_value().unwrap()),
                     cs.ns(|| "(s * G) - (e_prime * pk)"),
                     &neg_e_prime_times_pk,
                     s.as_slice()

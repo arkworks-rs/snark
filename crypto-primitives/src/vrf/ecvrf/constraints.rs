@@ -113,7 +113,7 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
     where
         ConstraintF: PrimeField,
         G:           ProjectiveCurve + ToConstraintField<ConstraintF>,
-        GG:          GroupGadget<G, ConstraintF> + ToConstraintFieldGadget<ConstraintF, FieldGadget = FHG::DataGadget>,
+        GG:          GroupGadget<G, ConstraintF, Value = G> + ToConstraintFieldGadget<ConstraintF, FieldGadget = FHG::DataGadget>,
         FH:          FieldBasedHash<Data = ConstraintF>,
         FHG:         FieldBasedHashGadget<FH, ConstraintF, DataGadget = FpGadget<ConstraintF>>,
         GH:          FixedLengthCRH<Output = G>,
@@ -166,7 +166,11 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
                 .mul_bits(cs.ns(|| "pk * c + g"), &g, c_bits.as_slice().iter().rev())?
                 .sub(cs.ns(|| "c * pk"), &g)?
                 .negate(cs.ns(|| "- (c * pk)"))?;
-            g.mul_bits_precomputed(cs.ns(|| "(s * G) - (c * pk)"), &neg_c_times_pk, s_bits.as_slice())?
+            GG::mul_bits_precomputed(&(g.get_value().unwrap()),
+                                     cs.ns(|| "(s * G) - (c * pk)"),
+                                     &neg_c_times_pk,
+                                     s_bits.as_slice()
+            )?
         };
 
         //Check v = mh^s - gamma^c
