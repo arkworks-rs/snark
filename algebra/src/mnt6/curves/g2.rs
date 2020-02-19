@@ -1,4 +1,4 @@
-use crate::mnt6::{g1::MNT6G1Parameters, Fq, Fq3, Fr, TWIST_COEFF_A};
+use crate::mnt6::{g1, Fq, Fq3, Fr, TWIST_COEFF_A};
 use algebra_core::{
     biginteger::BigInteger320,
     bytes::ToBytes,
@@ -12,13 +12,13 @@ use algebra_core::{
     Vec,
 };
 
-pub type G2Affine = GroupAffine<MNT6G2Parameters>;
-pub type G2Projective = GroupProjective<MNT6G2Parameters>;
+pub type G2Affine = GroupAffine<Parameters>;
+pub type G2Projective = GroupProjective<Parameters>;
 
 #[derive(Clone, Default, PartialEq, Eq)]
-pub struct MNT6G2Parameters;
+pub struct Parameters;
 
-impl ModelParameters for MNT6G2Parameters {
+impl ModelParameters for Parameters {
     type BaseField = Fq3;
     type ScalarField = Fr;
 }
@@ -44,9 +44,9 @@ pub const MUL_BY_A_C1: Fq = field_new!(Fq, BigInteger320([
 ]));
 
 /// MUL_BY_A_C2 = COEFF_A
-pub const MUL_BY_A_C2: Fq = MNT6G1Parameters::COEFF_A;
+pub const MUL_BY_A_C2: Fq = g1::Parameters::COEFF_A;
 
-impl SWModelParameters for MNT6G2Parameters {
+impl SWModelParameters for Parameters {
     const COEFF_A: Fq3 = TWIST_COEFF_A;
     #[rustfmt::skip]
     const COEFF_B: Fq3 = field_new!(Fq3,

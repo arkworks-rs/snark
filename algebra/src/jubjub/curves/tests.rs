@@ -6,8 +6,10 @@ use algebra_core::{
 };
 use core::str::FromStr;
 use rand::Rng;
+
 use crate::jubjub::*;
-use crate::tests::{groups::*,curves::*};
+
+use crate::tests::{groups::*, curves::*};
 
 #[test]
 fn test_projective_curve() {
@@ -106,7 +108,7 @@ fn test_bytes() {
     )
     .unwrap();
 
-    let g_bytes = to_bytes![g_from_repr].unwrap();
+    let g_bytes = algebra_core::to_bytes![g_from_repr].unwrap();
     let g = JubJubAffine::read(g_bytes.as_slice()).unwrap();
     assert_eq!(g_from_repr, g);
 }

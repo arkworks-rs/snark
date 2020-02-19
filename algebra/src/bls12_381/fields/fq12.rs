@@ -199,31 +199,3 @@ impl Fp12Parameters for Fq12Parameters {
         ),
     ];
 }
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use crate::{
-        fields::bls12_381::{fq2::Fq2, fq6::Fq6},
-        UniformRand,
-    };
-    use num_traits::{One, Zero};
-    use rand::SeedableRng;
-    use rand_xorshift::XorShiftRng;
-
-    #[test]
-    fn test_fq6_mul_nonresidue() {
-        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-
-        let nqr = Fq6::new(Fq2::zero(), Fq2::one(), Fq2::zero());
-
-        for _ in 0..1000 {
-            let mut a = Fq6::rand(&mut rng);
-            let mut b = a;
-            a = Fq12::mul_fp6_by_nonresidue(&a);
-            b *= &nqr;
-
-            assert_eq!(a, b);
-        }
-    }
-}

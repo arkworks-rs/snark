@@ -8,18 +8,18 @@ use crate::{
     sw6::{Fq, Fr},
 };
 
-pub type G1Affine = GroupAffine<SW6G1Parameters>;
-pub type G1Projective = GroupProjective<SW6G1Parameters>;
+pub type G1Affine = GroupAffine<Parameters>;
+pub type G1Projective = GroupProjective<Parameters>;
 
 #[derive(Clone, Default, PartialEq, Eq)]
-pub struct SW6G1Parameters;
+pub struct Parameters;
 
-impl ModelParameters for SW6G1Parameters {
+impl ModelParameters for Parameters {
     type BaseField = Fq;
     type ScalarField = Fr;
 }
 
-impl SWModelParameters for SW6G1Parameters {
+impl SWModelParameters for Parameters {
     /// COEFF_A = 5
     #[rustfmt::skip]
     const COEFF_A: Fq = field_new!(Fq, BigInteger832([

@@ -102,7 +102,7 @@ fn test_g1_generator_raw() {
 
             let g1 = p.scale_by_cofactor();
             if !g1.is_zero() {
-                assert_eq!(i, 1);
+                assert_eq!(i, 4);
                 let g1 = G1Affine::from(g1);
 
                 assert!(g1.is_in_correct_subgroup_assuming_on_curve());

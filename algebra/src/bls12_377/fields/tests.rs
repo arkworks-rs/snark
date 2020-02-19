@@ -147,8 +147,6 @@ fn test_fq_add_assign() {
         tmp2.add_assign(&c);
         tmp2.add_assign(&a);
 
-        assert!(tmp1.is_valid());
-        assert!(tmp2.is_valid());
         assert_eq!(tmp1, tmp2);
     }
 }

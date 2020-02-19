@@ -14,8 +14,6 @@ pub use self::g1::{G1Affine, G1Projective};
 pub mod g2;
 pub use self::g2::{G2Affine, G2Projective};
 
-use self::g2::SW6G2Parameters;
-
 #[cfg(test)]
 mod tests;
 
@@ -87,7 +85,7 @@ impl SW6 {
 
             let old_rx_square = old_rx.square();
             let old_rx_square_3 = old_rx_square.double() + &old_rx_square;
-            let old_rx_square_3_a = old_rx_square_3 + &SW6G2Parameters::COEFF_A;
+            let old_rx_square_3_a = old_rx_square_3 + &g2::Parameters::COEFF_A;
             let old_ry_double_inverse = old_ry.double().inverse().unwrap();
 
             let gamma = old_rx_square_3_a * &old_ry_double_inverse;

@@ -1,26 +1,19 @@
-use crate::{
-    curves::{
-        mnt6::{
-            g1::MNT6G1Parameters, g2::MNT6G2Parameters, G1Affine, G1Projective, G2Affine,
-            G2Projective, MNT6,
-        },
-        models::short_weierstrass_jacobian::GroupAffine,
-        tests::{curve_tests, sw_curve_serialization_test},
-        AffineCurve, PairingEngine, ProjectiveCurve,
-    },
-    fields::mnt6::fr::Fr,
-    groups::tests::group_test,
-    test_rng, CanonicalSerialize,
+use algebra_core::{
+    Field, PrimeField, AffineCurve, PairingEngine, ProjectiveCurve,
+    test_rng, CanonicalSerialize, UniformRand, One
 };
-use num_traits::One;
 use rand::Rng;
+
+use crate::mnt6::*;
+
+use crate::tests::{curves::*, groups::*};
 
 #[test]
 fn test_g1_projective_curve() {
     curve_tests::<G1Projective>();
 
-    let byte_size = <GroupAffine<MNT6G1Parameters> as CanonicalSerialize>::buffer_size();
-    sw_curve_serialization_test::<MNT6G1Parameters>(byte_size);
+    let byte_size = <G1Affine as CanonicalSerialize>::buffer_size();
+    sw_curve_serialization_test::<g1::Parameters>(byte_size);
 }
 
 #[test]
@@ -42,8 +35,8 @@ fn test_g1_generator() {
 fn test_g2_projective_curve() {
     curve_tests::<G2Projective>();
 
-    let byte_size = <GroupAffine<MNT6G2Parameters> as CanonicalSerialize>::buffer_size();
-    sw_curve_serialization_test::<MNT6G2Parameters>(byte_size);
+    let byte_size = <G2Affine as CanonicalSerialize>::buffer_size();
+    sw_curve_serialization_test::<g2::Parameters>(byte_size);
 }
 
 #[test]
@@ -63,8 +56,6 @@ fn test_g2_generator() {
 
 #[test]
 fn test_bilinearity() {
-    use crate::fields::{mnt6::fq6::Fq6, Field, PrimeField};
-
     let mut rng = test_rng();
     let a: G1Projective = rng.gen();
     let b: G2Projective = rng.gen();
@@ -93,10 +84,6 @@ fn test_bilinearity() {
 
 #[test]
 fn test_product_of_pairings() {
-    use crate::{
-        curves::{PairingCurve, ProjectiveCurve},
-        UniformRand,
-    };
     let rng = &mut test_rng();
 
     let a = G1Projective::rand(rng).into_affine();
@@ -105,6 +92,6 @@ fn test_product_of_pairings() {
     let d = G2Projective::rand(rng).into_affine();
     let ans1 = MNT6::pairing(a, b) * &MNT6::pairing(c, d);
     let ans2 =
-        MNT6::product_of_pairings(&[(&a.prepare(), &b.prepare()), (&c.prepare(), &d.prepare())]);
+        MNT6::product_of_pairings(&[(a.into(), b.into()), (c.into(), d.into())]);
     assert_eq!(ans1, ans2);
 }

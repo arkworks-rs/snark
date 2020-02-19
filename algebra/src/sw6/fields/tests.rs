@@ -1,13 +1,12 @@
-use crate::{
-    fields::tests::{field_test, frobenius_test, primefield_test, sqrt_field_test},
-    test_rng, Field,
-};
+use algebra_core::{test_rng, Field};
 use rand::Rng;
 
-#[test]
-fn test_sw6_fr() {
-    use crate::fields::sw6::Fr;
+use crate::sw6::*;
 
+use crate::tests::fields::{field_test, frobenius_test, primefield_test, sqrt_field_test};
+
+#[test]
+fn test_fr() {
     let mut rng = test_rng();
     let a: Fr = rng.gen();
     let b: Fr = rng.gen();
@@ -17,9 +16,7 @@ fn test_sw6_fr() {
 }
 
 #[test]
-fn test_sw6_fq() {
-    use crate::fields::sw6::Fq;
-
+fn test_fq() {
     let mut rng = test_rng();
     let a: Fq = rng.gen();
     let b: Fq = rng.gen();
@@ -29,9 +26,7 @@ fn test_sw6_fq() {
 }
 
 #[test]
-fn test_sw6_fq3() {
-    use crate::fields::sw6::{Fq, Fq3};
-
+fn test_fq3() {
     let mut rng = test_rng();
     let a: Fq3 = rng.gen();
     let b: Fq3 = rng.gen();
@@ -41,9 +36,7 @@ fn test_sw6_fq3() {
 }
 
 #[test]
-fn test_sw6_fq6() {
-    use crate::fields::sw6::{Fq, Fq6};
-
+fn test_fq6() {
     let mut rng = test_rng();
     let a: Fq6 = rng.gen();
     let b: Fq6 = rng.gen();

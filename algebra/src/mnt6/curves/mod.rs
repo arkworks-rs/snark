@@ -10,6 +10,7 @@ use crate::mnt6::{Fq, Fq3, Fq6, FqParameters, Fr};
 
 pub mod g1;
 pub mod g2;
+
 #[cfg(test)]
 mod tests;
 

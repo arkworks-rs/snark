@@ -1,13 +1,11 @@
-use crate::{
-    fields::tests::{field_test, primefield_test},
-    test_rng,
-};
+use algebra_core::test_rng;
 use rand::Rng;
+use crate::tests::fields::{field_test, primefield_test};
+
+use crate::edwards_sw6::{Fr, Fq};
 
 #[test]
-fn test_edwards_sw6_fr() {
-    use crate::fields::edwards_sw6::fr::Fr;
-
+fn test_fr() {
     let mut rng = test_rng();
     let a: Fr = rng.gen();
     let b: Fr = rng.gen();
@@ -16,9 +14,7 @@ fn test_edwards_sw6_fr() {
 }
 
 #[test]
-fn test_edwards_sw6_fq() {
-    use crate::fields::edwards_sw6::fq::Fq;
-
+fn test_fq() {
     let mut rng = test_rng();
     let a: Fq = rng.gen();
     let b: Fq = rng.gen();

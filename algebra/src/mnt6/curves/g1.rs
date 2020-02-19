@@ -11,18 +11,18 @@ use algebra_core::{
     io::{Result as IoResult, Write},
 };
 
-pub type G1Affine = GroupAffine<MNT6G1Parameters>;
-pub type G1Projective = GroupProjective<MNT6G1Parameters>;
+pub type G1Affine = GroupAffine<Parameters>;
+pub type G1Projective = GroupProjective<Parameters>;
 
 #[derive(Clone, Default, PartialEq, Eq)]
-pub struct MNT6G1Parameters;
+pub struct Parameters;
 
-impl ModelParameters for MNT6G1Parameters {
+impl ModelParameters for Parameters {
     type BaseField = Fq;
     type ScalarField = Fr;
 }
 
-impl SWModelParameters for MNT6G1Parameters {
+impl SWModelParameters for Parameters {
     /// COEFF_A =
     #[rustfmt::skip]
     const COEFF_A: Fq = field_new!(Fq, BigInteger320([

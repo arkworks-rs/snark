@@ -1,21 +1,18 @@
-use crate::{
+use algebra_core::{
     biginteger::BigInteger256 as BigInteger,
     bytes::{FromBytes, ToBytes},
-    fields::{
-        jubjub::{fq::Fq, fr::Fr},
-        tests::{field_test, primefield_test},
-        Field,
-        LegendreSymbol::*,
-        PrimeField, SquareRootField,
-    },
-    test_rng,
+    fields::{Field, LegendreSymbol::*, PrimeField, SquareRootField},
+    test_rng, One, Zero
 };
+use crate::jubjub::{Fq, Fr};
+
+use crate::tests::fields::{field_test, primefield_test};
+
 use core::str::FromStr;
-use num_traits::{One, Zero};
 use rand::Rng;
 
 #[test]
-fn test_jubjub_fr() {
+fn test_fr() {
     let mut rng = test_rng();
     let a: Fr = rng.gen();
     let b: Fr = rng.gen();
@@ -24,7 +21,7 @@ fn test_jubjub_fr() {
 }
 
 #[test]
-fn test_jubjub_fq() {
+fn test_fq() {
     let mut rng = test_rng();
     let a: Fq = rng.gen();
     let b: Fq = rng.gen();
@@ -426,29 +423,4 @@ fn test_fr_from_str() {
     let f100_from_repr = Fr::from_repr(BigInteger([0x64, 0, 0, 0]));
     let f100 = Fr::from_str("100").unwrap();
     assert_eq!(f100_from_repr, f100);
-}
-
-#[test]
-#[ignore]
-fn print_field() {
-    println!("one: {:?}", Fq::one());
-    println!("zero: {:?}", Fq::zero());
-    println!(
-        "256 in repr: {:?}",
-        Fq::from_repr(BigInteger([0, 0, 1, 255]))
-    );
-    println!("256: {:?}", Fq::from_str("256").unwrap().into_repr());
-    println!("1024: {:?}", Fq::from_str("1024").unwrap().into_repr());
-    println!(
-        "255 to bytes: {:?}",
-        to_bytes![Fq::from_str("255").unwrap().into_repr()].unwrap()
-    );
-    println!(
-        "256 to bytes: {:?}",
-        to_bytes![Fq::from_str("256").unwrap().into_repr()].unwrap()
-    );
-    println!(
-        "1023 to bytes: {:?}",
-        to_bytes![Fq::from_str("1023").unwrap().into_repr()].unwrap()
-    );
 }
