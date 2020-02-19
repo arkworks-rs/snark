@@ -25,6 +25,7 @@ edition = "2018"
 algebra-core = { path = "../algebra-core", default-features = false }
 
 [dev-dependencies]
+rand = { version = "0.7", default-features = false }
 rand_xorshift = "0.2"
 
 [features]

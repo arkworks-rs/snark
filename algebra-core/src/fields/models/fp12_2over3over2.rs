@@ -51,7 +51,7 @@ type Fp2Params<P> = <<P as Fp12Parameters>::Fp6Params as Fp6Parameters>::Fp2Para
 impl<P: Fp12Parameters> Fp12<P> {
     /// Multiply by quadratic nonresidue v.
     #[inline(always)]
-    pub(crate) fn mul_fp6_by_nonresidue(fe: &Fp6<P::Fp6Params>) -> Fp6<P::Fp6Params> {
+    pub fn mul_fp6_by_nonresidue(fe: &Fp6<P::Fp6Params>) -> Fp6<P::Fp6Params> {
         let new_c0 = P::Fp6Params::mul_fp2_by_nonresidue(&fe.c2);
         let new_c1 = fe.c0;
         let new_c2 = fe.c1;
