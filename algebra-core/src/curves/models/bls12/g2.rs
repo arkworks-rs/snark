@@ -87,7 +87,6 @@ impl<P: Bls12Parameters> From<G2Affine<P>> for G2Prepared<P> {
             ell_coeffs,
             infinity: false,
         }
-
     }
 }
 impl<P: Bls12Parameters> G2Prepared<P> {

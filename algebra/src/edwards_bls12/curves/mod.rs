@@ -1,3 +1,4 @@
+use crate::edwards_bls12::{fq::Fq, fr::Fr};
 use algebra_core::{
     biginteger::BigInteger256,
     curves::{
@@ -6,7 +7,6 @@ use algebra_core::{
     },
     field_new,
 };
-use crate::edwards_bls12::{fq::Fq, fr::Fr};
 
 #[cfg(test)]
 mod tests;

@@ -1,10 +1,12 @@
 use crate::{
     biginteger::{BigInteger256, BigInteger384},
-    curves::{bls12, models::{ModelParameters, SWModelParameters}},
-    field_new,
-    Zero,
+    bls12_381::*,
+    curves::{
+        bls12,
+        models::{ModelParameters, SWModelParameters},
+    },
+    field_new, Zero,
 };
-use crate::bls12_381::*;
 
 pub type G2Affine = bls12::G2Affine<Bls12_381Parameters>;
 pub type G2Projective = bls12::G2Projective<Bls12_381Parameters>;
@@ -19,18 +21,10 @@ impl ModelParameters for Parameters {
 
 impl SWModelParameters for Parameters {
     /// COEFF_A = [0, 0]
-    const COEFF_A: Fq2 = field_new!(
-        Fq2,
-        g1::Parameters::COEFF_A,
-        g1::Parameters::COEFF_A,
-    );
+    const COEFF_A: Fq2 = field_new!(Fq2, g1::Parameters::COEFF_A, g1::Parameters::COEFF_A,);
 
     /// COEFF_B = [4, 4]
-    const COEFF_B: Fq2 = field_new!(
-        Fq2,
-        g1::Parameters::COEFF_B,
-        g1::Parameters::COEFF_B,
-    );
+    const COEFF_B: Fq2 = field_new!(Fq2, g1::Parameters::COEFF_B, g1::Parameters::COEFF_B,);
 
     /// COFACTOR = (x^8 - 4 x^7 + 5 x^6) - (4 x^4 + 6 x^3 - 4 x^2 - 4 x + 13) //
     /// 9

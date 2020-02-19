@@ -1,11 +1,9 @@
+use crate::mnt6::fq::Fq;
 use algebra_core::{
     biginteger::BigInteger320 as BigInteger,
     field_new,
-    fields::{
-        fp3::{Fp3, Fp3Parameters},
-    },
+    fields::fp3::{Fp3, Fp3Parameters},
 };
-use crate::mnt6::fq::Fq;
 
 pub type Fq3 = Fp3<Fq3Parameters>;
 

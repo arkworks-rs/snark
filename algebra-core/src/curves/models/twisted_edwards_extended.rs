@@ -571,9 +571,9 @@ impl<P: Parameters> From<GroupProjective<P>> for GroupAffine<P> {
     }
 }
 
-impl<P: Parameters> core::str::FromStr for GroupAffine<P> 
-where 
-    P::BaseField: core::str::FromStr<Err = ()> 
+impl<P: Parameters> core::str::FromStr for GroupAffine<P>
+where
+    P::BaseField: core::str::FromStr<Err = ()>,
 {
     type Err = ();
 

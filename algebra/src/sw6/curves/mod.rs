@@ -1,12 +1,12 @@
 use crate::{
     biginteger::BigInteger832,
-    curves::{PairingEngine, models::SWModelParameters},
+    curves::{models::SWModelParameters, PairingEngine},
     field_new,
     fields::{BitIterator, Field, FpParameters},
     One,
 };
 
-use crate::sw6::{Fq, FqParameters,Fq3, Fq6, Fr};
+use crate::sw6::{Fq, Fq3, Fq6, FqParameters, Fr};
 
 pub mod g1;
 pub use self::g1::{G1Affine, G1Projective};
@@ -38,7 +38,7 @@ impl PairingEngine for SW6 {
 
     fn miller_loop<'a, I>(i: I) -> Self::Fqk
     where
-        I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>
+        I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>,
     {
         let mut result = Self::Fqk::one();
         for &(ref p, ref q) in i {
@@ -58,7 +58,6 @@ impl SW6 {
     }
 
     fn ate_miller_loop(p: &G1Affine, q: &G2Affine) -> Fq6 {
-
         let px = p.x;
         let py = p.y;
         let qx = q.x;

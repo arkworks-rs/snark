@@ -1,5 +1,5 @@
-mod fields;
 mod curves;
+mod fields;
 
-pub use fields::*;
 pub use curves::*;
+pub use fields::*;

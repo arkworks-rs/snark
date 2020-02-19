@@ -1,5 +1,8 @@
 use crate::{
-    curves::{models::{ModelParameters, SWModelParameters}, PairingEngine},
+    curves::{
+        models::{ModelParameters, SWModelParameters},
+        PairingEngine,
+    },
     fields::{
         fp12_2over3over2::{Fp12, Fp12Parameters},
         fp2::Fp2Parameters,
@@ -91,7 +94,7 @@ impl<P: Bls12Parameters> PairingEngine for Bls12<P> {
 
     fn miller_loop<'a, I>(i: I) -> Self::Fqk
     where
-        I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>
+        I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>,
     {
         let mut pairs = vec![];
         for (p, q) in i {

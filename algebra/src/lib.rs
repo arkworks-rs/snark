@@ -1,13 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-#![deny(
-    unused_import_braces,
-    trivial_casts,
-    trivial_numeric_casts
-)]
-#![deny(
-    unused_qualifications,
-    variant_size_differences,
-)]
+#![deny(unused_import_braces, trivial_casts, trivial_numeric_casts)]
+#![deny(unused_qualifications, variant_size_differences)]
 #![deny(
     non_shorthand_field_patterns,
     unused_attributes,
@@ -20,12 +13,7 @@
     unused_comparisons,
     bare_trait_objects
 )]
-#![deny(
-    const_err,
-    unused_must_use,
-    unused_mut,
-    unused_unsafe,
-)]
+#![deny(const_err, unused_must_use, unused_mut, unused_unsafe)]
 #![forbid(unsafe_code)]
 
 #[cfg(all(test, not(feature = "std")))]

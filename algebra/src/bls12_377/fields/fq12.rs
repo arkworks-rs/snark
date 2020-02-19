@@ -1,5 +1,5 @@
-use algebra_core::{biginteger::BigInteger384, field_new, fields::*};
 use super::*;
+use algebra_core::{biginteger::BigInteger384, field_new, fields::*};
 
 pub type Fq12 = Fp12<Fq12Parameters>;
 

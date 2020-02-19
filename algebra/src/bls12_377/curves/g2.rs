@@ -1,11 +1,10 @@
 use algebra_core::{
     biginteger::{BigInteger256, BigInteger384},
     curves::models::{ModelParameters, SWModelParameters},
-    field_new,
-    Zero,
+    field_new, Zero,
 };
 
-use crate::bls12_377::{Fq, Fq2, Fr, g1};
+use crate::bls12_377::{g1, Fq, Fq2, Fr};
 
 #[derive(Clone, Default, PartialEq, Eq)]
 pub struct Parameters;

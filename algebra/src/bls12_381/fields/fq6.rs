@@ -1,5 +1,5 @@
-use algebra_core::{biginteger::BigInteger384, field_new, fields::*};
 use crate::bls12_381::*;
+use algebra_core::{biginteger::BigInteger384, field_new, fields::*};
 
 pub type Fq6 = Fp6<Fq6Parameters>;
 

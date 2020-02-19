@@ -1,5 +1,8 @@
-use algebra_core::curves::{bls12, bls12::{Bls12, Bls12Parameters, TwistType}};
 use crate::bls12_377::*;
+use algebra_core::curves::{
+    bls12,
+    bls12::{Bls12, Bls12Parameters, TwistType},
+};
 
 pub mod g1;
 pub mod g2;

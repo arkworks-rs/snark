@@ -1,3 +1,4 @@
+use crate::jubjub::{Fq, Fr};
 use algebra_core::{
     biginteger::BigInteger256,
     curves::{
@@ -6,7 +7,6 @@ use algebra_core::{
     },
     field_new,
 };
-use crate::jubjub::{Fq, Fr};
 
 #[cfg(test)]
 mod tests;
@@ -122,5 +122,3 @@ impl MontgomeryModelParameters for JubJubParameters {
 
     type TEModelParameters = JubJubParameters;
 }
-
-

@@ -29,7 +29,6 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send {
         + From<Self::G1Projective>
         + Into<Self::G1Projective>;
 
-
     /// A G1 element that has been preprocessed for use in a pairing.
     type G1Prepared: ToBytes + Default + Clone + Send + Sync + Debug + From<Self::G1Affine>;
 
@@ -69,7 +68,7 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send {
     #[must_use]
     fn product_of_pairings<'a, I>(i: I) -> Self::Fqk
     where
-        I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>
+        I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>,
     {
         Self::final_exponentiation(&Self::miller_loop(i)).unwrap()
     }

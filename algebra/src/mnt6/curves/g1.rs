@@ -1,3 +1,4 @@
+use crate::mnt6::{Fq, Fq3, Fr};
 use algebra_core::{
     biginteger::BigInteger320,
     bytes::ToBytes,
@@ -9,7 +10,6 @@ use algebra_core::{
     field_new,
     io::{Result as IoResult, Write},
 };
-use crate::mnt6::{Fq, Fq3, Fr};
 
 pub type G1Affine = GroupAffine<MNT6G1Parameters>;
 pub type G1Projective = GroupProjective<MNT6G1Parameters>;

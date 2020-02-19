@@ -3,11 +3,10 @@ use algebra_core::{
     curves::PairingEngine,
     field_new,
     fields::{BitIterator, Field, FpParameters},
-    Vec,
-    One, Zero,
+    One, Vec, Zero,
 };
 
-use crate::mnt6::{Fq, FqParameters, Fq3, Fq6, Fr};
+use crate::mnt6::{Fq, Fq3, Fq6, FqParameters, Fr};
 
 pub mod g1;
 pub mod g2;
@@ -39,7 +38,7 @@ impl PairingEngine for MNT6 {
 
     fn miller_loop<'a, I>(i: I) -> Self::Fqk
     where
-        I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>
+        I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>,
     {
         let mut result = Self::Fqk::one();
         for (p, q) in i {

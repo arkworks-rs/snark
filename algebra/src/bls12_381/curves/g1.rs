@@ -1,10 +1,12 @@
 use crate::{
     biginteger::{BigInteger256, BigInteger384},
-    curves::{bls12, models::{ModelParameters, SWModelParameters}},
-    field_new,
-    Zero,
+    bls12_381::*,
+    curves::{
+        bls12,
+        models::{ModelParameters, SWModelParameters},
+    },
+    field_new, Zero,
 };
-use crate::bls12_381::*;
 
 pub type G1Affine = bls12::G1Affine<Bls12_381Parameters>;
 pub type G1Projective = bls12::G1Projective<Bls12_381Parameters>;
