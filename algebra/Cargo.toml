@@ -30,5 +30,13 @@ rand_xorshift = "0.2"
 
 [features]
 default = [ "std" ]
+
+full = [ "bls12_377", "bls12_381", "sw6", "mnt6" ]
+
+bls12_377 = []
+bls12_381 = []
+sw6 = []
+mnt6 = []
+
 std = [ "algebra-core/std" ]
 parallel = [ "std", "algebra-core/parallel" ]

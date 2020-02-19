@@ -41,15 +41,24 @@ pub use std::{boxed::Box, format, vec, vec::Vec};
 
 pub use algebra_core::*;
 
+#[cfg(feature = "bls12_377")]
 pub mod bls12_377;
+#[cfg(feature = "bls12_381")]
 pub mod bls12_381;
 
+#[cfg(feature = "bls12_377")]
 pub mod edwards_bls12;
-pub mod edwards_sw6;
+
+#[cfg(feature = "bls12_381")]
 pub mod jubjub;
 
+#[cfg(feature = "mnt6")]
 pub mod mnt6;
+#[cfg(feature = "sw6")]
 pub mod sw6;
+
+#[cfg(feature = "sw6")]
+pub mod edwards_sw6;
 
 #[cfg(test)]
 pub(crate) mod tests;
