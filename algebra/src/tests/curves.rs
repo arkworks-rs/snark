@@ -1,3 +1,4 @@
+#![allow(unused)]
 use algebra_core::{
     curves::{
         models::short_weierstrass_jacobian::{GroupAffine, GroupProjective},

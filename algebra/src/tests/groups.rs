@@ -1,3 +1,4 @@
+#![allow(unused)]
 use algebra_core::{Group, UniformRand, One, Zero};
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;

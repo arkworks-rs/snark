@@ -1,3 +1,4 @@
+#![allow(unused)]
 use crate::fields::{Field, LegendreSymbol, PrimeField, SquareRootField};
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;

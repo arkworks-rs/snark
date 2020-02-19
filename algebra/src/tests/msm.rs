@@ -1,3 +1,4 @@
+#![cfg(feature = "bls12_381")]
 use algebra_core::{UniformRand, msm::VariableBaseMSM, ProjectiveCurve, AffineCurve, PrimeField, Zero};
 use crate::bls12_381::{G1Projective, Fr};
 use rand::SeedableRng;
