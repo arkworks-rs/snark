@@ -1,5 +1,5 @@
 [package]
-name = "algebra"
+name = "algebra-core"
 version = "0.1.0"
 authors = [
     "Sean Bowe",
@@ -22,12 +22,15 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-algebra-core = { path = "../algebra-core", default-features = false }
+derivative = { version = "1", features = ["use_core"] }
+num-traits = { version = "0.2", default-features = false }
+rand = { version = "0.7", default-features = false }
+rayon = { version = "1", optional = true }
 
 [dev-dependencies]
 rand_xorshift = "0.2"
 
 [features]
-default = [ "std" ]
-std = [ "algebra-core/std" ]
-parallel = [ "std", "algebra-core/parallel" ]
+default = ["std"]
+std = []
+parallel = ["std", "rayon"]
