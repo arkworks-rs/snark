@@ -5,7 +5,7 @@ use crate::{
 use core::{
     fmt::{Display, Formatter, Result as FmtResult},
     marker::PhantomData,
-    ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+    ops::{Add, AddAssign, Neg, Sub, SubAssign},
 };
 use num_traits::{One, Zero};
 use rand::{
@@ -23,6 +23,8 @@ use crate::{
     },
     fields::{BitIterator, Field, PrimeField, SquareRootField},
 };
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
 
 #[cfg(test)]
 pub mod tests;
@@ -72,7 +74,7 @@ impl<P: Parameters> GroupAffine<P> {
         for i in bits {
             res.double_in_place();
             if i {
-                res.add_assign_mixed(self)
+                res.add_assign_mixed(&self)
             }
         }
         res
@@ -146,10 +148,6 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
     fn mul_by_cofactor_inv(&self) -> Self {
         self.mul(P::COFACTOR_INV).into()
     }
-
-    fn into_projective(&self) -> GroupProjective<P> {
-        (*self).into()
-    }
 }
 
 impl<P: Parameters> Neg for GroupAffine<P> {
@@ -200,21 +198,6 @@ impl<'a, P: Parameters> Sub<&'a Self> for GroupAffine<P> {
 impl<'a, P: Parameters> SubAssign<&'a Self> for GroupAffine<P> {
     fn sub_assign(&mut self, other: &'a Self) {
         *self += &(-(*other));
-    }
-}
-
-impl<P: Parameters> Mul<P::ScalarField> for GroupAffine<P> {
-    type Output = Self;
-    fn mul(self, other: P::ScalarField) -> Self {
-        let mut copy = self;
-        copy *= &other;
-        copy
-    }
-}
-
-impl<'a, P: Parameters> MulAssign<&'a P::ScalarField> for GroupAffine<P> {
-    fn mul_assign(&mut self, other: &'a P::ScalarField) {
-        *self = <Self as AffineCurve>::mul(self, other.into_repr()).into_affine();
     }
 }
 
@@ -302,7 +285,7 @@ pub struct GroupProjective<P: Parameters> {
 
 impl<P: Parameters> Display for GroupProjective<P> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        write!(f, "{}", self.into_affine())
+        write!(f, "{}", GroupAffine::from(*self))
     }
 }
 
@@ -415,7 +398,7 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
             // Ignore normalized elements
             .filter(|g| !g.is_normalized())
         {
-            tmp.mul_assign(&g.z);
+            tmp *= &g.z;
             prod.push(tmp);
         }
 
@@ -437,13 +420,18 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
             tmp = newtmp;
         }
 
+        #[cfg(not(feature = "parallel"))]
+        let v_iter = v.iter_mut();
+        #[cfg(feature = "parallel")]
+        let v_iter = v.par_iter_mut();
+
         // Perform affine transformations
-        for g in v.iter_mut().filter(|g| !g.is_normalized()) {
+        v_iter.filter(|g| !g.is_normalized()).for_each(|g| {
             g.x *= &g.z; // x/z
             g.y *= &g.z;
             g.t *= &g.z;
             g.z = P::BaseField::one(); // z = 1
-        }
+        });
     }
 
     fn double_in_place(&mut self) -> &mut Self {
@@ -452,7 +440,7 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
         self
     }
 
-    fn add_assign_mixed(&mut self, other: &Self::Affine) {
+    fn add_assign_mixed(&mut self, other: &GroupAffine<P>) {
         // A = X1*X2
         let a = self.x * &other.x;
         // B = Y1*Y2
@@ -477,38 +465,6 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
         self.t = e * &h;
         // Z3 = F*G
         self.z = f * &g;
-    }
-
-    fn mul_assign<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(&mut self, other: S) {
-        let mut res = Self::zero();
-
-        let mut found_one = false;
-
-        for i in BitIterator::new(other.into()) {
-            if found_one {
-                res.double_in_place();
-            } else {
-                found_one = i;
-            }
-
-            if i {
-                res += &*self;
-            }
-        }
-
-        *self = res;
-    }
-
-    fn into_affine(&self) -> GroupAffine<P> {
-        (*self).into()
-    }
-
-    fn recommended_wnaf_for_scalar(scalar: <Self::ScalarField as PrimeField>::BigInt) -> usize {
-        P::empirical_recommended_wnaf_for_scalar(scalar)
-    }
-
-    fn recommended_wnaf_for_num_scalars(num_scalars: usize) -> usize {
-        P::empirical_recommended_wnaf_for_num_scalars(num_scalars)
     }
 }
 
@@ -588,21 +544,6 @@ impl<'a, P: Parameters> Sub<&'a Self> for GroupProjective<P> {
 impl<'a, P: Parameters> SubAssign<&'a Self> for GroupProjective<P> {
     fn sub_assign(&mut self, other: &'a Self) {
         *self += &(-(*other));
-    }
-}
-
-impl<'a, P: Parameters> Mul<&'a P::ScalarField> for GroupProjective<P> {
-    type Output = Self;
-    fn mul(self, other: &'a P::ScalarField) -> Self {
-        let mut copy = self;
-        copy *= other;
-        copy
-    }
-}
-
-impl<'a, P: Parameters> MulAssign<&'a P::ScalarField> for GroupProjective<P> {
-    fn mul_assign(&mut self, other: &'a P::ScalarField) {
-        <Self as ProjectiveCurve>::mul_assign(self, other.into_repr());
     }
 }
 

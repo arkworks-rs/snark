@@ -11,7 +11,10 @@ impl VariableBaseMSM {
     fn msm_inner<G: AffineCurve>(
         bases: &[G],
         scalars: &[<G::ScalarField as PrimeField>::BigInt],
-    ) -> G::Projective {
+    ) -> G::Projective
+    where
+        G::Projective: ProjectiveCurve<Affine = G>,
+    {
         let c = if scalars.len() < 32 {
             3
         } else {
@@ -21,7 +24,7 @@ impl VariableBaseMSM {
         let num_bits = <G::ScalarField as PrimeField>::Params::MODULUS_BITS as usize;
         let fr_one = G::ScalarField::one().into_repr();
 
-        let zero = G::zero().into_projective();
+        let zero = G::Projective::zero();
         let window_starts: Vec<_> = (0..num_bits).step_by(c).collect();
 
         #[cfg(feature = "parallel")]
@@ -61,16 +64,16 @@ impl VariableBaseMSM {
                             // bucket.
                             // (Recall that `buckets` doesn't have a zero bucket.)
                             if scalar != 0 {
-                                buckets[(scalar - 1) as usize].add_assign_mixed(&base);
+                                buckets[(scalar - 1) as usize].add_assign_mixed(base);
                             }
                         }
                     });
-                G::Projective::batch_normalization(&mut buckets);
+                let buckets = G::Projective::batch_normalization_into_affine(&buckets);
 
                 let mut running_sum = G::Projective::zero();
-                for b in buckets.into_iter().map(|g| g.into_affine()).rev() {
+                for b in buckets.into_iter().rev() {
                     running_sum.add_assign_mixed(&b);
-                    res += &running_sum;
+                    res += running_sum;
                 }
 
                 res
@@ -78,20 +81,20 @@ impl VariableBaseMSM {
             .collect();
 
         // We store the sum for the lowest window.
-        let lowest = window_sums.first().unwrap();
+        let lowest = *window_sums.first().unwrap();
 
         // We're traversing windows from high to low.
-        window_sums[1..]
-            .iter()
-            .rev()
-            .fold(zero, |mut total, sum_i| {
-                total += sum_i;
-                for _ in 0..c {
-                    total.double_in_place();
-                }
-                total
-            })
-            + lowest
+        lowest
+            + window_sums[1..]
+                .iter()
+                .rev()
+                .fold(zero, |mut total, sum_i| {
+                    total += sum_i;
+                    for _ in 0..c {
+                        total.double_in_place();
+                    }
+                    total
+                })
     }
 
     pub fn multi_scalar_mul<G: AffineCurve>(

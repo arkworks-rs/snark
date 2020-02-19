@@ -63,7 +63,6 @@ pub trait Field:
     + Default
     + Send
     + Sync
-    + 'static
     + Eq
     + One
     + Ord

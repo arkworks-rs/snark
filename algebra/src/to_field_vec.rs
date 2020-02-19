@@ -3,7 +3,6 @@ use crate::{
         models::{SWModelParameters, TEModelParameters},
         short_weierstrass_jacobian::{GroupAffine as SWAffine, GroupProjective as SWProjective},
         twisted_edwards_extended::{GroupAffine as TEAffine, GroupProjective as TEProjective},
-        ProjectiveCurve,
     },
     Box, Field, Fp2, Fp2Parameters, FpParameters, PrimeField, Vec,
 };
@@ -68,11 +67,7 @@ where
 {
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
-        let affine = self.into_affine();
-        let mut x_fe = affine.x.to_field_elements()?;
-        let y_fe = affine.y.to_field_elements()?;
-        x_fe.extend_from_slice(&y_fe);
-        Ok(x_fe)
+        TEAffine::from(*self).to_field_elements()
     }
 }
 
@@ -95,11 +90,7 @@ where
 {
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
-        let affine = self.into_affine();
-        let mut x_fe = affine.x.to_field_elements()?;
-        let y_fe = affine.y.to_field_elements()?;
-        x_fe.extend_from_slice(&y_fe);
-        Ok(x_fe)
+        SWAffine::from(*self).to_field_elements()
     }
 }
 

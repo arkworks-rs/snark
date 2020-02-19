@@ -27,25 +27,29 @@ pub use self::models::*;
 
 pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send {
     /// This is the scalar field of the G1/G2 groups.
-    type Fr: PrimeField + SquareRootField + Into<<Self::Fr as PrimeField>::BigInt>;
+    type Fr: PrimeField + SquareRootField;
 
     /// The projective representation of an element in G1.
     type G1Projective: ProjectiveCurve<BaseField = Self::Fq, ScalarField = Self::Fr, Affine = Self::G1Affine>
-        + From<Self::G1Affine>;
+        + From<Self::G1Affine>
+        + Into<Self::G1Affine>;
 
     /// The affine representation of an element in G1.
     type G1Affine: AffineCurve<BaseField = Self::Fq, ScalarField = Self::Fr, Projective = Self::G1Projective>
         + PairingCurve<PairWith = Self::G2Affine, PairingResult = Self::Fqk>
-        + From<Self::G1Projective>;
+        + From<Self::G1Projective>
+        + Into<Self::G1Projective>;
 
     /// The projective representation of an element in G2.
     type G2Projective: ProjectiveCurve<BaseField = Self::Fqe, ScalarField = Self::Fr, Affine = Self::G2Affine>
-        + From<Self::G2Affine>;
+        + From<Self::G2Affine>
+        + Into<Self::G2Affine>;
 
     /// The affine representation of an element in G2.
     type G2Affine: AffineCurve<BaseField = Self::Fqe, ScalarField = Self::Fr, Projective = Self::G2Projective>
         + PairingCurve<PairWith = Self::G1Affine, PairingResult = Self::Fqk>
-        + From<Self::G2Projective>;
+        + From<Self::G2Projective>
+        + Into<Self::G2Projective>;
 
     /// The base field that hosts G1.
     type Fq: PrimeField + SquareRootField;
@@ -116,7 +120,6 @@ pub trait ProjectiveCurve:
     + Display
     + UniformRand
     + Zero
-    + 'static
     + Neg<Output = Self>
     + Add<Self, Output = Self>
     + Sub<Self, Output = Self>
@@ -128,10 +131,13 @@ pub trait ProjectiveCurve:
     + for<'a> SubAssign<&'a Self>
     + core::iter::Sum<Self>
     + for<'a> core::iter::Sum<&'a Self>
+    + From<<Self as ProjectiveCurve>::Affine>
 {
-    type ScalarField: PrimeField + SquareRootField + Into<<Self::ScalarField as PrimeField>::BigInt>;
+    type ScalarField: PrimeField + SquareRootField;
     type BaseField: Field;
-    type Affine: AffineCurve<Projective = Self, ScalarField = Self::ScalarField>;
+    type Affine: AffineCurve<Projective = Self, ScalarField = Self::ScalarField, BaseField = Self::BaseField>
+        + From<Self>
+        + Into<Self>;
 
     /// Returns a fixed generator of unknown exponent.
     #[must_use]
@@ -146,7 +152,7 @@ pub trait ProjectiveCurve:
     fn batch_normalization_into_affine(v: &[Self]) -> Vec<Self::Affine> {
         let mut v = v.to_vec();
         Self::batch_normalization(&mut v);
-        v.into_iter().map(|v| v.into_affine()).collect()
+        v.into_iter().map(|v| v.into()).collect()
     }
 
     /// Checks if the point is already "normalized" so that
@@ -162,28 +168,36 @@ pub trait ProjectiveCurve:
         copy
     }
 
+    /// Doubles this element in place.
     fn double_in_place(&mut self) -> &mut Self;
 
-    /// Adds an affine element to this element.
+    /// Converts self into the affine representation.
+    fn into_affine(&self) -> Self::Affine {
+        (*self).into()
+    }
+
     fn add_assign_mixed(&mut self, other: &Self::Affine);
 
     /// Performs scalar multiplication of this element.
-    fn mul_assign<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(&mut self, other: S);
+    fn mul_assign<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(&mut self, other: S) {
+        let mut res = Self::zero();
 
-    /// Converts this element into its affine representation.
-    #[must_use]
-    fn into_affine(&self) -> Self::Affine;
+        let mut found_one = false;
 
-    /// Recommends a wNAF window table size given a scalar. Always returns a
-    /// number between 2 and 22, inclusive.
-    #[must_use]
-    fn recommended_wnaf_for_scalar(scalar: <Self::ScalarField as PrimeField>::BigInt) -> usize;
+        for i in crate::fields::BitIterator::new(other.into()) {
+            if found_one {
+                res.double_in_place();
+            } else {
+                found_one = i;
+            }
 
-    /// Recommends a wNAF window size given the number of scalars you intend to
-    /// multiply a base by. Always returns a number between 2 and 22,
-    /// inclusive.
-    #[must_use]
-    fn recommended_wnaf_for_num_scalars(num_scalars: usize) -> usize;
+            if i {
+                res += &*self;
+            }
+        }
+
+        *self = res;
+    }
 }
 
 /// Affine representation of an elliptic curve point guaranteed to be
@@ -203,24 +217,27 @@ pub trait AffineCurve:
     + Display
     + Zero
     + Neg<Output = Self>
-    + 'static
+    + From<<Self as AffineCurve>::Projective>
 {
     type ScalarField: PrimeField + SquareRootField + Into<<Self::ScalarField as PrimeField>::BigInt>;
     type BaseField: Field;
-    type Projective: ProjectiveCurve<Affine = Self, ScalarField = Self::ScalarField>;
+    type Projective: ProjectiveCurve<Affine = Self, ScalarField = Self::ScalarField, BaseField = Self::BaseField>
+        + From<Self>
+        + Into<Self>;
 
     /// Returns a fixed generator of unknown exponent.
     #[must_use]
     fn prime_subgroup_generator() -> Self;
 
+    /// Converts self into the projective representation.
+    fn into_projective(&self) -> Self::Projective {
+        (*self).into()
+    }
+
     /// Performs scalar multiplication of this element with mixed addition.
     #[must_use]
     fn mul<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(&self, other: S)
         -> Self::Projective;
-
-    /// Converts this element into its projective representation.
-    #[must_use]
-    fn into_projective(&self) -> Self::Projective;
 
     /// Multiply this element by the cofactor.
     #[must_use]

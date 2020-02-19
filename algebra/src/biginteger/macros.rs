@@ -226,13 +226,13 @@ macro_rules! bigint_impl {
             fn cmp(&self, other: &Self) -> ::core::cmp::Ordering {
                 for (a, b) in self.0.iter().rev().zip(other.0.iter().rev()) {
                     if a < b {
-                        return ::core::cmp::Ordering::Less;
+                        return core::cmp::Ordering::Less;
                     } else if a > b {
-                        return ::core::cmp::Ordering::Greater;
+                        return core::cmp::Ordering::Greater;
                     }
                 }
 
-                ::core::cmp::Ordering::Equal
+                core::cmp::Ordering::Equal
             }
         }
 

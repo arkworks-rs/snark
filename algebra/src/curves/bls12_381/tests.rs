@@ -74,8 +74,10 @@ fn test_bilinearity() {
     let b: G2Projective = rng.gen();
     let s: Fr = rng.gen();
 
-    let sa = a * &s;
-    let sb = b * &s;
+    let mut sa = a;
+    sa.mul_assign(s);
+    let mut sb = b;
+    sb.mul_assign(s);
 
     let ans1 = Bls12_381::pairing(sa, b);
     let ans2 = Bls12_381::pairing(a, sb);
@@ -398,12 +400,12 @@ fn test_g1_same_y() {
     assert!(b.is_on_curve() && b.is_in_correct_subgroup_assuming_on_curve());
     assert!(c.is_on_curve() && c.is_in_correct_subgroup_assuming_on_curve());
 
-    let mut tmp1 = a.into_projective();
-    tmp1.add_assign(&b.into_projective());
+    let mut tmp1 = G1Projective::from(a);
+    tmp1 += G1Projective::from(b);
     assert_eq!(tmp1.into_affine(), c);
     assert_eq!(tmp1, c.into_projective());
 
-    let mut tmp2 = a.into_projective();
+    let mut tmp2 = G1Projective::from(a);
     tmp2.add_assign_mixed(&b);
     assert_eq!(tmp2.into_affine(), c);
     assert_eq!(tmp2, c.into_projective());

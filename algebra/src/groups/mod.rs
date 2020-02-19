@@ -24,7 +24,6 @@ pub trait Group:
     + Default
     + Send
     + Sync
-    + 'static
     + Eq
     + Hash
     + Neg<Output = Self>

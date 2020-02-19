@@ -78,7 +78,6 @@ mod test {
             prelude::*,
         };
         use algebra::curves::bls12_377::{Bls12_377, G1Projective, G2Projective};
-        use core::ops::Mul;
 
         let mut cs = TestConstraintSystem::<Fq>::new();
 
@@ -90,8 +89,10 @@ mod test {
         let b: G2Projective = G2Projective::prime_subgroup_generator();
         let s: Fr = Fr::one() + &Fr::one();
 
-        let sa = a.mul(&s);
-        let sb = b.mul(&s);
+        let mut sa = a;
+        sa.mul_assign(s);
+        let mut sb = b;
+        sb.mul_assign(s);
 
         let a_g = G1Gadget::alloc(&mut cs.ns(|| "a"), || Ok(a)).unwrap();
         let b_g = G2Gadget::alloc(&mut cs.ns(|| "b"), || Ok(b)).unwrap();

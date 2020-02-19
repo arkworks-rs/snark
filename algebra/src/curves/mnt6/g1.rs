@@ -117,7 +117,7 @@ impl ToBytes for G1Prepared {
 
 impl G1Prepared {
     pub fn from_affine(point: &G1Affine) -> Self {
-        MNT6::ate_precompute_g1(&point.into_projective())
+        MNT6::ate_precompute_g1(*point)
     }
 }
 

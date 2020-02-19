@@ -6,7 +6,7 @@ use crate::{
         },
         models::short_weierstrass_jacobian::GroupAffine,
         tests::{curve_tests, sw_curve_serialization_test},
-        AffineCurve, PairingEngine,
+        AffineCurve, PairingEngine, ProjectiveCurve,
     },
     fields::mnt6::fr::Fr,
     groups::tests::group_test,
@@ -70,8 +70,10 @@ fn test_bilinearity() {
     let b: G2Projective = rng.gen();
     let s: Fr = rng.gen();
 
-    let sa = a * &s;
-    let sb = b * &s;
+    let mut sa = a;
+    sa.mul_assign(s);
+    let mut sb = b;
+    sb.mul_assign(s);
 
     let ans1 = MNT6::pairing(sa, b);
     let ans2 = MNT6::pairing(a, sb);

@@ -1,6 +1,6 @@
 use crate::{
     biginteger::BigInteger320,
-    curves::{PairingCurve, PairingEngine, ProjectiveCurve},
+    curves::{PairingCurve, PairingEngine},
     field_new,
     fields::{
         mnt6::{
@@ -63,9 +63,7 @@ impl PairingEngine for MNT6 {
 impl MNT6 {
     /// Takes as input a point in G1 in projective coordinates, and outputs a
     /// precomputed version of it for pairing purposes.
-    fn ate_precompute_g1(value: &G1Projective) -> G1Prepared {
-        let g1 = value.into_affine();
-
+    fn ate_precompute_g1(g1: G1Affine) -> G1Prepared {
         let mut x_twist = TWIST.clone();
         x_twist.mul_assign_by_fp(&g1.x);
 
@@ -82,9 +80,7 @@ impl MNT6 {
 
     /// Takes as input a point in `G2` in projective coordinates, and outputs a
     /// precomputed version of it for pairing purposes.
-    fn ate_precompute_g2(value: &G2Projective) -> G2Prepared {
-        let g2 = value.into_affine();
-
+    fn ate_precompute_g2(g2: G2Affine) -> G2Prepared {
         let twist_inv = TWIST.inverse().unwrap();
 
         let mut g2p = G2Prepared {
