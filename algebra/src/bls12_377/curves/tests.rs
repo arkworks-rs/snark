@@ -1,31 +1,22 @@
 #![allow(unused_imports)]
-use crate::{
-    curves::{
-        bls12_377::{
-            g1::Bls12_377G1Parameters, g2::Bls12_377G2Parameters, Bls12_377, G1Affine,
-            G1Projective, G2Affine, G2Projective,
-        },
-        models::{short_weierstrass_jacobian::GroupAffine, SWModelParameters},
-        tests::{curve_tests, sw_curve_serialization_test},
-        AffineCurve, PairingEngine, ProjectiveCurve,
-    },
-    fields::{
-        bls12_377::{Fq, Fq12, Fq2, Fr},
-        Field, FpParameters, PrimeField, SquareRootField,
-    },
-    groups::tests::group_test,
+use algebra_core::{
+    curves::{models::SWModelParameters, AffineCurve, PairingEngine, ProjectiveCurve},
+    fields::{Field, FpParameters, PrimeField, SquareRootField},
     test_rng, CanonicalSerialize,
+    One, Zero,
 };
 use core::ops::{AddAssign, MulAssign};
-use num_traits::{One, Zero};
 use rand::Rng;
+            
+use crate::bls12_377::{Fq, Fq12, Fq2, Fr, g1, g2, Bls12_377, G1Affine, G1Projective, G2Affine, G2Projective};
+use crate::tests::{curves::{curve_tests, sw_curve_serialization_test}, groups::group_test};
 
 #[test]
 fn test_g1_projective_curve() {
     curve_tests::<G1Projective>();
 
-    let byte_size = <GroupAffine<Bls12_377G1Parameters> as CanonicalSerialize>::buffer_size();
-    sw_curve_serialization_test::<Bls12_377G1Parameters>(byte_size);
+    let byte_size = <G1Affine as CanonicalSerialize>::buffer_size();
+    sw_curve_serialization_test::<g1::Parameters>(byte_size);
 }
 
 #[test]
@@ -47,8 +38,8 @@ fn test_g1_generator() {
 fn test_g2_projective_curve() {
     curve_tests::<G2Projective>();
 
-    let byte_size = <GroupAffine<Bls12_377G2Parameters> as CanonicalSerialize>::buffer_size();
-    sw_curve_serialization_test::<Bls12_377G2Parameters>(byte_size);
+    let byte_size = <G2Affine as CanonicalSerialize>::buffer_size();
+    sw_curve_serialization_test::<g2::Parameters>(byte_size);
 }
 
 #[test]
@@ -103,7 +94,7 @@ fn test_g1_generator_raw() {
         let mut rhs = x;
         rhs.square_in_place();
         rhs.mul_assign(&x);
-        rhs.add_assign(&Bls12_377G1Parameters::COEFF_B);
+        rhs.add_assign(&g1::Parameters::COEFF_B);
 
         if let Some(y) = rhs.sqrt() {
             let p = G1Affine::new(x, if y < -y { y } else { -y }, false);
@@ -124,12 +115,4 @@ fn test_g1_generator_raw() {
         i += 1;
         x.add_assign(&Fq::one());
     }
-}
-
-#[test]
-fn bls12_377_unique() {
-    use crate::fields::bls12_377::fq::Fq;
-
-    use core::str::FromStr;
-    println!("{}", Fq::from_str("155198655607781456406391640216936120121836107652948796323930557600032281009004493664981332883744016074664192874906").unwrap());
 }

@@ -1,29 +1,27 @@
-use crate::{
+use algebra_core::{
     biginteger::{BigInteger, BigInteger384},
     fields::{
-        bls12_377::{Fq, Fq12, Fq2, Fq2Parameters, Fq6, Fq6Parameters, FqParameters},
         fp6_3over2::Fp6Parameters,
-        tests::{
-            field_serialization_test, field_test, frobenius_test, primefield_test, sqrt_field_test,
-        },
+        
         Field, Fp2Parameters, FpParameters, PrimeField, SquareRootField,
     },
     test_rng, CanonicalSerialize, UniformRand,
+    One, Zero,
 };
 use core::{
     cmp::Ordering,
     ops::{AddAssign, MulAssign, SubAssign},
 };
-use num_traits::{One, Zero};
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
+
+use crate::bls12_377::{Fr, Fq, Fq12, Fq2, Fq2Parameters, Fq6, Fq6Parameters, FqParameters};
+use crate::tests::fields::{field_serialization_test, field_test, frobenius_test, primefield_test, sqrt_field_test};
 
 pub(crate) const ITERATIONS: usize = 5;
 
 #[test]
-fn test_bls12_377_fr() {
-    use crate::fields::bls12_377::Fr;
-
+fn test_fr() {
     let mut rng = test_rng();
     for _ in 0..ITERATIONS {
         let a: Fr = rng.gen();
@@ -37,9 +35,7 @@ fn test_bls12_377_fr() {
 }
 
 #[test]
-fn test_bls12_377_fq() {
-    use crate::fields::bls12_377::Fq;
-
+fn test_fq() {
     let mut rng = test_rng();
     for _ in 0..ITERATIONS {
         let a: Fq = rng.gen();
@@ -53,9 +49,7 @@ fn test_bls12_377_fq() {
 }
 
 #[test]
-fn test_bls12_377_fq2() {
-    use crate::fields::bls12_377::{Fq, Fq2};
-
+fn test_fq2() {
     let mut rng = test_rng();
     for _ in 0..ITERATIONS {
         let a: Fq2 = rng.gen();
@@ -69,9 +63,7 @@ fn test_bls12_377_fq2() {
 }
 
 #[test]
-fn test_bls12_377_fq6() {
-    use crate::fields::bls12_377::{Fq, Fq6};
-
+fn test_fq6() {
     let mut rng = test_rng();
     for _ in 0..ITERATIONS {
         let g: Fq6 = rng.gen();
@@ -84,9 +76,7 @@ fn test_bls12_377_fq6() {
 }
 
 #[test]
-fn test_bls12_377_fq12() {
-    use crate::fields::bls12_377::{Fq, Fq12};
-
+fn test_fq12() {
     let mut rng = test_rng();
     for _ in 0..ITERATIONS {
         let g: Fq12 = rng.gen();

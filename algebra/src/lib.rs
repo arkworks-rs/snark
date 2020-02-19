@@ -50,3 +50,6 @@ pub mod jubjub;
 
 pub mod mnt6;
 pub mod sw6;
+
+#[cfg(test)]
+pub(crate) mod tests;

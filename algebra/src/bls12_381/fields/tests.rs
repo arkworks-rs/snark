@@ -1,28 +1,27 @@
-use crate::{
+use algebra_core::{
     biginteger::{BigInteger, BigInteger384},
     fields::{
-        bls12_381::{
-            Fq, Fq12, Fq12Parameters, Fq2, Fq2Parameters, Fq6, Fq6Parameters, FqParameters,
-        },
-        fp12_2over3over2::Fp12Parameters,
-        fp6_3over2::Fp6Parameters,
-        tests::{field_test, frobenius_test, primefield_test, sqrt_field_test},
         Field, Fp2Parameters, FpParameters, PrimeField, SquareRootField,
+        Fp6Parameters,
+        Fp12Parameters,
     },
-    UniformRand,
+    test_rng, CanonicalSerialize, UniformRand,
+    One, Zero,
 };
 use core::{
     cmp::Ordering,
     ops::{AddAssign, MulAssign, SubAssign},
 };
-use num_traits::{One, Zero};
-use rand::SeedableRng;
+use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
+
+use crate::bls12_381::{Fr, Fq, Fq12, Fq12Parameters, Fq2, Fq2Parameters, Fq6, Fq6Parameters, FqParameters};
+use crate::tests::fields::{field_serialization_test, field_test, frobenius_test, primefield_test, sqrt_field_test};
 
 pub(crate) const ITERATIONS: usize = 5;
 
 #[test]
-fn test_bls12_381_fr() {
+fn test_fr() {
     use crate::fields::bls12_381::Fr;
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
@@ -36,7 +35,7 @@ fn test_bls12_381_fr() {
 }
 
 #[test]
-fn test_bls12_381_fq() {
+fn test_fq() {
     use crate::fields::bls12_381::Fq;
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
@@ -50,7 +49,7 @@ fn test_bls12_381_fq() {
 }
 
 #[test]
-fn test_bls12_381_fq2() {
+fn test_fq2() {
     use crate::fields::bls12_381::{Fq, Fq2};
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
@@ -64,7 +63,7 @@ fn test_bls12_381_fq2() {
 }
 
 #[test]
-fn test_bls12_381_fq6() {
+fn test_fq6() {
     use crate::fields::bls12_381::{Fq, Fq6};
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
@@ -77,7 +76,7 @@ fn test_bls12_381_fq6() {
 }
 
 #[test]
-fn test_bls12_381_fq12() {
+fn test_fq12() {
     use crate::fields::bls12_381::{Fq, Fq12};
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
@@ -90,7 +89,7 @@ fn test_bls12_381_fq12() {
 }
 
 #[test]
-fn test_bls12_381_negative_one() {
+fn test_negative_one() {
     use crate::{biginteger::BigInteger384, fields::bls12_381::fq::Fq};
 
     let neg_one = Fq::new(BigInteger384([

@@ -1,27 +1,19 @@
-use crate::{
+use algebra_core::{
     bytes::{FromBytes, ToBytes},
-    curves::{
-        jubjub::*,
-        models::twisted_edwards_extended::{
-            tests::{edwards_curve_serialization_test, montgomery_conversion_test},
-            GroupAffine,
-        },
-        tests::curve_tests,
-        AffineCurve, ProjectiveCurve,
-    },
-    fields::jubjub::fr::Fr,
-    groups::tests::group_test,
+    curves::{AffineCurve, ProjectiveCurve},
     test_rng, CanonicalSerialize,
+    Zero,
 };
 use core::str::FromStr;
-use num_traits::Zero;
 use rand::Rng;
+use crate::jubjub::*;
+use crate::tests::{groups::*,curves::*};
 
 #[test]
 fn test_projective_curve() {
     curve_tests::<JubJubProjective>();
 
-    let byte_size = <GroupAffine<JubJubParameters> as CanonicalSerialize>::buffer_size();
+    let byte_size = <JubJubAffine as CanonicalSerialize>::buffer_size();
     edwards_curve_serialization_test::<JubJubParameters>(byte_size);
 }
 
