@@ -159,7 +159,22 @@ pub trait ProjectiveCurve:
         (*self).into()
     }
 
+    /// Set `self` to be `self + other`, where `other: Self::Affine`.
+    /// This is usually faster than adding `other` in projective form.
+    fn add_mixed(self, other: &Self::Affine) -> Self {
+        self.add_assign_mixed(other);
+        self
+    }
+
+    /// Set `self` to be `self + other`, where `other: Self::Affine`.
+    /// This is usually faster than adding `other` in projective form.
     fn add_assign_mixed(&mut self, other: &Self::Affine);
+
+    /// Performs scalar multiplication of this element.
+    fn mul<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(self, other: S) -> Self {
+        self.mul_assign(other);
+        self
+    }
 
     /// Performs scalar multiplication of this element.
     fn mul_assign<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(&mut self, other: S) {
@@ -226,7 +241,7 @@ pub trait AffineCurve:
     #[must_use]
     fn mul_by_cofactor(&self) -> Self;
 
-    /// Multiply this element by the inverse of the cofactor modulo the size of
+    /// Multiply this element by the inverse of the cofactor in
     /// `Self::ScalarField`.
     #[must_use]
     fn mul_by_cofactor_inv(&self) -> Self;
