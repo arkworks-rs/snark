@@ -1,17 +1,14 @@
-use crate::{Error, SignatureScheme};
+use crate::{Error, SignatureScheme, Vec};
 use algebra::{
     bytes::ToBytes,
     fields::{Field, PrimeField},
     groups::Group,
+    io::{Result as IoResult, Write},
     to_bytes, One, ToConstraintField, UniformRand, Zero,
 };
+use core::{hash::Hash, marker::PhantomData};
 use digest::Digest;
 use rand::Rng;
-use std::{
-    hash::Hash,
-    io::{Result as IoResult, Write},
-    marker::PhantomData,
-};
 
 #[cfg(feature = "r1cs")]
 pub mod constraints;

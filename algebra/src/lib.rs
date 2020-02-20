@@ -50,12 +50,12 @@ pub extern crate alloc;
 #[cfg(not(feature = "std"))]
 #[allow(unused_imports)]
 #[doc(hidden)]
-pub use alloc::{boxed::Box, format, vec, vec::Vec};
+pub use alloc::{boxed::Box, format, string::String, vec, vec::Vec};
 
 #[cfg(feature = "std")]
 #[allow(unused_imports)]
 #[doc(hidden)]
-pub use std::{boxed::Box, format, vec, vec::Vec};
+pub use std::{boxed::Box, format, string::String, vec, vec::Vec};
 
 #[macro_use]
 extern crate derivative;
@@ -120,4 +120,14 @@ fn error(_msg: &'static str) -> io::Error {
 #[cfg(feature = "std")]
 fn error(msg: &'static str) -> io::Error {
     io::Error::new(io::ErrorKind::Other, msg)
+}
+
+/// Returns log2
+pub fn log2(x: usize) -> u32 {
+    if x <= 1 {
+        return 0;
+    }
+
+    let n = x.leading_zeros();
+    core::mem::size_of::<usize>() as u32 * 8 - n
 }

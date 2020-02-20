@@ -7,8 +7,8 @@ use r1cs_core::{ConstraintSystem, SynthesisError};
 
 use crate::commitment::CommitmentGadget;
 use algebra::fields::{Field, PrimeField};
+use core::{borrow::Borrow, marker::PhantomData};
 use r1cs_std::prelude::*;
-use std::{borrow::Borrow, marker::PhantomData};
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "G: Group, W: PedersenWindow, ConstraintF: Field"))]
@@ -171,12 +171,6 @@ where
 
 #[cfg(test)]
 mod test {
-    use algebra::{
-        fields::jubjub::{fq::Fq, fr::Fr},
-        UniformRand,
-    };
-    use rand::thread_rng;
-
     use crate::{
         commitment::{
             pedersen::{
@@ -186,7 +180,11 @@ mod test {
         },
         crh::pedersen::PedersenWindow,
     };
-    use algebra::curves::{jubjub::JubJubProjective as JubJub, ProjectiveCurve};
+    use algebra::{
+        curves::{jubjub::JubJubProjective as JubJub, ProjectiveCurve},
+        fields::jubjub::{fq::Fq, fr::Fr},
+        test_rng, UniformRand,
+    };
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
         groups::jubjub::JubJubGadget, prelude::*, test_constraint_system::TestConstraintSystem,
@@ -206,7 +204,7 @@ mod test {
 
         let input = [1u8; 4];
 
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
 
         type TestCOMM = PedersenCommitment<JubJub, Window>;
         type TestCOMMGadget = PedersenCommitmentGadget<JubJub, Fq, JubJubGadget>;

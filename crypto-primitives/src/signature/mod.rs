@@ -1,7 +1,7 @@
 use crate::Error;
 use algebra::bytes::ToBytes;
+use core::hash::Hash;
 use rand::Rng;
-use std::hash::Hash;
 
 #[cfg(feature = "r1cs")]
 pub mod constraints;
@@ -54,14 +54,13 @@ pub trait SignatureScheme {
 mod test {
     use crate::{signature::schnorr::SchnorrSignature, SignatureScheme};
     use algebra::{
-        curves::edwards_sw6::EdwardsAffine as Edwards, groups::Group, to_bytes, ToBytes,
+        curves::edwards_sw6::EdwardsAffine as Edwards, groups::Group, test_rng, to_bytes, ToBytes,
         UniformRand,
     };
     use blake2::Blake2s;
-    use rand::thread_rng;
 
     fn sign_and_verify<S: SignatureScheme>(message: &[u8]) {
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
         let parameters = S::setup::<_>(rng).unwrap();
         let (pk, sk) = S::keygen(&parameters, rng).unwrap();
         let sig = S::sign(&parameters, &sk, &message, rng).unwrap();
@@ -69,7 +68,7 @@ mod test {
     }
 
     fn failed_verification<S: SignatureScheme>(message: &[u8], bad_message: &[u8]) {
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
         let parameters = S::setup::<_>(rng).unwrap();
         let (pk, sk) = S::keygen(&parameters, rng).unwrap();
         let sig = S::sign(&parameters, &sk, message, rng).unwrap();
@@ -77,7 +76,7 @@ mod test {
     }
 
     fn randomize_and_verify<S: SignatureScheme>(message: &[u8], randomness: &[u8]) {
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
         let parameters = S::setup::<_>(rng).unwrap();
         let (pk, sk) = S::keygen(&parameters, rng).unwrap();
         let sig = S::sign(&parameters, &sk, message, rng).unwrap();
@@ -90,7 +89,7 @@ mod test {
     #[test]
     fn schnorr_signature_test() {
         let message = "Hi, I am a Schnorr signature!";
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
         sign_and_verify::<SchnorrSignature<Edwards, Blake2s>>(message.as_bytes());
         failed_verification::<SchnorrSignature<Edwards, Blake2s>>(
             message.as_bytes(),

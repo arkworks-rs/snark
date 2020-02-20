@@ -7,7 +7,7 @@ use crate::{
     merkle_tree::*,
 };
 
-use std::borrow::Borrow;
+use core::borrow::Borrow;
 
 pub struct MerkleTreePathGadget<P, HGadget, ConstraintF>
 where
@@ -178,8 +178,6 @@ where
 
 #[cfg(test)]
 mod test {
-    use std::rc::Rc;
-
     use crate::{
         crh::{
             pedersen::{constraints::PedersenCRHGadget, PedersenCRH, PedersenWindow},
@@ -220,7 +218,7 @@ mod test {
     fn generate_merkle_tree(leaves: &[[u8; 30]], use_bad_root: bool) -> () {
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
 
-        let crh_parameters = Rc::new(H::setup(&mut rng).unwrap());
+        let crh_parameters = H::setup(&mut rng).unwrap();
         let tree = JubJubMerkleTree::new(crh_parameters.clone(), leaves).unwrap();
         let root = tree.root();
         let mut satisfied = true;

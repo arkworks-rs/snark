@@ -3,8 +3,8 @@ use algebra::{AffineCurve, Field, PairingEngine, ToConstraintField};
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
 
+use core::{borrow::Borrow, marker::PhantomData};
 use groth16::{Proof, VerifyingKey};
-use std::{borrow::Borrow, marker::PhantomData};
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "P::G1Gadget: Clone, P::G2Gadget: Clone"))]
@@ -353,13 +353,13 @@ mod test {
     use algebra::{
         curves::bls12_377::Bls12_377,
         fields::bls12_377::{Fq, Fr},
-        BitIterator, PrimeField,
+        test_rng, BitIterator, PrimeField,
     };
     use r1cs_std::{
         boolean::Boolean, pairing::bls12_377::PairingGadget as Bls12_377PairingGadget,
         test_constraint_system::TestConstraintSystem,
     };
-    use rand::{thread_rng, Rng};
+    use rand::Rng;
 
     type TestProofSystem = Groth16<Bls12_377, Bench<Fr>, Fr>;
     type TestVerifierGadget = Groth16VerifierGadget<Bls12_377, Fq, Bls12_377PairingGadget>;
@@ -416,7 +416,7 @@ mod test {
     fn groth16_verifier_test() {
         let num_inputs = 100;
         let num_constraints = num_inputs;
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
         let mut inputs: Vec<Option<Fr>> = Vec::with_capacity(num_inputs);
         for _ in 0..num_inputs {
             inputs.push(Some(rng.gen()));

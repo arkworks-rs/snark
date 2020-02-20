@@ -1,6 +1,6 @@
 use algebra::bytes::ToBytes;
+use core::hash::Hash;
 use rand::Rng;
-use std::hash::Hash;
 
 pub mod bowe_hopwood;
 pub mod injective_map;

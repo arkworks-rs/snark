@@ -1,5 +1,5 @@
 use algebra::Field;
-use std::hash::Hash;
+use core::hash::Hash;
 
 use crate::crh::{
     bowe_hopwood::{BoweHopwoodPedersenCRH, BoweHopwoodPedersenParameters, CHUNK_SIZE},
@@ -10,8 +10,8 @@ use algebra::groups::Group;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::{alloc::AllocGadget, groups::GroupGadget, uint8::UInt8};
 
+use core::{borrow::Borrow, marker::PhantomData};
 use r1cs_std::bits::boolean::Boolean;
-use std::{borrow::Borrow, marker::PhantomData};
 
 #[derive(Derivative)]
 #[derivative(Clone(
@@ -125,20 +125,21 @@ impl<G: Group, W: PedersenWindow, ConstraintF: Field, GG: GroupGadget<G, Constra
 
 #[cfg(test)]
 mod test {
-    use algebra::fields::sw6::fr::Fr;
-    use rand::{thread_rng, Rng};
-
     use crate::crh::{
         bowe_hopwood::{constraints::BoweHopwoodPedersenCRHGadget, BoweHopwoodPedersenCRH},
         pedersen::PedersenWindow,
         FixedLengthCRH, FixedLengthCRHGadget,
     };
-    use algebra::{curves::edwards_sw6::EdwardsProjective as Edwards, ProjectiveCurve};
+    use algebra::{
+        curves::edwards_sw6::EdwardsProjective as Edwards, fields::sw6::fr::Fr, test_rng,
+        ProjectiveCurve,
+    };
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
         alloc::AllocGadget, groups::curves::twisted_edwards::edwards_sw6::EdwardsSWGadget,
         test_constraint_system::TestConstraintSystem, uint8::UInt8,
     };
+    use rand::Rng;
 
     type TestCRH = BoweHopwoodPedersenCRH<Edwards, Window>;
     type TestCRHGadget = BoweHopwoodPedersenCRHGadget<Edwards, Fr, EdwardsSWGadget>;
@@ -168,7 +169,7 @@ mod test {
 
     #[test]
     fn crh_primitive_gadget_test() {
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
         let mut cs = TestConstraintSystem::<Fr>::new();
 
         let (input, input_bytes) = generate_input(&mut cs, rng);

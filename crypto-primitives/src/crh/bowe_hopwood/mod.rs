@@ -1,14 +1,16 @@
-use crate::Error;
-use rand::Rng;
-use rayon::prelude::*;
-use std::{
+use crate::{Error, Vec};
+use core::{
     fmt::{Debug, Formatter, Result as FmtResult},
     marker::PhantomData,
 };
+use rand::Rng;
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
 
 use super::pedersen::{bytes_to_bits, PedersenCRH, PedersenWindow};
 use crate::crh::FixedLengthCRH;
 use algebra::{biginteger::BigInteger, fields::PrimeField, groups::Group};
+use ff_fft::cfg_chunks;
 
 #[cfg(feature = "r1cs")]
 pub mod constraints;
@@ -126,12 +128,11 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for BoweHopwoodPedersenCRH<G, W
         // (1-2*c_{i,j,2})*(1+c_{i,j,0}+2*c_{i,j,1})*2^{4*(j-1)} for all j in segment}
         // for all i. Described in section 5.4.1.7 in the Zcash protocol
         // specification.
-        let result = padded_input
-            .par_chunks(W::WINDOW_SIZE * CHUNK_SIZE)
+
+        let result = cfg_chunks!(padded_input, W::WINDOW_SIZE * CHUNK_SIZE)
             .zip(&parameters.generators)
             .map(|(segment_bits, segment_generators)| {
-                segment_bits
-                    .par_chunks(CHUNK_SIZE)
+                cfg_chunks!(segment_bits, CHUNK_SIZE)
                     .zip(segment_generators)
                     .map(|(chunk_bits, generator)| {
                         let mut encoded = generator.clone();
@@ -146,9 +147,10 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for BoweHopwoodPedersenCRH<G, W
                         }
                         encoded
                     })
-                    .reduce(G::zero, |a, b| a + &b)
+                    .sum::<G>()
             })
-            .reduce(G::zero, |a, b| a + &b);
+            .sum::<G>();
+
         end_timer!(eval_time);
 
         Ok(result)
@@ -171,8 +173,7 @@ mod test {
         crh::{bowe_hopwood::BoweHopwoodPedersenCRH, pedersen::PedersenWindow},
         FixedLengthCRH,
     };
-    use algebra::curves::edwards_sw6::EdwardsProjective;
-    use rand::thread_rng;
+    use algebra::{curves::edwards_sw6::EdwardsProjective, test_rng};
 
     #[test]
     fn test_simple_bh() {
@@ -183,7 +184,7 @@ mod test {
             const NUM_WINDOWS: usize = 8;
         }
 
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
         let params =
             <BoweHopwoodPedersenCRH<EdwardsProjective, TestWindow> as FixedLengthCRH>::setup(rng)
                 .unwrap();

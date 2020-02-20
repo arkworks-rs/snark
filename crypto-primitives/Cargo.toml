@@ -22,51 +22,24 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-algebra = { path = "../algebra" }
-r1cs-core = { path = "../r1cs-core", optional = true }
-r1cs-std = { path = "../r1cs-std", optional = true }
-gm17 = { path = "../gm17", optional = true }
-groth16 = { path = "../groth16", optional = true }
+algebra = { path = "../algebra", default-features = false }
 bench-utils = { path = "../bench-utils" }
-
+blake2 = { version = "0.7", default-features = false }
+derivative = { version = "1.0", features = ["use_core"] }
 digest = "0.7"
-blake2 = "0.7"
-
-rand = { version = "0.7" }
-derivative = "1"
-rayon = "1"
+ff-fft = { path = "../ff-fft", default-features = false }
+gm17 = { path = "../gm17", optional = true, default-features = false }
+groth16 = { path = "../groth16", optional = true, default-features = false }
+r1cs-core = { path = "../r1cs-core", optional = true, default-features = false }
+r1cs-std = { path = "../r1cs-std", optional = true, default-features = false }
+rand = { version = "0.7", default-features = false }
+rayon = { version = "1.0", optional = true }
 
 [features]
-r1cs = [ "r1cs-core", "r1cs-std" ]
+default = ["parallel"]
+r1cs = ["r1cs-core", "r1cs-std"]
+std = ["r1cs", "algebra/std", "r1cs-core/std", "r1cs-std/std", "gm17/std", "groth16/std", "ff-fft/std"]
+parallel = ["std", "rayon"]
 
 [dev-dependencies]
-criterion = "0.3.1"
 rand_xorshift = { version = "0.2" }
-
-################################# Benchmarks ##################################
-
-[[bench]]
-name = "pedersen_crh"
-path = "benches/crypto_primitives/crh.rs"
-harness = false
-
-[[bench]]
-name = "pedersen_comm"
-path = "benches/crypto_primitives/comm.rs"
-harness = false
-
-[[bench]]
-name = "blake2s_prf"
-path = "benches/crypto_primitives/prf.rs"
-harness = false
-
-[[bench]]
-name = "schnorr_sig"
-path = "benches/crypto_primitives/signature.rs"
-harness = false
-
-[[bench]]
-name = "gm17"
-path = "benches/crypto_primitives/nizk.rs"
-required-features = ["r1cs", "gm17"]
-harness = false

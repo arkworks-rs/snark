@@ -8,7 +8,7 @@ use crate::{
 use algebra::{Field, PrimeField};
 use r1cs_std::prelude::*;
 
-use std::borrow::Borrow;
+use core::borrow::Borrow;
 
 #[derive(Clone)]
 pub struct Blake2sParametersGadget;
@@ -110,9 +110,6 @@ impl<ConstraintF: PrimeField> AllocGadget<[u8; 32], ConstraintF> for Blake2sRand
 
 #[cfg(test)]
 mod test {
-    use algebra::fields::bls12_381::Fr;
-    use rand::{thread_rng, Rng};
-
     use crate::{
         commitment::blake2s::{
             constraints::{Blake2sCommitmentGadget, Blake2sRandomnessGadget},
@@ -120,8 +117,10 @@ mod test {
         },
         *,
     };
+    use algebra::{fields::bls12_381::Fr, test_rng};
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{prelude::*, test_constraint_system::TestConstraintSystem};
+    use rand::Rng;
 
     #[test]
     fn commitment_gadget_test() {
@@ -129,7 +128,7 @@ mod test {
 
         let input = [1u8; 32];
 
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
 
         type TestCOMM = Blake2sCommitment;
         type TestCOMMGadget = Blake2sCommitmentGadget;

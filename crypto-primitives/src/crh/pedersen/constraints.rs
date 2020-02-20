@@ -6,7 +6,7 @@ use algebra::{Field, Group};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
 
-use std::{borrow::Borrow, marker::PhantomData};
+use core::{borrow::Borrow, marker::PhantomData};
 
 #[derive(Derivative)]
 #[derivative(Clone(
@@ -114,19 +114,21 @@ impl<G: Group, W: PedersenWindow, ConstraintF: Field, GG: GroupGadget<G, Constra
 
 #[cfg(test)]
 mod test {
-    use algebra::fields::bls12_381::fr::Fr;
-    use rand::{thread_rng, Rng};
-
     use crate::crh::{
         pedersen::{constraints::PedersenCRHGadget, PedersenCRH, PedersenWindow},
         FixedLengthCRH, FixedLengthCRHGadget,
     };
-    use algebra::curves::{jubjub::JubJubProjective as JubJub, ProjectiveCurve};
+    use algebra::{
+        curves::{jubjub::JubJubProjective as JubJub, ProjectiveCurve},
+        fields::bls12_381::fr::Fr,
+        test_rng,
+    };
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
         groups::curves::twisted_edwards::jubjub::JubJubGadget, prelude::*,
         test_constraint_system::TestConstraintSystem,
     };
+    use rand::Rng;
 
     type TestCRH = PedersenCRH<JubJub, Window>;
     type TestCRHGadget = PedersenCRHGadget<JubJub, Fr, JubJubGadget>;
@@ -156,7 +158,7 @@ mod test {
 
     #[test]
     fn crh_primitive_gadget_test() {
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
         let mut cs = TestConstraintSystem::<Fr>::new();
 
         let (input, input_bytes) = generate_input(&mut cs, rng);

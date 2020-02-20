@@ -1,5 +1,5 @@
 use algebra::Field;
-use std::fmt::Debug;
+use core::fmt::Debug;
 
 use crate::crh::FixedLengthCRH;
 use r1cs_core::{ConstraintSystem, SynthesisError};

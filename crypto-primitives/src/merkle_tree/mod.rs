@@ -1,6 +1,6 @@
-use crate::{crh::FixedLengthCRH, Error};
-use algebra::bytes::ToBytes;
-use std::{fmt, rc::Rc};
+use crate::{crh::FixedLengthCRH, Error, Vec};
+use algebra::{bytes::ToBytes, io::Cursor};
+use core::fmt;
 
 #[cfg(feature = "r1cs")]
 pub mod constraints;
@@ -87,14 +87,14 @@ pub struct MerkleHashTree<P: MerkleTreeConfig> {
         <P::H as FixedLengthCRH>::Output,
         <P::H as FixedLengthCRH>::Output,
     )>,
-    parameters:   Rc<<P::H as FixedLengthCRH>::Parameters>,
+    parameters:   <P::H as FixedLengthCRH>::Parameters,
     root:         Option<<P::H as FixedLengthCRH>::Output>,
 }
 
 impl<P: MerkleTreeConfig> MerkleHashTree<P> {
     pub const HEIGHT: u8 = P::HEIGHT as u8;
 
-    pub fn blank(parameters: Rc<<P::H as FixedLengthCRH>::Parameters>) -> Self {
+    pub fn blank(parameters: <P::H as FixedLengthCRH>::Parameters) -> Self {
         MerkleHashTree {
             tree: Vec::new(),
             padding_tree: Vec::new(),
@@ -104,7 +104,7 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
     }
 
     pub fn new<L: ToBytes>(
-        parameters: Rc<<P::H as FixedLengthCRH>::Parameters>,
+        parameters: <P::H as FixedLengthCRH>::Parameters,
         leaves: &[L],
     ) -> Result<Self, Error> {
         let new_time = start_timer!(|| "MerkleTree::New");
@@ -243,8 +243,8 @@ pub enum MerkleTreeError {
     IncorrectPathLength(usize),
 }
 
-impl std::fmt::Display for MerkleTreeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for MerkleTreeError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let msg = match self {
             MerkleTreeError::IncorrectLeafIndex(index) => {
                 format!("incorrect leaf index: {}", index)
@@ -255,6 +255,7 @@ impl std::fmt::Display for MerkleTreeError {
     }
 }
 
+#[cfg(feature = "std")]
 impl std::error::Error for MerkleTreeError {
     #[inline]
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
@@ -262,16 +263,19 @@ impl std::error::Error for MerkleTreeError {
     }
 }
 
+#[cfg(not(feature = "std"))]
+impl algebra::Error for MerkleTreeError {}
+
 /// Returns the log2 value of the given number.
 #[inline]
 fn log2(number: usize) -> usize {
-    (number as f64).log2() as usize
+    algebra::log2(number) as usize
 }
 
 /// Returns the height of the tree, given the size of the tree.
 #[inline]
 fn tree_height(tree_size: usize) -> usize {
-    log2(tree_size + 1)
+    log2(tree_size)
 }
 
 /// Returns true iff the index represents the root.
@@ -332,15 +336,13 @@ pub(crate) fn hash_inner_node<H: FixedLengthCRH>(
     right: &H::Output,
     buffer: &mut [u8],
 ) -> Result<H::Output, Error> {
-    use std::io::Cursor;
-    let mut writer = Cursor::new(buffer);
+    let mut writer = Cursor::new(&mut *buffer);
     // Construct left input.
     left.write(&mut writer)?;
 
     // Construct right input.
     right.write(&mut writer)?;
 
-    let buffer = writer.into_inner();
     H::evaluate(parameters, &buffer[..(H::INPUT_SIZE_BITS / 8)])
 }
 
@@ -350,11 +352,9 @@ pub(crate) fn hash_leaf<H: FixedLengthCRH, L: ToBytes>(
     leaf: &L,
     buffer: &mut [u8],
 ) -> Result<H::Output, Error> {
-    use std::io::Cursor;
-    let mut writer = Cursor::new(buffer);
+    let mut writer = Cursor::new(&mut *buffer);
     leaf.write(&mut writer)?;
 
-    let buffer = writer.into_inner();
     H::evaluate(parameters, &buffer[..(H::INPUT_SIZE_BITS / 8)])
 }
 
@@ -395,7 +395,7 @@ mod test {
     fn generate_merkle_tree<L: ToBytes + Clone + Eq>(leaves: &[L]) -> () {
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
 
-        let crh_parameters = Rc::new(H::setup(&mut rng).unwrap());
+        let crh_parameters = H::setup(&mut rng).unwrap();
         let tree = JubJubMerkleTree::new(crh_parameters.clone(), &leaves).unwrap();
         let root = tree.root();
         for (i, leaf) in leaves.iter().enumerate() {
@@ -421,7 +421,7 @@ mod test {
     fn bad_merkle_tree_verify<L: ToBytes + Clone + Eq>(leaves: &[L]) -> () {
         let mut rng = XorShiftRng::seed_from_u64(13423423u64);
 
-        let crh_parameters = Rc::new(H::setup(&mut rng).unwrap());
+        let crh_parameters = H::setup(&mut rng).unwrap();
         let tree = JubJubMerkleTree::new(crh_parameters.clone(), &leaves).unwrap();
         let root = JubJub::zero();
         for (i, leaf) in leaves.iter().enumerate() {
