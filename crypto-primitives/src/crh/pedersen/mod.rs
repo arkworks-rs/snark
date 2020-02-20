@@ -9,6 +9,7 @@ use rayon::prelude::*;
 
 use crate::crh::FixedLengthCRH;
 use algebra::{groups::Group, Field, ToConstraintField};
+use ff_fft::cfg_chunks;
 
 #[cfg(feature = "r1cs")]
 pub mod constraints;
@@ -100,9 +101,8 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for PedersenCRH<G, W> {
         );
 
         // Compute sum of h_i^{m_i} for all i.
-        #[cfg(feature = "parallel")]
-        let result = bytes_to_bits(input)
-            .par_chunks(W::WINDOW_SIZE)
+        let bits = bytes_to_bits(input);
+        let result = cfg_chunks!(bits, W::WINDOW_SIZE)
             .zip(&parameters.generators)
             .map(|(bits, generator_powers)| {
                 let mut encoded = G::zero();
@@ -113,22 +113,7 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for PedersenCRH<G, W> {
                 }
                 encoded
             })
-            .reduce(G::zero, |a, b| a + &b);
-
-        #[cfg(not(feature = "parallel"))]
-        let result = bytes_to_bits(input)
-            .chunks(W::WINDOW_SIZE)
-            .zip(&parameters.generators)
-            .map(|(bits, generator_powers)| {
-                let mut encoded = G::zero();
-                for (bit, base) in bits.iter().zip(generator_powers.iter()) {
-                    if *bit {
-                        encoded += base;
-                    }
-                }
-                encoded
-            })
-            .fold(G::zero(), |a, b| a + &b);
+            .sum::<G>();
 
         end_timer!(eval_time);
 
