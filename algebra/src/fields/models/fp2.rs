@@ -303,17 +303,6 @@ impl<P: Fp2Parameters> Distribution<Fp2<P>> for Standard {
     }
 }
 
-impl<P: Fp2Parameters> Add<Fp2<P>> for Fp2<P> {
-    type Output = Self;
-
-    #[inline]
-    fn add(self, other: Self) -> Self {
-        let mut result = self;
-        result.add_assign(&other);
-        result
-    }
-}
-
 impl<'a, P: Fp2Parameters> Add<&'a Fp2<P>> for Fp2<P> {
     type Output = Self;
 
@@ -331,18 +320,7 @@ impl<'a, P: Fp2Parameters> Sub<&'a Fp2<P>> for Fp2<P> {
     #[inline]
     fn sub(self, other: &Self) -> Self {
         let mut result = self;
-        result.sub_assign(&other);
-        result
-    }
-}
-
-impl<P: Fp2Parameters> Mul<Fp2<P>> for Fp2<P> {
-    type Output = Self;
-
-    #[inline]
-    fn mul(self, other: Self) -> Self {
-        let mut result = self;
-        result.mul_assign(&other);
+        result.sub_assign(other);
         result
     }
 }
@@ -369,7 +347,6 @@ impl<'a, P: Fp2Parameters> Div<&'a Fp2<P>> for Fp2<P> {
     }
 }
 
-impl_addassign_from_ref!(Fp2, Fp2Parameters);
 impl<'a, P: Fp2Parameters> AddAssign<&'a Self> for Fp2<P> {
     #[inline]
     fn add_assign(&mut self, other: &Self) {
@@ -386,7 +363,9 @@ impl<'a, P: Fp2Parameters> SubAssign<&'a Self> for Fp2<P> {
     }
 }
 
-impl_mulassign_from_ref!(Fp2, Fp2Parameters);
+impl_additive_ops_from_ref!(Fp2, Fp2Parameters);
+impl_multiplicative_ops_from_ref!(Fp2, Fp2Parameters);
+
 impl<'a, P: Fp2Parameters> MulAssign<&'a Self> for Fp2<P> {
     #[inline]
     fn mul_assign(&mut self, other: &Self) {

@@ -68,15 +68,15 @@ pub use self::bytes::*;
 pub mod serialize;
 pub use self::serialize::*;
 
+#[macro_use]
+pub mod fields;
+pub use self::fields::*;
+
 pub mod biginteger;
 pub use self::biginteger::*;
 
 pub mod curves;
 pub use self::curves::*;
-
-#[macro_use]
-pub mod fields;
-pub use self::fields::*;
 
 pub mod groups;
 pub use self::groups::*;

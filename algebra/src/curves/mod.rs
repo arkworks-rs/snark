@@ -2,7 +2,7 @@ use crate::{
     bytes::{FromBytes, ToBytes},
     fields::{Field, PrimeField, SquareRootField},
     groups::Group,
-    UniformRand,
+    UniformRand, Vec,
 };
 use core::{
     fmt::{Debug, Display},
@@ -118,11 +118,16 @@ pub trait ProjectiveCurve:
     + Zero
     + 'static
     + Neg<Output = Self>
-    + for<'a> Add<&'a Self, Output = Self>
     + Add<Self, Output = Self>
+    + Sub<Self, Output = Self>
+    + AddAssign<Self>
+    + SubAssign<Self>
+    + for<'a> Add<&'a Self, Output = Self>
     + for<'a> Sub<&'a Self, Output = Self>
     + for<'a> AddAssign<&'a Self>
     + for<'a> SubAssign<&'a Self>
+    + core::iter::Sum<Self>
+    + for<'a> core::iter::Sum<&'a Self>
 {
     type ScalarField: PrimeField + SquareRootField + Into<<Self::ScalarField as PrimeField>::BigInt>;
     type BaseField: Field;
@@ -135,6 +140,14 @@ pub trait ProjectiveCurve:
     /// Normalizes a slice of projective elements so that
     /// conversion to affine is cheap.
     fn batch_normalization(v: &mut [Self]);
+
+    /// Normalizes a slice of projective elements and outputs a vector
+    /// containing the affine equivalents.
+    fn batch_normalization_into_affine(v: &[Self]) -> Vec<Self::Affine> {
+        let mut v = v.to_vec();
+        Self::batch_normalization(&mut v);
+        v.into_iter().map(|v| v.into_affine()).collect()
+    }
 
     /// Checks if the point is already "normalized" so that
     /// cheap affine conversion is possible.

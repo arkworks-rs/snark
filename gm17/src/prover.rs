@@ -302,7 +302,7 @@ where
     let c2_inputs_acc = VariableBaseMSM::multi_scalar_mul(c2_inputs_source, &input_assignment);
     let c2_aux_acc = VariableBaseMSM::multi_scalar_mul(c2_aux_source, &aux_assignment);
 
-    let c2_acc = c2_inputs_acc + c2_aux_acc;
+    let c2_acc = c2_inputs_acc + &c2_aux_acc;
     end_timer!(c2_acc_time);
 
     // Compute G
@@ -312,7 +312,7 @@ where
     let g_inputs_acc = VariableBaseMSM::multi_scalar_mul(g_inputs_source, &h_input);
     let g_aux_acc = VariableBaseMSM::multi_scalar_mul(g_aux_source, &h_aux);
 
-    let g_acc = g_inputs_acc + g_aux_acc;
+    let g_acc = g_inputs_acc + &g_aux_acc;
     end_timer!(g_acc_time);
 
     let r2_g_gamma2_z2 = params.get_g_gamma2_z2()?.mul(r2);

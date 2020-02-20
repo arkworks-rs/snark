@@ -160,14 +160,7 @@ impl<P: Parameters> Neg for GroupAffine<P> {
     }
 }
 
-impl<P: Parameters> Add<Self> for GroupAffine<P> {
-    type Output = Self;
-    fn add(self, other: Self) -> Self {
-        let mut copy = self;
-        copy += &other;
-        copy
-    }
-}
+crate::impl_additive_ops_from_ref!(GroupAffine, Parameters);
 
 impl<'a, P: Parameters> Add<&'a Self> for GroupAffine<P> {
     type Output = Self;
@@ -281,7 +274,7 @@ mod group_impl {
         #[inline]
         fn double_in_place(&mut self) -> &mut Self {
             let mut tmp = *self;
-            tmp += self;
+            tmp += &*self;
             *self = tmp;
             self
         }
@@ -499,7 +492,7 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
             }
 
             if i {
-                res.add_assign(self);
+                res += &*self;
             }
         }
 
@@ -528,14 +521,7 @@ impl<P: Parameters> Neg for GroupProjective<P> {
     }
 }
 
-impl<P: Parameters> Add<Self> for GroupProjective<P> {
-    type Output = Self;
-    fn add(self, other: Self) -> Self {
-        let mut copy = self;
-        copy += &other;
-        copy
-    }
-}
+crate::impl_additive_ops_from_ref!(GroupProjective, Parameters);
 
 impl<'a, P: Parameters> Add<&'a Self> for GroupProjective<P> {
     type Output = Self;

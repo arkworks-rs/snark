@@ -37,8 +37,8 @@ impl<ConstraintF: Field> TestConstraintSystem<ConstraintF> {
                 Index::Aux(index) => aux[index].0,
             };
 
-            tmp.mul_assign(&coeff);
-            acc.add_assign(&tmp);
+            tmp *= coeff;
+            acc += tmp;
         }
 
         acc

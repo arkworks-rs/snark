@@ -105,25 +105,10 @@ impl<F: Field> DensePolynomial<F> {
             cur *= &point;
         }
         assert_eq!(powers_of_point.len(), self.coeffs.len());
-        let zero = F::zero();
-
-        #[cfg(feature = "parallel")]
-        {
-            powers_of_point
-                .into_par_iter()
-                .zip(&self.coeffs)
-                .map(|(power, coeff)| power * coeff)
-                .reduce(|| zero, |a, b| a + &b)
-        }
-
-        #[cfg(not(feature = "parallel"))]
-        {
-            powers_of_point
-                .into_iter()
-                .zip(&self.coeffs)
-                .map(|(power, coeff)| power * coeff)
-                .fold(zero, |a, b| a + &b)
-        }
+        cfg_into_iter!(powers_of_point)
+            .zip(&self.coeffs)
+            .map(|(power, coeff)| power * coeff)
+            .sum()
     }
 
     /// Perform a naive n^2 multiplication of `self` by `other`.
