@@ -23,11 +23,10 @@ mod error;
 mod impl_constraint_var;
 mod impl_lc;
 
-pub use algebra::ToConstraintField;
+pub use algebra_core::{Field, ToConstraintField};
 pub use constraint_system::{ConstraintSynthesizer, ConstraintSystem, Namespace};
 pub use error::SynthesisError;
 
-use algebra::Field;
 use core::cmp::Ordering;
 use smallvec::SmallVec as StackVec;
 

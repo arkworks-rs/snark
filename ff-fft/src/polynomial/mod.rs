@@ -1,7 +1,7 @@
 //! Work with sparse and dense polynomials.
 
 use crate::{Cow, EvaluationDomain, Evaluations, Vec};
-use algebra::{Field, PrimeField};
+use algebra_core::{Field, PrimeField};
 use core::convert::TryInto;
 use DenseOrSparsePolynomial::*;
 

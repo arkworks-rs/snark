@@ -1,8 +1,6 @@
 use crate::domain::*;
-use algebra::{
-    curves::{bls12_381::Bls12_381, PairingEngine},
-    test_rng, UniformRand,
-};
+use algebra_core::{test_rng, UniformRand, PairingEngine};
+use algebra::bls12_381::Bls12_381;
 
 // Test multiplying various (low degree) polynomials together and
 // comparing with naive evaluations.

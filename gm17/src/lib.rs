@@ -6,7 +6,7 @@
 #![deny(trivial_numeric_casts, private_in_public, variant_size_differences)]
 #![deny(stable_features, unreachable_pub, non_shorthand_field_patterns)]
 #![deny(unused_attributes, unused_imports, unused_mut)]
-#![deny(renamed_and_removed_lints, stable_features, unused_allocation)]
+#![deny(renamed_and_removed_lints, unused_allocation)]
 #![deny(unused_comparisons, bare_trait_objects, unused_must_use, const_err)]
 #![forbid(unsafe_code)]
 
@@ -23,10 +23,10 @@ use alloc::{string::String, vec::Vec};
 #[cfg(feature = "std")]
 use std::{string::String, vec::Vec};
 
-use algebra::{
+use algebra_core::{
     bytes::ToBytes,
     io::{self, Read, Result as IoResult, Write},
-    PairingCurve, PairingEngine,
+    PairingEngine,
 };
 use r1cs_core::SynthesisError;
 
@@ -211,9 +211,9 @@ pub struct PreparedVerifyingKey<E: PairingEngine> {
     pub g_alpha:           E::G1Affine,
     pub h_beta:            E::G2Affine,
     pub g_alpha_h_beta_ml: E::Fqk,
-    pub g_gamma_pc:        <E::G1Affine as PairingCurve>::Prepared,
-    pub h_gamma_pc:        <E::G2Affine as PairingCurve>::Prepared,
-    pub h_pc:              <E::G2Affine as PairingCurve>::Prepared,
+    pub g_gamma_pc:        E::G1Prepared,
+    pub h_gamma_pc:        E::G2Prepared,
+    pub h_pc:              E::G2Prepared,
     pub query:             Vec<E::G1Affine>,
 }
 
@@ -236,9 +236,9 @@ impl<E: PairingEngine> Default for PreparedVerifyingKey<E> {
             g_alpha:           E::G1Affine::default(),
             h_beta:            E::G2Affine::default(),
             g_alpha_h_beta_ml: E::Fqk::default(),
-            g_gamma_pc:        <E::G1Affine as PairingCurve>::Prepared::default(),
-            h_gamma_pc:        <E::G2Affine as PairingCurve>::Prepared::default(),
-            h_pc:              <E::G2Affine as PairingCurve>::Prepared::default(),
+            g_gamma_pc:        E::G1Prepared::default(),
+            h_gamma_pc:        E::G2Prepared::default(),
+            h_pc:              E::G2Prepared::default(),
             query:             Vec::new(),
         }
     }

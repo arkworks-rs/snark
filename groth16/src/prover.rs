@@ -1,12 +1,11 @@
 use rand::Rng;
 
-use algebra::{
-    groups::Group, msm::VariableBaseMSM, AffineCurve, PairingEngine, PrimeField, ProjectiveCurve,
-    UniformRand,
+use algebra_core::{
+    msm::VariableBaseMSM, AffineCurve, PairingEngine, PrimeField, ProjectiveCurve,
+    UniformRand, One, Zero,
 };
 
 use crate::{r1cs_to_qap::R1CStoQAP, Parameters, Proof, String, Vec};
-use algebra::{One, Zero};
 
 use r1cs_core::{
     ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable,
@@ -317,9 +316,9 @@ where
     let l_aux_source = params.get_l_query_full()?;
     let l_aux_acc = VariableBaseMSM::multi_scalar_mul(l_aux_source, &aux_assignment);
 
-    let s_g_a = g_a.clone().mul(&s);
-    let r_g1_b = g1_b.clone().mul(&r);
-    let r_s_delta_g1 = params.delta_g1.into_projective().mul(&r).mul(&s);
+    let s_g_a = g_a.clone().mul(s);
+    let r_g1_b = g1_b.clone().mul(r);
+    let r_s_delta_g1 = params.delta_g1.into_projective().mul(r).mul(s);
 
     let mut g_c = s_g_a;
     g_c += &r_g1_b;

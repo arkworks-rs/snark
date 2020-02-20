@@ -11,7 +11,7 @@
 //! by performing an O(n log n) FFT over such a domain.
 
 use crate::Vec;
-use algebra::{FpParameters, PrimeField};
+use algebra_core::{FpParameters, PrimeField};
 use core::fmt;
 use rand::Rng;
 #[cfg(feature = "parallel")]
@@ -186,7 +186,7 @@ impl<F: PrimeField> EvaluationDomain<F> {
             }
             u
         } else {
-            use algebra::fields::batch_inversion;
+            use algebra_core::fields::batch_inversion;
 
             let mut l = (t_size - &one) * &self.size_inv;
             let mut r = one;
@@ -423,7 +423,8 @@ impl<F: PrimeField> Iterator for Elements<F> {
 #[cfg(test)]
 mod tests {
     use crate::EvaluationDomain;
-    use algebra::{fields::bls12_381::fr::Fr, test_rng, Field, Zero};
+    use algebra::bls12_381::Fr;
+    use algebra_core::{test_rng, Field, Zero};
     use rand::Rng;
 
     #[test]

@@ -27,7 +27,8 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send {
     /// The affine representation of an element in G1.
     type G1Affine: AffineCurve<BaseField = Self::Fq, ScalarField = Self::Fr, Projective = Self::G1Projective>
         + From<Self::G1Projective>
-        + Into<Self::G1Projective>;
+        + Into<Self::G1Projective>
+        + Into<Self::G1Prepared>;
 
     /// A G1 element that has been preprocessed for use in a pairing.
     type G1Prepared: ToBytes + Default + Clone + Send + Sync + Debug + From<Self::G1Affine>;
@@ -40,7 +41,8 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send {
     /// The affine representation of an element in G2.
     type G2Affine: AffineCurve<BaseField = Self::Fqe, ScalarField = Self::Fr, Projective = Self::G2Projective>
         + From<Self::G2Projective>
-        + Into<Self::G2Projective>;
+        + Into<Self::G2Projective>
+        + Into<Self::G2Prepared>;
 
     /// A G2 element that has been preprocessed for use in a pairing.
     type G2Prepared: ToBytes + Default + Clone + Send + Sync + Debug + From<Self::G2Affine>;
@@ -262,4 +264,17 @@ impl<C: ProjectiveCurve> Group for C {
     fn double_in_place(&mut self) -> &mut Self {
         <C as ProjectiveCurve>::double_in_place(self)
     }
+}
+
+/// Preprocess a G1 element for use in a pairing.
+pub fn prepare_g1<E: PairingEngine>(g: impl Into<E::G1Affine>) -> E::G1Prepared {
+    let g: E::G1Affine = g.into();
+    E::G1Prepared::from(g)
+}
+
+
+/// Preprocess a G2 element for use in a pairing.
+pub fn prepare_g2<E: PairingEngine>(g: impl Into<E::G2Affine>) -> E::G2Prepared {
+    let g: E::G2Affine = g.into();
+    E::G2Prepared::from(g)
 }
