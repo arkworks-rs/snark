@@ -38,6 +38,8 @@ impl<P, HGadget, ConstraintF> FieldBasedMerkleTreePathGadget<P, HGadget, Constra
         self.conditionally_check_membership(cs, root, leaf, &Boolean::Constant(true))
     }
 
+    /// Coherently with the primitive, if `P::HASH_LEAVES` = `true` then we hash the
+    /// leaf, otherwise we assume it to be just one FieldGadget element.
     pub fn conditionally_check_membership<
         CS: ConstraintSystem<ConstraintF>,
     >(
@@ -47,17 +49,20 @@ impl<P, HGadget, ConstraintF> FieldBasedMerkleTreePathGadget<P, HGadget, Constra
         leaf: impl ToConstraintFieldGadget<ConstraintF, FieldGadget = HGadget::DataGadget>,
         should_enforce: &Boolean,
     ) -> Result<(), SynthesisError> {
+
         assert_eq!(self.path.len(), P::HEIGHT - 1);
 
-        //Should we pass the leaf pre image or directly the hash ?
-        let leaf_elements = leaf.to_field_gadget_elements()?;
-        let leaf_hash = HGadget::check_evaluation_gadget(
-            cs.ns(|| "hash leaf"),
-            leaf_elements.as_slice(),
-        )?;
+        let mut previous_hash =
+            if P::HASH_LEAVES {
+                let leaf_elements = leaf.to_field_gadget_elements()?;
+                HGadget::check_evaluation_gadget(
+                    cs.ns(|| "hash leaf"),
+                    leaf_elements.as_slice(),
+                )?
+            } else {
+                leaf.to_field_gadget_elements().map(|fe_g| fe_g[0].clone())?
+            };
 
-        // Check levels between leaf level and root.
-        let mut previous_hash = leaf_hash;
         for (i, &(ref sibling_hash, ref direction)) in self.path.iter().enumerate() {
 
             //Select left hash based on direction
@@ -182,16 +187,78 @@ mod test {
     struct MNT4753FieldBasedMerkleTreeParams;
 
     impl FieldBasedMerkleTreeConfig for MNT4753FieldBasedMerkleTreeParams {
+        const HASH_LEAVES: bool = true;
         const HEIGHT: usize = 32;
         type H = MNT4PoseidonHash;
     }
 
     type MNT4753FieldBasedMerkleTree = FieldBasedMerkleHashTree<MNT4753FieldBasedMerkleTreeParams>;
+
+    struct MNT4753FieldBasedMerkleTreeParamsNoHash;
+
+    impl FieldBasedMerkleTreeConfig for MNT4753FieldBasedMerkleTreeParamsNoHash {
+        const HASH_LEAVES: bool = false;
+        const HEIGHT: usize = 32;
+        type H = MNT4PoseidonHash;
+    }
+
+    type MNT4753FieldBasedMerkleTreeNoHash = FieldBasedMerkleHashTree<MNT4753FieldBasedMerkleTreeParamsNoHash>;
+
     type HG = MNT4PoseidonHashGadget;
 
     fn generate_merkle_tree(leaves: &[Fr], use_bad_root: bool) -> () {
 
         let tree = MNT4753FieldBasedMerkleTree::new(leaves).unwrap();
+        let root = tree.root();
+        let mut satisfied = true;
+        for (i, leaf) in leaves.iter().enumerate() {
+            let mut cs = TestConstraintSystem::<Fr>::new();
+            let proof = tree.generate_proof(i, leaf).unwrap();
+            assert!(proof.verify(&root, leaf).unwrap());
+
+            // Allocate Merkle Tree Root
+            let root = FqGadget::alloc(
+                &mut cs.ns(|| format!("new_digest_{}", i)),
+                || {
+                    if use_bad_root {
+                        Ok(Fr::zero())
+                    } else {
+                        Ok(root)
+                    }
+                },
+            )
+                .unwrap();
+
+            // Allocate Leaf
+            let leaf_g = FqGadget::alloc(cs.ns(|| "alloc leaf"), || Ok(leaf)).unwrap();
+
+            // Allocate Merkle Tree Path
+            let cw = FieldBasedMerkleTreePathGadget::<_, HG, _>::alloc(
+                &mut cs.ns(|| format!("new_witness_{}", i)),
+                || Ok(proof),
+            )
+                .unwrap();
+
+            cw.check_membership(
+                &mut cs.ns(|| format!("new_witness_check_{}", i)),
+                &root,
+                leaf_g,
+            )
+                .unwrap();
+            if !cs.is_satisfied() {
+                satisfied = false;
+                println!(
+                    "Unsatisfied constraint: {}",
+                    cs.which_is_unsatisfied().unwrap()
+                );
+            }
+        }
+        assert!(satisfied);
+    }
+
+    fn generate_merkle_tree_no_hash(leaves: &[Fr], use_bad_root: bool) -> () {
+
+        let tree = MNT4753FieldBasedMerkleTreeNoHash::new(leaves).unwrap();
         let root = tree.root();
         let mut satisfied = true;
         for (i, leaf) in leaves.iter().enumerate() {
@@ -248,6 +315,7 @@ mod test {
             leaves.push(f);
         }
         generate_merkle_tree(&leaves, false);
+        generate_merkle_tree_no_hash(&leaves, false);
     }
 
     #[should_panic]
@@ -260,5 +328,6 @@ mod test {
             leaves.push(f);
         }
         generate_merkle_tree(&leaves, true);
+        generate_merkle_tree_no_hash(&leaves, false);
     }
 }
