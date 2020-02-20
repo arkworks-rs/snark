@@ -10,6 +10,7 @@ use rayon::prelude::*;
 use super::pedersen::{bytes_to_bits, PedersenCRH, PedersenWindow};
 use crate::crh::FixedLengthCRH;
 use algebra::{biginteger::BigInteger, fields::PrimeField, groups::Group};
+use ff_fft::cfg_chunks;
 
 #[cfg(feature = "r1cs")]
 pub mod constraints;
@@ -128,13 +129,10 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for BoweHopwoodPedersenCRH<G, W
         // for all i. Described in section 5.4.1.7 in the Zcash protocol
         // specification.
 
-        #[cfg(feature = "parallel")]
-        let result = padded_input
-            .par_chunks(W::WINDOW_SIZE * CHUNK_SIZE)
+        let result = cfg_chunks!(padded_input, W::WINDOW_SIZE * CHUNK_SIZE)
             .zip(&parameters.generators)
             .map(|(segment_bits, segment_generators)| {
-                segment_bits
-                    .par_chunks(CHUNK_SIZE)
+                cfg_chunks!(segment_bits, CHUNK_SIZE)
                     .zip(segment_generators)
                     .map(|(chunk_bits, generator)| {
                         let mut encoded = generator.clone();
@@ -149,34 +147,9 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for BoweHopwoodPedersenCRH<G, W
                         }
                         encoded
                     })
-                    .reduce(G::zero, |a, b| a + &b)
+                    .sum::<G>()
             })
-            .reduce(G::zero, |a, b| a + &b);
-
-        #[cfg(not(feature = "parallel"))]
-        let result = padded_input
-            .chunks(W::WINDOW_SIZE * CHUNK_SIZE)
-            .zip(&parameters.generators)
-            .map(|(segment_bits, segment_generators)| {
-                segment_bits
-                    .chunks(CHUNK_SIZE)
-                    .zip(segment_generators)
-                    .map(|(chunk_bits, generator)| {
-                        let mut encoded = generator.clone();
-                        if chunk_bits[0] {
-                            encoded = encoded + generator;
-                        }
-                        if chunk_bits[1] {
-                            encoded += &generator.double();
-                        }
-                        if chunk_bits[2] {
-                            encoded = encoded.neg();
-                        }
-                        encoded
-                    })
-                    .fold(G::zero(), |a, b| a + &b)
-            })
-            .fold(G::zero(), |a, b| a + &b);
+            .sum::<G>();
 
         end_timer!(eval_time);
 
