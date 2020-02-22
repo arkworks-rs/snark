@@ -61,8 +61,8 @@ mod montgomery_affine_impl {
             } else if p.x == P::BaseField::zero() {
                 GroupAffine::new(P::BaseField::zero(), P::BaseField::zero())
             } else {
-                let u = (P::BaseField::one() + &p.y)
-                    * &(P::BaseField::one() - &p.y).inverse().unwrap();
+                let u =
+                    (P::BaseField::one() + &p.y) * &(P::BaseField::one() - &p.y).inverse().unwrap();
                 let v = u * &p.x.inverse().unwrap();
                 GroupAffine::new(u, v)
             };
@@ -96,7 +96,7 @@ mod montgomery_affine_impl {
                         t0.mul_assign(&invy);
 
                         Ok(t0)
-                    },
+                    }
                     None => Err(SynthesisError::DivisionByZero),
                 }
             })?;
@@ -114,7 +114,7 @@ mod montgomery_affine_impl {
                         t0.mul_assign(&t1);
 
                         Ok(t0)
-                    },
+                    }
                     None => Err(SynthesisError::DivisionByZero),
                 }
             })?;
@@ -146,7 +146,7 @@ mod montgomery_affine_impl {
                     Some(d) => {
                         n.mul_assign(&d);
                         Ok(n)
-                    },
+                    }
                     None => Err(SynthesisError::DivisionByZero),
                 }
             })?;
@@ -510,7 +510,7 @@ mod affine_impl {
                 Ok(ge) => {
                     let ge = *ge.borrow();
                     (Ok(ge.x), Ok(ge.y))
-                },
+                }
                 _ => (
                     Err(SynthesisError::AssignmentMissing),
                     Err(SynthesisError::AssignmentMissing),
@@ -627,7 +627,7 @@ mod affine_impl {
                 Ok(ge) => {
                     let ge = *ge.borrow();
                     (Ok(ge.x), Ok(ge.y))
-                },
+                }
                 _ => (
                     Err(SynthesisError::AssignmentMissing),
                     Err(SynthesisError::AssignmentMissing),
@@ -966,14 +966,14 @@ mod projective_impl {
                     match edwards_result {
                         None => {
                             edwards_result = Some(segment_result);
-                        },
+                        }
                         Some(ref mut edwards_result) => {
                             *edwards_result = GroupGadget::<TEAffine<P>, ConstraintF>::add(
                                 &segment_result,
                                 cs.ns(|| "edwards addition"),
                                 edwards_result,
                             )?;
-                        },
+                        }
                     }
 
                     Ok(())
@@ -1056,13 +1056,13 @@ mod projective_impl {
                     match result {
                         None => {
                             result = Some(tmp);
-                        },
+                        }
                         Some(ref mut result) => {
                             *result = tmp.add(
                                 cs.ns(|| format!("addition of window {}, {}", segment_i, i)),
                                 result,
                             )?;
-                        },
+                        }
                     }
                 }
 
@@ -1107,7 +1107,7 @@ mod projective_impl {
                 Ok(ge) => {
                     let ge = ge.borrow().into_affine();
                     (Ok(ge.x), Ok(ge.y))
-                },
+                }
                 _ => (
                     Err(SynthesisError::AssignmentMissing),
                     Err(SynthesisError::AssignmentMissing),
@@ -1229,7 +1229,7 @@ mod projective_impl {
                 Ok(ge) => {
                     let ge = ge.borrow().into_affine();
                     (Ok(ge.x), Ok(ge.y))
-                },
+                }
                 _ => (
                     Err(SynthesisError::AssignmentMissing),
                     Err(SynthesisError::AssignmentMissing),

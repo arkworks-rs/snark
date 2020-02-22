@@ -1,5 +1,8 @@
-use rand::{Rng, distributions::{Standard, Distribution}};
 use crate::UniformRand;
+use rand::{
+    distributions::{Distribution, Standard},
+    Rng,
+};
 use std::{
     cmp::Ordering,
     io::{Read, Result as IoResult, Write},
@@ -311,10 +314,10 @@ impl<P: Fp12Parameters> Field for Fp12<P> {
     }
 
     fn inverse_in_place(&mut self) -> Option<&mut Self> {
-        self.inverse().and_then(|inv| { {
-                *self = inv;
-                Some(self)
-            } })
+        self.inverse().and_then(|inv| {
+            *self = inv;
+            Some(self)
+        })
     }
 }
 
@@ -425,7 +428,6 @@ impl<P: Fp12Parameters> PartialOrd for Fp12<P> {
         Some(self.cmp(other))
     }
 }
-
 
 impl<P: Fp12Parameters> From<u128> for Fp12<P> {
     fn from(other: u128) -> Self {

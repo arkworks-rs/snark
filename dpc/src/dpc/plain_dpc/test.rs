@@ -1,13 +1,9 @@
 use super::instantiated::*;
-use algebra::{
-    fields::bls12_377::fr::Fr,
-    fields::bls12_377::fq::Fq,
-    to_bytes, ToBytes,
-};
-use rand::SeedableRng;
-use rand_xorshift::XorShiftRng;
+use algebra::{fields::bls12_377::fq::Fq, fields::bls12_377::fr::Fr, to_bytes, ToBytes};
 #[cfg(debug_assertions)]
 use gm17::PreparedVerifyingKey;
+use rand::SeedableRng;
+use rand_xorshift::XorShiftRng;
 
 use crypto_primitives::FixedLengthCRH;
 
@@ -190,8 +186,8 @@ fn test_execute_constraint_systems() {
         {
             let pred_pub_input: PredicateLocalData<Components> = PredicateLocalData {
                 local_data_comm_pp: comm_and_crh_pp.local_data_comm_pp.clone(),
-                local_data_comm:    local_data_comm.clone(),
-                position:           i as u8,
+                local_data_comm: local_data_comm.clone(),
+                position: i as u8,
             };
             assert!(
                 PredicateNIZK::verify(&pred_nizk_pvk, &pred_pub_input, &proof)

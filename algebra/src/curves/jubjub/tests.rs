@@ -1,6 +1,9 @@
 use crate::{
     bytes::{FromBytes, ToBytes},
-    curves::{jubjub::*, tests::curve_tests, AffineCurve, ProjectiveCurve, models::twisted_edwards_extended::tests::montgomery_conversion_test},
+    curves::{
+        jubjub::*, models::twisted_edwards_extended::tests::montgomery_conversion_test,
+        tests::curve_tests, AffineCurve, ProjectiveCurve,
+    },
     fields::jubjub::fr::Fr,
     groups::tests::group_test,
 };

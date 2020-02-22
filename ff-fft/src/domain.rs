@@ -10,10 +10,10 @@
 //! This allows us to perform polynomial operations in O(n)
 //! by performing an O(n log n) FFT over such a domain.
 
-use std::fmt;
 use algebra::{FpParameters, PrimeField};
-use rayon::prelude::*;
 use rand::Rng;
+use rayon::prelude::*;
+use std::fmt;
 
 use super::multicore::Worker;
 
@@ -23,26 +23,25 @@ use super::multicore::Worker;
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 pub struct EvaluationDomain<F: PrimeField> {
     /// The size of the domain.
-    pub size:                  u64,
+    pub size: u64,
     /// `log_2(self.size)`.
-    pub log_size_of_group:     u32,
+    pub log_size_of_group: u32,
     /// Size of the domain as a field element.
     pub size_as_field_element: F,
     /// Inverse of the size in the field.
-    pub size_inv:              F,
+    pub size_inv: F,
     /// A generator of the subgroup.
-    pub group_gen:          F,
+    pub group_gen: F,
     /// Inverse of the generator of the subgroup.
-    pub group_gen_inv:      F,
+    pub group_gen_inv: F,
     /// Multiplicative generator of the finite field.
-    pub generator_inv:         F,
+    pub generator_inv: F,
 }
 
 impl<F: PrimeField> fmt::Debug for EvaluationDomain<F> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Multiplicative subgroup of size {}", self.size)
     }
-
 }
 
 impl<F: PrimeField> EvaluationDomain<F> {
@@ -58,7 +57,6 @@ impl<F: PrimeField> EvaluationDomain<F> {
         }
         t
     }
-
 
     /// Construct a domain that is large enough for evaluations of a polynomial
     /// having `num_coeffs` coefficients.
@@ -89,7 +87,7 @@ impl<F: PrimeField> EvaluationDomain<F> {
             size_inv,
             group_gen,
             group_gen_inv: group_gen.inverse()?,
-            generator_inv: F::multiplicative_generator().inverse()?
+            generator_inv: F::multiplicative_generator().inverse()?,
         })
     }
 
@@ -117,9 +115,14 @@ impl<F: PrimeField> EvaluationDomain<F> {
     }
 
     /// Compute a FFT, modifying the vector in place.
-    pub fn fft_in_place(&self, coeffs: &mut Vec<F>)  {
+    pub fn fft_in_place(&self, coeffs: &mut Vec<F>) {
         coeffs.resize(self.size(), F::zero());
-        best_fft(coeffs, &Worker::new(), self.group_gen, self.log_size_of_group)
+        best_fft(
+            coeffs,
+            &Worker::new(),
+            self.group_gen,
+            self.log_size_of_group,
+        )
     }
 
     /// Compute a IFFT.
@@ -133,7 +136,12 @@ impl<F: PrimeField> EvaluationDomain<F> {
     #[inline]
     pub fn ifft_in_place(&self, evals: &mut Vec<F>) {
         evals.resize(self.size(), F::zero());
-        best_fft(evals, &Worker::new(), self.group_gen_inv, self.log_size_of_group);
+        best_fft(
+            evals,
+            &Worker::new(),
+            self.group_gen_inv,
+            self.log_size_of_group,
+        );
         evals.par_iter_mut().for_each(|val| *val *= &self.size_inv);
     }
 
@@ -281,12 +289,15 @@ impl<F: PrimeField> EvaluationDomain<F> {
         }
     }
 
-   
     /// Perform O(n) multiplication of two polynomials that are presented by their
     /// evaluations in the domain.
     /// Returns the evaluations of the product over the domain.
     #[must_use]
-    pub fn mul_polynomials_in_evaluation_domain(&self, self_evals: &[F], other_evals: &[F]) -> Vec<F> {
+    pub fn mul_polynomials_in_evaluation_domain(
+        &self,
+        self_evals: &[F],
+        other_evals: &[F],
+    ) -> Vec<F> {
         assert_eq!(self_evals.len(), other_evals.len());
         let mut result = self_evals.to_vec();
         let chunk_size = Self::calculate_chunk_size(self.size());
@@ -439,9 +450,9 @@ impl<F: PrimeField> Iterator for Elements<F> {
 #[cfg(test)]
 mod tests {
     use crate::EvaluationDomain;
-    use algebra::Field;
     use algebra::fields::bls12_381::fr::Fr;
-    use rand::{Rng, thread_rng};
+    use algebra::Field;
+    use rand::{thread_rng, Rng};
 
     #[test]
     fn vanishing_polynomial_evaluation() {
@@ -451,7 +462,10 @@ mod tests {
             let z = domain.vanishing_polynomial();
             for _ in 0..100 {
                 let point = rng.gen();
-                assert_eq!(z.evaluate(point), domain.evaluate_vanishing_polynomial(point))
+                assert_eq!(
+                    z.evaluate(point),
+                    domain.evaluate_vanishing_polynomial(point)
+                )
             }
         }
     }

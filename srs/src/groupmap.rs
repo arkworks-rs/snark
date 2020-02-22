@@ -3,141 +3,115 @@ use algebra::curves::{AffineCurve, PrimeField};
 use core::fmt::Error;
 
 #[derive(Copy, Clone, Debug)]
-pub struct BN382CompressedSRS<G: AffineCurve> {
+pub struct CompressedSRS<G: AffineCurve> {
     pub y_coords: Vec<G::BaseField>,
     pub x_bits: usize, // could be [bool; 2] ?
 }
 
-#[derive(Copy, Clone, Debug)]
-struct BWParameters<G: AffineCurve> {
-    pub u: G::BaseField,
-    pub u_over_2: G::BaseField,
-    pub projp: G,
-    pub conic_c: G::BaseField,
-    pub a: G::BaseField,
-    pub b: G::BaseField,
+pub trait GroupMap<Params, G: AffineCurve> {
+    fn setup() -> Params;
+
+    fn batch_to_group_x(p: Params, ts: Vec<G::BaseField>) -> Vec<[G::BaseField; 3]>;
 }
 
-// C(z, y) : z^2 + 3u/4 y^2 = -f(u)
-#[derive(Copy, Clone, Debug)]
-struct BWConic<G: AffineCurve> {
-    pub z: G::BaseField,
-    pub y: G::BaseField,
-}
+impl GroupMap<Params, G: AffineCurve> {
 
-// S(u, v, y) : y^2(u^2 + uv + v^2 + a) = -f(u)
-#[derive(Copy, Clone, Debug)]
-struct BWSurface<G: AffineCurve> {
-    pub u: G::BaseField,
-    pub v: G::BaseField,
-    pub y: G::BaseField,
-}
+    struct BWParameters<G> {
+        u: G::BaseField,
+        fu: G::BaseField,
+        three_u_plus_u_over_2: G::BaseField,
+        three_u_minus_u_over_2: G::BaseField,
+        three_u: G::BaseField,
+        inv_three_u: G::BaseField
+    }
 
-// do we need this
-// V(x1, x2, x3, x4) : f(x1) f(x2) f(x3) = x4^2
-#[derive(Copy, Clone, Debug)]
-struct BWVariety<G: AffineCurve> {
-    pub x1: G::BaseField,
-    pub x2: G::BaseField,
-    pub x3: G::BaseField,
-}
+    fn get_u() -> G::BaseField {
+        for u in 0..G::P {
+            let x_zero = &u.square();
+            x_zero.mul(F::from_int(-3));
+            x_zero.sqrt();
+            x_zero.minus(&u);
+            x_zero.div(F::from_int(2));
+            let (x, y) = curve_eqn(x_zero);
+            if legendre(y) == 1 {
+                u
+            }
+        }
+    }
 
+    // should this be generic? can we get rid of A_COEFF?
+    fn setup() -> Result<Self::BWParameters, Error> {
+        let u = get_u();
+        let fu = &u.mul(&u);
+        fu.add(&G::A_COEFF);
+        fu.mul(&u);
+        fu.add(&G::B_COEFF);
+        let three_u = &u.square();
+        three_u.mul(F::from_int(-3));
+        let inv_three_u = three_u.copy();
+        three_u.sqrt(); // sqrt(-3u^2)
+        inv_three_u.inv(); // 1/(-3u^2)
+        let three_u_plus_u_over_2 = three_u.copy();
+        let three_u_minus_u_over_2 = three_u.copy();
+        three_u_plus_u_over_2.add(&u);
+        three_u_minus_u_over_2.sub(&u);
+        three_u_plus_u_over_2.div(F::from_int(2)); // sqrt(-3u^2) + u / 2
+        three_u_minus_u_over_2.div(F::from_int(2)); // sqrt(-3u^2) - u / 2
 
-impl groupmap<G: AffineCurve> {
-    type Parameters = BWParameters<G>;
-    type Conic = BWConic<G>;
-    type Surface = BWSurface<G>;
-    type Variety = BWVariety<G>;
-    type F: G::BaseField + Into<G::BaseField as PrimeField>;
-
-    fn setup() -> Result<Self::Parameters, Error> {
-        let three_quarters = F::from_int(3) / F::from_int(4);
-        // TODO get formula for u
-        let u = three_quarters;
-        let check = (three_quarters * u * u) + G::A_COEFF;
-        let fu = Self::curve_eqn(u);
-        assert_ne!(check, F::zero());
-        assert_ne!(fu, F::zero());
-        // TODO? CHECK
-        assert!(!F::is_square(F::negate(fu)));
-        let conic_c = (three_quarters * u * u) + G::A_COEFF;
-        let conic_d = F::negate(Self::curve_eqn(u));
-        // TODO get forumla for y
-        let y = three_quarters;
-        let z2 = conic_d - (conic_c * y * y);
-        // TODO Fix? this should never return None, it should return an error
-        let projp = if F::is_square(z2) {
-            Self::Conic { z: F::sqrt(z2), y }
-        } else {
-            None
-        };
-        Self::Parameters {
+        Self::BWParameters {
             u,
-            u_over_2: u / F::of_int(2),
-            conic_c,
-            projp,
-            a: G::A_COEFF,
-            b: G::B_COEFF,
+            fu,
+            three_u_plus_u_over_2,
+            three_u_minus_u_over_2,
+            three_u,
+            inv_three_u
         }
-    }
-    //
-    // is this not found somewhere else?
-    fn curve_eqn(parameters: &Self::Parameters, x: &Self::F) -> Self::G {
-        Self::G {
+
+   }
+
+    fn curve_eqn(x: G::BaseField) -> G {
+        G {
             x,
-            y: (x * x * x) + (parameters.a * x) + parameters.b,
+            y: ((x * x * x) + (G::A_COEFF * x) + G::B_COEFF).sqrt();
         }
     }
 
-    // For a curve z^2 + c y^2 = d and a point (z0, y0) on the curve, there
-    // is one other point on the curve which is also on the line through (z0, y0)
-    // with slope t. This function returns that point.
-    fn field_to_conic(parameters: &Self::Parameters, t: &Self::F) -> Result<Self::Conic, Error> {
-        let (z0, y0) = (parameters.projp.z, parameters.projp.y);
-        let ct = parameters.conic_c * t;
-        let s = 2 * ((ct * y0) + z0) / ((ct * t) + &Self::F::One);
-        &Self::Conic {
-            z: z0 - s,
-            y: y0 - (s * t),
+    fn potential_xs(params : Self::BWParameters, t: G::BaseField) -> Result<Self::BWSurface, Error> {
+        let alpha_inv = &t.square();
+        alpha_inv.add(&params.fu);
+        alpha_inv.mul(&t.square());
+        // check alpha_inv non zero
+        let alpha = alpha_inv.copy();
+        alpha.inv(); // 1/alpha_inv = alpha
+
+        let temp = &t.square();
+        temp.square();
+        temp.mul(&alpha);
+        temp.(&params.three_u);
+        let x1 = params.three_u_minus_u_over_2.copy();
+        x1.sub(&temp);
+
+        let x2 = F::zero().sub(&params.u);
+        x2.sub(&x1);
+        
+        alpha_inv.square();
+        temp = &t.square();
+        temp.square();
+        temp.inv();
+        temp.mul(&params.inv_three_u);
+        temp.mul(&alpha_inv);
+        let x3 = params.u.copy();
+        x3.sub(&temp);
+
+        BWSurface {
+            x1,
+            x2,
+            x3
         }
+
     }
 
-    // From (16) : φ(λ) : F → S : λ → ( u, α(λ)/β(λ) - u/2, β(λ) )
-    // what are alpha(lambda) and beta(lambda) ?
-    fn conic_to_s(parameters: &Self::Parameters, c: &Self::Conic) -> Result<Self::Surface, Error> {
-        &Self::Surface {
-            u: parameters.u,
-            v: (c.z / c.y) - parameters.u_over_2,
-            y: c.y,
-        }
-    }
-
-    // We don't need to compute the final coordinate in V
-    fn s_to_v_truncated(S: &Self::Surface) -> Result<Self::Variety, Error> {
-        &Self::Variety {
-            x1: S.v,
-            x2: (S.u + S.v).negate(),
-            x3: S.u + (S.y * S.y),
-        }
-    }
-
-    fn potential_xs(x: &Self::F) -> Result<Self::Surface, Error> {
-        &Self::s_to_v_truncated(&Self::conic_to_s(&Self::field_to_conic(x)));
-    }
-
-    fn try_decode(x: &Self::F) -> Option<Self::G> {
-        let yy = &Self::curve_eqn(x);
-        if &Self::is_square(yy) {
-            Some(Self::G {
-                x,
-                y: Self::sqrt(yy),
-            })
-        } else {
-            None
-        }
-    }
-
-    fn to_group(t: &Self::F) -> Option<G> {
+    fn to_group(t: G::BaseField) -> Option<G> {
         let (x1, x2, x3) = &Self::potential_xs(t);
         if let Some(b1) = &Self::try_decode(x1) {
             Some(b1)

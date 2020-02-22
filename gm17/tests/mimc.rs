@@ -32,11 +32,7 @@ use rand::{thread_rng, Rng};
 use std::time::{Duration, Instant};
 
 // Bring in some tools for using pairing-friendly curves
-use algebra::{
-    curves::bls12_381::Bls12_381,
-    fields::bls12_381::fr::Fr, 
-    Field
-};
+use algebra::{curves::bls12_381::Bls12_381, fields::bls12_381::fr::Fr, Field};
 
 // We're going to use the BLS12-381 pairing-friendly elliptic curve.
 
@@ -78,8 +74,8 @@ fn mimc<F: Field>(mut xl: F, mut xr: F, constants: &[F]) -> F {
 /// This is our demo circuit for proving knowledge of the
 /// preimage of a MiMC hash invocation.
 struct MiMCDemo<'a, F: Field> {
-    xl:        Option<F>,
-    xr:        Option<F>,
+    xl: Option<F>,
+    xr: Option<F>,
     constants: &'a [F],
 }
 
@@ -87,7 +83,10 @@ struct MiMCDemo<'a, F: Field> {
 /// is used during paramgen and proving in order to
 /// synthesize the constraint system.
 impl<'a, F: Field> ConstraintSynthesizer<F> for MiMCDemo<'a, F> {
-    fn generate_constraints<CS: ConstraintSystem<F>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
+    fn generate_constraints<CS: ConstraintSystem<F>>(
+        self,
+        cs: &mut CS,
+    ) -> Result<(), SynthesisError> {
         assert_eq!(self.constants.len(), MIMC_ROUNDS);
 
         // Allocate the first component of the preimage.
@@ -189,8 +188,8 @@ fn test_mimc_groth_maller_17() {
     // Create parameters for our circuit
     let params = {
         let c = MiMCDemo::<Fr> {
-            xl:        None,
-            xr:        None,
+            xl: None,
+            xr: None,
             constants: &constants,
         };
 
@@ -224,8 +223,8 @@ fn test_mimc_groth_maller_17() {
             // Create an instance of our circuit (with the
             // witness)
             let c = MiMCDemo {
-                xl:        Some(xl),
-                xr:        Some(xr),
+                xl: Some(xl),
+                xr: Some(xr),
                 constants: &constants,
             };
 

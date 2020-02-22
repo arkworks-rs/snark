@@ -1,8 +1,8 @@
+use crate::UniformRand;
 use crate::{
     curves::{AffineCurve, ProjectiveCurve},
     fields::{Field, PrimeField},
 };
-use crate::UniformRand;
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 

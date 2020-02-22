@@ -1,6 +1,6 @@
-pub use crypto_primitives::merkle_tree::*;
 use crate::dpc::Transaction;
 use crate::Error;
+pub use crypto_primitives::merkle_tree::*;
 use rand::Rng;
 
 pub mod ideal_ledger;

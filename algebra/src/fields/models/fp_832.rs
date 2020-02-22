@@ -26,7 +26,6 @@ pub trait Fp832Parameters: FpParameters<BigInt = BigInteger> {}
 )]
 pub struct Fp832<P: Fp832Parameters>(
     pub BigInteger,
-
     #[derivative(Debug = "ignore")]
     #[doc(hidden)]
     pub PhantomData<P>,
@@ -798,11 +797,11 @@ impl<P: Fp832Parameters> FromStr for Fp832<P> {
                     res.add_assign(&Self::from_repr(<Self as PrimeField>::BigInt::from(
                         u64::from(c),
                     )));
-                },
+                }
                 None => {
                     println!("Not valid digit!");
                     return Err(());
-                },
+                }
             }
         }
         if !res.is_valid() {
