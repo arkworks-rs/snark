@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::crh::FixedLengthCRH;
-use algebra::{groups::Group, Field, ToConstraintField};
+use algebra_core::{groups::Group, Field, ToConstraintField};
 
 #[cfg(feature = "r1cs")]
 pub mod constraints;

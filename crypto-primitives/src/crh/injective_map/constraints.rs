@@ -9,7 +9,7 @@ use crate::crh::{
     FixedLengthCRHGadget,
 };
 
-use algebra::{
+use algebra_core::{
     curves::{
         models::{ModelParameters, TEModelParameters},
         twisted_edwards_extended::{GroupAffine as TEAffine, GroupProjective as TEProjective},

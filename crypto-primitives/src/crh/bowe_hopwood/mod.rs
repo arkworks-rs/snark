@@ -8,7 +8,7 @@ use std::{
 
 use super::pedersen::{bytes_to_bits, PedersenCRH, PedersenWindow};
 use crate::crh::FixedLengthCRH;
-use algebra::{biginteger::BigInteger, fields::PrimeField, groups::Group};
+use algebra_core::{biginteger::BigInteger, fields::PrimeField, groups::Group};
 
 #[cfg(feature = "r1cs")]
 pub mod constraints;

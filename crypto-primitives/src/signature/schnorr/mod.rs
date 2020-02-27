@@ -1,5 +1,5 @@
 use crate::{Error, SignatureScheme};
-use algebra::{
+use algebra_core::{
     bytes::ToBytes,
     fields::{Field, PrimeField},
     groups::Group,

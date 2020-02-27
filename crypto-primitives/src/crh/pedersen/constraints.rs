@@ -2,7 +2,7 @@ use crate::crh::{
     pedersen::{PedersenCRH, PedersenParameters, PedersenWindow},
     FixedLengthCRHGadget,
 };
-use algebra::{Field, Group};
+use algebra_core::{Field, Group};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
 

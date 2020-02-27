@@ -2,11 +2,11 @@ use crate::{
     commitment::pedersen::{PedersenCommitment, PedersenParameters, PedersenRandomness},
     crh::pedersen::PedersenWindow,
 };
-use algebra::{to_bytes, Group, ToBytes};
+use algebra_core::{to_bytes, Group, ToBytes};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
 use crate::commitment::CommitmentGadget;
-use algebra::fields::{Field, PrimeField};
+use algebra_core::fields::{Field, PrimeField};
 use r1cs_std::prelude::*;
 use std::{borrow::Borrow, marker::PhantomData};
 

@@ -1,5 +1,5 @@
 use crate::{crh::FixedLengthCRH, Error};
-use algebra::bytes::ToBytes;
+use algebra_core::bytes::ToBytes;
 use std::{fmt, rc::Rc};
 
 #[cfg(feature = "r1cs")]

@@ -5,7 +5,7 @@ use crate::{
     prf::blake2s::constraints::{blake2s_gadget, Blake2sOutputGadget},
     CommitmentGadget,
 };
-use algebra::{Field, PrimeField};
+use algebra_core::{Field, PrimeField};
 use r1cs_std::prelude::*;
 
 use std::borrow::Borrow;

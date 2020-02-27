@@ -1,5 +1,5 @@
 use crate::Error;
-use algebra::{
+use algebra_core::{
     bytes::ToBytes, groups::Group, BitIterator, Field, FpParameters, PrimeField, ToConstraintField,
     UniformRand,
 };

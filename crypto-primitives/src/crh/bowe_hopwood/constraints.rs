@@ -1,4 +1,4 @@
-use algebra::Field;
+use algebra_core::Field;
 use std::hash::Hash;
 
 use crate::crh::{
@@ -6,7 +6,7 @@ use crate::crh::{
     pedersen::PedersenWindow,
     FixedLengthCRHGadget,
 };
-use algebra::groups::Group;
+use algebra_core::groups::Group;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::{alloc::AllocGadget, groups::GroupGadget, uint8::UInt8};
 

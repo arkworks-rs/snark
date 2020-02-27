@@ -1,4 +1,4 @@
-use algebra::PrimeField;
+use algebra_core::PrimeField;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
 use crate::prf::PRFGadget;

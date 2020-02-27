@@ -1,5 +1,5 @@
 use crate::nizk::{gm17::Gm17, NIZKVerifierGadget};
-use algebra::{AffineCurve, Field, PairingEngine, ToConstraintField};
+use algebra_core::{AffineCurve, Field, PairingEngine, ToConstraintField};
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
 

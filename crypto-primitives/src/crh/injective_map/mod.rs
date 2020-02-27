@@ -1,5 +1,5 @@
 use crate::{CryptoError, Error};
-use algebra::bytes::ToBytes;
+use algebra_core::bytes::ToBytes;
 use rand::Rng;
 use std::{fmt::Debug, hash::Hash, marker::PhantomData};
 
@@ -7,7 +7,7 @@ use super::{
     pedersen::{PedersenCRH, PedersenParameters, PedersenWindow},
     FixedLengthCRH,
 };
-use algebra::{
+use algebra_core::{
     curves::{
         models::{ModelParameters, TEModelParameters},
         twisted_edwards_extended::{GroupAffine as TEAffine, GroupProjective as TEProjective},
