@@ -31,10 +31,13 @@ rand_xorshift = "0.2"
 [features]
 default = [ "std" ]
 
-full = [ "bls12_377", "bls12_381", "sw6", "mnt6" ]
+full = [ "bls12_377", "bls12_381", "sw6", "mnt6", "edwards_bls12", "edwards_sw6", "jubjub" ]
 
 bls12_377 = []
 bls12_381 = []
+edwards_bls12 = []
+edwards_sw6 = []
+jubjub = []
 sw6 = []
 mnt6 = []
 

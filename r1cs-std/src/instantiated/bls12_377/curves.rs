@@ -1,14 +1,11 @@
-use crate::groups::bls12::{
-    G1Gadget as Bls12G1Gadget, G1PreparedGadget as Bls12G1PreparedGadget,
-    G2Gadget as Bls12G2Gadget, G2PreparedGadget as Bls12G2PreparedGadget,
-};
-use algebra::curves::bls12_377::Bls12_377Parameters;
+use crate::groups::bls12;
+use algebra::bls12_377::Parameters;
 
-pub type G1Gadget = Bls12G1Gadget<Bls12_377Parameters>;
-pub type G2Gadget = Bls12G2Gadget<Bls12_377Parameters>;
+pub type G1Gadget = bls12::G1Gadget<Parameters>;
+pub type G2Gadget = bls12::G2Gadget<Parameters>;
 
-pub type G1PreparedGadget = Bls12G1PreparedGadget<Bls12_377Parameters>;
-pub type G2PreparedGadget = Bls12G2PreparedGadget<Bls12_377Parameters>;
+pub type G1PreparedGadget = bls12::G1PreparedGadget<Parameters>;
+pub type G2PreparedGadget = bls12::G2PreparedGadget<Parameters>;
 
 #[cfg(test)]
 mod test {
@@ -16,11 +13,8 @@ mod test {
 
     use super::{G1Gadget, G2Gadget};
     use crate::{prelude::*, test_constraint_system::TestConstraintSystem, Vec};
-    use algebra::{
-        curves::bls12_377::{G1Projective as G1, G2Projective as G2},
-        fields::bls12_377::{Fq, Fr},
-        test_rng, AffineCurve, BitIterator, PrimeField, ProjectiveCurve,
-    };
+    use algebra::bls12_377::*;
+    use algebra::{test_rng, AffineCurve, BitIterator, PrimeField, ProjectiveCurve};
     use r1cs_core::ConstraintSystem;
 
     #[test]
@@ -34,8 +28,8 @@ mod test {
             .into();
 
         let mut rng = test_rng();
-        let a: G1 = rng.gen();
-        let b: G1 = rng.gen();
+        let a: G1Projective = rng.gen();
+        let b: G1Projective = rng.gen();
         let gadget_a = G1Gadget::alloc(&mut cs.ns(|| "a"), || Ok(a)).unwrap();
         let gadget_b = G1Gadget::alloc(&mut cs.ns(|| "b"), || Ok(b)).unwrap();
         let alloc_cost = cs.num_constraints();
@@ -67,8 +61,8 @@ mod test {
             .into();
 
         let mut rng = test_rng();
-        let a: G2 = rng.gen();
-        let b: G2 = rng.gen();
+        let a: G2Projective = rng.gen();
+        let b: G2Projective = rng.gen();
         let gadget_a = G2Gadget::alloc(&mut cs.ns(|| "a"), || Ok(a)).unwrap();
         let gadget_b = G2Gadget::alloc(&mut cs.ns(|| "b"), || Ok(b)).unwrap();
         let alloc_cost = cs.num_constraints();
@@ -98,8 +92,8 @@ mod test {
 
         let mut cs = TestConstraintSystem::<Fq>::new();
 
-        let a = G1::rand(&mut rng);
-        let b = G1::rand(&mut rng);
+        let a = G1Projective::rand(&mut rng);
+        let b = G1Projective::rand(&mut rng);
         let a_affine = a.into_affine();
         let b_affine = b.into_affine();
         let mut gadget_a = G1Gadget::alloc(&mut cs.ns(|| "a"), || Ok(a)).unwrap();
@@ -167,8 +161,8 @@ mod test {
         let mut cs = TestConstraintSystem::<Fq>::new();
 
         let mut rng = test_rng();
-        let a: G2 = rng.gen();
-        let b: G2 = rng.gen();
+        let a: G2Projective = rng.gen();
+        let b: G2Projective = rng.gen();
         let a_affine = a.into_affine();
         let b_affine = b.into_affine();
 

@@ -1,7 +1,7 @@
-#[cfg(feature = "bls12_381")]
 mod curves;
 mod fields;
+mod pairing;
 
-#[cfg(feature = "bls12_381")]
 pub use curves::*;
 pub use fields::*;
+pub use pairing::*;

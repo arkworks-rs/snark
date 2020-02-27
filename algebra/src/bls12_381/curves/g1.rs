@@ -1,6 +1,7 @@
 use crate::{
     biginteger::{BigInteger256, BigInteger384},
     bls12_381::*,
+    bls12_381,
     curves::{
         bls12,
         models::{ModelParameters, SWModelParameters},
@@ -8,8 +9,8 @@ use crate::{
     field_new, Zero,
 };
 
-pub type G1Affine = bls12::G1Affine<Bls12_381Parameters>;
-pub type G1Projective = bls12::G1Projective<Bls12_381Parameters>;
+pub type G1Affine = bls12::G1Affine<bls12_381::Parameters>;
+pub type G1Projective = bls12::G1Projective<bls12_381::Parameters>;
 
 #[derive(Clone, Default, PartialEq, Eq)]
 pub struct Parameters;
