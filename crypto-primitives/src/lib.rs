@@ -42,7 +42,7 @@ pub use self::{
 pub type Error = Box<dyn std::error::Error>;
 
 #[cfg(not(feature = "std"))]
-pub type Error = Box<dyn algebra::Error>;
+pub type Error = Box<dyn algebra_core::Error>;
 
 #[derive(Debug)]
 pub enum CryptoError {
@@ -69,4 +69,4 @@ impl std::error::Error for CryptoError {
 }
 
 #[cfg(not(feature = "std"))]
-impl algebra::Error for CryptoError {}
+impl algebra_core::Error for CryptoError {}

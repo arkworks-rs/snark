@@ -1,14 +1,14 @@
-use crate::Error;
+use crate::{Error, Vec};
 use algebra_core::{
     bytes::ToBytes, groups::Group, BitIterator, Field, FpParameters, PrimeField, ToConstraintField,
     UniformRand,
 };
+use algebra_core::io::{Result as IoResult, Write};
 
 use core::marker::PhantomData;
 use rand::Rng;
 
 use super::CommitmentScheme;
-use algebra::io::{Result as IoResult, Write};
 
 pub use crate::crh::pedersen::PedersenWindow;
 use crate::crh::{
