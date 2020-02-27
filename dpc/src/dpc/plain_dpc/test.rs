@@ -1,6 +1,6 @@
 use super::instantiated::*;
 use algebra::{
-    fields::bls12_377::{fq::Fq, fr::Fr},
+    bls12_377::{Fq, Fr},
     to_bytes, ToBytes,
 };
 #[cfg(debug_assertions)]
