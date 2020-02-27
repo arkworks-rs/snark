@@ -1,7 +1,6 @@
 mod g1 {
     use algebra::{
-        curves::sw6::{G1Affine, G1Projective as G1},
-        fields::sw6::Fr,
+        sw6::{Fr, G1Affine, G1Projective as G1},
         ProjectiveCurve, UniformRand,
     };
     use rand::SeedableRng;
@@ -93,8 +92,7 @@ mod g1 {
 
 mod g2 {
     use algebra::{
-        curves::sw6::{G2Affine, G2Projective as G2},
-        fields::sw6::Fr,
+        sw6::{Fr, G2Affine, G2Projective as G2},
         ProjectiveCurve, UniformRand,
     };
     use rand::SeedableRng;

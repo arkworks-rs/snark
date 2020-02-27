@@ -4,15 +4,11 @@ mod pairing {
     use rand_xorshift::XorShiftRng;
 
     use algebra::{
-        curves::{
-            bls12::{G1Prepared, G2Prepared},
-            bls12_377::{
-                Bls12_377, Bls12_377Parameters, G1Affine, G1Projective as G1, G2Affine,
-                G2Projective as G2,
-            },
-            PairingCurve, PairingEngine,
+        bls12::{G1Prepared, G2Prepared},
+        bls12_377::{
+            Bls12_377, Fq12, G1Affine, G1Projective as G1, G2Affine, G2Projective as G2, Parameters,
         },
-        fields::bls12_377::Fq12,
+        PairingEngine,
     };
 
     #[bench]
@@ -21,21 +17,18 @@ mod pairing {
 
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-        let v: Vec<(
-            G1Prepared<Bls12_377Parameters>,
-            G2Prepared<Bls12_377Parameters>,
-        )> = (0..SAMPLES)
+        let v: Vec<(G1Prepared<Parameters>, G2Prepared<Parameters>)> = (0..SAMPLES)
             .map(|_| {
                 (
-                    G1Affine::from(G1::rand(&mut rng)).prepare(),
-                    G2Affine::from(G2::rand(&mut rng)).prepare(),
+                    G1Affine::from(G1::rand(&mut rng)).into(),
+                    G2Affine::from(G2::rand(&mut rng)).into(),
                 )
             })
             .collect();
 
         let mut count = 0;
         b.iter(|| {
-            let tmp = Bls12_377::miller_loop(&[(&v[count].0, &v[count].1)]);
+            let tmp = Bls12_377::miller_loop(&[(v[count].0.clone(), v[count].1.clone())]);
             count = (count + 1) % SAMPLES;
             tmp
         });
@@ -49,12 +42,10 @@ mod pairing {
 
         let v: Vec<Fq12> = (0..SAMPLES)
             .map(|_| {
-                (
-                    G1Affine::from(G1::rand(&mut rng)).prepare(),
-                    G2Affine::from(G2::rand(&mut rng)).prepare(),
-                )
+                let p = G1Affine::from(G1::rand(&mut rng)).into();
+                let q = G2Affine::from(G2::rand(&mut rng)).into();
+                Bls12_377::miller_loop(&[(p, q)])
             })
-            .map(|(ref p, ref q)| Bls12_377::miller_loop(&[(p, q)]))
             .collect();
 
         let mut count = 0;

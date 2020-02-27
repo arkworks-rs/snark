@@ -2,7 +2,7 @@
 extern crate criterion;
 
 mod affine {
-    use algebra::curves::edwards_bls12::EdwardsAffine as Edwards;
+    use algebra::edwards_bls12::EdwardsAffine as Edwards;
     use blake2::Blake2s;
     use criterion::Criterion;
     use crypto_primitives::signature::{schnorr::*, SignatureScheme};
@@ -90,7 +90,7 @@ mod affine {
 }
 
 mod projective {
-    use algebra::curves::edwards_bls12::EdwardsProjective as Edwards;
+    use algebra::edwards_bls12::EdwardsProjective as Edwards;
     use blake2::Blake2s;
     use criterion::Criterion;
     use crypto_primitives::signature::{schnorr::*, SignatureScheme};

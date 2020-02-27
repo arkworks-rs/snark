@@ -3,7 +3,7 @@ use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 use std::ops::{AddAssign, MulAssign, SubAssign};
 
-use algebra::{fields::bls12_381::fq2::Fq2, Field, SquareRootField};
+use algebra::{bls12_381::fq2::Fq2, Field, SquareRootField};
 
 #[bench]
 fn bench_fq2_add_assign(b: &mut ::test::Bencher) {

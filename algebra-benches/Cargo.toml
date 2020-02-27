@@ -23,7 +23,7 @@ publish = false
 ################################# Dependencies ################################
 
 [dev-dependencies]
-algebra = { path = "../algebra" }
+algebra = { path = "../algebra", features = [ "full" ] }
 blake2 = "0.8.1"
 criterion = "0.3.1"
 rand = "0.7"

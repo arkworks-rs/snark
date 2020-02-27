@@ -1,7 +1,6 @@
 mod g1 {
     use algebra::{
-        curves::bls12_377::{G1Affine, G1Projective as G1},
-        fields::bls12_377::Fr,
+        bls12_377::{Fr, G1Affine, G1Projective as G1},
         ProjectiveCurve, UniformRand,
     };
     use core::ops::AddAssign;
@@ -93,8 +92,7 @@ mod g1 {
 
 mod g2 {
     use algebra::{
-        curves::bls12_377::{G2Affine, G2Projective as G2},
-        fields::bls12_377::Fr,
+        bls12_377::{Fr, G2Affine, G2Projective as G2},
         ProjectiveCurve, UniformRand,
     };
     use core::ops::AddAssign;
