@@ -1,5 +1,5 @@
 #![allow(unused)]
-use algebra_core::{Group, UniformRand, One, Zero};
+use algebra_core::{Group, One, UniformRand, Zero};
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 

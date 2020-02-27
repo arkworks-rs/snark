@@ -2,14 +2,20 @@
 use algebra_core::{
     curves::{models::SWModelParameters, AffineCurve, PairingEngine, ProjectiveCurve},
     fields::{Field, FpParameters, PrimeField, SquareRootField},
-    test_rng, CanonicalSerialize,
-    One, Zero,
+    test_rng, CanonicalSerialize, One, Zero,
 };
 use core::ops::{AddAssign, MulAssign};
 use rand::Rng;
-            
-use crate::bls12_377::{Fq, Fq12, Fq2, Fr, g1, g2, Bls12_377, G1Affine, G1Projective, G2Affine, G2Projective};
-use crate::tests::{curves::{curve_tests, sw_curve_serialization_test}, groups::group_test};
+
+use crate::{
+    bls12_377::{
+        g1, g2, Bls12_377, Fq, Fq12, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective,
+    },
+    tests::{
+        curves::{curve_tests, sw_curve_serialization_test},
+        groups::group_test,
+    },
+};
 
 #[test]
 fn test_g1_projective_curve() {

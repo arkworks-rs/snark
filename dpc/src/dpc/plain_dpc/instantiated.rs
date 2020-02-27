@@ -1,8 +1,6 @@
 use algebra::{
-    Bls12_377,
-    bls12_377,
-    edwards_bls12::EdwardsProjective as EdwardsBls,
-    edwards_sw6::EdwardsProjective as EdwardsSW, sw6::SW6,
+    bls12_377, edwards_bls12::EdwardsProjective as EdwardsBls,
+    edwards_sw6::EdwardsProjective as EdwardsSW, sw6::SW6, Bls12_377,
 };
 
 use crypto_primitives::{
@@ -26,8 +24,7 @@ use crypto_primitives::{
     prf::blake2s::constraints::Blake2sGadget,
 };
 use r1cs_std::{
-    edwards_bls12::EdwardsBlsGadget, edwards_sw6::EdwardsSWGadget,
-    bls12_377::PairingGadget,
+    bls12_377::PairingGadget, edwards_bls12::EdwardsBlsGadget, edwards_sw6::EdwardsSWGadget,
 };
 
 use crate::dpc::plain_dpc::{

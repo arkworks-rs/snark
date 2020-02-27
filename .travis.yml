@@ -51,6 +51,11 @@ matrix:
         - set +e
       script:
         # test algebra
+        - cd algebra-core
+        - cargo build -p algebra-core --no-default-features --target thumbv6m-none-eabi
+        - cargo check --examples -p algebra --no-default-features --target thumbv6m-none-eabi
+        - cd ..
+        # test algebra
         - cd algebra
         - cargo build -p algebra --no-default-features --target thumbv6m-none-eabi
         - cargo check --examples -p algebra --no-default-features --target thumbv6m-none-eabi

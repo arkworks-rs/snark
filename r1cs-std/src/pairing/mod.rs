@@ -56,13 +56,20 @@ pub trait PairingGadget<PairingE: PairingEngine, ConstraintF: Field> {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use crate::prelude::*;
-    use crate::{test_constraint_system::TestConstraintSystem, Vec, bits::boolean::Boolean};
-    use algebra::{PairingEngine, BitIterator, Field, ProjectiveCurve, PrimeField, UniformRand, test_rng};
+    use crate::{
+        bits::boolean::Boolean, prelude::*, test_constraint_system::TestConstraintSystem, Vec,
+    };
+    use algebra::{
+        test_rng, BitIterator, Field, PairingEngine, PrimeField, ProjectiveCurve, UniformRand,
+    };
     use r1cs_core::ConstraintSystem;
 
     #[allow(dead_code)]
-    pub(crate) fn bilinearity_test<E: PairingEngine, ConstraintF: Field, P: PairingGadget<E, ConstraintF>>() {
+    pub(crate) fn bilinearity_test<
+        E: PairingEngine,
+        ConstraintF: Field,
+        P: PairingGadget<E, ConstraintF>,
+    >() {
         let mut cs = TestConstraintSystem::<ConstraintF>::new();
 
         let mut rng = test_rng();
@@ -87,17 +94,13 @@ pub(crate) mod tests {
         let sb_prep_g = P::prepare_g2(&mut cs.ns(|| "sb_prep"), &sb_g).unwrap();
 
         let (ans1_g, ans1_n) = {
-            let ans_g =
-                P::pairing(cs.ns(|| "pair(sa, b)"), sa_prep_g, b_prep_g.clone())
-                    .unwrap();
+            let ans_g = P::pairing(cs.ns(|| "pair(sa, b)"), sa_prep_g, b_prep_g.clone()).unwrap();
             let ans_n = E::pairing(sa, b);
             (ans_g, ans_n)
         };
 
         let (ans2_g, ans2_n) = {
-            let ans_g =
-                P::pairing(cs.ns(|| "pair(a, sb)"), a_prep_g.clone(), sb_prep_g)
-                    .unwrap();
+            let ans_g = P::pairing(cs.ns(|| "pair(a, sb)"), a_prep_g.clone(), sb_prep_g).unwrap();
             let ans_n = E::pairing(a, sb);
             (ans_g, ans_n)
         };
@@ -107,8 +110,7 @@ pub(crate) mod tests {
                 .map(Boolean::constant)
                 .collect::<Vec<_>>();
 
-            let mut ans_g =
-                P::pairing(cs.ns(|| "pair(a, b)"), a_prep_g, b_prep_g).unwrap();
+            let mut ans_g = P::pairing(cs.ns(|| "pair(a, b)"), a_prep_g, b_prep_g).unwrap();
             let mut ans_n = E::pairing(a, b);
             ans_n = ans_n.pow(s.into_repr());
             ans_g = ans_g.pow(cs.ns(|| "pow"), &s_iter).unwrap();

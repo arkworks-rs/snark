@@ -1,4 +1,4 @@
-use algebra_core::{One, Zero, PairingEngine};
+use algebra_core::{One, PairingEngine, Zero};
 use ff_fft::{cfg_iter, cfg_iter_mut, EvaluationDomain};
 
 use crate::{generator::KeypairAssembly, prover::ProvingAssignment, Vec};

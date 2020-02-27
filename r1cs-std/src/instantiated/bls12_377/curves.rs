@@ -13,8 +13,7 @@ mod test {
 
     use super::{G1Gadget, G2Gadget};
     use crate::{prelude::*, test_constraint_system::TestConstraintSystem, Vec};
-    use algebra::bls12_377::*;
-    use algebra::{test_rng, AffineCurve, BitIterator, PrimeField, ProjectiveCurve};
+    use algebra::{bls12_377::*, test_rng, AffineCurve, BitIterator, PrimeField, ProjectiveCurve};
     use r1cs_core::ConstraintSystem;
 
     #[test]

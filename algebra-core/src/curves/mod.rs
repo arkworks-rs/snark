@@ -272,7 +272,6 @@ pub fn prepare_g1<E: PairingEngine>(g: impl Into<E::G1Affine>) -> E::G1Prepared 
     E::G1Prepared::from(g)
 }
 
-
 /// Preprocess a G2 element for use in a pairing.
 pub fn prepare_g2<E: PairingEngine>(g: impl Into<E::G2Affine>) -> E::G2Prepared {
     let g: E::G2Affine = g.into();

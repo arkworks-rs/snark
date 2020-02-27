@@ -80,7 +80,7 @@ mod sw6 {
 
     use algebra_core::{test_rng, UniformRand};
 
-    use algebra::sw6::{SW6, Fr};
+    use algebra::sw6::{Fr, SW6};
 
     #[test]
     fn prove_and_verify() {

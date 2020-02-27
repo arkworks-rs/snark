@@ -1,8 +1,8 @@
+use crate::tests::fields::{field_test, primefield_test};
 use algebra_core::test_rng;
 use rand::Rng;
-use crate::tests::fields::{field_test, primefield_test};
 
-use crate::edwards_sw6::{Fr, Fq};
+use crate::edwards_sw6::{Fq, Fr};
 
 #[test]
 fn test_fr() {

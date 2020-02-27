@@ -2,8 +2,10 @@ use crate::{
     commitment::pedersen::{PedersenCommitment, PedersenParameters, PedersenRandomness},
     crh::pedersen::PedersenWindow,
 };
-use algebra_core::{to_bytes, Group, ToBytes};
-use algebra_core::fields::{Field, PrimeField};
+use algebra_core::{
+    fields::{Field, PrimeField},
+    to_bytes, Group, ToBytes,
+};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
 use crate::commitment::CommitmentGadget;
@@ -173,9 +175,7 @@ where
 mod test {
     use algebra::{
         jubjub::{Fq, Fr, JubJubProjective as JubJub},
-        ProjectiveCurve,
-        UniformRand,
-        test_rng,
+        test_rng, ProjectiveCurve, UniformRand,
     };
 
     use crate::{

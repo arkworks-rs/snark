@@ -185,16 +185,13 @@ mod test {
         },
         merkle_tree::*,
     };
-    use algebra::{jubjub::{JubJubAffine as JubJub, Fq}};
+    use algebra::jubjub::{Fq, JubJubAffine as JubJub};
     use r1cs_core::ConstraintSystem;
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
 
     use super::*;
-    use r1cs_std::{
-        jubjub::JubJubGadget,
-        test_constraint_system::TestConstraintSystem,
-    };
+    use r1cs_std::{jubjub::JubJubGadget, test_constraint_system::TestConstraintSystem};
 
     #[derive(Clone)]
     pub(super) struct Window4x256;

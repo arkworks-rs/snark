@@ -215,7 +215,6 @@ fn random_sqrt_tests<F: SquareRootField>() {
     }
 }
 
-
 pub fn from_str_test<F: PrimeField>() {
     {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);

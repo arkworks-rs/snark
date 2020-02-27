@@ -4,10 +4,8 @@ use algebra_core::{
         models::short_weierstrass_jacobian::{GroupAffine, GroupProjective},
         AffineCurve, ProjectiveCurve,
     },
-    Field, PrimeField,
-    CanonicalDeserialize, CanonicalSerialize, SWModelParameters, SerializationError, UniformRand,
-    MontgomeryModelParameters, TEModelParameters,
-    Vec, One, Zero
+    CanonicalDeserialize, CanonicalSerialize, Field, MontgomeryModelParameters, One, PrimeField,
+    SWModelParameters, SerializationError, TEModelParameters, UniformRand, Vec, Zero,
 };
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;

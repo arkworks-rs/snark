@@ -1,14 +1,12 @@
 use algebra_core::{
-    Field, PrimeField, AffineCurve, PairingEngine, ProjectiveCurve,
-    test_rng, CanonicalSerialize,
-    One
+    test_rng, AffineCurve, CanonicalSerialize, Field, One, PairingEngine, PrimeField,
+    ProjectiveCurve,
 };
 use rand::Rng;
 
 use crate::sw6::*;
 
 use crate::tests::{curves::*, groups::*};
-
 
 #[test]
 fn test_g1_projective_curve() {

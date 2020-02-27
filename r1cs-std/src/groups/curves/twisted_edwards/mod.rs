@@ -1407,11 +1407,12 @@ where
     P: TEModelParameters,
     GG: GroupGadget<TEAffine<P>, ConstraintF, Value = TEAffine<P>>,
 {
-    use crate::boolean::AllocatedBit;
-    use crate::{test_constraint_system::TestConstraintSystem, groups::test::group_test, prelude::*};
+    use crate::{
+        boolean::AllocatedBit, groups::test::group_test, prelude::*,
+        test_constraint_system::TestConstraintSystem,
+    };
     use algebra::{test_rng, Group, PrimeField, UniformRand};
     use rand::Rng;
-
 
     group_test::<ConstraintF, TEAffine<P>, GG>();
 
@@ -1435,7 +1436,6 @@ where
     assert_eq!(native_result, gadget_value);
 
     assert!(cs.is_satisfied());
-
 
     // Test the cost of allocation, conditional selection, and point addition.
     let mut cs = TestConstraintSystem::new();

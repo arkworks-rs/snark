@@ -64,12 +64,12 @@ pub mod select;
 
 pub mod prelude {
     pub use crate::{
-        instantiated::*,
         alloc::*,
         bits::{boolean::Boolean, uint32::UInt32, uint8::UInt8, ToBitsGadget, ToBytesGadget},
         eq::*,
         fields::FieldGadget,
         groups::GroupGadget,
+        instantiated::*,
         pairing::PairingGadget,
         select::*,
     };

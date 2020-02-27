@@ -1,6 +1,6 @@
 use algebra_core::{
-    msm::FixedBaseMSM, AffineCurve, Field, PairingEngine, PrimeField, ProjectiveCurve, UniformRand,
-    One, Zero,
+    msm::FixedBaseMSM, AffineCurve, Field, One, PairingEngine, PrimeField, ProjectiveCurve,
+    UniformRand, Zero,
 };
 use ff_fft::{cfg_into_iter, cfg_iter, EvaluationDomain};
 

@@ -1,12 +1,9 @@
 use algebra_core::{
     biginteger::{BigInteger, BigInteger384},
     fields::{
-        fp6_3over2::Fp6Parameters,
-        
-        Field, Fp2Parameters, FpParameters, PrimeField, SquareRootField,
+        fp6_3over2::Fp6Parameters, Field, Fp2Parameters, FpParameters, PrimeField, SquareRootField,
     },
-    test_rng, CanonicalSerialize, UniformRand,
-    One, Zero,
+    test_rng, CanonicalSerialize, One, UniformRand, Zero,
 };
 use core::{
     cmp::Ordering,
@@ -15,8 +12,12 @@ use core::{
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 
-use crate::bls12_377::{Fr, Fq, Fq12, Fq2, Fq2Parameters, Fq6, Fq6Parameters, FqParameters};
-use crate::tests::fields::{field_serialization_test, field_test, frobenius_test, primefield_test, sqrt_field_test};
+use crate::{
+    bls12_377::{Fq, Fq12, Fq2, Fq2Parameters, Fq6, Fq6Parameters, FqParameters, Fr},
+    tests::fields::{
+        field_serialization_test, field_test, frobenius_test, primefield_test, sqrt_field_test,
+    },
+};
 
 pub(crate) const ITERATIONS: usize = 5;
 

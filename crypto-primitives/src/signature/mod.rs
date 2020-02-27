@@ -1,7 +1,7 @@
 use crate::Error;
 use algebra_core::bytes::ToBytes;
-use rand::Rng;
 use core::hash::Hash;
+use rand::Rng;
 
 #[cfg(feature = "r1cs")]
 pub mod constraints;
@@ -54,9 +54,7 @@ pub trait SignatureScheme {
 mod test {
     use crate::{signature::schnorr::SchnorrSignature, SignatureScheme};
     use algebra::{
-        jubjub::JubJubAffine as JubJub, groups::Group, to_bytes, ToBytes,
-        UniformRand,
-        test_rng,
+        groups::Group, jubjub::JubJubAffine as JubJub, test_rng, to_bytes, ToBytes, UniformRand,
     };
     use blake2::Blake2s;
 

@@ -1,7 +1,7 @@
 use crate::{CryptoError, Error};
 use algebra_core::bytes::ToBytes;
-use rand::Rng;
 use core::{fmt::Debug, hash::Hash, marker::PhantomData};
+use rand::Rng;
 
 use super::{
     pedersen::{PedersenCRH, PedersenParameters, PedersenWindow},

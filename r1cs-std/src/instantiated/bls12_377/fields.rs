@@ -7,19 +7,17 @@ pub type Fq2Gadget = Fp2Gadget<Fq2Parameters, Fq>;
 pub type Fq6Gadget = Fp6Gadget<Fq6Parameters, Fq>;
 pub type Fq12Gadget = Fp12Gadget<Fq12Parameters, Fq>;
 
-
 #[test]
 fn bls12_377_field_gadgets_test() {
-    use algebra::bls12_377::{Fq, Fq12, Fq2, Fq6};
     use super::*;
     use crate::fields::tests::*;
+    use algebra::bls12_377::{Fq, Fq12, Fq2, Fq6};
 
     field_test::<_, Fq, FqGadget>();
     frobenius_tests::<Fq, Fq, FqGadget>(13);
 
     field_test::<_, Fq, Fq2Gadget>();
     frobenius_tests::<Fq2, Fq, Fq2Gadget>(13);
-
 
     field_test::<_, Fq, Fq6Gadget>();
     frobenius_tests::<Fq6, Fq, Fq6Gadget>(13);

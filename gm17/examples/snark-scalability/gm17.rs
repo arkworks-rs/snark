@@ -2,7 +2,7 @@
 #![deny(unused_qualifications, variant_size_differences, unused_extern_crates)]
 #![deny(non_shorthand_field_patterns, unused_attributes, unused_imports)]
 #![deny(renamed_and_removed_lints, unused_allocation, unused_comparisons)]
-#![deny(unused_must_use,unused_mut,private_in_public,unsafe_code)]
+#![deny(unused_must_use, unused_mut, private_in_public, unsafe_code)]
 #![forbid(unsafe_code)]
 
 use csv;

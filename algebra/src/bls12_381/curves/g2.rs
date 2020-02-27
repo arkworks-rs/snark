@@ -1,7 +1,7 @@
 use crate::{
     biginteger::{BigInteger256, BigInteger384},
-    bls12_381::*,
     bls12_381,
+    bls12_381::*,
     curves::{
         bls12,
         models::{ModelParameters, SWModelParameters},

@@ -355,7 +355,7 @@ mod test {
         test_rng, BitIterator, PrimeField,
     };
     use r1cs_std::{
-        boolean::Boolean, bls12_377::PairingGadget as Bls12_377PairingGadget,
+        bls12_377::PairingGadget as Bls12_377PairingGadget, boolean::Boolean,
         test_constraint_system::TestConstraintSystem,
     };
     use rand::Rng;

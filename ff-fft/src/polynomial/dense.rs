@@ -346,8 +346,8 @@ impl<'a, 'b, F: PrimeField> Mul<&'a DensePolynomial<F>> for &'b DensePolynomial<
 #[cfg(test)]
 mod tests {
     use crate::polynomial::*;
-    use algebra_core::{test_rng, One, UniformRand, Zero, Field};
     use algebra::bls12_381::fr::Fr;
+    use algebra_core::{test_rng, Field, One, UniformRand, Zero};
 
     #[test]
     fn double_polynomials_random() {

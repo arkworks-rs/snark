@@ -6,8 +6,7 @@ use rand::Rng;
 
 use crate::edwards_sw6::*;
 
-use crate::tests::{groups::*, curves::*};
-
+use crate::tests::{curves::*, groups::*};
 
 #[test]
 fn test_projective_curve() {

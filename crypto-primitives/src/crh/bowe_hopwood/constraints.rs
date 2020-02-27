@@ -1,13 +1,11 @@
-use core::hash::Hash;
-use core::{borrow::Borrow, marker::PhantomData};
+use core::{borrow::Borrow, hash::Hash, marker::PhantomData};
 
 use crate::crh::{
     bowe_hopwood::{BoweHopwoodPedersenCRH, BoweHopwoodPedersenParameters, CHUNK_SIZE},
     pedersen::PedersenWindow,
     FixedLengthCRHGadget,
 };
-use algebra_core::groups::Group;
-use algebra_core::Field;
+use algebra_core::{groups::Group, Field};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::{alloc::AllocGadget, groups::GroupGadget, uint8::UInt8};
 
@@ -125,18 +123,21 @@ impl<G: Group, W: PedersenWindow, ConstraintF: Field, GG: GroupGadget<G, Constra
 
 #[cfg(test)]
 mod test {
-    use rand::{Rng};
+    use rand::Rng;
 
     use crate::crh::{
         bowe_hopwood::{constraints::BoweHopwoodPedersenCRHGadget, BoweHopwoodPedersenCRH},
         pedersen::PedersenWindow,
         FixedLengthCRH, FixedLengthCRHGadget,
     };
-    use algebra::{jubjub::{Fq as Fr, JubJubProjective as JubJub}, ProjectiveCurve, test_rng};
+    use algebra::{
+        jubjub::{Fq as Fr, JubJubProjective as JubJub},
+        test_rng, ProjectiveCurve,
+    };
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
-        alloc::AllocGadget, jubjub::JubJubGadget,
-        test_constraint_system::TestConstraintSystem, uint8::UInt8,
+        alloc::AllocGadget, jubjub::JubJubGadget, test_constraint_system::TestConstraintSystem,
+        uint8::UInt8,
     };
 
     type TestCRH = BoweHopwoodPedersenCRH<JubJub, Window>;

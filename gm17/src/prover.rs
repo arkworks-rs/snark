@@ -3,8 +3,8 @@ use rand::Rng;
 use rayon::prelude::*;
 
 use algebra_core::{
-    msm::VariableBaseMSM, AffineCurve, PairingEngine, PrimeField, ProjectiveCurve, UniformRand,
-    One, Zero
+    msm::VariableBaseMSM, AffineCurve, One, PairingEngine, PrimeField, ProjectiveCurve,
+    UniformRand, Zero,
 };
 
 use crate::{r1cs_to_sap::R1CStoSAP, Parameters, Proof, String, Vec};

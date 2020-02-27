@@ -1,6 +1,6 @@
 use crate::domain::*;
-use algebra_core::{test_rng, UniformRand, PairingEngine};
 use algebra::bls12_381::Bls12_381;
+use algebra_core::{test_rng, PairingEngine, UniformRand};
 
 // Test multiplying various (low degree) polynomials together and
 // comparing with naive evaluations.

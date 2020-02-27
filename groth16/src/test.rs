@@ -40,8 +40,8 @@ mod bls12_377 {
         create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
     };
 
+    use algebra::bls12_377::{Bls12_377, Fr};
     use algebra_core::{test_rng, UniformRand};
-    use algebra::bls12_377::{Bls12_377, Fr}; 
     use core::ops::MulAssign;
 
     #[test]
@@ -82,8 +82,8 @@ mod sw6 {
         create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
     };
 
+    use algebra::sw6::{Fr, SW6};
     use algebra_core::{test_rng, UniformRand, Zero};
-    use algebra::sw6::{SW6, Fr}; 
 
     #[test]
     fn prove_and_verify() {

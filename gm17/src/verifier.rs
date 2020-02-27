@@ -11,9 +11,7 @@ pub fn prepare_verifying_key<E: PairingEngine>(vk: &VerifyingKey<E>) -> Prepared
         vk:                vk.clone(),
         g_alpha:           vk.g_alpha_g1,
         h_beta:            vk.h_beta_g2,
-        g_alpha_h_beta_ml: E::miller_loop(
-            [(vk.g_alpha_g1.into(), vk.h_beta_g2.into())].iter(),
-        ),
+        g_alpha_h_beta_ml: E::miller_loop([(vk.g_alpha_g1.into(), vk.h_beta_g2.into())].iter()),
         g_gamma_pc:        vk.g_gamma_g1.into(),
         h_gamma_pc:        vk.h_gamma_g2.into(),
         h_pc:              vk.h_g2.into(),
@@ -62,9 +60,9 @@ pub fn verify_proof<E: PairingEngine>(
 
     // e(A, H^{gamma}) = e(G^{gamma}, B)
     let test2_exp_input: &[(E::G1Prepared, E::G2Prepared)] = &[
-            (proof.a.into(), pvk.h_gamma_pc.clone()),
-            (pvk.g_gamma_pc.clone(), proof.b.neg().into()),
-        ];
+        (proof.a.into(), pvk.h_gamma_pc.clone()),
+        (pvk.g_gamma_pc.clone(), proof.b.neg().into()),
+    ];
 
     let test2_exp = E::miller_loop(test2_exp_input.iter());
     let test2 = E::final_exponentiation(&test2_exp).unwrap();

@@ -447,7 +447,11 @@ pub(crate) mod tests {
     }
 
     #[allow(dead_code)]
-    pub(crate) fn frobenius_tests<FE: Field, ConstraintF: Field, F: FieldGadget<FE, ConstraintF>>(
+    pub(crate) fn frobenius_tests<
+        FE: Field,
+        ConstraintF: Field,
+        F: FieldGadget<FE, ConstraintF>,
+    >(
         maxpower: usize,
     ) {
         let mut cs = TestConstraintSystem::<ConstraintF>::new();

@@ -445,4 +445,3 @@ mod test {
         bad_merkle_tree_verify(&leaves);
     }
 }
-

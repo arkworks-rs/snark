@@ -1,15 +1,14 @@
 use algebra_core::{
     bytes::{FromBytes, ToBytes},
     curves::{AffineCurve, ProjectiveCurve},
-    test_rng, CanonicalSerialize,
-    Zero,
+    test_rng, CanonicalSerialize, Zero,
 };
 use core::str::FromStr;
 use rand::Rng;
 
 use crate::jubjub::*;
 
-use crate::tests::{groups::*, curves::*};
+use crate::tests::{curves::*, groups::*};
 
 #[test]
 fn test_projective_curve() {

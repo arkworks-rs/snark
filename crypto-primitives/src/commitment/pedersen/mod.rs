@@ -1,9 +1,10 @@
 use crate::{Error, Vec};
 use algebra_core::{
-    bytes::ToBytes, groups::Group, BitIterator, Field, FpParameters, PrimeField, ToConstraintField,
-    UniformRand,
+    bytes::ToBytes,
+    groups::Group,
+    io::{Result as IoResult, Write},
+    BitIterator, Field, FpParameters, PrimeField, ToConstraintField, UniformRand,
 };
-use algebra_core::io::{Result as IoResult, Write};
 
 use core::marker::PhantomData;
 use rand::Rng;

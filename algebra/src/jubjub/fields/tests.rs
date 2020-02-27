@@ -1,10 +1,10 @@
+use crate::jubjub::{Fq, Fr};
 use algebra_core::{
     biginteger::BigInteger256 as BigInteger,
     bytes::{FromBytes, ToBytes},
     fields::{Field, LegendreSymbol::*, PrimeField, SquareRootField},
-    test_rng, One, Zero
+    test_rng, One, Zero,
 };
-use crate::jubjub::{Fq, Fr};
 
 use crate::tests::fields::{field_test, primefield_test};
 
