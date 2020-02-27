@@ -3,7 +3,7 @@ use rand;
 #[macro_use]
 extern crate criterion;
 
-use algebra::{curves::edwards_bls12::EdwardsProjective as Edwards, UniformRand};
+use algebra::{edwards_bls12::EdwardsProjective as Edwards, UniformRand};
 use criterion::Criterion;
 use crypto_primitives::commitment::{pedersen::*, CommitmentScheme};
 

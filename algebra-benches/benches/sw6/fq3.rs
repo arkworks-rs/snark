@@ -2,7 +2,7 @@ use algebra::UniformRand;
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 
-use algebra::{fields::sw6::fq3::Fq3, Field, SquareRootField};
+use algebra::{sw6::fq3::Fq3, Field, SquareRootField};
 use std::ops::{AddAssign, MulAssign, SubAssign};
 
 #[bench]

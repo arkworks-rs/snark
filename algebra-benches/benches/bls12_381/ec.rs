@@ -5,8 +5,7 @@ mod g1 {
     use std::ops::AddAssign;
 
     use algebra::{
-        curves::bls12_381::{G1Affine, G1Projective as G1},
-        fields::bls12_381::Fr,
+        bls12_381::{Fr, G1Affine, G1Projective as G1},
         ProjectiveCurve,
     };
 
@@ -100,8 +99,7 @@ mod g2 {
     use std::ops::AddAssign;
 
     use algebra::{
-        curves::bls12_381::{G2Affine, G2Projective as G2},
-        fields::bls12_381::Fr,
+        bls12_381::{Fr, G2Affine, G2Projective as G2},
         ProjectiveCurve,
     };
 

@@ -1,11 +1,7 @@
 mod pairing {
     use algebra::{
-        curves::{
-            sw6::{G1Affine, G1Projective as G1, G2Affine, G2Projective as G2, SW6},
-            PairingCurve, PairingEngine,
-        },
-        fields::sw6::Fq6,
-        UniformRand,
+        sw6::{Fq6, G1Affine, G1Projective as G1, G2Affine, G2Projective as G2, SW6},
+        PairingEngine, UniformRand,
     };
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
@@ -19,15 +15,15 @@ mod pairing {
         let v: Vec<(G1Affine, G2Affine)> = (0..SAMPLES)
             .map(|_| {
                 (
-                    G1Affine::from(G1::rand(&mut rng)).prepare(),
-                    G2Affine::from(G2::rand(&mut rng)).prepare(),
+                    G1Affine::from(G1::rand(&mut rng)).into(),
+                    G2Affine::from(G2::rand(&mut rng)).into(),
                 )
             })
             .collect();
 
         let mut count = 0;
         b.iter(|| {
-            let tmp = SW6::miller_loop(&[(&v[count].0, &v[count].1)]);
+            let tmp = SW6::miller_loop(&[(v[count].0.clone(), v[count].1.clone())]);
             count = (count + 1) % SAMPLES;
             tmp
         });
@@ -42,11 +38,11 @@ mod pairing {
         let v: Vec<Fq6> = (0..SAMPLES)
             .map(|_| {
                 (
-                    G1Affine::from(G1::rand(&mut rng)).prepare(),
-                    G2Affine::from(G2::rand(&mut rng)).prepare(),
+                    G1Affine::from(G1::rand(&mut rng)).into(),
+                    G2Affine::from(G2::rand(&mut rng)).into(),
                 )
             })
-            .map(|(ref p, ref q)| SW6::miller_loop(&[(p, q)]))
+            .map(|(p, q)| SW6::miller_loop(&[(p, q)]))
             .collect();
 
         let mut count = 0;
