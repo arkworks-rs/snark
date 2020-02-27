@@ -2,8 +2,9 @@ use rand::Rng;
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
-use algebra::{
-    msm::VariableBaseMSM, AffineCurve, PairingEngine, PrimeField, ProjectiveCurve, UniformRand,
+use algebra_core::{
+    msm::VariableBaseMSM, AffineCurve, One, PairingEngine, PrimeField, ProjectiveCurve,
+    UniformRand, Zero,
 };
 
 use crate::{r1cs_to_sap::R1CStoSAP, Parameters, Proof, String, Vec};
@@ -13,7 +14,6 @@ use r1cs_core::{
     ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable,
 };
 
-use algebra::{One, Zero};
 use smallvec::SmallVec;
 
 use core::ops::{AddAssign, MulAssign};

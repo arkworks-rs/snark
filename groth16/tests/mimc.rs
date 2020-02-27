@@ -32,7 +32,8 @@ use rand::Rng;
 use std::time::{Duration, Instant};
 
 // Bring in some tools for using pairing-friendly curves
-use algebra::{curves::bls12_381::Bls12_381, fields::bls12_381::fr::Fr, test_rng, Field};
+use algebra::bls12_381::{Bls12_381, Fr};
+use algebra_core::{test_rng, Field};
 
 // We're going to use the BLS12-381 pairing-friendly elliptic curve.
 

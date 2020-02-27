@@ -1,5 +1,5 @@
 use crate::{LinearCombination, SmallVec, Variable};
-use algebra::Field;
+use algebra_core::Field;
 use core::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub};
 use smallvec::smallvec;
 

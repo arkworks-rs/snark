@@ -1,4 +1,4 @@
-use algebra::{Field, PrimeField};
+use algebra_core::{Field, PrimeField};
 
 use crate::commitment::{
     injective_map::{InjectiveMap, PedersenCommCompressor},
@@ -12,7 +12,7 @@ use crate::commitment::{
 };
 
 pub use crate::crh::injective_map::constraints::InjectiveMapGadget;
-use algebra::groups::Group;
+use algebra_core::groups::Group;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::{groups::GroupGadget, uint8::UInt8};
 

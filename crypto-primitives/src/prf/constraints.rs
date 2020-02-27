@@ -1,4 +1,4 @@
-use algebra::Field;
+use algebra_core::Field;
 use core::fmt::Debug;
 
 use crate::prf::PRF;

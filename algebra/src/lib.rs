@@ -1,37 +1,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-#![deny(
-    unused_import_braces,
-    unused_qualifications,
-    trivial_casts,
-    trivial_numeric_casts
-)]
-#![deny(
-    unused_qualifications,
-    variant_size_differences,
-    stable_features,
-    unreachable_pub
-)]
-#![deny(
-    non_shorthand_field_patterns,
-    unused_attributes,
-    unused_imports,
-    unused_extern_crates
-)]
-#![deny(
-    renamed_and_removed_lints,
-    stable_features,
-    unused_allocation,
-    unused_comparisons,
-    bare_trait_objects
-)]
-#![deny(
-    const_err,
-    unused_must_use,
-    unused_mut,
-    unused_unsafe,
-    private_in_public,
-    unsafe_code
-)]
+#![deny(unused_import_braces, trivial_casts, trivial_numeric_casts)]
+#![deny(unused_qualifications, variant_size_differences, unused_extern_crates)]
+#![deny(non_shorthand_field_patterns, unused_attributes, unused_imports)]
+#![deny(renamed_and_removed_lints, unused_allocation, unused_comparisons)]
+#![deny(const_err, unused_must_use, unused_mut, bare_trait_objects)]
 #![forbid(unsafe_code)]
 
 #[cfg(all(test, not(feature = "std")))]
@@ -43,6 +15,7 @@ extern crate std;
 ///
 /// [`smallvec#198`]: https://github.com/servo/rust-smallvec/pull/198
 #[cfg(not(feature = "std"))]
+#[allow(unused_imports)]
 #[macro_use]
 #[doc(hidden)]
 pub extern crate alloc;
@@ -55,79 +28,62 @@ pub use alloc::{boxed::Box, format, string::String, vec, vec::Vec};
 #[cfg(feature = "std")]
 #[allow(unused_imports)]
 #[doc(hidden)]
-pub use std::{boxed::Box, format, string::String, vec, vec::Vec};
+pub use std::{boxed::Box, format, vec, vec::Vec};
 
-#[macro_use]
-extern crate derivative;
+pub use algebra_core::*;
 
-#[cfg_attr(test, macro_use)]
-pub mod bytes;
-pub use self::bytes::*;
+///////////////////////////////////////////////////////////////////////////////
+#[cfg(feature = "bls12_377")]
+pub mod bls12_377;
+#[cfg(feature = "bls12_377")]
+pub use bls12_377::Bls12_377;
+///////////////////////////////////////////////////////////////////////////////
 
-#[macro_use]
-pub mod serialize;
-pub use self::serialize::*;
+///////////////////////////////////////////////////////////////////////////////
+#[cfg(all(
+    not(feature = "bls12_377"),
+    any(feature = "edwards_bls12", feature = "sw6", feature = "edwards_sw6")
+))]
+pub(crate) mod bls12_377;
 
-#[macro_use]
-pub mod fields;
-pub use self::fields::*;
+#[cfg(feature = "edwards_bls12")]
+pub mod edwards_bls12;
+///////////////////////////////////////////////////////////////////////////////
 
-pub mod biginteger;
-pub use self::biginteger::*;
+///////////////////////////////////////////////////////////////////////////////
+#[cfg(feature = "bls12_381")]
+pub mod bls12_381;
+#[cfg(feature = "bls12_381")]
+pub use bls12_381::Bls12_381;
+///////////////////////////////////////////////////////////////////////////////
 
-pub mod curves;
-pub use self::curves::*;
+///////////////////////////////////////////////////////////////////////////////
+#[cfg(all(not(feature = "bls12_381"), feature = "jubjub"))]
+pub(crate) mod bls12_381;
 
-pub mod groups;
-pub use self::groups::*;
+#[cfg(feature = "jubjub")]
+pub mod jubjub;
+///////////////////////////////////////////////////////////////////////////////
 
-mod rand;
-pub use self::rand::*;
+#[cfg(feature = "mnt6")]
+pub mod mnt6;
+#[cfg(feature = "mnt6")]
+pub use mnt6::MNT6;
 
-mod to_field_vec;
-pub use to_field_vec::ToConstraintField;
+///////////////////////////////////////////////////////////////////////////////
+#[cfg(feature = "sw6")]
+pub mod sw6;
+#[cfg(feature = "sw6")]
+pub use sw6::SW6;
+///////////////////////////////////////////////////////////////////////////////
 
-pub mod msm;
-pub use self::msm::*;
+///////////////////////////////////////////////////////////////////////////////
+#[cfg(all(not(feature = "sw6"), feature = "edwards_sw6"))]
+pub(crate) mod sw6;
 
-pub use num_traits::{One, Zero};
+#[cfg(feature = "edwards_sw6")]
+pub mod edwards_sw6;
+///////////////////////////////////////////////////////////////////////////////
 
-pub mod prelude {
-    pub use crate::biginteger::BigInteger;
-
-    pub use crate::fields::{Field, FpParameters, PrimeField, SquareRootField};
-
-    pub use crate::groups::Group;
-
-    pub use crate::curves::{AffineCurve, PairingCurve, PairingEngine, ProjectiveCurve};
-
-    pub use crate::rand::UniformRand;
-
-    pub use num_traits::{One, Zero};
-}
-
-#[cfg(not(feature = "std"))]
-pub mod io;
-
-#[cfg(feature = "std")]
-pub use std::io;
-
-#[cfg(not(feature = "std"))]
-fn error(_msg: &'static str) -> io::Error {
-    io::Error
-}
-
-#[cfg(feature = "std")]
-fn error(msg: &'static str) -> io::Error {
-    io::Error::new(io::ErrorKind::Other, msg)
-}
-
-/// Returns log2
-pub fn log2(x: usize) -> u32 {
-    if x <= 1 {
-        return 0;
-    }
-
-    let n = x.leading_zeros();
-    core::mem::size_of::<usize>() as u32 * 8 - n
-}
+#[cfg(test)]
+pub(crate) mod tests;

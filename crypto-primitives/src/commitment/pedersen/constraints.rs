@@ -2,11 +2,13 @@ use crate::{
     commitment::pedersen::{PedersenCommitment, PedersenParameters, PedersenRandomness},
     crh::pedersen::PedersenWindow,
 };
-use algebra::{to_bytes, Group, ToBytes};
+use algebra_core::{
+    fields::{Field, PrimeField},
+    to_bytes, Group, ToBytes,
+};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
 use crate::commitment::CommitmentGadget;
-use algebra::fields::{Field, PrimeField};
 use core::{borrow::Borrow, marker::PhantomData};
 use r1cs_std::prelude::*;
 
@@ -171,6 +173,11 @@ where
 
 #[cfg(test)]
 mod test {
+    use algebra::{
+        jubjub::{Fq, Fr, JubJubProjective as JubJub},
+        test_rng, ProjectiveCurve, UniformRand,
+    };
+
     use crate::{
         commitment::{
             pedersen::{
@@ -180,14 +187,9 @@ mod test {
         },
         crh::pedersen::PedersenWindow,
     };
-    use algebra::{
-        curves::{jubjub::JubJubProjective as JubJub, ProjectiveCurve},
-        fields::jubjub::{fq::Fq, fr::Fr},
-        test_rng, UniformRand,
-    };
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
-        groups::jubjub::JubJubGadget, prelude::*, test_constraint_system::TestConstraintSystem,
+        jubjub::JubJubGadget, prelude::*, test_constraint_system::TestConstraintSystem,
     };
 
     #[test]

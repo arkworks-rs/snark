@@ -1,4 +1,4 @@
-use algebra::io;
+use algebra_core::io;
 use core::fmt;
 
 /// This is an error that could occur during circuit synthesis contexts,

@@ -14,13 +14,12 @@ use crate::{
 
 use core::fmt::Debug;
 
-pub mod bls12_377;
-
 pub type G1Gadget<P> = AffineGadget<
     <P as Bls12Parameters>::G1Parameters,
     <P as Bls12Parameters>::Fp,
     FpGadget<<P as Bls12Parameters>::Fp>,
 >;
+
 pub type G2Gadget<P> =
     AffineGadget<<P as Bls12Parameters>::G2Parameters, <P as Bls12Parameters>::Fp, Fp2G<P>>;
 
@@ -33,9 +32,7 @@ pub struct G1PreparedGadget<P: Bls12Parameters>(pub G1Gadget<P>);
 
 impl<P: Bls12Parameters> G1PreparedGadget<P> {
     pub fn get_value(&self) -> Option<G1Prepared<P>> {
-        Some(G1Prepared::from_affine(
-            self.0.get_value().unwrap().into_affine(),
-        ))
+        Some(G1Prepared::from(self.0.get_value().unwrap().into_affine()))
     }
 
     pub fn from_affine<CS: ConstraintSystem<P::Fp>>(

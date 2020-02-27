@@ -6,10 +6,7 @@ use core::{borrow::Borrow, fmt::Debug};
 
 pub mod curves;
 
-pub use self::curves::{
-    short_weierstrass::bls12,
-    twisted_edwards::{edwards_sw6, jubjub},
-};
+pub use self::curves::short_weierstrass::bls12;
 
 pub trait GroupGadget<G: Group, ConstraintF: Field>:
     Sized
@@ -165,21 +162,19 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
 mod test {
     use algebra::{test_rng, Field};
     use r1cs_core::ConstraintSystem;
-    use rand::Rng;
 
     use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
     use algebra::groups::Group;
 
-    pub(crate) fn group_test<
-        ConstraintF: Field,
-        G: Group,
-        GG: GroupGadget<G, ConstraintF>,
-        CS: ConstraintSystem<ConstraintF>,
-    >(
-        cs: &mut CS,
-        a: GG,
-        b: GG,
-    ) {
+    pub(crate) fn group_test<ConstraintF: Field, G: Group, GG: GroupGadget<G, ConstraintF>>() {
+        let mut cs = TestConstraintSystem::<ConstraintF>::new();
+
+        let mut rng = test_rng();
+        let a_native = G::rand(&mut rng);
+        let b_native = G::rand(&mut rng);
+        let a = GG::alloc(&mut cs.ns(|| "generate_a"), || Ok(a_native)).unwrap();
+        let b = GG::alloc(&mut cs.ns(|| "generate_b"), || Ok(b_native)).unwrap();
+
         let zero = GG::zero(cs.ns(|| "Zero")).unwrap();
         assert_eq!(zero, zero);
 
@@ -217,21 +212,9 @@ mod test {
         let _ = b
             .to_bytes_strict(&mut cs.ns(|| "b ToBytes Strict"))
             .unwrap();
-    }
-
-    #[test]
-    fn jubjub_group_gadgets_test() {
-        use crate::groups::jubjub::JubJubGadget;
-        use algebra::{curves::jubjub::JubJubProjective, fields::jubjub::fq::Fq};
-
-        let mut cs = TestConstraintSystem::<Fq>::new();
-
-        let mut rng = test_rng();
-        let a: JubJubProjective = rng.gen();
-        let b: JubJubProjective = rng.gen();
-
-        let a = JubJubGadget::alloc(&mut cs.ns(|| "generate_a"), || Ok(a)).unwrap();
-        let b = JubJubGadget::alloc(&mut cs.ns(|| "generate_b"), || Ok(b)).unwrap();
-        group_test::<_, JubJubProjective, _, _>(&mut cs.ns(|| "GroupTest(a, b)"), a, b);
+        if !cs.is_satisfied() {
+            println!("{:?}", cs.which_is_unsatisfied().unwrap());
+        }
+        assert!(cs.is_satisfied());
     }
 }

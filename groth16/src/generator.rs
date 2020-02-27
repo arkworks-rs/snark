@@ -1,10 +1,8 @@
-use algebra::{
-    groups::Group, msm::FixedBaseMSM, Field, PairingEngine, PrimeField, ProjectiveCurve,
-    UniformRand,
+use algebra_core::{
+    msm::FixedBaseMSM, Field, One, PairingEngine, PrimeField, ProjectiveCurve, UniformRand, Zero,
 };
 use ff_fft::{cfg_into_iter, cfg_iter, EvaluationDomain};
 
-use algebra::{One, Zero};
 use r1cs_core::{
     ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable,
 };
@@ -232,11 +230,11 @@ where
     // Generate the R1CS proving key
     let proving_key_time = start_timer!(|| "Generate the R1CS proving key");
 
-    let alpha_g1 = g1_generator.mul(&alpha);
-    let beta_g1 = g1_generator.mul(&beta);
-    let beta_g2 = g2_generator.mul(&beta);
-    let delta_g1 = g1_generator.mul(&delta);
-    let delta_g2 = g2_generator.mul(&delta);
+    let alpha_g1 = g1_generator.mul(alpha);
+    let beta_g1 = g1_generator.mul(beta);
+    let beta_g2 = g2_generator.mul(beta);
+    let delta_g1 = g1_generator.mul(delta);
+    let delta_g2 = g2_generator.mul(delta);
 
     // Compute the A-query
     let a_time = start_timer!(|| "Calculate A");
@@ -287,7 +285,7 @@ where
 
     // Generate R1CS verification key
     let verifying_key_time = start_timer!(|| "Generate the R1CS verification key");
-    let gamma_g2 = g2_generator.mul(&gamma);
+    let gamma_g2 = g2_generator.mul(gamma);
     let gamma_abc_g1 = FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(
         scalar_bits,
         g1_window,

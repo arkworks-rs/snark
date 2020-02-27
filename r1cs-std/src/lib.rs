@@ -1,37 +1,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-#![deny(
-    unused_import_braces,
-    unused_qualifications,
-    trivial_casts,
-    trivial_numeric_casts
-)]
-#![deny(
-    unused_qualifications,
-    variant_size_differences,
-    stable_features,
-    unreachable_pub
-)]
-#![deny(
-    non_shorthand_field_patterns,
-    unused_attributes,
-    unused_imports,
-    unused_extern_crates
-)]
-#![deny(
-    renamed_and_removed_lints,
-    stable_features,
-    unused_allocation,
-    unused_comparisons,
-    bare_trait_objects
-)]
-#![deny(
-    const_err,
-    unused_must_use,
-    unused_mut,
-    unused_unsafe,
-    private_in_public,
-    unsafe_code
-)]
+#![deny(unused_import_braces, unused_qualifications, trivial_casts)]
+#![deny(trivial_numeric_casts, variant_size_differences, unreachable_pub)]
+#![deny(non_shorthand_field_patterns, unused_attributes, unused_imports)]
+#![deny(unused_extern_crates, renamed_and_removed_lints, unused_allocation)]
+#![deny(unused_comparisons, bare_trait_objects, const_err, unused_must_use)]
+#![deny(unused_mut, unused_unsafe, private_in_public, unsafe_code)]
 #![forbid(unsafe_code)]
 
 #[cfg(all(test, not(feature = "std")))]
@@ -69,6 +42,20 @@ pub mod fields;
 
 pub mod groups;
 
+mod instantiated;
+
+#[cfg(feature = "bls12_377")]
+pub use instantiated::bls12_377;
+
+#[cfg(feature = "edwards_bls12")]
+pub use instantiated::edwards_bls12;
+
+#[cfg(feature = "edwards_sw6")]
+pub use instantiated::edwards_sw6;
+
+#[cfg(feature = "jubjub")]
+pub use instantiated::jubjub;
+
 pub mod pairing;
 
 pub mod alloc;
@@ -82,6 +69,7 @@ pub mod prelude {
         eq::*,
         fields::FieldGadget,
         groups::GroupGadget,
+        instantiated::*,
         pairing::PairingGadget,
         select::*,
     };

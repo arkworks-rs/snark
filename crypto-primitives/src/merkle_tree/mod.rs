@@ -1,5 +1,5 @@
 use crate::{crh::FixedLengthCRH, Error, Vec};
-use algebra::{bytes::ToBytes, io::Cursor};
+use algebra_core::{bytes::ToBytes, io::Cursor};
 use core::fmt;
 
 #[cfg(feature = "r1cs")]
@@ -264,12 +264,12 @@ impl std::error::Error for MerkleTreeError {
 }
 
 #[cfg(not(feature = "std"))]
-impl algebra::Error for MerkleTreeError {}
+impl algebra_core::Error for MerkleTreeError {}
 
 /// Returns the log2 value of the given number.
 #[inline]
 fn log2(number: usize) -> usize {
-    algebra::log2(number) as usize
+    algebra_core::log2(number) as usize
 }
 
 /// Returns the height of the tree, given the size of the tree.
@@ -371,7 +371,7 @@ mod test {
         crh::{pedersen::*, *},
         merkle_tree::*,
     };
-    use algebra::{curves::jubjub::JubJubAffine as JubJub, Zero};
+    use algebra::{jubjub::JubJubAffine as JubJub, Zero};
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
 

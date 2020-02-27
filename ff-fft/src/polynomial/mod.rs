@@ -1,7 +1,7 @@
 //! Work with sparse and dense polynomials.
 
 use crate::{Cow, EvaluationDomain, Evaluations, Vec};
-use algebra::{Field, PrimeField};
+use algebra_core::{Field, PrimeField};
 use core::convert::TryInto;
 use DenseOrSparsePolynomial::*;
 
@@ -20,7 +20,7 @@ pub enum DenseOrSparsePolynomial<'a, F: 'a + Field> {
     DPolynomial(Cow<'a, DensePolynomial<F>>),
 }
 
-impl<F: Field> From<DensePolynomial<F>> for DenseOrSparsePolynomial<'_, F> {
+impl<'a, F: 'a + Field> From<DensePolynomial<F>> for DenseOrSparsePolynomial<'a, F> {
     fn from(other: DensePolynomial<F>) -> Self {
         DPolynomial(Cow::Owned(other))
     }
@@ -32,7 +32,7 @@ impl<'a, F: 'a + Field> From<&'a DensePolynomial<F>> for DenseOrSparsePolynomial
     }
 }
 
-impl<F: Field> From<SparsePolynomial<F>> for DenseOrSparsePolynomial<'_, F> {
+impl<'a, F: 'a + Field> From<SparsePolynomial<F>> for DenseOrSparsePolynomial<'a, F> {
     fn from(other: SparsePolynomial<F>) -> Self {
         SPolynomial(Cow::Owned(other))
     }
@@ -44,7 +44,7 @@ impl<'a, F: Field> From<&'a SparsePolynomial<F>> for DenseOrSparsePolynomial<'a,
     }
 }
 
-impl<F: Field> Into<DensePolynomial<F>> for DenseOrSparsePolynomial<'_, F> {
+impl<'a, F: Field> Into<DensePolynomial<F>> for DenseOrSparsePolynomial<'a, F> {
     fn into(self) -> DensePolynomial<F> {
         match self {
             DPolynomial(p) => p.into_owned(),
@@ -53,7 +53,7 @@ impl<F: Field> Into<DensePolynomial<F>> for DenseOrSparsePolynomial<'_, F> {
     }
 }
 
-impl<F: Field> TryInto<SparsePolynomial<F>> for DenseOrSparsePolynomial<'_, F> {
+impl<'a, F: 'a + Field> TryInto<SparsePolynomial<F>> for DenseOrSparsePolynomial<'a, F> {
     type Error = ();
 
     fn try_into(self) -> Result<SparsePolynomial<F>, ()> {
@@ -64,7 +64,7 @@ impl<F: Field> TryInto<SparsePolynomial<F>> for DenseOrSparsePolynomial<'_, F> {
     }
 }
 
-impl<F: Field> DenseOrSparsePolynomial<'_, F> {
+impl<'a, F: Field> DenseOrSparsePolynomial<'a, F> {
     /// Checks if the given polynomial is zero.
     pub fn is_zero(&self) -> bool {
         match self {
@@ -90,7 +90,7 @@ impl<F: Field> DenseOrSparsePolynomial<'_, F> {
     }
 
     #[inline]
-    fn iter_with_index<'a>(&'a self) -> Vec<(usize, F)> {
+    fn iter_with_index(&self) -> Vec<(usize, F)> {
         match self {
             SPolynomial(p) => p.to_vec(),
             DPolynomial(p) => p.iter().cloned().enumerate().collect(),
@@ -131,7 +131,7 @@ impl<F: Field> DenseOrSparsePolynomial<'_, F> {
         }
     }
 }
-impl<F: PrimeField> DenseOrSparsePolynomial<'_, F> {
+impl<'a, F: 'a + PrimeField> DenseOrSparsePolynomial<'a, F> {
     /// Construct `Evaluations` by evaluating a polynomial over the domain
     /// `domain`.
     pub fn evaluate_over_domain(

@@ -4,7 +4,6 @@ use core::fmt::Debug;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
 pub mod bls12;
-pub use self::bls12::bls12_377;
 
 pub trait PairingGadget<PairingE: PairingEngine, ConstraintF: Field> {
     type G1Gadget: GroupGadget<PairingE::G1Projective, ConstraintF>;
@@ -56,67 +55,53 @@ pub trait PairingGadget<PairingE: PairingEngine, ConstraintF: Field> {
 }
 
 #[cfg(test)]
-mod test {
-    use crate::{test_constraint_system::TestConstraintSystem, Vec};
-    use algebra::{BitIterator, Field, One};
+pub(crate) mod tests {
+    use crate::{
+        bits::boolean::Boolean, prelude::*, test_constraint_system::TestConstraintSystem, Vec,
+    };
+    use algebra::{
+        test_rng, BitIterator, Field, PairingEngine, PrimeField, ProjectiveCurve, UniformRand,
+    };
     use r1cs_core::ConstraintSystem;
 
-    #[test]
-    fn bls12_377_gadget_bilinearity_test() {
-        use algebra::{
-            fields::{
-                bls12_377::{fq::Fq, fr::Fr},
-                PrimeField,
-            },
-            PairingEngine, ProjectiveCurve,
-        };
+    #[allow(dead_code)]
+    pub(crate) fn bilinearity_test<
+        E: PairingEngine,
+        ConstraintF: Field,
+        P: PairingGadget<E, ConstraintF>,
+    >() {
+        let mut cs = TestConstraintSystem::<ConstraintF>::new();
 
-        use super::bls12_377::PairingGadget;
-        use crate::{
-            groups::bls12::bls12_377::{G1Gadget, G1PreparedGadget, G2Gadget, G2PreparedGadget},
-            pairing::PairingGadget as _,
-            prelude::*,
-        };
-        use algebra::curves::bls12_377::{Bls12_377, G1Projective, G2Projective};
-        use core::ops::Mul;
+        let mut rng = test_rng();
+        let a = E::G1Projective::rand(&mut rng);
+        let b = E::G2Projective::rand(&mut rng);
+        let s = E::Fr::rand(&mut rng);
 
-        let mut cs = TestConstraintSystem::<Fq>::new();
+        let mut sa = a;
+        sa.mul_assign(s);
+        let mut sb = b;
+        sb.mul_assign(s);
 
-        // let a: G1Projective = rand::random();
-        // let b: G2Projective = rand::random();
-        // let s: Fr = rand::random();
+        let a_g = P::G1Gadget::alloc(&mut cs.ns(|| "a"), || Ok(a)).unwrap();
+        let b_g = P::G2Gadget::alloc(&mut cs.ns(|| "b"), || Ok(b)).unwrap();
+        let sa_g = P::G1Gadget::alloc(&mut cs.ns(|| "sa"), || Ok(sa)).unwrap();
+        let sb_g = P::G2Gadget::alloc(&mut cs.ns(|| "sb"), || Ok(sb)).unwrap();
 
-        let a: G1Projective = G1Projective::prime_subgroup_generator();
-        let b: G2Projective = G2Projective::prime_subgroup_generator();
-        let s: Fr = Fr::one() + &Fr::one();
+        let a_prep_g = P::prepare_g1(&mut cs.ns(|| "a_prep"), &a_g).unwrap();
+        let b_prep_g = P::prepare_g2(&mut cs.ns(|| "b_prep"), &b_g).unwrap();
 
-        let sa = a.mul(&s);
-        let sb = b.mul(&s);
-
-        let a_g = G1Gadget::alloc(&mut cs.ns(|| "a"), || Ok(a)).unwrap();
-        let b_g = G2Gadget::alloc(&mut cs.ns(|| "b"), || Ok(b)).unwrap();
-        let sa_g = G1Gadget::alloc(&mut cs.ns(|| "sa"), || Ok(sa)).unwrap();
-        let sb_g = G2Gadget::alloc(&mut cs.ns(|| "sb"), || Ok(sb)).unwrap();
-
-        let a_prep_g = G1PreparedGadget::from_affine(&mut cs.ns(|| "a_prep"), &a_g).unwrap();
-        let b_prep_g = G2PreparedGadget::from_affine(&mut cs.ns(|| "b_prep"), &b_g).unwrap();
-
-        let sa_prep_g = G1PreparedGadget::from_affine(&mut cs.ns(|| "sa_prep"), &sa_g).unwrap();
-        let sb_prep_g = G2PreparedGadget::from_affine(&mut cs.ns(|| "sb_prep"), &sb_g).unwrap();
+        let sa_prep_g = P::prepare_g1(&mut cs.ns(|| "sa_prep"), &sa_g).unwrap();
+        let sb_prep_g = P::prepare_g2(&mut cs.ns(|| "sb_prep"), &sb_g).unwrap();
 
         let (ans1_g, ans1_n) = {
-            let ans_g =
-                PairingGadget::pairing(cs.ns(|| "pair(sa, b)"), sa_prep_g, b_prep_g.clone())
-                    .unwrap();
-            let ans_n = Bls12_377::pairing(sa, b);
+            let ans_g = P::pairing(cs.ns(|| "pair(sa, b)"), sa_prep_g, b_prep_g.clone()).unwrap();
+            let ans_n = E::pairing(sa, b);
             (ans_g, ans_n)
         };
 
         let (ans2_g, ans2_n) = {
-            let ans_g =
-                PairingGadget::pairing(cs.ns(|| "pair(a, sb)"), a_prep_g.clone(), sb_prep_g)
-                    .unwrap();
-            let ans_n = Bls12_377::pairing(a, sb);
+            let ans_g = P::pairing(cs.ns(|| "pair(a, sb)"), a_prep_g.clone(), sb_prep_g).unwrap();
+            let ans_n = E::pairing(a, sb);
             (ans_g, ans_n)
         };
 
@@ -125,9 +110,8 @@ mod test {
                 .map(Boolean::constant)
                 .collect::<Vec<_>>();
 
-            let mut ans_g =
-                PairingGadget::pairing(cs.ns(|| "pair(a, b)"), a_prep_g, b_prep_g).unwrap();
-            let mut ans_n = Bls12_377::pairing(a, b);
+            let mut ans_g = P::pairing(cs.ns(|| "pair(a, b)"), a_prep_g, b_prep_g).unwrap();
+            let mut ans_n = E::pairing(a, b);
             ans_n = ans_n.pow(s.into_repr());
             ans_g = ans_g.pow(cs.ns(|| "pow"), &s_iter).unwrap();
 

@@ -22,15 +22,24 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-derivative = { version = "1", features = ["use_core"] }
-num-traits = { version = "0.2", default-features = false }
-rand = { version = "0.7", default-features = false }
-rayon = { version = "1", optional = true }
+algebra-core = { path = "../algebra-core", default-features = false }
 
 [dev-dependencies]
+rand = { version = "0.7", default-features = false }
 rand_xorshift = "0.2"
 
 [features]
-default = ["std"]
-std = []
-parallel = ["std", "rayon"]
+default = [ "std" ]
+
+full = [ "bls12_377", "bls12_381", "sw6", "mnt6", "edwards_bls12", "edwards_sw6", "jubjub" ]
+
+bls12_377 = []
+bls12_381 = []
+edwards_bls12 = []
+edwards_sw6 = []
+jubjub = []
+sw6 = []
+mnt6 = []
+
+std = [ "algebra-core/std" ]
+parallel = [ "std", "algebra-core/parallel" ]

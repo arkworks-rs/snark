@@ -12,12 +12,6 @@ use crate::{prelude::*, Vec};
 
 use core::{borrow::Borrow, marker::PhantomData};
 
-pub mod edwards_bls12;
-pub mod edwards_sw6;
-pub mod jubjub;
-#[cfg(test)]
-mod test;
-
 #[derive(Derivative)]
 #[derivative(Debug, Clone)]
 #[derivative(Debug(bound = "P: TEModelParameters, ConstraintF: Field"))]
@@ -1403,4 +1397,66 @@ where
 
         Ok(x_bytes)
     }
+}
+
+#[cfg(test)]
+#[allow(dead_code)]
+pub(crate) fn test<ConstraintF, P, GG>()
+where
+    ConstraintF: Field,
+    P: TEModelParameters,
+    GG: GroupGadget<TEAffine<P>, ConstraintF, Value = TEAffine<P>>,
+{
+    use crate::{
+        boolean::AllocatedBit, groups::test::group_test, prelude::*,
+        test_constraint_system::TestConstraintSystem,
+    };
+    use algebra::{test_rng, Group, PrimeField, UniformRand};
+    use rand::Rng;
+
+    group_test::<ConstraintF, TEAffine<P>, GG>();
+
+    let mut cs = TestConstraintSystem::new();
+
+    let a: TEAffine<P> = UniformRand::rand(&mut test_rng());
+    let gadget_a = GG::alloc(&mut cs.ns(|| "a"), || Ok(a)).unwrap();
+    // Check mul_bits
+    let scalar: <TEAffine<P> as Group>::ScalarField = UniformRand::rand(&mut test_rng());
+    let native_result = a.mul(&scalar);
+
+    let mut scalar: Vec<bool> = BitIterator::new(scalar.into_repr()).collect();
+    // Get the scalar bits into little-endian form.
+    scalar.reverse();
+    let input = Vec::<Boolean>::alloc(cs.ns(|| "Input"), || Ok(scalar)).unwrap();
+    let zero = GG::zero(cs.ns(|| "zero")).unwrap();
+    let result = gadget_a
+        .mul_bits(cs.ns(|| "mul_bits"), &zero, input.iter())
+        .unwrap();
+    let gadget_value = result.get_value().expect("Gadget_result failed");
+    assert_eq!(native_result, gadget_value);
+
+    assert!(cs.is_satisfied());
+
+    // Test the cost of allocation, conditional selection, and point addition.
+    let mut cs = TestConstraintSystem::new();
+
+    let bit = AllocatedBit::alloc(&mut cs.ns(|| "bool"), || Ok(true))
+        .unwrap()
+        .into();
+
+    let mut rng = test_rng();
+    let a: TEAffine<P> = rng.gen();
+    let b: TEAffine<P> = rng.gen();
+    let gadget_a = GG::alloc(&mut cs.ns(|| "a"), || Ok(a)).unwrap();
+    let gadget_b = GG::alloc(&mut cs.ns(|| "b"), || Ok(b)).unwrap();
+    let alloc_cost = cs.num_constraints();
+    let _ =
+        GG::conditionally_select(&mut cs.ns(|| "cond_select"), &bit, &gadget_a, &gadget_b).unwrap();
+    let cond_select_cost = cs.num_constraints() - alloc_cost;
+
+    let _ = gadget_a.add(&mut cs.ns(|| "ab"), &gadget_b).unwrap();
+    let add_cost = cs.num_constraints() - cond_select_cost - alloc_cost;
+    assert_eq!(cond_select_cost, <GG as CondSelectGadget<_>>::cost());
+    assert_eq!(add_cost, GG::cost_of_add());
+    assert!(cs.is_satisfied());
 }

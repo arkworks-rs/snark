@@ -1,18 +1,16 @@
 use rand::Rng;
 
-use algebra::{
-    groups::Group, msm::VariableBaseMSM, AffineCurve, PairingEngine, PrimeField, ProjectiveCurve,
-    UniformRand,
+use algebra_core::{
+    msm::VariableBaseMSM, AffineCurve, One, PairingEngine, PrimeField, ProjectiveCurve,
+    UniformRand, Zero,
 };
 
 use crate::{r1cs_to_qap::R1CStoQAP, Parameters, Proof, String, Vec};
-use algebra::{One, Zero};
 
 use r1cs_core::{
     ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable,
 };
 
-use core::ops::{AddAssign, MulAssign, SubAssign};
 use smallvec::SmallVec;
 
 use ff_fft::cfg_into_iter;
@@ -47,10 +45,10 @@ fn eval<E: PairingEngine>(
         }
 
         if coeff.is_one() {
-            acc.add_assign(&tmp);
+            acc += &tmp;
         } else {
-            tmp.mul_assign(&coeff);
-            acc.add_assign(&tmp);
+            tmp *= &coeff;
+            acc += &tmp;
         }
     }
 
@@ -270,10 +268,10 @@ where
     let r_g1 = params.delta_g1.mul(r);
 
     let mut g_a = r_g1;
-    g_a.add_assign(&params.get_a_query_full()?[0].into_projective());
-    g_a.add_assign(&a_inputs_acc);
-    g_a.add_assign(&a_aux_acc);
-    g_a.add_assign(&params.alpha_g1.into());
+    g_a.add_assign_mixed(&params.get_a_query_full()?[0]);
+    g_a += &a_inputs_acc;
+    g_a += &a_aux_acc;
+    g_a.add_assign_mixed(&params.alpha_g1);
     end_timer!(a_acc_time);
 
     // Compute B in G1
@@ -286,10 +284,10 @@ where
     let s_g1 = params.delta_g1.mul(s.clone());
 
     let mut g1_b = s_g1;
-    g1_b.add_assign(&params.get_b_g1_query_full()?[0].into_projective());
-    g1_b.add_assign(&b_inputs_acc);
-    g1_b.add_assign(&b_aux_acc);
-    g1_b.add_assign(&params.beta_g1.into());
+    g1_b.add_assign_mixed(&params.get_b_g1_query_full()?[0]);
+    g1_b += &b_inputs_acc;
+    g1_b += &b_aux_acc;
+    g1_b.add_assign_mixed(&params.beta_g1);
     end_timer!(b_g1_acc_time);
 
     // Compute B in G2
@@ -302,10 +300,10 @@ where
     let s_g2 = params.delta_g2.mul(s.clone());
 
     let mut g2_b = s_g2;
-    g2_b.add_assign(&params.get_b_g2_query_full()?[0].into_projective());
-    g2_b.add_assign(&b_inputs_acc);
-    g2_b.add_assign(&b_aux_acc);
-    g2_b.add_assign(&params.beta_g2.into());
+    g2_b.add_assign_mixed(&params.get_b_g2_query_full()?[0]);
+    g2_b += &b_inputs_acc;
+    g2_b += &b_aux_acc;
+    g2_b.add_assign_mixed(&params.beta_g2);
     end_timer!(b_g2_acc_time);
 
     // Compute C
@@ -318,16 +316,16 @@ where
     let l_aux_source = params.get_l_query_full()?;
     let l_aux_acc = VariableBaseMSM::multi_scalar_mul(l_aux_source, &aux_assignment);
 
-    let s_g_a = g_a.clone().mul(&s);
-    let r_g1_b = g1_b.clone().mul(&r);
-    let r_s_delta_g1 = params.delta_g1.into_projective().mul(&r).mul(&s);
+    let s_g_a = g_a.clone().mul(s);
+    let r_g1_b = g1_b.clone().mul(r);
+    let r_s_delta_g1 = params.delta_g1.into_projective().mul(r).mul(s);
 
     let mut g_c = s_g_a;
-    g_c.add_assign(&r_g1_b);
-    g_c.sub_assign(&r_s_delta_g1);
-    g_c.add_assign(&l_aux_acc);
-    g_c.add_assign(&h_inputs_acc);
-    g_c.add_assign(&h_aux_acc);
+    g_c += &r_g1_b;
+    g_c -= &r_s_delta_g1;
+    g_c += &l_aux_acc;
+    g_c += &h_inputs_acc;
+    g_c += &h_aux_acc;
     end_timer!(c_acc_time);
 
     end_timer!(prover_time);

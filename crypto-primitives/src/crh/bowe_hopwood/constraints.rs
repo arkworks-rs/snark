@@ -1,16 +1,14 @@
-use algebra::Field;
-use core::hash::Hash;
+use core::{borrow::Borrow, hash::Hash, marker::PhantomData};
 
 use crate::crh::{
     bowe_hopwood::{BoweHopwoodPedersenCRH, BoweHopwoodPedersenParameters, CHUNK_SIZE},
     pedersen::PedersenWindow,
     FixedLengthCRHGadget,
 };
-use algebra::groups::Group;
+use algebra_core::{groups::Group, Field};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::{alloc::AllocGadget, groups::GroupGadget, uint8::UInt8};
 
-use core::{borrow::Borrow, marker::PhantomData};
 use r1cs_std::bits::boolean::Boolean;
 
 #[derive(Derivative)]
@@ -125,38 +123,39 @@ impl<G: Group, W: PedersenWindow, ConstraintF: Field, GG: GroupGadget<G, Constra
 
 #[cfg(test)]
 mod test {
+    use rand::Rng;
+
     use crate::crh::{
         bowe_hopwood::{constraints::BoweHopwoodPedersenCRHGadget, BoweHopwoodPedersenCRH},
         pedersen::PedersenWindow,
         FixedLengthCRH, FixedLengthCRHGadget,
     };
     use algebra::{
-        curves::edwards_sw6::EdwardsProjective as Edwards, fields::sw6::fr::Fr, test_rng,
-        ProjectiveCurve,
+        jubjub::{Fq as Fr, JubJubProjective as JubJub},
+        test_rng, ProjectiveCurve,
     };
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
-        alloc::AllocGadget, groups::curves::twisted_edwards::edwards_sw6::EdwardsSWGadget,
-        test_constraint_system::TestConstraintSystem, uint8::UInt8,
+        alloc::AllocGadget, jubjub::JubJubGadget, test_constraint_system::TestConstraintSystem,
+        uint8::UInt8,
     };
-    use rand::Rng;
 
-    type TestCRH = BoweHopwoodPedersenCRH<Edwards, Window>;
-    type TestCRHGadget = BoweHopwoodPedersenCRHGadget<Edwards, Fr, EdwardsSWGadget>;
+    type TestCRH = BoweHopwoodPedersenCRH<JubJub, Window>;
+    type TestCRHGadget = BoweHopwoodPedersenCRHGadget<JubJub, Fr, JubJubGadget>;
 
     #[derive(Clone, PartialEq, Eq, Hash)]
     pub(super) struct Window;
 
     impl PedersenWindow for Window {
-        const WINDOW_SIZE: usize = 90;
+        const WINDOW_SIZE: usize = 63;
         const NUM_WINDOWS: usize = 8;
     }
 
     fn generate_input<CS: ConstraintSystem<Fr>, R: Rng>(
         mut cs: CS,
         rng: &mut R,
-    ) -> ([u8; 270], Vec<UInt8>) {
-        let mut input = [1u8; 270];
+    ) -> ([u8; 189], Vec<UInt8>) {
+        let mut input = [1u8; 189];
         rng.fill_bytes(&mut input);
 
         let mut input_bytes = vec![];

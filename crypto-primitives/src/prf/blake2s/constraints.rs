@@ -1,4 +1,4 @@
-use algebra::PrimeField;
+use algebra_core::PrimeField;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
 use crate::prf::PRFGadget;
@@ -499,7 +499,7 @@ impl<ConstraintF: PrimeField> PRFGadget<Blake2s, ConstraintF> for Blake2sGadget 
 
 #[cfg(test)]
 mod test {
-    use algebra::fields::bls12_377::fr::Fr;
+    use algebra::jubjub::Fq as Fr;
     use digest::{FixedOutput, Input};
     use rand::{Rng, SeedableRng};
     use rand_xorshift::XorShiftRng;

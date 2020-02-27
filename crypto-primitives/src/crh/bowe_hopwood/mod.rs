@@ -9,7 +9,7 @@ use rayon::prelude::*;
 
 use super::pedersen::{bytes_to_bits, PedersenCRH, PedersenWindow};
 use crate::crh::FixedLengthCRH;
-use algebra::{biginteger::BigInteger, fields::PrimeField, groups::Group};
+use algebra_core::{biginteger::BigInteger, fields::PrimeField, groups::Group};
 use ff_fft::cfg_chunks;
 
 #[cfg(feature = "r1cs")]
@@ -173,22 +173,22 @@ mod test {
         crh::{bowe_hopwood::BoweHopwoodPedersenCRH, pedersen::PedersenWindow},
         FixedLengthCRH,
     };
-    use algebra::{curves::edwards_sw6::EdwardsProjective, test_rng};
+    use algebra::{jubjub::JubJubProjective, test_rng};
 
     #[test]
     fn test_simple_bh() {
         #[derive(Clone)]
         struct TestWindow {}
         impl PedersenWindow for TestWindow {
-            const WINDOW_SIZE: usize = 90;
+            const WINDOW_SIZE: usize = 63;
             const NUM_WINDOWS: usize = 8;
         }
 
         let rng = &mut test_rng();
         let params =
-            <BoweHopwoodPedersenCRH<EdwardsProjective, TestWindow> as FixedLengthCRH>::setup(rng)
+            <BoweHopwoodPedersenCRH<JubJubProjective, TestWindow> as FixedLengthCRH>::setup(rng)
                 .unwrap();
-        <BoweHopwoodPedersenCRH<EdwardsProjective, TestWindow> as FixedLengthCRH>::evaluate(
+        <BoweHopwoodPedersenCRH<JubJubProjective, TestWindow> as FixedLengthCRH>::evaluate(
             &params,
             &[1, 2, 3],
         )

@@ -1,6 +1,7 @@
 [workspace]
 
 members = [
+    "algebra-core",
     "algebra",
     "algebra-benches",
     "bench-utils",

@@ -1,5 +1,5 @@
 use crate::Error;
-use algebra::PairingEngine;
+use algebra_core::PairingEngine;
 use gm17::{
     create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
     Parameters, PreparedVerifyingKey, Proof, VerifyingKey,
@@ -7,7 +7,7 @@ use gm17::{
 use r1cs_core::ConstraintSynthesizer;
 use rand::Rng;
 
-use algebra::ToConstraintField;
+use algebra_core::ToConstraintField;
 use core::marker::PhantomData;
 
 use super::NIZK;

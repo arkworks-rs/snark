@@ -8,7 +8,7 @@ use rand::Rng;
 use rayon::prelude::*;
 
 use crate::crh::FixedLengthCRH;
-use algebra::{groups::Group, Field, ToConstraintField};
+use algebra_core::{groups::Group, Field, ToConstraintField};
 use ff_fft::cfg_chunks;
 
 #[cfg(feature = "r1cs")]

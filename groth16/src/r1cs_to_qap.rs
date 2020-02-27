@@ -1,8 +1,7 @@
-use algebra::PairingEngine;
+use algebra_core::{One, PairingEngine, Zero};
 use ff_fft::{cfg_iter, cfg_iter_mut, EvaluationDomain};
 
 use crate::{generator::KeypairAssembly, prover::ProvingAssignment, Vec};
-use algebra::{One, Zero};
 use core::ops::{AddAssign, SubAssign};
 use r1cs_core::{Index, SynthesisError};
 

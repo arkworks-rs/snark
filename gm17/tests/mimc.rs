@@ -1,29 +1,9 @@
-#![deny(
-    unused_import_braces,
-    unused_qualifications,
-    trivial_casts,
-    trivial_numeric_casts
-)]
-#![deny(unused_qualifications, variant_size_differences, stable_features)]
-#![deny(
-    non_shorthand_field_patterns,
-    unused_attributes,
-    unused_imports,
-    unused_extern_crates
-)]
-#![deny(
-    renamed_and_removed_lints,
-    stable_features,
-    unused_allocation,
-    unused_comparisons
-)]
-#![deny(
-    unused_must_use,
-    unused_mut,
-    unused_unsafe,
-    private_in_public,
-    unsafe_code
-)]
+#![deny(unused_import_braces, trivial_casts, trivial_numeric_casts)]
+#![deny(unused_qualifications, variant_size_differences, unused_extern_crates)]
+#![deny(non_shorthand_field_patterns, unused_attributes, unused_imports)]
+#![deny(renamed_and_removed_lints, unused_allocation, unused_comparisons)]
+#![deny(unused_must_use, unused_mut, private_in_public, unsafe_code)]
+#![forbid(unsafe_code)]
 
 // For randomness (during paramgen and proof generation)
 use rand::Rng;
@@ -32,9 +12,9 @@ use rand::Rng;
 use std::time::{Duration, Instant};
 
 // Bring in some tools for using pairing-friendly curves
-use algebra::{curves::bls12_381::Bls12_381, fields::bls12_381::fr::Fr, test_rng, Field};
-
 // We're going to use the BLS12-381 pairing-friendly elliptic curve.
+use algebra::bls12_381::{Bls12_381, Fr};
+use algebra_core::{test_rng, Field};
 
 // We'll use these interfaces to construct our circuit.
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};

@@ -1,5 +1,5 @@
 use crate::{ConstraintVar, ConstraintVar::*, LinearCombination, Variable};
-use algebra::Field;
+use algebra_core::Field;
 use core::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub};
 
 impl<F: Field> From<Variable> for ConstraintVar<F> {

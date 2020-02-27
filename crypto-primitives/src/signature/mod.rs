@@ -1,5 +1,5 @@
 use crate::Error;
-use algebra::bytes::ToBytes;
+use algebra_core::bytes::ToBytes;
 use core::hash::Hash;
 use rand::Rng;
 
@@ -54,8 +54,7 @@ pub trait SignatureScheme {
 mod test {
     use crate::{signature::schnorr::SchnorrSignature, SignatureScheme};
     use algebra::{
-        curves::edwards_sw6::EdwardsAffine as Edwards, groups::Group, test_rng, to_bytes, ToBytes,
-        UniformRand,
+        groups::Group, jubjub::JubJubAffine as JubJub, test_rng, to_bytes, ToBytes, UniformRand,
     };
     use blake2::Blake2s;
 
@@ -90,13 +89,13 @@ mod test {
     fn schnorr_signature_test() {
         let message = "Hi, I am a Schnorr signature!";
         let rng = &mut test_rng();
-        sign_and_verify::<SchnorrSignature<Edwards, Blake2s>>(message.as_bytes());
-        failed_verification::<SchnorrSignature<Edwards, Blake2s>>(
+        sign_and_verify::<SchnorrSignature<JubJub, Blake2s>>(message.as_bytes());
+        failed_verification::<SchnorrSignature<JubJub, Blake2s>>(
             message.as_bytes(),
             "Bad message".as_bytes(),
         );
-        let random_scalar = to_bytes!(<Edwards as Group>::ScalarField::rand(rng)).unwrap();
-        randomize_and_verify::<SchnorrSignature<Edwards, Blake2s>>(
+        let random_scalar = to_bytes!(<JubJub as Group>::ScalarField::rand(rng)).unwrap();
+        randomize_and_verify::<SchnorrSignature<JubJub, Blake2s>>(
             message.as_bytes(),
             &random_scalar.as_slice(),
         );

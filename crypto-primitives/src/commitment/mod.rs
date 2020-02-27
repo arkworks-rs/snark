@@ -1,8 +1,8 @@
-use algebra::UniformRand;
+use algebra_core::UniformRand;
 use core::{fmt::Debug, hash::Hash};
 use rand::Rng;
 
-use algebra::bytes::ToBytes;
+use algebra_core::bytes::ToBytes;
 
 pub mod blake2s;
 pub mod injective_map;

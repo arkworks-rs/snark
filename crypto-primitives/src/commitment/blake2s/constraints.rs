@@ -5,7 +5,7 @@ use crate::{
     prf::blake2s::constraints::{blake2s_gadget, Blake2sOutputGadget},
     CommitmentGadget,
 };
-use algebra::{Field, PrimeField};
+use algebra_core::{Field, PrimeField};
 use r1cs_std::prelude::*;
 
 use core::borrow::Borrow;
@@ -117,7 +117,7 @@ mod test {
         },
         *,
     };
-    use algebra::{fields::bls12_381::Fr, test_rng};
+    use algebra::{jubjub::Fq as Fr, test_rng};
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{prelude::*, test_constraint_system::TestConstraintSystem};
     use rand::Rng;

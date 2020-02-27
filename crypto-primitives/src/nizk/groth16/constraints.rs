@@ -1,5 +1,5 @@
 use crate::nizk::{groth16::Groth16, NIZKVerifierGadget};
-use algebra::{AffineCurve, Field, PairingEngine, ToConstraintField};
+use algebra_core::{AffineCurve, Field, PairingEngine, ToConstraintField};
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
 
@@ -351,12 +351,11 @@ mod test {
 
     use super::*;
     use algebra::{
-        curves::bls12_377::Bls12_377,
-        fields::bls12_377::{Fq, Fr},
+        bls12_377::{Bls12_377, Fq, Fr},
         test_rng, BitIterator, PrimeField,
     };
     use r1cs_std::{
-        boolean::Boolean, pairing::bls12_377::PairingGadget as Bls12_377PairingGadget,
+        bls12_377::PairingGadget as Bls12_377PairingGadget, boolean::Boolean,
         test_constraint_system::TestConstraintSystem,
     };
     use rand::Rng;

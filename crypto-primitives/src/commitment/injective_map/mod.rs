@@ -7,7 +7,7 @@ use super::{
     CommitmentScheme,
 };
 pub use crate::crh::injective_map::InjectiveMap;
-use algebra::groups::Group;
+use algebra_core::groups::Group;
 
 #[cfg(feature = "r1cs")]
 pub mod constraints;

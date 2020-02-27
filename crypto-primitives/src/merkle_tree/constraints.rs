@@ -1,4 +1,4 @@
-use algebra::Field;
+use algebra_core::Field;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::{boolean::AllocatedBit, prelude::*};
 
@@ -185,16 +185,13 @@ mod test {
         },
         merkle_tree::*,
     };
-    use algebra::{curves::jubjub::JubJubAffine as JubJub, fields::jubjub::fq::Fq};
+    use algebra::jubjub::{Fq, JubJubAffine as JubJub};
     use r1cs_core::ConstraintSystem;
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
 
     use super::*;
-    use r1cs_std::{
-        groups::curves::twisted_edwards::jubjub::JubJubGadget,
-        test_constraint_system::TestConstraintSystem,
-    };
+    use r1cs_std::{jubjub::JubJubGadget, test_constraint_system::TestConstraintSystem};
 
     #[derive(Clone)]
     pub(super) struct Window4x256;

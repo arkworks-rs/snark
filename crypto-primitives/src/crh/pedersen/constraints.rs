@@ -2,7 +2,7 @@ use crate::crh::{
     pedersen::{PedersenCRH, PedersenParameters, PedersenWindow},
     FixedLengthCRHGadget,
 };
-use algebra::{Field, Group};
+use algebra_core::{Field, Group};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
 
@@ -119,14 +119,12 @@ mod test {
         FixedLengthCRH, FixedLengthCRHGadget,
     };
     use algebra::{
-        curves::{jubjub::JubJubProjective as JubJub, ProjectiveCurve},
-        fields::bls12_381::fr::Fr,
-        test_rng,
+        jubjub::{Fq as Fr, JubJubProjective as JubJub},
+        test_rng, ProjectiveCurve,
     };
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
-        groups::curves::twisted_edwards::jubjub::JubJubGadget, prelude::*,
-        test_constraint_system::TestConstraintSystem,
+        jubjub::JubJubGadget, prelude::*, test_constraint_system::TestConstraintSystem,
     };
     use rand::Rng;
 

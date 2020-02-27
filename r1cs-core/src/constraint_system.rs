@@ -1,5 +1,5 @@
 use crate::String;
-use algebra::Field;
+use algebra_core::Field;
 use core::marker::PhantomData;
 
 use crate::{Index, LinearCombination, SynthesisError, Variable};

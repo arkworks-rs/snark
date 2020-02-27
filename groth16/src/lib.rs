@@ -23,10 +23,10 @@ use alloc::{string::String, vec::Vec};
 #[cfg(feature = "std")]
 use std::{string::String, vec::Vec};
 
-use algebra::{
+use algebra_core::{
     bytes::ToBytes,
     io::{self, Read, Result as IoResult, Write},
-    PairingCurve, PairingEngine,
+    PairingEngine,
 };
 use r1cs_core::SynthesisError;
 
@@ -207,8 +207,8 @@ impl<E: PairingEngine> Parameters<E> {
 pub struct PreparedVerifyingKey<E: PairingEngine> {
     pub vk:               VerifyingKey<E>,
     pub alpha_g1_beta_g2: E::Fqk,
-    pub gamma_g2_neg_pc:  <E::G2Affine as PairingCurve>::Prepared,
-    pub delta_g2_neg_pc:  <E::G2Affine as PairingCurve>::Prepared,
+    pub gamma_g2_neg_pc:  E::G2Prepared,
+    pub delta_g2_neg_pc:  E::G2Prepared,
     pub gamma_abc_g1:     Vec<E::G1Affine>,
 }
 
@@ -229,8 +229,8 @@ impl<E: PairingEngine> Default for PreparedVerifyingKey<E> {
         Self {
             vk:               VerifyingKey::default(),
             alpha_g1_beta_g2: E::Fqk::default(),
-            gamma_g2_neg_pc:  <E::G2Affine as PairingCurve>::Prepared::default(),
-            delta_g2_neg_pc:  <E::G2Affine as PairingCurve>::Prepared::default(),
+            gamma_g2_neg_pc:  E::G2Prepared::default(),
+            delta_g2_neg_pc:  E::G2Prepared::default(),
             gamma_abc_g1:     Vec::new(),
         }
     }

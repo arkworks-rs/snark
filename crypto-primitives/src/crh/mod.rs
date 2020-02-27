@@ -1,4 +1,4 @@
-use algebra::bytes::ToBytes;
+use algebra_core::bytes::ToBytes;
 use core::hash::Hash;
 use rand::Rng;
 

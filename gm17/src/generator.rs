@@ -1,9 +1,9 @@
-use algebra::{
-    msm::FixedBaseMSM, AffineCurve, Field, PairingEngine, PrimeField, ProjectiveCurve, UniformRand,
+use algebra_core::{
+    msm::FixedBaseMSM, AffineCurve, Field, One, PairingEngine, PrimeField, ProjectiveCurve,
+    UniformRand, Zero,
 };
 use ff_fft::{cfg_into_iter, cfg_iter, EvaluationDomain};
 
-use algebra::{One, Zero};
 use r1cs_core::{
     ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable,
 };
