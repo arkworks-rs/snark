@@ -185,14 +185,14 @@ mod test {
         },
         merkle_tree::*,
     };
-    use algebra::{curves::jubjub::JubJubAffine as JubJub, fields::jubjub::fq::Fq};
+    use algebra::{jubjub::{JubJubAffine as JubJub, Fq}};
     use r1cs_core::ConstraintSystem;
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
 
     use super::*;
     use r1cs_std::{
-        groups::curves::twisted_edwards::jubjub::JubJubGadget,
+        jubjub::JubJubGadget,
         test_constraint_system::TestConstraintSystem,
     };
 

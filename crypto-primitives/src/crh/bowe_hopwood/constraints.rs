@@ -125,23 +125,22 @@ impl<G: Group, W: PedersenWindow, ConstraintF: Field, GG: GroupGadget<G, Constra
 
 #[cfg(test)]
 mod test {
-    use algebra::fields::sw6::fr::Fr;
-    use rand::{thread_rng, Rng};
+    use rand::{Rng};
 
     use crate::crh::{
         bowe_hopwood::{constraints::BoweHopwoodPedersenCRHGadget, BoweHopwoodPedersenCRH},
         pedersen::PedersenWindow,
         FixedLengthCRH, FixedLengthCRHGadget,
     };
-    use algebra::{curves::edwards_sw6::EdwardsProjective as Edwards, ProjectiveCurve};
+    use algebra::{jubjub::{Fq as Fr, JubJubProjective as JubJub}, ProjectiveCurve, test_rng};
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
-        alloc::AllocGadget, groups::curves::twisted_edwards::edwards_sw6::EdwardsSWGadget,
+        alloc::AllocGadget, jubjub::JubJubGadget,
         test_constraint_system::TestConstraintSystem, uint8::UInt8,
     };
 
-    type TestCRH = BoweHopwoodPedersenCRH<Edwards, Window>;
-    type TestCRHGadget = BoweHopwoodPedersenCRHGadget<Edwards, Fr, EdwardsSWGadget>;
+    type TestCRH = BoweHopwoodPedersenCRH<JubJub, Window>;
+    type TestCRHGadget = BoweHopwoodPedersenCRHGadget<JubJub, Fr, JubJubGadget>;
 
     #[derive(Clone, PartialEq, Eq, Hash)]
     pub(super) struct Window;
@@ -168,7 +167,7 @@ mod test {
 
     #[test]
     fn crh_primitive_gadget_test() {
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
         let mut cs = TestConstraintSystem::<Fr>::new();
 
         let (input, input_bytes) = generate_input(&mut cs, rng);

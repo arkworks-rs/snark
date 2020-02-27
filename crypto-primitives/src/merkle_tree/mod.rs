@@ -371,7 +371,7 @@ mod test {
         crh::{pedersen::*, *},
         merkle_tree::*,
     };
-    use algebra::{curves::jubjub::JubJubAffine as JubJub, Zero};
+    use algebra::{jubjub::JubJubAffine as JubJub, Zero};
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
 

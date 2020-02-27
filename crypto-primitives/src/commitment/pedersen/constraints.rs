@@ -172,10 +172,11 @@ where
 #[cfg(test)]
 mod test {
     use algebra::{
-        fields::jubjub::{fq::Fq, fr::Fr},
+        jubjub::{Fq, Fr, JubJubProjective as JubJub},
+        ProjectiveCurve,
         UniformRand,
+        test_rng,
     };
-    use rand::thread_rng;
 
     use crate::{
         commitment::{
@@ -186,10 +187,9 @@ mod test {
         },
         crh::pedersen::PedersenWindow,
     };
-    use algebra::curves::{jubjub::JubJubProjective as JubJub, ProjectiveCurve};
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
-        groups::jubjub::JubJubGadget, prelude::*, test_constraint_system::TestConstraintSystem,
+        jubjub::JubJubGadget, prelude::*, test_constraint_system::TestConstraintSystem,
     };
 
     #[test]
@@ -206,7 +206,7 @@ mod test {
 
         let input = [1u8; 4];
 
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
 
         type TestCOMM = PedersenCommitment<JubJub, Window>;
         type TestCOMMGadget = PedersenCommitmentGadget<JubJub, Fq, JubJubGadget>;

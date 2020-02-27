@@ -119,13 +119,12 @@ mod test {
         FixedLengthCRH, FixedLengthCRHGadget,
     };
     use algebra::{
-        curves::{jubjub::JubJubProjective as JubJub, ProjectiveCurve},
-        fields::bls12_381::fr::Fr,
+        jubjub::{JubJubProjective as JubJub, Fq as Fr}, ProjectiveCurve,
         test_rng,
     };
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
-        groups::curves::twisted_edwards::jubjub::JubJubGadget, prelude::*,
+        jubjub::JubJubGadget, prelude::*,
         test_constraint_system::TestConstraintSystem,
     };
     use rand::Rng;
