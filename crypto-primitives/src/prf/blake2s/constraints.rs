@@ -4,7 +4,7 @@ use r1cs_core::{ConstraintSystem, SynthesisError};
 use crate::prf::PRFGadget;
 use r1cs_std::prelude::*;
 
-use std::borrow::Borrow;
+use core::borrow::Borrow;
 
 // 2.1.  Parameters
 // The following table summarizes various parameters and their ranges:

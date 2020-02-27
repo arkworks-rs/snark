@@ -3,7 +3,6 @@ use rand::Rng;
 use std::{
     collections::{HashMap, HashSet},
     hash::Hash,
-    rc::Rc,
 };
 
 use crate::{dpc::Transaction, ledger::*};
@@ -17,7 +16,7 @@ pub struct IdealLedger<T: Transaction, P: MerkleTreeConfig>
 where
     T::Commitment: ToBytes,
 {
-    crh_params:     Rc<<P::H as FixedLengthCRH>::Parameters>,
+    crh_params:     <P::H as FixedLengthCRH>::Parameters,
     transactions:   Vec<T>,
     cm_merkle_tree: MerkleHashTree<P>,
     cur_cm_index:   usize,
@@ -57,9 +56,8 @@ where
         genesis_sn: Self::SerialNumber,
         genesis_memo: Self::Memo,
     ) -> Self {
-        let params = Rc::new(parameters);
         let cm_merkle_tree =
-            MerkleHashTree::<P>::new(params.clone(), &[genesis_cm.clone()]).unwrap();
+            MerkleHashTree::<P>::new(parameters.clone(), &[genesis_cm.clone()]).unwrap();
 
         let mut cur_cm_index = 0;
         let mut comm_to_index = HashMap::new();
@@ -71,7 +69,7 @@ where
         past_digests.insert(root.clone());
 
         IdealLedger {
-            crh_params: params,
+            crh_params: parameters,
             transactions: Vec::new(),
             cm_merkle_tree,
             cur_cm_index,

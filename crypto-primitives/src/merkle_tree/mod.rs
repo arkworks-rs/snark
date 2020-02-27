@@ -1,6 +1,6 @@
-use crate::{crh::FixedLengthCRH, Error};
-use algebra_core::bytes::ToBytes;
-use std::{fmt, rc::Rc};
+use crate::{crh::FixedLengthCRH, Error, Vec};
+use algebra_core::{bytes::ToBytes, io::Cursor};
+use core::fmt;
 
 #[cfg(feature = "r1cs")]
 pub mod constraints;

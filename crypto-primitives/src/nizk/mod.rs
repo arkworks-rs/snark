@@ -53,8 +53,8 @@ pub trait NIZK {
 
 #[cfg(all(feature = "gm17", test))]
 mod test {
-    use rand::thread_rng;
-    use std::ops::AddAssign;
+    use algebra::test_rng;
+    use core::ops::AddAssign;
 
     #[test]
     fn test_gm17() {
@@ -102,7 +102,7 @@ mod test {
         sum.add_assign(&Fr::one());
         let circuit = R1CSCircuit::new(Fr::one(), sum, Fr::one());
 
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
 
         let parameters = Gm17::<Bls12_381, R1CSCircuit, [Fr]>::setup(circuit, rng).unwrap();
 

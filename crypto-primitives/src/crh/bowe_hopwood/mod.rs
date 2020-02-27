@@ -1,14 +1,16 @@
-use crate::Error;
-use rand::Rng;
-use rayon::prelude::*;
-use std::{
+use crate::{Error, Vec};
+use core::{
     fmt::{Debug, Formatter, Result as FmtResult},
     marker::PhantomData,
 };
+use rand::Rng;
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
 
 use super::pedersen::{bytes_to_bits, PedersenCRH, PedersenWindow};
 use crate::crh::FixedLengthCRH;
 use algebra_core::{biginteger::BigInteger, fields::PrimeField, groups::Group};
+use ff_fft::cfg_chunks;
 
 #[cfg(feature = "r1cs")]
 pub mod constraints;

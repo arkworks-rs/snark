@@ -42,6 +42,12 @@ impl<T: Error> Error for crate::Box<T> {}
 #[cfg(not(feature = "std"))]
 impl Error for SerializationError {}
 
+#[cfg(not(feature = "std"))]
+impl Error for io::Error {}
+
+#[cfg(not(feature = "std"))]
+impl Error for crate::String {}
+
 impl From<io::Error> for SerializationError {
     fn from(e: io::Error) -> SerializationError {
         SerializationError::IoError(e)

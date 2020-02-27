@@ -4,11 +4,11 @@ use algebra_core::{
     UniformRand,
 };
 
+use core::marker::PhantomData;
 use rand::Rng;
-use std::marker::PhantomData;
 
 use super::CommitmentScheme;
-use std::io::{Result as IoResult, Write};
+use algebra::io::{Result as IoResult, Write};
 
 pub use crate::crh::pedersen::PedersenWindow;
 use crate::crh::{

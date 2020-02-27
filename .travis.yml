@@ -80,6 +80,11 @@ matrix:
         - cargo build -p gm17 --no-default-features --target thumbv6m-none-eabi
         - cargo check --examples -p gm17 --no-default-features --target thumbv6m-none-eabi
         - cd ..
+        # test crypto-primitives
+        - cd crypto-primitives
+        - cargo build -p crypto-primitives --no-default-features --target thumbv6m-none-eabi
+        - cargo check --examples -p crypto-primitives --no-default-features --target thumbv6m-none-eabi
+        - cd ..
 
 script:
   - echo "script!"

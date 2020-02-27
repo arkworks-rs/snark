@@ -1,7 +1,7 @@
 use crate::Error;
 use algebra_core::bytes::ToBytes;
 use rand::Rng;
-use std::hash::Hash;
+use core::hash::Hash;
 
 #[cfg(feature = "r1cs")]
 pub mod constraints;

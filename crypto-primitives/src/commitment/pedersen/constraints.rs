@@ -3,12 +3,12 @@ use crate::{
     crh::pedersen::PedersenWindow,
 };
 use algebra_core::{to_bytes, Group, ToBytes};
+use algebra_core::fields::{Field, PrimeField};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
 use crate::commitment::CommitmentGadget;
-use algebra_core::fields::{Field, PrimeField};
+use core::{borrow::Borrow, marker::PhantomData};
 use r1cs_std::prelude::*;
-use std::{borrow::Borrow, marker::PhantomData};
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "G: Group, W: PedersenWindow, ConstraintF: Field"))]

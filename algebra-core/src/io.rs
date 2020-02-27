@@ -1,9 +1,15 @@
 //! no-std io replacement
 use crate::Vec;
-use core::{cmp, mem};
+use core::{cmp, fmt, mem};
 
 #[derive(Debug)]
 pub struct Error;
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "Error")
+    }
+}
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -70,6 +76,28 @@ impl Write for Vec<u8> {
     #[inline]
     fn write_all(&mut self, buf: &[u8]) -> Result<()> {
         self.extend_from_slice(buf);
+        Ok(())
+    }
+}
+
+/// This data structure is used as a workaround for current design of `ToBytes`
+/// which does not allow multiple writes to `&mut [u8]`.
+pub struct Cursor<T> {
+    inner: T,
+    pos:   usize,
+}
+
+impl<T> Cursor<T> {
+    pub fn new(inner: T) -> Self {
+        Cursor { inner, pos: 0 }
+    }
+}
+
+impl Write for Cursor<&mut [u8]> {
+    fn write_all(&mut self, buf: &[u8]) -> Result<()> {
+        let to_copy = cmp::min(self.inner.len() - self.pos, buf.len());
+        self.inner[self.pos..self.pos + to_copy].copy_from_slice(buf);
+        self.pos += to_copy;
         Ok(())
     }
 }
