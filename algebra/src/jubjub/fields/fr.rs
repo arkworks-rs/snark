@@ -11,7 +11,7 @@ impl Fp256Parameters for FrParameters {}
 impl FpParameters for FrParameters {
     type BigInt = BigInteger;
 
-    // MODULUS = 6554484396890773809930967563523245729705921265872317281365359162392183254199.
+    /// MODULUS = 6554484396890773809930967563523245729705921265872317281365359162392183254199.
     #[rustfmt::skip]
     const MODULUS: BigInteger = BigInteger([
         0xd0970e5ed6f72cb7,
@@ -62,9 +62,19 @@ impl FpParameters for FrParameters {
         0x4d6b87b1da259e2,
     ]);
 
-    const MODULUS_MINUS_ONE_DIV_TWO: BigInteger = BigInteger([0x0, 0x0, 0x0, 0x0]);
+    const MODULUS_MINUS_ONE_DIV_TWO: BigInteger = BigInteger([
+        7515249040934278747,
+        5995434913520945217,
+        9454073218019761536,
+        522094803716528084,
+    ]);
 
-    const T: BigInteger = BigInteger([0x0, 0x0, 0x0, 0x0]);
+    const T: BigInteger = Self::MODULUS_MINUS_ONE_DIV_TWO;
 
-    const T_MINUS_ONE_DIV_TWO: BigInteger = BigInteger([0x0, 0x0, 0x0, 0x0]);
+    const T_MINUS_ONE_DIV_TWO: BigInteger = BigInteger([
+        12980996557321915181,
+        2997717456760472608,
+        4727036609009880768,
+        261047401858264042,
+    ]);
 }

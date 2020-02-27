@@ -147,15 +147,15 @@ mod test {
     pub(super) struct Window;
 
     impl PedersenWindow for Window {
-        const WINDOW_SIZE: usize = 90;
+        const WINDOW_SIZE: usize = 63;
         const NUM_WINDOWS: usize = 8;
     }
 
     fn generate_input<CS: ConstraintSystem<Fr>, R: Rng>(
         mut cs: CS,
         rng: &mut R,
-    ) -> ([u8; 270], Vec<UInt8>) {
-        let mut input = [1u8; 270];
+    ) -> ([u8; 189], Vec<UInt8>) {
+        let mut input = [1u8; 189];
         rng.fill_bytes(&mut input);
 
         let mut input_bytes = vec![];
