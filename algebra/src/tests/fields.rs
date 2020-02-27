@@ -2,6 +2,7 @@
 use crate::fields::{Field, LegendreSymbol, PrimeField, SquareRootField};
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
+use crate::{SWFlags, Flags};
 
 pub const ITERATIONS: u32 = 40;
 
@@ -346,36 +347,54 @@ pub fn field_serialization_test<F: Field>(buf_size: usize) {
     for _ in 0..ITERATIONS {
         let a = F::rand(&mut rng);
         {
-            let mut serialized = vec![0; buf_size];
-            a.serialize(&[], &mut serialized).unwrap();
+            let mut serialized = vec![0u8; buf_size];
+            a.serialize(&mut &mut serialized[..]).unwrap();
 
-            let mut extra_info_buf = [false; 0];
-            let b = F::deserialize(&serialized, &mut extra_info_buf).unwrap();
+            let b = F::deserialize(&mut &serialized[..]).unwrap();
             assert_eq!(a, b);
         }
 
         {
-            let mut serialized = vec![0; buf_size];
-            a.serialize(&[true; 2], &mut serialized).unwrap();
-            let mut extra_info_buf = [false; 2];
-            let b = F::deserialize(&serialized, &mut extra_info_buf).unwrap();
-            assert_eq!(extra_info_buf, [true; 2]);
+            let mut serialized = vec![0u8; buf_size];
+            a.serialize_with_flags(&mut &mut serialized[..], SWFlags::y_sign(true)).unwrap();
+            let (b, flags) = F::deserialize_with_flags::<_, SWFlags>(&mut &serialized[..]).unwrap();
+            assert!(flags.y_sign);
+            assert!(!flags.is_infinity);
             assert_eq!(a, b);
+        }
+
+        #[derive(Default, Clone, Copy, Debug)]
+        struct DummyFlags;
+        impl Flags for DummyFlags {
+            fn u64_bitmask(&self) -> u64 {
+                0
+            }
+
+            fn from_u64(_value: u64) -> Self {
+                DummyFlags
+            }
+
+            fn from_u64_remove_flags(_value: &mut u64) -> Self {
+                DummyFlags
+            }
+
+            fn len() -> usize {
+                200
+            }
         }
 
         use crate::serialize::SerializationError;
         {
             let mut serialized = vec![0; buf_size];
             assert!(if let SerializationError::NotEnoughSpace =
-                a.serialize(&[true; 200], &mut serialized).unwrap_err()
+                a.serialize_with_flags(&mut &mut serialized[..], DummyFlags).unwrap_err()
             {
                 true
             } else {
                 false
             });
-            let mut extra_info_buf = [false; 200];
             assert!(if let SerializationError::NotEnoughSpace =
-                F::deserialize(&serialized, &mut extra_info_buf).unwrap_err()
+                F::deserialize_with_flags::<_, DummyFlags>(&mut &serialized[..]).unwrap_err()
             {
                 true
             } else {
@@ -384,23 +403,10 @@ pub fn field_serialization_test<F: Field>(buf_size: usize) {
         }
 
         {
-            let mut serialized = vec![0; buf_size + 1];
-            assert!(if let SerializationError::BufferWrongSize =
-                a.serialize(&[true; 2], &mut serialized).unwrap_err()
-            {
-                true
-            } else {
-                false
-            });
+            let mut serialized = vec![0; buf_size - 1];
+            a.serialize(&mut &mut serialized[..]).unwrap_err();
 
-            let mut extra_info_buf = [false; 2];
-            assert!(if let SerializationError::BufferWrongSize =
-                F::deserialize(&serialized, &mut extra_info_buf).unwrap_err()
-            {
-                true
-            } else {
-                false
-            });
+            F::deserialize(&mut &serialized[..]).unwrap_err();
         }
     }
 }

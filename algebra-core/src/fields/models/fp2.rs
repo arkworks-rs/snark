@@ -1,7 +1,4 @@
-use crate::{
-    io::{Read, Result as IoResult, Write},
-    CanonicalDeserialize, CanonicalSerialize, SerializationError, UniformRand,
-};
+use crate::{io::{Read, Result as IoResult, Write}, CanonicalDeserialize, CanonicalSerialize, SerializationError, UniformRand, Flags};
 use core::{
     cmp::{Ord, Ordering, PartialOrd},
     fmt,
@@ -396,38 +393,27 @@ impl<P: Fp2Parameters> fmt::Display for Fp2<P> {
 }
 
 impl<P: Fp2Parameters> CanonicalSerialize for Fp2<P> {
-    fn serialize(
-        &self,
-        extra_info: &[bool],
-        output_buf: &mut [u8],
-    ) -> Result<(), SerializationError> {
-        let fp_byte_size = <P::Fp as CanonicalSerialize>::buffer_size();
-        if output_buf.len() != 2 * fp_byte_size {
-            return Err(SerializationError::BufferWrongSize);
-        }
-        self.c0.serialize(&[], &mut output_buf[..fp_byte_size])?;
-        self.c1
-            .serialize(extra_info, &mut output_buf[fp_byte_size..2 * fp_byte_size])?;
+    fn serialize_with_flags<W: Write, F: Flags>(&self, writer: &mut W, flags: F) -> Result<(), SerializationError> {
+        CanonicalSerialize::serialize(&self.c0, writer)?;
+        CanonicalSerialize::serialize_with_flags(&self.c1, writer, flags)?;
         Ok(())
     }
 
-    fn buffer_size() -> usize {
-        2 * <P::Fp as CanonicalSerialize>::buffer_size()
+    fn serialized_size(&self) -> usize {
+        CanonicalSerialize::serialized_size(&self.c0) + CanonicalSerialize::serialized_size(&self.c1)
     }
 }
 
 impl<P: Fp2Parameters> CanonicalDeserialize for Fp2<P> {
-    fn deserialize(bytes: &[u8], extra_info_buf: &mut [bool]) -> Result<Self, SerializationError>
-    where
-        Self: Sized,
-    {
-        let fp_byte_size = <P::Fp as CanonicalSerialize>::buffer_size();
-        if bytes.len() != 2 * fp_byte_size {
-            return Err(SerializationError::BufferWrongSize);
-        }
-        let mut dummy_mutable_slice = [false; 0];
-        let c0 = P::Fp::deserialize(&bytes[..fp_byte_size], &mut dummy_mutable_slice)?;
-        let c1 = P::Fp::deserialize(&bytes[fp_byte_size..2 * fp_byte_size], extra_info_buf)?;
+    fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
+        let c0: P::Fp = CanonicalDeserialize::deserialize(reader)?;
+        let c1: P::Fp = CanonicalDeserialize::deserialize(reader)?;
         Ok(Fp2::new(c0, c1))
+    }
+
+    fn deserialize_with_flags<R: Read, F: Flags>(reader: &mut R) -> Result<(Self, F), SerializationError> {
+        let c0: P::Fp = CanonicalDeserialize::deserialize(reader)?;
+        let (c1, flags): (P::Fp, _) = CanonicalDeserialize::deserialize_with_flags(reader)?;
+        Ok((Fp2::new(c0, c1), flags))
     }
 }

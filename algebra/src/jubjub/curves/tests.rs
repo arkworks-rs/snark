@@ -14,7 +14,7 @@ use crate::tests::{curves::*, groups::*};
 fn test_projective_curve() {
     curve_tests::<JubJubProjective>();
 
-    let byte_size = <JubJubAffine as CanonicalSerialize>::buffer_size();
+    let byte_size = <JubJubAffine as Zero>::zero().serialized_size();
     edwards_curve_serialization_test::<JubJubParameters>(byte_size);
 }
 

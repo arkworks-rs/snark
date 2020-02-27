@@ -1,9 +1,4 @@
-use crate::{
-    bytes::{FromBytes, ToBytes},
-    fields::BitIterator,
-    io::{Read, Result as IoResult, Write},
-    UniformRand, Vec,
-};
+use crate::{bytes::{FromBytes, ToBytes}, fields::BitIterator, io::{Read, Result as IoResult, Write}, UniformRand, Vec, CanonicalSerialize, Flags, CanonicalDeserialize, SerializationError};
 use core::fmt::{Debug, Display};
 use rand::{
     distributions::{Distribution, Standard},
@@ -21,11 +16,52 @@ bigint_impl!(BigInteger384, 6);
 bigint_impl!(BigInteger768, 12);
 bigint_impl!(BigInteger832, 13);
 
+impl<T: BigInteger> CanonicalSerialize for T {
+    fn serialize_with_flags<W: Write, F: Flags>(&self, writer: &mut W, flags: F) -> Result<(), SerializationError> {
+        for (i, limb) in self.as_ref().iter().enumerate() {
+            // Encode flags into most significant limb.
+            if i == Self::NUM_LIMBS - 1 {
+                CanonicalSerialize::serialize_with_flags(limb, writer, flags)?;
+            } else {
+                CanonicalSerialize::serialize(limb, writer)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn serialized_size(&self) -> usize {
+        T::NUM_LIMBS * 8
+    }
+}
+
+impl<T: BigInteger> CanonicalDeserialize for T {
+    fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
+        let mut value = T::default();
+        for limb in value.as_mut().iter_mut() {
+            *limb = CanonicalDeserialize::deserialize(reader)?;
+        }
+        Ok(value)
+    }
+
+    fn deserialize_with_flags<R: Read, F: Flags>(reader: &mut R) -> Result<(Self, F), SerializationError> {
+        let mut value = T::default();
+        let mut flags = Default::default();
+        for (i, limb) in value.as_mut().iter_mut().enumerate() {
+            *limb = CanonicalDeserialize::deserialize(reader)?;
+            // The most significant limb encodes the flags, so remove them.
+            if i == T::NUM_LIMBS - 1 {
+                flags = Flags::from_u64_remove_flags(limb);
+            }
+        }
+        Ok((value, flags))
+    }
+}
+
 #[cfg(test)]
 mod tests;
 
 /// This defines a `BigInteger`, a smart wrapper around a
-/// sequence of `u64` limbs, least-significant digit first.
+/// sequence of `u64` limbs, least-significant limb first.
 pub trait BigInteger:
     ToBytes
     + FromBytes
@@ -45,6 +81,9 @@ pub trait BigInteger:
     + AsRef<[u64]>
     + From<u64>
 {
+    /// Number of limbs.
+    const NUM_LIMBS: usize;
+
     /// Add another representation to this one, returning the carry bit.
     fn add_nocarry(&mut self, other: &Self) -> bool;
 

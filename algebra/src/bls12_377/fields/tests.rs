@@ -30,7 +30,7 @@ fn test_fr() {
         field_test(a, b);
         primefield_test::<Fr>();
         sqrt_field_test(b);
-        let byte_size = <Fr as CanonicalSerialize>::buffer_size();
+        let byte_size = a.serialized_size();
         field_serialization_test::<Fr>(byte_size);
     }
 }
@@ -44,7 +44,7 @@ fn test_fq() {
         field_test(a, b);
         primefield_test::<Fq>();
         sqrt_field_test(a);
-        let byte_size = <Fq as CanonicalSerialize>::buffer_size();
+        let byte_size = a.serialized_size();
         field_serialization_test::<Fq>(byte_size);
     }
 }
@@ -59,7 +59,7 @@ fn test_fq2() {
         sqrt_field_test(a);
     }
     frobenius_test::<Fq2, _>(Fq::characteristic(), 13);
-    let byte_size = <Fq2 as CanonicalSerialize>::buffer_size();
+    let byte_size = Fq2::zero().serialized_size();
     field_serialization_test::<Fq2>(byte_size);
 }
 
@@ -72,7 +72,7 @@ fn test_fq6() {
         field_test(g, h);
     }
     frobenius_test::<Fq6, _>(Fq::characteristic(), 13);
-    let byte_size = <Fq6 as CanonicalSerialize>::buffer_size();
+    let byte_size = Fq6::zero().serialized_size();
     field_serialization_test::<Fq6>(byte_size);
 }
 
@@ -85,7 +85,7 @@ fn test_fq12() {
         field_test(g, h);
     }
     frobenius_test::<Fq12, _>(Fq::characteristic(), 13);
-    let byte_size = <Fq12 as CanonicalSerialize>::buffer_size();
+    let byte_size = Fq12::zero().serialized_size();
     field_serialization_test::<Fq12>(byte_size);
 }
 
