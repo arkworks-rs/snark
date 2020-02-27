@@ -180,7 +180,11 @@ impl<P: FieldBasedMerkleTreeConfig> FieldBasedMerkleHashTree<P> {
             cur_height += 1;
         }
 
-        let root_hash = hash_inner_node::<P::H>(cur_hash, empty_hash)?;
+        let root_hash = if tree_height == Self::HEIGHT as usize {
+            cur_hash
+        } else {
+            hash_inner_node::<P::H>(cur_hash, empty_hash)?
+        };
 
         end_timer!(new_time);
 
@@ -194,6 +198,12 @@ impl<P: FieldBasedMerkleTreeConfig> FieldBasedMerkleHashTree<P> {
     #[inline]
     pub fn root(&self) -> <P::H as FieldBasedHash>::Data {
         self.root.clone().unwrap()
+    }
+
+    #[inline]
+    pub fn leaves(&self) -> &[<P::H as FieldBasedHash>::Data] {
+        let leaf_index = convert_index_to_last_level(0, tree_height(self.tree.len()));
+        &self.tree[leaf_index..]
     }
 
     pub fn generate_proof<L>(
