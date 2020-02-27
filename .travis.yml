@@ -31,8 +31,8 @@ matrix:
     - rust: stable
       script:
         - cargo test --all -- --skip dpc --skip integration_test
-        - cargo check --examples --all --benches
-        - cargo check --all-features --examples --all --benches
+        - cargo check --examples --all 
+        - cargo check --all-features --examples --all
 
     - rust: nightly
       install:
