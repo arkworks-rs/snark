@@ -45,6 +45,7 @@ macro_rules! field_new {
 /// The interface for a generic field.
 pub trait Field:
     ToBytes
+    + 'static
     + FromBytes
     + Copy
     + Clone
