@@ -38,10 +38,6 @@ pub use self::{
     signature::SigRandomizePkGadget,
 };
 
-#[cfg(feature = "std")]
-pub type Error = Box<dyn std::error::Error>;
-
-#[cfg(not(feature = "std"))]
 pub type Error = Box<dyn algebra_core::Error>;
 
 #[derive(Debug)]
@@ -60,13 +56,4 @@ impl core::fmt::Display for CryptoError {
     }
 }
 
-#[cfg(feature = "std")]
-impl std::error::Error for CryptoError {
-    #[inline]
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        None
-    }
-}
-
-#[cfg(not(feature = "std"))]
 impl algebra_core::Error for CryptoError {}

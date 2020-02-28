@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unused_import_braces, unused_qualifications, trivial_casts)]
-#![deny(trivial_numeric_casts, variant_size_differences, unreachable_pub)]
+#![deny(trivial_numeric_casts, variant_size_differences)]
 #![deny(non_shorthand_field_patterns, unused_attributes, unused_imports)]
 #![deny(unused_extern_crates, renamed_and_removed_lints, unused_allocation)]
 #![deny(unused_comparisons, bare_trait_objects, const_err, unused_must_use)]
@@ -57,6 +57,9 @@ pub use self::groups::*;
 mod rand;
 pub use self::rand::*;
 
+mod error;
+pub use self::error::*;
+
 mod to_field_vec;
 pub use to_field_vec::ToConstraintField;
 
@@ -77,6 +80,8 @@ pub mod prelude {
     pub use crate::rand::UniformRand;
 
     pub use num_traits::{One, Zero};
+
+    pub use crate::error::*;
 }
 
 #[cfg(not(feature = "std"))]
