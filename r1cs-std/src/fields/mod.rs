@@ -224,6 +224,31 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
         Ok(res)
     }
 
+    fn pow_by_constant<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        exp: u64
+    ) -> Result<Self, SynthesisError> {
+        let mut res = Self::one(cs.ns(|| "Alloc result"))?;
+        let mut found_one = false;
+
+        for i in (0..64).rev()
+        {
+            if found_one
+            {
+                res.square_in_place(cs.ns(|| format!("square for bit {:?}", i)))?;
+            }
+    
+            if exp & (1 << i) != 0
+            {
+                found_one = true;
+                res.mul_in_place(cs.ns(|| format!("mul for bit {:?}", i)), self)?;
+            }
+        }
+    
+        Ok(res)
+    }
+
     fn cost_of_mul() -> usize;
 
     fn cost_of_inv() -> usize;
@@ -401,6 +426,14 @@ pub(crate) mod tests {
         assert_eq!(
             a_native * &(a_native * &a_native),
             a.pow(cs.ns(|| "test_pow"), &bits)
+                .unwrap()
+                .get_value()
+                .unwrap()
+        );
+
+        assert_eq!(
+            a_native * &(a_native * &a_native),
+            a.pow_by_constant(cs.ns(|| "test_pow"), 3)
                 .unwrap()
                 .get_value()
                 .unwrap()
