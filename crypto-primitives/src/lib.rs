@@ -54,3 +54,15 @@ impl std::error::Error for CryptoError {
         None
     }
 }
+
+pub fn leading_zeros(bits: Vec<bool>) -> u32 {
+    let mut ctr = 0;
+    for b in bits.iter() {
+        if !b {
+            ctr += 1;
+        } else {
+            break;
+        }
+    }
+    ctr
+}

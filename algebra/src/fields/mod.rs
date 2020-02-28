@@ -296,7 +296,7 @@ impl<F: PrimeField> FromBits for F {
     #[inline]
     fn read_bits(bits: Vec<bool>) -> Result<Self, Error> {
         let modulus_bits = <Self as PrimeField>::Params::MODULUS_BITS as usize;
-        match bits.len() ==  modulus_bits {
+        match bits.len() <=  modulus_bits {
             true => {
                 let read_bigint = <Self as PrimeField>::BigInt::from_bits(bits.as_slice());
                 match read_bigint < F::Params::MODULUS {
@@ -321,25 +321,10 @@ impl<F: PrimeField> FromBits for F {
 
 /// Converts an element belonging to field FromF to an element belonging to field ToF.
 /// If `from` is not a valid element for field ToF, this function returns None.
-pub fn project<FromF: PrimeField, ToF: PrimeField>(from: FromF) -> Result<ToF, Error> {
-    //ToF::from_random_bytes(to_bytes!(from).unwrap().as_slice()).unwrap()
-
-    // This gives different MontRepr from primitive and gadget (since we are in two different
-    // fields), but the same bit representation (since into_repr() is called whenever
-    // passing to bits), and the same bit representation is what we need for the mul_bits
-    // gadget that works on bits.
+pub fn convert<FromF: PrimeField, ToF: PrimeField>(from: FromF) -> Result<ToF, Error> {
+    //TODO: Byte seems to be faster but we can't use our functions
+    //ToF::read(to_bytes!(from).unwrap().as_slice())
     ToF::read_bits(from.write_bits())
-
-    // The one below, instead, gives the same MontRepr but different bit representation, and the
-    // gadget verification of the primitive signature fails.
-    //
-    //ToF::from_repr_raw(ToF::BigInt::from_bits(from.into_repr_raw().to_bits().as_slice()))
-
-    //However, we should decide whether this conversion is "safe", i.e. if there aren't collisions
-    //or situations in which ToF::from_repr(...) returns zero, resulting in a null signature.
-    //Note that the to_bits algorithm looks the same as the Coda "project" which is used
-    //in signatures, that basically reconstruct a vector of u64 as a BigInteger from an
-    //underlying bit representation which is the result of "unpacking" a field element.
 }
 
 /// The interface for a field that supports an efficient square-root operation.

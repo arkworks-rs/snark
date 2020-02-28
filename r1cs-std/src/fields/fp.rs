@@ -16,6 +16,7 @@ pub struct FpGadget<F: PrimeField> {
 }
 
 impl<F: PrimeField> FpGadget<F> {
+
     #[inline]
     pub fn from<CS: ConstraintSystem<F>>(mut cs: CS, value: &F) -> Self {
         Self::alloc(cs.ns(|| "from"), || Ok(*value)).unwrap()
@@ -28,6 +29,47 @@ impl<F: PrimeField> FpGadget<F> {
     ) -> Result<Boolean, SynthesisError> {
         let bits = self.to_bits_strict(cs.ns(|| "to bits strict"))?;
         Ok(bits[bits.len() - 1])
+    }
+
+    #[inline]
+    pub fn to_bits_with_length_restriction<CS: ConstraintSystem<F>>(
+        &self,
+        mut cs: CS,
+        skip_leading_bits: usize,
+    ) -> Result<Vec<Boolean>, SynthesisError> {
+        let num_bits = F::Params::MODULUS_BITS;
+        let bit_values = match self.value {
+            Some(value) => {
+                let mut tmp = Vec::new();
+                for b in value.write_bits() {
+                    tmp.push(Some(b));
+                }
+                tmp
+            },
+            None => vec![None; num_bits as usize],
+        };
+
+        let mut bits = vec![];
+        for (i, b) in bit_values.into_iter().skip(skip_leading_bits).enumerate() {
+            bits.push(AllocatedBit::alloc(cs.ns(|| format!("bit {}", i)), || {
+                b.get()
+            })?);
+        }
+
+        let mut lc = LinearCombination::zero();
+        let mut coeff = F::one();
+
+        for bit in bits.iter().rev() {
+            lc = lc + (coeff, bit.get_variable());
+
+            coeff.double_in_place();
+        }
+
+        lc = &self.variable - lc;
+
+        cs.enforce(|| "unpacking_constraint", |lc| lc, |lc| lc, |_| lc);
+
+        Ok(bits.into_iter().map(Boolean::from).collect())
     }
 
 }
@@ -339,39 +381,7 @@ impl<F: PrimeField> ToBitsGadget<F> for FpGadget<F> {
     /// Outputs the binary representation of the value in `self` in *big-endian*
     /// form.
     fn to_bits<CS: ConstraintSystem<F>>(&self, mut cs: CS) -> Result<Vec<Boolean>, SynthesisError> {
-        let num_bits = F::Params::MODULUS_BITS;
-        let bit_values = match self.value {
-            Some(value) => {
-                let mut tmp = Vec::new();
-                for b in value.write_bits() {
-                    tmp.push(Some(b));
-                }
-                tmp
-            },
-            None => vec![None; num_bits as usize],
-        };
-
-        let mut bits = vec![];
-        for (i, b) in bit_values.into_iter().enumerate() {
-            bits.push(AllocatedBit::alloc(cs.ns(|| format!("bit {}", i)), || {
-                b.get()
-            })?);
-        }
-
-        let mut lc = LinearCombination::zero();
-        let mut coeff = F::one();
-
-        for bit in bits.iter().rev() {
-            lc = lc + (coeff, bit.get_variable());
-
-            coeff.double_in_place();
-        }
-
-        lc = &self.variable - lc;
-
-        cs.enforce(|| "unpacking_constraint", |lc| lc, |lc| lc, |_| lc);
-
-        Ok(bits.into_iter().map(Boolean::from).collect())
+        self.to_bits_with_length_restriction(&mut cs, 0)
     }
 
     fn to_bits_strict<CS: ConstraintSystem<F>>(

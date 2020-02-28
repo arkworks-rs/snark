@@ -220,7 +220,7 @@ impl<G, ConstraintF, GG> ToBytesGadget<ConstraintF> for SchnorrSigGadgetPk<G, Co
 
 mod field_impl
 {
-    use algebra::{PrimeField, ProjectiveCurve, Group, ToConstraintField};
+    use algebra::{PrimeField, FpParameters, ProjectiveCurve, Group, ToConstraintField};
     use crate::{
         signature::{
             schnorr::field_impl::{FieldBasedSchnorrSignature, FieldBasedSchnorrSignatureScheme},
@@ -233,8 +233,6 @@ mod field_impl
         alloc::AllocGadget,
         eq::EqGadget,
         groups::GroupGadget,
-        bits::ToBitsGadget,
-        boolean::Boolean
     };
     use r1cs_core::{ConstraintSystem, SynthesisError};
     use std::{
@@ -254,8 +252,8 @@ mod field_impl
         ConstraintF: PrimeField,
     >
     {
-        pub r:       FpGadget<ConstraintF>,
-        pub s:       Vec<Boolean>,
+        pub e:       FpGadget<ConstraintF>,
+        pub s:       FpGadget<ConstraintF>,
         _field:      PhantomData<ConstraintF>,
     }
 
@@ -271,12 +269,12 @@ mod field_impl
         {
             f().and_then(|sig| {
                 let FieldBasedSchnorrSignature {
-                    r,
+                    e,
                     s
                 } = sig.borrow().clone();
-                let r = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc r"), || Ok(r))?;
-                let s = Vec::<Boolean>::alloc(cs.ns(|| "alloc s"), || Ok(s.as_slice()))?;
-                Ok(Self{r, s, _field: PhantomData})
+                let e = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc e"), || Ok(e))?;
+                let s = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc s"), || Ok(s))?;
+                Ok(Self{e, s, _field: PhantomData})
             })
         }
 
@@ -287,12 +285,12 @@ mod field_impl
         {
             f().and_then(|sig| {
                 let FieldBasedSchnorrSignature {
-                    r,
+                    e,
                     s
                 } = sig.borrow().clone();
-                let r = FpGadget::<ConstraintF>::alloc_input(cs.ns(|| "alloc r"), || Ok(r))?;
-                let s = Boolean::alloc_input_vec(cs.ns(|| "alloc s"), s.as_slice())?;
-                Ok(Self{r, s, _field: PhantomData})
+                let e = FpGadget::<ConstraintF>::alloc_input(cs.ns(|| "alloc e"), || Ok(e))?;
+                let s = FpGadget::<ConstraintF>::alloc_input(cs.ns(|| "alloc s"), || Ok(s))?;
+                Ok(Self{e, s, _field: PhantomData})
             })
         }
     }
@@ -333,10 +331,64 @@ mod field_impl
             message: &[Self::DataGadget]
         ) -> Result<(), SynthesisError> {
 
+            //Enforce e' * pk
+            let e_bits = {
+
+                //Serialize e taking into account the length restriction
+                let mut to_skip = 0usize;
+                let moduli_diff = ConstraintF::Params::MODULUS_BITS as i32 -
+                    <G::ScalarField as PrimeField>::Params::MODULUS_BITS as i32;
+                if moduli_diff >= 0 {
+                    to_skip = moduli_diff as usize + 1;
+                }
+                
+                let e_bits = signature.e
+                    .to_bits_with_length_restriction(cs.ns(|| "e_to_bits"), to_skip)?;
+                debug_assert!(e_bits.len() as u32 == ConstraintF::Params::MODULUS_BITS - to_skip as u32);
+                e_bits
+            };
+
+            //Let's hardcode generator and use it as `result` param here to avoid edge cases in addition
+            let g = GG::alloc_hardcoded(cs.ns(|| "hardcode generator"), || Ok(G::prime_subgroup_generator()))?;
+            let neg_e_times_pk = public_key
+                .mul_bits(cs.ns(|| "pk * e + g"), &g, e_bits.as_slice().iter().rev())?
+                .sub(cs.ns(|| "subtract g"), &g)?
+                .negate(cs.ns(|| "- (e * pk)"))?;
+
+            //Enforce s * G and R' = s*G - e*pk
+            let mut s_bits = {
+
+                //Serialize s taking into account the length restriction
+                let mut to_skip = 0usize;
+                let moduli_diff = <G::ScalarField as PrimeField>::Params::MODULUS_BITS as i32 -
+                    ConstraintF::Params::MODULUS_BITS as i32;
+                if moduli_diff >= 0 {
+                    to_skip = moduli_diff as usize + 1;
+                }
+
+                let s_bits = signature.s
+                    .to_bits_with_length_restriction(cs.ns(|| "s_to_bits"), to_skip)?;
+                debug_assert!(s_bits.len() as u32 == <G::ScalarField as PrimeField>::Params::MODULUS_BITS - to_skip as u32);
+                s_bits
+            };
+
+            s_bits.reverse();
+            let r_prime = GG::mul_bits_precomputed(
+                    &(g.get_value().unwrap()),
+                    cs.ns(|| "(s * G) - (e * pk)"),
+                    &neg_e_times_pk,
+                    s_bits.as_slice()
+                )?;
+
+            let r_prime_x = {
+                let r_prime_coords = r_prime.to_field_gadget_elements()?;
+                r_prime_coords[0].clone()
+            };
+
             // Check e' = H(m || signature.r || pk)
             let mut hash_input = Vec::new();
             hash_input.extend_from_slice(message);
-            hash_input.push(signature.r.clone());
+            hash_input.push(r_prime_x);
             hash_input.extend_from_slice(public_key.to_field_gadget_elements().unwrap().as_slice());
 
             let e_prime = HG::check_evaluation_gadget(
@@ -344,37 +396,9 @@ mod field_impl
                 hash_input.as_slice()
             )?;
 
-            //Enforce R' = s*G - e'*pk
-            let e_prime_bits = e_prime
-                .to_bits(cs.ns(|| "e_prime_to_bits"))?;
+            //Enforce signature.e == e'
+            signature.e.enforce_equal(cs.ns(|| "e == e_prime"), &e_prime)?;
 
-            //Let's hardcode generator and use it as `result` param here to avoid edge cases in addition
-            let g = GG::alloc_hardcoded(cs.ns(|| "hardcode generator"), || Ok(G::prime_subgroup_generator()))?;
-            let neg_e_prime_times_pk = public_key
-                .mul_bits(cs.ns(|| "pk * e_prime + g"), &g, e_prime_bits.as_slice().iter().rev())?
-                .sub(cs.ns(|| "subtract g"), &g)?
-                .negate(cs.ns(|| "- (e_prime * pk)"))?;
-
-            //Enforce signature.s * G
-            let mut s = signature.s.clone();
-            s.reverse();
-            let r_prime = GG::mul_bits_precomputed(
-                    &(g.get_value().unwrap()),
-                    cs.ns(|| "(s * G) - (e_prime * pk)"),
-                    &neg_e_prime_times_pk,
-                    s.as_slice()
-                )?;
-            let (r_prime_x, r_prime_y) = {
-                let r_prime_coords = r_prime.to_field_gadget_elements()?;
-                (r_prime_coords[0].clone(), r_prime_coords[1].clone())
-            };
-
-            //Enforce R'.x == r
-            signature.r.enforce_equal(cs.ns(|| "sig.r == R'.x"), &r_prime_x)?;
-
-            //Enforce R'.y is even
-            let y_odd = r_prime_y.is_odd(cs.ns(|| "R'.y is_odd"))?;
-            y_odd.enforce_equal(cs.ns(||"enforce R'.y not odd"), &Boolean::constant(false))?;
             Ok(())
         }
     }
@@ -426,7 +450,7 @@ mod test {
     fn sign<S: FieldBasedSignatureScheme, R: Rng>(rng: &mut R, message: &[S::Data]) -> (S::Signature, S::PublicKey, S::SecretKey)
     {
         let (pk, sk) = S::keygen(rng).unwrap();
-        let sig = S::sign(&pk, &sk, &message).unwrap();
+        let sig = S::sign(rng, &pk, &sk, &message).unwrap();
         (sig, pk, sk)
     }
 
@@ -478,7 +502,7 @@ mod test {
 
         //Wrong sig: generate a signature for a different message and check constraints fail
         let new_message: MNT4Fr = rng.gen();
-        let new_sig = SchnorrMNT4::sign(&pk, &sk, &[new_message]).unwrap();
+        let new_sig = SchnorrMNT4::sign(rng, &pk, &sk, &[new_message]).unwrap();
         let new_sig_g = <SchnorrMNT4Gadget as FieldBasedSigGadget<SchnorrMNT4, MNT4Fr>>::SignatureGadget::alloc(
             cs.ns(|| "alloc new sig"),
             || Ok(new_sig)
@@ -546,7 +570,7 @@ mod test {
 
         //Wrong sig: let's generate a signature for a different message
         let new_message: MNT6Fr = rng.gen();
-        let new_sig = SchnorrMNT6::sign(&pk, &sk, &[new_message]).unwrap();
+        let new_sig = SchnorrMNT6::sign(rng, &pk, &sk, &[new_message]).unwrap();
         let new_sig_g = <SchnorrMNT6Gadget as FieldBasedSigGadget<SchnorrMNT6, MNT6Fr>>::SignatureGadget::alloc(
             cs.ns(|| "alloc new sig"),
             || Ok(new_sig)

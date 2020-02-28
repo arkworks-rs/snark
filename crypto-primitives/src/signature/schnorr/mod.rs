@@ -234,14 +234,12 @@ mod field_impl {
     use crate::{
         crh::FieldBasedHash,
         signature::FieldBasedSignatureScheme,
-        Error,
+        Error, leading_zeros
     };
-    use algebra::{Field, PrimeField, Group, UniformRand, AffineCurve, ProjectiveCurve, project, ToBits, FromBits, ToConstraintField};
+    use algebra::{Field, PrimeField, FpParameters, Group, UniformRand, AffineCurve, ProjectiveCurve, convert, ToBits, ToConstraintField, ToBytes, FromBytes};
     use std::marker::PhantomData;
     use rand::Rng;
-    use std::{
-        ops::Neg,
-    };
+    use std::io::{Write, Read, Result as IoResult};
 
     #[allow(dead_code)]
     pub struct FieldBasedSchnorrSignatureScheme<
@@ -264,8 +262,23 @@ mod field_impl {
     Debug(bound = "F: PrimeField")
     )]
     pub struct FieldBasedSchnorrSignature<F: PrimeField> {
-        pub r:    F,
-        pub s:    Vec<bool>,
+        pub e:    F,
+        pub s:    F,
+    }
+
+    impl<F: PrimeField> ToBytes for FieldBasedSchnorrSignature<F> {
+        fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
+            self.e.write(&mut writer)?;
+            self.s.write(&mut writer)
+        }
+    }
+
+    impl<F: PrimeField> FromBytes for FieldBasedSchnorrSignature<F> {
+        fn read<R: Read>(mut reader: R) -> IoResult<Self> {
+            let e = F::read(&mut reader)?;
+            let s = F::read(&mut reader)?;
+            Ok(Self{ e, s })
+        }
     }
 
     impl<F: PrimeField, G: ProjectiveCurve + ToConstraintField<F>, H: FieldBasedHash<Data = F>> FieldBasedSignatureScheme for
@@ -284,51 +297,64 @@ mod field_impl {
             Ok((public_key, secret_key))
         }
 
-        fn sign(
+        fn sign<R: Rng>(
+            rng: &mut R,
             pk: &Self::PublicKey,
             sk: &Self::SecretKey,
             message: &[Self::Data],
         )-> Result<Self::Signature, Error>
         {
-            // Compute k' = H(m || pk || sk)
             let pk_coords = pk.to_field_elements()?;
-            let sk_b = project::<G::ScalarField, F>(*sk)?;
-            let mut hash_input = Vec::new();
-            hash_input.extend_from_slice(message);
-            hash_input.extend_from_slice(pk_coords.as_slice());
-            hash_input.push(sk_b);
-            let hr = H::evaluate(hash_input.as_ref())?;
 
-            let k_prime = project::<F, G::ScalarField>(hr)?;
+            let (e, s) = loop {
 
-            // Assert k' != 0
-            assert!(!k_prime.is_zero());
+                //Sample random element
+                let k = G::ScalarField::rand(rng);
 
-            //R = k' * G
-            let r = G::prime_subgroup_generator()
-                .mul(&k_prime);
-            let (r_x, r_y) = {
-                let r_coords = r.to_field_elements()?;
-                (r_coords[0], r_coords[1])
+                // Assert k != 0
+                assert!(!k.is_zero());
+
+                //R = k * G
+                let r = G::prime_subgroup_generator()
+                    .mul(&k);
+
+                let r_x = {
+                    let r_coords = r.to_field_elements()?;
+                    r_coords[0]
+                };
+
+                // Compute e = H(m || R.x || pk)
+                let mut hash_input = Vec::new();
+                hash_input.extend_from_slice(message);
+                hash_input.push(r_x);
+                hash_input.extend_from_slice(pk_coords.as_slice());
+                let e = H::evaluate(hash_input.as_ref())?;
+
+                //Enforce e bit length is strictly smaller than G::ScalarField modulus bit length
+                if (F::Params::MODULUS_BITS - leading_zeros(e.write_bits()))
+                    >= <G::ScalarField as PrimeField>::Params::MODULUS_BITS
+                {
+                    continue;
+                }
+
+                //We can now safely convert it to the other field
+                let e_conv = convert::<F, G::ScalarField>(e)?;
+
+                //Enforce s bit length is strictly smaller than F modulus bit length
+                let s = k + &(e_conv * sk);
+
+                if (<G::ScalarField as PrimeField>::Params::MODULUS_BITS - leading_zeros(s.write_bits()))
+                    >= F::Params::MODULUS_BITS
+                {
+                    continue;
+                }
+
+                let s_conv = convert::<G::ScalarField, F>(s)?;
+
+                break (e, s_conv);
             };
 
-            //Set k = -k' if r.y is odd otherwise k = k'
-            let k = if r_y.is_odd() { k_prime.neg() } else { k_prime };
-
-            // Compute e = H(m || R.x || pk)
-            let mut hash_input = Vec::new();
-            hash_input.extend_from_slice(message);
-            hash_input.push(r_x);
-            hash_input.extend_from_slice(pk_coords.as_slice());
-            let hr = H::evaluate(hash_input.as_ref())?;
-            let e =  project::<F, G::ScalarField>(hr)?;
-
-            let signature = FieldBasedSchnorrSignature {
-                r: r_x,
-                s: (k + &(e * sk)).write_bits(),
-            };
-
-            Ok(signature)
+            Ok(FieldBasedSchnorrSignature {e, s})
         }
 
         fn verify(
@@ -338,35 +364,46 @@ mod field_impl {
         )
             -> Result<bool, Error>
         {
-            let s = G::ScalarField::read_bits(signature.clone().s)?;
+
             let pk_coords = pk.to_field_elements()?;
 
+            //Checks
+            assert!(
+                (F::Params::MODULUS_BITS - leading_zeros(signature.e.write_bits())) <
+                <G::ScalarField as PrimeField>::Params::MODULUS_BITS
+            );
+            assert!(
+                (<G::ScalarField as PrimeField>::Params::MODULUS_BITS - leading_zeros(signature.s.write_bits())) <
+                   F::Params::MODULUS_BITS
+            );
+
+            //Debug checks: should they be promoted to actual checks ?
             debug_assert!(pk.into_affine().is_in_correct_subgroup_assuming_on_curve());
-            debug_assert!(s.pow(&G::ScalarField::characteristic()) == s);
-            debug_assert!(signature.r.pow(&G::BaseField::characteristic()) == signature.r);
+            debug_assert!(signature.s.pow(&G::BaseField::characteristic()) == signature.s); //Does this check make sense ?
+            debug_assert!(signature.e.pow(&G::BaseField::characteristic()) == signature.e);
 
-            // Compute e' = H(m || signature.r.x || pk)
-            let mut hash_input = Vec::new();
-            hash_input.extend_from_slice(message);
-            hash_input.push(signature.r);
-            hash_input.extend_from_slice(pk_coords.as_slice());
-            let hr = H::evaluate(hash_input.as_ref())?;
-
-            let e_prime =  project::<F, G::ScalarField>(hr)?;
-
-            //Compute R' = s*G - e' * pk
+            //Compute R' = s*G - e * pk
             let r_prime = {
-                let s_times_g = G::prime_subgroup_generator().mul(&s);
-                let neg_e_times_pk = pk.neg().mul(&e_prime);
+                let s_conv = convert::<F, G::ScalarField>(signature.s)?;
+                let e_conv =  convert::<F, G::ScalarField>(signature.e)?;
+                let s_times_g = G::prime_subgroup_generator().mul(&s_conv);
+                let neg_e_times_pk = pk.neg().mul(&e_conv);
                 (s_times_g + &neg_e_times_pk)
             };
 
-            let (r_prime_x, r_prime_y) = {
+            let r_prime_x = {
                 let r_prime_coords = r_prime.to_field_elements()?;
-                (r_prime_coords[0], r_prime_coords[1])
+                r_prime_coords[0]
             };
 
-            Ok((r_prime_x == signature.r) && !r_prime.is_zero() && !r_prime_y.is_odd())
+            // Compute e' = H(m || R'.x || pk)
+            let mut hash_input = Vec::new();
+            hash_input.extend_from_slice(message);
+            hash_input.push(r_prime_x);
+            hash_input.extend_from_slice(pk_coords.as_slice());
+            let e_prime = H::evaluate(hash_input.as_ref())?;
+
+            Ok(signature.e == e_prime)
         }
     }
 }
@@ -381,6 +418,7 @@ mod test {
         mnt4753::Fr as MNT4Fr,
         mnt6753::Fr as MNT6Fr,
     };
+    use algebra::{ToBytes, to_bytes, FromBytes};
     use crate::crh::{MNT4PoseidonHash, MNT6PoseidonHash};
     use crate::signature::FieldBasedSignatureScheme;
     use crate::signature::schnorr::field_impl::FieldBasedSchnorrSignatureScheme;
@@ -391,19 +429,25 @@ mod test {
 
     fn sign_and_verify<S: FieldBasedSignatureScheme, R: Rng>(rng: &mut R, message: &[S::Data]) {
         let (pk, sk) = S::keygen(rng).unwrap();
-        let sig = S::sign(&pk, &sk, &message).unwrap();
+        let sig = S::sign(rng, &pk, &sk, &message).unwrap();
         assert!(S::verify(&pk, &message, &sig).unwrap());
+
+        //Serialization/deserialization test
+        let sig_serialized = to_bytes!(sig).unwrap();
+        let sig_deserialized = <S as FieldBasedSignatureScheme>::Signature::read(sig_serialized.as_slice()).unwrap();
+        assert_eq!(sig, sig_deserialized);
+        assert!(S::verify(&pk, &message, &sig_deserialized).unwrap());
     }
 
     fn failed_verification<S: FieldBasedSignatureScheme, R: Rng>(rng: &mut R, message: &[S::Data], bad_message: &[S::Data]) {
         let (pk, sk) = S::keygen(rng).unwrap();
 
         //Attempt to verify a signature for a different message
-        let sig = S::sign(&pk, &sk, message).unwrap();
+        let sig = S::sign(rng, &pk, &sk, message).unwrap();
         assert!(!S::verify(&pk, bad_message, &sig).unwrap());
 
         //Attempt to verify a different signature for a message
-        let bad_sig = S::sign(&pk, &sk, bad_message).unwrap();
+        let bad_sig = S::sign(rng, &pk, &sk, bad_message).unwrap();
         assert!(!S::verify(&pk, message, &bad_sig).unwrap());
 
         //Attempt to verify a signature for a message but with different public key

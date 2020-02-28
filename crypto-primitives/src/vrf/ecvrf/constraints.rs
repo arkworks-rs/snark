@@ -1,11 +1,10 @@
-use algebra::{PrimeField, ProjectiveCurve, Group};
+use algebra::{PrimeField, FpParameters, ProjectiveCurve, Group};
 use r1cs_std::{
     fields::fp::FpGadget,
     alloc::AllocGadget,
     groups::GroupGadget,
     eq::EqGadget,
-    ToBytesGadget, ToBitsGadget,
-    boolean::Boolean,
+    ToBytesGadget,
 };
 use crate::{
     vrf::{
@@ -39,7 +38,7 @@ where
 {
     pub gamma:   GG,
     pub c:       FpGadget<ConstraintF>,
-    pub s:       Vec<Boolean>,
+    pub s:       FpGadget<ConstraintF>,
     _field:      PhantomData<ConstraintF>,
     _group:      PhantomData<G>,
 }
@@ -64,7 +63,7 @@ for FieldBasedEcVrfProofGadget<ConstraintF, G, GG>
             } = proof.borrow().clone();
             let gamma = GG::alloc(cs.ns(|| "alloc gamma"), || Ok(gamma))?;
             let c = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc r"), || Ok(c))?;
-            let s = Vec::<Boolean>::alloc(cs.ns(|| "alloc s"), || Ok(s.as_slice()))?;
+            let s = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc s"), || Ok(s))?;
             Ok(Self{gamma, c, s, _field: PhantomData, _group: PhantomData})
         })
     }
@@ -82,7 +81,7 @@ for FieldBasedEcVrfProofGadget<ConstraintF, G, GG>
             } = proof.borrow().clone();
             let gamma = GG::alloc_input(cs.ns(|| "alloc gamma"), || Ok(gamma))?;
             let c = FpGadget::<ConstraintF>::alloc_input(cs.ns(|| "alloc r"), || Ok(c))?;
-            let s = Boolean::alloc_input_vec(cs.ns(|| "alloc s"), s.as_slice())?;
+            let s = FpGadget::<ConstraintF>::alloc_input(cs.ns(|| "alloc s"), || Ok(s))?;
             Ok(Self{gamma, c, s, _field: PhantomData, _group: PhantomData})
         })
     }
@@ -153,11 +152,38 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
             || Ok(G::prime_subgroup_generator())
         )?;
 
-        let mut s_bits = proof.s.clone();
-        s_bits.reverse();
+        let c_bits = {
 
-        let c_bits = proof.c
-            .to_bits(cs.ns(|| "proof.c to bits"))?;
+            //Serialize e taking into account the length restriction
+            let mut to_skip = 0usize;
+            let moduli_diff = ConstraintF::Params::MODULUS_BITS as i32 -
+                <G::ScalarField as PrimeField>::Params::MODULUS_BITS as i32;
+            if moduli_diff >= 0 {
+                to_skip = moduli_diff as usize + 1;
+            }
+
+            let c_bits = proof.c
+                .to_bits_with_length_restriction(cs.ns(|| "proof.c_to_bits"), to_skip)?;
+            debug_assert!(c_bits.len() as u32 == ConstraintF::Params::MODULUS_BITS - to_skip as u32);
+            c_bits
+        };
+
+        let mut s_bits = {
+
+            //Serialize s taking into account the length restriction
+            let mut to_skip = 0usize;
+            let moduli_diff = <G::ScalarField as PrimeField>::Params::MODULUS_BITS as i32 -
+                ConstraintF::Params::MODULUS_BITS as i32;
+            if moduli_diff >= 0 {
+                to_skip = moduli_diff as usize + 1;
+            }
+
+            let s_bits = proof.s
+                .to_bits_with_length_restriction(cs.ns(|| "proof.s_to_bits"), to_skip)?;
+            debug_assert!(s_bits.len() as u32 == <G::ScalarField as PrimeField>::Params::MODULUS_BITS - to_skip as u32);
+            s_bits
+        };
+        s_bits.reverse();
 
         //Check u = g^s - pk^c
         let u =
