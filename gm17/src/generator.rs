@@ -34,7 +34,7 @@ where
 }
 
 /// This is our assembly structure that we'll use to synthesize the
-/// circuit into a QAP.
+/// circuit into a SAP.
 pub struct KeypairAssembly<E: PairingEngine> {
     pub num_inputs:      usize,
     pub num_aux:         usize,
