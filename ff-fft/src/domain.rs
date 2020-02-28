@@ -44,6 +44,31 @@ impl<F: PrimeField> fmt::Debug for EvaluationDomain<F> {
     }
 }
 
+/// Types that can be FFT-ed must implement this trait.
+pub trait DomainCoeff<F: PrimeField>:
+    Copy
+    + Send
+    + Sync
+    + core::ops::AddAssign
+    + core::ops::SubAssign
+    + algebra_core::Zero
+    + core::ops::MulAssign<F>
+{
+}
+
+impl<T, F> DomainCoeff<F> for T
+where
+    F: PrimeField,
+    T: Copy
+        + Send
+        + Sync
+        + core::ops::AddAssign
+        + core::ops::SubAssign
+        + algebra_core::Zero
+        + core::ops::MulAssign<F>,
+{
+}
+
 impl<F: PrimeField> EvaluationDomain<F> {
     /// Sample an element that is *not* in the domain.
     pub fn sample_element_outside_domain<R: Rng>(&self, rng: &mut R) -> F {
@@ -104,20 +129,20 @@ impl<F: PrimeField> EvaluationDomain<F> {
     }
 
     /// Compute a FFT.
-    pub fn fft(&self, coeffs: &[F]) -> Vec<F> {
+    pub fn fft<T: DomainCoeff<F>>(&self, coeffs: &[T]) -> Vec<T> {
         let mut coeffs = coeffs.to_vec();
         self.fft_in_place(&mut coeffs);
         coeffs
     }
 
     /// Compute a FFT, modifying the vector in place.
-    pub fn fft_in_place(&self, coeffs: &mut Vec<F>) {
-        coeffs.resize(self.size(), F::zero());
+    pub fn fft_in_place<T: DomainCoeff<F>>(&self, coeffs: &mut Vec<T>) {
+        coeffs.resize(self.size(), T::zero());
         best_fft(coeffs, self.group_gen, self.log_size_of_group)
     }
 
     /// Compute a IFFT.
-    pub fn ifft(&self, evals: &[F]) -> Vec<F> {
+    pub fn ifft<T: DomainCoeff<F>>(&self, evals: &[T]) -> Vec<T> {
         let mut evals = evals.to_vec();
         self.ifft_in_place(&mut evals);
         evals
@@ -125,22 +150,22 @@ impl<F: PrimeField> EvaluationDomain<F> {
 
     /// Compute a IFFT, modifying the vector in place.
     #[inline]
-    pub fn ifft_in_place(&self, evals: &mut Vec<F>) {
-        evals.resize(self.size(), F::zero());
+    pub fn ifft_in_place<T: DomainCoeff<F>>(&self, evals: &mut Vec<T>) {
+        evals.resize(self.size(), T::zero());
         best_fft(evals, self.group_gen_inv, self.log_size_of_group);
-        cfg_iter_mut!(evals).for_each(|val| *val *= &self.size_inv);
+        cfg_iter_mut!(evals).for_each(|val| *val *= self.size_inv);
     }
 
-    fn distribute_powers(coeffs: &mut [F], g: F) {
+    fn distribute_powers<T: DomainCoeff<F>>(coeffs: &mut [T], g: F) {
         let mut pow = F::one();
         coeffs.iter_mut().for_each(|c| {
-            *c *= &pow;
+            *c *= pow;
             pow *= &g
         })
     }
 
     /// Compute a FFT over a coset of the domain.
-    pub fn coset_fft(&self, coeffs: &[F]) -> Vec<F> {
+    pub fn coset_fft<T: DomainCoeff<F>>(&self, coeffs: &[T]) -> Vec<T> {
         let mut coeffs = coeffs.to_vec();
         self.coset_fft_in_place(&mut coeffs);
         coeffs
@@ -148,13 +173,13 @@ impl<F: PrimeField> EvaluationDomain<F> {
 
     /// Compute a FFT over a coset of the domain, modifying the input vector
     /// in place.
-    pub fn coset_fft_in_place(&self, coeffs: &mut Vec<F>) {
+    pub fn coset_fft_in_place<T: DomainCoeff<F>>(&self, coeffs: &mut Vec<T>) {
         Self::distribute_powers(coeffs, F::multiplicative_generator());
         self.fft_in_place(coeffs);
     }
 
     /// Compute a IFFT over a coset of the domain.
-    pub fn coset_ifft(&self, evals: &[F]) -> Vec<F> {
+    pub fn coset_ifft<T: DomainCoeff<F>>(&self, evals: &[T]) -> Vec<T> {
         let mut evals = evals.to_vec();
         self.coset_ifft_in_place(&mut evals);
         evals
@@ -162,7 +187,7 @@ impl<F: PrimeField> EvaluationDomain<F> {
 
     /// Compute a IFFT over a coset of the domain, modifying the input vector in
     /// place.
-    pub fn coset_ifft_in_place(&self, evals: &mut Vec<F>) {
+    pub fn coset_ifft_in_place<T: DomainCoeff<F>>(&self, evals: &mut Vec<T>) {
         self.ifft_in_place(evals);
         Self::distribute_powers(evals, self.generator_inv);
     }
@@ -294,7 +319,7 @@ impl<F: PrimeField> EvaluationDomain<F> {
 }
 
 #[cfg(feature = "parallel")]
-fn best_fft<F: PrimeField>(a: &mut [F], omega: F, log_n: u32) {
+fn best_fft<T: DomainCoeff<F>, F: PrimeField>(a: &mut [T], omega: F, log_n: u32) {
     fn log2_floor(num: usize) -> u32 {
         assert!(num > 0);
         let mut pow = 0;
@@ -314,7 +339,7 @@ fn best_fft<F: PrimeField>(a: &mut [F], omega: F, log_n: u32) {
 }
 
 #[cfg(not(feature = "parallel"))]
-fn best_fft<F: PrimeField>(a: &mut [F], omega: F, log_n: u32) {
+fn best_fft<T: DomainCoeff<F>, F: PrimeField>(a: &mut [T], omega: F, log_n: u32) {
     serial_fft(a, omega, log_n)
 }
 
@@ -328,7 +353,7 @@ fn bitreverse(mut n: u32, l: u32) -> u32 {
     r
 }
 
-pub(crate) fn serial_fft<F: PrimeField>(a: &mut [F], omega: F, log_n: u32) {
+pub(crate) fn serial_fft<T: DomainCoeff<F>, F: PrimeField>(a: &mut [T], omega: F, log_n: u32) {
     let n = a.len() as u32;
     assert_eq!(n, 1 << log_n);
 
@@ -348,11 +373,11 @@ pub(crate) fn serial_fft<F: PrimeField>(a: &mut [F], omega: F, log_n: u32) {
             let mut w = F::one();
             for j in 0..m {
                 let mut t = a[(k + j + m) as usize];
-                t *= &w;
+                t *= w;
                 let mut tmp = a[(k + j) as usize];
-                tmp -= &t;
+                tmp -= t;
                 a[(k + j + m) as usize] = tmp;
-                a[(k + j) as usize] += &t;
+                a[(k + j) as usize] += t;
                 w.mul_assign(&w_m);
             }
 
@@ -364,12 +389,17 @@ pub(crate) fn serial_fft<F: PrimeField>(a: &mut [F], omega: F, log_n: u32) {
 }
 
 #[cfg(feature = "parallel")]
-pub(crate) fn parallel_fft<F: PrimeField>(a: &mut [F], omega: F, log_n: u32, log_cpus: u32) {
+pub(crate) fn parallel_fft<T: DomainCoeff<F>, F: PrimeField>(
+    a: &mut [T],
+    omega: F,
+    log_n: u32,
+    log_cpus: u32,
+) {
     assert!(log_n >= log_cpus);
 
     let num_cpus = 1 << log_cpus;
     let log_new_n = log_n - log_cpus;
-    let mut tmp = vec![vec![F::zero(); 1 << log_new_n]; num_cpus];
+    let mut tmp = vec![vec![T::zero(); 1 << log_new_n]; num_cpus];
     let new_omega = omega.pow(&[num_cpus as u64]);
 
     tmp.par_iter_mut().enumerate().for_each(|(j, tmp)| {
@@ -382,8 +412,8 @@ pub(crate) fn parallel_fft<F: PrimeField>(a: &mut [F], omega: F, log_n: u32, log
             for s in 0..num_cpus {
                 let idx = (i + (s << log_new_n)) % (1 << log_n);
                 let mut t = a[idx];
-                t *= &elt;
-                tmp[i] += &t;
+                t *= elt;
+                tmp[i] += t;
                 elt *= &omega_step;
             }
             elt *= &omega_j;

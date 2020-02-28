@@ -5,7 +5,7 @@ use crate::{
 use core::{
     fmt::{Display, Formatter, Result as FmtResult},
     marker::PhantomData,
-    ops::{Add, AddAssign, Neg, Sub, SubAssign},
+    ops::{Add, AddAssign, MulAssign, Neg, Sub, SubAssign},
 };
 use num_traits::{One, Zero};
 use rand::{
@@ -195,6 +195,12 @@ impl<'a, P: Parameters> Sub<&'a Self> for GroupAffine<P> {
 impl<'a, P: Parameters> SubAssign<&'a Self> for GroupAffine<P> {
     fn sub_assign(&mut self, other: &'a Self) {
         *self += &(-(*other));
+    }
+}
+
+impl<P: Parameters> MulAssign<P::ScalarField> for GroupAffine<P> {
+    fn mul_assign(&mut self, other: P::ScalarField) {
+        *self = self.mul(other.into_repr()).into()
     }
 }
 
@@ -541,6 +547,12 @@ impl<'a, P: Parameters> Sub<&'a Self> for GroupProjective<P> {
 impl<'a, P: Parameters> SubAssign<&'a Self> for GroupProjective<P> {
     fn sub_assign(&mut self, other: &'a Self) {
         *self += &(-(*other));
+    }
+}
+
+impl<P: Parameters> MulAssign<P::ScalarField> for GroupProjective<P> {
+    fn mul_assign(&mut self, other: P::ScalarField) {
+        *self = self.mul(other.into_repr())
     }
 }
 

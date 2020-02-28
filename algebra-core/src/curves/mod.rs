@@ -22,7 +22,8 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send {
     /// The projective representation of an element in G1.
     type G1Projective: ProjectiveCurve<BaseField = Self::Fq, ScalarField = Self::Fr, Affine = Self::G1Affine>
         + From<Self::G1Affine>
-        + Into<Self::G1Affine>;
+        + Into<Self::G1Affine>
+        + core::ops::MulAssign<Self::Fr>;
 
     /// The affine representation of an element in G1.
     type G1Affine: AffineCurve<BaseField = Self::Fq, ScalarField = Self::Fr, Projective = Self::G1Projective>
@@ -36,7 +37,8 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send {
     /// The projective representation of an element in G2.
     type G2Projective: ProjectiveCurve<BaseField = Self::Fqe, ScalarField = Self::Fr, Affine = Self::G2Affine>
         + From<Self::G2Affine>
-        + Into<Self::G2Affine>;
+        + Into<Self::G2Affine>
+        + core::ops::MulAssign<Self::Fr>;
 
     /// The affine representation of an element in G2.
     type G2Affine: AffineCurve<BaseField = Self::Fqe, ScalarField = Self::Fr, Projective = Self::G2Projective>
@@ -111,6 +113,7 @@ pub trait ProjectiveCurve:
     + Sub<Self, Output = Self>
     + AddAssign<Self>
     + SubAssign<Self>
+    + core::ops::MulAssign<<Self as ProjectiveCurve>::ScalarField>
     + for<'a> Add<&'a Self, Output = Self>
     + for<'a> Sub<&'a Self, Output = Self>
     + for<'a> AddAssign<&'a Self>
@@ -175,12 +178,6 @@ pub trait ProjectiveCurve:
 
     /// Performs scalar multiplication of this element.
     fn mul<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(mut self, other: S) -> Self {
-        self.mul_assign(other);
-        self
-    }
-
-    /// Performs scalar multiplication of this element.
-    fn mul_assign<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(&mut self, other: S) {
         let mut res = Self::zero();
 
         let mut found_one = false;
@@ -193,11 +190,12 @@ pub trait ProjectiveCurve:
             }
 
             if i {
-                res += &*self;
+                res += self;
             }
         }
 
-        *self = res;
+        self = res;
+        self
     }
 }
 

@@ -59,9 +59,7 @@ pub(crate) mod tests {
     use crate::{
         bits::boolean::Boolean, prelude::*, test_constraint_system::TestConstraintSystem, Vec,
     };
-    use algebra::{
-        test_rng, BitIterator, Field, PairingEngine, PrimeField, ProjectiveCurve, UniformRand,
-    };
+    use algebra::{test_rng, BitIterator, Field, PairingEngine, PrimeField, UniformRand};
     use r1cs_core::ConstraintSystem;
 
     #[allow(dead_code)]
@@ -78,9 +76,9 @@ pub(crate) mod tests {
         let s = E::Fr::rand(&mut rng);
 
         let mut sa = a;
-        sa.mul_assign(s);
+        sa *= s;
         let mut sb = b;
-        sb.mul_assign(s);
+        sb *= s;
 
         let a_g = P::G1Gadget::alloc(&mut cs.ns(|| "a"), || Ok(a)).unwrap();
         let b_g = P::G2Gadget::alloc(&mut cs.ns(|| "b"), || Ok(b)).unwrap();
