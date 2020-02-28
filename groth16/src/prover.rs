@@ -271,7 +271,7 @@ where
     g_a.add_assign_mixed(&params.get_a_query_full()?[0]);
     g_a += &a_inputs_acc;
     g_a += &a_aux_acc;
-    g_a.add_assign_mixed(&params.alpha_g1);
+    g_a.add_assign_mixed(&params.vk.alpha_g1);
     end_timer!(a_acc_time);
 
     // Compute B in G1
@@ -297,13 +297,13 @@ where
     let b_inputs_acc = VariableBaseMSM::multi_scalar_mul(b_inputs_source, &input_assignment);
     let b_aux_acc = VariableBaseMSM::multi_scalar_mul(b_aux_source, &aux_assignment);
 
-    let s_g2 = params.delta_g2.mul(s.clone());
+    let s_g2 = params.vk.delta_g2.mul(s.clone());
 
     let mut g2_b = s_g2;
     g2_b.add_assign_mixed(&params.get_b_g2_query_full()?[0]);
     g2_b += &b_inputs_acc;
     g2_b += &b_aux_acc;
-    g2_b.add_assign_mixed(&params.beta_g2);
+    g2_b.add_assign_mixed(&params.vk.beta_g2);
     end_timer!(b_g2_acc_time);
 
     // Compute C

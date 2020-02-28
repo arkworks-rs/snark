@@ -159,11 +159,8 @@ impl<E: PairingEngine> VerifyingKey<E> {
 #[derive(Clone)]
 pub struct Parameters<E: PairingEngine> {
     pub vk:         VerifyingKey<E>,
-    pub alpha_g1:   E::G1Affine,
     pub beta_g1:    E::G1Affine,
-    pub beta_g2:    E::G2Affine,
     pub delta_g1:   E::G1Affine,
-    pub delta_g2:   E::G2Affine,
     pub a_query:    Vec<E::G1Affine>,
     pub b_g1_query: Vec<E::G1Affine>,
     pub b_g2_query: Vec<E::G2Affine>,
@@ -174,11 +171,8 @@ pub struct Parameters<E: PairingEngine> {
 impl<E: PairingEngine> PartialEq for Parameters<E> {
     fn eq(&self, other: &Self) -> bool {
         self.vk == other.vk
-            && self.alpha_g1 == other.alpha_g1
             && self.beta_g1 == other.beta_g1
-            && self.beta_g2 == other.beta_g2
             && self.delta_g1 == other.delta_g1
-            && self.delta_g2 == other.delta_g2
             && self.a_query == other.a_query
             && self.b_g1_query == other.b_g1_query
             && self.b_g2_query == other.b_g2_query
