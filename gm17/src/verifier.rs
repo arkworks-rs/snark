@@ -1,10 +1,10 @@
-use algebra_core::{AffineCurve, One, PairingEngine, PrimeField, ProjectiveCurve};
+use algebra_core::{AffineCurve, One, PairingEngine, ProjectiveCurve};
 
 use super::{PreparedVerifyingKey, Proof, VerifyingKey};
 
 use crate::SynthesisError;
 
-use core::ops::{AddAssign, MulAssign, Neg};
+use core::ops::Neg;
 
 pub fn prepare_verifying_key<E: PairingEngine>(vk: &VerifyingKey<E>) -> PreparedVerifyingKey<E> {
     PreparedVerifyingKey {
@@ -33,15 +33,15 @@ pub fn verify_proof<E: PairingEngine>(
 
     let mut g_psi = pvk.query[0].into_projective();
     for (i, b) in public_inputs.iter().zip(pvk.query.iter().skip(1)) {
-        g_psi.add_assign(&b.mul(i.into_repr()));
+        g_psi += &b.mul(*i);
     }
 
     let mut test1_a_g_alpha = proof.a.into_projective();
-    test1_a_g_alpha.add_assign(&pvk.g_alpha.into_projective());
+    test1_a_g_alpha.add_assign_mixed(&pvk.g_alpha);
     let test1_a_g_alpha = test1_a_g_alpha.into_affine();
 
     let mut test1_b_h_beta = proof.b.into_projective();
-    test1_b_h_beta.add_assign(&pvk.h_beta.into_projective());
+    test1_b_h_beta.add_assign_mixed(&pvk.h_beta);
     let test1_b_h_beta = test1_b_h_beta.into_affine();
 
     let test1_r1 = pvk.g_alpha_h_beta_ml;
@@ -53,10 +53,7 @@ pub fn verify_proof<E: PairingEngine>(
     ];
 
     let test1_r2 = E::miller_loop(test1_r2_input.iter());
-    let mut test1_exp = test1_r2;
-    test1_exp.mul_assign(&test1_r1);
-
-    let test1 = E::final_exponentiation(&test1_exp).unwrap();
+    let test1 = E::final_exponentiation(&(test1_r2 * &test1_r1)).unwrap();
 
     // e(A, H^{gamma}) = e(G^{gamma}, B)
     let test2_exp_input: &[(E::G1Prepared, E::G2Prepared)] = &[
@@ -67,5 +64,5 @@ pub fn verify_proof<E: PairingEngine>(
     let test2_exp = E::miller_loop(test2_exp_input.iter());
     let test2 = E::final_exponentiation(&test2_exp).unwrap();
 
-    Ok(test1 == E::Fqk::one() && test2 == E::Fqk::one())
+    Ok(test1.is_one() && test2.is_one())
 }

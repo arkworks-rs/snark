@@ -1,22 +1,28 @@
 use crate::domain::*;
-use algebra::bls12_381::Bls12_381;
-use algebra_core::{test_rng, PairingEngine, UniformRand};
+use algebra::bls12_381::{Bls12_381, Fr, G1Projective};
+use algebra_core::{test_rng, PairingEngine, PrimeField, UniformRand};
 
 // Test multiplying various (low degree) polynomials together and
 // comparing with naive evaluations.
 #[test]
 fn fft_composition() {
-    fn test_fft_composition<E: PairingEngine, R: rand::Rng>(rng: &mut R) {
+    fn test_fft_composition<
+        F: PrimeField,
+        T: DomainCoeff<F> + UniformRand + core::fmt::Debug + Eq,
+        R: rand::Rng,
+    >(
+        rng: &mut R,
+    ) {
         for coeffs in 0..10 {
             let coeffs = 1 << coeffs;
 
             let mut v = vec![];
             for _ in 0..coeffs {
-                v.push(E::Fr::rand(rng));
+                v.push(T::rand(rng));
             }
             let mut v2 = v.clone();
 
-            let domain = EvaluationDomain::<E::Fr>::new(coeffs).unwrap();
+            let domain = EvaluationDomain::<F>::new(coeffs).unwrap();
             domain.ifft_in_place(&mut v2);
             domain.fft_in_place(&mut v2);
             assert_eq!(v, v2, "ifft(fft(.)) != iden");
@@ -37,7 +43,8 @@ fn fft_composition() {
 
     let rng = &mut test_rng();
 
-    test_fft_composition::<Bls12_381, _>(rng);
+    test_fft_composition::<Fr, Fr, _>(rng);
+    test_fft_composition::<Fr, G1Projective, _>(rng);
 }
 
 #[test]
@@ -57,8 +64,8 @@ fn parallel_fft_consistency() {
                 let domain = EvaluationDomain::new(v1.len()).unwrap();
 
                 for log_cpus in log_d..min(log_d + 1, 3) {
-                    parallel_fft(&mut v1, domain.group_gen, log_d, log_cpus);
-                    serial_fft(&mut v2, domain.group_gen, log_d);
+                    parallel_fft::<E::Fr, E::Fr>(&mut v1, domain.group_gen, log_d, log_cpus);
+                    serial_fft::<E::Fr, E::Fr>(&mut v2, domain.group_gen, log_d);
 
                     assert_eq!(v1, v2);
                 }

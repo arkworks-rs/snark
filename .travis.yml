@@ -49,10 +49,10 @@ matrix:
       after_script:
         - set +e
       script:
-        # test algebra
+        # test algebra-core
         - cd algebra-core
         - cargo build -p algebra-core --no-default-features --target thumbv6m-none-eabi
-        - cargo check --examples -p algebra --no-default-features --target thumbv6m-none-eabi
+        - cargo check --examples -p algebra-core --no-default-features --target thumbv6m-none-eabi
         - cd ..
         # test algebra
         - cd algebra

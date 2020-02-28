@@ -26,7 +26,7 @@ mod g1 {
         let mut count = 0;
         b.iter(|| {
             let mut tmp = v[count].0;
-            tmp.mul_assign(v[count].1);
+            tmp *= v[count].1;
             count = (count + 1) % SAMPLES;
             tmp
         });
@@ -118,7 +118,7 @@ mod g2 {
         let mut count = 0;
         b.iter(|| {
             let mut tmp = v[count].0;
-            tmp.mul_assign(v[count].1);
+            tmp *= v[count].1;
             count = (count + 1) % SAMPLES;
             tmp
         });

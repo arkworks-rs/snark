@@ -1,14 +1,14 @@
-use crate::{BitIterator, UniformRand};
 use core::{
     fmt::{Debug, Display},
     hash::Hash,
-    ops::{Add, AddAssign, Neg, Sub, SubAssign},
+    ops::{Add, AddAssign, MulAssign, Neg, Sub, SubAssign},
 };
 use num_traits::Zero;
 
 use crate::{
     bytes::{FromBytes, ToBytes},
     fields::PrimeField,
+    UniformRand,
 };
 
 pub trait Group:
@@ -31,6 +31,7 @@ pub trait Group:
     + Sub<Self, Output = Self>
     + AddAssign<Self>
     + SubAssign<Self>
+    + MulAssign<<Self as Group>::ScalarField>
     + for<'a> Add<&'a Self, Output = Self>
     + for<'a> Sub<&'a Self, Output = Self>
     + for<'a> AddAssign<&'a Self>
@@ -50,18 +51,7 @@ pub trait Group:
     #[must_use]
     fn mul<'a>(&self, other: &'a Self::ScalarField) -> Self {
         let mut copy = *self;
-        copy.mul_assign(other);
+        copy *= *other;
         copy
-    }
-
-    fn mul_assign<'a>(&mut self, other: &'a Self::ScalarField) {
-        let mut res = Self::zero();
-        for i in BitIterator::new(other.into_repr()) {
-            res.double_in_place();
-            if i {
-                res += &*self
-            }
-        }
-        *self = res
     }
 }

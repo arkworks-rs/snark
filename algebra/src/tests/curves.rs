@@ -105,11 +105,11 @@ fn random_multiplication_test<G: ProjectiveCurve>() {
         // s ( a + b )
         let mut tmp1 = a;
         tmp1.add_assign(&b);
-        tmp1.mul_assign(s.into_repr());
+        tmp1.mul_assign(s);
 
         // sa + sb
-        a.mul_assign(s.into_repr());
-        b.mul_assign(s.into_repr());
+        a.mul_assign(s);
+        b.mul_assign(s);
 
         let mut tmp2 = a;
         tmp2.add_assign(&b);

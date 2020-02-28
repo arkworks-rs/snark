@@ -1,6 +1,5 @@
 use algebra_core::{
-    msm::FixedBaseMSM, AffineCurve, Field, One, PairingEngine, PrimeField, ProjectiveCurve,
-    UniformRand, Zero,
+    msm::FixedBaseMSM, Field, One, PairingEngine, PrimeField, ProjectiveCurve, UniformRand, Zero,
 };
 use ff_fft::{cfg_into_iter, cfg_iter, EvaluationDomain};
 
@@ -233,12 +232,12 @@ where
     let gamma_z = zt * &gamma;
     let alpha_beta = alpha + &beta;
     let ab_gamma_z = alpha_beta * &gamma * &zt;
-    let g_gamma = g.into_affine().mul(gamma.into_repr());
-    let g_gamma_z = g.into_affine().mul(gamma_z.into_repr());
-    let h_gamma = h.into_affine().mul(gamma.into_repr());
-    let h_gamma_z = h_gamma.into_affine().mul(zt.into_repr());
-    let g_ab_gamma_z = g.into_affine().mul(ab_gamma_z.into_repr());
-    let g_gamma2_z2 = g.into_affine().mul(gamma_z.square().into_repr());
+    let g_gamma = g.mul(gamma);
+    let g_gamma_z = g.mul(gamma_z);
+    let h_gamma = h.mul(gamma);
+    let h_gamma_z = h_gamma.mul(zt);
+    let g_ab_gamma_z = g.mul(ab_gamma_z);
+    let g_gamma2_z2 = g.mul(gamma_z.square());
 
     // Compute the vector G_gamma2_z_t := Z(t) * t^i * gamma^2 * G
     let gamma2_z_t = gamma_z * &gamma;
@@ -300,8 +299,8 @@ where
 
     // Generate R1CS verification key
     let verifying_key_time = start_timer!(|| "Generate the R1CS verification key");
-    let g_alpha = g.into_affine().mul(alpha.into_repr());
-    let h_beta = h.into_affine().mul(beta.into_repr());
+    let g_alpha = g.mul(alpha);
+    let h_beta = h.mul(beta);
     end_timer!(verifying_key_time);
 
     let vk = VerifyingKey::<E> {

@@ -61,10 +61,8 @@ fn test_bilinearity() {
     let b: G2Projective = rng.gen();
     let s: Fr = rng.gen();
 
-    let mut sa = a;
-    sa.mul_assign(s);
-    let mut sb = b;
-    sb.mul_assign(s);
+    let sa = a.mul(s);
+    let sb = b.mul(s);
 
     let ans1 = SW6::pairing(sa, b);
     let ans2 = SW6::pairing(a, sb);

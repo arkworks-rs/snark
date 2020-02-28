@@ -28,6 +28,6 @@ rayon = { version = "1", optional = true }
 algebra = { path = "../algebra", default-features = false, features = [ "bls12_381" ] }
 
 [features]
-default = ["parallel"]
+default = [ "parallel" ]
 std = ["algebra-core/std"]
 parallel = ["std", "algebra-core/parallel", "rayon"]
