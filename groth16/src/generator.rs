@@ -317,11 +317,8 @@ where
 
     Ok(Parameters {
         vk,
-        alpha_g1: alpha_g1.into_affine(),
         beta_g1: beta_g1.into_affine(),
-        beta_g2: beta_g2.into_affine(),
         delta_g1: delta_g1.into_affine(),
-        delta_g2: delta_g2.into_affine(),
         a_query: a_query.into_iter().map(Into::into).collect(),
         b_g1_query: b_g1_query.into_iter().map(Into::into).collect(),
         b_g2_query: b_g2_query.into_iter().map(Into::into).collect(),
