@@ -92,6 +92,7 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send {
 /// in the correct prime order subgroup.
 pub trait ProjectiveCurve:
     Eq
+    + 'static
     + Sized
     + ToBytes
     + FromBytes
@@ -204,6 +205,7 @@ pub trait ProjectiveCurve:
 /// in the correct prime order subgroup.
 pub trait AffineCurve:
     Eq
+    + 'static
     + Sized
     + ToBytes
     + FromBytes

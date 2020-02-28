@@ -13,6 +13,7 @@ use crate::{
 
 pub trait Group:
     ToBytes
+    + 'static
     + FromBytes
     + Copy
     + Clone
