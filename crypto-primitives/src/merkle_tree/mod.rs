@@ -255,15 +255,6 @@ impl core::fmt::Display for MerkleTreeError {
     }
 }
 
-#[cfg(feature = "std")]
-impl std::error::Error for MerkleTreeError {
-    #[inline]
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        None
-    }
-}
-
-#[cfg(not(feature = "std"))]
 impl algebra_core::Error for MerkleTreeError {}
 
 /// Returns the log2 value of the given number.
