@@ -1,10 +1,11 @@
-use algebra::{Field, PrimeField, FpParameters, convert, Group, AffineCurve, ProjectiveCurve, ToBytes, to_bytes, ToBits, UniformRand, ToConstraintField, FromBytes};
+use algebra::{Field, PrimeField, FpParameters, convert, leading_zeros,Group, AffineCurve, ProjectiveCurve,
+              ToBytes, to_bytes, ToBits, UniformRand, ToConstraintField, FromBytes};
 use crate::{
     crh::{
     FieldBasedHash, FixedLengthCRH,
     },
     vrf::FieldBasedVrf,
-    Error, CryptoError, leading_zeros,
+    Error, CryptoError,
 };
 use std::marker::PhantomData;
 use rand::Rng;

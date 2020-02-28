@@ -28,6 +28,16 @@ pub trait FieldBasedSigGadget<S: FieldBasedSignatureScheme, ConstraintF: Field> 
     type SignatureGadget: AllocGadget<S::Signature, ConstraintF>;
     type PublicKeyGadget: AllocGadget<S::PublicKey, ConstraintF>;
 
+    /// Enforce `signature` verification with `public_key` on `message`, returning a Boolean
+    /// enforced to be `true` if signature verification is successful, and `false` otherwise.
+    fn check_gadget<CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
+        public_key: &Self::PublicKeyGadget,
+        signature:  &Self::SignatureGadget,
+        message:    &[Self::DataGadget],
+    ) -> Result<Boolean, SynthesisError>;
+
+    ///Enforce `signature` verification with `public_key` on `message` to be successful.
     fn check_verify_gadget<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
         public_key: &Self::PublicKeyGadget,

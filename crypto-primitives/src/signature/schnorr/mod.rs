@@ -234,9 +234,10 @@ mod field_impl {
     use crate::{
         crh::FieldBasedHash,
         signature::FieldBasedSignatureScheme,
-        Error, leading_zeros
+        Error,
     };
-    use algebra::{Field, PrimeField, FpParameters, Group, UniformRand, AffineCurve, ProjectiveCurve, convert, ToBits, ToConstraintField, ToBytes, FromBytes};
+    use algebra::{Field, PrimeField, FpParameters, Group, UniformRand, AffineCurve, ProjectiveCurve,
+                  convert, leading_zeros, ToBits, ToConstraintField, ToBytes, FromBytes};
     use std::marker::PhantomData;
     use rand::Rng;
     use std::io::{Write, Read, Result as IoResult};
@@ -413,19 +414,22 @@ mod test {
     use algebra::curves::{
         mnt4753::G1Projective as MNT4G1Projective,
         mnt6753::G1Projective as MNT6G1Projective,
+        jubjub::JubJubProjective,
     };
     use algebra::fields::{
         mnt4753::Fr as MNT4Fr,
         mnt6753::Fr as MNT6Fr,
+        bls12_381::Fr as BLS12Fr,
     };
     use algebra::{ToBytes, to_bytes, FromBytes};
-    use crate::crh::{MNT4PoseidonHash, MNT6PoseidonHash};
+    use crate::crh::{MNT4PoseidonHash, MNT6PoseidonHash, BLS12PoseidonHash};
     use crate::signature::FieldBasedSignatureScheme;
     use crate::signature::schnorr::field_impl::FieldBasedSchnorrSignatureScheme;
     use rand::{Rng, thread_rng};
 
     type SchnorrMNT4 = FieldBasedSchnorrSignatureScheme<MNT4Fr, MNT6G1Projective, MNT4PoseidonHash>;
     type SchnorrMNT6 = FieldBasedSchnorrSignatureScheme<MNT6Fr, MNT4G1Projective, MNT6PoseidonHash>;
+    type SchnorrBls12 = FieldBasedSchnorrSignatureScheme<BLS12Fr, JubJubProjective, BLS12PoseidonHash>;
 
     fn sign_and_verify<S: FieldBasedSignatureScheme, R: Rng>(rng: &mut R, message: &[S::Data]) {
         let (pk, sk) = S::keygen(rng).unwrap();
@@ -476,6 +480,18 @@ mod test {
             let g: MNT6Fr = rng.gen();
             sign_and_verify::<SchnorrMNT6, _>(rng,&[f, g]);
             failed_verification::<SchnorrMNT6, _>(rng, &[f], &[g]);
+        }
+    }
+
+    #[test]
+    fn bls12_381_schnorr_test() {
+        let rng = &mut thread_rng();
+        let samples = 100;
+        for _ in 0..samples{
+            let f: BLS12Fr = rng.gen();
+            let g: BLS12Fr = rng.gen();
+            sign_and_verify::<SchnorrBls12, _>(rng,&[f, g]);
+            failed_verification::<SchnorrBls12, _>(rng, &[f], &[g]);
         }
     }
 }

@@ -71,7 +71,6 @@ impl<F: PrimeField> FpGadget<F> {
 
         Ok(bits.into_iter().map(Boolean::from).collect())
     }
-
 }
 
 impl<F: PrimeField> FieldGadget<F, F> for FpGadget<F> {
@@ -374,6 +373,53 @@ impl<F: PrimeField> NEqGadget<F> for FpGadget<F> {
 
     fn cost() -> usize {
         1
+    }
+}
+
+impl<F: PrimeField> EquVerdictGadget<F> for FpGadget<F> {
+    fn enforce_verdict<CS: ConstraintSystem<F>>(
+        &self,
+        mut cs: CS,
+        other: &Self,
+    ) -> Result<Boolean, SynthesisError> {
+
+        // The Boolean we want to constrain.
+        let v = Boolean::alloc(cs.ns(|| "alloc verdict"), || {
+            let self_val = self.get_value().get()?;
+            let other_val = other.get_value().get()?;
+            Ok(self_val == other_val)
+        })?;
+
+        // We allow the prover to choose c as he wishes when v = 1, but if c != 1/(x-y) when
+        // v = 0, then the following constraints will fail
+        let c = Self::alloc(cs.ns(|| "alloc c"), || {
+            let v_val = v.get_value().get()?;
+            if v_val {
+               Ok(F::one()) //Just one random value
+            }
+            else {
+                let self_val = self.get_value().get()?;
+                let other_val = other.get_value().get()?;
+                Ok((self_val - &other_val).inverse().get()?)
+            }
+        })?;
+
+        // x = first; y = second;
+        //
+        // 0 = v * (x - y)
+        // 1 - v = c * (x - y)
+
+        self.conditional_enforce_equal(cs.ns(|| "0 = v * (x - y)"), other, &v)?;
+
+        let one = CS::one();
+        cs.enforce(
+            || "1 - v = c * (x - y)",
+            |lc| (&self.variable - &other.variable) + lc,
+            |lc| &c.variable + lc,
+            |_| v.not().lc(one, F::one()),
+        );
+
+        Ok(v)
     }
 }
 

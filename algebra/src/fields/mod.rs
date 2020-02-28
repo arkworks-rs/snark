@@ -296,9 +296,13 @@ impl<F: PrimeField> FromBits for F {
     #[inline]
     fn read_bits(bits: Vec<bool>) -> Result<Self, Error> {
         let modulus_bits = <Self as PrimeField>::Params::MODULUS_BITS as usize;
+
+        //NOTE: We allow bits having enough leading bits to zero s.t. the length will be <= F::MODULUS_BITS
+        let leading_zeros = leading_zeros(bits.clone()) as usize;
+        let bits = &bits.as_slice()[leading_zeros..];
         match bits.len() <=  modulus_bits {
             true => {
-                let read_bigint = <Self as PrimeField>::BigInt::from_bits(bits.as_slice());
+                let read_bigint = <Self as PrimeField>::BigInt::from_bits(bits);
                 match read_bigint < F::Params::MODULUS {
                     true => Ok(Self::from_repr(read_bigint)),
                     false => {
@@ -325,6 +329,18 @@ pub fn convert<FromF: PrimeField, ToF: PrimeField>(from: FromF) -> Result<ToF, E
     //TODO: Byte seems to be faster but we can't use our functions
     //ToF::read(to_bytes!(from).unwrap().as_slice())
     ToF::read_bits(from.write_bits())
+}
+
+pub fn leading_zeros(bits: Vec<bool>) -> u32 {
+    let mut ctr = 0;
+    for b in bits.iter() {
+        if !b {
+            ctr += 1;
+        } else {
+            break;
+        }
+    }
+    ctr
 }
 
 /// The interface for a field that supports an efficient square-root operation.

@@ -240,6 +240,8 @@ mod field_impl
         marker::PhantomData,
     };
     use r1cs_std::to_field_gadget_vec::ToConstraintFieldGadget;
+    use r1cs_std::bits::boolean::Boolean;
+    use r1cs_std::eq::EquVerdictGadget;
 
     #[derive(Derivative)]
     #[derivative(
@@ -324,12 +326,12 @@ mod field_impl
         type SignatureGadget = FieldBasedSchnorrSigGadget<ConstraintF>;
         type PublicKeyGadget = GG;
 
-        fn check_verify_gadget<CS: ConstraintSystem<ConstraintF>>(
+        fn check_gadget<CS: ConstraintSystem<ConstraintF>>(
             mut cs: CS,
             public_key: &Self::PublicKeyGadget,
             signature: &Self::SignatureGadget,
             message: &[Self::DataGadget]
-        ) -> Result<(), SynthesisError> {
+        ) -> Result<Boolean, SynthesisError> {
 
             //Enforce e' * pk
             let e_bits = {
@@ -396,9 +398,20 @@ mod field_impl
                 hash_input.as_slice()
             )?;
 
-            //Enforce signature.e == e'
-            signature.e.enforce_equal(cs.ns(|| "e == e_prime"), &e_prime)?;
+            //Enforce result of signature verification
+            let is_verified = signature.e.enforce_verdict(cs.ns(|| "is e == e_prime"), &e_prime)?;
 
+            Ok(is_verified)
+        }
+
+        fn check_verify_gadget<CS: ConstraintSystem<ConstraintF>>(
+            mut cs: CS,
+            public_key: &Self::PublicKeyGadget,
+            signature: &Self::SignatureGadget,
+            message: &[Self::DataGadget]
+        ) -> Result<(), SynthesisError> {
+            let is_verified = Self::check_gadget(cs.ns(|| "is sig verified"), public_key, signature, message)?;
+            is_verified.enforce_equal(cs.ns(|| "signature must be verified"), &Boolean::Constant(true))?;
             Ok(())
         }
     }
@@ -476,6 +489,15 @@ mod test {
         ).unwrap();
 
         //Verify sig
+        let is_verified = SchnorrMNT4Gadget::check_gadget(
+            cs.ns(|| "sig1 result"),
+            &pk_g,
+            &sig_g,
+            &[message_g.clone()]
+        ).unwrap();
+
+        assert!(is_verified.get_value().unwrap());
+
         SchnorrMNT4Gadget::check_verify_gadget(
             cs.ns(|| "verify sig1"),
             &pk_g,
@@ -485,22 +507,7 @@ mod test {
 
         assert!(cs.is_satisfied());
 
-        /*
-        //Wrong message
-        let message_new: MNT4Fr = rng.gen();
-        let message_new_g = <SchnorrMNT4Gadget as FieldBasedSigGadget<SchnorrMNT4, MNT4Fr>>::DataGadget::alloc(
-            cs.ns(|| "alloc message_new"),
-            || Ok(message_new)
-        ).unwrap();
-
-        SchnorrMNT4Gadget::check_verify_gadget(
-            cs.ns(|| "verify sig2"),
-            &pk_g,
-            &sig_g,
-            &[message_new_g]
-        ).unwrap();*/
-
-        //Wrong sig: generate a signature for a different message and check constraints fail
+        //Wrong sig: check constraints fail
         let new_message: MNT4Fr = rng.gen();
         let new_sig = SchnorrMNT4::sign(rng, &pk, &sk, &[new_message]).unwrap();
         let new_sig_g = <SchnorrMNT4Gadget as FieldBasedSigGadget<SchnorrMNT4, MNT4Fr>>::SignatureGadget::alloc(
@@ -509,6 +516,16 @@ mod test {
         ).unwrap();
 
         //Verify new sig: expected to fail
+        let is_verified = SchnorrMNT4Gadget::check_gadget(
+            cs.ns(|| "sig2 result"),
+            &pk_g,
+            &new_sig_g,
+            &[message_g.clone()]
+        ).unwrap();
+
+        assert!(!is_verified.get_value().unwrap());
+        assert!(cs.is_satisfied());
+
         SchnorrMNT4Gadget::check_verify_gadget(
             cs.ns(|| "verify sig2"),
             &pk_g,
@@ -516,8 +533,8 @@ mod test {
             &[message_g]
         ).unwrap();
 
-        assert!(!cs.is_satisfied());
         println!("{:?}", cs.which_is_unsatisfied());
+        assert!(!cs.is_satisfied());
     }
 
     #[test]
@@ -542,6 +559,15 @@ mod test {
         ).unwrap();
 
         //Verify sig
+        let is_verified = SchnorrMNT6Gadget::check_gadget(
+            cs.ns(|| "sig1 result"),
+            &pk_g,
+            &sig_g,
+            &[message_g.clone()]
+        ).unwrap();
+
+        assert!(is_verified.get_value().unwrap());
+
         SchnorrMNT6Gadget::check_verify_gadget(
             cs.ns(|| "verify sig1"),
             &pk_g,
@@ -549,26 +575,9 @@ mod test {
             &[message_g.clone()]
         ).unwrap();
 
-        println!("{:?}", cs.which_is_unsatisfied());
-
         assert!(cs.is_satisfied());
 
-        /*
-        //Wrong message
-        let message_new: MNT6Fr = rng.gen();
-        let message_new_g = <SchnorrMNT6Gadget as FieldBasedSigGadget<SchnorrMNT6, MNT6Fr>>::DataGadget::alloc(
-            cs.ns(|| "alloc message_new"),
-            || Ok(message_new)
-        ).unwrap();
-
-        SchnorrMNT6Gadget::check_verify_gadget(
-            cs.ns(|| "verify sig2"),
-            &pk_g,
-            &sig_g,
-            &[message_new_g]
-        ).unwrap();*/
-
-        //Wrong sig: let's generate a signature for a different message
+        //Wrong sig: check constraints fail
         let new_message: MNT6Fr = rng.gen();
         let new_sig = SchnorrMNT6::sign(rng, &pk, &sk, &[new_message]).unwrap();
         let new_sig_g = <SchnorrMNT6Gadget as FieldBasedSigGadget<SchnorrMNT6, MNT6Fr>>::SignatureGadget::alloc(
@@ -577,6 +586,16 @@ mod test {
         ).unwrap();
 
         //Verify new sig: expected to fail
+        let is_verified = SchnorrMNT6Gadget::check_gadget(
+            cs.ns(|| "sig2 result"),
+            &pk_g,
+            &new_sig_g,
+            &[message_g.clone()]
+        ).unwrap();
+
+        assert!(!is_verified.get_value().unwrap());
+        assert!(cs.is_satisfied());
+
         SchnorrMNT6Gadget::check_verify_gadget(
             cs.ns(|| "verify sig2"),
             &pk_g,
@@ -584,9 +603,8 @@ mod test {
             &[message_g]
         ).unwrap();
 
-        assert!(!cs.is_satisfied());
-
         println!("{:?}", cs.which_is_unsatisfied());
+        assert!(!cs.is_satisfied());
     }
 
     #[test]
@@ -618,12 +636,22 @@ mod test {
             ).unwrap();
 
             //Verify sig
+            let is_verified = SchnorrMNT4Gadget::check_gadget(
+                cs.ns(|| "sig result"),
+                &pk_g,
+                &sig_g,
+                &[message_g.clone()]
+            ).unwrap();
+
+            assert!(is_verified.get_value().unwrap());
+
             SchnorrMNT4Gadget::check_verify_gadget(
                 cs.ns(|| "verify sig"),
                 &pk_g,
                 &sig_g,
                 &[message_g.clone()]
             ).unwrap();
+
             assert!(cs.is_satisfied());
         }
     }

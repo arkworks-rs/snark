@@ -140,3 +140,15 @@ impl<
             + <Self as CondSelectGadget<ConstraintF>>::cost()
     }
 }
+
+/// If self == other returns a Boolean enforced to be 1, otherwise enforced to be 0.
+pub trait EquVerdictGadget<ConstraintF: Field>
+where
+    Self: Sized
+{
+    fn enforce_verdict<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+        other: &Self,
+    ) -> Result<Boolean, SynthesisError>;
+}

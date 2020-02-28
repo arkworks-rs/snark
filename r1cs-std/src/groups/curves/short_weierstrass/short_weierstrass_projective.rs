@@ -312,7 +312,7 @@ for AffineGadget<P, ConstraintF, F>
         ))
     }
 
-    ///This will take [(3 + 1) * ceil(len(bits)/2)] + 6 constraints to put the x lookup constraint
+    ///This will take [(3 + 1) * ceil(len(bits)/2)] + 3 constraints to put the x lookup constraint
     ///into the addition formula. See coda/src/lib/snarky_curves/snarky_curves.ml "scale_known"
     ///Note: `self` must be different from `result` due to SW incomplete addition.
     #[inline]

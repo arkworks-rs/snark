@@ -39,6 +39,7 @@ pub trait FieldBasedHash {
 
 use algebra::fields::mnt4753::Fr as MNT4753Fr;
 use algebra::fields::mnt6753::Fr as MNT6753Fr;
+use algebra::fields::bls12_381::Fr as BLS12Fr;
 use std::marker::PhantomData;
 
 #[derive(Derivative)]
@@ -55,6 +56,15 @@ pub struct MNT6HashParameters;
 
 impl FieldBasedHashParameters for MNT6HashParameters{
     type Fr = MNT6753Fr;
+}
+
+
+#[derive(Derivative)]
+#[derivative(Clone)]
+pub struct Bls12_381HashParameters;
+
+impl FieldBasedHashParameters for Bls12_381HashParameters{
+    type Fr = BLS12Fr;
 }
 
 pub struct PoseidonHash<F: Field, P: FieldBasedHashParameters<Fr = F>>{
@@ -76,3 +86,4 @@ impl<F: Field, P: FieldBasedHashParameters<Fr = F>> FieldBasedHash for PoseidonH
 
 pub type MNT4PoseidonHash = PoseidonHash<MNT4753Fr, MNT4HashParameters>;
 pub type MNT6PoseidonHash = PoseidonHash<MNT6753Fr, MNT6HashParameters>;
+pub type BLS12PoseidonHash = PoseidonHash<BLS12Fr, Bls12_381HashParameters>;
