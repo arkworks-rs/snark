@@ -1,15 +1,14 @@
 language: rust
-services: docker
-sudo: required
 
 before_install:
   - set -e
   - export SCCACHE_CACHE_SIZE=200M
   - export SCCACHE_DIR="$TRAVIS_HOME/.cache/sccache"
-
-install:
-  - (cargo install sccache || true)
-  - export PATH="$PATH:$TRAVIS_HOME/.cargo/bin"
+  - mkdir "$TRAVIS_HOME/.bin"
+  - wget https://github.com/mozilla/sccache/releases/download/0.2.13/sccache-0.2.13-x86_64-unknown-linux-musl.tar.gz
+  - tar -C "$TRAVIS_HOME/.bin" -xvf sccache-0.2.13-x86_64-unknown-linux-musl.tar.gz
+  - mv $TRAVIS_HOME/.bin/sccache-0.2.13-x86_64-unknown-linux-musl/sccache $TRAVIS_HOME/.bin/sccache
+  - export PATH="$PATH:$TRAVIS_HOME/.bin"
   - export RUSTC_WRAPPER="sccache"
 
 cache:
@@ -31,7 +30,7 @@ matrix:
     - rust: stable
       script:
         - cargo test --all -- --skip dpc --skip integration_test
-        - cargo check --examples --all 
+        - cargo check --examples --all
         - cargo check --all-features --examples --all
 
     - rust: nightly
@@ -61,7 +60,7 @@ matrix:
         - cargo check --examples -p algebra --no-default-features --target thumbv6m-none-eabi
         - cd ..
         # test r1cs-core
-        - cd r1cs-core 
+        - cd r1cs-core
         - cargo build -p r1cs-core --no-default-features --target thumbv6m-none-eabi
         - cargo check --examples -p r1cs-core --no-default-features --target thumbv6m-none-eabi
         - cd ..
@@ -80,7 +79,7 @@ matrix:
         - cargo build -p groth16 --no-default-features --target thumbv6m-none-eabi
         - cargo check --examples -p groth16 --no-default-features --target thumbv6m-none-eabi
         - cd ..
-        # test gm17 
+        # test gm17
         - cd gm17
         - cargo build -p gm17 --no-default-features --target thumbv6m-none-eabi
         - cargo check --examples -p gm17 --no-default-features --target thumbv6m-none-eabi
