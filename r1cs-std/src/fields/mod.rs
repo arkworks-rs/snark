@@ -434,7 +434,7 @@ pub(crate) mod tests {
         // a * a * a = a^3
         assert_eq!(
             a_native * &(a_native * &a_native),
-            a.pow_by_constant(cs.ns(|| "test_pow"), &[3])
+            a.pow_by_constant(cs.ns(|| "test_constant_pow"), &[3])
                 .unwrap()
                 .get_value()
                 .unwrap()
