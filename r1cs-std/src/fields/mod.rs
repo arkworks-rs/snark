@@ -232,15 +232,12 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
         let mut res = Self::one(cs.ns(|| "Alloc result"))?;
         let mut found_one = false;
 
-        for i in BitIterator::new(exp)
-        {
-            if found_one
-            {
+        for (i, bit) in BitIterator::new(exp).enumerate() {
+            if found_one {
                 res.square_in_place(cs.ns(|| format!("square for bit {:?}", i)))?;
             }
     
-            if !i
-            {
+            if !bit {
                 found_one = true;
                 res.mul_in_place(cs.ns(|| format!("mul for bit {:?}", i)), self)?;
             }
