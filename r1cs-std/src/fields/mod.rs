@@ -236,8 +236,8 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
             if found_one {
                 res.square_in_place(cs.ns(|| format!("square for bit {:?}", i)))?;
             }
-    
-            if !bit {
+
+            if bit {
                 found_one = true;
                 res.mul_in_place(cs.ns(|| format!("mul for bit {:?}", i)), self)?;
             }
