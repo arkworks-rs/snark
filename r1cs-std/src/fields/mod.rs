@@ -242,7 +242,7 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
                 res.mul_in_place(cs.ns(|| format!("mul for bit {:?}", i)), self)?;
             }
         }
-    
+
         Ok(res)
     }
 
