@@ -1,4 +1,4 @@
-use algebra::Field;
+use algebra::{Field, fields::BitIterator};
 use core::fmt::Debug;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
@@ -224,22 +224,22 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
         Ok(res)
     }
 
-    fn pow_by_constant<CS: ConstraintSystem<ConstraintF>>(
+    fn pow_by_constant<S: AsRef<[u64]>, CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
-        exp: u64
+        exp: S
     ) -> Result<Self, SynthesisError> {
         let mut res = Self::one(cs.ns(|| "Alloc result"))?;
         let mut found_one = false;
 
-        for i in (0..64).rev()
+        for i in BitIterator::new(exp)
         {
             if found_one
             {
                 res.square_in_place(cs.ns(|| format!("square for bit {:?}", i)))?;
             }
     
-            if exp & (1 << i) != 0
+            if !i
             {
                 found_one = true;
                 res.mul_in_place(cs.ns(|| format!("mul for bit {:?}", i)), self)?;
@@ -431,9 +431,10 @@ pub(crate) mod tests {
                 .unwrap()
         );
 
+        // a * a * a = a^3
         assert_eq!(
             a_native * &(a_native * &a_native),
-            a.pow_by_constant(cs.ns(|| "test_pow"), 3)
+            a.pow_by_constant(cs.ns(|| "test_pow"), &[3])
                 .unwrap()
                 .get_value()
                 .unwrap()
