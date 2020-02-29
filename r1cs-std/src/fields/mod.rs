@@ -1,4 +1,4 @@
-use algebra::{Field, fields::BitIterator};
+use algebra::{fields::BitIterator, Field};
 use core::fmt::Debug;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
@@ -227,7 +227,7 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
     fn pow_by_constant<S: AsRef<[u64]>, CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
-        exp: S
+        exp: S,
     ) -> Result<Self, SynthesisError> {
         let mut res = Self::one(cs.ns(|| "Alloc result"))?;
         let mut found_one = false;
