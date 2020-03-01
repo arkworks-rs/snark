@@ -2,7 +2,7 @@
 use crate::fields::{Field, LegendreSymbol, PrimeField, SquareRootField};
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
-use crate::{SWFlags, Flags};
+use crate::{SWFlags, Flags, io::Cursor};
 
 pub const ITERATIONS: u32 = 40;
 
@@ -348,16 +348,20 @@ pub fn field_serialization_test<F: Field>(buf_size: usize) {
         let a = F::rand(&mut rng);
         {
             let mut serialized = vec![0u8; buf_size];
-            a.serialize(&mut &mut serialized[..]).unwrap();
+            let mut cursor = Cursor::new(&mut serialized[..]);
+            a.serialize(&mut cursor).unwrap();
 
-            let b = F::deserialize(&mut &serialized[..]).unwrap();
+            let mut cursor = Cursor::new(&serialized[..]);
+            let b = F::deserialize(&mut cursor).unwrap();
             assert_eq!(a, b);
         }
 
         {
             let mut serialized = vec![0u8; buf_size];
-            a.serialize_with_flags(&mut &mut serialized[..], SWFlags::y_sign(true)).unwrap();
-            let (b, flags) = F::deserialize_with_flags::<_, SWFlags>(&mut &serialized[..]).unwrap();
+            let mut cursor = Cursor::new(&mut serialized[..]);
+            a.serialize_with_flags(&mut cursor, SWFlags::y_sign(true)).unwrap();
+            let mut cursor = Cursor::new(&serialized[..]);
+            let (b, flags) = F::deserialize_with_flags::<_, SWFlags>(&mut cursor).unwrap();
             assert!(flags.y_sign);
             assert!(!flags.is_infinity);
             assert_eq!(a, b);
@@ -404,9 +408,11 @@ pub fn field_serialization_test<F: Field>(buf_size: usize) {
 
         {
             let mut serialized = vec![0; buf_size - 1];
-            a.serialize(&mut &mut serialized[..]).unwrap_err();
+            let mut cursor = Cursor::new(&mut serialized[..]);
+            a.serialize(&mut cursor).unwrap_err();
 
-            F::deserialize(&mut &serialized[..]).unwrap_err();
+            let mut cursor = Cursor::new(&serialized[..]);
+            F::deserialize(&mut cursor).unwrap_err();
         }
     }
 }

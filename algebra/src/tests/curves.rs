@@ -2,7 +2,7 @@
 use algebra_core::{curves::{
     models::short_weierstrass_jacobian::{GroupAffine, GroupProjective},
     AffineCurve, ProjectiveCurve,
-}, CanonicalDeserialize, CanonicalSerialize, Field, MontgomeryModelParameters, One, PrimeField, SWModelParameters, SerializationError, TEModelParameters, UniformRand, Vec, Zero, SWFlags};
+}, CanonicalDeserialize, CanonicalSerialize, Field, MontgomeryModelParameters, One, PrimeField, SWModelParameters, SerializationError, TEModelParameters, UniformRand, Vec, Zero, SWFlags, io::Cursor};
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 
@@ -289,33 +289,40 @@ pub fn sw_curve_serialization_test<P: SWModelParameters>(buf_size: usize) {
         let mut a = a.into_affine();
         {
             let mut serialized = vec![0; buf_size];
-            a.serialize(&mut &mut serialized[..]).unwrap();
+            let mut cursor = Cursor::new(&mut serialized[..]);
+            a.serialize(&mut cursor).unwrap();
 
-            let b = GroupAffine::<P>::deserialize(&mut &serialized[..]).unwrap();
+            let mut cursor = Cursor::new(&serialized[..]);
+            let b = GroupAffine::<P>::deserialize(&mut cursor).unwrap();
             assert_eq!(a, b);
         }
 
         {
             a.y = -a.y;
             let mut serialized = vec![0; buf_size];
-            a.serialize(&mut &mut serialized[..]).unwrap();
-            let b = GroupAffine::<P>::deserialize(&mut &serialized[..]).unwrap();
+            let mut cursor = Cursor::new(&mut serialized[..]);
+            a.serialize(&mut cursor).unwrap();
+            let mut cursor = Cursor::new(&serialized[..]);
+            let b = GroupAffine::<P>::deserialize(&mut cursor).unwrap();
             assert_eq!(a, b);
         }
 
         {
             let a = GroupAffine::<P>::zero();
             let mut serialized = vec![0; buf_size];
-            a.serialize(&mut &mut serialized[..]).unwrap();
-            let b = GroupAffine::<P>::deserialize(&mut &serialized[..]).unwrap();
+            let mut cursor = Cursor::new(&mut serialized[..]);
+            a.serialize(&mut cursor).unwrap();
+            let mut cursor = Cursor::new(&serialized[..]);
+            let b = GroupAffine::<P>::deserialize(&mut cursor).unwrap();
             assert_eq!(a, b);
         }
 
         {
             let a = GroupAffine::<P>::zero();
             let mut serialized = vec![0; buf_size];
+            let mut cursor = Cursor::new(&mut serialized[..]);
             assert!(if let SerializationError::UnexpectedFlags =
-                a.serialize_with_flags(&mut &mut serialized[..], SWFlags::default()).unwrap_err()
+                a.serialize_with_flags(&mut cursor, SWFlags::default()).unwrap_err()
             {
                 true
             } else {
@@ -326,12 +333,14 @@ pub fn sw_curve_serialization_test<P: SWModelParameters>(buf_size: usize) {
         {
             let a = GroupAffine::<P>::zero();
             let mut serialized = vec![0; buf_size - 1];
-            a.serialize(&mut &mut serialized[..]).unwrap_err();
+            let mut cursor = Cursor::new(&mut serialized[..]);
+            a.serialize(&mut cursor).unwrap_err();
         }
 
         {
             let serialized = vec![0; buf_size - 1];
-            GroupAffine::<P>::deserialize(&mut &serialized[..]).unwrap_err();
+            let mut cursor = Cursor::new(&serialized[..]);
+            GroupAffine::<P>::deserialize(&mut cursor).unwrap_err();
         }
     }
 }
@@ -361,25 +370,30 @@ pub fn edwards_curve_serialization_test<P: TEModelParameters>(buf_size: usize) {
         let a = a.into_affine();
         {
             let mut serialized = vec![0; buf_size];
-            a.serialize(&mut &mut serialized[..]).unwrap();
+            let mut cursor = Cursor::new(&mut serialized[..]);
+            a.serialize(&mut cursor).unwrap();
 
-            let b = GroupAffine::<P>::deserialize(&mut &serialized[..]).unwrap();
+            let mut cursor = Cursor::new(&serialized[..]);
+            let b = GroupAffine::<P>::deserialize(&mut cursor).unwrap();
             assert_eq!(a, b);
         }
 
         {
             let a = GroupAffine::<P>::zero();
             let mut serialized = vec![0; buf_size];
-            a.serialize(&mut &mut serialized[..]).unwrap();
-            let b = GroupAffine::<P>::deserialize(&mut &serialized[..]).unwrap();
+            let mut cursor = Cursor::new(&mut serialized[..]);
+            a.serialize(&mut cursor).unwrap();
+            let mut cursor = Cursor::new(&serialized[..]);
+            let b = GroupAffine::<P>::deserialize(&mut cursor).unwrap();
             assert_eq!(a, b);
         }
 
         {
             let a = GroupAffine::<P>::zero();
             let mut serialized = vec![0; buf_size];
+            let mut cursor = Cursor::new(&mut serialized[..]);
             assert!(if let SerializationError::UnexpectedFlags =
-                a.serialize_with_flags(&mut &mut serialized[..], SWFlags::default()).unwrap_err()
+                a.serialize_with_flags(&mut cursor, SWFlags::default()).unwrap_err()
             {
                 true
             } else {
@@ -390,12 +404,14 @@ pub fn edwards_curve_serialization_test<P: TEModelParameters>(buf_size: usize) {
         {
             let a = GroupAffine::<P>::zero();
             let mut serialized = vec![0; buf_size - 1];
-            a.serialize(&mut &mut serialized[..]).unwrap_err();
+            let mut cursor = Cursor::new(&mut serialized[..]);
+            a.serialize(&mut cursor).unwrap_err();
         }
 
         {
             let serialized = vec![0; buf_size - 1];
-            GroupAffine::<P>::deserialize(&mut &serialized[..]).unwrap_err();
+            let mut cursor = Cursor::new(&serialized[..]);
+            GroupAffine::<P>::deserialize(&mut cursor).unwrap_err();
         }
     }
 }

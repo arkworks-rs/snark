@@ -290,22 +290,26 @@ macro_rules! impl_edwards_curve_serializer {
 
 #[cfg(test)]
 mod test {
-    use crate::{CanonicalSerialize, CanonicalDeserialize};
+    use crate::{CanonicalSerialize, CanonicalDeserialize, io::Cursor};
 
     #[test]
     fn test_primitives() {
         let a = 192830918u64;
         let mut serialized = vec![0u8; a.serialized_size()];
-        a.serialize(&mut &mut serialized[..]).unwrap();
+        let mut cursor = Cursor::new(&mut serialized[..]);
+        a.serialize(&mut cursor).unwrap();
 
-        let b = u64::deserialize(&mut &serialized[..]).unwrap();
+        let mut cursor = Cursor::new(&serialized[..]);
+        let b = u64::deserialize(&mut cursor).unwrap();
         assert_eq!(a, b);
 
         let a = true;
         let mut serialized = vec![0u8; a.serialized_size()];
-        a.serialize(&mut &mut serialized[..]).unwrap();
+        let mut cursor = Cursor::new(&mut serialized[..]);
+        a.serialize(&mut cursor).unwrap();
 
-        let b = bool::deserialize(&mut &serialized[..]).unwrap();
+        let mut cursor = Cursor::new(&serialized[..]);
+        let b = bool::deserialize(&mut cursor).unwrap();
         assert_eq!(a, b);
     }
 }
