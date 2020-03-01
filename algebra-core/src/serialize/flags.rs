@@ -32,21 +32,21 @@ impl Flags for EmptyFlags {
 /// The default flags (empty) should not change the binary representation.
 #[derive(Default, Clone, Copy)]
 pub struct SWFlags {
-    pub y_sign: bool,
+    pub y_sign:      bool,
     pub is_infinity: bool,
 }
 
 impl SWFlags {
     pub fn infinity() -> Self {
         SWFlags {
-            y_sign: false,
+            y_sign:      false,
             is_infinity: true,
         }
     }
 
     pub fn y_sign(sign: bool) -> Self {
         SWFlags {
-            y_sign: sign,
+            y_sign:      sign,
             is_infinity: false,
         }
     }
@@ -69,7 +69,7 @@ impl Flags for SWFlags {
         let is_infinity = (value >> 62) & 1 == 1;
         SWFlags {
             y_sign: x_sign,
-            is_infinity
+            is_infinity,
         }
     }
 
@@ -94,9 +94,7 @@ pub struct EdwardsFlags {
 
 impl EdwardsFlags {
     pub fn y_sign(sign: bool) -> Self {
-        EdwardsFlags {
-            y_sign: sign,
-        }
+        EdwardsFlags { y_sign: sign }
     }
 }
 
@@ -111,9 +109,7 @@ impl Flags for EdwardsFlags {
 
     fn from_u64(value: u64) -> Self {
         let x_sign = (value >> 63) & 1 == 1;
-        EdwardsFlags {
-            y_sign: x_sign,
-        }
+        EdwardsFlags { y_sign: x_sign }
     }
 
     fn from_u64_remove_flags(value: &mut u64) -> Self {

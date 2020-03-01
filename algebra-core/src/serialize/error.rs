@@ -8,7 +8,8 @@ pub enum SerializationError {
     NotEnoughSpace,
     /// During serialization, the data was invalid.
     InvalidData,
-    /// During serialization, non-empty flags were given where none were expected.
+    /// During serialization, non-empty flags were given where none were
+    /// expected.
     UnexpectedFlags,
     /// During serialization, we countered an I/O error.
     IoError(io::Error),

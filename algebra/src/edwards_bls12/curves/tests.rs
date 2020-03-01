@@ -1,4 +1,7 @@
-use algebra_core::{curves::{AffineCurve, ProjectiveCurve}, test_rng, CanonicalSerialize, Zero};
+use algebra_core::{
+    curves::{AffineCurve, ProjectiveCurve},
+    test_rng, CanonicalSerialize, Zero,
+};
 use rand::Rng;
 
 use crate::edwards_bls12::*;

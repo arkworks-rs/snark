@@ -1,4 +1,7 @@
-use crate::{io::{Read, Result as IoResult, Write}, CanonicalDeserialize, CanonicalSerialize, SerializationError, UniformRand, Flags};
+use crate::{
+    io::{Read, Result as IoResult, Write},
+    CanonicalDeserialize, CanonicalSerialize, Flags, SerializationError, UniformRand,
+};
 use core::{
     cmp::Ordering,
     fmt,
@@ -474,7 +477,11 @@ impl<P: Fp6Parameters> FromBytes for Fp6<P> {
 }
 
 impl<P: Fp6Parameters> CanonicalSerialize for Fp6<P> {
-    fn serialize_with_flags<W: Write, F: Flags>(&self, writer: &mut W, flags: F) -> Result<(), SerializationError> {
+    fn serialize_with_flags<W: Write, F: Flags>(
+        &self,
+        writer: &mut W,
+        flags: F,
+    ) -> Result<(), SerializationError> {
         CanonicalSerialize::serialize(&self.c0, writer)?;
         CanonicalSerialize::serialize(&self.c1, writer)?;
         CanonicalSerialize::serialize_with_flags(&self.c2, writer, flags)?;
@@ -496,7 +503,9 @@ impl<P: Fp6Parameters> CanonicalDeserialize for Fp6<P> {
         Ok(Fp6::new(c0, c1, c2))
     }
 
-    fn deserialize_with_flags<R: Read, F: Flags>(reader: &mut R) -> Result<(Self, F), SerializationError> {
+    fn deserialize_with_flags<R: Read, F: Flags>(
+        reader: &mut R,
+    ) -> Result<(Self, F), SerializationError> {
         let c0: Fp2<_> = CanonicalDeserialize::deserialize(reader)?;
         let c1: Fp2<_> = CanonicalDeserialize::deserialize(reader)?;
         let (c2, flags): (Fp2<_>, _) = CanonicalDeserialize::deserialize_with_flags(reader)?;

@@ -1,8 +1,11 @@
 #![allow(unused)]
-use crate::fields::{Field, LegendreSymbol, PrimeField, SquareRootField};
+use crate::{
+    fields::{Field, LegendreSymbol, PrimeField, SquareRootField},
+    io::Cursor,
+    Flags, SWFlags,
+};
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
-use crate::{SWFlags, Flags, io::Cursor};
 
 pub const ITERATIONS: u32 = 40;
 
@@ -359,7 +362,8 @@ pub fn field_serialization_test<F: Field>(buf_size: usize) {
         {
             let mut serialized = vec![0u8; buf_size];
             let mut cursor = Cursor::new(&mut serialized[..]);
-            a.serialize_with_flags(&mut cursor, SWFlags::y_sign(true)).unwrap();
+            a.serialize_with_flags(&mut cursor, SWFlags::y_sign(true))
+                .unwrap();
             let mut cursor = Cursor::new(&serialized[..]);
             let (b, flags) = F::deserialize_with_flags::<_, SWFlags>(&mut cursor).unwrap();
             assert!(flags.y_sign);
@@ -390,8 +394,9 @@ pub fn field_serialization_test<F: Field>(buf_size: usize) {
         use crate::serialize::SerializationError;
         {
             let mut serialized = vec![0; buf_size];
-            assert!(if let SerializationError::NotEnoughSpace =
-                a.serialize_with_flags(&mut &mut serialized[..], DummyFlags).unwrap_err()
+            assert!(if let SerializationError::NotEnoughSpace = a
+                .serialize_with_flags(&mut &mut serialized[..], DummyFlags)
+                .unwrap_err()
             {
                 true
             } else {

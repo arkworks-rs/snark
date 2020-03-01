@@ -1,4 +1,6 @@
-use crate::{CanonicalDeserialize, CanonicalSerialize, SerializationError, UniformRand, Vec, Flags};
+use crate::{
+    CanonicalDeserialize, CanonicalSerialize, Flags, SerializationError, UniformRand, Vec,
+};
 use core::{
     cmp::{Ord, Ordering, PartialOrd},
     fmt,
@@ -492,7 +494,11 @@ impl<P: Fp3Parameters> fmt::Display for Fp3<P> {
 }
 
 impl<P: Fp3Parameters> CanonicalSerialize for Fp3<P> {
-    fn serialize_with_flags<W: Write, F: Flags>(&self, writer: &mut W, flags: F) -> Result<(), SerializationError> {
+    fn serialize_with_flags<W: Write, F: Flags>(
+        &self,
+        writer: &mut W,
+        flags: F,
+    ) -> Result<(), SerializationError> {
         CanonicalSerialize::serialize(&self.c0, writer)?;
         CanonicalSerialize::serialize(&self.c1, writer)?;
         CanonicalSerialize::serialize_with_flags(&self.c2, writer, flags)?;
@@ -514,7 +520,9 @@ impl<P: Fp3Parameters> CanonicalDeserialize for Fp3<P> {
         Ok(Fp3::new(c0, c1, c2))
     }
 
-    fn deserialize_with_flags<R: Read, F: Flags>(reader: &mut R) -> Result<(Self, F), SerializationError> {
+    fn deserialize_with_flags<R: Read, F: Flags>(
+        reader: &mut R,
+    ) -> Result<(Self, F), SerializationError> {
         let c0: P::Fp = CanonicalDeserialize::deserialize(reader)?;
         let c1: P::Fp = CanonicalDeserialize::deserialize(reader)?;
         let (c2, flags): (P::Fp, _) = CanonicalDeserialize::deserialize_with_flags(reader)?;

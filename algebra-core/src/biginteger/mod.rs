@@ -1,4 +1,9 @@
-use crate::{bytes::{FromBytes, ToBytes}, fields::BitIterator, io::{Read, Result as IoResult, Write}, UniformRand, Vec, CanonicalSerialize, Flags, CanonicalDeserialize, SerializationError};
+use crate::{
+    bytes::{FromBytes, ToBytes},
+    fields::BitIterator,
+    io::{Read, Result as IoResult, Write},
+    CanonicalDeserialize, CanonicalSerialize, Flags, SerializationError, UniformRand, Vec,
+};
 use core::fmt::{Debug, Display};
 use rand::{
     distributions::{Distribution, Standard},
@@ -17,7 +22,11 @@ bigint_impl!(BigInteger768, 12);
 bigint_impl!(BigInteger832, 13);
 
 impl<T: BigInteger> CanonicalSerialize for T {
-    fn serialize_with_flags<W: Write, F: Flags>(&self, writer: &mut W, flags: F) -> Result<(), SerializationError> {
+    fn serialize_with_flags<W: Write, F: Flags>(
+        &self,
+        writer: &mut W,
+        flags: F,
+    ) -> Result<(), SerializationError> {
         for (i, limb) in self.as_ref().iter().enumerate() {
             // Encode flags into most significant limb.
             if i == Self::NUM_LIMBS - 1 {
@@ -43,7 +52,9 @@ impl<T: BigInteger> CanonicalDeserialize for T {
         Ok(value)
     }
 
-    fn deserialize_with_flags<R: Read, F: Flags>(reader: &mut R) -> Result<(Self, F), SerializationError> {
+    fn deserialize_with_flags<R: Read, F: Flags>(
+        reader: &mut R,
+    ) -> Result<(Self, F), SerializationError> {
         let mut value = T::default();
         let mut flags = Default::default();
         for (i, limb) in value.as_mut().iter_mut().enumerate() {

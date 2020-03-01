@@ -1,4 +1,7 @@
-use crate::{io::{Read, Result as IoResult, Write}, CanonicalDeserialize, CanonicalSerialize, SerializationError, UniformRand, Flags};
+use crate::{
+    io::{Read, Result as IoResult, Write},
+    CanonicalDeserialize, CanonicalSerialize, Flags, SerializationError, UniformRand,
+};
 use core::{
     cmp::{Ord, Ordering, PartialOrd},
     fmt,
@@ -393,14 +396,19 @@ impl<P: Fp2Parameters> fmt::Display for Fp2<P> {
 }
 
 impl<P: Fp2Parameters> CanonicalSerialize for Fp2<P> {
-    fn serialize_with_flags<W: Write, F: Flags>(&self, writer: &mut W, flags: F) -> Result<(), SerializationError> {
+    fn serialize_with_flags<W: Write, F: Flags>(
+        &self,
+        writer: &mut W,
+        flags: F,
+    ) -> Result<(), SerializationError> {
         CanonicalSerialize::serialize(&self.c0, writer)?;
         CanonicalSerialize::serialize_with_flags(&self.c1, writer, flags)?;
         Ok(())
     }
 
     fn serialized_size(&self) -> usize {
-        CanonicalSerialize::serialized_size(&self.c0) + CanonicalSerialize::serialized_size(&self.c1)
+        CanonicalSerialize::serialized_size(&self.c0)
+            + CanonicalSerialize::serialized_size(&self.c1)
     }
 }
 
@@ -411,7 +419,9 @@ impl<P: Fp2Parameters> CanonicalDeserialize for Fp2<P> {
         Ok(Fp2::new(c0, c1))
     }
 
-    fn deserialize_with_flags<R: Read, F: Flags>(reader: &mut R) -> Result<(Self, F), SerializationError> {
+    fn deserialize_with_flags<R: Read, F: Flags>(
+        reader: &mut R,
+    ) -> Result<(Self, F), SerializationError> {
         let c0: P::Fp = CanonicalDeserialize::deserialize(reader)?;
         let (c1, flags): (P::Fp, _) = CanonicalDeserialize::deserialize_with_flags(reader)?;
         Ok((Fp2::new(c0, c1), flags))

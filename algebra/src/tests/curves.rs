@@ -1,8 +1,13 @@
 #![allow(unused)]
-use algebra_core::{curves::{
-    models::short_weierstrass_jacobian::{GroupAffine, GroupProjective},
-    AffineCurve, ProjectiveCurve,
-}, CanonicalDeserialize, CanonicalSerialize, Field, MontgomeryModelParameters, One, PrimeField, SWModelParameters, SerializationError, TEModelParameters, UniformRand, Vec, Zero, SWFlags, io::Cursor};
+use algebra_core::{
+    curves::{
+        models::short_weierstrass_jacobian::{GroupAffine, GroupProjective},
+        AffineCurve, ProjectiveCurve,
+    },
+    io::Cursor,
+    CanonicalDeserialize, CanonicalSerialize, Field, MontgomeryModelParameters, One, PrimeField,
+    SWFlags, SWModelParameters, SerializationError, TEModelParameters, UniformRand, Vec, Zero,
+};
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 
@@ -321,8 +326,9 @@ pub fn sw_curve_serialization_test<P: SWModelParameters>(buf_size: usize) {
             let a = GroupAffine::<P>::zero();
             let mut serialized = vec![0; buf_size];
             let mut cursor = Cursor::new(&mut serialized[..]);
-            assert!(if let SerializationError::UnexpectedFlags =
-                a.serialize_with_flags(&mut cursor, SWFlags::default()).unwrap_err()
+            assert!(if let SerializationError::UnexpectedFlags = a
+                .serialize_with_flags(&mut cursor, SWFlags::default())
+                .unwrap_err()
             {
                 true
             } else {
@@ -392,8 +398,9 @@ pub fn edwards_curve_serialization_test<P: TEModelParameters>(buf_size: usize) {
             let a = GroupAffine::<P>::zero();
             let mut serialized = vec![0; buf_size];
             let mut cursor = Cursor::new(&mut serialized[..]);
-            assert!(if let SerializationError::UnexpectedFlags =
-                a.serialize_with_flags(&mut cursor, SWFlags::default()).unwrap_err()
+            assert!(if let SerializationError::UnexpectedFlags = a
+                .serialize_with_flags(&mut cursor, SWFlags::default())
+                .unwrap_err()
             {
                 true
             } else {
