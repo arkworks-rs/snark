@@ -360,6 +360,16 @@ pub fn field_serialization_test<F: Field>(buf_size: usize) {
         }
 
         {
+            let mut serialized = vec![0u8; a.uncompressed_size()];
+            let mut cursor = Cursor::new(&mut serialized[..]);
+            a.serialize_uncompressed(&mut cursor).unwrap();
+
+            let mut cursor = Cursor::new(&serialized[..]);
+            let b = F::deserialize_uncompressed(&mut cursor).unwrap();
+            assert_eq!(a, b);
+        }
+
+        {
             let mut serialized = vec![0u8; buf_size];
             let mut cursor = Cursor::new(&mut serialized[..]);
             a.serialize_with_flags(&mut cursor, SWFlags::y_sign(true))
