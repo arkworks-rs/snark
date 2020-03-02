@@ -15,6 +15,7 @@ use crate::{
         FixedLengthCRH, FixedLengthCRHGadget,
         FieldBasedHash, FieldBasedHashGadget,
     },
+    compute_truncation_size,
 };
 use r1cs_core::{ConstraintSystem, SynthesisError, ToConstraintField};
 use std::{
@@ -155,15 +156,14 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
         let c_bits = {
 
             //Serialize e taking into account the length restriction
-            let mut to_skip = 0usize;
-            let moduli_diff = ConstraintF::Params::MODULUS_BITS as i32 -
-                <G::ScalarField as PrimeField>::Params::MODULUS_BITS as i32;
-            if moduli_diff >= 0 {
-                to_skip = moduli_diff as usize + 1;
-            }
+            let to_skip = compute_truncation_size(
+                ConstraintF::Params::MODULUS_BITS as i32,
+                <G::ScalarField as PrimeField>::Params::MODULUS_BITS as i32,
+            );
 
             let c_bits = proof.c
-                .to_bits_with_length_restriction(cs.ns(|| "proof.c_to_bits"), to_skip)?;
+                .to_bits_with_length_restriction(cs.ns(|| "c_to_bits"), to_skip)?;
+
             debug_assert!(c_bits.len() as u32 == ConstraintF::Params::MODULUS_BITS - to_skip as u32);
             c_bits
         };
@@ -171,16 +171,23 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
         let mut s_bits = {
 
             //Serialize s taking into account the length restriction
-            let mut to_skip = 0usize;
-            let moduli_diff = <G::ScalarField as PrimeField>::Params::MODULUS_BITS as i32 -
-                ConstraintF::Params::MODULUS_BITS as i32;
-            if moduli_diff >= 0 {
-                to_skip = moduli_diff as usize + 1;
-            }
+
+            //Before computing the number of bits to truncate from s, we first have to normalize
+            //it, i.e. considering its number of bits equals to G::ScalarField::MODULUS_BITS;
+            let moduli_diff = ConstraintF::Params::MODULUS_BITS as i32 -
+                <G::ScalarField as PrimeField>::Params::MODULUS_BITS as i32;
+            let to_skip_init = (if moduli_diff > 0 {moduli_diff} else {0}) as usize;
+
+            //Now we can compare the two modulus and decide the bits to truncate
+            let to_skip = to_skip_init + compute_truncation_size(
+                <G::ScalarField as PrimeField>::Params::MODULUS_BITS as i32,
+                ConstraintF::Params::MODULUS_BITS as i32,
+            );
 
             let s_bits = proof.s
-                .to_bits_with_length_restriction(cs.ns(|| "proof.s_to_bits"), to_skip)?;
-            debug_assert!(s_bits.len() as u32 == <G::ScalarField as PrimeField>::Params::MODULUS_BITS - to_skip as u32);
+                .to_bits_with_length_restriction(cs.ns(|| "s_to_bits"), to_skip as usize)?;
+
+            debug_assert!(s_bits.len() as u32 == <G::ScalarField as PrimeField>::Params::MODULUS_BITS + to_skip_init as u32 - to_skip as u32);
             s_bits
         };
         s_bits.reverse();
@@ -243,21 +250,26 @@ mod test {
     use algebra::curves::{
         mnt4753::G1Projective as MNT4G1Projective,
         mnt6753::G1Projective as MNT6G1Projective,
+        jubjub::JubJubProjective,
     };
     use algebra::fields::{
         mnt4753::Fr as MNT4Fr,
         mnt6753::Fr as MNT6Fr,
+        bls12_381::Fr as BLS12Fr,
     };
     use crate::{vrf::{
         FieldBasedVrf, FieldBasedVrfGadget,
         ecvrf::{FieldBasedEcVrf, constraints::FieldBasedEcVrfProofVerificationGadget},
     }, crh::{
-        MNT4PoseidonHash, MNT6PoseidonHash, MNT4PoseidonHashGadget, MNT6PoseidonHashGadget,
+        MNT4PoseidonHash, MNT6PoseidonHash, BLS12PoseidonHash,
+        MNT4PoseidonHashGadget, MNT6PoseidonHashGadget, BLS12PoseidonHashGadget,
         bowe_hopwood::{
             BoweHopwoodPedersenCRH,
             constraints::BoweHopwoodPedersenCRHGadget,
         },
-        pedersen::PedersenWindow,
+        pedersen::{
+            PedersenCRH, PedersenWindow
+        },
     }, FixedLengthCRH};
 
     use r1cs_core::ConstraintSystem;
@@ -267,9 +279,11 @@ mod test {
         mnt4::mnt4753::MNT4G1Gadget,
         mnt6::mnt6753::MNT6G1Gadget,
     };
+    use r1cs_std::groups::jubjub::JubJubGadget;
 
     use rand::{Rng, thread_rng};
     use r1cs_std::test_constraint_system::TestConstraintSystem;
+    use crate::crh::pedersen::constraints::PedersenCRHGadget;
 
     #[derive(Clone)]
     struct TestWindow {}
@@ -278,14 +292,24 @@ mod test {
         const NUM_WINDOWS: usize = 2;
     }
 
+    #[derive(Clone)]
+    struct JubJubTestWindow {}
+    impl PedersenWindow for JubJubTestWindow {
+        const WINDOW_SIZE: usize = 32;
+        const NUM_WINDOWS: usize = 8;
+    }
+
     type BHMNT4 = BoweHopwoodPedersenCRH<MNT4G1Projective, TestWindow>;
     type BHMNT6 = BoweHopwoodPedersenCRH<MNT6G1Projective, TestWindow>;
+    type PedersenJubJub = PedersenCRH<JubJubProjective, JubJubTestWindow>;
 
     type BHMNT4Gadget = BoweHopwoodPedersenCRHGadget<MNT6G1Projective, MNT4Fr, MNT6G1Gadget>;
     type BHMNT6Gadget = BoweHopwoodPedersenCRHGadget<MNT4G1Projective, MNT6Fr, MNT4G1Gadget>;
+    type PedersenJubJubGadget = PedersenCRHGadget<JubJubProjective, BLS12Fr, JubJubGadget>;
 
     type EcVrfMNT4 = FieldBasedEcVrf<MNT4Fr, MNT6G1Projective, MNT4PoseidonHash, BHMNT6>;
     type EcVrfMNT6 = FieldBasedEcVrf<MNT6Fr, MNT4G1Projective, MNT6PoseidonHash, BHMNT4>;
+    type EcVrfBLS12 = FieldBasedEcVrf<BLS12Fr, JubJubProjective, BLS12PoseidonHash, PedersenJubJub>;
 
     type EcVrfMNT4Gadget = FieldBasedEcVrfProofVerificationGadget<
         MNT4Fr,
@@ -304,6 +328,15 @@ mod test {
         MNT6PoseidonHashGadget,
         BHMNT4,
         BHMNT6Gadget>;
+
+    type EcVrfBLS12Gadget = FieldBasedEcVrfProofVerificationGadget<
+        BLS12Fr,
+        JubJubProjective,
+        JubJubGadget,
+        BLS12PoseidonHash,
+        BLS12PoseidonHashGadget,
+        PedersenJubJub,
+        PedersenJubJubGadget>;
 
     fn prove<S: FieldBasedVrf, R: Rng>(rng: &mut R, pp: &S::GHParams, message: &[S::Data])
         -> (S::Proof, S::PublicKey, S::SecretKey)
@@ -415,6 +448,61 @@ mod test {
 
         //Verify new proof: expected to fail
         EcVrfMNT6Gadget::check_verify_gadget(
+            cs.ns(|| "verify proof2"),
+            &pp_g,
+            &pk_g,
+            &new_proof_g,
+            &[message_g]
+        ).unwrap();
+
+        assert!(!cs.is_satisfied());
+        println!("{:?}", cs.which_is_unsatisfied());
+    }
+
+    #[test]
+    fn bls12_381_ecvrf_gadget_test() {
+
+        let mut cs = TestConstraintSystem::<BLS12Fr>::new();
+
+        //Generate VRF proof for a random field element f and get the proof and the keypair too
+        let rng = &mut thread_rng();
+        let message: BLS12Fr = rng.gen();
+        let pp = <PedersenJubJub as FixedLengthCRH>::setup(rng).unwrap();
+        let (proof, pk, sk) = prove::<EcVrfBLS12, _>(rng, &pp, &[message]);
+
+        //Alloc proof, pk and message
+        let proof_g = <EcVrfBLS12Gadget as FieldBasedVrfGadget<EcVrfBLS12, BLS12Fr>>::ProofGadget::alloc(
+            cs.ns(|| "alloc proof"),
+            || Ok(proof)
+        ).unwrap();
+        let pk_g = <EcVrfBLS12Gadget as FieldBasedVrfGadget<EcVrfBLS12, BLS12Fr>>::PublicKeyGadget::alloc(cs.ns(|| "alloc pk"), || Ok(pk)).unwrap();
+        let pp_g = <EcVrfBLS12Gadget as FieldBasedVrfGadget<EcVrfBLS12, BLS12Fr>>::GHParametersGadget::alloc(cs.ns(|| "alloc gh params"), || Ok(&pp)).unwrap();
+        let message_g = <EcVrfBLS12Gadget as FieldBasedVrfGadget<EcVrfBLS12, BLS12Fr>>::DataGadget::alloc(
+            cs.ns(|| "alloc message"),
+            || Ok(message)
+        ).unwrap();
+
+        //Verify proof
+        EcVrfBLS12Gadget::check_verify_gadget(
+            cs.ns(|| "verify proof1"),
+            &pp_g,
+            &pk_g,
+            &proof_g,
+            &[message_g.clone()]
+        ).unwrap();
+
+        assert!(cs.is_satisfied());
+
+        //Wrong proof: generate a proof for a different message and check constraints fail
+        let new_message: BLS12Fr = rng.gen();
+        let new_proof = EcVrfBLS12::prove(rng, &pp, &pk, &sk, &[new_message]).unwrap();
+        let new_proof_g = <EcVrfBLS12Gadget as FieldBasedVrfGadget<EcVrfBLS12, BLS12Fr>>::ProofGadget::alloc(
+            cs.ns(|| "alloc new proof"),
+            || Ok(new_proof)
+        ).unwrap();
+
+        //Verify new proof: expected to fail
+        EcVrfBLS12Gadget::check_verify_gadget(
             cs.ns(|| "verify proof2"),
             &pp_g,
             &pk_g,

@@ -54,3 +54,15 @@ impl std::error::Error for CryptoError {
         None
     }
 }
+
+/// Return the number of leading bits to skip in a field element belonging to a field
+/// 'from' having `modulus_from` bits in order to safely convert it into a field element
+/// belonging to a field 'to' having `modulus_to` bits.
+pub(crate) fn compute_truncation_size(modulus_from: i32, modulus_to: i32) -> usize {
+    (match modulus_from - modulus_to {
+        moduli_diff if moduli_diff > 0 => moduli_diff + 1,
+        moduli_diff if moduli_diff == 0 => 1,
+        moduli_diff if moduli_diff < 0 => 0,
+        _ => unreachable!(),
+    }) as usize
+}

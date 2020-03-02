@@ -227,6 +227,7 @@ mod field_impl
             FieldBasedSigGadget,
         },
         crh::{FieldBasedHashGadget, FieldBasedHash},
+        compute_truncation_size
     };
     use r1cs_std::{
         fields::fp::FpGadget,
@@ -337,15 +338,14 @@ mod field_impl
             let e_bits = {
 
                 //Serialize e taking into account the length restriction
-                let mut to_skip = 0usize;
-                let moduli_diff = ConstraintF::Params::MODULUS_BITS as i32 -
-                    <G::ScalarField as PrimeField>::Params::MODULUS_BITS as i32;
-                if moduli_diff >= 0 {
-                    to_skip = moduli_diff as usize + 1;
-                }
-                
+                let to_skip = compute_truncation_size(
+                    ConstraintF::Params::MODULUS_BITS as i32,
+                    <G::ScalarField as PrimeField>::Params::MODULUS_BITS as i32,
+                );
+
                 let e_bits = signature.e
                     .to_bits_with_length_restriction(cs.ns(|| "e_to_bits"), to_skip)?;
+
                 debug_assert!(e_bits.len() as u32 == ConstraintF::Params::MODULUS_BITS - to_skip as u32);
                 e_bits
             };
@@ -361,16 +361,23 @@ mod field_impl
             let mut s_bits = {
 
                 //Serialize s taking into account the length restriction
-                let mut to_skip = 0usize;
-                let moduli_diff = <G::ScalarField as PrimeField>::Params::MODULUS_BITS as i32 -
-                    ConstraintF::Params::MODULUS_BITS as i32;
-                if moduli_diff >= 0 {
-                    to_skip = moduli_diff as usize + 1;
-                }
+
+                //Before computing the number of bits to truncate from s, we first have to normalize
+                //it, i.e. considering its number of bits equals to G::ScalarField::MODULUS_BITS;
+                let moduli_diff = ConstraintF::Params::MODULUS_BITS as i32 -
+                    <G::ScalarField as PrimeField>::Params::MODULUS_BITS as i32;
+                let to_skip_init = (if moduli_diff > 0 {moduli_diff} else {0}) as usize;
+
+                //Now we can compare the two modulus and decide the bits to truncate
+                let to_skip = to_skip_init + compute_truncation_size(
+                    <G::ScalarField as PrimeField>::Params::MODULUS_BITS as i32,
+                    ConstraintF::Params::MODULUS_BITS as i32,
+                );
 
                 let s_bits = signature.s
-                    .to_bits_with_length_restriction(cs.ns(|| "s_to_bits"), to_skip)?;
-                debug_assert!(s_bits.len() as u32 == <G::ScalarField as PrimeField>::Params::MODULUS_BITS - to_skip as u32);
+                    .to_bits_with_length_restriction(cs.ns(|| "s_to_bits"), to_skip as usize)?;
+
+                debug_assert!(s_bits.len() as u32 == <G::ScalarField as PrimeField>::Params::MODULUS_BITS + to_skip_init as u32 - to_skip as u32);
                 s_bits
             };
 
@@ -422,10 +429,12 @@ mod test {
     use algebra::curves::{
         mnt4753::G1Projective as MNT4G1Projective,
         mnt6753::G1Projective as MNT6G1Projective,
+        jubjub::JubJubProjective,
     };
     use algebra::fields::{
         mnt4753::Fr as MNT4Fr,
         mnt6753::Fr as MNT6Fr,
+        bls12_381::Fr as BLS12Fr,
     };
     use crate::{
         signature::{
@@ -436,6 +445,7 @@ mod test {
         crh::{
             MNT4PoseidonHash, MNT4PoseidonHashGadget,
             MNT6PoseidonHash, MNT6PoseidonHashGadget,
+            BLS12PoseidonHash, BLS12PoseidonHashGadget,
         },
     };
 
@@ -447,17 +457,23 @@ mod test {
         mnt6::mnt6753::MNT6G1Gadget,
     };
 
+    use r1cs_std::groups::curves::twisted_edwards::jubjub::JubJubGadget;
+
     use rand::{Rng, thread_rng};
     use r1cs_std::test_constraint_system::TestConstraintSystem;
 
     type SchnorrMNT4 = FieldBasedSchnorrSignatureScheme<MNT4Fr, MNT6G1Projective, MNT4PoseidonHash>;
     type SchnorrMNT6 = FieldBasedSchnorrSignatureScheme<MNT6Fr, MNT4G1Projective, MNT6PoseidonHash>;
+    type SchnorrBLS12 = FieldBasedSchnorrSignatureScheme<BLS12Fr, JubJubProjective, BLS12PoseidonHash>;
 
     type SchnorrMNT4Gadget = FieldBasedSchnorrSigVerificationGadget<
         MNT4Fr, MNT6G1Projective, MNT6G1Gadget, MNT4PoseidonHash, MNT4PoseidonHashGadget
     >;
     type SchnorrMNT6Gadget = FieldBasedSchnorrSigVerificationGadget<
         MNT6Fr, MNT4G1Projective, MNT4G1Gadget, MNT6PoseidonHash, MNT6PoseidonHashGadget
+    >;
+    type SchnorrBLS12Gadget = FieldBasedSchnorrSigVerificationGadget<
+        BLS12Fr, JubJubProjective, JubJubGadget, BLS12PoseidonHash, BLS12PoseidonHashGadget
     >;
 
     fn sign<S: FieldBasedSignatureScheme, R: Rng>(rng: &mut R, message: &[S::Data]) -> (S::Signature, S::PublicKey, S::SecretKey)
@@ -597,6 +613,76 @@ mod test {
         assert!(cs.is_satisfied());
 
         SchnorrMNT6Gadget::check_verify_gadget(
+            cs.ns(|| "verify sig2"),
+            &pk_g,
+            &new_sig_g,
+            &[message_g]
+        ).unwrap();
+
+        println!("{:?}", cs.which_is_unsatisfied());
+        assert!(!cs.is_satisfied());
+    }
+
+    #[test]
+    fn bls12_381_schnorr_gadget_test() {
+
+        let mut cs = TestConstraintSystem::<BLS12Fr>::new();
+
+        //Sign a random field element f and get the signature and the public key
+        let rng = &mut thread_rng();
+        let message: BLS12Fr = rng.gen();
+        let (sig, pk, sk) = sign::<SchnorrBLS12, _>(rng, &[message]);
+
+        //Alloc signature, pk and message
+        let sig_g = <SchnorrBLS12Gadget as FieldBasedSigGadget<SchnorrBLS12, BLS12Fr>>::SignatureGadget::alloc(
+            cs.ns(|| "alloc sig"),
+            || Ok(sig)
+        ).unwrap();
+        let pk_g = <SchnorrBLS12Gadget as FieldBasedSigGadget<SchnorrBLS12, BLS12Fr>>::PublicKeyGadget::alloc(cs.ns(|| "alloc pk"), || Ok(pk)).unwrap();
+        let message_g = <SchnorrBLS12Gadget as FieldBasedSigGadget<SchnorrBLS12, BLS12Fr>>::DataGadget::alloc(
+            cs.ns(|| "alloc message"),
+            || Ok(message)
+        ).unwrap();
+
+        //Verify sig
+        let is_verified = SchnorrBLS12Gadget::check_gadget(
+            cs.ns(|| "sig1 result"),
+            &pk_g,
+            &sig_g,
+            &[message_g.clone()]
+        ).unwrap();
+
+        assert!(is_verified.get_value().unwrap());
+
+        SchnorrBLS12Gadget::check_verify_gadget(
+            cs.ns(|| "verify sig1"),
+            &pk_g,
+            &sig_g,
+            &[message_g.clone()]
+        ).unwrap();
+
+        assert!(cs.is_satisfied());
+
+        //Wrong sig: check constraints fail
+        let new_message: BLS12Fr = rng.gen();
+        let new_sig = SchnorrBLS12::sign(rng, &pk, &sk, &[new_message]).unwrap();
+        let new_sig_g = <SchnorrBLS12Gadget as FieldBasedSigGadget<SchnorrBLS12, BLS12Fr>>::SignatureGadget::alloc(
+            cs.ns(|| "alloc new sig"),
+            || Ok(new_sig)
+        ).unwrap();
+
+        //Verify new sig: expected to fail
+        let is_verified = SchnorrBLS12Gadget::check_gadget(
+            cs.ns(|| "sig2 result"),
+            &pk_g,
+            &new_sig_g,
+            &[message_g.clone()]
+        ).unwrap();
+
+        assert!(!is_verified.get_value().unwrap());
+        assert!(cs.is_satisfied());
+
+        SchnorrBLS12Gadget::check_verify_gadget(
             cs.ns(|| "verify sig2"),
             &pk_g,
             &new_sig_g,

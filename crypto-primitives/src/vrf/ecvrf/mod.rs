@@ -1,4 +1,4 @@
-use algebra::{Field, PrimeField, FpParameters, convert, leading_zeros,Group, AffineCurve, ProjectiveCurve,
+use algebra::{Field, PrimeField, FpParameters, convert, leading_zeros, Group, AffineCurve, ProjectiveCurve,
               ToBytes, to_bytes, ToBits, UniformRand, ToConstraintField, FromBytes};
 use crate::{
     crh::{
@@ -6,6 +6,7 @@ use crate::{
     },
     vrf::FieldBasedVrf,
     Error, CryptoError,
+    compute_truncation_size,
 };
 use std::marker::PhantomData;
 use rand::Rng;
@@ -114,23 +115,27 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
             hash_input.extend_from_slice(b.to_field_elements().unwrap().as_slice());
             let c = FH::evaluate(hash_input.as_ref())?;
 
+            let c_leading_zeros = leading_zeros(c.write_bits()) as usize;
+            let required_leading_zeros = compute_truncation_size(
+                F::Params::MODULUS_BITS as i32,
+                <G::ScalarField as PrimeField>::Params::MODULUS_BITS as i32,
+            );
+
             //Enforce c bit length is strictly smaller than G::ScalarField modulus bit length
-            if (F::Params::MODULUS_BITS - leading_zeros(c.write_bits()))
-                >= <G::ScalarField as PrimeField>::Params::MODULUS_BITS
-            {
-                continue;
-            }
+            if c_leading_zeros < required_leading_zeros {continue};
 
             let c_conv = convert::<F, G::ScalarField>(c)?;
 
             //Compute s = r + sk * c
             let s = r + &((*sk) * &c_conv);
 
-            if (<G::ScalarField as PrimeField>::Params::MODULUS_BITS - leading_zeros(s.write_bits()))
-                >= F::Params::MODULUS_BITS
-            {
-                continue;
-            }
+            let s_leading_zeros = leading_zeros(s.write_bits()) as usize;
+            let required_leading_zeros = compute_truncation_size(
+                <G::ScalarField as PrimeField>::Params::MODULUS_BITS as i32,
+                F::Params::MODULUS_BITS as i32,
+            );
+
+            if s_leading_zeros < required_leading_zeros {continue};
 
             let s_conv = convert::<G::ScalarField, F>(s)?;
 
@@ -211,16 +216,20 @@ mod test {
     use algebra::curves::{
         mnt4753::G1Projective as MNT4G1Projective,
         mnt6753::G1Projective as MNT6G1Projective,
+        jubjub::JubJubProjective,
     };
     use algebra::fields::{
         mnt4753::Fr as MNT4Fr,
         mnt6753::Fr as MNT6Fr,
+        bls12_381::Fr as BLS12Fr,
     };
     use algebra::{ToBytes, FromBytes, to_bytes};
     use crate::{crh::{
-        MNT4PoseidonHash, MNT6PoseidonHash,
+        MNT4PoseidonHash, MNT6PoseidonHash, BLS12PoseidonHash,
         bowe_hopwood::BoweHopwoodPedersenCRH,
-        pedersen::PedersenWindow,
+        pedersen::{
+            PedersenCRH, PedersenWindow
+        },
     }, vrf::{
         FieldBasedVrf,
         ecvrf::FieldBasedEcVrf,
@@ -234,12 +243,20 @@ mod test {
         const NUM_WINDOWS: usize = 2;
     }
 
+    #[derive(Clone)]
+    struct JubJubTestWindow {}
+    impl PedersenWindow for JubJubTestWindow {
+        const WINDOW_SIZE: usize = 32;
+        const NUM_WINDOWS: usize = 8;
+    }
+
     type BHMNT4 = BoweHopwoodPedersenCRH<MNT4G1Projective, TestWindow>;
     type BHMNT6 = BoweHopwoodPedersenCRH<MNT6G1Projective, TestWindow>;
+    type PedersenJubJub = PedersenCRH<JubJubProjective, JubJubTestWindow>;
 
     type EcVrfMNT4 = FieldBasedEcVrf<MNT4Fr, MNT6G1Projective, MNT4PoseidonHash, BHMNT6>;
     type EcVrfMNT6 = FieldBasedEcVrf<MNT6Fr, MNT4G1Projective, MNT6PoseidonHash, BHMNT4>;
-
+    type EcVrfBLS12 = FieldBasedEcVrf<BLS12Fr, JubJubProjective, BLS12PoseidonHash, PedersenJubJub>;
 
     fn prove_and_verify<S: FieldBasedVrf, R: Rng>(rng: &mut R, message: &[S::Data], pp: &S::GHParams) {
         let (pk, sk) = S::keygen(rng).unwrap();
@@ -292,6 +309,19 @@ mod test {
             let g: MNT6Fr = rng.gen();
             prove_and_verify::<EcVrfMNT6, _>(rng, &[f], &pp);
             failed_verification::<EcVrfMNT6, _>(rng, &[f], &[g], &pp);
+        }
+    }
+
+    #[test]
+    fn bls12_381_ecvrf_test() {
+        let rng = &mut thread_rng();
+        let pp = <PedersenJubJub as FixedLengthCRH>::setup(rng).unwrap();
+        let samples = 100;
+        for _ in 0..samples {
+            let f: BLS12Fr = rng.gen();
+            let g: BLS12Fr = rng.gen();
+            prove_and_verify::<EcVrfBLS12, _>(rng, &[f], &pp);
+            failed_verification::<EcVrfBLS12, _>(rng, &[f], &[g], &pp);
         }
     }
 }

@@ -326,7 +326,7 @@ impl<F: PrimeField> FromBits for F {
 /// Converts an element belonging to field FromF to an element belonging to field ToF.
 /// If `from` is not a valid element for field ToF, this function returns None.
 pub fn convert<FromF: PrimeField, ToF: PrimeField>(from: FromF) -> Result<ToF, Error> {
-    //TODO: Byte seems to be faster but we can't use our functions
+    //TODO: Byte seems to be faster but we can't use our functions and checks
     //ToF::read(to_bytes!(from).unwrap().as_slice())
     ToF::read_bits(from.write_bits())
 }

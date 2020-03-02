@@ -234,7 +234,7 @@ mod field_impl {
     use crate::{
         crh::FieldBasedHash,
         signature::FieldBasedSignatureScheme,
-        Error,
+        Error, compute_truncation_size,
     };
     use algebra::{Field, PrimeField, FpParameters, Group, UniformRand, AffineCurve, ProjectiveCurve,
                   convert, leading_zeros, ToBits, ToConstraintField, ToBytes, FromBytes};
@@ -331,12 +331,14 @@ mod field_impl {
                 hash_input.extend_from_slice(pk_coords.as_slice());
                 let e = H::evaluate(hash_input.as_ref())?;
 
+                let e_leading_zeros = leading_zeros(e.write_bits()) as usize;
+                let required_leading_zeros = compute_truncation_size(
+                    F::Params::MODULUS_BITS as i32,
+                    <G::ScalarField as PrimeField>::Params::MODULUS_BITS as i32,
+                );
+
                 //Enforce e bit length is strictly smaller than G::ScalarField modulus bit length
-                if (F::Params::MODULUS_BITS - leading_zeros(e.write_bits()))
-                    >= <G::ScalarField as PrimeField>::Params::MODULUS_BITS
-                {
-                    continue;
-                }
+                if e_leading_zeros < required_leading_zeros {continue};
 
                 //We can now safely convert it to the other field
                 let e_conv = convert::<F, G::ScalarField>(e)?;
@@ -344,11 +346,13 @@ mod field_impl {
                 //Enforce s bit length is strictly smaller than F modulus bit length
                 let s = k + &(e_conv * sk);
 
-                if (<G::ScalarField as PrimeField>::Params::MODULUS_BITS - leading_zeros(s.write_bits()))
-                    >= F::Params::MODULUS_BITS
-                {
-                    continue;
-                }
+                let s_leading_zeros = leading_zeros(s.write_bits()) as usize;
+                let required_leading_zeros = compute_truncation_size(
+                    <G::ScalarField as PrimeField>::Params::MODULUS_BITS as i32,
+                    F::Params::MODULUS_BITS as i32,
+                );
+
+                if s_leading_zeros < required_leading_zeros {continue};
 
                 let s_conv = convert::<G::ScalarField, F>(s)?;
 

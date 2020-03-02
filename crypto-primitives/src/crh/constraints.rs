@@ -117,7 +117,9 @@ for PoseidonHashGadget<ConstraintF, P>
 
 use algebra::fields::mnt4753::Fr as MNT4753Fr;
 use algebra::fields::mnt6753::Fr as MNT6753Fr;
-use crate::crh::{MNT4HashParameters, MNT6HashParameters};
+use algebra::fields::bls12_381::Fr as BLS12Fr;
+use crate::crh::{MNT4HashParameters, MNT6HashParameters, Bls12_381HashParameters};
 
 pub type MNT4PoseidonHashGadget = PoseidonHashGadget<MNT4753Fr, MNT4HashParameters>;
 pub type MNT6PoseidonHashGadget = PoseidonHashGadget<MNT6753Fr, MNT6HashParameters>;
+pub type BLS12PoseidonHashGadget = PoseidonHashGadget<BLS12Fr, Bls12_381HashParameters>;
