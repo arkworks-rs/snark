@@ -7,7 +7,7 @@ use crate::{
 use core::{
     fmt::{Debug, Display},
     hash::Hash,
-    ops::{Add, AddAssign, Neg, Sub, SubAssign, MulAssign},
+    ops::{Add, AddAssign, MulAssign, Neg, Sub, SubAssign},
 };
 use num_traits::Zero;
 
