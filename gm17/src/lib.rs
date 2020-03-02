@@ -13,6 +13,9 @@
 #[macro_use]
 extern crate bench_utils;
 
+#[macro_use]
+extern crate algebra_core_derive;
+
 #[cfg(not(feature = "std"))]
 #[macro_use]
 extern crate alloc;
@@ -26,7 +29,7 @@ use std::{string::String, vec::Vec};
 use algebra_core::{
     bytes::ToBytes,
     io::{self, Read, Result as IoResult, Write},
-    PairingEngine,
+    CanonicalDeserialize, CanonicalSerialize, PairingEngine,
 };
 use r1cs_core::SynthesisError;
 
@@ -48,7 +51,7 @@ mod test;
 pub use self::{generator::*, prover::*, verifier::*};
 
 /// A proof in the GM17 SNARK.
-#[derive(Clone)]
+#[derive(Clone, CanonicalSerialize, CanonicalDeserialize)]
 pub struct Proof<E: PairingEngine> {
     pub a: E::G1Affine,
     pub b: E::G2Affine,
@@ -96,7 +99,7 @@ impl<E: PairingEngine> Proof<E> {
 }
 
 /// A verification key in the GM17 SNARK.
-#[derive(Clone)]
+#[derive(Clone, CanonicalSerialize, CanonicalDeserialize)]
 pub struct VerifyingKey<E: PairingEngine> {
     pub h_g2:       E::G2Affine,
     pub g_alpha_g1: E::G1Affine,
@@ -160,7 +163,7 @@ impl<E: PairingEngine> VerifyingKey<E> {
 }
 
 /// Full public (prover and verifier) parameters for the GM17 zkSNARK.
-#[derive(Clone)]
+#[derive(Clone, CanonicalSerialize, CanonicalDeserialize)]
 pub struct Parameters<E: PairingEngine> {
     pub vk:           VerifyingKey<E>,
     pub a_query:      Vec<E::G1Affine>,

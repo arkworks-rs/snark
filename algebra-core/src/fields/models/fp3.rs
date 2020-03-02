@@ -1,5 +1,6 @@
 use crate::{
-    CanonicalDeserialize, CanonicalSerialize, Flags, SerializationError, UniformRand, Vec,
+    CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
+    CanonicalSerializeWithFlags, EmptyFlags, Flags, SerializationError, UniformRand, Vec,
 };
 use core::{
     cmp::{Ord, Ordering, PartialOrd},
@@ -493,7 +494,7 @@ impl<P: Fp3Parameters> fmt::Display for Fp3<P> {
     }
 }
 
-impl<P: Fp3Parameters> CanonicalSerialize for Fp3<P> {
+impl<P: Fp3Parameters> CanonicalSerializeWithFlags for Fp3<P> {
     fn serialize_with_flags<W: Write, F: Flags>(
         &self,
         writer: &mut W,
@@ -504,9 +505,27 @@ impl<P: Fp3Parameters> CanonicalSerialize for Fp3<P> {
         self.c2.serialize_with_flags(writer, flags)?;
         Ok(())
     }
+}
+
+impl<P: Fp3Parameters> CanonicalSerialize for Fp3<P> {
+    fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
+        self.serialize_with_flags(writer, EmptyFlags)
+    }
 
     fn serialized_size(&self) -> usize {
         self.c0.serialized_size() + self.c1.serialized_size() + self.c2.serialized_size()
+    }
+}
+
+impl<P: Fp3Parameters> CanonicalDeserializeWithFlags for Fp3<P> {
+    fn deserialize_with_flags<R: Read, F: Flags>(
+        reader: &mut R,
+    ) -> Result<(Self, F), SerializationError> {
+        let c0: P::Fp = CanonicalDeserialize::deserialize(reader)?;
+        let c1: P::Fp = CanonicalDeserialize::deserialize(reader)?;
+        let (c2, flags): (P::Fp, _) =
+            CanonicalDeserializeWithFlags::deserialize_with_flags(reader)?;
+        Ok((Fp3::new(c0, c1, c2), flags))
     }
 }
 
@@ -516,14 +535,5 @@ impl<P: Fp3Parameters> CanonicalDeserialize for Fp3<P> {
         let c1: P::Fp = CanonicalDeserialize::deserialize(reader)?;
         let c2: P::Fp = CanonicalDeserialize::deserialize(reader)?;
         Ok(Fp3::new(c0, c1, c2))
-    }
-
-    fn deserialize_with_flags<R: Read, F: Flags>(
-        reader: &mut R,
-    ) -> Result<(Self, F), SerializationError> {
-        let c0: P::Fp = CanonicalDeserialize::deserialize(reader)?;
-        let c1: P::Fp = CanonicalDeserialize::deserialize(reader)?;
-        let (c2, flags): (P::Fp, _) = CanonicalDeserialize::deserialize_with_flags(reader)?;
-        Ok((Fp3::new(c0, c1, c2), flags))
     }
 }

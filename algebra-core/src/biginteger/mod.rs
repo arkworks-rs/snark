@@ -3,8 +3,7 @@ use crate::{
     fields::BitIterator,
     io::{Read, Result as IoResult, Write},
     serialize::{deserialize_num_limbs, serialize_num_limbs},
-    CanonicalDeserialize, CanonicalSerialize, EmptyFlags, Flags, SerializationError, UniformRand,
-    Vec,
+    CanonicalDeserialize, CanonicalSerialize, EmptyFlags, SerializationError, UniformRand, Vec,
 };
 use core::fmt::{Debug, Display};
 use rand::{
@@ -24,12 +23,8 @@ bigint_impl!(BigInteger768, 12);
 bigint_impl!(BigInteger832, 13);
 
 impl<T: BigInteger> CanonicalSerialize for T {
-    fn serialize_with_flags<W: Write, F: Flags>(
-        &self,
-        writer: &mut W,
-        flags: F,
-    ) -> Result<(), SerializationError> {
-        serialize_num_limbs(writer, self.as_ref(), Self::NUM_LIMBS * 8, flags)
+    fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
+        serialize_num_limbs(writer, self.as_ref(), Self::NUM_LIMBS * 8, EmptyFlags)
     }
 
     fn serialized_size(&self) -> usize {
@@ -43,14 +38,6 @@ impl<T: BigInteger> CanonicalDeserialize for T {
         deserialize_num_limbs::<_, EmptyFlags>(reader, value.as_mut(), Self::NUM_LIMBS * 8, false)?;
         Ok(value)
     }
-
-    fn deserialize_with_flags<R: Read, F: Flags>(
-        reader: &mut R,
-    ) -> Result<(Self, F), SerializationError> {
-        let mut value = T::default();
-        let flags = deserialize_num_limbs(reader, value.as_mut(), Self::NUM_LIMBS * 8, true)?;
-        Ok((value, flags))
-    }
 }
 
 #[cfg(test)]
@@ -61,6 +48,8 @@ mod tests;
 pub trait BigInteger:
     ToBytes
     + FromBytes
+    + CanonicalSerialize
+    + CanonicalDeserialize
     + Copy
     + Clone
     + Debug

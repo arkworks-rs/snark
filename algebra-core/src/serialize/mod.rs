@@ -5,18 +5,26 @@ use core::cmp;
 pub use error::*;
 pub use flags::*;
 
-/// Serializer in little endian format.
-pub trait CanonicalSerialize {
-    /// Serializes `self` into `writer`.
-    fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
-        self.serialize_with_flags(writer, EmptyFlags::default())
-    }
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
+
+#[cfg(feature = "std")]
+use std::vec::Vec;
+
+/// Serializer in little endian format allowing to encode flags.
+pub trait CanonicalSerializeWithFlags: CanonicalSerialize {
     /// Serializes `self` and `flags` into `writer`.
     fn serialize_with_flags<W: Write, F: Flags>(
         &self,
         writer: &mut W,
         flags: F,
     ) -> Result<(), SerializationError>;
+}
+
+/// Serializer in little endian format.
+pub trait CanonicalSerialize {
+    /// Serializes `self` into `writer`.
+    fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError>;
     fn serialized_size(&self) -> usize;
 
     /// Serializes `self` into `writer` without compression.
@@ -28,19 +36,94 @@ pub trait CanonicalSerialize {
     }
 }
 
-/// Deserializer in little endian format.
-pub trait CanonicalDeserialize: Sized {
-    /// Reads `Self` from `reader`.
-    fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError>;
+/// Deserializer in little endian format allowing flags to be encoded.
+pub trait CanonicalDeserializeWithFlags: Sized {
     /// Reads `Self` and `Flags` from `reader`.
     /// Returns empty flags by default.
     fn deserialize_with_flags<R: Read, F: Flags>(
         reader: &mut R,
     ) -> Result<(Self, F), SerializationError>;
+}
+
+/// Deserializer in little endian format.
+pub trait CanonicalDeserialize: Sized {
+    /// Reads `Self` from `reader`.
+    fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError>;
 
     /// Reads `Self` from `reader` without compression.
     fn deserialize_uncompressed<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
         Self::deserialize(reader)
+    }
+}
+
+impl CanonicalSerialize for u64 {
+    fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
+        Ok(writer.write_all(&self.to_le_bytes())?)
+    }
+
+    fn serialized_size(&self) -> usize {
+        8
+    }
+}
+
+impl CanonicalDeserialize for u64 {
+    fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
+        let mut bytes = [0u8; 8];
+        reader.read_exact(&mut bytes)?;
+        Ok(u64::from_le_bytes(bytes))
+    }
+}
+
+impl<T: CanonicalSerialize> CanonicalSerialize for Vec<T> {
+    fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
+        let len = self.len() as u64;
+        len.serialize(writer)?;
+        for item in self.iter() {
+            item.serialize(writer)?;
+        }
+        Ok(())
+    }
+
+    fn serialized_size(&self) -> usize {
+        8 + self
+            .iter()
+            .map(|item| item.serialized_size())
+            .sum::<usize>()
+    }
+
+    fn serialize_uncompressed<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
+        let len = self.len() as u64;
+        len.serialize(writer)?;
+        for item in self.iter() {
+            item.serialize_uncompressed(writer)?;
+        }
+        Ok(())
+    }
+    fn uncompressed_size(&self) -> usize {
+        8 + self
+            .iter()
+            .map(|item| item.uncompressed_size())
+            .sum::<usize>()
+    }
+}
+
+impl<T: CanonicalDeserialize> CanonicalDeserialize for Vec<T> {
+    fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
+        let len = u64::deserialize(reader)?;
+        let mut values = vec![];
+        for _ in 0..len {
+            values.push(T::deserialize(reader)?);
+        }
+        Ok(values)
+    }
+
+    fn deserialize_uncompressed<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
+        let len = u64::deserialize(reader)?;
+        let mut values = vec![];
+        for _ in 0..len {
+            values.push(T::deserialize_uncompressed(reader)?);
+        }
+        Ok(values)
     }
 }
 
@@ -110,7 +193,7 @@ pub(crate) fn deserialize_num_limbs<R: Read, F: Flags>(
 
 macro_rules! impl_prime_field_serializer {
     ($field: ident, $params: ident, $byte_size: expr) => {
-        impl<P: $params> CanonicalSerialize for $field<P> {
+        impl<P: $params> CanonicalSerializeWithFlags for $field<P> {
             #[allow(unused_qualifications)]
             fn serialize_with_flags<W: crate::io::Write, F: crate::serialize::Flags>(
                 &self,
@@ -131,6 +214,16 @@ macro_rules! impl_prime_field_serializer {
                     flags,
                 )
             }
+        }
+
+        impl<P: $params> CanonicalSerialize for $field<P> {
+            #[allow(unused_qualifications)]
+            fn serialize<W: crate::io::Write>(
+                &self,
+                writer: &mut W,
+            ) -> Result<(), crate::serialize::SerializationError> {
+                self.serialize_with_flags(writer, crate::serialize::EmptyFlags)
+            }
 
             fn serialized_size(&self) -> usize {
                 let (_, output_byte_size) =
@@ -139,23 +232,7 @@ macro_rules! impl_prime_field_serializer {
             }
         }
 
-        impl<P: $params> CanonicalDeserialize for $field<P> {
-            #[allow(unused_qualifications)]
-            fn deserialize<R: crate::io::Read>(
-                reader: &mut R,
-            ) -> Result<Self, crate::serialize::SerializationError> {
-                let (_, output_byte_size) =
-                    crate::serialize::buffer_bit_byte_size($field::<P>::size_in_bits());
-                let mut value = P::BigInt::default();
-                crate::serialize::deserialize_num_limbs::<_, crate::serialize::EmptyFlags>(
-                    reader,
-                    value.as_mut(),
-                    output_byte_size,
-                    false,
-                )?;
-                Ok(Self::from_repr(value))
-            }
-
+        impl<P: $params> CanonicalDeserializeWithFlags for $field<P> {
             #[allow(unused_qualifications)]
             fn deserialize_with_flags<R: crate::io::Read, F: crate::serialize::Flags>(
                 reader: &mut R,
@@ -176,6 +253,24 @@ macro_rules! impl_prime_field_serializer {
                 Ok((Self::from_repr(value), flags))
             }
         }
+
+        impl<P: $params> CanonicalDeserialize for $field<P> {
+            #[allow(unused_qualifications)]
+            fn deserialize<R: crate::io::Read>(
+                reader: &mut R,
+            ) -> Result<Self, crate::serialize::SerializationError> {
+                let (_, output_byte_size) =
+                    crate::serialize::buffer_bit_byte_size($field::<P>::size_in_bits());
+                let mut value = P::BigInt::default();
+                crate::serialize::deserialize_num_limbs::<_, crate::serialize::EmptyFlags>(
+                    reader,
+                    value.as_mut(),
+                    output_byte_size,
+                    false,
+                )?;
+                Ok(Self::from_repr(value))
+            }
+        }
     };
 }
 
@@ -183,16 +278,10 @@ macro_rules! impl_sw_curve_serializer {
     ($params: ident) => {
         impl<P: $params> CanonicalSerialize for GroupAffine<P> {
             #[allow(unused_qualifications)]
-            fn serialize_with_flags<W: crate::io::Write, F: crate::serialize::Flags>(
+            fn serialize<W: crate::io::Write>(
                 &self,
                 writer: &mut W,
-                _flags: F,
             ) -> Result<(), crate::serialize::SerializationError> {
-                if F::len() != 0 {
-                    return Err(crate::serialize::SerializationError::UnexpectedFlags);
-                }
-
-                // We always ignore flags here.
                 if self.is_zero() {
                     let flags = crate::serialize::SWFlags::infinity();
                     // Serialize 0.
@@ -232,26 +321,17 @@ macro_rules! impl_sw_curve_serializer {
             fn deserialize<R: crate::io::Read>(
                 reader: &mut R,
             ) -> Result<Self, crate::serialize::SerializationError> {
-                let (point, _): (Self, crate::serialize::EmptyFlags) =
-                    CanonicalDeserialize::deserialize_with_flags(reader)?;
-                Ok(point)
-            }
-
-            #[allow(unused_qualifications)]
-            fn deserialize_with_flags<R: crate::io::Read, F: crate::serialize::Flags>(
-                reader: &mut R,
-            ) -> Result<(Self, F), crate::serialize::SerializationError> {
                 let (x, flags): (P::BaseField, crate::serialize::SWFlags) =
-                    CanonicalDeserialize::deserialize_with_flags(reader)?;
+                    CanonicalDeserializeWithFlags::deserialize_with_flags(reader)?;
                 if flags.is_infinity() {
-                    Ok((Self::zero(), F::default()))
+                    Ok(Self::zero())
                 } else {
                     let p = GroupAffine::<P>::get_point_from_x(x, flags.is_positive().unwrap())
                         .ok_or(crate::serialize::SerializationError::InvalidData)?;
                     if !p.is_in_correct_subgroup_assuming_on_curve() {
                         return Err(crate::serialize::SerializationError::InvalidData);
                     }
-                    Ok((p, F::default()))
+                    Ok(p)
                 }
             }
 
@@ -261,7 +341,7 @@ macro_rules! impl_sw_curve_serializer {
             ) -> Result<Self, crate::serialize::SerializationError> {
                 let x: P::BaseField = CanonicalDeserialize::deserialize(reader)?;
                 let (y, flags): (P::BaseField, crate::serialize::SWFlags) =
-                    CanonicalDeserialize::deserialize_with_flags(reader)?;
+                    CanonicalDeserializeWithFlags::deserialize_with_flags(reader)?;
 
                 let p = GroupAffine::<P>::new(x, y, flags.is_infinity());
                 if !p.is_in_correct_subgroup_assuming_on_curve() {
@@ -277,23 +357,17 @@ macro_rules! impl_edwards_curve_serializer {
     ($params: ident) => {
         impl<P: $params> CanonicalSerialize for GroupAffine<P> {
             #[allow(unused_qualifications)]
-            fn serialize_with_flags<W: crate::io::Write, F: crate::serialize::Flags>(
+            fn serialize<W: crate::io::Write>(
                 &self,
                 writer: &mut W,
-                _flags: F,
             ) -> Result<(), crate::serialize::SerializationError> {
-                if F::len() != 0 {
-                    return Err(crate::serialize::SerializationError::UnexpectedFlags);
-                }
-
-                // We always ignore flags here.
                 if self.is_zero() {
                     let flags = crate::serialize::EdwardsFlags::default();
                     // Serialize 0.
-                    CanonicalSerialize::serialize_with_flags(&P::BaseField::zero(), writer, flags)
+                    P::BaseField::zero().serialize_with_flags(writer, flags)
                 } else {
                     let flags = crate::serialize::EdwardsFlags::from_y_sign(self.y > -self.y);
-                    CanonicalSerialize::serialize_with_flags(&self.x, writer, flags)
+                    self.x.serialize_with_flags(writer, flags)
                 }
             }
 
@@ -321,26 +395,17 @@ macro_rules! impl_edwards_curve_serializer {
             fn deserialize<R: crate::io::Read>(
                 reader: &mut R,
             ) -> Result<Self, crate::serialize::SerializationError> {
-                let (point, _): (Self, crate::serialize::EmptyFlags) =
-                    CanonicalDeserialize::deserialize_with_flags(reader)?;
-                Ok(point)
-            }
-
-            #[allow(unused_qualifications)]
-            fn deserialize_with_flags<R: crate::io::Read, F: crate::serialize::Flags>(
-                reader: &mut R,
-            ) -> Result<(Self, F), crate::serialize::SerializationError> {
                 let (x, flags): (P::BaseField, crate::serialize::EdwardsFlags) =
-                    CanonicalDeserialize::deserialize_with_flags(reader)?;
+                    CanonicalDeserializeWithFlags::deserialize_with_flags(reader)?;
                 if x == P::BaseField::zero() {
-                    Ok((Self::zero(), F::default()))
+                    Ok(Self::zero())
                 } else {
                     let p = GroupAffine::<P>::get_point_from_x(x, flags.is_positive())
                         .ok_or(crate::serialize::SerializationError::InvalidData)?;
                     if !p.is_in_correct_subgroup_assuming_on_curve() {
                         return Err(crate::serialize::SerializationError::InvalidData);
                     }
-                    Ok((p, F::default()))
+                    Ok(p)
                 }
             }
 
@@ -359,4 +424,21 @@ macro_rules! impl_edwards_curve_serializer {
             }
         }
     };
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{io::Cursor, CanonicalDeserialize, CanonicalSerialize};
+
+    #[test]
+    fn test_primitives() {
+        let a = 192830918u64;
+        let mut serialized = vec![0u8; a.serialized_size()];
+        let mut cursor = Cursor::new(&mut serialized[..]);
+        a.serialize(&mut cursor).unwrap();
+
+        let mut cursor = Cursor::new(&serialized[..]);
+        let b = u64::deserialize(&mut cursor).unwrap();
+        assert_eq!(a, b);
+    }
 }

@@ -1,6 +1,7 @@
 use crate::{
     io::{Read, Result as IoResult, Write},
-    CanonicalDeserialize, CanonicalSerialize, Flags, SerializationError, UniformRand,
+    CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
+    CanonicalSerializeWithFlags, EmptyFlags, Flags, SerializationError, UniformRand,
 };
 use core::{
     cmp::{Ord, Ordering, PartialOrd},
@@ -395,7 +396,7 @@ impl<P: Fp2Parameters> fmt::Display for Fp2<P> {
     }
 }
 
-impl<P: Fp2Parameters> CanonicalSerialize for Fp2<P> {
+impl<P: Fp2Parameters> CanonicalSerializeWithFlags for Fp2<P> {
     fn serialize_with_flags<W: Write, F: Flags>(
         &self,
         writer: &mut W,
@@ -405,9 +406,26 @@ impl<P: Fp2Parameters> CanonicalSerialize for Fp2<P> {
         self.c1.serialize_with_flags(writer, flags)?;
         Ok(())
     }
+}
+
+impl<P: Fp2Parameters> CanonicalSerialize for Fp2<P> {
+    fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
+        self.serialize_with_flags(writer, EmptyFlags)
+    }
 
     fn serialized_size(&self) -> usize {
         self.c0.serialized_size() + self.c1.serialized_size()
+    }
+}
+
+impl<P: Fp2Parameters> CanonicalDeserializeWithFlags for Fp2<P> {
+    fn deserialize_with_flags<R: Read, F: Flags>(
+        reader: &mut R,
+    ) -> Result<(Self, F), SerializationError> {
+        let c0: P::Fp = CanonicalDeserialize::deserialize(reader)?;
+        let (c1, flags): (P::Fp, _) =
+            CanonicalDeserializeWithFlags::deserialize_with_flags(reader)?;
+        Ok((Fp2::new(c0, c1), flags))
     }
 }
 
@@ -416,13 +434,5 @@ impl<P: Fp2Parameters> CanonicalDeserialize for Fp2<P> {
         let c0: P::Fp = CanonicalDeserialize::deserialize(reader)?;
         let c1: P::Fp = CanonicalDeserialize::deserialize(reader)?;
         Ok(Fp2::new(c0, c1))
-    }
-
-    fn deserialize_with_flags<R: Read, F: Flags>(
-        reader: &mut R,
-    ) -> Result<(Self, F), SerializationError> {
-        let c0: P::Fp = CanonicalDeserialize::deserialize(reader)?;
-        let (c1, flags): (P::Fp, _) = CanonicalDeserialize::deserialize_with_flags(reader)?;
-        Ok((Fp2::new(c0, c1), flags))
     }
 }
