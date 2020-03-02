@@ -23,7 +23,7 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send {
     type G1Projective: ProjectiveCurve<BaseField = Self::Fq, ScalarField = Self::Fr, Affine = Self::G1Affine>
         + From<Self::G1Affine>
         + Into<Self::G1Affine>
-        + MulAssign<Self::Fr>;
+        + MulAssign<Self::Fr>; // needed due to https://github.com/rust-lang/rust/issues/69640
 
     /// The affine representation of an element in G1.
     type G1Affine: AffineCurve<BaseField = Self::Fq, ScalarField = Self::Fr, Projective = Self::G1Projective>
@@ -38,7 +38,7 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send {
     type G2Projective: ProjectiveCurve<BaseField = Self::Fqe, ScalarField = Self::Fr, Affine = Self::G2Affine>
         + From<Self::G2Affine>
         + Into<Self::G2Affine>
-        + MulAssign<Self::Fr>;
+        + MulAssign<Self::Fr>; // needed due to https://github.com/rust-lang/rust/issues/69640
 
     /// The affine representation of an element in G2.
     type G2Affine: AffineCurve<BaseField = Self::Fqe, ScalarField = Self::Fr, Projective = Self::G2Projective>
@@ -224,7 +224,7 @@ pub trait AffineCurve:
     type Projective: ProjectiveCurve<Affine = Self, ScalarField = Self::ScalarField, BaseField = Self::BaseField>
         + From<Self>
         + Into<Self>
-        + MulAssign<Self::ScalarField>;
+        + MulAssign<Self::ScalarField>; // needed due to https://github.com/rust-lang/rust/issues/69640
 
     /// Returns a fixed generator of unknown exponent.
     #[must_use]
