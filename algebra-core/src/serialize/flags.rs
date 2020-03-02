@@ -6,7 +6,6 @@ pub trait Flags: Default + Clone + Copy + Sized {
 }
 
 /// Flags to be encoded into the serialization.
-/// The default flags (empty) should not change the binary representation.
 #[derive(Default, Clone, Copy)]
 pub struct EmptyFlags;
 
@@ -30,36 +29,56 @@ impl Flags for EmptyFlags {
 
 /// Flags to be encoded into the serialization.
 /// The default flags (empty) should not change the binary representation.
-#[derive(Default, Clone, Copy)]
-pub struct SWFlags {
-    pub y_sign:      bool,
-    pub is_infinity: bool,
+#[derive(Clone, Copy)]
+pub enum SWFlags {
+    Infinity,
+    PositiveY,
+    NegativeY,
 }
 
 impl SWFlags {
     pub fn infinity() -> Self {
-        SWFlags {
-            y_sign:      false,
-            is_infinity: true,
+        SWFlags::Infinity
+    }
+
+    pub fn from_y_sign(is_positive: bool) -> Self {
+        if is_positive {
+            SWFlags::PositiveY
+        } else {
+            SWFlags::NegativeY
         }
     }
 
-    pub fn y_sign(sign: bool) -> Self {
-        SWFlags {
-            y_sign:      sign,
-            is_infinity: false,
+    pub fn is_infinity(&self) -> bool {
+        match self {
+            SWFlags::Infinity => true,
+            _ => false,
         }
+    }
+
+    pub fn is_positive(&self) -> Option<bool> {
+        match self {
+            SWFlags::Infinity => None,
+            SWFlags::PositiveY => Some(true),
+            SWFlags::NegativeY => Some(false),
+        }
+    }
+}
+
+impl Default for SWFlags {
+    fn default() -> Self {
+        // NegativeY doesn't change the serialization
+        SWFlags::NegativeY
     }
 }
 
 impl Flags for SWFlags {
     fn u8_bitmask(&self) -> u8 {
         let mut mask = 0;
-        if self.y_sign {
-            mask |= 1 << 7;
-        }
-        if self.is_infinity {
-            mask |= 1 << 6;
+        match self {
+            SWFlags::Infinity => mask |= 1 << 6,
+            SWFlags::PositiveY => mask |= 1 << 7,
+            _ => (),
         }
         mask
     }
@@ -67,9 +86,10 @@ impl Flags for SWFlags {
     fn from_u8(value: u8) -> Self {
         let x_sign = (value >> 7) & 1 == 1;
         let is_infinity = (value >> 6) & 1 == 1;
-        SWFlags {
-            y_sign: x_sign,
-            is_infinity,
+        match (x_sign, is_infinity) {
+            (_, true) => SWFlags::Infinity,
+            (true, false) => SWFlags::PositiveY,
+            (false, false) => SWFlags::NegativeY,
         }
     }
 
@@ -87,29 +107,53 @@ impl Flags for SWFlags {
 
 /// Flags to be encoded into the serialization.
 /// The default flags (empty) should not change the binary representation.
-#[derive(Default, Clone, Copy)]
-pub struct EdwardsFlags {
-    pub y_sign: bool,
+#[derive(Clone, Copy)]
+pub enum EdwardsFlags {
+    PositiveY,
+    NegativeY,
 }
 
 impl EdwardsFlags {
-    pub fn y_sign(sign: bool) -> Self {
-        EdwardsFlags { y_sign: sign }
+    pub fn from_y_sign(is_positive: bool) -> Self {
+        if is_positive {
+            EdwardsFlags::PositiveY
+        } else {
+            EdwardsFlags::NegativeY
+        }
+    }
+
+    pub fn is_positive(&self) -> bool {
+        match self {
+            EdwardsFlags::PositiveY => true,
+            EdwardsFlags::NegativeY => false,
+        }
+    }
+}
+
+impl Default for EdwardsFlags {
+    fn default() -> Self {
+        // NegativeY doesn't change the serialization
+        EdwardsFlags::NegativeY
     }
 }
 
 impl Flags for EdwardsFlags {
     fn u8_bitmask(&self) -> u8 {
         let mut mask = 0;
-        if self.y_sign {
-            mask |= 1 << 7;
+        match self {
+            EdwardsFlags::PositiveY => mask |= 1 << 7,
+            EdwardsFlags::NegativeY => (),
         }
         mask
     }
 
     fn from_u8(value: u8) -> Self {
         let x_sign = (value >> 7) & 1 == 1;
-        EdwardsFlags { y_sign: x_sign }
+        if x_sign {
+            EdwardsFlags::PositiveY
+        } else {
+            EdwardsFlags::NegativeY
+        }
     }
 
     fn from_u8_remove_flags(value: &mut u8) -> Self {

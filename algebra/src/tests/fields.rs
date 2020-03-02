@@ -373,12 +373,12 @@ pub fn field_serialization_test<F: Field>(buf_size: usize) {
         {
             let mut serialized = vec![0u8; buf_size];
             let mut cursor = Cursor::new(&mut serialized[..]);
-            a.serialize_with_flags(&mut cursor, SWFlags::y_sign(true))
+            a.serialize_with_flags(&mut cursor, SWFlags::from_y_sign(true))
                 .unwrap();
             let mut cursor = Cursor::new(&serialized[..]);
             let (b, flags) = F::deserialize_with_flags::<_, SWFlags>(&mut cursor).unwrap();
-            assert!(flags.y_sign);
-            assert!(!flags.is_infinity);
+            assert_eq!(flags.is_positive(), Some(true));
+            assert!(!flags.is_infinity());
             assert_eq!(a, b);
         }
 

@@ -198,7 +198,7 @@ macro_rules! impl_sw_curve_serializer {
                     // Serialize 0.
                     P::BaseField::zero().serialize_with_flags(writer, flags)
                 } else {
-                    let flags = crate::serialize::SWFlags::y_sign(self.y > -self.y);
+                    let flags = crate::serialize::SWFlags::from_y_sign(self.y > -self.y);
                     self.x.serialize_with_flags(writer, flags)
                 }
             }
@@ -243,10 +243,10 @@ macro_rules! impl_sw_curve_serializer {
             ) -> Result<(Self, F), crate::serialize::SerializationError> {
                 let (x, flags): (P::BaseField, crate::serialize::SWFlags) =
                     CanonicalDeserialize::deserialize_with_flags(reader)?;
-                if flags.is_infinity {
+                if flags.is_infinity() {
                     Ok((Self::zero(), F::default()))
                 } else {
-                    let p = GroupAffine::<P>::get_point_from_x(x, flags.y_sign)
+                    let p = GroupAffine::<P>::get_point_from_x(x, flags.is_positive().unwrap())
                         .ok_or(crate::serialize::SerializationError::InvalidData)?;
                     if !p.is_in_correct_subgroup_assuming_on_curve() {
                         return Err(crate::serialize::SerializationError::InvalidData);
@@ -263,7 +263,7 @@ macro_rules! impl_sw_curve_serializer {
                 let (y, flags): (P::BaseField, crate::serialize::SWFlags) =
                     CanonicalDeserialize::deserialize_with_flags(reader)?;
 
-                let p = GroupAffine::<P>::new(x, y, flags.is_infinity);
+                let p = GroupAffine::<P>::new(x, y, flags.is_infinity());
                 if !p.is_in_correct_subgroup_assuming_on_curve() {
                     return Err(crate::serialize::SerializationError::InvalidData);
                 }
@@ -292,7 +292,7 @@ macro_rules! impl_edwards_curve_serializer {
                     // Serialize 0.
                     CanonicalSerialize::serialize_with_flags(&P::BaseField::zero(), writer, flags)
                 } else {
-                    let flags = crate::serialize::EdwardsFlags::y_sign(self.y > -self.y);
+                    let flags = crate::serialize::EdwardsFlags::from_y_sign(self.y > -self.y);
                     CanonicalSerialize::serialize_with_flags(&self.x, writer, flags)
                 }
             }
@@ -335,7 +335,7 @@ macro_rules! impl_edwards_curve_serializer {
                 if x == P::BaseField::zero() {
                     Ok((Self::zero(), F::default()))
                 } else {
-                    let p = GroupAffine::<P>::get_point_from_x(x, flags.y_sign)
+                    let p = GroupAffine::<P>::get_point_from_x(x, flags.is_positive())
                         .ok_or(crate::serialize::SerializationError::InvalidData)?;
                     if !p.is_in_correct_subgroup_assuming_on_curve() {
                         return Err(crate::serialize::SerializationError::InvalidData);
