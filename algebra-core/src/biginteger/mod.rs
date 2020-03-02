@@ -2,7 +2,9 @@ use crate::{
     bytes::{FromBytes, ToBytes},
     fields::BitIterator,
     io::{Read, Result as IoResult, Write},
-    CanonicalDeserialize, CanonicalSerialize, Flags, SerializationError, UniformRand, Vec,
+    serialize::{deserialize_num_limbs, serialize_num_limbs},
+    CanonicalDeserialize, CanonicalSerialize, EmptyFlags, Flags, SerializationError, UniformRand,
+    Vec,
 };
 use core::fmt::{Debug, Display};
 use rand::{
@@ -27,28 +29,18 @@ impl<T: BigInteger> CanonicalSerialize for T {
         writer: &mut W,
         flags: F,
     ) -> Result<(), SerializationError> {
-        for (i, limb) in self.as_ref().iter().enumerate() {
-            // Encode flags into most significant limb.
-            if i == Self::NUM_LIMBS - 1 {
-                CanonicalSerialize::serialize_with_flags(limb, writer, flags)?;
-            } else {
-                CanonicalSerialize::serialize(limb, writer)?;
-            }
-        }
-        Ok(())
+        serialize_num_limbs(writer, self.as_ref(), Self::NUM_LIMBS * 8, flags)
     }
 
     fn serialized_size(&self) -> usize {
-        T::NUM_LIMBS * 8
+        Self::NUM_LIMBS * 8
     }
 }
 
 impl<T: BigInteger> CanonicalDeserialize for T {
     fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
         let mut value = T::default();
-        for limb in value.as_mut().iter_mut() {
-            *limb = CanonicalDeserialize::deserialize(reader)?;
-        }
+        deserialize_num_limbs::<_, EmptyFlags>(reader, value.as_mut(), Self::NUM_LIMBS * 8, false)?;
         Ok(value)
     }
 
@@ -56,14 +48,7 @@ impl<T: BigInteger> CanonicalDeserialize for T {
         reader: &mut R,
     ) -> Result<(Self, F), SerializationError> {
         let mut value = T::default();
-        let mut flags = Default::default();
-        for (i, limb) in value.as_mut().iter_mut().enumerate() {
-            *limb = CanonicalDeserialize::deserialize(reader)?;
-            // The most significant limb encodes the flags, so remove them.
-            if i == T::NUM_LIMBS - 1 {
-                flags = Flags::from_u64_remove_flags(limb);
-            }
-        }
+        let flags = deserialize_num_limbs(reader, value.as_mut(), Self::NUM_LIMBS * 8, true)?;
         Ok((value, flags))
     }
 }

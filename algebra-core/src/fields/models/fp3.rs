@@ -499,16 +499,14 @@ impl<P: Fp3Parameters> CanonicalSerialize for Fp3<P> {
         writer: &mut W,
         flags: F,
     ) -> Result<(), SerializationError> {
-        CanonicalSerialize::serialize(&self.c0, writer)?;
-        CanonicalSerialize::serialize(&self.c1, writer)?;
-        CanonicalSerialize::serialize_with_flags(&self.c2, writer, flags)?;
+        self.c0.serialize(writer)?;
+        self.c1.serialize(writer)?;
+        self.c2.serialize_with_flags(writer, flags)?;
         Ok(())
     }
 
     fn serialized_size(&self) -> usize {
-        CanonicalSerialize::serialized_size(&self.c0)
-            + CanonicalSerialize::serialized_size(&self.c1)
-            + CanonicalSerialize::serialized_size(&self.c2)
+        self.c0.serialized_size() + self.c1.serialized_size() + self.c2.serialized_size()
     }
 }
 

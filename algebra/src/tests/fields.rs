@@ -4,6 +4,7 @@ use crate::{
     io::Cursor,
     Flags, SWFlags,
 };
+use algebra_core::buffer_bit_byte_size;
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 
@@ -384,15 +385,15 @@ pub fn field_serialization_test<F: Field>(buf_size: usize) {
         #[derive(Default, Clone, Copy, Debug)]
         struct DummyFlags;
         impl Flags for DummyFlags {
-            fn u64_bitmask(&self) -> u64 {
+            fn u8_bitmask(&self) -> u8 {
                 0
             }
 
-            fn from_u64(_value: u64) -> Self {
+            fn from_u8(_value: u8) -> Self {
                 DummyFlags
             }
 
-            fn from_u64_remove_flags(_value: &mut u64) -> Self {
+            fn from_u8_remove_flags(_value: &mut u8) -> Self {
                 DummyFlags
             }
 

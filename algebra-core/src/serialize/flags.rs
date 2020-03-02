@@ -1,7 +1,7 @@
 pub trait Flags: Default + Clone + Copy + Sized {
-    fn u64_bitmask(&self) -> u64;
-    fn from_u64(value: u64) -> Self;
-    fn from_u64_remove_flags(value: &mut u64) -> Self;
+    fn u8_bitmask(&self) -> u8;
+    fn from_u8(value: u8) -> Self;
+    fn from_u8_remove_flags(value: &mut u8) -> Self;
     fn len() -> usize;
 }
 
@@ -11,15 +11,15 @@ pub trait Flags: Default + Clone + Copy + Sized {
 pub struct EmptyFlags;
 
 impl Flags for EmptyFlags {
-    fn u64_bitmask(&self) -> u64 {
+    fn u8_bitmask(&self) -> u8 {
         0
     }
 
-    fn from_u64(_value: u64) -> Self {
+    fn from_u8(_value: u8) -> Self {
         EmptyFlags
     }
 
-    fn from_u64_remove_flags(_value: &mut u64) -> Self {
+    fn from_u8_remove_flags(_value: &mut u8) -> Self {
         EmptyFlags
     }
 
@@ -53,29 +53,29 @@ impl SWFlags {
 }
 
 impl Flags for SWFlags {
-    fn u64_bitmask(&self) -> u64 {
+    fn u8_bitmask(&self) -> u8 {
         let mut mask = 0;
         if self.y_sign {
-            mask |= 1 << 63;
+            mask |= 1 << 7;
         }
         if self.is_infinity {
-            mask |= 1 << 62;
+            mask |= 1 << 6;
         }
         mask
     }
 
-    fn from_u64(value: u64) -> Self {
-        let x_sign = (value >> 63) & 1 == 1;
-        let is_infinity = (value >> 62) & 1 == 1;
+    fn from_u8(value: u8) -> Self {
+        let x_sign = (value >> 7) & 1 == 1;
+        let is_infinity = (value >> 6) & 1 == 1;
         SWFlags {
             y_sign: x_sign,
             is_infinity,
         }
     }
 
-    fn from_u64_remove_flags(value: &mut u64) -> Self {
-        let flags = Self::from_u64(*value);
-        *value &= 0x3FFF_FFFF_FFFF_FFFF;
+    fn from_u8_remove_flags(value: &mut u8) -> Self {
+        let flags = Self::from_u8(*value);
+        *value &= 0x3F;
         flags
     }
 
@@ -99,22 +99,22 @@ impl EdwardsFlags {
 }
 
 impl Flags for EdwardsFlags {
-    fn u64_bitmask(&self) -> u64 {
+    fn u8_bitmask(&self) -> u8 {
         let mut mask = 0;
         if self.y_sign {
-            mask |= 1 << 63;
+            mask |= 1 << 7;
         }
         mask
     }
 
-    fn from_u64(value: u64) -> Self {
-        let x_sign = (value >> 63) & 1 == 1;
+    fn from_u8(value: u8) -> Self {
+        let x_sign = (value >> 7) & 1 == 1;
         EdwardsFlags { y_sign: x_sign }
     }
 
-    fn from_u64_remove_flags(value: &mut u64) -> Self {
-        let flags = Self::from_u64(*value);
-        *value &= 0x7FFF_FFFF_FFFF_FFFF;
+    fn from_u8_remove_flags(value: &mut u8) -> Self {
+        let flags = Self::from_u8(*value);
+        *value &= 0x7F;
         flags
     }
 

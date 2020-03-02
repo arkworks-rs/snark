@@ -405,29 +405,28 @@ impl<P: Fp6Parameters> CanonicalSerialize for Fp6<P> {
         writer: &mut W,
         flags: F,
     ) -> Result<(), SerializationError> {
-        CanonicalSerialize::serialize(&self.c0, writer)?;
-        CanonicalSerialize::serialize_with_flags(&self.c1, writer, flags)?;
+        self.c0.serialize(writer)?;
+        self.c1.serialize_with_flags(writer, flags)?;
         Ok(())
     }
 
     fn serialized_size(&self) -> usize {
-        CanonicalSerialize::serialized_size(&self.c0)
-            + CanonicalSerialize::serialized_size(&self.c1)
+        self.c0.serialized_size() + self.c1.serialized_size()
     }
 }
 
 impl<P: Fp6Parameters> CanonicalDeserialize for Fp6<P> {
     fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
-        let c0: Fp3<_> = CanonicalDeserialize::deserialize(reader)?;
-        let c1: Fp3<_> = CanonicalDeserialize::deserialize(reader)?;
+        let c0 = Fp3::deserialize(reader)?;
+        let c1 = Fp3::deserialize(reader)?;
         Ok(Fp6::new(c0, c1))
     }
 
     fn deserialize_with_flags<R: Read, F: Flags>(
         reader: &mut R,
     ) -> Result<(Self, F), SerializationError> {
-        let c0: Fp3<_> = CanonicalDeserialize::deserialize(reader)?;
-        let (c1, flags): (Fp3<_>, _) = CanonicalDeserialize::deserialize_with_flags(reader)?;
+        let c0 = Fp3::deserialize(reader)?;
+        let (c1, flags) = Fp3::deserialize_with_flags(reader)?;
         Ok((Fp6::new(c0, c1), flags))
     }
 }

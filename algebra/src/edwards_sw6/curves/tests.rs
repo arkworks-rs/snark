@@ -12,7 +12,7 @@ use crate::tests::{curves::*, groups::*};
 fn test_projective_curve() {
     curve_tests::<EdwardsProjective>();
 
-    let byte_size = <EdwardsAffine as Zero>::zero().serialized_size();
+    let byte_size = EdwardsAffine::zero().serialized_size();
     edwards_curve_serialization_test::<EdwardsParameters>(byte_size);
 }
 

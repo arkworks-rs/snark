@@ -1,5 +1,6 @@
 use algebra_core::{
     biginteger::{BigInteger, BigInteger384},
+    buffer_bit_byte_size,
     fields::{
         fp6_3over2::Fp6Parameters, Field, Fp2Parameters, FpParameters, PrimeField, SquareRootField,
     },
@@ -14,6 +15,7 @@ use rand_xorshift::XorShiftRng;
 
 use crate::{
     bls12_377::{Fq, Fq12, Fq2, Fq2Parameters, Fq6, Fq6Parameters, FqParameters, Fr},
+    sw6::Fq as SW6Fq,
     tests::fields::{
         field_serialization_test, field_test, frobenius_test, primefield_test, sqrt_field_test,
     },
@@ -45,7 +47,25 @@ fn test_fq() {
         primefield_test::<Fq>();
         sqrt_field_test(a);
         let byte_size = a.serialized_size();
+        let (_, buffer_size) = buffer_bit_byte_size(Fq::size_in_bits());
+        assert_eq!(byte_size, buffer_size);
         field_serialization_test::<Fq>(byte_size);
+    }
+}
+
+#[test]
+fn test_sw6_fq() {
+    let mut rng = test_rng();
+    for _ in 0..ITERATIONS {
+        let a: SW6Fq = rng.gen();
+        let b: SW6Fq = rng.gen();
+        field_test(a, b);
+        primefield_test::<SW6Fq>();
+        sqrt_field_test(a);
+        let byte_size = a.serialized_size();
+        let (_, buffer_size) = buffer_bit_byte_size(SW6Fq::size_in_bits());
+        assert_eq!(byte_size, buffer_size);
+        field_serialization_test::<SW6Fq>(byte_size);
     }
 }
 
