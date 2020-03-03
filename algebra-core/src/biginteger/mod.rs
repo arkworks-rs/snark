@@ -2,7 +2,8 @@ use crate::{
     bytes::{FromBytes, ToBytes},
     fields::BitIterator,
     io::{Read, Result as IoResult, Write},
-    UniformRand, Vec,
+    serialize::{deserialize_num_limbs, serialize_num_limbs},
+    CanonicalDeserialize, CanonicalSerialize, EmptyFlags, SerializationError, UniformRand, Vec,
 };
 use core::fmt::{Debug, Display};
 use rand::{
@@ -21,14 +22,34 @@ bigint_impl!(BigInteger384, 6);
 bigint_impl!(BigInteger768, 12);
 bigint_impl!(BigInteger832, 13);
 
+impl<T: BigInteger> CanonicalSerialize for T {
+    fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
+        serialize_num_limbs(writer, self.as_ref(), Self::NUM_LIMBS * 8, EmptyFlags)
+    }
+
+    fn serialized_size(&self) -> usize {
+        Self::NUM_LIMBS * 8
+    }
+}
+
+impl<T: BigInteger> CanonicalDeserialize for T {
+    fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
+        let mut value = T::default();
+        deserialize_num_limbs::<_, EmptyFlags>(reader, value.as_mut(), Self::NUM_LIMBS * 8, false)?;
+        Ok(value)
+    }
+}
+
 #[cfg(test)]
 mod tests;
 
 /// This defines a `BigInteger`, a smart wrapper around a
-/// sequence of `u64` limbs, least-significant digit first.
+/// sequence of `u64` limbs, least-significant limb first.
 pub trait BigInteger:
     ToBytes
     + FromBytes
+    + CanonicalSerialize
+    + CanonicalDeserialize
     + Copy
     + Clone
     + Debug
@@ -45,6 +66,9 @@ pub trait BigInteger:
     + AsRef<[u64]>
     + From<u64>
 {
+    /// Number of limbs.
+    const NUM_LIMBS: usize;
+
     /// Add another representation to this one, returning the carry bit.
     fn add_nocarry(&mut self, other: &Self) -> bool;
 

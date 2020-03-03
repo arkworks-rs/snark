@@ -1,5 +1,10 @@
 #![allow(unused)]
-use crate::fields::{Field, LegendreSymbol, PrimeField, SquareRootField};
+use crate::{
+    fields::{Field, LegendreSymbol, PrimeField, SquareRootField},
+    io::Cursor,
+    Flags, SWFlags,
+};
+use algebra_core::buffer_bit_byte_size;
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 
@@ -346,36 +351,70 @@ pub fn field_serialization_test<F: Field>(buf_size: usize) {
     for _ in 0..ITERATIONS {
         let a = F::rand(&mut rng);
         {
-            let mut serialized = vec![0; buf_size];
-            a.serialize(&[], &mut serialized).unwrap();
+            let mut serialized = vec![0u8; buf_size];
+            let mut cursor = Cursor::new(&mut serialized[..]);
+            a.serialize(&mut cursor).unwrap();
 
-            let mut extra_info_buf = [false; 0];
-            let b = F::deserialize(&serialized, &mut extra_info_buf).unwrap();
+            let mut cursor = Cursor::new(&serialized[..]);
+            let b = F::deserialize(&mut cursor).unwrap();
             assert_eq!(a, b);
         }
 
         {
-            let mut serialized = vec![0; buf_size];
-            a.serialize(&[true; 2], &mut serialized).unwrap();
-            let mut extra_info_buf = [false; 2];
-            let b = F::deserialize(&serialized, &mut extra_info_buf).unwrap();
-            assert_eq!(extra_info_buf, [true; 2]);
+            let mut serialized = vec![0u8; a.uncompressed_size()];
+            let mut cursor = Cursor::new(&mut serialized[..]);
+            a.serialize_uncompressed(&mut cursor).unwrap();
+
+            let mut cursor = Cursor::new(&serialized[..]);
+            let b = F::deserialize_uncompressed(&mut cursor).unwrap();
             assert_eq!(a, b);
+        }
+
+        {
+            let mut serialized = vec![0u8; buf_size];
+            let mut cursor = Cursor::new(&mut serialized[..]);
+            a.serialize_with_flags(&mut cursor, SWFlags::from_y_sign(true))
+                .unwrap();
+            let mut cursor = Cursor::new(&serialized[..]);
+            let (b, flags) = F::deserialize_with_flags::<_, SWFlags>(&mut cursor).unwrap();
+            assert_eq!(flags.is_positive(), Some(true));
+            assert!(!flags.is_infinity());
+            assert_eq!(a, b);
+        }
+
+        #[derive(Default, Clone, Copy, Debug)]
+        struct DummyFlags;
+        impl Flags for DummyFlags {
+            fn u8_bitmask(&self) -> u8 {
+                0
+            }
+
+            fn from_u8(_value: u8) -> Self {
+                DummyFlags
+            }
+
+            fn from_u8_remove_flags(_value: &mut u8) -> Self {
+                DummyFlags
+            }
+
+            fn len() -> usize {
+                200
+            }
         }
 
         use crate::serialize::SerializationError;
         {
             let mut serialized = vec![0; buf_size];
-            assert!(if let SerializationError::NotEnoughSpace =
-                a.serialize(&[true; 200], &mut serialized).unwrap_err()
+            assert!(if let SerializationError::NotEnoughSpace = a
+                .serialize_with_flags(&mut &mut serialized[..], DummyFlags)
+                .unwrap_err()
             {
                 true
             } else {
                 false
             });
-            let mut extra_info_buf = [false; 200];
             assert!(if let SerializationError::NotEnoughSpace =
-                F::deserialize(&serialized, &mut extra_info_buf).unwrap_err()
+                F::deserialize_with_flags::<_, DummyFlags>(&mut &serialized[..]).unwrap_err()
             {
                 true
             } else {
@@ -384,23 +423,12 @@ pub fn field_serialization_test<F: Field>(buf_size: usize) {
         }
 
         {
-            let mut serialized = vec![0; buf_size + 1];
-            assert!(if let SerializationError::BufferWrongSize =
-                a.serialize(&[true; 2], &mut serialized).unwrap_err()
-            {
-                true
-            } else {
-                false
-            });
+            let mut serialized = vec![0; buf_size - 1];
+            let mut cursor = Cursor::new(&mut serialized[..]);
+            a.serialize(&mut cursor).unwrap_err();
 
-            let mut extra_info_buf = [false; 2];
-            assert!(if let SerializationError::BufferWrongSize =
-                F::deserialize(&serialized, &mut extra_info_buf).unwrap_err()
-            {
-                true
-            } else {
-                false
-            });
+            let mut cursor = Cursor::new(&serialized[..]);
+            F::deserialize(&mut cursor).unwrap_err();
         }
     }
 }
