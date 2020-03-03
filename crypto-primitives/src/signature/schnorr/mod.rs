@@ -229,14 +229,14 @@ ToConstraintField<ConstraintF> for SchnorrSigParameters<G, D>
     }
 }
 
-mod field_impl {
+pub mod field_impl {
 
     use crate::{
         crh::FieldBasedHash,
         signature::FieldBasedSignatureScheme,
         Error, compute_truncation_size,
     };
-    use algebra::{Field, PrimeField, FpParameters, Group, UniformRand, AffineCurve, ProjectiveCurve,
+    use algebra::{Field, PrimeField, Group, UniformRand, AffineCurve, ProjectiveCurve,
                   convert, leading_zeros, ToBits, ToConstraintField, ToBytes, FromBytes};
     use std::marker::PhantomData;
     use rand::Rng;
@@ -256,6 +256,7 @@ mod field_impl {
 
     #[derive(Derivative)]
     #[derivative(
+    Copy(bound = "F: PrimeField"),
     Clone(bound = "F: PrimeField"),
     Default(bound = "F: PrimeField"),
     Eq(bound = "F: PrimeField"),
@@ -333,8 +334,8 @@ mod field_impl {
 
                 let e_leading_zeros = leading_zeros(e.write_bits()) as usize;
                 let required_leading_zeros = compute_truncation_size(
-                    F::Params::MODULUS_BITS as i32,
-                    <G::ScalarField as PrimeField>::Params::MODULUS_BITS as i32,
+                    F::size_in_bits() as i32,
+                    G::ScalarField::size_in_bits() as i32,
                 );
 
                 //Enforce e bit length is strictly smaller than G::ScalarField modulus bit length
@@ -348,8 +349,8 @@ mod field_impl {
 
                 let s_leading_zeros = leading_zeros(s.write_bits()) as usize;
                 let required_leading_zeros = compute_truncation_size(
-                    <G::ScalarField as PrimeField>::Params::MODULUS_BITS as i32,
-                    F::Params::MODULUS_BITS as i32,
+                    G::ScalarField::size_in_bits() as i32,
+                    F::size_in_bits() as i32,
                 );
 
                 if s_leading_zeros < required_leading_zeros {continue};
@@ -374,12 +375,12 @@ mod field_impl {
 
             //Checks
             assert!(
-                (F::Params::MODULUS_BITS - leading_zeros(signature.e.write_bits())) <
-                <G::ScalarField as PrimeField>::Params::MODULUS_BITS
+                (F::size_in_bits() - leading_zeros(signature.e.write_bits()) as usize)
+                    < G::ScalarField::size_in_bits()
             );
             assert!(
-                (<G::ScalarField as PrimeField>::Params::MODULUS_BITS - leading_zeros(signature.s.write_bits())) <
-                   F::Params::MODULUS_BITS
+                (G::ScalarField::size_in_bits() - leading_zeros(signature.s.write_bits()) as usize)
+                    < F::size_in_bits()
             );
 
             //Debug checks: should they be promoted to actual checks ?

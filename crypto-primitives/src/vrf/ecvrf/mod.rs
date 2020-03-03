@@ -1,4 +1,4 @@
-use algebra::{Field, PrimeField, FpParameters, convert, leading_zeros, Group, AffineCurve, ProjectiveCurve,
+use algebra::{Field, PrimeField, convert, leading_zeros, Group, AffineCurve, ProjectiveCurve,
               ToBytes, to_bytes, ToBits, UniformRand, ToConstraintField, FromBytes};
 use crate::{
     crh::{
@@ -117,8 +117,8 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
 
             let c_leading_zeros = leading_zeros(c.write_bits()) as usize;
             let required_leading_zeros = compute_truncation_size(
-                F::Params::MODULUS_BITS as i32,
-                <G::ScalarField as PrimeField>::Params::MODULUS_BITS as i32,
+                F::size_in_bits() as i32,
+                G::ScalarField::size_in_bits() as i32,
             );
 
             //Enforce c bit length is strictly smaller than G::ScalarField modulus bit length
@@ -131,8 +131,8 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
 
             let s_leading_zeros = leading_zeros(s.write_bits()) as usize;
             let required_leading_zeros = compute_truncation_size(
-                <G::ScalarField as PrimeField>::Params::MODULUS_BITS as i32,
-                F::Params::MODULUS_BITS as i32,
+                G::ScalarField::size_in_bits() as i32,
+                F::size_in_bits() as i32,
             );
 
             if s_leading_zeros < required_leading_zeros {continue};
@@ -156,12 +156,12 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
 
         //Checks
         assert!(
-            (F::Params::MODULUS_BITS - leading_zeros(proof.c.write_bits())) <
-                <G::ScalarField as PrimeField>::Params::MODULUS_BITS
+            (F::size_in_bits() - leading_zeros(proof.c.write_bits()) as usize)
+                < G::ScalarField::size_in_bits()
         );
         assert!(
-            (<G::ScalarField as PrimeField>::Params::MODULUS_BITS - leading_zeros(proof.s.write_bits())) <
-                F::Params::MODULUS_BITS
+            (G::ScalarField::size_in_bits() - leading_zeros(proof.s.write_bits()) as usize)
+                < F::size_in_bits()
         );
 
         //Debug checks: should they be promoted to actual checks ?
@@ -223,7 +223,7 @@ mod test {
         mnt6753::Fr as MNT6Fr,
         bls12_381::Fr as BLS12Fr,
     };
-    use algebra::{ToBytes, FromBytes, to_bytes};
+    use algebra::{ToBytes, FromBytes, to_bytes, ToBits};
     use crate::{crh::{
         MNT4PoseidonHash, MNT6PoseidonHash, BLS12PoseidonHash,
         bowe_hopwood::BoweHopwoodPedersenCRH,

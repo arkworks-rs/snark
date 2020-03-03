@@ -218,9 +218,9 @@ impl<G, ConstraintF, GG> ToBytesGadget<ConstraintF> for SchnorrSigGadgetPk<G, Co
     }
 }
 
-mod field_impl
+pub mod field_impl
 {
-    use algebra::{PrimeField, FpParameters, ProjectiveCurve, Group, ToConstraintField};
+    use algebra::{PrimeField, ProjectiveCurve, Group, ToConstraintField};
     use crate::{
         signature::{
             schnorr::field_impl::{FieldBasedSchnorrSignature, FieldBasedSchnorrSignatureScheme},
@@ -339,14 +339,14 @@ mod field_impl
 
                 //Serialize e taking into account the length restriction
                 let to_skip = compute_truncation_size(
-                    ConstraintF::Params::MODULUS_BITS as i32,
-                    <G::ScalarField as PrimeField>::Params::MODULUS_BITS as i32,
+                    ConstraintF::size_in_bits() as i32,
+                    G::ScalarField::size_in_bits() as i32,
                 );
 
                 let e_bits = signature.e
                     .to_bits_with_length_restriction(cs.ns(|| "e_to_bits"), to_skip)?;
 
-                debug_assert!(e_bits.len() as u32 == ConstraintF::Params::MODULUS_BITS - to_skip as u32);
+                debug_assert!(e_bits.len() == ConstraintF::size_in_bits() - to_skip);
                 e_bits
             };
 
@@ -364,20 +364,19 @@ mod field_impl
 
                 //Before computing the number of bits to truncate from s, we first have to normalize
                 //it, i.e. considering its number of bits equals to G::ScalarField::MODULUS_BITS;
-                let moduli_diff = ConstraintF::Params::MODULUS_BITS as i32 -
-                    <G::ScalarField as PrimeField>::Params::MODULUS_BITS as i32;
+                let moduli_diff = ConstraintF::size_in_bits() as i32 - G::ScalarField::size_in_bits() as i32;
                 let to_skip_init = (if moduli_diff > 0 {moduli_diff} else {0}) as usize;
 
-                //Now we can compare the two modulus and decide the bits to truncate
+                //Now we can compare the two moduli and decide the bits to truncate
                 let to_skip = to_skip_init + compute_truncation_size(
-                    <G::ScalarField as PrimeField>::Params::MODULUS_BITS as i32,
-                    ConstraintF::Params::MODULUS_BITS as i32,
+                    G::ScalarField::size_in_bits() as i32,
+                    ConstraintF::size_in_bits() as i32,
                 );
 
                 let s_bits = signature.s
                     .to_bits_with_length_restriction(cs.ns(|| "s_to_bits"), to_skip as usize)?;
 
-                debug_assert!(s_bits.len() as u32 == <G::ScalarField as PrimeField>::Params::MODULUS_BITS + to_skip_init as u32 - to_skip as u32);
+                debug_assert!(s_bits.len() == G::ScalarField::size_in_bits() + to_skip_init - to_skip);
                 s_bits
             };
 
