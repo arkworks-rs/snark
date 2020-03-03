@@ -25,6 +25,5 @@ publish = false
 [dev-dependencies]
 algebra = { path = "../algebra", features = [ "full" ] }
 blake2 = "0.8.1"
-criterion = "0.3.1"
 rand = "0.7"
 rand_xorshift = { version = "0.2" }
