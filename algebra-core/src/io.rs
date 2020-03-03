@@ -101,3 +101,21 @@ impl Write for Cursor<&mut [u8]> {
         Ok(())
     }
 }
+
+impl Read for Cursor<&mut [u8]> {
+    fn read_exact(&mut self, buf: &mut [u8]) -> Result<()> {
+        let to_copy = cmp::min(self.inner.len() - self.pos, buf.len());
+        buf.copy_from_slice(&self.inner[self.pos..self.pos + to_copy]);
+        self.pos += to_copy;
+        Ok(())
+    }
+}
+
+impl Read for Cursor<&[u8]> {
+    fn read_exact(&mut self, buf: &mut [u8]) -> Result<()> {
+        let to_copy = cmp::min(self.inner.len() - self.pos, buf.len());
+        buf.copy_from_slice(&self.inner[self.pos..self.pos + to_copy]);
+        self.pos += to_copy;
+        Ok(())
+    }
+}

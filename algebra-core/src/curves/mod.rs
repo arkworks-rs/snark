@@ -2,7 +2,7 @@ use crate::{
     bytes::{FromBytes, ToBytes},
     fields::{Field, PrimeField, SquareRootField},
     groups::Group,
-    UniformRand, Vec,
+    CanonicalDeserialize, CanonicalSerialize, UniformRand, Vec,
 };
 use core::{
     fmt::{Debug, Display},
@@ -207,6 +207,8 @@ pub trait AffineCurve:
     + Sized
     + ToBytes
     + FromBytes
+    + CanonicalSerialize
+    + CanonicalDeserialize
     + Copy
     + Clone
     + Default

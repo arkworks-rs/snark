@@ -21,7 +21,7 @@ use crate::{
 fn test_g1_projective_curve() {
     curve_tests::<G1Projective>();
 
-    let byte_size = <G1Affine as CanonicalSerialize>::buffer_size();
+    let byte_size = G1Affine::zero().serialized_size();
     sw_curve_serialization_test::<g1::Parameters>(byte_size);
 }
 
@@ -44,7 +44,7 @@ fn test_g1_generator() {
 fn test_g2_projective_curve() {
     curve_tests::<G2Projective>();
 
-    let byte_size = <G2Affine as CanonicalSerialize>::buffer_size();
+    let byte_size = G2Affine::zero().serialized_size();
     sw_curve_serialization_test::<g2::Parameters>(byte_size);
 }
 

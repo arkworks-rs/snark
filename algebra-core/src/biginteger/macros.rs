@@ -10,6 +10,8 @@ macro_rules! bigint_impl {
         }
 
         impl BigInteger for $name {
+            const NUM_LIMBS: usize = $num_limbs;
+
             #[inline]
             fn add_nocarry(&mut self, other: &Self) -> bool {
                 let mut carry = 0;

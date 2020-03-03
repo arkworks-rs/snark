@@ -1,7 +1,8 @@
 use crate::{
     biginteger::BigInteger,
     bytes::{FromBytes, ToBytes},
-    CanonicalDeserialize, CanonicalSerialize, UniformRand, Vec,
+    CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
+    CanonicalSerializeWithFlags, UniformRand, Vec,
 };
 use core::{
     fmt::{Debug, Display},
@@ -63,7 +64,9 @@ pub trait Field:
     + Sized
     + Hash
     + CanonicalSerialize
+    + CanonicalSerializeWithFlags
     + CanonicalDeserialize
+    + CanonicalDeserializeWithFlags
     + Add<Self, Output = Self>
     + Sub<Self, Output = Self>
     + Mul<Self, Output = Self>
