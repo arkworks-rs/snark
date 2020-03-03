@@ -56,17 +56,22 @@ for FieldBasedEcVrfProofGadget<ConstraintF, G, GG>
             FN: FnOnce() -> Result<T, SynthesisError>,
             T: Borrow<FieldBasedEcVrfProof<ConstraintF, G>>,
     {
-        f().and_then(|proof| {
-            let FieldBasedEcVrfProof {
-                gamma,
-                c,
-                s
-            } = proof.borrow().clone();
-            let gamma = GG::alloc(cs.ns(|| "alloc gamma"), || Ok(gamma))?;
-            let c = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc r"), || Ok(c))?;
-            let s = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc s"), || Ok(s))?;
-            Ok(Self{gamma, c, s, _field: PhantomData, _group: PhantomData})
-        })
+        let (gamma, c, s) = match f() {
+            Ok(proof) => {
+                let proof = *proof.borrow();
+                (Ok(proof.gamma), Ok(proof.c), Ok(proof.s))
+            },
+            _ => (
+                Err(SynthesisError::AssignmentMissing),
+                Err(SynthesisError::AssignmentMissing),
+                Err(SynthesisError::AssignmentMissing),
+            ),
+        };
+
+        let gamma = GG::alloc(cs.ns(|| "alloc gamma"), || gamma)?;
+        let c = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc c"), || c)?;
+        let s = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc s"), || s)?;
+        Ok(Self{gamma, c, s, _field: PhantomData, _group: PhantomData})
     }
 
     fn alloc_input<FN, T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, f: FN) -> Result<Self, SynthesisError>
@@ -74,17 +79,22 @@ for FieldBasedEcVrfProofGadget<ConstraintF, G, GG>
             FN: FnOnce() -> Result<T, SynthesisError>,
             T: Borrow<FieldBasedEcVrfProof<ConstraintF, G>>,
     {
-        f().and_then(|proof| {
-            let FieldBasedEcVrfProof {
-                gamma,
-                c,
-                s
-            } = proof.borrow().clone();
-            let gamma = GG::alloc_input(cs.ns(|| "alloc gamma"), || Ok(gamma))?;
-            let c = FpGadget::<ConstraintF>::alloc_input(cs.ns(|| "alloc r"), || Ok(c))?;
-            let s = FpGadget::<ConstraintF>::alloc_input(cs.ns(|| "alloc s"), || Ok(s))?;
-            Ok(Self{gamma, c, s, _field: PhantomData, _group: PhantomData})
-        })
+        let (gamma, c, s) = match f() {
+            Ok(proof) => {
+                let proof = *proof.borrow();
+                (Ok(proof.gamma), Ok(proof.c), Ok(proof.s))
+            },
+            _ => (
+                Err(SynthesisError::AssignmentMissing),
+                Err(SynthesisError::AssignmentMissing),
+                Err(SynthesisError::AssignmentMissing),
+            ),
+        };
+
+        let gamma = GG::alloc(cs.ns(|| "alloc gamma"), || gamma)?;
+        let c = FpGadget::<ConstraintF>::alloc_input(cs.ns(|| "alloc c"), || c)?;
+        let s = FpGadget::<ConstraintF>::alloc_input(cs.ns(|| "alloc s"), || s)?;
+        Ok(Self{gamma, c, s, _field: PhantomData, _group: PhantomData})
     }
 }
 

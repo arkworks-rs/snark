@@ -270,15 +270,20 @@ pub mod field_impl
                 FN: FnOnce() -> Result<T, SynthesisError>,
                 T: Borrow<FieldBasedSchnorrSignature<ConstraintF>>,
         {
-            f().and_then(|sig| {
-                let FieldBasedSchnorrSignature {
-                    e,
-                    s
-                } = sig.borrow().clone();
-                let e = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc e"), || Ok(e))?;
-                let s = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc s"), || Ok(s))?;
-                Ok(Self{e, s, _field: PhantomData})
-            })
+            let (e, s) = match f() {
+                Ok(sig) => {
+                    let sig = *sig.borrow();
+                    (Ok(sig.e), Ok(sig.s))
+                },
+                _ => (
+                    Err(SynthesisError::AssignmentMissing),
+                    Err(SynthesisError::AssignmentMissing),
+                ),
+            };
+
+            let e = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc e"), || e)?;
+            let s = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc s"), || s)?;
+            Ok(Self{e, s, _field: PhantomData})
         }
 
         fn alloc_input<FN, T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, f: FN) -> Result<Self, SynthesisError>
@@ -286,15 +291,20 @@ pub mod field_impl
                 FN: FnOnce() -> Result<T, SynthesisError>,
                 T: Borrow<FieldBasedSchnorrSignature<ConstraintF>>,
         {
-            f().and_then(|sig| {
-                let FieldBasedSchnorrSignature {
-                    e,
-                    s
-                } = sig.borrow().clone();
-                let e = FpGadget::<ConstraintF>::alloc_input(cs.ns(|| "alloc e"), || Ok(e))?;
-                let s = FpGadget::<ConstraintF>::alloc_input(cs.ns(|| "alloc s"), || Ok(s))?;
-                Ok(Self{e, s, _field: PhantomData})
-            })
+            let (e, s) = match f() {
+                Ok(sig) => {
+                    let sig = *sig.borrow();
+                    (Ok(sig.e), Ok(sig.s))
+                },
+                _ => (
+                    Err(SynthesisError::AssignmentMissing),
+                    Err(SynthesisError::AssignmentMissing),
+                ),
+            };
+
+            let e = FpGadget::<ConstraintF>::alloc_input(cs.ns(|| "alloc e"), || e)?;
+            let s = FpGadget::<ConstraintF>::alloc_input(cs.ns(|| "alloc s"), || s)?;
+            Ok(Self{e, s, _field: PhantomData})
         }
     }
 

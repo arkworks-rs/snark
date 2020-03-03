@@ -30,6 +30,7 @@ pub struct FieldBasedEcVrf<
 
 #[derive(Derivative)]
 #[derivative(
+Copy(bound = "F: PrimeField, G: ProjectiveCurve"),
 Clone(bound = "F: PrimeField, G: ProjectiveCurve"),
 Default(bound = "F: PrimeField, G: ProjectiveCurve"),
 Eq(bound = "F: PrimeField, G: ProjectiveCurve"),
@@ -223,7 +224,7 @@ mod test {
         mnt6753::Fr as MNT6Fr,
         bls12_381::Fr as BLS12Fr,
     };
-    use algebra::{ToBytes, FromBytes, to_bytes, ToBits};
+    use algebra::{ToBytes, FromBytes, to_bytes};
     use crate::{crh::{
         MNT4PoseidonHash, MNT6PoseidonHash, BLS12PoseidonHash,
         bowe_hopwood::BoweHopwoodPedersenCRH,
