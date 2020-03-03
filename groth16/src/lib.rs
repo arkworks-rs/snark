@@ -48,7 +48,7 @@ mod test;
 pub use self::{generator::*, prover::*, verifier::*};
 
 /// A proof in the Groth16 SNARK.
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Proof<E: PairingEngine> {
     pub a: E::G1Affine,
     pub b: E::G2Affine,
@@ -61,12 +61,6 @@ impl<E: PairingEngine> ToBytes for Proof<E> {
         self.a.write(&mut writer)?;
         self.b.write(&mut writer)?;
         self.c.write(&mut writer)
-    }
-}
-
-impl<E: PairingEngine> PartialEq for Proof<E> {
-    fn eq(&self, other: &Self) -> bool {
-        self.a == other.a && self.b == other.b && self.c == other.c
     }
 }
 
@@ -96,7 +90,7 @@ impl<E: PairingEngine> Proof<E> {
 }
 
 /// A verification key in the Groth16 SNARK.
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct VerifyingKey<E: PairingEngine> {
     pub alpha_g1:     E::G1Affine,
     pub beta_g2:      E::G2Affine,
@@ -130,16 +124,6 @@ impl<E: PairingEngine> Default for VerifyingKey<E> {
     }
 }
 
-impl<E: PairingEngine> PartialEq for VerifyingKey<E> {
-    fn eq(&self, other: &Self) -> bool {
-        self.alpha_g1 == other.alpha_g1
-            && self.beta_g2 == other.beta_g2
-            && self.gamma_g2 == other.gamma_g2
-            && self.delta_g2 == other.delta_g2
-            && self.gamma_abc_g1 == other.gamma_abc_g1
-    }
-}
-
 impl<E: PairingEngine> VerifyingKey<E> {
     /// Serialize the verification key into bytes, for storage on disk
     /// or transmission over the network.
@@ -156,7 +140,7 @@ impl<E: PairingEngine> VerifyingKey<E> {
 }
 
 /// Full public (prover and verifier) parameters for the Groth16 zkSNARK.
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Parameters<E: PairingEngine> {
     pub vk:         VerifyingKey<E>,
     pub beta_g1:    E::G1Affine,
@@ -166,19 +150,6 @@ pub struct Parameters<E: PairingEngine> {
     pub b_g2_query: Vec<E::G2Affine>,
     pub h_query:    Vec<E::G1Affine>,
     pub l_query:    Vec<E::G1Affine>,
-}
-
-impl<E: PairingEngine> PartialEq for Parameters<E> {
-    fn eq(&self, other: &Self) -> bool {
-        self.vk == other.vk
-            && self.beta_g1 == other.beta_g1
-            && self.delta_g1 == other.delta_g1
-            && self.a_query == other.a_query
-            && self.b_g1_query == other.b_g1_query
-            && self.b_g2_query == other.b_g2_query
-            && self.h_query == other.h_query
-            && self.l_query == other.l_query
-    }
 }
 
 impl<E: PairingEngine> Parameters<E> {
@@ -197,7 +168,7 @@ impl<E: PairingEngine> Parameters<E> {
 
 /// Preprocessed verification key parameters that enable faster verification
 /// at the expense of larger size in memory.
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct PreparedVerifyingKey<E: PairingEngine> {
     pub vk:               VerifyingKey<E>,
     pub alpha_g1_beta_g2: E::Fqk,
