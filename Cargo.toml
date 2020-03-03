@@ -13,6 +13,7 @@ members = [
     "groth16",
     "r1cs-core",
     "r1cs-std",
+    "algebra-core/algebra-core-derive",
 ]
 
 [profile.release]

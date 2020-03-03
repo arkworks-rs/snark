@@ -1,6 +1,7 @@
 use crate::{
     io::{Read, Result as IoResult, Write},
-    CanonicalDeserialize, CanonicalSerialize, SerializationError, UniformRand,
+    CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
+    CanonicalSerializeWithFlags, EmptyFlags, Flags, SerializationError, UniformRand,
 };
 use core::{
     cmp::Ordering,
@@ -486,42 +487,42 @@ impl<P: Fp12Parameters> FromBytes for Fp12<P> {
     }
 }
 
-impl<P: Fp12Parameters> CanonicalSerialize for Fp12<P> {
-    fn serialize(
+impl<P: Fp12Parameters> CanonicalSerializeWithFlags for Fp12<P> {
+    fn serialize_with_flags<W: Write, F: Flags>(
         &self,
-        extra_info: &[bool],
-        output_buf: &mut [u8],
+        writer: &mut W,
+        flags: F,
     ) -> Result<(), SerializationError> {
-        let fp_byte_size = <<<P::Fp6Params as Fp6Parameters>::Fp2Params as Fp2Parameters>::Fp as CanonicalSerialize>::buffer_size();
-        if output_buf.len() != 12 * fp_byte_size {
-            return Err(SerializationError::BufferWrongSize);
-        }
-        self.c0
-            .serialize(&[], &mut output_buf[..6 * fp_byte_size])?;
-        self.c1.serialize(
-            extra_info,
-            &mut output_buf[6 * fp_byte_size..12 * fp_byte_size],
-        )?;
+        self.c0.serialize(writer)?;
+        self.c1.serialize_with_flags(writer, flags)?;
         Ok(())
     }
+}
 
-    fn buffer_size() -> usize {
-        12*<<<P::Fp6Params as Fp6Parameters>::Fp2Params as Fp2Parameters>::Fp as CanonicalSerialize>::buffer_size()
+impl<P: Fp12Parameters> CanonicalSerialize for Fp12<P> {
+    fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
+        self.serialize_with_flags(writer, EmptyFlags)
+    }
+
+    fn serialized_size(&self) -> usize {
+        self.c0.serialized_size() + self.c1.serialized_size()
+    }
+}
+
+impl<P: Fp12Parameters> CanonicalDeserializeWithFlags for Fp12<P> {
+    fn deserialize_with_flags<R: Read, F: Flags>(
+        reader: &mut R,
+    ) -> Result<(Self, F), SerializationError> {
+        let c0 = Fp6::deserialize(reader)?;
+        let (c1, flags) = Fp6::deserialize_with_flags(reader)?;
+        Ok((Fp12::new(c0, c1), flags))
     }
 }
 
 impl<P: Fp12Parameters> CanonicalDeserialize for Fp12<P> {
-    fn deserialize(bytes: &[u8], extra_info_buf: &mut [bool]) -> Result<Self, SerializationError>
-    where
-        Self: Sized,
-    {
-        let fp_byte_size = <<<P::Fp6Params as Fp6Parameters>::Fp2Params as Fp2Parameters>::Fp as CanonicalSerialize>::buffer_size();
-        if bytes.len() != 12 * fp_byte_size {
-            return Err(SerializationError::BufferWrongSize);
-        }
-        let mut dummy_mutable_slice = [false; 0];
-        let c0 = Fp6::deserialize(&bytes[..6 * fp_byte_size], &mut dummy_mutable_slice)?;
-        let c1 = Fp6::deserialize(&bytes[6 * fp_byte_size..12 * fp_byte_size], extra_info_buf)?;
+    fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
+        let c0 = Fp6::deserialize(reader)?;
+        let c1 = Fp6::deserialize(reader)?;
         Ok(Fp12::new(c0, c1))
     }
 }

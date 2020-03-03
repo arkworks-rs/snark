@@ -1,7 +1,8 @@
 use crate::{
     curves::models::SWModelParameters as Parameters,
     io::{Read, Result as IoResult, Write},
-    CanonicalDeserialize, CanonicalSerialize, UniformRand, Vec,
+    CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
+    CanonicalSerializeWithFlags, UniformRand, Vec,
 };
 use core::{
     fmt::{Display, Formatter, Result as FmtResult},
