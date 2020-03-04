@@ -28,7 +28,10 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
         mut cs: CS,
         input: &[FpGadget<ConstraintF>],
     ) -> Result<FpGadget<ConstraintF>, SynthesisError>
-    // Assumption: The input vector has always a multiple of rate elements
+    // Assumption:
+    //     rate r = 2
+    //     capacity c = 1
+    //     t = 3
     {
 
         let zero = FpGadget::<ConstraintF>::zero()?;
@@ -49,7 +52,7 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
         for i in 0..num_cycles {
             // add the elements to the state vector. Add rate elements
             for j in 0..P::R {
-                state[j].add_in_place(cs.ns(|| format!("add_{}_{}", i, j)), &input[input_idx])?;
+                state[j].add_in_place(cs.ns(|| format!("add_input_{}_{}", i, j)), &input[input_idx])?;
                 input_idx += 1;
             }
             // for application to a 2-1 Merkle tree, add the constant 3 to the third state vector
@@ -59,8 +62,11 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
         }
 
         // in case the input is not a multiple of the rate process the remainder part padding a zero
-        // rem_input   0       C2
-        // state[0] state[1] state[2]
+        // in this case add C2 to state[2]
+        //
+        //   rem_input   0       C2
+        // + state[0] state[1] state[2]
+        //
         if rem != 0 {
             state[0].add_in_place(cs.ns(|| "poseidon_padding_add"), &input[input_idx])?;
             state[P::R].add_constant_in_place(&P::C2)?;
@@ -115,8 +121,26 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
         // index that goes over the round constants
         let mut round_cst_idx = 0;
 
+        {
+            // Add initial round constants
+
+            for d in state.iter_mut() {
+                let rc = P::ROUND_CST[round_cst_idx];
+                (*d).add_constant_in_place(cs.ns(|| format!("add_constant_{}", round_cst_idx)), &rc)?;
+                round_cst_idx += 1;
+            }
+        }
+
         // First full rounds
         for _i in 0..P::R_F {
+
+            // Apply the S-BOX to each of the elements of the state vector
+            for (j, d) in state.iter_mut().enumerate() {
+                Self::mod_inv_sbox(cs.ns(||format!("mod_inv_S-Box_{}_{}",_i, j)), d)?;
+            }
+
+            // Perform the matrix mix
+            Self::matrix_mix (cs.ns(|| format!("poseidon_mix_matrix_first_full_round_{}", _i)), &mut state)?;
 
             // Add the round constants to the state vector
             for d in state.iter_mut() {
@@ -125,18 +149,17 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
                 round_cst_idx += 1;
             }
 
-            // Apply the S-BOX to each of the elements of the state vector
-            for (j, d) in state.iter_mut().enumerate() {
-                Self::mod_inv_sbox(cs.ns(||format!("mod_inv_S-Box_{}_{}",_i, j)), d)?;h
-            }
-
-            // Perform the matrix mix
-            Self::matrix_mix (cs.ns(|| format!("poseidon_mix_matrix_first_full_round_{}", _i)), &mut state)?;
         }
 
         // Partial rounds
         for _i in 0..P::R_P {
 
+            // Apply S-Box only to the first element of the state vector
+            Self::mod_inv_sbox(cs.ns(||format!("mod_inv_S-Box_{}_{}",_i, 0)), &state[0])?;
+
+            // Perform the matrix mix
+            Self::matrix_mix (cs.ns(|| format!("poseidon_mix_matrix_partial_round_{}", _i)), &mut state)?;
+
             // Add the round constants to the state vector
             for d in state.iter_mut() {
                 let rc = P::ROUND_CST[round_cst_idx];
@@ -144,26 +167,19 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
                 round_cst_idx += 1;
             }
 
-            //==============================================================
-            //==============================================================
-            // Apply S-BOX only to the first element of the state vector
-            let t1 = (state[0]).inverse();
-            match t1 {
-                None => println!("Field inversion error"),
-                Some(inv) => {
-                    state[0] = inv;
-                },
-            }
-            //==============================================================
-            //==============================================================
-
-            // Apply the matrix mix
-            Self::matrix_mix (cs.ns(|| format!("poseidon_mix_matrix_partial_round_{}", _i)), &mut state)?;
         }
 
         // Second full rounds
         // Process only to R_F -1 iterations. The last iteration does not contain a matrix mix
         for _i in 0..(P::R_F-1) {
+
+            // Apply the S-BOX to each of the elements of the state vector
+            for (j, d) in state.iter_mut().enumerate() {
+                Self::mod_inv_sbox(cs.ns(||format!("mod_inv_S-Box_{}_{}",_i, j)), d)?;
+            }
+
+            // Perform the matrix mix
+            Self::matrix_mix (cs.ns(|| format!("poseidon_mix_matrix_first_full_round_{}", _i)), &mut state)?;
 
             // Add the round constants
             for d in state.iter_mut() {
@@ -172,54 +188,21 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
                 (*d).add_constant_in_place(cs.ns(|| format!("add_constant_{}", round_cst_idx)), &rc)?;
                 round_cst_idx += 1;
             }
-
-            //==============================================================
-            //==============================================================
-            // Apply the S-BOX to each element of the state vector
-            for d in state.iter_mut() {
-                let elem_state = (*d).inverse();
-                match elem_state {
-                    None => println!("Field inversion error"),
-                    Some(inv) => {
-                        *d = inv;
-                    },
-                }
-            }
-            //==============================================================
-            //==============================================================
-
-
-            // Apply matrix mix
-            Self::matrix_mix (cs.ns(|| format!("poseidon_mix_matrix_second_full_round_{}", _i)), &mut state)?;
-        }
+       }
 
         // Last full round does not perform the matrix_mix
-        // Add the round constants
-        for d in state.iter_mut() {
-            let rc = P::ROUND_CST[round_cst_idx];
-            (*d).add_constant_in_place(cs.ns(|| format!("add_constant_{}", round_cst_idx)), &rc)?;
-            round_cst_idx += 1;
-        }
-
-        //==============================================================
-        //==============================================================
-        // Apply the S-BOX to each element of the state vector
-        for d in state.iter_mut() {
-            let elem_state = (*d).inverse();
-            match elem_state {
-                None => println!("Field inversion error"),
-                Some(inv) => {
-                    *d = inv;
-                },
+        {
+            // Apply the S-BOX to each of the elements of the state vector
+            for (j, d) in state.iter_mut().enumerate() {
+                Self::mod_inv_sbox(cs.ns(|| format!("mod_inv_S-Box_{}_{}", _i, j)), d)?;
             }
         }
-        //==============================================================
-        //==============================================================
 
         Ok(())
     }
 
     // Function that does the mix matrix
+    // Assumption: t = 3
     fn matrix_mix<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         state: &mut [FpGadget<ConstraintF>],
@@ -230,6 +213,9 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
         //  s2'= (s1, s2, s3) * [ m21 m22 m23]
         //  s3'= (s1, s2, s3) * [ m31 m32 m33]
         // (s1, s2, s3) = (s1', s2', s3')
+
+        // Check that the length of the state vector is t
+        assert_eq!(state.len(), P::T);
 
         let m_11 = P::MDS_CST[0];
         let m_12 = P::MDS_CST[1];
