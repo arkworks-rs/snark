@@ -1,6 +1,9 @@
 extern crate hex;
 extern crate rand;
 
+#[cfg(feature = "r1cs")]
+pub mod constraints;
+
 use algebra::fields::mnt6753::Fr as MNT6753Fr;
 use algebra::fields::mnt4753::{Fr as MNT4753Fr, Fr};
 use algebra::{PrimeField, SquareRootField, UniformRand};
@@ -33,7 +36,7 @@ pub mod mul_inv;
 
 pub trait PoseidonParameters: 'static{
 
-    type Fr: PrimeField + SquareRootField + Into<<Self::Fr as PrimeField>::BigInt>;
+    type Fr: PrimeField;
 
     const T: usize;  // Number of S-Boxesb
     const R_F:i32;   // Number of full rounds
