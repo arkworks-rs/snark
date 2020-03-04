@@ -71,10 +71,13 @@ impl<G: SWModelParameters> GroupMap<G> for BWParameters<G> {
     }
 
     fn batch_to_group_x(p: &Self::Parameters, ts: Vec<G::BaseField>) -> Vec<[G::BaseField; 3]> {
-        fn curve_eqn(x: G::BaseField) -> G {
-            G {
-                x,
-                y: ((x * x * x) + (G::A_COEFF * x) + G::B_COEFF).sqrt(),
+        fn get_y(x: G::BaseField) -> Option<G::BaseField> {
+            let fx = ((x * x * x) + (G::A_COEFF * x) + G::B_COEFF);
+            // how do we choose +/- sqrt?
+            if let Some(y) = fx.sqrt() {
+                Some(y)
+            } else {
+                None
             }
         }
 
@@ -95,10 +98,8 @@ impl<G: SWModelParameters> GroupMap<G> for BWParameters<G> {
             temp.add(&params.three_u);
             let x1 = params.three_u_minus_u_over_2.copy();
             x1.sub(&temp);
-
             let x2 = F::zero().sub(&params.u);
             x2.sub(&x1);
-
             alpha_inv.square();
             temp = &t.square();
             temp.square();
@@ -108,17 +109,31 @@ impl<G: SWModelParameters> GroupMap<G> for BWParameters<G> {
             let x3 = params.u.copy();
             x3.sub(&temp);
 
-            BWSurface { x1, x2, x3 }
+            vec![x1, x2, x3]
+        }
+
+        fn get_xyi(t: G::BaseField) -> Option<G::BaseField, G::BaseField, usize> {
+            let xvec = &Self::potential_xs(t);
+            let yvec = xvec.into_iter().map(|x| &Self::get_y(x));
+            let i = yvec.into_iter().find(|y| y.is_some());
+            if let Some(i) = b {
+                Some(xvec[i], yvec[i], i)
+            } else {
+                None
+            }
         }
 
         fn to_group(t: G::BaseField) -> Option<G> {
-            let (x1, x2, x3) = &Self::potential_xs(t);
-            if let Some(b1) = &Self::try_decode(x1) {
-                Some(b1)
-            } else if let Some(b2) = &Self::try_decode(x2) {
-                Some(b2)
-            } else if let Some(b3) = &Self::try_decode(x3) {
-                Some(b3)
+            if let Some(x, y, i) = get_xyi(t) {
+                Some(G { x, y })
+            } else {
+                None
+            }
+        }
+
+        fn to_group_bit(t: G::BaseField) -> Option<usize, G::BaseField> {
+            if let Some(x, y, i) = get_xyi(t) {
+                Some(i, y)
             } else {
                 None
             }
