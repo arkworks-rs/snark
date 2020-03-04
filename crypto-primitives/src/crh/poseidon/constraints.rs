@@ -225,67 +225,56 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
         state: &mut [FpGadget<ConstraintF>],
     ) -> Result<(), SynthesisError>
     {
-    // fn matrix_mix<P:PoseidonParameters> (state: &mut Vec<P::Fr>) {
 
-        // the new state where the result will be stored initialized to zero elements
-//        let mut new_state = vec![P::Fr::zero(); P::T];
-
-        //  (s1, s2, s3) * [[ m11 m12 m13]
-                            [ m21 m22 m23]
-                            [ m31 m32 m33]]
-
-        s1' = s1 * m11 + s2 * m21 + s3 * m3
-        s2' = s1 *
-
-
-        let zero = FpGadget::<ConstraintF>::zero()?;
-        // state is a vector of 3 elements. They are initialized to zero elements
-        let mut new_state = vec![zero, zero.clone(), zero.clone()];
-
+        //  s1'= (s1, s2, s3) * [ m11 m12 m13]
+        //  s2'= (s1, s2, s3) * [ m21 m22 m23]
+        //  s3'= (s1, s2, s3) * [ m31 m32 m33]
+        // (s1, s2, s3) = (s1', s2', s3')
 
         let m_11 = P::MDS_CST[0];
         let m_12 = P::MDS_CST[1];
         let m_13 = P::MDS_CST[2];
 
         // scalar multiplication for position 0 of the state vector
-        let elem_0 = state[0].mul(&m_11);
-        let elem_1 = state[1].mul(&m_12);
-        let elem_2 = state[2].mul(&m_13);
+        let mut el_0 = state[0].mul_by_constant_in_place(cs.ns(||"partial_product_1_1"), &m_11)?;
+        let elem_1 = state[1].mul_by_constant_in_place(cs.ns(||"partial_product_1_2"), &m_12)?;
+        let elem_2 = state[2].mul_by_constant_in_place(cs.ns(||"partial_product_1_3"), &m_13)?;
 
-        new_state[0] = elem_0;
-        new_state[0] += &elem_1;
-        new_state[0] += &elem_2;
+        // sum of partial products
+        el_0.add_in_place(cs.ns(|| "add_partial_product_1_2"), &elem_1)?;
+        el_0.add_in_place(cs.ns(|| "add_partial_product_1_3"), &elem_2)?;
 
         // scalar multiplication for position 1 of the state vector
         let m_21 = P::MDS_CST[3];
         let m_22 = P::MDS_CST[4];
         let m_23 = P::MDS_CST[5];
 
-        let elem_3 = state[0].mul(&m_21);
-        let elem_4 = state[1].mul(&m_22);
-        let elem_5 = state[2].mul(&m_23);
+        // scalar multiplication for position 1 of the state vector
+        let mut el_1 = state[0].mul_by_constant_in_place(cs.ns(||"partial_product_2_1"), &m_21)?;
+        let elem_4 = state[1].mul_by_constant_in_place(cs.ns(||"partial_product_2_2"), &m_22)?;
+        let elem_5 = state[2].mul_by_constant_in_place(cs.ns(||"partial_product_2_3"), &m_23)?;
 
-        new_state[1] = elem_3;
-        new_state[1] += &elem_4;
-        new_state[1] += &elem_5;
+        // sum of partial products
+        el_1.add_in_place(cs.ns(|| "add_partial_product_2_2"), &elem_4)?;
+        el_1.add_in_place(cs.ns(|| "add_partial_product_2_3"), &elem_5)?;
 
         // scalar multiplication for the position 2 of the state vector
         let m_31 = P::MDS_CST[6];
         let m_32 = P::MDS_CST[7];
         let m_33 = P::MDS_CST[8];
 
-        let elem_6 = state[0].mul(&m_31);
-        let elem_7 = state[1].mul(&m_32);
-        let elem_8 = state[2].mul(&m_33);
+        // scalar multiplication for position 2 of the state vector
+        let mut el_2 = state[0].mul_by_constant_in_place(cs.ns(||"partial_product_3_1"), &m_31)?;
+        let elem_7 = state[1].mul_by_constant_in_place(cs.ns(||"partial_product_3_2"), &m_32)?;
+        let elem_8 = state[2].mul_by_constant_in_place(cs.ns(||"partial_product_3_3"), &m_33)?;
 
-        new_state[2] = elem_6;
-        new_state[2] += &elem_7;
-        new_state[2] += &elem_8;
+        // sum of partial products
+        el_2.add_in_place(cs.ns(|| "add_partial_product_3_2"), &elem_7)?;
+        el_2.add_in_place(cs.ns(|| "add_partial_product_3_3"), &elem_8)?;
 
-        // copy the result to the state vector
-        state[0] = new_state[0];
-        state[1] = new_state[1];
-        state[2] = new_state[2];
+        state[0] = el_0.clone();
+        state[1] = el_1.clone();
+        state[2] = el_2.clone();
 
         Ok(())
     }
