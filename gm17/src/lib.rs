@@ -13,9 +13,6 @@
 #[macro_use]
 extern crate bench_utils;
 
-#[macro_use]
-extern crate algebra_core_derive;
-
 #[cfg(not(feature = "std"))]
 #[macro_use]
 extern crate alloc;
