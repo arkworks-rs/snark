@@ -23,8 +23,7 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-algebra-core = { path = "../algebra-core", default-features = false }
-algebra-core-derive = { path = "../algebra-core/algebra-core-derive", default-features = false }
+algebra-core = { path = "../algebra-core", default-features = false, features = [ "derive" ] }
 bench-utils = { path = "../bench-utils" }
 ff-fft = { path = "../ff-fft", default-features = false }
 r1cs-core = { path = "../r1cs-core", default-features = false }
