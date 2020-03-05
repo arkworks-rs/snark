@@ -34,13 +34,15 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
     //     t = 3
     {
 
-        let zero = FpGadget::<ConstraintF>::zero()?;
+        let zero = FpGadget::<ConstraintF>::zero(cs.ns(||"alloc_zero"))?;
         // state is a vector of 3 elements. They are initialized to zero elements
-        let mut state = vec![zero, zero.clone(), zero.clone()];
+        let mut state = vec![zero.clone(), zero.clone(), zero.clone()];
 
         // calculate the number of cycles to process the input dividing in portions of rate elements
         let num_cycles = input.len() / P::R;
         // check if the input is a multiple of the rate by calculating the remainder of the division
+        // the remainder of dividing the input length by the rate can be 1 or 0 because we are assuming
+        // that the rate is 2
         let rem = input.len() % P::R;
 
         // apply permutation to all zeros state vector
@@ -56,7 +58,7 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
                 input_idx += 1;
             }
             // for application to a 2-1 Merkle tree, add the constant 3 to the third state vector
-            state[P::R].add_constant_in_place(&P::C2)?;
+            state[P::R].add_constant_in_place(cs.ns(||format!("add_constant_C2_{}",i)), &P::C2)?;
             // apply permutation after adding the input vector
             Self::poseidon_perm(cs.ns(|| format!("poseidon_perm_{}", i)),&mut state)?;
         }
@@ -69,13 +71,13 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
         //
         if rem != 0 {
             state[0].add_in_place(cs.ns(|| "poseidon_padding_add"), &input[input_idx])?;
-            state[P::R].add_constant_in_place(&P::C2)?;
+            state[P::R].add_constant_in_place(cs.ns(||"add_constant_C2_last_chunk"), &P::C2)?;
             // apply permutation after adding the input vector
             Self::poseidon_perm(cs.ns(|| "poseidon_padding_perm"), &mut state)?;
         }
 
         // return the first element of the state vector as the hash digest
-        Ok(state[0])
+        Ok(state[0].clone())
     }
 
     fn mod_inv_sbox<CS: ConstraintSystem<ConstraintF>>(
@@ -85,7 +87,7 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
     {
         let b = Boolean::alloc(cs.ns(|| "alloc b"), || {
             let x_val = x.get_value().get()?;
-            if x_val == F::zero() {
+            if x_val == ConstraintF::zero() {
                 Ok(false)
             } else {
                 Ok(true)
@@ -106,7 +108,7 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
             |lc| &y.variable + lc,
             |lc| lc + &b.lc(CS::one(), ConstraintF::one()),
         );
-        x.conditional_enforce_equal(cs.ns(|| "0=(1-b)*(x-y)"), &y, &b.not());
+        x.conditional_enforce_equal(cs.ns(|| "0=(1-b)*(x-y)"), &y, &b.not())?;
 
         *x=y;
         Ok(())
@@ -132,15 +134,15 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
         }
 
         // First full rounds
-        for _i in 0..P::R_F {
+        for i in 0..P::R_F {
 
             // Apply the S-BOX to each of the elements of the state vector
             for (j, d) in state.iter_mut().enumerate() {
-                Self::mod_inv_sbox(cs.ns(||format!("mod_inv_S-Box_{}_{}",_i, j)), d)?;
+                Self::mod_inv_sbox(cs.ns(||format!("mod_inv_S-Box_{}_{}",i, j)), d)?;
             }
 
             // Perform the matrix mix
-            Self::matrix_mix (cs.ns(|| format!("poseidon_mix_matrix_first_full_round_{}", _i)), &mut state)?;
+            Self::matrix_mix (cs.ns(|| format!("poseidon_mix_matrix_first_full_round_{}", i)), state)?;
 
             // Add the round constants to the state vector
             for d in state.iter_mut() {
@@ -155,10 +157,13 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
         for _i in 0..P::R_P {
 
             // Apply S-Box only to the first element of the state vector
-            Self::mod_inv_sbox(cs.ns(||format!("mod_inv_S-Box_{}_{}",_i, 0)), &state[0])?;
+            Self::mod_inv_sbox(
+                cs.ns(||format!("mod_inv_S-Box_{}_{}",_i, 0)),
+                &mut state[0]
+            )?;
 
             // Perform the matrix mix
-            Self::matrix_mix (cs.ns(|| format!("poseidon_mix_matrix_partial_round_{}", _i)), &mut state)?;
+            Self::matrix_mix (cs.ns(|| format!("poseidon_mix_matrix_partial_round_{}", _i)), state)?;
 
             // Add the round constants to the state vector
             for d in state.iter_mut() {
@@ -179,7 +184,7 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
             }
 
             // Perform the matrix mix
-            Self::matrix_mix (cs.ns(|| format!("poseidon_mix_matrix_first_full_round_{}", _i)), &mut state)?;
+            Self::matrix_mix (cs.ns(|| format!("poseidon_mix_matrix_first_full_round_{}", _i)), state)?;
 
             // Add the round constants
             for d in state.iter_mut() {
@@ -194,7 +199,7 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
         {
             // Apply the S-BOX to each of the elements of the state vector
             for (j, d) in state.iter_mut().enumerate() {
-                Self::mod_inv_sbox(cs.ns(|| format!("mod_inv_S-Box_{}_{}", _i, j)), d)?;
+                Self::mod_inv_sbox(cs.ns(|| format!("mod_inv_S-Box_{}_{}", P::R_F-1, j)), d)?;
             }
         }
 
@@ -222,9 +227,9 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
         let m_13 = P::MDS_CST[2];
 
         // scalar multiplication for position 0 of the state vector
-        let mut el_0 = state[0].mul_by_constant_in_place(cs.ns(||"partial_product_1_1"), &m_11)?;
-        let elem_1 = state[1].mul_by_constant_in_place(cs.ns(||"partial_product_1_2"), &m_12)?;
-        let elem_2 = state[2].mul_by_constant_in_place(cs.ns(||"partial_product_1_3"), &m_13)?;
+        let mut el_0 = state[0].mul_by_constant(cs.ns(||"partial_product_1_1"), &m_11)?;
+        let elem_1 = state[1].mul_by_constant(cs.ns(||"partial_product_1_2"), &m_12)?;
+        let elem_2 = state[2].mul_by_constant(cs.ns(||"partial_product_1_3"), &m_13)?;
 
         // sum of partial products
         el_0.add_in_place(cs.ns(|| "add_partial_product_1_2"), &elem_1)?;
@@ -236,9 +241,9 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
         let m_23 = P::MDS_CST[5];
 
         // scalar multiplication for position 1 of the state vector
-        let mut el_1 = state[0].mul_by_constant_in_place(cs.ns(||"partial_product_2_1"), &m_21)?;
-        let elem_4 = state[1].mul_by_constant_in_place(cs.ns(||"partial_product_2_2"), &m_22)?;
-        let elem_5 = state[2].mul_by_constant_in_place(cs.ns(||"partial_product_2_3"), &m_23)?;
+        let mut el_1 = state[0].mul_by_constant(cs.ns(||"partial_product_2_1"), &m_21)?;
+        let elem_4 = state[1].mul_by_constant(cs.ns(||"partial_product_2_2"), &m_22)?;
+        let elem_5 = state[2].mul_by_constant(cs.ns(||"partial_product_2_3"), &m_23)?;
 
         // sum of partial products
         el_1.add_in_place(cs.ns(|| "add_partial_product_2_2"), &elem_4)?;
@@ -250,17 +255,17 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
         let m_33 = P::MDS_CST[8];
 
         // scalar multiplication for position 2 of the state vector
-        let mut el_2 = state[0].mul_by_constant_in_place(cs.ns(||"partial_product_3_1"), &m_31)?;
-        let elem_7 = state[1].mul_by_constant_in_place(cs.ns(||"partial_product_3_2"), &m_32)?;
-        let elem_8 = state[2].mul_by_constant_in_place(cs.ns(||"partial_product_3_3"), &m_33)?;
+        let mut el_2 = state[0].mul_by_constant(cs.ns(||"partial_product_3_1"), &m_31)?;
+        let elem_7 = state[1].mul_by_constant(cs.ns(||"partial_product_3_2"), &m_32)?;
+        let elem_8 = state[2].mul_by_constant(cs.ns(||"partial_product_3_3"), &m_33)?;
 
         // sum of partial products
         el_2.add_in_place(cs.ns(|| "add_partial_product_3_2"), &elem_7)?;
         el_2.add_in_place(cs.ns(|| "add_partial_product_3_3"), &elem_8)?;
 
-        state[0] = el_0.clone();
-        state[1] = el_1.clone();
-        state[2] = el_2.clone();
+        state[0] = el_0;
+        state[1] = el_1;
+        state[2] = el_2;
 
         Ok(())
     }
