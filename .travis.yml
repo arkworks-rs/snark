@@ -21,7 +21,7 @@ before_cache:
   - rm -rf "$TRAVIS_HOME/.cargo/registry"
 
 after_script:
-  - sccache -s
+  - (sccache -s||true)
   - set +e
 
 matrix:
