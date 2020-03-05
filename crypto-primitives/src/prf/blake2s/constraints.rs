@@ -322,7 +322,10 @@ pub fn blake2s_gadget<ConstraintF: PrimeField, CS: ConstraintSystem<ConstraintF>
     blake2s_gadget_with_parameters(cs, input, &parameters)
 }
 
-pub fn blake2s_gadget_with_parameters<ConstraintF: PrimeField, CS: ConstraintSystem<ConstraintF>>(
+pub fn blake2s_gadget_with_parameters<
+    ConstraintF: PrimeField,
+    CS: ConstraintSystem<ConstraintF>,
+>(
     mut cs: CS,
     input: &[Boolean],
     parameters: &[u32; 8],
@@ -330,14 +333,30 @@ pub fn blake2s_gadget_with_parameters<ConstraintF: PrimeField, CS: ConstraintSys
     assert!(input.len() % 8 == 0);
 
     let mut h = Vec::with_capacity(8);
-    h.push(UInt32::constant(0x6A09E667).xor(cs.ns(|| "xor h[0]"), &UInt32::constant(parameters[0]))?);
-    h.push(UInt32::constant(0xBB67AE85).xor(cs.ns(|| "xor h[1]"), &UInt32::constant(parameters[1]))?);
-    h.push(UInt32::constant(0x3C6EF372).xor(cs.ns(|| "xor h[2]"), &UInt32::constant(parameters[2]))?);
-    h.push(UInt32::constant(0xA54FF53A).xor(cs.ns(|| "xor h[3]"), &UInt32::constant(parameters[3]))?);
-    h.push(UInt32::constant(0x510E527F).xor(cs.ns(|| "xor h[4]"), &UInt32::constant(parameters[4]))?);
-    h.push(UInt32::constant(0x9B05688C).xor(cs.ns(|| "xor h[5]"), &UInt32::constant(parameters[5]))?);
-    h.push(UInt32::constant(0x1F83D9AB).xor(cs.ns(|| "xor h[6]"), &UInt32::constant(parameters[6]))?);
-    h.push(UInt32::constant(0x5BE0CD19).xor(cs.ns(|| "xor h[7]"), &UInt32::constant(parameters[7]))?);
+    h.push(
+        UInt32::constant(0x6A09E667).xor(cs.ns(|| "xor h[0]"), &UInt32::constant(parameters[0]))?,
+    );
+    h.push(
+        UInt32::constant(0xBB67AE85).xor(cs.ns(|| "xor h[1]"), &UInt32::constant(parameters[1]))?,
+    );
+    h.push(
+        UInt32::constant(0x3C6EF372).xor(cs.ns(|| "xor h[2]"), &UInt32::constant(parameters[2]))?,
+    );
+    h.push(
+        UInt32::constant(0xA54FF53A).xor(cs.ns(|| "xor h[3]"), &UInt32::constant(parameters[3]))?,
+    );
+    h.push(
+        UInt32::constant(0x510E527F).xor(cs.ns(|| "xor h[4]"), &UInt32::constant(parameters[4]))?,
+    );
+    h.push(
+        UInt32::constant(0x9B05688C).xor(cs.ns(|| "xor h[5]"), &UInt32::constant(parameters[5]))?,
+    );
+    h.push(
+        UInt32::constant(0x1F83D9AB).xor(cs.ns(|| "xor h[6]"), &UInt32::constant(parameters[6]))?,
+    );
+    h.push(
+        UInt32::constant(0x5BE0CD19).xor(cs.ns(|| "xor h[7]"), &UInt32::constant(parameters[7]))?,
+    );
 
     let mut blocks: Vec<Vec<UInt32>> = vec![];
 

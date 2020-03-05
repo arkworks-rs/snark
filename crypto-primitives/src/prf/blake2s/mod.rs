@@ -1,10 +1,9 @@
+use alloc::vec::Vec;
 use blake2::Blake2s as b2s;
 use digest::Digest;
-use alloc::vec::Vec;
 
 use super::PRF;
 use crate::CryptoError;
-
 
 #[cfg(feature = "r1cs")]
 pub mod constraints;
@@ -31,26 +30,36 @@ impl PRF for Blake2s {
 
 #[derive(Clone)]
 pub struct Blake2sWithParameterBlock {
-    pub digest_length: u8,
-    pub key_length: u8,
-    pub fan_out: u8,
-    pub depth: u8,
-    pub leaf_length: u32,
-    pub node_offset: u32,
+    pub digest_length:     u8,
+    pub key_length:        u8,
+    pub fan_out:           u8,
+    pub depth:             u8,
+    pub leaf_length:       u32,
+    pub node_offset:       u32,
     pub xof_digest_length: u16,
-    pub node_depth: u8,
-    pub inner_length: u8,
-    pub salt: [u8; 8],
-    pub personalization: [u8; 8],
+    pub node_depth:        u8,
+    pub inner_length:      u8,
+    pub salt:              [u8; 8],
+    pub personalization:   [u8; 8],
 }
 
 impl Blake2sWithParameterBlock {
     pub fn parameters(&self) -> [u32; 8] {
         let mut parameters = [0; 8];
-        parameters[0] = u32::from_le_bytes([self.digest_length, self.key_length, self.fan_out, self.depth]);
+        parameters[0] = u32::from_le_bytes([
+            self.digest_length,
+            self.key_length,
+            self.fan_out,
+            self.depth,
+        ]);
         parameters[1] = self.leaf_length;
         parameters[2] = self.node_offset;
-        parameters[3] = u32::from_le_bytes([self.xof_digest_length as u8, (self.xof_digest_length >> 8) as u8, self.node_depth, self.inner_length]);
+        parameters[3] = u32::from_le_bytes([
+            self.xof_digest_length as u8,
+            (self.xof_digest_length >> 8) as u8,
+            self.node_depth,
+            self.inner_length,
+        ]);
 
         let mut salt_bytes_1 = [0; 4];
         let mut salt_bytes_2 = [0; 4];
