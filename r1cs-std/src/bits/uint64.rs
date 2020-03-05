@@ -5,7 +5,7 @@ use r1cs_core::{ConstraintSystem, LinearCombination, SynthesisError};
 use crate::{
     boolean::{AllocatedBit, Boolean},
     prelude::*,
-    Assignment,
+    Assignment, Vec,
 };
 
 /// Represents an interpretation of 64 `Boolean` objects as an
@@ -347,8 +347,8 @@ impl<ConstraintF: Field> ConditionalEqGadget<ConstraintF> for UInt64 {
 #[cfg(test)]
 mod test {
     use super::UInt64;
-    use crate::{bits::boolean::Boolean, test_constraint_system::TestConstraintSystem};
-    use algebra::fields::{bls12_381::Fr, Field};
+    use crate::{bits::boolean::Boolean, test_constraint_system::TestConstraintSystem, Vec};
+    use algebra::{bls12_381::Fr, One, Zero};
     use r1cs_core::ConstraintSystem;
     use rand::{Rng, SeedableRng};
     use rand_xorshift::XorShiftRng;
@@ -504,9 +504,9 @@ mod test {
 
             // Flip a bit_gadget and see if the addition constraint still works
             if cs.get("addition/result bit_gadget 0/boolean").is_zero() {
-                cs.set("addition/result bit_gadget 0/boolean", Field::one());
+                cs.set("addition/result bit_gadget 0/boolean", Fr::one());
             } else {
-                cs.set("addition/result bit_gadget 0/boolean", Field::zero());
+                cs.set("addition/result bit_gadget 0/boolean", Fr::zero());
             }
 
             assert!(!cs.is_satisfied());
