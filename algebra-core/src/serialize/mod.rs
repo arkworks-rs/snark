@@ -1,7 +1,6 @@
 mod error;
 mod flags;
 use crate::io::{Read, Write};
-use core::cmp;
 pub use error::*;
 pub use flags::*;
 
@@ -28,9 +27,11 @@ pub trait CanonicalSerialize {
     fn serialized_size(&self) -> usize;
 
     /// Serializes `self` into `writer` without compression.
+    #[inline]
     fn serialize_uncompressed<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
         self.serialize(writer)
     }
+    #[inline]
     fn uncompressed_size(&self) -> usize {
         self.serialized_size()
     }
@@ -51,22 +52,26 @@ pub trait CanonicalDeserialize: Sized {
     fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError>;
 
     /// Reads `Self` from `reader` without compression.
+    #[inline]
     fn deserialize_uncompressed<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
         Self::deserialize(reader)
     }
 }
 
 impl CanonicalSerialize for u64 {
+    #[inline]
     fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
         Ok(writer.write_all(&self.to_le_bytes())?)
     }
 
+    #[inline]
     fn serialized_size(&self) -> usize {
         8
     }
 }
 
 impl CanonicalDeserialize for u64 {
+    #[inline]
     fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
         let mut bytes = [0u8; 8];
         reader.read_exact(&mut bytes)?;
@@ -75,6 +80,7 @@ impl CanonicalDeserialize for u64 {
 }
 
 impl<T: CanonicalSerialize> CanonicalSerialize for Vec<T> {
+    #[inline]
     fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
         let len = self.len() as u64;
         len.serialize(writer)?;
@@ -84,6 +90,7 @@ impl<T: CanonicalSerialize> CanonicalSerialize for Vec<T> {
         Ok(())
     }
 
+    #[inline]
     fn serialized_size(&self) -> usize {
         8 + self
             .iter()
@@ -91,6 +98,7 @@ impl<T: CanonicalSerialize> CanonicalSerialize for Vec<T> {
             .sum::<usize>()
     }
 
+    #[inline]
     fn serialize_uncompressed<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
         let len = self.len() as u64;
         len.serialize(writer)?;
@@ -99,6 +107,8 @@ impl<T: CanonicalSerialize> CanonicalSerialize for Vec<T> {
         }
         Ok(())
     }
+
+    #[inline]
     fn uncompressed_size(&self) -> usize {
         8 + self
             .iter()
@@ -108,6 +118,7 @@ impl<T: CanonicalSerialize> CanonicalSerialize for Vec<T> {
 }
 
 impl<T: CanonicalDeserialize> CanonicalDeserialize for Vec<T> {
+    #[inline]
     fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
         let len = u64::deserialize(reader)?;
         let mut values = vec![];
@@ -117,6 +128,7 @@ impl<T: CanonicalDeserialize> CanonicalDeserialize for Vec<T> {
         Ok(values)
     }
 
+    #[inline]
     fn deserialize_uncompressed<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
         let len = u64::deserialize(reader)?;
         let mut values = vec![];
@@ -127,68 +139,10 @@ impl<T: CanonicalDeserialize> CanonicalDeserialize for Vec<T> {
     }
 }
 
+#[inline]
 pub fn buffer_bit_byte_size(modulus_bits: usize) -> (usize, usize) {
     let byte_size = (modulus_bits + 7) / 8;
     ((byte_size * 8), byte_size)
-}
-
-pub(crate) fn serialize_num_limbs<W: Write, F: Flags>(
-    writer: &mut W,
-    limbs: &[u64],
-    mut num_bytes: usize,
-    flags: F,
-) -> Result<(), SerializationError> {
-    // Calculate number of limbs to encode to write `num_bytes`.
-    let num_limbs = (num_bytes + 7) / 8;
-    for (i, limb) in limbs.iter().take(num_limbs).enumerate() {
-        // Convert each limb to little-endian.
-        let mut bytes: [u8; 8] = limb.to_le_bytes();
-        // Calculate the number of bytes to write.
-        let bytes_to_write = cmp::min(8, num_bytes);
-
-        // Encode flags into last limb, last byte.
-        if i == num_limbs - 1 {
-            bytes[bytes_to_write - 1] |= flags.u8_bitmask();
-        }
-
-        // Write bytes.
-        writer.write_all(&bytes[..bytes_to_write])?;
-        num_bytes -= bytes_to_write;
-    }
-    Ok(())
-}
-
-pub(crate) fn deserialize_num_limbs<R: Read, F: Flags>(
-    reader: &mut R,
-    limbs: &mut [u64],
-    mut num_bytes: usize,
-    remove_flags: bool,
-) -> Result<F, SerializationError> {
-    // Calculate number of limbs to encode to write `num_bytes`.
-    let num_limbs = (num_bytes + 7) / 8;
-    let mut flags = F::default();
-    for (i, limb) in limbs.iter_mut().take(num_limbs).enumerate() {
-        // Calculate the number of bytes to read.
-        let bytes_to_read = cmp::min(8, num_bytes);
-
-        // Read exactly bytes_to_read bytes.
-        let mut bytes = [0u8; 8];
-        reader.read_exact(&mut bytes[..bytes_to_read])?;
-
-        // Read/Remove flags from last limb, last byte.
-        if i == num_limbs - 1 {
-            if remove_flags {
-                flags = F::from_u8_remove_flags(&mut bytes[bytes_to_read - 1]);
-            } else {
-                flags = F::from_u8(bytes[bytes_to_read - 1]);
-            }
-        }
-
-        // Convert from little-endian.
-        *limb = u64::from_le_bytes(bytes);
-        num_bytes -= bytes_to_read;
-    }
-    Ok(flags)
 }
 
 macro_rules! impl_prime_field_serializer {
@@ -200,24 +154,27 @@ macro_rules! impl_prime_field_serializer {
                 writer: &mut W,
                 flags: F,
             ) -> Result<(), crate::serialize::SerializationError> {
+                const BYTE_SIZE: usize = $byte_size;
+
                 let (output_bit_size, output_byte_size) =
                     crate::serialize::buffer_bit_byte_size($field::<P>::size_in_bits());
                 if F::len() > (output_bit_size - P::MODULUS_BITS as usize) {
                     return Err(crate::serialize::SerializationError::NotEnoughSpace);
                 }
 
-                let repr = self.into_repr();
-                crate::serialize::serialize_num_limbs(
-                    writer,
-                    repr.as_ref(),
-                    output_byte_size,
-                    flags,
-                )
+                let mut bytes = [0u8; BYTE_SIZE];
+                self.write(&mut bytes[..])?;
+
+                bytes[output_byte_size - 1] |= flags.u8_bitmask();
+
+                writer.write_all(&bytes[..output_byte_size])?;
+                Ok(())
             }
         }
 
         impl<P: $params> CanonicalSerialize for $field<P> {
             #[allow(unused_qualifications)]
+            #[inline]
             fn serialize<W: crate::io::Write>(
                 &self,
                 writer: &mut W,
@@ -225,6 +182,7 @@ macro_rules! impl_prime_field_serializer {
                 self.serialize_with_flags(writer, crate::serialize::EmptyFlags)
             }
 
+            #[inline]
             fn serialized_size(&self) -> usize {
                 let (_, output_byte_size) =
                     crate::serialize::buffer_bit_byte_size($field::<P>::size_in_bits());
@@ -237,20 +195,20 @@ macro_rules! impl_prime_field_serializer {
             fn deserialize_with_flags<R: crate::io::Read, F: crate::serialize::Flags>(
                 reader: &mut R,
             ) -> Result<(Self, F), crate::serialize::SerializationError> {
+                const BYTE_SIZE: usize = $byte_size;
+
                 let (output_bit_size, output_byte_size) =
                     crate::serialize::buffer_bit_byte_size($field::<P>::size_in_bits());
                 if F::len() > (output_bit_size - P::MODULUS_BITS as usize) {
                     return Err(crate::serialize::SerializationError::NotEnoughSpace);
                 }
 
-                let mut value = P::BigInt::default();
-                let flags = crate::serialize::deserialize_num_limbs(
-                    reader,
-                    value.as_mut(),
-                    output_byte_size,
-                    true,
-                )?;
-                Ok((Self::from_repr(value), flags))
+                let mut masked_bytes = [0; BYTE_SIZE];
+                reader.read_exact(&mut masked_bytes[..output_byte_size])?;
+
+                let flags = F::from_u8_remove_flags(&mut masked_bytes[output_byte_size - 1]);
+
+                Ok((Self::read(&masked_bytes[..])?, flags))
             }
         }
 
@@ -259,16 +217,15 @@ macro_rules! impl_prime_field_serializer {
             fn deserialize<R: crate::io::Read>(
                 reader: &mut R,
             ) -> Result<Self, crate::serialize::SerializationError> {
+                const BYTE_SIZE: usize = $byte_size;
+
                 let (_, output_byte_size) =
                     crate::serialize::buffer_bit_byte_size($field::<P>::size_in_bits());
-                let mut value = P::BigInt::default();
-                crate::serialize::deserialize_num_limbs::<_, crate::serialize::EmptyFlags>(
-                    reader,
-                    value.as_mut(),
-                    output_byte_size,
-                    false,
-                )?;
-                Ok(Self::from_repr(value))
+
+                let mut masked_bytes = [0; BYTE_SIZE];
+                reader.read_exact(&mut masked_bytes[..output_byte_size])?;
+
+                Ok(Self::read(&masked_bytes[..])?)
             }
         }
     };
@@ -278,6 +235,7 @@ macro_rules! impl_sw_curve_serializer {
     ($params: ident) => {
         impl<P: $params> CanonicalSerialize for GroupAffine<P> {
             #[allow(unused_qualifications)]
+            #[inline]
             fn serialize<W: crate::io::Write>(
                 &self,
                 writer: &mut W,
@@ -292,11 +250,13 @@ macro_rules! impl_sw_curve_serializer {
                 }
             }
 
+            #[inline]
             fn serialized_size(&self) -> usize {
                 self.x.serialized_size()
             }
 
             #[allow(unused_qualifications)]
+            #[inline]
             fn serialize_uncompressed<W: crate::io::Write>(
                 &self,
                 writer: &mut W,
@@ -311,6 +271,7 @@ macro_rules! impl_sw_curve_serializer {
                 Ok(())
             }
 
+            #[inline]
             fn uncompressed_size(&self) -> usize {
                 self.x.serialized_size() + self.y.serialized_size()
             }
@@ -357,6 +318,7 @@ macro_rules! impl_edwards_curve_serializer {
     ($params: ident) => {
         impl<P: $params> CanonicalSerialize for GroupAffine<P> {
             #[allow(unused_qualifications)]
+            #[inline]
             fn serialize<W: crate::io::Write>(
                 &self,
                 writer: &mut W,
@@ -371,11 +333,13 @@ macro_rules! impl_edwards_curve_serializer {
                 }
             }
 
+            #[inline]
             fn serialized_size(&self) -> usize {
                 CanonicalSerialize::serialized_size(&self.x)
             }
 
             #[allow(unused_qualifications)]
+            #[inline]
             fn serialize_uncompressed<W: crate::io::Write>(
                 &self,
                 writer: &mut W,
@@ -385,6 +349,7 @@ macro_rules! impl_edwards_curve_serializer {
                 Ok(())
             }
 
+            #[inline]
             fn uncompressed_size(&self) -> usize {
                 self.x.uncompressed_size() + self.y.uncompressed_size()
             }

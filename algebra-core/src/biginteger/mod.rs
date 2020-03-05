@@ -2,8 +2,7 @@ use crate::{
     bytes::{FromBytes, ToBytes},
     fields::BitIterator,
     io::{Read, Result as IoResult, Write},
-    serialize::{deserialize_num_limbs, serialize_num_limbs},
-    CanonicalDeserialize, CanonicalSerialize, EmptyFlags, SerializationError, UniformRand, Vec,
+    CanonicalDeserialize, CanonicalSerialize, SerializationError, UniformRand, Vec,
 };
 use core::fmt::{Debug, Display};
 use rand::{
@@ -24,7 +23,8 @@ bigint_impl!(BigInteger832, 13);
 
 impl<T: BigInteger> CanonicalSerialize for T {
     fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
-        serialize_num_limbs(writer, self.as_ref(), Self::NUM_LIMBS * 8, EmptyFlags)
+        self.write(writer)?;
+        Ok(())
     }
 
     fn serialized_size(&self) -> usize {
@@ -34,8 +34,7 @@ impl<T: BigInteger> CanonicalSerialize for T {
 
 impl<T: BigInteger> CanonicalDeserialize for T {
     fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
-        let mut value = T::default();
-        deserialize_num_limbs::<_, EmptyFlags>(reader, value.as_mut(), Self::NUM_LIMBS * 8, false)?;
+        let value = Self::read(reader)?;
         Ok(value)
     }
 }
