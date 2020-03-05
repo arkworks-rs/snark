@@ -268,16 +268,16 @@ mod test {
     };
     use crate::{vrf::{
         FieldBasedVrf, FieldBasedVrfGadget,
-        ecvrf::{FieldBasedEcVrf, constraints::FieldBasedEcVrfProofVerificationGadget},
+        ecvrf::{FieldBasedEcVrf, FieldBasedEcVrfProof, constraints::FieldBasedEcVrfProofVerificationGadget},
     }, crh::{
         MNT4PoseidonHash, MNT6PoseidonHash, BLS12PoseidonHash,
         MNT4PoseidonHashGadget, MNT6PoseidonHashGadget, BLS12PoseidonHashGadget,
         bowe_hopwood::{
-            BoweHopwoodPedersenCRH,
+            BoweHopwoodPedersenCRH, BoweHopwoodPedersenParameters,
             constraints::BoweHopwoodPedersenCRHGadget,
         },
         pedersen::{
-            PedersenCRH, PedersenWindow
+            PedersenCRH, PedersenWindow, PedersenParameters,
         },
     }, FixedLengthCRH};
 
@@ -316,9 +316,17 @@ mod test {
     type BHMNT6Gadget = BoweHopwoodPedersenCRHGadget<MNT4G1Projective, MNT6Fr, MNT4G1Gadget>;
     type PedersenJubJubGadget = PedersenCRHGadget<JubJubProjective, BLS12Fr, JubJubGadget>;
 
+    type BHMNT4Parameters = BoweHopwoodPedersenParameters<MNT6G1Projective>;
+    type BHMNT6Parameters = BoweHopwoodPedersenParameters<MNT4G1Projective>;
+    type PedersenBLS12Parameters = PedersenParameters<JubJubProjective>;
+
     type EcVrfMNT4 = FieldBasedEcVrf<MNT4Fr, MNT6G1Projective, MNT4PoseidonHash, BHMNT6>;
     type EcVrfMNT6 = FieldBasedEcVrf<MNT6Fr, MNT4G1Projective, MNT6PoseidonHash, BHMNT4>;
     type EcVrfBLS12 = FieldBasedEcVrf<BLS12Fr, JubJubProjective, BLS12PoseidonHash, PedersenJubJub>;
+
+    type EcVrfMNT4Proof = FieldBasedEcVrfProof<MNT4Fr, MNT6G1Projective>;
+    type EcVrfMNT6Proof = FieldBasedEcVrfProof<MNT6Fr, MNT4G1Projective>;
+    type EcVrfBLS12Proof = FieldBasedEcVrfProof<BLS12Fr, JubJubProjective>;
 
     type EcVrfMNT4Gadget = FieldBasedEcVrfProofVerificationGadget<
         MNT4Fr,
@@ -355,16 +363,9 @@ mod test {
         (proof, pk, sk)
     }
 
-    #[test]
-    fn mnt4_ecvrf_gadget_test() {
+    fn mnt4_ecvrf_gadget_generate_constraints(message: MNT4Fr, pk: MNT6G1Projective, proof: EcVrfMNT4Proof, pp: &BHMNT4Parameters) -> bool {
 
         let mut cs = TestConstraintSystem::<MNT4Fr>::new();
-
-        //Generate VRF proof for a random field element f and get the proof and the keypair too
-        let rng = &mut thread_rng();
-        let message: MNT4Fr = rng.gen();
-        let pp = <BHMNT6 as FixedLengthCRH>::setup(rng).unwrap();
-        let (proof, pk, sk) = prove::<EcVrfMNT4, _>(rng, &pp, &[message]);
 
         //Alloc proof, pk and message
         let proof_g = <EcVrfMNT4Gadget as FieldBasedVrfGadget<EcVrfMNT4, MNT4Fr>>::ProofGadget::alloc(
@@ -374,7 +375,7 @@ mod test {
 
         let pk_g = <EcVrfMNT4Gadget as FieldBasedVrfGadget<EcVrfMNT4, MNT4Fr>>::PublicKeyGadget::alloc(cs.ns(|| "alloc pk"), || Ok(pk)).unwrap();
 
-        let pp_g = <EcVrfMNT4Gadget as FieldBasedVrfGadget<EcVrfMNT4, MNT4Fr>>::GHParametersGadget::alloc(cs.ns(|| "alloc gh params"), || Ok(&pp)).unwrap();
+        let pp_g = <EcVrfMNT4Gadget as FieldBasedVrfGadget<EcVrfMNT4, MNT4Fr>>::GHParametersGadget::alloc(cs.ns(|| "alloc gh params"), || Ok(pp)).unwrap();
 
         let message_g = <EcVrfMNT4Gadget as FieldBasedVrfGadget<EcVrfMNT4, MNT4Fr>>::DataGadget::alloc(
             cs.ns(|| "alloc message"),
@@ -390,39 +391,40 @@ mod test {
             &[message_g.clone()]
         ).unwrap();
 
-        assert!(cs.is_satisfied());
+        if !cs.is_satisfied() {
+            println!("**********Unsatisfied constraints***********");
+            println!("{:?}", cs.which_is_unsatisfied());
+        }
 
-        //Wrong proof: generate a proof for a different message and check constraints fail
-        let new_message: MNT4Fr = rng.gen();
-        let new_proof = EcVrfMNT4::prove(rng, &pp, &pk, &sk, &[new_message]).unwrap();
-        let new_proof_g = <EcVrfMNT4Gadget as FieldBasedVrfGadget<EcVrfMNT4, MNT4Fr>>::ProofGadget::alloc(
-            cs.ns(|| "alloc new proof"),
-            || Ok(new_proof)
-        ).unwrap();
-
-        //Verify new proof: expected to fail
-        EcVrfMNT4Gadget::check_verify_gadget(
-            cs.ns(|| "verify proof2"),
-            &pp_g,
-            &pk_g,
-            &new_proof_g,
-            &[message_g]
-        ).unwrap();
-
-        assert!(!cs.is_satisfied());
-        println!("{:?}", cs.which_is_unsatisfied());
+        cs.is_satisfied()
     }
 
     #[test]
-    fn mnt6_ecvrf_gadget_test() {
+    fn mnt4_ecvrf_gadget_test() {
+        let rng = &mut thread_rng();
+        let message: MNT4Fr = rng.gen();
+        let pp = <BHMNT6 as FixedLengthCRH>::setup(rng).unwrap();
+        let (proof, pk, _) = prove::<EcVrfMNT4, _>(rng, &pp, &[message]);
+
+        //Positive case
+        assert!(mnt4_ecvrf_gadget_generate_constraints(message, pk, proof, &pp));
+
+        //Change message
+        let wrong_message: MNT4Fr = rng.gen();
+        assert!(!mnt4_ecvrf_gadget_generate_constraints(wrong_message, pk, proof, &pp));
+
+        //Change pk
+        let wrong_pk: MNT6G1Projective = rng.gen();
+        assert!(!mnt4_ecvrf_gadget_generate_constraints(message, wrong_pk, proof, &pp));
+
+        //Change proof
+        let (wrong_proof, _, _) = prove::<EcVrfMNT4, _>(rng, &pp, &[wrong_message]);
+        assert!(!mnt4_ecvrf_gadget_generate_constraints(message, pk, wrong_proof, &pp));
+    }
+
+    fn mnt6_ecvrf_gadget_generate_constraints(message: MNT6Fr, pk: MNT4G1Projective, proof: EcVrfMNT6Proof, pp: &BHMNT6Parameters) -> bool {
 
         let mut cs = TestConstraintSystem::<MNT6Fr>::new();
-
-        //Generate VRF proof for a random field element f and get the proof and the keypair too
-        let rng = &mut thread_rng();
-        let message: MNT6Fr = rng.gen();
-        let pp = <BHMNT4 as FixedLengthCRH>::setup(rng).unwrap();
-        let (proof, pk, sk) = prove::<EcVrfMNT6, _>(rng, &pp, &[message]);
 
         //Alloc proof, pk and message
         let proof_g = <EcVrfMNT6Gadget as FieldBasedVrfGadget<EcVrfMNT6, MNT6Fr>>::ProofGadget::alloc(
@@ -430,7 +432,7 @@ mod test {
             || Ok(proof)
         ).unwrap();
         let pk_g = <EcVrfMNT6Gadget as FieldBasedVrfGadget<EcVrfMNT6, MNT6Fr>>::PublicKeyGadget::alloc(cs.ns(|| "alloc pk"), || Ok(pk)).unwrap();
-        let pp_g = <EcVrfMNT6Gadget as FieldBasedVrfGadget<EcVrfMNT6, MNT6Fr>>::GHParametersGadget::alloc(cs.ns(|| "alloc gh params"), || Ok(&pp)).unwrap();
+        let pp_g = <EcVrfMNT6Gadget as FieldBasedVrfGadget<EcVrfMNT6, MNT6Fr>>::GHParametersGadget::alloc(cs.ns(|| "alloc gh params"), || Ok(pp)).unwrap();
         let message_g = <EcVrfMNT6Gadget as FieldBasedVrfGadget<EcVrfMNT6, MNT6Fr>>::DataGadget::alloc(
             cs.ns(|| "alloc message"),
             || Ok(message)
@@ -445,39 +447,40 @@ mod test {
             &[message_g.clone()]
         ).unwrap();
 
-        assert!(cs.is_satisfied());
+        if !cs.is_satisfied() {
+            println!("**********Unsatisfied constraints***********");
+            println!("{:?}", cs.which_is_unsatisfied());
+        }
 
-        //Wrong proof: generate a proof for a different message and check constraints fail
-        let new_message: MNT6Fr = rng.gen();
-        let new_proof = EcVrfMNT6::prove(rng, &pp, &pk, &sk, &[new_message]).unwrap();
-        let new_proof_g = <EcVrfMNT6Gadget as FieldBasedVrfGadget<EcVrfMNT6, MNT6Fr>>::ProofGadget::alloc(
-            cs.ns(|| "alloc new proof"),
-            || Ok(new_proof)
-        ).unwrap();
-
-        //Verify new proof: expected to fail
-        EcVrfMNT6Gadget::check_verify_gadget(
-            cs.ns(|| "verify proof2"),
-            &pp_g,
-            &pk_g,
-            &new_proof_g,
-            &[message_g]
-        ).unwrap();
-
-        assert!(!cs.is_satisfied());
-        println!("{:?}", cs.which_is_unsatisfied());
+        cs.is_satisfied()
     }
 
     #[test]
-    fn bls12_381_ecvrf_gadget_test() {
+    fn mnt6_ecvrf_gadget_test() {
+        let rng = &mut thread_rng();
+        let message: MNT6Fr = rng.gen();
+        let pp = <BHMNT4 as FixedLengthCRH>::setup(rng).unwrap();
+        let (proof, pk, _) = prove::<EcVrfMNT6, _>(rng, &pp, &[message]);
+
+        //Positive case
+        assert!(mnt6_ecvrf_gadget_generate_constraints(message, pk, proof, &pp));
+
+        //Change message
+        let wrong_message: MNT6Fr = rng.gen();
+        assert!(!mnt6_ecvrf_gadget_generate_constraints(wrong_message, pk, proof, &pp));
+
+        //Change pk
+        let wrong_pk: MNT4G1Projective = rng.gen();
+        assert!(!mnt6_ecvrf_gadget_generate_constraints(message, wrong_pk, proof, &pp));
+
+        //Change proof
+        let (wrong_proof, _, _) = prove::<EcVrfMNT6, _>(rng, &pp, &[wrong_message]);
+        assert!(!mnt6_ecvrf_gadget_generate_constraints(message, pk, wrong_proof, &pp));
+    }
+
+    fn bls12_381_ecvrf_gadget_generate_constraints(message: BLS12Fr, pk: JubJubProjective, proof: EcVrfBLS12Proof, pp: &PedersenBLS12Parameters) -> bool {
 
         let mut cs = TestConstraintSystem::<BLS12Fr>::new();
-
-        //Generate VRF proof for a random field element f and get the proof and the keypair too
-        let rng = &mut thread_rng();
-        let message: BLS12Fr = rng.gen();
-        let pp = <PedersenJubJub as FixedLengthCRH>::setup(rng).unwrap();
-        let (proof, pk, sk) = prove::<EcVrfBLS12, _>(rng, &pp, &[message]);
 
         //Alloc proof, pk and message
         let proof_g = <EcVrfBLS12Gadget as FieldBasedVrfGadget<EcVrfBLS12, BLS12Fr>>::ProofGadget::alloc(
@@ -485,7 +488,7 @@ mod test {
             || Ok(proof)
         ).unwrap();
         let pk_g = <EcVrfBLS12Gadget as FieldBasedVrfGadget<EcVrfBLS12, BLS12Fr>>::PublicKeyGadget::alloc(cs.ns(|| "alloc pk"), || Ok(pk)).unwrap();
-        let pp_g = <EcVrfBLS12Gadget as FieldBasedVrfGadget<EcVrfBLS12, BLS12Fr>>::GHParametersGadget::alloc(cs.ns(|| "alloc gh params"), || Ok(&pp)).unwrap();
+        let pp_g = <EcVrfBLS12Gadget as FieldBasedVrfGadget<EcVrfBLS12, BLS12Fr>>::GHParametersGadget::alloc(cs.ns(|| "alloc gh params"), || Ok(pp)).unwrap();
         let message_g = <EcVrfBLS12Gadget as FieldBasedVrfGadget<EcVrfBLS12, BLS12Fr>>::DataGadget::alloc(
             cs.ns(|| "alloc message"),
             || Ok(message)
@@ -500,27 +503,35 @@ mod test {
             &[message_g.clone()]
         ).unwrap();
 
-        assert!(cs.is_satisfied());
+        if !cs.is_satisfied() {
+            println!("**********Unsatisfied constraints***********");
+            println!("{:?}", cs.which_is_unsatisfied());
+        }
 
-        //Wrong proof: generate a proof for a different message and check constraints fail
-        let new_message: BLS12Fr = rng.gen();
-        let new_proof = EcVrfBLS12::prove(rng, &pp, &pk, &sk, &[new_message]).unwrap();
-        let new_proof_g = <EcVrfBLS12Gadget as FieldBasedVrfGadget<EcVrfBLS12, BLS12Fr>>::ProofGadget::alloc(
-            cs.ns(|| "alloc new proof"),
-            || Ok(new_proof)
-        ).unwrap();
+        cs.is_satisfied()
+    }
 
-        //Verify new proof: expected to fail
-        EcVrfBLS12Gadget::check_verify_gadget(
-            cs.ns(|| "verify proof2"),
-            &pp_g,
-            &pk_g,
-            &new_proof_g,
-            &[message_g]
-        ).unwrap();
+    #[test]
+    fn bls12_381_ecvrf_gadget_test() {
+        let rng = &mut thread_rng();
+        let message: BLS12Fr = rng.gen();
+        let pp = <PedersenJubJub as FixedLengthCRH>::setup(rng).unwrap();
+        let (proof, pk, _) = prove::<EcVrfBLS12, _>(rng, &pp, &[message]);
 
-        assert!(!cs.is_satisfied());
-        println!("{:?}", cs.which_is_unsatisfied());
+        //Positive case
+        assert!(bls12_381_ecvrf_gadget_generate_constraints(message, pk, proof, &pp));
+
+        //Change message
+        let wrong_message: BLS12Fr = rng.gen();
+        assert!(!bls12_381_ecvrf_gadget_generate_constraints(wrong_message, pk, proof, &pp));
+
+        //Change pk
+        let wrong_pk: JubJubProjective = rng.gen();
+        assert!(!bls12_381_ecvrf_gadget_generate_constraints(message, wrong_pk, proof, &pp));
+
+        //Change proof
+        let (wrong_proof, _, _) = prove::<EcVrfBLS12, _>(rng, &pp, &[wrong_message]);
+        assert!(!bls12_381_ecvrf_gadget_generate_constraints(message, pk, wrong_proof, &pp));
     }
 
     #[test]
@@ -557,7 +568,7 @@ mod test {
                 || Ok(message)
             ).unwrap();
 
-            //Verify sig
+            //Verify proof
             EcVrfMNT4Gadget::check_verify_gadget(
                 cs.ns(|| "verify proof"),
                 &pp_g,
@@ -566,6 +577,29 @@ mod test {
                 &[message_g.clone()]
             ).unwrap();
             assert!(cs.is_satisfied());
+
+            //Negative case: wrong message (or wrong proof for another message)
+            let new_message: MNT4Fr = rng.gen();
+
+            let new_message_g = <EcVrfMNT4Gadget as FieldBasedVrfGadget<EcVrfMNT4, MNT4Fr>>::DataGadget::alloc(
+                cs.ns(|| "alloc new_message"),
+                || Ok(new_message)
+            ).unwrap();
+
+            if !cs.is_satisfied() {
+                println!("**********Unsatisfied constraints***********");
+                println!("{:?}", cs.which_is_unsatisfied());
+            }
+
+            EcVrfMNT4Gadget::check_verify_gadget(
+                cs.ns(|| "verify new proof"),
+                &pp_g,
+                &pk_g,
+                &proof_g,
+                &[new_message_g.clone()]
+            ).unwrap();
+
+            assert!(!cs.is_satisfied());
         }
     }
 }

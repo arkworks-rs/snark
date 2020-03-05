@@ -247,7 +247,7 @@ mod test {
     use rand_xorshift::XorShiftRng;
 
     use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
-    use algebra::{BitIterator, Field, UniformRand};
+    use algebra::{BitIterator, Field, UniformRand, PrimeField};
     use r1cs_core::ConstraintSystem;
 
     fn field_test<
@@ -478,6 +478,75 @@ mod test {
         }
     }
 
+    fn equ_verdict_gadget_test<ConstraintF: PrimeField>()
+    {
+        use crate::fields::fp::FpGadget;
+
+        let mut rng = thread_rng();
+        let a = ConstraintF::rand(&mut rng);
+
+        //Case a == b
+        {
+            let mut cs = TestConstraintSystem::<ConstraintF>::new();
+
+            let a_gadget = FpGadget::<ConstraintF>::alloc(
+                cs.ns(|| "alloc a"),
+                || Ok(a)
+            ).unwrap();
+
+            //If a == b then v = True
+            let b_gadget = FpGadget::<ConstraintF>::alloc(
+                cs.ns(|| "alloc b"),
+                || Ok(a.clone())
+            ).unwrap();
+
+            let v = a_gadget.enforce_verdict(cs.ns(|| "a == b"), &b_gadget).unwrap();
+            v.enforce_equal(cs.ns(|| " v == True"), &Boolean::constant(true)).unwrap();
+            assert!(cs.is_satisfied());
+
+            //If a == b but the prover maliciously witness v as False, cs will not be satisfied
+            cs.set("a == b/alloc verdict/boolean", ConstraintF::zero());
+            assert!(!cs.is_satisfied());
+            assert_eq!("a == b/1 - v = c * (x - y)", cs.which_is_unsatisfied().unwrap());
+
+            //If a == b the prover can freely choose c without invalidating any constraint
+            cs.set("a == b/alloc verdict/boolean", ConstraintF::one()); //Let's bring back v to True
+            cs.set("a == b/alloc c/alloc", ConstraintF::rand(&mut rng)); //Let's choose a random v
+            assert!(cs.is_satisfied());
+        }
+
+        //Case a != b
+        {
+            let mut cs = TestConstraintSystem::<ConstraintF>::new();
+
+            let a_gadget = FpGadget::<ConstraintF>::alloc(
+                cs.ns(|| "alloc a"),
+                || Ok(a)
+            ).unwrap();
+
+            //If a != b then v = False
+            let b_gadget = FpGadget::<ConstraintF>::alloc(
+                cs.ns(|| "alloc b"),
+                || Ok(ConstraintF::rand(&mut rng))
+            ).unwrap();
+
+            let v = a_gadget.enforce_verdict(cs.ns(|| "a != b"), &b_gadget).unwrap();
+            v.enforce_equal(cs.ns(|| " v == False"), &Boolean::constant(false)).unwrap();
+            assert!(cs.is_satisfied());
+
+            //If a != b but the prover maliciously witness v as True, cs will not be satisfied
+            cs.set("a != b/alloc verdict/boolean", ConstraintF::one());
+            assert!(!cs.is_satisfied());
+            assert_eq!("a != b/0 = v * (x - y)/conditional_equals", cs.which_is_unsatisfied().unwrap());
+
+            //If a != b the prover is forced to choose v as 1/(a-b)
+            cs.set("a != b/alloc verdict/boolean", ConstraintF::zero()); //Let's bring back v to False
+            cs.set("a != b/alloc c/alloc", ConstraintF::rand(&mut rng)); //Let's choose a random v
+            assert!(!cs.is_satisfied());
+            assert_eq!("a != b/1 - v = c * (x - y)", cs.which_is_unsatisfied().unwrap());
+        }
+    }
+
     #[test]
     fn bls12_377_field_gadgets_test() {
         use crate::fields::bls12_377::{Fq12Gadget, Fq2Gadget, Fq6Gadget, FqGadget};
@@ -521,6 +590,8 @@ mod test {
         }
 
         assert!(cs.is_satisfied());
+        equ_verdict_gadget_test::<Fq>();
+
     }
 
     #[test]
@@ -539,6 +610,7 @@ mod test {
             println!("{:?}", cs.which_is_unsatisfied().unwrap());
         }
         assert!(cs.is_satisfied());
+        equ_verdict_gadget_test::<Fq>();
     }
 
     #[test]
@@ -557,6 +629,7 @@ mod test {
             println!("{:?}", cs.which_is_unsatisfied().unwrap());
         }
         assert!(cs.is_satisfied());
+        equ_verdict_gadget_test::<Fq>();
     }
 
     #[test]
@@ -593,6 +666,8 @@ mod test {
             println!("{:?}", cs.which_is_unsatisfied().unwrap());
         }
         assert!(cs.is_satisfied());
+
+        equ_verdict_gadget_test::<Fq>();
     }
 
     #[test]
@@ -629,7 +704,7 @@ mod test {
             println!("{:?}", cs.which_is_unsatisfied().unwrap());
         }
         assert!(cs.is_satisfied());
+
+        equ_verdict_gadget_test::<Fq>();
     }
-
-
 }
