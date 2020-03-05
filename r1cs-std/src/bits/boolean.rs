@@ -1,4 +1,4 @@
-use algebra::{BitIterator, Field, FpParameters, PrimeField};
+use algebra::{BitIterator, Field, PrimeField};
 
 use crate::{prelude::*, Assignment, Vec};
 use core::borrow::Borrow;
@@ -619,7 +619,23 @@ impl Boolean {
         let mut run_i = 0;
         let mut nand_i = 0;
 
-        let char_num_bits = <F as PrimeField>::Params::MODULUS_BITS as usize;
+        let char_num_bits = {
+            let mut leading_zeros = 0;
+            let mut total_bits = 0;
+            let mut found_one = false;
+            for b in BitIterator::new(b.clone()) {
+                total_bits += 1;
+                if !b && !found_one {
+                    leading_zeros += 1
+                }
+                if b {
+                    found_one = true;
+                }
+            }
+
+            total_bits - leading_zeros
+        };
+
         if bits.len() > char_num_bits {
             let num_extra_bits = bits.len() - char_num_bits;
             let mut or_result = Boolean::constant(false);
