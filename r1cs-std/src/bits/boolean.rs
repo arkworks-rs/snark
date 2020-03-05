@@ -1,4 +1,4 @@
-use algebra::{BitIterator, Field, FpParameters, PrimeField};
+use algebra::{BitIterator, Field, PrimeField};
 
 use crate::{prelude::*, Assignment, Vec};
 use core::borrow::Borrow;
@@ -576,19 +576,40 @@ impl Boolean {
     /// Asserts that this bit_gadget representation is "in
     /// the field" when interpreted in big endian.
     pub fn enforce_in_field<ConstraintF, CS, F: PrimeField>(
-        mut cs: CS,
+        cs: CS,
         bits: &[Self],
     ) -> Result<(), SynthesisError>
     where
         ConstraintF: Field,
         CS: ConstraintSystem<ConstraintF>,
     {
-        let mut bits_iter = bits.iter();
-
         // b = char() - 1
         let mut b = F::characteristic().to_vec();
         assert_eq!(b[0] % 2, 1);
         b[0] -= 1;
+        let run = Self::enforce_smaller_or_equal_than::<_, _, F, _>(cs, bits, b)?;
+
+        // We should always end in a "run" of zeros, because
+        // the characteristic is an odd prime. So, this should
+        // be empty.
+        assert!(run.is_empty());
+
+        Ok(())
+    }
+
+    /// Asserts that this bit_gadget representation is smaller
+    /// or equal than the provided element
+    pub fn enforce_smaller_or_equal_than<ConstraintF, CS, F: PrimeField, E: AsRef<[u64]>>(
+        mut cs: CS,
+        bits: &[Self],
+        element: E,
+    ) -> Result<Vec<Boolean>, SynthesisError>
+    where
+        ConstraintF: Field,
+        CS: ConstraintSystem<ConstraintF>,
+    {
+        let mut bits_iter = bits.iter();
+        let b: &[u64] = element.as_ref();
 
         // Runs of ones in r
         let mut last_run = Boolean::constant(true);
@@ -598,7 +619,23 @@ impl Boolean {
         let mut run_i = 0;
         let mut nand_i = 0;
 
-        let char_num_bits = <F as PrimeField>::Params::MODULUS_BITS as usize;
+        let char_num_bits = {
+            let mut leading_zeros = 0;
+            let mut total_bits = 0;
+            let mut found_one = false;
+            for b in BitIterator::new(b.clone()) {
+                total_bits += 1;
+                if !b && !found_one {
+                    leading_zeros += 1
+                }
+                if b {
+                    found_one = true;
+                }
+            }
+
+            total_bits - leading_zeros
+        };
+
         if bits.len() > char_num_bits {
             let num_extra_bits = bits.len() - char_num_bits;
             let mut or_result = Boolean::constant(false);
@@ -651,12 +688,7 @@ impl Boolean {
         }
         assert!(bits_iter.next().is_none());
 
-        // We should always end in a "run" of zeros, because
-        // the characteristic is an odd prime. So, this should
-        // be empty.
-        assert!(current_run.is_empty());
-
-        Ok(())
+        Ok(current_run)
     }
 }
 
