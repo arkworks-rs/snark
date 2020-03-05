@@ -6,8 +6,8 @@ use algebra::Field;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
 pub mod boolean;
-pub mod uint64;
 pub mod uint32;
+pub mod uint64;
 pub mod uint8;
 
 pub trait ToBitsGadget<ConstraintF: Field> {
