@@ -1,8 +1,10 @@
 use blake2::Blake2s as b2s;
 use digest::Digest;
+use alloc::vec::Vec;
 
 use super::PRF;
 use crate::CryptoError;
+
 
 #[cfg(feature = "r1cs")]
 pub mod constraints;
