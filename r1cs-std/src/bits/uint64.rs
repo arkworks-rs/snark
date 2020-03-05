@@ -8,22 +8,22 @@ use crate::{
     Assignment, Vec,
 };
 
-/// Represents an interpretation of 32 `Boolean` objects as an
+/// Represents an interpretation of 64 `Boolean` objects as an
 /// unsigned integer.
 #[derive(Clone, Debug)]
-pub struct UInt32 {
+pub struct UInt64 {
     // Least significant bit_gadget first
     bits:  Vec<Boolean>,
-    value: Option<u32>,
+    value: Option<u64>,
 }
 
-impl UInt32 {
-    /// Construct a constant `UInt32` from a `u32`
-    pub fn constant(value: u32) -> Self {
-        let mut bits = Vec::with_capacity(32);
+impl UInt64 {
+    /// Construct a constant `UInt64` from a `u64`
+    pub fn constant(value: u64) -> Self {
+        let mut bits = Vec::with_capacity(64);
 
         let mut tmp = value;
-        for _ in 0..32 {
+        for _ in 0..64 {
             if tmp & 1 == 1 {
                 bits.push(Boolean::constant(true))
             } else {
@@ -33,30 +33,30 @@ impl UInt32 {
             tmp >>= 1;
         }
 
-        UInt32 {
+        UInt64 {
             bits,
             value: Some(value),
         }
     }
 
-    /// Allocate a `UInt32` in the constraint system
-    pub fn alloc<ConstraintF, CS>(mut cs: CS, value: Option<u32>) -> Result<Self, SynthesisError>
+    /// Allocate a `UInt64` in the constraint system
+    pub fn alloc<ConstraintF, CS>(mut cs: CS, value: Option<u64>) -> Result<Self, SynthesisError>
     where
         ConstraintF: Field,
         CS: ConstraintSystem<ConstraintF>,
     {
         let values = match value {
             Some(mut val) => {
-                let mut v = Vec::with_capacity(32);
+                let mut v = Vec::with_capacity(64);
 
-                for _ in 0..32 {
+                for _ in 0..64 {
                     v.push(Some(val & 1 == 1));
                     val >>= 1;
                 }
 
                 v
             },
-            None => vec![None; 32],
+            None => vec![None; 64],
         };
 
         let bits = values
@@ -70,22 +70,22 @@ impl UInt32 {
             })
             .collect::<Result<Vec<_>, SynthesisError>>()?;
 
-        Ok(UInt32 { bits, value })
+        Ok(UInt64 { bits, value })
     }
 
-    /// Turns this `UInt32` into its little-endian byte order representation.
+    /// Turns this `UInt64` into its little-endian byte order representation.
     pub fn to_bits_le(&self) -> Vec<Boolean> {
         self.bits.clone()
     }
 
     /// Converts a little-endian byte order representation of bits into a
-    /// `UInt32`.
+    /// `UInt64`.
     pub fn from_bits_le(bits: &[Boolean]) -> Self {
-        assert_eq!(bits.len(), 32);
+        assert_eq!(bits.len(), 64);
 
         let bits = bits.to_vec();
 
-        let mut value = Some(0u32);
+        let mut value = Some(0u64);
         for b in bits.iter().rev() {
             value.as_mut().map(|v| *v <<= 1);
 
@@ -116,24 +116,24 @@ impl UInt32 {
     }
 
     pub fn rotr(&self, by: usize) -> Self {
-        let by = by % 32;
+        let by = by % 64;
 
         let new_bits = self
             .bits
             .iter()
             .skip(by)
             .chain(self.bits.iter())
-            .take(32)
+            .take(64)
             .cloned()
             .collect();
 
-        UInt32 {
+        UInt64 {
             bits:  new_bits,
             value: self.value.map(|v| v.rotate_right(by as u32)),
         }
     }
 
-    /// XOR this `UInt32` with another `UInt32`
+    /// XOR this `UInt64` with another `UInt64`
     pub fn xor<ConstraintF, CS>(&self, mut cs: CS, other: &Self) -> Result<Self, SynthesisError>
     where
         ConstraintF: Field,
@@ -152,13 +152,13 @@ impl UInt32 {
             .map(|(i, (a, b))| Boolean::xor(cs.ns(|| format!("xor of bit_gadget {}", i)), a, b))
             .collect::<Result<_, _>>()?;
 
-        Ok(UInt32 {
+        Ok(UInt64 {
             bits,
             value: new_value,
         })
     }
 
-    /// Perform modular addition of several `UInt32` objects.
+    /// Perform modular addition of several `UInt64` objects.
     pub fn addmany<ConstraintF, CS>(mut cs: CS, operands: &[Self]) -> Result<Self, SynthesisError>
     where
         ConstraintF: PrimeField,
@@ -166,7 +166,7 @@ impl UInt32 {
     {
         // Make some arbitrary bounds for ourselves to avoid overflows
         // in the scalar field
-        assert!(ConstraintF::Params::MODULUS_BITS >= 64);
+        assert!(ConstraintF::Params::MODULUS_BITS >= 128);
 
         assert!(operands.len() >= 1);
         assert!(operands.len() <= 10);
@@ -177,10 +177,10 @@ impl UInt32 {
 
         // Compute the maximum value of the sum so we allocate enough bits for
         // the result
-        let mut max_value = (operands.len() as u64) * u64::from(u32::max_value());
+        let mut max_value = (operands.len() as u128) * u128::from(u64::max_value());
 
         // Keep track of the resulting value
-        let mut result_value = Some(0u64);
+        let mut result_value = Some(0u64 as u128);
 
         // This is a linear combination that we will enforce to be "zero"
         let mut lc = LinearCombination::zero();
@@ -192,7 +192,7 @@ impl UInt32 {
             // Accumulate the value
             match op.value {
                 Some(val) => {
-                    result_value.as_mut().map(|v| *v += u64::from(val));
+                    result_value.as_mut().map(|v| *v += u128::from(val));
                 },
                 None => {
                     // If any of our operands have unknown value, we won't
@@ -229,14 +229,14 @@ impl UInt32 {
             }
         }
 
-        // The value of the actual result is modulo 2^32
-        let modular_value = result_value.map(|v| v as u32);
+        // The value of the actual result is modulo 2^64
+        let modular_value = result_value.map(|v| v as u64);
 
         if all_constants && modular_value.is_some() {
             // We can just return a constant, rather than
             // unpacking the result into allocated bits.
 
-            return Ok(UInt32::constant(modular_value.unwrap()));
+            return Ok(UInt64::constant(modular_value.unwrap()));
         }
 
         // Storage area for the resulting bits
@@ -266,16 +266,16 @@ impl UInt32 {
         cs.enforce(|| "modular addition", |lc| lc, |lc| lc, |_| lc);
 
         // Discard carry bits that we don't care about
-        result_bits.truncate(32);
+        result_bits.truncate(64);
 
-        Ok(UInt32 {
+        Ok(UInt64 {
             bits:  result_bits,
             value: modular_value,
         })
     }
 }
 
-impl<ConstraintF: Field> ToBytesGadget<ConstraintF> for UInt32 {
+impl<ConstraintF: Field> ToBytesGadget<ConstraintF> for UInt64 {
     #[inline]
     fn to_bytes<CS: ConstraintSystem<ConstraintF>>(
         &self,
@@ -283,7 +283,7 @@ impl<ConstraintF: Field> ToBytesGadget<ConstraintF> for UInt32 {
     ) -> Result<Vec<UInt8>, SynthesisError> {
         let value_chunks = match self.value.map(|val| {
             use algebra::bytes::ToBytes;
-            let mut bytes = [0u8; 4];
+            let mut bytes = [0u8; 8];
             val.write(bytes.as_mut()).unwrap();
             bytes
         }) {
@@ -292,8 +292,12 @@ impl<ConstraintF: Field> ToBytesGadget<ConstraintF> for UInt32 {
                 Some(chunks[1]),
                 Some(chunks[2]),
                 Some(chunks[3]),
+                Some(chunks[4]),
+                Some(chunks[5]),
+                Some(chunks[6]),
+                Some(chunks[7]),
             ],
-            None => [None, None, None, None],
+            None => [None, None, None, None, None, None, None, None],
         };
         let mut bytes = Vec::new();
         for (i, chunk8) in self.to_bits_le().chunks(8).enumerate() {
@@ -315,15 +319,15 @@ impl<ConstraintF: Field> ToBytesGadget<ConstraintF> for UInt32 {
     }
 }
 
-impl PartialEq for UInt32 {
+impl PartialEq for UInt64 {
     fn eq(&self, other: &Self) -> bool {
         self.value.is_some() && other.value.is_some() && self.value == other.value
     }
 }
 
-impl Eq for UInt32 {}
+impl Eq for UInt64 {}
 
-impl<ConstraintF: Field> ConditionalEqGadget<ConstraintF> for UInt32 {
+impl<ConstraintF: Field> ConditionalEqGadget<ConstraintF> for UInt64 {
     fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
@@ -332,7 +336,7 @@ impl<ConstraintF: Field> ConditionalEqGadget<ConstraintF> for UInt32 {
     ) -> Result<(), SynthesisError> {
         for (i, (a, b)) in self.bits.iter().zip(&other.bits).enumerate() {
             a.conditional_enforce_equal(
-                &mut cs.ns(|| format!("uint32_equal_{}", i)),
+                &mut cs.ns(|| format!("uint64_equal_{}", i)),
                 b,
                 condition,
             )?;
@@ -341,13 +345,13 @@ impl<ConstraintF: Field> ConditionalEqGadget<ConstraintF> for UInt32 {
     }
 
     fn cost() -> usize {
-        32 * <Boolean as ConditionalEqGadget<ConstraintF>>::cost()
+        64 * <Boolean as ConditionalEqGadget<ConstraintF>>::cost()
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::UInt32;
+    use super::UInt64;
     use crate::{bits::boolean::Boolean, test_constraint_system::TestConstraintSystem, Vec};
     use algebra::{bls12_381::Fr, One, Zero};
     use r1cs_core::ConstraintSystem;
@@ -355,15 +359,15 @@ mod test {
     use rand_xorshift::XorShiftRng;
 
     #[test]
-    fn test_uint32_from_bits() {
+    fn test_uint64_from_bits() {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         for _ in 0..1000 {
-            let v = (0..32)
+            let v = (0..64)
                 .map(|_| Boolean::constant(rng.gen()))
                 .collect::<Vec<_>>();
 
-            let b = UInt32::from_bits_le(&v);
+            let b = UInt64::from_bits_le(&v);
 
             for (i, bit_gadget) in b.bits.iter().enumerate() {
                 match bit_gadget {
@@ -387,21 +391,21 @@ mod test {
     }
 
     #[test]
-    fn test_uint32_xor() {
+    fn test_uint64_xor() {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         for _ in 0..1000 {
             let mut cs = TestConstraintSystem::<Fr>::new();
 
-            let a: u32 = rng.gen();
-            let b: u32 = rng.gen();
-            let c: u32 = rng.gen();
+            let a: u64 = rng.gen();
+            let b: u64 = rng.gen();
+            let c: u64 = rng.gen();
 
             let mut expected = a ^ b ^ c;
 
-            let a_bit = UInt32::alloc(cs.ns(|| "a_bit"), Some(a)).unwrap();
-            let b_bit = UInt32::constant(b);
-            let c_bit = UInt32::alloc(cs.ns(|| "c_bit"), Some(c)).unwrap();
+            let a_bit = UInt64::alloc(cs.ns(|| "a_bit"), Some(a)).unwrap();
+            let b_bit = UInt64::constant(b);
+            let c_bit = UInt64::alloc(cs.ns(|| "c_bit"), Some(c)).unwrap();
 
             let r = a_bit.xor(cs.ns(|| "first xor"), &b_bit).unwrap();
             let r = r.xor(cs.ns(|| "second xor"), &c_bit).unwrap();
@@ -429,23 +433,23 @@ mod test {
     }
 
     #[test]
-    fn test_uint32_addmany_constants() {
+    fn test_uint64_addmany_constants() {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         for _ in 0..1000 {
             let mut cs = TestConstraintSystem::<Fr>::new();
 
-            let a: u32 = rng.gen();
-            let b: u32 = rng.gen();
-            let c: u32 = rng.gen();
+            let a: u64 = rng.gen();
+            let b: u64 = rng.gen();
+            let c: u64 = rng.gen();
 
-            let a_bit = UInt32::constant(a);
-            let b_bit = UInt32::constant(b);
-            let c_bit = UInt32::constant(c);
+            let a_bit = UInt64::constant(a);
+            let b_bit = UInt64::constant(b);
+            let c_bit = UInt64::constant(c);
 
             let mut expected = a.wrapping_add(b).wrapping_add(c);
 
-            let r = UInt32::addmany(cs.ns(|| "addition"), &[a_bit, b_bit, c_bit]).unwrap();
+            let r = UInt64::addmany(cs.ns(|| "addition"), &[a_bit, b_bit, c_bit]).unwrap();
 
             assert!(r.value == Some(expected));
 
@@ -464,26 +468,26 @@ mod test {
     }
 
     #[test]
-    fn test_uint32_addmany() {
+    fn test_uint64_addmany() {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         for _ in 0..1000 {
             let mut cs = TestConstraintSystem::<Fr>::new();
 
-            let a: u32 = rng.gen();
-            let b: u32 = rng.gen();
-            let c: u32 = rng.gen();
-            let d: u32 = rng.gen();
+            let a: u64 = rng.gen();
+            let b: u64 = rng.gen();
+            let c: u64 = rng.gen();
+            let d: u64 = rng.gen();
 
             let mut expected = (a ^ b).wrapping_add(c).wrapping_add(d);
 
-            let a_bit = UInt32::alloc(cs.ns(|| "a_bit"), Some(a)).unwrap();
-            let b_bit = UInt32::constant(b);
-            let c_bit = UInt32::constant(c);
-            let d_bit = UInt32::alloc(cs.ns(|| "d_bit"), Some(d)).unwrap();
+            let a_bit = UInt64::alloc(cs.ns(|| "a_bit"), Some(a)).unwrap();
+            let b_bit = UInt64::constant(b);
+            let c_bit = UInt64::constant(c);
+            let d_bit = UInt64::alloc(cs.ns(|| "d_bit"), Some(d)).unwrap();
 
             let r = a_bit.xor(cs.ns(|| "xor"), &b_bit).unwrap();
-            let r = UInt32::addmany(cs.ns(|| "addition"), &[r, c_bit, d_bit]).unwrap();
+            let r = UInt64::addmany(cs.ns(|| "addition"), &[r, c_bit, d_bit]).unwrap();
 
             assert!(cs.is_satisfied());
 
@@ -515,14 +519,14 @@ mod test {
     }
 
     #[test]
-    fn test_uint32_rotr() {
+    fn test_uint64_rotr() {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         let mut num = rng.gen();
 
-        let a = UInt32::constant(num);
+        let a = UInt64::constant(num);
 
-        for i in 0..32 {
+        for i in 0..64 {
             let b = a.rotr(i);
 
             assert!(b.value.unwrap() == num);
