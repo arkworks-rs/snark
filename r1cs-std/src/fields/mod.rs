@@ -539,9 +539,9 @@ mod test {
             assert!(!cs.is_satisfied());
             assert_eq!("a != b/0 = v * (x - y)/conditional_equals", cs.which_is_unsatisfied().unwrap());
 
-            //If a != b the prover is forced to choose v as 1/(a-b)
+            //If a != b the prover is forced to choose c as 1/(a-b)
             cs.set("a != b/alloc verdict/boolean", ConstraintF::zero()); //Let's bring back v to False
-            cs.set("a != b/alloc c/alloc", ConstraintF::rand(&mut rng)); //Let's choose a random v
+            cs.set("a != b/alloc c/alloc", ConstraintF::rand(&mut rng)); //Let's choose a random c
             assert!(!cs.is_satisfied());
             assert_eq!("a != b/1 - v = c * (x - y)", cs.which_is_unsatisfied().unwrap());
         }
