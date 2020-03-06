@@ -1,14 +1,14 @@
 mod error;
 mod flags;
-use crate::io::{Read, Write};
+pub use crate::io::{Read, Write};
 pub use error::*;
 pub use flags::*;
 
-#[cfg(not(feature = "std"))]
-use alloc::vec::Vec;
+#[cfg(feature = "derive")]
+#[doc(hidden)]
+pub use algebra_core_derive::*;
 
-#[cfg(feature = "std")]
-use std::vec::Vec;
+use crate::Vec;
 
 /// Serializer in little endian format allowing to encode flags.
 pub trait CanonicalSerializeWithFlags: CanonicalSerialize {
@@ -21,6 +21,24 @@ pub trait CanonicalSerializeWithFlags: CanonicalSerialize {
 }
 
 /// Serializer in little endian format.
+/// This trait can be derived if all fields of a struct implement
+/// `CanonicalSerialize` and the `derive` feature is enabled.
+///
+/// # Example
+/// ```
+/// // The `derive` feature must be set for the derivation to work.
+/// use algebra_core::serialize::*;
+///
+/// # #[cfg(feature = "derive")]
+/// #[derive(CanonicalSerialize)]
+/// struct TestStruct {
+///     a: u64,
+///     b: (u64, (u64, u64)),
+/// }
+/// ```
+///
+/// If your code depends on `algebra` instead, the example works analogously
+/// when importing `algebra::serialize::*`.
 pub trait CanonicalSerialize {
     /// Serializes `self` into `writer`.
     fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError>;
@@ -47,6 +65,24 @@ pub trait CanonicalDeserializeWithFlags: Sized {
 }
 
 /// Deserializer in little endian format.
+/// This trait can be derived if all fields of a struct implement
+/// `CanonicalDeserialize` and the `derive` feature is enabled.
+///
+/// # Example
+/// ```
+/// // The `derive` feature must be set for the derivation to work.
+/// use algebra_core::serialize::*;
+///
+/// # #[cfg(feature = "derive")]
+/// #[derive(CanonicalDeserialize)]
+/// struct TestStruct {
+///     a: u64,
+///     b: (u64, (u64, u64)),
+/// }
+/// ```
+///
+/// If your code depends on `algebra` instead, the example works analogously
+/// when importing `algebra::serialize::*`.
 pub trait CanonicalDeserialize: Sized {
     /// Reads `Self` from `reader`.
     fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError>;
