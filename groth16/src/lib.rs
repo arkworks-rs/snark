@@ -25,8 +25,9 @@ use std::{string::String, vec::Vec};
 
 use algebra_core::{
     bytes::ToBytes,
-    io::{self, Read, Result as IoResult, Write},
-    CanonicalDeserialize, CanonicalSerialize, PairingEngine,
+    io::{self, Result as IoResult},
+    serialize::*,
+    PairingEngine,
 };
 use r1cs_core::SynthesisError;
 

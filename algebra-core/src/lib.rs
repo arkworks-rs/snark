@@ -95,10 +95,6 @@ pub use std::io;
 #[macro_use]
 extern crate algebra_core_derive;
 
-#[cfg(feature = "derive")]
-#[doc(hidden)]
-pub use algebra_core_derive::*;
-
 #[cfg(not(feature = "std"))]
 fn error(_msg: &'static str) -> io::Error {
     io::Error

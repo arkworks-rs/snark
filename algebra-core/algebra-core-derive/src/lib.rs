@@ -1,16 +1,9 @@
 extern crate proc_macro;
 
-use proc_macro2::{Ident, Span, TokenStream};
-use syn::{parse_macro_input, Data, DeriveInput, Index, PathArguments, PathSegment, Type};
+use proc_macro2::TokenStream;
+use syn::{parse_macro_input, Data, DeriveInput, Index, Type};
 
 use quote::{quote, ToTokens};
-
-fn crate_segment() -> PathSegment {
-    PathSegment {
-        ident:     Ident::new("algebra_core", Span::call_site()),
-        arguments: PathArguments::None,
-    }
-}
 
 #[proc_macro_derive(CanonicalSerialize)]
 pub fn derive_canonical_serialize(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -44,7 +37,6 @@ fn impl_serialize_field(
 }
 
 fn impl_canonical_serialize(ast: &syn::DeriveInput) -> TokenStream {
-    let crate_segment = crate_segment();
     let name = &ast.ident;
 
     let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
@@ -83,7 +75,7 @@ fn impl_canonical_serialize(ast: &syn::DeriveInput) -> TokenStream {
     let gen = quote! {
         impl #impl_generics CanonicalSerialize for #name #ty_generics #where_clause {
             #[allow(unused_mut, unused_variables)]
-            fn serialize<W: ::#crate_segment::io::Write>(&self, writer: &mut W) -> Result<(), ::#crate_segment::SerializationError> {
+            fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
                 #(#serialize_body)*
                 Ok(())
             }
@@ -104,24 +96,23 @@ pub fn derive_canonical_deserialize(input: proc_macro::TokenStream) -> proc_macr
     proc_macro::TokenStream::from(impl_canonical_deserialize(&ast))
 }
 
-fn impl_deserialize_field(crate_segment: &PathSegment, ty: &Type) -> TokenStream {
+fn impl_deserialize_field(ty: &Type) -> TokenStream {
     // Check if type is a tuple.
     match ty {
         Type::Tuple(tuple) => {
             let mut fields = Vec::new();
             for elem_ty in tuple.elems.iter() {
-                fields.push(impl_deserialize_field(crate_segment, elem_ty));
+                fields.push(impl_deserialize_field(elem_ty));
             }
             quote! { (#(#fields)*), }
         },
         _ => {
-            quote! { ::#crate_segment::CanonicalDeserialize::deserialize(reader)?, }
+            quote! { CanonicalDeserialize::deserialize(reader)?, }
         },
     }
 }
 
 fn impl_canonical_deserialize(ast: &syn::DeriveInput) -> TokenStream {
-    let crate_segment = crate_segment();
     let name = &ast.ident;
 
     let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
@@ -136,11 +127,11 @@ fn impl_canonical_deserialize(ast: &syn::DeriveInput) -> TokenStream {
                 match &field.ident {
                     None => {
                         tuple = true;
-                        field_cases.push(impl_deserialize_field(&crate_segment, &field.ty))
+                        field_cases.push(impl_deserialize_field(&field.ty))
                     },
                     // struct field without len_type
                     Some(ident) => {
-                        let field = impl_deserialize_field(&crate_segment, &field.ty);
+                        let field = impl_deserialize_field(&field.ty);
                         field_cases.push(quote! { #ident: #field })
                     },
                 }
@@ -169,7 +160,7 @@ fn impl_canonical_deserialize(ast: &syn::DeriveInput) -> TokenStream {
     let gen = quote! {
         impl #impl_generics CanonicalDeserialize for #name #ty_generics #where_clause {
             #[allow(unused_mut,unused_variables)]
-            fn deserialize<R: ::#crate_segment::io::Read>(reader: &mut R) -> Result<Self, ::#crate_segment::SerializationError> {
+            fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
                 #deserialize_body
             }
         }

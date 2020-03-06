@@ -43,3 +43,4 @@ mnt6 = []
 
 std = [ "algebra-core/std" ]
 parallel = [ "std", "algebra-core/parallel" ]
+derive = [ "algebra-core/derive" ]
