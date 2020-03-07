@@ -17,6 +17,7 @@ pub(crate) use std::{borrow::ToOwned, boxed::Box, vec::Vec};
 
 pub mod commitment;
 pub mod crh;
+pub mod merkle_sparse_tree;
 pub mod merkle_tree;
 pub mod nizk;
 pub mod prf;
