@@ -202,7 +202,7 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
         {
             // Apply the S-BOX to each of the elements of the state vector
             for (j, d) in state.iter_mut().enumerate() {
-                Self::mod_inv_sbox(cs.ns(|| format!("mod_inv_S-Box_{}_{}", P::R_F-1, j)), d)?;
+                Self::mod_inv_sbox(cs.ns(|| format!("mod_inv_S-Box_4_{}_{}", P::R_F-1, j)), d)?;
             }
         }
 
