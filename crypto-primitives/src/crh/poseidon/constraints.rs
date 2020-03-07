@@ -5,7 +5,7 @@ use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::fields::fp::FpGadget;
 use r1cs_std::fields::FieldGadget;
 use r1cs_std::bits::boolean::Boolean;
-use r1cs_std::alloc::AllocGadget;
+use r1cs_std::alloc::{AllocGadget, HardCodedGadget};
 use r1cs_std::Assignment;
 use r1cs_std::eq::ConditionalEqGadget;
 
@@ -34,11 +34,13 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
     //     t = 3
     {
 
-
-        //let s1 = FpGadget::<ConstraintF>::alloc_hardcoded(cs.ns(||"alloc_zero"), val1)?;
         let zero = FpGadget::<ConstraintF>::zero(cs.ns(||"alloc_zero"))?;
         // state is a vector of 3 elements. They are initialized to zero elements
         let mut state = vec![zero.clone(), zero.clone(), zero.clone()];
+
+        state[0].add_constant_in_place(cs.ns(|| "add_after_perm_0"), &P::AFTER_ZERO_PERM[0])?;
+        state[1].add_constant_in_place(cs.ns(|| "add_after_perm_1"), &P::AFTER_ZERO_PERM[1])?;
+        state[2].add_constant_in_place(cs.ns(|| "add_after_perm_2"), &P::AFTER_ZERO_PERM[2])?;
 
         // calculate the number of cycles to process the input dividing in portions of rate elements
         let num_cycles = input.len() / P::R;
@@ -46,10 +48,6 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
         // the remainder of dividing the input length by the rate can be 1 or 0 because we are assuming
         // that the rate is 2
         let rem = input.len() % P::R;
-
-        // apply permutation to all zeros state vector
-        Self::poseidon_perm(cs.ns(|| "initial_poseidon_perm"),  &mut state)?;
-
 
         // index to process the input
         let mut input_idx = 0;

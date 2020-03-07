@@ -6,7 +6,7 @@ pub mod constraints;
 
 use algebra::fields::mnt6753::Fr as MNT6753Fr;
 use algebra::fields::mnt4753::{Fr as MNT4753Fr, Fr};
-use algebra::{PrimeField, SquareRootField, UniformRand};
+use algebra::{PrimeField, SquareRootField, UniformRand, Field};
 //use algebra::{Field, PrimeField, SquareRootField, UniformRand, Fp768};
 //use std::ops::Mul;
 
@@ -44,6 +44,7 @@ pub trait PoseidonParameters: 'static{
     const R:usize;   // The rate of the hash function
     const ZERO:Self::Fr;   // The zero element in the field
     const C2:Self::Fr;     // The constant 3 to add in the position corresponding to the capacity
+    const AFTER_ZERO_PERM: &'static[Self::Fr]; // State vector after a zero permutation
     const ROUND_CST: &'static[Self::Fr];  // Array of round constants
     const MDS_CST: &'static[Self::Fr];  // The MDS matrix
 
@@ -89,6 +90,27 @@ pub struct PoseidonCRH<P: PoseidonParameters> {
 //        println!("{:?}", cst);
 //    }
 //}
+
+#[test]
+fn test_poseidon_hash_mnt4() {
+
+    let mut input = Vec::new();
+    input.push(MNT4753Fr::from_str("1").unwrap());
+    input.push(MNT4753Fr::from_str("2").unwrap());
+    let output = poseidon_engine::<MNT4753PoseidonParameters>(&mut input);
+
+}
+
+#[test]
+fn test_poseidon_hash_mnt6() {
+
+    let mut input = Vec::new();
+    input.push(MNT6753Fr::from_str("1").unwrap());
+    input.push(MNT6753Fr::from_str("2").unwrap());
+    let output = poseidon_engine::<MNT6753PoseidonParameters>(&mut input);
+
+}
+
 
 #[test]
 fn test_cst() {

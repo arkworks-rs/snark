@@ -168,16 +168,13 @@ fn poseidon_perm<T:PoseidonParameters> (state: &mut Vec<T::Fr>) {
 
 pub fn poseidon_engine<T: PoseidonParameters>(input: &mut Vec<T::Fr>) -> T::Fr {
 
-    // state is a vector of 3 elements. They are initialized to zero elements
-    let mut state = vec![T::ZERO, T::ZERO, T::ZERO];
+    // state is a vector of 3 elements. They are initialized to constants that are obtained after applying a permutation to a zero elements vector
+    let mut state = vec![T::AFTER_ZERO_PERM[0], T::AFTER_ZERO_PERM[1], T::AFTER_ZERO_PERM[2]];
 
     // calculate the number of cycles to process the input dividing in portions of rate elements
     let num_cycles = input.len() / T::R;
     // check if the input is a multiple of the rate by calculating the remainder of the division
     let rem = input.len() % T::R;
-
-    // apply permutation to all zeros state vector
-    poseidon_perm::<T>(&mut state);
 
     // index to process the input
     let mut input_idx = 0;
