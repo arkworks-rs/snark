@@ -1,18 +1,16 @@
-use crate::mnt6::{Fq, Fq3, Fr};
+use crate::mnt6_298::{self, Fq, Fr};
 use algebra_core::{
     biginteger::BigInteger320,
-    bytes::ToBytes,
     curves::{
+        mnt6,
         models::{ModelParameters, SWModelParameters},
-        short_weierstrass_projective::{GroupAffine, GroupProjective},
-        AffineCurve,
     },
     field_new,
-    io::{Result as IoResult, Write},
 };
 
-pub type G1Affine = GroupAffine<Parameters>;
-pub type G1Projective = GroupProjective<Parameters>;
+pub type G1Affine = mnt6::G1Affine<mnt6_298::Parameters>;
+pub type G1Projective = mnt6::G1Projective<mnt6_298::Parameters>;
+pub type G1Prepared = mnt6::G1Prepared<mnt6_298::Parameters>;
 
 #[derive(Clone, Default, PartialEq, Eq)]
 pub struct Parameters;
@@ -81,26 +79,3 @@ pub const G1_GENERATOR_Y: Fq = field_new!(Fq, BigInteger320([
     0x9a7fac709a8c463c,
     0x3140fbc3593,
 ]));
-
-#[derive(Eq, PartialEq, Clone, Debug)]
-pub struct G1Prepared {
-    pub x:       Fq,
-    pub y:       Fq,
-    pub x_twist: Fq3,
-    pub y_twist: Fq3,
-}
-
-impl ToBytes for G1Prepared {
-    fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
-        self.x.write(&mut writer)?;
-        self.y.write(&mut writer)?;
-        self.x_twist.write(&mut writer)?;
-        self.y_twist.write(&mut writer)
-    }
-}
-
-impl Default for G1Prepared {
-    fn default() -> Self {
-        Self::from(G1Affine::prime_subgroup_generator())
-    }
-}

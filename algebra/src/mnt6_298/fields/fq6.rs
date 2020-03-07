@@ -1,4 +1,4 @@
-use crate::mnt6::{Fq, Fq3, Fq3Parameters};
+use crate::mnt6_298::{Fq, Fq3, Fq3Parameters};
 use algebra_core::{
     biginteger::BigInteger320 as BigInteger,
     field_new,

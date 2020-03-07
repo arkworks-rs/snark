@@ -1,19 +1,17 @@
-use crate::mnt6::{g1, Fq, Fq3, Fr, TWIST_COEFF_A};
+use crate::mnt6_298::{self, g1, Fq, Fq3, Fr};
 use algebra_core::{
     biginteger::BigInteger320,
-    bytes::ToBytes,
     curves::{
+        mnt6,
+        mnt6::MNT6Parameters,
         models::{ModelParameters, SWModelParameters},
-        short_weierstrass_projective::{GroupAffine, GroupProjective},
-        AffineCurve,
     },
     field_new,
-    io::{Result as IoResult, Write},
-    Vec,
 };
 
-pub type G2Affine = GroupAffine<Parameters>;
-pub type G2Projective = GroupProjective<Parameters>;
+pub type G2Affine = mnt6::G2Affine<mnt6_298::Parameters>;
+pub type G2Projective = mnt6::G2Projective<mnt6_298::Parameters>;
+pub type G2Prepared = mnt6::G2Prepared<mnt6_298::Parameters>;
 
 #[derive(Clone, Default, PartialEq, Eq)]
 pub struct Parameters;
@@ -47,7 +45,7 @@ pub const MUL_BY_A_C1: Fq = field_new!(Fq, BigInteger320([
 pub const MUL_BY_A_C2: Fq = g1::Parameters::COEFF_A;
 
 impl SWModelParameters for Parameters {
-    const COEFF_A: Fq3 = TWIST_COEFF_A;
+    const COEFF_A: Fq3 = mnt6_298::Parameters::TWIST_COEFF_A;
     #[rustfmt::skip]
     const COEFF_B: Fq3 = field_new!(Fq3,
         field_new!(Fq, BigInteger320([
@@ -161,46 +159,3 @@ pub const G2_GENERATOR_Y_C2: Fq = field_new!(Fq, BigInteger320([
     0x6d65c95f69adb700,
     0x2d3c3d195a1,
 ]));
-
-#[derive(Eq, PartialEq, Clone, Debug)]
-pub struct G2Prepared {
-    pub x:                     Fq3,
-    pub y:                     Fq3,
-    pub x_over_twist:          Fq3,
-    pub y_over_twist:          Fq3,
-    pub double_coefficients:   Vec<AteDoubleCoefficients>,
-    pub addition_coefficients: Vec<AteAdditionCoefficients>,
-}
-
-impl ToBytes for G2Prepared {
-    fn write<W: Write>(&self, _writer: W) -> IoResult<()> {
-        unimplemented!()
-    }
-}
-
-impl Default for G2Prepared {
-    fn default() -> Self {
-        Self::from(G2Affine::prime_subgroup_generator())
-    }
-}
-
-pub(super) struct G2ProjectiveExtended {
-    pub(crate) x: Fq3,
-    pub(crate) y: Fq3,
-    pub(crate) z: Fq3,
-    pub(crate) t: Fq3,
-}
-
-#[derive(Eq, PartialEq, Clone, Debug)]
-pub struct AteDoubleCoefficients {
-    pub(crate) c_h:  Fq3,
-    pub(crate) c_4c: Fq3,
-    pub(crate) c_j:  Fq3,
-    pub(crate) c_l:  Fq3,
-}
-
-#[derive(Eq, PartialEq, Clone, Debug)]
-pub struct AteAdditionCoefficients {
-    pub(crate) c_l1: Fq3,
-    pub(crate) c_rz: Fq3,
-}

@@ -1,7 +1,7 @@
 use algebra_core::{test_rng, Field};
 use rand::Rng;
 
-use crate::mnt6::*;
+use crate::mnt6_298::*;
 
 use crate::tests::fields::{field_test, frobenius_test, primefield_test, sqrt_field_test};
 
