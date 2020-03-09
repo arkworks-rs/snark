@@ -231,18 +231,17 @@ pub mod field_impl
     };
     use r1cs_std::{
         fields::fp::FpGadget,
+        to_field_gadget_vec::ToConstraintFieldGadget,
         alloc::AllocGadget,
-        eq::EqGadget,
+        eq::{EqGadget, EquVerdictGadget},
         groups::GroupGadget,
+        bits::boolean::Boolean,
     };
     use r1cs_core::{ConstraintSystem, SynthesisError};
     use std::{
         borrow::Borrow,
         marker::PhantomData,
     };
-    use r1cs_std::to_field_gadget_vec::ToConstraintFieldGadget;
-    use r1cs_std::bits::boolean::Boolean;
-    use r1cs_std::eq::EquVerdictGadget;
 
     #[derive(Derivative)]
     #[derivative(
@@ -308,7 +307,6 @@ pub mod field_impl
         }
     }
 
-    #[allow(dead_code)]
     pub struct FieldBasedSchnorrSigVerificationGadget<
         ConstraintF: PrimeField,
         G:  Group,
@@ -324,8 +322,7 @@ pub mod field_impl
         _hash_gadget:   PhantomData<HG>,
     }
 
-    impl<ConstraintF, G, GG, H, HG> FieldBasedSigGadget<FieldBasedSchnorrSignatureScheme<ConstraintF, G, H>, ConstraintF>
-    for FieldBasedSchnorrSigVerificationGadget<ConstraintF, G, GG, H, HG>
+    impl<ConstraintF, G, GG, H, HG> FieldBasedSchnorrSigVerificationGadget<ConstraintF, G, GG, H, HG>
         where
             ConstraintF: PrimeField,
             G:           ProjectiveCurve + ToConstraintField<ConstraintF>,
@@ -333,17 +330,12 @@ pub mod field_impl
             H:           FieldBasedHash<Data = ConstraintF>,
             HG:          FieldBasedHashGadget<H, ConstraintF, DataGadget = FpGadget<ConstraintF>>,
     {
-        type DataGadget = FpGadget<ConstraintF>;
-        type SignatureGadget = FieldBasedSchnorrSigGadget<ConstraintF>;
-        type PublicKeyGadget = GG;
-
-        fn check_gadget<CS: ConstraintSystem<ConstraintF>>(
+        fn check_signature_gadget<CS: ConstraintSystem<ConstraintF>>(
             mut cs: CS,
-            public_key: &Self::PublicKeyGadget,
-            signature: &Self::SignatureGadget,
-            message: &[Self::DataGadget]
-        ) -> Result<Boolean, SynthesisError> {
-
+            public_key: &GG,
+            signature: &FieldBasedSchnorrSigGadget<ConstraintF>,
+            message: &[FpGadget<ConstraintF>],
+        ) -> Result<FpGadget<ConstraintF>, SynthesisError> {
             //Enforce e' * pk
             let e_bits = {
 
@@ -392,11 +384,11 @@ pub mod field_impl
 
             s_bits.reverse();
             let r_prime = GG::mul_bits_precomputed(
-                    &(g.get_value().unwrap()),
-                    cs.ns(|| "(s * G) - (e * pk)"),
-                    &neg_e_times_pk,
-                    s_bits.as_slice()
-                )?;
+                &(g.get_value().unwrap()),
+                cs.ns(|| "(s * G) - (e * pk)"),
+                &neg_e_times_pk,
+                s_bits.as_slice()
+            )?;
 
             let r_prime_x = {
                 let r_prime_coords = r_prime.to_field_gadget_elements()?;
@@ -409,9 +401,38 @@ pub mod field_impl
             hash_input.push(r_prime_x);
             hash_input.extend_from_slice(public_key.to_field_gadget_elements().unwrap().as_slice());
 
-            let e_prime = HG::check_evaluation_gadget(
+            HG::check_evaluation_gadget(
                 cs.ns(|| "check e_prime"),
                 hash_input.as_slice()
+            )
+        }
+    }
+
+    impl<ConstraintF, G, GG, H, HG> FieldBasedSigGadget<FieldBasedSchnorrSignatureScheme<ConstraintF, G, H>, ConstraintF>
+    for FieldBasedSchnorrSigVerificationGadget<ConstraintF, G, GG, H, HG>
+        where
+            ConstraintF: PrimeField,
+            G:           ProjectiveCurve + ToConstraintField<ConstraintF>,
+            GG:          GroupGadget<G, ConstraintF, Value = G> + ToConstraintFieldGadget<ConstraintF, FieldGadget = HG::DataGadget>,
+            H:           FieldBasedHash<Data = ConstraintF>,
+            HG:          FieldBasedHashGadget<H, ConstraintF, DataGadget = FpGadget<ConstraintF>>,
+    {
+        type DataGadget = FpGadget<ConstraintF>;
+        type SignatureGadget = FieldBasedSchnorrSigGadget<ConstraintF>;
+        type PublicKeyGadget = GG;
+
+        fn check_gadget<CS: ConstraintSystem<ConstraintF>>(
+            mut cs: CS,
+            public_key: &Self::PublicKeyGadget,
+            signature: &Self::SignatureGadget,
+            message: &[Self::DataGadget]
+        ) -> Result<Boolean, SynthesisError> {
+
+            let e_prime = Self::check_signature_gadget(
+                cs.ns(|| "is sig verified"),
+                public_key,
+                signature,
+                message,
             )?;
 
             //Enforce result of signature verification
@@ -426,8 +447,14 @@ pub mod field_impl
             signature: &Self::SignatureGadget,
             message: &[Self::DataGadget]
         ) -> Result<(), SynthesisError> {
-            let is_verified = Self::check_gadget(cs.ns(|| "is sig verified"), public_key, signature, message)?;
-            is_verified.enforce_equal(cs.ns(|| "signature must be verified"), &Boolean::Constant(true))?;
+
+            let e_prime = Self::check_signature_gadget(
+                cs.ns(|| "is sig verified"),
+                public_key,
+                signature,
+                message
+            )?;
+            signature.e.enforce_equal(cs.ns(|| "signature must be verified"), &e_prime)?;
             Ok(())
         }
     }
@@ -489,11 +516,11 @@ mod test {
         BLS12Fr, JubJubProjective, JubJubGadget, BLS12PoseidonHash, BLS12PoseidonHashGadget
     >;
 
-    fn sign<S: FieldBasedSignatureScheme, R: Rng>(rng: &mut R, message: &[S::Data]) -> (S::Signature, S::PublicKey, S::SecretKey)
+    fn sign<S: FieldBasedSignatureScheme, R: Rng>(rng: &mut R, message: &[S::Data]) -> (S::Signature, S::PublicKey)
     {
         let (pk, sk) = S::keygen(rng).unwrap();
         let sig = S::sign(rng, &pk, &sk, &message).unwrap();
-        (sig, pk, sk)
+        (sig, pk)
     }
 
     fn mnt4_schnorr_gadget_generate_constraints(message: MNT4Fr, pk: MNT6G1Projective, sig: SchnorrMNT4Sig) -> bool {
@@ -544,7 +571,7 @@ mod test {
         //Sign a random field element f and get the signature and the public key
         let rng = &mut thread_rng();
         let message: MNT4Fr = rng.gen();
-        let (sig, pk, _) = sign::<SchnorrMNT4, _>(rng, &[message]);
+        let (sig, pk) = sign::<SchnorrMNT4, _>(rng, &[message]);
 
         //Positive case
         assert!(mnt4_schnorr_gadget_generate_constraints(message, pk, sig));
@@ -558,7 +585,7 @@ mod test {
         assert!(!mnt4_schnorr_gadget_generate_constraints(message, wrong_pk, sig));
 
         //Change sig
-        let (wrong_sig, _, _) = sign::<SchnorrMNT4, _>(rng, &[wrong_message]);
+        let (wrong_sig, _) = sign::<SchnorrMNT4, _>(rng, &[wrong_message]);
         assert!(!mnt4_schnorr_gadget_generate_constraints(message, pk, wrong_sig));
     }
 
@@ -609,7 +636,7 @@ mod test {
         //Sign a random field element f and get the signature and the public key
         let rng = &mut thread_rng();
         let message: MNT6Fr = rng.gen();
-        let (sig, pk, _) = sign::<SchnorrMNT6, _>(rng, &[message]);
+        let (sig, pk) = sign::<SchnorrMNT6, _>(rng, &[message]);
 
         //Positive case
         assert!(mnt6_schnorr_gadget_generate_constraints(message, pk, sig));
@@ -623,7 +650,7 @@ mod test {
         assert!(!mnt6_schnorr_gadget_generate_constraints(message, wrong_pk, sig));
 
         //Change sig
-        let (wrong_sig, _, _) = sign::<SchnorrMNT6, _>(rng, &[wrong_message]);
+        let (wrong_sig, _) = sign::<SchnorrMNT6, _>(rng, &[wrong_message]);
         assert!(!mnt6_schnorr_gadget_generate_constraints(message, pk, wrong_sig));
     }
 
@@ -674,7 +701,7 @@ mod test {
         //Sign a random field element f and get the signature and the public key
         let rng = &mut thread_rng();
         let message: BLS12Fr = rng.gen();
-        let (sig, pk, _) = sign::<SchnorrBLS12, _>(rng, &[message]);
+        let (sig, pk) = sign::<SchnorrBLS12, _>(rng, &[message]);
 
         //Positive case
         assert!(bls12_381_schnorr_gadget_generate_constraints(message, pk, sig));
@@ -688,20 +715,19 @@ mod test {
         assert!(!bls12_381_schnorr_gadget_generate_constraints(message, wrong_pk, sig));
 
         //Change sig
-        let (wrong_sig, _, _) = sign::<SchnorrBLS12, _>(rng, &[wrong_message]);
+        let (wrong_sig, _) = sign::<SchnorrBLS12, _>(rng, &[wrong_message]);
         assert!(!bls12_381_schnorr_gadget_generate_constraints(message, pk, wrong_sig));
     }
 
     #[test]
     fn random_schnorr_gadget_test() {
 
-        //Sign a random field element f and get the signature and the public key
         let rng = &mut thread_rng();
 
         let samples = 10;
         for _ in 0..samples {
             let message: MNT4Fr = rng.gen();
-            let (sig, pk, _) = sign::<SchnorrMNT4, _>(rng, &[message]);
+            let (sig, pk) = sign::<SchnorrMNT4, _>(rng, &[message]);
             let mut cs = TestConstraintSystem::<MNT4Fr>::new();
 
             //Alloc signature, pk and message
@@ -753,13 +779,13 @@ mod test {
                 &[new_message_g.clone()]
             ).unwrap();
 
-            assert!(!is_verified.get_value().unwrap());
-            assert!(cs.is_satisfied());
-
             if !cs.is_satisfied() {
                 println!("**********Unsatisfied constraints***********");
                 println!("{:?}", cs.which_is_unsatisfied());
             }
+
+            assert!(!is_verified.get_value().unwrap());
+            assert!(cs.is_satisfied());
 
             SchnorrMNT4Gadget::check_verify_gadget(
                 cs.ns(|| "verify new sig"),

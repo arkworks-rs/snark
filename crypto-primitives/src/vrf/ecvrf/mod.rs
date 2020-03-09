@@ -102,6 +102,8 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
             //Choose random scalar
             let r = G::ScalarField::rand(rng);
 
+            if r.is_zero() {continue};
+
             //Compute a = g^r
             let a = G::prime_subgroup_generator().mul(&r);
 
@@ -165,11 +167,7 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
                 < F::size_in_bits()
         );
 
-        //Debug checks: should they be promoted to actual checks ?
-        debug_assert!(pk.into_affine().is_in_correct_subgroup_assuming_on_curve());
         debug_assert!(proof.gamma.into_affine().is_in_correct_subgroup_assuming_on_curve());
-        debug_assert!(proof.s.pow(&G::BaseField::characteristic()) == proof.s); //Does this check make sense ?
-        debug_assert!(proof.c.pow(&G::BaseField::characteristic()) == proof.c);
 
         //Compute mh = hash_to_curve(message)
         let mut message_bytes = Vec::new();
@@ -208,6 +206,21 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
                 //Return VRF output
                 Ok(output)
             }
+        }
+    }
+
+    fn check_pk_and_verify(
+        pp: &Self::GHParams,
+        pk: &Self::PublicKey,
+        message: &[Self::Data],
+        proof: &Self::Proof
+    ) -> Result<Self::Data, Error> {
+        match pk.into_affine().is_in_correct_subgroup_assuming_on_curve() {
+            true => Self::verify(pp, pk, message, proof),
+            false => {
+                println!("Error: Malformed Pk");
+                Err(Box::new(CryptoError::NotPrimeOrder))
+            },
         }
     }
 }
@@ -262,13 +275,13 @@ mod test {
     fn prove_and_verify<S: FieldBasedVrf, R: Rng>(rng: &mut R, message: &[S::Data], pp: &S::GHParams) {
         let (pk, sk) = S::keygen(rng).unwrap();
         let proof = S::prove(rng, pp, &pk, &sk, &message).unwrap();
-        assert!(S::verify(pp, &pk, &message, &proof).is_ok());
+        assert!(S::check_pk_and_verify(pp, &pk, &message, &proof).is_ok());
 
         //Serialization/deserialization test
         let proof_serialized = to_bytes!(proof).unwrap();
         let proof_deserialized = <S as FieldBasedVrf>::Proof::read(proof_serialized.as_slice()).unwrap();
         assert_eq!(proof, proof_deserialized);
-        assert!(S::verify(pp, &pk, &message, &proof_deserialized).is_ok());
+        assert!(S::check_pk_and_verify(pp, &pk, &message, &proof_deserialized).is_ok());
     }
 
     fn failed_verification<S: FieldBasedVrf, R: Rng>(rng: &mut R, message: &[S::Data], bad_message: &[S::Data], pp: &S::GHParams) {
@@ -276,15 +289,15 @@ mod test {
 
         //Attempt to verify proof for a different message
         let proof = S::prove(rng, pp, &pk, &sk, message).unwrap();
-        assert!(S::verify(pp, &pk, bad_message, &proof).is_err());
+        assert!(S::check_pk_and_verify(pp, &pk, bad_message, &proof).is_err());
 
         //Attempt to verify different proof for a message
         let bad_proof = S::prove(rng, pp, &pk, &sk, bad_message).unwrap();
-        assert!(S::verify(pp, &pk, message, &bad_proof).is_err());
+        assert!(S::check_pk_and_verify(pp, &pk, message, &bad_proof).is_err());
 
         //Attempt to verify proof for a message with different pk
         let (new_pk, _) = S::keygen(rng).unwrap();
-        assert!(S::verify(pp, &new_pk, message, &proof).is_err());
+        assert!(S::check_pk_and_verify(pp, &new_pk, message, &proof).is_err());
     }
 
     #[test]

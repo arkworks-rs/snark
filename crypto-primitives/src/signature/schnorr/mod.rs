@@ -231,11 +231,7 @@ ToConstraintField<ConstraintF> for SchnorrSigParameters<G, D>
 
 pub mod field_impl {
 
-    use crate::{
-        crh::FieldBasedHash,
-        signature::FieldBasedSignatureScheme,
-        Error, compute_truncation_size,
-    };
+    use crate::{crh::FieldBasedHash, signature::FieldBasedSignatureScheme, Error, compute_truncation_size, CryptoError};
     use algebra::{Field, PrimeField, Group, UniformRand, AffineCurve, ProjectiveCurve,
                   convert, leading_zeros, ToBits, ToConstraintField, ToBytes, FromBytes};
     use std::marker::PhantomData;
@@ -313,8 +309,7 @@ pub mod field_impl {
                 //Sample random element
                 let k = G::ScalarField::rand(rng);
 
-                // Assert k != 0
-                assert!(!k.is_zero());
+                if k.is_zero() {continue};
 
                 //R = k * G
                 let r = G::prime_subgroup_generator()
@@ -383,11 +378,6 @@ pub mod field_impl {
                     < F::size_in_bits()
             );
 
-            //Debug checks: should they be promoted to actual checks ?
-            debug_assert!(pk.into_affine().is_in_correct_subgroup_assuming_on_curve());
-            debug_assert!(signature.s.pow(&G::BaseField::characteristic()) == signature.s); //Does this check make sense ?
-            debug_assert!(signature.e.pow(&G::BaseField::characteristic()) == signature.e);
-
             //Compute R' = s*G - e * pk
             let r_prime = {
                 let s_conv = convert::<F, G::ScalarField>(signature.s)?;
@@ -410,6 +400,21 @@ pub mod field_impl {
             let e_prime = H::evaluate(hash_input.as_ref())?;
 
             Ok(signature.e == e_prime)
+        }
+
+        fn check_pk_and_verify(
+            pk: &Self::PublicKey,
+            message: &[Self::Data],
+            signature: &Self::Signature
+        ) -> Result<bool, Error>
+        {
+            match pk.into_affine().is_in_correct_subgroup_assuming_on_curve() {
+                true => Self::verify(pk, message, signature),
+                false => {
+                    println!("Error: Malformed Pk");
+                    Err(Box::new(CryptoError::NotPrimeOrder))
+                },
+            }
         }
     }
 }
@@ -439,13 +444,13 @@ mod test {
     fn sign_and_verify<S: FieldBasedSignatureScheme, R: Rng>(rng: &mut R, message: &[S::Data]) {
         let (pk, sk) = S::keygen(rng).unwrap();
         let sig = S::sign(rng, &pk, &sk, &message).unwrap();
-        assert!(S::verify(&pk, &message, &sig).unwrap());
+        assert!(S::check_pk_and_verify(&pk, &message, &sig).unwrap());
 
         //Serialization/deserialization test
         let sig_serialized = to_bytes!(sig).unwrap();
         let sig_deserialized = <S as FieldBasedSignatureScheme>::Signature::read(sig_serialized.as_slice()).unwrap();
         assert_eq!(sig, sig_deserialized);
-        assert!(S::verify(&pk, &message, &sig_deserialized).unwrap());
+        assert!(S::check_pk_and_verify(&pk, &message, &sig_deserialized).unwrap());
     }
 
     fn failed_verification<S: FieldBasedSignatureScheme, R: Rng>(rng: &mut R, message: &[S::Data], bad_message: &[S::Data]) {
@@ -453,15 +458,15 @@ mod test {
 
         //Attempt to verify a signature for a different message
         let sig = S::sign(rng, &pk, &sk, message).unwrap();
-        assert!(!S::verify(&pk, bad_message, &sig).unwrap());
+        assert!(!S::check_pk_and_verify(&pk, bad_message, &sig).unwrap());
 
         //Attempt to verify a different signature for a message
         let bad_sig = S::sign(rng, &pk, &sk, bad_message).unwrap();
-        assert!(!S::verify(&pk, message, &bad_sig).unwrap());
+        assert!(!S::check_pk_and_verify(&pk, message, &bad_sig).unwrap());
 
         //Attempt to verify a signature for a message but with different public key
         let (new_pk, _) = S::keygen(rng).unwrap();
-        assert!(!S::verify(&new_pk, message, &sig).unwrap());
+        assert!(!S::check_pk_and_verify(&new_pk, message, &sig).unwrap());
     }
 
     #[test]

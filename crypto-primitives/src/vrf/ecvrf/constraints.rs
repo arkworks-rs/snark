@@ -356,11 +356,11 @@ mod test {
         PedersenJubJubGadget>;
 
     fn prove<S: FieldBasedVrf, R: Rng>(rng: &mut R, pp: &S::GHParams, message: &[S::Data])
-        -> (S::Proof, S::PublicKey, S::SecretKey)
+        -> (S::Proof, S::PublicKey)
     {
         let (pk, sk) = S::keygen(rng).unwrap();
         let proof = S::prove(rng, pp, &pk, &sk, &message).unwrap();
-        (proof, pk, sk)
+        (proof, pk)
     }
 
     fn mnt4_ecvrf_gadget_generate_constraints(message: MNT4Fr, pk: MNT6G1Projective, proof: EcVrfMNT4Proof, pp: &BHMNT4Parameters) -> bool {
@@ -404,7 +404,7 @@ mod test {
         let rng = &mut thread_rng();
         let message: MNT4Fr = rng.gen();
         let pp = <BHMNT6 as FixedLengthCRH>::setup(rng).unwrap();
-        let (proof, pk, _) = prove::<EcVrfMNT4, _>(rng, &pp, &[message]);
+        let (proof, pk) = prove::<EcVrfMNT4, _>(rng, &pp, &[message]);
 
         //Positive case
         assert!(mnt4_ecvrf_gadget_generate_constraints(message, pk, proof, &pp));
@@ -418,7 +418,7 @@ mod test {
         assert!(!mnt4_ecvrf_gadget_generate_constraints(message, wrong_pk, proof, &pp));
 
         //Change proof
-        let (wrong_proof, _, _) = prove::<EcVrfMNT4, _>(rng, &pp, &[wrong_message]);
+        let (wrong_proof, _) = prove::<EcVrfMNT4, _>(rng, &pp, &[wrong_message]);
         assert!(!mnt4_ecvrf_gadget_generate_constraints(message, pk, wrong_proof, &pp));
     }
 
@@ -460,7 +460,7 @@ mod test {
         let rng = &mut thread_rng();
         let message: MNT6Fr = rng.gen();
         let pp = <BHMNT4 as FixedLengthCRH>::setup(rng).unwrap();
-        let (proof, pk, _) = prove::<EcVrfMNT6, _>(rng, &pp, &[message]);
+        let (proof, pk) = prove::<EcVrfMNT6, _>(rng, &pp, &[message]);
 
         //Positive case
         assert!(mnt6_ecvrf_gadget_generate_constraints(message, pk, proof, &pp));
@@ -474,7 +474,7 @@ mod test {
         assert!(!mnt6_ecvrf_gadget_generate_constraints(message, wrong_pk, proof, &pp));
 
         //Change proof
-        let (wrong_proof, _, _) = prove::<EcVrfMNT6, _>(rng, &pp, &[wrong_message]);
+        let (wrong_proof, _) = prove::<EcVrfMNT6, _>(rng, &pp, &[wrong_message]);
         assert!(!mnt6_ecvrf_gadget_generate_constraints(message, pk, wrong_proof, &pp));
     }
 
@@ -516,7 +516,7 @@ mod test {
         let rng = &mut thread_rng();
         let message: BLS12Fr = rng.gen();
         let pp = <PedersenJubJub as FixedLengthCRH>::setup(rng).unwrap();
-        let (proof, pk, _) = prove::<EcVrfBLS12, _>(rng, &pp, &[message]);
+        let (proof, pk) = prove::<EcVrfBLS12, _>(rng, &pp, &[message]);
 
         //Positive case
         assert!(bls12_381_ecvrf_gadget_generate_constraints(message, pk, proof, &pp));
@@ -530,7 +530,7 @@ mod test {
         assert!(!bls12_381_ecvrf_gadget_generate_constraints(message, wrong_pk, proof, &pp));
 
         //Change proof
-        let (wrong_proof, _, _) = prove::<EcVrfBLS12, _>(rng, &pp, &[wrong_message]);
+        let (wrong_proof, _) = prove::<EcVrfBLS12, _>(rng, &pp, &[wrong_message]);
         assert!(!bls12_381_ecvrf_gadget_generate_constraints(message, pk, wrong_proof, &pp));
     }
 
@@ -544,7 +544,7 @@ mod test {
         let samples = 10;
         for _ in 0..samples {
             let message: MNT4Fr = rng.gen();
-            let (sig, pk, _) = prove::<EcVrfMNT4, _>(rng, &pp, &[message]);
+            let (sig, pk) = prove::<EcVrfMNT4, _>(rng, &pp, &[message]);
             let mut cs = TestConstraintSystem::<MNT4Fr>::new();
 
             //Alloc proof, pk, hash params and message

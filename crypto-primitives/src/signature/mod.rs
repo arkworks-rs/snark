@@ -76,6 +76,12 @@ pub trait FieldBasedSignatureScheme {
         message: &[Self::Data],
         signature: &Self::Signature,
     ) -> Result<bool, Error>;
+
+    fn check_pk_and_verify(
+        pk: &Self::PublicKey,
+        message: &[Self::Data],
+        signature: &Self::Signature,
+    ) -> Result<bool, Error>;
 }
 
 #[cfg(test)]

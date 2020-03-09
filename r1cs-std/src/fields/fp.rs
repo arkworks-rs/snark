@@ -40,17 +40,13 @@ impl<F: PrimeField> FpGadget<F> {
         let num_bits = F::Params::MODULUS_BITS;
         let bit_values = match self.value {
             Some(value) => {
-                let mut tmp = Vec::new();
-                for b in value.write_bits() {
-                    tmp.push(Some(b));
-                }
-                tmp
+                value.write_bits().iter().map(|b| Some(*b)).collect::<Vec<_>>()
             },
             None => vec![None; num_bits as usize],
         };
 
         let mut bits = vec![];
-        for (i, b) in bit_values.into_iter().skip(skip_leading_bits).enumerate() {
+        for (i, b) in bit_values.iter().skip(skip_leading_bits).enumerate() {
             bits.push(AllocatedBit::alloc(cs.ns(|| format!("bit {}", i)), || {
                 b.get()
             })?);

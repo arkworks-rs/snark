@@ -37,4 +37,12 @@ pub trait FieldBasedVrf {
         message: &[Self::Data],
         proof:   &Self::Proof,
     ) -> Result<Self::Data, Error>;
+
+    fn check_pk_and_verify
+    (
+        pp:      &Self::GHParams,
+        pk:      &Self::PublicKey,
+        message: &[Self::Data],
+        proof:   &Self::Proof,
+    ) -> Result<Self::Data, Error>;
 }
