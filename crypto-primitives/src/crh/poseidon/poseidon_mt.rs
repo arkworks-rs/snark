@@ -96,42 +96,44 @@ fn poseidon_full_round<T:PoseidonParameters> (vec_state: &mut Vec<Vec<T::Fr>>, r
         }
     }
 
-    // partial_prod =
-    // 0 => 1
-    // 2 => x_6
-    // 3 => x_6 * x_5
-    // 4 => x_6 * x_5 * x_4
-    // 5 => x_6 * x_5 * x_4 * x_3
-    // 6 => x_6 * x_5 * x_4 * x_3 * x_2
-    // 7 => x_6 * x_5 * x_4 * x_3 * x_2 * x_1
+    // if the accum_prod is zero, it means that one of the S-Boxes is zero
+    // in that case compute the inverses individually
+    if accum_prod==T::Fr::zero() {
+        for i in (0..(vec_state.len() - 1)) {
+            for j in (0..(T::T - 1)) {
+                if vec_state[i][j]!=T::Fr::zero() {
+                    vec_state[i][j]=vec_state[i][j].inverse().unwrap();
+                }
+            }
+        }
 
-    // Calculate the inversion of the products
-    let inv_prod = accum_prod.inverse();
-    let mut v = T::Fr::one();
-    match inv_prod {
-        None => println!("Field inversion error of the accumulated products"),
-        Some(inv) => {
-            v = inv;
+    } else {
+
+        // partial_prod =
+        // 0 => 1
+        // 2 => x_6
+        // 3 => x_6 * x_5
+        // 4 => x_6 * x_5 * x_4
+        // 5 => x_6 * x_5 * x_4 * x_3
+        // 6 => x_6 * x_5 * x_4 * x_3 * x_2
+        // 7 => x_6 * x_5 * x_4 * x_3 * x_2 * x_1
+
+        // Calculate the inversion of the products
+        // The inverse always exists in this case
+        let v = accum_prod.inverse().unwrap();
+
+        // Extract the individual inversions
+        let mut idx = partial_prod.len() - 2;
+        let mut w = T::Fr::one();
+        for i in 0..(vec_state.len() - 1) {
+            for j in 0..(T::T - 1) {
+                let vec_1 = vec_state[i][j].clone();
+                vec_state[i][j] = v * &w * &partial_prod[idx];
+                w = w * &vec_1;
+                idx -= 1;
+            }
         }
     }
-
-    //println!("partial_prod = {:?}", partial_prod);
-
-    // Extract the individual inversions
-    let mut idx = partial_prod.len()-2;
-    let mut w = T::Fr::one();
-    for i in 0..(vec_state.len() - 1) {
-        for j in 0..(T::T - 1) {
-            let vec_1 = vec_state[i][j].clone();
-            vec_state[i][j] = v * &w * &partial_prod[idx];
-            w = w * &vec_1;
-            idx -= 1;
-        }
-    }
-    // // Perform the matrix mix
-    // for i in 0..(vec_state.len() - 1) {
-    //     matrix_mix::<T>(&mut vec_state[i]);
-    // }
 }
 
 fn poseidon_partial_round<T:PoseidonParameters> (vec_state: &mut Vec<Vec<T::Fr>>, round_cst_idx: &mut usize) {
@@ -164,42 +166,46 @@ fn poseidon_partial_round<T:PoseidonParameters> (vec_state: &mut Vec<Vec<T::Fr>>
         partial_prod.push(accum_prod);
     }
 
-    // partial_prod =
-    // 0 => 1
-    // 2 => x_6
-    // 3 => x_6 * x_5
-    // 4 => x_6 * x_5 * x_4
-    // 5 => x_6 * x_5 * x_4 * x_3
-    // 6 => x_6 * x_5 * x_4 * x_3 * x_2
-    // 7 => x_6 * x_5 * x_4 * x_3 * x_2 * x_1
-
-    // Calculate the inversion of the products
-    let inv_prod = accum_prod.inverse();
-    let mut v = T::Fr::one();
-    match inv_prod {
-        None => println!("Field inversion error of the accumulated products"),
-        Some(inv) => {
-            v = inv;
+    // if the accum_prod is zero, it means that one of the S-Boxes is zero
+    // in that case compute the inverses individually
+    if accum_prod==T::Fr::zero() {
+        for i in (0..(vec_state.len() - 1)) {
+            if vec_state[i][0]!=T::Fr::zero() {
+                    vec_state[i][0]=vec_state[i][0].inverse().unwrap();
+                }
         }
+    } else {
+
+        // partial_prod =
+        // 0 => 1
+        // 2 => x_6
+        // 3 => x_6 * x_5
+        // 4 => x_6 * x_5 * x_4
+        // 5 => x_6 * x_5 * x_4 * x_3
+        // 6 => x_6 * x_5 * x_4 * x_3 * x_2
+        // 7 => x_6 * x_5 * x_4 * x_3 * x_2 * x_1
+
+        // Calculate the inversion of the products
+        let inv_prod = accum_prod.inverse();
+        let mut v = T::Fr::one();
+        match inv_prod {
+            None => println!("Field inversion error of the accumulated products"),
+            Some(inv) => {
+                v = inv;
+            }
+        }
+
+        // Extract the individual inversions
+        let mut idx = partial_prod.len() - 2;
+        let mut w = T::Fr::one();
+        for i in 0..(vec_state.len() - 1) {
+            let vec_1 = vec_state[i][0].clone();
+            vec_state[i][0] = v * &w * &partial_prod[idx];
+            w = w * &vec_1;
+            idx -= 1;
+        }
+
     }
-
-    //println!("partial_prod = {:?}", partial_prod);
-
-    // Extract the individual inversions
-    let mut idx = partial_prod.len()-2;
-    let mut w = T::Fr::one();
-    for i in 0..(vec_state.len() - 1) {
-        let vec_1 = vec_state[i][0].clone();
-        vec_state[i][0] = v * &w * &partial_prod[idx];
-        w = w * &vec_1;
-        idx -= 1;
-    }
-
-    // // Perform the matrix mix
-    // for i in 0..(vec_state.len() - 1) {
-    //     matrix_mix::<T>(&mut vec_state[i]);
-    // }
-
 }
 
 fn poseidon_perm_gen<T:PoseidonParameters> (vec_state: &mut Vec<Vec<T::Fr>>) {
