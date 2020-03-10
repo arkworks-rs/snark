@@ -160,7 +160,11 @@ impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for [bool] {
         let fes = self
             .chunks(max_size)
             .map(|chunk| {
-                let chunk = chunk.to_vec();
+                let mut chunk = chunk.to_vec();
+                let len = chunk.len();
+                for _ in len..(max_size + 1) {
+                    chunk.push(false);
+                }
                 ConstraintF::read_bits(chunk)
             })
             .collect::<Result<Vec<_>, _>>()?;

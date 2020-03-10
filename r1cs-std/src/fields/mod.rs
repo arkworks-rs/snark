@@ -21,19 +21,19 @@ pub mod mnt4753;
 pub mod mnt6753;
 
 pub trait FieldGadget<F: Field, ConstraintF: Field>:
-    Sized
-    + Clone
-    + EqGadget<ConstraintF>
-    + NEqGadget<ConstraintF>
-    + ConditionalEqGadget<ConstraintF>
-    + ToBitsGadget<ConstraintF>
-    + AllocGadget<F, ConstraintF>
-    + HardCodedGadget<F, ConstraintF>
-    + ToBytesGadget<ConstraintF>
-    + CondSelectGadget<ConstraintF>
-    + TwoBitLookupGadget<ConstraintF, TableConstant = F>
-    + ThreeBitCondNegLookupGadget<ConstraintF, TableConstant = F>
-    + Debug
+Sized
++ Clone
++ EqGadget<ConstraintF>
++ NEqGadget<ConstraintF>
++ ConditionalEqGadget<ConstraintF>
++ ToBitsGadget<ConstraintF>
++ AllocGadget<F, ConstraintF>
++ HardCodedGadget<F, ConstraintF>
++ ToBytesGadget<ConstraintF>
++ CondSelectGadget<ConstraintF>
++ TwoBitLookupGadget<ConstraintF, TableConstant = F>
++ ThreeBitCondNegLookupGadget<ConstraintF, TableConstant = F>
++ Debug
 {
     type Variable: Clone + Debug;
 
@@ -243,11 +243,11 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
 
 #[cfg(test)]
 mod test {
-    use rand::{self, thread_rng, SeedableRng};
+    use rand::{self, thread_rng, SeedableRng, Rng};
     use rand_xorshift::XorShiftRng;
 
-    use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
-    use algebra::{BitIterator, Field, UniformRand, PrimeField};
+    use crate::{prelude::*, test_constraint_system::TestConstraintSystem, fields::fp::FpGadget};
+    use algebra::{BitIterator, Field, UniformRand, PrimeField, leading_zeros};
     use r1cs_core::ConstraintSystem;
 
     fn field_test<
@@ -478,10 +478,137 @@ mod test {
         }
     }
 
-    fn equ_verdict_gadget_test<ConstraintF: PrimeField>()
+    fn from_bits_fp_gadget_test<ConstraintF: PrimeField>()
     {
-        use crate::fields::fp::FpGadget;
+        let mut rng = thread_rng();
+        let mut cs = TestConstraintSystem::<ConstraintF>::new();
 
+        // Sample a random field element with bit length MODULUS_BITS - 1
+        // (Because `from_bits` pack only up until MODULUS_BITS - 1 bits)
+        let (f, leading_zeros) = loop {
+            let val = ConstraintF::rand(&mut rng);
+            let zeros = leading_zeros(val.write_bits());
+            if zeros > 1 {
+                break (val, zeros as usize)
+            }
+        };
+
+        //Positive case
+        let f_g_bits = Vec::<Boolean>::alloc(
+            cs.ns(|| "alloc f bits"),
+            || Ok(f.write_bits()[leading_zeros..].to_vec())
+        ).unwrap();
+        let f_g = FpGadget::<ConstraintF>::from_bits(
+            cs.ns(|| "pack f_g_bits"),
+            f_g_bits.as_slice()
+        ).unwrap();
+        assert_eq!(f, f_g.get_value().unwrap());
+        assert!(cs.is_satisfied());
+
+        //Let's alter one random bit and check that the cs is not satisfied anymore
+        let random_bit: usize = rng.gen_range(leading_zeros , f_g_bits.len());
+        let prev_value = f_g_bits[random_bit].get_value().unwrap();
+        let new_value = if prev_value {
+            ConstraintF::zero()
+        } else {
+            ConstraintF::one()
+        };
+        cs.set(format!("alloc f bits/value_{}/boolean", random_bit).as_ref(), new_value);
+        assert!(!cs.is_satisfied());
+        assert_eq!("pack f_g_bits/packing constraint", cs.which_is_unsatisfied().unwrap());
+
+        //Let's change the value of the packed variable and check that the cs is not satisfied anymore
+
+        //Bringing back the modified bit's value to its original one
+        let prev_value = if prev_value {ConstraintF::one()} else {ConstraintF::zero()};
+        cs.set(format!("alloc f bits/value_{}/boolean", random_bit).as_ref(), prev_value);
+        assert!(cs.is_satisfied()); //Situation should be back to positive case
+
+        //Modify packed value
+        cs.set(format!("pack f_g_bits/variable/alloc").as_ref(), ConstraintF::rand(&mut rng));
+        assert!(!cs.is_satisfied());
+        assert_eq!("pack f_g_bits/packing constraint", cs.which_is_unsatisfied().unwrap());
+    }
+
+    fn bit_fp_gadgets_test<ConstraintF: PrimeField>(){
+        use crate::algebra::FpParameters;
+
+        let mut rng = thread_rng();
+        let mut cs = TestConstraintSystem::<ConstraintF>::new();
+
+        //Native to_bits test
+        let a = ConstraintF::rand(&mut rng);
+        let a_g = FpGadget::<ConstraintF>::alloc(
+            cs.ns(|| "alloc a"),
+            || Ok(a),
+        ).unwrap();
+
+        let a_bits = a.write_bits();
+        let a_g_bits = a_g.to_bits(cs.ns(|| "a_to_bits")).unwrap();
+        assert_eq!(
+            a_bits,
+            a_g_bits.iter().map(|b| b.get_value().unwrap()).collect::<Vec<_>>(),
+        );
+
+        //Native from_bits test
+        //Let's cut off one bit from both in order to be able to use from_bits gadget
+        let a_bits = a_bits[1..].to_vec();
+        let a_g_bits = a_g_bits[1..].as_ref();
+
+        let a_read = ConstraintF::read_bits(a_bits).unwrap();
+        let a_g_read = FpGadget::<ConstraintF>::from_bits(
+            cs.ns(|| "read a_g"),
+            a_g_bits,
+        ).unwrap();
+
+        assert_eq!(a_read, a_g_read.get_value().unwrap());
+
+        //to_bits_with_length_restriction test
+        let (b, leading_zeros) = loop {
+            let val = ConstraintF::rand(&mut rng);
+            let zeros = leading_zeros(val.write_bits());
+            if zeros >= 3 {
+                break (val, zeros)
+            }
+        };
+
+        let b_g = FpGadget::<ConstraintF>::alloc(
+            cs.ns(|| "alloc b"),
+            || Ok(b),
+        ).unwrap();
+
+        //Positive case
+        let b_g_restricted_bits = b_g.to_bits_with_length_restriction(
+            cs.ns(|| "serialize with length restriction"),
+            leading_zeros as usize,
+        ).unwrap();
+
+        assert_eq!(b_g_restricted_bits.len() as u32, ConstraintF::Params::MODULUS_BITS - leading_zeros);
+
+        //Of course we should be able to reconstruct the original field element
+        let b_g_read = FpGadget::<ConstraintF>::from_bits(
+            cs.ns(|| "read b_g_restricted"),
+            b_g_restricted_bits.as_slice(),
+        ).unwrap();
+        b_g.enforce_equal(cs.ns(|| "should pass"), &b_g_read).unwrap();
+        assert!(cs.is_satisfied());
+
+        //If we cut off more bits we will reconstruct a different field element
+        let bad_b_g_bits = b_g.to_bits_with_length_restriction(
+            cs.ns(|| "serialize bad with length restriction"),
+            leading_zeros as usize + 1,
+        ).unwrap();
+
+        let bad_b_g_read = FpGadget::<ConstraintF>::from_bits(
+            cs.ns(|| "read bad_b_g_restricted"),
+            bad_b_g_bits.as_slice(),
+        ).unwrap();
+        b_g.enforce_equal(cs.ns(|| "should not pass"), &bad_b_g_read).unwrap();
+        assert!(!cs.is_satisfied());
+    }
+
+    fn equ_verdict_fp_gadget_test<ConstraintF: PrimeField>()
+    {
         let mut rng = thread_rng();
         let a = ConstraintF::rand(&mut rng);
 
@@ -511,6 +638,7 @@ mod test {
 
             //If a == b the prover can freely choose c without invalidating any constraint
             cs.set("a == b/alloc verdict/boolean", ConstraintF::one()); //Let's bring back v to True
+            assert!(cs.is_satisfied()); //Situation should be back to positive case
             cs.set("a == b/alloc c/alloc", ConstraintF::rand(&mut rng)); //Let's choose a random v
             assert!(cs.is_satisfied());
         }
@@ -541,6 +669,7 @@ mod test {
 
             //If a != b the prover is forced to choose c as 1/(a-b)
             cs.set("a != b/alloc verdict/boolean", ConstraintF::zero()); //Let's bring back v to False
+            assert!(cs.is_satisfied()); //Situation should be back to normal
             cs.set("a != b/alloc c/alloc", ConstraintF::rand(&mut rng)); //Let's choose a random c
             assert!(!cs.is_satisfied());
             assert_eq!("a != b/1 - v = c * (x - y)", cs.which_is_unsatisfied().unwrap());
@@ -562,6 +691,10 @@ mod test {
         if !cs.is_satisfied() {
             println!("{:?}", cs.which_is_unsatisfied().unwrap());
         }
+
+        equ_verdict_fp_gadget_test::<Fq>();
+        from_bits_fp_gadget_test::<Fq>();
+        bit_fp_gadgets_test::<Fq>();
 
         let c = Fq2Gadget::alloc(&mut cs.ns(|| "generate_c"), || Ok(Fq2::rand(&mut rng))).unwrap();
         let d = Fq2Gadget::alloc(&mut cs.ns(|| "generate_d"), || Ok(Fq2::rand(&mut rng))).unwrap();
@@ -590,8 +723,6 @@ mod test {
         }
 
         assert!(cs.is_satisfied());
-        equ_verdict_gadget_test::<Fq>();
-
     }
 
     #[test]
@@ -610,7 +741,9 @@ mod test {
             println!("{:?}", cs.which_is_unsatisfied().unwrap());
         }
         assert!(cs.is_satisfied());
-        equ_verdict_gadget_test::<Fq>();
+        equ_verdict_fp_gadget_test::<Fq>();
+        from_bits_fp_gadget_test::<Fq>();
+        bit_fp_gadgets_test::<Fq>();
     }
 
     #[test]
@@ -629,7 +762,9 @@ mod test {
             println!("{:?}", cs.which_is_unsatisfied().unwrap());
         }
         assert!(cs.is_satisfied());
-        equ_verdict_gadget_test::<Fq>();
+        equ_verdict_fp_gadget_test::<Fq>();
+        from_bits_fp_gadget_test::<Fq>();
+        bit_fp_gadgets_test::<Fq>();
     }
 
     #[test]
@@ -650,6 +785,10 @@ mod test {
             println!("{:?}", cs.which_is_unsatisfied().unwrap());
         }
 
+        equ_verdict_fp_gadget_test::<Fq>();
+        from_bits_fp_gadget_test::<Fq>();
+        bit_fp_gadgets_test::<Fq>();
+
         let c = Fq2Gadget::alloc(&mut cs.ns(|| "generate_c"), || Ok(Fq2::rand(&mut rng))).unwrap();
         let d = Fq2Gadget::alloc(&mut cs.ns(|| "generate_d"), || Ok(Fq2::rand(&mut rng))).unwrap();
         field_test(cs.ns(|| "test_fq2"), c, d);
@@ -666,8 +805,6 @@ mod test {
             println!("{:?}", cs.which_is_unsatisfied().unwrap());
         }
         assert!(cs.is_satisfied());
-
-        equ_verdict_gadget_test::<Fq>();
     }
 
     #[test]
@@ -688,6 +825,10 @@ mod test {
             println!("{:?}", cs.which_is_unsatisfied().unwrap());
         }
 
+        equ_verdict_fp_gadget_test::<Fq>();
+        from_bits_fp_gadget_test::<Fq>();
+        bit_fp_gadgets_test::<Fq>();
+
         let c = Fq3Gadget::alloc(&mut cs.ns(|| "generate_c"), || Ok(Fq3::rand(&mut rng))).unwrap();
         let d = Fq3Gadget::alloc(&mut cs.ns(|| "generate_d"), || Ok(Fq3::rand(&mut rng))).unwrap();
         field_test(cs.ns(|| "test_fq2"), c, d);
@@ -704,7 +845,5 @@ mod test {
             println!("{:?}", cs.which_is_unsatisfied().unwrap());
         }
         assert!(cs.is_satisfied());
-
-        equ_verdict_gadget_test::<Fq>();
     }
 }
