@@ -385,6 +385,51 @@ impl<F: PrimeField> ToBitsGadget<F> for FpGadget<F> {
     }
 }
 
+impl<F: PrimeField> FromBitsGadget<F> for FpGadget<F> {
+    fn from_bits<CS: ConstraintSystem<F>>(mut cs: CS, bits: &[Boolean]) -> Result<Self, SynthesisError> {
+
+        //A malicious prover may pass a bigger input so we enforce considering exactly
+        //CAPACITY bits in the linear combination calculation.
+        let bits = bits.chunks(F::Params::CAPACITY as usize).next().unwrap();
+
+        let mut num = Self::zero(cs.ns(|| "alloc_lc_{}"))?;
+        let mut coeff = F::one();
+
+        // Need to reverse in order to reconstruct the field element, because we
+        // assume having a *big_endian* bit representation of `Self`.
+        for (j, bit) in bits.iter().rev().enumerate() {
+
+            // Use a support FpGadget to hold the linear combination (needed because
+            // the allocated bit won't have a value until proving time.
+            num = num.conditionally_add_constant(
+                cs.ns(|| format!("add_bit_{}", j)),
+                bit,
+                coeff,
+            )?;
+
+            coeff.double_in_place();
+        }
+
+        //Alloc the field gadget with the value resulting from bit linear combination
+        let variable = Self::alloc(
+            cs.ns(|| "variable"),
+            || {
+                let value = num.get_value().get()?;
+                Ok(value)
+            }
+        )?;
+
+        // num * 1 = variable
+        cs.enforce(
+            || "packing constraint",
+            |lc| lc,
+            |lc| lc,
+            |lc| &variable.variable - &num.variable + lc,
+        );
+        Ok(variable)
+    }
+}
+
 impl<F: PrimeField> ToBytesGadget<F> for FpGadget<F> {
     fn to_bytes<CS: ConstraintSystem<F>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
         let byte_values = match self.value {

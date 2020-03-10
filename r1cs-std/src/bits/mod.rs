@@ -19,6 +19,18 @@ pub trait ToBitsGadget<ConstraintF: Field> {
     ) -> Result<Vec<Boolean>, SynthesisError>;
 }
 
+pub trait FromBitsGadget<ConstraintF: Field>
+    where
+        Self: Sized
+{
+    /// Given a bit representation `bits` of bit len not bigger than CAPACITY
+    /// (i.e. MODULUS - 1) of `Self` in *big endian* form, reconstructs a `Self`.
+    fn from_bits<CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
+        bits: &[Boolean],
+    ) -> Result<Self, SynthesisError>;
+}
+
 impl<ConstraintF: Field> ToBitsGadget<ConstraintF> for Boolean {
     fn to_bits<CS: ConstraintSystem<ConstraintF>>(
         &self,

@@ -56,7 +56,7 @@ pub mod select;
 pub mod prelude {
     pub use crate::{
         alloc::*,
-        bits::{boolean::Boolean, uint32::UInt32, uint8::UInt8, ToBitsGadget, ToBytesGadget},
+        bits::{boolean::Boolean, uint32::UInt32, uint8::UInt8, ToBitsGadget, FromBitsGadget, ToBytesGadget},
         eq::*,
         fields::FieldGadget,
         groups::GroupGadget,
