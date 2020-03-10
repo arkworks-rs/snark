@@ -390,16 +390,13 @@ pub mod field_impl
                 s_bits.as_slice()
             )?;
 
-            let r_prime_x = {
-                let r_prime_coords = r_prime.to_field_gadget_elements()?;
-                r_prime_coords[0].clone()
-            };
+            let r_prime_coords = r_prime.to_field_gadget_elements()?;
 
-            // Check e' = H(m || signature.r || pk)
+            // Check e' = H(m || signature.r || pk.x)
             let mut hash_input = Vec::new();
             hash_input.extend_from_slice(message);
-            hash_input.push(r_prime_x);
-            hash_input.extend_from_slice(public_key.to_field_gadget_elements().unwrap().as_slice());
+            hash_input.extend_from_slice(r_prime_coords.as_slice());
+            hash_input.push(public_key.to_field_gadget_elements().unwrap()[0].clone());
 
             HG::check_evaluation_gadget(
                 cs.ns(|| "check e_prime"),

@@ -110,12 +110,12 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
             //Compute b = mh^r
             let b = mh.mul(&r);
 
-            //Compute c = H(m||pk||a||b)
+            //Compute c = H(m||pk.x||a.x||b.x)
             let mut hash_input = Vec::new();
             hash_input.extend_from_slice(message);
-            hash_input.extend_from_slice(pk.to_field_elements().unwrap().as_slice());
-            hash_input.extend_from_slice(a.to_field_elements().unwrap().as_slice());
-            hash_input.extend_from_slice(b.to_field_elements().unwrap().as_slice());
+            hash_input.push(pk.to_field_elements().unwrap()[0]);
+            hash_input.push(a.to_field_elements().unwrap()[0]);
+            hash_input.push(b.to_field_elements().unwrap()[0]);
             let c = FH::evaluate(hash_input.as_ref())?;
 
             let c_leading_zeros = leading_zeros(c.write_bits()) as usize;
@@ -183,13 +183,13 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
         //Compute v = mh^s - gamma^c
         let v = mh.mul(&s_conv) - &proof.gamma.mul(&c_conv);
 
-        //Compute c' = H(m||pk||u||v)
+        //Compute c' = H(m||pk.x||u.x||v.x)
         let mut hash_input = Vec::new();
         let pk_coords = pk.to_field_elements()?;
         hash_input.extend_from_slice(message);
-        hash_input.extend_from_slice(pk_coords.as_slice());
-        hash_input.extend_from_slice(u.to_field_elements().unwrap().as_slice());
-        hash_input.extend_from_slice(v.to_field_elements().unwrap().as_slice());
+        hash_input.push(pk_coords[0]);
+        hash_input.push(u.to_field_elements().unwrap()[0]);
+        hash_input.push(v.to_field_elements().unwrap()[0]);
         let c_prime = FH::evaluate(hash_input.as_ref())?;
 
         //Verify valid proof

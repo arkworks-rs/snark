@@ -225,12 +225,12 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
             mh.mul_bits(cs.ns(|| "(s * mh) - (c * gamma)"), &neg_c_times_gamma, s_bits.as_slice().iter())?
         };
 
-        //Check c' = H(m||pk||u||v)
+        //Check c' = H(m||pk.x||u.x||v.x)
         let mut hash_input = Vec::new();
         hash_input.extend_from_slice(message);
-        hash_input.extend_from_slice(public_key.to_field_gadget_elements().unwrap().as_slice());
-        hash_input.extend_from_slice(u.to_field_gadget_elements().unwrap().as_slice());
-        hash_input.extend_from_slice(v.to_field_gadget_elements().unwrap().as_slice());
+        hash_input.push(public_key.to_field_gadget_elements().unwrap()[0].clone());
+        hash_input.push(u.to_field_gadget_elements().unwrap()[0].clone());
+        hash_input.push(v.to_field_gadget_elements().unwrap()[0].clone());
 
         let c_prime = FHG::check_evaluation_gadget(
             cs.ns(|| "check c_prime"),

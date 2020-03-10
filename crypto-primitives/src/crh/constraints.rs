@@ -26,7 +26,7 @@ pub trait FixedLengthCRHGadget<H: FixedLengthCRH, ConstraintF: Field>: Sized {
 
 //Temporary mock of Poseidon interfaces
 use algebra::PrimeField;
-use crate::crh::{PoseidonHash, FieldBasedHash, FieldBasedHashParameters};
+use crate::crh::{PoseidonParameters, PoseidonHash, FieldBasedHash};
 use r1cs_std::fields::fp::FpGadget;
 use std::marker::PhantomData;
 
@@ -42,7 +42,7 @@ pub trait FieldBasedHashGadget<H: FieldBasedHash<Data = ConstraintF>, Constraint
 pub struct PoseidonHashGadget
 <
     ConstraintF: Field,
-    P:           FieldBasedHashParameters<Fr = ConstraintF>,
+    P:           PoseidonParameters<Fr = ConstraintF>,
 >
 {
     _field:      PhantomData<ConstraintF>,
@@ -53,7 +53,7 @@ impl<ConstraintF, P> FieldBasedHashGadget<PoseidonHash<ConstraintF, P>, Constrai
 for PoseidonHashGadget<ConstraintF, P>
     where
         ConstraintF: PrimeField,
-        P:           FieldBasedHashParameters<Fr = ConstraintF>,
+        P:           PoseidonParameters<Fr = ConstraintF>,
 {
     type DataGadget = FpGadget<ConstraintF>;
 

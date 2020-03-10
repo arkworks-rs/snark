@@ -315,16 +315,13 @@ pub mod field_impl {
                 let r = G::prime_subgroup_generator()
                     .mul(&k);
 
-                let r_x = {
-                    let r_coords = r.to_field_elements()?;
-                    r_coords[0]
-                };
+                let r_coords = r.to_field_elements()?;
 
-                // Compute e = H(m || R.x || pk)
+                // Compute e = H(m || R || pk.x)
                 let mut hash_input = Vec::new();
                 hash_input.extend_from_slice(message);
-                hash_input.push(r_x);
-                hash_input.extend_from_slice(pk_coords.as_slice());
+                hash_input.extend_from_slice(r_coords.as_slice());
+                hash_input.push(pk_coords[0]);
                 let e = H::evaluate(hash_input.as_ref())?;
 
                 let e_leading_zeros = leading_zeros(e.write_bits()) as usize;
@@ -387,16 +384,13 @@ pub mod field_impl {
                 (s_times_g + &neg_e_times_pk)
             };
 
-            let r_prime_x = {
-                let r_prime_coords = r_prime.to_field_elements()?;
-                r_prime_coords[0]
-            };
+            let r_prime_coords = r_prime.to_field_elements()?;
 
-            // Compute e' = H(m || R'.x || pk)
+            // Compute e' = H(m || R' || pk.x)
             let mut hash_input = Vec::new();
             hash_input.extend_from_slice(message);
-            hash_input.push(r_prime_x);
-            hash_input.extend_from_slice(pk_coords.as_slice());
+            hash_input.extend_from_slice(r_prime_coords.as_slice());
+            hash_input.push(pk_coords[0]);
             let e_prime = H::evaluate(hash_input.as_ref())?;
 
             Ok(signature.e == e_prime)

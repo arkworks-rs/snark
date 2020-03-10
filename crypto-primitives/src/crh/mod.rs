@@ -37,6 +37,10 @@ pub trait FieldBasedHash {
     fn evaluate(input: &[Self::Data]) -> Result<Self::Data, Error>;
 }
 
+pub trait PoseidonParameters: FieldBasedHashParameters {
+    //Constants here
+}
+
 use algebra::fields::mnt4753::Fr as MNT4753Fr;
 use algebra::fields::mnt6753::Fr as MNT6753Fr;
 use algebra::fields::bls12_381::Fr as BLS12Fr;
@@ -50,6 +54,8 @@ impl FieldBasedHashParameters for MNT4HashParameters{
     type Fr = MNT4753Fr;
 }
 
+impl PoseidonParameters for MNT4HashParameters {}
+
 #[derive(Derivative)]
 #[derivative(Clone)]
 pub struct MNT6HashParameters;
@@ -58,6 +64,7 @@ impl FieldBasedHashParameters for MNT6HashParameters{
     type Fr = MNT6753Fr;
 }
 
+impl PoseidonParameters for MNT6HashParameters {}
 
 #[derive(Derivative)]
 #[derivative(Clone)]
@@ -67,12 +74,14 @@ impl FieldBasedHashParameters for Bls12_381HashParameters{
     type Fr = BLS12Fr;
 }
 
-pub struct PoseidonHash<F: Field, P: FieldBasedHashParameters<Fr = F>>{
+impl PoseidonParameters for Bls12_381HashParameters {}
+
+pub struct PoseidonHash<F: Field, P: PoseidonParameters<Fr = F>>{
     _field:      PhantomData<F>,
     _parameters: PhantomData<P>,
 }
 
-impl<F: Field, P: FieldBasedHashParameters<Fr = F>> FieldBasedHash for PoseidonHash<F, P>{
+impl<F: Field, P: PoseidonParameters<Fr = F>> FieldBasedHash for PoseidonHash<F, P>{
     type Data = F;
     type Parameters = P;
 
