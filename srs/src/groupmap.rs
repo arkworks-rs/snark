@@ -1,52 +1,64 @@
 use crate::CompressedSRS;
 use algebra::{
     curves::{models::SWModelParameters, AffineCurve},
-    fields::Field,
+    fields::{SquareRootField, Field},
 };
 use core::fmt::Error;
 
-pub trait GroupMap<G: SWModelParameters> {
-    type Parameters;
-    fn setup() -> Self::Parameters;
-    fn batch_to_group_x(p: &Self::Parameters, ts: Vec<G::BaseField>) -> Vec<[G::BaseField; 3]>;
+pub trait GroupMap {
+    type F : SquareRootField;
+    fn setup() -> Self;
+    fn batch_to_group_x(p: &Self, ts: Vec<Self::F>) -> Vec<[Self::F; 3]>;
 }
 
 struct BWParameters<G: SWModelParameters> {
     u: G::BaseField,
     fu: G::BaseField,
-    three_u_plus_u_over_2: G::BaseField,
-    three_u_minus_u_over_2: G::BaseField,
-    three_u: G::BaseField,
-    inv_three_u: G::BaseField,
+    sqrt_neg_three_u_squared_plus_u_over_2: G::BaseField,
+    sqrt_neg_three_u_squared_minus_u_over_2: G::BaseField,
+    sqrt_neg_three_u_squared: G::BaseField,
+    inv_three_u_squared: G::BaseField,
 }
 
-impl<G: SWModelParameters> GroupMap<G> for BWParameters<G> {
-    type Parameters = BWParameters<G>;
-    type FF = G::BaseField;
+fn curve_eqn<G : SWModelParameters>(x : G::BaseField) -> G::BaseField {
+    let mut res = x;
+    res *= & x; // x^2
+    res += & G::COEFF_A; // x^2 + A
+    res *= & x; // x^3 + A x
+    res += & G::COEFF_B; // x^3 + A x + B
+    res
+}
 
-    fn setup() -> Self::Parameters {
-        fn get_u<G: SWModelParameters>() -> Option<F> {
-            let mut u: u8;
-            for u in 0..200 {
-                let x_zero = (<Self::FF as Field>::from(u)).square();
-                x_zero.mul(G::BaseField::from(3));
-                x_zero.minus();
-                x_zero.sqrt();
-                x_zero.ub(&u);
-                x_zero.div(G::BaseField::from(2));
-                let (x, y) = curve_eqn(x_zero);
-                if y.legendre() == 1 {
-                    Some(G::BaseField::from(u))
-                };
-            }
-            None
+fn find_first<A, F: Fn(u64) -> Option<A>>(start: u64, f : F) -> A {
+    for i in start.. {
+        match f(i) {
+            Some(x) => return x,
+            None => ()
         }
+    }
+    panic!("find_first")
+}
 
-        let u = get_u();
-        let fu = &u.mul(&u);
-        fu.add(&G::COEFF_A);
-        fu.mul(&u);
-        fu.add(&G::COEFF_B);
+impl<G: SWModelParameters> GroupMap for BWParameters<G> {
+    type F = G::BaseField;
+
+    fn setup() -> Self {
+        assert!(G::COEFF_A.is_zero());
+
+        let (u, fu) = find_first(1, |u| {
+            let u : G::BaseField = u.into();
+            let fu : G::BaseField = curve_eqn(u);
+            if fu.is_zero() {
+                return None
+            } else {
+                Some((u, fu))
+            }
+        });
+
+        let three_u_squared = u.square() * & 3.into();
+        let inv_three_u_squared = three_u_squared.inverse();
+        let sqrt_neg_three_u_squared = (-three_u_squared).sqrt().unwrap();
+
         let three_u = &u.square();
         three_u.mul(G::BaseField::from(3));
         three_u.minus();
@@ -70,6 +82,7 @@ impl<G: SWModelParameters> GroupMap<G> for BWParameters<G> {
         }
     }
 
+    /*
     fn batch_to_group_x(p: &Self::Parameters, ts: Vec<G::BaseField>) -> Vec<[G::BaseField; 3]> {
         fn get_y(x: G::BaseField) -> Option<G::BaseField> {
             let fx = ((x * x * x) + (G::A_COEFF * x) + G::B_COEFF);
@@ -139,4 +152,5 @@ impl<G: SWModelParameters> GroupMap<G> for BWParameters<G> {
             }
         }
     }
+    */
 }
