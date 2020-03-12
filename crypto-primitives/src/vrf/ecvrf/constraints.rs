@@ -4,7 +4,8 @@ use r1cs_std::{
     alloc::AllocGadget,
     groups::GroupGadget,
     eq::EqGadget,
-    ToBytesGadget,
+    to_field_gadget_vec::ToConstraintFieldGadget,
+    bits::ToBytesGadget,
 };
 use crate::{
     vrf::{
@@ -22,7 +23,6 @@ use std::{
     marker::PhantomData,
     borrow::Borrow,
 };
-use r1cs_std::to_field_gadget_vec::ToConstraintFieldGadget;
 
 #[derive(Derivative)]
 #[derivative(
@@ -42,6 +42,37 @@ where
     pub s:       FpGadget<ConstraintF>,
     _field:      PhantomData<ConstraintF>,
     _group:      PhantomData<G>,
+}
+
+impl<ConstraintF, G, GG> FieldBasedEcVrfProofGadget<ConstraintF, G, GG>
+    where
+        ConstraintF: PrimeField,
+        G:           ProjectiveCurve,
+        GG:          GroupGadget<G, ConstraintF>,
+{
+    #[allow(dead_code)]
+    fn alloc_without_check<FN, T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, f: FN) -> Result<Self, SynthesisError>
+        where
+            FN: FnOnce() -> Result<T, SynthesisError>,
+            T: Borrow<FieldBasedEcVrfProof<ConstraintF, G>>,
+    {
+        let (gamma, c, s) = match f() {
+            Ok(proof) => {
+                let proof = *proof.borrow();
+                (Ok(proof.gamma), Ok(proof.c), Ok(proof.s))
+            },
+            _ => (
+                Err(SynthesisError::AssignmentMissing),
+                Err(SynthesisError::AssignmentMissing),
+                Err(SynthesisError::AssignmentMissing),
+            ),
+        };
+
+        let gamma = GG::alloc_without_check(cs.ns(|| "alloc gamma"), || gamma)?;
+        let c = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc c"), || c)?;
+        let s = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc s"), || s)?;
+        Ok(Self{gamma, c, s, _field: PhantomData, _group: PhantomData})
+    }
 }
 
 impl<ConstraintF, G, GG> AllocGadget<FieldBasedEcVrfProof<ConstraintF, G>, ConstraintF>
@@ -74,6 +105,29 @@ for FieldBasedEcVrfProofGadget<ConstraintF, G, GG>
         Ok(Self{gamma, c, s, _field: PhantomData, _group: PhantomData})
     }
 
+    fn alloc_checked<FN, T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, f: FN) -> Result<Self, SynthesisError>
+        where
+            FN: FnOnce() -> Result<T, SynthesisError>,
+            T: Borrow<FieldBasedEcVrfProof<ConstraintF, G>>,
+    {
+        let (gamma, c, s) = match f() {
+            Ok(proof) => {
+                let proof = *proof.borrow();
+                (Ok(proof.gamma), Ok(proof.c), Ok(proof.s))
+            },
+            _ => (
+                Err(SynthesisError::AssignmentMissing),
+                Err(SynthesisError::AssignmentMissing),
+                Err(SynthesisError::AssignmentMissing),
+            ),
+        };
+
+        let gamma = GG::alloc_checked(cs.ns(|| "alloc gamma"), || gamma)?;
+        let c = FpGadget::<ConstraintF>::alloc_checked(cs.ns(|| "alloc c"), || c)?;
+        let s = FpGadget::<ConstraintF>::alloc_checked(cs.ns(|| "alloc s"), || s)?;
+        Ok(Self{gamma, c, s, _field: PhantomData, _group: PhantomData})
+    }
+
     fn alloc_input<FN, T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, f: FN) -> Result<Self, SynthesisError>
         where
             FN: FnOnce() -> Result<T, SynthesisError>,
@@ -91,7 +145,7 @@ for FieldBasedEcVrfProofGadget<ConstraintF, G, GG>
             ),
         };
 
-        let gamma = GG::alloc(cs.ns(|| "alloc gamma"), || gamma)?;
+        let gamma = GG::alloc_input(cs.ns(|| "alloc gamma"), || gamma)?;
         let c = FpGadget::<ConstraintF>::alloc_input(cs.ns(|| "alloc c"), || c)?;
         let s = FpGadget::<ConstraintF>::alloc_input(cs.ns(|| "alloc s"), || s)?;
         Ok(Self{gamma, c, s, _field: PhantomData, _group: PhantomData})
@@ -144,9 +198,16 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
 
         //Check mh = hash_to_curve(message)
         let mut message_bytes = Vec::new();
+
         for (i, fg) in message.iter().enumerate() {
-            let fg_bytes = fg.to_bytes(
-                cs.ns(|| format!("message_{}_to_bytes", i))
+            // The reason for a secure de-packing is not collision resistance (the non-restricted variant
+            // would be still), but that inside the circuit a field element might be proven to hash to
+            // one of two possible fingerprints (as there might be two different byte sequences satisfying
+            // the depacking constraint mod q). Hence via SNARKs the output of the VRF is not unique and
+            // can be chosen between two possible outputs, which is what we definitely do not want in the
+            // application of the VRF (the VRF is now rather a verifiable random relation, not function).
+            let fg_bytes = fg.to_bytes_strict(
+                cs.ns(|| format!("message_{}_to_bytes_restricted", i)),
             )?;
             message_bytes.extend_from_slice(fg_bytes.as_slice())
         }
@@ -225,7 +286,9 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
             mh.mul_bits(cs.ns(|| "(s * mh) - (c * gamma)"), &neg_c_times_gamma, s_bits.as_slice().iter())?
         };
 
-        //Check c' = H(m||pk.x||u.x||v.x)
+        // Check c' = H(m||pk.x||u.x||v.x)
+        // Best constraints-efficiency is achieved when m is one field element
+        // (or an odd number of field elements).
         let mut hash_input = Vec::new();
         hash_input.extend_from_slice(message);
         hash_input.push(public_key.to_field_gadget_elements().unwrap()[0].clone());
@@ -242,8 +305,7 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
 
         //Check and return VRF output
         hash_input = Vec::new();
-        hash_input.extend_from_slice(message);
-        hash_input.extend_from_slice(public_key.to_field_gadget_elements().unwrap().as_slice());
+        hash_input.extend_from_slice(proof.gamma.to_field_gadget_elements().unwrap().as_slice());
 
         let vrf_output = FHG::check_evaluation_gadget(
             cs.ns(|| "check vrf_output"),
@@ -358,7 +420,8 @@ mod test {
     fn prove<S: FieldBasedVrf, R: Rng>(rng: &mut R, pp: &S::GHParams, message: &[S::Data])
         -> (S::Proof, S::PublicKey)
     {
-        let (pk, sk) = S::keygen(rng).unwrap();
+        let (pk, sk) = S::keygen(rng);
+        assert!(S::keyverify(&pk));
         let proof = S::prove(rng, pp, &pk, &sk, &message).unwrap();
         (proof, pk)
     }
@@ -576,6 +639,12 @@ mod test {
                 &proof_g,
                 &[message_g.clone()]
             ).unwrap();
+
+            if !cs.is_satisfied() {
+                println!("**********Unsatisfied constraints***********");
+                println!("{:?}", cs.which_is_unsatisfied());
+            }
+
             assert!(cs.is_satisfied());
 
             //Negative case: wrong message (or wrong proof for another message)
@@ -585,11 +654,6 @@ mod test {
                 cs.ns(|| "alloc new_message"),
                 || Ok(new_message)
             ).unwrap();
-
-            if !cs.is_satisfied() {
-                println!("**********Unsatisfied constraints***********");
-                println!("{:?}", cs.which_is_unsatisfied());
-            }
 
             EcVrfMNT4Gadget::check_verify_gadget(
                 cs.ns(|| "verify new proof"),

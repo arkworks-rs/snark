@@ -62,7 +62,7 @@ pub trait FieldBasedSignatureScheme {
 
     fn keygen<R: Rng>(
         rng: &mut R,
-    ) -> Result<(Self::PublicKey, Self::SecretKey), Error>;
+    ) -> (Self::PublicKey, Self::SecretKey);
 
     fn sign<R: Rng>(
         rng: &mut R,
@@ -77,11 +77,9 @@ pub trait FieldBasedSignatureScheme {
         signature: &Self::Signature,
     ) -> Result<bool, Error>;
 
-    fn check_pk_and_verify(
+    fn keyverify(
         pk: &Self::PublicKey,
-        message: &[Self::Data],
-        signature: &Self::Signature,
-    ) -> Result<bool, Error>;
+    ) -> bool;
 }
 
 #[cfg(test)]

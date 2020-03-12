@@ -393,6 +393,8 @@ pub mod field_impl
             let r_prime_coords = r_prime.to_field_gadget_elements()?;
 
             // Check e' = H(m || signature.r || pk.x)
+            // Best constraints-efficiency is achieved when m is one field element
+            // (or an odd number of field elements).
             let mut hash_input = Vec::new();
             hash_input.extend_from_slice(message);
             hash_input.extend_from_slice(r_prime_coords.as_slice());
@@ -515,7 +517,8 @@ mod test {
 
     fn sign<S: FieldBasedSignatureScheme, R: Rng>(rng: &mut R, message: &[S::Data]) -> (S::Signature, S::PublicKey)
     {
-        let (pk, sk) = S::keygen(rng).unwrap();
+        let (pk, sk) = S::keygen(rng);
+        assert!(S::keyverify(&pk));
         let sig = S::sign(rng, &pk, &sk, &message).unwrap();
         (sig, pk)
     }

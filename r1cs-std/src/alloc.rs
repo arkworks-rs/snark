@@ -12,6 +12,11 @@ where
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<V>;
 
+    fn alloc_without_check<F, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, f: F) -> Result<Self, SynthesisError>
+        where
+            F: FnOnce() -> Result<T, SynthesisError>,
+            T: Borrow<V>, { Self::alloc(cs, f) }
+
     fn alloc_checked<F, T, CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
         f: F,

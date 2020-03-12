@@ -110,6 +110,12 @@ impl<P: Parameters> GroupAffine<P> {
             y2 == x3b
         }
     }
+
+    #[inline]
+    pub fn is_in_correct_subgroup_assuming_on_curve(&self) -> bool {
+        self.mul_bits(BitIterator::new(P::ScalarField::characteristic()))
+            .is_zero()
+    }
 }
 
 impl<P: Parameters> AffineCurve for GroupAffine<P> {
@@ -137,9 +143,8 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
     }
 
     #[inline]
-    fn is_in_correct_subgroup_assuming_on_curve(&self) -> bool {
-        self.mul_bits(BitIterator::new(P::ScalarField::characteristic()))
-            .is_zero()
+    fn group_membership_test(&self) -> bool {
+        self.is_on_curve() && self.is_in_correct_subgroup_assuming_on_curve()
     }
 
     #[inline]
@@ -559,6 +564,11 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
     #[inline]
     fn recommended_wnaf_for_num_scalars(num_scalars: usize) -> usize {
         P::empirical_recommended_wnaf_for_num_scalars(num_scalars)
+    }
+
+    #[inline]
+    fn group_membership_test(&self) -> bool {
+        self.into_affine().group_membership_test()
     }
 }
 

@@ -19,7 +19,7 @@ pub trait FieldBasedVrf {
 
     fn keygen<R: Rng>(
         rng: &mut R,
-    ) -> Result<(Self::PublicKey, Self::SecretKey), Error>;
+    ) -> (Self::PublicKey, Self::SecretKey);
 
     fn prove<R: Rng>
     (
@@ -38,11 +38,5 @@ pub trait FieldBasedVrf {
         proof:   &Self::Proof,
     ) -> Result<Self::Data, Error>;
 
-    fn check_pk_and_verify
-    (
-        pp:      &Self::GHParams,
-        pk:      &Self::PublicKey,
-        message: &[Self::Data],
-        proof:   &Self::Proof,
-    ) -> Result<Self::Data, Error>;
+    fn keyverify(pk: &Self::PublicKey) -> bool;
 }

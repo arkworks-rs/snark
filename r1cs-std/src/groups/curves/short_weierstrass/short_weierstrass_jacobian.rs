@@ -38,32 +38,6 @@ impl<P, ConstraintF, F> AffineGadget<P, ConstraintF, F>
             _engine: PhantomData,
         }
     }
-
-    pub fn alloc_without_check<FN, CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        value_gen: F,
-    ) -> Result<Self, SynthesisError>
-        where
-            F: FnOnce() -> Result<SWProjective<P>, SynthesisError>,
-    {
-        let (x, y, infinity) = match value_gen() {
-            Ok(ge) => {
-                let ge = ge.into_affine();
-                (Ok(ge.x), Ok(ge.y), Ok(ge.infinity))
-            },
-            _ => (
-                Err(SynthesisError::AssignmentMissing),
-                Err(SynthesisError::AssignmentMissing),
-                Err(SynthesisError::AssignmentMissing),
-            ),
-        };
-
-        let x = F::alloc(&mut cs.ns(|| "x"), || x)?;
-        let y = F::alloc(&mut cs.ns(|| "y"), || y)?;
-        let infinity = Boolean::alloc(&mut cs.ns(|| "infinity"), || infinity)?;
-
-        Ok(Self::new(x, y, infinity))
-    }
 }
 
 impl<P, ConstraintF, F> PartialEq for AffineGadget<P, ConstraintF, F>
@@ -460,6 +434,34 @@ for AffineGadget<P, ConstraintF, F>
         let y2_minus_b = y2.add_constant(cs.ns(|| "y^2 - b"), &b.neg())?;
 
         x2_plus_a.mul_equals(cs.ns(|| "on curve check"), &x, &y2_minus_b)?;
+
+        Ok(Self::new(x, y, infinity))
+    }
+
+    #[inline]
+    fn alloc_without_check<FN, T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        value_gen: FN,
+    ) -> Result<Self, SynthesisError>
+        where
+            FN: FnOnce() -> Result<T, SynthesisError>,
+            T: Borrow<SWProjective<P>>,
+    {
+        let (x, y, infinity) = match value_gen() {
+            Ok(ge) => {
+                let ge = ge.borrow().into_affine();
+                (Ok(ge.x), Ok(ge.y), Ok(ge.infinity))
+            },
+            _ => (
+                Err(SynthesisError::AssignmentMissing),
+                Err(SynthesisError::AssignmentMissing),
+                Err(SynthesisError::AssignmentMissing),
+            ),
+        };
+
+        let x = F::alloc(&mut cs.ns(|| "x"), || x)?;
+        let y = F::alloc(&mut cs.ns(|| "y"), || y)?;
+        let infinity = Boolean::alloc(&mut cs.ns(|| "infinity"), || infinity)?;
 
         Ok(Self::new(x, y, infinity))
     }

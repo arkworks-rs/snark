@@ -113,6 +113,12 @@ impl<P: Parameters> GroupAffine<P> {
             y2 == x3b
         }
     }
+
+    #[inline]
+    pub fn is_in_correct_subgroup_assuming_on_curve(&self) -> bool {
+        self.mul_bits(BitIterator::new(P::ScalarField::characteristic()))
+            .is_zero()
+    }
 }
 
 impl<P: Parameters> AffineCurve for GroupAffine<P> {
@@ -120,10 +126,12 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
     type BaseField = P::BaseField;
     type Projective = GroupProjective<P>;
 
+    #[inline]
     fn zero() -> Self {
         Self::new(Self::BaseField::zero(), Self::BaseField::one(), true)
     }
 
+    #[inline]
     fn prime_subgroup_generator() -> Self {
         Self::new(
             P::AFFINE_GENERATOR_COEFFS.0,
@@ -132,21 +140,23 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
         )
     }
 
+    #[inline]
     fn is_zero(&self) -> bool {
         self.infinity
     }
 
     #[inline]
-    fn is_in_correct_subgroup_assuming_on_curve(&self) -> bool {
-        self.mul_bits(BitIterator::new(P::ScalarField::characteristic()))
-            .is_zero()
+    fn group_membership_test(&self) -> bool {
+        self.is_on_curve() && self.is_in_correct_subgroup_assuming_on_curve()
     }
 
+    #[inline]
     fn mul<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(&self, by: S) -> GroupProjective<P> {
         let bits = BitIterator::new(by.into());
         self.mul_bits(bits)
     }
 
+    #[inline]
     fn into_projective(&self) -> GroupProjective<P> {
         (*self).into()
     }
@@ -377,6 +387,11 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
     #[inline]
     fn is_zero(&self) -> bool {
         self.z.is_zero()
+    }
+
+    #[inline]
+    fn group_membership_test(&self) -> bool {
+        self.into_affine().group_membership_test()
     }
 
     #[inline]

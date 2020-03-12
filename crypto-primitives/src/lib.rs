@@ -66,3 +66,16 @@ pub(crate) fn compute_truncation_size(modulus_from: i32, modulus_to: i32) -> usi
         _ => unreachable!(),
     }) as usize
 }
+
+use algebra::{
+    PrimeField, FpParameters,
+};
+
+/// Return the number of bytes to skip in a little-endian byte order representation
+/// of a field element belonging to field `F`.
+#[allow(dead_code)]
+pub(crate) fn compute_bytes_truncation_size<F: PrimeField>() -> usize {
+    let bigint_bytes = (F::Params::MODULUS_BITS + F::Params::REPR_SHAVE_BITS)/8;
+    let safe_bytes = F::Params::CAPACITY/8;
+    (bigint_bytes - safe_bytes) as usize
+}

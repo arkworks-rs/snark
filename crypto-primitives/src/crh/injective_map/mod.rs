@@ -11,7 +11,7 @@ use algebra::{
     curves::{
         models::{ModelParameters, TEModelParameters},
         twisted_edwards_extended::{GroupAffine as TEAffine, GroupProjective as TEProjective},
-        ProjectiveCurve, AffineCurve,
+        ProjectiveCurve,
     },
     groups::Group,
 };

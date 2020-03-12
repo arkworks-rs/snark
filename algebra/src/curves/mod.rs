@@ -147,6 +147,11 @@ pub trait ProjectiveCurve:
     #[must_use]
     fn is_zero(&self) -> bool;
 
+    /// Checks that the current point is on curve and is in the
+    /// prime order subgroup
+    #[must_use]
+    fn group_membership_test(&self) -> bool;
+
     /// Normalizes a slice of projective elements so that
     /// conversion to affine is cheap.
     fn batch_normalization(v: &mut [Self]);
@@ -223,10 +228,10 @@ pub trait AffineCurve:
     #[must_use]
     fn is_zero(&self) -> bool;
 
-    /// Checks that the current point is in the prime order subgroup given
-    /// the point is on the curve.
+    /// Checks that the current point is on curve and is in the
+    /// prime order subgroup
     #[must_use]
-    fn is_in_correct_subgroup_assuming_on_curve(&self) -> bool;
+    fn group_membership_test(&self) -> bool;
 
     /// Performs scalar multiplication of this element with mixed addition.
     #[must_use]

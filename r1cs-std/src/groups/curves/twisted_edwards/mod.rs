@@ -220,27 +220,6 @@ impl<P: TEModelParameters, ConstraintF: Field, F: FieldGadget<P::BaseField, Cons
             _engine: PhantomData,
         }
     }
-
-    pub fn alloc_without_check<FN, CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        value_gen: F,
-    ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<TEAffine<P>, SynthesisError>,
-    {
-        let (x, y) = match value_gen() {
-            Ok(fe) => (Ok(fe.x), Ok(fe.y)),
-            _ => (
-                Err(SynthesisError::AssignmentMissing),
-                Err(SynthesisError::AssignmentMissing),
-            ),
-        };
-
-        let x = F::alloc(&mut cs.ns(|| "x"), || x)?;
-        let y = F::alloc(&mut cs.ns(|| "y"), || y)?;
-
-        Ok(Self::new(x, y))
-    }
 }
 
 impl<P, ConstraintF, F> PartialEq for AffineGadget<P, ConstraintF, F>
@@ -540,6 +519,32 @@ mod affine_impl {
                 .add_constant(cs.ns(|| "a * x^2 - 1"), &one.neg())?;
 
             d_x2_minus_one.mul_equals(cs.ns(|| "on curve check"), &y2, &a_x2_minus_one)?;
+            Ok(Self::new(x, y))
+        }
+
+        #[inline]
+        fn alloc_without_check<FN, T, CS: ConstraintSystem<ConstraintF>>(
+            mut cs: CS,
+            value_gen: FN,
+        ) -> Result<Self, SynthesisError>
+            where
+                FN: FnOnce() -> Result<T, SynthesisError>,
+                T: Borrow<TEAffine<P>>,
+        {
+            let (x, y) = match value_gen() {
+                Ok(ge) => {
+                    let ge = *ge.borrow();
+                    (Ok(ge.x), Ok(ge.y))
+                },
+                _ => (
+                    Err(SynthesisError::AssignmentMissing),
+                    Err(SynthesisError::AssignmentMissing),
+                ),
+            };
+
+            let x = F::alloc(&mut cs.ns(|| "x"), || x)?;
+            let y = F::alloc(&mut cs.ns(|| "y"), || y)?;
+
             Ok(Self::new(x, y))
         }
 
@@ -1155,6 +1160,32 @@ mod projective_impl {
                 .add_constant(cs.ns(|| "a * x^2 - 1"), &one.neg())?;
 
             d_x2_minus_one.mul_equals(cs.ns(|| "on curve check"), &y2, &a_x2_minus_one)?;
+            Ok(Self::new(x, y))
+        }
+
+        #[inline]
+        fn alloc_without_check<FN, T, CS: ConstraintSystem<ConstraintF>>(
+            mut cs: CS,
+            value_gen: FN,
+        ) -> Result<Self, SynthesisError>
+            where
+                FN: FnOnce() -> Result<T, SynthesisError>,
+                T: Borrow<TEProjective<P>>,
+        {
+            let (x, y) = match value_gen() {
+                Ok(ge) => {
+                    let ge = ge.borrow().into_affine();
+                    (Ok(ge.x), Ok(ge.y))
+                },
+                _ => (
+                    Err(SynthesisError::AssignmentMissing),
+                    Err(SynthesisError::AssignmentMissing),
+                ),
+            };
+
+            let x = F::alloc(&mut cs.ns(|| "x"), || x)?;
+            let y = F::alloc(&mut cs.ns(|| "y"), || y)?;
+
             Ok(Self::new(x, y))
         }
 

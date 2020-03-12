@@ -231,8 +231,8 @@ ToConstraintField<ConstraintF> for SchnorrSigParameters<G, D>
 
 pub mod field_impl {
 
-    use crate::{crh::FieldBasedHash, signature::FieldBasedSignatureScheme, Error, compute_truncation_size, CryptoError};
-    use algebra::{Field, PrimeField, Group, UniformRand, AffineCurve, ProjectiveCurve,
+    use crate::{crh::FieldBasedHash, signature::FieldBasedSignatureScheme, Error, compute_truncation_size};
+    use algebra::{Field, PrimeField, Group, UniformRand, ProjectiveCurve,
                   convert, leading_zeros, ToBits, ToConstraintField, ToBytes, FromBytes};
     use std::marker::PhantomData;
     use rand::Rng;
@@ -287,12 +287,12 @@ pub mod field_impl {
         type SecretKey = G::ScalarField;
         type Signature = FieldBasedSchnorrSignature<F>;
 
-        fn keygen<R: Rng>(rng: &mut R) -> Result<(Self::PublicKey, Self::SecretKey), Error>
+        fn keygen<R: Rng>(rng: &mut R) -> (Self::PublicKey, Self::SecretKey)
         {
             let secret_key = G::ScalarField::rand(rng);
             let public_key = G::prime_subgroup_generator()
                 .mul(&secret_key);
-            Ok((public_key, secret_key))
+            (public_key, secret_key)
         }
 
         fn sign<R: Rng>(
@@ -396,19 +396,9 @@ pub mod field_impl {
             Ok(signature.e == e_prime)
         }
 
-        fn check_pk_and_verify(
-            pk: &Self::PublicKey,
-            message: &[Self::Data],
-            signature: &Self::Signature
-        ) -> Result<bool, Error>
+        fn keyverify(pk: &Self::PublicKey) -> bool
         {
-            match pk.into_affine().is_in_correct_subgroup_assuming_on_curve() {
-                true => Self::verify(pk, message, signature),
-                false => {
-                    println!("Error: Malformed Pk");
-                    Err(Box::new(CryptoError::NotPrimeOrder))
-                },
-            }
+            pk.group_membership_test()
         }
     }
 }
@@ -436,31 +426,33 @@ mod test {
     type SchnorrBls12 = FieldBasedSchnorrSignatureScheme<BLS12Fr, JubJubProjective, BLS12PoseidonHash>;
 
     fn sign_and_verify<S: FieldBasedSignatureScheme, R: Rng>(rng: &mut R, message: &[S::Data]) {
-        let (pk, sk) = S::keygen(rng).unwrap();
+        let (pk, sk) = S::keygen(rng);
+        assert!(S::keyverify(&pk));
         let sig = S::sign(rng, &pk, &sk, &message).unwrap();
-        assert!(S::check_pk_and_verify(&pk, &message, &sig).unwrap());
+        assert!(S::verify(&pk, &message, &sig).unwrap());
 
         //Serialization/deserialization test
         let sig_serialized = to_bytes!(sig).unwrap();
         let sig_deserialized = <S as FieldBasedSignatureScheme>::Signature::read(sig_serialized.as_slice()).unwrap();
         assert_eq!(sig, sig_deserialized);
-        assert!(S::check_pk_and_verify(&pk, &message, &sig_deserialized).unwrap());
+        assert!(S::verify(&pk, &message, &sig_deserialized).unwrap());
     }
 
     fn failed_verification<S: FieldBasedSignatureScheme, R: Rng>(rng: &mut R, message: &[S::Data], bad_message: &[S::Data]) {
-        let (pk, sk) = S::keygen(rng).unwrap();
+        let (pk, sk) = S::keygen(rng);
+        assert!(S::keyverify(&pk));
 
         //Attempt to verify a signature for a different message
         let sig = S::sign(rng, &pk, &sk, message).unwrap();
-        assert!(!S::check_pk_and_verify(&pk, bad_message, &sig).unwrap());
+        assert!(!S::verify(&pk, bad_message, &sig).unwrap());
 
         //Attempt to verify a different signature for a message
         let bad_sig = S::sign(rng, &pk, &sk, bad_message).unwrap();
-        assert!(!S::check_pk_and_verify(&pk, message, &bad_sig).unwrap());
+        assert!(!S::verify(&pk, message, &bad_sig).unwrap());
 
         //Attempt to verify a signature for a message but with different public key
-        let (new_pk, _) = S::keygen(rng).unwrap();
-        assert!(!S::check_pk_and_verify(&new_pk, message, &sig).unwrap());
+        let (new_pk, _) = S::keygen(rng);
+        assert!(!S::verify(&new_pk, message, &sig).unwrap());
     }
 
     #[test]

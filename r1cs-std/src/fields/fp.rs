@@ -67,6 +67,52 @@ impl<F: PrimeField> FpGadget<F> {
 
         Ok(bits.into_iter().map(Boolean::from).collect())
     }
+
+    #[inline]
+    pub fn to_bytes_with_length_restriction<CS: ConstraintSystem<F>>(
+        &self,
+        mut cs: CS,
+        to_skip: usize
+    ) -> Result<Vec<UInt8>, SynthesisError> {
+        let mut byte_values = match self.value {
+            Some(value) => to_bytes![&value.into_repr()]?
+                .into_iter()
+                .map(Some)
+                .collect::<Vec<_>>(),
+            None => {
+                let default = F::default();
+                let default_len = to_bytes![&default].unwrap().len();
+                vec![None; default_len]
+            },
+        };
+
+        for _ in 0..to_skip {byte_values.pop();}
+
+        let bytes = UInt8::alloc_vec(cs.ns(|| "Alloc bytes"), &byte_values)?;
+
+        let mut lc = LinearCombination::zero();
+        let mut coeff = F::one();
+
+        for bit in bytes
+            .iter()
+            .flat_map(|byte_gadget| byte_gadget.bits.clone())
+            {
+                match bit {
+                    Boolean::Is(bit) => {
+                        lc = lc + (coeff, bit.get_variable());
+                        coeff.double_in_place();
+                    },
+                    Boolean::Constant(_) | Boolean::Not(_) => unreachable!(),
+                }
+            }
+
+        lc = &self.variable - lc;
+
+        cs.enforce(|| "unpacking_constraint", |lc| lc, |lc| lc, |_| lc);
+
+        Ok(bytes)
+    }
+
 }
 
 impl<F: PrimeField> FieldGadget<F, F> for FpGadget<F> {
@@ -484,41 +530,7 @@ impl<F: PrimeField> FromBitsGadget<F> for FpGadget<F> {
 
 impl<F: PrimeField> ToBytesGadget<F> for FpGadget<F> {
     fn to_bytes<CS: ConstraintSystem<F>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
-        let byte_values = match self.value {
-            Some(value) => to_bytes![&value.into_repr()]?
-                .into_iter()
-                .map(Some)
-                .collect::<Vec<_>>(),
-            None => {
-                let default = F::default();
-                let default_len = to_bytes![&default].unwrap().len();
-                vec![None; default_len]
-            },
-        };
-
-        let bytes = UInt8::alloc_vec(cs.ns(|| "Alloc bytes"), &byte_values)?;
-
-        let mut lc = LinearCombination::zero();
-        let mut coeff = F::one();
-
-        for bit in bytes
-            .iter()
-            .flat_map(|byte_gadget| byte_gadget.bits.clone())
-        {
-            match bit {
-                Boolean::Is(bit) => {
-                    lc = lc + (coeff, bit.get_variable());
-                    coeff.double_in_place();
-                },
-                Boolean::Constant(_) | Boolean::Not(_) => unreachable!(),
-            }
-        }
-
-        lc = &self.variable - lc;
-
-        cs.enforce(|| "unpacking_constraint", |lc| lc, |lc| lc, |_| lc);
-
-        Ok(bytes)
+        self.to_bytes_with_length_restriction(&mut cs, 0)
     }
 
     fn to_bytes_strict<CS: ConstraintSystem<F>>(
