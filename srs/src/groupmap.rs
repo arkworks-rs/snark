@@ -154,6 +154,7 @@ impl<G: SWModelParameters> GroupMap for BWParameters<G> {
         let potential_xs = t2_alpha_invs.iter().zip(alphas).map(|((t2,_), alpha)| {
             potential_xs_helper(p, t2.clone(), alpha.clone())
         });
+        potential_xs.collect()
     }
 
     /*
