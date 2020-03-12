@@ -1,4 +1,4 @@
-use algebra::{Field, PrimeField, FpParameters, convert, leading_zeros, Group, ProjectiveCurve,
+use algebra::{Field, PrimeField, FpParameters, convert, leading_zeros, Group, AffineCurve, ProjectiveCurve,
               ToBytes, to_bytes, ToBits, UniformRand, ToConstraintField, FromBytes};
 use crate::{crh::{
     FieldBasedHash, FixedLengthCRH,
@@ -32,26 +32,26 @@ Eq(bound = "F: PrimeField, G: ProjectiveCurve"),
 PartialEq(bound = "F: PrimeField, G: ProjectiveCurve"),
 Debug(bound = "F: PrimeField, G: ProjectiveCurve")
 )]
-pub struct FieldBasedEcVrfProof<F: PrimeField, G: Group> {
+pub struct FieldBasedEcVrfProof<F: PrimeField, G: ProjectiveCurve> {
     pub gamma:  G,
     pub c:      F,
     pub s:      F,
 }
 
-impl<F: PrimeField, G: Group> ToBytes for FieldBasedEcVrfProof<F, G> {
+impl<F: PrimeField, G: ProjectiveCurve> ToBytes for FieldBasedEcVrfProof<F, G> {
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
-        self.gamma.write(&mut writer)?;
+        self.gamma.into_affine().write(&mut writer)?;
         self.c.write(&mut writer)?;
         self.s.write(&mut writer)
     }
 }
 
-impl<F: PrimeField, G: Group> FromBytes for FieldBasedEcVrfProof<F, G> {
+impl<F: PrimeField, G: ProjectiveCurve> FromBytes for FieldBasedEcVrfProof<F, G> {
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
-        let gamma = G::read(&mut reader)?;
+        let gamma = G::Affine::read(&mut reader)?;
         let c = F::read(&mut reader)?;
         let s = F::read(&mut reader)?;
-        Ok(Self{ gamma, c, s })
+        Ok(Self{ gamma: gamma.into_projective(), c, s })
     }
 }
 
