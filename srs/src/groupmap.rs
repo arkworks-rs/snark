@@ -39,6 +39,70 @@ fn find_first<A, F: Fn(u64) -> Option<A>>(start: u64, f : F) -> A {
     panic!("find_first")
 }
 
+fn potential_xs_helper<G: SWModelParameters>(
+    params: &BWParameters<G>,
+    t2: G::BaseField,
+    alpha: G::BaseField,
+) -> [G::BaseField; 3] {
+    let x1 = {
+        let temp = t2;
+        temp.square_in_place();
+        temp *= &alpha;
+        temp *= &params.sqrt_neg_three_u_squared;
+        params.sqrt_neg_three_u_squared_minus_u_over_2 - &temp
+    };
+
+    let x2 = -params.u - & x1;
+
+    let x3 = {
+        let t2_plus_fu = t2 + &params.fu;
+        let t2_inv = alpha * & t2_plus_fu ;
+        let mut temp = t2_plus_fu.square();
+        temp *= &t2_inv;
+        temp *= &params.inv_three_u_squared;
+        params.u - &temp
+    };
+
+    [x1, x2, x3]
+}
+
+
+fn potential_xs<G: SWModelParameters>(
+    params: BWParameters<G>,
+    t: G::BaseField,
+) -> [G::BaseField; 3] {
+    let t2 = t.square();
+    let mut alpha_inv = t2;
+    alpha_inv += &params.fu;
+    alpha_inv *= &t2;
+
+    let alpha = match alpha_inv.inverse() {
+        Some(x) => x,
+        None => G::BaseField::zero()
+    };
+
+    let x1 = {
+        let temp = t2;
+        temp.square_in_place();
+        temp *=(&alpha);
+        temp *= (&params.sqrt_neg_three_u_squared);
+        params.sqrt_neg_three_u_squared_minus_u_over_2 - &temp
+    };
+
+    let x2 = -params.u - & x1;
+
+    let x3 = {
+        let t2_plus_fu = t2 + &params.fu;
+        let t2_inv = alpha * & t2_plus_fu ;
+        let mut temp = t2_plus_fu.square();
+        temp *= &t2_inv;
+        temp *= &params.inv_three_u_squared;
+        params.u - &temp
+    };
+
+    [x1, x2, x3]
+}
+
 impl<G: SWModelParameters> GroupMap for BWParameters<G> {
     type F = G::BaseField;
 
@@ -47,7 +111,7 @@ impl<G: SWModelParameters> GroupMap for BWParameters<G> {
 
         let (u, fu) = find_first(1, |u| {
             let u : G::BaseField = u.into();
-            let fu : G::BaseField = curve_eqn(u);
+            let fu : G::BaseField = curve_eqn::<G>(u);
             if fu.is_zero() {
                 return None
             } else {
@@ -56,73 +120,52 @@ impl<G: SWModelParameters> GroupMap for BWParameters<G> {
         });
 
         let three_u_squared = u.square() * & 3.into();
-        let inv_three_u_squared = three_u_squared.inverse();
+        let inv_three_u_squared = three_u_squared.inverse().unwrap();
         let sqrt_neg_three_u_squared = (-three_u_squared).sqrt().unwrap();
+        let two_inv =
+            G::BaseField::from(2).inverse().unwrap();
+        let sqrt_neg_three_u_squared_plus_u_over_2 = 
+            (sqrt_neg_three_u_squared + & u) * &two_inv;
+        let sqrt_neg_three_u_squared_minus_u_over_2 =
+            (sqrt_neg_three_u_squared - & u) * &two_inv;
 
-        let three_u = &u.square();
-        three_u.mul(G::BaseField::from(3));
-        three_u.minus();
-        let inv_three_u = three_u.copy();
-        three_u.sqrt(); // sqrt(-3u^2)
-        inv_three_u.inv(); // 1/(-3u^2)
-        let three_u_plus_u_over_2 = three_u.copy();
-        let three_u_minus_u_over_2 = three_u.copy();
-        three_u_plus_u_over_2.add(&u);
-        three_u_minus_u_over_2.sub(&u);
-        three_u_plus_u_over_2.div(G::BaseField::from(2)); // sqrt(-3u^2) + u / 2
-        three_u_minus_u_over_2.div(G::BaseField::from(2)); // sqrt(-3u^2) - u / 2
-
-        Self::Parameters {
+        BWParameters::<G> {
             u,
             fu,
-            three_u_plus_u_over_2,
-            three_u_minus_u_over_2,
-            three_u,
-            inv_three_u,
+            sqrt_neg_three_u_squared_plus_u_over_2,
+            sqrt_neg_three_u_squared_minus_u_over_2,
+            sqrt_neg_three_u_squared,
+            inv_three_u_squared,
         }
+    }
+
+    fn batch_to_group_x(p: &BWParameters<G>, ts: Vec<G::BaseField>) -> Vec<[G::BaseField; 3]> {
+        let t2_alpha_invs : Vec<_> = ts.iter().map(|t| {
+            let t2 = t.square();
+            let mut alpha_inv = t2;
+            alpha_inv += &p.fu;
+            alpha_inv *= &t2;
+            (t2, alpha_inv)
+        }).collect();
+
+        let mut alphas : Vec<G::BaseField> = t2_alpha_invs.iter().map(|(_, a)| a.clone()).collect();
+        algebra::fields::batch_inversion::<G::BaseField>(&mut alphas);
+
+        let potential_xs = t2_alpha_invs.iter().zip(alphas).map(|((t2,_), alpha)| {
+            potential_xs_helper(p, t2.clone(), alpha.clone())
+        });
     }
 
     /*
     fn batch_to_group_x(p: &Self::Parameters, ts: Vec<G::BaseField>) -> Vec<[G::BaseField; 3]> {
         fn get_y(x: G::BaseField) -> Option<G::BaseField> {
-            let fx = ((x * x * x) + (G::A_COEFF * x) + G::B_COEFF);
+            let fx = curve_eqn::<G>(x);
             // how do we choose +/- sqrt?
             if let Some(y) = fx.sqrt() {
                 Some(y)
             } else {
                 None
             }
-        }
-
-        fn potential_xs(
-            params: Self::BWParameters,
-            t: G::BaseField,
-        ) -> Result<Vec<[G::BaseField; 3]>, Error> {
-            let alpha_inv = &t.square();
-            alpha_inv.add(&params.fu);
-            alpha_inv.mul(&t.square());
-            // check alpha_inv non zero
-            let alpha = alpha_inv.copy();
-            alpha.inv(); // 1/alpha_inv = alpha
-
-            let temp = &t.square();
-            temp.square();
-            temp.mul(&alpha);
-            temp.add(&params.three_u);
-            let x1 = params.three_u_minus_u_over_2.copy();
-            x1.sub(&temp);
-            let x2 = F::zero().sub(&params.u);
-            x2.sub(&x1);
-            alpha_inv.square();
-            temp = &t.square();
-            temp.square();
-            temp.inv();
-            temp.mul(&params.inv_three_u);
-            temp.mul(&alpha_inv);
-            let x3 = params.u.copy();
-            x3.sub(&temp);
-
-            vec![x1, x2, x3]
         }
 
         fn get_xyi(t: G::BaseField) -> Option<G::BaseField, G::BaseField, usize> {
