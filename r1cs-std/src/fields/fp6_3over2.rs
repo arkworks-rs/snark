@@ -861,26 +861,26 @@ where
     fn conditionally_select<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         cond: &Boolean,
-        first: &Self,
-        second: &Self,
+        true_value: &Self,
+        false_value: &Self,
     ) -> Result<Self, SynthesisError> {
         let c0 = Fp2Gadget::<P, ConstraintF>::conditionally_select(
             &mut cs.ns(|| "c0"),
             cond,
-            &first.c0,
-            &second.c0,
+            &true_value.c0,
+            &false_value.c0,
         )?;
         let c1 = Fp2Gadget::<P, ConstraintF>::conditionally_select(
             &mut cs.ns(|| "c1"),
             cond,
-            &first.c1,
-            &second.c1,
+            &true_value.c1,
+            &false_value.c1,
         )?;
         let c2 = Fp2Gadget::<P, ConstraintF>::conditionally_select(
             &mut cs.ns(|| "c2"),
             cond,
-            &first.c2,
-            &second.c2,
+            &true_value.c2,
+            &false_value.c2,
         )?;
 
         Ok(Self::new(c0, c1, c2))

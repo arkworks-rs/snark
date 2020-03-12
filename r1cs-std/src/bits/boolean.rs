@@ -312,14 +312,14 @@ impl<ConstraintF: PrimeField> CondSelectGadget<ConstraintF> for AllocatedBit {
     fn conditionally_select<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
         cond: &Boolean,
-        first: &Self,
-        second: &Self,
+        true_value: &Self,
+        false_value: &Self,
     ) -> Result<Self, SynthesisError> {
         cond_select_helper(
             cs,
             cond,
-            (first.value, first.variable),
-            (second.value, second.variable),
+            (true_value.value, true_value.variable),
+            (false_value.value, false_value.variable),
         )
     }
 
@@ -827,17 +827,17 @@ impl<ConstraintF: PrimeField> CondSelectGadget<ConstraintF> for Boolean {
     fn conditionally_select<CS>(
         mut cs: CS,
         cond: &Self,
-        first: &Self,
-        second: &Self,
+        true_value: &Self,
+        false_value: &Self,
     ) -> Result<Self, SynthesisError>
     where
         CS: ConstraintSystem<ConstraintF>,
     {
         match cond {
-            Boolean::Constant(true) => Ok(first.clone()),
-            Boolean::Constant(false) => Ok(second.clone()),
-            cond @ Boolean::Not(_) => Self::conditionally_select(cs, &cond.not(), second, first),
-            cond @ Boolean::Is(_) => match (first, second) {
+            Boolean::Constant(true) => Ok(true_value.clone()),
+            Boolean::Constant(false) => Ok(false_value.clone()),
+            cond @ Boolean::Not(_) => Self::conditionally_select(cs, &cond.not(), false_value, true_value),
+            cond @ Boolean::Is(_) => match (true_value, false_value) {
                 (x, &Boolean::Constant(false)) => Boolean::and(cs.ns(|| "and"), cond, x).into(),
                 (&Boolean::Constant(false), x) => Boolean::and(cs.ns(|| "and"), &cond.not(), x),
                 (&Boolean::Constant(true), x) => Boolean::or(cs.ns(|| "or"), cond, x).into(),
