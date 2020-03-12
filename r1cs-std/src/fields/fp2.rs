@@ -581,20 +581,20 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> CondSelectGadg
     fn conditionally_select<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         cond: &Boolean,
-        first: &Self,
-        second: &Self,
+        true_value: &Self,
+        false_value: &Self,
     ) -> Result<Self, SynthesisError> {
         let c0 = FpGadget::<ConstraintF>::conditionally_select(
             &mut cs.ns(|| "c0"),
             cond,
-            &first.c0,
-            &second.c0,
+            &true_value.c0,
+            &false_value.c0,
         )?;
         let c1 = FpGadget::<ConstraintF>::conditionally_select(
             &mut cs.ns(|| "c1"),
             cond,
-            &first.c1,
-            &second.c1,
+            &true_value.c1,
+            &false_value.c1,
         )?;
 
         Ok(Self::new(c0, c1))

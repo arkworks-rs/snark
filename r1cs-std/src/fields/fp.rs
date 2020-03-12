@@ -449,19 +449,19 @@ impl<F: PrimeField> CondSelectGadget<F> for FpGadget<F> {
     fn conditionally_select<CS: ConstraintSystem<F>>(
         mut cs: CS,
         cond: &Boolean,
-        first: &Self,
-        second: &Self,
+        true_value: &Self,
+        false_value: &Self,
     ) -> Result<Self, SynthesisError> {
         if let Boolean::Constant(cond) = *cond {
             if cond {
-                Ok(first.clone())
+                Ok(true_value.clone())
             } else {
-                Ok(second.clone())
+                Ok(false_value.clone())
             }
         } else {
             let result = Self::alloc(cs.ns(|| ""), || {
                 cond.get_value()
-                    .and_then(|cond| if cond { first } else { second }.get_value())
+                    .and_then(|cond| if cond { true_value } else { false_value }.get_value())
                     .get()
             })?;
             // a = self; b = other; c = cond;
@@ -473,8 +473,8 @@ impl<F: PrimeField> CondSelectGadget<F> for FpGadget<F> {
             cs.enforce(
                 || "conditionally_select",
                 |_| cond.lc(one, F::one()),
-                |lc| (&first.variable - &second.variable) + lc,
-                |lc| (&result.variable - &second.variable) + lc,
+                |lc| (&true_value.variable - &false_value.variable) + lc,
+                |lc| (&result.variable - &false_value.variable) + lc,
             );
 
             Ok(result)

@@ -1266,11 +1266,11 @@ where
     fn conditionally_select<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         cond: &Boolean,
-        first: &Self,
-        second: &Self,
+        true_value: &Self,
+        false_value: &Self,
     ) -> Result<Self, SynthesisError> {
-        let x = F::conditionally_select(&mut cs.ns(|| "x"), cond, &first.x, &second.x)?;
-        let y = F::conditionally_select(&mut cs.ns(|| "y"), cond, &first.y, &second.y)?;
+        let x = F::conditionally_select(&mut cs.ns(|| "x"), cond, &true_value.x, &false_value.x)?;
+        let y = F::conditionally_select(&mut cs.ns(|| "y"), cond, &true_value.y, &false_value.y)?;
 
         Ok(Self::new(x, y))
     }
