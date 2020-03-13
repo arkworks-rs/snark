@@ -231,7 +231,7 @@ ToConstraintField<ConstraintF> for SchnorrSigParameters<G, D>
 
 pub mod field_impl {
 
-    use crate::{crh::FieldBasedHash, signature::FieldBasedSignatureScheme, Error, compute_truncation_size};
+    use crate::{crh::FieldBasedHash, signature::FieldBasedSignatureScheme, CryptoError, Error, compute_truncation_size};
     use algebra::{Field, PrimeField, Group, UniformRand, ProjectiveCurve,
                   convert, leading_zeros, ToBits, ToConstraintField, ToBytes, FromBytes};
     use std::marker::PhantomData;
@@ -366,14 +366,17 @@ pub mod field_impl {
             let pk_coords = pk.to_field_elements()?;
 
             //Checks
-            assert!(
-                (F::size_in_bits() - leading_zeros(signature.e.write_bits()) as usize)
-                    < G::ScalarField::size_in_bits()
-            );
-            assert!(
-                (G::ScalarField::size_in_bits() - leading_zeros(signature.s.write_bits()) as usize)
-                    < F::size_in_bits()
-            );
+            let e_bits = signature.e.write_bits();
+            let e_leading_zeros = leading_zeros(e_bits.clone()) as usize;
+            if (F::size_in_bits() - e_leading_zeros) >= G::ScalarField::size_in_bits(){
+                return Err(Box::new(CryptoError::IncorrectInputLength("signature.e".to_owned(), e_bits.len() - e_leading_zeros)))
+            }
+
+            let s_bits = signature.s.write_bits();
+            let s_leading_zeros = leading_zeros(s_bits.clone()) as usize;
+            if (G::ScalarField::size_in_bits() - s_leading_zeros) >= F::size_in_bits(){
+                return Err(Box::new(CryptoError::IncorrectInputLength("signature.s".to_owned(), s_bits.len() - s_leading_zeros)))
+            }
 
             //Compute R' = s*G - e * pk
             let r_prime = {

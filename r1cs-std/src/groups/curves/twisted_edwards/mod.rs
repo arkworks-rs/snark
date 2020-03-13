@@ -548,78 +548,111 @@ mod affine_impl {
             Ok(Self::new(x, y))
         }
 
+        #[inline]
         fn alloc_checked<FN, T, CS: ConstraintSystem<ConstraintF>>(
             mut cs: CS,
             value_gen: FN,
         ) -> Result<Self, SynthesisError>
-        where
-            FN: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<TEAffine<P>>,
+            where
+                FN: FnOnce() -> Result<T, SynthesisError>,
+                T: Borrow<TEAffine<P>>,
         {
-            let cofactor_weight = BitIterator::new(P::COFACTOR).filter(|b| *b).count();
-            // If we multiply by r, we actually multiply by r - 2.
-            let r_minus_1 = (-P::ScalarField::one()).into_repr();
-            let r_weight = BitIterator::new(&r_minus_1).filter(|b| *b).count();
+            let alloc_and_prime_order_check =
+                |mut cs: r1cs_core::Namespace<_, _>, value_gen: FN| -> Result<Self, SynthesisError> {
+                    let cofactor_weight = BitIterator::new(P::COFACTOR).filter(|b| *b).count();
+                    // If we multiply by r, we actually multiply by r - 2.
+                    let r_minus_1 = (-P::ScalarField::one()).into_repr();
+                    let r_weight = BitIterator::new(&r_minus_1).filter(|b| *b).count();
 
-            // We pick the most efficient method of performing the prime order check:
-            // If the cofactor has lower hamming weight than the scalar field's modulus,
-            // we first multiply by the inverse of the cofactor, and then, after allocating,
-            // multiply by the cofactor. This ensures the resulting point has no cofactors
-            //
-            // Else, we multiply by the scalar field's modulus and ensure that the result
-            // is zero.
-            if cofactor_weight < r_weight {
-                let ge = Self::alloc(cs.ns(|| "Alloc checked"), || {
-                    value_gen().map(|ge| ge.borrow().mul_by_cofactor_inv())
-                })?;
-                let mut seen_one = false;
-                let mut result = Self::zero(cs.ns(|| "result"))?;
-                for (i, b) in BitIterator::new(P::COFACTOR).enumerate() {
-                    let mut cs = cs.ns(|| format!("Iteration {}", i));
+                    // We pick the most efficient method of performing the prime order check:
+                    // If the cofactor has lower hamming weight than the scalar field's modulus,
+                    // we first multiply by the inverse of the cofactor, and then, after allocating,
+                    // multiply by the cofactor. This ensures the resulting point has no cofactors
+                    //
+                    // Else, we multiply by the scalar field's modulus and ensure that the result
+                    // is zero.
+                    if cofactor_weight < r_weight {
+                        let ge = Self::alloc(cs.ns(|| "Alloc checked"), || {
+                            value_gen().map(|ge| {
+                                ge.borrow()
+                                    .mul_by_cofactor_inv()
+                            })
+                        })?;
+                        let mut seen_one = false;
+                        let mut result = Self::zero(cs.ns(|| "result"))?;
+                        for (i, b) in BitIterator::new(P::COFACTOR).enumerate() {
+                            let mut cs = cs.ns(|| format!("Iteration {}", i));
 
-                    let old_seen_one = seen_one;
-                    if seen_one {
-                        result.double_in_place(cs.ns(|| "Double"))?;
+                            let old_seen_one = seen_one;
+                            if seen_one {
+                                result.double_in_place(cs.ns(|| "Double"))?;
+                            } else {
+                                seen_one = b;
+                            }
+
+                            if b {
+                                result = if old_seen_one {
+                                    result.add(cs.ns(|| "Add"), &ge)?
+                                } else {
+                                    ge.clone()
+                                };
+                            }
+                        }
+                        Ok(result)
                     } else {
-                        seen_one = b;
-                    }
+                        let ge = Self::alloc(cs.ns(|| "Alloc checked"), value_gen)?;
+                        let mut seen_one = false;
+                        let mut result = Self::zero(cs.ns(|| "result"))?;
+                        // Returns bits in big-endian order
+                        for (i, b) in BitIterator::new(r_minus_1).enumerate() {
+                            let mut cs = cs.ns(|| format!("Iteration {}", i));
 
-                    if b {
-                        result = if old_seen_one {
-                            result.add(cs.ns(|| "Add"), &ge)?
-                        } else {
-                            ge.clone()
-                        };
-                    }
-                }
-                Ok(result)
-            } else {
-                let ge = Self::alloc(cs.ns(|| "Alloc checked"), value_gen)?;
-                let mut seen_one = false;
-                let mut result = Self::zero(cs.ns(|| "result"))?;
-                // Returns bits in big-endian order
-                for (i, b) in BitIterator::new(r_minus_1).enumerate() {
-                    let mut cs = cs.ns(|| format!("Iteration {}", i));
+                            let old_seen_one = seen_one;
+                            if seen_one {
+                                result.double_in_place(cs.ns(|| "Double"))?;
+                            } else {
+                                seen_one = b;
+                            }
 
-                    let old_seen_one = seen_one;
-                    if seen_one {
-                        result.double_in_place(cs.ns(|| "Double"))?;
-                    } else {
-                        seen_one = b;
+                            if b {
+                                result = if old_seen_one {
+                                    result.add(cs.ns(|| "Add"), &ge)?
+                                } else {
+                                    ge.clone()
+                                };
+                            }
+                        }
+                        let neg_ge = ge.negate(cs.ns(|| "Negate ge"))?;
+                        neg_ge.enforce_equal(cs.ns(|| "Check equals"), &result)?;
+                        Ok(ge)
                     }
+                };
 
-                    if b {
-                        result = if old_seen_one {
-                            result.add(cs.ns(|| "Add"), &ge)?
-                        } else {
-                            ge.clone()
-                        };
-                    }
-                }
-                let neg_ge = ge.negate(cs.ns(|| "Negate ge"))?;
-                neg_ge.enforce_equal(cs.ns(|| "Check equals"), &result)?;
-                Ok(ge)
-            }
+            let ge = alloc_and_prime_order_check(
+                cs.ns(|| "alloc and prime order check"),
+                value_gen
+            )?;
+
+            let d = P::COEFF_D;
+            let a = P::COEFF_A;
+
+            // Check that ax^2 + y^2 = 1 + dx^2y^2: is a cheap check so we do it anyway
+            // We do this by checking that ax^2 - 1 = y^2 * (dx^2 - 1)
+            let x2 = ge.x.square(&mut cs.ns(|| "x^2"))?;
+            let y2 = ge.y.square(&mut cs.ns(|| "y^2"))?;
+
+            let one = P::BaseField::one();
+            let d_x2_minus_one = x2
+                .mul_by_constant(cs.ns(|| "d * x^2"), &d)?
+                .add_constant(cs.ns(|| "d * x^2 - 1"), &one.neg())?;
+
+            let a_x2_minus_one = x2
+                .mul_by_constant(cs.ns(|| "a * x^2"), &a)?
+                .add_constant(cs.ns(|| "a * x^2 - 1"), &one.neg())?;
+
+            d_x2_minus_one.mul_equals(cs.ns(|| "on curve check"), &y2, &a_x2_minus_one)?;
+
+            Ok(ge)
         }
 
         fn alloc_input<FN, T, CS: ConstraintSystem<ConstraintF>>(
@@ -1189,83 +1222,113 @@ mod projective_impl {
             Ok(Self::new(x, y))
         }
 
+        #[inline]
         fn alloc_checked<FN, T, CS: ConstraintSystem<ConstraintF>>(
             mut cs: CS,
             value_gen: FN,
         ) -> Result<Self, SynthesisError>
-        where
-            FN: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<TEProjective<P>>,
+            where
+                FN: FnOnce() -> Result<T, SynthesisError>,
+                T: Borrow<TEProjective<P>>,
         {
-            let cofactor_weight = BitIterator::new(P::COFACTOR).filter(|b| *b).count();
-            // If we multiply by r, we actually multiply by r - 2.
-            let r_minus_1 = (-P::ScalarField::one()).into_repr();
-            let r_weight = BitIterator::new(&r_minus_1).filter(|b| *b).count();
+            let alloc_and_prime_order_check =
+                |mut cs: r1cs_core::Namespace<_, _>, value_gen: FN| -> Result<Self, SynthesisError> {
+                    let cofactor_weight = BitIterator::new(P::COFACTOR).filter(|b| *b).count();
+                    // If we multiply by r, we actually multiply by r - 2.
+                    let r_minus_1 = (-P::ScalarField::one()).into_repr();
+                    let r_weight = BitIterator::new(&r_minus_1).filter(|b| *b).count();
 
-            // We pick the most efficient method of performing the prime order check:
-            // If the cofactor has lower hamming weight than the scalar field's modulus,
-            // we first multiply by the inverse of the cofactor, and then, after allocating,
-            // multiply by the cofactor. This ensures the resulting point has no cofactors
-            //
-            // Else, we multiply by the scalar field's modulus and ensure that the result
-            // is zero.
-            if cofactor_weight < r_weight {
-                let ge = Self::alloc(cs.ns(|| "Alloc checked"), || {
-                    value_gen().map(|ge| {
-                        ge.borrow()
-                            .into_affine()
-                            .mul_by_cofactor_inv()
-                            .into_projective()
-                    })
-                })?;
-                let mut seen_one = false;
-                let mut result = Self::zero(cs.ns(|| "result"))?;
-                for (i, b) in BitIterator::new(P::COFACTOR).enumerate() {
-                    let mut cs = cs.ns(|| format!("Iteration {}", i));
+                    // We pick the most efficient method of performing the prime order check:
+                    // If the cofactor has lower hamming weight than the scalar field's modulus,
+                    // we first multiply by the inverse of the cofactor, and then, after allocating,
+                    // multiply by the cofactor. This ensures the resulting point has no cofactors
+                    //
+                    // Else, we multiply by the scalar field's modulus and ensure that the result
+                    // is zero.
+                    if cofactor_weight < r_weight {
+                        let ge = Self::alloc(cs.ns(|| "Alloc checked"), || {
+                            value_gen().map(|ge| {
+                                ge.borrow()
+                                    .into_affine()
+                                    .mul_by_cofactor_inv()
+                                    .into_projective()
+                            })
+                        })?;
+                        let mut seen_one = false;
+                        let mut result = Self::zero(cs.ns(|| "result"))?;
+                        for (i, b) in BitIterator::new(P::COFACTOR).enumerate() {
+                            let mut cs = cs.ns(|| format!("Iteration {}", i));
 
-                    let old_seen_one = seen_one;
-                    if seen_one {
-                        result.double_in_place(cs.ns(|| "Double"))?;
+                            let old_seen_one = seen_one;
+                            if seen_one {
+                                result.double_in_place(cs.ns(|| "Double"))?;
+                            } else {
+                                seen_one = b;
+                            }
+
+                            if b {
+                                result = if old_seen_one {
+                                    result.add(cs.ns(|| "Add"), &ge)?
+                                } else {
+                                    ge.clone()
+                                };
+                            }
+                        }
+                        Ok(result)
                     } else {
-                        seen_one = b;
-                    }
+                        let ge = Self::alloc(cs.ns(|| "Alloc checked"), value_gen)?;
+                        let mut seen_one = false;
+                        let mut result = Self::zero(cs.ns(|| "result"))?;
+                        // Returns bits in big-endian order
+                        for (i, b) in BitIterator::new(r_minus_1).enumerate() {
+                            let mut cs = cs.ns(|| format!("Iteration {}", i));
 
-                    if b {
-                        result = if old_seen_one {
-                            result.add(cs.ns(|| "Add"), &ge)?
-                        } else {
-                            ge.clone()
-                        };
-                    }
-                }
-                Ok(result)
-            } else {
-                let ge = Self::alloc(cs.ns(|| "Alloc checked"), value_gen)?;
-                let mut seen_one = false;
-                let mut result = Self::zero(cs.ns(|| "result"))?;
-                // Returns bits in big-endian order
-                for (i, b) in BitIterator::new(r_minus_1).enumerate() {
-                    let mut cs = cs.ns(|| format!("Iteration {}", i));
+                            let old_seen_one = seen_one;
+                            if seen_one {
+                                result.double_in_place(cs.ns(|| "Double"))?;
+                            } else {
+                                seen_one = b;
+                            }
 
-                    let old_seen_one = seen_one;
-                    if seen_one {
-                        result.double_in_place(cs.ns(|| "Double"))?;
-                    } else {
-                        seen_one = b;
+                            if b {
+                                result = if old_seen_one {
+                                    result.add(cs.ns(|| "Add"), &ge)?
+                                } else {
+                                    ge.clone()
+                                };
+                            }
+                        }
+                        let neg_ge = ge.negate(cs.ns(|| "Negate ge"))?;
+                        neg_ge.enforce_equal(cs.ns(|| "Check equals"), &result)?;
+                        Ok(ge)
                     }
+                };
 
-                    if b {
-                        result = if old_seen_one {
-                            result.add(cs.ns(|| "Add"), &ge)?
-                        } else {
-                            ge.clone()
-                        };
-                    }
-                }
-                let neg_ge = ge.negate(cs.ns(|| "Negate ge"))?;
-                neg_ge.enforce_equal(cs.ns(|| "Check equals"), &result)?;
-                Ok(ge)
-            }
+            let ge = alloc_and_prime_order_check(
+                cs.ns(|| "alloc and prime order check"),
+                value_gen
+            )?;
+
+            let d = P::COEFF_D;
+            let a = P::COEFF_A;
+
+            // Check that ax^2 + y^2 = 1 + dx^2y^2: is a cheap check so we do it anyway
+            // We do this by checking that ax^2 - 1 = y^2 * (dx^2 - 1)
+            let x2 = ge.x.square(&mut cs.ns(|| "x^2"))?;
+            let y2 = ge.y.square(&mut cs.ns(|| "y^2"))?;
+
+            let one = P::BaseField::one();
+            let d_x2_minus_one = x2
+                .mul_by_constant(cs.ns(|| "d * x^2"), &d)?
+                .add_constant(cs.ns(|| "d * x^2 - 1"), &one.neg())?;
+
+            let a_x2_minus_one = x2
+                .mul_by_constant(cs.ns(|| "a * x^2"), &a)?
+                .add_constant(cs.ns(|| "a * x^2 - 1"), &one.neg())?;
+
+            d_x2_minus_one.mul_equals(cs.ns(|| "on curve check"), &y2, &a_x2_minus_one)?;
+
+            Ok(ge)
         }
 
         fn alloc_input<FN, T, CS: ConstraintSystem<ConstraintF>>(

@@ -69,8 +69,8 @@ impl<ConstraintF, G, GG> FieldBasedEcVrfProofGadget<ConstraintF, G, GG>
         };
 
         let gamma = GG::alloc_without_check(cs.ns(|| "alloc gamma"), || gamma)?;
-        let c = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc c"), || c)?;
-        let s = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc s"), || s)?;
+        let c = FpGadget::<ConstraintF>::alloc_without_check(cs.ns(|| "alloc c"), || c)?;
+        let s = FpGadget::<ConstraintF>::alloc_without_check(cs.ns(|| "alloc s"), || s)?;
         Ok(Self{gamma, c, s, _field: PhantomData, _group: PhantomData})
     }
 }

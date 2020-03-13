@@ -86,16 +86,18 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
     {
         //Compute mh = hash_to_curve(message)
         let mut message_bytes = Vec::new();
-        message.iter().for_each(|f| {
+        for (i, f) in message.iter().enumerate() {
             // The reason for a secure de-packing is not collision resistance (the non-restricted variant
             // would be still), but that inside the circuit a field element might be proven to hash to
             // one of two possible fingerprints (as there might be two different byte sequences satisfying
             // the depacking constraint mod q). Hence via SNARKs the output of the VRF is not unique and
             // can be chosen between two possible outputs, which is what we definitely do not want in the
             // application of the VRF (the VRF is now rather a verifiable random relation, not function).
-            assert!(f.into_repr_raw() < F::Params::MODULUS);
+            if f.into_repr_raw() >= F::Params::MODULUS {
+                return Err(Box::new(CryptoError::InvalidElement(format!("message_element_{}", i).to_owned())));
+            }
             message_bytes.extend_from_slice(to_bytes!(f).unwrap().as_slice())
-        });
+        }
 
         let mh = GH::evaluate(pp, message_bytes.as_slice())?;
 
@@ -163,29 +165,37 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
     {
 
         //Checks
-        assert!(
-            (F::size_in_bits() - leading_zeros(proof.c.write_bits()) as usize)
-                < G::ScalarField::size_in_bits()
-        );
-        assert!(
-            (G::ScalarField::size_in_bits() - leading_zeros(proof.s.write_bits()) as usize)
-                < F::size_in_bits()
-        );
+        let c_bits = proof.c.write_bits();
+        let c_leading_zeros = leading_zeros(c_bits.clone()) as usize;
+        if (F::size_in_bits() - c_leading_zeros) >= G::ScalarField::size_in_bits(){
+            return Err(Box::new(CryptoError::IncorrectInputLength("proof.c".to_owned(), c_bits.len() - c_leading_zeros)))
+        }
 
-        assert!(proof.gamma.group_membership_test());
+        let s_bits = proof.s.write_bits();
+        let s_leading_zeros = leading_zeros(s_bits.clone()) as usize;
+        if (G::ScalarField::size_in_bits() - s_leading_zeros) >= F::size_in_bits(){
+            return Err(Box::new(CryptoError::IncorrectInputLength("proof.s".to_owned(), s_bits.len() - s_leading_zeros)))
+        }
+
+        if !proof.gamma.group_membership_test() {
+            return Err(Box::new(CryptoError::NotPrimeOrder("proof.gamma".to_owned())))
+        }
 
         //Compute mh = hash_to_curve(message)
         let mut message_bytes = Vec::new();
-        message.iter().for_each(|f| {
+        for (i, f) in message.iter().enumerate() {
             // The reason for a secure de-packing is not collision resistance (the non-restricted variant
             // would be still), but that inside the circuit a field element might be proven to hash to
             // one of two possible fingerprints (as there might be two different byte sequences satisfying
             // the depacking constraint mod q). Hence via SNARKs the output of the VRF is not unique and
             // can be chosen between two possible outputs, which is what we definitely do not want in the
             // application of the VRF (the VRF is now rather a verifiable random relation, not function).
-            assert!(f.into_repr_raw() < F::Params::MODULUS);
+            if f.into_repr_raw() >= F::Params::MODULUS {
+                return Err(Box::new(CryptoError::InvalidElement(format!("message_element_{}", i).to_owned())));
+            }
             message_bytes.extend_from_slice(to_bytes!(f).unwrap().as_slice())
-        });
+        }
+
         let mh = GH::evaluate(pp, message_bytes.as_slice())?;
 
         let c_conv = convert::<F, G::ScalarField>(proof.c)?;

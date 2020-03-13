@@ -32,16 +32,18 @@ pub type Error = Box<dyn std::error::Error>;
 
 #[derive(Debug)]
 pub enum CryptoError {
-    IncorrectInputLength(usize),
-    NotPrimeOrder,
+    IncorrectInputLength(String, usize),
+    InvalidElement(String),
+    NotPrimeOrder(String),
     FailedVerification,
 }
 
 impl std::fmt::Display for CryptoError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let msg = match self {
-            CryptoError::IncorrectInputLength(len) => format!("input length is wrong: {}", len),
-            CryptoError::NotPrimeOrder => "element is not prime order".to_owned(),
+            CryptoError::IncorrectInputLength(elem, len) => format!("{} length is wrong: {}", elem, len),
+            CryptoError::InvalidElement(elem) => format!("{} is invalid", elem),
+            CryptoError::NotPrimeOrder(elem) => format!("element {} is not prime order", elem),
             CryptoError::FailedVerification => "verification failed".to_owned(),
         };
         write!(f, "{}", msg)
