@@ -51,7 +51,7 @@ impl<P, HGadget, ConstraintF> FieldBasedMerkleTreePathGadget<P, HGadget, Constra
         should_enforce: &Boolean,
     ) -> Result<(), SynthesisError> {
 
-        assert_eq!(self.path.len(), P::HEIGHT - 1);
+        debug_assert!(self.path.len() == P::HEIGHT - 1);
 
         let mut previous_hash =
             if P::HASH_LEAVES {
@@ -131,7 +131,7 @@ impl<P, HGadget, ConstraintF> FieldBasedMerkleTreeGadget<P, HGadget, ConstraintF
         root: &HGadget::DataGadget,
         should_enforce: &Boolean,
     ) -> Result<(), SynthesisError> {
-        assert_eq!(leaves.len(), 2_usize.pow((P::HEIGHT - 1) as u32));
+        debug_assert!(leaves.len() == 2_usize.pow((P::HEIGHT - 1) as u32));
 
         //Initialize leaves according to P::HASH_LEAVES
         let mut prev_level_nodes = vec![];
@@ -170,7 +170,7 @@ impl<P, HGadget, ConstraintF> FieldBasedMerkleTreeGadget<P, HGadget, ConstraintF
         }
         //At this point, we should have only the root in prev_level_nodes
         //Enforce equality with the root
-        assert_eq!(prev_level_nodes.len(), 1);
+        debug_assert!(prev_level_nodes.len() == 1);
 
         //Enforce equality with the root
 
@@ -500,8 +500,8 @@ mod test {
             let f: Fr = rng.gen();
             leaves.push(f);
         }
-        assert!(check_merkle_paths(&leaves[..4], false));
-        assert!(check_merkle_paths_no_hash(&leaves[..4], false));
+        assert!(check_merkle_paths(&leaves, false));
+        assert!(check_merkle_paths_no_hash(&leaves, false));
         assert!(check_leaves(&leaves, false));
         assert!(check_leaves_no_hash(&leaves, false));
     }
@@ -514,8 +514,8 @@ mod test {
             let f: Fr = rng.gen();
             leaves.push(f);
         }
-        assert!(!check_merkle_paths(&leaves[..4], true));
-        assert!(!check_merkle_paths_no_hash(&leaves[..4], true));
+        assert!(!check_merkle_paths(&leaves, true));
+        assert!(!check_merkle_paths_no_hash(&leaves, true));
         assert!(!check_leaves(&leaves, true));
         assert!(!check_leaves_no_hash(&leaves, true));
     }
