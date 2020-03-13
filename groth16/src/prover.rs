@@ -194,6 +194,17 @@ where
     create_proof::<E, C>(circuit, params, r, s)
 }
 
+pub fn create_proof_no_zk<E, C>(
+    circuit: C,
+    params: &Parameters<E>,
+) -> Result<Proof<E>, SynthesisError>
+where
+    E: PairingEngine,
+    C: ConstraintSynthesizer<E::Fr>,
+{
+    create_proof::<E, C>(circuit, params, E::Fr::zero(), E::Fr::zero())
+}
+
 pub fn create_proof<E, C>(
     circuit: C,
     params: &Parameters<E>,
@@ -228,7 +239,8 @@ where
     end_timer!(synthesis_time);
 
     let witness_map_time = start_timer!(|| "R1CS to QAP witness map");
-    let (full_input_assignment, h, _) = R1CStoQAP::witness_map::<E>(&prover, &E::Fr::zero(), &E::Fr::zero(), &E::Fr::zero())?;
+    let (full_input_assignment, h, _) =
+        R1CStoQAP::witness_map::<E>(&prover, &E::Fr::zero(), &E::Fr::zero(), &E::Fr::zero())?;
     end_timer!(witness_map_time);
 
     let input_assignment = full_input_assignment[1..prover.num_inputs]
