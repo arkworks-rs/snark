@@ -119,7 +119,6 @@ impl R1CStoQAP {
         domain.ifft_in_place(&mut a);
         domain.ifft_in_place(&mut b);
 
-
         domain.coset_fft_in_place(&mut a);
         domain.coset_fft_in_place(&mut b);
 

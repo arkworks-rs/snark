@@ -239,8 +239,7 @@ where
     end_timer!(synthesis_time);
 
     let witness_map_time = start_timer!(|| "R1CS to QAP witness map");
-    let (full_input_assignment, h, _) =
-        R1CStoQAP::witness_map::<E>(&prover)?;
+    let (full_input_assignment, h, _) = R1CStoQAP::witness_map::<E>(&prover)?;
     end_timer!(witness_map_time);
 
     let input_assignment = full_input_assignment[1..prover.num_inputs]
