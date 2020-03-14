@@ -2,7 +2,7 @@ use algebra_core::{One, PairingEngine, Zero};
 use ff_fft::{cfg_iter, cfg_iter_mut, EvaluationDomain};
 
 use crate::{generator::KeypairAssembly, prover::ProvingAssignment, Vec};
-use core::ops::{AddAssign, SubAssign};
+use core::ops::AddAssign;
 use r1cs_core::{Index, SynthesisError};
 
 #[cfg(feature = "parallel")]
@@ -71,9 +71,6 @@ impl R1CStoQAP {
     #[inline]
     pub(crate) fn witness_map<E: PairingEngine>(
         prover: &ProvingAssignment<E>,
-        d1: &E::Fr,
-        d2: &E::Fr,
-        d3: &E::Fr,
     ) -> Result<(Vec<E::Fr>, Vec<E::Fr>, usize), SynthesisError> {
         #[inline]
         fn evaluate_constraint<E: PairingEngine>(
@@ -122,17 +119,6 @@ impl R1CStoQAP {
         domain.ifft_in_place(&mut a);
         domain.ifft_in_place(&mut b);
 
-        let mut h: Vec<E::Fr> = vec![zero; domain_size];
-        cfg_iter_mut!(h)
-            .zip(&a)
-            .zip(&b)
-            .for_each(|((h_i, a_i), b_i)| *h_i *= &(*d2 * a_i + &(*d1 * b_i)));
-
-        h[0].sub_assign(&d3);
-        let d1d2 = *d1 * d2;
-        h[0].sub_assign(&d1d2);
-        h.push(d1d2);
-
         domain.coset_fft_in_place(&mut a);
         domain.coset_fft_in_place(&mut b);
 
@@ -161,7 +147,8 @@ impl R1CStoQAP {
         domain.divide_by_vanishing_poly_on_coset_in_place(&mut ab);
         domain.coset_ifft_in_place(&mut ab);
 
-        cfg_iter_mut!(h[..domain_size - 1])
+        let mut h: Vec<E::Fr> = vec![zero; domain_size - 1];
+        cfg_iter_mut!(h)
             .enumerate()
             .for_each(|(i, e)| e.add_assign(&ab[i]));
 
