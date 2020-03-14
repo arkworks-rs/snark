@@ -1,4 +1,4 @@
-use algebra::{Field, PrimeField};
+use algebra::PrimeField;
 use crate::crh::poseidon::PoseidonParameters;
 use std::marker::PhantomData;
 use r1cs_core::{ConstraintSystem, SynthesisError};
@@ -34,13 +34,11 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
     //     t = 3
     {
 
-        let zero = FpGadget::<ConstraintF>::zero(cs.ns(||"alloc_zero"))?;
-        // state is a vector of 3 elements. They are initialized to zero elements
-        let mut state = vec![zero.clone(), zero.clone(), zero.clone()];
+        let state_0 = FpGadget::<ConstraintF>::alloc_hardcoded(cs.ns(|| "hardcode_state_0"), || Ok(P::AFTER_ZERO_PERM[0]))?;
+        let state_1 = FpGadget::<ConstraintF>::alloc_hardcoded(cs.ns(|| "hardcode_state_1"), || Ok(P::AFTER_ZERO_PERM[1]))?;
+        let state_2 = FpGadget::<ConstraintF>::alloc_hardcoded(cs.ns(|| "hardcode_state_2"), || Ok(P::AFTER_ZERO_PERM[2]))?;
 
-        state[0].add_constant_in_place(cs.ns(|| "add_after_perm_0"), &P::AFTER_ZERO_PERM[0])?;
-        state[1].add_constant_in_place(cs.ns(|| "add_after_perm_1"), &P::AFTER_ZERO_PERM[1])?;
-        state[2].add_constant_in_place(cs.ns(|| "add_after_perm_2"), &P::AFTER_ZERO_PERM[2])?;
+        let mut state = [state_0, state_1, state_2];
 
         // calculate the number of cycles to process the input dividing in portions of rate elements
         let num_cycles = input.len() / P::R;
@@ -278,30 +276,35 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
 mod test {
     use super::super::rand::thread_rng;
     use r1cs_std::test_constraint_system::TestConstraintSystem;
-    use crate::crh::poseidon::poseidon_original::poseidon_engine;
     use crate::crh::poseidon::parameters::MNT4753PoseidonParameters;
-    use algebra::fields::mnt4753::Fr;
     use r1cs_std::fields::fp::FpGadget;
     use r1cs_std::alloc::AllocGadget;
     use r1cs_core::ConstraintSystem;
     use algebra::UniformRand;
     use crate::crh::poseidon::constraints::PoseidonHashGadget;
+    use crate::crh::poseidon::poseidon_original::PoseidonHash;
+    use crate::crh::FieldBasedHash;
 
-    type Mnt4FieldGadget = FpGadget<Fr>;
+    use algebra::fields::mnt6753::Fr as MNT6753Fr;
+    use algebra::fields::mnt4753::Fr as MNT4753Fr;
+
+    type Mnt4FieldGadget = FpGadget<MNT4753Fr>;
 
     #[test]
     fn crh_primitive_gadget_test() {
 
+        type Mnt4PoseidonHash = PoseidonHash<MNT4753Fr, MNT4753PoseidonParameters>;
+
         let mut rng = &mut thread_rng();
-        let mut cs = TestConstraintSystem::<Fr>::new();
+        let mut cs = TestConstraintSystem::<MNT4753Fr>::new();
 
         let mut vec_elem_4753 = Vec::new();
-        let v1 = Fr::rand(&mut rng);
-        let v2 = Fr::rand(&mut rng);
+        let v1 = MNT4753Fr::rand(&mut rng);
+        let v2 = MNT4753Fr::rand(&mut rng);
         vec_elem_4753.push(v1);
         vec_elem_4753.push(v2);
 
-        let primitive_result = poseidon_engine::<MNT4753PoseidonParameters>(&mut vec_elem_4753);
+        let primitive_result = Mnt4PoseidonHash::evaluate(&vec_elem_4753).unwrap();
 
         let v1_gadget = Mnt4FieldGadget::alloc(cs.ns(|| "alloc_v1"),|| Ok(v1)).unwrap();
         let v2_gadget = Mnt4FieldGadget::alloc(cs.ns(|| "alloc_v2"),|| Ok(v2)).unwrap();
@@ -311,7 +314,7 @@ mod test {
         vec_elem_gadget.push(v2_gadget);
 
         let gadget_result =
-            PoseidonHashGadget::<Fr, MNT4753PoseidonParameters>::check_evaluation_gadget(
+            PoseidonHashGadget::<MNT4753Fr, MNT4753PoseidonParameters>::check_evaluation_gadget(
                 cs.ns(||"check_poseidon_gadget"),
                 vec_elem_gadget.as_slice()).unwrap();
 

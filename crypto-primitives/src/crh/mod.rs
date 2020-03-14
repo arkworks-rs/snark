@@ -23,10 +23,32 @@ pub trait FixedLengthCRH {
     fn evaluate(parameters: &Self::Parameters, input: &[u8]) -> Result<Self::Output, Error>;
 }
 
-pub trait Batched2to1CRH {
-    const INPUT_NUM_PAIRS: usize;
-    type Output: ToBytes + Clone + Eq + Hash + Default;
-    type Parameters: Clone + 'static;
+// pub trait Batched2to1CRH {
+//     const INPUT_NUM_PAIRS: usize;
+//     type Output: ToBytes + Clone + Eq + Hash + Default;
+//     type Parameters: Clone + 'static;
+//
+//     fn evaluate(input: &[u8]) -> Result<Self::Output, Error>;
+// }
 
-    fn evaluate(input: &[u8]) -> Result<Self::Output, Error>;
+use algebra::Field;
+
+pub trait FieldBasedHashParameters: Sized{
+    type Fr: Field;
 }
+
+pub trait FieldBasedHash {
+    type Data: Field;
+    type Parameters: FieldBasedHashParameters<Fr = Self::Data>;
+
+    fn evaluate(input: &[Self::Data]) -> Result<Self::Data, Error>;
+    //fn batch_evaluate(input: Vec<Vec<Self::Data>>) -> Result<Vec<Self::Data>, Error>;
+}
+
+pub trait BatchFieldBasedHash {
+    type Data: Field;
+    type Parameters: FieldBasedHashParameters<Fr = Self::Data>;
+
+    fn batch_evaluate(input: &Vec<Vec<Self::Data>>) -> Result<Vec<Self::Data>, Error>;
+}
+

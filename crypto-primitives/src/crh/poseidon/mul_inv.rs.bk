@@ -9,7 +9,6 @@ use std::time::Instant;
 
 use algebra::biginteger::BigInteger768;
 use algebra::{to_bytes, ToBytes};
-use algebra::field_new;
 use rand_xorshift::XorShiftRng;
 use super::rand::SeedableRng;
 
