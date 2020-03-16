@@ -1,6 +1,4 @@
 pub mod groupmap;
-#[cfg(test)]
-mod tests;
 
 use algebra::curves::AffineCurve;
 
