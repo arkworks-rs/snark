@@ -305,6 +305,7 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
 
         //Check and return VRF output
         hash_input = Vec::new();
+        hash_input.extend_from_slice(message);
         hash_input.extend_from_slice(proof.gamma.to_field_gadget_elements().unwrap().as_slice());
 
         let vrf_output = FHG::check_evaluation_gadget(

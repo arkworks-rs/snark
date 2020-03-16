@@ -224,6 +224,7 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
 
                 //Compute VRF output
                 hash_input = Vec::new();
+                hash_input.extend_from_slice(message);
                 hash_input.extend_from_slice(gamma_coords.as_slice());
                 let output = FH::evaluate(hash_input.as_ref())?;
 

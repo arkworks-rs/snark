@@ -915,9 +915,33 @@ mod test {
 
     #[test]
     fn test_boolean_alloc_input_vec() {
+        use rand::thread_rng;
+
         let mut cs = TestConstraintSystem::<Fr>::new();
+        let mut rng = &mut thread_rng();
+
+        //Random test
+        let samples = 100;
+        for i in 0..100 {
+            let bit_vals = Fr::rand(rng).write_bits();
+            let bits = Boolean::alloc_input_vec(cs.ns(|| format!("alloc value {}", i)), &bit_vals).unwrap();
+            assert_eq!(bit_vals.len(), bits.len());
+            for (native_bit, gadget_bit) in bit_vals.into_iter().zip(bits) {
+                assert_eq!(gadget_bit.get_value().unwrap(), native_bit);
+            }
+        }
+
+        //Test one
         let bit_vals = Fr::one().write_bits();
-        let bits = Boolean::alloc_input_vec(cs.ns(|| "alloc value"), &bit_vals).unwrap();
+        let bits = Boolean::alloc_input_vec(cs.ns(|| "alloc one"), &bit_vals).unwrap();
+        assert_eq!(bit_vals.len(), bits.len());
+        for (native_bit, gadget_bit) in bit_vals.into_iter().zip(bits) {
+            assert_eq!(gadget_bit.get_value().unwrap(), native_bit);
+        }
+
+        //Test zero
+        let bit_vals = Fr::zero().write_bits();
+        let bits = Boolean::alloc_input_vec(cs.ns(|| "alloc zero"), &bit_vals).unwrap();
         assert_eq!(bit_vals.len(), bits.len());
         for (native_bit, gadget_bit) in bit_vals.into_iter().zip(bits) {
             assert_eq!(gadget_bit.get_value().unwrap(), native_bit);
