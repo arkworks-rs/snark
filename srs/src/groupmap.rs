@@ -78,29 +78,10 @@ fn potential_xs<G: SWModelParameters>(
         None => G::BaseField::zero()
     };
 
-    let x1 = {
-        let mut temp = t2;
-        temp.square_in_place();
-        temp *= &alpha;
-        temp *= &params.sqrt_neg_three_u_squared;
-        params.sqrt_neg_three_u_squared_minus_u_over_2 - &temp
-    };
-
-    let x2 = -params.u - & x1;
-
-    let x3 = {
-        let t2_plus_fu = t2 + &params.fu;
-        let t2_inv = alpha * & t2_plus_fu ;
-        let mut temp = t2_plus_fu.square();
-        temp *= &t2_inv;
-        temp *= &params.inv_three_u_squared;
-        params.u - &temp
-    };
-
-    [x1, x2, x3]
+    potential_xs_helper(params, t2, alpha)
 }
 
-fn get_y<G:SWModelParameters>(x: G::BaseField) -> Option<G::BaseField> {
+pub fn get_y<G:SWModelParameters>(x: G::BaseField) -> Option<G::BaseField> {
     let fx = curve_eqn::<G>(x);
     if let Some(y) = fx.sqrt() {
         Some(y)
