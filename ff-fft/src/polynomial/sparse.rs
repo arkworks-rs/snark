@@ -2,9 +2,9 @@
 
 use std::fmt;
 
+use algebra::{Field, PrimeField};
 use crate::DensePolynomial;
 use crate::{DenseOrSparsePolynomial, EvaluationDomain, Evaluations};
-use algebra::{Field, PrimeField};
 
 /// Stores a sparse polynomial in coefficient form.
 #[derive(Clone, PartialEq, Eq, Hash, Default)]
@@ -98,6 +98,7 @@ impl<F: Field> SparsePolynomial<F> {
     }
 }
 
+
 impl<F: PrimeField> SparsePolynomial<F> {
     /// Evaluate `self` over `domain`.
     pub fn evaluate_over_domain_by_ref(&self, domain: EvaluationDomain<F>) -> Evaluations<F> {
@@ -126,7 +127,7 @@ impl<F: Field> Into<DensePolynomial<F>> for SparsePolynomial<F> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{DensePolynomial, EvaluationDomain, SparsePolynomial};
+    use crate::{EvaluationDomain, DensePolynomial, SparsePolynomial};
     use algebra::fields::bls12_381::fr::Fr;
     use algebra::Field;
 

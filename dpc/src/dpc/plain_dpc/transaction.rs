@@ -1,6 +1,6 @@
-use crate::dpc::plain_dpc::{PlainDPCComponents, Transaction};
-use crate::ledger::*;
 use crypto_primitives::{CommitmentScheme, NIZK, PRF};
+use crate::ledger::*;
+use crate::dpc::plain_dpc::{PlainDPCComponents, Transaction};
 
 #[derive(Derivative)]
 #[derivative(
@@ -10,9 +10,9 @@ use crypto_primitives::{CommitmentScheme, NIZK, PRF};
 )]
 pub struct DPCTransaction<C: PlainDPCComponents> {
     old_serial_numbers: Vec<<C::P as PRF>::Output>,
-    new_commitments: Vec<<C::RecC as CommitmentScheme>::Output>,
-    memorandum: [u8; 32],
-    pub stuff: DPCStuff<C>,
+    new_commitments:    Vec<<C::RecC as CommitmentScheme>::Output>,
+    memorandum:         [u8; 32],
+    pub stuff:          DPCStuff<C>,
 }
 
 #[derive(Derivative)]

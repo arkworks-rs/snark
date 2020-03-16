@@ -16,7 +16,7 @@ pub(crate) mod multicore;
 
 pub use domain::EvaluationDomain;
 pub use evaluations::Evaluations;
-pub use polynomial::{DenseOrSparsePolynomial, DensePolynomial, SparsePolynomial};
+pub use polynomial::{DensePolynomial, SparsePolynomial, DenseOrSparsePolynomial};
 
 #[cfg(test)]
 mod test;

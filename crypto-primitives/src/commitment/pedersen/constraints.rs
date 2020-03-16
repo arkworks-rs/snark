@@ -107,8 +107,8 @@ where
         let parameters = temp.borrow().clone();
 
         Ok(PedersenCommitmentGadgetParameters {
-            params: parameters,
-            _group: PhantomData,
+            params:  parameters,
+            _group:  PhantomData,
             _engine: PhantomData,
             _window: PhantomData,
         })
@@ -126,8 +126,8 @@ where
         let parameters = temp.borrow().clone();
 
         Ok(PedersenCommitmentGadgetParameters {
-            params: parameters,
-            _group: PhantomData,
+            params:  parameters,
+            _group:  PhantomData,
             _engine: PhantomData,
             _window: PhantomData,
         })

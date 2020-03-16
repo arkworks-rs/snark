@@ -1,15 +1,15 @@
-use algebra::{
-    msm::FixedBaseMSM, AffineCurve, Field, PairingEngine, PrimeField, ProjectiveCurve, UniformRand,
-};
 use ff_fft::EvaluationDomain;
-
-use r1cs_core::{
-    ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable,
+use algebra::{
+    msm::FixedBaseMSM, UniformRand,
+    AffineCurve, Field, PairingEngine, PrimeField, ProjectiveCurve,
 };
+
 use rand::Rng;
 use rayon::prelude::*;
+use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable};
 
-use crate::{r1cs_to_sap::R1CStoSAP, Parameters, VerifyingKey};
+use crate::{Parameters, VerifyingKey, r1cs_to_sap::R1CStoSAP};
+
 
 /// Generates a random common reference string for
 /// a circuit.
@@ -34,12 +34,12 @@ where
 /// This is our assembly structure that we'll use to synthesize the
 /// circuit into a SAP.
 pub struct KeypairAssembly<E: PairingEngine> {
-    pub(crate) num_inputs: usize,
-    pub(crate) num_aux: usize,
+    pub(crate) num_inputs:      usize,
+    pub(crate) num_aux:         usize,
     pub(crate) num_constraints: usize,
-    pub(crate) at: Vec<Vec<(E::Fr, Index)>>,
-    pub(crate) bt: Vec<Vec<(E::Fr, Index)>>,
-    pub(crate) ct: Vec<Vec<(E::Fr, Index)>>,
+    pub(crate) at:              Vec<Vec<(E::Fr, Index)>>,
+    pub(crate) bt:              Vec<Vec<(E::Fr, Index)>>,
+    pub(crate) ct:              Vec<Vec<(E::Fr, Index)>>,
 }
 
 impl<E: PairingEngine> ConstraintSystem<E::Fr> for KeypairAssembly<E> {
@@ -158,12 +158,12 @@ where
     R: Rng,
 {
     let mut assembly = KeypairAssembly {
-        num_inputs: 0,
-        num_aux: 0,
+        num_inputs:      0,
+        num_aux:         0,
         num_constraints: 0,
-        at: vec![],
-        bt: vec![],
-        ct: vec![],
+        at:              vec![],
+        bt:              vec![],
+        ct:              vec![],
     };
 
     // Allocate the "one" input variable
@@ -298,6 +298,8 @@ where
     );
     end_timer!(b_time);
 
+
+
     end_timer!(proving_key_time);
 
     // Generate R1CS verification key
@@ -307,12 +309,12 @@ where
     end_timer!(verifying_key_time);
 
     let vk = VerifyingKey::<E> {
-        h_g2: h.into_affine(),
+        h_g2:       h.into_affine(),
         g_alpha_g1: g_alpha.into_affine(),
-        h_beta_g2: h_beta.into_affine(),
+        h_beta_g2:  h_beta.into_affine(),
         g_gamma_g1: g_gamma.into_affine(),
         h_gamma_g2: h_gamma.into_affine(),
-        query: verifier_query
+        query:      verifier_query
             .into_par_iter()
             .map(|e| e.into_affine())
             .collect(),

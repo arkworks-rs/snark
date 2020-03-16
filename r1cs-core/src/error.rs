@@ -1,6 +1,6 @@
-use std::error::Error;
 use std::fmt;
 use std::io;
+use std::error::Error;
 
 /// This is an error that could occur during circuit synthesis contexts,
 /// such as CRS generation, proving or verification.
@@ -35,7 +35,7 @@ impl Error for SynthesisError {
         match *self {
             SynthesisError::AssignmentMissing => {
                 "an assignment for a variable could not be computed"
-            }
+            },
             SynthesisError::DivisionByZero => "division by zero",
             SynthesisError::Unsatisfiable => "unsatisfiable constraint system",
             SynthesisError::PolynomialDegreeTooLarge => "polynomial degree is too large",

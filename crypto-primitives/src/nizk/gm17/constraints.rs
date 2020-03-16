@@ -28,12 +28,12 @@ pub struct VerifyingKeyGadget<
     ConstraintF: Field,
     P: PairingGadget<PairingE, ConstraintF>,
 > {
-    pub h_g2: P::G2Gadget,
+    pub h_g2:       P::G2Gadget,
     pub g_alpha_g1: P::G1Gadget,
-    pub h_beta_g2: P::G2Gadget,
+    pub h_beta_g2:  P::G2Gadget,
     pub g_gamma_g1: P::G1Gadget,
     pub h_gamma_g2: P::G2Gadget,
-    pub query: Vec<P::G1Gadget>,
+    pub query:      Vec<P::G1Gadget>,
 }
 
 impl<PairingE: PairingEngine, ConstraintF: Field, P: PairingGadget<PairingE, ConstraintF>>
@@ -72,14 +72,14 @@ pub struct PreparedVerifyingKeyGadget<
     ConstraintF: Field,
     P: PairingGadget<PairingE, ConstraintF>,
 > {
-    pub g_alpha: P::G1Gadget,
-    pub h_beta: P::G2Gadget,
+    pub g_alpha:    P::G1Gadget,
+    pub h_beta:     P::G2Gadget,
     pub g_alpha_pc: P::G1PreparedGadget,
-    pub h_beta_pc: P::G2PreparedGadget,
+    pub h_beta_pc:  P::G2PreparedGadget,
     pub g_gamma_pc: P::G1PreparedGadget,
     pub h_gamma_pc: P::G2PreparedGadget,
-    pub h_pc: P::G2PreparedGadget,
-    pub query: Vec<P::G1Gadget>,
+    pub h_pc:       P::G2PreparedGadget,
+    pub query:      Vec<P::G1Gadget>,
 }
 
 pub struct Gm17VerifierGadget<PairingE, ConstraintF, P>
@@ -89,7 +89,7 @@ where
     P: PairingGadget<PairingE, ConstraintF>,
 {
     _pairing_engine: PhantomData<PairingE>,
-    _engine: PhantomData<ConstraintF>,
+    _engine:         PhantomData<ConstraintF>,
     _pairing_gadget: PhantomData<P>,
 }
 
@@ -420,7 +420,7 @@ mod test {
     type TestVkGadget = VerifyingKeyGadget<Bls12_377, Fq, Bls12_377PairingGadget>;
 
     struct Bench<F: Field> {
-        inputs: Vec<Option<F>>,
+        inputs:          Vec<Option<F>>,
         num_constraints: usize,
     }
 

@@ -82,13 +82,13 @@ impl<P: MerkleTreeConfig> MerkleTreePath<P> {
 }
 
 pub struct MerkleHashTree<P: MerkleTreeConfig> {
-    tree: Vec<<P::H as FixedLengthCRH>::Output>,
+    tree:         Vec<<P::H as FixedLengthCRH>::Output>,
     padding_tree: Vec<(
         <P::H as FixedLengthCRH>::Output,
         <P::H as FixedLengthCRH>::Output,
     )>,
-    parameters: Rc<<P::H as FixedLengthCRH>::Parameters>,
-    root: Option<<P::H as FixedLengthCRH>::Output>,
+    parameters:   Rc<<P::H as FixedLengthCRH>::Parameters>,
+    root:         Option<<P::H as FixedLengthCRH>::Output>,
 }
 
 impl<P: MerkleTreeConfig> MerkleHashTree<P> {
@@ -200,7 +200,7 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
 
         // Check that the given index corresponds to the correct leaf.
         if leaf_hash != self.tree[tree_index] {
-            return Err(MerkleTreeError::IncorrectLeafIndex(tree_index).into());
+            return Err(MerkleTreeError::IncorrectLeafIndex(tree_index).into())
         }
 
         // Iterate from the leaf up to the root, storing all intermediate hash values.
@@ -230,7 +230,7 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
         }
         end_timer!(prove_time);
         if path.len() != (Self::HEIGHT - 1) as usize {
-            return Err(MerkleTreeError::IncorrectPathLength(path.len()).into());
+            return Err(MerkleTreeError::IncorrectPathLength(path.len()).into())
         } else {
             Ok(MerkleTreePath { path })
         }
@@ -248,7 +248,7 @@ impl std::fmt::Display for MerkleTreeError {
         let msg = match self {
             MerkleTreeError::IncorrectLeafIndex(index) => {
                 format!("incorrect leaf index: {}", index)
-            }
+            },
             MerkleTreeError::IncorrectPathLength(len) => format!("incorrect path length: {}", len),
         };
         write!(f, "{}", msg)
