@@ -46,9 +46,9 @@ impl<P: TEModelParameters> InjectiveMap<TEProjective<P>> for TECompressor {
 }
 
 pub struct PedersenCRHCompressor<G: Group, I: InjectiveMap<G>, W: PedersenWindow> {
-    _group:      PhantomData<G>,
+    _group: PhantomData<G>,
     _compressor: PhantomData<I>,
-    _crh:        PedersenCRH<G, W>,
+    _crh: PedersenCRH<G, W>,
 }
 
 impl<G: Group, I: InjectiveMap<G>, W: PedersenWindow> FixedLengthCRH

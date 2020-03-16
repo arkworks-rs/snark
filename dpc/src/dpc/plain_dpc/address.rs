@@ -1,8 +1,6 @@
-use crypto_primitives::{CommitmentScheme, PRF};
-use crate::{
-    dpc::{plain_dpc::PlainDPCComponents, AddressKeyPair},
-};
+use crate::dpc::{plain_dpc::PlainDPCComponents, AddressKeyPair};
 use algebra::bytes::ToBytes;
+use crypto_primitives::{CommitmentScheme, PRF};
 use std::io::{Result as IoResult, Write};
 
 #[derive(Derivative)]
@@ -28,9 +26,9 @@ impl<C: PlainDPCComponents> ToBytes for AddressPublicKey<C> {
     Debug(bound = "C: PlainDPCComponents")
 )]
 pub struct AddressSecretKey<C: PlainDPCComponents> {
-    pub sk_prf:   <C::P as PRF>::Seed,
+    pub sk_prf: <C::P as PRF>::Seed,
     pub metadata: [u8; 32],
-    pub r_pk:     <C::AddrC as CommitmentScheme>::Randomness,
+    pub r_pk: <C::AddrC as CommitmentScheme>::Randomness,
 }
 
 #[derive(Derivative)]

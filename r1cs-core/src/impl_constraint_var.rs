@@ -1,6 +1,6 @@
-use algebra::Field;
 use crate::ConstraintVar::*;
-use crate::{LinearCombination, Variable, ConstraintVar};
+use crate::{ConstraintVar, LinearCombination, Variable};
+use algebra::Field;
 use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub};
 
 impl<F: Field> From<Variable> for ConstraintVar<F> {

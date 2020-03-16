@@ -12,8 +12,8 @@ use digest::Digest;
 pub struct SchnorrSigGadgetParameters<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>>
 {
     generator: GG,
-    _group:    PhantomData<*const G>,
-    _engine:   PhantomData<*const ConstraintF>,
+    _group: PhantomData<*const G>,
+    _engine: PhantomData<*const ConstraintF>,
 }
 
 impl<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> Clone
@@ -22,8 +22,8 @@ impl<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> Clone
     fn clone(&self) -> Self {
         Self {
             generator: self.generator.clone(),
-            _group:    PhantomData,
-            _engine:   PhantomData,
+            _group: PhantomData,
+            _engine: PhantomData,
         }
     }
 }
@@ -81,7 +81,7 @@ where
         )?;
         Ok(SchnorrSigGadgetPk {
             pub_key: rand_pk,
-            _group:  PhantomData,
+            _group: PhantomData,
             _engine: PhantomData,
         })
     }

@@ -1,5 +1,8 @@
 use crate::{
-    curves::{edwards_sw6::*, tests::curve_tests, AffineCurve, ProjectiveCurve, models::twisted_edwards_extended::tests::montgomery_conversion_test},
+    curves::{
+        edwards_sw6::*, models::twisted_edwards_extended::tests::montgomery_conversion_test,
+        tests::curve_tests, AffineCurve, ProjectiveCurve,
+    },
     groups::tests::group_test,
 };
 use rand;

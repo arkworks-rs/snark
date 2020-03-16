@@ -1,6 +1,6 @@
-use algebra::UniformRand;
-use algebra::curves::{bls12_381::Bls12_381, PairingEngine};
 use crate::{domain::*, multicore::*};
+use algebra::curves::{bls12_381::Bls12_381, PairingEngine};
+use algebra::UniformRand;
 use rand;
 use std::cmp::min;
 

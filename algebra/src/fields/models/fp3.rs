@@ -1,5 +1,8 @@
-use rand::{Rng, distributions::{Standard, Distribution}};
 use crate::UniformRand;
+use rand::{
+    distributions::{Distribution, Standard},
+    Rng,
+};
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
     io::{Read, Result as IoResult, Write},
@@ -91,9 +94,9 @@ impl<P: Fp3Parameters> Fp3<P> {
 impl<P: Fp3Parameters> Field for Fp3<P> {
     fn zero() -> Self {
         Fp3 {
-            c0:          P::Fp::zero(),
-            c1:          P::Fp::zero(),
-            c2:          P::Fp::zero(),
+            c0: P::Fp::zero(),
+            c1: P::Fp::zero(),
+            c2: P::Fp::zero(),
             _parameters: PhantomData,
         }
     }
@@ -104,9 +107,9 @@ impl<P: Fp3Parameters> Field for Fp3<P> {
 
     fn one() -> Self {
         Fp3 {
-            c0:          P::Fp::one(),
-            c1:          P::Fp::zero(),
-            c2:          P::Fp::zero(),
+            c0: P::Fp::one(),
+            c1: P::Fp::zero(),
+            c2: P::Fp::zero(),
             _parameters: PhantomData,
         }
     }
@@ -339,7 +342,11 @@ impl<P: Fp3Parameters> Neg for Fp3<P> {
 impl<P: Fp3Parameters> Distribution<Fp3<P>> for Standard {
     #[inline]
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Fp3<P> {
-        Fp3::new(UniformRand::rand(rng), UniformRand::rand(rng), UniformRand::rand(rng))
+        Fp3::new(
+            UniformRand::rand(rng),
+            UniformRand::rand(rng),
+            UniformRand::rand(rng),
+        )
     }
 }
 

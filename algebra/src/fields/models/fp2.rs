@@ -1,11 +1,14 @@
 use crate::UniformRand;
+use rand::{
+    distributions::{Distribution, Standard},
+    Rng,
+};
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
     io::{Read, Result as IoResult, Write},
     marker::PhantomData,
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
-use rand::{Rng, distributions::{Standard, Distribution}};
 
 use crate::{
     bytes::{FromBytes, ToBytes},
@@ -161,8 +164,9 @@ impl<P: Fp2Parameters> Field for Fp2<P> {
     }
 }
 
-impl<'a, P: Fp2Parameters> SquareRootField for Fp2<P> 
-where P::Fp: SquareRootField
+impl<'a, P: Fp2Parameters> SquareRootField for Fp2<P>
+where
+    P::Fp: SquareRootField,
 {
     fn legendre(&self) -> LegendreSymbol {
         self.norm().legendre()
@@ -194,7 +198,7 @@ where P::Fp: SquareRootField
                 let c0 = delta.sqrt().expect("Delta must have a square root");
                 let c0_inv = c0.inverse().expect("c0 must have an inverse");
                 Some(Self::new(c0, self.c1 * &two_inv * &c0_inv))
-            },
+            }
         }
     }
 

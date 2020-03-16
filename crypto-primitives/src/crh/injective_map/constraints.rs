@@ -97,9 +97,9 @@ where
     GG: GroupGadget<G, ConstraintF>,
     IG: InjectiveMapGadget<G, I, ConstraintF, GG>,
 {
-    _compressor:        PhantomData<I>,
+    _compressor: PhantomData<I>,
     _compressor_gadget: PhantomData<IG>,
-    _crh:               PedersenCRHGadget<G, ConstraintF, GG>,
+    _crh: PedersenCRHGadget<G, ConstraintF, GG>,
 }
 
 impl<G, I, ConstraintF, GG, IG, W> FixedLengthCRHGadget<PedersenCRHCompressor<G, I, W>, ConstraintF>

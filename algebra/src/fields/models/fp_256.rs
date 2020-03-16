@@ -27,7 +27,6 @@ pub trait Fp256Parameters: FpParameters<BigInt = BigInteger> {}
 )]
 pub struct Fp256<P>(
     pub BigInteger,
-
     #[derivative(Debug = "ignore")]
     #[doc(hidden)]
     pub PhantomData<P>,
@@ -441,10 +440,10 @@ impl<P: Fp256Parameters> FromStr for Fp256<P> {
                     res.add_assign(&Self::from_repr(<Self as PrimeField>::BigInt::from(
                         u64::from(c),
                     )));
-                },
+                }
                 None => {
                     return Err(());
-                },
+                }
             }
         }
         if !res.is_valid() {
