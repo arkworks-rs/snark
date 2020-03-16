@@ -1,4 +1,3 @@
-use crate::UniformRand;
 use crate::{
     biginteger::{BigInteger, BigInteger384},
     fields::{
@@ -11,6 +10,7 @@ use crate::{
         Field, Fp2Parameters, FpParameters, PrimeField, SquareRootField,
     },
 };
+use crate::UniformRand;
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 use std::{

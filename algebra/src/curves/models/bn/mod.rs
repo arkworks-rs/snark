@@ -128,12 +128,12 @@ where
                     for &mut (p, ref mut coeffs) in &mut pairs {
                         Self::ell(&mut f, coeffs.next().unwrap(), &p.0);
                     }
-                }
+                },
                 -1 => {
                     for &mut (p, ref mut coeffs) in &mut pairs {
                         Self::ell(&mut f, coeffs.next().unwrap(), &p.0);
                     }
-                }
+                },
                 _ => continue,
             }
         }
@@ -239,7 +239,7 @@ where
                 t0.mul_assign(&t1);
 
                 Some(t0)
-            }
+            },
             None => None,
         }
     }

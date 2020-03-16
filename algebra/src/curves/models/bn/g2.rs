@@ -27,7 +27,7 @@ pub struct G2Prepared<P: BnParameters> {
     // Stores the coefficients of the line evaluations as calculated in
     // https://eprint.iacr.org/2013/722.pdf
     pub ell_coeffs: Vec<(Fp2<P::Fp2Params>, Fp2<P::Fp2Params>, Fp2<P::Fp2Params>)>,
-    pub infinity: bool,
+    pub infinity:   bool,
 }
 
 #[derive(Derivative)]
@@ -80,10 +80,10 @@ impl<P: BnParameters> G2Prepared<P> {
             match x {
                 1 => {
                     coeffs.push(addition_step(&mut r, &q));
-                }
+                },
                 -1 => {
                     coeffs.push(addition_step(&mut r, &negq));
-                }
+                },
                 _ => continue,
             }
         }
@@ -107,7 +107,7 @@ impl<P: BnParameters> G2Prepared<P> {
 
         Self {
             ell_coeffs: coeffs,
-            infinity: false,
+            infinity:   false,
         }
     }
 }

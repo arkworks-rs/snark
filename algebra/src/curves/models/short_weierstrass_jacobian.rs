@@ -1,9 +1,6 @@
 use crate::curves::models::SWModelParameters as Parameters;
+use rand::{Rng, distributions::{Standard, Distribution}};
 use crate::UniformRand;
-use rand::{
-    distributions::{Distribution, Standard},
-    Rng,
-};
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
     io::{Read, Result as IoResult, Write},
@@ -196,9 +193,9 @@ impl<P: Parameters> Default for GroupAffine<P> {
     Hash(bound = "P: Parameters")
 )]
 pub struct GroupProjective<P: Parameters> {
-    pub x: P::BaseField,
-    pub y: P::BaseField,
-    pub z: P::BaseField,
+    pub x:   P::BaseField,
+    pub y:   P::BaseField,
+    pub z:   P::BaseField,
     _params: PhantomData<P>,
 }
 
@@ -226,11 +223,10 @@ impl<P: Parameters> PartialEq for GroupProjective<P> {
 
         if self.x * &z2 != other.x * &z1 {
             false
-        } else {
-            self.y * &(z2 * &other.z) == other.y * &(z1 * &self.z)
-        }
+        } else { self.y * &(z2 * &other.z) == other.y * &(z1 * &self.z) }
     }
 }
+
 
 impl<P: Parameters> Distribution<GroupProjective<P>> for Standard {
     #[inline]
@@ -240,6 +236,8 @@ impl<P: Parameters> Distribution<GroupProjective<P>> for Standard {
         res
     }
 }
+
+
 
 impl<P: Parameters> ToBytes for GroupProjective<P> {
     #[inline]

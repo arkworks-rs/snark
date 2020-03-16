@@ -2,8 +2,7 @@ use crate::{
     biginteger::BigInteger384,
     curves::{
         models::short_weierstrass_jacobian::{GroupAffine, GroupProjective},
-        ModelParameters, SWModelParameters,
-    },
+        ModelParameters, SWModelParameters},
     field_new,
     fields::bn_382::{Fp, Fq},
     Field,
@@ -28,12 +27,7 @@ impl SWModelParameters for Bn_382GParameters {
     const COEFF_B: Fp = field_new!(
         Fp,
         BigInteger384([
-            0xffffffffffffffcf,
-            0xffffffb67daf6367,
-            0xdc87071c715188df,
-            0x718ba6243a5346c8,
-            0x4fa46fc531ce56d5,
-            0x1b21bac71c8e0dbc
+0xffffffffffffffcf, 0xffffffb67daf6367, 0xdc87071c715188df, 0x718ba6243a5346c8, 0x4fa46fc531ce56d5, 0x1b21bac71c8e0dbc
         ])
     );
 
@@ -44,12 +38,7 @@ impl SWModelParameters for Bn_382GParameters {
     const COFACTOR_INV: Fq = field_new!(
         Fq,
         BigInteger384([
-            0xfffffffffffffff9,
-            0xfffffff57fab5757,
-            0x7f56ac056aeaf57f,
-            0x10388572e3c2c0f5,
-            0xe6ce591c2bafc343,
-            0x3e03f4104144b1a
+0xfffffffffffffff9, 0xfffffff57fab5757, 0x7f56ac056aeaf57f, 0x10388572e3c2c0f5, 0xe6ce591c2bafc343, 0x3e03f4104144b1a
         ])
     );
 
@@ -68,12 +57,7 @@ impl SWModelParameters for Bn_382GParameters {
 pub const G_GENERATOR_X: Fp = field_new!(
     Fp,
     BigInteger384([
-        0xfffffffffffffff9,
-        0xfffffff57fab5757,
-        0x1f8101041030381f,
-        0x10388572e3c2c0f8,
-        0xe6ce591c2bafc343,
-        0x3e03f4104144b1a
+0xfffffffffffffff9, 0xfffffff57fab5757, 0x1f8101041030381f, 0x10388572e3c2c0f8, 0xe6ce591c2bafc343, 0x3e03f4104144b1a
     ])
 );
 
@@ -82,11 +66,6 @@ pub const G_GENERATOR_X: Fp = field_new!(
 pub const G_GENERATOR_Y: Fp = field_new!(
     Fp,
     BigInteger384([
-        0x7bbbac48dff48e8a,
-        0x7f0b69a418192817,
-        0x91be699f8043e89b,
-        0xb9a47acffcccc09c,
-        0xbd7a048e12f9984f,
-        0x16e7846105853ac1
+0x7bbbac48dff48e8a, 0x7f0b69a418192817, 0x91be699f8043e89b, 0xb9a47acffcccc09c, 0xbd7a048e12f9984f, 0x16e7846105853ac1
     ])
 );

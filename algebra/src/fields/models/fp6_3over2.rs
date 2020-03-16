@@ -1,8 +1,5 @@
+use rand::{Rng, distributions::{Standard, Distribution}};
 use crate::UniformRand;
-use rand::{
-    distributions::{Distribution, Standard},
-    Rng,
-};
 use std::{
     cmp::Ordering,
     io::{Read, Result as IoResult, Write},
@@ -274,13 +271,10 @@ impl<P: Fp6Parameters> std::fmt::Display for Fp6<P> {
 impl<P: Fp6Parameters> Distribution<Fp6<P>> for Standard {
     #[inline]
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Fp6<P> {
-        Fp6::new(
-            UniformRand::rand(rng),
-            UniformRand::rand(rng),
-            UniformRand::rand(rng),
-        )
+        Fp6::new(UniformRand::rand(rng), UniformRand::rand(rng), UniformRand::rand(rng))
     }
 }
+
 
 impl<P: Fp6Parameters> Neg for Fp6<P> {
     type Output = Self;
@@ -445,6 +439,8 @@ impl<P: Fp6Parameters> From<u8> for Fp6<P> {
         Self::new(other.into(), Fp2::zero(), Fp2::zero())
     }
 }
+
+
 
 impl<P: Fp6Parameters> ToBytes for Fp6<P> {
     #[inline]

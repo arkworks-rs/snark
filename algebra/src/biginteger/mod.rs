@@ -3,10 +3,7 @@ use crate::{
     fields::BitIterator,
     UniformRand,
 };
-use rand::{
-    distributions::{Distribution, Standard},
-    Rng,
-};
+use rand::{Rng, distributions::{Distribution, Standard}};
 use std::{
     fmt::{Debug, Display},
     io::{Read, Result as IoResult, Write},

@@ -282,7 +282,7 @@ macro_rules! bigint_impl {
         impl core::convert::TryFrom<&'_ [u64]> for $name {
             type Error = std::array::TryFromSliceError;
             #[inline]
-            fn try_from(val: &[u64]) -> Result<$name, std::array::TryFromSliceError> {
+            fn try_from(val: &[u64]) -> Result<$name,std::array::TryFromSliceError> {
                 <[u64; $num_limbs]>::try_from(val).map($name::from)
             }
         }

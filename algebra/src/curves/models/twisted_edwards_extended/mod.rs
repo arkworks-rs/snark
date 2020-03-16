@@ -1,8 +1,5 @@
+use rand::{Rng, distributions::{Standard, Distribution}};
 use crate::UniformRand;
-use rand::{
-    distributions::{Distribution, Standard},
-    Rng,
-};
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
     io::{Read, Result as IoResult, Write},
@@ -12,10 +9,7 @@ use std::{
 
 use crate::{
     bytes::{FromBytes, ToBytes},
-    curves::{
-        models::MontgomeryModelParameters as MontgomeryParameters,
-        models::TEModelParameters as Parameters, AffineCurve, ProjectiveCurve,
-    },
+    curves::{models::TEModelParameters as Parameters, models::MontgomeryModelParameters as MontgomeryParameters, AffineCurve, ProjectiveCurve},
     fields::{BitIterator, Field, PrimeField, SquareRootField},
 };
 
@@ -629,12 +623,12 @@ impl<P: Parameters> From<GroupProjective<P>> for GroupAffine<P> {
 
 #[derive(Derivative)]
 #[derivative(
-    Copy(bound = "P: MontgomeryParameters"),
-    Clone(bound = "P: MontgomeryParameters"),
-    PartialEq(bound = "P: MontgomeryParameters"),
-    Eq(bound = "P: MontgomeryParameters"),
-    Debug(bound = "P: MontgomeryParameters"),
-    Hash(bound = "P: MontgomeryParameters")
+Copy(bound = "P: MontgomeryParameters"),
+Clone(bound = "P: MontgomeryParameters"),
+PartialEq(bound = "P: MontgomeryParameters"),
+Eq(bound = "P: MontgomeryParameters"),
+Debug(bound = "P: MontgomeryParameters"),
+Hash(bound = "P: MontgomeryParameters")
 )]
 pub struct MontgomeryGroupAffine<P: MontgomeryParameters> {
     pub x: P::BaseField,
@@ -658,3 +652,4 @@ impl<P: MontgomeryParameters> MontgomeryGroupAffine<P> {
         }
     }
 }
+
