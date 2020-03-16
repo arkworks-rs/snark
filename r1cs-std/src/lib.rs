@@ -62,6 +62,7 @@ pub mod pairing;
 pub mod alloc;
 pub mod eq;
 pub mod select;
+pub mod smaller_than;
 
 pub mod prelude {
     pub use crate::{
