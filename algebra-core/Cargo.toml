@@ -23,7 +23,7 @@ edition = "2018"
 
 [dependencies]
 algebra-core-derive = { path = "algebra-core-derive", optional = true }
-derivative = { version = "1", features = ["use_core"] }
+derivative = { version = "2", features = ["use_core"] }
 num-traits = { version = "0.2", default-features = false }
 rand = { version = "0.7", default-features = false }
 rayon = { version = "1", optional = true }
