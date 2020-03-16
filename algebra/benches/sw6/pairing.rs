@@ -1,5 +1,4 @@
 mod pairing {
-    use algebra::UniformRand;
     use algebra::{
         curves::{
             sw6::{G1Affine, G1Projective as G1, G2Affine, G2Projective as G2, SW6},
@@ -7,8 +6,9 @@ mod pairing {
         },
         fields::sw6::Fq6,
     };
-    use rand::SeedableRng;
-    use rand_xorshift::XorShiftRng;
+    use algebra::UniformRand;
+use rand::SeedableRng;
+use rand_xorshift::XorShiftRng;
 
     #[bench]
     fn bench_pairing_miller_loop(b: &mut ::test::Bencher) {

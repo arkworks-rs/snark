@@ -1,7 +1,4 @@
-use rand::{
-    distributions::{Distribution, Standard},
-    Rng,
-};
+use rand::{Rng, distributions::{Distribution, Standard}};
 
 pub trait UniformRand: Sized {
     fn rand<R: Rng + ?Sized>(rng: &mut R) -> Self;
@@ -9,7 +6,7 @@ pub trait UniformRand: Sized {
 
 impl<T> UniformRand for T
 where
-    Standard: Distribution<T>,
+    Standard: Distribution<T>
 {
     #[inline]
     fn rand<R: Rng + ?Sized>(rng: &mut R) -> Self {

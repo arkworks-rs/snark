@@ -61,12 +61,12 @@ impl<P: Bls12Parameters> Bls12<P> {
                 c2.mul_by_fp(&p.y);
                 c1.mul_by_fp(&p.x);
                 f.mul_by_014(&c0, &c1, &c2);
-            }
+            },
             TwistType::D => {
                 c0.mul_by_fp(&p.y);
                 c1.mul_by_fp(&p.x);
                 f.mul_by_034(&c0, &c1, &c2);
-            }
+            },
         }
     }
 
@@ -157,8 +157,7 @@ where
         let mut f1 = *f;
         f1.frobenius_map(6);
 
-        f.inverse().and_then(|mut f2| {
-            {
+        f.inverse().and_then(|mut f2| { {
                 // f2 = f^(-1);
                 // r = f^(p^6 - 1)
                 let mut r = f1 * &f2;
@@ -201,7 +200,6 @@ where
                 y5 *= &y4;
                 y5 *= &y1;
                 Some(y5)
-            }
-        })
+            } })
     }
 }

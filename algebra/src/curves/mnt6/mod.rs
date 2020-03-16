@@ -86,11 +86,11 @@ impl MNT6 {
         let twist_inv = TWIST.inverse().unwrap();
 
         let mut g2p = G2Prepared {
-            x: g2.x,
-            y: g2.y,
-            x_over_twist: g2.x * &twist_inv,
-            y_over_twist: g2.y * &twist_inv,
-            double_coefficients: vec![],
+            x:                     g2.x,
+            y:                     g2.y,
+            x_over_twist:          g2.x * &twist_inv,
+            y_over_twist:          g2.y * &twist_inv,
+            double_coefficients:   vec![],
             addition_coefficients: vec![],
         };
 
@@ -168,10 +168,10 @@ impl MNT6 {
 
         let r2 = G2ProjectiveExtended { x, y, z, t };
         let coeff = AteDoubleCoefficients {
-            c_h: (r2.z + &r.t).square() - &r2.t - &a,
+            c_h:  (r2.z + &r.t).square() - &r2.t - &a,
             c_4c: c + &c + &c + &c,
-            c_j: (f + &r.t).square() - &g - &a,
-            c_l: (f + &r.x).square() - &g - &b,
+            c_j:  (f + &r.t).square() - &g - &a,
+            c_l:  (f + &r.x).square() - &g - &b,
         };
 
         (r2, coeff)
@@ -302,20 +302,16 @@ impl MNT6 {
 pub const TWIST: Fq3 = field_new!(Fq3, FQ_ZERO, FQ_ONE, FQ_ZERO);
 pub const FQ_ZERO: Fq = field_new!(Fq, BigInteger320([0, 0, 0, 0, 0]));
 pub const FQ_ONE: Fq = field_new!(Fq, FqParameters::R);
-pub const TWIST_COEFF_A: Fq3 = field_new!(
-    Fq3,
+pub const TWIST_COEFF_A: Fq3 = field_new!(Fq3, 
     FQ_ZERO,
     FQ_ZERO,
-    field_new!(
-        Fq,
-        BigInteger320([
-            0xb9b2411bfd0eafef,
-            0xc61a10fadd9fecbd,
-            0x89f128e59811f3fb,
-            0x980c0f780adadabb,
-            0x9ba1f11320,
-        ])
-    ),
+    field_new!(Fq, BigInteger320([
+        0xb9b2411bfd0eafef,
+        0xc61a10fadd9fecbd,
+        0x89f128e59811f3fb,
+        0x980c0f780adadabb,
+        0x9ba1f11320,
+    ])),
 );
 
 pub const ATE_LOOP_COUNT: [u64; 3] = [0xdc9a1b671660000, 0x46609756bec2a33f, 0x1eef55];
