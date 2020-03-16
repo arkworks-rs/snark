@@ -4,7 +4,7 @@ rustfmt --version &>/dev/null
 if [ $? != 0 ]; then
         printf "[pre_commit] \033[0;31merror\033[0m: \"rustfmt\" not available. \n"
         printf "[pre_commit] \033[0;31merror\033[0m: rustfmt can be installed via - \n"
-        printf "[pre_commit] $ rustup component add rustfmt-preview \n"
+        printf "[pre_commit] $ rustup component add rustfmt \n"
         exit 1
 fi
 
@@ -13,7 +13,7 @@ problem_files=()
 # collect ill-formatted files
 for file in $(git diff --name-only --cached); do
         if [ ${file: -3} == ".rs" ]; then
-                rustfmt --check $file &>/dev/null
+                rustfmt +nightly --check $file &>/dev/null
                 if [ $? != 0 ]; then
                         problem_files+=($file)
                 fi
