@@ -11,7 +11,7 @@ authors = [
 ]
 description = "A library for evaluating FFTs over prime finite fields"
 homepage = "https://libzexe.org"
-repository = "https://github.com/scipr/zexe"
+repository = "https://github.com/o1-labs/zexe"
 documentation = "https://docs.rs/ff-fft/"
 keywords = ["cryptography", "finite fields", "fft"]
 categories = ["cryptography"]
