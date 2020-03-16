@@ -1,17 +1,16 @@
-use crate::CompressedSRS;
 use algebra::{
     curves::{models::SWModelParameters, AffineCurve},
     fields::{SquareRootField, Field},
 };
-use core::fmt::Error;
 
 pub trait GroupMap {
     type F : SquareRootField;
     fn setup() -> Self;
+    fn to_group(p: &Self, u: Self::F) -> (Self::F, Self::F);
     fn batch_to_group_x(p: &Self, ts: Vec<Self::F>) -> Vec<[Self::F; 3]>;
 }
 
-struct BWParameters<G: SWModelParameters> {
+pub struct BWParameters<G: SWModelParameters> {
     u: G::BaseField,
     fu: G::BaseField,
     sqrt_neg_three_u_squared_plus_u_over_2: G::BaseField,
@@ -45,7 +44,7 @@ fn potential_xs_helper<G: SWModelParameters>(
     alpha: G::BaseField,
 ) -> [G::BaseField; 3] {
     let x1 = {
-        let temp = t2;
+        let mut temp = t2;
         temp.square_in_place();
         temp *= &alpha;
         temp *= &params.sqrt_neg_three_u_squared;
@@ -66,9 +65,8 @@ fn potential_xs_helper<G: SWModelParameters>(
     [x1, x2, x3]
 }
 
-
 fn potential_xs<G: SWModelParameters>(
-    params: BWParameters<G>,
+    params: &BWParameters<G>,
     t: G::BaseField,
 ) -> [G::BaseField; 3] {
     let t2 = t.square();
@@ -82,10 +80,10 @@ fn potential_xs<G: SWModelParameters>(
     };
 
     let x1 = {
-        let temp = t2;
+        let mut temp = t2;
         temp.square_in_place();
-        temp *=(&alpha);
-        temp *= (&params.sqrt_neg_three_u_squared);
+        temp *= &alpha;
+        temp *= &params.sqrt_neg_three_u_squared;
         params.sqrt_neg_three_u_squared_minus_u_over_2 - &temp
     };
 
@@ -101,6 +99,27 @@ fn potential_xs<G: SWModelParameters>(
     };
 
     [x1, x2, x3]
+}
+
+fn get_y<G:SWModelParameters>(x: G::BaseField) -> Option<G::BaseField> {
+    let fx = curve_eqn::<G>(x);
+    // how do we choose +/- sqrt?
+    if let Some(y) = fx.sqrt() {
+        Some(y)
+    } else {
+        None
+    }
+}
+
+fn get_xy<G:SWModelParameters>(params: &BWParameters<G>, t: G::BaseField) -> (G::BaseField, G::BaseField) {
+    let xvec = potential_xs(&params, t);
+    for x in xvec.into_iter() {
+        match get_y::<G>(*x) {
+            Some(y) => return (*x, y),
+            None => ()
+        }
+    }
+    panic!("get_xy")
 }
 
 impl<G: SWModelParameters> GroupMap for BWParameters<G> {
@@ -124,7 +143,7 @@ impl<G: SWModelParameters> GroupMap for BWParameters<G> {
         let sqrt_neg_three_u_squared = (-three_u_squared).sqrt().unwrap();
         let two_inv =
             G::BaseField::from(2).inverse().unwrap();
-        let sqrt_neg_three_u_squared_plus_u_over_2 = 
+        let sqrt_neg_three_u_squared_plus_u_over_2 =
             (sqrt_neg_three_u_squared + & u) * &two_inv;
         let sqrt_neg_three_u_squared_minus_u_over_2 =
             (sqrt_neg_three_u_squared - & u) * &two_inv;
@@ -157,44 +176,7 @@ impl<G: SWModelParameters> GroupMap for BWParameters<G> {
         potential_xs.collect()
     }
 
-    /*
-    fn batch_to_group_x(p: &Self::Parameters, ts: Vec<G::BaseField>) -> Vec<[G::BaseField; 3]> {
-        fn get_y(x: G::BaseField) -> Option<G::BaseField> {
-            let fx = curve_eqn::<G>(x);
-            // how do we choose +/- sqrt?
-            if let Some(y) = fx.sqrt() {
-                Some(y)
-            } else {
-                None
-            }
-        }
-
-        fn get_xyi(t: G::BaseField) -> Option<G::BaseField, G::BaseField, usize> {
-            let xvec = &Self::potential_xs(t);
-            let yvec = xvec.into_iter().map(|x| &Self::get_y(x));
-            let i = yvec.into_iter().find(|y| y.is_some());
-            if let Some(i) = b {
-                Some(xvec[i], yvec[i], i)
-            } else {
-                None
-            }
-        }
-
-        fn to_group(t: G::BaseField) -> Option<G> {
-            if let Some(x, y, i) = get_xyi(t) {
-                Some(G { x, y })
-            } else {
-                None
-            }
-        }
-
-        fn to_group_bit(t: G::BaseField) -> Option<usize, G::BaseField> {
-            if let Some(x, y, i) = get_xyi(t) {
-                Some(i, y)
-            } else {
-                None
-            }
-        }
+    fn to_group(p: &BWParameters<G>, t: G::BaseField) -> (G::BaseField, G::BaseField) {
+        get_xy(p, t)
     }
-    */
 }

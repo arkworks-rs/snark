@@ -8,3 +8,4 @@ edition = "2018"
 
 [dependencies]
 algebra = { path = "../algebra", features = [ "parallel" ] }
+rand = { version = "0.7" }

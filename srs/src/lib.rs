@@ -3,7 +3,6 @@ pub mod groupmap;
 mod tests;
 
 use algebra::curves::AffineCurve;
-use core::fmt::Error;
 
 pub trait CompressedSRS<G: AffineCurve> {
     fn create(length: usize, num_y_coords: usize) -> Self;
