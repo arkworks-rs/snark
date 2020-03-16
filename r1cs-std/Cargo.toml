@@ -24,7 +24,7 @@ edition = "2018"
 [dependencies]
 algebra = { path = "../algebra", default-features = false }
 r1cs-core = { path = "../r1cs-core", default-features = false }
-derivative = { version = "1", features = ["use_core"] }
+derivative = { version = "2", features = ["use_core"] }
 
 [dev-dependencies]
 rand = { version = "0.7", default-features = false }
