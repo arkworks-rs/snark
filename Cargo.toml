@@ -10,7 +10,8 @@ members = [
   , "crypto-primitives"
   , "dpc"
   , "bench-utils"
-  , "snarky-bn382" ]
+  , "snarky-bn382"
+  , "srs"]
 
 [profile.release]
 opt-level = 3
