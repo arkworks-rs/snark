@@ -73,7 +73,7 @@ impl<P: Fp2Parameters> Fp2<P> {
         t1
     }
 
-    pub fn mul_by_fp(&mut self, element: &P::Fp) {
+    pub fn mul_assign_by_fp(&mut self, element: &P::Fp) {
         self.c0.mul_assign(&element);
         self.c1.mul_assign(&element);
     }

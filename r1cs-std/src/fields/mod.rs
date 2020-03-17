@@ -7,6 +7,9 @@ use crate::prelude::*;
 pub mod fp;
 pub mod fp12;
 pub mod fp2;
+pub mod fp3;
+pub mod fp4;
+pub mod fp6_2over3;
 pub mod fp6_3over2;
 
 pub trait FieldGadget<F: Field, ConstraintF: Field>:

@@ -95,7 +95,7 @@ impl<P: MNT4Parameters> From<G2Affine<P>> for G2Prepared<P> {
             let rz2_inv = rz_inv.square();
             let rz3_inv = rz_inv * &rz2_inv;
 
-            let minus_r_affine_x = r.x * &rz2_inv; // Perhaps rz_inv, see https://github.com/iden3/websnark/blob/3dd30d54991610d1194cd78e140c4cd89edd3132/src/mnt6753/build_mnt6753.js#L438
+            let minus_r_affine_x = r.x * &rz2_inv;
             let minus_r_affine_y = -r.y * &rz3_inv;
 
             let add_result = MNT4::<P>::mixed_addition_step_for_flipped_miller_loop(

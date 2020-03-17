@@ -94,8 +94,8 @@ impl<P: Fp4Parameters> Fp4<P> {
     }
 
     pub fn mul_by_fp(&mut self, element: &<P::Fp2Params as Fp2Parameters>::Fp) {
-        self.c0.mul_by_fp(element);
-        self.c1.mul_by_fp(element);
+        self.c0.mul_assign_by_fp(element);
+        self.c1.mul_assign_by_fp(element);
     }
 
     pub fn mul_by_fp2(&mut self, element: &Fp2<P::Fp2Params>) {
@@ -197,7 +197,8 @@ impl<P: Fp4Parameters> Field for Fp4<P> {
     fn frobenius_map(&mut self, power: usize) {
         self.c0.frobenius_map(power);
         self.c1.frobenius_map(power);
-        self.c1.mul_by_fp(&P::FROBENIUS_COEFF_FP4_C1[power % 4]);
+        self.c1
+            .mul_assign_by_fp(&P::FROBENIUS_COEFF_FP4_C1[power % 4]);
     }
 }
 

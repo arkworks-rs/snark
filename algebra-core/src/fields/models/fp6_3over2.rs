@@ -67,9 +67,9 @@ impl<P: Fp6Parameters> Fp6<P> {
     }
 
     pub fn mul_by_fp(&mut self, element: &<P::Fp2Params as Fp2Parameters>::Fp) {
-        self.c0.mul_by_fp(&element);
-        self.c1.mul_by_fp(&element);
-        self.c2.mul_by_fp(&element);
+        self.c0.mul_assign_by_fp(&element);
+        self.c1.mul_assign_by_fp(&element);
+        self.c2.mul_assign_by_fp(&element);
     }
 
     pub fn mul_by_fp2(&mut self, element: &Fp2<P::Fp2Params>) {
