@@ -240,8 +240,7 @@ impl Fp6Parameters for Fq6Parameters {
         ),
     ];
 
-    /// Multiply this element by the quadratic nonresidue 0 + 2 * u.
-    /// Make this generic.
+    /// Multiply this element by the quadratic nonresidue 0 + 3 * u.
     fn mul_fp2_by_nonresidue(fe: &Fq2) -> Fq2 {
         // 3 U (c0 + U * c1)
         // == 3*7*c1 + U (3 c0)
@@ -270,7 +269,7 @@ mod test {
     fn test_fq2_mul_nonresidue() {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-        let non_residue = Fq2::new(Fq::zero(), Fq::one() + &Fq::one());
+        let non_residue = Fq2::new(Fq::zero(), Fq::one() + &Fq::one() + &Fq::one());
 
         for _ in 0..1000 {
             let mut a = Fq2::rand(&mut rng);
