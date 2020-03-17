@@ -11,7 +11,7 @@ members = [
   , "dpc"
   , "bench-utils"
   , "snarky-bn382"
-  , "srs"]
+  , "groupmap"]
 
 [profile.release]
 opt-level = 3
