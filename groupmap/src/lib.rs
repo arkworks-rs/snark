@@ -3,11 +3,10 @@ use algebra::{
     fields::{SquareRootField, Field},
 };
 
-pub trait GroupMap {
-    type F : SquareRootField;
+pub trait GroupMap<F> {
     fn setup() -> Self;
-    fn to_group(p: &Self, u: Self::F) -> (Self::F, Self::F);
-    fn batch_to_group_x(p: &Self, ts: Vec<Self::F>) -> Vec<[Self::F; 3]>;
+    fn to_group(p: &Self, u: F) -> (F, F);
+    fn batch_to_group_x(p: &Self, ts: Vec<F>) -> Vec<[F; 3]>;
 }
 
 pub struct BWParameters<G: SWModelParameters> {
@@ -101,9 +100,7 @@ fn get_xy<G:SWModelParameters>(params: &BWParameters<G>, t: G::BaseField) -> (G:
     panic!("get_xy")
 }
 
-impl<G: SWModelParameters> GroupMap for BWParameters<G> {
-    type F = G::BaseField;
-
+impl<G: SWModelParameters> GroupMap<G::BaseField> for BWParameters<G> {
     fn setup() -> Self {
         assert!(G::COEFF_A.is_zero());
 
