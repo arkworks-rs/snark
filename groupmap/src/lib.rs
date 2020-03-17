@@ -5,8 +5,8 @@ use algebra::{
 
 pub trait GroupMap<F> {
     fn setup() -> Self;
-    fn to_group(p: &Self, u: F) -> (F, F);
-    fn batch_to_group_x(p: &Self, ts: Vec<F>) -> Vec<[F; 3]>;
+    fn to_group(&self, u: F) -> (F, F);
+    fn batch_to_group_x(&self, ts: Vec<F>) -> Vec<[F; 3]>;
 }
 
 pub struct BWParameters<G: SWModelParameters> {
@@ -131,11 +131,11 @@ impl<G: SWModelParameters> GroupMap<G::BaseField> for BWParameters<G> {
         }
     }
 
-    fn batch_to_group_x(p: &BWParameters<G>, ts: Vec<G::BaseField>) -> Vec<[G::BaseField; 3]> {
+    fn batch_to_group_x(&self, ts: Vec<G::BaseField>) -> Vec<[G::BaseField; 3]> {
         let t2_alpha_invs : Vec<_> = ts.iter().map(|t| {
             let t2 = t.square();
             let mut alpha_inv = t2;
-            alpha_inv += &p.fu;
+            alpha_inv += &self.fu;
             alpha_inv *= &t2;
             (t2, alpha_inv)
         }).collect();
@@ -144,12 +144,12 @@ impl<G: SWModelParameters> GroupMap<G::BaseField> for BWParameters<G> {
         algebra::fields::batch_inversion::<G::BaseField>(&mut alphas);
 
         let potential_xs = t2_alpha_invs.iter().zip(alphas).map(|((t2,_), alpha)| {
-            potential_xs_helper(p, t2.clone(), alpha.clone())
+            potential_xs_helper(self, t2.clone(), alpha.clone())
         });
         potential_xs.collect()
     }
 
-    fn to_group(p: &BWParameters<G>, t: G::BaseField) -> (G::BaseField, G::BaseField) {
-        get_xy(p, t)
+    fn to_group(&self, t: G::BaseField) -> (G::BaseField, G::BaseField) {
+        get_xy(self, t)
     }
 }
