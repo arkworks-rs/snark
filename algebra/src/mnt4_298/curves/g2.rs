@@ -1,4 +1,4 @@
-use crate::mnt4_298::{self, Fq, Fq2, Fr, FQ_ZERO, FR_ONE, G1_COEFF_A_NON_RESIDUE};
+use crate::mnt4_298::{self, Fq, Fq2, Fr, FQ_ZERO, G1_COEFF_A_NON_RESIDUE};
 use algebra_core::{
     biginteger::BigInteger320,
     curves::{
@@ -53,14 +53,26 @@ impl SWModelParameters for Parameters {
     );
 
     /// COFACTOR =
-    /// 1
+    /// 475922286169261325753349249653048451545124879932565935237842521413255878328503110407553025
     #[rustfmt::skip]
-    const COFACTOR: &'static [u64] = &[1];
+    const COFACTOR: &'static [u64] = &[
+        13170844244115976942,
+        6062972374298450277,
+        7810648509476950452,
+        16507697214350673085,
+        723130988757,
+    ];
 
     /// COFACTOR^(-1) mod r =
-    /// 1
+    /// 475922286169261325753349249653048451545124878207887910632124039320641839552134835598065665
     #[rustfmt::skip]
-    const COFACTOR_INV: Fr = FR_ONE;
+    const COFACTOR_INV: Fr = field_new!(Fr, BigInteger320([
+        8065818351154103109,
+        7537800592537321232,
+        747075088561892445,
+        6335802185495034136,
+        1874289794052,
+    ]));
 
     /// AFFINE_GENERATOR_COEFFS = (G2_GENERATOR_X, G2_GENERATOR_Y)
     const AFFINE_GENERATOR_COEFFS: (Self::BaseField, Self::BaseField) =
