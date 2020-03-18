@@ -4,6 +4,8 @@ use core::fmt::Debug;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
 pub mod bls12;
+pub mod mnt4;
+pub mod mnt6;
 
 pub trait PairingGadget<PairingE: PairingEngine, ConstraintF: Field> {
     type G1Gadget: GroupGadget<PairingE::G1Projective, ConstraintF>;

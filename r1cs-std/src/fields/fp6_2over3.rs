@@ -3,7 +3,7 @@ use algebra::{
         fp6_2over3::{Fp6, Fp6Parameters},
         Fp3, Fp3Parameters,
     },
-    Field, One, PrimeField, SquareRootField,
+    BigInteger, Field, One, PrimeField, SquareRootField,
 };
 use core::{borrow::Borrow, marker::PhantomData};
 use r1cs_core::{ConstraintSystem, SynthesisError};
@@ -51,6 +51,47 @@ where
         fe: &Fp3Gadget<P, ConstraintF>,
     ) -> Result<Fp3Gadget<P, ConstraintF>, SynthesisError> {
         fe.mul_by_constant(cs, &P::NONRESIDUE)
+    }
+
+    pub fn unitary_inverse<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+    ) -> Result<Self, SynthesisError> {
+        Ok(Self::new(self.c0.clone(), self.c1.negate(cs)?))
+    }
+
+    #[inline]
+    pub fn cyclotomic_exp<CS: ConstraintSystem<ConstraintF>, B: BigInteger>(
+        &self,
+        mut cs: CS,
+        exponent: &B,
+    ) -> Result<Self, SynthesisError> {
+        let mut res = Self::one(cs.ns(|| "one"))?;
+        let self_inverse = self.unitary_inverse(cs.ns(|| "unitary inverse"))?;
+
+        let mut found_nonzero = false;
+        let naf = exponent.find_wnaf();
+
+        for (i, &value) in naf.iter().rev().enumerate() {
+            if found_nonzero {
+                res.square_in_place(cs.ns(|| format!("square {}", i)))?;
+            }
+
+            if value != 0 {
+                found_nonzero = true;
+
+                if value > 0 {
+                    res.mul_in_place(cs.ns(|| format!("res *= self {}", i)), &self)?;
+                } else {
+                    res.mul_in_place(
+                        cs.ns(|| format!("res *= self_inverse {}", i)),
+                        &self_inverse,
+                    )?;
+                }
+            }
+        }
+
+        Ok(res)
     }
 }
 

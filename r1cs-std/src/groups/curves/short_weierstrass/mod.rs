@@ -11,6 +11,8 @@ use r1cs_core::{ConstraintSystem, SynthesisError};
 use crate::{prelude::*, Assignment, Vec};
 
 pub mod bls12;
+pub mod mnt4;
+pub mod mnt6;
 
 #[derive(Derivative)]
 #[derivative(Debug, Clone)]

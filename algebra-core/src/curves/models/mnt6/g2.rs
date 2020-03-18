@@ -125,10 +125,10 @@ pub(super) struct G2ProjectiveExtended<P: MNT6Parameters> {
     Eq(bound = "P: MNT6Parameters")
 )]
 pub struct AteDoubleCoefficients<P: MNT6Parameters> {
-    pub(crate) c_h:  Fp3<P::Fp3Params>,
-    pub(crate) c_4c: Fp3<P::Fp3Params>,
-    pub(crate) c_j:  Fp3<P::Fp3Params>,
-    pub(crate) c_l:  Fp3<P::Fp3Params>,
+    pub c_h:  Fp3<P::Fp3Params>,
+    pub c_4c: Fp3<P::Fp3Params>,
+    pub c_j:  Fp3<P::Fp3Params>,
+    pub c_l:  Fp3<P::Fp3Params>,
 }
 
 #[derive(Derivative)]
@@ -139,6 +139,6 @@ pub struct AteDoubleCoefficients<P: MNT6Parameters> {
     Eq(bound = "P: MNT6Parameters")
 )]
 pub struct AteAdditionCoefficients<P: MNT6Parameters> {
-    pub(crate) c_l1: Fp3<P::Fp3Params>,
-    pub(crate) c_rz: Fp3<P::Fp3Params>,
+    pub c_l1: Fp3<P::Fp3Params>,
+    pub c_rz: Fp3<P::Fp3Params>,
 }
