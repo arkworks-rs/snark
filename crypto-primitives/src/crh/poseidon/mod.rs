@@ -121,6 +121,7 @@ fn test_poseidon_hash_mnt6() {
     println!("{:?}", output);
 }
 
+
 #[test]
 fn test_hash_speed() {
 
@@ -162,7 +163,7 @@ fn test_hash_speed() {
     // =============================================================================
 
     // =============================================================================
-    // Calculate Poseidon Hash for mnt4753
+    // Calculate Poseidon Hash for mnt4753 batch evaluation
     let now_4753_batch = Instant::now();
 
     // Call the poseidon batch hash
@@ -170,6 +171,7 @@ fn test_hash_speed() {
 
     let new_now_4753_batch  = Instant::now();
     // =============================================================================
+
 
     // =============================================================================
     // Compare results
@@ -438,7 +440,7 @@ use std::str::FromStr;
 use crate::crh::{FieldBasedHashParameters, FieldBasedHash, BatchFieldBasedHash};
 use crate::crh::poseidon::poseidon_original::{PoseidonHash, PoseidonBatchHash};
 use rand_xorshift::XorShiftRng;
-use algebra::UniformRand;
+use algebra::{UniformRand, Fp768};
 use self::rand::SeedableRng;
 use std::time::Instant;
 //use crate::crh::{FieldBasedHashParameters, FieldBasedHash};

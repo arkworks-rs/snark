@@ -95,57 +95,57 @@ impl<F: PrimeField, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F, P> {
     }
 
 
-    // // Function that does the mix matrix
-    // fn matrix_mix (state: &mut Vec<F>) {
-    //
-    //     // the new state where the result will be stored initialized to zero elements
-    //     let mut new_state = vec![F::zero(); P::T];
-    //
-    //     let m_11 = P::MDS_CST[0];
-    //     let m_12 = P::MDS_CST[1];
-    //     let m_13 = P::MDS_CST[2];
-    //
-    //     // scalar multiplication for position 0 of the state vector
-    //     let elem_0 = state[0].mul(&m_11);
-    //     let elem_1 = state[1].mul(&m_12);
-    //     let elem_2 = state[2].mul(&m_13);
-    //
-    //     new_state[0] = elem_0;
-    //     new_state[0] += &elem_1;
-    //     new_state[0] += &elem_2;
-    //
-    //     // scalar multiplication for position 1 of the state vector
-    //     let m_21 = P::MDS_CST[3];
-    //     let m_22 = P::MDS_CST[4];
-    //     let m_23 = P::MDS_CST[5];
-    //
-    //     let elem_3 = state[0].mul(&m_21);
-    //     let elem_4 = state[1].mul(&m_22);
-    //     let elem_5 = state[2].mul(&m_23);
-    //
-    //     new_state[1] = elem_3;
-    //     new_state[1] += &elem_4;
-    //     new_state[1] += &elem_5;
-    //
-    //     // scalar multiplication for the position 2 of the state vector
-    //     let m_31 = P::MDS_CST[6];
-    //     let m_32 = P::MDS_CST[7];
-    //     let m_33 = P::MDS_CST[8];
-    //
-    //     let elem_6 = state[0].mul(&m_31);
-    //     let elem_7 = state[1].mul(&m_32);
-    //     let elem_8 = state[2].mul(&m_33);
-    //
-    //     new_state[2] = elem_6;
-    //     new_state[2] += &elem_7;
-    //     new_state[2] += &elem_8;
-    //
-    //     // copy the result to the state vector
-    //     state[0] = new_state[0];
-    //     state[1] = new_state[1];
-    //     state[2] = new_state[2];
-    //
-    // }
+    // Function that does the mix matrix
+    fn matrix_mix (state: &mut Vec<F>) {
+
+        // the new state where the result will be stored initialized to zero elements
+        let mut new_state = vec![F::zero(); P::T];
+
+        let m_11 = P::MDS_CST[0];
+        let m_12 = P::MDS_CST[1];
+        let m_13 = P::MDS_CST[2];
+
+        // scalar multiplication for position 0 of the state vector
+        let elem_0 = state[0].mul(&m_11);
+        let elem_1 = state[1].mul(&m_12);
+        let elem_2 = state[2].mul(&m_13);
+
+        new_state[0] = elem_0;
+        new_state[0] += &elem_1;
+        new_state[0] += &elem_2;
+
+        // scalar multiplication for position 1 of the state vector
+        let m_21 = P::MDS_CST[3];
+        let m_22 = P::MDS_CST[4];
+        let m_23 = P::MDS_CST[5];
+
+        let elem_3 = state[0].mul(&m_21);
+        let elem_4 = state[1].mul(&m_22);
+        let elem_5 = state[2].mul(&m_23);
+
+        new_state[1] = elem_3;
+        new_state[1] += &elem_4;
+        new_state[1] += &elem_5;
+
+        // scalar multiplication for the position 2 of the state vector
+        let m_31 = P::MDS_CST[6];
+        let m_32 = P::MDS_CST[7];
+        let m_33 = P::MDS_CST[8];
+
+        let elem_6 = state[0].mul(&m_31);
+        let elem_7 = state[1].mul(&m_32);
+        let elem_8 = state[2].mul(&m_33);
+
+        new_state[2] = elem_6;
+        new_state[2] += &elem_7;
+        new_state[2] += &elem_8;
+
+        // copy the result to the state vector
+        state[0] = new_state[0];
+        state[1] = new_state[1];
+        state[2] = new_state[2];
+
+    }
 
     // Function that does the mix matrix with fast algorithm
     fn matrix_mix_short(state: &mut Vec<F>) {
@@ -345,7 +345,8 @@ impl<F: PrimeField, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F, P> {
 
             // Perform the matrix mix
             for i in 0..vec_state.len() {
-                Self::matrix_mix_short(&mut vec_state[i]);
+                //Self::matrix_mix_short(&mut vec_state[i]);
+                Self::matrix_mix(&mut vec_state[i]);
             }
 
         }
@@ -356,7 +357,8 @@ impl<F: PrimeField, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F, P> {
 
             // Perform the matrix mix
             for i in 0..vec_state.len() {
-                Self::matrix_mix_short(&mut vec_state[i]);
+                //Self::matrix_mix_short(&mut vec_state[i]);
+                Self::matrix_mix(&mut vec_state[i]);
             }
         }
 
@@ -366,7 +368,8 @@ impl<F: PrimeField, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F, P> {
 
             // Perform the matrix mix
             for i in 0..vec_state.len() {
-                Self::matrix_mix_short(&mut vec_state[i]);
+                //Self::matrix_mix_short(&mut vec_state[i]);
+                Self::matrix_mix(&mut vec_state[i]);
             }
         }
 
@@ -450,57 +453,57 @@ impl<F: PrimeField, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
             result
     }
 
-    // // Function that does the mix matrix
-    // fn matrix_mix (state: &mut Vec<F>) {
-    //
-    //     // the new state where the result will be stored initialized to zero elements
-    //     let mut new_state = vec![F::zero(); P::T];
-    //
-    //     let m_11 = P::MDS_CST[0];
-    //     let m_12 = P::MDS_CST[1];
-    //     let m_13 = P::MDS_CST[2];
-    //
-    //     // scalar multiplication for position 0 of the state vector
-    //     let elem_0 = state[0].mul(&m_11);
-    //     let elem_1 = state[1].mul(&m_12);
-    //     let elem_2 = state[2].mul(&m_13);
-    //
-    //     new_state[0] = elem_0;
-    //     new_state[0] += &elem_1;
-    //     new_state[0] += &elem_2;
-    //
-    //     // scalar multiplication for position 1 of the state vector
-    //     let m_21 = P::MDS_CST[3];
-    //     let m_22 = P::MDS_CST[4];
-    //     let m_23 = P::MDS_CST[5];
-    //
-    //     let elem_3 = state[0].mul(&m_21);
-    //     let elem_4 = state[1].mul(&m_22);
-    //     let elem_5 = state[2].mul(&m_23);
-    //
-    //     new_state[1] = elem_3;
-    //     new_state[1] += &elem_4;
-    //     new_state[1] += &elem_5;
-    //
-    //     // scalar multiplication for the position 2 of the state vector
-    //     let m_31 = P::MDS_CST[6];
-    //     let m_32 = P::MDS_CST[7];
-    //     let m_33 = P::MDS_CST[8];
-    //
-    //     let elem_6 = state[0].mul(&m_31);
-    //     let elem_7 = state[1].mul(&m_32);
-    //     let elem_8 = state[2].mul(&m_33);
-    //
-    //     new_state[2] = elem_6;
-    //     new_state[2] += &elem_7;
-    //     new_state[2] += &elem_8;
-    //
-    //     // copy the result to the state vector
-    //     state[0] = new_state[0];
-    //     state[1] = new_state[1];
-    //     state[2] = new_state[2];
-    //
-    // }
+    // Function that does the mix matrix
+    fn matrix_mix (state: &mut Vec<F>) {
+
+        // the new state where the result will be stored initialized to zero elements
+        let mut new_state = vec![F::zero(); P::T];
+
+        let m_11 = P::MDS_CST[0];
+        let m_12 = P::MDS_CST[1];
+        let m_13 = P::MDS_CST[2];
+
+        // scalar multiplication for position 0 of the state vector
+        let elem_0 = state[0].mul(&m_11);
+        let elem_1 = state[1].mul(&m_12);
+        let elem_2 = state[2].mul(&m_13);
+
+        new_state[0] = elem_0;
+        new_state[0] += &elem_1;
+        new_state[0] += &elem_2;
+
+        // scalar multiplication for position 1 of the state vector
+        let m_21 = P::MDS_CST[3];
+        let m_22 = P::MDS_CST[4];
+        let m_23 = P::MDS_CST[5];
+
+        let elem_3 = state[0].mul(&m_21);
+        let elem_4 = state[1].mul(&m_22);
+        let elem_5 = state[2].mul(&m_23);
+
+        new_state[1] = elem_3;
+        new_state[1] += &elem_4;
+        new_state[1] += &elem_5;
+
+        // scalar multiplication for the position 2 of the state vector
+        let m_31 = P::MDS_CST[6];
+        let m_32 = P::MDS_CST[7];
+        let m_33 = P::MDS_CST[8];
+
+        let elem_6 = state[0].mul(&m_31);
+        let elem_7 = state[1].mul(&m_32);
+        let elem_8 = state[2].mul(&m_33);
+
+        new_state[2] = elem_6;
+        new_state[2] += &elem_7;
+        new_state[2] += &elem_8;
+
+        // copy the result to the state vector
+        state[0] = new_state[0];
+        state[1] = new_state[1];
+        state[2] = new_state[2];
+
+    }
 
     // Function that does the mix matrix with fast algorithm
     fn matrix_mix_short (state: &mut Vec<F>) {
@@ -594,7 +597,8 @@ impl<F: PrimeField, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
             }
 
             // Perform the matrix mix
-            Self::matrix_mix_short(state);
+            //Self::matrix_mix_short(state);
+            Self::matrix_mix(state);
 
         }
 
@@ -614,7 +618,8 @@ impl<F: PrimeField, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
             }
 
             // Apply the matrix mix
-            Self::matrix_mix_short(state);
+            //Self::matrix_mix_short(state);
+            Self::matrix_mix(state);
         }
 
         // Second full rounds
@@ -655,7 +660,8 @@ impl<F: PrimeField, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
             }
 
             // Apply matrix mix
-            Self::matrix_mix_short(state);
+            //Self::matrix_mix_short(state);
+            Self::matrix_mix(state);
         }
 
         // Last full round does not perform the matrix_mix
