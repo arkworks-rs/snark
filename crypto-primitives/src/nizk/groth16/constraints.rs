@@ -335,13 +335,6 @@ where
         }
         Ok(bytes)
     }
-
-    fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        cs: CS,
-    ) -> Result<Vec<UInt8>, SynthesisError> {
-        self.to_bytes(cs)
-    }
 }
 
 #[cfg(test)]

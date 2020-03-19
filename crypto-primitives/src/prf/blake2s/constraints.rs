@@ -447,14 +447,6 @@ impl<ConstraintF: PrimeField> ToBytesGadget<ConstraintF> for Blake2sOutputGadget
     ) -> Result<Vec<UInt8>, SynthesisError> {
         Ok(self.0.clone())
     }
-
-    #[inline]
-    fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        cs: CS,
-    ) -> Result<Vec<UInt8>, SynthesisError> {
-        self.to_bytes(cs)
-    }
 }
 
 impl<ConstraintF: PrimeField> AllocGadget<[u8; 32], ConstraintF> for Blake2sOutputGadget {
