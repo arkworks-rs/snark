@@ -1359,12 +1359,16 @@ where
         Ok(x_bits)
     }
 
-    fn to_bits_strict<CS: ConstraintSystem<ConstraintF>>(
+    fn to_non_unique_bits<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<Boolean>, SynthesisError> {
-        let mut x_bits = self.x.to_bits_strict(cs.ns(|| "X Coordinate To Bits"))?;
-        let y_bits = self.y.to_bits_strict(cs.ns(|| "Y Coordinate To Bits"))?;
+        let mut x_bits = self
+            .x
+            .to_non_unique_bits(cs.ns(|| "X Coordinate To Bits"))?;
+        let y_bits = self
+            .y
+            .to_non_unique_bits(cs.ns(|| "Y Coordinate To Bits"))?;
         x_bits.extend_from_slice(&y_bits);
 
         Ok(x_bits)
@@ -1387,12 +1391,12 @@ where
         Ok(x_bytes)
     }
 
-    fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
+    fn to_non_unique_bytes<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
-        let mut x_bytes = self.x.to_bytes_strict(cs.ns(|| "x"))?;
-        let y_bytes = self.y.to_bytes_strict(cs.ns(|| "y"))?;
+        let mut x_bytes = self.x.to_non_unique_bytes(cs.ns(|| "x"))?;
+        let y_bytes = self.y.to_non_unique_bytes(cs.ns(|| "y"))?;
         x_bytes.extend_from_slice(&y_bytes);
 
         Ok(x_bytes)

@@ -802,6 +802,7 @@ impl<ConstraintF: Field> ConditionalEqGadget<ConstraintF> for Boolean {
 }
 
 impl<ConstraintF: Field> ToBytesGadget<ConstraintF> for Boolean {
+    /// Outputs `1u8` if `self` is true, and `0u8` otherwise.
     fn to_bytes<CS: ConstraintSystem<ConstraintF>>(
         &self,
         _cs: CS,
@@ -812,14 +813,6 @@ impl<ConstraintF: Field> ToBytesGadget<ConstraintF> for Boolean {
         let value = self.get_value().map(|val| val as u8);
         let byte = UInt8 { bits, value };
         Ok(vec![byte])
-    }
-
-    /// Additionally checks if the produced list of booleans is 'valid'.
-    fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        cs: CS,
-    ) -> Result<Vec<UInt8>, SynthesisError> {
-        self.to_bytes(cs)
     }
 }
 
