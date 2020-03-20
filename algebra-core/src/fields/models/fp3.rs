@@ -1,6 +1,7 @@
 use crate::{
     CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
-    CanonicalSerializeWithFlags, EmptyFlags, Flags, SerializationError, UniformRand, Vec,
+    CanonicalSerializeWithFlags, ConstantSerializedSize, EmptyFlags, Flags, SerializationError,
+    UniformRand, Vec,
 };
 use core::{
     cmp::{Ord, Ordering, PartialOrd},
@@ -495,6 +496,7 @@ impl<P: Fp3Parameters> fmt::Display for Fp3<P> {
 }
 
 impl<P: Fp3Parameters> CanonicalSerializeWithFlags for Fp3<P> {
+    #[inline]
     fn serialize_with_flags<W: Write, F: Flags>(
         &self,
         writer: &mut W,
@@ -508,16 +510,24 @@ impl<P: Fp3Parameters> CanonicalSerializeWithFlags for Fp3<P> {
 }
 
 impl<P: Fp3Parameters> CanonicalSerialize for Fp3<P> {
+    #[inline]
     fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
         self.serialize_with_flags(writer, EmptyFlags)
     }
 
+    #[inline]
     fn serialized_size(&self) -> usize {
-        self.c0.serialized_size() + self.c1.serialized_size() + self.c2.serialized_size()
+        Self::SERIALIZED_SIZE
     }
 }
 
+impl<P: Fp3Parameters> ConstantSerializedSize for Fp3<P> {
+    const SERIALIZED_SIZE: usize = 3 * <P::Fp as ConstantSerializedSize>::SERIALIZED_SIZE;
+    const UNCOMPRESSED_SIZE: usize = Self::SERIALIZED_SIZE;
+}
+
 impl<P: Fp3Parameters> CanonicalDeserializeWithFlags for Fp3<P> {
+    #[inline]
     fn deserialize_with_flags<R: Read, F: Flags>(
         reader: &mut R,
     ) -> Result<(Self, F), SerializationError> {
@@ -530,6 +540,7 @@ impl<P: Fp3Parameters> CanonicalDeserializeWithFlags for Fp3<P> {
 }
 
 impl<P: Fp3Parameters> CanonicalDeserialize for Fp3<P> {
+    #[inline]
     fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
         let c0: P::Fp = CanonicalDeserialize::deserialize(reader)?;
         let c1: P::Fp = CanonicalDeserialize::deserialize(reader)?;

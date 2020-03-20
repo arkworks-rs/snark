@@ -1,7 +1,8 @@
 use crate::{
     io::{Read, Result as IoResult, Write},
     CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
-    CanonicalSerializeWithFlags, EmptyFlags, Flags, SerializationError, UniformRand,
+    CanonicalSerializeWithFlags, ConstantSerializedSize, EmptyFlags, Flags, SerializationError,
+    UniformRand,
 };
 use core::{
     cmp::Ordering,
@@ -478,6 +479,7 @@ impl<P: Fp6Parameters> FromBytes for Fp6<P> {
 }
 
 impl<P: Fp6Parameters> CanonicalSerializeWithFlags for Fp6<P> {
+    #[inline]
     fn serialize_with_flags<W: Write, F: Flags>(
         &self,
         writer: &mut W,
@@ -491,16 +493,25 @@ impl<P: Fp6Parameters> CanonicalSerializeWithFlags for Fp6<P> {
 }
 
 impl<P: Fp6Parameters> CanonicalSerialize for Fp6<P> {
+    #[inline]
     fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
         self.serialize_with_flags(writer, EmptyFlags)
     }
 
+    #[inline]
     fn serialized_size(&self) -> usize {
-        self.c0.serialized_size() + self.c1.serialized_size() + self.c2.serialized_size()
+        Self::SERIALIZED_SIZE
     }
 }
 
+impl<P: Fp6Parameters> ConstantSerializedSize for Fp6<P> {
+    const SERIALIZED_SIZE: usize =
+        3 * <Fp2<P::Fp2Params> as ConstantSerializedSize>::SERIALIZED_SIZE;
+    const UNCOMPRESSED_SIZE: usize = Self::SERIALIZED_SIZE;
+}
+
 impl<P: Fp6Parameters> CanonicalDeserializeWithFlags for Fp6<P> {
+    #[inline]
     fn deserialize_with_flags<R: Read, F: Flags>(
         reader: &mut R,
     ) -> Result<(Self, F), SerializationError> {
@@ -512,6 +523,7 @@ impl<P: Fp6Parameters> CanonicalDeserializeWithFlags for Fp6<P> {
 }
 
 impl<P: Fp6Parameters> CanonicalDeserialize for Fp6<P> {
+    #[inline]
     fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
         let c0 = Fp2::deserialize(reader)?;
         let c1 = Fp2::deserialize(reader)?;
