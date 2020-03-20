@@ -7,11 +7,7 @@ use std::{
     str::FromStr,
 };
 
-use crate::{
-    biginteger::{arithmetic as fa, BigInteger as _BigInteger, BigInteger768 as BigInteger},
-    bytes::{FromBytes, ToBytes},
-    fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
-};
+use crate::{biginteger::{arithmetic as fa, BigInteger as _BigInteger, BigInteger768 as BigInteger}, bytes::{FromBytes, ToBytes}, fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField}, MulShort};
 
 pub trait Fp768Parameters: FpParameters<BigInt = BigInteger> {}
 
@@ -940,6 +936,66 @@ impl<'a, P: Fp768Parameters> SubAssign<&'a Self> for Fp768<P> {
         }
 
         self.0.sub_noborrow(&other.0);
+    }
+}
+
+impl<'a, P: Fp768Parameters> MulShort for Fp768<P> {
+
+    #[inline]
+    fn mul_short(self, other: &Self) -> Self {
+        let mut carry = 0;
+        let r0 = fa::mac_with_carry(0, (self.0).0[0], (other.0).0[0], &mut carry);
+        let mut r1 = fa::mac_with_carry(0, (self.0).0[0], (other.0).0[1], &mut carry);
+        let mut r2 = fa::mac_with_carry(0, (self.0).0[0], (other.0).0[2], &mut carry);
+        let mut r3 = fa::mac_with_carry(0, (self.0).0[0], (other.0).0[3], &mut carry);
+        let mut r4 = fa::mac_with_carry(0, (self.0).0[0], (other.0).0[4], &mut carry);
+        let mut r5 = fa::mac_with_carry(0, (self.0).0[0], (other.0).0[5], &mut carry);
+        let mut r6 = fa::mac_with_carry(0, (self.0).0[0], (other.0).0[6], &mut carry);
+        let mut r7 = fa::mac_with_carry(0, (self.0).0[0], (other.0).0[7], &mut carry);
+        let mut r8 = fa::mac_with_carry(0, (self.0).0[0], (other.0).0[8], &mut carry);
+        let mut r9 = fa::mac_with_carry(0, (self.0).0[0], (other.0).0[9], &mut carry);
+        let mut r10 = fa::mac_with_carry(0, (self.0).0[0], (other.0).0[10], &mut carry);
+        let mut r11 = fa::mac_with_carry(0, (self.0).0[0], (other.0).0[11], &mut carry);
+        let mut r12 = carry;
+
+        // println!("minv = {}", F::Params::INV);
+        // println!("r0 = {}", r0);
+        let k = r0.wrapping_mul(P::INV);
+        // println!("k = {}", k);
+                // println!("m = {:?}", m);
+        let mut carry = 0;
+        fa::mac_with_carry(r0, k, P::MODULUS.0[0], &mut carry);
+        r1 = fa::mac_with_carry(r1, k, P::MODULUS.0[1], &mut carry);
+        r2 = fa::mac_with_carry(r2, k, P::MODULUS.0[2], &mut carry);
+        r3 = fa::mac_with_carry(r3, k, P::MODULUS.0[3], &mut carry);
+        r4 = fa::mac_with_carry(r4, k, P::MODULUS.0[4], &mut carry);
+        r5 = fa::mac_with_carry(r5, k, P::MODULUS.0[5], &mut carry);
+        r6 = fa::mac_with_carry(r6, k, P::MODULUS.0[6], &mut carry);
+        r7 = fa::mac_with_carry(r7, k, P::MODULUS.0[7], &mut carry);
+        r8 = fa::mac_with_carry(r8, k, P::MODULUS.0[8], &mut carry);
+        r9 = fa::mac_with_carry(r9, k, P::MODULUS.0[9], &mut carry);
+        r10 = fa::mac_with_carry(r10, k, P::MODULUS.0[10], &mut carry);
+        r11 = fa::mac_with_carry(r11, k, P::MODULUS.0[11], &mut carry);
+        r12 = fa::adc(r12, 0, &mut carry);
+
+
+        let mut result = self.clone();
+
+        (result.0).0[0] = r1;
+        (result.0).0[1] = r2;
+        (result.0).0[2] = r3;
+        (result.0).0[3] = r4;
+        (result.0).0[4] = r5;
+        (result.0).0[5] = r6;
+        (result.0).0[6] = r7;
+        (result.0).0[7] = r8;
+        (result.0).0[8] = r9;
+        (result.0).0[9] = r10;
+        (result.0).0[10] = r11;
+        (result.0).0[11] = r12;
+        result.reduce();
+
+        result
     }
 }
 

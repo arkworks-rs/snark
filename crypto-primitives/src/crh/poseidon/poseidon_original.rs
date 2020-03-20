@@ -1,6 +1,6 @@
 use crate::crh::poseidon::PoseidonParameters;
 
-use algebra::PrimeField;
+use algebra::{PrimeField, MulShort};
 use algebra::arithmetic::{mac_with_carry, adc};
 use algebra::fields::FpParameters;
 use algebra::biginteger::BigInteger768;
@@ -20,79 +20,79 @@ pub struct PoseidonBatchHash<F: PrimeField, P: PoseidonParameters<Fr = F>>{
     _parameters: PhantomData<P>,
 }
 
-impl<F: PrimeField, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F, P> {
-    #[inline]
-    fn mul_assign_short(multiplicand: &F, multiplier: &F) -> F {
-        let mut carry = 0;
-        let r0 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[0], &mut carry);
-        let r1 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[1], &mut carry);
-        let r2 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[2], &mut carry);
-        let r3 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[3], &mut carry);
-        let r4 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[4], &mut carry);
-        let r5 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[5], &mut carry);
-        let r6 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[6], &mut carry);
-        let r7 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[7], &mut carry);
-        let r8 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[8], &mut carry);
-        let r9 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[9], &mut carry);
-        let r10 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[10], &mut carry);
-        let r11 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[11], &mut carry);
-        let r12 = carry;
-
-        let red = Self::partial_mont_reduce(
-            r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12
-        );
-
-        red
-    }
-
-    #[inline]
-    fn partial_mont_reduce(
-        r0: u64,
-        mut r1: u64,
-        mut r2: u64,
-        mut r3: u64,
-        mut r4: u64,
-        mut r5: u64,
-        mut r6: u64,
-        mut r7: u64,
-        mut r8: u64,
-        mut r9: u64,
-        mut r10: u64,
-        mut r11: u64,
-        mut r12: u64,
-    ) -> F {
-        // println!("minv = {}", F::Params::INV);
-        // println!("r0 = {}", r0);
-        let k = r0.wrapping_mul(F::Params::INV);
-        // println!("k = {}", k);
-        let m = F::characteristic();
-        // println!("m = {:?}", m);
-        let mut carry = 0;
-        mac_with_carry(r0, k, m[0], &mut carry);
-        r1 = mac_with_carry(r1, k, m[1], &mut carry);
-        r2 = mac_with_carry(r2, k, m[2], &mut carry);
-        r3 = mac_with_carry(r3, k, m[3], &mut carry);
-        r4 = mac_with_carry(r4, k, m[4], &mut carry);
-        r5 = mac_with_carry(r5, k, m[5], &mut carry);
-        r6 = mac_with_carry(r6, k, m[6], &mut carry);
-        r7 = mac_with_carry(r7, k, m[7], &mut carry);
-        r8 = mac_with_carry(r8, k, m[8], &mut carry);
-        r9 = mac_with_carry(r9, k, m[9], &mut carry);
-        r10 = mac_with_carry(r10, k, m[10], &mut carry);
-        r11 = mac_with_carry(r11, k, m[11], &mut carry);
-        r12 = adc(r12, 0, &mut carry);
-
-        let b = BigInteger768([r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12]);
-        let mut b_generic = F::BigInt::from_bits(b.to_bits().as_slice());
-
-        if b_generic >= F::Params::MODULUS {
-            b_generic.sub_noborrow(&F::Params::MODULUS);
-        }
-
-        let result = F::from_repr_raw(b_generic);
-
-        result
-    }
+impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F, P> {
+    // #[inline]
+    // fn mul_assign_short(multiplicand: &F, multiplier: &F) -> F {
+    //     let mut carry = 0;
+    //     let r0 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[0], &mut carry);
+    //     let r1 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[1], &mut carry);
+    //     let r2 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[2], &mut carry);
+    //     let r3 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[3], &mut carry);
+    //     let r4 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[4], &mut carry);
+    //     let r5 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[5], &mut carry);
+    //     let r6 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[6], &mut carry);
+    //     let r7 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[7], &mut carry);
+    //     let r8 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[8], &mut carry);
+    //     let r9 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[9], &mut carry);
+    //     let r10 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[10], &mut carry);
+    //     let r11 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[11], &mut carry);
+    //     let r12 = carry;
+    //
+    //     let red = Self::partial_mont_reduce(
+    //         r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12
+    //     );
+    //
+    //     red
+    // }
+    //
+    // #[inline]
+    // fn partial_mont_reduce(
+    //     r0: u64,
+    //     mut r1: u64,
+    //     mut r2: u64,
+    //     mut r3: u64,
+    //     mut r4: u64,
+    //     mut r5: u64,
+    //     mut r6: u64,
+    //     mut r7: u64,
+    //     mut r8: u64,
+    //     mut r9: u64,
+    //     mut r10: u64,
+    //     mut r11: u64,
+    //     mut r12: u64,
+    // ) -> F {
+    //     // println!("minv = {}", F::Params::INV);
+    //     // println!("r0 = {}", r0);
+    //     let k = r0.wrapping_mul(F::Params::INV);
+    //     // println!("k = {}", k);
+    //     let m = F::characteristic();
+    //     // println!("m = {:?}", m);
+    //     let mut carry = 0;
+    //     mac_with_carry(r0, k, m[0], &mut carry);
+    //     r1 = mac_with_carry(r1, k, m[1], &mut carry);
+    //     r2 = mac_with_carry(r2, k, m[2], &mut carry);
+    //     r3 = mac_with_carry(r3, k, m[3], &mut carry);
+    //     r4 = mac_with_carry(r4, k, m[4], &mut carry);
+    //     r5 = mac_with_carry(r5, k, m[5], &mut carry);
+    //     r6 = mac_with_carry(r6, k, m[6], &mut carry);
+    //     r7 = mac_with_carry(r7, k, m[7], &mut carry);
+    //     r8 = mac_with_carry(r8, k, m[8], &mut carry);
+    //     r9 = mac_with_carry(r9, k, m[9], &mut carry);
+    //     r10 = mac_with_carry(r10, k, m[10], &mut carry);
+    //     r11 = mac_with_carry(r11, k, m[11], &mut carry);
+    //     r12 = adc(r12, 0, &mut carry);
+    //
+    //     let b = BigInteger768([r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12]);
+    //     let mut b_generic = F::BigInt::from_bits(b.to_bits().as_slice());
+    //
+    //     if b_generic >= F::Params::MODULUS {
+    //         b_generic.sub_noborrow(&F::Params::MODULUS);
+    //     }
+    //
+    //     let result = F::from_repr_raw(b_generic);
+    //
+    //     result
+    // }
 
 
     // Function that does the mix matrix
@@ -148,7 +148,9 @@ impl<F: PrimeField, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F, P> {
     }
 
     // Function that does the mix matrix with fast algorithm
-    fn matrix_mix_short(state: &mut Vec<F>) {
+    fn matrix_mix_short (state: &mut Vec<F>) {
+
+        use algebra::MulShort;
 
         // the new state where the result will be stored initialized to zero elements
         let mut new_state = vec![F::zero(); P::T];
@@ -157,9 +159,9 @@ impl<F: PrimeField, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F, P> {
         let m_12 = P::MDS_CST_SHORT[1];
         let m_13 = P::MDS_CST_SHORT[2];
 
-        let elem_0 = Self::mul_assign_short(&state[0], &m_11);
-        let elem_1 = Self::mul_assign_short(&state[1], &m_12);
-        let elem_2 = Self::mul_assign_short(&state[2], &m_13);
+        let elem_0 = m_11.mul_short(&state[0]);
+        let elem_1 = m_12.mul_short(&state[1]);
+        let elem_2 = m_13.mul_short(&state[2]);
 
         new_state[0] = elem_0;
         new_state[0] += &elem_1;
@@ -170,9 +172,9 @@ impl<F: PrimeField, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F, P> {
         let m_22 = P::MDS_CST_SHORT[4];
         let m_23 = P::MDS_CST_SHORT[5];
 
-        let elem_3 = Self::mul_assign_short(&state[0], &m_21);
-        let elem_4 = Self::mul_assign_short(&state[1], &m_22);
-        let elem_5 = Self::mul_assign_short(&state[2], &m_23);
+        let elem_3 = m_21.mul_short(&state[0]);
+        let elem_4 = m_22.mul_short(&state[1]);
+        let elem_5 = m_23.mul_short(&state[2]);
 
         new_state[1] = elem_3;
         new_state[1] += &elem_4;
@@ -183,9 +185,9 @@ impl<F: PrimeField, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F, P> {
         let m_32 = P::MDS_CST_SHORT[7];
         let m_33 = P::MDS_CST_SHORT[8];
 
-        let elem_6 = Self::mul_assign_short(&state[0], &m_31);
-        let elem_7 = Self::mul_assign_short(&state[1], &m_32);
-        let elem_8 = Self::mul_assign_short(&state[2], &m_33);
+        let elem_6 = m_31.mul_short(&state[0]);
+        let elem_7 = m_32.mul_short(&state[1]);
+        let elem_8 = m_33.mul_short(&state[2]);
 
         new_state[2] = elem_6;
         new_state[2] += &elem_7;
@@ -346,7 +348,7 @@ impl<F: PrimeField, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F, P> {
             // Perform the matrix mix
             for i in 0..vec_state.len() {
                 //Self::matrix_mix_short(&mut vec_state[i]);
-                Self::matrix_mix(&mut vec_state[i]);
+                Self::matrix_mix_short(&mut vec_state[i]);
             }
 
         }
@@ -358,7 +360,7 @@ impl<F: PrimeField, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F, P> {
             // Perform the matrix mix
             for i in 0..vec_state.len() {
                 //Self::matrix_mix_short(&mut vec_state[i]);
-                Self::matrix_mix(&mut vec_state[i]);
+                Self::matrix_mix_short(&mut vec_state[i]);
             }
         }
 
@@ -369,7 +371,7 @@ impl<F: PrimeField, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F, P> {
             // Perform the matrix mix
             for i in 0..vec_state.len() {
                 //Self::matrix_mix_short(&mut vec_state[i]);
-                Self::matrix_mix(&mut vec_state[i]);
+                Self::matrix_mix_short(&mut vec_state[i]);
             }
         }
 
@@ -377,81 +379,86 @@ impl<F: PrimeField, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F, P> {
     }
 }
 
-impl<F: PrimeField, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
 
-    #[inline]
-    fn mul_assign_short(multiplicand: &F, multiplier: &F) -> F {
+impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
 
-        let mut carry = 0;
-        let r0 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[0], &mut carry);
-        let r1 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[1], &mut carry);
-        let r2 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[2], &mut carry);
-        let r3 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[3], &mut carry);
-        let r4 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[4], &mut carry);
-        let r5 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[5], &mut carry);
-        let r6 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[6], &mut carry);
-        let r7 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[7], &mut carry);
-        let r8 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[8], &mut carry);
-        let r9 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[9], &mut carry);
-        let r10 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[10], &mut carry);
-        let r11 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[11], &mut carry);
-        let r12 = carry;
-
-        let red = Self::partial_mont_reduce(
-            r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12
-        );
-
-        red
-    }
-
-    #[inline]
-    fn partial_mont_reduce(
-            r0: u64,
-            mut r1: u64,
-            mut r2: u64,
-            mut r3: u64,
-            mut r4: u64,
-            mut r5: u64,
-            mut r6: u64,
-            mut r7: u64,
-            mut r8: u64,
-            mut r9: u64,
-            mut r10: u64,
-            mut r11: u64,
-            mut r12: u64,
-    ) -> F {
-            // println!("minv = {}", F::Params::INV);
-            // println!("r0 = {}", r0);
-            let k = r0.wrapping_mul(F::Params::INV);
-            // println!("k = {}", k);
-            let m = F::characteristic();
-            // println!("m = {:?}", m);
-            let mut carry = 0;
-            mac_with_carry(r0, k, m[0], &mut carry);
-            r1 = mac_with_carry(r1, k, m[1], &mut carry);
-            r2 = mac_with_carry(r2, k, m[2], &mut carry);
-            r3 = mac_with_carry(r3, k, m[3], &mut carry);
-            r4 = mac_with_carry(r4, k, m[4], &mut carry);
-            r5 = mac_with_carry(r5, k, m[5], &mut carry);
-            r6 = mac_with_carry(r6, k, m[6], &mut carry);
-            r7 = mac_with_carry(r7, k, m[7], &mut carry);
-            r8 = mac_with_carry(r8, k, m[8], &mut carry);
-            r9 = mac_with_carry(r9, k, m[9], &mut carry);
-            r10 = mac_with_carry(r10, k, m[10], &mut carry);
-            r11 = mac_with_carry(r11, k, m[11], &mut carry);
-            r12 = adc(r12, 0, &mut carry);
-
-            let b = BigInteger768([r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12]);
-            let mut b_generic = F::BigInt::from_bits(b.to_bits().as_slice());
-
-            if b_generic >= F::Params::MODULUS {
-                b_generic.sub_noborrow(&F::Params::MODULUS);
-            }
-
-            let result = F::from_repr_raw(b_generic);
-
-            result
-    }
+    // #[inline]
+    // fn mul_assign_short(multiplicand: &F, multiplier: &F) -> F {
+    //
+    //     let mut carry = 0;
+    //     let r0 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[0], &mut carry);
+    //     let r1 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[1], &mut carry);
+    //     let r2 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[2], &mut carry);
+    //     let r3 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[3], &mut carry);
+    //     let r4 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[4], &mut carry);
+    //     let r5 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[5], &mut carry);
+    //     let r6 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[6], &mut carry);
+    //     let r7 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[7], &mut carry);
+    //     let r8 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[8], &mut carry);
+    //     let r9 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[9], &mut carry);
+    //     let r10 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[10], &mut carry);
+    //     let r11 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[11], &mut carry);
+    //     let r12 = carry;
+    //
+    //     let red = Self::partial_mont_reduce(
+    //         r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12
+    //     );
+    //
+    //     red
+    // }
+    //
+    // #[inline]
+    // fn partial_mont_reduce(
+    //         r0: u64,
+    //         mut r1: u64,
+    //         mut r2: u64,
+    //         mut r3: u64,
+    //         mut r4: u64,
+    //         mut r5: u64,
+    //         mut r6: u64,
+    //         mut r7: u64,
+    //         mut r8: u64,
+    //         mut r9: u64,
+    //         mut r10: u64,
+    //         mut r11: u64,
+    //         mut r12: u64,
+    // ) -> F {
+    //         // println!("minv = {}", F::Params::INV);
+    //         // println!("r0 = {}", r0);
+    //         let k = r0.wrapping_mul(F::Params::INV);
+    //         // println!("k = {}", k);
+    //         let m = F::characteristic();
+    //         // println!("m = {:?}", m);
+    //         let mut carry = 0;
+    //         mac_with_carry(r0, k, m[0], &mut carry);
+    //         r1 = mac_with_carry(r1, k, m[1], &mut carry);
+    //         r2 = mac_with_carry(r2, k, m[2], &mut carry);
+    //         r3 = mac_with_carry(r3, k, m[3], &mut carry);
+    //         r4 = mac_with_carry(r4, k, m[4], &mut carry);
+    //         r5 = mac_with_carry(r5, k, m[5], &mut carry);
+    //         r6 = mac_with_carry(r6, k, m[6], &mut carry);
+    //         r7 = mac_with_carry(r7, k, m[7], &mut carry);
+    //         r8 = mac_with_carry(r8, k, m[8], &mut carry);
+    //         r9 = mac_with_carry(r9, k, m[9], &mut carry);
+    //         r10 = mac_with_carry(r10, k, m[10], &mut carry);
+    //         r11 = mac_with_carry(r11, k, m[11], &mut carry);
+    //         r12 = adc(r12, 0, &mut carry);
+    //
+    //         let b = BigInteger768([r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12]);
+    //
+    //         use algebra::{to_bytes, ToBytes, FromBytes};
+    //
+    //         //let mut b_generic = F::BigInt::from_bits(b.to_bits().as_slice());
+    //         let mut b_generic = F::BigInt::read(to_bytes!(b).unwrap().as_slice()).unwrap();
+    //
+    //         if !(b_generic < F::Params::MODULUS) {
+    //             b_generic.sub_noborrow(&F::Params::MODULUS);
+    //         }
+    //
+    //         let result = F::from_repr_raw(b_generic);
+    //
+    //         result
+    // }
 
     // Function that does the mix matrix
     fn matrix_mix (state: &mut Vec<F>) {
@@ -508,6 +515,8 @@ impl<F: PrimeField, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
     // Function that does the mix matrix with fast algorithm
     fn matrix_mix_short (state: &mut Vec<F>) {
 
+        use algebra::MulShort;
+
         // the new state where the result will be stored initialized to zero elements
         let mut new_state = vec![F::zero(); P::T];
 
@@ -515,9 +524,9 @@ impl<F: PrimeField, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
         let m_12 = P::MDS_CST_SHORT[1];
         let m_13 = P::MDS_CST_SHORT[2];
 
-        let elem_0 = Self::mul_assign_short(&state[0],&m_11);
-        let elem_1 = Self::mul_assign_short(&state[1],&m_12);
-        let elem_2 = Self::mul_assign_short(&state[2],&m_13);
+        let elem_0 = m_11.mul_short(&state[0]);
+        let elem_1 = m_12.mul_short(&state[1]);
+        let elem_2 = m_13.mul_short(&state[2]);
 
         new_state[0] = elem_0;
         new_state[0] += &elem_1;
@@ -528,9 +537,9 @@ impl<F: PrimeField, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
         let m_22 = P::MDS_CST_SHORT[4];
         let m_23 = P::MDS_CST_SHORT[5];
 
-        let elem_3 = Self::mul_assign_short(&state[0],&m_21);
-        let elem_4 = Self::mul_assign_short(&state[1],&m_22);
-        let elem_5 = Self::mul_assign_short(&state[2],&m_23);
+        let elem_3 = m_21.mul_short(&state[0]);
+        let elem_4 = m_22.mul_short(&state[1]);
+        let elem_5 = m_23.mul_short(&state[2]);
 
         new_state[1] = elem_3;
         new_state[1] += &elem_4;
@@ -541,9 +550,9 @@ impl<F: PrimeField, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
         let m_32 = P::MDS_CST_SHORT[7];
         let m_33 = P::MDS_CST_SHORT[8];
 
-        let elem_6 = Self::mul_assign_short(&state[0],&m_31);
-        let elem_7 = Self::mul_assign_short(&state[1],&m_32);
-        let elem_8 = Self::mul_assign_short(&state[2],&m_33);
+        let elem_6 = m_31.mul_short(&state[0]);
+        let elem_7 = m_32.mul_short(&state[1]);
+        let elem_8 = m_33.mul_short(&state[2]);
 
         new_state[2] = elem_6;
         new_state[2] += &elem_7;
@@ -556,6 +565,8 @@ impl<F: PrimeField, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
     }
 
     fn poseidon_perm (state: &mut Vec<F>) {
+
+        let use_fast = true;
 
         // index that goes over the round constants
         let mut round_cst_idx = 0;
@@ -597,8 +608,11 @@ impl<F: PrimeField, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
             }
 
             // Perform the matrix mix
-            //Self::matrix_mix_short(state);
-            Self::matrix_mix(state);
+            if use_fast {
+                Self::matrix_mix_short(state);
+            } else {
+                Self::matrix_mix(state);
+            }
 
         }
 
@@ -618,8 +632,11 @@ impl<F: PrimeField, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
             }
 
             // Apply the matrix mix
-            //Self::matrix_mix_short(state);
-            Self::matrix_mix(state);
+            if use_fast {
+                Self::matrix_mix_short(state);
+            } else {
+                Self::matrix_mix(state);
+            }
         }
 
         // Second full rounds
@@ -660,8 +677,11 @@ impl<F: PrimeField, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
             }
 
             // Apply matrix mix
-            //Self::matrix_mix_short(state);
-            Self::matrix_mix(state);
+            if use_fast {
+                Self::matrix_mix_short(state);
+            } else {
+                Self::matrix_mix(state);
+            }
         }
 
         // Last full round does not perform the matrix_mix
@@ -699,7 +719,7 @@ impl<F: PrimeField, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
     }
 }
 
-impl<F: PrimeField, P: PoseidonParameters<Fr = F>> FieldBasedHash for PoseidonHash<F, P> {
+impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> FieldBasedHash for PoseidonHash<F, P> {
     type Data = F;
     type Parameters = P;
 
@@ -742,32 +762,20 @@ impl<F: PrimeField, P: PoseidonParameters<Fr = F>> FieldBasedHash for PoseidonHa
     }
 }
 
-impl<F: PrimeField, P: PoseidonParameters<Fr = F>> BatchFieldBasedHash for PoseidonBatchHash<F, P> {
+impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> BatchFieldBasedHash for PoseidonBatchHash<F, P> {
     type Data = F;
     type Parameters = P;
 
-    fn batch_evaluate(input: &Vec<Vec<F>>) -> Result<Vec<F>, Error> {
+    fn batch_evaluate(input_array: &mut[F]) {
+
         // input:
-        // [0] : (d_00, d_01, d_02, ...)
-        // [1] : (d_10, d_11, d_12, ...)
-        // [2] : (d_20, d_21, d_22, ...)
-        // ...
-        // It is assumed that the inputs have the same length
+        // (d_00, d01, d_10, d_11, d_20, d_21, ...
 
         // Checks that input contains data
-        assert_ne!(input.len(), 0, "Input to the hash has length 0.");
+        assert_ne!(input_array.len(), 0, "Input to the hash has length 0.");
 
-        // Checks that the inputs contain vectors of the same length
-        let length_0 = input[0].len();
-        for i in 1..input.len() {
-            assert_eq!(input[i].len(), length_0, "Input vectors to hash do not have the same length.");
-        }
+        let input_length = input_array.len()/2;
 
-        // calculate the number of cycles to process the input dividing in portions of rate elements
-        // we assume the inputs lengths are the same for input1 and input2
-        let num_cycles = length_0 / P::R;
-        // check if the input is a multiple of the rate by calculating the remainder of the division
-        let rem = length_0 % P::R;
 
         // First I initialized with a single state vector of zero and call the Poseidon hash and then
         // copy the result of the permutation to a vector of state vectors with the same length as the input
@@ -776,49 +784,26 @@ impl<F: PrimeField, P: PoseidonParameters<Fr = F>> BatchFieldBasedHash for Posei
         // Copy the result of the permutation to a vector of state vectors of the length equal to the length of the input
         // state is a vector of 3-element state vector.
         let mut state = Vec::new();
-        for _i in 0..input.len() {
+        for _i in 0..input_length {
             state.push(state_z.clone());
         }
 
         // input_idx is an index to process the inputs
         let mut input_idx = 0;
 
-        // iterate of the portions of rate elements
-        for _i in 0..num_cycles {
-            // add the elements to the state vector. Add rate elements
-            for j in 0..P::R {
-                for k in 0..input.len() {
-                    state[k][j] += &input[k][input_idx];
-                }
-                input_idx += 1;
-            }
-            // for application to a 2-1 Merkle tree, add the constant 3 to the third element of the state vector
-            for k in 0..input.len() {
-                state[k][P::R] += &P::C2;
-            }
-
-            // apply permutation after adding the input vector
-            Self::poseidon_perm_gen(&mut state);
+        for k in 0..input_length {
+            state[k][0] += &input_array[input_idx];
+            input_idx += 1;
+            state[k][1] += &input_array[input_idx];
+            input_idx += 1;
+            state[k][2] += &P::C2;
         }
 
-        // in case the input is not a multiple of the rate process the remainder part padding a zero
-        if rem != 0 {
-            for k in 0..input.len() {
-                state[k][0] += &input[k][input_idx];
-                state[k][P::R] += &P::C2;
-            }
-            // apply permutation after adding the input vector
-            Self::poseidon_perm_gen(&mut state);
-        }
+        // apply permutation after adding the input vector
+        Self::poseidon_perm_gen(&mut state);
 
-        // the hashes of the inputs are the first elements of the state vectors
-        // output is a vector of the hashes
-        let mut output: Vec<P::Fr> = Vec::new();
-        for k in 0..input.len() {
-            output.push(state[k][0]);
+        for k in 0..input_array.len()/2 {
+            input_array[k] = state[k][0];
         }
-
-        // return output
-        Ok(output)
     }
 }

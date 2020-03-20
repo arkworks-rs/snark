@@ -53,6 +53,12 @@ macro_rules! field_new {
     };
 }
 
+pub trait MulShort where Self: Sized {
+
+    #[inline]
+    fn mul_short(self, other: &Self) -> Self;
+}
+
 /// The interface for a generic field.
 pub trait Field:
     ToBytes
