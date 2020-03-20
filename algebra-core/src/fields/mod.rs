@@ -2,7 +2,7 @@ use crate::{
     biginteger::BigInteger,
     bytes::{FromBytes, ToBytes},
     CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
-    CanonicalSerializeWithFlags, UniformRand, Vec,
+    CanonicalSerializeWithFlags, ConstantSerializedSize, UniformRand, Vec,
 };
 use core::{
     fmt::{Debug, Display},
@@ -64,6 +64,7 @@ pub trait Field:
     + Sized
     + Hash
     + CanonicalSerialize
+    + ConstantSerializedSize
     + CanonicalSerializeWithFlags
     + CanonicalDeserialize
     + CanonicalDeserializeWithFlags

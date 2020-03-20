@@ -20,6 +20,12 @@ pub trait CanonicalSerializeWithFlags: CanonicalSerialize {
     ) -> Result<(), SerializationError>;
 }
 
+/// Helper trait to get serialized size for constant sized structs.
+pub trait ConstantSerializedSize: CanonicalSerialize {
+    const SERIALIZED_SIZE: usize;
+    const UNCOMPRESSED_SIZE: usize;
+}
+
 /// Serializer in little endian format.
 /// This trait can be derived if all fields of a struct implement
 /// `CanonicalSerialize` and the `derive` feature is enabled.
@@ -102,8 +108,13 @@ impl CanonicalSerialize for u64 {
 
     #[inline]
     fn serialized_size(&self) -> usize {
-        8
+        Self::SERIALIZED_SIZE
     }
+}
+
+impl ConstantSerializedSize for u64 {
+    const SERIALIZED_SIZE: usize = 8;
+    const UNCOMPRESSED_SIZE: usize = Self::SERIALIZED_SIZE;
 }
 
 impl CanonicalDeserialize for u64 {
@@ -177,8 +188,13 @@ impl<T: CanonicalDeserialize> CanonicalDeserialize for Vec<T> {
 
 #[inline]
 pub fn buffer_bit_byte_size(modulus_bits: usize) -> (usize, usize) {
-    let byte_size = (modulus_bits + 7) / 8;
+    let byte_size = buffer_byte_size(modulus_bits);
     ((byte_size * 8), byte_size)
+}
+
+#[inline]
+pub const fn buffer_byte_size(modulus_bits: usize) -> usize {
+    (modulus_bits + 7) / 8
 }
 
 macro_rules! impl_prime_field_serializer {
@@ -208,6 +224,13 @@ macro_rules! impl_prime_field_serializer {
             }
         }
 
+        impl<P: $params> ConstantSerializedSize for $field<P> {
+            const SERIALIZED_SIZE: usize = crate::serialize::buffer_byte_size(
+                <$field<P> as crate::PrimeField>::Params::MODULUS_BITS as usize,
+            );
+            const UNCOMPRESSED_SIZE: usize = Self::SERIALIZED_SIZE;
+        }
+
         impl<P: $params> CanonicalSerialize for $field<P> {
             #[allow(unused_qualifications)]
             #[inline]
@@ -220,9 +243,7 @@ macro_rules! impl_prime_field_serializer {
 
             #[inline]
             fn serialized_size(&self) -> usize {
-                let (_, output_byte_size) =
-                    crate::serialize::buffer_bit_byte_size($field::<P>::size_in_bits());
-                output_byte_size
+                Self::SERIALIZED_SIZE
             }
         }
 
@@ -288,7 +309,7 @@ macro_rules! impl_sw_curve_serializer {
 
             #[inline]
             fn serialized_size(&self) -> usize {
-                self.x.serialized_size()
+                Self::SERIALIZED_SIZE
             }
 
             #[allow(unused_qualifications)]
@@ -309,8 +330,15 @@ macro_rules! impl_sw_curve_serializer {
 
             #[inline]
             fn uncompressed_size(&self) -> usize {
-                self.x.serialized_size() + self.y.serialized_size()
+                Self::UNCOMPRESSED_SIZE
             }
+        }
+
+        impl<P: $params> ConstantSerializedSize for GroupAffine<P> {
+            const SERIALIZED_SIZE: usize =
+                <P::BaseField as ConstantSerializedSize>::SERIALIZED_SIZE;
+            const UNCOMPRESSED_SIZE: usize =
+                2 * <P::BaseField as ConstantSerializedSize>::SERIALIZED_SIZE;
         }
 
         impl<P: $params> CanonicalDeserialize for GroupAffine<P> {
@@ -371,7 +399,7 @@ macro_rules! impl_edwards_curve_serializer {
 
             #[inline]
             fn serialized_size(&self) -> usize {
-                CanonicalSerialize::serialized_size(&self.x)
+                Self::SERIALIZED_SIZE
             }
 
             #[allow(unused_qualifications)]
@@ -387,8 +415,15 @@ macro_rules! impl_edwards_curve_serializer {
 
             #[inline]
             fn uncompressed_size(&self) -> usize {
-                self.x.uncompressed_size() + self.y.uncompressed_size()
+                Self::UNCOMPRESSED_SIZE
             }
+        }
+
+        impl<P: $params> ConstantSerializedSize for GroupAffine<P> {
+            const SERIALIZED_SIZE: usize =
+                <P::BaseField as ConstantSerializedSize>::SERIALIZED_SIZE;
+            const UNCOMPRESSED_SIZE: usize =
+                2 * <P::BaseField as ConstantSerializedSize>::SERIALIZED_SIZE;
         }
 
         impl<P: $params> CanonicalDeserialize for GroupAffine<P> {
