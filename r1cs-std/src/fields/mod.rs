@@ -251,6 +251,10 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
 
     fn cost_of_mul() -> usize;
 
+    fn cost_of_mul_equals() -> usize {
+        Self::cost_of_mul() + <Self as EqGadget<ConstraintF>>::cost()
+    }
+
     fn cost_of_inv() -> usize;
 }
 

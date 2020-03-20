@@ -47,10 +47,15 @@ where
     /// Multiply a Fp3Gadget by quadratic nonresidue P::NONRESIDUE.
     #[inline]
     pub fn mul_fp3_gadget_by_nonresidue<CS: ConstraintSystem<ConstraintF>>(
-        cs: CS,
+        mut cs: CS,
         fe: &Fp3Gadget<P, ConstraintF>,
     ) -> Result<Fp3Gadget<P, ConstraintF>, SynthesisError> {
-        fe.mul_by_constant(cs, &P::NONRESIDUE)
+        let mut res = Fp3Gadget::<P, ConstraintF>::new(fe.c2.clone(), fe.c0.clone(), fe.c1.clone());
+        res.c0.mul_by_constant_in_place(
+            cs.ns(|| "res * non_residue"),
+            &<P::Fp3Params as Fp3Parameters>::NONRESIDUE,
+        )?;
+        Ok(res)
     }
 
     pub fn unitary_inverse<CS: ConstraintSystem<ConstraintF>>(
@@ -457,6 +462,10 @@ where
         )
     }
 
+    fn cost_of_mul_equals() -> usize {
+        Self::cost_of_mul()
+    }
+
     fn cost_of_inv() -> usize {
         unimplemented!()
     }
@@ -550,12 +559,12 @@ where
         Ok(c0)
     }
 
-    fn to_bits_strict<CS: ConstraintSystem<ConstraintF>>(
+    fn to_non_unique_bits<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<Boolean>, SynthesisError> {
-        let mut c0 = self.c0.to_bits_strict(cs.ns(|| "c0"))?;
-        let mut c1 = self.c1.to_bits_strict(cs.ns(|| "c1"))?;
+        let mut c0 = self.c0.to_non_unique_bits(cs.ns(|| "c0"))?;
+        let mut c1 = self.c1.to_non_unique_bits(cs.ns(|| "c1"))?;
         c0.append(&mut c1);
         Ok(c0)
     }
@@ -577,12 +586,12 @@ where
         Ok(c0)
     }
 
-    fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
+    fn to_non_unique_bytes<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
-        let mut c0 = self.c0.to_bytes_strict(cs.ns(|| "c0"))?;
-        let mut c1 = self.c1.to_bytes_strict(cs.ns(|| "c1"))?;
+        let mut c0 = self.c0.to_non_unique_bytes(cs.ns(|| "c0"))?;
+        let mut c1 = self.c1.to_non_unique_bytes(cs.ns(|| "c1"))?;
         c0.append(&mut c1);
         Ok(c0)
     }

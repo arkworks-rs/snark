@@ -151,11 +151,8 @@ impl<P: MNT6Parameters> PairingGadget<P> {
         p: &G1PreparedGadget<P>,
         q: &G2PreparedGadget<P>,
     ) -> Result<Fp6G<P>, SynthesisError> {
-        let mut l1_coeff = Fp3G::<P>::new(
-            p.x.clone(),
-            FpGadget::<P::Fp>::zero(cs.ns(|| "zero"))?,
-            FpGadget::<P::Fp>::zero(cs.ns(|| "zero"))?,
-        );
+        let zero = FpGadget::<P::Fp>::zero(cs.ns(|| "zero"))?;
+        let mut l1_coeff = Fp3G::<P>::new(p.x.clone(), zero.clone(), zero);
         l1_coeff.sub_in_place(cs.ns(|| "l1_coeff"), &q.x_over_twist)?;
 
         let mut f = Fp6G::<P>::one(cs.ns(|| "one"))?;

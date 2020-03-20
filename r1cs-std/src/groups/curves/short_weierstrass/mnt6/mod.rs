@@ -91,11 +91,23 @@ impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for G1PreparedGadget<P> {
         Ok(x)
     }
 
-    fn to_bytes_strict<CS: ConstraintSystem<P::Fp>>(
+    fn to_non_unique_bytes<CS: ConstraintSystem<P::Fp>>(
         &self,
-        cs: CS,
+        mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
-        self.to_bytes(cs)
+        let mut x = self.x.to_non_unique_bytes(&mut cs.ns(|| "x to bytes"))?;
+        let mut y = self.y.to_non_unique_bytes(&mut cs.ns(|| "y to bytes"))?;
+        let mut x_twist = self
+            .x_twist
+            .to_non_unique_bytes(&mut cs.ns(|| "x_twist to bytes"))?;
+        let mut y_twist = self
+            .y_twist
+            .to_non_unique_bytes(&mut cs.ns(|| "y_twist to bytes"))?;
+
+        x.append(&mut y);
+        x.append(&mut x_twist);
+        x.append(&mut y_twist);
+        Ok(x)
     }
 }
 
@@ -139,11 +151,34 @@ impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for G2PreparedGadget<P> {
         Ok(x)
     }
 
-    fn to_bytes_strict<CS: ConstraintSystem<P::Fp>>(
+    fn to_non_unique_bytes<CS: ConstraintSystem<P::Fp>>(
         &self,
-        cs: CS,
+        mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
-        self.to_bytes(cs)
+        let mut x = self.x.to_non_unique_bytes(&mut cs.ns(|| "x to bytes"))?;
+        let mut y = self.y.to_non_unique_bytes(&mut cs.ns(|| "y to bytes"))?;
+        let mut x_over_twist = self
+            .x_over_twist
+            .to_non_unique_bytes(&mut cs.ns(|| "x_over_twist to bytes"))?;
+        let mut y_over_twist = self
+            .y_over_twist
+            .to_non_unique_bytes(&mut cs.ns(|| "y_over_twist to bytes"))?;
+
+        x.append(&mut y);
+        x.append(&mut x_over_twist);
+        x.append(&mut y_over_twist);
+
+        for (i, coeff) in self.double_coefficients.iter().enumerate() {
+            x.extend_from_slice(
+                &coeff.to_non_unique_bytes(cs.ns(|| format!("double_coefficients {}", i)))?,
+            );
+        }
+        for (i, coeff) in self.addition_coefficients.iter().enumerate() {
+            x.extend_from_slice(
+                &coeff.to_non_unique_bytes(cs.ns(|| format!("addition_coefficients {}", i)))?,
+            );
+        }
+        Ok(x)
     }
 }
 
@@ -219,9 +254,9 @@ impl<P: MNT6Parameters> G2PreparedGadget<P> {
 
             let mut cs = cs.ns(|| format!("ate loop iteration {}", idx));
 
-            for bit in v.iter().rev() {
+            for (j, bit) in v.iter().rev().enumerate() {
                 let (r2, coeff) = PairingGadget::<P>::doubling_step_for_flipped_miller_loop(
-                    cs.ns(|| "doubling step"),
+                    cs.ns(|| format!("doubling step {}", j)),
                     &r,
                 )?;
                 g2p.double_coefficients.push(coeff);
@@ -230,7 +265,7 @@ impl<P: MNT6Parameters> G2PreparedGadget<P> {
                 if *bit {
                     let (r2, coeff) =
                         PairingGadget::<P>::mixed_addition_step_for_flipped_miller_loop(
-                            cs.ns(|| "mixed addition step"),
+                            cs.ns(|| format!("mixed addition step {}", j)),
                             &q.x,
                             &q.y,
                             &r,
@@ -292,11 +327,27 @@ impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for AteDoubleCoefficientsGadget<P> 
         Ok(c_h)
     }
 
-    fn to_bytes_strict<CS: ConstraintSystem<P::Fp>>(
+    fn to_non_unique_bytes<CS: ConstraintSystem<P::Fp>>(
         &self,
-        cs: CS,
+        mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
-        self.to_bytes(cs)
+        let mut c_h = self
+            .c_h
+            .to_non_unique_bytes(&mut cs.ns(|| "c_h to bytes"))?;
+        let mut c_4c = self
+            .c_4c
+            .to_non_unique_bytes(&mut cs.ns(|| "c_4c to bytes"))?;
+        let mut c_j = self
+            .c_j
+            .to_non_unique_bytes(&mut cs.ns(|| "c_j to bytes"))?;
+        let mut c_l = self
+            .c_l
+            .to_non_unique_bytes(&mut cs.ns(|| "c_l to bytes"))?;
+
+        c_h.append(&mut c_4c);
+        c_h.append(&mut c_j);
+        c_h.append(&mut c_l);
+        Ok(c_h)
     }
 }
 
@@ -339,11 +390,19 @@ impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for AteAdditionCoefficientsGadget<P
         Ok(c_l1)
     }
 
-    fn to_bytes_strict<CS: ConstraintSystem<P::Fp>>(
+    fn to_non_unique_bytes<CS: ConstraintSystem<P::Fp>>(
         &self,
-        cs: CS,
+        mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
-        self.to_bytes(cs)
+        let mut c_l1 = self
+            .c_l1
+            .to_non_unique_bytes(&mut cs.ns(|| "c_l1 to bytes"))?;
+        let mut c_rz = self
+            .c_rz
+            .to_non_unique_bytes(&mut cs.ns(|| "c_rz to bytes"))?;
+
+        c_l1.append(&mut c_rz);
+        Ok(c_l1)
     }
 }
 

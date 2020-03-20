@@ -479,6 +479,10 @@ where
         )
     }
 
+    fn cost_of_mul_equals() -> usize {
+        Self::cost_of_mul()
+    }
+
     fn cost_of_inv() -> usize {
         unimplemented!()
     }
@@ -568,12 +572,12 @@ where
         Ok(c0)
     }
 
-    fn to_bits_strict<CS: ConstraintSystem<ConstraintF>>(
+    fn to_non_unique_bits<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<Boolean>, SynthesisError> {
-        let mut c0 = self.c0.to_bits_strict(cs.ns(|| "c0"))?;
-        let mut c1 = self.c1.to_bits_strict(cs.ns(|| "c1"))?;
+        let mut c0 = self.c0.to_non_unique_bits(cs.ns(|| "c0"))?;
+        let mut c1 = self.c1.to_non_unique_bits(cs.ns(|| "c1"))?;
         c0.append(&mut c1);
         Ok(c0)
     }
@@ -594,12 +598,12 @@ where
         Ok(c0)
     }
 
-    fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
+    fn to_non_unique_bytes<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
-        let mut c0 = self.c0.to_bytes_strict(cs.ns(|| "c0"))?;
-        let mut c1 = self.c1.to_bytes_strict(cs.ns(|| "c1"))?;
+        let mut c0 = self.c0.to_non_unique_bytes(cs.ns(|| "c0"))?;
+        let mut c1 = self.c1.to_non_unique_bytes(cs.ns(|| "c1"))?;
         c0.append(&mut c1);
         Ok(c0)
     }
