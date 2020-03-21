@@ -479,3 +479,228 @@ mod test {
         }
     }
 }
+
+#[cfg(test)]
+mod test_recursive {
+    use groth16::*;
+    use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
+
+    use super::*;
+    use algebra::{
+        mnt4_298::{Fq as MNT4Fq, Fr as MNT4Fr, MNT4_298},
+        mnt6_298::{Fq as MNT6Fq, Fr as MNT6Fr, MNT6_298},
+        test_rng, BitIterator, PrimeField,
+    };
+    use r1cs_std::{
+        boolean::Boolean, mnt4_298::PairingGadget as MNT4_298PairingGadget,
+        mnt6_298::PairingGadget as MNT6_298PairingGadget,
+        test_constraint_system::TestConstraintSystem,
+    };
+    use rand::Rng;
+
+    type TestProofSystem1 = Groth16<MNT6_298, Bench<MNT4Fq>, MNT6Fr>;
+    type TestVerifierGadget1 = Groth16VerifierGadget<MNT6_298, MNT6Fq, MNT6_298PairingGadget>;
+    type TestProofGadget1 = ProofGadget<MNT6_298, MNT6Fq, MNT6_298PairingGadget>;
+    type TestVkGadget1 = VerifyingKeyGadget<MNT6_298, MNT6Fq, MNT6_298PairingGadget>;
+
+    type TestProofSystem2 = Groth16<MNT4_298, Wrapper, MNT4Fr>;
+    type TestVerifierGadget2 = Groth16VerifierGadget<MNT4_298, MNT4Fq, MNT4_298PairingGadget>;
+    type TestProofGadget2 = ProofGadget<MNT4_298, MNT4Fq, MNT4_298PairingGadget>;
+    type TestVkGadget2 = VerifyingKeyGadget<MNT4_298, MNT4Fq, MNT4_298PairingGadget>;
+
+    #[derive(Clone)]
+    struct Bench<F: Field> {
+        inputs:          Vec<Option<F>>,
+        num_constraints: usize,
+    }
+
+    impl<F: Field> ConstraintSynthesizer<F> for Bench<F> {
+        fn generate_constraints<CS: ConstraintSystem<F>>(
+            self,
+            cs: &mut CS,
+        ) -> Result<(), SynthesisError> {
+            assert!(self.inputs.len() >= 2);
+            assert!(self.num_constraints >= self.inputs.len());
+
+            let mut variables: Vec<_> = Vec::with_capacity(self.inputs.len());
+            for (i, input) in self.inputs.into_iter().enumerate() {
+                let input_var = cs.alloc_input(
+                    || format!("Input {}", i),
+                    || input.ok_or(SynthesisError::AssignmentMissing),
+                )?;
+                variables.push((input, input_var));
+            }
+
+            for i in 0..self.num_constraints {
+                let new_entry = {
+                    let (input_1_val, input_1_var) = variables[i];
+                    let (input_2_val, input_2_var) = variables[i + 1];
+                    let result_val = input_1_val
+                        .and_then(|input_1| input_2_val.map(|input_2| input_1 * &input_2));
+                    let result_var = cs.alloc(
+                        || format!("Result {}", i),
+                        || result_val.ok_or(SynthesisError::AssignmentMissing),
+                    )?;
+                    cs.enforce(
+                        || format!("Enforce constraint {}", i),
+                        |lc| lc + input_1_var,
+                        |lc| lc + input_2_var,
+                        |lc| lc + result_var,
+                    );
+                    (result_val, result_var)
+                };
+                variables.push(new_entry);
+            }
+            Ok(())
+        }
+    }
+
+    struct Wrapper {
+        inputs: Vec<Option<MNT4Fq>>,
+        params: Parameters<MNT6_298>,
+        proof:  Proof<MNT6_298>,
+    }
+
+    impl ConstraintSynthesizer<MNT6Fq> for Wrapper {
+        fn generate_constraints<CS: ConstraintSystem<MNT6Fq>>(
+            self,
+            cs: &mut CS,
+        ) -> Result<(), SynthesisError> {
+            let params = self.params;
+            let proof = self.proof;
+            // assert!(!verify_proof(&pvk, &proof, &[a]).unwrap());
+            let inputs: Vec<_> = self
+                .inputs
+                .into_iter()
+                .map(|input| input.unwrap())
+                .collect();
+            let mut input_gadgets = Vec::new();
+
+            {
+                let mut cs = cs.ns(|| "Allocate Input");
+                for (i, input) in inputs.into_iter().enumerate() {
+                    let mut input_bits = BitIterator::new(input.into_repr()).collect::<Vec<_>>();
+                    // Input must be in little-endian, but BitIterator outputs in big-endian.
+                    input_bits.reverse();
+
+                    let input_bits =
+                        Vec::<Boolean>::alloc_input(cs.ns(|| format!("Input {}", i)), || {
+                            Ok(input_bits)
+                        })?;
+                    input_gadgets.push(input_bits);
+                }
+            }
+
+            let vk_gadget = TestVkGadget1::alloc(cs.ns(|| "Vk"), || Ok(&params.vk))?;
+            let proof_gadget =
+                TestProofGadget1::alloc(cs.ns(|| "Proof"), || Ok(proof.clone())).unwrap();
+            <TestVerifierGadget1 as NIZKVerifierGadget<TestProofSystem1, MNT6Fq>>::check_verify(
+                cs.ns(|| "Verify"),
+                &vk_gadget,
+                input_gadgets.iter(),
+                &proof_gadget,
+            )?;
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn groth16_recursive_verifier_test() {
+        let num_inputs = 100;
+        let num_constraints = num_inputs;
+        let rng = &mut test_rng();
+        let mut inputs: Vec<Option<MNT4Fq>> = Vec::with_capacity(num_inputs);
+        for _ in 0..num_inputs {
+            inputs.push(Some(rng.gen()));
+        }
+
+        // Generate inner params and proof.
+        let inner_params = {
+            let c = Bench::<MNT4Fq> {
+                inputs: vec![None; num_inputs],
+                num_constraints,
+            };
+
+            generate_random_parameters(c, rng).unwrap()
+        };
+
+        let inner_proof = {
+            // Create an instance of our circuit (with the
+            // witness)
+            let c = Bench {
+                inputs: inputs.clone(),
+                num_constraints,
+            };
+            // Create a groth16 proof with our parameters.
+            create_random_proof(c, &inner_params, rng).unwrap()
+        };
+
+        // Generate outer params and proof.
+        let params = {
+            let c = Wrapper {
+                inputs: inputs.clone(),
+                params: inner_params.clone(),
+                proof:  inner_proof.clone(),
+            };
+
+            generate_random_parameters(c, rng).unwrap()
+        };
+
+        {
+            let proof = {
+                // Create an instance of our circuit (with the
+                // witness)
+                let c = Wrapper {
+                    inputs: inputs.clone(),
+                    params: inner_params.clone(),
+                    proof:  inner_proof.clone(),
+                };
+                // Create a groth16 proof with our parameters.
+                create_random_proof(c, &params, rng).unwrap()
+            };
+
+            // assert!(!verify_proof(&pvk, &proof, &[a]).unwrap());
+            let mut cs = TestConstraintSystem::<MNT4Fq>::new();
+
+            let inputs: Vec<_> = inputs.into_iter().map(|input| input.unwrap()).collect();
+            let mut input_gadgets = Vec::new();
+
+            {
+                let mut cs = cs.ns(|| "Allocate Input");
+                for (i, input) in inputs.into_iter().enumerate() {
+                    let mut input_bits = BitIterator::new(input.into_repr()).collect::<Vec<_>>();
+                    // Input must be in little-endian, but BitIterator outputs in big-endian.
+                    input_bits.reverse();
+
+                    let mut input_bits =
+                        Vec::<Boolean>::alloc_input(cs.ns(|| format!("Input {}", i)), || {
+                            Ok(input_bits)
+                        })
+                        .unwrap();
+                    input_gadgets.append(&mut input_bits);
+                }
+            }
+
+            let vk_gadget = TestVkGadget2::alloc_input(cs.ns(|| "Vk"), || Ok(&params.vk)).unwrap();
+            let proof_gadget =
+                TestProofGadget2::alloc(cs.ns(|| "Proof"), || Ok(proof.clone())).unwrap();
+            println!("Time to verify!\n\n\n\n");
+            <TestVerifierGadget2 as NIZKVerifierGadget<TestProofSystem2, MNT4Fq>>::check_verify(
+                cs.ns(|| "Verify"),
+                &vk_gadget,
+                input_gadgets.iter(),
+                &proof_gadget,
+            )
+            .unwrap();
+            if !cs.is_satisfied() {
+                println!("=========================================================");
+                println!("Unsatisfied constraints:");
+                println!("{:?}", cs.which_is_unsatisfied().unwrap());
+                println!("=========================================================");
+            }
+
+            // cs.print_named_objects();
+            assert!(cs.is_satisfied());
+        }
+    }
+}

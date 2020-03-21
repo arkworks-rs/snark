@@ -57,6 +57,18 @@ pub use instantiated::edwards_sw6;
 #[cfg(feature = "jubjub")]
 pub use instantiated::jubjub;
 
+#[cfg(feature = "mnt4_298")]
+pub use instantiated::mnt4_298;
+
+#[cfg(feature = "mnt4_753")]
+pub use instantiated::mnt4_753;
+
+#[cfg(feature = "mnt6_298")]
+pub use instantiated::mnt6_298;
+
+#[cfg(feature = "mnt6_753")]
+pub use instantiated::mnt6_753;
+
 pub mod pairing;
 
 pub mod alloc;
