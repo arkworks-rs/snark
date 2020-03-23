@@ -62,7 +62,7 @@ pub mod pairing;
 pub mod alloc;
 pub mod eq;
 pub mod select;
-pub mod smaller_than;
+pub mod cmp;
 
 pub mod prelude {
     pub use crate::{
@@ -74,6 +74,7 @@ pub mod prelude {
         instantiated::*,
         pairing::PairingGadget,
         select::*,
+        cmp::CmpGadget,
     };
 }
 
