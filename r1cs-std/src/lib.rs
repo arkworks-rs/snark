@@ -34,6 +34,7 @@ use ralloc::{collections::BTreeMap, string::String, vec::Vec};
 use std::{collections::BTreeMap, string::String, vec::Vec};
 
 pub mod test_constraint_system;
+pub mod test_constraint_counter;
 
 pub mod bits;
 pub use self::bits::*;
