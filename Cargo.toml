@@ -10,7 +10,8 @@ members = [
   , "crypto-primitives"
   , "dpc"
   , "bench-utils"
-  , "snarky-bn382" ]
+  , "snarky-bn382"
+  , "groupmap"]
 
 [profile.release]
 opt-level = 3

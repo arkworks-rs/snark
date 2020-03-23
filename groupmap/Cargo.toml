@@ -1,0 +1,11 @@
+[package]
+name = "groupmap"
+version = "0.1.0"
+authors = ["Rebekah Mercer <github@rbkhmrcr.com>", "Izaak Meckler <izaak@o1labs.org>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+algebra = { path = "../algebra", features = [ "parallel" ] }
+rand = { version = "0.7" }
