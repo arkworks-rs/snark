@@ -17,6 +17,10 @@ impl TestConstraintCounter {
             num_constraints: 0,
         }
     }
+
+    pub fn num_constraints(&self) -> usize {
+        self.num_constraints
+    }
 }
 
 impl<ConstraintF: Field> ConstraintSystem<ConstraintF> for TestConstraintCounter {
