@@ -5,10 +5,7 @@ use crate::{
 };
 use algebra::PrimeField;
 use r1cs_core::{ConstraintSystem, SynthesisError};
-use std::{
-    cmp::Ordering,
-    marker::PhantomData
-};
+use std::{cmp::Ordering, marker::PhantomData};
 
 pub struct CmpGadget<ConstraintF: PrimeField> {
     constraint_field_type: PhantomData<ConstraintF>,
@@ -25,9 +22,17 @@ impl<ConstraintF: PrimeField> CmpGadget<ConstraintF> {
         let left;
         let right;
         match ordering {
-            Ordering::Less => { left = a; right = b; }
-            Ordering::Greater => {left = b; right = a; }
-            Ordering::Equal => { return Err(SynthesisError::Unsatisfiable); }
+            Ordering::Less => {
+                left = a;
+                right = b;
+            },
+            Ordering::Greater => {
+                left = b;
+                right = a;
+            },
+            Ordering::Equal => {
+                return Err(SynthesisError::Unsatisfiable);
+            },
         };
         let right_for_check = if should_also_check_equality {
             right.add_constant(cs.ns(|| "plus one"), &ConstraintF::one())?
@@ -41,7 +46,7 @@ impl<ConstraintF: PrimeField> CmpGadget<ConstraintF> {
     fn check_smaller_than_mod_minus_one_div_two<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         a: &FpGadget<ConstraintF>,
-    ) -> Result<(), SynthesisError>  {
+    ) -> Result<(), SynthesisError> {
         let a_bits = a.to_bits(cs.ns(|| "a to bits"))?;
         Boolean::enforce_smaller_or_equal_than::<_, _, ConstraintF, _>(
             cs.ns(|| "enforce smaller than modulus minus one div two"),
@@ -60,7 +65,13 @@ impl<ConstraintF: PrimeField> CmpGadget<ConstraintF> {
         ordering: Ordering,
         should_also_check_equality: bool,
     ) -> Result<(), SynthesisError> {
-        let (left, right) = Self::process_cmp_inputs(cs.ns(|| "process cmp inputs"), a, b, ordering, should_also_check_equality)?;
+        let (left, right) = Self::process_cmp_inputs(
+            cs.ns(|| "process cmp inputs"),
+            a,
+            b,
+            ordering,
+            should_also_check_equality,
+        )?;
         Self::enforce_smaller_than_unchecked(cs.ns(|| "enforce smaller than"), &left, &right)
     }
 
@@ -72,7 +83,13 @@ impl<ConstraintF: PrimeField> CmpGadget<ConstraintF> {
         ordering: Ordering,
         should_also_check_equality: bool,
     ) -> Result<(), SynthesisError> {
-        let (left, right) = Self::process_cmp_inputs(cs.ns(|| "process cmp inputs"), a, b, ordering, should_also_check_equality)?;
+        let (left, right) = Self::process_cmp_inputs(
+            cs.ns(|| "process cmp inputs"),
+            a,
+            b,
+            ordering,
+            should_also_check_equality,
+        )?;
         Self::enforce_smaller_than(cs.ns(|| "enforce smaller than"), &left, &right)
     }
 
@@ -84,7 +101,13 @@ impl<ConstraintF: PrimeField> CmpGadget<ConstraintF> {
         ordering: Ordering,
         should_also_check_equality: bool,
     ) -> Result<Boolean, SynthesisError> {
-        let (left, right) = Self::process_cmp_inputs(cs.ns(|| "process cmp inputs"), a, b, ordering, should_also_check_equality)?;
+        let (left, right) = Self::process_cmp_inputs(
+            cs.ns(|| "process cmp inputs"),
+            a,
+            b,
+            ordering,
+            should_also_check_equality,
+        )?;
         Self::is_smaller_than(cs.ns(|| "enforce smaller than"), &left, &right)
     }
 
@@ -96,7 +119,13 @@ impl<ConstraintF: PrimeField> CmpGadget<ConstraintF> {
         ordering: Ordering,
         should_also_check_equality: bool,
     ) -> Result<Boolean, SynthesisError> {
-        let (left, right) = Self::process_cmp_inputs(cs.ns(|| "process cmp inputs"), a, b, ordering, should_also_check_equality)?;
+        let (left, right) = Self::process_cmp_inputs(
+            cs.ns(|| "process cmp inputs"),
+            a,
+            b,
+            ordering,
+            should_also_check_equality,
+        )?;
         Self::is_smaller_than_unchecked(cs.ns(|| "enforce smaller than"), &left, &right)
     }
 
