@@ -4,8 +4,8 @@ use crate::{
     ToBitsGadget,
 };
 use algebra::PrimeField;
+use core::{cmp::Ordering, marker::PhantomData};
 use r1cs_core::{ConstraintSystem, SynthesisError};
-use std::{cmp::Ordering, marker::PhantomData};
 
 pub struct CmpGadget<ConstraintF: PrimeField> {
     constraint_field_type: PhantomData<ConstraintF>,
