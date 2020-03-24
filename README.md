@@ -1,12 +1,11 @@
 ginger-lib: a RUST library for zk-SNARK proofs
 ================================================================================
 
-This library implements __zk-SNARK__ schemes, which are a cryptographic method
-for proving/verifying, in zero knowledge, the integrity of computations.
+Ginger-lib is a general purpose library that can be used as a toolset for developers to implement __zk-SNARK__ schemes, which are a cryptographic method for proving/verifying, in zero knowledge, the integrity of computations. The library ships with support for full-cycle recursive proof composition.
 
-It originated as a fork of the [ZEXE](https://github.com/scipr-lab/ZEXE) project. It was initially developed and it is now maintained by the **Zen Blockchain Foundation**, the legal entity of [Horizen \(formerly ZenCash\)](https://horizen.global), as part of their effort to implement the [Zendoo](https://eprint.iacr.org/2020/123.pdf "Zendoo") sidechain system. The library is released under the Apache and MIT License, and offered to the developer community as a contribution to a larger adoption and improvement of SNARG technologies, in and beyond the crypto world.
+Ginger-lib originated as a fork of the [ZEXE](https://github.com/scipr-lab/ZEXE) project. The library was initially developed and it is now maintained by the **Zen Blockchain Foundation**, the legal entity of [Horizen \(formerly ZenCash\)](https://horizen.global), as part of their effort to implement the [Zendoo](https://eprint.iacr.org/2020/123.pdf "Zendoo") sidechain system. Ginger-lib is released under the Apache and MIT License, and offered to the developer community as a contribution to a larger adoption and improvement of SNARG technologies, in and beyond the crypto world.
 
-Ginger in Italian is "Zen-zero"; the **Zen** Blockchain Foundation has indeed developed this **zero**-knowledge library to add some more spice to the already hot global zk-SNARK movement!
+**Ginger** in Italian is "Zenzero", and this “**Zen zero**-knowledge” library was indeed developed to add some more spice to the already hot global zk-SNARK movement!
 
 
 ## Overview
@@ -125,7 +124,8 @@ Unless you explicitly state otherwise, any contribution submitted for inclusion 
 
 ## Acknowledgements
 
-This work is supported by the **Zen Blockchain Foundation**. 
-The project started by modifying a forked code base originally developed by the SCIPR Lab researchers for their [**ZEXE**](https://github.com/scipr-lab/ZEXE) project. ZEXE had previously borrowed some code from the Zcash/ECC [**Bellman**](https://github.com/zcash/librustzcash/tree/master/bellman) library.
-Some of the objects made available in this repo were adapted by the work performed by O(1) Labs for their [**Coda**](https://github.com/CodaProtocol/coda) project.
+This work is supported by the **Zen Blockchain Foundation**.  
+The project started by modifying a forked code base originally developed by the SCIPR Lab researchers for their [**ZEXE**](https://github.com/scipr-lab/ZEXE) project.  
+ZEXE had previously borrowed some code from the Zcash/ECC [**Bellman**](https://github.com/zcash/librustzcash/tree/master/bellman) library.  
+Some of the objects made available in this repo were adapted by the work performed by O(1) Labs for their [**Coda**](https://github.com/CodaProtocol/coda) project.  
 Ginger-lib owes deeply to SCIPR Lab's [**LibSNARK**](https://github.com/scipr-lab/libSNARK), the real foundation of all practical zk-SNARK development activities. 
