@@ -3,15 +3,15 @@ use algebra::Field;
 use r1cs_core::{ConstraintSystem, Index, LinearCombination, SynthesisError, Variable};
 
 /// Constraint counter for testing purposes.
-pub struct TestConstraintCounter {
+pub struct ConstraintCounter {
     pub num_inputs: usize,
     pub num_aux: usize,
     pub num_constraints: usize,
 }
 
-impl TestConstraintCounter {
-    pub fn new() -> TestConstraintCounter {
-        TestConstraintCounter {
+impl ConstraintCounter {
+    pub fn new() -> Self {
+        Self {
             num_aux: 0,
             num_inputs: 0,
             num_constraints: 0,
@@ -23,7 +23,7 @@ impl TestConstraintCounter {
     }
 }
 
-impl<ConstraintF: Field> ConstraintSystem<ConstraintF> for TestConstraintCounter {
+impl<ConstraintF: Field> ConstraintSystem<ConstraintF> for ConstraintCounter {
     type Root = Self;
 
     fn alloc<F, A, AR>(&mut self, _: A, _: F) -> Result<Variable, SynthesisError>
@@ -114,7 +114,7 @@ mod tests {
         let empty_circuit = TestCircuit::<Fq>(None);
         let populated_circuit = TestCircuit(Some(Fq::from(10u32)));
 
-        let mut counter = TestConstraintCounter::new();
+        let mut counter = ConstraintCounter::new();
         let mut cs = TestConstraintSystem::new();
 
         empty_circuit
