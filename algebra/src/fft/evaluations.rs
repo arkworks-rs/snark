@@ -2,7 +2,7 @@
 
 use std::ops::{Add, Sub, Mul, Div, AddAssign, SubAssign, MulAssign, DivAssign};
 use crate::PrimeField;
-use crate::{DensePolynomial, EvaluationDomain};
+use crate::{DensePolynomial, EvaluationDomain, EvaluationDomainImpl};
 
 /// Stores a polynomial in evaluation form.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

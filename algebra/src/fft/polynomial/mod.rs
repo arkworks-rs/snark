@@ -4,7 +4,7 @@ use crate::{Field, PrimeField};
 use std::borrow::Cow;
 use std::convert::TryInto;
 use DenseOrSparsePolynomial::*;
-use crate::{Evaluations, EvaluationDomain};
+use crate::{Evaluations, EvaluationDomain, EvaluationDomainImpl};
 
 
 mod dense;

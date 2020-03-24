@@ -1,4 +1,4 @@
-use algebra::fft::EvaluationDomain;
+use algebra::fft::domain::{EvaluationDomain, EvaluationDomainImpl};
 use algebra::{
     msm::FixedBaseMSM, UniformRand,
     AffineCurve, Field, PairingEngine, PrimeField, ProjectiveCurve,

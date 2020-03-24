@@ -4,9 +4,8 @@ pub mod polynomial;
 
 pub(crate) mod multicore;
 
-pub use domain::EvaluationDomain;
+pub use domain::*;
 pub use evaluations::Evaluations;
 pub use polynomial::{DensePolynomial, SparsePolynomial, DenseOrSparsePolynomial};
 
-#[cfg(test)]
-mod test;
+

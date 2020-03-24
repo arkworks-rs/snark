@@ -340,6 +340,11 @@ impl<P: Fp256Parameters> PrimeField for Fp256<P> {
     fn root_of_unity() -> Self {
         Fp256::<P>(P::ROOT_OF_UNITY, PhantomData)
     }
+
+    #[inline]
+    fn full_root_of_unity() -> Self {
+        Fp256::<P>(P::FULL_ROOT_OF_UNITY.unwrap(), PhantomData)
+    }
 }
 
 impl<P: Fp256Parameters> SquareRootField for Fp256<P> {

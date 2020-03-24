@@ -680,6 +680,11 @@ impl<P: Fp832Parameters> PrimeField for Fp832<P> {
     }
 
     #[inline]
+    fn full_root_of_unity() -> Self {
+        Fp832::<P>(P::FULL_ROOT_OF_UNITY.unwrap(), PhantomData)
+    }
+
+    #[inline]
     fn size_in_bits() -> usize {
         P::MODULUS_BITS as usize
     }

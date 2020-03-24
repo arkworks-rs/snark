@@ -708,6 +708,11 @@ impl<P: Fp768Parameters> PrimeField for Fp768<P> {
     }
 
     #[inline]
+    fn full_root_of_unity() -> Self {
+        Fp768::<P>(P::FULL_ROOT_OF_UNITY.unwrap(), PhantomData)
+    }
+
+    #[inline]
     fn size_in_bits() -> usize {
         P::MODULUS_BITS as usize
     }
