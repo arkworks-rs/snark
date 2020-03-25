@@ -124,6 +124,68 @@ fn test_poseidon_hash_mnt6() {
     println!("{:?}", output);
 }
 
+#[test]
+fn test_mul_add() {
+
+    let num_rounds = 1000000000;
+    let seed = 128;
+
+
+
+    let mut carry = 0;
+    let mut k = 84;
+    let mut m = 123;
+    let mut v1 = 3;
+    let mut v2 = 3;
+    let mut v3 = 3;
+    let mut v4 = 3;
+    let mut v5 = 3;
+    let mut v6 = 3;
+    let mut v7 = 3;
+    let mut v8 = 3;
+    let mut v9 = 3;
+    let mut v10 = 3;
+    let now_mul = Instant::now();
+    for i in 0..num_rounds {
+        v2 = mac_with_carry(v1, k, m, &mut carry);
+        v3 = mac_with_carry(v2, k, m, &mut carry);
+        v4 = mac_with_carry(v3, k, m, &mut carry);
+        v5 = mac_with_carry(v4, k, m, &mut carry);
+        v6 = mac_with_carry(v5, k, m, &mut carry);
+        v7 = mac_with_carry(v6, k, m, &mut carry);
+        v8 = mac_with_carry(v7, k, m, &mut carry);
+        v9 = mac_with_carry(v8, k, m, &mut carry);
+        v10 = mac_with_carry(v9, k, m, &mut carry);
+        v1 = mac_with_carry(v10, k, m, &mut carry);
+    }
+    let new_now_mul  = Instant::now();
+    println!("result = {}", v1);
+
+    let duration_mul =  new_now_mul.duration_since(now_mul);
+    println!("Time for {} rounds muladd = {:?}", num_rounds, duration_mul.as_micros());
+
+    let now_add = Instant::now();
+    for i in 0..num_rounds {
+        v2 = adc(v1, k, &mut carry);
+        v3 = adc(v2, k, &mut carry);
+        v4 = adc(v3, k, &mut carry);
+        v5 = adc(v4, k, &mut carry);
+        v6 = adc(v5, k, &mut carry);
+        v7 = adc(v6, k, &mut carry);
+        v8 = adc(v7, k, &mut carry);
+        v9 = adc(v8, k, &mut carry);
+        v10 = adc(v9, k, &mut carry);
+        v1 = adc(v10, k, &mut carry);
+    }
+    let new_now_add  = Instant::now();
+    println!("result = {}", v1);
+
+    let duration_add =  new_now_add.duration_since(now_add);
+    println!("Time for {} rounds add = {:?}", num_rounds, duration_add.as_micros());
+
+
+}
+
 
 #[test]
 fn test_hash_speed() {
@@ -644,6 +706,7 @@ use rand_xorshift::XorShiftRng;
 use algebra::{UniformRand, Fp768};
 use self::rand::SeedableRng;
 use std::time::Instant;
+use algebra::biginteger::arithmetic::{mac_with_carry, adc};
 //use crate::crh::{FieldBasedHashParameters, FieldBasedHash};
 //use crate::crh::poseidon::poseidon_original::PoseidonHash;
 

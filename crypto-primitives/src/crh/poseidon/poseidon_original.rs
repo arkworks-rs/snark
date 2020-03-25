@@ -21,81 +21,11 @@ pub struct PoseidonBatchHash<F: PrimeField, P: PoseidonParameters<Fr = F>>{
 }
 
 impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F, P> {
-    // #[inline]
-    // fn mul_assign_short(multiplicand: &F, multiplier: &F) -> F {
-    //     let mut carry = 0;
-    //     let r0 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[0], &mut carry);
-    //     let r1 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[1], &mut carry);
-    //     let r2 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[2], &mut carry);
-    //     let r3 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[3], &mut carry);
-    //     let r4 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[4], &mut carry);
-    //     let r5 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[5], &mut carry);
-    //     let r6 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[6], &mut carry);
-    //     let r7 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[7], &mut carry);
-    //     let r8 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[8], &mut carry);
-    //     let r9 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[9], &mut carry);
-    //     let r10 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[10], &mut carry);
-    //     let r11 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[11], &mut carry);
-    //     let r12 = carry;
-    //
-    //     let red = Self::partial_mont_reduce(
-    //         r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12
-    //     );
-    //
-    //     red
-    // }
-    //
-    // #[inline]
-    // fn partial_mont_reduce(
-    //     r0: u64,
-    //     mut r1: u64,
-    //     mut r2: u64,
-    //     mut r3: u64,
-    //     mut r4: u64,
-    //     mut r5: u64,
-    //     mut r6: u64,
-    //     mut r7: u64,
-    //     mut r8: u64,
-    //     mut r9: u64,
-    //     mut r10: u64,
-    //     mut r11: u64,
-    //     mut r12: u64,
-    // ) -> F {
-    //     // println!("minv = {}", F::Params::INV);
-    //     // println!("r0 = {}", r0);
-    //     let k = r0.wrapping_mul(F::Params::INV);
-    //     // println!("k = {}", k);
-    //     let m = F::characteristic();
-    //     // println!("m = {:?}", m);
-    //     let mut carry = 0;
-    //     mac_with_carry(r0, k, m[0], &mut carry);
-    //     r1 = mac_with_carry(r1, k, m[1], &mut carry);
-    //     r2 = mac_with_carry(r2, k, m[2], &mut carry);
-    //     r3 = mac_with_carry(r3, k, m[3], &mut carry);
-    //     r4 = mac_with_carry(r4, k, m[4], &mut carry);
-    //     r5 = mac_with_carry(r5, k, m[5], &mut carry);
-    //     r6 = mac_with_carry(r6, k, m[6], &mut carry);
-    //     r7 = mac_with_carry(r7, k, m[7], &mut carry);
-    //     r8 = mac_with_carry(r8, k, m[8], &mut carry);
-    //     r9 = mac_with_carry(r9, k, m[9], &mut carry);
-    //     r10 = mac_with_carry(r10, k, m[10], &mut carry);
-    //     r11 = mac_with_carry(r11, k, m[11], &mut carry);
-    //     r12 = adc(r12, 0, &mut carry);
-    //
-    //     let b = BigInteger768([r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12]);
-    //     let mut b_generic = F::BigInt::from_bits(b.to_bits().as_slice());
-    //
-    //     if b_generic >= F::Params::MODULUS {
-    //         b_generic.sub_noborrow(&F::Params::MODULUS);
-    //     }
-    //
-    //     let result = F::from_repr_raw(b_generic);
-    //
-    //     result
-    // }
-
 
     // Function that does the mix matrix
+    // It uses Montgomery multiplication
+    // Constants are defined such that the result is x * t * 2^768,
+    // that is the Montgomery representation of the operand x * t, and t is the 64-bit constant
     fn matrix_mix (state: &mut Vec<F>) {
 
         // the new state where the result will be stored initialized to zero elements
@@ -148,6 +78,9 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F,
     }
 
     // Function that does the mix matrix with fast algorithm
+    // It uses a partial Montgomery multiplication defined as PM(x, t) = x * t * 2^-64 mod M
+    // t is a 64-bit matrix constant. In the algorithm, the constants are represented in
+    // partial Montgomery representation, i.e. t * 2^64 mod M
     fn matrix_mix_short (state: &mut Vec<F>) {
 
         use algebra::MulShort;
@@ -171,6 +104,12 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F,
         let m_21 = P::MDS_CST_SHORT[3];
         let m_22 = P::MDS_CST_SHORT[4];
         let m_23 = P::MDS_CST_SHORT[5];
+        // Because the matrix is symmetric, they can be replaced by
+        // the following instructions.
+        // let m_21 = m_12;
+        // let m_22 = m_11;
+        // let m_23 = P::MDS_CST_SHORT[5];
+
 
         let elem_3 = m_21.mul_short(&state[0]);
         let elem_4 = m_22.mul_short(&state[1]);
@@ -184,6 +123,11 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F,
         let m_31 = P::MDS_CST_SHORT[6];
         let m_32 = P::MDS_CST_SHORT[7];
         let m_33 = P::MDS_CST_SHORT[8];
+        // Because the matrix is symmetric, they can be replaced by
+        // the following instructions
+        // let m_31 = m_13;
+        // let m_32 = m_23;
+        // let m_33 = m_11;
 
         let elem_6 = m_31.mul_short(&state[0]);
         let elem_7 = m_32.mul_short(&state[1]);
@@ -201,13 +145,13 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F,
 
     fn poseidon_full_round(vec_state: &mut Vec<Vec<P::Fr>>, round_cst_idx: &mut usize) {
 
-        // For each of the state vector element position
+        // For each of the element position of the state vector
         for j in 0..P::T {
 
-            // get the constant associated to state vector element position
+            // get the constant associated to element position of the state vector
             let rc = P::ROUND_CST[*round_cst_idx];
 
-            // go over each state vector
+            // go over each of the state vectors and add the constant
             for k in 0..vec_state.len() {
                 vec_state[k][j] += &rc;
             }
@@ -215,18 +159,27 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F,
         }
 
         // Apply the S-BOX to each of the elements of the state vector
-        let mut partial_prod: Vec<P::Fr> = Vec::new();
-        //let mut accum_prod = T::Fr::from_repr(vec_state[vec_state.len()-1][T::T-1]);
+        // Use Montgomery simultaneous inversion
+        let mut w: Vec<P::Fr> = Vec::new();
         let mut accum_prod = P::Fr::one();
 
-        partial_prod.push(accum_prod);
+        w.push(accum_prod);
         // Calculate the intermediate partial products
-        for i in (0..vec_state.len()).rev() {
-            for j in (0..P::T).rev() {
+        for i in 0..vec_state.len() {
+            for j in 0..P::T {
                 accum_prod = accum_prod * &vec_state[i][j];
-                partial_prod.push(accum_prod);
+                w.push(accum_prod);
             }
         }
+        // vec_state = [ [z_1, z_2, z_3] [z_4, z_5, z_6] ]
+
+        // w_0 = 1
+        // w_1 = 1 * z_1
+        // w_2 = 1 * z_1 * z_2
+        // w_3 = 1 * z_1 * z_2 * z_3
+        // w_4 = 1 * z_1 * z_2 * z_3 * z_4
+        // w_5 = 1 * z_1 * z_2 * z_3 * z_4 * z_5
+        // w_6 = 1 * z_1 * z_2 * z_3 * z_4 * z_5 * z_6
 
         // if the accum_prod is zero, it means that one of the S-Boxes is zero
         // in that case compute the inverses individually
@@ -240,39 +193,42 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F,
             }
         } else {
 
-            // partial_prod =
-            // 0 => 1
-            // 1 => x_5
-            // 2 => x_5 * x_4
-            // 3 => x_5 * x_4 * x_3
-            // 4 => x_5 * x_4 * x_3 * x_2
-            // 5 => x_5 * x_4 * x_3 * x_2 * x_1
-            // 6 => x_5 * x_4 * x_3 * x_2 * x_1 * x_0
-
             // Calculate the inversion of the products
             // The inverse always exists in this case
-            let v = accum_prod.inverse().unwrap();
+            let mut w_bar = accum_prod.inverse().unwrap();
 
-            // inverses =
-            // partial_prod.len() = 7, w = 1, v = x_5 * x_4 * x_3 * x_2 * x_1 * x_0
-            // idx = 6 =>  x_0 ^ -1 = v * w * partial_prod[5], w = 1 * x_0
-            // idx = 5 =>  x_1 ^ -1 = v * w * partial_prod[4], w = 1 * x_0 * x_1
-            // idx = 4 =>  x_2 ^ -1 = v * w * partial_prod[3], w = 1 * x_0 * x_1 * x_2
-            // idx = 3 =>  x_3 ^ -1 = v * w * partial_prod[2], w = 1 * x_0 * x_1 * x_2 * x_3
-            // idx = 2 =>  x_4 ^ -1 = v * w * partial_prod[1], w = 1 * x_0 * x_1 * x_2 * x_3 * x_4
-            // idx = 1 =>  x_5 ^ -1 = v * w * partial_prod[0], w = 1 * x_0 * x_1 * x_2 * x_3 * x_4 * x_5
+            // w_bar = (1 * z_1 * z_2 * z_3 * z_4 * z_5 * z_6) ^ -1
+            // w_bar = z_1^-1 * z_2^-1 * z_3^-1 * z_4^-1 * z_5^-1 * z_6^-1
+
+            // z_6 = w_bar * w_5 = z_6^-1
+            // w_bar <= w_bar * z_6 = z_1^-1 * z_2^-1 * z_3^-1 * z_4^-1 * z_5^-1
+
+            // z_5 = w_bar * w_4 = z_5^-1
+            // w_bar <= w_bar * z_5 = z_1^-1 * z_2^-1 * z_3^-1 * z_4^-1
+
+            // z_4 = w_bar * w_3 = z_4^-1
+            // w_bar <= w_bar * z_4 = z_1^-1 * z_2^-1 * z_3^-1
+
+            // z_3 = w_bar * w_2 = z_3^-1
+            // w_bar <= w_bar * z_3 = z_1^-1 * z_2^-1
+
+            // z_2 = w_bar * w_1 = z_2^-1
+            // w_bar <= w_bar * z_2 = z_1^-1
+
+            // z_1 = w_bar * w_0 = z_1^-1
+            // w_bar <= w_bar * z_1 = 1
 
             // Extract the individual inversions
-            let mut idx: i64 = partial_prod.len() as i64 - 2;
-            let mut w = P::Fr::one();
-            for i in 0..vec_state.len() {
-                for j in 0..P::T {
+            let mut idx: i64 = w.len() as i64 - 2;
+            for i in (0..vec_state.len()).rev() {
+                for j in (0..P::T).rev() {
                     let vec_1 = vec_state[i][j].clone();
-                    vec_state[i][j] = v * &w * &partial_prod[idx as usize];
-                    w = w * &vec_1;
+                    vec_state[i][j] = w_bar * &w[idx as usize];
+                    w_bar = w_bar * &vec_1;
                     idx -= 1;
                 }
             }
+
         }
     }
 
@@ -292,14 +248,14 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F,
         }
 
         // Apply the S-BOX to the first elements of each of the state vector
-        let mut partial_prod: Vec<P::Fr> = Vec::new();
+        let mut w: Vec<P::Fr> = Vec::new();
         let mut accum_prod = P::Fr::one();
 
-        partial_prod.push(accum_prod);
+        w.push(accum_prod);
         // Calculate the intermediate partial products
-        for i in (0..vec_state.len()).rev() {
+        for i in 0..vec_state.len() {
             accum_prod = accum_prod * &vec_state[i][0];
-            partial_prod.push(accum_prod);
+            w.push(accum_prod);
         }
 
         // if the accum_prod is zero, it means that one of the S-Boxes is zero
@@ -312,25 +268,16 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F,
             }
         } else {
 
-            // partial_prod =
-            // 0 => 1
-            // 1 => x_5
-            // 2 => x_5 * x_4
-            // 3 => x_5 * x_4 * x_3
-            // 4 => x_5 * x_4 * x_3 * x_2
-            // 5 => x_5 * x_4 * x_3 * x_2 * x_1
-            // 6 => x_5 * x_4 * x_3 * x_2 * x_1 * x_0
-
             // Calculate the inversion of the products
-            let v = accum_prod.inverse().unwrap();
+            // Use Montgomery simultaneous inversion
+            let mut w_bar = accum_prod.inverse().unwrap();
 
             // Extract the individual inversions
-            let mut idx: i64 = partial_prod.len() as i64 - 2;
-            let mut w = P::Fr::one();
-            for i in 0..vec_state.len() {
+            let mut idx: i64 = w.len() as i64 - 2;
+            for i in (0..vec_state.len()).rev() {
                 let vec_1 = vec_state[i][0].clone();
-                vec_state[i][0] = v * &w * &partial_prod[idx as usize];
-                w = w * &vec_1;
+                vec_state[i][0] = w_bar * &w[idx as usize];
+                w_bar = w_bar * &vec_1;
                 idx -= 1;
             }
         }
@@ -382,85 +329,10 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F,
 
 impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
 
-    // #[inline]
-    // fn mul_assign_short(multiplicand: &F, multiplier: &F) -> F {
-    //
-    //     let mut carry = 0;
-    //     let r0 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[0], &mut carry);
-    //     let r1 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[1], &mut carry);
-    //     let r2 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[2], &mut carry);
-    //     let r3 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[3], &mut carry);
-    //     let r4 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[4], &mut carry);
-    //     let r5 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[5], &mut carry);
-    //     let r6 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[6], &mut carry);
-    //     let r7 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[7], &mut carry);
-    //     let r8 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[8], &mut carry);
-    //     let r9 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[9], &mut carry);
-    //     let r10 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[10], &mut carry);
-    //     let r11 = mac_with_carry(0, multiplier.into_repr_raw().as_ref()[0], multiplicand.into_repr_raw().as_ref()[11], &mut carry);
-    //     let r12 = carry;
-    //
-    //     let red = Self::partial_mont_reduce(
-    //         r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12
-    //     );
-    //
-    //     red
-    // }
-    //
-    // #[inline]
-    // fn partial_mont_reduce(
-    //         r0: u64,
-    //         mut r1: u64,
-    //         mut r2: u64,
-    //         mut r3: u64,
-    //         mut r4: u64,
-    //         mut r5: u64,
-    //         mut r6: u64,
-    //         mut r7: u64,
-    //         mut r8: u64,
-    //         mut r9: u64,
-    //         mut r10: u64,
-    //         mut r11: u64,
-    //         mut r12: u64,
-    // ) -> F {
-    //         // println!("minv = {}", F::Params::INV);
-    //         // println!("r0 = {}", r0);
-    //         let k = r0.wrapping_mul(F::Params::INV);
-    //         // println!("k = {}", k);
-    //         let m = F::characteristic();
-    //         // println!("m = {:?}", m);
-    //         let mut carry = 0;
-    //         mac_with_carry(r0, k, m[0], &mut carry);
-    //         r1 = mac_with_carry(r1, k, m[1], &mut carry);
-    //         r2 = mac_with_carry(r2, k, m[2], &mut carry);
-    //         r3 = mac_with_carry(r3, k, m[3], &mut carry);
-    //         r4 = mac_with_carry(r4, k, m[4], &mut carry);
-    //         r5 = mac_with_carry(r5, k, m[5], &mut carry);
-    //         r6 = mac_with_carry(r6, k, m[6], &mut carry);
-    //         r7 = mac_with_carry(r7, k, m[7], &mut carry);
-    //         r8 = mac_with_carry(r8, k, m[8], &mut carry);
-    //         r9 = mac_with_carry(r9, k, m[9], &mut carry);
-    //         r10 = mac_with_carry(r10, k, m[10], &mut carry);
-    //         r11 = mac_with_carry(r11, k, m[11], &mut carry);
-    //         r12 = adc(r12, 0, &mut carry);
-    //
-    //         let b = BigInteger768([r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12]);
-    //
-    //         use algebra::{to_bytes, ToBytes, FromBytes};
-    //
-    //         //let mut b_generic = F::BigInt::from_bits(b.to_bits().as_slice());
-    //         let mut b_generic = F::BigInt::read(to_bytes!(b).unwrap().as_slice()).unwrap();
-    //
-    //         if !(b_generic < F::Params::MODULUS) {
-    //             b_generic.sub_noborrow(&F::Params::MODULUS);
-    //         }
-    //
-    //         let result = F::from_repr_raw(b_generic);
-    //
-    //         result
-    // }
-
     // Function that does the mix matrix
+    // It uses Montgomery multiplication
+    // Constants are defined such that the result is x * t * 2^768,
+    // that is the Montgomery representation of the operand x * t, and t is the 64-bit constant
     fn matrix_mix (state: &mut Vec<F>) {
 
         // the new state where the result will be stored initialized to zero elements
@@ -513,6 +385,9 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
     }
 
     // Function that does the mix matrix with fast algorithm
+    // It uses a partial Montgomery multiplication defined as PM(x, t) = x * t * 2^-64 mod M
+    // t is a 64-bit matrix constant. In the algorithm, the constants are represented in
+    // partial Montgomery representation, i.e. t * 2^64 mod M
     fn matrix_mix_short (state: &mut Vec<F>) {
 
         use algebra::MulShort;
@@ -536,6 +411,12 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
         let m_21 = P::MDS_CST_SHORT[3];
         let m_22 = P::MDS_CST_SHORT[4];
         let m_23 = P::MDS_CST_SHORT[5];
+        // Because the matrix is symmetric, they can be replaced by
+        // the following instructions:
+        // let m_21 = m_12;
+        // let m_22 = m_11;
+        // let m_23 = P::MDS_CST_SHORT[5];
+
 
         let elem_3 = m_21.mul_short(&state[0]);
         let elem_4 = m_22.mul_short(&state[1]);
@@ -549,6 +430,11 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
         let m_31 = P::MDS_CST_SHORT[6];
         let m_32 = P::MDS_CST_SHORT[7];
         let m_33 = P::MDS_CST_SHORT[8];
+        // Because the matrix is symmetric, they can be replaced by
+        // the following instructions:
+        // let m_31 = m_13;
+        // let m_32 = m_23;
+        // let m_33 = m_11;
 
         let elem_6 = m_31.mul_short(&state[0]);
         let elem_7 = m_32.mul_short(&state[1]);
@@ -585,19 +471,22 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
             // Apply the S-BOX to each of the elements of the state vector
             // Optimization for the inversion S-Box
             // Assuming state vector of 3 elements
-            let bc = state[1]*&state[2];
-            let abc = state[0]*&bc;
-            if abc != P::Fr::zero() {
-                let abc_inv = abc.inverse().unwrap();
-
-                let a_inv = abc_inv*&bc;
-                let b_inv = abc_inv*&state[0]*&state[2];
-                let c_inv = abc_inv*&state[0]*&state[1];
-
-                state[0] = a_inv;
-                state[1] = b_inv;
-                state[2] = c_inv;
-            } else {
+            // let bc = state[1]*&state[2];
+            // let abc = state[0]*&bc;
+            // if abc != P::Fr::zero() {
+            //     let abc_inv = abc.inverse().unwrap();
+            //
+            //     let a_inv = abc_inv*&bc;
+            //     let b_inv = abc_inv*&state[0]*&state[2];
+            //     let c_inv = abc_inv*&state[0]*&state[1];
+            //
+            //     state[0] = a_inv;
+            //     state[1] = b_inv;
+            //     state[2] = c_inv;
+            //
+            let w2 = state[0] * &state[1];
+            let w = state[2] * &w2;
+            if w == P::Fr::zero() {
                 // At least one of the S-Boxes is zero
                 for d in state.iter_mut() {
                     // The S-BOX is an inversion function
@@ -605,6 +494,15 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
                         *d = (*d).inverse().unwrap();
                     }
                 }
+            } else {
+                let mut w_bar = w.inverse().unwrap();
+
+                let z_2 = w_bar * &w2;
+                w_bar = w_bar * &state[2];
+                state[2] = z_2;
+                let z_1 = w_bar * &state[0];
+                state[0] = w_bar * &state[1];
+                state[1] = z_1;
             }
 
             // Perform the matrix mix
@@ -654,19 +552,22 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
             // Apply the S-BOX to each of the elements of the state vector
             // Optimization for the inversion S-Box
             // Assuming state vector of 3 elements
-            let bc = state[1]*&state[2];
-            let abc = state[0]*&bc;
-            if abc != P::Fr::zero() {
-                let abc_inv = abc.inverse().unwrap();
 
-                let a_inv = abc_inv*&bc;
-                let b_inv = abc_inv*&state[0]*&state[2];
-                let c_inv = abc_inv*&state[0]*&state[1];
-
-                state[0] = a_inv;
-                state[1] = b_inv;
-                state[2] = c_inv;
-            } else {
+            // let bc = state[1]*&state[2];
+            // let abc = state[0]*&bc;
+            // if abc != P::Fr::zero() {
+            //     let abc_inv = abc.inverse().unwrap();
+            //
+            //     let a_inv = abc_inv*&bc;
+            //     let b_inv = abc_inv*&state[0]*&state[2];
+            //     let c_inv = abc_inv*&state[0]*&state[1];
+            //
+            //     state[0] = a_inv;
+            //     state[1] = b_inv;
+            //     state[2] = c_inv;
+            let w2 = state[0] * &state[1];
+            let w = state[2] * &w2;
+            if w == P::Fr::zero() {
                 // At least one of the S-Boxes is zero
                 for d in state.iter_mut() {
                     // The S-BOX is an inversion function
@@ -674,6 +575,15 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
                         *d = (*d).inverse().unwrap();
                     }
                 }
+            } else {
+                let mut w_bar = w.inverse().unwrap();
+
+                let z_2 = w_bar * &w2;
+                w_bar = w_bar * &state[2];
+                state[2] = z_2;
+                let z_1 = w_bar * &state[0];
+                state[0] = w_bar * &state[1];
+                state[1] = z_1;
             }
 
             // Apply matrix mix
@@ -695,26 +605,37 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
         // Apply the S-BOX to each of the elements of the state vector
         // Optimization for the inversion S-Box
         // Assuming state vector of 3 elements
-        let bc = state[1]*&state[2];
-        let abc = state[0]*&bc;
-        if abc != P::Fr::zero() {
-            let abc_inv = abc.inverse().unwrap();
+        // let bc = state[1]*&state[2];
+        // let abc = state[0]*&bc;
+        // if abc != P::Fr::zero() {
+        //     let abc_inv = abc.inverse().unwrap();
+        //
+        //     let a_inv = abc_inv*&bc;
+        //     let b_inv = abc_inv*&state[0]*&state[2];
+        //     let c_inv = abc_inv*&state[0]*&state[1];
+        //
+        //     state[0] = a_inv;
+        //     state[1] = b_inv;
+        //     state[2] = c_inv;
 
-            let a_inv = abc_inv*&bc;
-            let b_inv = abc_inv*&state[0]*&state[2];
-            let c_inv = abc_inv*&state[0]*&state[1];
-
-            state[0] = a_inv;
-            state[1] = b_inv;
-            state[2] = c_inv;
-        } else {
-            // At least one of the S-Boxes is zero
+        let w2 = state[0] * &state[1];
+        let w = state[2] * &w2;
+        if w == P::Fr::zero() {
             for d in state.iter_mut() {
                 // The S-BOX is an inversion function
                 if *d != P::Fr::zero() {
                     *d = (*d).inverse().unwrap();
                 }
             }
+        } else {
+            let mut w_bar = w.inverse().unwrap();
+
+            let z_2 = w_bar * &w2;
+            w_bar = w_bar * &state[2];
+            state[2] = z_2;
+            let z_1 = w_bar * &state[0];
+            state[0] = w_bar * &state[1];
+            state[1] = z_1;
         }
     }
 }
