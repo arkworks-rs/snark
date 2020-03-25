@@ -943,6 +943,9 @@ impl<'a, P: Fp768Parameters> MulShort for Fp768<P> {
 
     #[inline]
     fn mul_short(self, other: &Self) -> Self {
+        // This operation is used to compute the Partial Montgomery Multiplication
+        // with Montgomery constant R = 2^64
+        // It performs the operation
         let mut carry = 0;
         let r0 = fa::mac_with_carry(0, (self.0).0[0], (other.0).0[0], &mut carry);
         let mut r1 = fa::mac_with_carry(0, (self.0).0[0], (other.0).0[1], &mut carry);
@@ -958,11 +961,7 @@ impl<'a, P: Fp768Parameters> MulShort for Fp768<P> {
         let mut r11 = fa::mac_with_carry(0, (self.0).0[0], (other.0).0[11], &mut carry);
         let mut r12 = carry;
 
-        // println!("minv = {}", F::Params::INV);
-        // println!("r0 = {}", r0);
         let k = r0.wrapping_mul(P::INV);
-        // println!("k = {}", k);
-                // println!("m = {:?}", m);
         let mut carry = 0;
         fa::mac_with_carry(r0, k, P::MODULUS.0[0], &mut carry);
         r1 = fa::mac_with_carry(r1, k, P::MODULUS.0[1], &mut carry);
@@ -977,7 +976,6 @@ impl<'a, P: Fp768Parameters> MulShort for Fp768<P> {
         r10 = fa::mac_with_carry(r10, k, P::MODULUS.0[10], &mut carry);
         r11 = fa::mac_with_carry(r11, k, P::MODULUS.0[11], &mut carry);
         r12 = fa::adc(r12, 0, &mut carry);
-
 
         let mut result = self.clone();
 

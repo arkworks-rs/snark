@@ -1,10 +1,10 @@
 use crate::crh::poseidon::PoseidonParameters;
 
 use algebra::{PrimeField, MulShort};
-use algebra::arithmetic::{mac_with_carry, adc};
-use algebra::fields::FpParameters;
-use algebra::biginteger::BigInteger768;
-use algebra::BigInteger;
+//use algebra::arithmetic::{mac_with_carry, adc};
+//use algebra::fields::FpParameters;
+//use algebra::biginteger::BigInteger768;
+//use algebra::BigInteger;
 
 use std::marker::PhantomData;
 use crate::crh::{FieldBasedHash, BatchFieldBasedHash};
@@ -83,7 +83,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F,
     // partial Montgomery representation, i.e. t * 2^64 mod M
     fn matrix_mix_short (state: &mut Vec<F>) {
 
-        use algebra::MulShort;
+        //use algebra::MulShort;
 
         // the new state where the result will be stored initialized to zero elements
         let mut new_state = vec![F::zero(); P::T];
@@ -390,7 +390,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
     // partial Montgomery representation, i.e. t * 2^64 mod M
     fn matrix_mix_short (state: &mut Vec<F>) {
 
-        use algebra::MulShort;
+        //use algebra::MulShort;
 
         // the new state where the result will be stored initialized to zero elements
         let mut new_state = vec![F::zero(); P::T];
@@ -687,19 +687,24 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> BatchFieldBasedHas
     type Data = F;
     type Parameters = P;
 
-    fn batch_evaluate(input_array: &mut[F]) {
+    fn batch_evaluate_2_1(input_array: &mut[F]) {
 
-        // input:
+        // Input:
+        // This function calculates the hashes of pairs of inputs.
+        // The inputs are arranged in an array and arranged as pairs
+        // Example:
         // (d_00, d01, d_10, d_11, d_20, d_21, ...
+        // Output:
+        // The output will be placed in the same array taking half of the positions
+        // as the rate of the hash function is 2 field elements
 
         // Checks that input contains data
         assert_ne!(input_array.len(), 0, "Input to the hash has length 0.");
+        assert_eq!(input_array.len() % 2, 0, "The length of the input to the hash is not even.");
 
-        let input_length = input_array.len()/2;
+        let input_length = input_array.len() / 2;
 
-
-        // First I initialized with a single state vector of zero and call the Poseidon hash and then
-        // copy the result of the permutation to a vector of state vectors with the same length as the input
+        // Assign pre-computed values of the state vector equivalent to a permutation with zero element state vector
         let state_z = vec![P::AFTER_ZERO_PERM[0], P::AFTER_ZERO_PERM[1], P::AFTER_ZERO_PERM[2]];
 
         // Copy the result of the permutation to a vector of state vectors of the length equal to the length of the input
@@ -709,7 +714,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> BatchFieldBasedHas
             state.push(state_z.clone());
         }
 
-        // input_idx is an index to process the inputs
+        // input_idx is to scan the input_array
         let mut input_idx = 0;
 
         for k in 0..input_length {
@@ -717,12 +722,14 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> BatchFieldBasedHas
             input_idx += 1;
             state[k][1] += &input_array[input_idx];
             input_idx += 1;
+            // constant to add for a 2-1 Merkle tree
             state[k][2] += &P::C2;
         }
 
         // apply permutation after adding the input vector
         Self::poseidon_perm_gen(&mut state);
 
+        // overwrite the input with the result of the hash
         for k in 0..input_array.len()/2 {
             input_array[k] = state[k][0];
         }

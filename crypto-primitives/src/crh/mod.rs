@@ -49,6 +49,6 @@ pub trait BatchFieldBasedHash {
     type Data: Field;
     type Parameters: FieldBasedHashParameters<Fr = Self::Data>;
 
-    fn batch_evaluate(input_array: &mut[Self::Data]);
+    fn batch_evaluate_2_1(input_array: &mut[Self::Data]);
 }
 
