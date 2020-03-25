@@ -6,5 +6,6 @@
   ff-fft
   gm17
   groth16
+  groupmap
   r1cs-core
   r1cs-std)
