@@ -259,7 +259,7 @@ where
         mut cs: CS,
         other: &Self,
     ) -> Result<Self, SynthesisError> {
-        // Uses Toom-Cool-3x multiplication from
+        // Uses Toom-Cook-3x multiplication from
         //
         // Reference:
         // "Multiplication and Squaring on Pairing-Friendly Fields"
@@ -404,7 +404,7 @@ where
         &self,
         mut cs: CS,
     ) -> Result<Self, SynthesisError> {
-        // Uses Toom-Cool-3x multiplication from
+        // Uses Toom-Cook-3x multiplication from
         //
         // Reference:
         // "Multiplication and Squaring on Pairing-Friendly Fields"
@@ -500,7 +500,7 @@ where
         Ok(Self::new(c0, c1, c2))
     }
 
-    // 18 constaints, we can probably do better but not sure it's worth it.
+    // 18 constraints, we can probably do better but not sure it's worth it.
     #[inline]
     fn inverse<CS: ConstraintSystem<ConstraintF>>(
         &self,

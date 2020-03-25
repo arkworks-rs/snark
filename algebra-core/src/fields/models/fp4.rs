@@ -31,7 +31,7 @@ pub trait Fp4Parameters: 'static + Send + Sync {
     const FROBENIUS_COEFF_FP4_C1: [<Self::Fp2Params as Fp2Parameters>::Fp; 4];
 
     #[inline(always)]
-    fn mul_fp_by_nonresidue(fe: &Fp2<Self::Fp2Params>) -> Fp2<Self::Fp2Params> {
+    fn mul_fp2_by_nonresidue(fe: &Fp2<Self::Fp2Params>) -> Fp2<Self::Fp2Params> {
         Fp2::new(Self::NONRESIDUE * &fe.c1, fe.c0)
     }
 }
@@ -106,7 +106,7 @@ impl<P: Fp4Parameters> Fp4<P> {
 
 impl<P: Fp4Parameters> Zero for Fp4<P> {
     fn zero() -> Self {
-        Fp4::new(<Fp2<P::Fp2Params>>::zero(), <Fp2<P::Fp2Params>>::zero())
+        Fp4::new(Fp2::zero(), Fp2::zero())
     }
 
     fn is_zero(&self) -> bool {
@@ -116,7 +116,7 @@ impl<P: Fp4Parameters> Zero for Fp4<P> {
 
 impl<P: Fp4Parameters> One for Fp4<P> {
     fn one() -> Self {
-        Fp4::new(<Fp2<P::Fp2Params>>::one(), <Fp2<P::Fp2Params>>::zero())
+        Fp4::new(Fp2::one(), Fp2::zero())
     }
 
     fn is_one(&self) -> bool {
@@ -149,19 +149,24 @@ impl<P: Fp4Parameters> Field for Fp4<P> {
     }
 
     fn square_in_place(&mut self) -> &mut Self {
-        // v0 = c0 - c1
-        let mut v0 = self.c0 - &self.c1;
-        // v3 = c0 - beta * c1
-        let v3 = self.c0 - &P::mul_fp_by_nonresidue(&self.c1);
-        // v2 = c0 * c1
-        let v2 = self.c0 * &self.c1;
+        // Reference:
+        // "Multiplication and Squaring on Pairing-Friendly Fields"
+        // Devegili, OhEigeartaigh, Scott, Dahab
+        // Section 5 (Complex squaring)
 
-        // v0 = (v0 * v3) + v2
-        v0 *= &v3;
-        v0 += &v2;
+        // v1 = c0 + c1
+        let mut v1 = self.c0 + &self.c1;
+        // v2 = c0 + beta * c1
+        let v2 = self.c0 + &P::mul_fp2_by_nonresidue(&self.c1);
+        // v0 = c0 * c1
+        let v0 = self.c0 * &self.c1;
 
-        self.c1 = v2.double();
-        self.c0 = v0 + &P::mul_fp_by_nonresidue(&v2);
+        // v1 = (v1 * v2) - v0
+        v1 *= &v2;
+        v1 -= &v0;
+
+        self.c1 = v0.double();
+        self.c0 = v1 - &P::mul_fp2_by_nonresidue(&v0);
 
         self
     }
@@ -176,7 +181,7 @@ impl<P: Fp4Parameters> Field for Fp4<P> {
             // v1 = c1.square()
             let v1 = self.c1.square();
             // v0 = v0 - beta * v1
-            v0 -= &P::mul_fp_by_nonresidue(&v1);
+            v0 -= &P::mul_fp2_by_nonresidue(&v1);
             v0.inverse().map(|v1| {
                 let c0 = self.c0 * &v1;
                 let c1 = -(self.c1 * &v1);
@@ -202,7 +207,7 @@ impl<P: Fp4Parameters> Field for Fp4<P> {
     }
 }
 
-/// `Fp2` elements are ordered lexicographically.
+/// `Fp4` elements are ordered lexicographically.
 impl<P: Fp4Parameters> Ord for Fp4<P> {
     #[inline(always)]
     fn cmp(&self, other: &Self) -> Ordering {
@@ -326,7 +331,7 @@ impl<'a, P: Fp4Parameters> Div<&'a Fp4<P>> for Fp4<P> {
     #[inline]
     fn div(self, other: &Self) -> Self {
         let mut result = self;
-        result.mul_assign(&other.inverse().unwrap());
+        result.div_assign(other);
         result
     }
 }
@@ -354,7 +359,9 @@ impl<'a, P: Fp4Parameters> MulAssign<&'a Self> for Fp4<P> {
     #[inline]
     fn mul_assign(&mut self, other: &Self) {
         // Karatsuba multiplication;
-        // Guide to Pairing-based cryprography, Algorithm 5.16.
+        // Reference:
+        // "Multiplication and Squaring on Pairing-Friendly Fields"
+        // Devegili, OhEigeartaigh, Scott, Dahab
         let v0 = self.c0 * &other.c0;
         let v1 = self.c1 * &other.c1;
 
@@ -362,7 +369,7 @@ impl<'a, P: Fp4Parameters> MulAssign<&'a Self> for Fp4<P> {
         self.c1 *= &(other.c0 + &other.c1);
         self.c1 -= &v0;
         self.c1 -= &v1;
-        self.c0 = v0 + &P::mul_fp_by_nonresidue(&v1);
+        self.c0 = v0 + &P::mul_fp2_by_nonresidue(&v1);
     }
 }
 
