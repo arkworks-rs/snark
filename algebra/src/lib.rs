@@ -59,7 +59,6 @@ pub use self::groups::*;
 mod rand;
 pub use self::rand::*;
 
-
 mod to_field_vec;
 pub use to_field_vec::ToConstraintField;
 
@@ -67,5 +66,10 @@ pub use to_field_vec::ToConstraintField;
 pub mod msm;
 #[cfg(feature = "parallel")]
 pub use self::msm::*;
+
+#[cfg(feature = "fft")]
+pub mod fft;
+#[cfg(feature = "fft")]
+pub use self::fft::*;
 
 pub type Error = Box<dyn std::error::Error>;

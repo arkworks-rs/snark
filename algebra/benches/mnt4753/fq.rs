@@ -1,4 +1,4 @@
-use algebra::UniformRand;
+use algebra::{UniformRand, ToBits};
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 use std::ops::{AddAssign, MulAssign, SubAssign};

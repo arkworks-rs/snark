@@ -56,7 +56,7 @@ impl<P: Bls12Parameters> ToBytes for G2Prepared<P> {
 }
 
 impl<P: Bls12Parameters> FromBytes for G2Prepared<P> {
-    fn read<R: Read>(mut reader: R) -> IoResult<(Self)> {
+    fn read<R: Read>(mut reader: R) -> IoResult<Self> {
         let ell_coeffs_len = reader.read_u32::<BigEndian>()? as usize;
         let mut ell_coeffs = vec![];
         for _ in 0..ell_coeffs_len {

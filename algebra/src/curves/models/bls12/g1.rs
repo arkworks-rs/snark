@@ -41,7 +41,7 @@ impl<P: Bls12Parameters> ToBytes for G1Prepared<P> {
 }
 
 impl<P: Bls12Parameters> FromBytes for G1Prepared<P> {
-    fn read<R: Read>(mut reader: R) -> IoResult<(Self)> {
+    fn read<R: Read>(mut reader: R) -> IoResult<Self> {
         let g1a = G1Affine::<P>::read(&mut reader)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         Ok(G1Prepared(g1a))

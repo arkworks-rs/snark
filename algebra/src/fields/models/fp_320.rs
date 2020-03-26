@@ -367,11 +367,6 @@ impl<P: Fp320Parameters> PrimeField for Fp320<P> {
     fn root_of_unity() -> Self {
         Fp320::<P>(P::ROOT_OF_UNITY, PhantomData)
     }
-
-    #[inline]
-    fn full_root_of_unity() -> Self {
-        Fp320::<P>(P::FULL_ROOT_OF_UNITY.unwrap(), PhantomData)
-    }
 }
 
 impl<P: Fp320Parameters> SquareRootField for Fp320<P> {
