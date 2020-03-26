@@ -1,52 +1,51 @@
 ginger-lib: a RUST library for zk-SNARK proofs
 ================================================================================
 
-Ginger-lib is a general purpose __zk-SNARK__ library that supports SNARK recursion.
+Ginger-lib is a general purpose __zk-SNARK__ library that supports recursive composition of [Groth16](https://eprint.iacr.org/2016/260.pdf) arguments.
 
-Originally a fork of the [ZEXE](https://github.com/scipr-lab/ZEXE) project, ginger-lib was created with the goal of being a use-case-agnostic library, not focused on ZEXE's Decentralized Private Computation (“DPC”) or any other specific application. Ginger-lib is meant to be used specifically as a developer toolset to implement zk-SNARK schemes. The library supports full recursive proof composition and introduces several new cryptographic primitives and gadgets.
+Originally a fork of the [ZEXE](https://github.com/scipr-lab/ZEXE) project, ginger-lib was created with the goal of being an independent library, i.e. not linked to the Decentralized Private Computation (“DPC”) application or any other specific use case. Ginger-lib is meant to be used specifically as a developer toolset to implement zero-knowledge SNARKs. It provides some additional cryptographic primitives, and a collection of *gadgets* that can serve as building blocks for application-tailored statements/circuits. 
 
 **Ginger** in Italian is "Zenzero", and this “**Zen zero**-knowledge” library was indeed developed to add some more spice to the already hot global zk-SNARK movement!
 
 
 ## Overview
 
-Ginger-lib was built with the goal of developing a library that could be easily integrated and used by any project that needs to implement a zk-SNARK proving system, or a part of it. As such, it includes only zk-SNARK core objects and functionalities, with some closely related ancillary tools, and it does not assume any specific use case. 
+Ginger-lib was built with the goal of being easily integrated and used by any project that needs to implement its own, application-tailored zk-SNARK. As such, it provides just SNARK core objects and functionalities, with a few closely related ancillary tools. 
 
-Its first release comes with a complete set of tool to implement recursive proof composition, as detailed in the ["Scalable Zero Knowledge via Cycles of Elliptic Curves"](https://eprint.iacr.org/2014/595.pdf) paper.
-In particular, it adds to the original ZEXE code the following elements:
+Its first release comes with a complete set of tools for recursive proof composition in the sense of Ben-Sasson, et al. ["Scalable Zero Knowledge via Cycles of Elliptic Curves (2014)"](https://eprint.iacr.org/2014/595.pdf). In particular, it adds to the original ZEXE code the following elements:
 
--   __the MNT4-753 and MNT6-753 curves__
-    with their Base and Scalar Fields in a full cycle. The two curves were originally sampled for and made available by the Coda project.
--   __mixed-domain FFT__
+-   __MNT4-753 and MNT6-753 curves__, 
+    a re-implementation of [Coda](https://coinlist.co/build/coda/)'s MNT4-MNT6 cycle of pairing friendly elliptic curves for a security level of 128 Bit. We re-checked  all curve  parameters, translated the pairing engine and extended the gadget collection by all necessary components for recursive argument evaluation.
+-   __mixed-domain FFT__,
     to allow efficient conversion between coefficient and point-value polynomial representations in the domains needed to support large circuits.
 
-The library includes also some new cryptographic primitives, implemented to be efficiently modelled in a SNARK, and in particular:
+The library includes also some additional cryptographic primitives, implemented to be efficiently modelled in a SNARK, and in particular:
 
--   __"POSEIDON" hash function.__
-    A SNARK-friendly hash function, i.e. well suited for being modelled as a circuit because of its low constraint need. Our [POSEIDON](https://eprint.iacr.org/2019/458.pdf) implementation has been tailored for the MNT4 and MNT6 scalar fields and heavily optimized for performance.
--   __Schnorr signature.__
-    It relies on POSEIDON as random oracle, and it's fully optimized to be verified in a SNARK.
--   SNARK-friendly __Verifiable Random Function.__
-    A VRF implementation based on our Schnorr and POSEIDON primitives.
--   a SNARK-friendly __Merkle Tree.__
-    It uses POSEIDON as its hash function.
+-   The __"[POSEIDON](https://eprint.iacr.org/2019/458.pdf)" hash function__ - 
+    Thanks to its efficient description as an arithmetic circuit, this hash family is ideal for SNARKs. Our implementations for both the MNT4-753 and MNT6-753 scalar fields, use the modular inversion S-Box, apply a security level of 128 Bits, and are heavily optimized for performance.
+-   __Schnorr NIZK proofs and signature scheme__ - 
+    Schnorr-like non-interactive zero-knowledge proofs (NIZK) and the Schnorr signature scheme, using POSEIDON as random oracle and adapted to be efficiently integrated in a SNARK.
+-   A SNARK-friendly __Verifiable Random Function (VRF)__
+    based on our Schnorr and POSEIDON primitives, and 
+-   a SNARK-friendly __Merkle Tree__,
+    using POSEIDON as its hash function.
 
-Ginger-lib comes also with a set of new gadgets to enforce the primitives listed above: 
+Along with the above primitives, ginger-lib comes with the following new gadgets: 
 
--   __"proof-verifier" gadgets__ for both the MNT4 and the MNT6 curve.
-    These two gadgets are the core components of the full cycle recursion. Each of them can enforce that a previous SNARK proof verifies.
--   __"POSEIDON" hash gadget.__
-    A gadget enforcing that a pre-image value hashes to a defined result.
--   __Schnorr signature gadget.__
-    It's a gadget that enforces that a signature, that was signed with our Schnorr primitive, verifies.
--   __VRF gadget.__
-    It's a gadget that enforces that a pubblic key and a message VRF-output to a defined value.
--   __Merkle Tree gadgets.__
-    A set of Merkle Tree gadgets modelling our POSEIDON-based Merkle Tree. In particular, one of the gadgets enforces that all the Merkle Tree leaves hash to a defined Merkle Root. A second gadget enforces that a value and an authentication path hash to a known Merkle Root.
+-   __Groth16 verification gadgets__ for both the MNT4 and the MNT6 curve.
+    These  gadgets are the core components of recursive proof evaluation. They enforce that a Groth16 SNARK, based on one of these two curves, verifies.
+-   __"POSEIDON" hash gadget__, 
+    enforcing that some pre-image hashes to a given fingerprint.
+-   __Schnorr proof / signature verification gadgets__,
+    enforcing that a single-exponent Schnorr NIZK proof or Schnorr signature created by our corresponding primitives, verifies.
+-   __VRF verification gadget__,
+    that enforces the correctness of a public key and message VRF-output to a defined value.
+-   A set of __Merkle Tree gadgets__, 
+    modeling our POSEIDON-based Merkle tree. In particular, one of the gadgets enforces correct root hash of a (small) full Merkle tree. Another gadget enforces that the authentication path of a leaf is consistent with a given Merkle root.
 
 Extensive automated tests have been introduced for all the added implementations.
 
-Since it was developed to support real-world applications, ginger-lib has a strong focus on performance. Some code has already been optimized for optimal time performance; more specifically, the heaviest optimizations were performed on the implementation of the POSEIDON hash function. The number of required, expensive field inversions could be reduced by selecting "x^-1" as S-Box(x), a function compatible with the MNT4 and MNT6 curves, and then combining several of them into a "one inversion + field multiplications" operation. The same inversion trick was used also to speed up hashing in Merkle Tree processing. Further performance improvements were obtained by parallelizing the code for multi-core implementation, and by working on speeding-up the implementation of field multiplication.
+Since it was developed to support real-world applications, ginger-lib has a strong focus on performance. Some of the code is already optimized in timing. More specifically, the heaviest optimizations were performed on the implementation of the POSEIDON hash function:  batch hashing/verification is significantly sped up by using a "single inversion + field multiplications" replacement for multiple parallel inversions. The same trick was also used to speed up hashing in Merkle trees. Further performance improvements were obtained by parallelizing the code for multi-core implementation, and by speeding up the implementation of field multiplication.
 
 Continuous performance improvement will be a key goal for all future releases and improvements of the library.  
 
@@ -68,8 +67,9 @@ In addition, there is a  [`bench-utils`](bench-utils) crate which contains infra
 
 Detailed information about the choices made when designing and implementing our primitives and gadgets is available in the [`docs/`](docs/) directory. You can find in particular the following documents:
 
-* [`Schnorr Verify`](docs/SchnorrVerify) documents our length-restricted variant of the Schnorr signature,  and its verification circuit
-* [`VRF gadget`](docs/VRFgadget) documents our single-exponent based VRF, with Schnorr NIZK proof of correctness, and its verification circuit
+* [`SchnorrAndGadgets`](docs/SchnorrVerify) documents our length-restricted variant of the Schnorr signature,  and its verification circuit
+* [`VRFandGadgets`](docs/VRFgadget) documents our single-exponent based VRF, with Schnorr NIZK proof of correctness, and its verification circuit
+
 
 ## Build guide
 
