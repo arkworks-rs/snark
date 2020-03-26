@@ -1,0 +1,11 @@
+[package]
+name = "r1cs-core"
+version = "0.1.0"
+authors = ["DanieleDiBenedetto <daniele@horizenlabs.io>"]
+edition = "2018"
+include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
+license = "MIT/Apache-2.0"
+
+[dependencies]
+algebra = { path = "../../algebra" }
+smallvec = { version = "0.6" }

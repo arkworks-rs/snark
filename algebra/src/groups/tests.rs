@@ -1,6 +1,4 @@
-use super::Group;
-use crate::fields::Field;
-use crate::UniformRand;
+use crate::{Group, AffineCurve, Field, UniformRand, ToCompressedBits, FromCompressedBits};
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 
@@ -72,4 +70,67 @@ pub fn group_test<G: Group>(a: G, mut b: G) {
         a.mul(&(fr_rand1 * &fr_rand2)),
         "(a * r1) * r2 != a * (r1 * r2)"
     );
+}
+
+pub fn compression_test<T: AffineCurve + ToCompressedBits + FromCompressedBits>(even: T, odd: T) {
+
+    //Test correct compression/de-compression of a non-zero point with even y
+    let even_compressed = even.compress();
+    let even_len = even_compressed.len();
+
+    let infinity_flag_set = even_compressed[even_len - 2];
+    assert!(!infinity_flag_set);
+    let parity_flag_set = even_compressed[even_len - 1];
+    assert!(!parity_flag_set);
+
+    let even_decompressed = T::decompress(even_compressed).unwrap();
+    assert_eq!(even, even_decompressed);
+
+    //Test correct compression/de-compression of a non-zero point with odd y
+    let odd_compressed = odd.compress();
+    let odd_len = odd_compressed.len();
+
+    let infinity_flag_set = odd_compressed[odd_len - 2];
+    assert!(!infinity_flag_set);
+    let parity_flag_set = odd_compressed[odd_len - 1];
+    assert!(parity_flag_set);
+
+    let odd_decompressed = T::decompress(odd_compressed).unwrap();
+    assert_eq!(odd, odd_decompressed);
+
+    //Test correct compression/decompression of a zero point
+    let z = T::zero();
+    let z_compressed = z.compress();
+    let z_len = z_compressed.len();
+
+    let infinity_flag_set = z_compressed[z_len - 2];
+    assert!(infinity_flag_set);
+    // When the point is zero, parity flag is set to zero too.
+    let parity_flag_set = z_compressed[z_len - 1];
+    assert!(!parity_flag_set);
+
+    let z_decompressed = T::decompress(z_compressed).unwrap();
+    assert_eq!(z, z_decompressed);
+}
+
+pub fn gt_compression_test<T: Field + ToCompressedBits + FromCompressedBits>(even: T, odd: T) {
+    //Test correct compression/de-compression of a non-zero point with even c0
+    let even_compressed = even.compress();
+    let even_len = even_compressed.len();
+
+    let parity_flag_set = even_compressed[even_len - 1];
+    assert!(!parity_flag_set);
+
+    let even_decompressed = T::decompress(even_compressed).unwrap();
+    assert_eq!(even, even_decompressed);
+
+    //Test correct compression/de-compression of a non-zero point with odd c0
+    let odd_compressed = odd.compress();
+    let odd_len = odd_compressed.len();
+
+    let parity_flag_set = odd_compressed[odd_len - 1];
+    assert!(parity_flag_set);
+
+    let odd_decompressed = T::decompress(odd_compressed).unwrap();
+    assert_eq!(odd, odd_decompressed);
 }

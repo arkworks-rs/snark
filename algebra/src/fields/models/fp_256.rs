@@ -144,6 +144,11 @@ impl<P: Fp256Parameters> Field for Fp256<P> {
     }
 
     #[inline]
+    fn is_odd(&self) -> bool {
+        self.into_repr().is_odd()
+    }
+
+    #[inline]
     fn characteristic<'a>() -> &'a [u64] {
         P::MODULUS.as_ref()
     }

@@ -323,6 +323,11 @@ impl<P: Fp768Parameters> Field for Fp768<P> {
     }
 
     #[inline]
+    fn is_odd(&self) -> bool {
+        self.into_repr().is_odd()
+    }
+
+    #[inline]
     fn characteristic<'a>() -> &'a [u64] {
         P::MODULUS.as_ref()
     }

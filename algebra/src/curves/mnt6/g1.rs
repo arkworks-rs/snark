@@ -1,4 +1,4 @@
-use crate::field_new;
+use crate::{field_new, FromBytes};
 use crate::{
     biginteger::BigInteger320,
     bytes::ToBytes,
@@ -10,7 +10,8 @@ use crate::{
     },
     fields::mnt6::{Fq, Fq3, Fq6, Fr},
 };
-use std::io::{Result as IoResult, Write};
+use std::io::{Result as IoResult, Write, Read};
+use std::io;
 
 pub type G1Affine = GroupAffine<MNT6G1Parameters>;
 pub type G1Projective = GroupProjective<MNT6G1Parameters>;
@@ -107,6 +108,20 @@ impl ToBytes for G1Prepared {
         self.y.write(&mut writer)?;
         self.x_twist.write(&mut writer)?;
         self.y_twist.write(&mut writer)
+    }
+}
+
+impl FromBytes for G1Prepared {
+    fn read<R: Read>(mut reader: R) -> IoResult<Self> {
+        let x = Fq::read(&mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let y = Fq::read(&mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let x_twist = Fq3::read(&mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let y_twist = Fq3::read(&mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        Ok(G1Prepared{x, y, x_twist, y_twist})
     }
 }
 

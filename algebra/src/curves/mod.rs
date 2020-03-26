@@ -1,8 +1,4 @@
-use crate::{
-    bytes::{FromBytes, ToBytes},
-    fields::{Field, PrimeField, SquareRootField},
-    groups::Group,
-};
+use crate::{bytes::{FromBytes, ToBytes}, fields::{Field, PrimeField, SquareRootField}, groups::Group};
 use crate::UniformRand;
 use std::{
     fmt::{Debug, Display},
@@ -15,6 +11,8 @@ pub mod bls12_381;
 pub mod edwards_bls12;
 pub mod edwards_sw6;
 pub mod jubjub;
+pub mod mnt4753;
+pub mod mnt6753;
 pub mod mnt6;
 pub mod models;
 pub mod sw6;
@@ -104,7 +102,7 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send {
         G2: Into<Self::G2Affine>,
     {
         Self::final_exponentiation(&Self::miller_loop(
-            [(&(p.into().prepare()), &(q.into().prepare()))].into_iter(),
+            [(&(p.into().prepare()), &(q.into().prepare()))].iter(),
         ))
         .unwrap()
     }
@@ -148,6 +146,11 @@ pub trait ProjectiveCurve:
     /// Determines if this point is the point at infinity.
     #[must_use]
     fn is_zero(&self) -> bool;
+
+    /// Checks that the current point is on curve and is in the
+    /// prime order subgroup
+    #[must_use]
+    fn group_membership_test(&self) -> bool;
 
     /// Normalizes a slice of projective elements so that
     /// conversion to affine is cheap.
@@ -225,6 +228,11 @@ pub trait AffineCurve:
     #[must_use]
     fn is_zero(&self) -> bool;
 
+    /// Checks that the current point is on curve and is in the
+    /// prime order subgroup
+    #[must_use]
+    fn group_membership_test(&self) -> bool;
+
     /// Performs scalar multiplication of this element with mixed addition.
     #[must_use]
     fn mul<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(&self, other: S)
@@ -246,7 +254,7 @@ pub trait AffineCurve:
 
 pub trait PairingCurve: AffineCurve {
     type Engine: PairingEngine<Fr = Self::ScalarField>;
-    type Prepared: ToBytes + Default + Clone + Send + Sync + Debug + 'static;
+    type Prepared: ToBytes + FromBytes + Default + Clone + Send + Sync + Debug + 'static;
     type PairWith: PairingCurve<PairWith = Self>;
     type PairingResult: Field;
 

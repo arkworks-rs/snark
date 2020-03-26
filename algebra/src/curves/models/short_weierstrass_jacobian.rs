@@ -1,5 +1,5 @@
-use crate::curves::models::SWModelParameters as Parameters;
 use rand::{Rng, distributions::{Standard, Distribution}};
+use crate::curves::models::SWModelParameters as Parameters;
 use crate::UniformRand;
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
@@ -73,14 +73,29 @@ impl<P: Parameters> GroupAffine<P> {
     /// If and only if `greatest` is set will the lexicographically
     /// largest y-coordinate be selected.
     #[allow(dead_code)]
-    pub(crate) fn get_point_from_x(x: P::BaseField, greatest: bool) -> Option<Self> {
+    pub fn get_point_from_x(x: P::BaseField, greatest: bool) -> Option<Self> {
         // Compute x^3 + ax + b
         let x3b = P::add_b(&((x.square() * &x) + &P::mul_by_a(&x)));
 
         x3b.sqrt().map(|y| {
             let negy = -y;
-
             let y = if (y < negy) ^ greatest { y } else { negy };
+            Self::new(x, y, false)
+        })
+    }
+
+    /// Attempts to construct an affine point given an x-coordinate. The
+    /// point is not guaranteed to be in the prime order subgroup.
+    ///
+    /// If and only if `parity` is set will the odd y-coordinate be selected.
+    #[allow(dead_code)]
+    pub(crate) fn get_point_from_x_and_parity(x: P::BaseField, parity: bool) -> Option<Self> {
+        // Compute x^3 + ax + b
+        let x3b = P::add_b(&((x.square() * &x) + &P::mul_by_a(&x)));
+
+        x3b.sqrt().map(|y| {
+            let negy = -y;
+            let y = if y.is_odd() ^ parity { negy } else { y };
             Self::new(x, y, false)
         })
     }
@@ -96,6 +111,7 @@ impl<P: Parameters> GroupAffine<P> {
         }
     }
 
+    #[inline]
     pub fn is_in_correct_subgroup_assuming_on_curve(&self) -> bool {
         self.mul_bits(BitIterator::new(P::ScalarField::characteristic()))
             .is_zero()
@@ -103,8 +119,8 @@ impl<P: Parameters> GroupAffine<P> {
 }
 
 impl<P: Parameters> AffineCurve for GroupAffine<P> {
-    type BaseField = P::BaseField;
     type ScalarField = P::ScalarField;
+    type BaseField = P::BaseField;
     type Projective = GroupProjective<P>;
 
     #[inline]
@@ -127,9 +143,19 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
     }
 
     #[inline]
+    fn group_membership_test(&self) -> bool {
+        self.is_on_curve() && self.is_in_correct_subgroup_assuming_on_curve()
+    }
+
+    #[inline]
     fn mul<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(&self, by: S) -> GroupProjective<P> {
         let bits = BitIterator::new(by.into());
         self.mul_bits(bits)
+    }
+
+    #[inline]
+    fn into_projective(&self) -> GroupProjective<P> {
+        (*self).into()
     }
 
     fn mul_by_cofactor(&self) -> Self {
@@ -138,11 +164,6 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
 
     fn mul_by_cofactor_inv(&self) -> Self {
         self.mul(P::COFACTOR_INV).into()
-    }
-
-    #[inline]
-    fn into_projective(&self) -> GroupProjective<P> {
-        (*self).into()
     }
 }
 
@@ -163,7 +184,8 @@ impl<P: Parameters> ToBytes for GroupAffine<P> {
     #[inline]
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
         self.x.write(&mut writer)?;
-        self.y.write(&mut writer)
+        self.y.write(&mut writer)?;
+        self.infinity.write(&mut writer)
     }
 }
 
@@ -172,7 +194,7 @@ impl<P: Parameters> FromBytes for GroupAffine<P> {
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
         let x = P::BaseField::read(&mut reader)?;
         let y = P::BaseField::read(&mut reader)?;
-        let infinity = x.is_zero() && y.is_one();
+        let infinity = bool::read(reader)?;
         Ok(Self::new(x, y, infinity))
     }
 }
@@ -242,7 +264,6 @@ impl<P: Parameters> Distribution<GroupProjective<P>> for Standard {
 }
 
 
-
 impl<P: Parameters> ToBytes for GroupProjective<P> {
     #[inline]
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
@@ -285,12 +306,11 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
     type ScalarField = P::ScalarField;
     type Affine = GroupAffine<P>;
 
-    // The point at infinity is always represented by
-    // Z = 0.
+    // The point at infinity is conventionally represented as (1:1:0)
     #[inline]
     fn zero() -> Self {
         Self::new(
-            P::BaseField::zero(),
+            P::BaseField::one(),
             P::BaseField::one(),
             P::BaseField::zero(),
         )
@@ -544,6 +564,11 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
     #[inline]
     fn recommended_wnaf_for_num_scalars(num_scalars: usize) -> usize {
         P::empirical_recommended_wnaf_for_num_scalars(num_scalars)
+    }
+
+    #[inline]
+    fn group_membership_test(&self) -> bool {
+        self.into_affine().group_membership_test()
     }
 }
 

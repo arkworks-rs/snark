@@ -178,6 +178,11 @@ impl<P: Fp384Parameters> Field for Fp384<P> {
     }
 
     #[inline]
+    fn is_odd(&self) -> bool {
+        self.into_repr().is_odd()
+    }
+
+    #[inline]
     fn characteristic<'a>() -> &'a [u64] {
         P::MODULUS.as_ref()
     }

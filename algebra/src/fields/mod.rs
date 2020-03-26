@@ -1,8 +1,4 @@
-use crate::{
-    biginteger::BigInteger,
-    bytes::{FromBytes, ToBytes},
-    UniformRand,
-};
+use crate::{biginteger::BigInteger, bytes::{FromBytes, ToBytes}, UniformRand, bits::{ToBits, FromBits}, Error, BitSerializationError};
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
@@ -18,6 +14,8 @@ pub mod bls12_381;
 pub mod edwards_bls12;
 pub mod edwards_sw6;
 pub mod jubjub;
+pub mod mnt4753;
+pub mod mnt6753;
 pub mod mnt6;
 pub mod models;
 pub mod sw6;
@@ -55,6 +53,8 @@ macro_rules! field_new {
 pub trait Field:
     ToBytes
     + FromBytes
+    + ToBits
+    + FromBits
     + Copy
     + Clone
     + Debug
@@ -94,6 +94,9 @@ pub trait Field:
 
     /// Returns true if and only if `self == Self::one()`.
     fn is_one(&self) -> bool;
+
+    /// Returns true iff self is odd
+    fn is_odd(&self) -> bool;
 
     /// Returns the characteristic of the field.
     fn characteristic<'a>() -> &'a [u64];
@@ -250,6 +253,81 @@ pub trait PrimeField: Field + FromStr {
     fn modulus_minus_one_div_two() -> Self::BigInt {
         Self::Params::MODULUS_MINUS_ONE_DIV_TWO
     }
+
+}
+
+impl<F: PrimeField> ToBits for F {
+    #[inline]
+    fn write_bits(&self) -> Vec<bool> {
+        let num_bits = <Self as PrimeField>::Params::MODULUS_BITS;
+
+        let mut field_char = BitIterator::new(Self::characteristic());
+        let mut tmp = Vec::with_capacity(num_bits as usize);
+        let mut found_one = false;
+        for b in BitIterator::new(self.into_repr()) {
+            // Skip leading bits
+            found_one |= field_char.next().unwrap();
+            if !found_one {
+                continue;
+            }
+
+            tmp.push(b);
+        }
+
+        assert_eq!(tmp.len(), num_bits as usize);
+
+        tmp
+    }
+}
+
+impl<F: PrimeField> FromBits for F {
+    #[inline]
+    fn read_bits(bits: Vec<bool>) -> Result<Self, Error> {
+        let modulus_bits = <Self as PrimeField>::Params::MODULUS_BITS as usize;
+
+        //NOTE: We allow bits having enough leading bits to zero s.t. the length will be <= F::MODULUS_BITS
+        let leading_zeros = leading_zeros(bits.clone()) as usize;
+        let bits = &bits.as_slice()[leading_zeros..];
+        match bits.len() <=  modulus_bits {
+            true => {
+                let read_bigint = <Self as PrimeField>::BigInt::from_bits(bits);
+                match read_bigint < F::Params::MODULUS {
+                    true => Ok(Self::from_repr(read_bigint)),
+                    false => {
+                        let e = Box::new(
+                            BitSerializationError::InvalidFieldElement("element is over the field modulus".to_owned())
+                        );
+                        Err(e)
+                    }
+                }
+            },
+            false => {
+               let e = Box::new(
+                   BitSerializationError::InvalidFieldElement(format!("bit vec length is greater than the modulus bits ({})", modulus_bits))
+               );
+                Err(e)
+            }
+        }
+    }
+}
+
+/// Converts an element belonging to field FromF to an element belonging to field ToF.
+/// If `from` is not a valid element for field ToF, this function returns None.
+pub fn convert<FromF: PrimeField, ToF: PrimeField>(from: Vec<bool>) -> Result<ToF, Error> {
+    ToF::read_bits(from)
+}
+
+#[inline]
+pub fn leading_zeros(bits: Vec<bool>) -> u32 {
+    let mut ctr = 0;
+    for b in bits.iter() {
+        if !b {
+            ctr += 1;
+        } else {
+            break;
+        }
+    }
+    ctr
 }
 
 /// The interface for a field that supports an efficient square-root operation.

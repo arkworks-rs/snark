@@ -86,6 +86,24 @@ impl<P: Parameters> GroupAffine<P> {
         })
     }
 
+    /// Attempts to construct an affine point given an x-coordinate. The
+    /// point is not guaranteed to be in the prime order subgroup.
+    ///
+    /// If and only if `parity` is set will the odd y-coordinate be selected.
+    #[allow(dead_code)]
+    pub(crate) fn get_point_from_x_and_parity(x: P::BaseField, parity: bool) -> Option<Self> {
+        let x2 = x.square();
+        let one = P::BaseField::one();
+        let numerator = P::mul_by_a(&x2) - &one;
+        let denominator = P::COEFF_D * &x2 - &one;
+        let y2 = denominator.inverse().map(|denom| denom * &numerator);
+        y2.and_then(|y2| y2.sqrt()).map(|y| {
+            let negy = -y;
+            let y = if y.is_odd() ^ parity { negy } else { y };
+            Self::new(x, y)
+        })
+    }
+
     /// Checks that the current point is on the elliptic curve.
     pub fn is_on_curve(&self) -> bool {
         let x2 = self.x.square();
@@ -97,8 +115,7 @@ impl<P: Parameters> GroupAffine<P> {
         lhs == rhs
     }
 
-    /// Checks that the current point is in the prime order subgroup given
-    /// the point on the curve.
+    #[inline]
     pub fn is_in_correct_subgroup_assuming_on_curve(&self) -> bool {
         self.mul_bits(BitIterator::new(P::ScalarField::characteristic()))
             .is_zero()
@@ -106,8 +123,8 @@ impl<P: Parameters> GroupAffine<P> {
 }
 
 impl<P: Parameters> AffineCurve for GroupAffine<P> {
-    type BaseField = P::BaseField;
     type ScalarField = P::ScalarField;
+    type BaseField = P::BaseField;
     type Projective = GroupProjective<P>;
 
     fn zero() -> Self {
@@ -122,8 +139,16 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
         self.x.is_zero() & self.y.is_one()
     }
 
+    fn group_membership_test(&self) -> bool {
+        self.is_on_curve() && self.is_in_correct_subgroup_assuming_on_curve()
+    }
+
     fn mul<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(&self, by: S) -> GroupProjective<P> {
         self.mul_bits(BitIterator::new(by.into()))
+    }
+
+    fn into_projective(&self) -> GroupProjective<P> {
+        (*self).into()
     }
 
     fn mul_by_cofactor(&self) -> Self {
@@ -132,10 +157,6 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
 
     fn mul_by_cofactor_inv(&self) -> Self {
         self.mul(P::COFACTOR_INV).into()
-    }
-
-    fn into_projective(&self) -> GroupProjective<P> {
-        (*self).into()
     }
 }
 
@@ -387,6 +408,11 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
 
     fn is_zero(&self) -> bool {
         self.x.is_zero() && self.y == self.z && !self.y.is_zero() && self.t.is_zero()
+    }
+
+    #[inline]
+    fn group_membership_test(&self) -> bool {
+        self.into_affine().group_membership_test()
     }
 
     fn is_normalized(&self) -> bool {

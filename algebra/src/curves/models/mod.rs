@@ -1,9 +1,8 @@
-use crate::{
-    biginteger::BigInteger,
-    fields::{Field, PrimeField, SquareRootField},
-};
+use crate::{biginteger::BigInteger, fields::{Field, PrimeField, SquareRootField}};
 
 pub mod bls12;
+pub mod mnt4;
+pub mod mnt6;
 pub mod short_weierstrass_jacobian;
 pub mod short_weierstrass_projective;
 pub mod twisted_edwards_extended;
@@ -119,4 +118,3 @@ pub trait MontgomeryModelParameters: ModelParameters {
 
     type TEModelParameters: TEModelParameters<BaseField = Self::BaseField>;
 }
-

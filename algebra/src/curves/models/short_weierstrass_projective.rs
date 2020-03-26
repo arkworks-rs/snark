@@ -1,6 +1,6 @@
-use crate::curves::models::SWModelParameters as Parameters;
 use rand::{Rng, distributions::{Standard, Distribution}};
-use crate::UniformRand;
+use crate::{UniformRand, ToCompressedBits, FromCompressedBits, Error, BitSerializationError};
+use crate::curves::models::SWModelParameters as Parameters;
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
     io::{Read, Result as IoResult, Write},
@@ -81,8 +81,23 @@ impl<P: Parameters> GroupAffine<P> {
 
         x3b.sqrt().map(|y| {
             let negy = -y;
-
             let y = if (y < negy) ^ greatest { y } else { negy };
+            Self::new(x, y, false)
+        })
+    }
+
+    /// Attempts to construct an affine point given an x-coordinate. The
+    /// point is not guaranteed to be in the prime order subgroup.
+    ///
+    /// If and only if `parity` is set will the odd y-coordinate be selected.
+    #[allow(dead_code)]
+    pub(crate) fn get_point_from_x_and_parity(x: P::BaseField, parity: bool) -> Option<Self> {
+        // Compute x^3 + ax + b
+        let x3b = P::add_b(&((x.square() * &x) + &P::mul_by_a(&x)));
+
+        x3b.sqrt().map(|y| {
+            let negy = -y;
+            let y = if y.is_odd() ^ parity { negy } else { y };
             Self::new(x, y, false)
         })
     }
@@ -99,8 +114,7 @@ impl<P: Parameters> GroupAffine<P> {
         }
     }
 
-    /// Checks that the current point is in the prime order subgroup given
-    /// the point on the curve.
+    #[inline]
     pub fn is_in_correct_subgroup_assuming_on_curve(&self) -> bool {
         self.mul_bits(BitIterator::new(P::ScalarField::characteristic()))
             .is_zero()
@@ -108,14 +122,16 @@ impl<P: Parameters> GroupAffine<P> {
 }
 
 impl<P: Parameters> AffineCurve for GroupAffine<P> {
-    type BaseField = P::BaseField;
     type ScalarField = P::ScalarField;
+    type BaseField = P::BaseField;
     type Projective = GroupProjective<P>;
 
+    #[inline]
     fn zero() -> Self {
         Self::new(Self::BaseField::zero(), Self::BaseField::one(), true)
     }
 
+    #[inline]
     fn prime_subgroup_generator() -> Self {
         Self::new(
             P::AFFINE_GENERATOR_COEFFS.0,
@@ -124,13 +140,25 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
         )
     }
 
+    #[inline]
     fn is_zero(&self) -> bool {
         self.infinity
     }
 
+    #[inline]
+    fn group_membership_test(&self) -> bool {
+        self.is_on_curve() && self.is_in_correct_subgroup_assuming_on_curve()
+    }
+
+    #[inline]
     fn mul<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(&self, by: S) -> GroupProjective<P> {
         let bits = BitIterator::new(by.into());
         self.mul_bits(bits)
+    }
+
+    #[inline]
+    fn into_projective(&self) -> GroupProjective<P> {
+        (*self).into()
     }
 
     fn mul_by_cofactor(&self) -> Self {
@@ -139,10 +167,6 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
 
     fn mul_by_cofactor_inv(&self) -> Self {
         self.mul(P::COFACTOR_INV).into()
-    }
-
-    fn into_projective(&self) -> GroupProjective<P> {
-        (*self).into()
     }
 }
 
@@ -174,6 +198,72 @@ impl<P: Parameters> FromBytes for GroupAffine<P> {
         let y = P::BaseField::read(&mut reader)?;
         let infinity = bool::read(reader)?;
         Ok(Self::new(x, y, infinity))
+    }
+}
+
+use crate::{ToBits, FromBits};
+impl<P: Parameters> ToCompressedBits for GroupAffine<P>
+{
+    #[inline]
+    fn compress(&self) -> Vec<bool> {
+        // Strictly speaking, self.x is zero already when self.infinity is true, but
+        // to guard against implementation mistakes we do not assume this.
+        let p = if self.infinity {P::BaseField::zero()} else {self.x};
+        let mut res = p.write_bits();
+
+        // Is this the point at infinity? If so, set the most significant bit.
+        res.push(self.infinity);
+
+        // Is the y-coordinate the odd one of the two associated with the
+        // x-coordinate? If so, set the third-most significant bit so long as this is not
+        // the point at infinity.
+
+        res.push(!self.infinity && self.y.is_odd());
+
+        res
+    }
+}
+
+impl<P: Parameters> FromCompressedBits for GroupAffine<P>
+{
+    #[inline]
+    fn decompress(compressed: Vec<bool>) -> Result<Self, Error> {
+        let len = compressed.len() - 1;
+        let parity_flag_set = compressed[len];
+        let infinity_flag_set = compressed[len - 1];
+
+        //Mask away the flag bits and try to get the x coordinate
+        let x = P::BaseField::read_bits(compressed[0..(len - 1)].to_vec())?;
+        match (infinity_flag_set, parity_flag_set, x.is_zero()) {
+
+            //If the infinity flag is set, return the value assuming
+            //the x-coordinate is zero and the parity bit is not set.
+            (true, false, true) => Ok(Self::zero()),
+
+            //If x is not zero, then infinity flag should not be set and all the others
+            //should be set
+            (false, _, false) => {
+
+                //Attempt to get the y coordinate from its parity and x
+                match Self::get_point_from_x_and_parity(x, parity_flag_set) {
+
+                    //Check p belongs to the subgroup we expect
+                    Some(p) => {
+                        if p.is_in_correct_subgroup_assuming_on_curve() {
+                            Ok(p)
+                        }
+                        else {
+                            let e = BitSerializationError::NotPrimeOrder;
+                            Err(Box::new(e))
+                        }
+                    }
+                    _ => Err(Box::new(BitSerializationError::UndefinedSqrt)),
+                }
+            },
+
+            //Other combinations are illegal
+            _ => Err(Box::new(BitSerializationError::InvalidFlags)),
+        }
     }
 }
 
@@ -234,9 +324,6 @@ impl<P: Parameters> Distribution<GroupProjective<P>> for Standard {
         res
     }
 }
-
-
-
 
 impl<P: Parameters> ToBytes for GroupProjective<P> {
     #[inline]
@@ -300,6 +387,11 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
     #[inline]
     fn is_zero(&self) -> bool {
         self.z.is_zero()
+    }
+
+    #[inline]
+    fn group_membership_test(&self) -> bool {
+        self.into_affine().group_membership_test()
     }
 
     #[inline]

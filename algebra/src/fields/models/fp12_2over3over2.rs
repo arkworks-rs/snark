@@ -1,5 +1,5 @@
 use rand::{Rng, distributions::{Standard, Distribution}};
-use crate::UniformRand;
+use crate::{UniformRand, ToBits, FromBits, PrimeField, Error};
 use std::{
     cmp::Ordering,
     io::{Read, Result as IoResult, Write},
@@ -9,7 +9,7 @@ use std::{
 
 use crate::{
     bytes::{FromBytes, ToBytes},
-    fields::{fp6_3over2::*, Field, Fp2, Fp2Parameters},
+    fields::{fp6_3over2::*, Field, Fp2, Fp2Parameters, FpParameters},
     BitIterator,
 };
 
@@ -231,6 +231,11 @@ impl<P: Fp12Parameters> Field for Fp12<P> {
 
     fn is_one(&self) -> bool {
         self.c0.is_one() && self.c1.is_zero()
+    }
+
+    #[inline]
+    fn is_odd(&self) -> bool {
+        self.c1.is_odd() || ( self.c1.is_zero() && self.c0.is_odd())
     }
 
     #[inline]
@@ -473,6 +478,25 @@ impl<P: Fp12Parameters> FromBytes for Fp12<P> {
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
         let c0 = Fp6::read(&mut reader)?;
         let c1 = Fp6::read(&mut reader)?;
+        Ok(Fp12::new(c0, c1))
+    }
+}
+
+impl<P: Fp12Parameters> ToBits for Fp12<P> {
+    fn write_bits(&self) -> Vec<bool> {
+        let mut bits = self.c0.write_bits();
+        bits.extend_from_slice(self.c1.write_bits().as_slice());
+        bits
+
+    }
+}
+
+impl<P: Fp12Parameters> FromBits for Fp12<P> {
+    fn read_bits(bits: Vec<bool>) -> Result<Self, Error> {
+        let size = (6 * <<<P::Fp6Params as Fp6Parameters>::Fp2Params as Fp2Parameters>
+        ::Fp as PrimeField>::Params::MODULUS_BITS) as usize;
+        let c0 = Fp6::read_bits(bits[..size].to_vec())?;
+        let c1 = Fp6::read_bits(bits[size..].to_vec())?;
         Ok(Fp12::new(c0, c1))
     }
 }

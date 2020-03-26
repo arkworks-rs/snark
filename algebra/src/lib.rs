@@ -40,6 +40,9 @@ extern crate derivative;
 pub mod bytes;
 pub use self::bytes::*;
 
+pub mod bits;
+pub use self::bits::*;
+
 pub mod biginteger;
 pub use self::biginteger::*;
 
@@ -56,7 +59,6 @@ pub use self::groups::*;
 mod rand;
 pub use self::rand::*;
 
-
 mod to_field_vec;
 pub use to_field_vec::ToConstraintField;
 
@@ -64,3 +66,10 @@ pub use to_field_vec::ToConstraintField;
 pub mod msm;
 #[cfg(feature = "parallel")]
 pub use self::msm::*;
+
+#[cfg(feature = "fft")]
+pub mod fft;
+#[cfg(feature = "fft")]
+pub use self::fft::*;
+
+pub type Error = Box<dyn std::error::Error>;

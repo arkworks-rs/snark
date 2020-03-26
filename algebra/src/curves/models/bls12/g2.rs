@@ -1,14 +1,12 @@
-use crate::{
-    bytes::ToBytes,
-    curves::{
-        bls12::{Bls12Parameters, TwistType},
-        models::SWModelParameters,
-        short_weierstrass_jacobian::{GroupAffine, GroupProjective},
-        AffineCurve,
-    },
-    fields::{BitIterator, Field, Fp2},
-};
-use std::io::{Result as IoResult, Write};
+use crate::{bytes::ToBytes, curves::{
+    bls12::{Bls12Parameters, TwistType},
+    models::SWModelParameters,
+    short_weierstrass_jacobian::{GroupAffine, GroupProjective},
+    AffineCurve,
+}, fields::{BitIterator, Field, Fp2}, FromBytes};
+use std::io::{Result as IoResult, Write, Read};
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use std::io;
 
 pub type G2Affine<P> = GroupAffine<<P as Bls12Parameters>::G2Parameters>;
 pub type G2Projective<P> = GroupProjective<<P as Bls12Parameters>::G2Parameters>;
@@ -47,12 +45,32 @@ impl<P: Bls12Parameters> Default for G2Prepared<P> {
 
 impl<P: Bls12Parameters> ToBytes for G2Prepared<P> {
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
+        writer.write_u32::<BigEndian>(self.ell_coeffs.len() as u32)?;
         for coeff in &self.ell_coeffs {
             coeff.0.write(&mut writer)?;
             coeff.1.write(&mut writer)?;
             coeff.2.write(&mut writer)?;
         }
         self.infinity.write(writer)
+    }
+}
+
+impl<P: Bls12Parameters> FromBytes for G2Prepared<P> {
+    fn read<R: Read>(mut reader: R) -> IoResult<Self> {
+        let ell_coeffs_len = reader.read_u32::<BigEndian>()? as usize;
+        let mut ell_coeffs = vec![];
+        for _ in 0..ell_coeffs_len {
+            let c0 = Fp2::<P::Fp2Params>::read(&mut reader)
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+            let c1 = Fp2::<P::Fp2Params>::read(&mut reader)
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+            let c2 = Fp2::<P::Fp2Params>::read(&mut reader)
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+            ell_coeffs.push((c0, c1, c2));
+        }
+        let infinity = bool::read(&mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        Ok(G2Prepared{ell_coeffs, infinity})
     }
 }
 

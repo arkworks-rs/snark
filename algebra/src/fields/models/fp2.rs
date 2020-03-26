@@ -1,19 +1,18 @@
-use crate::UniformRand;
+use crate::{UniformRand, ToBits, FromBits, Error};
+use rand::{Rng, distributions::{Standard, Distribution}};
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
     io::{Read, Result as IoResult, Write},
     marker::PhantomData,
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
-use rand::{Rng, distributions::{Standard, Distribution}};
-
 use crate::{
     bytes::{FromBytes, ToBytes},
-    fields::{Field, LegendreSymbol, PrimeField, SquareRootField},
+    fields::{Field, LegendreSymbol, PrimeField, SquareRootField, FpParameters},
 };
 
 pub trait Fp2Parameters: 'static + Send + Sync {
-    type Fp: PrimeField;
+    type Fp: PrimeField + SquareRootField;
 
     const NONRESIDUE: Self::Fp;
 
@@ -85,6 +84,11 @@ impl<P: Fp2Parameters> Field for Fp2<P> {
 
     fn is_one(&self) -> bool {
         self.c0.is_one() && self.c1.is_zero()
+    }
+
+    #[inline]
+    fn is_odd(&self) -> bool {
+        self.c1.is_odd() || ( self.c1.is_zero() && self.c0.is_odd())
     }
 
     #[inline]
@@ -268,6 +272,24 @@ impl<P: Fp2Parameters> FromBytes for Fp2<P> {
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
         let c0 = P::Fp::read(&mut reader)?;
         let c1 = P::Fp::read(reader)?;
+        Ok(Fp2::new(c0, c1))
+    }
+}
+
+impl<P: Fp2Parameters> ToBits for Fp2<P> {
+    fn write_bits(&self) -> Vec<bool> {
+        let mut bits = self.c0.write_bits();
+        bits.extend_from_slice(self.c1.write_bits().as_slice());
+        bits
+
+    }
+}
+
+impl<P: Fp2Parameters> FromBits for Fp2<P> {
+    fn read_bits(bits: Vec<bool>) -> Result<Self, Error> {
+        let size = <P::Fp as PrimeField>::Params::MODULUS_BITS as usize;
+        let c0 = P::Fp::read_bits(bits[..size].to_vec())?;
+        let c1 = P::Fp::read_bits(bits[size..].to_vec())?;
         Ok(Fp2::new(c0, c1))
     }
 }
