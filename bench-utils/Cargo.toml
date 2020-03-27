@@ -1,7 +1,18 @@
 [package]
 name = "bench-utils"
 version = "0.1.0"
-authors = ["DanieleDiBenedetto <daniele@horizenlabs.io>"]
+authors = [
+    "Sean Bowe",
+    "Alessandro Chiesa",
+    "Matthew Green",
+    "Ian Miers",
+    "Pratyush Mishra",
+    "Howard Wu",
+    "Daniele Di Benedetto <daniele@horizenlabs.io>",
+    "Marcelo Kaihara <marcelo@horizenlabs.io>",
+    "Ulrich Haboeck <ulrich@horizenlabs.io>"
+]
+description = "A helper library for profiling performance"
 include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
 license = "MIT/Apache-2.0"
 edition = "2018"

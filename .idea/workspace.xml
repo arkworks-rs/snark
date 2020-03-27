@@ -5,11 +5,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="719be06c-21f5-4575-9861-92c1a9b7938b" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/bls12/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/bls12/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt4/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt4/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt6/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt6/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs/gadgets/std/src/pairing/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/r1cs/gadgets/std/src/pairing/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/algebra/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/algebra/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/bench-utils/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/bench-utils/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/primitives/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/primitives/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/proof-systems/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/proof-systems/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/r1cs/core/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/r1cs/core/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/r1cs/gadgets/crypto/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/r1cs/gadgets/crypto/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/r1cs/gadgets/std/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/r1cs/gadgets/std/Cargo.toml" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -21,44 +23,7 @@
     <option name="isMigrated" value="true" />
   </component>
   <component name="FileEditorManager">
-    <leaf SIDE_TABS_SIZE_LIMIT_KEY="375">
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/bls12/mod.rs">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-2278">
-              <caret line="13" selection-start-line="13" selection-end-line="13" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt4/mod.rs">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="252">
-              <caret line="14" selection-start-line="14" selection-end-line="14" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt6/mod.rs">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="234">
-              <caret line="13" selection-start-line="13" selection-end-line="13" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/pairing/mod.rs">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="18">
-              <caret line="1" column="34" selection-start-line="1" selection-start-column="34" selection-end-line="1" selection-end-column="34" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-    </leaf>
+    <leaf SIDE_TABS_SIZE_LIMIT_KEY="375" />
   </component>
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
@@ -134,12 +99,10 @@
         <option value="$PROJECT_DIR$/algebra/src/fields/mnt6753/tests.rs" />
         <option value="$PROJECT_DIR$/primitives/src/prf/blake2s/mod.rs" />
         <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/twisted_edwards/mod.rs" />
-        <option value="$PROJECT_DIR$/r1cs/gadgets/crypto/Cargo.toml" />
         <option value="$PROJECT_DIR$/algebra/src/curves/models/short_weierstrass_projective.rs" />
         <option value="$PROJECT_DIR$/primitives/benches/crypto_primitives/signature.rs" />
         <option value="$PROJECT_DIR$/primitives/benches/crypto_primitives/crh.rs" />
         <option value="$PROJECT_DIR$/primitives/benches/crypto_primitives/comm.rs" />
-        <option value="$PROJECT_DIR$/primitives/Cargo.toml" />
         <option value="$PROJECT_DIR$/primitives/benches/crypto_primitives/ecvrf.rs" />
         <option value="$PROJECT_DIR$/algebra/benches/mnt4753/fq.rs" />
         <option value="$PROJECT_DIR$/primitives/src/vrf/ecvrf/mod.rs" />
@@ -169,10 +132,17 @@
         <option value="$PROJECT_DIR$/r1cs/gadgets/crypto/src/nizk/groth16/mod.rs" />
         <option value="$PROJECT_DIR$/algebra/src/fft/domain/domain_selector.rs" />
         <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/short_weierstrass_jacobian.rs" />
-        <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/bls12/mod.rs" />
-        <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt4/mod.rs" />
-        <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt6/mod.rs" />
         <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/pairing/mod.rs" />
+        <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt4/mod.rs" />
+        <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/bls12/mod.rs" />
+        <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt6/mod.rs" />
+        <option value="$PROJECT_DIR$/bench-utils/Cargo.toml" />
+        <option value="$PROJECT_DIR$/algebra/Cargo.toml" />
+        <option value="$PROJECT_DIR$/primitives/Cargo.toml" />
+        <option value="$PROJECT_DIR$/proof-systems/Cargo.toml" />
+        <option value="$PROJECT_DIR$/r1cs/core/Cargo.toml" />
+        <option value="$PROJECT_DIR$/r1cs/gadgets/std/Cargo.toml" />
+        <option value="$PROJECT_DIR$/r1cs/gadgets/crypto/Cargo.toml" />
       </list>
     </option>
   </component>
@@ -200,7 +170,23 @@
             <path>
               <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
               <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
+              <item name="primitives" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
+              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
+              <item name="proof-systems" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
+              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
               <item name="r1cs" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
+              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
+              <item name="r1cs" type="462c0819:PsiDirectoryNode" />
+              <item name="core" type="462c0819:PsiDirectoryNode" />
             </path>
             <path>
               <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
@@ -213,34 +199,7 @@
               <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
               <item name="r1cs" type="462c0819:PsiDirectoryNode" />
               <item name="gadgets" type="462c0819:PsiDirectoryNode" />
-              <item name="std" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
-              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
-              <item name="r1cs" type="462c0819:PsiDirectoryNode" />
-              <item name="gadgets" type="462c0819:PsiDirectoryNode" />
-              <item name="std" type="462c0819:PsiDirectoryNode" />
-              <item name="src" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
-              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
-              <item name="r1cs" type="462c0819:PsiDirectoryNode" />
-              <item name="gadgets" type="462c0819:PsiDirectoryNode" />
-              <item name="std" type="462c0819:PsiDirectoryNode" />
-              <item name="src" type="462c0819:PsiDirectoryNode" />
-              <item name="groups" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
-              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
-              <item name="r1cs" type="462c0819:PsiDirectoryNode" />
-              <item name="gadgets" type="462c0819:PsiDirectoryNode" />
-              <item name="std" type="462c0819:PsiDirectoryNode" />
-              <item name="src" type="462c0819:PsiDirectoryNode" />
-              <item name="groups" type="462c0819:PsiDirectoryNode" />
-              <item name="curves" type="462c0819:PsiDirectoryNode" />
+              <item name="crypto" type="462c0819:PsiDirectoryNode" />
             </path>
             <path>
               <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
@@ -248,69 +207,6 @@
               <item name="r1cs" type="462c0819:PsiDirectoryNode" />
               <item name="gadgets" type="462c0819:PsiDirectoryNode" />
               <item name="std" type="462c0819:PsiDirectoryNode" />
-              <item name="src" type="462c0819:PsiDirectoryNode" />
-              <item name="groups" type="462c0819:PsiDirectoryNode" />
-              <item name="curves" type="462c0819:PsiDirectoryNode" />
-              <item name="short_weierstrass" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
-              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
-              <item name="r1cs" type="462c0819:PsiDirectoryNode" />
-              <item name="gadgets" type="462c0819:PsiDirectoryNode" />
-              <item name="std" type="462c0819:PsiDirectoryNode" />
-              <item name="src" type="462c0819:PsiDirectoryNode" />
-              <item name="groups" type="462c0819:PsiDirectoryNode" />
-              <item name="curves" type="462c0819:PsiDirectoryNode" />
-              <item name="short_weierstrass" type="462c0819:PsiDirectoryNode" />
-              <item name="bls12" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
-              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
-              <item name="r1cs" type="462c0819:PsiDirectoryNode" />
-              <item name="gadgets" type="462c0819:PsiDirectoryNode" />
-              <item name="std" type="462c0819:PsiDirectoryNode" />
-              <item name="src" type="462c0819:PsiDirectoryNode" />
-              <item name="groups" type="462c0819:PsiDirectoryNode" />
-              <item name="curves" type="462c0819:PsiDirectoryNode" />
-              <item name="short_weierstrass" type="462c0819:PsiDirectoryNode" />
-              <item name="mnt" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
-              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
-              <item name="r1cs" type="462c0819:PsiDirectoryNode" />
-              <item name="gadgets" type="462c0819:PsiDirectoryNode" />
-              <item name="std" type="462c0819:PsiDirectoryNode" />
-              <item name="src" type="462c0819:PsiDirectoryNode" />
-              <item name="groups" type="462c0819:PsiDirectoryNode" />
-              <item name="curves" type="462c0819:PsiDirectoryNode" />
-              <item name="short_weierstrass" type="462c0819:PsiDirectoryNode" />
-              <item name="mnt" type="462c0819:PsiDirectoryNode" />
-              <item name="mnt4" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
-              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
-              <item name="r1cs" type="462c0819:PsiDirectoryNode" />
-              <item name="gadgets" type="462c0819:PsiDirectoryNode" />
-              <item name="std" type="462c0819:PsiDirectoryNode" />
-              <item name="src" type="462c0819:PsiDirectoryNode" />
-              <item name="groups" type="462c0819:PsiDirectoryNode" />
-              <item name="curves" type="462c0819:PsiDirectoryNode" />
-              <item name="short_weierstrass" type="462c0819:PsiDirectoryNode" />
-              <item name="mnt" type="462c0819:PsiDirectoryNode" />
-              <item name="mnt6" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
-              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
-              <item name="r1cs" type="462c0819:PsiDirectoryNode" />
-              <item name="gadgets" type="462c0819:PsiDirectoryNode" />
-              <item name="std" type="462c0819:PsiDirectoryNode" />
-              <item name="src" type="462c0819:PsiDirectoryNode" />
-              <item name="pairing" type="462c0819:PsiDirectoryNode" />
             </path>
           </expand>
           <select />
@@ -429,9 +325,8 @@
   </component>
   <component name="ToolWindowManager">
     <frame x="67" y="32" width="1853" height="918" extended-state="6" />
-    <editor active="true" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" sideWeight="0.4993234" visible="true" weight="0.33945465" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" sideWeight="0.4993234" visible="true" weight="0.18809126" />
       <window_info id="Structure" order="1" sideWeight="0.5006766" side_tool="true" weight="0.19588202" />
       <window_info id="Image Layers" order="2" />
       <window_info id="Designer" order="3" />
@@ -461,55 +356,6 @@
     </layout>
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/algebra/src/fields/models/fp_256.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="468">
-          <caret line="346" column="5" selection-start-line="346" selection-start-column="5" selection-end-line="346" selection-end-column="5" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/algebra/src/fields/models/fp_320.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="131">
-          <caret line="353" column="20" selection-start-line="353" selection-start-column="20" selection-end-line="353" selection-end-column="20" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/algebra/src/fields/models/fp_384.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="246">
-          <caret line="390" column="17" selection-start-line="390" selection-start-column="17" selection-end-line="390" selection-end-column="17" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/algebra/src/fields/models/fp_832.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="527">
-          <caret line="663" column="20" selection-start-line="663" selection-start-column="20" selection-end-line="663" selection-end-column="20" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/algebra/src/fields/models/fp_768.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="108">
-          <caret line="695" column="20" selection-start-line="695" selection-start-column="20" selection-end-line="695" selection-end-column="20" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/algebra/src/fields/mnt4753/fq.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="62">
-          <caret line="137" column="27" selection-start-line="137" selection-start-column="27" selection-end-line="137" selection-end-column="27" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/algebra/src/lib.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="125">
-          <caret line="14" column="4" selection-start-line="14" selection-start-column="4" selection-end-line="14" selection-end-column="4" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/algebra/src/fft/domain/mixed_radix_2_domain.rs" />
     <entry file="file://$PROJECT_DIR$/proof-systems/src/groth16/test.rs">
       <provider selected="true" editor-type-id="text-editor">
@@ -758,17 +604,17 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/bls12/mod.rs">
+    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt4/mod.rs">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-2278">
-          <caret line="13" selection-start-line="13" selection-end-line="13" />
+        <state>
+          <caret column="18" selection-start-column="18" selection-end-column="18" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt4/mod.rs">
+    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/bls12/mod.rs">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="252">
-          <caret line="14" selection-start-line="14" selection-end-line="14" />
+        <state relative-caret-position="36">
+          <caret line="2" column="48" selection-start-line="2" selection-start-column="48" selection-end-line="2" selection-end-column="48" />
         </state>
       </provider>
     </entry>
@@ -783,6 +629,55 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="18">
           <caret line="1" column="34" selection-start-line="1" selection-start-column="34" selection-end-line="1" selection-end-column="34" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/bench-utils/Cargo.toml">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="216">
+          <caret line="12" column="44" selection-start-line="12" selection-start-column="44" selection-end-line="12" selection-end-column="44" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/primitives/Cargo.toml">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="54">
+          <caret line="3" selection-start-line="3" selection-end-line="14" selection-end-column="53" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/proof-systems/Cargo.toml">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="108">
+          <caret line="6" column="20" lean-forward="true" selection-start-line="6" selection-start-column="20" selection-end-line="6" selection-end-column="20" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/r1cs/core/Cargo.toml">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="396">
+          <caret line="22" lean-forward="true" selection-start-line="22" selection-end-line="22" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/Cargo.toml">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="54">
+          <caret line="3" selection-start-line="3" selection-end-line="14" selection-end-column="64" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/crypto/Cargo.toml">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="216">
+          <caret line="12" column="44" lean-forward="true" selection-start-line="12" selection-start-column="44" selection-end-line="12" selection-end-column="44" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/algebra/Cargo.toml">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="216">
+          <caret line="12" column="44" selection-start-line="12" selection-start-column="44" selection-end-line="12" selection-end-column="44" />
         </state>
       </provider>
     </entry>
