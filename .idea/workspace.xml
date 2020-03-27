@@ -5,200 +5,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="719be06c-21f5-4575-9861-92c1a9b7938b" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.cargo/config" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.travis.yml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/algebra/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/algebra/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/algebra/benches/mnt4753/fq.rs" beforeDir="false" afterPath="$PROJECT_DIR$/algebra/benches/mnt4753/fq.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/algebra/src/curves/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/algebra/src/curves/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/algebra/src/curves/models/bls12/g1.rs" beforeDir="false" afterPath="$PROJECT_DIR$/algebra/src/curves/models/bls12/g1.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/algebra/src/curves/models/bls12/g2.rs" beforeDir="false" afterPath="$PROJECT_DIR$/algebra/src/curves/models/bls12/g2.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/algebra/src/fields/mnt4753/fq.rs" beforeDir="false" afterPath="$PROJECT_DIR$/algebra/src/fields/mnt4753/fq.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/algebra/src/fields/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/algebra/src/fields/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/algebra/src/fields/models/fp_256.rs" beforeDir="false" afterPath="$PROJECT_DIR$/algebra/src/fields/models/fp_256.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/algebra/src/fields/models/fp_320.rs" beforeDir="false" afterPath="$PROJECT_DIR$/algebra/src/fields/models/fp_320.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/algebra/src/fields/models/fp_384.rs" beforeDir="false" afterPath="$PROJECT_DIR$/algebra/src/fields/models/fp_384.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/algebra/src/fields/models/fp_768.rs" beforeDir="false" afterPath="$PROJECT_DIR$/algebra/src/fields/models/fp_768.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/algebra/src/fields/models/fp_832.rs" beforeDir="false" afterPath="$PROJECT_DIR$/algebra/src/fields/models/fp_832.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/algebra/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/algebra/src/lib.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/bench-utils/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/bench-utils/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/bench-utils/LICENSE-APACHE" beforeDir="false" afterPath="$PROJECT_DIR$/bench-utils/LICENSE-APACHE" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/bench-utils/LICENSE-MIT" beforeDir="false" afterPath="$PROJECT_DIR$/bench-utils/LICENSE-MIT" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/Cargo.toml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/LICENSE-APACHE" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/LICENSE-MIT" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/benches/crypto_primitives/comm.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/benches/crypto_primitives/crh.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/benches/crypto_primitives/prf.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/benches/crypto_primitives/signature.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/commitment/blake2s/constraints.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/commitment/blake2s/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/commitment/constraints.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/commitment/injective_map/constraints.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/commitment/injective_map/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/commitment/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/commitment/pedersen/constraints.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/commitment/pedersen/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/crh/bowe_hopwood/constraints.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/crh/bowe_hopwood/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/crh/constraints.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/crh/injective_map/constraints.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/crh/injective_map/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/crh/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/crh/pedersen/constraints.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/crh/pedersen/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/lib.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/merkle_tree/constraints.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/merkle_tree/field_based_mht/constraints.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/merkle_tree/field_based_mht/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/merkle_tree/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/nizk/constraints.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/nizk/gm17/constraints.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/nizk/gm17/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/nizk/groth16/constraints.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/nizk/groth16/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/nizk/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/prf/blake2s/constraints.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/prf/blake2s/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/prf/constraints.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/prf/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/signature/constraints.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/signature/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/signature/schnorr/constraints.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/signature/schnorr/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/vrf/constraints.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/vrf/ecvrf/constraints.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/vrf/ecvrf/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/crypto-primitives/src/vrf/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/Cargo.toml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/LICENSE-APACHE" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/LICENSE-MIT" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/constraints/delegable_dpc.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/constraints/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/constraints/plain_dpc.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/dpc/delegable_dpc/address.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/dpc/delegable_dpc/core_checks_circuit.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/dpc/delegable_dpc/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/dpc/delegable_dpc/parameters.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/dpc/delegable_dpc/predicate.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/dpc/delegable_dpc/predicate_circuit.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/dpc/delegable_dpc/proof_check_circuit.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/dpc/delegable_dpc/record.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/dpc/delegable_dpc/test.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/dpc/delegable_dpc/transaction.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/dpc/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/dpc/plain_dpc/address.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/dpc/plain_dpc/core_checks_circuit.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/dpc/plain_dpc/instantiated.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/dpc/plain_dpc/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/dpc/plain_dpc/parameters.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/dpc/plain_dpc/predicate.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/dpc/plain_dpc/predicate_circuit.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/dpc/plain_dpc/proof_check_circuit.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/dpc/plain_dpc/record.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/dpc/plain_dpc/test.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/dpc/plain_dpc/transaction.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/ledger/ideal_ledger.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/ledger/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/lib.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/predicates/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/src/predicates/plain_dpc/predicate_circuit.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/dpc/tests/plain_dpc.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ff-fft/Cargo.toml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ff-fft/src/domain.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ff-fft/src/evaluations.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ff-fft/src/lib.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ff-fft/src/multicore.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ff-fft/src/polynomial/dense.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ff-fft/src/polynomial/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ff-fft/src/polynomial/sparse.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ff-fft/src/test.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/gm17/Cargo.toml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/gm17/LICENSE-APACHE" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/gm17/LICENSE-MIT" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/gm17/examples/snark-scalability/constraints.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/gm17/examples/snark-scalability/gm17.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/gm17/src/generator.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/gm17/src/lib.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/gm17/src/prover.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/gm17/src/r1cs_to_sap.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/gm17/src/test.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/gm17/src/verifier.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/gm17/tests/mimc.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/groth16/Cargo.toml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/groth16/LICENSE-APACHE" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/groth16/LICENSE-MIT" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/groth16/examples/snark-scalability/constraints.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/groth16/examples/snark-scalability/groth16.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/groth16/src/generator.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/groth16/src/lib.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/groth16/src/prover.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/groth16/src/r1cs_to_qap.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/groth16/src/test.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/groth16/src/verifier.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/groth16/tests/mimc.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-core/Cargo.toml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-core/LICENSE-APACHE" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-core/LICENSE-MIT" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-core/src/constraint_system.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-core/src/error.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-core/src/impl_constraint_var.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-core/src/impl_lc.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-core/src/lib.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/Cargo.toml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/LICENSE-APACHE" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/LICENSE-MIT" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/alloc.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/bits/boolean.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/bits/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/bits/uint32.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/bits/uint8.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/eq.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/fields/bls12_377.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/fields/edwards_bls12.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/fields/edwards_sw6.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/fields/fp.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/fields/fp12.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/fields/fp2.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/fields/fp3.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/fields/fp4.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/fields/fp6_2over3.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/fields/fp6_3over2.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/fields/jubjub.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/fields/mnt4753.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/fields/mnt6753.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/fields/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/groups/curves/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/groups/curves/short_weierstrass/bls12/bls12_377.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/groups/curves/short_weierstrass/bls12/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/groups/curves/short_weierstrass/mnt/mnt4/mnt4753.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/groups/curves/short_weierstrass/mnt/mnt4/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/groups/curves/short_weierstrass/mnt/mnt6/mnt6753.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/groups/curves/short_weierstrass/mnt/mnt6/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/groups/curves/short_weierstrass/mnt/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/groups/curves/short_weierstrass/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/groups/curves/short_weierstrass/short_weierstrass_jacobian.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/groups/curves/short_weierstrass/short_weierstrass_projective.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/groups/curves/twisted_edwards/edwards_bls12.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/groups/curves/twisted_edwards/edwards_sw6.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/groups/curves/twisted_edwards/jubjub.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/groups/curves/twisted_edwards/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/groups/curves/twisted_edwards/test.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/groups/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/lib.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/pairing/bls12/bls12_377.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/pairing/bls12/bls12_381.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/pairing/bls12/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/pairing/mnt4/mnt4753.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/pairing/mnt4/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/pairing/mnt6/mnt6753.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/pairing/mnt6/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/pairing/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/select.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/test_constraint_system.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs-std/src/to_field_gadget_vec.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt4/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt4/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt6/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt6/mod.rs" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -212,8 +21,21 @@
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="375">
       <file pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/algebra/src/fft/mod.rs">
-          <provider selected="true" editor-type-id="text-editor" />
+        <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt4/mod.rs">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="180">
+              <caret line="10" selection-start-line="10" selection-end-line="10" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt6/mod.rs">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="216">
+              <caret line="12" column="23" selection-start-line="12" selection-start-column="23" selection-end-line="12" selection-end-column="23" />
+            </state>
+          </provider>
         </entry>
       </file>
     </leaf>
@@ -324,12 +146,13 @@
         <option value="$PROJECT_DIR$/proof-systems/src/groth16/mod.rs" />
         <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/alloc.rs" />
         <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/mod.rs" />
-        <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt6/mod.rs" />
-        <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt4/mod.rs" />
         <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/bls12/mod.rs" />
         <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/pairing/mod.rs" />
         <option value="$PROJECT_DIR$/r1cs/gadgets/crypto/src/nizk/groth16/mod.rs" />
         <option value="$PROJECT_DIR$/algebra/src/fft/domain/domain_selector.rs" />
+        <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/short_weierstrass_jacobian.rs" />
+        <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt6/mod.rs" />
+        <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt4/mod.rs" />
       </list>
     </option>
   </component>
@@ -338,16 +161,15 @@
   </component>
   <component name="ProjectFrameBounds" extendedState="6">
     <option name="x" value="67" />
-    <option name="y" value="32" />
-    <option name="width" value="1853" />
-    <option name="height" value="918" />
+    <option name="y" value="34" />
+    <option name="width" value="927" />
+    <option name="height" value="916" />
   </component>
   <component name="ProjectView">
     <navigator proportions="" version="1">
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
-      <pane id="PackagesPane" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -355,28 +177,11 @@
               <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
               <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
             </path>
-            <path>
-              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
-              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
-              <item name="algebra" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
-              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
-              <item name="algebra" type="462c0819:PsiDirectoryNode" />
-              <item name="src" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
-              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
-              <item name="algebra" type="462c0819:PsiDirectoryNode" />
-              <item name="src" type="462c0819:PsiDirectoryNode" />
-              <item name="fft" type="462c0819:PsiDirectoryNode" />
-            </path>
           </expand>
           <select />
         </subPane>
       </pane>
+      <pane id="PackagesPane" />
       <pane id="Scope" />
     </panes>
   </component>
@@ -489,9 +294,8 @@
   </component>
   <component name="ToolWindowManager">
     <frame x="67" y="32" width="1853" height="918" extended-state="6" />
-    <editor active="true" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" sideWeight="0.4993234" visible="true" weight="0.20144686" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" sideWeight="0.4993234" visible="true" weight="0.1869783" />
       <window_info id="Structure" order="1" sideWeight="0.5006766" side_tool="true" weight="0.19588202" />
       <window_info id="Image Layers" order="2" />
       <window_info id="Designer" order="3" />
@@ -521,20 +325,6 @@
     </layout>
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/proof-systems/src/gm17/r1cs_to_sap.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state>
-          <caret column="67" selection-start-column="67" selection-end-column="67" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/proof-systems/src/gm17/generator.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state>
-          <caret column="67" selection-start-column="67" selection-end-column="67" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/proof-systems/src/groth16/r1cs_to_qap.rs">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="18">
@@ -727,39 +517,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt4/mod.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="7920">
-          <caret line="440" column="19" lean-forward="true" selection-start-line="440" selection-start-column="19" selection-end-line="440" selection-end-column="19" />
-          <folding>
-            <element signature="e#6268#6269#0" expanded="true" />
-            <element signature="e#6331#6332#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt6/mod.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="7970">
-          <caret line="447" lean-forward="true" selection-start-line="445" selection-start-column="8" selection-end-line="450" />
-          <folding>
-            <element signature="e#6380#6381#0" expanded="true" />
-            <element signature="e#6443#6444#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/bls12/mod.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="562">
-          <caret line="238" column="23" selection-start-line="238" selection-start-column="23" selection-end-line="238" selection-end-column="23" />
-          <folding>
-            <element signature="e#8007#8008#0" expanded="true" />
-            <element signature="e#8038#8039#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/algebra/src/fields/mod.rs">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="-2712">
@@ -828,13 +585,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/pairing/mnt4/mod.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="206">
-          <caret line="80" column="90" selection-start-line="80" selection-start-column="90" selection-end-line="80" selection-end-column="90" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/fields/fp.rs">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="18">
@@ -842,25 +592,49 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/algebra/src/fft/domain/basic_radix_2_domain.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-3592">
-          <caret line="11" column="11" selection-start-line="11" selection-start-column="11" selection-end-line="11" selection-end-column="11" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/algebra/src/fft/domain/mod.rs">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://$PROJECT_DIR$/algebra/src/fft/domain/domain_selector.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="3258">
-          <caret line="183" column="15" selection-start-line="183" selection-start-column="15" selection-end-line="183" selection-end-column="15" />
-        </state>
-      </provider>
-    </entry>
+    <entry file="file://$PROJECT_DIR$/algebra/src/fft/domain/basic_radix_2_domain.rs" />
+    <entry file="file://$PROJECT_DIR$/algebra/src/fft/domain/mod.rs" />
+    <entry file="file://$PROJECT_DIR$/algebra/src/fft/domain/domain_selector.rs" />
     <entry file="file://$PROJECT_DIR$/algebra/src/fft/mod.rs">
       <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mod.rs">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/short_weierstrass_jacobian.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-10144">
+          <caret line="109" column="10" lean-forward="true" selection-start-line="109" selection-start-column="10" selection-end-line="109" selection-end-column="10" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/pairing/mnt4/mod.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="206">
+          <caret line="80" column="90" selection-start-line="80" selection-start-column="90" selection-end-line="80" selection-end-column="90" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/bls12/mod.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="702">
+          <caret line="202" lean-forward="true" selection-start-line="202" selection-end-line="202" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt6/mod.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="216">
+          <caret line="12" column="23" selection-start-line="12" selection-start-column="23" selection-end-line="12" selection-end-column="23" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt4/mod.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="180">
+          <caret line="10" selection-start-line="10" selection-end-line="10" />
+        </state>
+      </provider>
     </entry>
   </component>
   <component name="masterDetails">

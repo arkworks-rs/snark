@@ -10,7 +10,7 @@ use r1cs_core::{ConstraintSystem, SynthesisError};
 use algebra::curves::models::mnt6::{MNT6Parameters, G1Prepared, G2Prepared, g2::G2PreparedCoefficients};
 
 use std::fmt::Debug;
-use std::ops::{Add, Mul, Sub};
+use std::ops::{Add, Mul};
 use std::borrow::Borrow;
 use crate::algebra::AffineCurve;
 use crate::bits::boolean::Boolean;
@@ -215,30 +215,14 @@ impl<P: MNT6Parameters>G2PreparedGadget<P> {
 
         //Compute new_sx
         let two_sx = s.x.double(cs.ns(|| "2s_x"))?;
-        let new_sx = Fp3G::<P>::alloc(cs.ns(|| "Compute new_sx"), || {
-            let gamma_value = gamma.get_value().get()?;
-            Ok(gamma_value.mul(&gamma_value).sub(&two_sx.get_value().get()?))
-        })?;
+        let new_sx = gamma.square(cs.ns(|| "gamma^2"))?
+            .sub(cs.ns(|| "gamma^2 - 2s_x"), &two_sx)?;
 
-        //Check new_sx: new_sx+2s_x = gamma*gamma
-        let new_s_x_plus_2_s_x = new_sx.add(cs.ns(|| "new_s_x + 2_s_x"), &two_sx)?;
-        gamma.mul_equals(cs.ns(|| "new sx calculation is correct"), &gamma, &new_s_x_plus_2_s_x)?;
-
-        //Compute new_sy
-        let s_x_minus_new_s_x = s.x
-            .sub(cs.ns(|| "s_x - new_s_x"), &new_sx)?;
-
-        let new_sy = Fp3G::<P>::alloc(cs.ns(|| "Compute new_sy"), || {
-            Ok(s_x_minus_new_s_x
-                .get_value().get()?
-                .mul(&gamma.get_value().get()?)
-                .sub(&s.y.get_value().get()?))
-        })?;
-
-        let new_sy_plus_s_y = new_sy.add(cs.ns(|| "new_sy + sy"), &s.y)?;
-
-        //Check new_sy: new_sy + sy = gamma*(sx - new_sx)
-        gamma.mul_equals(cs.ns(|| "Check new_sy"), &s_x_minus_new_s_x, &new_sy_plus_s_y)?;
+        //Compute and check new_sy
+        let new_sy = s.x
+            .sub(cs.ns(|| "s_x - new_s_x"), &new_sx)?
+            .mul(cs.ns(|| "gamma * (s_x - new_s_x)"), &gamma)?
+            .sub(cs.ns(|| "gamma * (s_x - new_s_x) - s_y"), &s.y)?;
 
         let c = G2CoefficientsGadget{r_y: s.y.clone(), gamma, gamma_x};
         let s2 = G2Gadget::<P>::new(new_sx, new_sy, Boolean::constant(false));
@@ -273,34 +257,16 @@ impl<P: MNT6Parameters>G2PreparedGadget<P> {
         //Compute and check gamma_x
         let gamma_x = gamma.mul(cs.ns(|| "Compute gamma_x"), &x)?;
 
-        //Compute new_sx
-        let new_sx = Fp3G::<P>::alloc(cs.ns(|| "Compute new_sx"), || {
-            let gamma_value = gamma.get_value().get()?;
-            Ok(gamma_value.mul(&gamma_value).sub(&s.x.get_value().get()?).sub(&x.get_value().get()?))
-        })?;
+        //Compute and check new_sx
+        let new_sx = gamma.square(cs.ns(|| "gamma^2"))?
+            .sub(cs.ns(|| "gamma^2 - s_x"), &s.x)?
+            .sub(cs.ns(|| "gamma^2 - s_x - x"), &x)?;
 
-        //Check new_sx
-        let x_plus_s_x_plus_new_sx = x
-            .add(cs.ns(|| "x + s_x"), &s.x)?
-            .add(cs.ns(|| "x + s_x + new_s_x"), &new_sx)?;
-
-        gamma.mul_equals(cs.ns(|| "Check new_sx"), &gamma, &x_plus_s_x_plus_new_sx)?;
-
-        //Compute new_sy
-        let s_x_minus_new_s_x = s.x
-            .sub(cs.ns(|| "s_x - new_s_x"), &new_sx)?;
-
-        let new_sy = Fp3G::<P>::alloc(cs.ns(|| "Compute new_sy"), || {
-            Ok(s_x_minus_new_s_x
-                .get_value().get()?
-                .mul(&gamma.get_value().get()?)
-                .sub(&s.y.get_value().get()?))
-        })?;
-
-        let new_sy_plus_s_y = new_sy.add(cs.ns(|| "new_sy + sy"), &s.y)?;
-
-        //Check new_sy: new_sy + sy = gamma*(sx - new_sx)
-        gamma.mul_equals(cs.ns(|| "Check new_sy"), &s_x_minus_new_s_x, &new_sy_plus_s_y)?;
+        //Compute and check new_sy
+        let new_sy = s.x
+            .sub(cs.ns(|| "s_x - new_s_x"), &new_sx)?
+            .mul(cs.ns(|| "gamma * (s_x - new_s_x)"), &gamma)?
+            .sub(cs.ns(|| "gamma * (s_x - new_s_x) - s_y"), &s.y)?;
 
         let c = G2CoefficientsGadget{r_y: s.y.clone(), gamma, gamma_x};
         let s2 = G2Gadget::<P>::new(new_sx, new_sy, Boolean::constant(false));
