@@ -1,6 +1,6 @@
 use algebra::{
     curves::bls12::{Bls12Parameters, G1Prepared, TwistType},
-    fields::Field, BitIterator, ProjectiveCurve, AffineCurve
+    fields::Field, BitIterator, ProjectiveCurve,
 };
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
@@ -11,8 +11,6 @@ use crate::{
 };
 
 use std::fmt::Debug;
-use std::borrow::Borrow;
-use algebra::curves::models::bls12::G2Prepared;
 
 pub mod bls12_377;
 
@@ -60,21 +58,6 @@ impl<P: Bls12Parameters> ToBytesGadget<P::Fp> for G1PreparedGadget<P> {
         cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
         self.to_bytes(cs)
-    }
-}
-
-impl<P: Bls12Parameters> HardCodedGadget<G1Prepared<P>, P::Fp> for G1PreparedGadget<P>{
-    fn alloc_hardcoded<F, T, CS: ConstraintSystem<P::Fp>>(mut cs: CS, value_gen: F) -> Result<Self, SynthesisError> where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<G1Prepared<P>> {
-        value_gen().and_then(|g1p| {
-            let p = g1p.borrow().clone().0;
-            let p = G1Gadget::<P>::alloc_hardcoded(
-                cs.ns(|| "hardcode p"),
-                || Ok(p.into_projective())
-            )?;
-            Ok(Self(p))
-        })
     }
 }
 
@@ -193,10 +176,4 @@ impl<P: Bls12Parameters> G2PreparedGadget<P> {
             TwistType::D => Ok((f, g)),
         }
     }
-}
-
-impl<P: Bls12Parameters> HardCodedGadget<G2Prepared<P>, P::Fp> for G2PreparedGadget<P>{
-    fn alloc_hardcoded<F, T, CS: ConstraintSystem<P::Fp>>(_cs: CS, _value_gen: F) -> Result<Self, SynthesisError> where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<G2Prepared<P>> { unimplemented!() }
 }

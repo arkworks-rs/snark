@@ -6,8 +6,10 @@
   <component name="ChangeListManager">
     <list default="true" id="719be06c-21f5-4575-9861-92c1a9b7938b" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/bls12/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/bls12/mod.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt4/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt4/mod.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt6/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt6/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/r1cs/gadgets/std/src/pairing/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/r1cs/gadgets/std/src/pairing/mod.rs" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -20,11 +22,20 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="375">
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/bls12/mod.rs">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="-2278">
+              <caret line="13" selection-start-line="13" selection-end-line="13" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt4/mod.rs">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="180">
-              <caret line="10" selection-start-line="10" selection-end-line="10" />
+            <state relative-caret-position="252">
+              <caret line="14" selection-start-line="14" selection-end-line="14" />
             </state>
           </provider>
         </entry>
@@ -32,8 +43,17 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt6/mod.rs">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="216">
-              <caret line="12" column="23" selection-start-line="12" selection-start-column="23" selection-end-line="12" selection-end-column="23" />
+            <state relative-caret-position="234">
+              <caret line="13" selection-start-line="13" selection-end-line="13" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/pairing/mod.rs">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="18">
+              <caret line="1" column="34" selection-start-line="1" selection-start-column="34" selection-end-line="1" selection-end-column="34" />
             </state>
           </provider>
         </entry>
@@ -49,8 +69,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>SMALL_SUBGROUP_DEFINED</find>
-      <find>fn alloc_hardcoded</find>
       <find>alloc_input</find>
       <find>value_gen().and</find>
       <find>value_gen()</find>
@@ -79,6 +97,8 @@
       <find>fn mul</find>
       <find>fn mul_assign_</find>
       <find>mul_assign_by_fp_gadget</find>
+      <find>PreparedVerifyingKeyGadget</find>
+      <find>alloc_hardcoded</find>
     </findStrings>
     <replaceStrings>
       <replace>MNT4</replace>
@@ -146,13 +166,13 @@
         <option value="$PROJECT_DIR$/proof-systems/src/groth16/mod.rs" />
         <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/alloc.rs" />
         <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/mod.rs" />
-        <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/bls12/mod.rs" />
-        <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/pairing/mod.rs" />
         <option value="$PROJECT_DIR$/r1cs/gadgets/crypto/src/nizk/groth16/mod.rs" />
         <option value="$PROJECT_DIR$/algebra/src/fft/domain/domain_selector.rs" />
         <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/short_weierstrass_jacobian.rs" />
-        <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt6/mod.rs" />
+        <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/bls12/mod.rs" />
         <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt4/mod.rs" />
+        <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt6/mod.rs" />
+        <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/pairing/mod.rs" />
       </list>
     </option>
   </component>
@@ -176,6 +196,121 @@
             <path>
               <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
               <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
+              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
+              <item name="r1cs" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
+              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
+              <item name="r1cs" type="462c0819:PsiDirectoryNode" />
+              <item name="gadgets" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
+              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
+              <item name="r1cs" type="462c0819:PsiDirectoryNode" />
+              <item name="gadgets" type="462c0819:PsiDirectoryNode" />
+              <item name="std" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
+              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
+              <item name="r1cs" type="462c0819:PsiDirectoryNode" />
+              <item name="gadgets" type="462c0819:PsiDirectoryNode" />
+              <item name="std" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
+              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
+              <item name="r1cs" type="462c0819:PsiDirectoryNode" />
+              <item name="gadgets" type="462c0819:PsiDirectoryNode" />
+              <item name="std" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="groups" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
+              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
+              <item name="r1cs" type="462c0819:PsiDirectoryNode" />
+              <item name="gadgets" type="462c0819:PsiDirectoryNode" />
+              <item name="std" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="groups" type="462c0819:PsiDirectoryNode" />
+              <item name="curves" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
+              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
+              <item name="r1cs" type="462c0819:PsiDirectoryNode" />
+              <item name="gadgets" type="462c0819:PsiDirectoryNode" />
+              <item name="std" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="groups" type="462c0819:PsiDirectoryNode" />
+              <item name="curves" type="462c0819:PsiDirectoryNode" />
+              <item name="short_weierstrass" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
+              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
+              <item name="r1cs" type="462c0819:PsiDirectoryNode" />
+              <item name="gadgets" type="462c0819:PsiDirectoryNode" />
+              <item name="std" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="groups" type="462c0819:PsiDirectoryNode" />
+              <item name="curves" type="462c0819:PsiDirectoryNode" />
+              <item name="short_weierstrass" type="462c0819:PsiDirectoryNode" />
+              <item name="bls12" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
+              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
+              <item name="r1cs" type="462c0819:PsiDirectoryNode" />
+              <item name="gadgets" type="462c0819:PsiDirectoryNode" />
+              <item name="std" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="groups" type="462c0819:PsiDirectoryNode" />
+              <item name="curves" type="462c0819:PsiDirectoryNode" />
+              <item name="short_weierstrass" type="462c0819:PsiDirectoryNode" />
+              <item name="mnt" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
+              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
+              <item name="r1cs" type="462c0819:PsiDirectoryNode" />
+              <item name="gadgets" type="462c0819:PsiDirectoryNode" />
+              <item name="std" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="groups" type="462c0819:PsiDirectoryNode" />
+              <item name="curves" type="462c0819:PsiDirectoryNode" />
+              <item name="short_weierstrass" type="462c0819:PsiDirectoryNode" />
+              <item name="mnt" type="462c0819:PsiDirectoryNode" />
+              <item name="mnt4" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
+              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
+              <item name="r1cs" type="462c0819:PsiDirectoryNode" />
+              <item name="gadgets" type="462c0819:PsiDirectoryNode" />
+              <item name="std" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="groups" type="462c0819:PsiDirectoryNode" />
+              <item name="curves" type="462c0819:PsiDirectoryNode" />
+              <item name="short_weierstrass" type="462c0819:PsiDirectoryNode" />
+              <item name="mnt" type="462c0819:PsiDirectoryNode" />
+              <item name="mnt6" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
+              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
+              <item name="r1cs" type="462c0819:PsiDirectoryNode" />
+              <item name="gadgets" type="462c0819:PsiDirectoryNode" />
+              <item name="std" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="pairing" type="462c0819:PsiDirectoryNode" />
             </path>
           </expand>
           <select />
@@ -294,8 +429,9 @@
   </component>
   <component name="ToolWindowManager">
     <frame x="67" y="32" width="1853" height="918" extended-state="6" />
+    <editor active="true" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" sideWeight="0.4993234" visible="true" weight="0.1869783" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" sideWeight="0.4993234" visible="true" weight="0.33945465" />
       <window_info id="Structure" order="1" sideWeight="0.5006766" side_tool="true" weight="0.19588202" />
       <window_info id="Image Layers" order="2" />
       <window_info id="Designer" order="3" />
@@ -325,13 +461,6 @@
     </layout>
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/proof-systems/src/groth16/r1cs_to_qap.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="18">
-          <caret line="1" column="67" selection-start-line="1" selection-start-column="67" selection-end-line="1" selection-end-column="67" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/algebra/src/fields/models/fp_256.rs">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="468">
@@ -552,22 +681,14 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/pairing/mnt6/mod.rs">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="720">
-          <caret line="70" column="34" selection-start-line="70" selection-start-column="34" selection-end-line="70" selection-end-column="34" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/pairing/mod.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-1170">
-          <caret line="30" column="7" selection-start-line="30" selection-start-column="7" selection-end-line="30" selection-end-column="7" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/crypto/src/nizk/groth16/mod.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="378">
-          <caret line="189" column="21" selection-start-line="189" selection-start-column="21" selection-end-line="189" selection-end-column="21" />
+        <state relative-caret-position="72">
+          <caret line="98" selection-start-line="98" selection-end-line="98" />
+          <folding>
+            <element signature="e#8975#8976#0" expanded="true" />
+            <element signature="e#9032#9033#0" expanded="true" />
+            <element signature="e#9187#9188#0" expanded="true" />
+            <element signature="e#9244#9245#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>
@@ -610,29 +731,58 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/pairing/mnt4/mod.rs">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="206">
-          <caret line="80" column="90" selection-start-line="80" selection-start-column="90" selection-end-line="80" selection-end-column="90" />
+        <state relative-caret-position="1764">
+          <caret line="98" selection-start-line="98" selection-end-line="98" />
+          <folding>
+            <element signature="e#8842#8843#0" expanded="true" />
+            <element signature="e#8899#8900#0" expanded="true" />
+            <element signature="e#9054#9055#0" expanded="true" />
+            <element signature="e#9111#9112#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/fields/fp3.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-756" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/crypto/src/nizk/groth16/mod.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-4055">
+          <caret line="71" column="42" selection-start-line="71" selection-start-column="16" selection-end-line="71" selection-end-column="42" />
+          <folding>
+            <element signature="e#12312#12313#0" expanded="true" />
+            <element signature="e#12344#12345#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/bls12/mod.rs">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="702">
-          <caret line="202" lean-forward="true" selection-start-line="202" selection-end-line="202" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt6/mod.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="216">
-          <caret line="12" column="23" selection-start-line="12" selection-start-column="23" selection-end-line="12" selection-end-column="23" />
+        <state relative-caret-position="-2278">
+          <caret line="13" selection-start-line="13" selection-end-line="13" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt4/mod.rs">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="180">
-          <caret line="10" selection-start-line="10" selection-end-line="10" />
+        <state relative-caret-position="252">
+          <caret line="14" selection-start-line="14" selection-end-line="14" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt6/mod.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="234">
+          <caret line="13" selection-start-line="13" selection-end-line="13" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/pairing/mod.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="18">
+          <caret line="1" column="34" selection-start-line="1" selection-start-column="34" selection-end-line="1" selection-end-column="34" />
         </state>
       </provider>
     </entry>

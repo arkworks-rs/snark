@@ -1,11 +1,10 @@
-use algebra::{Field, AffineCurve};
-use algebra::curves::models::mnt4::{g1::G1Prepared, g2::{G2PreparedCoefficients, G2Prepared}};
+use algebra::Field;
 
 use crate::{fields::{
     FieldGadget, fp::FpGadget, fp2::Fp2Gadget,
 }, groups::curves::short_weierstrass::short_weierstrass_projective::AffineGadget,
     bits::uint8::UInt8, Assignment,
-    alloc::{AllocGadget, HardCodedGadget},
+    alloc::AllocGadget,
     ToBytesGadget,
 };
 
@@ -13,7 +12,6 @@ use r1cs_core::{ConstraintSystem, SynthesisError};
 use algebra::curves::models::mnt4::MNT4Parameters;
 use std::fmt::Debug;
 use std::ops::Mul;
-use std::borrow::Borrow;
 use crate::bits::boolean::Boolean;
 
 pub mod mnt4753;
@@ -72,30 +70,6 @@ impl<P: MNT4Parameters> ToBytesGadget<P::Fp> for G1PreparedGadget<P> {
     }
 }
 
-impl<P: MNT4Parameters> HardCodedGadget<G1Prepared<P>, P::Fp> for G1PreparedGadget<P> {
-    #[inline]
-    fn alloc_hardcoded<F, T, CS: ConstraintSystem<P::Fp>>(mut cs: CS, value_gen: F) -> Result<Self, SynthesisError> where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<G1Prepared<P>>
-    {
-        value_gen().and_then(|g1p| {
-            let G1Prepared {
-                p,
-                py_twist_squared,
-            } = g1p.borrow().clone();
-
-            let p = G1Gadget::<P>::alloc_hardcoded(cs.ns(|| "hardcode p"), || Ok(p.into_projective()))?;
-            let p_y_twist_squared = Fp2G::<P>::alloc_hardcoded(cs.ns(|| "hardcode p_y_twist_squared"), || Ok(py_twist_squared))?;
-
-            Ok(Self {
-                p,
-                p_y_twist_squared,
-            })
-        })
-    }
-}
-
-
 #[derive(Derivative)]
 #[derivative(
 Clone(bound = "Fp2Gadget<P::Fp2Params, P::Fp>: Clone"),
@@ -120,34 +94,6 @@ impl<P: MNT4Parameters> ToBytesGadget<P::Fp> for G2CoefficientsGadget<P> {
         self.to_bytes(cs.ns(|| "to_bytes AteDoubleCoefficients"))
     }
 }
-
-impl<P: MNT4Parameters> HardCodedGadget<G2PreparedCoefficients<P>, P::Fp> for G2CoefficientsGadget<P> {
-    #[inline]
-    fn alloc_hardcoded<F, T, CS: ConstraintSystem<P::Fp>>(mut cs: CS, value_gen: F) -> Result<Self, SynthesisError> where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<G2PreparedCoefficients<P>> {
-        value_gen().and_then(|g2pc| {
-            let G2PreparedCoefficients {
-                r_y,
-                gamma,
-                gamma_x,
-            } = g2pc.borrow().clone();
-
-            let r_y = Fp2G::<P>::alloc_hardcoded(cs.ns(|| "hardcode r_y"), || Ok(r_y))?;
-            let gamma = Fp2G::<P>::alloc_hardcoded(cs.ns(|| "hardcode gamma"), || Ok(gamma))?;
-            let gamma_x = Fp2G::<P>::alloc_hardcoded(cs.ns(|| "hardcode gamma_x"), || Ok(gamma_x))?;
-
-            Ok(Self {
-                r_y,
-                gamma,
-                gamma_x,
-            })
-        })
-    }
-}
-
-
-
 
 #[derive(Derivative)]
 #[derivative(
@@ -290,38 +236,5 @@ impl<P: MNT4Parameters> ToBytesGadget<P::Fp> for G2PreparedGadget<P>
 
     fn to_bytes_strict<CS: ConstraintSystem<P::Fp>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
         self.to_bytes(cs.ns(|| "to_bytes_g2_prepared"))
-    }
-}
-
-impl<P: MNT4Parameters> HardCodedGadget<G2Prepared<P>, P::Fp> for G2PreparedGadget<P> {
-    #[inline]
-    fn alloc_hardcoded<F, T, CS: ConstraintSystem<P::Fp>>(mut cs: CS, value_gen: F) -> Result<Self, SynthesisError>
-        where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<G2Prepared<P>>
-    {
-        value_gen().and_then(|g2p| {
-            let G2Prepared {
-                q,
-                coeffs,
-            } = g2p.borrow().clone();
-
-            let q = G2Gadget::<P>::alloc_hardcoded(cs.ns(|| "hardcode q"), || Ok(q.into_projective()))?;
-            let coeffs = coeffs
-                .into_iter()
-                .enumerate()
-                .map(|(i, query_i)| {
-                    G2CoefficientsGadget::<P>::alloc_hardcoded(cs.ns(|| format!("coeff_{}", i)), || {
-                        Ok(query_i)
-                    })
-                })
-                .collect::<Vec<_>>()
-                .into_iter()
-                .collect::<Result<_, _>>()?;
-            Ok(Self {
-                q,
-                coeffs,
-            })
-        })
     }
 }

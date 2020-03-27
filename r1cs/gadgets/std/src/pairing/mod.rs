@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use algebra::{Field, PairingEngine, PairingCurve};
+use algebra::{Field, PairingEngine};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use std::fmt::Debug;
 
@@ -16,11 +16,9 @@ pub trait PairingGadget<PairingE: PairingEngine, ConstraintF: Field> {
     type G2Gadget: GroupGadget<PairingE::G2Projective, ConstraintF>;
 
     type G1PreparedGadget:
-    HardCodedGadget<<PairingE::G1Affine as PairingCurve>::Prepared, ConstraintF> +
     ToBytesGadget<ConstraintF> + Clone + Debug;
 
     type G2PreparedGadget:
-    HardCodedGadget<<PairingE::G2Affine as PairingCurve>::Prepared, ConstraintF> +
     ToBytesGadget<ConstraintF> + Clone + Debug;
 
     type GTGadget: FieldGadget<PairingE::Fqk, ConstraintF> + Clone;
