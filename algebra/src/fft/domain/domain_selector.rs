@@ -17,43 +17,42 @@ impl<F: PrimeField> EvaluationDomainImpl<F> for EvaluationDomain<F> {
 
     fn new(num_coeffs: usize) -> Option<Self> {
 
-        //Save in a vector the domain types and sizes for each of the domain able to handle at least num_coeffs
-        let mut compatible_domains: Vec<(Self, usize)> =  vec![];
+        // Let's assign an index to each domain:
+        // -1: No suitable domain found
+        // 0: BasicRadix2Domain
+        // 1: MixedRadix2Domain
+        // 2: ...
 
-        let brd_size = BasicRadix2Domain::<F>::compute_size_of_domain(num_coeffs);
-        if brd_size.is_some(){
-            compatible_domains.push(
-                (EvaluationDomain::BasicRadix2Domain(BasicRadix2Domain::<F>::default()), brd_size.unwrap())
-            )
-        }
+        let mut index = -1;
+        let mut domain_size = std::usize::MAX;
+
+        match BasicRadix2Domain::<F>::compute_size_of_domain(num_coeffs) {
+            Some(size) => {
+                if size < domain_size {
+                    index = 0;
+                    domain_size = size;
+                }
+            },
+            None => {}
+        };
 
         if F::Params::SMALL_SUBGROUP_DEFINED {
-            let mrd_size = MixedRadix2Domain::<F>::compute_size_of_domain(num_coeffs);
-            if mrd_size.is_some() {
-                compatible_domains.push(
-                    (EvaluationDomain::MixedRadix2Domain(MixedRadix2Domain::<F>::default()), mrd_size.unwrap())
-                )
-            }
+            match MixedRadix2Domain::<F>::compute_size_of_domain(num_coeffs) {
+                Some(size) => {
+                    if size < domain_size {
+                        index = 1;
+                        //domain_size = size;
+                    }
+                },
+                None => {}
+            };
         }
 
-        //Return None if no suitable domain has been found
-        if compatible_domains.len() == 0 {
-            return None
-        }
-
-        //Otherwise, return the domain with the smallest domain size
-        let mut best_domain = compatible_domains[0];
-        compatible_domains.iter().skip(1).for_each(|curr_domain| {
-            if curr_domain.1 < best_domain.1 {
-                best_domain = curr_domain.clone();
-            }
-        });
-
-        match best_domain.0 {
-            EvaluationDomain::BasicRadix2Domain(_) =>
-                Some(EvaluationDomain::BasicRadix2Domain(BasicRadix2Domain::<F>::new(best_domain.1).unwrap())),
-            EvaluationDomain::MixedRadix2Domain(_) =>
-                Some(EvaluationDomain::MixedRadix2Domain(MixedRadix2Domain::<F>::new(best_domain.1).unwrap())),
+        //Return best domain or None if no suitable domain has been found
+        match index {
+            0 => Some(EvaluationDomain::<F>::BasicRadix2Domain(BasicRadix2Domain::<F>::new(num_coeffs).unwrap())),
+            1 => Some(EvaluationDomain::<F>::MixedRadix2Domain(MixedRadix2Domain::<F>::new(num_coeffs).unwrap())),
+            _ => None,
         }
     }
 
