@@ -5,13 +5,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="719be06c-21f5-4575-9861-92c1a9b7938b" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/algebra/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/algebra/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/bench-utils/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/bench-utils/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/primitives/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/primitives/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/proof-systems/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/proof-systems/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs/core/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/r1cs/core/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs/gadgets/crypto/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/r1cs/gadgets/crypto/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/r1cs/gadgets/std/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/r1cs/gadgets/std/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/short_weierstrass_jacobian.rs" beforeDir="false" afterPath="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/short_weierstrass_jacobian.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/short_weierstrass_projective.rs" beforeDir="false" afterPath="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/short_weierstrass_projective.rs" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -23,7 +19,17 @@
     <option name="isMigrated" value="true" />
   </component>
   <component name="FileEditorManager">
-    <leaf SIDE_TABS_SIZE_LIMIT_KEY="375" />
+    <leaf SIDE_TABS_SIZE_LIMIT_KEY="375">
+      <file pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/short_weierstrass_projective.rs">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="170">
+              <caret line="495" column="53" lean-forward="true" selection-start-line="495" selection-start-column="53" selection-end-line="495" selection-end-column="53" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+    </leaf>
   </component>
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
@@ -34,8 +40,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>alloc_input</find>
-      <find>value_gen().and</find>
       <find>value_gen()</find>
       <find>prime_su</find>
       <find>fn alloc</find>
@@ -64,6 +68,8 @@
       <find>mul_assign_by_fp_gadget</find>
       <find>PreparedVerifyingKeyGadget</find>
       <find>alloc_hardcoded</find>
+      <find>add</find>
+      <find>fn mul_by_constant</find>
     </findStrings>
     <replaceStrings>
       <replace>MNT4</replace>
@@ -125,13 +131,11 @@
         <option value="$PROJECT_DIR$/algebra/src/fft/domain/mod.rs" />
         <option value="$PROJECT_DIR$/Cargo.toml" />
         <option value="$PROJECT_DIR$/r1cs/gadgets/crypto/src/nizk/mod.rs" />
-        <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/fields/fp.rs" />
         <option value="$PROJECT_DIR$/proof-systems/src/groth16/mod.rs" />
         <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/alloc.rs" />
         <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/mod.rs" />
         <option value="$PROJECT_DIR$/r1cs/gadgets/crypto/src/nizk/groth16/mod.rs" />
         <option value="$PROJECT_DIR$/algebra/src/fft/domain/domain_selector.rs" />
-        <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/short_weierstrass_jacobian.rs" />
         <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/pairing/mod.rs" />
         <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mnt/mnt4/mod.rs" />
         <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/bls12/mod.rs" />
@@ -143,6 +147,9 @@
         <option value="$PROJECT_DIR$/r1cs/core/Cargo.toml" />
         <option value="$PROJECT_DIR$/r1cs/gadgets/std/Cargo.toml" />
         <option value="$PROJECT_DIR$/r1cs/gadgets/crypto/Cargo.toml" />
+        <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/short_weierstrass_jacobian.rs" />
+        <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/fields/fp.rs" />
+        <option value="$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/short_weierstrass_projective.rs" />
       </list>
     </option>
   </component>
@@ -175,18 +182,28 @@
             <path>
               <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
               <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
-              <item name="proof-systems" type="462c0819:PsiDirectoryNode" />
+              <item name="primitives" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
+              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
+              <item name="primitives" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="crh" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
+              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
+              <item name="primitives" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="crh" type="462c0819:PsiDirectoryNode" />
+              <item name="bowe_hopwood" type="462c0819:PsiDirectoryNode" />
             </path>
             <path>
               <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
               <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
               <item name="r1cs" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
-              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
-              <item name="r1cs" type="462c0819:PsiDirectoryNode" />
-              <item name="core" type="462c0819:PsiDirectoryNode" />
             </path>
             <path>
               <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
@@ -206,7 +223,27 @@
               <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
               <item name="r1cs" type="462c0819:PsiDirectoryNode" />
               <item name="gadgets" type="462c0819:PsiDirectoryNode" />
-              <item name="std" type="462c0819:PsiDirectoryNode" />
+              <item name="crypto" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
+              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
+              <item name="r1cs" type="462c0819:PsiDirectoryNode" />
+              <item name="gadgets" type="462c0819:PsiDirectoryNode" />
+              <item name="crypto" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="crh" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="ginger-lib" type="b2602c69:ProjectViewProjectNode" />
+              <item name="ginger-lib" type="462c0819:PsiDirectoryNode" />
+              <item name="r1cs" type="462c0819:PsiDirectoryNode" />
+              <item name="gadgets" type="462c0819:PsiDirectoryNode" />
+              <item name="crypto" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="crh" type="462c0819:PsiDirectoryNode" />
+              <item name="bowe_hopwood" type="462c0819:PsiDirectoryNode" />
             </path>
           </expand>
           <select />
@@ -325,8 +362,9 @@
   </component>
   <component name="ToolWindowManager">
     <frame x="67" y="32" width="1853" height="918" extended-state="6" />
+    <editor active="true" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" sideWeight="0.4993234" visible="true" weight="0.18809126" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" sideWeight="0.4993234" visible="true" weight="0.29437953" />
       <window_info id="Structure" order="1" sideWeight="0.5006766" side_tool="true" weight="0.19588202" />
       <window_info id="Image Layers" order="2" />
       <window_info id="Designer" order="3" />
@@ -356,62 +394,6 @@
     </layout>
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/algebra/src/fft/domain/mixed_radix_2_domain.rs" />
-    <entry file="file://$PROJECT_DIR$/proof-systems/src/groth16/test.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="4194">
-          <caret line="272" column="29" selection-start-line="272" selection-start-column="29" selection-end-line="272" selection-end-column="29" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Cargo.toml">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="234">
-          <caret line="13" column="13" lean-forward="true" selection-start-line="13" selection-start-column="13" selection-end-line="13" selection-end-column="13" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/algebra/src/fft/evaluations.rs">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/fields/fp6_2over3.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="234">
-          <caret line="840" selection-start-line="840" selection-end-line="840" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/crypto/src/nizk/gm17/mod.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-4860" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/proof-systems/src/groth16/generator.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-2170">
-          <caret line="179" column="46" selection-start-line="179" selection-start-column="46" selection-end-line="179" selection-end-column="46" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/proof-systems/src/gm17/mod.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-4536" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/proof-systems/src/groth16/mod.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="242">
-          <caret line="254" column="1" selection-start-line="254" selection-start-column="1" selection-end-line="254" selection-end-column="1" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/algebra/src/curves/mnt6753/tests.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="234">
-          <caret line="114" column="8" selection-start-line="114" selection-start-column="8" selection-end-line="114" selection-end-column="8" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/algebra/src/groups/tests.rs">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="72">
@@ -421,22 +403,15 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/mod.rs">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="134">
-          <caret line="256" lean-forward="true" selection-start-line="256" selection-end-line="256" />
+        <state relative-caret-position="314">
+          <caret line="39" lean-forward="true" selection-start-line="39" selection-end-line="39" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/r1cs/gadgets/crypto/src/nizk/mod.rs">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="414">
-          <caret line="26" column="7" selection-start-line="26" selection-start-column="7" selection-end-line="26" selection-end-column="7" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/crypto/src/crh/bowe_hopwood/mod.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="566">
-          <caret line="41" selection-start-line="41" selection-end-line="41" />
+        <state relative-caret-position="134">
+          <caret line="28" column="55" lean-forward="true" selection-start-line="28" selection-start-column="55" selection-end-line="28" selection-end-column="55" />
         </state>
       </provider>
     </entry>
@@ -454,13 +429,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="224">
           <caret line="156" column="39" selection-start-line="156" selection-start-column="39" selection-end-line="156" selection-end-column="39" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/short_weierstrass_projective.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="224">
-          <caret line="482" column="7" selection-start-line="482" selection-start-column="7" selection-end-line="482" selection-end-column="7" />
         </state>
       </provider>
     </entry>
@@ -545,20 +513,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/r1cs/core/src/impl_constraint_var.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="234">
-          <caret line="165" column="7" selection-start-line="165" selection-start-column="7" selection-end-line="165" selection-end-column="7" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/fields/fp.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="18">
-          <caret line="160" column="18" selection-start-line="160" selection-start-column="18" selection-end-line="160" selection-end-column="18" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/algebra/src/fft/domain/basic_radix_2_domain.rs" />
     <entry file="file://$PROJECT_DIR$/algebra/src/fft/domain/mod.rs" />
     <entry file="file://$PROJECT_DIR$/algebra/src/fft/domain/domain_selector.rs" />
@@ -567,13 +521,6 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/mod.rs">
       <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/short_weierstrass_jacobian.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-10144">
-          <caret line="109" column="10" lean-forward="true" selection-start-line="109" selection-start-column="10" selection-end-line="109" selection-end-column="10" />
-        </state>
-      </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/pairing/mnt4/mod.rs">
       <provider selected="true" editor-type-id="text-editor">
@@ -595,12 +542,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/r1cs/gadgets/crypto/src/nizk/groth16/mod.rs">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-4055">
-          <caret line="71" column="42" selection-start-line="71" selection-start-column="16" selection-end-line="71" selection-end-column="42" />
-          <folding>
-            <element signature="e#12312#12313#0" expanded="true" />
-            <element signature="e#12344#12345#0" expanded="true" />
-          </folding>
+        <state relative-caret-position="-126">
+          <caret line="116" column="48" selection-start-line="116" selection-start-column="48" selection-end-line="116" selection-end-column="48" />
         </state>
       </provider>
     </entry>
@@ -627,8 +570,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/pairing/mod.rs">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="18">
-          <caret line="1" column="34" selection-start-line="1" selection-start-column="34" selection-end-line="1" selection-end-column="34" />
+        <state relative-caret-position="450">
+          <caret line="65" lean-forward="true" selection-start-line="65" selection-end-line="65" />
         </state>
       </provider>
     </entry>
@@ -678,6 +621,133 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="216">
           <caret line="12" column="44" selection-start-line="12" selection-start-column="44" selection-end-line="12" selection-end-column="44" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/short_weierstrass_jacobian.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-6382">
+          <caret line="238" column="5" lean-forward="true" selection-start-line="238" selection-start-column="5" selection-end-line="238" selection-end-column="5" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/crypto/src/signature/schnorr/mod.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="342">
+          <caret line="360" column="51" selection-start-line="360" selection-start-column="51" selection-end-line="360" selection-end-column="52" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/proof-systems/src/groth16/prover.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="594">
+          <caret line="123" column="14" selection-start-line="123" selection-start-column="7" selection-end-line="123" selection-end-column="14" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/src/libcore/convert/mod.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="234">
+          <caret line="556" column="7" selection-start-line="556" selection-start-column="7" selection-end-line="556" selection-end-column="7" />
+          <folding>
+            <element signature="e#19720#19721#0" expanded="true" />
+            <element signature="e#19748#19749#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/r1cs/core/src/impl_constraint_var.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="216">
+          <caret line="14" column="12" selection-start-line="14" selection-start-column="12" selection-end-line="14" selection-end-column="12" />
+          <folding>
+            <element signature="e#413#414#0" expanded="true" />
+            <element signature="e#448#449#0" expanded="true" />
+            <element signature="e#1183#1184#0" expanded="true" />
+            <element signature="e#1227#1228#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/.cargo/registry/src/github.com-1ecc6299db9ec823/smallvec-0.6.13/lib.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="224">
+          <caret line="808" column="11" selection-start-line="808" selection-start-column="11" selection-end-line="808" selection-end-column="11" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/fields/fp.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="283">
+          <caret line="720" column="28" lean-forward="true" selection-start-line="720" selection-start-column="28" selection-end-line="720" selection-end-column="28" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/r1cs/core/src/constraint_system.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="378">
+          <caret line="21" column="7" selection-start-line="21" selection-start-column="7" selection-end-line="21" selection-end-column="7" />
+          <folding>
+            <element signature="e#507#508#0" expanded="true" />
+            <element signature="e#562#563#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/proof-systems/src/gm17/generator.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="360">
+          <caret line="60" column="32" selection-start-line="60" selection-start-column="32" selection-end-line="60" selection-end-column="32" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/r1cs/core/src/lib.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="386">
+          <caret line="28" column="11" selection-start-line="28" selection-start-column="11" selection-end-line="28" selection-end-column="11" />
+          <folding>
+            <element signature="e#1220#1221#0" expanded="true" />
+            <element signature="e#1248#1249#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/r1cs/core/src/impl_lc.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-972">
+          <caret line="57" column="11" selection-start-line="57" selection-start-column="11" selection-end-line="57" selection-end-column="11" />
+          <folding>
+            <element signature="e#810#811#0" expanded="true" />
+            <element signature="e#864#865#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/proof-systems/src/groth16/generator.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1134">
+          <caret line="172" column="25" lean-forward="true" selection-start-line="172" selection-start-column="25" selection-end-line="172" selection-end-column="25" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/primitives/src/crh/bowe_hopwood/mod.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-154">
+          <caret line="153" selection-start-line="153" selection-end-line="153" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/crypto/src/crh/bowe_hopwood/mod.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-2404">
+          <caret line="41" selection-start-line="41" selection-end-line="41" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/r1cs/gadgets/std/src/groups/curves/short_weierstrass/short_weierstrass_projective.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="170">
+          <caret line="495" column="53" lean-forward="true" selection-start-line="495" selection-start-column="53" selection-end-line="495" selection-end-column="53" />
         </state>
       </provider>
     </entry>

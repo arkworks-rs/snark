@@ -117,13 +117,15 @@ for AffineGadget<P, ConstraintF, F>
         //
         // So we need to check that A.x - B.x != 0, which can be done by
         // enforcing I * (B.x - A.x) = 1
+        // This is done below when we calculate inv (by F::inverse)
 
         let x2_minus_x1 = other.x.sub(cs.ns(|| "x2 - x1"), &self.x)?;
         let y2_minus_y1 = other.y.sub(cs.ns(|| "y2 - y1"), &self.y)?;
 
+        let inv = x2_minus_x1.inverse(cs.ns(|| "compute inv"))?;
+
         let lambda = F::alloc(cs.ns(|| "lambda"), || {
-            let inv = x2_minus_x1.get_value().get()?.inverse().get()?;
-            Ok(y2_minus_y1.get_value().get()? * &inv)
+            Ok(y2_minus_y1.get_value().get()? * &inv.get_value().get()?)
         })?;
 
         let x_3 = F::alloc(&mut cs.ns(|| "x_3"), || {
@@ -156,7 +158,7 @@ for AffineGadget<P, ConstraintF, F>
 
         lambda.mul_equals(cs.ns(|| ""), &x1_minus_x3, &y3_plus_y1)?;
 
-        Ok(Self::new(x_3, y_3, Boolean::constant(false)))
+        Ok(Self::new(x_3, y_3, Boolean::Constant(false)))
     }
 
     /// Incomplete addition: neither `self` nor `other` can be the neutral
@@ -197,9 +199,10 @@ for AffineGadget<P, ConstraintF, F>
             .sub_constant(cs.ns(|| "y2 - y1"), &other_y)?
             .negate(cs.ns(|| "neg2"))?;
 
+        let inv = x2_minus_x1.inverse(cs.ns(|| "compute inv"))?;
+
         let lambda = F::alloc(cs.ns(|| "lambda"), || {
-            let inv = x2_minus_x1.get_value().get()?.inverse().get()?;
-            Ok(y2_minus_y1.get_value().get()? * &inv)
+            Ok(y2_minus_y1.get_value().get()? * &inv.get_value().get()?)
         })?;
 
         let x_3 = F::alloc(&mut cs.ns(|| "x_3"), || {
@@ -232,8 +235,9 @@ for AffineGadget<P, ConstraintF, F>
 
         lambda.mul_equals(cs.ns(|| ""), &x1_minus_x3, &y3_plus_y1)?;
 
-        Ok(Self::new(x_3, y_3, Boolean::constant(false)))
+        Ok(Self::new(x_3, y_3, Boolean::Constant(false)))
     }
+
 
     #[inline]
     fn double_in_place<CS: ConstraintSystem<ConstraintF>>(

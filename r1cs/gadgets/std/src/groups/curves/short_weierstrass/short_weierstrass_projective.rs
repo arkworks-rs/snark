@@ -38,6 +38,67 @@ impl<P, ConstraintF, F> AffineGadget<P, ConstraintF, F>
             _engine: PhantomData,
         }
     }
+
+    #[inline]
+    /// Incomplete addition: neither `self` nor `other` can be the neutral
+    /// element.
+    pub fn add_unsafe<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        other: &Self,
+    ) -> Result<Self, SynthesisError> {
+        // lambda = (B.y - A.y)/(B.x - A.x)
+        // C.x = lambda^2 - A.x - B.x
+        // C.y = lambda(A.x - C.x) - A.y
+        //
+        // Special cases:
+        //
+        // doubling: if B.y = A.y and B.x = A.x then lambda is unbound and
+        // C = (lambda^2, lambda^3)
+        //
+        // addition of negative point: if B.y = -A.y and B.x = A.x then no
+        // lambda can satisfy the first equation unless B.y - A.y = 0. But
+        // then this reduces to doubling.
+
+        let x2_minus_x1 = other.x.sub(cs.ns(|| "x2 - x1"), &self.x)?;
+        let y2_minus_y1 = other.y.sub(cs.ns(|| "y2 - y1"), &self.y)?;
+
+        let lambda = F::alloc(cs.ns(|| "lambda"), || {
+            Ok(y2_minus_y1.get_value().get()? * &x2_minus_x1.get_value().get()?)
+        })?;
+
+        let x_3 = F::alloc(&mut cs.ns(|| "x_3"), || {
+            let lambda_val = lambda.get_value().get()?;
+            let x1 = self.x.get_value().get()?;
+            let x2 = other.x.get_value().get()?;
+            Ok((lambda_val.square() - &x1) - &x2)
+        })?;
+
+        let y_3 = F::alloc(&mut cs.ns(|| "y_3"), || {
+            let lambda_val = lambda.get_value().get()?;
+            let x_1 = self.x.get_value().get()?;
+            let y_1 = self.y.get_value().get()?;
+            let x_3 = x_3.get_value().get()?;
+            Ok(lambda_val * &(x_1 - &x_3) - &y_1)
+        })?;
+
+        // Check lambda
+        lambda.mul_equals(cs.ns(|| "check lambda"), &x2_minus_x1, &y2_minus_y1)?;
+
+        // Check x3
+        let x3_plus_x1_plus_x2 = x_3
+            .add(cs.ns(|| "x3 + x1"), &self.x)?
+            .add(cs.ns(|| "x3 + x1 + x2"), &other.x)?;
+        lambda.mul_equals(cs.ns(|| "check x3"), &lambda, &x3_plus_x1_plus_x2)?;
+
+        // Check y3
+        let y3_plus_y1 = y_3.add(cs.ns(|| "y3 + y1"), &self.y)?;
+        let x1_minus_x3 = self.x.sub(cs.ns(|| "x1 - x3"), &x_3)?;
+
+        lambda.mul_equals(cs.ns(|| ""), &x1_minus_x3, &y3_plus_y1)?;
+
+        Ok(Self::new(x_3, y_3, Boolean::Constant(false)))
+    }
 }
 
 impl<P, ConstraintF, F> PartialEq for AffineGadget<P, ConstraintF, F>
@@ -117,13 +178,15 @@ for AffineGadget<P, ConstraintF, F>
         //
         // So we need to check that A.x - B.x != 0, which can be done by
         // enforcing I * (B.x - A.x) = 1
+        // This is done below when we calculate inv (by F::inverse)
 
         let x2_minus_x1 = other.x.sub(cs.ns(|| "x2 - x1"), &self.x)?;
         let y2_minus_y1 = other.y.sub(cs.ns(|| "y2 - y1"), &self.y)?;
 
+        let inv = x2_minus_x1.inverse(cs.ns(|| "compute inv"))?;
+
         let lambda = F::alloc(cs.ns(|| "lambda"), || {
-            let inv = x2_minus_x1.get_value().get()?.inverse().get()?;
-            Ok(y2_minus_y1.get_value().get()? * &inv)
+            Ok(y2_minus_y1.get_value().get()? * &inv.get_value().get()?)
         })?;
 
         let x_3 = F::alloc(&mut cs.ns(|| "x_3"), || {
@@ -156,7 +219,7 @@ for AffineGadget<P, ConstraintF, F>
 
         lambda.mul_equals(cs.ns(|| ""), &x1_minus_x3, &y3_plus_y1)?;
 
-        Ok(Self::new(x_3, y_3, Boolean::constant(false)))
+        Ok(Self::new(x_3, y_3, Boolean::Constant(false)))
     }
 
     /// Incomplete addition: neither `self` nor `other` can be the neutral
@@ -197,9 +260,10 @@ for AffineGadget<P, ConstraintF, F>
             .sub_constant(cs.ns(|| "y2 - y1"), &other_y)?
             .negate(cs.ns(|| "neg2"))?;
 
+        let inv = x2_minus_x1.inverse(cs.ns(|| "compute inv"))?;
+
         let lambda = F::alloc(cs.ns(|| "lambda"), || {
-            let inv = x2_minus_x1.get_value().get()?.inverse().get()?;
-            Ok(y2_minus_y1.get_value().get()? * &inv)
+            Ok(y2_minus_y1.get_value().get()? * &inv.get_value().get()?)
         })?;
 
         let x_3 = F::alloc(&mut cs.ns(|| "x_3"), || {
@@ -232,7 +296,7 @@ for AffineGadget<P, ConstraintF, F>
 
         lambda.mul_equals(cs.ns(|| ""), &x1_minus_x3, &y3_plus_y1)?;
 
-        Ok(Self::new(x_3, y_3, Boolean::constant(false)))
+        Ok(Self::new(x_3, y_3, Boolean::Constant(false)))
     }
 
     #[inline]
@@ -286,7 +350,7 @@ for AffineGadget<P, ConstraintF, F>
         ))
     }
 
-    ///This will take [(3 + 1) * ceil(len(bits)/2)] constraints to put the x lookup constraint
+    ///This will take [(4 + 1) * ceil(len(bits)/2)] constraints to put the x lookup constraint
     ///into the addition formula. See coda/src/lib/snarky_curves/snarky_curves.ml "scale_known"
     ///Note: `self` must be different from `result` due to SW incomplete addition.
     #[inline]
@@ -371,8 +435,7 @@ for AffineGadget<P, ConstraintF, F>
                         sw_result = Some(segment_result);
                     },
                     Some(ref mut sw_result) => {
-                        *sw_result = GroupGadget::<SWProjective<P>, ConstraintF>::add(
-                            &segment_result,
+                        *sw_result = segment_result.add_unsafe(
                             cs.ns(|| "sw outer addition"),
                             sw_result,
                         )?;
@@ -444,7 +507,7 @@ for AffineGadget<P, ConstraintF, F>
                                 result = Some(tmp);
                             },
                             Some(ref mut result) => {
-                                *result = tmp.add(
+                                *result = tmp.add_unsafe(
                                     cs.ns(|| format!("addition of window {}, {}", segment_i, i)),
                                     result,
                                 )?;
