@@ -206,11 +206,13 @@ mod test {
         assert_eq!(b2, b_b);
 
         let _ = a.to_bytes(&mut cs.ns(|| "ToBytes")).unwrap();
-        let _ = a.to_bytes_strict(&mut cs.ns(|| "ToBytes Strict")).unwrap();
+        let _ = a
+            .to_non_unique_bytes(&mut cs.ns(|| "ToBytes Strict"))
+            .unwrap();
 
         let _ = b.to_bytes(&mut cs.ns(|| "b ToBytes")).unwrap();
         let _ = b
-            .to_bytes_strict(&mut cs.ns(|| "b ToBytes Strict"))
+            .to_non_unique_bytes(&mut cs.ns(|| "b ToBytes Strict"))
             .unwrap();
         if !cs.is_satisfied() {
             println!("{:?}", cs.which_is_unsatisfied().unwrap());

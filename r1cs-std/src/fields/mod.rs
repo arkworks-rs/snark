@@ -452,7 +452,9 @@ pub(crate) mod tests {
 
         let n = F::alloc(&mut cs.ns(|| "alloc new var"), || Ok(negone)).unwrap();
         let _ = n.to_bytes(&mut cs.ns(|| "ToBytes")).unwrap();
-        let _ = n.to_bytes_strict(&mut cs.ns(|| "ToBytes Strict")).unwrap();
+        let _ = n
+            .to_non_unique_bytes(&mut cs.ns(|| "ToBytes Strict"))
+            .unwrap();
 
         let ab_false = a
             .conditionally_add_constant(

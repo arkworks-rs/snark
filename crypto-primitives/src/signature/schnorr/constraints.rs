@@ -208,12 +208,4 @@ where
     ) -> Result<Vec<UInt8>, SynthesisError> {
         self.pub_key.to_bytes(&mut cs.ns(|| "PubKey To Bytes"))
     }
-
-    fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        mut cs: CS,
-    ) -> Result<Vec<UInt8>, SynthesisError> {
-        self.pub_key
-            .to_bytes_strict(&mut cs.ns(|| "PubKey To Bytes"))
-    }
 }

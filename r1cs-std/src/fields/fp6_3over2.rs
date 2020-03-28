@@ -800,13 +800,13 @@ where
         Ok(c0)
     }
 
-    fn to_bits_strict<CS: ConstraintSystem<ConstraintF>>(
+    fn to_non_unique_bits<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<Boolean>, SynthesisError> {
-        let mut c0 = self.c0.to_bits_strict(cs.ns(|| "c0"))?;
-        let mut c1 = self.c1.to_bits_strict(cs.ns(|| "c1"))?;
-        let mut c2 = self.c2.to_bits_strict(cs.ns(|| "c2"))?;
+        let mut c0 = self.c0.to_non_unique_bits(cs.ns(|| "c0"))?;
+        let mut c1 = self.c1.to_non_unique_bits(cs.ns(|| "c1"))?;
+        let mut c2 = self.c2.to_non_unique_bits(cs.ns(|| "c2"))?;
 
         c0.append(&mut c1);
         c0.append(&mut c2);
@@ -834,11 +834,18 @@ where
         Ok(c0)
     }
 
-    fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
+    fn to_non_unique_bytes<CS: ConstraintSystem<ConstraintF>>(
         &self,
-        cs: CS,
+        mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
-        self.to_bytes(cs)
+        let mut c0 = self.c0.to_non_unique_bytes(cs.ns(|| "c0"))?;
+        let mut c1 = self.c1.to_non_unique_bytes(cs.ns(|| "c1"))?;
+        let mut c2 = self.c2.to_non_unique_bytes(cs.ns(|| "c2"))?;
+
+        c0.append(&mut c1);
+        c0.append(&mut c2);
+
+        Ok(c0)
     }
 }
 

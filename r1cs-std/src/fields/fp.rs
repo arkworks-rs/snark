@@ -326,9 +326,18 @@ impl<F: PrimeField> NEqGadget<F> for FpGadget<F> {
 }
 
 impl<F: PrimeField> ToBitsGadget<F> for FpGadget<F> {
-    /// Outputs the binary representation of the value in `self` in *big-endian*
+    /// Outputs the unique bit-wise decomposition of `self` in *big-endian*
     /// form.
     fn to_bits<CS: ConstraintSystem<F>>(&self, mut cs: CS) -> Result<Vec<Boolean>, SynthesisError> {
+        let bits = self.to_non_unique_bits(&mut cs)?;
+        Boolean::enforce_in_field::<_, _, F>(&mut cs, &bits)?;
+        Ok(bits)
+    }
+
+    fn to_non_unique_bits<CS: ConstraintSystem<F>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Vec<Boolean>, SynthesisError> {
         let num_bits = F::Params::MODULUS_BITS;
         use algebra::BitIterator;
         let bit_values = match self.value {
@@ -375,20 +384,29 @@ impl<F: PrimeField> ToBitsGadget<F> for FpGadget<F> {
 
         Ok(bits.into_iter().map(Boolean::from).collect())
     }
-
-    fn to_bits_strict<CS: ConstraintSystem<F>>(
-        &self,
-        mut cs: CS,
-    ) -> Result<Vec<Boolean>, SynthesisError> {
-        let bits = self.to_bits(&mut cs)?;
-        Boolean::enforce_in_field::<_, _, F>(&mut cs, &bits)?;
-
-        Ok(bits)
-    }
 }
 
 impl<F: PrimeField> ToBytesGadget<F> for FpGadget<F> {
+    /// Outputs the unique byte decomposition of `self` in *little-endian*
+    /// form.
     fn to_bytes<CS: ConstraintSystem<F>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
+        let bytes = self.to_non_unique_bytes(&mut cs)?;
+        Boolean::enforce_in_field::<_, _, F>(
+            &mut cs,
+            &bytes.iter()
+                .flat_map(|byte_gadget| byte_gadget.into_bits_le())
+                // This reverse maps the bits into big-endian form, as required by `enforce_in_field`.
+                .rev()
+                .collect::<Vec<_>>(),
+        )?;
+
+        Ok(bytes)
+    }
+
+    fn to_non_unique_bytes<CS: ConstraintSystem<F>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Vec<UInt8>, SynthesisError> {
         let byte_values = match self.value {
             Some(value) => to_bytes![&value.into_repr()]?
                 .into_iter()
@@ -422,23 +440,6 @@ impl<F: PrimeField> ToBytesGadget<F> for FpGadget<F> {
         lc = &self.variable - lc;
 
         cs.enforce(|| "unpacking_constraint", |lc| lc, |lc| lc, |_| lc);
-
-        Ok(bytes)
-    }
-
-    fn to_bytes_strict<CS: ConstraintSystem<F>>(
-        &self,
-        mut cs: CS,
-    ) -> Result<Vec<UInt8>, SynthesisError> {
-        let bytes = self.to_bytes(&mut cs)?;
-        Boolean::enforce_in_field::<_, _, F>(
-            &mut cs,
-            &bytes.iter()
-                .flat_map(|byte_gadget| byte_gadget.into_bits_le())
-                // This reverse maps the bits into big-endian form, as required by `enforce_in_field`.
-                .rev()
-                .collect::<Vec<_>>(),
-        )?;
 
         Ok(bytes)
     }

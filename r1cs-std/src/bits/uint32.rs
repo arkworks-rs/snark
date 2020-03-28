@@ -306,13 +306,6 @@ impl<ConstraintF: Field> ToBytesGadget<ConstraintF> for UInt32 {
 
         Ok(bytes)
     }
-
-    fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        cs: CS,
-    ) -> Result<Vec<UInt8>, SynthesisError> {
-        self.to_bytes(cs)
-    }
 }
 
 impl PartialEq for UInt32 {
