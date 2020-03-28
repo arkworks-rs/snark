@@ -291,7 +291,7 @@ for AffineGadget<P, ConstraintF, F>
     }
 
     fn cost_of_add() -> usize {
-        3 * F::cost_of_mul()
+        3 * F::cost_of_mul() + F::cost_of_inv()
     }
 
     fn cost_of_double() -> usize {
