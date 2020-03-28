@@ -59,7 +59,6 @@ pub use instantiated::jubjub;
 pub mod pairing;
 
 pub mod alloc;
-pub mod cmp;
 pub mod eq;
 pub mod select;
 
@@ -67,7 +66,6 @@ pub mod prelude {
     pub use crate::{
         alloc::*,
         bits::{boolean::Boolean, uint32::UInt32, uint8::UInt8, ToBitsGadget, ToBytesGadget},
-        cmp::CmpGadget,
         eq::*,
         fields::FieldGadget,
         groups::GroupGadget,

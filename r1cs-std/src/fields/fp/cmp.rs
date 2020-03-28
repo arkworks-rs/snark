@@ -7,18 +7,14 @@ use algebra::PrimeField;
 use core::{cmp::Ordering, marker::PhantomData};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
-pub struct CmpGadget<ConstraintF: PrimeField> {
-    constraint_field_type: PhantomData<ConstraintF>,
-}
-
-impl<ConstraintF: PrimeField> CmpGadget<ConstraintF> {
-    fn process_cmp_inputs<CS: ConstraintSystem<ConstraintF>>(
+impl<F: PrimeField> FpGadget<F> {
+     fn process_cmp_inputs<CS: ConstraintSystem<F>>(
         mut cs: CS,
-        a: &FpGadget<ConstraintF>,
-        b: &FpGadget<ConstraintF>,
+        a: &FpGadget<F>,
+        b: &FpGadget<F>,
         ordering: Ordering,
         should_also_check_equality: bool,
-    ) -> Result<(FpGadget<ConstraintF>, FpGadget<ConstraintF>), SynthesisError> {
+    ) -> Result<(FpGadget<F>, FpGadget<F>), SynthesisError> {
         let left;
         let right;
         match ordering {
@@ -35,7 +31,7 @@ impl<ConstraintF: PrimeField> CmpGadget<ConstraintF> {
             },
         };
         let right_for_check = if should_also_check_equality {
-            right.add_constant(cs.ns(|| "plus one"), &ConstraintF::one())?
+            right.add_constant(cs.ns(|| "plus one"), &F::one())?
         } else {
             right.clone()
         };
@@ -43,31 +39,31 @@ impl<ConstraintF: PrimeField> CmpGadget<ConstraintF> {
         Ok((left.clone(), right_for_check))
     }
 
-    fn check_smaller_than_mod_minus_one_div_two<CS: ConstraintSystem<ConstraintF>>(
+    fn check_smaller_than_mod_minus_one_div_two<CS: ConstraintSystem<F>>(
         mut cs: CS,
-        a: &FpGadget<ConstraintF>,
+        a: &FpGadget<F>,
     ) -> Result<(), SynthesisError> {
         let a_bits = a.to_bits(cs.ns(|| "a to bits"))?;
-        Boolean::enforce_smaller_or_equal_than::<_, _, ConstraintF, _>(
+        Boolean::enforce_smaller_or_equal_than::<_, _, F, _>(
             cs.ns(|| "enforce smaller than modulus minus one div two"),
             &a_bits,
-            ConstraintF::modulus_minus_one_div_two(),
+            F::modulus_minus_one_div_two(),
         )?;
 
         Ok(())
     }
 
     /// this function verifies a and b are <= (p-1)/2
-    pub fn enforce_cmp<CS: ConstraintSystem<ConstraintF>>(
+    pub fn enforce_cmp<CS: ConstraintSystem<F>>(
+        &self,
         mut cs: CS,
-        a: &FpGadget<ConstraintF>,
-        b: &FpGadget<ConstraintF>,
+        b: &FpGadget<F>,
         ordering: Ordering,
         should_also_check_equality: bool,
     ) -> Result<(), SynthesisError> {
         let (left, right) = Self::process_cmp_inputs(
             cs.ns(|| "process cmp inputs"),
-            a,
+            &self,
             b,
             ordering,
             should_also_check_equality,
@@ -76,16 +72,16 @@ impl<ConstraintF: PrimeField> CmpGadget<ConstraintF> {
     }
 
     /// this function assumes a and b are known to be <= (p-1)/2
-    pub fn enforce_cmp_unchecked<CS: ConstraintSystem<ConstraintF>>(
+    pub fn enforce_cmp_unchecked<CS: ConstraintSystem<F>>(
+        &self,
         mut cs: CS,
-        a: &FpGadget<ConstraintF>,
-        b: &FpGadget<ConstraintF>,
+        b: &FpGadget<F>,
         ordering: Ordering,
         should_also_check_equality: bool,
     ) -> Result<(), SynthesisError> {
         let (left, right) = Self::process_cmp_inputs(
             cs.ns(|| "process cmp inputs"),
-            a,
+            &self,
             b,
             ordering,
             should_also_check_equality,
@@ -94,16 +90,16 @@ impl<ConstraintF: PrimeField> CmpGadget<ConstraintF> {
     }
 
     /// this function verifies a and b are <= (p-1)/2
-    pub fn is_cmp<CS: ConstraintSystem<ConstraintF>>(
+    pub fn is_cmp<CS: ConstraintSystem<F>>(
+        &self,
         mut cs: CS,
-        a: &FpGadget<ConstraintF>,
-        b: &FpGadget<ConstraintF>,
+        b: &FpGadget<F>,
         ordering: Ordering,
         should_also_check_equality: bool,
     ) -> Result<Boolean, SynthesisError> {
         let (left, right) = Self::process_cmp_inputs(
             cs.ns(|| "process cmp inputs"),
-            a,
+            &self,
             b,
             ordering,
             should_also_check_equality,
@@ -112,16 +108,16 @@ impl<ConstraintF: PrimeField> CmpGadget<ConstraintF> {
     }
 
     /// this function assumes a and b are known to be <= (p-1)/2
-    pub fn is_cmp_unchecked<CS: ConstraintSystem<ConstraintF>>(
+    pub fn is_cmp_unchecked<CS: ConstraintSystem<F>>(
+        &self,
         mut cs: CS,
-        a: &FpGadget<ConstraintF>,
-        b: &FpGadget<ConstraintF>,
+        b: &FpGadget<F>,
         ordering: Ordering,
         should_also_check_equality: bool,
     ) -> Result<Boolean, SynthesisError> {
         let (left, right) = Self::process_cmp_inputs(
             cs.ns(|| "process cmp inputs"),
-            a,
+            &self,
             b,
             ordering,
             should_also_check_equality,
@@ -130,10 +126,10 @@ impl<ConstraintF: PrimeField> CmpGadget<ConstraintF> {
     }
 
     /// this function verifies a and b are <= (p-1)/2
-    fn is_smaller_than<CS: ConstraintSystem<ConstraintF>>(
+    fn is_smaller_than<CS: ConstraintSystem<F>>(
         mut cs: CS,
-        a: &FpGadget<ConstraintF>,
-        b: &FpGadget<ConstraintF>,
+        a: &FpGadget<F>,
+        b: &FpGadget<F>,
     ) -> Result<Boolean, SynthesisError> {
         Self::check_smaller_than_mod_minus_one_div_two(cs.ns(|| "check a in range"), a)?;
         Self::check_smaller_than_mod_minus_one_div_two(cs.ns(|| "check b in range"), b)?;
@@ -141,24 +137,24 @@ impl<ConstraintF: PrimeField> CmpGadget<ConstraintF> {
     }
 
     /// this function assumes a and b are known to be <= (p-1)/2
-    fn is_smaller_than_unchecked<CS: ConstraintSystem<ConstraintF>>(
+    fn is_smaller_than_unchecked<CS: ConstraintSystem<F>>(
         mut cs: CS,
-        a: &FpGadget<ConstraintF>,
-        b: &FpGadget<ConstraintF>,
+        a: &FpGadget<F>,
+        b: &FpGadget<F>,
     ) -> Result<Boolean, SynthesisError> {
-        let two = ConstraintF::one() + ConstraintF::one();
+        let two = F::one() + F::one();
         let d0 = a.sub(cs.ns(|| "a - b"), b)?;
         let d = d0.mul_by_constant(cs.ns(|| "mul 2"), &two)?;
-        let d_bits = d.to_bits_strict(cs.ns(|| "d to bits"))?;
+        let d_bits = d.to_bits(cs.ns(|| "d to bits"))?;
         let d_bits_len = d_bits.len();
         Ok(d_bits[d_bits_len - 1])
     }
 
     /// this function verifies a and b are <= (p-1)/2
-    fn enforce_smaller_than<CS: ConstraintSystem<ConstraintF>>(
+    fn enforce_smaller_than<CS: ConstraintSystem<F>>(
         mut cs: CS,
-        a: &FpGadget<ConstraintF>,
-        b: &FpGadget<ConstraintF>,
+        a: &FpGadget<F>,
+        b: &FpGadget<F>,
     ) -> Result<(), SynthesisError> {
         Self::check_smaller_than_mod_minus_one_div_two(cs.ns(|| "check a in range"), a)?;
         Self::check_smaller_than_mod_minus_one_div_two(cs.ns(|| "check b in range"), b)?;
@@ -166,21 +162,29 @@ impl<ConstraintF: PrimeField> CmpGadget<ConstraintF> {
     }
 
     /// this function assumes a and b are known to be <= (p-1)/2
-    fn enforce_smaller_than_unchecked<CS: ConstraintSystem<ConstraintF>>(
+    fn enforce_smaller_than_unchecked<CS: ConstraintSystem<F>>(
         mut cs: CS,
-        a: &FpGadget<ConstraintF>,
-        b: &FpGadget<ConstraintF>,
+        a: &FpGadget<F>,
+        b: &FpGadget<F>,
     ) -> Result<(), SynthesisError> {
         let is_smaller_than = Self::is_smaller_than_unchecked(cs.ns(|| "is smaller than"), a, b)?;
         cs.enforce(
             || "enforce smaller than",
-            |_| is_smaller_than.lc(CS::one(), ConstraintF::one()),
-            |lc| lc + (ConstraintF::one(), CS::one()),
-            |lc| lc + (ConstraintF::one(), CS::one()),
+            |_| is_smaller_than.lc(CS::one(), F::one()),
+            |lc| lc + (F::one(), CS::one()),
+            |lc| lc + (F::one(), CS::one()),
         );
 
         Ok(())
     }
+   
+}
+
+pub struct CmpGadget<ConstraintF: PrimeField> {
+    constraint_field_type: PhantomData<ConstraintF>,
+}
+
+impl<ConstraintF: PrimeField> CmpGadget<ConstraintF> {
 }
 
 #[cfg(test)]
@@ -189,7 +193,6 @@ mod test {
     use rand_xorshift::XorShiftRng;
     use std::cmp::Ordering;
 
-    use super::CmpGadget;
     use crate::{
         alloc::AllocGadget, fields::fp::FpGadget, test_constraint_system::TestConstraintSystem,
     };
@@ -222,17 +225,15 @@ mod test {
 
             match a.cmp(&b) {
                 Ordering::Less => {
-                    CmpGadget::<Fr>::enforce_cmp(
+                    a_var.enforce_cmp(
                         cs.ns(|| "smaller than test"),
-                        &a_var,
                         &b_var,
                         Ordering::Less,
                         false,
                     )
                     .unwrap();
-                    CmpGadget::<Fr>::enforce_cmp(
+                    a_var.enforce_cmp(
                         cs.ns(|| "smaller than test 2"),
-                        &a_var,
                         &b_var,
                         Ordering::Less,
                         true,
@@ -240,17 +241,15 @@ mod test {
                     .unwrap();
                 },
                 Ordering::Greater => {
-                    CmpGadget::<Fr>::enforce_cmp(
+                    a_var.enforce_cmp(
                         cs.ns(|| "smaller than test"),
-                        &a_var,
                         &b_var,
                         Ordering::Greater,
                         false,
                     )
                     .unwrap();
-                    CmpGadget::<Fr>::enforce_cmp(
+                    a_var.enforce_cmp(
                         cs.ns(|| "smaller than test 2"),
-                        &a_var,
                         &b_var,
                         Ordering::Greater,
                         true,
@@ -275,17 +274,15 @@ mod test {
 
             match b.cmp(&a) {
                 Ordering::Less => {
-                    CmpGadget::<Fr>::enforce_cmp(
+                    a_var.enforce_cmp(
                         cs.ns(|| "smaller than test"),
-                        &a_var,
                         &b_var,
                         Ordering::Less,
                         false,
                     )
                     .unwrap();
-                    CmpGadget::<Fr>::enforce_cmp(
+                    a_var.enforce_cmp(
                         cs.ns(|| "smaller than test 2"),
-                        &a_var,
                         &b_var,
                         Ordering::Less,
                         true,
@@ -293,17 +290,15 @@ mod test {
                     .unwrap();
                 },
                 Ordering::Greater => {
-                    CmpGadget::<Fr>::enforce_cmp(
+                    a_var.enforce_cmp(
                         cs.ns(|| "smaller than test"),
-                        &a_var,
                         &b_var,
                         Ordering::Greater,
                         false,
                     )
                     .unwrap();
-                    CmpGadget::<Fr>::enforce_cmp(
+                    a_var.enforce_cmp(
                         cs.ns(|| "smaller than test 2"),
-                        &a_var,
                         &b_var,
                         Ordering::Greater,
                         true,
@@ -320,9 +315,8 @@ mod test {
             let mut cs = TestConstraintSystem::<Fr>::new();
             let a = rand_in_range(&mut rng);
             let a_var = FpGadget::<Fr>::alloc(cs.ns(|| "a"), || Ok(a)).unwrap();
-            CmpGadget::<Fr>::enforce_cmp(
+            a_var.enforce_cmp(
                 cs.ns(|| "smaller than test"),
-                &a_var,
                 &a_var,
                 Ordering::Less,
                 false,
@@ -336,9 +330,8 @@ mod test {
             let mut cs = TestConstraintSystem::<Fr>::new();
             let a = rand_in_range(&mut rng);
             let a_var = FpGadget::<Fr>::alloc(cs.ns(|| "a"), || Ok(a)).unwrap();
-            CmpGadget::<Fr>::enforce_cmp(
+            a_var.enforce_cmp(
                 cs.ns(|| "smaller than or equal to test"),
-                &a_var,
                 &a_var,
                 Ordering::Less,
                 true,
