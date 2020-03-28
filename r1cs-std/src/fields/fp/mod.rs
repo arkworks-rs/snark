@@ -9,6 +9,8 @@ use core::borrow::Borrow;
 
 use crate::{boolean::AllocatedBit, prelude::*, Assignment, Vec};
 
+pub mod cmp;
+
 #[derive(Debug)]
 pub struct FpGadget<F: PrimeField> {
     pub value:    Option<F>,
