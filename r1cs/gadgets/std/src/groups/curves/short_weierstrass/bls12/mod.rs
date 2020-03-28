@@ -55,9 +55,9 @@ impl<P: Bls12Parameters> ToBytesGadget<P::Fp> for G1PreparedGadget<P> {
 
     fn to_bytes_strict<CS: ConstraintSystem<P::Fp>>(
         &self,
-        cs: CS,
+        mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
-        self.to_bytes(cs)
+        self.0.to_bytes_strict(&mut cs.ns(|| "g_alpha to bytes"))
     }
 }
 
@@ -89,9 +89,15 @@ impl<P: Bls12Parameters> ToBytesGadget<P::Fp> for G2PreparedGadget<P> {
 
     fn to_bytes_strict<CS: ConstraintSystem<P::Fp>>(
         &self,
-        cs: CS,
+        mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
-        self.to_bytes(cs)
+        let mut bytes = Vec::new();
+        for (i, coeffs) in self.ell_coeffs.iter().enumerate() {
+            let mut cs = cs.ns(|| format!("Iteration {}", i));
+            bytes.extend_from_slice(&coeffs.0.to_bytes_strict(&mut cs.ns(|| "c0"))?);
+            bytes.extend_from_slice(&coeffs.1.to_bytes_strict(&mut cs.ns(|| "c1"))?);
+        }
+        Ok(bytes)
     }
 }
 

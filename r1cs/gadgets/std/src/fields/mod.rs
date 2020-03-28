@@ -21,19 +21,19 @@ pub mod mnt4753;
 pub mod mnt6753;
 
 pub trait FieldGadget<F: Field, ConstraintF: Field>:
-Sized
-+ Clone
-+ EqGadget<ConstraintF>
-+ NEqGadget<ConstraintF>
-+ ConditionalEqGadget<ConstraintF>
-+ ToBitsGadget<ConstraintF>
-+ AllocGadget<F, ConstraintF>
-+ HardCodedGadget<F, ConstraintF>
-+ ToBytesGadget<ConstraintF>
-+ CondSelectGadget<ConstraintF>
-+ TwoBitLookupGadget<ConstraintF, TableConstant = F>
-+ ThreeBitCondNegLookupGadget<ConstraintF, TableConstant = F>
-+ Debug
+    Sized
+    + Clone
+    + EqGadget<ConstraintF>
+    + NEqGadget<ConstraintF>
+    + ConditionalEqGadget<ConstraintF>
+    + ToBitsGadget<ConstraintF>
+    + AllocGadget<F, ConstraintF>
+    + ConstantGadget<F, ConstraintF>
+    + ToBytesGadget<ConstraintF>
+    + CondSelectGadget<ConstraintF>
+    + TwoBitLookupGadget<ConstraintF, TableConstant = F>
+    + ThreeBitCondNegLookupGadget<ConstraintF, TableConstant = F>
+    + Debug
 {
     type Variable: Clone + Debug;
 

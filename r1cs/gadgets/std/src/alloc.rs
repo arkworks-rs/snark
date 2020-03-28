@@ -123,16 +123,17 @@ impl<I, ConstraintF: Field, A: AllocGadget<I, ConstraintF>> AllocGadget<[I], Con
     }
 }
 
-/// Wrapper that allows to treat constants as gadgets: while still encoding the wrapped constants
-/// inside the R1CS equations, this trait avoids the need to write specific code considering
-/// the presence of constants, enabling to reuse the code written for gadgets.
-pub trait HardCodedGadget<V, ConstraintF: Field>
+/// Get a Gadget from the corresponding constant. At low level, the constant
+/// will be the coefficient of the CS::one() variable.
+pub trait ConstantGadget<V, ConstraintF: Field>
     where
         Self: Sized,
-        V: ?Sized,
+        V: Sized ,
 {
-    fn alloc_hardcoded<F, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, f: F) -> Result<Self, SynthesisError>
-        where
-            F: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<V>;
+    fn from_value<CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
+        value: &V
+    ) -> Self;
+
+    fn get_constant(&self) -> V;
 }

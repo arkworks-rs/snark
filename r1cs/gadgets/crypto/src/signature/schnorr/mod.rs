@@ -356,7 +356,7 @@ pub mod field_impl
             };
 
             //Let's hardcode generator and use it as `result` param here to avoid edge cases in addition
-            let g = GG::alloc_hardcoded(cs.ns(|| "hardcode generator"), || Ok(G::prime_subgroup_generator()))?;
+            let g = GG::from_value(cs.ns(|| "hardcode generator"), &G::prime_subgroup_generator());
             let neg_e_times_pk = public_key
                 .mul_bits(cs.ns(|| "pk * e + g"), &g, e_bits.as_slice().iter().rev())?
                 .sub(cs.ns(|| "subtract g"), &g)?
@@ -386,8 +386,8 @@ pub mod field_impl
             };
 
             s_bits.reverse();
-            let r_prime = GG::mul_bits_precomputed(
-                &(g.get_value().unwrap()),
+            let r_prime = GG::mul_bits_fixed_base(
+                &g.get_constant(),
                 cs.ns(|| "(s * G) - (e * pk)"),
                 &neg_e_times_pk,
                 s_bits.as_slice()

@@ -219,10 +219,10 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
         )?;
 
         //Hardcode g, serialize c and s
-        let g = GG::alloc_hardcoded(
+        let g = GG::from_value(
             cs.ns(|| "hardcode generator"),
-            || Ok(G::prime_subgroup_generator())
-        )?;
+            &G::prime_subgroup_generator()
+        );
 
         let c_bits = {
 
@@ -269,10 +269,10 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
                 .mul_bits(cs.ns(|| "pk * c + g"), &g, c_bits.as_slice().iter().rev())?
                 .sub(cs.ns(|| "c * pk"), &g)?
                 .negate(cs.ns(|| "- (c * pk)"))?;
-            GG::mul_bits_precomputed(&(g.get_value().unwrap()),
-                                     cs.ns(|| "(s * G) - (c * pk)"),
-                                     &neg_c_times_pk,
-                                     s_bits.as_slice()
+            GG::mul_bits_fixed_base(&g.get_constant(),
+                                    cs.ns(|| "(s * G) - (c * pk)"),
+                                    &neg_c_times_pk,
+                                    s_bits.as_slice()
             )?
         };
 

@@ -750,6 +750,7 @@ impl<F: PrimeField> AllocGadget<F, F> for FpGadget<F> {
                 Ok(tmp)
             },
         )?;
+
         Ok(FpGadget {
             value,
             variable: Var(variable),
@@ -757,22 +758,23 @@ impl<F: PrimeField> AllocGadget<F, F> for FpGadget<F> {
     }
 }
 
-impl<F: PrimeField> HardCodedGadget<F, F> for FpGadget<F> {
+impl<F: PrimeField> ConstantGadget<F, F> for FpGadget<F> {
+
     #[inline]
-    fn alloc_hardcoded<FN, T, CS: ConstraintSystem<F>>(
+    fn from_value<CS: ConstraintSystem<F>>(
         _cs: CS,
-        value_gen: FN,
-    ) -> Result<Self, SynthesisError>
-        where
-            FN: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<F>,
+        value: &F,
+    ) -> Self
     {
-        value_gen().and_then(|c| {
-            let c = *c.borrow();
-            Ok(FpGadget {
-                value: Some(c),
-                variable: ConstraintVar::<F>::from((c, CS::one())),
-            })
-        })
+        let value = *value;
+        FpGadget {
+            value: Some(value),
+            variable: ConstraintVar::<F>::from((value, CS::one())),
+        }
+    }
+
+    #[inline]
+    fn get_constant(&self) -> F {
+        self.get_value().unwrap()
     }
 }

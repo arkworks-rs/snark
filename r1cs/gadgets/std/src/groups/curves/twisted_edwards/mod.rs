@@ -699,36 +699,31 @@ mod affine_impl {
         }
     }
 
-    impl<P, ConstraintF, F> HardCodedGadget<TEAffine<P>, ConstraintF> for AffineGadget<P, ConstraintF, F>
+    impl<P, ConstraintF, F> ConstantGadget<TEAffine<P>, ConstraintF> for AffineGadget<P, ConstraintF, F>
         where
             P: TEModelParameters,
             ConstraintF: Field,
             F: FieldGadget<P::BaseField, ConstraintF>,
             Self: GroupGadget<TEAffine<P>, ConstraintF>,
     {
-        fn alloc_hardcoded<FN, T, CS: ConstraintSystem<ConstraintF>>(
+        #[inline]
+        fn from_value<CS: ConstraintSystem<ConstraintF>>(
             mut cs: CS,
-            value_gen: FN,
-        ) -> Result<Self, SynthesisError>
-            where
-                FN: FnOnce() -> Result<T, SynthesisError>,
-                T: Borrow<TEAffine<P>>,
+            value: &TEAffine<P>,
+        ) -> Self
         {
-            let (x, y) = match value_gen() {
-                Ok(ge) => {
-                    let ge = *ge.borrow();
-                    (Ok(ge.x), Ok(ge.y))
-                },
-                _ => (
-                    Err(SynthesisError::AssignmentMissing),
-                    Err(SynthesisError::AssignmentMissing),
-                ),
-            };
+            let x = F::from_value(cs.ns(|| "hardcode x"), &value.x);
+            let y = F::from_value(cs.ns(|| "hardcode y"), &value.y);
 
-            let x = F::alloc_hardcoded(cs.ns(|| "hardcode x"), || Ok(x.unwrap()))?;
-            let y = F::alloc_hardcoded(cs.ns(|| "hardcode y"), || Ok(y.unwrap()))?;
+            Self::new(x, y)
+        }
 
-            Ok(Self::new(x, y))
+        #[inline]
+        fn get_constant(&self) ->TEAffine<P> {
+            let x = self.x.get_value().unwrap();
+            let y = self.y.get_value().unwrap();
+
+            TEAffine::<P>::new(x, y)
         }
     }
 }
@@ -1375,41 +1370,40 @@ mod projective_impl {
         }
     }
 
-    impl<P, ConstraintF, F> HardCodedGadget<TEProjective<P>, ConstraintF> for AffineGadget<P, ConstraintF, F>
+    impl<P, ConstraintF, F> ConstantGadget<TEProjective<P>, ConstraintF> for AffineGadget<P, ConstraintF, F>
         where
             P: TEModelParameters,
             ConstraintF: Field,
             F: FieldGadget<P::BaseField, ConstraintF>,
             Self: GroupGadget<TEProjective<P>, ConstraintF>,
     {
-        fn alloc_hardcoded<FN, T, CS: ConstraintSystem<ConstraintF>>(
+        #[inline]
+        fn from_value<CS: ConstraintSystem<ConstraintF>>(
             mut cs: CS,
-            value_gen: FN,
-        ) -> Result<Self, SynthesisError>
-            where
-                FN: FnOnce() -> Result<T, SynthesisError>,
-                T: Borrow<TEProjective<P>>,
+            value: &TEProjective<P>,
+        ) -> Self
         {
-            let (x, y) = match value_gen() {
-                Ok(ge) => {
-                    let ge = *ge.borrow();
-                    (Ok(ge.x), Ok(ge.y))
-                },
-                _ => (
-                    Err(SynthesisError::AssignmentMissing),
-                    Err(SynthesisError::AssignmentMissing),
-                ),
-            };
+            let value = value.into_affine();
+            let x = F::from_value(cs.ns(|| "hardcode x"), &value.x);
+            let y = F::from_value(cs.ns(|| "hardcode y"), &value.y);
 
-            let x = F::alloc_hardcoded(cs.ns(|| "hardcode x"), || Ok(x.unwrap()))?;
-            let y = F::alloc_hardcoded(cs.ns(|| "hardcode y"), || Ok(y.unwrap()))?;
+            Self::new(x, y)
+        }
 
-            Ok(Self::new(x, y))
+        #[inline]
+        fn get_constant(&self) ->TEProjective<P> {
+            let value_proj = TEAffine::<P>::new(
+                self.x.get_value().unwrap(),
+                self.y.get_value().unwrap(),
+            ).into_projective();
+            let x = value_proj.x;
+            let y = value_proj.y;
+            let t = value_proj.t;
+            let z = value_proj.z;
+            TEProjective::<P>::new(x, y, t, z)
         }
     }
 }
-
-
 
 impl<P, ConstraintF, F> CondSelectGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
 where

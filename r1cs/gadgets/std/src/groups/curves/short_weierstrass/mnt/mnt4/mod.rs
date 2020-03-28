@@ -66,7 +66,9 @@ impl<P: MNT4Parameters> ToBytesGadget<P::Fp> for G1PreparedGadget<P> {
     }
 
     fn to_bytes_strict<CS: ConstraintSystem<P::Fp>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
-        self.to_bytes(cs.ns(|| "to_bytes_g1_prepared"))
+        let mut p = self.p.to_bytes_strict(&mut cs.ns(|| "p to bytes"))?;
+        p.extend_from_slice(&self.p_y_twist_squared.to_bytes_strict(&mut cs.ns(|| "p_y_twist_squared to bytes"))?);
+        Ok(p)
     }
 }
 
@@ -91,7 +93,10 @@ impl<P: MNT4Parameters> ToBytesGadget<P::Fp> for G2CoefficientsGadget<P> {
     }
 
     fn to_bytes_strict<CS: ConstraintSystem<P::Fp>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
-        self.to_bytes(cs.ns(|| "to_bytes AteDoubleCoefficients"))
+        let mut x = self.r_y.to_bytes_strict(&mut cs.ns(|| "r_y to bytes"))?;
+        x.extend_from_slice(&self.gamma.to_bytes_strict(&mut cs.ns(|| "gamma to bytes"))?);
+        x.extend_from_slice(&self.gamma_x.to_bytes_strict(&mut cs.ns(|| "gamma_x to bytes"))?);
+        Ok(x)
     }
 }
 
@@ -235,6 +240,12 @@ impl<P: MNT4Parameters> ToBytesGadget<P::Fp> for G2PreparedGadget<P>
     }
 
     fn to_bytes_strict<CS: ConstraintSystem<P::Fp>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
-        self.to_bytes(cs.ns(|| "to_bytes_g2_prepared"))
+        let mut x = self.q.to_bytes_strict(&mut cs.ns(|| "q to bytes"))?;
+
+        for (i, c) in self.coeffs.iter().enumerate() {
+            x.extend_from_slice(&c.to_bytes_strict(&mut cs.ns(|| format!("coefficients {} to bytes", i)))?);
+        }
+
+        Ok(x)
     }
 }

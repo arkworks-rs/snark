@@ -894,33 +894,24 @@ impl<P, ConstraintF: PrimeField + SquareRootField> AllocGadget<Fp6<P>, Constrain
     }
 }
 
-impl<P, ConstraintF: PrimeField + SquareRootField> HardCodedGadget<Fp6<P>, ConstraintF> for Fp6Gadget<P, ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> ConstantGadget<Fp6<P>, ConstraintF> for Fp6Gadget<P, ConstraintF>
     where
         P: Fp6Parameters,
         P::Fp3Params: Fp3Parameters<Fp = ConstraintF>,
 {
     #[inline]
-    fn alloc_hardcoded<F, T, CS: ConstraintSystem<ConstraintF>>(
+    fn from_value<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
-        value_gen: F,
-    ) -> Result<Self, SynthesisError>
-        where
-            F: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<Fp6<P>>,
+        value: &Fp6<P>,
+    ) -> Self
     {
-        let (c0, c1) = match value_gen() {
-            Ok(fe) => {
-                let fe = *fe.borrow();
-                (Ok(fe.c0), Ok(fe.c1))
-            },
-            Err(_) => (
-                Err(SynthesisError::AssignmentMissing),
-                Err(SynthesisError::AssignmentMissing),
-            ),
-        };
+        let c0 = Fp3Gadget::<P, ConstraintF>::from_value(&mut cs.ns(|| "c0"), &value.c0);
+        let c1 = Fp3Gadget::<P, ConstraintF>::from_value(&mut cs.ns(|| "c1"), &value.c1);
+        Self::new(c0, c1)
+    }
 
-        let c0 = Fp3Gadget::<P, ConstraintF>::alloc_hardcoded(&mut cs.ns(|| "c0"), || c0)?;
-        let c1 = Fp3Gadget::<P, ConstraintF>::alloc_hardcoded(&mut cs.ns(|| "c1"), || c1)?;
-        Ok(Self::new(c0, c1))
+    #[inline]
+    fn get_constant(&self) -> Fp6<P> {
+        self.get_value().unwrap()
     }
 }

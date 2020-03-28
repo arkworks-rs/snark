@@ -19,7 +19,7 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
     + ToBitsGadget<ConstraintF>
     + CondSelectGadget<ConstraintF>
     + AllocGadget<G, ConstraintF>
-    + HardCodedGadget<G, ConstraintF>
+    + ConstantGadget<G, ConstraintF>
     + Clone
     + Debug
 {
@@ -69,6 +69,7 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
 
     fn negate<CS: ConstraintSystem<ConstraintF>>(&self, cs: CS) -> Result<Self, SynthesisError>;
 
+    /// Variable base exponentiation.
     /// Inputs must be specified in *little-endian* form.
     /// If the addition law is incomplete for the identity element,
     /// `result` must not be the identity element.
@@ -119,13 +120,17 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
         Ok(())
     }
 
-    fn mul_bits_precomputed<'a, CS: ConstraintSystem<ConstraintF>>(
+    /// Fixed base exponentiation, slighlty different interface from
+    /// `precomputed_base_scalar_mul`. Inputs must be specified in
+    /// *little-endian* form. If the addition law is incomplete for
+    /// the identity element, `result` must not be the identity element.
+    fn mul_bits_fixed_base<'a, CS: ConstraintSystem<ConstraintF>>(
         base: &'a G,
         mut cs: CS,
         result: &Self,
         bits: &[Boolean],
     ) -> Result<Self, SynthesisError> {
-        let base_g = Self::alloc_hardcoded(cs.ns(|| "hardcode base"), || Ok(base))?;
+        let base_g = Self::from_value(cs.ns(|| "hardcode base"), base);
         base_g.mul_bits(cs, result, bits.into_iter())
     }
 

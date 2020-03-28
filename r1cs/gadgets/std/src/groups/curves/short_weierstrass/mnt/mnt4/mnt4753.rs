@@ -147,10 +147,10 @@ mod test {
         );
 
         //Check mul_bits precomputed
-        let result_precomp = G1Gadget::mul_bits_precomputed(&(gadget_a.get_value().unwrap()),
-                                                            cs.ns(|| "mul_bits_precomp"),
-                                                            &gadget_b,
-                                                            input.as_slice()
+        let result_precomp = G1Gadget::mul_bits_fixed_base(&(gadget_a.get_value().unwrap()),
+                                                           cs.ns(|| "mul_bits_precomp"),
+                                                           &gadget_b,
+                                                           input.as_slice()
         ).unwrap();
         assert_eq!(
             result, result_precomp,

@@ -762,9 +762,16 @@ impl<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootFie
 
     fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
         &self,
-        cs: CS,
+        mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
-        self.to_bytes(cs)
+        let mut c0 = self.c0.to_bytes_strict(cs.ns(|| "c0"))?;
+        let mut c1 = self.c1.to_bytes_strict(cs.ns(|| "c1"))?;
+        let mut c2 = self.c2.to_bytes_strict(cs.ns(|| "c2"))?;
+
+        c0.append(&mut c1);
+        c0.append(&mut c2);
+
+        Ok(c0)
     }
 }
 
@@ -933,32 +940,22 @@ AllocGadget<Fp3<P>, ConstraintF> for Fp3Gadget<P, ConstraintF>
 }
 
 impl<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootField>
-HardCodedGadget<Fp3<P>, ConstraintF> for Fp3Gadget<P, ConstraintF>
+ConstantGadget<Fp3<P>, ConstraintF> for Fp3Gadget<P, ConstraintF>
 {
     #[inline]
-    fn alloc_hardcoded<F, T, CS: ConstraintSystem<ConstraintF>>(
+    fn from_value<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
-        value_gen: F,
-    ) -> Result<Self, SynthesisError>
-        where
-            F: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<Fp3<P>>,
+        value: &Fp3<P>,
+    ) -> Self
     {
-        let (c0, c1, c2) = match value_gen() {
-            Ok(fe) => {
-                let fe = *fe.borrow();
-                (Ok(fe.c0), Ok(fe.c1), Ok(fe.c2))
-            },
-            _ => (
-                Err(SynthesisError::AssignmentMissing),
-                Err(SynthesisError::AssignmentMissing),
-                Err(SynthesisError::AssignmentMissing),
-            ),
-        };
+        let c0 = FpGadget::<ConstraintF>::from_value(&mut cs.ns(|| "c0"), &value.c0);
+        let c1 = FpGadget::<ConstraintF>::from_value(&mut cs.ns(|| "c1"), &value.c1);
+        let c2 = FpGadget::<ConstraintF>::from_value(&mut cs.ns(|| "c2"), &value.c2);
+        Self::new(c0, c1, c2)
+    }
 
-        let c0 = FpGadget::<ConstraintF>::alloc_hardcoded(&mut cs.ns(|| "c0"), || c0)?;
-        let c1 = FpGadget::<ConstraintF>::alloc_hardcoded(&mut cs.ns(|| "c1"), || c1)?;
-        let c2 = FpGadget::<ConstraintF>::alloc_hardcoded(&mut cs.ns(|| "c2"), || c2)?;
-        Ok(Self::new(c0, c1, c2))
+    #[inline]
+    fn get_constant(&self) -> Fp3<P> {
+        self.get_value().unwrap()
     }
 }

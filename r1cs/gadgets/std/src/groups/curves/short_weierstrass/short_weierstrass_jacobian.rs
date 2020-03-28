@@ -614,33 +614,37 @@ for AffineGadget<P, ConstraintF, F>
     }
 }
 
-impl<P, ConstraintF, F> HardCodedGadget<SWProjective<P>, ConstraintF> for AffineGadget<P, ConstraintF, F>
+impl<P, ConstraintF, F> ConstantGadget<SWProjective<P>, ConstraintF> for AffineGadget<P, ConstraintF, F>
     where
         P: SWModelParameters,
         ConstraintF: Field,
         F: FieldGadget<P::BaseField, ConstraintF>,
 {
-    fn alloc_hardcoded<FN, T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, value_gen: FN) -> Result<Self, SynthesisError> where
-        FN: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<SWProjective<P>>
+    #[inline]
+    fn from_value<CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        value: &SWProjective<P>,
+    ) -> Self
     {
-        let (x, y, infinity) = match value_gen() {
-            Ok(ge) => {
-                let ge = ge.borrow().into_affine();
-                (Ok(ge.x), Ok(ge.y), Ok(ge.infinity))
-            },
-            _ => (
-                Err(SynthesisError::AssignmentMissing),
-                Err(SynthesisError::AssignmentMissing),
-                Err(SynthesisError::AssignmentMissing),
-            ),
-        };
+        let value = value.into_affine();
+        let x = F::from_value(cs.ns(|| "hardcode x"), &value.x);
+        let y = F::from_value(cs.ns(|| "hardcode y"), &value.y);
+        let infinity = Boolean::constant(value.infinity);
 
-        let x = F::alloc_hardcoded(cs.ns(|| "hardcode x"), || Ok(x.unwrap()))?;
-        let y = F::alloc_hardcoded(cs.ns(|| "hardcode y"), || Ok(y.unwrap()))?;
-        let infinity = Boolean::constant(infinity.unwrap());
+        Self::new(x, y, infinity)
+    }
 
-        Ok(Self::new(x, y, infinity))
+    #[inline]
+    fn get_constant(&self) ->SWProjective<P> {
+        let value_proj = SWAffine::<P>::new(
+            self.x.get_value().unwrap(),
+            self.y.get_value().unwrap(),
+            self.infinity.get_value().unwrap()
+        ).into_projective();
+        let x = value_proj.x;
+        let y = value_proj.y;
+        let z = value_proj.z;
+        SWProjective::<P>::new(x, y, z)
     }
 }
 

@@ -619,9 +619,14 @@ impl<P, ConstraintF: PrimeField + SquareRootField> ToBytesGadget<ConstraintF> fo
 
     fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
         &self,
-        cs: CS,
+        mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
-        self.to_bytes(cs)
+        let mut c0 = self.c0.to_bytes_strict(cs.ns(|| "c0"))?;
+        let mut c1 = self.c1.to_bytes_strict(cs.ns(|| "c1"))?;
+
+        c0.append(&mut c1);
+
+        Ok(c0)
     }
 }
 
@@ -788,33 +793,24 @@ impl<P, ConstraintF: PrimeField + SquareRootField> AllocGadget<Fp4<P>, Constrain
     }
 }
 
-impl<P, ConstraintF: PrimeField + SquareRootField> HardCodedGadget<Fp4<P>, ConstraintF> for Fp4Gadget<P, ConstraintF>
+impl<P, ConstraintF: PrimeField + SquareRootField> ConstantGadget<Fp4<P>, ConstraintF> for Fp4Gadget<P, ConstraintF>
     where
         P: Fp4Parameters,
         P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
 {
     #[inline]
-    fn alloc_hardcoded<F, T, CS: ConstraintSystem<ConstraintF>>(
+    fn from_value<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
-        value_gen: F,
-    ) -> Result<Self, SynthesisError>
-        where
-            F: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<Fp4<P>>,
+        value: &Fp4<P>,
+    ) -> Self
     {
-        let (c0, c1) = match value_gen() {
-            Ok(fe) => {
-                let fe = *fe.borrow();
-                (Ok(fe.c0), Ok(fe.c1))
-            },
-            _ => (
-                Err(SynthesisError::AssignmentMissing),
-                Err(SynthesisError::AssignmentMissing),
-            ),
-        };
+        let c0 = Fp2Gadget::<P, ConstraintF>::from_value(&mut cs.ns(|| "c0"), &value.c0);
+        let c1 = Fp2Gadget::<P, ConstraintF>::from_value(&mut cs.ns(|| "c1"), &value.c1);
+        Self::new(c0, c1)
+    }
 
-        let c0 = Fp2Gadget::<P, ConstraintF>::alloc_hardcoded(&mut cs.ns(|| "c0"), || c0)?;
-        let c1 = Fp2Gadget::<P, ConstraintF>::alloc_hardcoded(&mut cs.ns(|| "c1"), || c1)?;
-        Ok(Self::new(c0, c1))
+    #[inline]
+    fn get_constant(&self) -> Fp4<P> {
+        self.get_value().unwrap()
     }
 }

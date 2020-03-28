@@ -420,9 +420,35 @@ for VerifyingKeyGadget<PairingE, ConstraintF, P>
 
     fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
         &self,
-        cs: CS,
+        mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
-        self.to_bytes(cs)
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&self.h_g2.to_bytes_strict(&mut cs.ns(|| "h_g2 to bytes"))?);
+        bytes.extend_from_slice(
+            &self
+                .g_alpha_g1
+                .to_bytes_strict(&mut cs.ns(|| "g_alpha_g1 to bytes"))?,
+        );
+        bytes.extend_from_slice(
+            &self
+                .h_beta_g2
+                .to_bytes_strict(&mut cs.ns(|| "h_beta_g2 to bytes"))?,
+        );
+        bytes.extend_from_slice(
+            &self
+                .g_gamma_g1
+                .to_bytes_strict(&mut cs.ns(|| "g_gamma_g1 to bytes"))?,
+        );
+        bytes.extend_from_slice(
+            &self
+                .h_gamma_g2
+                .to_bytes_strict(&mut cs.ns(|| "h_gamma_g2 to bytes"))?,
+        );
+        for (i, q) in self.query.iter().enumerate() {
+            let mut cs = cs.ns(|| format!("Iteration {}", i));
+            bytes.extend_from_slice(&q.to_bytes_strict(&mut cs.ns(|| "q"))?);
+        }
+        Ok(bytes)
     }
 }
 
