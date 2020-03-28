@@ -4,11 +4,11 @@ use crate::{
     ToBitsGadget,
 };
 use algebra::PrimeField;
-use core::{cmp::Ordering, marker::PhantomData};
+use core::cmp::Ordering;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
 impl<F: PrimeField> FpGadget<F> {
-     fn process_cmp_inputs<CS: ConstraintSystem<F>>(
+    fn process_cmp_inputs<CS: ConstraintSystem<F>>(
         mut cs: CS,
         a: &FpGadget<F>,
         b: &FpGadget<F>,
@@ -177,14 +177,6 @@ impl<F: PrimeField> FpGadget<F> {
 
         Ok(())
     }
-   
-}
-
-pub struct CmpGadget<ConstraintF: PrimeField> {
-    constraint_field_type: PhantomData<ConstraintF>,
-}
-
-impl<ConstraintF: PrimeField> CmpGadget<ConstraintF> {
 }
 
 #[cfg(test)]
@@ -225,36 +217,35 @@ mod test {
 
             match a.cmp(&b) {
                 Ordering::Less => {
-                    a_var.enforce_cmp(
-                        cs.ns(|| "smaller than test"),
-                        &b_var,
-                        Ordering::Less,
-                        false,
-                    )
-                    .unwrap();
-                    a_var.enforce_cmp(
-                        cs.ns(|| "smaller than test 2"),
-                        &b_var,
-                        Ordering::Less,
-                        true,
-                    )
-                    .unwrap();
+                    a_var
+                        .enforce_cmp(cs.ns(|| "smaller than test"), &b_var, Ordering::Less, false)
+                        .unwrap();
+                    a_var
+                        .enforce_cmp(
+                            cs.ns(|| "smaller than test 2"),
+                            &b_var,
+                            Ordering::Less,
+                            true,
+                        )
+                        .unwrap();
                 },
                 Ordering::Greater => {
-                    a_var.enforce_cmp(
-                        cs.ns(|| "smaller than test"),
-                        &b_var,
-                        Ordering::Greater,
-                        false,
-                    )
-                    .unwrap();
-                    a_var.enforce_cmp(
-                        cs.ns(|| "smaller than test 2"),
-                        &b_var,
-                        Ordering::Greater,
-                        true,
-                    )
-                    .unwrap();
+                    a_var
+                        .enforce_cmp(
+                            cs.ns(|| "smaller than test"),
+                            &b_var,
+                            Ordering::Greater,
+                            false,
+                        )
+                        .unwrap();
+                    a_var
+                        .enforce_cmp(
+                            cs.ns(|| "smaller than test 2"),
+                            &b_var,
+                            Ordering::Greater,
+                            true,
+                        )
+                        .unwrap();
                 },
                 _ => {},
             }
@@ -274,36 +265,35 @@ mod test {
 
             match b.cmp(&a) {
                 Ordering::Less => {
-                    a_var.enforce_cmp(
-                        cs.ns(|| "smaller than test"),
-                        &b_var,
-                        Ordering::Less,
-                        false,
-                    )
-                    .unwrap();
-                    a_var.enforce_cmp(
-                        cs.ns(|| "smaller than test 2"),
-                        &b_var,
-                        Ordering::Less,
-                        true,
-                    )
-                    .unwrap();
+                    a_var
+                        .enforce_cmp(cs.ns(|| "smaller than test"), &b_var, Ordering::Less, false)
+                        .unwrap();
+                    a_var
+                        .enforce_cmp(
+                            cs.ns(|| "smaller than test 2"),
+                            &b_var,
+                            Ordering::Less,
+                            true,
+                        )
+                        .unwrap();
                 },
                 Ordering::Greater => {
-                    a_var.enforce_cmp(
-                        cs.ns(|| "smaller than test"),
-                        &b_var,
-                        Ordering::Greater,
-                        false,
-                    )
-                    .unwrap();
-                    a_var.enforce_cmp(
-                        cs.ns(|| "smaller than test 2"),
-                        &b_var,
-                        Ordering::Greater,
-                        true,
-                    )
-                    .unwrap();
+                    a_var
+                        .enforce_cmp(
+                            cs.ns(|| "smaller than test"),
+                            &b_var,
+                            Ordering::Greater,
+                            false,
+                        )
+                        .unwrap();
+                    a_var
+                        .enforce_cmp(
+                            cs.ns(|| "smaller than test 2"),
+                            &b_var,
+                            Ordering::Greater,
+                            true,
+                        )
+                        .unwrap();
                 },
                 _ => {},
             }
@@ -315,13 +305,9 @@ mod test {
             let mut cs = TestConstraintSystem::<Fr>::new();
             let a = rand_in_range(&mut rng);
             let a_var = FpGadget::<Fr>::alloc(cs.ns(|| "a"), || Ok(a)).unwrap();
-            a_var.enforce_cmp(
-                cs.ns(|| "smaller than test"),
-                &a_var,
-                Ordering::Less,
-                false,
-            )
-            .unwrap();
+            a_var
+                .enforce_cmp(cs.ns(|| "smaller than test"), &a_var, Ordering::Less, false)
+                .unwrap();
 
             assert!(!cs.is_satisfied());
         }
@@ -330,13 +316,14 @@ mod test {
             let mut cs = TestConstraintSystem::<Fr>::new();
             let a = rand_in_range(&mut rng);
             let a_var = FpGadget::<Fr>::alloc(cs.ns(|| "a"), || Ok(a)).unwrap();
-            a_var.enforce_cmp(
-                cs.ns(|| "smaller than or equal to test"),
-                &a_var,
-                Ordering::Less,
-                true,
-            )
-            .unwrap();
+            a_var
+                .enforce_cmp(
+                    cs.ns(|| "smaller than or equal to test"),
+                    &a_var,
+                    Ordering::Less,
+                    true,
+                )
+                .unwrap();
 
             assert!(cs.is_satisfied());
         }
