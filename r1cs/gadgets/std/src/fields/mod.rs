@@ -238,6 +238,8 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
 
     fn cost_of_mul() -> usize;
 
+    fn cost_of_mul_equals() -> usize;
+
     fn cost_of_inv() -> usize;
 }
 

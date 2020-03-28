@@ -464,11 +464,11 @@ mod affine_impl {
         }
 
         fn cost_of_add() -> usize {
-            4 + 2 * F::cost_of_mul()
+            4 * F::cost_of_mul() + 2 * F::cost_of_mul_equals()
         }
 
         fn cost_of_double() -> usize {
-            4 + F::cost_of_mul()
+            3 + 2 * F::cost_of_mul_equals()
         }
     }
 
@@ -1132,11 +1132,11 @@ mod projective_impl {
         }
 
         fn cost_of_add() -> usize {
-            4 + 2 * F::cost_of_mul()
+            4 * F::cost_of_mul() + 2 * F::cost_of_mul_equals()
         }
 
         fn cost_of_double() -> usize {
-            4 + F::cost_of_mul()
+            3 + 2 * F::cost_of_mul_equals()
         }
     }
 
