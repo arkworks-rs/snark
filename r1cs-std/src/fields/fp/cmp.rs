@@ -8,6 +8,96 @@ use core::cmp::Ordering;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
 impl<F: PrimeField> FpGadget<F> {
+    /// This function enforces the ordering between `self` and `b`. The
+    /// constraint system will not be satisfied otherwise. If `self` should
+    /// also be checked for equality, e.g. `a <= b` instead of `a < b`, set
+    /// `should_also_check_quality` to `true`. This variant verifies `a` and `b`
+    /// are `<= (p-1)/2`.
+    pub fn enforce_cmp<CS: ConstraintSystem<F>>(
+        &self,
+        mut cs: CS,
+        b: &FpGadget<F>,
+        ordering: Ordering,
+        should_also_check_equality: bool,
+    ) -> Result<(), SynthesisError> {
+        let (left, right) = Self::process_cmp_inputs(
+            cs.ns(|| "process cmp inputs"),
+            &self,
+            b,
+            ordering,
+            should_also_check_equality,
+        )?;
+        Self::enforce_smaller_than_unchecked(cs.ns(|| "enforce smaller than"), &left, &right)
+    }
+
+    /// This function enforces the ordering between `self` and `b`. The
+    /// constraint system will not be satisfied otherwise. If `self` should
+    /// also be checked for equality, e.g. `a <= b` instead of `a < b`, set
+    /// `should_also_check_quality` to `true`. This variant assumes `a` and `b`
+    /// are `<= (p-1)/2` and does not generate constraints to verify that.
+    pub fn enforce_cmp_unchecked<CS: ConstraintSystem<F>>(
+        &self,
+        mut cs: CS,
+        b: &FpGadget<F>,
+        ordering: Ordering,
+        should_also_check_equality: bool,
+    ) -> Result<(), SynthesisError> {
+        let (left, right) = Self::process_cmp_inputs(
+            cs.ns(|| "process cmp inputs"),
+            &self,
+            b,
+            ordering,
+            should_also_check_equality,
+        )?;
+        Self::enforce_smaller_than(cs.ns(|| "enforce smaller than"), &left, &right)
+    }
+
+    /// This function checks the ordering between `self` and `b`. It outputs a
+    /// `Boolean` that contains the result - `1` if true, `0` otherwise. The
+    /// constraint system will be satisfied in any case. If `self` should
+    /// also be checked for equality, e.g. `a <= b` instead of `a < b`, set
+    /// `should_also_check_quality` to `true`. This variant verifies `a` and `b`
+    /// are `<= (p-1)/2`.
+    pub fn is_cmp<CS: ConstraintSystem<F>>(
+        &self,
+        mut cs: CS,
+        b: &FpGadget<F>,
+        ordering: Ordering,
+        should_also_check_equality: bool,
+    ) -> Result<Boolean, SynthesisError> {
+        let (left, right) = Self::process_cmp_inputs(
+            cs.ns(|| "process cmp inputs"),
+            &self,
+            b,
+            ordering,
+            should_also_check_equality,
+        )?;
+        Self::is_smaller_than(cs.ns(|| "enforce smaller than"), &left, &right)
+    }
+
+    /// This function checks the ordering between `self` and `b`. It outputs a
+    /// `Boolean` that contains the result - `1` if true, `0` otherwise. The
+    /// constraint system will be satisfied in any case. If `self` should
+    /// also be checked for equality, e.g. `a <= b` instead of `a < b`, set
+    /// `should_also_check_quality` to `true`. This variant assumes `a` and `b`
+    /// are `<= (p-1)/2` and does not generate constraints to verify that.
+    pub fn is_cmp_unchecked<CS: ConstraintSystem<F>>(
+        &self,
+        mut cs: CS,
+        b: &FpGadget<F>,
+        ordering: Ordering,
+        should_also_check_equality: bool,
+    ) -> Result<Boolean, SynthesisError> {
+        let (left, right) = Self::process_cmp_inputs(
+            cs.ns(|| "process cmp inputs"),
+            &self,
+            b,
+            ordering,
+            should_also_check_equality,
+        )?;
+        Self::is_smaller_than_unchecked(cs.ns(|| "enforce smaller than"), &left, &right)
+    }
+
     fn process_cmp_inputs<CS: ConstraintSystem<F>>(
         mut cs: CS,
         a: &FpGadget<F>,
@@ -39,6 +129,7 @@ impl<F: PrimeField> FpGadget<F> {
         Ok((left.clone(), right_for_check))
     }
 
+    // Helper function to enforce `a <= (p-1)/2`.
     fn check_smaller_than_mod_minus_one_div_two<CS: ConstraintSystem<F>>(
         mut cs: CS,
         a: &FpGadget<F>,
@@ -53,79 +144,8 @@ impl<F: PrimeField> FpGadget<F> {
         Ok(())
     }
 
-    /// this function verifies a and b are <= (p-1)/2
-    pub fn enforce_cmp<CS: ConstraintSystem<F>>(
-        &self,
-        mut cs: CS,
-        b: &FpGadget<F>,
-        ordering: Ordering,
-        should_also_check_equality: bool,
-    ) -> Result<(), SynthesisError> {
-        let (left, right) = Self::process_cmp_inputs(
-            cs.ns(|| "process cmp inputs"),
-            &self,
-            b,
-            ordering,
-            should_also_check_equality,
-        )?;
-        Self::enforce_smaller_than_unchecked(cs.ns(|| "enforce smaller than"), &left, &right)
-    }
-
-    /// this function assumes a and b are known to be <= (p-1)/2
-    pub fn enforce_cmp_unchecked<CS: ConstraintSystem<F>>(
-        &self,
-        mut cs: CS,
-        b: &FpGadget<F>,
-        ordering: Ordering,
-        should_also_check_equality: bool,
-    ) -> Result<(), SynthesisError> {
-        let (left, right) = Self::process_cmp_inputs(
-            cs.ns(|| "process cmp inputs"),
-            &self,
-            b,
-            ordering,
-            should_also_check_equality,
-        )?;
-        Self::enforce_smaller_than(cs.ns(|| "enforce smaller than"), &left, &right)
-    }
-
-    /// this function verifies a and b are <= (p-1)/2
-    pub fn is_cmp<CS: ConstraintSystem<F>>(
-        &self,
-        mut cs: CS,
-        b: &FpGadget<F>,
-        ordering: Ordering,
-        should_also_check_equality: bool,
-    ) -> Result<Boolean, SynthesisError> {
-        let (left, right) = Self::process_cmp_inputs(
-            cs.ns(|| "process cmp inputs"),
-            &self,
-            b,
-            ordering,
-            should_also_check_equality,
-        )?;
-        Self::is_smaller_than(cs.ns(|| "enforce smaller than"), &left, &right)
-    }
-
-    /// this function assumes a and b are known to be <= (p-1)/2
-    pub fn is_cmp_unchecked<CS: ConstraintSystem<F>>(
-        &self,
-        mut cs: CS,
-        b: &FpGadget<F>,
-        ordering: Ordering,
-        should_also_check_equality: bool,
-    ) -> Result<Boolean, SynthesisError> {
-        let (left, right) = Self::process_cmp_inputs(
-            cs.ns(|| "process cmp inputs"),
-            &self,
-            b,
-            ordering,
-            should_also_check_equality,
-        )?;
-        Self::is_smaller_than_unchecked(cs.ns(|| "enforce smaller than"), &left, &right)
-    }
-
-    /// this function verifies a and b are <= (p-1)/2
+    /// Helper function to check `a < b` and output a result bit. This function
+    /// verifies `a` and `b` are `<= (p-1)/2`.
     fn is_smaller_than<CS: ConstraintSystem<F>>(
         mut cs: CS,
         a: &FpGadget<F>,
@@ -136,7 +156,9 @@ impl<F: PrimeField> FpGadget<F> {
         Self::is_smaller_than_unchecked(cs.ns(|| "enforce smaller than"), a, b)
     }
 
-    /// this function assumes a and b are known to be <= (p-1)/2
+    /// Helper function to check `a < b` and output a result bit. This function
+    /// assumes `a` and `b` are `<= (p-1)/2` and does not generate constraints
+    /// to verify that.
     fn is_smaller_than_unchecked<CS: ConstraintSystem<F>>(
         mut cs: CS,
         a: &FpGadget<F>,
@@ -150,7 +172,8 @@ impl<F: PrimeField> FpGadget<F> {
         Ok(d_bits[d_bits_len - 1])
     }
 
-    /// this function verifies a and b are <= (p-1)/2
+    /// Helper function to enforce `a < b`. This function verifies `a` and `b`
+    /// are `<= (p-1)/2`.
     fn enforce_smaller_than<CS: ConstraintSystem<F>>(
         mut cs: CS,
         a: &FpGadget<F>,
@@ -161,7 +184,8 @@ impl<F: PrimeField> FpGadget<F> {
         Self::enforce_smaller_than_unchecked(cs.ns(|| "enforce smaller than"), a, b)
     }
 
-    /// this function assumes a and b are known to be <= (p-1)/2
+    /// Helper function to enforce `a < b`. This function assumes `a` and `b`
+    /// are `<= (p-1)/2` and does not generate constraints to verify that.
     fn enforce_smaller_than_unchecked<CS: ConstraintSystem<F>>(
         mut cs: CS,
         a: &FpGadget<F>,
