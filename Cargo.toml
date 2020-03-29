@@ -24,7 +24,12 @@ incremental = true
 debug-assertions = false
 
 [profile.dev]
-opt-level = 0
+opt-level = 3
+debug = false
+rpath = false
+lto = "thin"
+incremental = true
+debug-assertions = false
 
 [profile.test]
 opt-level = 3
