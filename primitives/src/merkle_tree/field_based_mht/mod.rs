@@ -2,14 +2,8 @@ use crate::{
     crh::FieldBasedHash, Error
 };
 use super::*;
-use algebra::ToConstraintField;
-
 
 pub trait FieldBasedMerkleTreeConfig {
-    /// If `true` all leaves will be hashed, otherwise
-    /// we assume them to be just one field element, and
-    /// leave them untouched.
-    const HASH_LEAVES: bool;
     const HEIGHT: usize;
     type H: FieldBasedHash;
 }
@@ -44,24 +38,19 @@ impl<P: FieldBasedMerkleTreeConfig> Default for FieldBasedMerkleTreePath<P> {
 }
 
 impl<P: FieldBasedMerkleTreeConfig> FieldBasedMerkleTreePath<P> {
-    pub fn verify<L>(
+    pub fn verify(
         &self,
         root_hash: &<P::H as FieldBasedHash>::Data,
-        leaf: &L,
+        leaf: &<P::H as FieldBasedHash>::Data,
     ) -> Result<bool, Error>
     where
-        L: ToConstraintField<<P::H as FieldBasedHash>::Data>
     {
         if self.path.len() != (P::HEIGHT - 1) as usize {
             return Ok(false);
         }
 
         if !self.path.is_empty() {
-            let mut prev = if P::HASH_LEAVES {
-                hash_leaf::<P::H, L>(leaf)?
-            } else {
-                leaf.to_field_elements().map(|fe| fe[0])?
-            };
+            let mut prev = *leaf;
 
             // Check levels between leaf level and root.
             for &(sibling_hash, direction) in &self.path {
@@ -88,10 +77,9 @@ impl<P: FieldBasedMerkleTreeConfig> FieldBasedMerkleTreePath<P> {
 
 /// Merkle Tree whose leaves are field elements, best with hash functions
 /// that works with field elements, such as Poseidon. This implementation
-/// works with leaves of size 1 field element, therefore it has been given
-/// the possibility to choose if the leaves contain a hash output (in which
-/// case the preimages are automatically converted to field elements) or plain
-/// values (in this case, instead, we assume it to be a single field element).
+/// works with leaves of size 1 field element.
+/// Leaves passed when creating a MerkleTree/MerklePath proof won't be
+/// hashed, it's responsibility of the caller to do it, if desired.
 pub struct FieldBasedMerkleHashTree<P: FieldBasedMerkleTreeConfig> {
     tree:         Vec<<P::H as FieldBasedHash>::Data>,
     padding_tree: Vec<(
@@ -112,11 +100,9 @@ impl<P: FieldBasedMerkleTreeConfig> FieldBasedMerkleHashTree<P> {
         }
     }
 
-    pub fn new<L>(
-        leaves: &[L],
+    pub fn new(
+        leaves: &[<P::H as FieldBasedHash>::Data],
     ) -> Result<Self, Error>
-    where
-        L: ToConstraintField<<P::H as FieldBasedHash>::Data>
     {
         let new_time = start_timer!(|| "MerkleTree::New");
 
@@ -140,14 +126,10 @@ impl<P: FieldBasedMerkleTreeConfig> FieldBasedMerkleHashTree<P> {
             index = left_child(index);
         }
 
-        // Compute and store the hash values for each leaf.
+        // Compute and store the values for each leaf.
         let last_level_index = level_indices.pop().unwrap();
         for (i, leaf) in leaves.iter().enumerate() {
-            tree[last_level_index + i] = if P::HASH_LEAVES {
-                hash_leaf::<P::H, L>(leaf)?
-            } else {
-                leaf.to_field_elements().map(|fe| fe[0])?
-            };
+            tree[last_level_index + i] = *leaf;
         }
 
         // Compute the hash values for every node in the tree.
@@ -172,17 +154,13 @@ impl<P: FieldBasedMerkleTreeConfig> FieldBasedMerkleHashTree<P> {
         let mut cur_height = tree_height;
         let mut padding_tree = Vec::new();
         let mut cur_hash = tree[0].clone();
-        while cur_height < (Self::HEIGHT - 1) as usize {
+        while cur_height < Self::HEIGHT as usize {
             cur_hash = hash_inner_node::<P::H>(cur_hash, empty_hash)?;
             padding_tree.push((cur_hash.clone(), empty_hash.clone()));
             cur_height += 1;
         }
 
-        let root_hash = if tree_height == Self::HEIGHT as usize {
-            cur_hash
-        } else {
-            hash_inner_node::<P::H>(cur_hash, empty_hash)?
-        };
+        let root_hash = cur_hash;
 
         end_timer!(new_time);
 
@@ -204,27 +182,20 @@ impl<P: FieldBasedMerkleTreeConfig> FieldBasedMerkleHashTree<P> {
         &self.tree[leaf_index..]
     }
 
-    pub fn generate_proof<L>(
+    pub fn generate_proof(
         &self,
         index: usize,
-        leaf: &L,
+        leaf: &<P::H as FieldBasedHash>::Data,
     ) -> Result<FieldBasedMerkleTreePath<P>, Error>
-        where
-            L: ToConstraintField<<P::H as FieldBasedHash>::Data>
     {
         let prove_time = start_timer!(|| "MerkleTree::GenProof");
         let mut path = Vec::new();
 
-        let leaf_hash = if P::HASH_LEAVES {
-            hash_leaf::<P::H, L>(leaf)?
-        } else {
-            leaf.to_field_elements().map(|fe| fe[0])?
-        };
         let tree_height = tree_height(self.tree.len());
         let tree_index = convert_index_to_last_level(index, tree_height);
 
         // Check that the given index corresponds to the correct leaf.
-        if leaf_hash != self.tree[tree_index] {
+        if *leaf != self.tree[tree_index] {
             Err(MerkleTreeError::IncorrectLeafIndex(tree_index))?
         }
 
@@ -242,16 +213,10 @@ impl<P: FieldBasedMerkleTreeConfig> FieldBasedMerkleHashTree<P> {
         }
 
         assert!(path.len() < Self::HEIGHT as usize);
-        if path.len() != (Self::HEIGHT - 1) as usize {
 
-            //Push the sibling of the tree root which is empty hash.
-            let empty_hash = hash_empty::<P::H>()?;
-            path.push((empty_hash, false));
-
-            //Then push the other elements of the padding tree
-            for &(_, ref sibling_hash) in &self.padding_tree {
-                path.push((sibling_hash.clone(), false));
-            }
+        //Then push the other elements of the padding tree
+        for &(_, ref sibling_hash) in &self.padding_tree {
+            path.push((sibling_hash.clone(), false));
         }
 
         end_timer!(prove_time);
@@ -271,17 +236,6 @@ pub(crate) fn hash_inner_node<H: FieldBasedHash>(
     H::evaluate(&[left, right])
 }
 
-/// Returns the hash of a leaf.
-pub(crate) fn hash_leaf<H, L>(leaf: &L) -> Result<H::Data, Error>
-where
-    H: FieldBasedHash,
-    L: ToConstraintField<H::Data>
-
-{
-    let input = leaf.to_field_elements()?;
-    H::evaluate(input.as_slice())
-}
-
 pub(crate) fn hash_empty<H: FieldBasedHash>() -> Result<H::Data, Error> {
     use algebra::Field;
     let dummy = <H::Data as Field>::one();
@@ -293,76 +247,26 @@ mod test {
     use crate::{
         crh::MNT4PoseidonHash,
         merkle_tree::field_based_mht::*,
-        Error,
     };
     use algebra::{
-        fields::mnt4753::Fr, ToConstraintField, Field,
-        curves::mnt6753::{G1Affine, G1Projective}, ProjectiveCurve,
+        fields::mnt4753::Fr, Field,
         UniformRand
     };
-    use rand::{Rng, SeedableRng};
+    use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
-
-    #[derive(Derivative)]
-    #[derivative(Clone, Eq, PartialEq)]
-    struct MNT4753Utxo {
-        public_key: G1Affine,
-        amount:     Fr,
-    }
-
-    impl ToConstraintField<Fr> for MNT4753Utxo {
-        fn to_field_elements(&self) -> Result<Vec<Fr>, Error> {
-            let mut f = self.public_key.to_field_elements()?;
-            f.push(self.amount);
-            Ok(f)
-        }
-    }
-
-    impl UniformRand for MNT4753Utxo {
-        fn rand<R: Rng + ?Sized>(rng: &mut R) -> Self {
-            let public_key = G1Projective::rand(rng).into_affine();
-            let amount: Fr = rng.gen();
-            MNT4753Utxo{public_key, amount}
-        }
-    }
 
     struct MNT4753FieldBasedMerkleTreeParams;
 
     impl FieldBasedMerkleTreeConfig for MNT4753FieldBasedMerkleTreeParams {
-        const HASH_LEAVES: bool = true;
-        const HEIGHT: usize = 32;
+        const HEIGHT: usize = 6;
         type H = MNT4PoseidonHash;
     }
 
     type MNT4753FieldBasedMerkleTree = FieldBasedMerkleHashTree<MNT4753FieldBasedMerkleTreeParams>;
 
-    struct MNT4753FieldBasedMerkleTreeParamsNoHash;
-
-    impl FieldBasedMerkleTreeConfig for MNT4753FieldBasedMerkleTreeParamsNoHash {
-        const HASH_LEAVES: bool = false;
-        const HEIGHT: usize = 32;
-        type H = MNT4PoseidonHash;
-    }
-
-    type MNT4753FieldBasedMerkleTreeNoHash = FieldBasedMerkleHashTree<MNT4753FieldBasedMerkleTreeParamsNoHash>;
-
-    fn generate_merkle_tree<L>(leaves: &[L])
-    where
-        L: ToConstraintField<Fr> + Clone + Eq
+    fn generate_merkle_tree(leaves: &[Fr])
     {
         let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
-        let root = tree.root();
-        for (i, leaf) in leaves.iter().enumerate() {
-            let proof = tree.generate_proof(i, leaf).unwrap();
-            assert!(proof.verify(&root, leaf).unwrap());
-        }
-    }
-
-    fn generate_merkle_tree_no_hash<L>(leaves: &[L])
-        where
-            L: ToConstraintField<Fr> + Clone + Eq
-    {
-        let tree = MNT4753FieldBasedMerkleTreeNoHash::new(&leaves).unwrap();
         let root = tree.root();
         for (i, leaf) in leaves.iter().enumerate() {
             let proof = tree.generate_proof(i, leaf).unwrap();
@@ -373,39 +277,35 @@ mod test {
     #[test]
     fn good_root_test() {
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
+
+        //Test #leaves << 2^HEIGHT
         let mut leaves = Vec::new();
         for _ in 0..4 {
-            let f = MNT4753Utxo::rand(&mut rng);
-            leaves.push(f);
+            let f = Fr::rand(&mut rng);
+            leaves.push(MNT4PoseidonHash::evaluate(&[f]).unwrap());
         }
         generate_merkle_tree(&leaves);
-        generate_merkle_tree_no_hash(&leaves);
+
+        //Test #leaves = 2^HEIGHT - 1
         let mut leaves = Vec::new();
-        for _ in 0..100 {
-            let f: Fr = rng.gen();
+        for _ in 0..16 {
+            let f = Fr::rand(&mut rng);
             leaves.push(f);
         }
         generate_merkle_tree(&leaves);
-        generate_merkle_tree_no_hash(&leaves);
+
+        //Test #leaves == 2^HEIGHT
+        let mut leaves = Vec::new();
+        for _ in 0..32 {
+            let f = Fr::rand(&mut rng);
+            leaves.push(f);
+        }
+        generate_merkle_tree(&leaves);
     }
 
-    fn bad_merkle_tree_verify<L>(leaves: &[L])
-        where
-            L: ToConstraintField<Fr> + Clone + Eq
+    fn bad_merkle_tree_verify(leaves: &[Fr])
     {
         let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
-        let root = Fr::zero();
-        for (i, leaf) in leaves.iter().enumerate() {
-            let proof = tree.generate_proof(i, leaf).unwrap();
-            assert!(!proof.verify(&root, leaf).unwrap());
-        }
-    }
-
-    fn bad_merkle_tree_verify_no_hash<L>(leaves: &[L])
-        where
-            L: ToConstraintField<Fr> + Clone + Eq
-    {
-        let tree = MNT4753FieldBasedMerkleTreeNoHash::new(&leaves).unwrap();
         let root = Fr::zero();
         for (i, leaf) in leaves.iter().enumerate() {
             let proof = tree.generate_proof(i, leaf).unwrap();
@@ -416,19 +316,29 @@ mod test {
     #[test]
     fn bad_root_test() {
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
+
+        //Test #leaves << 2^HEIGHT
         let mut leaves = Vec::new();
         for _ in 0..4 {
-            let f = MNT4753Utxo::rand(&mut rng);
-            leaves.push(f);
+            let f = Fr::rand(&mut rng);
+            leaves.push(MNT4PoseidonHash::evaluate(&[f]).unwrap());
         }
         bad_merkle_tree_verify(&leaves);
-        bad_merkle_tree_verify_no_hash(&leaves);
+
+        //Test #leaves = 2^HEIGHT - 1
         let mut leaves = Vec::new();
-        for _ in 0..100 {
-            let f: Fr = rng.gen();
+        for _ in 0..16 {
+            let f = Fr::rand(&mut rng);
             leaves.push(f);
         }
         bad_merkle_tree_verify(&leaves);
-        bad_merkle_tree_verify_no_hash(&leaves);
+
+        //Test #leaves == 2^HEIGHT
+        let mut leaves = Vec::new();
+        for _ in 0..32 {
+            let f = Fr::rand(&mut rng);
+            leaves.push(f);
+        }
+        bad_merkle_tree_verify(&leaves);
     }
 }

@@ -166,7 +166,12 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
             cur_height += 1;
         }
 
-        let root_hash = hash_inner_node::<P::H>(&parameters, &cur_hash, &empty_hash, &mut buffer)?;
+        let root_hash = if tree_height == Self::HEIGHT as usize {
+            cur_hash
+        } else {
+            hash_inner_node::<P::H>(&parameters, &cur_hash, &empty_hash, &mut buffer)?
+        };
+        
 
         end_timer!(new_time);
 
@@ -386,7 +391,7 @@ mod test {
     struct JubJubMerkleTreeParams;
 
     impl MerkleTreeConfig for JubJubMerkleTreeParams {
-        const HEIGHT: usize = 32;
+        const HEIGHT: usize = 6;
         type H = H;
     }
     type JubJubMerkleTree = MerkleHashTree<JubJubMerkleTreeParams>;
@@ -405,13 +410,24 @@ mod test {
 
     #[test]
     fn good_root_test() {
+
+        //Test #leaves << 2^HEIGHT
         let mut leaves = Vec::new();
         for i in 0..4u8 {
             leaves.push([i, i, i, i, i, i, i, i]);
         }
         generate_merkle_tree(&leaves);
+
+        //Test #leaves = 2^HEIGHT - 1
         let mut leaves = Vec::new();
-        for i in 0..100u8 {
+        for i in 0..16u8 {
+            leaves.push([i, i, i, i, i, i, i, i]);
+        }
+        generate_merkle_tree(&leaves);
+
+        //Test #leaves = 2^HEIGHT - 1
+        let mut leaves = Vec::new();
+        for i in 0..32u8 {
             leaves.push([i, i, i, i, i, i, i, i]);
         }
         generate_merkle_tree(&leaves);
@@ -426,20 +442,29 @@ mod test {
         let root = JubJub::zero();
         for (i, leaf) in leaves.iter().enumerate() {
             let proof = tree.generate_proof(i, &leaf).unwrap();
-            assert!(proof.verify(&crh_parameters, &root, &leaf).unwrap());
+            assert!(!proof.verify(&crh_parameters, &root, &leaf).unwrap());
         }
     }
 
-    #[should_panic]
     #[test]
     fn bad_root_test() {
+        //Test #leaves << 2^HEIGHT
         let mut leaves = Vec::new();
         for i in 0..4u8 {
             leaves.push([i, i, i, i, i, i, i, i]);
         }
-        generate_merkle_tree(&leaves);
+        bad_merkle_tree_verify(&leaves);
+
+        //Test #leaves = 2^HEIGHT - 1
         let mut leaves = Vec::new();
-        for i in 0..100u8 {
+        for i in 0..16u8 {
+            leaves.push([i, i, i, i, i, i, i, i]);
+        }
+        bad_merkle_tree_verify(&leaves);
+
+        //Test #leaves = 2^HEIGHT - 1
+        let mut leaves = Vec::new();
+        for i in 0..32u8 {
             leaves.push([i, i, i, i, i, i, i, i]);
         }
         bad_merkle_tree_verify(&leaves);
