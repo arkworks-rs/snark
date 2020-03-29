@@ -398,6 +398,65 @@ where
         Ok(Self::new(c0, c1, c2))
     }
 
+    #[inline]
+    fn mul_equals<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        other: &Self,
+        result: &Self,
+    ) -> Result<(), SynthesisError> {
+        // Karatsuba multiplication for Fp3:
+        //     v0 = A.c0 * B.c0
+        //     v1 = A.c1 * B.c1
+        //     v2 = A.c2 * B.c2
+        //     c0 = v0 + β((a1 + a2)(b1 + b2) − v1 − v2)
+        //     c1 = (a0 + a1)(b0 + b1) − v0 − v1 + βv2
+        //     c2 = (a0 + a2)(b0 + b2) − v0 + v1 − v2,
+        // Reference:
+        // "Multiplication and Squaring on Pairing-Friendly Fields"
+        // Devegili, OhEigeartaigh, Scott, Dahab
+        let v0 = self.c0.mul(cs.ns(|| "v0 = a0 * b0"), &other.c0)?;
+        let v1 = self.c1.mul(cs.ns(|| "v1 = a1 * b1"), &other.c1)?;
+        let v2 = self.c2.mul(cs.ns(|| "v2 = a2 * b2"), &other.c2)?;
+
+        //Check c0
+        let nr_a1_plus_a2 =
+            self.c1.add(cs.ns(|| "a1 + a2"), &self.c2)?
+                .mul_by_constant(cs.ns(|| "nr*(a1 + a2)"), &P::NONRESIDUE)?;
+        let b1_plus_b2 =
+            other.c1.add(cs.ns(|| "b1 + b2"), &other.c2)?;
+        let nr_v1 = v1.mul_by_constant(cs.ns(|| "nr * v1"), &P::NONRESIDUE)?;
+        let nr_v2 = v2.mul_by_constant(cs.ns(|| "nr * v2"), &P::NONRESIDUE)?;
+        let to_check = result.c0
+            .sub(cs.ns(|| "c0 - v0"), &v0)?
+            .add(cs.ns(|| "c0 - v0 + nr * v1"), &nr_v1)?
+            .add(cs.ns(|| "c0 - v0 + nr * v1 + nr * v2"), &nr_v2)?;
+        nr_a1_plus_a2.mul_equals(cs.ns(|| "check c0"), &b1_plus_b2, &to_check)?;
+
+        //Check c1
+        let a0_plus_a1 =
+            self.c0.add(cs.ns(|| "a0 + a1"), &self.c1)?;
+        let b0_plus_b1 =
+            other.c0.add(cs.ns(|| "b0 + b1"), &other.c1)?;
+        let to_check = result.c1
+            .sub(cs.ns(|| "c1 - nr * v2"), &nr_v2)?
+            .add(cs.ns(|| "c1 - nr * v2 + v0"), &v0)?
+            .add(cs.ns(|| "c1 - nr * v2 + v0 + v1"), &v1)?;
+        a0_plus_a1.mul_equals(cs.ns(|| "check c1"), &b0_plus_b1, &to_check)?;
+
+        //Check c2
+        let a0_plus_a2 =
+            self.c0.add(cs.ns(|| "a0 + a2"), &self.c2)?;
+        let b0_plus_b2 =
+            other.c0.add(cs.ns(|| "b0 + b2"), &other.c2)?;
+        let to_check = result.c2
+            .add(cs.ns(|| "c2 + v0"), &v0)?
+            .sub(cs.ns(|| "c2 + v0 - v1"), &v1)?
+            .add(cs.ns(|| "c2 + v0 - v1 + v2"), &v2)?;
+        a0_plus_a2.mul_equals(cs.ns(|| "check c2"), &b0_plus_b2, &to_check)?;
+        Ok(())
+    }
+
     /// Use the Toom-Cook-3x method to compute multiplication.
     #[inline]
     fn square<CS: ConstraintSystem<ConstraintF>>(
@@ -704,8 +763,13 @@ where
         5 * Fp2Gadget::<P, ConstraintF>::cost_of_mul()
     }
 
+    fn cost_of_mul_equals() -> usize {
+        3 * Fp2Gadget::<P, ConstraintF>::cost_of_mul() +
+            3 * Fp2Gadget::<P, ConstraintF>::cost_of_mul_equals()
+    }
+
     fn cost_of_inv() -> usize {
-        Self::cost_of_mul() + <Self as EqGadget<ConstraintF>>::cost()
+        Self::cost_of_mul_equals()
     }
 }
 

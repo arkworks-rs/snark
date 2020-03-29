@@ -317,9 +317,9 @@ impl<F: PrimeField> FromBits for F {
     }
 }
 
-/// Converts an element belonging to field FromF to an element belonging to field ToF.
+/// Attempts to convert a boolean vec into a valid field element for field `ToF`.
 /// If `from` is not a valid element for field ToF, this function returns None.
-pub fn convert<FromF: PrimeField, ToF: PrimeField>(from: Vec<bool>) -> Result<ToF, Error> {
+pub fn convert<ToF: PrimeField>(from: Vec<bool>) -> Result<ToF, Error> {
     ToF::read_bits(from)
 }
 

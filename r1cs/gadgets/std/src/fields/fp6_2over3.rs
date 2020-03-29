@@ -602,6 +602,10 @@ impl<P, ConstraintF: PrimeField + SquareRootField> FieldGadget<Fp6<P>, Constrain
         3 * Fp3Gadget::<P, ConstraintF>::cost_of_mul()
     }
 
+    fn cost_of_mul_equals() -> usize {
+        3 * Fp3Gadget::<P, ConstraintF>::cost_of_mul_equals()
+    }
+
     fn cost_of_inv() -> usize {
         2 * Fp3Gadget::<P, ConstraintF>::cost_of_mul()
     }

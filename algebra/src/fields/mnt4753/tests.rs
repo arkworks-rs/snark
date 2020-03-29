@@ -6,7 +6,7 @@ use crate::{
     fields::models::{fp2::Fp2Parameters, fp4::Fp4Parameters},
     Field, PrimeField, SquareRootField,
     UniformRand,
-    bytes::{ToBytes, FromBytes}, to_bytes,
+    bytes::{ToBytes, FromBytes}, to_bytes, ToBits,
 };
 
 use rand::SeedableRng;
@@ -916,6 +916,35 @@ fn test_fq_bytes() {
     assert_eq!(a, a_read);
 }
 
+#[test]
+fn test_convert_fq_fr() {
+    use crate::fields::{
+        convert, mnt4753::{
+            Fr, FrParameters,
+        },
+    };
+
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+    for _ in 0..1000 {
+
+        // Safely convert a random Fq into a Fr
+        let q: Fq = UniformRand::rand(&mut rng);
+        let q_bits = &q.write_bits()[1..]; //Skip 1 bit, in order to perform a safe conversion
+        let conv = convert::<Fr>(q_bits.to_vec()).unwrap();
+        assert_eq!(conv.pow(Fr::characteristic()), conv);
+
+        // Safely convert a random Fr into a Fq
+        let r: Fr = UniformRand::rand(&mut rng);
+        let r_bits = &r.write_bits()[1..]; //Skip 1 bit, in order to perform a safe conversion
+        let conv = convert::<Fq>(r_bits.to_vec()).unwrap();
+        assert_eq!(conv.pow(Fq::characteristic()), conv);
+    }
+
+    //Attempting to convert a bit array that exceeds other field's modulus will result in an error
+    let modulus_r = Fr::new(FrParameters::MODULUS);
+    assert!(convert::<Fq>((modulus_r - &Fr::one()).write_bits()).is_err()); //Fr_Modulus - 1 is bigger than Fq modulus
+}
 
 #[test]
 fn test_fq_root_of_unity() {

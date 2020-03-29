@@ -10,7 +10,7 @@ pub trait MerkleTreeConfig {
 }
 
 /// Stores the hashes of a particular path (in order) from leaf to root.
-/// Our path `is_left_child()` if the boolean in `path` is true.
+/// Our path `is_left_child()` if the boolean in `path` is false.
 #[derive(Derivative)]
 #[derivative(
     Clone(bound = "P: MerkleTreeConfig"),
@@ -19,7 +19,7 @@ pub trait MerkleTreeConfig {
 pub struct MerkleTreePath<P: MerkleTreeConfig> {
     pub path: Vec<(
         <P::H as FixedLengthCRH>::Output,
-        <P::H as FixedLengthCRH>::Output,
+        bool,
     )>,
 }
 
@@ -32,7 +32,7 @@ impl<P: MerkleTreeConfig> Default for MerkleTreePath<P> {
         for _i in 1..P::HEIGHT as usize {
             path.push((
                 <P::H as FixedLengthCRH>::Output::default(),
-                <P::H as FixedLengthCRH>::Output::default(),
+                false,
             ));
         }
         Self { path }
@@ -47,27 +47,26 @@ impl<P: MerkleTreeConfig> MerkleTreePath<P> {
         leaf: &L,
     ) -> Result<bool, Error> {
         if self.path.len() != (P::HEIGHT - 1) as usize {
-            return Ok(false);
+            return Err(MerkleTreeError::IncorrectPathLength(self.path.len()))?
         }
         // Check that the given leaf matches the leaf in the membership proof.
-        let mut buffer = [0u8; 128];
+        let mut buffer = vec![0u8; P::H::INPUT_SIZE_BITS/8];
 
         if !self.path.is_empty() {
-            let claimed_leaf_hash = hash_leaf::<P::H, L>(parameters, leaf, &mut buffer)?;
 
-            // Check if leaf is one of the bottom-most siblings.
-            if claimed_leaf_hash != self.path[0].0 && claimed_leaf_hash != self.path[0].1 {
-                return Ok(false);
-            };
+            let mut prev = hash_leaf::<P::H, L>(parameters, leaf, &mut buffer)?;
 
-            let mut prev = claimed_leaf_hash;
             // Check levels between leaf level and root.
-            for &(ref hash, ref sibling_hash) in &self.path {
-                // Check if the previous hash matches the correct current hash.
-                if &prev != hash && &prev != sibling_hash {
-                    return Ok(false);
-                };
-                prev = hash_inner_node::<P::H>(parameters, hash, sibling_hash, &mut buffer)?;
+            for &(ref sibling_hash, direction) in &self.path {
+
+            // Check if the previous hash matches the correct current hash.
+            prev = {
+                    if direction {
+                        hash_inner_node::<P::H>(parameters, sibling_hash, &prev, &mut buffer)
+                    } else {
+                        hash_inner_node::<P::H>(parameters, &prev, sibling_hash, &mut buffer)
+                    }
+                }?;
             }
 
             if root_hash != &prev {
@@ -75,7 +74,7 @@ impl<P: MerkleTreeConfig> MerkleTreePath<P> {
             }
             Ok(true)
         } else {
-            Ok(false)
+            return Err(MerkleTreeError::IncorrectPathLength(0))?
         }
     }
 }
@@ -130,14 +129,14 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
 
         // Compute and store the hash values for each leaf.
         let last_level_index = level_indices.pop().unwrap();
-        let mut buffer = [0u8; 128];
+        let mut buffer = vec![0u8; P::H::INPUT_SIZE_BITS/8];
         for (i, leaf) in leaves.iter().enumerate() {
             tree[last_level_index + i] = hash_leaf::<P::H, _>(&parameters, leaf, &mut buffer)?;
         }
 
         // Compute the hash values for every node in the tree.
         let mut upper_bound = last_level_index;
-        let mut buffer = [0u8; 128];
+        let mut buffer = vec![0u8; P::H::INPUT_SIZE_BITS/8];
         level_indices.reverse();
         for &start_index in &level_indices {
             // Iterate over the current level.
@@ -160,13 +159,13 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
         let mut cur_height = tree_height;
         let mut padding_tree = Vec::new();
         let mut cur_hash = tree[0].clone();
-        while cur_height < (Self::HEIGHT - 1) as usize {
+        while cur_height < Self::HEIGHT as usize {
             cur_hash = hash_inner_node::<P::H>(&parameters, &cur_hash, &empty_hash, &mut buffer)?;
             padding_tree.push((cur_hash.clone(), empty_hash.clone()));
             cur_height += 1;
         }
 
-        let root_hash = hash_inner_node::<P::H>(&parameters, &cur_hash, &empty_hash, &mut buffer)?;
+        let root_hash = cur_hash;
 
         end_timer!(new_time);
 
@@ -191,11 +190,10 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
         let prove_time = start_timer!(|| "MerkleTree::GenProof");
         let mut path = Vec::new();
 
-        let mut buffer = [0u8; 128];
+        let mut buffer = vec![0u8; P::H::INPUT_SIZE_BITS/8];
         let leaf_hash = hash_leaf::<P::H, _>(&self.parameters, leaf, &mut buffer)?;
         let tree_height = tree_height(self.tree.len());
         let tree_index = convert_index_to_last_level(index, tree_height);
-        let empty_hash = hash_empty::<P::H>(&self.parameters)?;
 
         // Check that the given index corresponds to the correct leaf.
         if leaf_hash != self.tree[tree_index] {
@@ -206,27 +204,22 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
         let mut current_node = tree_index;
         while !is_root(current_node) {
             let sibling_node = sibling(current_node).unwrap();
-            let (curr_hash, sibling_hash) = (
-                self.tree[current_node].clone(),
-                self.tree[sibling_node].clone(),
-            );
+            let sibling_hash = self.tree[sibling_node].clone();
             if is_left_child(current_node) {
-                path.push((curr_hash, sibling_hash));
+                path.push((sibling_hash, false));
             } else {
-                path.push((sibling_hash, curr_hash));
+                path.push((sibling_hash, true));
             }
             current_node = parent(current_node).unwrap();
         }
 
-        // Store the root node. Set boolean as true for consistency with digest
-        // location.
         assert!(path.len() < Self::HEIGHT as usize);
-        if path.len() != (Self::HEIGHT - 1) as usize {
-            path.push((self.tree[0].clone(), empty_hash));
-            for &(ref hash, ref sibling_hash) in &self.padding_tree {
-                path.push((hash.clone(), sibling_hash.clone()));
-            }
+
+        //Push the other elements of the padding tree
+        for &(_, ref sibling_hash) in &self.padding_tree {
+            path.push((sibling_hash.clone(), false));
         }
+
         end_timer!(prove_time);
         if path.len() != (Self::HEIGHT - 1) as usize {
             Err(MerkleTreeError::IncorrectPathLength(path.len()))?
@@ -340,7 +333,7 @@ pub(crate) fn hash_inner_node<H: FixedLengthCRH>(
     right.write(&mut writer)?;
 
     let buffer = writer.into_inner();
-    H::evaluate(parameters, &buffer[..(H::INPUT_SIZE_BITS / 8)])
+    H::evaluate(parameters, &buffer[..])
 }
 
 /// Returns the hash of a leaf.
@@ -354,7 +347,7 @@ pub(crate) fn hash_leaf<H: FixedLengthCRH, L: ToBytes>(
     leaf.write(&mut writer)?;
 
     let buffer = writer.into_inner();
-    H::evaluate(parameters, &buffer[..(H::INPUT_SIZE_BITS / 8)])
+    H::evaluate(parameters, &buffer[..])
 }
 
 pub(crate) fn hash_empty<H: FixedLengthCRH>(
@@ -386,7 +379,7 @@ mod test {
     struct JubJubMerkleTreeParams;
 
     impl MerkleTreeConfig for JubJubMerkleTreeParams {
-        const HEIGHT: usize = 32;
+        const HEIGHT: usize = 6;
         type H = H;
     }
     type JubJubMerkleTree = MerkleHashTree<JubJubMerkleTreeParams>;
@@ -405,13 +398,24 @@ mod test {
 
     #[test]
     fn good_root_test() {
+
+        //Test #leaves << 2^HEIGHT
         let mut leaves = Vec::new();
         for i in 0..4u8 {
             leaves.push([i, i, i, i, i, i, i, i]);
         }
         generate_merkle_tree(&leaves);
+
+        //Test #leaves = 2^HEIGHT - 1
         let mut leaves = Vec::new();
-        for i in 0..100u8 {
+        for i in 0..16u8 {
+            leaves.push([i, i, i, i, i, i, i, i]);
+        }
+        generate_merkle_tree(&leaves);
+
+        //Test #leaves = 2^HEIGHT - 1
+        let mut leaves = Vec::new();
+        for i in 0..32u8 {
             leaves.push([i, i, i, i, i, i, i, i]);
         }
         generate_merkle_tree(&leaves);
@@ -426,20 +430,29 @@ mod test {
         let root = JubJub::zero();
         for (i, leaf) in leaves.iter().enumerate() {
             let proof = tree.generate_proof(i, &leaf).unwrap();
-            assert!(proof.verify(&crh_parameters, &root, &leaf).unwrap());
+            assert!(!proof.verify(&crh_parameters, &root, &leaf).unwrap());
         }
     }
 
-    #[should_panic]
     #[test]
     fn bad_root_test() {
+        //Test #leaves << 2^HEIGHT
         let mut leaves = Vec::new();
         for i in 0..4u8 {
             leaves.push([i, i, i, i, i, i, i, i]);
         }
-        generate_merkle_tree(&leaves);
+        bad_merkle_tree_verify(&leaves);
+
+        //Test #leaves = 2^HEIGHT - 1
         let mut leaves = Vec::new();
-        for i in 0..100u8 {
+        for i in 0..16u8 {
+            leaves.push([i, i, i, i, i, i, i, i]);
+        }
+        bad_merkle_tree_verify(&leaves);
+
+        //Test #leaves = 2^HEIGHT - 1
+        let mut leaves = Vec::new();
+        for i in 0..32u8 {
             leaves.push([i, i, i, i, i, i, i, i]);
         }
         bad_merkle_tree_verify(&leaves);

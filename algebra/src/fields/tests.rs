@@ -150,6 +150,29 @@ fn random_expansion_tests<F: Field, R: Rng>(rng: &mut R) {
     }
 }
 
+fn random_serialization_tests<F: Field, R: Rng>(rng: &mut R) {
+    for _ in 0..ITERATIONS {
+        let a = F::rand(rng);
+        let a_serialized = a.write_bits();
+
+        // Attempt to deserialize a bit vec representing an element over the field modulus
+        let serialized = vec![true; a_serialized.len()];
+        assert!(F::read_bits(serialized).is_err());
+
+        // Attempt to deserialize a bit vec whose length is greater than the field modulus bits
+        let mut serialized = vec![true];
+        serialized.extend_from_slice(a_serialized.clone().as_slice());
+        assert!(F::read_bits(serialized).is_err());
+
+        // If leading bits up to modulus bits are zero, the deserialization function will ignore
+        // them and correctly reconstruct a valid field element
+        let mut serialized = vec![false; 10];
+        serialized.extend_from_slice(a_serialized.as_slice());
+        let deserialized = F::read_bits(serialized).unwrap();
+        assert_eq!(a, deserialized);
+    }
+}
+
 fn random_field_tests<F: Field>() {
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
@@ -182,6 +205,16 @@ fn random_field_tests<F: Field>() {
         let copy = a;
         a += &F::zero();
         assert_eq!(a, copy);
+    }
+
+    for _ in 0..ITERATIONS {
+        //Serialization tests
+        let a = F::rand(&mut rng);
+
+        // Positive test
+        let a_serialized = a.write_bits();
+        let a_deserialized = F::read_bits(a_serialized.clone()).unwrap();
+        assert_eq!(a, a_deserialized);
     }
 }
 
@@ -319,6 +352,9 @@ pub fn primefield_test<F: PrimeField>() {
     let one = F::one();
     assert_eq!(F::from_repr(one.into_repr()), one);
     assert_eq!(F::from_str("1").ok().unwrap(), one);
+
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+    random_serialization_tests::<F, _>(&mut rng);
 }
 
 pub fn sqrt_field_test<F: SquareRootField>(elem: F) {

@@ -240,7 +240,7 @@ impl<E: PairingEngine> FromBytes for Parameters<E>{
 
 /// Preprocessed verification key parameters that enable faster verification
 /// at the expense of larger size in memory.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PreparedVerifyingKey<E: PairingEngine> {
     pub alpha_g1_beta_g2: E::Fqk,
     pub gamma_g2_neg_pc:  <E::G2Affine as PairingCurve>::Prepared,
@@ -298,6 +298,15 @@ impl<E: PairingEngine> FromBytes for PreparedVerifyingKey<E> {
             delta_g2_neg_pc,
             gamma_abc_g1,
         })
+    }
+}
+
+impl<E: PairingEngine> PartialEq for PreparedVerifyingKey<E> {
+    fn eq(&self, other: &Self) -> bool {
+        self.alpha_g1_beta_g2 == other.alpha_g1_beta_g2
+            && self.gamma_g2_neg_pc == other.gamma_g2_neg_pc
+            && self.delta_g2_neg_pc == other.delta_g2_neg_pc
+            && self.gamma_abc_g1 == other.gamma_abc_g1
     }
 }
 

@@ -469,6 +469,10 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootFie
         3
     }
 
+    fn cost_of_mul_equals() -> usize {
+        3
+    }
+
     fn cost_of_inv() -> usize {
         2
     }

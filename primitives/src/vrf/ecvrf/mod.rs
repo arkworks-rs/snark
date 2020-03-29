@@ -132,7 +132,7 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
             //Enforce c bit length is strictly smaller than G::ScalarField modulus bit length
             if c_leading_zeros < required_leading_zeros {continue};
 
-            let c_conv = convert::<F, G::ScalarField>(c_bits)?;
+            let c_conv = convert::<G::ScalarField>(c_bits)?;
 
             //Compute s = r + sk * c
             let s = r + &((*sk) * &c_conv);
@@ -145,7 +145,7 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
 
             if s_leading_zeros < required_leading_zeros {continue};
 
-            let s_conv = convert::<G::ScalarField, F>(s_bits)?;
+            let s_conv = convert::<F>(s_bits)?;
 
             break (c, s_conv)
         };
@@ -196,8 +196,8 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
 
         let mh = GH::evaluate(pp, message_bytes.as_slice())?;
 
-        let c_conv = convert::<F, G::ScalarField>(c_bits)?;
-        let s_conv = convert::<F, G::ScalarField>(s_bits)?;
+        let c_conv = convert::<G::ScalarField>(c_bits)?;
+        let s_conv = convert::<G::ScalarField>(s_bits)?;
 
         //Compute u = g^s - pk^c
         let u = G::prime_subgroup_generator().mul(&s_conv) - &(pk.mul(&c_conv));

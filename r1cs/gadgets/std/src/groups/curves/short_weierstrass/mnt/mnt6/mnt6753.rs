@@ -83,8 +83,7 @@ mod test {
         assert!(cs.is_satisfied());
         assert_eq!(cond_select_cost, <G2Gadget as CondSelectGadget<Fq>>::cost());
 
-        //Actually mul_equals takes 6 constraints instead of 5
-        assert_eq!(add_cost, G2Gadget::cost_of_add() + 1);
+        assert_eq!(add_cost, G2Gadget::cost_of_add());
     }
 
     #[test]

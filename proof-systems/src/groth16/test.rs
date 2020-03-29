@@ -37,7 +37,7 @@ impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for MySillyCircuit<C
 mod bls12_377 {
     use super::*;
     use crate::groth16::{
-        Parameters, Proof, VerifyingKey,
+        Parameters, Proof, VerifyingKey, PreparedVerifyingKey,
         create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
     };
 
@@ -100,13 +100,14 @@ mod bls12_377 {
 
         let a = Fr::rand(rng);
         let b = Fr::rand(rng);
+        let c = a * &b;
 
         let proof = create_random_proof(
             MySillyCircuit {
                 a: Some(a),
                 b: Some(b),
             },
-            &params,
+            &params_deserialized,
             rng,
         )
             .unwrap();
@@ -114,13 +115,20 @@ mod bls12_377 {
         let proof_serialized = to_bytes!(proof).unwrap();
         let proof_deserialized = Proof::<Bls12_377>::read(proof_serialized.as_slice()).unwrap();
         assert_eq!(proof, proof_deserialized);
+
+        let pvk = prepare_verifying_key(&vk_deserialized);
+        let pvk_serialized = to_bytes!(pvk).unwrap();
+        let pvk_deserialized = PreparedVerifyingKey::<Bls12_377>::read(pvk_serialized.as_slice()).unwrap();
+        assert_eq!(pvk, pvk_deserialized);
+
+        assert!(verify_proof(&pvk_deserialized, &proof_deserialized, &[c]).unwrap());
     }
 }
 
 mod sw6 {
     use super::*;
     use crate::groth16::{
-        Parameters, Proof, VerifyingKey,
+        Parameters, Proof, VerifyingKey, PreparedVerifyingKey,
         create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
     };
 
@@ -180,13 +188,14 @@ mod sw6 {
 
         let a = SW6Fr::rand(rng);
         let b = SW6Fr::rand(rng);
+        let c = a * &b;
 
         let proof = create_random_proof(
             MySillyCircuit {
                 a: Some(a),
                 b: Some(b),
             },
-            &params,
+            &params_deserialized,
             rng,
         )
             .unwrap();
@@ -194,13 +203,20 @@ mod sw6 {
         let proof_serialized = to_bytes!(proof).unwrap();
         let proof_deserialized = Proof::<SW6>::read(proof_serialized.as_slice()).unwrap();
         assert_eq!(proof, proof_deserialized);
+
+        let pvk = prepare_verifying_key(&vk_deserialized);
+        let pvk_serialized = to_bytes!(pvk).unwrap();
+        let pvk_deserialized = PreparedVerifyingKey::<SW6>::read(pvk_serialized.as_slice()).unwrap();
+        assert_eq!(pvk, pvk_deserialized);
+
+        assert!(verify_proof(&pvk_deserialized, &proof_deserialized, &[c]).unwrap());
     }
 }
 
 mod mnt4753 {
     use super::*;
     use crate::groth16::{
-        Parameters, Proof, VerifyingKey,
+        Parameters, Proof, VerifyingKey, PreparedVerifyingKey,
         create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
     };
 
@@ -259,13 +275,14 @@ mod mnt4753 {
 
         let a = MNT4Fr::rand(rng);
         let b = MNT4Fr::rand(rng);
+        let c = a * &b;
 
         let proof = create_random_proof(
             MySillyCircuit {
                 a: Some(a),
                 b: Some(b),
             },
-            &params,
+            &params_deserialized,
             rng,
         )
             .unwrap();
@@ -273,13 +290,20 @@ mod mnt4753 {
         let proof_serialized = to_bytes!(proof).unwrap();
         let proof_deserialized = Proof::<MNT4>::read(proof_serialized.as_slice()).unwrap();
         assert_eq!(proof, proof_deserialized);
+
+        let pvk = prepare_verifying_key(&vk_deserialized);
+        let pvk_serialized = to_bytes!(pvk).unwrap();
+        let pvk_deserialized = PreparedVerifyingKey::<MNT4>::read(pvk_serialized.as_slice()).unwrap();
+        assert_eq!(pvk, pvk_deserialized);
+
+        assert!(verify_proof(&pvk_deserialized, &proof_deserialized, &[c]).unwrap());
     }
 }
 
 mod mnt6753 {
     use super::*;
     use crate::groth16::{
-        Parameters, Proof, VerifyingKey,
+        Parameters, Proof, VerifyingKey, PreparedVerifyingKey,
         create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
     };
 
@@ -338,13 +362,14 @@ mod mnt6753 {
 
         let a = MNT6Fr::rand(rng);
         let b = MNT6Fr::rand(rng);
+        let c = a * &b;
 
         let proof = create_random_proof(
             MySillyCircuit {
                 a: Some(a),
                 b: Some(b),
             },
-            &params,
+            &params_deserialized,
             rng,
         )
             .unwrap();
@@ -352,5 +377,12 @@ mod mnt6753 {
         let proof_serialized = to_bytes!(proof).unwrap();
         let proof_deserialized = Proof::<MNT6>::read(proof_serialized.as_slice()).unwrap();
         assert_eq!(proof, proof_deserialized);
+
+        let pvk = prepare_verifying_key(&vk_deserialized);
+        let pvk_serialized = to_bytes!(pvk).unwrap();
+        let pvk_deserialized = PreparedVerifyingKey::<MNT6>::read(pvk_serialized.as_slice()).unwrap();
+        assert_eq!(pvk, pvk_deserialized);
+
+        assert!(verify_proof(&pvk_deserialized, &proof_deserialized, &[c]).unwrap());
     }
 }

@@ -332,7 +332,7 @@ pub mod field_impl {
                 if e_leading_zeros < required_leading_zeros {continue};
 
                 //We can now safely convert it to the other field
-                let e_conv = convert::<F, G::ScalarField>(e_bits)?;
+                let e_conv = convert::<G::ScalarField>(e_bits)?;
 
                 //Enforce s bit length is strictly smaller than F modulus bit length
                 let s = k + &(e_conv * sk);
@@ -345,7 +345,7 @@ pub mod field_impl {
 
                 if s_leading_zeros < required_leading_zeros {continue};
 
-                let s_conv = convert::<G::ScalarField, F>(s_bits)?;
+                let s_conv = convert::<F>(s_bits)?;
 
                 break (e, s_conv);
             };
@@ -378,8 +378,8 @@ pub mod field_impl {
 
             //Compute R' = s*G - e * pk
             let r_prime = {
-                let s_conv = convert::<F, G::ScalarField>(s_bits)?;
-                let e_conv =  convert::<F, G::ScalarField>(e_bits)?;
+                let s_conv = convert::<G::ScalarField>(s_bits)?;
+                let e_conv =  convert::<G::ScalarField>(e_bits)?;
                 let s_times_g = G::prime_subgroup_generator().mul(&s_conv);
                 let neg_e_times_pk = pk.neg().mul(&e_conv);
                 s_times_g + &neg_e_times_pk

@@ -614,7 +614,7 @@ impl<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootFie
         Ok(Self::new(c0, c1, c2))
     }
 
-    //8 constraints, we can probably do better but not sure it's worth it.
+    //6 constraints
     #[inline]
     fn inverse<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Self, SynthesisError> {
         let inverse = Self::alloc(&mut cs.ns(|| "alloc inverse"), || {
@@ -657,8 +657,12 @@ impl<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootFie
         5
     }
 
+    fn cost_of_mul_equals() -> usize {
+        6
+    }
+
     fn cost_of_inv() -> usize {
-        Self::cost_of_mul() + <Self as EqGadget<ConstraintF>>::cost()
+        Self::cost_of_mul_equals()
     }
 
 }

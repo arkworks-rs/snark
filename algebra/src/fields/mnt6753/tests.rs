@@ -1,12 +1,4 @@
-use crate::{
-    BigInteger, BigInteger768,
-    fields::tests::{field_test, frobenius_test, primefield_test, sqrt_field_test},
-    fields::mnt6753::{Fq, Fq3, Fq6, FqParameters, Fq3Parameters, Fq6Parameters},
-    fields::FpParameters, fields::models::{Fp3Parameters, Fp6Parameters},
-    Field, PrimeField, SquareRootField,
-    UniformRand,
-    bytes::ToBytes, to_bytes,
-};
+use crate::{BigInteger, BigInteger768, fields::tests::{field_test, frobenius_test, primefield_test, sqrt_field_test}, fields::mnt6753::{Fq, Fq3, Fq6, FqParameters, Fq3Parameters, Fq6Parameters}, fields::FpParameters, fields::models::{Fp3Parameters, Fp6Parameters}, Field, PrimeField, SquareRootField, UniformRand, bytes::ToBytes, to_bytes, ToBits};
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 use std::{
@@ -1218,6 +1210,36 @@ fn test_fq_bytes() {
     let a_b = to_bytes!(a).unwrap();
     let a_b_read = std::fs::read("src/fields/mnt6753/test_vec/mnt6753_tobyte").unwrap();
     assert_eq!(a_b, a_b_read);
+}
+
+#[test]
+fn test_convert_fq_fr() {
+    use crate::fields::{
+        convert, mnt6753::{
+            FqParameters, Fr
+        },
+    };
+
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+    for _ in 0..1000 {
+
+        // Safely convert a random Fq into a Fr
+        let q: Fq = UniformRand::rand(&mut rng);
+        let q_bits = &q.write_bits()[1..]; //Skip 1 bit, in order to perform a safe conversion
+        let conv = convert::<Fr>(q_bits.to_vec()).unwrap();
+        assert_eq!(conv.pow(Fr::characteristic()), conv);
+
+        // Safely convert a random Fr into a Fq
+        let r: Fr = UniformRand::rand(&mut rng);
+        let r_bits = &r.write_bits()[1..]; //Skip 1 bit, in order to perform a safe conversion
+        let conv = convert::<Fq>(r_bits.to_vec()).unwrap();
+        assert_eq!(conv.pow(Fq::characteristic()), conv);
+    }
+
+    //Attempting to convert a bit array that exceeds other field's modulus will result in an error
+    let modulus_q = Fq::new(FqParameters::MODULUS);
+    assert!(convert::<Fr>((modulus_q - &Fq::one()).write_bits()).is_err()); //Fq_Modulus - 1 is bigger than Fr modulus
 }
 
 #[test]
