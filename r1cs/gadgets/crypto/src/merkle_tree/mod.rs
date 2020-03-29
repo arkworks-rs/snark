@@ -1,6 +1,6 @@
 use algebra::Field;
 use r1cs_core::{ConstraintSystem, SynthesisError};
-use r1cs_std::{boolean::AllocatedBit, prelude::*};
+use r1cs_std:: prelude::*;
 
 use primitives::{
     crh::FixedLengthCRH,
@@ -18,7 +18,7 @@ where
     HGadget: FixedLengthCRHGadget<P::H, ConstraintF>,
     ConstraintF: Field,
 {
-    path: Vec<(HGadget::OutputGadget, HGadget::OutputGadget)>,
+    path: Vec<(HGadget::OutputGadget, Boolean)>,
 }
 
 impl<P, CRHGadget, ConstraintF> MerkleTreePathGadget<P, CRHGadget, ConstraintF>
@@ -46,6 +46,7 @@ where
         should_enforce: &Boolean,
     ) -> Result<(), SynthesisError> {
         assert_eq!(self.path.len(), P::HEIGHT - 1);
+
         // Check that the hash of the given leaf matches the leaf hash in the membership
         // proof.
         let leaf_bits = leaf.to_bytes(&mut cs.ns(|| "leaf_to_bytes"))?;
@@ -55,44 +56,29 @@ where
             &leaf_bits,
         )?;
 
-        // Check if leaf is one of the bottom-most siblings.
-        let leaf_is_left = AllocatedBit::alloc(&mut cs.ns(|| "leaf_is_left"), || {
-            Ok(leaf_hash == self.path[0].0)
-        })?
-        .into();
-        CRHGadget::OutputGadget::conditional_enforce_equal_or(
-            &mut cs.ns(|| "check_leaf_is_left"),
-            &leaf_is_left,
-            &leaf_hash,
-            &self.path[0].0,
-            &self.path[0].1,
-            should_enforce,
-        )?;
-
         // Check levels between leaf level and root.
         let mut previous_hash = leaf_hash;
-        for (i, &(ref left_hash, ref right_hash)) in self.path.iter().enumerate() {
-            // Check if the previous_hash matches the correct current hash.
-            let previous_is_left =
-                AllocatedBit::alloc(&mut cs.ns(|| format!("previous_is_left_{}", i)), || {
-                    Ok(&previous_hash == left_hash)
-                })?
-                .into();
+        for (i, &(ref sibling_hash, ref direction)) in self.path.iter().enumerate() {
 
-            CRHGadget::OutputGadget::conditional_enforce_equal_or(
-                &mut cs.ns(|| format!("check_equals_which_{}", i)),
-                &previous_is_left,
-                &previous_hash,
-                left_hash,
-                right_hash,
-                should_enforce,
+            //Select left hash based on direction
+            let lhs = CRHGadget::OutputGadget::conditionally_select(cs.ns(|| format!("Choose left hash {}", i)),
+                                                                direction,
+                                                                &sibling_hash,
+                                                                &previous_hash
+            )?;
+
+            //Select right hash based on direction
+            let rhs = CRHGadget::OutputGadget::conditionally_select(cs.ns(|| format!("Choose right hash {}", i)),
+                                                                direction,
+                                                                &previous_hash,
+                                                                &sibling_hash
             )?;
 
             previous_hash = hash_inner_node_gadget::<P::H, CRHGadget, ConstraintF, _>(
                 &mut cs.ns(|| format!("hash_inner_node_{}", i)),
                 parameters,
-                left_hash,
-                right_hash,
+                &lhs,
+                &rhs,
             )?;
         }
 
@@ -140,16 +126,16 @@ where
         T: Borrow<MerkleTreePath<P>>,
     {
         let mut path = Vec::new();
-        for (i, &(ref l, ref r)) in value_gen()?.borrow().path.iter().enumerate() {
-            let l_hash =
-                HGadget::OutputGadget::alloc(&mut cs.ns(|| format!("l_child_{}", i)), || {
-                    Ok(l.clone())
+        for (i, &(ref sibling, ref d)) in value_gen()?.borrow().path.iter().enumerate() {
+            let sibling_hash =
+                HGadget::OutputGadget::alloc(&mut cs.ns(|| format!("sibling_hash_{}", i)), || {
+                    Ok(sibling)
                 })?;
-            let r_hash =
-                HGadget::OutputGadget::alloc(&mut cs.ns(|| format!("r_child_{}", i)), || {
-                    Ok(r.clone())
+            let direction =
+                Boolean::alloc(&mut cs.ns(|| format!("direction_bit_{}", i)), || {
+                    Ok(d)
                 })?;
-            path.push((l_hash, r_hash));
+            path.push((sibling_hash, direction));
         }
         Ok(MerkleTreePathGadget { path })
     }
@@ -163,18 +149,17 @@ where
         T: Borrow<MerkleTreePath<P>>,
     {
         let mut path = Vec::new();
-        for (i, &(ref l, ref r)) in value_gen()?.borrow().path.iter().enumerate() {
-            let l_hash = HGadget::OutputGadget::alloc_input(
-                &mut cs.ns(|| format!("l_child_{}", i)),
-                || Ok(l.clone()),
-            )?;
-            let r_hash = HGadget::OutputGadget::alloc_input(
-                &mut cs.ns(|| format!("r_child_{}", i)),
-                || Ok(r.clone()),
-            )?;
-            path.push((l_hash, r_hash));
+        for (i, &(ref sibling, ref d)) in value_gen()?.borrow().path.iter().enumerate() {
+            let sibling_hash =
+                HGadget::OutputGadget::alloc_input(&mut cs.ns(|| format!("sibling_hash_{}", i)), || {
+                    Ok(sibling)
+                })?;
+            let direction =
+                Boolean::alloc_input(&mut cs.ns(|| format!("direction_bit_{}", i)), || {
+                    Ok(d)
+                })?;
+            path.push((sibling_hash, direction));
         }
-
         Ok(MerkleTreePathGadget { path })
     }
 }
@@ -217,13 +202,13 @@ mod test {
     struct JubJubMerkleTreeParams;
 
     impl MerkleTreeConfig for JubJubMerkleTreeParams {
-        const HEIGHT: usize = 32;
+        const HEIGHT: usize = 6;
         type H = H;
     }
 
     type JubJubMerkleTree = MerkleHashTree<JubJubMerkleTreeParams>;
 
-    fn generate_merkle_tree(leaves: &[[u8; 30]], use_bad_root: bool) -> () {
+    fn generate_merkle_tree(leaves: &[[u8; 30]], use_bad_root: bool) -> bool {
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
 
         let crh_parameters = Rc::new(H::setup(&mut rng).unwrap());
@@ -308,27 +293,62 @@ mod test {
             );
         }
 
-        assert!(satisfied);
+        satisfied
     }
 
     #[test]
     fn good_root_test() {
+
+        //Test #leaves << 2^HEIGHT
         let mut leaves = Vec::new();
         for i in 0..4u8 {
             let input = [i; 30];
             leaves.push(input);
         }
-        generate_merkle_tree(&leaves, false);
+        assert!(generate_merkle_tree(&leaves, false));
+
+        //Test #leaves = 2^HEIGHT - 1
+        let mut leaves = Vec::new();
+        for i in 0..16u8 {
+            let input = [i; 30];
+            leaves.push(input);
+        }
+        assert!(generate_merkle_tree(&leaves, false));
+
+        //Test #leaves = 2^HEIGHT
+        let mut leaves = Vec::new();
+        for i in 0..32u8 {
+            let input = [i; 30];
+            leaves.push(input);
+        }
+        assert!(generate_merkle_tree(&leaves, false));
     }
 
-    #[should_panic]
     #[test]
     fn bad_root_test() {
+
+        //Test #leaves << 2^HEIGHT
         let mut leaves = Vec::new();
         for i in 0..4u8 {
             let input = [i; 30];
             leaves.push(input);
         }
-        generate_merkle_tree(&leaves, true);
+        assert!(!generate_merkle_tree(&leaves, true));
+
+        //Test #leaves = 2^HEIGHT - 1
+        let mut leaves = Vec::new();
+        for i in 0..16u8 {
+            let input = [i; 30];
+            leaves.push(input);
+        }
+        assert!(!generate_merkle_tree(&leaves, true));
+
+        //Test #leaves = 2^HEIGHT
+        let mut leaves = Vec::new();
+        for i in 0..32u8 {
+            let input = [i; 30];
+            leaves.push(input);
+        }
+        assert!(!generate_merkle_tree(&leaves, true));
     }
 }

@@ -46,7 +46,7 @@ impl<P: FieldBasedMerkleTreeConfig> FieldBasedMerkleTreePath<P> {
     where
     {
         if self.path.len() != (P::HEIGHT - 1) as usize {
-            return Ok(false);
+            return Err(MerkleTreeError::IncorrectPathLength(self.path.len()))?
         }
 
         if !self.path.is_empty() {
@@ -70,7 +70,7 @@ impl<P: FieldBasedMerkleTreeConfig> FieldBasedMerkleTreePath<P> {
             }
             Ok(true)
         } else {
-            Ok(false)
+            return Err(MerkleTreeError::IncorrectPathLength(0))?
         }
     }
 }
@@ -214,7 +214,7 @@ impl<P: FieldBasedMerkleTreeConfig> FieldBasedMerkleHashTree<P> {
 
         assert!(path.len() < Self::HEIGHT as usize);
 
-        //Then push the other elements of the padding tree
+        //Push the other elements of the padding tree
         for &(_, ref sibling_hash) in &self.padding_tree {
             path.push((sibling_hash.clone(), false));
         }
