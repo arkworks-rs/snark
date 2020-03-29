@@ -84,12 +84,18 @@ After that, use `cargo`, the standard Rust build tool, to build the library:
 ```bash
 git clone https://github.com/.../ginger-lib.git
 cd ginger-lib
-cargo build 
+cargo build --release
 ```
 
 This library comes with unit tests for each of the provided crates. Run the tests with:
 ```bash
 cargo test --all-features 
+``` 
+
+Please note that ```cargo test```, by default, will execute the tests concurrently on all your machine's cores: since some tests are resource-intensive, this may cause an abort in the tests' execution. If this happens, you may want to reduce the number of cores on which the test are parallely executed via the command:
+
+```bash
+cargo test --all-features -- --test-threads=<#threads>
 ``` 
 
 Lastly, this library comes with benchmarks for the following crates:
