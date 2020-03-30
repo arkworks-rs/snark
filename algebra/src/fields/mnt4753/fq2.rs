@@ -14,7 +14,8 @@ pub struct Fq2Parameters;
 impl Fp2Parameters for Fq2Parameters {
     type Fp = Fq;
 
-    /// NONRESIDUE = 13
+    /// NONRESIDUE = alpha = 13
+    /// Montg.rep.
     const NONRESIDUE: Fq = field_new!(Fq, BigInteger([
         11881297496860141143,
         13588356353764843511,
@@ -31,6 +32,7 @@ impl Fp2Parameters for Fq2Parameters {
     ]));
 
     /// QUADRATIC_NONRESIDUE = (8,1)
+    /// Montg. rep.
     const QUADRATIC_NONRESIDUE: (Fq, Fq) = (
         field_new!(Fq, BigInteger([
             587330122779359758,
@@ -66,7 +68,7 @@ impl Fp2Parameters for Fq2Parameters {
     /// Coefficients for the Frobenius automorphism.
     const FROBENIUS_COEFF_FP2_C1: [Fq; 2] = [
 
-        //NONRESIDUE^((q^0 - 1)/2)
+        //X^{q^0} = alpha^((q^0 - 1)/2)*X = 1*X
         field_new!(Fq, BigInteger([
             11000302312691101506,
             10506108233708684934,
@@ -82,7 +84,7 @@ impl Fp2Parameters for Fq2Parameters {
             135547536859714
         ])),
 
-        //NONRESIDUE^((q^1 - 1)/2)
+        //alpha^((q^1 - 1)/2)
         field_new!(Fq, BigInteger([
             14260497802974073023,
             5895249896161266456,

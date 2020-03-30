@@ -25,7 +25,9 @@ mod tests;
 pub struct MNT6_753Parameters;
 
 impl MNT6Parameters for MNT6_753Parameters {
-
+    /// The Frobenius trace of the MNT6 curve is
+    /// t = 204691208819330962009469868104636132783269696790011977400223898462431810102935615891307667367766898917669754470401
+    /// Our Ate pairing Miller loop count is the absolute value of the Frobenius trace minus 1
     const ATE_LOOP_COUNT: &'static [u64] = &[
         0x7a7713041ba18000,
         0x6b0344c4e2c428b0,
@@ -36,6 +38,7 @@ impl MNT6Parameters for MNT6_753Parameters {
     ];
 
     //Output of find_wnaf(ate_loop_count), already trimmed of leading zeros and MSB
+    //starting with least significant bit
     const WNAF: &'static [i32] = &[
         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-1,0,1,0,0,0,1,0,-1,0,0,-1,0,0,1,0,0,0,0,1,0,0,0,0,0,-1,0,1,0,
         1,0,0,0,-1,0,0,-1,0,0,0,1,0,1,0,-1,0,0,0,1,0,0,0,0,-1,0,-1,0,1,0,0,1,0,1,0,0,0,0,1,0,0,0,-1,
@@ -47,11 +50,12 @@ impl MNT6Parameters for MNT6_753Parameters {
         -1,0,0,0,-1,0,1,0,-1,0,0,-1,0,0,-1,0,0,1,0,0,0,-1,0,-1,0,0,0,0,0,0,0,0,1,0,0,1,0,-1,0,1,0,0,
         0,0,1,0,0,-1,0,-1,0,-1,0,0,0,1,0,0,-1,0,-1,0,1,0,1,0,-1,0,0,1,0,0,1,0,1,0,1,0
     ];
-
+    // Frobenius trace of this curve is non-negative
     const ATE_IS_LOOP_COUNT_NEG: bool = false;
 
     const TWIST: Fq3 = field_new!(Fq3, FQ_ZERO, FQ_ONE, FQ_ZERO);
 
+    // I would do the hard coded definition inside G2, and just refer to from here.
     const TWIST_COEFF_A: Fq3 = field_new!(Fq3, 
         FQ_ZERO,
         FQ_ZERO,
@@ -71,8 +75,9 @@ impl MNT6Parameters for MNT6_753Parameters {
         ])),
     );
 
+    // m_1 = 1
     const FINAL_EXPONENT_LAST_CHUNK_1: BigInteger = BigInteger([0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0]);
-
+    // m_0 = 691208819330962009469868104636132783269696790011977400223898462431810102935615891307667367766898917669754470400
     const FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0: BigInteger =
         BigInteger([
             0x7a7713041ba18000,
@@ -88,7 +93,7 @@ impl MNT6Parameters for MNT6_753Parameters {
             0x0,
             0x0,
         ]);
-
+    // m_0 is positive
     const FINAL_EXPONENT_LAST_CHUNK_W0_IS_NEG: bool = false;
 
     type Fp = Fq;

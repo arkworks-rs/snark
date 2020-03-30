@@ -14,7 +14,7 @@ pub struct Fq3Parameters;
 impl Fp3Parameters for Fq3Parameters {
     type Fp = Fq;
 
-    // 11
+    // alpha = 11
     const NONRESIDUE: Fq = field_new!(Fq, BigInteger([
         0x4768931cfff9c7d4,
         0xc45e46d6ada96ca0,
@@ -32,6 +32,7 @@ impl Fp3Parameters for Fq3Parameters {
 
     const TWO_ADICITY: u32 = 30;
 
+    //t=(p^3-1)/2
     const T_MINUS_ONE_DIV_TWO: &'static [u64] = &[
         0xd6447f9d762cc94d,
         0xfc72f2d69c49b1dd,
@@ -70,6 +71,11 @@ impl Fp3Parameters for Fq3Parameters {
         0xb10a9b0dc2128,
     ];
 
+    // quadratic non-residue (c0+ 0* X + 0*X^2),
+    // c0=1659781419976566415021745064391095587555604711122877233394175714744952\
+    // 8858260736949611040045144870330052211081080633146517319686355350402298\
+    // 7667807845209238605163122279088377413675555771794427110778974744994732\
+    // 54624198506809678
     const QUADRATIC_NONRESIDUE_TO_T: (Fq, Fq, Fq) = (
         field_new!(Fq, BigInteger([
             0x2217cbfb0feb469c,
@@ -91,7 +97,7 @@ impl Fp3Parameters for Fq3Parameters {
 
     const FROBENIUS_COEFF_FP3_C1: [Fq; 3] = [
 
-        //NONRESIDUE^((q^0 - 1) / 3)
+        //X^{q^0} = alpha^((q^0 - 1)/ 3)*X = 1*X
         field_new!(Fq, BigInteger([
             0xb99680147fff6f42,
             0x4eb16817b589cea8,
@@ -107,7 +113,7 @@ impl Fp3Parameters for Fq3Parameters {
             0x7b479ec8e242,
         ])),
 
-        //NONRESIDUE^((q^1 - 1) / 3)
+        //X^{q^1} = alpha^((q^1 - 1)/ 3)*X
         field_new!(Fq, BigInteger([
             0x6b66f7b83f968680,
             0x1379b1ebf803e51e,
@@ -123,7 +129,7 @@ impl Fp3Parameters for Fq3Parameters {
             0x11d5033223a5d,
         ])),
 
-        //NONRESIDUE^((q^2 - 1) / 3)
+        //X^{q^2} = alpha^((q^2 - 1)/ 3)*X
         field_new!(Fq, BigInteger([
             0xb409ff15806a0a3f,
             0xec757f1362138688,
@@ -142,7 +148,7 @@ impl Fp3Parameters for Fq3Parameters {
 
     const FROBENIUS_COEFF_FP3_C2: [Fq; 3] = [
 
-        //NONRESIDUE^(2(q^0 - 1)/ 3)
+        //(X^2)^{q^0} = alpha^(2(q^0 - 1)/ 3)*X^2 = 1*X^2
         field_new!(Fq, BigInteger([
             0xb99680147fff6f42,
             0x4eb16817b589cea8,
@@ -158,7 +164,7 @@ impl Fp3Parameters for Fq3Parameters {
             0x7b479ec8e242,
         ])),
 
-        //NONRESIDUE^(2(q^1 - 1)/ 3)
+        //(X^2)^{q^1} = alpha^(2(q^1 - 1)/ 3)*X^2
         field_new!(Fq, BigInteger([
             0xb409ff15806a0a3f,
             0xec757f1362138688,
@@ -174,7 +180,7 @@ impl Fp3Parameters for Fq3Parameters {
             0x2c2e5ba7a770,
         ])),
 
-        //NONRESIDUE^(2(q^2 - 1)/ 3)
+        //(X^2)^{q^2} = alpha^(2(q^2 - 1)/ 3)*X^2
         field_new!(Fq, BigInteger([
             0x6b66f7b83f968680,
             0x1379b1ebf803e51e,

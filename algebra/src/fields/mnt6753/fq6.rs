@@ -17,6 +17,7 @@ pub struct Fq6Parameters;
 impl Fp6Parameters for Fq6Parameters {
     type Fp3Params = Fq3Parameters;
 
+    //alpha= 11
     const NONRESIDUE: Fq3 = field_new!(Fq3,
         field_new!(Fq, BigInteger([
             0x4768931cfff9c7d4,
@@ -38,7 +39,7 @@ impl Fp6Parameters for Fq6Parameters {
 
     const FROBENIUS_COEFF_FP6_C1: [Fq; 6] = [
 
-        //NONRESIDUE^((q^0 - 1)/ 6)
+        //alpha^((q^0 - 1)/ 6) = 1
         field_new!(Fq, BigInteger([
             0xb99680147fff6f42,
             0x4eb16817b589cea8,
@@ -54,7 +55,7 @@ impl Fp6Parameters for Fq6Parameters {
             0x7b479ec8e242,
         ])),
 
-        //NONRESIDUE^((q^1 - 1)/ 6)
+        //alpha^((q^1 - 1)/ 6)
         field_new!(Fq, BigInteger([
             0x24fd77ccbf95f5c2,
             0x622b1a03ad8db3c7,
@@ -70,7 +71,7 @@ impl Fp6Parameters for Fq6Parameters {
             0x19897d1eb1ca0,
         ])),
 
-        //NONRESIDUE^((q^2 - 1)/ 6)
+        //alpha^((q^2 - 1)/ 6)
         field_new!(Fq, BigInteger([
             0x6b66f7b83f968680,
             0x1379b1ebf803e51e,
@@ -86,7 +87,7 @@ impl Fp6Parameters for Fq6Parameters {
             0x11d5033223a5d,
         ])),
 
-        //NONRESIDUE^((q^3 - 1)/ 6)
+        //alpha^((q^3 - 1)/ 6)
         field_new!(Fq, BigInteger([
             0x1f70f6cdc00090bf,
             0xffef30ff5a176ba7,
@@ -102,7 +103,7 @@ impl Fp6Parameters for Fq6Parameters {
             0x1497e8ec9e1ce,
         ])),
 
-        //NONRESIDUE^((q^4 - 1)/ 6)
+        //alpha^((q^4 - 1)/ 6)
         field_new!(Fq, BigInteger([
             0xb409ff15806a0a3f,
             0xec757f1362138688,
@@ -118,7 +119,7 @@ impl Fp6Parameters for Fq6Parameters {
             0x2c2e5ba7a770,
         ])),
 
-        //NONRESIDUE^((q^5 - 1)/ 6)
+        //alpha^((q^5 - 1)/ 6)
         field_new!(Fq, BigInteger([
             0x6da07f2a00697981,
             0x3b26e72b179d5531,

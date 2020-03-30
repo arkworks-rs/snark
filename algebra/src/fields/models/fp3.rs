@@ -13,16 +13,32 @@ use crate::{
     fields::{Field, LegendreSymbol, PrimeField, SquareRootField, FpParameters},
 };
 
+/// Model for cubic extension field of a prime field F=Fp
+///     F3 = F[X]/(X^3-alpha),
+/// with alpha being a (quadratic) "non-residue" (for which X^3-alpha is irreducible).
+///
+/// We implement inversion according to
+/// Beuchat, et al., High-Speed Software Implementation of the Optimal Ate Pairing over Barreto–Naehrig Curves
+/// https://eprint.iacr.org/2010/354.pdf,
+/// and square and Karatsuba multiplication according to
+/// Devegili, et al., Multiplication and Squaring on Abstract Pairing-Friendly Fields
+/// https://eprint.iacr.org/2006/471.pdf
+
 pub trait Fp3Parameters: 'static + Send + Sync {
     type Fp: PrimeField + SquareRootField;
 
+    //alpha
     const NONRESIDUE: Self::Fp;
+    // coefficients of the powers of the Frobenius automorphism as linear map over F
+    // (pi^0(X), pi^1(X), pi^2(X)) = (C1_0*X, C1_1*X +C1_2*X),
     const FROBENIUS_COEFF_FP3_C1: [Self::Fp; 3];
+    // (pi^0(X^2), pi^1(X^2), pi^2(X^2)) = (C2_0*X^2, C2_1*X^2 +C2_2*X^2),
     const FROBENIUS_COEFF_FP3_C2: [Self::Fp; 3];
     /// p^3 - 1 = 2^s * t, where t is odd.
     const TWO_ADICITY: u32;
     const T_MINUS_ONE_DIV_TWO: &'static [u64];
     /// t-th power of a quadratic nonresidue in Fp3.
+    /// this is needed for the square root algorithm
     const QUADRATIC_NONRESIDUE_TO_T: (Self::Fp, Self::Fp, Self::Fp);
 
     #[inline(always)]

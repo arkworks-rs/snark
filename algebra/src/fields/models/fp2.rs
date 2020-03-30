@@ -11,14 +11,25 @@ use crate::{
     fields::{Field, LegendreSymbol, PrimeField, SquareRootField, FpParameters},
 };
 
+/// Model for quadratic extension field of prime field F=Fp
+///     F2 = F[X]/(X^2-alpha),
+/// with alpha being a (quadratic) "non-residue".
+/// We implement the inversion and Karatsuba multiplication according to
+/// Mrabet, Joye, Guide to Pairing-based Cryptography
+/// https://dl.acm.org/doi/book/10.5555/3092800
+/// and the square root algorithm from
+/// Adj, et al., Square root computation over even extension fields,
+/// https://eprint.iacr.org/2012/685.pdf
+
 pub trait Fp2Parameters: 'static + Send + Sync {
     type Fp: PrimeField + SquareRootField;
 
+    //alpha
     const NONRESIDUE: Self::Fp;
-
+    //quadratic nonresidue for square root algorithm
     const QUADRATIC_NONRESIDUE: (Self::Fp, Self::Fp);
-
-    /// Coefficients for the Frobenius automorphism.
+    //coefficients of the powers of the Frobenius automorphism as linear map over F
+    // (pi^0(X), pi^1(X)) = (C1_0*X, C1_1*X),
     const FROBENIUS_COEFF_FP2_C1: [Self::Fp; 2];
 
     #[inline(always)]
