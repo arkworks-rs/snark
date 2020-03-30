@@ -240,9 +240,9 @@ impl<P: Parameters> FromCompressedBits for GroupAffine<P>
             //the x-coordinate is zero and the parity bit is not set.
             (true, false, true) => Ok(Self::zero()),
 
-            //If x is not zero, then infinity flag should not be set and all the others
-            //should be set
-            (false, _, false) => {
+            //If infinity flag is not set, then we attempt to construct
+            //a point from the x coordinate and the parity.
+            (false, _, _) => {
 
                 //Attempt to get the y coordinate from its parity and x
                 match Self::get_point_from_x_and_parity(x, parity_flag_set) {
@@ -257,7 +257,7 @@ impl<P: Parameters> FromCompressedBits for GroupAffine<P>
                             Err(Box::new(e))
                         }
                     }
-                    _ => Err(Box::new(BitSerializationError::UndefinedSqrt)),
+                    _ => Err(Box::new(BitSerializationError::NotOnCurve)),
                 }
             },
 

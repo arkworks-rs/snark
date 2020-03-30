@@ -1,16 +1,10 @@
-use crate::{
-    curves::{
-        mnt6753::{
-            G1Affine, G1Projective, G2Affine, G2Projective, MNT6
-        },
-        tests::curve_tests,
-        AffineCurve, PairingEngine,
+use crate::{curves::{
+    mnt6753::{
+        G1Affine, G1Projective, G2Affine, G2Projective, MNT6
     },
-    biginteger::BigInteger768,
-    fields::mnt6753::{fq::Fq, fq3::Fq3, fq6::Fq6, fr::Fr},
-    groups::tests::group_test,
-    ProjectiveCurve, Field, PrimeField
-};
+    tests::curve_tests,
+    AffineCurve, PairingEngine,
+}, biginteger::BigInteger768, fields::mnt6753::{fq::Fq, fq3::Fq3, fq6::Fq6, fr::Fr}, groups::tests::group_test, ProjectiveCurve, Field, PrimeField, ToBits, FromCompressedBits};
 use rand;
 use std::ops::AddAssign;
 use crate::groups::tests::{compression_test, gt_compression_test};
@@ -101,6 +95,17 @@ fn test_g1_compression_decompression() {
     );
 
     compression_test::<G1Affine>(even, odd);
+
+    //Test correct compression/decompression of a point with x = 0 coordinate
+    let mut zero_bits = Fq::zero().write_bits();
+    zero_bits.push(false); //Set infinity
+    zero_bits.push(true); //Set parity
+    assert!(G1Affine::decompress(zero_bits.clone()).is_ok());
+
+    zero_bits.pop();
+    zero_bits.push(false); //Change parity
+    assert!(G1Affine::decompress(zero_bits.clone()).is_ok());
+
 }
 
 #[test]
