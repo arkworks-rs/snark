@@ -5,12 +5,12 @@ use std::ops::{Add, Mul, Sub};
 
 /// Ate pairing e: G_1 x G_2 -> G_T for MNT4 curves over prime fields
 ///
-///     E: y^2 = x^3 + a*x + b mod p.
+//     E: y^2 = x^3 + a*x + b mod p.
 ///
 /// Its embedding field F4 is regarded as towered extension
 ///
-///     F4 = F2[Y]/(Y^2-X),
-///     F2 = Fp[X]/(X^2-alpha),
+//     F4 = F2[Y]/(Y^2-X),
+//     F2 = Fp[X]/(X^2-alpha),
 ///
 /// using a "non-residue" alpha mod p such that (X^4-alpha) is irreducible over Fp.
 /// We apply standard efficiency measures (see, e.g. ): G_2 is represented by a subgroup
