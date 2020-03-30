@@ -116,16 +116,6 @@ impl R1CStoQAP {
             a[prover.num_constraints + i] = if i > 0 { full_input_assignment[i] } else { one };
         }
 
-        domain.ifft_in_place(&mut a);
-        domain.ifft_in_place(&mut b);
-
-        domain.coset_fft_in_place(&mut a);
-        domain.coset_fft_in_place(&mut b);
-
-        let mut ab = domain.mul_polynomials_in_evaluation_domain(&a, &b);
-        drop(a);
-        drop(b);
-
         let mut c = vec![zero; domain_size];
         cfg_iter_mut!(c[..prover.num_constraints])
             .enumerate()
@@ -137,8 +127,26 @@ impl R1CStoQAP {
                 );
             });
 
-        domain.ifft_in_place(&mut c);
-        domain.coset_fft_in_place(&mut c);
+        rayon::scope(|s| {
+            s.spawn(|_| {
+                domain.ifft_in_place(&mut a);
+                domain.coset_fft_in_place(&mut a);
+            });
+
+            s.spawn(|_| {
+                domain.ifft_in_place(&mut b);
+                domain.coset_fft_in_place(&mut b);
+            });
+
+            s.spawn(|_| {
+                domain.ifft_in_place(&mut c);
+                domain.coset_fft_in_place(&mut c);
+            });
+        });
+
+        let mut ab = domain.mul_polynomials_in_evaluation_domain(&a, &b);
+        drop(a);
+        drop(b);
 
         cfg_iter_mut!(ab)
             .zip(c)

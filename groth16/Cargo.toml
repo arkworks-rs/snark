@@ -35,6 +35,7 @@ crossbeam = "0.7.3"
 [dev-dependencies]
 csv = { version = "1" }
 algebra = { path = "../algebra", default-features = false, features = [ "bls12_377", "bls12_381", "sw6" ] }
+rand_xorshift = "0.2.0"
 
 [features]
 default = ["parallel"]

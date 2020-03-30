@@ -28,7 +28,10 @@
 use csv;
 
 // For randomness (during paramgen and proof generation)
-use algebra_core::{test_rng, One};
+use algebra_core::One;
+use rand_xorshift::XorShiftRng;
+use rand::SeedableRng;
+
 
 // For benchmarking
 use std::{
@@ -82,18 +85,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("Path to output file does not point to a file.");
         process::exit(1);
     };
-    // This may not be cryptographically safe, use
-    // `OsRng` (for example) in production software.
-    let rng = &mut test_rng();
+
+    // This is not cryptographically secure!
+    let rng = &mut XorShiftRng::seed_from_u64(1231275789u64);
 
     // Let's benchmark stuff!
-    let samples = if num_constraints > 10000 {
-        1
-    } else if num_constraints > 4096 {
-        2
-    } else {
-        4
-    };
+    let samples = 4;
     let mut total_setup = Duration::new(0, 0);
     let mut total_proving = Duration::new(0, 0);
     let mut total_verifying = Duration::new(0, 0);
