@@ -1,13 +1,28 @@
-use algebra::PrimeField;
-use crate::crh::poseidon::PoseidonParameters;
+use algebra::{
+    fields::{
+        mnt4753::Fr as MNT4753Fr,
+        mnt6753::Fr as MNT6753Fr,
+    }, PrimeField, MulShort,
+};
+use primitives::crh::poseidon::PoseidonParameters;
+use crate::crh::FieldBasedHashGadget;
+use primitives::crh::{
+    poseidon_original::PoseidonHash,
+    parameters::{
+        MNT4753PoseidonParameters, MNT6753PoseidonParameters
+    },
+};
 use std::marker::PhantomData;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::fields::fp::FpGadget;
 use r1cs_std::fields::FieldGadget;
 use r1cs_std::bits::boolean::Boolean;
-use r1cs_std::alloc::{AllocGadget, HardCodedGadget};
+use r1cs_std::alloc::{AllocGadget, ConstantGadget};
 use r1cs_std::Assignment;
 use r1cs_std::eq::ConditionalEqGadget;
+
+pub type MNT4PoseidonHashGadget = PoseidonHashGadget<MNT4753Fr, MNT4753PoseidonParameters>;
+pub type MNT6PoseidonHashGadget = PoseidonHashGadget<MNT6753Fr, MNT6753PoseidonParameters>;
 
 pub struct PoseidonHashGadget
 <
@@ -19,65 +34,7 @@ pub struct PoseidonHashGadget
     _parameters: PhantomData<P>,
 }
 
-impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
-    where
-        ConstraintF: PrimeField,
-        P:           PoseidonParameters<Fr = ConstraintF>
-{
-    fn check_evaluation_gadget<CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        input: &[FpGadget<ConstraintF>],
-    ) -> Result<FpGadget<ConstraintF>, SynthesisError>
-    // Assumption:
-    //     rate r = 2
-    //     capacity c = 1
-    //     t = 3
-    {
-
-        let state_0 = FpGadget::<ConstraintF>::alloc_hardcoded(cs.ns(|| "hardcode_state_0"), || Ok(P::AFTER_ZERO_PERM[0]))?;
-        let state_1 = FpGadget::<ConstraintF>::alloc_hardcoded(cs.ns(|| "hardcode_state_1"), || Ok(P::AFTER_ZERO_PERM[1]))?;
-        let state_2 = FpGadget::<ConstraintF>::alloc_hardcoded(cs.ns(|| "hardcode_state_2"), || Ok(P::AFTER_ZERO_PERM[2]))?;
-
-        let mut state = [state_0, state_1, state_2];
-
-        // calculate the number of cycles to process the input dividing in portions of rate elements
-        let num_cycles = input.len() / P::R;
-        // check if the input is a multiple of the rate by calculating the remainder of the division
-        // the remainder of dividing the input length by the rate can be 1 or 0 because we are assuming
-        // that the rate is 2
-        let rem = input.len() % P::R;
-
-        // index to process the input
-        let mut input_idx = 0;
-        // iterate of the portions of rate elements
-        for i in 0..num_cycles {
-            // add the elements to the state vector. Add rate elements
-            for j in 0..P::R {
-                state[j].add_in_place(cs.ns(|| format!("add_input_{}_{}", i, j)), &input[input_idx])?;
-                input_idx += 1;
-            }
-            // for application to a 2-1 Merkle tree, add the constant 3 to the third state vector
-            state[P::R].add_constant_in_place(cs.ns(||format!("add_constant_C2_{}",i)), &P::C2)?;
-            // apply permutation after adding the input vector
-            Self::poseidon_perm(cs.ns(|| format!("poseidon_perm_{}", i)),&mut state)?;
-        }
-
-        // in case the input is not a multiple of the rate process the remainder part padding a zero
-        // in this case add C2 to state[2]
-        //
-        //   rem_input   0       C2
-        // + state[0] state[1] state[2]
-        //
-        if rem != 0 {
-            state[0].add_in_place(cs.ns(|| "poseidon_padding_add"), &input[input_idx])?;
-            state[P::R].add_constant_in_place(cs.ns(||"add_constant_C2_last_chunk"), &P::C2)?;
-            // apply permutation after adding the input vector
-            Self::poseidon_perm(cs.ns(|| "poseidon_padding_perm"), &mut state)?;
-        }
-
-        // return the first element of the state vector as the hash digest
-        Ok(state[0].clone())
-    }
+impl<ConstraintF: PrimeField + MulShort, P: PoseidonParameters<Fr = ConstraintF>> PoseidonHashGadget<ConstraintF, P> {
 
     fn mod_inv_sbox<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
@@ -114,9 +71,9 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
     }
 
     fn poseidon_perm<CS: ConstraintSystem<ConstraintF>>(
-         mut cs: CS,
-         state: &mut [FpGadget<ConstraintF>],
-        ) -> Result<(), SynthesisError>
+        mut cs: CS,
+        state: &mut [FpGadget<ConstraintF>],
+    ) -> Result<(), SynthesisError>
     {
 
         // index that goes over the round constants
@@ -124,7 +81,6 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
 
         {
             // Add initial round constants
-
             for d in state.iter_mut() {
                 let rc = P::ROUND_CST[round_cst_idx];
                 (*d).add_constant_in_place(cs.ns(|| format!("add_constant_{}", round_cst_idx)), &rc)?;
@@ -192,7 +148,7 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
                 (*d).add_constant_in_place(cs.ns(|| format!("add_constant_3_{}", round_cst_idx)), &rc)?;
                 round_cst_idx += 1;
             }
-       }
+        }
 
         // Last full round does not perform the matrix_mix
         {
@@ -268,32 +224,93 @@ impl<ConstraintF, P> PoseidonHashGadget<ConstraintF, P>
 
         Ok(())
     }
-
 }
 
+impl<ConstraintF, P> FieldBasedHashGadget<PoseidonHash<ConstraintF, P>, ConstraintF> for PoseidonHashGadget<ConstraintF, P>
+    where
+        ConstraintF: PrimeField + MulShort,
+        P:           PoseidonParameters<Fr = ConstraintF>
+{
+    type DataGadget = FpGadget<ConstraintF>;
+
+    fn check_evaluation_gadget<CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        input: &[Self::DataGadget],
+    ) -> Result<Self::DataGadget, SynthesisError>
+    // Assumption:
+    //     rate r = 2
+    //     capacity c = 1
+    //     t = 3
+    {
+        let state_0 = FpGadget::<ConstraintF>::from_value(cs.ns(|| "hardcode_state_0"), &P::AFTER_ZERO_PERM[0]);
+        let state_1 = FpGadget::<ConstraintF>::from_value(cs.ns(|| "hardcode_state_1"), &P::AFTER_ZERO_PERM[1]);
+        let state_2 = FpGadget::<ConstraintF>::from_value(cs.ns(|| "hardcode_state_2"), &P::AFTER_ZERO_PERM[2]);
+
+        let mut state = [state_0, state_1, state_2];
+
+        // calculate the number of cycles to process the input dividing in portions of rate elements
+        let num_cycles = input.len() / P::R;
+        // check if the input is a multiple of the rate by calculating the remainder of the division
+        // the remainder of dividing the input length by the rate can be 1 or 0 because we are assuming
+        // that the rate is 2
+        let rem = input.len() % P::R;
+
+        // index to process the input
+        let mut input_idx = 0;
+        // iterate of the portions of rate elements
+        for i in 0..num_cycles {
+            // add the elements to the state vector. Add rate elements
+            for j in 0..P::R {
+                state[j].add_in_place(cs.ns(|| format!("add_input_{}_{}", i, j)), &input[input_idx])?;
+                input_idx += 1;
+            }
+            // for application to a 2-1 Merkle tree, add the constant 3 to the third state vector
+            state[P::R].add_constant_in_place(cs.ns(|| format!("add_constant_C2_{}", i)), &P::C2)?;
+            // apply permutation after adding the input vector
+            Self::poseidon_perm(cs.ns(|| format!("poseidon_perm_{}", i)), &mut state)?;
+        }
+
+        // in case the input is not a multiple of the rate process the remainder part padding a zero
+        // in this case add C2 to state[2]
+        //
+        //   rem_input   0       C2
+        // + state[0] state[1] state[2]
+        //
+        if rem != 0 {
+            state[0].add_in_place(cs.ns(|| "poseidon_padding_add"), &input[input_idx])?;
+            state[P::R].add_constant_in_place(cs.ns(|| "add_constant_C2_last_chunk"), &P::C2)?;
+            // apply permutation after adding the input vector
+            Self::poseidon_perm(cs.ns(|| "poseidon_padding_perm"), &mut state)?;
+        }
+
+        // return the first element of the state vector as the hash digest
+        Ok(state[0].clone())
+    }
+}
 
 #[cfg(test)]
 mod test {
-    use super::super::rand::thread_rng;
+    use rand::thread_rng;
     use r1cs_std::test_constraint_system::TestConstraintSystem;
-    use crate::crh::poseidon::parameters::MNT4753PoseidonParameters;
+    use primitives::crh::{
+        FieldBasedHash, MNT4PoseidonHash, MNT6PoseidonHash,
+    };
     use r1cs_std::fields::fp::FpGadget;
     use r1cs_std::alloc::AllocGadget;
     use r1cs_core::ConstraintSystem;
     use algebra::UniformRand;
-    use crate::crh::poseidon::constraints::PoseidonHashGadget;
-    use crate::crh::poseidon::poseidon_original::PoseidonHash;
-    use crate::crh::FieldBasedHash;
+    use super::*;
 
-    use algebra::fields::mnt6753::Fr as MNT6753Fr;
-    use algebra::fields::mnt4753::Fr as MNT4753Fr;
+    use algebra::fields::{
+        mnt4753::Fr as MNT4753Fr,
+        mnt6753::Fr as MNT6753Fr,
+    };
 
     type Mnt4FieldGadget = FpGadget<MNT4753Fr>;
+    type Mnt6FieldGadget = FpGadget<MNT6753Fr>;
 
     #[test]
-    fn crh_primitive_gadget_test() {
-
-        type Mnt4PoseidonHash = PoseidonHash<MNT4753Fr, MNT4753PoseidonParameters>;
+    fn crh_mnt4_753_primitive_gadget_test() {
 
         let mut rng = &mut thread_rng();
         let mut cs = TestConstraintSystem::<MNT4753Fr>::new();
@@ -304,7 +321,7 @@ mod test {
         vec_elem_4753.push(v1);
         vec_elem_4753.push(v2);
 
-        let primitive_result = Mnt4PoseidonHash::evaluate(&vec_elem_4753).unwrap();
+        let primitive_result = MNT4PoseidonHash::evaluate(&vec_elem_4753).unwrap();
 
         let v1_gadget = Mnt4FieldGadget::alloc(cs.ns(|| "alloc_v1"),|| Ok(v1)).unwrap();
         let v2_gadget = Mnt4FieldGadget::alloc(cs.ns(|| "alloc_v2"),|| Ok(v2)).unwrap();
@@ -314,7 +331,39 @@ mod test {
         vec_elem_gadget.push(v2_gadget);
 
         let gadget_result =
-            PoseidonHashGadget::<MNT4753Fr, MNT4753PoseidonParameters>::check_evaluation_gadget(
+            MNT4PoseidonHashGadget::check_evaluation_gadget(
+                cs.ns(||"check_poseidon_gadget"),
+                vec_elem_gadget.as_slice()).unwrap();
+
+        println!("number of constraints total: {}", cs.num_constraints());
+
+        assert_eq!(primitive_result, gadget_result.value.unwrap());
+        assert!(cs.is_satisfied());
+    }
+
+    #[test]
+    fn crh_mnt6_753_primitive_gadget_test() {
+
+        let mut rng = &mut thread_rng();
+        let mut cs = TestConstraintSystem::<MNT6753Fr>::new();
+
+        let mut vec_elem_6753 = Vec::new();
+        let v1 = MNT6753Fr::rand(&mut rng);
+        let v2 = MNT6753Fr::rand(&mut rng);
+        vec_elem_6753.push(v1);
+        vec_elem_6753.push(v2);
+
+        let primitive_result = MNT6PoseidonHash::evaluate(&vec_elem_6753).unwrap();
+
+        let v1_gadget = Mnt6FieldGadget::alloc(cs.ns(|| "alloc_v1"),|| Ok(v1)).unwrap();
+        let v2_gadget = Mnt6FieldGadget::alloc(cs.ns(|| "alloc_v2"),|| Ok(v2)).unwrap();
+
+        let mut vec_elem_gadget = Vec::new();
+        vec_elem_gadget.push(v1_gadget);
+        vec_elem_gadget.push(v2_gadget);
+
+        let gadget_result =
+            MNT6PoseidonHashGadget::check_evaluation_gadget(
                 cs.ns(||"check_poseidon_gadget"),
                 vec_elem_gadget.as_slice()).unwrap();
 

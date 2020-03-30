@@ -1,4 +1,4 @@
-use crate::crh::poseidon::{PoseidonParameters, FieldBasedHashParameters};
+use crate::crh::{PoseidonParameters, FieldBasedHashParameters};
 
 use algebra::fields::mnt6753::Fr as MNT6753Fr;
 use algebra::fields::mnt4753::Fr as MNT4753Fr;

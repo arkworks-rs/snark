@@ -1,10 +1,15 @@
-use algebra::bytes::ToBytes;
+use algebra::{
+    Field, bytes::ToBytes
+};
 use rand::Rng;
 use std::hash::Hash;
 
 pub mod bowe_hopwood;
 pub mod injective_map;
 pub mod pedersen;
+
+pub mod poseidon;
+pub use self::poseidon::*;
 
 use crate::Error;
 
@@ -18,11 +23,7 @@ pub trait FixedLengthCRH {
     fn evaluate(parameters: &Self::Parameters, input: &[u8]) -> Result<Self::Output, Error>;
 }
 
-//Temporary mock of Poseidon interfaces
-
-use algebra::Field;
-
-pub trait FieldBasedHashParameters: Sized + Clone{
+pub trait FieldBasedHashParameters{
     type Fr: Field;
 }
 
@@ -33,50 +34,9 @@ pub trait FieldBasedHash {
     fn evaluate(input: &[Self::Data]) -> Result<Self::Data, Error>;
 }
 
-pub trait PoseidonParameters: FieldBasedHashParameters {
-    //Constants here
+pub trait BatchFieldBasedHash {
+    type Data: Field;
+    type Parameters: FieldBasedHashParameters<Fr = Self::Data>;
+
+    fn batch_evaluate_2_1(input_array: &mut[Self::Data]);
 }
-
-use algebra::fields::mnt4753::Fr as MNT4753Fr;
-use algebra::fields::mnt6753::Fr as MNT6753Fr;
-use std::marker::PhantomData;
-
-#[derive(Derivative)]
-#[derivative(Clone)]
-pub struct MNT4HashParameters;
-
-impl FieldBasedHashParameters for MNT4HashParameters{
-    type Fr = MNT4753Fr;
-}
-
-impl PoseidonParameters for MNT4HashParameters {}
-
-#[derive(Derivative)]
-#[derivative(Clone)]
-pub struct MNT6HashParameters;
-
-impl FieldBasedHashParameters for MNT6HashParameters{
-    type Fr = MNT6753Fr;
-}
-
-impl PoseidonParameters for MNT6HashParameters {}
-
-pub struct PoseidonHash<F: Field, P: PoseidonParameters<Fr = F>>{
-    _field:      PhantomData<F>,
-    _parameters: PhantomData<P>,
-}
-
-impl<F: Field, P: PoseidonParameters<Fr = F>> FieldBasedHash for PoseidonHash<F, P>{
-    type Data = F;
-    type Parameters = P;
-
-    fn evaluate(input: &[F]) -> Result<F, Error> {
-        //Dummy impl, just for test
-        let mut res = F::zero();
-        input.iter().for_each(|f| res += f);
-        Ok(res)
-    }
-}
-
-pub type MNT4PoseidonHash = PoseidonHash<MNT4753Fr, MNT4HashParameters>;
-pub type MNT6PoseidonHash = PoseidonHash<MNT6753Fr, MNT6HashParameters>;

@@ -1,7 +1,9 @@
 use algebra::Field;
 use std::fmt::Debug;
 
-use primitives::crh::FixedLengthCRH;
+use primitives::crh::{
+    FieldBasedHash, FixedLengthCRH
+};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
 use r1cs_std::prelude::*;
@@ -9,6 +11,9 @@ use r1cs_std::prelude::*;
 pub mod bowe_hopwood;
 pub mod injective_map;
 pub mod pedersen;
+
+pub mod poseidon;
+pub use self::poseidon::*;
 
 pub trait FixedLengthCRHGadget<H: FixedLengthCRH, ConstraintF: Field>: Sized {
     type OutputGadget: ConditionalEqGadget<ConstraintF>
@@ -28,12 +33,6 @@ pub trait FixedLengthCRHGadget<H: FixedLengthCRH, ConstraintF: Field>: Sized {
     ) -> Result<Self::OutputGadget, SynthesisError>;
 }
 
-//Temporary mock of Poseidon interfaces
-use algebra::PrimeField;
-use primitives::crh::{PoseidonParameters, PoseidonHash, FieldBasedHash};
-use r1cs_std::fields::fp::FpGadget;
-use std::marker::PhantomData;
-
 pub trait FieldBasedHashGadget<H: FieldBasedHash<Data = ConstraintF>, ConstraintF: Field>: Sized {
     type DataGadget: FieldGadget<ConstraintF, ConstraintF>;
 
@@ -42,44 +41,3 @@ pub trait FieldBasedHashGadget<H: FieldBasedHash<Data = ConstraintF>, Constraint
         input: &[Self::DataGadget],
     ) -> Result<Self::DataGadget, SynthesisError>;
 }
-
-pub struct PoseidonHashGadget
-<
-    ConstraintF: Field,
-    P:           PoseidonParameters<Fr = ConstraintF>,
->
-{
-    _field:      PhantomData<ConstraintF>,
-    _parameters: PhantomData<P>,
-}
-
-impl<ConstraintF, P> FieldBasedHashGadget<PoseidonHash<ConstraintF, P>, ConstraintF>
-for PoseidonHashGadget<ConstraintF, P>
-    where
-        ConstraintF: PrimeField,
-        P:           PoseidonParameters<Fr = ConstraintF>,
-{
-    type DataGadget = FpGadget<ConstraintF>;
-
-    fn check_evaluation_gadget<CS: ConstraintSystem<ConstraintF>>
-    (
-        mut cs: CS,
-        input: &[Self::DataGadget]
-    ) -> Result<Self::DataGadget, SynthesisError>
-
-    {
-        //Dummy impl, just for test
-        let mut res = Self::DataGadget::zero(cs.ns(|| "alloc result"))?;
-        for (i, fg) in input.iter().enumerate() {
-            res = res.add(cs.ns(|| format!("add_{}", i)), fg)?;
-        }
-        Ok(res)
-    }
-}
-
-use algebra::fields::mnt4753::Fr as MNT4753Fr;
-use algebra::fields::mnt6753::Fr as MNT6753Fr;
-use primitives::crh::{MNT4HashParameters, MNT6HashParameters};
-
-pub type MNT4PoseidonHashGadget = PoseidonHashGadget<MNT4753Fr, MNT4HashParameters>;
-pub type MNT6PoseidonHashGadget = PoseidonHashGadget<MNT6753Fr, MNT6HashParameters>;

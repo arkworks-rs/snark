@@ -29,11 +29,7 @@ blake2 = { version = "0.7", optional = true }
 rand = { version = "0.7" }
 derivative = "1"
 rayon = "1"
-
 hex = "0.4.0"
-
-# remove it in production
-rand_xorshift = { version = "0.2" }
 
 [features]
 commitment = ["digest", "blake2"]

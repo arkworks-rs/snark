@@ -26,6 +26,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F,
     // It uses Montgomery multiplication
     // Constants are defined such that the result is x * t * 2^768,
     // that is the Montgomery representation of the operand x * t, and t is the 64-bit constant
+    #[allow(dead_code)]
     fn matrix_mix (state: &mut Vec<F>) {
 
         // the new state where the result will be stored initialized to zero elements
