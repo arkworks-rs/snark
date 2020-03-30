@@ -264,7 +264,7 @@ where
 
     drop(h);
 
-    // Cannot use `s` inside crossbeam, returns `From<&crossbeam_utils::thread::Scope<'_>` 
+    // Cannot use `s` inside crossbeam, returns `From<&crossbeam_utils::thread::Scope<'_>`
     // is not implemented for E::Fr::BigInt, which is weird.
     let s_clone = s.clone();
 
@@ -273,7 +273,8 @@ where
         let g1_a = s.spawn(|_| -> Result<_, SynthesisError> {
             let a_acc_time = start_timer!(|| "Compute A");
             let (a_inputs_source, a_aux_source) = params.get_a_query(prover.num_inputs)?;
-            let a_inputs_acc = VariableBaseMSM::multi_scalar_mul(a_inputs_source, &input_assignment);
+            let a_inputs_acc =
+                VariableBaseMSM::multi_scalar_mul(a_inputs_source, &input_assignment);
             let a_aux_acc = VariableBaseMSM::multi_scalar_mul(a_aux_source, &aux_assignment);
 
             let r_g1 = params.delta_g1.mul(r);
@@ -288,12 +289,13 @@ where
         });
 
         // Compute B in G1 if needed
-        let g1_b = s.spawn(|_| -> Result<_, SynthesisError> {
-            let g1_b = if r != E::Fr::zero() {
+        let g1_b = if r != E::Fr::zero() {
+            Some(s.spawn(|_| -> Result<_, SynthesisError> {
                 let b_g1_acc_time = start_timer!(|| "Compute B in G1");
 
                 let (b_inputs_source, b_aux_source) = params.get_b_g1_query(prover.num_inputs)?;
-                let b_inputs_acc = VariableBaseMSM::multi_scalar_mul(b_inputs_source, &input_assignment);
+                let b_inputs_acc =
+                    VariableBaseMSM::multi_scalar_mul(b_inputs_source, &input_assignment);
                 let b_aux_acc = VariableBaseMSM::multi_scalar_mul(b_aux_source, &aux_assignment);
 
                 let s_g1 = params.delta_g1.mul(s_clone);
@@ -304,20 +306,19 @@ where
                 g1_b.add_assign_mixed(&params.beta_g1);
                 end_timer!(b_g1_acc_time);
 
-                g1_b
-            } else {
-                E::G1Projective::zero()
-            };
-
-            Ok(g1_b)
-        });
+                Ok(g1_b)
+            }))
+        } else {
+            None
+        };
 
         // Compute B in G2
         let g2_b = s.spawn(|_| -> Result<_, SynthesisError> {
             let b_g2_acc_time = start_timer!(|| "Compute B in G2");
 
             let (b_inputs_source, b_aux_source) = params.get_b_g2_query(prover.num_inputs)?;
-            let b_inputs_acc = VariableBaseMSM::multi_scalar_mul(b_inputs_source, &input_assignment);
+            let b_inputs_acc =
+                VariableBaseMSM::multi_scalar_mul(b_inputs_source, &input_assignment);
             let b_aux_acc = VariableBaseMSM::multi_scalar_mul(b_aux_source, &aux_assignment);
 
             let s_g2 = params.vk.delta_g2.mul(s_clone);
@@ -335,7 +336,8 @@ where
         let c_acc_time = start_timer!(|| "Compute C");
         let c_aux = s.spawn(|_| -> Result<_, SynthesisError> {
             let (h_inputs_source, h_aux_source) = params.get_h_query(prover.num_inputs)?;
-            let h_inputs_acc = VariableBaseMSM::multi_scalar_mul(h_inputs_source, &h_input_assignment);
+            let h_inputs_acc =
+                VariableBaseMSM::multi_scalar_mul(h_inputs_source, &h_input_assignment);
             let h_aux_acc = VariableBaseMSM::multi_scalar_mul(h_aux_source, &h_aux_assignment);
 
             let l_aux_source = params.get_l_query_full()?;
@@ -346,7 +348,11 @@ where
 
         // Wait for all large multiplications to finish
         let g_a = g1_a.join()??;
-        let g1_b = g1_b.join()??;
+        let g1_b = if let Some(g1_b) = g1_b {
+            g1_b.join()??
+        } else {
+            E::G1Projective::zero()
+        };
         let (h_inputs_acc, h_aux_acc, l_aux_acc) = c_aux.join()??;
 
         // finish the computation of C
