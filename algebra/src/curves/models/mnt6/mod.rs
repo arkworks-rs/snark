@@ -217,8 +217,8 @@ impl<P: MNT6Parameters> MNT6p<P> {
     }
 
     fn final_exponentiation_first_chunk(elt: &Fp6<P::Fp6Params>, elt_inv: &Fp6<P::Fp6Params>) -> Fp6<P::Fp6Params> {
-        /// use the Frobenius map and elt^{-1} to compute the "easy part"
-        /// elt^{(q^3-1)*(q+1)}
+        // use the Frobenius map and elt^{-1} to compute the "easy part"
+        // elt^{(q^3-1)*(q+1)}
 
         let mut elt_q3 = elt.clone();
         // elt^{q^3}
@@ -235,7 +235,7 @@ impl<P: MNT6Parameters> MNT6p<P> {
     }
 
     fn final_exponentiation_last_chunk(elt: &Fp6<P::Fp6Params>, elt_inv: &Fp6<P::Fp6Params>) -> Fp6<P::Fp6Params> {
-        /// remaining exponentiaton by m_1*q + m_0, m_0 can be signed.
+        // remaining exponentiaton by m_1*q + m_0, m_0 can be signed.
         let elt_clone = elt.clone();
         let elt_inv_clone = elt_inv.clone();
 

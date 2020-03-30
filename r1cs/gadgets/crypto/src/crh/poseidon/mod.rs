@@ -7,7 +7,7 @@ use algebra::{
 use primitives::crh::poseidon::PoseidonParameters;
 use crate::crh::FieldBasedHashGadget;
 use primitives::crh::{
-    poseidon_original::PoseidonHash,
+    poseidon::PoseidonHash,
     parameters::{
         MNT4753PoseidonParameters, MNT6753PoseidonParameters
     },

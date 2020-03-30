@@ -232,7 +232,7 @@ impl<P: MNT4Parameters> MNT4p<P> {
 
 
     fn final_exponentiation_last_chunk(elt: &Fp4<P::Fp4Params>, elt_inv: &Fp4<P::Fp4Params>) -> Fp4<P::Fp4Params> {
-        /// remaining exponentiaton by m_1*q + m_0, m_0 can be signed.
+        // remaining exponentiaton by m_1*q + m_0, m_0 can be signed.
         let elt_clone = elt.clone();
         let elt_inv_clone = elt_inv.clone();
 
