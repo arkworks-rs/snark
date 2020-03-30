@@ -1,6 +1,8 @@
 #[macro_use]
 extern crate bench_utils;
 
+#[cfg(any(commitment, merkle_tree, prf, signature, vrf))]
+#[macro_use]
 extern crate derivative;
 
 pub mod crh;

@@ -5,18 +5,18 @@ use std::ops::{Add, Mul, Sub};
 
 /// Ate pairing e: G_1 x G_2 -> G_T for MNT4 curves over prime fields
 ///
-///     E: y^2 = x^3 + a*x + b mod p.
+//     E: y^2 = x^3 + a*x + b mod p.
 ///
 /// Its embedding field F4 is regarded as towered extension
 ///
-///     F4 = F2[Y]/(Y^2-X),
-///     F2 = Fp[X]/(X^2-alpha),
+//     F4 = F2[Y]/(Y^2-X),
+//     F2 = Fp[X]/(X^2-alpha),
 ///
 /// using a "non-residue" alpha mod p such that (X^4-alpha) is irreducible over Fp.
 /// We apply standard efficiency measures (see, e.g. ): G_2 is represented by a subgroup
 /// of prime order r=ord(G_1) of the quadratic twist
 ///
-///     E': y^2 = x^3 + (a*alpha) x + (b*alpha*X)
+//     E': y^2 = x^3 + (a*alpha) x + (b*alpha*X)
 ///
 /// over F2, the Frobenius operator is applied to reduce the cost of the final exponentiation, and
 /// we do pre-computations of (essentially) the line coefficients of the Miller loop.

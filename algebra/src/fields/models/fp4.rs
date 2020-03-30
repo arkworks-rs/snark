@@ -14,8 +14,8 @@ use crate::fields::SquareRootField;
 
 /// Model for quadratic extension field F4 as towered extension
 ///
-///     F4 = F2[Y]/(Y^2-X),
-///     F2 = Fp[X]/(X^2-alpha),
+//     F4 = F2[Y]/(Y^2-X),
+//     F2 = Fp[X]/(X^2-alpha),
 ///
 /// using a "non-residue" alpha mod p such that (X^4-alpha) is irreducible over Fp.
 /// Its arithmetics includes pairing-relevant operations such as exponentiation and

@@ -16,8 +16,8 @@ use crate::{
 
 /// Model for quadratic extension field F6 as towered extension
 ///
-///     F6 = F2[Y]/(Y^2-X),
-///     F3 = Fp[X]/(X^3-alpha),
+//     F6 = F2[Y]/(Y^2-X),
+//     F3 = Fp[X]/(X^3-alpha),
 ///
 /// using a "non-residue" alpha mod p such that (X^6-alpha) is irreducible over Fp.
 /// Its arithmetics includes pairing-relevant operations such as exponentiation and
