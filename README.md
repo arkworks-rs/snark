@@ -12,17 +12,17 @@ Originally a fork of the [ZEXE](https://github.com/scipr-lab/ZEXE) project, ging
 
 Ginger-lib was built with the goal of being easily integrated and used by any project that needs to implement its own, application-tailored zk-SNARK. As such, it provides SNARK core objects and functionalities, and a few closely related ancillary tools. 
 
-In particular, its first release comes with a complete set of tools for recursive proof composition in the sense of Ben-Sasson, et al. ["Scalable Zero Knowledge via Cycles of Elliptic Curves (2014)"](https://eprint.iacr.org/2014/595.pdf). Specifically, it adds to the original ZEXE code the following elements:
+In particular, its first release comes with a complete set of tools for recursive proof composition as in Ben-Sasson, et al. ["Scalable Zero Knowledge via Cycles of Elliptic Curves (2014)"](https://eprint.iacr.org/2014/595.pdf). Specifically, it adds to the original ZEXE code the following elements:
 
 -   __MNT4-753 and MNT6-753 curves__, 
-    a re-implementation of [Coda](https://coinlist.co/build/coda/)'s MNT4-MNT6 cycle of pairing friendly elliptic curves for a security level of 128 Bit. We re-checked all curve  parameters, translated the pairing engine and extended the gadget collection by all necessary components for recursive argument evaluation.
+    a re-implementation of [Coda](https://coinlist.co/build/coda/)'s MNT4-MNT6 cycle of pairing friendly elliptic curves for a security level of 128 bit. All curve parameters were re-checked, the pairing engine ported to Rust, the gadget collection extended with all needed recursive argument evaluation components.
 -   __mixed-domain FFT__,
     to allow efficient conversion between coefficient and point-value polynomial representations in the domains needed to support large circuits.
 
 The library includes also some additional cryptographic primitives, implemented to be efficiently modelled in a SNARK, and in particular:
 
 -   the __POSEIDON hash function__ - 
-    thanks to its efficient description as an arithmetic circuit, the [POSEIDON](https://eprint.iacr.org/2019/458.pdf) hash family is ideal for SNARKs. Our implementations for both the MNT4-753 and MNT6-753 scalar fields, use the modular inversion S-Box, apply a security level of 128 Bits, and are heavily optimized for performance.
+    thanks to its efficient description as an arithmetic circuit, the [POSEIDON](https://eprint.iacr.org/2019/458.pdf) hash family is ideal for SNARKs. Our implementations for both the MNT4-753 and MNT6-753 scalar fields use the modular inversion S-Box, apply a security level of 128 bits and are optimized for performance.
 -   __Schnorr NIZK proof and signature scheme__ - 
     Schnorr-like non-interactive zero-knowledge (NIZK) proof and the Schnorr signature scheme, using POSEIDON as random oracle and adapted to be efficiently integrated in a SNARK.
 -   a SNARK-friendly __Verifiable Random Function (VRF)__, 
@@ -39,13 +39,13 @@ Along with the above primitives, ginger-lib comes with the following new gadgets
 -   __Schnorr proof / signature verification gadgets__,
     enforcing that a single-exponent Schnorr NIZK proof or Schnorr signature, that was created by our corresponding primitives, verifies.
 -   __VRF verification gadget__,
-    enforcing the a public key and message, and a VRF-output, are consistent.
+    enforcing that a public key and message, and a VRF-output, are consistent.
 -   a set of __Merkle Tree gadgets__, 
     modeling our POSEIDON-based Merkle tree. In particular, one of the gadgets enforces correct root hash of a (small) full Merkle tree. Another gadget enforces that the authentication path of a leaf is consistent with a given Merkle root.
 
-Extensive automated tests have been introduced for all the added implementations.
+Extensive automated tests have been introduced for the added implementations.
 
-Since it was developed to support real-world applications, ginger-lib has a strong focus on performance. Some of the code is already optimized in timing. More specifically, the heaviest optimizations were performed on the implementation of the POSEIDON hash function:  batch hashing/verification was significantly sped up by using a "single inversion + field multiplications" replacement for multiple parallel inversions. The same trick was also used to speed up hashing in Merkle trees. Further performance improvements were obtained by parallelizing the code for multi-core implementation, and by speeding up the implementation of field multiplication.
+Since it was developed to support real-world applications, ginger-lib has a strong focus on performance. Some of the code is already optimized in timing. More specifically, optimizations were performed on the implementation of the POSEIDON hash function:  batch hashing/verification was significantly sped up by using a "single inversion + field multiplications" replacement for multiple parallel inversions. The same trick was also used to speed up hashing in Merkle trees. Further performance improvements were obtained by parallelizing the code for multi-core implementation, and by speeding up the implementation of field multiplication.
 
 Continuous performance improvement will be a key goal for all future releases and improvements of the library.  
 
@@ -55,7 +55,7 @@ Continuous performance improvement will be a key goal for all future releases an
 
 ## Directory structure
 
-The high-level structure of the repository is as follows.
+The high-level structure of the repository is as follows:
 
 * [`algebra`](algebra): Rust crate that provides all the mathematical "bricks": finite fields, elliptic curves, FFT.
 * [`primitives`](primitives): Rust crate that implements all the key cryptographic primitives.
@@ -68,10 +68,12 @@ In addition, there is a  [`bench-utils`](bench-utils) crate which contains infra
 
 ## Documentation
 
-Detailed information about the choices made when designing and implementing our primitives and gadgets is available in the [`docs/`](docs/) directory. You can find in particular the following documents:
+Detailed information about the choices made when designing and implementing our primitives and gadgets is available in the [`doc/`](doc/) directory. In particular you can find the following documents:
 
-* [`SchnorrAndGadgets`](docs/SchnorrVerify) documents our length-restricted variant of the Schnorr signature, and its verification circuit.
-* [`VRFandGadgets`](docs/VRFgadget) documents our single-exponent based VRF, with Schnorr NIZK proof of correctness, and its verification circuit.
+* [`PoseidonAndGadgets`](doc/Poseidon.pdf), it documents the parameters for our POSEIDON hash function and its verification circuit.
+* [`SchnorrAndGadgets`](doc/SchnorrVerify.pdf), it explains our length-restricted variant of the Schnorr signature, and its verification circuit.
+* [`SchnorrVerdictGadget`](doc/SchnorrVerdict.pdf), it describes a slight generalization of the Schnorr verification gadget, a circuit which enforces a boolean input (the "verdict") to encode the validity/non-validity of a given Schnorr signature.
+
 
 ## Build guide
 
@@ -92,17 +94,14 @@ This library comes with unit tests for each of the provided crates. Run the test
 cargo test --all-features 
 ``` 
 
-Please note: by default, ```cargo test``` will execute the tests concurrently on all your machine's cores. Since some tests are resource-intensive, this may abort the tests execution. If this happens, you may want to reduce the number of cores on which the test are parallely executed with the command:
+Please note: by default, ```cargo test``` will execute the tests concurrently on all available cores. Since some tests are resource-intensive, this may abort the tests execution. If this happens, you may want to reduce the number of cores running the tests with the command:
 
 ```bash
-cargo test --all-features -- --test-threads=<#threads>
+cargo test --all-features --test-threads=<#threads>
 ``` 
 
-Lastly, this library comes with benchmarks for the following crates:
-
-- [`algebra`](algebra)
-
-These benchmarks require the nightly Rust toolchain; to install this, run `rustup install nightly`. Then, to run benchmarks, run the following command:
+Lastly, this library comes with benchmarks for the [`algebra`](algebra) crate.
+These benchmarks require the nightly Rust toolchain; to install this, run `rustup install nightly`. Then, to run benchmarks, run the following command: 
 ```bash
 cargo +nightly bench --all-features 
 ```
@@ -111,8 +110,8 @@ cargo +nightly bench --all-features
 
 Contributions are welcomed! Bug fixes and new features can be initiated through GitHub pull requests. To speed the code review process, please adhere to the following guidelines:
 
-* Follow code\_of\_conduct.md
-* Follow the styling guide at doc/developer-notes.md
+* Follow Horizen repositories' *code\_of\_conduct*
+* Follow Horizen repositories' *styling guide* 
 * Please gpg sign your commits 
 * Please make sure you push your pull requests to the development branch
 
