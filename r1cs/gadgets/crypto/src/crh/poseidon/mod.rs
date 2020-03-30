@@ -169,11 +169,6 @@ impl<ConstraintF: PrimeField + MulShort, P: PoseidonParameters<Fr = ConstraintF>
     ) -> Result<(), SynthesisError>
     {
 
-        //  s1'= (s1, s2, s3) * [ m11 m12 m13]
-        //  s2'= (s1, s2, s3) * [ m21 m22 m23]
-        //  s3'= (s1, s2, s3) * [ m31 m32 m33]
-        // (s1, s2, s3) = (s1', s2', s3')
-
         // Check that the length of the state vector is t
         assert_eq!(state.len(), P::T);
 
