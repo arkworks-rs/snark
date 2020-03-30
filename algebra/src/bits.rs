@@ -21,8 +21,9 @@ pub trait FromCompressedBits: Sized  {
 #[derive(Debug)]
 pub enum BitSerializationError {
     InvalidFieldElement(String),
-    NotPrimeOrder,
     UndefinedSqrt,
+    NotPrimeOrder,
+    NotOnCurve,
     InvalidFlags,
 }
 
@@ -30,8 +31,9 @@ impl std::fmt::Display for BitSerializationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let msg = match self {
             BitSerializationError::InvalidFieldElement(s) => s.to_owned(),
-            BitSerializationError::NotPrimeOrder => "element is not prime order".to_owned(),
-            BitSerializationError::UndefinedSqrt => "sqrt result doesn't exist in field".to_owned(),
+            BitSerializationError::UndefinedSqrt => "square root doesn't exist in field".to_owned(),
+            BitSerializationError::NotPrimeOrder => "point is not in the prime order subgroup".to_owned(),
+            BitSerializationError::NotOnCurve => "point is not on curve".to_owned(),
             BitSerializationError::InvalidFlags => "illegal flags combination".to_owned(),
         };
         write!(f, "{}", msg)
