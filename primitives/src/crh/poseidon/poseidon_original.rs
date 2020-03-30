@@ -1,10 +1,6 @@
 use crate::crh::poseidon::PoseidonParameters;
 
 use algebra::{PrimeField, MulShort};
-//use algebra::arithmetic::{mac_with_carry, adc};
-//use algebra::fields::FpParameters;
-//use algebra::biginteger::BigInteger768;
-//use algebra::BigInteger;
 
 use std::marker::PhantomData;
 use crate::crh::{FieldBasedHash, BatchFieldBasedHash};
@@ -105,12 +101,6 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F,
         let m_21 = P::MDS_CST_SHORT[3];
         let m_22 = P::MDS_CST_SHORT[4];
         let m_23 = P::MDS_CST_SHORT[5];
-        // Because the matrix is symmetric, they can be replaced by
-        // the following instructions.
-        // let m_21 = m_12;
-        // let m_22 = m_11;
-        // let m_23 = P::MDS_CST_SHORT[5];
-
 
         let elem_3 = m_21.mul_short(&state[0]);
         let elem_4 = m_22.mul_short(&state[1]);
@@ -124,11 +114,6 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F,
         let m_31 = P::MDS_CST_SHORT[6];
         let m_32 = P::MDS_CST_SHORT[7];
         let m_33 = P::MDS_CST_SHORT[8];
-        // Because the matrix is symmetric, they can be replaced by
-        // the following instructions
-        // let m_31 = m_13;
-        // let m_32 = m_23;
-        // let m_33 = m_11;
 
         let elem_6 = m_31.mul_short(&state[0]);
         let elem_7 = m_32.mul_short(&state[1]);
@@ -172,15 +157,6 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F,
                 w.push(accum_prod);
             }
         }
-        // vec_state = [ [z_1, z_2, z_3] [z_4, z_5, z_6] ]
-
-        // w_0 = 1
-        // w_1 = 1 * z_1
-        // w_2 = 1 * z_1 * z_2
-        // w_3 = 1 * z_1 * z_2 * z_3
-        // w_4 = 1 * z_1 * z_2 * z_3 * z_4
-        // w_5 = 1 * z_1 * z_2 * z_3 * z_4 * z_5
-        // w_6 = 1 * z_1 * z_2 * z_3 * z_4 * z_5 * z_6
 
         // if the accum_prod is zero, it means that one of the S-Boxes is zero
         // in that case compute the inverses individually
@@ -197,27 +173,6 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F,
             // Calculate the inversion of the products
             // The inverse always exists in this case
             let mut w_bar = accum_prod.inverse().unwrap();
-
-            // w_bar = (1 * z_1 * z_2 * z_3 * z_4 * z_5 * z_6) ^ -1
-            // w_bar = z_1^-1 * z_2^-1 * z_3^-1 * z_4^-1 * z_5^-1 * z_6^-1
-
-            // z_6 = w_bar * w_5 = z_6^-1
-            // w_bar <= w_bar * z_6 = z_1^-1 * z_2^-1 * z_3^-1 * z_4^-1 * z_5^-1
-
-            // z_5 = w_bar * w_4 = z_5^-1
-            // w_bar <= w_bar * z_5 = z_1^-1 * z_2^-1 * z_3^-1 * z_4^-1
-
-            // z_4 = w_bar * w_3 = z_4^-1
-            // w_bar <= w_bar * z_4 = z_1^-1 * z_2^-1 * z_3^-1
-
-            // z_3 = w_bar * w_2 = z_3^-1
-            // w_bar <= w_bar * z_3 = z_1^-1 * z_2^-1
-
-            // z_2 = w_bar * w_1 = z_2^-1
-            // w_bar <= w_bar * z_2 = z_1^-1
-
-            // z_1 = w_bar * w_0 = z_1^-1
-            // w_bar <= w_bar * z_1 = 1
 
             // Extract the individual inversions
             let mut idx: i64 = w.len() as i64 - 2;
@@ -412,12 +367,6 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
         let m_21 = P::MDS_CST_SHORT[3];
         let m_22 = P::MDS_CST_SHORT[4];
         let m_23 = P::MDS_CST_SHORT[5];
-        // Because the matrix is symmetric, they can be replaced by
-        // the following instructions:
-        // let m_21 = m_12;
-        // let m_22 = m_11;
-        // let m_23 = P::MDS_CST_SHORT[5];
-
 
         let elem_3 = m_21.mul_short(&state[0]);
         let elem_4 = m_22.mul_short(&state[1]);
@@ -431,11 +380,6 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
         let m_31 = P::MDS_CST_SHORT[6];
         let m_32 = P::MDS_CST_SHORT[7];
         let m_33 = P::MDS_CST_SHORT[8];
-        // Because the matrix is symmetric, they can be replaced by
-        // the following instructions:
-        // let m_31 = m_13;
-        // let m_32 = m_23;
-        // let m_33 = m_11;
 
         let elem_6 = m_31.mul_short(&state[0]);
         let elem_7 = m_32.mul_short(&state[1]);
@@ -471,20 +415,6 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
 
             // Apply the S-BOX to each of the elements of the state vector
             // Optimization for the inversion S-Box
-            // Assuming state vector of 3 elements
-            // let bc = state[1]*&state[2];
-            // let abc = state[0]*&bc;
-            // if abc != P::Fr::zero() {
-            //     let abc_inv = abc.inverse().unwrap();
-            //
-            //     let a_inv = abc_inv*&bc;
-            //     let b_inv = abc_inv*&state[0]*&state[2];
-            //     let c_inv = abc_inv*&state[0]*&state[1];
-            //
-            //     state[0] = a_inv;
-            //     state[1] = b_inv;
-            //     state[2] = c_inv;
-            //
             let w2 = state[0] * &state[1];
             let w = state[2] * &w2;
             if w == P::Fr::zero() {
@@ -552,20 +482,6 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
 
             // Apply the S-BOX to each of the elements of the state vector
             // Optimization for the inversion S-Box
-            // Assuming state vector of 3 elements
-
-            // let bc = state[1]*&state[2];
-            // let abc = state[0]*&bc;
-            // if abc != P::Fr::zero() {
-            //     let abc_inv = abc.inverse().unwrap();
-            //
-            //     let a_inv = abc_inv*&bc;
-            //     let b_inv = abc_inv*&state[0]*&state[2];
-            //     let c_inv = abc_inv*&state[0]*&state[1];
-            //
-            //     state[0] = a_inv;
-            //     state[1] = b_inv;
-            //     state[2] = c_inv;
             let w2 = state[0] * &state[1];
             let w = state[2] * &w2;
             if w == P::Fr::zero() {
@@ -605,20 +521,6 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
 
         // Apply the S-BOX to each of the elements of the state vector
         // Optimization for the inversion S-Box
-        // Assuming state vector of 3 elements
-        // let bc = state[1]*&state[2];
-        // let abc = state[0]*&bc;
-        // if abc != P::Fr::zero() {
-        //     let abc_inv = abc.inverse().unwrap();
-        //
-        //     let a_inv = abc_inv*&bc;
-        //     let b_inv = abc_inv*&state[0]*&state[2];
-        //     let c_inv = abc_inv*&state[0]*&state[1];
-        //
-        //     state[0] = a_inv;
-        //     state[1] = b_inv;
-        //     state[2] = c_inv;
-
         let w2 = state[0] * &state[1];
         let w = state[2] * &w2;
         if w == P::Fr::zero() {
