@@ -270,68 +270,88 @@ where
 
     let (g_a, g2_b, g_c) = crossbeam::scope(|s| -> Result<_, SynthesisError> {
         // Compute A
-        let a_acc_time = start_timer!(|| "Compute A");
-        let (a_inputs_source, a_aux_source) = params.get_a_query(prover.num_inputs)?;
-        let a_inputs_acc = VariableBaseMSM::multi_scalar_mul(a_inputs_source, &input_assignment);
-        let a_aux_acc = VariableBaseMSM::multi_scalar_mul(a_aux_source, &aux_assignment);
+        let g1_a = s.spawn(|_| -> Result<_, SynthesisError> {
+            let a_acc_time = start_timer!(|| "Compute A");
+            let (a_inputs_source, a_aux_source) = params.get_a_query(prover.num_inputs)?;
+            let a_inputs_acc = VariableBaseMSM::multi_scalar_mul(a_inputs_source, &input_assignment);
+            let a_aux_acc = VariableBaseMSM::multi_scalar_mul(a_aux_source, &aux_assignment);
 
-        let r_g1 = params.delta_g1.mul(r);
-        let mut g_a = r_g1;
-        g_a.add_assign_mixed(&params.get_a_query_full()?[0]);
-        g_a += &a_inputs_acc;
-        g_a += &a_aux_acc;
-        g_a.add_assign_mixed(&params.vk.alpha_g1);
-        end_timer!(a_acc_time);
+            let r_g1 = params.delta_g1.mul(r);
+            let mut g_a = r_g1;
+            g_a.add_assign_mixed(&params.get_a_query_full()?[0]);
+            g_a += &a_inputs_acc;
+            g_a += &a_aux_acc;
+            g_a.add_assign_mixed(&params.vk.alpha_g1);
+            end_timer!(a_acc_time);
+
+            Ok(g_a)
+        });
 
         // Compute B in G1 if needed
-        let g1_b = if r != E::Fr::zero() {
-            let b_g1_acc_time = start_timer!(|| "Compute B in G1");
+        let g1_b = s.spawn(|_| -> Result<_, SynthesisError> {
+            let g1_b = if r != E::Fr::zero() {
+                let b_g1_acc_time = start_timer!(|| "Compute B in G1");
 
-            let (b_inputs_source, b_aux_source) = params.get_b_g1_query(prover.num_inputs)?;
+                let (b_inputs_source, b_aux_source) = params.get_b_g1_query(prover.num_inputs)?;
+                let b_inputs_acc = VariableBaseMSM::multi_scalar_mul(b_inputs_source, &input_assignment);
+                let b_aux_acc = VariableBaseMSM::multi_scalar_mul(b_aux_source, &aux_assignment);
+
+                let s_g1 = params.delta_g1.mul(s_clone);
+                let mut g1_b = s_g1;
+                g1_b.add_assign_mixed(&params.get_b_g1_query_full()?[0]);
+                g1_b += &b_inputs_acc;
+                g1_b += &b_aux_acc;
+                g1_b.add_assign_mixed(&params.beta_g1);
+                end_timer!(b_g1_acc_time);
+
+                g1_b
+            } else {
+                E::G1Projective::zero()
+            };
+
+            Ok(g1_b)
+        });
+
+        // Compute B in G2
+        let g2_b = s.spawn(|_| -> Result<_, SynthesisError> {
+            let b_g2_acc_time = start_timer!(|| "Compute B in G2");
+
+            let (b_inputs_source, b_aux_source) = params.get_b_g2_query(prover.num_inputs)?;
             let b_inputs_acc = VariableBaseMSM::multi_scalar_mul(b_inputs_source, &input_assignment);
             let b_aux_acc = VariableBaseMSM::multi_scalar_mul(b_aux_source, &aux_assignment);
 
-            let s_g1 = params.delta_g1.mul(s_clone);
-            let mut g1_b = s_g1;
-            g1_b.add_assign_mixed(&params.get_b_g1_query_full()?[0]);
-            g1_b += &b_inputs_acc;
-            g1_b += &b_aux_acc;
-            g1_b.add_assign_mixed(&params.beta_g1);
-            end_timer!(b_g1_acc_time);
+            let s_g2 = params.vk.delta_g2.mul(s_clone);
+            let mut g2_b = s_g2;
+            g2_b.add_assign_mixed(&params.get_b_g2_query_full()?[0]);
+            g2_b += &b_inputs_acc;
+            g2_b += &b_aux_acc;
+            g2_b.add_assign_mixed(&params.vk.beta_g2);
+            end_timer!(b_g2_acc_time);
 
-            g1_b
-        } else {
-            E::G1Projective::zero()
-        };
-
-        // Compute B in G2
-        let b_g2_acc_time = start_timer!(|| "Compute B in G2");
-
-        let (b_inputs_source, b_aux_source) = params.get_b_g2_query(prover.num_inputs)?;
-        let b_inputs_acc = VariableBaseMSM::multi_scalar_mul(b_inputs_source, &input_assignment);
-        let b_aux_acc = VariableBaseMSM::multi_scalar_mul(b_aux_source, &aux_assignment);
-
-        let s_g2 = params.vk.delta_g2.mul(s_clone);
-        let mut g2_b = s_g2;
-        g2_b.add_assign_mixed(&params.get_b_g2_query_full()?[0]);
-        g2_b += &b_inputs_acc;
-        g2_b += &b_aux_acc;
-        g2_b.add_assign_mixed(&params.vk.beta_g2);
-        end_timer!(b_g2_acc_time);
+            Ok(g2_b)
+        });
 
         // Compute C
         let c_acc_time = start_timer!(|| "Compute C");
+        let c_aux = s.spawn(|_| -> Result<_, SynthesisError> {
+            let (h_inputs_source, h_aux_source) = params.get_h_query(prover.num_inputs)?;
+            let h_inputs_acc = VariableBaseMSM::multi_scalar_mul(h_inputs_source, &h_input_assignment);
+            let h_aux_acc = VariableBaseMSM::multi_scalar_mul(h_aux_source, &h_aux_assignment);
 
-        let (h_inputs_source, h_aux_source) = params.get_h_query(prover.num_inputs)?;
-        let h_inputs_acc = VariableBaseMSM::multi_scalar_mul(h_inputs_source, &h_input_assignment);
-        let h_aux_acc = VariableBaseMSM::multi_scalar_mul(h_aux_source, &h_aux_assignment);
+            let l_aux_source = params.get_l_query_full()?;
+            let l_aux_acc = VariableBaseMSM::multi_scalar_mul(l_aux_source, &aux_assignment);
 
-        let l_aux_source = params.get_l_query_full()?;
-        let l_aux_acc = VariableBaseMSM::multi_scalar_mul(l_aux_source, &aux_assignment);
+            Ok((h_inputs_acc, h_aux_acc, l_aux_acc))
+        });
 
+        // Wait for all large multiplications to finish
+        let g_a = g1_a.join()??;
+        let g1_b = g1_b.join()??;
+        let (h_inputs_acc, h_aux_acc, l_aux_acc) = c_aux.join()??;
+
+        // finish the computation of C
         let s_g_a = g_a.mul(s_clone);
         let r_g1_b = g1_b.mul(r);
-
         let r_s_delta_g1 = params.delta_g1.into_projective().mul(r).mul(s_clone);
         let mut g_c = s_g_a;
         g_c += &r_g1_b;
@@ -341,8 +361,9 @@ where
         g_c += &h_aux_acc;
         end_timer!(c_acc_time);
 
-        end_timer!(prover_time);
+        let g2_b = g2_b.join()??;
 
+        end_timer!(prover_time);
 
         Ok((g_a, g2_b, g_c))
     })??;
