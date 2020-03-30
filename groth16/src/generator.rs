@@ -236,50 +236,92 @@ where
     let delta_g1 = g1_generator.mul(delta);
     let delta_g2 = g2_generator.mul(delta);
 
-    // Compute the A-query
-    let a_time = start_timer!(|| "Calculate A");
-    let mut a_query =
-        FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(scalar_bits, g1_window, &g1_table, &a);
-    end_timer!(a_time);
+    //// Compute the queries in parallel
 
-    // Compute the B-query in G1
-    let b_g1_time = start_timer!(|| "Calculate B G1");
-    let mut b_g1_query =
-        FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(scalar_bits, g1_window, &g1_table, &b);
-    end_timer!(b_g1_time);
+    let (mut a_query, mut b_g1_query, mut b_g2_query, mut h_query, mut l_query) =
+        crossbeam::scope(|s| -> Result<_, Box<dyn std::any::Any + Send>> {
+            // Compute the A-query
+            let a_query = s.spawn(|_| {
+                let a_time = start_timer!(|| "Calculate A");
+                let a = FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(
+                    scalar_bits,
+                    g1_window,
+                    &g1_table,
+                    &a,
+                );
+                end_timer!(a_time);
+                a
+            });
 
-    // Compute B window table
-    let g2_time = start_timer!(|| "Compute G2 table");
-    let g2_window = FixedBaseMSM::get_mul_window_size(non_zero_b);
-    let g2_table =
-        FixedBaseMSM::get_window_table::<E::G2Projective>(scalar_bits, g2_window, g2_generator);
-    end_timer!(g2_time);
+            // Compute the B-query in G1
+            let b_g1_query = s.spawn(|_| {
+                let b_g1_time = start_timer!(|| "Calculate B G1");
+                let b_g1 = FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(
+                    scalar_bits,
+                    g1_window,
+                    &g1_table,
+                    &b,
+                );
+                end_timer!(b_g1_time);
+                b_g1
+            });
 
-    // Compute the B-query in G2
-    let b_g2_time = start_timer!(|| "Calculate B G2");
-    let mut b_g2_query =
-        FixedBaseMSM::multi_scalar_mul::<E::G2Projective>(scalar_bits, g2_window, &g2_table, &b);
-    end_timer!(b_g2_time);
+            // Compute the B-query in G2
+            let b_g2_query = s.spawn(|_| {
+                // Compute B window table
+                let g2_time = start_timer!(|| "Compute G2 table");
+                let g2_window = FixedBaseMSM::get_mul_window_size(non_zero_b);
+                let g2_table = FixedBaseMSM::get_window_table::<E::G2Projective>(
+                        scalar_bits,
+                        g2_window,
+                        g2_generator,
+                    );
+                end_timer!(g2_time);
 
-    // Compute the H-query
-    let h_time = start_timer!(|| "Calculate H");
-    let mut h_query = FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(
-        scalar_bits,
-        g1_window,
-        &g1_table,
-        &cfg_into_iter!(0..m_raw - 1)
-            .map(|i| zt * &delta_inverse * &t.pow([i as u64]))
-            .collect::<Vec<_>>(),
-    );
+                let b_g2_time = start_timer!(|| "Calculate B G2");
+                let b_g2 = FixedBaseMSM::multi_scalar_mul::<E::G2Projective>(
+                    scalar_bits,
+                    g2_window,
+                    &g2_table,
+                    &b,
+                );
+                end_timer!(b_g2_time);
+                b_g2
+            });
 
-    end_timer!(h_time);
+            // Compute the H-query
+            let h_query = s.spawn(|_| {
+                let h_time = start_timer!(|| "Calculate H");
+                let h = FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(
+                    scalar_bits,
+                    g1_window,
+                    &g1_table,
+                    &cfg_into_iter!(0..m_raw - 1)
+                        .map(|i| zt * &delta_inverse * &t.pow([i as u64]))
+                        .collect::<Vec<_>>(),
+                );
+                end_timer!(h_time);
+                h
+            });
 
-    // Compute the L-query
-    let l_time = start_timer!(|| "Calculate L");
-    let l_query =
-        FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(scalar_bits, g1_window, &g1_table, &l);
-    let mut l_query = l_query[assembly.num_inputs..].to_vec();
-    end_timer!(l_time);
+            // Compute the L-query (no need to spin a thread for the last computation)
+            let l_time = start_timer!(|| "Calculate L");
+            let l = FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(
+                scalar_bits,
+                g1_window,
+                &g1_table,
+                &l,
+            );
+            let l_query = l[assembly.num_inputs..].to_vec();
+            end_timer!(l_time);
+
+            let a_query = a_query.join()?;
+            let b_g1_query = b_g1_query.join()?;
+            let b_g2_query = b_g2_query.join()?;
+            let h_query = h_query.join()?;
+
+            Ok((a_query, b_g1_query, b_g2_query, h_query, l_query))
+        })??;
 
     end_timer!(proving_key_time);
 

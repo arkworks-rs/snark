@@ -21,6 +21,15 @@ pub enum SynthesisError {
     MalformedVerifyingKey,
     /// During CRS generation, we observed an unconstrained auxiliary variable
     UnconstrainedVariable,
+    /// Any error which occured while multithreading
+    CrossBeamError,
+}
+
+#[cfg(feature = "std")]
+impl From<Box<dyn std::any::Any + Send>> for SynthesisError {
+    fn from(_: Box<dyn std::any::Any + Send>) -> SynthesisError {
+        SynthesisError::CrossBeamError
+    }
 }
 
 impl From<io::Error> for SynthesisError {
@@ -52,6 +61,9 @@ impl fmt::Display for SynthesisError {
             SynthesisError::MalformedVerifyingKey => write!(f, "malformed verifying key"),
             SynthesisError::UnconstrainedVariable => {
                 write!(f, "auxiliary variable was unconstrained")
+            },
+            SynthesisError::CrossBeamError => {
+                write!(f, "Crossbeam parallelization error")
             },
         }
     }
