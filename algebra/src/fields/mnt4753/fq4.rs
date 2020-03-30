@@ -18,6 +18,8 @@ impl Fp4Parameters for Fq4Parameters {
     type Fp2Params = Fq2Parameters;
 
     /// NONRESIDUE = (8,1)
+    /// this should be alpha = 13
+    /// however, it does no harm as the arithmetics of fp4 does rely on it
     const NONRESIDUE: Fq2 = field_new!(Fq2,
         field_new!(Fq, BigInteger([
             587330122779359758,

@@ -25,7 +25,9 @@ mod tests;
 pub struct MNT4_753Parameters;
 
 impl MNT4Parameters for MNT4_753Parameters {
-
+    /// The Frobenius trace of the MNT4 curve is
+    /// t = -204691208819330962009469868104636132783269696790011977400223898462431810102935615891307667367766898917669754470399
+    /// Our Ate pairing Miller loop count is the absolute value of the Frobenius trace minus 1
     const ATE_LOOP_COUNT: &'static [u64] = &[
         0x7a7713041ba18000,
         0x6b0344c4e2c428b0,
@@ -35,7 +37,8 @@ impl MNT4Parameters for MNT4_753Parameters {
         0x15474b1d641a3fd,
     ];
 
-    //Output of find_wnaf(ate_loop_count), already trimmed of leading zeros and MSB
+    /// Output of find_wnaf(ate_loop_count), already trimmed of leading zeros and MSB,
+    /// starting with least significant bit
     const WNAF: &'static [i32] = &[
         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-1,0,1,0,0,0,1,0,-1,0,0,-1,0,0,1,0,0,0,0,1,0,0,0,0,0,-1,0,1,0,
         1,0,0,0,-1,0,0,-1,0,0,0,1,0,1,0,-1,0,0,0,1,0,0,0,0,-1,0,-1,0,1,0,0,1,0,1,0,0,0,0,1,0,0,0,-1,
@@ -48,10 +51,12 @@ impl MNT4Parameters for MNT4_753Parameters {
         0,0,1,0,0,-1,0,-1,0,-1,0,0,0,1,0,0,-1,0,-1,0,1,0,1,0,-1,0,0,1,0,0,1,0,1,0,1,0
     ];
 
+    /// Frobenius trace of this curve is negative
     const ATE_IS_LOOP_COUNT_NEG: bool = true;
 
     const TWIST: Fq2 = field_new!(Fq2, FQ_ZERO, FQ_ONE);
 
+    // I would do the hard coded definition inside G2, and just refer to from here.
     const TWIST_COEFF_A: Fq2 = field_new!(Fq2, 
         field_new!(Fq, BigInteger([ // = COEFF_A
             0xeb354e6121cdccad,
@@ -70,8 +75,9 @@ impl MNT4Parameters for MNT4_753Parameters {
         FQ_ZERO,
     );
 
+    // m_1 = 1
     const FINAL_EXPONENT_LAST_CHUNK_1: BigInteger = BigInteger([0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0]);
-
+    // |m_0| =  204691208819330962009469868104636132783269696790011977400223898462431810102935615891307667367766898917669754470399
     const FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0: BigInteger = BigInteger([
         0x7a7713041ba17fff,
         0x6b0344c4e2c428b0,
@@ -86,7 +92,7 @@ impl MNT4Parameters for MNT4_753Parameters {
         0x0,
         0x0,
     ]);
-
+    //sign of m_0 is negative
     const FINAL_EXPONENT_LAST_CHUNK_W0_IS_NEG: bool = true;
 
     type Fp = Fq;
@@ -132,5 +138,7 @@ impl PairingCurve for G2Affine {
     }
 }
 
+// field element 0 in Montgomery representation
 pub const FQ_ZERO: Fq = field_new!(Fq, BigInteger([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
+// field element 1 in Montgomery representation
 pub const FQ_ONE: Fq = field_new!(Fq, FqParameters::R);

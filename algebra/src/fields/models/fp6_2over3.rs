@@ -13,9 +13,20 @@ use crate::{
     fields::{Field, SquareRootField, Fp3, Fp3Parameters, FpParameters},
 };
 
+
+/// Model for quadratic extension field F6 as towered extension
+///
+///     F6 = F2[Y]/(Y^2-X),
+///     F3 = Fp[X]/(X^3-alpha),
+///
+/// using a "non-residue" alpha mod p such that (X^6-alpha) is irreducible over Fp.
+/// Its arithmetics includes pairing-relevant operations such as exponentiation and
+/// squaring on the r-th unit roots of F6 (cyclotomic exp. and squ.).
+
 pub trait Fp6Parameters: 'static + Send + Sync {
     type Fp3Params: Fp3Parameters;
 
+    //alpha
     const NONRESIDUE: Fp3<Self::Fp3Params>;
 
     /// Coefficients for the Frobenius automorphism.

@@ -12,12 +12,21 @@ use crate::{bytes::{FromBytes, ToBytes}, fields::{Field, Fp2, Fp2Parameters, FpP
             biginteger::BigInteger, ToCompressedBits, FromCompressedBits};
 use crate::fields::SquareRootField;
 
+/// Model for quadratic extension field F4 as towered extension
+///
+///     F4 = F2[Y]/(Y^2-X),
+///     F2 = Fp[X]/(X^2-alpha),
+///
+/// using a "non-residue" alpha mod p such that (X^4-alpha) is irreducible over Fp.
+/// Its arithmetics includes pairing-relevant operations such as exponentiation and
+/// squaring on the r-th unit roots of F4 (cyclotomic exp. and squ.).
+
 pub trait Fp4Parameters: 'static + Send + Sync {
     type Fp2Params: Fp2Parameters;
 
     const NONRESIDUE: Fp2<Self::Fp2Params>;
 
-    /// Coefficients for the Frobenius automorphism.
+    /// Coefficients for the Frobenius map.
     const FROBENIUS_COEFF_FP4_C1: [<Self::Fp2Params as Fp2Parameters>::Fp; 4];
 
     #[inline(always)]
@@ -71,6 +80,8 @@ impl<P: Fp4Parameters> Fp4<P> {
         Fp4::new(d.double() + &Fp2::<P::Fp2Params>::one(), e - &Fp2::<P::Fp2Params>::one())
     }
 
+    // (signed) binary square and multiply for r-th roots of unity
+    // used for the final exponentiation in the Ate pairing
     pub fn cyclotomic_exp<B: BigInteger>(&self, exponent: &B) -> Self {
         let mut res = Self::one();
         let self_inverse = self.unitary_inverse();

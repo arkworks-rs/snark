@@ -68,14 +68,7 @@ impl FpParameters for FqParameters {
         68610905582439508u64,
     ]);
 
-    const MODULUS_MINUS_ONE_DIV_TWO: BigInteger = BigInteger([
-        0x4284600000000000,
-        0xb85aea218000000,
-        0x8f79b117dd04a400,
-        0x8d116cf9807a89c7,
-        0x631d82e03650a49d,
-        0xd71d230be28875,
-    ]);
+
 
     // T and T_MINUS_ONE_DIV_TWO, where MODULUS - 1 = 2^S * T
 

@@ -14,6 +14,7 @@ pub struct Fq3Parameters;
 impl Fp3Parameters for Fq3Parameters {
     type Fp = Fq;
 
+    //alpha = 11
     const NONRESIDUE: Fq = field_new!(Fq, BigInteger([
         0x58eefd67fea995ca,
         0x12f14affbb33a004,
