@@ -3,25 +3,26 @@ use std::marker::PhantomData;
 use std::ops::{Add, Mul, Sub};
 
 
-/// Ate pairing e: G_1 x G_2 -> G_T for MNT4 curves over prime fields
-///
+// Ate pairing e: G_1 x G_2 -> G_T for MNT4 curves over prime fields
+//
 //     E: y^2 = x^3 + a*x + b mod p.
-///
-/// Its embedding field F4 is regarded as towered extension
-///
+//
+// Its embedding field F4 is regarded as towered extension
+//
 //     F4 = F2[Y]/(Y^2-X),
 //     F2 = Fp[X]/(X^2-alpha),
-///
-/// using a "non-residue" alpha mod p such that (X^4-alpha) is irreducible over Fp.
-/// We apply standard efficiency measures (see, e.g. ): G_2 is represented by a subgroup
-/// of prime order r=ord(G_1) of the quadratic twist
-///
-//     E': y^2 = x^3 + (a*alpha) x + (b*alpha*X)
-///
-/// over F2, the Frobenius operator is applied to reduce the cost of the final exponentiation, and
-/// we do pre-computations of (essentially) the line coefficients of the Miller loop.
-/// The loop count allows signed bit representation, so this variant supports curves with Frobenius
-/// trace having low Hamming weight NAF.
+//
+// using a "non-residue" alpha mod p such that (X^4-alpha) is irreducible over Fp.
+// We apply standard efficiency measures (see, e.g. ): G_2 is represented by a subgroup
+// of prime order r=ord(G_1) of the quadratic twist
+//
+//     E': y^2 = x^3 + (a*twist^2) x + b*twist^3
+//
+// over F2, with twist=X, the Frobenius operator is applied to reduce the cost of the 
+// final exponentiation, and we do pre-computations of (essentially) the line coefficients 
+// of the Miller loop.
+// The loop count allows signed bit representation, so this variant supports curves with Frobenius
+// trace having low Hamming weight NAF.
 
 pub trait MNT4Parameters: 'static {
     // the loop count for the Miller loop, equals the |Frobenius trace of E - 1|
@@ -31,12 +32,12 @@ pub trait MNT4Parameters: 'static {
     const WNAF: &'static [i32];
     // true/false depending whether the Frobenius trace is negative/positive
     const ATE_IS_LOOP_COUNT_NEG: bool;
-    // factor X= Y^2  as needed for the point evaluation of the Miller loop lines
-    // translated via the twist map
+    // The twist factor twist=Y^2  for
+    // E': y'^2  = x'^3 + a*twist^2*x + twist^3 * b
+    // as needed for the point evaluation of the Miller loop lines
     const TWIST: Fp2<Self::Fp2Params>;
     // Weierstrass coefficient a'=a*omega^4= a*alpha of the quadratic twist E'
     // as needed for the point evaluation of the Miller loop lines
-    // translated via the twist map
     const TWIST_COEFF_A: Fp2<Self::Fp2Params>;
     // the final pairing exponent is decomposed as
     //      (p^4-1)/r = (p^2-1) (p^2 + 1)/r,
@@ -82,6 +83,7 @@ impl<P: MNT4Parameters> MNT4p<P> {
     // precomputed version of it for pairing purposes, which is comprised of
     //     P itself, and
     //     py_twist_squared, the y-coordinate of P times X^2 = alpha
+    // The latter is needed for optimizing point evaluation of the Miller lines
     fn ate_precompute_g1(value: &G1Affine<P>) -> G1Prepared<P> {
         let mut py_twist_squared = P::TWIST.square();
         py_twist_squared.mul_by_fp(&value.y);
@@ -93,8 +95,8 @@ impl<P: MNT4Parameters> MNT4p<P> {
     // (P-independent) pre-computable coefficients for all operations of the Miller loop.
     // These are comprised of the line coefficients in an optimized variant:
     //     s.y = the y-coordinate of internal state S,
-    //     gamma = the slope of the tangent/P-chord at S,
-    //     gamma_x = the  slope times the x-coordinate s.x of S.
+    //     gamma = the F2-slope of the tangent/P-chord at S,
+    //     gamma_x = the F2-slope times the x-coordinate s.x of S.
     fn ate_precompute_g2(value: &G2Affine<P>) -> G2Prepared<P> {
 
         let mut g2p = G2Prepared {
@@ -112,7 +114,7 @@ impl<P: MNT4Parameters> MNT4p<P> {
                 let sx_squared = s.x.square();
                 let three_sx_squared_plus_a = sx_squared.double().add(&sx_squared).add(&P::TWIST_COEFF_A);
                 let two_sy_inv = s.y.double().inverse().unwrap();
-                three_sx_squared_plus_a.mul(&two_sy_inv) // the slope of the tangent at S=(s.x,s.y)
+                three_sx_squared_plus_a.mul(&two_sy_inv) // the F2-slope of the tangent at S=(s.x,s.y)
             };
             let gamma_x = gamma.mul(&s.x);
             let new_sx = {
@@ -132,7 +134,7 @@ impl<P: MNT4Parameters> MNT4p<P> {
                 //Addition/substraction step depending on the sign of n
                 let sx_minus_x_inv = s.x.sub(&value.x).inverse().unwrap();
                 let numerator = if n > 0  { s.y.sub(&value.y) } else { s.y.add(&value.y) };
-                let gamma = numerator.mul(&sx_minus_x_inv);
+                let gamma = numerator.mul(&sx_minus_x_inv); // the F2-slope of chord Q' to R'
                 let gamma_x = gamma.mul(&value.x);
                 let new_sx = {
                     let sx_plus_x = s.x.add(&value.x);
@@ -167,7 +169,17 @@ impl<P: MNT4Parameters> MNT4p<P> {
             let c = &q.coeffs[idx];
             idx += 1;
 
-            // evaluate the tangent line g_{R,R} at P using the pre-computed data
+            // evaluate the tangent line g_{R,R} at P in F4 (scaled by twist^2) using the
+            // pre-computed data
+            //      g_{R,R}(P) = (y_P - lambda*x_p - d) * twist^2,
+            // where
+            //      lambda = gamma * Y/twist,
+            //      d = (y'-gamma * x')* Y/twist^2,
+            // with (x',y') being the twist coordinates of R.
+            // Thus
+            //     g_{R,R}(P) = y_p*X^2 + (gamma*x'- gamma*twist*x_p - y') *Y.
+            // The scale factor twist^2 from F2 is cancelled out by the final exponentiation.
+
             let mut gamma_twist_times_x = c.gamma.mul(&P::TWIST);
             gamma_twist_times_x.mul_by_fp(&p.p.x);
 
@@ -184,7 +196,9 @@ impl<P: MNT4Parameters> MNT4p<P> {
                 let c = &q.coeffs[idx];
                 idx += 1;
 
-                //evaluate chord g_{RQ}(P) in F4 using pre-computed data
+                //evaluate chord g_{RQ}(P) in F4 using pre-computed data as above
+                //I suggest to write a separate function for the point evaluation
+                //as done in the implementation of the sw6 Miller loop
                 let mut gamma_twist_times_x = c.gamma.mul(&P::TWIST);
                 gamma_twist_times_x.mul_by_fp(&p.p.x);
                 let g_rq_at_p_c1 = if n > 0 {
