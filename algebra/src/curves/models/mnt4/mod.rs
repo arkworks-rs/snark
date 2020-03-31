@@ -18,8 +18,9 @@ use std::ops::{Add, Mul, Sub};
 ///
 ///     E': y^2 = x^3 + (a*twist^2) x + b*twist^3
 ///
-/// over F2, the Frobenius operator is applied to reduce the cost of the final exponentiation, and
-/// we do pre-computations of (essentially) the line coefficients of the Miller loop.
+/// over F2, with twist=X, the Frobenius operator is applied to reduce the cost of the 
+/// final exponentiation, and we do pre-computations of (essentially) the line coefficients 
+/// of the Miller loop.
 /// The loop count allows signed bit representation, so this variant supports curves with Frobenius
 /// trace having low Hamming weight NAF.
 
