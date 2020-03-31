@@ -54,7 +54,7 @@ pub trait SignatureScheme {
 pub trait FieldBasedSignatureScheme {
 
     type Data: Field;
-    type PublicKey: ToBytes + Hash + Eq + Clone + Default + Send + Sync;
+    type PublicKey: ToBytes + Hash + Eq + Clone + Default + Debug + Send + Sync;
     type SecretKey: ToBytes + Clone + Default;
     type Signature: Copy + Clone + Default + Send + Sync + Debug + Eq + PartialEq + ToBytes + FromBytes;
 
