@@ -5,26 +5,26 @@ use std::marker::PhantomData;
 use std::ops::{Add, Mul, Sub, MulAssign};
 
 
-/// Ate pairing e: G_1 x G_2 -> G_T for MNT6 curves over prime fields
-///
+// Ate pairing e: G_1 x G_2 -> G_T for MNT6 curves over prime fields
+//
 //     E: y^2 = x^3 + a*x + b mod p.
-///
-/// Its embedding field F6 is regarded as towered extension
-///
+//
+// Its embedding field F6 is regarded as towered extension
+//
 //     F6 = F2[Y]/(Y^2-X),
 //     F3 = Fp[X]/(X^3-alpha),
-///
-/// using a "non-residue" alpha mod p such that (X^6-alpha) is irreducible over Fp.
-/// We apply standard efficiency measures (see, e.g. ): G_2 is represented by a subgroup
-/// of prime order r=ord(G_1) of the quadratic twist
-///
-///     E': y^2 = x^3 + (a*twist^2) x + b*twist^3
-///
-/// over F3, with twist=X, the Frobenius operator is applied to reduce the cost of the 
-/// final exponentiation, and we do pre-computations of (essentially) the line coefficients 
-/// of the Miller loop.
-/// The loop count allows signed bit representation, so this variant supports curves with Frobenius
-/// trace having low Hamming weight NAF..
+//
+// using a "non-residue" alpha mod p such that (X^6-alpha) is irreducible over Fp.
+// We apply standard efficiency measures (see, e.g. ): G_2 is represented by a subgroup
+// of prime order r=ord(G_1) of the quadratic twist
+//
+//     E': y^2 = x^3 + (a*twist^2) x + b*twist^3
+//
+// over F3, with twist = X = Y^2, the Frobenius operator is applied to reduce the cost of the 
+// final exponentiation, and we do pre-computations of (essentially) the line coefficients 
+// of the Miller loop.
+// The loop count allows signed bit representation, so this variant supports curves with Frobenius
+// trace having low Hamming weight NAF..
 
 pub trait MNT6Parameters: 'static {
     // the loop count for the Miller loop, equals the |Frobenius trace of E - 1|
@@ -83,8 +83,8 @@ pub struct MNT6p<P: MNT6Parameters>(PhantomData<fn() -> P>);
 
 impl<P: MNT6Parameters> MNT6p<P> {
 
-    /// Takes as input a point in G1 in affine coordinates, and outputs a
-    /// precomputed version of it for pairing purposes.
+    // Takes as input a point in G1 in affine coordinates, and outputs a
+    // precomputed version of it for pairing purposes.
     fn ate_precompute_g1(value: &G1Affine<P>) -> G1Prepared<P> {
         let mut py_twist_squared = P::TWIST.square();
         py_twist_squared.mul_assign_by_fp(&value.y);
@@ -170,16 +170,16 @@ impl<P: MNT6Parameters> MNT6p<P> {
             let c = &q.coeffs[idx];
             idx += 1;
 
-            /// evaluate the tangent line g_{R,R} at P in F6 (scaled by twist^2) using the
-            /// pre-computed data:
-            ///      g_{R,R}(P) = (y_P - lambda*x_p - d) * X^2,
-            /// where
-            ///      lambda = gamma * Y/twist,
-            ///      d = (y'-gamma * x')* Y/twist^2,
-            /// with (x',y') being the twist coordinates of R.
-            /// Thus
-            ///     g_{R,R}(P) = y_p*twist^2 + (gamma*x'- gamma*twist*x_p - y') *Y.
-            /// The scale factor twist^2 from F3 is cancelled out by the final exponentiation.
+            // evaluate the tangent line g_{R,R} at P in F6 (scaled by twist^2) using the
+            // pre-computed data:
+            //      g_{R,R}(P) = (y_P - lambda*x_p - d) * X^2,
+            // where
+            //      lambda = gamma * Y/twist,
+            //      d = (y'-gamma * x')* Y/twist^2,
+            // with (x',y') being the twist coordinates of R.
+            // Thus
+            //     g_{R,R}(P) = y_p*twist^2 + (gamma*x'- gamma*twist*x_p - y') *Y.
+            // The scale factor twist^2 from F3 is cancelled out by the final exponentiation.
 
             let mut gamma_twist_times_x = c.gamma.mul(&P::TWIST);
             gamma_twist_times_x.mul_assign_by_fp(&p.p.x);
