@@ -71,7 +71,7 @@ In addition, there is a  [`bench-utils`](bench-utils) crate which contains infra
 Detailed information about the choices made when designing and implementing our primitives and gadgets is available in the [`doc/`](doc/) directory. In particular you can find the following documents:
 
 * [`PoseidonAndGadgets`](doc/Poseidon.pdf), it documents the parameters for our POSEIDON hash function and its verification circuit.
-* [`SchnorrAndGadgets`](doc/SchnorrVerify.pdf), it explains our length-restricted variant of the Schnorr signature, and its verification circuit.
+* [`SchnorrAndGadgets`](doc/SchnorrSignature.pdf), it explains our length-restricted variant of the Schnorr signature, and its verification circuit.
 * [`SchnorrVerdictGadget`](doc/SchnorrVerdict.pdf), it describes a slight generalization of the Schnorr verification gadget, a circuit which enforces a boolean input (the "verdict") to encode the validity/non-validity of a given Schnorr signature.
 
 
