@@ -20,10 +20,11 @@ use std::ops::{Add, Mul, Sub, MulAssign};
 ///
 ///     E': y^2 = x^3 + (a*twist^2) x + b*twist^3
 ///
-/// over F3, the Frobenius operator is applied to reduce the cost of the final exponentiation, and
-/// we do pre-computations of (essentially) the line coefficients of the Miller loop.
+/// over F3, with twist=X, the Frobenius operator is applied to reduce the cost of the 
+/// final exponentiation, and we do pre-computations of (essentially) the line coefficients 
+/// of the Miller loop.
 /// The loop count allows signed bit representation, so this variant supports curves with Frobenius
-/// trace having low Hamming weight NAF.
+/// trace having low Hamming weight NAF..
 
 pub trait MNT6Parameters: 'static {
     // the loop count for the Miller loop, equals the |Frobenius trace of E - 1|
@@ -196,7 +197,7 @@ impl<P: MNT6Parameters> MNT6p<P> {
 
                 //evaluate chord g_{RQ}(P) in F6 using pre-computed data as above
                 //I suggest to write a separate function for the point evaluation
-                //as done in the implementation of the sw6 Miller loopa
+                //as done in the implementation of the sw6 Miller loop
                 let mut gamma_twist_times_x = c.gamma.mul(&P::TWIST);
                 gamma_twist_times_x.mul_assign_by_fp(&p.p.x);
                 let g_rq_at_p_c1 = if n > 0 {
