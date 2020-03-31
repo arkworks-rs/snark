@@ -40,8 +40,8 @@ Along with the above primitives, ginger-lib comes with the following new gadgets
     enforcing that a single-exponent Schnorr NIZK proof or Schnorr signature, that was created by our corresponding primitives, verifies.
 -   __VRF verification gadget__,
     enforcing that a public key and message, and a VRF-output, are consistent.
--   a set of __Merkle Tree gadgets__, 
-    modeling our POSEIDON-based Merkle tree. In particular, one of the gadgets enforces correct root hash of a (small) full Merkle tree. Another gadget enforces that the authentication path of a leaf is consistent with a given Merkle root.
+-   __Merkle Tree gadget__, 
+    enforcing that the authentication path of a leaf is consistent with a given Merkle root.
 
 Extensive automated tests have been introduced for the added implementations.
 
@@ -110,7 +110,7 @@ cargo +nightly bench --all-features
 
 Contributions are welcomed! Bug fixes and new features can be initiated through GitHub pull requests. To speed the code review process, please adhere to the following guidelines:
 
-* Follow Horizen repositories' *code\_of\_conduct*
+* Follow Horizen repositories' *code of conduct*
 * Follow Horizen repositories' *styling guide* 
 * Please gpg sign your commits 
 * Please make sure you push your pull requests to the development branch
