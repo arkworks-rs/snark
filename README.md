@@ -1,49 +1,78 @@
-<h1 align="center">ZEXE (Zero knowledge EXEcution)</h1>
-<p align="center">
-    <a href="https://travis-ci.org/scipr-lab/zexe"><img src="https://travis-ci.org/scipr-lab/zexe.svg?branch=master"></a>
-    <a href="https://github.com/scipr-lab/zexe/blob/master/AUTHORS"><img src="https://img.shields.io/badge/authors-SCIPR%20Lab-orange.svg"></a>
-    <a href="https://github.com/scipr-lab/zexe/blob/master/LICENSE-APACHE"><img src="https://img.shields.io/badge/license-APACHE-blue.svg"></a>
-   <a href="https://github.com/scipr-lab/zexe/blob/master/LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
-</p>
+ginger-lib: a RUST library for zk-SNARKs
+================================================================================
 
-In Italian Ginger means Zenzero i.e. Zen - Zero !__
+Ginger-lib is a general purpose __zk-SNARK__ library that supports recursive composition of [Groth16](https://eprint.iacr.org/2016/260.pdf) arguments.
 
-ZEXE___ (pronounced */zeksē/*) is a Rust library for decentralized private computation.
+Originally a fork of the [ZEXE](https://github.com/scipr-lab/ZEXE) project, ginger-lib was created with the goal of being an independent library, i.e. not linked to the Decentralized Private Computation (“DPC”) application or any other specific use case. Designed as a developer toolset for implementing zero-knowledge SNARKs, ginger-lib comes with an increased collection of cryptographic primitives and matching *gadgets*, that can serve as building blocks for application-tailored statements/circuits. 
 
+**Ginger** in Italian is "Zenzero", and this “**Zen zero**-knowledge” library was indeed developed to add some more spice to the already hot global zk-SNARK movement!
 
-This library was initially developed as part of the paper *"[ZEXE: Enabling Decentralized Private Computation][zexe]"*, and it is released under the MIT License and the Apache v2 License (see [License](#license)).
-
-**WARNING:** This is an academic proof-of-concept prototype, and in particular has not received careful code review. This implementation is NOT ready for production use.
 
 ## Overview
 
-This library implements a ledger-based system that enables users to execute offline computations and subsequently produce publicly-verifiable transactions that attest to the correctness of these offline executions. The transactions contain *zero-knowledge succinct arguments* (zkSNARKs) attesting to the correctness of the offline computations, and provide strong notions of privacy and succinctness.
+Ginger-lib was built with the goal of being easily integrated and used by any project that needs to implement its own, application-tailored zk-SNARK. As such, it provides SNARK core objects and functionalities, and a few closely related ancillary tools. 
 
-- **Privacy** - transactions reveal no information about the offline computation.
-- **Succinctness** - transactions can be validated in time that is independent of the offline computation.
-- **Application isolation** - malicious applications cannot affect the execution of honest applications.
-- **Application interaction** -  applications can safely communicate with each other.
+In particular, its first release comes with a complete set of tools for recursive proof composition as in Ben-Sasson, et al. ["Scalable Zero Knowledge via Cycles of Elliptic Curves (2014)"](https://eprint.iacr.org/2014/595.pdf). Specifically, it adds to the original ZEXE code the following elements:
 
-Informally, the library provides the ability to create transactions that run arbitrary (Turing-complete) scripts on hidden data stored on the ledger. In more detail, the library implements a cryptographic primitive known as *decentralized private computation* (DPC) schemes, which are described in detail in the [ZEXE paper][zexe].
+-   __MNT4-753 and MNT6-753 curves__, 
+    a re-implementation of [Coda](https://coinlist.co/build/coda/)'s MNT4-MNT6 cycle of pairing friendly elliptic curves for a security level of 128 bit. All curve parameters were re-checked, the pairing engine ported to Rust, the gadget collection extended with all needed recursive argument evaluation components.
+-   __mixed-domain FFT__,
+    to allow efficient conversion between coefficient and point-value polynomial representations in the domains needed to support large circuits.
+
+The library includes also some additional cryptographic primitives, implemented to be efficiently modelled in a SNARK, and in particular:
+
+-   the __POSEIDON hash function__ - 
+    thanks to its efficient description as an arithmetic circuit, the [POSEIDON](https://eprint.iacr.org/2019/458.pdf) hash family is ideal for SNARKs. Our implementations for both the MNT4-753 and MNT6-753 scalar fields use the modular inversion S-Box, apply a security level of 128 bits and are optimized for performance.
+-   __Schnorr NIZK proof and signature scheme__ - 
+    Schnorr-like non-interactive zero-knowledge (NIZK) proof and the Schnorr signature scheme, using POSEIDON as random oracle and adapted to be efficiently integrated in a SNARK.
+-   a SNARK-friendly __Verifiable Random Function (VRF)__, 
+    based on our Schnorr and POSEIDON primitives.
+-   a SNARK-friendly __Merkle Tree__,
+    using POSEIDON as its hash function.
+
+Along with the above primitives, ginger-lib comes with the following new gadgets: 
+
+-   __Groth16 verification gadgets__ for both the MNT4 and the MNT6 curve.
+    These  gadgets are the core components of recursive proof evaluation. They enforce that a Groth16 SNARK, based on one of these two curves, verifies.
+-   __POSEIDON hash gadget__, 
+    enforcing that some pre-image hashes to a given fingerprint.
+-   __Schnorr proof / signature verification gadgets__,
+    enforcing that a single-exponent Schnorr NIZK proof or Schnorr signature, that was created by our corresponding primitives, verifies.
+-   __VRF verification gadget__,
+    enforcing that a public key and message, and a VRF-output, are consistent.
+-   __Merkle Tree gadget__, 
+    enforcing that the authentication path of a leaf is consistent with a given Merkle root.
+
+Extensive automated tests have been introduced for the added implementations.
+
+Since it was developed to support real-world applications, ginger-lib has a strong focus on performance. Some of the code is already optimized in timing. More specifically, optimizations were performed on the implementation of the POSEIDON hash function:  batch hashing/verification was significantly sped up by using a "single inversion + field multiplications" replacement for multiple parallel inversions. The same trick was also used to speed up hashing in Merkle trees. Further performance improvements were obtained by parallelizing the code for multi-core implementation, and by speeding up the implementation of field multiplication.
+
+Continuous performance improvement will be a key goal for all future releases and improvements of the library.  
+
+
+ 
+**Please note: the library is in development, its core code is still being modified, and it has not yet undergone extensive review or testing. No guarantees are provided about its security and functionality. At this stage, it is not suitable for use in production systems.**
 
 ## Directory structure
 
-This repository contains several Rust crates that implement the different building blocks of ZEXE. The high-level structure of the repository is as follows.
+The high-level structure of the repository is as follows:
 
-* [`algebra`](algebra): Rust crate that provides finite fields and elliptic curves
-* [`crypto-primitives`](crypto-primitives): Rust crate that implements some useful cryptographic primitives (and constraints for them)
-* [`dpc`](dpc): Rust crate that implements DPC schemes (the main cryptographic primitive in this repository)
-* [`ff-fft`](ff-fft): Rust crate that provides efficient finite field polynomial arithmetic based on finite field FFTs
-* [`r1cs-core`](r1cs-core): Rust crate that defines core interfaces for a Rank-1 Constraint System (R1CS)
-* [`r1cs-std`](r1cs-std): Rust crate that provides various gadgets used to construct R1CS
-* [`gm17`](gm17): Rust crate that implements the zkSNARK of [Groth and Maller][GM17]
-* [`groth16`](groth16): Rust crate that implements the zkSNARK of [Groth][Groth16]
+* [`algebra`](algebra): Rust crate that provides all the mathematical "bricks": finite fields, elliptic curves, FFT.
+* [`primitives`](primitives): Rust crate that implements all the key cryptographic primitives.
+* [`proof-systems`](proof-systems): Rust crate that implements the [Groth16](https://ia.cr/2016/260) and [GM17](https://ia.cr/2017/540) zk-SNARK proving systems.
+* [`r1cs-core`](r1cs/core): Rust crate that defines core interfaces for a Rank-1 Constraint System (R1CS).
+* [`r1cs-std`](r1cs/gadgets/std): Rust crate that provides various gadgets used as building blocks of more complex R1CS circuits.
+* [`r1cs-crypto`](r1cs/gadgets/crypto): Rust crate that provides various cryptographic primitives gadgets. 
 
+In addition, there is a  [`bench-utils`](bench-utils) crate which contains infrastructure for benchmarking. It includes macros for timing code segments. It hasn't been changed from the original ZEXE implementation.
 
-In addition, there is a  [`bench-utils`](bench-utils) crate which contains infrastructure for benchmarking. This crate includes macros for timing code segments and is used for profiling the building blocks of ZEXE.
+## Documentation
 
-[GM17]: https://ia.cr/2017/540
-[Groth16]: https://ia.cr/2016/260
+Detailed information about the choices made when designing and implementing our primitives and gadgets is available in the [`doc/`](doc/) directory. In particular you can find the following documents:
+
+* [`PoseidonAndGadgets`](doc/Poseidon.pdf), it documents the parameters for our POSEIDON hash function and its verification circuit.
+* [`SchnorrAndGadgets`](doc/SchnorrSignature.pdf), it explains our length-restricted variant of the Schnorr signature, and its verification circuit.
+* [`SchnorrVerdictGadget`](doc/SchnorrVerdict.pdf), it describes a slight generalization of the Schnorr verification gadget, a circuit which enforces a boolean input (the "verdict") to encode the validity/non-validity of a given Schnorr signature.
 
 
 ## Build guide
@@ -55,49 +84,53 @@ rustup install stable
 
 After that, use `cargo`, the standard Rust build tool, to build the library:
 ```bash
-git clone https://github.com/scipr-lab/zexe.git
-cd zexe/dpc
+git clone https://github.com/.../ginger-lib.git
+cd ginger-lib
 cargo build --release
 ```
 
 This library comes with unit tests for each of the provided crates. Run the tests with:
 ```bash
-cargo test
-```
+cargo test --all-features 
+``` 
 
-Lastly, this library comes with benchmarks for the following crates:
+Please note: by default, ```cargo test``` will execute the tests concurrently on all available cores. Since some tests are resource-intensive, this may abort the tests execution. If this happens, you may want to reduce the number of cores running the tests with the command:
 
-- [`algebra`](algebra)
-- [`dpc`](dpc)
-
-These benchmarks require the nightly Rust toolchain; to install this, run `rustup install nightly`. Then, to run benchmarks, run the following command:
 ```bash
-cargo +nightly bench
+cargo test --all-features --test-threads=<#threads>
+``` 
+
+Lastly, this library comes with benchmarks for the [`algebra`](algebra) crate.
+These benchmarks require the nightly Rust toolchain; to install this, run `rustup install nightly`. Then, to run benchmarks, run the following command: 
+```bash
+cargo +nightly bench --all-features 
 ```
+
+## Contributing
+
+Contributions are welcomed! Bug fixes and new features can be initiated through GitHub pull requests. To speed the code review process, please adhere to the following guidelines:
+
+* Follow Horizen repositories' *code of conduct*
+* Follow Horizen repositories' *styling guide* 
+* Please gpg sign your commits 
+* Please make sure you push your pull requests to the development branch
+
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 
 ## License
 
-ZEXE is licensed under either of the following licenses, at your discretion.
+ginger-lib is licensed under the following license:
 
- * Apache License Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
- * MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+ * MIT license ([LICENSE-MIT](http://opensource.org/licenses/MIT) or http://opensource.org/licenses/MIT)
 
-Unless you explicitly state otherwise, any contribution submitted for inclusion in ZEXE by you shall be dual licensed as above (as defined in the Apache v2 License), without any additional terms or conditions.
+Unless you explicitly state otherwise, any contribution submitted for inclusion in ginger-lib by you shall be licensed as above, without any additional terms or conditions.
 
-[zexe]: https://ia.cr/2018/962
-
-## Reference paper
-
-[_ZEXE: Enabling Decentralized Private Computation_][zexe]    
-[Sean Bowe](https://www.github.com/ebfull), Alessandro Chiesa, Matthew Green, Ian Miers, [Pratyush Mishra](https://www.github.com/pratyush), [Howard Wu](https://www.github.com/howardwu)    
-*IEEE S&P 2020* (*IACR ePrint Report 2018/962*)
+[![License MIT](https://img.shields.io/badge/license-MIT-blue.svg)](http://opensource.org/licenses/MIT)
 
 ## Acknowledgements
 
-This work was supported by:
-a Google Faculty Award;
-the National Science Foundation;
-the UC Berkeley Center for Long-Term Cybersecurity;
-and donations from the Ethereum Foundation, the Interchain Foundation, and Qtum.
-
-Some parts of the finite field arithmetic, elliptic curve arithmetic, FFTs, and multi-threading infrastructure in the `algebra` crate have been adapted from code in the [`ff`](https://github.com/zkcrypto/ff), [`pairing`](https://github.com/zkcrypto/pairing), and [`bellman`](https://github.com/zkcrypto/bellman) crates, developed by [Sean Bowe](https://www.github.com/ebfull) and others from Zcash.
+The library was developed by [Horizen \(formerly ZenCash\)](https://horizen.global), as part of their effort to implement the [Zendoo](https://eprint.iacr.org/2020/123.pdf "Zendoo") sidechain system.  
+The project started by modifying a forked code-base originally developed by the SCIPR Lab researchers for their [**ZEXE**](https://github.com/scipr-lab/ZEXE) project.  
+ZEXE had previously borrowed some code from the Zcash/ECC [**Bellman**](https://github.com/zcash/librustzcash/tree/master/bellman) library.  
+Some of the objects made available in this repo were adapted by the work performed by O(1) Labs for their [**Coda**](https://github.com/CodaProtocol/coda) project.  
+Ginger-lib owes deeply to SCIPR Lab's [**LibSNARK**](https://github.com/scipr-lab/libSNARK), the real foundation of all practical zk-SNARK development activities. 
