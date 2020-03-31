@@ -74,33 +74,37 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
         (public_key, secret_key)
     }
 
+    fn get_public_key(sk: &Self::SecretKey) -> Self::PublicKey {
+        G::prime_subgroup_generator().mul(sk)
+    }
+
     fn prove<R: Rng>(
-        rng:     &mut R,
-        pp:      &Self::GHParams,
-        pk:      &Self::PublicKey,
-        sk:      &Self::SecretKey,
-        message: &[Self::Data],
+        rng:               &mut R,
+        group_hash_params: &Self::GHParams,
+        pk:                &Self::PublicKey,
+        sk:                &Self::SecretKey,
+        message:           &[Self::Data],
     )-> Result<Self::Proof, Error>
     {
         //Compute mh = hash_to_curve(message)
         let mut message_bytes = Vec::new();
-        for (i, f) in message.iter().enumerate() {
+        for (i, field_element) in message.iter().enumerate() {
             // The reason for a secure de-packing is not collision resistance (the non-restricted variant
             // would be still), but that inside the circuit a field element might be proven to hash to
             // one of two possible fingerprints (as there might be two different byte sequences satisfying
             // the depacking constraint mod q). Hence via SNARKs the output of the VRF is not unique and
             // can be chosen between two possible outputs, which is what we definitely do not want in the
             // application of the VRF (the VRF is now rather a verifiable random relation, not function).
-            if f.into_repr_raw() >= F::Params::MODULUS {
+            if field_element.into_repr_raw() >= F::Params::MODULUS {
                 return Err(Box::new(CryptoError::InvalidElement(format!("message_element_{}", i).to_owned())));
             }
-            message_bytes.extend_from_slice(to_bytes!(f).unwrap().as_slice())
+            message_bytes.extend_from_slice(to_bytes!(field_element).unwrap().as_slice())
         }
 
-        let mh = GH::evaluate(pp, message_bytes.as_slice())?;
+        let message_on_curve = GH::evaluate(group_hash_params, message_bytes.as_slice())?;
 
-        //Compute gamma = mh^sk
-        let gamma = mh.mul(sk);
+        //Compute gamma = message_on_curve^sk
+        let gamma = message_on_curve.mul(sk);
 
         let (c, s) = loop {
 
@@ -112,8 +116,8 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
             //Compute a = g^r
             let a = G::prime_subgroup_generator().mul(&r);
 
-            //Compute b = mh^r
-            let b = mh.mul(&r);
+            //Compute b = message_on_curve^r
+            let b = message_on_curve.mul(&r);
 
             //Compute c = H(m||pk.x||a.x||b.x)
             let mut hash_input = Vec::new();
@@ -153,11 +157,11 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
         Ok(FieldBasedEcVrfProof {gamma, c, s})
     }
 
-    fn verify(
-        pp:      &Self::GHParams,
-        pk:      &Self::PublicKey,
-        message: &[Self::Data],
-        proof:   &Self::Proof
+    fn proof_to_hash(
+        group_hash_params: &Self::GHParams,
+        pk:                &Self::PublicKey,
+        message:           &[Self::Data],
+        proof:             &Self::Proof
     )
         -> Result<Self::Data, Error>
     {
@@ -181,20 +185,20 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
 
         //Compute mh = hash_to_curve(message)
         let mut message_bytes = Vec::new();
-        for (i, f) in message.iter().enumerate() {
+        for (i, field_element) in message.iter().enumerate() {
             // The reason for a secure de-packing is not collision resistance (the non-restricted variant
             // would be still), but that inside the circuit a field element might be proven to hash to
             // one of two possible fingerprints (as there might be two different byte sequences satisfying
             // the depacking constraint mod q). Hence via SNARKs the output of the VRF is not unique and
             // can be chosen between two possible outputs, which is what we definitely do not want in the
             // application of the VRF (the VRF is now rather a verifiable random relation, not function).
-            if f.into_repr_raw() >= F::Params::MODULUS {
+            if field_element.into_repr_raw() >= F::Params::MODULUS {
                 return Err(Box::new(CryptoError::InvalidElement(format!("message_element_{}", i).to_owned())));
             }
-            message_bytes.extend_from_slice(to_bytes!(f).unwrap().as_slice())
+            message_bytes.extend_from_slice(to_bytes!(field_element).unwrap().as_slice())
         }
 
-        let mh = GH::evaluate(pp, message_bytes.as_slice())?;
+        let message_on_curve = GH::evaluate(group_hash_params, message_bytes.as_slice())?;
 
         let c_conv = convert::<G::ScalarField>(c_bits)?;
         let s_conv = convert::<G::ScalarField>(s_bits)?;
@@ -203,7 +207,7 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
         let u = G::prime_subgroup_generator().mul(&s_conv) - &(pk.mul(&c_conv));
 
         //Compute v = mh^s - gamma^c
-        let v = mh.mul(&s_conv) - &proof.gamma.mul(&c_conv);
+        let v = message_on_curve.mul(&s_conv) - &proof.gamma.mul(&c_conv);
 
         //Compute c' = H(m||pk.x||u.x||v.x)
         let mut hash_input = Vec::new();
@@ -280,31 +284,34 @@ mod test {
     fn prove_and_verify<S: FieldBasedVrf, R: Rng>(rng: &mut R, message: &[S::Data], pp: &S::GHParams) {
         let (pk, sk) = S::keygen(rng);
         assert!(S::keyverify(&pk));
+        assert_eq!(pk, S::get_public_key(&sk));
+
         let proof = S::prove(rng, pp, &pk, &sk, &message).unwrap();
-        assert!(S::verify(pp, &pk, &message, &proof).is_ok());
+        assert!(S::proof_to_hash(pp, &pk, &message, &proof).is_ok());
 
         //Serialization/deserialization test
         let proof_serialized = to_bytes!(proof).unwrap();
         let proof_deserialized = <S as FieldBasedVrf>::Proof::read(proof_serialized.as_slice()).unwrap();
         assert_eq!(proof, proof_deserialized);
-        assert!(S::verify(pp, &pk, &message, &proof_deserialized).is_ok());
+        assert!(S::proof_to_hash(pp, &pk, &message, &proof_deserialized).is_ok());
     }
 
     fn failed_verification<S: FieldBasedVrf, R: Rng>(rng: &mut R, message: &[S::Data], bad_message: &[S::Data], pp: &S::GHParams) {
         let (pk, sk) = S::keygen(rng);
         assert!(S::keyverify(&pk));
+        assert_eq!(pk, S::get_public_key(&sk));
 
         //Attempt to verify proof for a different message
         let proof = S::prove(rng, pp, &pk, &sk, message).unwrap();
-        assert!(S::verify(pp, &pk, bad_message, &proof).is_err());
+        assert!(S::proof_to_hash(pp, &pk, bad_message, &proof).is_err());
 
         //Attempt to verify different proof for a message
         let bad_proof = S::prove(rng, pp, &pk, &sk, bad_message).unwrap();
-        assert!(S::verify(pp, &pk, message, &bad_proof).is_err());
+        assert!(S::proof_to_hash(pp, &pk, message, &bad_proof).is_err());
 
         //Attempt to verify proof for a message with different pk
         let (new_pk, _) = S::keygen(rng);
-        assert!(S::verify(pp, &new_pk, message, &proof).is_err());
+        assert!(S::proof_to_hash(pp, &new_pk, message, &proof).is_err());
     }
 
     #[test]

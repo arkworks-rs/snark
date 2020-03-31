@@ -50,8 +50,12 @@ impl<ConstraintF, G, GG> FieldBasedEcVrfProofGadget<ConstraintF, G, GG>
         G:           ProjectiveCurve,
         GG:          GroupGadget<G, ConstraintF>,
 {
-    #[allow(dead_code)]
-    fn alloc_without_check<FN, T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, f: FN) -> Result<Self, SynthesisError>
+    fn alloc_internal<FN, T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        f: FN,
+        gamma_on_curve: bool,
+        gamma_prime_order: bool,
+    ) -> Result<Self, SynthesisError>
         where
             FN: FnOnce() -> Result<T, SynthesisError>,
             T: Borrow<FieldBasedEcVrfProof<ConstraintF, G>>,
@@ -68,11 +72,17 @@ impl<ConstraintF, G, GG> FieldBasedEcVrfProofGadget<ConstraintF, G, GG>
             ),
         };
 
-        let gamma = GG::alloc_without_check(cs.ns(|| "alloc gamma"), || gamma)?;
-        let c = FpGadget::<ConstraintF>::alloc_without_check(cs.ns(|| "alloc c"), || c)?;
-        let s = FpGadget::<ConstraintF>::alloc_without_check(cs.ns(|| "alloc s"), || s)?;
+        let gamma = match (gamma_on_curve, gamma_prime_order) {
+            (false, false) => GG::alloc_without_check(cs.ns(|| "alloc gamma unchecked"), || gamma)?,
+            (true, false) => GG::alloc(cs.ns(|| "alloc gamma"), || gamma)?,
+            (true, true) => GG::alloc_checked(cs.ns(|| "alloc gamma checked"), || gamma)?,
+            _ => unreachable!()
+        };
+        let c = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc c"), || c)?;
+        let s = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc s"), || s)?;
         Ok(Self{gamma, c, s, _field: PhantomData, _group: PhantomData})
     }
+
 }
 
 impl<ConstraintF, G, GG> AllocGadget<FieldBasedEcVrfProof<ConstraintF, G>, ConstraintF>
@@ -82,50 +92,28 @@ for FieldBasedEcVrfProofGadget<ConstraintF, G, GG>
         G:           ProjectiveCurve,
         GG:          GroupGadget<G, ConstraintF>,
 {
-    fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, f: FN) -> Result<Self, SynthesisError>
+    fn alloc_without_check<FN, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, f: FN) -> Result<Self, SynthesisError>
         where
             FN: FnOnce() -> Result<T, SynthesisError>,
             T: Borrow<FieldBasedEcVrfProof<ConstraintF, G>>,
     {
-        let (gamma, c, s) = match f() {
-            Ok(proof) => {
-                let proof = *proof.borrow();
-                (Ok(proof.gamma), Ok(proof.c), Ok(proof.s))
-            },
-            _ => (
-                Err(SynthesisError::AssignmentMissing),
-                Err(SynthesisError::AssignmentMissing),
-                Err(SynthesisError::AssignmentMissing),
-            ),
-        };
-
-        let gamma = GG::alloc(cs.ns(|| "alloc gamma"), || gamma)?;
-        let c = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc c"), || c)?;
-        let s = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc s"), || s)?;
-        Ok(Self{gamma, c, s, _field: PhantomData, _group: PhantomData})
+        Self::alloc_internal(cs, f, false, false)
     }
 
-    fn alloc_checked<FN, T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, f: FN) -> Result<Self, SynthesisError>
+    fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, f: FN) -> Result<Self, SynthesisError>
         where
             FN: FnOnce() -> Result<T, SynthesisError>,
             T: Borrow<FieldBasedEcVrfProof<ConstraintF, G>>,
     {
-        let (gamma, c, s) = match f() {
-            Ok(proof) => {
-                let proof = *proof.borrow();
-                (Ok(proof.gamma), Ok(proof.c), Ok(proof.s))
-            },
-            _ => (
-                Err(SynthesisError::AssignmentMissing),
-                Err(SynthesisError::AssignmentMissing),
-                Err(SynthesisError::AssignmentMissing),
-            ),
-        };
+        Self::alloc_internal(cs, f, true, false)
+    }
 
-        let gamma = GG::alloc_checked(cs.ns(|| "alloc gamma"), || gamma)?;
-        let c = FpGadget::<ConstraintF>::alloc_checked(cs.ns(|| "alloc c"), || c)?;
-        let s = FpGadget::<ConstraintF>::alloc_checked(cs.ns(|| "alloc s"), || s)?;
-        Ok(Self{gamma, c, s, _field: PhantomData, _group: PhantomData})
+    fn alloc_checked<FN, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, f: FN) -> Result<Self, SynthesisError>
+        where
+            FN: FnOnce() -> Result<T, SynthesisError>,
+            T: Borrow<FieldBasedEcVrfProof<ConstraintF, G>>,
+    {
+        Self::alloc_internal(cs, f, true, true)
     }
 
     fn alloc_input<FN, T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, f: FN) -> Result<Self, SynthesisError>
@@ -188,33 +176,33 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
     type PublicKeyGadget = GG;
     type GHParametersGadget = GHG::ParametersGadget;
 
-    fn check_verify_gadget<CS: ConstraintSystem<ConstraintF>>(
-        mut cs:     CS,
-        pp:         &Self::GHParametersGadget,
-        public_key: &Self::PublicKeyGadget,
-        proof:      &Self::ProofGadget,
-        message:    &[Self::DataGadget]
+    fn enforce_proof_to_hash_verification<CS: ConstraintSystem<ConstraintF>>(
+        mut cs:            CS,
+        group_hash_params: &Self::GHParametersGadget,
+        public_key:        &Self::PublicKeyGadget,
+        proof:             &Self::ProofGadget,
+        message:           &[Self::DataGadget]
     ) -> Result<Self::DataGadget, SynthesisError> {
 
         //Check mh = hash_to_curve(message)
         let mut message_bytes = Vec::new();
 
-        for (i, fg) in message.iter().enumerate() {
+        for (i, field_gadget) in message.iter().enumerate() {
             // The reason for a secure de-packing is not collision resistance (the non-restricted variant
             // would be still), but that inside the circuit a field element might be proven to hash to
             // one of two possible fingerprints (as there might be two different byte sequences satisfying
             // the depacking constraint mod q). Hence via SNARKs the output of the VRF is not unique and
             // can be chosen between two possible outputs, which is what we definitely do not want in the
             // application of the VRF (the VRF is now rather a verifiable random relation, not function).
-            let fg_bytes = fg.to_bytes_strict(
+            let field_gadget_bytes = field_gadget.to_bytes_strict(
                 cs.ns(|| format!("message_{}_to_bytes_restricted", i)),
             )?;
-            message_bytes.extend_from_slice(fg_bytes.as_slice())
+            message_bytes.extend_from_slice(field_gadget_bytes.as_slice())
         }
 
-        let mh = GHG::check_evaluation_gadget(
-            cs.ns(|| "check mh"),
-            pp,
+        let message_on_curve = GHG::check_evaluation_gadget(
+            cs.ns(|| "check message_on_curve"),
+            group_hash_params,
             message_bytes.as_slice()
         )?;
 
@@ -283,7 +271,7 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
                 .mul_bits(cs.ns(|| "c * gamma + g"), &g, c_bits.as_slice().iter().rev())?
                 .sub(cs.ns(|| "c * gamma"), &g)?
                 .negate(cs.ns(|| "- (c * gamma)"))?;
-            mh.mul_bits(cs.ns(|| "(s * mh) - (c * gamma)"), &neg_c_times_gamma, s_bits.as_slice().iter())?
+            message_on_curve.mul_bits(cs.ns(|| "(s * mh) - (c * gamma)"), &neg_c_times_gamma, s_bits.as_slice().iter())?
         };
 
         // Check c' = H(m||pk.x||u.x||v.x)
@@ -429,7 +417,7 @@ mod test {
         ).unwrap();
 
         //Verify proof
-        EcVrfMNT4Gadget::check_verify_gadget(
+        EcVrfMNT4Gadget::enforce_proof_to_hash_verification(
             cs.ns(|| "verify proof1"),
             &pp_g,
             &pk_g,
@@ -485,7 +473,7 @@ mod test {
         ).unwrap();
 
         //Verify proof
-        EcVrfMNT6Gadget::check_verify_gadget(
+        EcVrfMNT6Gadget::enforce_proof_to_hash_verification(
             cs.ns(|| "verify proof1"),
             &pp_g,
             &pk_g,
@@ -559,7 +547,7 @@ mod test {
             ).unwrap();
 
             //Verify proof
-            EcVrfMNT4Gadget::check_verify_gadget(
+            EcVrfMNT4Gadget::enforce_proof_to_hash_verification(
                 cs.ns(|| "verify proof"),
                 &pp_g,
                 &pk_g,
@@ -582,7 +570,7 @@ mod test {
                 || Ok(new_message)
             ).unwrap();
 
-            EcVrfMNT4Gadget::check_verify_gadget(
+            EcVrfMNT4Gadget::enforce_proof_to_hash_verification(
                 cs.ns(|| "verify new proof"),
                 &pp_g,
                 &pk_g,

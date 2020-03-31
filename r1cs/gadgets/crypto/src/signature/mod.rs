@@ -1,10 +1,11 @@
 use algebra::Field;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
+use primitives::signature::{
+    SignatureScheme, FieldBasedSignatureScheme,
+};
 
 pub mod schnorr;
-
-use primitives::signature::SignatureScheme;
 
 pub trait SigRandomizePkGadget<S: SignatureScheme, ConstraintF: Field> {
     type ParametersGadget: AllocGadget<S::Parameters, ConstraintF> + Clone;
@@ -22,7 +23,6 @@ pub trait SigRandomizePkGadget<S: SignatureScheme, ConstraintF: Field> {
     ) -> Result<Self::PublicKeyGadget, SynthesisError>;
 }
 
-use primitives::signature::FieldBasedSignatureScheme;
 
 pub trait FieldBasedSigGadget<S: FieldBasedSignatureScheme, ConstraintF: Field> {
 
@@ -32,7 +32,7 @@ pub trait FieldBasedSigGadget<S: FieldBasedSignatureScheme, ConstraintF: Field> 
 
     /// Enforce `signature` verification with `public_key` on `message`, returning a Boolean
     /// enforced to be `true` if signature verification is successful, and `false` otherwise.
-    fn check_gadget<CS: ConstraintSystem<ConstraintF>>(
+    fn enforce_signature_verdict<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
         public_key: &Self::PublicKeyGadget,
         signature:  &Self::SignatureGadget,
@@ -40,7 +40,7 @@ pub trait FieldBasedSigGadget<S: FieldBasedSignatureScheme, ConstraintF: Field> 
     ) -> Result<Boolean, SynthesisError>;
 
     ///Enforce `signature` verification with `public_key` on `message` to be successful.
-    fn check_verify_gadget<CS: ConstraintSystem<ConstraintF>>(
+    fn enforce_signature_verification<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
         public_key: &Self::PublicKeyGadget,
         signature:  &Self::SignatureGadget,

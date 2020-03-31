@@ -37,6 +37,8 @@ where
     ) -> Result<Self, SynthesisError>;
 
     fn cost() -> usize;
+
+    fn cost_of_lc() -> usize { 0 }
 }
 
 /// Uses three bits to perform a lookup into a table, where the last bit

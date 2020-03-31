@@ -135,10 +135,10 @@ impl AllocatedBit {
             },
         )?;
 
-        // Constrain (1 - a) * (1 - b) = (c), ensuring c is 1 iff
-        // a and b are both false, and otherwise c is 0.
+        // Constrain (1 - a) * (1 - b) = (1 - c), ensuring c is 0 iff
+        // a and b are both false, and otherwise c is 1.
         cs.enforce(
-            || "nor constraint",
+            || "or constraint",
             |lc| lc + CS::one() - a.variable,
             |lc| lc + CS::one() - b.variable,
             |lc| lc + CS::one() - result_var,

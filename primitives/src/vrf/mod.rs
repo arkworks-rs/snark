@@ -7,7 +7,7 @@ pub mod ecvrf;
 
 pub trait FieldBasedVrf {
     type Data: Field;
-    type PublicKey: ToBytes + Hash + Eq + Clone + Default + Send + Sync;
+    type PublicKey: ToBytes + Hash + Eq + Clone + Debug + Default + Send + Sync;
     type SecretKey: ToBytes + Clone + Default;
     type Proof: Copy + Clone + Default + Send + Sync + Debug + Eq + PartialEq + ToBytes + FromBytes;
     type GHParams: Clone + Default;
@@ -15,6 +15,10 @@ pub trait FieldBasedVrf {
     fn keygen<R: Rng>(
         rng: &mut R,
     ) -> (Self::PublicKey, Self::SecretKey);
+
+    fn get_public_key(
+        sk: &Self::SecretKey
+    ) -> Self::PublicKey;
 
     fn prove<R: Rng>
     (
@@ -25,7 +29,8 @@ pub trait FieldBasedVrf {
         message: &[Self::Data],
     ) -> Result<Self::Proof, Error>;
 
-    fn verify
+    // Verifies the VRF proof and returns the VRF output
+    fn proof_to_hash
     (
         pp:      &Self::GHParams,
         pk:      &Self::PublicKey,
