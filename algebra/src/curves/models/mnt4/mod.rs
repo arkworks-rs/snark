@@ -16,7 +16,7 @@ use std::ops::{Add, Mul, Sub};
 /// We apply standard efficiency measures (see, e.g. ): G_2 is represented by a subgroup
 /// of prime order r=ord(G_1) of the quadratic twist
 ///
-///     E': y^2 = x^3 + (a*twist^2) x + b*twist^3
+//     E': y^2 = x^3 + (a*twist^2) x + b*twist^3
 ///
 /// over F2, with twist=X, the Frobenius operator is applied to reduce the cost of the 
 /// final exponentiation, and we do pre-computations of (essentially) the line coefficients 
@@ -171,13 +171,13 @@ impl<P: MNT4Parameters> MNT4p<P> {
 
             /// evaluate the tangent line g_{R,R} at P in F4 (scaled by twist^2) using the
             /// pre-computed data
-            ///      g_{R,R}(P) = (y_P - lambda*x_p - d) * twist^2,
+            //      g_{R,R}(P) = (y_P - lambda*x_p - d) * twist^2,
             /// where
-            ///      lambda = gamma * Y/twist,
-            ///      d = (y'-gamma * x')* Y/twist^2,
+            //      lambda = gamma * Y/twist,
+            //      d = (y'-gamma * x')* Y/twist^2,
             /// with (x',y') being the twist coordinates of R.
             /// Thus
-            ///     g_{R,R}(P) = y_p*X^2 + (gamma*x'- gamma*twist*x_p - y') *Y.
+            //     g_{R,R}(P) = y_p*X^2 + (gamma*x'- gamma*twist*x_p - y') *Y.
             /// The scale factor twist^2 from F2 is cancelled out by the final exponentiation.
 
             let mut gamma_twist_times_x = c.gamma.mul(&P::TWIST);
