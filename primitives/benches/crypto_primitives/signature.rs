@@ -98,7 +98,7 @@ mod field_impl {
     use criterion::Criterion;
     use primitives::{
         crh::MNT4PoseidonHash,
-        signature::{schnorr::field_impl::*, FieldBasedSignatureScheme}
+        signature::{schnorr::field_based_schnorr::*, FieldBasedSignatureScheme}
     };
 
     type SchnorrMNT4Fr = FieldBasedSchnorrSignatureScheme<MNT4Fr, MNT6G1Projective, MNT4PoseidonHash>;

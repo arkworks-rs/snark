@@ -16,6 +16,10 @@ pub trait FieldBasedVrf {
         rng: &mut R,
     ) -> (Self::PublicKey, Self::SecretKey);
 
+    fn get_public_key(
+        sk: &Self::SecretKey
+    ) -> Self::PublicKey;
+
     fn prove<R: Rng>
     (
         rng:     &mut R,
@@ -25,7 +29,8 @@ pub trait FieldBasedVrf {
         message: &[Self::Data],
     ) -> Result<Self::Proof, Error>;
 
-    fn verify
+    // Verifies the VRF proof and returns the VRF output
+    fn proof_to_hash
     (
         pp:      &Self::GHParams,
         pk:      &Self::PublicKey,

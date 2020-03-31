@@ -1,5 +1,10 @@
 use crate::Error;
-use algebra::bytes::ToBytes;
+use algebra::{
+    bytes::{
+        ToBytes, FromBytes
+    },
+    Field,
+};
 use rand::Rng;
 use std::hash::Hash;
 use std::fmt::Debug;
@@ -46,8 +51,6 @@ pub trait SignatureScheme {
     ) -> Result<Self::Signature, Error>;
 }
 
-use algebra::{Field, FromBytes};
-
 pub trait FieldBasedSignatureScheme {
 
     type Data: Field;
@@ -58,6 +61,10 @@ pub trait FieldBasedSignatureScheme {
     fn keygen<R: Rng>(
         rng: &mut R,
     ) -> (Self::PublicKey, Self::SecretKey);
+
+    fn get_public_key(
+        sk: &Self::SecretKey
+    ) -> Self::PublicKey;
 
     fn sign<R: Rng>(
         rng: &mut R,
@@ -75,58 +82,4 @@ pub trait FieldBasedSignatureScheme {
     fn keyverify(
         pk: &Self::PublicKey,
     ) -> bool;
-}
-
-#[cfg(test)]
-mod test {
-    use crate::{signature::schnorr::SchnorrSignature, SignatureScheme};
-    use algebra::{
-        curves::edwards_sw6::EdwardsAffine as Edwards, groups::Group, to_bytes, ToBytes,
-        UniformRand,
-    };
-    use blake2::Blake2s;
-    use rand::thread_rng;
-
-    fn sign_and_verify<S: SignatureScheme>(message: &[u8]) {
-        let rng = &mut thread_rng();
-        let parameters = S::setup::<_>(rng).unwrap();
-        let (pk, sk) = S::keygen(&parameters, rng).unwrap();
-        let sig = S::sign(&parameters, &sk, &message, rng).unwrap();
-        assert!(S::verify(&parameters, &pk, &message, &sig).unwrap());
-    }
-
-    fn failed_verification<S: SignatureScheme>(message: &[u8], bad_message: &[u8]) {
-        let rng = &mut thread_rng();
-        let parameters = S::setup::<_>(rng).unwrap();
-        let (pk, sk) = S::keygen(&parameters, rng).unwrap();
-        let sig = S::sign(&parameters, &sk, message, rng).unwrap();
-        assert!(!S::verify(&parameters, &pk, bad_message, &sig).unwrap());
-    }
-
-    fn randomize_and_verify<S: SignatureScheme>(message: &[u8], randomness: &[u8]) {
-        let rng = &mut thread_rng();
-        let parameters = S::setup::<_>(rng).unwrap();
-        let (pk, sk) = S::keygen(&parameters, rng).unwrap();
-        let sig = S::sign(&parameters, &sk, message, rng).unwrap();
-        assert!(S::verify(&parameters, &pk, message, &sig).unwrap());
-        let randomized_pk = S::randomize_public_key(&parameters, &pk, randomness).unwrap();
-        let randomized_sig = S::randomize_signature(&parameters, &sig, randomness).unwrap();
-        assert!(S::verify(&parameters, &randomized_pk, &message, &randomized_sig).unwrap());
-    }
-
-    #[test]
-    fn schnorr_signature_test() {
-        let message = "Hi, I am a Schnorr signature!";
-        let rng = &mut thread_rng();
-        sign_and_verify::<SchnorrSignature<Edwards, Blake2s>>(message.as_bytes());
-        failed_verification::<SchnorrSignature<Edwards, Blake2s>>(
-            message.as_bytes(),
-            "Bad message".as_bytes(),
-        );
-        let random_scalar = to_bytes!(<Edwards as Group>::ScalarField::rand(rng)).unwrap();
-        randomize_and_verify::<SchnorrSignature<Edwards, Blake2s>>(
-            message.as_bytes(),
-            &random_scalar.as_slice(),
-        );
-    }
 }
