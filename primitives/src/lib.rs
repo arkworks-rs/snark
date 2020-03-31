@@ -1,7 +1,13 @@
 #[macro_use]
 extern crate bench_utils;
 
-#[cfg(any(commitment, merkle_tree, prf, signature, vrf))]
+#[cfg(any(
+    feature = "commitment",
+    feature = "merkle_tree",
+    feature = "prf",
+    feature = "signature",
+    feature = "vrf"
+))]
 #[macro_use]
 extern crate derivative;
 
