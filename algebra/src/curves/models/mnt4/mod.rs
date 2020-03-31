@@ -3,26 +3,26 @@ use std::marker::PhantomData;
 use std::ops::{Add, Mul, Sub};
 
 
-/// Ate pairing e: G_1 x G_2 -> G_T for MNT4 curves over prime fields
-///
+// Ate pairing e: G_1 x G_2 -> G_T for MNT4 curves over prime fields
+//
 //     E: y^2 = x^3 + a*x + b mod p.
-///
-/// Its embedding field F4 is regarded as towered extension
-///
+//
+// Its embedding field F4 is regarded as towered extension
+//
 //     F4 = F2[Y]/(Y^2-X),
 //     F2 = Fp[X]/(X^2-alpha),
-///
-/// using a "non-residue" alpha mod p such that (X^4-alpha) is irreducible over Fp.
-/// We apply standard efficiency measures (see, e.g. ): G_2 is represented by a subgroup
-/// of prime order r=ord(G_1) of the quadratic twist
-///
+//
+// using a "non-residue" alpha mod p such that (X^4-alpha) is irreducible over Fp.
+// We apply standard efficiency measures (see, e.g. ): G_2 is represented by a subgroup
+// of prime order r=ord(G_1) of the quadratic twist
+//
 //     E': y^2 = x^3 + (a*twist^2) x + b*twist^3
-///
-/// over F2, with twist=X, the Frobenius operator is applied to reduce the cost of the 
-/// final exponentiation, and we do pre-computations of (essentially) the line coefficients 
-/// of the Miller loop.
-/// The loop count allows signed bit representation, so this variant supports curves with Frobenius
-/// trace having low Hamming weight NAF.
+//
+// over F2, with twist=X, the Frobenius operator is applied to reduce the cost of the 
+// final exponentiation, and we do pre-computations of (essentially) the line coefficients 
+// of the Miller loop.
+// The loop count allows signed bit representation, so this variant supports curves with Frobenius
+// trace having low Hamming weight NAF.
 
 pub trait MNT4Parameters: 'static {
     // the loop count for the Miller loop, equals the |Frobenius trace of E - 1|
@@ -169,16 +169,16 @@ impl<P: MNT4Parameters> MNT4p<P> {
             let c = &q.coeffs[idx];
             idx += 1;
 
-            /// evaluate the tangent line g_{R,R} at P in F4 (scaled by twist^2) using the
-            /// pre-computed data
+            // evaluate the tangent line g_{R,R} at P in F4 (scaled by twist^2) using the
+            // pre-computed data
             //      g_{R,R}(P) = (y_P - lambda*x_p - d) * twist^2,
-            /// where
+            // where
             //      lambda = gamma * Y/twist,
             //      d = (y'-gamma * x')* Y/twist^2,
-            /// with (x',y') being the twist coordinates of R.
-            /// Thus
+            // with (x',y') being the twist coordinates of R.
+            // Thus
             //     g_{R,R}(P) = y_p*X^2 + (gamma*x'- gamma*twist*x_p - y') *Y.
-            /// The scale factor twist^2 from F2 is cancelled out by the final exponentiation.
+            // The scale factor twist^2 from F2 is cancelled out by the final exponentiation.
 
             let mut gamma_twist_times_x = c.gamma.mul(&P::TWIST);
             gamma_twist_times_x.mul_by_fp(&p.p.x);
