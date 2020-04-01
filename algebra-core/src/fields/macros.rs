@@ -1,6 +1,3 @@
-#[macro_use]
-use mashup::*;
-
 macro_rules! impl_field_bigint_conv {
     ($field: ident, $bigint: ident, $params: ident) => {
         impl<P: $params> Into<$bigint> for $field<P> {
@@ -310,40 +307,4 @@ macro_rules! impl_multiplicative_ops_from_ref {
             }
         }
     };
-}
-
-mashup! {
-    registers["r0"] = r0;
-    registers["r1"] = r1;
-    registers["r2"] = r2;
-    registers["r3"] = r3;
-    registers["r4"] = r4;
-    registers["r5"] = r5;
-    registers["r6"] = r6;
-    registers["r7"] = r7;
-    registers["r8"] = r8;
-    registers["r9"] = r9;
-    registers["r10"] = r10;
-    registers["r11"] = r11;
-    registers["r12"] = r12;
-    registers["r13"] = r13;
-    registers["r14"] = r14;
-    registers["r15"] = r15;
-    registers["r16"] = r16;
-    registers["r17"] = r17;
-    registers["r18"] = r18;
-    registers["r19"] = r19;
-    registers["r20"] = r20;
-    registers["r21"] = r21;
-    registers["r22"] = r22;
-    registers["r23"] = r23;
-    registers["r24"] = r24;
-    registers["r25"] = r25;
-    registers["r26"] = r26;
-    registers["r27"] = r27;
-    registers["r28"] = r28;
-    registers["r29"] = r29;
-    registers["r30"] = r30;
-    registers["r31"] = r31;
-    registers["r32"] = r32;
 }
