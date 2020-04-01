@@ -10,6 +10,7 @@ use core::{
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
     str::FromStr,
 };
+
 use num_traits::{One, Zero};
 
 #[macro_use]

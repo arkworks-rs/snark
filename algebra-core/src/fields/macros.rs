@@ -1,37 +1,5 @@
-macro_rules! impl_mul_assign {
-    ($n:expr, $nm:expr) => {
-        // Declare register variables
-        // unroll!(6, |k, kp, km| registers!(k, km));
-        impl<'a, P: Fp384Parameters> MulAssign<&'a Self> for Fp384<P> {
-            #[inline]
-            #[unroll_for_loops]
-            fn mul_assign(&mut self, other: &Self) {
-                let mut c1 = 0u64;
-                let mut c2 = 0u64;
-                unroll!($n, |i, ip, im| mul_assign_outer_loop!(self, k, $nm, c1, c2));
-                // Assign temp register values to self
-                unroll!($n, |i, ip, im| (self.0).0[im] = format!("r{}", im));
-                self.reduce();
-            }
-        }
-    }
-}
-
-macro_rules! mul_assign_outer_loop {
-    ($self:ident, $i:expr, $nm:expr, $c1:ident, $c2:ident) => {
-        let zero_r = fa::mac(r[0], ($self.0).0[0], (other.0).0[$i], &mut carry1);
-        let m = zero_r.wrapping_mul(P::INV);
-        fa::mac_discard(r[0], m, P::MODULUS.0[0], &mut carry2);
-        unroll!(6, |j, jp, jm| mul_assign_inner_loop!($self, $i, jp, $c1, $c2));
-        let format!("r{}", $nm) = $c1 + $c2;
-    }
-}
-
-macro_rules! mul_assign_inner_loop {
-    ($self:ident, $k:expr, $jp:expr, $c1:ident, $c2:ident) => {
-        let format!("r{}", $jp) = fa::mac_with_carry(format!("r{}", $jp), ($self.0).0[$jp], (other.0).0[$k], &mut $c2);
-        let format!("r{}", $j) = fa::mac_with_carry(format!("r{}", $jp), k, P::MODULUS.0[$j], &mut $c1);
-    }
+#[macro_use]
+use mashup::*;
 
 macro_rules! impl_field_bigint_conv {
     ($field: ident, $bigint: ident, $params: ident) => {
@@ -344,47 +312,38 @@ macro_rules! impl_multiplicative_ops_from_ref {
     };
 }
 
-macro_rules! registers {
-    ($i:expr, $im:expr) => {
-        mashup! {
-            m["r0"] = r
-            m[format!("r{}", $i)] = format!("r{}", $im) r
-        }
-    }
-}
-
-macro_rules! unroll {
-    (0, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {};
-    (1, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ let $i: usize = 1; let $i_plus: usize = 2; let $i_minus: usize = 0; $s; }};
-    (2, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(1, |$i, $i_plus, $i_minus| $s); let $i: usize = 2; let $i_plus: usize = 3; let $i_minus: usize = 1; $s; }};
-    (3, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(2, |$i, $i_plus, $i_minus| $s); let $i: usize = 3; let $i_plus: usize = 4; let $i_minus: usize = 2; $s; }};
-    (4, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(3, |$i, $i_plus, $i_minus| $s); let $i: usize = 4; let $i_plus: usize = 5; let $i_minus: usize = 3; $s; }};
-    (5, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(4, |$i, $i_plus, $i_minus| $s); let $i: usize = 5; let $i_plus: usize = 6; let $i_minus: usize = 4; $s; }};
-    (6, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(5, |$i, $i_plus, $i_minus| $s); let $i: usize = 6; let $i_plus: usize = 7; let $i_minus: usize = 5; $s; }};
-    (7, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(6, |$i, $i_plus, $i_minus| $s); let $i: usize = 7; let $i_plus: usize = 8; let $i_minus: usize = 6; $s; }};
-    (8, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(7, |$i, $i_plus, $i_minus| $s); let $i: usize = 8; let $i_plus: usize = 9; let $i_minus: usize = 7; $s; }};
-    (9, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(8, |$i, $i_plus, $i_minus| $s); let $i: usize = 9; let $i_plus: usize = 10; let $i_minus: usize = 8; $s;}};
-    (10, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(9, |$i, $i_plus, $i_minus| $s); let $i: usize = 10; let $i_plus: usize = 11; let $i_minus: usize = 9; $s;}};
-    (11, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(10, |$i, $i_plus, $i_minus| $s); let $i: usize = 11; let $i_plus: usize = 12; let $i_minus: usize = 10; $s;}};
-    (13, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(12, |$i, $i_plus, $i_minus| $s); let $i: usize = 13; let $i_plus: usize = 14; let $i_minus: usize = 12; $s;}};
-    (12, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(11, |$i, $i_plus, $i_minus| $s); let $i: usize = 12; let $i_plus: usize = 13; let $i_minus: usize = 11; $s;}};
-    (14, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(13, |$i, $i_plus, $i_minus| $s); let $i: usize = 14; let $i_plus: usize = 15; let $i_minus: usize = 13; $s;}};
-    (15, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(14, |$i, $i_plus, $i_minus| $s); let $i: usize = 15; let $i_plus: usize = 16; let $i_minus: usize = 14; $s;}};
-    (16, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(15, |$i, $i_plus, $i_minus| $s); let $i: usize = 16; let $i_plus: usize = 17; let $i_minus: usize = 15; $s;}};
-    (17, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(16, |$i, $i_plus, $i_minus| $s); let $i: usize = 17; let $i_plus: usize = 18; let $i_minus: usize = 16; $s;}};
-    (18, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(17, |$i, $i_plus, $i_minus| $s); let $i: usize = 18; let $i_plus: usize = 19; let $i_minus: usize = 17; $s;}};
-    (19, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(18, |$i, $i_plus, $i_minus| $s); let $i: usize = 19; let $i_plus: usize = 20; let $i_minus: usize = 18; $s;}};
-    (20, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(19, |$i, $i_plus, $i_minus| $s); let $i: usize = 20; let $i_plus: usize = 21; let $i_minus: usize = 19; $s;}};
-    (21, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(20, |$i, $i_plus, $i_minus| $s); let $i: usize = 21; let $i_plus: usize = 22; let $i_minus: usize = 20; $s;}};
-    (22, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(21, |$i, $i_plus, $i_minus| $s); let $i: usize = 22; let $i_plus: usize = 23; let $i_minus: usize = 21; $s;}};
-    (23, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(22, |$i, $i_plus, $i_minus| $s); let $i: usize = 23; let $i_plus: usize = 24; let $i_minus: usize = 22; $s;}};
-    (24, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(23, |$i, $i_plus, $i_minus| $s); let $i: usize = 24; let $i_plus: usize = 25; let $i_minus: usize = 23; $s;}};
-    (25, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(24, |$i, $i_plus, $i_minus| $s); let $i: usize = 25; let $i_plus: usize = 26; let $i_minus: usize = 24; $s;}};
-    (26, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(25, |$i, $i_plus, $i_minus| $s); let $i: usize = 26; let $i_plus: usize = 27; let $i_minus: usize = 25; $s;}};
-    (27, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(26, |$i, $i_plus, $i_minus| $s); let $i: usize = 27; let $i_plus: usize = 28; let $i_minus: usize = 26; $s;}};
-    (28, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(27, |$i, $i_plus, $i_minus| $s); let $i: usize = 28; let $i_plus: usize = 29; let $i_minus: usize = 27; $s;}};
-    (29, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(28, |$i, $i_plus, $i_minus| $s); let $i: usize = 29; let $i_plus: usize = 30; let $i_minus: usize = 28; $s;}};
-    (30, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(29, |$i, $i_plus, $i_minus| $s); let $i: usize = 30; let $i_plus: usize = 31; let $i_minus: usize = 29; $s;}};
-    (31, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(30, |$i, $i_plus, $i_minus| $s); let $i: usize = 31; let $i_plus: usize = 32; let $i_minus: usize = 30; $s;}};
-    (32, |$i:ident, $i_plus:ident, $i_minus:ident| $s:stmt) => {{ unroll!(31, |$i, $i_plus, $i_minus| $s); let $i: usize = 32; let $i_plus: usize = 33; let $i_minus: usize = 31; $s;}};
+mashup! {
+    registers["r0"] = r0;
+    registers["r1"] = r1;
+    registers["r2"] = r2;
+    registers["r3"] = r3;
+    registers["r4"] = r4;
+    registers["r5"] = r5;
+    registers["r6"] = r6;
+    registers["r7"] = r7;
+    registers["r8"] = r8;
+    registers["r9"] = r9;
+    registers["r10"] = r10;
+    registers["r11"] = r11;
+    registers["r12"] = r12;
+    registers["r13"] = r13;
+    registers["r14"] = r14;
+    registers["r15"] = r15;
+    registers["r16"] = r16;
+    registers["r17"] = r17;
+    registers["r18"] = r18;
+    registers["r19"] = r19;
+    registers["r20"] = r20;
+    registers["r21"] = r21;
+    registers["r22"] = r22;
+    registers["r23"] = r23;
+    registers["r24"] = r24;
+    registers["r25"] = r25;
+    registers["r26"] = r26;
+    registers["r27"] = r27;
+    registers["r28"] = r28;
+    registers["r29"] = r29;
+    registers["r30"] = r30;
+    registers["r31"] = r31;
+    registers["r32"] = r32;
 }
