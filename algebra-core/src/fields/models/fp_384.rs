@@ -613,29 +613,31 @@ impl<'a, P: Fp384Parameters> SubAssign<&'a Self> for Fp384<P> {
     }
 }
 
-impl_mul_assign!(6, 5);
-// impl<'a, P: Fp384Parameters> MulAssign<&'a Self> for Fp384<P> {
-//     #[inline]
-//     #[unroll_for_loops]
-//     fn mul_assign(&mut self, other: &Self) {
-    //     let mut r = [0u64; 6];
-    //     let mut carry1 = 0u64;
-    //     let mut carry2 = 0u64;
-    //     for i in 0..6 {
-    //         r[0] = fa::mac(r[0], (self.0).0[0], (other.0).0[i], &mut carry1);
-    //         let k = r[0].wrapping_mul(P::INV);
-    //         fa::mac_discard(r[0], k, P::MODULUS.0[0], &mut carry2);
-    //         for j in 1..6 {
-    //             r[j] = fa::mac_with_carry(r[j], (self.0).0[j], (other.0).0[i], &mut carry1);
-    //             r[j-1] = fa::mac_with_carry(r[j], k, P::MODULUS.0[j], &mut carry2);
-    //         }
-    //         r[5] = carry1 + carry2;
-    //     }
-    //     for i in 0..6 {
-    //         (self.0).0[i] = r[i];
-    //     }
-    //     self.reduce();
-    // }
+impl<'a, P: Fp384Parameters> MulAssign<&'a Self> for Fp384<P> {
+    registers!{
+        #[inline]
+        #[unroll_for_loops]
+        fn mul_assign(&mut self, other: &Self) {
+            let mut carry1 = 0u64;
+            let mut carry2 = 0u64;
+
+            for i in 0..6 {
+                let "r0" = fa::mul("r0", (self.0).0[0], (other.0).0[i], &mut carry1);
+                let k = "r0".wrapping_mul(P::INV);
+                fa::mac_discard("r0", k, P::MODULUS.0[0], &mut carry2);
+                for j in 1..6 {
+                    format!("r{}", j) = fa::mac_with_carry(format!("r{}", j), (self.0).0[j], (other.0).0[i], &mut carry1);
+                    format!("r{}", j-1) = fa::mac_with_carry(format!("r{}", j), k, P::MODULUS.0[j], &mut carry2);
+                }
+                format!("r{}", 5) = carry1 + carry2;
+            }
+            for i in 0..6 {
+                (self.0).0[i] = format!("r{}", i);
+            }
+            self.reduce();
+        }
+    }
+}
 
     // fn mul_assign(&mut self, other: &Self) {
     //     let mut r = [0u64; 8];
