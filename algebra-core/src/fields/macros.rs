@@ -186,7 +186,7 @@ macro_rules! impl_Fp {
 
             #[inline]
             fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
-                let mut result_bytes = [0u8; $limbs * 8];
+                let mut result_bytes = vec![0u8; $limbs * 8];
                 for (result_byte, in_byte) in result_bytes.iter_mut().zip(bytes.iter()) {
                     *result_byte = *in_byte;
                 }
@@ -465,6 +465,7 @@ macro_rules! impl_field_into_repr {
         fn into_repr(&self) -> BigInteger {
             let mut tmp = *self;
             let mut r = (tmp.0).0;
+            // Montgomery Reduction
             for i in 0..$limbs {
                 let k = r[i].wrapping_mul(P::INV);
                 let mut carry = 0;
@@ -510,7 +511,7 @@ macro_rules! impl_field_square_in_place {
                 r[2*i+1] = fa::adc(r[2*i+1], 0, &mut carry);
             }
             // Montgomery reduction
-            let mut carry2 = 0;
+            let mut _carry2 = 0;
             for i in 0..$limbs {
                 let k = r[i].wrapping_mul(P::INV);
                 let mut carry = 0;
@@ -518,9 +519,10 @@ macro_rules! impl_field_square_in_place {
                 for j in 1..$limbs {
                     r[j+i] = fa::mac_with_carry(r[j+i], k, P::MODULUS.0[j], &mut carry);
                 }
-                r[$limbs+i] = fa::adc(r[$limbs+i], carry2, &mut carry);
-                carry2 = carry;
+                r[$limbs+i] = fa::adc(r[$limbs+i], _carry2, &mut carry);
+                _carry2 = carry;
             }
+
             for i in 0..$limbs {
                 (self.0).0[i] = r[$limbs+i];
             }
