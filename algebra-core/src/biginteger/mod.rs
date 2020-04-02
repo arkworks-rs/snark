@@ -188,48 +188,4 @@ pub mod arithmetic {
 
         *carry = (tmp >> 64) as u64;
     }
-
-    #[inline(always)]
-    pub(crate) fn mul(b: u64, c: u64, carry: &mut u64) -> u64 {
-        let tmp = u128::from(b) * u128::from(c);
-
-        *carry = (tmp >> 64) as u64;
-
-        tmp as u64
-    }
-
-    #[inline(always)]
-    pub(crate) fn mul_with_carry(b: u64, c: u64, carry: &mut u64) -> u64 {
-        let tmp = u128::from(b) * u128::from(c) + u128::from(*carry);
-
-        *carry = (tmp >> 64) as u64;
-
-        tmp as u64
-    }
-
-    #[inline(always)]
-    pub(crate) fn mac_double_with_carry(a:u64, b: u64, c: u64, carry2: &mut u64, carry1: &mut u64) -> u64 {
-        let tmp = u128::from(b) * u128::from(c);
-        let ret = adc(a, (tmp as u64) << 1, carry1);
-        *carry1 = adc((tmp >> 63) as u64, *carry1, carry2);
-        *carry2 += (tmp >> 127) as u64;
-        ret
-    }
-
-    // #[inline(always)]
-    // pub(crate) fn mac_double_with_carry(a:u64, b: u64, c: u64, carry2: &mut u64, carry1: &mut u64) -> u64 {
-    //     let mut carry, sum = 0u64;
-    //     let tmp = u128::from(b) * u128::from(c);
-    //     let lo = tmp as u64;
-    //     let hi = (tmp >> 64) as u64
-    //
-    //     let lo = adc(lo, lo, 0);
-    //     let hi = adc(hi, hi, carry);
-    //
-    //     let ret = adc(a, (tmp as u64) << 1, carry1);
-    //     *carry1 = adc((tmp >> 63) as u64, *carry1, carry2);
-    //     *carry2 += (tmp >> 127) as u64;
-    //     ret
-    // }
-
 }
