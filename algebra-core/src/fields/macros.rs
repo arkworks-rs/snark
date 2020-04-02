@@ -193,7 +193,7 @@ macro_rules! impl_Fp {
                 BigInteger::read(result_bytes.as_slice())
                     .ok()
                     .and_then(|mut res| {
-                        res.as_mut()[5] &= 0xffffffffffffffff >> P::REPR_SHAVE_BITS;
+                        res.as_mut()[$limbs-1] &= 0xffffffffffffffff >> P::REPR_SHAVE_BITS;
                         let result = Self::new(res);
                         if result.is_valid() {
                             Some(result)
