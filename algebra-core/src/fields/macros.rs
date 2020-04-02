@@ -186,11 +186,11 @@ macro_rules! impl_Fp {
 
             #[inline]
             fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
-                let mut result_bytes = vec![0u8; $limbs * 8];
+                let mut result_bytes = [0u8; $limbs * 8];
                 for (result_byte, in_byte) in result_bytes.iter_mut().zip(bytes.iter()) {
                     *result_byte = *in_byte;
                 }
-                BigInteger::read(result_bytes.as_slice())
+                BigInteger::read(result_bytes.as_ref())
                     .ok()
                     .and_then(|mut res| {
                         res.as_mut()[$limbs-1] &= 0xffffffffffffffff >> P::REPR_SHAVE_BITS;
