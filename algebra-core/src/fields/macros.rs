@@ -433,8 +433,6 @@ macro_rules! impl_Fp {
 
 macro_rules! impl_field_mul_assign {
     ($limbs:expr) => {
-        /// This algorithm was adapted from the pseudo-code described
-        /// in https://hackmd.io/@zkteam/modular_multiplication#Final-algorithm
         #[inline]
         #[unroll_for_loops]
         fn mul_assign(&mut self, other: &Self) {
@@ -452,9 +450,7 @@ macro_rules! impl_field_mul_assign {
                 }
                 r[$limbs-1] = carry1 + carry2;
             }
-            for i in 0..$limbs {
-                (self.0).0[i] = r[i];
-            }
+            (self.0).0 = r;
             self.reduce();
         }
     }
@@ -465,8 +461,8 @@ macro_rules! impl_field_into_repr {
         #[inline]
         #[unroll_for_loops]
         fn into_repr(&self) -> BigInteger {
-            let mut tmp = *self;
-            let mut r = (tmp.0).0;
+            let mut tmp = self.0;
+            let mut r = tmp.0;
             // Montgomery Reduction
             for i in 0..$limbs {
                 let k = r[i].wrapping_mul(P::INV);
@@ -476,12 +472,10 @@ macro_rules! impl_field_into_repr {
                 for j in 1..$limbs {
                     r[(j+i)%$limbs] = fa::mac_with_carry(r[(j+i)%$limbs], k, P::MODULUS.0[j], &mut carry);
                 }
-                r[($limbs+i)%$limbs] = carry;
+                r[i%$limbs] = carry;
             }
-            for i in 0..$limbs {
-                (tmp.0).0[i] = r[i];
-            }
-            tmp.0
+            tmp.0 = r;
+            tmp
         }
     }
 }
@@ -493,21 +487,22 @@ macro_rules! impl_field_square_in_place {
         fn square_in_place(&mut self) -> &mut Self {
             let mut r = [0u64; $limbs*2];
 
-            for i in 0..$limbs-1 {
-                let mut carry = 0;
-                for j in (i+1)..$limbs {
-                    r[i+j] = fa::mac_with_carry(r[i+j], (self.0).0[i], (self.0).0[j], &mut carry);
+            let mut carry = 0;
+            for i in 0..$limbs {
+                if i < $limbs-1 {
+                    for j in 0..$limbs {
+                        if j >= (i+1) { r[i+j] = fa::mac_with_carry(r[i+j], (self.0).0[i], (self.0).0[j], &mut carry); }
+                    }
+                    r[$limbs+i] = carry;
+                    carry = 0;
                 }
-                r[$limbs+i] = carry;
             }
 
             r[$limbs*2-1] = r[$limbs*2-2] >> 63;
-            for i in 0..$limbs*2-3 {
-                r[$limbs*2-2-i] = (r[$limbs*2-2-i] << 1) | (r[$limbs*2-3-i] >> 63)
-            }
+            for i in 0..$limbs { r[$limbs*2-2-i] = (r[$limbs*2-2-i] << 1) | (r[$limbs*2-3-i] >> 63); }
+            for i in 3..$limbs { r[$limbs+1-i] = (r[$limbs+1-i] << 1) | (r[$limbs-i] >> 63); }
             r[1] = r[1] << 1;
 
-            let mut carry = 0;
             for i in 0..$limbs {
                 r[2*i] = fa::mac_with_carry(r[2*i], (self.0).0[i], (self.0).0[i], &mut carry);
                 r[2*i+1] = fa::adc(r[2*i+1], 0, &mut carry);
@@ -525,9 +520,10 @@ macro_rules! impl_field_square_in_place {
                 _carry2 = carry;
             }
 
-            for i in 0..$limbs {
-                (self.0).0[i] = r[$limbs+i];
-            }
+            // for i in 0..$limbs {
+            //     (self.0).0[i] = r[$limbs+i];
+            // }
+            (self.0).0.copy_from_slice(&r[$limbs..$limbs*2]);
             self.reduce();
             self
         }
