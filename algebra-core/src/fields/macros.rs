@@ -186,7 +186,7 @@ macro_rules! impl_Fp {
 
             #[inline]
             fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
-                let mut result_bytes = vec![0u8; (Self::zero().0).0.len() * 8];
+                let mut result_bytes = [0u8; $limbs * 8];
                 for (result_byte, in_byte) in result_bytes.iter_mut().zip(bytes.iter()) {
                     *result_byte = *in_byte;
                 }
