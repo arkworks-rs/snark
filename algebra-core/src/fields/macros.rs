@@ -433,6 +433,8 @@ macro_rules! impl_Fp {
 
 macro_rules! impl_field_mul_assign {
     ($limbs:expr) => {
+        /// This algorithm was adapted from the pseudo-code described
+        /// in https://hackmd.io/@zkteam/modular_multiplication#Final-algorithm
         #[inline]
         #[unroll_for_loops]
         fn mul_assign(&mut self, other: &Self) {
