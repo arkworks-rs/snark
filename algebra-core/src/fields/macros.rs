@@ -440,7 +440,7 @@ macro_rules! impl_Fp {
 /// zero bit in the rest of the modulus.
 macro_rules! impl_field_mul_assign {
     ($limbs:expr) => {
-        #[inline(never)]
+        #[inline]
         #[unroll_for_loops]
         fn mul_assign(&mut self, other: &Self) {
             // Checking the modulus at compile time
@@ -451,7 +451,7 @@ macro_rules! impl_field_mul_assign {
             }
             let no_carry:bool = !(first_bit_set || all_bits_set);
 
-            // No carry optimisation applied to CIOS
+            // No-carry optimisation applied to CIOS
             if no_carry {
                 let mut r = [0u64; $limbs];
                 let mut carry1 = 0u64;
