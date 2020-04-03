@@ -520,10 +520,7 @@ macro_rules! impl_field_square_in_place {
                 _carry2 = carry;
             }
 
-            // for i in 0..$limbs {
-            //     (self.0).0[i] = r[$limbs+i];
-            // }
-            (self.0).0.copy_from_slice(&r[$limbs..$limbs*2]);
+            (self.0).0.copy_from_slice(&r[$limbs..]);
             self.reduce();
             self
         }
