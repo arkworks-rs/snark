@@ -432,27 +432,25 @@ macro_rules! impl_Fp {
 }
 
 
-// The no carry optimisation requires last bit to be zero
-// and all remaining bits not set
-// https://hackmd.io/@zkteam/modular_multiplication
-// It is slightly faster
+/// This modular multiplication algorithm uses Montgomery
+/// reduction for efficient implementation. It also additionally
+/// uses the "no-carry optimization" outlined
+/// [here](https://hackmd.io/@zkteam/modular_multiplication) if
+/// `P::MODULUS` has (a) a non-zero MSB, and (b) at least one
+/// zero bit in the rest of the modulus.
 macro_rules! impl_field_mul_assign {
     ($limbs:expr) => {
-        #[inline]
+        #[inline(never)]
         #[unroll_for_loops]
         fn mul_assign(&mut self, other: &Self) {
-            let mut no_carry = true;
-            if P::MODULUS.0[$limbs-1] >> 63 != 0 {
-                no_carry = false;
-            } else if ((P::MODULUS.0[$limbs-1] << 1) + 1) & !(0u64) == 0 {
-                let mut all_bits_set = true;
-                for i in 1..$limbs {
-                    if P::MODULUS.0[$limbs-1-i] & !(0u64) == 0 {
-                        all_bits_set &= true;
-                    } else { all_bits_set = false; }
-                }
-                no_carry = !all_bits_set;
+            // Checking the modulus at compile time
+            let first_bit_set = P::MODULUS.0[$limbs - 1] >> 63 != 0;
+            let mut all_bits_set = P::MODULUS.0[$limbs - 1] == !0 - (1 << 63);
+            for i in 1..$limbs {
+                all_bits_set &= P::MODULUS.0[$limbs - i - 1] == !0u64;
             }
+            let no_carry:bool = !(first_bit_set || all_bits_set);
+
             // No carry optimisation applied to CIOS
             if no_carry {
                 let mut r = [0u64; $limbs];
@@ -465,22 +463,22 @@ macro_rules! impl_field_mul_assign {
                     fa::mac_discard(r[0], k, P::MODULUS.0[0], &mut carry2);
                     for j in 1..$limbs {
                         r[j] = fa::mac_with_carry(r[j], (self.0).0[j], (other.0).0[i], &mut carry1);
-                        r[j-1] = fa::mac_with_carry(r[j], k, P::MODULUS.0[j], &mut carry2);
+                        r[j - 1] = fa::mac_with_carry(r[j], k, P::MODULUS.0[j], &mut carry2);
                     }
-                    r[$limbs-1] = carry1 + carry2;
+                    r[$limbs - 1] = carry1 + carry2;
                 }
                 (self.0).0 = r;
                 self.reduce();
             // Alternative implementation
             } else {
-                let mut r = [0u64; $limbs*2];
+                let mut r = [0u64; $limbs * 2];
 
                 for i in 0..$limbs {
                     let mut carry = 0;
                     for j in 0..$limbs {
-                        r[j+i] = fa::mac_with_carry(r[j+i], (self.0).0[i], (other.0).0[j], &mut carry);
+                        r[j + i] = fa::mac_with_carry(r[j+i], (self.0).0[i], (other.0).0[j], &mut carry);
                     }
-                    r[$limbs+i] = carry;
+                    r[$limbs + i] = carry;
                 }
                 // Montgomery reduction
                 let mut _carry2 = 0;
@@ -489,9 +487,9 @@ macro_rules! impl_field_mul_assign {
                     let mut carry = 0;
                     fa::mac_with_carry(r[i], k, P::MODULUS.0[0], &mut carry);
                     for j in 1..$limbs {
-                        r[j+i] = fa::mac_with_carry(r[j+i], k, P::MODULUS.0[j], &mut carry);
+                        r[j + i] = fa::mac_with_carry(r[j + i], k, P::MODULUS.0[j], &mut carry);
                     }
-                    r[$limbs+i] = fa::adc(r[$limbs+i], _carry2, &mut carry);
+                    r[$limbs + i] = fa::adc(r[$limbs + i], _carry2, &mut carry);
                     _carry2 = carry;
                 }
                 (self.0).0.copy_from_slice(&r[$limbs..]);
