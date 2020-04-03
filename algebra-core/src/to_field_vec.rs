@@ -1,4 +1,5 @@
 use crate::{
+    biginteger::BigInteger,
     curves::{
         models::{SWModelParameters, TEModelParameters},
         short_weierstrass_jacobian::{GroupAffine as SWAffine, GroupProjective as SWProjective},
@@ -99,12 +100,13 @@ impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for [u8] {
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
         let max_size = <ConstraintF as PrimeField>::Params::CAPACITY / 8;
         let max_size = max_size as usize;
+        let bigint_size = <ConstraintF as PrimeField>::BigInt::NUM_LIMBS * 8;
         let fes = self
             .chunks(max_size)
             .map(|chunk| {
                 let mut chunk = chunk.to_vec();
                 let len = chunk.len();
-                for _ in len..=max_size {
+                for _ in len..bigint_size {
                     chunk.push(0u8);
                 }
                 ConstraintF::read(chunk.as_slice())

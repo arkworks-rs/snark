@@ -487,14 +487,15 @@ mod test_recursive {
 
     use super::*;
     use algebra::{
-        mnt4_298::{Fq as MNT4Fq, Fr as MNT4Fr, MNT4_298},
-        mnt6_298::{Fq as MNT6Fq, Fr as MNT6Fr, MNT6_298},
-        test_rng, BitIterator, PrimeField,
+        fields::FpParameters,
+        mnt4_298::{Fq as MNT4Fq, FqParameters as MNT4FqParameters, Fr as MNT4Fr, MNT4_298},
+        mnt6_298::{Fq as MNT6Fq, FqParameters as MNT6FqParameters, Fr as MNT6Fr, MNT6_298},
+        test_rng, BigInteger, PrimeField,
     };
     use r1cs_std::{
-        boolean::Boolean, mnt4_298::PairingGadget as MNT4_298PairingGadget,
+        fields::fp::FpGadget, mnt4_298::PairingGadget as MNT4_298PairingGadget,
         mnt6_298::PairingGadget as MNT6_298PairingGadget,
-        test_constraint_system::TestConstraintSystem,
+        test_constraint_system::TestConstraintSystem, uint8::UInt8,
     };
     use rand::Rng;
 
@@ -568,27 +569,42 @@ mod test_recursive {
         ) -> Result<(), SynthesisError> {
             let params = self.params;
             let proof = self.proof;
-            // assert!(!verify_proof(&pvk, &proof, &[a]).unwrap());
             let inputs: Vec<_> = self
                 .inputs
                 .into_iter()
                 .map(|input| input.unwrap())
                 .collect();
-            let mut input_gadgets = Vec::new();
+            let input_gadgets;
 
             {
                 let mut cs = cs.ns(|| "Allocate Input");
-                for (i, input) in inputs.into_iter().enumerate() {
-                    let mut input_bits = BitIterator::new(input.into_repr()).collect::<Vec<_>>();
-                    // Input must be in little-endian, but BitIterator outputs in big-endian.
-                    input_bits.reverse();
+                // Chain all input values in one large byte array.
+                let input_bytes = inputs
+                    .clone()
+                    .into_iter()
+                    .flat_map(|input| {
+                        input
+                            .into_repr()
+                            .as_ref()
+                            .iter()
+                            .flat_map(|l| l.to_le_bytes().to_vec())
+                            .collect::<Vec<_>>()
+                    })
+                    .collect::<Vec<_>>();
 
-                    let input_bits =
-                        Vec::<Boolean>::alloc_input(cs.ns(|| format!("Input {}", i)), || {
-                            Ok(input_bits)
-                        })?;
-                    input_gadgets.push(input_bits);
-                }
+                // Allocate this byte array as input packed into field elements.
+                let input_bytes = UInt8::alloc_input_vec(cs.ns(|| "Input"), &input_bytes[..])?;
+                // 40 byte
+                let element_size = <MNT4FqParameters as FpParameters>::BigInt::NUM_LIMBS * 8;
+                input_gadgets = input_bytes
+                    .chunks(element_size)
+                    .map(|chunk| {
+                        chunk
+                            .iter()
+                            .flat_map(|byte| byte.into_bits_le())
+                            .collect::<Vec<_>>()
+                    })
+                    .collect::<Vec<_>>();
             }
 
             let vk_gadget = TestVkGadget1::alloc(cs.ns(|| "Vk"), || Ok(&params.vk))?;
@@ -659,26 +675,48 @@ mod test_recursive {
                 create_random_proof(c, &params, rng).unwrap()
             };
 
-            // assert!(!verify_proof(&pvk, &proof, &[a]).unwrap());
             let mut cs = TestConstraintSystem::<MNT4Fq>::new();
 
             let inputs: Vec<_> = inputs.into_iter().map(|input| input.unwrap()).collect();
             let mut input_gadgets = Vec::new();
 
             {
+                let bigint_size = <MNT4FqParameters as FpParameters>::BigInt::NUM_LIMBS * 64;
+                let mut input_bits = Vec::new();
                 let mut cs = cs.ns(|| "Allocate Input");
                 for (i, input) in inputs.into_iter().enumerate() {
-                    let mut input_bits = BitIterator::new(input.into_repr()).collect::<Vec<_>>();
-                    // Input must be in little-endian, but BitIterator outputs in big-endian.
-                    input_bits.reverse();
-
-                    let mut input_bits =
-                        Vec::<Boolean>::alloc_input(cs.ns(|| format!("Input {}", i)), || {
-                            Ok(input_bits)
-                        })
+                    let input_gadget =
+                        FpGadget::alloc_input(cs.ns(|| format!("Input {}", i)), || Ok(input))
+                            .unwrap();
+                    let mut fp_bits = input_gadget
+                        .to_bits(cs.ns(|| format!("To bits {}", i)))
                         .unwrap();
-                    input_gadgets.append(&mut input_bits);
+
+                    // FpGadget::to_bits outputs a big-endian binary representation of
+                    // fe_gadget's value, so we have to reverse it to get the little-endian
+                    // form.
+                    fp_bits.reverse();
+
+                    // Use 320 bits per element.
+                    for _ in fp_bits.len()..bigint_size {
+                        fp_bits.push(Boolean::constant(false));
+                    }
+                    input_bits.extend_from_slice(&fp_bits);
                 }
+
+                // Pack input bits into field elements of the underlying circuit.
+                let max_size = 8 * (<MNT6FqParameters as FpParameters>::CAPACITY / 8) as usize;
+                let max_size = max_size as usize;
+                let bigint_size = <MNT6FqParameters as FpParameters>::BigInt::NUM_LIMBS * 64;
+                for chunk in input_bits.chunks(max_size) {
+                    let mut chunk = chunk.to_vec();
+                    let len = chunk.len();
+                    for _ in len..bigint_size {
+                        chunk.push(Boolean::constant(false));
+                    }
+                    input_gadgets.push(chunk);
+                }
+                // assert!(!verify_proof(&pvk, &proof, &[a]).unwrap());
             }
 
             let vk_gadget = TestVkGadget2::alloc_input(cs.ns(|| "Vk"), || Ok(&params.vk)).unwrap();
