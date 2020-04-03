@@ -428,7 +428,8 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootFie
         // Devegili, OhEigeartaigh, Scott, Dahab
 
         // Constraint 1
-        let v1 = self.c1.mul(cs.ns(|| "inv_constraint_1"), &inverse.c1)?;
+        let v1 = self.c1.mul(cs.ns(|| "inv_constraint_1"),
+                             &inverse.c1)?;
 
         // Constraint 2
         let one = P::Fp::one();

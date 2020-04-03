@@ -678,6 +678,27 @@ mod test {
         }
     }
 
+    /*
+    progress test for the inverse gadget, should fail on old, insecure gadget
+    */
+    fn inverse_gadget_test<
+        FE: Field,
+        ConstraintF: Field,
+        F: FieldGadget<FE, ConstraintF>,
+    >()
+    {
+        let mut cs = TestConstraintSystem::<ConstraintF>::new();
+
+        let a = F::one(cs.ns(|| "alloc one")).unwrap();
+        a.inverse(cs.ns(|| "inverse")).unwrap();
+        assert!(cs.is_satisfied());
+
+        cs.set("inverse/alloc inverse/c0/alloc", ConstraintF::zero()); //Set b.c0
+        cs.set("inverse/alloc inverse/c1/alloc", ConstraintF::one()); //Set b.c1
+        cs.set("inverse/inv_constraint_1/mul/alloc", ConstraintF::zero()); //Set v1 ?
+        assert!(!cs.is_satisfied());
+    }
+
     #[test]
     fn bls12_377_field_gadgets_test() {
         use crate::fields::bls12_377::{Fq12Gadget, Fq2Gadget, Fq6Gadget, FqGadget};
@@ -702,9 +723,12 @@ mod test {
         let d = Fq2Gadget::alloc(&mut cs.ns(|| "generate_d"), || Ok(Fq2::rand(&mut rng))).unwrap();
         field_test(cs.ns(|| "test_fq2"), c, d);
         random_frobenius_tests::<Fq2, _, Fq2Gadget, _>(cs.ns(|| "test_frob_fq2"), 13);
+        inverse_gadget_test::<Fq2, _, Fq2Gadget>();
         if !cs.is_satisfied() {
             println!("{:?}", cs.which_is_unsatisfied().unwrap());
         }
+
+
 
         let a = Fq6Gadget::alloc(&mut cs.ns(|| "generate_e"), || Ok(Fq6::rand(&mut rng))).unwrap();
         let b = Fq6Gadget::alloc(&mut cs.ns(|| "generate_f"), || Ok(Fq6::rand(&mut rng))).unwrap();
@@ -723,8 +747,8 @@ mod test {
         if !cs.is_satisfied() {
             println!("{:?}", cs.which_is_unsatisfied().unwrap());
         }
-
         assert!(cs.is_satisfied());
+
     }
 
     #[test]
@@ -787,6 +811,7 @@ mod test {
             println!("{:?}", cs.which_is_unsatisfied().unwrap());
         }
 
+
         equ_verdict_fp_gadget_test::<Fq>();
         from_bits_fp_gadget_test::<Fq>();
         bit_fp_gadgets_test::<Fq>();
@@ -795,6 +820,7 @@ mod test {
         let d = Fq2Gadget::alloc(&mut cs.ns(|| "generate_d"), || Ok(Fq2::rand(&mut rng))).unwrap();
         field_test(cs.ns(|| "test_fq2"), c, d);
         random_frobenius_tests::<Fq2, _, Fq2Gadget, _>(cs.ns(|| "test_frob_fq2"), 13);
+        inverse_gadget_test::<Fq2, _, Fq2Gadget>();
         if !cs.is_satisfied() {
             println!("{:?}", cs.which_is_unsatisfied().unwrap());
         }
