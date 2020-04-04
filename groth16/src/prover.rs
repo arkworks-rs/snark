@@ -5,7 +5,7 @@ use algebra_core::{
     UniformRand, Zero,
 };
 
-use crate::{r1cs_to_qap::R1CStoQAP, Parameters, Proof, String, Vec, push_constraints};
+use crate::{push_constraints, r1cs_to_qap::R1CStoQAP, Parameters, Proof, String, Vec};
 
 use r1cs_core::{
     ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable,
@@ -69,23 +69,11 @@ impl<E: PairingEngine> ConstraintSystem<E::Fr> for ProvingAssignment<E> {
         self.bt.push(Vec::new());
         self.ct.push(Vec::new());
 
-        push_constraints(
-            a(LinearCombination::zero()),
-            &mut self.at,
-            num_constraints,
-        );
+        push_constraints(a(LinearCombination::zero()), &mut self.at, num_constraints);
 
-        push_constraints(
-            b(LinearCombination::zero()),
-            &mut self.bt,
-            num_constraints,
-        );
+        push_constraints(b(LinearCombination::zero()), &mut self.bt, num_constraints);
 
-        push_constraints(
-            c(LinearCombination::zero()),
-            &mut self.ct,
-            num_constraints,
-        );
+        push_constraints(c(LinearCombination::zero()), &mut self.ct, num_constraints);
     }
 
     fn push_namespace<NR, N>(&mut self, _: N)
@@ -192,33 +180,38 @@ where
     // Compute A
     let a_acc_time = start_timer!(|| "Compute A");
     let (a_inputs_source, a_aux_source) = params.get_a_query(num_inputs)?;
-    let a_inputs_acc = VariableBaseMSM::multi_scalar_mul(a_inputs_source, &input_assignment);
-    let a_aux_acc = VariableBaseMSM::multi_scalar_mul(a_aux_source, &aux_assignment);
-
+    let a_query = params.get_a_query_full()?[0];
     let r_g1 = params.delta_g1.mul(r);
 
-    let mut g_a = r_g1;
-    g_a.add_assign_mixed(&params.get_a_query_full()?[0]);
-    g_a += &a_inputs_acc;
-    g_a += &a_aux_acc;
-    g_a.add_assign_mixed(&params.vk.alpha_g1);
+    let g_a = calculate_coeff(
+        r_g1,
+        a_inputs_source,
+        a_aux_source,
+        &input_assignment,
+        &aux_assignment,
+        a_query,
+        params.vk.alpha_g1,
+    );
+
     end_timer!(a_acc_time);
 
     // Compute B in G1 if needed
     let g1_b = if r != E::Fr::zero() {
         let b_g1_acc_time = start_timer!(|| "Compute B in G1");
-
-        let (b_inputs_source, b_aux_source) = params.get_b_g1_query(num_inputs)?;
-        let b_inputs_acc = VariableBaseMSM::multi_scalar_mul(b_inputs_source, &input_assignment);
-        let b_aux_acc = VariableBaseMSM::multi_scalar_mul(b_aux_source, &aux_assignment);
-
         let s_g1 = params.delta_g1.mul(s);
+        let b_query = params.get_b_g1_query_full()?[0];
+        let (b_inputs_source, b_aux_source) = params.get_b_g1_query(num_inputs)?;
 
-        let mut g1_b = s_g1;
-        g1_b.add_assign_mixed(&params.get_b_g1_query_full()?[0]);
-        g1_b += &b_inputs_acc;
-        g1_b += &b_aux_acc;
-        g1_b.add_assign_mixed(&params.beta_g1);
+        let g1_b = calculate_coeff(
+            s_g1,
+            b_inputs_source,
+            b_aux_source,
+            &input_assignment,
+            &aux_assignment,
+            b_query,
+            params.beta_g1,
+        );
+
         end_timer!(b_g1_acc_time);
 
         g1_b
@@ -228,18 +221,19 @@ where
 
     // Compute B in G2
     let b_g2_acc_time = start_timer!(|| "Compute B in G2");
-
     let (b_inputs_source, b_aux_source) = params.get_b_g2_query(num_inputs)?;
-    let b_inputs_acc = VariableBaseMSM::multi_scalar_mul(b_inputs_source, &input_assignment);
-    let b_aux_acc = VariableBaseMSM::multi_scalar_mul(b_aux_source, &aux_assignment);
-
+    let b_query = params.get_b_g2_query_full()?[0];
     let s_g2 = params.vk.delta_g2.mul(s);
+    let g2_b = calculate_coeff(
+        s_g2,
+        b_inputs_source,
+        b_aux_source,
+        &input_assignment,
+        &aux_assignment,
+        b_query,
+        params.vk.beta_g2,
+    );
 
-    let mut g2_b = s_g2;
-    g2_b.add_assign_mixed(&params.get_b_g2_query_full()?[0]);
-    g2_b += &b_inputs_acc;
-    g2_b += &b_aux_acc;
-    g2_b.add_assign_mixed(&params.vk.beta_g2);
     end_timer!(b_g2_acc_time);
 
     // Compute C
@@ -271,4 +265,26 @@ where
         b: g2_b.into_affine(),
         c: g_c.into_affine(),
     })
+}
+
+fn calculate_coeff<G: AffineCurve>(
+    initial: G::Projective,
+    inputs_source: &[G],
+    aux_source: &[G],
+    input_assignment: &[<G::ScalarField as PrimeField>::BigInt],
+    aux_assignment: &[<G::ScalarField as PrimeField>::BigInt],
+    query: G,
+    vk_param: G,
+) -> G::Projective {
+    let mut res = initial;
+
+    let inputs_acc = VariableBaseMSM::multi_scalar_mul(inputs_source, input_assignment);
+    let aux_acc = VariableBaseMSM::multi_scalar_mul(aux_source, aux_assignment);
+
+    res.add_assign_mixed(&query);
+    res += &inputs_acc;
+    res += &aux_acc;
+    res.add_assign_mixed(&vk_param);
+
+    res
 }
