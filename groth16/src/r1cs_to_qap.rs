@@ -103,9 +103,8 @@ impl R1CStoQAP {
     #[inline]
     pub(crate) fn witness_map<E: PairingEngine>(
         prover: &ProvingAssignment<E>,
-    ) -> Result<(Vec<E::Fr>, Vec<E::Fr>, usize), SynthesisError> {
+    ) -> Result<Vec<E::Fr>, SynthesisError> {
         let zero = E::Fr::zero();
-        let one = E::Fr::one();
         let num_inputs = prover.input_assignment.len();
         let num_constraints = prover.num_constraints();
 
@@ -129,7 +128,7 @@ impl R1CStoQAP {
             });
 
         for i in 0..num_inputs {
-            a[num_constraints + i] = if i > 0 { full_input_assignment[i] } else { one };
+            a[num_constraints + i] = full_input_assignment[i];
         }
 
         domain.ifft_in_place(&mut a);
@@ -159,11 +158,6 @@ impl R1CStoQAP {
         domain.divide_by_vanishing_poly_on_coset_in_place(&mut ab);
         domain.coset_ifft_in_place(&mut ab);
 
-        let mut h: Vec<E::Fr> = vec![zero; domain_size - 1];
-        cfg_iter_mut!(h)
-            .enumerate()
-            .for_each(|(i, e)| e.add_assign(&ab[i]));
-
-        Ok((full_input_assignment, h, domain_size))
+        Ok(ab)
     }
 }

@@ -150,14 +150,17 @@ where
     let synthesis_time = start_timer!(|| "Constraint synthesis");
     circuit.generate_constraints(&mut prover)?;
     end_timer!(synthesis_time);
+    let full_input_assignment =
+        [&prover.input_assignment[..], &prover.aux_assignment[..]].concat();
 
     let witness_map_time = start_timer!(|| "R1CS to QAP witness map");
-    let (full_input_assignment, h, _) = R1CStoQAP::witness_map::<E>(&prover)?;
+    let h = R1CStoQAP::witness_map::<E>(&prover)?;
     end_timer!(witness_map_time);
 
     let num_inputs = prover.input_assignment.len();
 
-    let input_assignment = cfg_into_iter!(full_input_assignment[1..num_inputs])
+    let input_assignment = full_input_assignment[1..num_inputs]
+        .into_iter()
         .map(|s| s.into_repr())
         .collect::<Vec<_>>();
 
