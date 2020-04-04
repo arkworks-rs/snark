@@ -101,7 +101,6 @@ impl R1CStoQAP {
         let full_input_assignment =
             [&prover.input_assignment[..], &prover.aux_assignment[..]].concat();
 
-        // dbg!(prover.num_constraints, prover.num_inputs);
         let domain = EvaluationDomain::<E::Fr>::new(num_constraints + num_inputs)
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
         let domain_size = domain.size();
