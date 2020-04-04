@@ -52,14 +52,13 @@ use crate::constraints::Benchmark;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
-    if args.len() < 4 || args[1] == "-h" || args[1] == "--help" {
+    if args.len() < 3 || args[1] == "-h" || args[1] == "--help" {
         println!(
-            "\nHelp: Invoke this as <program> <num_inputs> <num_constraints> <output_file_path>\n"
+            "\nHelp: Invoke this as <program> <num_constraints> <output_file_path>\n"
         );
     }
-    let num_inputs: usize = args[1].parse().unwrap();
-    let num_constraints: usize = args[2].parse().unwrap();
-    let output_file_path = PathBuf::from(args[3].clone());
+    let num_constraints: usize = args[1].parse().unwrap();
+    let output_file_path = PathBuf::from(args[2].clone());
     let mut wtr = if !output_file_path.exists() {
         println!("Creating output file");
         let f = OpenOptions::new()
@@ -68,7 +67,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             .open(output_file_path)?;
         let mut wtr = csv::Writer::from_writer(f);
         wtr.write_record(&[
-            "num_inputs",
             "num_constraints",
             "setup",
             "prover",
