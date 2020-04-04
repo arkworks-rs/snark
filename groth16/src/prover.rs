@@ -169,8 +169,7 @@ where
 
     let num_inputs = prover.input_assignment.len();
 
-    let input_assignment = full_input_assignment[1..num_inputs]
-        .into_iter()
+    let input_assignment = cfg_into_iter!(full_input_assignment[1..num_inputs])
         .map(|s| s.into_repr())
         .collect::<Vec<_>>();
 
@@ -180,8 +179,7 @@ where
 
     drop(full_input_assignment);
 
-    let h_input_assignment = h[0..num_inputs]
-        .into_iter()
+    let h_input_assignment = cfg_into_iter!(h[0..num_inputs])
         .map(|s| s.into_repr())
         .collect::<Vec<_>>();
 
@@ -214,7 +212,7 @@ where
         let b_inputs_acc = VariableBaseMSM::multi_scalar_mul(b_inputs_source, &input_assignment);
         let b_aux_acc = VariableBaseMSM::multi_scalar_mul(b_aux_source, &aux_assignment);
 
-        let s_g1 = params.delta_g1.mul(s.clone());
+        let s_g1 = params.delta_g1.mul(s);
 
         let mut g1_b = s_g1;
         g1_b.add_assign_mixed(&params.get_b_g1_query_full()?[0]);
@@ -235,7 +233,7 @@ where
     let b_inputs_acc = VariableBaseMSM::multi_scalar_mul(b_inputs_source, &input_assignment);
     let b_aux_acc = VariableBaseMSM::multi_scalar_mul(b_aux_source, &aux_assignment);
 
-    let s_g2 = params.vk.delta_g2.mul(s.clone());
+    let s_g2 = params.vk.delta_g2.mul(s);
 
     let mut g2_b = s_g2;
     g2_b.add_assign_mixed(&params.get_b_g2_query_full()?[0]);
@@ -254,8 +252,8 @@ where
     let l_aux_source = params.get_l_query_full()?;
     let l_aux_acc = VariableBaseMSM::multi_scalar_mul(l_aux_source, &aux_assignment);
 
-    let s_g_a = g_a.clone().mul(s);
-    let r_g1_b = g1_b.clone().mul(r);
+    let s_g_a = g_a.mul(s);
+    let r_g1_b = g1_b.mul(r);
     let r_s_delta_g1 = params.delta_g1.into_projective().mul(r).mul(s);
 
     let mut g_c = s_g_a;
