@@ -453,6 +453,10 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> FieldGadget<Fp
         3
     }
 
+    fn cost_of_mul_equals() -> usize {
+        Self::cost_of_mul()
+    }
+
     fn cost_of_inv() -> usize {
         2
     }

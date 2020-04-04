@@ -642,6 +642,10 @@ where
         unimplemented!()
     }
 
+    fn cost_of_mul_equals() -> usize {
+        Self::cost_of_mul()
+    }
+
     fn cost_of_inv() -> usize {
         Self::cost_of_mul() + <Self as EqGadget<ConstraintF>>::cost()
     }

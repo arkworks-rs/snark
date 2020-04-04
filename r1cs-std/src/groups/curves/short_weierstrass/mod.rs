@@ -11,6 +11,8 @@ use r1cs_core::{ConstraintSystem, SynthesisError};
 use crate::{prelude::*, Assignment, Vec};
 
 pub mod bls12;
+pub mod mnt4;
+pub mod mnt6;
 
 #[derive(Derivative)]
 #[derivative(Debug, Clone)]
@@ -321,7 +323,7 @@ where
     }
 
     fn cost_of_add() -> usize {
-        3 * F::cost_of_mul() + F::cost_of_inv()
+        3 * F::cost_of_mul_equals() + F::cost_of_inv()
     }
 
     fn cost_of_double() -> usize {

@@ -270,6 +270,10 @@ impl<F: PrimeField> FieldGadget<F, F> for FpGadget<F> {
         1
     }
 
+    fn cost_of_mul_equals() -> usize {
+        1
+    }
+
     fn cost_of_inv() -> usize {
         1
     }

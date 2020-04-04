@@ -6,7 +6,7 @@ use core::{borrow::Borrow, fmt::Debug};
 
 pub mod curves;
 
-pub use self::curves::short_weierstrass::bls12;
+pub use self::curves::short_weierstrass::{bls12, mnt4, mnt6};
 
 pub trait GroupGadget<G: Group, ConstraintF: Field>:
     Sized

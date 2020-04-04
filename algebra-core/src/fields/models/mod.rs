@@ -19,6 +19,9 @@ pub use self::fp2::*;
 pub mod fp3;
 pub use self::fp3::*;
 
+pub mod fp4;
+pub use self::fp4::*;
+
 pub mod fp6_2over3;
 
 pub mod fp6_3over2;

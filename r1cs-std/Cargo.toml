@@ -35,12 +35,16 @@ algebra = { path = "../algebra", default-features = false, features = [ "bls12_3
 
 [features]
 default = ["std"]
-full = [ "bls12_377", "jubjub", "edwards_bls12", "edwards_sw6", ]
+full = [ "bls12_377", "jubjub", "edwards_bls12", "edwards_sw6", "mnt4_298", "mnt4_753", "mnt6_298", "mnt6_753" ]
 
 bls12_377 = [ "algebra/bls12_377" ]
 jubjub = [ "algebra/jubjub" ]
 edwards_bls12 = [ "algebra/edwards_bls12" ]
 edwards_sw6 = [ "algebra/edwards_sw6" ]
+mnt4_298 = [ "algebra/mnt4_298" ]
+mnt4_753 = [ "algebra/mnt4_753" ]
+mnt6_298 = [ "algebra/mnt6_298" ]
+mnt6_753 = [ "algebra/mnt6_753" ]
 
 std = [ "algebra/std" ]
 parallel = [ "std", "algebra/parallel" ]
