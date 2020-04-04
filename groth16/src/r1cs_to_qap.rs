@@ -3,7 +3,7 @@ use ff_fft::{cfg_iter, cfg_iter_mut, EvaluationDomain};
 
 use crate::{generator::KeypairAssembly, prover::ProvingAssignment, Vec};
 use core::ops::AddAssign;
-use r1cs_core::{Index, SynthesisError, ConstraintSystem};
+use r1cs_core::{ConstraintSystem, Index, SynthesisError};
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
@@ -98,13 +98,12 @@ impl R1CStoQAP {
         let num_inputs = prover.input_assignment.len();
         let num_constraints = prover.num_constraints();
 
+        let full_input_assignment =
+            [&prover.input_assignment[..], &prover.aux_assignment[..]].concat();
 
-        let mut full_input_assignment = prover.input_assignment.clone();
-        full_input_assignment.extend(prover.aux_assignment.clone());
-
-        let domain =
-            EvaluationDomain::<E::Fr>::new(num_constraints + num_inputs)
-                .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        // dbg!(prover.num_constraints, prover.num_inputs);
+        let domain = EvaluationDomain::<E::Fr>::new(num_constraints + num_inputs)
+            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
         let domain_size = domain.size();
 
         let mut a = vec![zero; domain_size];
@@ -137,11 +136,7 @@ impl R1CStoQAP {
         cfg_iter_mut!(c[..prover.num_constraints()])
             .enumerate()
             .for_each(|(i, c)| {
-                *c = evaluate_constraint::<E>(
-                    &prover.ct[i],
-                    &full_input_assignment,
-                    num_inputs,
-                );
+                *c = evaluate_constraint::<E>(&prover.ct[i], &full_input_assignment, num_inputs);
             });
 
         domain.ifft_in_place(&mut c);
