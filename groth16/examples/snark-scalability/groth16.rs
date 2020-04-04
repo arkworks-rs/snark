@@ -145,15 +145,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         verifying_avg.subsec_nanos() as f64 / 1_000_000_000f64 + (verifying_avg.as_secs() as f64);
 
     println!(
-        "=== Benchmarking Groth16 with {} inputs and {} constraints: ====",
-        num_inputs, num_constraints
+        "=== Benchmarking Groth16 with {} constraints: ====",
+        num_constraints
     );
     println!("Average setup time: {:?} seconds", setup_avg);
     println!("Average proving time: {:?} seconds", proving_avg);
     println!("Average verifying time: {:?} seconds", verifying_avg);
 
     wtr.write_record(&[
-        format!("{}", num_inputs),
         format!("{}", num_constraints),
         format!("{}", setup_avg),
         format!("{}", proving_avg),
