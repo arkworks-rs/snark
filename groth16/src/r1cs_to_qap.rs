@@ -1,5 +1,5 @@
 use algebra_core::{One, PairingEngine, Zero};
-use ff_fft::{cfg_iter, cfg_iter_mut, EvaluationDomain};
+use ff_fft::{cfg_into_iter, cfg_iter, cfg_iter_mut, EvaluationDomain};
 
 use crate::{generator::KeypairAssembly, prover::ProvingAssignment, Vec};
 use core::ops::AddAssign;
@@ -7,6 +7,38 @@ use r1cs_core::{ConstraintSystem, Index, SynthesisError};
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
+
+#[inline]
+fn evaluate_constraint<'a, LHS, RHS, R>(
+    terms: &'a [(LHS, Index)],
+    assignment: &'a [RHS],
+    num_inputs: usize,
+) -> R
+where
+    LHS: One + Send + Sync + PartialEq,
+    RHS: Send + Sync + std::ops::Mul<&'a LHS, Output = RHS> + Copy,
+    R: std::iter::Sum + Zero + Send + AddAssign<RHS>,
+{
+    cfg_into_iter!(terms)
+        .fold(
+            || R::zero(),
+            |mut sum, (coeff, index)| {
+                let val = match index {
+                    Index::Input(i) => &assignment[*i],
+                    Index::Aux(i) => &assignment[num_inputs + i],
+                };
+
+                if coeff.is_one() {
+                    sum += *val;
+                } else {
+                    sum += val.mul(coeff);
+                }
+
+                sum
+            },
+        )
+        .sum()
+}
 
 pub(crate) struct R1CStoQAP;
 
@@ -72,27 +104,6 @@ impl R1CStoQAP {
     pub(crate) fn witness_map<E: PairingEngine>(
         prover: &ProvingAssignment<E>,
     ) -> Result<(Vec<E::Fr>, Vec<E::Fr>, usize), SynthesisError> {
-        #[inline]
-        fn evaluate_constraint<E: PairingEngine>(
-            terms: &[(E::Fr, Index)],
-            assignment: &[E::Fr],
-            num_input: usize,
-        ) -> E::Fr {
-            let mut acc = E::Fr::zero();
-            for &(coeff, index) in terms {
-                let val = match index {
-                    Index::Input(i) => assignment[i],
-                    Index::Aux(i) => assignment[num_input + i],
-                };
-                if coeff.is_one() {
-                    acc += &val;
-                } else {
-                    acc += &(val * &coeff);
-                }
-            }
-            acc
-        }
-
         let zero = E::Fr::zero();
         let one = E::Fr::one();
         let num_inputs = prover.input_assignment.len();
@@ -113,8 +124,8 @@ impl R1CStoQAP {
             .zip(cfg_iter!(&prover.at))
             .zip(cfg_iter!(&prover.bt))
             .for_each(|(((a, b), at_i), bt_i)| {
-                *a = evaluate_constraint::<E>(&at_i, &full_input_assignment, num_inputs);
-                *b = evaluate_constraint::<E>(&bt_i, &full_input_assignment, num_inputs);
+                *a = evaluate_constraint(&at_i, &full_input_assignment, num_inputs);
+                *b = evaluate_constraint(&bt_i, &full_input_assignment, num_inputs);
             });
 
         for i in 0..num_inputs {
@@ -135,7 +146,7 @@ impl R1CStoQAP {
         cfg_iter_mut!(c[..prover.num_constraints()])
             .enumerate()
             .for_each(|(i, c)| {
-                *c = evaluate_constraint::<E>(&prover.ct[i], &full_input_assignment, num_inputs);
+                *c = evaluate_constraint(&prover.ct[i], &full_input_assignment, num_inputs);
             });
 
         domain.ifft_in_place(&mut c);
