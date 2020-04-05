@@ -128,7 +128,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         let start = Instant::now();
         // let proof = Proof::read(&proof_vec[..]).unwrap();
         // Check the proof
-        let _ = verify_proof(&pvk, &proof, &inputs).unwrap();
+        let r = verify_proof(&pvk, &proof, &inputs).unwrap();
+        assert!(r);
         total_verifying += start.elapsed();
     }
 

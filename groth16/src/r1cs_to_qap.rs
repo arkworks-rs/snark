@@ -16,8 +16,8 @@ fn evaluate_constraint<'a, LHS, RHS, R>(
 ) -> R
 where
     LHS: One + Send + Sync + PartialEq,
-    RHS: Send + Sync + std::ops::Mul<&'a LHS, Output = RHS> + Copy,
-    R: std::iter::Sum + Zero + Send + AddAssign<RHS>,
+    RHS: Send + Sync + core::ops::Mul<&'a LHS, Output = RHS> + Copy,
+    R: core::iter::Sum + Zero + Send + AddAssign<RHS>,
 {
     cfg_into_iter!(terms)
         .fold(
