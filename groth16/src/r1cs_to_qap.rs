@@ -1,5 +1,5 @@
 use algebra_core::{One, PairingEngine, Zero};
-use ff_fft::{cfg_into_iter, cfg_iter, cfg_iter_mut, EvaluationDomain};
+use ff_fft::{cfg_iter, cfg_iter_mut, EvaluationDomain};
 
 use crate::{generator::KeypairAssembly, prover::ProvingAssignment, Vec};
 use core::ops::AddAssign;
@@ -17,27 +17,34 @@ fn evaluate_constraint<'a, LHS, RHS, R>(
 where
     LHS: One + Send + Sync + PartialEq,
     RHS: Send + Sync + core::ops::Mul<&'a LHS, Output = RHS> + Copy,
-    R: core::iter::Sum + Zero + Send + AddAssign<RHS>,
+    R: Zero + Send + Sync + AddAssign<RHS> + core::iter::Sum,
 {
-    cfg_into_iter!(terms)
-        .fold(
-            || R::zero(),
-            |mut sum, (coeff, index)| {
-                let val = match index {
-                    Index::Input(i) => &assignment[*i],
-                    Index::Aux(i) => &assignment[num_inputs + i],
-                };
+    // Need to wrap in a closure when using Rayon
+    #[cfg(feature = "parallel")]
+    let zero = || R::zero();
+    #[cfg(not(feature = "parallel"))]
+    let zero = R::zero();
 
-                if coeff.is_one() {
-                    sum += *val;
-                } else {
-                    sum += val.mul(coeff);
-                }
+    let res = cfg_iter!(terms).fold(zero, |mut sum, (coeff, index)| {
+        let val = match index {
+            Index::Input(i) => &assignment[*i],
+            Index::Aux(i) => &assignment[num_inputs + i],
+        };
 
-                sum
-            },
-        )
-        .sum()
+        if coeff.is_one() {
+            sum += *val;
+        } else {
+            sum += val.mul(coeff);
+        }
+
+        sum
+    });
+
+    // Need to explicitly call `.sum()` when using Rayon
+    #[cfg(feature = "parallel")]
+    return res.sum();
+    #[cfg(not(feature = "parallel"))]
+    return res;
 }
 
 pub(crate) struct R1CStoQAP;
