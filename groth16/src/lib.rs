@@ -24,12 +24,13 @@ use alloc::{string::String, vec::Vec};
 use std::{string::String, vec::Vec};
 
 use algebra_core::{
+    Field,
     bytes::ToBytes,
     io::{self, Result as IoResult},
     serialize::*,
     PairingEngine,
 };
-use r1cs_core::SynthesisError;
+use r1cs_core::{SynthesisError, Index, LinearCombination};
 
 /// Reduce an R1CS instance to a *Quadratic Arithmetic Program* instance.
 pub mod r1cs_to_qap;
@@ -212,6 +213,19 @@ impl<E: PairingEngine> ToBytes for PreparedVerifyingKey<E> {
             q.write(&mut writer)?;
         }
         Ok(())
+    }
+}
+
+fn push_constraints<F: Field>(
+    l: LinearCombination<F>,
+    constraints: &mut [Vec<(F, Index)>],
+    this_constraint: usize,
+) {
+    for (var, coeff) in l.as_ref() {
+        match var.get_unchecked() {
+            Index::Input(i) => constraints[this_constraint].push((*coeff, Index::Input(i))),
+            Index::Aux(i) => constraints[this_constraint].push((*coeff, Index::Aux(i))),
+        }
     }
 }
 

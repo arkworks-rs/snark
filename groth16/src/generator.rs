@@ -11,7 +11,7 @@ use rand::Rng;
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
-use crate::{r1cs_to_qap::R1CStoQAP, Parameters, String, Vec, VerifyingKey};
+use crate::{r1cs_to_qap::R1CStoQAP, Parameters, String, Vec, VerifyingKey, push_constraints};
 
 /// Generates a random common reference string for
 /// a circuit.
@@ -86,34 +86,22 @@ impl<E: PairingEngine> ConstraintSystem<E::Fr> for KeypairAssembly<E> {
         LB: FnOnce(LinearCombination<E::Fr>) -> LinearCombination<E::Fr>,
         LC: FnOnce(LinearCombination<E::Fr>) -> LinearCombination<E::Fr>,
     {
-        fn eval<E: PairingEngine>(
-            l: LinearCombination<E::Fr>,
-            constraints: &mut [Vec<(E::Fr, Index)>],
-            this_constraint: usize,
-        ) {
-            for (var, coeff) in l.as_ref() {
-                match var.get_unchecked() {
-                    Index::Input(i) => constraints[this_constraint].push((*coeff, Index::Input(i))),
-                    Index::Aux(i) => constraints[this_constraint].push((*coeff, Index::Aux(i))),
-                }
-            }
-        }
 
         self.at.push(vec![]);
         self.bt.push(vec![]);
         self.ct.push(vec![]);
 
-        eval::<E>(
+        push_constraints(
             a(LinearCombination::zero()),
             &mut self.at,
             self.num_constraints,
         );
-        eval::<E>(
+        push_constraints(
             b(LinearCombination::zero()),
             &mut self.bt,
             self.num_constraints,
         );
-        eval::<E>(
+        push_constraints(
             c(LinearCombination::zero()),
             &mut self.ct,
             self.num_constraints,
