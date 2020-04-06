@@ -679,7 +679,8 @@ mod test {
     }
 
     /*
-    progress test for the inverse gadget, should fail on old, insecure gadget
+    progression test for the inverse gadget, should fail on old, insecure gadget
+    which does not implement sufficiently many restristriction to enforce the inverse relation.
     */
     use algebra::fields::{
         SquareRootField, Fp2Parameters
@@ -735,8 +736,6 @@ mod test {
         if !cs.is_satisfied() {
             println!("{:?}", cs.which_is_unsatisfied().unwrap());
         }
-
-
 
         let a = Fq6Gadget::alloc(&mut cs.ns(|| "generate_e"), || Ok(Fq6::rand(&mut rng))).unwrap();
         let b = Fq6Gadget::alloc(&mut cs.ns(|| "generate_f"), || Ok(Fq6::rand(&mut rng))).unwrap();
@@ -818,7 +817,6 @@ mod test {
         if !cs.is_satisfied() {
             println!("{:?}", cs.which_is_unsatisfied().unwrap());
         }
-
 
         equ_verdict_fp_gadget_test::<Fq>();
         from_bits_fp_gadget_test::<Fq>();
