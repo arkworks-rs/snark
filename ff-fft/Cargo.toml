@@ -25,7 +25,7 @@ rand = { version = "0.7", default-features = false }
 rayon = { version = "1", optional = true }
 
 [dev-dependencies]
-algebra = { path = "../algebra", default-features = false, features = [ "bls12_381" ] }
+algebra = { path = "../algebra", default-features = false, features = [ "bls12_381", "mnt6_753" ] }
 
 [features]
 default = [ "parallel" ]

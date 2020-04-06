@@ -5,17 +5,24 @@
 //! In pairing-based SNARKs like GM17, we need to calculate
 //! a quotient polynomial over a target polynomial with roots
 //! at distinct points associated with each constraint of the
-//! constraint system. In order to be efficient, we choose these
+//! constraint system. In order to be efficient, we try to choose these
 //! roots to be the powers of a 2^n root of unity in the field.
 //! This allows us to perform polynomial operations in O(n)
 //! by performing an O(n log n) FFT over such a domain.
+//!
+//! If the 2-adicity of the field is too small, but a small subgroup
+//! over the field is defined, we will try to build a mixed-radix evaluation
+//! domain.
 
-use crate::Vec;
-use algebra_core::{FpParameters, PrimeField};
+use self::utils::mixed_radix_fft_permute;
+use crate::{domain::utils::best_mixed_domain_size, Vec};
+use algebra_core::{fields::utils::k_adicity, FpParameters, PrimeField};
 use core::fmt;
 use rand::Rng;
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
+
+pub(crate) mod utils;
 
 /// Defines a domain over which finite field (I)FFTs can be performed. Works
 /// only for fields that have a large multiplicative subgroup of size that is
@@ -81,20 +88,62 @@ impl<F: PrimeField> EvaluationDomain<F> {
 
     /// Construct a domain that is large enough for evaluations of a polynomial
     /// having `num_coeffs` coefficients.
+    ///
+    /// If the field specifies a small subgroup for a mixed-radix FFT and
+    /// the radix-2 FFT cannot be constructed, this method tries
+    /// constructing a mixed-radix FFT instead.
     pub fn new(num_coeffs: usize) -> Option<Self> {
-        // Compute the size of our evaluation domain
-        let size = num_coeffs.next_power_of_two() as u64;
-        let log_size_of_group = size.trailing_zeros();
-
-        if log_size_of_group >= F::Params::TWO_ADICITY {
-            return None;
+        let domain = Self::construct(num_coeffs);
+        if domain.is_some() {
+            return domain;
         }
 
-        // Compute the generator for the multiplicative subgroup.
-        // It should be 2^(log_size_of_group) root of unity.
-        let mut group_gen = F::root_of_unity();
-        for _ in log_size_of_group..F::Params::TWO_ADICITY {
-            group_gen.square_in_place();
+        if F::Params::SMALL_SUBGROUP_BASE.is_some() {
+            let s = best_mixed_domain_size::<F>(num_coeffs);
+            return Self::construct(s);
+        }
+
+        None
+    }
+
+    /// Construct a domain that is large enough for evaluations of a polynomial
+    /// having `num_coeffs` coefficients.
+    pub fn construct(num_coeffs: usize) -> Option<Self> {
+        // Compute the size of our evaluation domain
+        let size;
+        let log_size_of_group;
+        let group_gen;
+
+        if let Some(small_subgroup_base) = F::Params::SMALL_SUBGROUP_BASE {
+            let q = small_subgroup_base as usize;
+            let q_adicity = k_adicity(q, num_coeffs);
+            let q_part = q.pow(q_adicity);
+
+            let two_adicity = k_adicity(2, num_coeffs);
+            let two_part = 1 << two_adicity;
+
+            size = num_coeffs as u64;
+            log_size_of_group = two_adicity;
+
+            if num_coeffs != q_part * two_part {
+                return None;
+            }
+
+            group_gen = F::get_root_of_unity(num_coeffs)?;
+        } else {
+            // Compute the size of our evaluation domain
+            size = num_coeffs.next_power_of_two() as u64;
+            log_size_of_group = size.trailing_zeros();
+
+            // TODO: Check > vs. >= here.
+            // libfqfft uses > https://github.com/scipr-lab/libfqfft/blob/e0183b2cef7d4c5deb21a6eaf3fe3b586d738fe0/libfqfft/evaluation_domain/domains/basic_radix2_domain.tcc#L33
+            if log_size_of_group > F::Params::TWO_ADICITY {
+                return None;
+            }
+
+            // Compute the generator for the multiplicative subgroup.
+            // It should be 2^(log_size_of_group) root of unity.
+            group_gen = F::get_root_of_unity(num_coeffs)?;
         }
 
         let size_as_bigint = F::BigInt::from(size);
@@ -114,12 +163,28 @@ impl<F: PrimeField> EvaluationDomain<F> {
 
     /// Return the size of a domain that is large enough for evaluations of a
     /// polynomial having `num_coeffs` coefficients.
-    pub fn compute_size_of_domain(num_coeffs: usize) -> Option<usize> {
-        let size = num_coeffs.next_power_of_two();
-        if size.trailing_zeros() < F::Params::TWO_ADICITY {
-            Some(size)
+    fn compute_size_of_domain(num_coeffs: usize) -> Option<usize> {
+        if let Some(small_subgroup_base) = F::Params::SMALL_SUBGROUP_BASE {
+            let q = small_subgroup_base as usize;
+            let q_adicity = k_adicity(q, num_coeffs);
+            let q_part = q.pow(q_adicity);
+
+            let two_adicity = k_adicity(2, num_coeffs);
+            let two_part = 1 << two_adicity;
+
+            if num_coeffs == q_part * two_part {
+                Some(num_coeffs)
+            } else {
+                None
+            }
         } else {
-            None
+            let size = num_coeffs.next_power_of_two();
+            // TODO: Check > vs. >= here.
+            if size.trailing_zeros() <= F::Params::TWO_ADICITY {
+                Some(size)
+            } else {
+                None
+            }
         }
     }
 
@@ -339,7 +404,8 @@ fn best_fft<T: DomainCoeff<F>, F: PrimeField>(a: &mut [T], omega: F, log_n: u32)
 }
 
 #[cfg(not(feature = "parallel"))]
-fn best_fft<T: DomainCoeff<F>, F: PrimeField>(a: &mut [T], omega: F, log_n: u32) {
+#[inline]
+pub(crate) fn best_fft<T: DomainCoeff<F>, F: PrimeField>(a: &mut [T], omega: F, log_n: u32) {
     serial_fft(a, omega, log_n)
 }
 
@@ -354,6 +420,18 @@ fn bitreverse(mut n: u32, l: u32) -> u32 {
 }
 
 pub(crate) fn serial_fft<T: DomainCoeff<F>, F: PrimeField>(a: &mut [T], omega: F, log_n: u32) {
+    if F::Params::SMALL_SUBGROUP_BASE.is_some() {
+        serial_mixed_radix_fft(a, omega, log_n)
+    } else {
+        serial_radix2_fft(a, omega, log_n)
+    }
+}
+
+pub(crate) fn serial_radix2_fft<T: DomainCoeff<F>, F: PrimeField>(
+    a: &mut [T],
+    omega: F,
+    log_n: u32,
+) {
     let n = a.len() as u32;
     assert_eq!(n, 1 << log_n);
 
@@ -388,6 +466,125 @@ pub(crate) fn serial_fft<T: DomainCoeff<F>, F: PrimeField>(a: &mut [T], omega: F
     }
 }
 
+pub(crate) fn serial_mixed_radix_fft<T: DomainCoeff<F>, F: PrimeField>(
+    a: &mut [T],
+    omega: F,
+    two_adicity: u32,
+) {
+    // Conceptually, this FFT first splits into 2 sub-arrays two_adicity many times,
+    // and then splits into q sub-arrays q_adicity many times.
+
+    let n = a.len();
+    let q = F::Params::SMALL_SUBGROUP_BASE.unwrap() as usize;
+
+    let q_adicity = k_adicity(q, n);
+    let q_part = q.pow(q_adicity);
+    let two_part = 1 << two_adicity;
+
+    assert_eq!(n, q_part * two_part);
+
+    let mut m = 1; // invariant: m = 2^{s-1}
+
+    if q_adicity > 0 {
+        // If we're using the other radix, we have to do two things differently than in
+        // the radix 2 case. 1. Applying the index permutation is a bit more
+        // complicated. It isn't an involution (like it is in the radix 2 case)
+        // so we need to remember which elements we've moved as we go along
+        // and can't use the trick of just swapping when processing the first element of
+        // a 2-cycle.
+        //
+        // 2. We need to do q_adicity many merge passes, each of which is a bit more
+        // complicated than the specialized q=2 case.
+
+        // Applying the permutation
+        let mut seen = vec![false; n];
+        for k in 0..n {
+            let mut i = k;
+            let mut a_i = a[i];
+            while !seen[i] {
+                let dest = mixed_radix_fft_permute(two_adicity, q_adicity, q, n, i);
+
+                let a_dest = a[dest];
+                a[dest] = a_i;
+
+                seen[i] = true;
+
+                a_i = a_dest;
+                i = dest;
+            }
+        }
+
+        let omega_q = omega.pow(&[(n / q) as u64]);
+        let mut qth_roots = Vec::with_capacity(q);
+        qth_roots.push(F::one());
+        for i in 1..q {
+            qth_roots.push(qth_roots[i - 1] * omega_q);
+        }
+
+        let mut terms = vec![T::zero(); q - 1];
+
+        // Doing the q_adicity passes.
+        for _ in 0..q_adicity {
+            let w_m = omega.pow(&[(n / (q * m)) as u64]);
+            let mut k = 0;
+            while k < n {
+                let mut w_j = F::one(); // w_j is omega_m ^ j
+                for j in 0..m {
+                    let base_term = a[k + j];
+                    let mut w_j_i = w_j;
+                    for i in 1..q {
+                        terms[i - 1] = a[k + j + i * m];
+                        terms[i - 1] *= w_j_i;
+                        w_j_i *= w_j;
+                    }
+
+                    for i in 0..q {
+                        a[k + j + i * m] = base_term;
+                        for l in 1..q {
+                            let mut tmp = terms[l - 1];
+                            tmp *= qth_roots[(i * l) % q];
+                            a[k + j + i * m] += tmp;
+                        }
+                    }
+
+                    w_j *= w_m;
+                }
+
+                k += q * m;
+            }
+            m *= q;
+        }
+    } else {
+        // swapping in place (from Storer's book)
+        for k in 0..n {
+            let rk = bitreverse(k as u32, two_adicity) as usize;
+            if k < rk {
+                a.swap(k, rk);
+            }
+        }
+    }
+
+    for _ in 0..two_adicity {
+        // w_m is 2^s-th root of unity now
+        let w_m = omega.pow(&[(n / (2 * m)) as u64]);
+
+        let mut k = 0;
+        while k < n {
+            let mut w = F::one();
+            for j in 0..m {
+                let mut t = a[(k + m) + j];
+                t *= w;
+                a[(k + m) + j] = a[k + j];
+                a[(k + m) + j] -= t;
+                a[k + j] += t;
+                w *= w_m;
+            }
+            k += 2 * m;
+        }
+        m *= 2;
+    }
+}
+
 #[cfg(feature = "parallel")]
 pub(crate) fn parallel_fft<T: DomainCoeff<F>, F: PrimeField>(
     a: &mut [T],
@@ -397,20 +594,24 @@ pub(crate) fn parallel_fft<T: DomainCoeff<F>, F: PrimeField>(
 ) {
     assert!(log_n >= log_cpus);
 
-    let num_cpus = 1 << log_cpus;
-    let log_new_n = log_n - log_cpus;
-    let mut tmp = vec![vec![T::zero(); 1 << log_new_n]; num_cpus];
-    let new_omega = omega.pow(&[num_cpus as u64]);
+    let m = a.len();
+    let num_chunks = 1 << (log_cpus as usize);
+    assert_eq!(m % num_chunks, 0);
+    let m_div_num_chunks = m / num_chunks;
+
+    let mut tmp = vec![vec![T::zero(); m_div_num_chunks]; num_chunks];
+    let new_omega = omega.pow(&[num_chunks as u64]);
+    let new_two_adicity = k_adicity(2, m_div_num_chunks);
 
     tmp.par_iter_mut().enumerate().for_each(|(j, tmp)| {
         // Shuffle into a sub-FFT
         let omega_j = omega.pow(&[j as u64]);
-        let omega_step = omega.pow(&[(j as u64) << log_new_n]);
+        let omega_step = omega.pow(&[(j * m_div_num_chunks) as u64]);
 
         let mut elt = F::one();
-        for i in 0..(1 << log_new_n) {
-            for s in 0..num_cpus {
-                let idx = (i + (s << log_new_n)) % (1 << log_n);
+        for i in 0..m_div_num_chunks {
+            for s in 0..num_chunks {
+                let idx = (i + (s * m_div_num_chunks)) % m;
                 let mut t = a[idx];
                 t *= elt;
                 tmp[i] += t;
@@ -420,13 +621,12 @@ pub(crate) fn parallel_fft<T: DomainCoeff<F>, F: PrimeField>(
         }
 
         // Perform sub-FFT
-        serial_fft(tmp, new_omega, log_new_n);
+        serial_fft(tmp, new_omega, new_two_adicity);
     });
 
-    let mask = (1 << log_cpus) - 1;
     a.iter_mut()
         .enumerate()
-        .for_each(|(i, a)| *a = tmp[i & mask][i >> log_cpus]);
+        .for_each(|(i, a)| *a = tmp[i % num_chunks][i / num_chunks]);
 }
 
 /// An iterator over the elements of the domain.

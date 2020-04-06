@@ -1,5 +1,8 @@
 use crate::domain::*;
-use algebra::bls12_381::{Bls12_381, Fr, G1Projective};
+use algebra::{
+    bls12_381::{Bls12_381, Fr, G1Projective},
+    mnt6_753::{Fr as MNT6Fr, G1Projective as MNT6G1Projective, MNT6_753},
+};
 use algebra_core::{test_rng, PairingEngine, PrimeField, UniformRand};
 
 // Test multiplying various (low degree) polynomials together and
@@ -12,8 +15,9 @@ fn fft_composition() {
         R: rand::Rng,
     >(
         rng: &mut R,
+        max_coeffs: usize,
     ) {
-        for coeffs in 0..10 {
+        for coeffs in 0..max_coeffs {
             let coeffs = 1 << coeffs;
 
             let mut v = vec![];
@@ -43,8 +47,10 @@ fn fft_composition() {
 
     let rng = &mut test_rng();
 
-    test_fft_composition::<Fr, Fr, _>(rng);
-    test_fft_composition::<Fr, G1Projective, _>(rng);
+    test_fft_composition::<Fr, Fr, _>(rng, 10);
+    test_fft_composition::<Fr, G1Projective, _>(rng, 10);
+    test_fft_composition::<MNT6Fr, MNT6Fr, _>(rng, 16);
+    test_fft_composition::<MNT6Fr, MNT6G1Projective, _>(rng, 5);
 }
 
 #[test]
@@ -53,9 +59,9 @@ fn parallel_fft_consistency() {
     use crate::Vec;
     use core::cmp::min;
 
-    fn test_consistency<E: PairingEngine, R: rand::Rng>(rng: &mut R) {
+    fn test_consistency<E: PairingEngine, R: rand::Rng>(rng: &mut R, max_coeffs: u32) {
         for _ in 0..5 {
-            for log_d in 0..10 {
+            for log_d in 0..max_coeffs {
                 let d = 1 << log_d;
 
                 let mut v1 = (0..d).map(|_| E::Fr::rand(rng)).collect::<Vec<_>>();
@@ -75,5 +81,6 @@ fn parallel_fft_consistency() {
 
     let rng = &mut test_rng();
 
-    test_consistency::<Bls12_381, _>(rng);
+    test_consistency::<Bls12_381, _>(rng, 10);
+    test_consistency::<MNT6_753, _>(rng, 16);
 }

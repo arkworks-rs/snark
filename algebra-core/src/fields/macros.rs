@@ -218,6 +218,11 @@ macro_rules! impl_Fp {
             fn root_of_unity() -> Self {
                 $Fp::<P>(P::ROOT_OF_UNITY, PhantomData)
             }
+
+            #[inline]
+            fn full_root_of_unity() -> Option<Self> {
+                Some($Fp::<P>(P::FULL_ROOT_OF_UNITY?, PhantomData))
+            }
         }
 
         impl<P: $FpParameters> SquareRootField for $Fp<P> {

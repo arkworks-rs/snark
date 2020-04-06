@@ -1,6 +1,7 @@
 use crate::{
     biginteger::BigInteger,
     bytes::{FromBytes, ToBytes},
+    fields::utils::k_adicity,
     CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
     CanonicalSerializeWithFlags, ConstantSerializedSize, UniformRand, Vec,
 };
@@ -16,6 +17,7 @@ use num_traits::{One, Zero};
 #[macro_use]
 pub mod macros;
 pub mod models;
+pub mod utils;
 
 pub use self::models::*;
 
@@ -206,6 +208,14 @@ pub trait FpParameters: 'static + Send + Sync + Sized {
 
     /// (Self::MODULUS - 1) / 2
     const MODULUS_MINUS_ONE_DIV_TWO: Self::BigInt;
+
+    /// The base of a small subgroup that can be used for mixed-radix FFT.
+    const SMALL_SUBGROUP_BASE: Option<u32> = None;
+    /// The power of a small subgroup that can be used for mixed-radix FFT.
+    const SMALL_SUBGROUP_POWER: Option<u32> = None;
+    /// GENERATOR^((MODULUS-1) / (2^s *
+    /// SMALL_SUBGROUP_BASE^SMALL_SUBGROUP_POWER)) Used for mixed-radix FFT.
+    const FULL_ROOT_OF_UNITY: Option<Self::BigInt> = None;
 }
 
 /// The interface for a prime field.
@@ -258,6 +268,62 @@ pub trait PrimeField:
     /// Returns the modulus minus one divided by two.
     fn modulus_minus_one_div_two() -> Self::BigInt {
         Self::Params::MODULUS_MINUS_ONE_DIV_TWO
+    }
+
+    /// Returns the 2^s * small_subgroup_base^small_subgroup_power root of unity
+    /// if a small subgroup is defined.
+    fn full_root_of_unity() -> Option<Self>;
+
+    /// Returns the root of unity of order n (for n a power of 2), if one
+    /// exists.
+    fn get_root_of_unity(n: usize) -> Option<Self> {
+        let mut omega: Self;
+        if let Some(full_root_of_unity) = Self::full_root_of_unity() {
+            let q = Self::Params::SMALL_SUBGROUP_BASE.expect(
+                "FULL_ROOT_OF_UNITY should only be set in conjunction with SMALL_SUBGROUP_BASE",
+            ) as usize;
+            let small_subgroup_power = Self::Params::SMALL_SUBGROUP_POWER.expect(
+                "FULL_ROOT_OF_UNITY should only be set in conjunction with SMALL_SUBGROUP_POWER",
+            );
+
+            let q_adicity = k_adicity(q, n);
+            let q_part = q.pow(q_adicity);
+
+            let two_adicity = k_adicity(2, n);
+            let two_part = 1 << two_adicity;
+
+            if n != two_part * q_part
+                || (two_adicity > Self::Params::TWO_ADICITY)
+                || (q_adicity > small_subgroup_power)
+            {
+                return None;
+            }
+
+            omega = full_root_of_unity;
+            for _ in q_adicity..small_subgroup_power {
+                omega = omega.pow(&[q as u64]);
+            }
+
+            for _ in two_adicity..Self::Params::TWO_ADICITY {
+                omega.square_in_place();
+            }
+        } else {
+            // Compute the size of our evaluation domain
+            let size = n.next_power_of_two() as u64;
+            let log_size_of_group = size.trailing_zeros();
+
+            if log_size_of_group >= Self::Params::TWO_ADICITY {
+                return None;
+            }
+
+            // Compute the generator for the multiplicative subgroup.
+            // It should be 2^(log_size_of_group) root of unity.
+            omega = Self::root_of_unity();
+            for _ in log_size_of_group..Self::Params::TWO_ADICITY {
+                omega.square_in_place();
+            }
+        }
+        Some(omega)
     }
 }
 
