@@ -422,7 +422,7 @@ where
         let s3 = b.mul(cs.ns(|| "bc"), &c)?.double(cs.ns(|| "s3"))?;
         let s4 = c.square(cs.ns(|| "s4"))?;
 
-        let c0 = Self::mul_fp2_gadget_by_nonresidue(cs.ns(|| "c1 part 1"), &s3)?
+        let c0 = Self::mul_fp2_gadget_by_nonresidue(cs.ns(|| "c0 part 1"), &s3)?
             .add(cs.ns(|| "c0"), &s0)?;
 
         let c1 = Self::mul_fp2_gadget_by_nonresidue(cs.ns(|| "c1 part 1"), &s4)?
