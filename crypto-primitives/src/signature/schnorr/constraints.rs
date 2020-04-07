@@ -1,3 +1,4 @@
+use crate::Vec;
 use algebra_core::{groups::Group, Field};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;

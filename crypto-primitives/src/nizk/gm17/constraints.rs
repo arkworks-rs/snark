@@ -1,4 +1,7 @@
-use crate::nizk::{gm17::Gm17, NIZKVerifierGadget};
+use crate::{
+    nizk::{gm17::Gm17, NIZKVerifierGadget},
+    Vec,
+};
 use algebra_core::{AffineCurve, Field, PairingEngine, ToConstraintField};
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;

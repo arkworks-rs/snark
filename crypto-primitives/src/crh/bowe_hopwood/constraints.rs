@@ -1,9 +1,12 @@
 use core::{borrow::Borrow, hash::Hash, marker::PhantomData};
 
-use crate::crh::{
-    bowe_hopwood::{BoweHopwoodPedersenCRH, BoweHopwoodPedersenParameters, CHUNK_SIZE},
-    pedersen::PedersenWindow,
-    FixedLengthCRHGadget,
+use crate::{
+    crh::{
+        bowe_hopwood::{BoweHopwoodPedersenCRH, BoweHopwoodPedersenParameters, CHUNK_SIZE},
+        pedersen::PedersenWindow,
+        FixedLengthCRHGadget,
+    },
+    Vec,
 };
 use algebra_core::{groups::Group, Field};
 use r1cs_core::{ConstraintSystem, SynthesisError};

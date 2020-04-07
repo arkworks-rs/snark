@@ -1,7 +1,7 @@
 use algebra_core::PrimeField;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
-use crate::prf::PRFGadget;
+use crate::{prf::PRFGadget, Vec};
 use r1cs_std::prelude::*;
 
 use core::borrow::Borrow;

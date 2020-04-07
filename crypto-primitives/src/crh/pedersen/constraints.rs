@@ -1,6 +1,9 @@
-use crate::crh::{
-    pedersen::{PedersenCRH, PedersenParameters, PedersenWindow},
-    FixedLengthCRHGadget,
+use crate::{
+    crh::{
+        pedersen::{PedersenCRH, PedersenParameters, PedersenWindow},
+        FixedLengthCRHGadget,
+    },
+    Vec,
 };
 use algebra_core::{Field, Group};
 use r1cs_core::{ConstraintSystem, SynthesisError};
