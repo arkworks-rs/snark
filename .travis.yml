@@ -28,16 +28,16 @@ matrix:
   fast_finish: true
   include:
     - rust: stable
+      install:
+        - rustup component add rustfmt
       script:
+        - cargo fmt -- --check
         - cargo test --all -- --skip dpc --skip integration_test
         - cargo check --examples --all
         - cargo check --all-features --examples --all
 
     - rust: nightly
-      install:
-        - rustup component add rustfmt
       script:
-        - cargo fmt -- --check
         - cargo test --all -- --skip dpc --skip integration_test
         - cargo check --examples --all --benches
         - cargo check --all-features --examples --all --benches
