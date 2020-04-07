@@ -10,7 +10,7 @@ pub struct Evaluations<F: PrimeField> {
     /// The evaluations of a polynomial over the domain `D`
     pub evals: Vec<F>,
     #[doc(hidden)]
-    domain:    EvaluationDomain<F>,
+    domain: EvaluationDomain<F>,
 }
 
 impl<F: PrimeField> Evaluations<F> {

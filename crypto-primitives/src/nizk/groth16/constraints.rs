@@ -28,10 +28,10 @@ pub struct VerifyingKeyGadget<
     ConstraintF: Field,
     P: PairingGadget<PairingE, ConstraintF>,
 > {
-    pub alpha_g1:     P::G1Gadget,
-    pub beta_g2:      P::G2Gadget,
-    pub gamma_g2:     P::G2Gadget,
-    pub delta_g2:     P::G2Gadget,
+    pub alpha_g1: P::G1Gadget,
+    pub beta_g2: P::G2Gadget,
+    pub gamma_g2: P::G2Gadget,
+    pub delta_g2: P::G2Gadget,
     pub gamma_abc_g1: Vec<P::G1Gadget>,
 }
 
@@ -78,9 +78,9 @@ pub struct PreparedVerifyingKeyGadget<
     P: PairingGadget<PairingE, ConstraintF>,
 > {
     pub alpha_g1_beta_g2: P::GTGadget,
-    pub gamma_g2_neg_pc:  P::G2PreparedGadget,
-    pub delta_g2_neg_pc:  P::G2PreparedGadget,
-    pub gamma_abc_g1:     Vec<P::G1Gadget>,
+    pub gamma_g2_neg_pc: P::G2PreparedGadget,
+    pub delta_g2_neg_pc: P::G2PreparedGadget,
+    pub gamma_abc_g1: Vec<P::G1Gadget>,
 }
 
 pub struct Groth16VerifierGadget<PairingE, ConstraintF, P>
@@ -90,7 +90,7 @@ where
     P: PairingGadget<PairingE, ConstraintF>,
 {
     _pairing_engine: PhantomData<PairingE>,
-    _engine:         PhantomData<ConstraintF>,
+    _engine: PhantomData<ConstraintF>,
     _pairing_gadget: PhantomData<P>,
 }
 
@@ -359,7 +359,7 @@ mod test {
     type TestVkGadget = VerifyingKeyGadget<Bls12_377, Fq, Bls12_377PairingGadget>;
 
     struct Bench<F: Field> {
-        inputs:          Vec<Option<F>>,
+        inputs: Vec<Option<F>>,
         num_constraints: usize,
     }
 
@@ -511,7 +511,7 @@ mod test_recursive {
 
     #[derive(Clone)]
     struct Bench<F: Field> {
-        inputs:          Vec<Option<F>>,
+        inputs: Vec<Option<F>>,
         num_constraints: usize,
     }
 
@@ -559,7 +559,7 @@ mod test_recursive {
     struct Wrapper {
         inputs: Vec<Option<MNT4Fq>>,
         params: Parameters<MNT6_298>,
-        proof:  Proof<MNT6_298>,
+        proof: Proof<MNT6_298>,
     }
 
     impl ConstraintSynthesizer<MNT6Fq> for Wrapper {
@@ -656,7 +656,7 @@ mod test_recursive {
             let c = Wrapper {
                 inputs: inputs.clone(),
                 params: inner_params.clone(),
-                proof:  inner_proof.clone(),
+                proof: inner_proof.clone(),
             };
 
             generate_random_parameters(c, rng).unwrap()
@@ -669,7 +669,7 @@ mod test_recursive {
                 let c = Wrapper {
                     inputs: inputs.clone(),
                     params: inner_params.clone(),
-                    proof:  inner_proof.clone(),
+                    proof: inner_proof.clone(),
                 };
                 // Create a groth16 proof with our parameters.
                 create_random_proof(c, &params, rng).unwrap()

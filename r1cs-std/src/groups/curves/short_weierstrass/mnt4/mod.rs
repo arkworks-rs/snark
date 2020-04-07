@@ -27,8 +27,8 @@ pub type G2Gadget<P> =
 #[derive(Derivative)]
 #[derivative(Clone(bound = "P: MNT4Parameters"), Debug(bound = "P: MNT4Parameters"))]
 pub struct G1PreparedGadget<P: MNT4Parameters> {
-    pub x:       FpGadget<P::Fp>,
-    pub y:       FpGadget<P::Fp>,
+    pub x: FpGadget<P::Fp>,
+    pub y: FpGadget<P::Fp>,
     pub x_twist: Fp2Gadget<P::Fp2Params, P::Fp>,
     pub y_twist: Fp2Gadget<P::Fp2Params, P::Fp>,
 }
@@ -113,11 +113,11 @@ type Fp2G<P> = Fp2Gadget<<P as MNT4Parameters>::Fp2Params, <P as MNT4Parameters>
 #[derive(Derivative)]
 #[derivative(Clone(bound = "P: MNT4Parameters"), Debug(bound = "P: MNT4Parameters"))]
 pub struct G2PreparedGadget<P: MNT4Parameters> {
-    pub x:                     Fp2Gadget<P::Fp2Params, P::Fp>,
-    pub y:                     Fp2Gadget<P::Fp2Params, P::Fp>,
-    pub x_over_twist:          Fp2Gadget<P::Fp2Params, P::Fp>,
-    pub y_over_twist:          Fp2Gadget<P::Fp2Params, P::Fp>,
-    pub double_coefficients:   Vec<AteDoubleCoefficientsGadget<P>>,
+    pub x: Fp2Gadget<P::Fp2Params, P::Fp>,
+    pub y: Fp2Gadget<P::Fp2Params, P::Fp>,
+    pub x_over_twist: Fp2Gadget<P::Fp2Params, P::Fp>,
+    pub y_over_twist: Fp2Gadget<P::Fp2Params, P::Fp>,
+    pub double_coefficients: Vec<AteDoubleCoefficientsGadget<P>>,
     pub addition_coefficients: Vec<AteAdditionCoefficientsGadget<P>>,
 }
 
@@ -222,11 +222,11 @@ impl<P: MNT4Parameters> G2PreparedGadget<P> {
         let twist_inv = P::TWIST.inverse().unwrap();
 
         let mut g2p = G2PreparedGadget {
-            x:                     q.x.clone(),
-            y:                     q.y.clone(),
-            x_over_twist:          q.x.mul_by_constant(cs.ns(|| "x over twist"), &twist_inv)?,
-            y_over_twist:          q.y.mul_by_constant(cs.ns(|| "y over twist"), &twist_inv)?,
-            double_coefficients:   vec![],
+            x: q.x.clone(),
+            y: q.y.clone(),
+            x_over_twist: q.x.mul_by_constant(cs.ns(|| "x over twist"), &twist_inv)?,
+            y_over_twist: q.y.mul_by_constant(cs.ns(|| "y over twist"), &twist_inv)?,
+            double_coefficients: vec![],
             addition_coefficients: vec![],
         };
 
@@ -302,10 +302,10 @@ impl<P: MNT4Parameters> G2PreparedGadget<P> {
 #[derive(Derivative)]
 #[derivative(Clone(bound = "P: MNT4Parameters"), Debug(bound = "P: MNT4Parameters"))]
 pub struct AteDoubleCoefficientsGadget<P: MNT4Parameters> {
-    pub c_h:  Fp2Gadget<P::Fp2Params, P::Fp>,
+    pub c_h: Fp2Gadget<P::Fp2Params, P::Fp>,
     pub c_4c: Fp2Gadget<P::Fp2Params, P::Fp>,
-    pub c_j:  Fp2Gadget<P::Fp2Params, P::Fp>,
-    pub c_l:  Fp2Gadget<P::Fp2Params, P::Fp>,
+    pub c_j: Fp2Gadget<P::Fp2Params, P::Fp>,
+    pub c_l: Fp2Gadget<P::Fp2Params, P::Fp>,
 }
 
 impl<P: MNT4Parameters> ToBytesGadget<P::Fp> for AteDoubleCoefficientsGadget<P> {

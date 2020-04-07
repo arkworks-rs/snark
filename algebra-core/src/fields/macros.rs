@@ -431,7 +431,6 @@ macro_rules! impl_Fp {
     }
 }
 
-
 /// This modular multiplication algorithm uses Montgomery
 /// reduction for efficient implementation. It also additionally
 /// uses the "no-carry optimization" outlined
@@ -449,7 +448,7 @@ macro_rules! impl_field_mul_assign {
             for i in 1..$limbs {
                 all_bits_set &= P::MODULUS.0[$limbs - i - 1] == !0u64;
             }
-            let no_carry:bool = !(first_bit_set || all_bits_set);
+            let no_carry: bool = !(first_bit_set || all_bits_set);
 
             // No-carry optimisation applied to CIOS
             if no_carry {
@@ -476,7 +475,8 @@ macro_rules! impl_field_mul_assign {
                 for i in 0..$limbs {
                     let mut carry = 0;
                     for j in 0..$limbs {
-                        r[j + i] = fa::mac_with_carry(r[j+i], (self.0).0[i], (other.0).0[j], &mut carry);
+                        r[j + i] =
+                            fa::mac_with_carry(r[j + i], (self.0).0[i], (other.0).0[j], &mut carry);
                     }
                     r[$limbs + i] = carry;
                 }
@@ -496,7 +496,7 @@ macro_rules! impl_field_mul_assign {
                 self.reduce();
             }
         }
-    }
+    };
 }
 
 macro_rules! impl_field_into_repr {
@@ -513,14 +513,15 @@ macro_rules! impl_field_into_repr {
 
                 fa::mac_with_carry(r[i], k, P::MODULUS.0[0], &mut carry);
                 for j in 1..$limbs {
-                    r[(j+i)%$limbs] = fa::mac_with_carry(r[(j+i)%$limbs], k, P::MODULUS.0[j], &mut carry);
+                    r[(j + i) % $limbs] =
+                        fa::mac_with_carry(r[(j + i) % $limbs], k, P::MODULUS.0[j], &mut carry);
                 }
-                r[i%$limbs] = carry;
+                r[i % $limbs] = carry;
             }
             tmp.0 = r;
             tmp
         }
-    }
+    };
 }
 
 macro_rules! impl_field_square_in_place {
@@ -528,27 +529,39 @@ macro_rules! impl_field_square_in_place {
         #[inline]
         #[unroll_for_loops]
         fn square_in_place(&mut self) -> &mut Self {
-            let mut r = [0u64; $limbs*2];
+            let mut r = [0u64; $limbs * 2];
 
             let mut carry = 0;
             for i in 0..$limbs {
-                if i < $limbs-1 {
+                if i < $limbs - 1 {
                     for j in 0..$limbs {
-                        if j >= (i+1) { r[i+j] = fa::mac_with_carry(r[i+j], (self.0).0[i], (self.0).0[j], &mut carry); }
+                        if j >= (i + 1) {
+                            r[i + j] = fa::mac_with_carry(
+                                r[i + j],
+                                (self.0).0[i],
+                                (self.0).0[j],
+                                &mut carry,
+                            );
+                        }
                     }
-                    r[$limbs+i] = carry;
+                    r[$limbs + i] = carry;
                     carry = 0;
                 }
             }
 
-            r[$limbs*2-1] = r[$limbs*2-2] >> 63;
-            for i in 0..$limbs { r[$limbs*2-2-i] = (r[$limbs*2-2-i] << 1) | (r[$limbs*2-3-i] >> 63); }
-            for i in 3..$limbs { r[$limbs+1-i] = (r[$limbs+1-i] << 1) | (r[$limbs-i] >> 63); }
+            r[$limbs * 2 - 1] = r[$limbs * 2 - 2] >> 63;
+            for i in 0..$limbs {
+                r[$limbs * 2 - 2 - i] =
+                    (r[$limbs * 2 - 2 - i] << 1) | (r[$limbs * 2 - 3 - i] >> 63);
+            }
+            for i in 3..$limbs {
+                r[$limbs + 1 - i] = (r[$limbs + 1 - i] << 1) | (r[$limbs - i] >> 63);
+            }
             r[1] = r[1] << 1;
 
             for i in 0..$limbs {
-                r[2*i] = fa::mac_with_carry(r[2*i], (self.0).0[i], (self.0).0[i], &mut carry);
-                r[2*i+1] = fa::adc(r[2*i+1], 0, &mut carry);
+                r[2 * i] = fa::mac_with_carry(r[2 * i], (self.0).0[i], (self.0).0[i], &mut carry);
+                r[2 * i + 1] = fa::adc(r[2 * i + 1], 0, &mut carry);
             }
             // Montgomery reduction
             let mut _carry2 = 0;
@@ -557,9 +570,9 @@ macro_rules! impl_field_square_in_place {
                 let mut carry = 0;
                 fa::mac_with_carry(r[i], k, P::MODULUS.0[0], &mut carry);
                 for j in 1..$limbs {
-                    r[j+i] = fa::mac_with_carry(r[j+i], k, P::MODULUS.0[j], &mut carry);
+                    r[j + i] = fa::mac_with_carry(r[j + i], k, P::MODULUS.0[j], &mut carry);
                 }
-                r[$limbs+i] = fa::adc(r[$limbs+i], _carry2, &mut carry);
+                r[$limbs + i] = fa::adc(r[$limbs + i], _carry2, &mut carry);
                 _carry2 = carry;
             }
 
@@ -567,7 +580,7 @@ macro_rules! impl_field_square_in_place {
             self.reduce();
             self
         }
-    }
+    };
 }
 
 macro_rules! impl_field_bigint_conv {
@@ -684,7 +697,7 @@ macro_rules! sqrt_impl {
                 }
 
                 Some(x)
-            },
+            }
         }
     }};
 }

@@ -20,8 +20,8 @@ pub type G1Projective<P> = GroupProjective<<P as MNT4Parameters>::G1Parameters>;
     Eq(bound = "P: MNT4Parameters")
 )]
 pub struct G1Prepared<P: MNT4Parameters> {
-    pub x:       P::Fp,
-    pub y:       P::Fp,
+    pub x: P::Fp,
+    pub y: P::Fp,
     pub x_twist: Fp2<P::Fp2Params>,
     pub y_twist: Fp2<P::Fp2Params>,
 }

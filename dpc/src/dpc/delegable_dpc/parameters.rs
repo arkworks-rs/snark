@@ -4,13 +4,13 @@ use crypto_primitives::{CommitmentScheme, FixedLengthCRH, SignatureScheme, NIZK}
 #[derive(Derivative)]
 #[derivative(Clone(bound = "C: DelegableDPCComponents"))]
 pub struct CommCRHSigPublicParameters<C: DelegableDPCComponents> {
-    pub addr_comm_pp:       <C::AddrC as CommitmentScheme>::Parameters,
-    pub rec_comm_pp:        <C::RecC as CommitmentScheme>::Parameters,
-    pub pred_vk_comm_pp:    <C::PredVkComm as CommitmentScheme>::Parameters,
+    pub addr_comm_pp: <C::AddrC as CommitmentScheme>::Parameters,
+    pub rec_comm_pp: <C::RecC as CommitmentScheme>::Parameters,
+    pub pred_vk_comm_pp: <C::PredVkComm as CommitmentScheme>::Parameters,
     pub local_data_comm_pp: <C::LocalDataComm as CommitmentScheme>::Parameters,
 
     pub sn_nonce_crh_pp: <C::SnNonceH as FixedLengthCRH>::Parameters,
-    pub pred_vk_crh_pp:  <C::PredVkH as FixedLengthCRH>::Parameters,
+    pub pred_vk_crh_pp: <C::PredVkH as FixedLengthCRH>::Parameters,
 
     pub sig_pp: <C::S as SignatureScheme>::Parameters,
 }
@@ -18,14 +18,14 @@ pub struct CommCRHSigPublicParameters<C: DelegableDPCComponents> {
 #[derive(Derivative)]
 #[derivative(Clone(bound = "C: DelegableDPCComponents"))]
 pub struct PredNIZKParameters<C: DelegableDPCComponents> {
-    pub pk:    <C::PredicateNIZK as NIZK>::ProvingParameters,
-    pub vk:    <C::PredicateNIZK as NIZK>::VerificationParameters,
+    pub pk: <C::PredicateNIZK as NIZK>::ProvingParameters,
+    pub vk: <C::PredicateNIZK as NIZK>::VerificationParameters,
     pub proof: <C::PredicateNIZK as NIZK>::Proof,
 }
 
 pub struct PublicParameters<C: DelegableDPCComponents> {
-    pub comm_crh_sig_pp:     CommCRHSigPublicParameters<C>,
-    pub pred_nizk_pp:        PredNIZKParameters<C>,
+    pub comm_crh_sig_pp: CommCRHSigPublicParameters<C>,
+    pub pred_nizk_pp: PredNIZKParameters<C>,
     pub proof_check_nizk_pp: (
         <C::ProofCheckNIZK as NIZK>::ProvingParameters,
         <C::ProofCheckNIZK as NIZK>::PreparedVerificationParameters,

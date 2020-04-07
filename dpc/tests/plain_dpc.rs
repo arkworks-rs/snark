@@ -126,8 +126,8 @@ fn integration_test() {
             {
                 let pred_pub_input: PredicateLocalData<Components> = PredicateLocalData {
                     local_data_comm_pp: local_data.comm_and_crh_pp.local_data_comm_pp.clone(),
-                    local_data_comm:    local_data.local_data_comm.clone(),
-                    position:           i as u8,
+                    local_data_comm: local_data.local_data_comm.clone(),
+                    position: i as u8,
                 };
                 assert!(
                     PredicateNIZK::verify(&pred_nizk_pvk, &pred_pub_input, &proof)
@@ -161,8 +161,8 @@ fn integration_test() {
             {
                 let pred_pub_input: PredicateLocalData<Components> = PredicateLocalData {
                     local_data_comm_pp: local_data.comm_and_crh_pp.local_data_comm_pp.clone(),
-                    local_data_comm:    local_data.local_data_comm.clone(),
-                    position:           i as u8,
+                    local_data_comm: local_data.local_data_comm.clone(),
+                    position: i as u8,
                 };
                 assert!(
                     PredicateNIZK::verify(&pred_nizk_pvk, &pred_pub_input, &proof)

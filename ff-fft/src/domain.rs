@@ -23,19 +23,19 @@ use rayon::prelude::*;
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 pub struct EvaluationDomain<F: PrimeField> {
     /// The size of the domain.
-    pub size:                  u64,
+    pub size: u64,
     /// `log_2(self.size)`.
-    pub log_size_of_group:     u32,
+    pub log_size_of_group: u32,
     /// Size of the domain as a field element.
     pub size_as_field_element: F,
     /// Inverse of the size in the field.
-    pub size_inv:              F,
+    pub size_inv: F,
     /// A generator of the subgroup.
-    pub group_gen:             F,
+    pub group_gen: F,
     /// Inverse of the generator of the subgroup.
-    pub group_gen_inv:         F,
+    pub group_gen_inv: F,
     /// Multiplicative generator of the finite field.
-    pub generator_inv:         F,
+    pub generator_inv: F,
 }
 
 impl<F: PrimeField> fmt::Debug for EvaluationDomain<F> {
@@ -251,8 +251,8 @@ impl<F: PrimeField> EvaluationDomain<F> {
     pub fn elements(&self) -> Elements<F> {
         Elements {
             cur_elem: F::one(),
-            cur_pow:  0,
-            domain:   *self,
+            cur_pow: 0,
+            domain: *self,
         }
     }
 
@@ -432,8 +432,8 @@ pub(crate) fn parallel_fft<T: DomainCoeff<F>, F: PrimeField>(
 /// An iterator over the elements of the domain.
 pub struct Elements<F: PrimeField> {
     cur_elem: F,
-    cur_pow:  u64,
-    domain:   EvaluationDomain<F>,
+    cur_pow: u64,
+    domain: EvaluationDomain<F>,
 }
 
 impl<F: PrimeField> Iterator for Elements<F> {

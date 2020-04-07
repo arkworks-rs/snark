@@ -30,17 +30,17 @@ impl PRF for Blake2s {
 
 #[derive(Clone)]
 pub struct Blake2sWithParameterBlock {
-    pub digest_length:     u8,
-    pub key_length:        u8,
-    pub fan_out:           u8,
-    pub depth:             u8,
-    pub leaf_length:       u32,
-    pub node_offset:       u32,
+    pub digest_length: u8,
+    pub key_length: u8,
+    pub fan_out: u8,
+    pub depth: u8,
+    pub leaf_length: u32,
+    pub node_offset: u32,
     pub xof_digest_length: u16,
-    pub node_depth:        u8,
-    pub inner_length:      u8,
-    pub salt:              [u8; 8],
-    pub personalization:   [u8; 8],
+    pub node_depth: u8,
+    pub inner_length: u8,
+    pub salt: [u8; 8],
+    pub personalization: [u8; 8],
 }
 
 impl Blake2sWithParameterBlock {

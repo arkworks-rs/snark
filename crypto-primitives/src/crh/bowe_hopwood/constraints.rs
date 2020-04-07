@@ -21,10 +21,10 @@ pub struct BoweHopwoodPedersenCRHGadgetParameters<
     ConstraintF: Field,
     GG: GroupGadget<G, ConstraintF>,
 > {
-    params:   BoweHopwoodPedersenParameters<G>,
+    params: BoweHopwoodPedersenParameters<G>,
     _group_g: PhantomData<GG>,
-    _engine:  PhantomData<ConstraintF>,
-    _window:  PhantomData<W>,
+    _engine: PhantomData<ConstraintF>,
+    _window: PhantomData<W>,
 }
 
 pub struct BoweHopwoodPedersenCRHGadget<
@@ -32,9 +32,9 @@ pub struct BoweHopwoodPedersenCRHGadget<
     ConstraintF: Field,
     GG: GroupGadget<G, ConstraintF>,
 > {
-    _group:        PhantomData<*const G>,
+    _group: PhantomData<*const G>,
     _group_gadget: PhantomData<*const GG>,
-    _engine:       PhantomData<ConstraintF>,
+    _engine: PhantomData<ConstraintF>,
 }
 
 impl<ConstraintF, G, GG, W> FixedLengthCRHGadget<BoweHopwoodPedersenCRH<G, W>, ConstraintF>

@@ -41,8 +41,8 @@ pub trait Fp12Parameters: 'static + Send + Sync + Copy {
     Eq(bound = "P: Fp12Parameters")
 )]
 pub struct Fp12<P: Fp12Parameters> {
-    pub c0:     Fp6<P::Fp6Params>,
-    pub c1:     Fp6<P::Fp6Params>,
+    pub c0: Fp6<P::Fp6Params>,
+    pub c1: Fp6<P::Fp6Params>,
     #[derivative(Debug = "ignore")]
     #[doc(hidden)]
     pub params: PhantomData<P>,

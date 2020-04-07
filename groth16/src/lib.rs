@@ -24,13 +24,12 @@ use alloc::{string::String, vec::Vec};
 use std::{string::String, vec::Vec};
 
 use algebra_core::{
-    Field,
     bytes::ToBytes,
     io::{self, Result as IoResult},
     serialize::*,
-    PairingEngine,
+    Field, PairingEngine,
 };
-use r1cs_core::{SynthesisError, Index, LinearCombination};
+use r1cs_core::{Index, LinearCombination, SynthesisError};
 
 /// Reduce an R1CS instance to a *Quadratic Arithmetic Program* instance.
 pub mod r1cs_to_qap;
@@ -94,10 +93,10 @@ impl<E: PairingEngine> Proof<E> {
 /// A verification key in the Groth16 SNARK.
 #[derive(Clone, Debug, PartialEq, CanonicalSerialize, CanonicalDeserialize)]
 pub struct VerifyingKey<E: PairingEngine> {
-    pub alpha_g1:     E::G1Affine,
-    pub beta_g2:      E::G2Affine,
-    pub gamma_g2:     E::G2Affine,
-    pub delta_g2:     E::G2Affine,
+    pub alpha_g1: E::G1Affine,
+    pub beta_g2: E::G2Affine,
+    pub gamma_g2: E::G2Affine,
+    pub delta_g2: E::G2Affine,
     pub gamma_abc_g1: Vec<E::G1Affine>,
 }
 
@@ -117,10 +116,10 @@ impl<E: PairingEngine> ToBytes for VerifyingKey<E> {
 impl<E: PairingEngine> Default for VerifyingKey<E> {
     fn default() -> Self {
         Self {
-            alpha_g1:     E::G1Affine::default(),
-            beta_g2:      E::G2Affine::default(),
-            gamma_g2:     E::G2Affine::default(),
-            delta_g2:     E::G2Affine::default(),
+            alpha_g1: E::G1Affine::default(),
+            beta_g2: E::G2Affine::default(),
+            gamma_g2: E::G2Affine::default(),
+            delta_g2: E::G2Affine::default(),
             gamma_abc_g1: Vec::new(),
         }
     }
@@ -144,14 +143,14 @@ impl<E: PairingEngine> VerifyingKey<E> {
 /// Full public (prover and verifier) parameters for the Groth16 zkSNARK.
 #[derive(Clone, Debug, PartialEq, CanonicalSerialize, CanonicalDeserialize)]
 pub struct Parameters<E: PairingEngine> {
-    pub vk:         VerifyingKey<E>,
-    pub beta_g1:    E::G1Affine,
-    pub delta_g1:   E::G1Affine,
-    pub a_query:    Vec<E::G1Affine>,
+    pub vk: VerifyingKey<E>,
+    pub beta_g1: E::G1Affine,
+    pub delta_g1: E::G1Affine,
+    pub a_query: Vec<E::G1Affine>,
     pub b_g1_query: Vec<E::G1Affine>,
     pub b_g2_query: Vec<E::G2Affine>,
-    pub h_query:    Vec<E::G1Affine>,
-    pub l_query:    Vec<E::G1Affine>,
+    pub h_query: Vec<E::G1Affine>,
+    pub l_query: Vec<E::G1Affine>,
 }
 
 impl<E: PairingEngine> Parameters<E> {
@@ -172,11 +171,11 @@ impl<E: PairingEngine> Parameters<E> {
 /// at the expense of larger size in memory.
 #[derive(Clone, Debug, PartialEq)]
 pub struct PreparedVerifyingKey<E: PairingEngine> {
-    pub vk:               VerifyingKey<E>,
+    pub vk: VerifyingKey<E>,
     pub alpha_g1_beta_g2: E::Fqk,
-    pub gamma_g2_neg_pc:  E::G2Prepared,
-    pub delta_g2_neg_pc:  E::G2Prepared,
-    pub gamma_abc_g1:     Vec<E::G1Affine>,
+    pub gamma_g2_neg_pc: E::G2Prepared,
+    pub delta_g2_neg_pc: E::G2Prepared,
+    pub gamma_abc_g1: Vec<E::G1Affine>,
 }
 
 impl<E: PairingEngine> From<PreparedVerifyingKey<E>> for VerifyingKey<E> {
@@ -194,11 +193,11 @@ impl<E: PairingEngine> From<VerifyingKey<E>> for PreparedVerifyingKey<E> {
 impl<E: PairingEngine> Default for PreparedVerifyingKey<E> {
     fn default() -> Self {
         Self {
-            vk:               VerifyingKey::default(),
+            vk: VerifyingKey::default(),
             alpha_g1_beta_g2: E::Fqk::default(),
-            gamma_g2_neg_pc:  E::G2Prepared::default(),
-            delta_g2_neg_pc:  E::G2Prepared::default(),
-            gamma_abc_g1:     Vec::new(),
+            gamma_g2_neg_pc: E::G2Prepared::default(),
+            delta_g2_neg_pc: E::G2Prepared::default(),
+            gamma_abc_g1: Vec::new(),
         }
     }
 }

@@ -13,7 +13,7 @@ pub mod inner {
     use std::time::Instant;
 
     pub struct TimerInfo {
-        pub msg:  String,
+        pub msg: String,
         pub time: Instant,
     }
 
@@ -31,7 +31,7 @@ pub mod inner {
             println!("{}{:8} {}", indent, start_info, msg);
             NUM_INDENT.fetch_add(1, Ordering::Relaxed);
             $crate::TimerInfo {
-                msg:  msg.to_string(),
+                msg: msg.to_string(),
                 time: Instant::now(),
             }
         }};

@@ -11,7 +11,7 @@ enum NamedObject {
 
 /// Constraint system for testing purposes.
 pub struct TestConstraintSystem<ConstraintF: Field> {
-    named_objects:     BTreeMap<String, NamedObject>,
+    named_objects: BTreeMap<String, NamedObject>,
     current_namespace: Vec<String>,
     pub constraints: Vec<(
         LinearCombination<ConstraintF>,
@@ -19,8 +19,8 @@ pub struct TestConstraintSystem<ConstraintF: Field> {
         LinearCombination<ConstraintF>,
         String,
     )>,
-    inputs:            Vec<(ConstraintF, String)>,
-    aux:               Vec<(ConstraintF, String)>,
+    inputs: Vec<(ConstraintF, String)>,
+    aux: Vec<(ConstraintF, String)>,
 }
 
 impl<ConstraintF: Field> TestConstraintSystem<ConstraintF> {
@@ -54,11 +54,11 @@ impl<ConstraintF: Field> TestConstraintSystem<ConstraintF> {
         );
 
         TestConstraintSystem {
-            named_objects:     map,
+            named_objects: map,
             current_namespace: vec![],
-            constraints:       vec![],
-            inputs:            vec![(ConstraintF::one(), "ONE".into())],
-            aux:               vec![],
+            constraints: vec![],
+            inputs: vec![(ConstraintF::one(), "ONE".into())],
+            aux: vec![],
         }
     }
 

@@ -23,7 +23,7 @@ pub struct BoweHopwoodPedersenParameters<G: Group> {
 }
 
 pub struct BoweHopwoodPedersenCRH<G: Group, W: PedersenWindow> {
-    group:  PhantomData<G>,
+    group: PhantomData<G>,
     window: PhantomData<W>,
 }
 

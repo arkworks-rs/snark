@@ -15,7 +15,7 @@ pub struct CoreChecksVerifierInput<C: PlainDPCComponents> {
     pub comm_and_crh_pp: CommAndCRHPublicParameters<C>,
 
     // Ledger parameters and digest
-    pub ledger_pp:     MerkleTreeParams<C::MerkleTreeConfig>,
+    pub ledger_pp: MerkleTreeParams<C::MerkleTreeConfig>,
     pub ledger_digest: MerkleTreeDigest<C::MerkleTreeConfig>,
 
     // Input record serial numbers and death predicate commitments
@@ -25,9 +25,9 @@ pub struct CoreChecksVerifierInput<C: PlainDPCComponents> {
     pub new_commitments: Vec<<C::RecC as CommitmentScheme>::Output>,
 
     // Predicate input commitment and memo
-    pub predicate_comm:  <C::PredVkComm as CommitmentScheme>::Output,
+    pub predicate_comm: <C::PredVkComm as CommitmentScheme>::Output,
     pub local_data_comm: <C::LocalDataComm as CommitmentScheme>::Output,
-    pub memo:            [u8; 32],
+    pub memo: [u8; 32],
 }
 
 impl<C: PlainDPCComponents> ToConstraintField<C::CoreCheckF> for CoreChecksVerifierInput<C>
@@ -92,20 +92,20 @@ where
 pub struct CoreChecksCircuit<C: PlainDPCComponents> {
     // Parameters
     comm_and_crh_parameters: Option<CommAndCRHPublicParameters<C>>,
-    ledger_parameters:       Option<MerkleTreeParams<C::MerkleTreeConfig>>,
+    ledger_parameters: Option<MerkleTreeParams<C::MerkleTreeConfig>>,
 
     ledger_digest: Option<MerkleTreeDigest<C::MerkleTreeConfig>>,
 
     // Inputs for old records.
-    old_records:             Option<Vec<DPCRecord<C>>>,
-    old_witnesses:           Option<Vec<MerkleTreePath<C::MerkleTreeConfig>>>,
+    old_records: Option<Vec<DPCRecord<C>>>,
+    old_witnesses: Option<Vec<MerkleTreePath<C::MerkleTreeConfig>>>,
     old_address_secret_keys: Option<Vec<AddressSecretKey<C>>>,
-    old_serial_numbers:      Option<Vec<<C::P as PRF>::Output>>,
+    old_serial_numbers: Option<Vec<<C::P as PRF>::Output>>,
 
     // Inputs for new records.
-    new_records:             Option<Vec<DPCRecord<C>>>,
+    new_records: Option<Vec<DPCRecord<C>>>,
     new_sn_nonce_randomness: Option<Vec<[u8; 32]>>,
-    new_commitments:         Option<Vec<<C::RecC as CommitmentScheme>::Output>>,
+    new_commitments: Option<Vec<<C::RecC as CommitmentScheme>::Output>>,
 
     // Commitment to Predicates and to local data.
     predicate_comm: Option<<C::PredVkComm as CommitmentScheme>::Output>,
@@ -114,7 +114,7 @@ pub struct CoreChecksCircuit<C: PlainDPCComponents> {
     local_data_comm: Option<<C::LocalDataComm as CommitmentScheme>::Output>,
     local_data_rand: Option<<C::LocalDataComm as CommitmentScheme>::Randomness>,
 
-    memo:      Option<[u8; 32]>,
+    memo: Option<[u8; 32]>,
     auxiliary: Option<[u8; 32]>,
 }
 
@@ -148,29 +148,29 @@ impl<C: PlainDPCComponents> CoreChecksCircuit<C> {
         Self {
             // Parameters
             comm_and_crh_parameters: Some(comm_and_crh_parameters.clone()),
-            ledger_parameters:       Some(ledger_parameters.clone()),
+            ledger_parameters: Some(ledger_parameters.clone()),
 
             // Digest
             ledger_digest: Some(digest),
 
             // Input records
-            old_records:             Some(old_records),
-            old_witnesses:           Some(old_witnesses),
+            old_records: Some(old_records),
+            old_witnesses: Some(old_witnesses),
             old_address_secret_keys: Some(old_address_secret_keys),
-            old_serial_numbers:      Some(old_sn),
+            old_serial_numbers: Some(old_sn),
 
             // Output records
-            new_records:             Some(new_records),
+            new_records: Some(new_records),
             new_sn_nonce_randomness: Some(new_sn_nonce_randomness),
-            new_commitments:         Some(new_cm),
+            new_commitments: Some(new_cm),
 
             // Other stuff
-            predicate_comm:  Some(predicate_comm),
-            predicate_rand:  Some(predicate_rand),
+            predicate_comm: Some(predicate_comm),
+            predicate_rand: Some(predicate_rand),
             local_data_comm: Some(local_data_comm),
             local_data_rand: Some(local_data_rand),
-            memo:            Some(memo),
-            auxiliary:       Some(auxiliary),
+            memo: Some(memo),
+            auxiliary: Some(auxiliary),
         }
     }
 
@@ -218,21 +218,21 @@ impl<C: PlainDPCComponents> CoreChecksCircuit<C> {
         Self {
             // Parameters
             comm_and_crh_parameters: Some(comm_amd_crh_parameters.clone()),
-            ledger_parameters:       Some(ledger_parameters.clone()),
+            ledger_parameters: Some(ledger_parameters.clone()),
 
             // Digest
             ledger_digest: Some(ledger_digest.clone()),
 
             // Input records
-            old_records:             Some(old_records.to_vec()),
-            old_witnesses:           Some(old_witnesses.to_vec()),
+            old_records: Some(old_records.to_vec()),
+            old_witnesses: Some(old_witnesses.to_vec()),
             old_address_secret_keys: Some(old_address_secret_keys.to_vec()),
-            old_serial_numbers:      Some(old_serial_numbers.to_vec()),
+            old_serial_numbers: Some(old_serial_numbers.to_vec()),
 
             // Output records
-            new_records:             Some(new_records.to_vec()),
+            new_records: Some(new_records.to_vec()),
             new_sn_nonce_randomness: Some(new_sn_nonce_randomness.to_vec()),
-            new_commitments:         Some(new_commitments.to_vec()),
+            new_commitments: Some(new_commitments.to_vec()),
 
             // Other stuff
             predicate_comm: Some(predicate_comm.clone()),
@@ -241,7 +241,7 @@ impl<C: PlainDPCComponents> CoreChecksCircuit<C> {
             local_data_comm: Some(local_data_comm.clone()),
             local_data_rand: Some(local_data_rand.clone()),
 
-            memo:      Some(memo.clone()),
+            memo: Some(memo.clone()),
             auxiliary: Some(auxiliary.clone()),
         }
     }

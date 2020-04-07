@@ -54,8 +54,8 @@ fn mimc<F: Field>(mut xl: F, mut xr: F, constants: &[F]) -> F {
 /// This is our demo circuit for proving knowledge of the
 /// preimage of a MiMC hash invocation.
 struct MiMCDemo<'a, F: Field> {
-    xl:        Option<F>,
-    xr:        Option<F>,
+    xl: Option<F>,
+    xr: Option<F>,
     constants: &'a [F],
 }
 
@@ -168,8 +168,8 @@ fn test_mimc_groth_maller_17() {
     // Create parameters for our circuit
     let params = {
         let c = MiMCDemo::<Fr> {
-            xl:        None,
-            xr:        None,
+            xl: None,
+            xr: None,
             constants: &constants,
         };
 
@@ -203,8 +203,8 @@ fn test_mimc_groth_maller_17() {
             // Create an instance of our circuit (with the
             // witness)
             let c = MiMCDemo {
-                xl:        Some(xl),
-                xr:        Some(xr),
+                xl: Some(xl),
+                xr: Some(xr),
                 constants: &constants,
             };
 

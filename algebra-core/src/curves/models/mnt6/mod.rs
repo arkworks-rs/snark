@@ -67,10 +67,10 @@ impl<P: MNT6Parameters> MNT6<P> {
 
         let r2 = G2ProjectiveExtended { x, y, z, t };
         let coeff = AteDoubleCoefficients {
-            c_h:  (r2.z + &r.t).square() - &r2.t - &a,
+            c_h: (r2.z + &r.t).square() - &r2.t - &a,
             c_4c: c + &c + &c + &c,
-            c_j:  (f + &r.t).square() - &g - &a,
-            c_l:  (f + &r.x).square() - &g - &b,
+            c_j: (f + &r.t).square() - &g - &a,
+            c_l: (f + &r.x).square() - &g - &b,
         };
 
         (r2, coeff)

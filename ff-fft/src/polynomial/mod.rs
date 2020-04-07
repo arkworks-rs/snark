@@ -147,18 +147,18 @@ impl<'a, F: 'a + PrimeField> DenseOrSparsePolynomial<'a, F> {
             SPolynomial(Cow::Borrowed(s)) => {
                 let evals = domain.elements().map(|elem| s.evaluate(elem)).collect();
                 Evaluations::from_vec_and_domain(evals, domain)
-            },
+            }
             SPolynomial(Cow::Owned(s)) => {
                 let evals = domain.elements().map(|elem| s.evaluate(elem)).collect();
                 Evaluations::from_vec_and_domain(evals, domain)
-            },
+            }
             DPolynomial(Cow::Borrowed(d)) => {
                 Evaluations::from_vec_and_domain(domain.fft(&d.coeffs), domain)
-            },
+            }
             DPolynomial(Cow::Owned(mut d)) => {
                 domain.fft_in_place(&mut d.coeffs);
                 Evaluations::from_vec_and_domain(d.coeffs, domain)
-            },
+            }
         }
     }
 }

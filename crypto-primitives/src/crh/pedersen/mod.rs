@@ -25,7 +25,7 @@ pub struct PedersenParameters<G: Group> {
 }
 
 pub struct PedersenCRH<G: Group, W: PedersenWindow> {
-    group:  PhantomData<G>,
+    group: PhantomData<G>,
     window: PhantomData<W>,
 }
 

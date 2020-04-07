@@ -23,9 +23,9 @@ pub struct Gm17<
     V: ToConstraintField<E::Fr> + ?Sized,
 > {
     #[doc(hidden)]
-    _engine:         PhantomData<E>,
+    _engine: PhantomData<E>,
     #[doc(hidden)]
-    _circuit:        PhantomData<C>,
+    _circuit: PhantomData<C>,
     #[doc(hidden)]
     _verifier_input: PhantomData<V>,
 }
