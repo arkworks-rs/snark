@@ -1,11 +1,11 @@
 use algebra::{
     fields::{Fp2, Fp2Parameters},
-    Field, PrimeField,
+    PrimeField,
 };
 use core::{borrow::Borrow, marker::PhantomData};
 use r1cs_core::{ConstraintSystem, ConstraintVar, SynthesisError};
 
-use crate::{fields::fp::FpGadget, prelude::*, Assignment, Vec};
+use crate::{fields::fp::FpGadget, prelude::*, Vec};
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = "P: Fp2Parameters, ConstraintF: PrimeField"))]
@@ -289,47 +289,6 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> FieldGadget<Fp
         Ok(self)
     }
 
-    #[inline]
-    fn inverse<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        mut cs: CS,
-    ) -> Result<Self, SynthesisError> {
-        let inverse = Self::alloc(&mut cs.ns(|| "alloc inverse"), || {
-            self.get_value().and_then(|val| val.inverse()).get()
-        })?;
-
-        // Karatsuba multiplication for Fp2 with the inverse:
-        //     v0 = A.c0 * B.c0
-        //     v1 = A.c1 * B.c1
-        //
-        //      1 = v0 + non_residue * v1
-        //  => v0 = 1 - non_residue * v1
-        //
-        //      0 = result.c1 = (A.c0 + A.c1) * (B.c0 + B.c1) - v0 - v1
-        //  => v0 + v1 = (A.c0 + A.c1) * (B.c0 + B.c1)
-        //  => 1 + (1 - non_residue) * v1 = (A.c0 + A.c1) * (B.c0 + B.c1)
-        // Enforced with 2 constraints:
-        //     A.c1 * B.c1 = v1
-        //  => 1 + (1 - non_residue) * v1 = (A.c0 + A.c1) * (B.c0 + B.c1)
-        // Reference:
-        // "Multiplication and Squaring on Pairing-Friendly Fields"
-        // Devegili, OhEigeartaigh, Scott, Dahab
-
-        // Constraint 1
-        let mut v1 = self.c1.mul(cs.ns(|| "inv_constraint_1"), &inverse.c1)?;
-
-        // Constraint 2
-        let a0_plus_a1 = self.c0.add(cs.ns(|| "a0 + a1"), &self.c1)?;
-        let b0_plus_b1 = inverse.c0.add(cs.ns(|| "b0 + b1"), &inverse.c1)?;
-
-        let one = P::Fp::one();
-        let rhs = v1
-            .mul_by_constant_in_place(cs.ns(|| "(1 - nonresidue) * v1"), &(one - &P::NONRESIDUE))?
-            .add_constant_in_place(cs.ns(|| "add one"), &one)?;
-        a0_plus_a1.mul_equals(cs.ns(|| "inv_constraint_2"), &b0_plus_b1, rhs)?;
-        Ok(inverse)
-    }
-
     fn mul_equals<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
@@ -450,15 +409,11 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> FieldGadget<Fp
     }
 
     fn cost_of_mul() -> usize {
-        3
+        3 * FpGadget::<ConstraintF>::cost_of_mul()
     }
 
     fn cost_of_mul_equals() -> usize {
         Self::cost_of_mul()
-    }
-
-    fn cost_of_inv() -> usize {
-        2
     }
 }
 

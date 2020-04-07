@@ -6,11 +6,11 @@ use algebra::{
         fp6_3over2::{Fp6, Fp6Parameters},
         Fp2Parameters,
     },
-    BitIterator, Field, One, PrimeField,
+    BitIterator, PrimeField,
 };
 use core::{borrow::Borrow, marker::PhantomData};
 
-use crate::{prelude::*, Assignment, Vec};
+use crate::{prelude::*, Vec};
 
 type Fp2Gadget<P, ConstraintF> = super::fp2::Fp2Gadget<
     <<P as Fp12Parameters>::Fp6Params as Fp6Parameters>::Fp2Params,
@@ -546,47 +546,6 @@ where
         Ok(self)
     }
 
-    fn inverse<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        mut cs: CS,
-    ) -> Result<Self, SynthesisError> {
-        let inverse = Self::alloc(&mut cs.ns(|| "alloc inverse"), || {
-            self.get_value().and_then(|val| val.inverse()).get()
-        })?;
-
-        // Karatsuba multiplication for Fp2 with the inverse:
-        //     v0 = A.c0 * B.c0
-        //     v1 = A.c1 * B.c1
-        //
-        //      1 = v0 + non_residue * v1
-        //  => v0 = 1 - non_residue * v1
-        //
-        //      0 = result.c1 = (A.c0 + A.c1) * (B.c0 + B.c1) - v0 - v1
-        //  => v0 + v1 = (A.c0 + A.c1) * (B.c0 + B.c1)
-        //  => 1 + (1 - non_residue) * v1 = (A.c0 + A.c1) * (B.c0 + B.c1)
-        // Enforced with 2 constraints:
-        //     A.c1 * B.c1 = v1
-        //  => 1 + (1 - non_residue) * v1 = (A.c0 + A.c1) * (B.c0 + B.c1)
-        // Reference:
-        // "Multiplication and Squaring on Pairing-Friendly Fields"
-        // Devegili, OhEigeartaigh, Scott, Dahab
-
-        // Constraint 1
-        let v1 = self.c1.mul(cs.ns(|| "inv_constraint_1"), &inverse.c1)?;
-
-        // Constraint 2
-        let a0_plus_a1 = self.c0.add(cs.ns(|| "a0 + a1"), &self.c1)?;
-        let b0_plus_b1 = inverse.c0.add(cs.ns(|| "b0 + b1"), &inverse.c1)?;
-
-        let one = Fp6::<P::Fp6Params>::one();
-        let rhs = Self::mul_fp6_by_nonresidue(cs.ns(|| "nr * v1"), &v1)?
-            .sub(cs.ns(|| "sub v1"), &v1)?
-            .negate(cs.ns(|| "negate it"))?
-            .add_constant(cs.ns(|| "add one"), &one)?;
-        a0_plus_a1.mul_equals(cs.ns(|| "inv_constraint_2"), &b0_plus_b1, &rhs)?;
-        Ok(inverse)
-    }
-
     fn mul_equals<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
@@ -639,15 +598,11 @@ where
     }
 
     fn cost_of_mul() -> usize {
-        unimplemented!()
+        3 * Fp6Gadget::<P, ConstraintF>::cost_of_mul()
     }
 
     fn cost_of_mul_equals() -> usize {
         Self::cost_of_mul()
-    }
-
-    fn cost_of_inv() -> usize {
-        Self::cost_of_mul() + <Self as EqGadget<ConstraintF>>::cost()
     }
 }
 
