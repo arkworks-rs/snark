@@ -3,7 +3,7 @@ use r1cs_core::{ConstraintSystem, SynthesisError};
 use crate::{
     commitment::blake2s::Blake2sCommitment,
     prf::blake2s::constraints::{blake2s_gadget, Blake2sOutputGadget},
-    CommitmentGadget,
+    CommitmentGadget, Vec,
 };
 use algebra_core::{Field, PrimeField};
 use r1cs_std::prelude::*;

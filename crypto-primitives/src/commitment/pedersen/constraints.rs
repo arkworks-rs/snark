@@ -1,6 +1,7 @@
 use crate::{
     commitment::pedersen::{PedersenCommitment, PedersenParameters, PedersenRandomness},
     crh::pedersen::PedersenWindow,
+    Vec,
 };
 use algebra_core::{
     fields::{Field, PrimeField},
