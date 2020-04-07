@@ -22,11 +22,11 @@ pub struct AffineGadget<
     ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 > {
-    pub x:        F,
-    pub y:        F,
+    pub x: F,
+    pub y: F,
     pub infinity: Boolean,
-    _params:      PhantomData<P>,
-    _engine:      PhantomData<ConstraintF>,
+    _params: PhantomData<P>,
+    _engine: PhantomData<ConstraintF>,
 }
 
 impl<P: SWModelParameters, ConstraintF: Field, F: FieldGadget<P::BaseField, ConstraintF>>
@@ -53,7 +53,7 @@ impl<P: SWModelParameters, ConstraintF: Field, F: FieldGadget<P::BaseField, Cons
             Ok(ge) => {
                 let ge = ge.into_affine();
                 (Ok(ge.x), Ok(ge.y), Ok(ge.infinity))
-            },
+            }
             _ => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),
@@ -107,7 +107,7 @@ where
         ) {
             (Some(x), Some(y), Some(infinity)) => {
                 Some(SWAffine::new(x, y, infinity).into_projective())
-            },
+            }
             (None, None, None) => None,
             _ => unreachable!(),
         }
@@ -450,7 +450,7 @@ where
             Ok(ge) => {
                 let ge = ge.borrow().into_affine();
                 (Ok(ge.x), Ok(ge.y), Ok(ge.infinity))
-            },
+            }
             _ => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),
@@ -574,7 +574,7 @@ where
             Ok(ge) => {
                 let ge = ge.borrow().into_affine();
                 (Ok(ge.x), Ok(ge.y), Ok(ge.infinity))
-            },
+            }
             _ => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),

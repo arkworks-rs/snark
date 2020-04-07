@@ -111,14 +111,14 @@ impl<F: PrimeField> FpGadget<F> {
             Ordering::Less => {
                 left = a;
                 right = b;
-            },
+            }
             Ordering::Greater => {
                 left = b;
                 right = a;
-            },
+            }
             Ordering::Equal => {
                 return Err(SynthesisError::Unsatisfiable);
-            },
+            }
         };
         let right_for_check = if should_also_check_equality {
             right.add_constant(cs.ns(|| "plus one"), &F::one())?
@@ -252,7 +252,7 @@ mod test {
                             true,
                         )
                         .unwrap();
-                },
+                }
                 Ordering::Greater => {
                     a_var
                         .enforce_cmp(
@@ -270,8 +270,8 @@ mod test {
                             true,
                         )
                         .unwrap();
-                },
-                _ => {},
+                }
+                _ => {}
             }
 
             if i == 0 {
@@ -300,7 +300,7 @@ mod test {
                             true,
                         )
                         .unwrap();
-                },
+                }
                 Ordering::Greater => {
                     a_var
                         .enforce_cmp(
@@ -318,8 +318,8 @@ mod test {
                             true,
                         )
                         .unwrap();
-                },
-                _ => {},
+                }
+                _ => {}
             }
 
             assert!(!cs.is_satisfied());

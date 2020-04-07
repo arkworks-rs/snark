@@ -13,7 +13,7 @@ problem_files=()
 # collect ill-formatted files
 for file in $(git diff --name-only --cached); do
         if [ ${file: -3} == ".rs" ]; then
-                rustfmt +nightly --check $file &>/dev/null
+                rustfmt +stable --check $file &>/dev/null
                 if [ $? != 0 ]; then
                         problem_files+=($file)
                 fi
@@ -27,7 +27,7 @@ else
   # reformat the files that need it and re-stage them.
   printf "[pre_commit] the following files were rustfmt'd before commit: \n"
   for file in ${problem_files[@]}; do
-    rustfmt $file
+    rustfmt +stable $file
     git add $file
     printf "\033[0;32m    $file\033[0m \n"
   done

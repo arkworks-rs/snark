@@ -35,12 +35,12 @@ where
 /// This is our assembly structure that we'll use to synthesize the
 /// circuit into a SAP.
 pub struct KeypairAssembly<E: PairingEngine> {
-    pub num_inputs:      usize,
-    pub num_aux:         usize,
+    pub num_inputs: usize,
+    pub num_aux: usize,
     pub num_constraints: usize,
-    pub at:              Vec<Vec<(E::Fr, Index)>>,
-    pub bt:              Vec<Vec<(E::Fr, Index)>>,
-    pub ct:              Vec<Vec<(E::Fr, Index)>>,
+    pub at: Vec<Vec<(E::Fr, Index)>>,
+    pub bt: Vec<Vec<(E::Fr, Index)>>,
+    pub ct: Vec<Vec<(E::Fr, Index)>>,
 }
 
 impl<E: PairingEngine> ConstraintSystem<E::Fr> for KeypairAssembly<E> {
@@ -159,12 +159,12 @@ where
     R: Rng,
 {
     let mut assembly = KeypairAssembly {
-        num_inputs:      0,
-        num_aux:         0,
+        num_inputs: 0,
+        num_aux: 0,
         num_constraints: 0,
-        at:              vec![],
-        bt:              vec![],
-        ct:              vec![],
+        at: vec![],
+        bt: vec![],
+        ct: vec![],
     };
 
     // Allocate the "one" input variable
@@ -304,12 +304,12 @@ where
     end_timer!(verifying_key_time);
 
     let vk = VerifyingKey::<E> {
-        h_g2:       h.into_affine(),
+        h_g2: h.into_affine(),
         g_alpha_g1: g_alpha.into_affine(),
-        h_beta_g2:  h_beta.into_affine(),
+        h_beta_g2: h_beta.into_affine(),
         g_gamma_g1: g_gamma.into_affine(),
         h_gamma_g2: h_gamma.into_affine(),
-        query:      cfg_into_iter!(verifier_query)
+        query: cfg_into_iter!(verifier_query)
             .map(|e| e.into_affine())
             .collect(),
     };

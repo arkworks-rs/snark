@@ -84,7 +84,7 @@ impl Write for Vec<u8> {
 /// which does not allow multiple writes to `&mut [u8]`.
 pub struct Cursor<T> {
     inner: T,
-    pos:   usize,
+    pos: usize,
 }
 
 impl<T> Cursor<T> {

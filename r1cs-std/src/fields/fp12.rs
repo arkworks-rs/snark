@@ -31,8 +31,8 @@ where
     P: Fp12Parameters,
     <P::Fp6Params as Fp6Parameters>::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
 {
-    pub c0:  Fp6Gadget<P, ConstraintF>,
-    pub c1:  Fp6Gadget<P, ConstraintF>,
+    pub c0: Fp6Gadget<P, ConstraintF>,
+    pub c1: Fp6Gadget<P, ConstraintF>,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
 }
@@ -847,7 +847,7 @@ where
             Ok(fe) => {
                 let fe = *fe.borrow();
                 (Ok(fe.c0), Ok(fe.c1))
-            },
+            }
             Err(_) => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),
@@ -872,7 +872,7 @@ where
             Ok(fe) => {
                 let fe = *fe.borrow();
                 (Ok(fe.c0), Ok(fe.c1))
-            },
+            }
             Err(_) => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),

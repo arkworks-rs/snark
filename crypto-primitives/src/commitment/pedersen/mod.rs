@@ -23,11 +23,11 @@ pub mod constraints;
 #[derive(Clone)]
 pub struct PedersenParameters<G: Group> {
     pub randomness_generator: Vec<G>,
-    pub generators:           Vec<Vec<G>>,
+    pub generators: Vec<Vec<G>>,
 }
 
 pub struct PedersenCommitment<G: Group, W: PedersenWindow> {
-    group:  PhantomData<G>,
+    group: PhantomData<G>,
     window: PhantomData<W>,
 }
 

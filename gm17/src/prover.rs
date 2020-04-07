@@ -37,11 +37,11 @@ fn eval<E: PairingEngine>(
             Index::Input(i) => {
                 constraints[this_constraint].push((coeff, Index::Input(i)));
                 tmp = input_assignment[i];
-            },
+            }
             Index::Aux(i) => {
                 constraints[this_constraint].push((coeff, Index::Aux(i)));
                 tmp = aux_assignment[i];
-            },
+            }
         }
 
         if coeff.is_one() {
@@ -68,10 +68,10 @@ pub struct ProvingAssignment<E: PairingEngine> {
 
     // Assignments of variables
     pub(crate) input_assignment: Vec<E::Fr>,
-    pub(crate) aux_assignment:   Vec<E::Fr>,
-    pub(crate) num_inputs:       usize,
-    pub(crate) num_aux:          usize,
-    pub(crate) num_constraints:  usize,
+    pub(crate) aux_assignment: Vec<E::Fr>,
+    pub(crate) num_inputs: usize,
+    pub(crate) num_aux: usize,
+    pub(crate) num_constraints: usize,
 }
 
 impl<E: PairingEngine> ProvingAssignment<E> {
@@ -208,17 +208,17 @@ where
 {
     let prover_time = start_timer!(|| "Prover");
     let mut prover = ProvingAssignment {
-        at:               vec![],
-        bt:               vec![],
-        ct:               vec![],
-        a:                vec![],
-        b:                vec![],
-        c:                vec![],
+        at: vec![],
+        bt: vec![],
+        ct: vec![],
+        a: vec![],
+        b: vec![],
+        c: vec![],
         input_assignment: vec![],
-        aux_assignment:   vec![],
-        num_inputs:       0,
-        num_aux:          0,
-        num_constraints:  0,
+        aux_assignment: vec![],
+        num_inputs: 0,
+        num_aux: 0,
+        num_constraints: 0,
     };
 
     // Allocate the "one" input variable

@@ -26,7 +26,7 @@ pub struct G2Prepared<P: Bls12Parameters> {
     // Stores the coefficients of the line evaluations as calculated in
     // https://eprint.iacr.org/2013/722.pdf
     pub ell_coeffs: Vec<(Fp2<P::Fp2Params>, Fp2<P::Fp2Params>, Fp2<P::Fp2Params>)>,
-    pub infinity:   bool,
+    pub infinity: bool,
 }
 
 #[derive(Derivative)]
@@ -64,7 +64,7 @@ impl<P: Bls12Parameters> From<G2Affine<P>> for G2Prepared<P> {
         if q.is_zero() {
             return Self {
                 ell_coeffs: vec![],
-                infinity:   true,
+                infinity: true,
             };
         }
 

@@ -13,9 +13,9 @@ use algebra_core::groups::Group;
 pub mod constraints;
 
 pub struct PedersenCommCompressor<G: Group, I: InjectiveMap<G>, W: PedersenWindow> {
-    _group:      PhantomData<G>,
+    _group: PhantomData<G>,
     _compressor: PhantomData<I>,
-    _comm:       PedersenCommitment<G, W>,
+    _comm: PedersenCommitment<G, W>,
 }
 
 impl<G: Group, I: InjectiveMap<G>, W: PedersenWindow> CommitmentScheme

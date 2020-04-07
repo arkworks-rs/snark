@@ -36,7 +36,7 @@ impl<P: Bls12Parameters> PairingGadget<P> {
                 c1.c1 = c1.c1.mul(cs.ns(|| "mul c1.c1"), &p.x)?;
                 *f = f.mul_by_014(cs.ns(|| "sparse mul f"), &c0, &c1, &c2)?;
                 Ok(())
-            },
+            }
             TwistType::D => {
                 let c0 = Fp2G::<P>::new(p.y.clone(), zero);
                 let mut c1 = coeffs.0.clone();
@@ -46,7 +46,7 @@ impl<P: Bls12Parameters> PairingGadget<P> {
                 c1.c1 = c1.c1.mul(cs.ns(|| "mul c1.c1"), &p.x)?;
                 *f = f.mul_by_034(cs.ns(|| "sparse mul f"), &c0, &c1, &c2)?;
                 Ok(())
-            },
+            }
         }
     }
 

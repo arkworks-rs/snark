@@ -18,19 +18,19 @@ pub struct PedersenCRHGadgetParameters<
     ConstraintF: Field,
     GG: GroupGadget<G, ConstraintF>,
 > {
-    params:   PedersenParameters<G>,
+    params: PedersenParameters<G>,
     _group_g: PhantomData<GG>,
-    _engine:  PhantomData<ConstraintF>,
-    _window:  PhantomData<W>,
+    _engine: PhantomData<ConstraintF>,
+    _window: PhantomData<W>,
 }
 
 pub struct PedersenCRHGadget<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> {
     #[doc(hideen)]
-    _group:        PhantomData<*const G>,
+    _group: PhantomData<*const G>,
     #[doc(hideen)]
     _group_gadget: PhantomData<*const GG>,
     #[doc(hideen)]
-    _engine:       PhantomData<ConstraintF>,
+    _engine: PhantomData<ConstraintF>,
 }
 
 impl<ConstraintF, G, GG, W> FixedLengthCRHGadget<PedersenCRH<G, W>, ConstraintF>

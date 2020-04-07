@@ -14,9 +14,9 @@ use crate::{fields::fp::FpGadget, prelude::*, Vec};
 #[must_use]
 pub struct Fp3Gadget<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootField>
 {
-    pub c0:  FpGadget<ConstraintF>,
-    pub c1:  FpGadget<ConstraintF>,
-    pub c2:  FpGadget<ConstraintF>,
+    pub c0: FpGadget<ConstraintF>,
+    pub c1: FpGadget<ConstraintF>,
+    pub c2: FpGadget<ConstraintF>,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
 }
@@ -880,7 +880,7 @@ impl<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootFie
             Ok(fe) => {
                 let fe = *fe.borrow();
                 (Ok(fe.c0), Ok(fe.c1), Ok(fe.c2))
-            },
+            }
             _ => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),
@@ -907,7 +907,7 @@ impl<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootFie
             Ok(fe) => {
                 let fe = *fe.borrow();
                 (Ok(fe.c0), Ok(fe.c1), Ok(fe.c2))
-            },
+            }
             _ => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),

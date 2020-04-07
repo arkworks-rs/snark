@@ -15,15 +15,15 @@ pub mod constraints;
 
 pub struct SchnorrSignature<G: Group, D: Digest> {
     _group: PhantomData<G>,
-    _hash:  PhantomData<D>,
+    _hash: PhantomData<D>,
 }
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "G: Group, H: Digest"))]
 pub struct SchnorrSigParameters<G: Group, H: Digest> {
-    _hash:         PhantomData<H>,
+    _hash: PhantomData<H>,
     pub generator: G,
-    pub salt:      [u8; 32],
+    pub salt: [u8; 32],
 }
 
 pub type SchnorrPublicKey<G> = G;
@@ -42,7 +42,7 @@ impl<G: Group> ToBytes for SchnorrSecretKey<G> {
 #[derive(Derivative)]
 #[derivative(Clone(bound = "G: Group"), Default(bound = "G: Group"))]
 pub struct SchnorrSig<G: Group> {
-    pub prover_response:    G::ScalarField,
+    pub prover_response: G::ScalarField,
     pub verifier_challenge: G::ScalarField,
 }
 
@@ -198,7 +198,7 @@ where
         }
 
         let new_sig = SchnorrSig {
-            prover_response:    *prover_response - &(*verifier_challenge * &multiplier),
+            prover_response: *prover_response - &(*verifier_challenge * &multiplier),
             verifier_challenge: *verifier_challenge,
         };
         end_timer!(rand_signature_time);

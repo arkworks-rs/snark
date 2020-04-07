@@ -15,7 +15,7 @@ pub struct DPCRecord<C: DelegableDPCComponents> {
     pub(super) address_public_key: AddressPublicKey<C>,
 
     pub(super) is_dummy: bool,
-    pub(super) payload:  [u8; 32],
+    pub(super) payload: [u8; 32],
 
     #[derivative(Default(value = "default_predicate_hash::<C::PredVkH>()"))]
     pub(super) birth_predicate_repr: Vec<u8>,
@@ -24,7 +24,7 @@ pub struct DPCRecord<C: DelegableDPCComponents> {
 
     pub(super) serial_number_nonce: <C::SnNonceH as FixedLengthCRH>::Output,
 
-    pub(super) commitment:            <C::RecC as CommitmentScheme>::Output,
+    pub(super) commitment: <C::RecC as CommitmentScheme>::Output,
     pub(super) commitment_randomness: <C::RecC as CommitmentScheme>::Randomness,
 
     pub(super) _components: PhantomData<C>,

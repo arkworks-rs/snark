@@ -13,7 +13,7 @@ use crate::{
 #[derivative(Clone(bound = "C: PlainDPCComponents"))]
 pub struct ProofCheckVerifierInput<C: PlainDPCComponents> {
     pub comm_and_crh_pp: CommAndCRHPublicParameters<C>,
-    pub predicate_comm:  <C::PredVkComm as CommitmentScheme>::Output,
+    pub predicate_comm: <C::PredVkComm as CommitmentScheme>::Output,
     pub local_data_comm: <C::LocalDataComm as CommitmentScheme>::Output,
 }
 
@@ -70,8 +70,8 @@ pub struct ProofCheckCircuit<C: PlainDPCComponents> {
 
     new_private_pred_inputs: Option<Vec<PrivatePredInput<C>>>,
 
-    predicate_comm:  Option<<C::PredVkComm as CommitmentScheme>::Output>,
-    predicate_rand:  Option<<C::PredVkComm as CommitmentScheme>::Randomness>,
+    predicate_comm: Option<<C::PredVkComm as CommitmentScheme>::Output>,
+    predicate_rand: Option<<C::PredVkComm as CommitmentScheme>::Randomness>,
     local_data_comm: Option<<C::LocalDataComm as CommitmentScheme>::Output>,
 }
 
@@ -134,8 +134,8 @@ impl<C: PlainDPCComponents> ProofCheckCircuit<C> {
 
             new_private_pred_inputs: Some(new_private_pred_inputs.to_vec()),
 
-            predicate_comm:  Some(predicate_comm.clone()),
-            predicate_rand:  Some(predicate_rand.clone()),
+            predicate_comm: Some(predicate_comm.clone()),
+            predicate_rand: Some(predicate_rand.clone()),
             local_data_comm: Some(local_data_comm.clone()),
         }
     }

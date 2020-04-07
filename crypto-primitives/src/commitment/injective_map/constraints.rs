@@ -26,9 +26,9 @@ where
     GG: GroupGadget<G, ConstraintF>,
     IG: InjectiveMapGadget<G, I, ConstraintF, GG>,
 {
-    _compressor:        PhantomData<I>,
+    _compressor: PhantomData<I>,
     _compressor_gadget: PhantomData<IG>,
-    _crh:               PedersenCommitmentGadget<G, ConstraintF, GG>,
+    _crh: PedersenCommitmentGadget<G, ConstraintF, GG>,
 }
 
 impl<G, I, ConstraintF, GG, IG, W> CommitmentGadget<PedersenCommCompressor<G, I, W>, ConstraintF>

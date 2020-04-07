@@ -82,13 +82,13 @@ impl<P: MerkleTreeConfig> MerkleTreePath<P> {
 }
 
 pub struct MerkleHashTree<P: MerkleTreeConfig> {
-    tree:         Vec<<P::H as FixedLengthCRH>::Output>,
+    tree: Vec<<P::H as FixedLengthCRH>::Output>,
     padding_tree: Vec<(
         <P::H as FixedLengthCRH>::Output,
         <P::H as FixedLengthCRH>::Output,
     )>,
-    parameters:   <P::H as FixedLengthCRH>::Parameters,
-    root:         Option<<P::H as FixedLengthCRH>::Output>,
+    parameters: <P::H as FixedLengthCRH>::Parameters,
+    root: Option<<P::H as FixedLengthCRH>::Output>,
 }
 
 impl<P: MerkleTreeConfig> MerkleHashTree<P> {
@@ -248,7 +248,7 @@ impl core::fmt::Display for MerkleTreeError {
         let msg = match self {
             MerkleTreeError::IncorrectLeafIndex(index) => {
                 format!("incorrect leaf index: {}", index)
-            },
+            }
             MerkleTreeError::IncorrectPathLength(len) => format!("incorrect path length: {}", len),
         };
         write!(f, "{}", msg)

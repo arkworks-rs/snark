@@ -47,8 +47,8 @@ pub trait Fp6Parameters: 'static + Send + Sync {
     Eq(bound = "P: Fp6Parameters")
 )]
 pub struct Fp6<P: Fp6Parameters> {
-    pub c0:          Fp3<P::Fp3Params>,
-    pub c1:          Fp3<P::Fp3Params>,
+    pub c0: Fp3<P::Fp3Params>,
+    pub c1: Fp3<P::Fp3Params>,
     #[derivative(Debug = "ignore")]
     #[doc(hidden)]
     pub _parameters: PhantomData<P>,
@@ -108,8 +108,8 @@ impl<P: Fp6Parameters> Fp6<P> {
 impl<P: Fp6Parameters> Zero for Fp6<P> {
     fn zero() -> Self {
         Fp6 {
-            c0:          Fp3::zero(),
-            c1:          Fp3::zero(),
+            c0: Fp3::zero(),
+            c1: Fp3::zero(),
             _parameters: PhantomData,
         }
     }
@@ -122,8 +122,8 @@ impl<P: Fp6Parameters> Zero for Fp6<P> {
 impl<P: Fp6Parameters> One for Fp6<P> {
     fn one() -> Self {
         Fp6 {
-            c0:          Fp3::one(),
-            c1:          Fp3::zero(),
+            c0: Fp3::one(),
+            c1: Fp3::zero(),
             _parameters: PhantomData,
         }
     }

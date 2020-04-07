@@ -11,8 +11,8 @@ use crate::{fields::fp::FpGadget, prelude::*, Vec};
 #[derivative(Debug(bound = "P: Fp2Parameters, ConstraintF: PrimeField"))]
 #[must_use]
 pub struct Fp2Gadget<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> {
-    pub c0:  FpGadget<ConstraintF>,
-    pub c1:  FpGadget<ConstraintF>,
+    pub c0: FpGadget<ConstraintF>,
+    pub c1: FpGadget<ConstraintF>,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
 }
@@ -526,8 +526,8 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> Clone
 {
     fn clone(&self) -> Self {
         Self {
-            c0:      self.c0.clone(),
-            c1:      self.c1.clone(),
+            c0: self.c0.clone(),
+            c1: self.c1.clone(),
             _params: PhantomData,
         }
     }
@@ -624,7 +624,7 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> AllocGadget<Fp
             Ok(fe) => {
                 let fe = *fe.borrow();
                 (Ok(fe.c0), Ok(fe.c1))
-            },
+            }
             Err(_) => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),
@@ -649,7 +649,7 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> AllocGadget<Fp
             Ok(fe) => {
                 let fe = *fe.borrow();
                 (Ok(fe.c0), Ok(fe.c1))
-            },
+            }
             Err(_) => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),

@@ -25,8 +25,8 @@ where
     P: Fp6Parameters,
     P::Fp3Params: Fp3Parameters<Fp = ConstraintF>,
 {
-    pub c0:  Fp3Gadget<P, ConstraintF>,
-    pub c1:  Fp3Gadget<P, ConstraintF>,
+    pub c0: Fp3Gadget<P, ConstraintF>,
+    pub c1: Fp3Gadget<P, ConstraintF>,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
 }
@@ -557,8 +557,8 @@ where
 {
     fn clone(&self) -> Self {
         Self {
-            c0:      self.c0.clone(),
-            c1:      self.c1.clone(),
+            c0: self.c0.clone(),
+            c1: self.c1.clone(),
             _params: PhantomData,
         }
     }
@@ -677,7 +677,7 @@ where
             Ok(fe) => {
                 let fe = *fe.borrow();
                 (Ok(fe.c0), Ok(fe.c1))
-            },
+            }
             Err(_) => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),
@@ -702,7 +702,7 @@ where
             Ok(fe) => {
                 let fe = *fe.borrow();
                 (Ok(fe.c0), Ok(fe.c1))
-            },
+            }
             Err(_) => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),

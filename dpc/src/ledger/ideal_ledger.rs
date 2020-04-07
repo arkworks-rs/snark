@@ -16,20 +16,20 @@ pub struct IdealLedger<T: Transaction, P: MerkleTreeConfig>
 where
     T::Commitment: ToBytes,
 {
-    crh_params:     <P::H as FixedLengthCRH>::Parameters,
-    transactions:   Vec<T>,
+    crh_params: <P::H as FixedLengthCRH>::Parameters,
+    transactions: Vec<T>,
     cm_merkle_tree: MerkleHashTree<P>,
-    cur_cm_index:   usize,
-    cur_sn_index:   usize,
+    cur_cm_index: usize,
+    cur_sn_index: usize,
     cur_memo_index: usize,
-    comm_to_index:  HashMap<T::Commitment, usize>,
-    sn_to_index:    HashMap<T::SerialNumber, usize>,
-    memo_to_index:  HashMap<T::Memorandum, usize>,
+    comm_to_index: HashMap<T::Commitment, usize>,
+    sn_to_index: HashMap<T::SerialNumber, usize>,
+    memo_to_index: HashMap<T::Memorandum, usize>,
     current_digest: Option<MerkleTreeDigest<P>>,
-    past_digests:   HashSet<MerkleTreeDigest<P>>,
-    genesis_cm:     T::Commitment,
-    genesis_sn:     T::SerialNumber,
-    genesis_memo:   T::Memorandum,
+    past_digests: HashSet<MerkleTreeDigest<P>>,
+    genesis_cm: T::Commitment,
+    genesis_sn: T::SerialNumber,
+    genesis_memo: T::Memorandum,
 }
 
 impl<T: Transaction, P: MerkleTreeConfig> Ledger for IdealLedger<T, P>
