@@ -32,7 +32,9 @@ smallvec = "1.2"
 
 [dev-dependencies]
 csv = { version = "1" }
-algebra = { path = "../algebra", default-features = false, features = [ "bls12_377", "bls12_381", "sw6" ] }
+algebra = { path = "../algebra", default-features = false, features = [ "bls12_377", "bls12_381", "sw6", "mnt6_753", "mnt4_753" ] }
+r1cs-std = { path = "../r1cs-std", default-features = false, features = [ "mnt6_753", "mnt4_753" ] }
+crypto-primitives = { path = "../crypto-primitives", default-features = false, features = [ "std", "gm17", "r1cs" ] }
 
 [features]
 default = ["parallel"]
@@ -43,4 +45,9 @@ print-trace = [ "bench-utils/print-trace" ]
 [[example]]
 name = "gm17"
 path = "examples/snark-scalability/gm17.rs"
+required-features = ["std"]
+
+[[example]]
+name = "gm17-recursive"
+path = "examples/recursive-snark/gm17.rs"
 required-features = ["std"]
