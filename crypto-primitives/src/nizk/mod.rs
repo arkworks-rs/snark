@@ -67,17 +67,17 @@ mod test {
 
         #[derive(Copy, Clone)]
         struct R1CSCircuit {
-            x:   Option<Fr>,
+            x: Option<Fr>,
             sum: Option<Fr>,
-            w:   Option<Fr>,
+            w: Option<Fr>,
         }
 
         impl R1CSCircuit {
             pub(super) fn new(x: Fr, sum: Fr, w: Fr) -> Self {
                 Self {
-                    x:   Some(x),
+                    x: Some(x),
                     sum: Some(sum),
-                    w:   Some(w),
+                    w: Some(w),
                 }
             }
         }

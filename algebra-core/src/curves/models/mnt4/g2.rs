@@ -22,11 +22,11 @@ pub type G2Projective<P> = GroupProjective<<P as MNT4Parameters>::G2Parameters>;
     Eq(bound = "P: MNT4Parameters")
 )]
 pub struct G2Prepared<P: MNT4Parameters> {
-    pub x:                     Fp2<P::Fp2Params>,
-    pub y:                     Fp2<P::Fp2Params>,
-    pub x_over_twist:          Fp2<P::Fp2Params>,
-    pub y_over_twist:          Fp2<P::Fp2Params>,
-    pub double_coefficients:   Vec<AteDoubleCoefficients<P>>,
+    pub x: Fp2<P::Fp2Params>,
+    pub y: Fp2<P::Fp2Params>,
+    pub x_over_twist: Fp2<P::Fp2Params>,
+    pub y_over_twist: Fp2<P::Fp2Params>,
+    pub double_coefficients: Vec<AteDoubleCoefficients<P>>,
     pub addition_coefficients: Vec<AteAdditionCoefficients<P>>,
 }
 
@@ -47,11 +47,11 @@ impl<P: MNT4Parameters> From<G2Affine<P>> for G2Prepared<P> {
         let twist_inv = P::TWIST.inverse().unwrap();
 
         let mut g2p = G2Prepared {
-            x:                     g2.x,
-            y:                     g2.y,
-            x_over_twist:          g2.x * &twist_inv,
-            y_over_twist:          g2.y * &twist_inv,
-            double_coefficients:   vec![],
+            x: g2.x,
+            y: g2.y,
+            x_over_twist: g2.x * &twist_inv,
+            y_over_twist: g2.y * &twist_inv,
+            double_coefficients: vec![],
             addition_coefficients: vec![],
         };
 
@@ -125,10 +125,10 @@ pub(super) struct G2ProjectiveExtended<P: MNT4Parameters> {
     Eq(bound = "P: MNT4Parameters")
 )]
 pub struct AteDoubleCoefficients<P: MNT4Parameters> {
-    pub c_h:  Fp2<P::Fp2Params>,
+    pub c_h: Fp2<P::Fp2Params>,
     pub c_4c: Fp2<P::Fp2Params>,
-    pub c_j:  Fp2<P::Fp2Params>,
-    pub c_l:  Fp2<P::Fp2Params>,
+    pub c_j: Fp2<P::Fp2Params>,
+    pub c_l: Fp2<P::Fp2Params>,
 }
 
 #[derive(Derivative)]

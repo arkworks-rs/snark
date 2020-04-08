@@ -3,14 +3,14 @@ use crypto_primitives::NIZK;
 use std::marker::PhantomData;
 
 pub struct PrivatePredInput<C: DelegableDPCComponents> {
-    pub vk:    <C::PredicateNIZK as NIZK>::VerificationParameters,
+    pub vk: <C::PredicateNIZK as NIZK>::VerificationParameters,
     pub proof: <C::PredicateNIZK as NIZK>::Proof,
 }
 
 impl<C: DelegableDPCComponents> Default for PrivatePredInput<C> {
     fn default() -> Self {
         Self {
-            vk:    <C::PredicateNIZK as NIZK>::VerificationParameters::default(),
+            vk: <C::PredicateNIZK as NIZK>::VerificationParameters::default(),
             proof: <C::PredicateNIZK as NIZK>::Proof::default(),
         }
     }
@@ -19,7 +19,7 @@ impl<C: DelegableDPCComponents> Default for PrivatePredInput<C> {
 impl<C: DelegableDPCComponents> Clone for PrivatePredInput<C> {
     fn clone(&self) -> Self {
         Self {
-            vk:    self.vk.clone(),
+            vk: self.vk.clone(),
             proof: self.proof.clone(),
         }
     }
@@ -32,7 +32,7 @@ impl<C: DelegableDPCComponents> Clone for PrivatePredInput<C> {
 )]
 pub struct DPCPredicate<C: DelegableDPCComponents> {
     #[derivative(Default(value = "vec![0u8; 32]"))]
-    identity:    Vec<u8>,
+    identity: Vec<u8>,
     _components: PhantomData<C>,
 }
 

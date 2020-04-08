@@ -1,11 +1,11 @@
 use algebra::{
     fields::{Fp2, Fp2Parameters, Fp4, Fp4Parameters},
-    BigInteger, Field, One, PrimeField,
+    BigInteger, PrimeField,
 };
 use core::{borrow::Borrow, marker::PhantomData};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
-use crate::{prelude::*, Assignment, Vec};
+use crate::{prelude::*, Vec};
 
 type Fp2Gadget<P, ConstraintF> =
     super::fp2::Fp2Gadget<<P as Fp4Parameters>::Fp2Params, ConstraintF>;
@@ -22,8 +22,8 @@ where
     P: Fp4Parameters,
     P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
 {
-    pub c0:  Fp2Gadget<P, ConstraintF>,
-    pub c1:  Fp2Gadget<P, ConstraintF>,
+    pub c0: Fp2Gadget<P, ConstraintF>,
+    pub c1: Fp2Gadget<P, ConstraintF>,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
 }
@@ -308,48 +308,6 @@ where
         Ok(Self::new(c0, c1))
     }
 
-    #[inline]
-    fn inverse<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        mut cs: CS,
-    ) -> Result<Self, SynthesisError> {
-        let inverse = Self::alloc(&mut cs.ns(|| "alloc inverse"), || {
-            self.get_value().and_then(|val| val.inverse()).get()
-        })?;
-
-        // Karatsuba multiplication for Fp4 with the inverse:
-        //     v0 = A.c0 * B.c0
-        //     v1 = A.c1 * B.c1
-        //
-        //      1 = v0 + non_residue * v1
-        //  => v0 = 1 - non_residue * v1
-        //
-        //      0 = result.c1 = (A.c0 + A.c1) * (B.c0 + B.c1) - v0 - v1
-        //  => v0 + v1 = (A.c0 + A.c1) * (B.c0 + B.c1)
-        //  => 1 + (1 - non_residue) * v1 = (A.c0 + A.c1) * (B.c0 + B.c1)
-        // Enforced with 2 constraints:
-        //     A.c1 * B.c1 = v1
-        //  => 1 + (1 - non_residue) * v1 = (A.c0 + A.c1) * (B.c0 + B.c1)
-        // Reference:
-        // "Multiplication and Squaring on Pairing-Friendly Fields"
-        // Devegili, OhEigeartaigh, Scott, Dahab
-
-        // Constraint 1
-        let v1 = self.c1.mul(cs.ns(|| "inv_constraint_1"), &inverse.c1)?;
-
-        // Constraint 2
-        let a0_plus_a1 = self.c0.add(cs.ns(|| "a0 + a1"), &self.c1)?;
-        let b0_plus_b1 = inverse.c0.add(cs.ns(|| "b0 + b1"), &inverse.c1)?;
-
-        let one = Fp2::<<P as Fp4Parameters>::Fp2Params>::one();
-        let rhs = Self::mul_fp2_gadget_by_nonresidue(cs.ns(|| "nr * v1"), &v1)?
-            .sub(cs.ns(|| "sub v1"), &v1)?
-            .negate(cs.ns(|| "negate it"))?
-            .add_constant(cs.ns(|| "add one"), &one)?;
-        a0_plus_a1.mul_equals(cs.ns(|| "inv_constraint_2"), &b0_plus_b1, &rhs)?;
-        Ok(inverse)
-    }
-
     fn mul_equals<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
@@ -475,16 +433,11 @@ where
     }
 
     fn cost_of_mul() -> usize {
-        3 * <Fp2Gadget<P, ConstraintF> as FieldGadget<Fp2<P::Fp2Params>, ConstraintF>>::cost_of_mul(
-        )
+        3 * Fp2Gadget::<P, ConstraintF>::cost_of_mul()
     }
 
     fn cost_of_mul_equals() -> usize {
         Self::cost_of_mul()
-    }
-
-    fn cost_of_inv() -> usize {
-        unimplemented!()
     }
 }
 
@@ -616,8 +569,8 @@ where
 {
     fn clone(&self) -> Self {
         Self {
-            c0:      self.c0.clone(),
-            c1:      self.c1.clone(),
+            c0: self.c0.clone(),
+            c1: self.c1.clone(),
             _params: PhantomData,
         }
     }
@@ -733,7 +686,7 @@ where
             Ok(fe) => {
                 let fe = *fe.borrow();
                 (Ok(fe.c0), Ok(fe.c1))
-            },
+            }
             Err(_) => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),
@@ -758,7 +711,7 @@ where
             Ok(fe) => {
                 let fe = *fe.borrow();
                 (Ok(fe.c0), Ok(fe.c1))
-            },
+            }
             Err(_) => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),

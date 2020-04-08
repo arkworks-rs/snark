@@ -189,8 +189,8 @@ fn test_execute_constraint_systems() {
         {
             let pred_pub_input: PredicateLocalData<Components> = PredicateLocalData {
                 local_data_comm_pp: comm_and_crh_pp.local_data_comm_pp.clone(),
-                local_data_comm:    local_data_comm.clone(),
-                position:           i as u8,
+                local_data_comm: local_data_comm.clone(),
+                position: i as u8,
             };
             assert!(
                 PredicateNIZK::verify(&pred_nizk_pvk, &pred_pub_input, &proof)

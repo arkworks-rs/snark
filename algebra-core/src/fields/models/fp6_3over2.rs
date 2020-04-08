@@ -48,9 +48,9 @@ pub trait Fp6Parameters: 'static + Send + Sync + Copy {
     Eq(bound = "P: Fp6Parameters")
 )]
 pub struct Fp6<P: Fp6Parameters> {
-    pub c0:     Fp2<P::Fp2Params>,
-    pub c1:     Fp2<P::Fp2Params>,
-    pub c2:     Fp2<P::Fp2Params>,
+    pub c0: Fp2<P::Fp2Params>,
+    pub c1: Fp2<P::Fp2Params>,
+    pub c2: Fp2<P::Fp2Params>,
     #[derivative(Debug = "ignore")]
     #[doc(hidden)]
     pub params: PhantomData<P>,

@@ -11,7 +11,7 @@ use rand::Rng;
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
-use crate::{r1cs_to_qap::R1CStoQAP, Parameters, String, Vec, VerifyingKey, push_constraints};
+use crate::{push_constraints, r1cs_to_qap::R1CStoQAP, Parameters, String, Vec, VerifyingKey};
 
 /// Generates a random common reference string for
 /// a circuit.
@@ -35,12 +35,12 @@ where
 /// This is our assembly structure that we'll use to synthesize the
 /// circuit into a QAP.
 pub struct KeypairAssembly<E: PairingEngine> {
-    pub num_inputs:      usize,
-    pub num_aux:         usize,
+    pub num_inputs: usize,
+    pub num_aux: usize,
     pub num_constraints: usize,
-    pub at:              Vec<Vec<(E::Fr, Index)>>,
-    pub bt:              Vec<Vec<(E::Fr, Index)>>,
-    pub ct:              Vec<Vec<(E::Fr, Index)>>,
+    pub at: Vec<Vec<(E::Fr, Index)>>,
+    pub bt: Vec<Vec<(E::Fr, Index)>>,
+    pub ct: Vec<Vec<(E::Fr, Index)>>,
 }
 
 impl<E: PairingEngine> ConstraintSystem<E::Fr> for KeypairAssembly<E> {
@@ -86,7 +86,6 @@ impl<E: PairingEngine> ConstraintSystem<E::Fr> for KeypairAssembly<E> {
         LB: FnOnce(LinearCombination<E::Fr>) -> LinearCombination<E::Fr>,
         LC: FnOnce(LinearCombination<E::Fr>) -> LinearCombination<E::Fr>,
     {
-
         self.at.push(vec![]);
         self.bt.push(vec![]);
         self.ct.push(vec![]);
@@ -146,12 +145,12 @@ where
     R: Rng,
 {
     let mut assembly = KeypairAssembly {
-        num_inputs:      0,
-        num_aux:         0,
+        num_inputs: 0,
+        num_aux: 0,
         num_constraints: 0,
-        at:              vec![],
-        bt:              vec![],
-        ct:              vec![],
+        at: vec![],
+        bt: vec![],
+        ct: vec![],
     };
 
     // Allocate the "one" input variable
@@ -286,10 +285,10 @@ where
     end_timer!(verifying_key_time);
 
     let vk = VerifyingKey::<E> {
-        alpha_g1:     alpha_g1.into_affine(),
-        beta_g2:      beta_g2.into_affine(),
-        gamma_g2:     gamma_g2.into_affine(),
-        delta_g2:     delta_g2.into_affine(),
+        alpha_g1: alpha_g1.into_affine(),
+        beta_g2: beta_g2.into_affine(),
+        gamma_g2: gamma_g2.into_affine(),
+        delta_g2: delta_g2.into_affine(),
         gamma_abc_g1: cfg_iter!(gamma_abc_g1)
             .map(|p| p.into_affine())
             .collect::<Vec<_>>(),

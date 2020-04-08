@@ -24,7 +24,7 @@ pub struct ProvingAssignment<E: PairingEngine> {
 
     // Assignments of variables
     pub(crate) input_assignment: Vec<E::Fr>,
-    pub(crate) aux_assignment:   Vec<E::Fr>,
+    pub(crate) aux_assignment: Vec<E::Fr>,
 }
 
 impl<E: PairingEngine> ConstraintSystem<E::Fr> for ProvingAssignment<E> {
@@ -136,11 +136,11 @@ where
 {
     let prover_time = start_timer!(|| "Prover");
     let mut prover = ProvingAssignment {
-        at:               vec![],
-        bt:               vec![],
-        ct:               vec![],
+        at: vec![],
+        bt: vec![],
+        ct: vec![],
         input_assignment: vec![],
-        aux_assignment:   vec![],
+        aux_assignment: vec![],
     };
 
     // Allocate the "one" input variable

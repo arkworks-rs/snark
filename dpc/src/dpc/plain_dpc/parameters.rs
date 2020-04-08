@@ -4,26 +4,26 @@ use crypto_primitives::{CommitmentScheme, FixedLengthCRH, NIZK};
 #[derive(Derivative)]
 #[derivative(Clone(bound = "C: PlainDPCComponents"))]
 pub struct CommAndCRHPublicParameters<C: PlainDPCComponents> {
-    pub addr_comm_pp:       <C::AddrC as CommitmentScheme>::Parameters,
-    pub rec_comm_pp:        <C::RecC as CommitmentScheme>::Parameters,
-    pub pred_vk_comm_pp:    <C::PredVkComm as CommitmentScheme>::Parameters,
+    pub addr_comm_pp: <C::AddrC as CommitmentScheme>::Parameters,
+    pub rec_comm_pp: <C::RecC as CommitmentScheme>::Parameters,
+    pub pred_vk_comm_pp: <C::PredVkComm as CommitmentScheme>::Parameters,
     pub local_data_comm_pp: <C::LocalDataComm as CommitmentScheme>::Parameters,
 
     pub sn_nonce_crh_pp: <C::SnNonceH as FixedLengthCRH>::Parameters,
-    pub pred_vk_crh_pp:  <C::PredVkH as FixedLengthCRH>::Parameters,
+    pub pred_vk_crh_pp: <C::PredVkH as FixedLengthCRH>::Parameters,
 }
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "C: PlainDPCComponents"))]
 pub struct PredNIZKParameters<C: PlainDPCComponents> {
-    pub pk:    <C::PredicateNIZK as NIZK>::ProvingParameters,
-    pub vk:    <C::PredicateNIZK as NIZK>::VerificationParameters,
+    pub pk: <C::PredicateNIZK as NIZK>::ProvingParameters,
+    pub vk: <C::PredicateNIZK as NIZK>::VerificationParameters,
     pub proof: <C::PredicateNIZK as NIZK>::Proof,
 }
 
 pub struct PublicParameters<C: PlainDPCComponents> {
-    pub comm_and_crh_pp:     CommAndCRHPublicParameters<C>,
-    pub pred_nizk_pp:        PredNIZKParameters<C>,
+    pub comm_and_crh_pp: CommAndCRHPublicParameters<C>,
+    pub pred_nizk_pp: PredNIZKParameters<C>,
     pub proof_check_nizk_pp: (
         <C::ProofCheckNIZK as NIZK>::ProvingParameters,
         <C::ProofCheckNIZK as NIZK>::PreparedVerificationParameters,

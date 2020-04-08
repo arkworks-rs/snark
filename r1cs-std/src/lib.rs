@@ -33,8 +33,8 @@ use ralloc::{collections::BTreeMap, string::String, vec::Vec};
 #[cfg(feature = "std")]
 use std::{collections::BTreeMap, string::String, vec::Vec};
 
-pub mod test_constraint_system;
 pub mod test_constraint_counter;
+pub mod test_constraint_system;
 
 pub mod bits;
 pub use self::bits::*;

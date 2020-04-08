@@ -8,14 +8,14 @@ use core::ops::Neg;
 
 pub fn prepare_verifying_key<E: PairingEngine>(vk: &VerifyingKey<E>) -> PreparedVerifyingKey<E> {
     PreparedVerifyingKey {
-        vk:                vk.clone(),
-        g_alpha:           vk.g_alpha_g1,
-        h_beta:            vk.h_beta_g2,
+        vk: vk.clone(),
+        g_alpha: vk.g_alpha_g1,
+        h_beta: vk.h_beta_g2,
         g_alpha_h_beta_ml: E::miller_loop([(vk.g_alpha_g1.into(), vk.h_beta_g2.into())].iter()),
-        g_gamma_pc:        vk.g_gamma_g1.into(),
-        h_gamma_pc:        vk.h_gamma_g2.into(),
-        h_pc:              vk.h_g2.into(),
-        query:             vk.query.clone(),
+        g_gamma_pc: vk.g_gamma_g1.into(),
+        h_gamma_pc: vk.h_gamma_g2.into(),
+        h_pc: vk.h_g2.into(),
+        query: vk.query.clone(),
     }
 }
 

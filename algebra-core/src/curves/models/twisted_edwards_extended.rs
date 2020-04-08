@@ -37,8 +37,8 @@ use rayon::prelude::*;
     Hash(bound = "P: Parameters")
 )]
 pub struct GroupAffine<P: Parameters> {
-    pub x:   P::BaseField,
-    pub y:   P::BaseField,
+    pub x: P::BaseField,
+    pub y: P::BaseField,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
 }
@@ -279,10 +279,10 @@ mod group_impl {
     Hash(bound = "P: Parameters")
 )]
 pub struct GroupProjective<P: Parameters> {
-    pub x:   P::BaseField,
-    pub y:   P::BaseField,
-    pub t:   P::BaseField,
-    pub z:   P::BaseField,
+    pub x: P::BaseField,
+    pub y: P::BaseField,
+    pub t: P::BaseField,
+    pub z: P::BaseField,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
 }
@@ -630,8 +630,8 @@ where
     Hash(bound = "P: MontgomeryParameters")
 )]
 pub struct MontgomeryGroupAffine<P: MontgomeryParameters> {
-    pub x:   P::BaseField,
-    pub y:   P::BaseField,
+    pub x: P::BaseField,
+    pub y: P::BaseField,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
 }

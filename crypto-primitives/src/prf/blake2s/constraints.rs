@@ -664,14 +664,14 @@ mod test {
                     match b {
                         Boolean::Is(b) => {
                             assert!(s.next().unwrap() == b.get_value().unwrap());
-                        },
+                        }
                         Boolean::Not(b) => {
                             assert!(s.next().unwrap() != b.get_value().unwrap());
-                        },
+                        }
                         Boolean::Constant(b) => {
                             assert!(input_len == 0);
                             assert!(s.next().unwrap() == b);
-                        },
+                        }
                     }
                 }
             }

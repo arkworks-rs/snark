@@ -15,9 +15,9 @@ use r1cs_std::prelude::*;
 #[derive(Derivative)]
 #[derivative(Clone(bound = "G: Group, W: PedersenWindow, ConstraintF: Field"))]
 pub struct PedersenCommitmentGadgetParameters<G: Group, W: PedersenWindow, ConstraintF: Field> {
-    params:  PedersenParameters<G>,
+    params: PedersenParameters<G>,
     #[doc(hidden)]
-    _group:  PhantomData<G>,
+    _group: PhantomData<G>,
     #[doc(hidden)]
     _engine: PhantomData<ConstraintF>,
     #[doc(hidden)]
@@ -109,8 +109,8 @@ where
         let parameters = temp.borrow().clone();
 
         Ok(PedersenCommitmentGadgetParameters {
-            params:  parameters,
-            _group:  PhantomData,
+            params: parameters,
+            _group: PhantomData,
             _engine: PhantomData,
             _window: PhantomData,
         })
@@ -128,8 +128,8 @@ where
         let parameters = temp.borrow().clone();
 
         Ok(PedersenCommitmentGadgetParameters {
-            params:  parameters,
-            _group:  PhantomData,
+            params: parameters,
+            _group: PhantomData,
             _engine: PhantomData,
             _window: PhantomData,
         })

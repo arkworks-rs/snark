@@ -31,11 +31,11 @@ use crate::{
     Hash(bound = "P: Parameters")
 )]
 pub struct GroupAffine<P: Parameters> {
-    pub x:        P::BaseField,
-    pub y:        P::BaseField,
+    pub x: P::BaseField,
+    pub y: P::BaseField,
     pub infinity: bool,
     #[derivative(Debug = "ignore")]
-    _params:      PhantomData<P>,
+    _params: PhantomData<P>,
 }
 
 impl<P: Parameters> Display for GroupAffine<P> {
@@ -215,9 +215,9 @@ impl<P: Parameters> Default for GroupAffine<P> {
     Hash(bound = "P: Parameters")
 )]
 pub struct GroupProjective<P: Parameters> {
-    pub x:   P::BaseField,
-    pub y:   P::BaseField,
-    pub z:   P::BaseField,
+    pub x: P::BaseField,
+    pub y: P::BaseField,
+    pub z: P::BaseField,
     _params: PhantomData<P>,
 }
 

@@ -20,8 +20,8 @@ pub type G1Projective<P> = GroupProjective<<P as MNT6Parameters>::G1Parameters>;
     Eq(bound = "P: MNT6Parameters")
 )]
 pub struct G1Prepared<P: MNT6Parameters> {
-    pub x:       P::Fp,
-    pub y:       P::Fp,
+    pub x: P::Fp,
+    pub y: P::Fp,
     pub x_twist: Fp3<P::Fp3Params>,
     pub y_twist: Fp3<P::Fp3Params>,
 }

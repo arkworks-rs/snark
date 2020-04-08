@@ -12,9 +12,9 @@ use crypto_primitives::{CommitmentScheme, NIZK, PRF};
 )]
 pub struct DPCTransaction<C: PlainDPCComponents> {
     old_serial_numbers: Vec<<C::P as PRF>::Output>,
-    new_commitments:    Vec<<C::RecC as CommitmentScheme>::Output>,
-    memorandum:         [u8; 32],
-    pub stuff:          DPCStuff<C>,
+    new_commitments: Vec<<C::RecC as CommitmentScheme>::Output>,
+    memorandum: [u8; 32],
+    pub stuff: DPCStuff<C>,
 }
 
 #[derive(Derivative)]
@@ -24,13 +24,13 @@ pub struct DPCTransaction<C: PlainDPCComponents> {
     Eq(bound = "C: PlainDPCComponents")
 )]
 pub struct DPCStuff<C: PlainDPCComponents> {
-    pub digest:          MerkleTreeDigest<C::MerkleTreeConfig>,
+    pub digest: MerkleTreeDigest<C::MerkleTreeConfig>,
     #[derivative(PartialEq = "ignore")]
-    pub core_proof:      <C::MainNIZK as NIZK>::Proof,
+    pub core_proof: <C::MainNIZK as NIZK>::Proof,
     #[derivative(PartialEq = "ignore")]
     pub predicate_proof: <C::ProofCheckNIZK as NIZK>::Proof,
     #[derivative(PartialEq = "ignore")]
-    pub predicate_comm:  <C::PredVkComm as CommitmentScheme>::Output,
+    pub predicate_comm: <C::PredVkComm as CommitmentScheme>::Output,
     #[derivative(PartialEq = "ignore")]
     pub local_data_comm: <C::LocalDataComm as CommitmentScheme>::Output,
 }

@@ -8,7 +8,7 @@ use algebra::{
 use core::{borrow::Borrow, marker::PhantomData};
 use r1cs_core::{ConstraintSystem, ConstraintVar, SynthesisError};
 
-use crate::{prelude::*, Assignment, Vec};
+use crate::{prelude::*, Vec};
 
 type Fp2Gadget<P, ConstraintF> =
     super::fp2::Fp2Gadget<<P as Fp6Parameters>::Fp2Params, ConstraintF>;
@@ -21,9 +21,9 @@ where
     P: Fp6Parameters,
     P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
 {
-    pub c0:  Fp2Gadget<P, ConstraintF>,
-    pub c1:  Fp2Gadget<P, ConstraintF>,
-    pub c2:  Fp2Gadget<P, ConstraintF>,
+    pub c0: Fp2Gadget<P, ConstraintF>,
+    pub c1: Fp2Gadget<P, ConstraintF>,
+    pub c2: Fp2Gadget<P, ConstraintF>,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
 }
@@ -398,120 +398,113 @@ where
         Ok(Self::new(c0, c1, c2))
     }
 
-    /// Use the Toom-Cook-3x method to compute multiplication.
+    /// Use the Chung-Hasan asymmetric squaring formula.
+    ///
+    /// (Devegili OhEig Scott Dahab --- Multiplication and Squaring on
+    /// Abstract Pairing-Friendly
+    /// Fields.pdf; Section 4 (CH-SQR2))
     #[inline]
     fn square<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Self, SynthesisError> {
-        // Uses Toom-Cook-3x multiplication from
-        //
-        // Reference:
-        // "Multiplication and Squaring on Pairing-Friendly Fields"
-        //    Devegili, OhEigeartaigh, Scott, Dahab
+        let a = self.c0.clone();
+        let b = self.c1.clone();
+        let c = self.c2.clone();
 
-        // v0 = a(0)^2 = a0^2
-        let v0 = self.c0.square(&mut cs.ns(|| "Calc v0"))?;
+        let s0 = a.square(cs.ns(|| "s0"))?;
+        let ab = a.mul(cs.ns(|| "ab"), &b)?;
+        let s1 = ab.double(cs.ns(|| "s1"))?;
+        let s2 = a
+            .sub(cs.ns(|| "a-b"), &b)?
+            .add(cs.ns(|| "plus c"), &c)?
+            .square(cs.ns(|| "s2"))?;
+        let s3 = b.mul(cs.ns(|| "bc"), &c)?.double(cs.ns(|| "s3"))?;
+        let s4 = c.square(cs.ns(|| "s4"))?;
 
-        // v1 = a(1)^2 = (a0 + a1 + a2)^2
-        let v1 = {
-            let a0_plus_a1_plus_a2 = self
-                .c0
-                .add(cs.ns(|| "a0 + a1"), &self.c1)?
-                .add(cs.ns(|| "a0 + a1 + a2"), &self.c2)?;
-            a0_plus_a1_plus_a2.square(&mut cs.ns(|| "(a0 + a1 + a2)^2"))?
-        };
+        let c0 = Self::mul_fp2_gadget_by_nonresidue(cs.ns(|| "c0 part 1"), &s3)?
+            .add(cs.ns(|| "c0"), &s0)?;
 
-        // v2 = a(−1)^2 = (a0 − a1 + a2)^2
-        let v2 = {
-            let a0_minus_a1_plus_a2 = self
-                .c0
-                .sub(cs.ns(|| "a0 - a1"), &self.c1)?
-                .add(cs.ns(|| "a0 - a2 + a2"), &self.c2)?;
-            a0_minus_a1_plus_a2.square(&mut cs.ns(|| "(a0 - a1 + a2)^2"))?
-        };
+        let c1 = Self::mul_fp2_gadget_by_nonresidue(cs.ns(|| "c1 part 1"), &s4)?
+            .add(cs.ns(|| "c1"), &s1)?;
 
-        // v3 = a(2)^2 = (a0 + 2a1 + 4a2)^2
-        let v3 = {
-            let a1_double = self.c1.double(cs.ns(|| "2a1"))?;
-            let a2_quad = self.c2.double(cs.ns(|| "2a2"))?.double(cs.ns(|| "4a2"))?;
-            let a0_plus_2_a1_plus_4_a2 = self
-                .c0
-                .add(cs.ns(|| "a0 + 2a1"), &a1_double)?
-                .add(cs.ns(|| "a0 + 2a1 + 4a2"), &a2_quad)?;
-
-            a0_plus_2_a1_plus_4_a2.square(&mut cs.ns(|| "(a0 + 2a1 + 4a2)^2"))?
-        };
-
-        // v4 = a(∞)^2 = a2^2
-        let v4 = self.c2.square(&mut cs.ns(|| "a2^2"))?;
-
-        let two = <P::Fp2Params as Fp2Parameters>::Fp::one().double();
-        let six = two.double() + &two;
-        let mut two_and_six = [two, six];
-        algebra::fields::batch_inversion(&mut two_and_six);
-        let (two_inverse, six_inverse) = (two_and_six[0], two_and_six[1]);
-
-        let half_v0 = v0.mul_by_fp_constant(cs.ns(|| "half_v0"), &two_inverse)?;
-        let half_v1 = v1.mul_by_fp_constant(cs.ns(|| "half_v1"), &two_inverse)?;
-        let one_sixth_v2 = v2.mul_by_fp_constant(cs.ns(|| "one_sixth_v2"), &six_inverse)?;
-        let one_sixth_v3 = v3.mul_by_fp_constant(cs.ns(|| "one_sixth_v3"), &six_inverse)?;
-        let two_v4 = v4.double(cs.ns(|| "double_v4"))?;
-
-        // c0 = v0 + β((1/2)v0 − (1/2)v1 − (1/6)v2 + (1/6)v3 − 2v4)
-        let c0 = {
-            let mut c0_cs = cs.ns(|| "c0");
-            // No constraints, only get a linear combination back.
-            let inner = half_v0
-                .sub(c0_cs.ns(|| "sub1"), &half_v1)?
-                .sub(c0_cs.ns(|| "sub2"), &one_sixth_v2)?
-                .add(c0_cs.ns(|| "add3"), &one_sixth_v3)?
-                .sub(c0_cs.ns(|| "sub4"), &two_v4)?;
-            let non_residue_times_inner =
-                inner.mul_by_constant(c0_cs.ns(|| "mul_by_res"), &P::NONRESIDUE)?;
-            v0.add(c0_cs.ns(|| "add5"), &non_residue_times_inner)?
-        };
-
-        // −(1/2)v0 + v1 − (1/3)v2 − (1/6)v3 + 2v4 + βv4
-        let c1 = {
-            let mut c1_cs = cs.ns(|| "c1");
-            let one_third_v2 = one_sixth_v2.double(c1_cs.ns(|| "v2_by_3"))?;
-            let non_residue_v4 = v4.mul_by_constant(c1_cs.ns(|| "mul_by_res"), &P::NONRESIDUE)?;
-
-            half_v0
-                .negate(c1_cs.ns(|| "neg1"))?
-                .add(c1_cs.ns(|| "add1"), &v1)?
-                .sub(c1_cs.ns(|| "sub2"), &one_third_v2)?
-                .sub(c1_cs.ns(|| "sub3"), &one_sixth_v3)?
-                .add(c1_cs.ns(|| "add4"), &two_v4)?
-                .add(c1_cs.ns(|| "add5"), &non_residue_v4)?
-        };
-
-        // -v0 + (1/2)v1 + (1/2)v2 −v4
-        let c2 = {
-            let mut c2_cs = cs.ns(|| "c2");
-            let half_v2 = v2.mul_by_fp_constant(c2_cs.ns(|| "half_v2"), &two_inverse)?;
-            half_v1
-                .add(c2_cs.ns(|| "add1"), &half_v2)?
-                .sub(c2_cs.ns(|| "sub1"), &v4)?
-                .sub(c2_cs.ns(|| "sub2"), &v0)?
-        };
+        let c2 = s1
+            .add(cs.ns(|| "c2 part1"), &s2)?
+            .add(cs.ns(|| "c2 part2"), &s3)?
+            .sub(cs.ns(|| "c2 part3"), &s0)?
+            .sub(cs.ns(|| "c2 part4"), &s4)?;
 
         Ok(Self::new(c0, c1, c2))
     }
 
-    // 18 constraints, we can probably do better but not sure it's worth it.
     #[inline]
-    fn inverse<CS: ConstraintSystem<ConstraintF>>(
+    fn mul_equals<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
-    ) -> Result<Self, SynthesisError> {
-        let inverse = Self::alloc(&mut cs.ns(|| "alloc inverse"), || {
-            self.get_value().and_then(|val| val.inverse()).get()
-        })?;
-        let one = Self::one(cs.ns(|| "one"))?;
-        inverse.mul_equals(cs.ns(|| "check inverse"), &self, &one)?;
-        Ok(inverse)
+        other: &Self,
+        result: &Self,
+    ) -> Result<(), SynthesisError> {
+        // Karatsuba multiplication for Fp3:
+        //     v0 = A.c0 * B.c0
+        //     v1 = A.c1 * B.c1
+        //     v2 = A.c2 * B.c2
+        //     result.c0 = v0 + β((a1 + a2)(b1 + b2) − v1 − v2)
+        //     result.c1 = (a0 + a1)(b0 + b1) − v0 − v1 + βv2
+        //     result.c2 = (a0 + a2)(b0 + b2) − v0 + v1 − v2,
+        // We enforce this with six constraints:
+        //
+        //     v0 = A.c0 * B.c0
+        //     v1 = A.c1 * B.c1
+        //     v2 = A.c2 * B.c2
+        //
+        //     result.c0 - v0 + \beta*(v1 + v2) = β(a1 + a2)(b1 + b2))
+        //     result.c1 + v0 + v1 - βv2        = (a0 + a1)(b0 + b1)
+        //     result.c2 + v0 - v1 + v2         = (a0 + a2)(b0 + b2)
+        // Reference:
+        // "Multiplication and Squaring on Pairing-Friendly Fields"
+        // Devegili, OhEigeartaigh, Scott, Dahab
+        //
+        // This implementation adapted from
+        // https://github.com/ZencashOfficial/ginger-lib/blob/development/r1cs/gadgets/std/src/fields/fp3.rs
+        let v0 = self.c0.mul(cs.ns(|| "v0 = a0 * b0"), &other.c0)?;
+        let v1 = self.c1.mul(cs.ns(|| "v1 = a1 * b1"), &other.c1)?;
+        let v2 = self.c2.mul(cs.ns(|| "v2 = a2 * b2"), &other.c2)?;
+
+        // Check c0
+        let nr_a1_plus_a2 = self
+            .c1
+            .add(cs.ns(|| "a1 + a2"), &self.c2)?
+            .mul_by_constant(cs.ns(|| "nr*(a1 + a2)"), &P::NONRESIDUE)?;
+        let b1_plus_b2 = other.c1.add(cs.ns(|| "b1 + b2"), &other.c2)?;
+        let nr_v1 = v1.mul_by_constant(cs.ns(|| "nr * v1"), &P::NONRESIDUE)?;
+        let nr_v2 = v2.mul_by_constant(cs.ns(|| "nr * v2"), &P::NONRESIDUE)?;
+        let to_check = result
+            .c0
+            .sub(cs.ns(|| "c0 - v0"), &v0)?
+            .add(cs.ns(|| "c0 - v0 + nr * v1"), &nr_v1)?
+            .add(cs.ns(|| "c0 - v0 + nr * v1 + nr * v2"), &nr_v2)?;
+        nr_a1_plus_a2.mul_equals(cs.ns(|| "check c0"), &b1_plus_b2, &to_check)?;
+
+        // Check c1
+        let a0_plus_a1 = self.c0.add(cs.ns(|| "a0 + a1"), &self.c1)?;
+        let b0_plus_b1 = other.c0.add(cs.ns(|| "b0 + b1"), &other.c1)?;
+        let to_check = result
+            .c1
+            .sub(cs.ns(|| "c1 - nr * v2"), &nr_v2)?
+            .add(cs.ns(|| "c1 - nr * v2 + v0"), &v0)?
+            .add(cs.ns(|| "c1 - nr * v2 + v0 + v1"), &v1)?;
+        a0_plus_a1.mul_equals(cs.ns(|| "check c1"), &b0_plus_b1, &to_check)?;
+
+        // Check c2
+        let a0_plus_a2 = self.c0.add(cs.ns(|| "a0 + a2"), &self.c2)?;
+        let b0_plus_b2 = other.c0.add(cs.ns(|| "b0 + b2"), &other.c2)?;
+        let to_check = result
+            .c2
+            .add(cs.ns(|| "c2 + v0"), &v0)?
+            .sub(cs.ns(|| "c2 + v0 - v1"), &v1)?
+            .add(cs.ns(|| "c2 + v0 - v1 + v2"), &v2)?;
+        a0_plus_a2.mul_equals(cs.ns(|| "check c2"), &b0_plus_b2, &to_check)?;
+        Ok(())
     }
 
     #[inline]
@@ -704,8 +697,8 @@ where
         5 * Fp2Gadget::<P, ConstraintF>::cost_of_mul()
     }
 
-    fn cost_of_inv() -> usize {
-        Self::cost_of_mul() + <Self as EqGadget<ConstraintF>>::cost()
+    fn cost_of_mul_equals() -> usize {
+        6 * Fp2Gadget::<P, ConstraintF>::cost_of_mul()
     }
 }
 
@@ -984,7 +977,7 @@ where
             Ok(fe) => {
                 let fe = *fe.borrow();
                 (Ok(fe.c0), Ok(fe.c1), Ok(fe.c2))
-            },
+            }
             _ => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),
@@ -1011,7 +1004,7 @@ where
             Ok(fe) => {
                 let fe = *fe.borrow();
                 (Ok(fe.c0), Ok(fe.c1), Ok(fe.c2))
-            },
+            }
             _ => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),

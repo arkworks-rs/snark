@@ -12,9 +12,9 @@ use crypto_primitives::{CommitmentScheme, SignatureScheme, NIZK};
 )]
 pub struct DPCTransaction<C: DelegableDPCComponents> {
     old_serial_numbers: Vec<<C::S as SignatureScheme>::PublicKey>,
-    new_commitments:    Vec<<C::RecC as CommitmentScheme>::Output>,
-    memorandum:         [u8; 32],
-    pub stuff:          DPCStuff<C>,
+    new_commitments: Vec<<C::RecC as CommitmentScheme>::Output>,
+    memorandum: [u8; 32],
+    pub stuff: DPCStuff<C>,
 }
 
 #[derive(Derivative)]

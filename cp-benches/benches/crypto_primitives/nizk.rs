@@ -11,7 +11,7 @@ use rand::{thread_rng, Rng};
 type TestProofSystem = Gm17<Bls12_377, Bench<Fr>, Fr>;
 
 struct Bench<F: Field> {
-    inputs:          Vec<Option<F>>,
+    inputs: Vec<Option<F>>,
     num_constraints: usize,
 }
 

@@ -24,11 +24,11 @@ impl<C: DelegableDPCComponents> ToBytes for AddressPublicKey<C> {
     Clone(bound = "C: DelegableDPCComponents")
 )]
 pub struct AddressSecretKey<C: DelegableDPCComponents> {
-    pub pk_sig:   <C::S as SignatureScheme>::PublicKey,
-    pub sk_sig:   <C::S as SignatureScheme>::SecretKey,
-    pub sk_prf:   <C::P as PRF>::Seed,
+    pub pk_sig: <C::S as SignatureScheme>::PublicKey,
+    pub sk_sig: <C::S as SignatureScheme>::SecretKey,
+    pub sk_prf: <C::P as PRF>::Seed,
     pub metadata: [u8; 32],
-    pub r_pk:     <C::AddrC as CommitmentScheme>::Randomness,
+    pub r_pk: <C::AddrC as CommitmentScheme>::Randomness,
 }
 
 #[derive(Derivative)]
