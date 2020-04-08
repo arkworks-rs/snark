@@ -4,16 +4,16 @@ use r1cs_core::{ConstraintSystem, Index, LinearCombination, SynthesisError, Vari
 
 /// Constraint counter for testing purposes.
 pub struct ConstraintCounter {
-    pub num_inputs: usize,
-    pub num_aux: usize,
+    pub num_inputs:      usize,
+    pub num_aux:         usize,
     pub num_constraints: usize,
 }
 
 impl ConstraintCounter {
     pub fn new() -> Self {
         Self {
-            num_aux: 0,
-            num_inputs: 0,
+            num_aux:         0,
+            num_inputs:      0,
             num_constraints: 0,
         }
     }
