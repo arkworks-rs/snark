@@ -279,6 +279,14 @@ pub fn curve_tests<G: ProjectiveCurve>() {
         assert_eq!(b, c);
     }
 
+    // Test COFACTOR and COFACTOR_INV
+    {
+        let a = G::rand(&mut rng);
+        let b = a.into_affine();
+        let c = b.mul_by_cofactor_inv().mul_by_cofactor();
+        assert_eq!(b, c);
+    }
+
     random_addition_test::<G>();
     random_multiplication_test::<G>();
     random_doubling_test::<G>();
