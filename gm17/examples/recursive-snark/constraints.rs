@@ -77,7 +77,7 @@ type MiddleVkGadget<C> = VerifyingKeyGadget<
 
 pub struct InnerCircuit<F: Field> {
     num_constraints: usize,
-    inputs:          Vec<F>,
+    inputs: Vec<F>,
 }
 
 impl<F: Field> InnerCircuit<F> {
@@ -124,9 +124,9 @@ impl<F: Field> ConstraintSynthesizer<F> for InnerCircuit<F> {
 }
 
 pub struct MiddleCircuit<C: CurvePair> {
-    inputs:      Vec<<C::PairingEngineTick as PairingEngine>::Fr>,
-    params:      Parameters<C::PairingEngineTick>,
-    proof:       Proof<C::PairingEngineTick>,
+    inputs: Vec<<C::PairingEngineTick as PairingEngine>::Fr>,
+    params: Parameters<C::PairingEngineTick>,
+    proof: Proof<C::PairingEngineTick>,
     _curve_pair: PhantomData<C>,
 }
 
@@ -232,9 +232,9 @@ impl<C: CurvePair> ConstraintSynthesizer<<C::PairingEngineTock as PairingEngine>
 }
 
 pub struct OuterCircuit<C: CurvePair> {
-    inputs:      Vec<<C::PairingEngineTick as PairingEngine>::Fr>,
-    params:      Parameters<C::PairingEngineTock>,
-    proof:       Proof<C::PairingEngineTock>,
+    inputs: Vec<<C::PairingEngineTick as PairingEngine>::Fr>,
+    params: Parameters<C::PairingEngineTock>,
+    proof: Proof<C::PairingEngineTock>,
     _curve_pair: PhantomData<C>,
 }
 

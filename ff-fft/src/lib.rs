@@ -15,11 +15,9 @@ extern crate alloc;
 
 #[cfg(not(feature = "std"))]
 pub(crate) use alloc::{borrow::Cow, collections::BTreeMap, vec::Vec};
-#[cfg(not(feature = "std"))]
-pub(crate) use core::cmp::min;
 
 #[cfg(feature = "std")]
-pub(crate) use std::{borrow::Cow, cmp::min, collections::BTreeMap, vec::Vec};
+pub(crate) use std::{borrow::Cow, collections::BTreeMap, vec::Vec};
 
 /// Creates parallel iterator over refs if `parallel` feature is enabled.
 #[macro_export]
