@@ -1,5 +1,5 @@
-use crate::min;
 use algebra_core::{fields::FpParameters, PrimeField};
+use core::cmp::min;
 
 pub(crate) fn mixed_radix_fft_permute(
     two_adicity: u32,

@@ -34,7 +34,7 @@ rayon = { version = "1", optional = true }
 csv = { version = "1" }
 algebra = { path = "../algebra", default-features = false, features = [ "bls12_377", "bls12_381", "sw6", "mnt6_753", "mnt4_753" ] }
 r1cs-std = { path = "../r1cs-std", default-features = false, features = [ "mnt6_753", "mnt4_753" ] }
-crypto-primitives = { path = "../crypto-primitives", default-features = false, features = [ "std", "groth16", "r1cs" ] }
+crypto-primitives = { path = "../crypto-primitives", default-features = false, features = [ "groth16", "r1cs" ] }
 
 [features]
 default = ["parallel"]
