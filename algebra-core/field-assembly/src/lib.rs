@@ -6,8 +6,8 @@ const MAX_REGS: usize = 6;
 
 // Only works for up to
 pub fn generate_macro_string (num_limbs:usize) -> std::string::String {
-    if (num_limbs > 2 * MAX_REGS) || (MAX_REGS < 6) {
-        panic!("Number of limbs must be <= {} and MAX_REGS >= 6", 2*MAX_REGS);
+    if (num_limbs > 3 * MAX_REGS) {//|| (MAX_REGS < 6) {
+        panic!("Number of limbs must be <= {} and MAX_REGS >= 6", 3*MAX_REGS);
     }
     let mut macro_string = String::from(
     "macro_rules! asm_mul {
@@ -156,7 +156,7 @@ fn generate_asm_mul_string (limbs: usize, a: &str, b: &str) -> String {
 
 
 fn get_registers (limbs: usize) -> (usize, Vec<Vec<usize>>) {
-    assert!(limbs <= 2*MAX_REGS);
+    assert!(limbs <= 3*MAX_REGS);
 
     if limbs <= MAX_REGS {
         (0, Vec::new())
@@ -175,18 +175,29 @@ fn get_registers (limbs: usize) -> (usize, Vec<Vec<usize>>) {
                 vec![MAX_REGS/2+1, MAX_REGS+1],
                 vec![MAX_REGS/2+2, MAX_REGS+2]
                 ])
-    } else {
+    } else if limbs <= MAX_REGS * 2 {
         let n_spills = limbs - MAX_REGS;
         let mut values = Vec::new();
         for i in 0..n_spills {
             values.push(vec![i, MAX_REGS+i]);
         }
         (n_spills, values)
+    } else { // (if limbs <= MAX_REGS * 3)
+        let mut values = Vec::new();
+        for i in 0..MAX_REGS {
+            if i < limbs - 2*MAX_REGS {
+                values.push(vec![i, MAX_REGS+i, 2*MAX_REGS+i]);
+            } else {
+                values.push(vec![i, MAX_REGS+i]);
+            }
+        }
+        (MAX_REGS, values)
     }
 }
 
 // This is a compilation pass which converts abstract
-// register numbers into x64 registers with spills
+// register numbers into x64 registers with spills.
+// Rather hacky at this stage
 fn transform_asm_mul_string (limbs: usize, asm_string: String, spills: &str, a: &str) -> String {
     // println!("{}", asm_string);
     let (n_spills, spillable) = get_registers(limbs);
@@ -220,9 +231,9 @@ fn transform_asm_mul_string (limbs: usize, asm_string: String, spills: &str, a: 
         if length > 0 {
             for j in 0..reg_sequence[i].len()-1 {
                 if reg_sequence[i][j].1 != reg_sequence[i][j+1].1 {
-                    swap_sequence[i].push((reg_sequence[i][j].0,
-                                           reg_sequence[i][j].1,
-                                           reg_sequence[i][j+1].1));
+                    swap_sequence[i].push((reg_sequence[i][j].0,        // line number
+                                           reg_sequence[i][j].1,        // current reg index
+                                           reg_sequence[i][j+1].1));    // next reg index
                 }
             }
         swap_sequence[i].push((reg_sequence[i][length-1].0,
@@ -230,12 +241,12 @@ fn transform_asm_mul_string (limbs: usize, asm_string: String, spills: &str, a: 
                                reg_sequence[i][length-1].1));
     }
         let length = swap_sequence[i].len();
-        if length > 1 {
+        if length > 1 && spillable[i].len() <= 2 {
             for j in 0..length {
                 let swap = &swap_sequence[i][j];
                 if j < length - 3 {
                     let index1 = if swap.1 >= MAX_REGS { n_spills + i } else { i };
-                    let index2 = if swap.2 >= MAX_REGS { n_spills + i } else { i };
+                    let index2 =  if swap.2 >= MAX_REGS { n_spills + i } else { i };
                     edited_lines[swap.0-1] = format!("{}{}", edited_lines[swap.0-1], format!("
                                 movq %r{reg}, {index1}({dest})
                                 movq {index2}({spills}), %r{reg}",
@@ -250,11 +261,38 @@ fn transform_asm_mul_string (limbs: usize, asm_string: String, spills: &str, a: 
                                 reg=8+spillable[i][0], index1=index1*8, dest=a));
             edited_lines[&swap_sequence[i][length-2].0-1] = "".to_string();
             edited_lines[&swap_sequence[i][length-1].0-1] = "".to_string();
+        } else {
+            for j in 0..length {
+                let swap = &swap_sequence[i][j];
+                if j < length - 4 {
+                    edited_lines[swap.0-1] = format!("{}{}", edited_lines[swap.0-1], format!("
+                                movq %r{reg}, {index1}({dest})
+                                movq {index2}({spills}), %r{reg}",
+                                reg=8+spillable[i][0], index1=swap.1*8, index2=swap.2*8,
+                                dest=if j!=length-5 && j!=length-6 {spills} else {a}, spills=spills));
+                }
+            }
+            let swap = &swap_sequence[i][length-4];
+            edited_lines[swap.0-1] = format!("{}{}", edited_lines[swap.0-1], format!("
+                                movq %r{reg}, {index1}({dest})",
+                                reg=8+spillable[i][0], index1=swap.1*8, dest=a));
+            edited_lines[&swap_sequence[i][length-3].0-1] = "".to_string();
+            edited_lines[&swap_sequence[i][length-2].0-1] = "".to_string();
+            edited_lines[&swap_sequence[i][length-1].0-1] = "".to_string();
         }
     }
-    let mut interspersed = edited_lines[..(edited_lines.len())].join("\n");
+    let length = edited_lines.len();
+    for i in 0..limbs+1 {
+        if edited_lines[length-1-i] == "" {
+            edited_lines.remove(length-1-i);
+        }
+    }
+    let mut interspersed = edited_lines[..].join("\n");
     for i in 0..n_spills {
         interspersed = interspersed.replace(&format!("%r{}", 8+spillable[i][1]), &format!("%r{}", 8+spillable[i][0]));
+        if spillable[i].len() == 3 {
+            interspersed = interspersed.replace(&format!("%r{}", 8+spillable[i][2]), &format!("%r{}", 8+spillable[i][0]));
+        }
     }
     interspersed
 }

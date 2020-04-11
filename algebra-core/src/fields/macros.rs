@@ -454,7 +454,7 @@ macro_rules! impl_field_mul_assign {
 
             // No-carry optimisation applied to CIOS
             if no_carry {
-                if $limbs <= 13 {//== 4 {//true {//
+                if $limbs <= 18 {
                     asm_mul!($limbs, (self.0).0, (other.0).0, P::MODULUS.0, P::INV);
                     self.reduce();
                 } else {
@@ -536,7 +536,7 @@ macro_rules! impl_field_square_in_place {
         #[inline]
         #[unroll_for_loops]
         fn square_in_place(&mut self) -> &mut Self {
-            if $limbs <= 12 {
+            if $limbs <= 18 {
                 asm_square!($limbs, (self.0).0, P::MODULUS.0, P::INV);
                 self.reduce();
                 self

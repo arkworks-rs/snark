@@ -4,7 +4,7 @@ use std::path::Path;
 
 use field_assembly::generate_macro_string;
 
-const NUM_LIMBS: usize = 12;
+const NUM_LIMBS: usize = 18;
 
 fn main() {
     let out_dir = env::var_os("OUT_DIR").unwrap();
