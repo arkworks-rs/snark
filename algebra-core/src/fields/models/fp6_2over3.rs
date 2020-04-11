@@ -157,6 +157,17 @@ impl<P: Fp6Parameters> Field for Fp6<P> {
         result
     }
 
+    #[inline]
+    fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
+        let split_at = bytes.len() / 2;
+        if let Some(c0) = Fp3::<P::Fp3Params>::from_random_bytes(&bytes[..split_at]) {
+            if let Some(c1) = Fp3::<P::Fp3Params>::from_random_bytes(&bytes[split_at..]) {
+                return Some(Fp6::new(c0, c1));
+            }
+        }
+        None
+    }
+
     fn square_in_place(&mut self) -> &mut Self {
         // Devegili OhEig Scott Dahab --- Multiplication and Squaring on
         // Pairing-Friendly

@@ -100,6 +100,10 @@ pub trait Field:
     /// Doubles `self` in place.
     fn double_in_place(&mut self) -> &mut Self;
 
+    /// Returns a field element if the set of bytes forms a valid field element,
+    /// otherwise returns None.
+    fn from_random_bytes(bytes: &[u8]) -> Option<Self>;
+
     /// Returns `self * self`.
     #[must_use]
     fn square(&self) -> Self;
@@ -215,10 +219,6 @@ pub trait PrimeField:
 
     /// Returns the underlying representation of the prime field element.
     fn into_repr(&self) -> Self::BigInt;
-
-    /// Returns a field element if the set of bytes forms a valid field element,
-    /// otherwise returns None.
-    fn from_random_bytes(bytes: &[u8]) -> Option<Self>;
 
     /// Returns the multiplicative generator of `char()` - 1 order.
     fn multiplicative_generator() -> Self;
