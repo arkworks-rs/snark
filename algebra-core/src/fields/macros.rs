@@ -1,5 +1,6 @@
 macro_rules! impl_Fp {
     ($Fp:ident, $FpParameters:ident, $limbs:expr) => {
+        use $crate::serialize::CanonicalDeserialize;
         pub trait $FpParameters: FpParameters<BigInt = BigInteger> {}
 
         #[derive(Derivative)]
@@ -92,17 +93,15 @@ macro_rules! impl_Fp {
                 for (result_byte, in_byte) in result_bytes.iter_mut().zip(bytes.iter()) {
                     *result_byte = *in_byte;
                 }
-                BigInteger::read(result_bytes.as_ref())
-                    .ok()
-                    .and_then(|mut res| {
-                        res.as_mut()[$limbs-1] &= 0xffffffffffffffff >> P::REPR_SHAVE_BITS;
-                        let result = Self::new(res);
-                        if result.is_valid() {
-                            Some(result)
-                        } else {
-                            None
-                        }
-                    })
+
+                let mask: u64 = 0xffffffffffffffff >> P::REPR_SHAVE_BITS;
+                // take the last 8 bytes and pass the mask
+                let last_byte = &mut result_bytes[($limbs - 1) * 8..];
+                for (b, m) in last_byte.iter_mut().zip(&mask.to_le_bytes()) {
+                    *b &= m;
+                }
+
+                Self::deserialize(&mut &result_bytes[..]).ok()
             }
 
             #[inline]
