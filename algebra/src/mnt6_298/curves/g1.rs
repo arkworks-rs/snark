@@ -21,7 +21,8 @@ impl ModelParameters for Parameters {
 }
 
 impl SWModelParameters for Parameters {
-    /// COEFF_A =
+    /// COEFF_A = 11
+    /// https://github.com/scipr-lab/libff/blob/c927821ebe02e0a24b5e0f9170cec5e211a35f08/libff/algebra/curves/mnt/mnt6/mnt6_init.cpp#L125
     #[rustfmt::skip]
     const COEFF_A: Fq = field_new!(Fq, BigInteger320([
         0xb9b2411bfd0eafef,
@@ -31,7 +32,8 @@ impl SWModelParameters for Parameters {
         0x9ba1f11320,
     ]));
 
-    /// COEFF_B =
+    /// COEFF_B = 106700080510851735677967319632585352256454251201367587890185989362936000262606668469523074
+    /// https://github.com/scipr-lab/libff/blob/c927821ebe02e0a24b5e0f9170cec5e211a35f08/libff/algebra/curves/mnt/mnt6/mnt6_init.cpp#L126
     #[rustfmt::skip]
     const COEFF_B: Fq = field_new!(Fq, BigInteger320([
         0xa94cb16ed8e733b,
