@@ -116,6 +116,9 @@ impl<P: Parameters> GroupAffine<P> {
             .is_zero()
     }
 
+    /// Returns a group element if the set of bytes forms a valid group element,
+    /// otherwise returns None. This function is primarily intended for sampling
+    /// random group elements from a hash-function or RNG output.
     pub fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
         P::BaseField::from_random_bytes_with_flags(bytes).and_then(|(x, flags)| {
             let parsed_flags = EdwardsFlags::from_u8(flags);
