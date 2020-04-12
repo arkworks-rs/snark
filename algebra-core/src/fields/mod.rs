@@ -103,12 +103,12 @@ pub trait Field:
     /// Returns a field element if the set of bytes forms a valid field element,
     /// otherwise returns None.
     fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
-        Self::from_random_bytes_with_sign_bit(bytes).map(|f| f.0)
+        Self::from_random_bytes_with_greatest_bit(bytes).map(|f| f.0)
     }
 
     /// Returns a field element with an extra sign bit used for group parsing if the set of bytes forms a valid field element,
     /// otherwise returns None.
-    fn from_random_bytes_with_sign_bit(bytes: &[u8]) -> Option<(Self, bool)>;
+    fn from_random_bytes_with_greatest_bit(bytes: &[u8]) -> Option<(Self, bool)>;
 
     /// Returns `self * self`.
     #[must_use]

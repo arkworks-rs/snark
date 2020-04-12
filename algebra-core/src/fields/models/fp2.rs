@@ -124,10 +124,10 @@ impl<P: Fp2Parameters> Field for Fp2<P> {
     }
 
     #[inline]
-    fn from_random_bytes_with_sign_bit(bytes: &[u8]) -> Option<(Self, bool)> {
+    fn from_random_bytes_with_greatest_bit(bytes: &[u8]) -> Option<(Self, bool)> {
         let split_at = bytes.len() / 2;
         if let Some(c0) = P::Fp::from_random_bytes(&bytes[..split_at]) {
-            if let Some((c1, sign)) = P::Fp::from_random_bytes_with_sign_bit(&bytes[split_at..]) {
+            if let Some((c1, sign)) = P::Fp::from_random_bytes_with_greatest_bit(&bytes[split_at..]) {
                 return Some((Fp2::new(c0, c1), sign));
             }
         }
@@ -136,7 +136,7 @@ impl<P: Fp2Parameters> Field for Fp2<P> {
 
     #[inline]
     fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
-        Self::from_random_bytes_with_sign_bit(bytes).map(|f| f.0)
+        Self::from_random_bytes_with_greatest_bit(bytes).map(|f| f.0)
     }
 
     fn square_in_place(&mut self) -> &mut Self {
