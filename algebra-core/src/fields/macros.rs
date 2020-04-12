@@ -88,20 +88,26 @@ macro_rules! impl_Fp {
             }
 
             #[inline]
-            fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
+            fn from_random_bytes_with_sign_bit(bytes: &[u8]) -> Option<(Self, bool)> {
                 let mut result_bytes = [0u8; $limbs * 8];
                 for (result_byte, in_byte) in result_bytes.iter_mut().zip(bytes.iter()) {
                     *result_byte = *in_byte;
                 }
 
                 let mask: u64 = 0xffffffffffffffff >> P::REPR_SHAVE_BITS;
+                let sign_bit_mask: u8 = 1 << ((7-P::REPR_SHAVE_BITS%8) + 1)%8;
+                let sign_bit_byte_position: usize = 7 - P::REPR_SHAVE_BITS as usize / 8;
                 // take the last 8 bytes and pass the mask
-                let last_byte = &mut result_bytes[($limbs - 1) * 8..];
-                for (b, m) in last_byte.iter_mut().zip(&mask.to_le_bytes()) {
+                let last_bytes = &mut result_bytes[($limbs - 1) * 8..];
+                let mut sign_bit = false;
+                for (i, (b, m)) in last_bytes.iter_mut().zip(&mask.to_le_bytes()).enumerate() {
+                    if i == sign_bit_byte_position {
+                        sign_bit = *b & sign_bit_mask == sign_bit_mask;
+                    }
                     *b &= m;
                 }
 
-                Self::deserialize(&mut &result_bytes[..]).ok()
+                Self::deserialize(&mut &result_bytes[..]).ok().map(|f| (f, sign_bit))
             }
 
             #[inline]

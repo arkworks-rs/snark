@@ -268,6 +268,7 @@ impl<C: ProjectiveCurve> Group for C {
     fn double_in_place(&mut self) -> &mut Self {
         <C as ProjectiveCurve>::double_in_place(self)
     }
+
 }
 
 /// Preprocess a G1 element for use in a pairing.

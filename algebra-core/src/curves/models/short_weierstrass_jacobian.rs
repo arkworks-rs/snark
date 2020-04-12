@@ -110,6 +110,10 @@ impl<P: Parameters> GroupAffine<P> {
         self.mul_bits(BitIterator::new(P::ScalarField::characteristic()))
             .is_zero()
     }
+
+    fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
+        P::BaseField::from_random_bytes_with_sign_bit(bytes).and_then(|(x, sign)| Self::get_point_from_x(x, sign))
+    }
 }
 
 impl<P: Parameters> Zero for GroupAffine<P> {

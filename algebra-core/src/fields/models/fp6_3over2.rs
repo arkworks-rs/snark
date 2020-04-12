@@ -190,17 +190,23 @@ impl<P: Fp6Parameters> Field for Fp6<P> {
     }
 
     #[inline]
-    fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
+    fn from_random_bytes_with_sign_bit(bytes: &[u8]) -> Option<(Self, bool)> {
         let split_at = bytes.len() / 3;
         if let Some(c0) = Fp2::<P::Fp2Params>::from_random_bytes(&bytes[..split_at]) {
             if let Some(c1) = Fp2::<P::Fp2Params>::from_random_bytes(&bytes[split_at..2*split_at]) {
-                if let Some(c2) = Fp2::<P::Fp2Params>::from_random_bytes(&bytes[2 * split_at..]) {
-                    return Some(Fp6::new(c0, c1, c2));
+                if let Some((c2, sign)) = Fp2::<P::Fp2Params>::from_random_bytes_with_sign_bit(&bytes[2 * split_at..]) {
+                    return Some((Fp6::new(c0, c1, c2), sign));
                 }
             }
         }
         None
     }
+
+    #[inline]
+    fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
+        Self::from_random_bytes_with_sign_bit(bytes).map(|f| f.0)
+    }
+
 
     fn square(&self) -> Self {
         let mut result = self.clone();
