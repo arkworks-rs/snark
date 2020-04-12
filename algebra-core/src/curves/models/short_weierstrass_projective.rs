@@ -118,8 +118,8 @@ impl<P: Parameters> GroupAffine<P> {
         P::BaseField::from_random_bytes_with_flags(bytes).and_then(|(x, flags)| {
             let infinity_flag_mask = SWFlags::Infinity.u8_bitmask();
             let positive_flag_mask = SWFlags::PositiveY.u8_bitmask();
-            // if x is valid and is zero and only the infinity flag is set, then parse this point
-            // as infinity. For all other choices, get the original point.
+            // if x is valid and is zero and only the infinity flag is set, then parse this
+            // point as infinity. For all other choices, get the original point.
             if x.is_zero() && flags == infinity_flag_mask {
                 Some(Self::zero())
             } else {

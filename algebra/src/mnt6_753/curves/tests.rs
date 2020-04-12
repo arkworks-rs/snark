@@ -1,6 +1,5 @@
 use algebra_core::{
-    test_rng, AffineCurve, Field, One, PairingEngine, PrimeField,
-    ProjectiveCurve, UniformRand,
+    test_rng, AffineCurve, Field, One, PairingEngine, PrimeField, ProjectiveCurve, UniformRand,
 };
 use rand::Rng;
 

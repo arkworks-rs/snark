@@ -224,7 +224,7 @@ where
                 let c0 = delta.sqrt().expect("Delta must have a square root");
                 let c0_inv = c0.inverse().expect("c0 must have an inverse");
                 Some(Self::new(c0, self.c1 * &two_inv * &c0_inv))
-            },
+            }
         }
     }
 

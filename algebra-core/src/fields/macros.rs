@@ -714,7 +714,7 @@ macro_rules! sqrt_impl {
                 }
 
                 Some(x)
-            },
+            }
         }
     }};
 }
