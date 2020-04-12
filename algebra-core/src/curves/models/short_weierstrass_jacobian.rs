@@ -111,7 +111,7 @@ impl<P: Parameters> GroupAffine<P> {
             .is_zero()
     }
 
-    fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
+    pub fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
         P::BaseField::from_random_bytes_with_sign_bit(bytes).and_then(|(x, sign)| Self::get_point_from_x(x, sign))
     }
 }
