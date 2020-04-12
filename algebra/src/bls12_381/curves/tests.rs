@@ -12,7 +12,7 @@ use crate::{
         g1, g2, Bls12_381, Fq, Fq12, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective,
     },
     tests::{
-        curves::{curve_tests, sw_curve_serialization_test},
+        curves::{curve_tests, sw_tests},
         groups::group_test,
     },
 };
@@ -21,8 +21,7 @@ use crate::{
 fn test_g1_projective_curve() {
     curve_tests::<G1Projective>();
 
-    let byte_size = G1Affine::zero().serialized_size();
-    sw_curve_serialization_test::<g1::Parameters>(byte_size);
+    sw_tests::<g1::Parameters>();
 }
 
 #[test]
@@ -44,8 +43,7 @@ fn test_g1_generator() {
 fn test_g2_projective_curve() {
     curve_tests::<G2Projective>();
 
-    let byte_size = G2Affine::zero().serialized_size();
-    sw_curve_serialization_test::<g2::Parameters>(byte_size);
+    sw_tests::<g2::Parameters>();
 }
 
 #[test]

@@ -124,14 +124,19 @@ impl<P: Fp2Parameters> Field for Fp2<P> {
     }
 
     #[inline]
-    fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
+    fn from_random_bytes_with_flags(bytes: &[u8]) -> Option<(Self, u8)> {
         let split_at = bytes.len() / 2;
         if let Some(c0) = P::Fp::from_random_bytes(&bytes[..split_at]) {
-            if let Some(c1) = P::Fp::from_random_bytes(&bytes[split_at..]) {
-                return Some(Fp2::new(c0, c1));
+            if let Some((c1, flags)) = P::Fp::from_random_bytes_with_flags(&bytes[split_at..]) {
+                return Some((Fp2::new(c0, c1), flags));
             }
         }
         None
+    }
+
+    #[inline]
+    fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
+        Self::from_random_bytes_with_flags(bytes).map(|f| f.0)
     }
 
     fn square_in_place(&mut self) -> &mut Self {
@@ -219,7 +224,7 @@ where
                 let c0 = delta.sqrt().expect("Delta must have a square root");
                 let c0_inv = c0.inverse().expect("c0 must have an inverse");
                 Some(Self::new(c0, self.c1 * &two_inv * &c0_inv))
-            }
+            },
         }
     }
 

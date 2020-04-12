@@ -88,20 +88,27 @@ macro_rules! impl_Fp {
             }
 
             #[inline]
-            fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
+            fn from_random_bytes_with_flags(bytes: &[u8]) -> Option<(Self, u8)> {
                 let mut result_bytes = [0u8; $limbs * 8];
                 for (result_byte, in_byte) in result_bytes.iter_mut().zip(bytes.iter()) {
                     *result_byte = *in_byte;
                 }
 
                 let mask: u64 = 0xffffffffffffffff >> P::REPR_SHAVE_BITS;
+                // the flags will be at the same byte with the lowest shaven bits or the one after
+                let flags_byte_position: usize = 7 - P::REPR_SHAVE_BITS as usize / 8;
+                let flags_mask: u8 = ((1 << P::REPR_SHAVE_BITS % 8) - 1) << (8 - P::REPR_SHAVE_BITS % 8);
                 // take the last 8 bytes and pass the mask
-                let last_byte = &mut result_bytes[($limbs - 1) * 8..];
-                for (b, m) in last_byte.iter_mut().zip(&mask.to_le_bytes()) {
+                let last_bytes = &mut result_bytes[($limbs - 1) * 8..];
+                let mut flags: u8 = 0;
+                for (i, (b, m)) in last_bytes.iter_mut().zip(&mask.to_le_bytes()).enumerate() {
+                    if i == flags_byte_position {
+                        flags = *b & flags_mask
+                    }
                     *b &= m;
                 }
 
-                Self::deserialize(&mut &result_bytes[..]).ok()
+                Self::deserialize(&mut &result_bytes[..]).ok().map(|f| (f, flags))
             }
 
             #[inline]
@@ -274,7 +281,18 @@ macro_rules! impl_Fp {
         impl<P: $FpParameters> FromBytes for $Fp<P> {
             #[inline]
             fn read<R: Read>(reader: R) -> IoResult<Self> {
-                BigInteger::read(reader).map($Fp::from_repr)
+                BigInteger::read(reader).and_then( |b|
+                    if b.is_zero() {
+                        Ok($Fp::zero())
+                    } else {
+                        let f = $Fp::from_repr(b);
+                        if f == $Fp::zero() {
+                            Err(crate::io::ErrorKind::InvalidInput.into())
+                        } else {
+                            Ok(f)
+                        }
+                    }
+                )
             }
         }
 
@@ -696,7 +714,7 @@ macro_rules! sqrt_impl {
                 }
 
                 Some(x)
-            }
+            },
         }
     }};
 }

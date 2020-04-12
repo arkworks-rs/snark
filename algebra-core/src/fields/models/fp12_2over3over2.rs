@@ -257,14 +257,21 @@ impl<P: Fp12Parameters> Field for Fp12<P> {
     }
 
     #[inline]
-    fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
+    fn from_random_bytes_with_flags(bytes: &[u8]) -> Option<(Self, u8)> {
         let split_at = bytes.len() / 2;
         if let Some(c0) = Fp6::<P::Fp6Params>::from_random_bytes(&bytes[..split_at]) {
-            if let Some(c1) = Fp6::<P::Fp6Params>::from_random_bytes(&bytes[split_at..]) {
-                return Some(Fp12::new(c0, c1));
+            if let Some((c1, flags)) =
+                Fp6::<P::Fp6Params>::from_random_bytes_with_flags(&bytes[split_at..])
+            {
+                return Some((Fp12::new(c0, c1), flags));
             }
         }
         None
+    }
+
+    #[inline]
+    fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
+        Self::from_random_bytes_with_flags(bytes).map(|f| f.0)
     }
 
     fn double_in_place(&mut self) -> &mut Self {

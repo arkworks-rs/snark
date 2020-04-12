@@ -1,5 +1,6 @@
 use crate::{
     io::{Read, Result as IoResult, Write},
+    serialize::{EdwardsFlags, Flags},
     CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
     CanonicalSerializeWithFlags, ConstantSerializedSize, UniformRand, Vec,
 };
@@ -84,7 +85,7 @@ impl<P: Parameters> GroupAffine<P> {
     /// If and only if `greatest` is set will the lexicographically
     /// largest y-coordinate be selected.
     #[allow(dead_code)]
-    pub(crate) fn get_point_from_x(x: P::BaseField, greatest: bool) -> Option<Self> {
+    pub fn get_point_from_x(x: P::BaseField, greatest: bool) -> Option<Self> {
         let x2 = x.square();
         let one = P::BaseField::one();
         let numerator = P::mul_by_a(&x2) - &one;
@@ -113,6 +114,17 @@ impl<P: Parameters> GroupAffine<P> {
     pub fn is_in_correct_subgroup_assuming_on_curve(&self) -> bool {
         self.mul_bits(BitIterator::new(P::ScalarField::characteristic()))
             .is_zero()
+    }
+
+    pub fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
+        P::BaseField::from_random_bytes_with_flags(bytes).and_then(|(x, flags)| {
+            let parsed_flags = EdwardsFlags::from_u8(flags);
+            if x.is_zero() {
+                Some(Self::zero())
+            } else {
+                Self::get_point_from_x(x, parsed_flags.is_positive())
+            }
+        })
     }
 }
 
