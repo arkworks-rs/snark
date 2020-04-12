@@ -118,7 +118,7 @@ impl<P: Parameters> GroupAffine<P> {
             if parsed_flags.is_infinity() {
                 Some(Self::zero())
             } else {
-                Self::get_point_from_x(x, parsed_flags.is_positive().unwrap())
+                Self::get_point_from_x(x, parsed_flags.is_positive()?)
             }
         })
     }
