@@ -1,6 +1,5 @@
 use algebra_core::{
-    test_rng, AffineCurve, CanonicalSerialize, Field, One, PairingEngine, PrimeField,
-    ProjectiveCurve, UniformRand, Zero,
+    test_rng, AffineCurve, Field, One, PairingEngine, PrimeField, ProjectiveCurve, UniformRand,
 };
 use rand::Rng;
 
@@ -12,8 +11,7 @@ use crate::tests::{curves::*, groups::*};
 fn test_g1_projective_curve() {
     curve_tests::<G1Projective>();
 
-    let byte_size = <G1Affine as Zero>::zero().serialized_size();
-    sw_curve_serialization_test::<g1::Parameters>(byte_size);
+    sw_tests::<g1::Parameters>();
 }
 
 #[test]
@@ -35,8 +33,7 @@ fn test_g1_generator() {
 fn test_g2_projective_curve() {
     curve_tests::<G2Projective>();
 
-    let byte_size = <G2Affine as Zero>::zero().serialized_size();
-    sw_curve_serialization_test::<g2::Parameters>(byte_size);
+    sw_tests::<g2::Parameters>();
 }
 
 #[test]

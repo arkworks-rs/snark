@@ -1,9 +1,6 @@
 #![allow(unused)]
 use algebra_core::{
-    curves::{
-        models::short_weierstrass_jacobian::{GroupAffine, GroupProjective},
-        AffineCurve, ProjectiveCurve,
-    },
+    curves::{AffineCurve, ProjectiveCurve},
     io::Cursor,
     CanonicalDeserialize, CanonicalSerialize, Field, MontgomeryModelParameters, One, PrimeField,
     SWFlags, SWModelParameters, SerializationError, TEModelParameters, UniformRand, Vec, Zero,
@@ -294,7 +291,39 @@ pub fn curve_tests<G: ProjectiveCurve>() {
     random_transformation_test::<G>();
 }
 
-pub fn sw_curve_serialization_test<P: SWModelParameters>(buf_size: usize) {
+pub fn sw_tests<P: SWModelParameters>() {
+    sw_curve_serialization_test::<P>();
+    sw_from_random_bytes::<P>();
+}
+
+pub fn sw_from_random_bytes<P: SWModelParameters>() {
+    use algebra_core::curves::models::short_weierstrass_jacobian::{GroupAffine, GroupProjective};
+
+    let buf_size = GroupAffine::<P>::zero().serialized_size();
+
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+    for _ in 0..ITERATIONS {
+        let a = GroupProjective::<P>::rand(&mut rng);
+        let mut a = a.into_affine();
+        {
+            let mut serialized = vec![0; buf_size];
+            let mut cursor = Cursor::new(&mut serialized[..]);
+            a.serialize(&mut cursor).unwrap();
+
+            let mut cursor = Cursor::new(&serialized[..]);
+            let p1 = GroupAffine::<P>::deserialize(&mut cursor).unwrap();
+            let p2 = GroupAffine::<P>::from_random_bytes(&serialized).unwrap();
+            assert_eq!(p1, p2);
+        }
+    }
+}
+
+pub fn sw_curve_serialization_test<P: SWModelParameters>() {
+    use algebra_core::curves::models::short_weierstrass_jacobian::{GroupAffine, GroupProjective};
+
+    let buf_size = GroupAffine::<P>::zero().serialized_size();
+
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     for _ in 0..ITERATIONS {
@@ -390,8 +419,38 @@ where
     assert_eq!(b, P::MontgomeryModelParameters::COEFF_B);
 }
 
-pub fn edwards_curve_serialization_test<P: TEModelParameters>(buf_size: usize) {
+pub fn edwards_tests<P: TEModelParameters>() {
+    edwards_curve_serialization_test::<P>();
+    edwards_from_random_bytes::<P>();
+}
+
+pub fn edwards_from_random_bytes<P: TEModelParameters>() {
     use algebra_core::curves::models::twisted_edwards_extended::{GroupAffine, GroupProjective};
+
+    let buf_size = GroupAffine::<P>::zero().serialized_size();
+
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+    for _ in 0..ITERATIONS {
+        let a = GroupProjective::<P>::rand(&mut rng);
+        let mut a = a.into_affine();
+        {
+            let mut serialized = vec![0; buf_size];
+            let mut cursor = Cursor::new(&mut serialized[..]);
+            a.serialize(&mut cursor).unwrap();
+
+            let mut cursor = Cursor::new(&serialized[..]);
+            let p1 = GroupAffine::<P>::deserialize(&mut cursor).unwrap();
+            let p2 = GroupAffine::<P>::from_random_bytes(&serialized).unwrap();
+            assert_eq!(p1, p2);
+        }
+    }
+}
+
+pub fn edwards_curve_serialization_test<P: TEModelParameters>() {
+    use algebra_core::curves::models::twisted_edwards_extended::{GroupAffine, GroupProjective};
+
+    let buf_size = GroupAffine::<P>::zero().serialized_size();
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
