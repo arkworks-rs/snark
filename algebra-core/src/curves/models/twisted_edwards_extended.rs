@@ -115,20 +115,6 @@ impl<P: Parameters> GroupAffine<P> {
         self.mul_bits(BitIterator::new(P::ScalarField::characteristic()))
             .is_zero()
     }
-
-    /// Returns a group element if the set of bytes forms a valid group element,
-    /// otherwise returns None. This function is primarily intended for sampling
-    /// random group elements from a hash-function or RNG output.
-    pub fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
-        P::BaseField::from_random_bytes_with_flags(bytes).and_then(|(x, flags)| {
-            let parsed_flags = EdwardsFlags::from_u8(flags);
-            if x.is_zero() {
-                Some(Self::zero())
-            } else {
-                Self::get_point_from_x(x, parsed_flags.is_positive())
-            }
-        })
-    }
 }
 
 impl<P: Parameters> Zero for GroupAffine<P> {
@@ -152,6 +138,17 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
 
     fn mul<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(&self, by: S) -> GroupProjective<P> {
         self.mul_bits(BitIterator::new(by.into()))
+    }
+
+    fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
+        P::BaseField::from_random_bytes_with_flags(bytes).and_then(|(x, flags)| {
+            let parsed_flags = EdwardsFlags::from_u8(flags);
+            if x.is_zero() {
+                Some(Self::zero())
+            } else {
+                Self::get_point_from_x(x, parsed_flags.is_positive())
+            }
+        })
     }
 
     fn mul_by_cofactor(&self) -> Self {

@@ -113,24 +113,6 @@ impl<P: Parameters> GroupAffine<P> {
         self.mul_bits(BitIterator::new(P::ScalarField::characteristic()))
             .is_zero()
     }
-
-    /// Returns a group element if the set of bytes forms a valid group element,
-    /// otherwise returns None. This function is primarily intended for sampling
-    /// random group elements from a hash-function or RNG output.
-    pub fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
-        P::BaseField::from_random_bytes_with_flags(bytes).and_then(|(x, flags)| {
-            let infinity_flag_mask = SWFlags::Infinity.u8_bitmask();
-            let positive_flag_mask = SWFlags::PositiveY.u8_bitmask();
-            // if x is valid and is zero and only the infinity flag is set, then parse this
-            // point as infinity. For all other choices, get the original point.
-            if x.is_zero() && flags == infinity_flag_mask {
-                Some(Self::zero())
-            } else {
-                let is_positive = flags & positive_flag_mask != 0;
-                Self::get_point_from_x(x, is_positive)
-            }
-        })
-    }
 }
 
 impl<P: Parameters> Zero for GroupAffine<P> {
@@ -171,6 +153,21 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
             P::AFFINE_GENERATOR_COEFFS.1,
             false,
         )
+    }
+
+    fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
+        P::BaseField::from_random_bytes_with_flags(bytes).and_then(|(x, flags)| {
+            let infinity_flag_mask = SWFlags::Infinity.u8_bitmask();
+            let positive_flag_mask = SWFlags::PositiveY.u8_bitmask();
+            // if x is valid and is zero and only the infinity flag is set, then parse this
+            // point as infinity. For all other choices, get the original point.
+            if x.is_zero() && flags == infinity_flag_mask {
+                Some(Self::zero())
+            } else {
+                let is_positive = flags & positive_flag_mask != 0;
+                Self::get_point_from_x(x, is_positive)
+            }
+        })
     }
 
     fn mul<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(&self, by: S) -> GroupProjective<P> {
