@@ -287,7 +287,7 @@ macro_rules! impl_Fp {
                     } else {
                         let f = $Fp::from_repr(b);
                         if f == $Fp::zero() {
-                            Err(crate::io::ErrorKind::InvalidInput.into())
+                            Err(crate::error("FromBytes::read failed"))
                         } else {
                             Ok(f)
                         }
