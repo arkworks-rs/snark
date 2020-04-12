@@ -147,12 +147,14 @@ impl<P: Fp3Parameters> Field for Fp3<P> {
     }
 
     #[inline]
-    fn from_random_bytes_with_greatest_bit(bytes: &[u8]) -> Option<(Self, bool)> {
+    fn from_random_bytes_with_flags(bytes: &[u8]) -> Option<(Self, u8)> {
         let split_at = bytes.len() / 3;
         if let Some(c0) = P::Fp::from_random_bytes(&bytes[..split_at]) {
             if let Some(c1) = P::Fp::from_random_bytes(&bytes[split_at..2 * split_at]) {
-                if let Some((c2, sign)) = P::Fp::from_random_bytes_with_greatest_bit(&bytes[2 * split_at..]) {
-                    return Some((Fp3::new(c0, c1, c2), sign));
+                if let Some((c2, flags)) =
+                    P::Fp::from_random_bytes_with_flags(&bytes[2 * split_at..])
+                {
+                    return Some((Fp3::new(c0, c1, c2), flags));
                 }
             }
         }
@@ -161,7 +163,7 @@ impl<P: Fp3Parameters> Field for Fp3<P> {
 
     #[inline]
     fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
-        Self::from_random_bytes_with_greatest_bit(bytes).map(|f| f.0)
+        Self::from_random_bytes_with_flags(bytes).map(|f| f.0)
     }
 
     fn square(&self) -> Self {

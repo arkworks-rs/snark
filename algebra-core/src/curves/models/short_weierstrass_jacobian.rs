@@ -1,6 +1,7 @@
 use crate::{
     curves::models::SWModelParameters as Parameters,
     io::{Read, Result as IoResult, Write},
+    serialize::{Flags, SWFlags},
     CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
     CanonicalSerializeWithFlags, ConstantSerializedSize, UniformRand, Vec,
 };
@@ -112,7 +113,14 @@ impl<P: Parameters> GroupAffine<P> {
     }
 
     pub fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
-        P::BaseField::from_random_bytes_with_greatest_bit(bytes).and_then(|(x, sign)| Self::get_point_from_x(x, sign))
+        P::BaseField::from_random_bytes_with_flags(bytes).and_then(|(x, flags)| {
+            let parsed_flags = SWFlags::from_u8(flags);
+            if parsed_flags.is_infinity() {
+                Some(Self::zero())
+            } else {
+                Self::get_point_from_x(x, parsed_flags.is_positive().unwrap())
+            }
+        })
     }
 }
 
