@@ -280,7 +280,18 @@ macro_rules! impl_Fp {
         impl<P: $FpParameters> FromBytes for $Fp<P> {
             #[inline]
             fn read<R: Read>(reader: R) -> IoResult<Self> {
-                BigInteger::read(reader).map($Fp::from_repr)
+                BigInteger::read(reader).and_then( |b|
+                    if b.is_zero() {
+                        Ok($Fp::zero())
+                    } else {
+                        let f = $Fp::from_repr(b);
+                        if f == $Fp::zero() {
+                            Err(crate::io::ErrorKind::InvalidInput.into())
+                        } else {
+                            Ok(f)
+                        }
+                    }
+                )
             }
         }
 
