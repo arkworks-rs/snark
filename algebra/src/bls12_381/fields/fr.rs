@@ -1,6 +1,6 @@
 use algebra_core::{
     biginteger::BigInteger256 as BigInteger,
-    fields::{Fp256, Fp256Parameters, FpParameters},
+    fields::{FftParameters, Fp256, Fp256Parameters, FpParameters},
 };
 
 pub type Fr = Fp256<FrParameters>;
@@ -8,10 +8,21 @@ pub type Fr = Fp256<FrParameters>;
 pub struct FrParameters;
 
 impl Fp256Parameters for FrParameters {}
-impl FpParameters for FrParameters {
+impl FftParameters for FrParameters {
     type BigInt = BigInteger;
 
-    // MODULUS = 52435875175126190479447740508185965837690552500527637822603658699938581184513
+    const TWO_ADICITY: u32 = 32;
+
+    #[rustfmt::skip]
+    const ROOT_OF_UNITY: BigInteger = BigInteger([
+        0xb9b58d8c5f0e466a,
+        0x5b1b4c801819d7ec,
+        0xaf53ae352a31e64,
+        0x5bf3adda19e9b27b,
+    ]);
+}
+impl FpParameters for FrParameters {
+    /// MODULUS = 52435875175126190479447740508185965837690552500527637822603658699938581184513
     #[rustfmt::skip]
     const MODULUS: BigInteger = BigInteger([
         0xffffffff00000001,
@@ -51,16 +62,6 @@ impl FpParameters for FrParameters {
         0x17e363d300189c0f,
         0xff9c57876f8457b0,
         0x351332208fc5a8c4,
-    ]);
-
-    const TWO_ADICITY: u32 = 32;
-
-    #[rustfmt::skip]
-    const ROOT_OF_UNITY: BigInteger = BigInteger([
-        0xb9b58d8c5f0e466a,
-        0x5b1b4c801819d7ec,
-        0xaf53ae352a31e64,
-        0x5bf3adda19e9b27b,
     ]);
 
     #[rustfmt::skip]

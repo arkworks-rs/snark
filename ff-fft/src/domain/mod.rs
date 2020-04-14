@@ -16,7 +16,7 @@
 
 use self::utils::mixed_radix_fft_permute;
 use crate::{domain::utils::best_mixed_domain_size, Vec};
-use algebra_core::{fields::utils::k_adicity, FpParameters, PrimeField};
+use algebra_core::{fields::utils::k_adicity, FftField, FftParameters};
 use core::fmt;
 use rand::Rng;
 #[cfg(feature = "parallel")]
@@ -28,7 +28,7 @@ pub(crate) mod utils;
 /// only for fields that have a large multiplicative subgroup of size that is
 /// a power-of-2.
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
-pub struct EvaluationDomain<F: PrimeField> {
+pub struct EvaluationDomain<F: FftField> {
     /// The size of the domain.
     pub size: u64,
     /// `log_2(self.size)`.
@@ -45,14 +45,14 @@ pub struct EvaluationDomain<F: PrimeField> {
     pub generator_inv: F,
 }
 
-impl<F: PrimeField> fmt::Debug for EvaluationDomain<F> {
+impl<F: FftField> fmt::Debug for EvaluationDomain<F> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Multiplicative subgroup of size {}", self.size)
     }
 }
 
 /// Types that can be FFT-ed must implement this trait.
-pub trait DomainCoeff<F: PrimeField>:
+pub trait DomainCoeff<F: FftField>:
     Copy
     + Send
     + Sync
@@ -65,7 +65,7 @@ pub trait DomainCoeff<F: PrimeField>:
 
 impl<T, F> DomainCoeff<F> for T
 where
-    F: PrimeField,
+    F: FftField,
     T: Copy
         + Send
         + Sync
@@ -76,7 +76,7 @@ where
 {
 }
 
-impl<F: PrimeField> EvaluationDomain<F> {
+impl<F: FftField> EvaluationDomain<F> {
     /// Sample an element that is *not* in the domain.
     pub fn sample_element_outside_domain<R: Rng>(&self, rng: &mut R) -> F {
         let mut t = F::rand(rng);
@@ -98,7 +98,7 @@ impl<F: PrimeField> EvaluationDomain<F> {
             return domain;
         }
 
-        if F::Params::SMALL_SUBGROUP_BASE.is_some() {
+        if F::FftParams::SMALL_SUBGROUP_BASE.is_some() {
             let s = best_mixed_domain_size::<F>(num_coeffs);
             return Self::construct(s);
         }
@@ -114,7 +114,7 @@ impl<F: PrimeField> EvaluationDomain<F> {
         let log_size_of_group;
         let group_gen;
 
-        if let Some(small_subgroup_base) = F::Params::SMALL_SUBGROUP_BASE {
+        if let Some(small_subgroup_base) = F::FftParams::SMALL_SUBGROUP_BASE {
             let q = small_subgroup_base as usize;
             let q_adicity = k_adicity(q, num_coeffs);
             let q_part = q.pow(q_adicity);
@@ -137,7 +137,7 @@ impl<F: PrimeField> EvaluationDomain<F> {
 
             // TODO: Check > vs. >= here.
             // libfqfft uses > https://github.com/scipr-lab/libfqfft/blob/e0183b2cef7d4c5deb21a6eaf3fe3b586d738fe0/libfqfft/evaluation_domain/domains/basic_radix2_domain.tcc#L33
-            if log_size_of_group > F::Params::TWO_ADICITY {
+            if log_size_of_group > F::FftParams::TWO_ADICITY {
                 return None;
             }
 
@@ -146,8 +146,7 @@ impl<F: PrimeField> EvaluationDomain<F> {
             group_gen = F::get_root_of_unity(num_coeffs)?;
         }
 
-        let size_as_bigint = F::BigInt::from(size);
-        let size_as_field_element = F::from_repr(size_as_bigint);
+        let size_as_field_element = F::from(size);
         let size_inv = size_as_field_element.inverse()?;
 
         Some(EvaluationDomain {
@@ -164,7 +163,7 @@ impl<F: PrimeField> EvaluationDomain<F> {
     /// Return the size of a domain that is large enough for evaluations of a
     /// polynomial having `num_coeffs` coefficients.
     fn compute_size_of_domain(num_coeffs: usize) -> Option<usize> {
-        if let Some(small_subgroup_base) = F::Params::SMALL_SUBGROUP_BASE {
+        if let Some(small_subgroup_base) = F::FftParams::SMALL_SUBGROUP_BASE {
             let q = small_subgroup_base as usize;
             let q_adicity = k_adicity(q, num_coeffs);
             let q_part = q.pow(q_adicity);
@@ -180,7 +179,7 @@ impl<F: PrimeField> EvaluationDomain<F> {
         } else {
             let size = num_coeffs.next_power_of_two();
             // TODO: Check > vs. >= here.
-            if size.trailing_zeros() <= F::Params::TWO_ADICITY {
+            if size.trailing_zeros() <= F::FftParams::TWO_ADICITY {
                 Some(size)
             } else {
                 None
@@ -384,7 +383,7 @@ impl<F: PrimeField> EvaluationDomain<F> {
 }
 
 #[cfg(feature = "parallel")]
-fn best_fft<T: DomainCoeff<F>, F: PrimeField>(a: &mut [T], omega: F, log_n: u32) {
+fn best_fft<T: DomainCoeff<F>, F: FftField>(a: &mut [T], omega: F, log_n: u32) {
     fn log2_floor(num: usize) -> u32 {
         assert!(num > 0);
         let mut pow = 0;
@@ -405,7 +404,7 @@ fn best_fft<T: DomainCoeff<F>, F: PrimeField>(a: &mut [T], omega: F, log_n: u32)
 
 #[cfg(not(feature = "parallel"))]
 #[inline]
-pub(crate) fn best_fft<T: DomainCoeff<F>, F: PrimeField>(a: &mut [T], omega: F, log_n: u32) {
+pub(crate) fn best_fft<T: DomainCoeff<F>, F: FftField>(a: &mut [T], omega: F, log_n: u32) {
     serial_fft(a, omega, log_n)
 }
 
@@ -419,19 +418,15 @@ fn bitreverse(mut n: u32, l: u32) -> u32 {
     r
 }
 
-pub(crate) fn serial_fft<T: DomainCoeff<F>, F: PrimeField>(a: &mut [T], omega: F, log_n: u32) {
-    if F::Params::SMALL_SUBGROUP_BASE.is_some() {
+pub(crate) fn serial_fft<T: DomainCoeff<F>, F: FftField>(a: &mut [T], omega: F, log_n: u32) {
+    if F::FftParams::SMALL_SUBGROUP_BASE.is_some() {
         serial_mixed_radix_fft(a, omega, log_n)
     } else {
         serial_radix2_fft(a, omega, log_n)
     }
 }
 
-pub(crate) fn serial_radix2_fft<T: DomainCoeff<F>, F: PrimeField>(
-    a: &mut [T],
-    omega: F,
-    log_n: u32,
-) {
+pub(crate) fn serial_radix2_fft<T: DomainCoeff<F>, F: FftField>(a: &mut [T], omega: F, log_n: u32) {
     let n = a.len() as u32;
     assert_eq!(n, 1 << log_n);
 
@@ -466,7 +461,7 @@ pub(crate) fn serial_radix2_fft<T: DomainCoeff<F>, F: PrimeField>(
     }
 }
 
-pub(crate) fn serial_mixed_radix_fft<T: DomainCoeff<F>, F: PrimeField>(
+pub(crate) fn serial_mixed_radix_fft<T: DomainCoeff<F>, F: FftField>(
     a: &mut [T],
     omega: F,
     two_adicity: u32,
@@ -475,7 +470,7 @@ pub(crate) fn serial_mixed_radix_fft<T: DomainCoeff<F>, F: PrimeField>(
     // and then splits into q sub-arrays q_adicity many times.
 
     let n = a.len();
-    let q = F::Params::SMALL_SUBGROUP_BASE.unwrap() as usize;
+    let q = F::FftParams::SMALL_SUBGROUP_BASE.unwrap() as usize;
 
     let q_adicity = k_adicity(q, n);
     let q_part = q.pow(q_adicity);
@@ -586,7 +581,7 @@ pub(crate) fn serial_mixed_radix_fft<T: DomainCoeff<F>, F: PrimeField>(
 }
 
 #[cfg(feature = "parallel")]
-pub(crate) fn parallel_fft<T: DomainCoeff<F>, F: PrimeField>(
+pub(crate) fn parallel_fft<T: DomainCoeff<F>, F: FftField>(
     a: &mut [T],
     omega: F,
     log_n: u32,
@@ -630,13 +625,13 @@ pub(crate) fn parallel_fft<T: DomainCoeff<F>, F: PrimeField>(
 }
 
 /// An iterator over the elements of the domain.
-pub struct Elements<F: PrimeField> {
+pub struct Elements<F: FftField> {
     cur_elem: F,
     cur_pow: u64,
     domain: EvaluationDomain<F>,
 }
 
-impl<F: PrimeField> Iterator for Elements<F> {
+impl<F: FftField> Iterator for Elements<F> {
     type Item = F;
     fn next(&mut self) -> Option<F> {
         if self.cur_pow == self.domain.size {

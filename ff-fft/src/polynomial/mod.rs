@@ -1,7 +1,7 @@
 //! Work with sparse and dense polynomials.
 
 use crate::{Cow, EvaluationDomain, Evaluations, Vec};
-use algebra_core::{Field, PrimeField};
+use algebra_core::{FftField, Field};
 use core::convert::TryInto;
 use DenseOrSparsePolynomial::*;
 
@@ -131,7 +131,7 @@ impl<'a, F: Field> DenseOrSparsePolynomial<'a, F> {
         }
     }
 }
-impl<'a, F: 'a + PrimeField> DenseOrSparsePolynomial<'a, F> {
+impl<'a, F: 'a + FftField> DenseOrSparsePolynomial<'a, F> {
     /// Construct `Evaluations` by evaluating a polynomial over the domain
     /// `domain`.
     pub fn evaluate_over_domain(

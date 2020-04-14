@@ -5,7 +5,7 @@ use core::fmt;
 use crate::{
     BTreeMap, DenseOrSparsePolynomial, DensePolynomial, EvaluationDomain, Evaluations, Vec,
 };
-use algebra_core::{Field, PrimeField};
+use algebra_core::{FftField, Field};
 
 /// Stores a sparse polynomial in coefficient form.
 #[derive(Clone, PartialEq, Eq, Hash, Default)]
@@ -110,7 +110,7 @@ impl<F: Field> SparsePolynomial<F> {
     }
 }
 
-impl<F: PrimeField> SparsePolynomial<F> {
+impl<F: FftField> SparsePolynomial<F> {
     /// Evaluate `self` over `domain`.
     pub fn evaluate_over_domain_by_ref(&self, domain: EvaluationDomain<F>) -> Evaluations<F> {
         let poly: DenseOrSparsePolynomial<'_, F> = self.into();

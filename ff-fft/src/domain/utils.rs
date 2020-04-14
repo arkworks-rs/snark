@@ -1,4 +1,4 @@
-use algebra_core::{fields::FpParameters, PrimeField};
+use algebra_core::{FftField, FftParameters};
 use core::cmp::min;
 
 pub(crate) fn mixed_radix_fft_permute(
@@ -34,10 +34,10 @@ pub(crate) fn mixed_radix_fft_permute(
     res
 }
 
-pub(crate) fn best_mixed_domain_size<F: PrimeField>(min_size: usize) -> usize {
+pub(crate) fn best_mixed_domain_size<F: FftField>(min_size: usize) -> usize {
     let mut best = usize::max_value();
-    let small_subgroup_power = F::Params::SMALL_SUBGROUP_POWER.unwrap();
-    let small_subgroup_base = F::Params::SMALL_SUBGROUP_BASE.unwrap() as usize;
+    let small_subgroup_power = F::FftParams::SMALL_SUBGROUP_POWER.unwrap();
+    let small_subgroup_base = F::FftParams::SMALL_SUBGROUP_BASE.unwrap() as usize;
 
     for b in 0..=small_subgroup_power {
         let mut r = small_subgroup_base.pow(b);
@@ -48,7 +48,7 @@ pub(crate) fn best_mixed_domain_size<F: PrimeField>(min_size: usize) -> usize {
             two_adicity += 1;
         }
 
-        if two_adicity <= F::Params::TWO_ADICITY {
+        if two_adicity <= F::FftParams::TWO_ADICITY {
             best = min(best, r);
         }
     }

@@ -1,8 +1,8 @@
 use algebra_core::{
     biginteger::{BigInteger, BigInteger384},
     fields::{
-        Field, Fp12Parameters, Fp2Parameters, Fp6Parameters, FpParameters, PrimeField,
-        SquareRootField,
+        FftField, FftParameters, Field, Fp12Parameters, Fp2Parameters, Fp6Parameters, FpParameters,
+        PrimeField, SquareRootField,
     },
     One, UniformRand, Zero,
 };

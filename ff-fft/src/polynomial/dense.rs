@@ -7,7 +7,7 @@ use core::{
 };
 
 use crate::{DenseOrSparsePolynomial, EvaluationDomain, Evaluations};
-use algebra_core::{Field, PrimeField};
+use algebra_core::{FftField, Field};
 use rand::Rng;
 
 #[cfg(feature = "parallel")]
@@ -137,7 +137,7 @@ impl<F: Field> DensePolynomial<F> {
     }
 }
 
-impl<F: PrimeField> DensePolynomial<F> {
+impl<F: FftField> DensePolynomial<F> {
     /// Multiply `self` by the vanishing polynomial for the domain `domain`.
     /// Returns the result of the multiplication.
     pub fn mul_by_vanishing_poly(&self, domain: EvaluationDomain<F>) -> DensePolynomial<F> {
@@ -230,7 +230,7 @@ impl<'a, 'b, F: Field> AddAssign<(F, &'a DensePolynomial<F>)> for DensePolynomia
     }
 }
 
-impl<F: PrimeField> DensePolynomial<F> {
+impl<F: FftField> DensePolynomial<F> {
     /// Evaluate `self` over `domain`.
     pub fn evaluate_over_domain_by_ref(&self, domain: EvaluationDomain<F>) -> Evaluations<F> {
         let poly: DenseOrSparsePolynomial<'_, F> = self.into();
@@ -325,7 +325,7 @@ impl<'a, 'b, F: Field> Div<&'a DensePolynomial<F>> for &'b DensePolynomial<F> {
 }
 
 /// Performs O(nlogn) multiplication of polynomials if F is smooth.
-impl<'a, 'b, F: PrimeField> Mul<&'a DensePolynomial<F>> for &'b DensePolynomial<F> {
+impl<'a, 'b, F: FftField> Mul<&'a DensePolynomial<F>> for &'b DensePolynomial<F> {
     type Output = DensePolynomial<F>;
 
     #[inline]
