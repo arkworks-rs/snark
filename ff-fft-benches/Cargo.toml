@@ -1,5 +1,5 @@
 [package]
-name = "ff-fft"
+name = "ff-fft-benches"
 version = "0.1.0"
 authors = [
     "Sean Bowe",
@@ -19,15 +19,13 @@ include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
 license = "MIT/Apache-2.0"
 edition = "2018"
 
-[dependencies]
-algebra-core = { path = "../algebra-core", default-features = false }
-rand = { version = "0.7", default-features = false }
-rayon = { version = "1", optional = true }
-
 [dev-dependencies]
+ff-fft = { path = "../ff-fft" }
 algebra = { path = "../algebra", default-features = false, features = [ "bls12_381", "mnt6_753", "mnt4_753" ] }
+criterion = "0.3.1"
+rand = "0.7"
 
-[features]
-default = [ "parallel" ]
-std = ["algebra-core/std"]
-parallel = ["std", "algebra-core/parallel", "rayon"]
+[[bench]]
+name = "fft"
+path = "benches/fft.rs"
+harness = false

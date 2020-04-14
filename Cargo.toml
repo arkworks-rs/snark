@@ -9,6 +9,7 @@ members = [
     "crypto-primitives",
     "dpc",
     "ff-fft",
+    "ff-fft-benches",
     "gm17",
     "groth16",
     "r1cs-core",
