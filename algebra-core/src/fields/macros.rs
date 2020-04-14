@@ -1,7 +1,6 @@
 macro_rules! impl_Fp {
-    ($Fp:ident, $FpParameters:ident, $limbs:expr) => {
-        use $crate::serialize::CanonicalDeserialize;
-        pub trait $FpParameters: FpParameters<BigInt = BigInteger> {}
+    ($Fp:ident, $FpParameters:ident, $BigInteger:ident, $BigIntegerType:ty, $limbs:expr) => {
+        pub trait $FpParameters: FpParameters<BigInt = $BigIntegerType> {}
 
         #[derive(Derivative)]
         #[derivative(
@@ -14,7 +13,7 @@ macro_rules! impl_Fp {
             Eq(bound = "")
         )]
         pub struct $Fp<P>(
-            pub BigInteger,
+            pub $BigIntegerType,
             #[derivative(Debug = "ignore")]
             #[doc(hidden)]
             pub PhantomData<P>,
@@ -22,7 +21,7 @@ macro_rules! impl_Fp {
 
         impl<P> $Fp<P> {
             #[inline]
-            pub const fn new(element: BigInteger) -> Self {
+            pub const fn new(element: $BigIntegerType) -> Self {
                 Self(element, PhantomData)
             }
         }
@@ -44,7 +43,7 @@ macro_rules! impl_Fp {
         impl<P: $FpParameters> Zero for $Fp<P> {
             #[inline]
             fn zero() -> Self {
-                $Fp::<P>(BigInteger::from(0), PhantomData)
+                $Fp::<P>($BigInteger::from(0), PhantomData)
             }
 
             #[inline]
@@ -130,7 +129,7 @@ macro_rules! impl_Fp {
                     // Cryptography
                     // Algorithm 16 (BEA for Inversion in Fp)
 
-                    let one = BigInteger::from(1);
+                    let one = $BigInteger::from(1);
 
                     let mut u = self.0;
                     let mut v = P::MODULUS;
@@ -194,10 +193,10 @@ macro_rules! impl_Fp {
 
         impl<P: $FpParameters> PrimeField for $Fp<P> {
             type Params = P;
-            type BigInt = BigInteger;
+            type BigInt = $BigIntegerType;
 
             #[inline]
-            fn from_repr(r: BigInteger) -> Self {
+            fn from_repr(r: $BigIntegerType) -> Self {
                 let mut r = $Fp(r, PhantomData);
                 if r.is_valid() {
                     r.mul_assign(&$Fp(P::R2, PhantomData));
@@ -207,7 +206,7 @@ macro_rules! impl_Fp {
                 }
             }
 
-            impl_field_into_repr!($limbs);
+            impl_field_into_repr!($limbs, $BigIntegerType);
 
             #[inline]
             fn multiplicative_generator() -> Self {
@@ -281,7 +280,7 @@ macro_rules! impl_Fp {
         impl<P: $FpParameters> FromBytes for $Fp<P> {
             #[inline]
             fn read<R: Read>(reader: R) -> IoResult<Self> {
-                BigInteger::read(reader).and_then( |b|
+                $BigInteger::read(reader).and_then( |b|
                     if b.is_zero() {
                         Ok($Fp::zero())
                     } else {
@@ -517,10 +516,10 @@ macro_rules! impl_field_mul_assign {
 }
 
 macro_rules! impl_field_into_repr {
-    ($limbs:expr) => {
+    ($limbs:expr, $BigIntegerType:ty) => {
         #[inline]
         #[unroll_for_loops]
-        fn into_repr(&self) -> BigInteger {
+        fn into_repr(&self) -> $BigIntegerType {
             let mut tmp = self.0;
             let mut r = tmp.0;
             // Montgomery Reduction
