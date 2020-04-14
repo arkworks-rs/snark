@@ -98,7 +98,10 @@ where
     W: PedersenWindow,
     ConstraintF: PrimeField,
 {
-    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(cs: CS, val: T) -> Result<Self, SynthesisError>
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
+        val: T,
+    ) -> Result<Self, SynthesisError>
     where
         T: Borrow<PedersenParameters<G>>,
     {
@@ -149,7 +152,10 @@ where
     G: Group,
     ConstraintF: PrimeField,
 {
-    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(cs: CS, val: T) -> Result<Self, SynthesisError>
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
+        val: T,
+    ) -> Result<Self, SynthesisError>
     where
         T: Borrow<PedersenRandomness<G>>,
     {

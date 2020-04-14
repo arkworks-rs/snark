@@ -48,7 +48,10 @@ impl<ConstraintF: PrimeField> CommitmentGadget<Blake2sCommitment, ConstraintF>
 }
 
 impl<ConstraintF: Field> AllocGadget<(), ConstraintF> for Blake2sParametersGadget {
-    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(cs: CS, val: T) -> Result<Self, SynthesisError>
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
+        val: T,
+    ) -> Result<Self, SynthesisError>
     where
         T: Borrow<()>,
     {
@@ -77,7 +80,10 @@ impl<ConstraintF: Field> AllocGadget<(), ConstraintF> for Blake2sParametersGadge
 
 impl<ConstraintF: PrimeField> AllocGadget<[u8; 32], ConstraintF> for Blake2sRandomnessGadget {
     #[inline]
-    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, val: T) -> Result<Self, SynthesisError>
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        val: T,
+    ) -> Result<Self, SynthesisError>
     where
         T: Borrow<[u8; 32]>,
     {
