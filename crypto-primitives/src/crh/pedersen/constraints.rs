@@ -80,6 +80,13 @@ impl<G: Group, W: PedersenWindow, ConstraintF: Field, GG: GroupGadget<G, Constra
     AllocGadget<PedersenParameters<G>, ConstraintF>
     for PedersenCRHGadgetParameters<G, W, ConstraintF, GG>
 {
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(cs: CS, val: T) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<PedersenParameters<G>>,
+    {
+        Self::alloc(cs, || Ok(val))
+    }
+
     fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
         _cs: CS,
         value_gen: F,
