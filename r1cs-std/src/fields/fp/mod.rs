@@ -585,6 +585,13 @@ impl<F: PrimeField> Clone for FpGadget<F> {
 
 impl<F: PrimeField> AllocGadget<F, F> for FpGadget<F> {
     #[inline]
+    fn alloc_constant<T, CS: ConstraintSystem<F>>(mut cs: CS, t: T) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<F> {
+            Self::zero(cs.ns(|| "zero"))?.add_constant(cs.ns( || "add constant"), t.borrow())
+    }
+
+    #[inline]
     fn alloc<FN, T, CS: ConstraintSystem<F>>(
         mut cs: CS,
         value_gen: FN,

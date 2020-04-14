@@ -492,6 +492,19 @@ mod affine_impl {
         F: FieldGadget<P::BaseField, ConstraintF>,
         Self: GroupGadget<TEAffine<P>, ConstraintF>,
     {
+        #[inline]
+        fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, t: T) -> Result<Self, SynthesisError>
+        where
+            T: Borrow<TEAffine<P>> {
+            let p = t.borrow();
+            Ok(Self {
+                x: F::zero(cs.ns(|| "x zero"))?.add_constant(cs.ns(|| "x add"), &p.x)?,
+                y: F::zero(cs.ns(|| "y zero"))?.add_constant(cs.ns(|| "y add"), &p.y)?,
+                _params: PhantomData,
+                _engine: PhantomData,
+            })
+        }
+
         fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(
             mut cs: CS,
             value_gen: FN,
@@ -1089,6 +1102,19 @@ mod projective_impl {
         F: FieldGadget<P::BaseField, ConstraintF>,
         Self: GroupGadget<TEProjective<P>, ConstraintF>,
     {
+        #[inline]
+        fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, t: T) -> Result<Self, SynthesisError>
+        where
+            T: Borrow<TEProjective<P>> {
+            let p = t.borrow().into_affine();
+            Ok(Self {
+                x: F::zero(cs.ns(|| "x zero"))?.add_constant(cs.ns(|| "x add"), &p.x)?,
+                y: F::zero(cs.ns(|| "y zero"))?.add_constant(cs.ns(|| "y add"), &p.y)?,
+                _params: PhantomData,
+                _engine: PhantomData,
+            })
+        }
+
         fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(
             mut cs: CS,
             value_gen: FN,
