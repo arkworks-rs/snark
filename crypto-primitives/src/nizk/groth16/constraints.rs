@@ -326,7 +326,7 @@ where
         val: T,
     ) -> Result<Self, SynthesisError>
     where
-        T: Borrow<VerifyingKey<PairingE>>,
+        T: Borrow<Proof<PairingE>>,
     {
         let Proof { a, b, c } = val.borrow().clone();
         let a = P::G1Gadget::alloc_constant(cs.ns(|| "a"), a.into_projective())?;
