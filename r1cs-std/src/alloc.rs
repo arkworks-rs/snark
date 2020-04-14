@@ -8,7 +8,10 @@ where
     Self: Sized,
     V: ?Sized,
 {
-    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(cs: CS, t: T) -> Result<Self, SynthesisError>
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
+        t: T,
+    ) -> Result<Self, SynthesisError>
     where
         T: Borrow<V>;
 
@@ -52,9 +55,13 @@ impl<I, ConstraintF: Field, A: AllocGadget<I, ConstraintF>> AllocGadget<[I], Con
     for Vec<A>
 {
     #[inline]
-    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, t: T) -> Result<Self, SynthesisError>
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        t: T,
+    ) -> Result<Self, SynthesisError>
     where
-        T: Borrow<[I]> {
+        T: Borrow<[I]>,
+    {
         let mut vec = Vec::new();
         for (i, value) in t.borrow().iter().enumerate() {
             vec.push(A::alloc_constant(cs.ns(|| format!("value_{}", i)), value)?);

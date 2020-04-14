@@ -868,10 +868,14 @@ impl<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootFie
     AllocGadget<Fp3<P>, ConstraintF> for Fp3Gadget<P, ConstraintF>
 {
     #[inline]
-    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, t: T) -> Result<Self, SynthesisError>
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        t: T,
+    ) -> Result<Self, SynthesisError>
     where
-        T: Borrow<Fp3<P>> {
-            Self::zero(cs.ns(|| "zero"))?.add_constant(cs.ns( || "add constant"), t.borrow())
+        T: Borrow<Fp3<P>>,
+    {
+        Self::zero(cs.ns(|| "zero"))?.add_constant(cs.ns(|| "add constant"), t.borrow())
     }
 
     #[inline]
@@ -887,7 +891,7 @@ impl<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootFie
             Ok(fe) => {
                 let fe = *fe.borrow();
                 (Ok(fe.c0), Ok(fe.c1), Ok(fe.c2))
-            }
+            },
             _ => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),
@@ -914,7 +918,7 @@ impl<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootFie
             Ok(fe) => {
                 let fe = *fe.borrow();
                 (Ok(fe.c0), Ok(fe.c1), Ok(fe.c2))
-            }
+            },
             _ => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),

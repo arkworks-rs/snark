@@ -364,7 +364,7 @@ impl<F: PrimeField> ToBitsGadget<F> for FpGadget<F> {
                 assert_eq!(tmp.len(), num_bits as usize);
 
                 tmp
-            }
+            },
             None => vec![None; num_bits as usize],
         };
 
@@ -422,7 +422,7 @@ impl<F: PrimeField> ToBytesGadget<F> for FpGadget<F> {
                 let default = F::default();
                 let default_len = to_bytes![&default].unwrap().len();
                 vec![None; default_len]
-            }
+            },
         };
 
         let bytes = UInt8::alloc_vec(cs.ns(|| "Alloc bytes"), &byte_values)?;
@@ -438,7 +438,7 @@ impl<F: PrimeField> ToBytesGadget<F> for FpGadget<F> {
                 Boolean::Is(bit) => {
                     lc += (coeff, bit.get_variable());
                     coeff.double_in_place();
-                }
+                },
                 Boolean::Constant(_) | Boolean::Not(_) => unreachable!(),
             }
         }
@@ -587,8 +587,9 @@ impl<F: PrimeField> AllocGadget<F, F> for FpGadget<F> {
     #[inline]
     fn alloc_constant<T, CS: ConstraintSystem<F>>(mut cs: CS, t: T) -> Result<Self, SynthesisError>
     where
-        T: Borrow<F> {
-            Self::zero(cs.ns(|| "zero"))?.add_constant(cs.ns( || "add constant"), t.borrow())
+        T: Borrow<F>,
+    {
+        Self::zero(cs.ns(|| "zero"))?.add_constant(cs.ns(|| "add constant"), t.borrow())
     }
 
     #[inline]

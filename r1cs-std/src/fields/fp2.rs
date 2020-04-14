@@ -612,10 +612,14 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> AllocGadget<Fp
     for Fp2Gadget<P, ConstraintF>
 {
     #[inline]
-    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, t: T) -> Result<Self, SynthesisError>
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        t: T,
+    ) -> Result<Self, SynthesisError>
     where
-        T: Borrow<Fp2<P>> {
-            Self::zero(cs.ns(|| "zero"))?.add_constant(cs.ns( || "add constant"), t.borrow())
+        T: Borrow<Fp2<P>>,
+    {
+        Self::zero(cs.ns(|| "zero"))?.add_constant(cs.ns(|| "add constant"), t.borrow())
     }
 
     #[inline]
@@ -631,7 +635,7 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> AllocGadget<Fp
             Ok(fe) => {
                 let fe = *fe.borrow();
                 (Ok(fe.c0), Ok(fe.c1))
-            }
+            },
             Err(_) => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),
@@ -656,7 +660,7 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> AllocGadget<Fp
             Ok(fe) => {
                 let fe = *fe.borrow();
                 (Ok(fe.c0), Ok(fe.c1))
-            }
+            },
             Err(_) => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),

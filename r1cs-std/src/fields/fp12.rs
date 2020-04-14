@@ -835,10 +835,14 @@ where
     <P::Fp6Params as Fp6Parameters>::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
 {
     #[inline]
-    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, t: T) -> Result<Self, SynthesisError>
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        t: T,
+    ) -> Result<Self, SynthesisError>
     where
-        T: Borrow<Fp12<P>> {
-            Self::zero(cs.ns(|| "zero"))?.add_constant(cs.ns( || "add constant"), t.borrow())
+        T: Borrow<Fp12<P>>,
+    {
+        Self::zero(cs.ns(|| "zero"))?.add_constant(cs.ns(|| "add constant"), t.borrow())
     }
 
     #[inline]
@@ -854,7 +858,7 @@ where
             Ok(fe) => {
                 let fe = *fe.borrow();
                 (Ok(fe.c0), Ok(fe.c1))
-            }
+            },
             Err(_) => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),
@@ -879,7 +883,7 @@ where
             Ok(fe) => {
                 let fe = *fe.borrow();
                 (Ok(fe.c0), Ok(fe.c1))
-            }
+            },
             Err(_) => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),

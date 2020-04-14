@@ -53,7 +53,7 @@ impl<P: SWModelParameters, ConstraintF: Field, F: FieldGadget<P::BaseField, Cons
             Ok(ge) => {
                 let ge = ge.into_affine();
                 (Ok(ge.x), Ok(ge.y), Ok(ge.infinity))
-            }
+            },
             _ => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),
@@ -107,7 +107,7 @@ where
         ) {
             (Some(x), Some(y), Some(infinity)) => {
                 Some(SWAffine::new(x, y, infinity).into_projective())
-            }
+            },
             (None, None, None) => None,
             _ => unreachable!(),
         }
@@ -438,17 +438,21 @@ where
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
     #[inline]
-    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, t: T) -> Result<Self, SynthesisError>
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        t: T,
+    ) -> Result<Self, SynthesisError>
     where
-        T: Borrow<SWProjective<P>> {
-            let p = t.borrow().into_affine();
-            Ok(Self {
-                x: F::zero(cs.ns(|| "x zero"))?.add_constant(cs.ns(|| "x add"), &p.x)?,
-                y: F::zero(cs.ns(|| "y zero"))?.add_constant(cs.ns(|| "y add"), &p.y)?,
-                infinity: Boolean::constant(p.infinity),
-                _params: PhantomData,
-                _engine: PhantomData,
-            })
+        T: Borrow<SWProjective<P>>,
+    {
+        let p = t.borrow().into_affine();
+        Ok(Self {
+            x: F::zero(cs.ns(|| "x zero"))?.add_constant(cs.ns(|| "x add"), &p.x)?,
+            y: F::zero(cs.ns(|| "y zero"))?.add_constant(cs.ns(|| "y add"), &p.y)?,
+            infinity: Boolean::constant(p.infinity),
+            _params: PhantomData,
+            _engine: PhantomData,
+        })
     }
 
     #[inline]
@@ -464,7 +468,7 @@ where
             Ok(ge) => {
                 let ge = ge.borrow().into_affine();
                 (Ok(ge.x), Ok(ge.y), Ok(ge.infinity))
-            }
+            },
             _ => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),
@@ -588,7 +592,7 @@ where
             Ok(ge) => {
                 let ge = ge.borrow().into_affine();
                 (Ok(ge.x), Ok(ge.y), Ok(ge.infinity))
-            }
+            },
             _ => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),

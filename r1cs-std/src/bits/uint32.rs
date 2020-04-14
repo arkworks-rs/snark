@@ -55,7 +55,7 @@ impl UInt32 {
                 }
 
                 v
-            }
+            },
             None => vec![None; 32],
         };
 
@@ -94,19 +94,19 @@ impl UInt32 {
                     if b {
                         value.as_mut().map(|v| *v |= 1);
                     }
-                }
+                },
                 &Boolean::Is(ref b) => match b.get_value() {
                     Some(true) => {
                         value.as_mut().map(|v| *v |= 1);
-                    }
-                    Some(false) => {}
+                    },
+                    Some(false) => {},
                     None => value = None,
                 },
                 &Boolean::Not(ref b) => match b.get_value() {
                     Some(false) => {
                         value.as_mut().map(|v| *v |= 1);
-                    }
-                    Some(true) => {}
+                    },
+                    Some(true) => {},
                     None => value = None,
                 },
             }
@@ -193,12 +193,12 @@ impl UInt32 {
             match op.value {
                 Some(val) => {
                     result_value.as_mut().map(|v| *v += u64::from(val));
-                }
+                },
                 None => {
                     // If any of our operands have unknown value, we won't
                     // know the value of the result
                     result_value = None;
-                }
+                },
             }
 
             // Iterate over each bit_gadget of the operand and add the operand to
@@ -211,18 +211,18 @@ impl UInt32 {
 
                         // Add coeff * bit_gadget
                         lc += (coeff, bit.get_variable());
-                    }
+                    },
                     Boolean::Not(ref bit) => {
                         all_constants = false;
 
                         // Add coeff * (1 - bit_gadget) = coeff * ONE - coeff * bit_gadget
                         lc = lc + (coeff, CS::one()) - (coeff, bit.get_variable());
-                    }
+                    },
                     Boolean::Constant(bit) => {
                         if bit {
                             lc += (coeff, CS::one());
                         }
-                    }
+                    },
                 }
 
                 coeff.double_in_place();
@@ -362,7 +362,7 @@ mod test {
                 match bit_gadget {
                     &Boolean::Constant(bit_gadget) => {
                         assert!(bit_gadget == ((b.value.unwrap() >> i) & 1 == 1));
-                    }
+                    },
                     _ => unreachable!(),
                 }
             }
@@ -371,8 +371,8 @@ mod test {
 
             for x in v.iter().zip(expected_to_be_same.iter()) {
                 match x {
-                    (&Boolean::Constant(true), &Boolean::Constant(true)) => {}
-                    (&Boolean::Constant(false), &Boolean::Constant(false)) => {}
+                    (&Boolean::Constant(true), &Boolean::Constant(true)) => {},
+                    (&Boolean::Constant(false), &Boolean::Constant(false)) => {},
                     _ => unreachable!(),
                 }
             }
@@ -407,13 +407,13 @@ mod test {
                 match b {
                     &Boolean::Is(ref b) => {
                         assert!(b.get_value().unwrap() == (expected & 1 == 1));
-                    }
+                    },
                     &Boolean::Not(ref b) => {
                         assert!(!b.get_value().unwrap() == (expected & 1 == 1));
-                    }
+                    },
                     &Boolean::Constant(b) => {
                         assert!(b == (expected & 1 == 1));
-                    }
+                    },
                 }
 
                 expected >>= 1;
@@ -448,7 +448,7 @@ mod test {
                     &Boolean::Not(_) => panic!(),
                     &Boolean::Constant(b) => {
                         assert!(b == (expected & 1 == 1));
-                    }
+                    },
                 }
 
                 expected >>= 1;
@@ -486,10 +486,10 @@ mod test {
                 match b {
                     &Boolean::Is(ref b) => {
                         assert!(b.get_value().unwrap() == (expected & 1 == 1));
-                    }
+                    },
                     &Boolean::Not(ref b) => {
                         assert!(!b.get_value().unwrap() == (expected & 1 == 1));
-                    }
+                    },
                     &Boolean::Constant(_) => unreachable!(),
                 }
 
@@ -525,7 +525,7 @@ mod test {
                 match b {
                     &Boolean::Constant(b) => {
                         assert_eq!(b, tmp & 1 == 1);
-                    }
+                    },
                     _ => unreachable!(),
                 }
 
