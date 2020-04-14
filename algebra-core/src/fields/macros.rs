@@ -208,11 +208,10 @@ macro_rules! impl_Fp {
             }
 
             impl_field_into_repr!($limbs);
+        }
 
-            #[inline]
-            fn multiplicative_generator() -> Self {
-                $Fp::<P>(P::GENERATOR, PhantomData)
-            }
+        impl<P: $FpParameters> FftField for $Fp<P> {
+            type FftParams = P;
 
             #[inline]
             fn root_of_unity() -> Self {
@@ -222,6 +221,11 @@ macro_rules! impl_Fp {
             #[inline]
             fn full_root_of_unity() -> Option<Self> {
                 Some($Fp::<P>(P::FULL_ROOT_OF_UNITY?, PhantomData))
+            }
+
+            #[inline]
+            fn multiplicative_generator() -> Self {
+                $Fp::<P>(P::GENERATOR, PhantomData)
             }
         }
 

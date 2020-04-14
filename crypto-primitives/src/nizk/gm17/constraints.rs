@@ -627,7 +627,7 @@ mod test_recursive {
 
     use super::*;
     use algebra::{
-        fields::FpParameters,
+        fields::{FftParameters, FpParameters},
         mnt4_298::{Fq as MNT4Fq, FqParameters as MNT4FqParameters, Fr as MNT4Fr, MNT4_298},
         mnt6_298::{Fq as MNT6Fq, FqParameters as MNT6FqParameters, Fr as MNT6Fr, MNT6_298},
         test_rng, BigInteger, PrimeField,
@@ -735,7 +735,7 @@ mod test_recursive {
                 // Allocate this byte array as input packed into field elements.
                 let input_bytes = UInt8::alloc_input_vec(cs.ns(|| "Input"), &input_bytes[..])?;
                 // 40 byte
-                let element_size = <MNT4FqParameters as FpParameters>::BigInt::NUM_LIMBS * 8;
+                let element_size = <MNT4FqParameters as FftParameters>::BigInt::NUM_LIMBS * 8;
                 input_gadgets = input_bytes
                     .chunks(element_size)
                     .map(|chunk| {
@@ -821,7 +821,7 @@ mod test_recursive {
             let mut input_gadgets = Vec::new();
 
             {
-                let bigint_size = <MNT4FqParameters as FpParameters>::BigInt::NUM_LIMBS * 64;
+                let bigint_size = <MNT4FqParameters as FftParameters>::BigInt::NUM_LIMBS * 64;
                 let mut input_bits = Vec::new();
                 let mut cs = cs.ns(|| "Allocate Input");
                 for (i, input) in inputs.into_iter().enumerate() {
@@ -847,7 +847,7 @@ mod test_recursive {
                 // Pack input bits into field elements of the underlying circuit.
                 let max_size = 8 * (<MNT6FqParameters as FpParameters>::CAPACITY / 8) as usize;
                 let max_size = max_size as usize;
-                let bigint_size = <MNT6FqParameters as FpParameters>::BigInt::NUM_LIMBS * 64;
+                let bigint_size = <MNT6FqParameters as FftParameters>::BigInt::NUM_LIMBS * 64;
                 for chunk in input_bits.chunks(max_size) {
                     let mut chunk = chunk.to_vec();
                     let len = chunk.len();

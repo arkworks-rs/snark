@@ -1,6 +1,6 @@
 use algebra_core::{
     biginteger::BigInteger832 as BigInteger,
-    fields::{Fp832, Fp832Parameters, FpParameters},
+    fields::{FftParameters, Fp832, Fp832Parameters, FpParameters},
 };
 
 pub type Fq = Fp832<FqParameters>;
@@ -8,9 +8,29 @@ pub type Fq = Fp832<FqParameters>;
 pub struct FqParameters;
 
 impl Fp832Parameters for FqParameters {}
-impl FpParameters for FqParameters {
+impl FftParameters for FqParameters {
     type BigInt = BigInteger;
 
+    const TWO_ADICITY: u32 = 3;
+
+    #[rustfmt::skip]
+    const ROOT_OF_UNITY: BigInteger = BigInteger([
+        18044746167194862600u64,
+        63590321303744709u64,
+        5009346151370959890u64,
+        2859114157767503991u64,
+        8301813204852325413u64,
+        5629414263664332594u64,
+        2637340888701394641u64,
+        17433538052687852753u64,
+        2230763098934759248u64,
+        3785382115983092023u64,
+        8895511354022222370u64,
+        15792083141709071785u64,
+        1328u64,
+    ]);
+}
+impl FpParameters for FqParameters {
     /// MODULUS = 22369874298875696930346742206501054934775599465297184582183496627646774052458024540232479018147881220178054575403841904557897715222633333372134756426301062487682326574958588001132586331462553235407484089304633076250782629492557320825577
     #[rustfmt::skip]
     const MODULUS: BigInteger = BigInteger([
@@ -87,25 +107,6 @@ impl FpParameters for FqParameters {
         8166834915717907988u64,
         11926665585800594452u64,
         11716u64,
-    ]);
-
-    const TWO_ADICITY: u32 = 3;
-
-    #[rustfmt::skip]
-    const ROOT_OF_UNITY: BigInteger = BigInteger([
-        18044746167194862600u64,
-        63590321303744709u64,
-        5009346151370959890u64,
-        2859114157767503991u64,
-        8301813204852325413u64,
-        5629414263664332594u64,
-        2637340888701394641u64,
-        17433538052687852753u64,
-        2230763098934759248u64,
-        3785382115983092023u64,
-        8895511354022222370u64,
-        15792083141709071785u64,
-        1328u64,
     ]);
 
     #[rustfmt::skip]

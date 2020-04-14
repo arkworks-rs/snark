@@ -1,4 +1,7 @@
-use algebra::{fields::FpParameters, BigInteger, Field, PrimeField};
+use algebra::{
+    fields::{FftParameters, FpParameters},
+    BigInteger, Field, PrimeField,
+};
 use algebra_core::{PairingEngine, ToConstraintField};
 use crypto_primitives::nizk::{
     constraints::NIZKVerifierGadget,
@@ -194,7 +197,7 @@ impl<C: CurvePair> ConstraintSynthesizer<<C::PairingEngineTock as PairingEngine>
             let input_bytes = UInt8::alloc_input_vec(cs.ns(|| "Input"), &input_bytes[..])?;
             // 40 byte
             let element_size =
-                <<<C::PairingEngineTick as PairingEngine>::Fr as PrimeField>::Params as FpParameters>::BigInt::NUM_LIMBS * 8;
+                <<<C::PairingEngineTick as PairingEngine>::Fr as PrimeField>::Params as FftParameters>::BigInt::NUM_LIMBS * 8;
             input_gadgets = input_bytes
                 .chunks(element_size)
                 .map(|chunk| {
@@ -267,7 +270,7 @@ impl<C: CurvePair> ConstraintSynthesizer<<C::PairingEngineTick as PairingEngine>
 
         {
             let bigint_size =
-                <<<C::PairingEngineTick as PairingEngine>::Fr as PrimeField>::Params as FpParameters>::BigInt::NUM_LIMBS * 64;
+                <<<C::PairingEngineTick as PairingEngine>::Fr as PrimeField>::Params as FftParameters>::BigInt::NUM_LIMBS * 64;
             let mut input_bits = Vec::new();
             let mut cs = cs.ns(|| "Allocate Input");
             for (i, input) in inputs.into_iter().enumerate() {
@@ -292,7 +295,7 @@ impl<C: CurvePair> ConstraintSynthesizer<<C::PairingEngineTick as PairingEngine>
                 * (<<<C::PairingEngineTock as PairingEngine>::Fr as PrimeField>::Params as FpParameters>::CAPACITY / 8)
                     as usize;
             let bigint_size =
-                <<<C::PairingEngineTock as PairingEngine>::Fr as PrimeField>::Params as FpParameters>::BigInt::NUM_LIMBS * 64;
+                <<<C::PairingEngineTock as PairingEngine>::Fr as PrimeField>::Params as FftParameters>::BigInt::NUM_LIMBS * 64;
             for chunk in input_bits.chunks(max_size) {
                 let mut chunk = chunk.to_vec();
                 let len = chunk.len();

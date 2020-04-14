@@ -5,10 +5,23 @@ pub type Fq = Fp384<FqParameters>;
 pub struct FqParameters;
 
 impl Fp384Parameters for FqParameters {}
-impl FpParameters for FqParameters {
+impl FftParameters for FqParameters {
     type BigInt = BigInteger;
 
-    // MODULUS = 258664426012969094010652733694893533536393512754914660539884262666720468348340822774968888139573360124440321458177
+    const TWO_ADICITY: u32 = 46u32;
+
+    #[rustfmt::skip]
+    const ROOT_OF_UNITY: BigInteger = BigInteger([
+        2022196864061697551u64,
+        17419102863309525423u64,
+        8564289679875062096u64,
+        17152078065055548215u64,
+        17966377291017729567u64,
+        68610905582439508u64,
+    ]);
+}
+impl FpParameters for FqParameters {
+    /// MODULUS = 258664426012969094010652733694893533536393512754914660539884262666720468348340822774968888139573360124440321458177
     #[rustfmt::skip]
     const MODULUS: BigInteger = BigInteger([
         0x8508c00000000001,
@@ -56,18 +69,6 @@ impl FpParameters for FqParameters {
         0xcbbcbd50d97c3802,
         0xbaf1ec35813f9eb,
         0x9974a2c0945ad2,
-    ]);
-
-    const TWO_ADICITY: u32 = 46u32;
-
-    #[rustfmt::skip]
-    const ROOT_OF_UNITY: BigInteger = BigInteger([
-        2022196864061697551u64,
-        17419102863309525423u64,
-        8564289679875062096u64,
-        17152078065055548215u64,
-        17966377291017729567u64,
-        68610905582439508u64,
     ]);
 
     #[rustfmt::skip]

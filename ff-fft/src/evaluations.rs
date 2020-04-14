@@ -1,19 +1,19 @@
 //! A polynomial represented in evaluations form.
 
 use crate::{DensePolynomial, EvaluationDomain, Vec};
-use algebra_core::PrimeField;
+use algebra_core::FftField;
 use core::ops::{Add, AddAssign, Div, DivAssign, Index, Mul, MulAssign, Sub, SubAssign};
 
 /// Stores a polynomial in evaluation form.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Evaluations<F: PrimeField> {
+pub struct Evaluations<F: FftField> {
     /// The evaluations of a polynomial over the domain `D`
     pub evals: Vec<F>,
     #[doc(hidden)]
     domain: EvaluationDomain<F>,
 }
 
-impl<F: PrimeField> Evaluations<F> {
+impl<F: FftField> Evaluations<F> {
     /// Construct `Self` from evaluations and a domain.
     pub fn from_vec_and_domain(evals: Vec<F>, domain: EvaluationDomain<F>) -> Self {
         Self { evals, domain }
@@ -32,7 +32,7 @@ impl<F: PrimeField> Evaluations<F> {
     }
 }
 
-impl<F: PrimeField> Index<usize> for Evaluations<F> {
+impl<F: FftField> Index<usize> for Evaluations<F> {
     type Output = F;
 
     fn index(&self, index: usize) -> &F {
@@ -40,7 +40,7 @@ impl<F: PrimeField> Index<usize> for Evaluations<F> {
     }
 }
 
-impl<'a, 'b, F: PrimeField> Mul<&'a Evaluations<F>> for &'b Evaluations<F> {
+impl<'a, 'b, F: FftField> Mul<&'a Evaluations<F>> for &'b Evaluations<F> {
     type Output = Evaluations<F>;
 
     #[inline]
@@ -51,7 +51,7 @@ impl<'a, 'b, F: PrimeField> Mul<&'a Evaluations<F>> for &'b Evaluations<F> {
     }
 }
 
-impl<'a, F: PrimeField> MulAssign<&'a Evaluations<F>> for Evaluations<F> {
+impl<'a, F: FftField> MulAssign<&'a Evaluations<F>> for Evaluations<F> {
     #[inline]
     fn mul_assign(&mut self, other: &'a Evaluations<F>) {
         assert_eq!(self.domain, other.domain, "domains are unequal");
@@ -62,7 +62,7 @@ impl<'a, F: PrimeField> MulAssign<&'a Evaluations<F>> for Evaluations<F> {
     }
 }
 
-impl<'a, 'b, F: PrimeField> Add<&'a Evaluations<F>> for &'b Evaluations<F> {
+impl<'a, 'b, F: FftField> Add<&'a Evaluations<F>> for &'b Evaluations<F> {
     type Output = Evaluations<F>;
 
     #[inline]
@@ -73,7 +73,7 @@ impl<'a, 'b, F: PrimeField> Add<&'a Evaluations<F>> for &'b Evaluations<F> {
     }
 }
 
-impl<'a, F: PrimeField> AddAssign<&'a Evaluations<F>> for Evaluations<F> {
+impl<'a, F: FftField> AddAssign<&'a Evaluations<F>> for Evaluations<F> {
     #[inline]
     fn add_assign(&mut self, other: &'a Evaluations<F>) {
         assert_eq!(self.domain, other.domain, "domains are unequal");
@@ -84,7 +84,7 @@ impl<'a, F: PrimeField> AddAssign<&'a Evaluations<F>> for Evaluations<F> {
     }
 }
 
-impl<'a, 'b, F: PrimeField> Sub<&'a Evaluations<F>> for &'b Evaluations<F> {
+impl<'a, 'b, F: FftField> Sub<&'a Evaluations<F>> for &'b Evaluations<F> {
     type Output = Evaluations<F>;
 
     #[inline]
@@ -95,7 +95,7 @@ impl<'a, 'b, F: PrimeField> Sub<&'a Evaluations<F>> for &'b Evaluations<F> {
     }
 }
 
-impl<'a, F: PrimeField> SubAssign<&'a Evaluations<F>> for Evaluations<F> {
+impl<'a, F: FftField> SubAssign<&'a Evaluations<F>> for Evaluations<F> {
     #[inline]
     fn sub_assign(&mut self, other: &'a Evaluations<F>) {
         assert_eq!(self.domain, other.domain, "domains are unequal");
@@ -106,7 +106,7 @@ impl<'a, F: PrimeField> SubAssign<&'a Evaluations<F>> for Evaluations<F> {
     }
 }
 
-impl<'a, 'b, F: PrimeField> Div<&'a Evaluations<F>> for &'b Evaluations<F> {
+impl<'a, 'b, F: FftField> Div<&'a Evaluations<F>> for &'b Evaluations<F> {
     type Output = Evaluations<F>;
 
     #[inline]
@@ -117,7 +117,7 @@ impl<'a, 'b, F: PrimeField> Div<&'a Evaluations<F>> for &'b Evaluations<F> {
     }
 }
 
-impl<'a, F: PrimeField> DivAssign<&'a Evaluations<F>> for Evaluations<F> {
+impl<'a, F: FftField> DivAssign<&'a Evaluations<F>> for Evaluations<F> {
     #[inline]
     fn div_assign(&mut self, other: &'a Evaluations<F>) {
         assert_eq!(self.domain, other.domain, "domains are unequal");

@@ -11,7 +11,7 @@ use unroll::unroll_for_loops;
 use crate::{
     biginteger::{arithmetic as fa, BigInteger as _BigInteger, BigInteger768 as BigInteger},
     bytes::{FromBytes, ToBytes},
-    fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
+    fields::{FftField, Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
     io::{Read, Result as IoResult, Write},
 };
 

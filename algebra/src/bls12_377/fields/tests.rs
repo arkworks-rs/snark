@@ -2,7 +2,8 @@ use algebra_core::{
     biginteger::{BigInteger, BigInteger384},
     buffer_bit_byte_size,
     fields::{
-        fp6_3over2::Fp6Parameters, Field, Fp2Parameters, FpParameters, PrimeField, SquareRootField,
+        fp6_3over2::Fp6Parameters, FftField, FftParameters, Field, Fp2Parameters, FpParameters,
+        PrimeField, SquareRootField,
     },
     test_rng, CanonicalSerialize, One, UniformRand, Zero,
 };
