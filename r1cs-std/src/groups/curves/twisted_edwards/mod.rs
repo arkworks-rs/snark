@@ -502,8 +502,8 @@ mod affine_impl {
         {
             let p = t.borrow();
             Ok(Self {
-                x: F::zero(cs.ns(|| "x zero"))?.add_constant(cs.ns(|| "x add"), &p.x)?,
-                y: F::zero(cs.ns(|| "y zero"))?.add_constant(cs.ns(|| "y add"), &p.y)?,
+                x: F::alloc_constant(cs.ns(|| "x"), &p.x)?,
+                y: F::alloc_constant(cs.ns(|| "y"), &p.y)?,
                 _params: PhantomData,
                 _engine: PhantomData,
             })
@@ -1116,8 +1116,8 @@ mod projective_impl {
         {
             let p = t.borrow().into_affine();
             Ok(Self {
-                x: F::zero(cs.ns(|| "x zero"))?.add_constant(cs.ns(|| "x add"), &p.x)?,
-                y: F::zero(cs.ns(|| "y zero"))?.add_constant(cs.ns(|| "y add"), &p.y)?,
+                x: F::alloc_constant(cs.ns(|| "x"), &p.x)?,
+                y: F::alloc_constant(cs.ns(|| "y"), &p.y)?,
                 _params: PhantomData,
                 _engine: PhantomData,
             })

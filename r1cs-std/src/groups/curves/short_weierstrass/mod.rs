@@ -447,8 +447,8 @@ where
     {
         let p = t.borrow().into_affine();
         Ok(Self {
-            x: F::zero(cs.ns(|| "x zero"))?.add_constant(cs.ns(|| "x add"), &p.x)?,
-            y: F::zero(cs.ns(|| "y zero"))?.add_constant(cs.ns(|| "y add"), &p.y)?,
+            x: F::alloc_constant(cs.ns(|| "x"), &p.x)?,
+            y: F::alloc_constant(cs.ns(|| "y"), &p.y)?,
             infinity: Boolean::constant(p.infinity),
             _params: PhantomData,
             _engine: PhantomData,
