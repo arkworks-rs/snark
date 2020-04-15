@@ -6,14 +6,18 @@ pub const RCX: &'static str = "%rcx";
 pub const RDX: &'static str = "%rdx";
 pub const RDI: &'static str = "%rdi";
 pub const RSI: &'static str = "%rsi";
-pub const R: [&'static str; 18] = ["%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15",
-                                    "%r16", "%r17", "%r18", "%r19", "%r20", "%r21", "%r22", "%r23", "%r24", "%r25"];
+pub const R: [&'static str; 8] = ["%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15"];
 
 pub struct Assembler {
     pub limbs: usize,
     asm_string: Rc<String>,
 
 }
+
+// TODO: assembler using closures
+// macro_rules! create_assembler {
+//
+// }
 
 impl<'a> Assembler {
     pub fn new (limbs: usize) -> Assembler {
@@ -41,27 +45,27 @@ impl<'a> Assembler {
 
     pub fn mulxq (&mut self, a: &str, b: &str, c: &str) {
         self.asm_string = Rc::new(format!("{}{}", Rc::clone(&self.asm_string), format!("
-                                    mulxq {}, {}, {}", a, b, c)));
+                                mulxq {}, {}, {}", a, b, c)));
     }
 
     pub fn adcxq (&mut self, a: &str, b: &str) {
         self.asm_string = Rc::new(format!("{}{}", Rc::clone(&self.asm_string), format!("
-                                    adcxq {}, {}", a, b)));
+                                adcxq {}, {}", a, b)));
     }
 
     pub fn adoxq (&mut self, a: &str, b: &str) {
         self.asm_string = Rc::new(format!("{}{}", Rc::clone(&self.asm_string), format!("
-                                    adoxq {}, {}", a, b)));
+                                adoxq {}, {}", a, b)));
     }
 
     pub fn movq (&mut self, a: &str, b: &str) {
         self.asm_string = Rc::new(format!("{}{}", Rc::clone(&self.asm_string), format!("
-                                    movq {}, {}", a, b)));
+                                movq {}, {}", a, b)));
     }
 
     pub fn xorq (&mut self, a: &str, b: &str) {
         self.asm_string = Rc::new(format!("{}{}", Rc::clone(&self.asm_string), format!("
-                                    xorq {}, {}", a, b)));
+                                xorq {}, {}", a, b)));
     }
 }
 
