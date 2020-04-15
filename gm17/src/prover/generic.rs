@@ -8,7 +8,7 @@ use algebra_core::{
 };
 
 use crate::{r1cs_to_sap::R1CStoSAP, Parameters, Proof, String, Vec};
-use ff_fft::cfg_into_iter;
+use ff_fft::{cfg_into_iter, EvaluationDomain};
 
 use r1cs_core::{
     ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable,
@@ -178,7 +178,7 @@ impl<E: PairingEngine> ConstraintSystem<E::Fr> for ProvingAssignment<E> {
     }
 }
 
-pub fn create_random_proof<E, C, R>(
+pub fn create_random_proof<E, C, D, R>(
     circuit: C,
     params: &Parameters<E>,
     rng: &mut R,
@@ -186,16 +186,17 @@ pub fn create_random_proof<E, C, R>(
 where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
+    D: EvaluationDomain<E::Fr>,
     R: Rng,
 {
     let d1 = E::Fr::rand(rng);
     let d2 = E::Fr::rand(rng);
     let r = E::Fr::rand(rng);
 
-    create_proof::<E, C>(circuit, params, d1, d2, r)
+    create_proof::<E, C, D>(circuit, params, d1, d2, r)
 }
 
-pub fn create_proof<E, C>(
+pub fn create_proof<E, C, D>(
     circuit: C,
     params: &Parameters<E>,
     d1: E::Fr,
@@ -205,6 +206,7 @@ pub fn create_proof<E, C>(
 where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
+    D: EvaluationDomain<E::Fr>,
 {
     let prover_time = start_timer!(|| "Prover");
     let mut prover = ProvingAssignment {
@@ -230,7 +232,7 @@ where
     end_timer!(synthesis_time);
 
     let witness_map_time = start_timer!(|| "R1CS to SAP witness map");
-    let (full_input_assignment, h, _) = R1CStoSAP::witness_map::<E>(&prover, &d1, &d2)?;
+    let (full_input_assignment, h, _) = R1CStoSAP::witness_map::<E, D>(&prover, &d1, &d2)?;
     end_timer!(witness_map_time);
 
     let input_assignment = full_input_assignment[1..prover.num_inputs]

@@ -5,14 +5,18 @@ extern crate criterion;
 
 use algebra::{mnt4_753::Fr as MNT4Fr, mnt6_753::Fr as MNT6Fr, FftField, UniformRand};
 use criterion::Criterion;
-use ff_fft::EvaluationDomain;
+use ff_fft::{EvaluationDomain, MixedRadixEvaluationDomain, Radix2EvaluationDomain};
 
-fn bench_groth16_ffts<F: FftField>(c: &mut Criterion, num_coeffs: usize, name: &'static str) {
+fn bench_groth16_ffts<F: FftField, D: EvaluationDomain<F>>(
+    c: &mut Criterion,
+    num_coeffs: usize,
+    name: &'static str,
+) {
     // Per benchmark setup
     let rng = &mut rand::thread_rng();
 
     // We expect the num_coeffs input to be a compatible size for the domain.
-    let domain = EvaluationDomain::new(num_coeffs).unwrap();
+    let domain = D::new(num_coeffs).unwrap();
     let domain_size = domain.size();
     assert_eq!(num_coeffs, domain_size);
 
@@ -50,13 +54,13 @@ fn bench_groth16_ffts<F: FftField>(c: &mut Criterion, num_coeffs: usize, name: &
 fn bench_groth16_ffts_radix2(c: &mut Criterion) {
     // Choose 2^16 = 65,536 coefficients for the radix-2 FFT.
     // This comes closest to the 51,200 coefficients chosen in the mixed-radix FFT.
-    bench_groth16_ffts::<MNT4Fr>(c, 1 << 16, "radix-2 FFT");
+    bench_groth16_ffts::<MNT4Fr, Radix2EvaluationDomain<MNT4Fr>>(c, 1 << 16, "radix-2 FFT");
 }
 
 fn bench_groth16_ffts_mixed_radix(c: &mut Criterion) {
     // Choose 2^11*5^2 = 51,200 coefficients for the mixed-radix FFT.
     // This is above the maximum of 32,768 coefficients for the radix-2 FFT.
-    bench_groth16_ffts::<MNT6Fr>(c, 51200, "mixed-radix FFT");
+    bench_groth16_ffts::<MNT6Fr, MixedRadixEvaluationDomain<MNT6Fr>>(c, 51200, "mixed-radix FFT");
 }
 
 criterion_group! {

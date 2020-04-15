@@ -12,13 +12,12 @@ pub(crate) struct R1CStoSAP;
 
 impl R1CStoSAP {
     #[inline]
-    pub(crate) fn instance_map_with_evaluation<E: PairingEngine>(
+    pub(crate) fn instance_map_with_evaluation<E: PairingEngine, D: EvaluationDomain<E::Fr>>(
         assembly: &KeypairAssembly<E>,
         t: &E::Fr,
     ) -> Result<(Vec<E::Fr>, Vec<E::Fr>, E::Fr, usize, usize), SynthesisError> {
         let domain_size = 2 * assembly.num_constraints + 2 * (assembly.num_inputs - 1) + 1;
-        let domain = EvaluationDomain::<E::Fr>::new(domain_size)
-            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let domain = D::new(domain_size).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
         let domain_size = domain.size();
 
         let zt = domain.evaluate_vanishing_polynomial(*t);
@@ -98,7 +97,7 @@ impl R1CStoSAP {
     }
 
     #[inline]
-    pub(crate) fn witness_map<E: PairingEngine>(
+    pub(crate) fn witness_map<E: PairingEngine, D: EvaluationDomain<E::Fr>>(
         prover: &ProvingAssignment<E>,
         d1: &E::Fr,
         d2: &E::Fr,
@@ -149,10 +148,8 @@ impl R1CStoSAP {
             full_input_assignment.push(extra_var);
         }
 
-        let domain = EvaluationDomain::<E::Fr>::new(
-            2 * prover.num_constraints + 2 * (prover.num_inputs - 1) + 1,
-        )
-        .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let domain = D::new(2 * prover.num_constraints + 2 * (prover.num_inputs - 1) + 1)
+            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
         let domain_size = domain.size();
 
         let extra_constr_offset = 2 * prover.num_constraints;

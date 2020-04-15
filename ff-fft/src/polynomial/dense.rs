@@ -1,6 +1,6 @@
 //! A polynomial represented in coefficient form.
 
-use crate::Vec;
+use crate::{GeneralEvaluationDomain, Vec};
 use core::{
     fmt,
     ops::{Add, AddAssign, Deref, DerefMut, Div, Mul, Neg, Sub, SubAssign},
@@ -140,7 +140,7 @@ impl<F: Field> DensePolynomial<F> {
 impl<F: FftField> DensePolynomial<F> {
     /// Multiply `self` by the vanishing polynomial for the domain `domain`.
     /// Returns the result of the multiplication.
-    pub fn mul_by_vanishing_poly(&self, domain: EvaluationDomain<F>) -> DensePolynomial<F> {
+    pub fn mul_by_vanishing_poly<D: EvaluationDomain<F>>(&self, domain: D) -> DensePolynomial<F> {
         let mut shifted = vec![F::zero(); domain.size()];
         shifted.extend_from_slice(&self.coeffs);
         cfg_iter_mut!(shifted)
@@ -151,9 +151,9 @@ impl<F: FftField> DensePolynomial<F> {
 
     /// Divide `self` by the vanishing polynomial for the domain `domain`.
     /// Returns the quotient and remainder of the division.
-    pub fn divide_by_vanishing_poly(
+    pub fn divide_by_vanishing_poly<D: EvaluationDomain<F>>(
         &self,
-        domain: EvaluationDomain<F>,
+        domain: D,
     ) -> Option<(DensePolynomial<F>, DensePolynomial<F>)> {
         let self_poly: DenseOrSparsePolynomial<F> = self.into();
         let vanishing_poly: DenseOrSparsePolynomial<F> = domain.vanishing_polynomial().into();
@@ -232,13 +232,16 @@ impl<'a, 'b, F: Field> AddAssign<(F, &'a DensePolynomial<F>)> for DensePolynomia
 
 impl<F: FftField> DensePolynomial<F> {
     /// Evaluate `self` over `domain`.
-    pub fn evaluate_over_domain_by_ref(&self, domain: EvaluationDomain<F>) -> Evaluations<F> {
+    pub fn evaluate_over_domain_by_ref<D: EvaluationDomain<F>>(
+        &self,
+        domain: D,
+    ) -> Evaluations<F, D> {
         let poly: DenseOrSparsePolynomial<'_, F> = self.into();
         DenseOrSparsePolynomial::<F>::evaluate_over_domain(poly, domain)
     }
 
     /// Evaluate `self` over `domain`.
-    pub fn evaluate_over_domain(self, domain: EvaluationDomain<F>) -> Evaluations<F> {
+    pub fn evaluate_over_domain<D: EvaluationDomain<F>>(self, domain: D) -> Evaluations<F, D> {
         let poly: DenseOrSparsePolynomial<'_, F> = self.into();
         DenseOrSparsePolynomial::<F>::evaluate_over_domain(poly, domain)
     }
@@ -333,7 +336,7 @@ impl<'a, 'b, F: FftField> Mul<&'a DensePolynomial<F>> for &'b DensePolynomial<F>
         if self.is_zero() || other.is_zero() {
             DensePolynomial::zero()
         } else {
-            let domain = EvaluationDomain::new(self.coeffs.len() + other.coeffs.len())
+            let domain = GeneralEvaluationDomain::new(self.coeffs.len() + other.coeffs.len())
                 .expect("field is not smooth enough to construct domain");
             let mut self_evals = self.evaluate_over_domain_by_ref(domain);
             let other_evals = other.evaluate_over_domain_by_ref(domain);
@@ -346,6 +349,7 @@ impl<'a, 'b, F: FftField> Mul<&'a DensePolynomial<F>> for &'b DensePolynomial<F>
 #[cfg(test)]
 mod tests {
     use crate::polynomial::*;
+    use crate::{EvaluationDomain, GeneralEvaluationDomain};
     use algebra::bls12_381::fr::Fr;
     use algebra_core::{test_rng, Field, One, UniformRand, Zero};
 
@@ -474,7 +478,7 @@ mod tests {
     fn mul_by_vanishing_poly() {
         let rng = &mut test_rng();
         for size in 1..10 {
-            let domain = EvaluationDomain::new(1 << size).unwrap();
+            let domain = GeneralEvaluationDomain::new(1 << size).unwrap();
             for degree in 0..70 {
                 let p = DensePolynomial::<Fr>::rand(degree, rng);
                 let ans1 = p.mul_by_vanishing_poly(domain);

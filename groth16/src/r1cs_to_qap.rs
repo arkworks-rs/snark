@@ -51,13 +51,12 @@ pub(crate) struct R1CStoQAP;
 
 impl R1CStoQAP {
     #[inline]
-    pub(crate) fn instance_map_with_evaluation<E: PairingEngine>(
+    pub(crate) fn instance_map_with_evaluation<E: PairingEngine, D: EvaluationDomain<E::Fr>>(
         assembly: &KeypairAssembly<E>,
         t: &E::Fr,
     ) -> Result<(Vec<E::Fr>, Vec<E::Fr>, Vec<E::Fr>, E::Fr, usize, usize), SynthesisError> {
         let domain_size = assembly.num_constraints + (assembly.num_inputs - 1) + 1;
-        let domain = EvaluationDomain::<E::Fr>::new(domain_size)
-            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let domain = D::new(domain_size).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
         let domain_size = domain.size();
 
         let zt = domain.evaluate_vanishing_polynomial(*t);
@@ -108,7 +107,7 @@ impl R1CStoQAP {
     }
 
     #[inline]
-    pub(crate) fn witness_map<E: PairingEngine>(
+    pub(crate) fn witness_map<E: PairingEngine, D: EvaluationDomain<E::Fr>>(
         prover: &ProvingAssignment<E>,
     ) -> Result<Vec<E::Fr>, SynthesisError> {
         let zero = E::Fr::zero();
@@ -118,8 +117,8 @@ impl R1CStoQAP {
         let full_input_assignment =
             [&prover.input_assignment[..], &prover.aux_assignment[..]].concat();
 
-        let domain = EvaluationDomain::<E::Fr>::new(num_constraints + num_inputs)
-            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let domain =
+            D::new(num_constraints + num_inputs).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
         let domain_size = domain.size();
 
         let mut a = vec![zero; domain_size];
