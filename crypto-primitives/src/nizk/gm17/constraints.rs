@@ -232,9 +232,7 @@ where
             .into_iter()
             .enumerate()
             .map(|(i, query_i)| {
-                P::G1Gadget::alloc(cs.ns(|| format!("query_{}", i)), || {
-                    Ok(query_i.into_projective())
-                })
+                P::G1Gadget::alloc_constant(cs.ns(|| format!("query_{}", i)), query_i.into_projective())
             })
             .collect::<Vec<_>>()
             .into_iter()
