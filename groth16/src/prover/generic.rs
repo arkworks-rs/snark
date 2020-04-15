@@ -11,7 +11,7 @@ use r1cs_core::{
     ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable,
 };
 
-use ff_fft::cfg_into_iter;
+use ff_fft::{cfg_into_iter, EvaluationDomain};
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
@@ -97,7 +97,7 @@ impl<E: PairingEngine> ConstraintSystem<E::Fr> for ProvingAssignment<E> {
     }
 }
 
-pub fn create_random_proof<E, C, R>(
+pub fn create_random_proof<E, C, D, R>(
     circuit: C,
     params: &Parameters<E>,
     rng: &mut R,
@@ -105,26 +105,28 @@ pub fn create_random_proof<E, C, R>(
 where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
+    D: EvaluationDomain<E::Fr>,
     R: Rng,
 {
     let r = E::Fr::rand(rng);
     let s = E::Fr::rand(rng);
 
-    create_proof::<E, C>(circuit, params, r, s)
+    create_proof::<E, C, D>(circuit, params, r, s)
 }
 
-pub fn create_proof_no_zk<E, C>(
+pub fn create_proof_no_zk<E, C, D>(
     circuit: C,
     params: &Parameters<E>,
 ) -> Result<Proof<E>, SynthesisError>
 where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
+    D: EvaluationDomain<E::Fr>,
 {
-    create_proof::<E, C>(circuit, params, E::Fr::zero(), E::Fr::zero())
+    create_proof::<E, C, D>(circuit, params, E::Fr::zero(), E::Fr::zero())
 }
 
-pub fn create_proof<E, C>(
+pub fn create_proof<E, C, D>(
     circuit: C,
     params: &Parameters<E>,
     r: E::Fr,
@@ -133,6 +135,7 @@ pub fn create_proof<E, C>(
 where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
+    D: EvaluationDomain<E::Fr>,
 {
     let prover_time = start_timer!(|| "Prover");
     let mut prover = ProvingAssignment {
@@ -152,7 +155,7 @@ where
     end_timer!(synthesis_time);
 
     let witness_map_time = start_timer!(|| "R1CS to QAP witness map");
-    let h = R1CStoQAP::witness_map::<E>(&prover)?;
+    let h = R1CStoQAP::witness_map::<E, D>(&prover)?;
     end_timer!(witness_map_time);
 
     let input_assignment = prover.input_assignment[1..]
