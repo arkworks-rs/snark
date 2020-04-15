@@ -2,11 +2,19 @@ extern crate std;
 extern crate regex;
 use regex::Regex;
 
-const MAX_REGS: usize = 6;
+#[macro_use]
+pub mod assembler;
+pub mod arithmetic;
 
-// Only works for up to
+use assembler::*;
+use arithmetic::*;
+
+use std::rc::Rc;
+
+const MAX_REGS: usize = 7;
+
 pub fn generate_macro_string (num_limbs:usize) -> std::string::String {
-    if (num_limbs > 3 * MAX_REGS) {//|| (MAX_REGS < 6) {
+    if (num_limbs > 3 * MAX_REGS) {
         panic!("Number of limbs must be <= {} and MAX_REGS >= 6", 3*MAX_REGS);
     }
     let mut macro_string = String::from(
@@ -23,6 +31,30 @@ pub fn generate_macro_string (num_limbs:usize) -> std::string::String {
     macro_string
 }
 
+fn generate_asm_mul_string (limbs: usize, a: &str, b: &str) -> String {
+    let modulus = "$1";
+    generate_array!(a0, a1, a, limbs);
+    generate_array!(b0, b1, b, limbs);
+    generate_array!(m, m1, modulus, limbs);
+
+    let mut asm = Assembler::new(limbs);
+
+    asm.begin();
+    for i in 0..limbs {
+        if i == 0 {
+            arithmetic::mul_1(&mut asm, a1[0], &b1);
+        } else {
+            arithmetic::mul_add_1(&mut asm, &a1, &b1, i);
+        }
+        arithmetic::mul_add_shift_1(&mut asm, &m1, i);
+    }
+    for i in 0..asm.limbs {
+        asm.movq(R[i], a1[i]);
+    }
+    asm.end();
+    asm.get_asm_string()
+}
+
 fn generate_matches (num_limbs: usize, mut macro_string: String, is_mul: bool) -> String {
     for i in 2..(num_limbs+1) {
         let mut limb_specialisation = format!("
@@ -37,14 +69,14 @@ fn generate_matches (num_limbs: usize, mut macro_string: String, is_mul: bool) -
             b = "$4";
             spills_declare = String::from("                        // $4");
         }
-        if i > MAX_REGS {
-            let extra_reg = if i <= 2*MAX_REGS { 2*(i-MAX_REGS) } else { i };
-            limb_specialisation = format!("{}{}", limb_specialisation, format!("
-                    let mut spills = [0u64; {}];", extra_reg));
-            if is_mul { spills = "$5"; } else { spills = "$4";}
-            spills_declare = format!(",                       // ${}
-                              \"r\"(&mut spills)                // {}", 3+(is_mul as usize), spills);
-        }
+        // if i > MAX_REGS {
+        //     let extra_reg = if i <= 2*MAX_REGS { 2*(i-MAX_REGS) } else { i };
+        //     limb_specialisation = format!("{}{}", limb_specialisation, format!("
+        //             let mut spills = [0u64; {}];", extra_reg));
+        //     if is_mul { spills = "$5"; } else { spills = "$4";}
+        //     spills_declare = format!(",                       // ${}
+        //                       \"r\"(&mut spills)                // {}", 3+(is_mul as usize), spills);
+        // }
 
         // Actual asm declaration
         limb_specialisation = format!("{}{}", limb_specialisation, format!("
@@ -59,7 +91,7 @@ fn generate_matches (num_limbs: usize, mut macro_string: String, is_mul: bool) -
                         );
                     }}
                 }}",
-                asm_string = transform_asm_mul_string(i, generate_asm_mul_string(i, "$0", b), spills, "$0"),
+                asm_string = transform_asm_mul_string(i, generate_asm_mul_string(i, "$0", b), "%rsp", "$0"),
                 rs_clobber=rs_clobber,
                 b_declare=b_declare,
                 spills_declare=spills_declare));
@@ -75,86 +107,8 @@ fn generate_matches (num_limbs: usize, mut macro_string: String, is_mul: bool) -
     macro_string
 }
 
-fn generate_asm_mul_string (limbs: usize, a: &str, b: &str) -> String {
-    let mut asm_string = String::from("");
-    for i in 0..limbs {
-        // First inner loop
-        if i == 0 {
-            asm_string = format!("{}{}", asm_string,format!("\"
-                            movq 0({a}), %rdx
-                            xorq %rcx, %rcx
-                                mulxq 0({b}), %r8, %r9",
-                                a=a, b=b));
-            for j in 1..limbs-1 {
-                asm_string = format!("{}{}", asm_string, format!("
-                                mulxq {}({b}), %rax, %r{}
-                                adcxq %rax, %r{}",
-                                j*8, 8 + ((j+1) % limbs), 8+j, b=b));
-            }
-            asm_string = format!("{}{}", asm_string, format!("
-                                mulxq {}({b}), %rax, %rcx
-                                mov $2, %rbx
-                                adcxq %rax, %r{}
-                                adcxq %rbx, %rcx               // %rcx is carry1",
-                                (limbs-1)*8, 8+limbs-1, b=b));
-        } else {
-            asm_string = format!("{}{}", asm_string, format!("
-                            movq {}($0), %rdx", i * 8));
-            for j in 0..limbs-1 {
-                asm_string = format!("{}{}", asm_string, format!("
-                                mulxq {}({b}), %rax, %rbx
-                                adcxq %rax, %r{}
-                                adoxq %rbx, %r{}",
-                                j * 8, 8 + ((j+i) % limbs), 8 + ((j+i+1) % limbs), b=b));
-                }
-            asm_string = format!("{}{}", asm_string, format!("
-                                mulxq {}({b}), %rax, %rcx
-                                mov $2, %rbx
-                                adcxq %rax, %r{}
-                                adoxq %rbx, %rcx
-                                adcxq %rbx, %rcx",
-                                (limbs-1) * 8,
-                                8 + ((i+limbs-1) % limbs),
-                                b=b));
-        }
-        // Second inner loop
-        asm_string = format!("{}{}", asm_string, format!("
-                            movq $3, %rdx
-                            mulxq %r{}, %rdx, %rax            // wrapping_mul", 8+i));
-        asm_string = format!("{}{}", asm_string, format!("
-                                mulxq 0($1), %rax, %rbx
-                                adcxq %r{}, %rax              // put junk in rax
-                                adoxq %rbx, %r{}",
-                                8 + (i % limbs),
-                                8 + ((i+1) % limbs)));
-        for j in 1..limbs-1 {
-            asm_string = format!("{}{}", asm_string, format!("
-                                mulxq {}($1), %rax, %rbx
-                                adcxq %rax, %r{}
-                                adoxq %rbx, %r{}",
-                                j * 8,
-                                8 + ((j+i) % limbs),
-                                8 + ((j+i+1) % limbs)));
-        }
-        asm_string = format!("{}{}", asm_string, format!("
-                                mulxq {}($1), %rax, %r{2}
-                                mov $2, %rbx
-                                adcxq %rax, %r{}
-                                adoxq %rcx, %r{2}
-                                adcxq %rbx, %r{2}",
-                                (limbs-1)*8,
-                                8 + ((i+limbs-1) % limbs),
-                                8 + ((i) % limbs)));
-    }
-    for i in 0..limbs {
-        asm_string = format!("{}{}", asm_string, format!("
-                            movq %r{}, {}($0)", 8+(i % limbs), i*8));
-    }
-    format!("{}{}", asm_string, "
-                        \"")
-}
-
-
+// This hacky way of partitioning registers can be
+// replaced by something more generic like graph colouring
 fn get_registers (limbs: usize) -> (usize, Vec<Vec<usize>>) {
     assert!(limbs <= 3*MAX_REGS);
 
@@ -182,7 +136,7 @@ fn get_registers (limbs: usize) -> (usize, Vec<Vec<usize>>) {
             values.push(vec![i, MAX_REGS+i]);
         }
         (n_spills, values)
-    } else { // (if limbs <= MAX_REGS * 3)
+    } else { // if limbs <= MAX_REGS * 3
         let mut values = Vec::new();
         for i in 0..MAX_REGS {
             if i < limbs - 2*MAX_REGS {
@@ -195,11 +149,19 @@ fn get_registers (limbs: usize) -> (usize, Vec<Vec<usize>>) {
     }
 }
 
+// fn get_registers_ (limbs: usize) -> {
+//     if limbs > MAX_REGS {
+//         let mut values = Vec::new();
+//         for i in 0..limbs-MAX_REGS {
+//
+//         }
+//         (limbs-MAX_REGS, )
+//     }
+// }
+
 // This is a compilation pass which converts abstract
-// register numbers into x64 registers with spills.
-// Rather hacky at this stage
+// register numbers into x64 registers with spills. (Unfortunately, rather hacky)
 fn transform_asm_mul_string (limbs: usize, asm_string: String, spills: &str, a: &str) -> String {
-    // println!("{}", asm_string);
     let (n_spills, spillable) = get_registers(limbs);
     let mut lines = asm_string.split("\n");
 
@@ -211,6 +173,8 @@ fn transform_asm_mul_string (limbs: usize, asm_string: String, spills: &str, a: 
 
     let mut edited_lines: Vec<String> = Vec::new();
 
+    // For every given register equivalence class,
+    // we collect a list of their occurance in sequential order
     for line in lines {
         edited_lines.push(line.to_string());
         line_number += 1;
@@ -225,6 +189,8 @@ fn transform_asm_mul_string (limbs: usize, asm_string: String, spills: &str, a: 
                             reg_sequence[i].push((line_number, *reg_num-8));
     }    }    }    }    }    }
 
+    // We then extract a sequence of swap points,
+    // where there are switches between the registers marked for the same colour
     let mut swap_sequence: Vec<Vec<(usize, usize, usize)>> = std::iter::repeat(vec![]).take(n_spills).collect::<Vec<_>>();
     for i in 0..n_spills {
         let length = reg_sequence[i].len();
@@ -239,7 +205,8 @@ fn transform_asm_mul_string (limbs: usize, asm_string: String, spills: &str, a: 
         swap_sequence[i].push((reg_sequence[i][length-1].0,
                                reg_sequence[i][length-1].1,
                                reg_sequence[i][length-1].1));
-    }
+        }
+        // Finally, we insert code to swap the registers to and from memory
         let length = swap_sequence[i].len();
         if length > 1 && spillable[i].len() <= 2 {
             for j in 0..length {
@@ -261,7 +228,7 @@ fn transform_asm_mul_string (limbs: usize, asm_string: String, spills: &str, a: 
                                 reg=8+spillable[i][0], index1=index1*8, dest=a));
             edited_lines[&swap_sequence[i][length-2].0-1] = "".to_string();
             edited_lines[&swap_sequence[i][length-1].0-1] = "".to_string();
-        } else {
+        } else { // If we have 3 virtual registers allocated to our given register
             for j in 0..length {
                 let swap = &swap_sequence[i][j];
                 if j < length - 4 {
@@ -281,6 +248,7 @@ fn transform_asm_mul_string (limbs: usize, asm_string: String, spills: &str, a: 
             edited_lines[&swap_sequence[i][length-1].0-1] = "".to_string();
         }
     }
+    // Remove lines marked for removal
     let length = edited_lines.len();
     for i in 0..limbs+1 {
         if edited_lines[length-1-i] == "" {
@@ -288,7 +256,7 @@ fn transform_asm_mul_string (limbs: usize, asm_string: String, spills: &str, a: 
         }
     }
     let mut interspersed = edited_lines[..].join("\n");
-    for i in 0..n_spills {
+    for i in 0..n_spills { // Replace virtual register numbers with physical registers
         interspersed = interspersed.replace(&format!("%r{}", 8+spillable[i][1]), &format!("%r{}", 8+spillable[i][0]));
         if spillable[i].len() == 3 {
             interspersed = interspersed.replace(&format!("%r{}", 8+spillable[i][2]), &format!("%r{}", 8+spillable[i][0]));
