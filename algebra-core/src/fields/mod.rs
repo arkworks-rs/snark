@@ -14,6 +14,9 @@ use core::{
 use num_traits::{One, Zero};
 
 #[macro_use]
+pub mod arithmetic;
+
+#[macro_use]
 pub mod macros;
 pub mod models;
 
