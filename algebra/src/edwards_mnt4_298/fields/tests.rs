@@ -1,5 +1,8 @@
 use crate::tests::fields::{field_test, primefield_test};
-use algebra_core::{test_rng, FpParameters, fields::{PrimeField, SquareRootField, Field}, One};
+use algebra_core::{
+    fields::{Field, PrimeField, SquareRootField},
+    test_rng, FpParameters, One,
+};
 use rand::Rng;
 
 use crate::edwards_mnt4_298::{Fq, Fr, FrParameters};

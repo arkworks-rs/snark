@@ -20,6 +20,7 @@ fn test_projective_group() {
     let mut rng = test_rng();
     let a = rng.gen();
     let b = rng.gen();
+
     for _i in 0..100 {
         group_test::<EdwardsProjective>(a, b);
     }

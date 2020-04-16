@@ -77,10 +77,7 @@ pub mod mnt4_298;
 #[cfg(feature = "mnt4_298")]
 pub use mnt4_298::MNT4_298;
 
-#[cfg(all(
-    not(feature = "mnt4_298"),
-    feature = "edwards_mnt4_298"
-))]
+#[cfg(all(not(feature = "mnt4_298"), feature = "edwards_mnt4_298"))]
 pub(crate) mod mnt4_298;
 
 #[cfg(feature = "edwards_mnt4_298")]
