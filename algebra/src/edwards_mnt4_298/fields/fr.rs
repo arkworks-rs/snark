@@ -84,7 +84,7 @@ impl FpParameters for FrParameters {
     // This number needs to be in the Montgomery residue form.
     // I.e., write
     // 118980571542315331438337312413262112886281219744507561120271964887686106682370032123932630
-    // * R            
+    // * R
     // =14596494758349247937872919467301196219547084259323651055171406111196152579418790325693086
     #[rustfmt::skip]
     const ROOT_OF_UNITY: BigInteger = BigInteger([
