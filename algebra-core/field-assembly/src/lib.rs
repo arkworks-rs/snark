@@ -1,13 +1,15 @@
 extern crate std;
 
 #[macro_use]
-pub mod assembler;
-pub mod arithmetic;
-pub mod context;
+pub mod utils;
+use utils::*;
 
-use assembler::*;
-use arithmetic as ar;
+pub mod context;
 use context::*;
+
+use mince::assemble;
+
+use std::cell::RefCell;
 
 const MAX_REGS: usize = 6;
 
@@ -29,59 +31,53 @@ pub fn generate_macro_string (num_limbs:usize) -> std::string::String {
     macro_string
 }
 
-fn generate_asm_mul_string (ctx: &Context, limbs: usize) -> String {
-    let a = ctx.clone().get("a");
-    let b = ctx.clone().try_get("b", "a");
-    let modulus = ctx.clone().get("modulus");
-    let zero = ctx.clone().get("0");
-    let inverse = ctx.clone().get("inverse");
-
-    generate_array!(a0, a1, a, limbs);
-    generate_array!(b0, b1, b, limbs);
-    generate_array!(m, m1, modulus, limbs);
+#[assemble]
+fn generate_asm_mul_string (
+    a: &str,
+    b: &str,
+    modulus: &str,
+    zero: &str,
+    inverse: &str,
+    limbs: usize
+) -> String {
+    reg!(a0, a1, a, limbs);
+    reg!(b0, b1, b, limbs);
+    reg!(m, m1, modulus, limbs);
     // if limbs > 8 {
-    //     generate_array!(s, s1, spills, limbs * 2);
+    //     reg!(s, s1, spills, limbs * 2);
     // }
 
-    let mut asm = Assembler::new(limbs);
-
-    asm.begin();
-
     // if limbs <= 8 {
-        asm.xorq(RCX, RCX);
+        xorq(RCX, RCX);
         for i in 0..limbs {
             if i == 0 {
-                ar::mul_1(&mut asm, a1[0], &b1, &zero);
+                mul_1!(a1[0], b1, zero, limbs);
             } else {
-                ar::mul_add_1(&mut asm, &a1, &b1, &zero, i);
+                mul_add_1!(a1, b1, zero, i, limbs);
             }
-            ar::mul_add_shift_1(&mut asm, &m1, &inverse, &zero, i);
+            mul_add_shift_1!(m1, inverse, zero, i, limbs);
         }
-        for i in 0..asm.limbs {
-            asm.movq(R[i], a1[i]);
+        for i in 0..limbs {
+            movq(R[i], a1[i]);
         }
 
     // } else {
-    //     asm.xorq(RCX, RCX);
-    //     for i in 0..8 {
-    //         if i == 0 {
-    //             ar::mul_1_mov(&mut asm, a1[0], &b1, 0);
-    //         } else {
-    //             ar::mul_add_1(&mut asm, &a1, &b1, i);
-    //         }
-    //     }
-    //     for i in 0..8 {
-    //         ar::mul_add_1(&mut asm, &m1, 0);
-    //     }
-    //     for i in 0..asm.limbs {
-    //         asm.movq(R[i], a1[i]);
-    //     }
-    //
+        // asm.xorq(RCX, RCX);
+        // for i in 0..8 {
+        //     if i == 0 {
+        //         ar::mul_1_mov(&mut asm, a1[0], &b1, 0);
+        //     } else {
+        //         ar::mul_add_1(&mut asm, &a1, &b1, i);
+        //     }
+        // }
+        // for i in 0..8 {
+        //     ar::mul_add_1(&mut asm, &m1, 0);
+        // }
+        // for i in 0..asm.limbs {
+        //     asm.movq(R[i], a1[i]);
+        // }
+
     // }
-
-    asm.end();
-
-    asm.get_asm_string()
 }
 
 fn generate_matches (num_limbs: usize, is_mul: bool) -> String {
@@ -101,7 +97,14 @@ fn generate_matches (num_limbs: usize, is_mul: bool) -> String {
             ctx.add_declaration("buf", "r", "&mut spill_buffer");
         }
 
-        let asm_string = generate_asm_mul_string(&ctx, limbs);
+        let asm_string = generate_asm_mul_string(
+            &ctx.clone().get("a"),
+            &ctx.clone().try_get("b", "a"),
+            &ctx.clone().get("modulus"),
+            &ctx.clone().get("0"),
+            &ctx.clone().get("inverse"),
+            limbs
+        );
 
         ctx.add_asm(asm_string);
         ctx.add_clobber_from_vec(vec!["rcx", "rbx", "rdx", "rax"]);
