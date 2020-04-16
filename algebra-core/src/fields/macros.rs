@@ -1,6 +1,8 @@
 macro_rules! impl_Fp {
     ($Fp:ident, $FpParameters:ident, $limbs:expr) => {
         pub trait $FpParameters: FpParameters<BigInt = BigInteger> {}
+
+        #[cfg(feature = "asm")]
         include!(concat!(env!("OUT_DIR"), "/field_assembly.rs"));
 
         #[derive(Derivative)]
@@ -438,7 +440,6 @@ macro_rules! impl_Fp {
 /// [here](https://hackmd.io/@zkteam/modular_multiplication) if
 /// `P::MODULUS` has (a) a non-zero MSB, and (b) at least one
 /// zero bit in the rest of the modulus.
-
 macro_rules! impl_field_mul_assign {
     ($limbs:expr) => {
         #[inline(never)]
@@ -454,7 +455,8 @@ macro_rules! impl_field_mul_assign {
 
             // No-carry optimisation applied to CIOS
             if no_carry {
-                if $limbs <= 6 {
+                if $limbs <= 6 && cfg!(feature = "asm") {
+                    #[cfg(feature = "asm")]
                     asm_mul!($limbs, (self.0).0, (other.0).0, P::MODULUS.0, P::INV);
                     self.reduce();
                 } else {
@@ -536,7 +538,8 @@ macro_rules! impl_field_square_in_place {
         #[inline]
         #[unroll_for_loops]
         fn square_in_place(&mut self) -> &mut Self {
-            if $limbs <= 6 {
+            if $limbs <= 6 && cfg!(feature = "asm") {
+                #[cfg(feature = "asm")]
                 asm_square!($limbs, (self.0).0, P::MODULUS.0, P::INV);
                 self.reduce();
                 self
