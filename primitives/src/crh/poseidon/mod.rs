@@ -676,8 +676,8 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> BatchFieldBasedHas
 
         assert_eq!(input_vec.len() % 2, 0, "The length of the input to the hash is not even.");
 
-        if input_size < num_cores * Self::SIZE_BLOCK {
-            input_vec.par_chunks_mut(Self::SIZE_BLOCK/2).zip(output_vec.par_chunks_mut(Self::SIZE_BLOCK/2/2)).for_each( |(p1,p2)| {
+        if input_size < 2 * num_cores {
+            input_vec.par_chunks_mut(2).zip(output_vec.par_chunks_mut(1)).for_each( |(p1,p2)| {
                 Self::batch_evaluate_2_1(p1,p2);
             });
             return;
@@ -685,7 +685,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> BatchFieldBasedHas
 
         use rayon::prelude::*;
 
-        input_vec.par_chunks_mut(Self::SIZE_BLOCK).zip(output_vec.par_chunks_mut(Self::SIZE_BLOCK/2)).for_each( |(p1, p2)| {
+        input_vec.par_chunks_mut(input_size/num_cores).zip(output_vec.par_chunks_mut(input_size/num_cores/2)).for_each( |(p1, p2)| {
             Self::batch_evaluate_2_1(p1,p2);
         });
 
@@ -909,7 +909,7 @@ mod test {
         // Computation for MNT4
         type Mnt4BatchPoseidonHash = PoseidonBatchHash<MNT4753Fr, MNT4753PoseidonParameters>;
         //  the size of the input
-        let input_size = 1024;
+        let input_size = 1024*1024;
 
         // the vectors that store random input data
         let mut vec_elem_4753 = Vec::new();
@@ -948,7 +948,7 @@ mod test {
         // Computation for MNT6
         type Mnt6BatchPoseidonHash = PoseidonBatchHash<MNT6753Fr, MNT6753PoseidonParameters>;
         //  the size of the input
-        let input_size = 1024;
+        let input_size = 1024*1024;
 
         // the vectors that store random input data
         let mut vec_elem_6753 = Vec::new();
