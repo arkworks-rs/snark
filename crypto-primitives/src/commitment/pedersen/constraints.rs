@@ -99,25 +99,13 @@ where
     ConstraintF: PrimeField,
 {
     fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
-        cs: CS,
+        _cs: CS,
         val: T,
     ) -> Result<Self, SynthesisError>
     where
         T: Borrow<PedersenParameters<G>>,
     {
-        Self::alloc(cs, || Ok(val))
-    }
-
-    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
-        _cs: CS,
-        value_gen: F,
-    ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<PedersenParameters<G>>,
-    {
-        let temp = value_gen()?;
-        let parameters = temp.borrow().clone();
+        let parameters = val.borrow().clone();
 
         Ok(PedersenCommitmentGadgetParameters {
             params: parameters,
@@ -125,6 +113,18 @@ where
             _engine: PhantomData,
             _window: PhantomData,
         })
+    }
+
+    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
+        value_gen: F,
+    ) -> Result<Self, SynthesisError>
+    where
+        F: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<PedersenParameters<G>>,
+    {
+        let temp = value_gen()?;
+        Self::alloc_constant(cs, temp)
     }
 
     fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
@@ -153,13 +153,18 @@ where
     ConstraintF: PrimeField,
 {
     fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
-        cs: CS,
+        mut cs: CS,
         val: T,
     ) -> Result<Self, SynthesisError>
     where
         T: Borrow<PedersenRandomness<G>>,
     {
-        Self::alloc(cs, || Ok(val))
+        let mut result_bytes = vec![];
+        for (i, byte) in to_bytes![val.borrow().0].unwrap().into_iter().enumerate() {
+            let cur = UInt8::alloc_constant(cs.ns(|| format!("byte {}", i)), byte)?;
+            result_bytes.push(cur);
+        }
+        Ok(PedersenRandomnessGadget(result_bytes))
     }
 
     fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(

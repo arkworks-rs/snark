@@ -585,11 +585,15 @@ impl<F: PrimeField> Clone for FpGadget<F> {
 
 impl<F: PrimeField> AllocGadget<F, F> for FpGadget<F> {
     #[inline]
-    fn alloc_constant<T, CS: ConstraintSystem<F>>(mut cs: CS, t: T) -> Result<Self, SynthesisError>
+    fn alloc_constant<T, CS: ConstraintSystem<F>>(_cs: CS, t: T) -> Result<Self, SynthesisError>
     where
         T: Borrow<F>,
     {
-        Self::zero(cs.ns(|| "zero"))?.add_constant(cs.ns(|| "add constant"), t.borrow())
+        let value = t.borrow().clone();
+        Ok(Self {
+            value: Some(value),
+            variable: LinearCombination::from((value, CS::one())).into(),
+        })
     }
 
     #[inline]
