@@ -675,6 +675,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> BatchFieldBasedHas
         let num_cores = num_cpus::get();
 
         assert_eq!(input_vec.len() % 2, 0, "The length of the input to the hash is not even.");
+        assert_eq!(output_vec.len() >= (input_vec.len() / 2), true, "The length of the output is not long enough.");
 
         if input_size < 2 * num_cores {
             input_vec.par_chunks_mut(2).zip(output_vec.par_chunks_mut(1)).for_each( |(p1,p2)| {
@@ -698,15 +699,11 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> BatchFieldBasedHas
         let mut copy_vec = &mut array[..];
         let mut size_input = input_size;
 
-        loop {
-
+        while size_input > 1{
             let (input_vec, output_vec) = copy_vec.split_at_mut(size_input);
             Self::merkle_tree(input_vec, output_vec, size_input);
             copy_vec = output_vec;
             size_input = size_input / 2;
-            if size_input < 2 {
-                break;
-            }
         }
     }
 
