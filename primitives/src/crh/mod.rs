@@ -38,5 +38,13 @@ pub trait BatchFieldBasedHash {
     type Data: Field;
     type Parameters: FieldBasedHashParameters<Fr = Self::Data>;
 
-    fn batch_evaluate_2_1(input_array: &mut[Self::Data]);
+    const SIZE_BLOCK: usize = 128;
+
+    fn batch_evaluate_2_1(input_array: &mut[Self::Data], output_array: &mut[Self::Data]);
+
+    fn merkle_tree(input_vec: &mut[Self::Data], output_vec: &mut[Self::Data], input_size: usize);
+    fn merkle_tree_2_1(array: &mut [Self::Data], input_size: usize);
+
 }
+
+

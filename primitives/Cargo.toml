@@ -30,6 +30,7 @@ rand = { version = "0.7" }
 derivative = "1"
 rayon = "1"
 hex = "0.4.0"
+num_cpus = "0.2"
 
 [features]
 commitment = ["digest", "blake2"]
