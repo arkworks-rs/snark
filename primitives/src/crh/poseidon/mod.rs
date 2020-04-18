@@ -472,8 +472,12 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> FieldBasedHash for
 
     fn evaluate(input: &[F]) -> Result<F, Error> {
 
-        // state is a vector of 3 elements. They are initialized to constants that are obtained after applying a permutation to a zero elements vector
-        let mut state = vec![P::AFTER_ZERO_PERM[0], P::AFTER_ZERO_PERM[1], P::AFTER_ZERO_PERM[2]];
+        // state is a vector of P::T elements.
+        // They are initialized to constants that are obtained after applying a permutation to a zero elements vector.
+        let mut state = Vec::new();
+        for i in 0..P::T {
+            state.push(P::AFTER_ZERO_PERM[i]);
+        }
 
         // calculate the number of cycles to process the input dividing in portions of rate elements
         let num_cycles = input.len() / P::R;
@@ -489,7 +493,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> FieldBasedHash for
                 state[j] += &input[input_idx];
                 input_idx += 1;
             }
-            // for application to a 2-1 Merkle tree, add the constant 3 to the third state vector
+            // add the constant associated to the application for an n-ary Merkle tree
             state[P::R] += &P::C2;
 
             // apply permutation after adding the input vector
@@ -498,7 +502,10 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> FieldBasedHash for
 
         // in case the input is not a multiple of the rate process the remainder part padding a zero
         if rem != 0 {
-            state[0] += &input[input_idx];
+            for j in 0..rem {
+                state[j] += &input[input_idx];
+            }
+            // add the constant associated to the application for an n-ary Merkle tree
             state[P::R] += &P::C2;
             // apply permutation after adding the input vector
             Self::poseidon_perm(&mut state);
@@ -513,50 +520,52 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> BatchFieldBasedHas
     type Data = F;
     type Parameters = P;
 
-    fn batch_evaluate_2_1(input_array: &mut[F], output_array: &mut[F]) {
+    fn batch_evaluate(input_array: &mut[F], output_array: &mut[F]) {
 
         // Input:
-        // This function calculates the hashes of pairs of inputs.
-        // The inputs are arranged in an array and arranged as pairs
+        // This function calculates the hashes of inputs by groups of the rate P::R.
+        // The inputs are arranged in an array and arranged as consecutive groups
         // Example:
+        // For P::R = 2,
         // (d_00, d01, d_10, d_11, d_20, d_21, ...
         // Output:
-        // The output will be placed in the same array taking half of the positions
-        // as the rate of the hash function is 2 field elements
+        // The output will be placed in the output_array taking input length / P::R
 
-        // Checks that input contains data
-        assert_ne!(input_array.len(), 0, "Input to the hash has length 0.");
-        assert_eq!(input_array.len() % 2, 0, "The length of the input to the hash is not even.");
-
-        let input_length = input_array.len() / 2;
+        // Checks that size of input/output vector
+        let array_length = input_array.len() / P::R;
+        assert_eq!(array_length, output_array.len(), "The length of the output is not half of that of the input.");
 
         // Assign pre-computed values of the state vector equivalent to a permutation with zero element state vector
-        let state_z = vec![P::AFTER_ZERO_PERM[0], P::AFTER_ZERO_PERM[1], P::AFTER_ZERO_PERM[2]];
+        //let state_z = vec![P::AFTER_ZERO_PERM[0], P::AFTER_ZERO_PERM[1], P::AFTER_ZERO_PERM[2]];
+        let mut state_z = Vec::new();
+        for i in 0..P::T {
+            state_z.push(P::AFTER_ZERO_PERM[i]);
+        }
 
         // Copy the result of the permutation to a vector of state vectors of the length equal to the length of the input
         // state is a vector of 3-element state vector.
         let mut state = Vec::new();
-        for _i in 0..input_length {
+        for _i in 0..array_length {
             state.push(state_z.clone());
         }
 
         // input_idx is to scan the input_array
         let mut input_idx = 0;
 
-        for k in 0..input_length {
-            state[k][0] += &input_array[input_idx];
-            input_idx += 1;
-            state[k][1] += &input_array[input_idx];
-            input_idx += 1;
-            // constant to add for a 2-1 Merkle tree
-            state[k][2] += &P::C2;
+        for k in 0..array_length {
+            for j in 0..P::R {
+                state[k][j] += &input_array[input_idx];
+                input_idx += 1;
+            }
+            // constant for m-ary Merkle tree
+            state[k][P::R] += &P::C2;
         }
 
         // apply permutation after adding the input vector
         Self::poseidon_perm_gen(&mut state);
 
-        // overwrite the input with the result of the hash
-        for k in 0..input_array.len()/2 {
+        // write the result of the hash extracted from the state vector to the output vector
+        for k in 0..array_length {
             output_array[k] = state[k][0];
         }
     }
@@ -571,7 +580,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> BatchFieldBasedHas
 
         if input_size < 2 * num_cores {
             input_vec.par_chunks_mut(2).zip(output_vec.par_chunks_mut(1)).for_each( |(p1,p2)| {
-                Self::batch_evaluate_2_1(p1,p2);
+                Self::batch_evaluate(p1, p2);
             });
             return;
         }
@@ -579,9 +588,8 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> BatchFieldBasedHas
         use rayon::prelude::*;
 
         input_vec.par_chunks_mut(input_size/num_cores).zip(output_vec.par_chunks_mut(input_size/num_cores/2)).for_each( |(p1, p2)| {
-            Self::batch_evaluate_2_1(p1,p2);
+            Self::batch_evaluate(p1, p2);
         });
-
 
     }
 
@@ -692,7 +700,7 @@ mod test {
             .zip(output_vec
                 .par_chunks_mut(num_rounds/2/2))
             .for_each(|(p1,p2)| {
-                Mnt4BatchPoseidonHash::batch_evaluate_2_1(p1, p2);
+                Mnt4BatchPoseidonHash::batch_evaluate(p1, p2);
         });
         let new_now_4753_batch = Instant::now();
 
@@ -767,7 +775,7 @@ mod test {
             .zip(output_vec
                 .par_chunks_mut(num_rounds/2/2))
             .for_each(|(p1,p2)| {
-                Mnt6BatchPoseidonHash::batch_evaluate_2_1(p1, p2);
+                Mnt6BatchPoseidonHash::batch_evaluate(p1, p2);
             });
         let new_now_6753_batch = Instant::now();
 
