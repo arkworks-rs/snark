@@ -277,6 +277,16 @@ impl UInt64 {
 }
 
 impl<ConstraintF: Field> AllocGadget<u64, ConstraintF> for UInt64 {
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        _cs: CS,
+        t: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<u64>,
+    {
+        Ok(UInt64::constant(*t.borrow()))
+    }
+
     fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         value_gen: F,

@@ -128,6 +128,28 @@ where
     HGadget: FixedLengthCRHGadget<P::H, ConstraintF>,
     ConstraintF: Field,
 {
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        val: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<MerkleTreePath<P>>,
+    {
+        let mut path = Vec::new();
+        for (i, &(ref l, ref r)) in val.borrow().path.iter().enumerate() {
+            let l_hash = HGadget::OutputGadget::alloc_constant(
+                &mut cs.ns(|| format!("l_child_{}", i)),
+                l.clone(),
+            )?;
+            let r_hash = HGadget::OutputGadget::alloc_constant(
+                &mut cs.ns(|| format!("r_child_{}", i)),
+                r.clone(),
+            )?;
+            path.push((l_hash, r_hash));
+        }
+        Ok(MerkleTreePathGadget { path })
+    }
+
     fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         value_gen: F,

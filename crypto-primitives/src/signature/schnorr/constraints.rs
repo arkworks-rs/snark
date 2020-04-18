@@ -96,6 +96,21 @@ where
     GG: GroupGadget<G, ConstraintF>,
     D: Digest,
 {
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
+        val: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<SchnorrSigParameters<G, D>>,
+    {
+        let generator = GG::alloc_constant(cs, val.borrow().generator)?;
+        Ok(Self {
+            generator,
+            _engine: PhantomData,
+            _group: PhantomData,
+        })
+    }
+
     fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, f: F) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
@@ -133,6 +148,21 @@ where
     ConstraintF: Field,
     GG: GroupGadget<G, ConstraintF>,
 {
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
+        val: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<SchnorrPublicKey<G>>,
+    {
+        let pub_key = GG::alloc_constant(cs, val.borrow())?;
+        Ok(Self {
+            pub_key,
+            _engine: PhantomData,
+            _group: PhantomData,
+        })
+    }
+
     fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, f: F) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
