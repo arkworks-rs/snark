@@ -36,8 +36,8 @@ pub fn define_arithmetic() -> TokenStream {
             }
 
             macro_rules! mul_add_shift_1 {
-                ($a:ident, $inverse:ident, $zero:ident, $i:ident, $limbs:expr) => {
-                    movq($inverse, RDX);
+                ($a:ident, $mod_prime:ident, $zero:ident, $i:ident, $limbs:expr) => {
+                    movq($mod_prime, RDX);
                     mulxq(R[$i], RDX, RAX);
                     mulxq($a[0], RAX, RBX);
                     adcxq(R[$i % $limbs], RAX);

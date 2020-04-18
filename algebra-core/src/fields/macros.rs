@@ -2,11 +2,10 @@ macro_rules! impl_Fp {
     ($Fp:ident, $FpParameters:ident, $limbs:expr) => {
         pub trait $FpParameters: FpParameters<BigInt = BigInteger> {}
 
-        #[cfg(all(feature = "asm",
-              // target_arch = "x86_64",
-              // target_feature="bmi2",
-              // target_feature="adx"
-          ))]
+        #[cfg(all(feature = "asm", target_arch = "x86_64", target_feature="bmi2", target_feature="adx"))]
+        use std::mem::MaybeUninit;
+
+        #[cfg(all(feature = "asm", target_arch = "x86_64", target_feature="bmi2", target_feature="adx"))]
         include!(concat!(env!("OUT_DIR"), "/field_assembly.rs"));
 
         #[derive(Derivative)]
@@ -446,7 +445,7 @@ macro_rules! impl_Fp {
 /// zero bit in the rest of the modulus.
 macro_rules! impl_field_mul_assign {
     ($limbs:expr) => {
-        #[inline(never)]
+        #[inline]
         #[unroll_for_loops]
         fn mul_assign(&mut self, other: &Self) {
             // Checking the modulus at compile time
@@ -455,19 +454,17 @@ macro_rules! impl_field_mul_assign {
             for i in 1..$limbs {
                 all_bits_set &= P::MODULUS.0[$limbs - i - 1] == !0u64;
             }
-            let no_carry: bool = !(first_bit_set || all_bits_set);
+            let _no_carry: bool = !(first_bit_set || all_bits_set);
 
             // No-carry optimisation applied to CIOS
-            if no_carry {
+            if _no_carry {
                 #[cfg(all(feature = "asm", target_feature="bmi2",
                 target_feature="adx", target_arch = "x86_64"))]
+                if $limbs <= 6
                 {
-                    if $limbs <= 6
-                    {
-                        asm_mul!($limbs, (self.0).0, (other.0).0, P::MODULUS.0, P::INV);
-                        self.reduce();
-                        return;
-                    }
+                    asm_mul!($limbs, (self.0).0, (other.0).0, P::MODULUS.0, P::INV);
+                    self.reduce();
+                    return;
                 }
                 let mut r = [0u64; $limbs];
                 let mut carry1 = 0u64;
@@ -552,17 +549,15 @@ macro_rules! impl_field_square_in_place {
             for i in 1..$limbs {
                 all_bits_set &= P::MODULUS.0[$limbs - i - 1] == !0u64;
             }
-            let no_carry: bool = !(first_bit_set || all_bits_set);
+            let _no_carry: bool = !(first_bit_set || all_bits_set);
 
             #[cfg(all(feature = "asm", target_feature="bmi2",
             target_feature="adx", target_arch = "x86_64"))]
+            if $limbs <= 6 && _no_carry
             {
-                if $limbs <= 6 && no_carry
-                {
-                    asm_square!($limbs, (self.0).0, P::MODULUS.0, P::INV);
-                    self.reduce();
-                    return self;
-                }
+                asm_square!($limbs, (self.0).0, P::MODULUS.0, P::INV);
+                self.reduce();
+                return self;
             }
             let mut r = [0u64; $limbs*2];
 

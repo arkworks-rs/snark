@@ -19,13 +19,13 @@ pub fn generate_macro_string (num_limbs:usize) -> std::string::String {
     }
     let mut macro_string = String::from(
     "macro_rules! asm_mul {
-        ($limbs:expr, $a:expr, $b:expr, $modulus:expr, $inverse:expr) => {
+        ($limbs:expr, $a:expr, $b:expr, $modulus:expr, $mod_prime:expr) => {
             match $limbs {");
     macro_string = format!("{}{}", macro_string, generate_matches(num_limbs, true));
 
     macro_string = format!("{}{}", macro_string,
     "macro_rules! asm_square {
-        ($limbs:expr, $a:expr, $modulus:expr, $inverse:expr) => {
+        ($limbs:expr, $a:expr, $modulus:expr, $mod_prime:expr) => {
             match $limbs {");
     macro_string = format!("{}{}", macro_string, generate_matches(num_limbs, false));
     macro_string
@@ -37,7 +37,7 @@ fn generate_asm_mul_string (
     b: &str,
     modulus: &str,
     zero: &str,
-    inverse: &str,
+    mod_prime: &str,
     limbs: usize
 ) -> String {
     reg!(a0, a1, a, limbs);
@@ -55,7 +55,7 @@ fn generate_asm_mul_string (
             } else {
                 mul_add_1!(a1, b1, zero, i, limbs);
             }
-            mul_add_shift_1!(m1, inverse, zero, i, limbs);
+            mul_add_shift_1!(m1, mod_prime, zero, i, limbs);
         }
         for i in 0..limbs {
             movq(R[i], a1[i]);
@@ -89,10 +89,10 @@ fn generate_matches (num_limbs: usize, is_mul: bool) -> String {
         if is_mul { ctx.add_declaration("b", "r", "&$b"); }
         ctx.add_declaration("modulus", "r", "&$modulus");
         ctx.add_declaration("0", "i", "0u64");
-        ctx.add_declaration("inverse", "i", "$inverse");
+        ctx.add_declaration("mod_prime", "i", "$mod_prime");
 
         ctx.add_limb(limbs);
-        if limbs > 8 {
+        if limbs > MAX_REGS {
             ctx.add_buffer(2*limbs);
             ctx.add_declaration("buf", "r", "&mut spill_buffer");
         }
@@ -102,7 +102,7 @@ fn generate_matches (num_limbs: usize, is_mul: bool) -> String {
             &ctx.clone().try_get("b", "a"),
             &ctx.clone().get("modulus"),
             &ctx.clone().get("0"),
-            &ctx.clone().get("inverse"),
+            &ctx.clone().get("mod_prime"),
             limbs
         );
 

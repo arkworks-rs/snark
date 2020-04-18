@@ -73,7 +73,7 @@ impl Context {
 
     pub fn add_buffer (&mut self, extra_reg: usize) {
         self.ctx_string = Rc::new(format!("{}{}", Rc::clone(&self.ctx_string), format!("
-                    let mut spill_buffer = [0u64; {}];", extra_reg)));
+                    let mut spill_buffer = MaybeUninit::<[u64; {}]>::uninit();", extra_reg)));
     }
 
     pub fn add_asm (&mut self, ctx_string: String) {
