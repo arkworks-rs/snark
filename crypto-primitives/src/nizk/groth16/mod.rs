@@ -35,10 +35,10 @@ impl<E: PairingEngine, C: ConstraintSynthesizer<E::Fr>, V: ToConstraintField<E::
 {
     type Circuit = C;
     type AssignedCircuit = C;
+    type VerifierInput = V;
     type ProvingParameters = Parameters<E>;
     type VerificationParameters = VerifyingKey<E>;
     type PreparedVerificationParameters = PreparedVerifyingKey<E>;
-    type VerifierInput = V;
     type Proof = Proof<E>;
 
     fn setup<R: Rng>(
