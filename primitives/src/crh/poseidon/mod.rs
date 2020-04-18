@@ -45,118 +45,65 @@ pub trait PoseidonParameters: 'static + FieldBasedHashParameters{
 
 }
 
-
 impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F, P> {
 
-    // Function that does the mix matrix
+    // Function that does the scalar multiplication
     // It uses Montgomery multiplication
     // Constants are defined such that the result is x * t * 2^768,
     // that is the Montgomery representation of the operand x * t, and t is the 64-bit constant
+    #[inline]
+    fn scalar_mul (res: &mut F, state: &mut[F], mut start_idx_cst: usize) {
+
+        state.iter_mut().for_each(|x| {
+            let elem = x.mul(&P::MDS_CST[start_idx_cst]);
+            start_idx_cst += 1;
+            *res += &elem;
+        });
+    }
+
+    // Function that does the mix matrix
     #[allow(dead_code)]
+    #[inline]
     fn matrix_mix (state: &mut Vec<F>) {
 
         // the new state where the result will be stored initialized to zero elements
         let mut new_state = vec![F::zero(); P::T];
 
-        let m_11 = P::MDS_CST[0];
-        let m_12 = P::MDS_CST[1];
-        let m_13 = P::MDS_CST[2];
-
-        // scalar multiplication for position 0 of the state vector
-        let elem_0 = state[0].mul(&m_11);
-        let elem_1 = state[1].mul(&m_12);
-        let elem_2 = state[2].mul(&m_13);
-
-        new_state[0] = elem_0;
-        new_state[0] += &elem_1;
-        new_state[0] += &elem_2;
-
-        // scalar multiplication for position 1 of the state vector
-        let m_21 = P::MDS_CST[3];
-        let m_22 = P::MDS_CST[4];
-        let m_23 = P::MDS_CST[5];
-
-        let elem_3 = state[0].mul(&m_21);
-        let elem_4 = state[1].mul(&m_22);
-        let elem_5 = state[2].mul(&m_23);
-
-        new_state[1] = elem_3;
-        new_state[1] += &elem_4;
-        new_state[1] += &elem_5;
-
-        // scalar multiplication for the position 2 of the state vector
-        let m_31 = P::MDS_CST[6];
-        let m_32 = P::MDS_CST[7];
-        let m_33 = P::MDS_CST[8];
-
-        let elem_6 = state[0].mul(&m_31);
-        let elem_7 = state[1].mul(&m_32);
-        let elem_8 = state[2].mul(&m_33);
-
-        new_state[2] = elem_6;
-        new_state[2] += &elem_7;
-        new_state[2] += &elem_8;
-
-        // copy the result to the state vector
-        state[0] = new_state[0];
-        state[1] = new_state[1];
-        state[2] = new_state[2];
+        let mut idx_cst = 0;
+        for i in 0..P::T {
+            Self::scalar_mul(&mut new_state[i], state, idx_cst);
+            idx_cst += P::T;
+        }
+        *state = new_state;
 
     }
 
-    // Function that does the mix matrix with fast algorithm
+    // Function that does the scalar multiplication
     // It uses a partial Montgomery multiplication defined as PM(x, t) = x * t * 2^-64 mod M
     // t is a 64-bit matrix constant. In the algorithm, the constants are represented in
     // partial Montgomery representation, i.e. t * 2^64 mod M
-    fn matrix_mix_short (state: &mut Vec<F>) {
+    #[inline]
+    fn scalar_mul_fast (res: &mut F, state: &mut[F], mut start_idx_cst: usize) {
+        state.iter_mut().for_each(|x| {
+            let elem = P::MDS_CST_SHORT[start_idx_cst].mul_short(&x);
+            start_idx_cst += 1;
+            *res += &elem;
+        });
+    }
 
-        //use algebra::MulShort;
+    // Function that does the mix matrix with fast algorithm
+    #[inline]
+    fn matrix_mix_short (state: &mut Vec<F>) {
 
         // the new state where the result will be stored initialized to zero elements
         let mut new_state = vec![F::zero(); P::T];
 
-        let m_11 = P::MDS_CST_SHORT[0];
-        let m_12 = P::MDS_CST_SHORT[1];
-        let m_13 = P::MDS_CST_SHORT[2];
-
-        let elem_0 = m_11.mul_short(&state[0]);
-        let elem_1 = m_12.mul_short(&state[1]);
-        let elem_2 = m_13.mul_short(&state[2]);
-
-        new_state[0] = elem_0;
-        new_state[0] += &elem_1;
-        new_state[0] += &elem_2;
-
-        // scalar multiplication for position 1 of the state vector
-        let m_21 = P::MDS_CST_SHORT[3];
-        let m_22 = P::MDS_CST_SHORT[4];
-        let m_23 = P::MDS_CST_SHORT[5];
-
-        let elem_3 = m_21.mul_short(&state[0]);
-        let elem_4 = m_22.mul_short(&state[1]);
-        let elem_5 = m_23.mul_short(&state[2]);
-
-        new_state[1] = elem_3;
-        new_state[1] += &elem_4;
-        new_state[1] += &elem_5;
-
-        // scalar multiplication for the position 2 of the state vector
-        let m_31 = P::MDS_CST_SHORT[6];
-        let m_32 = P::MDS_CST_SHORT[7];
-        let m_33 = P::MDS_CST_SHORT[8];
-
-        let elem_6 = m_31.mul_short(&state[0]);
-        let elem_7 = m_32.mul_short(&state[1]);
-        let elem_8 = m_33.mul_short(&state[2]);
-
-        new_state[2] = elem_6;
-        new_state[2] += &elem_7;
-        new_state[2] += &elem_8;
-
-        // copy the result to the state vector
-        state[0] = new_state[0];
-        state[1] = new_state[1];
-        state[2] = new_state[2];
+        let mut idx_cst = 0;
+        for i in 0..P::T {
+            Self::scalar_mul_fast(&mut new_state[i], state, idx_cst);
+            idx_cst += P::T;
+        }
+        *state = new_state;
     }
 
     fn poseidon_full_round(vec_state: &mut Vec<Vec<P::Fr>>, round_cst_idx: &mut usize) {
@@ -315,114 +262,60 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F,
 
 impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
 
-    // Function that does the mix matrix
+    // Function that does the scalar multiplication
     // It uses Montgomery multiplication
     // Constants are defined such that the result is x * t * 2^768,
     // that is the Montgomery representation of the operand x * t, and t is the 64-bit constant
+    #[inline]
+    fn scalar_mul (res: &mut F, state: &mut[F], start_idx_cst: usize) {
+        state.iter_mut().enumerate().for_each(|(i,x)| {
+            let elem = x.mul(&P::MDS_CST[start_idx_cst + i]);
+            *res += &elem;
+        });
+    }
+
+    // Function that does the mix matrix
+    #[inline]
     fn matrix_mix (state: &mut Vec<F>) {
 
         // the new state where the result will be stored initialized to zero elements
         let mut new_state = vec![F::zero(); P::T];
 
-        let m_11 = P::MDS_CST[0];
-        let m_12 = P::MDS_CST[1];
-        let m_13 = P::MDS_CST[2];
-
-        // scalar multiplication for position 0 of the state vector
-        let elem_0 = state[0].mul(&m_11);
-        let elem_1 = state[1].mul(&m_12);
-        let elem_2 = state[2].mul(&m_13);
-
-        new_state[0] = elem_0;
-        new_state[0] += &elem_1;
-        new_state[0] += &elem_2;
-
-        // scalar multiplication for position 1 of the state vector
-        let m_21 = P::MDS_CST[3];
-        let m_22 = P::MDS_CST[4];
-        let m_23 = P::MDS_CST[5];
-
-        let elem_3 = state[0].mul(&m_21);
-        let elem_4 = state[1].mul(&m_22);
-        let elem_5 = state[2].mul(&m_23);
-
-        new_state[1] = elem_3;
-        new_state[1] += &elem_4;
-        new_state[1] += &elem_5;
-
-        // scalar multiplication for the position 2 of the state vector
-        let m_31 = P::MDS_CST[6];
-        let m_32 = P::MDS_CST[7];
-        let m_33 = P::MDS_CST[8];
-
-        let elem_6 = state[0].mul(&m_31);
-        let elem_7 = state[1].mul(&m_32);
-        let elem_8 = state[2].mul(&m_33);
-
-        new_state[2] = elem_6;
-        new_state[2] += &elem_7;
-        new_state[2] += &elem_8;
-
-        // copy the result to the state vector
-        state[0] = new_state[0];
-        state[1] = new_state[1];
-        state[2] = new_state[2];
+        let mut idx_cst = 0;
+        for i in 0..P::T {
+            Self::scalar_mul(&mut new_state[i], state, idx_cst);
+            idx_cst += P::T;
+        }
+        *state = new_state;
 
     }
 
-    // Function that does the mix matrix with fast algorithm
+    // Function that does the scalar multiplication with fast algorithm
     // It uses a partial Montgomery multiplication defined as PM(x, t) = x * t * 2^-64 mod M
     // t is a 64-bit matrix constant. In the algorithm, the constants are represented in
     // partial Montgomery representation, i.e. t * 2^64 mod M
-    fn matrix_mix_short (state: &mut Vec<F>) {
+    #[inline]
+    fn scalar_mul_fast (res: &mut F, state: &mut[F], mut start_idx_cst: usize) {
+        state.iter_mut().for_each(|x| {
+            let elem = P::MDS_CST_SHORT[start_idx_cst].mul_short(&x);
+            start_idx_cst += 1;
+            *res += &elem;
+        });
+    }
 
-        //use algebra::MulShort;
+    // Function that does the mix matrix with fast algorithm
+    #[inline]
+    fn matrix_mix_short (state: &mut Vec<F>) {
 
         // the new state where the result will be stored initialized to zero elements
         let mut new_state = vec![F::zero(); P::T];
 
-        let m_11 = P::MDS_CST_SHORT[0];
-        let m_12 = P::MDS_CST_SHORT[1];
-        let m_13 = P::MDS_CST_SHORT[2];
-
-        let elem_0 = m_11.mul_short(&state[0]);
-        let elem_1 = m_12.mul_short(&state[1]);
-        let elem_2 = m_13.mul_short(&state[2]);
-
-        new_state[0] = elem_0;
-        new_state[0] += &elem_1;
-        new_state[0] += &elem_2;
-
-        // scalar multiplication for position 1 of the state vector
-        let m_21 = P::MDS_CST_SHORT[3];
-        let m_22 = P::MDS_CST_SHORT[4];
-        let m_23 = P::MDS_CST_SHORT[5];
-
-        let elem_3 = m_21.mul_short(&state[0]);
-        let elem_4 = m_22.mul_short(&state[1]);
-        let elem_5 = m_23.mul_short(&state[2]);
-
-        new_state[1] = elem_3;
-        new_state[1] += &elem_4;
-        new_state[1] += &elem_5;
-
-        // scalar multiplication for the position 2 of the state vector
-        let m_31 = P::MDS_CST_SHORT[6];
-        let m_32 = P::MDS_CST_SHORT[7];
-        let m_33 = P::MDS_CST_SHORT[8];
-
-        let elem_6 = m_31.mul_short(&state[0]);
-        let elem_7 = m_32.mul_short(&state[1]);
-        let elem_8 = m_33.mul_short(&state[2]);
-
-        new_state[2] = elem_6;
-        new_state[2] += &elem_7;
-        new_state[2] += &elem_8;
-
-        // copy the result to the state vector
-        state[0] = new_state[0];
-        state[1] = new_state[1];
-        state[2] = new_state[2];
+        let mut idx_cst = 0;
+        for i in 0..P::T {
+            Self::scalar_mul_fast(&mut new_state[i], state, idx_cst);
+            idx_cst += P::T;
+        }
+        *state = new_state;
     }
 
     fn poseidon_perm (state: &mut Vec<F>) {
@@ -441,7 +334,6 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
                 *d += &rc;
                 round_cst_idx += 1;
             }
-
 
             // Apply the S-BOX to each of the elements of the state vector
             // Optimization for the inversion S-Box
