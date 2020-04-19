@@ -18,13 +18,16 @@ pub struct SparsePolynomial<F: Field> {
 
 impl<F: Field> fmt::Debug for SparsePolynomial<F> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        for (i, coeff) in self.coeffs.iter().filter(|(_, c)| !c.is_zero()) {
-            if *i == 0 {
-                write!(f, "\n{:?}", coeff)?;
-            } else if *i == 1 {
-                write!(f, " + \n{:?} * x", coeff)?;
+        for (i, coeff) in self.values.iter().rev().filter(|(_, x)| **x != 0) {
+            if i != self.values.len()-1 {
+                write!(f, " + ");
+            }
+            if i == 0 {
+                write!(f, "{:?}", coeff)?;
+            } else if i == 1 {
+                write!(f, "{}x", if *coeff != 1 { coeff.to_string() } else { "".to_string() })?;
             } else {
-                write!(f, " + \n{:?} * x^{}", coeff, i)?;
+                write!(f, "{}x^{}", if *coeff != 1 { coeff.to_string() } else { "".to_string() }, i)?;
             }
         }
         Ok(())
