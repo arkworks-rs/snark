@@ -58,7 +58,29 @@ impl<ConstraintF: Field> ToBitsGadget<ConstraintF> for Vec<Boolean> {
     }
 }
 
+impl<ConstraintF: Field> ToBitsGadget<ConstraintF> for UInt8 {
+    fn to_bits<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        _cs: CS,
+    ) -> Result<Vec<Boolean>, SynthesisError> {
+        Ok(self.into_bits_le())
+    }
+}
+
 impl<ConstraintF: Field> ToBitsGadget<ConstraintF> for [UInt8] {
+    fn to_bits<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        _cs: CS,
+    ) -> Result<Vec<Boolean>, SynthesisError> {
+        let mut result = Vec::with_capacity(&self.len() * 8);
+        for byte in self {
+            result.extend_from_slice(&byte.into_bits_le());
+        }
+        Ok(result)
+    }
+}
+
+impl<ConstraintF: Field> ToBitsGadget<ConstraintF> for Vec<UInt8> {
     fn to_bits<CS: ConstraintSystem<ConstraintF>>(
         &self,
         _cs: CS,
