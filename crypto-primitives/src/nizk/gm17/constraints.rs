@@ -762,7 +762,7 @@ mod test_recursive {
 
     #[test]
     fn gm17_recursive_verifier_test() {
-        let num_inputs = 100;
+        let num_inputs = 5;
         let num_constraints = num_inputs;
         let rng = &mut test_rng();
         let mut inputs: Vec<Option<MNT4Fq>> = Vec::with_capacity(num_inputs);
