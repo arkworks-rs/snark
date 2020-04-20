@@ -32,12 +32,14 @@ matrix:
         - rustup component add rustfmt
       script:
         - cargo fmt -- --check
+        - travis_wait 40 cargo build --all --tests
         - cargo test --all -- --skip dpc --skip integration_test
         - cargo check --examples --all
         - cargo check --all-features --examples --all
 
     - rust: nightly
       script:
+        - travis_wait 40 cargo build --all --tests
         - cargo test --all -- --skip dpc --skip integration_test
         - cargo check --examples --all --benches
         - cargo check --all-features --examples --all --benches
