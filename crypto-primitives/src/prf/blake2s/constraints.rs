@@ -451,6 +451,22 @@ impl<ConstraintF: PrimeField> ToBytesGadget<ConstraintF> for Blake2sOutputGadget
 
 impl<ConstraintF: PrimeField> AllocGadget<[u8; 32], ConstraintF> for Blake2sOutputGadget {
     #[inline]
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        val: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<[u8; 32]>,
+    {
+        let mut bytes = vec![];
+        for (i, b) in val.borrow().iter().enumerate() {
+            bytes.push(UInt8::alloc_constant(cs.ns(|| format!("value {}", i)), b)?)
+        }
+
+        Ok(Blake2sOutputGadget(bytes))
+    }
+
+    #[inline]
     fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
         value_gen: F,

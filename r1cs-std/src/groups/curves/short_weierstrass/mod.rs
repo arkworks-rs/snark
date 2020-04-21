@@ -438,6 +438,24 @@ where
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
     #[inline]
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        t: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<SWProjective<P>>,
+    {
+        let p = t.borrow().into_affine();
+        Ok(Self {
+            x: F::alloc_constant(cs.ns(|| "x"), &p.x)?,
+            y: F::alloc_constant(cs.ns(|| "y"), &p.y)?,
+            infinity: Boolean::constant(p.infinity),
+            _params: PhantomData,
+            _engine: PhantomData,
+        })
+    }
+
+    #[inline]
     fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         value_gen: FN,

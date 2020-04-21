@@ -203,6 +203,54 @@ where
     P: PairingGadget<PairingE, ConstraintF>,
 {
     #[inline]
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        val: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<VerifyingKey<PairingE>>,
+    {
+        let VerifyingKey {
+            h_g2,
+            g_alpha_g1,
+            h_beta_g2,
+            g_gamma_g1,
+            h_gamma_g2,
+            query,
+        } = val.borrow().clone();
+        let h_g2 = P::G2Gadget::alloc_constant(cs.ns(|| "h_g2"), h_g2.into_projective())?;
+        let g_alpha_g1 =
+            P::G1Gadget::alloc_constant(cs.ns(|| "g_alpha"), g_alpha_g1.into_projective())?;
+        let h_beta_g2 =
+            P::G2Gadget::alloc_constant(cs.ns(|| "h_beta"), h_beta_g2.into_projective())?;
+        let g_gamma_g1 =
+            P::G1Gadget::alloc_constant(cs.ns(|| "g_gamma_g1"), g_gamma_g1.into_projective())?;
+        let h_gamma_g2 =
+            P::G2Gadget::alloc_constant(cs.ns(|| "h_gamma_g2"), h_gamma_g2.into_projective())?;
+
+        let query = query
+            .into_iter()
+            .enumerate()
+            .map(|(i, query_i)| {
+                P::G1Gadget::alloc_constant(
+                    cs.ns(|| format!("query_{}", i)),
+                    query_i.into_projective(),
+                )
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+            .collect::<Result<_, _>>()?;
+        Ok(Self {
+            h_g2,
+            g_alpha_g1,
+            h_beta_g2,
+            g_gamma_g1,
+            h_gamma_g2,
+            query,
+        })
+    }
+
+    #[inline]
     fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         value_gen: FN,
@@ -312,6 +360,21 @@ where
     ConstraintF: Field,
     P: PairingGadget<PairingE, ConstraintF>,
 {
+    #[inline]
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        val: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<Proof<PairingE>>,
+    {
+        let Proof { a, b, c } = val.borrow().clone();
+        let a = P::G1Gadget::alloc_constant(cs.ns(|| "a"), a.into_projective())?;
+        let b = P::G2Gadget::alloc_constant(cs.ns(|| "b"), b.into_projective())?;
+        let c = P::G1Gadget::alloc_constant(cs.ns(|| "c"), c.into_projective())?;
+        Ok(Self { a, b, c })
+    }
+
     #[inline]
     fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,

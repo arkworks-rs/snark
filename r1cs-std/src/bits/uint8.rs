@@ -214,6 +214,16 @@ impl<ConstraintF: Field> ConditionalEqGadget<ConstraintF> for UInt8 {
 impl<ConstraintF: Field> EqGadget<ConstraintF> for UInt8 {}
 
 impl<ConstraintF: Field> AllocGadget<u8, ConstraintF> for UInt8 {
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        _cs: CS,
+        t: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<u8>,
+    {
+        Ok(UInt8::constant(*t.borrow()))
+    }
+
     fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         value_gen: F,
