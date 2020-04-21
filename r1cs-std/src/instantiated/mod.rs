@@ -4,6 +4,9 @@ pub mod bls12_377;
 #[cfg(feature = "edwards_bls12")]
 pub mod edwards_bls12;
 
+#[cfg(feature = "edwards_mnt4_298")]
+pub mod edwards_mnt4_298;
+
 #[cfg(feature = "edwards_sw6")]
 pub mod edwards_sw6;
 

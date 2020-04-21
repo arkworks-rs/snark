@@ -51,6 +51,9 @@ pub use instantiated::bls12_377;
 #[cfg(feature = "edwards_bls12")]
 pub use instantiated::edwards_bls12;
 
+#[cfg(feature = "edwards_mnt4_298")]
+pub use instantiated::edwards_mnt4_298;
+
 #[cfg(feature = "edwards_sw6")]
 pub use instantiated::edwards_sw6;
 
