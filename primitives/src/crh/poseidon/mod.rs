@@ -533,7 +533,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> BatchFieldBasedHas
 
         // Checks that size of input/output vector
         let array_length = input_array.len() / P::R;
-        assert_eq!(array_length, output_array.len(), "The length of the output is not half of that of the input.");
+        assert_eq!(output_array.len() >= array_length, true, "Not enough space for output vector compared to the input vector.");
 
         // Assign pre-computed values of the state vector equivalent to a permutation with zero element state vector
         //let state_z = vec![P::AFTER_ZERO_PERM[0], P::AFTER_ZERO_PERM[1], P::AFTER_ZERO_PERM[2]];
@@ -573,10 +573,10 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> BatchFieldBasedHas
     fn merkle_tree(input_vec: &mut[Self::Data], output_vec: &mut[Self::Data], input_size: usize){
         // Supporting function that processes the inputs and outputs in chunks
 
-        let num_cores = num_cpus::get();
+        let num_cores = 16;
 
         assert_eq!(input_vec.len() % 2, 0, "The length of the input to the hash is not even.");
-        assert_eq!(output_vec.len() >= (input_vec.len() / 2), true, "The length of the output is not long enough.");
+        assert_eq!(output_vec.len() >= input_vec.len() / 2, true,  "The length of the output is not greater or equal to half of the input length.");
 
         if input_size < 2 * num_cores {
             input_vec.par_chunks_mut(2).zip(output_vec.par_chunks_mut(1)).for_each( |(p1,p2)| {
