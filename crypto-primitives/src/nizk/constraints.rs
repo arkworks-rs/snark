@@ -28,8 +28,8 @@ pub trait NIZKVerifierGadget<N: NIZK, ConstraintF: Field> {
         proof: &Self::ProofGadget,
         condition: &Boolean,
     ) -> Result<(), SynthesisError>
-        where
-            CS: ConstraintSystem<ConstraintF>,
-            I: Iterator<Item = &'a T>,
-            T: 'a + ToBitsGadget<ConstraintF> + ?Sized;
+    where
+        CS: ConstraintSystem<ConstraintF>,
+        I: Iterator<Item = &'a T>,
+        T: 'a + ToBitsGadget<ConstraintF> + ?Sized;
 }

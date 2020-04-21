@@ -120,7 +120,13 @@ where
         I: Iterator<Item = &'a T>,
         T: 'a + ToBitsGadget<ConstraintF> + ?Sized,
     {
-        <Self as NIZKVerifierGadget<Groth16<PairingE, C, V>, ConstraintF>>::conditional_check_verify(cs, vk, public_inputs, proof, &Boolean::constant(true))
+        <Self as NIZKVerifierGadget<Groth16<PairingE, C, V>, ConstraintF>>::conditional_check_verify(
+            cs,
+            vk,
+            public_inputs,
+            proof,
+            &Boolean::constant(true),
+        )
     }
 
     fn conditional_check_verify<'a, CS, I, T>(
@@ -130,10 +136,10 @@ where
         proof: &Self::ProofGadget,
         condition: &Boolean,
     ) -> Result<(), SynthesisError>
-        where
-            CS: ConstraintSystem<ConstraintF>,
-            I: Iterator<Item = &'a T>,
-            T: 'a + ToBitsGadget<ConstraintF> + ?Sized,
+    where
+        CS: ConstraintSystem<ConstraintF>,
+        I: Iterator<Item = &'a T>,
+        T: 'a + ToBitsGadget<ConstraintF> + ?Sized,
     {
         let pvk = vk.prepare(&mut cs.ns(|| "Prepare vk"))?;
 

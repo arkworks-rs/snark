@@ -550,9 +550,9 @@ impl Boolean {
     }
 
     pub fn kary_or<ConstraintF, CS>(mut cs: CS, bits: &[Self]) -> Result<Self, SynthesisError>
-        where
-            ConstraintF: Field,
-            CS: ConstraintSystem<ConstraintF>,
+    where
+        ConstraintF: Field,
+        CS: ConstraintSystem<ConstraintF>,
     {
         assert!(!bits.is_empty());
         let mut bits = bits.iter();

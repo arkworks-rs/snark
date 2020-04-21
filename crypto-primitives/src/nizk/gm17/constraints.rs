@@ -119,13 +119,27 @@ where
         I: Iterator<Item = &'a T>,
         T: 'a + ToBitsGadget<ConstraintF> + ?Sized,
     {
-        <Self as NIZKVerifierGadget<Gm17<PairingE, C, V>, ConstraintF>>::conditional_check_verify(cs, vk, public_inputs, proof, &Boolean::constant(true))
+        <Self as NIZKVerifierGadget<Gm17<PairingE, C, V>, ConstraintF>>::conditional_check_verify(
+            cs,
+            vk,
+            public_inputs,
+            proof,
+            &Boolean::constant(true),
+        )
     }
 
-    fn conditional_check_verify<'a, CS, I, T>(mut cs: CS, vk: &Self::VerificationKeyGadget, mut public_inputs: I, proof: &Self::ProofGadget, condition: &Boolean) -> Result<(), SynthesisError> where
+    fn conditional_check_verify<'a, CS, I, T>(
+        mut cs: CS,
+        vk: &Self::VerificationKeyGadget,
+        mut public_inputs: I,
+        proof: &Self::ProofGadget,
+        condition: &Boolean,
+    ) -> Result<(), SynthesisError>
+    where
         CS: ConstraintSystem<ConstraintF>,
-        I: Iterator<Item=&'a T>,
-        T: 'a + ToBitsGadget<ConstraintF> + ?Sized {
+        I: Iterator<Item = &'a T>,
+        T: 'a + ToBitsGadget<ConstraintF> + ?Sized,
+    {
         let pvk = vk.prepare(&mut cs.ns(|| "Prepare vk"))?;
         // e(A*G^{alpha}, B*H^{beta}) = e(G^{alpha}, H^{beta}) * e(G^{psi}, H^{gamma}) *
         // e(C, H) where psi = \sum_{i=0}^l input_i pvk.query[i]
