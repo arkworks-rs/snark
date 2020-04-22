@@ -64,9 +64,9 @@ cargo build --release
 This library comes with unit tests for each of the provided crates. Run the tests with:
 ```bash
 cargo test
-``` 
+```
 
-Lastly, this library comes with benchmarks for the following crates:
+This library comes with benchmarks for the following crates:
 
 - [`algebra`](algebra)
 - [`dpc`](dpc)
@@ -74,6 +74,16 @@ Lastly, this library comes with benchmarks for the following crates:
 These benchmarks require the nightly Rust toolchain; to install this, run `rustup install nightly`. Then, to run benchmarks, run the following command:
 ```bash
 cargo +nightly bench
+```
+
+To make use of `adcxq`, `adoxq` and `mulxq` available on most modern `x86_64` platforms (at least starting from Haswell):
+```bash
+RUSTFLAGS="--emit=asm -C target-feature=+bmi2,+adx" cargo +nightly test/build/bench --features asm
+```
+
+To run with multiple features, make sure to double quote the features. E.g.
+```bash
+RUSTFLAGS="--emit=asm -C target-feature=+bmi2,+adx" cargo +nightly test --features "asm bls12_381"
 ```
 
 ## License
