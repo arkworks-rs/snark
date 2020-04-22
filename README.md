@@ -76,7 +76,7 @@ These benchmarks require the nightly Rust toolchain; to install this, run `rustu
 cargo +nightly bench
 ```
 
-To make use of `adcxq`, `adoxq` and `mulxq` available on most modern `x86_64` platforms (Broadwell onwards for Intel and Ryzen onwards for AMD), leading to a 30-70% speedup, run the following:
+Compiling with `adcxq`, `adoxq` and `mulxq` instructions can lead to a 30-70% speedup. These are available on most `x86_64` platforms (Broadwell onwards for Intel and Ryzen onwards for AMD). Run the following command:
 ```bash
 RUSTFLAGS="--emit=asm -C target-feature=+bmi2,+adx" cargo +nightly test/build/bench --features asm
 ```
