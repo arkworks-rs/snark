@@ -20,4 +20,16 @@ pub trait NIZKVerifierGadget<N: NIZK, ConstraintF: Field> {
         CS: ConstraintSystem<ConstraintF>,
         I: Iterator<Item = &'a T>,
         T: 'a + ToBitsGadget<ConstraintF> + ?Sized;
+
+    fn conditional_check_verify<'a, CS, I, T>(
+        cs: CS,
+        verification_key: &Self::VerificationKeyGadget,
+        input: I,
+        proof: &Self::ProofGadget,
+        condition: &Boolean,
+    ) -> Result<(), SynthesisError>
+    where
+        CS: ConstraintSystem<ConstraintF>,
+        I: Iterator<Item = &'a T>,
+        T: 'a + ToBitsGadget<ConstraintF> + ?Sized;
 }

@@ -549,6 +549,22 @@ impl Boolean {
         Ok(cur)
     }
 
+    pub fn kary_or<ConstraintF, CS>(mut cs: CS, bits: &[Self]) -> Result<Self, SynthesisError>
+    where
+        ConstraintF: Field,
+        CS: ConstraintSystem<ConstraintF>,
+    {
+        assert!(!bits.is_empty());
+        let mut bits = bits.iter();
+
+        let mut cur: Self = *bits.next().unwrap();
+        for (i, next) in bits.enumerate() {
+            cur = Boolean::or(cs.ns(|| format!("OR {}", i)), &cur, next)?;
+        }
+
+        Ok(cur)
+    }
+
     /// Asserts that at least one operand is false.
     pub fn enforce_nand<ConstraintF, CS>(mut cs: CS, bits: &[Self]) -> Result<(), SynthesisError>
     where

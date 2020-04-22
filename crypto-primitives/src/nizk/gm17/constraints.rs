@@ -109,10 +109,31 @@ where
     type ProofGadget = ProofGadget<PairingE, ConstraintF, P>;
 
     fn check_verify<'a, CS, I, T>(
+        cs: CS,
+        vk: &Self::VerificationKeyGadget,
+        public_inputs: I,
+        proof: &Self::ProofGadget,
+    ) -> Result<(), SynthesisError>
+    where
+        CS: ConstraintSystem<ConstraintF>,
+        I: Iterator<Item = &'a T>,
+        T: 'a + ToBitsGadget<ConstraintF> + ?Sized,
+    {
+        <Self as NIZKVerifierGadget<Gm17<PairingE, C, V>, ConstraintF>>::conditional_check_verify(
+            cs,
+            vk,
+            public_inputs,
+            proof,
+            &Boolean::constant(true),
+        )
+    }
+
+    fn conditional_check_verify<'a, CS, I, T>(
         mut cs: CS,
         vk: &Self::VerificationKeyGadget,
         mut public_inputs: I,
         proof: &Self::ProofGadget,
+        condition: &Boolean,
     ) -> Result<(), SynthesisError>
     where
         CS: ConstraintSystem<ConstraintF>,
@@ -189,8 +210,8 @@ where
         let test2 = P::final_exponentiation(cs.ns(|| "Final Exp 2"), &test2_exp)?;
 
         let one = P::GTGadget::one(cs.ns(|| "GT One"))?;
-        test1.enforce_equal(cs.ns(|| "Test 1"), &one)?;
-        test2.enforce_equal(cs.ns(|| "Test 2"), &one)?;
+        test1.conditional_enforce_equal(cs.ns(|| "Test 1"), &one, condition)?;
+        test2.conditional_enforce_equal(cs.ns(|| "Test 2"), &one, condition)?;
         Ok(())
     }
 }
