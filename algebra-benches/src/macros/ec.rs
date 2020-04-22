@@ -38,7 +38,7 @@ macro_rules! ec_bench {
             let mut count = 0;
             b.iter(|| {
                 let mut tmp = v[count].0;
-                tmp_dot_func!(tmp, v, add_assign, count);
+                n_fold!(tmp, v, add_assign, count);
                 count = (count + 1) % SAMPLES;
                 tmp
             });
@@ -57,7 +57,7 @@ macro_rules! ec_bench {
             let mut count = 0;
             b.iter(|| {
                 let mut tmp = v[count].0;
-                tmp.add_assign_mixed(&v[count].1);
+                n_fold!(tmp, v, add_assign_mixed, count);
                 count = (count + 1) % SAMPLES;
                 tmp
             });
@@ -76,7 +76,7 @@ macro_rules! ec_bench {
             let mut count = 0;
             b.iter(|| {
                 let mut tmp = v[count].0;
-                tmp.double_in_place();
+                n_fold!(tmp, double_in_place);
                 count = (count + 1) % SAMPLES;
                 tmp
             });
@@ -120,7 +120,7 @@ macro_rules! ec_bench {
             let mut count = 0;
             b.iter(|| {
                 let mut tmp = v[count].0;
-                tmp.add_assign(&v[count].1);
+                n_fold!(tmp, v, add_assign, count);
                 count = (count + 1) % SAMPLES;
                 tmp
             });
@@ -139,7 +139,7 @@ macro_rules! ec_bench {
             let mut count = 0;
             b.iter(|| {
                 let mut tmp = v[count].0;
-                tmp.add_assign_mixed(&v[count].1);
+                n_fold!(tmp, v, add_assign_mixed, count);
                 count = (count + 1) % SAMPLES;
                 tmp
             });
@@ -158,7 +158,7 @@ macro_rules! ec_bench {
             let mut count = 0;
             b.iter(|| {
                 let mut tmp = v[count].0;
-                tmp.double_in_place();
+                n_fold!(tmp, double_in_place);
                 count = (count + 1) % SAMPLES;
                 tmp
             });

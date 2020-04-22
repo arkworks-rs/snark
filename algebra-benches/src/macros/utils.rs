@@ -1,13 +1,23 @@
-const N: usize = 1000;
-
-macro_rules! tmp_dot_func {
+macro_rules! n_fold {
     ($tmp:ident, $v:ident, $func:ident, $count:ident) => {
+        const ITERS: usize = 1000;
+
         #[cfg(not(feature = "n_fold"))]
         $tmp.$func(&$v[$count].1);
         #[cfg(feature = "n_fold")]
-        for _ in 0..N { $tmp.$func(&$v[$count].1); }
-    }
+        for _ in 0..ITERS { $tmp.$func(&$v[$count].1); }
+    };
+
+    ($tmp:ident, $func:ident) => {
+        const ITERS: usize = 1000;
+
+        #[cfg(not(feature = "n_fold"))]
+        $tmp.$func();
+        #[cfg(feature = "n_fold")]
+        for _ in 0..ITERS { $tmp.$func(); }
+    };
 }
+
 
 macro_rules! prepared_v {
     ($v:ident, $rng:ident) => {

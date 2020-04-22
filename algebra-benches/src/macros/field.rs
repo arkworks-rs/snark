@@ -32,7 +32,7 @@ macro_rules! field_common {
                 let mut count = 0;
                 b.iter(|| {
                     let mut tmp = v[count].0;
-                    tmp.add_assign(&v[count].1);
+                    n_fold!(tmp, v, add_assign, count);
                     count = (count + 1) % SAMPLES;
                     tmp
                 });
@@ -51,7 +51,7 @@ macro_rules! field_common {
                 let mut count = 0;
                 b.iter(|| {
                     let mut tmp = v[count].0;
-                    tmp.sub_assign(&v[count].1);
+                    n_fold!(tmp, v, sub_assign, count);
                     count = (count + 1) % SAMPLES;
                     tmp
                 });
@@ -70,7 +70,7 @@ macro_rules! field_common {
                 let mut count = 0;
                 b.iter(|| {
                     let mut tmp = v[count].0;
-                    tmp.mul_assign(&v[count].1);
+                    n_fold!(tmp, v, mul_assign, count);
                     count = (count + 1) % SAMPLES;
                     tmp
                 });
@@ -87,7 +87,7 @@ macro_rules! field_common {
                 let mut count = 0;
                 b.iter(|| {
                     let mut tmp = v[count];
-                    tmp.double_in_place();
+                    n_fold!(tmp, double_in_place);
                     count = (count + 1) % SAMPLES;
                     tmp
                 });
@@ -104,7 +104,7 @@ macro_rules! field_common {
                 let mut count = 0;
                 b.iter(|| {
                     let mut tmp = v[count];
-                    tmp.square_in_place();
+                    n_fold!(tmp, square_in_place);
                     count = (count + 1) % SAMPLES;
                     tmp
                 });
@@ -182,7 +182,7 @@ macro_rules! field_base {
                 let mut count = 0;
                 b.iter(|| {
                     let mut tmp = v[count].0;
-                    tmp.add_nocarry(&v[count].1);
+                    n_fold!(tmp, v, add_nocarry, count);
                     count = (count + 1) % SAMPLES;
                     tmp
                 });
@@ -209,7 +209,7 @@ macro_rules! field_base {
                 let mut count = 0;
                 b.iter(|| {
                     let mut tmp = v[count].0;
-                    tmp.sub_noborrow(&v[count].1);
+                    n_fold!(tmp, v, sub_noborrow, count);
                     count = (count + 1) % SAMPLES;
                     tmp
                 });
@@ -242,7 +242,7 @@ macro_rules! field_base {
                 let mut count = 0;
                 b.iter(|| {
                     let mut tmp = v[count];
-                    tmp.mul2();
+                    n_fold!(tmp, mul2);
                     count = (count + 1) % SAMPLES;
                     tmp
                 });
@@ -259,7 +259,7 @@ macro_rules! field_base {
                 let mut count = 0;
                 b.iter(|| {
                     let mut tmp = v[count];
-                    tmp.div2();
+                    n_fold!(tmp, div2);
                     count = (count + 1) % SAMPLES;
                     tmp
                 });
