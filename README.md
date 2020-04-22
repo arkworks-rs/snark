@@ -76,12 +76,12 @@ These benchmarks require the nightly Rust toolchain; to install this, run `rustu
 cargo +nightly bench
 ```
 
-To make use of `adcxq`, `adoxq` and `mulxq` available on most modern `x86_64` platforms (at least starting from Haswell):
+To make use of `adcxq`, `adoxq` and `mulxq` available on most modern `x86_64` platforms (Broadwell onwards for Intel and Ryzen onwards for AMD), leading to a 30-70% speedup, run the following:
 ```bash
 RUSTFLAGS="--emit=asm -C target-feature=+bmi2,+adx" cargo +nightly test/build/bench --features asm
 ```
 
-To run with multiple features, make sure to double quote the features. E.g.
+To run with multiple features, make sure to double quote the features. e.g.
 ```bash
 RUSTFLAGS="--emit=asm -C target-feature=+bmi2,+adx" cargo +nightly test --features "asm bls12_381"
 ```
