@@ -13,7 +13,7 @@ impl FftParameters for FqParameters {
 
     const TWO_ADICITY: u32 = 30;
 
-    const ROOT_OF_UNITY: BigInteger = BigInteger([
+    const TWO_ADIC_ROOT_OF_UNITY: BigInteger = BigInteger([
         0x307f66b297671883,
         0xd72a7f2b1e645f4e,
         0x67079daa9a902283,

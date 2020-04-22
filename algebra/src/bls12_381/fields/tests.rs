@@ -1650,10 +1650,10 @@ fn test_fq_root_of_unity() {
             0x258dd3db21a5d66b,
             0xd0088f51cbff34d,
         ]),
-        Fq::root_of_unity()
+        Fq::two_adic_root_of_unity()
     );
     assert_eq!(
-        Fq::root_of_unity().pow([1 << FqParameters::TWO_ADICITY]),
+        Fq::two_adic_root_of_unity().pow([1 << FqParameters::TWO_ADICITY]),
         Fq::one()
     );
     assert!(Fq::multiplicative_generator().sqrt().is_none());

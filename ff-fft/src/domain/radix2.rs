@@ -1,6 +1,7 @@
-//! This module implements the `EvaluationDomain` abstraction for
-//! performing various kinds of polynomial arithmetic on top of
-//! the scalar field using a radix-2 domain.
+//! This module defines `Radix2EvaluationDomain`, an `EvaluationDomain`
+//! for performing various kinds of polynomial arithmetic on top of
+//! fields that are FFT-friendly. `Radix2EvaluationDomain` supports
+//! FFTs of size at most `2^F::TWO_ADICITY`.
 
 pub use crate::domain::utils::Elements;
 use crate::domain::{
@@ -56,8 +57,10 @@ impl<F: FftField> EvaluationDomain<F> for Radix2EvaluationDomain<F> {
         }
 
         // Compute the generator for the multiplicative subgroup.
-        // It should be 2^(log_size_of_group) root of unity.
-        let group_gen = F::get_root_of_unity(num_coeffs)?;
+        // It should be the 2^(log_size_of_group) root of unity.
+        let group_gen = F::get_root_of_unity(size as usize)?;
+        // Check that it is indeed the 2^(log_size_of_group) root of unity.
+        debug_assert_eq!(group_gen.pow([size]), F::one());
         let size_as_field_element = F::from(size);
         let size_inv = size_as_field_element.inverse()?;
 
@@ -74,11 +77,10 @@ impl<F: FftField> EvaluationDomain<F> for Radix2EvaluationDomain<F> {
 
     fn compute_size_of_domain(num_coeffs: usize) -> Option<usize> {
         let size = num_coeffs.next_power_of_two();
-        // TODO: Check > vs. >= here.
-        if size.trailing_zeros() <= F::FftParams::TWO_ADICITY {
-            Some(size)
-        } else {
+        if size.trailing_zeros() > F::FftParams::TWO_ADICITY {
             None
+        } else {
+            Some(size)
         }
     }
 

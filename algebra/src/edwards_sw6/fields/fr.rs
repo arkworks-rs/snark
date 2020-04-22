@@ -14,7 +14,7 @@ impl FftParameters for FrParameters {
     const TWO_ADICITY: u32 = 2u32;
 
     #[rustfmt::skip]
-    const ROOT_OF_UNITY: BigInteger = BigInteger([
+    const TWO_ADIC_ROOT_OF_UNITY: BigInteger = BigInteger([
         12119792640622387781u64,
         8318439284650634613u64,
         6931324077796168275u64,

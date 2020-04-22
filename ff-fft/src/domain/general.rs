@@ -1,9 +1,10 @@
-//! This module contains a general implementation of an `EvaluationDomain` for
+//! This module contains a `GeneralEvaluationDomain` for
 //! performing various kinds of polynomial arithmetic on top of
-//! the scalar field.
+//! a FFT-friendly finite field.
 //!
-//! It is a wrapper around specific implementations of `EvaluationDomain` and allows
-//! to choose the most efficient implementation depending on the number of coefficients.
+//! It is a wrapper around specific implementations of `EvaluationDomain` that
+//! automatically chooses the most efficient implementation
+//! depending on the number of coefficients and the two-adicity of the prime.
 
 pub use crate::domain::utils::Elements;
 use crate::domain::{

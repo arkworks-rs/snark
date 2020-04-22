@@ -14,7 +14,7 @@ impl FftParameters for FqParameters {
     const TWO_ADICITY: u32 = 1;
 
     #[rustfmt::skip]
-    const ROOT_OF_UNITY: BigInteger = BigInteger([
+    const TWO_ADIC_ROOT_OF_UNITY: BigInteger = BigInteger([
         0x43f5fffffffcaaae,
         0x32b7fff2ed47fffd,
         0x7e83a49a2e99d69,

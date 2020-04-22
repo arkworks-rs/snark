@@ -1,12 +1,12 @@
 //! A polynomial represented in evaluations form.
 
-use crate::{DensePolynomial, EvaluationDomain, Vec};
+use crate::{DensePolynomial, EvaluationDomain, GeneralEvaluationDomain, Vec};
 use algebra_core::FftField;
 use core::ops::{Add, AddAssign, Div, DivAssign, Index, Mul, MulAssign, Sub, SubAssign};
 
 /// Stores a polynomial in evaluation form.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Evaluations<F: FftField, D: EvaluationDomain<F>> {
+pub struct Evaluations<F: FftField, D: EvaluationDomain<F> = GeneralEvaluationDomain<F>> {
     /// The evaluations of a polynomial over the domain `D`
     pub evals: Vec<F>,
     #[doc(hidden)]

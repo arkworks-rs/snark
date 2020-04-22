@@ -214,13 +214,13 @@ macro_rules! impl_Fp {
             type FftParams = P;
 
             #[inline]
-            fn root_of_unity() -> Self {
-                $Fp::<P>(P::ROOT_OF_UNITY, PhantomData)
+            fn two_adic_root_of_unity() -> Self {
+                $Fp::<P>(P::TWO_ADIC_ROOT_OF_UNITY, PhantomData)
             }
 
             #[inline]
-            fn full_root_of_unity() -> Option<Self> {
-                Some($Fp::<P>(P::FULL_ROOT_OF_UNITY?, PhantomData))
+            fn large_subgroup_root_of_unity() -> Option<Self> {
+                Some($Fp::<P>(P::LARGE_SUBGROUP_ROOT_OF_UNITY?, PhantomData))
             }
 
             #[inline]
@@ -676,7 +676,7 @@ macro_rules! sqrt_impl {
         use crate::fields::LegendreSymbol::*;
         // https://eprint.iacr.org/2012/685.pdf (page 12, algorithm 5)
         // Actually this is just normal Tonelli-Shanks; since `P::Generator`
-        // is a quadratic non-residue, `P::ROOT_OF_UNITY = P::GENERATOR ^ t`
+        // is a quadratic non-residue, `P::TWO_ADIC_ROOT_OF_UNITY = P::GENERATOR ^ t`
         // is also a quadratic non-residue (since `t` is odd).
         match $self.legendre() {
             Zero => Some(*$self),
