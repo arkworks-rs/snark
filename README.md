@@ -81,7 +81,7 @@ Compiling with `adcxq`, `adoxq` and `mulxq` instructions can lead to a 30-70% sp
 RUSTFLAGS="--emit=asm -C target-feature=+bmi2,+adx" cargo +nightly test/build/bench --features asm
 ```
 
-To bench `algebra-benches` with greater accuracy, especially for functions with execution times on the order of nanoseconds, use the `n_fold` feature. To run with multiple features, make sure to double quote the features.
+To bench `algebra-benches` with greater accuracy, especially for functions with execution times on the order of nanoseconds, use the `n_fold` feature to run selected functions 1000x per iteration. To run with multiple features, make sure to double quote the features.
 ```bash
 cargo +nightly bench --features "n_fold bls12_381"
 ```
