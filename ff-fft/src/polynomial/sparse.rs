@@ -25,9 +25,9 @@ impl<F: Field> fmt::Debug for SparsePolynomial<F> {
             if i == 0 {
                 write!(f, "{:?}", coeff)?;
             } else if i == 1 {
-                write!(f, "{}x", if *coeff != 1 { coeff.to_string() } else { "".to_string() })?;
+                write!(f, "{} * x", if !coeff.is_one() { coeff.to_string() } else { "".to_string() })?;
             } else {
-                write!(f, "{}x^{}", if *coeff != 1 { coeff.to_string() } else { "".to_string() }, i)?;
+                write!(f, "{} * x^{}", if !coeff.is_one() { coeff.to_string() } else { "".to_string() }, i)?;
             }
         }
         Ok(())
