@@ -7,7 +7,7 @@ use algebra::{mnt6_298::{Fq6, fq3::Fq3, fq::Fq, fr::Fr, G1Affine, G1Projective a
     PairingEngine,
     Field, SquareRootField, PrimeField, ProjectiveCurve, UniformRand,
     BigInteger, biginteger::{BigInteger320 as FqRepr},
-    mnt4::{G1Prepared, G2Prepared}};
+    mnt6::{G1Prepared, G2Prepared}};
 
 ec_bench!();
 f_bench!(1, Fq3, Fq3, fq3);
