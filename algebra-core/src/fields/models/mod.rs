@@ -1,17 +1,32 @@
-pub mod fp_256;
-pub use self::fp_256::*;
+use core::{
+    cmp::{Ord, Ordering, PartialOrd},
+    fmt::{Display, Formatter, Result as FmtResult},
+    marker::PhantomData,
+    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+    str::FromStr,
+};
+use num_traits::{One, Zero};
+use unroll::unroll_for_loops;
 
-pub mod fp_320;
-pub use self::fp_320::*;
+use crate::{
+    biginteger::{arithmetic as fa, BigInteger as _BigInteger,
+        BigInteger256, BigInteger320, BigInteger384, BigInteger768, BigInteger832},
+    bytes::{FromBytes, ToBytes},
+    fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
+    io::{Read, Result as IoResult, Write},
+};
 
-pub mod fp_384;
-pub use self::fp_384::*;
+#[cfg(all(feature = "asm", target_arch = "x86_64", target_feature="bmi2", target_feature="adx"))]
+use std::mem::MaybeUninit;
 
-pub mod fp_768;
-pub use self::fp_768::*;
+#[cfg(all(feature = "asm", target_arch = "x86_64", target_feature="bmi2", target_feature="adx"))]
+include!(concat!(env!("OUT_DIR"), "/field_assembly.rs"));
 
-pub mod fp_832;
-pub use self::fp_832::*;
+impl_Fp!(Fp256, Fp256Parameters, BigInteger256, BigInteger256, 4);
+impl_Fp!(Fp320, Fp320Parameters, BigInteger320, BigInteger320, 5);
+impl_Fp!(Fp384, Fp384Parameters, BigInteger384, BigInteger384, 6);
+impl_Fp!(Fp768, Fp768Parameters, BigInteger768, BigInteger768, 12);
+impl_Fp!(Fp832, Fp832Parameters, BigInteger832, BigInteger832, 13);
 
 pub mod fp2;
 pub use self::fp2::*;
