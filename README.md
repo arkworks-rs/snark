@@ -78,8 +78,9 @@ cargo +nightly bench
 
 Compiling with `adcxq`, `adoxq` and `mulxq` instructions can lead to a 30-70% speedup. These are available on most `x86_64` platforms (Broadwell onwards for Intel and Ryzen onwards for AMD). Run the following command:
 ```bash
-RUSTFLAGS="--emit=asm -C target-feature=+bmi2,+adx" cargo +nightly test/build/bench --features asm
+RUSTFLAGS="-C target-feature=+bmi2,+adx" cargo +nightly test/build/bench --features asm
 ```
+Tip: If optimising for performance, your mileage may vary with passing `--emit=asm` to `RUSTFLAGS`.
 
 To bench `algebra-benches` with greater accuracy, especially for functions with execution times on the order of nanoseconds, use the `n_fold` feature to run selected functions 1000x per iteration. To run with multiple features, make sure to double quote the features.
 ```bash
