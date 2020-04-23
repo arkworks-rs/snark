@@ -14,6 +14,7 @@ use crate::{
     bytes::{FromBytes, ToBytes},
     fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
     io::{Read, Result as IoResult, Write},
+    serialize::CanonicalDeserialize
 };
 
 #[cfg(all(feature = "asm", target_arch = "x86_64", target_feature="bmi2", target_feature="adx"))]
