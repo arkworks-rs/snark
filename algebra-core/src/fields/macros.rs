@@ -206,7 +206,7 @@ macro_rules! impl_Fp {
                 }
             }
 
-            impl_field_into_repr!($limbs);
+            impl_field_into_repr!($limbs, $BigIntegerType);
         }
 
         impl<P: $FpParameters> FftField for $Fp<P> {
