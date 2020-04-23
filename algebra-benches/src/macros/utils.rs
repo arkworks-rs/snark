@@ -5,7 +5,9 @@ macro_rules! n_fold {
         #[cfg(not(feature = "n_fold"))]
         $tmp.$func(&$v[$count].1);
         #[cfg(feature = "n_fold")]
-        for _ in 0..ITERS { $tmp.$func(&$v[$count].1); }
+        for _ in 0..ITERS {
+            $tmp.$func(&$v[$count].1);
+        }
     };
 
     ($tmp:ident, $func:ident) => {
@@ -14,7 +16,9 @@ macro_rules! n_fold {
         #[cfg(not(feature = "n_fold"))]
         $tmp.$func();
         #[cfg(feature = "n_fold")]
-        for _ in 0..ITERS { $tmp.$func(); }
+        for _ in 0..ITERS {
+            $tmp.$func();
+        }
     };
 }
 
@@ -28,7 +32,7 @@ macro_rules! prepared_v {
                 )
             })
             .collect();
-    }
+    };
 }
 
 macro_rules! affine_v {
@@ -41,5 +45,5 @@ macro_rules! affine_v {
                 )
             })
             .collect();
-    }
+    };
 }

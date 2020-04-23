@@ -55,5 +55,6 @@ pub fn define_arithmetic() -> TokenStream {
                 }
             }
         }
-    }).into()
+    })
+    .into()
 }

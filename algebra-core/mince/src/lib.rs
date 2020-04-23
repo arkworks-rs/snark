@@ -1,4 +1,4 @@
-#![recursion_limit="256"]
+#![recursion_limit = "256"]
 
 extern crate proc_macro;
 
@@ -9,14 +9,14 @@ mod arithmetic;
 use arithmetic::*;
 
 use proc_macro::TokenStream;
-use syn;
 use quote::quote;
+use syn;
 
 #[proc_macro_attribute]
-pub fn assemble (_meta: TokenStream, input: TokenStream) -> TokenStream {
+pub fn assemble(_meta: TokenStream, input: TokenStream) -> TokenStream {
     let ast: syn::ItemFn = syn::parse(input).unwrap();
     let sig = ast.sig;
-    let block =  ast.block;
+    let block = ast.block;
     let attrs = ast.attrs;
 
     let arithmetic: syn::Block = syn::parse(define_arithmetic()).unwrap();

@@ -5,10 +5,8 @@
 #![deny(unused_extern_crates, renamed_and_removed_lints, unused_allocation)]
 #![deny(unused_comparisons, bare_trait_objects, const_err, unused_must_use)]
 #![deny(unused_mut, unused_unsafe, private_in_public)]
-
 #![cfg_attr(not(feature = "asm"), deny(unsafe_code))]
 #![cfg_attr(not(feature = "asm"), forbid(unsafe_code))]
-
 #![cfg_attr(feature = "asm", feature(asm))]
 
 #[cfg(all(test, not(feature = "std")))]

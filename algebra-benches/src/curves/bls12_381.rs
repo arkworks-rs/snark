@@ -2,12 +2,15 @@ use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 use std::ops::{AddAssign, MulAssign, SubAssign};
 
-use algebra::{bls12_381::{Fq12, fq2::Fq2, fq::Fq, fr::Fr, G1Affine, G1Projective as G1,
-    Bls12_381, G2Affine, G2Projective as G2, Parameters},
-    PairingEngine,
-    BigInteger, Field, SquareRootField, PrimeField, ProjectiveCurve, UniformRand,
-    biginteger::{BigInteger384 as FqRepr, BigInteger256 as FrRepr},
-    bls12::{G1Prepared, G2Prepared},};
+use algebra::{
+    biginteger::{BigInteger256 as FrRepr, BigInteger384 as FqRepr},
+    bls12::{G1Prepared, G2Prepared},
+    bls12_381::{
+        fq::Fq, fq2::Fq2, fr::Fr, Bls12_381, Fq12, G1Affine, G1Projective as G1, G2Affine,
+        G2Projective as G2, Parameters,
+    },
+    BigInteger, Field, PairingEngine, PrimeField, ProjectiveCurve, SquareRootField, UniformRand,
+};
 
 ec_bench!();
 f_bench!(1, Fq2, Fq2, fq2);

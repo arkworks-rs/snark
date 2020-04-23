@@ -9,18 +9,30 @@ use num_traits::{One, Zero};
 use unroll::unroll_for_loops;
 
 use crate::{
-    biginteger::{arithmetic as fa, BigInteger as _BigInteger,
-        BigInteger256, BigInteger320, BigInteger384, BigInteger768, BigInteger832},
+    biginteger::{
+        arithmetic as fa, BigInteger as _BigInteger, BigInteger256, BigInteger320, BigInteger384,
+        BigInteger768, BigInteger832,
+    },
     bytes::{FromBytes, ToBytes},
     fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
     io::{Read, Result as IoResult, Write},
-    serialize::CanonicalDeserialize
+    serialize::CanonicalDeserialize,
 };
 
-#[cfg(all(feature = "asm", target_arch = "x86_64", target_feature="bmi2", target_feature="adx"))]
+#[cfg(all(
+    feature = "asm",
+    target_arch = "x86_64",
+    target_feature = "bmi2",
+    target_feature = "adx"
+))]
 use std::mem::MaybeUninit;
 
-#[cfg(all(feature = "asm", target_arch = "x86_64", target_feature="bmi2", target_feature="adx"))]
+#[cfg(all(
+    feature = "asm",
+    target_arch = "x86_64",
+    target_feature = "bmi2",
+    target_feature = "adx"
+))]
 include!(concat!(env!("OUT_DIR"), "/field_assembly.rs"));
 
 impl_Fp!(Fp256, Fp256Parameters, BigInteger256, BigInteger256, 4);

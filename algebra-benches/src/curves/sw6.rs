@@ -2,12 +2,14 @@ use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 use std::ops::{AddAssign, MulAssign, SubAssign};
 
-use algebra::{sw6::{Fq6, fq3::Fq3, fq::Fq, fr::Fr, G1Affine, G1Projective as G1,
-    SW6, G2Affine, G2Projective as G2},
-    PairingEngine,
-    Field, SquareRootField, PrimeField, ProjectiveCurve, UniformRand,
-    BigInteger, biginteger::{BigInteger832 as FqRepr, BigInteger384 as FrRepr}
-    };
+use algebra::{
+    biginteger::{BigInteger384 as FrRepr, BigInteger832 as FqRepr},
+    sw6::{
+        fq::Fq, fq3::Fq3, fr::Fr, Fq6, G1Affine, G1Projective as G1, G2Affine, G2Projective as G2,
+        SW6,
+    },
+    BigInteger, Field, PairingEngine, PrimeField, ProjectiveCurve, SquareRootField, UniformRand,
+};
 
 ec_bench!();
 f_bench!(1, Fq3, Fq3, fq3);

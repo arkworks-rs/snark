@@ -11,10 +11,10 @@ macro_rules! reg {
         let mut $a_0 = Vec::new();
         let mut $a_1 = Vec::new();
         for i in 0..$range {
-            $a_0.push(format!("{}({})", i*8, $a));
+            $a_0.push(format!("{}({})", i * 8, $a));
         }
         for i in 0..$range {
             $a_1.push(&*$a_0[i]);
         }
-    }
+    };
 }

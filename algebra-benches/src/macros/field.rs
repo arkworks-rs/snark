@@ -126,9 +126,8 @@ macro_rules! field_common {
                 });
             }
         }
-    }
+    };
 }
-
 
 macro_rules! sqrt {
     ($f:ident, $f_type:ty, $field_ident:ident) => {
@@ -154,12 +153,12 @@ macro_rules! sqrt {
                 });
             }
         }
-    }
+    };
 }
 
 macro_rules! field_base {
     ($f:ident, $f_type:ty, $f_repr:ident, $f_repr_type:ty, $field_ident:ident) => {
-            paste::item! {
+        paste::item! {
             #[bench]
             fn [<bench_ $field_ident _repr_add_nocarry>](b: &mut ::test::Bencher) {
                 const SAMPLES: usize = 1000;
@@ -314,5 +313,5 @@ macro_rules! field_base {
                 });
             }
         }
-    }
+    };
 }

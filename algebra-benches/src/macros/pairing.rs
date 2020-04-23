@@ -57,5 +57,5 @@ macro_rules! pairing_bench {
                 tmp
             });
         }
-    }
+    };
 }
