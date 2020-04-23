@@ -22,9 +22,9 @@ pub struct DensePolynomial<F: Field> {
 
 impl<F: Field> fmt::Debug for DensePolynomial<F> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        for (i, coeff) in self.coeffs.iter().enumerate().rev().filter(|(_, x)| **x != 0) {
-            if i != self.values.len()-1 {
-                write!(f, " + ");
+        for (i, coeff) in self.coeffs.iter().enumerate().rev().filter(|(_, x)| !x.is_zero()) {
+            if i != self.coeffs.len()-1 {
+                write!(f, " + ")?;
             }
             if i == 0 {
                 write!(f, "{:?}", coeff)?;
