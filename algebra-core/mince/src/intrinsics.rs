@@ -10,16 +10,16 @@ pub fn define_intrinsics() -> TokenStream {
 
             let mut end = || {
                 asm_string.replace_with(|x| format!("{}{}", x, "
-                                        \"".to_string()).clone());
+                                        \"".to_string()));
             };
 
             let mut comment = | comment: &str | {
-                asm_string.replace_with(|x| format!("{}{}", x, format!("         // {}", comment)).clone());
+                asm_string.replace_with(|x| format!("{}{}", x, format!("         // {}", comment)));
             };
 
             let mut mulxq = | a: &str, b: &str, c: &str | {
                 asm_string.replace_with(|x| format!("{}{}", x, format!("
-                                        mulxq {}, {}, {}", a, b, c)).clone());
+                                        mulxq {}, {}, {}", a, b, c)));
             };
 
             let mut adcxq = | a: &str, b: &str| {
@@ -29,17 +29,17 @@ pub fn define_intrinsics() -> TokenStream {
 
             let mut adoxq = | a: &str, b: &str | {
                 asm_string.replace_with(|x| format!("{}{}", x, format!("
-                                        adoxq {}, {}", a, b)).clone());
+                                        adoxq {}, {}", a, b)));
             };
 
             let mut movq = | a: &str, b: &str | {
                 asm_string.replace_with(|x| format!("{}{}", x, format!("
-                                        movq {}, {}", a, b)).clone());
+                                        movq {}, {}", a, b)));
             };
 
             let mut xorq = | a: &str, b: &str | {
                 asm_string.replace_with(|x| format!("{}{}", x, format!("
-                                        xorq {}, {}", a, b)).clone());
+                                        xorq {}, {}", a, b)));
             };
         }
     }).into()
