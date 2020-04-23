@@ -42,5 +42,6 @@ pub fn define_intrinsics() -> TokenStream {
                                         xorq {}, {}", a, b));
             };
         }
-    }).into()
+    })
+    .into()
 }
