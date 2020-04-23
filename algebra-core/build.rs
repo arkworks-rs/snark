@@ -2,6 +2,9 @@ use std::env;
 use std::fs;
 use std::path::Path;
 
+extern crate rustc_version;
+use rustc_version::{version_meta, Channel};
+
 #[cfg(feature = "asm")]
 use field_assembly::generate_macro_string;
 
@@ -19,4 +22,8 @@ fn main() {
     fs::write(&dest_path, "").unwrap();
 
     println!("cargo:rerun-if-changed=build.rs");
+
+    if version_meta().channel == Channel::Stable {
+        println!("cargo:rustc-cfg=feature=\"stable\"");
+    }
 }
