@@ -5,11 +5,21 @@ pub type Fr = Fp256<FrParameters>;
 pub struct FrParameters;
 
 impl Fp256Parameters for FrParameters {}
-
-impl FpParameters for FrParameters {
+impl FftParameters for FrParameters {
     type BigInt = BigInteger;
 
-    // MODULUS = 8444461749428370424248824938781546531375899335154063827935233455917409239041
+    const TWO_ADICITY: u32 = 47;
+
+    #[rustfmt::skip]
+    const TWO_ADIC_ROOT_OF_UNITY: BigInteger = BigInteger([
+        0x3c3d3ca739381fb2,
+        0x9a14cda3ec99772b,
+        0xd7aacc7c59724826,
+        0xd1ba211c5cc349c,
+    ]);
+}
+impl FpParameters for FrParameters {
+    /// MODULUS = 8444461749428370424248824938781546531375899335154063827935233455917409239041
     #[rustfmt::skip]
     const MODULUS: BigInteger = BigInteger([
         725501752471715841u64,
@@ -49,16 +59,6 @@ impl FpParameters for FrParameters {
         8511318076631809892u64,
         6222514765367795509u64,
         1122129207579058019u64,
-    ]);
-
-    const TWO_ADICITY: u32 = 47;
-
-    #[rustfmt::skip]
-    const ROOT_OF_UNITY: BigInteger = BigInteger([
-        0x3c3d3ca739381fb2,
-        0x9a14cda3ec99772b,
-        0xd7aacc7c59724826,
-        0xd1ba211c5cc349c,
     ]);
 
     /// (r - 1)/2 =

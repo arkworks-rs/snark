@@ -15,13 +15,14 @@ use crate::{push_constraints, r1cs_to_qap::R1CStoQAP, Parameters, String, Vec, V
 
 /// Generates a random common reference string for
 /// a circuit.
-pub fn generate_random_parameters<E, C, R>(
+pub fn generate_random_parameters<E, C, D, R>(
     circuit: C,
     rng: &mut R,
 ) -> Result<Parameters<E>, SynthesisError>
 where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
+    D: EvaluationDomain<E::Fr>,
     R: Rng,
 {
     let alpha = E::Fr::rand(rng);
@@ -29,7 +30,7 @@ where
     let gamma = E::Fr::rand(rng);
     let delta = E::Fr::rand(rng);
 
-    generate_parameters::<E, C, R>(circuit, alpha, beta, gamma, delta, rng)
+    generate_parameters::<E, C, D, R>(circuit, alpha, beta, gamma, delta, rng)
 }
 
 /// This is our assembly structure that we'll use to synthesize the
@@ -131,7 +132,7 @@ impl<E: PairingEngine> ConstraintSystem<E::Fr> for KeypairAssembly<E> {
 }
 
 /// Create parameters for a circuit, given some toxic waste.
-pub fn generate_parameters<E, C, R>(
+pub fn generate_parameters<E, C, D, R>(
     circuit: C,
     alpha: E::Fr,
     beta: E::Fr,
@@ -142,6 +143,7 @@ pub fn generate_parameters<E, C, R>(
 where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
+    D: EvaluationDomain<E::Fr>,
     R: Rng,
 {
     let mut assembly = KeypairAssembly {
@@ -165,8 +167,7 @@ where
     let domain_time = start_timer!(|| "Constructing evaluation domain");
 
     let domain_size = assembly.num_constraints + (assembly.num_inputs - 1) + 1;
-    let domain = EvaluationDomain::<E::Fr>::new(domain_size)
-        .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+    let domain = D::new(domain_size).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
     let t = domain.sample_element_outside_domain(rng);
 
     end_timer!(domain_time);
@@ -174,7 +175,7 @@ where
 
     let reduction_time = start_timer!(|| "R1CS to QAP Instance Map with Evaluation");
     let (a, b, c, zt, qap_num_variables, m_raw) =
-        R1CStoQAP::instance_map_with_evaluation::<E>(&assembly, &t)?;
+        R1CStoQAP::instance_map_with_evaluation::<E, D>(&assembly, &t)?;
     end_timer!(reduction_time);
 
     // Compute query densities

@@ -14,7 +14,7 @@ use crate::{
         BigInteger768, BigInteger832,
     },
     bytes::{FromBytes, ToBytes},
-    fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
+    fields::{FftField, Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
     io::{Read, Result as IoResult, Write},
     serialize::CanonicalDeserialize,
 };

@@ -1,6 +1,6 @@
 #![allow(unused)]
 use crate::{
-    fields::{Field, LegendreSymbol, PrimeField, SquareRootField},
+    fields::{FftField, FftParameters, Field, LegendreSymbol, PrimeField, SquareRootField},
     io::Cursor,
     Flags, SWFlags,
 };
@@ -308,10 +308,43 @@ pub fn field_test<F: Field>(a: F, b: F) {
     random_field_tests::<F>();
 }
 
+pub fn fft_field_test<F: FftField>() {
+    assert_eq!(
+        F::two_adic_root_of_unity().pow([1 << F::FftParams::TWO_ADICITY]),
+        F::one()
+    );
+
+    if let Some(small_subgroup_base) = F::FftParams::SMALL_SUBGROUP_BASE {
+        let small_subgroup_base_adicity = F::FftParams::SMALL_SUBGROUP_BASE_ADICITY.unwrap();
+        let large_subgroup_root_of_unity = F::large_subgroup_root_of_unity().unwrap();
+        assert_eq!(
+            large_subgroup_root_of_unity.pow([(1 << F::FftParams::TWO_ADICITY)
+                * (small_subgroup_base as u64).pow(small_subgroup_base_adicity)]),
+            F::one()
+        );
+
+        for i in 0..F::FftParams::TWO_ADICITY {
+            for j in 0..small_subgroup_base_adicity {
+                let size = (1 << i as usize) * (small_subgroup_base as u64).pow(j) as usize;
+                let root = F::get_root_of_unity(size).unwrap();
+                assert_eq!(root.pow([size as u64]), F::one());
+            }
+        }
+    } else {
+        for i in 0..F::FftParams::TWO_ADICITY {
+            let size = 1 << i;
+            let root = F::get_root_of_unity(size).unwrap();
+            assert_eq!(root.pow([size as u64]), F::one());
+        }
+    }
+}
+
 pub fn primefield_test<F: PrimeField>() {
     from_str_test::<F>();
     let one = F::one();
     assert_eq!(F::from_repr(one.into_repr()), one);
+
+    fft_field_test::<F>();
 }
 
 pub fn sqrt_field_test<F: SquareRootField>(elem: F) {

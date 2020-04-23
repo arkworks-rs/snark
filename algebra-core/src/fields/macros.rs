@@ -206,16 +206,25 @@ macro_rules! impl_Fp {
                 }
             }
 
-            impl_field_into_repr!($limbs, $BigIntegerType);
+            impl_field_into_repr!($limbs);
+        }
+
+        impl<P: $FpParameters> FftField for $Fp<P> {
+            type FftParams = P;
+
+            #[inline]
+            fn two_adic_root_of_unity() -> Self {
+                $Fp::<P>(P::TWO_ADIC_ROOT_OF_UNITY, PhantomData)
+            }
+
+            #[inline]
+            fn large_subgroup_root_of_unity() -> Option<Self> {
+                Some($Fp::<P>(P::LARGE_SUBGROUP_ROOT_OF_UNITY?, PhantomData))
+            }
 
             #[inline]
             fn multiplicative_generator() -> Self {
                 $Fp::<P>(P::GENERATOR, PhantomData)
-            }
-
-            #[inline]
-            fn root_of_unity() -> Self {
-                $Fp::<P>(P::ROOT_OF_UNITY, PhantomData)
             }
         }
 
