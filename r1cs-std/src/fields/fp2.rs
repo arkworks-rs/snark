@@ -612,6 +612,17 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> AllocGadget<Fp
     for Fp2Gadget<P, ConstraintF>
 {
     #[inline]
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        t: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<Fp2<P>>,
+    {
+        Self::zero(cs.ns(|| "zero"))?.add_constant(cs.ns(|| "add constant"), t.borrow())
+    }
+
+    #[inline]
     fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         value_gen: F,

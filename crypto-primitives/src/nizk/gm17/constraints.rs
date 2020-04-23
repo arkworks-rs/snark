@@ -1,4 +1,7 @@
-use crate::nizk::{gm17::Gm17, NIZKVerifierGadget};
+use crate::{
+    nizk::{gm17::Gm17, NIZKVerifierGadget},
+    Vec,
+};
 use algebra_core::{AffineCurve, Field, PairingEngine, ToConstraintField};
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
@@ -106,10 +109,31 @@ where
     type ProofGadget = ProofGadget<PairingE, ConstraintF, P>;
 
     fn check_verify<'a, CS, I, T>(
+        cs: CS,
+        vk: &Self::VerificationKeyGadget,
+        public_inputs: I,
+        proof: &Self::ProofGadget,
+    ) -> Result<(), SynthesisError>
+    where
+        CS: ConstraintSystem<ConstraintF>,
+        I: Iterator<Item = &'a T>,
+        T: 'a + ToBitsGadget<ConstraintF> + ?Sized,
+    {
+        <Self as NIZKVerifierGadget<Gm17<PairingE, C, V>, ConstraintF>>::conditional_check_verify(
+            cs,
+            vk,
+            public_inputs,
+            proof,
+            &Boolean::constant(true),
+        )
+    }
+
+    fn conditional_check_verify<'a, CS, I, T>(
         mut cs: CS,
         vk: &Self::VerificationKeyGadget,
         mut public_inputs: I,
         proof: &Self::ProofGadget,
+        condition: &Boolean,
     ) -> Result<(), SynthesisError>
     where
         CS: ConstraintSystem<ConstraintF>,
@@ -186,8 +210,8 @@ where
         let test2 = P::final_exponentiation(cs.ns(|| "Final Exp 2"), &test2_exp)?;
 
         let one = P::GTGadget::one(cs.ns(|| "GT One"))?;
-        test1.enforce_equal(cs.ns(|| "Test 1"), &one)?;
-        test2.enforce_equal(cs.ns(|| "Test 2"), &one)?;
+        test1.conditional_enforce_equal(cs.ns(|| "Test 1"), &one, condition)?;
+        test2.conditional_enforce_equal(cs.ns(|| "Test 2"), &one, condition)?;
         Ok(())
     }
 }
@@ -199,6 +223,54 @@ where
     ConstraintF: Field,
     P: PairingGadget<PairingE, ConstraintF>,
 {
+    #[inline]
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        val: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<VerifyingKey<PairingE>>,
+    {
+        let VerifyingKey {
+            h_g2,
+            g_alpha_g1,
+            h_beta_g2,
+            g_gamma_g1,
+            h_gamma_g2,
+            query,
+        } = val.borrow().clone();
+        let h_g2 = P::G2Gadget::alloc_constant(cs.ns(|| "h_g2"), h_g2.into_projective())?;
+        let g_alpha_g1 =
+            P::G1Gadget::alloc_constant(cs.ns(|| "g_alpha"), g_alpha_g1.into_projective())?;
+        let h_beta_g2 =
+            P::G2Gadget::alloc_constant(cs.ns(|| "h_beta"), h_beta_g2.into_projective())?;
+        let g_gamma_g1 =
+            P::G1Gadget::alloc_constant(cs.ns(|| "g_gamma_g1"), g_gamma_g1.into_projective())?;
+        let h_gamma_g2 =
+            P::G2Gadget::alloc_constant(cs.ns(|| "h_gamma_g2"), h_gamma_g2.into_projective())?;
+
+        let query = query
+            .into_iter()
+            .enumerate()
+            .map(|(i, query_i)| {
+                P::G1Gadget::alloc_constant(
+                    cs.ns(|| format!("query_{}", i)),
+                    query_i.into_projective(),
+                )
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+            .collect::<Result<_, _>>()?;
+        Ok(Self {
+            h_g2,
+            g_alpha_g1,
+            h_beta_g2,
+            g_gamma_g1,
+            h_gamma_g2,
+            query,
+        })
+    }
+
     #[inline]
     fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
@@ -309,6 +381,21 @@ where
     ConstraintF: Field,
     P: PairingGadget<PairingE, ConstraintF>,
 {
+    #[inline]
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        val: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<Proof<PairingE>>,
+    {
+        let Proof { a, b, c } = val.borrow().clone();
+        let a = P::G1Gadget::alloc_constant(cs.ns(|| "a"), a.into_projective())?;
+        let b = P::G2Gadget::alloc_constant(cs.ns(|| "b"), b.into_projective())?;
+        let c = P::G1Gadget::alloc_constant(cs.ns(|| "c"), c.into_projective())?;
+        Ok(Self { a, b, c })
+    }
+
     #[inline]
     fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,

@@ -1,6 +1,6 @@
 use algebra_core::{
     curves::{AffineCurve, ProjectiveCurve},
-    test_rng, CanonicalSerialize, Zero,
+    test_rng,
 };
 use rand::Rng;
 
@@ -12,8 +12,7 @@ use crate::tests::{curves::*, groups::*};
 fn test_projective_curve() {
     curve_tests::<EdwardsProjective>();
 
-    let byte_size = EdwardsAffine::zero().serialized_size();
-    edwards_curve_serialization_test::<EdwardsParameters>(byte_size);
+    edwards_tests::<EdwardsParameters>();
 }
 
 #[test]

@@ -3,7 +3,7 @@ use r1cs_core::{ConstraintSystem, SynthesisError};
 use crate::{
     commitment::blake2s::Blake2sCommitment,
     prf::blake2s::constraints::{blake2s_gadget, Blake2sOutputGadget},
-    CommitmentGadget,
+    CommitmentGadget, Vec,
 };
 use algebra_core::{Field, PrimeField};
 use r1cs_std::prelude::*;
@@ -48,6 +48,16 @@ impl<ConstraintF: PrimeField> CommitmentGadget<Blake2sCommitment, ConstraintF>
 }
 
 impl<ConstraintF: Field> AllocGadget<(), ConstraintF> for Blake2sParametersGadget {
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
+        val: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<()>,
+    {
+        Self::alloc(cs, || Ok(val))
+    }
+
     fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(_: CS, _: F) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
@@ -69,6 +79,22 @@ impl<ConstraintF: Field> AllocGadget<(), ConstraintF> for Blake2sParametersGadge
 }
 
 impl<ConstraintF: PrimeField> AllocGadget<[u8; 32], ConstraintF> for Blake2sRandomnessGadget {
+    #[inline]
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        val: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<[u8; 32]>,
+    {
+        let mut bytes = vec![];
+        for (i, b) in val.borrow().iter().enumerate() {
+            bytes.push(UInt8::alloc_constant(cs.ns(|| format!("value {}", i)), b)?)
+        }
+
+        Ok(Blake2sRandomnessGadget(bytes))
+    }
+
     #[inline]
     fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
         cs: CS,

@@ -1,4 +1,7 @@
-use crate::nizk::{groth16::Groth16, NIZKVerifierGadget};
+use crate::{
+    nizk::{groth16::Groth16, NIZKVerifierGadget},
+    Vec,
+};
 use algebra_core::{AffineCurve, Field, PairingEngine, ToConstraintField};
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
@@ -107,10 +110,31 @@ where
     type ProofGadget = ProofGadget<PairingE, ConstraintF, P>;
 
     fn check_verify<'a, CS, I, T>(
+        cs: CS,
+        vk: &Self::VerificationKeyGadget,
+        public_inputs: I,
+        proof: &Self::ProofGadget,
+    ) -> Result<(), SynthesisError>
+    where
+        CS: ConstraintSystem<ConstraintF>,
+        I: Iterator<Item = &'a T>,
+        T: 'a + ToBitsGadget<ConstraintF> + ?Sized,
+    {
+        <Self as NIZKVerifierGadget<Groth16<PairingE, C, V>, ConstraintF>>::conditional_check_verify(
+            cs,
+            vk,
+            public_inputs,
+            proof,
+            &Boolean::constant(true),
+        )
+    }
+
+    fn conditional_check_verify<'a, CS, I, T>(
         mut cs: CS,
         vk: &Self::VerificationKeyGadget,
         mut public_inputs: I,
         proof: &Self::ProofGadget,
+        condition: &Boolean,
     ) -> Result<(), SynthesisError>
     where
         CS: ConstraintSystem<ConstraintF>,
@@ -158,7 +182,7 @@ where
 
         let test = P::final_exponentiation(cs.ns(|| "Final Exp"), &test_exp).unwrap();
 
-        test.enforce_equal(cs.ns(|| "Test 1"), &pvk.alpha_g1_beta_g2)?;
+        test.conditional_enforce_equal(cs.ns(|| "Test 1"), &pvk.alpha_g1_beta_g2, condition)?;
         Ok(())
     }
 }
@@ -170,6 +194,50 @@ where
     ConstraintF: Field,
     P: PairingGadget<PairingE, ConstraintF>,
 {
+    #[inline]
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        val: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<VerifyingKey<PairingE>>,
+    {
+        let VerifyingKey {
+            alpha_g1,
+            beta_g2,
+            gamma_g2,
+            delta_g2,
+            gamma_abc_g1,
+        } = val.borrow().clone();
+        let alpha_g1 =
+            P::G1Gadget::alloc_constant(cs.ns(|| "alpha_g1"), alpha_g1.into_projective())?;
+        let beta_g2 = P::G2Gadget::alloc_constant(cs.ns(|| "beta_g2"), beta_g2.into_projective())?;
+        let gamma_g2 =
+            P::G2Gadget::alloc_constant(cs.ns(|| "gamma_g2"), gamma_g2.into_projective())?;
+        let delta_g2 =
+            P::G2Gadget::alloc_constant(cs.ns(|| "delta_g2"), delta_g2.into_projective())?;
+
+        let gamma_abc_g1 = gamma_abc_g1
+            .into_iter()
+            .enumerate()
+            .map(|(i, gamma_abc_i)| {
+                P::G1Gadget::alloc_constant(
+                    cs.ns(|| format!("gamma_abc_{}", i)),
+                    gamma_abc_i.into_projective(),
+                )
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+            .collect::<Result<_, _>>()?;
+        Ok(Self {
+            alpha_g1,
+            beta_g2,
+            gamma_g2,
+            delta_g2,
+            gamma_abc_g1,
+        })
+    }
+
     #[inline]
     fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
@@ -273,6 +341,21 @@ where
     ConstraintF: Field,
     P: PairingGadget<PairingE, ConstraintF>,
 {
+    #[inline]
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        val: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<Proof<PairingE>>,
+    {
+        let Proof { a, b, c } = val.borrow().clone();
+        let a = P::G1Gadget::alloc_constant(cs.ns(|| "a"), a.into_projective())?;
+        let b = P::G2Gadget::alloc_constant(cs.ns(|| "b"), b.into_projective())?;
+        let c = P::G1Gadget::alloc_constant(cs.ns(|| "c"), c.into_projective())?;
+        Ok(Self { a, b, c })
+    }
+
     #[inline]
     fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,

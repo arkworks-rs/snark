@@ -438,6 +438,24 @@ where
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
     #[inline]
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        t: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<SWProjective<P>>,
+    {
+        let p = t.borrow().into_affine();
+        Ok(Self {
+            x: F::alloc_constant(cs.ns(|| "x"), &p.x)?,
+            y: F::alloc_constant(cs.ns(|| "y"), &p.y)?,
+            infinity: Boolean::constant(p.infinity),
+            _params: PhantomData,
+            _engine: PhantomData,
+        })
+    }
+
+    #[inline]
     fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         value_gen: FN,
@@ -660,4 +678,114 @@ where
 
         Ok(x_bytes)
     }
+}
+
+#[cfg(test)]
+#[allow(dead_code)]
+pub(crate) fn test<ConstraintF, P, GG>()
+where
+    ConstraintF: Field,
+    P: SWModelParameters,
+    GG: GroupGadget<SWProjective<P>, ConstraintF, Value = SWProjective<P>>,
+{
+    use crate::{boolean::AllocatedBit, prelude::*, test_constraint_system::TestConstraintSystem};
+    use algebra::{test_rng, Group, UniformRand};
+    use rand::Rng;
+
+    // Incomplete addition doesn't allow us to call the group_test.
+    // group_test::<ConstraintF, SWProjective<P>, GG>();
+
+    let mut rng = test_rng();
+
+    let mut cs = TestConstraintSystem::<ConstraintF>::new();
+
+    let a = SWProjective::<P>::rand(&mut rng);
+    let b = SWProjective::<P>::rand(&mut rng);
+    let a_affine = a.into_affine();
+    let b_affine = b.into_affine();
+    let mut gadget_a = GG::alloc(&mut cs.ns(|| "a"), || Ok(a)).unwrap();
+    let gadget_b = GG::alloc_checked(&mut cs.ns(|| "b"), || Ok(b)).unwrap();
+    assert_eq!(gadget_a.get_value().unwrap().x, a_affine.x);
+    assert_eq!(gadget_a.get_value().unwrap().y, a_affine.y);
+    assert_eq!(gadget_b.get_value().unwrap().x, b_affine.x);
+    assert_eq!(gadget_b.get_value().unwrap().y, b_affine.y);
+
+    // Check addition
+    let ab = a + &b;
+    let ab_affine = ab.into_affine();
+    let gadget_ab = gadget_a.add(&mut cs.ns(|| "ab"), &gadget_b).unwrap();
+    let gadget_ba = gadget_b.add(&mut cs.ns(|| "ba"), &gadget_a).unwrap();
+    gadget_ba
+        .enforce_equal(&mut cs.ns(|| "b + a == a + b?"), &gadget_ab)
+        .unwrap();
+
+    let ab_val = gadget_ab
+        .get_value()
+        .expect("Doubling should be successful")
+        .into_affine();
+    assert_eq!(ab_val, ab_affine, "Result of addition is unequal");
+
+    // Check doubling
+    let aa = Group::double(&a);
+    let aa_affine = aa.into_affine();
+    gadget_a.double_in_place(&mut cs.ns(|| "2a")).unwrap();
+    let aa_val = gadget_a
+        .get_value()
+        .expect("Doubling should be successful")
+        .into_affine();
+    assert_eq!(
+        aa_val, aa_affine,
+        "Gadget and native values are unequal after double."
+    );
+
+    // Check mul_bits
+    let scalar = P::ScalarField::rand(&mut rng);
+    let native_result = aa.into_affine().mul(scalar) + &b;
+    let native_result = native_result.into_affine();
+
+    let mut scalar: Vec<bool> = BitIterator::new(scalar.into_repr()).collect();
+    // Get the scalar bits into little-endian form.
+    scalar.reverse();
+    let input = Vec::<Boolean>::alloc(cs.ns(|| "Input"), || Ok(scalar)).unwrap();
+    let result = gadget_a
+        .mul_bits(cs.ns(|| "mul_bits"), &gadget_b, input.iter())
+        .unwrap();
+    let result_val = result.get_value().unwrap().into_affine();
+    assert_eq!(
+        result_val, native_result,
+        "gadget & native values are diff. after scalar mul"
+    );
+
+    if !cs.is_satisfied() {
+        println!("{:?}", cs.which_is_unsatisfied().unwrap());
+    }
+
+    assert!(cs.is_satisfied());
+
+    // Constraint cost etc.
+    let mut cs = TestConstraintSystem::<ConstraintF>::new();
+
+    let bit = AllocatedBit::alloc(&mut cs.ns(|| "bool"), || Ok(true))
+        .unwrap()
+        .into();
+
+    let mut rng = test_rng();
+    let a: SWProjective<P> = rng.gen();
+    let b: SWProjective<P> = rng.gen();
+    let gadget_a = GG::alloc(&mut cs.ns(|| "a"), || Ok(a)).unwrap();
+    let gadget_b = GG::alloc(&mut cs.ns(|| "b"), || Ok(b)).unwrap();
+    let alloc_cost = cs.num_constraints();
+    let _ =
+        GG::conditionally_select(&mut cs.ns(|| "cond_select"), &bit, &gadget_a, &gadget_b).unwrap();
+    let cond_select_cost = cs.num_constraints() - alloc_cost;
+
+    let _ = gadget_a.add(&mut cs.ns(|| "ab"), &gadget_b).unwrap();
+    let add_cost = cs.num_constraints() - cond_select_cost - alloc_cost;
+
+    assert!(cs.is_satisfied());
+    assert_eq!(
+        cond_select_cost,
+        <GG as CondSelectGadget<ConstraintF>>::cost()
+    );
+    assert_eq!(add_cost, GG::cost_of_add());
 }

@@ -235,6 +235,16 @@ impl PartialEq for AllocatedBit {
 impl Eq for AllocatedBit {}
 
 impl<ConstraintF: Field> AllocGadget<bool, ConstraintF> for AllocatedBit {
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        _cs: CS,
+        _t: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<bool>,
+    {
+        unimplemented!();
+    }
+
     fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         value_gen: F,
@@ -539,6 +549,22 @@ impl Boolean {
         Ok(cur)
     }
 
+    pub fn kary_or<ConstraintF, CS>(mut cs: CS, bits: &[Self]) -> Result<Self, SynthesisError>
+    where
+        ConstraintF: Field,
+        CS: ConstraintSystem<ConstraintF>,
+    {
+        assert!(!bits.is_empty());
+        let mut bits = bits.iter();
+
+        let mut cur: Self = *bits.next().unwrap();
+        for (i, next) in bits.enumerate() {
+            cur = Boolean::or(cs.ns(|| format!("OR {}", i)), &cur, next)?;
+        }
+
+        Ok(cur)
+    }
+
     /// Asserts that at least one operand is false.
     pub fn enforce_nand<ConstraintF, CS>(mut cs: CS, bits: &[Self]) -> Result<(), SynthesisError>
     where
@@ -715,6 +741,16 @@ impl From<AllocatedBit> for Boolean {
 }
 
 impl<ConstraintF: Field> AllocGadget<bool, ConstraintF> for Boolean {
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        _cs: CS,
+        t: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<bool>,
+    {
+        Ok(Boolean::constant(*t.borrow()))
+    }
+
     fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
         value_gen: F,

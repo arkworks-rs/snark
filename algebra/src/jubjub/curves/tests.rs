@@ -1,7 +1,7 @@
 use algebra_core::{
     bytes::{FromBytes, ToBytes},
     curves::{AffineCurve, ProjectiveCurve},
-    test_rng, CanonicalSerialize, Zero,
+    test_rng, Zero,
 };
 use core::str::FromStr;
 use rand::Rng;
@@ -14,8 +14,7 @@ use crate::tests::{curves::*, groups::*};
 fn test_projective_curve() {
     curve_tests::<JubJubProjective>();
 
-    let byte_size = <JubJubAffine as Zero>::zero().serialized_size();
-    edwards_curve_serialization_test::<JubJubParameters>(byte_size);
+    edwards_tests::<JubJubParameters>();
 }
 
 #[test]

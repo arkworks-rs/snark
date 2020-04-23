@@ -1,6 +1,9 @@
-use crate::crh::{
-    pedersen::{PedersenCRH, PedersenParameters, PedersenWindow},
-    FixedLengthCRHGadget,
+use crate::{
+    crh::{
+        pedersen::{PedersenCRH, PedersenParameters, PedersenWindow},
+        FixedLengthCRHGadget,
+    },
+    Vec,
 };
 use algebra_core::{Field, Group};
 use r1cs_core::{ConstraintSystem, SynthesisError};
@@ -77,8 +80,24 @@ impl<G: Group, W: PedersenWindow, ConstraintF: Field, GG: GroupGadget<G, Constra
     AllocGadget<PedersenParameters<G>, ConstraintF>
     for PedersenCRHGadgetParameters<G, W, ConstraintF, GG>
 {
-    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
         _cs: CS,
+        val: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<PedersenParameters<G>>,
+    {
+        let params = val.borrow().clone();
+        Ok(PedersenCRHGadgetParameters {
+            params,
+            _group_g: PhantomData,
+            _engine: PhantomData,
+            _window: PhantomData,
+        })
+    }
+
+    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
     where
@@ -86,12 +105,7 @@ impl<G: Group, W: PedersenWindow, ConstraintF: Field, GG: GroupGadget<G, Constra
         T: Borrow<PedersenParameters<G>>,
     {
         let params = value_gen()?.borrow().clone();
-        Ok(PedersenCRHGadgetParameters {
-            params,
-            _group_g: PhantomData,
-            _engine: PhantomData,
-            _window: PhantomData,
-        })
+        Self::alloc_constant(cs, params)
     }
 
     fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
