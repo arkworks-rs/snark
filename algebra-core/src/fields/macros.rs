@@ -280,7 +280,7 @@ macro_rules! impl_Fp {
         impl<P: $FpParameters> FromBytes for $Fp<P> {
             #[inline]
             fn read<R: Read>(reader: R) -> IoResult<Self> {
-                BigInteger::read(reader).and_then( |b|
+                $BigInteger::read(reader).and_then( |b|
                     if b.is_zero() {
                         Ok($Fp::zero())
                     } else {
