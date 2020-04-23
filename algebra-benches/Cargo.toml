@@ -19,6 +19,7 @@ include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
 license = "MIT/Apache-2.0"
 edition = "2018"
 publish = false
+build = "build.rs"
 
 ################################# Dependencies ################################
 
@@ -39,3 +40,7 @@ mnt6_753 = []
 bls12_381 = []
 bls12_377 = []
 sw6 = []
+nightly = []
+
+[build-dependencies]
+rustc_version = "0.1.*"
