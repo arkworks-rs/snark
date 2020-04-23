@@ -127,7 +127,7 @@ macro_rules! impl_field_square_in_place {
             for i in 0..$limbs {
                 if i < $limbs-1 {
                     for j in 0..$limbs {
-                        if j >= (i+1) { r[i+j] = fa::mac_with_carry(r[i+j], (self.0).0[i], (self.0).0[j], &mut carry); }
+                        if j >= i+1 { r[i+j] = fa::mac_with_carry(r[i+j], (self.0).0[i], (self.0).0[j], &mut carry); }
                     }
                     r[$limbs+i] = carry;
                     carry = 0;

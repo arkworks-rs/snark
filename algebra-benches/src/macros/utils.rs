@@ -18,7 +18,6 @@ macro_rules! n_fold {
     };
 }
 
-#[allow(unused_macros)]
 macro_rules! prepared_v {
     ($v:ident, $rng:ident) => {
         let $v: Vec<(G1Prepared<Parameters>, G2Prepared<Parameters>)> = (0..SAMPLES)
@@ -32,7 +31,6 @@ macro_rules! prepared_v {
     }
 }
 
-#[allow(unused_macros)]
 macro_rules! affine_v {
     ($v:ident, $rng:ident) => {
         let $v: Vec<(G1Affine, G2Affine)> = (0..SAMPLES)
