@@ -41,6 +41,7 @@ bls12_381 = []
 bls12_377 = []
 sw6 = []
 nightly = []
+stable = []
 
 [build-dependencies]
 rustc_version = "0.1.*"
