@@ -120,7 +120,7 @@ macro_rules! ec_bench {
             let mut count = 0;
             b.iter(|| {
                 let mut tmp = v[count].0;
-                n_fold!(tmp, v, add_assign, count);
+                tmp.add_assign(&v[count].1);
                 count = (count + 1) % SAMPLES;
                 tmp
             });
@@ -139,7 +139,7 @@ macro_rules! ec_bench {
             let mut count = 0;
             b.iter(|| {
                 let mut tmp = v[count].0;
-                n_fold!(tmp, v, add_assign_mixed, count);
+                tmp.add_assign_mixed(&v[count].1);
                 count = (count + 1) % SAMPLES;
                 tmp
             });
@@ -158,7 +158,7 @@ macro_rules! ec_bench {
             let mut count = 0;
             b.iter(|| {
                 let mut tmp = v[count].0;
-                n_fold!(tmp, double_in_place);
+                tmp.double_in_place();
                 count = (count + 1) % SAMPLES;
                 tmp
             });
