@@ -1,6 +1,7 @@
-use crate::{crh::FixedLengthCRH, Error};
+use crate::{crh::FixedLengthCRH, Error, FieldBasedHashParameters};
 use algebra::bytes::ToBytes;
 use std::{fmt, rc::Rc};
+use algebra::Field;
 
 pub mod field_based_mht;
 
@@ -458,3 +459,11 @@ mod test {
         bad_merkle_tree_verify(&leaves);
     }
 }
+
+
+pub trait BatchMerkleTree {
+    type Data: Field;
+    type Parameters: FieldBasedHashParameters<Fr = Self::Data>;
+
+}
+
