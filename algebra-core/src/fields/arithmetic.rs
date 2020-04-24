@@ -19,11 +19,14 @@ macro_rules! impl_field_mul_assign {
 
             // No-carry optimisation applied to CIOS
             if _no_carry {
-                #[cfg(all(feature = "asm", target_feature="bmi2",
-                target_feature="adx", target_arch = "x86_64"))]
+                #[cfg(all(
+                    feature = "asm",
+                    target_feature = "bmi2",
+                    target_feature = "adx",
+                    target_arch = "x86_64"
+                ))]
                 {
-                    if $limbs <= 6
-                    {
+                    if $limbs <= 6 {
                         asm_mul!($limbs, (self.0).0, (other.0).0, P::MODULUS.0, P::INV);
                         self.reduce();
                         return;
@@ -114,36 +117,51 @@ macro_rules! impl_field_square_in_place {
             }
             let _no_carry: bool = !(first_bit_set || all_bits_set);
 
-            #[cfg(all(feature = "asm", target_feature="bmi2",
-            target_feature="adx", target_arch = "x86_64"))]
+            #[cfg(all(
+                feature = "asm",
+                target_feature = "bmi2",
+                target_feature = "adx",
+                target_arch = "x86_64"
+            ))]
             {
-                if $limbs <= 6 && _no_carry
-                {
+                if $limbs <= 6 && _no_carry {
                     asm_square!($limbs, (self.0).0, P::MODULUS.0, P::INV);
                     self.reduce();
                     return self;
                 }
             }
-            let mut r = [0u64; $limbs*2];
+            let mut r = [0u64; $limbs * 2];
 
             let mut carry = 0;
             for i in 0..$limbs {
-                if i < $limbs-1 {
+                if i < $limbs - 1 {
                     for j in 0..$limbs {
-                        if j >= i+1 { r[i+j] = fa::mac_with_carry(r[i+j], (self.0).0[i], (self.0).0[j], &mut carry); }
+                        if j >= i + 1 {
+                            r[i + j] = fa::mac_with_carry(
+                                r[i + j],
+                                (self.0).0[i],
+                                (self.0).0[j],
+                                &mut carry,
+                            );
+                        }
                     }
-                    r[$limbs+i] = carry;
+                    r[$limbs + i] = carry;
                     carry = 0;
                 }
             }
-            r[$limbs*2-1] = r[$limbs*2-2] >> 63;
-            for i in 0..$limbs { r[$limbs*2-2-i] = (r[$limbs*2-2-i] << 1) | (r[$limbs*2-3-i] >> 63); }
-            for i in 3..$limbs { r[$limbs+1-i] = (r[$limbs+1-i] << 1) | (r[$limbs-i] >> 63); }
+            r[$limbs * 2 - 1] = r[$limbs * 2 - 2] >> 63;
+            for i in 0..$limbs {
+                r[$limbs * 2 - 2 - i] =
+                    (r[$limbs * 2 - 2 - i] << 1) | (r[$limbs * 2 - 3 - i] >> 63);
+            }
+            for i in 3..$limbs {
+                r[$limbs + 1 - i] = (r[$limbs + 1 - i] << 1) | (r[$limbs - i] >> 63);
+            }
             r[1] = r[1] << 1;
 
             for i in 0..$limbs {
-                r[2*i] = fa::mac_with_carry(r[2*i], (self.0).0[i], (self.0).0[i], &mut carry);
-                r[2*i+1] = fa::adc(r[2*i+1], 0, &mut carry);
+                r[2 * i] = fa::mac_with_carry(r[2 * i], (self.0).0[i], (self.0).0[i], &mut carry);
+                r[2 * i + 1] = fa::adc(r[2 * i + 1], 0, &mut carry);
             }
             // Montgomery reduction
             let mut _carry2 = 0;
@@ -152,9 +170,9 @@ macro_rules! impl_field_square_in_place {
                 let mut carry = 0;
                 fa::mac_with_carry(r[i], k, P::MODULUS.0[0], &mut carry);
                 for j in 1..$limbs {
-                    r[j+i] = fa::mac_with_carry(r[j+i], k, P::MODULUS.0[j], &mut carry);
+                    r[j + i] = fa::mac_with_carry(r[j + i], k, P::MODULUS.0[j], &mut carry);
                 }
-                r[$limbs+i] = fa::adc(r[$limbs+i], _carry2, &mut carry);
+                r[$limbs + i] = fa::adc(r[$limbs + i], _carry2, &mut carry);
                 _carry2 = carry;
             }
             (self.0).0.copy_from_slice(&r[$limbs..]);
