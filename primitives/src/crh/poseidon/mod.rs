@@ -31,12 +31,12 @@ pub struct PoseidonBatchHash<F: PrimeField, P: PoseidonParameters<Fr = F>>{
 
 pub trait PoseidonParameters: 'static + FieldBasedHashParameters{
 
-    const T: usize;  // Number of S-Boxesb
+    const T: usize;  // Number of S-Boxes
     const R_F:i32;   // Number of full rounds
     const R_P:i32;   // Number of partial rounds
     const R:usize;   // The rate of the hash function
     const ZERO:Self::Fr;   // The zero element in the field
-    const C2:Self::Fr;     // The constant 3 to add in the position corresponding to the capacity
+    const C2:Self::Fr;     // The constant to add in the position corresponding to the capacity
     const AFTER_ZERO_PERM: &'static[Self::Fr]; // State vector after a zero permutation
     const ROUND_CST: &'static[Self::Fr];  // Array of round constants
     const MDS_CST: &'static[Self::Fr];  // The MDS matrix
@@ -44,66 +44,66 @@ pub trait PoseidonParameters: 'static + FieldBasedHashParameters{
 
 }
 
+// Function that does the scalar multiplication
+// It uses Montgomery multiplication
+// Constants are defined such that the result is x * t * 2^n,
+// that is the Montgomery representation of the operand x * t, and t is the 64-bit constant
+#[allow(dead_code)]
+#[inline]
+pub fn scalar_mul<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> (res: &mut F, state: &mut[F], mut start_idx_cst: usize) {
+
+    state.iter_mut().for_each(|x| {
+        let elem = x.mul(&P::MDS_CST[start_idx_cst]);
+        start_idx_cst += 1;
+        *res += &elem;
+    });
+}
+
+// Function that does the mix matrix
+#[allow(dead_code)]
+#[inline]
+pub fn matrix_mix<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>>  (state: &mut Vec<F>) {
+
+    // the new state where the result will be stored initialized to zero elements
+    let mut new_state = vec![F::zero(); P::T];
+
+    let mut idx_cst = 0;
+    for i in 0..P::T {
+        scalar_mul::<F,P>(&mut new_state[i], state, idx_cst);
+        idx_cst += P::T;
+    }
+    *state = new_state;
+}
+
+// Function that does the scalar multiplication
+// It uses a partial Montgomery multiplication defined as PM(x, t) = x * t * 2^-64 mod M
+// t is a 64-bit matrix constant. In the algorithm, the constants are represented in
+// partial Montgomery representation, i.e. t * 2^64 mod M
+#[inline]
+pub fn scalar_mul_fast<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> (res: &mut F, state: &mut[F], mut start_idx_cst: usize) {
+    state.iter_mut().for_each(|x| {
+        let elem = P::MDS_CST_SHORT[start_idx_cst].mul_short(&x);
+        start_idx_cst += 1;
+        *res += &elem;
+    });
+}
+
+// Function that does the mix matrix with fast algorithm
+#[inline]
+pub fn matrix_mix_short<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> (state: &mut Vec<F>) {
+
+    // the new state where the result will be stored initialized to zero elements
+    let mut new_state = vec![F::zero(); P::T];
+
+    let mut idx_cst = 0;
+    for i in 0..P::T {
+        scalar_mul_fast::<F,P>(&mut new_state[i], state, idx_cst);
+        idx_cst += P::T;
+    }
+    *state = new_state;
+}
+
 impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F, P> {
-
-    // Function that does the scalar multiplication
-    // It uses Montgomery multiplication
-    // Constants are defined such that the result is x * t * 2^768,
-    // that is the Montgomery representation of the operand x * t, and t is the 64-bit constant
-    #[inline]
-    fn scalar_mul (res: &mut F, state: &mut[F], mut start_idx_cst: usize) {
-
-        state.iter_mut().for_each(|x| {
-            let elem = x.mul(&P::MDS_CST[start_idx_cst]);
-            start_idx_cst += 1;
-            *res += &elem;
-        });
-    }
-
-    // Function that does the mix matrix
-    #[allow(dead_code)]
-    #[inline]
-    fn matrix_mix (state: &mut Vec<F>) {
-
-        // the new state where the result will be stored initialized to zero elements
-        let mut new_state = vec![F::zero(); P::T];
-
-        let mut idx_cst = 0;
-        for i in 0..P::T {
-            Self::scalar_mul(&mut new_state[i], state, idx_cst);
-            idx_cst += P::T;
-        }
-        *state = new_state;
-
-    }
-
-    // Function that does the scalar multiplication
-    // It uses a partial Montgomery multiplication defined as PM(x, t) = x * t * 2^-64 mod M
-    // t is a 64-bit matrix constant. In the algorithm, the constants are represented in
-    // partial Montgomery representation, i.e. t * 2^64 mod M
-    #[inline]
-    fn scalar_mul_fast (res: &mut F, state: &mut[F], mut start_idx_cst: usize) {
-        state.iter_mut().for_each(|x| {
-            let elem = P::MDS_CST_SHORT[start_idx_cst].mul_short(&x);
-            start_idx_cst += 1;
-            *res += &elem;
-        });
-    }
-
-    // Function that does the mix matrix with fast algorithm
-    #[inline]
-    fn matrix_mix_short (state: &mut Vec<F>) {
-
-        // the new state where the result will be stored initialized to zero elements
-        let mut new_state = vec![F::zero(); P::T];
-
-        let mut idx_cst = 0;
-        for i in 0..P::T {
-            Self::scalar_mul_fast(&mut new_state[i], state, idx_cst);
-            idx_cst += P::T;
-        }
-        *state = new_state;
-    }
 
     fn poseidon_full_round(vec_state: &mut [Vec<P::Fr>], round_cst_idx: &mut usize) {
 
@@ -226,8 +226,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F,
 
             // Perform the matrix mix
             for i in 0..vec_state.len() {
-                //Self::matrix_mix_short(&mut vec_state[i]);
-                Self::matrix_mix_short(&mut vec_state[i]);
+                matrix_mix_short::<F,P>(&mut vec_state[i]);
             }
 
         }
@@ -238,8 +237,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F,
 
             // Perform the matrix mix
             for i in 0..vec_state.len() {
-                //Self::matrix_mix_short(&mut vec_state[i]);
-                Self::matrix_mix_short(&mut vec_state[i]);
+                matrix_mix_short::<F,P>(&mut vec_state[i]);
             }
         }
 
@@ -249,8 +247,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F,
 
             // Perform the matrix mix
             for i in 0..vec_state.len() {
-                //Self::matrix_mix_short(&mut vec_state[i]);
-                Self::matrix_mix_short(&mut vec_state[i]);
+                matrix_mix_short::<F,P>(&mut vec_state[i]);
             }
         }
 
@@ -261,65 +258,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F,
 
 impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
 
-    // Function that does the scalar multiplication
-    // It uses Montgomery multiplication
-    // Constants are defined such that the result is x * t * 2^768,
-    // that is the Montgomery representation of the operand x * t, and t is the 64-bit constant
-    #[inline]
-    fn scalar_mul (res: &mut F, state: &mut[F], start_idx_cst: usize) {
-        state.iter_mut().enumerate().for_each(|(i,x)| {
-            let elem = x.mul(&P::MDS_CST[start_idx_cst + i]);
-            *res += &elem;
-        });
-    }
-
-    // Function that does the mix matrix
-    #[inline]
-    fn matrix_mix (state: &mut Vec<F>) {
-
-        // the new state where the result will be stored initialized to zero elements
-        let mut new_state = vec![F::zero(); P::T];
-
-        let mut idx_cst = 0;
-        for i in 0..P::T {
-            Self::scalar_mul(&mut new_state[i], state, idx_cst);
-            idx_cst += P::T;
-        }
-        *state = new_state;
-
-    }
-
-    // Function that does the scalar multiplication with fast algorithm
-    // It uses a partial Montgomery multiplication defined as PM(x, t) = x * t * 2^-64 mod M
-    // t is a 64-bit matrix constant. In the algorithm, the constants are represented in
-    // partial Montgomery representation, i.e. t * 2^64 mod M
-    #[inline]
-    fn scalar_mul_fast (res: &mut F, state: &mut[F], mut start_idx_cst: usize) {
-        state.iter_mut().for_each(|x| {
-            let elem = P::MDS_CST_SHORT[start_idx_cst].mul_short(&x);
-            start_idx_cst += 1;
-            *res += &elem;
-        });
-    }
-
-    // Function that does the mix matrix with fast algorithm
-    #[inline]
-    fn matrix_mix_short (state: &mut Vec<F>) {
-
-        // the new state where the result will be stored initialized to zero elements
-        let mut new_state = vec![F::zero(); P::T];
-
-        let mut idx_cst = 0;
-        for i in 0..P::T {
-            Self::scalar_mul_fast(&mut new_state[i], state, idx_cst);
-            idx_cst += P::T;
-        }
-        *state = new_state;
-    }
-
     fn poseidon_perm (state: &mut Vec<F>) {
-
-        let use_fast = true;
 
         // index that goes over the round constants
         let mut round_cst_idx = 0;
@@ -358,11 +297,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
             }
 
             // Perform the matrix mix
-            if use_fast {
-                Self::matrix_mix_short(state);
-            } else {
-                Self::matrix_mix(state);
-            }
+            matrix_mix_short::<F,P>(state);
 
         }
 
@@ -382,20 +317,15 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
             }
 
             // Apply the matrix mix
-            if use_fast {
-                Self::matrix_mix_short(state);
-            } else {
-                Self::matrix_mix(state);
-            }
+            matrix_mix_short::<F,P>(state);
         }
 
         // Second full rounds
-        // Process only to R_F -1 iterations. The last iteration does not contain a matrix mix
+        // Process only to R_F - 1 iterations. The last iteration does not contain a matrix mix
         for _i in 0..(P::R_F-1) {
 
             // Add the round constants
             for d in state.iter_mut() {
-                //let rc = MNT4753Fr::from_str(ROUND_CST[round_cst_idx]).map_err(|_| ()).unwrap();
                 let rc = P::ROUND_CST[round_cst_idx];
                 *d += &rc;
                 round_cst_idx += 1;
@@ -425,11 +355,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
             }
 
             // Apply matrix mix
-            if use_fast {
-                Self::matrix_mix_short(state);
-            } else {
-                Self::matrix_mix(state);
-            }
+            matrix_mix_short::<F,P>(state);
         }
 
         // Last full round does not perform the matrix_mix
@@ -507,7 +433,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> FieldBasedHash for
             for j in 0..rem {
                 state[j] += &input[input_idx];
             }
-            // add the constant associated to the application for an n-ary Merkle tree
+            // add the constant associated to the application for an m-ary Merkle tree
             state[P::R] += &P::C2;
             // apply permutation after adding the input vector
             Self::poseidon_perm(&mut state);
@@ -541,14 +467,12 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> BatchFieldBasedHas
         assert_ne!(input_array.len(), 0, "Input data array does not contain any data.");
 
         // Assign pre-computed values of the state vector equivalent to a permutation with zero element state vector
-        //let state_z = vec![P::AFTER_ZERO_PERM[0], P::AFTER_ZERO_PERM[1], P::AFTER_ZERO_PERM[2]];
         let mut state_z = Vec::new();
         for i in 0..P::T {
             state_z.push(P::AFTER_ZERO_PERM[i]);
         }
 
         // Copy the result of the permutation to a vector of state vectors of the length equal to the length of the input
-        // state is a vector of 3-element state vector.
         let mut state = Vec::new();
         for _i in 0..array_length {
             state.push(state_z.clone());
@@ -592,7 +516,6 @@ pub type MNT6PoseidonHash = PoseidonHash<MNT6753Fr, MNT6753PoseidonParameters>;
 #[cfg(test)]
 mod test {
     use super::*;
-    use rayon::prelude::*;
     use rand_xorshift::XorShiftRng;
     use std::str::FromStr;
     use crate::{FieldBasedHash, BatchFieldBasedHash, PoseidonBatchHash};
@@ -610,7 +533,6 @@ mod test {
 
         println!("{:?}", output);
     }
-
 
     #[test]
     fn test_poseidon_hash_mnt6() {
@@ -673,12 +595,7 @@ mod test {
 
         let now_4753_batch = Instant::now();
         let output = Mnt4BatchPoseidonHash::batch_evaluate(&array_elem_4753);
-        let mut output_vec = output.unwrap();
-        // let output_vec:Vec<MNT4753Fr> = array_elem_4753.par_chunks_mut(num_rounds/2)
-        //     .flat_map(|p1| -> Vec<MNT4753Fr> {
-        //         let output = Mnt4BatchPoseidonHash::batch_evaluate(p1);
-        //         return output.unwrap();
-        // }).collect();
+        let output_vec = output.unwrap();
         let new_now_4753_batch = Instant::now();
 
         // =============================================================================
@@ -698,12 +615,11 @@ mod test {
 
         // =============================================================================
 
+        // Check with one single hash
         let single_output = Mnt4PoseidonHash::evaluate(&vec_vec_elem_4753[0]);
         let single_batch_output = Mnt4BatchPoseidonHash::batch_evaluate(&array_elem_4753[0..2]);
 
         assert_eq!(single_output.unwrap(),single_batch_output.unwrap()[0],"Output hash are not equal.");
-
-
 
 
         // // Computation for MNT6
