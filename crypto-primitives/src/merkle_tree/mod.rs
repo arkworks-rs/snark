@@ -378,7 +378,7 @@ mod test {
     struct JubJubMerkleTreeParams;
 
     impl MerkleTreeConfig for JubJubMerkleTreeParams {
-        const HEIGHT: usize = 32;
+        const HEIGHT: usize = 8;
         type H = H;
     }
     type JubJubMerkleTree = MerkleHashTree<JubJubMerkleTreeParams>;
@@ -404,6 +404,15 @@ mod test {
         generate_merkle_tree(&leaves);
         let mut leaves = Vec::new();
         for i in 0..100u8 {
+            leaves.push([i, i, i, i, i, i, i, i]);
+        }
+        generate_merkle_tree(&leaves);
+    }
+
+    #[test]
+    fn no_dummy_nodes_test() {
+        let mut leaves = Vec::new();
+        for i in 0..(1u8 << JubJubMerkleTree::HEIGHT - 1) {
             leaves.push([i, i, i, i, i, i, i, i]);
         }
         generate_merkle_tree(&leaves);
