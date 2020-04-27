@@ -46,8 +46,8 @@ pub trait PoseidonParameters: 'static + FieldBasedHashParameters{
 
 // Function that does the scalar multiplication
 // It uses Montgomery multiplication
-// Constants are defined such that the result is x * t * 2^n,
-// that is the Montgomery representation of the operand x * t, and t is the 64-bit constant
+// Constants are defined such that the result is x * t * 2^n mod M,
+// that is the Montgomery representation of the operand x * t mod M, and t is the 64-bit constant
 #[allow(dead_code)]
 #[inline]
 pub fn scalar_mul<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> (res: &mut F, state: &mut[F], mut start_idx_cst: usize) {
@@ -242,6 +242,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F,
         }
 
         // Full rounds
+        // Last round does not contain the matrix mix
         for _i in 0..(P::R_F - 1) {
             Self::poseidon_full_round(vec_state, &mut round_cst_idx);
 
@@ -274,11 +275,12 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
             }
 
             // Apply the S-BOX to each of the elements of the state vector
-            // Optimization for the inversion S-Box
+            // Apply Montomgery's simulateneous inversion
             let w2 = state[0] * &state[1];
             let w = state[2] * &w2;
             if w == P::Fr::zero() {
                 // At least one of the S-Boxes is zero
+                // Calculate inverses individually
                 for d in state.iter_mut() {
                     // The S-BOX is an inversion function
                     if *d != P::Fr::zero() {
@@ -332,7 +334,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
             }
 
             // Apply the S-BOX to each of the elements of the state vector
-            // Optimization for the inversion S-Box
+            // Apply Montgomery's simulatenous inversion
             let w2 = state[0] * &state[1];
             let w = state[2] * &w2;
             if w == P::Fr::zero() {
@@ -367,7 +369,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
         }
 
         // Apply the S-BOX to each of the elements of the state vector
-        // Optimization for the inversion S-Box
+        // Apply Montgomery's simultaneous inversion
         let w2 = state[0] * &state[1];
         let w = state[2] * &w2;
         if w == P::Fr::zero() {
@@ -421,7 +423,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> FieldBasedHash for
                 state[j] += &input[input_idx];
                 input_idx += 1;
             }
-            // add the constant associated to the application for an n-ary Merkle tree
+            // add the constant associated to the m-ary Merkle tree
             state[P::R] += &P::C2;
 
             // apply permutation after adding the input vector
@@ -433,7 +435,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> FieldBasedHash for
             for j in 0..rem {
                 state[j] += &input[input_idx];
             }
-            // add the constant associated to the application for an m-ary Merkle tree
+            // add the constant associated to the m-ary Merkle tree
             state[P::R] += &P::C2;
             // apply permutation after adding the input vector
             Self::poseidon_perm(&mut state);
@@ -452,12 +454,14 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> BatchFieldBasedHas
 
         // Input:
         // This function calculates the hashes of inputs by groups of the rate P::R.
-        // The inputs are arranged in an array and arranged as consecutive groups
+        // The inputs are arranged in an array and arranged as consecutive chunks
         // Example:
         // For P::R = 2,
-        // (d_00, d01, d_10, d_11, d_20, d_21, ...
+        // (d_00, d_01, d_10, d_11, d_20, d_21, ...
+        // where d_00 and d_01 are the inputs to the first hash
+        // d_10 and d_11 are the inputs to the second hash ... etc..
         // Output:
-        // The output will be placed in the output_array taking input length / P::R
+        // The output is returned as an array of size input length / P::R
 
         use rayon::prelude::*;
 
@@ -481,6 +485,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> BatchFieldBasedHas
         // input_idx is to scan the input_array
         let mut input_idx = 0;
 
+        // Add the input data in chunks of rate size to the state vectors
         for k in 0..array_length {
             for j in 0..P::R {
                 state[k][j] += &input_array[input_idx];
@@ -520,183 +525,257 @@ mod test {
     use std::str::FromStr;
     use crate::{FieldBasedHash, BatchFieldBasedHash, PoseidonBatchHash};
     use super::rand::SeedableRng;
-    use algebra::{UniformRand, Field};
-    use std::time::Instant;
-    use algebra::fields::mnt6753::Fq;
+    use algebra::UniformRand;
+    use algebra::biginteger::BigInteger768;
 
     #[test]
     fn test_poseidon_hash_mnt4() {
+        let expected_output = MNT4753Fr::new(BigInteger768([120759599714708995, 15132412086599307425, 1270378153255747692, 3280164418217209635, 5680179791594071572, 2475152338055275001, 9455820118751334058, 6363436228419696186, 3538976751580678769, 14987158621073838958, 10703097083485496843, 48481977539350]));
         let mut input = Vec::new();
         input.push(MNT4753Fr::from_str("1").unwrap());
         input.push(MNT4753Fr::from_str("2").unwrap());
         let output = MNT4PoseidonHash::evaluate(&input);
+        assert_eq!(output.unwrap(), expected_output, "Outputs do not match for MNT4753.");
+    }
 
+    #[test]
+    #[should_panic]
+    fn test_poseidon_hash_mnt4_null_element() {
+        let input = Vec::new();
+        let output = MNT4PoseidonHash::evaluate(&input);
+        println!("{:?}", output);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_poseidon_hash_mnt4_single_element() {
+        let mut input = Vec::new();
+        input.push(MNT4753Fr::from_str("1").unwrap());
+        let output = MNT4PoseidonHash::evaluate(&input);
+        println!("{:?}", output);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_poseidon_hash_mnt4_three_element() {
+        let mut input = Vec::new();
+        input.push(MNT4753Fr::from_str("1").unwrap());
+        input.push(MNT4753Fr::from_str("2").unwrap());
+        input.push(MNT4753Fr::from_str("3").unwrap());
+        let output = MNT4PoseidonHash::evaluate(&input);
         println!("{:?}", output);
     }
 
     #[test]
     fn test_poseidon_hash_mnt6() {
+        let expected_output = MNT6753Fr::new(BigInteger768([8195238283171732026, 13694263410588344527, 1885103367289967816, 17142467091011072910, 13844754763865913168, 14332001103319040991, 8911700442280604823, 6452872831806760781, 17467681867740706391, 5384727593134901588, 2343350281633109128, 244405261698305]));
         let mut input = Vec::new();
         input.push(MNT6753Fr::from_str("1").unwrap());
         input.push(MNT6753Fr::from_str("2").unwrap());
         let output = MNT6PoseidonHash::evaluate(&mut input);
+        assert_eq!(output.unwrap(), expected_output, "Outputs do not match for MNT6753.");
+    }
 
+    #[test]
+    #[should_panic]
+    fn test_poseidon_hash_mnt6_null_element() {
+        let input = Vec::new();
+        let output = MNT6PoseidonHash::evaluate(&input);
         println!("{:?}", output);
     }
 
     #[test]
-    fn test_hash_speed() {
+    #[should_panic]
+    fn test_poseidon_hash_mnt6_single_element() {
+        let mut input = Vec::new();
+        input.push(MNT6753Fr::from_str("1").unwrap());
+        let output = MNT6PoseidonHash::evaluate(&input);
+        println!("{:?}", output);
+    }
 
-        // =============================================================================
-        // Computation for MNT4
+    #[test]
+    #[should_panic]
+    fn test_poseidon_hash_mnt6_three_element() {
+        let mut input = Vec::new();
+        input.push(MNT6753Fr::from_str("1").unwrap());
+        input.push(MNT6753Fr::from_str("2").unwrap());
+        input.push(MNT6753Fr::from_str("3").unwrap());
+        let output = MNT6PoseidonHash::evaluate(&input);
+        println!("{:?}", output);
+    }
+
+    #[test]
+    fn test_batch_hash_mnt4() {
+
         type Mnt4PoseidonHash = PoseidonHash<MNT4753Fr, MNT4753PoseidonParameters>;
         type Mnt4BatchPoseidonHash = PoseidonBatchHash<MNT4753Fr, MNT4753PoseidonParameters>;
-        //  the number of rounds to test
-        let num_rounds = 1000;
+
+        //  the number of hashes to test
+        let num_hashes = 1000;
 
         // the vectors that store random input data
-        let mut vec_vec_elem_4753 = Vec::new();
-        let mut array_elem_4753 = Vec::new();
+        let mut input_serial = Vec::new();
+        let mut input_batch = Vec::new();
 
         // the random number generator to generate random input data
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         // we need the double of number of rounds because we have two inputs
-        for _ in 0..num_rounds {
-            let mut vec_elem_4753 = Vec::new();
+        for _ in 0..num_hashes {
+            let mut pair_elem = Vec::new();
             let elem1 = MNT4753Fr::rand(&mut rng);
             let elem2 = MNT4753Fr::rand(&mut rng);
-            vec_elem_4753.push(elem1.clone());
-            vec_elem_4753.push(elem2.clone());
-            vec_vec_elem_4753.push(vec_elem_4753);
-            array_elem_4753.push(elem1.clone());
-            array_elem_4753.push(elem2.clone());
+            pair_elem.push(elem1.clone());
+            pair_elem.push(elem2.clone());
+            input_serial.push(pair_elem);
+            input_batch.push(elem1.clone());
+            input_batch.push(elem2.clone());
         }
-
-        // Fill the upper part of the vec with zeros. This will be the output
-        //array_elem_4753.resize(2 * num_rounds + num_rounds, MNT4753Fr::zero());
 
         // =============================================================================
         // Calculate Poseidon Hash for mnt4753
-        let now_4753 = Instant::now();
-
         let mut output_4753 = Vec::new();
 
-        vec_vec_elem_4753.iter_mut().for_each(|p| {
+        input_serial.iter().for_each(|p| {
             let output = Mnt4PoseidonHash::evaluate(p);
             output_4753.push(output.unwrap());
         });
 
-        let new_now_4753 = Instant::now();
-
         // Calculate Poseidon Hash for mnt4753 batch evaluation
-
-        //let (input_vec, output_vec) = array_elem_4753.split_at_mut(2 * num_rounds);
-
-        let now_4753_batch = Instant::now();
-        let output = Mnt4BatchPoseidonHash::batch_evaluate(&array_elem_4753);
-        let output_vec = output.unwrap();
-        let new_now_4753_batch = Instant::now();
+        let output_vec = (Mnt4BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
 
         // =============================================================================
         // Compare results
-        for i in 0..num_rounds {
+        for i in 0..num_hashes {
             assert_eq!(output_4753[i], output_vec[i], "Hash outputs, position {}, for MNT4 are not equal.", i);
         }
 
-        // =============================================================================
-        // Report the timing results
-
-        let duration_4753_single = new_now_4753.duration_since(now_4753);
-        println!("Time for {} rounds MNT4753 single = {:?}", num_rounds, duration_4753_single.as_millis());
-
-        let duration_4753_batch = new_now_4753_batch.duration_since(now_4753_batch);
-        println!("Time for {} rounds MNT4753 batch = {:?}", num_rounds, duration_4753_batch.as_millis());
-
-        // =============================================================================
-
         // Check with one single hash
-        let single_output = Mnt4PoseidonHash::evaluate(&vec_vec_elem_4753[0]);
-        let single_batch_output = Mnt4BatchPoseidonHash::batch_evaluate(&array_elem_4753[0..2]);
+        let single_output = Mnt4PoseidonHash::evaluate(&input_serial[0]);
+        let single_batch_output = Mnt4BatchPoseidonHash::batch_evaluate(&input_batch[0..2]);
 
-        assert_eq!(single_output.unwrap(),single_batch_output.unwrap()[0],"Output hash are not equal.");
-
-
-        // // Computation for MNT6
-        // type Mnt6PoseidonHash = PoseidonHash<MNT6753Fr, MNT6753PoseidonParameters>;
-        // type Mnt6BatchPoseidonHash = PoseidonBatchHash<MNT6753Fr, MNT6753PoseidonParameters>;
-        // //  the number of rounds to test
-        // let num_rounds = 1000;
-        //
-        // // the vectors that store random input data
-        // let mut vec_vec_elem_6753 = Vec::new();
-        // let mut array_elem_6753 = Vec::new();
-        //
-        // // the random number generator to generate random input data
-        // let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-        //
-        // // we need the double of number of rounds because we have two inputs
-        // for _ in 0..num_rounds {
-        //     let mut vec_elem_6753 = Vec::new();
-        //     let elem1 = MNT6753Fr::rand(&mut rng);
-        //     let elem2 = MNT6753Fr::rand(&mut rng);
-        //     vec_elem_6753.push(elem1.clone());
-        //     vec_elem_6753.push(elem2.clone());
-        //     vec_vec_elem_6753.push(vec_elem_6753);
-        //     array_elem_6753.push(elem1.clone());
-        //     array_elem_6753.push(elem2.clone());
-        // }
-        //
-        // // Fill the upper part of the vec with zeros. This will be the output
-        // array_elem_6753.resize(2 * num_rounds + num_rounds, MNT6753Fr::zero());
-        //
-        // // =============================================================================
-        // // Calculate Poseidon Hash for mnt4753
-        // let now_6753 = Instant::now();
-        //
-        // let mut output_6753 = Vec::new();
-        //
-        // vec_vec_elem_6753.iter_mut().for_each(|p| {
-        //     let output = Mnt6PoseidonHash::evaluate(p);
-        //     output_6753.push(output.unwrap());
-        // });
-        //
-        // let new_now_6753 = Instant::now();
-        //
-        // // Calculate Poseidon Hash for mnt4753 batch evaluation
-        //
-        // let (input_vec, output_vec) = array_elem_6753.split_at_mut(2 * num_rounds);
-        //
-        //
-        // let now_6753_batch = Instant::now();
-        // input_vec
-        //     .par_chunks_mut(num_rounds/2)
-        //     .zip(output_vec
-        //         .par_chunks_mut(num_rounds/2/2))
-        //     .for_each(|(p1,p2)| {
-        //         Mnt6BatchPoseidonHash::batch_evaluate(p1, p2);
-        //     });
-        // let new_now_6753_batch = Instant::now();
-        //
-        // // =============================================================================
-        // // Compare results
-        // for i in 0..num_rounds {
-        //     if output_6753[i] != output_vec[i] {
-        //         println!("Hash outputs, position {}, for MNT6 are not equal.", i);
-        //     }
-        // }
-        // println!("End comparison for MNT6.");
-        //
-        // // =============================================================================
-        // // Report the timing results
-        //
-        // let duration_6753_single = new_now_6753.duration_since(now_6753);
-        // println!("Time for {} rounds MNT6753 single = {:?}", num_rounds, duration_6753_single.as_millis());
-        //
-        // let duration_6753_batch = new_now_6753_batch.duration_since(now_6753_batch);
-        // println!("Time for {} rounds MNT6753 batch = {:?}", num_rounds, duration_6753_batch.as_millis());
+        assert_eq!(single_output.unwrap(),single_batch_output.unwrap()[0],"Single instance hash outputs are not equal for MNT4.");
 
     }
+
+
+    #[test]
+    #[should_panic]
+    fn test_batch_hash_mnt4_null_elem() {
+        type Mnt4BatchPoseidonHash = PoseidonBatchHash<MNT4753Fr, MNT4753PoseidonParameters>;
+        let input_batch = Vec::new();
+        let output_vec = (Mnt4BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+        println!("{:?}", output_vec);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_batch_hash_mnt4_one_elem() {
+        type Mnt4BatchPoseidonHash = PoseidonBatchHash<MNT4753Fr, MNT4753PoseidonParameters>;
+        let mut input_batch = Vec::new();
+        input_batch.push(MNT4753Fr::from_str("1").unwrap());
+        let output_vec = (Mnt4BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+        println!("{:?}", output_vec);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_batch_hash_mnt4_three_elem() {
+        type Mnt4BatchPoseidonHash = PoseidonBatchHash<MNT4753Fr, MNT4753PoseidonParameters>;
+        let mut input_batch = Vec::new();
+        input_batch.push(MNT4753Fr::from_str("1").unwrap());
+        input_batch.push(MNT4753Fr::from_str("2").unwrap());
+        input_batch.push(MNT4753Fr::from_str("3").unwrap());
+        let output_vec = (Mnt4BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+        println!("{:?}", output_vec);
+    }
+
+    #[test]
+    fn test_batch_hash_mnt6() {
+
+        type Mnt6PoseidonHash = PoseidonHash<MNT6753Fr, MNT6753PoseidonParameters>;
+        type Mnt6BatchPoseidonHash = PoseidonBatchHash<MNT6753Fr, MNT6753PoseidonParameters>;
+
+        //  the number of hashes to test
+        let num_hashes = 1000;
+
+        // the vectors that store random input data
+        let mut input_serial = Vec::new();
+        let mut input_batch = Vec::new();
+
+        // the random number generator to generate random input data
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+        // we need the double of number of rounds because we have two inputs
+        for _ in 0..num_hashes {
+            let mut pair_elem = Vec::new();
+            let elem1 = MNT6753Fr::rand(&mut rng);
+            let elem2 = MNT6753Fr::rand(&mut rng);
+            pair_elem.push(elem1.clone());
+            pair_elem.push(elem2.clone());
+            input_serial.push(pair_elem);
+            input_batch.push(elem1.clone());
+            input_batch.push(elem2.clone());
+        }
+
+        // =============================================================================
+        // Calculate Poseidon Hash for mnt6753
+        let mut output_6753 = Vec::new();
+
+        input_serial.iter().for_each(|p| {
+            let output = Mnt6PoseidonHash::evaluate(p);
+            output_6753.push(output.unwrap());
+        });
+
+        // Calculate Poseidon Hash for mnt4753 batch evaluation
+        let output_vec = (Mnt6BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+
+        // =============================================================================
+        // Compare results
+        for i in 0..num_hashes {
+            assert_eq!(output_6753[i], output_vec[i], "Hash outputs, position {}, for MNT6 are not equal.", i);
+        }
+
+        // Check with one single hash
+        let single_output = Mnt6PoseidonHash::evaluate(&input_serial[0]);
+        let single_batch_output = Mnt6BatchPoseidonHash::batch_evaluate(&input_batch[0..2]);
+
+        assert_eq!(single_output.unwrap(),single_batch_output.unwrap()[0],"Single instance hash outputs are not equal for MNT6.");
+
+    }
+
+
+    #[test]
+    #[should_panic]
+    fn test_batch_hash_mnt6_null_elem() {
+        type Mnt6BatchPoseidonHash = PoseidonBatchHash<MNT6753Fr, MNT6753PoseidonParameters>;
+        let input_batch = Vec::new();
+        let output_vec = (Mnt6BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+        println!("{:?}", output_vec);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_batch_hash_mnt6_one_elem() {
+        type Mnt6BatchPoseidonHash = PoseidonBatchHash<MNT6753Fr, MNT6753PoseidonParameters>;
+        let mut input_batch = Vec::new();
+        input_batch.push(MNT6753Fr::from_str("1").unwrap());
+        let output_vec = (Mnt6BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+        println!("{:?}", output_vec);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_batch_hash_mnt6_three_elem() {
+        type Mnt6BatchPoseidonHash = PoseidonBatchHash<MNT6753Fr, MNT6753PoseidonParameters>;
+        let mut input_batch = Vec::new();
+        input_batch.push(MNT6753Fr::from_str("1").unwrap());
+        input_batch.push(MNT6753Fr::from_str("2").unwrap());
+        input_batch.push(MNT6753Fr::from_str("3").unwrap());
+        let output_vec = (Mnt6BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+        println!("{:?}", output_vec);
+    }
+
 
     // #[test]
     // fn test_merkle_tree() {

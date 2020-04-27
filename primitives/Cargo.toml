@@ -72,3 +72,8 @@ name = "ecvrf"
 path = "benches/crypto_primitives/ecvrf.rs"
 harness = false
 required-features = ["vrf"]
+
+[[bench]]
+name = "poseidon_crh"
+path = "benches/crypto_primitives/poseidon_crh.rs"
+harness = false
