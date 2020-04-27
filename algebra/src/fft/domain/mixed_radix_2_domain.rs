@@ -1,7 +1,9 @@
 use crate::{FpParameters, PrimeField};
-use crate::{multicore::Worker, EvaluationDomainImpl};
+use crate::{multicore::Worker, EvaluationDomain};
 use rayon::prelude::*;
 use std::fmt;
+use rand::Rng;
+use std::any::Any;
 
 /// Defines a domain over which finite field (I)FFTs can be performed. Works
 /// only for fields that have a large multiplicative subgroup of size that is
@@ -33,6 +35,77 @@ impl<F: PrimeField> fmt::Debug for MixedRadix2Domain<F> {
 }
 
 impl<F: PrimeField> MixedRadix2Domain<F> {
+
+    pub fn new(num_coeffs: usize) -> Option<Self> {
+        let q = F::Params::SMALL_SUBGROUP_BASE.unwrap();
+
+        // Compute the size of our evaluation domain
+        let (size, log_size_of_group, q_adicity, two_adicity) =
+            match Self::compute_size_of_domain(num_coeffs) {
+                Some(size) => {
+                    let q_adicity = Self::k_adicity(q, size as u64);
+                    let two_adicity = Self::k_adicity(2, size as u64);
+                    (size as u64, size.trailing_zeros(), q_adicity, two_adicity)
+                },
+                _ => return None,
+            };
+
+        let q_as_bigint = F::BigInt::from(q);
+        let mut group_gen = F::full_root_of_unity();
+        for _ in q_adicity..F::Params::SMALL_SUBGROUP_POWER.unwrap() {
+            group_gen = group_gen.pow(&q_as_bigint);
+        }
+        for _ in two_adicity..F::Params::TWO_ADICITY as u64{
+            group_gen.square_in_place();
+        }
+        let size_as_bigint = F::BigInt::from(size);
+        let size_as_field_element = F::from_repr(size_as_bigint);
+        let size_inv = size_as_field_element.inverse()?;
+
+        let group_gen_inv = group_gen.inverse()?;
+        let generator_inv = F::multiplicative_generator().inverse()?;
+        Some(Self{
+            size, log_size_of_group, size_inv, group_gen, group_gen_inv, generator_inv,
+        })
+    }
+
+    //Returns: min { n : N | n = 2^k * q^s, n >= num_coeffs, s <= small_subgroup_power, k <= TWO_ADICITY }
+    pub fn compute_size_of_domain(num_coeffs: usize) -> Option<usize>
+    {
+        let mut best = std::u64::MAX;
+        for b in 0..F::Params::SMALL_SUBGROUP_POWER.unwrap() + 1 {
+            let mut r = F::Params::SMALL_SUBGROUP_BASE.unwrap().pow(b as u32);
+            let mut two_adicity = 0;
+            while r < num_coeffs as u64 {
+                r *= 2;
+                two_adicity += 1;
+            }
+            if two_adicity <= F::Params::TWO_ADICITY{
+                best = best.min(r);
+            }
+        }
+
+        let q = F::Params::SMALL_SUBGROUP_BASE.unwrap();
+        let q_adicity = Self::k_adicity(q, best);
+        let q_part = q.pow(q_adicity as u32);
+
+        let two_adicity = Self::k_adicity(2, best);
+        let two_part = 1 << two_adicity;
+
+        if best != (two_part * q_part) || two_adicity > F::Params::TWO_ADICITY as u64 || q_adicity > F::Params::SMALL_SUBGROUP_POWER.unwrap() {
+            return None
+        }
+
+        return Some(best as usize);
+    }
+
+    pub fn sample_element_outside_domain<R: Rng>(&self, rng: &mut R) -> F {
+        let mut t = F::rand(rng);
+        while self.evaluate_vanishing_polynomial(t).is_zero() {
+            t = F::rand(rng);
+        }
+        t
+    }
 
     fn k_adicity(k: u64, n: u64) -> u64{
         let mut r = 0;
@@ -299,69 +372,7 @@ impl<F: PrimeField> MixedRadix2Domain<F> {
     }
 }
 
-impl<F: PrimeField> EvaluationDomainImpl<F> for MixedRadix2Domain<F> {
-    fn new(num_coeffs: usize) -> Option<Self> {
-        let q = F::Params::SMALL_SUBGROUP_BASE.unwrap();
-
-        // Compute the size of our evaluation domain
-        let (size, log_size_of_group, q_adicity, two_adicity) =
-            match Self::compute_size_of_domain(num_coeffs) {
-                Some(size) => {
-                    let q_adicity = Self::k_adicity(q, size as u64);
-                    let two_adicity = Self::k_adicity(2, size as u64);
-                    (size as u64, size.trailing_zeros(), q_adicity, two_adicity)
-                },
-                _ => return None,
-        };
-
-        let q_as_bigint = F::BigInt::from(q);
-        let mut group_gen = F::full_root_of_unity();
-        for _ in q_adicity..F::Params::SMALL_SUBGROUP_POWER.unwrap() {
-            group_gen = group_gen.pow(&q_as_bigint);
-        }
-        for _ in two_adicity..F::Params::TWO_ADICITY as u64{
-            group_gen.square_in_place();
-        }
-        let size_as_bigint = F::BigInt::from(size);
-        let size_as_field_element = F::from_repr(size_as_bigint);
-        let size_inv = size_as_field_element.inverse()?;
-
-        let group_gen_inv = group_gen.inverse()?;
-        let generator_inv = F::multiplicative_generator().inverse()?;
-        Some(Self{
-            size, log_size_of_group, size_inv, group_gen, group_gen_inv, generator_inv,
-        })
-    }
-
-    //Returns: min { n : N | n = 2^k * q^s, n >= num_coeffs, s <= small_subgroup_power, k <= TWO_ADICITY }
-    fn compute_size_of_domain(num_coeffs: usize) -> Option<usize>
-    {
-        let mut best = std::u64::MAX;
-        for b in 0..F::Params::SMALL_SUBGROUP_POWER.unwrap() + 1 {
-            let mut r = F::Params::SMALL_SUBGROUP_BASE.unwrap().pow(b as u32);
-            let mut two_adicity = 0;
-            while r < num_coeffs as u64 {
-                r *= 2;
-                two_adicity += 1;
-            }
-            if two_adicity <= F::Params::TWO_ADICITY{
-                best = best.min(r);
-            }
-        }
-
-        let q = F::Params::SMALL_SUBGROUP_BASE.unwrap();
-        let q_adicity = Self::k_adicity(q, best);
-        let q_part = q.pow(q_adicity as u32);
-
-        let two_adicity = Self::k_adicity(2, best);
-        let two_part = 1 << two_adicity;
-
-        if best != (two_part * q_part) || two_adicity > F::Params::TWO_ADICITY as u64 || q_adicity > F::Params::SMALL_SUBGROUP_POWER.unwrap() {
-            return None
-        }
-
-        return Some(best as usize);
-    }
+impl<F: PrimeField> EvaluationDomain<F> for MixedRadix2Domain<F> {
 
     fn size(&self) -> usize {
         self.size.clone() as usize
@@ -405,5 +416,17 @@ impl<F: PrimeField> EvaluationDomainImpl<F> for MixedRadix2Domain<F> {
     fn coset_ifft_in_place(&self, evals: &mut Vec<F>) {
         self.ifft_in_place(evals);
         Self::distribute_powers(evals, self.generator_inv);
+    }
+
+    fn eq(&self, other: & dyn EvaluationDomain<F>) -> bool {
+        other.as_any().downcast_ref::<Self>().map_or(false, |x| x == self)
+    }
+
+    fn as_any(&self) -> & dyn Any {
+        self
+    }
+
+    fn box_clone(&self) -> Box<dyn EvaluationDomain<F>> {
+        Box::new((*self).clone())
     }
 }

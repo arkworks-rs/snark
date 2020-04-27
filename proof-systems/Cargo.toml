@@ -31,6 +31,8 @@ byteorder = { version = "1" }
 
 [dev-dependencies]
 csv = { version = "1" }
+r1cs-crypto = { path = "../r1cs/gadgets/crypto", features = ["nizk"] }
+r1cs-std = { path = "../r1cs/gadgets/std" }
 
 [features]
 print-trace = [ "bench-utils/print-trace" ]
@@ -43,6 +45,16 @@ path = "src/groth16/examples/snark-scalability/groth16.rs"
 required-features = ["groth16"]
 
 [[example]]
+name = "groth16-recursive"
+path = "src/groth16/examples/recursive-snark/groth16.rs"
+required-features = ["groth16"]
+
+[[example]]
 name = "gm17"
 path = "src/gm17/examples/snark-scalability/gm17.rs"
+required-features = ["gm17"]
+
+[[example]]
+name = "gm17-recursive"
+path = "src/gm17/examples/recursive-snark/gm17.rs"
 required-features = ["gm17"]

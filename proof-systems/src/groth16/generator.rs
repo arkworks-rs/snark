@@ -1,8 +1,5 @@
-use algebra::{
-    groups::Group, msm::FixedBaseMSM, Field, PairingEngine, PrimeField, ProjectiveCurve,
-    UniformRand,
-};
-use algebra::fft::domain::{EvaluationDomain, EvaluationDomainImpl};
+use algebra::{groups::Group, msm::FixedBaseMSM, Field, PairingEngine, PrimeField, ProjectiveCurve, UniformRand};
+use algebra::fft::domain::get_best_evaluation_domain;
 
 use r1cs_core::{
     ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable,
@@ -177,9 +174,16 @@ pub fn generate_parameters<E, C, R>(
     let domain_time = start_timer!(|| "Constructing evaluation domain");
 
     let domain_size = assembly.num_constraints + (assembly.num_inputs - 1) + 1;
-    let domain = EvaluationDomain::<E::Fr>::new(domain_size)
+    let domain = get_best_evaluation_domain::<E::Fr>(domain_size)
         .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
-    let t = domain.sample_element_outside_domain(rng);
+
+    //Sample element outside domain
+    let t = loop {
+        let random_t = E::Fr::rand(rng);
+        if !domain.evaluate_vanishing_polynomial(random_t).is_zero() {
+            break (random_t)
+        }
+    };
 
     end_timer!(domain_time);
     ///////////////////////////////////////////////////////////////////////////

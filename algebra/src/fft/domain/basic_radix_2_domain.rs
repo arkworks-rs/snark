@@ -1,7 +1,9 @@
 use crate::{FpParameters, PrimeField};
-use crate::{multicore::Worker, EvaluationDomainImpl};
+use crate::{multicore::Worker, EvaluationDomain};
 use std::fmt;
 use rayon::prelude::*;
+use rand::Rng;
+use std::any::Any;
 
 /// Defines a domain over which finite field (I)FFTs can be performed. Works
 /// only for fields that have a large multiplicative subgroup of size that is
@@ -33,6 +35,68 @@ impl<F: PrimeField> fmt::Debug for BasicRadix2Domain<F> {
 }
 
 impl<F: PrimeField> BasicRadix2Domain<F> {
+
+    pub fn new(num_coeffs: usize) -> Option<Self>
+    {
+        // Compute the size of our evaluation domain
+        let (size, log_size_of_group) = match Self::compute_size_of_domain(num_coeffs) {
+            Some(size) => (size, size.trailing_zeros()),
+            _ => return None,
+        };
+
+        // Compute the generator for the multiplicative subgroup.
+        // It should be 2^(log_size_of_group) root of unity.
+        let mut group_gen = F::root_of_unity();
+        for _ in log_size_of_group..F::Params::TWO_ADICITY {
+            group_gen.square_in_place();
+        }
+
+        let size_as_bigint = F::BigInt::from(size as u64);
+        let size_as_field_element = F::from_repr(size_as_bigint);
+        let size_inv = size_as_field_element.inverse()?;
+
+        Some(Self{
+            size: size as u64,
+            log_size_of_group,
+            size_as_field_element,
+            size_inv,
+            group_gen,
+            group_gen_inv: group_gen.inverse()?,
+            generator_inv: F::multiplicative_generator().inverse()?
+        })
+    }
+
+    pub fn compute_size_of_domain(num_coeffs: usize) -> Option<usize> {
+        let size = num_coeffs.next_power_of_two();
+        if size.trailing_zeros() <= F::Params::TWO_ADICITY {
+            Some(size)
+        } else {
+            None
+        }
+    }
+
+    fn distribute_powers(coeffs: &mut Vec<F>, g: F) {
+        Worker::new().scope(coeffs.len(), |scope, chunk| {
+            for (i, v) in coeffs.chunks_mut(chunk).enumerate() {
+                scope.spawn(move |_| {
+                    let mut u = g.pow(&[(i * chunk) as u64]);
+                    for v in v.iter_mut() {
+                        *v *= &u;
+                        u *= &g;
+                    }
+                });
+            }
+        });
+    }
+
+    /// Sample an element that is *not* in the domain.
+    pub fn sample_element_outside_domain<R: Rng>(&self, rng: &mut R) -> F {
+        let mut t = F::rand(rng);
+        while self.evaluate_vanishing_polynomial(t).is_zero() {
+            t = F::rand(rng);
+        }
+        t
+    }
 
     /// Given an index which assumes the first elements of this domain are the elements of
     /// another (sub)domain with size size_s,
@@ -172,46 +236,7 @@ impl<F: PrimeField> BasicRadix2Domain<F> {
     }
 }
 
-impl<F: PrimeField> EvaluationDomainImpl<F> for BasicRadix2Domain<F> {
-
-    fn new(num_coeffs: usize) -> Option<Self>
-    {
-        // Compute the size of our evaluation domain
-        let (size, log_size_of_group) = match Self::compute_size_of_domain(num_coeffs) {
-            Some(size) => (size, size.trailing_zeros()),
-            _ => return None,
-        };
-
-        // Compute the generator for the multiplicative subgroup.
-        // It should be 2^(log_size_of_group) root of unity.
-        let mut group_gen = F::root_of_unity();
-        for _ in log_size_of_group..F::Params::TWO_ADICITY {
-            group_gen.square_in_place();
-        }
-
-        let size_as_bigint = F::BigInt::from(size as u64);
-        let size_as_field_element = F::from_repr(size_as_bigint);
-        let size_inv = size_as_field_element.inverse()?;
-
-        Some(Self{
-            size: size as u64,
-            log_size_of_group,
-            size_as_field_element,
-            size_inv,
-            group_gen,
-            group_gen_inv: group_gen.inverse()?,
-            generator_inv: F::multiplicative_generator().inverse()?
-        })
-    }
-
-    fn compute_size_of_domain(num_coeffs: usize) -> Option<usize> {
-        let size = num_coeffs.next_power_of_two();
-        if size.trailing_zeros() <= F::Params::TWO_ADICITY {
-            Some(size)
-        } else {
-            None
-        }
-    }
+impl<F: PrimeField> EvaluationDomain<F> for BasicRadix2Domain<F> {
 
     fn size(&self) -> usize {
         self.size.clone() as usize
@@ -245,5 +270,17 @@ impl<F: PrimeField> EvaluationDomainImpl<F> for BasicRadix2Domain<F> {
     fn coset_ifft_in_place(&self, evals: &mut Vec<F>) {
         self.ifft_in_place(evals);
         Self::distribute_powers(evals, self.generator_inv);
+    }
+
+    fn eq(&self, other: & dyn EvaluationDomain<F>) -> bool {
+        other.as_any().downcast_ref::<Self>().map_or(false, |x| x == self)
+    }
+
+    fn as_any(&self) -> & dyn Any {
+        self
+    }
+
+    fn box_clone(&self) -> Box<dyn EvaluationDomain<F>> {
+        Box::new((*self).clone())
     }
 }
