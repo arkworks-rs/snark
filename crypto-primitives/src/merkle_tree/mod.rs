@@ -418,6 +418,11 @@ mod test {
         generate_merkle_tree(&leaves);
     }
 
+    #[test]
+    fn single_leaf_test() {
+        generate_merkle_tree(&[[1u8; 8]]);
+    }
+
     fn bad_merkle_tree_verify<L: ToBytes + Clone + Eq>(leaves: &[L]) -> () {
         let mut rng = XorShiftRng::seed_from_u64(13423423u64);
 
