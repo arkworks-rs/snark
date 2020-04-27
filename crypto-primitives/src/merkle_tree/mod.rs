@@ -268,6 +268,10 @@ fn log2(number: usize) -> usize {
 /// Returns the height of the tree, given the size of the tree.
 #[inline]
 fn tree_height(tree_size: usize) -> usize {
+    if tree_size == 1 {
+        return 1;
+    }
+
     log2(tree_size)
 }
 
