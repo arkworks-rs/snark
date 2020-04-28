@@ -440,7 +440,7 @@ mod test {
         type TestProofGadget = ProofGadget<Bls12_377, Fq, Bls12_377PairingGadget>;
         type TestVkGadget = VerifyingKeyGadget<Bls12_377, Fq, Bls12_377PairingGadget>;
 
-        let num_inputs = 100;
+        let num_inputs = 2;
         let num_constraints = num_inputs;
         let rng = &mut thread_rng();
         let mut inputs: Vec<Option<Fr>> = Vec::with_capacity(num_inputs);
