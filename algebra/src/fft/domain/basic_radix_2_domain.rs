@@ -280,7 +280,7 @@ impl<F: PrimeField> EvaluationDomain<F> for BasicRadix2Domain<F> {
         self
     }
 
-    fn box_clone(&self) -> Box<dyn EvaluationDomain<F>> {
+    fn clone_and_box(&self) -> Box<dyn EvaluationDomain<F>> {
         Box::new((*self).clone())
     }
 }

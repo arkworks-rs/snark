@@ -131,8 +131,8 @@ impl<F: Field> DensePolynomial<F> {
 impl<F: PrimeField> DensePolynomial<F> {
     /// Multiply `self` by the vanishing polynomial for the domain `domain`.
     /// Returns the quotient and remainder of the division.
-    pub fn mul_by_vanishing_poly(&self, domain: Box<dyn EvaluationDomain<F>>) -> DensePolynomial<F> {
-        let mut shifted = vec![F::zero(); domain.size()];
+    pub fn mul_by_vanishing_poly(&self, domain_size: usize) -> DensePolynomial<F> {
+        let mut shifted = vec![F::zero(); domain_size];
         shifted.extend_from_slice(&self.coeffs);
         shifted.par_iter_mut().zip(&self.coeffs).for_each(|(s, c)| *s -= c);
         DensePolynomial::from_coefficients_vec(shifted)
@@ -488,7 +488,7 @@ mod tests {
             let domain = get_best_evaluation_domain::<Fr>(1 << size).unwrap();
             for degree in 0..70 {
                 let p = DensePolynomial::<Fr>::rand(degree, rng);
-                let ans1 = p.mul_by_vanishing_poly(domain.clone());
+                let ans1 = p.mul_by_vanishing_poly(domain.size());
                 let ans2 = &p * &domain.vanishing_polynomial().into();
                 assert_eq!(ans1, ans2);
             }

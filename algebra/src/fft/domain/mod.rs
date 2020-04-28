@@ -180,7 +180,7 @@ pub trait EvaluationDomain<F: PrimeField>: Debug
     fn as_any(&self) -> & dyn Any;
 
     // Support to Clone to make this trait a trait object
-    fn box_clone(&self) -> Box<dyn EvaluationDomain<F>>;
+    fn clone_and_box(&self) -> Box<dyn EvaluationDomain<F>>;
 }
 
 impl<'a, 'b, F: PrimeField> PartialEq<dyn EvaluationDomain<F>+'b> for dyn EvaluationDomain<F>+'a {
@@ -192,7 +192,7 @@ impl<'a, 'b, F: PrimeField> PartialEq<dyn EvaluationDomain<F>+'b> for dyn Evalua
 impl<F: PrimeField> Clone for Box<dyn EvaluationDomain<F>>
 {
     fn clone(&self) -> Box<dyn EvaluationDomain<F>> {
-        self.box_clone()
+        self.clone_and_box()
     }
 }
 

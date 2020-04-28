@@ -1,9 +1,3 @@
-// The two benchmarks below prove that, for a given k, if the evaluation size is greater that 2^k,
-// a MixedRadix2Domain is more convenient than a BasicRadix2Domain because the last one increases
-// with power of two and will work on a domain of size 2^(k+1), while the latter will work on a
-// domain of intermediate size because it increases as 2^n * p^q: the reduced domain size overcomes
-// the loss in performance you get from using a MixedRadix2Domain algorithm for FFT.
-
 use algebra::{
     fields::mnt6753::Fr,
     fft::get_best_evaluation_domain,
