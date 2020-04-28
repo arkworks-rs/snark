@@ -1,7 +1,7 @@
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
     fmt::{Display, Formatter, Result as FmtResult},
-    io::{Read, Result as IoResult, Write},
+    io::{Read, Result as IoResult, Write, Error as IoError, ErrorKind},
     marker::PhantomData,
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
     str::FromStr,
@@ -791,7 +791,21 @@ impl<P: Fp768Parameters> ToBytes for Fp768<P> {
 impl<P: Fp768Parameters> FromBytes for Fp768<P> {
     #[inline]
     fn read<R: Read>(reader: R) -> IoResult<Self> {
-        BigInteger::read(reader).map(Fp768::from_repr)
+        BigInteger::read(reader).and_then( |b|
+            if b.is_zero() {
+                Ok(Fp768::zero())
+            } else {
+                let f = Fp768::from_repr(b);
+                if f == Fp768::zero() {
+                    Err(IoError::new(
+                        ErrorKind::InvalidData,
+                        "Attempt to deserialize a field element over the modulus")
+                    )
+                } else {
+                    Ok(f)
+                }
+            }
+        )
     }
 }
 

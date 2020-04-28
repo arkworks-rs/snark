@@ -1,7 +1,7 @@
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
     fmt::{Display, Formatter, Result as FmtResult},
-    io::{Read, Result as IoResult, Write},
+    io::{Read, Result as IoResult, Write, Error as IoError, ErrorKind},
     marker::PhantomData,
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
     str::FromStr,
@@ -433,7 +433,21 @@ impl<P: Fp320Parameters> ToBytes for Fp320<P> {
 impl<P: Fp320Parameters> FromBytes for Fp320<P> {
     #[inline]
     fn read<R: Read>(reader: R) -> IoResult<Self> {
-        BigInteger::read(reader).map(Fp320::from_repr)
+        BigInteger::read(reader).and_then( |b|
+            if b.is_zero() {
+                Ok(Fp320::zero())
+            } else {
+                let f = Fp320::from_repr(b);
+                if f == Fp320::zero() {
+                    Err(IoError::new(
+                        ErrorKind::InvalidData,
+                        "Attempt to deserialize a field element over the modulus")
+                    )
+                } else {
+                    Ok(f)
+                }
+            }
+        )
     }
 }
 
