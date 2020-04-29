@@ -22,60 +22,52 @@ impl<H: BatchFieldBasedHash> BatchMerkleTree<H> {
 
     fn merkle_tree_compute(input_vec: &mut[H::Data], output_vec: &mut[H::Data], input_size: usize){
         // Supporting function that processes the inputs and outputs in chunks
-        //
-        // let num_cores = 16;
-        //
-        // assert_eq!(input_vec.len() % 2, 0, "The length of the input to the hash is not even.");
-        // assert_eq!(output_vec.len() >= input_vec.len() / 2, true,  "The length of the output is not greater or equal to half of the input length.");
-        //
-        // if input_size < 2 * num_cores {
-        //     input_vec.par_chunks_mut(2).zip(output_vec.par_chunks_mut(1)).for_each( |(p1,p2)| {
-        //         H::batch_evaluate(p1, p2);
-        //     });
-        //     return;
-        // }
-        //
-        // use rayon::prelude::*;
-        //
-        // input_vec.par_chunks_mut(input_size/num_cores).zip(output_vec.par_chunks_mut(input_size/num_cores/2)).for_each( |(p1, p2)| {
-        //     H::batch_evaluate(p1, p2);
-        // });
+
+        use rayon::prelude::*;
+
+        let num_cores = 16;
+
+        if input_size < 2 * num_cores {
+            input_vec.par_chunks_mut(2).zip(output_vec.par_chunks_mut(1)).for_each( |(p1,p2)| {
+                H::batch_evaluate_in_place(p1, p2);
+            });
+            return;
+        }
+
+        input_vec.par_chunks_mut(input_size/num_cores).zip(output_vec.par_chunks_mut(input_size/num_cores/2)).for_each( |(p1, p2)| {
+            H::batch_evaluate_in_place(p1, p2);
+        });
 
     }
 
-    pub fn new(array: &mut [H::Data]) -> Self {
+    pub fn new(mut input_vec: &mut [H::Data]) -> Self {
 
         // rate = 2
         // d01, d02, d11, d12, d21, d22
 
-        /*
-        let mut size_input = array.len();
-        size_input /= 2;
-        let mut size_output = size_input;
-        while (size_input > 1) {
-            size_input /= 2;
-            size_output += size_input;
+        let last_level_size = input_vec.len().next_power_of_two();
+        let tree_size = 2 * last_level_size - 1;
+        let size_output = tree_size - input_vec.len();
+
+        let mut output = Vec::new();
+        for i in 0..size_output {
+            output.push(H::Data::zero());
         }
-        */
 
-        //let last_level_size = leaves.len().next_power_of_two();
-        // let tree size = 2* last_level_size -1;
-        // /* 2 ^ height -1 */
-        //
-        //
-        // let mut output = Vec::with_capacity(tree_size);
-        // let mut copy_vec = &mut array[..];
-        // let mut size_input = input_size;
-        //
-        // while size_input > 1{
-        //     Self::merkle_tree_compute(input_vec, output, size_input);
-        //     copy_vec = output;
-        //     let (input_vec, output) = copy_vec.split_at_mut(size_input);
-        //     size_input = size_input / 2;
-        // }
-        let output = vec![H::Data::zero();1];
+        let mut size_input = input_vec.len();
 
-        Self{ root: {*output.last().unwrap()}}
+        let mut copy_output = &mut output[..];
+        Self::merkle_tree_compute(input_vec, copy_output, size_input);
+        size_input /= 2;
+
+        while size_input > 1 {
+            let (input_vec, output_vec) = copy_output.split_at_mut(size_input);
+            Self::merkle_tree_compute(input_vec, output_vec, size_input);
+            copy_output = output_vec;
+            size_input /= 2;
+        }
+
+        Self{ root: {*copy_output.last().unwrap()}}
     }
 
 }
@@ -108,7 +100,6 @@ mod test {
 
         // we need the double of number of rounds because we have two inputs
         for _ in 0..num_leaves {
-            leaves.push(MNT4753Fr::rand(&mut rng));
             leaves.push(MNT4753Fr::rand(&mut rng));
         }
 
