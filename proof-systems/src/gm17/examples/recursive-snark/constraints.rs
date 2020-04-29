@@ -1,8 +1,4 @@
-use algebra::{
-    fields::FpParameters,
-    Field, PrimeField,
-    PairingEngine, ToConstraintField
-};
+use algebra::{fields::FpParameters, Field, PrimeField, PairingEngine, ToConstraintField, ToBits};
 
 use r1cs_crypto::nizk::{
     NIZKVerifierGadget,
@@ -151,19 +147,14 @@ impl<C: CurvePair> MiddleCircuit<C> {
     pub fn inputs(
         inputs: &[<C::PairingEngineTick as PairingEngine>::Fr],
     ) -> Vec<<C::PairingEngineTock as PairingEngine>::Fr> {
-        let input_bytes = inputs
+        let input_bits = inputs
             .iter()
             .flat_map(|input| {
-                input
-                    .into_repr()
-                    .as_ref()
-                    .iter()
-                    .flat_map(|l| l.to_le_bytes().to_vec())
-                    .collect::<Vec<_>>()
+                input.write_bits()
             })
             .collect::<Vec<_>>();
 
-        input_bytes[..].to_field_elements().unwrap()
+        input_bits[..].to_field_elements().unwrap()
     }
 }
 
@@ -181,33 +172,24 @@ impl<C: CurvePair> ConstraintSynthesizer<<C::PairingEngineTock as PairingEngine>
 
         {
             let mut cs = cs.ns(|| "Allocate Input");
-            // Chain all input values in one large byte array.
-            let input_bytes = inputs
+            // Chain all input values in one large bit array.
+            let input_bits = inputs
                 .into_iter()
                 .flat_map(|input| {
-                    input
-                        .into_repr()
-                        .as_ref()
-                        .iter()
-                        .flat_map(|l| l.to_le_bytes().to_vec())
-                        .collect::<Vec<_>>()
+                    input.write_bits()
                 })
                 .collect::<Vec<_>>();
 
-            // Allocate this byte array as input packed into field elements.
-            let input_bytes = UInt8::alloc_input_vec(cs.ns(|| "Input"), &input_bytes[..])?;
+            // Allocate this bit array as input packed into field elements.
+            let input_bits = Boolean::alloc_input_vec(cs.ns(|| "Input"), &input_bits[..])?;
 
-            let element_size =
-                (<<C::PairingEngineTick as PairingEngine>::Fr as PrimeField>::Params::MODULUS_BITS +
-                    <<C::PairingEngineTick as PairingEngine>::Fr as PrimeField>::Params::REPR_SHAVE_BITS
-                )/8;
-            input_gadgets = input_bytes
+            let element_size = <<C::PairingEngineTick as PairingEngine>::Fr as PrimeField>::Params::MODULUS_BITS;
+            input_gadgets = input_bits
                 .chunks(element_size as usize)
                 .map(|chunk| {
+                    let mut chunk = chunk.to_vec();
+                    chunk.reverse();
                     chunk
-                        .iter()
-                        .flat_map(|byte| byte.into_bits_le())
-                        .collect::<Vec<_>>()
                 })
                 .collect::<Vec<_>>();
         }
@@ -272,40 +254,25 @@ impl<C: CurvePair> ConstraintSynthesizer<<C::PairingEngineTick as PairingEngine>
         let mut input_gadgets = Vec::new();
 
         {
-            let bigint_size = (<<C::PairingEngineTick as PairingEngine>::Fr as PrimeField>::Params::MODULUS_BITS +
-                <<C::PairingEngineTick as PairingEngine>::Fr as PrimeField>::Params::REPR_SHAVE_BITS) as usize;
             let mut input_bits = Vec::new();
             let mut cs = cs.ns(|| "Allocate Input");
             for (i, input) in inputs.into_iter().enumerate() {
                 let input_gadget =
                     FpGadget::alloc_input(cs.ns(|| format!("Input {}", i)), || Ok(input))?;
-                let mut fp_bits = input_gadget.to_bits(cs.ns(|| format!("To bits {}", i)))?;
-
-                // FpGadget::to_bits outputs a big-endian binary representation of
-                // fe_gadget's value, so we have to reverse it to get the little-endian
-                // form.
-                fp_bits.reverse();
-
-                // Use bigint_size bits per element.
-                for _ in fp_bits.len()..bigint_size {
-                    fp_bits.push(Boolean::constant(false));
-                }
+                let fp_bits = input_gadget.to_bits(cs.ns(|| format!("To bits {}", i)))?;
                 input_bits.extend_from_slice(&fp_bits);
             }
 
             // Pack input bits into field elements of the underlying circuit.
-            let max_size = 8
-                * (<<<C::PairingEngineTock as PairingEngine>::Fr as PrimeField>::Params as FpParameters>::CAPACITY / 8)
-                    as usize;
+            let max_size = <<<C::PairingEngineTock as PairingEngine>::Fr as PrimeField>::Params as FpParameters>::CAPACITY as usize;
             let bigint_size = (<<C::PairingEngineTock as PairingEngine>::Fr as PrimeField>::Params::MODULUS_BITS +
-                    <<C::PairingEngineTock as PairingEngine>::Fr as PrimeField>::Params::REPR_SHAVE_BITS) as usize;
+                <<C::PairingEngineTock as PairingEngine>::Fr as PrimeField>::Params::REPR_SHAVE_BITS) as usize;
             for chunk in input_bits.chunks(max_size) {
-                let mut chunk = chunk.to_vec();
                 let len = chunk.len();
-                for _ in len..bigint_size {
-                    chunk.push(Boolean::constant(false));
-                }
-                input_gadgets.push(chunk);
+                let mut padding = vec![Boolean::constant(false); bigint_size - len];
+                padding.extend_from_slice(chunk);
+                padding.reverse();
+                input_gadgets.push(padding);
             }
         }
         println!("|---- Num inputs for sub-SNARK: {}", input_gadgets.len());
