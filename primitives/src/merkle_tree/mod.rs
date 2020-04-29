@@ -460,10 +460,3 @@ mod test {
     }
 }
 
-
-pub trait BatchMerkleTree {
-    type Data: Field;
-    type Parameters: FieldBasedHashParameters<Fr = Self::Data>;
-
-}
-

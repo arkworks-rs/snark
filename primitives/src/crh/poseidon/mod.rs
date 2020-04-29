@@ -215,7 +215,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F,
         }
     }
 
-    fn poseidon_perm_gen(vec_state: &mut [Vec<P::Fr>]) {
+    pub fn poseidon_perm_gen(vec_state: &mut [Vec<P::Fr>]) {
 
         // index that goes over the round constants
         let mut round_cst_idx: usize = 0;
@@ -446,6 +446,9 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> FieldBasedHash for
     }
 }
 
+
+
+
 impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> BatchFieldBasedHash for PoseidonBatchHash<F, P> {
     type Data = F;
     type Parameters = P;
@@ -511,6 +514,55 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> BatchFieldBasedHas
             output_array.push(state[k][0]);
         }
         Ok(output_array)
+    }
+
+    fn batch_evaluate_in_place(input_array: &mut[F], output_array: &mut[F]) {
+
+        // Input:
+        // This function calculates the hashes of inputs by groups of the rate P::R.
+        // The inputs are arranged in an array and arranged as consecutive chunks
+        // Example:
+        // For P::R = 2,
+        // (d_00, d01, d_10, d_11, d_20, d_21, ...
+        // Output:
+        // The output will be placed in the output_array taking input length / P::R
+
+        // Checks that size of input/output vector
+        let array_length = input_array.len() / P::R;
+        assert_eq!(output_array.len(), array_length, "The size of the output vector is not the size of the input vector divided by the rate.");
+
+        // Assign pre-computed values of the state vector equivalent to a permutation with zero element state vector
+        let mut state_z = Vec::new();
+        for i in 0..P::T {
+            state_z.push(P::AFTER_ZERO_PERM[i]);
+        }
+
+        // Copy the result of the permutation to a vector of state vectors of the length equal to the length of the input
+        // state is a vector of 3-element state vector.
+        let mut state = Vec::new();
+        for _i in 0..array_length {
+            state.push(state_z.clone());
+        }
+
+        // input_idx is to scan the input_array
+        let mut input_idx = 0;
+
+        for k in 0..array_length {
+            for j in 0..P::R {
+                state[k][j] += &input_array[input_idx];
+                input_idx += 1;
+            }
+            // constant for m-ary Merkle tree
+            state[k][P::R] += &P::C2;
+        }
+
+        // apply permutation after adding the input vector
+        Self::poseidon_perm_gen(&mut state);
+
+        // write the result of the hash extracted from the state vector to the output vector
+        for k in 0..array_length {
+            output_array[k] = state[k][0];
+        }
     }
 
 }
@@ -776,6 +828,71 @@ mod test {
         println!("{:?}", output_vec);
     }
 
+    #[test]
+    fn test_batch_hash_mnt4_in_place() {
+
+        type Mnt4BatchPoseidonHash = PoseidonBatchHash<MNT4753Fr, MNT4753PoseidonParameters>;
+
+        //  the number of hashes to test
+        let num_hashes = 1000;
+
+        // the vectors that store random input data
+        let mut input_batch = Vec::new();
+
+        // the random number generator to generate random input data
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+        // we need the double of number of rounds because we have two inputs
+        for _ in 0..num_hashes {
+            input_batch.push(MNT4753Fr::rand(&mut rng));
+            input_batch.push(MNT4753Fr::rand(&mut rng));
+        }
+
+        // Calculate Poseidon Hash for mnt4753 batch evaluation
+        let output_vec = (Mnt4BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+
+        let mut output_vec_in_place = vec![MNT4753PoseidonParameters::ZERO; num_hashes];
+        Mnt4BatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]);
+
+        // =============================================================================
+        // Compare results
+        for i in 0..num_hashes {
+            assert_eq!(output_vec_in_place[i], output_vec[i], "Hash outputs, position {}, for MNT6 are not equal.", i);
+        }
+    }
+
+    #[test]
+    fn test_batch_hash_mnt6_in_place() {
+
+        type Mnt6BatchPoseidonHash = PoseidonBatchHash<MNT6753Fr, MNT6753PoseidonParameters>;
+
+        //  the number of hashes to test
+        let num_hashes = 1000;
+
+        // the vectors that store random input data
+        let mut input_batch = Vec::new();
+
+        // the random number generator to generate random input data
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+        // we need the double of number of rounds because we have two inputs
+        for _ in 0..num_hashes {
+            input_batch.push(MNT6753Fr::rand(&mut rng));
+            input_batch.push(MNT6753Fr::rand(&mut rng));
+        }
+
+        // Calculate Poseidon Hash for mnt4753 batch evaluation
+        let output_vec = (Mnt6BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+
+        let mut output_vec_in_place = vec![MNT6753PoseidonParameters::ZERO; num_hashes];
+        Mnt6BatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]);
+
+        // =============================================================================
+        // Compare results
+        for i in 0..num_hashes {
+            assert_eq!(output_vec_in_place[i], output_vec[i], "Hash outputs, position {}, for MNT6 are not equal.", i);
+        }
+    }
 
     // #[test]
     // fn test_merkle_tree() {
