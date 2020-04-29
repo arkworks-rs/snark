@@ -1,4 +1,3 @@
-extern crate hex;
 extern crate rand;
 extern crate rayon;
 
