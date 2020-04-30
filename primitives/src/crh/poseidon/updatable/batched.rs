@@ -25,14 +25,16 @@ impl<F, P> UpdatableBatchPoseidonHash<F, P>
         P: PoseidonParameters<Fr = F>,
 {
     pub fn new(hashes_per_core: Option<usize>) -> Self {
+        let cpu_load = rayon::current_num_threads() * hashes_per_core.unwrap_or(1);
         Self {
-            outputs: Vec::new(),
-            pending: Vec::new(),
-            cpu_load: rayon::current_num_threads() * hashes_per_core.unwrap_or(1),
+            outputs: Vec::with_capacity((cpu_load * P::R)/2),
+            pending: Vec::with_capacity(cpu_load * P::R),
+            cpu_load,
             _parameters: PhantomData,
         }
     }
 
+    #[inline]
     fn apply_permutation(&mut self) {
         let output = PoseidonBatchHash::<F, P>::batch_evaluate(
             self.pending.as_slice()
@@ -58,6 +60,7 @@ impl<F, P> UpdatableBatchFieldBasedHash for UpdatableBatchPoseidonHash<F, P>
     type Data = F;
     type Parameters = P;
 
+    #[inline]
     fn update(&mut self, input: &[Self::Data]) -> &mut Self {
         assert_eq!(input.len(), P::R);
         self.pending.extend_from_slice(input);
