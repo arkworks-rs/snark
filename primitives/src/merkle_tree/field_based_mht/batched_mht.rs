@@ -1,7 +1,5 @@
 extern crate rand;
 
-use crate::Error;
-
 use crate::crh::{
     BatchFieldBasedHash,
     FieldBasedHashParameters, poseidon::{
@@ -20,27 +18,7 @@ impl<H: BatchFieldBasedHash> BatchMerkleTree<H> {
         self.root.clone()
     }
 
-    fn merkle_tree_compute(input_vec: &mut[H::Data], output_vec: &mut[H::Data], input_size: usize){
-        // Supporting function that processes the inputs and outputs in chunks
-
-        use rayon::prelude::*;
-
-        let num_cores = 16;
-
-        if input_size < 2 * num_cores {
-            input_vec.par_chunks_mut(2).zip(output_vec.par_chunks_mut(1)).for_each( |(p1,p2)| {
-                H::batch_evaluate_in_place(p1, p2);
-            });
-            return;
-        }
-
-        input_vec.par_chunks_mut(input_size/num_cores).zip(output_vec.par_chunks_mut(input_size/num_cores/2)).for_each( |(p1, p2)| {
-            H::batch_evaluate_in_place(p1, p2);
-        });
-
-    }
-
-    pub fn new(mut input_vec: &mut [H::Data]) -> Self {
+    pub fn new(input_vec: &mut [H::Data]) -> Self {
 
         // rate = 2
         // d01, d02, d11, d12, d21, d22
@@ -49,25 +27,25 @@ impl<H: BatchFieldBasedHash> BatchMerkleTree<H> {
         let tree_size = 2 * last_level_size - 1;
         let size_output = tree_size - input_vec.len();
 
-        let mut output = Vec::new();
-        for i in 0..size_output {
+        let mut output = Vec::with_capacity(size_output);
+        for _i in 0..size_output {
             output.push(H::Data::zero());
         }
 
         let mut size_input = input_vec.len();
 
-        let mut copy_output = &mut output[..];
-        Self::merkle_tree_compute(input_vec, copy_output, size_input);
+        let mut output_mt = &mut output[..];
+        H::batch_evaluate_in_place(input_vec, output_mt);
         size_input /= 2;
 
         while size_input > 1 {
-            let (input_vec, output_vec) = copy_output.split_at_mut(size_input);
-            Self::merkle_tree_compute(input_vec, output_vec, size_input);
-            copy_output = output_vec;
+            let (input_vec, output_vec) = output_mt.split_at_mut(size_input);
+            H::batch_evaluate_in_place(input_vec, output_vec);
+            output_mt = output_vec;
             size_input /= 2;
         }
 
-        Self{ root: {*copy_output.last().unwrap()}}
+        Self{ root: {*output_mt.last().unwrap()}}
     }
 
 }
@@ -90,10 +68,10 @@ mod test {
     fn merkle_tree_test () {
 
         //  the number of leaves to test
-        let num_leaves = 1024;
+        let num_leaves = 1024 * 1024;
 
         // the vectors that store random input data
-        let mut leaves = Vec::new();
+        let mut leaves = Vec::with_capacity(num_leaves);
 
         // the random number generator to generate random input data
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);

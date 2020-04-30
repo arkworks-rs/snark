@@ -526,9 +526,13 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> BatchFieldBasedHas
         // Output:
         // The output will be placed in the output_array taking input length / P::R
 
+        use rayon::prelude::*;
+
         // Checks that size of input/output vector
         let array_length = input_array.len() / P::R;
-        assert_eq!(output_array.len(), array_length, "The size of the output vector is not the size of the input vector divided by the rate.");
+        assert_eq!(input_array.len() % P::R, 0, "The length of the input data array is not a multiple of the rate.");
+        assert_ne!(input_array.len(), 0, "Input data array does not contain any data.");
+        assert_eq!(output_array.len() >= array_length, true,  "The size of the output vector is not greater than the size of the input vector divided by the rate.");
 
         // Assign pre-computed values of the state vector equivalent to a permutation with zero element state vector
         let mut state_z = Vec::new();
@@ -555,8 +559,15 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> BatchFieldBasedHas
             state[k][P::R] += &P::C2;
         }
 
-        // apply permutation after adding the input vector
-        Self::poseidon_perm_gen(&mut state);
+        // Calculate the chunk size to split the state vector
+        let cpus = rayon::current_num_threads();
+        let chunk_size = (array_length as f64/ cpus as f64).ceil() as usize;
+
+        // apply permutation to different chunks in parallel
+        state.par_chunks_mut(chunk_size)
+            .for_each(| p1| {
+                Self::poseidon_perm_gen(p1);
+            });
 
         // write the result of the hash extracted from the state vector to the output vector
         for k in 0..array_length {
