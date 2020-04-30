@@ -14,13 +14,10 @@ fn poseidon_crh_eval_mnt4(c: &mut Criterion) {
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-    let mut input = Vec::new();
-    input.push(MNT4753Fr::rand(&mut rng));
-    input.push(MNT4753Fr::rand(&mut rng));
-
+    let input = vec![MNT4753Fr::rand(&mut rng); 100];
     c.bench_function("Poseidon CRH Eval for MNT4", move |b| {
         b.iter(|| {
-            MNT4PoseidonHash::evaluate(&input).unwrap();
+            MNT4PoseidonHash::evaluate(input.as_slice()).unwrap();
         })
     });
 }
@@ -29,13 +26,11 @@ fn poseidon_crh_eval_mnt6(c: &mut Criterion) {
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-    let mut input = Vec::new();
-    input.push(MNT6753Fr::rand(&mut rng));
-    input.push(MNT6753Fr::rand(&mut rng));
+    let input = vec![MNT6753Fr::rand(&mut rng); 100];
 
     c.bench_function("Poseidon CRH Eval for MNT6", move |b| {
         b.iter(|| {
-            MNT6PoseidonHash::evaluate(&input).unwrap();
+            MNT6PoseidonHash::evaluate(input.as_slice()).unwrap();
         })
     });
 }
@@ -93,10 +88,16 @@ fn batch_poseidon_crh_eval_mnt6(c: &mut Criterion) {
 criterion_group! {
     name = crh_poseidon_eval;
     config = Criterion::default().sample_size(20);
-    targets = poseidon_crh_eval_mnt4, poseidon_crh_eval_mnt6, batch_poseidon_crh_eval_mnt4, batch_poseidon_crh_eval_mnt6
+    targets = poseidon_crh_eval_mnt4, poseidon_crh_eval_mnt6,
+}
+
+criterion_group! {
+    name = batch_crh_poseidon_eval;
+    config = Criterion::default().sample_size(20);
+    targets = batch_poseidon_crh_eval_mnt4, batch_poseidon_crh_eval_mnt6,
 }
 
 criterion_main! (
-    crh_poseidon_eval
+    crh_poseidon_eval, batch_crh_poseidon_eval
 );
 
