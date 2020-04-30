@@ -233,7 +233,8 @@ pub trait AffineCurve:
     fn mul_by_cofactor_inv(&self) -> Self;
 
     // currently ony implemented for Bn-382
-    fn add_points(_: Vec<Vec<Self>>) -> Vec<Self> {Vec::new()}
+    fn add_batch(_: &mut Vec<Self>) -> Self {Self::zero()}
+    fn add_points(_: &mut Vec<Vec<Self>>) -> Vec<Self> {Vec::new()}
 }
 
 pub trait PairingCurve: AffineCurve {
