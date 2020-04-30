@@ -18,6 +18,7 @@ use crate::Error;
 
 pub mod parameters;
 pub mod batched_crh;
+pub mod updatable;
 
 pub struct PoseidonHash<F: PrimeField, P: PoseidonParameters<Fr = F>>{
     _field:      PhantomData<F>,
@@ -100,7 +101,7 @@ pub fn matrix_mix_short<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> (
 
 impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
 
-    fn poseidon_perm (state: &mut Vec<F>) {
+    pub(crate) fn poseidon_perm (state: &mut Vec<F>) {
 
 
         // index that goes over the round constants
