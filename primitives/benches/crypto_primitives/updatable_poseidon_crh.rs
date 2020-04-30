@@ -180,5 +180,5 @@ criterion_group! {
 }
 
 criterion_main! (
-    updatable_batch_poseidon_hashes_per_core
+    updatable_crh_poseidon_eval, updatable_batch_crh_poseidon_eval, updatable_batch_poseidon_hashes_per_core
 );
