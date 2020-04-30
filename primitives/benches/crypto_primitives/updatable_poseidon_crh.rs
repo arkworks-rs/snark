@@ -135,7 +135,6 @@ fn batch_mnt6_hashes_per_core(c: &mut Criterion) {
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
     let input = [MNT6753Fr::rand(&mut rng); MNT6753PoseidonParameters::R * NUM_HASHES];
     let max = (NUM_HASHES/rayon::current_num_threads()).next_power_of_two();
-    println!("{}", max);
     let mut cpu_load = 1;
     while cpu_load <= max {
         c.bench_with_input(
@@ -180,5 +179,5 @@ criterion_group! {
 }
 
 criterion_main! (
-    updatable_crh_poseidon_eval, updatable_batch_crh_poseidon_eval, updatable_batch_poseidon_hashes_per_core
+    updatable_batch_poseidon_hashes_per_core
 );
