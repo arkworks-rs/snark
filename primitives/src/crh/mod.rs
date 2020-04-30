@@ -42,3 +42,15 @@ pub trait BatchFieldBasedHash {
     fn batch_evaluate_in_place(input_array: &mut[Self::Data], output_array: &mut[Self::Data]);
 
 }
+
+pub trait UpdatableFieldBasedHash {
+    type Data: Field;
+    type Parameters: FieldBasedHashParameters<Fr = Self::Data>;
+
+    // Updates the hash with `input`
+    fn update(&mut self, input: &Self::Data) -> &mut Self;
+
+    // Returns the hash. This method is idempotent, and calling it multiple times will
+    // give the same result. It's also possible to `update` with more input in between.
+    fn finalize(&self) -> Self::Data;
+}

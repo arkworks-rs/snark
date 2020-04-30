@@ -17,6 +17,7 @@ use crate::crh::{FieldBasedHash, BatchFieldBasedHash};
 use crate::Error;
 
 pub mod parameters;
+pub mod updatable;
 
 pub struct PoseidonHash<F: PrimeField, P: PoseidonParameters<Fr = F>>{
     _field:      PhantomData<F>,
@@ -258,7 +259,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F,
 
 impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
 
-    fn poseidon_perm (state: &mut Vec<F>) {
+    pub(crate) fn poseidon_perm (state: &mut Vec<F>) {
 
         // index that goes over the round constants
         let mut round_cst_idx = 0;
@@ -398,7 +399,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> FieldBasedHash for
 
     fn evaluate(input: &[F]) -> Result<F, Error> {
 
-        assert_eq!(input.len() % P::R, 0, "The length of the input data array is not a multiple of the rate.");
+        //assert_eq!(input.len() % P::R, 0, "The length of the input data array is not a multiple of the rate.");
         assert_ne!(input.len(), 0, "Input data array does not contain any data.");
 
         // state is a vector of P::T elements.
