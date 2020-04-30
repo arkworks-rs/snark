@@ -1,6 +1,6 @@
 use super::*;
-use crate::UpdatableFieldBasedHash;
 use std::marker::PhantomData;
+use crate::UpdatableFieldBasedHash;
 
 pub mod batched;
 
@@ -149,8 +149,8 @@ mod test {
 
             let updatable_hash_output = {
                 let mut updatable_hash = UpdatableMNT4PoseidonHash::new(Some(personalization));
-                    updatable_hash.update(&input);
-                    updatable_hash.finalize()
+                updatable_hash.update(&input);
+                updatable_hash.finalize()
             };
             assert_eq!(hash_output,
                        updatable_hash_output,
@@ -191,7 +191,7 @@ mod test {
         assert_eq!(h_out, uh.finalize());
 
         // Test initializing UpdatablePoseidonHash with personalization is the same as concatenating
-        // to PoseidonHash input the personalization.
+        // to PoseidonHash input the personalization and the padding.
         let input = MNT6Fr::rand(&mut rng);
         let samples = 10;
         for i in 1..=samples{
