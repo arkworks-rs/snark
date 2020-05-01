@@ -215,16 +215,25 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
     // together, using Affine point arithmetic, producing the vector of sums
     fn add_points (vectors: &mut Vec<Vec<Self>>) -> Vec<Self>
     {
-        let length = vectors.iter().map(|l| l.len()).fold(0, |x, y| x + y);
+        vectors.iter_mut().for_each(|v| if v.len() == 0 {*v = vec![Self::zero()]});
+        let mut lengths = vectors.iter().map(|l| l.len()).collect::<Vec<_>>();
+        let length = lengths.iter().map(|l| l).fold(0, |x, y| x + y);
         let mut denoms = Vec::<P::BaseField>::with_capacity(length / 2);
+        let mut p = Vec::<Self>::with_capacity(length);
 
-        while vectors.iter().position(|x| x.len() > 1) != None
+        let mut offset: usize = 0;
+        let offsets = lengths.iter().map(|l| {let ret = offset; offset += l; ret}).collect::<Vec<_>>();
+        vectors.iter_mut().for_each(|mut v| p.append(&mut v));
+
+        // we have flattened vectors (vector of vectors) into p (flat vector)
+
+        while lengths.iter().position(|&l| l > 1) != None
         {
-            for p in vectors.iter_mut()
+            for (&off, &plen) in offsets.iter().zip(lengths.iter())
             {
-                if p.len() < 2 {continue}
-                let len = if p.len()%2 == 0 {p.len()} else {p.len()-1};
-                denoms.append(&mut (0..len).step_by(2).map
+                if plen < 2 {continue}
+                let len = if plen%2 == 0 {plen} else {plen-1};
+                denoms.append(&mut (off..off+len).step_by(2).map
                 (
                     |i|
                     if p[i].x == p[i+1].x
@@ -236,15 +245,15 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
 
             crate::fields::batch_inversion::<P::BaseField>(&mut denoms);
 
-            for p in vectors.iter_mut()
+            for (&off, plen) in offsets.iter().zip(lengths.iter_mut())
             {
-                if p.len() < 2 {continue}
-                let len = if p.len()%2 == 0 {p.len()} else {p.len()-1};  
+                if *plen < 2 {continue}
+                let len = if *plen%2 == 0 {*plen} else {*plen-1};
                 let denominators = denoms.drain(0..len/2).collect::<Vec<_>>();
                 
-                for (i, d) in (0..len).step_by(2).zip(denominators.iter())
+                for (i, d) in (off..off+len).step_by(2).zip(denominators.iter())
                 {
-                    let j = i/2;
+                    let j = (off+i)/2;
                     if p[i+1].is_zero() == true
                     {
                         p[j] = p[i];
@@ -276,19 +285,19 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
                     }
                 }
 
-                let len = p.len();
-                if len % 2 == 1
+                let len = *plen;
+                if *plen % 2 == 1
                 {
-                    p[len/2] = p[len-1];
-                    p.truncate(len/2+1);
+                    p[off + len/2] = p[off + len-1];
+                    *plen = len/2+1;
                 }
                 else
                 {
-                    p.truncate(len/2);
+                    *plen = len/2;
                 }
             }
         }
-        vectors.iter().map(|x| if x.len() == 0 {Self::zero()} else {x[0]}).collect()
+        offsets.iter().map(|&o| p[o]).collect()
     }
 }
 
