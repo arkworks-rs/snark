@@ -14,30 +14,32 @@ impl VariableBaseMSM {
         let c = if scalars.len() < 32 {
             3
         } else {
-            ((f64::from(scalars.len() as u32)).log2() / 3.0 + 1.0).floor() as usize
+            (2.0 / 3.0 * (f64::from(scalars.len() as u32)).log2() + 2.0).ceil() as usize
         };
         let cc = 1 << c;
-
+        let mut cpus = num_cpus::get();
+        if cpus > cc {cpus = cc}
+        
         let num_bits =
             <G::ScalarField as PrimeField>::Params::MODULUS_BITS as usize;
         let fr_one = G::ScalarField::one().into_repr();
 
         let zero = G::zero().into_projective();
-        let mut buckets = vec![Vec::<G>::with_capacity(bases.len()/cc); cc];
-
         let window_starts: Vec<_> = (0..num_bits).step_by(c).collect();
+        let mut buckets = vec![Vec::<G>::with_capacity(bases.len()/cc); cc];
+        let mut bucketsums = Vec::<G>::with_capacity(cc);
+
         // Each window is of size `c`.
         // We divide up the bits 0..num_bits into windows of size `c`, and
         // in parallel process each such window.
-
         let window_sums: Vec<_> = window_starts
             .into_iter()
             .map(|w_start| {
+                // We don't need the "zero" bucket, we use 2^c-1 bucket for units
                 scalars.iter().zip(bases).filter(|(s, _)| !s.is_zero()).for_each(|(&scalar, base)|  {
-                                        
                     if scalar == fr_one {
                         // We only process unit scalars once in the first window.
-                        if w_start == 0 {
+                        if w_start == 0 && base.is_zero() == false {
                             buckets[cc-1].push(*base);
                         }
                     } else {
@@ -53,12 +55,19 @@ impl VariableBaseMSM {
                         // If the scalar is non-zero, we update the corresponding
                         // bucket.
                         // (Recall that `buckets` doesn't have a zero bucket.)
-                        if scalar != 0 {
+                        if scalar != 0 && base.is_zero() == false {
                             buckets[(scalar - 1) as usize].push(*base);
                         }
                     }
                 });
-                let mut bucketsums = buckets.par_iter_mut().map(|mut b| G::add_batch(&mut b)).collect::<Vec<_>>();
+
+                bucketsums.clear();
+                let chunks = buckets.chunks_exact_mut(cc/cpus).collect::<Vec<_>>().
+                    par_iter_mut().map(|c| G::add_points(c)).collect::<Vec<_>>();
+                for mut chunk in chunks
+                {
+                    bucketsums.append(&mut chunk)
+                }
                 let mut res = bucketsums.remove(cc-1).into_projective();
  
                 let mut running_sum = G::Projective::zero();
