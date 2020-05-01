@@ -133,7 +133,7 @@ impl<H: BatchFieldBasedHash> BatchMerkleTree<H> {
 mod test {
     use rand_xorshift::XorShiftRng;
     use super::rand::SeedableRng;
-    use crate::PoseidonBatchHash;
+    use crate::batched_crh::PoseidonBatchHash;
     use crate::crh::poseidon::parameters::MNT4753PoseidonParameters;
     use crate::crh::poseidon::parameters::MNT6753PoseidonParameters;
     use crate::merkle_tree::field_based_mht::batched_mht::BatchMerkleTree;
