@@ -14,7 +14,7 @@ impl VariableBaseMSM {
         let c = if scalars.len() < 32 {
             3
         } else {
-            (2.0 / 3.0 * (f64::from(scalars.len() as u32)).log2() + 2.0).ceil() as usize
+            (2.0 / 3.0 * (f64::from(scalars.len() as u32)).log2() - 2.0).ceil() as usize
         };
         let cc = 1 << c;
 
@@ -32,7 +32,7 @@ impl VariableBaseMSM {
             .into_par_iter()
             .map(|w_start| {
                 // We don't need the "zero" bucket, we use 2^c-1 bucket for units
-                let mut buckets = vec![Vec::with_capacity(bases.len()/cc); cc];
+                let mut buckets = vec![Vec::with_capacity(bases.len()/cc*2); cc];
                 scalars.iter().zip(bases).filter(|(s, _)| !s.is_zero()).for_each(|(&scalar, base)|  {
                     if scalar == fr_one {
                         // We only process unit scalars once in the first window.
