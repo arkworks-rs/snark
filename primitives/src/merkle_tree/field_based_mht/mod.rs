@@ -4,6 +4,7 @@ use crate::{
 use super::*;
 
 pub mod batched_mht;
+pub mod batched_mht_mem;
 
 pub trait FieldBasedMerkleTreeConfig {
     const HEIGHT: usize;

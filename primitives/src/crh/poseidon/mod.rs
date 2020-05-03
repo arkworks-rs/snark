@@ -13,7 +13,7 @@ use crate::crh::{
     }
 };
 
-use crate::crh::{FieldBasedHash, BatchFieldBasedHash};
+use crate::crh::FieldBasedHash;
 use crate::Error;
 
 pub mod parameters;
@@ -292,11 +292,8 @@ pub type MNT6PoseidonHash = PoseidonHash<MNT6753Fr, MNT6753PoseidonParameters>;
 #[cfg(test)]
 mod test {
     use super::*;
-    use rand_xorshift::XorShiftRng;
     use std::str::FromStr;
-    use crate::{FieldBasedHash, BatchFieldBasedHash};
-    use super::rand::SeedableRng;
-    use algebra::UniformRand;
+    use crate::FieldBasedHash;
     use algebra::biginteger::BigInteger768;
 
     #[test]

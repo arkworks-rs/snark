@@ -1,17 +1,11 @@
 extern crate rand;
 
-use crate::crh::{
-    BatchFieldBasedHash,
-    FieldBasedHashParameters, poseidon::{
-        parameters::{MNT4753PoseidonParameters, MNT6753PoseidonParameters}
-    }
-};
+use crate::crh::BatchFieldBasedHash;
 use algebra::Field;
 
 pub struct BatchMerkleTree<H: BatchFieldBasedHash>{
     root: H::Data,
     array_nodes: Vec<H::Data>,
-    size_leaves: usize,
     processing_step: usize,
     initial_pos: Vec<usize>,
     final_pos: Vec<usize>,
@@ -64,8 +58,16 @@ impl<H: BatchFieldBasedHash> BatchMerkleTree<H> {
         }
 
         let cpus = rayon::current_num_threads();
-        let chunk_size = processing_step / (cpus * rate);
+        let mut chunk_size = processing_step / (cpus * rate);
         let mut processing_block_size = chunk_size * cpus * rate;
+        if processing_step < cpus * rate {
+            chunk_size = processing_step / rate;
+            if chunk_size == 0 {
+                chunk_size = 1;
+            }
+            processing_block_size = chunk_size * rate;
+        }
+
         if processing_block_size > last_level_size {
             processing_block_size = last_level_size;
         }
@@ -73,7 +75,6 @@ impl<H: BatchFieldBasedHash> BatchMerkleTree<H> {
         Self {
             root: { H::Data::zero() },
             array_nodes: { array_nodes },
-            size_leaves: { size_leaves },
             processing_step: { processing_block_size },
             initial_pos: { initial_pos },
             final_pos: { final_pos },
