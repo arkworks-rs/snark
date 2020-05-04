@@ -101,14 +101,14 @@ impl Context {
         ));
     }
 
-    pub fn add_asm(&mut self, ctx_string: String) {
+    pub fn add_llvm_asm(&mut self, ctx_string: String) {
         self.ctx_string = Rc::new(format!(
             "{}{}",
             Rc::clone(&self.ctx_string),
             format!(
                 "
                     unsafe {{
-                        asm!({}
+                        llvm_asm!({}
                             :
                             :",
                 ctx_string
@@ -159,7 +159,7 @@ impl Context {
 
     pub fn end(&mut self, num_limbs: usize) {
         self.ctx_string = Rc::new(format!("{}{}", Rc::clone(&self.ctx_string), format!("
-            x => panic!(\"asm_mul (no-carry): number of limbs supported is 2 up to {}. You had {{}}.\", x)
+            x => panic!(\"llvm_asm_mul (no-carry): number of limbs supported is 2 up to {}. You had {{}}.\", x)
         }};
     }}
 }}

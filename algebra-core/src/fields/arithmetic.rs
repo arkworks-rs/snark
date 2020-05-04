@@ -20,14 +20,16 @@ macro_rules! impl_field_mul_assign {
             // No-carry optimisation applied to CIOS
             if _no_carry {
                 #[cfg(all(
-                    feature = "asm",
+                    feature = "llvm_asm",
                     target_feature = "bmi2",
                     target_feature = "adx",
-                    target_arch = "x86_64"
+                    target_arch = "x86_64",
+                    nightly,
                 ))]
                 {
                     if $limbs <= 6 {
-                        asm_mul!($limbs, (self.0).0, (other.0).0, P::MODULUS.0, P::INV);
+                        #[allow(unsafe_code)]
+                        llvm_asm_mul!($limbs, (self.0).0, (other.0).0, P::MODULUS.0, P::INV);
                         self.reduce();
                         return;
                     }
@@ -108,6 +110,7 @@ macro_rules! impl_field_square_in_place {
     ($limbs: expr) => {
         #[inline]
         #[unroll_for_loops]
+        #[allow(unused_braces)]
         fn square_in_place(&mut self) -> &mut Self {
             // Checking the modulus at compile time
             let first_bit_set = P::MODULUS.0[$limbs - 1] >> 63 != 0;
@@ -118,14 +121,16 @@ macro_rules! impl_field_square_in_place {
             let _no_carry: bool = !(first_bit_set || all_bits_set);
 
             #[cfg(all(
-                feature = "asm",
+                feature = "llvm_asm",
                 target_feature = "bmi2",
                 target_feature = "adx",
-                target_arch = "x86_64"
+                target_arch = "x86_64",
+                nightly,
             ))]
             {
                 if $limbs <= 6 && _no_carry {
-                    asm_square!($limbs, (self.0).0, P::MODULUS.0, P::INV);
+                    #[allow(unsafe_code)]
+                    llvm_asm_square!($limbs, (self.0).0, P::MODULUS.0, P::INV);
                     self.reduce();
                     return self;
                 }

@@ -21,25 +21,23 @@ pub fn generate_macro_string(num_limbs: usize) -> std::string::String {
         );
     }
     let mut macro_string = String::from(
-        "macro_rules! asm_mul {
+        "
+        macro_rules! llvm_asm_mul {
         ($limbs:expr, $a:expr, $b:expr, $modulus:expr, $mod_prime:expr) => {
             match $limbs {",
     );
-    macro_string = format!("{}{}", macro_string, generate_matches(num_limbs, true));
+    macro_string += &generate_matches(num_limbs, true);
 
-    macro_string = format!(
-        "{}{}",
-        macro_string,
-        "macro_rules! asm_square {
+    macro_string += &"
+        macro_rules! llvm_asm_square {
         ($limbs:expr, $a:expr, $modulus:expr, $mod_prime:expr) => {
-            match $limbs {"
-    );
-    macro_string = format!("{}{}", macro_string, generate_matches(num_limbs, false));
+            match $limbs {";
+    macro_string += &generate_matches(num_limbs, false);
     macro_string
 }
 
 #[assemble]
-fn generate_asm_mul_string(
+fn generate_llvm_asm_mul_string(
     a: &str,
     b: &str,
     modulus: &str,
@@ -69,19 +67,19 @@ fn generate_asm_mul_string(
     }
 
     // } else {
-    // asm.xorq(RCX, RCX);
+    // llvm_asm.xorq(RCX, RCX);
     // for i in 0..8 {
     //     if i == 0 {
-    //         ar::mul_1_mov(&mut asm, a1[0], &b1, 0);
+    //         ar::mul_1_mov(&mut llvm_asm, a1[0], &b1, 0);
     //     } else {
-    //         ar::mul_add_1(&mut asm, &a1, &b1, i);
+    //         ar::mul_add_1(&mut llvm_asm, &a1, &b1, i);
     //     }
     // }
     // for i in 0..8 {
-    //     ar::mul_add_1(&mut asm, &m1, 0);
+    //     ar::mul_add_1(&mut llvm_asm, &m1, 0);
     // }
-    // for i in 0..asm.limbs {
-    //     asm.movq(R[i], a1[i]);
+    // for i in 0..llvm_asm.limbs {
+    //     llvm_asm.movq(R[i], a1[i]);
     // }
 
     // }
@@ -106,7 +104,7 @@ fn generate_matches(num_limbs: usize, is_mul: bool) -> String {
             ctx.add_declaration("buf", "r", "&mut spill_buffer");
         }
 
-        let asm_string = generate_asm_mul_string(
+        let llvm_asm_string = generate_llvm_asm_mul_string(
             &ctx.clone().get("a"),
             &ctx.clone().try_get("b", "a"),
             &ctx.clone().get("modulus"),
@@ -115,7 +113,7 @@ fn generate_matches(num_limbs: usize, is_mul: bool) -> String {
             limbs,
         );
 
-        ctx.add_asm(asm_string);
+        ctx.add_llvm_asm(llvm_asm_string);
         ctx.add_clobber_from_vec(vec!["rcx", "rbx", "rdx", "rax"]);
         for j in 0..std::cmp::min(limbs, 8) {
             ctx.add_clobber(REG_CLOBBER[j]);

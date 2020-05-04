@@ -31,7 +31,8 @@ Informally, the library provides the ability to create transactions that run arb
 
 This repository contains several Rust crates that implement the different building blocks of ZEXE. The high-level structure of the repository is as follows.
 
-* [`algebra`](algebra): Rust crate that provides finite fields and elliptic curves
+* [`algebra-core`](algebra-core): Rust crate that provides generic arithmetic for finite fields and elliptic curves
+* [`algebra`](algebra): Rust crate that provides concrete instantiations of some finite fields and elliptic curves
 * [`crypto-primitives`](crypto-primitives): Rust crate that implements some useful cryptographic primitives (and constraints for them)
 * [`dpc`](dpc): Rust crate that implements DPC schemes (the main cryptographic primitive in this repository)
 * [`ff-fft`](ff-fft): Rust crate that provides efficient finite field polynomial arithmetic based on finite field FFTs

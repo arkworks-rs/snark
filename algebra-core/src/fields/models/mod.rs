@@ -20,19 +20,28 @@ use crate::{
 };
 
 #[cfg(all(
-    feature = "asm",
+    feature = "llvm_asm",
     target_arch = "x86_64",
     target_feature = "bmi2",
-    target_feature = "adx"
+    target_feature = "adx",
+    nightly,
 ))]
 use std::mem::MaybeUninit;
 
 #[cfg(all(
-    feature = "asm",
+    feature = "llvm_asm",
     target_arch = "x86_64",
     target_feature = "bmi2",
-    target_feature = "adx"
+    target_feature = "adx",
+    nightly,
 ))]
+#[cfg_attr(all(
+    feature = "llvm_asm",
+    target_arch = "x86_64",
+    target_feature = "bmi2",
+    target_feature = "adx",
+    nightly,
+), allow(unsafe_code))]
 include!(concat!(env!("OUT_DIR"), "/field_assembly.rs"));
 
 impl_Fp!(Fp256, Fp256Parameters, BigInteger256, BigInteger256, 4);
