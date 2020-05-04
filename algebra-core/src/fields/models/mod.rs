@@ -35,13 +35,16 @@ use std::mem::MaybeUninit;
     target_feature = "adx",
     nightly,
 ))]
-#[cfg_attr(all(
-    feature = "llvm_asm",
-    target_arch = "x86_64",
-    target_feature = "bmi2",
-    target_feature = "adx",
-    nightly,
-), allow(unsafe_code))]
+#[cfg_attr(
+    all(
+        feature = "llvm_asm",
+        target_arch = "x86_64",
+        target_feature = "bmi2",
+        target_feature = "adx",
+        nightly,
+    ),
+    allow(unsafe_code)
+)]
 include!(concat!(env!("OUT_DIR"), "/field_assembly.rs"));
 
 impl_Fp!(Fp256, Fp256Parameters, BigInteger256, BigInteger256, 4);

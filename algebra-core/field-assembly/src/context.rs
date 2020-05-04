@@ -30,7 +30,7 @@ impl Context {
 
     fn append(&mut self, other: &str) {
         self.ctx_string += other;
-    } 
+    }
 
     pub fn get_string(&mut self) -> String {
         self.ctx_string.clone()
@@ -81,36 +81,30 @@ impl Context {
     }
 
     pub fn add_limb(&mut self, limb: usize) {
-        self.append( 
-            &format!(
-                "
+        self.append(&format!(
+            "
                 {} => {{",
-                limb
-            )
-        )
+            limb
+        ))
     }
 
     pub fn add_buffer(&mut self, extra_reg: usize) {
-        self.append(
-            &format!(
-                "
+        self.append(&format!(
+            "
                     let mut spill_buffer = MaybeUninit::<[u64; {}]>::uninit();",
-                extra_reg
-            )
-        );
+            extra_reg
+        ));
     }
 
     pub fn add_llvm_asm(&mut self, ctx_string: String) {
-        self.append(
-            &format!(
-                "
+        self.append(&format!(
+            "
                     unsafe {{
                         llvm_asm!({}
                             :
                             :",
-                ctx_string
-            )
-        );
+            ctx_string
+        ));
     }
 
     pub fn add_clobber_from_vec(&mut self, clobbers: Vec<&str>) {
@@ -127,28 +121,25 @@ impl Context {
         for i in 0..self.declarations.len() {
             let dec = &self.declaration_vec[i];
             let last = i == self.declarations.len() - 1;
-            let dec = 
-                &format!(
-                    "
+            let dec = &format!(
+                "
                             \"{}\"({}){}      // {}",
-                    dec.ty,
-                    dec.var,
-                    if last { "" } else { "," },
-                    dec.pos
-                );
+                dec.ty,
+                dec.var,
+                if last { "" } else { "," },
+                dec.pos
+            );
             self.append(dec);
         }
         let clobbers = self.clobbers.join(",");
-        self.append(
-            &format!(
-                "
+        self.append(&format!(
+            "
                             : {}
                         );
                     }}
                 }}",
-                clobbers
-            )
-        );
+            clobbers
+        ));
     }
 
     pub fn end(&mut self, num_limbs: usize) {

@@ -24,7 +24,8 @@ pub fn assemble(_meta: TokenStream, input: TokenStream) -> TokenStream {
 
     let begin: syn::Stmt = syn::parse((quote! { begin(); }).into()).unwrap();
     let end: syn::Stmt = syn::parse((quote! { end(); }).into()).unwrap();
-    let ret: syn::Stmt = syn::parse((quote! { return llvm_asm_string.into_inner(); }).into()).unwrap();
+    let ret: syn::Stmt =
+        syn::parse((quote! { return llvm_asm_string.into_inner(); }).into()).unwrap();
 
     let mut new_stmts = Vec::new();
     for stmt in &intrinsics.stmts {

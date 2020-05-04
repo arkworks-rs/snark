@@ -48,7 +48,7 @@ fn generate_llvm_asm_mul_string(
     reg!(a0, a1, a, limbs);
     reg!(b0, b1, b, limbs);
     reg!(m, m1, modulus, limbs);
-    
+
     xorq(RCX, RCX);
     for i in 0..limbs {
         if i == 0 {
