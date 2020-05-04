@@ -57,12 +57,14 @@ impl VariableBaseMSM {
                         }
                     }
                 });
-                let mut buckets = G::add_points(&mut buckets);
-                let mut res = buckets.remove(cc-1).into_projective();
+                G::add_points(&mut buckets);
+                let mut res = if buckets[cc-1].len() == 0 {zero} else {buckets[cc-1][0].into_projective()};
  
-                let mut running_sum = G::Projective::zero();
-                for b in buckets.iter().rev() {
-                    running_sum.add_assign_mixed(b);
+                let mut running_sum = zero;
+                for b in buckets[0..cc-1].iter_mut().rev() {
+                    if b.len() != 0 && b[0].is_zero() == false {
+                        running_sum.add_assign_mixed(&b[0])
+                    }
                     res += &running_sum;
                 }
                 res
@@ -160,7 +162,7 @@ impl VariableBaseMSM {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::curves::bn_382::G1Projective;
+    use crate::curves::bn_382::{G1Projective, G1Affine};
     use crate::fields::bn_382::Fp;
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
@@ -264,7 +266,7 @@ mod test {
 
             let start = Instant::now();
 
-            let sum2 = vectors.iter().map
+            let sum = vectors.iter().map
             (
                 |v|
                 {
@@ -281,14 +283,13 @@ mod test {
             println!("     {}{:?}", "serial: ".green(), serial);
             let start = Instant::now();
 
-            let sum1 = AffineCurve::add_points(&mut vectors);
+            AffineCurve::add_points(&mut vectors);
 
             let batch = start.elapsed();
             println!("     {}{:?}", "batch: ".green(), batch);
             println!("     {}{:?}", "batch/serial: ".green(), batch.as_secs_f32()/serial.as_secs_f32());
             
-            assert_eq!(sum1.iter().eq(sum2.iter()), true);
-            assert_eq!(sum1, sum2);
+            assert_eq!(vectors.iter().map(|v| if v.len() == 0 {G1Affine::zero()} else {v[0]}).collect::<Vec<_>>().iter().eq(sum.iter()), true);
 
             length = length/10;
             if length == 1 {break}

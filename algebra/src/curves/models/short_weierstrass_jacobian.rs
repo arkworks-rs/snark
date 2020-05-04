@@ -212,8 +212,8 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
     }
 
     // this function adds, for each vector of 'vectors', its elements
-    // together, using Affine point arithmetic, producing the vector of sums
-    fn add_points (vectors: &mut [Vec<Self>]) -> Vec<Self>
+    // together, using Affine point arithmetic, reducing to the vector of sums
+    fn add_points (vectors: &mut [Vec<Self>])
     {
         let length = vectors.iter().map(|l| l.len()).fold(0, |x, y| x + y);
         let mut denoms = vec![P::BaseField::zero(); length / 2];
@@ -292,7 +292,6 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
                 }
             }
         }
-        vectors.iter().map(|x| if x.len() == 0 {Self::zero()} else {x[0]}).collect()
     }
 }
 
