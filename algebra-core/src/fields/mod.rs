@@ -285,7 +285,7 @@ pub trait FftField: Field + From<u128> + From<u64> + From<u32> + From<u16> + Fro
             let size = n.next_power_of_two() as u64;
             let log_size_of_group = size.trailing_zeros();
 
-            if n != size as usize || log_size_of_group >= Self::FftParams::TWO_ADICITY {
+            if n != size as usize || log_size_of_group > Self::FftParams::TWO_ADICITY {
                 return None;
             }
 

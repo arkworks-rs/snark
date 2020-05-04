@@ -53,6 +53,11 @@ pub trait EvaluationDomain<F: FftField>:
     /// Return the size of `self`.
     fn size(&self) -> usize;
 
+    /// Return the size of `self` as a field element.
+    fn size_as_field_element(&self) -> F {
+        F::from(self.size() as u64)
+    }
+
     /// Compute a FFT.
     #[inline]
     fn fft<T: DomainCoeff<F>>(&self, coeffs: &[T]) -> Vec<T> {
