@@ -19,16 +19,10 @@ macro_rules! impl_field_mul_assign {
 
             // No-carry optimisation applied to CIOS
             if _no_carry {
-                #[cfg(all(
-                    feature = "llvm_asm",
-                    target_feature = "bmi2",
-                    target_feature = "adx",
-                    target_arch = "x86_64",
-                    nightly,
-                ))]
+                #[cfg(use_asm)]
+                #[allow(unsafe_code, unused_mut)]
                 {
                     if $limbs <= 6 {
-                        #[allow(unsafe_code)]
                         llvm_asm_mul!($limbs, (self.0).0, (other.0).0, P::MODULUS.0, P::INV);
                         self.reduce();
                         return;
@@ -120,16 +114,10 @@ macro_rules! impl_field_square_in_place {
             }
             let _no_carry: bool = !(first_bit_set || all_bits_set);
 
-            #[cfg(all(
-                feature = "llvm_asm",
-                target_feature = "bmi2",
-                target_feature = "adx",
-                target_arch = "x86_64",
-                nightly,
-            ))]
+            #[cfg(use_asm)]
+            #[allow(unsafe_code, unused_mut)]
             {
                 if $limbs <= 6 && _no_carry {
-                    #[allow(unsafe_code)]
                     llvm_asm_square!($limbs, (self.0).0, P::MODULUS.0, P::INV);
                     self.reduce();
                     return self;
