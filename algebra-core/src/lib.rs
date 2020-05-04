@@ -6,13 +6,13 @@
 #![deny(unused_comparisons, bare_trait_objects, const_err, unused_must_use)]
 #![deny(unused_mut, unused_unsafe, private_in_public)]
 #![cfg_attr(
-    all(
+    not(all(
         feature = "llvm_asm",
         target_arch = "x86_64",
         target_feature = "bmi2",
         target_feature = "adx",
         nightly,
-    ),
+    )),
     deny(unsafe_code)
 )]
 #![cfg_attr(
