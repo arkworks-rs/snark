@@ -3,8 +3,7 @@ use crate::{
 };
 use super::*;
 
-pub mod batched_mht;
-pub mod batched_mht_mem;
+pub mod batch_mht;
 
 pub trait FieldBasedMerkleTreeConfig {
     const HEIGHT: usize;
