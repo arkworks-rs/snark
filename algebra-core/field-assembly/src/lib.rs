@@ -48,11 +48,7 @@ fn generate_llvm_asm_mul_string(
     reg!(a0, a1, a, limbs);
     reg!(b0, b1, b, limbs);
     reg!(m, m1, modulus, limbs);
-    // if limbs > 8 {
-    //     reg!(s, s1, spills, limbs * 2);
-    // }
-
-    // if limbs <= 8 {
+    
     xorq(RCX, RCX);
     for i in 0..limbs {
         if i == 0 {
@@ -65,24 +61,6 @@ fn generate_llvm_asm_mul_string(
     for i in 0..limbs {
         movq(R[i], a1[i]);
     }
-
-    // } else {
-    // llvm_asm.xorq(RCX, RCX);
-    // for i in 0..8 {
-    //     if i == 0 {
-    //         ar::mul_1_mov(&mut llvm_asm, a1[0], &b1, 0);
-    //     } else {
-    //         ar::mul_add_1(&mut llvm_asm, &a1, &b1, i);
-    //     }
-    // }
-    // for i in 0..8 {
-    //     ar::mul_add_1(&mut llvm_asm, &m1, 0);
-    // }
-    // for i in 0..llvm_asm.limbs {
-    //     llvm_asm.movq(R[i], a1[i]);
-    // }
-
-    // }
 }
 
 fn generate_matches(num_limbs: usize, is_mul: bool) -> String {

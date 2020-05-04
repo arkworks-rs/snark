@@ -1,11 +1,10 @@
 use std::collections::HashMap;
-use std::rc::Rc;
 
 pub const REG_CLOBBER: [&'static str; 8] = ["r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"];
 
 #[derive(Clone)]
 pub struct Context {
-    ctx_string: Rc<String>,
+    ctx_string: String,
     declarations: HashMap<String, Declare>,
     declaration_vec: Vec<Declare>,
     clobbers: Vec<String>,
@@ -22,15 +21,19 @@ struct Declare {
 impl Context {
     pub fn new() -> Self {
         Context {
-            ctx_string: Rc::new(String::new()),
+            ctx_string: String::new(),
             declarations: HashMap::new(),
             declaration_vec: Vec::new(),
             clobbers: Vec::new(),
         }
     }
 
+    fn append(&mut self, other: &str) {
+        self.ctx_string += other;
+    } 
+
     pub fn get_string(&mut self) -> String {
-        Rc::make_mut(&mut self.ctx_string).to_string()
+        self.ctx_string.clone()
     }
 
     pub fn reset(&mut self) {
@@ -78,34 +81,28 @@ impl Context {
     }
 
     pub fn add_limb(&mut self, limb: usize) {
-        self.ctx_string = Rc::new(format!(
-            "{}{}",
-            Rc::clone(&self.ctx_string),
-            format!(
+        self.append( 
+            &format!(
                 "
                 {} => {{",
                 limb
             )
-        ));
+        )
     }
 
     pub fn add_buffer(&mut self, extra_reg: usize) {
-        self.ctx_string = Rc::new(format!(
-            "{}{}",
-            Rc::clone(&self.ctx_string),
-            format!(
+        self.append(
+            &format!(
                 "
                     let mut spill_buffer = MaybeUninit::<[u64; {}]>::uninit();",
                 extra_reg
             )
-        ));
+        );
     }
 
     pub fn add_llvm_asm(&mut self, ctx_string: String) {
-        self.ctx_string = Rc::new(format!(
-            "{}{}",
-            Rc::clone(&self.ctx_string),
-            format!(
+        self.append(
+            &format!(
                 "
                     unsafe {{
                         llvm_asm!({}
@@ -113,7 +110,7 @@ impl Context {
                             :",
                 ctx_string
             )
-        ));
+        );
     }
 
     pub fn add_clobber_from_vec(&mut self, clobbers: Vec<&str>) {
@@ -130,40 +127,37 @@ impl Context {
         for i in 0..self.declarations.len() {
             let dec = &self.declaration_vec[i];
             let last = i == self.declarations.len() - 1;
-            self.ctx_string = Rc::new(format!(
-                "{}{}",
-                Rc::clone(&self.ctx_string),
-                format!(
+            let dec = 
+                &format!(
                     "
                             \"{}\"({}){}      // {}",
                     dec.ty,
                     dec.var,
                     if last { "" } else { "," },
                     dec.pos
-                )
-            ));
+                );
+            self.append(dec);
         }
-        self.ctx_string = Rc::new(format!(
-            "{}{}",
-            Rc::clone(&self.ctx_string),
-            format!(
+        let clobbers = self.clobbers.join(",");
+        self.append(
+            &format!(
                 "
                             : {}
                         );
                     }}
                 }}",
-                self.clobbers.join(",")
+                clobbers
             )
-        ));
+        );
     }
 
     pub fn end(&mut self, num_limbs: usize) {
-        self.ctx_string = Rc::new(format!("{}{}", Rc::clone(&self.ctx_string), format!("
+        self.append(&format!("
             x => panic!(\"llvm_asm_mul (no-carry): number of limbs supported is 2 up to {}. You had {{}}.\", x)
         }};
     }}
 }}
 ",
-        num_limbs)));
+        num_limbs));
     }
 }
