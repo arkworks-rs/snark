@@ -24,7 +24,7 @@ build = "build.rs"
 ################################# Dependencies ################################
 
 [dev-dependencies]
-algebra = { path = "../algebra", features = [ "full" ] }
+algebra = { path = "../algebra" }
 blake2 = "0.8.1"
 rand = "0.7"
 rand_xorshift = { version = "0.2" }
@@ -33,13 +33,13 @@ paste = "0.1"
 [features]
 asm = [ "algebra/asm"]
 n_fold = []
-mnt4_298 = []
-mnt6_298 = []
-mnt4_753 = []
-mnt6_753 = []
-bls12_381 = []
-bls12_377 = []
-sw6 = []
+mnt4_298 = [ "algebra/mnt4_298"]
+mnt6_298 = [ "algebra/mnt6_298"]
+mnt4_753 = [ "algebra/mnt4_753"]
+mnt6_753 = [ "algebra/mnt6_753"]
+bls12_381 = [ "algebra/bls12_381"]
+bls12_377 = [ "algebra/bls12_377"]
+sw6 = [ "algebra/sw6" ]
 
 [build-dependencies]
 rustc_version = "0.1.*"

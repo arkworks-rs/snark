@@ -25,7 +25,7 @@ macro_rules! field_common {
 
                 let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-                let v: Vec<($f_type, $f_type)> = (0..SAMPLES)
+                let v: Vec<_> = (0..SAMPLES)
                     .map(|_| ($f::rand(&mut rng), $f::rand(&mut rng)))
                     .collect();
 
@@ -44,7 +44,7 @@ macro_rules! field_common {
 
                 let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-                let v: Vec<($f_type, $f_type)> = (0..SAMPLES)
+                let v: Vec<_> = (0..SAMPLES)
                     .map(|_| ($f::rand(&mut rng), $f::rand(&mut rng)))
                     .collect();
 
@@ -63,7 +63,7 @@ macro_rules! field_common {
 
                 let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-                let v: Vec<($f_type, $f_type)> = (0..SAMPLES)
+                let v: Vec<_> = (0..SAMPLES)
                     .map(|_| ($f::rand(&mut rng), $f::rand(&mut rng)))
                     .collect();
 
@@ -165,7 +165,7 @@ macro_rules! field_base {
 
                 let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-                let v: Vec<($f_repr_type, $f_repr_type)> = (0..SAMPLES)
+                let v: Vec<_> = (0..SAMPLES)
                     .map(|_| {
                         let mut tmp1 = $f_repr::rand(&mut rng);
                         let mut tmp2 = $f_repr::rand(&mut rng);
@@ -193,7 +193,7 @@ macro_rules! field_base {
 
                 let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-                let v: Vec<($f_repr_type, $f_repr_type)> = (0..SAMPLES)
+                let v: Vec<_> = (0..SAMPLES)
                     .map(|_| {
                         let tmp1 = $f_repr::rand(&mut rng);
                         let mut tmp2 = tmp1;
