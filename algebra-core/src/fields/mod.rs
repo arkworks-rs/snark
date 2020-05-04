@@ -16,9 +16,12 @@ use num_traits::{One, Zero};
 
 #[macro_use]
 pub mod macros;
-pub mod models;
 pub mod utils;
 
+#[macro_use]
+pub mod arithmetic;
+
+pub mod models;
 pub use self::models::*;
 
 #[macro_export]

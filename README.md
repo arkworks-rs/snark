@@ -31,7 +31,8 @@ Informally, the library provides the ability to create transactions that run arb
 
 This repository contains several Rust crates that implement the different building blocks of ZEXE. The high-level structure of the repository is as follows.
 
-* [`algebra`](algebra): Rust crate that provides finite fields and elliptic curves
+* [`algebra-core`](algebra-core): Rust crate that provides generic arithmetic for finite fields and elliptic curves
+* [`algebra`](algebra): Rust crate that provides concrete instantiations of some finite fields and elliptic curves
 * [`crypto-primitives`](crypto-primitives): Rust crate that implements some useful cryptographic primitives (and constraints for them)
 * [`dpc`](dpc): Rust crate that implements DPC schemes (the main cryptographic primitive in this repository)
 * [`ff-fft`](ff-fft): Rust crate that provides efficient finite field polynomial arithmetic based on finite field FFTs
@@ -64,9 +65,9 @@ cargo build --release
 This library comes with unit tests for each of the provided crates. Run the tests with:
 ```bash
 cargo test
-``` 
+```
 
-Lastly, this library comes with benchmarks for the following crates:
+This library comes with benchmarks for the following crates:
 
 - [`algebra`](algebra)
 - [`dpc`](dpc)
@@ -75,6 +76,18 @@ These benchmarks require the nightly Rust toolchain; to install this, run `rustu
 ```bash
 cargo +nightly bench
 ```
+
+Compiling with `adcxq`, `adoxq` and `mulxq` instructions can lead to a 30-70% speedup. These are available on most `x86_64` platforms (Broadwell onwards for Intel and Ryzen onwards for AMD). Run the following command:
+```bash
+RUSTFLAGS="-C target-feature=+bmi2,+adx" cargo +nightly test/build/bench --features asm
+```
+Tip: If optimising for performance, your mileage may vary with passing `--emit=asm` to `RUSTFLAGS`.
+
+To bench `algebra-benches` with greater accuracy, especially for functions with execution times on the order of nanoseconds, use the `n_fold` feature to run selected functions 1000x per iteration. To run with multiple features, make sure to double quote the features.
+```bash
+cargo +nightly bench --features "n_fold bls12_381"
+```
+
 
 ## License
 

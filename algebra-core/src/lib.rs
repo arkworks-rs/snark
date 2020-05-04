@@ -4,8 +4,28 @@
 #![deny(non_shorthand_field_patterns, unused_attributes, unused_imports)]
 #![deny(unused_extern_crates, renamed_and_removed_lints, unused_allocation)]
 #![deny(unused_comparisons, bare_trait_objects, const_err, unused_must_use)]
-#![deny(unused_mut, unused_unsafe, private_in_public, unsafe_code)]
-#![forbid(unsafe_code)]
+#![deny(unused_mut, unused_unsafe, private_in_public)]
+#![cfg_attr(
+    all(
+        feature = "llvm_asm",
+        target_arch = "x86_64",
+        target_feature = "bmi2",
+        target_feature = "adx",
+        nightly,
+    ),
+    deny(unsafe_code)
+)]
+#![cfg_attr(
+    all(
+        feature = "llvm_asm",
+        target_arch = "x86_64",
+        target_feature = "bmi2",
+        target_feature = "adx",
+        nightly,
+    ),
+    feature(llvm_asm)
+)]
+#![cfg_attr(not(feature = "llvm_asm"), forbid(unsafe_code))]
 
 #[cfg(all(test, not(feature = "std")))]
 #[macro_use]
