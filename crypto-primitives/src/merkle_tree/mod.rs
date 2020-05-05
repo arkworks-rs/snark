@@ -163,7 +163,8 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
         let mut cur_hash = tree[0].clone();
         let root_hash = if cur_height < Self::HEIGHT as usize {
             while cur_height < (Self::HEIGHT - 1) as usize {
-                cur_hash = hash_inner_node::<P::H>(&parameters, &cur_hash, &empty_hash, &mut buffer)?;
+                cur_hash =
+                    hash_inner_node::<P::H>(&parameters, &cur_hash, &empty_hash, &mut buffer)?;
                 padding_tree.push((cur_hash.clone(), empty_hash.clone()));
                 cur_height += 1;
             }
