@@ -39,13 +39,13 @@ pub trait PoseidonParameters: 'static + FieldBasedHashParameters + Clone{
 
 }
 
-// Function that does the scalar multiplication
+// Function that does the dot product
 // It uses Montgomery multiplication
 // Constants are defined such that the result is x * t * 2^n mod M,
 // that is the Montgomery representation of the operand x * t mod M, and t is the 64-bit constant
 #[allow(dead_code)]
 #[inline]
-pub fn scalar_mul<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> (res: &mut F, state: &mut[F], mut start_idx_cst: usize) {
+pub fn dot_product<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> (res: &mut F, state: &mut[F], mut start_idx_cst: usize) {
 
     state.iter().for_each(|x| {
         let elem = x.mul(&P::MDS_CST[start_idx_cst]);
@@ -64,18 +64,18 @@ pub fn matrix_mix<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>>  (state
 
     let mut idx_cst = 0;
     for i in 0..P::T {
-        scalar_mul::<F,P>(&mut new_state[i], state, idx_cst);
+        dot_product::<F,P>(&mut new_state[i], state, idx_cst);
         idx_cst += P::T;
     }
     *state = new_state;
 }
 
-// Function that does the scalar multiplication
+// Function that does the dot product
 // It uses a partial Montgomery multiplication defined as PM(x, t) = x * t * 2^-64 mod M
 // t is a 64-bit matrix constant. In the algorithm, the constants are represented in
 // partial Montgomery representation, i.e. t * 2^64 mod M
 #[inline]
-pub fn scalar_mul_fast<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> (res: &mut F, state: &mut[F], mut start_idx_cst: usize) {
+pub fn dot_product_fast<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> (res: &mut F, state: &mut[F], mut start_idx_cst: usize) {
     state.iter().for_each(|x| {
         let elem = P::MDS_CST_SHORT[start_idx_cst].mul_short(&x);
         start_idx_cst += 1;
@@ -92,7 +92,7 @@ pub fn matrix_mix_short<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> (
 
     let mut idx_cst = 0;
     for i in 0..P::T {
-        scalar_mul_fast::<F,P>(&mut new_state[i], state, idx_cst);
+        dot_product_fast::<F,P>(&mut new_state[i], state, idx_cst);
         idx_cst += P::T;
     }
     *state = new_state;
@@ -101,6 +101,7 @@ pub fn matrix_mix_short<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> (
 impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
 
     fn poseidon_perm (state: &mut Vec<F>) {
+
 
         // index that goes over the round constants
         let mut round_cst_idx = 0;
@@ -237,10 +238,12 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> FieldBasedHash for
     type Data = F;
     type Parameters = P;
 
+    // Assumption:
+    //     capacity c = 1
     fn evaluate(input: &[F]) -> Result<F, Error> {
 
-        assert_eq!(input.len() % P::R, 0, "The length of the input data array is not a multiple of the rate.");
         assert_ne!(input.len(), 0, "Input data array does not contain any data.");
+        assert_eq!(P::T - P::R, 1, "The assumption that the capacity is one field element is not satisfied.");
 
         // state is a vector of P::T elements.
         // They are initialized to constants that are obtained after applying a permutation to a zero elements vector.
@@ -274,8 +277,10 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> FieldBasedHash for
         if rem != 0 {
             for j in 0..rem {
                 state[j] += &input[input_idx];
+                input_idx += 1;
             }
             // add the constant associated to the m-ary Merkle tree
+            // assumption capacity = 1
             state[P::R] += &P::C2;
             // apply permutation after adding the input vector
             Self::poseidon_perm(&mut state);
