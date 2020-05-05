@@ -144,6 +144,155 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
     fn into_projective(&self) -> GroupProjective<P> {
         (*self).into()
     }
+
+    // this function adds allgroup elements together,
+    //  using Affinepoint arithmetic, producing theeir sum
+    fn add_batch(p: &mut Vec<Self>) -> Self
+    {
+        while p.len() > 1
+        {
+            let len = if p.len()%2 == 0 {p.len()} else {p.len()-1};
+            let mut denominators = p.chunks_exact_mut(2).map
+            (
+                |p|
+                if p[0].x == p[1].x
+                {
+                    if p[1].y == P::BaseField::zero() {P::BaseField::one()} else {p[1].y.double()}
+                } else {p[0].x - &p[1].x}
+            ).collect::<Vec<_>>();
+
+            crate::fields::batch_inversion::<P::BaseField>(&mut denominators);
+
+            for (i, d) in (0..len).step_by(2).zip(denominators.iter())
+            {
+                let j = i/2;
+                if p[i+1].is_zero() == true
+                {
+                    p[j] = p[i];
+                }
+                else if p[i].is_zero() == true
+                {
+                    p[j] = p[i+1];
+                }
+                else if p[i+1].x == p[i].x && (p[i+1].y != p[i].y || p[i+1].y == P::BaseField::zero())
+                {
+                    p[j] = Self::zero();
+                }
+                else if p[i+1].x == p[i].x && p[i+1].y == p[i].y
+                {
+                    let sq = p[i].x.square();
+                    let s = (sq.double() + &sq + &P::COEFF_A) * d;
+                    let x = s.square() - &p[i].x.double();
+                    let y = -p[i].y - &(s * &(x - &p[i].x));
+                    p[j].x = x;
+                    p[j].y = y;
+                }
+                else
+                {
+                    let s = (p[i].y - &p[i+1].y) * d;
+                    let x = s.square() - &p[i].x - &p[i+1].x;
+                    let y = -p[i].y - &(s * &(x - &p[i].x));
+                    p[j].x = x;
+                    p[j].y = y;
+                }
+            }
+
+            let len = p.len();
+            if len % 2 == 1
+            {
+                p[len/2] = p[len-1];
+                p.truncate(len/2+1);
+            }
+            else
+            {
+                p.truncate(len/2);
+            }
+        }
+        if p.len() == 0 {Self::zero()} else {p.remove(0)}
+    }
+
+    // this function adds, for each vector of 'vectors', its elements
+    // together, using Affine point arithmetic, reducing to the vector of sums
+    fn add_points (vectors: &mut [Vec<Self>])
+    {
+        let length = vectors.iter().map(|l| l.len()).fold(0, |x, y| x + y);
+        let mut denoms = vec![P::BaseField::zero(); length / 2];
+
+        while vectors.iter().position(|x| x.len() > 1) != None
+        {
+            let mut dx: usize = 0;
+            for p in vectors.iter_mut()
+            {
+                if p.len() < 2 {continue}
+                let len = if p.len()%2 == 0 {p.len()} else {p.len()-1};
+                for i in (0..len).step_by(2)
+                {
+                    denoms[dx] =
+                    if p[i].x == p[i+1].x
+                    {
+                        if p[i+1].y == P::BaseField::zero() {P::BaseField::one()} else {p[i+1].y.double()}
+                    } else {p[i].x - &p[i+1].x};
+                    dx += 1;
+                }
+            }
+
+            denoms.truncate(dx);
+            crate::fields::batch_inversion::<P::BaseField>(&mut denoms);
+            dx = 0;
+
+            for p in vectors.iter_mut()
+            {
+                if p.len() < 2 {continue}
+                let len = if p.len()%2 == 0 {p.len()} else {p.len()-1};  
+                
+                for i in (0..len).step_by(2)
+                {
+                    let j = i/2;
+                    if p[i+1].is_zero() == true
+                    {
+                        p[j] = p[i];
+                    }
+                    else if p[i].is_zero() == true
+                    {
+                        p[j] = p[i+1];
+                    }
+                    else if p[i+1].x == p[i].x && (p[i+1].y != p[i].y || p[i+1].y == P::BaseField::zero())
+                    {
+                        p[j] = Self::zero();
+                    }
+                    else if p[i+1].x == p[i].x && p[i+1].y == p[i].y
+                    {
+                        let sq = p[i].x.square();
+                        let s = (sq.double() + &sq + &P::COEFF_A) * &denoms[dx];
+                        let x = s.square() - &p[i].x.double();
+                        let y = -p[i].y - &(s * &(x - &p[i].x));
+                        p[j].x = x;
+                        p[j].y = y;
+                    }
+                    else
+                    {
+                        let s = (p[i].y - &p[i+1].y) * &denoms[dx];
+                        let x = s.square() - &p[i].x - &p[i+1].x;
+                        let y = -p[i].y - &(s * &(x - &p[i].x));
+                        p[j].x = x;
+                        p[j].y = y;
+                    }
+                    dx += 1;
+                }
+
+                let len = p.len();
+                if len % 2 == 1
+                {
+                    p[len/2] = p[len-1];
+                    p.truncate(len/2+1);
+                }
+                else
+                {
+                    p.truncate(len/2);
+                }
+            }
+        }
+    }
 }
 
 impl<P: Parameters> Neg for GroupAffine<P> {

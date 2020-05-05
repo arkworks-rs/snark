@@ -25,8 +25,9 @@ edition = "2018"
 byteorder = { version = "1" }
 rand = { version = "0.7" }
 derivative = { version = "1" }
+rand_core = { version = "0.5" }
+colored = "1.9.2"
 
-colored = { version = "1", optional = true }
 rayon = { version = "1", optional = true }
 clippy = { version = "*", optional = true }
 
