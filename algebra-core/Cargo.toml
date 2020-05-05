@@ -32,7 +32,7 @@ unroll = "0.1.4"
 
 [build-dependencies]
 field-assembly = { path = "./field-assembly" }
-rustc_version = "0.1.*"
+rustc_version = "0.2"
 
 [dev-dependencies]
 rand_xorshift = "0.2"

@@ -42,4 +42,4 @@ bls12_377 = [ "algebra/bls12_377"]
 sw6 = [ "algebra/sw6" ]
 
 [build-dependencies]
-rustc_version = "0.1.*"
+rustc_version = "0.2"

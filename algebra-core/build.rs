@@ -12,7 +12,7 @@ const NUM_LIMBS: usize = 8;
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
 
-    let is_nightly = version_meta().channel == Channel::Nightly;
+    let is_nightly = version_meta().expect("nightly check failed").channel == Channel::Nightly;
 
     let should_use_asm = cfg!(all(
         feature = "llvm_asm",
