@@ -2,19 +2,20 @@
 extern crate criterion;
 
 use criterion::Criterion;
-use primitives::{MNT4PoseidonHash, MNT6PoseidonHash, FieldBasedHash, PoseidonBatchHash, BatchFieldBasedHash, BatchMerkleTree};
+use primitives::{MNT4PoseidonHash, MNT6PoseidonHash, FieldBasedHash, BatchFieldBasedHash, BatchMerkleTree};
 use algebra::fields::mnt4753::Fr as MNT4753Fr;
 use algebra::fields::mnt6753::Fr as MNT6753Fr;
 use algebra::UniformRand;
 use rand_xorshift::XorShiftRng;
 use rand::SeedableRng;
 use primitives::crh::poseidon::parameters::{MNT4753PoseidonParameters, MNT6753PoseidonParameters};
-use primitives::merkle_tree::field_based_mht::batched_mht::BatchMerkleTree;
+use primitives::crh::poseidon::batched_crh::PoseidonBatchHash;
+use primitives::merkle_tree::field_based_mht::batch_mht::poseidon::PoseidonBatchMerkleTree;
+use primitives::merkle_tree::field_based_mht::batch_mht::BatchMerkleTree;
 
 fn batch_poseidon_mht_eval_mnt4(c: &mut Criterion) {
 
-    type Mnt4BatchPoseidonHash = PoseidonBatchHash<MNT4753Fr, MNT4753PoseidonParameters>;
-    type MNT4BatchedMerkleTree = BatchMerkleTree<MNT4PoseidonBatchHash>;
+    type MNT4BatchedMerkleTree = PoseidonBatchMerkleTree<MNT4753Fr, MNT4753PoseidonParameters>;
 
     let num_leaves = 1024;
 
@@ -25,7 +26,7 @@ fn batch_poseidon_mht_eval_mnt4(c: &mut Criterion) {
     c.bench_function("Batch Poseidon MHT Eval for MNT4 (1024 leaves)", move |b| {
         b.iter(|| {
             for _ in 0..num_leaves {
-                tree.push(MNT4753Fr::rand(&mut rng));
+                tree.update(MNT4753Fr::rand(&mut rng));
                 tree.finalize();
             }
         })

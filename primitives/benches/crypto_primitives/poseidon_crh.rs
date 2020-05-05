@@ -2,13 +2,14 @@
 extern crate criterion;
 
 use criterion::Criterion;
-use primitives::{MNT4PoseidonHash, MNT6PoseidonHash, FieldBasedHash, PoseidonBatchHash, BatchFieldBasedHash};
+use primitives::{MNT4PoseidonHash, MNT6PoseidonHash, FieldBasedHash, BatchFieldBasedHash};
 use algebra::fields::mnt4753::Fr as MNT4753Fr;
 use algebra::fields::mnt6753::Fr as MNT6753Fr;
 use algebra::UniformRand;
 use rand_xorshift::XorShiftRng;
 use rand::SeedableRng;
 use primitives::crh::poseidon::parameters::{MNT4753PoseidonParameters, MNT6753PoseidonParameters};
+use primitives::crh::poseidon::batched_crh::PoseidonBatchHash;
 
 fn poseidon_crh_eval_mnt4(c: &mut Criterion) {
 

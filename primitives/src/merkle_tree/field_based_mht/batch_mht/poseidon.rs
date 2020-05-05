@@ -161,6 +161,7 @@ mod test {
     use algebra::fields::mnt4753::Fr as MNT4753Fr;
     use algebra::fields::mnt6753::Fr as MNT6753Fr;
     use algebra::UniformRand;
+    use std::time::Instant;
 
     use algebra::biginteger::BigInteger768;
     use crate::merkle_tree::field_based_mht::batch_mht::poseidon::PoseidonBatchMerkleTree;
@@ -171,22 +172,37 @@ mod test {
 
     #[test]
     fn merkle_tree_test_mnt4 () {
+        // running time for 1048576 leaves
+        // processing_step = 1024 => 90002 ms
+        // processing_step = 1024 * 64 => 40612 ms
+        // processing_step = 1024 * 1024 => 38617 ms
 
         let expected_output = MNT4753Fr::new(BigInteger768([8181981188982771303, 9834648934716236448, 6420360685258842467, 14258691490360951478, 10642011566662929522, 16918207755479993617, 3581400602871836321, 14012664850056020974, 16755211538924649257, 4039951447678776727, 12365175056998155257, 119677729692145]));
 
         let num_leaves = 1024*1024;
-        let mut tree = MNT4BatchedMerkleTree::new(num_leaves, 1024 * 1024 / 4);
+        let mut tree = MNT4BatchedMerkleTree::new(num_leaves, 1024);
 
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+        let now_4753 = Instant::now();
         for _ in 0..num_leaves {
             tree.update(MNT4753Fr::rand(&mut rng));
         }
         tree.finalize_in_place();
+        let new_now_4753 = Instant::now();
+
+        let duration_mnt4753 = new_now_4753.duration_since(now_4753);
+        println!("Time for MT computation with {} leaves MNT4753 = {:?}", num_leaves, duration_mnt4753.as_millis());
+
         assert_eq!(tree.root(), expected_output, "Output of the Merkle tree computation for MNT4 does not match to the expected value.");
     }
 
     #[test]
     fn merkle_tree_test_mnt6 () {
+        // running time for 1048576 leaves
+        // processing_step = 1024 => 91242 ms
+        // processing_step = 1024 * 64 => 37168 ms
+        // processing_step = 1024 * 1024 => 36838 ms
 
         let expected_output = MNT6753Fr::new(BigInteger768([18065863015580309240, 1059485854425188866, 1479096878827665107, 6899132209183155323, 1829690180552438097, 7395327616910893705, 16132683753083562833, 8528890579558218842, 9345795575555751752, 8161305655297462527, 6222078223269068637, 401142754883827]));
 
@@ -194,10 +210,17 @@ mod test {
         let mut tree = MNT6BatchedMerkleTree::new(num_leaves, 1024 * 1024);
 
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+        let now_6753 = Instant::now();
         for _ in 0..num_leaves {
             tree.update(MNT6753Fr::rand(&mut rng));
         }
         tree.finalize_in_place();
+        let new_now_6753 = Instant::now();
+
+        let duration_mnt6753 = new_now_6753.duration_since(now_6753);
+        println!("Time for MT computation with {} leaves MNT6753 = {:?}", num_leaves, duration_mnt6753.as_millis());
+
         assert_eq!(tree.root(), expected_output, "Output of the Merkle tree computation for MNT6 does not match to the expected value.");
     }
 
@@ -415,28 +438,44 @@ mod test_mem {
     use algebra::biginteger::BigInteger768;
     use crate::merkle_tree::field_based_mht::batch_mht::poseidon::PoseidonBatchMerkleTreeMem;
     use crate::merkle_tree::field_based_mht::batch_mht::BatchMerkleTree;
+    use std::time::Instant;
 
     type MNT4BatchedMerkleTree = PoseidonBatchMerkleTreeMem<MNT4753Fr, MNT4753PoseidonParameters>;
     type MNT6BatchedMerkleTree = PoseidonBatchMerkleTreeMem<MNT6753Fr, MNT6753PoseidonParameters>;
 
     #[test]
     fn merkle_tree_test_mnt4 () {
+        // running time for 1048576 leaves
+        // processing_step = 1024 => 90278 ms
+        // processing_step = 1024 * 64 => 40753 ms
+        // processing_step = 1024 * 1024 => 38858 ms
 
         let expected_output = MNT4753Fr::new(BigInteger768([8181981188982771303, 9834648934716236448, 6420360685258842467, 14258691490360951478, 10642011566662929522, 16918207755479993617, 3581400602871836321, 14012664850056020974, 16755211538924649257, 4039951447678776727, 12365175056998155257, 119677729692145]));
 
         let num_leaves = 1024*1024;
-        let mut tree = MNT4BatchedMerkleTree::new(num_leaves, 1024 * 1024 / 4);
+        let mut tree = MNT4BatchedMerkleTree::new(num_leaves, 1024*1024);
 
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+        let now_4753 = Instant::now();
         for _ in 0..num_leaves {
             tree.update(MNT4753Fr::rand(&mut rng));
         }
         tree.finalize_in_place();
+        let new_now_4753 = Instant::now();
+
+        let duration_mnt4753 = new_now_4753.duration_since(now_4753);
+        println!("Time for MT computation with {} leaves MNT4753 = {:?}", num_leaves, duration_mnt4753.as_millis());
+
         assert_eq!(tree.root(), expected_output, "Output of the Merkle tree computation for MNT4 does not match to the expected value.");
     }
 
     #[test]
     fn merkle_tree_test_mnt6 () {
+        // running time for 1048576 leaves
+        // processing_step = 1024 => 87798 ms
+        // processing_step = 1024 * 64 => 39199 ms
+        // processing_step = 1024 * 1024 => 37450 ms
 
         let expected_output = MNT6753Fr::new(BigInteger768([18065863015580309240, 1059485854425188866, 1479096878827665107, 6899132209183155323, 1829690180552438097, 7395327616910893705, 16132683753083562833, 8528890579558218842, 9345795575555751752, 8161305655297462527, 6222078223269068637, 401142754883827]));
 
@@ -444,10 +483,16 @@ mod test_mem {
         let mut tree = MNT6BatchedMerkleTree::new(num_leaves, 1024 * 1024);
 
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+        let now_6753 = Instant::now();
         for _ in 0..num_leaves {
             tree.update(MNT6753Fr::rand(&mut rng));
         }
         tree.finalize_in_place();
+        let new_now_6753 = Instant::now();
+
+        let duration_mnt6753 = new_now_6753.duration_since(now_6753);
+        println!("Time for MT computation with {} leaves MNT6753 = {:?}", num_leaves, duration_mnt6753.as_millis());
+
         assert_eq!(tree.root(), expected_output, "Output of the Merkle tree computation for MNT6 does not match to the expected value.");
     }
 
