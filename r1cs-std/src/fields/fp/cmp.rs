@@ -27,7 +27,7 @@ impl<F: PrimeField> FpGadget<F> {
             ordering,
             should_also_check_equality,
         )?;
-        Self::enforce_smaller_than_unchecked(cs.ns(|| "enforce smaller than"), &left, &right)
+        Self::enforce_smaller_than(cs.ns(|| "enforce smaller than"), &left, &right)
     }
 
     /// This function enforces the ordering between `self` and `b`. The
@@ -49,7 +49,7 @@ impl<F: PrimeField> FpGadget<F> {
             ordering,
             should_also_check_equality,
         )?;
-        Self::enforce_smaller_than(cs.ns(|| "enforce smaller than"), &left, &right)
+        Self::enforce_smaller_than_unchecked(cs.ns(|| "enforce smaller than"), &left, &right)
     }
 
     /// This function checks the ordering between `self` and `b`. It outputs a
