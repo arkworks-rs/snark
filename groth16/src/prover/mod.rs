@@ -25,7 +25,7 @@ where
 }
 
 #[inline]
-pub fn create_proof_no_zk<E, C, D>(
+pub fn create_proof_no_zk<E, C>(
     circuit: C,
     params: &Parameters<E>,
 ) -> Result<Proof<E>, SynthesisError>
