@@ -205,6 +205,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> BatchFieldBasedHas
         }
 
         // Copy the result of the permutation to a vector of state vectors of the length equal to the length of the input
+        // state is a vector of T-element state vector.
         let mut state = Vec::new();
         for _i in 0..array_length {
             state.push(state_z.clone());
@@ -267,7 +268,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> BatchFieldBasedHas
         }
 
         // Copy the result of the permutation to a vector of state vectors of the length equal to the length of the input
-        // state is a vector of 3-element state vector.
+        // state is a vector of T-element state vector.
         let mut state = Vec::new();
         for _i in 0..array_length {
             state.push(state_z.clone());

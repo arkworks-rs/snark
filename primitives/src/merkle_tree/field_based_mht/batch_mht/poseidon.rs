@@ -171,7 +171,7 @@ mod test {
     type MNT6BatchedMerkleTree = PoseidonBatchMerkleTree<MNT6753Fr, MNT6753PoseidonParameters>;
 
     #[test]
-    fn merkle_tree_test_mnt4 () {
+    fn merkle_tree_test_mnt4() {
         // running time for 1048576 leaves
         // processing_step = 1024 => 90002 ms
         // processing_step = 1024 * 64 => 40612 ms
@@ -179,8 +179,8 @@ mod test {
 
         let expected_output = MNT4753Fr::new(BigInteger768([8181981188982771303, 9834648934716236448, 6420360685258842467, 14258691490360951478, 10642011566662929522, 16918207755479993617, 3581400602871836321, 14012664850056020974, 16755211538924649257, 4039951447678776727, 12365175056998155257, 119677729692145]));
 
-        let num_leaves = 1024*1024;
-        let mut tree = MNT4BatchedMerkleTree::new(num_leaves, 1024);
+        let num_leaves = 1024 * 1024;
+        let mut tree = MNT4BatchedMerkleTree::new(num_leaves, 1024 * 1024);
 
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
@@ -198,7 +198,7 @@ mod test {
     }
 
     #[test]
-    fn merkle_tree_test_mnt6 () {
+    fn merkle_tree_test_mnt6() {
         // running time for 1048576 leaves
         // processing_step = 1024 => 91242 ms
         // processing_step = 1024 * 64 => 37168 ms
@@ -206,7 +206,7 @@ mod test {
 
         let expected_output = MNT6753Fr::new(BigInteger768([18065863015580309240, 1059485854425188866, 1479096878827665107, 6899132209183155323, 1829690180552438097, 7395327616910893705, 16132683753083562833, 8528890579558218842, 9345795575555751752, 8161305655297462527, 6222078223269068637, 401142754883827]));
 
-        let num_leaves = 1024*1024;
+        let num_leaves = 1024 * 1024;
         let mut tree = MNT6BatchedMerkleTree::new(num_leaves, 1024 * 1024);
 
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
@@ -444,7 +444,7 @@ mod test_mem {
     type MNT6BatchedMerkleTree = PoseidonBatchMerkleTreeMem<MNT6753Fr, MNT6753PoseidonParameters>;
 
     #[test]
-    fn merkle_tree_test_mnt4 () {
+    fn merkle_tree_test_mnt4() {
         // running time for 1048576 leaves
         // processing_step = 1024 => 90278 ms
         // processing_step = 1024 * 64 => 40753 ms
@@ -452,8 +452,8 @@ mod test_mem {
 
         let expected_output = MNT4753Fr::new(BigInteger768([8181981188982771303, 9834648934716236448, 6420360685258842467, 14258691490360951478, 10642011566662929522, 16918207755479993617, 3581400602871836321, 14012664850056020974, 16755211538924649257, 4039951447678776727, 12365175056998155257, 119677729692145]));
 
-        let num_leaves = 1024*1024;
-        let mut tree = MNT4BatchedMerkleTree::new(num_leaves, 1024*1024);
+        let num_leaves = 1024 * 1024;
+        let mut tree = MNT4BatchedMerkleTree::new(num_leaves, 1024 * 1024);
 
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
@@ -471,7 +471,7 @@ mod test_mem {
     }
 
     #[test]
-    fn merkle_tree_test_mnt6 () {
+    fn merkle_tree_test_mnt6() {
         // running time for 1048576 leaves
         // processing_step = 1024 => 87798 ms
         // processing_step = 1024 * 64 => 39199 ms
@@ -479,7 +479,7 @@ mod test_mem {
 
         let expected_output = MNT6753Fr::new(BigInteger768([18065863015580309240, 1059485854425188866, 1479096878827665107, 6899132209183155323, 1829690180552438097, 7395327616910893705, 16132683753083562833, 8528890579558218842, 9345795575555751752, 8161305655297462527, 6222078223269068637, 401142754883827]));
 
-        let num_leaves = 1024*1024;
+        let num_leaves = 1024 * 1024;
         let mut tree = MNT6BatchedMerkleTree::new(num_leaves, 1024 * 1024);
 
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);

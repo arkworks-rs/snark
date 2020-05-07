@@ -45,26 +45,28 @@ pub trait PoseidonParameters: 'static + FieldBasedHashParameters + Clone{
 // that is the Montgomery representation of the operand x * t mod M, and t is the 64-bit constant
 #[allow(dead_code)]
 #[inline]
-pub fn dot_product<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> (res: &mut F, state: &mut[F], mut start_idx_cst: usize) {
-
+pub fn dot_product<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>>(state: &mut [F], mut start_idx_cst: usize) -> F
+{
+    let mut res = F::zero();
     state.iter().for_each(|x| {
         let elem = x.mul(&P::MDS_CST[start_idx_cst]);
         start_idx_cst += 1;
-        *res += &elem;
+        res += &elem;
     });
+    res
 }
 
 // Function that does the mix matrix
 #[allow(dead_code)]
 #[inline]
-pub fn matrix_mix<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>>  (state: &mut Vec<F>) {
+pub fn matrix_mix<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>>(state: &mut Vec<F>) {
 
     // the new state where the result will be stored initialized to zero elements
     let mut new_state = vec![F::zero(); P::T];
 
     let mut idx_cst = 0;
     for i in 0..P::T {
-        dot_product::<F,P>(&mut new_state[i], state, idx_cst);
+        new_state[i] = dot_product::<F, P>(state, idx_cst);
         idx_cst += P::T;
     }
     *state = new_state;
@@ -75,24 +77,26 @@ pub fn matrix_mix<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>>  (state
 // t is a 64-bit matrix constant. In the algorithm, the constants are represented in
 // partial Montgomery representation, i.e. t * 2^64 mod M
 #[inline]
-pub fn dot_product_fast<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> (res: &mut F, state: &mut[F], mut start_idx_cst: usize) {
+pub fn dot_product_fast<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>>(state: &mut [F], mut start_idx_cst: usize) -> F {
+    let mut res = F::zero();
     state.iter().for_each(|x| {
         let elem = P::MDS_CST_SHORT[start_idx_cst].mul_short(&x);
         start_idx_cst += 1;
-        *res += &elem;
+        res += &elem;
     });
+    res
 }
 
 // Function that does the mix matrix with fast algorithm
 #[inline]
-pub fn matrix_mix_short<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> (state: &mut Vec<F>) {
+pub fn matrix_mix_short<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>>(state: &mut Vec<F>) {
 
     // the new state where the result will be stored initialized to zero elements
     let mut new_state = vec![F::zero(); P::T];
 
     let mut idx_cst = 0;
     for i in 0..P::T {
-        dot_product_fast::<F,P>(&mut new_state[i], state, idx_cst);
+        new_state[i] = dot_product_fast::<F, P>(state, idx_cst);
         idx_cst += P::T;
     }
     *state = new_state;
@@ -320,23 +324,23 @@ mod test {
     }
 
     #[test]
-    #[should_panic]
     fn test_poseidon_hash_mnt4_single_element() {
+        let expected_output = MNT4753Fr::new(BigInteger768([10133114337753187244, 13011129467758174047, 14520750556687040981, 911508844858788085, 1859877757310385382, 9602832310351473622, 8300303689130833769, 981323167857397563, 5760566649679562093, 8644351468476031499, 10679665778836668809, 404482168782668]));
         let mut input = Vec::new();
         input.push(MNT4753Fr::from_str("1").unwrap());
         let output = MNT4PoseidonHash::evaluate(&input);
-        println!("{:?}", output);
+        assert_eq!(output.unwrap(), expected_output, "Outputs do not match for MNT4753.");
     }
 
     #[test]
-    #[should_panic]
     fn test_poseidon_hash_mnt4_three_element() {
+        let expected_output = MNT4753Fr::new(BigInteger768([5991160601160569512, 9804741598782512164, 8257389273544061943, 15170134696519047397, 9908596892162673198, 7815454566429677811, 9000639780203615183, 8443915450757188195, 1987926952117715938, 17724141978374492147, 13890449093436164383, 191068391234529]));
         let mut input = Vec::new();
         input.push(MNT4753Fr::from_str("1").unwrap());
         input.push(MNT4753Fr::from_str("2").unwrap());
         input.push(MNT4753Fr::from_str("3").unwrap());
         let output = MNT4PoseidonHash::evaluate(&input);
-        println!("{:?}", output);
+        assert_eq!(output.unwrap(), expected_output, "Outputs do not match for MNT4753.");
     }
 
     #[test]
@@ -358,23 +362,23 @@ mod test {
     }
 
     #[test]
-    #[should_panic]
     fn test_poseidon_hash_mnt6_single_element() {
+        let expected_output = MNT6753Fr::new(BigInteger768([9820480440897423048, 13953114361017832007, 6124683910518350026, 12198883805142820977, 16542063359667049427, 16554395404701520536, 6092728884107650560, 1511127385771028618, 14755502041894115317, 9806346309586473535, 5880260960930089738, 191119811429922]));
         let mut input = Vec::new();
         input.push(MNT6753Fr::from_str("1").unwrap());
         let output = MNT6PoseidonHash::evaluate(&input);
-        println!("{:?}", output);
+        assert_eq!(output.unwrap(), expected_output, "Outputs do not match for MNT6753.");
     }
 
     #[test]
-    #[should_panic]
     fn test_poseidon_hash_mnt6_three_element() {
+        let expected_output = MNT6753Fr::new(BigInteger768([13800884891843937189, 3814452749758584714, 14612220153016028606, 15886322817426727111, 12444362646204085653, 5214641378156871899, 4248022398370599899, 5982332416470364372, 3842784910369906888, 11445718704595887413, 5723531295320926061, 101830932453997]));
         let mut input = Vec::new();
         input.push(MNT6753Fr::from_str("1").unwrap());
         input.push(MNT6753Fr::from_str("2").unwrap());
         input.push(MNT6753Fr::from_str("3").unwrap());
         let output = MNT6PoseidonHash::evaluate(&input);
-        println!("{:?}", output);
+        assert_eq!(output.unwrap(), expected_output, "Outputs do not match for MNT6753.");
     }
 
 }
