@@ -130,7 +130,7 @@ impl<F: PrimeField> FpGadget<F> {
     }
 
     // Helper function to enforce `a <= (p-1)/2`.
-    fn check_smaller_than_mod_minus_one_div_two<CS: ConstraintSystem<F>>(
+    pub fn enforce_smaller_or_equal_than_mod_minus_one_div_two<CS: ConstraintSystem<F>>(
         mut cs: CS,
         a: &FpGadget<F>,
     ) -> Result<(), SynthesisError> {
@@ -151,8 +151,8 @@ impl<F: PrimeField> FpGadget<F> {
         a: &FpGadget<F>,
         b: &FpGadget<F>,
     ) -> Result<Boolean, SynthesisError> {
-        Self::check_smaller_than_mod_minus_one_div_two(cs.ns(|| "check a in range"), a)?;
-        Self::check_smaller_than_mod_minus_one_div_two(cs.ns(|| "check b in range"), b)?;
+        Self::enforce_smaller_or_equal_than_mod_minus_one_div_two(cs.ns(|| "check a in range"), a)?;
+        Self::enforce_smaller_or_equal_than_mod_minus_one_div_two(cs.ns(|| "check b in range"), b)?;
         Self::is_smaller_than_unchecked(cs.ns(|| "enforce smaller than"), a, b)
     }
 
@@ -179,8 +179,8 @@ impl<F: PrimeField> FpGadget<F> {
         a: &FpGadget<F>,
         b: &FpGadget<F>,
     ) -> Result<(), SynthesisError> {
-        Self::check_smaller_than_mod_minus_one_div_two(cs.ns(|| "check a in range"), a)?;
-        Self::check_smaller_than_mod_minus_one_div_two(cs.ns(|| "check b in range"), b)?;
+        Self::enforce_smaller_or_equal_than_mod_minus_one_div_two(cs.ns(|| "check a in range"), a)?;
+        Self::enforce_smaller_or_equal_than_mod_minus_one_div_two(cs.ns(|| "check b in range"), b)?;
         Self::enforce_smaller_than_unchecked(cs.ns(|| "enforce smaller than"), a, b)
     }
 
