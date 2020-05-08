@@ -39,64 +39,60 @@ pub trait PoseidonParameters: 'static + FieldBasedHashParameters + Clone{
 
 }
 
-// Function that does the dot product
+// Function that does the scalar multiplication
 // It uses Montgomery multiplication
 // Constants are defined such that the result is x * t * 2^n mod M,
 // that is the Montgomery representation of the operand x * t mod M, and t is the 64-bit constant
 #[allow(dead_code)]
 #[inline]
-pub fn dot_product<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>>(state: &mut [F], mut start_idx_cst: usize) -> F
-{
-    let mut res = F::zero();
+pub fn scalar_mul<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> (res: &mut F, state: &mut[F], mut start_idx_cst: usize) {
+
     state.iter().for_each(|x| {
         let elem = x.mul(&P::MDS_CST[start_idx_cst]);
         start_idx_cst += 1;
-        res += &elem;
+        *res += &elem;
     });
-    res
 }
 
 // Function that does the mix matrix
 #[allow(dead_code)]
 #[inline]
-pub fn matrix_mix<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>>(state: &mut Vec<F>) {
+pub fn matrix_mix<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>>  (state: &mut Vec<F>) {
 
     // the new state where the result will be stored initialized to zero elements
     let mut new_state = vec![F::zero(); P::T];
 
     let mut idx_cst = 0;
     for i in 0..P::T {
-        new_state[i] = dot_product::<F, P>(state, idx_cst);
+        scalar_mul::<F,P>(&mut new_state[i], state, idx_cst);
         idx_cst += P::T;
     }
     *state = new_state;
 }
 
-// Function that does the dot product
+// Function that does the scalar multiplication
 // It uses a partial Montgomery multiplication defined as PM(x, t) = x * t * 2^-64 mod M
 // t is a 64-bit matrix constant. In the algorithm, the constants are represented in
 // partial Montgomery representation, i.e. t * 2^64 mod M
 #[inline]
-pub fn dot_product_fast<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>>(state: &mut [F], mut start_idx_cst: usize) -> F {
-    let mut res = F::zero();
+pub fn scalar_mul_fast<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> (res: &mut F, state: &mut[F], mut start_idx_cst: usize) {
     state.iter().for_each(|x| {
         let elem = P::MDS_CST_SHORT[start_idx_cst].mul_short(&x);
         start_idx_cst += 1;
-        res += &elem;
+        *res += &elem;
     });
-    res
 }
 
 // Function that does the mix matrix with fast algorithm
 #[inline]
-pub fn matrix_mix_short<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>>(state: &mut Vec<F>) {
+pub fn matrix_mix_short<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> (state: &mut Vec<F>) {
 
     // the new state where the result will be stored initialized to zero elements
     let mut new_state = vec![F::zero(); P::T];
 
     let mut idx_cst = 0;
     for i in 0..P::T {
-        new_state[i] = dot_product_fast::<F, P>(state, idx_cst);
+        scalar_mul_fast::<F,P>(&mut new_state[i], state, idx_cst);
         idx_cst += P::T;
     }
     *state = new_state;
