@@ -1,0 +1,110 @@
+use crate::{
+    biginteger::{BigInteger384, BigInteger768},
+    curves::{
+        models::{ModelParameters, SWModelParameters},
+        short_weierstrass_jacobian::{GroupAffine, GroupProjective},
+    },
+    field_new,
+    bw6_761::{Fq, Fr},
+};
+
+pub type G2Affine = GroupAffine<Parameters>;
+pub type G2Projective = GroupProjective<Parameters>;
+
+#[derive(Clone, Default, PartialEq, Eq)]
+pub struct Parameters;
+
+impl ModelParameters for Parameters {
+    type BaseField = Fq;
+    type ScalarField = Fr;
+}
+
+impl SWModelParameters for Parameters {
+    /// COEFF_A = 0
+    #[rustfmt::skip]
+
+    const COEFF_A: Fq = field_new!(Fq, BigInteger768([
+        FQ_ZERO
+    ]));
+
+    /// COEFF_B = 344572519215786626969839484113782877123983445626807505475689508010481171112174586804384159164470584382043228387689330672558087956027712387967475584956265079947580254968925442518627181571179839797594985021498455642138245655953
+    #[rustfmt::skip]
+    const COEFF_B: Fq = field_new!(Fq, BigInteger768([
+        0xf94d000000003d5b,
+        0xc61c8c19700039cd,
+        0xbbb9c535b4387cac,
+        0x5f1b0bc823c19581,
+        0x4279844f2b2ba391,
+        0x62d1b0a56058ecc2,
+        0xae408a9fa48374ff,
+        0xa6945f1d4faae40a,
+        0x6b960eb7bbeafae2,
+        0xb9d0c7034d60222c,
+        0x7cefd54232caaaaf,
+        0x687853052df2c6,
+    ]));
+
+    /// COFACTOR =
+    /// 26642435879335816683987677701488073867751118270052650655942102502312977592501693353047140953112195348280268661194869
+    #[rustfmt::skip]
+    const COFACTOR: &'static [u64] = &[
+        0x3de5800000000075,
+        0x832ba4061000003b,
+        0xc61c554757551c0c,
+        0xc856a0853c9db94c,
+        0x2c77d5ac34cb12ef,
+        0xad1972339049ce76,
+    ];
+
+    /// COFACTOR^(-1) mod r =
+    /// 214911522365886453591244899095480747723790054550866810551297776298664428889000553861210287833206024638187939842124
+    #[rustfmt::skip]
+    const COFACTOR_INV: Fr = field_new!(Fr, BigInteger384([
+        14378295991815829998,
+        14586153992421458638,
+        9788477762582722914,
+        12654821707953664524,
+        15185631607604703397,
+        26723985783783076,
+    ]));
+
+    /// AFFINE_GENERATOR_COEFFS = (G2_GENERATOR_X, G2_GENERATOR_Y)
+    const AFFINE_GENERATOR_COEFFS: (Self::BaseField, Self::BaseField) =
+        (G2_GENERATOR_X, G2_GENERATOR_Y);
+}
+
+/// G2_GENERATOR_X =
+/// 6262099733932320299029659201229457369633385349245308649169574015486237715338854821227744078654927847539887539929071093904227797391629046445965324190244834384691163899627970142994762818399587817499184262597778764236207145726130393
+#[rustfmt::skip]
+pub const G2_GENERATOR_X: Fq = field_new!(Fq, BigInteger768([
+    0x27e75cbc412cc63b,
+    0xce37632db054c55d,
+    0x53f1515e505bb89a,
+    0x397f30f9074ba363,
+    0x04234eba3fb87a05,
+    0x3009e55c09e1faef,
+    0xdbfdc0890c49fbf3,
+    0x81ae0bef789da015,
+    0x6477e6ef693c8570,
+    0xd87ce4b9cc6a7296,
+    0x25b93d3784c1c778,
+    0x2f88e2325b45eb,
+]));
+
+/// G2_GENERATOR_Y =
+/// 2534560989068955423315594688592085176389251018664186742606195596149391318197797112536948759146576652843716851108848083042375238058152456021190084249045595611396757523591848210543808321850458423117571529414585724012999919622918176
+#[rustfmt::skip]
+pub const G2_GENERATOR_Y: Fq = field_new!(Fq, BigInteger768([
+    0x6b31983f20714965,
+    0xbdb4c34f354e2618,
+    0x6263167d79dccc05,
+    0xc6078b07cdc5a6d3,
+    0x198625127839a914,
+    0x0ca8e84532498f72,
+    0xe532ed7a7b2472df,
+    0x6cb5bc3015618819,
+    0x1f40c417c8477d16,
+    0x2f96cde88796eef4,
+    0xa3f2c06ea5aafca9,
+    0x106c15feceb7c12,
+]));
