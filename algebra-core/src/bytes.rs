@@ -285,6 +285,30 @@ impl<'a, T: 'a + ToBytes> ToBytes for &'a T {
     }
 }
 
+impl<T: ToBytes> ToBytes for Option<T> {
+    #[inline]
+    fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
+        if let Some(val) = self {
+            true.write(&mut writer)?;
+            val.write(&mut writer)
+        } else {
+            false.write(&mut writer)
+        }
+    }
+}
+
+impl<T: FromBytes> FromBytes for Option<T> {
+    #[inline]
+    fn read<R: Read>(mut reader: R) -> IoResult<Self> {
+        let is_some = bool::read(&mut reader)?;
+        if is_some {
+            T::read(&mut reader).map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::ToBytes;
