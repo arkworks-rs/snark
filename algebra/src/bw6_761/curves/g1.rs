@@ -5,7 +5,7 @@ use crate::{
         short_weierstrass_jacobian::{GroupAffine, GroupProjective},
     },
     field_new,
-    bw6_761::{Fq, Fr, FQ_ZERO},
+    bw6_761::{Fq, Fr},
 };
 
 pub type G1Affine = GroupAffine<Parameters>;
@@ -23,9 +23,7 @@ impl SWModelParameters for Parameters {
     /// COEFF_A = 0
     #[rustfmt::skip]
 
-    const COEFF_A: Fq = field_new!(Fq, BigInteger768([
-        FQ_ZERO
-    ]));
+    const COEFF_A: Fq = field_new!(Fq, BigInteger768([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
 
     /// COEFF_B = 6891450384315732539396789682275657542479668912536150109513790160209623422243491736087683183289411687640864567753786613451161759120554247759349511699125301598951605099378508850372543631423596795951899700429969112842764913119068298
     #[rustfmt::skip]
