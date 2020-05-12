@@ -8,6 +8,11 @@ pub mod fq;
 #[cfg(any(feature = "bls12_377", feature = "sw6", feature = "edwards_sw6"))]
 pub use self::fq::*;
 
+#[cfg(any(feature = "bls12_377", feature = "bw6_761", feature = "edwards_bw6_761"))]
+pub mod fq;
+#[cfg(any(feature = "bls12_377", feature = "bw6_761", feature = "edwards_bw6_761"))]
+pub use self::fq::*;
+
 #[cfg(feature = "bls12_377")]
 pub mod fq2;
 #[cfg(feature = "bls12_377")]
