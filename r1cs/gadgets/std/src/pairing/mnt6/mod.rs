@@ -104,6 +104,9 @@ impl<P: MNT6Parameters> PairingGadget<MNT6p<P>, P::Fp> for MNT6PairingGadget<P>
                     f = f.mul_by_2345(cs.ns(||"add compute f"), &g_rq_at_p)?;
                 }
             }
+            if P::ATE_IS_LOOP_COUNT_NEG {
+                f = f.unitary_inverse(cs.ns(|| "f unitary inverse"))?;
+            }
             result.mul_in_place(cs.ns(|| format!("mul_assign_{}", i)), &f)?;
         }
         Ok(result)
@@ -126,15 +129,26 @@ impl<P: MNT6Parameters> PairingGadget<MNT6p<P>, P::Fp> for MNT6PairingGadget<P>
         };
 
         //Final exp last chunk
-
         let elt_q = elt.clone()
             .frobenius_map(cs.ns(|| "elt_q_frobenius_1"), 1)?;
 
         let w1_part = elt_q
             .cyclotomic_exp(cs.ns(|| "compute w1"), P::FINAL_EXPONENT_LAST_CHUNK_1)?;
 
-        let w0_part = elt.clone()
-            .cyclotomic_exp(cs.ns(|| "compute w0"),P::FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0)?;
+        if P::FINAL_EXPONENT_LAST_CHUNK_W0_IS_NEG {
+            // in this case we need the inverse of elt
+            let elt_inv = {
+                let elt_inv_q3_over_elt_inv = value_inv.clone()
+                    .frobenius_map(cs.ns(|| "elt_inv^(q^3)"), 3)?
+                    .mul(cs.ns(|| "elt_inv^(q^3-1)"), &value_inv)?;
+                elt_inv_q3_over_elt_inv
+                    .frobenius_map(cs.ns(|| "elt_inv^((q^3-1) * q)"), 1)?
+                    .mul(cs.ns(|| "elt_inv^((q^3-1)*(q+1)"), &elt_inv_q3_over_elt_inv)
+            }?
+            w0_part = elt_inv.cyclotomic_exp(&P::FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0);
+        } else {
+            w0_part = elt.cyclotomic_exp(&P::FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0);
+        }
 
         w1_part.mul(cs.ns(|| "w0 * w1"), &w0_part)
 
