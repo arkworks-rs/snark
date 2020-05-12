@@ -10,7 +10,7 @@ use r1cs_core::{ConstraintSystem, SynthesisError};
 use algebra::curves::models::mnt6::MNT6Parameters;
 
 use std::fmt::Debug;
-use std::ops::{Add, Mul};
+use std::ops::Mul;
 use crate::bits::boolean::Boolean;
 
 pub mod mnt6753;

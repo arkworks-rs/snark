@@ -138,7 +138,7 @@ impl<P: MNT4Parameters> PairingGadget<MNT4p<P>, P::Fp> for MNT4PairingGadget<P>
             elt_inv.cyclotomic_exp(cs.ns(|| "compute w0"),P::FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0)
         } else {
             elt.cyclotomic_exp(cs.ns(|| "compute w0"),P::FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0)
-        }?
+        }?;
 
         w1_part.mul(cs.ns(|| "w0 * w1"), &w0_part)
 
