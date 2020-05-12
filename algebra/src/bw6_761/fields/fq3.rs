@@ -88,8 +88,8 @@ impl Fp3Parameters for Fq3Parameters {
             0xf9dfaa846595555f,
             0xd0f0a60a5be58c,
         ])),
-        field_new!(Fq, BigInteger([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])),
-        field_new!(Fq, BigInteger([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])),
+        field_new!(Fq, BigInteger([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])),
+        field_new!(Fq, BigInteger([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])),
     );
 
     #[rustfmt::skip]
