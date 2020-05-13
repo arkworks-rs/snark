@@ -11,8 +11,14 @@ impl Fp768Parameters for FqParameters {}
 impl FftParameters for FqParameters {
     type BigInt = BigInteger;
 
+    // The internal representation of this type is six 64-bit unsigned
+    // integers in little-endian order. Values are always in
+    // Montgomery form; i.e., Scalar(a) = aR mod p, with R=2^768.
+
+    // (MODULUS - 1) % 2^TWO_ADICITY == 0
     const TWO_ADICITY: u32 = 1;
 
+    // least_quadratic_nonresidue(MODULUS)
     #[rustfmt::skip]
     const TWO_ADIC_ROOT_OF_UNITY: BigInteger = BigInteger([
         17481284903592032950u64,
@@ -47,12 +53,14 @@ impl FpParameters for FqParameters {
        0x122e824fb83ce0a
     ]);
 
-    const MODULUS_BITS: u32 = 782;
+    const MODULUS_BITS: u32 = 761;
 
     const CAPACITY: u32 = Self::MODULUS_BITS - 1;
 
-    const REPR_SHAVE_BITS: u32 = 14;
+    // gap to 64-bit machine word
+    const REPR_SHAVE_BITS: u32 = 7;
 
+    // 2^768 % MODULUS
     #[rustfmt::skip]
     const R: BigInteger = BigInteger([
         144959613005956565u64,
@@ -69,25 +77,28 @@ impl FpParameters for FqParameters {
         23071597697427581u64,
     ]);
 
+    // R^2
     #[rustfmt::skip]
     const R2: BigInteger = BigInteger([
-        2904395716425582240u64,
-        6126719177497036403u64,
-        9048127693003030864u64,
-        7108654064040224134u64,
-        1000494969483906659u64,
-        6733101207612972947u64,
-        13315746697404576671u64,
-        12988204579382596453u64,
-        7616629513029282122u64,
-        18088271959413777680u64,
-        12866415223781046046u64,
-        29232037980483373u64,
+        14305184132582319705u64,
+        8868935336694416555u64,
+        9196887162930508889u64,
+        15486798265448570248u64,
+        5402985275949444416u64,
+        10893197322525159598u64,
+        3204916688966998390u64,
+        12417238192559061753u64,
+        12426306557607898622u64,
+        1305582522441154384u64,
+        10311846026977660324u64,
+        48736111365249031u64,
     ]);
 
+    // (-1/MODULUS) % 2^64
     const INV: u64 = 744663313386281181u64;
 
     /// GENERATOR = 2
+    // primitive_root(MODULUS)
     #[rustfmt::skip]
     const GENERATOR: BigInteger = BigInteger([
         289919226011913130u64,
@@ -104,8 +115,28 @@ impl FpParameters for FqParameters {
         46143195394855163u64,
     ]);
 
+    // (MODULUS - 1) / 2
     #[rustfmt::skip]
     const MODULUS_MINUS_ONE_DIV_TWO: BigInteger = BigInteger([
+        0x7a4e800000000045,
+        0xf3489f3438000041,
+        0x0b067c577578521b,
+        0x4c508b612b33d47c,
+        0x38ee69ee39f5ff97,
+        0x4344e476897cfec8,
+        0x81e75d7f92da1182,
+        0xb83dd31c72c2748c,
+        0x29413af7c043df20,
+        0x5c930c3540e8a344,
+        0x68c3e4a0027d7f9f,
+        0x9174127dc1e705,
+    ]);
+
+    // T =
+    // 3445725192157866269698394841137828771239834456268075054756895080104811711121745868043841591644705843820432283876893306725580879560277123879674755849562650799475802549689254425186271815711798397975949850214984556421382456559534149
+    // (MODULUS - 1) / 2 ^ TWO_ADICITY
+    #[rustfmt::skip]
+    const T: BigInteger = BigInteger([
         0x7a4e800000000045,
         0xf3489f3438000041,
         0x0b067c577578521b,
@@ -136,23 +167,5 @@ impl FpParameters for FqParameters {
         0xae49861aa07451a2,
         0xb461f250013ebfcf,
         0x48ba093ee0f382,
-    ]);
-
-    // T =
-    // 3445725192157866269698394841137828771239834456268075054756895080104811711121745868043841591644705843820432283876893306725580879560277123879674755849562650799475802549689254425186271815711798397975949850214984556421382456559534149
-    #[rustfmt::skip]
-    const T: BigInteger = BigInteger([
-        0x7a4e800000000045,
-        0xf3489f3438000041,
-        0x0b067c577578521b,
-        0x4c508b612b33d47c,
-        0x38ee69ee39f5ff97,
-        0x4344e476897cfec8,
-        0x81e75d7f92da1182,
-        0xb83dd31c72c2748c,
-        0x29413af7c043df20,
-        0x5c930c3540e8a344,
-        0x68c3e4a0027d7f9f,
-        0x9174127dc1e705,
     ]);
 }
