@@ -14,6 +14,7 @@ impl Fp3Parameters for Fq3Parameters {
     type Fp = Fq;
 
     /// NONRESIDUE = 2
+    // Fq3 = Fq[u]/u^3-2
     #[rustfmt::skip]
     const NONRESIDUE: Fq = field_new!(Fq, BigInteger([
         0x0405ffffffff0baa,
@@ -30,8 +31,10 @@ impl Fp3Parameters for Fq3Parameters {
         0xa3eefde24fd0fb,
     ]));
 
+    // (MODULUS^3 - 1) % 2^TWO_ADICITY == 0
     const TWO_ADICITY: u32 = 1;
 
+    // (T-1)/2 with T = (MODULUS^3-1) / 2^TWO_ADICITY
     #[rustfmt::skip]
     const T_MINUS_ONE_DIV_TWO: &'static [u64] = &[
         0xb5e7c000000a3eac,
@@ -72,6 +75,7 @@ impl Fp3Parameters for Fq3Parameters {
         0x5de9825a0e,
     ];
 
+    // NONRESIDUE^T % q
     #[rustfmt::skip]
     const QUADRATIC_NONRESIDUE_TO_T: (Fq, Fq, Fq) = (
         field_new!(Fq, BigInteger([
@@ -92,6 +96,7 @@ impl Fp3Parameters for Fq3Parameters {
         field_new!(Fq, BigInteger([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])),
     );
 
+    // NQR ^ (MODULUS^i - 1)/3, i=0,1,2 with NQR = u = (0,1,0)
     #[rustfmt::skip]
     const FROBENIUS_COEFF_FP3_C1: [Fq; 3] = [
         field_new!(Fq, BigInteger([
@@ -138,6 +143,7 @@ impl Fp3Parameters for Fq3Parameters {
         ])),
     ];
 
+    // NQR ^ (2*MODULUS^i - 2)/3, i=0,1,2 with NQR = u = (0,1,0)
     #[rustfmt::skip]
     const FROBENIUS_COEFF_FP3_C2: [Fq; 3] = [
         field_new!(Fq, BigInteger([
@@ -186,12 +192,8 @@ impl Fp3Parameters for Fq3Parameters {
 
     #[inline(always)]
     fn mul_fp_by_nonresidue(fe: &Self::Fp) -> Self::Fp {
-        use crate::fields::Field;
 
         let original = *fe;
-        let mut four_fe = fe.double();
-        four_fe.double_in_place();
-        let eight_fe = four_fe.double();
-        eight_fe + &four_fe + &original
+        original + &original
     }
 }
