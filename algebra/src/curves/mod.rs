@@ -231,6 +231,10 @@ pub trait AffineCurve:
     /// `Self::ScalarField`.
     #[must_use]
     fn mul_by_cofactor_inv(&self) -> Self;
+
+    // currently ony implemented for Bn-382
+    fn add_batch(_: &mut Vec<Self>) -> Self {Self::zero()}
+    fn add_points(_: &mut [Vec<Self>]) {}
 }
 
 pub trait PairingCurve: AffineCurve {
