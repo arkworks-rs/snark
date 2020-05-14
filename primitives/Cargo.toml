@@ -82,3 +82,4 @@ harness = false
 name = "poseidon_mht"
 path = "benches/crypto_primitives/poseidon_mht.rs"
 harness = false
+required-features = ["merkle_tree"]

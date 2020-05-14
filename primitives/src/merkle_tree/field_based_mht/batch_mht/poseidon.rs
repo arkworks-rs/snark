@@ -19,6 +19,7 @@ pub struct PoseidonBatchMerkleTree<F: PrimeField + MulShort, P: PoseidonParamete
     new_elem_pos: Vec<usize>,
     levels: usize,
     rate: usize,
+    num_leaves: usize,
     _parameters: PhantomData<P>
 }
 
@@ -87,6 +88,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchMerkleT
             new_elem_pos: { new_elem_pos },
             levels: { level_idx - 2 },
             rate: { P::R },
+            num_leaves: {last_level_size},
             _parameters: PhantomData
         }
     }
@@ -117,6 +119,14 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchMerkleT
 impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> BatchMerkleTree for PoseidonBatchMerkleTree<F,P> {
 
     type Hash = PoseidonBatchHash<F,P>;
+
+    fn reset(&mut self) {
+
+        for i in 0..self.new_elem_pos.len() {
+            self.new_elem_pos[i] = self.initial_pos[i];
+            self.processed_pos[i] = self.initial_pos[i];
+        }
+    }
 
     fn update(&mut self, leaf: F) {
 
@@ -178,22 +188,13 @@ mod test {
         // processing_step = 1024 * 1024 => 38617 ms
 
         let expected_output = MNT4753Fr::new(BigInteger768([8181981188982771303, 9834648934716236448, 6420360685258842467, 14258691490360951478, 10642011566662929522, 16918207755479993617, 3581400602871836321, 14012664850056020974, 16755211538924649257, 4039951447678776727, 12365175056998155257, 119677729692145]));
-
         let num_leaves = 1024 * 1024;
         let mut tree = MNT4BatchedMerkleTree::new(num_leaves, 1024 * 1024);
-
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-
-        let now_4753 = Instant::now();
         for _ in 0..num_leaves {
             tree.update(MNT4753Fr::rand(&mut rng));
         }
         tree.finalize_in_place();
-        let new_now_4753 = Instant::now();
-
-        let duration_mnt4753 = new_now_4753.duration_since(now_4753);
-        println!("Time for MT computation with {} leaves MNT4753 = {:?}", num_leaves, duration_mnt4753.as_millis());
-
         assert_eq!(tree.root(), expected_output, "Output of the Merkle tree computation for MNT4 does not match to the expected value.");
     }
 
@@ -205,22 +206,13 @@ mod test {
         // processing_step = 1024 * 1024 => 36838 ms
 
         let expected_output = MNT6753Fr::new(BigInteger768([18065863015580309240, 1059485854425188866, 1479096878827665107, 6899132209183155323, 1829690180552438097, 7395327616910893705, 16132683753083562833, 8528890579558218842, 9345795575555751752, 8161305655297462527, 6222078223269068637, 401142754883827]));
-
         let num_leaves = 1024 * 1024;
         let mut tree = MNT6BatchedMerkleTree::new(num_leaves, 1024 * 1024);
-
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-
-        let now_6753 = Instant::now();
         for _ in 0..num_leaves {
             tree.update(MNT6753Fr::rand(&mut rng));
         }
         tree.finalize_in_place();
-        let new_now_6753 = Instant::now();
-
-        let duration_mnt6753 = new_now_6753.duration_since(now_6753);
-        println!("Time for MT computation with {} leaves MNT6753 = {:?}", num_leaves, duration_mnt6753.as_millis());
-
         assert_eq!(tree.root(), expected_output, "Output of the Merkle tree computation for MNT6 does not match to the expected value.");
     }
 
@@ -233,6 +225,7 @@ pub struct PoseidonBatchMerkleTreeMem<F: PrimeField + MulShort, P: PoseidonParam
     array_nodes: Vec<F>,
     processing_step: usize,
     final_pos: Vec<usize>,
+    initial_pos: Vec<usize>,
     initial_pos_subarray: Vec<usize>,
     final_pos_subarray: Vec<usize>,
     processed_pos: Vec<usize>,
@@ -241,6 +234,7 @@ pub struct PoseidonBatchMerkleTreeMem<F: PrimeField + MulShort, P: PoseidonParam
     new_elem_pos_subarray: Vec<usize>,
     levels: usize,
     rate: usize,
+    num_leaves: usize,
     _parameters: PhantomData<P>
 }
 
@@ -294,6 +288,8 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchMerkleT
         let mut new_elem_pos_subarray = Vec::new();
         // position until new elements have been inserted in the full array
         let mut new_elem_pos = Vec::new();
+        // initial position of the full array
+        let mut initial_pos = Vec::new();
 
 
         // keeps track of the Merkle tree level
@@ -322,6 +318,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchMerkleT
             processed_pos_subarray.push(initial_idx_subarray);
             new_elem_pos.push(initial_idx);
             new_elem_pos_subarray.push(initial_idx_subarray);
+            initial_pos.push(initial_idx);
 
             initial_idx += size;
             initial_idx_subarray += size_subblock;
@@ -342,6 +339,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchMerkleT
             array_nodes: { tree_nodes },
             processing_step: { processing_block_size },
             final_pos: { final_pos },
+            initial_pos: {initial_pos},
             initial_pos_subarray: { initial_pos_subarray },
             final_pos_subarray: { final_pos_subarray },
             processed_pos: { processed_pos },
@@ -350,6 +348,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchMerkleT
             new_elem_pos_subarray: { new_elem_pos_subarray },
             levels: { level_idx - 2 },
             rate: { P::R },
+            num_leaves: { last_level_size },
             _parameters: PhantomData
         }
     }
@@ -387,6 +386,16 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchMerkleT
 impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> BatchMerkleTree for PoseidonBatchMerkleTreeMem<F,P> {
 
     type Hash = PoseidonBatchHash<F,P>;
+
+    fn reset(&mut self) {
+
+        for i in 0..self.new_elem_pos.len() {
+            self.new_elem_pos_subarray[i] = self.initial_pos_subarray[i];
+            self.new_elem_pos[i] = self.initial_pos[i];
+            self.processed_pos[i] = self.initial_pos[i];
+            self.processed_pos_subarray[i] = self.initial_pos_subarray[i];
+        }
+    }
 
     fn update(&mut self, leaf: F) {
         if self.new_elem_pos_subarray[0] < self.final_pos_subarray[0] {
@@ -451,22 +460,13 @@ mod test_mem {
         // processing_step = 1024 * 1024 => 38858 ms
 
         let expected_output = MNT4753Fr::new(BigInteger768([8181981188982771303, 9834648934716236448, 6420360685258842467, 14258691490360951478, 10642011566662929522, 16918207755479993617, 3581400602871836321, 14012664850056020974, 16755211538924649257, 4039951447678776727, 12365175056998155257, 119677729692145]));
-
         let num_leaves = 1024 * 1024;
         let mut tree = MNT4BatchedMerkleTree::new(num_leaves, 1024 * 1024);
-
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-
-        let now_4753 = Instant::now();
         for _ in 0..num_leaves {
             tree.update(MNT4753Fr::rand(&mut rng));
         }
         tree.finalize_in_place();
-        let new_now_4753 = Instant::now();
-
-        let duration_mnt4753 = new_now_4753.duration_since(now_4753);
-        println!("Time for MT computation with {} leaves MNT4753 = {:?}", num_leaves, duration_mnt4753.as_millis());
-
         assert_eq!(tree.root(), expected_output, "Output of the Merkle tree computation for MNT4 does not match to the expected value.");
     }
 
@@ -478,21 +478,13 @@ mod test_mem {
         // processing_step = 1024 * 1024 => 37450 ms
 
         let expected_output = MNT6753Fr::new(BigInteger768([18065863015580309240, 1059485854425188866, 1479096878827665107, 6899132209183155323, 1829690180552438097, 7395327616910893705, 16132683753083562833, 8528890579558218842, 9345795575555751752, 8161305655297462527, 6222078223269068637, 401142754883827]));
-
         let num_leaves = 1024 * 1024;
         let mut tree = MNT6BatchedMerkleTree::new(num_leaves, 1024 * 1024);
-
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-        let now_6753 = Instant::now();
         for _ in 0..num_leaves {
             tree.update(MNT6753Fr::rand(&mut rng));
         }
         tree.finalize_in_place();
-        let new_now_6753 = Instant::now();
-
-        let duration_mnt6753 = new_now_6753.duration_since(now_6753);
-        println!("Time for MT computation with {} leaves MNT6753 = {:?}", num_leaves, duration_mnt6753.as_millis());
-
         assert_eq!(tree.root(), expected_output, "Output of the Merkle tree computation for MNT6 does not match to the expected value.");
     }
 

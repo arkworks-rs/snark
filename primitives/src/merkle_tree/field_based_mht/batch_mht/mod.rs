@@ -5,6 +5,10 @@ pub mod poseidon;
 pub trait BatchMerkleTree:Clone {
     type Hash: BatchFieldBasedHash;
 
+    // This function reset the pointing indices for the new element positions and processed positions
+    // Mainly used for benchmarking
+    fn reset(&mut self);
+
     // This function adds a leaf to the Merkle tree
     // Whenever the number of added leafs reaches the block size passed as parameter during creation of the
     // Merkle tree, the parent nodes are updated with the corresponding hashes
