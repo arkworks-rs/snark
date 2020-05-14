@@ -349,6 +349,7 @@ mod test {
     use algebra::fields::mnt4753::Fr as MNT4753Fr;
     use crate::merkle_tree::field_based_mht::batch_mht::BatchMerkleTree;
     type MNT4BatchedMerkleTree = PoseidonBatchMerkleTreeMem<MNT4753Fr, MNT4753PoseidonParameters>;
+    type MNT4BatchedMerkleTreeMem = PoseidonBatchMerkleTreeMem<MNT4753Fr, MNT4753PoseidonParameters>;
 
     #[test]
     fn compare_merkle_trees_mnt4() {
@@ -365,6 +366,29 @@ mod test {
         let root1 = tree.root();
 
         let mut tree = MNT4BatchedMerkleTree::new(num_leaves, num_leaves);
+        let mut rng = XorShiftRng::seed_from_u64(9174123u64);
+        for _ in 0..num_leaves {
+            tree.update(MNT4753Fr::rand(&mut rng));
+        }
+        tree.finalize_in_place();
+        assert_eq!(tree.root(), root1, "Outputs of the Merkle trees for MNT4 do not match.");
+    }
+
+    #[test]
+    fn compare_merkle_trees_mnt4_mem() {
+        let mut rng = XorShiftRng::seed_from_u64(9174123u64);
+
+        let num_leaves = 32;
+
+        let mut leaves = Vec::new();
+        for _ in 0..num_leaves {
+            let f = Fr::rand(&mut rng);
+            leaves.push(f);
+        }
+        let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
+        let root1 = tree.root();
+
+        let mut tree = MNT4BatchedMerkleTreeMem::new(num_leaves, num_leaves);
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
         for _ in 0..num_leaves {
             tree.update(MNT4753Fr::rand(&mut rng));
