@@ -39,7 +39,7 @@ signature = ["digest", "blake2"]
 vrf = []
 
 [dev-dependencies]
-criterion = "0.2"
+criterion = "0.3.2"
 rand_xorshift = { version = "0.2" }
 
 ################################# Benchmarks ##################################
@@ -76,6 +76,11 @@ required-features = ["vrf"]
 [[bench]]
 name = "poseidon_crh"
 path = "benches/crypto_primitives/poseidon_crh.rs"
+harness = false
+
+[[bench]]
+name = "updatable_poseidon_crh"
+path = "benches/crypto_primitives/updatable_poseidon_crh.rs"
 harness = false
 
 [[bench]]

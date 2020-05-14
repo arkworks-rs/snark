@@ -17,6 +17,7 @@ use crate::crh::FieldBasedHash;
 use crate::Error;
 
 pub mod parameters;
+pub mod updatable;
 pub mod batched_crh;
 
 pub struct PoseidonHash<F: PrimeField, P: PoseidonParameters<Fr = F>>{
@@ -24,7 +25,12 @@ pub struct PoseidonHash<F: PrimeField, P: PoseidonParameters<Fr = F>>{
     _parameters: PhantomData<P>,
 }
 
-pub trait PoseidonParameters: 'static + FieldBasedHashParameters + Clone{
+pub struct PoseidonBatchHash<F: PrimeField, P: PoseidonParameters<Fr = F>>{
+    _field:      PhantomData<F>,
+    _parameters: PhantomData<P>,
+}
+
+pub trait PoseidonParameters: 'static + FieldBasedHashParameters{
 
     const T: usize;  // Number of S-Boxes
     const R_F:i32;   // Number of full rounds
@@ -100,7 +106,7 @@ pub fn matrix_mix_short<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> (
 
 impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
 
-    fn poseidon_perm (state: &mut Vec<F>) {
+    pub(crate) fn poseidon_perm (state: &mut Vec<F>) {
 
 
         // index that goes over the round constants
