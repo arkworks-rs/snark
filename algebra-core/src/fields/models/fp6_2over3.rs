@@ -20,6 +20,7 @@ use crate::{
     bytes::{FromBytes, ToBytes},
     fields::{Field, Fp3, Fp3Parameters},
     io::{Read, Result as IoResult, Write},
+    BitIterator,
 };
 
 pub trait Fp6Parameters: 'static + Send + Sync {
@@ -63,6 +64,41 @@ impl<P: Fp6Parameters> Fp6<P> {
         }
     }
 
+    pub fn conjugate(&mut self) {
+        self.c1 = self.c1.neg();
+    }
+
+    /// TODO: Optimize manually
+    pub fn mul_by_034(
+        &mut self,
+        c0: &<P::Fp3Params as Fp3Parameters>::Fp,
+        c3: &<P::Fp3Params as Fp3Parameters>::Fp,
+        c4: &<P::Fp3Params as Fp3Parameters>::Fp,
+    ) {
+        let mut a = Fp6::zero();
+        a.c0.c0 = *c0;
+        a.c1.c0 = *c3;
+        a.c1.c1 = *c4;
+
+        self.mul_assign(a);
+    }
+
+    /// TODO: Optimize manually
+    pub fn mul_by_014(
+        &mut self,
+        c0: &<P::Fp3Params as Fp3Parameters>::Fp,
+        c1: &<P::Fp3Params as Fp3Parameters>::Fp,
+        c4: &<P::Fp3Params as Fp3Parameters>::Fp,
+
+    ) {
+        let mut a = Fp6::zero();
+        a.c0.c0 = *c0;
+        a.c0.c1 = *c1;
+        a.c1.c1 = *c4;
+
+        self.mul_assign(a);
+    }
+
     /// Multiply by quadratic nonresidue v.
     pub fn mul_by_nonresidue(value: &Fp3<P::Fp3Params>) -> Fp3<P::Fp3Params> {
         let mut res = *value;
@@ -101,6 +137,29 @@ impl<P: Fp6Parameters> Fp6<P> {
             }
         }
 
+        res
+    }
+
+    pub fn cyclotomic_exp_u64<S: AsRef<[u64]>>(&self, exp: S) -> Self {
+        let mut res = Self::one();
+
+        let mut found_one = false;
+
+        for i in BitIterator::new(exp) {
+            if !found_one {
+                if i {
+                    found_one = true;
+                } else {
+                    continue;
+                }
+            }
+
+            res = res.square();
+
+            if i {
+                res *= self;
+            }
+        }
         res
     }
 }
