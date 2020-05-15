@@ -68,7 +68,39 @@ impl<P: Fp6Parameters> Fp6<P> {
         self.c1 = self.c1.neg();
     }
 
-    /// TODO: Optimize manually
+    // TODO: Optimize manually
+    pub fn mul_by_024(
+        &mut self,
+        c0: &<P::Fp3Params as Fp3Parameters>::Fp,
+        c2: &<P::Fp3Params as Fp3Parameters>::Fp,
+        c4: &<P::Fp3Params as Fp3Parameters>::Fp,
+    ) {
+        let mut a = Fp6::zero();
+        a.c0.c0 = *c0;
+        a.c0.c2 = *c2;
+        a.c1.c1 = *c4;
+
+        self.mul_assign(a);
+    }
+
+    // TODO: Optimize manually
+    pub fn mul_by_045(
+        &mut self,
+        c0: &<P::Fp3Params as Fp3Parameters>::Fp,
+        c4: &<P::Fp3Params as Fp3Parameters>::Fp,
+        c5: &<P::Fp3Params as Fp3Parameters>::Fp,
+
+    ) {
+        let mut a = Fp6::zero();
+        a.c0.c0 = *c0;
+        a.c1.c1 = *c4;
+        a.c1.c2 = *c5;
+
+        self.mul_assign(a);
+    }
+
+
+    // TODO: Optimize manually
     pub fn mul_by_034(
         &mut self,
         c0: &<P::Fp3Params as Fp3Parameters>::Fp,
@@ -83,7 +115,7 @@ impl<P: Fp6Parameters> Fp6<P> {
         self.mul_assign(a);
     }
 
-    /// TODO: Optimize manually
+    // TODO: Optimize manually
     pub fn mul_by_014(
         &mut self,
         c0: &<P::Fp3Params as Fp3Parameters>::Fp,

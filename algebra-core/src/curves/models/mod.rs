@@ -1,6 +1,7 @@
 use crate::fields::{Field, PrimeField, SquareRootField};
 
 pub mod bls12;
+pub mod bw6;
 pub mod mnt4;
 pub mod mnt6;
 pub mod short_weierstrass_jacobian;
