@@ -12,7 +12,7 @@ pub struct Fq6Parameters;
 impl Fp6Parameters for Fq6Parameters {
     type Fp3Params = Fq3Parameters;
 
-    /// NONRESIDUE = 13
+    /// NONRESIDUE = 2
     #[rustfmt::skip]
     const NONRESIDUE: Fq3 = field_new!(Fq3,
         field_new!(Fq, BigInteger([

@@ -26,6 +26,7 @@ pub trait BW6Parameters: 'static {
     const ATE_LOOP_COUNT_2: &'static [u64];
     const ATE_LOOP_COUNT_2_IS_NEGATIVE: bool;
     const TWIST_TYPE: TwistType;
+    const TWIST: Self::Fp;
     type Fp: PrimeField + SquareRootField + Into<<Self::Fp as PrimeField>::BigInt>;
     type Fp3Params: Fp3Parameters<Fp = Self::Fp>;
     type Fp6Params: Fp6Parameters<Fp3Params = Self::Fp3Params>;
@@ -269,14 +270,14 @@ impl<P: BW6Parameters> PairingEngine for BW6<P> {
         // f_{u^3-u^2-u,Q}(P)
         let mut f_2 = Self::Fqk::one();
 
-        for i in BitIterator::new(P::ATE_LOOP_COUNT_2).skip(1) {
+        for j in BitIterator::new(P::ATE_LOOP_COUNT_2).skip(1) {
             f_2.square_in_place();
 
             for (p, ref mut coeffs_2) in &mut pairs_2 {
                 Self::ell(&mut f_2, coeffs_2.next().unwrap(), &p.0);
             }
 
-            if i {
+            if j {
                 for &mut (p, ref mut coeffs_2) in &mut pairs_2 {
                     Self::ell(&mut f_2, coeffs_2.next().unwrap(), &p.0);
                 }
