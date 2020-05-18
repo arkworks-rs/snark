@@ -77,33 +77,33 @@ impl<P: BW6Parameters> From<G2Affine<P>> for G2Prepared<P> {
 
         // f_{u+1,Q}(P)
         let mut ell_coeffs_1 = vec![];
-        let mut r = G2HomProjective {
+        let mut r_1 = G2HomProjective {
             x: q.x,
             y: q.y,
             z: P::Fp::one(),
         };
 
         for i in BitIterator::new(P::ATE_LOOP_COUNT_1).skip(1) {
-            ell_coeffs_1.push(doubling_step::<P>(&mut r, &two_inv));
+            ell_coeffs_1.push(doubling_step::<P>(&mut r_1, &two_inv));
 
             if i {
-                ell_coeffs_1.push(addition_step::<P>(&mut r, &q));
+                ell_coeffs_1.push(addition_step::<P>(&mut r_1, &q));
             }
         }
 
         // f_{u^3-u^2-u,Q}(P)
         let mut ell_coeffs_2 = vec![];
-        let mut r = G2HomProjective {
+        let mut r_2 = G2HomProjective {
             x: q.x,
             y: q.y,
             z: P::Fp::one(),
         };
 
-        for i in BitIterator::new(P::ATE_LOOP_COUNT_2).skip(1) {
-            ell_coeffs_2.push(doubling_step::<P>(&mut r, &two_inv));
+        for j in BitIterator::new(P::ATE_LOOP_COUNT_2).skip(1) {
+            ell_coeffs_2.push(doubling_step::<P>(&mut r_2, &two_inv));
 
-            if i {
-                ell_coeffs_2.push(addition_step::<P>(&mut r, &q));
+            if j {
+                ell_coeffs_2.push(addition_step::<P>(&mut r_2, &q));
             }
         }
 
@@ -144,8 +144,8 @@ fn doubling_step<B: BW6Parameters>(
     r.y = g.square() - &(e_square.double() + &e_square);
     r.z = b * &h;
     match B::TWIST_TYPE {
-        TwistType::M => (i, j.double() + &j, -h),
-        TwistType::D => (-h, j.double() + &j, i),
+        TwistType::M => (i, -B::TWIST * &h, j.double() + &j),
+        TwistType::D => (B::TWIST * &i, -h, j.double() + &j),
     }
 }
 
@@ -169,7 +169,7 @@ fn addition_step<B: BW6Parameters>(
     let j = theta * &q.x - &(lambda * &q.y);
 
     match B::TWIST_TYPE {
-        TwistType::M => (j, -theta, lambda),
-        TwistType::D => (lambda, -theta, j),
+        TwistType::M => (j, -theta, B::TWIST * &lambda),
+        TwistType::D => (B::TWIST * &j, -theta, lambda),
     }
 }
