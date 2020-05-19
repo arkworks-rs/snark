@@ -21,12 +21,12 @@ pub enum TwistType {
 pub trait BW6Parameters: 'static {
     const X: &'static [u64];
     const X_IS_NEGATIVE: bool;
-    const ATE_LOOP_COUNT_1: &'static [u64];
-    const ATE_LOOP_COUNT_1_IS_NEGATIVE: bool;
-    const ATE_LOOP_COUNT_2: &'static [u64];
-    const ATE_LOOP_COUNT_2_IS_NEGATIVE: bool;
+    const ATE_LOOP_COUNT: &'static [u64];
+    const ATE_LOOP_COUNT_IS_NEGATIVE: bool;
+    const FINAL_EXPONENT_LAST_CHUNK_1: <Self::Fp as PrimeField>::BigInt;
+    const FINAL_EXPONENT_LAST_CHUNK_W0_IS_NEG: bool;
+    const FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0: <Self::Fp as PrimeField>::BigInt;
     const TWIST_TYPE: TwistType;
-    const TWIST: Self::Fp;
     type Fp: PrimeField + SquareRootField + Into<<Self::Fp as PrimeField>::BigInt>;
     type Fp3Params: Fp3Parameters<Fp = Self::Fp>;
     type Fp6Params: Fp6Parameters<Fp3Params = Self::Fp3Params>;
@@ -64,16 +64,17 @@ impl<P: BW6Parameters> BW6<P> {
             TwistType::M => {
                 c2 *= &p.y;
                 c1 *= &p.x;
-                f.mul_by_045(&c0, &c1, &c2);
+                f.mul_by_014(&c0, &c1, &c2);
             }
             TwistType::D => {
                 c0 *= &p.y;
                 c1 *= &p.x;
-                f.mul_by_024(&c0, &c1, &c2);
+                f.mul_by_034(&c0, &c1, &c2);
             }
         }
     }
 
+    /*
     fn exp_by_x(mut f: Fp6<P::Fp6Params>) -> Fp6<P::Fp6Params> {
         // TODO: exp to BigInteger
         f = f.cyclotomic_exp_u64(P::X);
@@ -82,35 +83,55 @@ impl<P: BW6Parameters> BW6<P> {
         }
         f
     }
+    */
 
-    pub fn final_exponentiation(f: &Fp6<P::Fp6Params>) -> Fp6<P::Fp6Params> {
-        // final_exponent = (q^6-1)/r
-        //                = (q^3-1)*(q+1) * (q^2-q+1)/r
-        //                =    easy_part  *  hard_part
-
-        let f_inv = f.inverse().unwrap();
-        let f_to_first_chunk = Self::final_exponentiation_first_chunk(f, &f_inv);
-        Self::final_exponentiation_last_chunk(&f_to_first_chunk)
+    pub fn final_exponentiation(value: &Fp6<P::Fp6Params>) -> Fp6<P::Fp6Params> {
+        let value_inv = value.inverse().unwrap();
+        let value_to_first_chunk = Self::final_exponentiation_first_chunk(value, &value_inv);
+        let value_inv_to_first_chunk = Self::final_exponentiation_first_chunk(&value_inv, value);
+        Self::final_exponentiation_last_chunk(&value_to_first_chunk, &value_inv_to_first_chunk)
     }
 
     fn final_exponentiation_first_chunk(
-        f: &Fp6<P::Fp6Params>,
-        f_inv: &Fp6<P::Fp6Params>,
+        elt: &Fp6<P::Fp6Params>,
+        elt_inv: &Fp6<P::Fp6Params>,
     ) -> Fp6<P::Fp6Params> {
         // (q^3-1)*(q+1)
 
-        // f_q3 = f^(q^3)
-        let mut f_q3 = f.clone();
-        f_q3.frobenius_map(3);
-        // f_q3_over_f = f^(q^3-1)
-        let f_q3_over_f = f_q3 * f_inv;
-        // alpha = f^((q^3-1) * q)
-        let mut alpha = f_q3_over_f.clone();
+        // elt_q3 = elt^(q^3)
+        let mut elt_q3 = elt.clone();
+        elt_q3.frobenius_map(3);
+        // elt_q3_over_elt = elt^(q^3-1)
+        let elt_q3_over_elt = elt_q3 * elt_inv;
+        // alpha = elt^((q^3-1) * q)
+        let mut alpha = elt_q3_over_elt.clone();
         alpha.frobenius_map(1);
-        // beta = f^((q^3-1)*(q+1)
-        alpha * &f_q3_over_f
+        // beta = elt^((q^3-1)*(q+1)
+        alpha * &elt_q3_over_elt
     }
 
+    fn final_exponentiation_last_chunk(
+        elt: &Fp6<P::Fp6Params>,
+        elt_inv: &Fp6<P::Fp6Params>,
+    ) -> Fp6<P::Fp6Params> {
+        let elt_clone = elt.clone();
+        let elt_inv_clone = elt_inv.clone();
+
+        let mut elt_q = elt.clone();
+        elt_q.frobenius_map(1);
+
+        let w1_part = elt_q.cyclotomic_exp(&P::FINAL_EXPONENT_LAST_CHUNK_1);
+        let w0_part;
+        if P::FINAL_EXPONENT_LAST_CHUNK_W0_IS_NEG {
+            w0_part = elt_inv_clone.cyclotomic_exp(&P::FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0);
+        } else {
+            w0_part = elt_clone.cyclotomic_exp(&P::FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0);
+        }
+
+        w1_part * &w0_part
+    }
+
+    /*
     fn final_exponentiation_last_chunk(f: &Fp6<P::Fp6Params>) -> Fp6<P::Fp6Params> {
         // hard_part
         // From https://eprint.iacr.org/2020/351.pdf, Alg.6
@@ -217,6 +238,7 @@ impl<P: BW6Parameters> BW6<P> {
 
         result19
     }
+    */
 }
 
 impl<P: BW6Parameters> PairingEngine for BW6<P> {
@@ -237,60 +259,33 @@ impl<P: BW6Parameters> PairingEngine for BW6<P> {
     {
         // Alg.5 in https://eprint.iacr.org/2020/351.pdf
 
-        let mut pairs_1 = vec![];
-        let mut pairs_2 = vec![];
+        let mut pairs = vec![];
         for (p, q) in i {
             if !p.is_zero() && !q.is_zero() {
-                pairs_1.push((p, q.ell_coeffs_1.iter()));
-                pairs_2.push((p, q.ell_coeffs_2.iter()));
+                pairs.push((p, q.ell_coeffs.iter()));
             }
         }
 
-        // f_{u,Q}(P)
-        let mut f_1 = Self::Fqk::one();
+        let mut f = Self::Fqk::one();
 
-        for i in BitIterator::new(P::ATE_LOOP_COUNT_1).skip(1) {
-            f_1.square_in_place();
+        for i in BitIterator::new(P::ATE_LOOP_COUNT).skip(1) {
+            f.square_in_place();
 
-            for (p, ref mut coeffs_1) in &mut pairs_1 {
-                Self::ell(&mut f_1, coeffs_1.next().unwrap(), &p.0);
+            for (p, ref mut coeffs) in &mut pairs {
+                Self::ell(&mut f, coeffs.next().unwrap(), &p.0);
             }
 
             if i {
-                for &mut (p, ref mut coeffs_1) in &mut pairs_1 {
-                    Self::ell(&mut f_1, coeffs_1.next().unwrap(), &p.0);
+                for &mut (p, ref mut coeffs) in &mut pairs {
+                    Self::ell(&mut f, coeffs.next().unwrap(), &p.0);
                 }
             }
         }
 
-        if P::ATE_LOOP_COUNT_1_IS_NEGATIVE {
-            f_1.conjugate();
+        if P::ATE_LOOP_COUNT_IS_NEGATIVE {
+            f.conjugate();
         }
-
-        // f_{u^3-u^2-u,Q}(P)
-        let mut f_2 = Self::Fqk::one();
-
-        for j in BitIterator::new(P::ATE_LOOP_COUNT_2).skip(1) {
-            f_2.square_in_place();
-
-            for (p, ref mut coeffs_2) in &mut pairs_2 {
-                Self::ell(&mut f_2, coeffs_2.next().unwrap(), &p.0);
-            }
-
-            if j {
-                for &mut (p, ref mut coeffs_2) in &mut pairs_2 {
-                    Self::ell(&mut f_2, coeffs_2.next().unwrap(), &p.0);
-                }
-            }
-        }
-
-        if P::ATE_LOOP_COUNT_2_IS_NEGATIVE {
-            f_2.conjugate();
-        }
-
-        f_2.frobenius_map(1);
-
-        f_1 * &f_2
+        f
     }
 
     fn final_exponentiation(f: &Self::Fqk) -> Option<Self::Fqk> {
