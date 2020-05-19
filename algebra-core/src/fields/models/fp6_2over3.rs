@@ -20,7 +20,6 @@ use crate::{
     bytes::{FromBytes, ToBytes},
     fields::{Field, Fp3, Fp3Parameters},
     io::{Read, Result as IoResult, Write},
-    BitIterator,
 };
 
 pub trait Fp6Parameters: 'static + Send + Sync {
@@ -169,29 +168,6 @@ impl<P: Fp6Parameters> Fp6<P> {
             }
         }
 
-        res
-    }
-
-    pub fn cyclotomic_exp_u64<S: AsRef<[u64]>>(&self, exp: S) -> Self {
-        let mut res = Self::one();
-
-        let mut found_one = false;
-
-        for i in BitIterator::new(exp) {
-            if !found_one {
-                if i {
-                    found_one = true;
-                } else {
-                    continue;
-                }
-            }
-
-            res = res.square();
-
-            if i {
-                res *= self;
-            }
-        }
         res
     }
 }
