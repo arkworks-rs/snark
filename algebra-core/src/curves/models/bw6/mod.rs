@@ -19,7 +19,7 @@ pub enum TwistType {
 }
 
 pub trait BW6Parameters: 'static {
-    const X: &'static [u64];
+    const X: <Self::Fp as PrimeField>::BigInt;
     const X_IS_NEGATIVE: bool;
     const ATE_LOOP_COUNT: &'static [u64];
     const ATE_LOOP_COUNT_IS_NEGATIVE: bool;
@@ -77,7 +77,7 @@ impl<P: BW6Parameters> BW6<P> {
     /*
     fn exp_by_x(mut f: Fp6<P::Fp6Params>) -> Fp6<P::Fp6Params> {
         // TODO: exp to BigInteger
-        f = f.cyclotomic_exp_u64(P::X);
+        f = f.cyclotomic_exp(P::X);
         if P::X_IS_NEGATIVE {
             f.conjugate();
         }

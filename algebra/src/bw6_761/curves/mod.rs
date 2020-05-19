@@ -17,7 +17,7 @@ mod tests;
 pub struct Parameters;
 
 impl BW6Parameters for Parameters {
-    const X: &'static [u64] = &[0x8508c00000000001];
+    const X: BigInteger = BigInteger([0x8508c00000000001, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0]);
     /// `x` is positive.
     const X_IS_NEGATIVE: bool = false;
     const ATE_LOOP_COUNT: &'static [u64] = &[
