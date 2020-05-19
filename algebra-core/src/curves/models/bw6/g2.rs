@@ -25,8 +25,7 @@ pub type G2Projective<P> = GroupProjective<<P as BW6Parameters>::G2Parameters>;
 pub struct G2Prepared<P: BW6Parameters> {
     // Stores the coefficients of the line evaluations as calculated in
     // https://eprint.iacr.org/2013/722.pdf
-    pub ell_coeffs_1: Vec<(P::Fp, P::Fp, P::Fp)>,
-    pub ell_coeffs_2: Vec<(P::Fp, P::Fp, P::Fp)>,
+    pub ell_coeffs: Vec<(P::Fp, P::Fp, P::Fp)>,
     pub infinity: bool,
 }
 
@@ -50,15 +49,10 @@ impl<P: BW6Parameters> Default for G2Prepared<P> {
 
 impl<P: BW6Parameters> ToBytes for G2Prepared<P> {
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
-        for coeff_1 in &self.ell_coeffs_1 {
-            coeff_1.0.write(&mut writer)?;
-            coeff_1.1.write(&mut writer)?;
-            coeff_1.2.write(&mut writer)?;
-        }
-        for coeff_2 in &self.ell_coeffs_2 {
-            coeff_2.0.write(&mut writer)?;
-            coeff_2.1.write(&mut writer)?;
-            coeff_2.2.write(&mut writer)?;
+        for coeff in &self.ell_coeffs {
+            coeff.0.write(&mut writer)?;
+            coeff.1.write(&mut writer)?;
+            coeff.2.write(&mut writer)?;
         }
         self.infinity.write(writer)
     }
@@ -69,47 +63,27 @@ impl<P: BW6Parameters> From<G2Affine<P>> for G2Prepared<P> {
         let two_inv = P::Fp::one().double().inverse().unwrap();
         if q.is_zero() {
             return Self {
-                ell_coeffs_1: vec![],
-                ell_coeffs_2: vec![],
+                ell_coeffs: vec![],
                 infinity: true,
             };
         }
 
-        // f_{u+1,Q}(P)
-        let mut ell_coeffs_1 = vec![];
-        let mut r_1 = G2HomProjective {
+        let mut ell_coeffs = vec![];
+        let mut r = G2HomProjective {
             x: q.x,
             y: q.y,
             z: P::Fp::one(),
         };
 
-        for i in BitIterator::new(P::ATE_LOOP_COUNT_1).skip(1) {
-            ell_coeffs_1.push(doubling_step::<P>(&mut r_1, &two_inv));
+        for i in BitIterator::new(P::ATE_LOOP_COUNT).skip(1) {
+            ell_coeffs.push(doubling_step::<P>(&mut r, &two_inv));
 
             if i {
-                ell_coeffs_1.push(addition_step::<P>(&mut r_1, &q));
+                ell_coeffs.push(addition_step::<P>(&mut r, &q));
             }
         }
-
-        // f_{u^3-u^2-u,Q}(P)
-        let mut ell_coeffs_2 = vec![];
-        let mut r_2 = G2HomProjective {
-            x: q.x,
-            y: q.y,
-            z: P::Fp::one(),
-        };
-
-        for j in BitIterator::new(P::ATE_LOOP_COUNT_2).skip(1) {
-            ell_coeffs_2.push(doubling_step::<P>(&mut r_2, &two_inv));
-
-            if j {
-                ell_coeffs_2.push(addition_step::<P>(&mut r_2, &q));
-            }
-        }
-
         Self {
-            ell_coeffs_1,
-            ell_coeffs_2,
+            ell_coeffs,
             infinity: false,
         }
     }
@@ -144,8 +118,8 @@ fn doubling_step<B: BW6Parameters>(
     r.y = g.square() - &(e_square.double() + &e_square);
     r.z = b * &h;
     match B::TWIST_TYPE {
-        TwistType::M => (i, -B::TWIST * &h, j.double() + &j),
-        TwistType::D => (B::TWIST * &i, -h, j.double() + &j),
+        TwistType::M => (i, j.double() + &j, -h),
+        TwistType::D => (-h, j.double() + &j, i),
     }
 }
 
@@ -169,7 +143,7 @@ fn addition_step<B: BW6Parameters>(
     let j = theta * &q.x - &(lambda * &q.y);
 
     match B::TWIST_TYPE {
-        TwistType::M => (j, -theta, B::TWIST * &lambda),
-        TwistType::D => (B::TWIST * &j, -theta, lambda),
+        TwistType::M => (j, -theta, lambda),
+        TwistType::D => (lambda, -theta, j),
     }
 }
