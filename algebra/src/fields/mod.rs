@@ -16,6 +16,7 @@ mod macros;
 pub mod bls12_377;
 pub mod bls12_381;
 pub mod bn_382;
+pub mod tweedle;
 pub mod edwards_bls12;
 pub mod edwards_sw6;
 pub mod jubjub;
@@ -170,7 +171,7 @@ pub trait FpParameters: 'static + Send + Sync + Sized {
     /// R2 = R^2 % Self::MODULUS
     const R2: Self::BigInt;
 
-    /// INV = -(MODULUS^{-1} mod MODULUS) mod MODULUS
+    /// INV = -(MODULUS^{-1} mod 2^limb_size) mod 2^limb_size
     const INV: u64;
 
     /// A multiplicative generator that is also a quadratic nonresidue.
