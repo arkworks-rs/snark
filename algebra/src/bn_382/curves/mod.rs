@@ -22,38 +22,6 @@ pub type G2Projective = BnG2Projective<Bn_382Parameters>;
 
 pub struct Bn_382Parameters;
 
-/*
-impl PairingCurve for G1Affine {
-    type Engine = Bn_382;
-    type Prepared = G1Prepared<Bn_382Parameters>;
-    type PairWith = G2Affine;
-    type PairingResult = Fq12;
-
-    fn prepare(&self) -> Self::Prepared {
-        Self::Prepared::from_affine(*self)
-    }
-
-    fn pairing_with(&self, other: &Self::PairWith) -> Self::PairingResult {
-        Bn_382::pairing(*self, *other)
-    }
-}
-
-impl PairingCurve for G2Affine {
-    type Engine = Bn_382;
-    type Prepared = G2Prepared<Bn_382Parameters>;
-    type PairWith = G1Affine;
-    type PairingResult = Fq12;
-
-    fn prepare(&self) -> Self::Prepared {
-        Self::Prepared::from_affine(*self)
-    }
-
-    fn pairing_with(&self, other: &Self::PairWith) -> Self::PairingResult {
-        Bn_382::pairing(*other, *self)
-    }
-}
-*/
-
 impl BnParameters for Bn_382Parameters {
     const U: &'static [u64] = &[0, 1073873924];
     const SIX_U_PLUS_2_NAF: &'static [i8] = &[
