@@ -247,38 +247,3 @@ impl Fp6Parameters for Fq6Parameters {
     }
 }
 
-#[cfg(test)]
-mod test {
-    use super::*;
-    use crate::{Field, UniformRand};
-    use rand::SeedableRng;
-    use rand_xorshift::XorShiftRng;
-
-    #[test]
-    fn test_fq2_mul_nonresidue() {
-        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-
-        let non_residue = Fq2::new(Fq::zero(), Fq::one() + &Fq::one() + &Fq::one());
-
-        for _ in 0..1000 {
-            let mut a = Fq2::rand(&mut rng);
-            let mut b = a;
-            a = Fq6Parameters::mul_fp2_by_nonresidue(&a);
-            b *= &non_residue;
-
-            assert_eq!(a, b);
-        }
-    }
-
-    #[test]
-    fn test_fq6_inversion() {
-        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-
-        for _ in 0..1000 {
-            let a = Fq6::rand(&mut rng);
-            let a_inv = a.inverse().unwrap();
-
-            assert_eq!(a * &a_inv, Fq6::one());
-        }
-    }
-}

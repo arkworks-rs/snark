@@ -192,23 +192,3 @@ impl Fp12Parameters for Fq12Parameters {
         ),
     ];
 }
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use crate::{Field, UniformRand};
-    use rand::SeedableRng;
-    use rand_xorshift::XorShiftRng;
-
-    #[test]
-    fn test_fq12_inversion() {
-        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-
-        for _ in 0..1000 {
-            let a = Fq12::rand(&mut rng);
-            let a_inv = a.inverse().unwrap();
-
-            assert_eq!(a * &a_inv, Fq12::one());
-        }
-    }
-}

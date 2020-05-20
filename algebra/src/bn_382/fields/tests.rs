@@ -1,27 +1,30 @@
-use crate::{
+use algebra_core::{
     biginteger::{BigInteger, BigInteger384},
     fields::{
-        bn_382::{Fq, Fq12, Fq12Parameters, Fq2, Fq2Parameters, Fq6, Fq6Parameters, FqParameters},
-        fp12_2over3over2::Fp12Parameters,
-        fp6_3over2::Fp6Parameters,
-        tests::{field_test, frobenius_test, primefield_test, sqrt_field_test},
-        Field, Fp2Parameters, FpParameters, PrimeField, SquareRootField,
+        Field, Fp12Parameters, Fp2Parameters, Fp6Parameters, FpParameters,
+        PrimeField, SquareRootField,
     },
-    UniformRand,
+    One, UniformRand, Zero,
 };
-use rand::SeedableRng;
-use rand_xorshift::XorShiftRng;
-use std::{
+use core::{
     cmp::Ordering,
     ops::{AddAssign, MulAssign},
 };
+use rand::SeedableRng;
+use rand_xorshift::XorShiftRng;
+
+use crate::{
+    bn_382::{
+        Fq, Fq12, Fq12Parameters, Fq2, Fq2Parameters, Fq6, Fq6Parameters, FqParameters, Fp,
+    },
+    tests::fields::{field_test, frobenius_test, primefield_test, sqrt_field_test},
+};
+
 
 pub(crate) const ITERATIONS: usize = 5;
 
 #[test]
 fn test_bn_382_fp() {
-    use crate::fields::bn_382::Fp;
-
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
     for _ in 0..ITERATIONS {
         let a: Fp = UniformRand::rand(&mut rng);
@@ -34,8 +37,6 @@ fn test_bn_382_fp() {
 
 #[test]
 fn test_bn_382_fq() {
-    use crate::fields::bn_382::Fq;
-
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
     for _ in 0..ITERATIONS {
         let a: Fq = UniformRand::rand(&mut rng);
@@ -48,8 +49,6 @@ fn test_bn_382_fq() {
 
 #[test]
 fn test_bn_382_fq2() {
-    use crate::fields::bn_382::{Fq, Fq2};
-
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
     for _ in 0..ITERATIONS {
         let a: Fq2 = UniformRand::rand(&mut rng);
@@ -62,8 +61,6 @@ fn test_bn_382_fq2() {
 
 #[test]
 fn test_bn_382_fq6() {
-    use crate::fields::bn_382::{Fq, Fq6};
-
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
     for _ in 0..ITERATIONS {
         let g: Fq6 = UniformRand::rand(&mut rng);
@@ -75,8 +72,6 @@ fn test_bn_382_fq6() {
 
 #[test]
 fn test_bn_382_fq12() {
-    use crate::fields::bn_382::{Fq, Fq12};
-
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
     for _ in 0..ITERATIONS {
         let g: Fq12 = UniformRand::rand(&mut rng);
@@ -88,8 +83,6 @@ fn test_bn_382_fq12() {
 
 #[test]
 fn test_bn_382_negative_one() {
-    use crate::{biginteger::BigInteger384, fields::bn_382::fq::Fq};
-
     let neg_one = Fq::new(BigInteger384([
         0x8,
         0xc0060c0c0,
@@ -1185,40 +1178,6 @@ fn test_fq_repr_add_nocarry() {
 }
 
 #[test]
-fn test_fq_is_valid() {
-    let mut a = Fq::new(FqParameters::MODULUS);
-    assert!(!a.is_valid());
-    a.0.sub_noborrow(&BigInteger384::from(1));
-    assert!(a.is_valid());
-    assert!(Fq::new(BigInteger384::from(0)).is_valid());
-    assert!(Fq::new(BigInteger384([
-        0xdf4671abd14dab3e,
-        0xe2dc0c9f534fbd33,
-        0x31ca6c880cc444a6,
-        0x257a67e70ef33359,
-        0xf9b29e493f899b36,
-        0x17c8be1800b9f059,
-    ]))
-    .is_valid());
-    assert!(!Fq::new(BigInteger384([
-        0xffffffffffffffff,
-        0xffffffffffffffff,
-        0xffffffffffffffff,
-        0xffffffffffffffff,
-        0xffffffffffffffff,
-        0xffffffffffffffff,
-    ]))
-    .is_valid());
-
-    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-
-    for _ in 0..1000 {
-        let a = Fq::rand(&mut rng);
-        assert!(a.is_valid());
-    }
-}
-
-#[test]
 fn test_fq_add_assign() {
     {
         // Random number
@@ -1230,7 +1189,6 @@ fn test_fq_add_assign() {
             0x86b8a22b0c88b112,
             0x165a2ed809e4201b,
         ]));
-        assert!(tmp.is_valid());
         // Test that adding zero has no effect.
         tmp.add_assign(&Fq::new(BigInteger384::from(0)));
         assert_eq!(
@@ -1264,8 +1222,6 @@ fn test_fq_add_assign() {
         tmp2.add_assign(&c);
         tmp2.add_assign(&a);
 
-        assert!(tmp1.is_valid());
-        assert!(tmp2.is_valid());
         assert_eq!(tmp1, tmp2);
     }
 }

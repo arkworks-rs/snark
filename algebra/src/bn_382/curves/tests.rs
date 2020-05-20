@@ -1,22 +1,23 @@
 #![allow(unused_imports)]
-#[cfg(test)]
-use crate::{
-    biginteger::BigInteger384,
-    curves::{
-        bn_382::{g1::Bn_382G1Parameters, Bn_382, G1Affine, G1Projective, G2Affine, G2Projective},
-        models::SWModelParameters,
-        tests::curve_tests,
-        AffineCurve, PairingEngine, ProjectiveCurve,
-    },
+use algebra_core::{
+    biginteger::{BigInteger, BigInteger384},
+    curves::{models::SWModelParameters, AffineCurve, PairingEngine, ProjectiveCurve},
+    fields::{Field, FpParameters, PrimeField, SquareRootField},
+    test_rng, CanonicalSerialize, One, Zero,
     field_new,
-    fields::{
-        bn_382::{Fp, Fq, Fq12, Fq2},
-        Field, PrimeField, SquareRootField,
-    },
-    groups::tests::group_test,
 };
-use rand;
-use std::ops::{AddAssign, MulAssign};
+use core::ops::{AddAssign, MulAssign};
+use rand::Rng;
+
+use crate::{
+    bn_382::{
+        g1, g2, Bn_382, Fq, Fq12, Fq2, Fp, G1Affine, G1Projective, G2Affine, G2Projective,
+    },
+    tests::{
+        curves::{curve_tests, sw_tests},
+        groups::group_test,
+    },
+};
 
 #[test]
 fn test_g1_projective_curve() {
@@ -25,8 +26,9 @@ fn test_g1_projective_curve() {
 
 #[test]
 fn test_g1_projective_group() {
-    let a: G1Projective = rand::random();
-    let b: G1Projective = rand::random();
+    let mut rng = test_rng();
+    let a: G1Projective = rng.gen();
+    let b: G1Projective = rng.gen();
     group_test(a, b);
 }
 
@@ -44,8 +46,9 @@ fn test_g2_projective_curve() {
 
 #[test]
 fn test_g2_projective_group() {
-    let a: G2Projective = rand::random();
-    let b: G2Projective = rand::random();
+    let mut rng = test_rng();
+    let a: G2Projective = rng.gen();
+    let b: G2Projective = rng.gen();
     group_test(a, b);
 }
 
@@ -62,14 +65,10 @@ fn test_bilinearity() {
     let b: G2Projective = G2Projective::prime_subgroup_generator();
     let s: Fp = Fp::one() + &Fp::one();
 
-    let sa: G1Projective = (a * &s).into_affine().into();
-    let sb: G2Projective = (b * &s).into_affine().into();
-
-    println!("a\n{:?}\n", a.into_affine());
-    println!("b\n{:?}\n", b.into_affine());
-    println!("s\n{:?}\n", s);
-    println!("sa\n{:?}\n", sa.into_affine());
-    println!("sb\n{:?}\n", sb.into_affine());
+    let mut sa = a;
+    sa.mul_assign(s);
+    let mut sb = b;
+    sb.mul_assign(s);
 
     let ans1 = Bn_382::pairing(sa, b);
     let ans2 = Bn_382::pairing(a, sb);
@@ -91,7 +90,7 @@ fn test_g1_generator_raw() {
         let mut rhs = x;
         rhs.square_in_place();
         rhs.mul_assign(&x);
-        rhs.add_assign(&Bn_382G1Parameters::COEFF_B);
+        rhs.add_assign(&g1::Bn_382G1Parameters::COEFF_B);
 
         if let Some(y) = rhs.sqrt() {
             let p = G1Affine::new(x, if y < -y { y } else { -y }, false);
