@@ -1,44 +1,20 @@
-#![deny(
-    unused_import_braces,
-    unused_qualifications,
-    trivial_casts,
-    trivial_numeric_casts
-)]
-#![deny(unused_qualifications, variant_size_differences, stable_features)]
-#![deny(
-    non_shorthand_field_patterns,
-    unused_attributes,
-    unused_imports,
-    unused_extern_crates
-)]
-#![deny(
-    renamed_and_removed_lints,
-    stable_features,
-    unused_allocation,
-    unused_comparisons
-)]
-#![deny(
-    unused_must_use,
-    unused_mut,
-    unused_unsafe,
-    private_in_public,
-    unsafe_code
-)]
+#![deny(unused_import_braces, trivial_casts, trivial_numeric_casts)]
+#![deny(unused_qualifications, variant_size_differences, unused_extern_crates)]
+#![deny(non_shorthand_field_patterns, unused_attributes, unused_imports)]
+#![deny(renamed_and_removed_lints, unused_allocation, unused_comparisons)]
+#![deny(unused_must_use, unused_mut, private_in_public, unsafe_code)]
+#![forbid(unsafe_code)]
 
 // For randomness (during paramgen and proof generation)
-use rand::{thread_rng, Rng};
+use rand::Rng;
 
 // For benchmarking
 use std::time::{Duration, Instant};
 
 // Bring in some tools for using pairing-friendly curves
-use algebra::{
-    curves::bls12_381::Bls12_381,
-    fields::bls12_381::fr::Fr, 
-    Field
-};
-
 // We're going to use the BLS12-381 pairing-friendly elliptic curve.
+use algebra::bls12_381::{Bls12_381, Fr};
+use algebra_core::{test_rng, Field};
 
 // We'll use these interfaces to construct our circuit.
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
@@ -78,8 +54,8 @@ fn mimc<F: Field>(mut xl: F, mut xr: F, constants: &[F]) -> F {
 /// This is our demo circuit for proving knowledge of the
 /// preimage of a MiMC hash invocation.
 struct MiMCDemo<'a, F: Field> {
-    xl:        Option<F>,
-    xr:        Option<F>,
+    xl: Option<F>,
+    xr: Option<F>,
     constants: &'a [F],
 }
 
@@ -87,7 +63,10 @@ struct MiMCDemo<'a, F: Field> {
 /// is used during paramgen and proving in order to
 /// synthesize the constraint system.
 impl<'a, F: Field> ConstraintSynthesizer<F> for MiMCDemo<'a, F> {
-    fn generate_constraints<CS: ConstraintSystem<F>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
+    fn generate_constraints<CS: ConstraintSystem<F>>(
+        self,
+        cs: &mut CS,
+    ) -> Result<(), SynthesisError> {
         assert_eq!(self.constants.len(), MIMC_ROUNDS);
 
         // Allocate the first component of the preimage.
@@ -179,7 +158,7 @@ fn test_mimc_groth_maller_17() {
 
     // This may not be cryptographically safe, use
     // `OsRng` (for example) in production software.
-    let rng = &mut thread_rng();
+    let rng = &mut test_rng();
 
     // Generate the MiMC round constants
     let constants = (0..MIMC_ROUNDS).map(|_| rng.gen()).collect::<Vec<_>>();
@@ -189,8 +168,8 @@ fn test_mimc_groth_maller_17() {
     // Create parameters for our circuit
     let params = {
         let c = MiMCDemo::<Fr> {
-            xl:        None,
-            xr:        None,
+            xl: None,
+            xr: None,
             constants: &constants,
         };
 
@@ -224,8 +203,8 @@ fn test_mimc_groth_maller_17() {
             // Create an instance of our circuit (with the
             // witness)
             let c = MiMCDemo {
-                xl:        Some(xl),
-                xr:        Some(xr),
+                xl: Some(xl),
+                xr: Some(xr),
                 constants: &constants,
             };
 

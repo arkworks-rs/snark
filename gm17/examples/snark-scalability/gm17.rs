@@ -1,34 +1,13 @@
-#![deny(
-    unused_import_braces,
-    unused_qualifications,
-    trivial_casts,
-    trivial_numeric_casts
-)]
-#![deny(unused_qualifications, variant_size_differences, stable_features)]
-#![deny(
-    non_shorthand_field_patterns,
-    unused_attributes,
-    unused_imports,
-    unused_extern_crates
-)]
-#![deny(
-    renamed_and_removed_lints,
-    stable_features,
-    unused_allocation,
-    unused_comparisons
-)]
-#![deny(
-    unused_must_use,
-    unused_mut,
-    unused_unsafe,
-    private_in_public,
-    unsafe_code
-)]
+#![deny(unused_import_braces, trivial_casts, trivial_numeric_casts)]
+#![deny(unused_qualifications, variant_size_differences, unused_extern_crates)]
+#![deny(non_shorthand_field_patterns, unused_attributes, unused_imports)]
+#![deny(renamed_and_removed_lints, unused_allocation, unused_comparisons)]
+#![deny(unused_must_use, unused_mut, private_in_public, unsafe_code)]
+#![forbid(unsafe_code)]
 
 use csv;
 
-// For randomness (during paramgen and proof generation)
-use rand::thread_rng;
+use algebra_core::{test_rng, One};
 
 // For benchmarking
 use std::{
@@ -38,13 +17,10 @@ use std::{
 
 // Bring in some tools for using pairing-friendly curves
 // We're going to use the BLS12-377 pairing-friendly elliptic curve.
-use algebra::curves::bls12_377::Bls12_377;
-use algebra::fields::{bls12_377::fr::Fr, Field};
+use algebra::bls12_377::{Bls12_377, Fr};
 
 // We're going to use the Groth-Maller 17 proving system.
-use gm17::{
-    create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
-};
+use gm17::{create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof};
 
 use std::{env, fs::OpenOptions, path::PathBuf, process};
 
@@ -85,7 +61,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
     // This may not be cryptographically safe, use
     // `OsRng` (for example) in production software.
-    let rng = &mut thread_rng();
+    let rng = &mut test_rng();
 
     // Let's benchmark stuff!
     let samples = if num_constraints > 10000 {

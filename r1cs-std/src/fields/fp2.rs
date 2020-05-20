@@ -1,11 +1,11 @@
 use algebra::{
     fields::{Fp2, Fp2Parameters},
-    Field, PrimeField,
+    PrimeField,
 };
+use core::{borrow::Borrow, marker::PhantomData};
 use r1cs_core::{ConstraintSystem, ConstraintVar, SynthesisError};
-use std::{borrow::Borrow, marker::PhantomData};
 
-use crate::{fields::fp::FpGadget, prelude::*, Assignment};
+use crate::{fields::fp::FpGadget, prelude::*, Vec};
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = "P: Fp2Parameters, ConstraintF: PrimeField"))]
@@ -75,10 +75,7 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> FieldGadget<Fp
 
     #[inline]
     fn get_variable(&self) -> Self::Variable {
-        (
-            self.c0.get_variable(),
-            self.c1.get_variable(),
-        )
+        (self.c0.get_variable(), self.c1.get_variable())
     }
 
     #[inline]
@@ -292,47 +289,6 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> FieldGadget<Fp
         Ok(self)
     }
 
-    #[inline]
-    fn inverse<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        mut cs: CS,
-    ) -> Result<Self, SynthesisError> {
-        let inverse = Self::alloc(&mut cs.ns(|| "alloc inverse"), || {
-            self.get_value().and_then(|val| val.inverse()).get()
-        })?;
-
-        // Karatsuba multiplication for Fp2 with the inverse:
-        //     v0 = A.c0 * B.c0
-        //     v1 = A.c1 * B.c1
-        //
-        //      1 = v0 + non_residue * v1
-        //  => v0 = 1 - non_residue * v1
-        //
-        //      0 = result.c1 = (A.c0 + A.c1) * (B.c0 + B.c1) - v0 - v1
-        //  => v0 + v1 = (A.c0 + A.c1) * (B.c0 + B.c1)
-        //  => 1 + (1 - non_residue) * v1 = (A.c0 + A.c1) * (B.c0 + B.c1)
-        // Enforced with 2 constraints:
-        //     A.c1 * B.c1 = v1
-        //  => 1 + (1 - non_residue) * v1 = (A.c0 + A.c1) * (B.c0 + B.c1)
-        // Reference:
-        // "Multiplication and Squaring on Pairing-Friendly Fields"
-        // Devegili, OhEigeartaigh, Scott, Dahab
-
-        // Constraint 1
-        let mut v1 = self.c1.mul(cs.ns(|| "inv_constraint_1"), &inverse.c1)?;
-
-        // Constraint 2
-        let a0_plus_a1 = self.c0.add(cs.ns(|| "a0 + a1"), &self.c1)?;
-        let b0_plus_b1 = inverse.c0.add(cs.ns(|| "b0 + b1"), &inverse.c1)?;
-
-        let one = P::Fp::one();
-        let rhs = v1
-            .mul_by_constant_in_place(cs.ns(|| "(1 - nonresidue) * v1"), &(one - &P::NONRESIDUE))?
-            .add_constant_in_place(cs.ns(|| "add one"), &one)?;
-        a0_plus_a1.mul_equals(cs.ns(|| "inv_constraint_2"), &b0_plus_b1, rhs)?;
-        Ok(inverse)
-    }
-
     fn mul_equals<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
@@ -453,11 +409,11 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> FieldGadget<Fp
     }
 
     fn cost_of_mul() -> usize {
-        3
+        3 * FpGadget::<ConstraintF>::cost_of_mul()
     }
 
-    fn cost_of_inv() -> usize {
-        2
+    fn cost_of_mul_equals() -> usize {
+        Self::cost_of_mul()
     }
 }
 
@@ -524,18 +480,18 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> ToBitsGadget<C
         &self,
         mut cs: CS,
     ) -> Result<Vec<Boolean>, SynthesisError> {
-        let mut c0 = self.c0.to_bits(&mut cs)?;
-        let mut c1 = self.c1.to_bits(cs)?;
+        let mut c0 = self.c0.to_bits(cs.ns(|| "c0"))?;
+        let mut c1 = self.c1.to_bits(cs.ns(|| "c1"))?;
         c0.append(&mut c1);
         Ok(c0)
     }
 
-    fn to_bits_strict<CS: ConstraintSystem<ConstraintF>>(
+    fn to_non_unique_bits<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<Boolean>, SynthesisError> {
-        let mut c0 = self.c0.to_bits_strict(&mut cs)?;
-        let mut c1 = self.c1.to_bits_strict(cs)?;
+        let mut c0 = self.c0.to_non_unique_bits(cs.ns(|| "c0"))?;
+        let mut c1 = self.c1.to_non_unique_bits(cs.ns(|| "c1"))?;
         c0.append(&mut c1);
         Ok(c0)
     }
@@ -554,12 +510,12 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> ToBytesGadget<
         Ok(c0)
     }
 
-    fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
+    fn to_non_unique_bytes<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
-        let mut c0 = self.c0.to_bytes_strict(cs.ns(|| "c0"))?;
-        let mut c1 = self.c1.to_bytes_strict(cs.ns(|| "c1"))?;
+        let mut c0 = self.c0.to_non_unique_bytes(cs.ns(|| "c0"))?;
+        let mut c1 = self.c1.to_non_unique_bytes(cs.ns(|| "c1"))?;
         c0.append(&mut c1);
         Ok(c0)
     }
@@ -570,8 +526,8 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> Clone
 {
     fn clone(&self) -> Self {
         Self {
-            c0:      self.c0.clone(),
-            c1:      self.c1.clone(),
+            c0: self.c0.clone(),
+            c1: self.c1.clone(),
             _params: PhantomData,
         }
     }
@@ -584,20 +540,20 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> CondSelectGadg
     fn conditionally_select<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         cond: &Boolean,
-        first: &Self,
-        second: &Self,
+        true_value: &Self,
+        false_value: &Self,
     ) -> Result<Self, SynthesisError> {
         let c0 = FpGadget::<ConstraintF>::conditionally_select(
             &mut cs.ns(|| "c0"),
             cond,
-            &first.c0,
-            &second.c0,
+            &true_value.c0,
+            &false_value.c0,
         )?;
         let c1 = FpGadget::<ConstraintF>::conditionally_select(
             &mut cs.ns(|| "c1"),
             cond,
-            &first.c1,
-            &second.c1,
+            &true_value.c1,
+            &false_value.c1,
         )?;
 
         Ok(Self::new(c0, c1))
@@ -656,6 +612,17 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> AllocGadget<Fp
     for Fp2Gadget<P, ConstraintF>
 {
     #[inline]
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        t: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<Fp2<P>>,
+    {
+        Self::zero(cs.ns(|| "zero"))?.add_constant(cs.ns(|| "add constant"), t.borrow())
+    }
+
+    #[inline]
     fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         value_gen: F,
@@ -668,7 +635,7 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> AllocGadget<Fp
             Ok(fe) => {
                 let fe = *fe.borrow();
                 (Ok(fe.c0), Ok(fe.c1))
-            },
+            }
             Err(_) => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),
@@ -693,7 +660,7 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> AllocGadget<Fp
             Ok(fe) => {
                 let fe = *fe.borrow();
                 (Ok(fe.c0), Ok(fe.c1))
-            },
+            }
             Err(_) => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),

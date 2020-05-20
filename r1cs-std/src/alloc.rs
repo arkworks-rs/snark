@@ -1,12 +1,20 @@
+use crate::Vec;
 use algebra::Field;
+use core::borrow::Borrow;
 use r1cs_core::{ConstraintSystem, SynthesisError};
-use std::borrow::Borrow;
 
 pub trait AllocGadget<V, ConstraintF: Field>
 where
     Self: Sized,
     V: ?Sized,
 {
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
+        t: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<V>;
+
     fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, f: F) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
@@ -46,6 +54,21 @@ where
 impl<I, ConstraintF: Field, A: AllocGadget<I, ConstraintF>> AllocGadget<[I], ConstraintF>
     for Vec<A>
 {
+    #[inline]
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        t: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<[I]>,
+    {
+        let mut vec = Vec::new();
+        for (i, value) in t.borrow().iter().enumerate() {
+            vec.push(A::alloc_constant(cs.ns(|| format!("value_{}", i)), value)?);
+        }
+        Ok(vec)
+    }
+
     fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         f: F,

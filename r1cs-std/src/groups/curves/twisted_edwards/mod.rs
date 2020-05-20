@@ -3,20 +3,14 @@ use algebra::{
         twisted_edwards_extended::GroupAffine as TEAffine, MontgomeryModelParameters,
         TEModelParameters,
     },
-    BitIterator, Field,
+    BitIterator, Field, One, Zero,
 };
 
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
-use crate::prelude::*;
+use crate::{prelude::*, Vec};
 
-use std::{borrow::Borrow, marker::PhantomData};
-
-pub mod edwards_bls12;
-pub mod edwards_sw6;
-pub mod jubjub;
-#[cfg(test)]
-mod test;
+use core::{borrow::Borrow, marker::PhantomData};
 
 #[derive(Derivative)]
 #[derivative(Debug, Clone)]
@@ -38,8 +32,8 @@ pub struct MontgomeryAffineGadget<
 mod montgomery_affine_impl {
     use super::*;
     use crate::Assignment;
-    use algebra::{twisted_edwards_extended::GroupAffine, AffineCurve, Field};
-    use std::ops::{AddAssign, MulAssign, SubAssign};
+    use algebra::{twisted_edwards_extended::GroupAffine, Field};
+    use core::ops::{AddAssign, MulAssign, SubAssign};
 
     impl<P: TEModelParameters, ConstraintF: Field, F: FieldGadget<P::BaseField, ConstraintF>>
         MontgomeryAffineGadget<P, ConstraintF, F>
@@ -61,8 +55,8 @@ mod montgomery_affine_impl {
             } else if p.x == P::BaseField::zero() {
                 GroupAffine::new(P::BaseField::zero(), P::BaseField::zero())
             } else {
-                let u = (P::BaseField::one() + &p.y)
-                    * &(P::BaseField::one() - &p.y).inverse().unwrap();
+                let u =
+                    (P::BaseField::one() + &p.y) * &(P::BaseField::one() - &p.y).inverse().unwrap();
                 let v = u * &p.x.inverse().unwrap();
                 GroupAffine::new(u, v)
             };
@@ -96,7 +90,7 @@ mod montgomery_affine_impl {
                         t0.mul_assign(&invy);
 
                         Ok(t0)
-                    },
+                    }
                     None => Err(SynthesisError::DivisionByZero),
                 }
             })?;
@@ -114,7 +108,7 @@ mod montgomery_affine_impl {
                         t0.mul_assign(&t1);
 
                         Ok(t0)
-                    },
+                    }
                     None => Err(SynthesisError::DivisionByZero),
                 }
             })?;
@@ -146,7 +140,7 @@ mod montgomery_affine_impl {
                     Some(d) => {
                         n.mul_assign(&d);
                         Ok(n)
-                    },
+                    }
                     None => Err(SynthesisError::DivisionByZero),
                 }
             })?;
@@ -264,7 +258,7 @@ mod affine_impl {
     use super::*;
     use crate::Assignment;
     use algebra::{curves::AffineCurve, Field, PrimeField};
-    use std::ops::Neg;
+    use core::ops::Neg;
 
     impl<P, ConstraintF, F> GroupGadget<TEAffine<P>, ConstraintF> for AffineGadget<P, ConstraintF, F>
     where
@@ -498,6 +492,23 @@ mod affine_impl {
         F: FieldGadget<P::BaseField, ConstraintF>,
         Self: GroupGadget<TEAffine<P>, ConstraintF>,
     {
+        #[inline]
+        fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+            mut cs: CS,
+            t: T,
+        ) -> Result<Self, SynthesisError>
+        where
+            T: Borrow<TEAffine<P>>,
+        {
+            let p = t.borrow();
+            Ok(Self {
+                x: F::alloc_constant(cs.ns(|| "x"), &p.x)?,
+                y: F::alloc_constant(cs.ns(|| "y"), &p.y)?,
+                _params: PhantomData,
+                _engine: PhantomData,
+            })
+        }
+
         fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(
             mut cs: CS,
             value_gen: FN,
@@ -510,7 +521,7 @@ mod affine_impl {
                 Ok(ge) => {
                     let ge = *ge.borrow();
                     (Ok(ge.x), Ok(ge.y))
-                },
+                }
                 _ => (
                     Err(SynthesisError::AssignmentMissing),
                     Err(SynthesisError::AssignmentMissing),
@@ -627,7 +638,7 @@ mod affine_impl {
                 Ok(ge) => {
                     let ge = *ge.borrow();
                     (Ok(ge.x), Ok(ge.y))
-                },
+                }
                 _ => (
                     Err(SynthesisError::AssignmentMissing),
                     Err(SynthesisError::AssignmentMissing),
@@ -662,12 +673,12 @@ mod affine_impl {
 
 mod projective_impl {
     use super::*;
-    use crate::Assignment;
+    use crate::{Assignment, Vec};
     use algebra::{
         curves::twisted_edwards_extended::GroupProjective as TEProjective, AffineCurve, Field,
         PrimeField, ProjectiveCurve,
     };
-    use std::ops::Neg;
+    use core::ops::Neg;
 
     impl<P, ConstraintF, F> GroupGadget<TEProjective<P>, ConstraintF>
         for AffineGadget<P, ConstraintF, F>
@@ -966,14 +977,14 @@ mod projective_impl {
                     match edwards_result {
                         None => {
                             edwards_result = Some(segment_result);
-                        },
+                        }
                         Some(ref mut edwards_result) => {
                             *edwards_result = GroupGadget::<TEAffine<P>, ConstraintF>::add(
                                 &segment_result,
                                 cs.ns(|| "edwards addition"),
                                 edwards_result,
                             )?;
-                        },
+                        }
                     }
 
                     Ok(())
@@ -1056,13 +1067,13 @@ mod projective_impl {
                     match result {
                         None => {
                             result = Some(tmp);
-                        },
+                        }
                         Some(ref mut result) => {
                             *result = tmp.add(
                                 cs.ns(|| format!("addition of window {}, {}", segment_i, i)),
                                 result,
                             )?;
-                        },
+                        }
                     }
                 }
 
@@ -1095,6 +1106,23 @@ mod projective_impl {
         F: FieldGadget<P::BaseField, ConstraintF>,
         Self: GroupGadget<TEProjective<P>, ConstraintF>,
     {
+        #[inline]
+        fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+            mut cs: CS,
+            t: T,
+        ) -> Result<Self, SynthesisError>
+        where
+            T: Borrow<TEProjective<P>>,
+        {
+            let p = t.borrow().into_affine();
+            Ok(Self {
+                x: F::alloc_constant(cs.ns(|| "x"), &p.x)?,
+                y: F::alloc_constant(cs.ns(|| "y"), &p.y)?,
+                _params: PhantomData,
+                _engine: PhantomData,
+            })
+        }
+
         fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(
             mut cs: CS,
             value_gen: FN,
@@ -1107,7 +1135,7 @@ mod projective_impl {
                 Ok(ge) => {
                     let ge = ge.borrow().into_affine();
                     (Ok(ge.x), Ok(ge.y))
-                },
+                }
                 _ => (
                     Err(SynthesisError::AssignmentMissing),
                     Err(SynthesisError::AssignmentMissing),
@@ -1229,7 +1257,7 @@ mod projective_impl {
                 Ok(ge) => {
                     let ge = ge.borrow().into_affine();
                     (Ok(ge.x), Ok(ge.y))
-                },
+                }
                 _ => (
                     Err(SynthesisError::AssignmentMissing),
                     Err(SynthesisError::AssignmentMissing),
@@ -1272,11 +1300,11 @@ where
     fn conditionally_select<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         cond: &Boolean,
-        first: &Self,
-        second: &Self,
+        true_value: &Self,
+        false_value: &Self,
     ) -> Result<Self, SynthesisError> {
-        let x = F::conditionally_select(&mut cs.ns(|| "x"), cond, &first.x, &second.x)?;
-        let y = F::conditionally_select(&mut cs.ns(|| "y"), cond, &first.y, &second.y)?;
+        let x = F::conditionally_select(&mut cs.ns(|| "x"), cond, &true_value.x, &false_value.x)?;
+        let y = F::conditionally_select(&mut cs.ns(|| "y"), cond, &true_value.y, &false_value.y)?;
 
         Ok(Self::new(x, y))
     }
@@ -1365,12 +1393,16 @@ where
         Ok(x_bits)
     }
 
-    fn to_bits_strict<CS: ConstraintSystem<ConstraintF>>(
+    fn to_non_unique_bits<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<Boolean>, SynthesisError> {
-        let mut x_bits = self.x.to_bits_strict(cs.ns(|| "X Coordinate To Bits"))?;
-        let y_bits = self.y.to_bits_strict(cs.ns(|| "Y Coordinate To Bits"))?;
+        let mut x_bits = self
+            .x
+            .to_non_unique_bits(cs.ns(|| "X Coordinate To Bits"))?;
+        let y_bits = self
+            .y
+            .to_non_unique_bits(cs.ns(|| "Y Coordinate To Bits"))?;
         x_bits.extend_from_slice(&y_bits);
 
         Ok(x_bits)
@@ -1393,14 +1425,76 @@ where
         Ok(x_bytes)
     }
 
-    fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
+    fn to_non_unique_bytes<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
-        let mut x_bytes = self.x.to_bytes_strict(cs.ns(|| "x"))?;
-        let y_bytes = self.y.to_bytes_strict(cs.ns(|| "y"))?;
+        let mut x_bytes = self.x.to_non_unique_bytes(cs.ns(|| "x"))?;
+        let y_bytes = self.y.to_non_unique_bytes(cs.ns(|| "y"))?;
         x_bytes.extend_from_slice(&y_bytes);
 
         Ok(x_bytes)
     }
+}
+
+#[cfg(test)]
+#[allow(dead_code)]
+pub(crate) fn test<ConstraintF, P, GG>()
+where
+    ConstraintF: Field,
+    P: TEModelParameters,
+    GG: GroupGadget<TEAffine<P>, ConstraintF, Value = TEAffine<P>>,
+{
+    use crate::{
+        boolean::AllocatedBit, groups::test::group_test, prelude::*,
+        test_constraint_system::TestConstraintSystem,
+    };
+    use algebra::{test_rng, Group, PrimeField, UniformRand};
+    use rand::Rng;
+
+    group_test::<ConstraintF, TEAffine<P>, GG>();
+
+    let mut cs = TestConstraintSystem::new();
+
+    let a: TEAffine<P> = UniformRand::rand(&mut test_rng());
+    let gadget_a = GG::alloc(&mut cs.ns(|| "a"), || Ok(a)).unwrap();
+    // Check mul_bits
+    let scalar: <TEAffine<P> as Group>::ScalarField = UniformRand::rand(&mut test_rng());
+    let native_result = a.mul(&scalar);
+
+    let mut scalar: Vec<bool> = BitIterator::new(scalar.into_repr()).collect();
+    // Get the scalar bits into little-endian form.
+    scalar.reverse();
+    let input = Vec::<Boolean>::alloc(cs.ns(|| "Input"), || Ok(scalar)).unwrap();
+    let zero = GG::zero(cs.ns(|| "zero")).unwrap();
+    let result = gadget_a
+        .mul_bits(cs.ns(|| "mul_bits"), &zero, input.iter())
+        .unwrap();
+    let gadget_value = result.get_value().expect("Gadget_result failed");
+    assert_eq!(native_result, gadget_value);
+
+    assert!(cs.is_satisfied());
+
+    // Test the cost of allocation, conditional selection, and point addition.
+    let mut cs = TestConstraintSystem::new();
+
+    let bit = AllocatedBit::alloc(&mut cs.ns(|| "bool"), || Ok(true))
+        .unwrap()
+        .into();
+
+    let mut rng = test_rng();
+    let a: TEAffine<P> = rng.gen();
+    let b: TEAffine<P> = rng.gen();
+    let gadget_a = GG::alloc(&mut cs.ns(|| "a"), || Ok(a)).unwrap();
+    let gadget_b = GG::alloc(&mut cs.ns(|| "b"), || Ok(b)).unwrap();
+    let alloc_cost = cs.num_constraints();
+    let _ =
+        GG::conditionally_select(&mut cs.ns(|| "cond_select"), &bit, &gadget_a, &gadget_b).unwrap();
+    let cond_select_cost = cs.num_constraints() - alloc_cost;
+
+    let _ = gadget_a.add(&mut cs.ns(|| "ab"), &gadget_b).unwrap();
+    let add_cost = cs.num_constraints() - cond_select_cost - alloc_cost;
+    assert_eq!(cond_select_cost, <GG as CondSelectGadget<_>>::cost());
+    assert_eq!(add_cost, GG::cost_of_add());
+    assert!(cs.is_satisfied());
 }

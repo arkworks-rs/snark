@@ -1,4 +1,4 @@
-use algebra::Field;
+use algebra_core::Field;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
 
@@ -15,6 +15,18 @@ pub trait NIZKVerifierGadget<N: NIZK, ConstraintF: Field> {
         verification_key: &Self::VerificationKeyGadget,
         input: I,
         proof: &Self::ProofGadget,
+    ) -> Result<(), SynthesisError>
+    where
+        CS: ConstraintSystem<ConstraintF>,
+        I: Iterator<Item = &'a T>,
+        T: 'a + ToBitsGadget<ConstraintF> + ?Sized;
+
+    fn conditional_check_verify<'a, CS, I, T>(
+        cs: CS,
+        verification_key: &Self::VerificationKeyGadget,
+        input: I,
+        proof: &Self::ProofGadget,
+        condition: &Boolean,
     ) -> Result<(), SynthesisError>
     where
         CS: ConstraintSystem<ConstraintF>,

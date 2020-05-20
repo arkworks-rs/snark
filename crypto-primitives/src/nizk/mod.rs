@@ -1,4 +1,4 @@
-use algebra::bytes::ToBytes;
+use algebra_core::bytes::ToBytes;
 use rand::Rng;
 
 #[cfg(feature = "gm17")]
@@ -53,28 +53,31 @@ pub trait NIZK {
 
 #[cfg(all(feature = "gm17", test))]
 mod test {
-    use rand::thread_rng;
-    use std::ops::AddAssign;
+    use algebra::test_rng;
+    use core::ops::AddAssign;
 
     #[test]
     fn test_gm17() {
         use crate::nizk::{gm17::Gm17, NIZK};
-        use algebra::{curves::bls12_381::Bls12_381, fields::bls12_381::Fr, Field};
+        use algebra::{
+            bls12_377::{Bls12_377, Fr},
+            One,
+        };
         use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 
         #[derive(Copy, Clone)]
         struct R1CSCircuit {
-            x:   Option<Fr>,
+            x: Option<Fr>,
             sum: Option<Fr>,
-            w:   Option<Fr>,
+            w: Option<Fr>,
         }
 
         impl R1CSCircuit {
             pub(super) fn new(x: Fr, sum: Fr, w: Fr) -> Self {
                 Self {
-                    x:   Some(x),
+                    x: Some(x),
                     sum: Some(sum),
-                    w:   Some(w),
+                    w: Some(w),
                 }
             }
         }
@@ -102,15 +105,15 @@ mod test {
         sum.add_assign(&Fr::one());
         let circuit = R1CSCircuit::new(Fr::one(), sum, Fr::one());
 
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
 
-        let parameters = Gm17::<Bls12_381, R1CSCircuit, [Fr]>::setup(circuit, rng).unwrap();
+        let parameters = Gm17::<Bls12_377, R1CSCircuit, [Fr]>::setup(circuit, rng).unwrap();
 
         let proof =
-            Gm17::<Bls12_381, R1CSCircuit, [Fr]>::prove(&parameters.0, circuit, rng).unwrap();
+            Gm17::<Bls12_377, R1CSCircuit, [Fr]>::prove(&parameters.0, circuit, rng).unwrap();
 
         let result =
-            Gm17::<Bls12_381, R1CSCircuit, [Fr]>::verify(&parameters.1, &[Fr::one(), sum], &proof)
+            Gm17::<Bls12_377, R1CSCircuit, [Fr]>::verify(&parameters.1, &[Fr::one(), sum], &proof)
                 .unwrap();
         assert!(result);
     }

@@ -1,23 +1,23 @@
-use ff_fft::EvaluationDomain;
-use algebra::{Field, PairingEngine};
+use algebra_core::{Field, One, PairingEngine, Zero};
+use ff_fft::{cfg_chunks_mut, cfg_iter, cfg_iter_mut, EvaluationDomain};
 
-use crate::{generator::KeypairAssembly, prover::ProvingAssignment};
+use crate::{generator::KeypairAssembly, prover::ProvingAssignment, Vec};
 use r1cs_core::{Index, SynthesisError};
 
+use core::ops::{AddAssign, SubAssign};
+#[cfg(feature = "parallel")]
 use rayon::prelude::*;
-use std::ops::{AddAssign, SubAssign};
 
 pub(crate) struct R1CStoSAP;
 
 impl R1CStoSAP {
     #[inline]
-    pub(crate) fn instance_map_with_evaluation<E: PairingEngine>(
+    pub(crate) fn instance_map_with_evaluation<E: PairingEngine, D: EvaluationDomain<E::Fr>>(
         assembly: &KeypairAssembly<E>,
         t: &E::Fr,
     ) -> Result<(Vec<E::Fr>, Vec<E::Fr>, E::Fr, usize, usize), SynthesisError> {
         let domain_size = 2 * assembly.num_constraints + 2 * (assembly.num_inputs - 1) + 1;
-        let domain = EvaluationDomain::<E::Fr>::new(domain_size)
-            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let domain = D::new(domain_size).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
         let domain_size = domain.size();
 
         let zt = domain.evaluate_vanishing_polynomial(*t);
@@ -97,7 +97,7 @@ impl R1CStoSAP {
     }
 
     #[inline]
-    pub(crate) fn witness_map<E: PairingEngine>(
+    pub(crate) fn witness_map<E: PairingEngine, D: EvaluationDomain<E::Fr>>(
         prover: &ProvingAssignment<E>,
         d1: &E::Fr,
         d2: &E::Fr,
@@ -125,9 +125,7 @@ impl R1CStoSAP {
         let mut full_input_assignment = prover.input_assignment.clone();
         full_input_assignment.extend(prover.aux_assignment.clone());
 
-        let temp = prover
-            .at
-            .par_iter()
+        let temp = cfg_iter!(prover.at)
             .zip(&prover.bt)
             .map(|(a_i, b_i)| {
                 let mut extra_var: E::Fr =
@@ -150,10 +148,8 @@ impl R1CStoSAP {
             full_input_assignment.push(extra_var);
         }
 
-        let domain = EvaluationDomain::<E::Fr>::new(
-            2 * prover.num_constraints + 2 * (prover.num_inputs - 1) + 1,
-        )
-        .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let domain = D::new(2 * prover.num_constraints + 2 * (prover.num_inputs - 1) + 1)
+            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
         let domain_size = domain.size();
 
         let extra_constr_offset = 2 * prover.num_constraints;
@@ -161,8 +157,7 @@ impl R1CStoSAP {
         let extra_var_offset2 = prover.num_inputs + prover.num_aux + prover.num_constraints - 1;
 
         let mut a = vec![zero; domain_size];
-        a[..2 * prover.num_constraints]
-            .par_chunks_mut(2)
+        cfg_chunks_mut!(a[..2 * prover.num_constraints], 2)
             .zip(&prover.at)
             .zip(&prover.bt)
             .for_each(|((chunk, at_i), bt_i)| {
@@ -192,7 +187,7 @@ impl R1CStoSAP {
 
         let d1_double = d1.double();
         let mut h: Vec<E::Fr> = vec![d1_double; domain_size];
-        h.par_iter_mut().zip(&a).for_each(|(h_i, a_i)| *h_i *= a_i);
+        cfg_iter_mut!(h).zip(&a).for_each(|(h_i, a_i)| *h_i *= a_i);
         h[0].sub_assign(&d2);
         let d1d1 = d1.square();
         h[0].sub_assign(&d1d1);
@@ -204,8 +199,7 @@ impl R1CStoSAP {
         drop(a);
 
         let mut c = vec![zero; domain_size];
-        c[..2 * prover.num_constraints]
-            .par_chunks_mut(2)
+        cfg_chunks_mut!(c[..2 * prover.num_constraints], 2)
             .enumerate()
             .for_each(|(i, chunk)| {
                 let mut tmp: E::Fr = evaluate_constraint::<E>(
@@ -234,13 +228,14 @@ impl R1CStoSAP {
         domain.ifft_in_place(&mut c);
         domain.coset_fft_in_place(&mut c);
 
-        aa.par_iter_mut().zip(c).for_each(|(aa_i, c_i)| *aa_i -= &c_i);
+        cfg_iter_mut!(aa)
+            .zip(c)
+            .for_each(|(aa_i, c_i)| *aa_i -= &c_i);
 
         domain.divide_by_vanishing_poly_on_coset_in_place(&mut aa);
         domain.coset_ifft_in_place(&mut aa);
 
-        h[..domain_size - 1]
-            .par_iter_mut()
+        cfg_iter_mut!(h[..domain_size - 1])
             .enumerate()
             .for_each(|(i, e)| e.add_assign(&aa[i]));
 

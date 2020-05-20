@@ -1,8 +1,10 @@
+#![cfg_attr(not(feature = "print-trace"), no_std)]
 #![allow(unused_imports)]
+
 pub use self::inner::*;
 
-#[cfg(feature = "print-trace")]
 #[macro_use]
+#[cfg(feature = "print-trace")]
 pub mod inner {
     pub use colored::Colorize;
     use std::sync::atomic::AtomicUsize;
@@ -18,8 +20,8 @@ pub mod inner {
     #[macro_export]
     macro_rules! start_timer {
         ($msg:expr) => {{
-            use $crate::{compute_indent, Colorize, NUM_INDENT, PAD_CHAR};
             use std::{sync::atomic::Ordering, time::Instant};
+            use $crate::{compute_indent, Colorize, NUM_INDENT, PAD_CHAR};
 
             let msg = $msg();
             let start_info = "Start:".yellow().bold();
@@ -28,7 +30,10 @@ pub mod inner {
 
             println!("{}{:8} {}", indent, start_info, msg);
             NUM_INDENT.fetch_add(1, Ordering::Relaxed);
-            $crate::TimerInfo { msg: msg.to_string(), time: Instant::now() }
+            $crate::TimerInfo {
+                msg: msg.to_string(),
+                time: Instant::now(),
+            }
         }};
     }
 
@@ -38,8 +43,8 @@ pub mod inner {
             end_timer!($time, || "");
         }};
         ($time:expr, $msg:expr) => {{
-            use $crate::{compute_indent, Colorize, NUM_INDENT, PAD_CHAR};
             use std::sync::atomic::Ordering;
+            use $crate::{compute_indent, Colorize, NUM_INDENT, PAD_CHAR};
 
             let time = $time.time;
             let final_time = time.elapsed();
@@ -76,16 +81,16 @@ pub mod inner {
                 final_time,
                 pad = 75 - indent_amount
             );
-
         }};
-
     }
 
     #[macro_export]
     macro_rules! add_to_trace {
         ($title:expr, $msg:expr) => {{
-            use $crate::{compute_indent, compute_indent_whitespace, Colorize, NUM_INDENT, PAD_CHAR};
             use std::sync::atomic::Ordering;
+            use $crate::{
+                compute_indent, compute_indent_whitespace, Colorize, NUM_INDENT, PAD_CHAR,
+            };
 
             let start_msg = "StartMsg".yellow().bold();
             let end_msg = "EndMsg".green().bold();
@@ -99,24 +104,16 @@ pub mod inner {
             let msg_indent_amount = 2 * NUM_INDENT.fetch_add(0, Ordering::Relaxed) + 2;
             let msg_indent = compute_indent_whitespace(msg_indent_amount);
             let mut final_message = "\n".to_string();
-            for line in  $msg().lines() {
-                final_message += &format!(
-                    "{}{}\n",
-                    msg_indent,
-                    line,
-                );
+            for line in $msg().lines() {
+                final_message += &format!("{}{}\n", msg_indent, line,);
             }
 
             // Todo: Recursively ensure that *entire* string is of appropriate
             // width (not just message).
             println!("{}{}", start_indent, start_msg);
-            println!(
-                "{}{}",
-                msg_indent,
-                final_message,
-            );
+            println!("{}{}", msg_indent, final_message,);
             println!("{}{}", start_indent, end_msg);
-        }}
+        }};
     }
 
     pub fn compute_indent_whitespace(indent_amount: usize) -> String {
@@ -128,27 +125,16 @@ pub mod inner {
     }
 
     pub fn compute_indent(indent_amount: usize) -> String {
-        use std::env::var;
         let mut indent = String::new();
-        let pad_string = match var("CLICOLOR") {
-            Ok(val) => {
-                if val == "0" {
-                    " "
-                } else {
-                    PAD_CHAR
-                }
-            },
-            Err(_) => PAD_CHAR,
-        };
         for _ in 0..indent_amount {
-            indent.push_str(&pad_string.white());
+            indent.push_str(&PAD_CHAR.white());
         }
         indent
     }
 }
 
-#[cfg(not(feature = "print-trace"))]
 #[macro_use]
+#[cfg(not(feature = "print-trace"))]
 mod inner {
     pub struct TimerInfo;
 
@@ -162,7 +148,7 @@ mod inner {
     macro_rules! add_to_trace {
         ($title:expr, $msg:expr) => {
             let _ = $msg;
-        }
+        };
     }
 
     #[macro_export]

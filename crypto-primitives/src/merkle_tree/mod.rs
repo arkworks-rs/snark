@@ -1,6 +1,6 @@
-use crate::{crh::FixedLengthCRH, Error};
-use algebra::bytes::ToBytes;
-use std::{fmt, rc::Rc};
+use crate::{crh::FixedLengthCRH, Error, Vec};
+use algebra_core::{bytes::ToBytes, io::Cursor};
+use core::fmt;
 
 #[cfg(feature = "r1cs")]
 pub mod constraints;
@@ -82,19 +82,19 @@ impl<P: MerkleTreeConfig> MerkleTreePath<P> {
 }
 
 pub struct MerkleHashTree<P: MerkleTreeConfig> {
-    tree:         Vec<<P::H as FixedLengthCRH>::Output>,
+    tree: Vec<<P::H as FixedLengthCRH>::Output>,
     padding_tree: Vec<(
         <P::H as FixedLengthCRH>::Output,
         <P::H as FixedLengthCRH>::Output,
     )>,
-    parameters:   Rc<<P::H as FixedLengthCRH>::Parameters>,
-    root:         Option<<P::H as FixedLengthCRH>::Output>,
+    parameters: <P::H as FixedLengthCRH>::Parameters,
+    root: Option<<P::H as FixedLengthCRH>::Output>,
 }
 
 impl<P: MerkleTreeConfig> MerkleHashTree<P> {
     pub const HEIGHT: u8 = P::HEIGHT as u8;
 
-    pub fn blank(parameters: Rc<<P::H as FixedLengthCRH>::Parameters>) -> Self {
+    pub fn blank(parameters: <P::H as FixedLengthCRH>::Parameters) -> Self {
         MerkleHashTree {
             tree: Vec::new(),
             padding_tree: Vec::new(),
@@ -104,7 +104,7 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
     }
 
     pub fn new<L: ToBytes>(
-        parameters: Rc<<P::H as FixedLengthCRH>::Parameters>,
+        parameters: <P::H as FixedLengthCRH>::Parameters,
         leaves: &[L],
     ) -> Result<Self, Error> {
         let new_time = start_timer!(|| "MerkleTree::New");
@@ -130,7 +130,7 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
         }
 
         // Compute and store the hash values for each leaf.
-        let last_level_index = level_indices.pop().unwrap();
+        let last_level_index = level_indices.pop().unwrap_or(0);
         let mut buffer = [0u8; 128];
         for (i, leaf) in leaves.iter().enumerate() {
             tree[last_level_index + i] = hash_leaf::<P::H, _>(&parameters, leaf, &mut buffer)?;
@@ -161,14 +161,17 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
         let mut cur_height = tree_height;
         let mut padding_tree = Vec::new();
         let mut cur_hash = tree[0].clone();
-        while cur_height < (Self::HEIGHT - 1) as usize {
-            cur_hash = hash_inner_node::<P::H>(&parameters, &cur_hash, &empty_hash, &mut buffer)?;
-            padding_tree.push((cur_hash.clone(), empty_hash.clone()));
-            cur_height += 1;
-        }
-
-        let root_hash = hash_inner_node::<P::H>(&parameters, &cur_hash, &empty_hash, &mut buffer)?;
-
+        let root_hash = if cur_height < Self::HEIGHT as usize {
+            while cur_height < (Self::HEIGHT - 1) as usize {
+                cur_hash =
+                    hash_inner_node::<P::H>(&parameters, &cur_hash, &empty_hash, &mut buffer)?;
+                padding_tree.push((cur_hash.clone(), empty_hash.clone()));
+                cur_height += 1;
+            }
+            hash_inner_node::<P::H>(&parameters, &cur_hash, &empty_hash, &mut buffer)?
+        } else {
+            cur_hash
+        };
         end_timer!(new_time);
 
         Ok(MerkleHashTree {
@@ -200,7 +203,7 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
 
         // Check that the given index corresponds to the correct leaf.
         if leaf_hash != self.tree[tree_index] {
-            return Err(MerkleTreeError::IncorrectLeafIndex(tree_index).into())
+            return Err(MerkleTreeError::IncorrectLeafIndex(tree_index).into());
         }
 
         // Iterate from the leaf up to the root, storing all intermediate hash values.
@@ -230,7 +233,7 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
         }
         end_timer!(prove_time);
         if path.len() != (Self::HEIGHT - 1) as usize {
-            return Err(MerkleTreeError::IncorrectPathLength(path.len()).into())
+            return Err(MerkleTreeError::IncorrectPathLength(path.len()).into());
         } else {
             Ok(MerkleTreePath { path })
         }
@@ -243,35 +246,34 @@ pub enum MerkleTreeError {
     IncorrectPathLength(usize),
 }
 
-impl std::fmt::Display for MerkleTreeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for MerkleTreeError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let msg = match self {
             MerkleTreeError::IncorrectLeafIndex(index) => {
                 format!("incorrect leaf index: {}", index)
-            },
+            }
             MerkleTreeError::IncorrectPathLength(len) => format!("incorrect path length: {}", len),
         };
         write!(f, "{}", msg)
     }
 }
 
-impl std::error::Error for MerkleTreeError {
-    #[inline]
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        None
-    }
-}
+impl algebra_core::Error for MerkleTreeError {}
 
 /// Returns the log2 value of the given number.
 #[inline]
 fn log2(number: usize) -> usize {
-    (number as f64).log2() as usize
+    algebra_core::log2(number) as usize
 }
 
 /// Returns the height of the tree, given the size of the tree.
 #[inline]
 fn tree_height(tree_size: usize) -> usize {
-    log2(tree_size + 1)
+    if tree_size == 1 {
+        return 1;
+    }
+
+    log2(tree_size)
 }
 
 /// Returns true iff the index represents the root.
@@ -332,15 +334,13 @@ pub(crate) fn hash_inner_node<H: FixedLengthCRH>(
     right: &H::Output,
     buffer: &mut [u8],
 ) -> Result<H::Output, Error> {
-    use std::io::Cursor;
-    let mut writer = Cursor::new(buffer);
+    let mut writer = Cursor::new(&mut *buffer);
     // Construct left input.
     left.write(&mut writer)?;
 
     // Construct right input.
     right.write(&mut writer)?;
 
-    let buffer = writer.into_inner();
     H::evaluate(parameters, &buffer[..(H::INPUT_SIZE_BITS / 8)])
 }
 
@@ -350,11 +350,9 @@ pub(crate) fn hash_leaf<H: FixedLengthCRH, L: ToBytes>(
     leaf: &L,
     buffer: &mut [u8],
 ) -> Result<H::Output, Error> {
-    use std::io::Cursor;
-    let mut writer = Cursor::new(buffer);
+    let mut writer = Cursor::new(&mut *buffer);
     leaf.write(&mut writer)?;
 
-    let buffer = writer.into_inner();
     H::evaluate(parameters, &buffer[..(H::INPUT_SIZE_BITS / 8)])
 }
 
@@ -371,7 +369,7 @@ mod test {
         crh::{pedersen::*, *},
         merkle_tree::*,
     };
-    use algebra::curves::jubjub::JubJubAffine as JubJub;
+    use algebra::{jubjub::JubJubAffine as JubJub, Zero};
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
 
@@ -387,7 +385,7 @@ mod test {
     struct JubJubMerkleTreeParams;
 
     impl MerkleTreeConfig for JubJubMerkleTreeParams {
-        const HEIGHT: usize = 32;
+        const HEIGHT: usize = 8;
         type H = H;
     }
     type JubJubMerkleTree = MerkleHashTree<JubJubMerkleTreeParams>;
@@ -395,7 +393,7 @@ mod test {
     fn generate_merkle_tree<L: ToBytes + Clone + Eq>(leaves: &[L]) -> () {
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
 
-        let crh_parameters = Rc::new(H::setup(&mut rng).unwrap());
+        let crh_parameters = H::setup(&mut rng).unwrap();
         let tree = JubJubMerkleTree::new(crh_parameters.clone(), &leaves).unwrap();
         let root = tree.root();
         for (i, leaf) in leaves.iter().enumerate() {
@@ -418,11 +416,24 @@ mod test {
         generate_merkle_tree(&leaves);
     }
 
+    #[test]
+    fn no_dummy_nodes_test() {
+        let mut leaves = Vec::new();
+        for i in 0..(1u8 << JubJubMerkleTree::HEIGHT - 1) {
+            leaves.push([i, i, i, i, i, i, i, i]);
+        }
+        generate_merkle_tree(&leaves);
+    }
+
+    #[test]
+    fn single_leaf_test() {
+        generate_merkle_tree(&[[1u8; 8]]);
+    }
+
     fn bad_merkle_tree_verify<L: ToBytes + Clone + Eq>(leaves: &[L]) -> () {
-        use algebra::groups::Group;
         let mut rng = XorShiftRng::seed_from_u64(13423423u64);
 
-        let crh_parameters = Rc::new(H::setup(&mut rng).unwrap());
+        let crh_parameters = H::setup(&mut rng).unwrap();
         let tree = JubJubMerkleTree::new(crh_parameters.clone(), &leaves).unwrap();
         let root = JubJub::zero();
         for (i, leaf) in leaves.iter().enumerate() {

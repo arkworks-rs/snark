@@ -1,4 +1,4 @@
-use algebra::{Field, PrimeField};
+use algebra_core::{Field, PrimeField};
 
 use crate::commitment::{
     injective_map::{InjectiveMap, PedersenCommCompressor},
@@ -12,11 +12,11 @@ use crate::commitment::{
 };
 
 pub use crate::crh::injective_map::constraints::InjectiveMapGadget;
-use algebra::groups::Group;
+use algebra_core::groups::Group;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::{groups::GroupGadget, uint8::UInt8};
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 pub struct PedersenCommitmentCompressorGadget<G, I, ConstraintF, GG, IG>
 where
@@ -26,9 +26,9 @@ where
     GG: GroupGadget<G, ConstraintF>,
     IG: InjectiveMapGadget<G, I, ConstraintF, GG>,
 {
-    _compressor:        PhantomData<I>,
+    _compressor: PhantomData<I>,
     _compressor_gadget: PhantomData<IG>,
-    _crh:               PedersenCommitmentGadget<G, ConstraintF, GG>,
+    _crh: PedersenCommitmentGadget<G, ConstraintF, GG>,
 }
 
 impl<G, I, ConstraintF, GG, IG, W> CommitmentGadget<PedersenCommCompressor<G, I, W>, ConstraintF>

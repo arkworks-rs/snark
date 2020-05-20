@@ -1,7 +1,6 @@
-use algebra::Field;
-use crate::ConstraintVar::*;
-use crate::{LinearCombination, Variable, ConstraintVar};
-use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub};
+use crate::{ConstraintVar, ConstraintVar::*, LinearCombination, Variable};
+use algebra_core::Field;
+use core::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub};
 
 impl<F: Field> From<Variable> for ConstraintVar<F> {
     #[inline]
@@ -14,6 +13,13 @@ impl<F: Field> From<(F, Variable)> for ConstraintVar<F> {
     #[inline]
     fn from(coeff_var: (F, Variable)) -> Self {
         LC(coeff_var.into())
+    }
+}
+
+impl<F: Field> From<LinearCombination<F>> for ConstraintVar<F> {
+    #[inline]
+    fn from(lc: LinearCombination<F>) -> Self {
+        LC(lc)
     }
 }
 

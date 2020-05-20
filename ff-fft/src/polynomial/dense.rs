@@ -1,11 +1,16 @@
 //! A polynomial represented in coefficient form.
 
-use std::fmt;
-use std::ops::{Add, AddAssign, Deref, DerefMut, Div, Mul, Neg, Sub, SubAssign};
+use crate::{GeneralEvaluationDomain, Vec};
+use core::{
+    fmt,
+    ops::{Add, AddAssign, Deref, DerefMut, Div, Mul, Neg, Sub, SubAssign},
+};
 
-use algebra::{Field, PrimeField};
-use crate::{Evaluations, EvaluationDomain, DenseOrSparsePolynomial};
+use crate::{DenseOrSparsePolynomial, EvaluationDomain, Evaluations};
+use algebra_core::{FftField, Field};
 use rand::Rng;
+
+#[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
 /// Stores a polynomial in coefficient form.
@@ -61,15 +66,15 @@ impl<F: Field> DensePolynomial<F> {
     }
 
     /// Constructs a new polynomial from a list of coefficients.
-    pub fn from_coefficients_vec(mut coeffs: Vec<F>) -> Self {
+    pub fn from_coefficients_vec(coeffs: Vec<F>) -> Self {
+        let mut result = Self { coeffs };
         // While there are zeros at the end of the coefficient vector, pop them off.
-        while coeffs.last().map_or(false, |c| c.is_zero()) {
-            coeffs.pop();
-        }
-        // Check that either the coefficients vec is empty or that the last coeff is non-zero.
-        assert!(coeffs.last().map_or(true, |coeff| !coeff.is_zero()));
+        result.truncate_leading_zeros();
+        // Check that either the coefficients vec is empty or that the last coeff is
+        // non-zero.
+        assert!(result.coeffs.last().map_or(true, |coeff| !coeff.is_zero()));
 
-        Self { coeffs }
+        result
     }
 
     /// Returns the degree of the polynomial.
@@ -79,6 +84,12 @@ impl<F: Field> DensePolynomial<F> {
         } else {
             assert!(self.coeffs.last().map_or(false, |coeff| !coeff.is_zero()));
             self.coeffs.len() - 1
+        }
+    }
+
+    fn truncate_leading_zeros(&mut self) {
+        while self.coeffs.last().map_or(false, |c| c.is_zero()) {
+            self.coeffs.pop();
         }
     }
 
@@ -94,15 +105,13 @@ impl<F: Field> DensePolynomial<F> {
             cur *= &point;
         }
         assert_eq!(powers_of_point.len(), self.coeffs.len());
-        let zero = F::zero();
-        powers_of_point
-            .into_par_iter()
+        cfg_into_iter!(powers_of_point)
             .zip(&self.coeffs)
             .map(|(power, coeff)| power * coeff)
-            .reduce(|| zero, |a, b| a + &b)
+            .sum()
     }
 
-    /// Perform a naive n^2 multiplicatoin of `self` by `other`.
+    /// Perform a naive n^2 multiplication of `self` by `other`.
     pub fn naive_mul(&self, other: &Self) -> Self {
         if self.is_zero() || other.is_zero() {
             DensePolynomial::zero()
@@ -117,8 +126,8 @@ impl<F: Field> DensePolynomial<F> {
         }
     }
 
-    /// Outputs a polynomial of degree `d` where each coefficient is sampled uniformly at random
-    /// from the field `F`.
+    /// Outputs a polynomial of degree `d` where each coefficient is sampled
+    /// uniformly at random from the field `F`.
     pub fn rand<R: Rng>(d: usize, rng: &mut R) -> Self {
         let mut random_coeffs = Vec::new();
         for _ in 0..=d {
@@ -128,19 +137,24 @@ impl<F: Field> DensePolynomial<F> {
     }
 }
 
-impl<F: PrimeField> DensePolynomial<F> {
+impl<F: FftField> DensePolynomial<F> {
     /// Multiply `self` by the vanishing polynomial for the domain `domain`.
-    /// Returns the quotient and remainder of the division.
-    pub fn mul_by_vanishing_poly(&self, domain: EvaluationDomain<F>) -> DensePolynomial<F> {
+    /// Returns the result of the multiplication.
+    pub fn mul_by_vanishing_poly<D: EvaluationDomain<F>>(&self, domain: D) -> DensePolynomial<F> {
         let mut shifted = vec![F::zero(); domain.size()];
         shifted.extend_from_slice(&self.coeffs);
-        shifted.par_iter_mut().zip(&self.coeffs).for_each(|(s, c)| *s -= c);
+        cfg_iter_mut!(shifted)
+            .zip(&self.coeffs)
+            .for_each(|(s, c)| *s -= c);
         DensePolynomial::from_coefficients_vec(shifted)
     }
 
     /// Divide `self` by the vanishing polynomial for the domain `domain`.
     /// Returns the quotient and remainder of the division.
-    pub fn divide_by_vanishing_poly(&self, domain: EvaluationDomain<F>) -> Option<(DensePolynomial<F>, DensePolynomial<F>)> {
+    pub fn divide_by_vanishing_poly<D: EvaluationDomain<F>>(
+        &self,
+        domain: D,
+    ) -> Option<(DensePolynomial<F>, DensePolynomial<F>)> {
         let self_poly: DenseOrSparsePolynomial<F> = self.into();
         let vanishing_poly: DenseOrSparsePolynomial<F> = domain.vanishing_polynomial().into();
         self_poly.divide_with_q_and_r(&vanishing_poly)
@@ -151,7 +165,7 @@ impl<'a, 'b, F: Field> Add<&'a DensePolynomial<F>> for &'b DensePolynomial<F> {
     type Output = DensePolynomial<F>;
 
     fn add(self, other: &'a DensePolynomial<F>) -> DensePolynomial<F> {
-        if self.is_zero() {
+        let mut result = if self.is_zero() {
             other.clone()
         } else if other.is_zero() {
             self.clone()
@@ -166,12 +180,10 @@ impl<'a, 'b, F: Field> Add<&'a DensePolynomial<F>> for &'b DensePolynomial<F> {
             for (a, b) in result.coeffs.iter_mut().zip(&self.coeffs) {
                 *a += b
             }
-            // If the leading coefficient ends up being zero, pop it off.
-            while result.coeffs.last().unwrap().is_zero() {
-                result.coeffs.pop();
-            }
             result
-        }
+        };
+        result.truncate_leading_zeros();
+        result
     }
 }
 
@@ -181,7 +193,6 @@ impl<'a, 'b, F: Field> AddAssign<&'a DensePolynomial<F>> for DensePolynomial<F> 
             self.coeffs.truncate(0);
             self.coeffs.extend_from_slice(&other.coeffs);
         } else if other.is_zero() {
-
         } else if self.degree() >= other.degree() {
             for (a, b) in self.coeffs.iter_mut().zip(&other.coeffs) {
                 *a += b
@@ -192,10 +203,7 @@ impl<'a, 'b, F: Field> AddAssign<&'a DensePolynomial<F>> for DensePolynomial<F> 
             for (a, b) in self.coeffs.iter_mut().zip(&other.coeffs) {
                 *a += b
             }
-            // If the leading coefficient ends up being zero, pop it off.
-            while self.coeffs.last().unwrap().is_zero() {
-                self.coeffs.pop();
-            }
+            self.truncate_leading_zeros();
         }
     }
 }
@@ -207,7 +215,6 @@ impl<'a, 'b, F: Field> AddAssign<(F, &'a DensePolynomial<F>)> for DensePolynomia
             self.coeffs.extend_from_slice(&other.coeffs);
             self.coeffs.iter_mut().for_each(|c| *c *= &f);
         } else if other.is_zero() {
-
         } else if self.degree() >= other.degree() {
             for (a, b) in self.coeffs.iter_mut().zip(&other.coeffs) {
                 *a += &(f * b);
@@ -218,23 +225,23 @@ impl<'a, 'b, F: Field> AddAssign<(F, &'a DensePolynomial<F>)> for DensePolynomia
             for (a, b) in self.coeffs.iter_mut().zip(&other.coeffs) {
                 *a += &(f * b);
             }
-            // If the leading coefficient ends up being zero, pop it off.
-            while self.coeffs.last().unwrap().is_zero() {
-                self.coeffs.pop();
-            }
+            self.truncate_leading_zeros();
         }
     }
 }
 
-impl<F: PrimeField> DensePolynomial<F> {
+impl<F: FftField> DensePolynomial<F> {
     /// Evaluate `self` over `domain`.
-    pub fn evaluate_over_domain_by_ref(&self, domain: EvaluationDomain<F>) -> Evaluations<F> {
+    pub fn evaluate_over_domain_by_ref<D: EvaluationDomain<F>>(
+        &self,
+        domain: D,
+    ) -> Evaluations<F, D> {
         let poly: DenseOrSparsePolynomial<'_, F> = self.into();
         DenseOrSparsePolynomial::<F>::evaluate_over_domain(poly, domain)
     }
 
     /// Evaluate `self` over `domain`.
-    pub fn evaluate_over_domain(self, domain: EvaluationDomain<F>) -> Evaluations<F> {
+    pub fn evaluate_over_domain<D: EvaluationDomain<F>>(self, domain: D) -> Evaluations<F, D> {
         let poly: DenseOrSparsePolynomial<'_, F> = self.into();
         DenseOrSparsePolynomial::<F>::evaluate_over_domain(poly, domain)
     }
@@ -257,7 +264,7 @@ impl<'a, 'b, F: Field> Sub<&'a DensePolynomial<F>> for &'b DensePolynomial<F> {
 
     #[inline]
     fn sub(self, other: &'a DensePolynomial<F>) -> DensePolynomial<F> {
-        if self.is_zero() {
+        let mut result = if self.is_zero() {
             let mut result = other.clone();
             for coeff in &mut result.coeffs {
                 *coeff = -(*coeff);
@@ -277,15 +284,10 @@ impl<'a, 'b, F: Field> Sub<&'a DensePolynomial<F>> for &'b DensePolynomial<F> {
             for (a, b) in result.coeffs.iter_mut().zip(&other.coeffs) {
                 *a -= b;
             }
-            if !result.is_zero() {
-                // If the leading coefficient ends up being zero, pop it off.
-                while result.coeffs.last().unwrap().is_zero() {
-                    result.coeffs.pop();
-                }
-            }
-
             result
-        }
+        };
+        result.truncate_leading_zeros();
+        result
     }
 }
 
@@ -298,7 +300,6 @@ impl<'a, 'b, F: Field> SubAssign<&'a DensePolynomial<F>> for DensePolynomial<F> 
                 self.coeffs[i] -= coeff;
             }
         } else if other.is_zero() {
-
         } else if self.degree() >= other.degree() {
             for (a, b) in self.coeffs.iter_mut().zip(&other.coeffs) {
                 *a -= b
@@ -310,9 +311,7 @@ impl<'a, 'b, F: Field> SubAssign<&'a DensePolynomial<F>> for DensePolynomial<F> 
                 *a -= b
             }
             // If the leading coefficient ends up being zero, pop it off.
-            while self.coeffs.last().unwrap().is_zero() {
-                self.coeffs.pop();
-            }
+            self.truncate_leading_zeros();
         }
     }
 }
@@ -329,7 +328,7 @@ impl<'a, 'b, F: Field> Div<&'a DensePolynomial<F>> for &'b DensePolynomial<F> {
 }
 
 /// Performs O(nlogn) multiplication of polynomials if F is smooth.
-impl<'a, 'b, F: PrimeField> Mul<&'a DensePolynomial<F>> for &'b DensePolynomial<F> {
+impl<'a, 'b, F: FftField> Mul<&'a DensePolynomial<F>> for &'b DensePolynomial<F> {
     type Output = DensePolynomial<F>;
 
     #[inline]
@@ -337,7 +336,8 @@ impl<'a, 'b, F: PrimeField> Mul<&'a DensePolynomial<F>> for &'b DensePolynomial<
         if self.is_zero() || other.is_zero() {
             DensePolynomial::zero()
         } else {
-            let domain = EvaluationDomain::new(self.coeffs.len() + other.coeffs.len()).expect("field is not smooth enough to construct domain");
+            let domain = GeneralEvaluationDomain::new(self.coeffs.len() + other.coeffs.len())
+                .expect("field is not smooth enough to construct domain");
             let mut self_evals = self.evaluate_over_domain_by_ref(domain);
             let other_evals = other.evaluate_over_domain_by_ref(domain);
             self_evals *= &other_evals;
@@ -349,13 +349,13 @@ impl<'a, 'b, F: PrimeField> Mul<&'a DensePolynomial<F>> for &'b DensePolynomial<
 #[cfg(test)]
 mod tests {
     use crate::polynomial::*;
-    use algebra::fields::{bls12_381::fr::Fr, Field};
-    use algebra::UniformRand; 
-    use rand::thread_rng;
+    use crate::{EvaluationDomain, GeneralEvaluationDomain};
+    use algebra::bls12_381::fr::Fr;
+    use algebra_core::{test_rng, Field, One, UniformRand, Zero};
 
     #[test]
     fn double_polynomials_random() {
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
         for degree in 0..70 {
             let p = DensePolynomial::<Fr>::rand(degree, rng);
             let p_double = &p + &p;
@@ -366,7 +366,7 @@ mod tests {
 
     #[test]
     fn add_polynomials() {
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
         for a_degree in 0..70 {
             for b_degree in 0..70 {
                 let p1 = DensePolynomial::<Fr>::rand(a_degree, rng);
@@ -380,13 +380,15 @@ mod tests {
 
     #[test]
     fn add_polynomials_with_mul() {
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
         for a_degree in 0..70 {
             for b_degree in 0..70 {
                 let mut p1 = DensePolynomial::rand(a_degree, rng);
                 let p2 = DensePolynomial::rand(b_degree, rng);
                 let f = Fr::rand(rng);
-                let f_p2 = DensePolynomial::from_coefficients_vec(p2.coeffs.iter().map(|c| f * c).collect());
+                let f_p2 = DensePolynomial::from_coefficients_vec(
+                    p2.coeffs.iter().map(|c| f * c).collect(),
+                );
                 let res2 = &f_p2 + &p1;
                 p1 += (f, &p2);
                 let res1 = p1;
@@ -397,7 +399,7 @@ mod tests {
 
     #[test]
     fn sub_polynomials() {
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
         let p1 = DensePolynomial::<Fr>::rand(5, rng);
         let p2 = DensePolynomial::<Fr>::rand(3, rng);
         let res1 = &p1 - &p2;
@@ -430,13 +432,16 @@ mod tests {
 
     #[test]
     fn divide_polynomials_random() {
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
 
         for a_degree in 0..70 {
             for b_degree in 0..70 {
                 let dividend = DensePolynomial::<Fr>::rand(a_degree, rng);
                 let divisor = DensePolynomial::<Fr>::rand(b_degree, rng);
-                if let Some((quotient, remainder)) = DenseOrSparsePolynomial::divide_with_q_and_r(&(&dividend).into(), &(&divisor).into()) {
+                if let Some((quotient, remainder)) = DenseOrSparsePolynomial::divide_with_q_and_r(
+                    &(&dividend).into(),
+                    &(&divisor).into(),
+                ) {
                     assert_eq!(dividend, &(&divisor * &quotient) + &remainder)
                 }
             }
@@ -445,7 +450,7 @@ mod tests {
 
     #[test]
     fn evaluate_polynomials() {
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
         for a_degree in 0..70 {
             let p = DensePolynomial::rand(a_degree, rng);
             let point: Fr = Fr::from(10u64);
@@ -459,7 +464,7 @@ mod tests {
 
     #[test]
     fn mul_polynomials_random() {
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
         for a_degree in 0..70 {
             for b_degree in 0..70 {
                 let a = DensePolynomial::<Fr>::rand(a_degree, rng);
@@ -471,9 +476,9 @@ mod tests {
 
     #[test]
     fn mul_by_vanishing_poly() {
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
         for size in 1..10 {
-            let domain = EvaluationDomain::new(1 << size).unwrap();
+            let domain = GeneralEvaluationDomain::new(1 << size).unwrap();
             for degree in 0..70 {
                 let p = DensePolynomial::<Fr>::rand(degree, rng);
                 let ans1 = p.mul_by_vanishing_poly(domain);
@@ -481,5 +486,33 @@ mod tests {
                 assert_eq!(ans1, ans2);
             }
         }
+    }
+
+    #[test]
+    fn test_leading_zero() {
+        let n = 10;
+        let rand_poly = DensePolynomial::rand(n, &mut test_rng());
+        let coefficients = rand_poly.coeffs.clone();
+        let leading_coefficient: Fr = coefficients[n];
+
+        let negative_leading_coefficient = -leading_coefficient;
+        let inverse_leading_coefficient = leading_coefficient.inverse().unwrap();
+
+        let mut inverse_coefficients = coefficients.clone();
+        inverse_coefficients[n] = inverse_leading_coefficient;
+
+        let mut negative_coefficients = coefficients;
+        negative_coefficients[n] = negative_leading_coefficient;
+
+        let negative_poly = DensePolynomial::from_coefficients_vec(negative_coefficients);
+        let inverse_poly = DensePolynomial::from_coefficients_vec(inverse_coefficients);
+
+        let x = &inverse_poly * &rand_poly;
+        assert_eq!(x.degree(), 2 * n);
+        assert!(!x.coeffs.last().unwrap().is_zero());
+
+        let y = &negative_poly + &rand_poly;
+        assert_eq!(y.degree(), n - 1);
+        assert!(!y.coeffs.last().unwrap().is_zero());
     }
 }

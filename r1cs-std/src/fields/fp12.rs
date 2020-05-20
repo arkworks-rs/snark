@@ -6,11 +6,11 @@ use algebra::{
         fp6_3over2::{Fp6, Fp6Parameters},
         Fp2Parameters,
     },
-    BitIterator, Field, PrimeField,
+    BitIterator, PrimeField,
 };
-use std::{borrow::Borrow, marker::PhantomData};
+use core::{borrow::Borrow, marker::PhantomData};
 
-use crate::{prelude::*, Assignment};
+use crate::{prelude::*, Vec};
 
 type Fp2Gadget<P, ConstraintF> = super::fp2::Fp2Gadget<
     <<P as Fp12Parameters>::Fp6Params as Fp6Parameters>::Fp2Params,
@@ -546,47 +546,6 @@ where
         Ok(self)
     }
 
-    fn inverse<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        mut cs: CS,
-    ) -> Result<Self, SynthesisError> {
-        let inverse = Self::alloc(&mut cs.ns(|| "alloc inverse"), || {
-            self.get_value().and_then(|val| val.inverse()).get()
-        })?;
-
-        // Karatsuba multiplication for Fp2 with the inverse:
-        //     v0 = A.c0 * B.c0
-        //     v1 = A.c1 * B.c1
-        //
-        //      1 = v0 + non_residue * v1
-        //  => v0 = 1 - non_residue * v1
-        //
-        //      0 = result.c1 = (A.c0 + A.c1) * (B.c0 + B.c1) - v0 - v1
-        //  => v0 + v1 = (A.c0 + A.c1) * (B.c0 + B.c1)
-        //  => 1 + (1 - non_residue) * v1 = (A.c0 + A.c1) * (B.c0 + B.c1)
-        // Enforced with 2 constraints:
-        //     A.c1 * B.c1 = v1
-        //  => 1 + (1 - non_residue) * v1 = (A.c0 + A.c1) * (B.c0 + B.c1)
-        // Reference:
-        // "Multiplication and Squaring on Pairing-Friendly Fields"
-        // Devegili, OhEigeartaigh, Scott, Dahab
-
-        // Constraint 1
-        let v1 = self.c1.mul(cs.ns(|| "inv_constraint_1"), &inverse.c1)?;
-
-        // Constraint 2
-        let a0_plus_a1 = self.c0.add(cs.ns(|| "a0 + a1"), &self.c1)?;
-        let b0_plus_b1 = inverse.c0.add(cs.ns(|| "b0 + b1"), &inverse.c1)?;
-
-        let one = Fp6::<P::Fp6Params>::one();
-        let rhs = Self::mul_fp6_by_nonresidue(cs.ns(|| "nr * v1"), &v1)?
-            .sub(cs.ns(|| "sub v1"), &v1)?
-            .negate(cs.ns(|| "negate it"))?
-            .add_constant(cs.ns(|| "add one"), &one)?;
-        a0_plus_a1.mul_equals(cs.ns(|| "inv_constraint_2"), &b0_plus_b1, &rhs)?;
-        Ok(inverse)
-    }
-
     fn mul_equals<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
@@ -639,11 +598,11 @@ where
     }
 
     fn cost_of_mul() -> usize {
-        unimplemented!()
+        3 * Fp6Gadget::<P, ConstraintF>::cost_of_mul()
     }
 
-    fn cost_of_inv() -> usize {
-        Self::cost_of_mul() + <Self as EqGadget<ConstraintF>>::cost()
+    fn cost_of_mul_equals() -> usize {
+        Self::cost_of_mul()
     }
 }
 
@@ -725,18 +684,18 @@ where
         &self,
         mut cs: CS,
     ) -> Result<Vec<Boolean>, SynthesisError> {
-        let mut c0 = self.c0.to_bits(&mut cs)?;
-        let mut c1 = self.c1.to_bits(cs)?;
+        let mut c0 = self.c0.to_bits(cs.ns(|| "c0"))?;
+        let mut c1 = self.c1.to_bits(cs.ns(|| "c1"))?;
         c0.append(&mut c1);
         Ok(c0)
     }
 
-    fn to_bits_strict<CS: ConstraintSystem<ConstraintF>>(
+    fn to_non_unique_bits<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<Boolean>, SynthesisError> {
-        let mut c0 = self.c0.to_bits_strict(&mut cs)?;
-        let mut c1 = self.c1.to_bits_strict(cs)?;
+        let mut c0 = self.c0.to_non_unique_bits(cs.ns(|| "c0"))?;
+        let mut c1 = self.c1.to_non_unique_bits(cs.ns(|| "c1"))?;
         c0.append(&mut c1);
         Ok(c0)
     }
@@ -757,12 +716,12 @@ where
         Ok(c0)
     }
 
-    fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
+    fn to_non_unique_bytes<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
-        let mut c0 = self.c0.to_bytes_strict(cs.ns(|| "c0"))?;
-        let mut c1 = self.c1.to_bytes_strict(cs.ns(|| "c1"))?;
+        let mut c0 = self.c0.to_non_unique_bytes(cs.ns(|| "c0"))?;
+        let mut c1 = self.c1.to_non_unique_bytes(cs.ns(|| "c1"))?;
         c0.append(&mut c1);
         Ok(c0)
     }
@@ -787,20 +746,20 @@ where
     fn conditionally_select<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         cond: &Boolean,
-        first: &Self,
-        second: &Self,
+        true_value: &Self,
+        false_value: &Self,
     ) -> Result<Self, SynthesisError> {
         let c0 = Fp6Gadget::<P, ConstraintF>::conditionally_select(
             &mut cs.ns(|| "c0"),
             cond,
-            &first.c0,
-            &second.c0,
+            &true_value.c0,
+            &false_value.c0,
         )?;
         let c1 = Fp6Gadget::<P, ConstraintF>::conditionally_select(
             &mut cs.ns(|| "c1"),
             cond,
-            &first.c1,
-            &second.c1,
+            &true_value.c1,
+            &false_value.c1,
         )?;
 
         Ok(Self::new(c0, c1))
@@ -876,6 +835,17 @@ where
     <P::Fp6Params as Fp6Parameters>::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
 {
     #[inline]
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        t: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<Fp12<P>>,
+    {
+        Self::zero(cs.ns(|| "zero"))?.add_constant(cs.ns(|| "add constant"), t.borrow())
+    }
+
+    #[inline]
     fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         value_gen: F,
@@ -888,7 +858,7 @@ where
             Ok(fe) => {
                 let fe = *fe.borrow();
                 (Ok(fe.c0), Ok(fe.c1))
-            },
+            }
             Err(_) => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),
@@ -913,7 +883,7 @@ where
             Ok(fe) => {
                 let fe = *fe.borrow();
                 (Ok(fe.c0), Ok(fe.c1))
-            },
+            }
             Err(_) => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),

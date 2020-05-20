@@ -1,12 +1,15 @@
-use crate::crh::{
-    pedersen::{PedersenCRH, PedersenParameters, PedersenWindow},
-    FixedLengthCRHGadget,
+use crate::{
+    crh::{
+        pedersen::{PedersenCRH, PedersenParameters, PedersenWindow},
+        FixedLengthCRHGadget,
+    },
+    Vec,
 };
-use algebra::{Field, Group};
+use algebra_core::{Field, Group};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
 
-use std::{borrow::Borrow, marker::PhantomData};
+use core::{borrow::Borrow, marker::PhantomData};
 
 #[derive(Derivative)]
 #[derivative(Clone(
@@ -18,10 +21,10 @@ pub struct PedersenCRHGadgetParameters<
     ConstraintF: Field,
     GG: GroupGadget<G, ConstraintF>,
 > {
-    params:   PedersenParameters<G>,
+    params: PedersenParameters<G>,
     _group_g: PhantomData<GG>,
-    _engine:  PhantomData<ConstraintF>,
-    _window:  PhantomData<W>,
+    _engine: PhantomData<ConstraintF>,
+    _window: PhantomData<W>,
 }
 
 pub struct PedersenCRHGadget<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> {
@@ -77,8 +80,24 @@ impl<G: Group, W: PedersenWindow, ConstraintF: Field, GG: GroupGadget<G, Constra
     AllocGadget<PedersenParameters<G>, ConstraintF>
     for PedersenCRHGadgetParameters<G, W, ConstraintF, GG>
 {
-    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
         _cs: CS,
+        val: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<PedersenParameters<G>>,
+    {
+        let params = val.borrow().clone();
+        Ok(PedersenCRHGadgetParameters {
+            params,
+            _group_g: PhantomData,
+            _engine: PhantomData,
+            _window: PhantomData,
+        })
+    }
+
+    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
     where
@@ -86,12 +105,7 @@ impl<G: Group, W: PedersenWindow, ConstraintF: Field, GG: GroupGadget<G, Constra
         T: Borrow<PedersenParameters<G>>,
     {
         let params = value_gen()?.borrow().clone();
-        Ok(PedersenCRHGadgetParameters {
-            params,
-            _group_g: PhantomData,
-            _engine: PhantomData,
-            _window: PhantomData,
-        })
+        Self::alloc_constant(cs, params)
     }
 
     fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
@@ -114,19 +128,19 @@ impl<G: Group, W: PedersenWindow, ConstraintF: Field, GG: GroupGadget<G, Constra
 
 #[cfg(test)]
 mod test {
-    use algebra::fields::bls12_381::fr::Fr;
-    use rand::{thread_rng, Rng};
-
     use crate::crh::{
         pedersen::{constraints::PedersenCRHGadget, PedersenCRH, PedersenWindow},
         FixedLengthCRH, FixedLengthCRHGadget,
     };
-    use algebra::curves::{jubjub::JubJubProjective as JubJub, ProjectiveCurve};
+    use algebra::{
+        jubjub::{Fq as Fr, JubJubProjective as JubJub},
+        test_rng, ProjectiveCurve,
+    };
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
-        groups::curves::twisted_edwards::jubjub::JubJubGadget, prelude::*,
-        test_constraint_system::TestConstraintSystem,
+        jubjub::JubJubGadget, prelude::*, test_constraint_system::TestConstraintSystem,
     };
+    use rand::Rng;
 
     type TestCRH = PedersenCRH<JubJub, Window>;
     type TestCRHGadget = PedersenCRHGadget<JubJub, Fr, JubJubGadget>;
@@ -156,7 +170,7 @@ mod test {
 
     #[test]
     fn crh_primitive_gadget_test() {
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
         let mut cs = TestConstraintSystem::<Fr>::new();
 
         let (input, input_bytes) = generate_input(&mut cs, rng);

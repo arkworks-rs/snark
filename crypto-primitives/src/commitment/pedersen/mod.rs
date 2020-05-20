@@ -1,14 +1,15 @@
-use crate::Error;
-use algebra::{
-    bytes::ToBytes, groups::Group, BitIterator, Field, FpParameters, PrimeField, ToConstraintField,
-    UniformRand,
+use crate::{Error, Vec};
+use algebra_core::{
+    bytes::ToBytes,
+    groups::Group,
+    io::{Result as IoResult, Write},
+    BitIterator, Field, FpParameters, PrimeField, ToConstraintField, UniformRand,
 };
 
+use core::marker::PhantomData;
 use rand::Rng;
-use std::marker::PhantomData;
 
 use super::CommitmentScheme;
-use std::io::{Result as IoResult, Write};
 
 pub use crate::crh::pedersen::PedersenWindow;
 use crate::crh::{
@@ -22,11 +23,11 @@ pub mod constraints;
 #[derive(Clone)]
 pub struct PedersenParameters<G: Group> {
     pub randomness_generator: Vec<G>,
-    pub generators:           Vec<Vec<G>>,
+    pub generators: Vec<Vec<G>>,
 }
 
 pub struct PedersenCommitment<G: Group, W: PedersenWindow> {
-    group:  PhantomData<G>,
+    group: PhantomData<G>,
     window: PhantomData<W>,
 }
 

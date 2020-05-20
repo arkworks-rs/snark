@@ -1,19 +1,16 @@
-// use std::ops::{Mul, MulAssign};
-use algebra::Field;
+use algebra::{fields::BitIterator, Field};
+use core::fmt::Debug;
 use r1cs_core::{ConstraintSystem, SynthesisError};
-use std::fmt::Debug;
 
-use crate::prelude::*;
+use crate::{prelude::*, Assignment};
 
 pub mod fp;
 pub mod fp12;
 pub mod fp2;
+pub mod fp3;
+pub mod fp4;
+pub mod fp6_2over3;
 pub mod fp6_3over2;
-
-pub mod bls12_377;
-pub mod edwards_bls12;
-pub mod edwards_sw6;
-pub mod jubjub;
 
 pub trait FieldGadget<F: Field, ConstraintF: Field>:
     Sized
@@ -191,7 +188,17 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
         Ok(self)
     }
 
-    fn inverse<CS: ConstraintSystem<ConstraintF>>(&self, _: CS) -> Result<Self, SynthesisError>;
+    fn inverse<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Self, SynthesisError> {
+        let one = Self::one(&mut cs.ns(|| "one"))?;
+        let inverse = Self::alloc(&mut cs.ns(|| "alloc inverse"), || {
+            self.get_value().and_then(|val| val.inverse()).get()
+        })?;
+        self.mul_equals(cs.ns(|| "check inv"), &inverse, &one)?;
+        Ok(inverse)
+    }
 
     fn frobenius_map<CS: ConstraintSystem<ConstraintF>>(
         &self,
@@ -230,32 +237,57 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
         Ok(res)
     }
 
+    fn pow_by_constant<S: AsRef<[u64]>, CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        exp: S,
+    ) -> Result<Self, SynthesisError> {
+        let mut res = Self::one(cs.ns(|| "Alloc result"))?;
+        let mut found_one = false;
+
+        for (i, bit) in BitIterator::new(exp).enumerate() {
+            if found_one {
+                res.square_in_place(cs.ns(|| format!("square for bit {:?}", i)))?;
+            }
+
+            if bit {
+                found_one = true;
+                res.mul_in_place(cs.ns(|| format!("mul for bit {:?}", i)), self)?;
+            }
+        }
+
+        Ok(res)
+    }
+
     fn cost_of_mul() -> usize;
 
-    fn cost_of_inv() -> usize;
+    fn cost_of_mul_equals() -> usize {
+        Self::cost_of_mul() + <Self as EqGadget<ConstraintF>>::cost()
+    }
+
+    fn cost_of_inv() -> usize {
+        Self::cost_of_mul_equals()
+    }
 }
 
 #[cfg(test)]
-mod test {
-    use rand::{self, thread_rng, SeedableRng};
+pub(crate) mod tests {
+    use rand::{self, SeedableRng};
     use rand_xorshift::XorShiftRng;
 
-    use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
-    use algebra::{BitIterator, Field, UniformRand};
+    use crate::{prelude::*, test_constraint_system::TestConstraintSystem, Vec};
+    use algebra::{test_rng, BitIterator, Field, UniformRand};
     use r1cs_core::ConstraintSystem;
 
-    fn field_test<
-        FE: Field,
-        ConstraintF: Field,
-        F: FieldGadget<FE, ConstraintF>,
-        CS: ConstraintSystem<ConstraintF>,
-    >(
-        mut cs: CS,
-        a: F,
-        b: F,
-    ) {
-        let a_native = a.get_value().unwrap();
-        let b_native = b.get_value().unwrap();
+    #[allow(dead_code)]
+    pub(crate) fn field_test<FE: Field, ConstraintF: Field, F: FieldGadget<FE, ConstraintF>>() {
+        let mut cs = TestConstraintSystem::<ConstraintF>::new();
+
+        let mut rng = test_rng();
+        let a_native = FE::rand(&mut rng);
+        let b_native = FE::rand(&mut rng);
+        let a = F::alloc(&mut cs.ns(|| "generate_a"), || Ok(a_native)).unwrap();
+        let b = F::alloc(&mut cs.ns(|| "generate_b"), || Ok(b_native)).unwrap();
 
         let zero = F::zero(cs.ns(|| "zero")).unwrap();
         let zero_native = zero.get_value().unwrap();
@@ -416,9 +448,18 @@ mod test {
         );
 
         // a * a * a = a^3
+        assert_eq!(
+            a_native * &(a_native * &a_native),
+            a.pow_by_constant(cs.ns(|| "test_constant_pow"), &[3])
+                .unwrap()
+                .get_value()
+                .unwrap()
+        );
+
+        // a * a * a = a^3
         let mut constants = [FE::zero(); 4];
         for c in &mut constants {
-            *c = UniformRand::rand(&mut thread_rng());
+            *c = UniformRand::rand(&mut test_rng());
             println!("Current c[i]: {:?}", c);
         }
         let bits = [Boolean::constant(false), Boolean::constant(true)];
@@ -426,11 +467,13 @@ mod test {
             F::two_bit_lookup(cs.ns(|| "Lookup"), &bits, constants.as_ref()).unwrap();
         assert_eq!(lookup_result.get_value().unwrap(), constants[2]);
 
-        let negone: FE = UniformRand::rand(&mut thread_rng());
+        let negone: FE = UniformRand::rand(&mut test_rng());
 
         let n = F::alloc(&mut cs.ns(|| "alloc new var"), || Ok(negone)).unwrap();
         let _ = n.to_bytes(&mut cs.ns(|| "ToBytes")).unwrap();
-        let _ = n.to_bytes_strict(&mut cs.ns(|| "ToBytes Strict")).unwrap();
+        let _ = n
+            .to_non_unique_bytes(&mut cs.ns(|| "ToBytes Strict"))
+            .unwrap();
 
         let ab_false = a
             .conditionally_add_constant(
@@ -448,17 +491,22 @@ mod test {
             )
             .unwrap();
         assert_eq!(ab_true.get_value().unwrap(), a_native + &b_native);
+
+        if !cs.is_satisfied() {
+            println!("{:?}", cs.which_is_unsatisfied().unwrap());
+        }
+        assert!(cs.is_satisfied());
     }
 
-    fn random_frobenius_tests<
+    #[allow(dead_code)]
+    pub(crate) fn frobenius_tests<
         FE: Field,
         ConstraintF: Field,
         F: FieldGadget<FE, ConstraintF>,
-        CS: ConstraintSystem<ConstraintF>,
     >(
-        mut cs: CS,
         maxpower: usize,
     ) {
+        let mut cs = TestConstraintSystem::<ConstraintF>::new();
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
         for i in 0..=maxpower {
             let mut a = FE::rand(&mut rng);
@@ -470,87 +518,7 @@ mod test {
 
             assert_eq!(a_gadget.get_value().unwrap(), a);
         }
-    }
 
-    #[test]
-    fn bls12_377_field_gadgets_test() {
-        use crate::fields::bls12_377::{Fq12Gadget, Fq2Gadget, Fq6Gadget, FqGadget};
-        use algebra::fields::bls12_377::{Fq, Fq12, Fq2, Fq6};
-
-        let mut cs = TestConstraintSystem::<Fq>::new();
-
-        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-
-        let a = FqGadget::alloc(&mut cs.ns(|| "generate_a"), || Ok(Fq::rand(&mut rng))).unwrap();
-        let b = FqGadget::alloc(&mut cs.ns(|| "generate_b"), || Ok(Fq::rand(&mut rng))).unwrap();
-        field_test(cs.ns(|| "test_fq"), a, b);
-        if !cs.is_satisfied() {
-            println!("{:?}", cs.which_is_unsatisfied().unwrap());
-        }
-
-        let c = Fq2Gadget::alloc(&mut cs.ns(|| "generate_c"), || Ok(Fq2::rand(&mut rng))).unwrap();
-        let d = Fq2Gadget::alloc(&mut cs.ns(|| "generate_d"), || Ok(Fq2::rand(&mut rng))).unwrap();
-        field_test(cs.ns(|| "test_fq2"), c, d);
-        random_frobenius_tests::<Fq2, _, Fq2Gadget, _>(cs.ns(|| "test_frob_fq2"), 13);
-        if !cs.is_satisfied() {
-            println!("{:?}", cs.which_is_unsatisfied().unwrap());
-        }
-
-        let a = Fq6Gadget::alloc(&mut cs.ns(|| "generate_e"), || Ok(Fq6::rand(&mut rng))).unwrap();
-        let b = Fq6Gadget::alloc(&mut cs.ns(|| "generate_f"), || Ok(Fq6::rand(&mut rng))).unwrap();
-        field_test(cs.ns(|| "test_fq6"), a, b);
-        random_frobenius_tests::<Fq6, _, Fq6Gadget, _>(cs.ns(|| "test_frob_fq6"), 13);
-        if !cs.is_satisfied() {
-            println!("{:?}", cs.which_is_unsatisfied().unwrap());
-        }
-
-        let c =
-            Fq12Gadget::alloc(&mut cs.ns(|| "generate_g"), || Ok(Fq12::rand(&mut rng))).unwrap();
-        let d =
-            Fq12Gadget::alloc(&mut cs.ns(|| "generate_h"), || Ok(Fq12::rand(&mut rng))).unwrap();
-        field_test(cs.ns(|| "test_fq12"), c, d);
-        random_frobenius_tests::<Fq12, _, Fq12Gadget, _>(cs.ns(|| "test_frob_fq12"), 13);
-        if !cs.is_satisfied() {
-            println!("Here!");
-            println!("{:?}", cs.which_is_unsatisfied().unwrap());
-        }
-
-        assert!(cs.is_satisfied());
-    }
-
-    #[test]
-    fn jubjub_field_gadgets_test() {
-        use crate::fields::jubjub::FqGadget;
-        use algebra::fields::jubjub::fq::Fq;
-
-        let mut cs = TestConstraintSystem::<Fq>::new();
-
-        let mut rng = thread_rng();
-
-        let a = FqGadget::alloc(&mut cs.ns(|| "generate_a"), || Ok(Fq::rand(&mut rng))).unwrap();
-        let b = FqGadget::alloc(&mut cs.ns(|| "generate_b"), || Ok(Fq::rand(&mut rng))).unwrap();
-        field_test(cs.ns(|| "test_fq"), a, b);
-        if !cs.is_satisfied() {
-            println!("{:?}", cs.which_is_unsatisfied().unwrap());
-        }
-        assert!(cs.is_satisfied());
-    }
-
-    #[test]
-    fn edwards_field_gadgets_test() {
-        use crate::fields::edwards_bls12::FqGadget;
-        use algebra::fields::edwards_bls12::fq::Fq;
-
-        let mut cs = TestConstraintSystem::<Fq>::new();
-
-        let mut rng = thread_rng();
-
-        let a = FqGadget::alloc(&mut cs.ns(|| "generate_a"), || Ok(Fq::rand(&mut rng))).unwrap();
-        let b = FqGadget::alloc(&mut cs.ns(|| "generate_b"), || Ok(Fq::rand(&mut rng))).unwrap();
-        field_test(cs.ns(|| "test_fq"), a, b);
-        if !cs.is_satisfied() {
-            println!("{:?}", cs.which_is_unsatisfied().unwrap());
-        }
         assert!(cs.is_satisfied());
     }
 }

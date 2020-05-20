@@ -1,4 +1,4 @@
-use std::{fmt::Debug, marker::PhantomData};
+use core::{fmt::Debug, marker::PhantomData};
 
 use crate::crh::{
     injective_map::{InjectiveMap, PedersenCRHCompressor, TECompressor},
@@ -9,7 +9,7 @@ use crate::crh::{
     FixedLengthCRHGadget,
 };
 
-use algebra::{
+use algebra_core::{
     curves::{
         models::{ModelParameters, TEModelParameters},
         twisted_edwards_extended::{GroupAffine as TEAffine, GroupProjective as TEProjective},
@@ -97,9 +97,9 @@ where
     GG: GroupGadget<G, ConstraintF>,
     IG: InjectiveMapGadget<G, I, ConstraintF, GG>,
 {
-    _compressor:        PhantomData<I>,
+    _compressor: PhantomData<I>,
     _compressor_gadget: PhantomData<IG>,
-    _crh:               PedersenCRHGadget<G, ConstraintF, GG>,
+    _crh: PedersenCRHGadget<G, ConstraintF, GG>,
 }
 
 impl<G, I, ConstraintF, GG, IG, W> FixedLengthCRHGadget<PedersenCRHCompressor<G, I, W>, ConstraintF>

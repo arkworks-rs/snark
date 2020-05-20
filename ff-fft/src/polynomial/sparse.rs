@@ -1,17 +1,19 @@
 //! A sparse polynomial represented in coefficient form.
 
-use std::fmt;
+use core::fmt;
 
-use algebra::{Field, PrimeField};
-use crate::DensePolynomial;
-use crate::{DenseOrSparsePolynomial, EvaluationDomain, Evaluations};
+use crate::{
+    BTreeMap, DenseOrSparsePolynomial, DensePolynomial, EvaluationDomain, Evaluations, Vec,
+};
+use algebra_core::{FftField, Field};
 
 /// Stores a sparse polynomial in coefficient form.
 #[derive(Clone, PartialEq, Eq, Hash, Default)]
 pub struct SparsePolynomial<F: Field> {
     /// The coefficient a_i of `x^i` is stored as (i, a_i) in `self.coeffs`.
-    /// the entries in `self.coeffs` are sorted in increasing order of `i`.
-    pub coeffs: Vec<(usize, F)>,
+    /// the entries in `self.coeffs` *must*  be sorted in increasing order of
+    /// `i`.
+    coeffs: Vec<(usize, F)>,
 }
 
 impl<F: Field> fmt::Debug for SparsePolynomial<F> {
@@ -26,6 +28,14 @@ impl<F: Field> fmt::Debug for SparsePolynomial<F> {
             }
         }
         Ok(())
+    }
+}
+
+impl<F: Field> core::ops::Deref for SparsePolynomial<F> {
+    type Target = [(usize, F)];
+
+    fn deref(&self) -> &[(usize, F)] {
+        &self.coeffs
     }
 }
 
@@ -51,7 +61,10 @@ impl<F: Field> SparsePolynomial<F> {
         while coeffs.last().map_or(false, |(_, c)| c.is_zero()) {
             coeffs.pop();
         }
-        // Check that either the coefficients vec is empty or that the last coeff is non-zero.
+        // Ensure that coeffs are in ascending order.
+        coeffs.sort_by(|(c1, _), (c2, _)| c1.cmp(c2));
+        // Check that either the coefficients vec is empty or that the last coeff is
+        // non-zero.
         assert!(coeffs.last().map_or(true, |(_, c)| !c.is_zero()));
 
         Self { coeffs }
@@ -84,34 +97,33 @@ impl<F: Field> SparsePolynomial<F> {
         if self.is_zero() || other.is_zero() {
             SparsePolynomial::zero()
         } else {
-            let mut result = std::collections::HashMap::new();
+            let mut result = BTreeMap::new();
             for (i, self_coeff) in self.coeffs.iter() {
                 for (j, other_coeff) in other.coeffs.iter() {
                     let cur_coeff = result.entry(i + j).or_insert(F::zero());
                     *cur_coeff += &(*self_coeff * other_coeff);
                 }
             }
-            let mut result = result.into_iter().collect::<Vec<_>>();
-            result.sort_by(|a, b| a.0.cmp(&b.0));
+            let result = result.into_iter().collect::<Vec<_>>();
             SparsePolynomial::from_coefficients_vec(result)
         }
     }
 }
 
-
-impl<F: PrimeField> SparsePolynomial<F> {
+impl<F: FftField> SparsePolynomial<F> {
     /// Evaluate `self` over `domain`.
-    pub fn evaluate_over_domain_by_ref(&self, domain: EvaluationDomain<F>) -> Evaluations<F> {
+    pub fn evaluate_over_domain_by_ref<D: EvaluationDomain<F>>(
+        &self,
+        domain: D,
+    ) -> Evaluations<F, D> {
         let poly: DenseOrSparsePolynomial<'_, F> = self.into();
         DenseOrSparsePolynomial::<F>::evaluate_over_domain(poly, domain)
-        // unimplemented!("current implementation does not produce evals in correct order")
     }
 
     /// Evaluate `self` over `domain`.
-    pub fn evaluate_over_domain(self, domain: EvaluationDomain<F>) -> Evaluations<F> {
+    pub fn evaluate_over_domain<D: EvaluationDomain<F>>(self, domain: D) -> Evaluations<F, D> {
         let poly: DenseOrSparsePolynomial<'_, F> = self.into();
         DenseOrSparsePolynomial::<F>::evaluate_over_domain(poly, domain)
-        // unimplemented!("current implementation does not produce evals in correct order")
     }
 }
 
@@ -127,15 +139,15 @@ impl<F: Field> Into<DensePolynomial<F>> for SparsePolynomial<F> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{EvaluationDomain, DensePolynomial, SparsePolynomial};
-    use algebra::fields::bls12_381::fr::Fr;
-    use algebra::Field;
+    use crate::{DensePolynomial, EvaluationDomain, GeneralEvaluationDomain, SparsePolynomial};
+    use algebra::bls12_381::fr::Fr;
+    use algebra_core::One;
 
     #[test]
     fn evaluate_over_domain() {
         for size in 2..10 {
             let domain_size = 1 << size;
-            let domain = EvaluationDomain::new(domain_size).unwrap();
+            let domain = GeneralEvaluationDomain::new(domain_size).unwrap();
             let two = Fr::one() + &Fr::one();
             let sparse_poly = SparsePolynomial::from_coefficients_vec(vec![(0, two), (1, two)]);
             let evals1 = sparse_poly.evaluate_over_domain_by_ref(domain);

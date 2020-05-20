@@ -1,7 +1,7 @@
 use algebra::{
     curves::bls12::{Bls12Parameters, G1Prepared, TwistType},
     fields::Field,
-    BitIterator, ProjectiveCurve,
+    BitIterator, One, ProjectiveCurve,
 };
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
@@ -9,17 +9,17 @@ use crate::{
     fields::{fp::FpGadget, fp2::Fp2Gadget, FieldGadget},
     groups::curves::short_weierstrass::AffineGadget,
     prelude::*,
+    Vec,
 };
 
-use std::fmt::Debug;
-
-pub mod bls12_377;
+use core::fmt::Debug;
 
 pub type G1Gadget<P> = AffineGadget<
     <P as Bls12Parameters>::G1Parameters,
     <P as Bls12Parameters>::Fp,
     FpGadget<<P as Bls12Parameters>::Fp>,
 >;
+
 pub type G2Gadget<P> =
     AffineGadget<<P as Bls12Parameters>::G2Parameters, <P as Bls12Parameters>::Fp, Fp2G<P>>;
 
@@ -32,9 +32,7 @@ pub struct G1PreparedGadget<P: Bls12Parameters>(pub G1Gadget<P>);
 
 impl<P: Bls12Parameters> G1PreparedGadget<P> {
     pub fn get_value(&self) -> Option<G1Prepared<P>> {
-        Some(G1Prepared::from_affine(
-            self.0.get_value().unwrap().into_affine(),
-        ))
+        Some(G1Prepared::from(self.0.get_value().unwrap().into_affine()))
     }
 
     pub fn from_affine<CS: ConstraintSystem<P::Fp>>(
@@ -54,11 +52,12 @@ impl<P: Bls12Parameters> ToBytesGadget<P::Fp> for G1PreparedGadget<P> {
         self.0.to_bytes(&mut cs.ns(|| "g_alpha to bytes"))
     }
 
-    fn to_bytes_strict<CS: ConstraintSystem<P::Fp>>(
+    fn to_non_unique_bytes<CS: ConstraintSystem<P::Fp>>(
         &self,
-        cs: CS,
+        mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
-        self.to_bytes(cs)
+        self.0
+            .to_non_unique_bytes(&mut cs.ns(|| "g_alpha to bytes"))
     }
 }
 
@@ -88,11 +87,17 @@ impl<P: Bls12Parameters> ToBytesGadget<P::Fp> for G2PreparedGadget<P> {
         Ok(bytes)
     }
 
-    fn to_bytes_strict<CS: ConstraintSystem<P::Fp>>(
+    fn to_non_unique_bytes<CS: ConstraintSystem<P::Fp>>(
         &self,
-        cs: CS,
+        mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
-        self.to_bytes(cs)
+        let mut bytes = Vec::new();
+        for (i, coeffs) in self.ell_coeffs.iter().enumerate() {
+            let mut cs = cs.ns(|| format!("Iteration {}", i));
+            bytes.extend_from_slice(&coeffs.0.to_non_unique_bytes(&mut cs.ns(|| "c0"))?);
+            bytes.extend_from_slice(&coeffs.1.to_non_unique_bytes(&mut cs.ns(|| "c1"))?);
+        }
+        Ok(bytes)
     }
 }
 

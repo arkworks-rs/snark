@@ -1,22 +1,19 @@
-use algebra::{bytes::ToBytes, to_bytes, ToConstraintField};
 use crate::Error;
+use algebra::{bytes::ToBytes, to_bytes, ToConstraintField};
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
-
 
 use crypto_primitives::{CommitmentScheme, FixedLengthCRH};
 
 use crate::{
-    constraints::Assignment,
+    constraints::{plain_dpc::execute_proof_check_gadget, Assignment},
     dpc::plain_dpc::{CommAndCRHPublicParameters, PlainDPCComponents, PrivatePredInput},
-    constraints::plain_dpc::execute_proof_check_gadget,
 };
-
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "C: PlainDPCComponents"))]
 pub struct ProofCheckVerifierInput<C: PlainDPCComponents> {
     pub comm_and_crh_pp: CommAndCRHPublicParameters<C>,
-    pub predicate_comm:  <C::PredVkComm as CommitmentScheme>::Output,
+    pub predicate_comm: <C::PredVkComm as CommitmentScheme>::Output,
     pub local_data_comm: <C::LocalDataComm as CommitmentScheme>::Output,
 }
 
@@ -36,12 +33,14 @@ where
         v.extend_from_slice(&self.comm_and_crh_pp.pred_vk_comm_pp.to_field_elements()?);
         v.extend_from_slice(&self.comm_and_crh_pp.pred_vk_crh_pp.to_field_elements()?);
 
-        let local_data_comm_pp_fe =
-            ToConstraintField::<C::CoreCheckF>::to_field_elements(&self.comm_and_crh_pp.local_data_comm_pp)
-                .map_err(|_| SynthesisError::AssignmentMissing)?;
+        let local_data_comm_pp_fe = ToConstraintField::<C::CoreCheckF>::to_field_elements(
+            &self.comm_and_crh_pp.local_data_comm_pp,
+        )
+        .map_err(|_| SynthesisError::AssignmentMissing)?;
 
-        let local_data_comm_fe = ToConstraintField::<C::CoreCheckF>::to_field_elements(&self.local_data_comm)
-            .map_err(|_| SynthesisError::AssignmentMissing)?;
+        let local_data_comm_fe =
+            ToConstraintField::<C::CoreCheckF>::to_field_elements(&self.local_data_comm)
+                .map_err(|_| SynthesisError::AssignmentMissing)?;
 
         // Then we convert these field elements into bytes
         let pred_input = [
@@ -71,8 +70,8 @@ pub struct ProofCheckCircuit<C: PlainDPCComponents> {
 
     new_private_pred_inputs: Option<Vec<PrivatePredInput<C>>>,
 
-    predicate_comm:  Option<<C::PredVkComm as CommitmentScheme>::Output>,
-    predicate_rand:  Option<<C::PredVkComm as CommitmentScheme>::Randomness>,
+    predicate_comm: Option<<C::PredVkComm as CommitmentScheme>::Output>,
+    predicate_rand: Option<<C::PredVkComm as CommitmentScheme>::Randomness>,
     local_data_comm: Option<<C::LocalDataComm as CommitmentScheme>::Output>,
 }
 
@@ -135,8 +134,8 @@ impl<C: PlainDPCComponents> ProofCheckCircuit<C> {
 
             new_private_pred_inputs: Some(new_private_pred_inputs.to_vec()),
 
-            predicate_comm:  Some(predicate_comm.clone()),
-            predicate_rand:  Some(predicate_rand.clone()),
+            predicate_comm: Some(predicate_comm.clone()),
+            predicate_rand: Some(predicate_rand.clone()),
             local_data_comm: Some(local_data_comm.clone()),
         }
     }

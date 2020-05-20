@@ -1,21 +1,21 @@
 use crate::Error;
+use core::marker::PhantomData;
 use rand::Rng;
-use std::marker::PhantomData;
 
 use super::{
     pedersen::{PedersenCommitment, PedersenParameters, PedersenRandomness, PedersenWindow},
     CommitmentScheme,
 };
 pub use crate::crh::injective_map::InjectiveMap;
-use algebra::groups::Group;
+use algebra_core::groups::Group;
 
 #[cfg(feature = "r1cs")]
 pub mod constraints;
 
 pub struct PedersenCommCompressor<G: Group, I: InjectiveMap<G>, W: PedersenWindow> {
-    _group:      PhantomData<G>,
+    _group: PhantomData<G>,
     _compressor: PhantomData<I>,
-    _comm:       PedersenCommitment<G, W>,
+    _comm: PedersenCommitment<G, W>,
 }
 
 impl<G: Group, I: InjectiveMap<G>, W: PedersenWindow> CommitmentScheme
