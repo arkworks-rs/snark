@@ -11,7 +11,7 @@ use proof_systems::gm17::{Parameters, Proof};
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 use r1cs_std::{
     alloc::AllocGadget, bits::ToBitsGadget, boolean::Boolean, fields::fp::FpGadget,
-    pairing::PairingGadget as PG, uint8::UInt8,
+    pairing::PairingGadget as PG
 };
 use std::marker::PhantomData;
 
