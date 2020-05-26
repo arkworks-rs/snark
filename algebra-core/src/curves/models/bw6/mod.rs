@@ -21,13 +21,10 @@ pub enum TwistType {
 pub trait BW6Parameters: 'static {
     const X: <Self::Fp as PrimeField>::BigInt;
     const X_IS_NEGATIVE: bool;
-    const ATE_LOOP_COUNT: &'static [u64];
-    const ATE_LOOP_COUNT_IS_NEGATIVE: bool;
-    /*
-    const FINAL_EXPONENT_LAST_CHUNK_1: <Self::Fp as PrimeField>::BigInt;
-    const FINAL_EXPONENT_LAST_CHUNK_W0_IS_NEG: bool;
-    const FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0: <Self::Fp as PrimeField>::BigInt;
-    */
+    const ATE_LOOP_COUNT_1: &'static [u64];
+    const ATE_LOOP_COUNT_1_IS_NEGATIVE: bool;
+    const ATE_LOOP_COUNT_2: &'static [u64];
+    const ATE_LOOP_COUNT_2_IS_NEGATIVE: bool;
     const TWIST_TYPE: TwistType;
     const TWIST: Self::Fp;
     type Fp: PrimeField + SquareRootField + Into<<Self::Fp as PrimeField>::BigInt>;
@@ -259,33 +256,69 @@ impl<P: BW6Parameters> PairingEngine for BW6<P> {
     {
         // Alg.5 in https://eprint.iacr.org/2020/351.pdf
 
-        let mut pairs = vec![];
+        let mut pairs_1 = vec![];
+        let mut pairs_2 = vec![];
         for (p, q) in i {
             if !p.is_zero() && !q.is_zero() {
-                pairs.push((p, q.ell_coeffs.iter()));
+                pairs_1.push((p, q.ell_coeffs_1.iter()));
+                pairs_2.push((p, q.ell_coeffs_2.iter()));
             }
         }
 
-        let mut f = Self::Fqk::one();
+        // f_{u+1,Q}(P)
+        println!("1 ML");
+        let mut f_1 = Self::Fqk::one();
 
-        for i in BitIterator::new(P::ATE_LOOP_COUNT).skip(4) {
-            f.square_in_place();
+        for i in BitIterator::new(P::ATE_LOOP_COUNT_1).skip(1) {
+            f_1.square_in_place();
+            println!("sq");
 
-            for (p, ref mut coeffs) in &mut pairs {
-                Self::ell(&mut f, coeffs.next().unwrap(), &p.0);
+            for (p, ref mut coeffs) in &mut pairs_1 {
+                Self::ell(&mut f_1, coeffs.next().unwrap(), &p.0);
+                println!("mul");
             }
 
             if i {
-                for &mut (p, ref mut coeffs) in &mut pairs {
-                    Self::ell(&mut f, coeffs.next().unwrap(), &p.0);
+                for &mut (p, ref mut coeffs) in &mut pairs_1 {
+                    Self::ell(&mut f_1, coeffs.next().unwrap(), &p.0);
+                    println!("mul");
                 }
             }
         }
 
-        if P::ATE_LOOP_COUNT_IS_NEGATIVE {
-            f.conjugate();
+        if P::ATE_LOOP_COUNT_1_IS_NEGATIVE {
+            f_1.conjugate();
         }
-        f
+
+        // f_{u^2-u^2-u,Q}(P)
+        println!("2 ML");
+        let mut f_2 = Self::Fqk::one();
+
+        for j in BitIterator::new(P::ATE_LOOP_COUNT_2).skip(3) {
+            f_2.square_in_place();
+            println!("sq");
+
+            for (p, ref mut coeffs) in &mut pairs_2 {
+                Self::ell(&mut f_2, coeffs.next().unwrap(), &p.0);
+                println!("mul");
+            }
+
+            if j {
+                for &mut (p, ref mut coeffs) in &mut pairs_2 {
+                    Self::ell(&mut f_2, coeffs.next().unwrap(), &p.0);
+                    println!("mul");
+                }
+            }
+        }
+
+        if P::ATE_LOOP_COUNT_2_IS_NEGATIVE {
+            f_2.conjugate();
+        }
+
+        f_2.frobenius_map(1);
+        println!("frob");
+
+        f_1 * &f_2
     }
 
     fn final_exponentiation(f: &Self::Fqk) -> Option<Self::Fqk> {
