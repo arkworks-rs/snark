@@ -21,46 +21,16 @@ impl BW6Parameters for Parameters {
     const X: BigInteger = BigInteger([0x8508c00000000001, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0]);
     /// `x` is positive.
     const X_IS_NEGATIVE: bool = false;
-    const ATE_LOOP_COUNT: &'static [u64] = &[
-        0x467a80000000000f,
-        0x70b5d44300000007,
-        0x58490fb409869401,
-        0xb55fc0d440cb48f0,
-        0x1ab2f9cb6145aeec,
-        0x15d8f58f3501dbec,
+    // X+1
+    const ATE_LOOP_COUNT_1: &'static [u64] = &[0x8508c00000000002];
+    const ATE_LOOP_COUNT_1_IS_NEGATIVE: bool = false;
+    // X^3-X^2-X
+    const ATE_LOOP_COUNT_2: &'static [u64] = &[
+        0xffffffffffffffff,
+        0x8a442f991fffffff,
+        0x23ed1347970dec00,
     ];
-    const ATE_LOOP_COUNT_IS_NEGATIVE: bool = false;
-    /*
-    const FINAL_EXPONENT_LAST_CHUNK_1: BigInteger = BigInteger([
-        0x3de5800000000089,
-        0x832ba4061000003b,
-        0xc61c554757551c0c,
-        0xc856a0853c9db94c,
-        0x2c77d5ac34cb12ef,
-        0xad1972339049ce76,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-    ]);
-    const FINAL_EXPONENT_LAST_CHUNK_W0_IS_NEG: bool = false;
-    const FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0: BigInteger = BigInteger([
-        0x6f9440000000008c,
-        0x1aff40fcf0000082,
-        0x9521646d73808c51,
-        0x3ba806d298c79fc5,
-        0xb521a3d9309c6dd0,
-        0x824cd7cfb1e8685a,
-        0xa7f6ef02c228c497,
-        0xa311dc0a5ef6ff10,
-        0x96a147eaf584608d,
-        0x828e2c6f9f4f1494,
-        0x68f6427062e1b0b,
-        0x0,
-    ]);
-    */
+    const ATE_LOOP_COUNT_2_IS_NEGATIVE: bool = false;
     const TWIST_TYPE: TwistType = TwistType::D;
     const TWIST: Fq = field_new!(Fq, BigInteger([
         0x0405ffffffff0baa,

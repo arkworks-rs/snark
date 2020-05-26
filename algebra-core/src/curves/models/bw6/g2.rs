@@ -25,7 +25,8 @@ pub type G2Projective<P> = GroupProjective<<P as BW6Parameters>::G2Parameters>;
 pub struct G2Prepared<P: BW6Parameters> {
     // Stores the coefficients of the line evaluations as calculated in
     // https://eprint.iacr.org/2013/722.pdf
-    pub ell_coeffs: Vec<(P::Fp, P::Fp, P::Fp)>,
+    pub ell_coeffs_1: Vec<(P::Fp, P::Fp, P::Fp)>,
+    pub ell_coeffs_2: Vec<(P::Fp, P::Fp, P::Fp)>,
     pub infinity: bool,
 }
 
@@ -49,10 +50,15 @@ impl<P: BW6Parameters> Default for G2Prepared<P> {
 
 impl<P: BW6Parameters> ToBytes for G2Prepared<P> {
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
-        for coeff in &self.ell_coeffs {
-            coeff.0.write(&mut writer)?;
-            coeff.1.write(&mut writer)?;
-            coeff.2.write(&mut writer)?;
+        for coeff_1 in &self.ell_coeffs_1 {
+            coeff_1.0.write(&mut writer)?;
+            coeff_1.1.write(&mut writer)?;
+            coeff_1.2.write(&mut writer)?;
+        }
+        for coeff_2 in &self.ell_coeffs_2 {
+            coeff_2.0.write(&mut writer)?;
+            coeff_2.1.write(&mut writer)?;
+            coeff_2.2.write(&mut writer)?;
         }
         self.infinity.write(writer)
     }
@@ -62,31 +68,52 @@ impl<P: BW6Parameters> From<G2Affine<P>> for G2Prepared<P> {
     fn from(q: G2Affine<P>) -> Self {
         if q.is_zero() {
             return Self {
-                ell_coeffs: vec![],
+                ell_coeffs_1: vec![],
+                ell_coeffs_2: vec![],
                 infinity: true,
             };
         }
 
-        let mut ell_coeffs = vec![];
+        // f_{u+1,Q}(P)
+        let mut ell_coeffs_1 = vec![];
         let mut r = G2HomProjective {
             x: q.x,
             y: q.y,
             z: P::Fp::one(),
         };
 
-        for i in BitIterator::new(P::ATE_LOOP_COUNT).skip(4) {
-            ell_coeffs.push(doubling_step::<P>(&mut r));
+        for i in BitIterator::new(P::ATE_LOOP_COUNT_1).skip(1) {
+            ell_coeffs_1.push(doubling_step::<P>(&mut r));
 
             if i {
-                ell_coeffs.push(addition_step::<P>(&mut r, &q));
+                ell_coeffs_1.push(addition_step::<P>(&mut r, &q));
             }
         }
+
+        // f_{u^3-u^2-u,Q}(P)
+        let mut ell_coeffs_2 = vec![];
+        let mut r = G2HomProjective {
+            x: q.x,
+            y: q.y,
+            z: P::Fp::one(),
+        };
+
+        for j in BitIterator::new(P::ATE_LOOP_COUNT_2).skip(3) {
+            ell_coeffs_2.push(doubling_step::<P>(&mut r));
+
+            if j {
+                ell_coeffs_2.push(addition_step::<P>(&mut r, &q));
+            }
+        }
+
         Self {
-            ell_coeffs,
+            ell_coeffs_1,
+            ell_coeffs_2,
             infinity: false,
         }
     }
 }
+
 impl<P: BW6Parameters> G2Prepared<P> {
     pub fn is_zero(&self) -> bool {
         self.infinity
