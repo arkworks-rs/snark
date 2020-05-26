@@ -60,7 +60,6 @@ impl<P: BW6Parameters> ToBytes for G2Prepared<P> {
 
 impl<P: BW6Parameters> From<G2Affine<P>> for G2Prepared<P> {
     fn from(q: G2Affine<P>) -> Self {
-        let two_inv = P::Fp::one().double().inverse().unwrap();
         if q.is_zero() {
             return Self {
                 ell_coeffs: vec![],
@@ -75,8 +74,8 @@ impl<P: BW6Parameters> From<G2Affine<P>> for G2Prepared<P> {
             z: P::Fp::one(),
         };
 
-        for i in BitIterator::new(P::ATE_LOOP_COUNT).skip(1) {
-            ell_coeffs.push(doubling_step::<P>(&mut r, &two_inv));
+        for i in BitIterator::new(P::ATE_LOOP_COUNT).skip(4) {
+            ell_coeffs.push(doubling_step::<P>(&mut r));
 
             if i {
                 ell_coeffs.push(addition_step::<P>(&mut r, &q));
@@ -95,31 +94,29 @@ impl<P: BW6Parameters> G2Prepared<P> {
 }
 
 fn doubling_step<B: BW6Parameters>(
-    r: &mut G2HomProjective<B>,
-    two_inv: &B::Fp,
+    r: &mut G2HomProjective<B>
 ) -> (B::Fp, B::Fp, B::Fp) {
     // Formula for line function when working with
     // homogeneous projective coordinates.
 
-    let mut a = r.x * &r.y;
-    a *= &two_inv;
+    let a = r.x * &r.y;
     let b = r.y.square();
+    let b4 = b.double().double();
     let c = r.z.square();
     let e = B::G2Parameters::COEFF_B * &(c.double() + &c);
     let f = e.double() + &e;
-    let mut g = b + &f;
-    g *= &two_inv;
+    let g = b + &f;
     let h = (r.y + &r.z).square() - &(b + &c);
     let i = e - &b;
     let j = r.x.square();
-    let e_square = e.square();
+    let e2_square = e.double().square();
 
-    r.x = a * &(b - &f);
-    r.y = g.square() - &(e_square.double() + &e_square);
-    r.z = b * &h;
+    r.x = a.double() * &(b - &f);
+    r.y = g.square() - &(e2_square.double() + &e2_square);
+    r.z = b4 * &h;
     match B::TWIST_TYPE {
-        TwistType::M => (i, j.double() + &j, -h),
-        TwistType::D => (-h, j.double() + &j, i),
+        TwistType::D => (B::TWIST * &i, j.double() + &j, -h),
+        TwistType::M => (i, j.double() + &j, -B::TWIST * &h),
     }
 }
 
@@ -143,7 +140,7 @@ fn addition_step<B: BW6Parameters>(
     let j = theta * &q.x - &(lambda * &q.y);
 
     match B::TWIST_TYPE {
-        TwistType::M => (j, -theta, lambda),
-        TwistType::D => (lambda, -theta, j),
+        TwistType::D => (B::TWIST * &j, -theta, lambda),
+        TwistType::M => (j, -theta, B::TWIST * &lambda),
     }
 }
