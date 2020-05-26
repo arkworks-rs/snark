@@ -75,9 +75,9 @@ fn test_bilinearity() {
     assert_eq!(ans3.pow(Fr::characteristic()), Fq6::one());
 }
 
+/*
 #[test]
 fn test_final_exp() {
-    // let mut rng = test_rng();
     let mut a: Fq6 = Fq6::one();
     a.c0.c0 = Fq::one().double();
     a.c0.c1 = Fq::one().double();
@@ -91,8 +91,23 @@ fn test_final_exp() {
     println!("a: {}", a);
     println!("ans1: {}", ans1);
 
-    // assert_ne!(a, Fq6::one());
-    // assert_ne!(ans1, Fq6::one());
+    assert_ne!(a, Fq6::one());
+    assert_ne!(ans1, Fq6::one());
 
-    // assert_eq!(ans1.pow(Fr::characteristic()), Fq6::one());
+    assert_eq!(ans1.pow(Fr::characteristic()), Fq6::one());
 }
+
+#[test]
+fn test_miller_loop() {
+    let a = G1Projective::prime_subgroup_generator();
+    let b = G2Projective::prime_subgroup_generator();
+
+    let ans = BW6_761::pairing(a, b);
+
+    assert_ne!(ans, Fq6::one());
+    assert_eq!(ans.pow(Fr::characteristic()), Fq6::one());
+
+    println!("a: {}", a);
+    println!("b: {}", b);
+}
+*/

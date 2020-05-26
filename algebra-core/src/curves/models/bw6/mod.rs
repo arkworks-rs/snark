@@ -23,10 +23,13 @@ pub trait BW6Parameters: 'static {
     const X_IS_NEGATIVE: bool;
     const ATE_LOOP_COUNT: &'static [u64];
     const ATE_LOOP_COUNT_IS_NEGATIVE: bool;
+    /*
     const FINAL_EXPONENT_LAST_CHUNK_1: <Self::Fp as PrimeField>::BigInt;
     const FINAL_EXPONENT_LAST_CHUNK_W0_IS_NEG: bool;
     const FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0: <Self::Fp as PrimeField>::BigInt;
+    */
     const TWIST_TYPE: TwistType;
+    const TWIST: Self::Fp;
     type Fp: PrimeField + SquareRootField + Into<<Self::Fp as PrimeField>::BigInt>;
     type Fp3Params: Fp3Parameters<Fp = Self::Fp>;
     type Fp6Params: Fp6Parameters<Fp3Params = Self::Fp3Params>;
@@ -56,7 +59,7 @@ impl<P: BW6Parameters> BW6<P> {
         coeffs: &(P::Fp, P::Fp, P::Fp),
         p: &G1Affine<P>,
     ) {
-        let mut c0 = coeffs.0;
+        let c0 = coeffs.0;
         let mut c1 = coeffs.1;
         let mut c2 = coeffs.2;
 
@@ -64,32 +67,30 @@ impl<P: BW6Parameters> BW6<P> {
             TwistType::M => {
                 c2 *= &p.y;
                 c1 *= &p.x;
-                f.mul_by_014(&c0, &c1, &c2);
+                f.mul_by_045(&c0, &c1, &c2);
             }
             TwistType::D => {
-                c0 *= &p.y;
+                c2 *= &p.y;
                 c1 *= &p.x;
-                f.mul_by_034(&c0, &c1, &c2);
+                f.mul_by_024(&c0, &c1, &c2);
             }
         }
     }
 
-    /*
     fn exp_by_x(mut f: Fp6<P::Fp6Params>) -> Fp6<P::Fp6Params> {
-        // TODO: exp to BigInteger
-        f = f.cyclotomic_exp(P::X);
+        f = f.cyclotomic_exp(&P::X);
         if P::X_IS_NEGATIVE {
             f.conjugate();
         }
         f
     }
-    */
 
     pub fn final_exponentiation(value: &Fp6<P::Fp6Params>) -> Fp6<P::Fp6Params> {
         let value_inv = value.inverse().unwrap();
         let value_to_first_chunk = Self::final_exponentiation_first_chunk(value, &value_inv);
-        let value_inv_to_first_chunk = Self::final_exponentiation_first_chunk(&value_inv, value);
-        Self::final_exponentiation_last_chunk(&value_to_first_chunk, &value_inv_to_first_chunk)
+        // let value_inv_to_first_chunk = Self::final_exponentiation_first_chunk(&value_inv, value);
+        // Self::final_exponentiation_last_chunk(&value_to_first_chunk, &value_inv_to_first_chunk)
+        Self::final_exponentiation_last_chunk(&value_to_first_chunk)
     }
 
     fn final_exponentiation_first_chunk(
@@ -110,6 +111,7 @@ impl<P: BW6Parameters> BW6<P> {
         alpha * &elt_q3_over_elt
     }
 
+    /*
     fn final_exponentiation_last_chunk(
         elt: &Fp6<P::Fp6Params>,
         elt_inv: &Fp6<P::Fp6Params>,
@@ -130,8 +132,8 @@ impl<P: BW6Parameters> BW6<P> {
 
         w1_part * &w0_part
     }
+    */
 
-    /*
     fn final_exponentiation_last_chunk(f: &Fp6<P::Fp6Params>) -> Fp6<P::Fp6Params> {
         // hard_part
         // From https://eprint.iacr.org/2020/351.pdf, Alg.6
@@ -175,7 +177,6 @@ impl<P: BW6Parameters> BW6<P> {
         let result1 = f3p * &f6p * &f5p_p3;
 
         // step 6
-        // TODO: cyclotomic_square?
         let result2 = result1.square();
         let f4_2p = f4 * &f2p;
         let mut tmp1_p3 = f0 * &f1 * &f3 * &f4_2p * &f8p;
@@ -238,7 +239,6 @@ impl<P: BW6Parameters> BW6<P> {
 
         result19
     }
-    */
 }
 
 impl<P: BW6Parameters> PairingEngine for BW6<P> {
@@ -268,7 +268,7 @@ impl<P: BW6Parameters> PairingEngine for BW6<P> {
 
         let mut f = Self::Fqk::one();
 
-        for i in BitIterator::new(P::ATE_LOOP_COUNT).skip(1) {
+        for i in BitIterator::new(P::ATE_LOOP_COUNT).skip(4) {
             f.square_in_place();
 
             for (p, ref mut coeffs) in &mut pairs {
