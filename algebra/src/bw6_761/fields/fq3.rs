@@ -13,22 +13,22 @@ pub struct Fq3Parameters;
 impl Fp3Parameters for Fq3Parameters {
     type Fp = Fq;
 
-    /// NONRESIDUE = 2
-    // Fq3 = Fq[u]/u^3-2
+    /// NONRESIDUE = -4
+    // Fq3 = Fq[u]/u^3+4
     #[rustfmt::skip]
     const NONRESIDUE: Fq = field_new!(Fq, BigInteger([
-        0x0405ffffffff0baa,
-        0xb4b04c6b1fff19ce,
-        0x3d32dc8704ff55bc,
-        0xb4d5fe641dc8fbe9,
-        0xd9d3967c3b297017,
-        0x81cccf44a4904817,
-        0x4e9b4b7fb95a720b,
-        0x46a5cffc8c5e4207,
-        0xf6acb100116390f8,
-        0x8b0914c7ce22045e,
-        0xaf503d773ecb53be,
-        0xa3eefde24fd0fb,
+        0xe12e00000001e9c2,
+        0x63c1e3faa001cd69,
+        0xb1b4384fcbe29cf6,
+        0xc79630bc713d5a1d,
+        0x30127ac071851e2d,
+        0x0979f350dcd36af1,
+        0x6a66defed8b361f2,
+        0x53abac78b24d4e23,
+        0xb7ab89dede485a92,
+        0x5c3a0745675e8452,
+        0x446f17918c5f5700,
+        0xfdf24e3267fa1e,
     ]));
 
     // (MODULUS^3 - 1) % 2^TWO_ADICITY == 0
@@ -114,20 +114,6 @@ impl Fp3Parameters for Fq3Parameters {
             0x51f77ef127e87d,
         ])),
         field_new!(Fq, BigInteger([
-            0x67a04ae427bfb5f8,
-            0x9d32d491eb6a5cff,
-            0x43d03c1cb68051d4,
-            0x0b75ca96f69859a5,
-            0x0763497f5325ec60,
-            0x48076b5c278dd94d,
-            0x8ca3965ff91efd06,
-            0x1e6077657ea02f5d,
-            0xcdd6c153a8c37724,
-            0x28b5b634e5c22ea4,
-            0x9e01e3efd42e902c,
-            0xe3d6815769a804,
-        ])),
-        field_new!(Fq, BigInteger([
             0x7f96b51bd840c549,
             0xd59782096496171f,
             0x49b046fd9ce14bbc,
@@ -140,6 +126,21 @@ impl Fp3Parameters for Fq3Parameters {
             0x0411f03c36cf5c3c,
             0x2d658fd49661c472,
             0x1100249ae760b93,
+        ])),
+        field_new!(Fq, BigInteger([
+            0x67a04ae427bfb5f8,
+            0x9d32d491eb6a5cff,
+            0x43d03c1cb68051d4,
+            0x0b75ca96f69859a5,
+            0x0763497f5325ec60,
+            0x48076b5c278dd94d,
+            0x8ca3965ff91efd06,
+            0x1e6077657ea02f5d,
+            0xcdd6c153a8c37724,
+            0x28b5b634e5c22ea4,
+            0x9e01e3efd42e902c,
+            0xe3d6815769a804,
+
         ])),
     ];
 
@@ -161,20 +162,6 @@ impl Fp3Parameters for Fq3Parameters {
             0x51f77ef127e87d,
         ])),
         field_new!(Fq, BigInteger([
-            0x7f96b51bd840c549,
-            0xd59782096496171f,
-            0x49b046fd9ce14bbc,
-            0x4b6163bba7527a56,
-            0xef6c92fb771d59f1,
-            0x0425bedbac1dfdc7,
-            0xd3ac39de759c0ffd,
-            0x9f43ed0e063a81d0,
-            0x5bd7d20b4f9a3ce2,
-            0x0411f03c36cf5c3c,
-            0x2d658fd49661c472,
-            0x1100249ae760b93,
-        ])),
-        field_new!(Fq, BigInteger([
             0x67a04ae427bfb5f8,
             0x9d32d491eb6a5cff,
             0x43d03c1cb68051d4,
@@ -188,12 +175,27 @@ impl Fp3Parameters for Fq3Parameters {
             0x9e01e3efd42e902c,
             0xe3d6815769a804,
         ])),
+        field_new!(Fq, BigInteger([
+            0x7f96b51bd840c549,
+            0xd59782096496171f,
+            0x49b046fd9ce14bbc,
+            0x4b6163bba7527a56,
+            0xef6c92fb771d59f1,
+            0x0425bedbac1dfdc7,
+            0xd3ac39de759c0ffd,
+            0x9f43ed0e063a81d0,
+            0x5bd7d20b4f9a3ce2,
+            0x0411f03c36cf5c3c,
+            0x2d658fd49661c472,
+            0x1100249ae760b93,
+        ])),
     ];
 
     #[inline(always)]
     fn mul_fp_by_nonresidue(fe: &Self::Fp) -> Self::Fp {
 
-        let original = *fe;
-        original + &original
+        let original = -(*fe);
+        let double = original + &original;
+        double + &double
     }
 }
