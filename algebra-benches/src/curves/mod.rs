@@ -12,3 +12,5 @@ mod mnt6_298;
 mod mnt6_753;
 #[cfg(feature = "sw6")]
 mod sw6;
+#[cfg(feature = "bw6_761")]
+mod bw6_761;
