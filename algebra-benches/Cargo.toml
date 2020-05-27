@@ -40,6 +40,7 @@ mnt6_753 = [ "algebra/mnt6_753"]
 bls12_381 = [ "algebra/bls12_381"]
 bls12_377 = [ "algebra/bls12_377"]
 sw6 = [ "algebra/sw6" ]
+bw6_761 = [ "algebra/bw6_761" ]
 
 [build-dependencies]
 rustc_version = "0.2"
