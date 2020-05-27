@@ -142,8 +142,8 @@ fn doubling_step<B: BW6Parameters>(
     r.y = g.square() - &(e2_square.double() + &e2_square);
     r.z = b4 * &h;
     match B::TWIST_TYPE {
-        TwistType::D => (B::TWIST * &i, j.double() + &j, -h),
-        TwistType::M => (i, j.double() + &j, -B::TWIST * &h),
+        TwistType::M => (i, j.double() + &j, -h),
+        TwistType::D => (-h, j.double() + &j, i),
     }
 }
 
@@ -167,7 +167,7 @@ fn addition_step<B: BW6Parameters>(
     let j = theta * &q.x - &(lambda * &q.y);
 
     match B::TWIST_TYPE {
-        TwistType::D => (B::TWIST * &j, -theta, lambda),
-        TwistType::M => (j, -theta, B::TWIST * &lambda),
+        TwistType::M => (j, -theta, lambda),
+        TwistType::D => (lambda, -theta, j),
     }
 }

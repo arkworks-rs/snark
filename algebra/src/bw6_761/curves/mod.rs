@@ -1,6 +1,5 @@
 use crate::{
     bw6_761::*,
-    field_new,
     biginteger::BigInteger768 as BigInteger,
 };
 
@@ -32,20 +31,6 @@ impl BW6Parameters for Parameters {
     ];
     const ATE_LOOP_COUNT_2_IS_NEGATIVE: bool = false;
     const TWIST_TYPE: TwistType = TwistType::M;
-    const TWIST: Fq = field_new!(Fq, BigInteger([
-        0xe12e00000001e9c2,
-        0x63c1e3faa001cd69,
-        0xb1b4384fcbe29cf6,
-        0xc79630bc713d5a1d,
-        0x30127ac071851e2d,
-        0x0979f350dcd36af1,
-        0x6a66defed8b361f2,
-        0x53abac78b24d4e23,
-        0xb7ab89dede485a92,
-        0x5c3a0745675e8452,
-        0x446f17918c5f5700,
-        0xfdf24e3267fa1e,
-    ]));
     type Fp = Fq;
     type Fp3Params = Fq3Parameters;
     type Fp6Params = Fq6Parameters;
