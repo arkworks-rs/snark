@@ -1,4 +1,14 @@
 language: rust
+addons:
+  apt:
+    update: true
+    packages:
+      - python3-pip
+      - python3-dev
+      - python3-six
+      - python3-setuptools
+python: 
+  - "3.7"
 
 before_install:
   - set -e
@@ -30,16 +40,19 @@ matrix:
     - rust: stable
       install:
         - rustup component add rustfmt
+        - pip3 install --user git+https://github.com/naftulikay/travis-pls
       script:
         - cargo fmt -- --check
-        - travis_wait 40 cargo build --all --tests
+        - travis-pls -m 40 cargo build --all --tests
         - cargo test --all -- --skip dpc --skip integration_test
         - cargo check --examples --all
         - cargo check --all-features --examples --all
 
     - rust: nightly
+      install:
+        - pip3 install --user git+https://github.com/naftulikay/travis-pls
       script:
-        - travis_wait 40 cargo build --all --tests
+        - travis-pls -m 40 cargo build --all --tests
         - cargo test --all -- --skip dpc --skip integration_test
         - cargo check --examples --all --benches
         - cargo check --all-features --examples --all --benches
