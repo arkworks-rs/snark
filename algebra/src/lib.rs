@@ -42,7 +42,7 @@ pub use bls12_377::Bls12_377;
 ///////////////////////////////////////////////////////////////////////////////
 #[cfg(all(
     not(feature = "bls12_377"),
-    any(feature = "edwards_bls12", feature = "sw6", feature = "edwards_sw6", feature = "bw6_761", feature = "edwards_bw6_761")
+    any(feature = "edwards_bls12", feature = "sw6", feature = "edwards_sw6", feature = "bw6_761")
 ))]
 pub(crate) mod bls12_377;
 
@@ -122,11 +122,8 @@ pub mod edwards_sw6;
 ///////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////
-#[cfg(all(not(feature = "bw6_761"), feature = "edwards_bw6_761"))]
+#[cfg(all(not(feature = "bw6_761"), feature = "edwards_sw6"))]
 pub(crate) mod bw6_761;
-
-#[cfg(feature = "edwards_bw6_761")]
-pub mod edwards_bw6_761;
 ///////////////////////////////////////////////////////////////////////////////
 
 
