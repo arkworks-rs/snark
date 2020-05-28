@@ -2,7 +2,7 @@ use algebra_core::{
     biginteger::{BigInteger, BigInteger384},
     fields::{
         FftField, FftParameters, Field, Fp12Parameters, Fp2Parameters, Fp6Parameters, FpParameters,
-        PrimeField, SquareRootField,
+        SquareRootField,
     },
     One, UniformRand, Zero,
 };
