@@ -230,7 +230,7 @@ pub fn from_str_test<F: PrimeField>() {
             let a = F::from_str(&crate::format!("{}", n))
                 .map_err(|_| ())
                 .unwrap();
-            let b = F::from_repr(n.into());
+            let b = F::from_repr(n.into()).unwrap();
 
             assert_eq!(a, b);
         }
@@ -342,7 +342,7 @@ pub fn fft_field_test<F: FftField>() {
 pub fn primefield_test<F: PrimeField>() {
     from_str_test::<F>();
     let one = F::one();
-    assert_eq!(F::from_repr(one.into_repr()), one);
+    assert_eq!(F::from(one.into_repr()), one);
 
     fft_field_test::<F>();
 }

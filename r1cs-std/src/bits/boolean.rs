@@ -1985,35 +1985,6 @@ mod test {
 
             assert!(cs.is_satisfied());
         }
-
-        // for _ in 0..1000 {
-        //     // Sample a random element not in the field
-        //     let r = loop {
-        //         let mut a = Fr::rand(&mut rng).into_repr();
-        //         let b = Fr::rand(&mut rng).into_repr();
-
-        //         a.add_nocarry(&b);
-        //         // we're shaving off the high bit_gadget later
-        //         a.as_mut()[3] &= 0x7fffffffffffffff;
-        //         if Fr::from_repr(a).is_err() {
-        //             break a;
-        //         }
-        //     };
-
-        //     let mut cs = TestConstraintSystem::<Fr>::new();
-
-        //     let mut bits = vec![];
-        //     for (i, b) in BitIterator::new(r).skip(1).enumerate() {
-        //         bits.push(Boolean::from(
-        //             AllocatedBit::alloc(cs.ns(|| format!("bit_gadget {}",
-        // i)), Some(b))                 .unwrap(),
-        //         ));
-        //     }
-
-        //     Boolean::enforce_in_field::<_, _, Fr>(&mut cs, &bits).unwrap();
-
-        //     assert!(!cs.is_satisfied());
-        // }
     }
 
     #[test]

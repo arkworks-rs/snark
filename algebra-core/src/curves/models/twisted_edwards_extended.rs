@@ -142,14 +142,17 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
     }
 
     fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
-        P::BaseField::from_random_bytes_with_flags(bytes).and_then(|(x, flags)| {
+        let x = P::BaseField::from_random_bytes_with_flags(bytes);
+        if let Some((x, flags)) = x {
             let parsed_flags = EdwardsFlags::from_u8(flags);
             if x.is_zero() {
                 Some(Self::zero())
             } else {
                 Self::get_point_from_x(x, parsed_flags.is_positive())
             }
-        })
+        } else {
+            None
+        }
     }
 
     #[inline]
