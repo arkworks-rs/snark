@@ -196,13 +196,15 @@ macro_rules! impl_Fp {
             type BigInt = $BigIntegerType;
 
             #[inline]
-            fn from_repr(r: $BigIntegerType) -> Self {
+            fn from_repr(r: $BigIntegerType) -> Option<Self> {
                 let mut r = $Fp(r, PhantomData);
-                if r.is_valid() {
-                    r.mul_assign(&$Fp(P::R2, PhantomData));
-                    r
+                if r.is_zero() {
+                    Some(r)
+                } else if r.is_valid() {
+                    r *= &$Fp(P::R2, PhantomData);
+                    Some(r)
                 } else {
-                    Self::zero()
+                    None
                 }
             }
 
@@ -289,18 +291,11 @@ macro_rules! impl_Fp {
         impl<P: $FpParameters> FromBytes for $Fp<P> {
             #[inline]
             fn read<R: Read>(reader: R) -> IoResult<Self> {
-                $BigInteger::read(reader).and_then( |b|
-                    if b.is_zero() {
-                        Ok($Fp::zero())
-                    } else {
-                        let f = $Fp::from_repr(b);
-                        if f == $Fp::zero() {
-                            Err(crate::error("FromBytes::read failed"))
-                        } else {
-                            Ok(f)
-                        }
-                    }
-                )
+                $BigInteger::read(reader).and_then(|b|
+                    match $Fp::from_repr(b) {
+                        Some(f) => Ok(f),
+                        None => Err(crate::error("FromBytes::read failed")),
+                    })
             }
         }
 
@@ -320,7 +315,7 @@ macro_rules! impl_Fp {
 
                 let mut res = Self::zero();
 
-                let ten = Self::from_repr(<Self as PrimeField>::BigInt::from(10));
+                let ten = Self::from(<Self as PrimeField>::BigInt::from(10));
 
                 let mut first_digit = true;
 
@@ -336,9 +331,8 @@ macro_rules! impl_Fp {
                             }
 
                             res.mul_assign(&ten);
-                            res.add_assign(&Self::from_repr(<Self as PrimeField>::BigInt::from(
-                                u64::from(c),
-                            )));
+                            let digit = Self::from(u64::from(c));
+                            res.add_assign(&digit);
                         },
                         None => {
                             return Err(());

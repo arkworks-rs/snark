@@ -184,8 +184,12 @@ macro_rules! impl_field_bigint_conv {
         }
 
         impl<P: $params> From<$bigint> for $field<P> {
+            /// Converts `Self::BigInteger` into `Self`
+            ///
+            /// # Panics
+            /// This method panics if `int` is larger than `P::MODULUS`.
             fn from(int: $bigint) -> Self {
-                Self::from_repr(int)
+                Self::from_repr(int).unwrap()
             }
         }
     };
@@ -224,14 +228,14 @@ macro_rules! impl_prime_field_from_int {
                 let mut default_int = P::BigInt::default();
                 default_int.0[0] = lower;
                 default_int.0[1] = upper;
-                Self::from_repr(default_int)
+                Self::from_repr(default_int).unwrap()
             }
         }
     };
     ($field: ident, $int: ident, $params: ident) => {
         impl<P: $params> From<$int> for $field<P> {
             fn from(other: $int) -> Self {
-                Self::from_repr(P::BigInt::from(u64::from(other)))
+                Self::from_repr(P::BigInt::from(u64::from(other))).unwrap()
             }
         }
     };

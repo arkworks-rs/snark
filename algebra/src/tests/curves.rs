@@ -166,7 +166,6 @@ fn random_negation_test<G: ProjectiveCurve>() {
 
         let mut t3 = t1;
         t3.add_assign(&t2);
-        println!("t3 = {}", t3);
         assert!(t3.is_zero());
 
         let mut t4 = t1;
@@ -419,13 +418,20 @@ where
     assert_eq!(b, P::MontgomeryModelParameters::COEFF_B);
 }
 
-pub fn edwards_tests<P: TEModelParameters>() {
+pub fn edwards_tests<P: TEModelParameters>()
+where
+    P::BaseField: PrimeField,
+{
     edwards_curve_serialization_test::<P>();
     edwards_from_random_bytes::<P>();
 }
 
-pub fn edwards_from_random_bytes<P: TEModelParameters>() {
+pub fn edwards_from_random_bytes<P: TEModelParameters>()
+where
+    P::BaseField: PrimeField,
+{
     use algebra_core::curves::models::twisted_edwards_extended::{GroupAffine, GroupProjective};
+    use algebra_core::{to_bytes, ToBytes};
 
     let buf_size = GroupAffine::<P>::zero().serialized_size();
 
@@ -444,6 +450,19 @@ pub fn edwards_from_random_bytes<P: TEModelParameters>() {
             let p2 = GroupAffine::<P>::from_random_bytes(&serialized).unwrap();
             assert_eq!(p1, p2);
         }
+    }
+
+    for _ in 0..ITERATIONS {
+        let biginteger =
+            <<GroupAffine<P> as AffineCurve>::BaseField as PrimeField>::BigInt::rand(&mut rng);
+        let mut i = 0u32;
+        let mut g = GroupAffine::<P>::from_random_bytes(&to_bytes![biginteger, i].unwrap());
+
+        while g.is_none() {
+            g = GroupAffine::<P>::from_random_bytes(&to_bytes![i, biginteger].unwrap());
+            i += 1;
+        }
+        let _g = g.unwrap();
     }
 }
 
