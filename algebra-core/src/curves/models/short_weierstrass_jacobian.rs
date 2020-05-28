@@ -143,6 +143,7 @@ impl<'a, P: Parameters> AddAssign<&'a Self> for GroupAffine<P> {
 }
 
 impl<P: Parameters> AffineCurve for GroupAffine<P> {
+    const COFACTOR: &'static [u64] = P::COFACTOR;
     type BaseField = P::BaseField;
     type ScalarField = P::ScalarField;
     type Projective = GroupProjective<P>;
@@ -177,8 +178,9 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
         self.mul_bits(bits)
     }
 
-    fn mul_by_cofactor(&self) -> Self {
-        self.scale_by_cofactor().into()
+    #[inline]
+    fn mul_by_cofactor_to_projective(&self) -> Self::Projective {
+        self.scale_by_cofactor()
     }
 
     fn mul_by_cofactor_inv(&self) -> Self {
@@ -338,6 +340,7 @@ impl<P: Parameters> Zero for GroupProjective<P> {
 }
 
 impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
+    const COFACTOR: &'static [u64] = P::COFACTOR;
     type BaseField = P::BaseField;
     type ScalarField = P::ScalarField;
     type Affine = GroupAffine<P>;
