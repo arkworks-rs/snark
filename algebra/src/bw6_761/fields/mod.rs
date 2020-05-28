@@ -1,6 +1,6 @@
-#[cfg(any(feature = "bw6_761", feature = "edwards_bw6_761"))]
+#[cfg(any(feature = "bw6_761", feature = "edwards_sw6"))]
 pub mod fr;
-#[cfg(any(feature = "bw6_761", feature = "edwards_bw6_761"))]
+#[cfg(any(feature = "bw6_761", feature = "edwards_sw6"))]
 pub use self::fr::*;
 
 #[cfg(feature = "bw6_761")]
