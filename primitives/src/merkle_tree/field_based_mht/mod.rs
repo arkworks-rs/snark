@@ -296,6 +296,7 @@ mod test {
         }
     }
 
+    #[ignore]
     #[test]
     fn generate_mnt4753_phantom_merkle_root(){
         use algebra::{FromBytes, PrimeField, FpParameters};
