@@ -14,6 +14,7 @@ use algebra::{
     field_new,
 };
 
+// PoseidonHash("This represents an empty Merkle Root for a MNT4753PoseidonHash based Merkle Tree.") padded with 0s
 pub const MNT4753_PHANTOM_MERKLE_ROOT: MNT4753Fr =
     field_new!(MNT4753Fr, BigInteger768([
         8534937690304963668,
