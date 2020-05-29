@@ -309,7 +309,7 @@ macro_rules! field_base {
                 let mut count = 0;
                 b.iter(|| {
                     count = (count + 1) % SAMPLES;
-                    $f::from_repr(v[count])
+                    $f::from(v[count])
                 });
             }
         }

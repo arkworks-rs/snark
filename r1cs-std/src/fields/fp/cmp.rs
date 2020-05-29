@@ -222,7 +222,7 @@ mod test {
             0x06, 0x54,
         ]);
         fn rand_in_range<R: Rng>(rng: &mut R) -> Fr {
-            let pminusonedivtwo = Fr::from_repr(Fr::modulus_minus_one_div_two());
+            let pminusonedivtwo: Fr = Fr::modulus_minus_one_div_two().into();
             let mut r;
             loop {
                 r = Fr::rand(rng);

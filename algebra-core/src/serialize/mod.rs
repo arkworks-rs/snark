@@ -281,7 +281,6 @@ macro_rules! impl_prime_field_serializer {
 
                 let mut masked_bytes = [0; BYTE_SIZE];
                 reader.read_exact(&mut masked_bytes[..output_byte_size])?;
-
                 Ok(Self::read(&masked_bytes[..])?)
             }
         }

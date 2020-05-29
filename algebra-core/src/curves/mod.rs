@@ -122,6 +122,7 @@ pub trait ProjectiveCurve:
     + for<'a> core::iter::Sum<&'a Self>
     + From<<Self as ProjectiveCurve>::Affine>
 {
+    const COFACTOR: &'static [u64];
     type ScalarField: PrimeField + SquareRootField;
     type BaseField: Field;
     type Affine: AffineCurve<Projective = Self, ScalarField = Self::ScalarField, BaseField = Self::BaseField>
@@ -222,6 +223,7 @@ pub trait AffineCurve:
     + Neg<Output = Self>
     + From<<Self as AffineCurve>::Projective>
 {
+    const COFACTOR: &'static [u64];
     type ScalarField: PrimeField + SquareRootField + Into<<Self::ScalarField as PrimeField>::BigInt>;
     type BaseField: Field;
     type Projective: ProjectiveCurve<Affine = Self, ScalarField = Self::ScalarField, BaseField = Self::BaseField>
@@ -248,9 +250,16 @@ pub trait AffineCurve:
     fn mul<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(&self, other: S)
         -> Self::Projective;
 
+    /// Multiply this element by the cofactor and output the
+    /// resulting projective element.
+    #[must_use]
+    fn mul_by_cofactor_to_projective(&self) -> Self::Projective;
+
     /// Multiply this element by the cofactor.
     #[must_use]
-    fn mul_by_cofactor(&self) -> Self;
+    fn mul_by_cofactor(&self) -> Self {
+        self.mul_by_cofactor_to_projective().into()
+    }
 
     /// Multiply this element by the inverse of the cofactor in
     /// `Self::ScalarField`.

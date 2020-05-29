@@ -311,7 +311,7 @@ pub trait PrimeField:
     type BigInt: BigInteger;
 
     /// Returns a prime field element from its underlying representation.
-    fn from_repr(repr: Self::BigInt) -> Self;
+    fn from_repr(repr: Self::BigInt) -> Option<Self>;
 
     /// Returns the underlying representation of the prime field element.
     fn into_repr(&self) -> Self::BigInt;
