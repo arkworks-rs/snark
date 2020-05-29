@@ -4,17 +4,17 @@ pub mod fr;
 pub use self::fr::*;
 
 #[cfg(any(
-        feature = "bls12_377",
-        feature = "sw6",
-        feature = "edwards_sw6",
-        feature = "bw6_761"
+    feature = "bls12_377",
+    feature = "sw6",
+    feature = "edwards_sw6",
+    feature = "bw6_761"
 ))]
 pub mod fq;
 #[cfg(any(
-        feature = "bls12_377",
-        feature = "sw6",
-        feature = "edwards_sw6",
-        feature = "bw6_761"
+    feature = "bls12_377",
+    feature = "sw6",
+    feature = "edwards_sw6",
+    feature = "bw6_761"
 ))]
 pub use self::fq::*;
 
