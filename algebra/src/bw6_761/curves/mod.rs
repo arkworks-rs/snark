@@ -1,11 +1,9 @@
-use crate::{
-    bw6_761::*,
-    biginteger::BigInteger768 as BigInteger,
+use crate::{biginteger::BigInteger768 as BigInteger, bw6_761::*,
 };
 
 use algebra_core::curves::{
     bw6,
-    bw6::{BW6, BW6Parameters, TwistType},
+    bw6::{BW6Parameters, TwistType, BW6},
 };
 
 pub mod g1;
@@ -17,18 +15,27 @@ mod tests;
 pub struct Parameters;
 
 impl BW6Parameters for Parameters {
-    const X: BigInteger = BigInteger([0x8508c00000000001, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0]);
+    const X: BigInteger = BigInteger([
+        0x8508c00000000001,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0
+    ]);
     /// `x` is positive.
     const X_IS_NEGATIVE: bool = false;
     // X+1
     const ATE_LOOP_COUNT_1: &'static [u64] = &[0x8508c00000000002];
     const ATE_LOOP_COUNT_1_IS_NEGATIVE: bool = false;
     // X^3-X^2-X
-    const ATE_LOOP_COUNT_2: &'static [u64] = &[
-        0xffffffffffffffff,
-        0x8a442f991fffffff,
-        0x23ed1347970dec00,
-    ];
+    const ATE_LOOP_COUNT_2: &'static [u64] = &[0xffffffffffffffff, 0x8a442f991fffffff, 0x23ed1347970dec00];
     const ATE_LOOP_COUNT_2_IS_NEGATIVE: bool = false;
     const TWIST_TYPE: TwistType = TwistType::M;
     type Fp = Fq;

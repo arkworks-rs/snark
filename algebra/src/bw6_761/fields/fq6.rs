@@ -1,8 +1,8 @@
 use crate::{
     biginteger::BigInteger768 as BigInteger,
+    bw6_761::{Fq, Fq3, Fq3Parameters},
     field_new,
     fields::fp6_2over3::{Fp6, Fp6Parameters},
-    bw6_761::{Fq, Fq3, Fq3Parameters},
 };
 
 pub type Fq6 = Fp6<Fq6Parameters>;

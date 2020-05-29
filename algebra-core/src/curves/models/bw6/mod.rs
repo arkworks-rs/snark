@@ -50,11 +50,7 @@ pub struct BW6<P: BW6Parameters>(PhantomData<fn() -> P>);
 
 impl<P: BW6Parameters> BW6<P> {
     // Evaluate the line function at point p.
-    fn ell(
-        f: &mut Fp6<P::Fp6Params>,
-        coeffs: &(P::Fp, P::Fp, P::Fp),
-        p: &G1Affine<P>,
-    ) {
+    fn ell(f: &mut Fp6<P::Fp6Params>, coeffs: &(P::Fp, P::Fp, P::Fp), p: &G1Affine<P>) {
         let mut c0 = coeffs.0;
         let mut c1 = coeffs.1;
         let mut c2 = coeffs.2;
@@ -69,7 +65,6 @@ impl<P: BW6Parameters> BW6<P> {
                 c0 *= &p.y;
                 c1 *= &p.x;
                 f.mul_by_034(&c0, &c1, &c2);
-
             }
         }
     }
