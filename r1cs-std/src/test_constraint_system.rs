@@ -1,7 +1,6 @@
+use crate::{BTreeMap, String, Vec};
 use algebra::Field;
 use r1cs_core::{ConstraintSystem, Index, LinearCombination, SynthesisError, Variable};
-
-use radix_trie::Trie;
 
 #[derive(Debug)]
 enum NamedObject {
@@ -12,7 +11,7 @@ enum NamedObject {
 
 /// Constraint system for testing purposes.
 pub struct TestConstraintSystem<ConstraintF: Field> {
-    named_objects:     Trie<String, NamedObject>,
+    named_objects: BTreeMap<String, NamedObject>,
     current_namespace: Vec<String>,
     pub constraints: Vec<(
         LinearCombination<ConstraintF>,
@@ -20,8 +19,8 @@ pub struct TestConstraintSystem<ConstraintF: Field> {
         LinearCombination<ConstraintF>,
         String,
     )>,
-    inputs:            Vec<(ConstraintF, String)>,
-    aux:               Vec<(ConstraintF, String)>,
+    inputs: Vec<(ConstraintF, String)>,
+    aux: Vec<(ConstraintF, String)>,
 }
 
 impl<ConstraintF: Field> TestConstraintSystem<ConstraintF> {
@@ -38,8 +37,8 @@ impl<ConstraintF: Field> TestConstraintSystem<ConstraintF> {
                 Index::Aux(index) => aux[index].0,
             };
 
-            tmp.mul_assign(&coeff);
-            acc.add_assign(&tmp);
+            tmp *= coeff;
+            acc += tmp;
         }
 
         acc
@@ -48,21 +47,22 @@ impl<ConstraintF: Field> TestConstraintSystem<ConstraintF> {
 
 impl<ConstraintF: Field> TestConstraintSystem<ConstraintF> {
     pub fn new() -> TestConstraintSystem<ConstraintF> {
-        let mut map = Trie::new();
+        let mut map = BTreeMap::new();
         map.insert(
             "ONE".into(),
             NamedObject::Var(TestConstraintSystem::<ConstraintF>::one()),
         );
 
         TestConstraintSystem {
-            named_objects:     map,
+            named_objects: map,
             current_namespace: vec![],
-            constraints:       vec![],
-            inputs:            vec![(ConstraintF::one(), "ONE".into())],
-            aux:               vec![],
+            constraints: vec![],
+            inputs: vec![(ConstraintF::one(), "ONE".into())],
+            aux: vec![],
         }
     }
 
+    #[allow(unused_variables)]
     pub fn print_named_objects(&self) {
         for &(_, _, _, ref name) in &self.constraints {
             println!("{}", name);

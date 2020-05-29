@@ -1,6 +1,6 @@
 use algebra::{
-    curves::{models::SWModelParameters, AffineCurve},
-    fields::{SquareRootField, Field},
+    curves::models::SWModelParameters,
+    fields::{SquareRootField, Field}, Zero, One,
 };
 
 pub trait GroupMap<F> {
@@ -26,14 +26,16 @@ fn curve_eqn<G : SWModelParameters>(x : G::BaseField) -> G::BaseField {
     res
 }
 
-fn find_first<A, F: Fn(u64) -> Option<A>>(start: u64, f : F) -> A {
-    for i in start.. {
+fn find_first<A, K: Field, F: Fn(K) -> Option<A>>(start: K, f : F) -> A {
+    let mut i = start;
+    loop {
         match f(i) {
             Some(x) => return x,
-            None => ()
+            None => {
+                i += K::one();
+            }
         }
     }
-    panic!("find_first")
 }
 
 fn potential_xs_helper<G: SWModelParameters>(
@@ -104,8 +106,7 @@ impl<G: SWModelParameters> GroupMap<G::BaseField> for BWParameters<G> {
     fn setup() -> Self {
         assert!(G::COEFF_A.is_zero());
 
-        let (u, fu) = find_first(1, |u| {
-            let u : G::BaseField = u.into();
+        let (u, fu) = find_first(G::BaseField::one(), |u| {
             let fu : G::BaseField = curve_eqn::<G>(u);
             if fu.is_zero() {
                 return None
@@ -114,11 +115,13 @@ impl<G: SWModelParameters> GroupMap<G::BaseField> for BWParameters<G> {
             }
         });
 
-        let three_u_squared = u.square() * & 3.into();
+        let two = G::BaseField::one() + &G::BaseField::one();
+        let three = two + &G::BaseField::one();
+
+        let three_u_squared = u.square() * & three;
         let inv_three_u_squared = three_u_squared.inverse().unwrap();
         let sqrt_neg_three_u_squared = (-three_u_squared).sqrt().unwrap();
-        let two_inv =
-            G::BaseField::from(2).inverse().unwrap();
+        let two_inv = two.inverse().unwrap();
         let sqrt_neg_three_u_squared_minus_u_over_2 =
             (sqrt_neg_three_u_squared - & u) * &two_inv;
 

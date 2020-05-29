@@ -2,7 +2,7 @@ use crate::prelude::*;
 use algebra::Field;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
-/// If condition is `true`, return `first`; else, select `second`.
+/// If condition is `true`, return `true_value`; else, select `false_value`.
 pub trait CondSelectGadget<ConstraintF: Field>
 where
     Self: Sized,
@@ -10,8 +10,8 @@ where
     fn conditionally_select<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
         cond: &Boolean,
-        first: &Self,
-        second: &Self,
+        true_value: &Self,
+        false_value: &Self,
     ) -> Result<Self, SynthesisError>;
 
     fn cost() -> usize;

@@ -3,31 +3,33 @@ use rand::Rng;
 use std::{
     collections::{HashMap, HashSet},
     hash::Hash,
-    rc::Rc,
 };
 
-use crypto_primitives::{FixedLengthCRH, merkle_tree::{MerkleTreePath, MerkleHashTree, MerkleTreeConfig}};
 use crate::{dpc::Transaction, ledger::*};
 use algebra::bytes::ToBytes;
+use crypto_primitives::{
+    merkle_tree::{MerkleHashTree, MerkleTreeConfig, MerkleTreePath},
+    FixedLengthCRH,
+};
 
 pub struct IdealLedger<T: Transaction, P: MerkleTreeConfig>
 where
     T::Commitment: ToBytes,
 {
-    crh_params:     Rc<<P::H as FixedLengthCRH>::Parameters>,
-    transactions:   Vec<T>,
+    crh_params: <P::H as FixedLengthCRH>::Parameters,
+    transactions: Vec<T>,
     cm_merkle_tree: MerkleHashTree<P>,
-    cur_cm_index:   usize,
-    cur_sn_index:   usize,
+    cur_cm_index: usize,
+    cur_sn_index: usize,
     cur_memo_index: usize,
-    comm_to_index:  HashMap<T::Commitment, usize>,
-    sn_to_index:    HashMap<T::SerialNumber, usize>,
-    memo_to_index:  HashMap<T::Memorandum, usize>,
+    comm_to_index: HashMap<T::Commitment, usize>,
+    sn_to_index: HashMap<T::SerialNumber, usize>,
+    memo_to_index: HashMap<T::Memorandum, usize>,
     current_digest: Option<MerkleTreeDigest<P>>,
-    past_digests:   HashSet<MerkleTreeDigest<P>>,
-    genesis_cm:     T::Commitment,
-    genesis_sn:     T::SerialNumber,
-    genesis_memo:   T::Memorandum,
+    past_digests: HashSet<MerkleTreeDigest<P>>,
+    genesis_cm: T::Commitment,
+    genesis_sn: T::SerialNumber,
+    genesis_memo: T::Memorandum,
 }
 
 impl<T: Transaction, P: MerkleTreeConfig> Ledger for IdealLedger<T, P>
@@ -54,8 +56,8 @@ where
         genesis_sn: Self::SerialNumber,
         genesis_memo: Self::Memo,
     ) -> Self {
-        let params = Rc::new(parameters);
-        let cm_merkle_tree = MerkleHashTree::<P>::new(params.clone(), &[genesis_cm.clone()]).unwrap();
+        let cm_merkle_tree =
+            MerkleHashTree::<P>::new(parameters.clone(), &[genesis_cm.clone()]).unwrap();
 
         let mut cur_cm_index = 0;
         let mut comm_to_index = HashMap::new();
@@ -67,7 +69,7 @@ where
         past_digests.insert(root.clone());
 
         IdealLedger {
-            crh_params: params,
+            crh_params: parameters,
             transactions: Vec::new(),
             cm_merkle_tree,
             cur_cm_index,
@@ -183,14 +185,16 @@ where
         Ok(result)
     }
 
-    fn prove_sn(&self, _sn: &Self::SerialNumber) -> Result<MerkleTreePath<Self::Parameters>, Error> {
+    fn prove_sn(
+        &self,
+        _sn: &Self::SerialNumber,
+    ) -> Result<MerkleTreePath<Self::Parameters>, Error> {
         Ok(MerkleTreePath::default())
     }
 
     fn prove_memo(&self, _memo: &Self::Memo) -> Result<MerkleTreePath<Self::Parameters>, Error> {
         Ok(MerkleTreePath::default())
     }
-
 
     fn verify_cm(
         parameters: &MerkleTreeParams<Self::Parameters>,
@@ -235,7 +239,6 @@ impl std::fmt::Display for LedgerError {
             LedgerError::DuplicateMemo => "duplicate memo pushed to ledger",
             LedgerError::InvalidCm => "invalid cm pushed to ledger",
             LedgerError::InvalidCmIndex => "invalid cm index during proving",
-
         };
         write!(f, "{}", msg)
     }
@@ -247,5 +250,3 @@ impl std::error::Error for LedgerError {
         None
     }
 }
-
-

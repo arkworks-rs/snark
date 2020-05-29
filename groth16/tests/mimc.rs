@@ -26,13 +26,14 @@
 )]
 
 // For randomness (during paramgen and proof generation)
-use rand::{thread_rng, Rng};
+use rand::Rng;
 
 // For benchmarking
 use std::time::{Duration, Instant};
 
 // Bring in some tools for using pairing-friendly curves
-use algebra::{curves::bls12_381::Bls12_381, fields::bls12_381::fr::Fr, Field};
+use algebra::bls12_381::{Bls12_381, Fr};
+use algebra_core::{test_rng, Field};
 
 // We're going to use the BLS12-381 pairing-friendly elliptic curve.
 
@@ -74,8 +75,8 @@ fn mimc<F: Field>(mut xl: F, mut xr: F, constants: &[F]) -> F {
 /// This is our demo circuit for proving knowledge of the
 /// preimage of a MiMC hash invocation.
 struct MiMCDemo<'a, F: Field> {
-    xl:        Option<F>,
-    xr:        Option<F>,
+    xl: Option<F>,
+    xr: Option<F>,
     constants: &'a [F],
 }
 
@@ -178,7 +179,7 @@ fn test_mimc_groth_16() {
 
     // This may not be cryptographically safe, use
     // `OsRng` (for example) in production software.
-    let rng = &mut thread_rng();
+    let rng = &mut test_rng();
 
     // Generate the MiMC round constants
     let constants = (0..MIMC_ROUNDS).map(|_| rng.gen()).collect::<Vec<_>>();
@@ -188,8 +189,8 @@ fn test_mimc_groth_16() {
     // Create parameters for our circuit
     let params = {
         let c = MiMCDemo::<Fr> {
-            xl:        None,
-            xr:        None,
+            xl: None,
+            xr: None,
             constants: &constants,
         };
 
@@ -223,8 +224,8 @@ fn test_mimc_groth_16() {
             // Create an instance of our circuit (with the
             // witness)
             let c = MiMCDemo {
-                xl:        Some(xl),
-                xr:        Some(xr),
+                xl: Some(xl),
+                xr: Some(xr),
                 constants: &constants,
             };
 

@@ -1,9 +1,7 @@
-use algebra::curves::{
-    bls12_377::Bls12_377, edwards_bls12::EdwardsProjective as EdwardsBls,
-    edwards_sw6::EdwardsProjective as EdwardsSW, sw6::SW6,
+use algebra::{
+    bls12_377, edwards_bls12::EdwardsProjective as EdwardsBls,
+    edwards_sw6::EdwardsProjective as EdwardsSW, sw6::SW6, Bls12_377,
 };
-
-use algebra::fields::bls12_377::{fr::Fr as Bls12_377Fr, fq::Fq as Bls12_377Fq};
 
 use crypto_primitives::{
     commitment::{blake2s::Blake2sCommitment, injective_map::PedersenCommCompressor},
@@ -11,25 +9,22 @@ use crypto_primitives::{
         injective_map::{PedersenCRHCompressor, TECompressor},
         pedersen::PedersenWindow,
     },
-    nizk::Gm17,
     merkle_tree::MerkleTreeConfig,
+    nizk::Gm17,
     prf::blake2s::Blake2s,
 };
 
 use crypto_primitives::{
     commitment::{
-        blake2s::constraints::Blake2sCommitmentGadget, 
+        blake2s::constraints::Blake2sCommitmentGadget,
         injective_map::constraints::PedersenCommitmentCompressorGadget,
     },
     crh::injective_map::constraints::{PedersenCRHCompressorGadget, TECompressorGadget},
-    prf::blake2s::constraints::Blake2sGadget,
     nizk::gm17::constraints::Gm17VerifierGadget,
+    prf::blake2s::constraints::Blake2sGadget,
 };
 use r1cs_std::{
-    groups::curves::twisted_edwards::{
-        edwards_bls12::EdwardsBlsGadget, edwards_sw6::EdwardsSWGadget,
-    },
-    pairing::bls12_377::PairingGadget,
+    bls12_377::PairingGadget, edwards_bls12::EdwardsBlsGadget, edwards_sw6::EdwardsSWGadget,
 };
 
 use crate::dpc::plain_dpc::{
@@ -106,7 +101,7 @@ impl PlainDPCComponents for Components {
     type ProofCheckF = ProofCheckF;
 
     type MerkleTreeConfig = CommitmentMerkleTreeConfig;
-    type MerkleTree_HGadget = MerkleTreeCRHGadget;
+    type MerkleTreeHGadget = MerkleTreeCRHGadget;
 
     type AddrC = AddressComm;
     type RecC = RecordComm;
@@ -136,8 +131,8 @@ impl PlainDPCComponents for Components {
 pub type EdwardsCompressor = TECompressor;
 pub type CoreCheckPairing = Bls12_377;
 pub type ProofCheckPairing = SW6;
-pub type CoreCheckF = Bls12_377Fr;
-pub type ProofCheckF = Bls12_377Fq;
+pub type CoreCheckF = bls12_377::Fr;
+pub type ProofCheckF = bls12_377::Fq;
 
 pub type AddressComm = PedersenCommCompressor<EdwardsBls, EdwardsCompressor, AddressWindow>;
 pub type RecordComm = PedersenCommCompressor<EdwardsBls, EdwardsCompressor, RecordWindow>;

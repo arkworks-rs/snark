@@ -1,4 +1,4 @@
-use algebra::Field;
+use algebra_core::Field;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::{boolean::AllocatedBit, prelude::*};
 
@@ -7,7 +7,7 @@ use crate::{
     merkle_tree::*,
 };
 
-use std::borrow::Borrow;
+use core::borrow::Borrow;
 
 pub struct MerkleTreePathGadget<P, HGadget, ConstraintF>
 where
@@ -128,6 +128,28 @@ where
     HGadget: FixedLengthCRHGadget<P::H, ConstraintF>,
     ConstraintF: Field,
 {
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        val: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<MerkleTreePath<P>>,
+    {
+        let mut path = Vec::new();
+        for (i, &(ref l, ref r)) in val.borrow().path.iter().enumerate() {
+            let l_hash = HGadget::OutputGadget::alloc_constant(
+                &mut cs.ns(|| format!("l_child_{}", i)),
+                l.clone(),
+            )?;
+            let r_hash = HGadget::OutputGadget::alloc_constant(
+                &mut cs.ns(|| format!("r_child_{}", i)),
+                r.clone(),
+            )?;
+            path.push((l_hash, r_hash));
+        }
+        Ok(MerkleTreePathGadget { path })
+    }
+
     fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         value_gen: F,
@@ -178,8 +200,6 @@ where
 
 #[cfg(test)]
 mod test {
-    use std::rc::Rc;
-
     use crate::{
         crh::{
             pedersen::{constraints::PedersenCRHGadget, PedersenCRH, PedersenWindow},
@@ -187,16 +207,13 @@ mod test {
         },
         merkle_tree::*,
     };
-    use algebra::{curves::jubjub::JubJubAffine as JubJub, fields::jubjub::fq::Fq};
+    use algebra::jubjub::{Fq, JubJubAffine as JubJub};
     use r1cs_core::ConstraintSystem;
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
 
     use super::*;
-    use r1cs_std::{
-        groups::curves::twisted_edwards::jubjub::JubJubGadget,
-        test_constraint_system::TestConstraintSystem,
-    };
+    use r1cs_std::{jubjub::JubJubGadget, test_constraint_system::TestConstraintSystem};
 
     #[derive(Clone)]
     pub(super) struct Window4x256;
@@ -220,7 +237,7 @@ mod test {
     fn generate_merkle_tree(leaves: &[[u8; 30]], use_bad_root: bool) -> () {
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
 
-        let crh_parameters = Rc::new(H::setup(&mut rng).unwrap());
+        let crh_parameters = H::setup(&mut rng).unwrap();
         let tree = JubJubMerkleTree::new(crh_parameters.clone(), leaves).unwrap();
         let root = tree.root();
         let mut satisfied = true;

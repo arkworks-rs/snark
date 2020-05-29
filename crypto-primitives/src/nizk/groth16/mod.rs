@@ -1,5 +1,5 @@
 use crate::Error;
-use algebra::PairingEngine;
+use algebra_core::PairingEngine;
 use groth16::{
     create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
     Parameters, PreparedVerifyingKey, Proof, VerifyingKey,
@@ -7,8 +7,8 @@ use groth16::{
 use r1cs_core::ConstraintSynthesizer;
 use rand::Rng;
 
-use algebra::ToConstraintField;
-use std::marker::PhantomData;
+use algebra_core::ToConstraintField;
+use core::marker::PhantomData;
 
 use super::NIZK;
 
@@ -35,10 +35,10 @@ impl<E: PairingEngine, C: ConstraintSynthesizer<E::Fr>, V: ToConstraintField<E::
 {
     type Circuit = C;
     type AssignedCircuit = C;
+    type VerifierInput = V;
     type ProvingParameters = Parameters<E>;
     type VerificationParameters = VerifyingKey<E>;
     type PreparedVerificationParameters = PreparedVerifyingKey<E>;
-    type VerifierInput = V;
     type Proof = Proof<E>;
 
     fn setup<R: Rng>(

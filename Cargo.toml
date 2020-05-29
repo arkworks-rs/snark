@@ -1,17 +1,23 @@
 [workspace]
 
 members = [
-    "algebra"
-  , "ff-fft"
-  , "r1cs-core"
-  , "r1cs-std"
-  , "groth16"
-  , "gm17"
-  , "crypto-primitives"
-  , "dpc"
-  , "bench-utils"
-  , "snarky-bn382"
-  , "groupmap"]
+    "algebra-core",
+    "algebra",
+    "algebra-benches",
+    "bench-utils",
+    "cp-benches",
+    "crypto-primitives",
+    "dpc",
+    "ff-fft",
+    "ff-fft-benches",
+    "gm17",
+    "groth16",
+    "r1cs-core",
+    "r1cs-std",
+    "algebra-core/algebra-core-derive",
+    "snarky-bn382",
+    "groupmap",
+]
 
 [profile.release]
 opt-level = 3

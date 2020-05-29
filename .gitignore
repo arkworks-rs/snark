@@ -9,3 +9,5 @@ Cargo.lock
 params
 _build
 .merlin
+*.swp
+*.swo

@@ -1,18 +1,16 @@
+use crate::dpc::{plain_dpc::PlainDPCComponents, Predicate};
 use crypto_primitives::NIZK;
-use crate::{
-    dpc::{plain_dpc::PlainDPCComponents, Predicate},
-};
 use std::marker::PhantomData;
 
 pub struct PrivatePredInput<C: PlainDPCComponents> {
-    pub vk:    <C::PredicateNIZK as NIZK>::VerificationParameters,
+    pub vk: <C::PredicateNIZK as NIZK>::VerificationParameters,
     pub proof: <C::PredicateNIZK as NIZK>::Proof,
 }
 
 impl<C: PlainDPCComponents> Default for PrivatePredInput<C> {
     fn default() -> Self {
         Self {
-            vk:    <C::PredicateNIZK as NIZK>::VerificationParameters::default(),
+            vk: <C::PredicateNIZK as NIZK>::VerificationParameters::default(),
             proof: <C::PredicateNIZK as NIZK>::Proof::default(),
         }
     }
@@ -21,7 +19,7 @@ impl<C: PlainDPCComponents> Default for PrivatePredInput<C> {
 impl<C: PlainDPCComponents> Clone for PrivatePredInput<C> {
     fn clone(&self) -> Self {
         Self {
-            vk:    self.vk.clone(),
+            vk: self.vk.clone(),
             proof: self.proof.clone(),
         }
     }

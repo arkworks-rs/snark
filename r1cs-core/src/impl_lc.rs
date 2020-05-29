@@ -1,8 +1,7 @@
+use crate::{LinearCombination, SmallVec, Variable};
+use algebra_core::Field;
+use core::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub};
 use smallvec::smallvec;
-use crate::SmallVec;
-use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub};
-use algebra::Field;
-use crate::{LinearCombination, Variable};
 
 impl<F: Field> AsRef<[(Variable, F)]> for LinearCombination<F> {
     #[inline]

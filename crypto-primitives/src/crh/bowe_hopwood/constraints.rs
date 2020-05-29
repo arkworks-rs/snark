@@ -1,17 +1,18 @@
-use algebra::Field;
-use std::hash::Hash;
+use core::{borrow::Borrow, hash::Hash, marker::PhantomData};
 
-use crate::crh::{
-    bowe_hopwood::{BoweHopwoodPedersenCRH, BoweHopwoodPedersenParameters, CHUNK_SIZE},
-    pedersen::PedersenWindow,
-    FixedLengthCRHGadget,
+use crate::{
+    crh::{
+        bowe_hopwood::{BoweHopwoodPedersenCRH, BoweHopwoodPedersenParameters, CHUNK_SIZE},
+        pedersen::PedersenWindow,
+        FixedLengthCRHGadget,
+    },
+    Vec,
 };
-use algebra::groups::Group;
+use algebra_core::{groups::Group, Field};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::{alloc::AllocGadget, groups::GroupGadget, uint8::UInt8};
 
 use r1cs_std::bits::boolean::Boolean;
-use std::{borrow::Borrow, marker::PhantomData};
 
 #[derive(Derivative)]
 #[derivative(Clone(
@@ -23,10 +24,10 @@ pub struct BoweHopwoodPedersenCRHGadgetParameters<
     ConstraintF: Field,
     GG: GroupGadget<G, ConstraintF>,
 > {
-    params:   BoweHopwoodPedersenParameters<G>,
+    params: BoweHopwoodPedersenParameters<G>,
     _group_g: PhantomData<GG>,
-    _engine:  PhantomData<ConstraintF>,
-    _window:  PhantomData<W>,
+    _engine: PhantomData<ConstraintF>,
+    _window: PhantomData<W>,
 }
 
 pub struct BoweHopwoodPedersenCRHGadget<
@@ -34,9 +35,9 @@ pub struct BoweHopwoodPedersenCRHGadget<
     ConstraintF: Field,
     GG: GroupGadget<G, ConstraintF>,
 > {
-    _group:        PhantomData<*const G>,
+    _group: PhantomData<*const G>,
     _group_gadget: PhantomData<*const GG>,
-    _engine:       PhantomData<ConstraintF>,
+    _engine: PhantomData<ConstraintF>,
 }
 
 impl<ConstraintF, G, GG, W> FixedLengthCRHGadget<BoweHopwoodPedersenCRH<G, W>, ConstraintF>
@@ -88,8 +89,24 @@ impl<G: Group, W: PedersenWindow, ConstraintF: Field, GG: GroupGadget<G, Constra
     AllocGadget<BoweHopwoodPedersenParameters<G>, ConstraintF>
     for BoweHopwoodPedersenCRHGadgetParameters<G, W, ConstraintF, GG>
 {
-    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
         _cs: CS,
+        val: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<BoweHopwoodPedersenParameters<G>>,
+    {
+        let params = val.borrow().clone();
+        Ok(BoweHopwoodPedersenCRHGadgetParameters {
+            params,
+            _group_g: PhantomData,
+            _engine: PhantomData,
+            _window: PhantomData,
+        })
+    }
+
+    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
     where
@@ -97,12 +114,7 @@ impl<G: Group, W: PedersenWindow, ConstraintF: Field, GG: GroupGadget<G, Constra
         T: Borrow<BoweHopwoodPedersenParameters<G>>,
     {
         let params = value_gen()?.borrow().clone();
-        Ok(BoweHopwoodPedersenCRHGadgetParameters {
-            params,
-            _group_g: PhantomData,
-            _engine: PhantomData,
-            _window: PhantomData,
-        })
+        Self::alloc_constant(cs, params)
     }
 
     fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
@@ -125,37 +137,39 @@ impl<G: Group, W: PedersenWindow, ConstraintF: Field, GG: GroupGadget<G, Constra
 
 #[cfg(test)]
 mod test {
-    use algebra::fields::sw6::fr::Fr;
-    use rand::{thread_rng, Rng};
+    use rand::Rng;
 
     use crate::crh::{
         bowe_hopwood::{constraints::BoweHopwoodPedersenCRHGadget, BoweHopwoodPedersenCRH},
         pedersen::PedersenWindow,
         FixedLengthCRH, FixedLengthCRHGadget,
     };
-    use algebra::{curves::edwards_sw6::EdwardsProjective as Edwards, ProjectiveCurve};
+    use algebra::{
+        jubjub::{Fq as Fr, JubJubProjective as JubJub},
+        test_rng, ProjectiveCurve,
+    };
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
-        alloc::AllocGadget, groups::curves::twisted_edwards::edwards_sw6::EdwardsSWGadget,
-        test_constraint_system::TestConstraintSystem, uint8::UInt8,
+        alloc::AllocGadget, jubjub::JubJubGadget, test_constraint_system::TestConstraintSystem,
+        uint8::UInt8,
     };
 
-    type TestCRH = BoweHopwoodPedersenCRH<Edwards, Window>;
-    type TestCRHGadget = BoweHopwoodPedersenCRHGadget<Edwards, Fr, EdwardsSWGadget>;
+    type TestCRH = BoweHopwoodPedersenCRH<JubJub, Window>;
+    type TestCRHGadget = BoweHopwoodPedersenCRHGadget<JubJub, Fr, JubJubGadget>;
 
     #[derive(Clone, PartialEq, Eq, Hash)]
     pub(super) struct Window;
 
     impl PedersenWindow for Window {
-        const WINDOW_SIZE: usize = 90;
+        const WINDOW_SIZE: usize = 63;
         const NUM_WINDOWS: usize = 8;
     }
 
     fn generate_input<CS: ConstraintSystem<Fr>, R: Rng>(
         mut cs: CS,
         rng: &mut R,
-    ) -> ([u8; 270], Vec<UInt8>) {
-        let mut input = [1u8; 270];
+    ) -> ([u8; 189], Vec<UInt8>) {
+        let mut input = [1u8; 189];
         rng.fill_bytes(&mut input);
 
         let mut input_bytes = vec![];
@@ -168,7 +182,7 @@ mod test {
 
     #[test]
     fn crh_primitive_gadget_test() {
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
         let mut cs = TestConstraintSystem::<Fr>::new();
 
         let (input, input_bytes) = generate_input(&mut cs, rng);

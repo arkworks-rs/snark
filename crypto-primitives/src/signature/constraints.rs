@@ -1,4 +1,4 @@
-use algebra::Field;
+use algebra_core::Field;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
 

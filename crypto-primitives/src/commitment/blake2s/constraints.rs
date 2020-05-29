@@ -3,12 +3,12 @@ use r1cs_core::{ConstraintSystem, SynthesisError};
 use crate::{
     commitment::blake2s::Blake2sCommitment,
     prf::blake2s::constraints::{blake2s_gadget, Blake2sOutputGadget},
-    CommitmentGadget,
+    CommitmentGadget, Vec,
 };
-use algebra::{Field, PrimeField};
+use algebra_core::{Field, PrimeField};
 use r1cs_std::prelude::*;
 
-use std::borrow::Borrow;
+use core::borrow::Borrow;
 
 #[derive(Clone)]
 pub struct Blake2sParametersGadget;
@@ -48,6 +48,16 @@ impl<ConstraintF: PrimeField> CommitmentGadget<Blake2sCommitment, ConstraintF>
 }
 
 impl<ConstraintF: Field> AllocGadget<(), ConstraintF> for Blake2sParametersGadget {
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
+        val: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<()>,
+    {
+        Self::alloc(cs, || Ok(val))
+    }
+
     fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(_: CS, _: F) -> Result<Self, SynthesisError>
     where
         F: FnOnce() -> Result<T, SynthesisError>,
@@ -69,6 +79,22 @@ impl<ConstraintF: Field> AllocGadget<(), ConstraintF> for Blake2sParametersGadge
 }
 
 impl<ConstraintF: PrimeField> AllocGadget<[u8; 32], ConstraintF> for Blake2sRandomnessGadget {
+    #[inline]
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        val: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<[u8; 32]>,
+    {
+        let mut bytes = vec![];
+        for (i, b) in val.borrow().iter().enumerate() {
+            bytes.push(UInt8::alloc_constant(cs.ns(|| format!("value {}", i)), b)?)
+        }
+
+        Ok(Blake2sRandomnessGadget(bytes))
+    }
+
     #[inline]
     fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
@@ -110,9 +136,6 @@ impl<ConstraintF: PrimeField> AllocGadget<[u8; 32], ConstraintF> for Blake2sRand
 
 #[cfg(test)]
 mod test {
-    use algebra::fields::bls12_381::Fr;
-    use rand::{thread_rng, Rng};
-
     use crate::{
         commitment::blake2s::{
             constraints::{Blake2sCommitmentGadget, Blake2sRandomnessGadget},
@@ -120,8 +143,10 @@ mod test {
         },
         *,
     };
+    use algebra::{jubjub::Fq as Fr, test_rng};
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{prelude::*, test_constraint_system::TestConstraintSystem};
+    use rand::Rng;
 
     #[test]
     fn commitment_gadget_test() {
@@ -129,7 +154,7 @@ mod test {
 
         let input = [1u8; 32];
 
-        let rng = &mut thread_rng();
+        let rng = &mut test_rng();
 
         type TestCOMM = Blake2sCommitment;
         type TestCOMMGadget = Blake2sCommitmentGadget;

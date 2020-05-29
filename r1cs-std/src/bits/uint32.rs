@@ -5,7 +5,7 @@ use r1cs_core::{ConstraintSystem, LinearCombination, SynthesisError};
 use crate::{
     boolean::{AllocatedBit, Boolean},
     prelude::*,
-    Assignment,
+    Assignment, Vec,
 };
 
 /// Represents an interpretation of 32 `Boolean` objects as an
@@ -13,7 +13,7 @@ use crate::{
 #[derive(Clone, Debug)]
 pub struct UInt32 {
     // Least significant bit_gadget first
-    bits:  Vec<Boolean>,
+    bits: Vec<Boolean>,
     value: Option<u32>,
 }
 
@@ -55,7 +55,7 @@ impl UInt32 {
                 }
 
                 v
-            },
+            }
             None => vec![None; 32],
         };
 
@@ -94,19 +94,19 @@ impl UInt32 {
                     if b {
                         value.as_mut().map(|v| *v |= 1);
                     }
-                },
+                }
                 &Boolean::Is(ref b) => match b.get_value() {
                     Some(true) => {
                         value.as_mut().map(|v| *v |= 1);
-                    },
-                    Some(false) => {},
+                    }
+                    Some(false) => {}
                     None => value = None,
                 },
                 &Boolean::Not(ref b) => match b.get_value() {
                     Some(false) => {
                         value.as_mut().map(|v| *v |= 1);
-                    },
-                    Some(true) => {},
+                    }
+                    Some(true) => {}
                     None => value = None,
                 },
             }
@@ -128,7 +128,7 @@ impl UInt32 {
             .collect();
 
         UInt32 {
-            bits:  new_bits,
+            bits: new_bits,
             value: self.value.map(|v| v.rotate_right(by as u32)),
         }
     }
@@ -167,8 +167,13 @@ impl UInt32 {
         // Make some arbitrary bounds for ourselves to avoid overflows
         // in the scalar field
         assert!(ConstraintF::Params::MODULUS_BITS >= 64);
-        assert!(operands.len() >= 2); // Weird trivial cases that should never happen
+
+        assert!(operands.len() >= 1);
         assert!(operands.len() <= 10);
+
+        if operands.len() == 1 {
+            return Ok(operands[0].clone());
+        }
 
         // Compute the maximum value of the sum so we allocate enough bits for
         // the result
@@ -188,12 +193,12 @@ impl UInt32 {
             match op.value {
                 Some(val) => {
                     result_value.as_mut().map(|v| *v += u64::from(val));
-                },
+                }
                 None => {
                     // If any of our operands have unknown value, we won't
                     // know the value of the result
                     result_value = None;
-                },
+                }
             }
 
             // Iterate over each bit_gadget of the operand and add the operand to
@@ -206,18 +211,18 @@ impl UInt32 {
 
                         // Add coeff * bit_gadget
                         lc += (coeff, bit.get_variable());
-                    },
+                    }
                     Boolean::Not(ref bit) => {
                         all_constants = false;
 
                         // Add coeff * (1 - bit_gadget) = coeff * ONE - coeff * bit_gadget
                         lc = lc + (coeff, CS::one()) - (coeff, bit.get_variable());
-                    },
+                    }
                     Boolean::Constant(bit) => {
                         if bit {
                             lc += (coeff, CS::one());
                         }
-                    },
+                    }
                 }
 
                 coeff.double_in_place();
@@ -264,7 +269,7 @@ impl UInt32 {
         result_bits.truncate(32);
 
         Ok(UInt32 {
-            bits:  result_bits,
+            bits: result_bits,
             value: modular_value,
         })
     }
@@ -293,20 +298,13 @@ impl<ConstraintF: Field> ToBytesGadget<ConstraintF> for UInt32 {
         let mut bytes = Vec::new();
         for (i, chunk8) in self.to_bits_le().chunks(8).enumerate() {
             let byte = UInt8 {
-                bits:  chunk8.to_vec(),
+                bits: chunk8.to_vec(),
                 value: value_chunks[i],
             };
             bytes.push(byte);
         }
 
         Ok(bytes)
-    }
-
-    fn to_bytes_strict<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        cs: CS,
-    ) -> Result<Vec<UInt8>, SynthesisError> {
-        self.to_bytes(cs)
     }
 }
 
@@ -343,8 +341,8 @@ impl<ConstraintF: Field> ConditionalEqGadget<ConstraintF> for UInt32 {
 #[cfg(test)]
 mod test {
     use super::UInt32;
-    use crate::{bits::boolean::Boolean, test_constraint_system::TestConstraintSystem};
-    use algebra::fields::{bls12_381::Fr, Field};
+    use crate::{bits::boolean::Boolean, test_constraint_system::TestConstraintSystem, Vec};
+    use algebra::{bls12_381::Fr, One, Zero};
     use r1cs_core::ConstraintSystem;
     use rand::{Rng, SeedableRng};
     use rand_xorshift::XorShiftRng;
@@ -364,7 +362,7 @@ mod test {
                 match bit_gadget {
                     &Boolean::Constant(bit_gadget) => {
                         assert!(bit_gadget == ((b.value.unwrap() >> i) & 1 == 1));
-                    },
+                    }
                     _ => unreachable!(),
                 }
             }
@@ -373,8 +371,8 @@ mod test {
 
             for x in v.iter().zip(expected_to_be_same.iter()) {
                 match x {
-                    (&Boolean::Constant(true), &Boolean::Constant(true)) => {},
-                    (&Boolean::Constant(false), &Boolean::Constant(false)) => {},
+                    (&Boolean::Constant(true), &Boolean::Constant(true)) => {}
+                    (&Boolean::Constant(false), &Boolean::Constant(false)) => {}
                     _ => unreachable!(),
                 }
             }
@@ -409,13 +407,13 @@ mod test {
                 match b {
                     &Boolean::Is(ref b) => {
                         assert!(b.get_value().unwrap() == (expected & 1 == 1));
-                    },
+                    }
                     &Boolean::Not(ref b) => {
                         assert!(!b.get_value().unwrap() == (expected & 1 == 1));
-                    },
+                    }
                     &Boolean::Constant(b) => {
                         assert!(b == (expected & 1 == 1));
-                    },
+                    }
                 }
 
                 expected >>= 1;
@@ -450,7 +448,7 @@ mod test {
                     &Boolean::Not(_) => panic!(),
                     &Boolean::Constant(b) => {
                         assert!(b == (expected & 1 == 1));
-                    },
+                    }
                 }
 
                 expected >>= 1;
@@ -488,10 +486,10 @@ mod test {
                 match b {
                     &Boolean::Is(ref b) => {
                         assert!(b.get_value().unwrap() == (expected & 1 == 1));
-                    },
+                    }
                     &Boolean::Not(ref b) => {
                         assert!(!b.get_value().unwrap() == (expected & 1 == 1));
-                    },
+                    }
                     &Boolean::Constant(_) => unreachable!(),
                 }
 
@@ -500,9 +498,9 @@ mod test {
 
             // Flip a bit_gadget and see if the addition constraint still works
             if cs.get("addition/result bit_gadget 0/boolean").is_zero() {
-                cs.set("addition/result bit_gadget 0/boolean", Field::one());
+                cs.set("addition/result bit_gadget 0/boolean", Fr::one());
             } else {
-                cs.set("addition/result bit_gadget 0/boolean", Field::zero());
+                cs.set("addition/result bit_gadget 0/boolean", Fr::zero());
             }
 
             assert!(!cs.is_satisfied());
@@ -527,7 +525,7 @@ mod test {
                 match b {
                     &Boolean::Constant(b) => {
                         assert_eq!(b, tmp & 1 == 1);
-                    },
+                    }
                     _ => unreachable!(),
                 }
 
