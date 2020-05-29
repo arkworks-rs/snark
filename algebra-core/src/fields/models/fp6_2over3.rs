@@ -110,7 +110,6 @@ impl<P: Fp6Parameters> Fp6<P> {
         c0: &<P::Fp3Params as Fp3Parameters>::Fp,
         c1: &<P::Fp3Params as Fp3Parameters>::Fp,
         c4: &<P::Fp3Params as Fp3Parameters>::Fp,
-
     ) {
         /*
          * OLD: naive mul

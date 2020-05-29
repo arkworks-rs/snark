@@ -193,7 +193,6 @@ impl Fp3Parameters for Fq3Parameters {
 
     #[inline(always)]
     fn mul_fp_by_nonresidue(fe: &Self::Fp) -> Self::Fp {
-
         let original = -(*fe);
         let double = original + &original;
         double + &double

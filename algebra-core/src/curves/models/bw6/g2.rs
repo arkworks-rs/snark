@@ -120,9 +120,7 @@ impl<P: BW6Parameters> G2Prepared<P> {
     }
 }
 
-fn doubling_step<B: BW6Parameters>(
-    r: &mut G2HomProjective<B>
-) -> (B::Fp, B::Fp, B::Fp) {
+fn doubling_step<B: BW6Parameters>(r: &mut G2HomProjective<B>) -> (B::Fp, B::Fp, B::Fp) {
     // Formula for line function when working with
     // homogeneous projective coordinates.
 

@@ -74,4 +74,3 @@ fn test_bilinearity() {
     assert_eq!(ans2.pow(Fr::characteristic()), Fq6::one());
     assert_eq!(ans3.pow(Fr::characteristic()), Fq6::one());
 }
-
