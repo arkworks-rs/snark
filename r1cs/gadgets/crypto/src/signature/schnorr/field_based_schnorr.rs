@@ -402,6 +402,7 @@ mod test {
         is_cs_satisfied
     }
 
+    #[ignore]
     #[test]
     fn mnt6_schnorr_gadget_test() {
         //Sign a random field element f and get the signature and the public key
@@ -423,5 +424,84 @@ mod test {
         //Change sig
         let (wrong_sig, _) = sign::<SchnorrMNT6, _>(rng, &[wrong_message]);
         assert!(!mnt6_schnorr_gadget_generate_constraints(message, pk, wrong_sig));
+    }
+
+    #[ignore]
+    #[test]
+    fn random_schnorr_gadget_test() {
+        let rng = &mut thread_rng();
+
+        let samples = 10;
+        for _ in 0..samples {
+            let message: MNT4Fr = rng.gen();
+            let (sig, pk) = sign::<SchnorrMNT4, _>(rng, &[message]);
+            let mut cs = TestConstraintSystem::<MNT4Fr>::new();
+
+            //Alloc signature, pk and message
+            let sig_g = <SchnorrMNT4Gadget as FieldBasedSigGadget<SchnorrMNT4, MNT4Fr>>::SignatureGadget::alloc(
+                cs.ns(|| "alloc sig"),
+                || Ok(sig)
+            ).unwrap();
+
+            let pk_g = <SchnorrMNT4Gadget as FieldBasedSigGadget<SchnorrMNT4, MNT4Fr>>::PublicKeyGadget::alloc(
+                cs.ns(|| "alloc pk"),
+                || Ok(pk)
+            ).unwrap();
+
+            let message_g = <SchnorrMNT4Gadget as FieldBasedSigGadget<SchnorrMNT4, MNT4Fr>>::DataGadget::alloc(
+                cs.ns(|| "alloc message"),
+                || Ok(message)
+            ).unwrap();
+
+            //Verify sig
+            let is_verified = SchnorrMNT4Gadget::enforce_signature_verdict(
+                cs.ns(|| "sig result"),
+                &pk_g,
+                &sig_g,
+                &[message_g.clone()]
+            ).unwrap();
+
+            assert!(is_verified.get_value().unwrap());
+
+            SchnorrMNT4Gadget::enforce_signature_verification(
+                cs.ns(|| "verify sig"),
+                &pk_g,
+                &sig_g,
+                &[message_g.clone()]
+            ).unwrap();
+
+            assert!(cs.is_satisfied());
+
+            //Negative case: wrong message (or wrong sig for another message)
+            let new_message: MNT4Fr = rng.gen();
+            let new_message_g = <SchnorrMNT4Gadget as FieldBasedSigGadget<SchnorrMNT4, MNT4Fr>>::DataGadget::alloc(
+                cs.ns(|| "alloc new_message"),
+                || Ok(new_message)
+            ).unwrap();
+
+            let is_verified = SchnorrMNT4Gadget::enforce_signature_verdict(
+                cs.ns(|| "new sig result"),
+                &pk_g,
+                &sig_g,
+                &[new_message_g.clone()]
+            ).unwrap();
+
+            if !cs.is_satisfied() {
+                println!("**********Unsatisfied constraints***********");
+                println!("{:?}", cs.which_is_unsatisfied());
+            }
+
+            assert!(!is_verified.get_value().unwrap());
+            assert!(cs.is_satisfied());
+
+            SchnorrMNT4Gadget::enforce_signature_verification(
+                cs.ns(|| "verify new sig"),
+                &pk_g,
+                &sig_g,
+                &[new_message_g.clone()]
+            ).unwrap();
+
+            assert!(!cs.is_satisfied());
+        }
     }
 }

@@ -600,6 +600,7 @@ mod test {
         }
     }
 
+    #[ignore]
     #[test]
     fn mnt6753_groth16_verifier_test() {
         use algebra::{

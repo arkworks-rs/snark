@@ -489,6 +489,7 @@ mod test {
         cs.is_satisfied()
     }
 
+    #[ignore]
     #[test]
     fn mnt6_ecvrf_gadget_test() {
         let rng = &mut thread_rng();
@@ -510,5 +511,76 @@ mod test {
         //Change proof
         let (wrong_proof, _) = prove::<EcVrfMNT6, _>(rng, &pp, &[wrong_message]);
         assert!(!mnt6_ecvrf_gadget_generate_constraints(message, pk, wrong_proof, &pp));
+    }
+
+    #[ignore]
+    #[test]
+    fn random_ecvrf_gadget_test() {
+
+        //Generate VRF proof for a random field element f and get the proof and the public key
+        let rng = &mut thread_rng();
+        let pp = <BHMNT6 as FixedLengthCRH>::setup(rng).unwrap();
+
+        let samples = 10;
+        for _ in 0..samples {
+            let message: MNT4Fr = rng.gen();
+            let (sig, pk) = prove::<EcVrfMNT4, _>(rng, &pp, &[message]);
+            let mut cs = TestConstraintSystem::<MNT4Fr>::new();
+
+            //Alloc proof, pk, hash params and message
+            let proof_g = <EcVrfMNT4Gadget as FieldBasedVrfGadget<EcVrfMNT4, MNT4Fr>>::ProofGadget::alloc(
+                cs.ns(|| "alloc proof"),
+                || Ok(sig)
+            ).unwrap();
+
+            let pk_g = <EcVrfMNT4Gadget as FieldBasedVrfGadget<EcVrfMNT4, MNT4Fr>>::PublicKeyGadget::alloc(
+                cs.ns(|| "alloc pk"),
+                || Ok(pk)
+            ).unwrap();
+
+            let pp_g = <EcVrfMNT4Gadget as FieldBasedVrfGadget<EcVrfMNT4, MNT4Fr>>::GHParametersGadget::alloc(
+                cs.ns(|| "alloc gh params"),
+                || Ok(&pp)
+            ).unwrap();
+
+            let message_g = <EcVrfMNT4Gadget as FieldBasedVrfGadget<EcVrfMNT4, MNT4Fr>>::DataGadget::alloc(
+                cs.ns(|| "alloc message"),
+                || Ok(message)
+            ).unwrap();
+
+            //Verify proof
+            EcVrfMNT4Gadget::enforce_proof_to_hash_verification(
+                cs.ns(|| "verify proof"),
+                &pp_g,
+                &pk_g,
+                &proof_g,
+                &[message_g.clone()]
+            ).unwrap();
+
+            if !cs.is_satisfied() {
+                println!("**********Unsatisfied constraints***********");
+                println!("{:?}", cs.which_is_unsatisfied());
+            }
+
+            assert!(cs.is_satisfied());
+
+            //Negative case: wrong message (or wrong proof for another message)
+            let new_message: MNT4Fr = rng.gen();
+
+            let new_message_g = <EcVrfMNT4Gadget as FieldBasedVrfGadget<EcVrfMNT4, MNT4Fr>>::DataGadget::alloc(
+                cs.ns(|| "alloc new_message"),
+                || Ok(new_message)
+            ).unwrap();
+
+            EcVrfMNT4Gadget::enforce_proof_to_hash_verification(
+                cs.ns(|| "verify new proof"),
+                &pp_g,
+                &pk_g,
+                &proof_g,
+                &[new_message_g.clone()]
+            ).unwrap();
+
+            assert!(!cs.is_satisfied());
+        }
     }
 }
