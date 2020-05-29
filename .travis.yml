@@ -43,8 +43,8 @@ matrix:
         - pip3 install --user git+https://github.com/naftulikay/travis-pls
       script:
         - cargo fmt -- --check
-        - travis-pls -m 40 cargo build --all --tests
-        - cargo test --all -- --skip dpc --skip integration_test
+        - travis-pls -m 2400 cargo build --all --tests
+        - travis-pls -m 2400 cargo test --all -- --skip dpc --skip integration_test
         - cargo check --examples --all
         - cargo check --all-features --examples --all
 
@@ -52,8 +52,8 @@ matrix:
       install:
         - pip3 install --user git+https://github.com/naftulikay/travis-pls
       script:
-        - travis-pls -m 40 cargo build --all --tests
-        - cargo test --all -- --skip dpc --skip integration_test
+        - travis-pls -m 2400 cargo build --all --tests
+        - travis-pls -m 2400 cargo test --all -- --skip dpc --skip integration_test
         - cargo check --examples --all --benches
         - cargo check --all-features --examples --all --benches
 
