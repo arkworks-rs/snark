@@ -453,14 +453,13 @@ where
     }
 
     for _ in 0..ITERATIONS {
-        let biginteger =
+        let mut biginteger =
             <<GroupAffine<P> as AffineCurve>::BaseField as PrimeField>::BigInt::rand(&mut rng);
-        let mut i = 0u32;
-        let mut g = GroupAffine::<P>::from_random_bytes(&to_bytes![biginteger, i].unwrap());
-
+        let mut bytes = to_bytes![biginteger].unwrap();
+        let mut g = GroupAffine::<P>::from_random_bytes(&bytes);
         while g.is_none() {
-            g = GroupAffine::<P>::from_random_bytes(&to_bytes![i, biginteger].unwrap());
-            i += 1;
+            bytes.iter_mut().for_each(|i| *i = i.wrapping_sub(1));
+            g = GroupAffine::<P>::from_random_bytes(&bytes);
         }
         let _g = g.unwrap();
     }
