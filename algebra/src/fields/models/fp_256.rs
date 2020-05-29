@@ -1,7 +1,7 @@
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
     fmt::{Display, Formatter, Result as FmtResult},
-    io::{Read, Result as IoResult, Write},
+    io::{Read, Result as IoResult, Write, Error as IoError, ErrorKind},
     marker::PhantomData,
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
     str::FromStr,
@@ -392,7 +392,21 @@ impl<P: Fp256Parameters> ToBytes for Fp256<P> {
 impl<P: Fp256Parameters> FromBytes for Fp256<P> {
     #[inline]
     fn read<R: Read>(reader: R) -> IoResult<Self> {
-        BigInteger::read(reader).map(Fp256::from_repr)
+        BigInteger::read(reader).and_then( |b|
+            if b.is_zero() {
+                Ok(Fp256::zero())
+            } else {
+                let f = Fp256::from_repr(b);
+                if f == Fp256::zero() {
+                    Err(IoError::new(
+                        ErrorKind::InvalidData,
+                        "Attempt to deserialize a field element over the modulus")
+                    )
+                } else {
+                    Ok(f)
+                }
+            }
+        )
     }
 }
 

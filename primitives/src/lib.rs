@@ -93,3 +93,14 @@ pub fn compute_bytes_truncation_size<F: PrimeField>() -> usize {
     let safe_bytes = F::Params::CAPACITY/8;
     (bigint_bytes - safe_bytes) as usize
 }
+
+pub fn bytes_to_bits(bytes: &[u8]) -> Vec<bool> {
+    let mut bits = Vec::with_capacity(bytes.len() * 8);
+    for byte in bytes {
+        for i in 0..8 {
+            let bit = (*byte >> i) & 1;
+            bits.push(bit == 1)
+        }
+    }
+    bits
+}

@@ -489,6 +489,7 @@ mod test {
         cs.is_satisfied()
     }
 
+    #[ignore]
     #[test]
     fn mnt6_ecvrf_gadget_test() {
         let rng = &mut thread_rng();
@@ -512,6 +513,7 @@ mod test {
         assert!(!mnt6_ecvrf_gadget_generate_constraints(message, pk, wrong_proof, &pp));
     }
 
+    #[ignore]
     #[test]
     fn random_ecvrf_gadget_test() {
 

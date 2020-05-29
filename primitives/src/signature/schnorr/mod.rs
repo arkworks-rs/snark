@@ -1,4 +1,4 @@
-use crate::{Error, SignatureScheme};
+use crate::{Error, SignatureScheme, bytes_to_bits};
 use algebra::{
     bytes::ToBytes,
     fields::{Field, PrimeField},
@@ -207,17 +207,6 @@ impl<G: Group + Hash, D: Digest + Send + Sync> SignatureScheme for SchnorrSignat
         end_timer!(rand_signature_time);
         Ok(new_sig)
     }
-}
-
-pub fn bytes_to_bits(bytes: &[u8]) -> Vec<bool> {
-    let mut bits = Vec::with_capacity(bytes.len() * 8);
-    for byte in bytes {
-        for i in 0..8 {
-            let bit = (*byte >> (8 - i - 1)) & 1;
-            bits.push(bit == 1);
-        }
-    }
-    bits
 }
 
 impl<ConstraintF: Field, G: Group + ToConstraintField<ConstraintF>, D: Digest>

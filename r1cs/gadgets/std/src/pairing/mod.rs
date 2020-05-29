@@ -307,6 +307,7 @@ mod test {
         assert!(cs.is_satisfied(), "cs is not satisfied");
     }
 
+    #[ignore]
     #[test]
     fn mnt6_753_gadget_bilinearity_test() {
         use algebra::{

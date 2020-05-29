@@ -171,13 +171,14 @@ mod test {
     use primitives::{
         crh::{
             FixedLengthCRH,
-            pedersen::{PedersenCRH, PedersenWindow}
+            pedersen::PedersenWindow,
+            injective_map::{PedersenCRHCompressor, TECompressor},
         },
         merkle_tree::*,
     };
     use crate::crh::{
-        pedersen::PedersenCRHGadget,
         FixedLengthCRHGadget,
+        injective_map::{PedersenCRHCompressorGadget, TECompressorGadget},
     };
     use algebra::{curves::jubjub::JubJubAffine as JubJub, fields::jubjub::fq::Fq};
     use r1cs_core::ConstraintSystem;
@@ -190,25 +191,25 @@ mod test {
     };
 
     #[derive(Clone)]
-    pub(super) struct Window4x256;
-    impl PedersenWindow for Window4x256 {
+    pub(super) struct Window4x128;
+    impl PedersenWindow for Window4x128 {
         const WINDOW_SIZE: usize = 4;
-        const NUM_WINDOWS: usize = 256;
+        const NUM_WINDOWS: usize = 128;
     }
 
-    type H = PedersenCRH<JubJub, Window4x256>;
-    type HG = PedersenCRHGadget<JubJub, Fq, JubJubGadget>;
+    type H = PedersenCRHCompressor<JubJub, TECompressor, Window4x128>;
+    type HG = PedersenCRHCompressorGadget<JubJub, TECompressor, Fq, JubJubGadget, TECompressorGadget>;
 
     struct JubJubMerkleTreeParams;
 
     impl MerkleTreeConfig for JubJubMerkleTreeParams {
-        const HEIGHT: usize = 6;
+        const HEIGHT: usize = 4;
         type H = H;
     }
 
     type JubJubMerkleTree = MerkleHashTree<JubJubMerkleTreeParams>;
 
-    fn generate_merkle_tree(leaves: &[[u8; 30]], use_bad_root: bool) -> bool {
+    fn generate_merkle_tree(leaves: &[[u8; 8]], use_bad_root: bool) -> bool {
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
 
         let crh_parameters = Rc::new(H::setup(&mut rng).unwrap());
@@ -231,7 +232,7 @@ mod test {
                     }
                 },
             )
-            .unwrap();
+                .unwrap();
 
             let constraints_from_digest = cs.num_constraints();
             println!("constraints from digest: {}", constraints_from_digest);
@@ -241,7 +242,7 @@ mod test {
                 &mut cs.ns(|| format!("new_parameters_{}", i)),
                 || Ok(crh_parameters.clone()),
             )
-            .unwrap();
+                .unwrap();
 
             let constraints_from_parameters = cs.num_constraints() - constraints_from_digest;
             println!(
@@ -261,7 +262,7 @@ mod test {
                 &mut cs.ns(|| format!("new_witness_{}", i)),
                 || Ok(proof),
             )
-            .unwrap();
+                .unwrap();
 
             let constraints_from_path = cs.num_constraints()
                 - constraints_from_parameters
@@ -275,7 +276,7 @@ mod test {
                 &root,
                 &leaf_g,
             )
-            .unwrap();
+                .unwrap();
             if !cs.is_satisfied() {
                 satisfied = false;
                 println!(
@@ -301,24 +302,24 @@ mod test {
 
         //Test #leaves << 2^HEIGHT
         let mut leaves = Vec::new();
-        for i in 0..4u8 {
-            let input = [i; 30];
+        for i in 0..2u8 {
+            let input = [i; 8];
             leaves.push(input);
         }
         assert!(generate_merkle_tree(&leaves, false));
 
         //Test #leaves = 2^HEIGHT - 1
         let mut leaves = Vec::new();
-        for i in 0..16u8 {
-            let input = [i; 30];
+        for i in 0..4u8 {
+            let input = [i; 8];
             leaves.push(input);
         }
         assert!(generate_merkle_tree(&leaves, false));
 
         //Test #leaves = 2^HEIGHT
         let mut leaves = Vec::new();
-        for i in 0..32u8 {
-            let input = [i; 30];
+        for i in 0..8u8 {
+            let input = [i; 8];
             leaves.push(input);
         }
         assert!(generate_merkle_tree(&leaves, false));
@@ -329,24 +330,24 @@ mod test {
 
         //Test #leaves << 2^HEIGHT
         let mut leaves = Vec::new();
-        for i in 0..4u8 {
-            let input = [i; 30];
+        for i in 0..2u8 {
+            let input = [i; 8];
             leaves.push(input);
         }
         assert!(!generate_merkle_tree(&leaves, true));
 
         //Test #leaves = 2^HEIGHT - 1
         let mut leaves = Vec::new();
-        for i in 0..16u8 {
-            let input = [i; 30];
+        for i in 0..4u8 {
+            let input = [i; 8];
             leaves.push(input);
         }
         assert!(!generate_merkle_tree(&leaves, true));
 
         //Test #leaves = 2^HEIGHT
         let mut leaves = Vec::new();
-        for i in 0..32u8 {
-            let input = [i; 30];
+        for i in 0..8u8 {
+            let input = [i; 8];
             leaves.push(input);
         }
         assert!(!generate_merkle_tree(&leaves, true));
