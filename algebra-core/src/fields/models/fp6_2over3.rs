@@ -104,14 +104,7 @@ impl<P: Fp6Parameters> Fp6<P> {
         c1: &<P::Fp3Params as Fp3Parameters>::Fp,
         c4: &<P::Fp3Params as Fp3Parameters>::Fp,
     ) {
-        /*
-         * OLD: naive mul
-        let zero = <P::Fp3Params as Fp3Parameters>::Fp::zero();
-        let a = Fp6::new(Fp3::new(*c0, *c1, zero), Fp3::new(zero, *c4, zero));
-
-        self.mul_assign(a);
-        */
-
+        
         let z0 = self.c0.c0;
         let z1 = self.c0.c1;
         let z2 = self.c0.c2;
