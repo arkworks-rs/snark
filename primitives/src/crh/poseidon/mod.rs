@@ -25,10 +25,10 @@ pub struct PoseidonHash<F: PrimeField, P: PoseidonParameters<Fr = F>>{
     _parameters: PhantomData<P>,
 }
 
-pub struct PoseidonBatchHash<F: PrimeField, P: PoseidonParameters<Fr = F>>{
-    _field:      PhantomData<F>,
-    _parameters: PhantomData<P>,
-}
+// pub struct PoseidonBatchHash<F: PrimeField, P: PoseidonParameters<Fr = F>>{
+//     _field:      PhantomData<F>,
+//     _parameters: PhantomData<P>,
+// }
 
 pub trait PoseidonParameters: 'static + FieldBasedHashParameters{
 

@@ -1,7 +1,9 @@
 use super::*;
 use crate::UpdatableBatchFieldBasedHash;
+use crate::crh::batched_crh::PoseidonBatchHash;
+use crate::crh::BatchFieldBasedHash;
 use std::marker::PhantomData;
-
+//
 // Updatable Batch Poseidon Hash: each update() call will add a new batch for which computing
 // the hash. The hashes for each batch are computed in parallel whenever the number of batch
 // reaches cpu_loads size (a variable used to evenly distribute the work among the available

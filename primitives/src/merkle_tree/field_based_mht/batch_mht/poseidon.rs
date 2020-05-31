@@ -116,7 +116,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchMerkleT
     }
 }
 
-impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> BatchMerkleTree for PoseidonBatchMerkleTree<F,P> {
+impl<F: PrimeField + MulShort, P: std::clone::Clone + PoseidonParameters<Fr=F>> BatchMerkleTree for PoseidonBatchMerkleTree<F,P> {
 
     type Hash = PoseidonBatchHash<F,P>;
 
@@ -383,7 +383,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchMerkleT
         }
     }
 }
-impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> BatchMerkleTree for PoseidonBatchMerkleTreeMem<F,P> {
+impl<F: PrimeField + MulShort, P: std::clone::Clone + PoseidonParameters<Fr=F>> BatchMerkleTree for PoseidonBatchMerkleTreeMem<F,P> {
 
     type Hash = PoseidonBatchHash<F,P>;
 
