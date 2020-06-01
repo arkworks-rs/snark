@@ -30,11 +30,7 @@ impl BW6Parameters for Parameters {
     /// `x` is positive.
     const X_IS_NEGATIVE: bool = false;
     // X+1
-    const ATE_LOOP_COUNT_1: &'static [i8] = &[
-        0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0,
-        0, 0, 0, 1,
-    ];
+    const ATE_LOOP_COUNT_1: &'static [u64] = &[0x8508c00000000002];
     const ATE_LOOP_COUNT_1_IS_NEGATIVE: bool = false;
     // X^3-X^2-X
     const ATE_LOOP_COUNT_2: &'static [i8] = &[
