@@ -70,8 +70,8 @@ impl SWModelParameters for Parameters {
     const AFFINE_GENERATOR_COEFFS: (Self::BaseField, Self::BaseField) =
         (G2_GENERATOR_X, G2_GENERATOR_Y);
     #[inline(always)]
-    fn mul_by_a(elem: &Self::BaseField) -> Self::BaseField {
-    	use crate::Zero;
+    fn mul_by_a(_elem: &Self::BaseField) -> Self::BaseField {
+        use crate::Zero;
         Self::BaseField::zero()
     }
 }

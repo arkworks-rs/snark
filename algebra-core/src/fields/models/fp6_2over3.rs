@@ -73,7 +73,6 @@ impl<P: Fp6Parameters> Fp6<P> {
         c3: &<P::Fp3Params as Fp3Parameters>::Fp,
         c4: &<P::Fp3Params as Fp3Parameters>::Fp,
     ) {
-
         let z0 = self.c0.c0;
         let z1 = self.c0.c1;
         let z2 = self.c0.c2;
@@ -104,7 +103,6 @@ impl<P: Fp6Parameters> Fp6<P> {
         c1: &<P::Fp3Params as Fp3Parameters>::Fp,
         c4: &<P::Fp3Params as Fp3Parameters>::Fp,
     ) {
-        
         let z0 = self.c0.c0;
         let z1 = self.c0.c1;
         let z2 = self.c0.c2;
