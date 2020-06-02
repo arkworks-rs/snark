@@ -18,7 +18,7 @@ impl FftParameters for FqParameters {
     // (MODULUS - 1) % 2^TWO_ADICITY == 0
     const TWO_ADICITY: u32 = 1;
 
-    // least_quadratic_nonresidue(MODULUS)
+    // least_quadratic_nonresidue(MODULUS) in Sage.
     #[rustfmt::skip]
     const TWO_ADIC_ROOT_OF_UNITY: BigInteger = BigInteger([
         17481284903592032950u64,
