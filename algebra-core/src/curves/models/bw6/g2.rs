@@ -132,7 +132,7 @@ impl<P: BW6Parameters> G2Prepared<P> {
 
 fn doubling_step<B: BW6Parameters>(r: &mut G2HomProjective<B>) -> (B::Fp, B::Fp, B::Fp) {
     // Formula for line function when working with
-    // homogeneous projective coordinates.
+    // homogeneous projective coordinates, as described in https://eprint.iacr.org/2013/722.pdf.
 
     let a = r.x * &r.y;
     let b = r.y.square();
@@ -160,7 +160,7 @@ fn addition_step<B: BW6Parameters>(
     q: &G2Affine<B>,
 ) -> (B::Fp, B::Fp, B::Fp) {
     // Formula for line function when working with
-    // homogeneous projective coordinates.
+    // homogeneous projective coordinates, as described in https://eprint.iacr.org/2013/722.pdf.
     let theta = r.y - &(q.y * &r.z);
     let lambda = r.x - &(q.x * &r.z);
     let c = theta.square();
