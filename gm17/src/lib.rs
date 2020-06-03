@@ -81,20 +81,20 @@ impl<E: PairingEngine> Default for Proof<E> {
     }
 }
 
-impl<E: PairingEngine> Proof<E> {
-    /// Serialize the proof into bytes, for storage on disk or transmission
-    /// over the network.
-    pub fn write<W: Write>(&self, mut _writer: W) -> io::Result<()> {
-        // TODO: implement serialization
-        unimplemented!()
-    }
-
-    /// Deserialize the proof from bytes.
-    pub fn read<R: Read>(mut _reader: R) -> io::Result<Self> {
-        // TODO: implement serialization
-        unimplemented!()
-    }
-}
+// impl<E: PairingEngine> Proof<E> {
+//     /// Serialize the proof into bytes, for storage on disk or transmission
+//     /// over the network.
+//     pub fn write<W: Write>(&self, mut _writer: W) -> io::Result<()> {
+//         // TODO: implement serialization
+//         unimplemented!()
+//     }
+//
+//     /// Deserialize the proof from bytes.
+//     pub fn read<R: Read>(mut _reader: R) -> io::Result<Self> {
+//         // TODO: implement serialization
+//         unimplemented!()
+//     }
+// }
 
 /// A verification key in the GM17 SNARK.
 #[derive(Clone, CanonicalSerialize, CanonicalDeserialize)]
@@ -145,20 +145,20 @@ impl<E: PairingEngine> PartialEq for VerifyingKey<E> {
     }
 }
 
-impl<E: PairingEngine> VerifyingKey<E> {
-    /// Serialize the verification key into bytes, for storage on disk
-    /// or transmission over the network.
-    pub fn write<W: Write>(&self, mut _writer: W) -> io::Result<()> {
-        // TODO: implement serialization
-        unimplemented!()
-    }
-
-    /// Deserialize the verification key from bytes.
-    pub fn read<R: Read>(mut _reader: R) -> io::Result<Self> {
-        // TODO: implement serialization
-        unimplemented!()
-    }
-}
+// impl<E: PairingEngine> VerifyingKey<E> {
+//     /// Serialize the verification key into bytes, for storage on disk
+//     /// or transmission over the network.
+//     pub fn write<W: Write>(&self, mut _writer: W) -> io::Result<()> {
+//         // TODO: implement serialization
+//         unimplemented!()
+//     }
+//
+//     /// Deserialize the verification key from bytes.
+//     pub fn read<R: Read>(mut _reader: R) -> io::Result<Self> {
+//         // TODO: implement serialization
+//         unimplemented!()
+//     }
+// }
 
 /// Full public (prover and verifier) parameters for the GM17 zkSNARK.
 #[derive(Clone, CanonicalSerialize, CanonicalDeserialize)]
@@ -173,6 +173,32 @@ pub struct Parameters<E: PairingEngine> {
     pub g_ab_gamma_z: E::G1Affine,
     pub g_gamma2_z2: E::G1Affine,
     pub g_gamma2_z_t: Vec<E::G1Affine>,
+}
+
+impl<E: PairingEngine> ToBytes for Parameters<E> {
+    fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
+        self.vk.write(&mut writer)?;
+        for a_q in &self.a_query {
+            a_q.write(&mut writer)?;
+        }
+        for b_q in &self.b_query {
+            b_q.write(&mut writer)?;
+        }
+        for c_q1 in &self.c_query_1 {
+            c_q1.write(&mut writer)?;
+        }
+        for c_q2 in &self.c_query_2 {
+            c_q2.write(&mut writer)?;
+        }
+        self.g_gamma_z.write(&mut writer)?;
+        self.h_gamma_z.write(&mut writer)?;
+        self.g_ab_gamma_z.write(&mut writer)?;
+        self.g_gamma2_z2.write(&mut writer)?;
+        for g in &self.g_gamma2_z_t {
+            g.write(&mut writer)?;
+        }
+        Ok(())
+    }
 }
 
 impl<E: PairingEngine> PartialEq for Parameters<E> {
@@ -190,19 +216,19 @@ impl<E: PairingEngine> PartialEq for Parameters<E> {
     }
 }
 
-impl<E: PairingEngine> Parameters<E> {
-    /// Serialize the parameters to bytes.
-    pub fn write<W: Write>(&self, mut _writer: W) -> io::Result<()> {
-        // TODO: implement serialization
-        unimplemented!()
-    }
-
-    /// Deserialize the public parameters from bytes.
-    pub fn read<R: Read>(mut _reader: R, _checked: bool) -> io::Result<Self> {
-        // TODO: implement serialization
-        unimplemented!()
-    }
-}
+// impl<E: PairingEngine> Parameters<E> {
+//     /// Serialize the parameters to bytes.
+//     pub fn write<W: Write>(&self, mut _writer: W) -> io::Result<()> {
+//         // TODO: implement serialization
+//         unimplemented!()
+//     }
+//
+//     /// Deserialize the public parameters from bytes.
+//     pub fn read<R: Read>(mut _reader: R, _checked: bool) -> io::Result<Self>
+// {         // TODO: implement serialization
+//         unimplemented!()
+//     }
+// }
 
 /// Preprocessed verification key parameters that enable faster verification
 /// at the expense of larger size in memory.
