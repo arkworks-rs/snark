@@ -31,7 +31,10 @@ derivative = "1"
 rayon = "1"
 hex = "0.4.0"
 
-rocksdb = "0.14"
+rocksdb = "0.14.0"
+serde = { version = "1.0.111" , features = ["derive"] }
+serde_json = "1.0.53"
+bincode = "1.2.1"
 
 [features]
 commitment = ["digest", "blake2"]
