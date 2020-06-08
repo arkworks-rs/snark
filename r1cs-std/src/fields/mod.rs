@@ -242,17 +242,19 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
         mut cs: CS,
         exp: S,
     ) -> Result<Self, SynthesisError> {
-        let mut res = Self::one(cs.ns(|| "Alloc result"))?;
+        let mut res = self.clone();
         let mut found_one = false;
 
         for (i, bit) in BitIterator::new(exp).enumerate() {
             if found_one {
-                res.square_in_place(cs.ns(|| format!("square for bit {:?}", i)))?;
+                res = res.square(cs.ns(|| format!("square for bit {:?}", i)))?;
             }
 
             if bit {
+                if found_one {
+                    res = res.mul(cs.ns(|| format!("mul for bit {:?}", i)), self)?;
+                }
                 found_one = true;
-                res.mul_in_place(cs.ns(|| format!("mul for bit {:?}", i)), self)?;
             }
         }
 
