@@ -9,6 +9,13 @@ pub trait ToBytes {
 pub trait FromBytes: Sized {
     /// Reads `Self` from `reader`.
     fn read<R: Read>(reader: R) -> IoResult<Self>;
+
+    /// If `Self` requires some consistency or validity checks, they can be put
+    /// in `read` function and override `read_unchecked` in order to provide a
+    /// lightweight version of it (i.e. that doesn't perform them).
+    fn read_unchecked<R: Read>(reader: R) -> IoResult<Self> {
+        Self::read(reader)
+    }
 }
 
 macro_rules! array_bytes {

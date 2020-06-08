@@ -41,21 +41,6 @@ impl<E: PairingEngine> ToBytes for Proof<E> {
     }
 }
 
-impl<E: PairingEngine> Proof<E> {
-
-    /// Doesn't perform group membership check for deserialized points
-    #[inline]
-    pub fn read_unchecked<R: Read>(mut reader: R) -> IoResult<Self> {
-        let a = E::G1Affine::read(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-        let b = E::G2Affine::read(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-        let c = E::G1Affine::read(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-        Ok(Proof{a, b, c})
-    }
-}
-
 impl<E: PairingEngine> FromBytes for Proof<E> {
     #[inline]
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
@@ -84,6 +69,18 @@ impl<E: PairingEngine> FromBytes for Proof<E> {
                 Ok(p)
             })?;
 
+        Ok(Proof{a, b, c})
+    }
+
+    /// Doesn't perform group membership check for deserialized points
+    #[inline]
+    pub fn read_unchecked<R: Read>(mut reader: R) -> IoResult<Self> {
+        let a = E::G1Affine::read(&mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let b = E::G2Affine::read(&mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let c = E::G1Affine::read(&mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         Ok(Proof{a, b, c})
     }
 }
@@ -155,25 +152,6 @@ impl<E: PairingEngine> ToBytes for VerifyingKey<E> {
     }
 }
 
-impl<E: PairingEngine> VerifyingKey<E> {
-
-    /// Doesn't perform group membership check for deserialized points
-    #[inline]
-    pub fn read_unchecked<R: Read>(mut reader: R) -> IoResult<Self> {
-        let alpha_g1_beta_g2 = E::Fqk::read(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-        let gamma_g2 = E::G2Affine::read(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-        let delta_g2 = E::G2Affine::read(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-
-        let ic_len = reader.read_u32::<BigEndian>()? as usize;
-        let gamma_abc_g1 = read_affine_vec::<E::G1Affine, _>(ic_len, false, &mut reader)?;
-
-        Ok(VerifyingKey{alpha_g1_beta_g2, gamma_g2, delta_g2, gamma_abc_g1})
-    }
-}
-
 impl<E: PairingEngine> FromBytes for VerifyingKey<E> {
     #[inline]
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
@@ -199,6 +177,22 @@ impl<E: PairingEngine> FromBytes for VerifyingKey<E> {
 
         let ic_len = reader.read_u32::<BigEndian>()? as usize;
         let gamma_abc_g1 = read_affine_vec::<E::G1Affine, _>(ic_len, true, &mut reader)?;
+
+        Ok(VerifyingKey{alpha_g1_beta_g2, gamma_g2, delta_g2, gamma_abc_g1})
+    }
+
+    /// Doesn't perform group membership check for deserialized points
+    #[inline]
+    pub fn read_unchecked<R: Read>(mut reader: R) -> IoResult<Self> {
+        let alpha_g1_beta_g2 = E::Fqk::read(&mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let gamma_g2 = E::G2Affine::read(&mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let delta_g2 = E::G2Affine::read(&mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+
+        let ic_len = reader.read_u32::<BigEndian>()? as usize;
+        let gamma_abc_g1 = read_affine_vec::<E::G1Affine, _>(ic_len, false, &mut reader)?;
 
         Ok(VerifyingKey{alpha_g1_beta_g2, gamma_g2, delta_g2, gamma_abc_g1})
     }
@@ -281,37 +275,6 @@ impl<E: PairingEngine> ToBytes for Parameters<E>{
     }
 }
 
-impl<E: PairingEngine> Parameters<E>{
-
-    /// Doesn't perform group membership check for deserialized points
-    #[inline]
-    pub fn read_unchecked<R: Read>(mut reader: R) -> IoResult<Self> {
-        let vk = VerifyingKey::<E>::read(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-        let alpha_g1 = E::G1Affine::read(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-        let beta_g1 = E::G1Affine::read(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-        let beta_g2 = E::G2Affine::read(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-        let delta_g1 = E::G1Affine::read(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-        let delta_g2 = E::G2Affine::read(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-        let a_len = reader.read_u32::<BigEndian>()? as usize;
-        let a_query = read_affine_vec::<E::G1Affine, _>(a_len, false, &mut reader)?;
-        let b_g1_len = reader.read_u32::<BigEndian>()? as usize;
-        let b_g1_query = read_affine_vec::<E::G1Affine, _>(b_g1_len, false, &mut reader)?;
-        let b_g2_len = reader.read_u32::<BigEndian>()? as usize;
-        let b_g2_query = read_affine_vec::<E::G2Affine, _>(b_g2_len, false, &mut reader)?;
-        let h_len = reader.read_u32::<BigEndian>()? as usize;
-        let h_query = read_affine_vec::<E::G1Affine, _>(h_len, false, &mut reader)?;
-        let l_len = reader.read_u32::<BigEndian>()? as usize;
-        let l_query = read_affine_vec::<E::G1Affine, _>(l_len, false, &mut reader)?;
-        Ok(Parameters{vk, alpha_g1, beta_g1, beta_g2, delta_g1, delta_g2, a_query, b_g1_query, b_g2_query, h_query, l_query})
-    }
-}
-
 impl<E: PairingEngine> FromBytes for Parameters<E>{
     #[inline]
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
@@ -375,6 +338,34 @@ impl<E: PairingEngine> FromBytes for Parameters<E>{
 
         Ok(Parameters{vk, alpha_g1, beta_g1, beta_g2, delta_g1, delta_g2, a_query, b_g1_query, b_g2_query, h_query, l_query})
 
+    }
+
+    /// Doesn't perform group membership check for deserialized points
+    #[inline]
+    pub fn read_unchecked<R: Read>(mut reader: R) -> IoResult<Self> {
+        let vk = VerifyingKey::<E>::read(&mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let alpha_g1 = E::G1Affine::read(&mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let beta_g1 = E::G1Affine::read(&mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let beta_g2 = E::G2Affine::read(&mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let delta_g1 = E::G1Affine::read(&mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let delta_g2 = E::G2Affine::read(&mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let a_len = reader.read_u32::<BigEndian>()? as usize;
+        let a_query = read_affine_vec::<E::G1Affine, _>(a_len, false, &mut reader)?;
+        let b_g1_len = reader.read_u32::<BigEndian>()? as usize;
+        let b_g1_query = read_affine_vec::<E::G1Affine, _>(b_g1_len, false, &mut reader)?;
+        let b_g2_len = reader.read_u32::<BigEndian>()? as usize;
+        let b_g2_query = read_affine_vec::<E::G2Affine, _>(b_g2_len, false, &mut reader)?;
+        let h_len = reader.read_u32::<BigEndian>()? as usize;
+        let h_query = read_affine_vec::<E::G1Affine, _>(h_len, false, &mut reader)?;
+        let l_len = reader.read_u32::<BigEndian>()? as usize;
+        let l_query = read_affine_vec::<E::G1Affine, _>(l_len, false, &mut reader)?;
+        Ok(Parameters{vk, alpha_g1, beta_g1, beta_g2, delta_g1, delta_g2, a_query, b_g1_query, b_g2_query, h_query, l_query})
     }
 }
 
