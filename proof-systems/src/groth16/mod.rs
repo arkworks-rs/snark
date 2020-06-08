@@ -74,7 +74,7 @@ impl<E: PairingEngine> FromBytes for Proof<E> {
 
     /// Doesn't perform group membership check for deserialized points
     #[inline]
-    pub fn read_unchecked<R: Read>(mut reader: R) -> IoResult<Self> {
+    fn read_unchecked<R: Read>(mut reader: R) -> IoResult<Self> {
         let a = E::G1Affine::read(&mut reader)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         let b = E::G2Affine::read(&mut reader)
@@ -183,7 +183,7 @@ impl<E: PairingEngine> FromBytes for VerifyingKey<E> {
 
     /// Doesn't perform group membership check for deserialized points
     #[inline]
-    pub fn read_unchecked<R: Read>(mut reader: R) -> IoResult<Self> {
+    fn read_unchecked<R: Read>(mut reader: R) -> IoResult<Self> {
         let alpha_g1_beta_g2 = E::Fqk::read(&mut reader)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         let gamma_g2 = E::G2Affine::read(&mut reader)
@@ -342,7 +342,7 @@ impl<E: PairingEngine> FromBytes for Parameters<E>{
 
     /// Doesn't perform group membership check for deserialized points
     #[inline]
-    pub fn read_unchecked<R: Read>(mut reader: R) -> IoResult<Self> {
+    fn read_unchecked<R: Read>(mut reader: R) -> IoResult<Self> {
         let vk = VerifyingKey::<E>::read(&mut reader)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         let alpha_g1 = E::G1Affine::read(&mut reader)
