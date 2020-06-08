@@ -43,7 +43,7 @@ impl<E: PairingEngine> ToBytes for Proof<E> {
 
 impl<E: PairingEngine> Proof<E> {
 
-    /// Just detects deserialization errors
+    /// Doesn't perform group membership check for deserialized points
     #[inline]
     fn read_unchecked<R: Read>(mut reader: R) -> IoResult<Self> {
         let a = E::G1Affine::read(&mut reader)
@@ -157,7 +157,7 @@ impl<E: PairingEngine> ToBytes for VerifyingKey<E> {
 
 impl<E: PairingEngine> VerifyingKey<E> {
 
-    /// Just detects deserialization errors
+    /// Doesn't perform group membership check for deserialized points
     #[inline]
     fn read_unchecked<R: Read>(mut reader: R) -> IoResult<Self> {
         let alpha_g1_beta_g2 = E::Fqk::read(&mut reader)
@@ -283,7 +283,7 @@ impl<E: PairingEngine> ToBytes for Parameters<E>{
 
 impl<E: PairingEngine> Parameters<E>{
 
-    /// Just detects deserialization errors
+    /// Doesn't perform group membership check for deserialized points
     #[inline]
     fn read_unchecked<R: Read>(mut reader: R) -> IoResult<Self> {
         let vk = VerifyingKey::<E>::read(&mut reader)
