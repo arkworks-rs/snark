@@ -5,7 +5,7 @@ use crate::{crh::{
 }, vrf::FieldBasedVrf, Error, CryptoError, compute_truncation_size};
 use std::marker::PhantomData;
 use rand::Rng;
-use std::io::{Write, Read, Result as IoResult};
+use std::io::{self, Read, Result as IoResult, Write};
 
 
 pub struct FieldBasedEcVrf<
@@ -46,6 +46,19 @@ impl<F: PrimeField, G: ProjectiveCurve> ToBytes for FieldBasedEcVrfProof<F, G> {
 
 impl<F: PrimeField, G: ProjectiveCurve> FromBytes for FieldBasedEcVrfProof<F, G> {
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
+        let gamma = G::Affine::read(&mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+            .and_then(|p| {
+                if p.is_zero() { return Err(io::Error::new(io::ErrorKind::InvalidData, "invalid point gamma: point at infinity")); }
+                if !p.group_membership_test() { return Err(io::Error::new(io::ErrorKind::InvalidData, "invalid point gamma: group membership test failed")); }
+                Ok(p)
+            })?;
+        let c = F::read(&mut reader)?;
+        let s = F::read(&mut reader)?;
+        Ok(Self{ gamma: gamma.into_projective(), c, s })
+    }
+
+    fn read_unchecked<R: Read>(mut reader: R) -> IoResult<Self> {
         let gamma = G::Affine::read(&mut reader)?;
         let c = F::read(&mut reader)?;
         let s = F::read(&mut reader)?;
@@ -239,7 +252,7 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
     fn keyverify(
         pk: &Self::PublicKey,
     ) -> bool {
-        pk.group_membership_test()
+        !pk.is_zero() && pk.group_membership_test()
     }
 }
 

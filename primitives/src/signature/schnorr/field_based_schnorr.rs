@@ -172,7 +172,7 @@ FieldBasedSchnorrSignatureScheme<F, G, H>
 
     fn keyverify(pk: &Self::PublicKey) -> bool
     {
-        pk.group_membership_test()
+        !pk.is_zero() && pk.group_membership_test()
     }
 }
 
