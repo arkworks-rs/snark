@@ -45,7 +45,7 @@ impl BigMerkleTree {
         let db = HashMap::new();
         let cache = HashMap::new();
         let non_empty_list = HashSet::new();
-        let root = 0;
+        let root = EMPTY_HASH_CST[height];
         Ok(BigMerkleTree {
             width,
             height,
