@@ -319,7 +319,7 @@ impl BigMerkleTree {
             /* the node is not in the cache, compute it */
             if coord.height == 1 {
                 /* get leaves to compute */
-                let left_child_idx = coord.idx * 2;
+                let left_child_idx = coord.idx * MERKLE_ARITY;
                 let left_child = self.db.get(&left_child_idx);
                 let left_hash:usize;
                 if let Some(i) = left_child {
@@ -342,7 +342,7 @@ impl BigMerkleTree {
                 return node_hash;
             } else {
                 let height_child = coord.height - 1;
-                let left_child_idx = coord.idx * 2;
+                let left_child_idx = coord.idx * MERKLE_ARITY;
                 let coord_left = Coord{height:height_child, idx:left_child_idx};
                 let left_child_hash = BigMerkleTree::node(self, coord_left);
 
