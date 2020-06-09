@@ -292,11 +292,14 @@ impl BigMerkleTree {
                     println!("remove_subtree_from_cache: remove node from cache {:?}", coord);
                 }
             }
-
-            let left_coord = Coord { height: coord.height - 1, idx: (coord.idx / MERKLE_ARITY) };
-            let right_coord = Coord { height: coord.height - 1, idx: (coord.idx / MERKLE_ARITY + 1) };
-            BigMerkleTree::remove_subtree_from_cache(self, left_coord);
-            BigMerkleTree::remove_subtree_from_cache(self, right_coord);
+            if self.present_node.contains(&left_coord) {
+                let left_coord = Coord { height: coord.height - 1, idx: (coord.idx / MERKLE_ARITY) };
+                BigMerkleTree::remove_subtree_from_cache(self, left_coord);
+            }
+            if self.present_node.contains(&right_coord) {
+                let right_coord = Coord { height: coord.height - 1, idx: (coord.idx / MERKLE_ARITY + 1) };
+                BigMerkleTree::remove_subtree_from_cache(self, right_coord);
+            }
         }
     }
 
