@@ -10,17 +10,20 @@ pub const EMPTY_HASH_CST: &'static[usize] = &[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14
 
 #[derive(Debug)]
 pub struct BigMerkleTree {
-    width: usize,
     // the number of leaves
-    height: usize,
+    width: usize,
     // the height of the Merkle tree
-    db: HashMap<usize, usize>,
+    height: usize,
     // stores the leaves
-    cache: HashMap<Coord, usize>,
+    db: HashMap<usize, usize>,
     // stores the cached nodes
-    present_node: HashSet<Coord>,
+    cache: HashMap<Coord, usize>,
+    // stores the nodes of the path
+    cache_path: HashMap<Coord, usize>,
     // indicates which nodes are not empty
-    root: usize,                        // root of the Merkle tree
+    present_node: HashSet<Coord>,
+    // root of the Merkle tree
+    root: usize,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
@@ -44,6 +47,7 @@ impl BigMerkleTree {
         let height = height.log(MERKLE_ARITY as f64) as usize;
         let db = HashMap::new();
         let cache = HashMap::new();
+        let cache_path = HashMap::new();
         let non_empty_list = HashSet::new();
         let root = EMPTY_HASH_CST[height];
         Ok(BigMerkleTree {
@@ -51,6 +55,7 @@ impl BigMerkleTree {
             height,
             db,
             cache,
+            cache_path,
             present_node: non_empty_list,
             root,
         })
@@ -71,6 +76,8 @@ impl BigMerkleTree {
         println!("insert_leaf: insert leaf in non_empty set {:?}", coord);
         self.db.insert(idx, leaf);
         println!("insert_leaf: insert leaf in db {:?}", coord);
+        self.cache_path.clear();
+        self.cache_path.insert(coord, leaf);
         BigMerkleTree::update_tree(self, idx, leaf);
     }
 
@@ -81,6 +88,7 @@ impl BigMerkleTree {
         // take that leaf from the non-empty set
         self.present_node.remove(&coord);
         println!("remove_leaf: removes leaf from non_empty set {:?}", coord);
+        self.cache_path.clear();
         // removes the leaf from the db
         let res = self.db.remove(&idx);
         println!("remove_leaf: removes leaf from db {:?}", coord);
@@ -101,10 +109,18 @@ impl BigMerkleTree {
         let right_child: Option<&usize>;
         let left_hash: usize;
         let right_hash: usize;
+        let mut height = 0;
 
         if idx % MERKLE_ARITY == 0 {
             left_child_idx = idx;
-            left_hash = hash;
+            let coord = Coord { height, idx:left_child_idx };
+            // get the left child from the cache_path
+            let hash = self.cache_path.get(&coord);
+            if let Some(i) = hash {
+                left_hash = *i;
+            } else {
+                left_hash = EMPTY_HASH_CST[0];
+            }
             right_child_idx = idx + 1;
             right_child = self.db.get(&right_child_idx);
             if let Some(i) = right_child {
@@ -114,7 +130,14 @@ impl BigMerkleTree {
             }
         } else {
             right_child_idx = idx;
-            right_hash = hash;
+            let coord = Coord { height, idx: right_child_idx };
+            // get the right child from the cache path
+            let hash = self.cache_path.get(&coord);
+            if let Some(i) = hash {
+                right_hash = *i;
+            } else {
+                right_hash = EMPTY_HASH_CST[0];
+            }
             left_child_idx = idx - 1;
             left_child = self.db.get(&left_child_idx);
             if let Some(i) = left_child {
@@ -123,45 +146,48 @@ impl BigMerkleTree {
                 left_hash = EMPTY_HASH_CST[0];
             }
         }
-        // compute the hash of the node with the hashes of the children
-        let mut node_hash = poseidon_hash(left_hash, right_hash);
-        println!("update_tree: processed leaves: left_hash (h: {}, idx: {}) = {}, right_hash (h: {}, idx: {}) = {}, node_hash = {}", 0, left_child_idx, left_hash, 0, right_child_idx, right_hash, node_hash);
 
-        let mut height = 1;
+        height += 1;
         idx = idx / MERKLE_ARITY;
         let parent_coord = Coord { height, idx };
-        println!("-----> update_tree: visiting node {:?}", parent_coord);
 
-        // Both children are not empty leaves
-        if (left_hash != EMPTY_HASH_CST[0]) & (right_hash != EMPTY_HASH_CST[0]) {
-            // set the parent node as present
-            self.present_node.insert(parent_coord.clone());
-            println!("update_tree: insert node in non_empty set {:?}", parent_coord);
-            // cache the node
-            BigMerkleTree::insert_node(self, parent_coord.clone(), node_hash);
-            println!("update_tree: insert node in cache {:?}", parent_coord);
-        }
-        // Either child is not empty
-        // Probably not needed to check the condition
-        if (left_hash != EMPTY_HASH_CST[0]) | (right_hash != EMPTY_HASH_CST[0]) {
-            // set the parent as present
-            self.present_node.insert(parent_coord.clone());
-            println!("update_tree: insert node in non_empty set {:?}", parent_coord);
-        }
-        // Both children are empty leaves
+        let mut node_hash: usize;
         if (left_hash == EMPTY_HASH_CST[0]) & (right_hash == EMPTY_HASH_CST[0]) {
+            node_hash = EMPTY_HASH_CST[height];
+            println!("update_tree: processed leaves: left_hash (h: {}, idx: {}) = {}, right_hash (h: {}, idx: {}) = {}, node_hash = {}", 0, left_child_idx, left_hash, 0, right_child_idx, right_hash, node_hash);
+            // insert the parent node into the cache_path
+            self.cache_path.insert(parent_coord, node_hash);
+            println!("-----> update_tree: visiting node {:?}", parent_coord);
+            // Both children are empty leaves
             // remove the parent node from the presence set
             self.present_node.remove(&parent_coord.clone());
             println!("update_tree: remove node from empty_list {:?}", parent_coord);
             // remove node from cache
             BigMerkleTree::remove_node(self, parent_coord.clone());
             println!("update_tree: remove node from cache {:?}", parent_coord);
+        } else {
+            // compute the hash of the node with the hashes of the children
+            node_hash = poseidon_hash(left_hash, right_hash);
+            println!("update_tree: processed leaves: left_hash (h: {}, idx: {}) = {}, right_hash (h: {}, idx: {}) = {}, node_hash = {}", 0, left_child_idx, left_hash, 0, right_child_idx, right_hash, node_hash);
+            // insert the parent node into the cache_path
+            self.cache_path.insert(parent_coord, node_hash);
+            println!("-----> update_tree: visiting node {:?}", parent_coord);
+            // set the parent as present
+            self.present_node.insert(parent_coord.clone());
+            println!("update_tree: insert node in non_empty set {:?}", parent_coord);
+            // Both children are not empty leaves
+            if (left_hash != EMPTY_HASH_CST[0]) & (right_hash != EMPTY_HASH_CST[0]) {
+                // cache the node
+                BigMerkleTree::insert_node(self, parent_coord.clone(), node_hash);
+                println!("update_tree: insert node in cache {:?}", parent_coord);
+            }
         }
 
         // Process level >= 2
         while height != self.height {
             // go to parent node
             height += 1;
+            let idx_child = idx;
             idx = idx / MERKLE_ARITY;
             let parent_coord = Coord { height, idx };
             println!("-----> update_tree: visiting node {:?}", parent_coord);
@@ -171,44 +197,62 @@ impl BigMerkleTree {
             let left_child_height = parent_coord.height - 1;
             let left_coord = Coord { height: left_child_height, idx: left_child_idx };
             println!("node coord left = {:?}", left_coord);
-            let left_hash = BigMerkleTree::node(self, left_coord);
+            let left_hash: usize;
+            if left_child_idx == idx_child {
+                // It was cached in the previous iteration. Get it from the cache_path
+                left_hash = *self.cache_path.get(&left_coord).unwrap();
+            } else {
+                left_hash = BigMerkleTree::node(self, left_coord);
+            }
 
             // retrieve the right child
             let right_child_idx = left_child_idx + 1;
             let right_child_height = left_child_height;
             let right_coord = Coord { height: right_child_height, idx: right_child_idx };
             println!("node coord right = {:?}", right_coord);
-            let right_hash = BigMerkleTree::node(self, right_coord);
-
-            // compute the hash of the parent node based on the hashes of the children
-            node_hash = poseidon_hash(left_hash, right_hash);
-            println!("update_tree: processing nodes: left_hash (h: {}, idx: {}) = {}, right_hash (h: {}, idx: {}) = {}, node_hash = {}", left_child_height, left_child_idx, left_hash, right_child_height, right_child_idx, right_hash, node_hash);
-            if (left_hash != EMPTY_HASH_CST[left_child_height]) & (right_hash != EMPTY_HASH_CST[right_child_height]) {
-                // set the parent node as non_empty
-                self.present_node.insert(parent_coord.clone());
-                // children not empty leaves, then cache the parent node
-                BigMerkleTree::insert_node(self, parent_coord.clone(), node_hash);
-                println!("update_tree: insert node in cache {:?}", parent_coord);
-                // cache the children
-                BigMerkleTree::insert_node(self, left_coord.clone(), left_hash);
-                println!("update_tree: insert node in cache {:?}", left_coord);
-                BigMerkleTree::insert_node(self, right_coord.clone(), right_hash);
-                println!("update_tree: insert node in cache {:?}", right_coord);
+            let right_hash: usize;
+            if right_child_idx == idx_child {
+                // It was cached in the previous iteration. Get it from the cache_path
+                right_hash = *self.cache_path.get(&right_coord).unwrap();
+            } else {
+                right_hash = BigMerkleTree::node(self, right_coord);
             }
-            if (left_hash != EMPTY_HASH_CST[left_child_height]) | (right_hash != EMPTY_HASH_CST[right_child_height]) {
-                // either child not equal to empty leaves, include the parent node in a non-empty set
-                self.present_node.insert(parent_coord.clone());
+
+            if (left_hash == EMPTY_HASH_CST[0]) & (right_hash == EMPTY_HASH_CST[0]) {
+                node_hash = EMPTY_HASH_CST[height];
+                // insert the parent node into the cache_path
+                self.cache_path.insert(parent_coord, node_hash);
+                println!("update_tree: processing nodes: left_hash (h: {}, idx: {}) = {}, right_hash (h: {}, idx: {}) = {}, node_hash = {}", left_child_height, left_child_idx, left_hash, right_child_height, right_child_idx, right_hash, node_hash);
+                // remove node from non_empty set
+                self.present_node.remove(&parent_coord.clone());
+                println!("update_tree: remove node from empty_list {:?}", parent_coord);
+            } else {
+                // compute the hash of the parent node based on the hashes of the children
+                node_hash = poseidon_hash(left_hash, right_hash);
+                // insert the parent node into the cache_path
+                self.cache_path.insert(parent_coord, node_hash);
+                println!("update_tree: processing nodes: left_hash (h: {}, idx: {}) = {}, right_hash (h: {}, idx: {}) = {}, node_hash = {}", left_child_height, left_child_idx, left_hash, right_child_height, right_child_idx, right_hash, node_hash);
+                if (left_hash != EMPTY_HASH_CST[left_child_height]) & (right_hash != EMPTY_HASH_CST[right_child_height]) {
+                    // set the parent node as non_empty
+                    self.present_node.insert(parent_coord.clone());
+                    // children not empty leaves, then cache the parent node
+                    BigMerkleTree::insert_node(self, parent_coord.clone(), node_hash);
+                    println!("update_tree: insert node in cache {:?}", parent_coord);
+                    // cache the children
+                    BigMerkleTree::insert_node(self, left_coord.clone(), left_hash);
+                    println!("update_tree: insert node in cache {:?}", left_coord);
+                    BigMerkleTree::insert_node(self, right_coord.clone(), right_hash);
+                    println!("update_tree: insert node in cache {:?}", right_coord);
+                } else {
+                    // either child not equal to empty leaves, include the parent node in a non-empty set
+                    self.present_node.insert(parent_coord.clone());
+                }
             }
             if (left_hash == EMPTY_HASH_CST[left_child_height]) | (right_hash == EMPTY_HASH_CST[right_child_height]) {
                 if self.cache.contains_key(&parent_coord) {
                     // remove subtree from cache
                     BigMerkleTree::remove_subtree_from_cache(self, parent_coord);
                 }
-            }
-            if (left_hash == EMPTY_HASH_CST[left_child_height]) & (right_hash == EMPTY_HASH_CST[right_child_height]) {
-                // remove node from non_empty set
-                self.present_node.remove(&parent_coord.clone());
-                println!("update_tree: remove node from empty_list {:?}", parent_coord);
             }
         }
         self.root = node_hash;
@@ -330,6 +374,9 @@ impl BigMerkleTree {
 }
 
 pub fn poseidon_hash (x: usize, y: usize) -> usize {
+    if (x==0) & (y==0) {
+        return 1;
+    }
     x + y
 }
 
