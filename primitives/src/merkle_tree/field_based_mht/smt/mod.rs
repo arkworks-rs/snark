@@ -78,7 +78,7 @@ impl BigMerkleTree {
         println!("insert_leaf: insert leaf in db {:?}", coord);
         self.cache_path.clear();
         self.cache_path.insert(coord, leaf);
-        BigMerkleTree::update_tree(self, idx, leaf);
+        BigMerkleTree::update_tree(self, idx);
     }
 
     // removes a leaf in the Merkle tree
@@ -94,12 +94,12 @@ impl BigMerkleTree {
         println!("remove_leaf: removes leaf from db {:?}", coord);
         // if it was in the db, update the tree
         if res != None {
-            BigMerkleTree::update_tree(self, idx, EMPTY_HASH_CST[0]);
+            BigMerkleTree::update_tree(self, idx);
         }
     }
 
     // it updates the tree visiting the parent nodes from the leaf to the root
-    pub fn update_tree(&mut self, mut idx: usize, hash: usize) {
+    pub fn update_tree(&mut self, mut idx: usize) {
 
         // Process the node of level 1 with the inserted/removed leaf
         // check whether the hash corresponds to the left or right child
@@ -258,13 +258,13 @@ impl BigMerkleTree {
         self.root = node_hash;
     }
 
-    pub fn remove_subtree_from_cache (&mut self, coord: Coord) {
+    pub fn remove_subtree_from_cache(&mut self, coord: Coord) {
         if coord.height == 1 {
-            let left_child_idx = coord.idx * 2;
+            let left_child_idx = coord.idx * MERKLE_ARITY;
             let left_child_height = coord.height - 1;
             let left_coord = Coord { height: left_child_height, idx: left_child_idx };
 
-            let right_child_idx = coord.idx * 2 + 1;
+            let right_child_idx = coord.idx * MERKLE_ARITY + 1;
             let right_child_height = coord.height - 1;
             let right_coord = Coord { height: right_child_height, idx: right_child_idx };
 
@@ -278,11 +278,11 @@ impl BigMerkleTree {
             return;
         }
         if coord.height > 1 {
-            let left_child_idx = coord.idx * 2;
+            let left_child_idx = coord.idx * MERKLE_ARITY;
             let left_child_height = coord.height - 1;
             let left_coord = Coord { height: left_child_height, idx: left_child_idx };
 
-            let right_child_idx = coord.idx * 2 + 1;
+            let right_child_idx = coord.idx * MERKLE_ARITY + 1;
             let right_child_height = coord.height - 1;
             let right_coord = Coord { height: right_child_height, idx: right_child_idx };
 
@@ -293,8 +293,8 @@ impl BigMerkleTree {
                 }
             }
 
-            let left_coord = Coord{height:coord.height-1, idx:(coord.idx/2)};
-            let right_coord = Coord{height:coord.height-1, idx:(coord.idx/2 + 1)};
+            let left_coord = Coord { height: coord.height - 1, idx: (coord.idx / MERKLE_ARITY) };
+            let right_coord = Coord { height: coord.height - 1, idx: (coord.idx / MERKLE_ARITY + 1) };
             BigMerkleTree::remove_subtree_from_cache(self, left_coord);
             BigMerkleTree::remove_subtree_from_cache(self, right_coord);
         }
