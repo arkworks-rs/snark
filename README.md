@@ -1,13 +1,12 @@
 <h1 align="center">ZEXE (Zero knowledge EXEcution)</h1>
 
 <p align="center">
-    <a href="https://travis-ci.org/scipr-lab/zexe"><img src="https://travis-ci.org/scipr-lab/zexe.svg?branch=master"></a>
+    <img src="https://github.com/scipr-lab/zexe/workflows/CI/badge.svg?branch=master">
     <a href="https://github.com/scipr-lab/zexe/blob/master/AUTHORS"><img src="https://img.shields.io/badge/authors-SCIPR%20Lab-orange.svg"></a>
     <a href="https://github.com/scipr-lab/zexe/blob/master/LICENSE-APACHE"><img src="https://img.shields.io/badge/license-APACHE-blue.svg"></a>
     <a href="https://github.com/scipr-lab/zexe/blob/master/LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
     <a href="https://deps.rs/repo/github/scipr-lab/zexe"><img src="https://deps.rs/repo/github/scipr-lab/zexe/status.svg"></a>
 </p>
-
 
 ___ZEXE___ (pronounced */zeksē/*) is a Rust library for decentralized private computation.
 
