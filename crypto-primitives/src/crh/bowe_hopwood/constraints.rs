@@ -150,12 +150,12 @@ mod test {
     };
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
-        alloc::AllocGadget, edwards_on_bls12_381::JubJubGadget,
+        alloc::AllocGadget, edwards_on_bls12_381::EdwardsGadget,
         test_constraint_system::TestConstraintSystem, uint8::UInt8,
     };
 
     type TestCRH = BoweHopwoodPedersenCRH<JubJub, Window>;
-    type TestCRHGadget = BoweHopwoodPedersenCRHGadget<JubJub, Fr, JubJubGadget>;
+    type TestCRHGadget = BoweHopwoodPedersenCRHGadget<JubJub, Fr, EdwardsGadget>;
 
     #[derive(Clone, PartialEq, Eq, Hash)]
     pub(super) struct Window;

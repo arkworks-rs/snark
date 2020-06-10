@@ -138,13 +138,13 @@ mod test {
     };
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
-        edwards_on_bls12_381::JubJubGadget, prelude::*,
+        edwards_on_bls12_381::EdwardsGadget, prelude::*,
         test_constraint_system::TestConstraintSystem,
     };
     use rand::Rng;
 
     type TestCRH = PedersenCRH<JubJub, Window>;
-    type TestCRHGadget = PedersenCRHGadget<JubJub, Fr, JubJubGadget>;
+    type TestCRHGadget = PedersenCRHGadget<JubJub, Fr, EdwardsGadget>;
 
     #[derive(Clone, PartialEq, Eq, Hash)]
     pub(super) struct Window;

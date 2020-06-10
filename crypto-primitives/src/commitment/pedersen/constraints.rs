@@ -215,7 +215,7 @@ mod test {
     };
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
-        edwards_on_bls12_381::JubJubGadget, prelude::*,
+        edwards_on_bls12_381::EdwardsGadget, prelude::*,
         test_constraint_system::TestConstraintSystem,
     };
 
@@ -236,7 +236,7 @@ mod test {
         let rng = &mut test_rng();
 
         type TestCOMM = PedersenCommitment<JubJub, Window>;
-        type TestCOMMGadget = PedersenCommitmentGadget<JubJub, Fq, JubJubGadget>;
+        type TestCOMMGadget = PedersenCommitmentGadget<JubJub, Fq, EdwardsGadget>;
 
         let randomness = PedersenRandomness(Fr::rand(rng));
 

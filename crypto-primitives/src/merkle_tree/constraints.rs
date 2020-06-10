@@ -214,7 +214,7 @@ mod test {
 
     use super::*;
     use r1cs_std::{
-        edwards_on_bls12_381::JubJubGadget, test_constraint_system::TestConstraintSystem,
+        edwards_on_bls12_381::EdwardsGadget, test_constraint_system::TestConstraintSystem,
     };
 
     #[derive(Clone)]
@@ -225,7 +225,7 @@ mod test {
     }
 
     type H = PedersenCRH<JubJub, Window4x256>;
-    type HG = PedersenCRHGadget<JubJub, Fq, JubJubGadget>;
+    type HG = PedersenCRHGadget<JubJub, Fq, EdwardsGadget>;
 
     struct JubJubMerkleTreeParams;
 
