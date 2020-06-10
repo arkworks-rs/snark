@@ -207,13 +207,15 @@ mod test {
         },
         merkle_tree::*,
     };
-    use algebra::jubjub::{Fq, JubJubAffine as JubJub};
+    use algebra::edwards_on_bls12_381::{EdwardsAffine as JubJub, Fq};
     use r1cs_core::ConstraintSystem;
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
 
     use super::*;
-    use r1cs_std::{jubjub::JubJubGadget, test_constraint_system::TestConstraintSystem};
+    use r1cs_std::{
+        edwards_on_bls12_381::JubJubGadget, test_constraint_system::TestConstraintSystem,
+    };
 
     #[derive(Clone)]
     pub(super) struct Window4x256;

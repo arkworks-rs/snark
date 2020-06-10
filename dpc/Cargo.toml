@@ -22,9 +22,9 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-algebra = { path = "../algebra", features = [ "bls12_377", "edwards_bls12", "edwards_sw6", "sw6" ] }
+algebra = { path = "../algebra", features = [ "bls12_377", "edwards_on_bls12_377", "edwards_on_cp6_782", "cp6_782" ] }
 r1cs-core = { path = "../r1cs-core" }
-r1cs-std = { path = "../r1cs-std", features = [ "bls12_377", "edwards_bls12", "edwards_sw6" ] }
+r1cs-std = { path = "../r1cs-std", features = [ "bls12_377", "edwards_on_bls12_377", "edwards_on_cp6_782" ] }
 crypto-primitives = { path = "../crypto-primitives", features = [ "gm17", "r1cs" ] }
 gm17 = { path = "../gm17" }
 bench-utils = { path = "../bench-utils" }

@@ -369,7 +369,7 @@ mod test {
         crh::{pedersen::*, *},
         merkle_tree::*,
     };
-    use algebra::{jubjub::JubJubAffine as JubJub, Zero};
+    use algebra::{edwards_on_bls12_381::EdwardsAffine as JubJub, Zero};
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
 

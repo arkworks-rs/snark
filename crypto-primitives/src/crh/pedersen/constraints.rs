@@ -133,12 +133,13 @@ mod test {
         FixedLengthCRH, FixedLengthCRHGadget,
     };
     use algebra::{
-        jubjub::{Fq as Fr, JubJubProjective as JubJub},
+        edwards_on_bls12_381::{EdwardsProjective as JubJub, Fq as Fr},
         test_rng, ProjectiveCurve,
     };
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
-        jubjub::JubJubGadget, prelude::*, test_constraint_system::TestConstraintSystem,
+        edwards_on_bls12_381::JubJubGadget, prelude::*,
+        test_constraint_system::TestConstraintSystem,
     };
     use rand::Rng;
 

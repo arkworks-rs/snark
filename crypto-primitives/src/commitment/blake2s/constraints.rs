@@ -143,7 +143,7 @@ mod test {
         },
         *,
     };
-    use algebra::{jubjub::Fq as Fr, test_rng};
+    use algebra::{edwards_on_bls12_381::Fq as Fr, test_rng};
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{prelude::*, test_constraint_system::TestConstraintSystem};
     use rand::Rng;

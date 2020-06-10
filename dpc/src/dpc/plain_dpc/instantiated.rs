@@ -1,6 +1,6 @@
 use algebra::{
-    bls12_377, edwards_bls12::EdwardsProjective as EdwardsBls,
-    edwards_sw6::EdwardsProjective as EdwardsSW, sw6::SW6, Bls12_377,
+    bls12_377, cp6_782::CP6_782, edwards_on_bls12_377::EdwardsProjective as EdwardsBls,
+    edwards_on_cp6_782::EdwardsProjective as EdwardsCP6, Bls12_377,
 };
 
 use crypto_primitives::{
@@ -24,7 +24,8 @@ use crypto_primitives::{
     prf::blake2s::constraints::Blake2sGadget,
 };
 use r1cs_std::{
-    bls12_377::PairingGadget, edwards_bls12::EdwardsBlsGadget, edwards_sw6::EdwardsSWGadget,
+    bls12_377::PairingGadget, edwards_on_bls12_377::EdwardsGadget as EdwardsBlsGadget,
+    edwards_on_cp6_782::EdwardsGadget as EdwardsCP6Gadget,
 };
 
 use crate::dpc::plain_dpc::{
@@ -130,7 +131,7 @@ impl PlainDPCComponents for Components {
 // Native primitives
 pub type EdwardsCompressor = TECompressor;
 pub type CoreCheckPairing = Bls12_377;
-pub type ProofCheckPairing = SW6;
+pub type ProofCheckPairing = CP6_782;
 pub type CoreCheckF = bls12_377::Fr;
 pub type ProofCheckF = bls12_377::Fq;
 
@@ -141,7 +142,7 @@ pub type LocalDataComm = PedersenCommCompressor<EdwardsBls, EdwardsCompressor, L
 
 pub type MerkleTreeCRH = PedersenCRHCompressor<EdwardsBls, EdwardsCompressor, TwoToOneWindow>;
 pub type SnNonceCRH = PedersenCRHCompressor<EdwardsBls, EdwardsCompressor, SnNonceWindow>;
-pub type PredVkCRH = PedersenCRHCompressor<EdwardsSW, EdwardsCompressor, PredVkHashWindow>;
+pub type PredVkCRH = PedersenCRHCompressor<EdwardsCP6, EdwardsCompressor, PredVkHashWindow>;
 
 pub type Predicate = DPCPredicate<Components>;
 pub type CoreCheckNIZK =
@@ -192,10 +193,10 @@ pub type MerkleTreeCRHGadget = PedersenCRHCompressorGadget<
     EdwardsCompressorGadget,
 >;
 pub type PredVkCRHGadget = PedersenCRHCompressorGadget<
-    EdwardsSW,
+    EdwardsCP6,
     EdwardsCompressor,
     ProofCheckF,
-    EdwardsSWGadget,
+    EdwardsCP6Gadget,
     EdwardsCompressorGadget,
 >;
 

@@ -3,7 +3,7 @@ use rand;
 #[macro_use]
 extern crate criterion;
 
-use algebra::edwards_bls12::EdwardsProjective as Edwards;
+use algebra::edwards_on_bls12_377::EdwardsProjective as Edwards;
 use criterion::Criterion;
 use crypto_primitives::crh::{pedersen::*, FixedLengthCRH};
 

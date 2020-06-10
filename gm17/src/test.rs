@@ -72,7 +72,7 @@ mod bls12_377 {
     }
 }
 
-mod sw6 {
+mod cp6_782 {
     use super::*;
     use crate::{
         create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
@@ -80,17 +80,17 @@ mod sw6 {
 
     use algebra_core::{test_rng, UniformRand};
 
-    use algebra::sw6::{Fr, SW6};
+    use algebra::cp6_782::{Fr, CP6_782};
 
     #[test]
     fn prove_and_verify() {
         let rng = &mut test_rng();
 
         let params =
-            generate_random_parameters::<SW6, _, _>(MySillyCircuit { a: None, b: None }, rng)
+            generate_random_parameters::<CP6_782, _, _>(MySillyCircuit { a: None, b: None }, rng)
                 .unwrap();
 
-        let pvk = prepare_verifying_key::<SW6>(&params.vk);
+        let pvk = prepare_verifying_key::<CP6_782>(&params.vk);
 
         let a = Fr::rand(rng);
         let b = Fr::rand(rng);

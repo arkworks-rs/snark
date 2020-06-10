@@ -132,7 +132,10 @@ impl<ConstraintF: Field> TestConstraintSystem<ConstraintF> {
 
 fn compute_path(ns: &[String], this: String) -> String {
     if this.chars().any(|a| a == '/') {
-        panic!(format!("'/' is not allowed in namespace names. Error in namespace name: {:?}", this));
+        panic!(format!(
+            "'/' is not allowed in namespace names. Error in namespace name: {:?}",
+            this
+        ));
     }
 
     let mut name = String::new();
