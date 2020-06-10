@@ -54,7 +54,8 @@ pub trait SignatureScheme {
 mod test {
     use crate::{signature::schnorr::SchnorrSignature, SignatureScheme};
     use algebra::{
-        groups::Group, jubjub::JubJubAffine as JubJub, test_rng, to_bytes, ToBytes, UniformRand,
+        edwards_on_bls12_381::EdwardsAffine as JubJub, groups::Group, test_rng, to_bytes, ToBytes,
+        UniformRand,
     };
     use blake2::Blake2s;
 

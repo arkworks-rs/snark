@@ -173,7 +173,7 @@ mod test {
         crh::{bowe_hopwood::BoweHopwoodPedersenCRH, pedersen::PedersenWindow},
         FixedLengthCRH,
     };
-    use algebra::{jubjub::JubJubProjective, test_rng};
+    use algebra::{edwards_on_bls12_381::EdwardsProjective, test_rng};
 
     #[test]
     fn test_simple_bh() {
@@ -186,9 +186,9 @@ mod test {
 
         let rng = &mut test_rng();
         let params =
-            <BoweHopwoodPedersenCRH<JubJubProjective, TestWindow> as FixedLengthCRH>::setup(rng)
+            <BoweHopwoodPedersenCRH<EdwardsProjective, TestWindow> as FixedLengthCRH>::setup(rng)
                 .unwrap();
-        <BoweHopwoodPedersenCRH<JubJubProjective, TestWindow> as FixedLengthCRH>::evaluate(
+        <BoweHopwoodPedersenCRH<EdwardsProjective, TestWindow> as FixedLengthCRH>::evaluate(
             &params,
             &[1, 2, 3],
         )
