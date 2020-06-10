@@ -383,4 +383,36 @@ mod test {
         assert_eq!(output.unwrap(), expected_output, "Outputs do not match for MNT6753.");
     }
 
+    #[test]
+    fn gen_smt_empty_hash_mnt4() {
+        let mut input = Vec::new();
+        input.push(MNT4753Fr::from_str("0").unwrap());
+        input.push(MNT4753Fr::from_str("0").unwrap());
+        let hash_level0 = input.clone();
+        println!("level 0: {:?}", hash_level0[0]);
+
+        let level1 = MNT4PoseidonHash::evaluate(&input);
+        let mut hash_level = level1.unwrap().clone();
+        println!("level 1: {:?}", hash_level);
+
+        for i in 0..40 {
+            input.clear();
+            let input_level = hash_level.clone();
+            input.push(input_level);
+            input.push(input_level);
+            let next_level = MNT4PoseidonHash::evaluate(&input);
+            hash_level = next_level.unwrap().clone();
+
+            let next_hash = hash_level.clone();
+            println!("level {}: {:?}", i, next_hash);
+        }
+
+
+
+
+
+
+
+    }
+
 }
