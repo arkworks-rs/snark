@@ -1,7 +1,7 @@
 use crate::groups::curves::twisted_edwards::AffineGadget;
 use algebra::edwards_on_cp6_782::*;
 
-use crate::instantiated::edwards_on_cp6_782::FqGadget;
+use crate::edwards_on_cp6_782::FqGadget;
 
 pub type EdwardsGadget = AffineGadget<EdwardsParameters, Fq, FqGadget>;
 
