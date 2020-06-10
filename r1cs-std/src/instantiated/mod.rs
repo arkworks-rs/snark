@@ -7,6 +7,12 @@ pub mod edwards_on_bls12_377;
 #[cfg(feature = "edwards_on_cp6_782")]
 pub mod edwards_on_cp6_782;
 
+#[cfg(all(not(feature = "edwards_on_cp6_782"), feature = "edwards_on_bw6_761"))]
+pub(crate) mod edwards_on_cp6_782;
+
+#[cfg(feature = "edwards_on_bw6_761")]
+pub mod edwards_on_bw6_761;
+
 #[cfg(feature = "edwards_on_bls12_381")]
 pub mod edwards_on_bls12_381;
 

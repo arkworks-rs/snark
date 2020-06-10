@@ -7,6 +7,7 @@ pub use self::fr::*;
     feature = "bls12_377",
     feature = "cp6_782",
     feature = "edwards_on_cp6_782",
+    feature = "edwards_on_bw6_761",
     feature = "bw6_761"
 ))]
 pub mod fq;
@@ -14,6 +15,7 @@ pub mod fq;
     feature = "bls12_377",
     feature = "cp6_782",
     feature = "edwards_on_cp6_782",
+    feature = "edwards_on_bw6_761",
     feature = "bw6_761"
 ))]
 pub use self::fq::*;

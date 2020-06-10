@@ -46,7 +46,8 @@ pub use bls12_377::Bls12_377;
         feature = "edwards_on_bls12_377",
         feature = "cp6_782",
         feature = "edwards_on_cp6_782",
-        feature = "bw6_761"
+        feature = "edwards_on_bw6_761",
+        feature = "bw6_761",
     )
 ))]
 pub(crate) mod bls12_377;
@@ -119,11 +120,22 @@ pub use bw6_761::BW6_761;
 ///////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////
-#[cfg(all(not(feature = "cp6_782"), feature = "edwards_on_cp6_782"))]
+#[cfg(all(
+    not(feature = "cp6_782"),
+    any(feature = "edwards_on_cp6_782", feature = "edwards_on_bw6_761")
+))]
 pub(crate) mod cp6_782;
 
 #[cfg(feature = "edwards_on_cp6_782")]
 pub mod edwards_on_cp6_782;
+///////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////
+#[cfg(all(not(feature = "edwards_on_cp6_782"), feature = "edwards_on_bw6_761"))]
+pub(crate) mod edwards_on_cp6_782;
+
+#[cfg(feature = "edwards_on_bw6_761")]
+pub mod edwards_on_bw6_761;
 ///////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////
