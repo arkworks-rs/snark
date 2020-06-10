@@ -1,0 +1,163 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+env:
+  RUST_BACKTRACE: 1
+
+jobs:
+  style:
+    name: Check Style
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@v1
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+        components: rustfmt
+
+    - name: cargo fmt --check
+      uses: actions-rs/cargo@v1
+      with:
+        command: fmt
+        args: --all -- --check
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: -Dwarnings
+    strategy:
+      matrix:
+        rust:
+          - stable
+          - nightly
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install Rust (${{ matrix.rust }})
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Check examples
+        uses: actions-rs/cargo@v1
+        with:
+            command: check
+            args: --examples --all
+
+      - name: Check examples with all features on stable
+        uses: actions-rs/cargo@v1
+        with:
+            command: check
+            args: --examples --all-features --all
+        if: matrix.rust == 'stable'
+
+      - name: Check benchmarks on nightly
+        uses: actions-rs/cargo@v1
+        with:
+            command: check
+            args: --all-features --examples --all --benches
+        if: matrix.rust == 'nightly'
+
+      - name: Test
+        uses: actions-rs/cargo@v1
+        with:
+            command: test
+            args: --all -- --skip dpc --skip integration_test
+
+  check_no_std:
+    name: Check no_std
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install Rust (${{ matrix.rust }})
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: thumbv6m-none-eabi
+          override: true
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: algebra-core
+        run: |
+          cd algebra-core
+          cargo build -p algebra-core --no-default-features --target thumbv6m-none-eabi
+          cargo check --examples -p algebra-core --no-default-features --target thumbv6m-none-eabi
+          cd ..
+
+      - name: algebra
+        run: |
+          cd algebra
+          cargo build -p algebra --no-default-features --target thumbv6m-none-eabi
+          cargo check --examples -p algebra --no-default-features --target thumbv6m-none-eabi
+          cd ..
+
+      - name: r1cs-core
+        run: |
+          cd r1cs-core
+          cargo build -p r1cs-core --no-default-features --target thumbv6m-none-eabi
+          cargo check --examples -p r1cs-core --no-default-features --target thumbv6m-none-eabi
+          cd ..
+
+      - name: r1cs-std
+        run: |
+          cd r1cs-std
+          cargo build -p r1cs-std --no-default-features --target thumbv6m-none-eabi
+          cargo check --examples -p r1cs-std --no-default-features --target thumbv6m-none-eabi
+          cd ..
+
+      - name: ff-fft
+        run: |
+          cd ff-fft
+          cargo build -p ff-fft --no-default-features --target thumbv6m-none-eabi
+          cargo check --examples -p ff-fft --no-default-features --target thumbv6m-none-eabi
+          cd ..
+
+      - name: groth16
+        run: |
+          cd groth16
+          cargo build -p groth16 --no-default-features --target thumbv6m-none-eabi
+          cargo check --examples -p groth16 --no-default-features --target thumbv6m-none-eabi
+          cd ..
+
+      - name: gm17
+        run: |
+          cd gm17
+          cargo build -p gm17 --no-default-features --target thumbv6m-none-eabi
+          cargo check --examples -p gm17 --no-default-features --target thumbv6m-none-eabi
+          cd ..
+
+      - name: crypto-primitives
+        run: |
+          cd crypto-primitives
+          cargo build -p crypto-primitives --no-default-features --target thumbv6m-none-eabi
+          cargo check --examples -p crypto-primitives --no-default-features --target thumbv6m-none-eabi
+          cd ..
