@@ -32,7 +32,7 @@ impl FftParameters for FrParameters {
 }
 impl FpParameters for FrParameters {
     // MODULUS = 118980571542315331438337312413262112886281219744507561120271964887686106682370032123932631
-    // Factors:
+    // Factors of MODULUS - 1:
     //      2
     //      5
     //      17
