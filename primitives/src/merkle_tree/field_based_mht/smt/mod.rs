@@ -16,9 +16,10 @@ pub mod error;
 pub type MNT4PoseidonHash = PoseidonHash<MNT4753Fr, MNT4753PoseidonParameters>;
 pub type MNT6PoseidonHash = PoseidonHash<MNT6753Fr, MNT6753PoseidonParameters>;
 
-pub trait SmtPoseidonParameters: 'static + FieldBasedHashParameters{
-    const MERKLE_ARITY: usize; // The arity of the Sparse Merkle Tree
-    const EMPTY_HASH_CST: &'static[Self::Fr];  // The pre-computed hashes of the empty nodes for the different levels of the SMT
+pub trait SmtPoseidonParameters: 'static + FieldBasedHashParameters {
+    const MERKLE_ARITY: usize;
+    // The arity of the Sparse Merkle Tree
+    const EMPTY_HASH_CST: &'static [Self::Fr];  // The pre-computed hashes of the empty nodes for the different levels of the SMT
 }
 
 #[derive(Clone)]
@@ -29,7 +30,6 @@ impl FieldBasedHashParameters for MNT4753SmtPoseidonParameters {
 }
 
 impl SmtPoseidonParameters for MNT4753SmtPoseidonParameters {
-
     const MERKLE_ARITY: usize = 2;
 
     const EMPTY_HASH_CST: &'static [MNT4753Fr] = &[
@@ -86,7 +86,6 @@ impl FieldBasedHashParameters for MNT6753SmtPoseidonParameters {
 }
 
 impl SmtPoseidonParameters for MNT6753SmtPoseidonParameters {
-
     const MERKLE_ARITY: usize = 2;
 
     const EMPTY_HASH_CST: &'static [MNT6753Fr] = &[
@@ -177,8 +176,6 @@ impl Coord {
 
 // Assumption: MERKLE_ARITY == 2
 impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParameters<Fr=F>> BigMerkleTree<F, T, P> {
-
-
     pub fn new(width: usize) -> Result<Self, Error> {
         let height = width as f64;
         let height = height.log(T::MERKLE_ARITY as f64) as usize;
@@ -187,7 +184,8 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         let cache_path = HashMap::new();
         let non_empty_list = HashSet::new();
         let root = T::EMPTY_HASH_CST[height];
-        let print_verbose = true;
+        // set to true to print intermediate results for debug
+        let print_verbose = false;
         Ok(BigMerkleTree {
             width,
             height,
@@ -208,18 +206,39 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
     pub fn insert_leaf(&mut self, idx: usize, leaf: F) {
 
         // check that the index of the leaf to be inserted is less than the width of the Merkle tree
-        assert!(idx<self.width, "Leaf index out of bound.");
+        assert!(idx < self.width, "Leaf index out of bound.");
 
         let coord = Coord { height: 0, idx };
-        // mark as non empty leaf
-        self.present_node.insert(coord);
-        println!("insert_leaf: insert leaf in non_empty set {:?}", coord);
-        self.db.insert(idx, leaf);
-        println!("insert_leaf: insert leaf in db {:?}", coord);
-        self.cache_path.clear();
-        self.cache_path.insert(coord, leaf);
-        println!("insert_leaf: insert leaf in cache_path {:?}", coord);
-        BigMerkleTree::update_tree(self, idx);
+
+        if self.present_node.contains(&coord) {
+            let old_leaf = self.db.get(&idx);
+            let old_hash;
+            if let Some(i) = old_leaf {
+                old_hash = *i;
+            } else {
+                old_hash = T::EMPTY_HASH_CST[0];
+            }
+            if old_hash != leaf {
+                self.db.insert(idx, leaf);
+                if self.print_verbose { println!("insert_leaf: Leaf already present. Update leaf in db {:?}", coord) };
+                self.cache_path.clear();
+                self.cache_path.insert(coord, leaf);
+                if self.print_verbose { println!("insert_leaf: Insert leaf in cache_path {:?}", coord); }
+                BigMerkleTree::update_tree(self, idx);
+            } else {
+                if self.print_verbose { println!("insert_leaf: Leaf already present. Leaf equal. Does not update leaf in db {:?}", coord) };
+            }
+        } else {
+            // mark as non empty leaf
+            self.present_node.insert(coord);
+            if self.print_verbose { println!("insert_leaf: New leaf. Insert leaf in non_empty set {:?}", coord); }
+            self.db.insert(idx, leaf);
+            if self.print_verbose { println!("insert_leaf: Insert new leaf in db {:?}", coord); }
+            self.cache_path.clear();
+            self.cache_path.insert(coord, leaf);
+            if self.print_verbose { println!("insert_leaf: Insert new leaf in cache_path {:?}", coord); }
+            BigMerkleTree::update_tree(self, idx);
+        }
     }
 
     // removes a leaf in the Merkle tree
@@ -228,12 +247,13 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         let coord = Coord { height: 0, idx };
         // take that leaf from the non-empty set
         self.present_node.remove(&coord);
-        println!("remove_leaf: removes leaf from non_empty set {:?}", coord);
+        if self.print_verbose { println!("remove_leaf: Remove leaf from non_empty set {:?}", coord); }
         self.cache_path.clear();
         self.cache_path.insert(coord, T::EMPTY_HASH_CST[0]);
+        if self.print_verbose { println!("remove_leaf: Insert empty leaf in the cache_path {:?}", coord); }
         // removes the leaf from the db
         let res = self.db.remove(&idx);
-        println!("remove_leaf: removes leaf from db {:?}", coord);
+        if self.print_verbose { println!("remove_leaf: Remove leaf from db {:?}", coord); }
         // if it was in the db, update the tree
         if res != None {
             BigMerkleTree::update_tree(self, idx);
@@ -255,43 +275,51 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         let right_hash: F;
         let mut height = 0;
 
+        if self.print_verbose { println!("update_tree: ===============================================================>"); }
+
         if idx % T::MERKLE_ARITY == 0 {
             left_child_idx = idx;
             left_child_coord = Coord { height, idx: left_child_idx };
             // get the left child from the cache_path
             let hash = self.cache_path.get(&left_child_coord);
-            println!("update_tree: get leaf from cache_path {:?}", left_child_coord);
             if let Some(i) = hash {
                 left_hash = *i;
+                if self.print_verbose { println!("update_tree: Get leaf from cache_path {:?}", left_child_coord); }
             } else {
                 left_hash = T::EMPTY_HASH_CST[0];
+                if self.print_verbose { println!("update_tree: Set empty leaf {:?}", left_child_coord); }
             }
             right_child_idx = idx + 1;
             right_child_coord = Coord { height, idx: right_child_idx };
             right_child = self.db.get(&right_child_idx);
             if let Some(i) = right_child {
                 right_hash = *i;
+                if self.print_verbose { println!("update_tree: Get leaf from db {:?}", right_child_coord); }
             } else {
                 right_hash = T::EMPTY_HASH_CST[0];
+                if self.print_verbose { println!("update_tree: Set empty leaf {:?}", right_child_coord); }
             }
         } else {
             right_child_idx = idx;
             right_child_coord = Coord { height, idx: right_child_idx };
             // get the right child from the cache path
             let hash = self.cache_path.get(&right_child_coord);
-            println!("update_tree: get leaf from cache_path {:?}", right_child_coord);
             if let Some(i) = hash {
                 right_hash = *i;
+                if self.print_verbose { println!("update_tree: Get leaf from cache_path {:?}", right_child_coord); }
             } else {
                 right_hash = T::EMPTY_HASH_CST[0];
+                if self.print_verbose { println!("update_tree: Set empty leaf {:?}", right_child_coord); }
             }
             left_child_idx = idx - 1;
             left_child_coord = Coord { height, idx: left_child_idx };
             left_child = self.db.get(&left_child_idx);
             if let Some(i) = left_child {
                 left_hash = *i;
+                if self.print_verbose { println!("update_tree: Get leaf from cache_path {:?}", left_child_coord); }
             } else {
                 left_hash = T::EMPTY_HASH_CST[0];
+                if self.print_verbose { println!("update_tree: Set empty leaf {:?}", left_child_coord); }
             }
         }
 
@@ -302,36 +330,35 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         let mut node_hash: F;
         if (!self.present_node.contains(&left_child_coord)) & (!self.present_node.contains(&right_child_coord)) {
             node_hash = T::EMPTY_HASH_CST[height];
-            println!("update_tree: processed leaves: left_hash (h: {}, idx: {}) = {}, right_hash (h: {}, idx: {}) = {}, node_hash = {}", 0, left_child_idx, left_hash, 0, right_child_idx, right_hash, node_hash);
+            if self.print_verbose { println!("update_tree: -----> Visit parent node {:?}. Node is empty.", parent_coord); }
+
             // insert the parent node into the cache_path
             self.cache_path.insert(parent_coord, node_hash);
-            println!("insert_leaf: insert leaf in cache_path {:?}", parent_coord);
+            if self.print_verbose { println!("update_tree: insert empty node in cache_path {:?}", parent_coord); }
 
-            println!("-----> update_tree: visiting node {:?}", parent_coord);
             // Both children are empty leaves
             // remove the parent node from the presence set
             self.present_node.remove(&parent_coord.clone());
-            println!("update_tree: remove node from empty_list {:?}", parent_coord);
+            if self.print_verbose { println!("update_tree: remove node from empty_list {:?}", parent_coord); }
             // remove node from cache
             BigMerkleTree::remove_node(self, parent_coord.clone());
-            println!("update_tree: remove node from cache {:?}", parent_coord);
+            if self.print_verbose {println!("update_tree: remove node from cache {:?}", parent_coord);}
+
         } else {
             // compute the hash of the node with the hashes of the children
             node_hash = merkle_tree::field_based_mht::smt::BigMerkleTree::<F, T, P>::poseidon_hash(left_hash, right_hash);
-            println!("update_tree: processed leaves: left_hash (h: {}, idx: {}) = {}, right_hash (h: {}, idx: {}) = {}, node_hash = {}", 0, left_child_idx, left_hash, 0, right_child_idx, right_hash, node_hash);
+            if self.print_verbose { println!("update_tree: -----> Visit parent node {:?}. Node is not empty.", parent_coord); }
             // insert the parent node into the cache_path
             self.cache_path.insert(parent_coord, node_hash);
-            println!("insert_leaf: insert leaf in cache_path {:?}", parent_coord);
-
-            println!("-----> update_tree: visiting node {:?}", parent_coord);
+            if self.print_verbose { println!("insert_leaf: insert node in cache_path {:?}", parent_coord); }
             // set the parent as present
             self.present_node.insert(parent_coord.clone());
-            println!("update_tree: insert node in non_empty set {:?}", parent_coord);
+            if self.print_verbose { println!("update_tree: insert node in presence set {:?}", parent_coord); }
             // Both children are not empty leaves
             if (self.present_node.contains(&left_child_coord)) & (self.present_node.contains(&right_child_coord)) {
                 // cache the node
                 BigMerkleTree::insert_node(self, parent_coord.clone(), node_hash);
-                println!("update_tree: insert node in cache {:?}", parent_coord);
+                if self.print_verbose { println!("update_tree: insert node in cache {:?}", parent_coord); }
             }
         }
 
@@ -342,19 +369,19 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             let idx_child = idx;
             idx = idx / T::MERKLE_ARITY;
             let parent_coord = Coord { height, idx };
-            println!("-----> update_tree: visiting node {:?}", parent_coord);
+            if self.print_verbose { println!("update_tree: -----> Visit parent node {:?}. ", parent_coord); }
 
             // retrieve the left child
             let left_child_idx = parent_coord.idx * T::MERKLE_ARITY;
             let left_child_height = parent_coord.height - 1;
             let left_child_coord = Coord { height: left_child_height, idx: left_child_idx };
-            println!("node coord left = {:?}", left_child_coord);
             let left_hash: F;
             if left_child_idx == idx_child {
                 // It was cached in the previous iteration. Get it from the cache_path
                 left_hash = *self.cache_path.get(&left_child_coord).unwrap();
-                println!("update_tree: get leaf from cache_path {:?}", left_child_coord);
+                if self.print_verbose { println!("update_tree: Get leaf from cache_path {:?}. ", left_child_coord); }
             } else {
+                if self.print_verbose { println!("update_tree: Get leaf calling node {:?}. ", left_child_coord); }
                 left_hash = BigMerkleTree::node(self, left_child_coord);
             }
 
@@ -362,52 +389,55 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             let right_child_idx = left_child_idx + 1;
             let right_child_height = left_child_height;
             let right_child_coord = Coord { height: right_child_height, idx: right_child_idx };
-            println!("node coord right = {:?}", right_child_coord);
             let right_hash: F;
             if right_child_idx == idx_child {
                 // It was cached in the previous iteration. Get it from the cache_path
                 right_hash = *self.cache_path.get(&right_child_coord).unwrap();
-                println!("update_tree: get leaf from cache_path {:?}", right_child_coord);
+                if self.print_verbose { println!("update_tree: Get leaf from cache_path {:?}. ", right_child_coord); }
             } else {
+                if self.print_verbose { println!("update_tree: Get leaf calling node {:?}. ", right_child_coord); }
                 right_hash = BigMerkleTree::node(self, right_child_coord);
             }
 
             if (!self.present_node.contains(&left_child_coord)) & (!self.present_node.contains(&right_child_coord)) {
                 node_hash = T::EMPTY_HASH_CST[height];
+                if self.print_verbose { println!("update_tree: Node is empty {:?}. ", parent_coord); }
                 // insert the parent node into the cache_path
                 self.cache_path.insert(parent_coord, node_hash);
-                println!("insert_leaf: insert leaf in cache_path {:?}", parent_coord);
-                println!("update_tree: processing nodes: left_hash (h: {}, idx: {}) = {}, right_hash (h: {}, idx: {}) = {}, node_hash = {}", left_child_height, left_child_idx, left_hash, right_child_height, right_child_idx, right_hash, node_hash);
+                if self.print_verbose { println!("update_tree: Insert empty node in cache_path {:?}. ", parent_coord); }
                 // remove node from non_empty set
                 self.present_node.remove(&parent_coord.clone());
-                println!("update_tree: remove node from empty_list {:?}", parent_coord);
+                if self.print_verbose { println!("update_tree: Remove node from presence set {:?}. ", parent_coord); }
             } else {
                 // compute the hash of the parent node based on the hashes of the children
                 node_hash = merkle_tree::field_based_mht::smt::BigMerkleTree::<F, T, P>::poseidon_hash(left_hash, right_hash);
+                if self.print_verbose { println!("update_tree: Hash of the Node is computed {:?}. ", parent_coord); }
                 // insert the parent node into the cache_path
                 self.cache_path.insert(parent_coord, node_hash);
-                println!("insert_leaf: insert leaf in cache_path {:?}", parent_coord);
-                println!("update_tree: processing nodes: left_hash (h: {}, idx: {}) = {}, right_hash (h: {}, idx: {}) = {}, node_hash = {}", left_child_height, left_child_idx, left_hash, right_child_height, right_child_idx, right_hash, node_hash);
+                if self.print_verbose { println!("update_tree: Insert node in the cache_path {:?}. ", parent_coord); }
                 // both children are present
                 if self.present_node.contains(&left_child_coord) & self.present_node.contains(&right_child_coord) {
                     // set the parent node as non_empty
                     self.present_node.insert(parent_coord.clone());
+                    if self.print_verbose { println!("update_tree: Insert parent node in presence set {:?}", parent_coord); }
                     // children not empty leaves, then cache the parent node
                     BigMerkleTree::insert_node(self, parent_coord.clone(), node_hash);
-                    println!("update_tree: insert node in cache {:?}", parent_coord);
+                    if self.print_verbose { println!("update_tree: Insert parent node in cache {:?}", parent_coord); }
                     // cache the children
                     BigMerkleTree::insert_node(self, left_child_coord.clone(), left_hash);
-                    println!("update_tree: insert node in cache {:?}", left_child_coord);
+                    if self.print_verbose { println!("update_tree: Insert left child node in cache {:?}", left_child_coord); }
                     BigMerkleTree::insert_node(self, right_child_coord.clone(), right_hash);
-                    println!("update_tree: insert node in cache {:?}", right_child_coord);
+                    if self.print_verbose { println!("update_tree: Insert right child node in cache {:?}", right_child_coord); }
                 } else {
                     // either child not equal to empty leaves, include the parent node in a non-empty set
                     self.present_node.insert(parent_coord.clone());
+                    if self.print_verbose { println!("update_tree: Insert parent node in presence set {:?}", parent_coord); }
                 }
             }
             if (!self.present_node.contains(&left_child_coord)) | (!self.present_node.contains(&right_child_coord)) {
                 if self.cache.contains_key(&parent_coord) {
                     // remove subtree from cache
+                    if self.print_verbose { println!("update_tree: Remove superfluous node from subtree starting at node {:?}", parent_coord); }
                     BigMerkleTree::remove_subtree_from_cache(self, parent_coord);
                 }
             }
@@ -428,7 +458,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             if (!self.present_node.contains(&left_coord)) | (!self.present_node.contains(&right_coord)) {
                 if self.cache.contains_key(&coord) {
                     BigMerkleTree::remove_node(self, coord);
-                    println!("remove_subtree_from_cache: remove node from cache {:?}", coord);
+                    if self.print_verbose { println!("remove_subtree_from_cache: Remove node from cache {:?}", coord); }
                 }
             }
 
@@ -446,7 +476,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             if (!self.present_node.contains(&left_coord)) | (!self.present_node.contains(&right_coord)) {
                 if self.cache.contains_key(&coord) {
                     BigMerkleTree::remove_node(self, coord);
-                    println!("remove_subtree_from_cache: remove node from cache {:?}", coord);
+                    if self.print_verbose { println!("remove_subtree_from_cache: Remove node from cache {:?}", coord); }
                 }
             }
             if self.present_node.contains(&left_coord) {
@@ -464,15 +494,15 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         //let coord = Coord{height, idx};
         // if the node is an empty node return the hash constant
         if !self.present_node.contains(&coord) {
-            println!("Coord: {:?} is an empty node.", coord);
+            if self.print_verbose { println!("node: Coord {:?} is an empty node.", coord); }
             return T::EMPTY_HASH_CST[coord.height];
         }
-        println!("Coord: {:?} is NOT an empty node, retrieving node.", coord);
+        if self.print_verbose { println!("node: Coord {:?} is not an empty node, retrieving node.", coord); }
         let res = self.cache.get(&coord);
 
         // if not in the cache, recompute it
         if res == None {
-            println!("Node not in the cache, recomputing it");
+            if self.print_verbose { println!("node: Node not in the cache, recomputing it"); }
             /* the node is not in the cache, compute it */
             if coord.height == 1 {
                 /* get leaves to compute */
@@ -481,8 +511,10 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
                 let left_hash: F;
                 if let Some(i) = left_child {
                     left_hash = *i;
+                    if self.print_verbose { println!("node: Left leaf {} retrieved from db", left_child_idx); }
                 } else {
                     left_hash = T::EMPTY_HASH_CST[0];
+                    if self.print_verbose { println!("node: Left leaf {} is empty", left_child_idx); }
                 }
 
                 let right_child_idx = left_child_idx + 1;
@@ -490,36 +522,37 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
                 let right_hash: F;
                 if let Some(i) = right_child {
                     right_hash = *i;
+                    if self.print_verbose { println!("node: Right leaf {} retrieved from db", right_child_idx); }
                 } else {
                     right_hash = T::EMPTY_HASH_CST[0];
+                    if self.print_verbose { println!("node: Right leaf {} is empty", right_child_idx); }
                 }
                 let node_hash = merkle_tree::field_based_mht::smt::BigMerkleTree::<F, T, P>::poseidon_hash(left_hash, right_hash);
-                println!("node: left_hash (h: {}, idx: {}) = {}, right_hash (h: {}, idx: {}) = {}, node_hash = {}", 0, left_child_idx, left_hash, 0, right_child_idx, right_hash, node_hash);
+                if self.print_verbose { println!("node: hash of node {:?} computed. ", coord) };
 
                 return node_hash;
             } else {
                 let height_child = coord.height - 1;
                 let left_child_idx = coord.idx * T::MERKLE_ARITY;
-                let coord_left = Coord{height:height_child, idx:left_child_idx};
+                let coord_left = Coord { height: height_child, idx: left_child_idx };
                 let left_child_hash = BigMerkleTree::node(self, coord_left);
 
                 let right_child_idx = left_child_idx + 1;
-                let coord_right = Coord{height:height_child, idx:right_child_idx};
+                let coord_right = Coord { height: height_child, idx: right_child_idx };
                 let right_child_hash = BigMerkleTree::node(self, coord_right);
 
                 let node_hash = merkle_tree::field_based_mht::smt::BigMerkleTree::<F, T, P>::poseidon_hash(left_child_hash, right_child_hash);
-
+                if self.print_verbose { println!("node: hash of node {:?} computed. ", coord) };
                 return node_hash;
             }
         }
 
         *res.unwrap()
-
     }
 
     pub fn node_is_empty(&self, height: usize, idx: usize) -> bool {
         /* if the node is not in the cache returns true */
-        let coord = Coord{height, idx};
+        let coord = Coord { height, idx };
         !self.cache.contains_key(&coord)
     }
 
@@ -531,14 +564,13 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         self.cache.remove(&coord);
     }
 
-    pub fn poseidon_hash (x: F, y: F) -> F {
+    pub fn poseidon_hash(x: F, y: F) -> F {
         let mut input = Vec::new();
         input.push(x);
         input.push(y);
-        let hash = PoseidonHash::<F,P>::evaluate(&input[..]);
+        let hash = PoseidonHash::<F, P>::evaluate(&input[..]);
         hash.unwrap()
     }
-
 }
 
 pub type MNT4PoseidonSmt = BigMerkleTree<MNT4753Fr, MNT4753SmtPoseidonParameters, MNT4753PoseidonParameters>;
@@ -553,44 +585,6 @@ mod test {
     use rand::SeedableRng;
     use crate::merkle_tree::field_based_mht::{FieldBasedMerkleTreeConfig, FieldBasedMerkleHashTree};
 
-    #[test]
-    fn test_rocksdb() {
-        let mut smt = MNT4PoseidonSmt::new(8).unwrap();
-
-        smt.insert_leaf(
-            0,
-            MNT4753Fr::from_str("10").unwrap()
-        );
-
-        println!("===============================================");
-
-        smt.insert_leaf(
-            2,
-            MNT4753Fr::from_str("20").unwrap()
-        );
-
-        println!("===============================================");
-
-        smt.remove_leaf(
-            2
-        );
-
-        println!("===============================================");
-
-        smt.insert_leaf(
-            2,
-            MNT4753Fr::from_str("30").unwrap()
-        );
-
-        println!("===============================================");
-
-        smt.insert_leaf(
-            2,
-            MNT4753Fr::from_str("30").unwrap()
-        );
-
-    }
-
     struct MNT4753FieldBasedMerkleTreeParams;
 
     impl FieldBasedMerkleTreeConfig for MNT4753FieldBasedMerkleTreeParams {
@@ -601,43 +595,71 @@ mod test {
     type MNT4753FieldBasedMerkleTree = FieldBasedMerkleHashTree<MNT4753FieldBasedMerkleTreeParams>;
 
     #[test]
-    fn compare_merkle_trees_mnt4() {
-
+    fn compare_merkle_trees_mnt4_1() {
         use algebra::{
             fields::mnt4753::Fr, Field,
-            UniformRand
+            UniformRand,
         };
 
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
-
         let num_leaves = 32;
-
         let mut leaves = Vec::new();
         for _ in 0..num_leaves {
             let f = Fr::rand(&mut rng);
             leaves.push(f);
         }
         let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
-        let root1 = tree.root();
 
-
-        let mut smt = MNT4PoseidonSmt::new(32).unwrap();
-
+        let mut smt = MNT4PoseidonSmt::new(num_leaves).unwrap();
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
-
         for i in 0..num_leaves {
             let f = Fr::rand(&mut rng);
             smt.insert_leaf(
                 i,
-                f
+                f,
             );
         }
 
         assert_eq!(tree.root(), smt.root, "Outputs of the Merkle trees for MNT4 do not match.");
     }
 
-}
+    #[test]
+    fn compare_merkle_trees_mnt4_2() {
+        use algebra::{
+            fields::mnt4753::Fr, Field,
+            UniformRand,
+        };
 
+        let num_leaves = 32;
+        let mut leaves = Vec::new();
+        leaves.push(MNT4753Fr::from_str("1").unwrap());
+        for _ in 1..9 {
+            let f = Fr::zero();
+            leaves.push(f);
+        }
+        leaves.push(MNT4753Fr::from_str("2").unwrap());
+        for _ in 10..29 {
+            let f = Fr::zero();
+            leaves.push(f);
+        }
+        leaves.push(MNT4753Fr::from_str("3").unwrap());
+        for _ in 30..32 {
+            let f = Fr::zero();
+            leaves.push(f);
+        }
+        let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
+
+        let mut smt = MNT4PoseidonSmt::new(num_leaves).unwrap();
+        smt.insert_leaf(0, MNT4753Fr::from_str("1").unwrap());
+        smt.insert_leaf(9, MNT4753Fr::from_str("2").unwrap());
+        smt.insert_leaf(16, MNT4753Fr::from_str("10").unwrap());
+        smt.insert_leaf(29, MNT4753Fr::from_str("3").unwrap());
+        smt.remove_leaf(16);
+
+        assert_eq!(tree.root(), smt.root, "Outputs of the Merkle trees for MNT4 do not match.");
+    }
+
+}
 
 
 // use rocksdb::{DB, Options};
