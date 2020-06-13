@@ -152,6 +152,9 @@ pub struct BigMerkleTree<F: PrimeField, T: SmtPoseidonParameters<Fr=F>, P: Posei
     // root of the Merkle tree
     root: F,
 
+    // for debug purposes, print intermediate results
+    print_verbose: bool,
+
     _field: PhantomData<F>,
     _parameters: PhantomData<T>,
     _poseidon_parameters: PhantomData<P>,
@@ -175,6 +178,7 @@ impl Coord {
 // Assumption: MERKLE_ARITY == 2
 impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParameters<Fr=F>> BigMerkleTree<F, T, P> {
 
+
     pub fn new(width: usize) -> Result<Self, Error> {
         let height = width as f64;
         let height = height.log(T::MERKLE_ARITY as f64) as usize;
@@ -183,6 +187,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         let cache_path = HashMap::new();
         let non_empty_list = HashSet::new();
         let root = T::EMPTY_HASH_CST[height];
+        let print_verbose = true;
         Ok(BigMerkleTree {
             width,
             height,
@@ -191,6 +196,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             cache_path,
             present_node: non_empty_list,
             root,
+            print_verbose,
             _field: PhantomData,
             _parameters: PhantomData,
             _poseidon_parameters: PhantomData,
@@ -200,6 +206,10 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
     // inserts a leaf in the Merkle tree
     // it updates the Merkle tree on the path from the leaf to the root
     pub fn insert_leaf(&mut self, idx: usize, leaf: F) {
+
+        // check that the index of the leaf to be inserted is less than the width of the Merkle tree
+        assert!(idx<self.width, "Leaf index out of bound.");
+
         let coord = Coord { height: 0, idx };
         // mark as non empty leaf
         self.present_node.insert(coord);
@@ -535,10 +545,13 @@ pub type MNT4PoseidonSmt = BigMerkleTree<MNT4753Fr, MNT4753SmtPoseidonParameters
 
 #[cfg(test)]
 mod test {
-    use crate::merkle_tree::field_based_mht::smt::{BigMerkleTree, MNT4753SmtPoseidonParameters, MNT4PoseidonSmt};
+    use crate::merkle_tree::field_based_mht::smt::{BigMerkleTree, MNT4753SmtPoseidonParameters, MNT4PoseidonSmt, MNT4PoseidonHash};
     use algebra::fields::mnt6753::Fr as MNT6753Fr;
     use algebra::fields::mnt4753::Fr as MNT4753Fr;
     use std::str::FromStr;
+    use rand_xorshift::XorShiftRng;
+    use rand::SeedableRng;
+    use crate::merkle_tree::field_based_mht::{FieldBasedMerkleTreeConfig, FieldBasedMerkleHashTree};
 
     #[test]
     fn test_rocksdb() {
@@ -577,6 +590,52 @@ mod test {
         );
 
     }
+
+    struct MNT4753FieldBasedMerkleTreeParams;
+
+    impl FieldBasedMerkleTreeConfig for MNT4753FieldBasedMerkleTreeParams {
+        const HEIGHT: usize = 6;
+        type H = MNT4PoseidonHash;
+    }
+
+    type MNT4753FieldBasedMerkleTree = FieldBasedMerkleHashTree<MNT4753FieldBasedMerkleTreeParams>;
+
+    #[test]
+    fn compare_merkle_trees_mnt4() {
+
+        use algebra::{
+            fields::mnt4753::Fr, Field,
+            UniformRand
+        };
+
+        let mut rng = XorShiftRng::seed_from_u64(9174123u64);
+
+        let num_leaves = 32;
+
+        let mut leaves = Vec::new();
+        for _ in 0..num_leaves {
+            let f = Fr::rand(&mut rng);
+            leaves.push(f);
+        }
+        let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
+        let root1 = tree.root();
+
+
+        let mut smt = MNT4PoseidonSmt::new(32).unwrap();
+
+        let mut rng = XorShiftRng::seed_from_u64(9174123u64);
+
+        for i in 0..num_leaves {
+            let f = Fr::rand(&mut rng);
+            smt.insert_leaf(
+                i,
+                f
+            );
+        }
+
+        assert_eq!(tree.root(), smt.root, "Outputs of the Merkle trees for MNT4 do not match.");
+    }
+
 }
 
 
