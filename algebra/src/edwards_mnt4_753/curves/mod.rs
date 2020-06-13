@@ -98,7 +98,6 @@ impl TEModelParameters for EdwardsParameters {
     type MontgomeryModelParameters = EdwardsParameters;
 
     /// Multiplication by `a` is just negation.
-    /// Is `a` 1 or -1?
     #[inline(always)]
     fn mul_by_a(elem: &Self::BaseField) -> Self::BaseField {
         -*elem
