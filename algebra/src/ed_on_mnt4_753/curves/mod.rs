@@ -1,4 +1,4 @@
-use crate::edwards_mnt4_753::{fq::Fq, fr::Fr};
+use crate::ed_on_mnt4_753::{fq::Fq, fr::Fr};
 use algebra_core::{
     biginteger::BigInteger768,
     curves::{

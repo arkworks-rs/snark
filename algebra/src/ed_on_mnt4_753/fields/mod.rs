@@ -4,5 +4,5 @@ pub mod fr;
 pub use fq::*;
 pub use fr::*;
 
-#[cfg(all(feature = "edwards_mnt4_753", test))]
+#[cfg(all(feature = "ed_on_mnt4_753", test))]
 mod tests;
