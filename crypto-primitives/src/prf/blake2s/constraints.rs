@@ -537,7 +537,7 @@ impl<ConstraintF: PrimeField> PRFGadget<Blake2s, ConstraintF> for Blake2sGadget 
 
 #[cfg(test)]
 mod test {
-    use algebra::edwards_on_bls12_381::Fq as Fr;
+    use algebra::ed_on_bls12_381::Fq as Fr;
     use rand::{Rng, SeedableRng};
     use rand_xorshift::XorShiftRng;
 

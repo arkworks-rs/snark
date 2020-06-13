@@ -43,17 +43,17 @@ pub use bls12_377::Bls12_377;
 #[cfg(all(
     not(feature = "bls12_377"),
     any(
-        feature = "edwards_on_bls12_377",
+        feature = "ed_on_bls12_377",
         feature = "cp6_782",
-        feature = "edwards_on_cp6_782",
-        feature = "edwards_on_bw6_761",
+        feature = "ed_on_cp6_782",
+        feature = "ed_on_bw6_761",
         feature = "bw6_761",
     )
 ))]
 pub(crate) mod bls12_377;
 
-#[cfg(feature = "edwards_on_bls12_377")]
-pub mod edwards_on_bls12_377;
+#[cfg(feature = "ed_on_bls12_377")]
+pub mod ed_on_bls12_377;
 ///////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -64,11 +64,11 @@ pub use bls12_381::Bls12_381;
 ///////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////
-#[cfg(all(not(feature = "bls12_381"), feature = "edwards_on_bls12_381"))]
+#[cfg(all(not(feature = "bls12_381"), feature = "ed_on_bls12_381"))]
 pub(crate) mod bls12_381;
 
-#[cfg(feature = "edwards_on_bls12_381")]
-pub mod edwards_on_bls12_381;
+#[cfg(feature = "ed_on_bls12_381")]
+pub mod ed_on_bls12_381;
 ///////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -122,24 +122,24 @@ pub use bw6_761::BW6_761;
 ///////////////////////////////////////////////////////////////////////////////
 #[cfg(all(
     not(feature = "cp6_782"),
-    any(feature = "edwards_on_cp6_782", feature = "edwards_on_bw6_761")
+    any(feature = "ed_on_cp6_782", feature = "ed_on_bw6_761")
 ))]
 pub(crate) mod cp6_782;
 
-#[cfg(feature = "edwards_on_cp6_782")]
-pub mod edwards_on_cp6_782;
+#[cfg(feature = "ed_on_cp6_782")]
+pub mod ed_on_cp6_782;
 ///////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////
-#[cfg(all(not(feature = "edwards_on_cp6_782"), feature = "edwards_on_bw6_761"))]
-pub(crate) mod edwards_on_cp6_782;
+#[cfg(all(not(feature = "ed_on_cp6_782"), feature = "ed_on_bw6_761"))]
+pub(crate) mod ed_on_cp6_782;
 
-#[cfg(feature = "edwards_on_bw6_761")]
-pub mod edwards_on_bw6_761;
+#[cfg(feature = "ed_on_bw6_761")]
+pub mod ed_on_bw6_761;
 ///////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////
-#[cfg(all(not(feature = "bw6_761"), feature = "edwards_on_cp6_782"))]
+#[cfg(all(not(feature = "bw6_761"), feature = "ed_on_cp6_782"))]
 pub(crate) mod bw6_761;
 ///////////////////////////////////////////////////////////////////////////////
 

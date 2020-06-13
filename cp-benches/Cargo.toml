@@ -22,7 +22,7 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dev-dependencies]
-algebra = { path = "../algebra", default-features = false, features = [ "edwards_on_bls12_377" ] }
+algebra = { path = "../algebra", default-features = false, features = [ "ed_on_bls12_377" ] }
 blake2 = { version = "0.8", default-features = false }
 criterion = "0.3.1"
 crypto-primitives = { path = "../crypto-primitives" }

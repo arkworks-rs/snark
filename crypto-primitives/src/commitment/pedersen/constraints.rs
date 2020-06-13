@@ -200,7 +200,7 @@ where
 #[cfg(test)]
 mod test {
     use algebra::{
-        edwards_on_bls12_381::{EdwardsProjective as JubJub, Fq, Fr},
+        ed_on_bls12_381::{EdwardsProjective as JubJub, Fq, Fr},
         test_rng, ProjectiveCurve, UniformRand,
     };
 
@@ -215,8 +215,7 @@ mod test {
     };
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
-        edwards_on_bls12_381::EdwardsGadget, prelude::*,
-        test_constraint_system::TestConstraintSystem,
+        ed_on_bls12_381::EdwardsGadget, prelude::*, test_constraint_system::TestConstraintSystem,
     };
 
     #[test]

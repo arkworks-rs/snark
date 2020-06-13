@@ -48,14 +48,14 @@ mod instantiated;
 #[cfg(feature = "bls12_377")]
 pub use instantiated::bls12_377;
 
-#[cfg(feature = "edwards_on_bls12_377")]
-pub use instantiated::edwards_on_bls12_377;
+#[cfg(feature = "ed_on_bls12_377")]
+pub use instantiated::ed_on_bls12_377;
 
-#[cfg(feature = "edwards_on_cp6_782")]
-pub use instantiated::edwards_on_cp6_782;
+#[cfg(feature = "ed_on_cp6_782")]
+pub use instantiated::ed_on_cp6_782;
 
-#[cfg(feature = "edwards_on_bls12_381")]
-pub use instantiated::edwards_on_bls12_381;
+#[cfg(feature = "ed_on_bls12_381")]
+pub use instantiated::ed_on_bls12_381;
 
 #[cfg(feature = "mnt4_298")]
 pub use instantiated::mnt4_298;
