@@ -133,17 +133,17 @@ mod test {
         FixedLengthCRH, FixedLengthCRHGadget,
     };
     use algebra::{
-        jubjub::{Fq as Fr, JubJubProjective as JubJub},
+        ed_on_bls12_381::{EdwardsProjective as JubJub, Fq as Fr},
         test_rng, ProjectiveCurve,
     };
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
-        jubjub::JubJubGadget, prelude::*, test_constraint_system::TestConstraintSystem,
+        ed_on_bls12_381::EdwardsGadget, prelude::*, test_constraint_system::TestConstraintSystem,
     };
     use rand::Rng;
 
     type TestCRH = PedersenCRH<JubJub, Window>;
-    type TestCRHGadget = PedersenCRHGadget<JubJub, Fr, JubJubGadget>;
+    type TestCRHGadget = PedersenCRHGadget<JubJub, Fr, EdwardsGadget>;
 
     #[derive(Clone, PartialEq, Eq, Hash)]
     pub(super) struct Window;

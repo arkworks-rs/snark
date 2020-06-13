@@ -41,14 +41,14 @@ pub use bls12_377::Bls12_377;
 
 ///////////////////////////////////////////////////////////////////////////////
 #[cfg(all(
-not(feature = "bls12_377"),
-any(
-feature = "ed_on_bls12_377",
-feature = "cp6_782",
-feature = "ed_on_cp6_782",
-feature = "ed_on_bw6_761",
-feature = "bw6_761",
-)
+    not(feature = "bls12_377"),
+    any(
+        feature = "ed_on_bls12_377",
+        feature = "cp6_782",
+        feature = "ed_on_cp6_782",
+        feature = "ed_on_bw6_761",
+        feature = "bw6_761",
+    )
 ))]
 pub(crate) mod bls12_377;
 
@@ -138,8 +138,8 @@ pub use bw6_761::BW6_761;
 
 ///////////////////////////////////////////////////////////////////////////////
 #[cfg(all(
-not(feature = "cp6_782"),
-any(feature = "ed_on_cp6_782", feature = "ed_on_bw6_761")
+    not(feature = "cp6_782"),
+    any(feature = "ed_on_cp6_782", feature = "ed_on_bw6_761")
 ))]
 pub(crate) mod cp6_782;
 

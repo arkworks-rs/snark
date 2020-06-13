@@ -1,19 +1,21 @@
-#[cfg(any(feature = "bls12_377", feature = "edwards_bls12"))]
+#[cfg(any(feature = "bls12_377", feature = "ed_on_bls12_377"))]
 pub mod fr;
-#[cfg(any(feature = "bls12_377", feature = "edwards_bls12"))]
+#[cfg(any(feature = "bls12_377", feature = "ed_on_bls12_377"))]
 pub use self::fr::*;
 
 #[cfg(any(
     feature = "bls12_377",
-    feature = "sw6",
-    feature = "edwards_sw6",
+    feature = "cp6_782",
+    feature = "ed_on_cp6_782",
+    feature = "ed_on_bw6_761",
     feature = "bw6_761"
 ))]
 pub mod fq;
 #[cfg(any(
     feature = "bls12_377",
-    feature = "sw6",
-    feature = "edwards_sw6",
+    feature = "cp6_782",
+    feature = "ed_on_cp6_782",
+    feature = "ed_on_bw6_761",
     feature = "bw6_761"
 ))]
 pub use self::fq::*;
