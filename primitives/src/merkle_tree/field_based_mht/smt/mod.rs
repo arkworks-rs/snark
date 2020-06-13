@@ -582,8 +582,11 @@ mod test {
     use algebra::fields::mnt4753::Fr as MNT4753Fr;
     use std::str::FromStr;
     use rand_xorshift::XorShiftRng;
-    use rand::SeedableRng;
+    use rand::{SeedableRng, Rng, RngCore};
     use crate::merkle_tree::field_based_mht::{FieldBasedMerkleTreeConfig, FieldBasedMerkleHashTree};
+    use std::time::Instant;
+    use rand::prelude::StdRng;
+    use rand::rngs::OsRng;
 
     struct MNT4753FieldBasedMerkleTreeParams;
 
@@ -658,6 +661,61 @@ mod test {
 
         assert_eq!(tree.root(), smt.root, "Outputs of the Merkle trees for MNT4 do not match.");
     }
+
+    #[test]
+    fn timing_big_merkle_trees_mnt4() {
+        use algebra::{
+            fields::mnt4753::Fr, Field,
+            UniformRand,
+        };
+        use std::time::{Duration, Instant};
+
+        let mut rng1 = XorShiftRng::seed_from_u64(9174123u64);
+
+        let num_leaves = 2usize.pow(34);
+
+        let mut smt = MNT4PoseidonSmt::new(num_leaves).unwrap();
+
+        let now = Instant::now();
+
+        let n = 5000;
+        let mut rand_vec = Vec::new();
+        for i in 0..n {
+            rand_vec.push(Fr::rand(&mut rng1));
+        }
+
+        for i in 0..n {
+            let random:u64 = OsRng.next_u64();
+            let idx = random % n as u64;
+            print!("{} ", idx);
+            smt.insert_leaf(idx as usize, rand_vec[i].clone());
+        }
+
+        println!();
+        println!("time to add {} leaves =  {} s", n, now.elapsed().as_secs());
+
+        let now = Instant::now();
+
+        let random: u64 = OsRng.next_u64();
+        let idx = random % n as u64;
+        smt.insert_leaf(idx as usize, Fr::rand(&mut rng1));
+
+        println!();
+        println!("time to add an extra leaf in position {} = {} ms", idx, now.elapsed().as_millis());
+
+        let now = Instant::now();
+
+        let random: u64 = OsRng.next_u64();
+        let idx = random % num_leaves as u64;
+        smt.insert_leaf(idx as usize, Fr::rand(&mut rng1));
+
+        println!();
+        println!("time to add an extra leaf in position {} = {} ms", idx, now.elapsed().as_millis());
+
+        println!("{:?}", smt.root);
+
+    }
+
 
 }
 
