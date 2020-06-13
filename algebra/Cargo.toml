@@ -31,10 +31,10 @@ rand_xorshift = "0.2"
 [features]
 default = [ "std" ]
 
-full = [ 
-  "bls12_377", "bls12_381", "cp6_782", "bw6_761", "mnt4_298", "mnt4_753", 
-  "mnt6_298", "mnt6_753", "ed_on_bls12_377", "ed_on_cp6_782", 
-  "ed_on_bw6_761", "ed_on_bls12_381"
+full = [
+  "bls12_377", "bls12_381", "cp6_782", "bw6_761", "mnt4_298", "mnt4_753",
+  "mnt6_298", "mnt6_753", "ed_on_bls12_377", "ed_on_cp6_782",
+  "ed_on_bw6_761", "ed_on_bls12_381", "ed_on_mnt4_298", "ed_on_mnt4_753"
 ]
 
 bls12_377 = []
@@ -43,6 +43,8 @@ ed_on_bls12_377 = []
 ed_on_cp6_782 = []
 ed_on_bw6_761 = []
 ed_on_bls12_381 = []
+ed_on_mnt4_298 = []
+ed_on_mnt4_753 = []
 cp6_782 = []
 bw6_761 = []
 mnt4_298 = []
