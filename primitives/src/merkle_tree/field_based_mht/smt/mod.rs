@@ -1,19 +1,24 @@
 use crate::merkle_tree::field_based_mht::smt::error::Error;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use crate::FieldBasedHashParameters;
+use crate::{FieldBasedHashParameters, PoseidonHash, PoseidonParameters, FieldBasedHash, merkle_tree};
+
+use algebra::fields::mnt6753::Fr as MNT6753Fr;
+use algebra::fields::mnt4753::Fr as MNT4753Fr;
+
+use algebra::biginteger::BigInteger768;
+use algebra::{field_new, PrimeField, MulShort};
+use std::marker::PhantomData;
+use crate::crh::poseidon::parameters::{MNT4753PoseidonParameters, MNT6753PoseidonParameters};
 
 pub mod error;
 
-pub const MERKLE_ARITY: usize = 2;
-// Here it goes the precomputed hashes for the different levels of the Merkle tree
-pub const EMPTY_HASH_CST: &'static[usize] = &[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
+pub type MNT4PoseidonHash = PoseidonHash<MNT4753Fr, MNT4753PoseidonParameters>;
+pub type MNT6PoseidonHash = PoseidonHash<MNT6753Fr, MNT6753PoseidonParameters>;
 
 pub trait SmtPoseidonParameters: 'static + FieldBasedHashParameters{
-
     const MERKLE_ARITY: usize; // The arity of the Sparse Merkle Tree
     const EMPTY_HASH_CST: &'static[Self::Fr];  // The pre-computed hashes of the empty nodes for the different levels of the SMT
-
 }
 
 #[derive(Clone)]
@@ -24,6 +29,7 @@ impl FieldBasedHashParameters for MNT4753SmtPoseidonParameters {
 }
 
 impl SmtPoseidonParameters for MNT4753SmtPoseidonParameters {
+
     const MERKLE_ARITY: usize = 2;
 
     const EMPTY_HASH_CST: &'static [MNT4753Fr] = &[
@@ -80,6 +86,7 @@ impl FieldBasedHashParameters for MNT6753SmtPoseidonParameters {
 }
 
 impl SmtPoseidonParameters for MNT6753SmtPoseidonParameters {
+
     const MERKLE_ARITY: usize = 2;
 
     const EMPTY_HASH_CST: &'static [MNT6753Fr] = &[
@@ -129,29 +136,34 @@ impl SmtPoseidonParameters for MNT6753SmtPoseidonParameters {
 }
 
 #[derive(Debug)]
-pub struct BigMerkleTree {
+pub struct BigMerkleTree<F: PrimeField, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParameters<Fr=F>> {
     // the number of leaves
     width: usize,
     // the height of the Merkle tree
     height: usize,
     // stores the leaves
-    db: HashMap<usize, usize>,
+    db: HashMap<usize, F>,
     // stores the cached nodes
-    cache: HashMap<Coord, usize>,
+    cache: HashMap<Coord, F>,
     // stores the nodes of the path
-    cache_path: HashMap<Coord, usize>,
+    cache_path: HashMap<Coord, F>,
     // indicates which nodes are not empty
     present_node: HashSet<Coord>,
     // root of the Merkle tree
-    root: usize,
+    root: F,
+
+    _field: PhantomData<F>,
+    _parameters: PhantomData<T>,
+    _poseidon_parameters: PhantomData<P>,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 // Coordinates system for identifying a node
 pub struct Coord {
-    height: usize,
     // height in the Merkle tree (0 -> leaves)
-    idx: usize,             // the index of the node in that level
+    height: usize,
+    // the index of the node in that level
+    idx: usize,
 }
 
 impl Coord {
@@ -161,15 +173,16 @@ impl Coord {
 }
 
 // Assumption: MERKLE_ARITY == 2
-impl BigMerkleTree {
+impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParameters<Fr=F>> BigMerkleTree<F, T, P> {
+
     pub fn new(width: usize) -> Result<Self, Error> {
         let height = width as f64;
-        let height = height.log(MERKLE_ARITY as f64) as usize;
+        let height = height.log(T::MERKLE_ARITY as f64) as usize;
         let db = HashMap::new();
         let cache = HashMap::new();
         let cache_path = HashMap::new();
         let non_empty_list = HashSet::new();
-        let root = EMPTY_HASH_CST[height];
+        let root = T::EMPTY_HASH_CST[height];
         Ok(BigMerkleTree {
             width,
             height,
@@ -178,18 +191,15 @@ impl BigMerkleTree {
             cache_path,
             present_node: non_empty_list,
             root,
+            _field: PhantomData,
+            _parameters: PhantomData,
+            _poseidon_parameters: PhantomData,
         })
     }
 
-    pub fn arity(&self) -> usize { MERKLE_ARITY }
-    pub fn width(&self) -> usize { self.width }
-    pub fn height(&self) -> usize { self.height }
-    pub fn db(&self) -> &HashMap::<usize, usize> { &self.db }
-    pub fn cache(&self) -> &HashMap::<Coord, usize> { &self.cache }
-
     // inserts a leaf in the Merkle tree
     // it updates the Merkle tree on the path from the leaf to the root
-    pub fn insert_leaf(&mut self, idx: usize, leaf: usize) {
+    pub fn insert_leaf(&mut self, idx: usize, leaf: F) {
         let coord = Coord { height: 0, idx };
         // mark as non empty leaf
         self.present_node.insert(coord);
@@ -210,7 +220,7 @@ impl BigMerkleTree {
         self.present_node.remove(&coord);
         println!("remove_leaf: removes leaf from non_empty set {:?}", coord);
         self.cache_path.clear();
-        self.cache_path.insert(coord, EMPTY_HASH_CST[0]);
+        self.cache_path.insert(coord, T::EMPTY_HASH_CST[0]);
         // removes the leaf from the db
         let res = self.db.remove(&idx);
         println!("remove_leaf: removes leaf from db {:?}", coord);
@@ -229,13 +239,13 @@ impl BigMerkleTree {
         let right_child_coord: Coord;
         let left_child_idx: usize;
         let right_child_idx: usize;
-        let left_child: Option<&usize>;
-        let right_child: Option<&usize>;
-        let left_hash: usize;
-        let right_hash: usize;
+        let left_child: Option<&F>;
+        let right_child: Option<&F>;
+        let left_hash: F;
+        let right_hash: F;
         let mut height = 0;
 
-        if idx % MERKLE_ARITY == 0 {
+        if idx % T::MERKLE_ARITY == 0 {
             left_child_idx = idx;
             left_child_coord = Coord { height, idx: left_child_idx };
             // get the left child from the cache_path
@@ -244,7 +254,7 @@ impl BigMerkleTree {
             if let Some(i) = hash {
                 left_hash = *i;
             } else {
-                left_hash = EMPTY_HASH_CST[0];
+                left_hash = T::EMPTY_HASH_CST[0];
             }
             right_child_idx = idx + 1;
             right_child_coord = Coord { height, idx: right_child_idx };
@@ -252,7 +262,7 @@ impl BigMerkleTree {
             if let Some(i) = right_child {
                 right_hash = *i;
             } else {
-                right_hash = EMPTY_HASH_CST[0];
+                right_hash = T::EMPTY_HASH_CST[0];
             }
         } else {
             right_child_idx = idx;
@@ -263,7 +273,7 @@ impl BigMerkleTree {
             if let Some(i) = hash {
                 right_hash = *i;
             } else {
-                right_hash = EMPTY_HASH_CST[0];
+                right_hash = T::EMPTY_HASH_CST[0];
             }
             left_child_idx = idx - 1;
             left_child_coord = Coord { height, idx: left_child_idx };
@@ -271,17 +281,17 @@ impl BigMerkleTree {
             if let Some(i) = left_child {
                 left_hash = *i;
             } else {
-                left_hash = EMPTY_HASH_CST[0];
+                left_hash = T::EMPTY_HASH_CST[0];
             }
         }
 
         height += 1;
-        idx = idx / MERKLE_ARITY;
+        idx = idx / T::MERKLE_ARITY;
         let parent_coord = Coord { height, idx };
 
-        let mut node_hash: usize;
+        let mut node_hash: F;
         if (!self.present_node.contains(&left_child_coord)) & (!self.present_node.contains(&right_child_coord)) {
-            node_hash = EMPTY_HASH_CST[height];
+            node_hash = T::EMPTY_HASH_CST[height];
             println!("update_tree: processed leaves: left_hash (h: {}, idx: {}) = {}, right_hash (h: {}, idx: {}) = {}, node_hash = {}", 0, left_child_idx, left_hash, 0, right_child_idx, right_hash, node_hash);
             // insert the parent node into the cache_path
             self.cache_path.insert(parent_coord, node_hash);
@@ -297,7 +307,7 @@ impl BigMerkleTree {
             println!("update_tree: remove node from cache {:?}", parent_coord);
         } else {
             // compute the hash of the node with the hashes of the children
-            node_hash = poseidon_hash(left_hash, right_hash);
+            node_hash = merkle_tree::field_based_mht::smt::BigMerkleTree::<F, T, P>::poseidon_hash(left_hash, right_hash);
             println!("update_tree: processed leaves: left_hash (h: {}, idx: {}) = {}, right_hash (h: {}, idx: {}) = {}, node_hash = {}", 0, left_child_idx, left_hash, 0, right_child_idx, right_hash, node_hash);
             // insert the parent node into the cache_path
             self.cache_path.insert(parent_coord, node_hash);
@@ -320,16 +330,16 @@ impl BigMerkleTree {
             // go to parent node
             height += 1;
             let idx_child = idx;
-            idx = idx / MERKLE_ARITY;
+            idx = idx / T::MERKLE_ARITY;
             let parent_coord = Coord { height, idx };
             println!("-----> update_tree: visiting node {:?}", parent_coord);
 
             // retrieve the left child
-            let left_child_idx = parent_coord.idx * MERKLE_ARITY;
+            let left_child_idx = parent_coord.idx * T::MERKLE_ARITY;
             let left_child_height = parent_coord.height - 1;
             let left_child_coord = Coord { height: left_child_height, idx: left_child_idx };
             println!("node coord left = {:?}", left_child_coord);
-            let left_hash: usize;
+            let left_hash: F;
             if left_child_idx == idx_child {
                 // It was cached in the previous iteration. Get it from the cache_path
                 left_hash = *self.cache_path.get(&left_child_coord).unwrap();
@@ -343,7 +353,7 @@ impl BigMerkleTree {
             let right_child_height = left_child_height;
             let right_child_coord = Coord { height: right_child_height, idx: right_child_idx };
             println!("node coord right = {:?}", right_child_coord);
-            let right_hash: usize;
+            let right_hash: F;
             if right_child_idx == idx_child {
                 // It was cached in the previous iteration. Get it from the cache_path
                 right_hash = *self.cache_path.get(&right_child_coord).unwrap();
@@ -353,7 +363,7 @@ impl BigMerkleTree {
             }
 
             if (!self.present_node.contains(&left_child_coord)) & (!self.present_node.contains(&right_child_coord)) {
-                node_hash = EMPTY_HASH_CST[height];
+                node_hash = T::EMPTY_HASH_CST[height];
                 // insert the parent node into the cache_path
                 self.cache_path.insert(parent_coord, node_hash);
                 println!("insert_leaf: insert leaf in cache_path {:?}", parent_coord);
@@ -363,7 +373,7 @@ impl BigMerkleTree {
                 println!("update_tree: remove node from empty_list {:?}", parent_coord);
             } else {
                 // compute the hash of the parent node based on the hashes of the children
-                node_hash = poseidon_hash(left_hash, right_hash);
+                node_hash = merkle_tree::field_based_mht::smt::BigMerkleTree::<F, T, P>::poseidon_hash(left_hash, right_hash);
                 // insert the parent node into the cache_path
                 self.cache_path.insert(parent_coord, node_hash);
                 println!("insert_leaf: insert leaf in cache_path {:?}", parent_coord);
@@ -397,11 +407,11 @@ impl BigMerkleTree {
 
     pub fn remove_subtree_from_cache(&mut self, coord: Coord) {
         if coord.height == 1 {
-            let left_child_idx = coord.idx * MERKLE_ARITY;
+            let left_child_idx = coord.idx * T::MERKLE_ARITY;
             let left_child_height = coord.height - 1;
             let left_coord = Coord { height: left_child_height, idx: left_child_idx };
 
-            let right_child_idx = coord.idx * MERKLE_ARITY + 1;
+            let right_child_idx = coord.idx * T::MERKLE_ARITY + 1;
             let right_child_height = coord.height - 1;
             let right_coord = Coord { height: right_child_height, idx: right_child_idx };
 
@@ -415,11 +425,11 @@ impl BigMerkleTree {
             return;
         }
         if coord.height > 1 {
-            let left_child_idx = coord.idx * MERKLE_ARITY;
+            let left_child_idx = coord.idx * T::MERKLE_ARITY;
             let left_child_height = coord.height - 1;
             let left_coord = Coord { height: left_child_height, idx: left_child_idx };
 
-            let right_child_idx = coord.idx * MERKLE_ARITY + 1;
+            let right_child_idx = coord.idx * T::MERKLE_ARITY + 1;
             let right_child_height = coord.height - 1;
             let right_coord = Coord { height: right_child_height, idx: right_child_idx };
 
@@ -430,22 +440,22 @@ impl BigMerkleTree {
                 }
             }
             if self.present_node.contains(&left_coord) {
-                let left_coord = Coord { height: coord.height - 1, idx: (coord.idx / MERKLE_ARITY) };
+                let left_coord = Coord { height: coord.height - 1, idx: (coord.idx / T::MERKLE_ARITY) };
                 BigMerkleTree::remove_subtree_from_cache(self, left_coord);
             }
             if self.present_node.contains(&right_coord) {
-                let right_coord = Coord { height: coord.height - 1, idx: (coord.idx / MERKLE_ARITY + 1) };
+                let right_coord = Coord { height: coord.height - 1, idx: (coord.idx / T::MERKLE_ARITY + 1) };
                 BigMerkleTree::remove_subtree_from_cache(self, right_coord);
             }
         }
     }
 
-    pub fn node(&mut self, coord: Coord) -> usize{
+    pub fn node(&mut self, coord: Coord) -> F {
         //let coord = Coord{height, idx};
         // if the node is an empty node return the hash constant
         if !self.present_node.contains(&coord) {
             println!("Coord: {:?} is an empty node.", coord);
-            return EMPTY_HASH_CST[coord.height];
+            return T::EMPTY_HASH_CST[coord.height];
         }
         println!("Coord: {:?} is NOT an empty node, retrieving node.", coord);
         let res = self.cache.get(&coord);
@@ -456,30 +466,30 @@ impl BigMerkleTree {
             /* the node is not in the cache, compute it */
             if coord.height == 1 {
                 /* get leaves to compute */
-                let left_child_idx = coord.idx * MERKLE_ARITY;
+                let left_child_idx = coord.idx * T::MERKLE_ARITY;
                 let left_child = self.db.get(&left_child_idx);
-                let left_hash:usize;
+                let left_hash: F;
                 if let Some(i) = left_child {
                     left_hash = *i;
                 } else {
-                    left_hash = 0;
+                    left_hash = T::EMPTY_HASH_CST[0];
                 }
 
                 let right_child_idx = left_child_idx + 1;
                 let right_child = self.db.get(&right_child_idx);
-                let right_hash:usize;
+                let right_hash: F;
                 if let Some(i) = right_child {
                     right_hash = *i;
                 } else {
-                    right_hash = 0;
+                    right_hash = T::EMPTY_HASH_CST[0];
                 }
-                let node_hash = poseidon_hash(left_hash, right_hash);
+                let node_hash = merkle_tree::field_based_mht::smt::BigMerkleTree::<F, T, P>::poseidon_hash(left_hash, right_hash);
                 println!("node: left_hash (h: {}, idx: {}) = {}, right_hash (h: {}, idx: {}) = {}, node_hash = {}", 0, left_child_idx, left_hash, 0, right_child_idx, right_hash, node_hash);
 
                 return node_hash;
             } else {
                 let height_child = coord.height - 1;
-                let left_child_idx = coord.idx * MERKLE_ARITY;
+                let left_child_idx = coord.idx * T::MERKLE_ARITY;
                 let coord_left = Coord{height:height_child, idx:left_child_idx};
                 let left_child_hash = BigMerkleTree::node(self, coord_left);
 
@@ -487,7 +497,7 @@ impl BigMerkleTree {
                 let coord_right = Coord{height:height_child, idx:right_child_idx};
                 let right_child_hash = BigMerkleTree::node(self, coord_right);
 
-                let node_hash = poseidon_hash(left_child_hash, right_child_hash);
+                let node_hash = merkle_tree::field_based_mht::smt::BigMerkleTree::<F, T, P>::poseidon_hash(left_child_hash, right_child_hash);
 
                 return node_hash;
             }
@@ -503,7 +513,7 @@ impl BigMerkleTree {
         !self.cache.contains_key(&coord)
     }
 
-    pub fn insert_node(&mut self, coord: Coord, hash: usize) {
+    pub fn insert_node(&mut self, coord: Coord, hash: F) {
         self.cache.insert(coord, hash);
     }
 
@@ -511,34 +521,39 @@ impl BigMerkleTree {
         self.cache.remove(&coord);
     }
 
+    pub fn poseidon_hash (x: F, y: F) -> F {
+        let mut input = Vec::new();
+        input.push(x);
+        input.push(y);
+        let hash = PoseidonHash::<F,P>::evaluate(&input[..]);
+        hash.unwrap()
+    }
+
 }
 
-pub fn poseidon_hash (x: usize, y: usize) -> usize {
-    if (x==0) & (y==0) {
-        return 1;
-    }
-    x + y
-}
+pub type MNT4PoseidonSmt = BigMerkleTree<MNT4753Fr, MNT4753SmtPoseidonParameters, MNT4753PoseidonParameters>;
 
 #[cfg(test)]
 mod test {
-    use crate::merkle_tree::field_based_mht::smt::{BigMerkleTree};
+    use crate::merkle_tree::field_based_mht::smt::{BigMerkleTree, MNT4753SmtPoseidonParameters, MNT4PoseidonSmt};
+    use algebra::fields::mnt6753::Fr as MNT6753Fr;
+    use algebra::fields::mnt4753::Fr as MNT4753Fr;
+    use std::str::FromStr;
 
     #[test]
     fn test_rocksdb() {
-        let mut smt = BigMerkleTree::new(8).unwrap();
-        println!("smt = {:?}", smt);
+        let mut smt = MNT4PoseidonSmt::new(8).unwrap();
 
         smt.insert_leaf(
             0,
-            10
+            MNT4753Fr::from_str("10").unwrap()
         );
 
         println!("===============================================");
 
         smt.insert_leaf(
             2,
-            20
+            MNT4753Fr::from_str("20").unwrap()
         );
 
         println!("===============================================");
@@ -551,24 +566,18 @@ mod test {
 
         smt.insert_leaf(
             2,
-            30
+            MNT4753Fr::from_str("30").unwrap()
         );
 
         println!("===============================================");
 
         smt.insert_leaf(
             2,
-            30
+            MNT4753Fr::from_str("30").unwrap()
         );
 
-
-        println!("smt = {:?}", smt);
     }
 }
-
-
-
-
 
 
 
