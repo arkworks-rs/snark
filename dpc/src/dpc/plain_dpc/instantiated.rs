@@ -1,6 +1,6 @@
 use algebra::{
-    bls12_377, cp6_782::CP6_782, edwards_on_bls12_377::EdwardsProjective as EdwardsBls,
-    edwards_on_cp6_782::EdwardsProjective as EdwardsCP6, Bls12_377,
+    bls12_377, cp6_782::CP6_782, ed_on_bls12_377::EdwardsProjective as EdwardsBls,
+    ed_on_cp6_782::EdwardsProjective as EdwardsCP6, Bls12_377,
 };
 
 use crypto_primitives::{
@@ -24,8 +24,8 @@ use crypto_primitives::{
     prf::blake2s::constraints::Blake2sGadget,
 };
 use r1cs_std::{
-    bls12_377::PairingGadget, edwards_on_bls12_377::EdwardsGadget as EdwardsBlsGadget,
-    edwards_on_cp6_782::EdwardsGadget as EdwardsCP6Gadget,
+    bls12_377::PairingGadget, ed_on_bls12_377::EdwardsGadget as EdwardsBlsGadget,
+    ed_on_cp6_782::EdwardsGadget as EdwardsCP6Gadget,
 };
 
 use crate::dpc::plain_dpc::{

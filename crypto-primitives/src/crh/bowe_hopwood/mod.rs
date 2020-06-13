@@ -173,7 +173,7 @@ mod test {
         crh::{bowe_hopwood::BoweHopwoodPedersenCRH, pedersen::PedersenWindow},
         FixedLengthCRH,
     };
-    use algebra::{edwards_on_bls12_381::EdwardsProjective, test_rng};
+    use algebra::{ed_on_bls12_381::EdwardsProjective, test_rng};
 
     #[test]
     fn test_simple_bh() {

@@ -33,16 +33,16 @@ default = [ "std" ]
 
 full = [ 
   "bls12_377", "bls12_381", "cp6_782", "bw6_761", "mnt4_298", "mnt4_753", 
-  "mnt6_298", "mnt6_753", "edwards_on_bls12_377", "edwards_on_cp6_782", 
-  "edwards_on_bw6_761", "edwards_on_bls12_381"
+  "mnt6_298", "mnt6_753", "ed_on_bls12_377", "ed_on_cp6_782", 
+  "ed_on_bw6_761", "ed_on_bls12_381"
 ]
 
 bls12_377 = []
 bls12_381 = []
-edwards_on_bls12_377 = []
-edwards_on_cp6_782 = []
-edwards_on_bw6_761 = []
-edwards_on_bls12_381 = []
+ed_on_bls12_377 = []
+ed_on_cp6_782 = []
+ed_on_bw6_761 = []
+ed_on_bls12_381 = []
 cp6_782 = []
 bw6_761 = []
 mnt4_298 = []

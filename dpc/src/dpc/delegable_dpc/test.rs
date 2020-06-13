@@ -1,7 +1,7 @@
 use algebra::curves::bls12_377::Bls12_377;
 use algebra::curves::cp6_782::CP6_782;
-use algebra::curves::edwards_on_bls12_377::EdwardsProjective as EdwardsBls;
-use algebra::curves::edwards_on_cp6_782::EdwardsProjective as E;
+use algebra::curves::ed_on_bls12_377::EdwardsProjective as EdwardsBls;
+use algebra::curves::ed_on_cp6_782::EdwardsProjective as E;
 
 use algebra::{to_bytes, ToBytes};
 use rand::thread_rng;
@@ -31,8 +31,8 @@ use crate::constraints::delegable_dpc::execute_proof_check_gadget;
 use crate::constraints::merkle_tree::IdealLedgerGadget;
 use crate::constraints::prf::blake2s::Blake2sGadget;
 use crate::constraints::verifier::gm17::Gm17VerifierGadget;
-use r1cs_std::groups::curves::twisted_edwards::edwards_on_bls12_377::EdwardsGadget as EdwardsBlsGadget;
-use r1cs_std::groups::curves::twisted_edwards::edwards_on_cp6_782::EdwardsGadget as EdwardsCP6Gadget;
+use r1cs_std::groups::curves::twisted_edwards::ed_on_bls12_377::EdwardsGadget as EdwardsBlsGadget;
+use r1cs_std::groups::curves::twisted_edwards::ed_on_cp6_782::EdwardsGadget as EdwardsCP6Gadget;
 use r1cs_std::pairing::bls12_377::PairingGadget;
 use r1cs_std::test_constraint_system::TestConstraintSystem;
 

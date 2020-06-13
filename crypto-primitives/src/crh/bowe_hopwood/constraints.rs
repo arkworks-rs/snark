@@ -145,12 +145,12 @@ mod test {
         FixedLengthCRH, FixedLengthCRHGadget,
     };
     use algebra::{
-        edwards_on_bls12_381::{EdwardsProjective as JubJub, Fq as Fr},
+        ed_on_bls12_381::{EdwardsProjective as JubJub, Fq as Fr},
         test_rng, ProjectiveCurve,
     };
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
-        alloc::AllocGadget, edwards_on_bls12_381::EdwardsGadget,
+        alloc::AllocGadget, ed_on_bls12_381::EdwardsGadget,
         test_constraint_system::TestConstraintSystem, uint8::UInt8,
     };
 

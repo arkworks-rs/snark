@@ -46,6 +46,6 @@ std = ["r1cs", "algebra-core/std", "r1cs-core/std", "r1cs-std/std"]
 parallel = ["std", "rayon", "gm17/parallel", "groth16/parallel", "ff-fft/parallel"]
 
 [dev-dependencies]
-algebra = { path = "../algebra", default-features = false, features = [ "edwards_on_bls12_381", "bls12_377", "mnt4_298", "mnt6_298" ] }
-r1cs-std = { path = "../r1cs-std", default-features = false, features = [ "edwards_on_bls12_381", "bls12_377", "mnt4_298", "mnt6_298" ] }
+algebra = { path = "../algebra", default-features = false, features = [ "ed_on_bls12_381", "bls12_377", "mnt4_298", "mnt6_298" ] }
+r1cs-std = { path = "../r1cs-std", default-features = false, features = [ "ed_on_bls12_381", "bls12_377", "mnt4_298", "mnt6_298" ] }
 rand_xorshift = { version = "0.2" }
