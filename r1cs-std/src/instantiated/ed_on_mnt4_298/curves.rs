@@ -3,9 +3,9 @@ use algebra::ed_on_mnt4_298::*;
 
 use crate::instantiated::ed_on_mnt4_298::fields::FqGadget;
 
-pub type EdwardsMnt4298gadget = AffineGadget<EdwardsParameters, Fq, FqGadget>;
+pub type EdwardsGadget = AffineGadget<EdwardsParameters, Fq, FqGadget>;
 
 #[test]
 fn test() {
-    crate::groups::curves::twisted_edwards::test::<_, EdwardsParameters, EdwardsMnt4298gadget>();
+    crate::groups::curves::twisted_edwards::test::<_, EdwardsParameters, EdwardsGadget>();
 }
