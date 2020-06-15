@@ -669,48 +669,39 @@ mod test {
             UniformRand,
         };
         use std::time::{Duration, Instant};
+        use std::fs::File;
+        use std::io::prelude::*;
+        use std::io::Write;
 
+        let path = "timing.txt";
+
+        let mut output = std::fs::File::create(path).unwrap();
         let mut rng1 = XorShiftRng::seed_from_u64(9174123u64);
-
         let num_leaves = 2usize.pow(34);
-
         let mut smt = MNT4PoseidonSmt::new(num_leaves).unwrap();
 
-        let now = Instant::now();
-
-        let n = 5000;
-        let mut rand_vec = Vec::new();
-        for i in 0..n {
-            rand_vec.push(Fr::rand(&mut rng1));
-        }
+        let n = 32;
 
         for i in 0..n {
             let random:u64 = OsRng.next_u64();
-            let idx = random % n as u64;
-            print!("{} ", idx);
-            smt.insert_leaf(idx as usize, rand_vec[i].clone());
+            let idx = random % num_leaves as u64;
+            let elem = Fr::rand(&mut rng1);
+
+            let now = Instant::now();
+            smt.insert_leaf(idx as usize, elem);
+            let new_now = Instant::now();
+
+            let duration = new_now.duration_since(now).as_millis();
+
+            output.write_all(idx.to_string().as_bytes()).unwrap();
+            output.write_all(",".to_string().as_bytes()).unwrap();
+            output.write_all(duration.to_string().as_bytes()).unwrap();
+            output.write_all(",\n".to_string().as_bytes()).unwrap();
+
+            println!("time to add leaf {} =  {} ms", idx, duration);
         }
 
         println!();
-        println!("time to add {} leaves =  {} s", n, now.elapsed().as_secs());
-
-        let now = Instant::now();
-
-        let random: u64 = OsRng.next_u64();
-        let idx = random % n as u64;
-        smt.insert_leaf(idx as usize, Fr::rand(&mut rng1));
-
-        println!();
-        println!("time to add an extra leaf in position {} = {} ms", idx, now.elapsed().as_millis());
-
-        let now = Instant::now();
-
-        let random: u64 = OsRng.next_u64();
-        let idx = random % num_leaves as u64;
-        smt.insert_leaf(idx as usize, Fr::rand(&mut rng1));
-
-        println!();
-        println!("time to add an extra leaf in position {} = {} ms", idx, now.elapsed().as_millis());
 
         println!("{:?}", smt.root);
 
