@@ -16,6 +16,12 @@ pub mod ed_on_bw6_761;
 #[cfg(feature = "ed_on_bls12_381")]
 pub mod ed_on_bls12_381;
 
+#[cfg(feature = "ed_on_mnt4_298")]
+pub mod ed_on_mnt4_298;
+
+#[cfg(feature = "ed_on_mnt4_753")]
+pub mod ed_on_mnt4_753;
+
 #[cfg(feature = "mnt4_298")]
 pub mod mnt4_298;
 
