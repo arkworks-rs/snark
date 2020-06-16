@@ -36,6 +36,12 @@ pub struct FieldBasedEcVrfProof<F: PrimeField, G: ProjectiveCurve> {
     pub s:      F,
 }
 
+impl<F: PrimeField, G: ProjectiveCurve> FieldBasedEcVrfProof<F, G> {
+    pub fn is_valid(&self) -> bool {
+        !self.gamma.is_zero() && self.gamma.group_membership_test()
+    }
+}
+
 impl<F: PrimeField, G: ProjectiveCurve> ToBytes for FieldBasedEcVrfProof<F, G> {
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
         self.gamma.into_affine().write(&mut writer)?;
@@ -294,7 +300,7 @@ mod test {
     type EcVrfMNT4 = FieldBasedEcVrf<MNT4Fr, MNT6G1Projective, MNT4PoseidonHash, BHMNT6>;
     type EcVrfMNT6 = FieldBasedEcVrf<MNT6Fr, MNT4G1Projective, MNT6PoseidonHash, BHMNT4>;
 
-    fn prove_and_verify<S: FieldBasedVrf, R: Rng>(rng: &mut R, message: &[S::Data], pp: &S::GHParams) {
+    fn prove_and_verify<S: FieldBasedVrf, R: Rng>(rng: &mut R, message: &[S::Data], pp: &S::GHParams) -> <S as FieldBasedVrf>::Proof {
         let (pk, sk) = S::keygen(rng);
         assert!(S::keyverify(&pk));
         assert_eq!(pk, S::get_public_key(&sk));
@@ -307,6 +313,7 @@ mod test {
         let proof_deserialized = <S as FieldBasedVrf>::Proof::read(proof_serialized.as_slice()).unwrap();
         assert_eq!(proof, proof_deserialized);
         assert!(S::proof_to_hash(pp, &pk, &message, &proof_deserialized).is_ok());
+        proof
     }
 
     fn failed_verification<S: FieldBasedVrf, R: Rng>(rng: &mut R, message: &[S::Data], bad_message: &[S::Data], pp: &S::GHParams) {
@@ -335,7 +342,8 @@ mod test {
         for _ in 0..samples {
             let f: MNT4Fr = rng.gen();
             let g: MNT4Fr = rng.gen();
-            prove_and_verify::<EcVrfMNT4, _>(rng, &[f], &pp);
+            let proof = prove_and_verify::<EcVrfMNT4, _>(rng, &[f], &pp);
+            assert!(proof.is_valid());
             failed_verification::<EcVrfMNT4, _>(rng, &[f], &[g], &pp);
         }
     }
@@ -348,7 +356,8 @@ mod test {
         for _ in 0..samples {
             let f: MNT6Fr = rng.gen();
             let g: MNT6Fr = rng.gen();
-            prove_and_verify::<EcVrfMNT6, _>(rng, &[f], &pp);
+            let proof = prove_and_verify::<EcVrfMNT6, _>(rng, &[f], &pp);
+            assert!(proof.is_valid());
             failed_verification::<EcVrfMNT6, _>(rng, &[f], &[g], &pp);
         }
     }

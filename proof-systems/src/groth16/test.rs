@@ -196,4 +196,29 @@ mod test{
         assert!(VerifyingKey::<MNT6>::read(vk_sw6.as_slice()).is_err());
         assert!(VerifyingKey::<MNT6>::read(vk_mnt4.as_slice()).is_err());
     }
+
+    #[test]
+    fn read_proof_checked_unchecked(){
+
+        // BLS12-377
+        let mut proof = vec![0u8; 387];
+        assert!(Proof::<Bls12_377>::read_unchecked(proof.as_slice()).is_ok());
+        assert!(Proof::<Bls12_377>::read(proof.as_slice()).is_err());
+
+        // SW6
+        proof = vec![0u8; 1083];
+        assert!(Proof::<SW6>::read_unchecked(proof.as_slice()).is_ok());
+        assert!(Proof::<SW6>::read(proof.as_slice()).is_err());
+
+        // MNT4-753
+        proof = vec![0u8; 771];
+        assert!(Proof::<MNT4>::read_unchecked(proof.as_slice()).is_ok());
+        assert!(Proof::<MNT4>::read(proof.as_slice()).is_err());
+
+        // MNT6-753
+        proof = vec![0u8; 963];
+        Proof::<MNT6>::read_unchecked(proof.as_slice()).unwrap();
+        assert!(Proof::<MNT6>::read_unchecked(proof.as_slice()).is_ok());
+        assert!(Proof::<MNT6>::read(proof.as_slice()).is_err());
+    }
 }
