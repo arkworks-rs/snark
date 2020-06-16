@@ -3,7 +3,7 @@ use crate::curves::models::SWModelParameters as Parameters;
 use crate::UniformRand;
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
-    io::{Read, Result as IoResult, Write},
+    io::{Read, Result as IoResult, Write, Error as IoError, ErrorKind},
     marker::PhantomData,
 };
 
@@ -116,6 +116,13 @@ impl<P: Parameters> GroupAffine<P> {
         self.mul_bits(BitIterator::new(P::ScalarField::characteristic()))
             .is_zero()
     }
+
+    #[inline]
+    // Sanity checks on infinity flag
+    fn is_infinity_flag_valid(&self) -> bool {
+        (self.infinity && (*self) == Self::zero()) ||
+            (!self.infinity && !(self.x == P::BaseField::zero() && self.y == P::BaseField::one()))
+    }
 }
 
 impl<P: Parameters> AffineCurve for GroupAffine<P> {
@@ -195,7 +202,13 @@ impl<P: Parameters> FromBytes for GroupAffine<P> {
         let x = P::BaseField::read(&mut reader)?;
         let y = P::BaseField::read(&mut reader)?;
         let infinity = bool::read(reader)?;
-        Ok(Self::new(x, y, infinity))
+
+        let p = Self::new(x, y, infinity);
+        if !p.is_infinity_flag_valid() {
+            Err(IoError::new(ErrorKind::InvalidData, "Infinity flag value is inconsistent with point value"))
+        } else {
+            Ok(p)
+        }
     }
 }
 
