@@ -1,5 +1,6 @@
 use crate::fields::{Field, PrimeField, SquareRootField};
 
+pub mod bn;
 pub mod bls12;
 pub mod bw6;
 pub mod mnt4;
