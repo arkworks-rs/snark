@@ -24,6 +24,16 @@ impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for MySillyCircuit<C
             },
         )?;
 
+        // let mut i = 0;
+
+        // while i < 100001 {
+        //     cs.enforce(|| "a*b=c", |lc| lc + a, |lc| lc + b, |lc| lc + c);
+        //     i = i + 1;
+        // }
+
+        cs.enforce(|| "a*b=c", |lc| lc + a, |lc| lc + b, |lc| lc + c);
+        cs.enforce(|| "a*b=c", |lc| lc + a, |lc| lc + b, |lc| lc + c);
+        cs.enforce(|| "a*b=c", |lc| lc + a, |lc| lc + b, |lc| lc + c);
         cs.enforce(|| "a*b=c", |lc| lc + a, |lc| lc + b, |lc| lc + c);
 
         Ok(())
@@ -34,10 +44,13 @@ mod bls12_377 {
     use super::*;
     use crate::{
         create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
+        Parameters,
     };
-    use algebra_core::{test_rng, UniformRand};
-
     use algebra::bls12_377::{Bls12_377, Fr};
+    use algebra_core::{
+        bytes::{FromBytes, ToBytes},
+        test_rng, UniformRand,
+    };
     use core::ops::MulAssign;
 
     #[test]
@@ -47,6 +60,25 @@ mod bls12_377 {
         let params =
             generate_random_parameters::<Bls12_377, _, _>(MySillyCircuit { a: None, b: None }, rng)
                 .unwrap();
+
+        // bytes::ToBytes,
+
+        let mut pk: Vec<u8> = Vec::new();
+        params.write(&mut pk).unwrap();
+        println!("Here {:?}", pk);
+        // println!("Here {:?}", &params);
+        // let mut pk: Vec<u8> = Vec::new();
+        // params.serialize_uncompressed(&mut pk).unwrap();
+        // println!("Here {:?}", pk);
+
+        // let mut pk: Vec<u8> = Vec::new();
+        // let b = Parameters::<Bls12_377>::deserialize_uncompressed(&mut
+        // pk.as_slice()).unwrap(); println!("Here {:?}", b);
+        let mut reader = pk.as_slice();
+        let b = Parameters::<Bls12_377>::read(&mut reader).unwrap();
+        assert!(reader.is_empty());
+        assert_eq!(b, params);
+        println!("Here {:?}", b);
 
         let pvk = prepare_verifying_key::<Bls12_377>(&params.vk);
 
