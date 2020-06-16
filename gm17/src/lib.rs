@@ -67,6 +67,32 @@ impl<E: PairingEngine> ToBytes for Proof<E> {
     }
 }
 
+impl<E: PairingEngine> FromBytes for Proof<E> {
+    fn read<R: Read>(reader: R) -> IoResult<Self> {
+        let mut reader = reader;
+
+        let result_transform_g1 = |result: io::Result<E::G1Affine>| -> io::Result<E::G1Affine> {
+            result.map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+        };
+        let read_g1 = |reader: &mut R| -> io::Result<E::G1Affine> {
+            result_transform_g1(<E::G1Affine>::read(reader))
+        };
+
+        let result_transform_g2 = |result: io::Result<E::G2Affine>| -> io::Result<E::G2Affine> {
+            result.map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+        };
+        let read_g2 = |reader: &mut R| -> io::Result<E::G2Affine> {
+            result_transform_g2(<E::G2Affine>::read(reader))
+        };
+
+        let a = read_g1(&mut reader)?;
+        let b = read_g2(&mut reader)?;
+        let c = read_g1(&mut reader)?;
+
+        Ok(Proof { a, b, c })
+    }
+}
+
 impl<E: PairingEngine> PartialEq for Proof<E> {
     fn eq(&self, other: &Self) -> bool {
         self.a == other.a && self.b == other.b && self.c == other.c
