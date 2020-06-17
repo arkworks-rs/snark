@@ -10,7 +10,7 @@ use crate::{
         Field, Fp2Parameters, FpParameters, PrimeField, SquareRootField,
 
     },
-    ToBits,
+    ToBits, SemanticallyValid,
 };
 use crate::UniformRand;
 use rand::SeedableRng;

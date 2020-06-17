@@ -1,5 +1,5 @@
 use rand::{Rng, distributions::{Standard, Distribution}};
-use crate::{UniformRand, ToCompressedBits, FromCompressedBits, Error, BitSerializationError};
+use crate::{UniformRand, ToCompressedBits, FromCompressedBits, Error, BitSerializationError, SemanticallyValid, FromBytesChecked};
 use crate::curves::models::SWModelParameters as Parameters;
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
@@ -177,6 +177,16 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
     }
 }
 
+impl<P: Parameters> SemanticallyValid for GroupAffine<P>
+{
+    fn is_valid(&self) -> bool {
+        self.x.is_valid() &&
+        self.y.is_valid() &&
+        self.is_infinity_flag_valid() &&
+        self.group_membership_test()
+    }
+}
+
 impl<P: Parameters> Neg for GroupAffine<P> {
     type Output = Self;
 
@@ -211,6 +221,21 @@ impl<P: Parameters> FromBytes for GroupAffine<P> {
         } else {
             Ok(p)
         }
+    }
+}
+
+impl<P: Parameters> FromBytesChecked for GroupAffine<P> {
+    #[inline]
+    fn read_checked<R: Read>(reader: R) -> IoResult<Self> {
+        Self::read(reader)
+            .map_err(|e| IoError::new(ErrorKind::InvalidData, e))
+            .and_then(|p| {
+                if !p.group_membership_test() {
+                    return Err(IoError::new(ErrorKind::InvalidData, "invalid point: group membership test failed"));
+                }
+                Ok(p)
+            }
+        )
     }
 }
 
@@ -354,6 +379,21 @@ impl<P: Parameters> FromBytes for GroupProjective<P> {
         let y = P::BaseField::read(&mut reader)?;
         let z = P::BaseField::read(reader)?;
         Ok(Self::new(x, y, z))
+    }
+}
+
+impl<P: Parameters> FromBytesChecked for GroupProjective<P> {
+    #[inline]
+    fn read_checked<R: Read>(reader: R) -> IoResult<Self> {
+        Self::read(reader)
+            .map_err(|e| IoError::new(ErrorKind::InvalidData, e))
+            .and_then(|p| {
+                if !p.group_membership_test() {
+                    return Err(IoError::new(ErrorKind::InvalidData, "invalid point: group membership test failed"));
+                }
+                Ok(p)
+            }
+        )
     }
 }
 
@@ -561,6 +601,17 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
 
     fn recommended_wnaf_for_num_scalars(num_scalars: usize) -> usize {
         P::empirical_recommended_wnaf_for_num_scalars(num_scalars)
+    }
+}
+
+impl<P: Parameters> SemanticallyValid for GroupProjective<P>
+{
+    fn is_valid(&self) -> bool {
+        self.x.is_valid() &&
+        self.y.is_valid() &&
+        self.z.is_valid() &&
+        self.into_affine().is_infinity_flag_valid() &&
+        self.group_membership_test()
     }
 }
 

@@ -1,5 +1,7 @@
-use algebra::{Field, PrimeField, FpParameters, convert, leading_zeros, Group, AffineCurve, ProjectiveCurve,
-              ToBytes, to_bytes, ToBits, UniformRand, ToConstraintField, FromBytes};
+use algebra::{Field, PrimeField, FpParameters, convert, leading_zeros, Group, AffineCurve,
+              ProjectiveCurve, ToBytes, to_bytes, ToBits, UniformRand, ToConstraintField, FromBytes,
+              FromBytesChecked, SemanticallyValid
+};
 use crate::{crh::{
     FieldBasedHash, FixedLengthCRH,
 }, vrf::FieldBasedVrf, Error, CryptoError, compute_truncation_size};
@@ -36,12 +38,6 @@ pub struct FieldBasedEcVrfProof<F: PrimeField, G: ProjectiveCurve> {
     pub s:      F,
 }
 
-impl<F: PrimeField, G: ProjectiveCurve> FieldBasedEcVrfProof<F, G> {
-    pub fn is_valid(&self) -> bool {
-        !self.gamma.is_zero() && self.gamma.group_membership_test()
-    }
-}
-
 impl<F: PrimeField, G: ProjectiveCurve> ToBytes for FieldBasedEcVrfProof<F, G> {
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
         self.gamma.into_affine().write(&mut writer)?;
@@ -52,23 +48,32 @@ impl<F: PrimeField, G: ProjectiveCurve> ToBytes for FieldBasedEcVrfProof<F, G> {
 
 impl<F: PrimeField, G: ProjectiveCurve> FromBytes for FieldBasedEcVrfProof<F, G> {
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
-        let gamma = G::Affine::read(&mut reader)
+        let gamma = G::Affine::read(&mut reader)?;
+        let c = F::read(&mut reader)?;
+        let s = F::read(&mut reader)?;
+        Ok(Self{ gamma: gamma.into_projective(), c, s })
+    }
+}
+
+impl<F: PrimeField, G: ProjectiveCurve> FromBytesChecked for FieldBasedEcVrfProof<F, G> {
+    fn read_checked<R: Read>(mut reader: R) -> IoResult<Self> {
+        let gamma = G::Affine::read_checked(&mut reader)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
             .and_then(|p| {
                 if p.is_zero() { return Err(io::Error::new(io::ErrorKind::InvalidData, "invalid point gamma: point at infinity")); }
-                if !p.group_membership_test() { return Err(io::Error::new(io::ErrorKind::InvalidData, "invalid point gamma: group membership test failed")); }
                 Ok(p)
             })?;
         let c = F::read(&mut reader)?;
         let s = F::read(&mut reader)?;
         Ok(Self{ gamma: gamma.into_projective(), c, s })
     }
+}
 
-    fn read_unchecked<R: Read>(mut reader: R) -> IoResult<Self> {
-        let gamma = G::Affine::read(&mut reader)?;
-        let c = F::read(&mut reader)?;
-        let s = F::read(&mut reader)?;
-        Ok(Self{ gamma: gamma.into_projective(), c, s })
+impl<F: PrimeField, G: ProjectiveCurve> SemanticallyValid for FieldBasedEcVrfProof<F, G> {
+    fn is_valid(&self) -> bool {
+        (!self.gamma.is_zero() && self.gamma.is_valid()) &&
+        self.c.is_valid() &&
+        self.s.is_valid()
     }
 }
 
@@ -258,7 +263,7 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
     fn keyverify(
         pk: &Self::PublicKey,
     ) -> bool {
-        !pk.is_zero() && pk.group_membership_test()
+        pk.is_valid() && !pk.is_zero()
     }
 }
 
@@ -272,7 +277,7 @@ mod test {
         mnt4753::Fr as MNT4Fr,
         mnt6753::Fr as MNT6Fr,
     };
-    use algebra::{ToBytes, FromBytes, to_bytes};
+    use algebra::{ToBytes, FromBytes, FromBytesChecked, to_bytes, SemanticallyValid};
     use crate::{
         crh::{
             MNT4PoseidonHash, MNT6PoseidonHash,
@@ -300,20 +305,13 @@ mod test {
     type EcVrfMNT4 = FieldBasedEcVrf<MNT4Fr, MNT6G1Projective, MNT4PoseidonHash, BHMNT6>;
     type EcVrfMNT6 = FieldBasedEcVrf<MNT6Fr, MNT4G1Projective, MNT6PoseidonHash, BHMNT4>;
 
-    fn prove_and_verify<S: FieldBasedVrf, R: Rng>(rng: &mut R, message: &[S::Data], pp: &S::GHParams) -> <S as FieldBasedVrf>::Proof {
+    fn prove_and_verify<S: FieldBasedVrf, R: Rng>(rng: &mut R, message: &[S::Data], pp: &S::GHParams) {
         let (pk, sk) = S::keygen(rng);
         assert!(S::keyverify(&pk));
         assert_eq!(pk, S::get_public_key(&sk));
 
         let proof = S::prove(rng, pp, &pk, &sk, &message).unwrap();
         assert!(S::proof_to_hash(pp, &pk, &message, &proof).is_ok());
-
-        //Serialization/deserialization test
-        let proof_serialized = to_bytes!(proof).unwrap();
-        let proof_deserialized = <S as FieldBasedVrf>::Proof::read(proof_serialized.as_slice()).unwrap();
-        assert_eq!(proof, proof_deserialized);
-        assert!(S::proof_to_hash(pp, &pk, &message, &proof_deserialized).is_ok());
-        proof
     }
 
     fn failed_verification<S: FieldBasedVrf, R: Rng>(rng: &mut R, message: &[S::Data], bad_message: &[S::Data], pp: &S::GHParams) {
@@ -334,6 +332,26 @@ mod test {
         assert!(S::proof_to_hash(pp, &new_pk, message, &proof).is_err());
     }
 
+    fn serialize_deserialize<S: FieldBasedVrf, R: Rng>(rng: &mut R, message: &[S::Data], pp: &S::GHParams) {
+        let (pk, sk) = S::keygen(rng);
+        let proof = S::prove(rng, pp, &pk, &sk, &message).unwrap();
+
+        let proof_serialized = to_bytes!(proof).unwrap();
+
+        // Deserialization test: checked/unchecked ok
+        assert!(<S as FieldBasedVrf>::Proof::read(proof_serialized.as_slice()).is_ok());
+        let proof_deserialized = <S as FieldBasedVrf>::Proof::read_checked(proof_serialized.as_slice()).unwrap();
+        assert_eq!(proof, proof_deserialized);
+        assert!(S::proof_to_hash(pp, &pk, &message, &proof_deserialized).is_ok());
+
+        // Deserialization test: unchecked ok and checked fail
+        let proof_serialized = vec![0u8; proof_serialized.len()];
+        let proof_read = <S as FieldBasedVrf>::Proof::read(proof_serialized.as_slice());
+        assert!(proof_read.is_ok());
+        assert!(!proof_read.is_valid());
+        assert!(<S as FieldBasedVrf>::Proof::read_checked(proof_serialized.as_slice()).is_err());
+    }
+
     #[test]
     fn mnt4_ecvrf_test() {
         let rng = &mut thread_rng();
@@ -342,9 +360,9 @@ mod test {
         for _ in 0..samples {
             let f: MNT4Fr = rng.gen();
             let g: MNT4Fr = rng.gen();
-            let proof = prove_and_verify::<EcVrfMNT4, _>(rng, &[f], &pp);
-            assert!(proof.is_valid());
+            prove_and_verify::<EcVrfMNT4, _>(rng, &[f], &pp);
             failed_verification::<EcVrfMNT4, _>(rng, &[f], &[g], &pp);
+            serialize_deserialize::<EcVrfMNT4, _>(rng, &[f], &pp);
         }
     }
 
@@ -356,9 +374,9 @@ mod test {
         for _ in 0..samples {
             let f: MNT6Fr = rng.gen();
             let g: MNT6Fr = rng.gen();
-            let proof = prove_and_verify::<EcVrfMNT6, _>(rng, &[f], &pp);
-            assert!(proof.is_valid());
+            prove_and_verify::<EcVrfMNT6, _>(rng, &[f], &pp);
             failed_verification::<EcVrfMNT6, _>(rng, &[f], &[g], &pp);
+            serialize_deserialize::<EcVrfMNT6, _>(rng, &[f], &pp);
         }
     }
 }

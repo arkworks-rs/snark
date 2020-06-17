@@ -6,7 +6,7 @@ use crate::{
         tests::{field_test, frobenius_test, primefield_test, sqrt_field_test},
         Field, Fp2Parameters, FpParameters, PrimeField, SquareRootField,
     },
-    ToBits,
+    ToBits, SemanticallyValid,
 };
 use crate::UniformRand;
 use rand::SeedableRng;

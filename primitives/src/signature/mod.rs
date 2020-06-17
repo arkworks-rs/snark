@@ -1,10 +1,7 @@
 use crate::Error;
-use algebra::{
-    bytes::{
-        ToBytes, FromBytes
-    },
-    Field,
-};
+use algebra::{bytes::{
+    ToBytes, FromBytes
+}, Field, FromBytesChecked};
 use rand::Rng;
 use std::hash::Hash;
 use std::fmt::Debug;
@@ -54,9 +51,11 @@ pub trait SignatureScheme {
 pub trait FieldBasedSignatureScheme {
 
     type Data: Field;
-    type PublicKey: ToBytes + Hash + Eq + Clone + Default + Debug + Send + Sync;
+    type PublicKey: FromBytes + FromBytesChecked + ToBytes + Hash + Eq + Clone +
+                    Default + Debug + Send + Sync;
     type SecretKey: ToBytes + Clone + Default;
-    type Signature: Copy + Clone + Default + Send + Sync + Debug + Eq + PartialEq + ToBytes + FromBytes;
+    type Signature: Copy + Clone + Default + Send + Sync + Debug + Eq + PartialEq
+                    + ToBytes + FromBytes;
 
     fn keygen<R: Rng>(
         rng: &mut R,

@@ -56,6 +56,9 @@ pub use self::fields::*;
 pub mod groups;
 pub use self::groups::*;
 
+pub mod checks;
+pub use self::checks::*;
+
 mod rand;
 pub use self::rand::*;
 

@@ -7,11 +7,7 @@ use std::{
     str::FromStr,
 };
 
-use crate::{
-    biginteger::{arithmetic as fa, BigInteger as _BigInteger, BigInteger320 as BigInteger},
-    bytes::{FromBytes, ToBytes},
-    fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
-};
+use crate::{biginteger::{arithmetic as fa, BigInteger as _BigInteger, BigInteger320 as BigInteger}, bytes::{FromBytes, ToBytes}, fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField}, SemanticallyValid};
 
 pub trait Fp320Parameters: FpParameters<BigInt = BigInteger> {}
 
@@ -37,11 +33,6 @@ impl<P: Fp320Parameters> Fp320<P> {
     #[inline]
     pub fn new(element: BigInteger) -> Self {
         Fp320::<P>(element, PhantomData)
-    }
-
-    #[inline]
-    fn is_valid(&self) -> bool {
-        self.0 < P::MODULUS
     }
 
     #[inline]
@@ -422,6 +413,14 @@ impl_prime_field_from_int!(Fp320, u16, Fp320Parameters);
 impl_prime_field_from_int!(Fp320, u8, Fp320Parameters);
 
 impl_prime_field_standard_sample!(Fp320, Fp320Parameters);
+
+impl<P: Fp320Parameters> SemanticallyValid for Fp320<P>
+{
+    #[inline]
+    fn is_valid(&self) -> bool {
+        self.0 < P::MODULUS
+    }
+}
 
 impl<P: Fp320Parameters> ToBytes for Fp320<P> {
     #[inline]

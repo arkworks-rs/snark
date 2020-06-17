@@ -1,5 +1,5 @@
 use rand::{Rng, distributions::{Standard, Distribution}};
-use crate::{UniformRand, ToBits, FromBits, PrimeField, Error, BitSerializationError};
+use crate::{UniformRand, ToBits, FromBits, PrimeField, Error, BitSerializationError, SemanticallyValid};
 
 use std::{
     cmp::Ordering,
@@ -280,6 +280,14 @@ impl<P: Fp4Parameters> From<u16> for Fp4<P> {
 impl<P: Fp4Parameters> From<u8> for Fp4<P> {
     fn from(other: u8) -> Self {
         Self::new(other.into(), Fp2::zero())
+    }
+}
+
+impl<P: Fp4Parameters> SemanticallyValid for Fp4<P>
+{
+    #[inline]
+    fn is_valid(&self) -> bool {
+        self.c0.is_valid() && self.c1.is_valid()
     }
 }
 

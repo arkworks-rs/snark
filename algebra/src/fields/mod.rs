@@ -1,4 +1,4 @@
-use crate::{biginteger::BigInteger, bytes::{FromBytes, ToBytes}, UniformRand, bits::{ToBits, FromBits}, Error, BitSerializationError};
+use crate::{biginteger::BigInteger, bytes::{FromBytes, ToBytes}, UniformRand, bits::{ToBits, FromBits}, Error, BitSerializationError, SemanticallyValid};
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
@@ -60,6 +60,7 @@ pub trait Field:
     + FromBytes
     + ToBits
     + FromBits
+    + SemanticallyValid
     + Copy
     + Clone
     + Debug

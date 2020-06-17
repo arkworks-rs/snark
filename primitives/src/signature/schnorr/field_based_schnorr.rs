@@ -1,6 +1,5 @@
 use crate::{crh::FieldBasedHash, signature::FieldBasedSignatureScheme, CryptoError, Error, compute_truncation_size};
-use algebra::{Field, PrimeField, Group, UniformRand, ProjectiveCurve,
-              convert, leading_zeros, ToBits, ToConstraintField, ToBytes, FromBytes};
+use algebra::{Field, PrimeField, Group, UniformRand, ProjectiveCurve, convert, leading_zeros, ToBits, ToConstraintField, ToBytes, FromBytes, SemanticallyValid};
 use std::marker::PhantomData;
 use rand::Rng;
 use std::io::{Write, Read, Result as IoResult};
@@ -43,6 +42,12 @@ impl<F: PrimeField> FromBytes for FieldBasedSchnorrSignature<F> {
         let e = F::read(&mut reader)?;
         let s = F::read(&mut reader)?;
         Ok(Self{ e, s })
+    }
+}
+
+impl<F: PrimeField> SemanticallyValid for FieldBasedSchnorrSignature<F> {
+    fn is_valid(&self) -> bool {
+        self.e.is_valid() && self.s.is_valid()
     }
 }
 
@@ -170,9 +175,10 @@ FieldBasedSchnorrSignatureScheme<F, G, H>
         Ok(signature.e == e_prime)
     }
 
+    #[inline]
     fn keyverify(pk: &Self::PublicKey) -> bool
     {
-        !pk.is_zero() && pk.group_membership_test()
+        pk.is_valid() && !pk.is_zero()
     }
 }
 
