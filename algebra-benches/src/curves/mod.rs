@@ -1,3 +1,5 @@
+#[cfg(feature = "bn256")]
+mod bn256;
 #[cfg(feature = "bls12_377")]
 mod bls12_377;
 #[cfg(feature = "bls12_381")]
