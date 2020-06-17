@@ -7,7 +7,7 @@ use crate::{
         fp12_2over3over2::{Fp12, Fp12Parameters},
         fp2::Fp2Parameters,
         fp6_3over2::Fp6Parameters,
-        BitIterator, Field, Fp2, PrimeField, SquareRootField,
+        Field, Fp2, PrimeField, SquareRootField,
     },
 };
 use num_traits::One;
@@ -22,7 +22,7 @@ pub enum TwistType {
 pub trait BnParameters: 'static {
     const X: &'static [u64];
     const X_IS_NEGATIVE: bool;
-    const ATE_LOOP_COUNT: &'static [u64];
+    const ATE_LOOP_COUNT: &'static [i8];
     const ATE_LOOP_COUNT_IS_NEGATIVE: bool;
     const TWIST_TYPE: TwistType;
     const TWIST_MUL_BY_Q_X: Fp2<Self::Fp2Params>;
@@ -76,7 +76,7 @@ impl<P: BnParameters> Bn<P> {
     }
 
     fn exp_by_neg_x(mut f: Fp12<P::Fp12Params>) -> Fp12<P::Fp12Params> {
-        f = f.cyclotomic_exp(P::X);
+        f = f.cyclotomic_exp(&P::X);
         if !!!P::X_IS_NEGATIVE {
             f.conjugate();
         }
@@ -109,17 +109,28 @@ impl<P: BnParameters> PairingEngine for Bn<P> {
 
         let mut f = Self::Fqk::one();
 
-        for i in BitIterator::new(P::ATE_LOOP_COUNT).skip(1) {
-            f.square_in_place();
+        for i in (1..P::ATE_LOOP_COUNT.len()).rev() {
+            if i != P::ATE_LOOP_COUNT.len() - 1 {
+                f.square_in_place();
+            }
 
             for (p, ref mut coeffs) in &mut pairs {
                 Self::ell(&mut f, coeffs.next().unwrap(), &p.0);
             }
 
-            if i {
-                for &mut (p, ref mut coeffs) in &mut pairs {
-                    Self::ell(&mut f, coeffs.next().unwrap(), &p.0);
-                }
+            let bit = P::ATE_LOOP_COUNT[i - 1];
+            match bit {
+                1 => {
+                    for &mut (p, ref mut coeffs) in &mut pairs {
+                        Self::ell(&mut f, coeffs.next().unwrap(), &p.0);
+                    }
+                },
+                -1 => {
+                    for &mut (p, ref mut coeffs) in &mut pairs {
+                        Self::ell(&mut f, coeffs.next().unwrap(), &p.0);
+                    }
+                },
+                _ => continue,
             }
         }
 
@@ -143,12 +154,6 @@ impl<P: BnParameters> PairingEngine for Bn<P> {
           Easy part: result = elt^((q^6-1)*(q^2+1)).
           Follows, e.g., Beuchat et al page 9, by computing result as follows:
              elt^((q^6-1)*(q^2+1)) = (conj(elt) * elt^(-1))^(q^2+1)
-          More precisely:
-          A = conj(elt)
-          B = elt.inverse()
-          C = A * B
-          D = C.Frobenius_map(2)
-          result = D * C
         */
 
         // f1 = r.conjugate() = f^(p^6)

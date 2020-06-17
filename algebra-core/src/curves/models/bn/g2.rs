@@ -1,3 +1,4 @@
+use core::ops::Neg;
 use crate::{
     bytes::ToBytes,
     curves::{
@@ -6,7 +7,7 @@ use crate::{
         short_weierstrass_jacobian::{GroupAffine, GroupProjective},
         AffineCurve,
     },
-    fields::{BitIterator, Field, Fp2},
+    fields::{Field, Fp2},
     io::{Result as IoResult, Write},
     Vec,
 };
@@ -75,25 +76,26 @@ impl<P: BnParameters> From<G2Affine<P>> for G2Prepared<P> {
             z: Fp2::one(),
         };
 
-        for i in BitIterator::new(P::ATE_LOOP_COUNT).skip(1) {
+        let negq = q.neg();
+
+        for i in (1..P::ATE_LOOP_COUNT.len()).rev() {
             ell_coeffs.push(doubling_step::<P>(&mut r, &two_inv));
 
-            if i {
-                ell_coeffs.push(addition_step::<P>(&mut r, &q));
+            let bit = P::ATE_LOOP_COUNT[i - 1];
+
+            match bit {
+                1 => {
+                    ell_coeffs.push(addition_step::<P>(&mut r, &q));
+                },
+                -1 => {
+                    ell_coeffs.push(addition_step::<P>(&mut r, &negq));
+                },
+                _ => continue,
             }
         }
 
-        let mut q1 = q;
-        q1.x.frobenius_map(1);
-        q1.x *= &P::TWIST_MUL_BY_Q_X;
-        q1.y.frobenius_map(1);
-        q1.y *= &P::TWIST_MUL_BY_Q_Y;
-
-        let mut q2 = q1;
-        q2.x.frobenius_map(1);
-        q2.x *= &P::TWIST_MUL_BY_Q_X;
-        q2.y.frobenius_map(1);
-        q2.y *= &P::TWIST_MUL_BY_Q_Y;
+        let q1 = mul_by_char::<P>(q);
+        let mut q2 = mul_by_char::<P>(q1);
 
         if P::ATE_LOOP_COUNT_IS_NEGATIVE {
             r.y = -r.y;
@@ -116,17 +118,17 @@ impl<P: BnParameters> G2Prepared<P> {
     }
 }
 
-/*
 fn mul_by_char<P: BnParameters>(r: G2Affine<P>) -> G2Affine<P> {
     // multiply by field characteristic
 
-    let mut x = r.x;
-    x.frobenius_map(1);
-    let mut y = r.y;
-    y.frobenius_map(1);
-    (P::twist_mul_by_q_X * &x, P::twist_mul_by_q_Y * &y)
+    let mut s = r;
+    s.x.frobenius_map(1);
+    s.x *= &P::TWIST_MUL_BY_Q_X;
+    s.y.frobenius_map(1);
+    s.y *= &P::TWIST_MUL_BY_Q_Y;
+
+    s
 }
-*/
 
 fn doubling_step<B: BnParameters>(
     r: &mut G2HomProjective<B>,
