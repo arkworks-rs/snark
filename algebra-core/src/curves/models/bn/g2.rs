@@ -1,4 +1,3 @@
-use core::ops::Neg;
 use crate::{
     bytes::ToBytes,
     curves::{
@@ -11,6 +10,7 @@ use crate::{
     io::{Result as IoResult, Write},
     Vec,
 };
+use core::ops::Neg;
 use num_traits::{One, Zero};
 
 pub type G2Affine<P> = GroupAffine<<P as BnParameters>::G2Parameters>;
@@ -86,10 +86,10 @@ impl<P: BnParameters> From<G2Affine<P>> for G2Prepared<P> {
             match bit {
                 1 => {
                     ell_coeffs.push(addition_step::<P>(&mut r, &q));
-                },
+                }
                 -1 => {
                     ell_coeffs.push(addition_step::<P>(&mut r, &negq));
-                },
+                }
                 _ => continue,
             }
         }

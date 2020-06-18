@@ -2,8 +2,8 @@ use algebra_core::{
     biginteger::{BigInteger, BigInteger256},
     buffer_bit_byte_size,
     fields::{
-        fp6_3over2::Fp6Parameters, FftField, FftParameters, Field, FpParameters,
-        PrimeField, SquareRootField,
+        fp6_3over2::Fp6Parameters, FftField, FftParameters, Field, FpParameters, PrimeField,
+        SquareRootField,
     },
     test_rng, CanonicalSerialize, One, UniformRand, Zero,
 };
@@ -95,10 +95,7 @@ fn test_fq12() {
 
 #[test]
 fn test_fq_repr_from() {
-    assert_eq!(
-        BigInteger256::from(100),
-        BigInteger256([100, 0, 0, 0])
-    );
+    assert_eq!(BigInteger256::from(100), BigInteger256([100, 0, 0, 0]));
 }
 
 #[test]

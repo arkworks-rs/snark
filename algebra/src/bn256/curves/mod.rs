@@ -1,11 +1,11 @@
 use crate::bn256::*;
 use algebra_core::{
-    field_new,
     biginteger::BigInteger256,
     curves::{
         bn,
         bn::{Bn, BnParameters, TwistType},
     },
+    field_new,
 };
 pub mod g1;
 pub mod g2;
