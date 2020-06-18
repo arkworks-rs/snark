@@ -122,7 +122,7 @@ impl<P: Parameters> GroupAffine<P> {
 
     #[inline]
     // Sanity checks on infinity flag
-    fn is_infinity_flag_valid(&self) -> bool {
+    pub(crate) fn is_infinity_flag_valid(&self) -> bool {
         (self.infinity && (*self) == Self::zero()) ||
             (!self.infinity && !(self.x == P::BaseField::zero() && self.y == P::BaseField::one()))
     }
