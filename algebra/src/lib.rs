@@ -56,8 +56,8 @@ pub use self::fields::*;
 pub mod groups;
 pub use self::groups::*;
 
-pub mod checks;
-pub use self::checks::*;
+pub mod validity;
+pub use self::validity::*;
 
 mod rand;
 pub use self::rand::*;

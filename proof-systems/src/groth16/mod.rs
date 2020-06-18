@@ -68,21 +68,21 @@ impl<E: PairingEngine> FromBytesChecked for Proof<E> {
     #[inline]
     fn read_checked<R: Read>(mut reader: R) -> IoResult<Self> {
         let a = E::G1Affine::read_checked(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("invalid point A: {}", e)))
             .and_then(|p| {
                 if p.is_zero() { return Err(io::Error::new(io::ErrorKind::InvalidData, "invalid point A: point at infinity")); }
                 Ok(p)
             })?;
 
         let b = E::G2Affine::read_checked(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("invalid point B: {}", e)))
             .and_then(|p| {
                 if p.is_zero() { return Err(io::Error::new(io::ErrorKind::InvalidData, "invalid point B: point at infinity")); }
                 Ok(p)
             })?;
 
         let c = E::G1Affine::read_checked(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("invalid point C: {}", e)))
             .and_then(|p| {
                 if p.is_zero() { return Err(io::Error::new(io::ErrorKind::InvalidData, "invalid point C: point at infinity")); }
                 Ok(p)
@@ -114,7 +114,7 @@ fn read_affine_vec_checked<G: AffineCurve, R: Read>(len: usize, zero_check: bool
     let mut v = vec![];
     for i in 0..len {
         let g = G::read_checked(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("invalid point {}: {}", i, e)))
             .and_then(|p| {
                 if zero_check && p.is_zero()
                 {
@@ -132,9 +132,9 @@ fn read_affine_vec_checked<G: AffineCurve, R: Read>(len: usize, zero_check: bool
 
 fn read_affine_vec<G: AffineCurve, R: Read>(len: usize, mut reader: R) -> IoResult<Vec<G>> {
     let mut v = vec![];
-    for _ in 0..len {
+    for i in 0..len {
         let g = G::read(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("invalid point {}: {}", i, e)))?;
         v.push(g);
     }
     Ok(v)
@@ -177,17 +177,17 @@ impl<E: PairingEngine> FromBytesChecked for VerifyingKey<E> {
     #[inline]
     fn read_checked<R: Read>(mut reader: R) -> IoResult<Self> {
         let alpha_g1_beta_g2 = E::Fqk::read(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("invalid alpha_g1_beta_g2: {}", e)))?;
 
         let gamma_g2 = E::G2Affine::read_checked(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("invalid point gamma_g2: {}", e)))
             .and_then(|p| {
                 if p.is_zero() { return Err(io::Error::new(io::ErrorKind::InvalidData, "invalid point gamma_g2: point at infinity")); }
                 Ok(p)
             })?;
 
         let delta_g2 = E::G2Affine::read_checked(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("invalid point delta_g2: {}", e)))
             .and_then(|p| {
                 if p.is_zero() { return Err(io::Error::new(io::ErrorKind::InvalidData, "invalid point delta_g2: point at infinity")); }
                 Ok(p)
@@ -324,35 +324,35 @@ impl<E: PairingEngine> FromBytesChecked for Parameters<E> {
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
         let alpha_g1 = E::G1Affine::read_checked(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("invalid point alpha_g1: {}", e)))
             .and_then(|p| {
                 if p.is_zero() { return Err(io::Error::new(io::ErrorKind::InvalidData, "invalid point alpha_g1: point at infinity")); }
                 Ok(p)
             })?;
 
         let beta_g1 = E::G1Affine::read_checked(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("invalid point beta_g1: {}", e)))
             .and_then(|p| {
                 if p.is_zero() { return Err(io::Error::new(io::ErrorKind::InvalidData, "invalid point beta_g1: point at infinity")); }
                 Ok(p)
             })?;
 
         let beta_g2 = E::G2Affine::read_checked(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("invalid point beta_g2: {}", e)))
             .and_then(|p| {
                 if p.is_zero() { return Err(io::Error::new(io::ErrorKind::InvalidData, "invalid point beta_g2: point at infinity")); }
                 Ok(p)
             })?;
 
         let delta_g1 = E::G1Affine::read_checked(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("invalid point delta_g1: {}", e)))
             .and_then(|p| {
                 if p.is_zero() { return Err(io::Error::new(io::ErrorKind::InvalidData, "invalid point delta_g1: point at infinity")); }
                 Ok(p)
             })?;
 
         let delta_g2 = E::G2Affine::read_checked(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("invalid point delta_g2: {}", e)))
             .and_then(|p| {
                 if p.is_zero() { return Err(io::Error::new(io::ErrorKind::InvalidData, "invalid point delta_g2: point at infinity")); }
                 Ok(p)

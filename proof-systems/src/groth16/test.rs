@@ -1,4 +1,4 @@
-use algebra::{Field, FromBytesChecked};
+use algebra::Field;
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 struct MySillyCircuit<F: Field> {
     a: Option<F>,
@@ -78,7 +78,7 @@ mod test{
         }
     }
 
-    fn test_serialize_deserialize<E: PairingEngine>() -> (Vec<u8>, Vec<u8>, Vec<u8>) {
+    fn test_serialize_deserialize<E: PairingEngine>() {
 
         let rng = &mut thread_rng();
 
@@ -88,14 +88,13 @@ mod test{
 
         let vk = params.vk.clone();
 
-        let params_serialized = to_bytes!(params).unwrap();
-        let params_deserialized = Parameters::<E>::read(params_serialized.as_slice()).unwrap();
+        let params_deserialized = Parameters::<E>::read(to_bytes!(params).unwrap().as_slice()).unwrap();
         assert_eq!(params, params_deserialized);
+        drop(params);
 
-        let vk_serialized = to_bytes!(vk).unwrap();
-        let vk_deserialized = VerifyingKey::<E>::read(vk_serialized.as_slice()).unwrap();
+        let vk_deserialized = VerifyingKey::<E>::read(to_bytes!(vk).unwrap().as_slice()).unwrap();
         assert_eq!(vk, vk_deserialized);
-
+        drop(vk);
 
         let a = <E as PairingEngine>::Fr::rand(rng);
         let b = <E as PairingEngine>::Fr::rand(rng);
@@ -111,18 +110,15 @@ mod test{
         )
             .unwrap();
 
-        let proof_serialized = to_bytes!(proof).unwrap();
-        let proof_deserialized = Proof::<E>::read(proof_serialized.as_slice()).unwrap();
+        let proof_deserialized = Proof::<E>::read(to_bytes!(proof).unwrap().as_slice()).unwrap();
         assert_eq!(proof, proof_deserialized);
+        drop(proof);
 
         let pvk = prepare_verifying_key(&vk_deserialized);
-        let pvk_serialized = to_bytes!(pvk).unwrap();
-        let pvk_deserialized = PreparedVerifyingKey::<E>::read(pvk_serialized.as_slice()).unwrap();
+        let pvk_deserialized = PreparedVerifyingKey::<E>::read(to_bytes!(pvk).unwrap().as_slice()).unwrap();
         assert_eq!(pvk, pvk_deserialized);
 
-        assert!(verify_proof(&pvk_deserialized, &proof_deserialized, &[c]).unwrap());
-
-        (params_serialized, proof_serialized, vk_serialized)
+        assert!(verify_proof(&pvk_deserialized, &proof_deserialized, &[c]).unwrap())
     }
 
     #[test]
@@ -135,89 +131,9 @@ mod test{
 
     #[test]
     fn serialize_deserialize() {
-
-        // Basic checks
-        let (params_bls, proof_bls, vk_bls) = test_serialize_deserialize::<Bls12_377>();
-        let (params_sw6, proof_sw6, vk_sw6) = test_serialize_deserialize::<SW6>();
-        let (params_mnt4, proof_mnt4, vk_mnt4) = test_serialize_deserialize::<MNT4>();
-        let (params_mnt6, proof_mnt6, vk_mnt6) = test_serialize_deserialize::<MNT6>();
-
-        // Cross checks: let's assert that deserialization fails when composing fields/points are not valid
-
-        // BLS12-377
-        assert!(Parameters::<Bls12_377>::read_checked(params_sw6.as_slice()).is_err());
-        assert!(Parameters::<Bls12_377>::read_checked(params_mnt4.as_slice()).is_err());
-        assert!(Parameters::<Bls12_377>::read_checked(params_mnt6.as_slice()).is_err());
-
-        assert!(Proof::<Bls12_377>::read_checked(proof_sw6.as_slice()).is_err());
-        assert!(Proof::<Bls12_377>::read_checked(proof_mnt4.as_slice()).is_err());
-        assert!(Proof::<Bls12_377>::read_checked(proof_mnt6.as_slice()).is_err());
-
-        assert!(VerifyingKey::<Bls12_377>::read_checked(vk_sw6.as_slice()).is_err());
-        assert!(VerifyingKey::<Bls12_377>::read_checked(vk_mnt4.as_slice()).is_err());
-        assert!(VerifyingKey::<Bls12_377>::read_checked(vk_mnt6.as_slice()).is_err());
-
-        // SW6
-        assert!(Parameters::<SW6>::read_checked(params_bls.as_slice()).is_err());
-        assert!(Parameters::<SW6>::read_checked(params_mnt4.as_slice()).is_err());
-        assert!(Parameters::<SW6>::read_checked(params_mnt6.as_slice()).is_err());
-
-        assert!(Proof::<SW6>::read_checked(proof_bls.as_slice()).is_err());
-        assert!(Proof::<SW6>::read_checked(proof_mnt4.as_slice()).is_err());
-        assert!(Proof::<SW6>::read_checked(proof_mnt6.as_slice()).is_err());
-
-        assert!(VerifyingKey::<SW6>::read_checked(vk_bls.as_slice()).is_err());
-        assert!(VerifyingKey::<SW6>::read_checked(vk_mnt4.as_slice()).is_err());
-        assert!(VerifyingKey::<SW6>::read_checked(vk_mnt6.as_slice()).is_err());
-
-        //MNT4-753
-        assert!(Parameters::<MNT4>::read_checked(params_bls.as_slice()).is_err());
-        assert!(Parameters::<MNT4>::read_checked(params_sw6.as_slice()).is_err());
-        assert!(Parameters::<MNT4>::read_checked(params_mnt6.as_slice()).is_err());
-
-        assert!(Proof::<MNT4>::read_checked(proof_bls.as_slice()).is_err());
-        assert!(Proof::<MNT4>::read_checked(proof_sw6.as_slice()).is_err());
-        assert!(Proof::<MNT4>::read_checked(proof_mnt6.as_slice()).is_err());
-
-        assert!(VerifyingKey::<MNT4>::read_checked(vk_bls.as_slice()).is_err());
-        assert!(VerifyingKey::<MNT4>::read_checked(vk_sw6.as_slice()).is_err());
-        assert!(VerifyingKey::<MNT4>::read_checked(vk_mnt6.as_slice()).is_err());
-
-        //MNT6-753
-        assert!(Parameters::<MNT6>::read_checked(params_bls.as_slice()).is_err());
-        assert!(Parameters::<MNT6>::read_checked(params_sw6.as_slice()).is_err());
-        assert!(Parameters::<MNT6>::read_checked(params_mnt4.as_slice()).is_err());
-
-        assert!(Proof::<MNT6>::read_checked(proof_bls.as_slice()).is_err());
-        assert!(Proof::<MNT6>::read_checked(proof_sw6.as_slice()).is_err());
-        assert!(Proof::<MNT6>::read_checked(proof_mnt4.as_slice()).is_err());
-
-        assert!(VerifyingKey::<MNT6>::read_checked(vk_bls.as_slice()).is_err());
-        assert!(VerifyingKey::<MNT6>::read_checked(vk_sw6.as_slice()).is_err());
-        assert!(VerifyingKey::<MNT6>::read_checked(vk_mnt4.as_slice()).is_err());
-    }
-
-    #[test]
-    fn read_proof_checked_unchecked(){
-
-        // BLS12-377
-        let mut proof = vec![0u8; 387];
-        assert!(Proof::<Bls12_377>::read(proof.as_slice()).is_ok());
-        assert!(Proof::<Bls12_377>::read_checked(proof.as_slice()).is_err());
-
-        // SW6
-        proof = vec![0u8; 1083];
-        assert!(Proof::<SW6>::read(proof.as_slice()).is_ok());
-        assert!(Proof::<SW6>::read_checked(proof.as_slice()).is_err());
-
-        // MNT4-753
-        proof = vec![0u8; 771];
-        assert!(Proof::<MNT4>::read(proof.as_slice()).is_ok());
-        assert!(Proof::<MNT4>::read_checked(proof.as_slice()).is_err());
-
-        // MNT6-753
-        proof = vec![0u8; 963];
-        assert!(Proof::<MNT6>::read(proof.as_slice()).is_ok());
-        assert!(Proof::<MNT6>::read_checked(proof.as_slice()).is_err());
+        test_serialize_deserialize::<Bls12_377>();
+        test_serialize_deserialize::<SW6>();
+        test_serialize_deserialize::<MNT4>();
+        test_serialize_deserialize::<MNT6>();
     }
 }

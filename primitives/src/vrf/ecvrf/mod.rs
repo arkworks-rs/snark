@@ -58,7 +58,7 @@ impl<F: PrimeField, G: ProjectiveCurve> FromBytes for FieldBasedEcVrfProof<F, G>
 impl<F: PrimeField, G: ProjectiveCurve> FromBytesChecked for FieldBasedEcVrfProof<F, G> {
     fn read_checked<R: Read>(mut reader: R) -> IoResult<Self> {
         let gamma = G::Affine::read_checked(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("invalid point gamma: {}", e)))
             .and_then(|p| {
                 if p.is_zero() { return Err(io::Error::new(io::ErrorKind::InvalidData, "invalid point gamma: point at infinity")); }
                 Ok(p)
@@ -71,7 +71,7 @@ impl<F: PrimeField, G: ProjectiveCurve> FromBytesChecked for FieldBasedEcVrfProo
 
 impl<F: PrimeField, G: ProjectiveCurve> SemanticallyValid for FieldBasedEcVrfProof<F, G> {
     fn is_valid(&self) -> bool {
-        (!self.gamma.is_zero() && self.gamma.is_valid()) &&
+        (self.gamma.is_valid() && !self.gamma.is_zero()) &&
         self.c.is_valid() &&
         self.s.is_valid()
     }
@@ -277,7 +277,7 @@ mod test {
         mnt4753::Fr as MNT4Fr,
         mnt6753::Fr as MNT6Fr,
     };
-    use algebra::{ToBytes, FromBytes, FromBytesChecked, to_bytes, SemanticallyValid};
+    use algebra::{ToBytes, FromBytes, to_bytes};
     use crate::{
         crh::{
             MNT4PoseidonHash, MNT6PoseidonHash,
@@ -338,18 +338,9 @@ mod test {
 
         let proof_serialized = to_bytes!(proof).unwrap();
 
-        // Deserialization test: checked/unchecked ok
-        assert!(<S as FieldBasedVrf>::Proof::read(proof_serialized.as_slice()).is_ok());
-        let proof_deserialized = <S as FieldBasedVrf>::Proof::read_checked(proof_serialized.as_slice()).unwrap();
+        let proof_deserialized = <S as FieldBasedVrf>::Proof::read(proof_serialized.as_slice()).unwrap();
         assert_eq!(proof, proof_deserialized);
         assert!(S::proof_to_hash(pp, &pk, &message, &proof_deserialized).is_ok());
-
-        // Deserialization test: unchecked ok and checked fail
-        let proof_serialized = vec![0u8; proof_serialized.len()];
-        let proof_read = <S as FieldBasedVrf>::Proof::read(proof_serialized.as_slice());
-        assert!(proof_read.is_ok());
-        assert!(!proof_read.is_valid());
-        assert!(<S as FieldBasedVrf>::Proof::read_checked(proof_serialized.as_slice()).is_err());
     }
 
     #[test]
