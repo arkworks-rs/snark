@@ -31,8 +31,6 @@ use algebra_core::{
 };
 use r1cs_core::SynthesisError;
 
-// use byteorder::{BigEndian, ReadBytesExt};
-
 /// Reduce an R1CS instance to a *Square Arithmetic Program* instance.
 pub mod r1cs_to_sap;
 
@@ -67,27 +65,42 @@ impl<E: PairingEngine> ToBytes for Proof<E> {
     }
 }
 
+fn write_slice_with_len<W: Write, T: ToBytes>(mut writer: W, data: &[T]) -> IoResult<()> {
+    (data.len() as u32).write(&mut writer)?;
+    for d in data {
+        d.write(&mut writer)?;
+    }
+    Ok(())
+}
+fn read_vec_with_len<R: Read, T: FromBytes, F: FnMut(IoResult<T>) -> IoResult<T>>(
+    mut reader: R,
+    mut result_transform: F,
+) -> IoResult<Vec<T>> {
+    let len = u32::read(&mut reader)? as usize;
+    (0..len)
+        .map(|_| result_transform(T::read(&mut reader)))
+        .collect()
+}
+
+fn result_transform_g1_g2<E: PairingEngine, T>(result: io::Result<T>) -> io::Result<T> {
+    result.map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+}
+
+fn read_g1<E: PairingEngine, R: Read>(reader: &mut R) -> io::Result<E::G1Affine> {
+    result_transform_g1_g2::<E, E::G1Affine>(<E::G1Affine>::read(reader))
+}
+
+fn read_g2<E: PairingEngine, R: Read>(reader: &mut R) -> io::Result<E::G2Affine> {
+    result_transform_g1_g2::<E, E::G2Affine>(<E::G2Affine>::read(reader))
+}
+
 impl<E: PairingEngine> FromBytes for Proof<E> {
     fn read<R: Read>(reader: R) -> IoResult<Self> {
         let mut reader = reader;
 
-        let result_transform_g1 = |result: io::Result<E::G1Affine>| -> io::Result<E::G1Affine> {
-            result.map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
-        };
-        let read_g1 = |reader: &mut R| -> io::Result<E::G1Affine> {
-            result_transform_g1(<E::G1Affine>::read(reader))
-        };
-
-        let result_transform_g2 = |result: io::Result<E::G2Affine>| -> io::Result<E::G2Affine> {
-            result.map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
-        };
-        let read_g2 = |reader: &mut R| -> io::Result<E::G2Affine> {
-            result_transform_g2(<E::G2Affine>::read(reader))
-        };
-
-        let a = read_g1(&mut reader)?;
-        let b = read_g2(&mut reader)?;
-        let c = read_g1(&mut reader)?;
+        let a = read_g1::<E, R>(&mut reader)?;
+        let b = read_g2::<E, R>(&mut reader)?;
+        let c = read_g1::<E, R>(&mut reader)?;
 
         Ok(Proof { a, b, c })
     }
@@ -144,9 +157,6 @@ impl<E: PairingEngine> ToBytes for VerifyingKey<E> {
         self.h_gamma_g2.write(&mut writer)?;
 
         write_slice_with_len(&mut writer, &self.query)?;
-        // for q in &self.query {
-        //     q.write(&mut writer)?;
-        // }
         Ok(())
     }
 }
@@ -154,55 +164,13 @@ impl<E: PairingEngine> ToBytes for VerifyingKey<E> {
 impl<E: PairingEngine> FromBytes for VerifyingKey<E> {
     fn read<R: Read>(reader: R) -> IoResult<Self> {
         let mut reader = reader;
-        // use num_traits::Zero;
 
-        let result_transform_g1 = |result: io::Result<E::G1Affine>| -> io::Result<E::G1Affine> {
-            result.map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
-            // .and_then(|e| {
-            //     if e.is_zero() {
-            //         Err(io::Error::new(
-            //             io::ErrorKind::InvalidData,
-            //             "point at infinity",
-            //         ))
-            //     } else {
-            //         Ok(e)
-            //     }
-            // })
-        };
-        let read_g1 = |reader: &mut R| -> io::Result<E::G1Affine> {
-            result_transform_g1(<E::G1Affine>::read(reader))
-        };
-
-        let result_transform_g2 = |result: io::Result<E::G2Affine>| -> io::Result<E::G2Affine> {
-            result.map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
-            // .and_then(|e| {
-            //     if e.is_zero() {
-            //         Err(io::Error::new(
-            //             io::ErrorKind::InvalidData,
-            //             "point at infinity",
-            //         ))
-            //     } else {
-            //         Ok(e)
-            //     }
-            // })
-        };
-        let read_g2 = |reader: &mut R| -> io::Result<E::G2Affine> {
-            result_transform_g2(<E::G2Affine>::read(reader))
-        };
-
-        let h_g2 = read_g2(&mut reader)?;
-        let g_alpha_g1 = read_g1(&mut reader)?;
-        let h_beta_g2 = read_g2(&mut reader)?;
-        let g_gamma_g1 = read_g1(&mut reader)?;
-        let h_gamma_g2 = read_g2(&mut reader)?;
-        let query = read_vec_with_len(&mut reader, result_transform_g1)?;
-
-        // {
-        //     let len = reader.read_u32::<BigEndian>()? as usize;
-        //     for _ in 0..len {
-        //         query.push(read_g1(&mut reader)?);
-        //     }
-        // }
+        let h_g2 = read_g2::<E, R>(&mut reader)?;
+        let g_alpha_g1 = read_g1::<E, R>(&mut reader)?;
+        let h_beta_g2 = read_g2::<E, R>(&mut reader)?;
+        let g_gamma_g1 = read_g1::<E, R>(&mut reader)?;
+        let h_gamma_g2 = read_g2::<E, R>(&mut reader)?;
+        let query = read_vec_with_len(&mut reader, result_transform_g1_g2::<E, E::G1Affine>)?;
 
         Ok(VerifyingKey {
             h_g2,
@@ -269,23 +237,6 @@ pub struct Parameters<E: PairingEngine> {
     pub g_gamma2_z_t: Vec<E::G1Affine>,
 }
 
-fn write_slice_with_len<W: Write, T: ToBytes>(mut writer: W, data: &[T]) -> IoResult<()> {
-    (data.len() as u32).write(&mut writer)?;
-    for d in data {
-        d.write(&mut writer)?;
-    }
-    Ok(())
-}
-fn read_vec_with_len<R: Read, T: FromBytes, F: FnMut(IoResult<T>) -> IoResult<T>>(
-    mut reader: R,
-    mut result_transform: F,
-) -> IoResult<Vec<T>> {
-    let len = u32::read(&mut reader)? as usize;
-    (0..len)
-        .map(|_| result_transform(T::read(&mut reader)))
-        .collect()
-}
-
 impl<E: PairingEngine> ToBytes for Parameters<E> {
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
         self.vk.write(&mut writer)?;
@@ -293,26 +244,11 @@ impl<E: PairingEngine> ToBytes for Parameters<E> {
         write_slice_with_len(&mut writer, &self.b_query)?;
         write_slice_with_len(&mut writer, &self.c_query_1)?;
         write_slice_with_len(&mut writer, &self.c_query_2)?;
-        // for a_q in &self.a_query {
-        //     a_q.write(&mut writer)?;
-        // }
-        // for b_q in &self.b_query {
-        //     b_q.write(&mut writer)?;
-        // }
-        // for c_q1 in &self.c_query_1 {
-        //     c_q1.write(&mut writer)?;
-        // }
-        // for c_q2 in &self.c_query_2 {
-        //     c_q2.write(&mut writer)?;
-        // }
         self.g_gamma_z.write(&mut writer)?;
         self.h_gamma_z.write(&mut writer)?;
         self.g_ab_gamma_z.write(&mut writer)?;
         self.g_gamma2_z2.write(&mut writer)?;
         write_slice_with_len(&mut writer, &self.g_gamma2_z_t)?;
-        // for g in &self.g_gamma2_z_t {
-        //     g.write(&mut writer)?;
-        // }
         Ok(())
     }
 }
@@ -320,90 +256,21 @@ impl<E: PairingEngine> ToBytes for Parameters<E> {
 impl<E: PairingEngine> FromBytes for Parameters<E> {
     fn read<R: Read>(reader: R) -> IoResult<Self> {
         let mut reader = reader;
-        // use num_traits::Zero;
-
-        let result_transform_g1 = |result: io::Result<E::G1Affine>| -> io::Result<E::G1Affine> {
-            result.map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
-            // .and_then(|e| {
-            //     if e.is_zero() {
-            //         Err(io::Error::new(
-            //             io::ErrorKind::InvalidData,
-            //             "point at infinity",
-            //         ))
-            //     } else {
-            //         Ok(e)
-            //     }
-            // })
-        };
-        let read_g1 = |reader: &mut R| -> io::Result<E::G1Affine> {
-            result_transform_g1(<E::G1Affine>::read(reader))
-        };
-
-        let result_transform_g2 = |result: io::Result<E::G2Affine>| -> io::Result<E::G2Affine> {
-            result.map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
-            // .and_then(|e| {
-            //     if e.is_zero() {
-            //         Err(io::Error::new(
-            //             io::ErrorKind::InvalidData,
-            //             "point at infinity",
-            //         ))
-            //     } else {
-            //         Ok(e)
-            //     }
-            // })
-        };
-        let read_g2 = |reader: &mut R| -> io::Result<E::G2Affine> {
-            result_transform_g2(<E::G2Affine>::read(reader))
-        };
 
         let vk = VerifyingKey::<E>::read(&mut reader)?;
 
-        let a_query = read_vec_with_len(&mut reader, result_transform_g1)?;
-        let b_query = read_vec_with_len(&mut reader, result_transform_g2)?;
-        let c_query_1 = read_vec_with_len(&mut reader, result_transform_g1)?;
-        let c_query_2 = read_vec_with_len(&mut reader, result_transform_g1)?;
+        let a_query = read_vec_with_len(&mut reader, result_transform_g1_g2::<E, E::G1Affine>)?;
+        let b_query = read_vec_with_len(&mut reader, result_transform_g1_g2::<E, E::G2Affine>)?;
+        let c_query_1 = read_vec_with_len(&mut reader, result_transform_g1_g2::<E, E::G1Affine>)?;
+        let c_query_2 = read_vec_with_len(&mut reader, result_transform_g1_g2::<E, E::G1Affine>)?;
 
-        // {
-        //     let len = reader.read_u32::<BigEndian>()? as usize;
-        //     for _ in 0..len {
-        //         a_query.push(read_g1(&mut reader)?);
-        //     }
-        // }
-        //
-        // {
-        //     let len = reader.read_u32::<BigEndian>()? as usize;
-        //     for _ in 0..len {
-        //         b_query.push(read_g2(&mut reader)?);
-        //     }
-        // }
-        //
-        // {
-        //     let len = reader.read_u32::<BigEndian>()? as usize;
-        //     for _ in 0..len {
-        //         c_query_1.push(read_g1(&mut reader)?);
-        //     }
-        // }
-        //
-        // {
-        //     let len = reader.read_u32::<BigEndian>()? as usize;
-        //     for _ in 0..len {
-        //         c_query_2.push(read_g1(&mut reader)?);
-        //     }
-        // }
+        let g_gamma_z = read_g1::<E, R>(&mut reader)?;
+        let h_gamma_z = read_g2::<E, R>(&mut reader)?;
+        let g_ab_gamma_z = read_g1::<E, R>(&mut reader)?;
+        let g_gamma2_z2 = read_g1::<E, R>(&mut reader)?;
 
-        let g_gamma_z = read_g1(&mut reader)?;
-        let h_gamma_z = read_g2(&mut reader)?;
-        let g_ab_gamma_z = read_g1(&mut reader)?;
-        let g_gamma2_z2 = read_g1(&mut reader)?;
-
-        let g_gamma2_z_t = read_vec_with_len(&mut reader, result_transform_g1)?;
-
-        // {
-        //     let len = reader.read_u32::<BigEndian>()? as usize;
-        //     for _ in 0..len {
-        //         g_gamma2_z_t.push(read_g1(&mut reader)?);
-        //     }
-        // }
+        let g_gamma2_z_t =
+            read_vec_with_len(&mut reader, result_transform_g1_g2::<E, E::G1Affine>)?;
 
         Ok(Parameters {
             vk,
