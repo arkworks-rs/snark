@@ -32,7 +32,7 @@ fn poseidon_crh_eval_mnt4(c: &mut Criterion) {
         b.iter(|| {
             for _ in 0..100 {
                 let f = MNT4753Fr::rand(&mut rng);
-                h.update(&f);
+                h.update(f);
             }
             h.finalize();
         })
@@ -49,7 +49,7 @@ fn poseidon_crh_eval_mnt6(c: &mut Criterion) {
         b.iter(|| {
             for _ in 0..100 {
                 let f = MNT6753Fr::rand(&mut rng);
-                h.update(&f);
+                h.update(f);
             }
             h.finalize();
         })

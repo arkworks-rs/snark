@@ -33,14 +33,14 @@ impl<F, P> UpdatablePoseidonHash<F, P>
         // the hash is not mentioned in https://eprint.iacr.org/2019/458.pdf
         if personalization.is_some(){
             let personalization = personalization.unwrap();
+            let padding = personalization.len() % P::R;
 
-            for p in personalization.iter(){
+            for p in personalization.into_iter(){
                 instance.update(p);
             }
 
-            let padding = personalization.len() % P::R;
             for _ in 0..padding {
-                instance.update(&F::zero());
+                instance.update(F::zero());
             }
             assert_eq!(instance.pending.len(), 0);
         }
@@ -77,8 +77,8 @@ impl<F, P> UpdatableFieldBasedHash for UpdatablePoseidonHash<F, P>
     type Data = F;
     type Parameters = P;
 
-    fn update(&mut self, input: &Self::Data) -> &mut Self {
-        self.pending.push(input.clone());
+    fn update(&mut self, input: Self::Data) -> &mut Self {
+        self.pending.push(input);
         if self.pending.len() == P::R {
             self.apply_permutation();
             self.pending.clear();
@@ -116,7 +116,7 @@ mod test {
             let hash_output = MNT4PoseidonHash::evaluate(input.as_slice()).unwrap();
             let updatable_hash_output = {
                 let mut updatable_hash = UpdatableMNT4PoseidonHash::new(None);
-                for input in input.iter() {
+                for input in input.into_iter() {
                     updatable_hash.update(input);
                 }
                 updatable_hash.finalize()
@@ -129,9 +129,9 @@ mod test {
         let h_out = MNT4PoseidonHash::evaluate(input.as_slice()).unwrap();
 
         let mut uh =  UpdatableMNT4PoseidonHash::new(None);
-        uh.update(&input[0]);
+        uh.update(input[0]);
         uh.finalize();
-        uh.update(&input[1]);
+        uh.update(input[1]);
         assert_eq!(h_out, uh.finalize());
 
         //Test finalize() being idempotent
@@ -152,7 +152,7 @@ mod test {
 
             let updatable_hash_output = {
                 let mut updatable_hash = UpdatableMNT4PoseidonHash::new(Some(personalization));
-                updatable_hash.update(&input);
+                updatable_hash.update(input);
                 updatable_hash.finalize()
             };
             assert_eq!(hash_output,
@@ -172,7 +172,7 @@ mod test {
             let hash_output = MNT6PoseidonHash::evaluate(input.as_slice()).unwrap();
             let updatable_hash_output = {
                 let mut updatable_hash = UpdatableMNT6PoseidonHash::new(None);
-                for input in input.iter() {
+                for input in input.into_iter() {
                     updatable_hash.update(input);
                 }
                 updatable_hash.finalize()
@@ -185,9 +185,9 @@ mod test {
         let h_out = MNT6PoseidonHash::evaluate(input.as_slice()).unwrap();
 
         let mut uh =  UpdatableMNT6PoseidonHash::new(None);
-        uh.update(&input[0]);
+        uh.update(input[0]);
         uh.finalize();
-        uh.update(&input[1]);
+        uh.update(input[1]);
         assert_eq!(h_out, uh.finalize());
 
         //Test finalize() being idempotent
@@ -208,7 +208,7 @@ mod test {
 
             let updatable_hash_output = {
                 let mut updatable_hash = UpdatableMNT6PoseidonHash::new(Some(personalization));
-                updatable_hash.update(&input);
+                updatable_hash.update(input);
                 updatable_hash.finalize()
             };
             assert_eq!(hash_output,
