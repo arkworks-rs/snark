@@ -1,11 +1,17 @@
 use super::*;
-use crate::UpdatableBatchFieldBasedHash;
+use crate::{
+    crh::{
+        poseidon::batched_crh::PoseidonBatchHash,
+        BatchFieldBasedHash
+    },
+    UpdatableBatchFieldBasedHash
+};
 use std::marker::PhantomData;
 
 // Updatable Batch Poseidon Hash: each update() call will add a new batch for which computing
 // the hash. The hashes for each batch are computed in parallel whenever the number of batch
 // reaches cpu_loads size (a variable used to evenly distribute the work among the available
-// cpus, given by hash_per_core * number_of_cores, where hashes_per_core is a variable set by
+// cpus, given by hashes_per_core * number_of_cores, where hashes_per_core is a variable set by
 // the user and defaults to 1. The user may set the value of hashes_per_core as desired depending
 // on its system and use case), and the 'outputs' vector will be extended with the new results.
 // The finalize() function will process the eventual remaining batches in 'pending' Vec and will
@@ -42,6 +48,7 @@ impl<F, P> UpdatableBatchPoseidonHash<F, P>
         self.outputs.extend_from_slice(output.as_slice());
     }
 
+    #[inline]
     fn _finalize(&self) -> Vec<F> {
         let mut outputs = self.outputs.clone();
         let output = PoseidonBatchHash::<F, P>::batch_evaluate(

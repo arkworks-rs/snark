@@ -47,6 +47,7 @@ impl<F, P> UpdatablePoseidonHash<F, P>
         instance
     }
 
+    #[inline]
     fn apply_permutation(&mut self) {
         for (input, state) in self.pending.iter().zip(self.state.iter_mut()) {
             *state += input;
@@ -55,6 +56,7 @@ impl<F, P> UpdatablePoseidonHash<F, P>
         PoseidonHash::<F, P>::poseidon_perm(&mut self.state);
     }
 
+    #[inline]
     fn _finalize(&self) -> F {
         let mut state = self.state.clone();
         for (input, s) in self.pending.iter().zip(state.iter_mut()) {

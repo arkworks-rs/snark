@@ -26,41 +26,34 @@ type UpdatableMNT6BatchPoseidonHash = UpdatableBatchPoseidonHash<MNT6753Fr, MNT6
 fn poseidon_crh_eval_mnt4(c: &mut Criterion) {
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-
-    let input = vec![MNT4753Fr::rand(&mut rng); 100];
+    let mut h = UpdatableMNT4PoseidonHash::new(None);
 
     c.bench_function("Poseidon CRH Eval for MNT4", move |b| {
         b.iter(|| {
-            poseidon_eval_mnt4(input.as_slice(), UpdatableMNT4PoseidonHash::new(None));
+            for _ in 0..100 {
+                let f = MNT4753Fr::rand(&mut rng);
+                h.update(&f);
+            }
+            h.finalize();
         })
     });
 }
 
-fn poseidon_eval_mnt4(inputs: &[MNT4753Fr], mut h: UpdatableMNT4PoseidonHash){
-    for i in inputs {
-        h.update(i);
-    }
-    h.finalize();
-}
 
 fn poseidon_crh_eval_mnt6(c: &mut Criterion) {
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-
-    let input = vec![MNT6753Fr::rand(&mut rng); 100];
+    let mut h = UpdatableMNT6PoseidonHash::new(None);
 
     c.bench_function("Poseidon CRH Eval for MNT6", move |b| {
         b.iter(|| {
-            poseidon_eval_mnt6(input.as_slice(), UpdatableMNT6PoseidonHash::new(None));
+            for _ in 0..100 {
+                let f = MNT6753Fr::rand(&mut rng);
+                h.update(&f);
+            }
+            h.finalize();
         })
     });
-}
-
-fn poseidon_eval_mnt6(inputs: &[MNT6753Fr], mut h: UpdatableMNT6PoseidonHash){
-    for i in inputs {
-        h.update(i);
-    }
-    h.finalize();
 }
 
 fn batch_poseidon_crh_eval_mnt4(c: &mut Criterion) {
@@ -71,11 +64,15 @@ fn batch_poseidon_crh_eval_mnt4(c: &mut Criterion) {
     // the random number generator to generate random input data
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-    let input = vec![MNT4753Fr::rand(&mut rng); MNT4753PoseidonParameters::R * num_hashes];
+    let mut h = UpdatableMNT4BatchPoseidonHash::new(Some(128));
 
     c.bench_function("Batch Poseidon CRH Eval for MNT4 (1000 hashes)", move |b| {
         b.iter(|| {
-            batch_poseidon_eval_mnt4(input.as_slice(), UpdatableMNT4BatchPoseidonHash::new(Some(128)));
+            for _ in 0..num_hashes {
+                let input = vec![MNT4753Fr::rand(&mut rng); MNT4753PoseidonParameters::R];
+                h.update(input.as_slice());
+            }
+            h.finalize();
         })
     });
 }
@@ -83,9 +80,6 @@ fn batch_poseidon_crh_eval_mnt4(c: &mut Criterion) {
 fn batch_mnt4_hashes_per_core(c: &mut Criterion) {
     const NUM_HASHES: usize = 1000;
 
-    // the random number generator to generate random input data
-    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-    let input = [MNT4753Fr::rand(&mut rng); MNT4753PoseidonParameters::R * NUM_HASHES];
     let max = (NUM_HASHES/rayon::current_num_threads()).next_power_of_two();
     let mut cpu_load = 1;
     while cpu_load <= max {
@@ -94,21 +88,17 @@ fn batch_mnt4_hashes_per_core(c: &mut Criterion) {
            &cpu_load,
             move |b, cpu_load| {
                 b.iter(|| {
-                    batch_poseidon_eval_mnt4(
-                        &input,
-                        UpdatableMNT4BatchPoseidonHash::new(Some(*cpu_load))
-                    );
+                    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+                    let mut h = UpdatableMNT4BatchPoseidonHash::new(Some(*cpu_load));
+                        for _ in 0..NUM_HASHES {
+                            let input = vec![MNT4753Fr::rand(&mut rng); MNT4753PoseidonParameters::R];
+                            h.update(input.as_slice());
+                        }
+                        h.finalize();
                 })
             });
         cpu_load *= 2;
     }
-}
-
-fn batch_poseidon_eval_mnt4(inputs: &[MNT4753Fr], mut h: UpdatableMNT4BatchPoseidonHash){
-    for i in inputs.chunks(MNT4753PoseidonParameters::R){
-        h.update(i);
-    }
-    h.finalize();
 }
 
 fn batch_poseidon_crh_eval_mnt6(c: &mut Criterion) {
@@ -119,11 +109,15 @@ fn batch_poseidon_crh_eval_mnt6(c: &mut Criterion) {
     // the random number generator to generate random input data
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-    let input = vec![MNT6753Fr::rand(&mut rng); MNT6753PoseidonParameters::R * num_hashes];
+    let mut h = UpdatableMNT6BatchPoseidonHash::new(Some(128));
 
     c.bench_function("Batch Poseidon CRH Eval for MNT6 (1000 hashes)", move |b| {
         b.iter(|| {
-            batch_poseidon_eval_mnt6(input.as_slice(), UpdatableMNT6BatchPoseidonHash::new(Some(128)));
+            for _ in 0..num_hashes {
+                let input = vec![MNT6753Fr::rand(&mut rng); MNT6753PoseidonParameters::R];
+                h.update(input.as_slice());
+            }
+            h.finalize();
         })
     });
 }
@@ -132,8 +126,6 @@ fn batch_mnt6_hashes_per_core(c: &mut Criterion) {
     const NUM_HASHES: usize = 1000;
 
     // the random number generator to generate random input data
-    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-    let input = [MNT6753Fr::rand(&mut rng); MNT6753PoseidonParameters::R * NUM_HASHES];
     let max = (NUM_HASHES/rayon::current_num_threads()).next_power_of_two();
     let mut cpu_load = 1;
     while cpu_load <= max {
@@ -142,21 +134,17 @@ fn batch_mnt6_hashes_per_core(c: &mut Criterion) {
             &cpu_load,
             move |b, cpu_load| {
                 b.iter(|| {
-                    batch_poseidon_eval_mnt6(
-                        &input,
-                        UpdatableMNT6BatchPoseidonHash::new(Some(*cpu_load))
-                    );
+                    let mut h = UpdatableMNT6BatchPoseidonHash::new(Some(*cpu_load));
+                    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+                    for _ in 0..NUM_HASHES {
+                        let input = vec![MNT6753Fr::rand(&mut rng); MNT6753PoseidonParameters::R];
+                        h.update(input.as_slice());
+                    }
+                    h.finalize();
                 })
             });
         cpu_load *= 2;
     }
-}
-
-fn batch_poseidon_eval_mnt6(inputs: &[MNT6753Fr], mut h: UpdatableMNT6BatchPoseidonHash){
-    for i in inputs.chunks(MNT6753PoseidonParameters::R){
-        h.update(i);
-    }
-    h.finalize();
 }
 
 
@@ -172,6 +160,7 @@ criterion_group! {
     targets = batch_poseidon_crh_eval_mnt4, batch_poseidon_crh_eval_mnt6,
 }
 
+// Can be used to decide the most suitable value of cpu_load
 criterion_group! {
     name = updatable_batch_poseidon_hashes_per_core;
     config = Criterion::default().sample_size(10);
@@ -179,5 +168,5 @@ criterion_group! {
 }
 
 criterion_main! (
-    updatable_batch_poseidon_hashes_per_core
+    updatable_crh_poseidon_eval, updatable_batch_crh_poseidon_eval
 );

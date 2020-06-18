@@ -60,7 +60,7 @@ fn ecvrf_verify(c: &mut Criterion) {
     let proof = EcVrfMNT4::prove(&mut rng, &pp, &pk, &sk, &[message]).unwrap();
 
     c.bench_function("FieldSchnorrMNT4: Verify", move |b| {
-        b.iter(|| EcVrfMNT4::verify(&pp, &pk, &[message], &proof).unwrap())
+        b.iter(|| EcVrfMNT4::proof_to_hash(&pp, &pk, &[message], &proof).unwrap())
     });
 }
 

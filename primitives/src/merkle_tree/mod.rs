@@ -1,4 +1,4 @@
-use crate::{crh::FixedLengthCRH, Error, FieldBasedHashParameters};
+use crate::{crh::FixedLengthCRH, Error};
 use algebra::bytes::ToBytes;
 use std::{fmt, rc::Rc};
 use algebra::Field;

@@ -239,7 +239,6 @@ pub(crate) fn hash_inner_node<H: FieldBasedHash>(
 }
 
 pub(crate) fn hash_empty<H: FieldBasedHash>() -> Result<H::Data, Error> {
-    use algebra::Field;
     let dummy = <H::Data as Field>::one();
     H::evaluate(&[dummy])
 }

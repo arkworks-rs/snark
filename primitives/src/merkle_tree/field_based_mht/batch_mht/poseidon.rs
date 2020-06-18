@@ -165,13 +165,11 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> BatchMerkleTree for 
 mod test {
     use rand_xorshift::XorShiftRng;
     use super::rand::SeedableRng;
-    use crate::batched_crh::PoseidonBatchHash;
     use crate::crh::poseidon::parameters::MNT4753PoseidonParameters;
     use crate::crh::poseidon::parameters::MNT6753PoseidonParameters;
     use algebra::fields::mnt4753::Fr as MNT4753Fr;
     use algebra::fields::mnt6753::Fr as MNT6753Fr;
     use algebra::UniformRand;
-    use std::time::Instant;
 
     use algebra::biginteger::BigInteger768;
     use crate::merkle_tree::field_based_mht::batch_mht::poseidon::PoseidonBatchMerkleTree;
@@ -437,9 +435,9 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> BatchMerkleTree for 
 mod test_mem {
     use rand_xorshift::XorShiftRng;
     use super::rand::SeedableRng;
-    use crate::batched_crh::PoseidonBatchHash;
-    use crate::crh::poseidon::parameters::MNT4753PoseidonParameters;
-    use crate::crh::poseidon::parameters::MNT6753PoseidonParameters;
+    use crate::crh::poseidon::parameters::{
+        MNT4753PoseidonParameters, MNT6753PoseidonParameters,
+    };
     use algebra::fields::mnt4753::Fr as MNT4753Fr;
     use algebra::fields::mnt6753::Fr as MNT6753Fr;
     use algebra::UniformRand;
@@ -447,7 +445,6 @@ mod test_mem {
     use algebra::biginteger::BigInteger768;
     use crate::merkle_tree::field_based_mht::batch_mht::poseidon::PoseidonBatchMerkleTreeMem;
     use crate::merkle_tree::field_based_mht::batch_mht::BatchMerkleTree;
-    use std::time::Instant;
 
     type MNT4BatchedMerkleTree = PoseidonBatchMerkleTreeMem<MNT4753Fr, MNT4753PoseidonParameters>;
     type MNT6BatchedMerkleTree = PoseidonBatchMerkleTreeMem<MNT6753Fr, MNT6753PoseidonParameters>;
