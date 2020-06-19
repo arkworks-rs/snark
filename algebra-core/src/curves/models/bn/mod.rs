@@ -150,11 +150,9 @@ impl<P: BnParameters> PairingEngine for Bn<P> {
     }
 
     fn final_exponentiation(f: &Self::Fqk) -> Option<Self::Fqk> {
-        /*
-          Easy part: result = elt^((q^6-1)*(q^2+1)).
-          Follows, e.g., Beuchat et al page 9, by computing result as follows:
-             elt^((q^6-1)*(q^2+1)) = (conj(elt) * elt^(-1))^(q^2+1)
-        */
+        // Easy part: result = elt^((q^6-1)*(q^2+1)).
+        // Follows, e.g., Beuchat et al page 9, by computing result as follows:
+        //   elt^((q^6-1)*(q^2+1)) = (conj(elt) * elt^(-1))^(q^2+1)
 
         // f1 = r.conjugate() = f^(p^6)
         let mut f1 = *f;
@@ -175,18 +173,16 @@ impl<P: BnParameters> PairingEngine for Bn<P> {
                 // r = f^((p^6 - 1)(p^2 + 1))
                 r *= &f2;
 
-                /*
-                  Hard part follows Laura Fuentes-Castaneda et al. "Faster hashing to G2"
-                  by computing:
-
-                  result = elt^(q^3 * (12*z^3 + 6z^2 + 4z - 1) +
-                                q^2 * (12*z^3 + 6z^2 + 6z) +
-                                q   * (12*z^3 + 6z^2 + 4z) +
-                                1   * (12*z^3 + 12z^2 + 6z + 1))
-                  which equals
-
-                  result = elt^( 2z * ( 6z^2 + 3z + 1 ) * (q^4 - q^2 + 1)/r ).
-                */
+                // Hard part follows Laura Fuentes-Castaneda et al. "Faster hashing to G2"
+                // by computing:
+                //
+                // result = elt^(q^3 * (12*z^3 + 6z^2 + 4z - 1) +
+                //               q^2 * (12*z^3 + 6z^2 + 6z) +
+                //               q   * (12*z^3 + 6z^2 + 4z) +
+                //               1   * (12*z^3 + 12z^2 + 6z + 1))
+                // which equals
+                //
+                // result = elt^( 2z * ( 6z^2 + 3z + 1 ) * (q^4 - q^2 + 1)/r ).
 
                 let y0 = Self::exp_by_neg_x(r);
                 let y1 = y0.cyclotomic_square();
