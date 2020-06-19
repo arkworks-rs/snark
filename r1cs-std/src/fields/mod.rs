@@ -200,6 +200,29 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
         Ok(inverse)
     }
 
+    // Returns (self / denominator), but requires fewer constraints than
+    // self * denominator.inverse()
+    // It is up to the caller to ensure that denominator is non-zero,
+    // since in that case the result is unconstrained.
+    fn mul_by_inverse<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        denominator: &Self,
+    ) -> Result<Self, SynthesisError> {
+        let denominator_inv_native = denominator
+            .get_value()
+            .and_then(|val| val.inverse())
+            .get()?;
+        let result_native = self.get_value().get()? * &denominator_inv_native;
+
+        let result = Self::alloc(&mut cs.ns(|| "alloc mul_by_inverse result"), || {
+            Ok(result_native)
+        })?;
+        result.mul_equals(cs.ns(|| "check mul_by_inverse"), &denominator, &self)?;
+
+        Ok(result)
+    }
+
     fn frobenius_map<CS: ConstraintSystem<ConstraintF>>(
         &self,
         _: CS,
@@ -437,13 +460,23 @@ pub(crate) mod tests {
 
         let a_inv = a.inverse(cs.ns(|| "a_inv")).unwrap();
         a_inv
-            .mul_equals(cs.ns(|| "check_equals"), &a, &one)
+            .mul_equals(cs.ns(|| "check a_inv * a = 1"), &a, &one)
             .unwrap();
         assert_eq!(
             a_inv.get_value().unwrap(),
             a.get_value().unwrap().inverse().unwrap()
         );
         assert_eq!(a_inv.get_value().unwrap(), a_native.inverse().unwrap());
+
+        let a_b_inv = a.mul_by_inverse(cs.ns(|| "a_b_inv"), &b).unwrap();
+        a_b_inv
+            .mul_equals(cs.ns(|| "check a_b_inv * b = a"), &b, &a)
+            .unwrap();
+        assert_eq!(
+            a_b_inv.get_value().unwrap(),
+            a_native * b_native.inverse().unwrap()
+        );
+
         // a * a * a = a^3
         let bits = BitIterator::new([0x3])
             .map(Boolean::constant)
