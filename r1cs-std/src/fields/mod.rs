@@ -290,6 +290,7 @@ pub(crate) mod tests {
         let b_native = FE::rand(&mut rng);
         let a = F::alloc(&mut cs.ns(|| "generate_a"), || Ok(a_native)).unwrap();
         let b = F::alloc(&mut cs.ns(|| "generate_b"), || Ok(b_native)).unwrap();
+        let b_const = F::alloc_constant(&mut cs.ns(|| "generate_b_as_constant"), b_native).unwrap();
 
         let zero = F::zero(cs.ns(|| "zero")).unwrap();
         let zero_native = zero.get_value().unwrap();
@@ -397,6 +398,12 @@ pub(crate) mod tests {
         let ba = b.mul(cs.ns(|| "b_times_a"), &a).unwrap();
         assert_eq!(ab, ba);
         assert_eq!(ab.get_value().unwrap(), a_native * &b_native);
+
+        let ab_const = a.mul(cs.ns(|| "a_times_b_const"), &b_const).unwrap();
+        let b_const_a = b_const.mul(cs.ns(|| "b_const_times_a"), &a).unwrap();
+        assert_eq!(ab_const, b_const_a);
+        assert_eq!(ab_const, ab);
+        assert_eq!(ab_const.get_value().unwrap(), a_native * &b_native);
 
         // (a * b) * a = a * (b * a)
         let ab_a = ab.mul(cs.ns(|| "ab_times_a"), &a).unwrap();

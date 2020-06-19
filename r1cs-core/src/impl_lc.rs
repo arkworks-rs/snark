@@ -1,4 +1,4 @@
-use crate::{LinearCombination, SmallVec, Variable};
+use crate::{Index, LinearCombination, SmallVec, Variable};
 use algebra_core::Field;
 use core::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub};
 use smallvec::smallvec;
@@ -70,6 +70,26 @@ impl<F: Field> LinearCombination<F> {
             self.0
                 .binary_search_by_key(search_var, |&(cur_var, _)| cur_var)
         }
+    }
+
+    /// Return whether or not a particular linear combination represents a constant
+    #[inline]
+    pub fn is_constant(&self) -> bool {
+        // Linear combination is 0
+        if self.0.len() == 0 {
+            return true;
+        }
+        // Linear combination has more than one variable, so it must not be a constant
+        if self.0.len() != 1 {
+            return false;
+        }
+
+        // Check if the only variable in the LC is the variable corresponding to constants
+        let var = self.0[0].0;
+        if var.0 != Index::Input(0) {
+            return false;
+        }
+        true
     }
 }
 
