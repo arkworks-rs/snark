@@ -23,17 +23,17 @@ impl<F: PrimeField> FpGadget<F> {
         Self::alloc(cs.ns(|| "from"), || Ok(*value)).unwrap()
     }
 
-    fn is_constant(&self) -> bool
-    {
+    fn is_constant(&self) -> bool {
         match &self.variable {
-            // If you don't do alloc_constant, you are guaranteed to get a variable
-            // So we assume here that all variables are not the constant variable. 
-            // Technically this omits recognizing some constants where if you variables w,x,y,z with constraints:
+            // If you don't do alloc_constant, you are guaranteed to get a variable,
+            // hence we assume that all variables are not the constant variable.
+            // Technically this omits recognizing some constants.
+            // E.g. given variables w,x,y,z with constraints:
             // w = x + 1
             // y = -x + 1
             // and then created the variable z = w + y,
             // this would not recognize that z is in fact a constant.
-            // Since this is an edge case, we leave this as a TODO.
+            // Since this is an edge case, this is left as a TODO.
             Var(_v) => false,
             LC(l) => l.is_constant(),
         }
@@ -162,13 +162,13 @@ impl<F: PrimeField> FieldGadget<F, F> for FpGadget<F> {
         other: &Self,
     ) -> Result<Self, SynthesisError> {
         // Apply constant folding if it applies
-        // unwrap is used, because these values are guaranteed to exist. 
+        // unwrap is used, because these values are guaranteed to exist.
         if other.is_constant() {
             return self.mul_by_constant(cs, &other.get_value().unwrap());
         } else if self.is_constant() {
             return other.mul_by_constant(cs, &self.get_value().unwrap());
         }
-        
+
         let product = Self::alloc(cs.ns(|| "mul"), || {
             Ok(self.value.get()? * &other.value.get()?)
         })?;

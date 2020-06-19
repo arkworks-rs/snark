@@ -1,4 +1,4 @@
-use crate::{LinearCombination, SmallVec, Variable, Index};
+use crate::{Index, LinearCombination, SmallVec, Variable};
 use algebra_core::Field;
 use core::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub};
 use smallvec::smallvec;
@@ -86,8 +86,7 @@ impl<F: Field> LinearCombination<F> {
 
         // Check if the only variable in the LC is the variable corresponding to constants
         let var = self.0[0].0;
-        if var.0 != Index::Input(0)
-        {
+        if var.0 != Index::Input(0) {
             return false;
         }
         true
