@@ -164,7 +164,6 @@ impl<F: PrimeField> FieldGadget<F, F> for FpGadget<F> {
         // Apply constant folding if it applies
         // unwrap is used, because these values are guaranteed to exist. 
         if other.is_constant() {
-            println!("Called!");
             return self.mul_by_constant(cs, &other.get_value().unwrap());
         } else if self.is_constant() {
             return other.mul_by_constant(cs, &self.get_value().unwrap());

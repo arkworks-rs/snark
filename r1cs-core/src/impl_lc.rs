@@ -75,6 +75,10 @@ impl<F: Field> LinearCombination<F> {
     /// Return whether or not a particular linear combination represents a constant
     #[inline]
     pub fn is_constant(&self) -> bool {
+        // Linear combination is 0
+        if self.0.len() == 0 {
+            return true;
+        }
         // Linear combination has more than one variable, so it must not be a constant
         if self.0.len() != 1 {
             return false;

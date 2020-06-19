@@ -399,7 +399,6 @@ pub(crate) mod tests {
         assert_eq!(ab, ba);
         assert_eq!(ab.get_value().unwrap(), a_native * &b_native);
 
-        println!("wave");
         let ab_const = a.mul(cs.ns(|| "a_times_b_const"), &b_const).unwrap();
         let b_const_a = b_const.mul(cs.ns(|| "b_const_times_a"), &a).unwrap();
         assert_eq!(ab_const, b_const_a);
