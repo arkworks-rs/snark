@@ -1,7 +1,12 @@
-//! This module implements the BN256 curve used in [[go-ethereum]](https://github.com/ethereum/go-ethereum/tree/master/crypto/bn256/cloudflare).
+//! This module implements the BN254 curve that was sampled as part of the [[BCTV14]][https://eprint.iacr.org/2013/879.pdf] paper .
 //! The name denotes that it is a Barreto--Naehrig curve of embedding degree 12,
 //! defined over a 254-bit (prime) field. The scalar field is highly 2-adic.
-//! **CAUTION: This curve does not satisfy the 128-bit security level anymore.**
+//!
+//! This curve is also implemented in [libff](https://github.com/scipr-lab/libff/tree/master/libff/algebra/curves/alt_bn128).
+//! It is the same as the `bn256` curve used in Ethereum (eg: [go-ethereum](https://github.com/ethereum/go-ethereum/tree/master/crypto/bn256/cloudflare)).
+//!
+//! #CAUTION 
+//! **This curve does not satisfy the 128-bit security level anymore.**
 //!
 //!
 //! Curve information:
