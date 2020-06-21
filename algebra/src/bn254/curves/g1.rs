@@ -4,7 +4,7 @@ use algebra_core::{
     field_new, Zero,
 };
 
-use crate::bn256::{Fq, Fr};
+use crate::bn254::{Fq, Fr};
 
 #[derive(Clone, Default, PartialEq, Eq)]
 pub struct Parameters;

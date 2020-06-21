@@ -1,4 +1,4 @@
-use crate::bn256::*;
+use crate::bn254::*;
 use algebra_core::{
     biginteger::BigInteger256,
     curves::{
@@ -77,7 +77,7 @@ impl BnParameters for Parameters {
     type G2Parameters = g2::Parameters;
 }
 
-pub type Bn256 = Bn<Parameters>;
+pub type Bn254 = Bn<Parameters>;
 
 pub type G1Affine = bn::G1Affine<Parameters>;
 pub type G1Projective = bn::G1Projective<Parameters>;

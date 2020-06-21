@@ -8,7 +8,7 @@ use core::ops::{AddAssign, MulAssign};
 use rand::Rng;
 
 use crate::{
-    bn256::{g1, g2, Bn256, Fq, Fq12, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective},
+    bn254::{g1, g2, Bn254, Fq, Fq12, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective},
     tests::{
         curves::{curve_tests, sw_tests},
         groups::group_test,
@@ -71,9 +71,9 @@ fn test_bilinearity() {
     let mut sb = b;
     sb.mul_assign(s);
 
-    let ans1 = Bn256::pairing(sa, b);
-    let ans2 = Bn256::pairing(a, sb);
-    let ans3 = Bn256::pairing(a, b).pow(s.into_repr());
+    let ans1 = Bn254::pairing(sa, b);
+    let ans2 = Bn254::pairing(a, sb);
+    let ans3 = Bn254::pairing(a, b).pow(s.into_repr());
 
     assert_eq!(ans1, ans2);
     assert_eq!(ans2, ans3);
