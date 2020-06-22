@@ -210,7 +210,7 @@ fn test_fq_generate_random_ed_on_bn254_point() {
     assert_eq!(dy2, computed_dy2);
 
     let computed_divisor = computed_dy2 - a;
-    let divisot =
+    let divisor =
         Fq::from_str("345576003677591687256955722467813448317229128849323754147891993737798842247")
             .unwrap();
     assert_eq!(divisor, computed_divisor);
