@@ -58,11 +58,7 @@ impl<F: PrimeField, G: ProjectiveCurve> FromBytes for FieldBasedEcVrfProof<F, G>
 impl<F: PrimeField, G: ProjectiveCurve> FromBytesChecked for FieldBasedEcVrfProof<F, G> {
     fn read_checked<R: Read>(mut reader: R) -> IoResult<Self> {
         let gamma = G::Affine::read_checked(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("invalid point gamma: {}", e)))
-            .and_then(|p| {
-                if p.is_zero() { return Err(io::Error::new(io::ErrorKind::InvalidData, "invalid point gamma: point at infinity")); }
-                Ok(p)
-            })?;
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("invalid point gamma: {}", e)))?;
         let c = F::read(&mut reader)?;
         let s = F::read(&mut reader)?;
         Ok(Self{ gamma: gamma.into_projective(), c, s })
@@ -71,7 +67,7 @@ impl<F: PrimeField, G: ProjectiveCurve> FromBytesChecked for FieldBasedEcVrfProo
 
 impl<F: PrimeField, G: ProjectiveCurve> SemanticallyValid for FieldBasedEcVrfProof<F, G> {
     fn is_valid(&self) -> bool {
-        (self.gamma.is_valid() && !self.gamma.is_zero()) &&
+        self.gamma.is_valid() &&
         self.c.is_valid() &&
         self.s.is_valid()
     }
@@ -92,7 +88,10 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
 
     fn keygen<R: Rng>(rng: &mut R) -> (Self::PublicKey, Self::SecretKey)
     {
-        let secret_key = G::ScalarField::rand(rng);
+        let secret_key = loop {
+            let r = G::ScalarField::rand(rng);
+            if !r.is_zero() { break(r) }
+        };
         let public_key = G::prime_subgroup_generator()
             .mul(&secret_key);
         (public_key, secret_key)
@@ -263,7 +262,7 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
     fn keyverify(
         pk: &Self::PublicKey,
     ) -> bool {
-        pk.is_valid() && !pk.is_zero()
+        pk.is_valid()
     }
 }
 

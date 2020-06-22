@@ -61,7 +61,10 @@ FieldBasedSchnorrSignatureScheme<F, G, H>
 
     fn keygen<R: Rng>(rng: &mut R) -> (Self::PublicKey, Self::SecretKey)
     {
-        let secret_key = G::ScalarField::rand(rng);
+        let secret_key = loop {
+            let r = G::ScalarField::rand(rng);
+            if !r.is_zero() { break(r) }
+        };
         let public_key = G::prime_subgroup_generator()
             .mul(&secret_key);
         (public_key, secret_key)
@@ -178,7 +181,7 @@ FieldBasedSchnorrSignatureScheme<F, G, H>
     #[inline]
     fn keyverify(pk: &Self::PublicKey) -> bool
     {
-        pk.is_valid() && !pk.is_zero()
+        pk.is_valid()
     }
 }
 
