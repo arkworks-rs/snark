@@ -1,6 +1,6 @@
-#[cfg(feature = "bn254")]
+#[cfg(any(feature = "bn254", feature = "ed_on_bn254"))]
 pub mod fr;
-#[cfg(feature = "bn254")]
+#[cfg(any(feature = "bn254", feature = "ed_on_bn254"))]
 pub use self::fr::*;
 
 #[cfg(feature = "bn254")]
