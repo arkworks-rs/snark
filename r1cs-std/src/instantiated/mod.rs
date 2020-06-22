@@ -14,7 +14,7 @@ pub(crate) mod ed_on_cp6_782;
 pub mod ed_on_bw6_761;
 
 #[cfg(feature = "ed_on_bn254")]
-pub mod ed_on_bls1
+pub mod ed_on_bn254;
 
 #[cfg(feature = "ed_on_bls12_381")]
 pub mod ed_on_bls12_381;
