@@ -2,6 +2,8 @@
 mod bls12_377;
 #[cfg(feature = "bls12_381")]
 mod bls12_381;
+#[cfg(feature = "bn254")]
+mod bn254;
 #[cfg(feature = "bw6_761")]
 mod bw6_761;
 #[cfg(feature = "cp6_782")]
