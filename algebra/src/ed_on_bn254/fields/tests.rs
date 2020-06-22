@@ -184,15 +184,9 @@ fn test_fq_double_in_place_thrice() {
 
 #[test]
 fn test_fq_generate_random_ed_on_bn254_point() {
-    let a = Fq::from_str(
-        "168700",
-    )
-    .unwrap();
+    let a = Fq::from_str("168700").unwrap();
 
-    let d = Fq::from_str(
-        "168696",
-    )
-    .unwrap();
+    let d = Fq::from_str("168696").unwrap();
     let y = Fq::from_str(
         "19987327827845206670850937090314462639017692512983955920885166014935289314257",
     )
@@ -210,17 +204,15 @@ fn test_fq_generate_random_ed_on_bn254_point() {
     assert_eq!(y2, computed_y2);
 
     let computed_dy2 = d * &computed_y2;
-    let dy2 = Fq::from_str(
-        "345576003677591687256955722467813448317229128849323754147891993737799010947",
-    )
-    .unwrap();
+    let dy2 =
+        Fq::from_str("345576003677591687256955722467813448317229128849323754147891993737799010947")
+            .unwrap();
     assert_eq!(dy2, computed_dy2);
 
     let computed_divisor = computed_dy2 - a;
-    let divisor = Fq::from_str(
-        "345576003677591687256955722467813448317229128849323754147891993737798842247",
-    )
-    .unwrap();
+    let divisot =
+        Fq::from_str("345576003677591687256955722467813448317229128849323754147891993737798842247")
+            .unwrap();
     assert_eq!(divisor, computed_divisor);
 
     let computed_x2 = (computed_y2 - &Fq::one()) / &computed_divisor;
@@ -237,15 +229,8 @@ fn test_fq_generate_random_ed_on_bn254_point() {
     fn add<'a>(curr: (Fq, Fq), other: &'a (Fq, Fq)) -> (Fq, Fq) {
         let y1y2 = curr.1 * &other.1;
         let x1x2 = curr.0 * &other.0;
-        let a = Fq::from_str(
-            "168700",
-        )
-        .unwrap();
-
-        let d = Fq::from_str(
-            "168696",
-        )
-        .unwrap();
+        let a = Fq::from_str("168700").unwrap();
+        let d = Fq::from_str("168696").unwrap();
         let dx1x2y1y2 = d * &y1y2 * &x1x2;
 
         let d1 = Fq::one() + &dx1x2y1y2;
@@ -264,10 +249,9 @@ fn test_fq_generate_random_ed_on_bn254_point() {
     let result = add(result, &result);
     let result = add(result, &result);
 
-    let point_x = Fq::from_str(
-        "380676173762867192861894055350059333852732198308367125138259398265363727587",
-    )
-    .unwrap();
+    let point_x =
+        Fq::from_str("380676173762867192861894055350059333852732198308367125138259398265363727587")
+            .unwrap();
     let point_y = Fq::from_str(
         "8435074244857818446059206728316702149733931432112984450960434710303841866985",
     )

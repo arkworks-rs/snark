@@ -81,14 +81,6 @@ impl TEModelParameters for EdwardsParameters {
     const AFFINE_GENERATOR_COEFFS: (Self::BaseField, Self::BaseField) = (GENERATOR_X, GENERATOR_Y);
 
     type MontgomeryModelParameters = EdwardsParameters;
-
-    /*
-    /// Multiplication by `a` is simply negation here.
-    #[inline(always)]
-    fn mul_by_a(elem: &Self::BaseField) -> Self::BaseField {
-        *elem
-    }
-    */
 }
 
 impl MontgomeryModelParameters for EdwardsParameters {
