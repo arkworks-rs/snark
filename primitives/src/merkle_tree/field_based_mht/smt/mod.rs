@@ -1,7 +1,7 @@
 use crate::merkle_tree::field_based_mht::smt::error::Error;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::collections::HashSet;
-use crate::{FieldBasedHashParameters, PoseidonHash, PoseidonParameters, FieldBasedHash, merkle_tree};
+use crate::{FieldBasedHashParameters, PoseidonHash, PoseidonParameters, FieldBasedHash, merkle_tree, BatchFieldBasedHash};
 
 use algebra::fields::mnt6753::Fr as MNT6753Fr;
 use algebra::fields::mnt4753::Fr as MNT4753Fr;
@@ -10,6 +10,8 @@ use algebra::biginteger::BigInteger768;
 use algebra::{field_new, PrimeField, MulShort};
 use std::marker::PhantomData;
 use crate::crh::poseidon::parameters::{MNT4753PoseidonParameters, MNT6753PoseidonParameters};
+use crate::crh::poseidon::batched_crh::PoseidonBatchHash;
+use crate::merkle_tree::field_based_mht::smt::ActionLeaf::{Remove, Insert};
 
 pub mod error;
 
@@ -134,6 +136,12 @@ impl SmtPoseidonParameters for MNT6753SmtPoseidonParameters {
     ];
 }
 
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+pub enum ActionLeaf {
+    Insert,
+    Remove,
+}
+
 #[derive(Debug)]
 pub struct BigMerkleTree<F: PrimeField, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParameters<Fr=F>> {
     // the number of leaves
@@ -148,6 +156,8 @@ pub struct BigMerkleTree<F: PrimeField, T: SmtPoseidonParameters<Fr=F>, P: Posei
     cache_path: HashMap<Coord, F>,
     // indicates which nodes are not empty
     present_node: HashSet<Coord>,
+    // cache of nodes processed in parallel
+    cache_parallel: HashMap<Coord, F>,
     // root of the Merkle tree
     root: F,
 
@@ -174,6 +184,20 @@ impl Coord {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+// Action associated to the leaf
+pub struct OperationLeaf <F: PrimeField>{
+    coord: Coord,
+    action: ActionLeaf,
+    hash: F,
+}
+
+impl<F: PrimeField> OperationLeaf<F> {
+    pub fn new(height: usize, idx: usize, action: ActionLeaf, hash: F) -> Self {
+        Self { coord: Coord { height, idx }, action, hash}
+    }
+}
+
 // Assumption: MERKLE_ARITY == 2
 impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParameters<Fr=F>> BigMerkleTree<F, T, P> {
     pub fn new(width: usize) -> Result<Self, Error> {
@@ -183,6 +207,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         let cache = HashMap::new();
         let cache_path = HashMap::new();
         let non_empty_list = HashSet::new();
+        let cache_parallel = HashMap::new();
         let root = T::EMPTY_HASH_CST[height];
         // set to true to print intermediate results for debug
         let print_verbose = false;
@@ -193,6 +218,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             cache,
             cache_path,
             present_node: non_empty_list,
+            cache_parallel,
             root,
             print_verbose,
             _field: PhantomData,
@@ -342,11 +368,16 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             if self.print_verbose { println!("update_tree: remove node from empty_list {:?}", parent_coord); }
             // remove node from cache
             BigMerkleTree::remove_node(self, parent_coord.clone());
-            if self.print_verbose {println!("update_tree: remove node from cache {:?}", parent_coord);}
-
+            if self.print_verbose { println!("update_tree: remove node from cache {:?}", parent_coord); }
         } else {
-            // compute the hash of the node with the hashes of the children
-            node_hash = merkle_tree::field_based_mht::smt::BigMerkleTree::<F, T, P>::poseidon_hash(left_hash, right_hash);
+
+            if self.cache_parallel.contains_key(&parent_coord) {
+                node_hash = *self.cache_parallel.get(&parent_coord).unwrap();
+                self.cache_parallel.remove(&parent_coord);
+            } else {
+                // compute the hash of the node with the hashes of the children
+                node_hash = merkle_tree::field_based_mht::smt::BigMerkleTree::<F, T, P>::poseidon_hash(left_hash, right_hash);
+            }
             if self.print_verbose { println!("update_tree: -----> Visit parent node {:?}. Node is not empty.", parent_coord); }
             // insert the parent node into the cache_path
             self.cache_path.insert(parent_coord, node_hash);
@@ -571,13 +602,229 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         let hash = PoseidonHash::<F, P>::evaluate(&input[..]);
         hash.unwrap()
     }
+
+    pub fn batch_poseidon_hash(input: Vec<F>) -> Vec<F> {
+        let output_vec = PoseidonBatchHash::<F, P>::batch_evaluate(&input);
+        output_vec.unwrap()
+    }
+
+    pub fn process_leaves (&mut self, lidx: Vec<OperationLeaf<F>>) -> F {
+
+        // ************************************************
+        // Mark nodes to recompute
+        // ************************************************
+
+        let mut visited_nodes:HashSet<Coord> = HashSet::new();
+        let mut nodes_parallel:Vec<Vec<Coord>> = Vec::new();
+
+        // process the first level
+        let mut nodes_level:Vec<Coord> = Vec::new();
+        for j in 0..lidx.len() {
+            let x = lidx[j];
+            let coord = x.coord;
+            // visit parent
+            let height_parent = coord.height + 1;
+            let idx_parent = coord.idx /2;
+            let parent_coord = Coord {height: height_parent, idx: idx_parent};
+            if !visited_nodes.contains(&parent_coord) {
+                // parent node not visited yet
+                visited_nodes.insert(parent_coord);
+                // insert node to process in parallel
+                nodes_level.push(parent_coord);
+            }
+        }
+        nodes_parallel.push(nodes_level);
+
+
+        // got to the upper levels until the root
+        let mut height = 1;
+        while height < self.height {
+
+            visited_nodes.clear();
+            let mut nodes_level:Vec<Coord> = Vec::new();
+
+            for j in 0..nodes_parallel[height -1].len() {
+                let coord = nodes_parallel[height -1][j];
+                let height_parent = coord.height + 1;
+                let idx_parent = coord.idx / 2;
+                let parent_coord = Coord {height: height_parent, idx: idx_parent};
+                if !visited_nodes.contains(&parent_coord) {
+                    // parent node not visited yet
+                    visited_nodes.insert(parent_coord);
+                    // insert node to process in parallel
+                    nodes_level.push(parent_coord);
+                }
+            }
+            nodes_parallel.push(nodes_level);
+            height += 1;
+        }
+
+        // ************************************************
+        // Insert leaves in the db
+        // ************************************************
+
+        // Put the leaves in the db
+        for i in 0..lidx.len() {
+            let x = lidx[i];
+            let action = x.action;
+            let coord = x.coord;
+            let hash = x.hash;
+            let idx = coord.idx;
+
+            if action == Remove {
+                self.db.remove(&idx);
+                self.present_node.remove(&coord);
+            } else {
+                self.db.insert(idx, hash);
+                self.present_node.insert(coord);
+            }
+        }
+
+        // ************************************************
+        // Compute hashes in parallel - level 1
+        // ************************************************
+
+        let mut input_vec = Vec::new();
+        let mut both_children_present = Vec::new();
+
+        for j in 0..nodes_parallel[0].len() {
+            let coord = nodes_parallel[0][j];
+
+            let idx = coord.idx;
+            let left_child_idx = idx * 2;
+            let right_child_idx= left_child_idx + 1;
+            let left_hash;
+            let right_hash;
+            let left_child_present;
+            let right_child_present;
+            let left_leaf = self.db.get(&left_child_idx);
+            if let Some(i) = left_leaf {
+                left_hash = *i;
+                left_child_present = true;
+            } else {
+                left_hash = T::EMPTY_HASH_CST[0];
+                left_child_present = false;
+            }
+            let right_leaf = self.db.get(&right_child_idx);
+            if let Some(i) = right_leaf {
+                right_hash = *i;
+                right_child_present = true;
+            } else {
+                right_hash = T::EMPTY_HASH_CST[0];
+                right_child_present = false;
+            }
+            input_vec.push(left_hash);
+            input_vec.push(right_hash);
+            if left_child_present && right_child_present {
+                both_children_present.push(true);
+            } else {
+                both_children_present.push(false);
+            }
+        }
+        // Process the input_vec using batch Poseidon hash
+        let output_vec = merkle_tree::field_based_mht::smt::BigMerkleTree::<F, T, P>::batch_poseidon_hash(input_vec);
+        // Place the computed hash in a cache_parallel
+        let mut index_output_vec = 0;
+        for coord in nodes_parallel[0].clone() {
+            self.cache_parallel.insert(coord, output_vec[index_output_vec]);
+            if both_children_present[index_output_vec] == true {
+                self.cache.insert(coord,output_vec[index_output_vec]);
+            } else {
+                self.cache.remove(&coord);
+            }
+            index_output_vec += 1;
+        }
+
+        // ************************************************
+        // Compute hashes in parallel - level > 1
+        // ************************************************
+
+
+        let mut height = 2;
+        while height <= self.height {
+            let mut input_vec = Vec::new();
+            let mut both_children_present = Vec::new();
+            for j in 0..nodes_parallel[height-1].len() {
+                let coord = nodes_parallel[height -1][j];
+
+                let idx = coord.idx;
+                let left_child_idx = idx * 2;
+                let right_child_idx = left_child_idx + 1;
+                let left_hash: F;
+                let right_hash: F;
+                let left_child_coord = Coord { height: coord.height - 1, idx: left_child_idx};
+                let right_child_coord = Coord { height: coord.height - 1, idx: right_child_idx};
+
+                if self.cache_parallel.contains_key(&left_child_coord) {
+                    left_hash = *self.cache_parallel.get(&left_child_coord).unwrap();
+                } else {
+                    left_hash = self.node(left_child_coord);
+                }
+                if self.cache_parallel.contains_key(&right_child_coord) {
+                    right_hash = *self.cache_parallel.get(&right_child_coord).unwrap();
+                } else {
+                    right_hash = self.node(right_child_coord);
+                }
+                input_vec.push(left_hash);
+                input_vec.push(right_hash);
+                if self.present_node.contains(&left_child_coord) || self.present_node.contains(&right_child_coord){
+                    self.present_node.insert(coord);
+                } else {
+                    self.present_node.remove(&coord);
+                }
+                if self.present_node.contains(&left_child_coord) && self.present_node.contains(&right_child_coord){
+                    both_children_present.push(true);
+                } else {
+                    both_children_present.push(false);
+                }
+            }
+
+            // Process the input_vec using batch Poseidon hash
+            let output_vec = merkle_tree::field_based_mht::smt::BigMerkleTree::<F, T, P>::batch_poseidon_hash(input_vec);
+
+            // Place the computed hash in a cache_parallel
+            let mut index_output_vec = 0;
+            for coord in nodes_parallel[height-1].clone() {
+                self.cache_parallel.insert(coord, output_vec[index_output_vec]);
+                if both_children_present[index_output_vec] == true {
+                    self.cache.insert(coord,output_vec[index_output_vec]);
+                } else {
+                    self.cache.remove(&coord);
+                }
+                index_output_vec += 1;
+            }
+
+            height += 1;
+        }
+
+        self.root = *self.cache_parallel.get(&Coord{height:self.height,idx:0}).unwrap();
+        self.root
+    }
+
+    pub fn process_leaves_normal(&mut self, lidx: Vec<OperationLeaf<F>>) -> F {
+
+        for k in 0..lidx.len() {
+            let x = lidx[k];
+            let coord = x.coord;
+            let action = x.action;
+            let hash = x.hash;
+
+            if action == Insert {
+                self.insert_leaf(coord.idx, hash);
+            } else {
+                self.remove_leaf(coord.idx);
+            }
+        }
+        self.root
+    }
+
 }
 
 pub type MNT4PoseidonSmt = BigMerkleTree<MNT4753Fr, MNT4753SmtPoseidonParameters, MNT4753PoseidonParameters>;
 
 #[cfg(test)]
 mod test {
-    use crate::merkle_tree::field_based_mht::smt::{BigMerkleTree, MNT4753SmtPoseidonParameters, MNT4PoseidonSmt, MNT4PoseidonHash};
+    use crate::merkle_tree::field_based_mht::smt::{BigMerkleTree, MNT4753SmtPoseidonParameters, MNT4PoseidonSmt, MNT4PoseidonHash, OperationLeaf, Coord, ActionLeaf};
     use algebra::fields::mnt6753::Fr as MNT6753Fr;
     use algebra::fields::mnt4753::Fr as MNT4753Fr;
     use std::str::FromStr;
@@ -596,6 +843,97 @@ mod test {
     }
 
     type MNT4753FieldBasedMerkleTree = FieldBasedMerkleHashTree<MNT4753FieldBasedMerkleTreeParams>;
+
+    #[test]
+    fn process_leaves_mnt4_comp() {
+        use algebra::{
+            fields::mnt4753::Fr, Field,
+            UniformRand,
+        };
+
+        let num_leaves = 2usize.pow(23);
+        //let num_leaves = 128;
+        let mut rng1 = XorShiftRng::seed_from_u64(9174123u64);
+        let mut leaves_to_process: Vec<OperationLeaf<MNT4753Fr>> = Vec::new();
+
+        let n = 1000;
+
+        for i in 0..n {
+            let random: u64 = OsRng.next_u64();
+            let idx = random % num_leaves as u64;
+            let elem = Fr::rand(&mut rng1);
+
+            leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: idx as usize }, action: ActionLeaf::Insert, hash: elem });
+        }
+
+        let mut smt1 = MNT4PoseidonSmt::new(num_leaves).unwrap();
+        let leaves_to_process1 = leaves_to_process.clone();
+        let now = Instant::now();
+        let root_seq1 = smt1.process_leaves_normal(leaves_to_process1);
+        let new_now = Instant::now();
+
+        let duration_normal = new_now.duration_since(now).as_millis();
+
+        println!("duration normal = {}",duration_normal);
+
+        let mut smt2 = MNT4PoseidonSmt::new(num_leaves).unwrap();
+        let leaves_to_process2 = leaves_to_process.clone();
+        let now = Instant::now();
+        let root_seq2 = smt2.process_leaves(leaves_to_process2);
+        let new_now = Instant::now();
+
+        let duration_fast = new_now.duration_since(now).as_millis();
+
+        println!("duration fast = {}",duration_fast);
+
+        assert_eq!(root_seq1,root_seq2,"Sequence of roots not equal");
+    }
+
+        #[test]
+    fn process_leaves_mnt4() {
+        use algebra::{
+            fields::mnt4753::Fr, Field,
+            UniformRand,
+        };
+
+        let num_leaves = 32;
+        let mut leaves_to_process: Vec<OperationLeaf<MNT4753Fr>> = Vec::new();
+
+        leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 0 }, action: ActionLeaf::Insert, hash: MNT4753Fr::from_str("1").unwrap() });
+        leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 9 }, action: ActionLeaf::Insert, hash: MNT4753Fr::from_str("2").unwrap() });
+        leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 16 }, action: ActionLeaf::Remove, hash: MNT4753Fr::from_str("3").unwrap() });
+        leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 29 }, action: ActionLeaf::Insert, hash: MNT4753Fr::from_str("3").unwrap() });
+        leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 16 }, action: ActionLeaf::Remove, hash: MNT4753Fr::from_str("3").unwrap() });
+
+        let mut smt = MNT4PoseidonSmt::new(num_leaves).unwrap();
+        let root_seq = smt.process_leaves_normal(leaves_to_process);
+
+        //=============================================
+
+        let mut leaves = Vec::new();
+        leaves.push(MNT4753Fr::from_str("1").unwrap());
+        for _ in 1..9 {
+            let f = Fr::zero();
+            leaves.push(f);
+        }
+        leaves.push(MNT4753Fr::from_str("2").unwrap());
+        for _ in 10..29 {
+            let f = Fr::zero();
+            leaves.push(f);
+        }
+        leaves.push(MNT4753Fr::from_str("3").unwrap());
+        for _ in 30..32 {
+            let f = Fr::zero();
+            leaves.push(f);
+        }
+        let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
+
+        println!("root_mt  = {:?}", tree.root.unwrap());
+        println!("root_smt = {:?}", smt.root);
+
+        //println!("root_seq = {:?}", root_seq);
+
+    }
 
     #[test]
     fn compare_merkle_trees_mnt4_1() {
