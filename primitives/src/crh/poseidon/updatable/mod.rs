@@ -2,9 +2,6 @@ use super::*;
 use std::marker::PhantomData;
 use crate::UpdatableFieldBasedHash;
 
-pub mod batched;
-pub use batched::*;
-
 pub struct UpdatablePoseidonHash<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>>{
     state: Vec<F>,
     pending: Vec<F>,
