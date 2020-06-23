@@ -172,7 +172,7 @@ impl<P: MNT6Parameters> MNT6<P> {
 
         // elt_q3 = elt^(q^3)
         let mut elt_q3 = elt.clone();
-        elt_q3.frobenius_map(3);
+        elt_q3.conjugate();
         // elt_q3_over_elt = elt^(q^3-1)
         let elt_q3_over_elt = elt_q3 * elt_inv;
         // alpha = elt^((q^3-1) * q)
