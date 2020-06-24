@@ -1,7 +1,7 @@
 use crate::Error;
 use algebra::{bytes::{
     ToBytes, FromBytes
-}, Field, FromBytesChecked};
+}, Field, FromBytesChecked, SemanticallyValid};
 use rand::Rng;
 use std::hash::Hash;
 use std::fmt::Debug;
@@ -55,7 +55,7 @@ pub trait FieldBasedSignatureScheme {
                     Default + Debug + Send + Sync;
     type SecretKey: ToBytes + Clone + Default;
     type Signature: Copy + Clone + Default + Send + Sync + Debug + Eq + PartialEq
-                    + ToBytes + FromBytes;
+                    + ToBytes + FromBytes + SemanticallyValid;
 
     fn keygen<R: Rng>(
         rng: &mut R,

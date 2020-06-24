@@ -133,6 +133,8 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
     type BaseField = P::BaseField;
     type Projective = GroupProjective<P>;
 
+    // Altough the non-affine element is always handled only through the infinity flag,
+    // we still set x and y coordinates in a normalized manner.
     #[inline]
     fn zero() -> Self {
         Self::new(Self::BaseField::zero(), Self::BaseField::one(), true)
@@ -346,9 +348,12 @@ impl<P: Parameters> PartialEq for GroupProjective<P> {
         // x1/z1 == x2/z2  <==> x1 * z2 == x2 * z1
         if (self.x * &other.z) != (other.x * &self.z) {
             false
-        } else if (self.y * &other.z) != (other.y * &self.z) {
+        }
+        // y1/z1 == y2/z2  <==> y1 * z2 == y2 * z1
+        else if (self.y * &other.z) != (other.y * &self.z) {
             false
-        } else {
+        }
+        else {
             true
         }
     }
