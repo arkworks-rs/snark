@@ -27,10 +27,10 @@ use rand::rngs::OsRng;
 
 #[derive(Derivative)]
 #[derivative(
-Debug(bound = "ConstraintF: PrimeField"),
-Clone(bound = "ConstraintF: PrimeField"),
-PartialEq(bound = "ConstraintF: PrimeField"),
-Eq(bound = "ConstraintF: PrimeField")
+Debug(bound = "ConstraintF: PrimeField, G: Group"),
+Clone(bound = "ConstraintF: PrimeField, G: Group"),
+PartialEq(bound = "ConstraintF: PrimeField, G: Group"),
+Eq(bound = "ConstraintF: PrimeField, G: Group")
 )]
 pub struct FieldBasedSchnorrSigGadget<
     ConstraintF: PrimeField,

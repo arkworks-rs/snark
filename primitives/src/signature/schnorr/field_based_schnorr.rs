@@ -18,18 +18,26 @@ pub struct FieldBasedSchnorrSignatureScheme<
 
 #[derive(Derivative)]
 #[derivative(
-Copy(bound = "F: PrimeField"),
-Clone(bound = "F: PrimeField"),
-Default(bound = "F: PrimeField"),
-Eq(bound = "F: PrimeField"),
-PartialEq(bound = "F: PrimeField"),
-Debug(bound = "F: PrimeField")
+Copy(bound = "F: PrimeField, G: Group"),
+Clone(bound = "F: PrimeField, G: Group"),
+Default(bound = "F: PrimeField, G: Group"),
+Eq(bound = "F: PrimeField, G: Group"),
+PartialEq(bound = "F: PrimeField, G: Group"),
+Debug(bound = "F: PrimeField, G: Group")
 )]
 pub struct FieldBasedSchnorrSignature<F: PrimeField, G: Group> {
     pub e:    F,
     pub s:    F,
     _group:   PhantomData<G>,
 }
+
+impl<F: PrimeField, G: Group> FieldBasedSchnorrSignature<F, G> {
+    #[allow(dead_code)]
+    fn new(e: F, s: F) -> Self {
+        Self{ e, s, _group: PhantomData }
+    }
+}
+
 
 impl<F: PrimeField, G: Group> ToBytes for FieldBasedSchnorrSignature<F, G> {
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
