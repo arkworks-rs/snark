@@ -33,7 +33,7 @@ pub struct FieldBasedSchnorrSignature<F: PrimeField, G: Group> {
 
 impl<F: PrimeField, G: Group> FieldBasedSchnorrSignature<F, G> {
     #[allow(dead_code)]
-    fn new(e: F, s: F) -> Self {
+    pub fn new(e: F, s: F) -> Self {
         Self{ e, s, _group: PhantomData }
     }
 }
