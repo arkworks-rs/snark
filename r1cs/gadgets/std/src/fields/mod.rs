@@ -678,10 +678,41 @@ mod test {
         }
     }
 
+    /*
+    Test for the inverse gadget, should fail on old, insecure gadget
+    which does not implement sufficiently many restristrictions to enforce the inverse relation.
+    See https://github.com/ZencashOfficial/ginger-lib/issues/45 for details.
+    */
+    use algebra::fields::{
+        SquareRootField, Fp2Parameters
+    };
+    use crate::fields::fp2::Fp2Gadget;
+
+    fn inverse_fp2_gadget_test<
+        P: Fp2Parameters<Fp = ConstraintF>,
+        ConstraintF: PrimeField + SquareRootField,
+    >()
+    {
+        let mut cs = TestConstraintSystem::<ConstraintF>::new();
+
+        let a = Fp2Gadget::<P, ConstraintF>::one(cs.ns(|| "alloc one")).unwrap();
+        let a_inv =a.inverse(cs.ns(|| "inverse")).unwrap();
+        assert!(cs.is_satisfied());
+        assert_eq!(
+            a_inv.get_value().unwrap(),
+            a.get_value().unwrap().inverse().unwrap()
+        );
+
+        cs.set("inverse/alloc inverse/c0/alloc", ConstraintF::zero()); //Set b.c0
+        cs.set("inverse/alloc inverse/c1/alloc", ConstraintF::one()); //Set b.c1
+        cs.set("inverse/inv_constraint_1/mul/alloc", ConstraintF::zero()); //Set v1
+        assert!(!cs.is_satisfied());
+    }
+
     #[test]
     fn bls12_377_field_gadgets_test() {
         use crate::fields::bls12_377::{Fq12Gadget, Fq2Gadget, Fq6Gadget, FqGadget};
-        use algebra::fields::bls12_377::{Fq, Fq12, Fq2, Fq6};
+        use algebra::fields::bls12_377::{Fq, Fq12, Fq2, Fq2Parameters, Fq6};
 
         let mut cs = TestConstraintSystem::<Fq>::new();
 
@@ -702,6 +733,7 @@ mod test {
         let d = Fq2Gadget::alloc(&mut cs.ns(|| "generate_d"), || Ok(Fq2::rand(&mut rng))).unwrap();
         field_test(cs.ns(|| "test_fq2"), c, d);
         random_frobenius_tests::<Fq2, _, Fq2Gadget, _>(cs.ns(|| "test_frob_fq2"), 13);
+        inverse_fp2_gadget_test::<Fq2Parameters, _>();
         if !cs.is_satisfied() {
             println!("{:?}", cs.which_is_unsatisfied().unwrap());
         }
@@ -723,8 +755,8 @@ mod test {
         if !cs.is_satisfied() {
             println!("{:?}", cs.which_is_unsatisfied().unwrap());
         }
-
         assert!(cs.is_satisfied());
+
     }
 
     #[test]
@@ -773,7 +805,7 @@ mod test {
     fn mnt4_field_gadgets_test() {
         use crate::fields::mnt4753::{Fq4Gadget, Fq2Gadget, FqGadget};
         use algebra::{
-            fields::mnt4753::{Fq, Fq2, Fq4},
+            fields::mnt4753::{Fq, Fq2, Fq2Parameters, Fq4},
         };
 
         let mut cs = TestConstraintSystem::<Fq>::new();
@@ -795,6 +827,7 @@ mod test {
         let d = Fq2Gadget::alloc(&mut cs.ns(|| "generate_d"), || Ok(Fq2::rand(&mut rng))).unwrap();
         field_test(cs.ns(|| "test_fq2"), c, d);
         random_frobenius_tests::<Fq2, _, Fq2Gadget, _>(cs.ns(|| "test_frob_fq2"), 13);
+        inverse_fp2_gadget_test::<Fq2Parameters, _>();
         if !cs.is_satisfied() {
             println!("{:?}", cs.which_is_unsatisfied().unwrap());
         }
