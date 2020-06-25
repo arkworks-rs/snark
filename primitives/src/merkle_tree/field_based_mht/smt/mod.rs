@@ -5,8 +5,12 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use crate::{FieldBasedHashParameters, PoseidonHash, PoseidonParameters, FieldBasedHash, merkle_tree, BatchFieldBasedHash};
 
+use rocksdb::{DB, Options};
+
 use algebra::fields::mnt6753::Fr as MNT6753Fr;
 use algebra::fields::mnt4753::Fr as MNT4753Fr;
+
+use algebra::{ToBytes, to_bytes, ToBits, FromBytes};
 
 use algebra::{PrimeField, MulShort};
 use std::marker::PhantomData;
@@ -36,11 +40,15 @@ pub enum ActionLeaf {
 
 #[derive(Debug)]
 pub struct BigMerkleTree<F: PrimeField, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParameters<Fr=F>> {
+
     // the number of leaves
     width: usize,
     // the height of the Merkle tree
     height: usize,
+    // path to the db
+    path_db: &'static str,
     // stores the leaves
+    database: DB,
     db: HashMap<usize, F>,
     // stores the cached nodes
     cache: HashMap<Coord, F>,
@@ -95,6 +103,8 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
     pub fn new(width: usize) -> Result<Self, Error> {
         let height = width as f64;
         let height = height.log(T::MERKLE_ARITY as f64) as usize;
+        let path_db = "/home/mkaihara/Documents/dev/ginger-lib/primitives/src/merkle_tree/field_based_mht/smt/rocksdb_storage";
+        let database = DB::open_default(path_db).unwrap();
         let db = HashMap::new();
         let cache = HashMap::new();
         let cache_path = HashMap::new();
@@ -106,6 +116,8 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         Ok(BigMerkleTree {
             width,
             height,
+            path_db,
+            database,
             db,
             cache,
             cache_path,
@@ -119,6 +131,48 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         })
     }
 
+    pub fn insert_to_db(&self, idx: usize, data: F) {
+        let elem = to_bytes!(data).unwrap();
+        let index = bincode::serialize(&idx).unwrap();
+        self.database.put(index, elem).unwrap();
+    }
+
+    pub fn get_from_db(&self, idx: usize) -> Option<F>{
+        let index = bincode::serialize(&idx).unwrap();
+        match self.database.get(index) {
+            Ok(Some(value)) => {
+                let retrieved_elem = F::read(value.as_slice()).unwrap();
+                return Some(retrieved_elem);
+            },
+            Ok(None) => {
+                return None;
+            },
+            Err(e) => {
+                println!("operational problem encountered: {}", e);
+                return None;
+            },
+        }
+    }
+
+    pub fn remove_from_db(&self, idx: usize) -> Option<F>{
+        let index = bincode::serialize(&idx).unwrap();
+        match self.database.get(index.clone()) {
+            Ok(Some(value)) => {
+                let retrieved_elem = F::read(value.as_slice()).unwrap();
+                self.database.delete(index.clone());
+                return Some(retrieved_elem);
+            },
+            Ok(None) => {
+                return None;
+            },
+            Err(e) => {
+                println!("operational problem encountered: {}", e);
+                return None;
+            },
+        }
+    }
+
+
     // Inserts a leaf in the Merkle tree. Only used for single operation
     // Updates the Merkle tree on the path from the leaf to the root
     pub fn insert_leaf(&mut self, coord: Coord, leaf: F) {
@@ -129,15 +183,17 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         assert_eq!(coord.height, 0, "Coord of the node does not correspond to leaf level");
 
         if self.present_node.contains(&coord) {
-            let old_leaf = self.db.get(&coord.idx);
+            //let old_leaf = self.db.get(&coord.idx);
+            let old_leaf = self.get_from_db(coord.idx);
             let old_hash;
             if let Some(i) = old_leaf {
-                old_hash = *i;
+                old_hash = i;
             } else {
                 old_hash = T::EMPTY_HASH_CST[0];
             }
             if old_hash != leaf {
-                self.db.insert(coord.idx, leaf);
+                //self.db.insert(coord.idx, leaf);
+                self.insert_to_db(coord.idx, leaf);
                 if self.print_verbose { println!("insert_leaf: Leaf already present. Update leaf in db {:?}", coord) };
                 self.cache_path.clear();
                 self.cache_path.insert(coord, leaf);
@@ -150,7 +206,8 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             // mark as non empty leaf
             self.present_node.insert(coord);
             if self.print_verbose { println!("insert_leaf: New leaf. Insert leaf in non_empty set {:?}", coord); }
-            self.db.insert(coord.idx, leaf);
+            //self.db.insert(coord.idx, leaf);
+            self.insert_to_db(coord.idx, leaf);
             if self.print_verbose { println!("insert_leaf: Insert new leaf in db {:?}", coord); }
             self.cache_path.clear();
             self.cache_path.insert(coord, leaf);
@@ -175,7 +232,8 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         self.cache_path.insert(coord, T::EMPTY_HASH_CST[0]);
         if self.print_verbose { println!("remove_leaf: Insert empty leaf in the cache_path {:?}", coord); }
         // removes the leaf from the db
-        let res = self.db.remove(&coord.idx);
+        //let res = self.db.remove(&coord.idx);
+        let res = self.remove_from_db(coord.idx);
         if self.print_verbose { println!("remove_leaf: Remove leaf from db {:?}", coord); }
         // if it was in the db, update the tree
         if res != None {
@@ -194,8 +252,8 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         let right_child_coord: Coord;
         let left_child_idx: usize;
         let right_child_idx: usize;
-        let left_child: Option<&F>;
-        let right_child: Option<&F>;
+        let left_child: Option<F>;
+        let right_child: Option<F>;
         let left_hash: F;
         let right_hash: F;
         let mut height = 0;
@@ -218,9 +276,10 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             }
             right_child_idx = idx + 1;
             right_child_coord = Coord { height, idx: right_child_idx };
-            right_child = self.db.get(&right_child_idx);
+            //right_child = self.db.get(&right_child_idx);
+            right_child = self.get_from_db(right_child_idx);
             if let Some(i) = right_child {
-                right_hash = *i;
+                right_hash = i;
                 if self.print_verbose { println!("update_tree: Get leaf from db {:?}", right_child_coord); }
             } else {
                 right_hash = T::EMPTY_HASH_CST[0];
@@ -240,9 +299,10 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             }
             left_child_idx = idx - 1;
             left_child_coord = Coord { height, idx: left_child_idx };
-            left_child = self.db.get(&left_child_idx);
+            //left_child = self.db.get(&left_child_idx);
+            left_child = self.get_from_db(left_child_idx);
             if let Some(i) = left_child {
-                left_hash = *i;
+                left_hash = i;
                 if self.print_verbose { println!("update_tree: Get leaf from cache_path {:?}", left_child_coord); }
             } else {
                 left_hash = T::EMPTY_HASH_CST[0];
@@ -494,10 +554,11 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             if coord.height == 1 {
                 /* get leaves to compute */
                 let left_child_idx = coord.idx * T::MERKLE_ARITY;
-                let left_child = self.db.get(&left_child_idx);
+                //let left_child = self.db.get(&left_child_idx);
+                let left_child = self.get_from_db(left_child_idx);
                 let left_hash: F;
                 if let Some(i) = left_child {
-                    left_hash = *i;
+                    left_hash = i;
                     if self.print_verbose { println!("node: Left leaf {} retrieved from db", left_child_idx); }
                 } else {
                     left_hash = T::EMPTY_HASH_CST[0];
@@ -505,10 +566,11 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
                 }
 
                 let right_child_idx = left_child_idx + 1;
-                let right_child = self.db.get(&right_child_idx);
+                //let right_child = self.db.get(&right_child_idx);
+                let right_child = self.get_from_db(right_child_idx);
                 let right_hash: F;
                 if let Some(i) = right_child {
-                    right_hash = *i;
+                    right_hash = i;
                     if self.print_verbose { println!("node: Right leaf {} retrieved from db", right_child_idx); }
                 } else {
                     right_hash = T::EMPTY_HASH_CST[0];
@@ -620,10 +682,12 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             let idx = coord.idx;
 
             if action == Remove {
-                self.db.remove(&idx);
+                //self.db.remove(&idx);
+                self.remove_from_db(idx);
                 self.present_node.remove(&coord);
             } else {
-                self.db.insert(idx, hash);
+                //self.db.insert(idx, hash);
+                self.insert_to_db(idx, hash);
                 self.present_node.insert(coord);
             }
         }
@@ -642,17 +706,19 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             let right_hash;
             let left_child_present;
             let right_child_present;
-            let left_leaf = self.db.get(&left_child_idx);
+            //let left_leaf = self.db.get(&left_child_idx);
+            let left_leaf = self.get_from_db(left_child_idx);
             if let Some(i) = left_leaf {
-                left_hash = *i;
+                left_hash = i;
                 left_child_present = true;
             } else {
                 left_hash = T::EMPTY_HASH_CST[0];
                 left_child_present = false;
             }
-            let right_leaf = self.db.get(&right_child_idx);
+            //let right_leaf = self.db.get(&right_child_idx);
+            let right_leaf = self.get_from_db(right_child_idx);
             if let Some(i) = right_leaf {
-                right_hash = *i;
+                right_hash = i;
                 right_child_present = true;
             } else {
                 right_hash = T::EMPTY_HASH_CST[0];
@@ -776,6 +842,7 @@ mod test {
     use std::time::Instant;
     use rand::rngs::OsRng;
     use crate::merkle_tree::field_based_mht::smt::parameters::MNT4753SmtPoseidonParameters;
+    use algebra::PrimeField;
 
     struct MNT4753FieldBasedMerkleTreeParams;
 
@@ -812,50 +879,60 @@ mod test {
 
         // Insertion
 
-        let mut smt1 = MNT4PoseidonSmt::new(num_leaves).unwrap();
-        let leaves_to_process1 = leaves_to_insert.clone();
-        let now = Instant::now();
-        let root_seq1 = smt1.process_leaves_normal(leaves_to_process1);
-        let new_now = Instant::now();
+        let root1;
+        let root2;
+        let root3;
+        let root4;
+        {
+            let mut smt1 = MNT4PoseidonSmt::new(num_leaves).unwrap();
+            let leaves_to_process1 = leaves_to_insert.clone();
+            let now = Instant::now();
+            root1 = smt1.process_leaves_normal(leaves_to_process1);
+            let new_now = Instant::now();
 
-        let duration_normal = new_now.duration_since(now).as_millis();
+            let duration_normal = new_now.duration_since(now).as_millis();
 
-        println!("duration normal = {}",duration_normal);
+            println!("duration normal = {}", duration_normal);
 
-        let mut smt2 = MNT4PoseidonSmt::new(num_leaves).unwrap();
-        let leaves_to_process2 = leaves_to_insert.clone();
-        let now = Instant::now();
-        let root_seq2 = smt2.process_leaves(leaves_to_process2);
-        let new_now = Instant::now();
+            // Removal
 
-        let duration_fast = new_now.duration_since(now).as_millis();
+            let leaves_to_process3 = leaves_to_remove.clone();
+            let now = Instant::now();
+            root3 = smt1.process_leaves_normal(leaves_to_process3);
+            let new_now = Instant::now();
 
-        println!("duration fast = {}",duration_fast);
+            let duration_normal = new_now.duration_since(now).as_millis();
 
-        assert_eq!(root_seq1,root_seq2,"Roots are not equal");
+            println!("duration normal = {}",duration_normal);
 
-        // Removal
+        }
 
-        let leaves_to_process3 = leaves_to_remove.clone();
-        let now = Instant::now();
-        let root_seq1 = smt1.process_leaves_normal(leaves_to_process3);
-        let new_now = Instant::now();
+        {
+            let mut smt2 = MNT4PoseidonSmt::new(num_leaves).unwrap();
+            let leaves_to_process2 = leaves_to_insert.clone();
+            let now = Instant::now();
+            root2 = smt2.process_leaves(leaves_to_process2);
+            let new_now = Instant::now();
 
-        let duration_normal = new_now.duration_since(now).as_millis();
+            let duration_fast = new_now.duration_since(now).as_millis();
 
-        println!("duration normal = {}",duration_normal);
+            println!("duration fast = {}", duration_fast);
 
-        let leaves_to_process4 = leaves_to_remove.clone();
-        let now = Instant::now();
-        let root_seq2 = smt2.process_leaves(leaves_to_process4);
-        let new_now = Instant::now();
+            let leaves_to_process4 = leaves_to_remove.clone();
+            let now = Instant::now();
+            root4 = smt2.process_leaves(leaves_to_process4);
+            let new_now = Instant::now();
 
-        let duration_fast = new_now.duration_since(now).as_millis();
+            let duration_fast = new_now.duration_since(now).as_millis();
 
-        println!("duration fast = {}",duration_fast);
+            println!("duration fast = {}",duration_fast);
 
-        assert_eq!(root_seq1,root_seq2,"Roots are not equal");
-        assert_eq!(root_seq2,MNT4753SmtPoseidonParameters::EMPTY_HASH_CST[23],"Sequence of roots not equal");
+        }
+
+        assert_eq!(root1, root2, "Roots are not equal");
+        assert_eq!(root3, root4, "Roots are not equal");
+
+        assert_eq!(root3, MNT4753SmtPoseidonParameters::EMPTY_HASH_CST[23], "Sequence of roots not equal");
 
     }
 
@@ -875,7 +952,7 @@ mod test {
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 16 }, action: ActionLeaf::Remove, hash: MNT4753Fr::from_str("3").unwrap() });
 
         let mut smt = MNT4PoseidonSmt::new(num_leaves).unwrap();
-        smt.process_leaves_normal(leaves_to_process);
+        smt.process_leaves(leaves_to_process);
 
         //=============================================
 
@@ -1010,64 +1087,107 @@ mod test {
 
     }
 
-
-}
-
-
-// use rocksdb::{DB, Options};
-// use std::sync::Arc;
-// // NB: db is automatically closed at end of lifetime
+//     #[test]
+//     fn db() {
+//         use rocksdb::{DB, Options};
+//         use std::sync::Arc;
+//         // NB: db is automatically closed at end of lifetime
+//         use serde::{Serialize, Deserialize};
+//         use algebra::{ToBytes, to_bytes, ToBits, FromBytes};
 //
-// use algebra::fields::mnt4753::Fr as MNT4753Fr;
-// use std::str::FromStr;
+//         use algebra::{
+//             fields::mnt4753::Fr,
+//             UniformRand,
+//         };
+//         use std::time::Instant;
+//         use std::io::Write;
 //
-// use serde::{Serialize, Deserialize};
-//
-// #[derive(Debug)]
-// pub struct BigMerkleTree {
-//     width: usize,
-//     height: usize,
-//     db: Arc<DB>,
-//     cache: Arc<DB>,
-// }
-//
-// #[derive(Serialize, Deserialize, Debug)]
-// struct field_elem {
-//     x: MNT4753Fr,
-// }
-//
-// pub fn test_rdb() {
-//
-//     let path = "/home/mkaihara/Documents/dev/ginger-lib/primitives/src/merkle_tree/field_based_mht/smt/rocksdb_storage";
-//     {
-//         let a = field_elem{x:MNT4753Fr::from_str("1").unwrap()};
-//         let elem = bincode::serialize(&a).unwrap();
-//
+//         let path = "/home/mkaihara/Documents/dev/ginger-lib/primitives/src/merkle_tree/field_based_mht/smt/rocksdb_storage";
 //         let db = DB::open_default(path).unwrap();
+//         let field_elem = MNT4753Fr::from_str("1").unwrap();
+//         println!("field_elem = {:?}", field_elem);
+//         let elem = to_bytes!(field_elem).unwrap();
+//
+// //        let elem = b"my_value";
+//
 //         db.put(b"my key", elem).unwrap();
 //         match db.get(b"my key") {
 //             Ok(Some(value)) => {
-//                 let e: field_elem = bincode::deserialize(&value).unwrap();
-//                 println!("retrieved value {:?}", e);
+//                 let retrieved_elem = MNT4753Fr::read(value.as_slice()).unwrap();
+//                 println!("retrieved value {:?}", retrieved_elem);
 //             },
 //             Ok(None) => println!("value not found"),
 //             Err(e) => println!("operational problem encountered: {}", e),
 //         }
 //         db.delete(b"my key").unwrap();
+//         let _ = DB::destroy(&Options::default(), path);
+//
+//         // {
+//         //     let a = field_elem { x: MNT4753Fr::from_str("1").unwrap() };
+//         //     let elem = bincode::serialize(&a).unwrap();
+//         //
+//         //     let db = DB::open_default(path).unwrap();
+//         //     db.put(b"my key", elem).unwrap();
+//         //     match db.get(b"my key") {
+//         //         Ok(Some(value)) => {
+//         //             let e: field_elem = bincode::deserialize(&value).unwrap();
+//         //             println!("retrieved value {:?}", e);
+//         //         },
+//         //         Ok(None) => println!("value not found"),
+//         //         Err(e) => println!("operational problem encountered: {}", e),
+//         //     }
+//         //     db.delete(b"my key").unwrap();
+//         // }
+//         // let _ = DB::destroy(&Options::default(), path);
+//         //
+//         // let path = "timing.txt";
+//         //
+//         // let mut output = std::fs::File::create(path).unwrap();
+//         // let mut rng1 = XorShiftRng::seed_from_u64(9174123u64);
+//         // let num_leaves = 2usize.pow(34);
+//         // let mut smt = MNT4PoseidonSmt::new(num_leaves).unwrap();
+//         //
+//         // let n = 32;
+//         //
+//         // for _i in 0..n {
+//         //     let random:u64 = OsRng.next_u64();
+//         //     let idx = random % num_leaves as u64;
+//         //     let elem = Fr::rand(&mut rng1);
+//         //
+//         //     let now = Instant::now();
+//         //     smt.insert_leaf(Coord{height:0, idx:idx as usize}, elem);
+//         //     let new_now = Instant::now();
+//         //
+//         //     let duration = new_now.duration_since(now).as_millis();
+//         //
+//         //     output.write_all(idx.to_string().as_bytes()).unwrap();
+//         //     output.write_all(",".to_string().as_bytes()).unwrap();
+//         //     output.write_all(duration.to_string().as_bytes()).unwrap();
+//         //     output.write_all(",\n".to_string().as_bytes()).unwrap();
+//         //
+//         //     println!("time to add leaf {} =  {} ms", idx, duration);
+//         // }
+//         //
+//         // println!();
+//         //
+//         // println!("{:?}", smt.root);
+//
 //     }
-//     let _ = DB::destroy(&Options::default(), path);
-// }
-//
-// pub fn insert(idx: usize, elem: MNT4753Fr) {
-//
-// }
-//
-// #[cfg(test)]
-// mod test {
-//     use crate::merkle_tree::field_based_mht::smt::test_rdb;
 //
 //     #[test]
-//     fn test_rocksdb() {
-//         test_rdb();
+//     fn test_insertion_deletion_db() {
+//         use algebra::{
+//             fields::mnt4753::Fr, Field,
+//         };
+//
+//         let num_leaves = 32;
+//
+//         let mut smt = MNT4PoseidonSmt::new(num_leaves).unwrap();
+//         smt.insert_to_db(1,MNT4753Fr::from_str("1").unwrap());
+//         println!("data1  = {:?}", MNT4753Fr::from_str("1").unwrap());
+//         let elem = smt.get_from_db(1).unwrap();
+//         println!("data2 = {:?}", elem);
+//
 //     }
-// }
+
+}
