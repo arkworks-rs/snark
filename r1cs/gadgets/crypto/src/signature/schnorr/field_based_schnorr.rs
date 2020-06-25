@@ -108,7 +108,9 @@ pub struct FieldBasedSchnorrSigVerificationGadget<
 }
 
 // This implementation supports both complete and incomplete (safe) point addition.
-// However, in case of incomplete point addition, with negligible probability, the
+// Assumes provided key material to be already checked.
+//
+// In case of incomplete point addition, with negligible probability, the
 // proof creation might fail at first attempt and must be re-run (in order to sample
 // fresh randomnesses).
 // Furthermore, one exceptional case (e, s) has to be treated outside the circuit:

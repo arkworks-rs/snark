@@ -1,8 +1,8 @@
 use crate::{crh::FieldBasedHash, signature::FieldBasedSignatureScheme, Error, compute_truncation_size};
-use algebra::{Field, PrimeField, Group, UniformRand, ProjectiveCurve, convert, leading_zeros, ToBits, ToConstraintField, ToBytes, FromBytes, SemanticallyValid};
+use algebra::{Field, PrimeField, Group, UniformRand, ProjectiveCurve, convert, leading_zeros, ToBits, ToConstraintField, ToBytes, FromBytes, SemanticallyValid, FromBytesChecked};
 use std::marker::PhantomData;
 use rand::Rng;
-use std::io::{Write, Read, Result as IoResult};
+use std::io::{Write, Read, Result as IoResult, Error as IoError, ErrorKind};
 
 #[allow(dead_code)]
 pub struct FieldBasedSchnorrSignatureScheme<
@@ -50,6 +50,32 @@ impl<F: PrimeField, G: Group> FromBytes for FieldBasedSchnorrSignature<F, G> {
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
         let e = F::read(&mut reader)?;
         let s = F::read(&mut reader)?;
+        Ok(Self{ e, s, _group: PhantomData} )
+    }
+}
+
+impl<F: PrimeField, G: Group> FromBytesChecked for FieldBasedSchnorrSignature<F, G> {
+    fn read_checked<R: Read>(mut reader: R) -> IoResult<Self> {
+        let e = F::read(&mut reader)
+            .map_err(|err| IoError::new(ErrorKind::InvalidData, format!("invalid sig.e: {}", err)))
+            .and_then(|e| {
+                let e_bits = e.write_bits();
+                let e_leading_zeros = leading_zeros(e_bits.as_slice()) as usize;
+                if (F::size_in_bits() - e_leading_zeros) >= G::ScalarField::size_in_bits() {
+                    return Err(IoError::new(ErrorKind::InvalidData, format!("Invalid bit-length for signature.e: {}", e_bits.len() - e_leading_zeros)))
+                }
+                Ok(e)
+            })?;
+        let s = F::read(&mut reader)
+            .map_err(|err| IoError::new(ErrorKind::InvalidData, format!("invalid sig.e: {}", err)))
+            .and_then(|s| {
+                let s_bits = s.write_bits();
+                let s_leading_zeros = leading_zeros(s_bits.as_slice()) as usize;
+                if (G::ScalarField::size_in_bits() - s_leading_zeros) >= F::size_in_bits(){
+                    return Err(IoError::new(ErrorKind::InvalidData, format!("Invalid bit-length for signature.s: {}", s_bits.len() - s_leading_zeros)))
+                }
+                Ok(s)
+            })?;
         Ok(Self{ e, s, _group: PhantomData })
     }
 }
@@ -60,7 +86,7 @@ impl<F: PrimeField, G: Group> SemanticallyValid for FieldBasedSchnorrSignature<F
         {
             //Checks e had proper bit-length when converted into a G::ScalarField element
             let e_bits = self.e.write_bits();
-            let e_leading_zeros = leading_zeros(e_bits.clone()) as usize;
+            let e_leading_zeros = leading_zeros(e_bits.as_slice()) as usize;
             F::size_in_bits() - e_leading_zeros < G::ScalarField::size_in_bits()
         }
         &&
@@ -68,7 +94,7 @@ impl<F: PrimeField, G: Group> SemanticallyValid for FieldBasedSchnorrSignature<F
         {
             //Checks s had proper bit-length when converted into a F element
             let s_bits = self.s.write_bits();
-            let s_leading_zeros = leading_zeros(s_bits.clone()) as usize;
+            let s_leading_zeros = leading_zeros(s_bits.as_slice()) as usize;
             G::ScalarField::size_in_bits() - s_leading_zeros < F::size_in_bits()
         }
     }
@@ -141,7 +167,7 @@ FieldBasedSchnorrSignatureScheme<F, G, H>
             hash_input.push(pk_coords[0]);
             let e = H::evaluate(hash_input.as_ref())?;
             let e_bits = e.write_bits();
-            let e_leading_zeros = leading_zeros(e_bits.clone()) as usize;
+            let e_leading_zeros = leading_zeros(e_bits.as_slice()) as usize;
 
             //Enforce e bit length is strictly smaller than G::ScalarField modulus bit length
             if e_leading_zeros < required_leading_zeros_e {continue};
@@ -152,7 +178,7 @@ FieldBasedSchnorrSignatureScheme<F, G, H>
             //Enforce s bit length is strictly smaller than F modulus bit length
             let s = k + &(e_conv * sk);
             let s_bits = s.write_bits();
-            let s_leading_zeros = leading_zeros(s_bits.clone()) as usize;
+            let s_leading_zeros = leading_zeros(s_bits.as_slice()) as usize;
 
             if s_leading_zeros < required_leading_zeros_s {continue};
 
@@ -221,7 +247,7 @@ mod test {
         mnt4753::Fr as MNT4Fr,
         mnt6753::Fr as MNT6Fr,
     };
-    use algebra::{ToBytes, to_bytes, FromBytes, SemanticallyValid};
+    use algebra::{ToBytes, to_bytes, FromBytes, FromBytesChecked, SemanticallyValid};
     use crate::crh::{MNT4PoseidonHash, MNT6PoseidonHash};
     use crate::signature::FieldBasedSignatureScheme;
     use crate::signature::schnorr::field_based_schnorr::FieldBasedSchnorrSignatureScheme;
@@ -242,6 +268,7 @@ mod test {
         let sig_serialized = to_bytes!(sig).unwrap();
         let sig_deserialized = <S as FieldBasedSignatureScheme>::Signature::read(sig_serialized.as_slice()).unwrap();
         assert_eq!(sig, sig_deserialized);
+        assert!(<S as FieldBasedSignatureScheme>::Signature::read_checked(sig_serialized.as_slice()).is_ok());
         assert!(S::verify(&pk, &message, &sig_deserialized).unwrap());
     }
 

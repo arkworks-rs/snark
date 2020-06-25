@@ -23,6 +23,14 @@ use std::{
     marker::PhantomData,
     borrow::Borrow,
 };
+use rand::rngs::OsRng;
+
+/*
+TODO:
+- Define struct pk for Schnorr and VRF pks. Define gadget pk for Schnorr and VRF pks,
+  and enforce in their alloc gadget the pk not being zero (similar logic to AllocGadget
+  of ECVRF proof)
+*/
 
 #[derive(Derivative)]
 #[derivative(
@@ -74,8 +82,18 @@ impl<ConstraintF, G, GG> FieldBasedEcVrfProofGadget<ConstraintF, G, GG>
 
         let gamma = match (gamma_on_curve, gamma_prime_order) {
             (false, false) => GG::alloc_without_check(cs.ns(|| "alloc gamma unchecked"), || gamma)?,
-            (true, false) => GG::alloc(cs.ns(|| "alloc gamma"), || gamma)?,
-            (true, true) => GG::alloc_checked(cs.ns(|| "alloc gamma checked"), || gamma)?,
+            (true, false) => {
+                let zero = GG::zero(cs.ns(|| "zero"))?;
+                let gamma_g = GG::alloc(cs.ns(|| "alloc gamma"), || gamma)?;
+                gamma_g.enforce_not_equal(cs.ns(|| "gamma must not be infinity"), &zero)?;
+                gamma_g
+            },
+            (true, true) => {
+                let zero = GG::zero(cs.ns(|| "zero"))?;
+                let gamma_g = GG::alloc_checked(cs.ns(|| "alloc gamma checked"), || gamma)?;
+                gamma_g.enforce_not_equal(cs.ns(|| "gamma must not be infinity"), &zero)?;
+                gamma_g
+            },
             _ => unreachable!()
         };
         let c = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc c"), || c)?;
@@ -160,6 +178,16 @@ where
     _group_hash_gadget:   PhantomData<GHG>,
 }
 
+// This implementation supports both complete and incomplete (safe) point addition.
+// Assumes provided key material to be already checked.
+//
+// In case of incomplete point addition, with negligible probability, the
+// proof creation might fail at first attempt and must be re-run (in order to sample
+// fresh randomnesses).
+// Furthermore, two exceptional cases (gamma, c, s) have to be treated outside the circuit:
+// - if c * pk = s * G, i.e. when u is trivial (therefore leaking the sk), OR
+// - if c * gamma = s * mh, i.e. when v is trivial (therefore also leaking the sk), THEN
+// the circuit is not satisfiable.
 impl<ConstraintF, G, GG, FH, FHG, GH, GHG> FieldBasedVrfGadget<FieldBasedEcVrf<ConstraintF, G, FH, GH>, ConstraintF>
 for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
     where
@@ -206,11 +234,7 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
             message_bytes.as_slice()
         )?;
 
-        //Hardcode g, serialize c and s
-        let g = GG::from_value(
-            cs.ns(|| "hardcode generator"),
-            &G::prime_subgroup_generator()
-        );
+        //Serialize c and s
 
         let c_bits = {
 
@@ -250,28 +274,48 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
         };
         s_bits.reverse();
 
+        //Hardcode g
+        let g = GG::from_value(
+            cs.ns(|| "hardcode generator"),
+            &G::prime_subgroup_generator()
+        );
+
+        // Random shift to avoid exceptional cases if add is incomplete.
+        // With overwhelming probability the circuit will be satisfiable,
+        // otherwise the prover can sample another shift by re-running
+        // the proof creation.
+        let shift = GG::alloc(cs.ns(|| "alloc random shift"), || {
+            let mut rng = OsRng::default();
+            Ok(loop {
+                let r = G::rand(&mut rng);
+                if !r.is_zero() { break(r) }
+            })
+        })?;
+
         //Check u = g^s - pk^c
         let u =
         {
             let neg_c_times_pk = public_key
-                .mul_bits(cs.ns(|| "pk * c + g"), &g, c_bits.as_slice().iter().rev())?
-                .sub(cs.ns(|| "c * pk"), &g)?
-                .negate(cs.ns(|| "- (c * pk)"))?;
+                .mul_bits(cs.ns(|| "pk * c + shift"), &shift, c_bits.as_slice().iter().rev())?
+                .negate(cs.ns(|| "- (c * pk + shift)"))?;
             GG::mul_bits_fixed_base(&g.get_constant(),
-                                    cs.ns(|| "(s * G) - (c * pk)"),
-                                    &neg_c_times_pk,
-                                    s_bits.as_slice()
-            )?
+                                    cs.ns(|| "(s * G + shift)"),
+                                    &shift,
+                                    s_bits.as_slice())?
+            // If add is incomplete, and s * G - c * pk = 0, the circuit of the add won't be satisfiable
+            .add(cs.ns(|| "(s * G) - (c * pk)"), &neg_c_times_pk)?
         };
 
         //Check v = mh^s - gamma^c
         let v =
         {
             let neg_c_times_gamma = proof.gamma
-                .mul_bits(cs.ns(|| "c * gamma + g"), &g, c_bits.as_slice().iter().rev())?
-                .sub(cs.ns(|| "c * gamma"), &g)?
-                .negate(cs.ns(|| "- (c * gamma)"))?;
-            message_on_curve.mul_bits(cs.ns(|| "(s * mh) - (c * gamma)"), &neg_c_times_gamma, s_bits.as_slice().iter())?
+                .mul_bits(cs.ns(|| "c * gamma + shift"), &shift, c_bits.as_slice().iter().rev())?
+                .negate(cs.ns(|| "- (c * gamma + shift)"))?;
+            message_on_curve
+                .mul_bits(cs.ns(|| "(s * mh + shift)"), &shift, s_bits.as_slice().iter())?
+                // If add is incomplete, and s * mh - c * gamma = 0, the circuit of the add won't be satisfiable
+                .add(cs.ns(|| "(s * mh) - (c * gamma"), &neg_c_times_gamma)?
         };
 
         // Check c' = H(m||pk.x||u.x||v.x)

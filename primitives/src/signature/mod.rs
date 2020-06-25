@@ -55,7 +55,7 @@ pub trait FieldBasedSignatureScheme {
                     Default + Debug + Send + Sync;
     type SecretKey: ToBytes + Clone + Default;
     type Signature: Copy + Clone + Default + Send + Sync + Debug + Eq + PartialEq
-                    + ToBytes + FromBytes + SemanticallyValid;
+                    + ToBytes + FromBytes + FromBytesChecked + SemanticallyValid;
 
     fn keygen<R: Rng>(
         rng: &mut R,
