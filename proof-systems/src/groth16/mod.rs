@@ -368,10 +368,10 @@ impl<E: PairingEngine> FromBytesChecked for Parameters<E> {
         let b_g2_query = read_affine_vec_checked::<E::G2Affine, _>(b_g2_len, false, &mut reader)?;
 
         let h_len = reader.read_u32::<BigEndian>()? as usize;
-        let h_query = read_affine_vec_checked::<E::G1Affine, _>(h_len, false, &mut reader)?;
+        let h_query = read_affine_vec_checked::<E::G1Affine, _>(h_len, true, &mut reader)?;
 
         let l_len = reader.read_u32::<BigEndian>()? as usize;
-        let l_query = read_affine_vec_checked::<E::G1Affine, _>(l_len, false, &mut reader)?;
+        let l_query = read_affine_vec_checked::<E::G1Affine, _>(l_len, true, &mut reader)?;
 
         Ok(Parameters { vk, alpha_g1, beta_g1, beta_g2, delta_g1, delta_g2, a_query, b_g1_query, b_g2_query, h_query, l_query })
     }

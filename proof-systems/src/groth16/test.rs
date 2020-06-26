@@ -43,7 +43,7 @@ mod test{
 
     use algebra::{
         curves::{bls12_377::Bls12_377, sw6::SW6, mnt4753::MNT4, mnt6753::MNT6},
-        UniformRand, ToBytes, FromBytes, to_bytes, PairingEngine
+        UniformRand, ToBytes, FromBytes, FromBytesChecked, to_bytes, PairingEngine
     };
     use rand::thread_rng;
     use std::ops::MulAssign;
@@ -88,11 +88,11 @@ mod test{
 
         let vk = params.vk.clone();
 
-        let params_deserialized = Parameters::<E>::read(to_bytes!(params).unwrap().as_slice()).unwrap();
+        let params_deserialized = Parameters::<E>::read_checked(to_bytes!(params).unwrap().as_slice()).unwrap();
         assert_eq!(params, params_deserialized);
         drop(params);
 
-        let vk_deserialized = VerifyingKey::<E>::read(to_bytes!(vk).unwrap().as_slice()).unwrap();
+        let vk_deserialized = VerifyingKey::<E>::read_checked(to_bytes!(vk).unwrap().as_slice()).unwrap();
         assert_eq!(vk, vk_deserialized);
         drop(vk);
 
@@ -110,7 +110,7 @@ mod test{
         )
             .unwrap();
 
-        let proof_deserialized = Proof::<E>::read(to_bytes!(proof).unwrap().as_slice()).unwrap();
+        let proof_deserialized = Proof::<E>::read_checked(to_bytes!(proof).unwrap().as_slice()).unwrap();
         assert_eq!(proof, proof_deserialized);
         drop(proof);
 
