@@ -21,6 +21,8 @@ use crate::merkle_tree::field_based_mht::smt::ActionLeaf::{Remove, Insert};
 use crate::merkle_tree::field_based_mht::smt::parameters::{MNT4753SmtPoseidonParameters, MNT6753SmtPoseidonParameters};
 use std::fs;
 
+use serde::{Serialize,Deserialize};
+
 pub mod error;
 
 pub type MNT4PoseidonHash = PoseidonHash<MNT4753Fr, MNT4753PoseidonParameters>;
@@ -50,7 +52,10 @@ pub struct BigMerkleTree<F: PrimeField, T: SmtPoseidonParameters<Fr=F>, P: Posei
     path_db: &'static str,
     // stores the leaves
     database: DB,
+    // path to the cache
+    path_cache: &'static str,
     // stores the cached nodes
+    db_cache: DB,
     cache: HashMap<Coord, F>,
     // stores the nodes of the path
     cache_path: HashMap<Coord, F>,
@@ -69,7 +74,7 @@ pub struct BigMerkleTree<F: PrimeField, T: SmtPoseidonParameters<Fr=F>, P: Posei
     _poseidon_parameters: PhantomData<P>,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
 // Coordinates system for identifying a node
 pub struct Coord {
     // height in the Merkle tree (0 -> leaves)
@@ -102,7 +107,14 @@ impl<F: PrimeField, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParameters<Fr=F>>
     fn drop(&mut self) {
         // Deletes the folder containing the db
         match fs::remove_dir_all(self.path_db) {
-            Ok(_) => return,
+            Ok(_) => (),
+            Err(e) => {
+                println!("Error deleting the folder containing the db. {}", e);
+            }
+        };
+        // Deletes the folder containing the cache
+        match fs::remove_dir_all(self.path_cache) {
+            Ok(_) => (),
             Err(e) => {
                 println!("Error deleting the folder containing the db. {}", e);
             }
@@ -117,6 +129,8 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         let height = height.log(T::MERKLE_ARITY as f64) as usize;
         let path_db = "/home/mkaihara/Documents/dev/ginger-lib/primitives/src/merkle_tree/field_based_mht/smt/rocksdb_storage";
         let database = DB::open_default(path_db).unwrap();
+        let path_cache = "/home/mkaihara/Documents/dev/ginger-lib/primitives/src/merkle_tree/field_based_mht/smt/rocksdb_cache_storage";
+        let db_cache = DB::open_default(path_cache).unwrap();
         let cache = HashMap::new();
         let cache_path = HashMap::new();
         let present_node = HashSet::new();
@@ -129,6 +143,8 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             height,
             path_db,
             database,
+            path_cache,
+            db_cache,
             cache,
             cache_path,
             present_node,
@@ -139,6 +155,72 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             _parameters: PhantomData,
             _poseidon_parameters: PhantomData,
         })
+    }
+
+    pub fn insert_to_cache(&self, coord: Coord, data:F) {
+        let elem = to_bytes!(data).unwrap();
+        let index = bincode::serialize(&coord).unwrap();
+        self.database.put(index, elem).unwrap();
+    }
+
+    pub fn contains_key_in_cache(&self, coord:Coord) -> bool {
+        let coordinates = bincode::serialize(&coord).unwrap();
+        match self.database.get(coordinates) {
+            Ok(Some(_value)) => {
+                return true;
+            },
+            Ok(None) => {
+                return false;
+            },
+            Err(e) => {
+                println!("operational problem encountered: {}", e);
+                return false;
+            },
+        }
+    }
+
+    pub fn get_from_cache(&self, coord:Coord) -> Option<F> {
+        let coordinates = bincode::serialize(&coord).unwrap();
+        match self.database.get(coordinates) {
+            Ok(Some(value)) => {
+                let retrieved_elem = F::read(value.as_slice()).unwrap();
+                return Some(retrieved_elem);
+            },
+            Ok(None) => {
+                return None;
+            },
+            Err(e) => {
+                println!("operational problem encountered: {}", e);
+                return None;
+            },
+        }
+    }
+
+    pub fn remove_from_cache(&self, coord: Coord) -> Option<F>{
+        let coordinates = bincode::serialize(&coord).unwrap();
+        match self.database.get(coordinates.clone()) {
+            Ok(Some(value)) => {
+                let retrieved_elem = F::read(value.as_slice()).unwrap();
+                let res = self.database.delete(coordinates.clone());
+                match res {
+                    Ok(_) => {
+                        return Some(retrieved_elem);
+                    },
+                    Err(e) => {
+                        println!("Could not delete node from cache: {}", e);
+                        return None;
+                    }
+                }
+
+            },
+            Ok(None) => {
+                return None;
+            },
+            Err(e) => {
+                println!("operational problem encountered: {}", e);
+                return None;
+            },
+        }
     }
 
     pub fn insert_to_db(&self, idx: usize, data: F) {
@@ -440,7 +522,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
                 }
             }
             if (!self.present_node.contains(&left_child_coord)) | (!self.present_node.contains(&right_child_coord)) {
-                if self.cache.contains_key(&parent_coord) {
+                if self.contains_key_in_cache(parent_coord) {
                     // remove subtree from cache
                     if self.print_verbose { println!("update_tree: Remove superfluous node from subtree starting at node {:?}", parent_coord); }
                     BigMerkleTree::remove_subtree_from_cache(self, parent_coord);
@@ -464,7 +546,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             let right_coord = Coord { height: right_child_height, idx: right_child_idx };
 
             if (!self.present_node.contains(&left_coord)) | (!self.present_node.contains(&right_coord)) {
-                if self.cache.contains_key(&coord) {
+                if self.contains_key_in_cache(coord) {
                     BigMerkleTree::remove_node_from_cache(self, coord);
                     if self.print_verbose { println!("remove_subtree_from_cache: Remove node from cache {:?}", coord); }
                 }
@@ -481,7 +563,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             let right_coord = Coord { height: right_child_height, idx: right_child_idx };
 
             if (!self.present_node.contains(&left_coord)) | (!self.present_node.contains(&right_coord)) {
-                if self.cache.contains_key(&coord) {
+                if self.contains_key_in_cache(coord) {
                     BigMerkleTree::remove_node_from_cache(self, coord);
                     if self.print_verbose { println!("remove_subtree_from_cache: Remove node from cache {:?}", coord); }
 
@@ -512,7 +594,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         let right_coord = Coord { height: right_child_height, idx: right_child_idx };
 
         if (!self.present_node.contains(&left_coord)) | (!self.present_node.contains(&right_coord)) {
-            if self.cache.contains_key(&coord) {
+            if self.contains_key_in_cache(coord) {
                 BigMerkleTree::remove_node_from_cache(self, coord);
                 if self.print_verbose { println!("remove_subtree_from_cache: Remove node from cache {:?}", coord); }
             }
@@ -557,7 +639,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             return T::EMPTY_HASH_CST[coord.height];
         }
         if self.print_verbose { println!("node: Coord {:?} is not an empty node, retrieving node.", coord); }
-        let res = self.cache.get(&coord);
+        let res = self.get_from_cache(coord);
 
         // if not in the cache, recompute it
         if res == None {
@@ -605,15 +687,17 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             return node_hash;
         }
 
-        *res.unwrap()
+        res.unwrap()
     }
 
     pub fn insert_node_in_cache(&mut self, coord: Coord, hash: F) {
-        self.cache.insert(coord, hash);
+        self.insert_to_cache(coord, hash);
+        //self.cache.insert(coord, hash);
     }
 
     pub fn remove_node_from_cache(&mut self, coord: Coord) {
-        self.cache.remove(&coord);
+        self.remove_from_cache(coord);
+        //self.cache.remove(&coord);
     }
 
     pub fn poseidon_hash(x: F, y: F) -> F {
@@ -747,9 +831,9 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         for coord in nodes_to_process_in_parallel[0].clone() {
             self.cache_parallel.insert(coord, output_vec[index_output_vec]);
             if both_children_present[index_output_vec] == true {
-                self.cache.insert(coord,output_vec[index_output_vec]);
+                self.insert_to_cache(coord,output_vec[index_output_vec]);
             } else {
-                self.cache.remove(&coord);
+                self.remove_from_cache(coord);
             }
             index_output_vec += 1;
         }
@@ -802,9 +886,9 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             for coord in nodes_to_process_in_parallel[height-1].clone() {
                 self.cache_parallel.insert(coord, output_vec[index_output_vec]);
                 if both_children_present[index_output_vec] == true {
-                    self.cache.insert(coord,output_vec[index_output_vec]);
+                    self.insert_to_cache(coord,output_vec[index_output_vec]);
                 } else {
-                    self.cache.remove(&coord);
+                    self.remove_from_cache(coord);
                     self.check_b_plus_caching(coord);
                 }
                 index_output_vec += 1;
@@ -1043,9 +1127,9 @@ mod test {
         let mut smt = MNT4PoseidonSmt::new(num_leaves).unwrap();
         smt.insert_leaf(Coord{height:0, idx:0}, MNT4753Fr::from_str("1").unwrap());
         smt.insert_leaf(Coord{height:0, idx:9}, MNT4753Fr::from_str("2").unwrap());
-        //smt.insert_leaf(Coord{height:0, idx:16}, MNT4753Fr::from_str("10").unwrap());
+        smt.insert_leaf(Coord{height:0, idx:16}, MNT4753Fr::from_str("10").unwrap());
         smt.insert_leaf(Coord{height:0, idx:29}, MNT4753Fr::from_str("3").unwrap());
-        //smt.remove_leaf(Coord{height:0, idx:16});
+        smt.remove_leaf(Coord{height:0, idx:16});
 
         assert_eq!(tree.root(), smt.root, "Outputs of the Merkle trees for MNT4 do not match.");
     }
