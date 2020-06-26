@@ -48,7 +48,7 @@ pub trait UpdatableFieldBasedHash {
     type Parameters: FieldBasedHashParameters<Fr = Self::Data>;
 
     // Updates the hash with `input`
-    fn update(&mut self, input: Self::Data) -> &mut Self;
+    fn update(&mut self, input: &Self::Data) -> &mut Self;
 
     // Returns the hash. This method is idempotent, and calling it multiple times will
     // give the same result. It's also possible to `update` with more inputs in between.
