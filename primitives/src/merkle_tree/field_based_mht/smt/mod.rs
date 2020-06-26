@@ -56,7 +56,6 @@ pub struct BigMerkleTree<F: PrimeField, T: SmtPoseidonParameters<Fr=F>, P: Posei
     path_cache: &'static str,
     // stores the cached nodes
     db_cache: DB,
-    cache: HashMap<Coord, F>,
     // stores the nodes of the path
     cache_path: HashMap<Coord, F>,
     // indicates which nodes are present the Merkle tree
@@ -131,7 +130,6 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         let database = DB::open_default(path_db).unwrap();
         let path_cache = "/home/mkaihara/Documents/dev/ginger-lib/primitives/src/merkle_tree/field_based_mht/smt/rocksdb_cache_storage";
         let db_cache = DB::open_default(path_cache).unwrap();
-        let cache = HashMap::new();
         let cache_path = HashMap::new();
         let present_node = HashSet::new();
         let cache_parallel = HashMap::new();
@@ -145,7 +143,6 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             database,
             path_cache,
             db_cache,
-            cache,
             cache_path,
             present_node,
             cache_parallel,
@@ -692,12 +689,10 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
 
     pub fn insert_node_in_cache(&mut self, coord: Coord, hash: F) {
         self.insert_to_cache(coord, hash);
-        //self.cache.insert(coord, hash);
     }
 
     pub fn remove_node_from_cache(&mut self, coord: Coord) {
         self.remove_from_cache(coord);
-        //self.cache.remove(&coord);
     }
 
     pub fn poseidon_hash(x: F, y: F) -> F {
@@ -952,7 +947,6 @@ mod test {
         };
 
         let num_leaves = 2usize.pow(23);
-        //let num_leaves = 128;
         let mut rng1 = XorShiftRng::seed_from_u64(9174123u64);
         let mut leaves_to_insert: Vec<OperationLeaf<MNT4753Fr>> = Vec::new();
         let mut leaves_to_remove: Vec<OperationLeaf<MNT4753Fr>> = Vec::new();
@@ -1102,7 +1096,6 @@ mod test {
     fn compare_merkle_trees_mnt4_2() {
         use algebra::{
             fields::mnt4753::Fr, Field,
-            //UniformRand,
         };
 
         let num_leaves = 32;
