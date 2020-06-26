@@ -7,7 +7,8 @@ use crate::{crh::{
 }, vrf::FieldBasedVrf, Error, CryptoError, compute_truncation_size};
 use std::marker::PhantomData;
 use rand::Rng;
-use std::io::{self, Read, Result as IoResult, Write};
+use std::io::{self, Read, Result as IoResult, Write, Error as IoError, ErrorKind};
+use rand::distributions::{Distribution, Standard};
 
 
 pub struct FieldBasedEcVrf<
@@ -109,6 +110,61 @@ impl<F: PrimeField, G: ProjectiveCurve> SemanticallyValid for FieldBasedEcVrfPro
     }
 }
 
+#[derive(Derivative)]
+#[derivative(
+Clone(bound = "G: Group"),
+Default(bound = "G: Group"),
+Hash(bound = "G: Group"),
+Eq(bound = "G: Group"),
+PartialEq(bound = "G: Group"),
+Debug(bound = "G: Group"),
+)]
+pub struct FieldBasedEcVrfPk<G: Group>(pub G);
+
+impl<G: Group> Distribution<FieldBasedEcVrfPk<G>> for Standard {
+    #[inline]
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> FieldBasedEcVrfPk<G> {
+        let pk = G::rand(rng);
+        FieldBasedEcVrfPk::<G>(pk)
+    }
+}
+
+impl<G: Group> ToBytes for FieldBasedEcVrfPk<G> {
+    fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
+        self.0.write(&mut writer)
+    }
+}
+
+impl<G: Group> FromBytes for FieldBasedEcVrfPk<G> {
+    fn read<R: Read>(mut reader: R) -> IoResult<Self> {
+        let pk = G::read(&mut reader)?;
+        Ok( Self(pk) )
+    }
+}
+
+impl<G: Group> FromBytesChecked for FieldBasedEcVrfPk<G> {
+    fn read_checked<R: Read>(mut reader: R) -> IoResult<Self> {
+        let pk = G::read_checked(&mut reader)
+            .map_err(|e| IoError::new(ErrorKind::InvalidData, format!("invalid ecvrf pk: {}", e)))
+            .and_then(|p| {
+                if p.is_zero() { return Err(IoError::new(ErrorKind::InvalidData, "invalid ecvrf pk: point at infinity")); }
+                Ok(p)
+            })?;
+        Ok( Self(pk) )
+    }
+}
+
+impl<G: Group> SemanticallyValid for FieldBasedEcVrfPk<G> {
+    #[inline]
+    fn is_valid(&self) -> bool {
+        self.0.is_valid() &&
+            // GingerLib only accepts non-trivial ECVRF public keys. This is usually
+            // good practice to avoid using obvious weak keys, and helps preventing
+            // exceptional cases if using incomplete arithmetics.
+            !self.0.is_zero()
+    }
+}
+
 // Low-level crypto for our length-restricted variant of the DL-based VRF, does not perform any
 // input validity check. It's responsibility of the caller to do so, through keyverify()
 // function for the PublicKey, read() or is_valid() functions for FieldBasedEcVrfProof.
@@ -120,7 +176,7 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
         GH: FixedLengthCRH<Output = G>,
 {
     type Data = FH::Data;
-    type PublicKey = G;
+    type PublicKey = FieldBasedEcVrfPk<G>;
     type SecretKey = G::ScalarField;
     type Proof = FieldBasedEcVrfProof<F, G>;
     type GHParams = GH::Parameters;
@@ -135,11 +191,11 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
         };
         let public_key = G::prime_subgroup_generator()
             .mul(&secret_key);
-        (public_key, secret_key)
+        (FieldBasedEcVrfPk(public_key), secret_key)
     }
 
     fn get_public_key(sk: &Self::SecretKey) -> Self::PublicKey {
-        G::prime_subgroup_generator().mul(sk)
+        FieldBasedEcVrfPk(G::prime_subgroup_generator().mul(sk))
     }
 
     fn prove<R: Rng>(
@@ -185,7 +241,7 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
             //Compute c = H(m||pk.x||a.x||b.x)
             let mut hash_input = Vec::new();
             hash_input.extend_from_slice(message);
-            hash_input.push(pk.to_field_elements().unwrap()[0]);
+            hash_input.push(pk.0.to_field_elements().unwrap()[0]);
             hash_input.push(a.to_field_elements().unwrap()[0]);
             hash_input.push(b.to_field_elements().unwrap()[0]);
             let c = FH::evaluate(hash_input.as_ref())?;
@@ -235,14 +291,14 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
         let s_conv = convert::<G::ScalarField>(s_bits)?;
 
         //Compute u = g^s - pk^c
-        let u = G::prime_subgroup_generator().mul(&s_conv) - &(pk.mul(&c_conv));
+        let u = G::prime_subgroup_generator().mul(&s_conv) - &(pk.0.mul(&c_conv));
 
         //Compute v = mh^s - gamma^c
         let v = message_on_curve.mul(&s_conv) - &proof.gamma.mul(&c_conv);
 
         //Compute c' = H(m||pk.x||u.x||v.x)
         let mut hash_input = Vec::new();
-        let pk_coords = pk.to_field_elements()?;
+        let pk_coords = pk.0.to_field_elements()?;
         hash_input.extend_from_slice(message);
         hash_input.push(pk_coords[0]);
         hash_input.push(u.to_field_elements().unwrap()[0]);
@@ -269,13 +325,7 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
 
     fn keyverify(
         pk: &Self::PublicKey,
-    ) -> bool {
-        pk.is_valid() &&
-        // GingerLib only accepts non-trivial VRF public keys. This is usually
-        // good practice to avoid using obvious weak keys, and helps preventing
-        // exceptional cases if using incomplete arithmetics.
-        !pk.is_zero()
-    }
+    ) -> bool { pk.is_valid() }
 }
 
 #[cfg(test)]

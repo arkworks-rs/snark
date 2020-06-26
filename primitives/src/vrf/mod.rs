@@ -1,4 +1,4 @@
-use algebra::{Field, ToBytes, FromBytes, FromBytesChecked, SemanticallyValid};
+use algebra::{Field, ToBytes, FromBytes, FromBytesChecked, SemanticallyValid, UniformRand};
 use rand::Rng;
 use std::{hash::Hash, fmt::Debug};
 use crate::Error;
@@ -8,10 +8,10 @@ pub mod ecvrf;
 pub trait FieldBasedVrf {
     type Data: Field;
     type PublicKey: FromBytes + FromBytesChecked + ToBytes + Hash + Eq + Clone +
-                    Default + Debug + Send + Sync;
+                    Default + Debug + Send + Sync + UniformRand;
     type SecretKey: ToBytes + Clone + Default;
-    type Proof: Copy + Clone + Default + Send + Sync + Debug + Eq + PartialEq + ToBytes + FromBytes
-                + FromBytesChecked + SemanticallyValid;
+    type Proof: Copy + Clone + Default + Send + Sync + Debug + Eq + PartialEq + ToBytes
+                + FromBytes + FromBytesChecked + SemanticallyValid;
     type GHParams: Clone + Default;
 
     fn keygen<R: Rng>(

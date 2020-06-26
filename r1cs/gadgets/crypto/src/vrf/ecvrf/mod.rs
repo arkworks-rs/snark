@@ -24,13 +24,7 @@ use std::{
     borrow::Borrow,
 };
 use rand::rngs::OsRng;
-
-/*
-TODO:
-- Define struct pk for Schnorr and VRF pks. Define gadget pk for Schnorr and VRF pks,
-  and enforce in their alloc gadget the pk not being zero (similar logic to AllocGadget
-  of ECVRF proof)
-*/
+use primitives::vrf::ecvrf::FieldBasedEcVrfPk;
 
 #[derive(Derivative)]
 #[derivative(
@@ -158,6 +152,61 @@ for FieldBasedEcVrfProofGadget<ConstraintF, G, GG>
     }
 }
 
+pub struct FieldBasedEcVrfPkGadget<
+    ConstraintF: PrimeField,
+    G: Group,
+    GG: GroupGadget<G, ConstraintF>,
+>
+{
+    pk: GG,
+    _field: PhantomData<ConstraintF>,
+    _group: PhantomData<G>,
+}
+
+impl<ConstraintF, G, GG> AllocGadget<FieldBasedEcVrfPk<G>, ConstraintF>
+for FieldBasedEcVrfPkGadget<ConstraintF, G, GG>
+    where
+        ConstraintF: PrimeField,
+        G: Group,
+        GG: GroupGadget<G, ConstraintF>,
+{
+    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, f: F) -> Result<Self, SynthesisError> where
+        F: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<FieldBasedEcVrfPk<G>>
+    {
+        let pk = GG::alloc(cs.ns(|| "alloc pk"), || f().map(|pk| pk.borrow().0))?;
+        let zero = GG::zero(cs.ns(|| "alloc zero"))?;
+        pk.enforce_not_equal(cs.ns(|| "exclude infinity pk"), &zero)?;
+        Ok( Self{ pk, _field: PhantomData, _group: PhantomData } )
+    }
+
+    fn alloc_without_check<F, T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, f: F) -> Result<Self, SynthesisError> where
+        F: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<FieldBasedEcVrfPk<G>>,
+    {
+        let pk = GG::alloc_without_check(cs.ns(|| "alloc pk"), || f().map(|pk| pk.borrow().0))?;
+        Ok( Self{ pk, _field: PhantomData, _group: PhantomData } )
+    }
+
+    fn alloc_checked<F, T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, f: F) -> Result<Self, SynthesisError> where
+        F: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<FieldBasedEcVrfPk<G>>,
+    {
+        let pk = GG::alloc_checked(cs.ns(|| "alloc pk"), || f().map(|pk| pk.borrow().0))?;
+        let zero = GG::zero(cs.ns(|| "alloc zero"))?;
+        pk.enforce_not_equal(cs.ns(|| "exclude infinity pk"), &zero)?;
+        Ok( Self{ pk, _field: PhantomData, _group: PhantomData } )
+    }
+
+    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, f: F) -> Result<Self, SynthesisError> where
+        F: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<FieldBasedEcVrfPk<G>>
+    {
+        let pk = GG::alloc_input(cs.ns(|| "alloc pk"), || f().map(|pk| pk.borrow().0))?;
+        Ok( Self{ pk, _field: PhantomData, _group: PhantomData } )
+    }
+}
+
 pub struct FieldBasedEcVrfProofVerificationGadget<
     ConstraintF: PrimeField,
     G:  ProjectiveCurve,
@@ -201,7 +250,7 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
 {
     type DataGadget = FpGadget<ConstraintF>;
     type ProofGadget = FieldBasedEcVrfProofGadget<ConstraintF, G, GG>;
-    type PublicKeyGadget = GG;
+    type PublicKeyGadget = FieldBasedEcVrfPkGadget<ConstraintF, G, GG>;
     type GHParametersGadget = GHG::ParametersGadget;
 
     fn enforce_proof_to_hash_verification<CS: ConstraintSystem<ConstraintF>>(
@@ -295,7 +344,7 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
         //Check u = g^s - pk^c
         let u =
         {
-            let neg_c_times_pk = public_key
+            let neg_c_times_pk = public_key.pk
                 .mul_bits(cs.ns(|| "pk * c + shift"), &shift, c_bits.as_slice().iter().rev())?
                 .negate(cs.ns(|| "- (c * pk + shift)"))?;
             GG::mul_bits_fixed_base(&g.get_constant(),
@@ -323,7 +372,7 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
         // (or an odd number of field elements).
         let mut hash_input = Vec::new();
         hash_input.extend_from_slice(message);
-        hash_input.push(public_key.to_field_gadget_elements().unwrap()[0].clone());
+        hash_input.push(public_key.pk.to_field_gadget_elements().unwrap()[0].clone());
         hash_input.push(u.to_field_gadget_elements().unwrap()[0].clone());
         hash_input.push(v.to_field_gadget_elements().unwrap()[0].clone());
 
@@ -391,6 +440,7 @@ mod test {
     use r1cs_std::test_constraint_system::TestConstraintSystem;
 
     use rand::{Rng, thread_rng};
+    use primitives::vrf::ecvrf::FieldBasedEcVrfPk;
 
     #[derive(Clone)]
     struct TestWindow {}
@@ -410,6 +460,9 @@ mod test {
 
     type EcVrfMNT4 = FieldBasedEcVrf<MNT4Fr, MNT6G1Projective, MNT4PoseidonHash, BHMNT6>;
     type EcVrfMNT6 = FieldBasedEcVrf<MNT6Fr, MNT4G1Projective, MNT6PoseidonHash, BHMNT4>;
+
+    type EcVrfMNT4Pk = FieldBasedEcVrfPk<MNT6G1Projective>;
+    type EcVrfMNT6Pk = FieldBasedEcVrfPk<MNT4G1Projective>;
 
     type EcVrfMNT4Proof = FieldBasedEcVrfProof<MNT4Fr, MNT6G1Projective>;
     type EcVrfMNT6Proof = FieldBasedEcVrfProof<MNT6Fr, MNT4G1Projective>;
@@ -441,7 +494,7 @@ mod test {
         (proof, pk)
     }
 
-    fn mnt4_ecvrf_gadget_generate_constraints(message: MNT4Fr, pk: MNT6G1Projective, proof: EcVrfMNT4Proof, pp: &BHMNT4Parameters) -> bool {
+    fn mnt4_ecvrf_gadget_generate_constraints(message: MNT4Fr, pk: &EcVrfMNT4Pk, proof: EcVrfMNT4Proof, pp: &BHMNT4Parameters) -> bool {
 
         let mut cs = TestConstraintSystem::<MNT4Fr>::new();
 
@@ -485,22 +538,22 @@ mod test {
         let (proof, pk) = prove::<EcVrfMNT4, _>(rng, &pp, &[message]);
 
         //Positive case
-        assert!(mnt4_ecvrf_gadget_generate_constraints(message, pk, proof, &pp));
+        assert!(mnt4_ecvrf_gadget_generate_constraints(message, &pk, proof, &pp));
 
         //Change message
         let wrong_message: MNT4Fr = rng.gen();
-        assert!(!mnt4_ecvrf_gadget_generate_constraints(wrong_message, pk, proof, &pp));
+        assert!(!mnt4_ecvrf_gadget_generate_constraints(wrong_message, &pk, proof, &pp));
 
         //Change pk
-        let wrong_pk: MNT6G1Projective = rng.gen();
-        assert!(!mnt4_ecvrf_gadget_generate_constraints(message, wrong_pk, proof, &pp));
+        let wrong_pk: EcVrfMNT4Pk = rng.gen();
+        assert!(!mnt4_ecvrf_gadget_generate_constraints(message, &wrong_pk, proof, &pp));
 
         //Change proof
         let (wrong_proof, _) = prove::<EcVrfMNT4, _>(rng, &pp, &[wrong_message]);
-        assert!(!mnt4_ecvrf_gadget_generate_constraints(message, pk, wrong_proof, &pp));
+        assert!(!mnt4_ecvrf_gadget_generate_constraints(message, &pk, wrong_proof, &pp));
     }
 
-    fn mnt6_ecvrf_gadget_generate_constraints(message: MNT6Fr, pk: MNT4G1Projective, proof: EcVrfMNT6Proof, pp: &BHMNT6Parameters) -> bool {
+    fn mnt6_ecvrf_gadget_generate_constraints(message: MNT6Fr, pk: &EcVrfMNT6Pk, proof: EcVrfMNT6Proof, pp: &BHMNT6Parameters) -> bool {
 
         let mut cs = TestConstraintSystem::<MNT6Fr>::new();
 
@@ -542,19 +595,19 @@ mod test {
         let (proof, pk) = prove::<EcVrfMNT6, _>(rng, &pp, &[message]);
 
         //Positive case
-        assert!(mnt6_ecvrf_gadget_generate_constraints(message, pk, proof, &pp));
+        assert!(mnt6_ecvrf_gadget_generate_constraints(message, &pk, proof, &pp));
 
         //Change message
         let wrong_message: MNT6Fr = rng.gen();
-        assert!(!mnt6_ecvrf_gadget_generate_constraints(wrong_message, pk, proof, &pp));
+        assert!(!mnt6_ecvrf_gadget_generate_constraints(wrong_message, &pk, proof, &pp));
 
         //Change pk
-        let wrong_pk: MNT4G1Projective = rng.gen();
-        assert!(!mnt6_ecvrf_gadget_generate_constraints(message, wrong_pk, proof, &pp));
+        let wrong_pk: EcVrfMNT6Pk = rng.gen();
+        assert!(!mnt6_ecvrf_gadget_generate_constraints(message, &wrong_pk, proof, &pp));
 
         //Change proof
         let (wrong_proof, _) = prove::<EcVrfMNT6, _>(rng, &pp, &[wrong_message]);
-        assert!(!mnt6_ecvrf_gadget_generate_constraints(message, pk, wrong_proof, &pp));
+        assert!(!mnt6_ecvrf_gadget_generate_constraints(message, &pk, wrong_proof, &pp));
     }
 
     #[ignore]

@@ -3,6 +3,7 @@ use algebra::{Field, PrimeField, Group, UniformRand, ProjectiveCurve, convert, l
 use std::marker::PhantomData;
 use rand::Rng;
 use std::io::{Write, Read, Result as IoResult, Error as IoError, ErrorKind};
+use rand::distributions::{Distribution, Standard};
 
 #[allow(dead_code)]
 pub struct FieldBasedSchnorrSignatureScheme<
@@ -100,6 +101,61 @@ impl<F: PrimeField, G: Group> SemanticallyValid for FieldBasedSchnorrSignature<F
     }
 }
 
+#[derive(Derivative)]
+#[derivative(
+Clone(bound = "G: Group"),
+Default(bound = "G: Group"),
+Hash(bound = "G: Group"),
+Eq(bound = "G: Group"),
+PartialEq(bound = "G: Group"),
+Debug(bound = "G: Group"),
+)]
+pub struct FieldBasedSchnorrPk<G: Group>(pub G);
+
+impl<G: Group> Distribution<FieldBasedSchnorrPk<G>> for Standard {
+    #[inline]
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> FieldBasedSchnorrPk<G> {
+        let pk = G::rand(rng);
+        FieldBasedSchnorrPk::<G>(pk)
+    }
+}
+
+impl<G: Group> ToBytes for FieldBasedSchnorrPk<G> {
+    fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
+        self.0.write(&mut writer)
+    }
+}
+
+impl<G: Group> FromBytes for FieldBasedSchnorrPk<G> {
+    fn read<R: Read>(mut reader: R) -> IoResult<Self> {
+        let pk = G::read(&mut reader)?;
+        Ok( Self(pk) )
+    }
+}
+
+impl<G: Group> FromBytesChecked for FieldBasedSchnorrPk<G> {
+    fn read_checked<R: Read>(mut reader: R) -> IoResult<Self> {
+        let pk = G::read_checked(&mut reader)
+            .map_err(|e| IoError::new(ErrorKind::InvalidData, format!("invalid schnorr pk: {}", e)))
+            .and_then(|p| {
+                if p.is_zero() { return Err(IoError::new(ErrorKind::InvalidData, "invalid schnorr pk: point at infinity")); }
+                Ok(p)
+            })?;
+        Ok( Self(pk) )
+    }
+}
+
+impl<G: Group> SemanticallyValid for FieldBasedSchnorrPk<G> {
+    #[inline]
+    fn is_valid(&self) -> bool {
+        self.0.is_valid() &&
+        // GingerLib only accepts non-trivial Schnorr public keys. This is usually
+        // good practice to avoid using obvious weak keys, and helps preventing
+        // exceptional cases if using incomplete arithmetics.
+        !self.0.is_zero()
+    }
+}
+
 // Low-level crypto for the length-restricted Schnorr Signature, does not perform any
 // input validity check. It's responsibility of the caller to do so, through keyverify()
 // function for the PublicKey, read() or is_valid() functions for FieldBasedSchnorrSignature.
@@ -107,7 +163,7 @@ impl<F: PrimeField, G: ProjectiveCurve + ToConstraintField<F>, H: FieldBasedHash
 FieldBasedSchnorrSignatureScheme<F, G, H>
 {
     type Data = H::Data;
-    type PublicKey = G;
+    type PublicKey = FieldBasedSchnorrPk<G>;
     type SecretKey = G::ScalarField;
     type Signature = FieldBasedSchnorrSignature<F, G>;
 
@@ -121,11 +177,11 @@ FieldBasedSchnorrSignatureScheme<F, G, H>
         };
         let public_key = G::prime_subgroup_generator()
             .mul(&secret_key);
-        (public_key, secret_key)
+        (FieldBasedSchnorrPk(public_key), secret_key)
     }
 
     fn get_public_key(sk: &Self::SecretKey) -> Self::PublicKey {
-        G::prime_subgroup_generator().mul(sk)
+        FieldBasedSchnorrPk(G::prime_subgroup_generator().mul(sk))
     }
 
     fn sign<R: Rng>(
@@ -146,7 +202,7 @@ FieldBasedSchnorrSignatureScheme<F, G, H>
         );
 
         //Affine coordinates of pk
-        let pk_coords = pk.to_field_elements()?;
+        let pk_coords = pk.0.to_field_elements()?;
 
         let (e, s) = loop {
 
@@ -198,7 +254,7 @@ FieldBasedSchnorrSignatureScheme<F, G, H>
         -> Result<bool, Error>
     {
 
-        let pk_coords = pk.to_field_elements()?;
+        let pk_coords = pk.0.to_field_elements()?;
 
         //Compute R' = s*G - e * pk
         let r_prime = {
@@ -209,7 +265,7 @@ FieldBasedSchnorrSignatureScheme<F, G, H>
             let e_conv =  convert::<G::ScalarField>(e_bits)?;
 
             let s_times_g = G::prime_subgroup_generator().mul(&s_conv);
-            let neg_e_times_pk = pk.neg().mul(&e_conv);
+            let neg_e_times_pk = pk.0.neg().mul(&e_conv);
             s_times_g + &neg_e_times_pk
         };
 
@@ -227,14 +283,7 @@ FieldBasedSchnorrSignatureScheme<F, G, H>
 
 
     #[inline]
-    fn keyverify(pk: &Self::PublicKey) -> bool
-    {
-        pk.is_valid() &&
-        // GingerLib only accepts non-trivial Schnorr public keys. This is usually
-        // good practice to avoid using obvious weak keys, and helps preventing
-        // exceptional cases if using incomplete arithmetics.
-        !pk.is_zero()
-    }
+    fn keyverify(pk: &Self::PublicKey) -> bool { pk.is_valid() }
 }
 
 #[cfg(test)]
