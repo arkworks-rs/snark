@@ -60,6 +60,9 @@ pub use instantiated::ed_on_mnt4_753;
 #[cfg(feature = "ed_on_cp6_782")]
 pub use instantiated::ed_on_cp6_782;
 
+#[cfg(feature = "ed_on_bn254")]
+pub use instantiated::ed_on_bn254;
+
 #[cfg(feature = "ed_on_bls12_381")]
 pub use instantiated::ed_on_bls12_381;
 
