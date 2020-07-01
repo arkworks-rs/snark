@@ -3,24 +3,12 @@ mod big_merkle_tree;
 mod big_lazy_merkle_tree;
 pub mod error;
 
-use crate::{FieldBasedHashParameters, PoseidonHash, PoseidonParameters, FieldBasedHash, merkle_tree, BatchFieldBasedHash};
-use crate::merkle_tree::field_based_mht::smt::error::Error;
+use crate::{FieldBasedHashParameters, PoseidonHash};
 use crate::crh::poseidon::parameters::{MNT4753PoseidonParameters, MNT6753PoseidonParameters};
-use crate::crh::poseidon::batched_crh::PoseidonBatchHash;
-use crate::merkle_tree::field_based_mht::smt::ActionLeaf::{Remove, Insert};
-use crate::merkle_tree::field_based_mht::smt::parameters::{MNT4753SmtPoseidonParameters, MNT6753SmtPoseidonParameters};
-
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::marker::PhantomData;
-use std::fs;
-
-use rocksdb::DB;
 
 use algebra::fields::mnt6753::Fr as MNT6753Fr;
 use algebra::fields::mnt4753::Fr as MNT4753Fr;
-use algebra::{ToBytes, to_bytes};
-use algebra::{PrimeField, MulShort};
+use algebra::PrimeField;
 
 use serde::{Serialize,Deserialize};
 

@@ -1,7 +1,7 @@
 use crate::merkle_tree::field_based_mht::smt::{SmtPoseidonParameters, Coord, OperationLeaf};
-use crate::{PoseidonParameters, PoseidonHash, FieldBasedHash, BatchFieldBasedHash, merkle_tree};
+use crate::{PoseidonParameters, BatchFieldBasedHash, merkle_tree};
 use crate::crh::poseidon::batched_crh::PoseidonBatchHash;
-use crate::merkle_tree::field_based_mht::smt::ActionLeaf::{Remove, Insert};
+use crate::merkle_tree::field_based_mht::smt::ActionLeaf::Remove;
 use crate::merkle_tree::field_based_mht::smt::parameters::{MNT4753SmtPoseidonParameters, MNT6753SmtPoseidonParameters};
 use crate::crh::poseidon::parameters::{MNT4753PoseidonParameters, MNT6753PoseidonParameters};
 
@@ -27,11 +27,11 @@ pub struct LazyBigMerkleTree<F: PrimeField, T: SmtPoseidonParameters<Fr=F>, P: P
     // the height of the Merkle tree
     height: usize,
     // path to the db
-    path_db: &'static str,
+    path_db: String,
     // stores the leaves
     database: DB,
     // path to the cache
-    path_cache: &'static str,
+    path_cache: String,
     // stores the cached nodes
     db_cache: DB,
     // indicates which nodes are present the Merkle tree
@@ -49,14 +49,14 @@ pub struct LazyBigMerkleTree<F: PrimeField, T: SmtPoseidonParameters<Fr=F>, P: P
 impl<F: PrimeField, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParameters<Fr=F>> Drop for LazyBigMerkleTree<F, T, P> {
     fn drop(&mut self) {
         // Deletes the folder containing the db
-        match fs::remove_dir_all(self.path_db) {
+        match fs::remove_dir_all(self.path_db.clone()) {
             Ok(_) => (),
             Err(e) => {
                 println!("Error deleting the folder containing the db. {}", e);
             }
         };
         // Deletes the folder containing the cache
-        match fs::remove_dir_all(self.path_cache) {
+        match fs::remove_dir_all(self.path_cache.clone()) {
             Ok(_) => (),
             Err(e) => {
                 println!("Error deleting the folder containing the db. {}", e);
@@ -67,13 +67,11 @@ impl<F: PrimeField, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParameters<Fr=F>>
 
 // Assumption: MERKLE_ARITY == 2
 impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParameters<Fr=F>> LazyBigMerkleTree<F, T, P> {
-    pub fn new(width: usize) -> Result<Self, Error> {
+    pub fn new(width: usize, path_db: String, path_cache: String) -> Result<Self, Error> {
         let height = width as f64;
         let height = height.log(T::MERKLE_ARITY as f64) as usize;
-        let path_db = "/home/mkaihara/Documents/dev/ginger-lib/primitives/src/merkle_tree/field_based_mht/smt/rocksdb_storage";
-        let database = DB::open_default(path_db).unwrap();
-        let path_cache = "/home/mkaihara/Documents/dev/ginger-lib/primitives/src/merkle_tree/field_based_mht/smt/rocksdb_cache_storage";
-        let db_cache = DB::open_default(path_cache).unwrap();
+        let database = DB::open_default(path_db.clone()).unwrap();
+        let db_cache = DB::open_default(path_cache.clone()).unwrap();
         let present_node = HashSet::new();
         let cache_parallel = HashMap::new();
         let root = T::EMPTY_HASH_CST[height];
@@ -305,20 +303,8 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         res.unwrap()
     }
 
-    pub fn insert_node_in_cache(&mut self, coord: Coord, hash: F) {
-        self.insert_to_cache(coord, hash);
-    }
-
     pub fn remove_node_from_cache(&mut self, coord: Coord) {
         self.remove_from_cache(coord);
-    }
-
-    pub fn poseidon_hash(x: F, y: F) -> F {
-        let mut input = Vec::new();
-        input.push(x);
-        input.push(y);
-        let hash = PoseidonHash::<F, P>::evaluate(&input[..]);
-        hash.unwrap()
     }
 
     pub fn batch_poseidon_hash(input: Vec<F>) -> Vec<F> {
@@ -582,7 +568,7 @@ mod test {
         let root3;
         let root4;
         {
-            let mut smt1 = MNT4PoseidonSmt::new(num_leaves).unwrap();
+            let mut smt1 = MNT4PoseidonSmt::new(num_leaves, String::from("./db_leaves") , String::from("./db_cache")).unwrap();
             let leaves_to_process1 = leaves_to_insert.clone();
             let now = Instant::now();
             root1 = smt1.process_leaves_normal(leaves_to_process1);
@@ -606,7 +592,7 @@ mod test {
         }
 
         {
-            let mut smt2 = MNT4PoseidonSmtLazy::new(num_leaves).unwrap();
+            let mut smt2 = MNT4PoseidonSmtLazy::new(num_leaves, String::from("./db_leaves") , String::from("./db_cache")).unwrap();
             let leaves_to_process2 = leaves_to_insert.clone();
             let now = Instant::now();
             root2 = smt2.process_leaves(leaves_to_process2);
@@ -649,7 +635,7 @@ mod test {
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 29 }, action: ActionLeaf::Insert, hash: Some(MNT4753Fr::from_str("3").unwrap()) });
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 16 }, action: ActionLeaf::Remove, hash: Some(MNT4753Fr::from_str("3").unwrap()) });
 
-        let mut smt = MNT4PoseidonSmtLazy::new(num_leaves).unwrap();
+        let mut smt = MNT4PoseidonSmtLazy::new(num_leaves, String::from("./db_leaves") , String::from("./db_cache")).unwrap();
         smt.process_leaves(leaves_to_process);
 
         //=============================================
@@ -672,8 +658,8 @@ mod test {
         }
         let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
 
-        println!("root_mt  = {:?}", tree.root.unwrap());
-        println!("root_smt = {:?}", smt.root);
+        assert_eq!(tree.root.unwrap(), smt.root, "Roots are not equal");
+
     }
 
     #[test]
@@ -706,7 +692,7 @@ mod test {
         let root3;
         let root4;
         {
-            let mut smt1 = MNT6PoseidonSmt::new(num_leaves).unwrap();
+            let mut smt1 = MNT6PoseidonSmt::new(num_leaves, String::from("./db_leaves") , String::from("./db_cache")).unwrap();
             let leaves_to_process1 = leaves_to_insert.clone();
             let now = Instant::now();
             root1 = smt1.process_leaves_normal(leaves_to_process1);
@@ -730,7 +716,7 @@ mod test {
         }
 
         {
-            let mut smt2 = MNT6PoseidonSmtLazy::new(num_leaves).unwrap();
+            let mut smt2 = MNT6PoseidonSmtLazy::new(num_leaves, String::from("./db_leaves") , String::from("./db_cache")).unwrap();
             let leaves_to_process2 = leaves_to_insert.clone();
             let now = Instant::now();
             root2 = smt2.process_leaves(leaves_to_process2);
@@ -773,7 +759,7 @@ mod test {
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 29 }, action: ActionLeaf::Insert, hash: Some(MNT6753Fr::from_str("3").unwrap()) });
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 16 }, action: ActionLeaf::Remove, hash: Some(MNT6753Fr::from_str("3").unwrap()) });
 
-        let mut smt = MNT6PoseidonSmtLazy::new(num_leaves).unwrap();
+        let mut smt = MNT6PoseidonSmtLazy::new(num_leaves, String::from("./db_leaves") , String::from("./db_cache")).unwrap();
         smt.process_leaves(leaves_to_process);
 
         //=============================================
@@ -796,8 +782,7 @@ mod test {
         }
         let tree = MNT6753FieldBasedMerkleTree::new(&leaves).unwrap();
 
-        println!("root_mt  = {:?}", tree.root.unwrap());
-        println!("root_smt = {:?}", smt.root);
+        assert_eq!(tree.root.unwrap(), smt.root, "Roots are not equal");
     }
 
 

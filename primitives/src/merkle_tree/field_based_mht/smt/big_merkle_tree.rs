@@ -1,14 +1,9 @@
 use crate::merkle_tree::field_based_mht::smt::{SmtPoseidonParameters, Coord, OperationLeaf};
 use crate::{PoseidonParameters, PoseidonHash, FieldBasedHash, merkle_tree};
-use crate::merkle_tree::field_based_mht::smt::ActionLeaf::{Remove, Insert};
-use crate::merkle_tree::field_based_mht::smt::parameters::{MNT4753SmtPoseidonParameters, MNT6753SmtPoseidonParameters};
-use crate::crh::poseidon::parameters::{MNT4753PoseidonParameters, MNT6753PoseidonParameters};
-use crate::merkle_tree::field_based_mht::smt::big_lazy_merkle_tree::LazyBigMerkleTree;
+use crate::merkle_tree::field_based_mht::smt::ActionLeaf::Insert;
 
 use algebra::{PrimeField, MulShort};
 use algebra::{ToBytes, to_bytes};
-use algebra::fields::mnt6753::Fr as MNT6753Fr;
-use algebra::fields::mnt4753::Fr as MNT4753Fr;
 
 use rocksdb::DB;
 
@@ -25,11 +20,11 @@ pub struct BigMerkleTree<F: PrimeField, T: SmtPoseidonParameters<Fr=F>, P: Posei
     // the height of the Merkle tree
     height: usize,
     // path to the db
-    path_db: &'static str,
+    path_db: String,
     // stores the leaves
     database: DB,
     // path to the cache
-    path_cache: &'static str,
+    path_cache: String,
     // stores the cached nodes
     db_cache: DB,
     // stores the nodes of the path
@@ -47,14 +42,14 @@ pub struct BigMerkleTree<F: PrimeField, T: SmtPoseidonParameters<Fr=F>, P: Posei
 impl<F: PrimeField, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParameters<Fr=F>> Drop for BigMerkleTree<F, T, P> {
     fn drop(&mut self) {
         // Deletes the folder containing the db
-        match fs::remove_dir_all(self.path_db) {
+        match fs::remove_dir_all(self.path_db.clone()) {
             Ok(_) => (),
             Err(e) => {
                 println!("Error deleting the folder containing the db. {}", e);
             }
         };
         // Deletes the folder containing the cache
-        match fs::remove_dir_all(self.path_cache) {
+        match fs::remove_dir_all(self.path_cache.clone()) {
             Ok(_) => (),
             Err(e) => {
                 println!("Error deleting the folder containing the db. {}", e);
@@ -65,18 +60,16 @@ impl<F: PrimeField, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParameters<Fr=F>>
 
 // Assumption: MERKLE_ARITY == 2
 impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParameters<Fr=F>> BigMerkleTree<F, T, P> {
-    pub fn new(width: usize) -> Result<Self, Error> {
+    pub fn new(width: usize, path_db: String, path_cache: String) -> Result<Self, Error> {
         let height = width as f64;
         let height = height.log(T::MERKLE_ARITY as f64) as usize;
-        let path_db = "/home/mkaihara/Documents/dev/ginger-lib/primitives/src/merkle_tree/field_based_mht/smt/rocksdb_storage";
-        let database = DB::open_default(path_db).unwrap();
-        let path_cache = "/home/mkaihara/Documents/dev/ginger-lib/primitives/src/merkle_tree/field_based_mht/smt/rocksdb_cache_storage";
-        let db_cache = DB::open_default(path_cache).unwrap();
+        let path_db = path_db;
+        let database = DB::open_default(path_db.clone()).unwrap();
+        let path_cache = path_cache;
+        let db_cache = DB::open_default(path_cache.clone()).unwrap();
         let cache_path = HashMap::new();
         let present_node = HashSet::new();
         let root = T::EMPTY_HASH_CST[height];
-        // set to true to print intermediate results for debug
-        let print_verbose = false;
         Ok(BigMerkleTree {
             width,
             height,
@@ -549,7 +542,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
 
 #[cfg(test)]
 mod test {
-    use crate::merkle_tree::field_based_mht::smt::{MNT4PoseidonHash, OperationLeaf, Coord, ActionLeaf, SmtPoseidonParameters};
+    use crate::merkle_tree::field_based_mht::smt::{MNT4PoseidonHash, OperationLeaf, Coord, ActionLeaf};
     use crate::merkle_tree::field_based_mht::{FieldBasedMerkleTreeConfig, FieldBasedMerkleHashTree};
     use crate::merkle_tree::field_based_mht::smt::parameters::{MNT4753SmtPoseidonParameters, MNT6753SmtPoseidonParameters};
     use crate::MNT6PoseidonHash;
@@ -559,14 +552,12 @@ mod test {
     use algebra::fields::mnt4753::Fr as MNT4753Fr;
 
     use std::str::FromStr;
-    use std::time::Instant;
 
     use rand_xorshift::XorShiftRng;
-    use rand::{SeedableRng, RngCore};
-    use rand::rngs::OsRng;
+    use rand::SeedableRng;
     use crate::merkle_tree::field_based_mht::smt::big_merkle_tree::BigMerkleTree;
 
-    pub type MNT4PoseidonSmt = BigMerkleTree<MNT4753Fr, MNT4753SmtPoseidonParameters, MNT4753PoseidonParameters>;
+    pub type MNT4PoseidonSmt = BigMerkleTree< MNT4753Fr, MNT4753SmtPoseidonParameters, MNT4753PoseidonParameters>;
 
     struct MNT4753FieldBasedMerkleTreeParams;
 
@@ -592,7 +583,7 @@ mod test {
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 29 }, action: ActionLeaf::Insert, hash: Some(MNT4753Fr::from_str("3").unwrap()) });
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 16 }, action: ActionLeaf::Remove, hash: Some(MNT4753Fr::from_str("3").unwrap()) });
 
-        let mut smt = MNT4PoseidonSmt::new(num_leaves).unwrap();
+        let mut smt = MNT4PoseidonSmt::new(num_leaves, String::from("./db_leaves") , String::from("./db_cache")).unwrap();
         smt.process_leaves_normal(leaves_to_process);
 
         //=============================================
@@ -634,7 +625,7 @@ mod test {
         }
         let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
 
-        let mut smt = MNT4PoseidonSmt::new(num_leaves).unwrap();
+        let mut smt = MNT4PoseidonSmt::new(num_leaves,String::from("./db_leaves") , String::from("./db_cache")).unwrap();
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
         for i in 0..num_leaves {
             let f = Fr::rand(&mut rng);
@@ -672,7 +663,7 @@ mod test {
         }
         let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
 
-        let mut smt = MNT4PoseidonSmt::new(num_leaves).unwrap();
+        let mut smt = MNT4PoseidonSmt::new(num_leaves, String::from("./db_leaves") , String::from("./db_cache")).unwrap();
         smt.insert_leaf(Coord{height:0, idx:0}, MNT4753Fr::from_str("1").unwrap());
         smt.insert_leaf(Coord{height:0, idx:9}, MNT4753Fr::from_str("2").unwrap());
         smt.insert_leaf(Coord{height:0, idx:16}, MNT4753Fr::from_str("10").unwrap());
@@ -708,7 +699,7 @@ mod test {
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 29 }, action: ActionLeaf::Insert, hash: Some(MNT6753Fr::from_str("3").unwrap()) });
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 16 }, action: ActionLeaf::Remove, hash: Some(MNT6753Fr::from_str("3").unwrap()) });
 
-        let mut smt = MNT6PoseidonSmt::new(num_leaves).unwrap();
+        let mut smt = MNT6PoseidonSmt::new(num_leaves, String::from("./db_leaves") , String::from("./db_cache")).unwrap();
         smt.process_leaves_normal(leaves_to_process);
 
         //=============================================
@@ -750,7 +741,7 @@ mod test {
         }
         let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
 
-        let mut smt = MNT4PoseidonSmt::new(num_leaves).unwrap();
+        let mut smt = MNT4PoseidonSmt::new(num_leaves, String::from("./db_leaves") , String::from("./db_cache")).unwrap();
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
         for i in 0..num_leaves {
             let f = Fr::rand(&mut rng);
@@ -788,7 +779,7 @@ mod test {
         }
         let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
 
-        let mut smt = MNT4PoseidonSmt::new(num_leaves).unwrap();
+        let mut smt = MNT4PoseidonSmt::new(num_leaves, String::from("./db_leaves") , String::from("./db_cache")).unwrap();
         smt.insert_leaf(Coord{height:0, idx:0}, MNT4753Fr::from_str("1").unwrap());
         smt.insert_leaf(Coord{height:0, idx:9}, MNT4753Fr::from_str("2").unwrap());
         smt.insert_leaf(Coord{height:0, idx:16}, MNT4753Fr::from_str("10").unwrap());
