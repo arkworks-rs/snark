@@ -25,6 +25,7 @@ use std::{
 };
 use rand::rngs::OsRng;
 use primitives::vrf::ecvrf::FieldBasedEcVrfPk;
+use r1cs_std::bits::boolean::Boolean;
 
 #[derive(Derivative)]
 #[derivative(
@@ -77,16 +78,28 @@ impl<ConstraintF, G, GG> FieldBasedEcVrfProofGadget<ConstraintF, G, GG>
         let gamma = match (gamma_on_curve, gamma_prime_order) {
             (false, false) => GG::alloc_without_check(cs.ns(|| "alloc gamma unchecked"), || gamma)?,
             (true, false) => {
-                let zero = GG::zero(cs.ns(|| "zero"))?;
-                let gamma_g = GG::alloc(cs.ns(|| "alloc gamma"), || gamma)?;
-                gamma_g.enforce_not_equal(cs.ns(|| "gamma must not be infinity"), &zero)?;
-                gamma_g
+                GG::alloc(cs.ns(|| "alloc gamma"), || gamma )
+                    .and_then(|gamma_g| {
+                        gamma_g
+                            .is_zero(cs.ns(|| "is gamma zero"))?
+                            .enforce_equal(
+                                cs.ns(|| "gamma must not be zero"),
+                                &Boolean::constant(false),
+                            )?;
+                        Ok(gamma_g)
+                    })?
             },
             (true, true) => {
-                let zero = GG::zero(cs.ns(|| "zero"))?;
-                let gamma_g = GG::alloc_checked(cs.ns(|| "alloc gamma checked"), || gamma)?;
-                gamma_g.enforce_not_equal(cs.ns(|| "gamma must not be infinity"), &zero)?;
-                gamma_g
+                GG::alloc_checked(cs.ns(|| "alloc gamma checked"), || gamma )
+                    .and_then(|gamma_g| {
+                        gamma_g
+                            .is_zero(cs.ns(|| "is gamma zero"))?
+                            .enforce_equal(
+                                cs.ns(|| "gamma must not be zero"),
+                                &Boolean::constant(false),
+                            )?;
+                        Ok(gamma_g)
+                    })?
             },
             _ => unreachable!()
         };
@@ -174,9 +187,16 @@ for FieldBasedEcVrfPkGadget<ConstraintF, G, GG>
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<FieldBasedEcVrfPk<G>>
     {
-        let pk = GG::alloc(cs.ns(|| "alloc pk"), || f().map(|pk| pk.borrow().0))?;
-        let zero = GG::zero(cs.ns(|| "alloc zero"))?;
-        pk.enforce_not_equal(cs.ns(|| "exclude infinity pk"), &zero)?;
+        let pk = GG::alloc(cs.ns(|| "alloc pk"), || f().map(|pk| pk.borrow().0))
+            .and_then(|pk_g|{
+                pk_g
+                    .is_zero(cs.ns(|| "is pk zero"))?
+                    .enforce_equal(
+                        cs.ns(|| "pk must not be zero"),
+                        &Boolean::constant(false),
+                    )?;
+                Ok(pk_g)
+        })?;
         Ok( Self{ pk, _field: PhantomData, _group: PhantomData } )
     }
 
@@ -192,9 +212,16 @@ for FieldBasedEcVrfPkGadget<ConstraintF, G, GG>
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<FieldBasedEcVrfPk<G>>,
     {
-        let pk = GG::alloc_checked(cs.ns(|| "alloc pk"), || f().map(|pk| pk.borrow().0))?;
-        let zero = GG::zero(cs.ns(|| "alloc zero"))?;
-        pk.enforce_not_equal(cs.ns(|| "exclude infinity pk"), &zero)?;
+        let pk = GG::alloc_checked(cs.ns(|| "alloc pk checked"), || f().map(|pk| pk.borrow().0))
+            .and_then(|pk_g|{
+                pk_g
+                    .is_zero(cs.ns(|| "is pk zero"))?
+                    .enforce_equal(
+                        cs.ns(|| "pk must not be zero"),
+                        &Boolean::constant(false),
+                    )?;
+                Ok(pk_g)
+            })?;
         Ok( Self{ pk, _field: PhantomData, _group: PhantomData } )
     }
 

@@ -149,6 +149,36 @@ pub struct VerifyingKey<E: PairingEngine> {
     pub gamma_abc_g1:       Vec<E::G1Affine>,
 }
 
+impl<E: PairingEngine> VerifyingKey<E> {
+    fn check_gamma_abc_g1_points(gamma_abc_g1: &[E::G1Affine]) -> IoResult<()> {
+        use std::ops::Neg;
+
+        for (i, &p1) in gamma_abc_g1.iter().enumerate() {
+            if p1.is_zero() {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("invalid gamma_abc_g1[{}]: point at infinity", i),
+                ));
+            }
+            for (j, &p2) in gamma_abc_g1.iter().skip(i + 1).enumerate() {
+                if p1 == p2 {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!("duplicate points: gamma_abc_g1[{}] = gamma_abc_g1[{}]", i, j),
+                    ));
+                }
+                if p1 == p2.neg() {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!("inverse points: gamma_abc_g1[{}] = -gamma_abc_g1[{}]", i, j),
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
 impl<E: PairingEngine> ToBytes for VerifyingKey<E> {
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
         self.alpha_g1_beta_g2.write(&mut writer)?;
@@ -169,7 +199,8 @@ impl<E: PairingEngine> SemanticallyValid for VerifyingKey<E> {
         self.gamma_g2.is_valid() && !self.gamma_g2.is_zero() &&
         self.delta_g2.is_valid() && !self.delta_g2.is_zero() &&
         self.gamma_abc_g1.iter().filter(|&p| !p.is_valid() || p.is_zero())
-            .collect::<Vec<_>>().is_empty()
+            .collect::<Vec<_>>().is_empty() &&
+        Self::check_gamma_abc_g1_points(self.gamma_abc_g1.as_slice()).is_ok()
     }
 }
 
@@ -177,7 +208,11 @@ impl<E: PairingEngine> FromBytesChecked for VerifyingKey<E> {
     #[inline]
     fn read_checked<R: Read>(mut reader: R) -> IoResult<Self> {
         let alpha_g1_beta_g2 = E::Fqk::read(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("invalid alpha_g1_beta_g2: {}", e)))?;
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("invalid alpha_g1_beta_g2: {}", e)))
+            .and_then(|f| {
+                if f.is_zero() { return Err(io::Error::new(io::ErrorKind::InvalidData, "invalid alpha_g1_beta_g2: zero")); }
+                Ok(f)
+            })?;
 
         let gamma_g2 = E::G2Affine::read_checked(&mut reader)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("invalid point gamma_g2: {}", e)))
@@ -194,7 +229,10 @@ impl<E: PairingEngine> FromBytesChecked for VerifyingKey<E> {
             })?;
 
         let ic_len = reader.read_u32::<BigEndian>()? as usize;
-        let gamma_abc_g1 = read_affine_vec_checked::<E::G1Affine, _>(ic_len, true, &mut reader)?;
+        let gamma_abc_g1 = read_affine_vec_checked::<E::G1Affine, _>(ic_len, true, &mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("invalid gamma_abc_g1: {}", e)))?;
+        Self::check_gamma_abc_g1_points(gamma_abc_g1.as_slice())
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("invalid gamma_abc_g1: {}", e)))?;
 
         Ok(VerifyingKey { alpha_g1_beta_g2, gamma_g2, delta_g2, gamma_abc_g1 })
     }
@@ -358,20 +396,28 @@ impl<E: PairingEngine> FromBytesChecked for Parameters<E> {
                 Ok(p)
             })?;
 
+        // NOTE: a, b_g1 and b_g2 also contains polynomials that evaluate to zero, therefore the
+        // zero check is disabled.
+        // TODO: Exclude the points above from the generation procedure
         let a_len = reader.read_u32::<BigEndian>()? as usize;
-        let a_query = read_affine_vec_checked::<E::G1Affine, _>(a_len, false, &mut reader)?;
+        let a_query = read_affine_vec_checked::<E::G1Affine, _>(a_len, false, &mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("invalid a_query: {}", e)))?;
 
         let b_g1_len = reader.read_u32::<BigEndian>()? as usize;
-        let b_g1_query = read_affine_vec_checked::<E::G1Affine, _>(b_g1_len, false, &mut reader)?;
+        let b_g1_query = read_affine_vec_checked::<E::G1Affine, _>(b_g1_len, false, &mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("invalid b_g1_query: {}", e)))?;
 
         let b_g2_len = reader.read_u32::<BigEndian>()? as usize;
-        let b_g2_query = read_affine_vec_checked::<E::G2Affine, _>(b_g2_len, false, &mut reader)?;
+        let b_g2_query = read_affine_vec_checked::<E::G2Affine, _>(b_g2_len, false, &mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("invalid b_g2_query: {}", e)))?;
 
         let h_len = reader.read_u32::<BigEndian>()? as usize;
-        let h_query = read_affine_vec_checked::<E::G1Affine, _>(h_len, true, &mut reader)?;
+        let h_query = read_affine_vec_checked::<E::G1Affine, _>(h_len, true, &mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("invalid h_query: {}", e)))?;
 
         let l_len = reader.read_u32::<BigEndian>()? as usize;
-        let l_query = read_affine_vec_checked::<E::G1Affine, _>(l_len, true, &mut reader)?;
+        let l_query = read_affine_vec_checked::<E::G1Affine, _>(l_len, true, &mut reader)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("invalid l_query: {}", e)))?;
 
         Ok(Parameters { vk, alpha_g1, beta_g1, beta_g2, delta_g1, delta_g2, a_query, b_g1_query, b_g2_query, h_query, l_query })
     }

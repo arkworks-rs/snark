@@ -116,13 +116,6 @@ impl<P: Parameters> GroupAffine<P> {
         self.mul_bits(BitIterator::new(P::ScalarField::characteristic()))
             .is_zero()
     }
-
-    #[inline]
-    // Sanity checks on infinity flag
-    pub(crate) fn is_infinity_flag_valid(&self) -> bool {
-        (self.infinity && (*self) == Self::zero()) ||
-            (!self.infinity && !(self.x == P::BaseField::zero() && self.y == P::BaseField::one()))
-    }
 }
 
 impl<P: Parameters> AffineCurve for GroupAffine<P> {
@@ -179,7 +172,6 @@ impl<P: Parameters> SemanticallyValid for GroupAffine<P>
     fn is_valid(&self) -> bool {
         self.x.is_valid() &&
         self.y.is_valid() &&
-        self.is_infinity_flag_valid() &&
         self.group_membership_test()
     }
 }
@@ -213,12 +205,7 @@ impl<P: Parameters> FromBytes for GroupAffine<P> {
         let y = P::BaseField::read(&mut reader)?;
         let infinity = bool::read(reader)?;
 
-        let p = Self::new(x, y, infinity);
-        if !p.is_infinity_flag_valid() {
-            Err(IoError::new(ErrorKind::InvalidData, "Infinity flag value is inconsistent with point value"))
-        } else {
-            Ok(p)
-        }
+        Ok(Self::new(x, y, infinity))
     }
 }
 
@@ -630,7 +617,6 @@ impl<P: Parameters> SemanticallyValid for GroupProjective<P>
         self.x.is_valid() &&
         self.y.is_valid() &&
         self.z.is_valid() &&
-        self.into_affine().is_infinity_flag_valid() &&
         self.group_membership_test()
     }
 }

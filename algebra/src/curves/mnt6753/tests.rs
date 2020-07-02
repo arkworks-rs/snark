@@ -109,23 +109,9 @@ fn test_g1_is_valid(){
     assert!(!p.is_valid());
     assert!(!p.is_on_curve());
 
-    // Reject point with invalid flags
-    let mut p = G1Affine::zero();
-    p.infinity = false;
-    assert!(!p.is_valid());
-    assert!(!p.is_infinity_flag_valid());
-
-    let mut p: G1Projective = rand::random();
-    while p.is_zero() {
-        p = rand::random();
-    }
-    let mut p_affine = p.into_affine();
-    p_affine.infinity = true;
-    assert!(!p_affine.is_valid());
-    assert!(!p_affine.is_infinity_flag_valid());
-
     // Accept valid point
-    p_affine.infinity = false;
+    let p: G1Projective = rand::random();
+    let p_affine = p.into_affine();
     assert!(p_affine.is_valid());
 
 }
@@ -430,23 +416,10 @@ fn test_g2_is_valid(){
     assert!(!p.is_valid());
     assert!(!p.is_on_curve());
 
-    // Reject point with invalid flags
-    let mut p = G2Affine::zero();
-    p.infinity = false;
-    assert!(!p.is_valid());
-    assert!(!p.is_infinity_flag_valid());
-
-    let mut p: G2Projective = rand::random();
-    while p.is_zero() {
-        p = rand::random();
-    }
-    let mut p_affine = p.into_affine();
-    p_affine.infinity = true;
-    assert!(!p_affine.is_valid());
-    assert!(!p_affine.is_infinity_flag_valid());
-
     // Accept valid point
-    p_affine.infinity = false;
+
+    let p: G2Projective = rand::random();
+    let p_affine = p.into_affine();
     assert!(p_affine.is_valid());
 
 }

@@ -115,9 +115,16 @@ for FieldBasedSchnorrPkGadget<ConstraintF, G, GG>
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<FieldBasedSchnorrPk<G>>
     {
-        let pk = GG::alloc(cs.ns(|| "alloc pk"), || f().map(|pk| pk.borrow().0))?;
-        let zero = GG::zero(cs.ns(|| "alloc zero"))?;
-        pk.enforce_not_equal(cs.ns(|| "exclude infinity pk"), &zero)?;
+        let pk = GG::alloc(cs.ns(|| "alloc pk"), || f().map(|pk| pk.borrow().0))
+            .and_then(|pk_g|{
+                pk_g
+                    .is_zero(cs.ns(|| "is pk zero"))?
+                    .enforce_equal(
+                        cs.ns(|| "pk must not be zero"),
+                        &Boolean::constant(false),
+                    )?;
+                Ok(pk_g)
+            })?;
         Ok( Self{ pk, _field: PhantomData, _group: PhantomData } )
     }
 
@@ -133,9 +140,16 @@ for FieldBasedSchnorrPkGadget<ConstraintF, G, GG>
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<FieldBasedSchnorrPk<G>>,
     {
-        let pk = GG::alloc_checked(cs.ns(|| "alloc pk"), || f().map(|pk| pk.borrow().0))?;
-        let zero = GG::zero(cs.ns(|| "alloc zero"))?;
-        pk.enforce_not_equal(cs.ns(|| "exclude infinity pk"), &zero)?;
+        let pk = GG::alloc_checked(cs.ns(|| "alloc pk checked"), || f().map(|pk| pk.borrow().0))
+            .and_then(|pk_g|{
+                pk_g
+                    .is_zero(cs.ns(|| "is pk zero"))?
+                    .enforce_equal(
+                        cs.ns(|| "pk must not be zero"),
+                        &Boolean::constant(false),
+                    )?;
+                Ok(pk_g)
+            })?;
         Ok( Self{ pk, _field: PhantomData, _group: PhantomData } )
     }
 
@@ -326,6 +340,7 @@ mod test {
     use algebra::curves::{
         mnt4753::G1Projective as MNT4G1Projective,
         mnt6753::G1Projective as MNT6G1Projective,
+
     };
     use algebra::fields::{
         mnt4753::Fr as MNT4Fr,
