@@ -99,7 +99,7 @@ pub struct FieldBasedSchnorrPkGadget<
     GG: GroupGadget<G, ConstraintF>,
 >
 {
-    pk: GG,
+    pub pk: GG,
     _field: PhantomData<ConstraintF>,
     _group: PhantomData<G>,
 }
