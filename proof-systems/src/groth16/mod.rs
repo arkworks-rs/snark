@@ -348,9 +348,9 @@ impl<E: PairingEngine> SemanticallyValid for Parameters<E> {
             .collect::<Vec<_>>().is_empty() &&
         self.b_g2_query.iter().filter(|&p| !p.is_valid())
             .collect::<Vec<_>>().is_empty() &&
-        self.h_query.iter().filter(|&p| !p.is_valid())
+        self.h_query.iter().filter(|&p| !p.is_valid() || p.is_zero())
             .collect::<Vec<_>>().is_empty() &&
-        self.l_query.iter().filter(|&p| !p.is_valid())
+        self.l_query.iter().filter(|&p| !p.is_valid() || p.is_zero())
             .collect::<Vec<_>>().is_empty()
     }
 }
