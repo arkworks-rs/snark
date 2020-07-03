@@ -112,6 +112,7 @@ impl<F: PrimeField, G: ProjectiveCurve> SemanticallyValid for FieldBasedEcVrfPro
 
 #[derive(Derivative)]
 #[derivative(
+Copy(bound = "G: Group"),
 Clone(bound = "G: Group"),
 Default(bound = "G: Group"),
 Hash(bound = "G: Group"),

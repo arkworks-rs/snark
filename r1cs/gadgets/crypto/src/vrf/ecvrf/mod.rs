@@ -165,6 +165,7 @@ for FieldBasedEcVrfProofGadget<ConstraintF, G, GG>
     }
 }
 
+
 pub struct FieldBasedEcVrfPkGadget<
     ConstraintF: PrimeField,
     G: Group,

@@ -7,8 +7,8 @@ pub mod ecvrf;
 
 pub trait FieldBasedVrf {
     type Data: Field;
-    type PublicKey: FromBytes + FromBytesChecked + ToBytes + Hash + Eq + Clone +
-                    Default + Debug + Send + Sync + UniformRand;
+    type PublicKey: FromBytes + FromBytesChecked + ToBytes + Hash + Eq + Copy +
+                    Clone + Default + Debug + Send + Sync + UniformRand;
     type SecretKey: ToBytes + Clone + Default;
     type Proof: Copy + Clone + Default + Send + Sync + Debug + Eq + PartialEq + ToBytes
                 + FromBytes + FromBytesChecked + SemanticallyValid;
