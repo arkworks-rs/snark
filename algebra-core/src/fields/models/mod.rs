@@ -49,3 +49,4 @@ pub mod fp12_2over3over2;
 pub use self::fp12_2over3over2::*;
 
 pub mod quadratic_extension;
+pub use quadratic_extension::*;
