@@ -41,8 +41,13 @@ impl<P: Fp3Parameters> CubicExtParameters for Fp3ParamsWrapper<P> {
         P::mul_fp_by_nonresidue(fe)
     }
 
-    fn mul_base_field_by_frob_coeff(fe: &mut Self::BaseField, power: usize) {
-        *fe *= &Self::FROBENIUS_COEFF_C1[power % Self::DEGREE_OVER_BASE_PRIME_FIELD];
+    fn mul_base_field_by_frob_coeff(
+        c1: &mut Self::BaseField,
+        c2: &mut Self::BaseField,
+        power: usize,
+    ) {
+        *c1 *= &Self::FROBENIUS_COEFF_C1[power % Self::DEGREE_OVER_BASE_PRIME_FIELD];
+        *c2 *= &Self::FROBENIUS_COEFF_C2[power % Self::DEGREE_OVER_BASE_PRIME_FIELD];
     }
 }
 

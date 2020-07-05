@@ -49,7 +49,11 @@ pub trait CubicExtParameters: 'static + Send + Sync {
 
     /// A specializable method for multiplying an element of the base field by
     /// the appropriate Frobenius coefficient.
-    fn mul_base_field_by_frob_coeff(fe: &mut Self::BaseField, power: usize);
+    fn mul_base_field_by_frob_coeff(
+        c1: &mut Self::BaseField,
+        c2: &mut Self::BaseField,
+        power: usize,
+    );
 }
 
 #[derive(Derivative)]
@@ -258,8 +262,7 @@ impl<P: CubicExtParameters> Field for CubicExtField<P> {
         self.c1.frobenius_map(power);
         self.c2.frobenius_map(power);
 
-        P::mul_base_field_by_frob_coeff(&mut self.c1, power);
-        P::mul_base_field_by_frob_coeff(&mut self.c2, power);
+        P::mul_base_field_by_frob_coeff(&mut self.c1, &mut self.c2, power);
     }
 }
 
