@@ -306,6 +306,11 @@ pub trait PrimeField:
     + FromStr
     + From<<Self as PrimeField>::BigInt>
     + Into<<Self as PrimeField>::BigInt>
+    + From<u128>
+    + From<u64>
+    + From<u32>
+    + From<u16>
+    + From<u8>
 {
     type Params: FpParameters<BigInt = Self::BigInt>;
     type BigInt: BigInteger;
