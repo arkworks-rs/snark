@@ -9,18 +9,12 @@ pub struct Fq12Parameters;
 impl Fp12Parameters for Fq12Parameters {
     type Fp6Params = Fq6Parameters;
 
+    const NONRESIDUE: Fq6 = field_new!(Fq6, FQ2_ZERO, FQ2_ONE, FQ2_ZERO);
+
     #[rustfmt::skip]
-    const FROBENIUS_COEFF_FP12_C1: [Fq2; 12] = [
+    const FROBENIUS_COEFF_FP12_C1: &'static [Fq2] = &[
         // Fp2::NONRESIDUE^(((q^0) - 1) / 6)
-        field_new!(Fq2,
-            field_new!(Fq, BigInteger256([
-                0xd35d438dc58f0d9d,
-                0x0a78eb28f5c70b3d,
-                0x666ea36f7879462c,
-                0x0e0a77c19a07df2f,
-            ])),
-            field_new!(Fq, BigInteger256([0x0, 0x0, 0x0, 0x0])),
-        ),
+        FQ2_ONE,
         // Fp2::NONRESIDUE^(((q^1) - 1) / 6)
         field_new!(Fq2,
             field_new!(Fq, BigInteger256([
@@ -44,7 +38,7 @@ impl Fp12Parameters for Fq12Parameters {
                 0x0e201271ad0d4418,
                 0x04290f65bad856e6,
             ])),
-            field_new!(Fq, BigInteger256([0x0, 0x0, 0x0, 0x0])),
+            FQ_ZERO,
         ),
         // Fp2::NONRESIDUE^(((q^3) - 1) / 6)
         field_new!(Fq2,
@@ -69,7 +63,7 @@ impl Fp12Parameters for Fq12Parameters {
                 0x6001b4b8b615564a,
                 0x2682e617020217e0,
         ])),
-            field_new!(Fq, BigInteger256([0x0, 0x0, 0x0, 0x0])),
+        FQ_ZERO,
         ),
         // Fp2::NONRESIDUE^(((q^5) - 1) / 6)
         field_new!(Fq2,
@@ -94,7 +88,7 @@ impl Fp12Parameters for Fq12Parameters {
                 0x51e1a24709081231,
                 0x2259d6b14729c0fa,
             ])),
-            field_new!(Fq, BigInteger256([0x0, 0x0, 0x0, 0x0])),
+            FQ_ZERO,
         ),
         // Fp2::NONRESIDUE^(((q^7) - 1) / 6)
         field_new!(Fq2,
@@ -119,7 +113,7 @@ impl Fp12Parameters for Fq12Parameters {
                 0xaa303344d4741444,
                 0x2c3b3f0d26594943,
             ])),
-            field_new!(Fq, BigInteger256([0x0, 0x0, 0x0, 0x0])),
+            FQ_ZERO,
         ),
         // Fp2::NONRESIDUE^(((q^9) - 1) / 6)
         field_new!(Fq2,
@@ -144,7 +138,7 @@ impl Fp12Parameters for Fq12Parameters {
                 0x584e90fdcb6c0213,
                 0x09e1685bdf2f8849,
             ])),
-            field_new!(Fq, BigInteger256([0x0, 0x0, 0x0, 0x0])),
+            FQ_ZERO,
         ),
         // Fp2::NONRESIDUE^(((q^11) - 1) / 6)
         field_new!(Fq2,

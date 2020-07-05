@@ -42,7 +42,7 @@ impl Fp2Parameters for Fq2Parameters {
 
     /// Precomputed coefficients:
     /// `[1, 475922286169261325753349249653048451545124879242694725395555128576210262817955800483758080]`
-    const FROBENIUS_COEFF_FP2_C1: [Self::Fp; 2] = [
+    const FROBENIUS_COEFF_FP2_C1: &'static [Self::Fp] = &[
         FQ_ONE,
         field_new!(
             Fq,

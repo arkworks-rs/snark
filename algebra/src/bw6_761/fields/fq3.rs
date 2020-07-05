@@ -98,7 +98,7 @@ impl Fp3Parameters for Fq3Parameters {
 
     // NQR ^ (MODULUS^i - 1)/3, i=0,1,2 with NQR = u = (0,1,0)
     #[rustfmt::skip]
-    const FROBENIUS_COEFF_FP3_C1: [Fq; 3] = [
+    const FROBENIUS_COEFF_FP3_C1: &'static [Fq] = &[
         field_new!(Fq, BigInteger([
             0x0202ffffffff85d5,
             0x5a5826358fff8ce7,
@@ -146,7 +146,7 @@ impl Fp3Parameters for Fq3Parameters {
 
     // NQR ^ (2*MODULUS^i - 2)/3, i=0,1,2 with NQR = u = (0,1,0)
     #[rustfmt::skip]
-    const FROBENIUS_COEFF_FP3_C2: [Fq; 3] = [
+    const FROBENIUS_COEFF_FP3_C2: &'static [Fq] = &[
         field_new!(Fq, BigInteger([
             0x0202ffffffff85d5,
             0x5a5826358fff8ce7,

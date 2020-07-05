@@ -1,4 +1,4 @@
-use algebra_core::{biginteger::BigInteger256 as BigInteger, fields::*};
+use algebra_core::{biginteger::BigInteger256 as BigInteger, field_new, fields::*};
 
 pub type Fq = Fp256<FqParameters>;
 
@@ -91,3 +91,6 @@ impl FpParameters for FqParameters {
         0xc19139cb84c680a,
     ]);
 }
+
+pub const FQ_ONE: Fq = field_new!(Fq, FqParameters::R);
+pub const FQ_ZERO: Fq = field_new!(Fq, BigInteger([0, 0, 0, 0]));

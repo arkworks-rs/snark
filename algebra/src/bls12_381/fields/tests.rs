@@ -2264,7 +2264,7 @@ fn test_fq6_mul_nonresidue() {
     for _ in 0..1000 {
         let mut a = Fq6::rand(&mut rng);
         let mut b = a;
-        a = Fq12::mul_fp6_by_nonresidue(&a);
+        a = Fq12Parameters::mul_fp6_by_nonresidue(&a);
         b.mul_assign(&nqr);
 
         assert_eq!(a, b);

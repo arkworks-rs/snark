@@ -96,7 +96,7 @@ impl Fp3Parameters for Fq3Parameters {
     );
 
     #[rustfmt::skip]
-    const FROBENIUS_COEFF_FP3_C1: [Fq; 3] = [
+    const FROBENIUS_COEFF_FP3_C1: &'static [Fq] = &[
         field_new!(Fq, BigInteger([
             0x9b4e60b420910c71,
             0xe068d7c83f284a6e,
@@ -145,7 +145,7 @@ impl Fp3Parameters for Fq3Parameters {
     ];
 
     #[rustfmt::skip]
-    const FROBENIUS_COEFF_FP3_C2: [Fq; 3] = [
+    const FROBENIUS_COEFF_FP3_C2: &'static [Fq] = &[
         field_new!(Fq, BigInteger([
             0x9b4e60b420910c71,
             0xe068d7c83f284a6e,
