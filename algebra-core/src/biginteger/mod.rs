@@ -143,7 +143,7 @@ pub mod arithmetic {
     use crate::Vec;
     pub fn find_wnaf(num: &[u64]) -> Vec<i64> {
         let is_zero = |num: &[u64]| num.iter().all(|x| *x == 0u64);
-        let is_odd = |num: &[u64]|  num[0] & 1 == 1;
+        let is_odd = |num: &[u64]| num[0] & 1 == 1;
         let sub_noborrow = |num: &mut [u64], z: u64| {
             let mut other = vec![0u64; num.len()];
             other[0] = z;
