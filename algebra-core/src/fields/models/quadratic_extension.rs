@@ -28,7 +28,7 @@ pub trait QuadExtParameters: 'static + Send + Sync {
     type BaseField: Field;
     /// The type of the coefficients for an efficient implemntation of the
     /// Frobenius endomorphism.
-    type FrobCoeff: Field + 'static;
+    type FrobCoeff: Field;
 
     /// The degree of the extension over the base prime field.
     const DEGREE_OVER_BASE_PRIME_FIELD: usize;

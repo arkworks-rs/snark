@@ -50,3 +50,6 @@ pub use self::fp12_2over3over2::*;
 
 pub mod quadratic_extension;
 pub use quadratic_extension::*;
+
+pub mod cubic_extension;
+pub use cubic_extension::*;
