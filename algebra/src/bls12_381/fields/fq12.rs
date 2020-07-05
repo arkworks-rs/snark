@@ -9,10 +9,10 @@ pub struct Fq12Parameters;
 impl Fp12Parameters for Fq12Parameters {
     type Fp6Params = Fq6Parameters;
 
-    const NONRESIDUE: Fq6 = field_new!(Fq6, FQ_ZERO, FQ_ONE, FQ_ZERO);
+    const NONRESIDUE: Fq6 = field_new!(Fq6, FQ2_ZERO, FQ2_ONE, FQ2_ZERO);
 
     #[rustfmt::skip]
-    const FROBENIUS_COEFF_FP12_C1: &'static [Fq2] = [
+    const FROBENIUS_COEFF_FP12_C1: &'static [Fq2] = &[
         // Fq2(u + 1)**(((q^0) - 1) / 6)
         FQ2_ONE,
         // Fq2(u + 1)**(((q^1) - 1) / 6)

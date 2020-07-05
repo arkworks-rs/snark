@@ -1,4 +1,4 @@
-use algebra_core::{biginteger::BigInteger384 as BigInteger, fields::*};
+use algebra_core::{biginteger::BigInteger384 as BigInteger, field_new, fields::*};
 
 pub type Fq = Fp384<FqParameters>;
 

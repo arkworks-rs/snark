@@ -35,7 +35,7 @@ impl Fp2Parameters for Fq2Parameters {
 
     /// Coefficients for the Frobenius automorphism.
     #[rustfmt::skip]
-    const FROBENIUS_COEFF_FP2_C1: [Fq; 2] = [
+    const FROBENIUS_COEFF_FP2_C1: &'static [Fq] = &[
         // NONRESIDUE**(((q^0) - 1) / 2)
         field_new!(Fq, BigInteger([
             0x2cdffffffffff68,

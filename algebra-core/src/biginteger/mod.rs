@@ -140,6 +140,7 @@ pub trait BigInteger:
 }
 
 pub mod arithmetic {
+    use crate::Vec;
     pub fn find_wnaf(num: &[u64]) -> Vec<i64> {
         let is_zero = |num: &[u64]| num.iter().all(|x| *x == 0u64);
         let is_odd = |num: &[u64]| num.last().unwrap() % 2 == 1;
