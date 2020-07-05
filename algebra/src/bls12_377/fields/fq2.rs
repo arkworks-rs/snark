@@ -64,3 +64,6 @@ impl Fp2Parameters for Fq2Parameters {
         fe - original
     }
 }
+
+pub const FQ2_ZERO: Fq2 = field_new!(Fq2, FQ_ZERO, FQ_ZERO);
+pub const FQ2_ONE: Fq2 = field_new!(Fq2, FQ_ONE, FQ_ZERO);

@@ -1,4 +1,4 @@
-use crate::mnt4_298::{Fq, Fq2Parameters, FQ_ONE};
+use crate::mnt4_298::{Fq, Fq2, Fq2Parameters, FQ_ONE, FQ_ZERO};
 use algebra_core::{
     biginteger::BigInteger320 as BigInteger,
     field_new,
@@ -15,8 +15,7 @@ pub struct Fq4Parameters;
 impl Fp4Parameters for Fq4Parameters {
     type Fp2Params = Fq2Parameters;
 
-    #[rustfmt::skip]
-    const NONRESIDUE: Fq = Fq2Parameters::NONRESIDUE;
+    const NONRESIDUE: Fq2 = field_new!(Fq2, FQ_ZERO, FQ_ONE);
 
     // Coefficients for the Frobenius automorphism.
     // c1[0] = 1,

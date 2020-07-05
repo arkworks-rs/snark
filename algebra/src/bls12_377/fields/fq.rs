@@ -107,3 +107,6 @@ impl FpParameters for FqParameters {
         0x35c,
     ]);
 }
+
+pub const FQ_ONE: Fq = field_new!(Fq, FqParameters::R);
+pub const FQ_ZERO: Fq = field_new!(Fq, BigInteger([0, 0, 0, 0, 0, 0]));
