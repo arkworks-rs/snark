@@ -464,11 +464,11 @@ impl<'a, P: QuadExtParameters> MulAssign<&'a Self> for QuadExtField<P> {
         let v0 = self.c0 * &other.c0;
         let v1 = self.c1 * &other.c1;
 
-        self.c1 += &self.c0;
-        self.c1 *= &(other.c0 + &other.c1);
-        self.c1 -= &v0;
-        self.c1 -= &v1;
-        self.c0 = v0 + &P::mul_base_field_by_nonresidue(&v1);
+        result.c1 += &self.c0;
+        result.c1 *= &(other.c0 + &other.c1);
+        result.c1 -= &v0;
+        result.c1 -= &v1;
+        result.c0 = v0 + P::NONRESIDUE * &v1;
     }
 }
 
