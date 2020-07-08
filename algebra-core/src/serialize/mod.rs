@@ -118,7 +118,7 @@ macro_rules! impl_uint {
         }
 
         impl ConstantSerializedSize for $ty {
-            const SERIALIZED_SIZE: usize = std::mem::size_of::<$ty>();
+            const SERIALIZED_SIZE: usize = core::mem::size_of::<$ty>();
             const UNCOMPRESSED_SIZE: usize = Self::SERIALIZED_SIZE;
         }
 
@@ -532,7 +532,7 @@ impl_tuple!(A:0, B:1, C:2,);
 impl_tuple!(A:0, B:1, C:2, D:3,);
 
 // No-op
-impl<T> CanonicalSerialize for std::marker::PhantomData<T> {
+impl<T> CanonicalSerialize for core::marker::PhantomData<T> {
     #[inline]
     fn serialize<W: Write>(&self, _writer: &mut W) -> Result<(), SerializationError> {
         Ok(())
@@ -549,15 +549,15 @@ impl<T> CanonicalSerialize for std::marker::PhantomData<T> {
     }
 }
 
-impl<T> CanonicalDeserialize for std::marker::PhantomData<T> {
+impl<T> CanonicalDeserialize for core::marker::PhantomData<T> {
     #[inline]
     fn deserialize<R: Read>(_reader: &mut R) -> Result<Self, SerializationError> {
-        Ok(std::marker::PhantomData)
+        Ok(core::marker::PhantomData)
     }
 
     #[inline]
     fn deserialize_uncompressed<R: Read>(_reader: &mut R) -> Result<Self, SerializationError> {
-        Ok(std::marker::PhantomData)
+        Ok(core::marker::PhantomData)
     }
 }
 
@@ -677,7 +677,7 @@ mod test {
     use super::*;
 
     fn test_serialize<
-        T: PartialEq + std::fmt::Debug + CanonicalSerialize + CanonicalDeserialize,
+        T: PartialEq + core::fmt::Debug + CanonicalSerialize + CanonicalDeserialize,
     >(
         data: T,
     ) {
@@ -736,6 +736,6 @@ mod test {
 
     #[test]
     fn test_phantomdata() {
-        test_serialize(std::marker::PhantomData::<u64>);
+        test_serialize(core::marker::PhantomData::<u64>);
     }
 }
