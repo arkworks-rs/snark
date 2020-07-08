@@ -1,5 +1,6 @@
 use algebra_core::{
-    msm::FixedBaseMSM, Field, One, PairingEngine, PrimeField, ProjectiveCurve, UniformRand, Zero,
+    msm::FixedBaseMSM, serialize::*, Field, One, PairingEngine, PrimeField, ProjectiveCurve,
+    UniformRand, Zero,
 };
 use ff_fft::{cfg_into_iter, cfg_iter, EvaluationDomain};
 
@@ -35,6 +36,7 @@ where
 
 /// This is our assembly structure that we'll use to synthesize the
 /// circuit into a QAP.
+#[derive(Clone, Debug, CanonicalSerialize, CanonicalDeserialize)]
 pub struct KeypairAssembly<E: PairingEngine> {
     pub num_inputs: usize,
     pub num_aux: usize,
