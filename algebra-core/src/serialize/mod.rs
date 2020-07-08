@@ -11,7 +11,7 @@ pub use flags::*;
 #[doc(hidden)]
 pub use algebra_core_derive::*;
 
-use crate::{Cow, Vec};
+use crate::{Cow, ToOwned, Vec};
 
 /// Serializer in little endian format allowing to encode flags.
 pub trait CanonicalSerializeWithFlags: CanonicalSerialize {
