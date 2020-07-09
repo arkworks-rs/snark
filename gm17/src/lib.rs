@@ -72,35 +72,18 @@ fn write_slice_with_len<W: Write, T: ToBytes>(mut writer: W, data: &[T]) -> IoRe
     }
     Ok(())
 }
-fn read_vec_with_len<R: Read, T: FromBytes, F: FnMut(IoResult<T>) -> IoResult<T>>(
-    mut reader: R,
-    mut result_transform: F,
-) -> IoResult<Vec<T>> {
+fn read_vec_with_len<R: Read, T: FromBytes>(mut reader: R) -> IoResult<Vec<T>> {
     let len = u32::read(&mut reader)? as usize;
-    (0..len)
-        .map(|_| result_transform(T::read(&mut reader)))
-        .collect()
-}
-
-fn result_transform_g1_g2<E: PairingEngine, T>(result: io::Result<T>) -> io::Result<T> {
-    result.map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
-}
-
-fn read_g1<E: PairingEngine, R: Read>(reader: &mut R) -> io::Result<E::G1Affine> {
-    result_transform_g1_g2::<E, E::G1Affine>(<E::G1Affine>::read(reader))
-}
-
-fn read_g2<E: PairingEngine, R: Read>(reader: &mut R) -> io::Result<E::G2Affine> {
-    result_transform_g1_g2::<E, E::G2Affine>(<E::G2Affine>::read(reader))
+    (0..len).map(|_| T::read(&mut reader)).collect()
 }
 
 impl<E: PairingEngine> FromBytes for Proof<E> {
     fn read<R: Read>(reader: R) -> IoResult<Self> {
         let mut reader = reader;
 
-        let a = read_g1::<E, R>(&mut reader)?;
-        let b = read_g2::<E, R>(&mut reader)?;
-        let c = read_g1::<E, R>(&mut reader)?;
+        let a = <E::G1Affine>::read(&mut reader)?;
+        let b = <E::G2Affine>::read(&mut reader)?;
+        let c = <E::G1Affine>::read(&mut reader)?;
 
         Ok(Proof { a, b, c })
     }
@@ -165,12 +148,12 @@ impl<E: PairingEngine> FromBytes for VerifyingKey<E> {
     fn read<R: Read>(reader: R) -> IoResult<Self> {
         let mut reader = reader;
 
-        let h_g2 = read_g2::<E, R>(&mut reader)?;
-        let g_alpha_g1 = read_g1::<E, R>(&mut reader)?;
-        let h_beta_g2 = read_g2::<E, R>(&mut reader)?;
-        let g_gamma_g1 = read_g1::<E, R>(&mut reader)?;
-        let h_gamma_g2 = read_g2::<E, R>(&mut reader)?;
-        let query = read_vec_with_len(&mut reader, result_transform_g1_g2::<E, E::G1Affine>)?;
+        let h_g2 = <E::G2Affine>::read(&mut reader)?;
+        let g_alpha_g1 = <E::G1Affine>::read(&mut reader)?;
+        let h_beta_g2 = <E::G2Affine>::read(&mut reader)?;
+        let g_gamma_g1 = <E::G1Affine>::read(&mut reader)?;
+        let h_gamma_g2 = <E::G2Affine>::read(&mut reader)?;
+        let query = read_vec_with_len(&mut reader)?;
 
         Ok(VerifyingKey {
             h_g2,
@@ -259,18 +242,18 @@ impl<E: PairingEngine> FromBytes for Parameters<E> {
 
         let vk = VerifyingKey::<E>::read(&mut reader)?;
 
-        let a_query = read_vec_with_len(&mut reader, result_transform_g1_g2::<E, E::G1Affine>)?;
-        let b_query = read_vec_with_len(&mut reader, result_transform_g1_g2::<E, E::G2Affine>)?;
-        let c_query_1 = read_vec_with_len(&mut reader, result_transform_g1_g2::<E, E::G1Affine>)?;
-        let c_query_2 = read_vec_with_len(&mut reader, result_transform_g1_g2::<E, E::G1Affine>)?;
+        let a_query = read_vec_with_len(&mut reader)?;
+        let b_query = read_vec_with_len(&mut reader)?;
+        let c_query_1 = read_vec_with_len(&mut reader)?;
+        let c_query_2 = read_vec_with_len(&mut reader)?;
 
-        let g_gamma_z = read_g1::<E, R>(&mut reader)?;
-        let h_gamma_z = read_g2::<E, R>(&mut reader)?;
-        let g_ab_gamma_z = read_g1::<E, R>(&mut reader)?;
-        let g_gamma2_z2 = read_g1::<E, R>(&mut reader)?;
+        let g_gamma_z = <E::G1Affine>::read(&mut reader)?;
+        // let g_gamma_z = read_g1::<E, R>(&mut reader)?;
+        let h_gamma_z = <E::G2Affine>::read(&mut reader)?;
+        let g_ab_gamma_z = <E::G1Affine>::read(&mut reader)?;
+        let g_gamma2_z2 = <E::G1Affine>::read(&mut reader)?;
 
-        let g_gamma2_z_t =
-            read_vec_with_len(&mut reader, result_transform_g1_g2::<E, E::G1Affine>)?;
+        let g_gamma2_z_t = read_vec_with_len(&mut reader)?;
 
         Ok(Parameters {
             vk,
