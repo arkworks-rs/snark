@@ -137,7 +137,32 @@ impl_uint!(u8);
 impl_uint!(u16);
 impl_uint!(u32);
 impl_uint!(u64);
-impl_uint!(usize);
+
+impl CanonicalSerialize for usize {
+    #[inline]
+    fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
+        Ok(writer.write_all(&(*self as u64).to_le_bytes())?)
+    }
+
+    #[inline]
+    fn serialized_size(&self) -> usize {
+        Self::SERIALIZED_SIZE
+    }
+}
+
+impl ConstantSerializedSize for usize {
+    const SERIALIZED_SIZE: usize = core::mem::size_of::<u64>();
+    const UNCOMPRESSED_SIZE: usize = Self::SERIALIZED_SIZE;
+}
+
+impl CanonicalDeserialize for usize {
+    #[inline]
+    fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
+        let mut bytes = [0u8; Self::SERIALIZED_SIZE];
+        reader.read_exact(&mut bytes)?;
+        Ok(u64::from_le_bytes(bytes) as usize)
+    }
+}
 
 impl<T: CanonicalSerialize> CanonicalSerialize for Vec<T> {
     #[inline]
