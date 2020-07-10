@@ -23,7 +23,11 @@ mod error;
 mod impl_constraint_var;
 mod impl_lc;
 
-pub use algebra_core::{Field, ToConstraintField};
+pub use algebra_core::{
+    bytes::{FromBytes, ToBytes},
+    serialize::*,
+    Field, ToConstraintField,
+};
 pub use constraint_system::{ConstraintSynthesizer, ConstraintSystem, Namespace};
 pub use error::SynthesisError;
 
@@ -59,6 +63,47 @@ pub enum Index {
     Aux(usize),
 }
 
+impl CanonicalSerialize for Index {
+    #[inline]
+    fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
+        let inner = match *self {
+            Index::Input(inner) => {
+                true.serialize(writer)?;
+                inner
+            }
+            Index::Aux(inner) => {
+                false.serialize(writer)?;
+                inner
+            }
+        };
+        inner.serialize(writer)?;
+        Ok(())
+    }
+
+    #[inline]
+    fn serialized_size(&self) -> usize {
+        Self::SERIALIZED_SIZE
+    }
+}
+
+impl ConstantSerializedSize for Index {
+    const SERIALIZED_SIZE: usize = usize::SERIALIZED_SIZE + 1;
+    const UNCOMPRESSED_SIZE: usize = Self::SERIALIZED_SIZE;
+}
+
+impl CanonicalDeserialize for Index {
+    #[inline]
+    fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
+        let is_input = bool::deserialize(reader)?;
+        let inner = usize::deserialize(reader)?;
+        Ok(if is_input {
+            Index::Input(inner)
+        } else {
+            Index::Aux(inner)
+        })
+    }
+}
+
 impl PartialOrd for Index {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
@@ -90,4 +135,28 @@ pub enum ConstraintVar<F: Field> {
     LC(LinearCombination<F>),
     /// A wrapper around a `Variable`.
     Var(Variable),
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn serialize_index() {
+        serialize_index_test(true);
+        serialize_index_test(false);
+    }
+
+    fn serialize_index_test(input: bool) {
+        let idx = if input {
+            Index::Input(32)
+        } else {
+            Index::Aux(32)
+        };
+
+        let mut v = vec![];
+        idx.serialize(&mut v).unwrap();
+        let idx2 = Index::deserialize(&mut &v[..]).unwrap();
+        assert_eq!(idx, idx2);
+    }
 }

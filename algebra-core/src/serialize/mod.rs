@@ -1,6 +1,9 @@
 mod error;
 mod flags;
-pub use crate::io::{Read, Write};
+pub use crate::{
+    bytes::{FromBytes, ToBytes},
+    io::{Read, Write},
+};
 pub use error::*;
 pub use flags::*;
 
@@ -8,7 +11,8 @@ pub use flags::*;
 #[doc(hidden)]
 pub use algebra_core_derive::*;
 
-use crate::Vec;
+use crate::{Cow, ToOwned, Vec};
+use core::convert::TryFrom;
 
 /// Serializer in little endian format allowing to encode flags.
 pub trait CanonicalSerializeWithFlags: CanonicalSerialize {
@@ -100,10 +104,45 @@ pub trait CanonicalDeserialize: Sized {
     }
 }
 
-impl CanonicalSerialize for u64 {
+macro_rules! impl_uint {
+    ($ty: ident) => {
+        impl CanonicalSerialize for $ty {
+            #[inline]
+            fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
+                Ok(writer.write_all(&self.to_le_bytes())?)
+            }
+
+            #[inline]
+            fn serialized_size(&self) -> usize {
+                Self::SERIALIZED_SIZE
+            }
+        }
+
+        impl ConstantSerializedSize for $ty {
+            const SERIALIZED_SIZE: usize = core::mem::size_of::<$ty>();
+            const UNCOMPRESSED_SIZE: usize = Self::SERIALIZED_SIZE;
+        }
+
+        impl CanonicalDeserialize for $ty {
+            #[inline]
+            fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
+                let mut bytes = [0u8; Self::SERIALIZED_SIZE];
+                reader.read_exact(&mut bytes)?;
+                Ok($ty::from_le_bytes(bytes))
+            }
+        }
+    };
+}
+
+impl_uint!(u8);
+impl_uint!(u16);
+impl_uint!(u32);
+impl_uint!(u64);
+
+impl CanonicalSerialize for usize {
     #[inline]
     fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
-        Ok(writer.write_all(&self.to_le_bytes())?)
+        Ok(writer.write_all(&(*self as u64).to_le_bytes())?)
     }
 
     #[inline]
@@ -112,17 +151,17 @@ impl CanonicalSerialize for u64 {
     }
 }
 
-impl ConstantSerializedSize for u64 {
-    const SERIALIZED_SIZE: usize = 8;
+impl ConstantSerializedSize for usize {
+    const SERIALIZED_SIZE: usize = core::mem::size_of::<u64>();
     const UNCOMPRESSED_SIZE: usize = Self::SERIALIZED_SIZE;
 }
 
-impl CanonicalDeserialize for u64 {
+impl CanonicalDeserialize for usize {
     #[inline]
     fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
-        let mut bytes = [0u8; 8];
+        let mut bytes = [0u8; Self::SERIALIZED_SIZE];
         reader.read_exact(&mut bytes)?;
-        Ok(u64::from_le_bytes(bytes))
+        usize::try_from(u64::from_le_bytes(bytes)).map_err(|_| SerializationError::InvalidData)
     }
 }
 
@@ -461,19 +500,268 @@ macro_rules! impl_edwards_curve_serializer {
     };
 }
 
+// Implement Serialization for tuples
+macro_rules! impl_tuple {
+    ($( $ty: ident : $no: tt, )+) => {
+        impl<$($ty, )+> CanonicalSerialize for ($($ty,)+) where
+            $($ty: CanonicalSerialize,)+
+        {
+            #[inline]
+            fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
+                $(self.$no.serialize(writer)?;)*
+                Ok(())
+            }
+
+            #[inline]
+            fn serialized_size(&self) -> usize {
+                [$(
+                    self.$no.serialized_size(),
+                )*].iter().sum()
+            }
+
+            #[inline]
+            fn serialize_uncompressed<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
+                $(self.$no.serialize_uncompressed(writer)?;)*
+                Ok(())
+            }
+
+            #[inline]
+            fn uncompressed_size(&self) -> usize {
+                [$(
+                    self.$no.uncompressed_size(),
+                )*].iter().sum()
+            }
+        }
+
+        impl<$($ty, )+> CanonicalDeserialize for ($($ty,)+) where
+            $($ty: CanonicalDeserialize,)+
+        {
+            #[inline]
+            fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
+                Ok(($(
+                    $ty::deserialize(reader)?,
+                )+))
+            }
+
+            #[inline]
+            fn deserialize_uncompressed<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
+                Ok(($(
+                    $ty::deserialize_uncompressed(reader)?,
+                )+))
+            }
+        }
+    }
+}
+
+impl_tuple!(A:0, B:1,);
+impl_tuple!(A:0, B:1, C:2,);
+impl_tuple!(A:0, B:1, C:2, D:3,);
+
+// No-op
+impl<T> CanonicalSerialize for core::marker::PhantomData<T> {
+    #[inline]
+    fn serialize<W: Write>(&self, _writer: &mut W) -> Result<(), SerializationError> {
+        Ok(())
+    }
+
+    #[inline]
+    fn serialized_size(&self) -> usize {
+        0
+    }
+
+    #[inline]
+    fn serialize_uncompressed<W: Write>(&self, _writer: &mut W) -> Result<(), SerializationError> {
+        Ok(())
+    }
+}
+
+impl<T> CanonicalDeserialize for core::marker::PhantomData<T> {
+    #[inline]
+    fn deserialize<R: Read>(_reader: &mut R) -> Result<Self, SerializationError> {
+        Ok(core::marker::PhantomData)
+    }
+
+    #[inline]
+    fn deserialize_uncompressed<R: Read>(_reader: &mut R) -> Result<Self, SerializationError> {
+        Ok(core::marker::PhantomData)
+    }
+}
+
+impl<'a, T: CanonicalSerialize + ToOwned> CanonicalSerialize for Cow<'a, T> {
+    #[inline]
+    fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
+        self.as_ref().serialize(writer)
+    }
+
+    #[inline]
+    fn serialized_size(&self) -> usize {
+        self.as_ref().serialized_size()
+    }
+
+    #[inline]
+    fn serialize_uncompressed<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
+        self.as_ref().serialize_uncompressed(writer)
+    }
+}
+
+impl<'a, T> CanonicalDeserialize for Cow<'a, T>
+where
+    T: ToOwned,
+    <T as ToOwned>::Owned: CanonicalDeserialize,
+{
+    #[inline]
+    fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
+        Ok(Cow::Owned(<T as ToOwned>::Owned::deserialize(reader)?))
+    }
+
+    #[inline]
+    fn deserialize_uncompressed<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
+        Ok(Cow::Owned(<T as ToOwned>::Owned::deserialize_uncompressed(
+            reader,
+        )?))
+    }
+}
+
+impl<T: CanonicalSerialize> CanonicalSerialize for Option<T> {
+    #[inline]
+    fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
+        self.is_some().serialize(writer)?;
+        if let Some(item) = self {
+            item.serialize(writer)?;
+        }
+
+        Ok(())
+    }
+
+    #[inline]
+    fn serialized_size(&self) -> usize {
+        8 + if let Some(item) = self {
+            item.serialized_size()
+        } else {
+            0
+        }
+    }
+
+    #[inline]
+    fn serialize_uncompressed<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
+        self.is_some().serialize_uncompressed(writer)?;
+        if let Some(item) = self {
+            item.serialize_uncompressed(writer)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl<T: CanonicalDeserialize> CanonicalDeserialize for Option<T> {
+    #[inline]
+    fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
+        let is_some = bool::deserialize(reader)?;
+        let data = if is_some {
+            Some(T::deserialize(reader)?)
+        } else {
+            None
+        };
+
+        Ok(data)
+    }
+
+    #[inline]
+    fn deserialize_uncompressed<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
+        let is_some = bool::deserialize(reader)?;
+        let data = if is_some {
+            Some(T::deserialize_uncompressed(reader)?)
+        } else {
+            None
+        };
+
+        Ok(data)
+    }
+}
+
+impl CanonicalSerialize for bool {
+    #[inline]
+    fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
+        Ok(self.write(writer)?)
+    }
+
+    #[inline]
+    fn serialized_size(&self) -> usize {
+        1
+    }
+}
+
+impl CanonicalDeserialize for bool {
+    #[inline]
+    fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
+        Ok(bool::read(reader)?)
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use crate::{io::Cursor, CanonicalDeserialize, CanonicalSerialize};
+    use super::*;
+
+    fn test_serialize<
+        T: PartialEq + core::fmt::Debug + CanonicalSerialize + CanonicalDeserialize,
+    >(
+        data: T,
+    ) {
+        let mut serialized = vec![0; data.serialized_size()];
+        data.serialize(&mut &mut serialized[..]).unwrap();
+        let de = T::deserialize(&mut &serialized[..]).unwrap();
+        assert_eq!(data, de);
+
+        let mut serialized = vec![0; data.uncompressed_size()];
+        data.serialize_uncompressed(&mut &mut serialized[..])
+            .unwrap();
+        let de = T::deserialize_uncompressed(&mut &serialized[..]).unwrap();
+        assert_eq!(data, de);
+    }
 
     #[test]
-    fn test_primitives() {
-        let a = 192830918u64;
-        let mut serialized = vec![0u8; a.serialized_size()];
-        let mut cursor = Cursor::new(&mut serialized[..]);
-        a.serialize(&mut cursor).unwrap();
+    fn test_vec() {
+        test_serialize(vec![1u64, 2, 3, 4, 5]);
+        test_serialize(Vec::<u64>::new());
+    }
 
-        let mut cursor = Cursor::new(&serialized[..]);
-        let b = u64::deserialize(&mut cursor).unwrap();
-        assert_eq!(a, b);
+    #[test]
+    fn test_uint() {
+        test_serialize(192830918usize);
+        test_serialize(192830918u64);
+        test_serialize(192830918u32);
+        test_serialize(22313u16);
+        test_serialize(123u8);
+    }
+
+    #[test]
+    fn test_tuple() {
+        test_serialize((123u64, 234u32, 999u16));
+    }
+
+    #[test]
+    fn test_tuple_vec() {
+        test_serialize(vec![
+            (123u64, 234u32, 999u16),
+            (123u64, 234u32, 999u16),
+            (123u64, 234u32, 999u16),
+        ]);
+    }
+
+    #[test]
+    fn test_option() {
+        test_serialize(Some(3u32));
+        test_serialize(None::<u32>);
+    }
+
+    #[test]
+    fn test_bool() {
+        test_serialize(true);
+        test_serialize(false);
+    }
+
+    #[test]
+    fn test_phantomdata() {
+        test_serialize(core::marker::PhantomData::<u64>);
     }
 }
