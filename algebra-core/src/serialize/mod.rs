@@ -12,6 +12,7 @@ pub use flags::*;
 pub use algebra_core_derive::*;
 
 use crate::{Cow, ToOwned, Vec};
+use core::convert::TryFrom;
 
 /// Serializer in little endian format allowing to encode flags.
 pub trait CanonicalSerializeWithFlags: CanonicalSerialize {
@@ -160,7 +161,7 @@ impl CanonicalDeserialize for usize {
     fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
         let mut bytes = [0u8; Self::SERIALIZED_SIZE];
         reader.read_exact(&mut bytes)?;
-        Ok(u64::from_le_bytes(bytes) as usize)
+        usize::try_from(u64::from_le_bytes(bytes)).map_err(|_| SerializationError::InvalidData)
     }
 }
 
