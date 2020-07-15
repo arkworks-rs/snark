@@ -14,7 +14,7 @@ use crate::{
 pub struct UInt32 {
     // Least significant bit_gadget first
     bits: Vec<Boolean>,
-    value: Option<u32>,
+    pub value: Option<u32>,
 }
 
 impl UInt32 {

@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use algebra::{Field, Group};
+use algebra::{fields::PrimeField, Group};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
 use core::{borrow::Borrow, fmt::Debug};
@@ -8,7 +8,7 @@ pub mod curves;
 
 pub use self::curves::short_weierstrass::{bls12, mnt4, mnt6};
 
-pub trait GroupGadget<G: Group, ConstraintF: Field>:
+pub trait GroupGadget<G: Group, ConstraintF: PrimeField>:
     Sized
     + ToBytesGadget<ConstraintF>
     + NEqGadget<ConstraintF>
@@ -16,6 +16,7 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
     + ToBitsGadget<ConstraintF>
     + CondSelectGadget<ConstraintF>
     + AllocGadget<G, ConstraintF>
+    + ToConstraintFieldGadget<ConstraintF>
     + Clone
     + Debug
 {
@@ -160,13 +161,13 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
 
 #[cfg(test)]
 mod test {
-    use algebra::{test_rng, Field};
+    use algebra::{fields::PrimeField, test_rng};
     use r1cs_core::ConstraintSystem;
 
     use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
     use algebra::groups::Group;
 
-    pub(crate) fn group_test<ConstraintF: Field, G: Group, GG: GroupGadget<G, ConstraintF>>() {
+    pub(crate) fn group_test<ConstraintF: PrimeField, G: Group, GG: GroupGadget<G, ConstraintF>>() {
         let mut cs = TestConstraintSystem::<ConstraintF>::new();
 
         let mut rng = test_rng();

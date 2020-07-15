@@ -1,4 +1,7 @@
-use algebra::{fields::BitIterator, Field};
+use algebra::{
+    fields::{BitIterator, PrimeField},
+    Field,
+};
 use core::fmt::Debug;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
@@ -12,7 +15,15 @@ pub mod fp4;
 pub mod fp6_2over3;
 pub mod fp6_3over2;
 
-pub trait FieldGadget<F: Field, ConstraintF: Field>:
+use crate::fields::fp::FpGadget;
+pub trait ToConstraintFieldGadget<ConstraintF: PrimeField> {
+    fn to_field_gadgets<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+    ) -> Result<Vec<FpGadget<ConstraintF>>, SynthesisError>;
+}
+
+pub trait FieldGadget<F: Field, ConstraintF: PrimeField>:
     Sized
     + Clone
     + EqGadget<ConstraintF>
@@ -21,6 +32,7 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
     + ToBitsGadget<ConstraintF>
     + AllocGadget<F, ConstraintF>
     + ToBytesGadget<ConstraintF>
+    + ToConstraintFieldGadget<ConstraintF>
     + CondSelectGadget<ConstraintF>
     + TwoBitLookupGadget<ConstraintF, TableConstant = F>
     + ThreeBitCondNegLookupGadget<ConstraintF, TableConstant = F>
@@ -301,11 +313,15 @@ pub(crate) mod tests {
     use rand_xorshift::XorShiftRng;
 
     use crate::{prelude::*, test_constraint_system::TestConstraintSystem, Vec};
-    use algebra::{test_rng, BitIterator, Field, UniformRand};
+    use algebra::{fields::PrimeField, test_rng, BitIterator, Field, UniformRand};
     use r1cs_core::ConstraintSystem;
 
     #[allow(dead_code)]
-    pub(crate) fn field_test<FE: Field, ConstraintF: Field, F: FieldGadget<FE, ConstraintF>>() {
+    pub(crate) fn field_test<
+        FE: Field,
+        ConstraintF: PrimeField,
+        F: FieldGadget<FE, ConstraintF>,
+    >() {
         let mut cs = TestConstraintSystem::<ConstraintF>::new();
 
         let mut rng = test_rng();
@@ -543,7 +559,7 @@ pub(crate) mod tests {
     #[allow(dead_code)]
     pub(crate) fn frobenius_tests<
         FE: Field,
-        ConstraintF: Field,
+        ConstraintF: PrimeField,
         F: FieldGadget<FE, ConstraintF>,
     >(
         maxpower: usize,

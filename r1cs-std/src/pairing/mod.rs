@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use algebra::{Field, PairingEngine};
+use algebra::{fields::PrimeField, PairingEngine};
 use core::fmt::Debug;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
@@ -7,11 +7,17 @@ pub mod bls12;
 pub mod mnt4;
 pub mod mnt6;
 
-pub trait PairingGadget<PairingE: PairingEngine, ConstraintF: Field> {
+pub trait PairingGadget<PairingE: PairingEngine, ConstraintF: PrimeField> {
     type G1Gadget: GroupGadget<PairingE::G1Projective, ConstraintF>;
     type G2Gadget: GroupGadget<PairingE::G2Projective, ConstraintF>;
-    type G1PreparedGadget: ToBytesGadget<ConstraintF> + Clone + Debug;
-    type G2PreparedGadget: ToBytesGadget<ConstraintF> + Clone + Debug;
+    type G1PreparedGadget: AllocGadget<PairingE::G1Prepared, ConstraintF>
+        + ToBytesGadget<ConstraintF>
+        + Clone
+        + Debug;
+    type G2PreparedGadget: AllocGadget<PairingE::G2Prepared, ConstraintF>
+        + ToBytesGadget<ConstraintF>
+        + Clone
+        + Debug;
     type GTGadget: FieldGadget<PairingE::Fqk, ConstraintF> + Clone;
 
     fn miller_loop<CS: ConstraintSystem<ConstraintF>>(
@@ -61,13 +67,13 @@ pub(crate) mod tests {
     use crate::{
         bits::boolean::Boolean, prelude::*, test_constraint_system::TestConstraintSystem, Vec,
     };
-    use algebra::{test_rng, BitIterator, Field, PairingEngine, PrimeField, UniformRand};
+    use algebra::{fields::PrimeField, test_rng, BitIterator, Field, PairingEngine, UniformRand};
     use r1cs_core::ConstraintSystem;
 
     #[allow(dead_code)]
     pub(crate) fn bilinearity_test<
         E: PairingEngine,
-        ConstraintF: Field,
+        ConstraintF: PrimeField,
         P: PairingGadget<E, ConstraintF>,
     >() {
         let mut cs = TestConstraintSystem::<ConstraintF>::new();

@@ -852,6 +852,23 @@ impl<ConstraintF: Field> ToBytesGadget<ConstraintF> for Boolean {
     }
 }
 
+impl<ConstraintF: PrimeField> ToConstraintFieldGadget<ConstraintF> for Boolean {
+    fn to_field_gadgets<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Vec<FpGadget<ConstraintF>>, SynthesisError> {
+        let fp_zero = FpGadget::zero(&mut cs.ns(|| "zero"))?;
+        let fp_one = FpGadget::one(&mut cs.ns(|| "one"))?;
+
+        Ok(vec![FpGadget::conditionally_select(
+            &mut cs.ns(|| "select"),
+            &self,
+            &fp_one,
+            &fp_zero,
+        )?])
+    }
+}
+
 impl<ConstraintF: PrimeField> CondSelectGadget<ConstraintF> for Boolean {
     fn conditionally_select<CS>(
         mut cs: CS,
