@@ -1,19 +1,19 @@
 use crate::{
-    nizk::{groth16::Groth16, NIZKVerifierGadget},
+    nizk::{groth16::Groth16, NIZKPreparedVerifierGadget, NIZKVerifierGadget},
     Vec,
 };
-use algebra_core::{AffineCurve, Field, PairingEngine, ToConstraintField};
+use algebra_core::{fields::PrimeField, AffineCurve, PairingEngine, ToConstraintField};
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
 
 use core::{borrow::Borrow, marker::PhantomData};
-use groth16::{Proof, VerifyingKey};
+use groth16::{PreparedVerifyingKey, Proof, VerifyingKey};
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "P::G1Gadget: Clone, P::G2Gadget: Clone"))]
 pub struct ProofGadget<
     PairingE: PairingEngine,
-    ConstraintF: Field,
+    ConstraintF: PrimeField,
     P: PairingGadget<PairingE, ConstraintF>,
 > {
     pub a: P::G1Gadget,
@@ -28,7 +28,7 @@ pub struct ProofGadget<
 ))]
 pub struct VerifyingKeyGadget<
     PairingE: PairingEngine,
-    ConstraintF: Field,
+    ConstraintF: PrimeField,
     P: PairingGadget<PairingE, ConstraintF>,
 > {
     pub alpha_g1: P::G1Gadget,
@@ -38,7 +38,7 @@ pub struct VerifyingKeyGadget<
     pub gamma_abc_g1: Vec<P::G1Gadget>,
 }
 
-impl<PairingE: PairingEngine, ConstraintF: Field, P: PairingGadget<PairingE, ConstraintF>>
+impl<PairingE: PairingEngine, ConstraintF: PrimeField, P: PairingGadget<PairingE, ConstraintF>>
     VerifyingKeyGadget<PairingE, ConstraintF, P>
 {
     pub fn prepare<CS: ConstraintSystem<ConstraintF>>(
@@ -77,7 +77,7 @@ impl<PairingE: PairingEngine, ConstraintF: Field, P: PairingGadget<PairingE, Con
 ))]
 pub struct PreparedVerifyingKeyGadget<
     PairingE: PairingEngine,
-    ConstraintF: Field,
+    ConstraintF: PrimeField,
     P: PairingGadget<PairingE, ConstraintF>,
 > {
     pub alpha_g1_beta_g2: P::GTGadget,
@@ -89,7 +89,7 @@ pub struct PreparedVerifyingKeyGadget<
 pub struct Groth16VerifierGadget<PairingE, ConstraintF, P>
 where
     PairingE: PairingEngine,
-    ConstraintF: Field,
+    ConstraintF: PrimeField,
     P: PairingGadget<PairingE, ConstraintF>,
 {
     _pairing_engine: PhantomData<PairingE>,
@@ -101,7 +101,7 @@ impl<PairingE, ConstraintF, P, C, V> NIZKVerifierGadget<Groth16<PairingE, C, V>,
     for Groth16VerifierGadget<PairingE, ConstraintF, P>
 where
     PairingE: PairingEngine,
-    ConstraintF: Field,
+    ConstraintF: PrimeField,
     C: ConstraintSynthesizer<PairingE::Fr>,
     V: ToConstraintField<PairingE::Fr>,
     P: PairingGadget<PairingE, ConstraintF>,
@@ -169,6 +169,77 @@ where
 
             let g_ic_prep = P::prepare_g1(cs.ns(|| "Prepare g_ic"), &g_ic)?;
 
+            let res = P::miller_loop(
+                cs.ns(|| "Miller loop 1"),
+                &[proof_a_prep, g_ic_prep, proof_c_prep],
+                &[
+                    proof_b_prep,
+                    pvk.gamma_g2_neg_pc.clone(),
+                    pvk.delta_g2_neg_pc.clone(),
+                ],
+            )?;
+
+            res
+        };
+
+        let test = P::final_exponentiation(cs.ns(|| "Final Exp"), &test_exp).unwrap();
+
+        test.conditional_enforce_equal(cs.ns(|| "Test 1"), &pvk.alpha_g1_beta_g2, condition)?;
+        Ok(())
+    }
+}
+
+impl<PairingE, ConstraintF, P, C, V>
+    NIZKPreparedVerifierGadget<Groth16<PairingE, C, V>, ConstraintF>
+    for Groth16VerifierGadget<PairingE, ConstraintF, P>
+where
+    PairingE: PairingEngine,
+    ConstraintF: PrimeField,
+    C: ConstraintSynthesizer<PairingE::Fr>,
+    V: ToConstraintField<PairingE::Fr>,
+    P: PairingGadget<PairingE, ConstraintF>,
+{
+    type PreparedVerificationKeyGadget = PreparedVerifyingKeyGadget<PairingE, ConstraintF, P>;
+
+    fn check_verify_prepared<'a, CS, I, T>(
+        mut cs: CS,
+        pvk: &Self::PreparedVerificationKeyGadget,
+        mut public_inputs: I,
+        proof: &Self::ProofGadget,
+    ) -> Result<(), SynthesisError>
+    where
+        CS: ConstraintSystem<ConstraintF>,
+        I: Iterator<Item = &'a T>,
+        T: 'a + ToBitsGadget<ConstraintF> + ?Sized,
+    {
+        let pvk = pvk.clone();
+
+        let g_ic = {
+            let mut cs = cs.ns(|| "Process input");
+            let mut g_ic = pvk.gamma_abc_g1[0].clone();
+            let mut input_len = 1;
+            for (i, (input, b)) in public_inputs
+                .by_ref()
+                .zip(pvk.gamma_abc_g1.iter().skip(1))
+                .enumerate()
+            {
+                let input_bits = input.to_bits(cs.ns(|| format!("Input {}", i)))?;
+                g_ic = b.mul_bits(cs.ns(|| format!("Mul {}", i)), &g_ic, input_bits.iter())?;
+                input_len += 1;
+            }
+            // Check that the input and the query in the verification are of the
+            // same length.
+            assert!(input_len == pvk.gamma_abc_g1.len() && public_inputs.next().is_none());
+            g_ic
+        };
+
+        let test_exp = {
+            let proof_a_prep = P::prepare_g1(cs.ns(|| "Prepare proof a"), &proof.a)?;
+            let proof_b_prep = P::prepare_g2(cs.ns(|| "Prepare proof b"), &proof.b)?;
+            let proof_c_prep = P::prepare_g1(cs.ns(|| "Prepare proof c"), &proof.c)?;
+
+            let g_ic_prep = P::prepare_g1(cs.ns(|| "Prepare g_ic"), &g_ic)?;
+
             P::miller_loop(
                 cs.ns(|| "Miller loop 1"),
                 &[proof_a_prep, g_ic_prep, proof_c_prep],
@@ -182,8 +253,77 @@ where
 
         let test = P::final_exponentiation(cs.ns(|| "Final Exp"), &test_exp).unwrap();
 
-        test.conditional_enforce_equal(cs.ns(|| "Test 1"), &pvk.alpha_g1_beta_g2, condition)?;
+        test.enforce_equal(cs.ns(|| "Test 1"), &pvk.alpha_g1_beta_g2)?;
         Ok(())
+    }
+}
+
+impl<PairingE, ConstraintF, P> AllocGadget<PreparedVerifyingKey<PairingE>, ConstraintF>
+    for PreparedVerifyingKeyGadget<PairingE, ConstraintF, P>
+where
+    PairingE: PairingEngine,
+    ConstraintF: PrimeField,
+    P: PairingGadget<PairingE, ConstraintF>,
+    P::G2PreparedGadget: AllocGadget<PairingE::G2Prepared, ConstraintF>,
+{
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        val: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<PreparedVerifyingKey<PairingE>>,
+    {
+        let pvk = val.borrow().clone();
+
+        let alpha_g1_beta_g2 =
+            P::GTGadget::alloc_constant(&mut cs.ns(|| "alpha_g1_beta_g2"), pvk.alpha_g1_beta_g2)?;
+
+        let gamma_g2_neg_pc = P::G2PreparedGadget::alloc_constant(
+            &mut cs.ns(|| "gamma_g2_neg_pc"),
+            pvk.gamma_g2_neg_pc,
+        )?;
+
+        let delta_g2_neg_pc = P::G2PreparedGadget::alloc_constant(
+            &mut cs.ns(|| "delta_g2_neg_pc"),
+            pvk.delta_g2_neg_pc,
+        )?;
+
+        let mut gamma_abc_g1 = Vec::<P::G1Gadget>::new();
+        for (i, item) in pvk.gamma_abc_g1.iter().enumerate() {
+            gamma_abc_g1.push(P::G1Gadget::alloc_constant(
+                &mut cs.ns(|| format!("query_{}", i)),
+                item.borrow().into_projective(),
+            )?);
+        }
+
+        Ok(Self {
+            alpha_g1_beta_g2,
+            gamma_g2_neg_pc,
+            delta_g2_neg_pc,
+            gamma_abc_g1,
+        })
+    }
+
+    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
+        _cs: CS,
+        _f: F,
+    ) -> Result<Self, SynthesisError>
+    where
+        F: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<PreparedVerifyingKey<PairingE>>,
+    {
+        unimplemented!()
+    }
+
+    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
+        _cs: CS,
+        _f: F,
+    ) -> Result<Self, SynthesisError>
+    where
+        F: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<PreparedVerifyingKey<PairingE>>,
+    {
+        unimplemented!()
     }
 }
 
@@ -191,7 +331,7 @@ impl<PairingE, ConstraintF, P> AllocGadget<VerifyingKey<PairingE>, ConstraintF>
     for VerifyingKeyGadget<PairingE, ConstraintF, P>
 where
     PairingE: PairingEngine,
-    ConstraintF: Field,
+    ConstraintF: PrimeField,
     P: PairingGadget<PairingE, ConstraintF>,
 {
     #[inline]
@@ -229,6 +369,7 @@ where
             .collect::<Vec<_>>()
             .into_iter()
             .collect::<Result<_, _>>()?;
+
         Ok(Self {
             alpha_g1,
             beta_g2,
@@ -338,7 +479,7 @@ impl<PairingE, ConstraintF, P> AllocGadget<Proof<PairingE>, ConstraintF>
     for ProofGadget<PairingE, ConstraintF, P>
 where
     PairingE: PairingEngine,
-    ConstraintF: Field,
+    ConstraintF: PrimeField,
     P: PairingGadget<PairingE, ConstraintF>,
 {
     #[inline]
@@ -399,7 +540,7 @@ impl<PairingE, ConstraintF, P> ToBytesGadget<ConstraintF>
     for VerifyingKeyGadget<PairingE, ConstraintF, P>
 where
     PairingE: PairingEngine,
-    ConstraintF: Field,
+    ConstraintF: PrimeField,
     P: PairingGadget<PairingE, ConstraintF>,
 {
     #[inline]
@@ -428,7 +569,8 @@ mod test {
     use super::*;
     use algebra::{
         bls12_377::{Bls12_377, Fq, Fr},
-        test_rng, BitIterator, PrimeField,
+        fields::PrimeField,
+        test_rng, BitIterator,
     };
     use r1cs_std::{
         bls12_377::PairingGadget as Bls12_377PairingGadget, boolean::Boolean,
@@ -441,12 +583,12 @@ mod test {
     type TestProofGadget = ProofGadget<Bls12_377, Fq, Bls12_377PairingGadget>;
     type TestVkGadget = VerifyingKeyGadget<Bls12_377, Fq, Bls12_377PairingGadget>;
 
-    struct Bench<F: Field> {
+    struct Bench<F: PrimeField> {
         inputs: Vec<Option<F>>,
         num_constraints: usize,
     }
 
-    impl<F: Field> ConstraintSynthesizer<F> for Bench<F> {
+    impl<F: PrimeField> ConstraintSynthesizer<F> for Bench<F> {
         fn generate_constraints<CS: ConstraintSystem<F>>(
             self,
             cs: &mut CS,
@@ -570,10 +712,10 @@ mod test_recursive {
 
     use super::*;
     use algebra::{
-        fields::{FftParameters, FpParameters},
+        fields::{FftParameters, FpParameters, PrimeField},
         mnt4_298::{Fq as MNT4Fq, FqParameters as MNT4FqParameters, Fr as MNT4Fr, MNT4_298},
         mnt6_298::{Fq as MNT6Fq, FqParameters as MNT6FqParameters, Fr as MNT6Fr, MNT6_298},
-        test_rng, BigInteger, PrimeField,
+        test_rng, BigInteger,
     };
     use r1cs_std::{
         fields::fp::FpGadget, mnt4_298::PairingGadget as MNT4_298PairingGadget,
@@ -593,12 +735,12 @@ mod test_recursive {
     type TestVkGadget2 = VerifyingKeyGadget<MNT4_298, MNT4Fq, MNT4_298PairingGadget>;
 
     #[derive(Clone)]
-    struct Bench<F: Field> {
+    struct Bench<F: PrimeField> {
         inputs: Vec<Option<F>>,
         num_constraints: usize,
     }
 
-    impl<F: Field> ConstraintSynthesizer<F> for Bench<F> {
+    impl<F: PrimeField> ConstraintSynthesizer<F> for Bench<F> {
         fn generate_constraints<CS: ConstraintSystem<F>>(
             self,
             cs: &mut CS,

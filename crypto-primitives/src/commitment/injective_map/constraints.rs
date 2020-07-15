@@ -1,4 +1,4 @@
-use algebra_core::{Field, PrimeField};
+use algebra_core::fields::PrimeField;
 
 use crate::commitment::{
     injective_map::{InjectiveMap, PedersenCommCompressor},
@@ -22,7 +22,7 @@ pub struct PedersenCommitmentCompressorGadget<G, I, ConstraintF, GG, IG>
 where
     G: Group,
     I: InjectiveMap<G>,
-    ConstraintF: Field,
+    ConstraintF: PrimeField,
     GG: GroupGadget<G, ConstraintF>,
     IG: InjectiveMapGadget<G, I, ConstraintF, GG>,
 {

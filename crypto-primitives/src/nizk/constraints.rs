@@ -33,3 +33,20 @@ pub trait NIZKVerifierGadget<N: NIZK, ConstraintF: Field> {
         I: Iterator<Item = &'a T>,
         T: 'a + ToBitsGadget<ConstraintF> + ?Sized;
 }
+
+pub trait NIZKPreparedVerifierGadget<N: NIZK, ConstraintF: Field>:
+    NIZKVerifierGadget<N, ConstraintF>
+{
+    type PreparedVerificationKeyGadget;
+
+    fn check_verify_prepared<'a, CS, I, T>(
+        cs: CS,
+        prepared_verification_key: &Self::PreparedVerificationKeyGadget,
+        input: I,
+        proof: &Self::ProofGadget,
+    ) -> Result<(), SynthesisError>
+    where
+        CS: ConstraintSystem<ConstraintF>,
+        I: Iterator<Item = &'a T>,
+        T: 'a + ToBitsGadget<ConstraintF> + ?Sized;
+}

@@ -1,5 +1,5 @@
 use crate::Vec;
-use algebra_core::{groups::Group, Field};
+use algebra_core::{fields::PrimeField, groups::Group};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
 
@@ -10,14 +10,17 @@ use core::{borrow::Borrow, marker::PhantomData};
 use crate::signature::schnorr::{SchnorrPublicKey, SchnorrSigParameters, SchnorrSignature};
 use digest::Digest;
 
-pub struct SchnorrSigGadgetParameters<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>>
-{
+pub struct SchnorrSigGadgetParameters<
+    G: Group,
+    ConstraintF: PrimeField,
+    GG: GroupGadget<G, ConstraintF>,
+> {
     generator: GG,
     _group: PhantomData<*const G>,
     _engine: PhantomData<*const ConstraintF>,
 }
 
-impl<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> Clone
+impl<G: Group, ConstraintF: PrimeField, GG: GroupGadget<G, ConstraintF>> Clone
     for SchnorrSigGadgetParameters<G, ConstraintF, GG>
 {
     fn clone(&self) -> Self {
@@ -31,12 +34,12 @@ impl<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> Clone
 
 #[derive(Derivative)]
 #[derivative(
-    Debug(bound = "G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>"),
-    Clone(bound = "G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>"),
-    PartialEq(bound = "G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>"),
-    Eq(bound = "G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>")
+    Debug(bound = "G: Group, ConstraintF: PrimeField, GG: GroupGadget<G, ConstraintF>"),
+    Clone(bound = "G: Group, ConstraintF: PrimeField, GG: GroupGadget<G, ConstraintF>"),
+    PartialEq(bound = "G: Group, ConstraintF: PrimeField, GG: GroupGadget<G, ConstraintF>"),
+    Eq(bound = "G: Group, ConstraintF: PrimeField, GG: GroupGadget<G, ConstraintF>")
 )]
-pub struct SchnorrSigGadgetPk<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> {
+pub struct SchnorrSigGadgetPk<G: Group, ConstraintF: PrimeField, GG: GroupGadget<G, ConstraintF>> {
     pub_key: GG,
     #[doc(hidden)]
     _group: PhantomData<*const G>,
@@ -44,7 +47,11 @@ pub struct SchnorrSigGadgetPk<G: Group, ConstraintF: Field, GG: GroupGadget<G, C
     _engine: PhantomData<*const ConstraintF>,
 }
 
-pub struct SchnorrRandomizePkGadget<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> {
+pub struct SchnorrRandomizePkGadget<
+    G: Group,
+    ConstraintF: PrimeField,
+    GG: GroupGadget<G, ConstraintF>,
+> {
     #[doc(hidden)]
     _group: PhantomData<*const G>,
     #[doc(hidden)]
@@ -59,7 +66,7 @@ where
     G: Group,
     GG: GroupGadget<G, ConstraintF>,
     D: Digest + Send + Sync,
-    ConstraintF: Field,
+    ConstraintF: PrimeField,
 {
     type ParametersGadget = SchnorrSigGadgetParameters<G, ConstraintF, GG>;
     type PublicKeyGadget = SchnorrSigGadgetPk<G, ConstraintF, GG>;
@@ -92,7 +99,7 @@ impl<G, ConstraintF, GG, D> AllocGadget<SchnorrSigParameters<G, D>, ConstraintF>
     for SchnorrSigGadgetParameters<G, ConstraintF, GG>
 where
     G: Group,
-    ConstraintF: Field,
+    ConstraintF: PrimeField,
     GG: GroupGadget<G, ConstraintF>,
     D: Digest,
 {
@@ -145,7 +152,7 @@ impl<G, ConstraintF, GG> AllocGadget<SchnorrPublicKey<G>, ConstraintF>
     for SchnorrSigGadgetPk<G, ConstraintF, GG>
 where
     G: Group,
-    ConstraintF: Field,
+    ConstraintF: PrimeField,
     GG: GroupGadget<G, ConstraintF>,
 {
     fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
@@ -196,7 +203,7 @@ where
 impl<G, ConstraintF, GG> ConditionalEqGadget<ConstraintF> for SchnorrSigGadgetPk<G, ConstraintF, GG>
 where
     G: Group,
-    ConstraintF: Field,
+    ConstraintF: PrimeField,
     GG: GroupGadget<G, ConstraintF>,
 {
     #[inline]
@@ -222,7 +229,7 @@ where
 impl<G, ConstraintF, GG> EqGadget<ConstraintF> for SchnorrSigGadgetPk<G, ConstraintF, GG>
 where
     G: Group,
-    ConstraintF: Field,
+    ConstraintF: PrimeField,
     GG: GroupGadget<G, ConstraintF>,
 {
 }
@@ -230,7 +237,7 @@ where
 impl<G, ConstraintF, GG> ToBytesGadget<ConstraintF> for SchnorrSigGadgetPk<G, ConstraintF, GG>
 where
     G: Group,
-    ConstraintF: Field,
+    ConstraintF: PrimeField,
     GG: GroupGadget<G, ConstraintF>,
 {
     fn to_bytes<CS: ConstraintSystem<ConstraintF>>(

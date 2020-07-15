@@ -5,7 +5,7 @@ use crate::{
     },
     Vec,
 };
-use algebra_core::{Field, Group};
+use algebra_core::{fields::PrimeField, Group};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
 
@@ -13,12 +13,12 @@ use core::{borrow::Borrow, marker::PhantomData};
 
 #[derive(Derivative)]
 #[derivative(Clone(
-    bound = "G: Group, W: PedersenWindow, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>"
+    bound = "G: Group, W: PedersenWindow, ConstraintF: PrimeField, GG: GroupGadget<G, ConstraintF>"
 ))]
 pub struct PedersenCRHGadgetParameters<
     G: Group,
     W: PedersenWindow,
-    ConstraintF: Field,
+    ConstraintF: PrimeField,
     GG: GroupGadget<G, ConstraintF>,
 > {
     params: PedersenParameters<G>,
@@ -27,7 +27,7 @@ pub struct PedersenCRHGadgetParameters<
     _window: PhantomData<W>,
 }
 
-pub struct PedersenCRHGadget<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> {
+pub struct PedersenCRHGadget<G: Group, ConstraintF: PrimeField, GG: GroupGadget<G, ConstraintF>> {
     #[doc(hideen)]
     _group: PhantomData<*const G>,
     #[doc(hideen)]
@@ -39,7 +39,7 @@ pub struct PedersenCRHGadget<G: Group, ConstraintF: Field, GG: GroupGadget<G, Co
 impl<ConstraintF, G, GG, W> FixedLengthCRHGadget<PedersenCRH<G, W>, ConstraintF>
     for PedersenCRHGadget<G, ConstraintF, GG>
 where
-    ConstraintF: Field,
+    ConstraintF: PrimeField,
     G: Group,
     GG: GroupGadget<G, ConstraintF>,
     W: PedersenWindow,
@@ -76,7 +76,7 @@ where
     }
 }
 
-impl<G: Group, W: PedersenWindow, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>>
+impl<G: Group, W: PedersenWindow, ConstraintF: PrimeField, GG: GroupGadget<G, ConstraintF>>
     AllocGadget<PedersenParameters<G>, ConstraintF>
     for PedersenCRHGadgetParameters<G, W, ConstraintF, GG>
 {
