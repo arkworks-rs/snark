@@ -551,7 +551,7 @@ pub(crate) mod tests {
     #[allow(dead_code)]
     pub(crate) fn frobenius_tests<
         FE: Field,
-        ConstraintF: PrimeField,
+        ConstraintF: Field,
         F: FieldGadget<FE, ConstraintF>,
     >(
         maxpower: usize,

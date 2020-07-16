@@ -1472,7 +1472,7 @@ where
         boolean::AllocatedBit, groups::test::group_test, prelude::*,
         test_constraint_system::TestConstraintSystem,
     };
-    use algebra::{test_rng, Group, PrimeField, UniformRand};
+    use algebra::{test_rng, Group, UniformRand};
     use rand::Rng;
 
     group_test::<ConstraintF, TEAffine<P>, GG>();
