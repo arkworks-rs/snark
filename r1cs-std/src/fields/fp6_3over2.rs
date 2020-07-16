@@ -33,15 +33,15 @@ where
     P: Fp6Parameters,
     P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
 {
-    fn to_field_gadgets<CS: ConstraintSystem<ConstraintF>>(
+    fn to_constraint_field<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<FpGadget<ConstraintF>>, SynthesisError> {
         let mut res = Vec::new();
 
-        let mut c0_gadget = self.c0.to_field_gadgets(&mut cs.ns(|| "c0"))?;
-        let mut c1_gadget = self.c1.to_field_gadgets(&mut cs.ns(|| "c1"))?;
-        let mut c2_gadget = self.c2.to_field_gadgets(&mut cs.ns(|| "c2"))?;
+        let mut c0_gadget = self.c0.to_constraint_field(&mut cs.ns(|| "c0"))?;
+        let mut c1_gadget = self.c1.to_constraint_field(&mut cs.ns(|| "c1"))?;
+        let mut c2_gadget = self.c2.to_constraint_field(&mut cs.ns(|| "c2"))?;
 
         res.append(&mut c0_gadget);
         res.append(&mut c1_gadget);

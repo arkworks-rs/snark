@@ -853,7 +853,7 @@ impl<ConstraintF: Field> ToBytesGadget<ConstraintF> for Boolean {
 }
 
 impl<ConstraintF: PrimeField> ToConstraintFieldGadget<ConstraintF> for Boolean {
-    fn to_field_gadgets<CS: ConstraintSystem<ConstraintF>>(
+    fn to_constraint_field<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<FpGadget<ConstraintF>>, SynthesisError> {

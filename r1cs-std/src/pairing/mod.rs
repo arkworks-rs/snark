@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use algebra::{fields::PrimeField, PairingEngine};
+use algebra::{Field, PairingEngine};
 use core::fmt::Debug;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
@@ -7,7 +7,7 @@ pub mod bls12;
 pub mod mnt4;
 pub mod mnt6;
 
-pub trait PairingGadget<PairingE: PairingEngine, ConstraintF: PrimeField> {
+pub trait PairingGadget<PairingE: PairingEngine, ConstraintF: Field> {
     type G1Gadget: GroupGadget<PairingE::G1Projective, ConstraintF>;
     type G2Gadget: GroupGadget<PairingE::G2Projective, ConstraintF>;
     type G1PreparedGadget: AllocGadget<PairingE::G1Prepared, ConstraintF>
@@ -67,13 +67,13 @@ pub(crate) mod tests {
     use crate::{
         bits::boolean::Boolean, prelude::*, test_constraint_system::TestConstraintSystem, Vec,
     };
-    use algebra::{fields::PrimeField, test_rng, BitIterator, Field, PairingEngine, UniformRand};
+    use algebra::{test_rng, BitIterator, Field, PairingEngine, PrimeField, UniformRand};
     use r1cs_core::ConstraintSystem;
 
     #[allow(dead_code)]
     pub(crate) fn bilinearity_test<
         E: PairingEngine,
-        ConstraintF: PrimeField,
+        ConstraintF: Field,
         P: PairingGadget<E, ConstraintF>,
     >() {
         let mut cs = TestConstraintSystem::<ConstraintF>::new();

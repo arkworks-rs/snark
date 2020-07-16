@@ -3,8 +3,7 @@ use algebra::{
         twisted_edwards_extended::GroupAffine as TEAffine, MontgomeryModelParameters,
         TEModelParameters,
     },
-    fields::PrimeField,
-    BitIterator, One, Zero,
+    BitIterator, Field, One, PrimeField, Zero,
 };
 
 use r1cs_core::{ConstraintSystem, SynthesisError};
@@ -16,11 +15,11 @@ use core::{borrow::Borrow, marker::PhantomData};
 
 #[derive(Derivative)]
 #[derivative(Debug, Clone)]
-#[derivative(Debug(bound = "P: TEModelParameters, ConstraintF: PrimeField"))]
+#[derivative(Debug(bound = "P: TEModelParameters, ConstraintF: Field"))]
 #[must_use]
 pub struct MontgomeryAffineGadget<
     P: TEModelParameters,
-    ConstraintF: PrimeField,
+    ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 > {
     pub x: F,
@@ -34,14 +33,11 @@ pub struct MontgomeryAffineGadget<
 mod montgomery_affine_impl {
     use super::*;
     use crate::Assignment;
-    use algebra::{fields::PrimeField, twisted_edwards_extended::GroupAffine, Field};
+    use algebra::{twisted_edwards_extended::GroupAffine, Field};
     use core::ops::{AddAssign, MulAssign, SubAssign};
 
-    impl<
-            P: TEModelParameters,
-            ConstraintF: PrimeField,
-            F: FieldGadget<P::BaseField, ConstraintF>,
-        > MontgomeryAffineGadget<P, ConstraintF, F>
+    impl<P: TEModelParameters, ConstraintF: Field, F: FieldGadget<P::BaseField, ConstraintF>>
+        MontgomeryAffineGadget<P, ConstraintF, F>
     {
         pub fn new(x: F, y: F) -> Self {
             Self {
@@ -191,11 +187,11 @@ mod montgomery_affine_impl {
 
 #[derive(Derivative)]
 #[derivative(Debug, Clone)]
-#[derivative(Debug(bound = "P: TEModelParameters, ConstraintF: PrimeField"))]
+#[derivative(Debug(bound = "P: TEModelParameters, ConstraintF: Field"))]
 #[must_use]
 pub struct AffineGadget<
     P: TEModelParameters,
-    ConstraintF: PrimeField,
+    ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 > {
     pub x: F,
@@ -206,7 +202,7 @@ pub struct AffineGadget<
     _engine: PhantomData<ConstraintF>,
 }
 
-impl<P: TEModelParameters, ConstraintF: PrimeField, F: FieldGadget<P::BaseField, ConstraintF>>
+impl<P: TEModelParameters, ConstraintF: Field, F: FieldGadget<P::BaseField, ConstraintF>>
     AffineGadget<P, ConstraintF, F>
 {
     pub fn new(x: F, y: F) -> Self {
@@ -244,16 +240,16 @@ impl<P, ConstraintF, F> ToConstraintFieldGadget<ConstraintF> for AffineGadget<P,
 where
     P: TEModelParameters,
     ConstraintF: PrimeField,
-    F: FieldGadget<P::BaseField, ConstraintF>,
+    F: FieldGadget<P::BaseField, ConstraintF> + ToConstraintFieldGadget<ConstraintF>,
 {
-    fn to_field_gadgets<CS: ConstraintSystem<ConstraintF>>(
+    fn to_constraint_field<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<FpGadget<ConstraintF>>, SynthesisError> {
         let mut res = Vec::new();
 
-        let mut x_gadget = self.x.to_field_gadgets(&mut cs.ns(|| "x"))?;
-        let mut y_gadget = self.y.to_field_gadgets(&mut cs.ns(|| "y"))?;
+        let mut x_gadget = self.x.to_constraint_field(&mut cs.ns(|| "x"))?;
+        let mut y_gadget = self.y.to_constraint_field(&mut cs.ns(|| "y"))?;
 
         res.append(&mut x_gadget);
         res.append(&mut y_gadget);
@@ -265,7 +261,7 @@ where
 impl<P, ConstraintF, F> PartialEq for AffineGadget<P, ConstraintF, F>
 where
     P: TEModelParameters,
-    ConstraintF: PrimeField,
+    ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
     fn eq(&self, other: &Self) -> bool {
@@ -276,7 +272,7 @@ where
 impl<P, ConstraintF, F> Eq for AffineGadget<P, ConstraintF, F>
 where
     P: TEModelParameters,
-    ConstraintF: PrimeField,
+    ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
 }
@@ -284,13 +280,13 @@ where
 mod affine_impl {
     use super::*;
     use crate::Assignment;
-    use algebra::{curves::AffineCurve, fields::PrimeField, Field};
+    use algebra::{curves::AffineCurve, Field, PrimeField};
     use core::ops::Neg;
 
     impl<P, ConstraintF, F> GroupGadget<TEAffine<P>, ConstraintF> for AffineGadget<P, ConstraintF, F>
     where
         P: TEModelParameters,
-        ConstraintF: PrimeField,
+        ConstraintF: Field,
         F: FieldGadget<P::BaseField, ConstraintF>,
     {
         type Value = TEAffine<P>;
@@ -515,7 +511,7 @@ mod affine_impl {
     impl<P, ConstraintF, F> AllocGadget<TEAffine<P>, ConstraintF> for AffineGadget<P, ConstraintF, F>
     where
         P: TEModelParameters,
-        ConstraintF: PrimeField,
+        ConstraintF: Field,
         F: FieldGadget<P::BaseField, ConstraintF>,
         Self: GroupGadget<TEAffine<P>, ConstraintF>,
     {
@@ -702,8 +698,8 @@ mod projective_impl {
     use super::*;
     use crate::{Assignment, Vec};
     use algebra::{
-        curves::twisted_edwards_extended::GroupProjective as TEProjective, fields::PrimeField,
-        AffineCurve, Field, ProjectiveCurve,
+        curves::twisted_edwards_extended::GroupProjective as TEProjective, AffineCurve, Field,
+        PrimeField, ProjectiveCurve,
     };
     use core::ops::Neg;
 
@@ -711,7 +707,7 @@ mod projective_impl {
         for AffineGadget<P, ConstraintF, F>
     where
         P: TEModelParameters,
-        ConstraintF: PrimeField,
+        ConstraintF: Field,
         F: FieldGadget<P::BaseField, ConstraintF>,
     {
         type Value = TEProjective<P>;
@@ -1129,7 +1125,7 @@ mod projective_impl {
         for AffineGadget<P, ConstraintF, F>
     where
         P: TEModelParameters,
-        ConstraintF: PrimeField,
+        ConstraintF: Field,
         F: FieldGadget<P::BaseField, ConstraintF>,
         Self: GroupGadget<TEProjective<P>, ConstraintF>,
     {
@@ -1320,7 +1316,7 @@ mod projective_impl {
 impl<P, ConstraintF, F> CondSelectGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
 where
     P: TEModelParameters,
-    ConstraintF: PrimeField,
+    ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
     #[inline]
@@ -1344,7 +1340,7 @@ where
 impl<P, ConstraintF, F> EqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
 where
     P: TEModelParameters,
-    ConstraintF: PrimeField,
+    ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
 }
@@ -1352,7 +1348,7 @@ where
 impl<P, ConstraintF, F> ConditionalEqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
 where
     P: TEModelParameters,
-    ConstraintF: PrimeField,
+    ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
     #[inline]
@@ -1383,7 +1379,7 @@ where
 impl<P, ConstraintF, F> NEqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
 where
     P: TEModelParameters,
-    ConstraintF: PrimeField,
+    ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
     #[inline]
@@ -1407,7 +1403,7 @@ where
 impl<P, ConstraintF, F> ToBitsGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
 where
     P: TEModelParameters,
-    ConstraintF: PrimeField,
+    ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
     fn to_bits<CS: ConstraintSystem<ConstraintF>>(
@@ -1439,7 +1435,7 @@ where
 impl<P, ConstraintF, F> ToBytesGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
 where
     P: TEModelParameters,
-    ConstraintF: PrimeField,
+    ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
     fn to_bytes<CS: ConstraintSystem<ConstraintF>>(
@@ -1468,7 +1464,7 @@ where
 #[allow(dead_code)]
 pub(crate) fn test<ConstraintF, P, GG>()
 where
-    ConstraintF: PrimeField,
+    ConstraintF: Field,
     P: TEModelParameters,
     GG: GroupGadget<TEAffine<P>, ConstraintF, Value = TEAffine<P>>,
 {
@@ -1476,7 +1472,7 @@ where
         boolean::AllocatedBit, groups::test::group_test, prelude::*,
         test_constraint_system::TestConstraintSystem,
     };
-    use algebra::{test_rng, Group, UniformRand};
+    use algebra::{test_rng, Group, PrimeField, UniformRand};
     use rand::Rng;
 
     group_test::<ConstraintF, TEAffine<P>, GG>();

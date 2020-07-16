@@ -3,7 +3,10 @@ use crate::{
     crh::pedersen::PedersenWindow,
     Vec,
 };
-use algebra_core::{fields::PrimeField, to_bytes, Group, ToBytes};
+use algebra_core::{
+    fields::{Field, PrimeField},
+    to_bytes, Group, ToBytes,
+};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
 use crate::commitment::CommitmentGadget;
@@ -11,9 +14,8 @@ use core::{borrow::Borrow, marker::PhantomData};
 use r1cs_std::prelude::*;
 
 #[derive(Derivative)]
-#[derivative(Clone(bound = "G: Group, W: PedersenWindow, ConstraintF: PrimeField"))]
-pub struct PedersenCommitmentGadgetParameters<G: Group, W: PedersenWindow, ConstraintF: PrimeField>
-{
+#[derivative(Clone(bound = "G: Group, W: PedersenWindow, ConstraintF: Field"))]
+pub struct PedersenCommitmentGadgetParameters<G: Group, W: PedersenWindow, ConstraintF: Field> {
     params: PedersenParameters<G>,
     #[doc(hidden)]
     _group: PhantomData<G>,
@@ -26,11 +28,7 @@ pub struct PedersenCommitmentGadgetParameters<G: Group, W: PedersenWindow, Const
 #[derive(Clone, Debug)]
 pub struct PedersenRandomnessGadget(Vec<UInt8>);
 
-pub struct PedersenCommitmentGadget<
-    G: Group,
-    ConstraintF: PrimeField,
-    GG: GroupGadget<G, ConstraintF>,
->(
+pub struct PedersenCommitmentGadget<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>>(
     #[doc(hidden)] PhantomData<*const G>,
     #[doc(hidden)] PhantomData<*const GG>,
     PhantomData<ConstraintF>,

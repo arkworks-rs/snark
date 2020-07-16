@@ -41,7 +41,7 @@ impl<F: PrimeField> FpGadget<F> {
 }
 
 impl<F: PrimeField> ToConstraintFieldGadget<F> for FpGadget<F> {
-    fn to_field_gadgets<CS: ConstraintSystem<F>>(
+    fn to_constraint_field<CS: ConstraintSystem<F>>(
         &self,
         _cs: CS,
     ) -> Result<Vec<FpGadget<F>>, SynthesisError> {

@@ -8,7 +8,7 @@ use crate::{
     },
     Vec,
 };
-use algebra_core::{fields::PrimeField, groups::Group};
+use algebra_core::{groups::Group, Field};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::{alloc::AllocGadget, groups::GroupGadget, uint8::UInt8};
 
@@ -16,12 +16,12 @@ use r1cs_std::bits::boolean::Boolean;
 
 #[derive(Derivative)]
 #[derivative(Clone(
-    bound = "G: Group, W: PedersenWindow, ConstraintF: PrimeField, GG: GroupGadget<G, ConstraintF>"
+    bound = "G: Group, W: PedersenWindow, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>"
 ))]
 pub struct BoweHopwoodPedersenCRHGadgetParameters<
     G: Group,
     W: PedersenWindow,
-    ConstraintF: PrimeField,
+    ConstraintF: Field,
     GG: GroupGadget<G, ConstraintF>,
 > {
     params: BoweHopwoodPedersenParameters<G>,
@@ -32,7 +32,7 @@ pub struct BoweHopwoodPedersenCRHGadgetParameters<
 
 pub struct BoweHopwoodPedersenCRHGadget<
     G: Group,
-    ConstraintF: PrimeField,
+    ConstraintF: Field,
     GG: GroupGadget<G, ConstraintF>,
 > {
     _group: PhantomData<*const G>,
@@ -43,7 +43,7 @@ pub struct BoweHopwoodPedersenCRHGadget<
 impl<ConstraintF, G, GG, W> FixedLengthCRHGadget<BoweHopwoodPedersenCRH<G, W>, ConstraintF>
     for BoweHopwoodPedersenCRHGadget<G, ConstraintF, GG>
 where
-    ConstraintF: PrimeField,
+    ConstraintF: Field,
     G: Group + Hash,
     GG: GroupGadget<G, ConstraintF>,
     W: PedersenWindow,
@@ -85,7 +85,7 @@ where
     }
 }
 
-impl<G: Group, W: PedersenWindow, ConstraintF: PrimeField, GG: GroupGadget<G, ConstraintF>>
+impl<G: Group, W: PedersenWindow, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>>
     AllocGadget<BoweHopwoodPedersenParameters<G>, ConstraintF>
     for BoweHopwoodPedersenCRHGadgetParameters<G, W, ConstraintF, GG>
 {

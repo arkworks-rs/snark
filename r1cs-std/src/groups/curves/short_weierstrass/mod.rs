@@ -20,7 +20,7 @@ pub mod mnt6;
 #[must_use]
 pub struct AffineGadget<
     P: SWModelParameters,
-    ConstraintF: PrimeField,
+    ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 > {
     pub x: F,
@@ -30,19 +30,24 @@ pub struct AffineGadget<
     _engine: PhantomData<ConstraintF>,
 }
 
-impl<P: SWModelParameters, ConstraintF: PrimeField, F: FieldGadget<P::BaseField, ConstraintF>>
-    ToConstraintFieldGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
+impl<
+        P: SWModelParameters,
+        ConstraintF: PrimeField,
+        F: FieldGadget<P::BaseField, ConstraintF> + ToConstraintFieldGadget<ConstraintF>,
+    > ToConstraintFieldGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
 {
-    fn to_field_gadgets<CS: ConstraintSystem<ConstraintF>>(
+    fn to_constraint_field<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
     ) -> Result<Vec<FpGadget<ConstraintF>>, SynthesisError> {
         let mut res = Vec::new();
 
-        let mut x_gadget = self.x.to_field_gadgets(&mut cs.ns(|| "x"))?;
-        let mut y_gadget = self.y.to_field_gadgets(&mut cs.ns(|| "y"))?;
+        let mut x_gadget = self.x.to_constraint_field(&mut cs.ns(|| "x"))?;
+        let mut y_gadget = self.y.to_constraint_field(&mut cs.ns(|| "y"))?;
 
-        let mut infinity_gadget = self.infinity.to_field_gadgets(&mut cs.ns(|| "infinity"))?;
+        let mut infinity_gadget = self
+            .infinity
+            .to_constraint_field(&mut cs.ns(|| "infinity"))?;
 
         res.append(&mut x_gadget);
         res.append(&mut y_gadget);
@@ -52,7 +57,7 @@ impl<P: SWModelParameters, ConstraintF: PrimeField, F: FieldGadget<P::BaseField,
     }
 }
 
-impl<P: SWModelParameters, ConstraintF: PrimeField, F: FieldGadget<P::BaseField, ConstraintF>>
+impl<P: SWModelParameters, ConstraintF: Field, F: FieldGadget<P::BaseField, ConstraintF>>
     AffineGadget<P, ConstraintF, F>
 {
     pub fn new(x: F, y: F, infinity: Boolean) -> Self {
@@ -95,7 +100,7 @@ impl<P: SWModelParameters, ConstraintF: PrimeField, F: FieldGadget<P::BaseField,
 impl<P, ConstraintF, F> PartialEq for AffineGadget<P, ConstraintF, F>
 where
     P: SWModelParameters,
-    ConstraintF: PrimeField,
+    ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
     fn eq(&self, other: &Self) -> bool {
@@ -106,7 +111,7 @@ where
 impl<P, ConstraintF, F> Eq for AffineGadget<P, ConstraintF, F>
 where
     P: SWModelParameters,
-    ConstraintF: PrimeField,
+    ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
 }
@@ -388,7 +393,7 @@ where
 impl<P, ConstraintF, F> EqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
 where
     P: SWModelParameters,
-    ConstraintF: PrimeField,
+    ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
 }
@@ -396,7 +401,7 @@ where
 impl<P, ConstraintF, F> ConditionalEqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
 where
     P: SWModelParameters,
-    ConstraintF: PrimeField,
+    ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
     #[inline]
@@ -432,7 +437,7 @@ where
 impl<P, ConstraintF, F> NEqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
 where
     P: SWModelParameters,
-    ConstraintF: PrimeField,
+    ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
     #[inline]
@@ -634,7 +639,7 @@ where
 impl<P, ConstraintF, F> ToBitsGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
 where
     P: SWModelParameters,
-    ConstraintF: PrimeField,
+    ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
     fn to_bits<CS: ConstraintSystem<ConstraintF>>(
@@ -668,7 +673,7 @@ where
 impl<P, ConstraintF, F> ToBytesGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
 where
     P: SWModelParameters,
-    ConstraintF: PrimeField,
+    ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
     fn to_bytes<CS: ConstraintSystem<ConstraintF>>(
@@ -707,7 +712,7 @@ where
 #[allow(dead_code)]
 pub(crate) fn test<ConstraintF, P, GG>()
 where
-    ConstraintF: PrimeField,
+    ConstraintF: Field,
     P: SWModelParameters,
     GG: GroupGadget<SWProjective<P>, ConstraintF, Value = SWProjective<P>>,
 {

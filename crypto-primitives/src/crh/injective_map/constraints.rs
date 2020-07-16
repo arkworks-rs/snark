@@ -14,7 +14,7 @@ use algebra_core::{
         models::{ModelParameters, TEModelParameters},
         twisted_edwards_extended::{GroupAffine as TEAffine, GroupProjective as TEProjective},
     },
-    fields::{PrimeField, SquareRootField},
+    fields::{Field, PrimeField, SquareRootField},
     groups::Group,
 };
 use r1cs_core::{ConstraintSystem, SynthesisError};
@@ -27,7 +27,7 @@ use r1cs_std::{
 pub trait InjectiveMapGadget<
     G: Group,
     I: InjectiveMap<G>,
-    ConstraintF: PrimeField,
+    ConstraintF: Field,
     GG: GroupGadget<G, ConstraintF>,
 >
 {
@@ -93,7 +93,7 @@ pub struct PedersenCRHCompressorGadget<G, I, ConstraintF, GG, IG>
 where
     G: Group,
     I: InjectiveMap<G>,
-    ConstraintF: PrimeField,
+    ConstraintF: Field,
     GG: GroupGadget<G, ConstraintF>,
     IG: InjectiveMapGadget<G, I, ConstraintF, GG>,
 {
@@ -107,7 +107,7 @@ impl<G, I, ConstraintF, GG, IG, W> FixedLengthCRHGadget<PedersenCRHCompressor<G,
 where
     G: Group,
     I: InjectiveMap<G>,
-    ConstraintF: PrimeField,
+    ConstraintF: Field,
     GG: GroupGadget<G, ConstraintF>,
     IG: InjectiveMapGadget<G, I, ConstraintF, GG>,
     W: PedersenWindow,
