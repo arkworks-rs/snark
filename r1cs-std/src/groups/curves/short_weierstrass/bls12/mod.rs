@@ -1,5 +1,5 @@
 use algebra::{
-    curves::bls12::{Bls12Parameters, G1Prepared, TwistType},
+    curves::bls12::{Bls12Parameters, G1Prepared, G2Prepared, TwistType},
     fields::Field,
     BitIterator, One, ProjectiveCurve,
 };
@@ -12,10 +12,9 @@ use crate::{
     Vec,
 };
 
-use algebra::curves::models::bls12::G2Prepared;
-use core::borrow::Borrow;
-use core::fmt::Debug;
-use std::ops::Mul;
+use core::{
+    borrow::Borrow, fmt::Debug, ops::Mul
+};
 
 pub type G1Gadget<P> = AffineGadget<
     <P as Bls12Parameters>::G1Parameters,
