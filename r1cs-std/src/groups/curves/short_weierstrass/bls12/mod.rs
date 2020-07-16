@@ -12,9 +12,7 @@ use crate::{
     Vec,
 };
 
-use core::{
-    borrow::Borrow, fmt::Debug, ops::Mul
-};
+use core::{borrow::Borrow, fmt::Debug, ops::Mul};
 
 pub type G1Gadget<P> = AffineGadget<
     <P as Bls12Parameters>::G1Parameters,

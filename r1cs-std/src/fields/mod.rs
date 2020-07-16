@@ -1,6 +1,6 @@
 use algebra::{
     fields::{BitIterator, PrimeField},
-    Field, Vec
+    Field, Vec,
 };
 use core::fmt::Debug;
 use r1cs_core::{ConstraintSystem, SynthesisError};
