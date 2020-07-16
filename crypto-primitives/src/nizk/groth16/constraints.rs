@@ -315,7 +315,6 @@ where
             .collect::<Vec<_>>()
             .into_iter()
             .collect::<Result<_, _>>()?;
-
         Ok(Self {
             alpha_g1,
             beta_g2,

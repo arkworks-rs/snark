@@ -3,10 +3,11 @@ use crate::{
     Vec,
 };
 use algebra_core::{AffineCurve, Field, PairingEngine, ToConstraintField};
-use core::{borrow::Borrow, marker::PhantomData};
-use gm17::{PreparedVerifyingKey, Proof, VerifyingKey};
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
+
+use core::{borrow::Borrow, marker::PhantomData};
+use gm17::{PreparedVerifyingKey, Proof, VerifyingKey};
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "P::G1Gadget: Clone, P::G2Gadget: Clone"))]
@@ -577,8 +578,7 @@ mod test {
     use super::*;
     use algebra::{
         bls12_377::{Bls12_377, Fq, Fr},
-        fields::PrimeField,
-        test_rng, BitIterator,
+        test_rng, BitIterator, PrimeField,
     };
     use r1cs_std::{
         bls12_377::PairingGadget as Bls12_377PairingGadget, boolean::Boolean,

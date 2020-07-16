@@ -3,8 +3,7 @@ use algebra::{
         short_weierstrass_jacobian::{GroupAffine as SWAffine, GroupProjective as SWProjective},
         SWModelParameters,
     },
-    fields::PrimeField,
-    AffineCurve, BitIterator, Field, One, ProjectiveCurve, Zero,
+    AffineCurve, BitIterator, Field, One, PrimeField, ProjectiveCurve, Zero,
 };
 use core::{borrow::Borrow, marker::PhantomData, ops::Neg};
 use r1cs_core::{ConstraintSystem, SynthesisError};
