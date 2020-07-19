@@ -556,16 +556,14 @@ impl<P: MNT6Parameters> AllocGadget<AteAdditionCoefficients<P>, P::Fp>
     where
         T: Borrow<AteAdditionCoefficients<P>>,
     {
-        let obj = t.borrow();
+        let t = t.borrow();
 
-        let c_l1_gadget =
-            Fp3Gadget::<P::Fp3Params, P::Fp>::alloc_constant(&mut cs.ns(|| "c_l1"), &obj.c_l1)?;
-        let c_rz_gadget =
-            Fp3Gadget::<P::Fp3Params, P::Fp>::alloc_constant(&mut cs.ns(|| "c_rz"), &obj.c_rz)?;
+        let c_l1 = Fp3Gadget::alloc_constant(&mut cs.ns(|| "c_l1"), &t.c_l1)?;
+        let c_rz = Fp3Gadget::alloc_constant(&mut cs.ns(|| "c_rz"), &t.c_rz)?;
 
         Ok(Self {
-            c_l1: c_l1_gadget,
-            c_rz: c_rz_gadget,
+            c_l1,
+            c_rz,
         })
     }
 
