@@ -561,10 +561,7 @@ impl<P: MNT6Parameters> AllocGadget<AteAdditionCoefficients<P>, P::Fp>
         let c_l1 = Fp3Gadget::alloc_constant(&mut cs.ns(|| "c_l1"), &t.c_l1)?;
         let c_rz = Fp3Gadget::alloc_constant(&mut cs.ns(|| "c_rz"), &t.c_rz)?;
 
-        Ok(Self {
-            c_l1,
-            c_rz,
-        })
+        Ok(Self { c_l1, c_rz })
     }
 
     fn alloc<F, T, CS: ConstraintSystem<P::Fp>>(_cs: CS, _f: F) -> Result<Self, SynthesisError>
