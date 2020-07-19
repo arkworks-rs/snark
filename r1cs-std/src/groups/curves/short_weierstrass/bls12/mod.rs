@@ -40,7 +40,7 @@ impl<P: Bls12Parameters> AllocGadget<G1Prepared<P>, P::Fp> for G1PreparedGadget<
     {
         let obj = t.borrow();
 
-        Ok(Self(G1Gadget::alloc_constant(&mut cs.ns(|| "g1"), &obj.0.into())?)
+        Ok(Self(G1Gadget::<P>::alloc_constant(&mut cs.ns(|| "g1"), &obj.0.into())?))
     }
 
     fn alloc<F, T, CS: ConstraintSystem<P::Fp>>(_cs: CS, _f: F) -> Result<Self, SynthesisError>
