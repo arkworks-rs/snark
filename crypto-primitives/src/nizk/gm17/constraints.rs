@@ -296,7 +296,7 @@ where
         let pvk = value_gen()?.borrow().clone();
 
         let g_alpha =
-            P::G1Gadget::alloc(cs.ns(|| "g_alpha"),  || Ok(pvk.g_alpha.into_projective()))?;
+            P::G1Gadget::alloc(cs.ns(|| "g_alpha"), || Ok(pvk.g_alpha.into_projective()))?;
         let h_beta = P::G2Gadget::alloc(cs.ns(|| "h_beta"), || Ok(pvk.h_beta.into_projective()))?;
         let g_alpha_pc =
             P::G1PreparedGadget::alloc(cs.ns(|| "g_alpha_pc"), || Ok(pvk.g_alpha.into()))?;
@@ -340,8 +340,9 @@ where
         let pvk = value_gen()?.borrow().clone();
 
         let g_alpha =
-            P::G1Gadget::alloc_input(cs.ns(|| "g_alpha"),  || Ok(pvk.g_alpha.into_projective()))?;
-        let h_beta = P::G2Gadget::alloc_input(cs.ns(|| "h_beta"), || Ok(pvk.h_beta.into_projective()))?;
+            P::G1Gadget::alloc_input(cs.ns(|| "g_alpha"), || Ok(pvk.g_alpha.into_projective()))?;
+        let h_beta =
+            P::G2Gadget::alloc_input(cs.ns(|| "h_beta"), || Ok(pvk.h_beta.into_projective()))?;
         let g_alpha_pc =
             P::G1PreparedGadget::alloc_input(cs.ns(|| "g_alpha_pc"), || Ok(pvk.g_alpha.into()))?;
         let h_beta_pc =

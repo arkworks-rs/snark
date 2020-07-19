@@ -224,15 +224,11 @@ where
         let alpha_g1_beta_g2 =
             P::GTGadget::alloc_constant(cs.ns(|| "alpha_g1_beta_g2"), pvk.alpha_g1_beta_g2)?;
 
-        let gamma_g2_neg_pc = P::G2PreparedGadget::alloc_constant(
-            cs.ns(|| "gamma_g2_neg_pc"),
-            pvk.gamma_g2_neg_pc,
-        )?;
+        let gamma_g2_neg_pc =
+            P::G2PreparedGadget::alloc_constant(cs.ns(|| "gamma_g2_neg_pc"), pvk.gamma_g2_neg_pc)?;
 
-        let delta_g2_neg_pc = P::G2PreparedGadget::alloc_constant(
-            cs.ns(|| "delta_g2_neg_pc"),
-            pvk.delta_g2_neg_pc,
-        )?;
+        let delta_g2_neg_pc =
+            P::G2PreparedGadget::alloc_constant(cs.ns(|| "delta_g2_neg_pc"), pvk.delta_g2_neg_pc)?;
 
         let mut gamma_abc_g1 = Vec::<P::G1Gadget>::new();
         for (i, item) in pvk.gamma_abc_g1.iter().enumerate() {
@@ -263,15 +259,11 @@ where
         let alpha_g1_beta_g2 =
             P::GTGadget::alloc(cs.ns(|| "alpha_g1_beta_g2"), || Ok(pvk.alpha_g1_beta_g2))?;
 
-        let gamma_g2_neg_pc = P::G2PreparedGadget::alloc(
-            cs.ns(|| "gamma_g2_neg_pc"),
-            || Ok(&pvk.gamma_g2_neg_pc),
-        )?;
+        let gamma_g2_neg_pc =
+            P::G2PreparedGadget::alloc(cs.ns(|| "gamma_g2_neg_pc"), || Ok(&pvk.gamma_g2_neg_pc))?;
 
-        let delta_g2_neg_pc = P::G2PreparedGadget::alloc(
-            cs.ns(|| "delta_g2_neg_pc"),
-            || Ok(&pvk.delta_g2_neg_pc),
-        )?;
+        let delta_g2_neg_pc =
+            P::G2PreparedGadget::alloc(cs.ns(|| "delta_g2_neg_pc"), || Ok(&pvk.delta_g2_neg_pc))?;
 
         let mut gamma_abc_g1 = Vec::<P::G1Gadget>::new();
         for (i, item) in pvk.gamma_abc_g1.iter().enumerate() {
@@ -302,15 +294,15 @@ where
         let alpha_g1_beta_g2 =
             P::GTGadget::alloc_input(cs.ns(|| "alpha_g1_beta_g2"), || Ok(pvk.alpha_g1_beta_g2))?;
 
-        let gamma_g2_neg_pc = P::G2PreparedGadget::alloc_input(
-            cs.ns(|| "gamma_g2_neg_pc"),
-            || Ok(&pvk.gamma_g2_neg_pc),
-        )?;
+        let gamma_g2_neg_pc =
+            P::G2PreparedGadget::alloc_input(cs.ns(|| "gamma_g2_neg_pc"), || {
+                Ok(&pvk.gamma_g2_neg_pc)
+            })?;
 
-        let delta_g2_neg_pc = P::G2PreparedGadget::alloc_input(
-            cs.ns(|| "delta_g2_neg_pc"),
-            || Ok(&pvk.delta_g2_neg_pc),
-        )?;
+        let delta_g2_neg_pc =
+            P::G2PreparedGadget::alloc_input(cs.ns(|| "delta_g2_neg_pc"), || {
+                Ok(&pvk.delta_g2_neg_pc)
+            })?;
 
         let mut gamma_abc_g1 = Vec::<P::G1Gadget>::new();
         for (i, item) in pvk.gamma_abc_g1.iter().enumerate() {

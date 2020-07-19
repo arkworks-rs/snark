@@ -864,30 +864,34 @@ impl<ConstraintF: PrimeField> ToConstraintFieldGadget<ConstraintF> for Boolean {
                 } else {
                     FpGadget::zero(&mut cs.ns(|| "zero"))?
                 }
-            },
+            }
             Boolean::Is(allocated_bit) => {
-                let value = match self.get_value(){
+                let value = match self.get_value() {
                     None => None,
-                    Some(bool) => if bool {
-                        Some(ConstraintF::one())
-                    }else{
-                        Some(ConstraintF::zero())
-                    },
+                    Some(bool) => {
+                        if bool {
+                            Some(ConstraintF::one())
+                        } else {
+                            Some(ConstraintF::zero())
+                        }
+                    }
                 };
 
                 FpGadget::<ConstraintF> {
                     value,
-                    variable: ConstraintVar::Var(allocated_bit.get_variable())
+                    variable: ConstraintVar::Var(allocated_bit.get_variable()),
                 }
-            },
+            }
             Boolean::Not(allocated_bit) => {
-                let value = match self.get_value(){
+                let value = match self.get_value() {
                     None => None,
-                    Some(bool) => if bool {
-                        Some(ConstraintF::zero())
-                    }else{
-                        Some(ConstraintF::one())
-                    },
+                    Some(bool) => {
+                        if bool {
+                            Some(ConstraintF::zero())
+                        } else {
+                            Some(ConstraintF::one())
+                        }
+                    }
                 };
 
                 let mut lc = LinearCombination::<ConstraintF>::zero();
@@ -896,11 +900,10 @@ impl<ConstraintF: PrimeField> ToConstraintFieldGadget<ConstraintF> for Boolean {
 
                 FpGadget::<ConstraintF> {
                     value,
-                    variable: ConstraintVar::LC(lc)
+                    variable: ConstraintVar::LC(lc),
                 }
             }
         };
-
 
         Ok(vec![gadget])
     }
