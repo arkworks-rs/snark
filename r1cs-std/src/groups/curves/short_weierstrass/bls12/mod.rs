@@ -51,7 +51,7 @@ impl<P: Bls12Parameters> AllocGadget<G1Prepared<P>, P::Fp> for G1PreparedGadget<
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<G1Prepared<P>>,
     {
-        unimplemented!()
+        todo!()
     }
 
     fn alloc_input<F, T, CS: ConstraintSystem<P::Fp>>(
@@ -62,7 +62,7 @@ impl<P: Bls12Parameters> AllocGadget<G1Prepared<P>, P::Fp> for G1PreparedGadget<
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<G1Prepared<P>>,
     {
-        unimplemented!()
+        todo!()
     }
 }
 
@@ -141,7 +141,7 @@ impl<P: Bls12Parameters> AllocGadget<G2Prepared<P>, P::Fp> for G2PreparedGadget<
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<G2Prepared<P>>,
     {
-        unimplemented!()
+        todo!()
     }
 
     fn alloc_input<F, T, CS: ConstraintSystem<P::Fp>>(
@@ -152,7 +152,7 @@ impl<P: Bls12Parameters> AllocGadget<G2Prepared<P>, P::Fp> for G2PreparedGadget<
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<G2Prepared<P>>,
     {
-        unimplemented!()
+        todo!()
     }
 }
 

@@ -68,7 +68,7 @@ impl<P: MNT6Parameters> AllocGadget<G1Prepared<P>, P::Fp> for G1PreparedGadget<P
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<G1Prepared<P>>,
     {
-        unimplemented!()
+        todo!()
     }
 
     fn alloc_input<F, T, CS: ConstraintSystem<P::Fp>>(
@@ -79,7 +79,7 @@ impl<P: MNT6Parameters> AllocGadget<G1Prepared<P>, P::Fp> for G1PreparedGadget<P
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<G1Prepared<P>>,
     {
-        unimplemented!()
+        todo!()
     }
 }
 
@@ -228,7 +228,7 @@ impl<P: MNT6Parameters> AllocGadget<G2Prepared<P>, P::Fp> for G2PreparedGadget<P
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<G2Prepared<P>>,
     {
-        unimplemented!()
+        todo!()
     }
 
     fn alloc_input<F, T, CS: ConstraintSystem<P::Fp>>(
@@ -239,7 +239,7 @@ impl<P: MNT6Parameters> AllocGadget<G2Prepared<P>, P::Fp> for G2PreparedGadget<P
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<G2Prepared<P>>,
     {
-        unimplemented!()
+        todo!()
     }
 }
 
@@ -464,7 +464,7 @@ impl<P: MNT6Parameters> AllocGadget<AteDoubleCoefficients<P>, P::Fp>
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<AteDoubleCoefficients<P>>,
     {
-        unimplemented!()
+        todo!()
     }
 
     fn alloc_input<F, T, CS: ConstraintSystem<P::Fp>>(
@@ -475,7 +475,7 @@ impl<P: MNT6Parameters> AllocGadget<AteDoubleCoefficients<P>, P::Fp>
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<AteDoubleCoefficients<P>>,
     {
-        unimplemented!()
+        todo!()
     }
 }
 
@@ -569,7 +569,7 @@ impl<P: MNT6Parameters> AllocGadget<AteAdditionCoefficients<P>, P::Fp>
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<AteAdditionCoefficients<P>>,
     {
-        unimplemented!()
+        todo!()
     }
 
     fn alloc_input<F, T, CS: ConstraintSystem<P::Fp>>(
@@ -580,7 +580,7 @@ impl<P: MNT6Parameters> AllocGadget<AteAdditionCoefficients<P>, P::Fp>
         F: FnOnce() -> Result<T, SynthesisError>,
         T: Borrow<AteAdditionCoefficients<P>>,
     {
-        unimplemented!()
+        todo!()
     }
 }
 
