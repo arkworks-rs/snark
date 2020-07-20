@@ -78,7 +78,7 @@ pub trait ConstraintSystem<F: Field>: Sized {
 /// This is a "namespaced" constraint system which borrows a constraint system
 /// (pushing a namespace context) and, when dropped, pops out of the namespace
 /// context.
-pub struct Namespace<'a, F: Field, CS: ConstraintSystem<F>>(&'a mut CS, PhantomData<F>);
+pub struct Namespace<'a, F: Field, CS: ConstraintSystem<F>>(pub &'a mut CS, pub PhantomData<F>);
 
 /// Computations are expressed in terms of rank-1 constraint systems (R1CS).
 /// The `generate_constraints` method is called to generate constraints for

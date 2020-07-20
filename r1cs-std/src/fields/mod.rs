@@ -1,4 +1,4 @@
-use algebra::{fields::BitIterator, Field};
+use algebra::{fields::BitIterator, Field, PrimeField, Vec};
 use core::fmt::Debug;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
@@ -11,6 +11,14 @@ pub mod fp3;
 pub mod fp4;
 pub mod fp6_2over3;
 pub mod fp6_3over2;
+
+use crate::fields::fp::FpGadget;
+pub trait ToConstraintFieldGadget<ConstraintF: PrimeField> {
+    fn to_constraint_field<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+    ) -> Result<Vec<FpGadget<ConstraintF>>, SynthesisError>;
+}
 
 pub trait FieldGadget<F: Field, ConstraintF: Field>:
     Sized

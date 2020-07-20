@@ -17,6 +17,25 @@ pub struct Fp2Gadget<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField
     _params: PhantomData<P>,
 }
 
+impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField>
+    ToConstraintFieldGadget<ConstraintF> for Fp2Gadget<P, ConstraintF>
+{
+    fn to_constraint_field<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Vec<FpGadget<ConstraintF>>, SynthesisError> {
+        let mut res = Vec::new();
+
+        let mut c0_gadget = self.c0.to_constraint_field(&mut cs.ns(|| "c0"))?;
+        let mut c1_gadget = self.c1.to_constraint_field(&mut cs.ns(|| "c1"))?;
+
+        res.append(&mut c0_gadget);
+        res.append(&mut c1_gadget);
+
+        Ok(res)
+    }
+}
+
 impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField> Fp2Gadget<P, ConstraintF> {
     pub fn new(c0: FpGadget<ConstraintF>, c1: FpGadget<ConstraintF>) -> Self {
         Self {

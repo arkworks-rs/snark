@@ -89,7 +89,7 @@ pub mod prelude {
         alloc::*,
         bits::{boolean::Boolean, uint32::UInt32, uint8::UInt8, ToBitsGadget, ToBytesGadget},
         eq::*,
-        fields::FieldGadget,
+        fields::{fp::FpGadget, FieldGadget, ToConstraintFieldGadget},
         groups::GroupGadget,
         instantiated::*,
         pairing::PairingGadget,

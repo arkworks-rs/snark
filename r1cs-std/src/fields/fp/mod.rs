@@ -40,6 +40,15 @@ impl<F: PrimeField> FpGadget<F> {
     }
 }
 
+impl<F: PrimeField> ToConstraintFieldGadget<F> for FpGadget<F> {
+    fn to_constraint_field<CS: ConstraintSystem<F>>(
+        &self,
+        _cs: CS,
+    ) -> Result<Vec<FpGadget<F>>, SynthesisError> {
+        Ok(vec![self.clone()])
+    }
+}
+
 impl<F: PrimeField> FieldGadget<F, F> for FpGadget<F> {
     type Variable = ConstraintVar<F>;
 

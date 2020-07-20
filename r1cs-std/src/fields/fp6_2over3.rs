@@ -31,6 +31,28 @@ where
     _params: PhantomData<P>,
 }
 
+impl<P, ConstraintF: PrimeField + SquareRootField> ToConstraintFieldGadget<ConstraintF>
+    for Fp6Gadget<P, ConstraintF>
+where
+    P: Fp6Parameters,
+    P::Fp3Params: Fp3Parameters<Fp = ConstraintF>,
+{
+    fn to_constraint_field<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Vec<FpGadget<ConstraintF>>, SynthesisError> {
+        let mut res = Vec::new();
+
+        let mut c0_gadget = self.c0.to_constraint_field(&mut cs.ns(|| "c0"))?;
+        let mut c1_gadget = self.c1.to_constraint_field(&mut cs.ns(|| "c1"))?;
+
+        res.append(&mut c0_gadget);
+        res.append(&mut c1_gadget);
+
+        Ok(res)
+    }
+}
+
 impl<P, ConstraintF: PrimeField + SquareRootField> Fp6Gadget<P, ConstraintF>
 where
     P: Fp6Parameters,

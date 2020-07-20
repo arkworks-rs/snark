@@ -14,6 +14,7 @@ use crate::{
     prelude::*,
     Vec,
 };
+use core::borrow::Borrow;
 
 pub type G1Gadget<P> = AffineGadget<
     <P as MNT4Parameters>::G1Parameters,
@@ -72,6 +73,53 @@ impl<P: MNT4Parameters> G1PreparedGadget<P> {
     }
 }
 
+impl<P: MNT4Parameters> AllocGadget<G1Prepared<P>, P::Fp> for G1PreparedGadget<P> {
+    fn alloc_constant<T, CS: ConstraintSystem<P::Fp>>(
+        mut cs: CS,
+        t: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<G1Prepared<P>>,
+    {
+        let obj = t.borrow();
+        let x = FpGadget::<P::Fp>::alloc_constant(&mut cs.ns(|| "alloc_x"), &obj.x)?;
+        let y = FpGadget::<P::Fp>::alloc_constant(&mut cs.ns(|| "alloc_y"), &obj.y)?;
+        let x_twist = Fp2Gadget::<P::Fp2Params, P::Fp>::alloc_constant(
+            &mut cs.ns(|| "alloc_x_twist"),
+            &obj.x_twist,
+        )?;
+        let y_twist = Fp2Gadget::<P::Fp2Params, P::Fp>::alloc_constant(
+            &mut cs.ns(|| "alloc_y_twist"),
+            &obj.y_twist,
+        )?;
+        Ok(G1PreparedGadget {
+            x,
+            y,
+            x_twist,
+            y_twist,
+        })
+    }
+
+    fn alloc<F, T, CS: ConstraintSystem<P::Fp>>(_cs: CS, _f: F) -> Result<Self, SynthesisError>
+    where
+        F: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<G1Prepared<P>>,
+    {
+        todo!()
+    }
+
+    fn alloc_input<F, T, CS: ConstraintSystem<P::Fp>>(
+        _cs: CS,
+        _f: F,
+    ) -> Result<Self, SynthesisError>
+    where
+        F: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<G1Prepared<P>>,
+    {
+        todo!()
+    }
+}
+
 impl<P: MNT4Parameters> ToBytesGadget<P::Fp> for G1PreparedGadget<P> {
     #[inline]
     fn to_bytes<CS: ConstraintSystem<P::Fp>>(
@@ -119,6 +167,70 @@ pub struct G2PreparedGadget<P: MNT4Parameters> {
     pub y_over_twist: Fp2Gadget<P::Fp2Params, P::Fp>,
     pub double_coefficients: Vec<AteDoubleCoefficientsGadget<P>>,
     pub addition_coefficients: Vec<AteAdditionCoefficientsGadget<P>>,
+}
+
+impl<P: MNT4Parameters> AllocGadget<G2Prepared<P>, P::Fp> for G2PreparedGadget<P> {
+    fn alloc_constant<T, CS: ConstraintSystem<P::Fp>>(
+        mut cs: CS,
+        t: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<G2Prepared<P>>,
+    {
+        let obj = t.borrow();
+        let x = Fp2Gadget::<P::Fp2Params, P::Fp>::alloc_constant(&mut cs.ns(|| "alloc_x"), &obj.x)?;
+        let y = Fp2Gadget::<P::Fp2Params, P::Fp>::alloc_constant(&mut cs.ns(|| "alloc_y"), &obj.y)?;
+        let x_over_twist = Fp2Gadget::<P::Fp2Params, P::Fp>::alloc_constant(
+            &mut cs.ns(|| "alloc_x_over_twist"),
+            &obj.x_over_twist,
+        )?;
+        let y_over_twist = Fp2Gadget::<P::Fp2Params, P::Fp>::alloc_constant(
+            &mut cs.ns(|| "alloc_y_over_twist"),
+            &obj.y_over_twist,
+        )?;
+        let mut double_coefficients = Vec::<AteDoubleCoefficientsGadget<P>>::new();
+        for (i, item) in obj.double_coefficients.iter().enumerate() {
+            double_coefficients.push(AteDoubleCoefficientsGadget::<P>::alloc_constant(
+                &mut cs.ns(|| format!("alloc_double_coefficients_{}", i)),
+                item,
+            )?);
+        }
+        let mut addition_coefficients = Vec::<AteAdditionCoefficientsGadget<P>>::new();
+        for (i, item) in obj.addition_coefficients.iter().enumerate() {
+            addition_coefficients.push(AteAdditionCoefficientsGadget::<P>::alloc_constant(
+                &mut cs.ns(|| format!("alloc_addition_coefficients_{}", i)),
+                item,
+            )?);
+        }
+
+        Ok(G2PreparedGadget {
+            x,
+            y,
+            x_over_twist,
+            y_over_twist,
+            double_coefficients,
+            addition_coefficients,
+        })
+    }
+
+    fn alloc<F, T, CS: ConstraintSystem<P::Fp>>(_cs: CS, _f: F) -> Result<Self, SynthesisError>
+    where
+        F: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<G2Prepared<P>>,
+    {
+        todo!()
+    }
+
+    fn alloc_input<F, T, CS: ConstraintSystem<P::Fp>>(
+        _cs: CS,
+        _f: F,
+    ) -> Result<Self, SynthesisError>
+    where
+        F: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<G2Prepared<P>>,
+    {
+        todo!()
+    }
 }
 
 impl<P: MNT4Parameters> ToBytesGadget<P::Fp> for G2PreparedGadget<P> {
@@ -308,6 +420,56 @@ pub struct AteDoubleCoefficientsGadget<P: MNT4Parameters> {
     pub c_l: Fp2Gadget<P::Fp2Params, P::Fp>,
 }
 
+impl<P: MNT4Parameters> AllocGadget<AteDoubleCoefficients<P>, P::Fp>
+    for AteDoubleCoefficientsGadget<P>
+{
+    fn alloc_constant<T, CS: ConstraintSystem<P::Fp>>(
+        mut cs: CS,
+        t: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<AteDoubleCoefficients<P>>,
+    {
+        let obj = t.borrow();
+        let c_h =
+            Fp2Gadget::<P::Fp2Params, P::Fp>::alloc_constant(&mut cs.ns(|| "alloc_c_h"), &obj.c_h)?;
+        let c_4c = Fp2Gadget::<P::Fp2Params, P::Fp>::alloc_constant(
+            &mut cs.ns(|| "alloc_c_4c"),
+            &obj.c_4c,
+        )?;
+        let c_j =
+            Fp2Gadget::<P::Fp2Params, P::Fp>::alloc_constant(&mut cs.ns(|| "alloc_c_j"), &obj.c_j)?;
+        let c_l =
+            Fp2Gadget::<P::Fp2Params, P::Fp>::alloc_constant(&mut cs.ns(|| "alloc_c_l"), &obj.c_l)?;
+
+        Ok(AteDoubleCoefficientsGadget {
+            c_h,
+            c_4c,
+            c_j,
+            c_l,
+        })
+    }
+
+    fn alloc<F, T, CS: ConstraintSystem<P::Fp>>(_cs: CS, _f: F) -> Result<Self, SynthesisError>
+    where
+        F: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<AteDoubleCoefficients<P>>,
+    {
+        todo!()
+    }
+
+    fn alloc_input<F, T, CS: ConstraintSystem<P::Fp>>(
+        _cs: CS,
+        _f: F,
+    ) -> Result<Self, SynthesisError>
+    where
+        F: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<AteDoubleCoefficients<P>>,
+    {
+        todo!()
+    }
+}
+
 impl<P: MNT4Parameters> ToBytesGadget<P::Fp> for AteDoubleCoefficientsGadget<P> {
     #[inline]
     fn to_bytes<CS: ConstraintSystem<P::Fp>>(
@@ -373,6 +535,48 @@ impl<P: MNT4Parameters> AteDoubleCoefficientsGadget<P> {
 pub struct AteAdditionCoefficientsGadget<P: MNT4Parameters> {
     pub c_l1: Fp2Gadget<P::Fp2Params, P::Fp>,
     pub c_rz: Fp2Gadget<P::Fp2Params, P::Fp>,
+}
+
+impl<P: MNT4Parameters> AllocGadget<AteAdditionCoefficients<P>, P::Fp>
+    for AteAdditionCoefficientsGadget<P>
+{
+    fn alloc_constant<T, CS: ConstraintSystem<P::Fp>>(
+        mut cs: CS,
+        t: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<AteAdditionCoefficients<P>>,
+    {
+        let obj = t.borrow();
+        let c_l1 = Fp2Gadget::<P::Fp2Params, P::Fp>::alloc_constant(
+            &mut cs.ns(|| "alloc_c_l1"),
+            &obj.c_l1,
+        )?;
+        let c_rz = Fp2Gadget::<P::Fp2Params, P::Fp>::alloc_constant(
+            &mut cs.ns(|| "alloc_c_rz"),
+            &obj.c_rz,
+        )?;
+        Ok(AteAdditionCoefficientsGadget { c_l1, c_rz })
+    }
+
+    fn alloc<F, T, CS: ConstraintSystem<P::Fp>>(_cs: CS, _f: F) -> Result<Self, SynthesisError>
+    where
+        F: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<AteAdditionCoefficients<P>>,
+    {
+        todo!()
+    }
+
+    fn alloc_input<F, T, CS: ConstraintSystem<P::Fp>>(
+        _cs: CS,
+        _f: F,
+    ) -> Result<Self, SynthesisError>
+    where
+        F: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<AteAdditionCoefficients<P>>,
+    {
+        todo!()
+    }
 }
 
 impl<P: MNT4Parameters> ToBytesGadget<P::Fp> for AteAdditionCoefficientsGadget<P> {

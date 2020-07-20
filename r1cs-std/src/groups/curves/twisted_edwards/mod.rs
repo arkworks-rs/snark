@@ -3,13 +3,14 @@ use algebra::{
         twisted_edwards_extended::GroupAffine as TEAffine, MontgomeryModelParameters,
         TEModelParameters,
     },
-    BitIterator, Field, One, Zero,
+    BitIterator, Field, One, PrimeField, Zero,
 };
 
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
 use crate::{prelude::*, Vec};
 
+use crate::fields::fp::FpGadget;
 use core::{borrow::Borrow, marker::PhantomData};
 
 #[derive(Derivative)]
@@ -232,6 +233,28 @@ impl<P: TEModelParameters, ConstraintF: Field, F: FieldGadget<P::BaseField, Cons
         let y = F::alloc(&mut cs.ns(|| "y"), || y)?;
 
         Ok(Self::new(x, y))
+    }
+}
+
+impl<P, ConstraintF, F> ToConstraintFieldGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
+where
+    P: TEModelParameters,
+    ConstraintF: PrimeField,
+    F: FieldGadget<P::BaseField, ConstraintF> + ToConstraintFieldGadget<ConstraintF>,
+{
+    fn to_constraint_field<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Vec<FpGadget<ConstraintF>>, SynthesisError> {
+        let mut res = Vec::new();
+
+        let mut x_gadget = self.x.to_constraint_field(&mut cs.ns(|| "x"))?;
+        let mut y_gadget = self.y.to_constraint_field(&mut cs.ns(|| "y"))?;
+
+        res.append(&mut x_gadget);
+        res.append(&mut y_gadget);
+
+        Ok(res)
     }
 }
 
@@ -1449,7 +1472,7 @@ where
         boolean::AllocatedBit, groups::test::group_test, prelude::*,
         test_constraint_system::TestConstraintSystem,
     };
-    use algebra::{test_rng, Group, PrimeField, UniformRand};
+    use algebra::{test_rng, Group, UniformRand};
     use rand::Rng;
 
     group_test::<ConstraintF, TEAffine<P>, GG>();

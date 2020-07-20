@@ -29,6 +29,33 @@ pub struct AffineGadget<
     _engine: PhantomData<ConstraintF>,
 }
 
+impl<
+        P: SWModelParameters,
+        ConstraintF: PrimeField,
+        F: FieldGadget<P::BaseField, ConstraintF> + ToConstraintFieldGadget<ConstraintF>,
+    > ToConstraintFieldGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
+{
+    fn to_constraint_field<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Vec<FpGadget<ConstraintF>>, SynthesisError> {
+        let mut res = Vec::new();
+
+        let mut x_gadget = self.x.to_constraint_field(&mut cs.ns(|| "x"))?;
+        let mut y_gadget = self.y.to_constraint_field(&mut cs.ns(|| "y"))?;
+
+        let mut infinity_gadget = self
+            .infinity
+            .to_constraint_field(&mut cs.ns(|| "infinity"))?;
+
+        res.append(&mut x_gadget);
+        res.append(&mut y_gadget);
+        res.append(&mut infinity_gadget);
+
+        Ok(res)
+    }
+}
+
 impl<P: SWModelParameters, ConstraintF: Field, F: FieldGadget<P::BaseField, ConstraintF>>
     AffineGadget<P, ConstraintF, F>
 {

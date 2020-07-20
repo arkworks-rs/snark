@@ -852,6 +852,63 @@ impl<ConstraintF: Field> ToBytesGadget<ConstraintF> for Boolean {
     }
 }
 
+impl<ConstraintF: PrimeField> ToConstraintFieldGadget<ConstraintF> for Boolean {
+    fn to_constraint_field<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Vec<FpGadget<ConstraintF>>, SynthesisError> {
+        let gadget = match self {
+            Boolean::Constant(cond) => {
+                if *cond {
+                    FpGadget::one(&mut cs.ns(|| "one"))?
+                } else {
+                    FpGadget::zero(&mut cs.ns(|| "zero"))?
+                }
+            }
+            Boolean::Is(allocated_bit) => {
+                let value = match self.get_value() {
+                    None => None,
+                    Some(bool) => {
+                        if bool {
+                            Some(ConstraintF::one())
+                        } else {
+                            Some(ConstraintF::zero())
+                        }
+                    }
+                };
+
+                FpGadget::<ConstraintF> {
+                    value,
+                    variable: ConstraintVar::Var(allocated_bit.get_variable()),
+                }
+            }
+            Boolean::Not(allocated_bit) => {
+                let value = match self.get_value() {
+                    None => None,
+                    Some(bool) => {
+                        if bool {
+                            Some(ConstraintF::zero())
+                        } else {
+                            Some(ConstraintF::one())
+                        }
+                    }
+                };
+
+                let mut lc = LinearCombination::<ConstraintF>::zero();
+                lc += (ConstraintF::one(), CS::one());
+                lc += (-ConstraintF::one(), allocated_bit.get_variable());
+
+                FpGadget::<ConstraintF> {
+                    value,
+                    variable: ConstraintVar::LC(lc),
+                }
+            }
+        };
+
+        Ok(vec![gadget])
+    }
+}
+
 impl<ConstraintF: PrimeField> CondSelectGadget<ConstraintF> for Boolean {
     fn conditionally_select<CS>(
         mut cs: CS,

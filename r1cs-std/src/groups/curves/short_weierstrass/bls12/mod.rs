@@ -1,5 +1,5 @@
 use algebra::{
-    curves::bls12::{Bls12Parameters, G1Prepared, TwistType},
+    curves::bls12::{Bls12Parameters, G1Prepared, G2Prepared, TwistType},
     fields::Field,
     BitIterator, One, ProjectiveCurve,
 };
@@ -12,7 +12,7 @@ use crate::{
     Vec,
 };
 
-use core::fmt::Debug;
+use core::{borrow::Borrow, fmt::Debug, ops::Mul};
 
 pub type G1Gadget<P> = AffineGadget<
     <P as Bls12Parameters>::G1Parameters,
@@ -29,6 +29,42 @@ pub type G2Gadget<P> =
     Debug(bound = "G1Gadget<P>: Debug")
 )]
 pub struct G1PreparedGadget<P: Bls12Parameters>(pub G1Gadget<P>);
+
+impl<P: Bls12Parameters> AllocGadget<G1Prepared<P>, P::Fp> for G1PreparedGadget<P> {
+    fn alloc_constant<T, CS: ConstraintSystem<P::Fp>>(
+        mut cs: CS,
+        t: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<G1Prepared<P>>,
+    {
+        let obj = t.borrow();
+
+        Ok(Self(G1Gadget::<P>::alloc_constant(
+            &mut cs.ns(|| "g1"),
+            &obj.0.into(),
+        )?))
+    }
+
+    fn alloc<F, T, CS: ConstraintSystem<P::Fp>>(_cs: CS, _f: F) -> Result<Self, SynthesisError>
+    where
+        F: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<G1Prepared<P>>,
+    {
+        todo!()
+    }
+
+    fn alloc_input<F, T, CS: ConstraintSystem<P::Fp>>(
+        _cs: CS,
+        _f: F,
+    ) -> Result<Self, SynthesisError>
+    where
+        F: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<G1Prepared<P>>,
+    {
+        todo!()
+    }
+}
 
 impl<P: Bls12Parameters> G1PreparedGadget<P> {
     pub fn get_value(&self) -> Option<G1Prepared<P>> {
@@ -70,6 +106,54 @@ type LCoeff<P> = (Fp2G<P>, Fp2G<P>);
 )]
 pub struct G2PreparedGadget<P: Bls12Parameters> {
     pub ell_coeffs: Vec<LCoeff<P>>,
+}
+
+impl<P: Bls12Parameters> AllocGadget<G2Prepared<P>, P::Fp> for G2PreparedGadget<P> {
+    fn alloc_constant<T, CS: ConstraintSystem<P::Fp>>(
+        mut cs: CS,
+        t: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<G2Prepared<P>>,
+    {
+        let obj = t.borrow();
+        let mut res = Vec::<LCoeff<P>>::new();
+
+        for (i, (x, y, z)) in obj.ell_coeffs.iter().enumerate() {
+            let z_inverse = z.inverse().unwrap();
+
+            let x_normalized = x.mul(&z_inverse);
+            let y_normalized = y.mul(&z_inverse);
+
+            let x_gadget =
+                Fp2Gadget::alloc_constant(&mut cs.ns(|| format!("alloc_x#{}", i)), x_normalized)?;
+            let y_gadget =
+                Fp2Gadget::alloc_constant(&mut cs.ns(|| format!("alloc_y#{}", i)), y_normalized)?;
+
+            res.push((x_gadget, y_gadget));
+        }
+
+        Ok(Self { ell_coeffs: res })
+    }
+
+    fn alloc<F, T, CS: ConstraintSystem<P::Fp>>(_cs: CS, _f: F) -> Result<Self, SynthesisError>
+    where
+        F: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<G2Prepared<P>>,
+    {
+        todo!()
+    }
+
+    fn alloc_input<F, T, CS: ConstraintSystem<P::Fp>>(
+        _cs: CS,
+        _f: F,
+    ) -> Result<Self, SynthesisError>
+    where
+        F: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<G2Prepared<P>>,
+    {
+        todo!()
+    }
 }
 
 impl<P: Bls12Parameters> ToBytesGadget<P::Fp> for G2PreparedGadget<P> {

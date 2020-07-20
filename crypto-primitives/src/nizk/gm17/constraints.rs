@@ -7,7 +7,7 @@ use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
 
 use core::{borrow::Borrow, marker::PhantomData};
-use gm17::{Proof, VerifyingKey};
+use gm17::{PreparedVerifyingKey, Proof, VerifyingKey};
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "P::G1Gadget: Clone, P::G2Gadget: Clone"))]
@@ -105,6 +105,7 @@ where
     V: ToConstraintField<PairingE::Fr>,
     P: PairingGadget<PairingE, ConstraintF>,
 {
+    type PreparedVerificationKeyGadget = PreparedVerifyingKeyGadget<PairingE, ConstraintF, P>;
     type VerificationKeyGadget = VerifyingKeyGadget<PairingE, ConstraintF, P>;
     type ProofGadget = ProofGadget<PairingE, ConstraintF, P>;
 
@@ -131,7 +132,7 @@ where
     fn conditional_check_verify<'a, CS, I, T>(
         mut cs: CS,
         vk: &Self::VerificationKeyGadget,
-        mut public_inputs: I,
+        public_inputs: I,
         proof: &Self::ProofGadget,
         condition: &Boolean,
     ) -> Result<(), SynthesisError>
@@ -141,9 +142,24 @@ where
         T: 'a + ToBitsGadget<ConstraintF> + ?Sized,
     {
         let pvk = vk.prepare(&mut cs.ns(|| "Prepare vk"))?;
+        <Self as NIZKVerifierGadget<Gm17<PairingE, C, V>, ConstraintF>>::conditional_check_verify_prepared(cs, &pvk, public_inputs, proof, condition)
+    }
+
+    fn conditional_check_verify_prepared<'a, CS, I, T>(
+        mut cs: CS,
+        pvk: &Self::PreparedVerificationKeyGadget,
+        mut public_inputs: I,
+        proof: &Self::ProofGadget,
+        condition: &Boolean,
+    ) -> Result<(), SynthesisError>
+    where
+        CS: ConstraintSystem<ConstraintF>,
+        I: Iterator<Item = &'a T>,
+        T: 'a + ToBitsGadget<ConstraintF> + ?Sized,
+    {
+        let pvk = pvk.clone();
         // e(A*G^{alpha}, B*H^{beta}) = e(G^{alpha}, H^{beta}) * e(G^{psi}, H^{gamma}) *
         // e(C, H) where psi = \sum_{i=0}^l input_i pvk.query[i]
-
         let g_psi = {
             let mut cs = cs.ns(|| "Process input");
             let mut g_psi = pvk.query[0].clone();
@@ -213,6 +229,148 @@ where
         test1.conditional_enforce_equal(cs.ns(|| "Test 1"), &one, condition)?;
         test2.conditional_enforce_equal(cs.ns(|| "Test 2"), &one, condition)?;
         Ok(())
+    }
+}
+
+impl<PairingE, ConstraintF, P> AllocGadget<PreparedVerifyingKey<PairingE>, ConstraintF>
+    for PreparedVerifyingKeyGadget<PairingE, ConstraintF, P>
+where
+    PairingE: PairingEngine,
+    ConstraintF: Field,
+    P: PairingGadget<PairingE, ConstraintF>,
+    P::G1PreparedGadget: AllocGadget<PairingE::G1Prepared, ConstraintF>,
+    P::G2PreparedGadget: AllocGadget<PairingE::G2Prepared, ConstraintF>,
+{
+    #[inline]
+    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        val: T,
+    ) -> Result<Self, SynthesisError>
+    where
+        T: Borrow<PreparedVerifyingKey<PairingE>>,
+    {
+        let pvk = val.borrow().clone();
+
+        let g_alpha =
+            P::G1Gadget::alloc_constant(cs.ns(|| "g_alpha"), pvk.g_alpha.into_projective())?;
+        let h_beta = P::G2Gadget::alloc_constant(cs.ns(|| "h_beta"), pvk.h_beta.into_projective())?;
+        let g_alpha_pc =
+            P::G1PreparedGadget::alloc_constant(cs.ns(|| "g_alpha_pc"), pvk.g_alpha.into())?;
+        let h_beta_pc =
+            P::G2PreparedGadget::alloc_constant(cs.ns(|| "h_beta_pc"), pvk.h_beta.into())?;
+        let g_gamma_pc =
+            P::G1PreparedGadget::alloc_constant(cs.ns(|| "g_gamma_pc"), pvk.g_gamma_pc)?;
+        let h_gamma_pc =
+            P::G2PreparedGadget::alloc_constant(cs.ns(|| "h_gamma_pc"), pvk.h_gamma_pc)?;
+        let h_pc = P::G2PreparedGadget::alloc_constant(cs.ns(|| "h_pc"), pvk.h_pc)?;
+
+        let mut query = Vec::<P::G1Gadget>::new();
+        for (i, item) in pvk.query.iter().enumerate() {
+            query.push(P::G1Gadget::alloc_constant(
+                &mut cs.ns(|| format!("query_{}", i)),
+                item.borrow().into_projective(),
+            )?);
+        }
+
+        Ok(Self {
+            g_alpha,
+            h_beta,
+            g_alpha_pc,
+            h_beta_pc,
+            g_gamma_pc,
+            h_gamma_pc,
+            h_pc,
+            query,
+        })
+    }
+
+    #[inline]
+    fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        value_gen: FN,
+    ) -> Result<Self, SynthesisError>
+    where
+        FN: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<PreparedVerifyingKey<PairingE>>,
+    {
+        let pvk = value_gen()?.borrow().clone();
+
+        let g_alpha =
+            P::G1Gadget::alloc(cs.ns(|| "g_alpha"), || Ok(pvk.g_alpha.into_projective()))?;
+        let h_beta = P::G2Gadget::alloc(cs.ns(|| "h_beta"), || Ok(pvk.h_beta.into_projective()))?;
+        let g_alpha_pc =
+            P::G1PreparedGadget::alloc(cs.ns(|| "g_alpha_pc"), || Ok(pvk.g_alpha.into()))?;
+        let h_beta_pc =
+            P::G2PreparedGadget::alloc(cs.ns(|| "h_beta_pc"), || Ok(pvk.h_beta.into()))?;
+        let g_gamma_pc =
+            P::G1PreparedGadget::alloc(cs.ns(|| "g_gamma_pc"), || Ok(&pvk.g_gamma_pc))?;
+        let h_gamma_pc =
+            P::G2PreparedGadget::alloc(cs.ns(|| "h_gamma_pc"), || Ok(&pvk.h_gamma_pc))?;
+        let h_pc = P::G2PreparedGadget::alloc(cs.ns(|| "h_pc"), || Ok(&pvk.h_pc))?;
+
+        let mut query = Vec::<P::G1Gadget>::new();
+        for (i, item) in pvk.query.iter().enumerate() {
+            query.push(P::G1Gadget::alloc(
+                cs.ns(|| format!("query_{}", i)),
+                || Ok(item.borrow().into_projective()),
+            )?);
+        }
+
+        Ok(Self {
+            g_alpha,
+            h_beta,
+            g_alpha_pc,
+            h_beta_pc,
+            g_gamma_pc,
+            h_gamma_pc,
+            h_pc,
+            query,
+        })
+    }
+
+    #[inline]
+    fn alloc_input<FN, T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        value_gen: FN,
+    ) -> Result<Self, SynthesisError>
+    where
+        FN: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<PreparedVerifyingKey<PairingE>>,
+    {
+        let pvk = value_gen()?.borrow().clone();
+
+        let g_alpha =
+            P::G1Gadget::alloc_input(cs.ns(|| "g_alpha"), || Ok(pvk.g_alpha.into_projective()))?;
+        let h_beta =
+            P::G2Gadget::alloc_input(cs.ns(|| "h_beta"), || Ok(pvk.h_beta.into_projective()))?;
+        let g_alpha_pc =
+            P::G1PreparedGadget::alloc_input(cs.ns(|| "g_alpha_pc"), || Ok(pvk.g_alpha.into()))?;
+        let h_beta_pc =
+            P::G2PreparedGadget::alloc_input(cs.ns(|| "h_beta_pc"), || Ok(pvk.h_beta.into()))?;
+        let g_gamma_pc =
+            P::G1PreparedGadget::alloc_input(cs.ns(|| "g_gamma_pc"), || Ok(&pvk.g_gamma_pc))?;
+        let h_gamma_pc =
+            P::G2PreparedGadget::alloc_input(cs.ns(|| "h_gamma_pc"), || Ok(&pvk.h_gamma_pc))?;
+        let h_pc = P::G2PreparedGadget::alloc_input(cs.ns(|| "h_pc"), || Ok(&pvk.h_pc))?;
+
+        let mut query = Vec::<P::G1Gadget>::new();
+        for (i, item) in pvk.query.iter().enumerate() {
+            query.push(P::G1Gadget::alloc_input(
+                &mut cs.ns(|| format!("query_{}", i)),
+                || Ok(item.borrow().into_projective()),
+            )?);
+        }
+
+        Ok(Self {
+            g_alpha,
+            h_beta,
+            g_alpha_pc,
+            h_beta_pc,
+            g_gamma_pc,
+            h_gamma_pc,
+            h_pc,
+            query,
+        })
     }
 }
 

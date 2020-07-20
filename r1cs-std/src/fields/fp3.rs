@@ -22,6 +22,27 @@ pub struct Fp3Gadget<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField
 }
 
 impl<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootField>
+    ToConstraintFieldGadget<ConstraintF> for Fp3Gadget<P, ConstraintF>
+{
+    fn to_constraint_field<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Vec<FpGadget<ConstraintF>>, SynthesisError> {
+        let mut res = Vec::new();
+
+        let mut c0_gadget = self.c0.to_constraint_field(&mut cs.ns(|| "c0"))?;
+        let mut c1_gadget = self.c1.to_constraint_field(&mut cs.ns(|| "c1"))?;
+        let mut c2_gadget = self.c2.to_constraint_field(&mut cs.ns(|| "c2"))?;
+
+        res.append(&mut c0_gadget);
+        res.append(&mut c1_gadget);
+        res.append(&mut c2_gadget);
+
+        Ok(res)
+    }
+}
+
+impl<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootField>
     Fp3Gadget<P, ConstraintF>
 {
     #[inline]
