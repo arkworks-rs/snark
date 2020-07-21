@@ -21,7 +21,7 @@ impl FftParameters for FrParameters {
         14865337659602750405u64,
         3984815592673u64,
     ]);
-    
+
     const SMALL_SUBGROUP_BASE: Option<u32> = Some(7);
     const SMALL_SUBGROUP_BASE_ADICITY: Option<u32> = Some(2);
 
