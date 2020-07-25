@@ -18,7 +18,7 @@ pub use self::models::*;
 
 pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send {
     /// This is the scalar field of the G1/G2 groups.
-    type Fr: PrimeField + SquareRootField;
+    type Fr: PrimeField + SquareRootField + ToConstraintField<Self::Fr>;
 
     /// The projective representation of an element in G1.
     type G1Projective: ProjectiveCurve<BaseField = Self::Fq, ScalarField = Self::Fr, Affine = Self::G1Affine>
@@ -28,6 +28,7 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send {
 
     /// The affine representation of an element in G1.
     type G1Affine: AffineCurve<BaseField = Self::Fq, ScalarField = Self::Fr, Projective = Self::G1Projective>
+        + ToConstraintField<<Self::Fq as Field>::BaseRepresentationField>
         + From<Self::G1Projective>
         + Into<Self::G1Projective>
         + Into<Self::G1Prepared>;
@@ -43,6 +44,7 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send {
 
     /// The affine representation of an element in G2.
     type G2Affine: AffineCurve<BaseField = Self::Fqe, ScalarField = Self::Fr, Projective = Self::G2Projective>
+        + ToConstraintField<<Self::Fqe as Field>::BaseRepresentationField>
         + From<Self::G2Projective>
         + Into<Self::G2Projective>
         + Into<Self::G2Prepared>;
@@ -51,7 +53,7 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send {
     type G2Prepared: ToBytes + Default + Clone + Send + Sync + Debug + From<Self::G2Affine>;
 
     /// The base field that hosts G1.
-    type Fq: PrimeField + SquareRootField;
+    type Fq: PrimeField + SquareRootField + ToConstraintField<Self::Fq>;
 
     /// The extension field that hosts G2.
     type Fqe: SquareRootField;
@@ -127,6 +129,7 @@ pub trait ProjectiveCurve:
     type ScalarField: PrimeField + SquareRootField;
     type BaseField: Field;
     type Affine: AffineCurve<Projective = Self, ScalarField = Self::ScalarField, BaseField = Self::BaseField>
+        + ToConstraintField<<Self::BaseField as Field>::BaseRepresentationField>
         + From<Self>
         + Into<Self>;
 
@@ -303,6 +306,10 @@ pub trait CycleEngine: Sized + 'static + Copy + Debug + Sync + Send
 where
     <Self::E2 as PairingEngine>::G1Projective: MulAssign<<Self::E1 as PairingEngine>::Fq>,
     <Self::E2 as PairingEngine>::G2Projective: MulAssign<<Self::E1 as PairingEngine>::Fq>,
+    <Self::E2 as PairingEngine>::G1Affine:
+        ToConstraintField<<<Self::E1 as PairingEngine>::Fr as Field>::BaseRepresentationField>,
+    <Self::E2 as PairingEngine>::G2Affine:
+        ToConstraintField<<<Self::E1 as PairingEngine>::Fr as Field>::BaseRepresentationField>,
 {
     type E1: PairingEngine;
     type E2: PairingEngine<

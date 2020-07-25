@@ -8,7 +8,7 @@ use crate::{
         fp6_2over3::{Fp6, Fp6Parameters},
         BitIterator, Field, PrimeField, SquareRootField,
     },
-    One, Zero,
+    One, ToConstraintField, Zero,
 };
 
 use core::marker::PhantomData;
@@ -32,7 +32,10 @@ pub trait MNT6Parameters: 'static {
     const FINAL_EXPONENT_LAST_CHUNK_1: <Self::Fp as PrimeField>::BigInt;
     const FINAL_EXPONENT_LAST_CHUNK_W0_IS_NEG: bool;
     const FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0: <Self::Fp as PrimeField>::BigInt;
-    type Fp: PrimeField + SquareRootField + Into<<Self::Fp as PrimeField>::BigInt>;
+    type Fp: PrimeField
+        + SquareRootField
+        + ToConstraintField<Self::Fp>
+        + Into<<Self::Fp as PrimeField>::BigInt>;
     type Fp3Params: Fp3Parameters<Fp = Self::Fp>;
     type Fp6Params: Fp6Parameters<Fp3Params = Self::Fp3Params>;
     type G1Parameters: SWModelParameters<BaseField = Self::Fp>;

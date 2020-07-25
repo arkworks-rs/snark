@@ -9,6 +9,7 @@ use crate::{
         fp6_3over2::Fp6Parameters,
         Field, Fp2, PrimeField, SquareRootField,
     },
+    ToConstraintField,
 };
 use num_traits::One;
 
@@ -27,7 +28,10 @@ pub trait BnParameters: 'static {
     const TWIST_TYPE: TwistType;
     const TWIST_MUL_BY_Q_X: Fp2<Self::Fp2Params>;
     const TWIST_MUL_BY_Q_Y: Fp2<Self::Fp2Params>;
-    type Fp: PrimeField + SquareRootField + Into<<Self::Fp as PrimeField>::BigInt>;
+    type Fp: PrimeField
+        + SquareRootField
+        + ToConstraintField<Self::Fp>
+        + Into<<Self::Fp as PrimeField>::BigInt>;
     type Fp2Params: Fp2Parameters<Fp = Self::Fp>;
     type Fp6Params: Fp6Parameters<Fp2Params = Self::Fp2Params>;
     type Fp12Params: Fp12Parameters<Fp6Params = Self::Fp6Params>;

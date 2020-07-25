@@ -1,4 +1,5 @@
 use crate::fields::{Field, PrimeField, SquareRootField};
+use crate::ToConstraintField;
 
 pub mod bls12;
 pub mod bn;
@@ -11,7 +12,10 @@ pub mod twisted_edwards_extended;
 
 pub trait ModelParameters: Send + Sync + 'static {
     type BaseField: Field + SquareRootField;
-    type ScalarField: PrimeField + SquareRootField + Into<<Self::ScalarField as PrimeField>::BigInt>;
+    type ScalarField: PrimeField
+        + SquareRootField
+        + ToConstraintField<Self::ScalarField>
+        + Into<<Self::ScalarField as PrimeField>::BigInt>;
 }
 
 pub trait SWModelParameters: ModelParameters {

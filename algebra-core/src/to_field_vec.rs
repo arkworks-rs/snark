@@ -44,12 +44,13 @@ impl<F: Field> ToConstraintField<F> for bool {
     }
 }
 
-impl<M: TEModelParameters, ConstraintF: Field> ToConstraintField<ConstraintF> for TEAffine<M>
-where
-    M::BaseField: ToConstraintField<ConstraintF>,
+impl<M: TEModelParameters> ToConstraintField<<M::BaseField as Field>::BaseRepresentationField>
+    for TEAffine<M>
 {
     #[inline]
-    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
+    fn to_field_elements(
+        &self,
+    ) -> Result<Vec<<M::BaseField as Field>::BaseRepresentationField>, Error> {
         let mut x_fe = self.x.to_field_elements()?;
         let y_fe = self.y.to_field_elements()?;
         x_fe.extend_from_slice(&y_fe);
@@ -57,22 +58,24 @@ where
     }
 }
 
-impl<M: TEModelParameters, ConstraintF: Field> ToConstraintField<ConstraintF> for TEProjective<M>
-where
-    M::BaseField: ToConstraintField<ConstraintF>,
+impl<M: TEModelParameters> ToConstraintField<<M::BaseField as Field>::BaseRepresentationField>
+    for TEProjective<M>
 {
     #[inline]
-    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
+    fn to_field_elements(
+        &self,
+    ) -> Result<Vec<<M::BaseField as Field>::BaseRepresentationField>, Error> {
         TEAffine::from(*self).to_field_elements()
     }
 }
 
-impl<M: SWModelParameters, ConstraintF: Field> ToConstraintField<ConstraintF> for SWAffine<M>
-where
-    M::BaseField: ToConstraintField<ConstraintF>,
+impl<M: SWModelParameters> ToConstraintField<<M::BaseField as Field>::BaseRepresentationField>
+    for SWAffine<M>
 {
     #[inline]
-    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
+    fn to_field_elements(
+        &self,
+    ) -> Result<Vec<<M::BaseField as Field>::BaseRepresentationField>, Error> {
         let mut x_fe = self.x.to_field_elements()?;
         let y_fe = self.y.to_field_elements()?;
         let infinity_fe = self.infinity.to_field_elements()?;
@@ -82,12 +85,13 @@ where
     }
 }
 
-impl<M: SWModelParameters, ConstraintF: Field> ToConstraintField<ConstraintF> for SWProjective<M>
-where
-    M::BaseField: ToConstraintField<ConstraintF>,
+impl<M: SWModelParameters> ToConstraintField<<M::BaseField as Field>::BaseRepresentationField>
+    for SWProjective<M>
 {
     #[inline]
-    fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
+    fn to_field_elements(
+        &self,
+    ) -> Result<Vec<<M::BaseField as Field>::BaseRepresentationField>, Error> {
         SWAffine::from(*self).to_field_elements()
     }
 }

@@ -8,6 +8,7 @@ use crate::{
         fp6_2over3::{Fp6, Fp6Parameters},
         BitIterator, Field, PrimeField, SquareRootField,
     },
+    ToConstraintField,
 };
 use num_traits::One;
 
@@ -26,7 +27,10 @@ pub trait BW6Parameters: 'static {
     const ATE_LOOP_COUNT_2: &'static [i8];
     const ATE_LOOP_COUNT_2_IS_NEGATIVE: bool;
     const TWIST_TYPE: TwistType;
-    type Fp: PrimeField + SquareRootField + Into<<Self::Fp as PrimeField>::BigInt>;
+    type Fp: PrimeField
+        + SquareRootField
+        + ToConstraintField<Self::Fp>
+        + Into<<Self::Fp as PrimeField>::BigInt>;
     type Fp3Params: Fp3Parameters<Fp = Self::Fp>;
     type Fp6Params: Fp6Parameters<Fp3Params = Self::Fp3Params>;
     type G1Parameters: SWModelParameters<BaseField = Self::Fp>;
