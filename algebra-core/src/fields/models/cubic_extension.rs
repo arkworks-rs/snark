@@ -1,7 +1,7 @@
 use crate::{
     CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
     CanonicalSerializeWithFlags, ConstantSerializedSize, EmptyFlags, Flags, SerializationError,
-    UniformRand,
+    ToConstraintField, UniformRand,
 };
 use core::{
     cmp::{Ord, Ordering, PartialOrd},
@@ -133,7 +133,29 @@ impl<P: CubicExtParameters> One for CubicExtField<P> {
     }
 }
 
+impl<P: CubicExtParameters> ToConstraintField<<Self as Field>::BaseRepresentationField>
+    for CubicExtField<P>
+{
+    fn to_field_elements(
+        &self,
+    ) -> Result<Vec<<Self as Field>::BaseRepresentationField>, Box<dyn crate::Error>> {
+        let mut res = Vec::new();
+        let mut c0_elems = self.c0.to_field_elements()?;
+        let mut c1_elems = self.c1.to_field_elements()?;
+        let mut c2_elems = self.c2.to_field_elements()?;
+
+        res.append(&mut c0_elems);
+        res.append(&mut c1_elems);
+        res.append(&mut c2_elems);
+
+        Ok(res)
+    }
+}
+
 impl<P: CubicExtParameters> Field for CubicExtField<P> {
+    type BaseRepresentationField =
+        <<P as CubicExtParameters>::BaseField as Field>::BaseRepresentationField;
+
     #[inline]
     fn characteristic<'a>() -> &'a [u64] {
         P::BaseField::characteristic()

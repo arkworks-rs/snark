@@ -2,7 +2,8 @@ use crate::{
     bytes::{FromBytes, ToBytes},
     fields::{Field, PrimeField, SquareRootField},
     groups::Group,
-    CanonicalDeserialize, CanonicalSerialize, ConstantSerializedSize, UniformRand, Vec,
+    CanonicalDeserialize, CanonicalSerialize, ConstantSerializedSize, ToConstraintField,
+    UniformRand, Vec,
 };
 use core::{
     fmt::{Debug, Display},
@@ -221,6 +222,7 @@ pub trait AffineCurve:
     + Display
     + Zero
     + Neg<Output = Self>
+    + ToConstraintField<<<Self as AffineCurve>::BaseField as Field>::BaseRepresentationField>
     + From<<Self as AffineCurve>::Projective>
 {
     const COFACTOR: &'static [u64];

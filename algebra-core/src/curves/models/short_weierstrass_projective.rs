@@ -3,7 +3,7 @@ use crate::{
     io::{Read, Result as IoResult, Write},
     serialize::{Flags, SWFlags},
     CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
-    CanonicalSerializeWithFlags, ConstantSerializedSize, UniformRand, Vec,
+    CanonicalSerializeWithFlags, ConstantSerializedSize, ToConstraintField, UniformRand, Vec,
 };
 use core::{
     fmt::{Display, Formatter, Result as FmtResult},
@@ -582,6 +582,27 @@ impl<P: Parameters> From<GroupProjective<P>> for GroupAffine<P> {
             let y = p.y * &z_inv;
             GroupAffine::new(x, y, false)
         }
+    }
+}
+
+impl<P: Parameters> ToConstraintField<<P::BaseField as Field>::BaseRepresentationField>
+    for GroupAffine<P>
+{
+    fn to_field_elements(
+        &self,
+    ) -> Result<Vec<<P::BaseField as Field>::BaseRepresentationField>, Box<dyn crate::Error>> {
+        let mut res = Vec::new();
+
+        let mut x_elems = self.x.to_field_elements()?;
+        let mut y_elems = self.y.to_field_elements()?;
+
+        let mut infinity_elems = self.infinity.to_field_elements()?;
+
+        res.append(&mut x_elems);
+        res.append(&mut y_elems);
+        res.append(&mut infinity_elems);
+
+        Ok(res)
     }
 }
 

@@ -3,7 +3,7 @@ use crate::{
     bytes::{FromBytes, ToBytes},
     fields::utils::k_adicity,
     CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
-    CanonicalSerializeWithFlags, ConstantSerializedSize, UniformRand, Vec,
+    CanonicalSerializeWithFlags, ConstantSerializedSize, ToConstraintField, UniformRand, Vec,
 };
 use core::{
     fmt::{Debug, Display},
@@ -74,6 +74,7 @@ pub trait Field:
     + CanonicalSerializeWithFlags
     + CanonicalDeserialize
     + CanonicalDeserializeWithFlags
+    + ToConstraintField<<Self as Field>::BaseRepresentationField>
     + Add<Self, Output = Self>
     + Sub<Self, Output = Self>
     + Mul<Self, Output = Self>
@@ -95,6 +96,8 @@ pub trait Field:
     + core::iter::Product<Self>
     + for<'a> core::iter::Product<&'a Self>
 {
+    type BaseRepresentationField: Field;
+
     /// Returns the characteristic of the field.
     fn characteristic<'a>() -> &'a [u64];
 

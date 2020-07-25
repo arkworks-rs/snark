@@ -2,7 +2,7 @@ use crate::{
     io::{Read, Result as IoResult, Write},
     CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
     CanonicalSerializeWithFlags, ConstantSerializedSize, EmptyFlags, Flags, SerializationError,
-    UniformRand,
+    ToConstraintField, UniformRand,
 };
 use core::{
     cmp::{Ord, Ordering, PartialOrd},
@@ -152,7 +152,27 @@ impl<P: QuadExtParameters> One for QuadExtField<P> {
     }
 }
 
+impl<P: QuadExtParameters> ToConstraintField<<Self as Field>::BaseRepresentationField>
+    for QuadExtField<P>
+{
+    fn to_field_elements(
+        &self,
+    ) -> Result<Vec<<Self as Field>::BaseRepresentationField>, Box<dyn crate::Error>> {
+        let mut res = Vec::new();
+        let mut c0_elems = self.c0.to_field_elements()?;
+        let mut c1_elems = self.c1.to_field_elements()?;
+
+        res.append(&mut c0_elems);
+        res.append(&mut c1_elems);
+
+        Ok(res)
+    }
+}
+
 impl<P: QuadExtParameters> Field for QuadExtField<P> {
+    type BaseRepresentationField =
+        <<P as QuadExtParameters>::BaseField as Field>::BaseRepresentationField;
+
     #[inline]
     fn characteristic<'a>() -> &'a [u64] {
         P::BaseField::characteristic()

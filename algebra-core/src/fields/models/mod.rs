@@ -17,6 +17,7 @@ use crate::{
     fields::{FftField, Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
     io::{Read, Result as IoResult, Write},
     serialize::CanonicalDeserialize,
+    to_field_vec::ToConstraintField,
 };
 
 #[cfg(use_asm)]

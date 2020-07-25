@@ -64,7 +64,15 @@ macro_rules! impl_Fp {
             }
         }
 
+        impl<P: $FpParameters> ToConstraintField<<Self as Field>::BaseRepresentationField> for $Fp<P> {
+            fn to_field_elements(&self) -> Result<Vec<<Self as Field>::BaseRepresentationField>, Box<dyn crate::Error>> {
+               Ok(vec![self.clone()])
+            }
+        }
+
         impl<P: $FpParameters> Field for $Fp<P> {
+            type BaseRepresentationField = Self;
+
             #[inline]
             fn double(&self) -> Self {
                 let mut temp = *self;

@@ -5,7 +5,7 @@ use crate::{
         short_weierstrass_jacobian::{GroupAffine as SWAffine, GroupProjective as SWProjective},
         twisted_edwards_extended::{GroupAffine as TEAffine, GroupProjective as TEProjective},
     },
-    Box, Field, Fp2, Fp2Parameters, FpParameters, PrimeField, Vec,
+    Box, Field, FpParameters, PrimeField, Vec,
 };
 
 type Error = Box<dyn crate::Error>;
@@ -15,12 +15,6 @@ type Error = Box<dyn crate::Error>;
 /// inside that constraint system.
 pub trait ToConstraintField<F: Field> {
     fn to_field_elements(&self) -> Result<Vec<F>, Error>;
-}
-
-impl<F: PrimeField> ToConstraintField<F> for F {
-    fn to_field_elements(&self) -> Result<Vec<F>, Error> {
-        Ok(vec![*self])
-    }
 }
 
 // Impl for base field
@@ -38,14 +32,15 @@ impl<ConstraintF: Field> ToConstraintField<ConstraintF> for () {
     }
 }
 
-// Impl for Fp2<ConstraintF>
-impl<P: Fp2Parameters> ToConstraintField<P::Fp> for Fp2<P> {
+// Impl for boolean
+impl<F: Field> ToConstraintField<F> for bool {
     #[inline]
-    fn to_field_elements(&self) -> Result<Vec<P::Fp>, Error> {
-        let mut c0 = self.c0.to_field_elements()?;
-        let c1 = self.c1.to_field_elements()?;
-        c0.extend_from_slice(&c1);
-        Ok(c0)
+    fn to_field_elements(&self) -> Result<Vec<F>, Error> {
+        if *self {
+            Ok(vec![F::one()])
+        } else {
+            Ok(vec![F::zero()])
+        }
     }
 }
 
@@ -80,7 +75,9 @@ where
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
         let mut x_fe = self.x.to_field_elements()?;
         let y_fe = self.y.to_field_elements()?;
+        let infinity_fe = self.infinity.to_field_elements()?;
         x_fe.extend_from_slice(&y_fe);
+        x_fe.extend_from_slice(&infinity_fe);
         Ok(x_fe)
     }
 }
