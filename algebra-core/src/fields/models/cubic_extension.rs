@@ -1,7 +1,7 @@
 use crate::{
-    CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
+    Box, CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
     CanonicalSerializeWithFlags, ConstantSerializedSize, EmptyFlags, Flags, SerializationError,
-    ToConstraintField, UniformRand,
+    ToConstraintField, UniformRand, Vec,
 };
 use core::{
     cmp::{Ord, Ordering, PartialOrd},

@@ -2,7 +2,7 @@ use crate::{
     curves::models::SWModelParameters as Parameters,
     io::{Read, Result as IoResult, Write},
     serialize::{Flags, SWFlags},
-    CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
+    Box, CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
     CanonicalSerializeWithFlags, ConstantSerializedSize, ToConstraintField, UniformRand, Vec,
 };
 use core::{
