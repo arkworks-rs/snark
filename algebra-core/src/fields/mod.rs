@@ -83,6 +83,11 @@ pub trait Field:
     + SubAssign<Self>
     + MulAssign<Self>
     + DivAssign<Self>
+    + From<u128>
+    + From<u64>
+    + From<u32>
+    + From<u16>
+    + From<u8>
     + for<'a> Add<&'a Self, Output = Self>
     + for<'a> Sub<&'a Self, Output = Self>
     + for<'a> Mul<&'a Self, Output = Self>
@@ -233,7 +238,7 @@ pub trait FpParameters: FftParameters {
 }
 
 /// The interface for fields that are able to be used in FFTs.
-pub trait FftField: Field + From<u128> + From<u64> + From<u32> + From<u16> + From<u8> {
+pub trait FftField: Field {
     type FftParams: FftParameters;
 
     /// Returns the 2^s root of unity.
