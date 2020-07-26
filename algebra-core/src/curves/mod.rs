@@ -45,6 +45,7 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send {
     /// The affine representation of an element in G2.
     type G2Affine: AffineCurve<BaseField = Self::Fqe, ScalarField = Self::Fr, Projective = Self::G2Projective>
         + ToConstraintField<<Self::Fqe as Field>::BaseRepresentationField>
+        + ToConstraintField<<Self::Fq as Field>::BaseRepresentationField>
         + From<Self::G2Projective>
         + Into<Self::G2Projective>
         + Into<Self::G2Prepared>;
