@@ -18,6 +18,7 @@ use crate::{
     io::{Read, Result as IoResult, Write},
     serialize::CanonicalDeserialize,
     to_field_vec::ToConstraintField,
+    Box, Vec,
 };
 
 #[cfg(use_asm)]
