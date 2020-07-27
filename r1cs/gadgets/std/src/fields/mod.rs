@@ -681,7 +681,7 @@ mod test {
     /*
     Test for the inverse gadget, should fail on old, insecure gadget
     which does not implement sufficiently many restristrictions to enforce the inverse relation.
-    See https://github.com/ZencashOfficial/ginger-lib/issues/45 for details.
+    See https://github.com/HorizenOfficial/ginger-lib/issues/45 for details.
     */
     use algebra::fields::{
         SquareRootField, Fp2Parameters
