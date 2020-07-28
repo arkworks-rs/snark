@@ -21,7 +21,7 @@ use crate::{
     fields::{Field, LegendreSymbol, PrimeField, SquareRootField},
 };
 
-pub trait QuadExtParameters: 'static + Send + Sync {
+pub trait QuadExtParameters: 'static + Send + Sync + Sized {
     /// The prime field that this quadratic extension is eventually an extension of.
     type BasePrimeField: PrimeField;
     /// The base field that this field is a quadratic extension of.
@@ -50,6 +50,33 @@ pub trait QuadExtParameters: 'static + Send + Sync {
     /// A specializable method for multiplying an element of the base field by
     /// the appropriate Frobenius coefficient.
     fn mul_base_field_by_frob_coeff(fe: &mut Self::BaseField, power: usize);
+
+    /// A specializable method for exponentiating that is to be used
+    /// *only* when `fe` is known to be in the cyclotommic subgroup.
+    fn cyclotomic_exp(fe: &QuadExtField<Self>, exponent: impl AsRef<[u64]>) -> QuadExtField<Self> {
+        let mut res = QuadExtField::one();
+        let self_inverse = fe.unitary_inverse();
+
+        let mut found_nonzero = false;
+        let naf = crate::biginteger::arithmetic::find_wnaf(exponent.as_ref());
+
+        for &value in naf.iter().rev() {
+            if found_nonzero {
+                res = res.square();
+            }
+
+            if value != 0 {
+                found_nonzero = true;
+
+                if value > 0 {
+                    res *= fe;
+                } else {
+                    res *= &self_inverse;
+                }
+            }
+        }
+        res
+    }
 }
 
 #[derive(Derivative)]
@@ -91,30 +118,7 @@ impl<P: QuadExtParameters> QuadExtField<P> {
 
     /// This is only to be used when the element is *known* to be in the cyclotomic subgroup.
     pub fn cyclotomic_exp(&self, exponent: impl AsRef<[u64]>) -> Self {
-        let mut res = Self::one();
-        let self_inverse = self.unitary_inverse();
-
-        let mut found_nonzero = false;
-        let naf = crate::biginteger::arithmetic::find_wnaf(exponent.as_ref());
-
-        for &value in naf.iter().rev() {
-            if found_nonzero {
-                // TODO: cyclotomic square
-                res = res.square();
-            }
-
-            if value != 0 {
-                found_nonzero = true;
-
-                if value > 0 {
-                    res *= self;
-                } else {
-                    res *= &self_inverse;
-                }
-            }
-        }
-
-        res
+        P::cyclotomic_exp(self, exponent)
     }
 
     /// Norm of QuadExtField over P::BaseField: Norm(a) = a.x^2 - P::NON_RESIDUE * a.y^2

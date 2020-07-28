@@ -1,10 +1,12 @@
 use super::quadratic_extension::*;
 use crate::{
     fields::{fp6_3over2::*, Field, Fp2, Fp2Parameters},
-    Zero,
+    One, Zero,
 };
 use core::marker::PhantomData;
 use core::ops::{AddAssign, SubAssign};
+
+type Fp2Params<P> = <<P as Fp12Parameters>::Fp6Params as Fp6Parameters>::Fp2Params;
 
 pub trait Fp12Parameters: 'static + Send + Sync + Copy {
     type Fp6Params: Fp6Parameters;
@@ -27,8 +29,6 @@ pub trait Fp12Parameters: 'static + Send + Sync + Copy {
     }
 }
 
-type Fp2Params<P> = <<P as Fp12Parameters>::Fp6Params as Fp6Parameters>::Fp2Params;
-
 pub struct Fp12ParamsWrapper<P: Fp12Parameters>(PhantomData<P>);
 
 impl<P: Fp12Parameters> QuadExtParameters for Fp12ParamsWrapper<P> {
@@ -49,6 +49,31 @@ impl<P: Fp12Parameters> QuadExtParameters for Fp12ParamsWrapper<P> {
 
     fn mul_base_field_by_frob_coeff(fe: &mut Self::BaseField, power: usize) {
         fe.mul_assign_by_fp2(Self::FROBENIUS_COEFF_C1[power % Self::DEGREE_OVER_BASE_PRIME_FIELD]);
+    }
+
+    fn cyclotomic_exp(fe: &Fp12<P>, exponent: impl AsRef<[u64]>) -> Fp12<P> {
+        let mut res = QuadExtField::one();
+        let self_inverse = fe.unitary_inverse();
+
+        let mut found_nonzero = false;
+        let naf = crate::biginteger::arithmetic::find_wnaf(exponent.as_ref());
+
+        for &value in naf.iter().rev() {
+            if found_nonzero {
+                res = res.cyclotomic_square();
+            }
+
+            if value != 0 {
+                found_nonzero = true;
+
+                if value > 0 {
+                    res *= fe;
+                } else {
+                    res *= &self_inverse;
+                }
+            }
+        }
+        res
     }
 }
 
@@ -106,68 +131,89 @@ impl<P: Fp12Parameters> Fp12<P> {
     }
 
     pub fn cyclotomic_square(&self) -> Self {
-        let mut result = Self::zero();
-        let fp2_nr = <P::Fp6Params as Fp6Parameters>::mul_fp2_by_nonresidue;
+        // Faster Squaring in the Cyclotomic Subgroup of Sixth Degree Extensions
+        // - Robert Granger and Michael Scott
+        //
+        if characteristic_square_mod_6_is_one(Self::characteristic()) {
+            let mut result = Self::zero();
+            let fp2_nr = <P::Fp6Params as Fp6Parameters>::mul_fp2_by_nonresidue;
 
-        let mut z0 = self.c0.c0;
-        let mut z4 = self.c0.c1;
-        let mut z3 = self.c0.c2;
-        let mut z2 = self.c1.c0;
-        let mut z1 = self.c1.c1;
-        let mut z5 = self.c1.c2;
+            let mut z0 = self.c0.c0;
+            let mut z4 = self.c0.c1;
+            let mut z3 = self.c0.c2;
+            let mut z2 = self.c1.c0;
+            let mut z1 = self.c1.c1;
+            let mut z5 = self.c1.c2;
 
-        // t0 + t1*y = (z0 + z1*y)^2 = a^2
-        let mut tmp = z0 * &z1;
-        let t0 = (z0 + &z1) * &(z0 + &fp2_nr(&z1)) - &tmp - &fp2_nr(&tmp);
-        let t1 = tmp.double();
+            // t0 + t1*y = (z0 + z1*y)^2 = a^2
+            let mut tmp = z0 * &z1;
+            let t0 = (z0 + &z1) * &(z0 + &fp2_nr(&z1)) - &tmp - &fp2_nr(&tmp);
+            let t1 = tmp.double();
 
-        // t2 + t3*y = (z2 + z3*y)^2 = b^2
-        tmp = z2 * &z3;
-        let t2 = (z2 + &z3) * &(z2 + &fp2_nr(&z3)) - &tmp - &fp2_nr(&tmp);
-        let t3 = tmp.double();
+            // t2 + t3*y = (z2 + z3*y)^2 = b^2
+            tmp = z2 * &z3;
+            let t2 = (z2 + &z3) * &(z2 + &fp2_nr(&z3)) - &tmp - &fp2_nr(&tmp);
+            let t3 = tmp.double();
 
-        // t4 + t5*y = (z4 + z5*y)^2 = c^2
-        tmp = z4 * &z5;
-        let t4 = (z4 + &z5) * &(z4 + &fp2_nr(&z5)) - &tmp - &fp2_nr(&tmp);
-        let t5 = tmp.double();
+            // t4 + t5*y = (z4 + z5*y)^2 = c^2
+            tmp = z4 * &z5;
+            let t4 = (z4 + &z5) * &(z4 + &fp2_nr(&z5)) - &tmp - &fp2_nr(&tmp);
+            let t5 = tmp.double();
 
-        // for A
+            // for A
 
-        // z0 = 3 * t0 - 2 * z0
-        z0 = t0 - &z0;
-        z0 = z0 + &z0;
-        result.c0.c0 = z0 + &t0;
+            // z0 = 3 * t0 - 2 * z0
+            z0 = t0 - &z0;
+            z0 = z0 + &z0;
+            result.c0.c0 = z0 + &t0;
 
-        // z1 = 3 * t1 + 2 * z1
-        z1 = t1 + &z1;
-        z1 = z1 + &z1;
-        result.c1.c1 = z1 + &t1;
+            // z1 = 3 * t1 + 2 * z1
+            z1 = t1 + &z1;
+            z1 = z1 + &z1;
+            result.c1.c1 = z1 + &t1;
 
-        // for B
+            // for B
 
-        // z2 = 3 * (xi * t5) + 2 * z2
-        tmp = fp2_nr(&t5);
-        z2 = tmp + &z2;
-        z2 = z2 + &z2;
-        result.c1.c0 = z2 + &tmp;
+            // z2 = 3 * (xi * t5) + 2 * z2
+            tmp = fp2_nr(&t5);
+            z2 = tmp + &z2;
+            z2 = z2 + &z2;
+            result.c1.c0 = z2 + &tmp;
 
-        // z3 = 3 * t4 - 2 * z3
-        z3 = t4 - &z3;
-        z3 = z3 + &z3;
-        result.c0.c2 = z3 + &t4;
+            // z3 = 3 * t4 - 2 * z3
+            z3 = t4 - &z3;
+            z3 = z3 + &z3;
+            result.c0.c2 = z3 + &t4;
 
-        // for C
+            // for C
 
-        // z4 = 3 * t2 - 2 * z4
-        z4 = t2 - &z4;
-        z4 = z4 + &z4;
-        result.c0.c1 = z4 + &t2;
+            // z4 = 3 * t2 - 2 * z4
+            z4 = t2 - &z4;
+            z4 = z4 + &z4;
+            result.c0.c1 = z4 + &t2;
 
-        // z5 = 3 * t3 + 2 * z5
-        z5 = t3 + &z5;
-        z5 = z5 + &z5;
-        result.c1.c2 = z5 + &t3;
+            // z5 = 3 * t3 + 2 * z5
+            z5 = t3 + &z5;
+            z5 = z5 + &z5;
+            result.c1.c2 = z5 + &t3;
 
-        result
+            result
+        } else {
+            self.square()
+        }
     }
+}
+
+// TODO: make `const fn` in 1.46.
+pub fn characteristic_square_mod_6_is_one(characteristic: &[u64]) -> bool {
+    let mut characteristic_mod_3 = 0i64;
+    for limb in characteristic {
+        for i in 0..64i64 {
+            let bit = ((limb >> i) & 1) as i64;
+            let b = if i % 2 == 0 { bit } else { -bit };
+            characteristic_mod_3 = (characteristic_mod_3 + b) % 3;
+        }
+    }
+    let characteristic_mod_2 = characteristic[0] % 2;
+    (characteristic_mod_3 != 0) && (characteristic_mod_2 == 1)
 }
