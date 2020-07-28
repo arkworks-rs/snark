@@ -54,19 +54,3 @@ pub trait UpdatableFieldBasedHash {
     // give the same result. It's also possible to `update` with more inputs in between.
     fn finalize(&self) -> Self::Data;
 }
-
-pub trait UpdatableBatchFieldBasedHash {
-    type Data: Field;
-    type Parameters: FieldBasedHashParameters<Fr = Self::Data>;
-
-    // Updates the batches hash outputs with `input` batch
-    fn update(&mut self, input: &[Self::Data]) -> &mut Self;
-
-    // Returns the hash output for each batch. This method is idempotent, and calling it multiple
-    // times will give the same result. It's also possible to `update` with more input batches
-    // in between.
-    fn finalize(&self) -> Vec<Self::Data>;
-
-    // Will free memory from the batches hash outputs computed until now.
-    fn clear(&mut self);
-}

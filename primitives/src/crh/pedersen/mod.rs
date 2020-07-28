@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::{Error, bytes_to_bits};
 use rand::Rng;
 use rayon::prelude::*;
 use std::{
@@ -114,17 +114,6 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for PedersenCRH<G, W> {
 
         Ok(result)
     }
-}
-
-pub fn bytes_to_bits(bytes: &[u8]) -> Vec<bool> {
-    let mut bits = Vec::with_capacity(bytes.len() * 8);
-    for byte in bytes {
-        for i in 0..8 {
-            let bit = (*byte >> i) & 1;
-            bits.push(bit == 1)
-        }
-    }
-    bits
 }
 
 impl<G: Group> Debug for PedersenParameters<G> {

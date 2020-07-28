@@ -1,4 +1,7 @@
-use crate::fields::{Field, LegendreSymbol, PrimeField, SquareRootField};
+use crate::{
+    fields::{Field, LegendreSymbol, PrimeField, SquareRootField},
+    ToBytes, to_bytes,
+};
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 
@@ -153,23 +156,48 @@ fn random_expansion_tests<F: Field, R: Rng>(rng: &mut R) {
 fn random_serialization_tests<F: Field, R: Rng>(rng: &mut R) {
     for _ in 0..ITERATIONS {
         let a = F::rand(rng);
-        let a_serialized = a.write_bits();
 
-        // Attempt to deserialize a bit vec representing an element over the field modulus
-        let serialized = vec![true; a_serialized.len()];
-        assert!(F::read_bits(serialized).is_err());
+        //Bit serialization test
+        {
+            let a_serialized = a.write_bits();
 
-        // Attempt to deserialize a bit vec whose length is greater than the field modulus bits
-        let mut serialized = vec![true];
-        serialized.extend_from_slice(a_serialized.clone().as_slice());
-        assert!(F::read_bits(serialized).is_err());
+            // Attempt to deserialize a bit vec representing an element over the field modulus
+            let serialized = vec![true; a_serialized.len()];
+            assert!(F::read_bits(serialized).is_err());
 
-        // If leading bits up to modulus bits are zero, the deserialization function will ignore
-        // them and correctly reconstruct a valid field element
-        let mut serialized = vec![false; 10];
-        serialized.extend_from_slice(a_serialized.as_slice());
-        let deserialized = F::read_bits(serialized).unwrap();
-        assert_eq!(a, deserialized);
+            // Attempt to deserialize a bit vec whose length is greater than the field modulus bits
+            let mut serialized = vec![true];
+            serialized.extend_from_slice(a_serialized.clone().as_slice());
+            assert!(F::read_bits(serialized).is_err());
+
+            // If leading bits up to modulus bits are zero, the deserialization function will ignore
+            // them and correctly reconstruct a valid field element
+            let mut serialized = vec![false; 10];
+            serialized.extend_from_slice(a_serialized.as_slice());
+            let deserialized = F::read_bits(serialized).unwrap();
+            assert_eq!(a, deserialized);
+        }
+
+        //Byte serialization test
+        {
+            let a_serialized = to_bytes!(a).unwrap();
+
+            //Attempt to serialize in a buffer whose size is smaller than the expected one
+            let mut serialized = vec![0u8; a_serialized.len() - 1];
+            assert!(a.write(&mut serialized[..]).is_err());
+
+            //Attempt to deserialize a byte vec representing an element over the field modulus
+            let serialized = vec![std::u8::MAX; a_serialized.len()];
+            assert!(F::read(serialized.as_slice()).is_err());
+
+            //Attempt to deserialize a byte vec with size smaller than the expected one
+            let serialized = vec![0u8; a_serialized.len() - 1];
+            assert!(F::read(serialized.as_slice()).is_err());
+
+            //Positive test
+            let a_deserialized = F::read(a_serialized.as_slice()).unwrap();
+            assert_eq!(a, a_deserialized)
+        }
     }
 }
 

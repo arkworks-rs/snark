@@ -435,8 +435,9 @@ impl<F: PrimeField + MulShort, P: std::clone::Clone + PoseidonParameters<Fr=F>> 
 mod test_mem {
     use rand_xorshift::XorShiftRng;
     use super::rand::SeedableRng;
-    use crate::crh::poseidon::parameters::MNT4753PoseidonParameters;
-    use crate::crh::poseidon::parameters::MNT6753PoseidonParameters;
+    use crate::crh::poseidon::parameters::{
+        MNT4753PoseidonParameters, MNT6753PoseidonParameters,
+    };
     use algebra::fields::mnt4753::Fr as MNT4753Fr;
     use algebra::fields::mnt6753::Fr as MNT6753Fr;
     use algebra::UniformRand;

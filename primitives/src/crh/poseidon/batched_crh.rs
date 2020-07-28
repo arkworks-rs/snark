@@ -1,15 +1,9 @@
 extern crate rand;
 extern crate rayon;
 
-use algebra::fields::mnt6753::Fr as MNT6753Fr;
-use algebra::fields::mnt4753::Fr as MNT4753Fr;
 use algebra::{PrimeField, MulShort};
 
 use std::marker::PhantomData;
-
-use crate::crh::poseidon::{
-    parameters::{MNT4753PoseidonParameters, MNT6753PoseidonParameters}
-};
 
 use crate::crh::BatchFieldBasedHash;
 use crate::{Error, PoseidonParameters, matrix_mix_short};
@@ -313,6 +307,11 @@ mod test {
     use super::rand::SeedableRng;
     use algebra::UniformRand;
     use crate::crh::poseidon::batched_crh::PoseidonBatchHash;
+    use algebra::fields::mnt6753::Fr as MNT6753Fr;
+    use algebra::fields::mnt4753::Fr as MNT4753Fr;
+    use crate::crh::poseidon::{
+        parameters::{MNT4753PoseidonParameters, MNT6753PoseidonParameters}
+    };
 
     #[test]
     fn test_batch_hash_mnt4() {

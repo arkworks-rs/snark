@@ -6,7 +6,7 @@ use crate::{
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
     fmt::{Display, Formatter, Result as FmtResult},
-    io::{Read, Result as IoResult, Write},
+    io::{Read, Result as IoResult, Write, Error as IoError, ErrorKind},
     marker::PhantomData,
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
     str::FromStr,
@@ -763,7 +763,21 @@ impl<P: Fp832Parameters> ToBytes for Fp832<P> {
 impl<P: Fp832Parameters> FromBytes for Fp832<P> {
     #[inline]
     fn read<R: Read>(reader: R) -> IoResult<Self> {
-        BigInteger::read(reader).map(Fp832::from_repr)
+        BigInteger::read(reader).and_then( |b|
+            if b.is_zero() {
+                Ok(Fp832::zero())
+            } else {
+                let f = Fp832::from_repr(b);
+                if f == Fp832::zero() {
+                    Err(IoError::new(
+                        ErrorKind::InvalidData,
+                        "Attempt to deserialize a field element over the modulus")
+                    )
+                } else {
+                    Ok(f)
+                }
+            }
+        )
     }
 }
 

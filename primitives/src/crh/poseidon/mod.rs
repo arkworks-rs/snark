@@ -19,6 +19,7 @@ use crate::Error;
 pub mod parameters;
 pub mod updatable;
 pub mod batched_crh;
+pub mod updatable;
 
 pub struct PoseidonHash<F: PrimeField, P: PoseidonParameters<Fr = F>>{
     _field:      PhantomData<F>,

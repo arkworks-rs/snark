@@ -8,16 +8,18 @@ use algebra::fields::mnt6753::Fr as MNT6753Fr;
 use algebra::UniformRand;
 use rand_xorshift::XorShiftRng;
 use rand::SeedableRng;
-use primitives::crh::poseidon::parameters::{MNT4753PoseidonParameters, MNT6753PoseidonParameters};
+use primitives::crh::poseidon::{
+    PoseidonParameters, parameters::{MNT4753PoseidonParameters, MNT6753PoseidonParameters}
+};
 use primitives::crh::poseidon::batched_crh::PoseidonBatchHash;
 
 fn poseidon_crh_eval_mnt4(c: &mut Criterion) {
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-    let input = vec![MNT4753Fr::rand(&mut rng); 100];
     c.bench_function("Poseidon CRH Eval for MNT4", move |b| {
         b.iter(|| {
+            let input = vec![MNT4753Fr::rand(&mut rng); 100];
             MNT4PoseidonHash::evaluate(input.as_slice()).unwrap();
         })
     });
@@ -27,10 +29,9 @@ fn poseidon_crh_eval_mnt6(c: &mut Criterion) {
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-    let input = vec![MNT6753Fr::rand(&mut rng); 100];
-
     c.bench_function("Poseidon CRH Eval for MNT6", move |b| {
         b.iter(|| {
+            let input = vec![MNT6753Fr::rand(&mut rng); 100];
             MNT6PoseidonHash::evaluate(input.as_slice()).unwrap();
         })
     });
@@ -39,23 +40,13 @@ fn poseidon_crh_eval_mnt6(c: &mut Criterion) {
 fn batch_poseidon_crh_eval_mnt4(c: &mut Criterion) {
 
     type Mnt4BatchPoseidonHash = PoseidonBatchHash<MNT4753Fr, MNT4753PoseidonParameters>;
-    //  the number of rounds to test
-    let num_hashes = 1000;
-
-    // the vectors that store random input data
-    let mut input = Vec::new();
 
     // the random number generator to generate random input data
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-    // we need the double of number of rounds because we have two inputs
-    for _ in 0..num_hashes {
-        input.push(MNT4753Fr::rand(&mut rng));
-        input.push(MNT4753Fr::rand(&mut rng));
-    }
-
     c.bench_function("Batch Poseidon CRH Eval for MNT4 (1000 hashes)", move |b| {
         b.iter(|| {
+            let input = vec![MNT4753Fr::rand(&mut rng); MNT4753PoseidonParameters::R * 1000];
             Mnt4BatchPoseidonHash::batch_evaluate(&input).unwrap();
         })
     });
@@ -64,23 +55,13 @@ fn batch_poseidon_crh_eval_mnt4(c: &mut Criterion) {
 fn batch_poseidon_crh_eval_mnt6(c: &mut Criterion) {
 
     type Mnt6BatchPoseidonHash = PoseidonBatchHash<MNT6753Fr, MNT6753PoseidonParameters>;
-    //  the number of rounds to test
-    let num_hashes = 1000;
-
-    // the vectors that store random input data
-    let mut input = Vec::new();
 
     // the random number generator to generate random input data
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-    // we need the double of number of rounds because we have two inputs
-    for _ in 0..num_hashes {
-        input.push(MNT6753Fr::rand(&mut rng));
-        input.push(MNT6753Fr::rand(&mut rng));
-    }
-
     c.bench_function("Batch Poseidon CRH Eval for MNT6 (1000 hashes)", move |b| {
         b.iter(|| {
+            let input = vec![MNT6753Fr::rand(&mut rng); MNT6753PoseidonParameters::R * 1000];
             Mnt6BatchPoseidonHash::batch_evaluate(&input).unwrap();
         })
     });

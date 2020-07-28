@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::{Error, bytes_to_bits};
 use rand::Rng;
 use rayon::prelude::*;
 use std::{
@@ -6,7 +6,7 @@ use std::{
     marker::PhantomData,
 };
 
-use super::pedersen::{bytes_to_bits, PedersenCRH, PedersenWindow};
+use super::pedersen::{PedersenCRH, PedersenWindow};
 use crate::crh::FixedLengthCRH;
 use algebra::{biginteger::BigInteger, fields::PrimeField, groups::Group};
 

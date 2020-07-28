@@ -2,9 +2,6 @@ use super::*;
 use std::marker::PhantomData;
 use crate::UpdatableFieldBasedHash;
 
-pub mod batched;
-pub use batched::*;
-
 pub struct UpdatablePoseidonHash<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>>{
     state: Vec<F>,
     pending: Vec<F>,
@@ -16,7 +13,8 @@ impl<F, P> UpdatablePoseidonHash<F, P>
         F: PrimeField + MulShort ,
         P: PoseidonParameters<Fr = F>,
 {
-    pub fn new(personalization: Option<Vec<F>>) -> Self {
+
+    pub fn new(personalization: Option<&[F]>) -> Self {
         let mut state = Vec::with_capacity(P::T);
         for i in 0..P::T {
             state.push(P::AFTER_ZERO_PERM[i]);
@@ -39,6 +37,7 @@ impl<F, P> UpdatablePoseidonHash<F, P>
             }
 
             let padding = personalization.len() % P::R;
+
             for _ in 0..padding {
                 instance.update(&F::zero());
             }
@@ -47,6 +46,7 @@ impl<F, P> UpdatablePoseidonHash<F, P>
         instance
     }
 
+    #[inline]
     fn apply_permutation(&mut self) {
         for (input, state) in self.pending.iter().zip(self.state.iter_mut()) {
             *state += input;
@@ -55,6 +55,7 @@ impl<F, P> UpdatablePoseidonHash<F, P>
         PoseidonHash::<F, P>::poseidon_perm(&mut self.state);
     }
 
+    #[inline]
     fn _finalize(&self) -> F {
         let mut state = self.state.clone();
         for (input, s) in self.pending.iter().zip(state.iter_mut()) {
@@ -76,7 +77,7 @@ impl<F, P> UpdatableFieldBasedHash for UpdatablePoseidonHash<F, P>
     type Parameters = P;
 
     fn update(&mut self, input: &Self::Data) -> &mut Self {
-        self.pending.push(input.clone());
+        self.pending.push(*input);
         if self.pending.len() == P::R {
             self.apply_permutation();
             self.pending.clear();
@@ -114,8 +115,9 @@ mod test {
             let hash_output = MNT4PoseidonHash::evaluate(input.as_slice()).unwrap();
             let updatable_hash_output = {
                 let mut updatable_hash = UpdatableMNT4PoseidonHash::new(None);
-                for input in input.iter() {
-                    updatable_hash.update(input);
+
+                for input in input.into_iter() {
+                    updatable_hash.update(&input);
                 }
                 updatable_hash.finalize()
             };
@@ -149,7 +151,8 @@ mod test {
             let hash_output = MNT4PoseidonHash::evaluate(hash_input.as_slice()).unwrap();
 
             let updatable_hash_output = {
-                let mut updatable_hash = UpdatableMNT4PoseidonHash::new(Some(personalization));
+
+                let mut updatable_hash = UpdatableMNT4PoseidonHash::new(Some(personalization.as_slice()));
                 updatable_hash.update(&input);
                 updatable_hash.finalize()
             };
@@ -170,8 +173,9 @@ mod test {
             let hash_output = MNT6PoseidonHash::evaluate(input.as_slice()).unwrap();
             let updatable_hash_output = {
                 let mut updatable_hash = UpdatableMNT6PoseidonHash::new(None);
-                for input in input.iter() {
-                    updatable_hash.update(input);
+
+                for input in input.into_iter() {
+                    updatable_hash.update(&input);
                 }
                 updatable_hash.finalize()
             };
@@ -205,7 +209,8 @@ mod test {
             let hash_output = MNT6PoseidonHash::evaluate(hash_input.as_slice()).unwrap();
 
             let updatable_hash_output = {
-                let mut updatable_hash = UpdatableMNT6PoseidonHash::new(Some(personalization));
+
+                let mut updatable_hash = UpdatableMNT6PoseidonHash::new(Some(personalization.as_slice()));
                 updatable_hash.update(&input);
                 updatable_hash.finalize()
             };
