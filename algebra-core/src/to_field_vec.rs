@@ -18,13 +18,6 @@ pub trait ToConstraintField<F: Field> {
 }
 
 // Impl for base field
-impl<F: Field> ToConstraintField<F> for [F] {
-    #[inline]
-    fn to_field_elements(&self) -> Result<Vec<F>, Error> {
-        Ok(self.to_vec())
-    }
-}
-
 impl<ConstraintF: Field> ToConstraintField<ConstraintF> for () {
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
@@ -146,29 +139,5 @@ impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for Vec<u8> {
             .map_err(crate::SerializationError::from)
             .map_err(|e| Box::new(e))?;
         Ok(fes)
-    }
-}
-
-impl<ConstraintField: PrimeField, T: ToConstraintField<ConstraintField>>
-    ToConstraintField<ConstraintField> for &[T]
-{
-    fn to_field_elements(&self) -> Result<Vec<ConstraintField>, Error> {
-        let mut res = Vec::new();
-        for elem in self.iter() {
-            res.append(&mut elem.to_field_elements()?);
-        }
-        Ok(res)
-    }
-}
-
-impl<ConstraintField: PrimeField, T: ToConstraintField<ConstraintField>>
-    ToConstraintField<ConstraintField> for &Vec<T>
-{
-    fn to_field_elements(&self) -> Result<Vec<ConstraintField>, Error> {
-        let mut res = Vec::new();
-        for elem in self.iter() {
-            res.append(&mut elem.to_field_elements()?);
-        }
-        Ok(res)
     }
 }
