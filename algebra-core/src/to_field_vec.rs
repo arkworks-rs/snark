@@ -148,3 +148,15 @@ impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for Vec<u8> {
         Ok(fes)
     }
 }
+
+impl<ConstraintField: PrimeField, T: ToConstraintField<ConstraintField>>
+    ToConstraintField<ConstraintField> for &[T]
+{
+    fn to_field_elements(&self) -> Result<Vec<ConstraintField>, Error> {
+        let mut res = Vec::new();
+        for elem in self.iter() {
+            res.append(&mut elem.to_field_elements()?);
+        }
+        Ok(res)
+    }
+}
