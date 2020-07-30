@@ -18,6 +18,13 @@ pub trait ToConstraintField<F: Field> {
 }
 
 // Impl for base field
+impl<F: Field> ToConstraintField<F> for [F] {
+    #[inline]
+    fn to_field_elements(&self) -> Result<Vec<F>, Error> {
+        Ok(self.to_vec())
+    }
+}
+
 impl<ConstraintF: Field> ToConstraintField<ConstraintF> for () {
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
