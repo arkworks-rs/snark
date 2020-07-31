@@ -1,4 +1,5 @@
 use crate::{
+    biginteger::BigInteger,
     bytes::{FromBytes, ToBytes},
     fields::{Field, PrimeField, SquareRootField},
     groups::Group,
@@ -307,4 +308,38 @@ where
         Fr = <Self::E1 as PairingEngine>::Fq,
         Fq = <Self::E1 as PairingEngine>::Fr,
     >;
+}
+
+pub trait BatchArithmetic<S = Self>: Sized {
+    // Computes [-p, p, -3p, 3p, ..., -2^wp, 2^wp]
+    fn batch_wnaf_tables(w: usize, a: Vec<S>) -> Vec<Vec<Self>>;
+
+    // This function consumes the scalars
+    // We can make this more generic in the future to use other than u16.
+    fn batch_wnaf_opcode_recoding<BigInt: BigInteger + AsRef<[u64]>>(
+        scalars: Vec<BigInt>,
+        w: usize
+    ) -> Vec<Vec<Option<u16>>>;
+
+    // This function consumes the second op as it mutates it in place
+    // to prevent memory allocation
+    fn batch_double_in_place_with_edge_cases<I>(op_iter: I) -> ();
+
+    // fn batch_double_in_place<I>(op_iter: I) -> ();
+
+    fn batch_add_in_place_with_edge_cases<I>(op_iter: I);
+
+    // fn batch_add_in_place<I>(op_iter: I) -> ();
+
+    fn batch_scalar_mul_in_place<BigInt: BigInteger>(
+        w: usize,
+        points: Vec<Self>,
+        scalars: Vec<BigInt>,
+    );
+
+    fn batch_scalar_mul_in_place_glv<BigInt: BigInteger>(
+        w: usize,
+        points: Vec<Self>,
+        scalars: Vec<BigInt>,
+    );
 }
