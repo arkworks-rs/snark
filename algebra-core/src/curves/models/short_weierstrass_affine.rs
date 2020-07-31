@@ -161,7 +161,6 @@ macro_rules! specialise_affine_to_proj {
             }
         }
 
-
         impl<'a, P: Parameters> AddAssign<&'a Self> for GroupAffine<P> {
             fn add_assign(&mut self, other: &'a Self) {
                 let mut s_proj = <Self as AffineCurve>::Projective::from(*self);
@@ -240,7 +239,7 @@ macro_rules! specialise_affine_to_proj {
             // This function consumes the scalars
             // We can make this more generic in the future to use other than u16.
             fn batch_wnaf_opcode_recoding<BigInt: BigInteger + AsRef<[u64]>>(
-                mut scalars: Vec<BigInt>,
+                scalars: &mut Vec<BigInt>,
                 w: usize
             ) -> Vec<Vec<Option<u16>>> {
                 let batch_size = scalars.len();
@@ -296,7 +295,7 @@ macro_rules! specialise_affine_to_proj {
 
             fn batch_double_in_place_with_edge_cases<'a, I>(op_iter: I) -> ()
             where
-                I: Iterator<Item = &'a Self> + DoubleEndedIterator,
+                I: Iterator<Item = &'a Self> + DoubleEndedIterator + 'a,
             {
                 let mut inversion_tmp = P::BaseField::one();
                 let mut scratch_space = Vec::with_capacity(op_iter.size_hint().0);
@@ -371,7 +370,7 @@ macro_rules! specialise_affine_to_proj {
 
             fn batch_add_in_place_with_edge_cases<'a, I>(op_iter: I)
             where
-                I: Iterator<Item = (&'a Self, Self)> + DoubleEndedIterator,
+                I: Iterator<Item = (&'a Self, Self)> + DoubleEndedIterator + 'a,
             {
                 let mut inversion_tmp = P::BaseField::one();
                 // let half = P::BaseField::from_repr(P::MODULUS_MINUS_ONE_DIV_TWO) + P::BaseField::one(); // (p + 1)/2 * 2 = 1
@@ -450,12 +449,12 @@ macro_rules! specialise_affine_to_proj {
 
             fn batch_scalar_mul_in_place<BigInt: BigInteger>(
                 w: usize,
-                mut points: Vec<Self>,
-                mut scalars: Vec<BigInt>,
+                points: &'a mut Vec<Self>,
+                scalars: &mut Vec<BigInt>,
             ) {
                 let no_op: u16 = 1 << (w + 1); // noop is encoded as window_size
-                let opcode_vectorised: Vec<Vec<Option<u16>>> = Self::batch_wnaf_opcode_recoding::<BigInt>(scalars, w);
-                let tables = Self::batch_wnaf_tables(w, points);
+                let opcode_vectorised = Self::batch_wnaf_opcode_recoding::<BigInt>(scalars, w);
+                let tables = Self::batch_wnaf_tables(w, *points);
 
                 for opcode_row in opcode_vectorised.iter().rev() {
                     let double_iterator = opcode_row.iter()
@@ -477,16 +476,16 @@ macro_rules! specialise_affine_to_proj {
 
             fn batch_scalar_mul_in_place_glv<BigInt: BigInteger>(
                 w: usize,
-                mut points: Vec<Self>,
-                mut scalars: Vec<BigInt>,
+                points: &'a mut Vec<Self>,
+                scalars: &mut Vec<BigInt>,
             ) {
                 assert_eq!(points.len(), scalars.len());
                 let batch_size = points.len();
-                let mut k1 = Vec::with_capacity(batch_size);
-                // let mut k2 = Vec::with_capacity(batch_size);
+                let mut k1 = scalars;
+                // let (mut k1, mut k2) = Self::batch_glv_decomposition(scalars);
 
                 // let p2 = points.map(|p| p.glv_endomorphism());
-                Self::batch_scalar_mul_in_place::<BigInt>(w, points, k1);
+                Self::batch_scalar_mul_in_place::<BigInt>(w, points, &mut k1);
                 // Self::batch_scalar_mul_in_place(w, p2, k2);
                 // Self::batch_add_in_place_with_edge_cases(points, p2);
             }
