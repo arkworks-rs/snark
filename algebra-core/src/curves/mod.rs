@@ -323,17 +323,18 @@ pub trait BatchArithmetic<'a, G: 'a> {
 
     // This function consumes the second op as it mutates it in place
     // to prevent memory allocation
-    fn batch_double_in_place_with_edge_cases<I>(&mut self, f: F) -> ()
+    fn batch_double_in_place_with_edge_cases<I, F>(&mut self, f: F) -> ()
     where
         F: FnMut(&mut Self) -> I,
-        I: Iterator<Item = (&'a mut GroupAffine<P>, &'a mut GroupAffine<P>)> + DoubleEndedIterator;
+        I: Iterator<Item = &'a mut G> + DoubleEndedIterator;
 
     // fn batch_double_in_place<I>(op_iter: I) -> ();
 
-    fn batch_add_in_place_with_edge_cases<I>(&mut self, f: F) -> ()
+    fn batch_add_in_place_with_edge_cases<I1, I2, F1, F2>(&mut self, f: F1, f_rev: F2) -> ()
     where
-        F: FnMut(&mut Self) -> I,
-        I: Iterator<Item = (&'a mut GroupAffine<P>, &'a mut GroupAffine<P>)> + DoubleEndedIterator;
+        F1: FnMut(&mut Self) -> I1, F2: FnMut(&mut Self) -> I2,
+        I1: Iterator<Item = (&'a mut G, &'a mut G)>,
+        I2: Iterator<Item = (&'a mut G, &'a mut G)> + DoubleEndedIterator;
 
     // fn batch_add_in_place<I>(op_iter: I) -> ();
 
