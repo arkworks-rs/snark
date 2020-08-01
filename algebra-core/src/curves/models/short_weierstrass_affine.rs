@@ -223,7 +223,7 @@ macro_rules! specialise_affine_to_proj {
 
                 for i in 0..half_size {
                     if i != 0 {
-                        (&mut tmp[..]).batch_add_in_place_with_edge_cases(
+                        tmp[..].batch_add_in_place_with_edge_cases(
                             &mut a_2[..], (0..batch_size).map(|x| (x, x)).collect()
                         );
                     }
@@ -297,7 +297,7 @@ macro_rules! specialise_affine_to_proj {
             // https://github.com/AztecProtocol/barretenberg/blob/standardplonkjson/barretenberg/src/
             // aztec/ecc/curves/bn254/scalar_multiplication/scalar_multiplication.cpp
 
-            fn batch_double_in_place_with_edge_cases<'a>(
+            fn batch_double_in_place_with_edge_cases(
                 &mut self,
                 index: Vec<usize>
             ) {
@@ -305,7 +305,7 @@ macro_rules! specialise_affine_to_proj {
                 let mut scratch_space = Vec::new(); // with_capacity? How to get size?
                 // We run two loops over the data separated by an inversion
                 for idx in index.iter() {
-                    let mut a = self[*idx];
+                    let mut a = &mut self[*idx];
                     if !a.is_zero() {
                         if a.y.is_zero() {
                             a.infinity = true;
@@ -321,7 +321,7 @@ macro_rules! specialise_affine_to_proj {
                 inversion_tmp = inversion_tmp.inverse().unwrap(); // this is always in Fp*
 
                 for idx in index.iter().rev() {
-                    let mut a = self[*idx];
+                    let mut a = &mut self[*idx];
                     if !a.is_zero() {
                         let lambda = scratch_space.pop().unwrap() * &inversion_tmp;
                         inversion_tmp *= &a.x; // Remove the top layer of the denominator
@@ -336,7 +336,7 @@ macro_rules! specialise_affine_to_proj {
             }
 
             // Consumes other and mutates self in place. Accepts index function
-            fn batch_add_in_place_with_edge_cases<'a>(
+            fn batch_add_in_place_with_edge_cases(
                 &mut self,
                 other: &mut Self,
                 index: Vec<(usize, usize)>
@@ -346,7 +346,7 @@ macro_rules! specialise_affine_to_proj {
                 // let half = P::BaseField::from_repr(P::MODULUS_MINUS_ONE_DIV_TWO) + P::BaseField::one(); // (p + 1)/2 * 2 = 1
                 // We run two loops over the data separated by an inversion
                 for (idx, idy) in index.iter() {
-                    let (mut a, mut b) = (self[*idx], other[*idy]);
+                    let (mut a, mut b) = (&mut self[*idx], &mut other[*idy]);
                     if a.is_zero() || b.is_zero() {
                         continue;
                     } else if a.x == b.x {
@@ -378,9 +378,9 @@ macro_rules! specialise_affine_to_proj {
                 inversion_tmp = inversion_tmp.inverse().unwrap(); // this is always in Fp*
 
                 for (idx, idy) in index.iter().rev() {
-                    let (mut a, b) = (self[*idx], other[*idy]);
+                    let (mut a, b) = (&mut self[*idx], other[*idy]);
                     if a.is_zero() {
-                        a = b;
+                        *a = b;
                     } else if !b.is_zero() {
                         let lambda = a.y * &inversion_tmp;
                         inversion_tmp *= &a.x; // Remove the top layer of the denominator
