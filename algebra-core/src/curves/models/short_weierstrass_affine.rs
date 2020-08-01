@@ -1,7 +1,7 @@
 #[macro_export]
 macro_rules! specialise_affine_to_proj {
     ($GroupProjective: ident) => {
-        use crate::{biginteger::BigInteger, fields::FpParameters};
+        use crate::biginteger::BigInteger;
 
         #[derive(Derivative)]
         #[derivative(
@@ -207,7 +207,8 @@ macro_rules! specialise_affine_to_proj {
             }
         }
 
-        impl<P: Parameters + FpParameters> BatchArithmetic<GroupAffine<P>> for [GroupAffine<P>] {
+        // TODO: Generalise to A != 0
+        impl<P: Parameters> BatchArithmetic<GroupAffine<P>> for [GroupAffine<P>] {
             // Computes [-p, p, -3p, 3p, ..., -2^wp, 2^wp]
             fn batch_wnaf_tables(&self, w: usize) -> Vec<Vec<GroupAffine<P>>> {
                 let half_size = 1 << w;
@@ -224,7 +225,7 @@ macro_rules! specialise_affine_to_proj {
                 for i in 0..half_size {
                     if i != 0 {
                         tmp[..].batch_add_in_place_with_edge_cases(
-                            &mut a_2[..], (0..batch_size).map(|x| (x, x)).collect()
+                            &mut a_2.to_vec()[..], (0..batch_size).map(|x| (x, x)).collect()
                         );
                     }
 
@@ -245,6 +246,7 @@ macro_rules! specialise_affine_to_proj {
                 scalars: &mut [BigInt],
                 w: usize
             ) -> Vec<Vec<Option<u16>>> {
+                assert!(w > 0);
                 let batch_size = scalars.len();
                 let window_size: u16 = 1 << (w + 1);
                 let half_window_size: u16 = 1 << w;
@@ -252,8 +254,11 @@ macro_rules! specialise_affine_to_proj {
                 let mut op_code_vectorised =
                     Vec::<Vec<Option<u16>>>::with_capacity(scalars[0].as_ref().len() * 64);
 
-                let all_none = false;
+                let mut all_none = false;
+                let mut count = 1;
                 while !all_none {
+                    count += 1;
+                    println!("{}", count);
                     let mut opcode_row = Vec::with_capacity(batch_size);
 
                     for s in scalars.iter_mut() {
@@ -263,27 +268,33 @@ macro_rules! specialise_affine_to_proj {
                             let op = if s.is_odd() {
                                 let mut z: u16 = (s.as_ref()[0] as u16) % window_size;
 
+                                println!("{:?}", z);
+
                                 if z < half_window_size {
                                     s.sub_noborrow(&BigInt::from(z as u64));
                                 } else {
                                     let tmp = window_size - z;
+                                    println!("{:?}", tmp as u64);
                                     s.add_nocarry(&BigInt::from(tmp as u64));
                                     z = tmp - 1; // z = 0, 2, ..., 2^(w+1) - 2
                                 }
                                 z
                             } else {
-                                window_size // We encode 0s to be 2^(w+1)
+                                half_window_size // We encode 0s to be 2^(w+1)
                             };
                             opcode_row.push(Some(op));
                             s.div2();
                         }
                     }
 
-                    let all_none = opcode_row.iter().all(|x| x.is_none());
+                    println!("{:?}", scalars);
+                    println!("{:?}", opcode_row);
+
+                    all_none = opcode_row.iter().all(|x| x.is_none());
                     if !all_none {
                         op_code_vectorised.push(opcode_row);
-                    } else {
-                        break;
+                    // } else {
+                    //     break;
                     }
                 }
                 op_code_vectorised
@@ -296,7 +307,6 @@ macro_rules! specialise_affine_to_proj {
 
             // https://github.com/AztecProtocol/barretenberg/blob/standardplonkjson/barretenberg/src/
             // aztec/ecc/curves/bn254/scalar_multiplication/scalar_multiplication.cpp
-
             fn batch_double_in_place_with_edge_cases(
                 &mut self,
                 index: Vec<usize>
@@ -310,8 +320,8 @@ macro_rules! specialise_affine_to_proj {
                         if a.y.is_zero() {
                             a.infinity = true;
                         } else {
-                            let mut x_sq = a.x.square();
-                            let x_sq_3 = *x_sq.double_in_place() + &x_sq; // numerator = 3x^2
+                            let x_sq = a.x.square();
+                            let x_sq_3 = x_sq.double() + &x_sq; // numerator = 3x^2
                             scratch_space.push(x_sq_3 * &inversion_tmp); // 3x^2 * tmp
                             inversion_tmp *= &a.y.double(); // update tmp
                         }
@@ -323,11 +333,12 @@ macro_rules! specialise_affine_to_proj {
                 for idx in index.iter().rev() {
                     let mut a = &mut self[*idx];
                     if !a.is_zero() {
-                        let lambda = scratch_space.pop().unwrap() * &inversion_tmp;
-                        inversion_tmp *= &a.x; // Remove the top layer of the denominator
+                        let z = scratch_space.pop().unwrap();
+                        let lambda = z * &inversion_tmp;
+                        inversion_tmp *= &a.y.double(); // Remove the top layer of the denominator
 
                         // x3 = l^2 + 2x
-                        let x3 = &(lambda.square() + &a.x.double());
+                        let x3 = &(lambda.square() - &a.x.double());
                         // y3 = l*(x - x3) - y
                         a.y = lambda * &(a.x - x3) - &a.y;
                         a.x = *x3;
@@ -355,10 +366,10 @@ macro_rules! specialise_affine_to_proj {
                         // So we consider it inconsequential to make them more expensive
                         // This costs 1 modular mul more than a standard squaring
                         if a.y == b.y {
-                            let mut x_sq = b.x.square();
+                            let x_sq = b.x.square();
                             b.x -= &b.y; // x - y
                             a.x = b.y.double(); // denominator = 2y
-                            a.y = *x_sq.double_in_place() + &x_sq; // numerator = 3x^2
+                            a.y = x_sq.double() + &x_sq; // numerator = 3x^2
                             // b.y -= half * &a.y; // y - 3x^2/2
                             a.y *= &inversion_tmp; // 3x^2 * tmp
                             inversion_tmp *= &a.x; // update tmp
@@ -386,7 +397,8 @@ macro_rules! specialise_affine_to_proj {
                         inversion_tmp *= &a.x; // Remove the top layer of the denominator
 
                         // x3 = l^2 + x1 + x2 or for squaring: 2y + l^2 + 2x - 2y = l^2 + 2x
-                        a.x += &(lambda.square() + &b.x.double());
+                        a.x += &b.x.double();
+                        a.x = lambda.square() - &a.x;
                         // y3 = l*(x2 - x3) - y2 or for squaring: 3x^2/2y(x - y - x3) - (y - 3x^2/2) = l*(x - x3) - y
                         a.y = lambda * &(b.x - &a.x) - &b.y;
                     }
@@ -398,9 +410,14 @@ macro_rules! specialise_affine_to_proj {
                 w: usize,
                 scalars: &mut [BigInt],
             ) {
-                let no_op: u16 = 1 << (w + 1); // noop is encoded as window_size
+                let no_op: u16 = 1 << w; // noop is encoded as half_window_size
                 let opcode_vectorised = Self::batch_wnaf_opcode_recoding::<BigInt>(scalars, w);
                 let tables = self.batch_wnaf_tables(w);
+
+                // Set all points to 0;
+                for p in self.iter_mut() {
+                    p.infinity = true;
+                }
 
                 for opcode_row in opcode_vectorised.iter().rev() {
                     let index_double = opcode_row.iter()
@@ -426,6 +443,8 @@ macro_rules! specialise_affine_to_proj {
                         .map(|(x, y)| (y, x))
                         .collect();
 
+                    println!("{:?}", index_add);
+
                     self.batch_add_in_place_with_edge_cases(&mut add_ops[..], index_add);
                 }
             }
@@ -446,7 +465,6 @@ macro_rules! specialise_affine_to_proj {
             //     // Self::batch_add_in_place_with_edge_cases(points, p2);
             // }
         }
-
         impl_sw_curve_serializer!(Parameters);
     }
 }
