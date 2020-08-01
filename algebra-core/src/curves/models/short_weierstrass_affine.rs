@@ -207,30 +207,30 @@ macro_rules! specialise_affine_to_proj {
             }
         }
 
-        impl<'a, P: Parameters + FpParameters> BatchArithmetic<'a, GroupAffine<P>> for [GroupAffine<P>] {
+        impl<P: Parameters + FpParameters> BatchArithmetic<GroupAffine<P>> for [GroupAffine<P>] {
             // Computes [-p, p, -3p, 3p, ..., -2^wp, 2^wp]
             fn batch_wnaf_tables(&self, w: usize) -> Vec<Vec<GroupAffine<P>>> {
                 let half_size = 1 << w;
                 let batch_size = self.len();
 
-                let mut tables = vec![Vec::<GroupAffine<P>>::with_capacity(half_size << 1); batch_size];
+                let mut tables =
+                    vec![Vec::<GroupAffine<P>>::with_capacity(half_size << 1); batch_size];
 
-                let mut a_2 = vec![];
-                a_2.clone_from_slice(&self[..]);
-                let mut tmp = vec![];
-                tmp.clone_from_slice(&self[..]);
+                let mut a_2 = self[..].to_vec();
+                let mut tmp = self[..].to_vec();
 
-                a_2.batch_double_in_place_with_edge_cases(|x: &mut Self| x.iter_mut());
+                a_2[..].batch_double_in_place_with_edge_cases((0..batch_size).collect());
 
                 for i in 0..half_size {
                     if i != 0 {
-                        let f = |x: &mut Self| x.iter_mut().zip(a_2.iter_mut());
-                        tmp.batch_add_in_place_with_edge_cases(f, f);
+                        (&mut tmp[..]).batch_add_in_place_with_edge_cases(
+                            &mut a_2[..], (0..batch_size).map(|x| (x, x)).collect()
+                        );
                     }
 
-                    for (&mut table, p) in tables.iter_mut().zip(tmp) {
-                        table.push(p.neg());
-                        table.push(p);
+                    for (table, p) in tables.iter_mut().zip(&tmp) {
+                        table.push(p.clone().neg());
+                        table.push(p.clone());
                     }
                 }
                 // deref coercion
@@ -249,13 +249,14 @@ macro_rules! specialise_affine_to_proj {
                 let window_size: u16 = 1 << (w + 1);
                 let half_window_size: u16 = 1 << w;
 
-                let op_code_vectorised = Vec::<Vec<Option<u16>>>::with_capacity(scalars[0].as_ref().len() * 64);
+                let mut op_code_vectorised =
+                    Vec::<Vec<Option<u16>>>::with_capacity(scalars[0].as_ref().len() * 64);
 
                 let all_none = false;
                 while !all_none {
                     let mut opcode_row = Vec::with_capacity(batch_size);
 
-                    for s in scalars {
+                    for s in scalars.iter_mut() {
                         if s.is_zero() {
                             opcode_row.push(None);
                         } else {
@@ -296,20 +297,20 @@ macro_rules! specialise_affine_to_proj {
             // https://github.com/AztecProtocol/barretenberg/blob/standardplonkjson/barretenberg/src/
             // aztec/ecc/curves/bn254/scalar_multiplication/scalar_multiplication.cpp
 
-            fn batch_double_in_place_with_edge_cases<I, F>(&mut self, f: F) -> ()
-            where
-                F: FnMut(&mut Self) -> I,
-                I: Iterator<Item = &'a mut GroupAffine<P>> + DoubleEndedIterator
-            {
+            fn batch_double_in_place_with_edge_cases<'a>(
+                &mut self,
+                index: Vec<usize>
+            ) {
                 let mut inversion_tmp = P::BaseField::one();
                 let mut scratch_space = Vec::new(); // with_capacity? How to get size?
                 // We run two loops over the data separated by an inversion
-                for a in f(self) {
+                for idx in index.iter() {
+                    let mut a = self[*idx];
                     if !a.is_zero() {
                         if a.y.is_zero() {
                             a.infinity = true;
                         } else {
-                            let x_sq = a.x.square();
+                            let mut x_sq = a.x.square();
                             let x_sq_3 = *x_sq.double_in_place() + &x_sq; // numerator = 3x^2
                             scratch_space.push(x_sq_3 * &inversion_tmp); // 3x^2 * tmp
                             inversion_tmp *= &a.y.double(); // update tmp
@@ -319,7 +320,8 @@ macro_rules! specialise_affine_to_proj {
 
                 inversion_tmp = inversion_tmp.inverse().unwrap(); // this is always in Fp*
 
-                for a in f(self).rev() {
+                for idx in index.iter().rev() {
+                    let mut a = self[*idx];
                     if !a.is_zero() {
                         let lambda = scratch_space.pop().unwrap() * &inversion_tmp;
                         inversion_tmp *= &a.x; // Remove the top layer of the denominator
@@ -333,16 +335,18 @@ macro_rules! specialise_affine_to_proj {
                 }
             }
 
-            fn batch_add_in_place_with_edge_cases<I1, I2, F1, F2>(&mut self, f: F1, f_rev: F2) -> ()
-            where
-                F1: FnMut(&mut Self) -> I1, F2: FnMut(&mut Self) -> I2,
-                I1: Iterator<Item = (&'a mut GroupAffine<P>, &'a mut GroupAffine<P>)>,
-                I2: Iterator<Item = (&'a mut GroupAffine<P>, &'a mut GroupAffine<P>)> + DoubleEndedIterator
-            {
+            // Consumes other and mutates self in place. Accepts index function
+            fn batch_add_in_place_with_edge_cases<'a>(
+                &mut self,
+                other: &mut Self,
+                index: Vec<(usize, usize)>
+            ) {
                 let mut inversion_tmp = P::BaseField::one();
+
                 // let half = P::BaseField::from_repr(P::MODULUS_MINUS_ONE_DIV_TWO) + P::BaseField::one(); // (p + 1)/2 * 2 = 1
                 // We run two loops over the data separated by an inversion
-                for (a, b) in f(self) {
+                for (idx, idy) in index.iter() {
+                    let (mut a, mut b) = (self[*idx], other[*idy]);
                     if a.is_zero() || b.is_zero() {
                         continue;
                     } else if a.x == b.x {
@@ -351,7 +355,7 @@ macro_rules! specialise_affine_to_proj {
                         // So we consider it inconsequential to make them more expensive
                         // This costs 1 modular mul more than a standard squaring
                         if a.y == b.y {
-                            let x_sq = b.x.square();
+                            let mut x_sq = b.x.square();
                             b.x -= &b.y; // x - y
                             a.x = b.y.double(); // denominator = 2y
                             a.y = *x_sq.double_in_place() + &x_sq; // numerator = 3x^2
@@ -373,7 +377,8 @@ macro_rules! specialise_affine_to_proj {
 
                 inversion_tmp = inversion_tmp.inverse().unwrap(); // this is always in Fp*
 
-                for (a, b) in f_rev(self).rev() {
+                for (idx, idy) in index.iter().rev() {
+                    let (mut a, b) = (self[*idx], other[*idy]);
                     if a.is_zero() {
                         a = b;
                     } else if !b.is_zero() {
@@ -398,43 +403,30 @@ macro_rules! specialise_affine_to_proj {
                 let tables = self.batch_wnaf_tables(w);
 
                 for opcode_row in opcode_vectorised.iter().rev() {
+                    let index_double = opcode_row.iter()
+                        .enumerate()
+                        .filter(|x| x.1.is_some())
+                        .map(|x| x.0)
+                        .collect();
 
-                    let double_iter = |points: &mut Self| {
-                        points.iter_mut().zip(opcode_row)
-                            .filter(|(p, op)| op.is_some())
-                            .map(|x| x.0)
-                    };
-
-                    self.batch_double_in_place_with_edge_cases(double_iter);
+                    self.batch_double_in_place_with_edge_cases(index_double);
 
                     // Copying to this vector might be really stupid...
-                    let mut op2: Vec<GroupAffine<P>> = Vec::with_capacity(self.len() / w);
-                    {
-                        let add_iter = |points: &mut Self| {
-                            points.iter_mut()
-                                .zip(opcode_row)
-                                .zip(tables.iter())
-                                .filter(|((_, op), _)| op.is_some() && op.unwrap() != no_op)
-                                .map(|((p, op), t)| {
-                                    op2.push(t[op.unwrap() as usize].clone());
-                                    (p, op2.last_mut().unwrap())
-                                })
-                                // .zip(op2.iter_mut())
-                        };
+                    let mut add_ops: Vec<GroupAffine<P>> = tables.iter()
+                        .zip(opcode_row)
+                        .filter(|(_, op)| op.is_some() && op.unwrap() != no_op)
+                        .map(|(t, op)| t[op.unwrap() as usize].clone())
+                        .collect();
 
-                        let add_iter_2 = |points: &mut Self| {
-                            points.iter_mut()
-                                .zip(opcode_row)
-                                .filter(|(_, op)| op.is_some() && op.unwrap() != no_op)
-                                .map(|x| x.0)
-                                .zip(op2.iter_mut())
-                                .collect::<Vec<_>>()
-                                .into_iter()
-                        };
+                    let index_add = opcode_row.iter()
+                        .enumerate()
+                        .filter(|(_, op)| op.is_some() && op.unwrap() != no_op)
+                        .map(|x| x.0)
+                        .enumerate()
+                        .map(|(x, y)| (y, x))
+                        .collect();
 
-                        self.batch_add_in_place_with_edge_cases(add_iter, add_iter_2);
-                    }
-
+                    self.batch_add_in_place_with_edge_cases(&mut add_ops[..], index_add);
                 }
             }
 

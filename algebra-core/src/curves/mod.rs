@@ -310,7 +310,7 @@ where
     >;
 }
 
-pub trait BatchArithmetic<'a, G: 'a> {
+pub trait BatchArithmetic<G> {
     // Computes [-p, p, -3p, 3p, ..., -2^wp, 2^wp]
     fn batch_wnaf_tables(&self, w: usize) -> Vec<Vec<G>>;
 
@@ -323,18 +323,15 @@ pub trait BatchArithmetic<'a, G: 'a> {
 
     // This function consumes the second op as it mutates it in place
     // to prevent memory allocation
-    fn batch_double_in_place_with_edge_cases<I, F>(&mut self, f: F) -> ()
-    where
-        F: FnMut(&mut Self) -> I,
-        I: Iterator<Item = &'a mut G> + DoubleEndedIterator;
+    fn batch_double_in_place_with_edge_cases(&mut self, index: Vec<usize>);
 
     // fn batch_double_in_place<I>(op_iter: I) -> ();
 
-    fn batch_add_in_place_with_edge_cases<I1, I2, F1, F2>(&mut self, f: F1, f_rev: F2) -> ()
-    where
-        F1: FnMut(&mut Self) -> I1, F2: FnMut(&mut Self) -> I2,
-        I1: Iterator<Item = (&'a mut G, &'a mut G)>,
-        I2: Iterator<Item = (&'a mut G, &'a mut G)> + DoubleEndedIterator;
+    fn batch_add_in_place_with_edge_cases(
+        &mut self,
+        other: &mut Self,
+        index: Vec<(usize, usize)>
+    );
 
     // fn batch_add_in_place<I>(op_iter: I) -> ();
 
