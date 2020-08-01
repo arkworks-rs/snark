@@ -308,7 +308,11 @@ mod test {
         vec_elem_4753.push(v1);
         vec_elem_4753.push(v2);
 
-        let primitive_result = MNT4PoseidonHash::evaluate(&vec_elem_4753).unwrap();
+        let primitive_result = {
+            let mut digest = MNT4PoseidonHash::init(None);
+            vec_elem_4753.into_iter().for_each(|elem| { digest.update(elem);});
+            digest.finalize()
+        };
 
         let v1_gadget = Mnt4FieldGadget::alloc(cs.ns(|| "alloc_v1"),|| Ok(v1)).unwrap();
         let v2_gadget = Mnt4FieldGadget::alloc(cs.ns(|| "alloc_v2"),|| Ok(v2)).unwrap();
@@ -340,7 +344,11 @@ mod test {
         vec_elem_6753.push(v1);
         vec_elem_6753.push(v2);
 
-        let primitive_result = MNT6PoseidonHash::evaluate(&vec_elem_6753).unwrap();
+        let primitive_result = {
+            let mut digest = MNT6PoseidonHash::init(None);
+            vec_elem_6753.into_iter().for_each(|elem| { digest.update(elem); });
+            digest.finalize()
+        };
 
         let v1_gadget = Mnt6FieldGadget::alloc(cs.ns(|| "alloc_v1"),|| Ok(v1)).unwrap();
         let v2_gadget = Mnt6FieldGadget::alloc(cs.ns(|| "alloc_v2"),|| Ok(v2)).unwrap();

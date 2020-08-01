@@ -84,11 +84,6 @@ path = "benches/crypto_primitives/poseidon_crh.rs"
 harness = false
 
 [[bench]]
-name = "updatable_poseidon_crh"
-path = "benches/crypto_primitives/updatable_poseidon_crh.rs"
-harness = false
-
-[[bench]]
 name = "poseidon_mht"
 path = "benches/crypto_primitives/poseidon_mht.rs"
 harness = false

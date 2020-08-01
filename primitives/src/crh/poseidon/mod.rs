@@ -14,22 +14,15 @@ use crate::crh::{
 };
 
 use crate::crh::FieldBasedHash;
-use crate::Error;
 
 pub mod parameters;
-pub mod updatable;
 pub mod batched_crh;
-pub mod updatable;
 
 pub struct PoseidonHash<F: PrimeField, P: PoseidonParameters<Fr = F>>{
-    _field:      PhantomData<F>,
+    state: Vec<F>,
+    pending: Vec<F>,
     _parameters: PhantomData<P>,
 }
-
-// pub struct PoseidonBatchHash<F: PrimeField, P: PoseidonParameters<Fr = F>>{
-//     _field:      PhantomData<F>,
-//     _parameters: PhantomData<P>,
-// }
 
 pub trait PoseidonParameters: 'static + FieldBasedHashParameters{
 
@@ -107,8 +100,27 @@ pub fn matrix_mix_short<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> (
 
 impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
 
-    pub(crate) fn poseidon_perm (state: &mut Vec<F>) {
+    #[inline]
+    fn apply_permutation(&mut self) {
+        for (input, state) in self.pending.iter().zip(self.state.iter_mut()) {
+            *state += input;
+        }
+        self.state[P::R] += &P::C2;
+        Self::poseidon_perm(&mut self.state);
+    }
 
+    #[inline]
+    fn _finalize(&self) -> F {
+        let mut state = self.state.clone();
+        for (input, s) in self.pending.iter().zip(state.iter_mut()) {
+            *s += input;
+        }
+        state[P::R] += &P::C2;
+        Self::poseidon_perm(&mut state);
+        state[0]
+    }
+
+    pub(crate) fn poseidon_perm (state: &mut Vec<F>) {
 
         // index that goes over the round constants
         let mut round_cst_idx = 0;
@@ -241,60 +253,78 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
     }
 }
 
-impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> FieldBasedHash for PoseidonHash<F, P> {
+impl<F, P> FieldBasedHash for PoseidonHash<F, P>
+    where
+        F: PrimeField + MulShort,
+        P: PoseidonParameters<Fr = F>,
+{
     type Data = F;
     type Parameters = P;
 
-    // Assumption:
-    //     capacity c = 1
-    fn evaluate(input: &[F]) -> Result<F, Error> {
-
-        assert_ne!(input.len(), 0, "Input data array does not contain any data.");
-        assert_eq!(P::T - P::R, 1, "The assumption that the capacity is one field element is not satisfied.");
-
-        // state is a vector of P::T elements.
-        // They are initialized to constants that are obtained after applying a permutation to a zero elements vector.
-        let mut state = Vec::new();
+    fn init(personalization: Option<&[Self::Data]>) -> Self {
+        let mut state = Vec::with_capacity(P::T);
         for i in 0..P::T {
             state.push(P::AFTER_ZERO_PERM[i]);
         }
+        let mut instance = Self {
+            state,
+            pending: Vec::with_capacity(P::R),
+            _parameters: PhantomData,
+        };
 
-        // calculate the number of cycles to process the input dividing in portions of rate elements
-        let num_cycles = input.len() / P::R;
-        // check if the input is a multiple of the rate by calculating the remainder of the division
-        let rem = input.len() % P::R;
+        // If personalization Vec is not multiple of the rate, we pad it with zero field elements.
+        // This will allow eventually to precompute the constants of the initial state. This
+        // is exactly as doing H(personalization, padding, ...). NOTE: this way of personalizing
+        // the hash is not mentioned in https://eprint.iacr.org/2019/458.pdf
+        if personalization.is_some(){
+            let personalization = personalization.unwrap();
 
-        // index to process the input
-        let mut input_idx = 0;
-        // iterate of the portions of rate elements
-        for _i in 0..num_cycles {
-            // add the elements to the state vector. Add rate elements
-            for j in 0..P::R {
-                state[j] += &input[input_idx];
-                input_idx += 1;
+            for &p in personalization.into_iter(){
+                instance.update(p);
             }
-            // add the constant associated to the m-ary Merkle tree
-            state[P::R] += &P::C2;
 
-            // apply permutation after adding the input vector
-            Self::poseidon_perm(&mut state);
-        }
+            let padding = if personalization.len() % P::R != 0 {
+                P::R - ( personalization.len() % P::R )
+            } else {
+                0
+            };
 
-        // in case the input is not a multiple of the rate process the remainder part padding a zero
-        if rem != 0 {
-            for j in 0..rem {
-                state[j] += &input[input_idx];
-                input_idx += 1;
+            for _ in 0..padding {
+                instance.update(F::zero());
             }
-            // add the constant associated to the m-ary Merkle tree
-            // assumption capacity = 1
-            state[P::R] += &P::C2;
-            // apply permutation after adding the input vector
-            Self::poseidon_perm(&mut state);
+            assert_eq!(instance.pending.len(), 0);
         }
+        instance
+    }
 
-        // return the first element of the state vector as the hash digest
-        Ok(state[0])
+    // Note: `Field` implements the `Copy` trait, therefore invoking this function won't
+    // cause a moving of ownership for `input`, but just a copy. Another copy is
+    // performed below in `self.pending.push(input);`
+    // We can reduce this to one copy by passing a reference to `input`, but from an
+    // interface point of view this is not logically correct: someone calling this
+    // functions will likely not use the `input` anymore in most of the cases
+    // (in the other cases he can just clone it).
+    fn update(&mut self, input: Self::Data) -> &mut Self {
+        self.pending.push(input);
+        if self.pending.len() == P::R {
+            self.apply_permutation();
+            self.pending.clear();
+        }
+        self
+    }
+
+    fn finalize(&self) -> Self::Data {
+        if !self.pending.is_empty() {
+            self._finalize()
+        } else {
+            self.state[0]
+        }
+    }
+
+    fn reset(&mut self, personalization: Option<&[Self::Data]>) -> &mut Self {
+        let new_instance = Self::init(personalization);
+        *self = new_instance;
+        self
     }
 }
 
@@ -310,128 +340,98 @@ mod test {
 
     #[test]
     fn test_poseidon_hash_mnt4() {
-        let expected_output = MNT4753Fr::new(BigInteger768([120759599714708995, 15132412086599307425, 1270378153255747692, 3280164418217209635, 5680179791594071572, 2475152338055275001, 9455820118751334058, 6363436228419696186, 3538976751580678769, 14987158621073838958, 10703097083485496843, 48481977539350]));
-        let mut input = Vec::new();
-        input.push(MNT4753Fr::from_str("1").unwrap());
-        input.push(MNT4753Fr::from_str("2").unwrap());
-        let output = MNT4PoseidonHash::evaluate(&input);
-        assert_eq!(output.unwrap(), expected_output, "Outputs do not match for MNT4753.");
-    }
 
-    #[test]
-    #[should_panic]
-    fn test_poseidon_hash_mnt4_null_element() {
-        let input = Vec::new();
-        let output = MNT4PoseidonHash::evaluate(&input);
-        println!("{:?}", output);
+        // Regression test
+        let expected_output = MNT4753Fr::new(BigInteger768([120759599714708995, 15132412086599307425, 1270378153255747692, 3280164418217209635, 5680179791594071572, 2475152338055275001, 9455820118751334058, 6363436228419696186, 3538976751580678769, 14987158621073838958, 10703097083485496843, 48481977539350]));
+        let mut poseidon_digest = MNT4PoseidonHash::init(None);
+        let input = [MNT4753Fr::from_str("1").unwrap(), MNT4753Fr::from_str("2").unwrap()];
+
+        let output = poseidon_digest
+            .update(input[0])
+            .update(input[1])
+            .finalize();
+        assert_eq!(output, expected_output, "Outputs do not match for MNT4753.");
+
+        // Test finalize() holding the state and allowing updates in between different calls to it
+        poseidon_digest
+            .reset(None)
+            .update(input[0].clone());
+        poseidon_digest.finalize();
+        poseidon_digest.update(input[1].clone());
+        assert_eq!(output, poseidon_digest.finalize());
+
+        //Test finalize() being idempotent
+        assert_eq!(output, poseidon_digest.finalize());
     }
 
     #[test]
     fn test_poseidon_hash_mnt4_single_element() {
         let expected_output = MNT4753Fr::new(BigInteger768([10133114337753187244, 13011129467758174047, 14520750556687040981, 911508844858788085, 1859877757310385382, 9602832310351473622, 8300303689130833769, 981323167857397563, 5760566649679562093, 8644351468476031499, 10679665778836668809, 404482168782668]));
-        let mut input = Vec::new();
-        input.push(MNT4753Fr::from_str("1").unwrap());
-        let output = MNT4PoseidonHash::evaluate(&input);
-        assert_eq!(output.unwrap(), expected_output, "Outputs do not match for MNT4753.");
+        let mut poseidon_digest = MNT4PoseidonHash::init(None);
+        poseidon_digest.update(MNT4753Fr::from_str("1").unwrap());
+        let output = poseidon_digest.finalize();
+        assert_eq!(output, expected_output, "Outputs do not match for MNT4753.");
     }
 
     #[test]
     fn test_poseidon_hash_mnt4_three_element() {
         let expected_output = MNT4753Fr::new(BigInteger768([5991160601160569512, 9804741598782512164, 8257389273544061943, 15170134696519047397, 9908596892162673198, 7815454566429677811, 9000639780203615183, 8443915450757188195, 1987926952117715938, 17724141978374492147, 13890449093436164383, 191068391234529]));
-        let mut input = Vec::new();
-        input.push(MNT4753Fr::from_str("1").unwrap());
-        input.push(MNT4753Fr::from_str("2").unwrap());
-        input.push(MNT4753Fr::from_str("3").unwrap());
-        let output = MNT4PoseidonHash::evaluate(&input);
-        assert_eq!(output.unwrap(), expected_output, "Outputs do not match for MNT4753.");
+        let mut poseidon_digest = MNT4PoseidonHash::init(None);
+
+        for i in 1..=3{
+            poseidon_digest.update(MNT4753Fr::from(i as u64));
+        }
+
+        let output = poseidon_digest.finalize();
+        assert_eq!(output, expected_output, "Outputs do not match for MNT4753.");
     }
 
     #[test]
     fn test_poseidon_hash_mnt6() {
         let expected_output = MNT6753Fr::new(BigInteger768([8195238283171732026, 13694263410588344527, 1885103367289967816, 17142467091011072910, 13844754763865913168, 14332001103319040991, 8911700442280604823, 6452872831806760781, 17467681867740706391, 5384727593134901588, 2343350281633109128, 244405261698305]));
-        let mut input = Vec::new();
-        input.push(MNT6753Fr::from_str("1").unwrap());
-        input.push(MNT6753Fr::from_str("2").unwrap());
-        let output = MNT6PoseidonHash::evaluate(&mut input);
-        assert_eq!(output.unwrap(), expected_output, "Outputs do not match for MNT6753.");
-    }
+        let mut poseidon_digest = MNT6PoseidonHash::init(None);
+        let input = [MNT6753Fr::from_str("1").unwrap(), MNT6753Fr::from_str("2").unwrap()];
 
-    #[test]
-    #[should_panic]
-    fn test_poseidon_hash_mnt6_null_element() {
-        let input = Vec::new();
-        let output = MNT6PoseidonHash::evaluate(&input);
-        println!("{:?}", output);
+        let output = poseidon_digest
+            .update(input[0])
+            .update(input[1])
+            .finalize();
+        let output = poseidon_digest.finalize();
+        assert_eq!(output, expected_output, "Outputs do not match for MNT6753.");
+
+        // Test finalize() holding the state and allowing updates in between different calls to it
+        poseidon_digest
+            .reset(None)
+            .update(input[0].clone());
+        poseidon_digest.finalize();
+        poseidon_digest.update(input[1].clone());
+        assert_eq!(output, poseidon_digest.finalize());
+
+        //Test finalize() being idempotent
+        assert_eq!(output, poseidon_digest.finalize());
     }
 
     #[test]
     fn test_poseidon_hash_mnt6_single_element() {
         let expected_output = MNT6753Fr::new(BigInteger768([9820480440897423048, 13953114361017832007, 6124683910518350026, 12198883805142820977, 16542063359667049427, 16554395404701520536, 6092728884107650560, 1511127385771028618, 14755502041894115317, 9806346309586473535, 5880260960930089738, 191119811429922]));
-        let mut input = Vec::new();
-        input.push(MNT6753Fr::from_str("1").unwrap());
-        let output = MNT6PoseidonHash::evaluate(&input);
-        assert_eq!(output.unwrap(), expected_output, "Outputs do not match for MNT6753.");
+        let mut poseidon_digest = MNT6PoseidonHash::init(None);
+        let input = MNT6753Fr::from_str("1").unwrap();
+        poseidon_digest.update(input);
+        let output = poseidon_digest.finalize();
+        assert_eq!(output, expected_output, "Outputs do not match for MNT6753.");
     }
 
     #[test]
     fn test_poseidon_hash_mnt6_three_element() {
         let expected_output = MNT6753Fr::new(BigInteger768([13800884891843937189, 3814452749758584714, 14612220153016028606, 15886322817426727111, 12444362646204085653, 5214641378156871899, 4248022398370599899, 5982332416470364372, 3842784910369906888, 11445718704595887413, 5723531295320926061, 101830932453997]));
-        let mut input = Vec::new();
-        input.push(MNT6753Fr::from_str("1").unwrap());
-        input.push(MNT6753Fr::from_str("2").unwrap());
-        input.push(MNT6753Fr::from_str("3").unwrap());
-        let output = MNT6PoseidonHash::evaluate(&input);
-        assert_eq!(output.unwrap(), expected_output, "Outputs do not match for MNT6753.");
-    }
+        let mut poseidon_digest = MNT6PoseidonHash::init(None);
 
-    #[test]
-    fn gen_smt_empty_hash_mnt4() {
-        let mut input = Vec::new();
-        input.push(MNT4753Fr::from_str("0").unwrap());
-        input.push(MNT4753Fr::from_str("0").unwrap());
-        let hash_level0 = input.clone();
-        println!("level 0: {:?}", hash_level0[0]);
-
-        let level1 = MNT4PoseidonHash::evaluate(&input);
-        let mut hash_level = level1.unwrap().clone();
-        println!("level 1: {:?}", hash_level);
-
-        for i in 0..40 {
-            input.clear();
-            let input_level = hash_level.clone();
-            input.push(input_level);
-            input.push(input_level);
-            let next_level = MNT4PoseidonHash::evaluate(&input);
-            hash_level = next_level.unwrap().clone();
-
-            let next_hash = hash_level.clone();
-            println!("level {}: {:?}", i, next_hash);
+        for i in 1..=3{
+            let input = MNT6753Fr::from(i as u64);
+            poseidon_digest.update(input);
         }
+
+        let output = poseidon_digest.finalize();
+        assert_eq!(output, expected_output, "Outputs do not match for MNT6753.");
     }
-
-    #[test]
-    fn gen_smt_empty_hash_mnt6() {
-        let mut input = Vec::new();
-        input.push(MNT6753Fr::from_str("0").unwrap());
-        input.push(MNT6753Fr::from_str("0").unwrap());
-        let hash_level0 = input.clone();
-        println!("level 0: {:?}", hash_level0[0]);
-
-        let level1 = MNT6PoseidonHash::evaluate(&input);
-        let mut hash_level = level1.unwrap().clone();
-        println!("level 1: {:?}", hash_level);
-
-        for i in 0..40 {
-            input.clear();
-            let input_level = hash_level.clone();
-            input.push(input_level);
-            input.push(input_level);
-            let next_level = MNT6PoseidonHash::evaluate(&input);
-            hash_level = next_level.unwrap().clone();
-
-            let next_hash = hash_level.clone();
-            println!("level {}: {:?}", i, next_hash);
-        }
-    }
-
 }

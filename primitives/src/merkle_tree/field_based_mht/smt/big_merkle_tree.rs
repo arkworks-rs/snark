@@ -576,11 +576,10 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
     }
 
     pub fn poseidon_hash(x: F, y: F) -> F {
-        let mut input = Vec::new();
-        input.push(x);
-        input.push(y);
-        let hash = PoseidonHash::<F, P>::evaluate(&input[..]);
-        hash.unwrap()
+        PoseidonHash::<F, P>::init(None)
+            .update(x)
+            .update(y)
+            .finalize()
     }
 
     pub fn process_leaves_normal(&mut self, lidx: Vec<OperationLeaf<F>>) -> F {

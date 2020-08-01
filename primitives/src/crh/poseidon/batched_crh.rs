@@ -345,8 +345,9 @@ mod test {
         let mut output_4753 = Vec::new();
 
         input_serial.iter().for_each(|p| {
-            let output = Mnt4PoseidonHash::evaluate(p);
-            output_4753.push(output.unwrap());
+            let mut digest = Mnt4PoseidonHash::init(None);
+            p.into_iter().for_each(|&f| { digest.update(f); });
+            output_4753.push(digest.finalize());
         });
 
         // Calculate Poseidon Hash for mnt4753 batch evaluation
@@ -359,10 +360,13 @@ mod test {
         }
 
         // Check with one single hash
-        let single_output = Mnt4PoseidonHash::evaluate(&input_serial[0]);
+        let single_output = Mnt4PoseidonHash::init(None)
+            .update(input_serial[0][0])
+            .update(input_serial[0][1])
+            .finalize();
         let single_batch_output = Mnt4BatchPoseidonHash::batch_evaluate(&input_batch[0..2]);
 
-        assert_eq!(single_output.unwrap(), single_batch_output.unwrap()[0], "Single instance hash outputs are not equal for MNT4.");
+        assert_eq!(single_output, single_batch_output.unwrap()[0], "Single instance hash outputs are not equal for MNT4.");
     }
 
 
@@ -429,8 +433,9 @@ mod test {
         let mut output_6753 = Vec::new();
 
         input_serial.iter().for_each(|p| {
-            let output = Mnt6PoseidonHash::evaluate(p);
-            output_6753.push(output.unwrap());
+            let mut digest = Mnt6PoseidonHash::init(None);
+            p.into_iter().for_each(|&f| { digest.update(f); });
+            output_6753.push(digest.finalize());
         });
 
         // Calculate Poseidon Hash for mnt4753 batch evaluation
@@ -443,10 +448,13 @@ mod test {
         }
 
         // Check with one single hash
-        let single_output = Mnt6PoseidonHash::evaluate(&input_serial[0]);
+        let single_output = Mnt6PoseidonHash::init(None)
+            .update(input_serial[0][0])
+            .update(input_serial[0][1])
+            .finalize();
         let single_batch_output = Mnt6BatchPoseidonHash::batch_evaluate(&input_batch[0..2]);
 
-        assert_eq!(single_output.unwrap(), single_batch_output.unwrap()[0], "Single instance hash outputs are not equal for MNT6.");
+        assert_eq!(single_output, single_batch_output.unwrap()[0], "Single instance hash outputs are not equal for MNT6.");
     }
 
 

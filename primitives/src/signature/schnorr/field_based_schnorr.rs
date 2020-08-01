@@ -89,11 +89,14 @@ FieldBasedSchnorrSignatureScheme<F, G, H>
             let r_coords = r.to_field_elements()?;
 
             // Compute e = H(m || R || pk.x)
-            let mut hash_input = Vec::new();
-            hash_input.extend_from_slice(message);
-            hash_input.extend_from_slice(r_coords.as_slice());
-            hash_input.push(pk_coords[0]);
-            let e = H::evaluate(hash_input.as_ref())?;
+            let e = {
+                let mut digest = H::init(None);
+                message.into_iter().for_each(|&m| { digest.update(m); });
+                r_coords.into_iter().for_each(|coord| { digest.update(coord); });
+                digest.update(pk_coords[0]);
+                digest.finalize()
+            };
+
             let e_bits = e.write_bits();
             let e_leading_zeros = leading_zeros(e_bits.clone()) as usize;
             let required_leading_zeros = compute_truncation_size(
@@ -161,11 +164,13 @@ FieldBasedSchnorrSignatureScheme<F, G, H>
         let r_prime_coords = r_prime.to_field_elements()?;
 
         // Compute e' = H(m || R' || pk.x)
-        let mut hash_input = Vec::new();
-        hash_input.extend_from_slice(message);
-        hash_input.extend_from_slice(r_prime_coords.as_slice());
-        hash_input.push(pk_coords[0]);
-        let e_prime = H::evaluate(hash_input.as_ref())?;
+        let e_prime = {
+            let mut digest = H::init(None);
+            message.into_iter().for_each(|&m| { digest.update(m); });
+            r_prime_coords.into_iter().for_each(|coord| { digest.update(coord); });
+            digest.update(pk_coords[0]);
+            digest.finalize()
+        };
 
         Ok(signature.e == e_prime)
     }

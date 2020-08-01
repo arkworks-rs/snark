@@ -3,7 +3,7 @@ use crate::{
 };
 use super::*;
 
-pub mod batch_mht;
+pub mod ramht;
 pub mod smt;
 
 pub trait FieldBasedMerkleTreeConfig {
@@ -11,11 +11,7 @@ pub trait FieldBasedMerkleTreeConfig {
     type H: FieldBasedHash;
 }
 
-use algebra::{
-    biginteger::BigInteger768,
-    fields::mnt4753::Fr as MNT4753Fr,
-    field_new,
-};
+use algebra::{biginteger::BigInteger768, fields::mnt4753::Fr as MNT4753Fr, field_new, Field};
 
 // PoseidonHash("This represents an empty Merkle Root for a MNT4753PoseidonHash based Merkle Tree.") padded with 0s
 pub const MNT4753_PHANTOM_MERKLE_ROOT: MNT4753Fr =
@@ -259,27 +255,26 @@ pub(crate) fn hash_inner_node<H: FieldBasedHash>(
     left: H::Data,
     right: H::Data,
 ) -> Result<H::Data, Error> {
-    H::evaluate(&[left, right])
+    Ok(H::init(None)
+        .update(left)
+        .update(right)
+        .finalize())
 }
 
 pub(crate) fn hash_empty<H: FieldBasedHash>() -> Result<H::Data, Error> {
-    let dummy = <H::Data as Field>::one();
-    H::evaluate(&[dummy])
+    Ok(H::init(None).update(<H::Data as Field>::zero()).finalize())
 }
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        crh::MNT4PoseidonHash,
-        merkle_tree::field_based_mht::*,
-    };
+    use crate::{crh::MNT4PoseidonHash, merkle_tree::field_based_mht::*, FieldBasedHash};
     use algebra::{
         fields::mnt4753::Fr, Field,
         UniformRand
     };
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
-    use crate::merkle_tree::field_based_mht::batch_mht::poseidon::PoseidonBatchMerkleTreeMem;
+    use crate::merkle_tree::field_based_mht::ramht::poseidon::PoseidonRandomAccessMerkleTree;
     use crate::crh::poseidon::parameters::MNT4753PoseidonParameters;
 
     struct MNT4753FieldBasedMerkleTreeParams;
@@ -314,7 +309,7 @@ mod test {
         for _ in magic_string.len()..field_size_in_bytes { hash_input.push(0u8) }
         let hash_input_f = Fr::read(hash_input.as_slice()).unwrap();
 
-        let hash = MNT4PoseidonHash::evaluate(&[hash_input_f]).unwrap();
+        let hash = MNT4PoseidonHash::init(None).update(hash_input_f).finalize();
         assert_eq!(hash, MNT4753_PHANTOM_MERKLE_ROOT);
     }
 
@@ -325,8 +320,7 @@ mod test {
         //Test #leaves << 2^HEIGHT
         let mut leaves = Vec::new();
         for _ in 0..4 {
-            let f = Fr::rand(&mut rng);
-            leaves.push(MNT4PoseidonHash::evaluate(&[f]).unwrap());
+            leaves.push(MNT4PoseidonHash::init(None).update(Fr::rand(&mut rng)).finalize());
         }
         generate_merkle_tree(&leaves);
 
@@ -364,8 +358,7 @@ mod test {
         //Test #leaves << 2^HEIGHT
         let mut leaves = Vec::new();
         for _ in 0..4 {
-            let f = Fr::rand(&mut rng);
-            leaves.push(MNT4PoseidonHash::evaluate(&[f]).unwrap());
+            leaves.push(MNT4PoseidonHash::init(None).update(Fr::rand(&mut rng)).finalize());
         }
         bad_merkle_tree_verify(&leaves);
 
@@ -387,9 +380,8 @@ mod test {
     }
 
     use algebra::fields::mnt4753::Fr as MNT4753Fr;
-    use crate::merkle_tree::field_based_mht::batch_mht::BatchMerkleTree;
-    type MNT4BatchedMerkleTree = PoseidonBatchMerkleTreeMem<MNT4753Fr, MNT4753PoseidonParameters>;
-    type MNT4BatchedMerkleTreeMem = PoseidonBatchMerkleTreeMem<MNT4753Fr, MNT4753PoseidonParameters>;
+    use crate::merkle_tree::field_based_mht::ramht::RandomAccessMerkleTree;
+    type MNT4PoseidonRAMT = PoseidonRandomAccessMerkleTree<MNT4753Fr, MNT4753PoseidonParameters>;
 
     #[test]
     fn compare_merkle_trees_mnt4() {
@@ -405,36 +397,12 @@ mod test {
         let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
         let root1 = tree.root();
 
-        let mut tree = MNT4BatchedMerkleTree::new(num_leaves, num_leaves);
+        let mut tree = MNT4PoseidonRAMT::init(num_leaves);
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
         for _ in 0..num_leaves {
-            tree.update(MNT4753Fr::rand(&mut rng));
+            tree.append(MNT4753Fr::rand(&mut rng));
         }
         tree.finalize_in_place();
-        assert_eq!(tree.root(), root1, "Outputs of the Merkle trees for MNT4 do not match.");
+        assert_eq!(tree.root().unwrap(), root1, "Outputs of the Merkle trees for MNT4 do not match.");
     }
-
-    #[test]
-    fn compare_merkle_trees_mnt4_mem() {
-        let mut rng = XorShiftRng::seed_from_u64(9174123u64);
-
-        let num_leaves = 32;
-
-        let mut leaves = Vec::new();
-        for _ in 0..num_leaves {
-            let f = Fr::rand(&mut rng);
-            leaves.push(f);
-        }
-        let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
-        let root1 = tree.root();
-
-        let mut tree = MNT4BatchedMerkleTreeMem::new(num_leaves, num_leaves);
-        let mut rng = XorShiftRng::seed_from_u64(9174123u64);
-        for _ in 0..num_leaves {
-            tree.update(MNT4753Fr::rand(&mut rng));
-        }
-        tree.finalize_in_place();
-        assert_eq!(tree.root(), root1, "Outputs of the Merkle trees for MNT4 do not match.");
-    }
-
 }
