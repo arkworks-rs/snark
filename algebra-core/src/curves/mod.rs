@@ -310,36 +310,42 @@ where
     >;
 }
 
-pub trait BatchArithmetic<S = Self>: Sized {
+pub trait BatchArithmetic<'a, G: 'a> {
     // Computes [-p, p, -3p, 3p, ..., -2^wp, 2^wp]
-    fn batch_wnaf_tables(w: usize, a: Vec<S>) -> Vec<Vec<Self>>;
+    fn batch_wnaf_tables(&self, w: usize) -> Vec<Vec<G>>;
 
     // This function consumes the scalars
     // We can make this more generic in the future to use other than u16.
     fn batch_wnaf_opcode_recoding<BigInt: BigInteger + AsRef<[u64]>>(
-        scalars: &mut Vec<BigInt>,
+        scalars: &mut [BigInt],
         w: usize
     ) -> Vec<Vec<Option<u16>>>;
 
     // This function consumes the second op as it mutates it in place
     // to prevent memory allocation
-    fn batch_double_in_place_with_edge_cases<'a, I>(op_iter: I);
+    fn batch_double_in_place_with_edge_cases<I>(&mut self, f: F) -> ()
+    where
+        F: FnMut(&mut Self) -> I,
+        I: Iterator<Item = (&'a mut GroupAffine<P>, &'a mut GroupAffine<P>)> + DoubleEndedIterator;
 
     // fn batch_double_in_place<I>(op_iter: I) -> ();
 
-    fn batch_add_in_place_with_edge_cases<'a, I>(op_iter: I);
+    fn batch_add_in_place_with_edge_cases<I>(&mut self, f: F) -> ()
+    where
+        F: FnMut(&mut Self) -> I,
+        I: Iterator<Item = (&'a mut GroupAffine<P>, &'a mut GroupAffine<P>)> + DoubleEndedIterator;
 
     // fn batch_add_in_place<I>(op_iter: I) -> ();
 
     fn batch_scalar_mul_in_place<BigInt: BigInteger>(
+        &mut self,
         w: usize,
-        points: &mut Vec<Self>,
-        scalars: &mut Vec<BigInt>,
+        scalars: &mut [BigInt],
     );
 
-    fn batch_scalar_mul_in_place_glv<BigInt: BigInteger>(
-        w: usize,
-        points: &mut Vec<Self>,
-        scalars: &mut Vec<BigInt>,
-    );
+    // fn batch_scalar_mul_in_place_glv<BigInt: BigInteger>(
+    //     w: usize,
+    //     points: &mut Vec<Self>,
+    //     scalars: &mut Vec<BigInt>,
+    // );
 }

@@ -207,25 +207,26 @@ macro_rules! specialise_affine_to_proj {
             }
         }
 
-        impl<P: Parameters + FpParameters> BatchArithmetic for GroupAffine<P> {
+        impl<'a, P: Parameters + FpParameters> BatchArithmetic<'a, GroupAffine<P>> for [GroupAffine<P>] {
             // Computes [-p, p, -3p, 3p, ..., -2^wp, 2^wp]
-            fn batch_wnaf_tables(
-                w: usize,
-                a: Vec<Self>
-            ) -> Vec<Vec<Self>> {
+            fn batch_wnaf_tables(&self, w: usize) -> Vec<Vec<GroupAffine<P>>> {
                 let half_size = 1 << w;
-                let batch_size = a.len();
+                let batch_size = self.len();
 
-                let mut tables: Vec<Vec<Self>> = vec![Vec::<Self>::with_capacity(half_size << 1); batch_size];
+                let mut tables: vec![Vec::<GroupAffine<P>>::with_capacity(half_size << 1); batch_size];
 
-                let mut a_2 = a.clone();
-                Self::batch_double_in_place_with_edge_cases(a_2.iter());
-                let tmp = a.clone();
+                let mut a_2 = vec![];
+                a_2.clone_from_slice(&self[..]);
+                let mut tmp = vec![];
+                tmp.clone_from_slice(&self[..]);
+
+                a_2.batch_double_in_place_with_edge_cases(|x| x.iter_mut());
 
                 for i in 0..half_size {
                     if i != 0 {
-                        let mut add_iterator = tmp.iter_mut().zip(a_2.iter());
-                        Self::batch_add_in_place_with_edge_cases(add_iterator);
+                        tmp.batch_add_in_place_with_edge_cases(
+                            tmp.iter_mut().zip(a_2.iter_mut())
+                        );
                     }
 
                     for (&mut table, p) in tables.iter_mut().zip(tmp) {
@@ -233,13 +234,16 @@ macro_rules! specialise_affine_to_proj {
                         table.push(p);
                     }
                 }
+                // deref coercion
+                // let res: &[Self] = &tables;
+                // *res
                 tables
             }
 
             // This function consumes the scalars
             // We can make this more generic in the future to use other than u16.
             fn batch_wnaf_opcode_recoding<BigInt: BigInteger + AsRef<[u64]>>(
-                scalars: &mut Vec<BigInt>,
+                scalars: &mut [BigInt],
                 w: usize
             ) -> Vec<Vec<Option<u16>>> {
                 let batch_size = scalars.len();
@@ -293,14 +297,15 @@ macro_rules! specialise_affine_to_proj {
             // https://github.com/AztecProtocol/barretenberg/blob/standardplonkjson/barretenberg/src/
             // aztec/ecc/curves/bn254/scalar_multiplication/scalar_multiplication.cpp
 
-            fn batch_double_in_place_with_edge_cases<'a, I>(op_iter: I) -> ()
+            fn batch_double_in_place_with_edge_cases<I>(&mut self, f: F) -> ()
             where
-                I: Iterator<Item = &'a Self> + DoubleEndedIterator + 'a,
+                F: FnMut(&mut Self) -> I,
+                I: Iterator<Item = (&'a mut GroupAffine<P>, &'a mut GroupAffine<P>)> + DoubleEndedIterator
             {
                 let mut inversion_tmp = P::BaseField::one();
-                let mut scratch_space = Vec::with_capacity(op_iter.size_hint().0);
+                let mut scratch_space = Vec::new(); // with_capacity? How to get size?
                 // We run two loops over the data separated by an inversion
-                for &a in op_iter {
+                for a in f(self) {
                     if !a.is_zero() {
                         if a.y.is_zero() {
                             a.infinity = true;
@@ -315,7 +320,7 @@ macro_rules! specialise_affine_to_proj {
 
                 inversion_tmp = inversion_tmp.inverse().unwrap(); // this is always in Fp*
 
-                for &a in op_iter.rev() {
+                for a in f(self).rev() {
                     if !a.is_zero() {
                         let lambda = scratch_space.pop().unwrap() * &inversion_tmp;
                         inversion_tmp *= &a.x; // Remove the top layer of the denominator
@@ -368,14 +373,15 @@ macro_rules! specialise_affine_to_proj {
             // This function consumes the second op as it mutates it in place
             // to prevent memory allocation
 
-            fn batch_add_in_place_with_edge_cases<'a, I>(op_iter: I)
+            fn batch_add_in_place_with_edge_cases<I>(&mut self, &mut other: Self, f: F) -> ()
             where
-                I: Iterator<Item = (&'a Self, Self)> + DoubleEndedIterator + 'a,
+                F: FnMut(&mut Self, &mut Self) -> I,
+                I: Iterator<Item = (&'a mut GroupAffine<P>, &'a GroupAffine<P>)> + DoubleEndedIterator
             {
                 let mut inversion_tmp = P::BaseField::one();
                 // let half = P::BaseField::from_repr(P::MODULUS_MINUS_ONE_DIV_TWO) + P::BaseField::one(); // (p + 1)/2 * 2 = 1
                 // We run two loops over the data separated by an inversion
-                for (&a, b) in op_iter {
+                for (a, b) in f(self) {
                     if a.is_zero() || b.is_zero() {
                         continue;
                     } else if a.x == b.x {
@@ -406,7 +412,7 @@ macro_rules! specialise_affine_to_proj {
 
                 inversion_tmp = inversion_tmp.inverse().unwrap(); // this is always in Fp*
 
-                for (&a, b) in op_iter.rev() {
+                for (a, b) in f(self).rev() {
                     if a.is_zero() {
                         a = b;
                     } else if !b.is_zero() {
@@ -448,47 +454,55 @@ macro_rules! specialise_affine_to_proj {
             // }
 
             fn batch_scalar_mul_in_place<BigInt: BigInteger>(
+                &mut self,
                 w: usize,
-                points: &'a mut Vec<Self>,
-                scalars: &mut Vec<BigInt>,
+                scalars: &mut [BigInt],
             ) {
                 let no_op: u16 = 1 << (w + 1); // noop is encoded as window_size
                 let opcode_vectorised = Self::batch_wnaf_opcode_recoding::<BigInt>(scalars, w);
-                let tables = Self::batch_wnaf_tables(w, *points);
+                let tables = self.batch_wnaf_tables(w);
 
                 for opcode_row in opcode_vectorised.iter().rev() {
-                    let double_iterator = opcode_row.iter()
-                        .zip(points.iter_mut())
-                        .filter(|(op, p)| op.is_some())
-                        .map(|x| x.1);
 
-                    Self::batch_double_in_place_with_edge_cases(double_iterator);
+                    let double_iter = |points| {
+                        points.iter_mut().zip(opcode_row)
+                            .filter(|(p, op)| op.is_some())
+                            .map(|x| x.0)
+                    }
 
-                    let add_iterator = opcode_row.iter()
-                        .zip(points.iter_mut())
-                        .zip(tables)
-                        .filter(|((op, _), _)| op.is_some() && op.unwrap() != no_op)
-                        .map(|((op, p), t)| (p, t[op.unwrap() as usize]));
+                    self.batch_double_in_place_with_edge_cases(double_iter);
 
-                    Self::batch_add_in_place_with_edge_cases(add_iterator);
+                    // Copying to this vector might be really stupid...
+                    let mut op2: Vec<GroupAffine<P>> = Vec::with_capacity(self.len() / w);
+
+                    let add_iter = |points| {
+                        points.iter_mut().zip(opcode_row).zip(tables.iter())
+                            .filter(|((_, op), _)| op.is_some() && op.unwrap() != no_op)
+                            .map(|((p, op), t)| {
+                                op2.push(t[op.unwrap() as usize].clone());
+                                (p, op2.last_mut().unwrap())
+                            })
+                    }
+
+                    self.batch_add_in_place_with_edge_cases(add_iter);
                 }
             }
 
-            fn batch_scalar_mul_in_place_glv<BigInt: BigInteger>(
-                w: usize,
-                points: &'a mut Vec<Self>,
-                scalars: &mut Vec<BigInt>,
-            ) {
-                assert_eq!(points.len(), scalars.len());
-                let batch_size = points.len();
-                let mut k1 = scalars;
-                // let (mut k1, mut k2) = Self::batch_glv_decomposition(scalars);
-
-                // let p2 = points.map(|p| p.glv_endomorphism());
-                Self::batch_scalar_mul_in_place::<BigInt>(w, points, &mut k1);
-                // Self::batch_scalar_mul_in_place(w, p2, k2);
-                // Self::batch_add_in_place_with_edge_cases(points, p2);
-            }
+            // fn batch_scalar_mul_in_place_glv<BigInt: BigInteger>(
+            //     w: usize,
+            //     points: &mut Vec<Self>,
+            //     scalars: &mut Vec<BigInt>,
+            // ) {
+            //     assert_eq!(points.len(), scalars.len());
+            //     let batch_size = points.len();
+            //     let mut k1 = scalars;
+            //     // let (mut k1, mut k2) = Self::batch_glv_decomposition(scalars);
+            //
+            //     // let p2 = points.map(|p| p.glv_endomorphism());
+            //     Self::batch_scalar_mul_in_place::<BigInt>(w, points, &mut k1);
+            //     // Self::batch_scalar_mul_in_place(w, p2, k2);
+            //     // Self::batch_add_in_place_with_edge_cases(points, p2);
+            // }
         }
 
         impl_sw_curve_serializer!(Parameters);
