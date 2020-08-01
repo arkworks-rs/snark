@@ -396,7 +396,6 @@ mod test {
             .update(input[0])
             .update(input[1])
             .finalize();
-        let output = poseidon_digest.finalize();
         assert_eq!(output, expected_output, "Outputs do not match for MNT6753.");
 
         // Test finalize() holding the state and allowing updates in between different calls to it

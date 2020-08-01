@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 mod parameters;
 mod big_merkle_tree;
 mod big_lazy_merkle_tree;

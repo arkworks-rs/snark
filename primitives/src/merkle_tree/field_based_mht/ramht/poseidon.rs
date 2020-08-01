@@ -66,6 +66,8 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonRandomAccess
     }
 }
 
+//TODO: Remove the underscore from the names of input variables of unimplemented functions
+//      after having implemented them.
 impl<F: PrimeField + MulShort, P: Clone + PoseidonParameters<Fr=F>> RandomAccessMerkleTree
 for PoseidonRandomAccessMerkleTree<F, P> {
 
@@ -221,7 +223,7 @@ for PoseidonRandomAccessMerkleTree<F, P> {
         self
     }
 
-    fn set(&mut self, index: usize, new_leaf: Self::Data) -> &mut Self {
+    fn set(&mut self, _index: usize, _new_leaf: Self::Data) -> &mut Self {
         unimplemented!()
     }
 
@@ -254,15 +256,15 @@ for PoseidonRandomAccessMerkleTree<F, P> {
         }
     }
 
-    fn get_merkle_path(&self, leaf: &Self::Data) -> Option<Self::MerklePath> {
+    fn get_merkle_path(&self, _leaf: &Self::Data) -> Option<Self::MerklePath> {
         unimplemented!()
     }
 
     fn verify_merkle_path(
         &self,
-        leaf: &Self::Data,
-        root: &Self::Data,
-        path: &Self::MerklePath
+        _leaf: &Self::Data,
+        _root: &Self::Data,
+        _path: &Self::MerklePath
     ) -> Option<bool> {
         unimplemented!()
     }

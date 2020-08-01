@@ -568,7 +568,11 @@ mod test {
         let root3;
         let root4;
         {
-            let mut smt1 = MNT4PoseidonSmt::new(num_leaves, String::from("./db_leaves") , String::from("./db_cache")).unwrap();
+            let mut smt1 = MNT4PoseidonSmt::new(
+                num_leaves,
+                String::from("./db_leaves_mnt4_comp_1"),
+                String::from("./db_cache_mnt4_comp_1")
+            ).unwrap();
             let leaves_to_process1 = leaves_to_insert.clone();
             let now = Instant::now();
             root1 = smt1.process_leaves_normal(leaves_to_process1);
@@ -592,7 +596,11 @@ mod test {
         }
 
         {
-            let mut smt2 = MNT4PoseidonSmtLazy::new(num_leaves, String::from("./db_leaves") , String::from("./db_cache")).unwrap();
+            let mut smt2 = MNT4PoseidonSmtLazy::new(
+                num_leaves,
+                String::from("./db_leaves_mnt4_comp_2"),
+                String::from("./db_cache_mnt4_comp_2")
+            ).unwrap();
             let leaves_to_process2 = leaves_to_insert.clone();
             let now = Instant::now();
             root2 = smt2.process_leaves(leaves_to_process2);
@@ -635,7 +643,11 @@ mod test {
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 29 }, action: ActionLeaf::Insert, hash: Some(MNT4753Fr::from_str("3").unwrap()) });
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 16 }, action: ActionLeaf::Remove, hash: Some(MNT4753Fr::from_str("3").unwrap()) });
 
-        let mut smt = MNT4PoseidonSmtLazy::new(num_leaves, String::from("./db_leaves") , String::from("./db_cache")).unwrap();
+        let mut smt = MNT4PoseidonSmtLazy::new(
+            num_leaves,
+            String::from("./db_leaves_mnt4"),
+            String::from("./db_cache_mnt4")
+        ).unwrap();
         smt.process_leaves(leaves_to_process);
 
         //=============================================
@@ -692,7 +704,11 @@ mod test {
         let root3;
         let root4;
         {
-            let mut smt1 = MNT6PoseidonSmt::new(num_leaves, String::from("./db_leaves") , String::from("./db_cache")).unwrap();
+            let mut smt1 = MNT6PoseidonSmt::new(
+                num_leaves,
+                String::from("./db_leaves_mnt6_comp_1"),
+                String::from("./db_cache_mnt6_comp_1")
+            ).unwrap();
             let leaves_to_process1 = leaves_to_insert.clone();
             let now = Instant::now();
             root1 = smt1.process_leaves_normal(leaves_to_process1);
@@ -716,7 +732,11 @@ mod test {
         }
 
         {
-            let mut smt2 = MNT6PoseidonSmtLazy::new(num_leaves, String::from("./db_leaves") , String::from("./db_cache")).unwrap();
+            let mut smt2 = MNT6PoseidonSmtLazy::new(
+                num_leaves,
+                String::from("./db_leaves_mnt6_comp_2"),
+                String::from("./db_cache_mnt6_comp_2")
+            ).unwrap();
             let leaves_to_process2 = leaves_to_insert.clone();
             let now = Instant::now();
             root2 = smt2.process_leaves(leaves_to_process2);
@@ -759,7 +779,10 @@ mod test {
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 29 }, action: ActionLeaf::Insert, hash: Some(MNT6753Fr::from_str("3").unwrap()) });
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 16 }, action: ActionLeaf::Remove, hash: Some(MNT6753Fr::from_str("3").unwrap()) });
 
-        let mut smt = MNT6PoseidonSmtLazy::new(num_leaves, String::from("./db_leaves") , String::from("./db_cache")).unwrap();
+        let mut smt = MNT6PoseidonSmtLazy::new(
+            num_leaves,
+            String::from("./db_leaves_mnt6"),
+            String::from("./db_cache_mnt6")).unwrap();
         smt.process_leaves(leaves_to_process);
 
         //=============================================

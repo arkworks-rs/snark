@@ -645,7 +645,11 @@ mod test {
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 29 }, action: ActionLeaf::Insert, hash: Some(MNT4753Fr::from_str("3").unwrap()) });
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 16 }, action: ActionLeaf::Remove, hash: Some(MNT4753Fr::from_str("3").unwrap()) });
 
-        let mut smt = MNT4PoseidonSmt::new(num_leaves, String::from("./db_leaves") , String::from("./db_cache")).unwrap();
+        let mut smt = MNT4PoseidonSmt::new(
+            num_leaves,
+            String::from("./db_leaves_compare_merkle_trees_mnt4_1"),
+            String::from("./db_cache_compare_merkle_trees_mnt4_1")
+        ).unwrap();
         smt.process_leaves_normal(leaves_to_process);
 
         //=============================================
@@ -687,7 +691,11 @@ mod test {
         }
         let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
 
-        let mut smt = MNT4PoseidonSmt::new(num_leaves,String::from("./db_leaves") , String::from("./db_cache")).unwrap();
+        let mut smt = MNT4PoseidonSmt::new(
+            num_leaves,
+            String::from("./db_leaves_compare_merkle_trees_mnt4_2"),
+            String::from("./db_cache_compare_merkle_trees_mnt4_2")
+        ).unwrap();
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
         for i in 0..num_leaves {
             let f = Fr::rand(&mut rng);
@@ -725,7 +733,11 @@ mod test {
         }
         let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
 
-        let mut smt = MNT4PoseidonSmt::new(num_leaves, String::from("./db_leaves") , String::from("./db_cache")).unwrap();
+        let mut smt = MNT4PoseidonSmt::new(
+            num_leaves,
+            String::from("./db_leaves_compare_merkle_trees_mnt4_3"),
+            String::from("./db_cache_compare_merkle_trees_mnt4_3")
+        ).unwrap();
         smt.insert_leaf(Coord{height:0, idx:0}, MNT4753Fr::from_str("1").unwrap());
         smt.insert_leaf(Coord{height:0, idx:9}, MNT4753Fr::from_str("2").unwrap());
         smt.insert_leaf(Coord{height:0, idx:16}, MNT4753Fr::from_str("10").unwrap());
@@ -761,7 +773,11 @@ mod test {
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 29 }, action: ActionLeaf::Insert, hash: Some(MNT6753Fr::from_str("3").unwrap()) });
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 16 }, action: ActionLeaf::Remove, hash: Some(MNT6753Fr::from_str("3").unwrap()) });
 
-        let mut smt = MNT6PoseidonSmt::new(num_leaves, String::from("./db_leaves") , String::from("./db_cache")).unwrap();
+        let mut smt = MNT6PoseidonSmt::new(
+            num_leaves,
+            String::from("./db_leaves_compare_merkle_trees_mnt6_1"),
+            String::from("./db_cache_compare_merkle_trees_mnt6_1")
+        ).unwrap();
         smt.process_leaves_normal(leaves_to_process);
 
         //=============================================
@@ -803,7 +819,11 @@ mod test {
         }
         let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
 
-        let mut smt = MNT4PoseidonSmt::new(num_leaves, String::from("./db_leaves") , String::from("./db_cache")).unwrap();
+        let mut smt = MNT4PoseidonSmt::new(
+            num_leaves,
+            String::from("./db_leaves_compare_merkle_trees_mnt6_2"),
+            String::from("./db_cache_compare_merkle_trees_mnt6_2")
+        ).unwrap();
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
         for i in 0..num_leaves {
             let f = Fr::rand(&mut rng);
@@ -841,7 +861,10 @@ mod test {
         }
         let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
 
-        let mut smt = MNT4PoseidonSmt::new(num_leaves, String::from("./db_leaves") , String::from("./db_cache")).unwrap();
+        let mut smt = MNT4PoseidonSmt::new(
+            num_leaves,
+            String::from("./db_leaves_compare_merkle_trees_mnt6_3"),
+            String::from("./db_cache_compare_merkle_trees_mnt6_3")).unwrap();
         smt.insert_leaf(Coord{height:0, idx:0}, MNT4753Fr::from_str("1").unwrap());
         smt.insert_leaf(Coord{height:0, idx:9}, MNT4753Fr::from_str("2").unwrap());
         smt.insert_leaf(Coord{height:0, idx:16}, MNT4753Fr::from_str("10").unwrap());
