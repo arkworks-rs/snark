@@ -43,4 +43,4 @@ std = []
 parallel = [ "std", "rayon" ]
 derive = [ "algebra-core-derive" ]
 llvm_asm = []
-
+prefetch = []

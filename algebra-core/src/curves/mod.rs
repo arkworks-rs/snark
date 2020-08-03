@@ -319,7 +319,7 @@ pub trait BatchArithmetic<G> {
     fn batch_wnaf_opcode_recoding<BigInt: BigInteger + AsRef<[u64]>>(
         scalars: &mut [BigInt],
         w: usize
-    ) -> Vec<Vec<Option<u16>>>;
+    ) -> Vec<Vec<Option<i16>>>;
 
     // This function consumes the second op as it mutates it in place
     // to prevent memory allocation

@@ -215,7 +215,7 @@ macro_rules! specialise_affine_to_proj {
                 let batch_size = self.len();
 
                 let mut tables =
-                    vec![Vec::<GroupAffine<P>>::with_capacity(half_size << 1); batch_size];
+                    vec![Vec::<GroupAffine<P>>::with_capacity(half_size); batch_size];
 
                 let mut a_2 = self[..].to_vec();
                 let mut tmp = self[..].to_vec();
@@ -230,7 +230,7 @@ macro_rules! specialise_affine_to_proj {
                     }
 
                     for (table, p) in tables.iter_mut().zip(&tmp) {
-                        table.push(p.clone().neg());
+                        // table.push(p.clone().neg());
                         table.push(p.clone());
                     }
                 }
@@ -240,25 +240,73 @@ macro_rules! specialise_affine_to_proj {
                 tables
             }
 
-            // This function consumes the scalars
+            // This function mutates the scalars in place
+            // We can make this more generic in the future to use other than u16.
+            // fn batch_wnaf_opcode_recoding_<BigInt: BigInteger + AsRef<[u64]>>(
+            //     scalars: &mut [BigInt],
+            //     w: usize
+            // ) -> Vec<Vec<Option<u16>>> {
+            //     assert!(w > 0);
+            //     let batch_size = scalars.len();
+            //     let window_size: u16 = 1 << (w + 1);
+            //     let half_window_size: u16 = 1 << w;
+            //
+            //     let mut op_code_vectorised =
+            //         Vec::<Vec<Option<u16>>>::with_capacity(scalars[0].as_ref().len() * 64);
+            //
+            //     let mut all_none = false;
+            //     while !all_none {
+            //         let mut opcode_row = Vec::with_capacity(batch_size);
+            //
+            //         for s in scalars.iter_mut() {
+            //             if s.is_zero() {
+            //                 opcode_row.push(None);
+            //             } else {
+            //                 let op = if s.is_odd() {
+            //                     let mut z: u16 = (s.as_ref()[0] as u16) % window_size;
+            //
+            //                     if z < half_window_size {
+            //                         s.sub_noborrow(&BigInt::from(z as u64));
+            //                     } else {
+            //                         let tmp = window_size - z;
+            //                         s.add_nocarry(&BigInt::from(tmp as u64));
+            //                         z = tmp - 1; // z = 0, 2, ..., 2^(w+1) - 2
+            //                     }
+            //                     z
+            //                 } else {
+            //                     half_window_size // We encode 0s to be 2^(w+1)
+            //                 };
+            //                 opcode_row.push(Some(op));
+            //                 s.div2();
+            //             }
+            //         }
+            //
+            //         all_none = opcode_row.iter().all(|x| x.is_none());
+            //         if !all_none {
+            //             op_code_vectorised.push(opcode_row);
+            //         // } else {
+            //         //     break;
+            //         }
+            //     }
+            //     op_code_vectorised
+            // }
+
+            // This function mutates the scalars in place
             // We can make this more generic in the future to use other than u16.
             fn batch_wnaf_opcode_recoding<BigInt: BigInteger + AsRef<[u64]>>(
                 scalars: &mut [BigInt],
                 w: usize
-            ) -> Vec<Vec<Option<u16>>> {
+            ) -> Vec<Vec<Option<i16>>> {
                 assert!(w > 0);
                 let batch_size = scalars.len();
-                let window_size: u16 = 1 << (w + 1);
-                let half_window_size: u16 = 1 << w;
+                let window_size: i16 = 1 << (w + 1);
+                let half_window_size: i16 = 1 << w;
 
                 let mut op_code_vectorised =
-                    Vec::<Vec<Option<u16>>>::with_capacity(scalars[0].as_ref().len() * 64);
+                    Vec::<Vec<Option<i16>>>::with_capacity(scalars[0].as_ref().len() * 64);
 
                 let mut all_none = false;
-                let mut count = 1;
                 while !all_none {
-                    count += 1;
-                    println!("{}", count);
                     let mut opcode_row = Vec::with_capacity(batch_size);
 
                     for s in scalars.iter_mut() {
@@ -266,29 +314,22 @@ macro_rules! specialise_affine_to_proj {
                             opcode_row.push(None);
                         } else {
                             let op = if s.is_odd() {
-                                let mut z: u16 = (s.as_ref()[0] as u16) % window_size;
-
-                                println!("{:?}", z);
+                                let mut z: i16 = (s.as_ref()[0] % (1 << (w + 1))) as i16;
 
                                 if z < half_window_size {
                                     s.sub_noborrow(&BigInt::from(z as u64));
                                 } else {
-                                    let tmp = window_size - z;
-                                    println!("{:?}", tmp as u64);
-                                    s.add_nocarry(&BigInt::from(tmp as u64));
-                                    z = tmp - 1; // z = 0, 2, ..., 2^(w+1) - 2
+                                    z = z - window_size;
+                                    s.add_nocarry(&BigInt::from((-z) as u64));
                                 }
                                 z
                             } else {
-                                half_window_size // We encode 0s to be 2^(w+1)
+                                0 // We encode 0s to be 2^(w+1)
                             };
                             opcode_row.push(Some(op));
                             s.div2();
                         }
                     }
-
-                    println!("{:?}", scalars);
-                    println!("{:?}", opcode_row);
 
                     all_none = opcode_row.iter().all(|x| x.is_none());
                     if !all_none {
@@ -314,7 +355,21 @@ macro_rules! specialise_affine_to_proj {
                 let mut inversion_tmp = P::BaseField::one();
                 let mut scratch_space = Vec::new(); // with_capacity? How to get size?
                 // We run two loops over the data separated by an inversion
+                #[cfg(feature = "prefetch")]
+                let mut prefetch_iter = index.iter();
+                #[cfg(feature = "prefetch")]
+                {
+                    prefetch_iter.next();
+                }
+
                 for idx in index.iter() {
+                    // Prefetch next group into cache
+                    #[cfg(feature = "prefetch")]
+                    {
+                        if let Some(idp) = prefetch_iter.next() {
+                            prefetch::<GroupAffine<P>>(&mut self[*idp]);
+                        }
+                    }
                     let mut a = &mut self[*idx];
                     if !a.is_zero() {
                         if a.y.is_zero() {
@@ -330,9 +385,31 @@ macro_rules! specialise_affine_to_proj {
 
                 inversion_tmp = inversion_tmp.inverse().unwrap(); // this is always in Fp*
 
+                #[cfg(feature = "prefetch")]
+                let mut prefetch_iter = index.iter().rev();
+                #[cfg(feature = "prefetch")]
+                let mut scratch_space_counter = (0..scratch_space.len()).rev();
+                #[cfg(feature = "prefetch")]
+                {
+                    prefetch_iter.next();
+                    scratch_space_counter.next();
+                }
+
                 for idx in index.iter().rev() {
+                    #[cfg(feature = "prefetch")]
+                    {
+                        if let Some(idp) = prefetch_iter.next() {
+                            prefetch::<GroupAffine<P>>(&mut self[*idp]);
+                        }
+                    }
                     let mut a = &mut self[*idx];
                     if !a.is_zero() {
+                        #[cfg(feature = "prefetch")]
+                        {
+                            if let Some(idp) = scratch_space_counter.next() {
+                                prefetch::<P::BaseField>(&mut scratch_space[idp]);
+                            }
+                        }
                         let z = scratch_space.pop().unwrap();
                         let lambda = z * &inversion_tmp;
                         inversion_tmp *= &a.y.double(); // Remove the top layer of the denominator
@@ -354,9 +431,23 @@ macro_rules! specialise_affine_to_proj {
             ) {
                 let mut inversion_tmp = P::BaseField::one();
 
+                #[cfg(feature = "prefetch")]
+                let mut prefetch_iter = index.iter();
+                #[cfg(feature = "prefetch")]
+                {
+                    prefetch_iter.next();
+                }
+
                 // let half = P::BaseField::from_repr(P::MODULUS_MINUS_ONE_DIV_TWO) + P::BaseField::one(); // (p + 1)/2 * 2 = 1
                 // We run two loops over the data separated by an inversion
                 for (idx, idy) in index.iter() {
+                    #[cfg(feature = "prefetch")]
+                    {
+                        if let Some((idp_1, idp_2)) = prefetch_iter.next() {
+                            prefetch::<GroupAffine<P>>(&mut self[*idp_1]);
+                            prefetch::<GroupAffine<P>>(&mut other[*idp_2]);
+                        }
+                    }
                     let (mut a, mut b) = (&mut self[*idx], &mut other[*idy]);
                     if a.is_zero() || b.is_zero() {
                         continue;
@@ -365,6 +456,7 @@ macro_rules! specialise_affine_to_proj {
                         // In our model, we consider self additions rare.
                         // So we consider it inconsequential to make them more expensive
                         // This costs 1 modular mul more than a standard squaring
+
                         if a.y == b.y {
                             let x_sq = b.x.square();
                             b.x -= &b.y; // x - y
@@ -388,7 +480,21 @@ macro_rules! specialise_affine_to_proj {
 
                 inversion_tmp = inversion_tmp.inverse().unwrap(); // this is always in Fp*
 
+                #[cfg(feature = "prefetch")]
+                let mut prefetch_iter = index.iter().rev();
+                #[cfg(feature = "prefetch")]
+                {
+                    prefetch_iter.next();
+                }
+
                 for (idx, idy) in index.iter().rev() {
+                    #[cfg(feature = "prefetch")]
+                    {
+                        if let Some((idp_1, idp_2)) = prefetch_iter.next() {
+                            prefetch::<GroupAffine<P>>(&mut self[*idp_1]);
+                            prefetch::<GroupAffine<P>>(&mut other[*idp_2]);
+                        }
+                    }
                     let (mut a, b) = (&mut self[*idx], other[*idy]);
                     if a.is_zero() {
                         *a = b;
@@ -410,15 +516,24 @@ macro_rules! specialise_affine_to_proj {
                 w: usize,
                 scalars: &mut [BigInt],
             ) {
-                let no_op: u16 = 1 << w; // noop is encoded as half_window_size
+                println!("Size: {:?}", self.len());
+                // let no_op: u16 = 1 << w; // noop is encoded as half_window_size
+                let now = std::time::Instant::now();
                 let opcode_vectorised = Self::batch_wnaf_opcode_recoding::<BigInt>(scalars, w);
+                println!("recoding: {:?}", now.elapsed().as_micros());
+                let now = std::time::Instant::now();
                 let tables = self.batch_wnaf_tables(w);
+                println!("table generation: {:?}", now.elapsed().as_micros());
 
+                let now = std::time::Instant::now();
                 // Set all points to 0;
                 for p in self.iter_mut() {
                     p.infinity = true;
                 }
+                println!("set 0: {:?}", now.elapsed().as_micros());
 
+                // let mut total: u128 = 0;
+                let now = std::time::Instant::now();
                 for opcode_row in opcode_vectorised.iter().rev() {
                     let index_double = opcode_row.iter()
                         .enumerate()
@@ -428,25 +543,39 @@ macro_rules! specialise_affine_to_proj {
 
                     self.batch_double_in_place_with_edge_cases(index_double);
 
+                    // let then = std::time::Instant::now();
                     // Copying to this vector might be really stupid...
                     let mut add_ops: Vec<GroupAffine<P>> = tables.iter()
                         .zip(opcode_row)
-                        .filter(|(_, op)| op.is_some() && op.unwrap() != no_op)
-                        .map(|(t, op)| t[op.unwrap() as usize].clone())
+                        .filter(|(_, op)| op.is_some() && op.unwrap() != 0)
+                        .map(|(t, op)| {
+                            let idx = op.unwrap();
+                            if idx > 0 {
+                                t[(idx as usize)/2].clone()
+                            } else {
+                                t[((-idx) as usize)/2].clone().neg()
+                            }
+                        })
                         .collect();
+
+                    // let dur = then.elapsed().as_micros();
+                    // println!("allocate new points: {:?}", dur);
+                    // total += dur;
+                    // println!("total - allocate new points: {:?}", total);
+
 
                     let index_add = opcode_row.iter()
                         .enumerate()
-                        .filter(|(_, op)| op.is_some() && op.unwrap() != no_op)
+                        .filter(|(_, op)| op.is_some() && op.unwrap() != 0)
                         .map(|x| x.0)
                         .enumerate()
                         .map(|(x, y)| (y, x))
                         .collect();
 
-                    println!("{:?}", index_add);
-
                     self.batch_add_in_place_with_edge_cases(&mut add_ops[..], index_add);
                 }
+
+                println!("Scalar mul for {:?} points: {:?}", self.len(), now.elapsed().as_micros());
             }
 
             // fn batch_scalar_mul_in_place_glv<BigInt: BigInteger>(
@@ -465,6 +594,12 @@ macro_rules! specialise_affine_to_proj {
             //     // Self::batch_add_in_place_with_edge_cases(points, p2);
             // }
         }
+
+        #[inline]
+        pub fn prefetch<T>(p: *const T) {
+            unsafe {  core::arch::x86_64::_mm_prefetch(p as *const i8,  core::arch::x86_64::_MM_HINT_T0) }
+        }
+
         impl_sw_curve_serializer!(Parameters);
     }
 }
