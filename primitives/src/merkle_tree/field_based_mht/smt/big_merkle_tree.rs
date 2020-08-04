@@ -289,6 +289,15 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         }
     }
 
+    pub fn is_leaf_empty(&self, coord: Coord) -> bool {
+        // check that the index of the leaf is less than the width of the Merkle tree
+        assert!(coord.idx < self.width, "Leaf index out of bound.");
+        // check that the coordinates of the node corresponds to the leaf level
+        assert_eq!(coord.height, 0, "Coord of the node does not correspond to leaf level");
+
+        self.present_node.contains(&coord)
+    }
+
     // Updates the tree visiting the parent nodes from the leaf to the root
     // Calculates the hash and caches it
     pub fn update_tree(&mut self, coord: Coord) {
