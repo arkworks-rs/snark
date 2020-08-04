@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 
-mod parameters;
-mod big_merkle_tree;
-mod big_lazy_merkle_tree;
+pub mod parameters;
+pub mod big_merkle_tree;
+pub mod big_lazy_merkle_tree;
 pub mod error;
 
 use crate::{FieldBasedHashParameters, PoseidonHash};

@@ -35,7 +35,7 @@ pub struct PoseidonRandomAccessMerkleTree<F: PrimeField + MulShort, P: PoseidonP
 
 impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonRandomAccessMerkleTree<F, P> {
 
-    pub fn compute_subtree(&mut self) {
+    pub fn  compute_subtree(&mut self) {
         for i in 0..self.levels {
             if (self.new_elem_pos_subarray[i] - self.processed_pos_subarray[i]) >= self.rate {
                 let num_groups_leaves = (self.new_elem_pos_subarray[i] - self.processed_pos_subarray[i]) / self.rate;
