@@ -473,6 +473,10 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         self.root = node_hash;
     }
 
+    pub fn get_root(&self) -> F {
+        self.root.clone()
+    }
+
     pub fn remove_subtree_from_cache(&mut self, coord: Coord) {
 
         assert_eq!(T::MERKLE_ARITY,2, "Arity of the Merkle tree is not 2.");

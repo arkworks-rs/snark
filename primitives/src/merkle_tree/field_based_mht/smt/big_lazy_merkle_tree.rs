@@ -303,6 +303,10 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         res.unwrap()
     }
 
+    pub fn get_root(&self) -> F {
+        self.root.clone()
+    }
+
     pub fn remove_node_from_cache(&mut self, coord: Coord) {
         self.remove_from_cache(coord);
     }
