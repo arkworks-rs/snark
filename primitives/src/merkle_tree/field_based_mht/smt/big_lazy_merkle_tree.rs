@@ -668,7 +668,7 @@ mod test {
             leaves.push(f);
         }
         leaves.push(MNT4753Fr::from_str("3").unwrap());
-        for _ in 30..32 {
+        for _ in 30..31 {
             let f = Fr::zero();
             leaves.push(f);
         }
@@ -679,7 +679,7 @@ mod test {
     }
 
     #[test]
-    fn process_leaves_mnt6_comp() {
+    fn process_leaves_mnt6() {
         use algebra::{
             fields::mnt6753::Fr,
             UniformRand,
@@ -769,7 +769,7 @@ mod test {
     }
 
     #[test]
-    fn process_leaves_mnt6() {
+    fn process_leaves_mnt6_comp() {
         use algebra::{
             fields::mnt6753::Fr, Field,
         };
@@ -803,7 +803,7 @@ mod test {
             leaves.push(f);
         }
         leaves.push(MNT6753Fr::from_str("3").unwrap());
-        for _ in 30..32 {
+        for _ in 30..31 {
             let f = Fr::zero();
             leaves.push(f);
         }

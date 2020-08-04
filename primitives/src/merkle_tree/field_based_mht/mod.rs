@@ -262,7 +262,7 @@ pub(crate) fn hash_inner_node<H: FieldBasedHash>(
 }
 
 pub(crate) fn hash_empty<H: FieldBasedHash>() -> Result<H::Data, Error> {
-    Ok(H::init(None).update(<H::Data as Field>::zero()).finalize())
+    Ok(<H::Data as Field>::zero())
 }
 
 #[cfg(test)]
@@ -387,7 +387,7 @@ mod test {
     fn compare_merkle_trees_mnt4() {
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
 
-        let num_leaves = 32;
+        let num_leaves = 30;
 
         let mut leaves = Vec::new();
         for _ in 0..num_leaves {
