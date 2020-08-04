@@ -295,7 +295,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         // check that the coordinates of the node corresponds to the leaf level
         assert_eq!(coord.height, 0, "Coord of the node does not correspond to leaf level");
 
-        self.present_node.contains(&coord)
+        !self.present_node.contains(&coord)
     }
 
     // Updates the tree visiting the parent nodes from the leaf to the root
