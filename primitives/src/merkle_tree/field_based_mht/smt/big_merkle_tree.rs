@@ -89,6 +89,8 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         })
     }
 
+    pub fn height(&self) -> usize { self.height }
+
     /* ===============================================================================*/
     /* Cache operations */
     /*===============================================================================*/

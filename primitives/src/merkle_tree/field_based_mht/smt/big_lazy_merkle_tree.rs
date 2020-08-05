@@ -91,6 +91,8 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         })
     }
 
+    pub fn height(&self) -> usize { self.height }
+
     pub fn insert_to_cache(&self, coord: Coord, data:F) {
         let elem = to_bytes!(data).unwrap();
         let index = bincode::serialize(&coord).unwrap();
