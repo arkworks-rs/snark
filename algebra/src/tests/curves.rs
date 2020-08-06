@@ -222,6 +222,107 @@ fn random_transformation_test<G: ProjectiveCurve>() {
     }
 }
 
+
+pub fn random_batch_doubling_test<G: ProjectiveCurve>()
+{
+    use algebra_core::curves::models::short_weierstrass_jacobian::{GroupAffine, GroupProjective};
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+    for j in 0..ITERATIONS {
+        let size = std::cmp::min(1 << 5, j + 1);
+        let mut a = Vec::with_capacity(size);
+        let mut b = Vec::with_capacity(size);
+
+        for i in 0..size {
+            a.push(G::rand(&mut rng));
+            b.push(G::rand(&mut rng));
+        }
+
+        let mut c = a.clone();
+
+        let mut a: Vec<G::Affine> = a.iter().map(|p| p.into_affine()).collect();
+
+        a[..].batch_double_in_place_with_edge_cases((0..size).collect());
+
+        for p_c in c.iter_mut() {
+            *p_c.double_in_place();
+        }
+
+        let c: Vec<G::Affine> = c.iter().map(|p| p.into_affine()).collect();
+
+        assert_eq!(a, c);
+    }
+}
+
+pub fn random_batch_addition_test<G: ProjectiveCurve>()
+{
+    use algebra_core::curves::models::short_weierstrass_jacobian::{GroupAffine, GroupProjective};
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+    for j in 0..ITERATIONS {
+        let size = std::cmp::min(1 << 5, j + 1);
+        let mut a = Vec::with_capacity(size);
+        let mut b = Vec::with_capacity(size);
+
+        for i in 0..size {
+            a.push(G::rand(&mut rng));
+            b.push(G::rand(&mut rng));
+        }
+
+        let mut c = a.clone();
+        let mut d = b.clone();
+
+        let mut a: Vec<G::Affine> = a.iter().map(|p| p.into_affine()).collect();
+        let mut b: Vec<G::Affine> = b.iter().map(|p| p.into_affine()).collect();
+
+        a[..].batch_add_in_place_with_edge_cases(&mut b[..], (0..size).map(|x| (x, x)).collect());
+
+        for (p_c, p_d) in c.iter_mut().zip(d.iter()) {
+            *p_c += *p_d;
+        }
+
+        let c: Vec<G::Affine> = c.iter().map(|p| p.into_affine()).collect();
+
+        assert_eq!(a, c);
+    }
+}
+
+
+pub fn sw_random_scalar_mul_test<G: ProjectiveCurve>()
+{
+    use algebra_core::curves::models::short_weierstrass_jacobian::{GroupAffine, GroupProjective};
+    use std::ops::MulAssign;
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+    for j in 0..ITERATIONS {
+        let size = std::cmp::min(1 << 10, j + 4);
+        let mut a = Vec::with_capacity(size);
+        let mut s = Vec::with_capacity(size);
+
+        for i in 0..size {
+            a.push(G::rand(&mut rng));
+            s.push(G::ScalarField::rand(&mut rng));
+        }
+
+        let mut c = a.clone();
+        let mut t = s.clone();
+
+        let mut a: Vec<G::Affine> = a.iter().map(|p| p.into_affine()).collect();
+
+        let mut s: Vec<<G::ScalarField as PrimeField>::BigInt> = s.iter().map(|p| p.into_repr()).collect();
+
+        a[..].batch_scalar_mul_in_place::<<G::ScalarField as PrimeField>::BigInt>(&mut s[..], 4);
+
+        for (p_c, s_t) in c.iter_mut().zip(t.iter()) {
+            p_c.mul_assign(*s_t);
+        }
+
+        let c: Vec<G::Affine> = c.iter().map(|p| p.into_affine()).collect();
+
+        assert_eq!(a, c);
+    }
+}
+
 pub fn curve_tests<G: ProjectiveCurve>() {
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
@@ -288,114 +389,14 @@ pub fn curve_tests<G: ProjectiveCurve>() {
     random_doubling_test::<G>();
     random_negation_test::<G>();
     random_transformation_test::<G>();
+    random_batch_doubling_test::<G>();
+    random_batch_addition_test::<G>();
+    sw_random_scalar_mul_test::<G>();
 }
 
 pub fn sw_tests<P: SWModelParameters>() {
     sw_curve_serialization_test::<P>();
     sw_from_random_bytes::<P>();
-    sw_random_batch_doubling_test::<P>();
-    sw_random_batch_addition_test::<P>();
-    sw_random_scalar_mul_test::<P>();
-}
-
-pub fn sw_random_batch_doubling_test<P: SWModelParameters>()
-{
-    use algebra_core::curves::models::short_weierstrass_jacobian::{GroupAffine, GroupProjective};
-    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-
-    for j in 0..ITERATIONS {
-        let size = std::cmp::min(1 << 5, j + 1);
-        let mut a = Vec::with_capacity(size);
-        let mut b = Vec::with_capacity(size);
-
-        for i in 0..size {
-            a.push(GroupProjective::<P>::rand(&mut rng));
-            b.push(GroupProjective::<P>::rand(&mut rng));
-        }
-
-        let mut c = a.clone();
-
-        let mut a: Vec<GroupAffine<P>> = a.iter().map(|p| p.into_affine()).collect();
-
-        a[..].batch_double_in_place_with_edge_cases((0..size).collect());
-
-        for p_c in c.iter_mut() {
-            *p_c.double_in_place();
-        }
-
-        let c: Vec<GroupAffine<P>> = c.iter().map(|p| p.into_affine()).collect();
-
-        assert_eq!(a, c);
-    }
-}
-
-pub fn sw_random_batch_addition_test<P: SWModelParameters>()
-{
-    use algebra_core::curves::models::short_weierstrass_jacobian::{GroupAffine, GroupProjective};
-    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-
-    for j in 0..ITERATIONS {
-        let size = std::cmp::min(1 << 5, j + 1);
-        let mut a = Vec::with_capacity(size);
-        let mut b = Vec::with_capacity(size);
-
-        for i in 0..size {
-            a.push(GroupProjective::<P>::rand(&mut rng));
-            b.push(GroupProjective::<P>::rand(&mut rng));
-        }
-
-        let mut c = a.clone();
-        let mut d = b.clone();
-
-        let mut a: Vec<GroupAffine<P>> = a.iter().map(|p| p.into_affine()).collect();
-        let mut b: Vec<GroupAffine<P>> = b.iter().map(|p| p.into_affine()).collect();
-
-        a[..].batch_add_in_place_with_edge_cases(&mut b[..], (0..size).map(|x| (x, x)).collect());
-
-        for (p_c, p_d) in c.iter_mut().zip(d.iter()) {
-            *p_c += *p_d;
-        }
-
-        let c: Vec<GroupAffine<P>> = c.iter().map(|p| p.into_affine()).collect();
-
-        assert_eq!(a, c);
-    }
-}
-
-
-pub fn sw_random_scalar_mul_test<P: SWModelParameters>()
-{
-    use algebra_core::curves::models::short_weierstrass_jacobian::{GroupAffine, GroupProjective};
-    use std::ops::MulAssign;
-    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-
-    for j in 0..ITERATIONS {
-        let size = std::cmp::min(1 << 10, j + 4);
-        let mut a = Vec::with_capacity(size);
-        let mut s = Vec::with_capacity(size);
-
-        for i in 0..size {
-            a.push(GroupProjective::<P>::rand(&mut rng));
-            s.push(P::ScalarField::rand(&mut rng));
-        }
-
-        let mut c = a.clone();
-        let mut t = s.clone();
-
-        let mut a: Vec<GroupAffine<P>> = a.iter().map(|p| p.into_affine()).collect();
-
-        let mut s: Vec<<P::ScalarField as PrimeField>::BigInt> = s.iter().map(|p| p.into_repr()).collect();
-
-        a[..].batch_scalar_mul_in_place::<<P::ScalarField as PrimeField>::BigInt>(&mut s[..], 4);
-
-        for (p_c, s_t) in c.iter_mut().zip(t.iter()) {
-            p_c.mul_assign(*s_t);
-        }
-
-        let c: Vec<GroupAffine<P>> = c.iter().map(|p| p.into_affine()).collect();
-
-        assert_eq!(a, c);
-    }
 }
 
 pub fn sw_from_random_bytes<P: SWModelParameters>() {

@@ -16,7 +16,6 @@ use rand::{
 };
 
 use crate::{
-    biginteger::BigInteger,
     bytes::{FromBytes, ToBytes},
     curves::{
         models::{
@@ -165,47 +164,74 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
         self.mul(P::COFACTOR_INV).into()
     }
 
-    // Computes [-p, p, -3p, 3p, ..., -2^wp, 2^wp]
-    fn batch_wnaf_tables(bases: &[Self], w: usize) -> Vec<Vec<Self>>{
-        unimplemented!();
-    }
-
-    // This function consumes the scalars
-    // We can make this more generic in the future to use other than u16.
-    fn batch_wnaf_opcode_recoding<BigInt: BigInteger + AsRef<[u64]>>(
-        scalars: &mut [BigInt],
-        w: usize
-    ) -> Vec<Vec<Option<i16>>>{
-        unimplemented!();
-    }
-
     // This function consumes the second op as it mutates it in place
     // to prevent memory allocation
     fn batch_double_in_place_with_edge_cases(
         bases: &mut [Self], index: Vec<usize>
     ){
-        unimplemented!();
+        Self::batch_add_in_place_with_edge_cases(
+            bases,
+            &mut bases.to_vec()[..],
+            index.iter().map(|&x| (x, x)).collect()
+        );
     }
 
     // fn batch_double_in_place<I>(op_iter: I) -> ();
 
+    // Total cost: 14 mul. Projective formulas:
     fn batch_add_in_place_with_edge_cases(
         bases: &mut [Self],
         other: &mut [Self],
         index: Vec<(usize, usize)>
     ){
-        unimplemented!();
+        let mut inversion_tmp = Self::BaseField::one();
+        // We run two loops over the data separated by an inversion
+        for (idx, idy) in index.iter() {
+            let (mut a, mut b) = (&mut bases[*idx], &mut other[*idy]);
+            if a.is_zero() || b.is_zero() {
+                continue;
+            } else {
+                let y1y2 = a.y * &b.y;
+                let x1x2 = a.x * &b.x;
+
+                let x1y2 = a.x * &b.y;
+                let y1x2 = a.y * &b.x;
+                a.x = x1y2 + &y1x2;
+                a.y = y1y2;
+                if !P::COEFF_A.is_zero() {
+                    a.y -= &P::mul_by_a(&x1x2);
+                }
+                a.x *= &inversion_tmp;
+                a.y *= &inversion_tmp;
+
+                let dx1x2y1y2 = P::COEFF_D * &y1y2 * &x1x2;
+
+                a.x *= &(Self::BaseField::one() - &dx1x2y1y2);
+                a.y *= &(Self::BaseField::one() + &dx1x2y1y2);
+
+                b.x = Self::BaseField::one() - &dx1x2y1y2.square();
+
+                inversion_tmp *= &b.x;
+            }
+        }
+
+        inversion_tmp = inversion_tmp.inverse().unwrap(); // this is always in Fp*
+
+        for (idx, idy) in index.iter().rev() {
+            let (a, b) = (&mut bases[*idx], other[*idy]);
+            if a.is_zero() {
+                *a = b;
+            } else if !b.is_zero() {
+                a.x *= &inversion_tmp;
+                a.y *= &inversion_tmp;
+
+                inversion_tmp *= &b.x;
+            }
+        }
     }
 
     // fn batch_add_in_place<I>(op_iter: I) -> ();
 
-    fn batch_scalar_mul_in_place<BigInt: BigInteger>(
-        bases: &mut [Self],
-        scalars: &mut [BigInt],
-        w: usize,
-    ){
-        unimplemented!();
-    }
 }
 
 impl<P: Parameters> Neg for GroupAffine<P> {

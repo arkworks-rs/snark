@@ -267,15 +267,142 @@ pub trait AffineCurve:
     #[must_use]
     fn mul_by_cofactor_inv(&self) -> Self;
 
-    // Computes [-p, p, -3p, 3p, ..., -2^wp, 2^wp]
-    fn batch_wnaf_tables(bases: &[Self], w: usize) -> Vec<Vec<Self>>;
-
     // This function consumes the scalars
+    // We can make this more generic in the future to use other than u16.
+    // TODO: Generalise to A != 0
+    // Computes [-p, p, -3p, 3p, ..., -2^wp, 2^wp]
+    fn batch_wnaf_tables(bases: &[Self], w: usize) -> Vec<Vec<Self>> {
+        let half_size = 1 << w;
+        let batch_size = bases.len();
+
+        let mut tables =
+            vec![Vec::<Self>::with_capacity(half_size); batch_size];
+
+        let mut a_2 = bases[..].to_vec();
+        let mut tmp = bases[..].to_vec();
+
+        Self::batch_double_in_place_with_edge_cases(
+            &mut a_2,
+            (0..batch_size).collect()
+        );
+
+        for i in 0..half_size {
+            if i != 0 {
+                Self::batch_add_in_place_with_edge_cases(
+                    &mut tmp,
+                    &mut a_2.to_vec()[..],
+                    (0..batch_size).map(|x| (x, x)).collect()
+                );
+            }
+
+            for (table, p) in tables.iter_mut().zip(&tmp) {
+                // table.push(p.clone().neg());
+                table.push(p.clone());
+            }
+        }
+        tables
+    }
+
+    // This function mutates the scalars in place
+    // We can make this more generic in the future to use other than u16.
+    // fn batch_wnaf_opcode_recoding_<BigInt: BigInteger + AsRef<[u64]>>(
+    //     scalars: &mut [BigInt],
+    //     w: usize
+    // ) -> Vec<Vec<Option<u16>>> {
+    //     assert!(w > 0);
+    //     let batch_size = scalars.len();
+    //     let window_size: u16 = 1 << (w + 1);
+    //     let half_window_size: u16 = 1 << w;
+    //
+    //     let mut op_code_vectorised =
+    //         Vec::<Vec<Option<u16>>>::with_capacity(scalars[0].as_ref().len() * 64);
+    //
+    //     let mut all_none = false;
+    //     while !all_none {
+    //         let mut opcode_row = Vec::with_capacity(batch_size);
+    //
+    //         for s in scalars.iter_mut() {
+    //             if s.is_zero() {
+    //                 opcode_row.push(None);
+    //             } else {
+    //                 let op = if s.is_odd() {
+    //                     let mut z: u16 = (s.as_ref()[0] as u16) % window_size;
+    //
+    //                     if z < half_window_size {
+    //                         s.sub_noborrow(&BigInt::from(z as u64));
+    //                     } else {
+    //                         let tmp = window_size - z;
+    //                         s.add_nocarry(&BigInt::from(tmp as u64));
+    //                         z = tmp - 1; // z = 0, 2, ..., 2^(w+1) - 2
+    //                     }
+    //                     z
+    //                 } else {
+    //                     half_window_size // We encode 0s to be 2^(w+1)
+    //                 };
+    //                 opcode_row.push(Some(op));
+    //                 s.div2();
+    //             }
+    //         }
+    //
+    //         all_none = opcode_row.iter().all(|x| x.is_none());
+    //         if !all_none {
+    //             op_code_vectorised.push(opcode_row);
+    //         // } else {
+    //         //     break;
+    //         }
+    //     }
+    //     op_code_vectorised
+    // }
+
+    // This function mutates the scalars in place
     // We can make this more generic in the future to use other than u16.
     fn batch_wnaf_opcode_recoding<BigInt: BigInteger + AsRef<[u64]>>(
         scalars: &mut [BigInt],
         w: usize
-    ) -> Vec<Vec<Option<i16>>>;
+    ) -> Vec<Vec<Option<i16>>> {
+        assert!(w > 0);
+        let batch_size = scalars.len();
+        let window_size: i16 = 1 << (w + 1);
+        let half_window_size: i16 = 1 << w;
+
+        let mut op_code_vectorised =
+            Vec::<Vec<Option<i16>>>::with_capacity(scalars[0].as_ref().len() * 64);
+
+        let mut all_none = false;
+        while !all_none {
+            let mut opcode_row = Vec::with_capacity(batch_size);
+
+            for s in scalars.iter_mut() {
+                if s.is_zero() {
+                    opcode_row.push(None);
+                } else {
+                    let op = if s.is_odd() {
+                        let mut z: i16 = (s.as_ref()[0] % (1 << (w + 1))) as i16;
+
+                        if z < half_window_size {
+                            s.sub_noborrow(&BigInt::from(z as u64));
+                        } else {
+                            z = z - window_size;
+                            s.add_nocarry(&BigInt::from((-z) as u64));
+                        }
+                        z
+                    } else {
+                        0 // We encode 0s to be 2^(w+1)
+                    };
+                    opcode_row.push(Some(op));
+                    s.div2();
+                }
+            }
+
+            all_none = opcode_row.iter().all(|x| x.is_none());
+            if !all_none {
+                op_code_vectorised.push(opcode_row);
+            // } else {
+            //     break;
+            }
+        }
+        op_code_vectorised
+    }
 
     // This function consumes the second op as it mutates it in place
     // to prevent memory allocation
@@ -294,10 +421,69 @@ pub trait AffineCurve:
     // fn batch_add_in_place<I>(op_iter: I) -> ();
 
     fn batch_scalar_mul_in_place<BigInt: BigInteger>(
-        bases: &mut [Self],
+        mut bases: &mut [Self],
         scalars: &mut [BigInt],
         w: usize,
-    );
+    ) {
+        // let no_op: u16 = 1 << w; // noop is encoded as half_window_size
+        let now = std::time::Instant::now();
+        let opcode_vectorised = Self::batch_wnaf_opcode_recoding::<BigInt>(scalars, w);
+        println!("recoding: {:?}", now.elapsed().as_micros());
+        let now = std::time::Instant::now();
+        let tables = Self::batch_wnaf_tables(bases, w);
+        println!("table generation: {:?}", now.elapsed().as_micros());
+
+        // Set all points to 0;
+        let zero = Self::zero();
+        for p in bases.iter_mut() {
+            *p = zero;
+        }
+
+        let mut total: u128 = 0;
+        let now = std::time::Instant::now();
+        for opcode_row in opcode_vectorised.iter().rev() {
+            let index_double = opcode_row.iter()
+                .enumerate()
+                .filter(|x| x.1.is_some())
+                .map(|x| x.0)
+                .collect();
+
+            Self::batch_double_in_place_with_edge_cases(&mut bases, index_double);
+
+            let then = std::time::Instant::now();
+            // Copying to this vector might be really stupid...
+            let mut add_ops: Vec<Self> = tables.iter()
+                .zip(opcode_row)
+                .filter(|(_, op)| op.is_some() && op.unwrap() != 0)
+                .map(|(t, op)| {
+                    let idx = op.unwrap();
+                    if idx > 0 {
+                        t[(idx as usize)/2].clone()
+                    } else {
+                        t[((-idx) as usize)/2].clone().neg()
+                    }
+                })
+                .collect();
+
+            let dur = then.elapsed().as_micros();
+            // println!("allocate new points: {:?}", dur);
+            total += dur;
+
+            let index_add = opcode_row.iter()
+                .enumerate()
+                .filter(|(_, op)| op.is_some() && op.unwrap() != 0)
+                .map(|x| x.0)
+                .enumerate()
+                .map(|(x, y)| (y, x))
+                .collect();
+
+            Self::batch_add_in_place_with_edge_cases(
+                &mut bases, &mut add_ops[..], index_add);
+        }
+
+        println!("total - allocate new points: {:?}", total);
+        println!("Scalar mul for {:?} points: {:?}", bases.len(), now.elapsed().as_micros());
+    }
 }
 
 impl<C: ProjectiveCurve> Group for C {
