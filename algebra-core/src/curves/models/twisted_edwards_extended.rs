@@ -194,24 +194,23 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
                 let y1y2 = a.y * &b.y;
                 let x1x2 = a.x * &b.x;
 
-                let x1y2 = a.x * &b.y;
-                let y1x2 = a.y * &b.x;
-                a.x = x1y2 + &y1x2;
+                a.x = (a.x + &a.y) * &(b.x + &b.y) - &y1y2 - &x1x2;
                 a.y = y1y2;
                 if !P::COEFF_A.is_zero() {
                     a.y -= &P::mul_by_a(&x1x2);
                 }
-                a.x *= &inversion_tmp;
-                a.y *= &inversion_tmp;
 
                 let dx1x2y1y2 = P::COEFF_D * &y1y2 * &x1x2;
 
-                a.x *= &(Self::BaseField::one() - &dx1x2y1y2);
-                a.y *= &(Self::BaseField::one() + &dx1x2y1y2);
+                let inversion_mul_d = inversion_tmp * &dx1x2y1y2;
+
+                a.x *= &(inversion_tmp - &inversion_mul_d);
+                a.y *= &(inversion_tmp + &inversion_mul_d);
 
                 b.x = Self::BaseField::one() - &dx1x2y1y2.square();
 
                 inversion_tmp *= &b.x;
+
             }
         }
 
