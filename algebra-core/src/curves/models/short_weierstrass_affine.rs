@@ -98,8 +98,8 @@ macro_rules! specialise_affine_to_proj {
                             a.infinity = true;
                         } else {
                             let x_sq = a.x.square();
-                            let x_sq_3 = x_sq.double() + &x_sq; // numerator = 3x^2
-                            scratch_space.push(x_sq_3 * &inversion_tmp); // 3x^2 * tmp
+                            let x_sq_3 = x_sq.double() + &x_sq + &P::COEFF_A; // numerator = 3x^2 + a
+                            scratch_space.push(x_sq_3 * &inversion_tmp); // (3x^2 + a) * tmp
                             inversion_tmp *= &a.y.double(); // update tmp
                         }
                     }
