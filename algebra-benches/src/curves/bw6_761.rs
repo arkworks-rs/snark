@@ -13,10 +13,9 @@ use algebra::{
     SquareRootField, UniformRand,
 };
 
-batch_arith!();
-// ec_bench!();
-// f_bench!(1, Fq3, Fq3, fq3);
-// f_bench!(2, Fq6, Fq6, fq6);
-// f_bench!(Fq, Fq, FqRepr, FqRepr, fq);
-// f_bench!(Fr, Fr, FrRepr, FrRepr, fr);
-// pairing_bench!(BW6_761, Fq6, prepared_v);
+ec_bench!();
+f_bench!(1, Fq3, Fq3, fq3);
+f_bench!(2, Fq6, Fq6, fq6);
+f_bench!(Fq, Fq, FqRepr, FqRepr, fq);
+f_bench!(Fr, Fr, FrRepr, FrRepr, fr);
+pairing_bench!(BW6_761, Fq6, prepared_v);
