@@ -511,13 +511,9 @@ impl<G: AffineCurve> BatchArithmetic<G> for [G] {
 trait GLV: AffineCurve {
     fn glv_scalar_decomposition<BigInt: BigInteger, SmallBigInt: BigInteger>(
         k: BigInt,
-    ) -> (SmallBigInt, SmallBigInt) {
-        unimplemented!();
-    }
+    ) -> (SmallBigInt, SmallBigInt);
 
-    fn glv_endomorphism_in_place(&mut self) {
-        unimplemented!();
-    }
+    fn glv_endomorphism_in_place(&mut self);
 
     fn batch_scalar_mul_in_place_glv<BigInt: BigInteger, SmallBigInt: BigInteger>(
         w: usize,
