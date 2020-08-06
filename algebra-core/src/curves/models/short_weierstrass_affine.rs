@@ -177,7 +177,6 @@ macro_rules! specialise_affine_to_proj {
                     } else if a.x == b.x {
                         half = match half {
                             None => {
-                                println!("We got fucked");
                                 P::BaseField::one().double().inverse()
                             }
                             _ => half,
@@ -193,9 +192,9 @@ macro_rules! specialise_affine_to_proj {
                             let x_sq = b.x.square();
                             b.x -= &b.y; // x - y
                             a.x = b.y.double(); // denominator = 2y
-                            a.y = x_sq.double() + &x_sq; // numerator = 3x^2
-                            b.y -= &(h * &a.y); // y - 3x^2/2
-                            a.y *= &inversion_tmp; // 3x^2 * tmp
+                            a.y = x_sq.double() + &x_sq + &P::COEFF_A; // numerator = 3x^2 + a
+                            b.y -= &(h * &a.y); // y - (3x^2 + a)/2
+                            a.y *= &inversion_tmp; // (3x^2 + a) * tmp
                             inversion_tmp *= &a.x; // update tmp
                         } else {
                             // No inversions take place if either operand is zero
@@ -239,7 +238,7 @@ macro_rules! specialise_affine_to_proj {
                         a.x += &b.x.double();
                         a.x = lambda.square() - &a.x;
                         // y3 = l*(x2 - x3) - y2 or
-                        // for squaring: 3x^2/2y(x - y - x3) - (y - 3x^2/2) = l*(x - x3) - y
+                        // for squaring: (3x^2 + a)/2y(x - y - x3) - (y - (3x^2 + a)/2) = l*(x - x3) - y
                         a.y = lambda * &(b.x - &a.x) - &b.y;
                     }
                 }

@@ -269,6 +269,7 @@ pub trait AffineCurve:
 
     // This function consumes the scalars
     // We can make this more generic in the future to use other than u16.
+
     // TODO: Generalise to A != 0
     // Computes [-p, p, -3p, 3p, ..., -2^wp, 2^wp]
     fn batch_wnaf_tables(bases: &[Self], w: usize) -> Vec<Vec<Self>> {
@@ -292,7 +293,6 @@ pub trait AffineCurve:
             }
 
             for (table, p) in tables.iter_mut().zip(&tmp) {
-                // table.push(p.clone().neg());
                 table.push(p.clone());
             }
         }
@@ -332,7 +332,7 @@ pub trait AffineCurve:
                         }
                         z
                     } else {
-                        0 // We encode 0s to be 2^(w+1)
+                        0
                     };
                     opcode_row.push(Some(op));
                     s.div2();
@@ -342,8 +342,6 @@ pub trait AffineCurve:
             all_none = opcode_row.iter().all(|x| x.is_none());
             if !all_none {
                 op_code_vectorised.push(opcode_row);
-                // } else {
-                //     break;
             }
         }
         op_code_vectorised
@@ -360,13 +358,8 @@ pub trait AffineCurve:
         scalars: &mut [BigInt],
         w: usize,
     ) {
-        // let no_op: u16 = 1 << w; // noop is encoded as half_window_size
-        let now = std::time::Instant::now();
         let opcode_vectorised = Self::batch_wnaf_opcode_recoding::<BigInt>(scalars, w);
-        println!("recoding: {:?}", now.elapsed().as_micros());
-        let now = std::time::Instant::now();
         let tables = Self::batch_wnaf_tables(bases, w);
-        println!("table generation: {:?}", now.elapsed().as_micros());
 
         // Set all points to 0;
         let zero = Self::zero();
@@ -374,8 +367,6 @@ pub trait AffineCurve:
             *p = zero;
         }
 
-        let mut total: u128 = 0;
-        let now = std::time::Instant::now();
         for opcode_row in opcode_vectorised.iter().rev() {
             let index_double = opcode_row
                 .iter()
@@ -386,7 +377,6 @@ pub trait AffineCurve:
 
             Self::batch_double_in_place(&mut bases, index_double);
 
-            let then = std::time::Instant::now();
             // Copying to this vector might be really stupid...
             let mut add_ops: Vec<Self> = tables
                 .iter()
@@ -402,10 +392,6 @@ pub trait AffineCurve:
                 })
                 .collect();
 
-            let dur = then.elapsed().as_micros();
-            // println!("allocate new points: {:?}", dur);
-            total += dur;
-
             let index_add = opcode_row
                 .iter()
                 .enumerate()
@@ -417,12 +403,6 @@ pub trait AffineCurve:
 
             Self::batch_add_in_place(&mut bases, &mut add_ops[..], index_add);
         }
-        println!("total - allocate new points: {:?}", total);
-        println!(
-            "Scalar mul for {:?} points: {:?}",
-            bases.len(),
-            now.elapsed().as_micros()
-        );
     }
 }
 
