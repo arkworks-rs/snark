@@ -370,7 +370,7 @@ pub fn sw_random_scalar_mul_test<P: SWModelParameters>()
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     for j in 0..ITERATIONS {
-        let size = std::cmp::min(1 << 5, j + 1);
+        let size = std::cmp::min(1 << 10, j + 4);
         let mut a = Vec::with_capacity(size);
         let mut s = Vec::with_capacity(size);
 
@@ -386,7 +386,7 @@ pub fn sw_random_scalar_mul_test<P: SWModelParameters>()
 
         let mut s: Vec<<P::ScalarField as PrimeField>::BigInt> = s.iter().map(|p| p.into_repr()).collect();
 
-        a[..].batch_scalar_mul_in_place::<<P::ScalarField as PrimeField>::BigInt>(3, &mut s[..]);
+        a[..].batch_scalar_mul_in_place::<<P::ScalarField as PrimeField>::BigInt>(&mut s[..], 4);
 
         for (p_c, s_t) in c.iter_mut().zip(t.iter()) {
             p_c.mul_assign(*s_t);

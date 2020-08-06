@@ -16,6 +16,7 @@ use rand::{
 };
 
 use crate::{
+    biginteger::BigInteger,
     bytes::{FromBytes, ToBytes},
     curves::{
         models::{
@@ -162,6 +163,48 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
 
     fn mul_by_cofactor_inv(&self) -> Self {
         self.mul(P::COFACTOR_INV).into()
+    }
+
+    // Computes [-p, p, -3p, 3p, ..., -2^wp, 2^wp]
+    fn batch_wnaf_tables(bases: &[Self], w: usize) -> Vec<Vec<Self>>{
+        unimplemented!();
+    }
+
+    // This function consumes the scalars
+    // We can make this more generic in the future to use other than u16.
+    fn batch_wnaf_opcode_recoding<BigInt: BigInteger + AsRef<[u64]>>(
+        scalars: &mut [BigInt],
+        w: usize
+    ) -> Vec<Vec<Option<i16>>>{
+        unimplemented!();
+    }
+
+    // This function consumes the second op as it mutates it in place
+    // to prevent memory allocation
+    fn batch_double_in_place_with_edge_cases(
+        bases: &mut [Self], index: Vec<usize>
+    ){
+        unimplemented!();
+    }
+
+    // fn batch_double_in_place<I>(op_iter: I) -> ();
+
+    fn batch_add_in_place_with_edge_cases(
+        bases: &mut [Self],
+        other: &mut [Self],
+        index: Vec<(usize, usize)>
+    ){
+        unimplemented!();
+    }
+
+    // fn batch_add_in_place<I>(op_iter: I) -> ();
+
+    fn batch_scalar_mul_in_place<BigInt: BigInteger>(
+        bases: &mut [Self],
+        scalars: &mut [BigInt],
+        w: usize,
+    ){
+        unimplemented!();
     }
 }
 

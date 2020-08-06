@@ -266,6 +266,38 @@ pub trait AffineCurve:
     /// `Self::ScalarField`.
     #[must_use]
     fn mul_by_cofactor_inv(&self) -> Self;
+
+    // Computes [-p, p, -3p, 3p, ..., -2^wp, 2^wp]
+    fn batch_wnaf_tables(bases: &[Self], w: usize) -> Vec<Vec<Self>>;
+
+    // This function consumes the scalars
+    // We can make this more generic in the future to use other than u16.
+    fn batch_wnaf_opcode_recoding<BigInt: BigInteger + AsRef<[u64]>>(
+        scalars: &mut [BigInt],
+        w: usize
+    ) -> Vec<Vec<Option<i16>>>;
+
+    // This function consumes the second op as it mutates it in place
+    // to prevent memory allocation
+    fn batch_double_in_place_with_edge_cases(
+        bases: &mut [Self], index: Vec<usize>
+    );
+
+    // fn batch_double_in_place<I>(op_iter: I) -> ();
+
+    fn batch_add_in_place_with_edge_cases(
+        bases: &mut [Self],
+        other: &mut [Self],
+        index: Vec<(usize, usize)>
+    );
+
+    // fn batch_add_in_place<I>(op_iter: I) -> ();
+
+    fn batch_scalar_mul_in_place<BigInt: BigInteger>(
+        bases: &mut [Self],
+        scalars: &mut [BigInt],
+        w: usize,
+    );
 }
 
 impl<C: ProjectiveCurve> Group for C {
@@ -337,9 +369,58 @@ pub trait BatchArithmetic<G: AffineCurve> {
 
     fn batch_scalar_mul_in_place<BigInt: BigInteger>(
         &mut self,
-        w: usize,
         scalars: &mut [BigInt],
+        w: usize,
     );
+
+    // fn batch_scalar_mul_in_place_glv<BigInt: BigInteger>(
+    //     w: usize,
+    //     points: &mut Vec<Self>,
+    //     scalars: &mut Vec<BigInt>,
+    // );
+}
+
+
+impl<G: AffineCurve> BatchArithmetic<G> for [G] {
+    // Computes [-p, p, -3p, 3p, ..., -2^wp, 2^wp]
+    fn batch_wnaf_tables(&self, w: usize) -> Vec<Vec<G>> {
+        G::batch_wnaf_tables(self, w)
+    }
+
+    // This function consumes the scalars
+    // We can make this more generic in the future to use other than u16.
+    fn batch_wnaf_opcode_recoding<BigInt: BigInteger + AsRef<[u64]>>(
+        scalars: &mut [BigInt],
+        w: usize
+    ) -> Vec<Vec<Option<i16>>> {
+        G::batch_wnaf_opcode_recoding::<BigInt>(scalars, w)
+    }
+
+    // This function consumes the second op as it mutates it in place
+    // to prevent memory allocation
+    fn batch_double_in_place_with_edge_cases(&mut self, index: Vec<usize>) {
+        G::batch_double_in_place_with_edge_cases(self, index);
+    }
+
+    // fn batch_double_in_place<I>(op_iter: I) -> ();
+
+    fn batch_add_in_place_with_edge_cases(
+        &mut self,
+        other: &mut Self,
+        index: Vec<(usize, usize)>
+    ){
+        G::batch_add_in_place_with_edge_cases(self, other, index);
+    }
+
+    // fn batch_add_in_place<I>(op_iter: I) -> ();
+
+    fn batch_scalar_mul_in_place<BigInt: BigInteger>(
+        &mut self,
+        scalars: &mut [BigInt],
+        w: usize,
+    ){
+        G::batch_scalar_mul_in_place(self, scalars, w);
+    }
 
     // fn batch_scalar_mul_in_place_glv<BigInt: BigInteger>(
     //     w: usize,
