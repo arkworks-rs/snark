@@ -1,6 +1,6 @@
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
-use std::ops::{AddAssign, Mul, MulAssign, SubAssign};
+use std::ops::{AddAssign, MulAssign, SubAssign};
 
 use algebra::{
     biginteger::{BigInteger384 as FrRepr, BigInteger768 as FqRepr},
@@ -9,7 +9,7 @@ use algebra::{
         fq::Fq, fq3::Fq3, fr::Fr, Fq6, G1Affine, G1Projective as G1, G2Affine, G2Projective as G2,
         Parameters, BW6_761,
     },
-    BatchArithmetic, BigInteger, Field, PairingEngine, PrimeField, ProjectiveCurve,
+    BigInteger, Field, PairingEngine, PrimeField, ProjectiveCurve,
     SquareRootField, UniformRand,
 };
 
