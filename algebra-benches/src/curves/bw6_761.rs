@@ -9,8 +9,7 @@ use algebra::{
         fq::Fq, fq3::Fq3, fr::Fr, Fq6, G1Affine, G1Projective as G1, G2Affine, G2Projective as G2,
         Parameters, BW6_761,
     },
-    BigInteger, Field, PairingEngine, PrimeField, ProjectiveCurve,
-    SquareRootField, UniformRand,
+    BigInteger, Field, PairingEngine, PrimeField, ProjectiveCurve, SquareRootField, UniformRand,
 };
 
 ec_bench!();
