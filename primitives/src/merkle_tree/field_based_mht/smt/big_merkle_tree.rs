@@ -153,6 +153,10 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
 
     pub fn height(&self) -> usize { self.height }
 
+    pub fn set_persistency(&mut self, persistency: bool) {
+        self.persistent = persistency;
+    }
+
     /* ===============================================================================*/
     /* Cache operations */
     /*===============================================================================*/
