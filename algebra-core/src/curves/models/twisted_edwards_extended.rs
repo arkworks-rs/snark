@@ -166,10 +166,10 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
 
     // This function consumes the second op as it mutates it in place
     // to prevent memory allocation
-    fn batch_double_in_place_with_edge_cases(
+    fn batch_double_in_place(
         bases: &mut [Self], index: Vec<usize>
     ){
-        Self::batch_add_in_place_with_edge_cases(
+        Self::batch_add_in_place(
             bases,
             &mut bases.to_vec()[..],
             index.iter().map(|&x| (x, x)).collect()
@@ -179,7 +179,7 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
     // fn batch_double_in_place<I>(op_iter: I) -> ();
 
     // Total cost: 14 mul. Projective formulas:
-    fn batch_add_in_place_with_edge_cases(
+    fn batch_add_in_place(
         bases: &mut [Self],
         other: &mut [Self],
         index: Vec<(usize, usize)>
@@ -228,9 +228,6 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
             }
         }
     }
-
-    // fn batch_add_in_place<I>(op_iter: I) -> ();
-
 }
 
 impl<P: Parameters> Neg for GroupAffine<P> {

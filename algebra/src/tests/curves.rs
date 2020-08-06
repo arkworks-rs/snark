@@ -229,7 +229,7 @@ pub fn random_batch_doubling_test<G: ProjectiveCurve>()
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     for j in 0..ITERATIONS {
-        let size = std::cmp::min(1 << 5, j + 1);
+        let size = std::cmp::min(1 << 8, 1 << (j + 5));
         let mut a = Vec::with_capacity(size);
         let mut b = Vec::with_capacity(size);
 
@@ -242,7 +242,7 @@ pub fn random_batch_doubling_test<G: ProjectiveCurve>()
 
         let mut a: Vec<G::Affine> = a.iter().map(|p| p.into_affine()).collect();
 
-        a[..].batch_double_in_place_with_edge_cases((0..size).collect());
+        a[..].batch_double_in_place((0..size).collect());
 
         for p_c in c.iter_mut() {
             *p_c.double_in_place();
@@ -260,7 +260,7 @@ pub fn random_batch_addition_test<G: ProjectiveCurve>()
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     for j in 0..ITERATIONS {
-        let size = std::cmp::min(1 << 5, j + 1);
+        let size = std::cmp::min(1 << 8, 1 << (j + 5));
         let mut a = Vec::with_capacity(size);
         let mut b = Vec::with_capacity(size);
 
@@ -275,7 +275,41 @@ pub fn random_batch_addition_test<G: ProjectiveCurve>()
         let mut a: Vec<G::Affine> = a.iter().map(|p| p.into_affine()).collect();
         let mut b: Vec<G::Affine> = b.iter().map(|p| p.into_affine()).collect();
 
-        a[..].batch_add_in_place_with_edge_cases(&mut b[..], (0..size).map(|x| (x, x)).collect());
+        a[..].batch_add_in_place(&mut b[..], (0..size).map(|x| (x, x)).collect());
+
+        for (p_c, p_d) in c.iter_mut().zip(d.iter()) {
+            *p_c += *p_d;
+        }
+
+        let c: Vec<G::Affine> = c.iter().map(|p| p.into_affine()).collect();
+
+        assert_eq!(a, c);
+    }
+}
+
+
+pub fn random_batch_add_doubling_test<G: ProjectiveCurve>()
+{
+    use algebra_core::curves::models::short_weierstrass_jacobian::{GroupAffine, GroupProjective};
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+    for j in 0..ITERATIONS {
+        let size = std::cmp::min(1 << 8, 1 << (j + 5));
+        let mut a = Vec::<G>::with_capacity(size);
+        let mut b = Vec::<G>::with_capacity(size);
+
+        for i in 0..size {
+            a.push(G::rand(&mut rng));
+        }
+
+        let mut b = a.clone();
+        let mut c = a.clone();
+        let mut d = b.clone();
+
+        let mut a: Vec<G::Affine> = a.iter().map(|p| p.into_affine()).collect();
+        let mut b: Vec<G::Affine> = b.iter().map(|p| p.into_affine()).collect();
+
+        a[..].batch_add_in_place(&mut b[..], (0..size).map(|x| (x, x)).collect());
 
         for (p_c, p_d) in c.iter_mut().zip(d.iter()) {
             *p_c += *p_d;
@@ -295,7 +329,7 @@ pub fn sw_random_scalar_mul_test<G: ProjectiveCurve>()
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     for j in 0..ITERATIONS {
-        let size = std::cmp::min(1 << 10, j + 4);
+        let size = std::cmp::min(1 << 7, 1 << (j + 4));
         let mut a = Vec::with_capacity(size);
         let mut s = Vec::with_capacity(size);
 
@@ -390,6 +424,7 @@ pub fn curve_tests<G: ProjectiveCurve>() {
     random_negation_test::<G>();
     random_transformation_test::<G>();
     random_batch_doubling_test::<G>();
+    random_batch_add_doubling_test::<G>();
     random_batch_addition_test::<G>();
     sw_random_scalar_mul_test::<G>();
 }

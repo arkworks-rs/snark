@@ -63,14 +63,14 @@ macro_rules! specialise_affine_to_proj {
             }
 
             // This implementation of batch group ops takes particular
-            // care to make most use of points fetched from memory
-            // And to reuse memory to prevent reallocations
-            // It is directly adapted from Aztec's code.
+            // care to make most use of points fetched from memory to prevent reallocations
+            // It is adapted from Aztec's code.
 
             // https://github.com/AztecProtocol/barretenberg/blob/standardplonkjson/barretenberg/src/
             // aztec/ecc/curves/bn254/scalar_multiplication/scalar_multiplication.cpp
+
             #[inline]
-            fn batch_double_in_place_with_edge_cases(
+            fn batch_double_in_place(
                 bases: &mut [Self],
                 index: Vec<usize>,
             ) {
@@ -147,12 +147,13 @@ macro_rules! specialise_affine_to_proj {
 
             // Consumes other and mutates self in place. Accepts index function
             #[inline]
-            fn batch_add_in_place_with_edge_cases(
+            fn batch_add_in_place(
                 bases: &mut [Self],
                 other: &mut [Self],
                 index: Vec<(usize, usize)>
             ) {
                 let mut inversion_tmp = P::BaseField::one();
+                let mut half = None;
 
                 #[cfg(feature = "prefetch")]
                 let mut prefetch_iter = index.iter();
@@ -161,7 +162,6 @@ macro_rules! specialise_affine_to_proj {
                     prefetch_iter.next();
                 }
 
-                // let half = P::BaseField::from_repr(P::MODULUS_MINUS_ONE_DIV_TWO) + P::BaseField::one(); // (p + 1)/2 * 2 = 1
                 // We run two loops over the data separated by an inversion
                 for (idx, idy) in index.iter() {
                     #[cfg(feature = "prefetch")]
@@ -175,16 +175,26 @@ macro_rules! specialise_affine_to_proj {
                     if a.is_zero() || b.is_zero() {
                         continue;
                     } else if a.x == b.x {
-                        // double.
+                        half = match half {
+                            None => {
+                                println!("We got fucked");
+                                P::BaseField::one().double().inverse()
+                            },
+                            _ => half,
+                        };
+                        let h = half.unwrap();
+
+                        // Double
                         // In our model, we consider self additions rare.
                         // So we consider it inconsequential to make them more expensive
-                        // This costs 1 modular mul more than a standard squaring
+                        // This costs 1 modular mul more than a standard squaring,
+                        // and one amortised inversion
                         if a.y == b.y {
                             let x_sq = b.x.square();
                             b.x -= &b.y; // x - y
                             a.x = b.y.double(); // denominator = 2y
                             a.y = x_sq.double() + &x_sq; // numerator = 3x^2
-                            // b.y -= half * &a.y; // y - 3x^2/2
+                            b.y -= &(h * &a.y); // y - 3x^2/2
                             a.y *= &inversion_tmp; // 3x^2 * tmp
                             inversion_tmp *= &a.x; // update tmp
                         } else {
@@ -193,7 +203,8 @@ macro_rules! specialise_affine_to_proj {
                             b.infinity = true;
                         }
                     } else {
-                        a.x -= &b.x; // denominator = x1 - x2. We can recover x1 + x2 from this. Note this is never 0.
+                        // We can recover x1 + x2 from this. Note this is never 0.
+                        a.x -= &b.x; // denominator = x1 - x2
                         a.y -= &b.y; // numerator = y1 - y2
                         a.y *= &inversion_tmp; // (y1 - y2)*tmp
                         inversion_tmp *= &a.x // update tmp
@@ -224,31 +235,15 @@ macro_rules! specialise_affine_to_proj {
                         let lambda = a.y * &inversion_tmp;
                         inversion_tmp *= &a.x; // Remove the top layer of the denominator
 
-                        // x3 = l^2 + x1 + x2 or for squaring: 2y + l^2 + 2x - 2y = l^2 + 2x
+                        // x3 = l^2 - x1 - x2 or for squaring: 2y + l^2 + 2x - 2y = l^2 - 2x
                         a.x += &b.x.double();
                         a.x = lambda.square() - &a.x;
-                        // y3 = l*(x2 - x3) - y2 or for squaring: 3x^2/2y(x - y - x3) - (y - 3x^2/2) = l*(x - x3) - y
+                        // y3 = l*(x2 - x3) - y2 or
+                        // for squaring: 3x^2/2y(x - y - x3) - (y - 3x^2/2) = l*(x - x3) - y
                         a.y = lambda * &(b.x - &a.x) - &b.y;
                     }
                 }
             }
-
-            // fn batch_scalar_mul_in_place_glv<BigInt: BigInteger>(
-            //     w: usize,
-            //     points: &mut Vec<Self>,
-            //     scalars: &mut Vec<BigInt>,
-            // ) {
-            //     assert_eq!(points.len(), scalars.len());
-            //     let batch_size = points.len();
-            //     let mut k1 = scalars;
-            //     // let (mut k1, mut k2) = Self::batch_glv_decomposition(scalars);
-            //
-            //     // let p2 = points.map(|p| p.glv_endomorphism());
-            //     Self::batch_scalar_mul_in_place::<BigInt>(w, points, &mut k1);
-            //     // Self::batch_scalar_mul_in_place(w, p2, k2);
-            //     // Self::batch_add_in_place_with_edge_cases(points, p2);
-            // }
-            // }
         }
 
         impl<P: Parameters> GroupAffine<P> {

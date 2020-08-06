@@ -281,14 +281,14 @@ pub trait AffineCurve:
         let mut a_2 = bases[..].to_vec();
         let mut tmp = bases[..].to_vec();
 
-        Self::batch_double_in_place_with_edge_cases(
+        Self::batch_double_in_place(
             &mut a_2,
             (0..batch_size).collect()
         );
 
         for i in 0..half_size {
             if i != 0 {
-                Self::batch_add_in_place_with_edge_cases(
+                Self::batch_add_in_place(
                     &mut tmp,
                     &mut a_2.to_vec()[..],
                     (0..batch_size).map(|x| (x, x)).collect()
@@ -302,57 +302,6 @@ pub trait AffineCurve:
         }
         tables
     }
-
-    // This function mutates the scalars in place
-    // We can make this more generic in the future to use other than u16.
-    // fn batch_wnaf_opcode_recoding_<BigInt: BigInteger + AsRef<[u64]>>(
-    //     scalars: &mut [BigInt],
-    //     w: usize
-    // ) -> Vec<Vec<Option<u16>>> {
-    //     assert!(w > 0);
-    //     let batch_size = scalars.len();
-    //     let window_size: u16 = 1 << (w + 1);
-    //     let half_window_size: u16 = 1 << w;
-    //
-    //     let mut op_code_vectorised =
-    //         Vec::<Vec<Option<u16>>>::with_capacity(scalars[0].as_ref().len() * 64);
-    //
-    //     let mut all_none = false;
-    //     while !all_none {
-    //         let mut opcode_row = Vec::with_capacity(batch_size);
-    //
-    //         for s in scalars.iter_mut() {
-    //             if s.is_zero() {
-    //                 opcode_row.push(None);
-    //             } else {
-    //                 let op = if s.is_odd() {
-    //                     let mut z: u16 = (s.as_ref()[0] as u16) % window_size;
-    //
-    //                     if z < half_window_size {
-    //                         s.sub_noborrow(&BigInt::from(z as u64));
-    //                     } else {
-    //                         let tmp = window_size - z;
-    //                         s.add_nocarry(&BigInt::from(tmp as u64));
-    //                         z = tmp - 1; // z = 0, 2, ..., 2^(w+1) - 2
-    //                     }
-    //                     z
-    //                 } else {
-    //                     half_window_size // We encode 0s to be 2^(w+1)
-    //                 };
-    //                 opcode_row.push(Some(op));
-    //                 s.div2();
-    //             }
-    //         }
-    //
-    //         all_none = opcode_row.iter().all(|x| x.is_none());
-    //         if !all_none {
-    //             op_code_vectorised.push(opcode_row);
-    //         // } else {
-    //         //     break;
-    //         }
-    //     }
-    //     op_code_vectorised
-    // }
 
     // This function mutates the scalars in place
     // We can make this more generic in the future to use other than u16.
@@ -406,19 +355,13 @@ pub trait AffineCurve:
 
     // This function consumes the second op as it mutates it in place
     // to prevent memory allocation
-    fn batch_double_in_place_with_edge_cases(
-        bases: &mut [Self], index: Vec<usize>
-    );
+    fn batch_double_in_place(bases: &mut [Self], index: Vec<usize>);
 
-    // fn batch_double_in_place<I>(op_iter: I) -> ();
-
-    fn batch_add_in_place_with_edge_cases(
+    fn batch_add_in_place(
         bases: &mut [Self],
         other: &mut [Self],
         index: Vec<(usize, usize)>
     );
-
-    // fn batch_add_in_place<I>(op_iter: I) -> ();
 
     fn batch_scalar_mul_in_place<BigInt: BigInteger>(
         mut bases: &mut [Self],
@@ -448,7 +391,7 @@ pub trait AffineCurve:
                 .map(|x| x.0)
                 .collect();
 
-            Self::batch_double_in_place_with_edge_cases(&mut bases, index_double);
+            Self::batch_double_in_place(&mut bases, index_double);
 
             let then = std::time::Instant::now();
             // Copying to this vector might be really stupid...
@@ -477,10 +420,9 @@ pub trait AffineCurve:
                 .map(|(x, y)| (y, x))
                 .collect();
 
-            Self::batch_add_in_place_with_edge_cases(
+            Self::batch_add_in_place(
                 &mut bases, &mut add_ops[..], index_add);
         }
-
         println!("total - allocate new points: {:?}", total);
         println!("Scalar mul for {:?} points: {:?}", bases.len(), now.elapsed().as_micros());
     }
@@ -529,52 +471,33 @@ where
 }
 
 pub trait BatchArithmetic<G: AffineCurve> {
-    // Computes [-p, p, -3p, 3p, ..., -2^wp, 2^wp]
     fn batch_wnaf_tables(&self, w: usize) -> Vec<Vec<G>>;
 
-    // This function consumes the scalars
-    // We can make this more generic in the future to use other than u16.
     fn batch_wnaf_opcode_recoding<BigInt: BigInteger + AsRef<[u64]>>(
         scalars: &mut [BigInt],
         w: usize
     ) -> Vec<Vec<Option<i16>>>;
 
-    // This function consumes the second op as it mutates it in place
-    // to prevent memory allocation
-    fn batch_double_in_place_with_edge_cases(&mut self, index: Vec<usize>);
+    fn batch_double_in_place(&mut self, index: Vec<usize>);
 
-    // fn batch_double_in_place<I>(op_iter: I) -> ();
-
-    fn batch_add_in_place_with_edge_cases(
+    fn batch_add_in_place(
         &mut self,
         other: &mut Self,
         index: Vec<(usize, usize)>
     );
-
-    // fn batch_add_in_place<I>(op_iter: I) -> ();
 
     fn batch_scalar_mul_in_place<BigInt: BigInteger>(
         &mut self,
         scalars: &mut [BigInt],
         w: usize,
     );
-
-    // fn batch_scalar_mul_in_place_glv<BigInt: BigInteger>(
-    //     w: usize,
-    //     points: &mut Vec<Self>,
-    //     scalars: &mut Vec<BigInt>,
-    // );
 }
 
-
 impl<G: AffineCurve> BatchArithmetic<G> for [G] {
-    // Computes [-p, p, -3p, 3p, ..., -2^wp, 2^wp]
     fn batch_wnaf_tables(&self, w: usize) -> Vec<Vec<G>> {
         G::batch_wnaf_tables(self, w)
     }
 
-    // This function consumes the scalars
-    // We can make this more generic in the future to use other than u16.
     fn batch_wnaf_opcode_recoding<BigInt: BigInteger + AsRef<[u64]>>(
         scalars: &mut [BigInt],
         w: usize
@@ -582,23 +505,17 @@ impl<G: AffineCurve> BatchArithmetic<G> for [G] {
         G::batch_wnaf_opcode_recoding::<BigInt>(scalars, w)
     }
 
-    // This function consumes the second op as it mutates it in place
-    // to prevent memory allocation
-    fn batch_double_in_place_with_edge_cases(&mut self, index: Vec<usize>) {
-        G::batch_double_in_place_with_edge_cases(self, index);
+    fn batch_double_in_place(&mut self, index: Vec<usize>) {
+        G::batch_double_in_place(self, index);
     }
 
-    // fn batch_double_in_place<I>(op_iter: I) -> ();
-
-    fn batch_add_in_place_with_edge_cases(
+    fn batch_add_in_place(
         &mut self,
         other: &mut Self,
         index: Vec<(usize, usize)>
     ){
-        G::batch_add_in_place_with_edge_cases(self, other, index);
+        G::batch_add_in_place(self, other, index);
     }
-
-    // fn batch_add_in_place<I>(op_iter: I) -> ();
 
     fn batch_scalar_mul_in_place<BigInt: BigInteger>(
         &mut self,
@@ -607,10 +524,37 @@ impl<G: AffineCurve> BatchArithmetic<G> for [G] {
     ){
         G::batch_scalar_mul_in_place(self, scalars, w);
     }
+}
 
-    // fn batch_scalar_mul_in_place_glv<BigInt: BigInteger>(
-    //     w: usize,
-    //     points: &mut Vec<Self>,
-    //     scalars: &mut Vec<BigInt>,
-    // );
+trait GLV: AffineCurve {
+    fn glv_scalar_decomposition<BigInt: BigInteger, SmallBigInt: BigInteger>(k: BigInt)
+        -> (SmallBigInt, SmallBigInt) {
+            unimplemented!();
+        }
+
+    fn glv_endomorphism_in_place(&mut self) {
+        unimplemented!();
+    }
+
+    fn batch_scalar_mul_in_place_glv<BigInt: BigInteger, SmallBigInt: BigInteger>(
+        w: usize,
+        points: &mut [Self],
+        scalars: &mut [BigInt],
+    ) {
+        assert_eq!(points.len(), scalars.len());
+        let batch_size = points.len();
+        let glv_scalars:Vec<(SmallBigInt, SmallBigInt)> = scalars.iter().map(|&s|
+            Self::glv_scalar_decomposition::<BigInt, SmallBigInt>(s)
+        ).collect();
+        let (mut k1, mut k2): (Vec<SmallBigInt>, Vec<SmallBigInt>) = (
+            glv_scalars.iter().map(|x| x.0).collect(),
+            glv_scalars.iter().map(|x| x.1).collect()
+        );
+
+        let mut p2 = points.to_vec();
+        p2.iter_mut().for_each(|p| p.glv_endomorphism_in_place());
+        Self::batch_scalar_mul_in_place::<SmallBigInt>(points, &mut k1[..], w);
+        Self::batch_scalar_mul_in_place::<SmallBigInt>(&mut p2[..], &mut k2[..], w);
+        Self::batch_add_in_place(points, &mut p2, (0..batch_size).map(|x| (x, x)).collect());
+    }
 }
