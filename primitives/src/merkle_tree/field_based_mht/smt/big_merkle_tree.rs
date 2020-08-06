@@ -689,8 +689,10 @@ mod test {
 
     use algebra::fields::mnt6753::Fr as MNT6753Fr;
     use algebra::fields::mnt4753::Fr as MNT4753Fr;
+    use algebra::biginteger::BigInteger768;
 
     use std::str::FromStr;
+    use std::path::Path;
 
     use rand_xorshift::XorShiftRng;
     use rand::SeedableRng;
@@ -965,7 +967,68 @@ mod test {
     }
 
     #[test]
-    fn check_persistency() {
+    fn test_persistency() {
+        let root = MNT4753Fr::new(
+            BigInteger768([
+                17131081159200801074,
+                9006481350618111567,
+                12051725085490156787,
+                2023238364439588976,
+                13194888104290656497,
+                14162537977718443379,
+                13575626123664189275,
+                9267800406229717074,
+                8973990559932404408,
+                1830585533392189796,
+                16667600459761825175,
+                476991746583444
+            ])
+        );
 
+        // create a persistent smt in a separate scope
+        {
+            let mut smt = MNT4PoseidonSmt::new_unitialized(
+                32,
+                true,
+                Some(String::from("./persistency_test_info")),
+                String::from("./db_leaves_persistency_test_info"),
+                String::from("./db_cache_persistency_test_info")
+            ).unwrap();
+
+            //Insert some leaves in the tree
+            smt.insert_leaf(Coord{height:0, idx:0}, MNT4753Fr::from_str("1").unwrap());
+            smt.insert_leaf(Coord{height:0, idx:9}, MNT4753Fr::from_str("2").unwrap());
+
+            // smt gets dropped but its info should be saved
+        }
+        // files and directories should have been created
+        assert!(Path::new("./persistency_test_info").exists());
+        assert!(Path::new("./db_leaves_persistency_test_info").exists());
+        assert!(Path::new("./db_cache_persistency_test_info").exists());
+
+        // create a non-persistent smt in another scope by restoring the previous one
+        {
+            let mut smt = MNT4PoseidonSmt::new(
+                false,
+                String::from("./persistency_test_info"),
+                String::from("./db_leaves_persistency_test_info"),
+                String::from("./db_cache_persistency_test_info")
+            ).unwrap();
+
+            // insert other leaves
+            smt.insert_leaf(Coord { height: 0, idx: 16 }, MNT4753Fr::from_str("10").unwrap());
+            smt.insert_leaf(Coord { height: 0, idx: 29 }, MNT4753Fr::from_str("3").unwrap());
+
+            // if truly state has been kept, then the equality below must pass, since `root` was
+            // computed in one go with another smt
+            assert_eq!(root, smt.state.root);
+
+            // smt gets dropped and state and dbs are deleted
+        }
+
+        // files and directories should have been deleted
+        assert!(!Path::new("./persistency_test_info").exists());
+        assert!(!Path::new("./db_leaves_persistency_test_info").exists());
+        assert!(!Path::new("./db_cache_persistency_test_info").exists());
     }
 }

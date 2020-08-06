@@ -586,7 +586,10 @@ mod test {
 
     use algebra::fields::mnt6753::Fr as MNT6753Fr;
     use algebra::fields::mnt4753::Fr as MNT4753Fr;
+    use algebra::biginteger::BigInteger768;
+
     use std::str::FromStr;
+    use std::path::Path;
     use std::time::Instant;
 
     use rand_xorshift::XorShiftRng;
@@ -891,5 +894,77 @@ mod test {
         assert_eq!(tree.root.unwrap(), smt.state.root, "Roots are not equal");
     }
 
+    #[test]
+    fn test_persistency() {
+        let root = MNT4753Fr::new(
+            BigInteger768([
+                17131081159200801074,
+                9006481350618111567,
+                12051725085490156787,
+                2023238364439588976,
+                13194888104290656497,
+                14162537977718443379,
+                13575626123664189275,
+                9267800406229717074,
+                8973990559932404408,
+                1830585533392189796,
+                16667600459761825175,
+                476991746583444
+            ])
+        );
 
+        // create a persistent smt in a separate scope
+        {
+            let mut smt = MNT4PoseidonSmtLazy::new_unitialized(
+                32,
+                true,
+                Some(String::from("./persistency_test_info_lazy")),
+                String::from("./db_leaves_persistency_test_info_lazy"),
+                String::from("./db_cache_persistency_test_info_lazy")
+            ).unwrap();
+
+            //Insert some leaves in the tree
+            let mut leaves_to_process: Vec<OperationLeaf<MNT4753Fr>> = Vec::new();
+
+            leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 0 }, action: ActionLeaf::Insert, hash: Some(MNT4753Fr::from_str("1").unwrap()) });
+            leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 9 }, action: ActionLeaf::Insert, hash: Some(MNT4753Fr::from_str("2").unwrap()) });
+
+            smt.process_leaves(leaves_to_process);
+
+            // smt gets dropped but its info should be saved
+        }
+        // files and directories should have been created
+        assert!(Path::new("./persistency_test_info_lazy").exists());
+        assert!(Path::new("./db_leaves_persistency_test_info_lazy").exists());
+        assert!(Path::new("./db_cache_persistency_test_info_lazy").exists());
+
+        // create a non-persistent smt in another scope by restoring the previous one
+        {
+            let mut smt = MNT4PoseidonSmtLazy::new(
+                false,
+                String::from("./persistency_test_info_lazy"),
+                String::from("./db_leaves_persistency_test_info_lazy"),
+                String::from("./db_cache_persistency_test_info_lazy")
+            ).unwrap();
+
+            // insert other leaves
+            let mut leaves_to_process: Vec<OperationLeaf<MNT4753Fr>> = Vec::new();
+
+            leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 16 }, action: ActionLeaf::Insert, hash: Some(MNT4753Fr::from_str("10").unwrap()) });
+            leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 29 }, action: ActionLeaf::Insert, hash: Some(MNT4753Fr::from_str("3").unwrap()) });
+
+            smt.process_leaves(leaves_to_process);
+
+            // if truly state has been kept, then the equality below must pass, since `root` was
+            // computed in one go with another smt
+            assert_eq!(root, smt.state.root);
+
+            // smt gets dropped and state and dbs are deleted
+        }
+
+        // files and directories should have been deleted
+        assert!(!Path::new("./persistency_test_info").exists());
+        assert!(!Path::new("./db_leaves_persistency_test_info").exists());
+        assert!(!Path::new("./db_cache_persistency_test_info").exists());
+    }
 }
