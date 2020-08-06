@@ -15,7 +15,7 @@ pub mod models;
 
 pub use self::models::*;
 
-pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send {
+pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send + Eq + PartialEq {
     /// This is the scalar field of the G1/G2 groups.
     type Fr: PrimeField + SquareRootField;
 

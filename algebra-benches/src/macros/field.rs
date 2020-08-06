@@ -125,6 +125,94 @@ macro_rules! field_common {
                     tmp
                 });
             }
+
+            #[bench]
+            fn [<bench_ $field_ident _deser>](b: &mut ::test::Bencher) {
+                use algebra::{CanonicalSerialize, CanonicalDeserialize};
+                const SAMPLES: usize = 1000;
+
+                let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+                let mut num_bytes = 0;
+                let v: Vec<_> = (0..SAMPLES).flat_map(|_| {
+                    let mut bytes = Vec::with_capacity(1000);
+                    let tmp = $f::rand(&mut rng);
+                    tmp.serialize(&mut bytes).unwrap();
+                    num_bytes = bytes.len();
+                    bytes
+                }).collect();
+
+                let mut count = 0;
+                b.iter(|| {
+                    count = (count + 1) % SAMPLES;
+                    let index = count * num_bytes;
+                    $f_type::deserialize(&mut &v[index..(index + num_bytes)]).unwrap()
+                });
+            }
+
+            #[bench]
+            fn [<bench_ $field_ident _ser>](b: &mut ::test::Bencher) {
+                use algebra::CanonicalSerialize;
+                const SAMPLES: usize = 1000;
+
+                let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+                let v: Vec<$f_type> = (0..SAMPLES).map(|_| $f::rand(&mut rng)).collect();
+                let mut bytes = Vec::with_capacity(1000);
+
+                let mut count = 0;
+                b.iter(|| {
+                    let tmp = v[count];
+                    count = (count + 1) % SAMPLES;
+                    bytes.clear();
+                    tmp.serialize(&mut &mut bytes)
+
+                });
+            }
+
+            #[bench]
+            fn [<bench_ $field_ident _deser_unchecked>](b: &mut ::test::Bencher) {
+                use algebra::{CanonicalSerialize, CanonicalDeserialize};
+                const SAMPLES: usize = 1000;
+
+                let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+                let mut num_bytes = 0;
+                let v: Vec<_> = (0..SAMPLES).flat_map(|_| {
+                    let mut bytes = Vec::with_capacity(1000);
+                    let tmp = $f::rand(&mut rng);
+                    tmp.serialize_unchecked(&mut bytes).unwrap();
+                    num_bytes = bytes.len();
+                    bytes
+                }).collect();
+
+                let mut count = 0;
+                b.iter(|| {
+                    count = (count + 1) % SAMPLES;
+                    let index = count * num_bytes;
+                    $f_type::deserialize_unchecked(&mut &v[index..(index + num_bytes)]).unwrap()
+                });
+            }
+
+            #[bench]
+            fn [<bench_ $field_ident _ser_unchecked>](b: &mut ::test::Bencher) {
+                use algebra::CanonicalSerialize;
+                const SAMPLES: usize = 1000;
+
+                let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+                let v: Vec<$f_type> = (0..SAMPLES).map(|_| $f::rand(&mut rng)).collect();
+                let mut bytes = Vec::with_capacity(1000);
+
+                let mut count = 0;
+                b.iter(|| {
+                    let tmp = v[count];
+                    count = (count + 1) % SAMPLES;
+                    bytes.clear();
+                    tmp.serialize_unchecked(&mut &mut bytes)
+
+                });
+            }
         }
     };
 }

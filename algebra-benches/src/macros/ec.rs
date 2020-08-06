@@ -83,6 +83,98 @@ macro_rules! ec_bench {
         }
 
         #[bench]
+        fn bench_g1_deser(b: &mut ::test::Bencher) {
+            use algebra::{CanonicalDeserialize, CanonicalSerialize, ProjectiveCurve};
+            const SAMPLES: usize = 1000;
+
+            let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+            let mut num_bytes = 0;
+            let tmp = G1::rand(&mut rng).into_affine();
+            let v: Vec<_> = (0..SAMPLES)
+                .flat_map(|_| {
+                    let mut bytes = Vec::with_capacity(1000);
+                    tmp.serialize(&mut bytes).unwrap();
+                    num_bytes = bytes.len();
+                    bytes
+                })
+                .collect();
+
+            let mut count = 0;
+            b.iter(|| {
+                count = (count + 1) % SAMPLES;
+                let index = count * num_bytes;
+                G1Affine::deserialize(&mut &v[index..(index + num_bytes)]).unwrap()
+            });
+        }
+
+        #[bench]
+        fn bench_g1_ser(b: &mut ::test::Bencher) {
+            use algebra::{CanonicalSerialize, ProjectiveCurve};
+            const SAMPLES: usize = 1000;
+
+            let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+            let mut v: Vec<_> = (0..SAMPLES).map(|_| G1::rand(&mut rng)).collect();
+            let v = G1::batch_normalization_into_affine(v.as_mut_slice());
+            let mut bytes = Vec::with_capacity(1000);
+
+            let mut count = 0;
+            b.iter(|| {
+                let tmp = v[count];
+                count = (count + 1) % SAMPLES;
+                bytes.clear();
+                tmp.serialize(&mut &mut bytes)
+            });
+        }
+
+        #[bench]
+        fn bench_g1_deser_unchecked(b: &mut ::test::Bencher) {
+            use algebra::{CanonicalDeserialize, CanonicalSerialize, ProjectiveCurve};
+            const SAMPLES: usize = 1000;
+
+            let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+            let mut num_bytes = 0;
+            let tmp = G1::rand(&mut rng).into_affine();
+            let v: Vec<_> = (0..SAMPLES)
+                .flat_map(|_| {
+                    let mut bytes = Vec::with_capacity(1000);
+                    tmp.serialize_unchecked(&mut bytes).unwrap();
+                    num_bytes = bytes.len();
+                    bytes
+                })
+                .collect();
+
+            let mut count = 0;
+            b.iter(|| {
+                count = (count + 1) % SAMPLES;
+                let index = count * num_bytes;
+                G1Affine::deserialize_unchecked(&mut &v[index..(index + num_bytes)]).unwrap()
+            });
+        }
+
+        #[bench]
+        fn bench_g1_ser_unchecked(b: &mut ::test::Bencher) {
+            use algebra::{CanonicalSerialize, ProjectiveCurve};
+            const SAMPLES: usize = 1000;
+
+            let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+            let mut v: Vec<_> = (0..SAMPLES).map(|_| G1::rand(&mut rng)).collect();
+            let v = G1::batch_normalization_into_affine(v.as_mut_slice());
+            let mut bytes = Vec::with_capacity(1000);
+
+            let mut count = 0;
+            b.iter(|| {
+                let tmp = v[count];
+                count = (count + 1) % SAMPLES;
+                bytes.clear();
+                tmp.serialize_unchecked(&mut &mut bytes)
+            });
+        }
+
+        #[bench]
         fn bench_g2_rand(b: &mut ::test::Bencher) {
             let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
             b.iter(|| G2::rand(&mut rng));
@@ -161,6 +253,98 @@ macro_rules! ec_bench {
                 tmp.double_in_place();
                 count = (count + 1) % SAMPLES;
                 tmp
+            });
+        }
+
+        #[bench]
+        fn bench_g2_deser(b: &mut ::test::Bencher) {
+            use algebra::{CanonicalDeserialize, CanonicalSerialize, ProjectiveCurve};
+            const SAMPLES: usize = 1000;
+
+            let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+            let mut num_bytes = 0;
+            let tmp = G2::rand(&mut rng).into_affine();
+            let v: Vec<_> = (0..SAMPLES)
+                .flat_map(|_| {
+                    let mut bytes = Vec::with_capacity(1000);
+                    tmp.serialize(&mut bytes).unwrap();
+                    num_bytes = bytes.len();
+                    bytes
+                })
+                .collect();
+
+            let mut count = 0;
+            b.iter(|| {
+                count = (count + 1) % SAMPLES;
+                let index = count * num_bytes;
+                G2Affine::deserialize(&mut &v[index..(index + num_bytes)]).unwrap()
+            });
+        }
+
+        #[bench]
+        fn bench_g2_ser(b: &mut ::test::Bencher) {
+            use algebra::{CanonicalSerialize, ProjectiveCurve};
+            const SAMPLES: usize = 1000;
+
+            let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+            let mut v: Vec<_> = (0..SAMPLES).map(|_| G2::rand(&mut rng)).collect();
+            let v = G2::batch_normalization_into_affine(v.as_mut_slice());
+            let mut bytes = Vec::with_capacity(1000);
+
+            let mut count = 0;
+            b.iter(|| {
+                let tmp = v[count];
+                count = (count + 1) % SAMPLES;
+                bytes.clear();
+                tmp.serialize(&mut &mut bytes)
+            });
+        }
+
+        #[bench]
+        fn bench_g2_deser_unchecked(b: &mut ::test::Bencher) {
+            use algebra::{CanonicalDeserialize, CanonicalSerialize, ProjectiveCurve};
+            const SAMPLES: usize = 1000;
+
+            let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+            let mut num_bytes = 0;
+            let tmp = G2::rand(&mut rng).into_affine();
+            let v: Vec<_> = (0..SAMPLES)
+                .flat_map(|_| {
+                    let mut bytes = Vec::with_capacity(1000);
+                    tmp.serialize_unchecked(&mut bytes).unwrap();
+                    num_bytes = bytes.len();
+                    bytes
+                })
+                .collect();
+
+            let mut count = 0;
+            b.iter(|| {
+                count = (count + 1) % SAMPLES;
+                let index = count * num_bytes;
+                G2Affine::deserialize_unchecked(&mut &v[index..(index + num_bytes)]).unwrap()
+            });
+        }
+
+        #[bench]
+        fn bench_g2_ser_unchecked(b: &mut ::test::Bencher) {
+            use algebra::{CanonicalSerialize, ProjectiveCurve};
+            const SAMPLES: usize = 1000;
+
+            let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+            let mut v: Vec<_> = (0..SAMPLES).map(|_| G2::rand(&mut rng)).collect();
+            let v = G2::batch_normalization_into_affine(v.as_mut_slice());
+            let mut bytes = Vec::with_capacity(1000);
+
+            let mut count = 0;
+            b.iter(|| {
+                let tmp = v[count];
+                count = (count + 1) % SAMPLES;
+                bytes.clear();
+                tmp.serialize_unchecked(&mut &mut bytes)
             });
         }
     };

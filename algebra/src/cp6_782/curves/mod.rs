@@ -19,7 +19,7 @@ mod tests;
 
 pub type GT = Fq6;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct CP6_782;
 
 impl PairingEngine for CP6_782 {
