@@ -48,7 +48,10 @@ macro_rules! specialise_affine_to_proj {
                 })
             }
 
-            fn mul<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(&self, by: S) -> Self::Projective {
+            fn mul<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(
+                &self,
+                by: S,
+            ) -> Self::Projective {
                 let bits = BitIterator::new(by.into());
                 self.mul_bits(bits)
             }
@@ -70,13 +73,10 @@ macro_rules! specialise_affine_to_proj {
             // aztec/ecc/curves/bn254/scalar_multiplication/scalar_multiplication.cpp
 
             #[inline]
-            fn batch_double_in_place(
-                bases: &mut [Self],
-                index: Vec<usize>,
-            ) {
+            fn batch_double_in_place(bases: &mut [Self], index: Vec<usize>) {
                 let mut inversion_tmp = P::BaseField::one();
                 let mut scratch_space = Vec::new(); // with_capacity? How to get size?
-                // We run two loops over the data separated by an inversion
+                                                    // We run two loops over the data separated by an inversion
                 #[cfg(feature = "prefetch")]
                 let mut prefetch_iter = index.iter();
                 #[cfg(feature = "prefetch")]
@@ -150,7 +150,7 @@ macro_rules! specialise_affine_to_proj {
             fn batch_add_in_place(
                 bases: &mut [Self],
                 other: &mut [Self],
-                index: Vec<(usize, usize)>
+                index: Vec<(usize, usize)>,
             ) {
                 let mut inversion_tmp = P::BaseField::one();
                 let mut half = None;
@@ -179,7 +179,7 @@ macro_rules! specialise_affine_to_proj {
                             None => {
                                 println!("We got fucked");
                                 P::BaseField::one().double().inverse()
-                            },
+                            }
                             _ => half,
                         };
                         let h = half.unwrap();
@@ -312,7 +312,6 @@ macro_rules! specialise_affine_to_proj {
             }
         }
 
-
         impl<P: Parameters> Display for GroupAffine<P> {
             fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
                 if self.infinity {
@@ -391,9 +390,11 @@ macro_rules! specialise_affine_to_proj {
         #[cfg(feature = "prefetch")]
         #[inline]
         pub fn prefetch<T>(p: *const T) {
-            unsafe {  core::arch::x86_64::_mm_prefetch(p as *const i8,  core::arch::x86_64::_MM_HINT_T0) }
+            unsafe {
+                core::arch::x86_64::_mm_prefetch(p as *const i8, core::arch::x86_64::_MM_HINT_T0)
+            }
         }
 
         impl_sw_curve_serializer!(Parameters);
-    }
+    };
 }

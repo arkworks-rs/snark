@@ -1,7 +1,8 @@
 use crate::{
     curves::models::SWModelParameters as Parameters,
     io::{Read, Result as IoResult, Write},
-    serialize::{Flags, SWFlags}, UniformRand, Vec,
+    serialize::{Flags, SWFlags},
+    UniformRand, Vec,
 };
 use core::{
     fmt::{Display, Formatter, Result as FmtResult},
@@ -20,8 +21,9 @@ use crate::{
     fields::{BitIterator, Field, PrimeField, SquareRootField},
 };
 
-use crate::{CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
-    CanonicalSerializeWithFlags, ConstantSerializedSize
+use crate::{
+    CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
+    CanonicalSerializeWithFlags, ConstantSerializedSize,
 };
 
 specialise_affine_to_proj!(GroupProjective);

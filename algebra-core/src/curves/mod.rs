@@ -275,23 +275,19 @@ pub trait AffineCurve:
         let half_size = 1 << w;
         let batch_size = bases.len();
 
-        let mut tables =
-            vec![Vec::<Self>::with_capacity(half_size); batch_size];
+        let mut tables = vec![Vec::<Self>::with_capacity(half_size); batch_size];
 
         let mut a_2 = bases[..].to_vec();
         let mut tmp = bases[..].to_vec();
 
-        Self::batch_double_in_place(
-            &mut a_2,
-            (0..batch_size).collect()
-        );
+        Self::batch_double_in_place(&mut a_2, (0..batch_size).collect());
 
         for i in 0..half_size {
             if i != 0 {
                 Self::batch_add_in_place(
                     &mut tmp,
                     &mut a_2.to_vec()[..],
-                    (0..batch_size).map(|x| (x, x)).collect()
+                    (0..batch_size).map(|x| (x, x)).collect(),
                 );
             }
 
@@ -307,7 +303,7 @@ pub trait AffineCurve:
     // We can make this more generic in the future to use other than u16.
     fn batch_wnaf_opcode_recoding<BigInt: BigInteger + AsRef<[u64]>>(
         scalars: &mut [BigInt],
-        w: usize
+        w: usize,
     ) -> Vec<Vec<Option<i16>>> {
         assert!(w > 0);
         let batch_size = scalars.len();
@@ -346,8 +342,8 @@ pub trait AffineCurve:
             all_none = opcode_row.iter().all(|x| x.is_none());
             if !all_none {
                 op_code_vectorised.push(opcode_row);
-            // } else {
-            //     break;
+                // } else {
+                //     break;
             }
         }
         op_code_vectorised
@@ -357,11 +353,7 @@ pub trait AffineCurve:
     // to prevent memory allocation
     fn batch_double_in_place(bases: &mut [Self], index: Vec<usize>);
 
-    fn batch_add_in_place(
-        bases: &mut [Self],
-        other: &mut [Self],
-        index: Vec<(usize, usize)>
-    );
+    fn batch_add_in_place(bases: &mut [Self], other: &mut [Self], index: Vec<(usize, usize)>);
 
     fn batch_scalar_mul_in_place<BigInt: BigInteger>(
         mut bases: &mut [Self],
@@ -385,7 +377,8 @@ pub trait AffineCurve:
         let mut total: u128 = 0;
         let now = std::time::Instant::now();
         for opcode_row in opcode_vectorised.iter().rev() {
-            let index_double = opcode_row.iter()
+            let index_double = opcode_row
+                .iter()
                 .enumerate()
                 .filter(|x| x.1.is_some())
                 .map(|x| x.0)
@@ -395,15 +388,16 @@ pub trait AffineCurve:
 
             let then = std::time::Instant::now();
             // Copying to this vector might be really stupid...
-            let mut add_ops: Vec<Self> = tables.iter()
+            let mut add_ops: Vec<Self> = tables
+                .iter()
                 .zip(opcode_row)
                 .filter(|(_, op)| op.is_some() && op.unwrap() != 0)
                 .map(|(t, op)| {
                     let idx = op.unwrap();
                     if idx > 0 {
-                        t[(idx as usize)/2].clone()
+                        t[(idx as usize) / 2].clone()
                     } else {
-                        t[((-idx) as usize)/2].clone().neg()
+                        t[((-idx) as usize) / 2].clone().neg()
                     }
                 })
                 .collect();
@@ -412,7 +406,8 @@ pub trait AffineCurve:
             // println!("allocate new points: {:?}", dur);
             total += dur;
 
-            let index_add = opcode_row.iter()
+            let index_add = opcode_row
+                .iter()
                 .enumerate()
                 .filter(|(_, op)| op.is_some() && op.unwrap() != 0)
                 .map(|x| x.0)
@@ -420,11 +415,14 @@ pub trait AffineCurve:
                 .map(|(x, y)| (y, x))
                 .collect();
 
-            Self::batch_add_in_place(
-                &mut bases, &mut add_ops[..], index_add);
+            Self::batch_add_in_place(&mut bases, &mut add_ops[..], index_add);
         }
         println!("total - allocate new points: {:?}", total);
-        println!("Scalar mul for {:?} points: {:?}", bases.len(), now.elapsed().as_micros());
+        println!(
+            "Scalar mul for {:?} points: {:?}",
+            bases.len(),
+            now.elapsed().as_micros()
+        );
     }
 }
 
@@ -475,22 +473,14 @@ pub trait BatchArithmetic<G: AffineCurve> {
 
     fn batch_wnaf_opcode_recoding<BigInt: BigInteger + AsRef<[u64]>>(
         scalars: &mut [BigInt],
-        w: usize
+        w: usize,
     ) -> Vec<Vec<Option<i16>>>;
 
     fn batch_double_in_place(&mut self, index: Vec<usize>);
 
-    fn batch_add_in_place(
-        &mut self,
-        other: &mut Self,
-        index: Vec<(usize, usize)>
-    );
+    fn batch_add_in_place(&mut self, other: &mut Self, index: Vec<(usize, usize)>);
 
-    fn batch_scalar_mul_in_place<BigInt: BigInteger>(
-        &mut self,
-        scalars: &mut [BigInt],
-        w: usize,
-    );
+    fn batch_scalar_mul_in_place<BigInt: BigInteger>(&mut self, scalars: &mut [BigInt], w: usize);
 }
 
 impl<G: AffineCurve> BatchArithmetic<G> for [G] {
@@ -500,7 +490,7 @@ impl<G: AffineCurve> BatchArithmetic<G> for [G] {
 
     fn batch_wnaf_opcode_recoding<BigInt: BigInteger + AsRef<[u64]>>(
         scalars: &mut [BigInt],
-        w: usize
+        w: usize,
     ) -> Vec<Vec<Option<i16>>> {
         G::batch_wnaf_opcode_recoding::<BigInt>(scalars, w)
     }
@@ -509,28 +499,21 @@ impl<G: AffineCurve> BatchArithmetic<G> for [G] {
         G::batch_double_in_place(self, index);
     }
 
-    fn batch_add_in_place(
-        &mut self,
-        other: &mut Self,
-        index: Vec<(usize, usize)>
-    ){
+    fn batch_add_in_place(&mut self, other: &mut Self, index: Vec<(usize, usize)>) {
         G::batch_add_in_place(self, other, index);
     }
 
-    fn batch_scalar_mul_in_place<BigInt: BigInteger>(
-        &mut self,
-        scalars: &mut [BigInt],
-        w: usize,
-    ){
+    fn batch_scalar_mul_in_place<BigInt: BigInteger>(&mut self, scalars: &mut [BigInt], w: usize) {
         G::batch_scalar_mul_in_place(self, scalars, w);
     }
 }
 
 trait GLV: AffineCurve {
-    fn glv_scalar_decomposition<BigInt: BigInteger, SmallBigInt: BigInteger>(k: BigInt)
-        -> (SmallBigInt, SmallBigInt) {
-            unimplemented!();
-        }
+    fn glv_scalar_decomposition<BigInt: BigInteger, SmallBigInt: BigInteger>(
+        k: BigInt,
+    ) -> (SmallBigInt, SmallBigInt) {
+        unimplemented!();
+    }
 
     fn glv_endomorphism_in_place(&mut self) {
         unimplemented!();
@@ -543,12 +526,13 @@ trait GLV: AffineCurve {
     ) {
         assert_eq!(points.len(), scalars.len());
         let batch_size = points.len();
-        let glv_scalars:Vec<(SmallBigInt, SmallBigInt)> = scalars.iter().map(|&s|
-            Self::glv_scalar_decomposition::<BigInt, SmallBigInt>(s)
-        ).collect();
+        let glv_scalars: Vec<(SmallBigInt, SmallBigInt)> = scalars
+            .iter()
+            .map(|&s| Self::glv_scalar_decomposition::<BigInt, SmallBigInt>(s))
+            .collect();
         let (mut k1, mut k2): (Vec<SmallBigInt>, Vec<SmallBigInt>) = (
             glv_scalars.iter().map(|x| x.0).collect(),
-            glv_scalars.iter().map(|x| x.1).collect()
+            glv_scalars.iter().map(|x| x.1).collect(),
         );
 
         let mut p2 = points.to_vec();

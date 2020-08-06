@@ -1,6 +1,6 @@
 #![allow(unused)]
 use algebra_core::{
-    curves::{AffineCurve, ProjectiveCurve, BatchArithmetic},
+    curves::{AffineCurve, BatchArithmetic, ProjectiveCurve},
     io::Cursor,
     CanonicalDeserialize, CanonicalSerialize, Field, MontgomeryModelParameters, One, PrimeField,
     SWFlags, SWModelParameters, SerializationError, TEModelParameters, UniformRand, Vec, Zero,
@@ -222,9 +222,7 @@ fn random_transformation_test<G: ProjectiveCurve>() {
     }
 }
 
-
-pub fn random_batch_doubling_test<G: ProjectiveCurve>()
-{
+pub fn random_batch_doubling_test<G: ProjectiveCurve>() {
     use algebra_core::curves::models::short_weierstrass_jacobian::{GroupAffine, GroupProjective};
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
@@ -254,8 +252,7 @@ pub fn random_batch_doubling_test<G: ProjectiveCurve>()
     }
 }
 
-pub fn random_batch_addition_test<G: ProjectiveCurve>()
-{
+pub fn random_batch_addition_test<G: ProjectiveCurve>() {
     use algebra_core::curves::models::short_weierstrass_jacobian::{GroupAffine, GroupProjective};
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
@@ -287,9 +284,7 @@ pub fn random_batch_addition_test<G: ProjectiveCurve>()
     }
 }
 
-
-pub fn random_batch_add_doubling_test<G: ProjectiveCurve>()
-{
+pub fn random_batch_add_doubling_test<G: ProjectiveCurve>() {
     use algebra_core::curves::models::short_weierstrass_jacobian::{GroupAffine, GroupProjective};
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
@@ -321,9 +316,7 @@ pub fn random_batch_add_doubling_test<G: ProjectiveCurve>()
     }
 }
 
-
-pub fn sw_random_scalar_mul_test<G: ProjectiveCurve>()
-{
+pub fn sw_random_scalar_mul_test<G: ProjectiveCurve>() {
     use algebra_core::curves::models::short_weierstrass_jacobian::{GroupAffine, GroupProjective};
     use std::ops::MulAssign;
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
@@ -343,7 +336,8 @@ pub fn sw_random_scalar_mul_test<G: ProjectiveCurve>()
 
         let mut a: Vec<G::Affine> = a.iter().map(|p| p.into_affine()).collect();
 
-        let mut s: Vec<<G::ScalarField as PrimeField>::BigInt> = s.iter().map(|p| p.into_repr()).collect();
+        let mut s: Vec<<G::ScalarField as PrimeField>::BigInt> =
+            s.iter().map(|p| p.into_repr()).collect();
 
         a[..].batch_scalar_mul_in_place::<<G::ScalarField as PrimeField>::BigInt>(&mut s[..], 4);
 
