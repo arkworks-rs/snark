@@ -310,7 +310,7 @@ where
     >;
 }
 
-pub trait BatchArithmetic<G> {
+pub trait BatchArithmetic<G: AffineCurve> {
     // Computes [-p, p, -3p, 3p, ..., -2^wp, 2^wp]
     fn batch_wnaf_tables(&self, w: usize) -> Vec<Vec<G>>;
 

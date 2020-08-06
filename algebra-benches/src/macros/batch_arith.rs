@@ -6,10 +6,12 @@ macro_rules! batch_arith {
 
             let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
+            println!("G1 Gen");
             let mut g: Vec<G1Affine> = (0..SAMPLES)
                 .map(|_| G1::rand(&mut rng).into_affine())
                 .collect();
 
+            println!("scalar gen");
             let s: Vec<FrRepr> = (0..SAMPLES)
                 .map(|_| Fr::rand(&mut rng).into_repr())
                 .collect();
@@ -39,7 +41,7 @@ macro_rules! batch_arith {
             let now = std::time::Instant::now();
             b.iter(|| {
                 g.iter_mut()
-                    .zip(&s)
+                    .zip(&s.to_vec())
                     .map(|(p, sc)| p.mul_assign(*sc))
                     .collect::<()>();
                 println!("{:?}", now.elapsed().as_micros());

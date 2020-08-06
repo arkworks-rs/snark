@@ -234,9 +234,6 @@ macro_rules! specialise_affine_to_proj {
                         table.push(p.clone());
                     }
                 }
-                // deref coercion
-                // let res: &[Self] = &tables;
-                // *res
                 tables
             }
 
@@ -348,6 +345,7 @@ macro_rules! specialise_affine_to_proj {
 
             // https://github.com/AztecProtocol/barretenberg/blob/standardplonkjson/barretenberg/src/
             // aztec/ecc/curves/bn254/scalar_multiplication/scalar_multiplication.cpp
+            #[inline]
             fn batch_double_in_place_with_edge_cases(
                 &mut self,
                 index: Vec<usize>
@@ -424,6 +422,7 @@ macro_rules! specialise_affine_to_proj {
             }
 
             // Consumes other and mutates self in place. Accepts index function
+            #[inline]
             fn batch_add_in_place_with_edge_cases(
                 &mut self,
                 other: &mut Self,
@@ -456,7 +455,6 @@ macro_rules! specialise_affine_to_proj {
                         // In our model, we consider self additions rare.
                         // So we consider it inconsequential to make them more expensive
                         // This costs 1 modular mul more than a standard squaring
-
                         if a.y == b.y {
                             let x_sq = b.x.square();
                             b.x -= &b.y; // x - y
@@ -516,7 +514,6 @@ macro_rules! specialise_affine_to_proj {
                 w: usize,
                 scalars: &mut [BigInt],
             ) {
-                println!("Size: {:?}", self.len());
                 // let no_op: u16 = 1 << w; // noop is encoded as half_window_size
                 let now = std::time::Instant::now();
                 let opcode_vectorised = Self::batch_wnaf_opcode_recoding::<BigInt>(scalars, w);
@@ -525,14 +522,12 @@ macro_rules! specialise_affine_to_proj {
                 let tables = self.batch_wnaf_tables(w);
                 println!("table generation: {:?}", now.elapsed().as_micros());
 
-                let now = std::time::Instant::now();
                 // Set all points to 0;
                 for p in self.iter_mut() {
                     p.infinity = true;
                 }
-                println!("set 0: {:?}", now.elapsed().as_micros());
 
-                // let mut total: u128 = 0;
+                let mut total: u128 = 0;
                 let now = std::time::Instant::now();
                 for opcode_row in opcode_vectorised.iter().rev() {
                     let index_double = opcode_row.iter()
@@ -543,7 +538,7 @@ macro_rules! specialise_affine_to_proj {
 
                     self.batch_double_in_place_with_edge_cases(index_double);
 
-                    // let then = std::time::Instant::now();
+                    let then = std::time::Instant::now();
                     // Copying to this vector might be really stupid...
                     let mut add_ops: Vec<GroupAffine<P>> = tables.iter()
                         .zip(opcode_row)
@@ -558,10 +553,9 @@ macro_rules! specialise_affine_to_proj {
                         })
                         .collect();
 
-                    // let dur = then.elapsed().as_micros();
+                    let dur = then.elapsed().as_micros();
                     // println!("allocate new points: {:?}", dur);
-                    // total += dur;
-                    // println!("total - allocate new points: {:?}", total);
+                    total += dur;
 
 
                     let index_add = opcode_row.iter()
@@ -575,6 +569,7 @@ macro_rules! specialise_affine_to_proj {
                     self.batch_add_in_place_with_edge_cases(&mut add_ops[..], index_add);
                 }
 
+                println!("total - allocate new points: {:?}", total);
                 println!("Scalar mul for {:?} points: {:?}", self.len(), now.elapsed().as_micros());
             }
 
