@@ -176,9 +176,7 @@ macro_rules! specialise_affine_to_proj {
                         continue;
                     } else if a.x == b.x {
                         half = match half {
-                            None => {
-                                P::BaseField::one().double().inverse()
-                            }
+                            None => P::BaseField::one().double().inverse(),
                             _ => half,
                         };
                         let h = half.unwrap();
