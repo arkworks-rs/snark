@@ -1,19 +1,19 @@
-use crate::merkle_tree::field_based_mht::smt::{SmtPoseidonParameters, Coord, OperationLeaf};
+use crate::merkle_tree::field_based_mht::smt::{SmtPoseidonParameters, Coord, OperationLeaf, BigMerkleTreeState};
 use crate::{PoseidonParameters, BatchFieldBasedHash, merkle_tree};
 use crate::crh::poseidon::batched_crh::PoseidonBatchHash;
 use crate::merkle_tree::field_based_mht::smt::ActionLeaf::Remove;
 use crate::merkle_tree::field_based_mht::smt::parameters::{MNT4753SmtPoseidonParameters, MNT6753SmtPoseidonParameters};
 use crate::crh::poseidon::parameters::{MNT4753PoseidonParameters, MNT6753PoseidonParameters};
 
-use rocksdb::DB;
+use rocksdb::{DB, Options};
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::marker::PhantomData;
 
 use std::fs;
 
 use algebra::{PrimeField, MulShort};
-use algebra::{ToBytes, to_bytes};
+use algebra::{ToBytes, to_bytes, FromBytes};
 use algebra::fields::mnt6753::Fr as MNT6753Fr;
 use algebra::fields::mnt4753::Fr as MNT4753Fr;
 use crate::merkle_tree::field_based_mht::smt::big_merkle_tree::BigMerkleTree;
@@ -21,9 +21,13 @@ use crate::merkle_tree::field_based_mht::smt::error::Error;
 
 #[derive(Debug)]
 pub struct LazyBigMerkleTree<F: PrimeField, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParameters<Fr=F>> {
-
-    // the number of leaves
-    width: usize,
+    // if unset, all DBs and tree internal state will be deleted when an instance of this struct
+    // gets dropped
+    persistent: bool,
+    // path to state required to restore the tree
+    state_path: Option<String>,
+    // tree in-memory state
+    state: BigMerkleTreeState<F, T>,
     // the height of the Merkle tree
     height: usize,
     // path to the db
@@ -34,12 +38,6 @@ pub struct LazyBigMerkleTree<F: PrimeField, T: SmtPoseidonParameters<Fr=F>, P: P
     path_cache: String,
     // stores the cached nodes
     db_cache: DB,
-    // indicates which nodes are present the Merkle tree
-    present_node: HashSet<Coord>,
-    // cache of nodes processed in parallel
-    cache_parallel: HashMap<Coord, F>,
-    // root of the Merkle tree
-    pub(crate) root: F,
 
     _field: PhantomData<F>,
     _parameters: PhantomData<T>,
@@ -48,43 +46,110 @@ pub struct LazyBigMerkleTree<F: PrimeField, T: SmtPoseidonParameters<Fr=F>, P: P
 
 impl<F: PrimeField, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParameters<Fr=F>> Drop for LazyBigMerkleTree<F, T, P> {
     fn drop(&mut self) {
-        // Deletes the folder containing the db
-        match fs::remove_dir_all(self.path_db.clone()) {
-            Ok(_) => (),
-            Err(e) => {
-                println!("Error deleting the folder containing the db. {}", e);
+
+        if !self.persistent {
+
+            if self.state_path.is_some() {
+                match fs::remove_file(self.state_path.clone().unwrap()) {
+                    Ok(_) => (),
+                    Err(e) => println!("Error deleting tree state: {}", e)
+                }
             }
-        };
-        // Deletes the folder containing the cache
-        match fs::remove_dir_all(self.path_cache.clone()) {
-            Ok(_) => (),
-            Err(e) => {
-                println!("Error deleting the folder containing the db. {}", e);
-            }
-        };
+
+            // Deletes the folder containing the db
+            match fs::remove_dir_all(self.path_db.clone()) {
+                Ok(_) => (),
+                Err(e) => {
+                    println!("Error deleting the folder containing the db: {}", e);
+                }
+            };
+            // Deletes the folder containing the cache
+            match fs::remove_dir_all(self.path_cache.clone()) {
+                Ok(_) => (),
+                Err(e) => {
+                    println!("Error deleting the folder containing the db: {}", e);
+                }
+            };
+        } else {
+            // Don't delete the DBs and save required state on file in order to restore the
+            // tree later.
+            let tree_state_file = fs::File::create(self.state_path.clone().unwrap())
+                .expect("Should be able to create file for tree state");
+
+            self.state.write(tree_state_file)
+                .expect("Should be able to write into tree state file");
+        }
     }
 }
 
-// Assumption: MERKLE_ARITY == 2
 impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParameters<Fr=F>> LazyBigMerkleTree<F, T, P> {
-    pub fn new(width: usize, path_db: String, path_cache: String) -> Result<Self, Error> {
+    // Creates a new tree of specified `width`.
+    // If `persistent` is specified, then DBs will be kept on disk and the tree state will be saved
+    // so that the tree can be restored any moment later. Otherwise, no state will be saved on file
+    // and the DBs will be deleted.
+    pub fn new_unitialized(width: usize, persistent: bool, state_path: Option<String>, path_db: String, path_cache: String) -> Result<Self, Error> {
+
+        // If the tree must be persistent, that a path to which save the tree state must be
+        // specified.
+        if !persistent { assert!(state_path.is_none()) } else { assert!(state_path.is_some()) }
+
         let height = width as f64;
         let height = height.log(T::MERKLE_ARITY as f64) as usize;
-        let database = DB::open_default(path_db.clone()).unwrap();
-        let db_cache = DB::open_default(path_cache.clone()).unwrap();
-        let present_node = HashSet::new();
-        let cache_parallel = HashMap::new();
-        let root = T::EMPTY_HASH_CST[height];
+        let state = BigMerkleTreeState::<F, T>::get_default_state(width, height);
+        let path_db = path_db;
+        let database = DB::open_default(path_db.clone())
+            .map_err(|e| Error::Other(e.to_string()))?;
+        let path_cache = path_cache;
+        let db_cache = DB::open_default(path_cache.clone())
+            .map_err(|e| Error::Other(e.to_string()))?;
         Ok(LazyBigMerkleTree {
-            width,
+            persistent,
+            state_path,
+            state,
             height,
             path_db,
             database,
             path_cache,
             db_cache,
-            present_node,
-            cache_parallel,
-            root,
+            _field: PhantomData,
+            _parameters: PhantomData,
+            _poseidon_parameters: PhantomData,
+        })
+    }
+
+    // Creates a new tree starting from state at `state_path` and DBs at `path_db` and `path_cache`.
+    // The new tree may be persistent or not, the actions taken in both cases are the same as
+    // in `new_unitialized()`.
+    pub fn new(persistent: bool, state_path: String, path_db: String, path_cache: String) -> Result<Self, Error> {
+
+        let state = {
+            let state_file = fs::File::open(state_path.clone())
+                .map_err(|e| Error::Other(e.to_string()))?;
+            BigMerkleTreeState::<F, T>::read(state_file)
+        }.map_err(|e| Error::Other(e.to_string()))?;
+
+        let height = state.width as f64;
+        let height = height.log(T::MERKLE_ARITY as f64) as usize;
+
+        let opening_options = Options::default();
+
+        let path_db = path_db;
+        let database = DB::open(&opening_options, path_db.clone())
+            .map_err(|e| Error::Other(e.to_string()))?;
+
+        let path_cache = path_cache;
+        let db_cache = DB::open(&opening_options,path_cache.clone())
+            .map_err(|e| Error::Other(e.to_string()))?;
+
+        Ok(LazyBigMerkleTree {
+            persistent,
+            state_path: Some(state_path),
+            state,
+            height,
+            path_db,
+            database,
+            path_cache,
+            db_cache,
             _field: PhantomData,
             _parameters: PhantomData,
             _poseidon_parameters: PhantomData,
@@ -218,7 +283,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         let right_child_height = 0;
         let right_coord = Coord { height: right_child_height, idx: right_child_idx };
 
-        if (!self.present_node.contains(&left_coord)) | (!self.present_node.contains(&right_coord)) {
+        if (!self.state.present_node.contains(&left_coord)) | (!self.state.present_node.contains(&right_coord)) {
             if self.contains_key_in_cache(coord) {
                 LazyBigMerkleTree::remove_node_from_cache(self, coord);
             }
@@ -258,7 +323,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
 
         //let coord = Coord{height, idx};
         // if the node is an empty node return the hash constant
-        if !self.present_node.contains(&coord) {
+        if !self.state.present_node.contains(&coord) {
             return T::EMPTY_HASH_CST[coord.height];
         }
         let res = self.get_from_cache(coord);
@@ -306,7 +371,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
     }
 
     pub fn get_root(&self) -> F {
-        self.root.clone()
+        self.state.root.clone()
     }
 
     pub fn remove_node_from_cache(&mut self, coord: Coord) {
@@ -325,7 +390,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         // Validate inputs
         for i in 0..vec_leaf_op.len() {
             // check that the index of the leaf to be inserted/removed is in range
-            assert!(vec_leaf_op[i].coord.idx < self.width, "Leaf index out of bound.");
+            assert!(vec_leaf_op[i].coord.idx < self.state.width, "Leaf index out of bound.");
         }
 
         // Mark nodes to recompute
@@ -383,10 +448,10 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
 
             if action == Remove {
                 self.remove_from_db(idx);
-                self.present_node.remove(&coord);
+                self.state.present_node.remove(&coord);
             } else {
                 self.insert_to_db(idx, hash.unwrap());
-                self.present_node.insert(coord);
+                self.state.present_node.insert(coord);
             }
         }
 
@@ -434,7 +499,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         // Place the computed hash in a cache_parallel
         let mut index_output_vec = 0;
         for coord in nodes_to_process_in_parallel[0].clone() {
-            self.cache_parallel.insert(coord, output_vec[index_output_vec]);
+            self.state.cache_path.insert(coord, output_vec[index_output_vec]);
             if both_children_present[index_output_vec] == true {
                 self.insert_to_cache(coord,output_vec[index_output_vec]);
             } else {
@@ -459,24 +524,24 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
                 let left_child_coord = Coord { height: coord.height - 1, idx: left_child_idx};
                 let right_child_coord = Coord { height: coord.height - 1, idx: right_child_idx};
 
-                if self.cache_parallel.contains_key(&left_child_coord) {
-                    left_hash = *self.cache_parallel.get(&left_child_coord).unwrap();
+                if self.state.cache_path.contains_key(&left_child_coord) {
+                    left_hash = *self.state.cache_path.get(&left_child_coord).unwrap();
                 } else {
                     left_hash = self.node(left_child_coord);
                 }
-                if self.cache_parallel.contains_key(&right_child_coord) {
-                    right_hash = *self.cache_parallel.get(&right_child_coord).unwrap();
+                if self.state.cache_path.contains_key(&right_child_coord) {
+                    right_hash = *self.state.cache_path.get(&right_child_coord).unwrap();
                 } else {
                     right_hash = self.node(right_child_coord);
                 }
                 input_vec.push(left_hash);
                 input_vec.push(right_hash);
-                if self.present_node.contains(&left_child_coord) || self.present_node.contains(&right_child_coord){
-                    self.present_node.insert(coord);
+                if self.state.present_node.contains(&left_child_coord) || self.state.present_node.contains(&right_child_coord){
+                    self.state.present_node.insert(coord);
                 } else {
-                    self.present_node.remove(&coord);
+                    self.state.present_node.remove(&coord);
                 }
-                if self.present_node.contains(&left_child_coord) && self.present_node.contains(&right_child_coord){
+                if self.state.present_node.contains(&left_child_coord) && self.state.present_node.contains(&right_child_coord){
                     both_children_present.push(true);
                 } else {
                     both_children_present.push(false);
@@ -489,7 +554,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             // Place the computed hash in a cache_parallel
             let mut index_output_vec = 0;
             for coord in nodes_to_process_in_parallel[height-1].clone() {
-                self.cache_parallel.insert(coord, output_vec[index_output_vec]);
+                self.state.cache_path.insert(coord, output_vec[index_output_vec]);
                 if both_children_present[index_output_vec] == true {
                     self.insert_to_cache(coord,output_vec[index_output_vec]);
                 } else {
@@ -502,8 +567,8 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             height += 1;
         }
 
-        self.root = *self.cache_parallel.get(&Coord{height:self.height,idx:0}).unwrap();
-        self.root
+        self.state.root = *self.state.cache_path.get(&Coord{height:self.height,idx:0}).unwrap();
+        self.state.root
     }
 
 }
@@ -574,8 +639,10 @@ mod test {
         let root3;
         let root4;
         {
-            let mut smt1 = MNT4PoseidonSmt::new(
+            let mut smt1 = MNT4PoseidonSmt::new_unitialized(
                 num_leaves,
+                false,
+                None,
                 String::from("./db_leaves_mnt4_comp_1"),
                 String::from("./db_cache_mnt4_comp_1")
             ).unwrap();
@@ -602,8 +669,10 @@ mod test {
         }
 
         {
-            let mut smt2 = MNT4PoseidonSmtLazy::new(
+            let mut smt2 = MNT4PoseidonSmtLazy::new_unitialized(
                 num_leaves,
+                false,
+                None,
                 String::from("./db_leaves_mnt4_comp_2"),
                 String::from("./db_cache_mnt4_comp_2")
             ).unwrap();
@@ -649,8 +718,10 @@ mod test {
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 29 }, action: ActionLeaf::Insert, hash: Some(MNT4753Fr::from_str("3").unwrap()) });
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 16 }, action: ActionLeaf::Remove, hash: Some(MNT4753Fr::from_str("3").unwrap()) });
 
-        let mut smt = MNT4PoseidonSmtLazy::new(
+        let mut smt = MNT4PoseidonSmtLazy::new_unitialized(
             num_leaves,
+            false,
+            None,
             String::from("./db_leaves_mnt4"),
             String::from("./db_cache_mnt4")
         ).unwrap();
@@ -676,7 +747,7 @@ mod test {
         }
         let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
 
-        assert_eq!(tree.root.unwrap(), smt.root, "Roots are not equal");
+        assert_eq!(tree.root.unwrap(), smt.state.root, "Roots are not equal");
 
     }
 
@@ -710,8 +781,10 @@ mod test {
         let root3;
         let root4;
         {
-            let mut smt1 = MNT6PoseidonSmt::new(
+            let mut smt1 = MNT6PoseidonSmt::new_unitialized(
                 num_leaves,
+                false,
+                None,
                 String::from("./db_leaves_mnt6_comp_1"),
                 String::from("./db_cache_mnt6_comp_1")
             ).unwrap();
@@ -738,8 +811,10 @@ mod test {
         }
 
         {
-            let mut smt2 = MNT6PoseidonSmtLazy::new(
+            let mut smt2 = MNT6PoseidonSmtLazy::new_unitialized(
                 num_leaves,
+                false,
+                None,
                 String::from("./db_leaves_mnt6_comp_2"),
                 String::from("./db_cache_mnt6_comp_2")
             ).unwrap();
@@ -785,8 +860,10 @@ mod test {
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 29 }, action: ActionLeaf::Insert, hash: Some(MNT6753Fr::from_str("3").unwrap()) });
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 16 }, action: ActionLeaf::Remove, hash: Some(MNT6753Fr::from_str("3").unwrap()) });
 
-        let mut smt = MNT6PoseidonSmtLazy::new(
+        let mut smt = MNT6PoseidonSmtLazy::new_unitialized(
             num_leaves,
+            false,
+            None,
             String::from("./db_leaves_mnt6"),
             String::from("./db_cache_mnt6")).unwrap();
         smt.process_leaves(leaves_to_process);
@@ -811,7 +888,7 @@ mod test {
         }
         let tree = MNT6753FieldBasedMerkleTree::new(&leaves).unwrap();
 
-        assert_eq!(tree.root.unwrap(), smt.root, "Roots are not equal");
+        assert_eq!(tree.root.unwrap(), smt.state.root, "Roots are not equal");
     }
 
 
