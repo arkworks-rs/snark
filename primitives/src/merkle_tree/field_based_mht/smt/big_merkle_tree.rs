@@ -13,6 +13,7 @@ use rocksdb::{DB, Options};
 use std::marker::PhantomData;
 use std::fs;
 use crate::merkle_tree::field_based_mht::smt::error::Error;
+use std::path::Path;
 
 #[derive(Debug)]
 pub struct BigMerkleTree<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParameters<Fr=F>> {
@@ -91,6 +92,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             BigMerkleTreeState::<F, T>::read(state_file)
         }.map_err(|e| Error::Other(e.to_string()))?;
 
+        //TODO: This is the "depth" more than the "height". Which should we keep ?
         let height = state.width as f64;
         let height = height.log(T::MERKLE_ARITY as f64) as usize;
 
@@ -122,7 +124,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
     pub fn close(&mut self) {
         if !self.persistent {
 
-            if self.state_path.is_some() {
+            if self.state_path.is_some() && Path::new(self.state_path.clone().unwrap()).exists() {
                 match fs::remove_file(self.state_path.clone().unwrap()) {
                     Ok(_) => (),
                     Err(e) => println!("Error deleting tree state: {}", e)
@@ -969,6 +971,7 @@ mod test {
         smt.insert_leaf(Coord{height:0, idx:16}, MNT4753Fr::from_str("10").unwrap());
         smt.insert_leaf(Coord{height:0, idx:29}, MNT4753Fr::from_str("3").unwrap());
         smt.remove_leaf(Coord{height:0, idx:16});
+        println!("{:?}", smt.state.root);
 
         assert_eq!(tree.root(), smt.state.root, "Outputs of the Merkle trees for MNT4 do not match.");
     }
