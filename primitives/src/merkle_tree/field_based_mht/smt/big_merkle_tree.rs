@@ -15,7 +15,7 @@ use std::fs;
 use crate::merkle_tree::field_based_mht::smt::error::Error;
 
 #[derive(Debug)]
-pub struct BigMerkleTree<F: PrimeField, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParameters<Fr=F>> {
+pub struct BigMerkleTree<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParameters<Fr=F>> {
     // if unset, all DBs and tree internal state will be deleted when an instance of this struct
     // gets dropped
     persistent: bool,
@@ -39,41 +39,9 @@ pub struct BigMerkleTree<F: PrimeField, T: SmtPoseidonParameters<Fr=F>, P: Posei
     _poseidon_parameters: PhantomData<P>,
 }
 
-impl<F: PrimeField, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParameters<Fr=F>> Drop for BigMerkleTree<F, T, P> {
+impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParameters<Fr=F>> Drop for BigMerkleTree<F, T, P> {
     fn drop(&mut self) {
-
-        if !self.persistent {
-
-            if self.state_path.is_some() {
-                match fs::remove_file(self.state_path.clone().unwrap()) {
-                    Ok(_) => (),
-                    Err(e) => println!("Error deleting tree state: {}", e)
-                }
-            }
-
-            // Deletes the folder containing the db
-            match fs::remove_dir_all(self.path_db.clone()) {
-                Ok(_) => (),
-                Err(e) => {
-                    println!("Error deleting the folder containing the db: {}", e);
-                }
-            };
-            // Deletes the folder containing the cache
-            match fs::remove_dir_all(self.path_cache.clone()) {
-                Ok(_) => (),
-                Err(e) => {
-                    println!("Error deleting the folder containing the db: {}", e);
-                }
-            };
-        } else {
-            // Don't delete the DBs and save required state on file in order to restore the
-            // tree later.
-            let tree_state_file = fs::File::create(self.state_path.clone().unwrap())
-                .expect("Should be able to create file for tree state");
-
-            self.state.write(tree_state_file)
-                .expect("Should be able to write into tree state file");
-        }
+        self.close();
     }
 }
 
@@ -149,6 +117,41 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             _parameters: PhantomData,
             _poseidon_parameters: PhantomData,
         })
+    }
+
+    pub fn close(&mut self) {
+        if !self.persistent {
+
+            if self.state_path.is_some() {
+                match fs::remove_file(self.state_path.clone().unwrap()) {
+                    Ok(_) => (),
+                    Err(e) => println!("Error deleting tree state: {}", e)
+                }
+            }
+
+            // Deletes the folder containing the db
+            match fs::remove_dir_all(self.path_db.clone()) {
+                Ok(_) => (),
+                Err(e) => {
+                    println!("Error deleting the folder containing the db: {}", e);
+                }
+            };
+            // Deletes the folder containing the cache
+            match fs::remove_dir_all(self.path_cache.clone()) {
+                Ok(_) => (),
+                Err(e) => {
+                    println!("Error deleting the folder containing the db: {}", e);
+                }
+            };
+        } else {
+            // Don't delete the DBs and save required state on file in order to restore the
+            // tree later.
+            let tree_state_file = fs::File::create(self.state_path.clone().unwrap())
+                .expect("Should be able to create file for tree state");
+
+            self.state.write(tree_state_file)
+                .expect("Should be able to write into tree state file");
+        }
     }
 
     pub fn height(&self) -> usize { self.height }
