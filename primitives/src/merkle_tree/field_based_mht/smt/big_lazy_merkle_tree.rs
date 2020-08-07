@@ -387,6 +387,15 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         output_vec.unwrap()
     }
 
+    pub fn is_leaf_empty(&self, coord: Coord) -> bool {
+        // check that the index of the leaf is less than the width of the Merkle tree
+        assert!(coord.idx < self.state.width, "Leaf index out of bound.");
+        // check that the coordinates of the node corresponds to the leaf level
+        assert_eq!(coord.height, 0, "Coord of the node does not correspond to leaf level");
+
+        !self.state.present_node.contains(&coord)
+    }
+
     pub fn process_leaves (&mut self, vec_leaf_op: Vec<OperationLeaf<F>>) -> F {
 
         assert_eq!(T::MERKLE_ARITY, 2, "Arity of the Merkle tree is not 2.");
