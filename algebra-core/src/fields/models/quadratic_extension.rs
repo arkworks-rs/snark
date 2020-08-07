@@ -493,18 +493,18 @@ impl<P: QuadExtParameters> CanonicalSerializeWithFlags for QuadExtField<P> {
     #[inline]
     fn serialize_with_flags<W: Write, F: Flags>(
         &self,
-        writer: &mut W,
+        mut writer: W,
         flags: F,
     ) -> Result<(), SerializationError> {
-        self.c0.serialize(writer)?;
-        self.c1.serialize_with_flags(writer, flags)?;
+        self.c0.serialize(&mut writer)?;
+        self.c1.serialize_with_flags(&mut writer, flags)?;
         Ok(())
     }
 }
 
 impl<P: QuadExtParameters> CanonicalSerialize for QuadExtField<P> {
     #[inline]
-    fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
+    fn serialize<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
         self.serialize_with_flags(writer, EmptyFlags)
     }
 
@@ -522,20 +522,20 @@ impl<P: QuadExtParameters> ConstantSerializedSize for QuadExtField<P> {
 impl<P: QuadExtParameters> CanonicalDeserializeWithFlags for QuadExtField<P> {
     #[inline]
     fn deserialize_with_flags<R: Read, F: Flags>(
-        reader: &mut R,
+        mut reader: R,
     ) -> Result<(Self, F), SerializationError> {
-        let c0: P::BaseField = CanonicalDeserialize::deserialize(reader)?;
+        let c0: P::BaseField = CanonicalDeserialize::deserialize(&mut reader)?;
         let (c1, flags): (P::BaseField, _) =
-            CanonicalDeserializeWithFlags::deserialize_with_flags(reader)?;
+            CanonicalDeserializeWithFlags::deserialize_with_flags(&mut reader)?;
         Ok((QuadExtField::new(c0, c1), flags))
     }
 }
 
 impl<P: QuadExtParameters> CanonicalDeserialize for QuadExtField<P> {
     #[inline]
-    fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
-        let c0: P::BaseField = CanonicalDeserialize::deserialize(reader)?;
-        let c1: P::BaseField = CanonicalDeserialize::deserialize(reader)?;
+    fn deserialize<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+        let c0: P::BaseField = CanonicalDeserialize::deserialize(&mut reader)?;
+        let c1: P::BaseField = CanonicalDeserialize::deserialize(&mut reader)?;
         Ok(QuadExtField::new(c0, c1))
     }
 }

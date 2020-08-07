@@ -104,7 +104,7 @@ macro_rules! ec_bench {
             b.iter(|| {
                 count = (count + 1) % SAMPLES;
                 let index = count * num_bytes;
-                G1Affine::deserialize(&mut &v[index..(index + num_bytes)]).unwrap()
+                G1Affine::deserialize(&v[index..(index + num_bytes)]).unwrap()
             });
         }
 
@@ -124,7 +124,7 @@ macro_rules! ec_bench {
                 let tmp = v[count];
                 count = (count + 1) % SAMPLES;
                 bytes.clear();
-                tmp.serialize(&mut &mut bytes)
+                tmp.serialize(&mut bytes)
             });
         }
 
@@ -150,7 +150,7 @@ macro_rules! ec_bench {
             b.iter(|| {
                 count = (count + 1) % SAMPLES;
                 let index = count * num_bytes;
-                G1Affine::deserialize_unchecked(&mut &v[index..(index + num_bytes)]).unwrap()
+                G1Affine::deserialize_unchecked(&v[index..(index + num_bytes)]).unwrap()
             });
         }
 
@@ -170,7 +170,7 @@ macro_rules! ec_bench {
                 let tmp = v[count];
                 count = (count + 1) % SAMPLES;
                 bytes.clear();
-                tmp.serialize_unchecked(&mut &mut bytes)
+                tmp.serialize_unchecked(&mut bytes)
             });
         }
 
@@ -278,7 +278,7 @@ macro_rules! ec_bench {
             b.iter(|| {
                 count = (count + 1) % SAMPLES;
                 let index = count * num_bytes;
-                G2Affine::deserialize(&mut &v[index..(index + num_bytes)]).unwrap()
+                G2Affine::deserialize(&v[index..(index + num_bytes)]).unwrap()
             });
         }
 
@@ -298,7 +298,7 @@ macro_rules! ec_bench {
                 let tmp = v[count];
                 count = (count + 1) % SAMPLES;
                 bytes.clear();
-                tmp.serialize(&mut &mut bytes)
+                tmp.serialize(&mut bytes)
             });
         }
 
@@ -324,7 +324,7 @@ macro_rules! ec_bench {
             b.iter(|| {
                 count = (count + 1) % SAMPLES;
                 let index = count * num_bytes;
-                G2Affine::deserialize_unchecked(&mut &v[index..(index + num_bytes)]).unwrap()
+                G2Affine::deserialize_unchecked(&v[index..(index + num_bytes)]).unwrap()
             });
         }
 
@@ -344,7 +344,7 @@ macro_rules! ec_bench {
                 let tmp = v[count];
                 count = (count + 1) % SAMPLES;
                 bytes.clear();
-                tmp.serialize_unchecked(&mut &mut bytes)
+                tmp.serialize_unchecked(&mut bytes)
             });
         }
     };

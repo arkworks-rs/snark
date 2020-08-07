@@ -40,14 +40,14 @@ fn impl_serialize_field(
         }
         _ => {
             serialize_body
-                .push(quote! { CanonicalSerialize::serialize(&self.#(#idents).*, writer)?; });
+                .push(quote! { CanonicalSerialize::serialize(&self.#(#idents).*, &mut writer)?; });
             serialized_size_body
                 .push(quote! { size += CanonicalSerialize::serialized_size(&self.#(#idents).*); });
             serialize_uncompressed_body.push(
-                quote! { CanonicalSerialize::serialize_uncompressed(&self.#(#idents).*, writer)?; },
+                quote! { CanonicalSerialize::serialize_uncompressed(&self.#(#idents).*, &mut writer)?; },
             );
             serialize_unchecked_body.push(
-                quote! { CanonicalSerialize::serialize_unchecked(&self.#(#idents).*, writer)?; },
+                quote! { CanonicalSerialize::serialize_unchecked(&self.#(#idents).*, &mut writer)?; },
             );
             uncompressed_size_body.push(
                 quote! { size += CanonicalSerialize::uncompressed_size(&self.#(#idents).*); },
@@ -101,7 +101,7 @@ fn impl_canonical_serialize(ast: &syn::DeriveInput) -> TokenStream {
     let gen = quote! {
         impl #impl_generics CanonicalSerialize for #name #ty_generics #where_clause {
             #[allow(unused_mut, unused_variables)]
-            fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
+            fn serialize<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
                 #(#serialize_body)*
                 Ok(())
             }
@@ -112,13 +112,13 @@ fn impl_canonical_serialize(ast: &syn::DeriveInput) -> TokenStream {
                 size
             }
             #[allow(unused_mut, unused_variables)]
-            fn serialize_uncompressed<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
+            fn serialize_uncompressed<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
                 #(#serialize_uncompressed_body)*
                 Ok(())
             }
 
             #[allow(unused_mut, unused_variables)]
-            fn serialize_unchecked<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
+            fn serialize_unchecked<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
                 #(#serialize_unchecked_body)*
                 Ok(())
             }
@@ -161,9 +161,9 @@ fn impl_deserialize_field(ty: &Type) -> (TokenStream, TokenStream, TokenStream) 
             )
         }
         _ => (
-            quote! { CanonicalDeserialize::deserialize(reader)?, },
-            quote! { CanonicalDeserialize::deserialize_uncompressed(reader)?, },
-            quote! { CanonicalDeserialize::deserialize_unchecked(reader)?, },
+            quote! { CanonicalDeserialize::deserialize(&mut reader)?, },
+            quote! { CanonicalDeserialize::deserialize_uncompressed(&mut reader)?, },
+            quote! { CanonicalDeserialize::deserialize_unchecked(&mut reader)?, },
         ),
     }
 }
@@ -247,16 +247,16 @@ fn impl_canonical_deserialize(ast: &syn::DeriveInput) -> TokenStream {
     let gen = quote! {
         impl #impl_generics CanonicalDeserialize for #name #ty_generics #where_clause {
             #[allow(unused_mut,unused_variables)]
-            fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
+            fn deserialize<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
                 #deserialize_body
             }
             #[allow(unused_mut,unused_variables)]
-            fn deserialize_uncompressed<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
+            fn deserialize_uncompressed<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
                 #deserialize_uncompressed_body
             }
 
             #[allow(unused_mut,unused_variables)]
-            fn deserialize_unchecked<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
+            fn deserialize_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
                 #deserialize_unchecked_body
             }
         }

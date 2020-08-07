@@ -146,7 +146,7 @@ macro_rules! field_common {
                 b.iter(|| {
                     count = (count + 1) % SAMPLES;
                     let index = count * num_bytes;
-                    $f_type::deserialize(&mut &v[index..(index + num_bytes)]).unwrap()
+                    $f_type::deserialize(&v[index..(index + num_bytes)]).unwrap()
                 });
             }
 
@@ -165,7 +165,7 @@ macro_rules! field_common {
                     let tmp = v[count];
                     count = (count + 1) % SAMPLES;
                     bytes.clear();
-                    tmp.serialize(&mut &mut bytes)
+                    tmp.serialize(&mut bytes)
 
                 });
             }
@@ -190,7 +190,7 @@ macro_rules! field_common {
                 b.iter(|| {
                     count = (count + 1) % SAMPLES;
                     let index = count * num_bytes;
-                    $f_type::deserialize_unchecked(&mut &v[index..(index + num_bytes)]).unwrap()
+                    $f_type::deserialize_unchecked(&v[index..(index + num_bytes)]).unwrap()
                 });
             }
 
@@ -209,7 +209,7 @@ macro_rules! field_common {
                     let tmp = v[count];
                     count = (count + 1) % SAMPLES;
                     bytes.clear();
-                    tmp.serialize_unchecked(&mut &mut bytes)
+                    tmp.serialize_unchecked(&mut bytes)
 
                 });
             }
