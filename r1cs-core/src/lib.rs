@@ -65,18 +65,18 @@ pub enum Index {
 
 impl CanonicalSerialize for Index {
     #[inline]
-    fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
+    fn serialize<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
         let inner = match *self {
             Index::Input(inner) => {
-                true.serialize(writer)?;
+                true.serialize(&mut writer)?;
                 inner
             }
             Index::Aux(inner) => {
-                false.serialize(writer)?;
+                false.serialize(&mut writer)?;
                 inner
             }
         };
-        inner.serialize(writer)?;
+        inner.serialize(&mut writer)?;
         Ok(())
     }
 
@@ -93,9 +93,9 @@ impl ConstantSerializedSize for Index {
 
 impl CanonicalDeserialize for Index {
     #[inline]
-    fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
-        let is_input = bool::deserialize(reader)?;
-        let inner = usize::deserialize(reader)?;
+    fn deserialize<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+        let is_input = bool::deserialize(&mut reader)?;
+        let inner = usize::deserialize(&mut reader)?;
         Ok(if is_input {
             Index::Input(inner)
         } else {
