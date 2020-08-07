@@ -124,7 +124,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
     pub fn close(&mut self) {
         if !self.persistent {
 
-            if self.state_path.is_some() && Path::new(self.state_path.clone().unwrap()).exists() {
+            if self.state_path.is_some() && Path::new(&self.state_path.clone().unwrap()).exists() {
                 match fs::remove_file(self.state_path.clone().unwrap()) {
                     Ok(_) => (),
                     Err(e) => println!("Error deleting tree state: {}", e)

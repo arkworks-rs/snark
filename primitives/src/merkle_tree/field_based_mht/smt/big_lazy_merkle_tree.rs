@@ -18,6 +18,7 @@ use algebra::fields::mnt6753::Fr as MNT6753Fr;
 use algebra::fields::mnt4753::Fr as MNT4753Fr;
 use crate::merkle_tree::field_based_mht::smt::big_merkle_tree::BigMerkleTree;
 use crate::merkle_tree::field_based_mht::smt::error::Error;
+use std::path::Path;
 
 #[derive(Debug)]
 pub struct LazyBigMerkleTree<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParameters<Fr=F>> {
@@ -128,7 +129,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
     pub fn close(&mut self) {
         if !self.persistent {
 
-            if self.state_path.is_some() {
+            if self.state_path.is_some() && Path::new(&self.state_path.clone().unwrap()).exists() {
                 match fs::remove_file(self.state_path.clone().unwrap()) {
                     Ok(_) => (),
                     Err(e) => println!("Error deleting tree state: {}", e)
