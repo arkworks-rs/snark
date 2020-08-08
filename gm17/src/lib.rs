@@ -49,7 +49,7 @@ mod test;
 pub use self::{generator::*, prover::*, verifier::*};
 
 /// A proof in the GM17 SNARK.
-#[derive(Clone, CanonicalSerialize, CanonicalDeserialize)]
+#[derive(PartialEq, Eq, Clone, CanonicalSerialize, CanonicalDeserialize)]
 pub struct Proof<E: PairingEngine> {
     pub a: E::G1Affine,
     pub b: E::G2Affine,
@@ -65,12 +65,6 @@ impl<E: PairingEngine> ToBytes for Proof<E> {
     }
 }
 
-impl<E: PairingEngine> PartialEq for Proof<E> {
-    fn eq(&self, other: &Self) -> bool {
-        self.a == other.a && self.b == other.b && self.c == other.c
-    }
-}
-
 impl<E: PairingEngine> Default for Proof<E> {
     fn default() -> Self {
         Self {
@@ -81,23 +75,8 @@ impl<E: PairingEngine> Default for Proof<E> {
     }
 }
 
-impl<E: PairingEngine> Proof<E> {
-    /// Serialize the proof into bytes, for storage on disk or transmission
-    /// over the network.
-    pub fn write<W: Write>(&self, mut _writer: W) -> io::Result<()> {
-        // TODO: implement serialization
-        unimplemented!()
-    }
-
-    /// Deserialize the proof from bytes.
-    pub fn read<R: Read>(mut _reader: R) -> io::Result<Self> {
-        // TODO: implement serialization
-        unimplemented!()
-    }
-}
-
 /// A verification key in the GM17 SNARK.
-#[derive(Clone, CanonicalSerialize, CanonicalDeserialize)]
+#[derive(Eq, PartialEq, Clone, CanonicalSerialize, CanonicalDeserialize)]
 pub struct VerifyingKey<E: PairingEngine> {
     pub h_g2: E::G2Affine,
     pub g_alpha_g1: E::G1Affine,
@@ -134,34 +113,8 @@ impl<E: PairingEngine> Default for VerifyingKey<E> {
     }
 }
 
-impl<E: PairingEngine> PartialEq for VerifyingKey<E> {
-    fn eq(&self, other: &Self) -> bool {
-        self.h_g2 == other.h_g2
-            && self.g_alpha_g1 == other.g_alpha_g1
-            && self.h_beta_g2 == other.h_beta_g2
-            && self.g_gamma_g1 == other.g_gamma_g1
-            && self.h_gamma_g2 == other.h_gamma_g2
-            && self.query == other.query
-    }
-}
-
-impl<E: PairingEngine> VerifyingKey<E> {
-    /// Serialize the verification key into bytes, for storage on disk
-    /// or transmission over the network.
-    pub fn write<W: Write>(&self, mut _writer: W) -> io::Result<()> {
-        // TODO: implement serialization
-        unimplemented!()
-    }
-
-    /// Deserialize the verification key from bytes.
-    pub fn read<R: Read>(mut _reader: R) -> io::Result<Self> {
-        // TODO: implement serialization
-        unimplemented!()
-    }
-}
-
 /// Full public (prover and verifier) parameters for the GM17 zkSNARK.
-#[derive(Clone, CanonicalSerialize, CanonicalDeserialize)]
+#[derive(PartialEq, Eq, Clone, CanonicalSerialize, CanonicalDeserialize)]
 pub struct Parameters<E: PairingEngine> {
     pub vk: VerifyingKey<E>,
     pub a_query: Vec<E::G1Affine>,
@@ -175,38 +128,9 @@ pub struct Parameters<E: PairingEngine> {
     pub g_gamma2_z_t: Vec<E::G1Affine>,
 }
 
-impl<E: PairingEngine> PartialEq for Parameters<E> {
-    fn eq(&self, other: &Self) -> bool {
-        self.vk == other.vk
-            && self.a_query == other.a_query
-            && self.b_query == other.b_query
-            && self.c_query_1 == other.c_query_1
-            && self.c_query_2 == other.c_query_2
-            && self.g_gamma_z == other.g_gamma_z
-            && self.h_gamma_z == other.h_gamma_z
-            && self.g_ab_gamma_z == other.g_ab_gamma_z
-            && self.g_gamma2_z2 == other.g_gamma2_z2
-            && self.g_gamma2_z_t == other.g_gamma2_z_t
-    }
-}
-
-impl<E: PairingEngine> Parameters<E> {
-    /// Serialize the parameters to bytes.
-    pub fn write<W: Write>(&self, mut _writer: W) -> io::Result<()> {
-        // TODO: implement serialization
-        unimplemented!()
-    }
-
-    /// Deserialize the public parameters from bytes.
-    pub fn read<R: Read>(mut _reader: R, _checked: bool) -> io::Result<Self> {
-        // TODO: implement serialization
-        unimplemented!()
-    }
-}
-
 /// Preprocessed verification key parameters that enable faster verification
 /// at the expense of larger size in memory.
-#[derive(Clone)]
+#[derive(PartialEq, Eq, Clone)]
 pub struct PreparedVerifyingKey<E: PairingEngine> {
     pub vk: VerifyingKey<E>,
     pub g_alpha: E::G1Affine,
