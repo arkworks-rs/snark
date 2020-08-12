@@ -64,7 +64,9 @@ macro_rules! specialise_affine_to_proj {
             fn mul_by_cofactor_inv(&self) -> Self {
                 self.mul(P::COFACTOR_INV).into()
             }
+        }
 
+        impl<P: Parameters> BatchGroupArithmetic for GroupAffine<P> {
             // This implementation of batch group ops takes particular
             // care to make most use of points fetched from memory to prevent reallocations
             // It is adapted from Aztec's code.

@@ -223,6 +223,7 @@ pub trait AffineCurve:
     + Zero
     + Neg<Output = Self>
     + From<<Self as AffineCurve>::Projective>
+    + BatchGroupArithmetic
 {
     const COFACTOR: &'static [u64];
     type ScalarField: PrimeField + SquareRootField + Into<<Self::ScalarField as PrimeField>::BigInt>;
@@ -266,7 +267,54 @@ pub trait AffineCurve:
     /// `Self::ScalarField`.
     #[must_use]
     fn mul_by_cofactor_inv(&self) -> Self;
+}
 
+impl<C: ProjectiveCurve> Group for C {
+    type ScalarField = C::ScalarField;
+
+    #[inline]
+    #[must_use]
+    fn double(&self) -> Self {
+        let mut tmp = *self;
+        tmp += self;
+        tmp
+    }
+
+    #[inline]
+    fn double_in_place(&mut self) -> &mut Self {
+        <C as ProjectiveCurve>::double_in_place(self)
+    }
+}
+
+/// Preprocess a G1 element for use in a pairing.
+pub fn prepare_g1<E: PairingEngine>(g: impl Into<E::G1Affine>) -> E::G1Prepared {
+    let g: E::G1Affine = g.into();
+    E::G1Prepared::from(g)
+}
+
+/// Preprocess a G2 element for use in a pairing.
+pub fn prepare_g2<E: PairingEngine>(g: impl Into<E::G2Affine>) -> E::G2Prepared {
+    let g: E::G2Affine = g.into();
+    E::G2Prepared::from(g)
+}
+
+/// A cycle of pairing-friendly elliptic curves.
+pub trait CycleEngine: Sized + 'static + Copy + Debug + Sync + Send
+where
+    <Self::E2 as PairingEngine>::G1Projective: MulAssign<<Self::E1 as PairingEngine>::Fq>,
+    <Self::E2 as PairingEngine>::G2Projective: MulAssign<<Self::E1 as PairingEngine>::Fq>,
+{
+    type E1: PairingEngine;
+    type E2: PairingEngine<
+        Fr = <Self::E1 as PairingEngine>::Fq,
+        Fq = <Self::E1 as PairingEngine>::Fr,
+    >;
+}
+
+pub trait BatchGroupArithmetic
+where
+    Self: Sized + Clone + Copy + Zero + Neg<Output = Self>,
+{
     // This function consumes the scalars
     // We can make this more generic in the future to use other than u16.
 
@@ -406,49 +454,8 @@ pub trait AffineCurve:
     }
 }
 
-impl<C: ProjectiveCurve> Group for C {
-    type ScalarField = C::ScalarField;
-
-    #[inline]
-    #[must_use]
-    fn double(&self) -> Self {
-        let mut tmp = *self;
-        tmp += self;
-        tmp
-    }
-
-    #[inline]
-    fn double_in_place(&mut self) -> &mut Self {
-        <C as ProjectiveCurve>::double_in_place(self)
-    }
-}
-
-/// Preprocess a G1 element for use in a pairing.
-pub fn prepare_g1<E: PairingEngine>(g: impl Into<E::G1Affine>) -> E::G1Prepared {
-    let g: E::G1Affine = g.into();
-    E::G1Prepared::from(g)
-}
-
-/// Preprocess a G2 element for use in a pairing.
-pub fn prepare_g2<E: PairingEngine>(g: impl Into<E::G2Affine>) -> E::G2Prepared {
-    let g: E::G2Affine = g.into();
-    E::G2Prepared::from(g)
-}
-
-/// A cycle of pairing-friendly elliptic curves.
-pub trait CycleEngine: Sized + 'static + Copy + Debug + Sync + Send
-where
-    <Self::E2 as PairingEngine>::G1Projective: MulAssign<<Self::E1 as PairingEngine>::Fq>,
-    <Self::E2 as PairingEngine>::G2Projective: MulAssign<<Self::E1 as PairingEngine>::Fq>,
-{
-    type E1: PairingEngine;
-    type E2: PairingEngine<
-        Fr = <Self::E1 as PairingEngine>::Fq,
-        Fq = <Self::E1 as PairingEngine>::Fr,
-    >;
-}
-
-pub trait BatchArithmetic<G: AffineCurve> {
+// We make the syntax cleaner by defining corresponding trait and impl for [G]
+pub trait BatchGroupArithmeticSlice<G: AffineCurve> {
     fn batch_wnaf_tables(&self, w: usize) -> Vec<Vec<G>>;
 
     fn batch_wnaf_opcode_recoding<BigInt: BigInteger + AsRef<[u64]>>(
@@ -463,7 +470,7 @@ pub trait BatchArithmetic<G: AffineCurve> {
     fn batch_scalar_mul_in_place<BigInt: BigInteger>(&mut self, scalars: &mut [BigInt], w: usize);
 }
 
-impl<G: AffineCurve> BatchArithmetic<G> for [G] {
+impl<G: AffineCurve> BatchGroupArithmeticSlice<G> for [G] {
     fn batch_wnaf_tables(&self, w: usize) -> Vec<Vec<G>> {
         G::batch_wnaf_tables(self, w)
     }

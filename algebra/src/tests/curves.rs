@@ -1,6 +1,6 @@
 #![allow(unused)]
 use algebra_core::{
-    curves::{AffineCurve, BatchArithmetic, ProjectiveCurve},
+    curves::{AffineCurve, BatchGroupArithmeticSlice, ProjectiveCurve},
     io::Cursor,
     CanonicalDeserialize, CanonicalSerialize, Field, MontgomeryModelParameters, One, PrimeField,
     SWFlags, SWModelParameters, SerializationError, TEModelParameters, UniformRand, Vec, Zero,

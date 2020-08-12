@@ -1,7 +1,7 @@
 use crate::{
     io::{Read, Result as IoResult, Write},
     serialize::{EdwardsFlags, Flags},
-    CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
+    BatchGroupArithmetic, CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
     CanonicalSerializeWithFlags, ConstantSerializedSize, UniformRand, Vec,
 };
 use core::{
@@ -163,7 +163,9 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
     fn mul_by_cofactor_inv(&self) -> Self {
         self.mul(P::COFACTOR_INV).into()
     }
+}
 
+impl<P: Parameters> BatchGroupArithmetic for GroupAffine<P> {
     // This function consumes the second op as it mutates it in place
     // to prevent memory allocation
     fn batch_double_in_place(bases: &mut [Self], index: Vec<usize>) {
@@ -174,11 +176,9 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
         );
     }
 
-    // fn batch_double_in_place<I>(op_iter: I) -> ();
-
     // Total cost: 14 mul. Projective formulas:
     fn batch_add_in_place(bases: &mut [Self], other: &mut [Self], index: Vec<(usize, usize)>) {
-        let mut inversion_tmp = Self::BaseField::one();
+        let mut inversion_tmp = P::BaseField::one();
         // We run two loops over the data separated by an inversion
         for (idx, idy) in index.iter() {
             let (mut a, mut b) = (&mut bases[*idx], &mut other[*idy]);
@@ -201,7 +201,7 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
                 a.x *= &(inversion_tmp - &inversion_mul_d);
                 a.y *= &(inversion_tmp + &inversion_mul_d);
 
-                b.x = Self::BaseField::one() - &dx1x2y1y2.square();
+                b.x = P::BaseField::one() - &dx1x2y1y2.square();
 
                 inversion_tmp *= &b.x;
             }
