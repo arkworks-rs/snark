@@ -4,11 +4,50 @@ use algebra_core::{
     io::Cursor,
     CanonicalDeserialize, CanonicalSerialize, Field, MontgomeryModelParameters, One, PrimeField,
     SWFlags, SWModelParameters, SerializationError, TEModelParameters, UniformRand, Vec, Zero,
+    batch_bucketed_add,
 };
-use rand::SeedableRng;
+use rand::{distributions::{Uniform, Distribution}, SeedableRng};
 use rand_xorshift::XorShiftRng;
 
 pub const ITERATIONS: usize = 10;
+
+fn batch_bucketed_add_test<C: AffineCurve>() {
+    let mut rng = XorShiftRng::seed_from_u64(123127578910u64);
+
+    for i in 2..(ITERATIONS * 10) {
+        let n_elems = 1 << i;
+        let n_buckets = n_elems / 2;
+
+        let mut elems = Vec::<C>::with_capacity(n_elems);
+        let mut buckets = Vec::<usize>::with_capacity(n_buckets);
+        let step = Uniform::new(0, n_buckets);
+
+        for _ in 0..n_elems {
+            elems.push(C::Projective::rand(&mut rng).into_affine());
+        }
+        for _ in 0..n_buckets {
+            buckets.push(step.sample(&mut rng));
+        }
+
+        let now = std::time::Instant::now();
+        let res1 = batch_bucketed_add::<C>(n_buckets, &elems[..], &buckets[..]);
+        println!("batch bucketed add for {} elems: {:?}", n_elems, now.elapsed().as_micros());
+
+        let mut res2 = vec![C::Projective::zero(); n_buckets];
+
+        let now = std::time::Instant::now();
+        for (&bucket_idx, elem) in buckets.iter().zip(elems) {
+            res2[bucket_idx].add_assign_mixed(&elem);
+        }
+        println!("bucketed add for {} elems: {:?}", n_elems, now.elapsed().as_micros());
+
+        let res1: Vec<C::Projective> = res1.iter().map(|&p| p.into()).collect();
+
+        for (i, (p1, p2)) in res1.iter().zip(res2).enumerate() {
+            assert_eq!(*p1, p2);
+        }
+    }
+}
 
 fn random_addition_test<G: ProjectiveCurve>() {
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
@@ -227,7 +266,7 @@ pub fn random_batch_doubling_test<G: ProjectiveCurve>() {
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     for j in 0..ITERATIONS {
-        let size = std::cmp::min(1 << 8, 1 << (j + 5));
+        let size = std::cmp::min(1 << 7, 1 << (j + 5));
         let mut a = Vec::with_capacity(size);
         let mut b = Vec::with_capacity(size);
 
@@ -257,7 +296,7 @@ pub fn random_batch_addition_test<G: ProjectiveCurve>() {
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     for j in 0..ITERATIONS {
-        let size = std::cmp::min(1 << 8, 1 << (j + 5));
+        let size = std::cmp::min(1 << 7, 1 << (j + 5));
         let mut a = Vec::with_capacity(size);
         let mut b = Vec::with_capacity(size);
 
@@ -289,7 +328,7 @@ pub fn random_batch_add_doubling_test<G: ProjectiveCurve>() {
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     for j in 0..ITERATIONS {
-        let size = std::cmp::min(1 << 8, 1 << (j + 5));
+        let size = std::cmp::min(1 << 7, 1 << (j + 5));
         let mut a = Vec::<G>::with_capacity(size);
         let mut b = Vec::<G>::with_capacity(size);
 
@@ -316,7 +355,7 @@ pub fn random_batch_add_doubling_test<G: ProjectiveCurve>() {
     }
 }
 
-pub fn sw_random_scalar_mul_test<G: ProjectiveCurve>() {
+pub fn random_batch_scalar_mul_test<G: ProjectiveCurve>() {
     use algebra_core::curves::models::short_weierstrass_jacobian::{GroupAffine, GroupProjective};
     use std::ops::MulAssign;
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
@@ -350,6 +389,10 @@ pub fn sw_random_scalar_mul_test<G: ProjectiveCurve>() {
         assert_eq!(a, c);
     }
 }
+
+// pub fn batch_verify_in_subgroup_test() {
+//
+// }
 
 pub fn curve_tests<G: ProjectiveCurve>() {
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
@@ -420,7 +463,8 @@ pub fn curve_tests<G: ProjectiveCurve>() {
     random_batch_doubling_test::<G>();
     random_batch_add_doubling_test::<G>();
     random_batch_addition_test::<G>();
-    sw_random_scalar_mul_test::<G>();
+    random_batch_scalar_mul_test::<G>();
+    batch_bucketed_add_test::<G::Affine>();
 }
 
 pub fn sw_tests<P: SWModelParameters>() {

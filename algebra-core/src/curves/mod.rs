@@ -12,6 +12,9 @@ use core::{
 };
 use num_traits::Zero;
 
+pub mod batch_verify;
+pub use self::batch_verify::*;
+
 pub mod models;
 
 pub use self::models::*;
@@ -399,6 +402,8 @@ where
     // to prevent memory allocation
     fn batch_double_in_place(bases: &mut [Self], index: Vec<usize>);
 
+    fn batch_add_in_place_same_slice(bases: &mut [Self], index: Vec<(usize, usize)>);
+
     fn batch_add_in_place(bases: &mut [Self], other: &mut [Self], index: Vec<(usize, usize)>);
 
     fn batch_scalar_mul_in_place<BigInt: BigInteger>(
@@ -465,6 +470,8 @@ pub trait BatchGroupArithmeticSlice<G: AffineCurve> {
 
     fn batch_double_in_place(&mut self, index: Vec<usize>);
 
+    fn batch_add_in_place_same_slice(&mut self, index: Vec<(usize, usize)>);
+
     fn batch_add_in_place(&mut self, other: &mut Self, index: Vec<(usize, usize)>);
 
     fn batch_scalar_mul_in_place<BigInt: BigInteger>(&mut self, scalars: &mut [BigInt], w: usize);
@@ -484,6 +491,10 @@ impl<G: AffineCurve> BatchGroupArithmeticSlice<G> for [G] {
 
     fn batch_double_in_place(&mut self, index: Vec<usize>) {
         G::batch_double_in_place(self, index);
+    }
+
+    fn batch_add_in_place_same_slice(&mut self, index: Vec<(usize, usize)>) {
+        G::batch_add_in_place_same_slice(self, index);
     }
 
     fn batch_add_in_place(&mut self, other: &mut Self, index: Vec<(usize, usize)>) {

@@ -176,7 +176,65 @@ impl<P: Parameters> BatchGroupArithmetic for GroupAffine<P> {
         );
     }
 
-    // Total cost: 14 mul. Projective formulas:
+    // Total cost: 12 mul. Projective formulas: 11 mul.
+    fn batch_add_in_place_same_slice(bases: &mut [Self], index: Vec<(usize, usize)>) {
+        let mut inversion_tmp = P::BaseField::one();
+        // We run two loops over the data separated by an inversion
+        for (idx, idy) in index.iter() {
+            let (mut a, mut b) = if idx < idy {
+                let (x, y) = bases.split_at_mut(*idy);
+                (&mut x[*idx], &mut y[0])
+            } else {
+                let (x, y) = bases.split_at_mut(*idx);
+                (&mut y[0], &mut x[*idy])
+            };
+            if a.is_zero() || b.is_zero() {
+                continue;
+            } else {
+                let y1y2 = a.y * &b.y;
+                let x1x2 = a.x * &b.x;
+
+                a.x = (a.x + &a.y) * &(b.x + &b.y) - &y1y2 - &x1x2;
+                a.y = y1y2;
+                if !P::COEFF_A.is_zero() {
+                    a.y -= &P::mul_by_a(&x1x2);
+                }
+
+                let dx1x2y1y2 = P::COEFF_D * &y1y2 * &x1x2;
+
+                let inversion_mul_d = inversion_tmp * &dx1x2y1y2;
+
+                a.x *= &(inversion_tmp - &inversion_mul_d);
+                a.y *= &(inversion_tmp + &inversion_mul_d);
+
+                b.x = P::BaseField::one() - &dx1x2y1y2.square();
+
+                inversion_tmp *= &b.x;
+            }
+        }
+
+        inversion_tmp = inversion_tmp.inverse().unwrap(); // this is always in Fp*
+
+        for (idx, idy) in index.iter().rev() {
+            let (a, b) = if idx < idy {
+                let (x, y) = bases.split_at_mut(*idy);
+                (&mut x[*idx], y[0])
+            } else {
+                let (x, y) = bases.split_at_mut(*idx);
+                (&mut y[0], x[*idy])
+            };
+            if a.is_zero() {
+                *a = b;
+            } else if !b.is_zero() {
+                a.x *= &inversion_tmp;
+                a.y *= &inversion_tmp;
+
+                inversion_tmp *= &b.x;
+            }
+        }
+    }
+
+    // Total cost: 12 mul. Projective formulas: 11 mul.
     fn batch_add_in_place(bases: &mut [Self], other: &mut [Self], index: Vec<(usize, usize)>) {
         let mut inversion_tmp = P::BaseField::one();
         // We run two loops over the data separated by an inversion

@@ -26,9 +26,10 @@ build = "build.rs"
 algebra-core-derive = { path = "algebra-core-derive", optional = true }
 derivative = { version = "2", features = ["use_core"] }
 num-traits = { version = "0.2", default-features = false }
-rand = { version = "0.7", default-features = false }
+rand = { version = "0.7" }#,default-features = false }
 rayon = { version = "1", optional = true }
 unroll = { version = "=0.1.4" }
+voracious_radix_sort = "0.1.0"
 
 [build-dependencies]
 field-assembly = { path = "./field-assembly" }
