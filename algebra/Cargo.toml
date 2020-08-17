@@ -27,6 +27,7 @@ algebra-core = { path = "../algebra-core", default-features = false }
 [dev-dependencies]
 rand = { version = "0.7", default-features = false }
 rand_xorshift = "0.2"
+rayon = { version = "1" }
 
 [features]
 default = [ "std" ]

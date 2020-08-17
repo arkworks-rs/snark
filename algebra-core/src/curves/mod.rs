@@ -12,8 +12,8 @@ use core::{
 };
 use num_traits::Zero;
 
-pub mod batch_verify;
-pub use self::batch_verify::*;
+// pub mod batch_verify;
+// pub use self::batch_verify::*;
 
 pub mod models;
 
@@ -332,15 +332,15 @@ where
         let mut a_2 = bases[..].to_vec();
         let mut tmp = bases[..].to_vec();
 
-        Self::batch_double_in_place(&mut a_2, (0..batch_size).collect());
+        let instr = (0..batch_size).collect::<Vec<usize>>();
+        Self::batch_double_in_place(&mut a_2, &instr[..]);
 
         for i in 0..half_size {
             if i != 0 {
-                Self::batch_add_in_place(
-                    &mut tmp,
-                    &mut a_2.to_vec()[..],
-                    (0..batch_size).map(|x| (x, x)).collect(),
-                );
+                let instr = (0..batch_size)
+                    .map(|x| (x, x))
+                    .collect::<Vec<(usize, usize)>>();
+                Self::batch_add_in_place(&mut tmp, &mut a_2.to_vec()[..], &instr[..]);
             }
 
             for (table, p) in tables.iter_mut().zip(&tmp) {
@@ -400,11 +400,11 @@ where
 
     // This function consumes the second op as it mutates it in place
     // to prevent memory allocation
-    fn batch_double_in_place(bases: &mut [Self], index: Vec<usize>);
+    fn batch_double_in_place(bases: &mut [Self], index: &[usize]);
 
-    fn batch_add_in_place_same_slice(bases: &mut [Self], index: Vec<(usize, usize)>);
+    fn batch_add_in_place_same_slice(bases: &mut [Self], index: &[(usize, usize)]);
 
-    fn batch_add_in_place(bases: &mut [Self], other: &mut [Self], index: Vec<(usize, usize)>);
+    fn batch_add_in_place(bases: &mut [Self], other: &mut [Self], index: &[(usize, usize)]);
 
     fn batch_scalar_mul_in_place<BigInt: BigInteger>(
         mut bases: &mut [Self],
@@ -421,16 +421,15 @@ where
         }
 
         for opcode_row in opcode_vectorised.iter().rev() {
-            let index_double = opcode_row
+            let index_double: Vec<usize> = opcode_row
                 .iter()
                 .enumerate()
                 .filter(|x| x.1.is_some())
                 .map(|x| x.0)
                 .collect();
 
-            Self::batch_double_in_place(&mut bases, index_double);
+            Self::batch_double_in_place(&mut bases, &index_double[..]);
 
-            // Copying to this vector might be really stupid...
             let mut add_ops: Vec<Self> = tables
                 .iter()
                 .zip(opcode_row)
@@ -445,7 +444,7 @@ where
                 })
                 .collect();
 
-            let index_add = opcode_row
+            let index_add: Vec<(usize, usize)> = opcode_row
                 .iter()
                 .enumerate()
                 .filter(|(_, op)| op.is_some() && op.unwrap() != 0)
@@ -454,8 +453,29 @@ where
                 .map(|(x, y)| (y, x))
                 .collect();
 
-            Self::batch_add_in_place(&mut bases, &mut add_ops[..], index_add);
+            Self::batch_add_in_place(&mut bases, &mut add_ops[..], &index_add[..]);
         }
+    }
+
+    fn get_chunked_instr<T: Clone>(instr: &[T], batch_size: usize) -> Vec<Vec<T>> {
+        let mut res = Vec::new();
+
+        let rem = instr.chunks_exact(batch_size).remainder();
+        let mut chunks = instr.chunks_exact(batch_size).peekable();
+
+        if chunks.len() == 0 {
+            res.push(rem.to_vec());
+        }
+
+        while let Some(chunk) = chunks.next() {
+            let chunk = if chunks.peek().is_none() {
+                [chunk, rem].concat()
+            } else {
+                chunk.to_vec()
+            };
+            res.push(chunk);
+        }
+        res
     }
 }
 
@@ -468,11 +488,11 @@ pub trait BatchGroupArithmeticSlice<G: AffineCurve> {
         w: usize,
     ) -> Vec<Vec<Option<i16>>>;
 
-    fn batch_double_in_place(&mut self, index: Vec<usize>);
+    fn batch_double_in_place(&mut self, index: &[usize]);
 
-    fn batch_add_in_place_same_slice(&mut self, index: Vec<(usize, usize)>);
+    fn batch_add_in_place_same_slice(&mut self, index: &[(usize, usize)]);
 
-    fn batch_add_in_place(&mut self, other: &mut Self, index: Vec<(usize, usize)>);
+    fn batch_add_in_place(&mut self, other: &mut Self, index: &[(usize, usize)]);
 
     fn batch_scalar_mul_in_place<BigInt: BigInteger>(&mut self, scalars: &mut [BigInt], w: usize);
 }
@@ -489,15 +509,15 @@ impl<G: AffineCurve> BatchGroupArithmeticSlice<G> for [G] {
         G::batch_wnaf_opcode_recoding::<BigInt>(scalars, w)
     }
 
-    fn batch_double_in_place(&mut self, index: Vec<usize>) {
+    fn batch_double_in_place(&mut self, index: &[usize]) {
         G::batch_double_in_place(self, index);
     }
 
-    fn batch_add_in_place_same_slice(&mut self, index: Vec<(usize, usize)>) {
+    fn batch_add_in_place_same_slice(&mut self, index: &[(usize, usize)]) {
         G::batch_add_in_place_same_slice(self, index);
     }
 
-    fn batch_add_in_place(&mut self, other: &mut Self, index: Vec<(usize, usize)>) {
+    fn batch_add_in_place(&mut self, other: &mut Self, index: &[(usize, usize)]) {
         G::batch_add_in_place(self, other, index);
     }
 
@@ -533,6 +553,12 @@ trait GLV: AffineCurve {
         p2.iter_mut().for_each(|p| p.glv_endomorphism_in_place());
         Self::batch_scalar_mul_in_place::<SmallBigInt>(points, &mut k1[..], w);
         Self::batch_scalar_mul_in_place::<SmallBigInt>(&mut p2[..], &mut k2[..], w);
-        Self::batch_add_in_place(points, &mut p2, (0..batch_size).map(|x| (x, x)).collect());
+        Self::batch_add_in_place(
+            points,
+            &mut p2,
+            &(0..batch_size)
+                .map(|x| (x, x))
+                .collect::<Vec<(usize, usize)>>()[..],
+        );
     }
 }

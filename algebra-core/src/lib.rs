@@ -133,3 +133,29 @@ pub fn log2(x: usize) -> u32 {
     let n = x.leading_zeros();
     core::mem::size_of::<usize>() as u32 * 8 - n
 }
+
+#[macro_export]
+macro_rules! cfg_iter {
+    ($e: expr) => {{
+        #[cfg(feature = "parallel")]
+        let result = $e.par_iter();
+
+        #[cfg(not(feature = "parallel"))]
+        let result = $e.iter();
+
+        result
+    }};
+}
+
+#[macro_export]
+macro_rules! cfg_iter_mut {
+    ($e: expr) => {{
+        #[cfg(feature = "parallel")]
+        let result = $e.iter_mut();
+
+        #[cfg(not(feature = "parallel"))]
+        let result = $e.iter_mut();
+
+        result
+    }};
+}

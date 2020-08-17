@@ -75,7 +75,7 @@ macro_rules! specialise_affine_to_proj {
             // aztec/ecc/curves/bn254/scalar_multiplication/scalar_multiplication.cpp
 
             #[inline]
-            fn batch_double_in_place(bases: &mut [Self], index: Vec<usize>) {
+            fn batch_double_in_place(bases: &mut [Self], index: &[usize]) {
                 let mut inversion_tmp = P::BaseField::one();
                 let mut scratch_space = Vec::new(); // with_capacity? How to get size?
                                                     // We run two loops over the data separated by an inversion
@@ -152,7 +152,7 @@ macro_rules! specialise_affine_to_proj {
             fn batch_add_in_place(
                 bases: &mut [Self],
                 other: &mut [Self],
-                index: Vec<(usize, usize)>,
+                index: &[(usize, usize)],
             ) {
                 let mut inversion_tmp = P::BaseField::one();
                 let mut half = None;
@@ -246,10 +246,7 @@ macro_rules! specialise_affine_to_proj {
 
             // Consumes other and mutates self in place. Accepts index function
             #[inline]
-            fn batch_add_in_place_same_slice(
-                bases: &mut [Self],
-                index: Vec<(usize, usize)>,
-            ) {
+            fn batch_add_in_place_same_slice(bases: &mut [Self], index: &[(usize, usize)]) {
                 let mut inversion_tmp = P::BaseField::one();
                 let mut half = None;
 

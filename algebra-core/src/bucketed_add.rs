@@ -1,57 +1,86 @@
-use crate::{AffineCurve, curves::BatchGroupArithmeticSlice};
-use std::cmp::Ordering;
-use voracious_radix_sort::*;
+use crate::{cfg_iter_mut, curves::BatchGroupArithmeticSlice, AffineCurve};
+
+// #[cfg(feature = "parallel")]
+// use rayon::prelude::*;
 
 const BATCH_ADD_SIZE: usize = 4096;
 
-#[derive(Copy, Clone, Debug)]
-struct ReverseIndex {
-    pos: usize,
-    bucket: u64,
-}
+// We make the batch bucket add cache-oblivious by splitting the problem
+// into sub problems recursively
+pub fn batch_bucketed_add_split<C: AffineCurve>(
+    buckets: usize,
+    elems: &[C],
+    bucket_assign: &[usize],
+    bucket_size: usize,
+) -> Vec<C> {
+    let split_size = if buckets >= 1 << 26 {
+        1 << 16
+    } else {
+        1 << bucket_size
+    };
+    let num_split = (buckets - 1) / split_size + 1;
+    let mut elem_split = vec![vec![]; num_split];
+    let mut bucket_split = vec![vec![]; num_split];
 
-impl Radixable<u64> for ReverseIndex {
-    type Key = u64;
-    #[inline]
-    fn key(&self) -> Self::Key {
-        self.bucket
-    }
-}
+    let now = std::time::Instant::now();
 
-impl PartialOrd for ReverseIndex {
-    fn partial_cmp(&self, other: &ReverseIndex) -> Option<Ordering> {
-        self.bucket.partial_cmp(&other.bucket)
+    for (position, &bucket) in bucket_assign.iter().enumerate() {
+        bucket_split[bucket / split_size].push(bucket % split_size);
+        elem_split[bucket / split_size].push(elems[position]);
     }
-}
 
-impl PartialEq for ReverseIndex {
-    fn eq(&self, other: &Self) -> bool {
-        self.bucket == other.bucket
-    }
+    println!(
+        "\nAssign bucket and elem split: {:?}",
+        now.elapsed().as_micros()
+    );
+
+    let now = std::time::Instant::now();
+
+    let res = if split_size < 1 << (bucket_size + 1) {
+        cfg_iter_mut!(elem_split)
+            .zip(cfg_iter_mut!(bucket_split))
+            .map(|(elems, bucket)| batch_bucketed_add(split_size, &mut elems[..], &bucket[..]))
+            .flatten()
+            .collect()
+    } else {
+        elem_split
+            .iter()
+            .zip(bucket_split.iter())
+            .map(|(elems, bucket)| {
+                batch_bucketed_add_split(split_size, &elems[..], &bucket[..], bucket_size)
+            })
+            .flatten()
+            .collect()
+    };
+
+    println!("Bucketed add: {:?}", now.elapsed().as_micros());
+    res
 }
 
 pub fn batch_bucketed_add<C: AffineCurve>(
     buckets: usize,
-    elems: &[C],
+    elems: &mut [C],
     bucket_assign: &[usize],
 ) -> Vec<C> {
-
+    let num_split = if buckets >= 1 << 14 { 4096 } else { 1 };
+    let split_size = buckets / num_split;
+    let ratio = elems.len() / buckets * 2;
+    // Get the inverted index for the positions assigning to each bucket
     let now = std::time::Instant::now();
-    // let mut index = vec![Vec::with_capacity(8); buckets];
-    // for (position, &bucket) in bucket_assign.iter().enumerate() {
-    //     index[bucket].push(position);
-    // }
-    // Instead of the above, we do a radix sort by bucket value instead, and store offsets
+    let mut bucket_split = vec![vec![]; num_split];
+    let mut index = vec![Vec::with_capacity(ratio); buckets];
 
-    let mut index = vec![Vec::with_capacity(8); buckets];
-    let mut to_sort = bucket_assign.iter()
-        .enumerate()
-        .map(|(pos, bucket)| ReverseIndex{ pos, bucket: *bucket as u64 })
-        .collect::<Vec<ReverseIndex>>();
-    to_sort.voracious_stable_sort();
-    to_sort.iter().for_each(|x| index[x.bucket as usize].push(x.pos));
+    // We use two levels of assignments to help with cache locality.
+    for (position, &bucket) in bucket_assign.iter().enumerate() {
+        bucket_split[bucket / split_size].push((bucket, position));
+    }
 
-    println!("Generate Index: {:?}", now.elapsed().as_micros());
+    for split in bucket_split {
+        for (bucket, position) in split {
+            index[bucket].push(position);
+        }
+    }
+    // println!("\nGenerate Inverted Index: {:?}", now.elapsed().as_micros());
 
     // Instructions for indexes for the in place addition tree
     let mut instr: Vec<Vec<(usize, usize)>> = vec![];
@@ -62,6 +91,8 @@ pub fn batch_bucketed_add<C: AffineCurve>(
         .max().unwrap();
 
     let now = std::time::Instant::now();
+    // Generate in-place addition instructions that implement the addition tree
+    // for each bucket from the leaves to the root
     for i in 0..max_depth {
         let mut instr_row = Vec::<(usize, usize)>::with_capacity(buckets);
         for to_add in index.iter_mut() {
@@ -79,32 +110,30 @@ pub fn batch_bucketed_add<C: AffineCurve>(
         }
         instr.push(instr_row);
     }
-    println!("Generate Instr: {:?}", now.elapsed().as_micros());
+    // println!("Generate Instr: {:?}", now.elapsed().as_micros());
 
     let now = std::time::Instant::now();
-    let mut elems_mut_1 = elems.to_vec();
+    // let mut elems_mut_1 = elems.to_vec();
 
     for instr_row in instr.iter() {
-        for chunk in instr_row.chunks(BATCH_ADD_SIZE) {
-            elems_mut_1[..].batch_add_in_place_same_slice(chunk.to_vec());
+        for instr in C::get_chunked_instr::<(usize, usize)>(&instr_row[..], BATCH_ADD_SIZE).iter() {
+            elems[..].batch_add_in_place_same_slice(&instr[..]);
         }
     }
-    println!("Batch add in place: {:?}", now.elapsed().as_micros());
-
+    // println!("Batch add in place: {:?}", now.elapsed().as_micros());
 
     let now = std::time::Instant::now();
     let zero = C::zero();
     let mut res = vec![zero; buckets];
 
-
     for (i, to_add) in index.iter().enumerate() {
         if to_add.len() > 1 {
             panic!("Did not successfully reduce to_add");
         } else if to_add.len() == 1 {
-            res[i] = elems_mut_1[to_add[0]];
+            res[i] = elems[to_add[0]];
         }
     }
 
-    println!("Reassign: {:?}", now.elapsed().as_micros());
+    // println!("Reassign: {:?}", now.elapsed().as_micros());
     res
 }

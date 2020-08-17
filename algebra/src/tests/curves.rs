@@ -1,45 +1,81 @@
 #![allow(unused)]
 use algebra_core::{
+    batch_bucketed_add_split,
+    biginteger::BigInteger64,
     curves::{AffineCurve, BatchGroupArithmeticSlice, ProjectiveCurve},
     io::Cursor,
     CanonicalDeserialize, CanonicalSerialize, Field, MontgomeryModelParameters, One, PrimeField,
     SWFlags, SWModelParameters, SerializationError, TEModelParameters, UniformRand, Vec, Zero,
-    batch_bucketed_add,
 };
-use rand::{distributions::{Uniform, Distribution}, SeedableRng};
+use rand::{
+    distributions::{Distribution, Uniform},
+    SeedableRng,
+};
 use rand_xorshift::XorShiftRng;
 
+use crate::cfg_chunks_mut;
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
+
+pub const AFFINE_BATCH_SIZE: usize = 4096;
 pub const ITERATIONS: usize = 10;
 
 fn batch_bucketed_add_test<C: AffineCurve>() {
     let mut rng = XorShiftRng::seed_from_u64(123127578910u64);
 
-    for i in 2..(ITERATIONS * 10) {
-        let n_elems = 1 << i;
-        let n_buckets = n_elems / 2;
+    const MAX_LOGN: usize = 19;
 
-        let mut elems = Vec::<C>::with_capacity(n_elems);
-        let mut buckets = Vec::<usize>::with_capacity(n_buckets);
+    println!("Starting");
+    let now = std::time::Instant::now();
+    // Generate pseudorandom group elements
+    let step = Uniform::new(0, 1 << 30);
+    let elem = C::Projective::rand(&mut rng).into_affine();
+    let mut random_elems = vec![elem; 1 << MAX_LOGN];
+    let mut scalars: Vec<BigInteger64> = (0..1 << MAX_LOGN)
+        .map(|_| BigInteger64::from(step.sample(&mut rng)))
+        .collect();
+    cfg_chunks_mut!(random_elems, AFFINE_BATCH_SIZE)
+        .zip(cfg_chunks_mut!(scalars, AFFINE_BATCH_SIZE))
+        .for_each(|(e, s)| {
+            e[..].batch_scalar_mul_in_place::<BigInteger64>(&mut s[..], 1);
+        });
+
+    println!("Initial generation: {:?}", now.elapsed().as_micros());
+
+    for i in (MAX_LOGN - 9)..(ITERATIONS + MAX_LOGN - 9) {
+        let n_elems = 1 << i;
+        let n_buckets = 1 << (i - 5);
+
+        let mut elems = random_elems[0..n_elems].to_vec();
+        let mut bucket_assign = Vec::<usize>::with_capacity(n_elems);
         let step = Uniform::new(0, n_buckets);
 
         for _ in 0..n_elems {
-            elems.push(C::Projective::rand(&mut rng).into_affine());
-        }
-        for _ in 0..n_buckets {
-            buckets.push(step.sample(&mut rng));
+            bucket_assign.push(step.sample(&mut rng));
         }
 
         let now = std::time::Instant::now();
-        let res1 = batch_bucketed_add::<C>(n_buckets, &elems[..], &buckets[..]);
-        println!("batch bucketed add for {} elems: {:?}", n_elems, now.elapsed().as_micros());
+        let mut res1 = vec![];
+        for i in 6..20 {
+            res1 = batch_bucketed_add_split::<C>(n_buckets, &elems[..], &bucket_assign[..], i);
+        }
+        println!(
+            "batch bucketed add for {} elems: {:?}",
+            n_elems,
+            now.elapsed().as_micros()
+        );
 
         let mut res2 = vec![C::Projective::zero(); n_buckets];
 
         let now = std::time::Instant::now();
-        for (&bucket_idx, elem) in buckets.iter().zip(elems) {
+        for (&bucket_idx, elem) in bucket_assign.iter().zip(elems) {
             res2[bucket_idx].add_assign_mixed(&elem);
         }
-        println!("bucketed add for {} elems: {:?}", n_elems, now.elapsed().as_micros());
+        println!(
+            "bucketed add for {} elems: {:?}",
+            n_elems,
+            now.elapsed().as_micros()
+        );
 
         let res1: Vec<C::Projective> = res1.iter().map(|&p| p.into()).collect();
 
@@ -279,7 +315,7 @@ pub fn random_batch_doubling_test<G: ProjectiveCurve>() {
 
         let mut a: Vec<G::Affine> = a.iter().map(|p| p.into_affine()).collect();
 
-        a[..].batch_double_in_place((0..size).collect());
+        a[..].batch_double_in_place(&(0..size).collect::<Vec<usize>>()[..]);
 
         for p_c in c.iter_mut() {
             *p_c.double_in_place();
@@ -311,7 +347,10 @@ pub fn random_batch_addition_test<G: ProjectiveCurve>() {
         let mut a: Vec<G::Affine> = a.iter().map(|p| p.into_affine()).collect();
         let mut b: Vec<G::Affine> = b.iter().map(|p| p.into_affine()).collect();
 
-        a[..].batch_add_in_place(&mut b[..], (0..size).map(|x| (x, x)).collect());
+        a[..].batch_add_in_place(
+            &mut b[..],
+            &(0..size).map(|x| (x, x)).collect::<Vec<(usize, usize)>>()[..],
+        );
 
         for (p_c, p_d) in c.iter_mut().zip(d.iter()) {
             *p_c += *p_d;
@@ -343,7 +382,10 @@ pub fn random_batch_add_doubling_test<G: ProjectiveCurve>() {
         let mut a: Vec<G::Affine> = a.iter().map(|p| p.into_affine()).collect();
         let mut b: Vec<G::Affine> = b.iter().map(|p| p.into_affine()).collect();
 
-        a[..].batch_add_in_place(&mut b[..], (0..size).map(|x| (x, x)).collect());
+        a[..].batch_add_in_place(
+            &mut b[..],
+            &(0..size).map(|x| (x, x)).collect::<Vec<(usize, usize)>>()[..],
+        );
 
         for (p_c, p_d) in c.iter_mut().zip(d.iter()) {
             *p_c += *p_d;
@@ -389,10 +431,6 @@ pub fn random_batch_scalar_mul_test<G: ProjectiveCurve>() {
         assert_eq!(a, c);
     }
 }
-
-// pub fn batch_verify_in_subgroup_test() {
-//
-// }
 
 pub fn curve_tests<G: ProjectiveCurve>() {
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
