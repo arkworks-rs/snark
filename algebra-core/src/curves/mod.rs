@@ -12,8 +12,8 @@ use core::{
 };
 use num_traits::Zero;
 
-// pub mod batch_verify;
-// pub use self::batch_verify::*;
+pub mod batch_verify;
+pub use self::batch_verify::*;
 
 pub mod models;
 

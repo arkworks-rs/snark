@@ -1,11 +1,12 @@
 #![allow(unused)]
 use algebra_core::{
-    batch_bucketed_add_split,
+    batch_bucketed_add_split, batch_verify_in_subgroup,
     biginteger::BigInteger64,
     curves::{AffineCurve, BatchGroupArithmeticSlice, ProjectiveCurve},
     io::Cursor,
     CanonicalDeserialize, CanonicalSerialize, Field, MontgomeryModelParameters, One, PrimeField,
-    SWFlags, SWModelParameters, SerializationError, TEModelParameters, UniformRand, Vec, Zero,
+    SWFlags, SWModelParameters, SerializationError, TEModelParameters, UniformRand, Vec,
+    VerificationError, Zero,
 };
 use rand::{
     distributions::{Distribution, Uniform},
@@ -19,71 +20,6 @@ use rayon::prelude::*;
 
 pub const AFFINE_BATCH_SIZE: usize = 4096;
 pub const ITERATIONS: usize = 10;
-
-fn batch_bucketed_add_test<C: AffineCurve>() {
-    let mut rng = XorShiftRng::seed_from_u64(123127578910u64);
-
-    const MAX_LOGN: usize = 19;
-
-    println!("Starting");
-    let now = std::time::Instant::now();
-    // Generate pseudorandom group elements
-    let step = Uniform::new(0, 1 << 30);
-    let elem = C::Projective::rand(&mut rng).into_affine();
-    let mut random_elems = vec![elem; 1 << MAX_LOGN];
-    let mut scalars: Vec<BigInteger64> = (0..1 << MAX_LOGN)
-        .map(|_| BigInteger64::from(step.sample(&mut rng)))
-        .collect();
-    cfg_chunks_mut!(random_elems, AFFINE_BATCH_SIZE)
-        .zip(cfg_chunks_mut!(scalars, AFFINE_BATCH_SIZE))
-        .for_each(|(e, s)| {
-            e[..].batch_scalar_mul_in_place::<BigInteger64>(&mut s[..], 1);
-        });
-
-    println!("Initial generation: {:?}", now.elapsed().as_micros());
-
-    for i in (MAX_LOGN - 9)..(ITERATIONS + MAX_LOGN - 9) {
-        let n_elems = 1 << i;
-        let n_buckets = 1 << (i - 5);
-
-        let mut elems = random_elems[0..n_elems].to_vec();
-        let mut bucket_assign = Vec::<usize>::with_capacity(n_elems);
-        let step = Uniform::new(0, n_buckets);
-
-        for _ in 0..n_elems {
-            bucket_assign.push(step.sample(&mut rng));
-        }
-
-        let now = std::time::Instant::now();
-        let mut res1 = vec![];
-        for i in 6..20 {
-            res1 = batch_bucketed_add_split::<C>(n_buckets, &elems[..], &bucket_assign[..], i);
-        }
-        println!(
-            "batch bucketed add for {} elems: {:?}",
-            n_elems,
-            now.elapsed().as_micros()
-        );
-
-        let mut res2 = vec![C::Projective::zero(); n_buckets];
-
-        let now = std::time::Instant::now();
-        for (&bucket_idx, elem) in bucket_assign.iter().zip(elems) {
-            res2[bucket_idx].add_assign_mixed(&elem);
-        }
-        println!(
-            "bucketed add for {} elems: {:?}",
-            n_elems,
-            now.elapsed().as_micros()
-        );
-
-        let res1: Vec<C::Projective> = res1.iter().map(|&p| p.into()).collect();
-
-        for (i, (p1, p2)) in res1.iter().zip(res2).enumerate() {
-            assert_eq!(*p1, p2);
-        }
-    }
-}
 
 fn random_addition_test<G: ProjectiveCurve>() {
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
@@ -432,6 +368,136 @@ pub fn random_batch_scalar_mul_test<G: ProjectiveCurve>() {
     }
 }
 
+fn batch_bucketed_add_test<C: AffineCurve>() {
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+    const MAX_LOGN: usize = 18;
+
+    println!("Starting");
+    let now = std::time::Instant::now();
+    // Generate pseudorandom group elements
+    let step = Uniform::new(0, 1 << 30);
+    let elem = C::Projective::rand(&mut rng).into_affine();
+    let mut random_elems = vec![elem; 1 << MAX_LOGN];
+    let mut scalars: Vec<BigInteger64> = (0..1 << MAX_LOGN)
+        .map(|_| BigInteger64::from(step.sample(&mut rng)))
+        .collect();
+    cfg_chunks_mut!(random_elems, AFFINE_BATCH_SIZE)
+        .zip(cfg_chunks_mut!(scalars, AFFINE_BATCH_SIZE))
+        .for_each(|(e, s)| {
+            e[..].batch_scalar_mul_in_place::<BigInteger64>(&mut s[..], 1);
+        });
+
+    println!("Initial generation: {:?}", now.elapsed().as_micros());
+
+    for i in (MAX_LOGN - 4)..(ITERATIONS / 2 + MAX_LOGN - 4) {
+        let n_elems = 1 << i;
+        let n_buckets = 1 << (i - 5);
+
+        let mut elems = random_elems[0..n_elems].to_vec();
+        let mut bucket_assign = Vec::<usize>::with_capacity(n_elems);
+        let step = Uniform::new(0, n_buckets);
+
+        for _ in 0..n_elems {
+            bucket_assign.push(step.sample(&mut rng));
+        }
+
+        let now = std::time::Instant::now();
+        let mut res1 = vec![];
+        for i in 6..20 {
+            res1 = batch_bucketed_add_split::<C>(n_buckets, &elems[..], &bucket_assign[..], i);
+        }
+        println!(
+            "batch bucketed add for {} elems: {:?}",
+            n_elems,
+            now.elapsed().as_micros()
+        );
+
+        let mut res2 = vec![C::Projective::zero(); n_buckets];
+
+        let now = std::time::Instant::now();
+        for (&bucket_idx, elem) in bucket_assign.iter().zip(elems) {
+            res2[bucket_idx].add_assign_mixed(&elem);
+        }
+        println!(
+            "bucketed add for {} elems: {:?}",
+            n_elems,
+            now.elapsed().as_micros()
+        );
+
+        let res1: Vec<C::Projective> = res1.iter().map(|&p| p.into()).collect();
+
+        for (i, (p1, p2)) in res1.iter().zip(res2).enumerate() {
+            assert_eq!(*p1, p2);
+        }
+    }
+}
+
+fn sw_batch_verify_test<P: SWModelParameters>() {
+    use algebra_core::curves::models::short_weierstrass_jacobian::{GroupAffine, GroupProjective};
+
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+    const MAX_LOGN: usize = 23;
+    const SECURITY_PARAM: usize = 128;
+    // Generate pseudorandom group elements
+    let now = std::time::Instant::now();
+    let step = Uniform::new(0, 1 << 30);
+    let elem = GroupProjective::<P>::rand(&mut rng).into_affine();
+    let mut random_elems = vec![elem; 1 << MAX_LOGN];
+    let mut scalars: Vec<BigInteger64> = (0..1 << MAX_LOGN)
+        .map(|_| BigInteger64::from(step.sample(&mut rng)))
+        .collect();
+    cfg_chunks_mut!(random_elems, AFFINE_BATCH_SIZE)
+        .zip(cfg_chunks_mut!(scalars, AFFINE_BATCH_SIZE))
+        .for_each(|(e, s)| {
+            e[..].batch_scalar_mul_in_place::<BigInteger64>(&mut s[..], 1);
+        });
+    println!("Initial generation: {:?}", now.elapsed().as_micros());
+
+    println!("Security Param: {}", SECURITY_PARAM);
+    for i in (MAX_LOGN - 9)..(ITERATIONS + MAX_LOGN - 9) {
+        let n_elems = 1 << i;
+        println!("n: {}", n_elems);
+        let random_location = Uniform::new(0, n_elems);
+
+        let mut tmp_elems = random_elems[0..n_elems].to_vec();
+
+        let now = std::time::Instant::now();
+        batch_verify_in_subgroup::<GroupAffine<P>>(&tmp_elems[..], SECURITY_PARAM)
+            .expect("Should have verified as correct");
+        println!(
+            "Success: In Subgroup. n: {}, time: {}",
+            n_elems,
+            now.elapsed().as_micros()
+        );
+
+        for j in 0..10 {
+            // Randomly insert random non-subgroup elems
+            for _ in 0..(1 << j) {
+                loop {
+                    if let Some(non_subgroup_elem) =
+                        GroupAffine::<P>::get_point_from_x(P::BaseField::rand(&mut rng), false)
+                    {
+                        tmp_elems[random_location.sample(&mut rng)] = non_subgroup_elem;
+                        break;
+                    }
+                }
+            }
+            let now = std::time::Instant::now();
+            match batch_verify_in_subgroup::<GroupAffine<P>>(&tmp_elems[..], SECURITY_PARAM) {
+                Ok(_) => assert!(false, "did not detect non-subgroup elems"),
+                _ => assert!(true),
+            };
+            println!(
+                "Success: Not in subgroup. n: {}, non-subgroup elems: {}, time: {}",
+                n_elems,
+                (1 << (j + 1)) - 1,
+                now.elapsed().as_micros()
+            );
+        }
+    }
+}
+
 pub fn curve_tests<G: ProjectiveCurve>() {
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
@@ -502,12 +568,13 @@ pub fn curve_tests<G: ProjectiveCurve>() {
     random_batch_add_doubling_test::<G>();
     random_batch_addition_test::<G>();
     random_batch_scalar_mul_test::<G>();
-    batch_bucketed_add_test::<G::Affine>();
+    // batch_bucketed_add_test::<G::Affine>();
 }
 
 pub fn sw_tests<P: SWModelParameters>() {
     sw_curve_serialization_test::<P>();
     sw_from_random_bytes::<P>();
+    sw_batch_verify_test::<P>();
 }
 
 pub fn sw_from_random_bytes<P: SWModelParameters>() {

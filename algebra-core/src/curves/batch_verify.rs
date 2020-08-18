@@ -1,5 +1,5 @@
 use crate::fields::FpParameters;
-use crate::{batch_bucketed_add_split, log2, AffineCurve, PrimeField};
+use crate::{batch_bucketed_add_split, log2, AffineCurve, PrimeField, ProjectiveCurve};
 use num_traits::{identities::Zero, Pow};
 use rand::thread_rng;
 use rand::Rng;
@@ -19,6 +19,7 @@ pub fn batch_verify_in_subgroup<C: AffineCurve>(
     security_param: usize,
 ) -> Result<(), VerificationError> {
     let (num_buckets, num_rounds) = get_max_bucket(security_param, points.len());
+    // println!("Buckets: {}, Rounds: {}, security: {}, n_points: {}", num_buckets, num_rounds, security_param, points.len());
     let rng = &mut thread_rng();
 
     for _ in 0..num_rounds {
@@ -26,7 +27,7 @@ pub fn batch_verify_in_subgroup<C: AffineCurve>(
         for _ in 0..points.len() {
             bucket_assign.push(rng.gen_range(0, num_buckets));
         }
-        let buckets = batch_bucketed_add_split(num_buckets, points, &bucket_assign[..]);
+        let buckets = batch_bucketed_add_split(num_buckets, points, &bucket_assign[..], 12);
 
         if num_buckets <= 3 {
             if !buckets.iter().all(|b| {
@@ -35,7 +36,53 @@ pub fn batch_verify_in_subgroup<C: AffineCurve>(
                 return Err(VerificationError);
             }
         } else {
-            batch_verify_in_subgroup(&buckets[..], log2(num_buckets) as usize)?;
+            // println!("CALLING BUCKET RECURSIVE");
+            if buckets.len() > 4096 {
+                batch_verify_in_subgroup(&buckets[..], log2(num_buckets) as usize)?;
+            } else {
+                batch_verify_in_subgroup_proj(
+                    &buckets
+                        .iter()
+                        .map(|&p| p.into())
+                        .collect::<Vec<C::Projective>>()[..],
+                    log2(num_buckets) as usize,
+                )?;
+            }
+        }
+    }
+    Ok(())
+}
+
+pub fn batch_verify_in_subgroup_proj<C: ProjectiveCurve>(
+    points: &[C],
+    security_param: usize,
+) -> Result<(), VerificationError> {
+    let (num_buckets, num_rounds) = get_max_bucket(security_param, points.len());
+    // println!("Buckets: {}, Rounds: {}, security: {}, n_points: {}", num_buckets, num_rounds, security_param, points.len());
+    let rng = &mut thread_rng();
+
+    for _ in 0..num_rounds {
+        let mut bucket_assign = Vec::with_capacity(points.len());
+        for _ in 0..points.len() {
+            bucket_assign.push(rng.gen_range(0, num_buckets));
+        }
+        // If our batch size is too small, we do the naive bucket add
+        let zero = C::zero();
+        let mut buckets = vec![zero; num_buckets];
+        for (p, a) in points.iter().zip(bucket_assign) {
+            buckets[a].add_assign(p);
+        }
+
+        if num_buckets <= 3 {
+            if !buckets
+                .iter()
+                .all(|b| b.mul(<C::ScalarField as PrimeField>::Params::MODULUS) == C::zero())
+            {
+                return Err(VerificationError);
+            }
+        } else {
+            // println!("CALLING BUCKET PROJ RECURSIVE");
+            batch_verify_in_subgroup_proj(&buckets[..], log2(num_buckets) as usize)?;
         }
     }
     Ok(())
