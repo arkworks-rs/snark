@@ -599,7 +599,7 @@ pub fn curve_tests<G: ProjectiveCurve>() {
     random_batch_add_doubling_test::<G>();
     random_batch_addition_test::<G>();
     random_batch_scalar_mul_test::<G>();
-    // batch_bucketed_add_test::<G::Affine>();
+    batch_bucketed_add_test::<G::Affine>();
 }
 
 pub fn sw_tests<P: SWModelParameters>() {
