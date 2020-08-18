@@ -23,7 +23,7 @@ pub fn batch_bucketed_add_split<C: AffineCurve>(
     let mut elem_split = vec![vec![]; num_split];
     let mut bucket_split = vec![vec![]; num_split];
 
-    let now = std::time::Instant::now();
+    // let now = std::time::Instant::now();
 
     for (position, &bucket) in bucket_assign.iter().enumerate() {
         bucket_split[bucket / split_size].push(bucket % split_size);
@@ -35,7 +35,7 @@ pub fn batch_bucketed_add_split<C: AffineCurve>(
     //     now.elapsed().as_micros()
     // );
 
-    let now = std::time::Instant::now();
+    // let now = std::time::Instant::now();
 
     let res = if split_size < 1 << (bucket_size + 1) {
         cfg_iter_mut!(elem_split)
@@ -68,7 +68,7 @@ pub fn batch_bucketed_add<C: AffineCurve>(
     let split_size = buckets / num_split;
     let ratio = elems.len() / buckets * 2;
     // Get the inverted index for the positions assigning to each bucket
-    let now = std::time::Instant::now();
+    // let now = std::time::Instant::now();
     let mut bucket_split = vec![vec![]; num_split];
     let mut index = vec![Vec::with_capacity(ratio); buckets];
 
@@ -92,7 +92,7 @@ pub fn batch_bucketed_add<C: AffineCurve>(
         .map(|x| crate::log2(x.len()))
         .max().unwrap();
 
-    let now = std::time::Instant::now();
+    // let now = std::time::Instant::now();
     // Generate in-place addition instructions that implement the addition tree
     // for each bucket from the leaves to the root
     for i in 0..max_depth {
@@ -114,7 +114,7 @@ pub fn batch_bucketed_add<C: AffineCurve>(
     }
     // println!("Generate Instr: {:?}", now.elapsed().as_micros());
 
-    let now = std::time::Instant::now();
+    // let now = std::time::Instant::now();
     // let mut elems_mut_1 = elems.to_vec();
 
     for instr_row in instr.iter() {
@@ -124,7 +124,7 @@ pub fn batch_bucketed_add<C: AffineCurve>(
     }
     // println!("Batch add in place: {:?}", now.elapsed().as_micros());
 
-    let now = std::time::Instant::now();
+    // let now = std::time::Instant::now();
     let zero = C::zero();
     let mut res = vec![zero; buckets];
 
