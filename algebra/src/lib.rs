@@ -181,10 +181,10 @@ pub(crate) mod tests;
 #[macro_export]
 macro_rules! cfg_chunks_mut {
     ($e: expr, $N: expr) => {{
-        #[cfg(feature = "parallel")]
+        #[cfg(feature = "parallel_random_gen")]
         let result = $e.par_chunks_mut($N);
 
-        #[cfg(not(feature = "parallel"))]
+        #[cfg(not(feature = "parallel_random_gen"))]
         let result = $e.chunks_mut($N);
 
         result

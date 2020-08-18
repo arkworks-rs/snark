@@ -20,15 +20,18 @@ pub fn batch_verify_in_subgroup<C: AffineCurve>(
 ) -> Result<(), VerificationError> {
     let (num_buckets, num_rounds) = get_max_bucket(security_param, points.len());
     // println!("Buckets: {}, Rounds: {}, security: {}, n_points: {}", num_buckets, num_rounds, security_param, points.len());
-    let rng = &mut thread_rng();
 
-    for _ in 0..num_rounds {
+    let verify_points = move |points: &[C]| -> Result<(), VerificationError> {
+        let rng = &mut thread_rng();
         let mut bucket_assign = Vec::with_capacity(points.len());
         for _ in 0..points.len() {
             bucket_assign.push(rng.gen_range(0, num_buckets));
         }
         let buckets = batch_bucketed_add_split(num_buckets, points, &bucket_assign[..], 12);
 
+        // Check that all the buckets belong to the subgroup, either by calling
+        // the batch verify recusively, or by directly checking when the number of buckets
+        // is small enough
         if num_buckets <= 3 {
             if !buckets.iter().all(|b| {
                 b.mul(<C::ScalarField as PrimeField>::Params::MODULUS) == C::Projective::zero()
@@ -36,7 +39,6 @@ pub fn batch_verify_in_subgroup<C: AffineCurve>(
                 return Err(VerificationError);
             }
         } else {
-            // println!("CALLING BUCKET RECURSIVE");
             if buckets.len() > 4096 {
                 batch_verify_in_subgroup(&buckets[..], log2(num_buckets) as usize)?;
             } else {
@@ -49,7 +51,36 @@ pub fn batch_verify_in_subgroup<C: AffineCurve>(
                 )?;
             }
         }
+        Ok(())
+    };
+
+    #[cfg(feature = "parallel")]
+    if num_rounds > 2 {
+        use std::sync::Arc;
+        let ref_points = Arc::new(points.to_vec());
+        // println!("Buckets: {}, Rounds: {}, security: {}, n_points: {}", num_buckets, num_rounds, security_param, points.len());
+        let mut threads = vec![];
+        for _ in 0..num_rounds {
+            let ref_points_thread = ref_points.clone();
+            threads.push(std::thread::spawn(move || -> Result<(), VerificationError> {
+                verify_points(&ref_points_thread[..])?;
+                Ok(())
+            }));
+        }
+        for thread in threads {
+            thread.join().unwrap()?;
+        }
+    } else {
+        for _ in 0..num_rounds {
+            verify_points(points)?;
+        }
     }
+
+    #[cfg(not(feature = "parallel"))]
+    for _ in 0..num_rounds {
+        verify_points(points)?;
+    }
+    
     Ok(())
 }
 

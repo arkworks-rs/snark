@@ -1,7 +1,7 @@
 use crate::{cfg_iter_mut, curves::BatchGroupArithmeticSlice, AffineCurve};
 
-// #[cfg(feature = "parallel")]
-// use rayon::prelude::*;
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
 
 const BATCH_ADD_SIZE: usize = 4096;
 

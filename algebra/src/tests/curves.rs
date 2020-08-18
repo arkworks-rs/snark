@@ -14,8 +14,10 @@ use rand::{
 };
 use rand_xorshift::XorShiftRng;
 
+use std::ops::Neg;
+
 use crate::cfg_chunks_mut;
-#[cfg(feature = "parallel")]
+#[cfg(any(feature = "parallel", feature = "parallel_random_gen"))]
 use rayon::prelude::*;
 
 pub const AFFINE_BATCH_SIZE: usize = 4096;
@@ -437,7 +439,7 @@ fn sw_batch_verify_test<P: SWModelParameters>() {
     use algebra_core::curves::models::short_weierstrass_jacobian::{GroupAffine, GroupProjective};
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-    const MAX_LOGN: usize = 23;
+    const MAX_LOGN: usize = 18;
     const SECURITY_PARAM: usize = 128;
     // Generate pseudorandom group elements
     let now = std::time::Instant::now();
@@ -455,7 +457,7 @@ fn sw_batch_verify_test<P: SWModelParameters>() {
     println!("Initial generation: {:?}", now.elapsed().as_micros());
 
     println!("Security Param: {}", SECURITY_PARAM);
-    for i in (MAX_LOGN - 9)..(ITERATIONS + MAX_LOGN - 9) {
+    for i in (MAX_LOGN - 4)..(ITERATIONS / 2 + MAX_LOGN - 4) {
         let n_elems = 1 << i;
         println!("n: {}", n_elems);
         let random_location = Uniform::new(0, n_elems);
@@ -476,7 +478,10 @@ fn sw_batch_verify_test<P: SWModelParameters>() {
             for _ in 0..(1 << j) {
                 loop {
                     if let Some(non_subgroup_elem) =
-                        GroupAffine::<P>::get_point_from_x(P::BaseField::rand(&mut rng), false)
+                        GroupAffine::<P>::get_point_from_x(
+                            P::BaseField::rand(&mut rng),
+                            false,
+                        )
                     {
                         tmp_elems[random_location.sample(&mut rng)] = non_subgroup_elem;
                         break;
@@ -488,13 +493,39 @@ fn sw_batch_verify_test<P: SWModelParameters>() {
                 Ok(_) => assert!(false, "did not detect non-subgroup elems"),
                 _ => assert!(true),
             };
-            println!(
-                "Success: Not in subgroup. n: {}, non-subgroup elems: {}, time: {}",
-                n_elems,
-                (1 << (j + 1)) - 1,
-                now.elapsed().as_micros()
+            println!("Success: Not in subgroup. n: {}, non-subgroup elems: {}, time: {}",
+                n_elems, (1 << (j + 1)) - 1, now.elapsed().as_micros()
             );
         }
+
+        // // We can induce a collision and thus failure to identify non-subgroup elements with this
+        // for j in 0..10000 {
+        //     // Randomly insert random non-subgroup elems
+        //     if j == 0 {
+        //         for _ in 0..(1 << j) {
+        //             loop {
+        //                 if let Some(non_subgroup_elem) =
+        //                     GroupAffine::<P>::get_point_from_x(P::BaseField::rand(&mut rng), false)
+        //                 {
+        //                     tmp_elems[random_location.sample(&mut rng)] = non_subgroup_elem;
+        //                     tmp_elems[random_location.sample(&mut rng) + 1] = non_subgroup_elem.neg();
+        //                     break;
+        //                 }
+        //             }
+        //         }
+        //     }
+        //     let now = std::time::Instant::now();
+        //     match batch_verify_in_subgroup::<GroupAffine<P>>(&tmp_elems[..], SECURITY_PARAM) {
+        //         Ok(_) => assert!(false, "did not detect non-subgroup elems"),
+        //         _ => assert!(true),
+        //     };
+        //     println!(
+        //         "Success: Not in subgroup. n: {}, non-subgroup elems: {}, time: {}",
+        //         n_elems,
+        //         (1 << (j + 1)) - 1,
+        //         now.elapsed().as_micros()
+        //     );
+        // }
     }
 }
 

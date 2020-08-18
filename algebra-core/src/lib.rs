@@ -151,7 +151,7 @@ macro_rules! cfg_iter {
 macro_rules! cfg_iter_mut {
     ($e: expr) => {{
         #[cfg(feature = "parallel")]
-        let result = $e.iter_mut();
+        let result = $e.par_iter_mut();
 
         #[cfg(not(feature = "parallel"))]
         let result = $e.iter_mut();

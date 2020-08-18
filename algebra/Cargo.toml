@@ -57,6 +57,7 @@ mnt6_753 = []
 
 std = [ "algebra-core/std" ]
 parallel = [ "std", "algebra-core/parallel" ]
+parallel_random_gen = []
 derive = [ "algebra-core/derive" ]
 asm = [ "algebra-core/llvm_asm" ]
 prefetch = [ "algebra-core/prefetch"]
