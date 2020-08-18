@@ -62,10 +62,12 @@ pub fn batch_verify_in_subgroup<C: AffineCurve>(
         let mut threads = vec![];
         for _ in 0..num_rounds {
             let ref_points_thread = ref_points.clone();
-            threads.push(std::thread::spawn(move || -> Result<(), VerificationError> {
-                verify_points(&ref_points_thread[..])?;
-                Ok(())
-            }));
+            threads.push(std::thread::spawn(
+                move || -> Result<(), VerificationError> {
+                    verify_points(&ref_points_thread[..])?;
+                    Ok(())
+                },
+            ));
         }
         for thread in threads {
             thread.join().unwrap()?;
@@ -80,7 +82,7 @@ pub fn batch_verify_in_subgroup<C: AffineCurve>(
     for _ in 0..num_rounds {
         verify_points(points)?;
     }
-    
+
     Ok(())
 }
 
