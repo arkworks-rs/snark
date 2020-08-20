@@ -115,7 +115,6 @@ pub fn batch_verify_in_subgroup<C: AffineCurve>(
     points: &[C],
     security_param: usize,
 ) -> Result<(), VerificationError> {
-    // we add security for maximum depth, as depth adds additional error to error bound
     let (num_buckets, num_rounds, _) = get_max_bucket(
         security_param,
         points.len(),
@@ -129,7 +128,7 @@ pub fn batch_verify_in_subgroup_recursive<C: AffineCurve>(
     points: &[C],
     security_param: usize,
 ) -> Result<(), VerificationError> {
-    // we add security for maximum depth, as depth adds additional error to error bound
+    // we add security for maximum depth, as recursive depth adds additional error to error bound
     let security_param = security_param + (log2(log2(security_param) as usize) as usize) + 1;
     let (num_buckets, num_rounds, new_security_param) =
         get_max_bucket(security_param, points.len(), 2);
