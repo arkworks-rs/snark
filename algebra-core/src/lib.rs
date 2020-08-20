@@ -124,7 +124,7 @@ fn error(msg: &'static str) -> io::Error {
     io::Error::new(io::ErrorKind::Other, msg)
 }
 
-/// Returns log2
+/// Returns floor(log2(x))
 pub fn log2(x: usize) -> u32 {
     if x <= 1 {
         return 0;
@@ -155,6 +155,19 @@ macro_rules! cfg_iter_mut {
 
         #[cfg(not(feature = "parallel"))]
         let result = $e.iter_mut();
+
+        result
+    }};
+}
+
+#[macro_export]
+macro_rules! cfg_chunks_mut {
+    ($e: expr, $N: expr) => {{
+        #[cfg(feature = "parallel")]
+        let result = $e.par_chunks_mut($N);
+
+        #[cfg(not(feature = "parallel"))]
+        let result = $e.chunks_mut($N);
 
         result
     }};

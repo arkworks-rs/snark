@@ -1,6 +1,6 @@
 #![allow(unused)]
 use algebra_core::{
-    batch_bucketed_add_split, batch_verify_in_subgroup,
+    batch_bucketed_add_split, batch_verify_in_subgroup, batch_verify_in_subgroup_recursive,
     biginteger::BigInteger64,
     curves::{AffineCurve, BatchGroupArithmeticSlice, ProjectiveCurve},
     io::Cursor,
@@ -373,7 +373,7 @@ pub fn random_batch_scalar_mul_test<G: ProjectiveCurve>() {
 fn batch_bucketed_add_test<C: AffineCurve>() {
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-    const MAX_LOGN: usize = 18;
+    const MAX_LOGN: usize = 16;
 
     println!("Starting");
     let now = std::time::Instant::now();
@@ -435,83 +435,103 @@ fn batch_bucketed_add_test<C: AffineCurve>() {
     }
 }
 
-fn sw_batch_verify_test<P: SWModelParameters>() {
-    use algebra_core::curves::models::short_weierstrass_jacobian::{GroupAffine, GroupProjective};
-
-    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-    const MAX_LOGN: usize = 18;
-    const SECURITY_PARAM: usize = 128;
-    // Generate pseudorandom group elements
-    let now = std::time::Instant::now();
-    let step = Uniform::new(0, 1 << 30);
-    let elem = GroupProjective::<P>::rand(&mut rng).into_affine();
-    let mut random_elems = vec![elem; 1 << MAX_LOGN];
-    let mut scalars: Vec<BigInteger64> = (0..1 << MAX_LOGN)
-        .map(|_| BigInteger64::from(step.sample(&mut rng)))
-        .collect();
-    cfg_chunks_mut!(random_elems, AFFINE_BATCH_SIZE)
-        .zip(cfg_chunks_mut!(scalars, AFFINE_BATCH_SIZE))
-        .for_each(|(e, s)| {
-            e[..].batch_scalar_mul_in_place::<BigInteger64>(&mut s[..], 1);
-        });
-    println!("Initial generation: {:?}", now.elapsed().as_micros());
-
-    let now = std::time::Instant::now();
-    let mut non_subgroup_points = Vec::with_capacity(1 << 10);
-    while non_subgroup_points.len() < 1 << 10 {
-        if let Some(elem) = GroupAffine::<P>::get_point_from_x(P::BaseField::rand(&mut rng), false)
-        {
-            // If the cofactor is small, with non-negligible probability the sampled point
-            // is in the group, so we should check it isn't. Else we don't waste compute.
-            if P::COFACTOR[0] != 0 && P::COFACTOR[1..].iter().all(|&x| x == 0u64) {
-                if !elem.is_in_correct_subgroup_assuming_on_curve() {
-                    non_subgroup_points.push(elem);
-                }
-            } else {
-                non_subgroup_points.push(elem);
-            }
-        }
-    }
-
-    println!(
-        "Generate non-subgroup points: {:?}",
-        now.elapsed().as_micros()
-    );
-
-    println!("Security Param: {}", SECURITY_PARAM);
-    for i in (MAX_LOGN - 4)..(ITERATIONS / 2 + MAX_LOGN - 4) {
-        let n_elems = 1 << i;
-        println!("n: {}", n_elems);
-        let random_location = Uniform::new(0, n_elems);
-
-        let mut tmp_elems = random_elems[0..n_elems].to_vec();
+macro_rules! batch_verify_test {
+    ($P: ident, $GroupAffine: ident, $GroupProjective: ident) => {
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+        const MAX_LOGN: usize = 22;
+        const SECURITY_PARAM: usize = 128;
+        // Generate pseudorandom group elements
+        let now = std::time::Instant::now();
+        let step = Uniform::new(0, 1 << 30);
+        let elem = $GroupProjective::<P>::rand(&mut rng).into_affine();
+        let mut random_elems = vec![elem; 1 << MAX_LOGN];
+        let mut scalars: Vec<BigInteger64> = (0..1 << MAX_LOGN)
+            .map(|_| BigInteger64::from(step.sample(&mut rng)))
+            .collect();
+        cfg_chunks_mut!(random_elems, AFFINE_BATCH_SIZE)
+            .zip(cfg_chunks_mut!(scalars, AFFINE_BATCH_SIZE))
+            .for_each(|(e, s)| {
+                e[..].batch_scalar_mul_in_place::<BigInteger64>(&mut s[..], 1);
+            });
+        println!("Initial generation: {:?}", now.elapsed().as_micros());
 
         let now = std::time::Instant::now();
-        batch_verify_in_subgroup::<GroupAffine<P>>(&tmp_elems[..], SECURITY_PARAM)
-            .expect("Should have verified as correct");
+        let mut non_subgroup_points = Vec::with_capacity(1 << 10);
+        while non_subgroup_points.len() < 1 << 10 {
+            if let Some(elem) = $GroupAffine::<P>::get_point_from_x($P::BaseField::rand(&mut rng), false)
+            {
+                // If the cofactor is small, with non-negligible probability the sampled point
+                // is in the group, so we should check it isn't. Else we don't waste compute.
+                if $P::COFACTOR[0] != 0 || $P::COFACTOR[1..].iter().any(|&x| x != 0u64) {
+                    if !elem.is_in_correct_subgroup_assuming_on_curve() {
+                        non_subgroup_points.push(elem);
+                    }
+                } else {
+                    non_subgroup_points.push(elem);
+                }
+            }
+        }
         println!(
-            "Success: In Subgroup. n: {}, time: {}",
-            n_elems,
+            "Generate non-subgroup points: {:?}",
             now.elapsed().as_micros()
         );
 
-        for j in 0..10 {
-            // Randomly insert random non-subgroup elems
-            for k in 0..(1 << j) {
-                tmp_elems[random_location.sample(&mut rng)] = non_subgroup_points[k];
-                break;
-            }
+        println!("Security Param: {}", SECURITY_PARAM);
+        for i in (MAX_LOGN - 4)..(ITERATIONS / 2 + MAX_LOGN - 4) {
+            let n_elems = 1 << i;
+            println!("n: {}", n_elems);
+            let random_location = Uniform::new(0, n_elems);
+
+            let mut tmp_elems = random_elems[0..n_elems].to_vec();
+
             let now = std::time::Instant::now();
-            match batch_verify_in_subgroup::<GroupAffine<P>>(&tmp_elems[..], SECURITY_PARAM) {
-                Ok(_) => assert!(false, "did not detect non-subgroup elems"),
-                _ => assert!(true),
-            };
+            batch_verify_in_subgroup::<$GroupAffine<P>>(&tmp_elems[..], SECURITY_PARAM)
+                .expect("Should have verified as correct");
             println!(
-                "Success: Not in subgroup. n: {}, non-subgroup elems: {}, time: {}",
+                "Success: In Subgroup. n: {}, time: {}",
                 n_elems,
-                (1 << (j + 1)) - 1,
                 now.elapsed().as_micros()
             );
+
+            let now = std::time::Instant::now();
+            batch_verify_in_subgroup_recursive::<$GroupAffine<P>>(&tmp_elems[..], SECURITY_PARAM)
+                .expect("Should have verified as correct");
+            println!(
+                "Success: In Subgroup. n: {}, time: {} (recursive)",
+                n_elems,
+                now.elapsed().as_micros()
+            );
+
+            for j in 0..10 {
+                // Randomly insert random non-subgroup elems
+                for k in 0..(1 << j) {
+                    tmp_elems[random_location.sample(&mut rng)] = non_subgroup_points[k];
+                    break;
+                }
+                let now = std::time::Instant::now();
+                match batch_verify_in_subgroup::<$GroupAffine<P>>(&tmp_elems[..], SECURITY_PARAM) {
+                    Ok(_) => assert!(false, "did not detect non-subgroup elems"),
+                    _ => assert!(true),
+                };
+                println!(
+                    "Success: Not in subgroup. n: {}, non-subgroup elems: {}, time: {}",
+                    n_elems,
+                    (1 << (j + 1)) - 1,
+                    now.elapsed().as_micros()
+                );
+
+                let now = std::time::Instant::now();
+                match batch_verify_in_subgroup_recursive::<$GroupAffine<P>>(&tmp_elems[..], SECURITY_PARAM) {
+                    Ok(_) => assert!(false, "did not detect non-subgroup elems"),
+                    _ => assert!(true),
+                };
+                println!(
+                    "Success: Not in subgroup. n: {}, non-subgroup elems: {}, time: {} (recursive)",
+                    n_elems,
+                    (1 << (j + 1)) - 1,
+                    now.elapsed().as_micros()
+                );
+            }
         }
 
         // // We can induce a collision and thus failure to identify non-subgroup elements with this
@@ -545,84 +565,14 @@ fn sw_batch_verify_test<P: SWModelParameters>() {
     }
 }
 
+fn sw_batch_verify_test<P: SWModelParameters>() {
+    use algebra_core::curves::models::short_weierstrass_jacobian::{GroupAffine, GroupProjective};
+    batch_verify_test!(P, GroupAffine, GroupProjective);
+}
+
 fn te_batch_verify_test<P: TEModelParameters>() {
     use algebra_core::curves::models::twisted_edwards_extended::{GroupAffine, GroupProjective};
-
-    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-    const MAX_LOGN: usize = 18;
-    const SECURITY_PARAM: usize = 128;
-    // Generate pseudorandom group elements
-    let now = std::time::Instant::now();
-    let step = Uniform::new(0, 1 << 30);
-    let elem = GroupProjective::<P>::rand(&mut rng).into_affine();
-    let mut random_elems = vec![elem; 1 << MAX_LOGN];
-    let mut scalars: Vec<BigInteger64> = (0..1 << MAX_LOGN)
-        .map(|_| BigInteger64::from(step.sample(&mut rng)))
-        .collect();
-    cfg_chunks_mut!(random_elems, AFFINE_BATCH_SIZE)
-        .zip(cfg_chunks_mut!(scalars, AFFINE_BATCH_SIZE))
-        .for_each(|(e, s)| {
-            e[..].batch_scalar_mul_in_place::<BigInteger64>(&mut s[..], 1);
-        });
-    println!("Initial generation: {:?}", now.elapsed().as_micros());
-
-    let now = std::time::Instant::now();
-    let mut non_subgroup_points = Vec::with_capacity(1 << 10);
-    while non_subgroup_points.len() < 1 << 10 {
-        if let Some(elem) = GroupAffine::<P>::get_point_from_x(P::BaseField::rand(&mut rng), false)
-        {
-            // If the cofactor is small, with non-negligible probability the sampled point
-            // is in the group, so we should check it isn't. Else we don't waste compute.
-            if P::COFACTOR[0] != 0 || P::COFACTOR[1..].iter().any(|&x| x != 0u64) {
-                if !elem.is_in_correct_subgroup_assuming_on_curve() {
-                    non_subgroup_points.push(elem);
-                }
-            } else {
-                non_subgroup_points.push(elem);
-            }
-        }
-    }
-    println!(
-        "Generate non-subgroup points: {:?}",
-        now.elapsed().as_micros()
-    );
-
-    println!("Security Param: {}", SECURITY_PARAM);
-    for i in (MAX_LOGN - 4)..(ITERATIONS / 2 + MAX_LOGN - 4) {
-        let n_elems = 1 << i;
-        println!("n: {}", n_elems);
-        let random_location = Uniform::new(0, n_elems);
-
-        let mut tmp_elems = random_elems[0..n_elems].to_vec();
-
-        let now = std::time::Instant::now();
-        batch_verify_in_subgroup::<GroupAffine<P>>(&tmp_elems[..], SECURITY_PARAM)
-            .expect("Should have verified as correct");
-        println!(
-            "Success: In Subgroup. n: {}, time: {}",
-            n_elems,
-            now.elapsed().as_micros()
-        );
-
-        for j in 0..10 {
-            // Randomly insert random non-subgroup elems
-            for k in 0..(1 << j) {
-                tmp_elems[random_location.sample(&mut rng)] = non_subgroup_points[k];
-                break;
-            }
-            let now = std::time::Instant::now();
-            match batch_verify_in_subgroup::<GroupAffine<P>>(&tmp_elems[..], SECURITY_PARAM) {
-                Ok(_) => assert!(false, "did not detect non-subgroup elems"),
-                _ => assert!(true),
-            };
-            println!(
-                "Success: Not in subgroup. n: {}, non-subgroup elems: {}, time: {}",
-                n_elems,
-                (1 << (j + 1)) - 1,
-                now.elapsed().as_micros()
-            );
-        }
-    }
+    batch_verify_test!(P, GroupAffine, GroupProjective);
 }
 
 pub fn curve_tests<G: ProjectiveCurve>() {
@@ -836,7 +786,10 @@ where
 {
     edwards_curve_serialization_test::<P>();
     edwards_from_random_bytes::<P>();
-    te_batch_verify_test::<P>();
+    // Only check batch verification for non-unit cofactor
+    if !(P::COFACTOR[0] == 1u64 && P::COFACTOR[1..].iter().all(|&x| x == 0u64)) {
+        te_batch_verify_test::<P>();
+    }
 }
 
 pub fn edwards_from_random_bytes<P: TEModelParameters>()
