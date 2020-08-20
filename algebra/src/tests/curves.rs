@@ -438,7 +438,7 @@ fn batch_bucketed_add_test<C: AffineCurve>() {
 macro_rules! batch_verify_test {
     ($P: ident, $GroupAffine: ident, $GroupProjective: ident) => {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-        const MAX_LOGN: usize = 16;
+        const MAX_LOGN: usize = 15;
         const SECURITY_PARAM: usize = 128;
         // Generate pseudorandom group elements
         let now = std::time::Instant::now();
