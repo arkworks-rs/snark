@@ -1,6 +1,9 @@
 #[macro_export]
 macro_rules! specialise_affine_to_proj {
     ($GroupProjective: ident) => {
+        #[cfg(feature = "prefetch")]
+        use crate::prefetch;
+
         #[derive(Derivative)]
         #[derivative(
             Copy(bound = "P: Parameters"),
@@ -488,14 +491,6 @@ macro_rules! specialise_affine_to_proj {
             #[inline]
             fn default() -> Self {
                 Self::zero()
-            }
-        }
-
-        #[cfg(feature = "prefetch")]
-        #[inline]
-        pub fn prefetch<T>(p: *const T) {
-            unsafe {
-                core::arch::x86_64::_mm_prefetch(p as *const i8, core::arch::x86_64::_MM_HINT_T0)
             }
         }
 

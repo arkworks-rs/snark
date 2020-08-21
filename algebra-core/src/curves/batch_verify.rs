@@ -105,7 +105,7 @@ fn run_rounds<C: AffineCurve>(
 
     #[cfg(not(feature = "parallel"))]
     for _ in 0..num_rounds {
-        verify_points(points, new_security_param)?;
+        verify_points(points, num_buckets, new_security_param)?;
     }
 
     Ok(())

@@ -134,6 +134,14 @@ pub fn log2(x: usize) -> u32 {
     core::mem::size_of::<usize>() as u32 * 8 - n
 }
 
+#[cfg(feature = "prefetch")]
+#[inline]
+pub fn prefetch<T>(p: *const T) {
+    unsafe {
+        core::arch::x86_64::_mm_prefetch(p as *const i8, core::arch::x86_64::_MM_HINT_T0)
+    }
+}
+
 #[macro_export]
 macro_rules! cfg_iter {
     ($e: expr) => {{

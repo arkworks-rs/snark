@@ -16,8 +16,10 @@ use rand_xorshift::XorShiftRng;
 
 use std::ops::Neg;
 
+use crate::tests::helpers::create_pseudo_uniform_random_elems;
+
 use crate::cfg_chunks_mut;
-#[cfg(any(feature = "parallel", feature = "parallel_random_gen"))]
+#[cfg(any(feature = "parallel"))]
 use rayon::prelude::*;
 
 pub const AFFINE_BATCH_SIZE: usize = 4096;
@@ -374,27 +376,11 @@ fn batch_bucketed_add_test<C: AffineCurve>() {
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     const MAX_LOGN: usize = 16;
-
-    println!("Starting");
-    let now = std::time::Instant::now();
-    // Generate pseudorandom group elements
-    let step = Uniform::new(0, 1 << 30);
-    let elem = C::Projective::rand(&mut rng).into_affine();
-    let mut random_elems = vec![elem; 1 << MAX_LOGN];
-    let mut scalars: Vec<BigInteger64> = (0..1 << MAX_LOGN)
-        .map(|_| BigInteger64::from(step.sample(&mut rng)))
-        .collect();
-    cfg_chunks_mut!(random_elems, AFFINE_BATCH_SIZE)
-        .zip(cfg_chunks_mut!(scalars, AFFINE_BATCH_SIZE))
-        .for_each(|(e, s)| {
-            e[..].batch_scalar_mul_in_place::<BigInteger64>(&mut s[..], 1);
-        });
-
-    println!("Initial generation: {:?}", now.elapsed().as_micros());
+    let random_elems = create_pseudo_uniform_random_elems(&mut rng, MAX_LOGN);
 
     for i in (MAX_LOGN - 4)..(ITERATIONS / 2 + MAX_LOGN - 4) {
         let n_elems = 1 << i;
-        let n_buckets = 1 << (i - 5);
+        let n_buckets = 1 << (i - 3);
 
         let mut elems = random_elems[0..n_elems].to_vec();
         let mut bucket_assign = Vec::<usize>::with_capacity(n_elems);
@@ -404,16 +390,16 @@ fn batch_bucketed_add_test<C: AffineCurve>() {
             bucket_assign.push(step.sample(&mut rng));
         }
 
-        let now = std::time::Instant::now();
         let mut res1 = vec![];
-        for i in 6..20 {
+        for i in 6..11 {
+            let now = std::time::Instant::now();
             res1 = batch_bucketed_add_split::<C>(n_buckets, &elems[..], &bucket_assign[..], i);
+            println!(
+                "batch bucketed add for {} elems: {:?}",
+                n_elems,
+                now.elapsed().as_micros()
+            );
         }
-        println!(
-            "batch bucketed add for {} elems: {:?}",
-            n_elems,
-            now.elapsed().as_micros()
-        );
 
         let mut res2 = vec![C::Projective::zero(); n_buckets];
 
@@ -441,19 +427,7 @@ macro_rules! batch_verify_test {
         const MAX_LOGN: usize = 15;
         const SECURITY_PARAM: usize = 128;
         // Generate pseudorandom group elements
-        let now = std::time::Instant::now();
-        let step = Uniform::new(0, 1 << 30);
-        let elem = $GroupProjective::<P>::rand(&mut rng).into_affine();
-        let mut random_elems = vec![elem; 1 << MAX_LOGN];
-        let mut scalars: Vec<BigInteger64> = (0..1 << MAX_LOGN)
-            .map(|_| BigInteger64::from(step.sample(&mut rng)))
-            .collect();
-        cfg_chunks_mut!(random_elems, AFFINE_BATCH_SIZE)
-            .zip(cfg_chunks_mut!(scalars, AFFINE_BATCH_SIZE))
-            .for_each(|(e, s)| {
-                e[..].batch_scalar_mul_in_place::<BigInteger64>(&mut s[..], 1);
-            });
-        println!("Initial generation: {:?}", now.elapsed().as_micros());
+        let random_elems = create_pseudo_uniform_random_elems(&mut rng, MAX_LOGN);
 
         let now = std::time::Instant::now();
         let mut non_subgroup_points = Vec::with_capacity(1 << 10);
@@ -506,7 +480,6 @@ macro_rules! batch_verify_test {
                 // Randomly insert random non-subgroup elems
                 for k in 0..(1 << j) {
                     tmp_elems[random_location.sample(&mut rng)] = non_subgroup_points[k];
-                    break;
                 }
                 let now = std::time::Instant::now();
                 match batch_verify_in_subgroup::<$GroupAffine<P>>(&tmp_elems[..], SECURITY_PARAM) {
