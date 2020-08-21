@@ -1,4 +1,4 @@
-use crate::{cfg_iter_mut, curves::BatchGroupArithmeticSlice, AffineCurve, log2};
+use crate::{cfg_iter_mut, curves::BatchGroupArithmeticSlice, log2, AffineCurve};
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
@@ -56,10 +56,10 @@ pub fn batch_bucketed_add_split<C: AffineCurve>(
 
     // let res = if split_size < 1 << (bucket_size + 1) {
     let res = cfg_iter_mut!(elem_split)
-            .zip(cfg_iter_mut!(bucket_split))
-            .map(|(elems, buckets)| batch_bucketed_add(split_size, &mut elems[..], &buckets[..]))
-            .flatten()
-            .collect();
+        .zip(cfg_iter_mut!(bucket_split))
+        .map(|(elems, buckets)| batch_bucketed_add(split_size, &mut elems[..], &buckets[..]))
+        .flatten()
+        .collect();
     // } else {
     //     // println!("CALLING RECURSIVE");
     //     elem_split

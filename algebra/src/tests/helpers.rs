@@ -1,8 +1,7 @@
-use algebra_core::{
-    AffineCurve, BatchGroupArithmeticSlice, BigInteger64, ProjectiveCurve,
-    UniformRand,
-};
 use crate::cfg_chunks_mut;
+use algebra_core::{
+    AffineCurve, BatchGroupArithmeticSlice, BigInteger64, ProjectiveCurve, UniformRand,
+};
 use rand::{distributions::Uniform, prelude::Distribution};
 use rand_xorshift::XorShiftRng;
 

@@ -90,7 +90,6 @@ impl VariableBaseMSM {
             })
             .collect();
 
-
         // We store the sum for the lowest window.
         let lowest = *window_sums.first().unwrap();
 
@@ -188,16 +187,16 @@ impl VariableBaseMSM {
         let lowest = window_sums.first().unwrap().0;
 
         // We're traversing windows from high to low.
-        lowest +
-            &window_sums[1..]
-                .iter()
-                .rev()
-                .fold(zero, |total: G::Projective, (sum_i, window_size): &(G::Projective, usize)| {
+        lowest
+            + &window_sums[1..].iter().rev().fold(
+                zero,
+                |total: G::Projective, (sum_i, window_size): &(G::Projective, usize)| {
                     let mut total = total + sum_i;
                     for _ in 0..*window_size {
                         total.double_in_place();
                     }
                     total
-                })
+                },
+            )
     }
 }

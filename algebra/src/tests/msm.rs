@@ -1,10 +1,10 @@
 #![cfg(any(feature = "bls12_381", feature = "bw6_761", feature = "bn254"))]
 #[cfg(feature = "bls12_381")]
 use crate::bls12_381::{Fr, G1Affine, G1Projective};
-#[cfg(all(feature = "bw6_761", not(feature = "bls12_381")))]
-use crate::bw6_761::{Fr, G1Affine, G1Projective};
 #[cfg(all(feature = "bn254", not(feature = "bls12_381")))]
 use crate::bn254::{Fr, G1Affine, G1Projective};
+#[cfg(all(feature = "bw6_761", not(feature = "bls12_381")))]
+use crate::bw6_761::{Fr, G1Affine, G1Projective};
 
 use algebra_core::{
     msm::VariableBaseMSM, AffineCurve, PrimeField, ProjectiveCurve, UniformRand, Zero,
