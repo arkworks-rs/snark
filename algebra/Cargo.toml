@@ -27,6 +27,7 @@ algebra-core = { path = "../algebra-core", default-features = false }
 [dev-dependencies]
 rand = { version = "0.7", default-features = false }
 rand_xorshift = "0.2"
+rayon = { version = "1" }
 
 [features]
 default = [ "std" ]
@@ -56,5 +57,7 @@ mnt6_753 = []
 
 std = [ "algebra-core/std" ]
 parallel = [ "std", "algebra-core/parallel" ]
+parallel_random_gen = []
 derive = [ "algebra-core/derive" ]
 asm = [ "algebra-core/llvm_asm" ]
+prefetch = [ "algebra-core/prefetch"]

@@ -5,6 +5,9 @@ pub mod bn;
 pub mod bw6;
 pub mod mnt4;
 pub mod mnt6;
+
+#[macro_use]
+pub mod short_weierstrass_affine;
 pub mod short_weierstrass_jacobian;
 pub mod short_weierstrass_projective;
 pub mod twisted_edwards_extended;

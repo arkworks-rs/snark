@@ -32,6 +32,7 @@ paste = "0.1"
 
 [features]
 asm = [ "algebra/asm"]
+prefetch = [ "algebra/prefetch"]
 n_fold = []
 mnt4_298 = [ "algebra/mnt4_298"]
 mnt6_298 = [ "algebra/mnt6_298"]

@@ -6,15 +6,15 @@
 #![deny(unused_comparisons, bare_trait_objects, const_err, unused_must_use)]
 #![deny(unused_mut, unused_unsafe, private_in_public)]
 #![cfg_attr(use_asm, feature(llvm_asm))]
-#![cfg_attr(not(use_asm), forbid(unsafe_code))]
-#![cfg_attr(use_asm, deny(unsafe_code))]
+#![cfg_attr(not(any(use_asm, feature = "prefetch")), forbid(unsafe_code))]
+#![cfg_attr(not(any(use_asm, feature = "prefetch")), deny(unsafe_code))]
 
 #[cfg(all(test, not(feature = "std")))]
 #[macro_use]
 extern crate std;
 
 /// This crate needs to be public, because we expose the `to_bytes!` macro.
-/// See the similar issue in [`smallvec#198`]
+/// See the similar issue [`smallvec#198`]
 ///
 /// [`smallvec#198`]: https://github.com/servo/rust-smallvec/pull/198
 #[cfg(not(feature = "std"))]
@@ -82,6 +82,9 @@ pub use to_field_vec::ToConstraintField;
 pub mod msm;
 pub use self::msm::*;
 
+pub mod bucketed_add;
+pub use self::bucketed_add::*;
+
 pub use num_traits::{One, Zero};
 
 pub mod prelude {
@@ -121,7 +124,7 @@ fn error(msg: &'static str) -> io::Error {
     io::Error::new(io::ErrorKind::Other, msg)
 }
 
-/// Returns log2
+/// Returns floor(log2(x))
 pub fn log2(x: usize) -> u32 {
     if x <= 1 {
         return 0;
@@ -129,4 +132,49 @@ pub fn log2(x: usize) -> u32 {
 
     let n = x.leading_zeros();
     core::mem::size_of::<usize>() as u32 * 8 - n
+}
+
+#[cfg(feature = "prefetch")]
+#[inline]
+pub fn prefetch<T>(p: *const T) {
+    unsafe { core::arch::x86_64::_mm_prefetch(p as *const i8, core::arch::x86_64::_MM_HINT_T0) }
+}
+
+#[macro_export]
+macro_rules! cfg_iter {
+    ($e: expr) => {{
+        #[cfg(feature = "parallel")]
+        let result = $e.par_iter();
+
+        #[cfg(not(feature = "parallel"))]
+        let result = $e.iter();
+
+        result
+    }};
+}
+
+#[macro_export]
+macro_rules! cfg_iter_mut {
+    ($e: expr) => {{
+        #[cfg(feature = "parallel")]
+        let result = $e.par_iter_mut();
+
+        #[cfg(not(feature = "parallel"))]
+        let result = $e.iter_mut();
+
+        result
+    }};
+}
+
+#[macro_export]
+macro_rules! cfg_chunks_mut {
+    ($e: expr, $N: expr) => {{
+        #[cfg(feature = "parallel")]
+        let result = $e.par_chunks_mut($N);
+
+        #[cfg(not(feature = "parallel"))]
+        let result = $e.chunks_mut($N);
+
+        result
+    }};
 }

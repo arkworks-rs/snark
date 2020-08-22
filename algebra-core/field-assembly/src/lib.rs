@@ -13,29 +13,6 @@ use std::cell::RefCell;
 
 const MAX_REGS: usize = 6;
 
-pub fn generate_macro_string(num_limbs: usize) -> std::string::String {
-    if num_limbs > 3 * MAX_REGS {
-        panic!(
-            "Number of limbs must be <= {} and MAX_REGS >= 6",
-            3 * MAX_REGS
-        );
-    }
-    let mut macro_string = String::from(
-        "
-        macro_rules! llvm_asm_mul {
-        ($limbs:expr, $a:expr, $b:expr, $modulus:expr, $mod_prime:expr) => {
-            match $limbs {",
-    );
-    macro_string += &generate_matches(num_limbs, true);
-
-    macro_string += &"
-        macro_rules! llvm_asm_square {
-        ($limbs:expr, $a:expr, $modulus:expr, $mod_prime:expr) => {
-            match $limbs {";
-    macro_string += &generate_matches(num_limbs, false);
-    macro_string
-}
-
 #[assemble]
 fn generate_llvm_asm_mul_string(
     a: &str,
@@ -101,4 +78,27 @@ fn generate_matches(num_limbs: usize, is_mul: bool) -> String {
     }
     ctx.end(num_limbs);
     ctx.get_string()
+}
+
+pub fn generate_macro_string(num_limbs: usize) -> std::string::String {
+    if num_limbs > 3 * MAX_REGS {
+        panic!(
+            "Number of limbs must be <= {} and MAX_REGS >= 6",
+            3 * MAX_REGS
+        );
+    }
+    let mut macro_string = String::from(
+        "
+        macro_rules! llvm_asm_mul {
+        ($limbs:expr, $a:expr, $b:expr, $modulus:expr, $mod_prime:expr) => {
+            match $limbs {",
+    );
+    macro_string += &generate_matches(num_limbs, true);
+
+    macro_string += &"
+        macro_rules! llvm_asm_square {
+        ($limbs:expr, $a:expr, $modulus:expr, $mod_prime:expr) => {
+            match $limbs {";
+    macro_string += &generate_matches(num_limbs, false);
+    macro_string
 }
