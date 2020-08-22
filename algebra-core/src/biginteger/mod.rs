@@ -16,11 +16,15 @@ mod macros;
 
 bigint_impl!(BigInteger64, 1);
 bigint_impl!(BigInteger128, 2);
+bigint_impl!(BigInteger192, 3);
 bigint_impl!(BigInteger256, 4);
 bigint_impl!(BigInteger320, 5);
 bigint_impl!(BigInteger384, 6);
+bigint_impl!(BigInteger512, 8);
+bigint_impl!(BigInteger640, 10);
 bigint_impl!(BigInteger768, 12);
 bigint_impl!(BigInteger832, 13);
+bigint_impl!(BigInteger1536, 24);
 
 impl<T: BigInteger> CanonicalSerialize for T {
     #[inline]
@@ -126,7 +130,7 @@ pub trait BigInteger:
     fn find_wnaf(&self) -> Vec<i64>;
 
     /// Writes this `BigInteger` as a big endian integer. Always writes
-    /// `(num_bits` / 8) bytes.
+    /// (`num_bits` / 8) bytes.
     fn write_le<W: Write>(&self, writer: &mut W) -> IoResult<()> {
         self.write(writer)
     }
@@ -242,4 +246,7 @@ pub mod arithmetic {
 
         *carry = (tmp >> 64) as u64;
     }
+
+    // #[inline]
+    // fn mul_no_reduce(&mut self, &mut other: Self) -> &mut[]
 }

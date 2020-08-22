@@ -1,11 +1,14 @@
-use algebra_core::bigint::BigInteger;
+use algebra_core::{bigint::BigInteger, fields::Field};
+use crate::arithmetic::div_with_remainder;
+
 // We work on arrays of size 3
 // We assume that |E(F_q)| < R = 2^{ceil(limbs/2) * 64}
-fn extended_euclidean<BigInt: BigInteger>(n: BigInt, lambda: BigInt) -> ((BigInt, BigInt), (BigInt, BigInt)) {
+fn get_lattice_basis<F: Field>(n: BigInt, lambda: BigInt) -> ((BigInt, Field), (BigInt, Field))
+where BigInt: F::BigInt
+{
     let mut r = [n, lambda, n];
-    let one = iBigInteger::<BigInt>{ value: BigInt::from(1), neg: false };
-    let zero = iBigInteger::<BigInt>{ value: BigInt::from(0), neg: false };
-    let mut s = [one, zero, zero];
+    let one = Field::from(BigInt::from(1));
+    let zero = Field::from(BigInt::from(0));
     let mut t = [zero, one, zero];
 
     let sqrt_n = as_f64(n.0).sqrt();
@@ -15,8 +18,7 @@ fn extended_euclidean<BigInt: BigInteger>(n: BigInt, lambda: BigInt) -> ((BigInt
     while as_f64(r[(i + 1) % 3].0) >= sqrt_n {
         let (q, r): (BigInt, BigInt) = div_with_remainder::<BigInt>(r[i % 3], r[(i + 1) % 3]);
         r[(i + 2) % 3] = r;
-        let int_q = iBigInteger::<BigInt>::from(q);
-        s[(i + 2) % 3] = s[i % 3] - int_q * (s[(i + 1) % 3]);
+        let int_q = Field::from(q);
         t[(i + 2) % 3] = t[i % 3] - int_q * (t[(i + 1) % 3]);
 
     }
