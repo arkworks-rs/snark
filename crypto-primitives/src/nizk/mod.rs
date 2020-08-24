@@ -63,7 +63,7 @@ mod test {
             bls12_377::{Bls12_377, Fr},
             One,
         };
-        use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
+        use r1cs_core::{lc, ConstraintSynthesizer, ConstraintSystemRef, SynthesisError, Variable};
 
         #[derive(Copy, Clone)]
         struct R1CSCircuit {
@@ -83,20 +83,20 @@ mod test {
         }
 
         impl ConstraintSynthesizer<Fr> for R1CSCircuit {
-            fn generate_constraints<CS: ConstraintSystem<Fr>>(
+            fn generate_constraints(
                 self,
-                cs: &mut CS,
+                cs: ConstraintSystemRef<Fr>,
             ) -> Result<(), SynthesisError> {
-                let input = cs.alloc_input(|| "x", || Ok(self.x.unwrap()))?;
-                let sum = cs.alloc_input(|| "sum", || Ok(self.sum.unwrap()))?;
-                let witness = cs.alloc(|| "w", || Ok(self.w.unwrap()))?;
+                let input = cs.new_input_variable(|| Ok(self.x.unwrap()))?;
+                let sum = cs.new_input_variable(|| Ok(self.sum.unwrap()))?;
+                let witness = cs.new_witness_variable(|| Ok(self.w.unwrap()))?;
 
-                cs.enforce(
-                    || "check_one",
-                    |lc| lc + sum,
-                    |lc| lc + CS::one(),
-                    |lc| lc + input + witness,
-                );
+                cs.enforce_named_constraint(
+                    "enforce sum",
+                    lc!() + sum,
+                    lc!() + Variable::One,
+                    lc!() + input + witness,
+                )?;
                 Ok(())
             }
         }

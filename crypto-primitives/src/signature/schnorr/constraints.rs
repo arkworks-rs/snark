@@ -1,242 +1,157 @@
 use crate::Vec;
-use algebra_core::{groups::Group, Field};
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use algebra_core::{Field, ProjectiveCurve};
+use r1cs_core::{Namespace, SynthesisError};
 use r1cs_std::prelude::*;
 
 use crate::signature::SigRandomizePkGadget;
 
 use core::{borrow::Borrow, marker::PhantomData};
 
-use crate::signature::schnorr::{SchnorrPublicKey, SchnorrSigParameters, SchnorrSignature};
+use crate::signature::schnorr::{Parameters, PublicKey, Schnorr};
 use digest::Digest;
 
-pub struct SchnorrSigGadgetParameters<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>>
-{
-    generator: GG,
-    _group: PhantomData<*const G>,
-    _engine: PhantomData<*const ConstraintF>,
-}
+type ConstraintF<C> = <<C as ProjectiveCurve>::BaseField as Field>::BasePrimeField;
 
-impl<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> Clone
-    for SchnorrSigGadgetParameters<G, ConstraintF, GG>
+#[derive(Clone)]
+pub struct ParametersVar<C: ProjectiveCurve, GC: CurveVar<C, ConstraintF<C>>>
+where
+    for<'a> &'a GC: GroupOpsBounds<'a, C, GC>,
 {
-    fn clone(&self) -> Self {
-        Self {
-            generator: self.generator.clone(),
-            _group: PhantomData,
-            _engine: PhantomData,
-        }
-    }
+    generator: GC,
+    _curve: PhantomData<C>,
 }
 
 #[derive(Derivative)]
 #[derivative(
-    Debug(bound = "G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>"),
-    Clone(bound = "G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>"),
-    PartialEq(bound = "G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>"),
-    Eq(bound = "G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>")
+    Debug(bound = "C: ProjectiveCurve, GC: CurveVar<C, ConstraintF<C>>"),
+    Clone(bound = "C: ProjectiveCurve, GC: CurveVar<C, ConstraintF<C>>")
 )]
-pub struct SchnorrSigGadgetPk<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> {
-    pub_key: GG,
-    #[doc(hidden)]
-    _group: PhantomData<*const G>,
-    #[doc(hidden)]
-    _engine: PhantomData<*const ConstraintF>,
-}
-
-pub struct SchnorrRandomizePkGadget<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> {
-    #[doc(hidden)]
-    _group: PhantomData<*const G>,
-    #[doc(hidden)]
-    _group_gadget: PhantomData<*const GG>,
-    #[doc(hidden)]
-    _engine: PhantomData<*const ConstraintF>,
-}
-
-impl<G, GG, D, ConstraintF> SigRandomizePkGadget<SchnorrSignature<G, D>, ConstraintF>
-    for SchnorrRandomizePkGadget<G, ConstraintF, GG>
+pub struct PublicKeyVar<C: ProjectiveCurve, GC: CurveVar<C, ConstraintF<C>>>
 where
-    G: Group,
-    GG: GroupGadget<G, ConstraintF>,
-    D: Digest + Send + Sync,
-    ConstraintF: Field,
+    for<'a> &'a GC: GroupOpsBounds<'a, C, GC>,
 {
-    type ParametersGadget = SchnorrSigGadgetParameters<G, ConstraintF, GG>;
-    type PublicKeyGadget = SchnorrSigGadgetPk<G, ConstraintF, GG>;
+    pub_key: GC,
+    #[doc(hidden)]
+    _group: PhantomData<*const C>,
+}
 
-    fn check_randomization_gadget<CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        parameters: &Self::ParametersGadget,
-        public_key: &Self::PublicKeyGadget,
-        randomness: &[UInt8],
-    ) -> Result<Self::PublicKeyGadget, SynthesisError> {
+pub struct SchnorrRandomizePkGadget<C: ProjectiveCurve, GC: CurveVar<C, ConstraintF<C>>>
+where
+    for<'a> &'a GC: GroupOpsBounds<'a, C, GC>,
+{
+    #[doc(hidden)]
+    _group: PhantomData<*const C>,
+    #[doc(hidden)]
+    _group_gadget: PhantomData<*const GC>,
+}
+
+impl<C, GC, D> SigRandomizePkGadget<Schnorr<C, D>, ConstraintF<C>>
+    for SchnorrRandomizePkGadget<C, GC>
+where
+    C: ProjectiveCurve,
+    GC: CurveVar<C, ConstraintF<C>>,
+    D: Digest + Send + Sync,
+    for<'a> &'a GC: GroupOpsBounds<'a, C, GC>,
+{
+    type ParametersVar = ParametersVar<C, GC>;
+    type PublicKeyVar = PublicKeyVar<C, GC>;
+
+    fn randomize(
+        parameters: &Self::ParametersVar,
+        public_key: &Self::PublicKeyVar,
+        randomness: &[UInt8<ConstraintF<C>>],
+    ) -> Result<Self::PublicKeyVar, SynthesisError> {
         let base = parameters.generator.clone();
         let randomness = randomness
             .iter()
             .flat_map(|b| b.into_bits_le())
             .collect::<Vec<_>>();
-        let rand_pk = base.mul_bits(
-            &mut cs.ns(|| "Compute Randomizer"),
-            &public_key.pub_key,
-            randomness.iter(),
-        )?;
-        Ok(SchnorrSigGadgetPk {
+        let rand_pk = &public_key.pub_key + &base.mul_bits(randomness.iter())?;
+        Ok(PublicKeyVar {
             pub_key: rand_pk,
             _group: PhantomData,
-            _engine: PhantomData,
         })
     }
 }
 
-impl<G, ConstraintF, GG, D> AllocGadget<SchnorrSigParameters<G, D>, ConstraintF>
-    for SchnorrSigGadgetParameters<G, ConstraintF, GG>
+impl<C, GC, D> AllocVar<Parameters<C, D>, ConstraintF<C>> for ParametersVar<C, GC>
 where
-    G: Group,
-    ConstraintF: Field,
-    GG: GroupGadget<G, ConstraintF>,
+    C: ProjectiveCurve,
+    GC: CurveVar<C, ConstraintF<C>>,
     D: Digest,
+    for<'a> &'a GC: GroupOpsBounds<'a, C, GC>,
 {
-    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
-        cs: CS,
-        val: T,
-    ) -> Result<Self, SynthesisError>
-    where
-        T: Borrow<SchnorrSigParameters<G, D>>,
-    {
-        let generator = GG::alloc_constant(cs, val.borrow().generator)?;
+    fn new_variable<T: Borrow<Parameters<C, D>>>(
+        cs: impl Into<Namespace<ConstraintF<C>>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        let generator = GC::new_variable(cs, || f().map(|g| g.borrow().generator), mode)?;
         Ok(Self {
             generator,
-            _engine: PhantomData,
-            _group: PhantomData,
+            _curve: PhantomData,
         })
     }
+}
 
-    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, f: F) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<SchnorrSigParameters<G, D>>,
-    {
-        let generator = GG::alloc_checked(cs, || f().map(|pp| pp.borrow().generator))?;
+impl<C, GC> AllocVar<PublicKey<C>, ConstraintF<C>> for PublicKeyVar<C, GC>
+where
+    C: ProjectiveCurve,
+    GC: CurveVar<C, ConstraintF<C>>,
+    for<'a> &'a GC: GroupOpsBounds<'a, C, GC>,
+{
+    fn new_variable<T: Borrow<PublicKey<C>>>(
+        cs: impl Into<Namespace<ConstraintF<C>>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        let pub_key = GC::new_variable(cs, f, mode)?;
         Ok(Self {
-            generator,
-            _engine: PhantomData,
-            _group: PhantomData,
-        })
-    }
-
-    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
-        cs: CS,
-        f: F,
-    ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<SchnorrSigParameters<G, D>>,
-    {
-        let generator = GG::alloc_input(cs, || f().map(|pp| pp.borrow().generator))?;
-        Ok(Self {
-            generator,
-            _engine: PhantomData,
+            pub_key,
             _group: PhantomData,
         })
     }
 }
 
-impl<G, ConstraintF, GG> AllocGadget<SchnorrPublicKey<G>, ConstraintF>
-    for SchnorrSigGadgetPk<G, ConstraintF, GG>
+impl<C, GC> EqGadget<ConstraintF<C>> for PublicKeyVar<C, GC>
 where
-    G: Group,
-    ConstraintF: Field,
-    GG: GroupGadget<G, ConstraintF>,
-{
-    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
-        cs: CS,
-        val: T,
-    ) -> Result<Self, SynthesisError>
-    where
-        T: Borrow<SchnorrPublicKey<G>>,
-    {
-        let pub_key = GG::alloc_constant(cs, val.borrow())?;
-        Ok(Self {
-            pub_key,
-            _engine: PhantomData,
-            _group: PhantomData,
-        })
-    }
-
-    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, f: F) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<SchnorrPublicKey<G>>,
-    {
-        let pub_key = GG::alloc_input(cs, || f().map(|pk| *pk.borrow()))?;
-        Ok(Self {
-            pub_key,
-            _engine: PhantomData,
-            _group: PhantomData,
-        })
-    }
-
-    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
-        cs: CS,
-        f: F,
-    ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<SchnorrPublicKey<G>>,
-    {
-        let pub_key = GG::alloc_input(cs, || f().map(|pk| *pk.borrow()))?;
-        Ok(Self {
-            pub_key,
-            _engine: PhantomData,
-            _group: PhantomData,
-        })
-    }
-}
-
-impl<G, ConstraintF, GG> ConditionalEqGadget<ConstraintF> for SchnorrSigGadgetPk<G, ConstraintF, GG>
-where
-    G: Group,
-    ConstraintF: Field,
-    GG: GroupGadget<G, ConstraintF>,
+    C: ProjectiveCurve,
+    GC: CurveVar<C, ConstraintF<C>>,
+    for<'a> &'a GC: GroupOpsBounds<'a, C, GC>,
 {
     #[inline]
-    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
+    fn is_eq(&self, other: &Self) -> Result<Boolean<ConstraintF<C>>, SynthesisError> {
+        self.pub_key.is_eq(&other.pub_key)
+    }
+
+    #[inline]
+    fn conditional_enforce_equal(
         &self,
-        mut cs: CS,
         other: &Self,
-        condition: &Boolean,
+        condition: &Boolean<ConstraintF<C>>,
     ) -> Result<(), SynthesisError> {
-        self.pub_key.conditional_enforce_equal(
-            &mut cs.ns(|| "PubKey equality"),
-            &other.pub_key,
-            condition,
-        )?;
-        Ok(())
+        self.pub_key
+            .conditional_enforce_equal(&other.pub_key, condition)
     }
 
-    fn cost() -> usize {
-        <GG as ConditionalEqGadget<ConstraintF>>::cost()
-    }
-}
-
-impl<G, ConstraintF, GG> EqGadget<ConstraintF> for SchnorrSigGadgetPk<G, ConstraintF, GG>
-where
-    G: Group,
-    ConstraintF: Field,
-    GG: GroupGadget<G, ConstraintF>,
-{
-}
-
-impl<G, ConstraintF, GG> ToBytesGadget<ConstraintF> for SchnorrSigGadgetPk<G, ConstraintF, GG>
-where
-    G: Group,
-    ConstraintF: Field,
-    GG: GroupGadget<G, ConstraintF>,
-{
-    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(
+    #[inline]
+    fn conditional_enforce_not_equal(
         &self,
-        mut cs: CS,
-    ) -> Result<Vec<UInt8>, SynthesisError> {
-        self.pub_key.to_bytes(&mut cs.ns(|| "PubKey To Bytes"))
+        other: &Self,
+        condition: &Boolean<ConstraintF<C>>,
+    ) -> Result<(), SynthesisError> {
+        self.pub_key
+            .conditional_enforce_not_equal(&other.pub_key, condition)
+    }
+}
+
+impl<C, GC> ToBytesGadget<ConstraintF<C>> for PublicKeyVar<C, GC>
+where
+    C: ProjectiveCurve,
+    GC: CurveVar<C, ConstraintF<C>>,
+    for<'a> &'a GC: GroupOpsBounds<'a, C, GC>,
+{
+    fn to_bytes(&self) -> Result<Vec<UInt8<ConstraintF<C>>>, SynthesisError> {
+        self.pub_key.to_bytes()
     }
 }

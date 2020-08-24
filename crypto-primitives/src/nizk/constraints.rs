@@ -1,47 +1,59 @@
 use algebra_core::Field;
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use core::borrow::Borrow;
+use r1cs_core::{Namespace, SynthesisError};
 use r1cs_std::prelude::*;
 
 use crate::nizk::NIZK;
 
 pub trait NIZKVerifierGadget<N: NIZK, ConstraintF: Field> {
-    type PreparedVerificationKeyGadget;
-    type VerificationKeyGadget: AllocGadget<N::VerificationParameters, ConstraintF>
+    type PreparedVerificationKeyVar;
+    type VerificationKeyVar: AllocVar<N::VerificationParameters, ConstraintF>
         + ToBytesGadget<ConstraintF>;
-    type ProofGadget: AllocGadget<N::Proof, ConstraintF>;
+    type ProofVar: AllocVar<N::Proof, ConstraintF>;
 
-    fn check_verify<'a, CS, I, T>(
-        cs: CS,
-        verification_key: &Self::VerificationKeyGadget,
-        input: I,
-        proof: &Self::ProofGadget,
-    ) -> Result<(), SynthesisError>
-    where
-        CS: ConstraintSystem<ConstraintF>,
-        I: Iterator<Item = &'a T>,
-        T: 'a + ToBitsGadget<ConstraintF> + ?Sized;
+    /// Optionally allocates `N::Proof` in `cs` without performing
+    /// subgroup checks.
+    ///
+    /// The default implementation doesn't omit these checks.
+    fn new_proof_unchecked<T: Borrow<N::Proof>>(
+        cs: impl Into<Namespace<ConstraintF>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self::ProofVar, SynthesisError> {
+        Self::ProofVar::new_variable(cs, f, mode)
+    }
 
-    fn conditional_check_verify<'a, CS, I, T>(
-        cs: CS,
-        verification_key: &Self::VerificationKeyGadget,
-        input: I,
-        proof: &Self::ProofGadget,
-        condition: &Boolean,
-    ) -> Result<(), SynthesisError>
-    where
-        CS: ConstraintSystem<ConstraintF>,
-        I: Iterator<Item = &'a T>,
-        T: 'a + ToBitsGadget<ConstraintF> + ?Sized;
+    /// Optionally allocates `N::VerificationParameters` in `cs`
+    /// without performing subgroup checks.
+    ///
+    /// The default implementation doesn't omit these checks.
+    fn new_verification_key_unchecked<T: Borrow<N::VerificationParameters>>(
+        cs: impl Into<Namespace<ConstraintF>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self::VerificationKeyVar, SynthesisError> {
+        Self::VerificationKeyVar::new_variable(cs, f, mode)
+    }
 
-    fn conditional_check_verify_prepared<'a, CS, I, T>(
-        cs: CS,
-        prepared_verification_key: &Self::PreparedVerificationKeyGadget,
-        input: I,
-        proof: &Self::ProofGadget,
-        condition: &Boolean,
-    ) -> Result<(), SynthesisError>
-    where
-        CS: ConstraintSystem<ConstraintF>,
-        I: Iterator<Item = &'a T>,
-        T: 'a + ToBitsGadget<ConstraintF> + ?Sized;
+    fn verify<'a, T: 'a + ToBitsGadget<ConstraintF> + ?Sized>(
+        verification_key: &Self::VerificationKeyVar,
+        input: impl Iterator<Item = &'a T>,
+        proof: &Self::ProofVar,
+    ) -> Result<(), SynthesisError> {
+        Self::conditional_verify(verification_key, input, proof, &Boolean::constant(true))
+    }
+
+    fn conditional_verify<'a, T: 'a + ToBitsGadget<ConstraintF> + ?Sized>(
+        verification_key: &Self::VerificationKeyVar,
+        input: impl Iterator<Item = &'a T>,
+        proof: &Self::ProofVar,
+        condition: &Boolean<ConstraintF>,
+    ) -> Result<(), SynthesisError>;
+
+    fn conditional_verify_prepared<'a, T: 'a + ToBitsGadget<ConstraintF> + ?Sized>(
+        prepared_verification_key: &Self::PreparedVerificationKeyVar,
+        input: impl Iterator<Item = &'a T>,
+        proof: &Self::ProofVar,
+        condition: &Boolean<ConstraintF>,
+    ) -> Result<(), SynthesisError>;
 }

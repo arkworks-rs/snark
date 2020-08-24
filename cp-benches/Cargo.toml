@@ -50,9 +50,3 @@ harness = false
 name = "schnorr_sig"
 path = "benches/crypto_primitives/signature.rs"
 harness = false
-
-[[bench]]
-name = "gm17"
-path = "benches/crypto_primitives/nizk.rs"
-required-features = ["r1cs", "gm17"]
-harness = false

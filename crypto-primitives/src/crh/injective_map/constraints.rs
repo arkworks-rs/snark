@@ -2,129 +2,96 @@ use core::{fmt::Debug, marker::PhantomData};
 
 use crate::crh::{
     injective_map::{InjectiveMap, PedersenCRHCompressor, TECompressor},
-    pedersen::{
-        constraints::{PedersenCRHGadget, PedersenCRHGadgetParameters},
-        PedersenWindow,
-    },
+    pedersen::{constraints as ped_constraints, Window},
     FixedLengthCRHGadget,
 };
 
 use algebra_core::{
     curves::{
         models::{ModelParameters, TEModelParameters},
-        twisted_edwards_extended::{GroupAffine as TEAffine, GroupProjective as TEProjective},
+        twisted_edwards_extended::GroupProjective as TEProjective,
     },
     fields::{Field, PrimeField, SquareRootField},
-    groups::Group,
+    ProjectiveCurve,
 };
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_core::SynthesisError;
 use r1cs_std::{
-    fields::fp::FpGadget,
-    groups::{curves::twisted_edwards::AffineGadget as TwistedEdwardsGadget, GroupGadget},
+    fields::fp::FpVar,
+    groups::{curves::twisted_edwards::AffineVar as TEVar, CurveVar},
     prelude::*,
 };
 
+type ConstraintF<C> = <<C as ProjectiveCurve>::BaseField as Field>::BasePrimeField;
+
 pub trait InjectiveMapGadget<
-    G: Group,
-    I: InjectiveMap<G>,
-    ConstraintF: Field,
-    GG: GroupGadget<G, ConstraintF>,
->
+    C: ProjectiveCurve,
+    I: InjectiveMap<C>,
+    GG: CurveVar<C, ConstraintF<C>>,
+> where
+    for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,
 {
-    type OutputGadget: EqGadget<ConstraintF>
-        + ToBytesGadget<ConstraintF>
-        + CondSelectGadget<ConstraintF>
-        + AllocGadget<I::Output, ConstraintF>
+    type OutputVar: EqGadget<ConstraintF<C>>
+        + ToBytesGadget<ConstraintF<C>>
+        + CondSelectGadget<ConstraintF<C>>
+        + AllocVar<I::Output, ConstraintF<C>>
+        + R1CSVar<ConstraintF<C>, Value = I::Output>
         + Debug
         + Clone
         + Sized;
 
-    fn evaluate_map<CS: ConstraintSystem<ConstraintF>>(
-        cs: CS,
-        ge: &GG,
-    ) -> Result<Self::OutputGadget, SynthesisError>;
+    fn evaluate(ge: &GG) -> Result<Self::OutputVar, SynthesisError>;
 }
 
 pub struct TECompressorGadget;
 
-impl<ConstraintF, P>
-    InjectiveMapGadget<
-        TEAffine<P>,
-        TECompressor,
-        ConstraintF,
-        TwistedEdwardsGadget<P, ConstraintF, FpGadget<ConstraintF>>,
-    > for TECompressorGadget
+impl<F, P> InjectiveMapGadget<TEProjective<P>, TECompressor, TEVar<P, FpVar<F>>>
+    for TECompressorGadget
 where
-    ConstraintF: PrimeField + SquareRootField,
-    P: TEModelParameters + ModelParameters<BaseField = ConstraintF>,
+    F: PrimeField + SquareRootField,
+    P: TEModelParameters + ModelParameters<BaseField = F>,
 {
-    type OutputGadget = FpGadget<ConstraintF>;
+    type OutputVar = FpVar<F>;
 
-    fn evaluate_map<CS: ConstraintSystem<ConstraintF>>(
-        _cs: CS,
-        ge: &TwistedEdwardsGadget<P, ConstraintF, FpGadget<ConstraintF>>,
-    ) -> Result<Self::OutputGadget, SynthesisError> {
+    fn evaluate(ge: &TEVar<P, FpVar<F>>) -> Result<Self::OutputVar, SynthesisError> {
         Ok(ge.x.clone())
     }
 }
 
-impl<ConstraintF, P>
-    InjectiveMapGadget<
-        TEProjective<P>,
-        TECompressor,
-        ConstraintF,
-        TwistedEdwardsGadget<P, ConstraintF, FpGadget<ConstraintF>>,
-    > for TECompressorGadget
+pub struct PedersenCRHCompressorGadget<C, I, W, GG, IG>
 where
-    ConstraintF: PrimeField + SquareRootField,
-    P: TEModelParameters + ModelParameters<BaseField = ConstraintF>,
+    C: ProjectiveCurve,
+    I: InjectiveMap<C>,
+    W: Window,
+    GG: CurveVar<C, ConstraintF<C>>,
+    for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,
+    IG: InjectiveMapGadget<C, I, GG>,
 {
-    type OutputGadget = FpGadget<ConstraintF>;
-
-    fn evaluate_map<CS: ConstraintSystem<ConstraintF>>(
-        _cs: CS,
-        ge: &TwistedEdwardsGadget<P, ConstraintF, FpGadget<ConstraintF>>,
-    ) -> Result<Self::OutputGadget, SynthesisError> {
-        Ok(ge.x.clone())
-    }
-}
-
-pub struct PedersenCRHCompressorGadget<G, I, ConstraintF, GG, IG>
-where
-    G: Group,
-    I: InjectiveMap<G>,
-    ConstraintF: Field,
-    GG: GroupGadget<G, ConstraintF>,
-    IG: InjectiveMapGadget<G, I, ConstraintF, GG>,
-{
+    #[doc(hidden)]
     _compressor: PhantomData<I>,
+    #[doc(hidden)]
     _compressor_gadget: PhantomData<IG>,
-    _crh: PedersenCRHGadget<G, ConstraintF, GG>,
+    #[doc(hidden)]
+    _crh: ped_constraints::CRHGadget<C, GG, W>,
 }
 
-impl<G, I, ConstraintF, GG, IG, W> FixedLengthCRHGadget<PedersenCRHCompressor<G, I, W>, ConstraintF>
-    for PedersenCRHCompressorGadget<G, I, ConstraintF, GG, IG>
+impl<C, I, GG, IG, W> FixedLengthCRHGadget<PedersenCRHCompressor<C, I, W>, ConstraintF<C>>
+    for PedersenCRHCompressorGadget<C, I, W, GG, IG>
 where
-    G: Group,
-    I: InjectiveMap<G>,
-    ConstraintF: Field,
-    GG: GroupGadget<G, ConstraintF>,
-    IG: InjectiveMapGadget<G, I, ConstraintF, GG>,
-    W: PedersenWindow,
+    C: ProjectiveCurve,
+    I: InjectiveMap<C>,
+    GG: CurveVar<C, ConstraintF<C>>,
+    for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,
+    IG: InjectiveMapGadget<C, I, GG>,
+    W: Window,
 {
-    type OutputGadget = IG::OutputGadget;
-    type ParametersGadget = PedersenCRHGadgetParameters<G, W, ConstraintF, GG>;
+    type OutputVar = IG::OutputVar;
+    type ParametersVar = ped_constraints::CRHParametersVar<C, GG>;
 
-    fn check_evaluation_gadget<CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        parameters: &Self::ParametersGadget,
-        input: &[UInt8],
-    ) -> Result<Self::OutputGadget, SynthesisError> {
-        let result = PedersenCRHGadget::<G, ConstraintF, GG>::check_evaluation_gadget(
-            cs.ns(|| "PedCRH"),
-            parameters,
-            input,
-        )?;
-        IG::evaluate_map(cs.ns(|| "InjectiveMap"), &result)
+    fn evaluate(
+        parameters: &Self::ParametersVar,
+        input: &[UInt8<ConstraintF<C>>],
+    ) -> Result<Self::OutputVar, SynthesisError> {
+        let result = ped_constraints::CRHGadget::<C, GG, W>::evaluate(parameters, input)?;
+        IG::evaluate(&result)
     }
 }

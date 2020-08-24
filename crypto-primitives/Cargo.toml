@@ -40,9 +40,9 @@ rayon = { version = "1.0", optional = true }
 derivative = { version = "2.0", features = ["use_core"] }
 
 [features]
-default = ["std"]
+default = ["std", "r1cs"]
 r1cs = ["r1cs-core", "r1cs-std"]
-std = ["r1cs", "algebra-core/std", "r1cs-core/std", "r1cs-std/std"]
+std = [ "algebra-core/std", "r1cs-core/std", "r1cs-std/std"]
 parallel = ["std", "rayon", "gm17/parallel", "groth16/parallel", "ff-fft/parallel"]
 
 [dev-dependencies]

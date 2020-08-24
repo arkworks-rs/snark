@@ -1,57 +1,63 @@
 use crate::{
-    commitment::pedersen::{PedersenCommitment, PedersenParameters, PedersenRandomness},
-    crh::pedersen::PedersenWindow,
+    commitment::pedersen::{Commitment, Parameters, Randomness},
+    crh::pedersen::Window,
     Vec,
 };
 use algebra_core::{
     fields::{Field, PrimeField},
-    to_bytes, Group, ToBytes,
+    to_bytes, ProjectiveCurve, ToBytes, Zero,
 };
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_core::{Namespace, SynthesisError};
 
-use crate::commitment::CommitmentGadget;
 use core::{borrow::Borrow, marker::PhantomData};
 use r1cs_std::prelude::*;
 
+type ConstraintF<C> = <<C as ProjectiveCurve>::BaseField as Field>::BasePrimeField;
+
 #[derive(Derivative)]
-#[derivative(Clone(bound = "G: Group, W: PedersenWindow, ConstraintF: Field"))]
-pub struct PedersenCommitmentGadgetParameters<G: Group, W: PedersenWindow, ConstraintF: Field> {
-    params: PedersenParameters<G>,
+#[derivative(Clone(bound = "C: ProjectiveCurve, GG: CurveVar<C, ConstraintF<C>>"))]
+pub struct ParametersVar<C: ProjectiveCurve, GG: CurveVar<C, ConstraintF<C>>>
+where
+    for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,
+{
+    params: Parameters<C>,
     #[doc(hidden)]
-    _group: PhantomData<G>,
-    #[doc(hidden)]
-    _engine: PhantomData<ConstraintF>,
-    #[doc(hidden)]
-    _window: PhantomData<W>,
+    _group_var: PhantomData<GG>,
 }
 
 #[derive(Clone, Debug)]
-pub struct PedersenRandomnessGadget(Vec<UInt8>);
+pub struct RandomnessVar<F: Field>(Vec<UInt8<F>>);
 
-pub struct PedersenCommitmentGadget<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>>(
-    #[doc(hidden)] PhantomData<*const G>,
-    #[doc(hidden)] PhantomData<*const GG>,
-    PhantomData<ConstraintF>,
-);
-
-impl<ConstraintF, G, GG, W> CommitmentGadget<PedersenCommitment<G, W>, ConstraintF>
-    for PedersenCommitmentGadget<G, ConstraintF, GG>
+pub struct CommGadget<C: ProjectiveCurve, GG: CurveVar<C, ConstraintF<C>>, W: Window>
 where
-    ConstraintF: PrimeField,
-    G: Group,
-    GG: GroupGadget<G, ConstraintF>,
-    W: PedersenWindow,
+    for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,
 {
-    type OutputGadget = GG;
-    type ParametersGadget = PedersenCommitmentGadgetParameters<G, W, ConstraintF>;
-    type RandomnessGadget = PedersenRandomnessGadget;
+    #[doc(hidden)]
+    _curve: PhantomData<*const C>,
+    #[doc(hidden)]
+    _group_var: PhantomData<*const GG>,
+    #[doc(hidden)]
+    _window: PhantomData<*const W>,
+}
 
-    fn check_commitment_gadget<CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        parameters: &Self::ParametersGadget,
-        input: &[UInt8],
-        r: &Self::RandomnessGadget,
-    ) -> Result<Self::OutputGadget, SynthesisError> {
+impl<C, GG, W> crate::commitment::CommitmentGadget<Commitment<C, W>, ConstraintF<C>>
+    for CommGadget<C, GG, W>
+where
+    C: ProjectiveCurve,
+    GG: CurveVar<C, ConstraintF<C>>,
+    W: Window,
+    for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,
+    ConstraintF<C>: PrimeField,
+{
+    type OutputVar = GG;
+    type ParametersVar = ParametersVar<C, GG>;
+    type RandomnessVar = RandomnessVar<ConstraintF<C>>;
+
+    fn commit(
+        parameters: &Self::ParametersVar,
+        input: &[UInt8<ConstraintF<C>>],
+        r: &Self::RandomnessVar,
+    ) -> Result<Self::OutputVar, SynthesisError> {
         assert!((input.len() * 8) <= (W::WINDOW_SIZE * W::NUM_WINDOWS));
 
         let mut padded_input = input.to_vec();
@@ -72,16 +78,12 @@ where
             .flat_map(|byte| byte.into_bits_le())
             .collect();
         let input_in_bits = input_in_bits.chunks(W::WINDOW_SIZE);
-        let mut result = GG::precomputed_base_multiscalar_mul(
-            cs.ns(|| "multiexp"),
-            &parameters.params.generators,
-            input_in_bits,
-        )?;
+        let mut result =
+            GG::precomputed_base_multiscalar_mul(&parameters.params.generators, input_in_bits)?;
 
         // Compute h^r
         let rand_bits: Vec<_> = r.0.iter().flat_map(|byte| byte.into_bits_le()).collect();
         result.precomputed_base_scalar_mul(
-            cs.ns(|| "Randomizer"),
             rand_bits
                 .iter()
                 .zip(&parameters.params.randomness_generator),
@@ -91,109 +93,41 @@ where
     }
 }
 
-impl<G, W, ConstraintF> AllocGadget<PedersenParameters<G>, ConstraintF>
-    for PedersenCommitmentGadgetParameters<G, W, ConstraintF>
+impl<C, GG> AllocVar<Parameters<C>, ConstraintF<C>> for ParametersVar<C, GG>
 where
-    G: Group,
-    W: PedersenWindow,
-    ConstraintF: PrimeField,
+    C: ProjectiveCurve,
+    GG: CurveVar<C, ConstraintF<C>>,
+    for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,
 {
-    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
-        _cs: CS,
-        val: T,
-    ) -> Result<Self, SynthesisError>
-    where
-        T: Borrow<PedersenParameters<G>>,
-    {
-        let parameters = val.borrow().clone();
-
-        Ok(PedersenCommitmentGadgetParameters {
-            params: parameters,
-            _group: PhantomData,
-            _engine: PhantomData,
-            _window: PhantomData,
-        })
-    }
-
-    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
-        cs: CS,
-        value_gen: F,
-    ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<PedersenParameters<G>>,
-    {
-        let temp = value_gen()?;
-        Self::alloc_constant(cs, temp)
-    }
-
-    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
-        _cs: CS,
-        value_gen: F,
-    ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<PedersenParameters<G>>,
-    {
-        let temp = value_gen()?;
-        let parameters = temp.borrow().clone();
-
-        Ok(PedersenCommitmentGadgetParameters {
-            params: parameters,
-            _group: PhantomData,
-            _engine: PhantomData,
-            _window: PhantomData,
+    fn new_variable<T: Borrow<Parameters<C>>>(
+        _cs: impl Into<Namespace<ConstraintF<C>>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        _mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        let params = f()?.borrow().clone();
+        Ok(ParametersVar {
+            params,
+            _group_var: PhantomData,
         })
     }
 }
 
-impl<G, ConstraintF> AllocGadget<PedersenRandomness<G>, ConstraintF> for PedersenRandomnessGadget
+impl<C, F> AllocVar<Randomness<C>, F> for RandomnessVar<F>
 where
-    G: Group,
-    ConstraintF: PrimeField,
+    C: ProjectiveCurve,
+    F: PrimeField,
 {
-    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        val: T,
-    ) -> Result<Self, SynthesisError>
-    where
-        T: Borrow<PedersenRandomness<G>>,
-    {
-        let mut result_bytes = vec![];
-        for (i, byte) in to_bytes![val.borrow().0].unwrap().into_iter().enumerate() {
-            let cur = UInt8::alloc_constant(cs.ns(|| format!("byte {}", i)), byte)?;
-            result_bytes.push(cur);
+    fn new_variable<T: Borrow<Randomness<C>>>(
+        cs: impl Into<Namespace<F>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        let r = to_bytes![&f().map(|b| b.borrow().0).unwrap_or(C::ScalarField::zero())].unwrap();
+        match mode {
+            AllocationMode::Constant => Ok(Self(UInt8::constant_vec(&r))),
+            AllocationMode::Input => UInt8::new_input_vec(cs, &r).map(Self),
+            AllocationMode::Witness => UInt8::new_witness_vec(cs, &r).map(Self),
         }
-        Ok(PedersenRandomnessGadget(result_bytes))
-    }
-
-    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
-        cs: CS,
-        value_gen: F,
-    ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<PedersenRandomness<G>>,
-    {
-        let temp = value_gen()?;
-        let randomness = to_bytes![temp.borrow().0].unwrap();
-        Ok(PedersenRandomnessGadget(UInt8::alloc_vec(cs, &randomness)?))
-    }
-
-    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
-        cs: CS,
-        value_gen: F,
-    ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<PedersenRandomness<G>>,
-    {
-        let temp = value_gen()?;
-        let randomness = to_bytes![temp.borrow().0].unwrap();
-        Ok(PedersenRandomnessGadget(UInt8::alloc_input_vec(
-            cs,
-            &randomness,
-        )?))
     }
 }
 
@@ -201,31 +135,27 @@ where
 mod test {
     use algebra::{
         ed_on_bls12_381::{EdwardsProjective as JubJub, Fq, Fr},
-        test_rng, ProjectiveCurve, UniformRand,
+        test_rng, UniformRand,
     };
 
     use crate::{
         commitment::{
-            pedersen::{
-                constraints::PedersenCommitmentGadget, PedersenCommitment, PedersenRandomness,
-            },
+            pedersen::{constraints::CommGadget, Commitment, Randomness},
             CommitmentGadget, CommitmentScheme,
         },
-        crh::pedersen::PedersenWindow,
+        crh::pedersen,
     };
     use r1cs_core::ConstraintSystem;
-    use r1cs_std::{
-        ed_on_bls12_381::EdwardsGadget, prelude::*, test_constraint_system::TestConstraintSystem,
-    };
+    use r1cs_std::{ed_on_bls12_381::EdwardsVar, prelude::*};
 
     #[test]
     fn commitment_gadget_test() {
-        let mut cs = TestConstraintSystem::<Fq>::new();
+        let cs = ConstraintSystem::<Fq>::new_ref();
 
         #[derive(Clone, PartialEq, Eq, Hash)]
         pub(super) struct Window;
 
-        impl PedersenWindow for Window {
+        impl pedersen::Window for Window {
             const WINDOW_SIZE: usize = 4;
             const NUM_WINDOWS: usize = 8;
         }
@@ -234,45 +164,37 @@ mod test {
 
         let rng = &mut test_rng();
 
-        type TestCOMM = PedersenCommitment<JubJub, Window>;
-        type TestCOMMGadget = PedersenCommitmentGadget<JubJub, Fq, EdwardsGadget>;
+        type TestCOMM = Commitment<JubJub, Window>;
+        type TestCOMMGadget = CommGadget<JubJub, EdwardsVar, Window>;
 
-        let randomness = PedersenRandomness(Fr::rand(rng));
+        let randomness = Randomness(Fr::rand(rng));
 
-        let parameters = PedersenCommitment::<JubJub, Window>::setup(rng).unwrap();
+        let parameters = Commitment::<JubJub, Window>::setup(rng).unwrap();
         let primitive_result =
-            PedersenCommitment::<JubJub, Window>::commit(&parameters, &input, &randomness).unwrap();
+            Commitment::<JubJub, Window>::commit(&parameters, &input, &randomness).unwrap();
 
-        let mut input_bytes = vec![];
-        for (byte_i, input_byte) in input.iter().enumerate() {
-            let cs = cs.ns(|| format!("input_byte_gadget_{}", byte_i));
-            input_bytes.push(UInt8::alloc(cs, || Ok(*input_byte)).unwrap());
+        let mut input_var = vec![];
+        for input_byte in input.iter() {
+            input_var.push(UInt8::new_witness(cs.clone(), || Ok(*input_byte)).unwrap());
         }
 
-        let randomness =
-            <TestCOMMGadget as CommitmentGadget<TestCOMM, Fq>>::RandomnessGadget::alloc(
-                &mut cs.ns(|| "gadget_randomness"),
+        let randomness_var =
+            <TestCOMMGadget as CommitmentGadget<TestCOMM, Fq>>::RandomnessVar::new_witness(
+                cs.ns("gadget_randomness"),
                 || Ok(&randomness),
             )
             .unwrap();
-        let gadget_parameters =
-            <TestCOMMGadget as CommitmentGadget<TestCOMM, Fq>>::ParametersGadget::alloc(
-                &mut cs.ns(|| "gadget_parameters"),
+        let parameters_var =
+            <TestCOMMGadget as CommitmentGadget<TestCOMM, Fq>>::ParametersVar::new_witness(
+                cs.ns("gadget_parameters"),
                 || Ok(&parameters),
             )
             .unwrap();
-        let gadget_result =
-            <TestCOMMGadget as CommitmentGadget<TestCOMM, Fq>>::check_commitment_gadget(
-                &mut cs.ns(|| "gadget_evaluation"),
-                &gadget_parameters,
-                &input_bytes,
-                &randomness,
-            )
-            .unwrap();
+        let result_var =
+            TestCOMMGadget::commit(&parameters_var, &input_var, &randomness_var).unwrap();
 
-        let primitive_result = primitive_result.into_affine();
-        assert_eq!(primitive_result.x, gadget_result.x.value.unwrap());
-        assert_eq!(primitive_result.y, gadget_result.y.value.unwrap());
-        assert!(cs.is_satisfied());
+        let primitive_result = primitive_result;
+        assert_eq!(primitive_result, result_var.value().unwrap());
+        assert!(cs.is_satisfied().unwrap());
     }
 }

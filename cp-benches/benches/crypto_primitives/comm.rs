@@ -10,7 +10,7 @@ use crypto_primitives::commitment::{pedersen::*, CommitmentScheme};
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct CommWindow;
 
-impl PedersenWindow for CommWindow {
+impl Window for CommWindow {
     const WINDOW_SIZE: usize = 250;
     const NUM_WINDOWS: usize = 8;
 }
@@ -19,25 +19,21 @@ fn pedersen_comm_setup(c: &mut Criterion) {
     c.bench_function("Pedersen Commitment Setup", move |b| {
         b.iter(|| {
             let mut rng = &mut rand::thread_rng();
-            PedersenCommitment::<Edwards, CommWindow>::setup(&mut rng).unwrap()
+            Commitment::<Edwards, CommWindow>::setup(&mut rng).unwrap()
         })
     });
 }
 
 fn pedersen_comm_eval(c: &mut Criterion) {
     let mut rng = &mut rand::thread_rng();
-    let parameters = PedersenCommitment::<Edwards, CommWindow>::setup(&mut rng).unwrap();
+    let parameters = Commitment::<Edwards, CommWindow>::setup(&mut rng).unwrap();
     let input = vec![5u8; 128];
     c.bench_function("Pedersen Commitment Eval", move |b| {
         b.iter(|| {
             let rng = &mut rand::thread_rng();
-            let commitment_randomness = PedersenRandomness::rand(rng);
-            PedersenCommitment::<Edwards, CommWindow>::commit(
-                &parameters,
-                &input,
-                &commitment_randomness,
-            )
-            .unwrap();
+            let commitment_randomness = Randomness::rand(rng);
+            Commitment::<Edwards, CommWindow>::commit(&parameters, &input, &commitment_randomness)
+                .unwrap();
         })
     });
 }

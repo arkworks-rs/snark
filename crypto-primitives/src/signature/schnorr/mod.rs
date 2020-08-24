@@ -2,9 +2,8 @@ use crate::{Error, SignatureScheme, Vec};
 use algebra_core::{
     bytes::ToBytes,
     fields::{Field, PrimeField},
-    groups::Group,
     io::{Result as IoResult, Write},
-    to_bytes, One, ToConstraintField, UniformRand, Zero,
+    to_bytes, AffineCurve, One, ProjectiveCurve, ToConstraintField, UniformRand, Zero,
 };
 use core::{hash::Hash, marker::PhantomData};
 use digest::Digest;
@@ -13,57 +12,55 @@ use rand::Rng;
 #[cfg(feature = "r1cs")]
 pub mod constraints;
 
-pub struct SchnorrSignature<G: Group, D: Digest> {
-    _group: PhantomData<G>,
+pub struct Schnorr<C: ProjectiveCurve, D: Digest> {
+    _group: PhantomData<C>,
     _hash: PhantomData<D>,
 }
 
 #[derive(Derivative)]
-#[derivative(Clone(bound = "G: Group, H: Digest"))]
-pub struct SchnorrSigParameters<G: Group, H: Digest> {
+#[derivative(Clone(bound = "C: ProjectiveCurve, H: Digest"), Debug)]
+pub struct Parameters<C: ProjectiveCurve, H: Digest> {
     _hash: PhantomData<H>,
-    pub generator: G,
+    pub generator: C::Affine,
     pub salt: [u8; 32],
 }
 
-pub type SchnorrPublicKey<G> = G;
+pub type PublicKey<C> = <C as ProjectiveCurve>::Affine;
 
-#[derive(Derivative)]
-#[derivative(Clone(bound = "G: Group"), Default(bound = "G: Group"))]
-pub struct SchnorrSecretKey<G: Group>(pub G::ScalarField);
+#[derive(Clone, Default, Debug)]
+pub struct SecretKey<C: ProjectiveCurve>(pub C::ScalarField);
 
-impl<G: Group> ToBytes for SchnorrSecretKey<G> {
+impl<C: ProjectiveCurve> ToBytes for SecretKey<C> {
     #[inline]
     fn write<W: Write>(&self, writer: W) -> IoResult<()> {
         self.0.write(writer)
     }
 }
 
-#[derive(Derivative)]
-#[derivative(Clone(bound = "G: Group"), Default(bound = "G: Group"))]
-pub struct SchnorrSig<G: Group> {
-    pub prover_response: G::ScalarField,
-    pub verifier_challenge: G::ScalarField,
+#[derive(Clone, Default, Debug)]
+pub struct Signature<C: ProjectiveCurve> {
+    pub prover_response: C::ScalarField,
+    pub verifier_challenge: C::ScalarField,
 }
 
-impl<G: Group + Hash, D: Digest + Send + Sync> SignatureScheme for SchnorrSignature<G, D>
+impl<C: ProjectiveCurve + Hash, D: Digest + Send + Sync> SignatureScheme for Schnorr<C, D>
 where
-    G::ScalarField: PrimeField,
+    C::ScalarField: PrimeField,
 {
-    type Parameters = SchnorrSigParameters<G, D>;
-    type PublicKey = G;
-    type SecretKey = SchnorrSecretKey<G>;
-    type Signature = SchnorrSig<G>;
+    type Parameters = Parameters<C, D>;
+    type PublicKey = PublicKey<C>;
+    type SecretKey = SecretKey<C>;
+    type Signature = Signature<C>;
 
     fn setup<R: Rng>(rng: &mut R) -> Result<Self::Parameters, Error> {
         let setup_time = start_timer!(|| "SchnorrSig::Setup");
 
         let mut salt = [0u8; 32];
         rng.fill_bytes(&mut salt);
-        let generator = G::rand(rng);
+        let generator = C::rand(rng).into();
 
         end_timer!(setup_time);
-        Ok(SchnorrSigParameters {
+        Ok(Parameters {
             _hash: PhantomData,
             generator,
             salt,
@@ -76,11 +73,11 @@ where
     ) -> Result<(Self::PublicKey, Self::SecretKey), Error> {
         let keygen_time = start_timer!(|| "SchnorrSig::KeyGen");
 
-        let secret_key = G::ScalarField::rand(rng);
-        let public_key = parameters.generator.mul(&secret_key);
+        let secret_key = C::ScalarField::rand(rng);
+        let public_key = parameters.generator.mul(secret_key).into();
 
         end_timer!(keygen_time);
-        Ok((public_key, SchnorrSecretKey(secret_key)))
+        Ok((public_key, SecretKey(secret_key)))
     }
 
     fn sign<R: Rng>(
@@ -93,10 +90,10 @@ where
         // (k, e);
         let (random_scalar, verifier_challenge) = loop {
             // Sample a random scalar `k` from the prime scalar field.
-            let random_scalar: G::ScalarField = G::ScalarField::rand(rng);
-            // Commit to the random scalar via r := k · g.
+            let random_scalar: C::ScalarField = C::ScalarField::rand(rng);
+            // Commit to the random scalar via r := k · G.
             // This is the prover's first msg in the Sigma protocol.
-            let prover_commitment: G = parameters.generator.mul(&random_scalar);
+            let prover_commitment = parameters.generator.mul(random_scalar).into_affine();
 
             // Hash everything to get verifier challenge.
             let mut hash_input = Vec::new();
@@ -106,7 +103,7 @@ where
 
             // Compute the supposed verifier response: e := H(salt || r || msg);
             if let Some(verifier_challenge) =
-                G::ScalarField::from_random_bytes(&D::digest(&hash_input))
+                C::ScalarField::from_random_bytes(&D::digest(&hash_input))
             {
                 break (random_scalar, verifier_challenge);
             };
@@ -114,7 +111,7 @@ where
 
         // k - xe;
         let prover_response = random_scalar - &(verifier_challenge * &sk.0);
-        let signature = SchnorrSig {
+        let signature = Signature {
             prover_response,
             verifier_challenge,
         };
@@ -131,13 +128,14 @@ where
     ) -> Result<bool, Error> {
         let verify_time = start_timer!(|| "SchnorrSig::Verify");
 
-        let SchnorrSig {
+        let Signature {
             prover_response,
             verifier_challenge,
         } = signature;
-        let mut claimed_prover_commitment = parameters.generator.mul(prover_response);
-        let public_key_times_verifier_challenge = pk.mul(verifier_challenge);
+        let mut claimed_prover_commitment = parameters.generator.mul(*prover_response);
+        let public_key_times_verifier_challenge = pk.mul(*verifier_challenge);
         claimed_prover_commitment += &public_key_times_verifier_challenge;
+        let claimed_prover_commitment = claimed_prover_commitment.into_affine();
 
         let mut hash_input = Vec::new();
         hash_input.extend_from_slice(&parameters.salt);
@@ -145,7 +143,7 @@ where
         hash_input.extend_from_slice(&message);
 
         let obtained_verifier_challenge = if let Some(obtained_verifier_challenge) =
-            G::ScalarField::from_random_bytes(&D::digest(&hash_input))
+            C::ScalarField::from_random_bytes(&D::digest(&hash_input))
         {
             obtained_verifier_challenge
         } else {
@@ -162,20 +160,26 @@ where
     ) -> Result<Self::PublicKey, Error> {
         let rand_pk_time = start_timer!(|| "SchnorrSig::RandomizePubKey");
 
-        let mut randomized_pk = *public_key;
-        let mut base = parameters.generator;
-        let mut encoded = G::zero();
-        for bit in bytes_to_bits(randomness) {
-            if bit {
-                encoded += &base;
+        let randomized_pk = *public_key;
+        let base = parameters.generator;
+        let mut encoded = C::zero();
+        let mut found_one = false;
+        for bit in bytes_to_bits(randomness).into_iter().rev() {
+            if found_one {
+                encoded.double_in_place();
+            } else {
+                found_one |= bit;
             }
-            base.double_in_place();
+
+            if bit {
+                encoded.add_assign_mixed(&base)
+            }
         }
-        randomized_pk += &encoded;
+        encoded.add_assign_mixed(&randomized_pk);
 
         end_timer!(rand_pk_time);
 
-        Ok(randomized_pk)
+        Ok(encoded.into())
     }
 
     fn randomize_signature(
@@ -184,12 +188,12 @@ where
         randomness: &[u8],
     ) -> Result<Self::Signature, Error> {
         let rand_signature_time = start_timer!(|| "SchnorrSig::RandomizeSig");
-        let SchnorrSig {
+        let Signature {
             prover_response,
             verifier_challenge,
         } = signature;
-        let mut base = G::ScalarField::one();
-        let mut multiplier = G::ScalarField::zero();
+        let mut base = C::ScalarField::one();
+        let mut multiplier = C::ScalarField::zero();
         for bit in bytes_to_bits(randomness) {
             if bit {
                 multiplier += &base;
@@ -197,7 +201,7 @@ where
             base.double_in_place();
         }
 
-        let new_sig = SchnorrSig {
+        let new_sig = Signature {
             prover_response: *prover_response - &(*verifier_challenge * &multiplier),
             verifier_challenge: *verifier_challenge,
         };
@@ -217,11 +221,11 @@ pub fn bytes_to_bits(bytes: &[u8]) -> Vec<bool> {
     bits
 }
 
-impl<ConstraintF: Field, G: Group + ToConstraintField<ConstraintF>, D: Digest>
-    ToConstraintField<ConstraintF> for SchnorrSigParameters<G, D>
+impl<ConstraintF: Field, C: ProjectiveCurve + ToConstraintField<ConstraintF>, D: Digest>
+    ToConstraintField<ConstraintF> for Parameters<C, D>
 {
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
-        self.generator.to_field_elements()
+        self.generator.into_projective().to_field_elements()
     }
 }

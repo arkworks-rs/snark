@@ -1,9 +1,8 @@
 use crate::{Error, Vec};
 use algebra_core::{
     bytes::ToBytes,
-    groups::Group,
     io::{Result as IoResult, Write},
-    BitIterator, Field, FpParameters, PrimeField, ToConstraintField, UniformRand,
+    BitIterator, Field, FpParameters, PrimeField, ProjectiveCurve, ToConstraintField, UniformRand,
 };
 
 use core::marker::PhantomData;
@@ -11,64 +10,55 @@ use rand::Rng;
 
 use super::CommitmentScheme;
 
-pub use crate::crh::pedersen::PedersenWindow;
-use crate::crh::{
-    pedersen::{PedersenCRH, PedersenParameters as PedersenCRHParameters},
-    FixedLengthCRH,
-};
+pub use crate::crh::pedersen::Window;
+use crate::crh::{pedersen, FixedLengthCRH};
 
 #[cfg(feature = "r1cs")]
 pub mod constraints;
 
 #[derive(Clone)]
-pub struct PedersenParameters<G: Group> {
-    pub randomness_generator: Vec<G>,
-    pub generators: Vec<Vec<G>>,
+pub struct Parameters<C: ProjectiveCurve> {
+    pub randomness_generator: Vec<C>,
+    pub generators: Vec<Vec<C>>,
 }
 
-pub struct PedersenCommitment<G: Group, W: PedersenWindow> {
-    group: PhantomData<G>,
+pub struct Commitment<C: ProjectiveCurve, W: Window> {
+    group: PhantomData<C>,
     window: PhantomData<W>,
 }
 
 #[derive(Derivative)]
-#[derivative(
-    Clone(bound = "G: Group"),
-    PartialEq(bound = "G: Group"),
-    Debug(bound = "G: Group"),
-    Eq(bound = "G: Group"),
-    Default(bound = "G: Group")
-)]
-pub struct PedersenRandomness<G: Group>(pub G::ScalarField);
+#[derivative(Clone, PartialEq, Debug, Eq, Default)]
+pub struct Randomness<C: ProjectiveCurve>(pub C::ScalarField);
 
-impl<G: Group> UniformRand for PedersenRandomness<G> {
+impl<C: ProjectiveCurve> UniformRand for Randomness<C> {
     #[inline]
     fn rand<R: Rng + ?Sized>(rng: &mut R) -> Self {
-        PedersenRandomness(UniformRand::rand(rng))
+        Randomness(UniformRand::rand(rng))
     }
 }
 
-impl<G: Group> ToBytes for PedersenRandomness<G> {
+impl<C: ProjectiveCurve> ToBytes for Randomness<C> {
     fn write<W: Write>(&self, writer: W) -> IoResult<()> {
         self.0.write(writer)
     }
 }
 
-impl<G: Group, W: PedersenWindow> CommitmentScheme for PedersenCommitment<G, W> {
-    type Parameters = PedersenParameters<G>;
-    type Randomness = PedersenRandomness<G>;
-    type Output = G;
+impl<C: ProjectiveCurve, W: Window> CommitmentScheme for Commitment<C, W> {
+    type Parameters = Parameters<C>;
+    type Randomness = Randomness<C>;
+    type Output = C::Affine;
 
     fn setup<R: Rng>(rng: &mut R) -> Result<Self::Parameters, Error> {
         let time = start_timer!(|| format!(
-            "PedersenCOMM::Setup: {} {}-bit windows; {{0,1}}^{{{}}} -> G",
+            "PedersenCOMM::Setup: {} {}-bit windows; {{0,1}}^{{{}}} -> C",
             W::NUM_WINDOWS,
             W::WINDOW_SIZE,
             W::NUM_WINDOWS * W::WINDOW_SIZE
         ));
-        let num_powers = <G::ScalarField as PrimeField>::Params::MODULUS_BITS as usize;
-        let randomness_generator = PedersenCRH::<_, W>::generator_powers(num_powers, rng);
-        let generators = PedersenCRH::<_, W>::create_generators(rng);
+        let num_powers = <C::ScalarField as PrimeField>::Params::MODULUS_BITS as usize;
+        let randomness_generator = pedersen::CRH::<C, W>::generator_powers(num_powers, rng);
+        let generators = pedersen::CRH::<C, W>::create_generators(rng);
         end_timer!(time);
 
         Ok(Self::Parameters {
@@ -102,10 +92,10 @@ impl<G: Group, W: PedersenWindow> CommitmentScheme for PedersenCommitment<G, W> 
 
         // Invoke Pedersen CRH here, to prevent code duplication.
 
-        let crh_parameters = PedersenCRHParameters {
+        let crh_parameters = pedersen::Parameters {
             generators: parameters.generators.clone(),
         };
-        let mut result = PedersenCRH::<_, W>::evaluate(&crh_parameters, &input)?;
+        let mut result: C = pedersen::CRH::<C, W>::evaluate(&crh_parameters, &input)?.into();
         let randomize_time = start_timer!(|| "Randomize");
 
         // Compute h^r.
@@ -122,12 +112,12 @@ impl<G: Group, W: PedersenWindow> CommitmentScheme for PedersenCommitment<G, W> 
         end_timer!(randomize_time);
         end_timer!(commit_time);
 
-        Ok(result)
+        Ok(result.into())
     }
 }
 
-impl<ConstraintF: Field, G: Group + ToConstraintField<ConstraintF>> ToConstraintField<ConstraintF>
-    for PedersenParameters<G>
+impl<ConstraintF: Field, C: ProjectiveCurve + ToConstraintField<ConstraintF>>
+    ToConstraintField<ConstraintF> for Parameters<C>
 {
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
