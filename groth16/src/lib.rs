@@ -18,18 +18,18 @@ extern crate bench_utils;
 extern crate alloc;
 
 #[cfg(not(feature = "std"))]
-use alloc::{string::String, vec::Vec};
+use alloc::vec::Vec;
 
 #[cfg(feature = "std")]
-use std::{string::String, vec::Vec};
+use std::vec::Vec;
 
 use algebra_core::{
     bytes::ToBytes,
     io::{self, Result as IoResult},
     serialize::*,
-    Field, PairingEngine,
+    PairingEngine,
 };
-use r1cs_core::{Index, LinearCombination, SynthesisError};
+use r1cs_core::SynthesisError;
 
 /// Reduce an R1CS instance to a *Quadratic Arithmetic Program* instance.
 pub mod r1cs_to_qap;
@@ -168,19 +168,6 @@ impl<E: PairingEngine> ToBytes for PreparedVerifyingKey<E> {
             q.write(&mut writer)?;
         }
         Ok(())
-    }
-}
-
-fn push_constraints<F: Field>(
-    l: LinearCombination<F>,
-    constraints: &mut [Vec<(F, Index)>],
-    this_constraint: usize,
-) {
-    for (var, coeff) in l.as_ref() {
-        match var.get_unchecked() {
-            Index::Input(i) => constraints[this_constraint].push((*coeff, Index::Input(i))),
-            Index::Aux(i) => constraints[this_constraint].push((*coeff, Index::Aux(i))),
-        }
     }
 }
 
