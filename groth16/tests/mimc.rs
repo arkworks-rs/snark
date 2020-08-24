@@ -32,13 +32,12 @@ use rand::Rng;
 use std::time::{Duration, Instant};
 
 // Bring in some tools for using pairing-friendly curves
+// We're going to use the BLS12-381 pairing-friendly elliptic curve.
 use algebra::bls12_381::{Bls12_381, Fr};
 use algebra_core::{test_rng, Field};
 
-// We're going to use the BLS12-381 pairing-friendly elliptic curve.
-
 // We'll use these interfaces to construct our circuit.
-use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
+use r1cs_core::{lc, ConstraintSynthesizer, ConstraintSystemRef, SynthesisError, Variable};
 
 const MIMC_ROUNDS: usize = 322;
 
@@ -84,29 +83,23 @@ struct MiMCDemo<'a, F: Field> {
 /// is used during paramgen and proving in order to
 /// synthesize the constraint system.
 impl<'a, F: Field> ConstraintSynthesizer<F> for MiMCDemo<'a, F> {
-    fn generate_constraints<CS: ConstraintSystem<F>>(
-        self,
-        cs: &mut CS,
-    ) -> Result<(), SynthesisError> {
+    fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
         assert_eq!(self.constants.len(), MIMC_ROUNDS);
 
         // Allocate the first component of the preimage.
         let mut xl_value = self.xl;
-        let mut xl = cs.alloc(
-            || "preimage xl",
-            || xl_value.ok_or(SynthesisError::AssignmentMissing),
-        )?;
+        let mut xl =
+            cs.new_witness_variable(|| xl_value.ok_or(SynthesisError::AssignmentMissing))?;
 
         // Allocate the second component of the preimage.
         let mut xr_value = self.xr;
-        let mut xr = cs.alloc(
-            || "preimage xr",
-            || xr_value.ok_or(SynthesisError::AssignmentMissing),
-        )?;
+        let mut xr =
+            cs.new_witness_variable(|| xr_value.ok_or(SynthesisError::AssignmentMissing))?;
 
         for i in 0..MIMC_ROUNDS {
             // xL, xR := xR + (xL + Ci)^3, xL
-            let cs = &mut cs.ns(|| format!("round {}", i));
+            let ns = cs.ns(format!("round {}", i));
+            let cs = ns.cs();
 
             // tmp = (xL + Ci)^2
             let tmp_value = xl_value.map(|mut e| {
@@ -114,17 +107,15 @@ impl<'a, F: Field> ConstraintSynthesizer<F> for MiMCDemo<'a, F> {
                 e.square_in_place();
                 e
             });
-            let tmp = cs.alloc(
-                || "tmp",
-                || tmp_value.ok_or(SynthesisError::AssignmentMissing),
-            )?;
+            let tmp =
+                cs.new_witness_variable(|| tmp_value.ok_or(SynthesisError::AssignmentMissing))?;
 
-            cs.enforce(
-                || "tmp = (xL + Ci)^2",
-                |lc| lc + xl + (self.constants[i], CS::one()),
-                |lc| lc + xl + (self.constants[i], CS::one()),
-                |lc| lc + tmp,
-            );
+            cs.enforce_named_constraint(
+                "tmp = (xL + Ci)^2",
+                lc!() + xl + (self.constants[i], Variable::One),
+                lc!() + xl + (self.constants[i], Variable::One),
+                lc!() + tmp,
+            )?;
 
             // new_xL = xR + (xL + Ci)^3
             // new_xL = xR + tmp * (xL + Ci)
@@ -139,23 +130,17 @@ impl<'a, F: Field> ConstraintSynthesizer<F> for MiMCDemo<'a, F> {
             let new_xl = if i == (MIMC_ROUNDS - 1) {
                 // This is the last round, xL is our image and so
                 // we allocate a public input.
-                cs.alloc_input(
-                    || "image",
-                    || new_xl_value.ok_or(SynthesisError::AssignmentMissing),
-                )?
+                cs.new_input_variable(|| new_xl_value.ok_or(SynthesisError::AssignmentMissing))?
             } else {
-                cs.alloc(
-                    || "new_xl",
-                    || new_xl_value.ok_or(SynthesisError::AssignmentMissing),
-                )?
+                cs.new_witness_variable(|| new_xl_value.ok_or(SynthesisError::AssignmentMissing))?
             };
 
-            cs.enforce(
-                || "new_xL = xR + (xL + Ci)^3",
-                |lc| lc + tmp,
-                |lc| lc + xl + (self.constants[i], CS::one()),
-                |lc| lc + new_xl - xr,
-            );
+            cs.enforce_named_constraint(
+                "new_xL = xR + (xL + Ci)^3",
+                lc!() + tmp,
+                lc!() + xl + (self.constants[i], Variable::One),
+                lc!() + new_xl - xr,
+            )?;
 
             // xR = xL
             xr = xl;

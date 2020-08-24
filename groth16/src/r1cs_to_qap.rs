@@ -1,19 +1,15 @@
 use algebra_core::{One, PairingEngine, Zero};
 use ff_fft::{cfg_iter, cfg_iter_mut, EvaluationDomain};
 
-use crate::{generator::KeypairAssembly, prover::ProvingAssignment, Vec};
-use core::ops::AddAssign;
-use r1cs_core::{ConstraintSystem, Index, SynthesisError};
+use crate::Vec;
+use core::ops::{AddAssign, Deref};
+use r1cs_core::{ConstraintSystemRef, SynthesisError};
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
 #[inline]
-fn evaluate_constraint<'a, LHS, RHS, R>(
-    terms: &'a [(LHS, Index)],
-    assignment: &'a [RHS],
-    num_inputs: usize,
-) -> R
+fn evaluate_constraint<'a, LHS, RHS, R>(terms: &'a [(LHS, usize)], assignment: &'a [RHS]) -> R
 where
     LHS: One + Send + Sync + PartialEq,
     RHS: Send + Sync + core::ops::Mul<&'a LHS, Output = RHS> + Copy,
@@ -26,10 +22,7 @@ where
     let zero = R::zero();
 
     let res = cfg_iter!(terms).fold(zero, |mut sum, (coeff, index)| {
-        let val = match index {
-            Index::Input(i) => &assignment[*i],
-            Index::Aux(i) => &assignment[num_inputs + i],
-        };
+        let val = &assignment[*index];
 
         if coeff.is_one() {
             sum += *val;
@@ -52,10 +45,11 @@ pub(crate) struct R1CStoQAP;
 impl R1CStoQAP {
     #[inline]
     pub(crate) fn instance_map_with_evaluation<E: PairingEngine, D: EvaluationDomain<E::Fr>>(
-        assembly: &KeypairAssembly<E>,
+        cs: ConstraintSystemRef<E::Fr>,
         t: &E::Fr,
     ) -> Result<(Vec<E::Fr>, Vec<E::Fr>, Vec<E::Fr>, E::Fr, usize, usize), SynthesisError> {
-        let domain_size = assembly.num_constraints + (assembly.num_inputs - 1) + 1;
+        let matrices = cs.to_matrices().unwrap();
+        let domain_size = cs.num_constraints() + cs.num_instance_variables();
         let domain = D::new(domain_size).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
         let domain_size = domain.size();
 
@@ -66,39 +60,24 @@ impl R1CStoQAP {
         let u = domain.evaluate_all_lagrange_coefficients(*t);
         end_timer!(coefficients_time);
 
-        let qap_num_variables = (assembly.num_inputs - 1) + assembly.num_aux;
+        let qap_num_variables = (cs.num_instance_variables() - 1) + cs.num_witness_variables();
 
         let mut a = vec![E::Fr::zero(); qap_num_variables + 1];
         let mut b = vec![E::Fr::zero(); qap_num_variables + 1];
         let mut c = vec![E::Fr::zero(); qap_num_variables + 1];
 
-        for i in 0..assembly.num_inputs {
-            a[i] = u[assembly.num_constraints + i];
+        for i in 0..cs.num_instance_variables() {
+            a[i] = u[cs.num_constraints() + i];
         }
 
-        for i in 0..assembly.num_constraints {
-            for &(ref coeff, index) in assembly.at[i].iter() {
-                let index = match index {
-                    Index::Input(i) => i,
-                    Index::Aux(i) => assembly.num_inputs + i,
-                };
-
+        for i in 0..cs.num_constraints() {
+            for &(ref coeff, index) in &matrices.a[i] {
                 a[index] += &(u[i] * coeff);
             }
-            for &(ref coeff, index) in assembly.bt[i].iter() {
-                let index = match index {
-                    Index::Input(i) => i,
-                    Index::Aux(i) => assembly.num_inputs + i,
-                };
-
+            for &(ref coeff, index) in &matrices.b[i] {
                 b[index] += &(u[i] * coeff);
             }
-            for &(ref coeff, index) in assembly.ct[i].iter() {
-                let index = match index {
-                    Index::Input(i) => i,
-                    Index::Aux(i) => assembly.num_inputs + i,
-                };
-
+            for &(ref coeff, index) in &matrices.c[i] {
                 c[index] += &(u[i] * coeff);
             }
         }
@@ -108,14 +87,20 @@ impl R1CStoQAP {
 
     #[inline]
     pub(crate) fn witness_map<E: PairingEngine, D: EvaluationDomain<E::Fr>>(
-        prover: &ProvingAssignment<E>,
+        prover: ConstraintSystemRef<E::Fr>,
     ) -> Result<Vec<E::Fr>, SynthesisError> {
+        let matrices = prover.to_matrices().unwrap();
         let zero = E::Fr::zero();
-        let num_inputs = prover.input_assignment.len();
+        let num_inputs = prover.num_instance_variables();
         let num_constraints = prover.num_constraints();
+        let cs = prover.borrow().unwrap();
+        let prover = cs.deref();
 
-        let full_input_assignment =
-            [&prover.input_assignment[..], &prover.aux_assignment[..]].concat();
+        let full_assignment = [
+            prover.instance_assignment.as_slice(),
+            prover.witness_assignment.as_slice(),
+        ]
+        .concat();
 
         let domain =
             D::new(num_constraints + num_inputs).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
@@ -126,15 +111,15 @@ impl R1CStoQAP {
 
         cfg_iter_mut!(a[..num_constraints])
             .zip(cfg_iter_mut!(b[..num_constraints]))
-            .zip(cfg_iter!(&prover.at))
-            .zip(cfg_iter!(&prover.bt))
+            .zip(cfg_iter!(&matrices.a))
+            .zip(cfg_iter!(&matrices.b))
             .for_each(|(((a, b), at_i), bt_i)| {
-                *a = evaluate_constraint(&at_i, &full_input_assignment, num_inputs);
-                *b = evaluate_constraint(&bt_i, &full_input_assignment, num_inputs);
+                *a = evaluate_constraint(&at_i, &full_assignment);
+                *b = evaluate_constraint(&bt_i, &full_assignment);
             });
 
         for i in 0..num_inputs {
-            a[num_constraints + i] = full_input_assignment[i];
+            a[num_constraints + i] = full_assignment[i];
         }
 
         domain.ifft_in_place(&mut a);
@@ -148,10 +133,10 @@ impl R1CStoQAP {
         drop(b);
 
         let mut c = vec![zero; domain_size];
-        cfg_iter_mut!(c[..prover.num_constraints()])
+        cfg_iter_mut!(c[..prover.num_constraints])
             .enumerate()
             .for_each(|(i, c)| {
-                *c = evaluate_constraint(&prover.ct[i], &full_input_assignment, num_inputs);
+                *c = evaluate_constraint(&matrices.c[i], &full_assignment);
             });
 
         domain.ifft_in_place(&mut c);

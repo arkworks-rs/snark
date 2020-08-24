@@ -1,18 +1,15 @@
 use algebra_core::{
-    msm::FixedBaseMSM, serialize::*, Field, One, PairingEngine, PrimeField, ProjectiveCurve,
-    UniformRand, Zero,
+    msm::FixedBaseMSM, Field, PairingEngine, PrimeField, ProjectiveCurve, UniformRand, Zero,
 };
 use ff_fft::{cfg_into_iter, cfg_iter, EvaluationDomain};
 
-use r1cs_core::{
-    ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable,
-};
+use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 use rand::Rng;
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
-use crate::{push_constraints, r1cs_to_qap::R1CStoQAP, Parameters, String, Vec, VerifyingKey};
+use crate::{r1cs_to_qap::R1CStoQAP, Parameters, Vec, VerifyingKey};
 
 /// Generates a random common reference string for
 /// a circuit.
@@ -34,105 +31,6 @@ where
     generate_parameters::<E, C, D, R>(circuit, alpha, beta, gamma, delta, rng)
 }
 
-/// This is our assembly structure that we'll use to synthesize the
-/// circuit into a QAP.
-#[derive(Clone, Debug, CanonicalSerialize, CanonicalDeserialize)]
-pub struct KeypairAssembly<E: PairingEngine> {
-    pub num_inputs: usize,
-    pub num_aux: usize,
-    pub num_constraints: usize,
-    pub at: Vec<Vec<(E::Fr, Index)>>,
-    pub bt: Vec<Vec<(E::Fr, Index)>>,
-    pub ct: Vec<Vec<(E::Fr, Index)>>,
-}
-
-impl<E: PairingEngine> ConstraintSystem<E::Fr> for KeypairAssembly<E> {
-    type Root = Self;
-
-    #[inline]
-    fn alloc<F, A, AR>(&mut self, _: A, _: F) -> Result<Variable, SynthesisError>
-    where
-        F: FnOnce() -> Result<E::Fr, SynthesisError>,
-        A: FnOnce() -> AR,
-        AR: Into<String>,
-    {
-        // There is no assignment, so we don't invoke the
-        // function for obtaining one.
-
-        let index = self.num_aux;
-        self.num_aux += 1;
-
-        Ok(Variable::new_unchecked(Index::Aux(index)))
-    }
-
-    #[inline]
-    fn alloc_input<F, A, AR>(&mut self, _: A, _: F) -> Result<Variable, SynthesisError>
-    where
-        F: FnOnce() -> Result<E::Fr, SynthesisError>,
-        A: FnOnce() -> AR,
-        AR: Into<String>,
-    {
-        // There is no assignment, so we don't invoke the
-        // function for obtaining one.
-
-        let index = self.num_inputs;
-        self.num_inputs += 1;
-
-        Ok(Variable::new_unchecked(Index::Input(index)))
-    }
-
-    fn enforce<A, AR, LA, LB, LC>(&mut self, _: A, a: LA, b: LB, c: LC)
-    where
-        A: FnOnce() -> AR,
-        AR: Into<String>,
-        LA: FnOnce(LinearCombination<E::Fr>) -> LinearCombination<E::Fr>,
-        LB: FnOnce(LinearCombination<E::Fr>) -> LinearCombination<E::Fr>,
-        LC: FnOnce(LinearCombination<E::Fr>) -> LinearCombination<E::Fr>,
-    {
-        self.at.push(vec![]);
-        self.bt.push(vec![]);
-        self.ct.push(vec![]);
-
-        push_constraints(
-            a(LinearCombination::zero()),
-            &mut self.at,
-            self.num_constraints,
-        );
-        push_constraints(
-            b(LinearCombination::zero()),
-            &mut self.bt,
-            self.num_constraints,
-        );
-        push_constraints(
-            c(LinearCombination::zero()),
-            &mut self.ct,
-            self.num_constraints,
-        );
-
-        self.num_constraints += 1;
-    }
-
-    fn push_namespace<NR, N>(&mut self, _: N)
-    where
-        NR: Into<String>,
-        N: FnOnce() -> NR,
-    {
-        // Do nothing; we don't care about namespaces in this context.
-    }
-
-    fn pop_namespace(&mut self) {
-        // Do nothing; we don't care about namespaces in this context.
-    }
-
-    fn get_root(&mut self) -> &mut Self::Root {
-        self
-    }
-
-    fn num_constraints(&self) -> usize {
-        self.num_constraints
-    }
-}
-
 /// Create parameters for a circuit, given some toxic waste.
 pub fn generate_parameters<E, C, D, R>(
     circuit: C,
@@ -148,27 +46,23 @@ where
     D: EvaluationDomain<E::Fr>,
     R: Rng,
 {
-    let mut assembly = KeypairAssembly {
-        num_inputs: 0,
-        num_aux: 0,
-        num_constraints: 0,
-        at: vec![],
-        bt: vec![],
-        ct: vec![],
-    };
-
-    // Allocate the "one" input variable
-    assembly.alloc_input(|| "", || Ok(E::Fr::one()))?;
+    let setup_time = start_timer!(|| "Groth16::Generator");
+    let cs = ConstraintSystem::new_ref();
+    cs.set_mode(r1cs_core::SynthesisMode::Setup);
 
     // Synthesize the circuit.
     let synthesis_time = start_timer!(|| "Constraint synthesis");
-    circuit.generate_constraints(&mut assembly)?;
+    circuit.generate_constraints(cs.clone())?;
     end_timer!(synthesis_time);
+
+    let lc_time = start_timer!(|| "Inlining LCs");
+    cs.inline_all_lcs();
+    end_timer!(lc_time);
 
     ///////////////////////////////////////////////////////////////////////////
     let domain_time = start_timer!(|| "Constructing evaluation domain");
 
-    let domain_size = assembly.num_constraints + (assembly.num_inputs - 1) + 1;
+    let domain_size = cs.num_constraints() + cs.num_instance_variables();
     let domain = D::new(domain_size).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
     let t = domain.sample_element_outside_domain(rng);
 
@@ -177,7 +71,7 @@ where
 
     let reduction_time = start_timer!(|| "R1CS to QAP Instance Map with Evaluation");
     let (a, b, c, zt, qap_num_variables, m_raw) =
-        R1CStoQAP::instance_map_with_evaluation::<E, D>(&assembly, &t)?;
+        R1CStoQAP::instance_map_with_evaluation::<E, D>(cs.clone(), &t)?;
     end_timer!(reduction_time);
 
     // Compute query densities
@@ -193,10 +87,11 @@ where
 
     let gamma_inverse = gamma.inverse().ok_or(SynthesisError::UnexpectedIdentity)?;
     let delta_inverse = delta.inverse().ok_or(SynthesisError::UnexpectedIdentity)?;
+    let num_instance_variables = cs.num_instance_variables();
 
-    let gamma_abc = cfg_iter!(a[0..assembly.num_inputs])
-        .zip(&b[0..assembly.num_inputs])
-        .zip(&c[0..assembly.num_inputs])
+    let gamma_abc = cfg_iter!(a[..num_instance_variables])
+        .zip(&b[..num_instance_variables])
+        .zip(&c[..num_instance_variables])
         .map(|((a, b), c)| (beta * a + &(alpha * b) + c) * &gamma_inverse)
         .collect::<Vec<_>>();
 
@@ -268,7 +163,7 @@ where
     let l_time = start_timer!(|| "Calculate L");
     let l_query =
         FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(scalar_bits, g1_window, &g1_table, &l);
-    let mut l_query = l_query[assembly.num_inputs..].to_vec();
+    let mut l_query = l_query[cs.num_instance_variables()..].to_vec();
     end_timer!(l_time);
 
     end_timer!(proving_key_time);
@@ -304,6 +199,7 @@ where
     E::G1Projective::batch_normalization(h_query.as_mut_slice());
     E::G1Projective::batch_normalization(l_query.as_mut_slice());
     end_timer!(batch_normalization_time);
+    end_timer!(setup_time);
 
     Ok(Parameters {
         vk,
