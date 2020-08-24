@@ -9,7 +9,7 @@ use std::io::{Result as IoResult, Write};
 
 use algebra::{bytes::ToBytes, ToConstraintField};
 
-use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
 
 use crate::Error;
 
@@ -107,7 +107,6 @@ where
     fn to_field_elements(&self) -> Result<Vec<C::CoreCheckF>, Error> {
         let mut v =
             ToConstraintField::<C::CoreCheckF>::to_field_elements([self.position].as_ref())?;
-        v.extend_from_slice(&self.local_data_comm_pp.to_field_elements()?);
         v.extend_from_slice(&self.local_data_comm.to_field_elements()?);
         Ok(v)
     }
@@ -150,25 +149,25 @@ impl<C: PlainDPCComponents> EmptyPredicateCircuit<C> {
 }
 
 impl<C: PlainDPCComponents> ConstraintSynthesizer<C::CoreCheckF> for EmptyPredicateCircuit<C> {
-    fn generate_constraints<CS: ConstraintSystem<C::CoreCheckF>>(
+    fn generate_constraints(
         self,
-        cs: &mut CS,
+        cs: ConstraintSystemRef<C::CoreCheckF>,
     ) -> Result<(), SynthesisError> {
-        let _position = UInt8::alloc_input_vec(cs.ns(|| "Alloc position"), &[self.position])?;
+        let _position = UInt8::new_input_vec(cs.ns("Alloc position"), &[self.position])?;
 
         let _local_data_comm_pp =
-            <C::LocalDataCommGadget as CommitmentGadget<_, _>>::ParametersGadget::alloc_input(
-                &mut cs.ns(|| "Declare Pred Input Comm parameters"),
-                || {
-                    self.comm_and_crh_parameters
-                        .get()
-                        .map(|pp| &pp.local_data_comm_pp)
-                },
+            <C::LocalDataCommGadget as CommitmentGadget<_, _>>::ParametersVar::new_constant(
+                cs.ns("Declare Pred Input Comm parameters"),
+                self.comm_and_crh_parameters
+                    .as_ref()
+                    .get()?
+                    .local_data_comm_pp
+                    .clone(),
             )?;
 
         let _local_data_comm =
-            <C::LocalDataCommGadget as CommitmentGadget<_, _>>::OutputGadget::alloc_input(
-                cs.ns(|| "Allocate predicate commitment"),
+            <C::LocalDataCommGadget as CommitmentGadget<_, _>>::OutputVar::new_input(
+                cs.ns("Allocate predicate commitment"),
                 || self.local_data_comm.get(),
             )?;
 

@@ -10,7 +10,7 @@ use std::io::{Result as IoResult, Write};
 use algebra::{bytes::ToBytes, ToConstraintField};
 
 // We'll use these interfaces to construct our circuit.
-use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
 
 use crate::Error;
 
@@ -154,25 +154,24 @@ impl<C: DelegableDPCComponents> EmptyPredicateCircuit<C> {
 }
 
 impl<C: DelegableDPCComponents> ConstraintSynthesizer<C::CoreCheckF> for EmptyPredicateCircuit<C> {
-    fn generate_constraints<CS: ConstraintSystem<C::CoreCheckF>>(
+    fn generate_constraints(
         self,
-        cs: &mut CS,
+        cs: ConstraintSystemRef<C::CoreCheckF>,
     ) -> Result<(), SynthesisError> {
-        let _position = UInt8::alloc_input_vec(cs.ns(|| "Alloc position"), &[self.position])?;
+        let _position = UInt8::new_input_vec(cs.ns("Alloc position"), &[self.position])?;
 
-        let _local_data_comm_pp =
-            <C::LocalDataCommGadget as CommitmentGadget<_, _>>::ParametersGadget::alloc_input(
-                &mut cs.ns(|| "Declare Pred Input Comm parameters"),
-                || {
-                    self.comm_and_crh_parameters
-                        .get()
-                        .map(|pp| &pp.local_data_comm_pp)
-                },
-            )?;
+        <C::LocalDataCommGadget as CommitmentGadget<_, _>>::ParametersVar::new_constant(
+            cs.ns("Declare Pred Input Comm parameters"),
+            self.comm_and_crh_parameters
+                .as_ref()
+                .get()?
+                .local_data_comm_pp
+                .clone(),
+        )?;
 
         let _local_data_comm =
-            <C::LocalDataCommGadget as CommitmentGadget<_, _>>::OutputGadget::alloc(
-                cs.ns(|| "Allocate predicate commitment"),
+            <C::LocalDataCommGadget as CommitmentGadget<_, _>>::OutputVar::new_witness(
+                cs.ns("Allocate predicate commitment"),
                 || self.local_data_comm.get(),
             )?;
 

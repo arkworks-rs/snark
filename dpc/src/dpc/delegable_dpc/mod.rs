@@ -11,7 +11,7 @@ use crate::{
     ledger::*,
 };
 use crypto_primitives::{
-    merkle_tree::*, CommitmentGadget, CommitmentScheme, FixedLengthCRH, FixedLengthCRHGadget,
+    merkle_tree, CommitmentGadget, CommitmentScheme, FixedLengthCRH, FixedLengthCRHGadget,
     NIZKVerifierGadget, PRFGadget, SigRandomizePkGadget, SignatureScheme, NIZK, PRF,
 };
 
@@ -63,9 +63,9 @@ pub trait DelegableDPCComponents: 'static + Sized {
     type RecCGadget: CommitmentGadget<Self::RecC, Self::CoreCheckF>;
 
     // Parameters for MerkleTree
-    type MerkleTreeConfig: MerkleTreeConfig;
+    type MerkleTreeConfig: merkle_tree::Config;
     type MerkleTreeHGadget: FixedLengthCRHGadget<
-        <Self::MerkleTreeConfig as MerkleTreeConfig>::H,
+        <Self::MerkleTreeConfig as merkle_tree::Config>::H,
         Self::CoreCheckF,
     >;
 
@@ -138,12 +138,12 @@ pub struct DPC<Components: DelegableDPCComponents> {
 /// keys.
 pub(crate) struct ExecuteContext<'a, Components: DelegableDPCComponents> {
     comm_crh_sig_pp: &'a CommCRHSigPublicParameters<Components>,
-    ledger_digest: MerkleTreeDigest<Components::MerkleTreeConfig>,
+    ledger_digest: merkle_tree::Digest<Components::MerkleTreeConfig>,
 
     // Old record stuff
     old_address_secret_keys: &'a [AddressSecretKey<Components>],
     old_records: &'a [DPCRecord<Components>],
-    old_witnesses: Vec<MerkleTreePath<Components::MerkleTreeConfig>>,
+    old_witnesses: Vec<merkle_tree::Path<Components::MerkleTreeConfig>>,
     old_serial_numbers: Vec<<Components::S as SignatureScheme>::PublicKey>,
     old_randomizers: Vec<Vec<u8>>,
 
@@ -409,7 +409,7 @@ impl<Components: DelegableDPCComponents> DPC<Components> {
             let input_record_time = start_timer!(|| format!("Process input record {}", i));
 
             if record.is_dummy() {
-                old_witnesses.push(MerkleTreePath::default());
+                old_witnesses.push(merkle_tree::Path::default());
             } else {
                 let comm = &record.commitment();
                 let witness = ledger.prove_cm(comm)?;
@@ -568,7 +568,7 @@ where
     type LocalData = LocalData<Components>;
 
     fn setup<R: Rng>(
-        ledger_pp: &MerkleTreeParams<Components::MerkleTreeConfig>,
+        ledger_pp: &merkle_tree::Parameters<Components::MerkleTreeConfig>,
         rng: &mut R,
     ) -> Result<Self::Parameters, Error> {
         let setup_time = start_timer!(|| "DelegableDPC::Setup");
