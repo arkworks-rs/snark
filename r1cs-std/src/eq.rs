@@ -1,142 +1,131 @@
-use crate::prelude::*;
+use crate::{prelude::*, Vec};
 use algebra::Field;
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_core::SynthesisError;
 
-/// If `condition == 1`, then enforces that `self` and `other` are equal;
-/// otherwise, it doesn't enforce anything.
-pub trait ConditionalEqGadget<ConstraintF: Field>: Eq {
-    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        cs: CS,
-        other: &Self,
-        condition: &Boolean,
-    ) -> Result<(), SynthesisError>;
+pub trait EqGadget<F: Field> {
+    /// Output a `Boolean` value representing whether `self.value() == other.value()`.
+    fn is_eq(&self, other: &Self) -> Result<Boolean<F>, SynthesisError>;
 
-    fn cost() -> usize;
-}
-impl<T: ConditionalEqGadget<ConstraintF>, ConstraintF: Field> ConditionalEqGadget<ConstraintF>
-    for [T]
-{
-    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
+    /// Output a `Boolean` value representing whether `self.value() != other.value()`.
+    fn is_neq(&self, other: &Self) -> Result<Boolean<F>, SynthesisError> {
+        Ok(self.is_eq(other)?.not())
+    }
+
+    /// If `should_enforce == true`, enforce that `self` and `other` are equal; else,
+    /// enforce a vacuously true statement.
+    fn conditional_enforce_equal(
         &self,
-        mut cs: CS,
         other: &Self,
-        condition: &Boolean,
+        should_enforce: &Boolean<F>,
     ) -> Result<(), SynthesisError> {
-        for (i, (a, b)) in self.iter().zip(other.iter()).enumerate() {
-            let mut cs = cs.ns(|| format!("Iteration {}", i));
-            a.conditional_enforce_equal(&mut cs, b, condition)?;
+        self.is_eq(&other)?
+            .conditional_enforce_equal(&Boolean::constant(true), should_enforce)
+    }
+
+    /// Enforce that `self` and `other` are equal.
+    fn enforce_equal(&self, other: &Self) -> Result<(), SynthesisError> {
+        self.conditional_enforce_equal(other, &Boolean::constant(true))
+    }
+
+    /// If `should_enforce == true`, enforce that `self` and `other` are not equal; else,
+    /// enforce a vacuously true statement.
+    fn conditional_enforce_not_equal(
+        &self,
+        other: &Self,
+        should_enforce: &Boolean<F>,
+    ) -> Result<(), SynthesisError> {
+        self.is_neq(&other)?
+            .conditional_enforce_equal(&Boolean::constant(true), should_enforce)
+    }
+
+    /// Enforce that `self` and `other` are not equal.
+    fn enforce_not_equal(&self, other: &Self) -> Result<(), SynthesisError> {
+        self.conditional_enforce_not_equal(other, &Boolean::constant(true))
+    }
+}
+
+impl<T: EqGadget<F> + R1CSVar<F>, F: Field> EqGadget<F> for [T] {
+    fn is_eq(&self, other: &Self) -> Result<Boolean<F>, SynthesisError> {
+        assert_eq!(self.len(), other.len());
+        assert!(!self.is_empty());
+        let mut results = Vec::with_capacity(self.len());
+        for (a, b) in self.iter().zip(other) {
+            results.push(a.is_eq(b)?);
+        }
+        Boolean::kary_and(&results)
+    }
+
+    fn conditional_enforce_equal(
+        &self,
+        other: &Self,
+        condition: &Boolean<F>,
+    ) -> Result<(), SynthesisError> {
+        assert_eq!(self.len(), other.len());
+        for (a, b) in self.iter().zip(other) {
+            a.conditional_enforce_equal(b, condition)?;
         }
         Ok(())
     }
 
-    fn cost() -> usize {
-        unimplemented!()
-    }
-}
-
-pub trait EqGadget<ConstraintF: Field>: Eq
-where
-    Self: ConditionalEqGadget<ConstraintF>,
-{
-    fn enforce_equal<CS: ConstraintSystem<ConstraintF>>(
+    fn conditional_enforce_not_equal(
         &self,
-        cs: CS,
         other: &Self,
+        should_enforce: &Boolean<F>,
     ) -> Result<(), SynthesisError> {
-        self.conditional_enforce_equal(cs, other, &Boolean::constant(true))
+        assert_eq!(self.len(), other.len());
+        let some_are_different = self.is_neq(other)?;
+        if let Some(cs) = some_are_different.cs().or(should_enforce.cs()) {
+            cs.enforce_constraint(
+                some_are_different.lc(),
+                should_enforce.lc(),
+                should_enforce.lc(),
+            )
+        } else {
+            // `some_are_different` and `should_enforce` are both constants
+            assert!(some_are_different.value().unwrap());
+            Ok(())
+        }
     }
-
-    fn cost() -> usize {
-        <Self as ConditionalEqGadget<ConstraintF>>::cost()
-    }
-}
-
-impl<T: EqGadget<ConstraintF>, ConstraintF: Field> EqGadget<ConstraintF> for [T] {}
-
-pub trait NEqGadget<ConstraintF: Field>: Eq {
-    fn enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        cs: CS,
-        other: &Self,
-    ) -> Result<(), SynthesisError>;
-
-    fn cost() -> usize;
 }
 
 pub trait OrEqualsGadget<ConstraintF: Field>
 where
     Self: Sized,
 {
-    fn enforce_equal_or<CS: ConstraintSystem<ConstraintF>>(
-        cs: CS,
-        cond: &Boolean,
-        var: &Self,
+    /// If `should_enforce == true`, enforce that `self` equals
+    /// (a) `first` (if `cond` is `true`)
+    /// (b) `second` (if `cond` is `false`)
+    fn conditional_enforce_equal_or(
+        &self,
+        cond: &Boolean<ConstraintF>,
         first: &Self,
         second: &Self,
+        should_enforce: &Boolean<ConstraintF>,
     ) -> Result<(), SynthesisError>;
 
-    fn cost() -> usize;
-}
-
-impl<ConstraintF: Field, T: Sized + ConditionalOrEqualsGadget<ConstraintF>>
-    OrEqualsGadget<ConstraintF> for T
-{
-    fn enforce_equal_or<CS: ConstraintSystem<ConstraintF>>(
-        cs: CS,
-        cond: &Boolean,
-        var: &Self,
+    fn enforce_equal_or(
+        &self,
+        cond: &Boolean<ConstraintF>,
         first: &Self,
         second: &Self,
     ) -> Result<(), SynthesisError> {
-        Self::conditional_enforce_equal_or(cs, cond, var, first, second, &Boolean::Constant(true))
-    }
-
-    fn cost() -> usize {
-        <Self as ConditionalOrEqualsGadget<ConstraintF>>::cost()
+        self.conditional_enforce_equal_or(cond, first, second, &Boolean::Constant(true))
     }
 }
 
-pub trait ConditionalOrEqualsGadget<ConstraintF: Field>
+impl<ConstraintF, T> OrEqualsGadget<ConstraintF> for T
 where
-    Self: Sized,
+    ConstraintF: Field,
+    T: Sized + EqGadget<ConstraintF> + CondSelectGadget<ConstraintF>,
 {
-    fn conditional_enforce_equal_or<CS: ConstraintSystem<ConstraintF>>(
-        cs: CS,
-        cond: &Boolean,
-        var: &Self,
+    fn conditional_enforce_equal_or(
+        &self,
+        cond: &Boolean<ConstraintF>,
         first: &Self,
         second: &Self,
-        should_enforce: &Boolean,
-    ) -> Result<(), SynthesisError>;
-
-    fn cost() -> usize;
-}
-
-impl<
-        ConstraintF: Field,
-        T: Sized + ConditionalEqGadget<ConstraintF> + CondSelectGadget<ConstraintF>,
-    > ConditionalOrEqualsGadget<ConstraintF> for T
-{
-    fn conditional_enforce_equal_or<CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        cond: &Boolean,
-        var: &Self,
-        first: &Self,
-        second: &Self,
-        should_enforce: &Boolean,
+        should_enforce: &Boolean<ConstraintF>,
     ) -> Result<(), SynthesisError> {
-        let match_opt = Self::conditionally_select(
-            &mut cs.ns(|| "conditional_select_in_or"),
-            cond,
-            first,
-            second,
-        )?;
-        var.conditional_enforce_equal(&mut cs.ns(|| "equals_in_or"), &match_opt, should_enforce)
-    }
-
-    fn cost() -> usize {
-        <Self as ConditionalEqGadget<ConstraintF>>::cost()
-            + <Self as CondSelectGadget<ConstraintF>>::cost()
+        let match_opt = cond.select(first, second)?;
+        self.conditional_enforce_equal(&match_opt, should_enforce)
     }
 }
