@@ -1,6 +1,6 @@
 use crate::Error;
 use algebra::{bytes::ToBytes, to_bytes, ToConstraintField};
-use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
 
 use crypto_primitives::{CommitmentScheme, FixedLengthCRH};
 
@@ -146,11 +146,11 @@ where
     <C::LocalDataComm as CommitmentScheme>::Output: ToConstraintField<C::CoreCheckF>,
     <C::LocalDataComm as CommitmentScheme>::Parameters: ToConstraintField<C::CoreCheckF>,
 {
-    fn generate_constraints<CS: ConstraintSystem<C::ProofCheckF>>(
+    fn generate_constraints(
         self,
-        cs: &mut CS,
+        cs: ConstraintSystemRef<C::ProofCheckF>,
     ) -> Result<(), SynthesisError> {
-        execute_proof_check_gadget::<C, CS>(
+        execute_proof_check_gadget::<C>(
             cs,
             self.comm_and_crh_parameters.get()?,
             self.old_private_pred_inputs.get()?.as_slice(),

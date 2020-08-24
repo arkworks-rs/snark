@@ -25,8 +25,8 @@ edition = "2018"
 algebra = { path = "../algebra", features = [ "bls12_377", "ed_on_bls12_377", "ed_on_cp6_782", "cp6_782" ] }
 r1cs-core = { path = "../r1cs-core" }
 r1cs-std = { path = "../r1cs-std", features = [ "bls12_377", "ed_on_bls12_377", "ed_on_cp6_782" ] }
-crypto-primitives = { path = "../crypto-primitives", features = [ "gm17", "r1cs" ] }
-gm17 = { path = "../gm17" }
+crypto-primitives = { path = "../crypto-primitives", features = [ "groth16", "r1cs" ] }
+groth16 = { path = "../groth16" }
 bench-utils = { path = "../bench-utils" }
 
 rand = { version = "0.7" }
