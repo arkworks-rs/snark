@@ -5,5 +5,5 @@ pub type FqGadget = FpGadget<Fq>;
 
 #[test]
 fn test() {
-    crate::fields::tests::field_test::<_, Fq, FqGadget>();
+    crate::fields::tests::field_test::<_, _, Fq, FqGadget>();
 }
