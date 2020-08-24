@@ -16,6 +16,7 @@ macro_rules! impl_ops {
     };
 }
 
+#[macro_export]
 macro_rules! impl_bounded_ops {
     (
         $type: ty,
