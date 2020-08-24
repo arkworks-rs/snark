@@ -10,7 +10,7 @@ use crypto_primitives::crh::{pedersen::*, FixedLengthCRH};
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct HashWindow;
 
-impl PedersenWindow for HashWindow {
+impl Window for HashWindow {
     const WINDOW_SIZE: usize = 250;
     const NUM_WINDOWS: usize = 8;
 }
@@ -19,18 +19,18 @@ fn pedersen_crh_setup(c: &mut Criterion) {
     c.bench_function("Pedersen CRH Setup", move |b| {
         b.iter(|| {
             let mut rng = &mut rand::thread_rng();
-            PedersenCRH::<Edwards, HashWindow>::setup(&mut rng).unwrap()
+            CRH::<Edwards, HashWindow>::setup(&mut rng).unwrap()
         })
     });
 }
 
 fn pedersen_crh_eval(c: &mut Criterion) {
     let mut rng = &mut rand::thread_rng();
-    let parameters = PedersenCRH::<Edwards, HashWindow>::setup(&mut rng).unwrap();
+    let parameters = CRH::<Edwards, HashWindow>::setup(&mut rng).unwrap();
     let input = vec![5u8; 128];
     c.bench_function("Pedersen CRH Eval", move |b| {
         b.iter(|| {
-            PedersenCRH::<Edwards, HashWindow>::evaluate(&parameters, &input).unwrap();
+            CRH::<Edwards, HashWindow>::evaluate(&parameters, &input).unwrap();
         })
     });
 }

@@ -52,9 +52,9 @@ pub trait SignatureScheme {
 
 #[cfg(test)]
 mod test {
-    use crate::{signature::schnorr::SchnorrSignature, SignatureScheme};
+    use crate::signature::{schnorr, *};
     use algebra::{
-        ed_on_bls12_381::EdwardsAffine as JubJub, groups::Group, test_rng, to_bytes, ToBytes,
+        ed_on_bls12_381::EdwardsProjective as JubJub, groups::Group, test_rng, to_bytes, ToBytes,
         UniformRand,
     };
     use blake2::Blake2s;
@@ -90,13 +90,13 @@ mod test {
     fn schnorr_signature_test() {
         let message = "Hi, I am a Schnorr signature!";
         let rng = &mut test_rng();
-        sign_and_verify::<SchnorrSignature<JubJub, Blake2s>>(message.as_bytes());
-        failed_verification::<SchnorrSignature<JubJub, Blake2s>>(
+        sign_and_verify::<schnorr::Schnorr<JubJub, Blake2s>>(message.as_bytes());
+        failed_verification::<schnorr::Schnorr<JubJub, Blake2s>>(
             message.as_bytes(),
             "Bad message".as_bytes(),
         );
         let random_scalar = to_bytes!(<JubJub as Group>::ScalarField::rand(rng)).unwrap();
-        randomize_and_verify::<SchnorrSignature<JubJub, Blake2s>>(
+        randomize_and_verify::<schnorr::Schnorr<JubJub, Blake2s>>(
             message.as_bytes(),
             &random_scalar.as_slice(),
         );

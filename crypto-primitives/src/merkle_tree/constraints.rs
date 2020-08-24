@@ -1,6 +1,6 @@
 use algebra_core::Field;
-use r1cs_core::{ConstraintSystem, SynthesisError};
-use r1cs_std::{boolean::AllocatedBit, prelude::*};
+use r1cs_core::{Namespace, SynthesisError};
+use r1cs_std::prelude::*;
 
 use crate::{
     crh::{FixedLengthCRH, FixedLengthCRHGadget},
@@ -9,58 +9,56 @@ use crate::{
 
 use core::borrow::Borrow;
 
-pub struct MerkleTreePathGadget<P, HGadget, ConstraintF>
+pub struct PathVar<P, HGadget, ConstraintF>
 where
-    P: MerkleTreeConfig,
+    P: Config,
     HGadget: FixedLengthCRHGadget<P::H, ConstraintF>,
     ConstraintF: Field,
 {
-    path: Vec<(HGadget::OutputGadget, HGadget::OutputGadget)>,
+    path: Vec<(HGadget::OutputVar, HGadget::OutputVar)>,
 }
 
-impl<P, CRHGadget, ConstraintF> MerkleTreePathGadget<P, CRHGadget, ConstraintF>
+impl<P, CRHGadget, ConstraintF> PathVar<P, CRHGadget, ConstraintF>
 where
-    P: MerkleTreeConfig,
+    P: Config,
     ConstraintF: Field,
     CRHGadget: FixedLengthCRHGadget<P::H, ConstraintF>,
+    <CRHGadget::OutputVar as R1CSVar<ConstraintF>>::Value: PartialEq,
 {
-    pub fn check_membership<CS: ConstraintSystem<ConstraintF>>(
+    pub fn check_membership(
         &self,
-        cs: CS,
-        parameters: &CRHGadget::ParametersGadget,
-        root: &CRHGadget::OutputGadget,
+        parameters: &CRHGadget::ParametersVar,
+        root: &CRHGadget::OutputVar,
         leaf: impl ToBytesGadget<ConstraintF>,
     ) -> Result<(), SynthesisError> {
-        self.conditionally_check_membership(cs, parameters, root, leaf, &Boolean::Constant(true))
+        self.conditionally_check_membership(parameters, root, leaf, &Boolean::Constant(true))
     }
 
-    pub fn conditionally_check_membership<CS: ConstraintSystem<ConstraintF>>(
+    pub fn conditionally_check_membership(
         &self,
-        mut cs: CS,
-        parameters: &CRHGadget::ParametersGadget,
-        root: &CRHGadget::OutputGadget,
+        parameters: &CRHGadget::ParametersVar,
+        root: &CRHGadget::OutputVar,
         leaf: impl ToBytesGadget<ConstraintF>,
-        should_enforce: &Boolean,
+        should_enforce: &Boolean<ConstraintF>,
     ) -> Result<(), SynthesisError> {
         assert_eq!(self.path.len(), P::HEIGHT - 1);
         // Check that the hash of the given leaf matches the leaf hash in the membership
         // proof.
-        let leaf_bits = leaf.to_bytes(&mut cs.ns(|| "leaf_to_bytes"))?;
-        let leaf_hash = CRHGadget::check_evaluation_gadget(
-            cs.ns(|| "check_evaluation_gadget"),
-            parameters,
-            &leaf_bits,
-        )?;
+        let leaf_bits = leaf.to_bytes()?;
+        let leaf_hash = CRHGadget::evaluate(parameters, &leaf_bits)?;
+        let cs = leaf_hash
+            .cs()
+            .or(root.cs())
+            .or(should_enforce.cs())
+            .unwrap();
 
         // Check if leaf is one of the bottom-most siblings.
-        let leaf_is_left = AllocatedBit::alloc(&mut cs.ns(|| "leaf_is_left"), || {
-            Ok(leaf_hash == self.path[0].0)
-        })?
-        .into();
-        CRHGadget::OutputGadget::conditional_enforce_equal_or(
-            &mut cs.ns(|| "check_leaf_is_left"),
+        let leaf_is_left = Boolean::new_witness(cs.ns("leaf_is_left"), || {
+            Ok(leaf_hash.value()?.eq(&self.path[0].0.value()?))
+        })?;
+
+        leaf_hash.conditional_enforce_equal_or(
             &leaf_is_left,
-            &leaf_hash,
             &self.path[0].0,
             &self.path[0].1,
             should_enforce,
@@ -68,133 +66,74 @@ where
 
         // Check levels between leaf level and root.
         let mut previous_hash = leaf_hash;
-        for (i, &(ref left_hash, ref right_hash)) in self.path.iter().enumerate() {
+        let mut i = 0;
+        for &(ref left_hash, ref right_hash) in &self.path {
             // Check if the previous_hash matches the correct current hash.
-            let previous_is_left =
-                AllocatedBit::alloc(&mut cs.ns(|| format!("previous_is_left_{}", i)), || {
-                    Ok(&previous_hash == left_hash)
-                })?
-                .into();
+            let previous_is_left = Boolean::new_witness(cs.ns("previous_is_left"), || {
+                Ok(previous_hash.value()?.eq(&left_hash.value()?))
+            })?;
 
-            CRHGadget::OutputGadget::conditional_enforce_equal_or(
-                &mut cs.ns(|| format!("check_equals_which_{}", i)),
+            let ns = cs.ns(format!(
+                "enforcing that inner hash is correct at i-th level{}",
+                i
+            ));
+            previous_hash.conditional_enforce_equal_or(
                 &previous_is_left,
-                &previous_hash,
                 left_hash,
                 right_hash,
                 should_enforce,
             )?;
+            drop(ns);
 
-            previous_hash = hash_inner_node_gadget::<P::H, CRHGadget, ConstraintF, _>(
-                &mut cs.ns(|| format!("hash_inner_node_{}", i)),
-                parameters,
-                left_hash,
-                right_hash,
-            )?;
+            previous_hash =
+                hash_inner_node::<P::H, CRHGadget, ConstraintF>(parameters, left_hash, right_hash)?;
+            i += 1;
         }
 
-        root.conditional_enforce_equal(
-            &mut cs.ns(|| "root_is_last"),
-            &previous_hash,
-            should_enforce,
-        )
+        root.conditional_enforce_equal(&previous_hash, should_enforce)
     }
 }
 
-pub(crate) fn hash_inner_node_gadget<H, HG, ConstraintF, CS>(
-    mut cs: CS,
-    parameters: &HG::ParametersGadget,
-    left_child: &HG::OutputGadget,
-    right_child: &HG::OutputGadget,
-) -> Result<HG::OutputGadget, SynthesisError>
+pub(crate) fn hash_inner_node<H, HG, ConstraintF>(
+    parameters: &HG::ParametersVar,
+    left_child: &HG::OutputVar,
+    right_child: &HG::OutputVar,
+) -> Result<HG::OutputVar, SynthesisError>
 where
     ConstraintF: Field,
-    CS: ConstraintSystem<ConstraintF>,
     H: FixedLengthCRH,
     HG: FixedLengthCRHGadget<H, ConstraintF>,
 {
-    let left_bytes = left_child.to_bytes(&mut cs.ns(|| "left_to_bytes"))?;
-    let right_bytes = right_child.to_bytes(&mut cs.ns(|| "right_to_bytes"))?;
+    let left_bytes = left_child.to_bytes()?;
+    let right_bytes = right_child.to_bytes()?;
     let mut bytes = left_bytes;
     bytes.extend_from_slice(&right_bytes);
 
-    HG::check_evaluation_gadget(cs, parameters, &bytes)
+    HG::evaluate(parameters, &bytes)
 }
 
-impl<P, HGadget, ConstraintF> AllocGadget<MerkleTreePath<P>, ConstraintF>
-    for MerkleTreePathGadget<P, HGadget, ConstraintF>
+impl<P, HGadget, ConstraintF> AllocVar<Path<P>, ConstraintF> for PathVar<P, HGadget, ConstraintF>
 where
-    P: MerkleTreeConfig,
+    P: Config,
     HGadget: FixedLengthCRHGadget<P::H, ConstraintF>,
     ConstraintF: Field,
 {
-    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        val: T,
-    ) -> Result<Self, SynthesisError>
-    where
-        T: Borrow<MerkleTreePath<P>>,
-    {
-        let mut path = Vec::new();
-        for (i, &(ref l, ref r)) in val.borrow().path.iter().enumerate() {
-            let l_hash = HGadget::OutputGadget::alloc_constant(
-                &mut cs.ns(|| format!("l_child_{}", i)),
-                l.clone(),
-            )?;
-            let r_hash = HGadget::OutputGadget::alloc_constant(
-                &mut cs.ns(|| format!("r_child_{}", i)),
-                r.clone(),
-            )?;
-            path.push((l_hash, r_hash));
-        }
-        Ok(MerkleTreePathGadget { path })
-    }
-
-    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        value_gen: F,
-    ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<MerkleTreePath<P>>,
-    {
-        let mut path = Vec::new();
-        for (i, &(ref l, ref r)) in value_gen()?.borrow().path.iter().enumerate() {
-            let l_hash =
-                HGadget::OutputGadget::alloc(&mut cs.ns(|| format!("l_child_{}", i)), || {
-                    Ok(l.clone())
-                })?;
-            let r_hash =
-                HGadget::OutputGadget::alloc(&mut cs.ns(|| format!("r_child_{}", i)), || {
-                    Ok(r.clone())
-                })?;
-            path.push((l_hash, r_hash));
-        }
-        Ok(MerkleTreePathGadget { path })
-    }
-
-    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        value_gen: F,
-    ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<MerkleTreePath<P>>,
-    {
-        let mut path = Vec::new();
-        for (i, &(ref l, ref r)) in value_gen()?.borrow().path.iter().enumerate() {
-            let l_hash = HGadget::OutputGadget::alloc_input(
-                &mut cs.ns(|| format!("l_child_{}", i)),
-                || Ok(l.clone()),
-            )?;
-            let r_hash = HGadget::OutputGadget::alloc_input(
-                &mut cs.ns(|| format!("r_child_{}", i)),
-                || Ok(r.clone()),
-            )?;
-            path.push((l_hash, r_hash));
-        }
-
-        Ok(MerkleTreePathGadget { path })
+    fn new_variable<T: Borrow<Path<P>>>(
+        cs: impl Into<Namespace<ConstraintF>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        let ns = cs.into();
+        let cs = ns.cs();
+        f().and_then(|val| {
+            let mut path = Vec::new();
+            for &(ref l, ref r) in val.borrow().path.iter() {
+                let l_hash = HGadget::OutputVar::new_variable(cs.ns("l_child"), || Ok(l), mode)?;
+                let r_hash = HGadget::OutputVar::new_variable(cs.ns("r_child"), || Ok(r), mode)?;
+                path.push((l_hash, r_hash));
+            }
+            Ok(PathVar { path })
+        })
     }
 }
 
@@ -202,37 +141,37 @@ where
 mod test {
     use crate::{
         crh::{
-            pedersen::{constraints::PedersenCRHGadget, PedersenCRH, PedersenWindow},
+            pedersen::{self, constraints::CRHGadget},
             FixedLengthCRH, FixedLengthCRHGadget,
         },
         merkle_tree::*,
     };
-    use algebra::ed_on_bls12_381::{EdwardsAffine as JubJub, Fq};
+    use algebra::ed_on_bls12_381::{EdwardsProjective as JubJub, Fq};
     use r1cs_core::ConstraintSystem;
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
 
     use super::*;
-    use r1cs_std::{ed_on_bls12_381::EdwardsGadget, test_constraint_system::TestConstraintSystem};
+    use r1cs_std::ed_on_bls12_381::EdwardsVar;
 
     #[derive(Clone)]
     pub(super) struct Window4x256;
-    impl PedersenWindow for Window4x256 {
+    impl pedersen::Window for Window4x256 {
         const WINDOW_SIZE: usize = 4;
         const NUM_WINDOWS: usize = 256;
     }
 
-    type H = PedersenCRH<JubJub, Window4x256>;
-    type HG = PedersenCRHGadget<JubJub, Fq, EdwardsGadget>;
+    type H = pedersen::CRH<JubJub, Window4x256>;
+    type HG = CRHGadget<JubJub, EdwardsVar, Window4x256>;
 
     struct JubJubMerkleTreeParams;
 
-    impl MerkleTreeConfig for JubJubMerkleTreeParams {
+    impl Config for JubJubMerkleTreeParams {
         const HEIGHT: usize = 32;
         type H = H;
     }
 
-    type JubJubMerkleTree = MerkleHashTree<JubJubMerkleTreeParams>;
+    type JubJubMerkleTree = MerkleTree<JubJubMerkleTreeParams>;
 
     fn generate_merkle_tree(leaves: &[[u8; 30]], use_bad_root: bool) -> () {
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
@@ -242,13 +181,13 @@ mod test {
         let root = tree.root();
         let mut satisfied = true;
         for (i, leaf) in leaves.iter().enumerate() {
-            let mut cs = TestConstraintSystem::<Fq>::new();
+            let cs = ConstraintSystem::<Fq>::new_ref();
             let proof = tree.generate_proof(i, &leaf).unwrap();
             assert!(proof.verify(&crh_parameters, &root, &leaf).unwrap());
 
             // Allocate Merkle Tree Root
-            let root = <HG as FixedLengthCRHGadget<H, _>>::OutputGadget::alloc(
-                &mut cs.ns(|| format!("new_digest_{}", i)),
+            let root = <HG as FixedLengthCRHGadget<H, _>>::OutputVar::new_witness(
+                cs.ns("new_digest"),
                 || {
                     if use_bad_root {
                         Ok(<H as FixedLengthCRH>::Output::default())
@@ -263,9 +202,9 @@ mod test {
             println!("constraints from digest: {}", constraints_from_digest);
 
             // Allocate Parameters for CRH
-            let crh_parameters = <HG as FixedLengthCRHGadget<H, Fq>>::ParametersGadget::alloc(
-                &mut cs.ns(|| format!("new_parameters_{}", i)),
-                || Ok(crh_parameters.clone()),
+            let crh_parameters = <HG as FixedLengthCRHGadget<H, Fq>>::ParametersVar::new_constant(
+                cs.ns("new_parameter"),
+                &crh_parameters,
             )
             .unwrap();
 
@@ -283,26 +222,21 @@ mod test {
             println!("constraints from leaf: {}", constraints_from_leaf);
 
             // Allocate Merkle Tree Path
-            let cw = MerkleTreePathGadget::<_, HG, _>::alloc(
-                &mut cs.ns(|| format!("new_witness_{}", i)),
-                || Ok(proof),
-            )
-            .unwrap();
+            let cw = PathVar::<_, HG, _>::new_witness(cs.ns("new_witness"), || Ok(&proof)).unwrap();
+            for (i, (l, r)) in cw.path.iter().enumerate() {
+                assert_eq!(l.value().unwrap(), proof.path[i].0);
+                assert_eq!(r.value().unwrap(), proof.path[i].1);
+            }
 
             let constraints_from_path = cs.num_constraints()
                 - constraints_from_parameters
                 - constraints_from_digest
                 - constraints_from_leaf;
             println!("constraints from path: {}", constraints_from_path);
-            let leaf_g: &[UInt8] = leaf_g.as_slice();
-            cw.check_membership(
-                &mut cs.ns(|| format!("new_witness_check_{}", i)),
-                &crh_parameters,
-                &root,
-                &leaf_g,
-            )
-            .unwrap();
-            if !cs.is_satisfied() {
+            let leaf_g: &[_] = leaf_g.as_slice();
+            cw.check_membership(&crh_parameters, &root, &leaf_g)
+                .unwrap();
+            if !cs.is_satisfied().unwrap() {
                 satisfied = false;
                 println!(
                     "Unsatisfied constraint: {}",

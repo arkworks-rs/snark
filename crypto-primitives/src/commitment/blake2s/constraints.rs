@@ -1,9 +1,10 @@
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_core::{Namespace, SynthesisError};
 
 use crate::{
-    commitment::blake2s::Blake2sCommitment,
-    prf::blake2s::constraints::{blake2s_gadget, Blake2sOutputGadget},
-    CommitmentGadget, Vec,
+    commitment::blake2s,
+    commitment::CommitmentGadget,
+    prf::blake2s::constraints::{evaluate_blake2s, OutputVar},
+    Vec,
 };
 use algebra_core::{Field, PrimeField};
 use r1cs_std::prelude::*;
@@ -11,126 +12,58 @@ use r1cs_std::prelude::*;
 use core::borrow::Borrow;
 
 #[derive(Clone)]
-pub struct Blake2sParametersGadget;
+pub struct ParametersVar;
 
 #[derive(Clone)]
-pub struct Blake2sRandomnessGadget(pub Vec<UInt8>);
+pub struct RandomnessVar<F: Field>(pub Vec<UInt8<F>>);
 
-pub struct Blake2sCommitmentGadget;
+pub struct CommGadget;
 
-impl<ConstraintF: PrimeField> CommitmentGadget<Blake2sCommitment, ConstraintF>
-    for Blake2sCommitmentGadget
-{
-    type OutputGadget = Blake2sOutputGadget;
-    type ParametersGadget = Blake2sParametersGadget;
-    type RandomnessGadget = Blake2sRandomnessGadget;
+impl<F: PrimeField> CommitmentGadget<blake2s::Commitment, F> for CommGadget {
+    type OutputVar = OutputVar<F>;
+    type ParametersVar = ParametersVar;
+    type RandomnessVar = RandomnessVar<F>;
 
-    fn check_commitment_gadget<CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        _: &Self::ParametersGadget,
-        input: &[UInt8],
-        r: &Self::RandomnessGadget,
-    ) -> Result<Self::OutputGadget, SynthesisError> {
+    fn commit(
+        _: &Self::ParametersVar,
+        input: &[UInt8<F>],
+        r: &Self::RandomnessVar,
+    ) -> Result<Self::OutputVar, SynthesisError> {
         let mut input_bits = Vec::with_capacity(512);
         for byte in input.iter().chain(r.0.iter()) {
             input_bits.extend_from_slice(&byte.into_bits_le());
         }
         let mut result = Vec::new();
-        for (i, int) in blake2s_gadget(cs.ns(|| "Blake2s Eval"), &input_bits)?
-            .into_iter()
-            .enumerate()
-        {
-            let chunk = int.to_bytes(&mut cs.ns(|| format!("Result ToBytes {}", i)))?;
+        for int in evaluate_blake2s(&input_bits)?.into_iter() {
+            let chunk = int.to_bytes()?;
             result.extend_from_slice(&chunk);
         }
-        Ok(Blake2sOutputGadget(result))
+        Ok(OutputVar(result))
     }
 }
 
-impl<ConstraintF: Field> AllocGadget<(), ConstraintF> for Blake2sParametersGadget {
-    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
-        cs: CS,
-        val: T,
-    ) -> Result<Self, SynthesisError>
-    where
-        T: Borrow<()>,
-    {
-        Self::alloc(cs, || Ok(val))
-    }
-
-    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(_: CS, _: F) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<()>,
-    {
-        Ok(Blake2sParametersGadget)
-    }
-
-    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
-        _: CS,
-        _: F,
-    ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<()>,
-    {
-        Ok(Blake2sParametersGadget)
+impl<ConstraintF: Field> AllocVar<(), ConstraintF> for ParametersVar {
+    fn new_variable<T: Borrow<()>>(
+        _cs: impl Into<Namespace<ConstraintF>>,
+        _f: impl FnOnce() -> Result<T, SynthesisError>,
+        _mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        Ok(ParametersVar)
     }
 }
 
-impl<ConstraintF: PrimeField> AllocGadget<[u8; 32], ConstraintF> for Blake2sRandomnessGadget {
-    #[inline]
-    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        val: T,
-    ) -> Result<Self, SynthesisError>
-    where
-        T: Borrow<[u8; 32]>,
-    {
-        let mut bytes = vec![];
-        for (i, b) in val.borrow().iter().enumerate() {
-            bytes.push(UInt8::alloc_constant(cs.ns(|| format!("value {}", i)), b)?)
+impl<ConstraintF: PrimeField> AllocVar<[u8; 32], ConstraintF> for RandomnessVar<ConstraintF> {
+    fn new_variable<T: Borrow<[u8; 32]>>(
+        cs: impl Into<Namespace<ConstraintF>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        let bytes = f().map(|b| *b.borrow()).unwrap_or([0u8; 32]);
+        match mode {
+            AllocationMode::Constant => Ok(Self(UInt8::constant_vec(&bytes))),
+            AllocationMode::Input => UInt8::new_input_vec(cs, &bytes).map(Self),
+            AllocationMode::Witness => UInt8::new_witness_vec(cs, &bytes).map(Self),
         }
-
-        Ok(Blake2sRandomnessGadget(bytes))
-    }
-
-    #[inline]
-    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
-        cs: CS,
-        value_gen: F,
-    ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<[u8; 32]>,
-    {
-        let zeros = [0u8; 32];
-        let value = match value_gen() {
-            Ok(val) => *(val.borrow()),
-            Err(_) => zeros,
-        };
-        let bytes = <UInt8>::alloc_vec(cs, &value)?;
-
-        Ok(Blake2sRandomnessGadget(bytes))
-    }
-
-    #[inline]
-    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
-        cs: CS,
-        value_gen: F,
-    ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<[u8; 32]>,
-    {
-        let zeros = [0u8; 32];
-        let value = match value_gen() {
-            Ok(val) => *(val.borrow()),
-            Err(_) => zeros,
-        };
-        let bytes = <UInt8>::alloc_input_vec(cs, &value)?;
-
-        Ok(Blake2sRandomnessGadget(bytes))
     }
 }
 
@@ -138,64 +71,60 @@ impl<ConstraintF: PrimeField> AllocGadget<[u8; 32], ConstraintF> for Blake2sRand
 mod test {
     use crate::{
         commitment::blake2s::{
-            constraints::{Blake2sCommitmentGadget, Blake2sRandomnessGadget},
-            Blake2sCommitment,
+            constraints::{CommGadget, RandomnessVar},
+            Commitment,
         },
-        *,
+        commitment::{CommitmentGadget, CommitmentScheme},
     };
     use algebra::{ed_on_bls12_381::Fq as Fr, test_rng};
     use r1cs_core::ConstraintSystem;
-    use r1cs_std::{prelude::*, test_constraint_system::TestConstraintSystem};
+    use r1cs_std::prelude::*;
     use rand::Rng;
 
     #[test]
     fn commitment_gadget_test() {
-        let mut cs = TestConstraintSystem::<Fr>::new();
+        let cs = ConstraintSystem::<Fr>::new_ref();
 
         let input = [1u8; 32];
 
         let rng = &mut test_rng();
 
-        type TestCOMM = Blake2sCommitment;
-        type TestCOMMGadget = Blake2sCommitmentGadget;
+        type TestCOMM = Commitment;
+        type TestCOMMGadget = CommGadget;
 
         let mut randomness = [0u8; 32];
         rng.fill(&mut randomness);
 
         let parameters = ();
-        let primitive_result = Blake2sCommitment::commit(&parameters, &input, &randomness).unwrap();
+        let primitive_result = Commitment::commit(&parameters, &input, &randomness).unwrap();
 
-        let mut input_bytes = vec![];
-        for (byte_i, input_byte) in input.iter().enumerate() {
-            let cs = cs.ns(|| format!("input_byte_gadget_{}", byte_i));
-            input_bytes.push(UInt8::alloc(cs, || Ok(*input_byte)).unwrap());
+        let mut input_var = vec![];
+        for byte in &input {
+            input_var.push(UInt8::new_witness(cs.clone(), || Ok(*byte)).unwrap());
         }
 
-        let mut randomness_bytes = vec![];
-        for (byte_i, random_byte) in randomness.iter().enumerate() {
-            let cs = cs.ns(|| format!("randomness_byte_gadget_{}", byte_i));
-            randomness_bytes.push(UInt8::alloc(cs, || Ok(*random_byte)).unwrap());
+        let mut randomness_var = vec![];
+        for r_byte in randomness.iter() {
+            randomness_var.push(UInt8::new_witness(cs.clone(), || Ok(r_byte)).unwrap());
         }
-        let randomness_bytes = Blake2sRandomnessGadget(randomness_bytes);
+        let randomness_var = RandomnessVar(randomness_var);
 
-        let gadget_parameters =
-            <TestCOMMGadget as CommitmentGadget<TestCOMM, Fr>>::ParametersGadget::alloc(
-                &mut cs.ns(|| "gadget_parameters"),
+        let parameters_var =
+            <TestCOMMGadget as CommitmentGadget<TestCOMM, Fr>>::ParametersVar::new_witness(
+                cs.ns("gadget_parameters"),
                 || Ok(&parameters),
             )
             .unwrap();
-        let gadget_result =
-            <TestCOMMGadget as CommitmentGadget<TestCOMM, Fr>>::check_commitment_gadget(
-                &mut cs.ns(|| "gadget_evaluation"),
-                &gadget_parameters,
-                &input_bytes,
-                &randomness_bytes,
-            )
-            .unwrap();
+        let result_var = <TestCOMMGadget as CommitmentGadget<TestCOMM, Fr>>::commit(
+            &parameters_var,
+            &input_var,
+            &randomness_var,
+        )
+        .unwrap();
 
         for i in 0..32 {
-            assert_eq!(primitive_result[i], gadget_result.0[i].get_value().unwrap());
+            assert_eq!(primitive_result[i], result_var.0[i].value().unwrap());
         }
-        assert!(cs.is_satisfied());
+        assert!(cs.is_satisfied().unwrap());
     }
 }
