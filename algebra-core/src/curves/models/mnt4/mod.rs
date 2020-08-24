@@ -33,9 +33,10 @@ pub trait MNT4Parameters: 'static {
     const FINAL_EXPONENT_LAST_CHUNK_W0_IS_NEG: bool;
     const FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0: <Self::Fp as PrimeField>::BigInt;
     type Fp: PrimeField + SquareRootField + Into<<Self::Fp as PrimeField>::BigInt>;
+    type Fr: PrimeField + SquareRootField + Into<<Self::Fr as PrimeField>::BigInt>;
     type Fp2Params: Fp2Parameters<Fp = Self::Fp>;
     type Fp4Params: Fp4Parameters<Fp2Params = Self::Fp2Params>;
-    type G1Parameters: SWModelParameters<BaseField = Self::Fp>;
+    type G1Parameters: SWModelParameters<BaseField = Self::Fp, ScalarField = Self::Fr>;
     type G2Parameters: SWModelParameters<
         BaseField = Fp2<Self::Fp2Params>,
         ScalarField = <Self::G1Parameters as ModelParameters>::ScalarField,
@@ -188,12 +189,11 @@ impl<P: MNT4Parameters> MNT4<P> {
         elt_q.frobenius_map(1);
 
         let w1_part = elt_q.cyclotomic_exp(&P::FINAL_EXPONENT_LAST_CHUNK_1);
-        let w0_part;
-        if P::FINAL_EXPONENT_LAST_CHUNK_W0_IS_NEG {
-            w0_part = elt_inv_clone.cyclotomic_exp(&P::FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0);
+        let w0_part = if P::FINAL_EXPONENT_LAST_CHUNK_W0_IS_NEG {
+            elt_inv_clone.cyclotomic_exp(&P::FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0)
         } else {
-            w0_part = elt_clone.cyclotomic_exp(&P::FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0);
-        }
+            elt_clone.cyclotomic_exp(&P::FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0)
+        };
 
         w1_part * &w0_part
     }

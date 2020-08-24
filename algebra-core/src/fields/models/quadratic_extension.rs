@@ -19,6 +19,7 @@ use rand::{
 use crate::{
     bytes::{FromBytes, ToBytes},
     fields::{Field, LegendreSymbol, PrimeField, SquareRootField},
+    Box, ToConstraintField, Vec,
 };
 
 pub trait QuadExtParameters: 'static + Send + Sync + Sized {
@@ -157,10 +158,7 @@ impl<P: QuadExtParameters> One for QuadExtField<P> {
 }
 
 impl<P: QuadExtParameters> Field for QuadExtField<P> {
-    #[inline]
-    fn characteristic<'a>() -> &'a [u64] {
-        P::BaseField::characteristic()
-    }
+    type BasePrimeField = P::BasePrimeField;
 
     fn double(&self) -> Self {
         let mut result = self.clone();
@@ -537,5 +535,21 @@ impl<P: QuadExtParameters> CanonicalDeserialize for QuadExtField<P> {
         let c0: P::BaseField = CanonicalDeserialize::deserialize(&mut reader)?;
         let c1: P::BaseField = CanonicalDeserialize::deserialize(&mut reader)?;
         Ok(QuadExtField::new(c0, c1))
+    }
+}
+
+impl<P: QuadExtParameters> ToConstraintField<P::BasePrimeField> for QuadExtField<P>
+where
+    P::BaseField: ToConstraintField<P::BasePrimeField>,
+{
+    fn to_field_elements(&self) -> Result<Vec<P::BasePrimeField>, Box<dyn crate::Error>> {
+        let mut res = Vec::new();
+        let mut c0_elems = self.c0.to_field_elements()?;
+        let mut c1_elems = self.c1.to_field_elements()?;
+
+        res.append(&mut c0_elems);
+        res.append(&mut c1_elems);
+
+        Ok(res)
     }
 }

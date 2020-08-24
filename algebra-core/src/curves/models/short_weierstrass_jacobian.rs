@@ -42,6 +42,18 @@ pub struct GroupAffine<P: Parameters> {
     _params: PhantomData<P>,
 }
 
+impl<P: Parameters> PartialEq<GroupProjective<P>> for GroupAffine<P> {
+    fn eq(&self, other: &GroupProjective<P>) -> bool {
+        self.into_projective() == *other
+    }
+}
+
+impl<P: Parameters> PartialEq<GroupAffine<P>> for GroupProjective<P> {
+    fn eq(&self, other: &GroupAffine<P>) -> bool {
+        *self == other.into_projective()
+    }
+}
+
 impl<P: Parameters> Display for GroupAffine<P> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         if self.infinity {
@@ -239,6 +251,7 @@ pub struct GroupProjective<P: Parameters> {
     pub x: P::BaseField,
     pub y: P::BaseField,
     pub z: P::BaseField,
+    #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
 }
 

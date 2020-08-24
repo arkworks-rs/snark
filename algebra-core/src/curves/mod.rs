@@ -187,7 +187,7 @@ pub trait ProjectiveCurve:
             if found_one {
                 res.double_in_place();
             } else {
-                found_one = i;
+                found_one |= i;
             }
 
             if i {

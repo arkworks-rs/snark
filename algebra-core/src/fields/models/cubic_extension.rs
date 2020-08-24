@@ -19,6 +19,7 @@ use crate::{
     bytes::{FromBytes, ToBytes},
     fields::{Field, PrimeField},
     io::{Read, Result as IoResult, Write},
+    Box, ToConstraintField, Vec,
 };
 
 pub trait CubicExtParameters: 'static + Send + Sync {
@@ -134,10 +135,7 @@ impl<P: CubicExtParameters> One for CubicExtField<P> {
 }
 
 impl<P: CubicExtParameters> Field for CubicExtField<P> {
-    #[inline]
-    fn characteristic<'a>() -> &'a [u64] {
-        P::BaseField::characteristic()
-    }
+    type BasePrimeField = P::BasePrimeField;
 
     fn double(&self) -> Self {
         let mut result = self.clone();
@@ -541,5 +539,23 @@ impl<P: CubicExtParameters> CanonicalDeserialize for CubicExtField<P> {
         let c1: P::BaseField = CanonicalDeserialize::deserialize(&mut reader)?;
         let c2: P::BaseField = CanonicalDeserialize::deserialize(&mut reader)?;
         Ok(CubicExtField::new(c0, c1, c2))
+    }
+}
+
+impl<P: CubicExtParameters> ToConstraintField<P::BasePrimeField> for CubicExtField<P>
+where
+    P::BaseField: ToConstraintField<P::BasePrimeField>,
+{
+    fn to_field_elements(&self) -> Result<Vec<P::BasePrimeField>, Box<dyn crate::Error>> {
+        let mut res = Vec::new();
+        let mut c0_elems = self.c0.to_field_elements()?;
+        let mut c1_elems = self.c1.to_field_elements()?;
+        let mut c2_elems = self.c2.to_field_elements()?;
+
+        res.append(&mut c0_elems);
+        res.append(&mut c1_elems);
+        res.append(&mut c2_elems);
+
+        Ok(res)
     }
 }

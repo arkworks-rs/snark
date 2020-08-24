@@ -95,8 +95,12 @@ pub trait Field:
     + core::iter::Product<Self>
     + for<'a> core::iter::Product<&'a Self>
 {
+    type BasePrimeField: PrimeField;
+
     /// Returns the characteristic of the field.
-    fn characteristic<'a>() -> &'a [u64];
+    fn characteristic<'a>() -> &'a [u64] {
+        Self::BasePrimeField::characteristic()
+    }
 
     /// Returns `self + self`.
     #[must_use]
@@ -302,7 +306,8 @@ pub trait FftField: Field + From<u128> + From<u64> + From<u32> + From<u16> + Fro
 
 /// The interface for a prime field.
 pub trait PrimeField:
-    FftField<FftParams = <Self as PrimeField>::Params>
+    Field<BasePrimeField = Self>
+    + FftField<FftParams = <Self as PrimeField>::Params>
     + FromStr
     + From<<Self as PrimeField>::BigInt>
     + Into<<Self as PrimeField>::BigInt>

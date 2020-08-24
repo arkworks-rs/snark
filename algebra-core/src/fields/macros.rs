@@ -65,6 +65,8 @@ macro_rules! impl_Fp {
         }
 
         impl<P: $FpParameters> Field for $Fp<P> {
+            type BasePrimeField = Self;
+
             #[inline]
             fn double(&self) -> Self {
                 let mut temp = *self;
