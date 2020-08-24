@@ -5,135 +5,91 @@ use algebra::{
     },
     Field,
 };
-use core::borrow::Borrow;
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_core::{Namespace, SynthesisError};
 
 use crate::{
-    fields::{fp::FpGadget, fp3::Fp3Gadget, FieldGadget},
-    groups::curves::short_weierstrass::AffineGadget,
-    pairing::mnt6::PairingGadget,
+    fields::{fp::FpVar, fp3::Fp3Var, FieldVar},
+    groups::curves::short_weierstrass::ProjectiveVar,
+    pairing::mnt6::PairingVar,
     prelude::*,
     Vec,
 };
+use core::borrow::Borrow;
 
-pub type G1Gadget<P> = AffineGadget<
-    <P as MNT6Parameters>::G1Parameters,
-    <P as MNT6Parameters>::Fp,
-    FpGadget<<P as MNT6Parameters>::Fp>,
->;
+pub type G1Var<P> =
+    ProjectiveVar<<P as MNT6Parameters>::G1Parameters, FpVar<<P as MNT6Parameters>::Fp>>;
 
-pub type G2Gadget<P> =
-    AffineGadget<<P as MNT6Parameters>::G2Parameters, <P as MNT6Parameters>::Fp, Fp3G<P>>;
+pub type G2Var<P> = ProjectiveVar<<P as MNT6Parameters>::G2Parameters, Fp3G<P>>;
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "P: MNT6Parameters"), Debug(bound = "P: MNT6Parameters"))]
-pub struct G1PreparedGadget<P: MNT6Parameters> {
-    pub x: FpGadget<P::Fp>,
-    pub y: FpGadget<P::Fp>,
-    pub x_twist: Fp3Gadget<P::Fp3Params, P::Fp>,
-    pub y_twist: Fp3Gadget<P::Fp3Params, P::Fp>,
+pub struct G1PreparedVar<P: MNT6Parameters> {
+    pub x: FpVar<P::Fp>,
+    pub y: FpVar<P::Fp>,
+    pub x_twist: Fp3Var<P::Fp3Params>,
+    pub y_twist: Fp3Var<P::Fp3Params>,
 }
 
-impl<P: MNT6Parameters> AllocGadget<G1Prepared<P>, P::Fp> for G1PreparedGadget<P> {
-    fn alloc_constant<T, CS: ConstraintSystem<P::Fp>>(
-        mut cs: CS,
-        t: T,
-    ) -> Result<Self, SynthesisError>
-    where
-        T: Borrow<G1Prepared<P>>,
-    {
-        let obj = t.borrow();
-
-        let x_gadget = FpGadget::<P::Fp>::alloc_constant(&mut cs.ns(|| "x"), &obj.x)?;
-        let y_gadget = FpGadget::<P::Fp>::alloc_constant(&mut cs.ns(|| "y"), &obj.y)?;
-        let x_twist_gadget = Fp3Gadget::<P::Fp3Params, P::Fp>::alloc_constant(
-            &mut cs.ns(|| "x_twist"),
-            &obj.x_twist,
-        )?;
-        let y_twist_gadget = Fp3Gadget::<P::Fp3Params, P::Fp>::alloc_constant(
-            &mut cs.ns(|| "y_twist"),
-            &obj.y_twist,
-        )?;
-
-        Ok(Self {
-            x: x_gadget,
-            y: y_gadget,
-            x_twist: x_twist_gadget,
-            y_twist: y_twist_gadget,
+impl<P: MNT6Parameters> G1PreparedVar<P> {
+    pub fn value(&self) -> Result<G1Prepared<P>, SynthesisError> {
+        let x = self.x.value()?;
+        let y = self.y.value()?;
+        let x_twist = self.x_twist.value()?;
+        let y_twist = self.y_twist.value()?;
+        Ok(G1Prepared {
+            x,
+            y,
+            x_twist,
+            y_twist,
         })
     }
 
-    fn alloc<F, T, CS: ConstraintSystem<P::Fp>>(_cs: CS, _f: F) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<G1Prepared<P>>,
-    {
-        todo!()
-    }
-
-    fn alloc_input<F, T, CS: ConstraintSystem<P::Fp>>(
-        _cs: CS,
-        _f: F,
-    ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<G1Prepared<P>>,
-    {
-        todo!()
+    pub fn from_group_var(q: &G1Var<P>) -> Result<Self, SynthesisError> {
+        let q = q.to_affine()?;
+        let zero = FpVar::<P::Fp>::zero();
+        let x_twist = Fp3Var::new(q.x.clone(), zero.clone(), zero.clone()) * P::TWIST;
+        let y_twist = Fp3Var::new(q.y.clone(), zero.clone(), zero.clone()) * P::TWIST;
+        let result = G1PreparedVar {
+            x: q.x.clone(),
+            y: q.y.clone(),
+            x_twist,
+            y_twist,
+        };
+        Ok(result)
     }
 }
 
-impl<P: MNT6Parameters> G1PreparedGadget<P> {
-    pub fn get_value(&self) -> Option<G1Prepared<P>> {
-        match (
-            self.x.get_value(),
-            self.y.get_value(),
-            self.x_twist.get_value(),
-            self.y_twist.get_value(),
-        ) {
-            (Some(x), Some(y), Some(x_twist), Some(y_twist)) => Some(G1Prepared {
-                x,
-                y,
-                x_twist,
-                y_twist,
-            }),
-            _ => None,
-        }
-    }
-
-    pub fn from_affine<CS: ConstraintSystem<P::Fp>>(
-        mut cs: CS,
-        q: &G1Gadget<P>,
+impl<P: MNT6Parameters> AllocVar<G1Prepared<P>, P::Fp> for G1PreparedVar<P> {
+    fn new_variable<T: Borrow<G1Prepared<P>>>(
+        cs: impl Into<Namespace<P::Fp>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
     ) -> Result<Self, SynthesisError> {
-        let x_twist = Fp3Gadget::new(
-            q.x.mul_by_constant(cs.ns(|| "g1.x * twist.c0"), &P::TWIST.c0)?,
-            q.x.mul_by_constant(cs.ns(|| "g1.x * twist.c1"), &P::TWIST.c1)?,
-            q.x.mul_by_constant(cs.ns(|| "g1.x * twist.c2"), &P::TWIST.c2)?,
-        );
-        let y_twist = Fp3Gadget::new(
-            q.y.mul_by_constant(cs.ns(|| "g1.y * twist.c0"), &P::TWIST.c0)?,
-            q.y.mul_by_constant(cs.ns(|| "g1.y * twist.c1"), &P::TWIST.c1)?,
-            q.y.mul_by_constant(cs.ns(|| "g1.y * twist.c2"), &P::TWIST.c2)?,
-        );
-        Ok(G1PreparedGadget {
-            x: q.x.clone(),
-            y: q.y.clone(),
+        let ns = cs.into();
+        let cs = ns.cs();
+
+        let g1_prep = f().map(|b| *b.borrow());
+
+        let x = FpVar::new_variable(cs.ns("x"), || g1_prep.map(|g| g.x), mode)?;
+        let y = FpVar::new_variable(cs.ns("y"), || g1_prep.map(|g| g.y), mode)?;
+        let x_twist = Fp3Var::new_variable(cs.ns("x_twist"), || g1_prep.map(|g| g.x_twist), mode)?;
+        let y_twist = Fp3Var::new_variable(cs.ns("y_twist"), || g1_prep.map(|g| g.y_twist), mode)?;
+        Ok(Self {
+            x,
+            y,
             x_twist,
             y_twist,
         })
     }
 }
 
-impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for G1PreparedGadget<P> {
+impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for G1PreparedVar<P> {
     #[inline]
-    fn to_bytes<CS: ConstraintSystem<P::Fp>>(
-        &self,
-        mut cs: CS,
-    ) -> Result<Vec<UInt8>, SynthesisError> {
-        let mut x = self.x.to_bytes(&mut cs.ns(|| "x to bytes"))?;
-        let mut y = self.y.to_bytes(&mut cs.ns(|| "y to bytes"))?;
-        let mut x_twist = self.x_twist.to_bytes(&mut cs.ns(|| "x_twist to bytes"))?;
-        let mut y_twist = self.y_twist.to_bytes(&mut cs.ns(|| "y_twist to bytes"))?;
+    fn to_bytes(&self) -> Result<Vec<UInt8<P::Fp>>, SynthesisError> {
+        let mut x = self.x.to_bytes()?;
+        let mut y = self.y.to_bytes()?;
+        let mut x_twist = self.x_twist.to_bytes()?;
+        let mut y_twist = self.y_twist.to_bytes()?;
 
         x.append(&mut y);
         x.append(&mut x_twist);
@@ -141,18 +97,11 @@ impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for G1PreparedGadget<P> {
         Ok(x)
     }
 
-    fn to_non_unique_bytes<CS: ConstraintSystem<P::Fp>>(
-        &self,
-        mut cs: CS,
-    ) -> Result<Vec<UInt8>, SynthesisError> {
-        let mut x = self.x.to_non_unique_bytes(&mut cs.ns(|| "x to bytes"))?;
-        let mut y = self.y.to_non_unique_bytes(&mut cs.ns(|| "y to bytes"))?;
-        let mut x_twist = self
-            .x_twist
-            .to_non_unique_bytes(&mut cs.ns(|| "x_twist to bytes"))?;
-        let mut y_twist = self
-            .y_twist
-            .to_non_unique_bytes(&mut cs.ns(|| "y_twist to bytes"))?;
+    fn to_non_unique_bytes(&self) -> Result<Vec<UInt8<P::Fp>>, SynthesisError> {
+        let mut x = self.x.to_non_unique_bytes()?;
+        let mut y = self.y.to_non_unique_bytes()?;
+        let mut x_twist = self.x_twist.to_non_unique_bytes()?;
+        let mut y_twist = self.y_twist.to_non_unique_bytes()?;
 
         x.append(&mut y);
         x.append(&mut x_twist);
@@ -161,203 +110,142 @@ impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for G1PreparedGadget<P> {
     }
 }
 
-type Fp3G<P> = Fp3Gadget<<P as MNT6Parameters>::Fp3Params, <P as MNT6Parameters>::Fp>;
+type Fp3G<P> = Fp3Var<<P as MNT6Parameters>::Fp3Params>;
 #[derive(Derivative)]
 #[derivative(Clone(bound = "P: MNT6Parameters"), Debug(bound = "P: MNT6Parameters"))]
-pub struct G2PreparedGadget<P: MNT6Parameters> {
-    pub x: Fp3Gadget<P::Fp3Params, P::Fp>,
-    pub y: Fp3Gadget<P::Fp3Params, P::Fp>,
-    pub x_over_twist: Fp3Gadget<P::Fp3Params, P::Fp>,
-    pub y_over_twist: Fp3Gadget<P::Fp3Params, P::Fp>,
-    pub double_coefficients: Vec<AteDoubleCoefficientsGadget<P>>,
-    pub addition_coefficients: Vec<AteAdditionCoefficientsGadget<P>>,
+pub struct G2PreparedVar<P: MNT6Parameters> {
+    pub x: Fp3Var<P::Fp3Params>,
+    pub y: Fp3Var<P::Fp3Params>,
+    pub x_over_twist: Fp3Var<P::Fp3Params>,
+    pub y_over_twist: Fp3Var<P::Fp3Params>,
+    pub double_coefficients: Vec<AteDoubleCoefficientsVar<P>>,
+    pub addition_coefficients: Vec<AteAdditionCoefficientsVar<P>>,
 }
 
-impl<P: MNT6Parameters> AllocGadget<G2Prepared<P>, P::Fp> for G2PreparedGadget<P> {
-    fn alloc_constant<T, CS: ConstraintSystem<P::Fp>>(
-        mut cs: CS,
-        t: T,
-    ) -> Result<Self, SynthesisError>
-    where
-        T: Borrow<G2Prepared<P>>,
-    {
-        let obj = t.borrow();
+impl<P: MNT6Parameters> AllocVar<G2Prepared<P>, P::Fp> for G2PreparedVar<P> {
+    fn new_variable<T: Borrow<G2Prepared<P>>>(
+        cs: impl Into<Namespace<P::Fp>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        let ns = cs.into();
+        let cs = ns.cs();
 
-        let x_gadget =
-            Fp3Gadget::<P::Fp3Params, P::Fp>::alloc_constant(&mut cs.ns(|| "x"), &obj.x)?;
-        let y_gadget =
-            Fp3Gadget::<P::Fp3Params, P::Fp>::alloc_constant(&mut cs.ns(|| "y"), &obj.y)?;
+        let g2_prep = f().map(|b| b.borrow().clone());
+        let g2 = g2_prep.as_ref().map_err(|e| *e);
 
-        let x_over_twist_gadget = Fp3Gadget::<P::Fp3Params, P::Fp>::alloc_constant(
-            &mut cs.ns(|| "x_over_twist"),
-            &obj.x_over_twist,
+        let x = Fp3Var::new_variable(cs.ns("x"), || g2.map(|g| g.x), mode)?;
+        let y = Fp3Var::new_variable(cs.ns("y"), || g2.map(|g| g.y), mode)?;
+        let x_over_twist =
+            Fp3Var::new_variable(cs.ns("x_over_twist"), || g2.map(|g| g.x_over_twist), mode)?;
+        let y_over_twist =
+            Fp3Var::new_variable(cs.ns("y_over_twist"), || g2.map(|g| g.y_over_twist), mode)?;
+        let double_coefficients = Vec::new_variable(
+            cs.ns("double coeffs"),
+            || g2.map(|g| g.double_coefficients.clone()),
+            mode,
         )?;
-        let y_over_twist_gadget = Fp3Gadget::<P::Fp3Params, P::Fp>::alloc_constant(
-            &mut cs.ns(|| "y_over_twist"),
-            &obj.y_over_twist,
+        let addition_coefficients = Vec::new_variable(
+            cs.ns("add coeffs"),
+            || g2.map(|g| g.addition_coefficients.clone()),
+            mode,
         )?;
-
-        let mut double_coefficients_gadget = Vec::<AteDoubleCoefficientsGadget<P>>::new();
-        for (i, double_coefficient) in obj.double_coefficients.iter().enumerate() {
-            double_coefficients_gadget.push(AteDoubleCoefficientsGadget::<P>::alloc_constant(
-                &mut cs.ns(|| format!("double_coefficient#{}", i)),
-                double_coefficient,
-            )?);
-        }
-
-        let mut addition_coefficients_gadget = Vec::<AteAdditionCoefficientsGadget<P>>::new();
-        for (i, addition_coefficient) in obj.addition_coefficients.iter().enumerate() {
-            addition_coefficients_gadget.push(AteAdditionCoefficientsGadget::<P>::alloc_constant(
-                &mut cs.ns(|| format!("addition_coefficient#{}", i)),
-                addition_coefficient,
-            )?);
-        }
-
         Ok(Self {
-            x: x_gadget,
-            y: y_gadget,
-            x_over_twist: x_over_twist_gadget,
-            y_over_twist: y_over_twist_gadget,
-            double_coefficients: double_coefficients_gadget,
-            addition_coefficients: addition_coefficients_gadget,
+            x,
+            y,
+            x_over_twist,
+            y_over_twist,
+            double_coefficients,
+            addition_coefficients,
+        })
+    }
+}
+
+impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for G2PreparedVar<P> {
+    #[inline]
+    fn to_bytes(&self) -> Result<Vec<UInt8<P::Fp>>, SynthesisError> {
+        let mut x = self.x.to_bytes()?;
+        let mut y = self.y.to_bytes()?;
+        let mut x_over_twist = self.x_over_twist.to_bytes()?;
+        let mut y_over_twist = self.y_over_twist.to_bytes()?;
+
+        x.append(&mut y);
+        x.append(&mut x_over_twist);
+        x.append(&mut y_over_twist);
+
+        for coeff in self.double_coefficients.iter() {
+            x.extend_from_slice(&coeff.to_bytes()?);
+        }
+        for coeff in self.addition_coefficients.iter() {
+            x.extend_from_slice(&coeff.to_bytes()?);
+        }
+        Ok(x)
+    }
+
+    fn to_non_unique_bytes(&self) -> Result<Vec<UInt8<P::Fp>>, SynthesisError> {
+        let mut x = self.x.to_non_unique_bytes()?;
+        let mut y = self.y.to_non_unique_bytes()?;
+        let mut x_over_twist = self.x_over_twist.to_non_unique_bytes()?;
+        let mut y_over_twist = self.y_over_twist.to_non_unique_bytes()?;
+
+        x.append(&mut y);
+        x.append(&mut x_over_twist);
+        x.append(&mut y_over_twist);
+
+        for coeff in self.double_coefficients.iter() {
+            x.extend_from_slice(&coeff.to_non_unique_bytes()?);
+        }
+        for coeff in self.addition_coefficients.iter() {
+            x.extend_from_slice(&coeff.to_non_unique_bytes()?);
+        }
+        Ok(x)
+    }
+}
+
+impl<P: MNT6Parameters> G2PreparedVar<P> {
+    pub fn value(&self) -> Result<G2Prepared<P>, SynthesisError> {
+        let x = self.x.value()?;
+        let y = self.y.value()?;
+        let x_over_twist = self.x_over_twist.value()?;
+        let y_over_twist = self.y_over_twist.value()?;
+        let double_coefficients = self
+            .double_coefficients
+            .iter()
+            .map(|coeff| coeff.value())
+            .collect::<Result<Vec<_>, SynthesisError>>()?;
+        let addition_coefficients = self
+            .addition_coefficients
+            .iter()
+            .map(|coeff| coeff.value())
+            .collect::<Result<Vec<_>, SynthesisError>>()?;
+        Ok(G2Prepared {
+            x,
+            y,
+            x_over_twist,
+            y_over_twist,
+            double_coefficients,
+            addition_coefficients,
         })
     }
 
-    fn alloc<F, T, CS: ConstraintSystem<P::Fp>>(_cs: CS, _f: F) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<G2Prepared<P>>,
-    {
-        todo!()
-    }
-
-    fn alloc_input<F, T, CS: ConstraintSystem<P::Fp>>(
-        _cs: CS,
-        _f: F,
-    ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<G2Prepared<P>>,
-    {
-        todo!()
-    }
-}
-
-impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for G2PreparedGadget<P> {
-    #[inline]
-    fn to_bytes<CS: ConstraintSystem<P::Fp>>(
-        &self,
-        mut cs: CS,
-    ) -> Result<Vec<UInt8>, SynthesisError> {
-        let mut x = self.x.to_bytes(&mut cs.ns(|| "x to bytes"))?;
-        let mut y = self.y.to_bytes(&mut cs.ns(|| "y to bytes"))?;
-        let mut x_over_twist = self
-            .x_over_twist
-            .to_bytes(&mut cs.ns(|| "x_over_twist to bytes"))?;
-        let mut y_over_twist = self
-            .y_over_twist
-            .to_bytes(&mut cs.ns(|| "y_over_twist to bytes"))?;
-
-        x.append(&mut y);
-        x.append(&mut x_over_twist);
-        x.append(&mut y_over_twist);
-
-        for (i, coeff) in self.double_coefficients.iter().enumerate() {
-            x.extend_from_slice(&coeff.to_bytes(cs.ns(|| format!("double_coefficients {}", i)))?);
-        }
-        for (i, coeff) in self.addition_coefficients.iter().enumerate() {
-            x.extend_from_slice(&coeff.to_bytes(cs.ns(|| format!("addition_coefficients {}", i)))?);
-        }
-        Ok(x)
-    }
-
-    fn to_non_unique_bytes<CS: ConstraintSystem<P::Fp>>(
-        &self,
-        mut cs: CS,
-    ) -> Result<Vec<UInt8>, SynthesisError> {
-        let mut x = self.x.to_non_unique_bytes(&mut cs.ns(|| "x to bytes"))?;
-        let mut y = self.y.to_non_unique_bytes(&mut cs.ns(|| "y to bytes"))?;
-        let mut x_over_twist = self
-            .x_over_twist
-            .to_non_unique_bytes(&mut cs.ns(|| "x_over_twist to bytes"))?;
-        let mut y_over_twist = self
-            .y_over_twist
-            .to_non_unique_bytes(&mut cs.ns(|| "y_over_twist to bytes"))?;
-
-        x.append(&mut y);
-        x.append(&mut x_over_twist);
-        x.append(&mut y_over_twist);
-
-        for (i, coeff) in self.double_coefficients.iter().enumerate() {
-            x.extend_from_slice(
-                &coeff.to_non_unique_bytes(cs.ns(|| format!("double_coefficients {}", i)))?,
-            );
-        }
-        for (i, coeff) in self.addition_coefficients.iter().enumerate() {
-            x.extend_from_slice(
-                &coeff.to_non_unique_bytes(cs.ns(|| format!("addition_coefficients {}", i)))?,
-            );
-        }
-        Ok(x)
-    }
-}
-
-impl<P: MNT6Parameters> G2PreparedGadget<P> {
-    pub fn get_value(&self) -> Option<G2Prepared<P>> {
-        match (
-            self.x.get_value(),
-            self.y.get_value(),
-            self.x_over_twist.get_value(),
-            self.y_over_twist.get_value(),
-            self.double_coefficients
-                .iter()
-                .map(|coeff| coeff.get_value())
-                .collect::<Option<Vec<AteDoubleCoefficients<P>>>>(),
-            self.addition_coefficients
-                .iter()
-                .map(|coeff| coeff.get_value())
-                .collect::<Option<Vec<AteAdditionCoefficients<P>>>>(),
-        ) {
-            (
-                Some(x),
-                Some(y),
-                Some(x_over_twist),
-                Some(y_over_twist),
-                Some(double_coefficients),
-                Some(addition_coefficients),
-            ) => Some(G2Prepared {
-                x,
-                y,
-                x_over_twist,
-                y_over_twist,
-                double_coefficients,
-                addition_coefficients,
-            }),
-            _ => None,
-        }
-    }
-
-    pub fn from_affine<CS: ConstraintSystem<P::Fp>>(
-        mut cs: CS,
-        q: &G2Gadget<P>,
-    ) -> Result<Self, SynthesisError> {
+    pub fn from_group_var(q: &G2Var<P>) -> Result<Self, SynthesisError> {
+        let q = q.to_affine()?;
         let twist_inv = P::TWIST.inverse().unwrap();
 
-        let mut g2p = G2PreparedGadget {
+        let mut g2p = G2PreparedVar {
             x: q.x.clone(),
             y: q.y.clone(),
-            x_over_twist: q.x.mul_by_constant(cs.ns(|| "x over twist"), &twist_inv)?,
-            y_over_twist: q.y.mul_by_constant(cs.ns(|| "y over twist"), &twist_inv)?,
+            x_over_twist: &q.x * twist_inv,
+            y_over_twist: &q.y * twist_inv,
             double_coefficients: vec![],
             addition_coefficients: vec![],
         };
 
-        let fp2_one = Fp3G::<P>::one(cs.ns(|| "one"))?;
-        let mut r = G2ProjectiveExtendedGadget {
+        let mut r = G2ProjectiveExtendedVar {
             x: q.x.clone(),
             y: q.y.clone(),
-            z: fp2_one.clone(),
-            t: fp2_one,
+            z: Fp3G::<P>::one(),
+            t: Fp3G::<P>::one(),
         };
 
         for (idx, value) in P::ATE_LOOP_COUNT.iter().rev().enumerate() {
@@ -372,24 +260,15 @@ impl<P: MNT6Parameters> G2PreparedGadget<P> {
                 tmp >>= 1;
             }
 
-            let mut cs = cs.ns(|| format!("ate loop iteration {}", idx));
-
-            for (j, bit) in v.iter().rev().enumerate() {
-                let (r2, coeff) = PairingGadget::<P>::doubling_step_for_flipped_miller_loop(
-                    cs.ns(|| format!("doubling step {}", j)),
-                    &r,
-                )?;
+            for bit in v.iter().rev() {
+                let (r2, coeff) = PairingVar::<P>::doubling_step_for_flipped_miller_loop(&r)?;
                 g2p.double_coefficients.push(coeff);
                 r = r2;
 
                 if *bit {
-                    let (r2, coeff) =
-                        PairingGadget::<P>::mixed_addition_step_for_flipped_miller_loop(
-                            cs.ns(|| format!("mixed addition step {}", j)),
-                            &q.x,
-                            &q.y,
-                            &r,
-                        )?;
+                    let (r2, coeff) = PairingVar::<P>::mixed_addition_step_for_flipped_miller_loop(
+                        &q.x, &q.y, &r,
+                    )?;
                     g2p.addition_coefficients.push(coeff);
                     r = r2;
                 }
@@ -399,17 +278,14 @@ impl<P: MNT6Parameters> G2PreparedGadget<P> {
         }
 
         if P::ATE_IS_LOOP_COUNT_NEG {
-            let rz_inv = r.z.inverse(cs.ns(|| "inverse r.z"))?;
-            let rz2_inv = rz_inv.square(cs.ns(|| "rz_inv^2"))?;
-            let rz3_inv = rz_inv.mul(cs.ns(|| "rz_inv * rz_inv^2"), &rz2_inv)?;
+            let rz_inv = r.z.inverse()?;
+            let rz2_inv = rz_inv.square()?;
+            let rz3_inv = &rz_inv * &rz2_inv;
 
-            let minus_r_affine_x = r.x.mul(cs.ns(|| "r.x * rz2_inv"), &rz2_inv)?;
-            let minus_r_affine_y =
-                r.y.negate(cs.ns(|| "-r.y"))?
-                    .mul(cs.ns(|| "-r.y * rz3_inv"), &rz3_inv)?;
+            let minus_r_affine_x = &r.x * &rz2_inv;
+            let minus_r_affine_y = r.y.negate()? * &rz3_inv;
 
-            let add_result = PairingGadget::<P>::mixed_addition_step_for_flipped_miller_loop(
-                cs.ns(|| "mixed_addition step"),
+            let add_result = PairingVar::<P>::mixed_addition_step_for_flipped_miller_loop(
                 &minus_r_affine_x,
                 &minus_r_affine_y,
                 &r,
@@ -423,72 +299,45 @@ impl<P: MNT6Parameters> G2PreparedGadget<P> {
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "P: MNT6Parameters"), Debug(bound = "P: MNT6Parameters"))]
-pub struct AteDoubleCoefficientsGadget<P: MNT6Parameters> {
-    pub c_h: Fp3Gadget<P::Fp3Params, P::Fp>,
-    pub c_4c: Fp3Gadget<P::Fp3Params, P::Fp>,
-    pub c_j: Fp3Gadget<P::Fp3Params, P::Fp>,
-    pub c_l: Fp3Gadget<P::Fp3Params, P::Fp>,
+pub struct AteDoubleCoefficientsVar<P: MNT6Parameters> {
+    pub c_h: Fp3Var<P::Fp3Params>,
+    pub c_4c: Fp3Var<P::Fp3Params>,
+    pub c_j: Fp3Var<P::Fp3Params>,
+    pub c_l: Fp3Var<P::Fp3Params>,
 }
 
-impl<P: MNT6Parameters> AllocGadget<AteDoubleCoefficients<P>, P::Fp>
-    for AteDoubleCoefficientsGadget<P>
-{
-    fn alloc_constant<T, CS: ConstraintSystem<P::Fp>>(
-        mut cs: CS,
-        t: T,
-    ) -> Result<Self, SynthesisError>
-    where
-        T: Borrow<AteDoubleCoefficients<P>>,
-    {
-        let obj = t.borrow();
+impl<P: MNT6Parameters> AllocVar<AteDoubleCoefficients<P>, P::Fp> for AteDoubleCoefficientsVar<P> {
+    fn new_variable<T: Borrow<AteDoubleCoefficients<P>>>(
+        cs: impl Into<Namespace<P::Fp>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        let ns = cs.into();
+        let cs = ns.cs();
 
-        let c_h_gadget =
-            Fp3Gadget::<P::Fp3Params, P::Fp>::alloc_constant(&mut cs.ns(|| "c_h"), &obj.c_h)?;
-        let c_4c_gadget =
-            Fp3Gadget::<P::Fp3Params, P::Fp>::alloc_constant(&mut cs.ns(|| "c_4c"), &obj.c_4c)?;
-        let c_j_gadget =
-            Fp3Gadget::<P::Fp3Params, P::Fp>::alloc_constant(&mut cs.ns(|| "c_j"), &obj.c_j)?;
-        let c_l_gadget =
-            Fp3Gadget::<P::Fp3Params, P::Fp>::alloc_constant(&mut cs.ns(|| "c_l"), &obj.c_l)?;
+        let c_prep = f().map(|c| c.borrow().clone());
+        let c = c_prep.as_ref().map_err(|e| *e);
 
+        let c_h = Fp3Var::new_variable(cs.ns("c_h"), || c.map(|c| c.c_h), mode)?;
+        let c_4c = Fp3Var::new_variable(cs.ns("c_4c"), || c.map(|c| c.c_4c), mode)?;
+        let c_j = Fp3Var::new_variable(cs.ns("c_j"), || c.map(|c| c.c_j), mode)?;
+        let c_l = Fp3Var::new_variable(cs.ns("c_l"), || c.map(|c| c.c_l), mode)?;
         Ok(Self {
-            c_h: c_h_gadget,
-            c_4c: c_4c_gadget,
-            c_j: c_j_gadget,
-            c_l: c_l_gadget,
+            c_h,
+            c_4c,
+            c_j,
+            c_l,
         })
     }
-
-    fn alloc<F, T, CS: ConstraintSystem<P::Fp>>(_cs: CS, _f: F) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<AteDoubleCoefficients<P>>,
-    {
-        todo!()
-    }
-
-    fn alloc_input<F, T, CS: ConstraintSystem<P::Fp>>(
-        _cs: CS,
-        _f: F,
-    ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<AteDoubleCoefficients<P>>,
-    {
-        todo!()
-    }
 }
 
-impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for AteDoubleCoefficientsGadget<P> {
+impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for AteDoubleCoefficientsVar<P> {
     #[inline]
-    fn to_bytes<CS: ConstraintSystem<P::Fp>>(
-        &self,
-        mut cs: CS,
-    ) -> Result<Vec<UInt8>, SynthesisError> {
-        let mut c_h = self.c_h.to_bytes(&mut cs.ns(|| "c_h to bytes"))?;
-        let mut c_4c = self.c_4c.to_bytes(&mut cs.ns(|| "c_4c to bytes"))?;
-        let mut c_j = self.c_j.to_bytes(&mut cs.ns(|| "c_j to bytes"))?;
-        let mut c_l = self.c_l.to_bytes(&mut cs.ns(|| "c_l to bytes"))?;
+    fn to_bytes(&self) -> Result<Vec<UInt8<P::Fp>>, SynthesisError> {
+        let mut c_h = self.c_h.to_bytes()?;
+        let mut c_4c = self.c_4c.to_bytes()?;
+        let mut c_j = self.c_j.to_bytes()?;
+        let mut c_l = self.c_l.to_bytes()?;
 
         c_h.append(&mut c_4c);
         c_h.append(&mut c_j);
@@ -496,22 +345,11 @@ impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for AteDoubleCoefficientsGadget<P> 
         Ok(c_h)
     }
 
-    fn to_non_unique_bytes<CS: ConstraintSystem<P::Fp>>(
-        &self,
-        mut cs: CS,
-    ) -> Result<Vec<UInt8>, SynthesisError> {
-        let mut c_h = self
-            .c_h
-            .to_non_unique_bytes(&mut cs.ns(|| "c_h to bytes"))?;
-        let mut c_4c = self
-            .c_4c
-            .to_non_unique_bytes(&mut cs.ns(|| "c_4c to bytes"))?;
-        let mut c_j = self
-            .c_j
-            .to_non_unique_bytes(&mut cs.ns(|| "c_j to bytes"))?;
-        let mut c_l = self
-            .c_l
-            .to_non_unique_bytes(&mut cs.ns(|| "c_l to bytes"))?;
+    fn to_non_unique_bytes(&self) -> Result<Vec<UInt8<P::Fp>>, SynthesisError> {
+        let mut c_h = self.c_h.to_non_unique_bytes()?;
+        let mut c_4c = self.c_4c.to_non_unique_bytes()?;
+        let mut c_j = self.c_j.to_non_unique_bytes()?;
+        let mut c_l = self.c_l.to_non_unique_bytes()?;
 
         c_h.append(&mut c_4c);
         c_h.append(&mut c_j);
@@ -520,111 +358,78 @@ impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for AteDoubleCoefficientsGadget<P> 
     }
 }
 
-impl<P: MNT6Parameters> AteDoubleCoefficientsGadget<P> {
-    pub fn get_value(&self) -> Option<AteDoubleCoefficients<P>> {
-        match (
-            self.c_h.get_value(),
-            self.c_4c.get_value(),
-            self.c_j.get_value(),
-            self.c_l.get_value(),
-        ) {
-            (Some(c_h), Some(c_4c), Some(c_j), Some(c_l)) => Some(AteDoubleCoefficients {
-                c_h,
-                c_4c,
-                c_j,
-                c_l,
-            }),
-            _ => None,
-        }
+impl<P: MNT6Parameters> AteDoubleCoefficientsVar<P> {
+    pub fn value(&self) -> Result<AteDoubleCoefficients<P>, SynthesisError> {
+        let c_h = self.c_h.value()?;
+        let c_4c = self.c_4c.value()?;
+        let c_j = self.c_j.value()?;
+        let c_l = self.c_l.value()?;
+        Ok(AteDoubleCoefficients {
+            c_h,
+            c_4c,
+            c_j,
+            c_l,
+        })
     }
 }
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "P: MNT6Parameters"), Debug(bound = "P: MNT6Parameters"))]
-pub struct AteAdditionCoefficientsGadget<P: MNT6Parameters> {
-    pub c_l1: Fp3Gadget<P::Fp3Params, P::Fp>,
-    pub c_rz: Fp3Gadget<P::Fp3Params, P::Fp>,
+pub struct AteAdditionCoefficientsVar<P: MNT6Parameters> {
+    pub c_l1: Fp3Var<P::Fp3Params>,
+    pub c_rz: Fp3Var<P::Fp3Params>,
 }
 
-impl<P: MNT6Parameters> AllocGadget<AteAdditionCoefficients<P>, P::Fp>
-    for AteAdditionCoefficientsGadget<P>
+impl<P: MNT6Parameters> AllocVar<AteAdditionCoefficients<P>, P::Fp>
+    for AteAdditionCoefficientsVar<P>
 {
-    fn alloc_constant<T, CS: ConstraintSystem<P::Fp>>(
-        mut cs: CS,
-        t: T,
-    ) -> Result<Self, SynthesisError>
-    where
-        T: Borrow<AteAdditionCoefficients<P>>,
-    {
-        let t = t.borrow();
+    fn new_variable<T: Borrow<AteAdditionCoefficients<P>>>(
+        cs: impl Into<Namespace<P::Fp>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        let ns = cs.into();
+        let cs = ns.cs();
 
-        let c_l1 = Fp3Gadget::alloc_constant(&mut cs.ns(|| "c_l1"), &t.c_l1)?;
-        let c_rz = Fp3Gadget::alloc_constant(&mut cs.ns(|| "c_rz"), &t.c_rz)?;
+        let c_prep = f().map(|c| c.borrow().clone());
+        let c = c_prep.as_ref().map_err(|e| *e);
 
+        let c_l1 = Fp3Var::new_variable(cs.ns("c_l1"), || c.map(|c| c.c_l1), mode)?;
+        let c_rz = Fp3Var::new_variable(cs.ns("c_rz"), || c.map(|c| c.c_rz), mode)?;
         Ok(Self { c_l1, c_rz })
     }
-
-    fn alloc<F, T, CS: ConstraintSystem<P::Fp>>(_cs: CS, _f: F) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<AteAdditionCoefficients<P>>,
-    {
-        todo!()
-    }
-
-    fn alloc_input<F, T, CS: ConstraintSystem<P::Fp>>(
-        _cs: CS,
-        _f: F,
-    ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<AteAdditionCoefficients<P>>,
-    {
-        todo!()
-    }
 }
 
-impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for AteAdditionCoefficientsGadget<P> {
+impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for AteAdditionCoefficientsVar<P> {
     #[inline]
-    fn to_bytes<CS: ConstraintSystem<P::Fp>>(
-        &self,
-        mut cs: CS,
-    ) -> Result<Vec<UInt8>, SynthesisError> {
-        let mut c_l1 = self.c_l1.to_bytes(&mut cs.ns(|| "c_l1 to bytes"))?;
-        let mut c_rz = self.c_rz.to_bytes(&mut cs.ns(|| "c_rz to bytes"))?;
+    fn to_bytes(&self) -> Result<Vec<UInt8<P::Fp>>, SynthesisError> {
+        let mut c_l1 = self.c_l1.to_bytes()?;
+        let mut c_rz = self.c_rz.to_bytes()?;
 
         c_l1.append(&mut c_rz);
         Ok(c_l1)
     }
 
-    fn to_non_unique_bytes<CS: ConstraintSystem<P::Fp>>(
-        &self,
-        mut cs: CS,
-    ) -> Result<Vec<UInt8>, SynthesisError> {
-        let mut c_l1 = self
-            .c_l1
-            .to_non_unique_bytes(&mut cs.ns(|| "c_l1 to bytes"))?;
-        let mut c_rz = self
-            .c_rz
-            .to_non_unique_bytes(&mut cs.ns(|| "c_rz to bytes"))?;
+    fn to_non_unique_bytes(&self) -> Result<Vec<UInt8<P::Fp>>, SynthesisError> {
+        let mut c_l1 = self.c_l1.to_non_unique_bytes()?;
+        let mut c_rz = self.c_rz.to_non_unique_bytes()?;
 
         c_l1.append(&mut c_rz);
         Ok(c_l1)
     }
 }
 
-impl<P: MNT6Parameters> AteAdditionCoefficientsGadget<P> {
-    pub fn get_value(&self) -> Option<AteAdditionCoefficients<P>> {
-        match (self.c_l1.get_value(), self.c_rz.get_value()) {
-            (Some(c_l1), Some(c_rz)) => Some(AteAdditionCoefficients { c_l1, c_rz }),
-            _ => None,
-        }
+impl<P: MNT6Parameters> AteAdditionCoefficientsVar<P> {
+    pub fn value(&self) -> Result<AteAdditionCoefficients<P>, SynthesisError> {
+        let c_l1 = self.c_l1.value()?;
+        let c_rz = self.c_rz.value()?;
+        Ok(AteAdditionCoefficients { c_l1, c_rz })
     }
 }
 
-pub struct G2ProjectiveExtendedGadget<P: MNT6Parameters> {
-    pub x: Fp3Gadget<P::Fp3Params, P::Fp>,
-    pub y: Fp3Gadget<P::Fp3Params, P::Fp>,
-    pub z: Fp3Gadget<P::Fp3Params, P::Fp>,
-    pub t: Fp3Gadget<P::Fp3Params, P::Fp>,
+pub struct G2ProjectiveExtendedVar<P: MNT6Parameters> {
+    pub x: Fp3Var<P::Fp3Params>,
+    pub y: Fp3Var<P::Fp3Params>,
+    pub z: Fp3Var<P::Fp3Params>,
+    pub t: Fp3Var<P::Fp3Params>,
 }

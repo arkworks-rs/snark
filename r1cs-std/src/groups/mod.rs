@@ -1,222 +1,214 @@
 use crate::prelude::*;
-use algebra::{Field, Group};
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use algebra::{Field, ProjectiveCurve};
+use core::ops::{Add, AddAssign, Sub, SubAssign};
+use r1cs_core::{Namespace, SynthesisError};
 
 use core::{borrow::Borrow, fmt::Debug};
 
 pub mod curves;
 
-pub use self::curves::short_weierstrass::{bls12, mnt4, mnt6};
+pub use self::curves::short_weierstrass::bls12;
+pub use self::curves::short_weierstrass::mnt4;
+pub use self::curves::short_weierstrass::mnt6;
 
-pub trait GroupGadget<G: Group, ConstraintF: Field>:
+/// A hack used to work around the lack of implied bounds.
+pub trait GroupOpsBounds<'a, F, T: 'a>:
     Sized
-    + ToBytesGadget<ConstraintF>
-    + NEqGadget<ConstraintF>
-    + EqGadget<ConstraintF>
-    + ToBitsGadget<ConstraintF>
-    + CondSelectGadget<ConstraintF>
-    + AllocGadget<G, ConstraintF>
+    + Add<&'a T, Output = T>
+    + Sub<&'a T, Output = T>
+    + Add<T, Output = T>
+    + Sub<T, Output = T>
+    + Add<F, Output = T>
+    + Sub<F, Output = T>
+{
+}
+
+pub trait CurveVar<C: ProjectiveCurve, ConstraintF: Field>:
+    'static
+    + Sized
     + Clone
     + Debug
+    + R1CSVar<ConstraintF, Value = C>
+    + ToBitsGadget<ConstraintF>
+    + ToBytesGadget<ConstraintF>
+    + EqGadget<ConstraintF>
+    + CondSelectGadget<ConstraintF>
+    + AllocVar<C, ConstraintF>
+    + AllocVar<C::Affine, ConstraintF>
+    + for<'a> GroupOpsBounds<'a, C, Self>
+    + for<'a> AddAssign<&'a Self>
+    + for<'a> SubAssign<&'a Self>
+    + AddAssign<C>
+    + SubAssign<C>
+    + AddAssign<Self>
+    + SubAssign<Self>
 {
-    type Value: Debug;
-    type Variable;
+    fn constant(other: C) -> Self;
 
-    fn get_value(&self) -> Option<Self::Value>;
+    fn zero() -> Self;
 
-    fn get_variable(&self) -> Self::Variable;
-
-    fn zero<CS: ConstraintSystem<ConstraintF>>(cs: CS) -> Result<Self, SynthesisError>;
-
-    fn add<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        cs: CS,
-        other: &Self,
-    ) -> Result<Self, SynthesisError>;
-
-    fn sub<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        mut cs: CS,
-        other: &Self,
-    ) -> Result<Self, SynthesisError> {
-        let neg_other = other.negate(cs.ns(|| "Negate other"))?;
-        self.add(cs.ns(|| "Self - other"), &neg_other)
+    fn is_zero(&self) -> Result<Boolean<ConstraintF>, SynthesisError> {
+        self.is_eq(&Self::zero())
     }
 
-    fn add_constant<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        cs: CS,
-        other: &G,
+    /// Allocate a variable in the subgroup without checking if it's in the
+    /// prime-order subgroup
+    fn new_variable_omit_prime_order_check(
+        cs: impl Into<Namespace<ConstraintF>>,
+        f: impl FnOnce() -> Result<C, SynthesisError>,
+        mode: AllocationMode,
     ) -> Result<Self, SynthesisError>;
 
-    fn sub_constant<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        mut cs: CS,
-        other: &G,
-    ) -> Result<Self, SynthesisError> {
-        let neg_other = -(*other);
-        self.add_constant(cs.ns(|| "Self - other"), &neg_other)
+    /// Enforce that `self` is in the prime-order subgroup.
+    fn enforce_prime_order(&self) -> Result<(), SynthesisError>;
+
+    fn double(&self) -> Result<Self, SynthesisError> {
+        let mut result = self.clone();
+        result.double_in_place()?;
+        Ok(result)
     }
 
-    fn double_in_place<CS: ConstraintSystem<ConstraintF>>(
-        &mut self,
-        cs: CS,
-    ) -> Result<(), SynthesisError>;
+    fn double_in_place(&mut self) -> Result<(), SynthesisError>;
 
-    fn negate<CS: ConstraintSystem<ConstraintF>>(&self, cs: CS) -> Result<Self, SynthesisError>;
+    fn negate(&self) -> Result<Self, SynthesisError>;
 
     /// Inputs must be specified in *little-endian* form.
     /// If the addition law is incomplete for the identity element,
     /// `result` must not be the identity element.
-    fn mul_bits<'a, CS: ConstraintSystem<ConstraintF>>(
+    fn mul_bits<'a>(
         &self,
-        mut cs: CS,
-        result: &Self,
-        bits: impl Iterator<Item = &'a Boolean>,
+        bits: impl Iterator<Item = &'a Boolean<ConstraintF>>,
     ) -> Result<Self, SynthesisError> {
         let mut power = self.clone();
-        let mut result = result.clone();
-        for (i, bit) in bits.enumerate() {
-            let new_encoded = result.add(&mut cs.ns(|| format!("Add {}-th power", i)), &power)?;
-            result = Self::conditionally_select(
-                &mut cs.ns(|| format!("Select {}", i)),
-                bit.borrow(),
-                &new_encoded,
-                &result,
-            )?;
-            power.double_in_place(&mut cs.ns(|| format!("{}-th Doubling", i)))?;
+        let mut result = Self::zero();
+        for bit in bits {
+            let new_encoded = result.clone() + &power;
+            result = bit.borrow().select(&new_encoded, &result)?;
+            power.double_in_place()?;
         }
         Ok(result)
     }
 
-    fn precomputed_base_scalar_mul<'a, CS, I, B>(
+    fn precomputed_base_scalar_mul<'a, I, B>(
         &mut self,
-        mut cs: CS,
         scalar_bits_with_base_powers: I,
     ) -> Result<(), SynthesisError>
     where
-        CS: ConstraintSystem<ConstraintF>,
-        I: Iterator<Item = (B, &'a G)>,
-        B: Borrow<Boolean>,
-        G: 'a,
+        I: Iterator<Item = (B, &'a C)>,
+        B: Borrow<Boolean<ConstraintF>>,
+        C: 'a,
     {
-        for (i, (bit, base_power)) in scalar_bits_with_base_powers.enumerate() {
-            let new_encoded = self.add_constant(
-                &mut cs.ns(|| format!("Add {}-th base power", i)),
-                &base_power,
-            )?;
-            *self = Self::conditionally_select(
-                &mut cs.ns(|| format!("Conditional Select {}", i)),
-                bit.borrow(),
-                &new_encoded,
-                &self,
-            )?;
+        for (bit, base_power) in scalar_bits_with_base_powers {
+            let new_encoded = self.clone() + *base_power;
+            *self = bit.borrow().select(&new_encoded, self)?;
         }
         Ok(())
     }
 
-    fn precomputed_base_3_bit_signed_digit_scalar_mul<'a, CS, I, J, B>(
-        _: CS,
+    fn precomputed_base_3_bit_signed_digit_scalar_mul<'a, I, J, B>(
         _: &[B],
         _: &[J],
     ) -> Result<Self, SynthesisError>
     where
-        CS: ConstraintSystem<ConstraintF>,
-        I: Borrow<[Boolean]>,
+        I: Borrow<[Boolean<ConstraintF>]>,
         J: Borrow<[I]>,
-        B: Borrow<[G]>,
+        B: Borrow<[C]>,
     {
         Err(SynthesisError::AssignmentMissing)
     }
 
-    fn precomputed_base_multiscalar_mul<'a, CS, T, I, B>(
-        mut cs: CS,
+    fn precomputed_base_multiscalar_mul<'a, T, I, B>(
         bases: &[B],
         scalars: I,
     ) -> Result<Self, SynthesisError>
     where
-        CS: ConstraintSystem<ConstraintF>,
         T: 'a + ToBitsGadget<ConstraintF> + ?Sized,
         I: Iterator<Item = &'a T>,
-        B: Borrow<[G]>,
+        B: Borrow<[C]>,
     {
-        let mut result = Self::zero(&mut cs.ns(|| "Declare Result"))?;
+        let mut result = Self::zero();
         // Compute ∏(h_i^{m_i}) for all i.
-        for (i, (bits, base_powers)) in scalars.zip(bases).enumerate() {
+        for (bits, base_powers) in scalars.zip(bases) {
             let base_powers = base_powers.borrow();
-            let bits = bits.to_bits(&mut cs.ns(|| format!("Convert Scalar {} to bits", i)))?;
-            result.precomputed_base_scalar_mul(
-                cs.ns(|| format!("Chunk {}", i)),
-                bits.iter().zip(base_powers),
-            )?;
+            let bits = bits.to_bits()?;
+            result.precomputed_base_scalar_mul(bits.iter().zip(base_powers))?;
         }
         Ok(result)
     }
-
-    fn cost_of_add() -> usize;
-
-    fn cost_of_double() -> usize;
 }
 
 #[cfg(test)]
 mod test {
-    use algebra::{test_rng, Field};
-    use r1cs_core::ConstraintSystem;
+    use algebra::{test_rng, Field, ProjectiveCurve};
+    use r1cs_core::{ConstraintSystem, SynthesisError};
 
-    use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
-    use algebra::groups::Group;
+    use crate::prelude::*;
 
-    pub(crate) fn group_test<ConstraintF: Field, G: Group, GG: GroupGadget<G, ConstraintF>>() {
-        let mut cs = TestConstraintSystem::<ConstraintF>::new();
+    pub(crate) fn group_test<C: ProjectiveCurve, ConstraintF: Field, GG: CurveVar<C, ConstraintF>>(
+    ) -> Result<(), SynthesisError>
+    where
+        for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,
+    {
+        let cs = ConstraintSystem::<ConstraintF>::new_ref();
 
         let mut rng = test_rng();
-        let a_native = G::rand(&mut rng);
-        let b_native = G::rand(&mut rng);
-        let a = GG::alloc(&mut cs.ns(|| "generate_a"), || Ok(a_native)).unwrap();
-        let b = GG::alloc(&mut cs.ns(|| "generate_b"), || Ok(b_native)).unwrap();
+        let a_native = C::rand(&mut rng);
+        let b_native = C::rand(&mut rng);
+        let a = GG::new_witness(cs.ns("generate_a"), || Ok(a_native)).unwrap();
+        let b = GG::new_witness(cs.ns("generate_b"), || Ok(b_native)).unwrap();
 
-        let zero = GG::zero(cs.ns(|| "Zero")).unwrap();
-        assert_eq!(zero, zero);
+        let zero = GG::zero();
+        assert_eq!(zero.value()?, zero.value()?);
 
         // a == a
-        assert_eq!(a, a);
+        assert_eq!(a.value()?, a.value()?);
         // a + 0 = a
-        assert_eq!(a.add(cs.ns(|| "a_plus_zero"), &zero).unwrap(), a);
+        assert_eq!((&a + &zero).value()?, a.value()?);
         // a - 0 = a
-        assert_eq!(a.sub(cs.ns(|| "a_minus_zero"), &zero).unwrap(), a);
+        assert_eq!((&a - &zero).value()?, a.value()?);
         // a - a = 0
-        assert_eq!(a.sub(cs.ns(|| "a_minus_a"), &a).unwrap(), zero);
+        assert_eq!((&a - &a).value()?, zero.value()?);
         // a + b = b + a
-        let a_b = a.add(cs.ns(|| "a_plus_b"), &b).unwrap();
-        let b_a = b.add(cs.ns(|| "b_plus_a"), &a).unwrap();
-        assert_eq!(a_b, b_a);
+        let a_b = &a + &b;
+        let b_a = &b + &a;
+        assert_eq!(a_b.value()?, b_a.value()?);
+        a_b.enforce_equal(&b_a)?;
+        assert!(cs.is_satisfied().unwrap());
+
         // (a + b) + a = a + (b + a)
-        let ab_a = a_b.add(&mut cs.ns(|| "a_b_plus_a"), &a).unwrap();
-        let a_ba = a.add(&mut cs.ns(|| "a_plus_b_a"), &b_a).unwrap();
-        assert_eq!(ab_a, a_ba);
+        let ab_a = &a_b + &a;
+        let a_ba = &a + &b_a;
+        assert_eq!(ab_a.value()?, a_ba.value()?);
+        ab_a.enforce_equal(&a_ba)?;
+        assert!(cs.is_satisfied().unwrap());
+
         // a.double() = a + a
-        let a_a = a.add(cs.ns(|| "a + a"), &a).unwrap();
+        let a_a = &a + &a;
         let mut a2 = a.clone();
-        a2.double_in_place(cs.ns(|| "2a")).unwrap();
-        assert_eq!(a2, a_a);
+        a2.double_in_place()?;
+        a2.enforce_equal(&a_a)?;
+        assert_eq!(a2.value()?, a_native.double());
+        assert_eq!(a_a.value()?, a_native.double());
+        assert_eq!(a2.value()?, a_a.value()?);
+        assert!(cs.is_satisfied().unwrap());
+
         // b.double() = b + b
         let mut b2 = b.clone();
-        b2.double_in_place(cs.ns(|| "2b")).unwrap();
-        let b_b = b.add(cs.ns(|| "b + b"), &b).unwrap();
-        assert_eq!(b2, b_b);
+        b2.double_in_place()?;
+        let b_b = &b + &b;
+        b2.enforce_equal(&b_b)?;
+        assert!(cs.is_satisfied().unwrap());
+        assert_eq!(b2.value()?, b_b.value()?);
 
-        let _ = a.to_bytes(&mut cs.ns(|| "ToBytes")).unwrap();
-        let _ = a
-            .to_non_unique_bytes(&mut cs.ns(|| "ToBytes Strict"))
-            .unwrap();
+        let _ = a.to_bytes()?;
+        let _ = a.to_non_unique_bytes()?;
 
-        let _ = b.to_bytes(&mut cs.ns(|| "b ToBytes")).unwrap();
-        let _ = b
-            .to_non_unique_bytes(&mut cs.ns(|| "b ToBytes Strict"))
-            .unwrap();
-        if !cs.is_satisfied() {
+        let _ = b.to_bytes()?;
+        let _ = b.to_non_unique_bytes()?;
+        if !cs.is_satisfied().unwrap() {
             println!("{:?}", cs.which_is_unsatisfied().unwrap());
         }
-        assert!(cs.is_satisfied());
+        assert!(cs.is_satisfied().unwrap());
+        Ok(())
     }
 }

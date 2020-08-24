@@ -1,234 +1,195 @@
 use algebra::{
-    curves::bls12::{Bls12Parameters, G1Prepared, G2Prepared, TwistType},
+    curves::{
+        bls12::{Bls12Parameters, G1Prepared, G2Prepared, TwistType},
+        short_weierstrass_jacobian::GroupAffine,
+    },
     fields::Field,
-    BitIterator, One, ProjectiveCurve,
+    BitIterator, One,
 };
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_core::SynthesisError;
 
 use crate::{
-    fields::{fp::FpGadget, fp2::Fp2Gadget, FieldGadget},
-    groups::curves::short_weierstrass::AffineGadget,
-    prelude::*,
+    fields::{fp::FpVar, fp2::Fp2Var, FieldVar},
+    groups::curves::short_weierstrass::*,
     Vec,
 };
 
-use core::{borrow::Borrow, fmt::Debug, ops::Mul};
+use core::fmt::Debug;
 
-pub type G1Gadget<P> = AffineGadget<
-    <P as Bls12Parameters>::G1Parameters,
-    <P as Bls12Parameters>::Fp,
-    FpGadget<<P as Bls12Parameters>::Fp>,
->;
+pub type G1Var<P> =
+    ProjectiveVar<<P as Bls12Parameters>::G1Parameters, FpVar<<P as Bls12Parameters>::Fp>>;
+pub type G1AffineVar<P> =
+    AffineVar<<P as Bls12Parameters>::G1Parameters, FpVar<<P as Bls12Parameters>::Fp>>;
 
-pub type G2Gadget<P> =
-    AffineGadget<<P as Bls12Parameters>::G2Parameters, <P as Bls12Parameters>::Fp, Fp2G<P>>;
+pub type G2Var<P> = ProjectiveVar<<P as Bls12Parameters>::G2Parameters, Fp2G<P>>;
+pub type G2AffineVar<P> = AffineVar<<P as Bls12Parameters>::G2Parameters, Fp2G<P>>;
 
 #[derive(Derivative)]
-#[derivative(
-    Clone(bound = "G1Gadget<P>: Clone"),
-    Debug(bound = "G1Gadget<P>: Debug")
-)]
-pub struct G1PreparedGadget<P: Bls12Parameters>(pub G1Gadget<P>);
+#[derivative(Clone(bound = "G1Var<P>: Clone"), Debug(bound = "G1Var<P>: Debug"))]
+pub struct G1PreparedVar<P: Bls12Parameters>(pub AffineVar<P::G1Parameters, FpVar<P::Fp>>);
 
-impl<P: Bls12Parameters> AllocGadget<G1Prepared<P>, P::Fp> for G1PreparedGadget<P> {
-    fn alloc_constant<T, CS: ConstraintSystem<P::Fp>>(
-        mut cs: CS,
-        t: T,
-    ) -> Result<Self, SynthesisError>
-    where
-        T: Borrow<G1Prepared<P>>,
-    {
-        let obj = t.borrow();
-
-        Ok(Self(G1Gadget::<P>::alloc_constant(
-            &mut cs.ns(|| "g1"),
-            &obj.0.into(),
-        )?))
+impl<P: Bls12Parameters> G1PreparedVar<P> {
+    pub fn value(&self) -> Result<G1Prepared<P>, SynthesisError> {
+        let x = self.0.x.value()?;
+        let y = self.0.y.value()?;
+        let infinity = self.0.infinity.value()?;
+        let g = GroupAffine::new(x, y, infinity);
+        Ok(g.into())
     }
 
-    fn alloc<F, T, CS: ConstraintSystem<P::Fp>>(_cs: CS, _f: F) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<G1Prepared<P>>,
-    {
-        todo!()
-    }
-
-    fn alloc_input<F, T, CS: ConstraintSystem<P::Fp>>(
-        _cs: CS,
-        _f: F,
-    ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<G1Prepared<P>>,
-    {
-        todo!()
+    pub fn from_group_var(q: &G1Var<P>) -> Result<Self, SynthesisError> {
+        let g = q.to_affine()?;
+        Ok(Self(g))
     }
 }
 
-impl<P: Bls12Parameters> G1PreparedGadget<P> {
-    pub fn get_value(&self) -> Option<G1Prepared<P>> {
-        Some(G1Prepared::from(self.0.get_value().unwrap().into_affine()))
-    }
-
-    pub fn from_affine<CS: ConstraintSystem<P::Fp>>(
-        _cs: CS,
-        q: &G1Gadget<P>,
+impl<P: Bls12Parameters> AllocVar<G1Prepared<P>, P::Fp> for G1PreparedVar<P> {
+    fn new_variable<T: Borrow<G1Prepared<P>>>(
+        cs: impl Into<Namespace<P::Fp>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
     ) -> Result<Self, SynthesisError> {
-        Ok(G1PreparedGadget(q.clone()))
+        let ns = cs.into();
+        let cs = ns.cs();
+        let g1_prep = f().map(|b| b.borrow().0);
+
+        let x = FpVar::new_variable(cs.ns("x"), || g1_prep.map(|g| g.x), mode)?;
+        let y = FpVar::new_variable(cs.ns("y"), || g1_prep.map(|g| g.y), mode)?;
+        let infinity = Boolean::new_variable(cs.ns("inf"), || g1_prep.map(|g| g.infinity), mode)?;
+        let g = AffineVar::new(x, y, infinity);
+        Ok(Self(g))
     }
 }
 
-impl<P: Bls12Parameters> ToBytesGadget<P::Fp> for G1PreparedGadget<P> {
+impl<P: Bls12Parameters> ToBytesGadget<P::Fp> for G1PreparedVar<P> {
     #[inline]
-    fn to_bytes<CS: ConstraintSystem<P::Fp>>(
-        &self,
-        mut cs: CS,
-    ) -> Result<Vec<UInt8>, SynthesisError> {
-        self.0.to_bytes(&mut cs.ns(|| "g_alpha to bytes"))
+    fn to_bytes(&self) -> Result<Vec<UInt8<P::Fp>>, SynthesisError> {
+        let mut bytes = self.0.x.to_bytes()?;
+        let y_bytes = self.0.y.to_bytes()?;
+        let inf_bytes = self.0.infinity.to_bytes()?;
+        bytes.extend_from_slice(&y_bytes);
+        bytes.extend_from_slice(&inf_bytes);
+        Ok(bytes)
     }
 
-    fn to_non_unique_bytes<CS: ConstraintSystem<P::Fp>>(
-        &self,
-        mut cs: CS,
-    ) -> Result<Vec<UInt8>, SynthesisError> {
-        self.0
-            .to_non_unique_bytes(&mut cs.ns(|| "g_alpha to bytes"))
+    fn to_non_unique_bytes(&self) -> Result<Vec<UInt8<P::Fp>>, SynthesisError> {
+        let mut bytes = self.0.x.to_bytes()?;
+        let y_bytes = self.0.y.to_bytes()?;
+        let inf_bytes = self.0.infinity.to_bytes()?;
+        bytes.extend_from_slice(&y_bytes);
+        bytes.extend_from_slice(&inf_bytes);
+        Ok(bytes)
     }
 }
 
-type Fp2G<P> = Fp2Gadget<<P as Bls12Parameters>::Fp2Params, <P as Bls12Parameters>::Fp>;
+type Fp2G<P> = Fp2Var<<P as Bls12Parameters>::Fp2Params>;
 type LCoeff<P> = (Fp2G<P>, Fp2G<P>);
 #[derive(Derivative)]
 #[derivative(
-    Clone(bound = "Fp2Gadget<P::Fp2Params, P::Fp>: Clone"),
-    Debug(bound = "Fp2Gadget<P::Fp2Params, P::Fp>: Debug")
+    Clone(bound = "Fp2Var<P::Fp2Params>: Clone"),
+    Debug(bound = "Fp2Var<P::Fp2Params>: Debug")
 )]
-pub struct G2PreparedGadget<P: Bls12Parameters> {
+pub struct G2PreparedVar<P: Bls12Parameters> {
     pub ell_coeffs: Vec<LCoeff<P>>,
 }
 
-impl<P: Bls12Parameters> AllocGadget<G2Prepared<P>, P::Fp> for G2PreparedGadget<P> {
-    fn alloc_constant<T, CS: ConstraintSystem<P::Fp>>(
-        mut cs: CS,
-        t: T,
-    ) -> Result<Self, SynthesisError>
-    where
-        T: Borrow<G2Prepared<P>>,
-    {
-        let obj = t.borrow();
-        let mut res = Vec::<LCoeff<P>>::new();
-
-        for (i, (x, y, z)) in obj.ell_coeffs.iter().enumerate() {
-            let z_inverse = z.inverse().unwrap();
-
-            let x_normalized = x.mul(&z_inverse);
-            let y_normalized = y.mul(&z_inverse);
-
-            let x_gadget =
-                Fp2Gadget::alloc_constant(&mut cs.ns(|| format!("alloc_x#{}", i)), x_normalized)?;
-            let y_gadget =
-                Fp2Gadget::alloc_constant(&mut cs.ns(|| format!("alloc_y#{}", i)), y_normalized)?;
-
-            res.push((x_gadget, y_gadget));
-        }
-
-        Ok(Self { ell_coeffs: res })
-    }
-
-    fn alloc<F, T, CS: ConstraintSystem<P::Fp>>(_cs: CS, _f: F) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<G2Prepared<P>>,
-    {
-        todo!()
-    }
-
-    fn alloc_input<F, T, CS: ConstraintSystem<P::Fp>>(
-        _cs: CS,
-        _f: F,
-    ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<G2Prepared<P>>,
-    {
-        todo!()
-    }
-}
-
-impl<P: Bls12Parameters> ToBytesGadget<P::Fp> for G2PreparedGadget<P> {
-    #[inline]
-    fn to_bytes<CS: ConstraintSystem<P::Fp>>(
-        &self,
-        mut cs: CS,
-    ) -> Result<Vec<UInt8>, SynthesisError> {
-        let mut bytes = Vec::new();
-        for (i, coeffs) in self.ell_coeffs.iter().enumerate() {
-            let mut cs = cs.ns(|| format!("Iteration {}", i));
-            bytes.extend_from_slice(&coeffs.0.to_bytes(&mut cs.ns(|| "c0"))?);
-            bytes.extend_from_slice(&coeffs.1.to_bytes(&mut cs.ns(|| "c1"))?);
-        }
-        Ok(bytes)
-    }
-
-    fn to_non_unique_bytes<CS: ConstraintSystem<P::Fp>>(
-        &self,
-        mut cs: CS,
-    ) -> Result<Vec<UInt8>, SynthesisError> {
-        let mut bytes = Vec::new();
-        for (i, coeffs) in self.ell_coeffs.iter().enumerate() {
-            let mut cs = cs.ns(|| format!("Iteration {}", i));
-            bytes.extend_from_slice(&coeffs.0.to_non_unique_bytes(&mut cs.ns(|| "c0"))?);
-            bytes.extend_from_slice(&coeffs.1.to_non_unique_bytes(&mut cs.ns(|| "c1"))?);
-        }
-        Ok(bytes)
-    }
-}
-
-impl<P: Bls12Parameters> G2PreparedGadget<P> {
-    pub fn from_affine<CS: ConstraintSystem<P::Fp>>(
-        mut cs: CS,
-        q: &G2Gadget<P>,
+impl<P: Bls12Parameters> AllocVar<G2Prepared<P>, P::Fp> for G2PreparedVar<P> {
+    fn new_variable<T: Borrow<G2Prepared<P>>>(
+        cs: impl Into<Namespace<P::Fp>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
     ) -> Result<Self, SynthesisError> {
+        let ns = cs.into();
+        let cs = ns.cs();
+        let g2_prep = f().map(|b| {
+            let projective_coeffs = &b.borrow().ell_coeffs;
+            let mut z_s = projective_coeffs
+                .iter()
+                .map(|(_, _, z)| *z)
+                .collect::<Vec<_>>();
+            algebra::fields::batch_inversion(&mut z_s);
+            projective_coeffs
+                .iter()
+                .zip(z_s)
+                .map(|((x, y, _), z_inv)| (*x * &z_inv, *y * &z_inv))
+                .collect::<Vec<_>>()
+        });
+
+        let l = Vec::new_variable(
+            cs.ns("l"),
+            || {
+                g2_prep
+                    .clone()
+                    .map(|c| c.iter().map(|(l, _)| *l).collect::<Vec<_>>())
+            },
+            mode,
+        )?;
+        let r = Vec::new_variable(
+            cs.ns("r"),
+            || g2_prep.map(|c| c.iter().map(|(_, r)| *r).collect::<Vec<_>>()),
+            mode,
+        )?;
+        let ell_coeffs = l.into_iter().zip(r).collect();
+        Ok(Self { ell_coeffs })
+    }
+}
+
+impl<P: Bls12Parameters> ToBytesGadget<P::Fp> for G2PreparedVar<P> {
+    #[inline]
+    fn to_bytes(&self) -> Result<Vec<UInt8<P::Fp>>, SynthesisError> {
+        let mut bytes = Vec::new();
+        for coeffs in &self.ell_coeffs {
+            bytes.extend_from_slice(&coeffs.0.to_bytes()?);
+            bytes.extend_from_slice(&coeffs.1.to_bytes()?);
+        }
+        Ok(bytes)
+    }
+
+    fn to_non_unique_bytes(&self) -> Result<Vec<UInt8<P::Fp>>, SynthesisError> {
+        let mut bytes = Vec::new();
+        for coeffs in &self.ell_coeffs {
+            bytes.extend_from_slice(&coeffs.0.to_non_unique_bytes()?);
+            bytes.extend_from_slice(&coeffs.1.to_non_unique_bytes()?);
+        }
+        Ok(bytes)
+    }
+}
+
+impl<P: Bls12Parameters> G2PreparedVar<P> {
+    pub fn from_group_var(q: &G2Var<P>) -> Result<Self, SynthesisError> {
+        let q = q.to_affine()?;
         let two_inv = P::Fp::one().double().inverse().unwrap();
-        let zero = G2Gadget::<P>::zero(cs.ns(|| "zero"))?;
-        q.enforce_not_equal(cs.ns(|| "enforce not zero"), &zero)?;
+        // Enforce that `q` is not the point at infinity.
+        q.infinity.enforce_not_equal(&Boolean::Constant(true))?;
         let mut ell_coeffs = vec![];
         let mut r = q.clone();
 
-        for (j, i) in BitIterator::new(P::X).skip(1).enumerate() {
-            let mut cs = cs.ns(|| format!("Iteration {}", j));
-            ell_coeffs.push(Self::double(cs.ns(|| "double"), &mut r, &two_inv)?);
+        for i in BitIterator::new(P::X).skip(1) {
+            ell_coeffs.push(Self::double(&mut r, &two_inv)?);
 
             if i {
-                ell_coeffs.push(Self::add(cs.ns(|| "add"), &mut r, &q)?);
+                ell_coeffs.push(Self::add(&mut r, &q)?);
             }
         }
 
         Ok(Self { ell_coeffs })
     }
 
-    fn double<CS: ConstraintSystem<P::Fp>>(
-        mut cs: CS,
-        r: &mut G2Gadget<P>,
-        two_inv: &P::Fp,
-    ) -> Result<LCoeff<P>, SynthesisError> {
-        let a = r.y.inverse(cs.ns(|| "Inverse"))?;
-        let mut b = r.x.square(cs.ns(|| "square x"))?;
+    fn double(r: &mut G2AffineVar<P>, two_inv: &P::Fp) -> Result<LCoeff<P>, SynthesisError> {
+        let a = r.y.inverse()?;
+        let mut b = r.x.square()?;
         let b_tmp = b.clone();
-        b.mul_by_fp_constant_in_place(cs.ns(|| "mul by two_inv"), two_inv)?;
-        b.add_in_place(cs.ns(|| "compute b"), &b_tmp)?;
+        b.mul_assign_by_base_field_constant(*two_inv);
+        b += &b_tmp;
 
-        let c = a.mul(cs.ns(|| "compute c"), &b)?;
-        let d = r.x.double(cs.ns(|| "compute d"))?;
-        let x3 = c.square(cs.ns(|| "c^2"))?.sub(cs.ns(|| "sub d"), &d)?;
-        let e = c
-            .mul(cs.ns(|| "c*r.x"), &r.x)?
-            .sub(cs.ns(|| "sub r.y"), &r.y)?;
-        let c_x3 = c.mul(cs.ns(|| "c*x_3"), &x3)?;
-        let y3 = e.sub(cs.ns(|| "e = c * x3"), &c_x3)?;
+        let c = &a * &b;
+        let d = r.x.double()?;
+        let x3 = c.square()? - &d;
+        let e = &c * &r.x - &r.y;
+        let c_x3 = &c * &x3;
+        let y3 = &e - &c_x3;
         let mut f = c;
-        f.negate_in_place(cs.ns(|| "c = -c"))?;
+        f.negate_in_place()?;
         r.x = x3;
         r.y = y3;
         match P::TWIST_TYPE {
@@ -237,28 +198,18 @@ impl<P: Bls12Parameters> G2PreparedGadget<P> {
         }
     }
 
-    fn add<CS: ConstraintSystem<P::Fp>>(
-        mut cs: CS,
-        r: &mut G2Gadget<P>,
-        q: &G2Gadget<P>,
-    ) -> Result<LCoeff<P>, SynthesisError> {
-        let a =
-            q.x.sub(cs.ns(|| "q.x - r.x"), &r.x)?
-                .inverse(cs.ns(|| "calc a"))?;
-        let b = q.y.sub(cs.ns(|| "q.y - r.y"), &r.y)?;
-        let c = a.mul(cs.ns(|| "compute c"), &b)?;
-        let d = r.x.add(cs.ns(|| "r.x + q.x"), &q.x)?;
-        let x3 = c.square(cs.ns(|| "c^2"))?.sub(cs.ns(|| "sub d"), &d)?;
+    fn add(r: &mut G2AffineVar<P>, q: &G2AffineVar<P>) -> Result<LCoeff<P>, SynthesisError> {
+        let a = (&q.x - &r.x).inverse()?;
+        let b = &q.y - &r.y;
+        let c = &a * &b;
+        let d = &r.x + &q.x;
+        let x3 = c.square()? - &d;
 
-        let e =
-            r.x.sub(cs.ns(|| "r.x - x3"), &x3)?
-                .mul(cs.ns(|| "c * (r.x - x3)"), &c)?;
-        let y3 = e.sub(cs.ns(|| "calc y3"), &r.y)?;
-        let g = c
-            .mul(cs.ns(|| "c*r.x"), &r.x)?
-            .sub(cs.ns(|| "calc g"), &r.y)?;
+        let e = (&r.x - &x3) * &c;
+        let y3 = e - &r.y;
+        let g = &c * &r.x - &r.y;
         let mut f = c;
-        f.negate_in_place(cs.ns(|| "c = -c"))?;
+        f.negate_in_place()?;
         r.x = x3;
         r.y = y3;
         match P::TWIST_TYPE {

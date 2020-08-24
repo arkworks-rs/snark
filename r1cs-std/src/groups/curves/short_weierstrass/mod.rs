@@ -3,83 +3,177 @@ use algebra::{
         short_weierstrass_jacobian::{GroupAffine as SWAffine, GroupProjective as SWProjective},
         SWModelParameters,
     },
-    AffineCurve, BitIterator, Field, One, PrimeField, ProjectiveCurve, Zero,
+    AffineCurve, BigInteger, BitIterator, Field, One, PrimeField, ProjectiveCurve, Zero,
 };
-use core::{borrow::Borrow, marker::PhantomData, ops::Neg};
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use core::{borrow::Borrow, marker::PhantomData};
+use r1cs_core::{ConstraintSystemRef, Namespace, SynthesisError};
 
-use crate::{prelude::*, Assignment, Vec};
+use crate::{prelude::*, Vec};
 
 pub mod bls12;
 pub mod mnt4;
 pub mod mnt6;
 
+/// An implementation of arithmetic for Short Weierstrass curves that relies on
+/// the complete formulae derived in the paper of
+/// [[Renes, Costello, Batina 2015]](https://eprint.iacr.org/2015/1060).
 #[derive(Derivative)]
 #[derivative(Debug, Clone)]
 #[must_use]
-pub struct AffineGadget<
+pub struct ProjectiveVar<
     P: SWModelParameters,
-    ConstraintF: Field,
-    F: FieldGadget<P::BaseField, ConstraintF>,
-> {
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
+> where
+    for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
+{
+    /// The x-coordinate.
     pub x: F,
+    /// The y-coordinate.
     pub y: F,
-    pub infinity: Boolean,
+    /// The z-coordinate.
+    pub z: F,
+    #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
-    _engine: PhantomData<ConstraintF>,
 }
 
-impl<
-        P: SWModelParameters,
-        ConstraintF: PrimeField,
-        F: FieldGadget<P::BaseField, ConstraintF> + ToConstraintFieldGadget<ConstraintF>,
-    > ToConstraintFieldGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
+/// An affine representation of a curve point.
+#[derive(Derivative)]
+#[derivative(Debug, Clone)]
+#[must_use]
+pub struct AffineVar<
+    P: SWModelParameters,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
+> where
+    for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
-    fn to_constraint_field<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        mut cs: CS,
-    ) -> Result<Vec<FpGadget<ConstraintF>>, SynthesisError> {
-        let mut res = Vec::new();
-
-        let mut x_gadget = self.x.to_constraint_field(&mut cs.ns(|| "x"))?;
-        let mut y_gadget = self.y.to_constraint_field(&mut cs.ns(|| "y"))?;
-
-        let mut infinity_gadget = self
-            .infinity
-            .to_constraint_field(&mut cs.ns(|| "infinity"))?;
-
-        res.append(&mut x_gadget);
-        res.append(&mut y_gadget);
-        res.append(&mut infinity_gadget);
-
-        Ok(res)
-    }
+    /// The x-coordinate.
+    pub x: F,
+    /// The y-coordinate.
+    pub y: F,
+    /// Is `self` the point at infinity.
+    pub infinity: Boolean<<P::BaseField as Field>::BasePrimeField>,
+    #[derivative(Debug = "ignore")]
+    _params: PhantomData<P>,
 }
 
-impl<P: SWModelParameters, ConstraintF: Field, F: FieldGadget<P::BaseField, ConstraintF>>
-    AffineGadget<P, ConstraintF, F>
+impl<P, F> AffineVar<P, F>
+where
+    P: SWModelParameters,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
+    for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
-    pub fn new(x: F, y: F, infinity: Boolean) -> Self {
+    fn new(x: F, y: F, infinity: Boolean<<P::BaseField as Field>::BasePrimeField>) -> Self {
         Self {
             x,
             y,
             infinity,
             _params: PhantomData,
-            _engine: PhantomData,
         }
     }
 
-    pub fn alloc_without_check<FN, CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        value_gen: F,
-    ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<SWProjective<P>, SynthesisError>,
-    {
-        let (x, y, infinity) = match value_gen() {
+    pub fn value(&self) -> Result<SWAffine<P>, SynthesisError> {
+        Ok(SWAffine::new(
+            self.x.value()?,
+            self.y.value()?,
+            self.infinity.value()?,
+        ))
+    }
+}
+
+impl<P, F> R1CSVar<<P::BaseField as Field>::BasePrimeField> for ProjectiveVar<P, F>
+where
+    P: SWModelParameters,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
+    for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
+{
+    type Value = SWProjective<P>;
+
+    fn cs(&self) -> Option<ConstraintSystemRef<<P::BaseField as Field>::BasePrimeField>> {
+        self.x.cs().or(self.y.cs()).or(self.z.cs())
+    }
+
+    fn value(&self) -> Result<Self::Value, SynthesisError> {
+        let (x, y, z) = (self.x.value()?, self.y.value()?, self.z.value()?);
+        let result = if let Some(z_inv) = z.inverse() {
+            SWAffine::new(x * &z_inv, y * &z_inv, false)
+        } else {
+            SWAffine::zero()
+        };
+        Ok(result.into())
+    }
+}
+
+impl<P: SWModelParameters, F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>>
+    ProjectiveVar<P, F>
+where
+    for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
+{
+    pub fn new(x: F, y: F, z: F) -> Self {
+        Self {
+            x,
+            y,
+            z,
+            _params: PhantomData,
+        }
+    }
+
+    /// Convert this point into affine form.
+    pub fn to_affine(&self) -> Result<AffineVar<P, F>, SynthesisError> {
+        let cs = self.cs().unwrap_or(ConstraintSystemRef::None);
+        let mode = if self.is_constant() {
+            AllocationMode::Constant
+        } else {
+            AllocationMode::Witness
+        };
+
+        let infinity = self.is_zero()?;
+        let zero_x = F::zero();
+        let zero_y = F::one();
+
+        let non_zero_x = F::new_variable(
+            cs.ns("non-zero x"),
+            || {
+                let z_inv = self.z.value()?.inverse().unwrap_or(P::BaseField::zero());
+                Ok(self.x.value()? * &z_inv)
+            },
+            mode,
+        )?;
+        let non_zero_y = F::new_variable(
+            cs.ns("non-zero y"),
+            || {
+                let z_inv = self.z.value()?.inverse().unwrap_or(P::BaseField::zero());
+                Ok(self.y.value()? * &z_inv)
+            },
+            mode,
+        )?;
+        let x = infinity.select(&zero_x, &non_zero_x)?;
+        let y = infinity.select(&zero_y, &non_zero_y)?;
+        Ok(AffineVar::new(x, y, infinity))
+    }
+
+    /// Allocates a new variable without performing an on-curve check, which is
+    /// useful if the variable is known to be on the curve (eg., if the point
+    /// is a constant or is a public input).
+    pub fn new_variable_omit_on_curve_check(
+        cs: impl Into<Namespace<<P::BaseField as Field>::BasePrimeField>>,
+        f: impl FnOnce() -> Result<SWProjective<P>, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        let ns = cs.into();
+        let cs = ns.cs();
+
+        let (x, y, z) = match f() {
             Ok(ge) => {
                 let ge = ge.into_affine();
-                (Ok(ge.x), Ok(ge.y), Ok(ge.infinity))
+                if ge.is_zero() {
+                    (
+                        Ok(P::BaseField::zero()),
+                        Ok(P::BaseField::one()),
+                        Ok(P::BaseField::zero()),
+                    )
+                } else {
+                    (Ok(ge.x), Ok(ge.y), Ok(P::BaseField::one()))
+                }
             }
             _ => (
                 Err(SynthesisError::AssignmentMissing),
@@ -88,731 +182,581 @@ impl<P: SWModelParameters, ConstraintF: Field, F: FieldGadget<P::BaseField, Cons
             ),
         };
 
-        let x = F::alloc(&mut cs.ns(|| "x"), || x)?;
-        let y = F::alloc(&mut cs.ns(|| "y"), || y)?;
-        let infinity = Boolean::alloc(&mut cs.ns(|| "infinity"), || infinity)?;
+        let x = F::new_variable(cs.ns("x"), || x, mode)?;
+        let y = F::new_variable(cs.ns("y"), || y, mode)?;
+        let z = F::new_variable(cs.ns("z"), || z, mode)?;
 
-        Ok(Self::new(x, y, infinity))
+        Ok(Self::new(x, y, z))
     }
 }
 
-impl<P, ConstraintF, F> PartialEq for AffineGadget<P, ConstraintF, F>
+impl<P, F> CurveVar<SWProjective<P>, <P::BaseField as Field>::BasePrimeField>
+    for ProjectiveVar<P, F>
 where
     P: SWModelParameters,
-    ConstraintF: Field,
-    F: FieldGadget<P::BaseField, ConstraintF>,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
+    for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
-    fn eq(&self, other: &Self) -> bool {
-        self.x == other.x && self.y == other.y
+    fn constant(g: SWProjective<P>) -> Self {
+        let cs = ConstraintSystemRef::None;
+        Self::new_variable_omit_on_curve_check(cs, || Ok(g), AllocationMode::Constant).unwrap()
     }
-}
 
-impl<P, ConstraintF, F> Eq for AffineGadget<P, ConstraintF, F>
-where
-    P: SWModelParameters,
-    ConstraintF: Field,
-    F: FieldGadget<P::BaseField, ConstraintF>,
-{
-}
+    fn zero() -> Self {
+        Self::new(F::zero(), F::one(), F::zero())
+    }
 
-impl<P, ConstraintF, F> GroupGadget<SWProjective<P>, ConstraintF>
-    for AffineGadget<P, ConstraintF, F>
-where
-    P: SWModelParameters,
-    ConstraintF: PrimeField,
-    F: FieldGadget<P::BaseField, ConstraintF>,
-{
-    type Value = SWProjective<P>;
-    type Variable = (F::Variable, F::Variable);
+    fn is_zero(&self) -> Result<Boolean<<P::BaseField as Field>::BasePrimeField>, SynthesisError> {
+        self.z.is_zero()
+    }
 
-    #[inline]
-    fn get_value(&self) -> Option<Self::Value> {
-        match (
-            self.x.get_value(),
-            self.y.get_value(),
-            self.infinity.get_value(),
-        ) {
-            (Some(x), Some(y), Some(infinity)) => {
-                Some(SWAffine::new(x, y, infinity).into_projective())
+    fn new_variable_omit_prime_order_check(
+        cs: impl Into<Namespace<<P::BaseField as Field>::BasePrimeField>>,
+        f: impl FnOnce() -> Result<SWProjective<P>, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        let ns = cs.into();
+        let cs = ns.cs();
+        // Curve equation in projective form:
+        // E: Y² * Z = X³ + aX * Z² + bZ³
+        //
+        // This can be re-written as
+        // E: Y² * Z - bZ³ = X³ + aX * Z²
+        // E: Z * (Y² - bZ²) = X * (X² + aZ²)
+        // so, compute X², Y², Z²,
+        //     compute temp = X * (X² + aZ²)
+        //     check Z.mul_equals((Y² - bZ²), temp)
+        //
+        //     A total of 5 multiplications
+
+        let g = Self::new_variable_omit_on_curve_check(cs, f, mode)?;
+
+        if mode != AllocationMode::Constant {
+            // Perform on-curve check.
+            let b = P::COEFF_B;
+            let a = P::COEFF_A;
+
+            let x2 = g.x.square()?;
+            let y2 = g.y.square()?;
+            let z2 = g.z.square()?;
+            let t = &g.x * (x2 + &z2 * a);
+
+            g.z.mul_equals(&(y2 - z2 * b), &t)?;
+        }
+        Ok(g)
+    }
+
+    /// Enforce that `self` is in the prime-order subgroup.
+    ///
+    /// Does so by multiplying by the prime order, and checking that the result
+    /// is unchanged.
+    // TODO: at the moment this doesn't work, because the addition and doubling
+    // formulae are incomplete for even-order points.
+    fn enforce_prime_order(&self) -> Result<(), SynthesisError> {
+        let r_minus_1 = (-P::ScalarField::one()).into_repr();
+
+        let mut seen_one = false;
+        let mut result = Self::zero();
+        for b in BitIterator::new(r_minus_1) {
+            let old_seen_one = seen_one;
+            if seen_one {
+                result.double_in_place()?;
+            } else {
+                seen_one = b;
             }
-            (None, None, None) => None,
-            _ => unreachable!(),
+
+            if b {
+                result = if old_seen_one {
+                    result + self
+                } else {
+                    self.clone()
+                };
+            }
         }
-    }
-
-    #[inline]
-    fn get_variable(&self) -> Self::Variable {
-        (self.x.get_variable(), self.y.get_variable())
-    }
-
-    #[inline]
-    fn zero<CS: ConstraintSystem<ConstraintF>>(mut cs: CS) -> Result<Self, SynthesisError> {
-        Ok(Self::new(
-            F::zero(cs.ns(|| "zero"))?,
-            F::one(cs.ns(|| "one"))?,
-            Boolean::Constant(true),
-        ))
-    }
-
-    #[inline]
-    /// Incomplete addition: neither `self` nor `other` can be the neutral
-    /// element.
-    fn add<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        mut cs: CS,
-        other: &Self,
-    ) -> Result<Self, SynthesisError> {
-        // lambda = (B.y - A.y)/(B.x - A.x)
-        // C.x = lambda^2 - A.x - B.x
-        // C.y = lambda(A.x - C.x) - A.y
-        //
-        // Special cases:
-        //
-        // doubling: if B.y = A.y and B.x = A.x then lambda is unbound and
-        // C = (lambda^2, lambda^3)
-        //
-        // addition of negative point: if B.y = -A.y and B.x = A.x then no
-        // lambda can satisfy the first equation unless B.y - A.y = 0. But
-        // then this reduces to doubling.
-        //
-        // So we need to check that A.x - B.x != 0, which can be done by
-        // enforcing I * (B.x - A.x) = 1
-        // This is done below when we calculate inv (by F::inverse)
-
-        let x2_minus_x1 = other.x.sub(cs.ns(|| "x2 - x1"), &self.x)?;
-        let y2_minus_y1 = other.y.sub(cs.ns(|| "y2 - y1"), &self.y)?;
-
-        let inv = x2_minus_x1.inverse(cs.ns(|| "compute inv"))?;
-
-        let lambda = F::alloc(cs.ns(|| "lambda"), || {
-            Ok(y2_minus_y1.get_value().get()? * &inv.get_value().get()?)
-        })?;
-
-        let x_3 = F::alloc(&mut cs.ns(|| "x_3"), || {
-            let lambda_val = lambda.get_value().get()?;
-            let x1 = self.x.get_value().get()?;
-            let x2 = other.x.get_value().get()?;
-            Ok((lambda_val.square() - &x1) - &x2)
-        })?;
-
-        let y_3 = F::alloc(&mut cs.ns(|| "y_3"), || {
-            let lambda_val = lambda.get_value().get()?;
-            let x_1 = self.x.get_value().get()?;
-            let y_1 = self.y.get_value().get()?;
-            let x_3 = x_3.get_value().get()?;
-            Ok(lambda_val * &(x_1 - &x_3) - &y_1)
-        })?;
-
-        // Check lambda
-        lambda.mul_equals(cs.ns(|| "check lambda"), &x2_minus_x1, &y2_minus_y1)?;
-
-        // Check x3
-        let x3_plus_x1_plus_x2 = x_3
-            .add(cs.ns(|| "x3 + x1"), &self.x)?
-            .add(cs.ns(|| "x3 + x1 + x2"), &other.x)?;
-        lambda.mul_equals(cs.ns(|| "check x3"), &lambda, &x3_plus_x1_plus_x2)?;
-
-        // Check y3
-        let y3_plus_y1 = y_3.add(cs.ns(|| "y3 + y1"), &self.y)?;
-        let x1_minus_x3 = self.x.sub(cs.ns(|| "x1 - x3"), &x_3)?;
-
-        lambda.mul_equals(cs.ns(|| ""), &x1_minus_x3, &y3_plus_y1)?;
-
-        Ok(Self::new(x_3, y_3, Boolean::Constant(false)))
-    }
-
-    /// Incomplete addition: neither `self` nor `other` can be the neutral
-    /// element.
-    fn add_constant<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        mut cs: CS,
-        other: &SWProjective<P>,
-    ) -> Result<Self, SynthesisError> {
-        // lambda = (B.y - A.y)/(B.x - A.x)
-        // C.x = lambda^2 - A.x - B.x
-        // C.y = lambda(A.x - C.x) - A.y
-        //
-        // Special cases:
-        //
-        // doubling: if B.y = A.y and B.x = A.x then lambda is unbound and
-        // C = (lambda^2, lambda^3)
-        //
-        // addition of negative point: if B.y = -A.y and B.x = A.x then no
-        // lambda can satisfy the first equation unless B.y - A.y = 0. But
-        // then this reduces to doubling.
-        //
-        // So we need to check that A.x - B.x != 0, which can be done by
-        // enforcing I * (B.x - A.x) = 1
-        if other.is_zero() {
-            return Err(SynthesisError::AssignmentMissing);
-        }
-        let other = other.into_affine();
-        let other_x = other.x;
-        let other_y = other.y;
-
-        let x2_minus_x1 = self
-            .x
-            .sub_constant(cs.ns(|| "x2 - x1"), &other_x)?
-            .negate(cs.ns(|| "neg1"))?;
-        let y2_minus_y1 = self
-            .y
-            .sub_constant(cs.ns(|| "y2 - y1"), &other_y)?
-            .negate(cs.ns(|| "neg2"))?;
-
-        let inv = x2_minus_x1.inverse(cs.ns(|| "compute inv"))?;
-
-        let lambda = F::alloc(cs.ns(|| "lambda"), || {
-            Ok(y2_minus_y1.get_value().get()? * &inv.get_value().get()?)
-        })?;
-
-        let x_3 = F::alloc(&mut cs.ns(|| "x_3"), || {
-            let lambda_val = lambda.get_value().get()?;
-            let x1 = self.x.get_value().get()?;
-            let x2 = other_x;
-            Ok((lambda_val.square() - &x1) - &x2)
-        })?;
-
-        let y_3 = F::alloc(&mut cs.ns(|| "y_3"), || {
-            let lambda_val = lambda.get_value().get()?;
-            let x_1 = self.x.get_value().get()?;
-            let y_1 = self.y.get_value().get()?;
-            let x_3 = x_3.get_value().get()?;
-            Ok(lambda_val * &(x_1 - &x_3) - &y_1)
-        })?;
-
-        // Check lambda
-        lambda.mul_equals(cs.ns(|| "check lambda"), &x2_minus_x1, &y2_minus_y1)?;
-
-        // Check x3
-        let x3_plus_x1_plus_x2 = x_3
-            .add(cs.ns(|| "x3 + x1"), &self.x)?
-            .add_constant(cs.ns(|| "x3 + x1 + x2"), &other_x)?;
-        lambda.mul_equals(cs.ns(|| "check x3"), &lambda, &x3_plus_x1_plus_x2)?;
-
-        // Check y3
-        let y3_plus_y1 = y_3.add(cs.ns(|| "y3 + y1"), &self.y)?;
-        let x1_minus_x3 = self.x.sub(cs.ns(|| "x1 - x3"), &x_3)?;
-
-        lambda.mul_equals(cs.ns(|| ""), &x1_minus_x3, &y3_plus_y1)?;
-
-        Ok(Self::new(x_3, y_3, Boolean::Constant(false)))
-    }
-
-    #[inline]
-    fn double_in_place<CS: ConstraintSystem<ConstraintF>>(
-        &mut self,
-        mut cs: CS,
-    ) -> Result<(), SynthesisError> {
-        let a = P::COEFF_A;
-        let x_squared = self.x.square(cs.ns(|| "x^2"))?;
-
-        let one = P::BaseField::one();
-        let two = one.double();
-        let three = two + &one;
-
-        let three_x_squared = x_squared.mul_by_constant(cs.ns(|| "3 * x^2"), &three)?;
-        let three_x_squared_plus_a = three_x_squared.add_constant(cs.ns(|| "3 * x^2 + a"), &a)?;
-
-        let two_y = self.y.double(cs.ns(|| "2y"))?;
-
-        let lambda = F::alloc(cs.ns(|| "lambda"), || {
-            let y_doubled_inv = two_y.get_value().get()?.inverse().get()?;
-            Ok(three_x_squared_plus_a.get_value().get()? * &y_doubled_inv)
-        })?;
-
-        // Check lambda
-        lambda.mul_equals(cs.ns(|| "check lambda"), &two_y, &three_x_squared_plus_a)?;
-
-        let x = lambda
-            .square(cs.ns(|| "lambda^2"))?
-            .sub(cs.ns(|| "lambda^2 - x"), &self.x)?
-            .sub(cs.ns(|| "lambda^2 - 2x"), &self.x)?;
-
-        let y = self
-            .x
-            .sub(cs.ns(|| "x - self.x"), &x)?
-            .mul(cs.ns(|| "times lambda"), &lambda)?
-            .sub(cs.ns(|| "plus self.y"), &self.y)?;
-
-        *self = Self::new(x, y, Boolean::Constant(false));
+        self.negate()?.enforce_equal(&result)?;
         Ok(())
     }
 
-    fn negate<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        mut cs: CS,
-    ) -> Result<Self, SynthesisError> {
-        Ok(Self::new(
-            self.x.clone(),
-            self.y.negate(cs.ns(|| "negate y"))?,
-            self.infinity,
-        ))
+    #[inline]
+    fn double_in_place(&mut self) -> Result<(), SynthesisError> {
+        // Complete doubling formula from Renes-Costello-Batina 2015
+        // Algorithm 3
+        // (https://eprint.iacr.org/2015/1060).
+        //
+        // Adapted from code in
+        // https://github.com/RustCrypto/elliptic-curves/blob/master/p256/src/arithmetic.rs
+        let three_b = P::COEFF_B.double() + &P::COEFF_B;
+
+        let xx = self.x.square()?; // 1
+        let yy = self.y.square()?; // 2
+        let zz = self.z.square()?; // 3
+        let xy2 = (&self.x * &self.y).double()?; // 4, 5
+        let xz2 = (&self.x * &self.z).double()?; // 6, 7
+
+        let axz2 = mul_by_coeff_a::<P, F>(&xz2); // 8
+
+        let bzz3_part = &axz2 + &zz * three_b; // 9, 10
+        let yy_m_bzz3 = &yy - &bzz3_part; // 11
+        let yy_p_bzz3 = &yy + &bzz3_part; // 12
+        let y_frag = yy_p_bzz3 * &yy_m_bzz3; // 13
+        let x_frag = yy_m_bzz3 * &xy2; // 14
+
+        let bxz3 = xz2 * three_b; // 15
+        let azz = mul_by_coeff_a::<P, F>(&zz); // 16
+        let b3_xz_pairs = mul_by_coeff_a::<P, F>(&(&xx - &azz)) + &bxz3; // 15, 16, 17, 18, 19
+        let xx3_p_azz = (xx.double()? + &xx + &azz) * &b3_xz_pairs; // 23, 24, 25
+
+        let y = y_frag + &xx3_p_azz; // 26, 27
+        let yz2 = (&self.y * &self.z).double()?; // 28, 29
+        let x = x_frag - &(b3_xz_pairs * &yz2); // 30, 31
+        let z = (yz2 * &yy).double()?.double()?; // 32, 33, 34
+        self.x = x;
+        self.y = y;
+        self.z = z;
+        Ok(())
     }
 
-    fn cost_of_add() -> usize {
-        3 * F::cost_of_mul_equals() + F::cost_of_inv()
-    }
-
-    fn cost_of_double() -> usize {
-        4 * F::cost_of_mul()
+    fn negate(&self) -> Result<Self, SynthesisError> {
+        Ok(Self::new(self.x.clone(), self.y.negate()?, self.z.clone()))
     }
 }
 
-impl<P, ConstraintF, F> CondSelectGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
+fn mul_by_coeff_a<
+    P: SWModelParameters,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
+>(
+    f: &F,
+) -> F
+where
+    for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
+{
+    if !P::COEFF_A.is_zero() {
+        f * P::COEFF_A
+    } else {
+        F::zero()
+    }
+}
+
+impl_bounded_ops!(
+    ProjectiveVar<P, F>,
+    SWProjective<P>,
+    Add,
+    add,
+    AddAssign,
+    add_assign,
+    |this: &'a ProjectiveVar<P, F>, other: &'a ProjectiveVar<P, F>| {
+        // Complete addition formula from Renes-Costello-Batina 2015
+        // Algorithm 1
+        // (https://eprint.iacr.org/2015/1060).
+        //
+        // Adapted from code in
+        // https://github.com/RustCrypto/elliptic-curves/blob/master/p256/src/arithmetic.rs
+
+        let three_b = P::COEFF_B.double() + &P::COEFF_B;
+
+        let xx = &this.x * &other.x; // 1
+        let yy = &this.y * &other.y; // 2
+        let zz = &this.z * &other.z; // 3
+        let xy_pairs = ((&this.x + &this.y) * &(&other.x + &other.y)) - (&xx + &yy); // 4, 5, 6, 7, 8
+        let xz_pairs = ((&this.x + &this.z) * &(&other.x + &other.z)) - (&xx + &zz); // 9, 10, 11, 12, 13
+        let yz_pairs = ((&this.y + &this.z) * &(&other.y + &other.z)) - (&yy + &zz); // 14, 15, 16, 17, 18
+
+        let axz = mul_by_coeff_a::<P, F>(&xz_pairs); // 19
+
+        let bzz3_part = &axz + &zz * three_b; // 20, 21
+
+        let yy_m_bzz3 = &yy - &bzz3_part; // 22
+        let yy_p_bzz3 = &yy + &bzz3_part; // 23
+
+        let azz = mul_by_coeff_a::<P, F>(&zz);
+        let xx3_p_azz = xx.double().unwrap() + &xx + &azz; // 25, 26, 27, 29
+
+        let bxz3 = &xz_pairs * three_b; // 28
+        let b3_xz_pairs = mul_by_coeff_a::<P, F>(&(&xx - &azz)) + &bxz3; // 30, 31, 32
+
+        let x = (&yy_m_bzz3 * &xy_pairs) - &yz_pairs * &b3_xz_pairs; // 35, 39, 40
+        let y = (&yy_p_bzz3 * &yy_m_bzz3) + &xx3_p_azz * b3_xz_pairs; // 24, 36, 37, 38
+        let z = (&yy_p_bzz3 * &yz_pairs) + xy_pairs * xx3_p_azz; // 41, 42, 43
+
+        ProjectiveVar::new(x, y, z)
+    },
+    |this: &'a ProjectiveVar<P, F>, other: SWProjective<P>| {
+        this + ProjectiveVar::constant(other)
+    },
+    (F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>, P: SWModelParameters),
+    for <'b> &'b F: FieldOpsBounds<'b, P::BaseField, F>,
+);
+
+impl_bounded_ops!(
+    ProjectiveVar<P, F>,
+    SWProjective<P>,
+    Sub,
+    sub,
+    SubAssign,
+    sub_assign,
+    |this: &'a ProjectiveVar<P, F>, other: &'a ProjectiveVar<P, F>| this + other.negate().unwrap(),
+    |this: &'a ProjectiveVar<P, F>, other: SWProjective<P>| this - ProjectiveVar::constant(other),
+    (F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>, P: SWModelParameters),
+    for <'b> &'b F: FieldOpsBounds<'b, P::BaseField, F>
+);
+
+impl<'a, P, F> GroupOpsBounds<'a, SWProjective<P>, ProjectiveVar<P, F>> for ProjectiveVar<P, F>
 where
     P: SWModelParameters,
-    ConstraintF: PrimeField,
-    F: FieldGadget<P::BaseField, ConstraintF>,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
+    for<'b> &'b F: FieldOpsBounds<'b, P::BaseField, F>,
+{
+}
+
+impl<'a, P, F> GroupOpsBounds<'a, SWProjective<P>, ProjectiveVar<P, F>> for &'a ProjectiveVar<P, F>
+where
+    P: SWModelParameters,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
+    for<'b> &'b F: FieldOpsBounds<'b, P::BaseField, F>,
+{
+}
+
+impl<P, F> CondSelectGadget<<P::BaseField as Field>::BasePrimeField> for ProjectiveVar<P, F>
+where
+    P: SWModelParameters,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
+    for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
     #[inline]
-    fn conditionally_select<CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        cond: &Boolean,
+    fn conditionally_select(
+        cond: &Boolean<<P::BaseField as Field>::BasePrimeField>,
         true_value: &Self,
         false_value: &Self,
     ) -> Result<Self, SynthesisError> {
-        let x = F::conditionally_select(&mut cs.ns(|| "x"), cond, &true_value.x, &false_value.x)?;
-        let y = F::conditionally_select(&mut cs.ns(|| "y"), cond, &true_value.y, &false_value.y)?;
-        let infinity = Boolean::conditionally_select(
-            &mut cs.ns(|| "infinity"),
-            cond,
-            &true_value.infinity,
-            &false_value.infinity,
-        )?;
+        let x = cond.select(&true_value.x, &false_value.x)?;
+        let y = cond.select(&true_value.y, &false_value.y)?;
+        let z = cond.select(&true_value.z, &false_value.z)?;
 
-        Ok(Self::new(x, y, infinity))
-    }
-
-    fn cost() -> usize {
-        2 * <F as CondSelectGadget<ConstraintF>>::cost()
-            + <Boolean as CondSelectGadget<ConstraintF>>::cost()
+        Ok(Self::new(x, y, z))
     }
 }
 
-impl<P, ConstraintF, F> EqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
+impl<P, F> EqGadget<<P::BaseField as Field>::BasePrimeField> for ProjectiveVar<P, F>
 where
     P: SWModelParameters,
-    ConstraintF: Field,
-    F: FieldGadget<P::BaseField, ConstraintF>,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
+    for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
-}
-
-impl<P, ConstraintF, F> ConditionalEqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
-where
-    P: SWModelParameters,
-    ConstraintF: Field,
-    F: FieldGadget<P::BaseField, ConstraintF>,
-{
-    #[inline]
-    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
+    fn is_eq(
         &self,
-        mut cs: CS,
         other: &Self,
-        condition: &Boolean,
+    ) -> Result<Boolean<<P::BaseField as Field>::BasePrimeField>, SynthesisError> {
+        let x_equal = (&self.x * &other.z).is_eq(&(&other.x * &self.z))?;
+        let y_equal = (&self.y * &other.z).is_eq(&(&other.y * &self.z))?;
+        let coordinates_equal = x_equal.and(&y_equal)?;
+        let both_are_zero = self.is_zero()?.and(&other.is_zero()?)?;
+        both_are_zero.or(&coordinates_equal)
+    }
+
+    #[inline]
+    fn conditional_enforce_equal(
+        &self,
+        other: &Self,
+        condition: &Boolean<<P::BaseField as Field>::BasePrimeField>,
     ) -> Result<(), SynthesisError> {
-        self.x.conditional_enforce_equal(
-            &mut cs.ns(|| "X Coordinate Conditional Equality"),
-            &other.x,
-            condition,
-        )?;
-        self.y.conditional_enforce_equal(
-            &mut cs.ns(|| "Y Coordinate Conditional Equality"),
-            &other.y,
-            condition,
-        )?;
-        self.infinity.conditional_enforce_equal(
-            &mut cs.ns(|| "Infinity Conditional Equality"),
-            &other.infinity,
-            condition,
-        )?;
+        let x_equal = (&self.x * &other.z).is_eq(&(&other.x * &self.z))?;
+        let y_equal = (&self.y * &other.z).is_eq(&(&other.y * &self.z))?;
+        let coordinates_equal = x_equal.and(&y_equal)?;
+        let both_are_zero = self.is_zero()?.and(&other.is_zero()?)?;
+        both_are_zero
+            .or(&coordinates_equal)?
+            .conditional_enforce_equal(&Boolean::Constant(true), condition)?;
         Ok(())
     }
 
-    fn cost() -> usize {
-        2 * <F as ConditionalEqGadget<ConstraintF>>::cost()
-    }
-}
-
-impl<P, ConstraintF, F> NEqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
-where
-    P: SWModelParameters,
-    ConstraintF: Field,
-    F: FieldGadget<P::BaseField, ConstraintF>,
-{
     #[inline]
-    fn enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
+    fn conditional_enforce_not_equal(
         &self,
-        mut cs: CS,
         other: &Self,
+        condition: &Boolean<<P::BaseField as Field>::BasePrimeField>,
     ) -> Result<(), SynthesisError> {
-        self.x
-            .enforce_not_equal(&mut cs.ns(|| "X Coordinate Inequality"), &other.x)?;
-        self.y
-            .enforce_not_equal(&mut cs.ns(|| "Y Coordinate Inequality"), &other.y)?;
-        Ok(())
-    }
-
-    fn cost() -> usize {
-        2 * <F as NEqGadget<ConstraintF>>::cost()
+        let is_equal = self.is_eq(other)?;
+        is_equal
+            .and(condition)?
+            .enforce_equal(&Boolean::Constant(false))
     }
 }
 
-impl<P, ConstraintF, F> AllocGadget<SWProjective<P>, ConstraintF>
-    for AffineGadget<P, ConstraintF, F>
+impl<P, F> AllocVar<SWAffine<P>, <P::BaseField as Field>::BasePrimeField> for ProjectiveVar<P, F>
 where
     P: SWModelParameters,
-    ConstraintF: PrimeField,
-    F: FieldGadget<P::BaseField, ConstraintF>,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
+    for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
-    #[inline]
-    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        t: T,
-    ) -> Result<Self, SynthesisError>
-    where
-        T: Borrow<SWProjective<P>>,
-    {
-        let p = t.borrow().into_affine();
-        Ok(Self {
-            x: F::alloc_constant(cs.ns(|| "x"), &p.x)?,
-            y: F::alloc_constant(cs.ns(|| "y"), &p.y)?,
-            infinity: Boolean::constant(p.infinity),
-            _params: PhantomData,
-            _engine: PhantomData,
-        })
+    fn new_variable<T: Borrow<SWAffine<P>>>(
+        cs: impl Into<Namespace<<P::BaseField as Field>::BasePrimeField>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        Self::new_variable(cs, || f().map(|b| b.borrow().into_projective()), mode)
     }
+}
 
-    #[inline]
-    fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        value_gen: FN,
-    ) -> Result<Self, SynthesisError>
-    where
-        FN: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<SWProjective<P>>,
-    {
-        let (x, y, infinity) = match value_gen() {
-            Ok(ge) => {
-                let ge = ge.borrow().into_affine();
-                (Ok(ge.x), Ok(ge.y), Ok(ge.infinity))
-            }
-            _ => (
-                Err(SynthesisError::AssignmentMissing),
-                Err(SynthesisError::AssignmentMissing),
-                Err(SynthesisError::AssignmentMissing),
-            ),
-        };
+impl<P, F> AllocVar<SWProjective<P>, <P::BaseField as Field>::BasePrimeField>
+    for ProjectiveVar<P, F>
+where
+    P: SWModelParameters,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
+    for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
+{
+    fn new_variable<T: Borrow<SWProjective<P>>>(
+        cs: impl Into<Namespace<<P::BaseField as Field>::BasePrimeField>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        let ns = cs.into();
+        let cs = ns.cs();
+        let f = || Ok(*f()?.borrow());
+        match mode {
+            AllocationMode::Constant => Self::new_variable_omit_prime_order_check(cs, f, mode),
+            AllocationMode::Input => Self::new_variable_omit_prime_order_check(cs, f, mode),
+            AllocationMode::Witness => {
+                // if cofactor.is_even():
+                //   divide until you've removed all even factors
+                // else:
+                //   just directly use double and add.
+                let mut power_of_2: u32 = 0;
+                let mut cofactor = P::COFACTOR.to_vec();
+                while cofactor[0] % 2 == 0 {
+                    div2(&mut cofactor);
+                    power_of_2 += 1;
+                }
 
-        // Perform on-curve check.
-        let b = P::COEFF_B;
-        let a = P::COEFF_A;
+                let cofactor_weight = BitIterator::new(cofactor.as_slice()).filter(|b| *b).count();
+                let modulus_minus_1 = (-P::ScalarField::one()).into_repr(); // r - 1
+                let modulus_minus_1_weight =
+                    BitIterator::new(modulus_minus_1).filter(|b| *b).count();
 
-        let x = F::alloc(&mut cs.ns(|| "x"), || x)?;
-        let y = F::alloc(&mut cs.ns(|| "y"), || y)?;
-        let infinity = Boolean::alloc(&mut cs.ns(|| "infinity"), || infinity)?;
+                // We pick the most efficient method of performing the prime order check:
+                // If the cofactor has lower hamming weight than the scalar field's modulus,
+                // we first multiply by the inverse of the cofactor, and then, after allocating,
+                // multiply by the cofactor. This ensures the resulting point has no cofactors
+                //
+                // Else, we multiply by the scalar field's modulus and ensure that the result
+                // equals the identity.
 
-        // Check that y^2 = x^3 + ax +b
-        // We do this by checking that y^2 - b = x * (x^2 +a)
-        let x2 = x.square(&mut cs.ns(|| "x^2"))?;
-        let y2 = y.square(&mut cs.ns(|| "y^2"))?;
-
-        let x2_plus_a = x2.add_constant(cs.ns(|| "x^2 + a"), &a)?;
-        let y2_minus_b = y2.add_constant(cs.ns(|| "y^2 - b"), &b.neg())?;
-
-        x2_plus_a.mul_equals(cs.ns(|| "on curve check"), &x, &y2_minus_b)?;
-
-        Ok(Self::new(x, y, infinity))
-    }
-
-    #[inline]
-    fn alloc_checked<FN, T, CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        value_gen: FN,
-    ) -> Result<Self, SynthesisError>
-    where
-        FN: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<SWProjective<P>>,
-    {
-        let cofactor_weight = BitIterator::new(P::COFACTOR).filter(|b| *b).count();
-        // If we multiply by r, we actually multiply by r - 2.
-        let r_minus_1 = (-P::ScalarField::one()).into_repr();
-        let r_weight = BitIterator::new(&r_minus_1).filter(|b| *b).count();
-
-        // We pick the most efficient method of performing the prime order check:
-        // If the cofactor has lower hamming weight than the scalar field's modulus,
-        // we first multiply by the inverse of the cofactor, and then, after allocating,
-        // multiply by the cofactor. This ensures the resulting point has no cofactors
-        //
-        // Else, we multiply by the scalar field's modulus and ensure that the result
-        // is zero.
-        if cofactor_weight < r_weight {
-            let ge = Self::alloc(cs.ns(|| "Alloc checked"), || {
-                value_gen().map(|ge| {
-                    ge.borrow()
-                        .into_affine()
-                        .mul_by_cofactor_inv()
-                        .into_projective()
-                })
-            })?;
-            let mut seen_one = false;
-            let mut result = Self::zero(cs.ns(|| "result"))?;
-            for (i, b) in BitIterator::new(P::COFACTOR).enumerate() {
-                let mut cs = cs.ns(|| format!("Iteration {}", i));
-
-                let old_seen_one = seen_one;
-                if seen_one {
-                    result.double_in_place(cs.ns(|| "Double"))?;
+                let (mut ge, iter) = if cofactor_weight < modulus_minus_1_weight {
+                    let ge = Self::new_variable_omit_prime_order_check(
+                        cs.ns("Witness without subgroup check with cofactor mul"),
+                        || f().map(|g| g.borrow().into_affine().mul_by_cofactor_inv().into()),
+                        mode,
+                    )?;
+                    (ge, BitIterator::new(cofactor.as_slice()))
                 } else {
-                    seen_one = b;
+                    let ge = Self::new_variable_omit_prime_order_check(
+                        cs.ns("Witness without subgroup check with `r` check"),
+                        || {
+                            f().map(|g| {
+                                let g = g.into_affine();
+                                let mut power_of_two = P::ScalarField::one().into_repr();
+                                power_of_two.muln(power_of_2);
+                                let power_of_two_inv =
+                                    P::ScalarField::from(power_of_two).inverse().unwrap();
+                                g.mul(power_of_two_inv)
+                            })
+                        },
+                        mode,
+                    )?;
+
+                    (ge, BitIterator::new(modulus_minus_1.as_ref()))
+                };
+                // Remove the even part of the cofactor
+                for _ in 0..power_of_2 {
+                    ge.double_in_place()?;
                 }
 
-                if b {
-                    result = if old_seen_one {
-                        result.add(cs.ns(|| "Add"), &ge)?
+                let mut seen_one = false;
+                let mut result = Self::zero();
+                for b in iter {
+                    let old_seen_one = seen_one;
+                    if seen_one {
+                        result.double_in_place()?;
                     } else {
-                        ge.clone()
-                    };
-                }
-            }
-            Ok(result)
-        } else {
-            let ge = Self::alloc(cs.ns(|| "Alloc checked"), value_gen)?;
-            let mut seen_one = false;
-            let mut result = Self::zero(cs.ns(|| "result"))?;
-            // Returns bits in big-endian order
-            for (i, b) in BitIterator::new(r_minus_1).enumerate() {
-                let mut cs = cs.ns(|| format!("Iteration {}", i));
+                        seen_one = b;
+                    }
 
-                let old_seen_one = seen_one;
-                if seen_one {
-                    result.double_in_place(cs.ns(|| "Double"))?;
+                    if b {
+                        result = if old_seen_one {
+                            result + &ge
+                        } else {
+                            ge.clone()
+                        };
+                    }
+                }
+                if cofactor_weight < modulus_minus_1_weight {
+                    Ok(result)
                 } else {
-                    seen_one = b;
-                }
-
-                if b {
-                    result = if old_seen_one {
-                        result.add(cs.ns(|| "Add"), &ge)?
-                    } else {
-                        ge.clone()
-                    };
+                    ge.enforce_equal(&ge)?;
+                    Ok(ge)
                 }
             }
-            let neg_ge = ge.negate(cs.ns(|| "Negate ge"))?;
-            neg_ge.enforce_equal(cs.ns(|| "Check equals"), &result)?;
-            Ok(ge)
         }
     }
+}
 
-    #[inline]
-    fn alloc_input<FN, T, CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        value_gen: FN,
-    ) -> Result<Self, SynthesisError>
-    where
-        FN: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<SWProjective<P>>,
-    {
-        // When allocating the input we assume that the verifier has performed
-        // any on curve checks already.
-        let (x, y, infinity) = match value_gen() {
-            Ok(ge) => {
-                let ge = ge.borrow().into_affine();
-                (Ok(ge.x), Ok(ge.y), Ok(ge.infinity))
-            }
-            _ => (
-                Err(SynthesisError::AssignmentMissing),
-                Err(SynthesisError::AssignmentMissing),
-                Err(SynthesisError::AssignmentMissing),
-            ),
-        };
-
-        let x = F::alloc_input(&mut cs.ns(|| "x"), || x)?;
-        let y = F::alloc_input(&mut cs.ns(|| "y"), || y)?;
-        let infinity = Boolean::alloc_input(&mut cs.ns(|| "infinity"), || infinity)?;
-
-        Ok(Self::new(x, y, infinity))
+#[inline]
+fn div2(limbs: &mut [u64]) {
+    let mut t = 0;
+    for i in limbs.iter_mut().rev() {
+        let t2 = *i << 63;
+        *i >>= 1;
+        *i |= t;
+        t = t2;
     }
 }
 
-impl<P, ConstraintF, F> ToBitsGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
+impl<P, F> ToBitsGadget<<P::BaseField as Field>::BasePrimeField> for ProjectiveVar<P, F>
 where
     P: SWModelParameters,
-    ConstraintF: Field,
-    F: FieldGadget<P::BaseField, ConstraintF>,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
+    for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
-    fn to_bits<CS: ConstraintSystem<ConstraintF>>(
+    fn to_bits(
         &self,
-        mut cs: CS,
-    ) -> Result<Vec<Boolean>, SynthesisError> {
-        let mut x_bits = self.x.to_bits(&mut cs.ns(|| "X Coordinate To Bits"))?;
-        let y_bits = self.y.to_bits(&mut cs.ns(|| "Y Coordinate To Bits"))?;
-        x_bits.extend_from_slice(&y_bits);
-        x_bits.push(self.infinity);
-        Ok(x_bits)
+    ) -> Result<Vec<Boolean<<P::BaseField as Field>::BasePrimeField>>, SynthesisError> {
+        let g = self.to_affine()?;
+        let mut bits = g.x.to_bits()?;
+        let y_bits = g.y.to_bits()?;
+        bits.extend_from_slice(&y_bits);
+        bits.push(g.infinity);
+        Ok(bits)
     }
 
-    fn to_non_unique_bits<CS: ConstraintSystem<ConstraintF>>(
+    fn to_non_unique_bits(
         &self,
-        mut cs: CS,
-    ) -> Result<Vec<Boolean>, SynthesisError> {
-        let mut x_bits = self
-            .x
-            .to_non_unique_bits(&mut cs.ns(|| "X Coordinate To Bits"))?;
-        let y_bits = self
-            .y
-            .to_non_unique_bits(&mut cs.ns(|| "Y Coordinate To Bits"))?;
-        x_bits.extend_from_slice(&y_bits);
-        x_bits.push(self.infinity);
-
-        Ok(x_bits)
+    ) -> Result<Vec<Boolean<<P::BaseField as Field>::BasePrimeField>>, SynthesisError> {
+        let g = self.to_affine()?;
+        let mut bits = g.x.to_non_unique_bits()?;
+        let y_bits = g.y.to_non_unique_bits()?;
+        bits.extend_from_slice(&y_bits);
+        bits.push(g.infinity);
+        Ok(bits)
     }
 }
 
-impl<P, ConstraintF, F> ToBytesGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
+impl<P, F> ToBytesGadget<<P::BaseField as Field>::BasePrimeField> for ProjectiveVar<P, F>
 where
     P: SWModelParameters,
-    ConstraintF: Field,
-    F: FieldGadget<P::BaseField, ConstraintF>,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
+    for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
-    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(
+    fn to_bytes(
         &self,
-        mut cs: CS,
-    ) -> Result<Vec<UInt8>, SynthesisError> {
-        let mut x_bytes = self.x.to_bytes(&mut cs.ns(|| "X Coordinate To Bytes"))?;
-        let y_bytes = self.y.to_bytes(&mut cs.ns(|| "Y Coordinate To Bytes"))?;
-        let inf_bytes = self.infinity.to_bytes(&mut cs.ns(|| "Infinity to Bytes"))?;
-        x_bytes.extend_from_slice(&y_bytes);
-        x_bytes.extend_from_slice(&inf_bytes);
-        Ok(x_bytes)
+    ) -> Result<Vec<UInt8<<P::BaseField as Field>::BasePrimeField>>, SynthesisError> {
+        let g = self.to_affine()?;
+        let mut bytes = g.x.to_bytes()?;
+        let y_bytes = g.y.to_bytes()?;
+        let inf_bytes = g.infinity.to_bytes()?;
+        bytes.extend_from_slice(&y_bytes);
+        bytes.extend_from_slice(&inf_bytes);
+        Ok(bytes)
     }
 
-    fn to_non_unique_bytes<CS: ConstraintSystem<ConstraintF>>(
+    fn to_non_unique_bytes(
         &self,
-        mut cs: CS,
-    ) -> Result<Vec<UInt8>, SynthesisError> {
-        let mut x_bytes = self
-            .x
-            .to_non_unique_bytes(&mut cs.ns(|| "X Coordinate To Bytes"))?;
-        let y_bytes = self
-            .y
-            .to_non_unique_bytes(&mut cs.ns(|| "Y Coordinate To Bytes"))?;
-        let inf_bytes = self
-            .infinity
-            .to_non_unique_bytes(&mut cs.ns(|| "Infinity to Bytes"))?;
-        x_bytes.extend_from_slice(&y_bytes);
-        x_bytes.extend_from_slice(&inf_bytes);
-
-        Ok(x_bytes)
+    ) -> Result<Vec<UInt8<<P::BaseField as Field>::BasePrimeField>>, SynthesisError> {
+        let g = self.to_affine()?;
+        let mut bytes = g.x.to_non_unique_bytes()?;
+        let y_bytes = g.y.to_non_unique_bytes()?;
+        let inf_bytes = g.infinity.to_non_unique_bytes()?;
+        bytes.extend_from_slice(&y_bytes);
+        bytes.extend_from_slice(&inf_bytes);
+        Ok(bytes)
     }
 }
 
 #[cfg(test)]
 #[allow(dead_code)]
-pub(crate) fn test<ConstraintF, P, GG>()
+pub(crate) fn test<P, GG>() -> Result<(), SynthesisError>
 where
-    ConstraintF: Field,
     P: SWModelParameters,
-    GG: GroupGadget<SWProjective<P>, ConstraintF, Value = SWProjective<P>>,
+    GG: CurveVar<SWProjective<P>, <P::BaseField as Field>::BasePrimeField>,
+    for<'a> &'a GG: GroupOpsBounds<'a, SWProjective<P>, GG>,
 {
-    use crate::{boolean::AllocatedBit, prelude::*, test_constraint_system::TestConstraintSystem};
+    use crate::prelude::*;
     use algebra::{test_rng, Group, UniformRand};
-    use rand::Rng;
+    use r1cs_core::ConstraintSystem;
 
-    // Incomplete addition doesn't allow us to call the group_test.
-    // group_test::<ConstraintF, SWProjective<P>, GG>();
+    crate::groups::test::group_test::<SWProjective<P>, _, GG>()?;
 
     let mut rng = test_rng();
 
-    let mut cs = TestConstraintSystem::<ConstraintF>::new();
+    let cs = ConstraintSystem::<<P::BaseField as Field>::BasePrimeField>::new_ref();
 
     let a = SWProjective::<P>::rand(&mut rng);
     let b = SWProjective::<P>::rand(&mut rng);
     let a_affine = a.into_affine();
     let b_affine = b.into_affine();
-    let mut gadget_a = GG::alloc(&mut cs.ns(|| "a"), || Ok(a)).unwrap();
-    let gadget_b = GG::alloc_checked(&mut cs.ns(|| "b"), || Ok(b)).unwrap();
-    assert_eq!(gadget_a.get_value().unwrap().x, a_affine.x);
-    assert_eq!(gadget_a.get_value().unwrap().y, a_affine.y);
-    assert_eq!(gadget_b.get_value().unwrap().x, b_affine.x);
-    assert_eq!(gadget_b.get_value().unwrap().y, b_affine.y);
 
+    println!("Allocating things");
+    let ns = cs.ns("allocating variables");
+    println!("{:?}", cs.current_namespace());
+    let mut gadget_a = GG::new_witness(cs.ns("a"), || Ok(a))?;
+    let gadget_b = GG::new_witness(cs.ns("b"), || Ok(b))?;
+    println!("{:?}", cs.current_namespace());
+    ns.leave_namespace();
+    println!("Done Allocating things");
+    assert_eq!(gadget_a.value()?.into_affine().x, a_affine.x);
+    assert_eq!(gadget_a.value()?.into_affine().y, a_affine.y);
+    assert_eq!(gadget_b.value()?.into_affine().x, b_affine.x);
+    assert_eq!(gadget_b.value()?.into_affine().y, b_affine.y);
+    assert_eq!(cs.which_is_unsatisfied(), None);
+
+    println!("Checking addition");
     // Check addition
     let ab = a + &b;
     let ab_affine = ab.into_affine();
-    let gadget_ab = gadget_a.add(&mut cs.ns(|| "ab"), &gadget_b).unwrap();
-    let gadget_ba = gadget_b.add(&mut cs.ns(|| "ba"), &gadget_a).unwrap();
-    gadget_ba
-        .enforce_equal(&mut cs.ns(|| "b + a == a + b?"), &gadget_ab)
-        .unwrap();
+    let gadget_ab = &gadget_a + &gadget_b;
+    let gadget_ba = &gadget_b + &gadget_a;
+    gadget_ba.enforce_equal(&gadget_ab)?;
 
-    let ab_val = gadget_ab
-        .get_value()
-        .expect("Doubling should be successful")
-        .into_affine();
+    let ab_val = gadget_ab.value()?.into_affine();
     assert_eq!(ab_val, ab_affine, "Result of addition is unequal");
+    assert!(cs.is_satisfied().unwrap());
+    println!("Done checking addition");
 
+    println!("Checking doubling");
     // Check doubling
     let aa = Group::double(&a);
     let aa_affine = aa.into_affine();
-    gadget_a.double_in_place(&mut cs.ns(|| "2a")).unwrap();
-    let aa_val = gadget_a
-        .get_value()
-        .expect("Doubling should be successful")
-        .into_affine();
+    gadget_a.double_in_place()?;
+    let aa_val = gadget_a.value()?.into_affine();
     assert_eq!(
         aa_val, aa_affine,
         "Gadget and native values are unequal after double."
     );
+    assert!(cs.is_satisfied().unwrap());
+    println!("Done checking doubling");
 
+    println!("Checking mul_bits");
     // Check mul_bits
     let scalar = P::ScalarField::rand(&mut rng);
-    let native_result = aa.into_affine().mul(scalar) + &b;
+    let native_result = aa.into_affine().mul(scalar);
     let native_result = native_result.into_affine();
 
     let mut scalar: Vec<bool> = BitIterator::new(scalar.into_repr()).collect();
     // Get the scalar bits into little-endian form.
     scalar.reverse();
-    let input = Vec::<Boolean>::alloc(cs.ns(|| "Input"), || Ok(scalar)).unwrap();
-    let result = gadget_a
-        .mul_bits(cs.ns(|| "mul_bits"), &gadget_b, input.iter())
-        .unwrap();
-    let result_val = result.get_value().unwrap().into_affine();
+    let input: Vec<Boolean<_>> = Vec::new_witness(cs.ns("bits"), || Ok(scalar)).unwrap();
+    let result = gadget_a.mul_bits(input.iter())?;
+    let result_val = result.value()?.into_affine();
     assert_eq!(
         result_val, native_result,
         "gadget & native values are diff. after scalar mul"
     );
+    assert!(cs.is_satisfied().unwrap());
+    println!("Done checking mul_bits");
 
-    if !cs.is_satisfied() {
+    if !cs.is_satisfied().unwrap() {
+        println!("Not satisfied");
         println!("{:?}", cs.which_is_unsatisfied().unwrap());
     }
 
-    assert!(cs.is_satisfied());
-
-    // Constraint cost etc.
-    let mut cs = TestConstraintSystem::<ConstraintF>::new();
-
-    let bit = AllocatedBit::alloc(&mut cs.ns(|| "bool"), || Ok(true))
-        .unwrap()
-        .into();
-
-    let mut rng = test_rng();
-    let a: SWProjective<P> = rng.gen();
-    let b: SWProjective<P> = rng.gen();
-    let gadget_a = GG::alloc(&mut cs.ns(|| "a"), || Ok(a)).unwrap();
-    let gadget_b = GG::alloc(&mut cs.ns(|| "b"), || Ok(b)).unwrap();
-    let alloc_cost = cs.num_constraints();
-    let _ =
-        GG::conditionally_select(&mut cs.ns(|| "cond_select"), &bit, &gadget_a, &gadget_b).unwrap();
-    let cond_select_cost = cs.num_constraints() - alloc_cost;
-
-    let _ = gadget_a.add(&mut cs.ns(|| "ab"), &gadget_b).unwrap();
-    let add_cost = cs.num_constraints() - cond_select_cost - alloc_cost;
-
-    assert!(cs.is_satisfied());
-    assert_eq!(
-        cond_select_cost,
-        <GG as CondSelectGadget<ConstraintF>>::cost()
-    );
-    assert_eq!(add_cost, GG::cost_of_add());
+    assert!(cs.is_satisfied().unwrap());
+    Ok(())
 }

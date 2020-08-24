@@ -1,50 +1,68 @@
 use algebra::{
     curves::{
-        twisted_edwards_extended::GroupAffine as TEAffine, MontgomeryModelParameters,
-        TEModelParameters,
+        twisted_edwards_extended::{GroupAffine as TEAffine, GroupProjective as TEProjective},
+        AffineCurve, MontgomeryModelParameters, ProjectiveCurve, TEModelParameters,
     },
-    BitIterator, Field, One, PrimeField, Zero,
+    BigInteger, BitIterator, Field, One, PrimeField, Zero,
 };
 
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSystemRef, Namespace, SynthesisError};
 
 use crate::{prelude::*, Vec};
 
-use crate::fields::fp::FpGadget;
 use core::{borrow::Borrow, marker::PhantomData};
 
 #[derive(Derivative)]
 #[derivative(Debug, Clone)]
-#[derivative(Debug(bound = "P: TEModelParameters, ConstraintF: Field"))]
 #[must_use]
-pub struct MontgomeryAffineGadget<
+pub struct MontgomeryAffineVar<
     P: TEModelParameters,
-    ConstraintF: Field,
-    F: FieldGadget<P::BaseField, ConstraintF>,
-> {
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
+> where
+    for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
+{
     pub x: F,
     pub y: F,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
-    #[derivative(Debug = "ignore")]
-    _engine: PhantomData<ConstraintF>,
 }
 
 mod montgomery_affine_impl {
     use super::*;
-    use crate::Assignment;
     use algebra::{twisted_edwards_extended::GroupAffine, Field};
-    use core::ops::{AddAssign, MulAssign, SubAssign};
+    use core::ops::Add;
 
-    impl<P: TEModelParameters, ConstraintF: Field, F: FieldGadget<P::BaseField, ConstraintF>>
-        MontgomeryAffineGadget<P, ConstraintF, F>
+    impl<P, F> R1CSVar<<P::BaseField as Field>::BasePrimeField> for MontgomeryAffineVar<P, F>
+    where
+        P: TEModelParameters,
+        F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
+        for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
+    {
+        type Value = (P::BaseField, P::BaseField);
+
+        fn cs(&self) -> Option<ConstraintSystemRef<<P::BaseField as Field>::BasePrimeField>> {
+            self.x.cs().or(self.y.cs())
+        }
+
+        fn value(&self) -> Result<Self::Value, SynthesisError> {
+            let x = self.x.value()?;
+            let y = self.y.value()?;
+            Ok((x, y))
+        }
+    }
+
+    impl<
+            P: TEModelParameters,
+            F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
+        > MontgomeryAffineVar<P, F>
+    where
+        for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
     {
         pub fn new(x: F, y: F) -> Self {
             Self {
                 x,
                 y,
                 _params: PhantomData,
-                _engine: PhantomData,
             }
         }
 
@@ -65,1395 +83,792 @@ mod montgomery_affine_impl {
             Ok((montgomery_point.x, montgomery_point.y))
         }
 
-        pub fn from_edwards<CS: ConstraintSystem<ConstraintF>>(
-            mut cs: CS,
+        pub fn new_witness_from_edwards(
+            cs: ConstraintSystemRef<<P::BaseField as Field>::BasePrimeField>,
             p: &TEAffine<P>,
         ) -> Result<Self, SynthesisError> {
             let montgomery_coords = Self::from_edwards_to_coords(p)?;
-
-            let u = F::alloc(cs.ns(|| "u"), || Ok(montgomery_coords.0))?;
-
-            let v = F::alloc(cs.ns(|| "v"), || Ok(montgomery_coords.1))?;
-
+            let u = F::new_witness(cs.ns("u"), || Ok(montgomery_coords.0))?;
+            let v = F::new_witness(cs.ns("v"), || Ok(montgomery_coords.1))?;
             Ok(Self::new(u, v))
         }
 
-        pub fn into_edwards<CS: ConstraintSystem<ConstraintF>>(
-            &self,
-            mut cs: CS,
-        ) -> Result<AffineGadget<P, ConstraintF, F>, SynthesisError> {
+        pub fn into_edwards(&self) -> Result<AffineVar<P, F>, SynthesisError> {
+            let cs = self.cs().unwrap_or(ConstraintSystemRef::None);
             // Compute u = x / y
-            let u = F::alloc(cs.ns(|| "u"), || {
-                let mut t0 = self.x.get_value().get()?;
-
-                match self.y.get_value().get()?.inverse() {
-                    Some(invy) => {
-                        t0.mul_assign(&invy);
-
-                        Ok(t0)
-                    }
-                    None => Err(SynthesisError::DivisionByZero),
-                }
+            let u = F::new_witness(cs.ns("u"), || {
+                let y_inv = self
+                    .y
+                    .value()?
+                    .inverse()
+                    .ok_or(SynthesisError::DivisionByZero)?;
+                Ok(self.x.value()? * &y_inv)
             })?;
 
-            u.mul_equals(cs.ns(|| "u equals"), &self.y, &self.x)?;
+            u.mul_equals(&self.y, &self.x)?;
 
-            let v = F::alloc(cs.ns(|| "v"), || {
-                let mut t0 = self.x.get_value().get()?;
-                let mut t1 = t0.clone();
-                t0.sub_assign(&P::BaseField::one());
-                t1.add_assign(&P::BaseField::one());
+            let v = F::new_witness(cs.ns("v"), || {
+                let mut t0 = self.x.value()?;
+                let mut t1 = t0;
+                t0 -= &P::BaseField::one();
+                t1 += &P::BaseField::one();
 
-                match t1.inverse() {
-                    Some(t1) => {
-                        t0.mul_assign(&t1);
-
-                        Ok(t0)
-                    }
-                    None => Err(SynthesisError::DivisionByZero),
-                }
+                Ok(t0 * &t1.inverse().ok_or(SynthesisError::DivisionByZero)?)
             })?;
 
-            let xplusone = self
-                .x
-                .add_constant(cs.ns(|| "x plus one"), &P::BaseField::one())?;
-            let xminusone = self
-                .x
-                .sub_constant(cs.ns(|| "x minus one"), &P::BaseField::one())?;
-            v.mul_equals(cs.ns(|| "v equals"), &xplusone, &xminusone)?;
+            let xplusone = &self.x + P::BaseField::one();
+            let xminusone = &self.x - P::BaseField::one();
+            v.mul_equals(&xplusone, &xminusone)?;
 
-            Ok(AffineGadget::new(u, v))
+            Ok(AffineVar::new(u, v))
         }
+    }
 
-        pub fn add<CS: ConstraintSystem<ConstraintF>>(
-            &self,
-            mut cs: CS,
-            other: &Self,
-        ) -> Result<Self, SynthesisError> {
-            let lambda = F::alloc(cs.ns(|| "lambda"), || {
-                let mut n = other.y.get_value().get()?;
-                n.sub_assign(&self.y.get_value().get()?);
+    impl<'a, P, F> Add<&'a MontgomeryAffineVar<P, F>> for MontgomeryAffineVar<P, F>
+    where
+        P: TEModelParameters,
+        F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
+        for<'b> &'b F: FieldOpsBounds<'b, P::BaseField, F>,
+    {
+        type Output = MontgomeryAffineVar<P, F>;
+        fn add(self, other: &'a Self) -> Self::Output {
+            let cs = [&self, other].cs();
+            let mode = if cs.is_none() || matches!(cs, Some(ConstraintSystemRef::None)) {
+                AllocationMode::Constant
+            } else {
+                AllocationMode::Witness
+            };
+            let cs = cs.unwrap_or(ConstraintSystemRef::None);
 
-                let mut d = other.x.get_value().get()?;
-                d.sub_assign(&self.x.get_value().get()?);
+            let coeff_b = P::MontgomeryModelParameters::COEFF_B;
+            let coeff_a = P::MontgomeryModelParameters::COEFF_A;
 
-                match d.inverse() {
-                    Some(d) => {
-                        n.mul_assign(&d);
-                        Ok(n)
-                    }
-                    None => Err(SynthesisError::DivisionByZero),
-                }
-            })?;
-            let lambda_n = other.y.sub(cs.ns(|| "other.y - self.y"), &self.y)?;
-            let lambda_d = other.x.sub(cs.ns(|| "other.x - self.x"), &self.x)?;
-            lambda_d.mul_equals(cs.ns(|| "lambda equals"), &lambda, &lambda_n)?;
+            let lambda = F::new_variable(
+                cs.ns("lambda"),
+                || {
+                    let n = other.y.value()? - &self.y.value()?;
+                    let d = other.x.value()? - &self.x.value()?;
+                    Ok(n * &d.inverse().ok_or(SynthesisError::DivisionByZero)?)
+                },
+                mode,
+            )
+            .unwrap();
+            let lambda_n = &other.y - &self.y;
+            let lambda_d = &other.x - &self.x;
+            lambda_d.mul_equals(&lambda, &lambda_n).unwrap();
 
             // Compute x'' = B*lambda^2 - A - x - x'
-            let xprime = F::alloc(cs.ns(|| "xprime"), || {
-                Ok(
-                    lambda.get_value().get()?.square() * &P::MontgomeryModelParameters::COEFF_B
-                        - &P::MontgomeryModelParameters::COEFF_A
-                        - &self.x.get_value().get()?
-                        - &other.x.get_value().get()?,
-                )
-            })?;
+            let xprime = F::new_variable(
+                cs.ns("xprime"),
+                || {
+                    Ok(lambda.value()?.square() * &coeff_b
+                        - &coeff_a
+                        - &self.x.value()?
+                        - &other.x.value()?)
+                },
+                mode,
+            )
+            .unwrap();
 
-            let xprime_lc = self
-                .x
-                .add(cs.ns(|| "self.x + other.x"), &other.x)?
-                .add(cs.ns(|| "+ xprime"), &xprime)?
-                .add_constant(cs.ns(|| "+ A"), &P::MontgomeryModelParameters::COEFF_A)?;
+            let xprime_lc = &self.x + &other.x + &xprime + coeff_a;
             // (lambda) * (lambda) = (A + x + x' + x'')
-            let lambda_b = lambda.mul_by_constant(
-                cs.ns(|| "lambda * b"),
-                &P::MontgomeryModelParameters::COEFF_B,
-            )?;
-            lambda_b.mul_equals(cs.ns(|| "xprime equals"), &lambda, &xprime_lc)?;
+            let lambda_b = &lambda * coeff_b;
+            lambda_b.mul_equals(&lambda, &xprime_lc).unwrap();
 
-            let yprime = F::alloc(cs.ns(|| "yprime"), || {
-                Ok(-(self.y.get_value().get()?
-                    + &(lambda.get_value().get()?
-                        * &(xprime.get_value().get()? - &self.x.get_value().get()?))))
-            })?;
+            let yprime = F::new_variable(
+                cs.ns("yprime"),
+                || {
+                    Ok(-(self.y.value()?
+                        + &(lambda.value()? * &(xprime.value()? - &self.x.value()?))))
+                },
+                mode,
+            )
+            .unwrap();
 
-            let xres = self.x.sub(cs.ns(|| "xres"), &xprime)?;
-            let yres = self.y.add(cs.ns(|| "yres"), &yprime)?;
-            lambda.mul_equals(cs.ns(|| "yprime equals"), &xres, &yres)?;
-            Ok(MontgomeryAffineGadget::new(xprime, yprime))
+            let xres = &self.x - &xprime;
+            let yres = &self.y + &yprime;
+            lambda.mul_equals(&xres, &yres).unwrap();
+            MontgomeryAffineVar::new(xprime, yprime)
         }
     }
 }
 
 #[derive(Derivative)]
 #[derivative(Debug, Clone)]
-#[derivative(Debug(bound = "P: TEModelParameters, ConstraintF: Field"))]
 #[must_use]
-pub struct AffineGadget<
+pub struct AffineVar<
     P: TEModelParameters,
-    ConstraintF: Field,
-    F: FieldGadget<P::BaseField, ConstraintF>,
-> {
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
+> where
+    for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
+{
     pub x: F,
     pub y: F,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
-    #[derivative(Debug = "ignore")]
-    _engine: PhantomData<ConstraintF>,
 }
 
-impl<P: TEModelParameters, ConstraintF: Field, F: FieldGadget<P::BaseField, ConstraintF>>
-    AffineGadget<P, ConstraintF, F>
+impl<P: TEModelParameters, F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>>
+    AffineVar<P, F>
+where
+    for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
     pub fn new(x: F, y: F) -> Self {
         Self {
             x,
             y,
             _params: PhantomData,
-            _engine: PhantomData,
         }
     }
 
-    pub fn alloc_without_check<FN, CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        value_gen: F,
-    ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<TEAffine<P>, SynthesisError>,
-    {
-        let (x, y) = match value_gen() {
-            Ok(fe) => (Ok(fe.x), Ok(fe.y)),
+    /// Allocates a new variable without performing an on-curve check, which is
+    /// useful if the variable is known to be on the curve (eg., if the point
+    /// is a constant or is a public input).
+    pub fn new_variable_omit_on_curve_check<T: Into<TEAffine<P>>>(
+        cs: impl Into<Namespace<<P::BaseField as Field>::BasePrimeField>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        let ns = cs.into();
+        let cs = ns.cs();
+
+        let (x, y) = match f() {
+            Ok(ge) => {
+                let ge: TEAffine<P> = ge.into();
+                (Ok(ge.x), Ok(ge.y))
+            }
             _ => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),
             ),
         };
 
-        let x = F::alloc(&mut cs.ns(|| "x"), || x)?;
-        let y = F::alloc(&mut cs.ns(|| "y"), || y)?;
+        let x = F::new_variable(cs.ns("x"), || x, mode)?;
+        let y = F::new_variable(cs.ns("y"), || y, mode)?;
 
         Ok(Self::new(x, y))
     }
 }
 
-impl<P, ConstraintF, F> ToConstraintFieldGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
+impl<P, F> R1CSVar<<P::BaseField as Field>::BasePrimeField> for AffineVar<P, F>
 where
     P: TEModelParameters,
-    ConstraintF: PrimeField,
-    F: FieldGadget<P::BaseField, ConstraintF> + ToConstraintFieldGadget<ConstraintF>,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
+    for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
-    fn to_constraint_field<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        mut cs: CS,
-    ) -> Result<Vec<FpGadget<ConstraintF>>, SynthesisError> {
-        let mut res = Vec::new();
+    type Value = TEProjective<P>;
 
-        let mut x_gadget = self.x.to_constraint_field(&mut cs.ns(|| "x"))?;
-        let mut y_gadget = self.y.to_constraint_field(&mut cs.ns(|| "y"))?;
+    fn cs(&self) -> Option<ConstraintSystemRef<<P::BaseField as Field>::BasePrimeField>> {
+        self.x.cs().or(self.y.cs())
+    }
 
-        res.append(&mut x_gadget);
-        res.append(&mut y_gadget);
-
-        Ok(res)
+    #[inline]
+    fn value(&self) -> Result<TEProjective<P>, SynthesisError> {
+        let (x, y) = (self.x.value()?, self.y.value()?);
+        let result = TEAffine::new(x, y);
+        Ok(result.into())
     }
 }
 
-impl<P, ConstraintF, F> PartialEq for AffineGadget<P, ConstraintF, F>
+impl<P, F> CurveVar<TEProjective<P>, <P::BaseField as Field>::BasePrimeField> for AffineVar<P, F>
 where
     P: TEModelParameters,
-    ConstraintF: Field,
-    F: FieldGadget<P::BaseField, ConstraintF>,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>
+        + TwoBitLookupGadget<<P::BaseField as Field>::BasePrimeField, TableConstant = P::BaseField>
+        + ThreeBitCondNegLookupGadget<
+            <P::BaseField as Field>::BasePrimeField,
+            TableConstant = P::BaseField,
+        >,
+    for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
-    fn eq(&self, other: &Self) -> bool {
-        self.x == other.x && self.y == other.y
-    }
-}
-
-impl<P, ConstraintF, F> Eq for AffineGadget<P, ConstraintF, F>
-where
-    P: TEModelParameters,
-    ConstraintF: Field,
-    F: FieldGadget<P::BaseField, ConstraintF>,
-{
-}
-
-mod affine_impl {
-    use super::*;
-    use crate::Assignment;
-    use algebra::{curves::AffineCurve, Field, PrimeField};
-    use core::ops::Neg;
-
-    impl<P, ConstraintF, F> GroupGadget<TEAffine<P>, ConstraintF> for AffineGadget<P, ConstraintF, F>
-    where
-        P: TEModelParameters,
-        ConstraintF: Field,
-        F: FieldGadget<P::BaseField, ConstraintF>,
-    {
-        type Value = TEAffine<P>;
-        type Variable = (F::Variable, F::Variable);
-
-        #[inline]
-        fn get_value(&self) -> Option<Self::Value> {
-            match (self.x.get_value(), self.y.get_value()) {
-                (Some(x), Some(y)) => Some(TEAffine::new(x, y)),
-                (..) => None,
-            }
-        }
-
-        #[inline]
-        fn get_variable(&self) -> Self::Variable {
-            (self.x.get_variable(), self.y.get_variable())
-        }
-
-        #[inline]
-        fn zero<CS: ConstraintSystem<ConstraintF>>(mut cs: CS) -> Result<Self, SynthesisError> {
-            Ok(Self::new(
-                F::zero(cs.ns(|| "zero"))?,
-                F::one(cs.ns(|| "one"))?,
-            ))
-        }
-
-        /// Optimized constraints for checking Edwards point addition from ZCash
-        /// developers Daira Hopwood and Sean Bowe. Requires only 6 constraints
-        /// compared to 7 for the straightforward version we had earlier.
-        fn add<CS: ConstraintSystem<ConstraintF>>(
-            &self,
-            mut cs: CS,
-            other: &Self,
-        ) -> Result<Self, SynthesisError> {
-            let a = P::COEFF_A;
-            let d = P::COEFF_D;
-
-            // Compute U = (x1 + y1) * (x2 + y2)
-            let u1 = self
-                .x
-                .mul_by_constant(cs.ns(|| "-A * x1"), &a.neg())?
-                .add(cs.ns(|| "-A * x1 + y1"), &self.y)?;
-            let u2 = other.x.add(cs.ns(|| "x2 + y2"), &other.y)?;
-
-            let u = u1.mul(cs.ns(|| "(-A * x1 + y1) * (x2 + y2)"), &u2)?;
-
-            // Compute v0 = x1 * y2
-            let v0 = other.y.mul(&mut cs.ns(|| "v0"), &self.x)?;
-
-            // Compute v1 = x2 * y1
-            let v1 = other.x.mul(&mut cs.ns(|| "v1"), &self.y)?;
-
-            // Compute C = d*v0*v1
-            let v2 = v0
-                .mul(cs.ns(|| "v0 * v1"), &v1)?
-                .mul_by_constant(cs.ns(|| "D * v0 * v1"), &d)?;
-
-            // Compute x3 = (v0 + v1) / (1 + v2)
-            let x3 = F::alloc(&mut cs.ns(|| "x3"), || {
-                let t0 = v0.get_value().get()? + &v1.get_value().get()?;
-                let t1 = P::BaseField::one() + &v2.get_value().get()?;
-                Ok(t0 * &t1.inverse().get()?)
-            })?;
-
-            let one = P::BaseField::one();
-            let v2_plus_one = v2.add_constant(cs.ns(|| "v2 + 1"), &one)?;
-            let v0_plus_v1 = v0.add(cs.ns(|| "v0 + v1"), &v1)?;
-            x3.mul_equals(cs.ns(|| "check x3"), &v2_plus_one, &v0_plus_v1)?;
-
-            // Compute y3 = (U + a * v0 - v1) / (1 - v2)
-            let y3 = F::alloc(&mut cs.ns(|| "y3"), || {
-                let t0 =
-                    u.get_value().get()? + &(a * &v0.get_value().get()?) - &v1.get_value().get()?;
-                let t1 = P::BaseField::one() - &v2.get_value().get()?;
-                Ok(t0 * &t1.inverse().get()?)
-            })?;
-
-            let one_minus_v2 = v2
-                .add_constant(cs.ns(|| "v2 - 1"), &(-one))?
-                .negate(cs.ns(|| "1 - v2"))?;
-            let a_v0 = v0.mul_by_constant(cs.ns(|| "a * v0"), &a)?;
-            let u_plus_a_v0_minus_v1 = u
-                .add(cs.ns(|| "u + a * v0"), &a_v0)?
-                .sub(cs.ns(|| "u + a * v0 - v1"), &v1)?;
-
-            y3.mul_equals(cs.ns(|| "check y3"), &one_minus_v2, &u_plus_a_v0_minus_v1)?;
-
-            Ok(Self::new(x3, y3))
-        }
-
-        fn add_constant<CS: ConstraintSystem<ConstraintF>>(
-            &self,
-            mut cs: CS,
-            other: &TEAffine<P>,
-        ) -> Result<Self, SynthesisError> {
-            let a = P::COEFF_A;
-            let d = P::COEFF_D;
-            let other_x = other.x;
-            let other_y = other.y;
-
-            // Compute U = (x1 + y1) * (x2 + y2)
-            let u1 = self
-                .x
-                .mul_by_constant(cs.ns(|| "-A * x1"), &a.neg())?
-                .add(cs.ns(|| "-A * x1 + y1"), &self.y)?;
-            let u2 = other_x + &other_y;
-
-            let u = u1.mul_by_constant(cs.ns(|| "(-A * x1 + y1) * (x2 + y2)"), &u2)?;
-
-            // Compute v0 = x1 * y2
-            let v0 = self.x.mul_by_constant(&mut cs.ns(|| "v0"), &other_y)?;
-
-            // Compute v1 = x2 * y1
-            let v1 = self.y.mul_by_constant(&mut cs.ns(|| "v1"), &other.x)?;
-
-            // Compute C = d*v0*v1
-            let v2 = v0
-                .mul(cs.ns(|| "v0 * v1"), &v1)?
-                .mul_by_constant(cs.ns(|| "D * v0 * v1"), &d)?;
-
-            // Compute x3 = (v0 + v1) / (1 + v2)
-            let x3 = F::alloc(&mut cs.ns(|| "x3"), || {
-                let t0 = v0.get_value().get()? + &v1.get_value().get()?;
-                let t1 = P::BaseField::one() + &v2.get_value().get()?;
-                Ok(t0 * &t1.inverse().get()?)
-            })?;
-
-            let one = P::BaseField::one();
-            let v2_plus_one = v2.add_constant(cs.ns(|| "v2 + 1"), &one)?;
-            let v0_plus_v1 = v0.add(cs.ns(|| "v0 + v1"), &v1)?;
-            x3.mul_equals(cs.ns(|| "check x3"), &v2_plus_one, &v0_plus_v1)?;
-
-            // Compute y3 = (U + a * v0 - v1) / (1 - v2)
-            let y3 = F::alloc(&mut cs.ns(|| "y3"), || {
-                let t0 =
-                    u.get_value().get()? + &(a * &v0.get_value().get()?) - &v1.get_value().get()?;
-                let t1 = P::BaseField::one() - &v2.get_value().get()?;
-                Ok(t0 * &t1.inverse().get()?)
-            })?;
-
-            let one_minus_v2 = v2
-                .add_constant(cs.ns(|| "v2 - 1"), &(-one))?
-                .negate(cs.ns(|| "1 - v2"))?;
-            let a_v0 = v0.mul_by_constant(cs.ns(|| "a * v0"), &a)?;
-            let u_plus_a_v0_minus_v1 = u
-                .add(cs.ns(|| "u + a * v0"), &a_v0)?
-                .sub(cs.ns(|| "u + a * v0 - v1"), &v1)?;
-
-            y3.mul_equals(cs.ns(|| "check y3"), &one_minus_v2, &u_plus_a_v0_minus_v1)?;
-
-            Ok(Self::new(x3, y3))
-        }
-
-        fn double_in_place<CS: ConstraintSystem<ConstraintF>>(
-            &mut self,
-            mut cs: CS,
-        ) -> Result<(), SynthesisError> {
-            let a = P::COEFF_A;
-
-            // xy
-            let xy = self.x.mul(cs.ns(|| "x * y"), &self.y)?;
-            let x2 = self.x.square(cs.ns(|| "x * x"))?;
-            let y2 = self.y.square(cs.ns(|| "y * y"))?;
-
-            let a_x2 = x2.mul_by_constant(cs.ns(|| "a * x^2"), &a)?;
-
-            // Compute x3 = (2xy) / (ax^2 + y^2)
-            let x3 = F::alloc(&mut cs.ns(|| "x3"), || {
-                let t0 = xy.get_value().get()?.double();
-                let t1 = a * &x2.get_value().get()? + &y2.get_value().get()?;
-                Ok(t0 * &t1.inverse().get()?)
-            })?;
-
-            let a_x2_plus_y2 = a_x2.add(cs.ns(|| "v2 + 1"), &y2)?;
-            let two_xy = xy.double(cs.ns(|| "2xy"))?;
-            x3.mul_equals(cs.ns(|| "check x3"), &a_x2_plus_y2, &two_xy)?;
-
-            // Compute y3 = (y^2 - ax^2) / (2 - ax^2 - y^2)
-            let two = P::BaseField::one().double();
-            let y3 = F::alloc(&mut cs.ns(|| "y3"), || {
-                let a_x2 = a * &x2.get_value().get()?;
-                let t0 = y2.get_value().get()? - &a_x2;
-                let t1 = two - &a_x2 - &y2.get_value().get()?;
-                Ok(t0 * &t1.inverse().get()?)
-            })?;
-            let y2_minus_a_x2 = y2.sub(cs.ns(|| "y^2 - ax^2"), &a_x2)?;
-            let two_minus_ax2_minus_y2 = a_x2
-                .add(cs.ns(|| "ax2 + y2"), &y2)?
-                .negate(cs.ns(|| "-ax2 - y2"))?
-                .add_constant(cs.ns(|| "2 -ax2 - y2"), &two)?;
-
-            y3.mul_equals(
-                cs.ns(|| "check y3"),
-                &two_minus_ax2_minus_y2,
-                &y2_minus_a_x2,
-            )?;
-            self.x = x3;
-            self.y = y3;
-
-            Ok(())
-        }
-
-        fn negate<CS: ConstraintSystem<ConstraintF>>(
-            &self,
-            mut cs: CS,
-        ) -> Result<Self, SynthesisError> {
-            Ok(Self::new(
-                self.x.negate(cs.ns(|| "negate x"))?,
-                self.y.clone(),
-            ))
-        }
-
-        fn cost_of_add() -> usize {
-            4 + 2 * F::cost_of_mul()
-        }
-
-        fn cost_of_double() -> usize {
-            4 + F::cost_of_mul()
-        }
+    fn constant(g: TEProjective<P>) -> Self {
+        let cs = ConstraintSystemRef::None;
+        Self::new_variable_omit_on_curve_check(cs, || Ok(g), AllocationMode::Constant).unwrap()
     }
 
-    impl<P, ConstraintF, F> AllocGadget<TEAffine<P>, ConstraintF> for AffineGadget<P, ConstraintF, F>
-    where
-        P: TEModelParameters,
-        ConstraintF: Field,
-        F: FieldGadget<P::BaseField, ConstraintF>,
-        Self: GroupGadget<TEAffine<P>, ConstraintF>,
-    {
-        #[inline]
-        fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
-            mut cs: CS,
-            t: T,
-        ) -> Result<Self, SynthesisError>
-        where
-            T: Borrow<TEAffine<P>>,
-        {
-            let p = t.borrow();
-            Ok(Self {
-                x: F::alloc_constant(cs.ns(|| "x"), &p.x)?,
-                y: F::alloc_constant(cs.ns(|| "y"), &p.y)?,
-                _params: PhantomData,
-                _engine: PhantomData,
-            })
-        }
+    fn zero() -> Self {
+        Self::new(F::zero(), F::one())
+    }
 
-        fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(
-            mut cs: CS,
-            value_gen: FN,
-        ) -> Result<Self, SynthesisError>
-        where
-            FN: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<TEAffine<P>>,
-        {
-            let (x, y) = match value_gen() {
-                Ok(ge) => {
-                    let ge = *ge.borrow();
-                    (Ok(ge.x), Ok(ge.y))
-                }
-                _ => (
-                    Err(SynthesisError::AssignmentMissing),
-                    Err(SynthesisError::AssignmentMissing),
-                ),
-            };
+    fn is_zero(&self) -> Result<Boolean<<P::BaseField as Field>::BasePrimeField>, SynthesisError> {
+        self.x.is_zero()?.and(&self.x.is_one()?)
+    }
 
+    fn new_variable_omit_prime_order_check(
+        cs: impl Into<Namespace<<P::BaseField as Field>::BasePrimeField>>,
+        f: impl FnOnce() -> Result<TEProjective<P>, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        let ns = cs.into();
+        let cs = ns.cs();
+
+        let g = Self::new_variable_omit_on_curve_check(cs, f, mode)?;
+
+        if mode != AllocationMode::Constant {
             let d = P::COEFF_D;
             let a = P::COEFF_A;
-
-            let x = F::alloc(&mut cs.ns(|| "x"), || x)?;
-            let y = F::alloc(&mut cs.ns(|| "y"), || y)?;
-
             // Check that ax^2 + y^2 = 1 + dx^2y^2
             // We do this by checking that ax^2 - 1 = y^2 * (dx^2 - 1)
-            let x2 = x.square(&mut cs.ns(|| "x^2"))?;
-            let y2 = y.square(&mut cs.ns(|| "y^2"))?;
+            let x2 = g.x.square()?;
+            let y2 = g.y.square()?;
 
             let one = P::BaseField::one();
-            let d_x2_minus_one = x2
-                .mul_by_constant(cs.ns(|| "d * x^2"), &d)?
-                .add_constant(cs.ns(|| "d * x^2 - 1"), &one.neg())?;
+            let d_x2_minus_one = &x2 * d - one;
+            let a_x2_minus_one = &x2 * a - one;
 
-            let a_x2_minus_one = x2
-                .mul_by_constant(cs.ns(|| "a * x^2"), &a)?
-                .add_constant(cs.ns(|| "a * x^2 - 1"), &one.neg())?;
-
-            d_x2_minus_one.mul_equals(cs.ns(|| "on curve check"), &y2, &a_x2_minus_one)?;
-            Ok(Self::new(x, y))
+            d_x2_minus_one.mul_equals(&y2, &a_x2_minus_one)?;
         }
+        Ok(g)
+    }
 
-        fn alloc_checked<FN, T, CS: ConstraintSystem<ConstraintF>>(
-            mut cs: CS,
-            value_gen: FN,
-        ) -> Result<Self, SynthesisError>
-        where
-            FN: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<TEAffine<P>>,
-        {
-            let cofactor_weight = BitIterator::new(P::COFACTOR).filter(|b| *b).count();
-            // If we multiply by r, we actually multiply by r - 2.
-            let r_minus_1 = (-P::ScalarField::one()).into_repr();
-            let r_weight = BitIterator::new(&r_minus_1).filter(|b| *b).count();
+    /// Enforce that `self` is in the prime-order subgroup.
+    ///
+    /// Does so by multiplying by the prime order, and checking that the result
+    /// is unchanged.
+    fn enforce_prime_order(&self) -> Result<(), SynthesisError> {
+        let r_minus_1 = (-P::ScalarField::one()).into_repr();
 
-            // We pick the most efficient method of performing the prime order check:
-            // If the cofactor has lower hamming weight than the scalar field's modulus,
-            // we first multiply by the inverse of the cofactor, and then, after allocating,
-            // multiply by the cofactor. This ensures the resulting point has no cofactors
-            //
-            // Else, we multiply by the scalar field's modulus and ensure that the result
-            // is zero.
-            if cofactor_weight < r_weight {
-                let ge = Self::alloc(cs.ns(|| "Alloc checked"), || {
-                    value_gen().map(|ge| ge.borrow().mul_by_cofactor_inv())
-                })?;
-                let mut seen_one = false;
-                let mut result = Self::zero(cs.ns(|| "result"))?;
-                for (i, b) in BitIterator::new(P::COFACTOR).enumerate() {
-                    let mut cs = cs.ns(|| format!("Iteration {}", i));
-
-                    let old_seen_one = seen_one;
-                    if seen_one {
-                        result.double_in_place(cs.ns(|| "Double"))?;
-                    } else {
-                        seen_one = b;
-                    }
-
-                    if b {
-                        result = if old_seen_one {
-                            result.add(cs.ns(|| "Add"), &ge)?
-                        } else {
-                            ge.clone()
-                        };
-                    }
-                }
-                Ok(result)
+        let mut seen_one = false;
+        let mut result = Self::zero();
+        for b in BitIterator::new(r_minus_1) {
+            let old_seen_one = seen_one;
+            if seen_one {
+                result.double_in_place()?;
             } else {
-                let ge = Self::alloc(cs.ns(|| "Alloc checked"), value_gen)?;
-                let mut seen_one = false;
-                let mut result = Self::zero(cs.ns(|| "result"))?;
-                // Returns bits in big-endian order
-                for (i, b) in BitIterator::new(r_minus_1).enumerate() {
-                    let mut cs = cs.ns(|| format!("Iteration {}", i));
-
-                    let old_seen_one = seen_one;
-                    if seen_one {
-                        result.double_in_place(cs.ns(|| "Double"))?;
-                    } else {
-                        seen_one = b;
-                    }
-
-                    if b {
-                        result = if old_seen_one {
-                            result.add(cs.ns(|| "Add"), &ge)?
-                        } else {
-                            ge.clone()
-                        };
-                    }
-                }
-                let neg_ge = ge.negate(cs.ns(|| "Negate ge"))?;
-                neg_ge.enforce_equal(cs.ns(|| "Check equals"), &result)?;
-                Ok(ge)
-            }
-        }
-
-        fn alloc_input<FN, T, CS: ConstraintSystem<ConstraintF>>(
-            mut cs: CS,
-            value_gen: FN,
-        ) -> Result<Self, SynthesisError>
-        where
-            FN: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<TEAffine<P>>,
-        {
-            let (x, y) = match value_gen() {
-                Ok(ge) => {
-                    let ge = *ge.borrow();
-                    (Ok(ge.x), Ok(ge.y))
-                }
-                _ => (
-                    Err(SynthesisError::AssignmentMissing),
-                    Err(SynthesisError::AssignmentMissing),
-                ),
-            };
-
-            let d = P::COEFF_D;
-            let a = P::COEFF_A;
-
-            let x = F::alloc_input(&mut cs.ns(|| "x"), || x)?;
-            let y = F::alloc_input(&mut cs.ns(|| "y"), || y)?;
-
-            // Check that ax^2 + y^2 = 1 + dx^2y^2
-            // We do this by checking that ax^2 - 1 = y^2 * (dx^2 - 1)
-            let x2 = x.square(&mut cs.ns(|| "x^2"))?;
-            let y2 = y.square(&mut cs.ns(|| "y^2"))?;
-
-            let one = P::BaseField::one();
-            let d_x2_minus_one = x2
-                .mul_by_constant(cs.ns(|| "d * x^2"), &d)?
-                .add_constant(cs.ns(|| "d * x^2 - 1"), &one.neg())?;
-
-            let a_x2_minus_one = x2
-                .mul_by_constant(cs.ns(|| "a * x^2"), &a)?
-                .add_constant(cs.ns(|| "a * x^2 - 1"), &one.neg())?;
-
-            d_x2_minus_one.mul_equals(cs.ns(|| "on curve check"), &y2, &a_x2_minus_one)?;
-            Ok(Self::new(x, y))
-        }
-    }
-}
-
-mod projective_impl {
-    use super::*;
-    use crate::{Assignment, Vec};
-    use algebra::{
-        curves::twisted_edwards_extended::GroupProjective as TEProjective, AffineCurve, Field,
-        PrimeField, ProjectiveCurve,
-    };
-    use core::ops::Neg;
-
-    impl<P, ConstraintF, F> GroupGadget<TEProjective<P>, ConstraintF>
-        for AffineGadget<P, ConstraintF, F>
-    where
-        P: TEModelParameters,
-        ConstraintF: Field,
-        F: FieldGadget<P::BaseField, ConstraintF>,
-    {
-        type Value = TEProjective<P>;
-        type Variable = (F::Variable, F::Variable);
-
-        #[inline]
-        fn get_value(&self) -> Option<Self::Value> {
-            match (self.x.get_value(), self.y.get_value()) {
-                (Some(x), Some(y)) => Some(TEAffine::new(x, y).into()),
-                (..) => None,
-            }
-        }
-
-        #[inline]
-        fn get_variable(&self) -> Self::Variable {
-            (self.x.get_variable(), self.y.get_variable())
-        }
-
-        #[inline]
-        fn zero<CS: ConstraintSystem<ConstraintF>>(mut cs: CS) -> Result<Self, SynthesisError> {
-            Ok(Self::new(
-                F::zero(cs.ns(|| "zero"))?,
-                F::one(cs.ns(|| "one"))?,
-            ))
-        }
-
-        /// Optimized constraints for checking Edwards point addition from ZCash
-        /// developers Daira Hopwood and Sean Bowe. Requires only 6 constraints
-        /// compared to 7 for the straightforward version we had earlier.
-        fn add<CS: ConstraintSystem<ConstraintF>>(
-            &self,
-            mut cs: CS,
-            other: &Self,
-        ) -> Result<Self, SynthesisError> {
-            let a = P::COEFF_A;
-            let d = P::COEFF_D;
-
-            // Compute U = (x1 + y1) * (x2 + y2)
-            let u1 = self
-                .x
-                .mul_by_constant(cs.ns(|| "-A * x1"), &a.neg())?
-                .add(cs.ns(|| "-A * x1 + y1"), &self.y)?;
-            let u2 = other.x.add(cs.ns(|| "x2 + y2"), &other.y)?;
-
-            let u = u1.mul(cs.ns(|| "(-A * x1 + y1) * (x2 + y2)"), &u2)?;
-
-            // Compute v0 = x1 * y2
-            let v0 = other.y.mul(&mut cs.ns(|| "v0"), &self.x)?;
-
-            // Compute v1 = x2 * y1
-            let v1 = other.x.mul(&mut cs.ns(|| "v1"), &self.y)?;
-
-            // Compute C = d*v0*v1
-            let v2 = v0
-                .mul(cs.ns(|| "v0 * v1"), &v1)?
-                .mul_by_constant(cs.ns(|| "D * v0 * v1"), &d)?;
-
-            // Compute x3 = (v0 + v1) / (1 + v2)
-            let x3 = F::alloc(&mut cs.ns(|| "x3"), || {
-                let t0 = v0.get_value().get()? + &v1.get_value().get()?;
-                let t1 = P::BaseField::one() + &v2.get_value().get()?;
-                Ok(t0 * &t1.inverse().get()?)
-            })?;
-
-            let one = P::BaseField::one();
-            let v2_plus_one = v2.add_constant(cs.ns(|| "v2 + 1"), &one)?;
-            let v0_plus_v1 = v0.add(cs.ns(|| "v0 + v1"), &v1)?;
-            x3.mul_equals(cs.ns(|| "check x3"), &v2_plus_one, &v0_plus_v1)?;
-
-            // Compute y3 = (U + a * v0 - v1) / (1 - v2)
-            let y3 = F::alloc(&mut cs.ns(|| "y3"), || {
-                let t0 =
-                    u.get_value().get()? + &(a * &v0.get_value().get()?) - &v1.get_value().get()?;
-                let t1 = P::BaseField::one() - &v2.get_value().get()?;
-                Ok(t0 * &t1.inverse().get()?)
-            })?;
-
-            let one_minus_v2 = v2
-                .add_constant(cs.ns(|| "v2 - 1"), &(-one))?
-                .negate(cs.ns(|| "1 - v2"))?;
-            let a_v0 = v0.mul_by_constant(cs.ns(|| "a * v0"), &a)?;
-            let u_plus_a_v0_minus_v1 = u
-                .add(cs.ns(|| "u + a * v0"), &a_v0)?
-                .sub(cs.ns(|| "u + a * v0 - v1"), &v1)?;
-
-            y3.mul_equals(cs.ns(|| "check y3"), &one_minus_v2, &u_plus_a_v0_minus_v1)?;
-
-            Ok(Self::new(x3, y3))
-        }
-
-        fn add_constant<CS: ConstraintSystem<ConstraintF>>(
-            &self,
-            mut cs: CS,
-            other: &TEProjective<P>,
-        ) -> Result<Self, SynthesisError> {
-            let a = P::COEFF_A;
-            let d = P::COEFF_D;
-            let other = other.into_affine();
-            let other_x = other.x;
-            let other_y = other.y;
-
-            // Compute U = (x1 + y1) * (x2 + y2)
-            let u1 = self
-                .x
-                .mul_by_constant(cs.ns(|| "-A * x1"), &a.neg())?
-                .add(cs.ns(|| "-A * x1 + y1"), &self.y)?;
-            let u2 = other_x + &other_y;
-
-            let u = u1.mul_by_constant(cs.ns(|| "(-A * x1 + y1) * (x2 + y2)"), &u2)?;
-
-            // Compute v0 = x1 * y2
-            let v0 = self.x.mul_by_constant(&mut cs.ns(|| "v0"), &other_y)?;
-
-            // Compute v1 = x2 * y1
-            let v1 = self.y.mul_by_constant(&mut cs.ns(|| "v1"), &other.x)?;
-
-            // Compute C = d*v0*v1
-            let v2 = v0
-                .mul(cs.ns(|| "v0 * v1"), &v1)?
-                .mul_by_constant(cs.ns(|| "D * v0 * v1"), &d)?;
-
-            // Compute x3 = (v0 + v1) / (1 + v2)
-            let x3 = F::alloc(&mut cs.ns(|| "x3"), || {
-                let t0 = v0.get_value().get()? + &v1.get_value().get()?;
-                let t1 = P::BaseField::one() + &v2.get_value().get()?;
-                Ok(t0 * &t1.inverse().get()?)
-            })?;
-
-            let one = P::BaseField::one();
-            let v2_plus_one = v2.add_constant(cs.ns(|| "v2 + 1"), &one)?;
-            let v0_plus_v1 = v0.add(cs.ns(|| "v0 + v1"), &v1)?;
-            x3.mul_equals(cs.ns(|| "check x3"), &v2_plus_one, &v0_plus_v1)?;
-
-            // Compute y3 = (U + a * v0 - v1) / (1 - v2)
-            let y3 = F::alloc(&mut cs.ns(|| "y3"), || {
-                let t0 =
-                    u.get_value().get()? + &(a * &v0.get_value().get()?) - &v1.get_value().get()?;
-                let t1 = P::BaseField::one() - &v2.get_value().get()?;
-                Ok(t0 * &t1.inverse().get()?)
-            })?;
-
-            let one_minus_v2 = v2
-                .add_constant(cs.ns(|| "v2 - 1"), &(-one))?
-                .negate(cs.ns(|| "1 - v2"))?;
-            let a_v0 = v0.mul_by_constant(cs.ns(|| "a * v0"), &a)?;
-            let u_plus_a_v0_minus_v1 = u
-                .add(cs.ns(|| "u + a * v0"), &a_v0)?
-                .sub(cs.ns(|| "u + a * v0 - v1"), &v1)?;
-
-            y3.mul_equals(cs.ns(|| "check y3"), &one_minus_v2, &u_plus_a_v0_minus_v1)?;
-
-            Ok(Self::new(x3, y3))
-        }
-
-        fn double_in_place<CS: ConstraintSystem<ConstraintF>>(
-            &mut self,
-            mut cs: CS,
-        ) -> Result<(), SynthesisError> {
-            let a = P::COEFF_A;
-
-            // xy
-            let xy = self.x.mul(cs.ns(|| "x * y"), &self.y)?;
-            let x2 = self.x.square(cs.ns(|| "x * x"))?;
-            let y2 = self.y.square(cs.ns(|| "y * y"))?;
-
-            let a_x2 = x2.mul_by_constant(cs.ns(|| "a * x^2"), &a)?;
-
-            // Compute x3 = (2xy) / (ax^2 + y^2)
-            let x3 = F::alloc(&mut cs.ns(|| "x3"), || {
-                let t0 = xy.get_value().get()?.double();
-                let t1 = a * &x2.get_value().get()? + &y2.get_value().get()?;
-                Ok(t0 * &t1.inverse().get()?)
-            })?;
-
-            let a_x2_plus_y2 = a_x2.add(cs.ns(|| "v2 + 1"), &y2)?;
-            let two_xy = xy.double(cs.ns(|| "2xy"))?;
-            x3.mul_equals(cs.ns(|| "check x3"), &a_x2_plus_y2, &two_xy)?;
-
-            // Compute y3 = (y^2 - ax^2) / (2 - ax^2 - y^2)
-            let two = P::BaseField::one().double();
-            let y3 = F::alloc(&mut cs.ns(|| "y3"), || {
-                let a_x2 = a * &x2.get_value().get()?;
-                let t0 = y2.get_value().get()? - &a_x2;
-                let t1 = two - &a_x2 - &y2.get_value().get()?;
-                Ok(t0 * &t1.inverse().get()?)
-            })?;
-            let y2_minus_a_x2 = y2.sub(cs.ns(|| "y^2 - ax^2"), &a_x2)?;
-            let two_minus_ax2_minus_y2 = a_x2
-                .add(cs.ns(|| "ax2 + y2"), &y2)?
-                .negate(cs.ns(|| "-ax2 - y2"))?
-                .add_constant(cs.ns(|| "2 -ax2 - y2"), &two)?;
-
-            y3.mul_equals(
-                cs.ns(|| "check y3"),
-                &two_minus_ax2_minus_y2,
-                &y2_minus_a_x2,
-            )?;
-            self.x = x3;
-            self.y = y3;
-
-            Ok(())
-        }
-
-        fn negate<CS: ConstraintSystem<ConstraintF>>(
-            &self,
-            mut cs: CS,
-        ) -> Result<Self, SynthesisError> {
-            Ok(Self::new(
-                self.x.negate(cs.ns(|| "negate x"))?,
-                self.y.clone(),
-            ))
-        }
-
-        fn precomputed_base_scalar_mul<'a, CS, I, B>(
-            &mut self,
-            mut cs: CS,
-            scalar_bits_with_base_powers: I,
-        ) -> Result<(), SynthesisError>
-        where
-            CS: ConstraintSystem<ConstraintF>,
-            I: Iterator<Item = (B, &'a TEProjective<P>)>,
-            B: Borrow<Boolean>,
-        {
-            let scalar_bits_with_base_powers: Vec<_> = scalar_bits_with_base_powers
-                .map(|(bit, base)| (bit.borrow().clone(), base.clone()))
-                .collect();
-            let zero = TEProjective::zero();
-            for (i, bits_base_powers) in scalar_bits_with_base_powers.chunks(2).enumerate() {
-                let mut cs = cs.ns(|| format!("Chunk {}", i));
-                if bits_base_powers.len() == 2 {
-                    let bits = [bits_base_powers[0].0, bits_base_powers[1].0];
-                    let base_powers = [bits_base_powers[0].1, bits_base_powers[1].1];
-
-                    let mut table = [
-                        zero,
-                        base_powers[0],
-                        base_powers[1],
-                        base_powers[0] + &base_powers[1],
-                    ];
-
-                    TEProjective::batch_normalization(&mut table);
-                    let x_s = [table[0].x, table[1].x, table[2].x, table[3].x];
-                    let y_s = [table[0].y, table[1].y, table[2].y, table[3].y];
-
-                    let x: F = F::two_bit_lookup(cs.ns(|| "Lookup x"), &bits, &x_s)?;
-                    let y: F = F::two_bit_lookup(cs.ns(|| "Lookup y"), &bits, &y_s)?;
-                    let adder: Self = Self::new(x, y);
-                    *self = <Self as GroupGadget<TEProjective<P>, ConstraintF>>::add(
-                        self,
-                        &mut cs.ns(|| "Add"),
-                        &adder,
-                    )?;
-                } else if bits_base_powers.len() == 1 {
-                    let bit = bits_base_powers[0].0;
-                    let base_power = bits_base_powers[0].1;
-                    let new_encoded =
-                        self.add_constant(&mut cs.ns(|| "Add base power"), &base_power)?;
-                    *self = Self::conditionally_select(
-                        &mut cs.ns(|| "Conditional Select"),
-                        &bit,
-                        &new_encoded,
-                        &self,
-                    )?;
-                }
+                seen_one = b;
             }
 
-            Ok(())
-        }
-
-        fn precomputed_base_3_bit_signed_digit_scalar_mul<'a, CS, I, J, B>(
-            mut cs: CS,
-            bases: &[B],
-            scalars: &[J],
-        ) -> Result<Self, SynthesisError>
-        where
-            CS: ConstraintSystem<ConstraintF>,
-            I: Borrow<[Boolean]>,
-            J: Borrow<[I]>,
-            B: Borrow<[TEProjective<P>]>,
-        {
-            const CHUNK_SIZE: usize = 3;
-            let mut edwards_result: Option<AffineGadget<P, ConstraintF, F>> = None;
-            let mut result: Option<MontgomeryAffineGadget<P, ConstraintF, F>> = None;
-
-            let mut process_segment_result =
-                |mut cs: r1cs_core::Namespace<_, _>,
-                 result: &MontgomeryAffineGadget<P, ConstraintF, F>|
-                 -> Result<(), SynthesisError> {
-                    let segment_result = result.into_edwards(cs.ns(|| "segment result"))?;
-                    match edwards_result {
-                        None => {
-                            edwards_result = Some(segment_result);
-                        }
-                        Some(ref mut edwards_result) => {
-                            *edwards_result = GroupGadget::<TEAffine<P>, ConstraintF>::add(
-                                &segment_result,
-                                cs.ns(|| "edwards addition"),
-                                edwards_result,
-                            )?;
-                        }
-                    }
-
-                    Ok(())
+            if b {
+                result = if old_seen_one {
+                    result + self
+                } else {
+                    self.clone()
                 };
-
-            // Compute ∏(h_i^{m_i}) for all i.
-            for (segment_i, (segment_bits_chunks, segment_powers)) in
-                scalars.iter().zip(bases.iter()).enumerate()
-            {
-                for (i, (bits, base_power)) in segment_bits_chunks
-                    .borrow()
-                    .iter()
-                    .zip(segment_powers.borrow().iter())
-                    .enumerate()
-                {
-                    let base_power = base_power.borrow();
-                    let mut acc_power = *base_power;
-                    let mut coords = vec![];
-                    for _ in 0..4 {
-                        coords.push(acc_power);
-                        acc_power += base_power;
-                    }
-
-                    let bits = bits.borrow().to_bits(
-                        &mut cs.ns(|| format!("Convert Scalar {}, {} to bits", segment_i, i)),
-                    )?;
-                    if bits.len() != CHUNK_SIZE {
-                        return Err(SynthesisError::Unsatisfiable);
-                    }
-
-                    let coords = coords
-                        .iter()
-                        .map(|p| {
-                            let p = p.into_affine();
-                            MontgomeryAffineGadget::<P, ConstraintF, F>::from_edwards_to_coords(&p)
-                                .unwrap()
-                        })
-                        .collect::<Vec<_>>();
-
-                    let x_coeffs = coords.iter().map(|p| p.0).collect::<Vec<_>>();
-                    let y_coeffs = coords.iter().map(|p| p.1).collect::<Vec<_>>();
-
-                    let precomp = Boolean::and(
-                        cs.ns(|| format!("precomp in window {}, {}", segment_i, i)),
-                        &bits[0],
-                        &bits[1],
-                    )?;
-
-                    let x = F::zero(cs.ns(|| format!("x in window {}, {}", segment_i, i)))?
-                        .conditionally_add_constant(
-                            cs.ns(|| format!("add bool 00 in window {}, {}", segment_i, i)),
-                            &Boolean::constant(true),
-                            x_coeffs[0],
-                        )?
-                        .conditionally_add_constant(
-                            cs.ns(|| format!("add bool 01 in window {}, {}", segment_i, i)),
-                            &bits[0],
-                            x_coeffs[1] - &x_coeffs[0],
-                        )?
-                        .conditionally_add_constant(
-                            cs.ns(|| format!("add bool 10 in window {}, {}", segment_i, i)),
-                            &bits[1],
-                            x_coeffs[2] - &x_coeffs[0],
-                        )?
-                        .conditionally_add_constant(
-                            cs.ns(|| format!("add bool 11 in window {}, {}", segment_i, i)),
-                            &precomp,
-                            x_coeffs[3] - &x_coeffs[2] - &x_coeffs[1] + &x_coeffs[0],
-                        )?;
-
-                    let y = F::three_bit_cond_neg_lookup(
-                        cs.ns(|| format!("y lookup in window {}, {}", segment_i, i)),
-                        &bits,
-                        &precomp,
-                        &y_coeffs,
-                    )?;
-
-                    let tmp = MontgomeryAffineGadget::new(x, y);
-
-                    match result {
-                        None => {
-                            result = Some(tmp);
-                        }
-                        Some(ref mut result) => {
-                            *result = tmp.add(
-                                cs.ns(|| format!("addition of window {}, {}", segment_i, i)),
-                                result,
-                            )?;
-                        }
-                    }
-                }
-
-                process_segment_result(
-                    cs.ns(|| format!("window {}", segment_i)),
-                    &result.unwrap(),
-                )?;
-                result = None;
             }
-            if result.is_some() {
-                process_segment_result(cs.ns(|| "leftover"), &result.unwrap())?;
-            }
-            Ok(edwards_result.unwrap())
         }
-
-        fn cost_of_add() -> usize {
-            4 + 2 * F::cost_of_mul()
-        }
-
-        fn cost_of_double() -> usize {
-            4 + F::cost_of_mul()
-        }
+        self.negate()?.enforce_equal(&result)?;
+        Ok(())
     }
 
-    impl<P, ConstraintF, F> AllocGadget<TEProjective<P>, ConstraintF>
-        for AffineGadget<P, ConstraintF, F>
-    where
-        P: TEModelParameters,
-        ConstraintF: Field,
-        F: FieldGadget<P::BaseField, ConstraintF>,
-        Self: GroupGadget<TEProjective<P>, ConstraintF>,
-    {
-        #[inline]
-        fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
-            mut cs: CS,
-            t: T,
-        ) -> Result<Self, SynthesisError>
-        where
-            T: Borrow<TEProjective<P>>,
-        {
-            let p = t.borrow().into_affine();
-            Ok(Self {
-                x: F::alloc_constant(cs.ns(|| "x"), &p.x)?,
-                y: F::alloc_constant(cs.ns(|| "y"), &p.y)?,
-                _params: PhantomData,
-                _engine: PhantomData,
-            })
-        }
-
-        fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(
-            mut cs: CS,
-            value_gen: FN,
-        ) -> Result<Self, SynthesisError>
-        where
-            FN: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<TEProjective<P>>,
-        {
-            let (x, y) = match value_gen() {
-                Ok(ge) => {
-                    let ge = ge.borrow().into_affine();
-                    (Ok(ge.x), Ok(ge.y))
-                }
-                _ => (
-                    Err(SynthesisError::AssignmentMissing),
-                    Err(SynthesisError::AssignmentMissing),
-                ),
-            };
-
-            let d = P::COEFF_D;
+    #[inline]
+    fn double_in_place(&mut self) -> Result<(), SynthesisError> {
+        if let Some(cs) = self.cs() {
             let a = P::COEFF_A;
 
-            let x = F::alloc(&mut cs.ns(|| "x"), || x)?;
-            let y = F::alloc(&mut cs.ns(|| "y"), || y)?;
+            // xy
+            let xy = &self.x * &self.y;
+            let x2 = self.x.square()?;
+            let y2 = self.y.square()?;
 
-            // Check that ax^2 + y^2 = 1 + dx^2y^2
-            // We do this by checking that ax^2 - 1 = y^2 * (dx^2 - 1)
-            let x2 = x.square(&mut cs.ns(|| "x^2"))?;
-            let y2 = y.square(&mut cs.ns(|| "y^2"))?;
+            let a_x2 = &x2 * a;
 
-            let one = P::BaseField::one();
-            let d_x2_minus_one = x2
-                .mul_by_constant(cs.ns(|| "d * x^2"), &d)?
-                .add_constant(cs.ns(|| "d * x^2 - 1"), &one.neg())?;
+            // Compute x3 = (2xy) / (ax^2 + y^2)
+            let x3 = F::new_witness(cs.ns("x3"), || {
+                let t0 = xy.value()?.double();
+                let t1 = a * &x2.value()? + &y2.value()?;
+                Ok(t0 * &t1.inverse().ok_or(SynthesisError::DivisionByZero)?)
+            })?;
 
-            let a_x2_minus_one = x2
-                .mul_by_constant(cs.ns(|| "a * x^2"), &a)?
-                .add_constant(cs.ns(|| "a * x^2 - 1"), &one.neg())?;
+            let a_x2_plus_y2 = &a_x2 + &y2;
+            let two_xy = xy.double()?;
+            x3.mul_equals(&a_x2_plus_y2, &two_xy)?;
 
-            d_x2_minus_one.mul_equals(cs.ns(|| "on curve check"), &y2, &a_x2_minus_one)?;
-            Ok(Self::new(x, y))
+            // Compute y3 = (y^2 - ax^2) / (2 - ax^2 - y^2)
+            let two = P::BaseField::one().double();
+            let y3 = F::new_witness(cs.ns("y3"), || {
+                let a_x2 = a * &x2.value()?;
+                let t0 = y2.value()? - &a_x2;
+                let t1 = two - &a_x2 - &y2.value()?;
+                Ok(t0 * &t1.inverse().ok_or(SynthesisError::DivisionByZero)?)
+            })?;
+            let y2_minus_a_x2 = &y2 - &a_x2;
+            let two_minus_ax2_minus_y2 = (&a_x2 + &y2).negate()? + two;
+
+            y3.mul_equals(&two_minus_ax2_minus_y2, &y2_minus_a_x2)?;
+            self.x = x3;
+            self.y = y3;
+        } else {
+            let value = self.value()?;
+            *self = Self::constant(value.double());
         }
+        Ok(())
+    }
 
-        fn alloc_checked<FN, T, CS: ConstraintSystem<ConstraintF>>(
-            mut cs: CS,
-            value_gen: FN,
-        ) -> Result<Self, SynthesisError>
-        where
-            FN: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<TEProjective<P>>,
-        {
-            let cofactor_weight = BitIterator::new(P::COFACTOR).filter(|b| *b).count();
-            // If we multiply by r, we actually multiply by r - 2.
-            let r_minus_1 = (-P::ScalarField::one()).into_repr();
-            let r_weight = BitIterator::new(&r_minus_1).filter(|b| *b).count();
+    fn negate(&self) -> Result<Self, SynthesisError> {
+        Ok(Self::new(self.x.negate()?, self.y.clone()))
+    }
 
-            // We pick the most efficient method of performing the prime order check:
-            // If the cofactor has lower hamming weight than the scalar field's modulus,
-            // we first multiply by the inverse of the cofactor, and then, after allocating,
-            // multiply by the cofactor. This ensures the resulting point has no cofactors
-            //
-            // Else, we multiply by the scalar field's modulus and ensure that the result
-            // is zero.
-            if cofactor_weight < r_weight {
-                let ge = Self::alloc(cs.ns(|| "Alloc checked"), || {
-                    value_gen().map(|ge| {
-                        ge.borrow()
-                            .into_affine()
-                            .mul_by_cofactor_inv()
-                            .into_projective()
-                    })
-                })?;
-                let mut seen_one = false;
-                let mut result = Self::zero(cs.ns(|| "result"))?;
-                for (i, b) in BitIterator::new(P::COFACTOR).enumerate() {
-                    let mut cs = cs.ns(|| format!("Iteration {}", i));
+    fn precomputed_base_scalar_mul<'a, I, B>(
+        &mut self,
+        scalar_bits_with_base_powers: I,
+    ) -> Result<(), SynthesisError>
+    where
+        I: Iterator<Item = (B, &'a TEProjective<P>)>,
+        B: Borrow<Boolean<<P::BaseField as Field>::BasePrimeField>>,
+    {
+        let scalar_bits_with_base_powers = scalar_bits_with_base_powers
+            .map(|(bit, base)| (bit.borrow().clone(), (*base).into()))
+            .collect::<Vec<(_, TEProjective<P>)>>();
+        let zero = TEProjective::zero();
+        for bits_base_powers in scalar_bits_with_base_powers.chunks(2) {
+            if bits_base_powers.len() == 2 {
+                let bits = [bits_base_powers[0].0.clone(), bits_base_powers[1].0.clone()];
+                let base_powers = [&bits_base_powers[0].1, &bits_base_powers[1].1];
 
-                    let old_seen_one = seen_one;
-                    if seen_one {
-                        result.double_in_place(cs.ns(|| "Double"))?;
-                    } else {
-                        seen_one = b;
-                    }
+                let mut table = [
+                    zero,
+                    *base_powers[0],
+                    *base_powers[1],
+                    *base_powers[0] + base_powers[1],
+                ];
 
-                    if b {
-                        result = if old_seen_one {
-                            result.add(cs.ns(|| "Add"), &ge)?
-                        } else {
-                            ge.clone()
-                        };
-                    }
-                }
-                Ok(result)
-            } else {
-                let ge = Self::alloc(cs.ns(|| "Alloc checked"), value_gen)?;
-                let mut seen_one = false;
-                let mut result = Self::zero(cs.ns(|| "result"))?;
-                // Returns bits in big-endian order
-                for (i, b) in BitIterator::new(r_minus_1).enumerate() {
-                    let mut cs = cs.ns(|| format!("Iteration {}", i));
+                TEProjective::batch_normalization(&mut table);
+                let x_s = [table[0].x, table[1].x, table[2].x, table[3].x];
+                let y_s = [table[0].y, table[1].y, table[2].y, table[3].y];
 
-                    let old_seen_one = seen_one;
-                    if seen_one {
-                        result.double_in_place(cs.ns(|| "Double"))?;
-                    } else {
-                        seen_one = b;
-                    }
-
-                    if b {
-                        result = if old_seen_one {
-                            result.add(cs.ns(|| "Add"), &ge)?
-                        } else {
-                            ge.clone()
-                        };
-                    }
-                }
-                let neg_ge = ge.negate(cs.ns(|| "Negate ge"))?;
-                neg_ge.enforce_equal(cs.ns(|| "Check equals"), &result)?;
-                Ok(ge)
+                let x = F::two_bit_lookup(&bits, &x_s)?;
+                let y = F::two_bit_lookup(&bits, &y_s)?;
+                *self += Self::new(x, y);
+            } else if bits_base_powers.len() == 1 {
+                let bit = bits_base_powers[0].0.clone();
+                let base_power = bits_base_powers[0].1;
+                let new_encoded = &*self + base_power;
+                *self = bit.select(&new_encoded, &self)?;
             }
         }
 
-        fn alloc_input<FN, T, CS: ConstraintSystem<ConstraintF>>(
-            mut cs: CS,
-            value_gen: FN,
-        ) -> Result<Self, SynthesisError>
-        where
-            FN: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<TEProjective<P>>,
-        {
-            let (x, y) = match value_gen() {
-                Ok(ge) => {
-                    let ge = ge.borrow().into_affine();
-                    (Ok(ge.x), Ok(ge.y))
-                }
-                _ => (
-                    Err(SynthesisError::AssignmentMissing),
-                    Err(SynthesisError::AssignmentMissing),
-                ),
+        Ok(())
+    }
+
+    fn precomputed_base_3_bit_signed_digit_scalar_mul<'a, I, J, B>(
+        bases: &[B],
+        scalars: &[J],
+    ) -> Result<Self, SynthesisError>
+    where
+        I: Borrow<[Boolean<<P::BaseField as Field>::BasePrimeField>]>,
+        J: Borrow<[I]>,
+        B: Borrow<[TEProjective<P>]>,
+    {
+        const CHUNK_SIZE: usize = 3;
+        let mut ed_result: Option<AffineVar<P, F>> = None;
+        let mut result: Option<MontgomeryAffineVar<P, F>> = None;
+
+        let mut process_segment_result = |result: &MontgomeryAffineVar<P, F>| {
+            let sgmt_result = result.into_edwards()?;
+            ed_result = match ed_result.as_ref() {
+                None => Some(sgmt_result),
+                Some(r) => Some(sgmt_result + r),
             };
+            Ok::<(), SynthesisError>(())
+        };
 
-            let d = P::COEFF_D;
-            let a = P::COEFF_A;
+        // Compute ∏(h_i^{m_i}) for all i.
+        for (segment_bits_chunks, segment_powers) in scalars.iter().zip(bases) {
+            for (bits, base_power) in segment_bits_chunks
+                .borrow()
+                .iter()
+                .zip(segment_powers.borrow())
+            {
+                let base_power = base_power.borrow();
+                let mut acc_power = *base_power;
+                let mut coords = vec![];
+                for _ in 0..4 {
+                    coords.push(acc_power);
+                    acc_power += base_power;
+                }
 
-            let x = F::alloc_input(&mut cs.ns(|| "x"), || x)?;
-            let y = F::alloc_input(&mut cs.ns(|| "y"), || y)?;
+                let bits = bits.borrow().to_bits()?;
+                if bits.len() != CHUNK_SIZE {
+                    return Err(SynthesisError::Unsatisfiable);
+                }
 
-            // Check that ax^2 + y^2 = 1 + dx^2y^2
-            // We do this by checking that ax^2 - 1 = y^2 * (dx^2 - 1)
-            let x2 = x.square(&mut cs.ns(|| "x^2"))?;
-            let y2 = y.square(&mut cs.ns(|| "y^2"))?;
+                let coords = coords
+                    .iter()
+                    .map(|p| MontgomeryAffineVar::from_edwards_to_coords(&p.into_affine()))
+                    .collect::<Result<Vec<_>, _>>()?;
 
-            let one = P::BaseField::one();
-            let d_x2_minus_one = x2
-                .mul_by_constant(cs.ns(|| "d * x^2"), &d)?
-                .add_constant(cs.ns(|| "d * x^2 - 1"), &one.neg())?;
+                let x_coeffs = coords.iter().map(|p| p.0).collect::<Vec<_>>();
+                let y_coeffs = coords.iter().map(|p| p.1).collect::<Vec<_>>();
 
-            let a_x2_minus_one = x2
-                .mul_by_constant(cs.ns(|| "a * x^2"), &a)?
-                .add_constant(cs.ns(|| "a * x^2 - 1"), &one.neg())?;
+                let precomp = bits[0].and(&bits[1])?;
 
-            d_x2_minus_one.mul_equals(cs.ns(|| "on curve check"), &y2, &a_x2_minus_one)?;
-            Ok(Self::new(x, y))
+                let x = F::zero()
+                    + x_coeffs[0]
+                    + F::from(bits[0].clone()) * (x_coeffs[1] - &x_coeffs[0])
+                    + F::from(bits[1].clone()) * (x_coeffs[2] - &x_coeffs[0])
+                    + F::from(precomp.clone())
+                        * (x_coeffs[3] - &x_coeffs[2] - &x_coeffs[1] + &x_coeffs[0]);
+
+                let y = F::three_bit_cond_neg_lookup(&bits, &precomp, &y_coeffs)?;
+
+                let tmp = MontgomeryAffineVar::new(x, y);
+                result = match result.as_ref() {
+                    None => Some(tmp),
+                    Some(r) => Some(tmp + r),
+                };
+            }
+
+            process_segment_result(&result.unwrap())?;
+            result = None;
+        }
+        if result.is_some() {
+            process_segment_result(&result.unwrap())?;
+        }
+        Ok(ed_result.unwrap())
+    }
+}
+
+impl<P, F> AllocVar<TEProjective<P>, <P::BaseField as Field>::BasePrimeField> for AffineVar<P, F>
+where
+    P: TEModelParameters,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>
+        + TwoBitLookupGadget<<P::BaseField as Field>::BasePrimeField, TableConstant = P::BaseField>
+        + ThreeBitCondNegLookupGadget<
+            <P::BaseField as Field>::BasePrimeField,
+            TableConstant = P::BaseField,
+        >,
+    for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
+{
+    fn new_variable<Point: Borrow<TEProjective<P>>>(
+        cs: impl Into<Namespace<<P::BaseField as Field>::BasePrimeField>>,
+        f: impl FnOnce() -> Result<Point, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        let ns = cs.into();
+        let cs = ns.cs();
+        let f = || Ok(*f()?.borrow());
+        match mode {
+            AllocationMode::Constant => Self::new_variable_omit_prime_order_check(cs, f, mode),
+            AllocationMode::Input => Self::new_variable_omit_prime_order_check(cs, f, mode),
+            AllocationMode::Witness => {
+                // if cofactor.is_even():
+                //   divide until you've removed all even factors
+                // else:
+                //   just directly use double and add.
+                let mut power_of_2: u32 = 0;
+                let mut cofactor = P::COFACTOR.to_vec();
+                while cofactor[0] % 2 == 0 {
+                    div2(&mut cofactor);
+                    power_of_2 += 1;
+                }
+
+                let cofactor_weight = BitIterator::new(cofactor.as_slice()).filter(|b| *b).count();
+                let modulus_minus_1 = (-P::ScalarField::one()).into_repr(); // r - 1
+                let modulus_minus_1_weight =
+                    BitIterator::new(modulus_minus_1).filter(|b| *b).count();
+
+                // We pick the most efficient method of performing the prime order check:
+                // If the cofactor has lower hamming weight than the scalar field's modulus,
+                // we first multiply by the inverse of the cofactor, and then, after allocating,
+                // multiply by the cofactor. This ensures the resulting point has no cofactors
+                //
+                // Else, we multiply by the scalar field's modulus and ensure that the result
+                // equals the identity.
+
+                let (mut ge, iter) = if cofactor_weight < modulus_minus_1_weight {
+                    let ge = Self::new_variable_omit_prime_order_check(
+                        cs.ns("Witness without subgroup check with cofactor mul"),
+                        || f().map(|g| g.borrow().into_affine().mul_by_cofactor_inv().into()),
+                        mode,
+                    )?;
+                    (ge, BitIterator::new(cofactor.as_slice()))
+                } else {
+                    let ge = Self::new_variable_omit_prime_order_check(
+                        cs.ns("Witness without subgroup check with `r` check"),
+                        || {
+                            f().map(|g| {
+                                let g = g.into_affine();
+                                let mut power_of_two = P::ScalarField::one().into_repr();
+                                power_of_two.muln(power_of_2);
+                                let power_of_two_inv =
+                                    P::ScalarField::from(power_of_two).inverse().unwrap();
+                                g.mul(power_of_two_inv)
+                            })
+                        },
+                        mode,
+                    )?;
+
+                    (ge, BitIterator::new(modulus_minus_1.as_ref()))
+                };
+                // Remove the even part of the cofactor
+                for _ in 0..power_of_2 {
+                    ge.double_in_place()?;
+                }
+
+                let mut seen_one = false;
+                let mut result = Self::zero();
+                for b in iter {
+                    let old_seen_one = seen_one;
+                    if seen_one {
+                        result.double_in_place()?;
+                    } else {
+                        seen_one = b;
+                    }
+
+                    if b {
+                        result = if old_seen_one {
+                            result + &ge
+                        } else {
+                            ge.clone()
+                        };
+                    }
+                }
+                if cofactor_weight < modulus_minus_1_weight {
+                    Ok(result)
+                } else {
+                    ge.enforce_equal(&ge)?;
+                    Ok(ge)
+                }
+            }
         }
     }
 }
 
-impl<P, ConstraintF, F> CondSelectGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
+impl<P, F> AllocVar<TEAffine<P>, <P::BaseField as Field>::BasePrimeField> for AffineVar<P, F>
 where
     P: TEModelParameters,
-    ConstraintF: Field,
-    F: FieldGadget<P::BaseField, ConstraintF>,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>
+        + TwoBitLookupGadget<<P::BaseField as Field>::BasePrimeField, TableConstant = P::BaseField>
+        + ThreeBitCondNegLookupGadget<
+            <P::BaseField as Field>::BasePrimeField,
+            TableConstant = P::BaseField,
+        >,
+    for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
+{
+    fn new_variable<Point: Borrow<TEAffine<P>>>(
+        cs: impl Into<Namespace<<P::BaseField as Field>::BasePrimeField>>,
+        f: impl FnOnce() -> Result<Point, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        Self::new_variable(cs, || f().map(|b| b.borrow().into_projective()), mode)
+    }
+}
+
+#[inline]
+fn div2(limbs: &mut [u64]) {
+    let mut t = 0;
+    for i in limbs.iter_mut().rev() {
+        let t2 = *i << 63;
+        *i >>= 1;
+        *i |= t;
+        t = t2;
+    }
+}
+
+impl_bounded_ops!(
+    AffineVar<P, F>,
+    TEProjective<P>,
+    Add,
+    add,
+    AddAssign,
+    add_assign,
+    |this: &'a AffineVar<P, F>, other: &'a AffineVar<P, F>| {
+        if let Some(cs) = [this, other].cs() {
+            let a = P::COEFF_A;
+            let d = P::COEFF_D;
+
+            // Compute U = (x1 + y1) * (x2 + y2)
+            let u1 = (&this.x * -a) + &this.y;
+            let u2 = &other.x + &other.y;
+
+            let u = u1 *  &u2;
+
+            // Compute v0 = x1 * y2
+            let v0 = &other.y * &this.x;
+
+            // Compute v1 = x2 * y1
+            let v1 = &other.x * &this.y;
+
+            // Compute C = d*v0*v1
+            let v2 = &v0 * &v1 * d;
+
+            // Compute x3 = (v0 + v1) / (1 + v2)
+            let x3 = F::new_witness(cs.ns("x3"), || {
+                let t0 = v0.value()? + &v1.value()?;
+                let t1 = P::BaseField::one() + &v2.value()?;
+                Ok(t0 * &t1.inverse().ok_or(SynthesisError::DivisionByZero)?)
+            }).unwrap();
+
+            let v2_plus_one = &v2 + P::BaseField::one();
+            let v0_plus_v1 = &v0 + &v1;
+            x3.mul_equals(&v2_plus_one, &v0_plus_v1).unwrap();
+
+            // Compute y3 = (U + a * v0 - v1) / (1 - v2)
+            let y3 = F::new_witness(cs.ns("y3"), || {
+                let t0 = u.value()? + &(a * &v0.value()?) - &v1.value()?;
+                let t1 = P::BaseField::one() - &v2.value()?;
+                Ok(t0 * &t1.inverse().ok_or(SynthesisError::DivisionByZero)?)
+            }).unwrap();
+
+            let one_minus_v2 = (&v2 - P::BaseField::one()).negate().unwrap();
+            let a_v0 = &v0 * a;
+            let u_plus_a_v0_minus_v1 = &u + &a_v0 - &v1;
+
+            y3.mul_equals(&one_minus_v2, &u_plus_a_v0_minus_v1).unwrap();
+
+            AffineVar::new(x3, y3)
+        } else {
+            assert!(this.is_constant() && other.is_constant());
+            AffineVar::constant(this.value().unwrap() + &other.value().unwrap())
+        }
+    },
+    |this: &'a AffineVar<P, F>, other: TEProjective<P>| this + AffineVar::constant(other),
+    (
+        F :FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>
+            + TwoBitLookupGadget<<P::BaseField as Field>::BasePrimeField, TableConstant = P::BaseField>
+            + ThreeBitCondNegLookupGadget<<P::BaseField as Field>::BasePrimeField, TableConstant = P::BaseField>,
+        P: TEModelParameters,
+    ),
+    for <'b> &'b F: FieldOpsBounds<'b, P::BaseField, F>,
+);
+
+impl_bounded_ops!(
+    AffineVar<P, F>,
+    TEProjective<P>,
+    Sub,
+    sub,
+    SubAssign,
+    sub_assign,
+    |this: &'a AffineVar<P, F>, other: &'a AffineVar<P, F>| this + other.negate().unwrap(),
+    |this: &'a AffineVar<P, F>, other: TEProjective<P>| this - AffineVar::constant(other),
+    (
+        F :FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>
+            + TwoBitLookupGadget<<P::BaseField as Field>::BasePrimeField, TableConstant = P::BaseField>
+            + ThreeBitCondNegLookupGadget<<P::BaseField as Field>::BasePrimeField, TableConstant = P::BaseField>,
+        P: TEModelParameters,
+    ),
+    for <'b> &'b F: FieldOpsBounds<'b, P::BaseField, F>
+);
+
+impl<'a, P, F> GroupOpsBounds<'a, TEProjective<P>, AffineVar<P, F>> for AffineVar<P, F>
+where
+    P: TEModelParameters,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>
+        + TwoBitLookupGadget<<P::BaseField as Field>::BasePrimeField, TableConstant = P::BaseField>
+        + ThreeBitCondNegLookupGadget<
+            <P::BaseField as Field>::BasePrimeField,
+            TableConstant = P::BaseField,
+        >,
+    for<'b> &'b F: FieldOpsBounds<'b, P::BaseField, F>,
+{
+}
+
+impl<'a, P, F> GroupOpsBounds<'a, TEProjective<P>, AffineVar<P, F>> for &'a AffineVar<P, F>
+where
+    P: TEModelParameters,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>
+        + TwoBitLookupGadget<<P::BaseField as Field>::BasePrimeField, TableConstant = P::BaseField>
+        + ThreeBitCondNegLookupGadget<
+            <P::BaseField as Field>::BasePrimeField,
+            TableConstant = P::BaseField,
+        >,
+    for<'b> &'b F: FieldOpsBounds<'b, P::BaseField, F>,
+{
+}
+
+impl<P, F> CondSelectGadget<<P::BaseField as Field>::BasePrimeField> for AffineVar<P, F>
+where
+    P: TEModelParameters,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
+    for<'b> &'b F: FieldOpsBounds<'b, P::BaseField, F>,
 {
     #[inline]
-    fn conditionally_select<CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        cond: &Boolean,
+    fn conditionally_select(
+        cond: &Boolean<<P::BaseField as Field>::BasePrimeField>,
         true_value: &Self,
         false_value: &Self,
     ) -> Result<Self, SynthesisError> {
-        let x = F::conditionally_select(&mut cs.ns(|| "x"), cond, &true_value.x, &false_value.x)?;
-        let y = F::conditionally_select(&mut cs.ns(|| "y"), cond, &true_value.y, &false_value.y)?;
+        let x = cond.select(&true_value.x, &false_value.x)?;
+        let y = cond.select(&true_value.y, &false_value.y)?;
 
         Ok(Self::new(x, y))
     }
-
-    fn cost() -> usize {
-        2 * <F as CondSelectGadget<ConstraintF>>::cost()
-    }
 }
 
-impl<P, ConstraintF, F> EqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
+impl<P, F> EqGadget<<P::BaseField as Field>::BasePrimeField> for AffineVar<P, F>
 where
     P: TEModelParameters,
-    ConstraintF: Field,
-    F: FieldGadget<P::BaseField, ConstraintF>,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
+    for<'b> &'b F: FieldOpsBounds<'b, P::BaseField, F>,
 {
-}
-
-impl<P, ConstraintF, F> ConditionalEqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
-where
-    P: TEModelParameters,
-    ConstraintF: Field,
-    F: FieldGadget<P::BaseField, ConstraintF>,
-{
-    #[inline]
-    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
+    fn is_eq(
         &self,
-        mut cs: CS,
         other: &Self,
-        condition: &Boolean,
+    ) -> Result<Boolean<<P::BaseField as Field>::BasePrimeField>, SynthesisError> {
+        let x_equal = self.x.is_eq(&other.x)?;
+        let y_equal = self.y.is_eq(&other.y)?;
+        x_equal.and(&y_equal)
+    }
+
+    #[inline]
+    fn conditional_enforce_equal(
+        &self,
+        other: &Self,
+        condition: &Boolean<<P::BaseField as Field>::BasePrimeField>,
     ) -> Result<(), SynthesisError> {
-        self.x.conditional_enforce_equal(
-            &mut cs.ns(|| "X Coordinate Conditional Equality"),
-            &other.x,
-            condition,
-        )?;
-        self.y.conditional_enforce_equal(
-            &mut cs.ns(|| "Y Coordinate Conditional Equality"),
-            &other.y,
-            condition,
-        )?;
+        self.x.conditional_enforce_equal(&other.x, condition)?;
+        self.y.conditional_enforce_equal(&other.y, condition)?;
         Ok(())
     }
 
-    fn cost() -> usize {
-        2 * <F as ConditionalEqGadget<ConstraintF>>::cost()
-    }
-}
-
-impl<P, ConstraintF, F> NEqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
-where
-    P: TEModelParameters,
-    ConstraintF: Field,
-    F: FieldGadget<P::BaseField, ConstraintF>,
-{
     #[inline]
-    fn enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
+    fn conditional_enforce_not_equal(
         &self,
-        mut cs: CS,
         other: &Self,
+        condition: &Boolean<<P::BaseField as Field>::BasePrimeField>,
     ) -> Result<(), SynthesisError> {
-        self.x
-            .enforce_not_equal(&mut cs.ns(|| "X Coordinate Inequality"), &other.x)?;
-        self.y
-            .enforce_not_equal(&mut cs.ns(|| "Y Coordinate Inequality"), &other.y)?;
-        Ok(())
-    }
-
-    fn cost() -> usize {
-        2 * <F as NEqGadget<ConstraintF>>::cost()
+        self.is_eq(other)?
+            .and(condition)?
+            .enforce_equal(&Boolean::Constant(false))
     }
 }
 
-impl<P, ConstraintF, F> ToBitsGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
+impl<P, F> ToBitsGadget<<P::BaseField as Field>::BasePrimeField> for AffineVar<P, F>
 where
     P: TEModelParameters,
-    ConstraintF: Field,
-    F: FieldGadget<P::BaseField, ConstraintF>,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
+    for<'b> &'b F: FieldOpsBounds<'b, P::BaseField, F>,
 {
-    fn to_bits<CS: ConstraintSystem<ConstraintF>>(
+    fn to_bits(
         &self,
-        mut cs: CS,
-    ) -> Result<Vec<Boolean>, SynthesisError> {
-        let mut x_bits = self.x.to_bits(cs.ns(|| "X Coordinate To Bits"))?;
-        let y_bits = self.y.to_bits(cs.ns(|| "Y Coordinate To Bits"))?;
+    ) -> Result<Vec<Boolean<<P::BaseField as Field>::BasePrimeField>>, SynthesisError> {
+        let mut x_bits = self.x.to_bits()?;
+        let y_bits = self.y.to_bits()?;
         x_bits.extend_from_slice(&y_bits);
         Ok(x_bits)
     }
 
-    fn to_non_unique_bits<CS: ConstraintSystem<ConstraintF>>(
+    fn to_non_unique_bits(
         &self,
-        mut cs: CS,
-    ) -> Result<Vec<Boolean>, SynthesisError> {
-        let mut x_bits = self
-            .x
-            .to_non_unique_bits(cs.ns(|| "X Coordinate To Bits"))?;
-        let y_bits = self
-            .y
-            .to_non_unique_bits(cs.ns(|| "Y Coordinate To Bits"))?;
+    ) -> Result<Vec<Boolean<<P::BaseField as Field>::BasePrimeField>>, SynthesisError> {
+        let mut x_bits = self.x.to_non_unique_bits()?;
+        let y_bits = self.y.to_non_unique_bits()?;
         x_bits.extend_from_slice(&y_bits);
 
         Ok(x_bits)
     }
 }
 
-impl<P, ConstraintF, F> ToBytesGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
+impl<P, F> ToBytesGadget<<P::BaseField as Field>::BasePrimeField> for AffineVar<P, F>
 where
     P: TEModelParameters,
-    ConstraintF: Field,
-    F: FieldGadget<P::BaseField, ConstraintF>,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
+    for<'b> &'b F: FieldOpsBounds<'b, P::BaseField, F>,
 {
-    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(
+    fn to_bytes(
         &self,
-        mut cs: CS,
-    ) -> Result<Vec<UInt8>, SynthesisError> {
-        let mut x_bytes = self.x.to_bytes(cs.ns(|| "x"))?;
-        let y_bytes = self.y.to_bytes(cs.ns(|| "y"))?;
+    ) -> Result<Vec<UInt8<<P::BaseField as Field>::BasePrimeField>>, SynthesisError> {
+        let mut x_bytes = self.x.to_bytes()?;
+        let y_bytes = self.y.to_bytes()?;
         x_bytes.extend_from_slice(&y_bytes);
         Ok(x_bytes)
     }
 
-    fn to_non_unique_bytes<CS: ConstraintSystem<ConstraintF>>(
+    fn to_non_unique_bytes(
         &self,
-        mut cs: CS,
-    ) -> Result<Vec<UInt8>, SynthesisError> {
-        let mut x_bytes = self.x.to_non_unique_bytes(cs.ns(|| "x"))?;
-        let y_bytes = self.y.to_non_unique_bytes(cs.ns(|| "y"))?;
+    ) -> Result<Vec<UInt8<<P::BaseField as Field>::BasePrimeField>>, SynthesisError> {
+        let mut x_bytes = self.x.to_non_unique_bytes()?;
+        let y_bytes = self.y.to_non_unique_bytes()?;
         x_bytes.extend_from_slice(&y_bytes);
 
         Ok(x_bytes)
@@ -1462,62 +877,91 @@ where
 
 #[cfg(test)]
 #[allow(dead_code)]
-pub(crate) fn test<ConstraintF, P, GG>()
+pub(crate) fn test<P, GG>() -> Result<(), SynthesisError>
 where
-    ConstraintF: Field,
     P: TEModelParameters,
-    GG: GroupGadget<TEAffine<P>, ConstraintF, Value = TEAffine<P>>,
+    GG: CurveVar<TEProjective<P>, <P::BaseField as Field>::BasePrimeField>,
+    for<'a> &'a GG: GroupOpsBounds<'a, TEProjective<P>, GG>,
 {
-    use crate::{
-        boolean::AllocatedBit, groups::test::group_test, prelude::*,
-        test_constraint_system::TestConstraintSystem,
-    };
+    use crate::prelude::*;
     use algebra::{test_rng, Group, UniformRand};
-    use rand::Rng;
+    use r1cs_core::ConstraintSystem;
 
-    group_test::<ConstraintF, TEAffine<P>, GG>();
+    crate::groups::test::group_test::<TEProjective<P>, _, GG>()?;
 
-    let mut cs = TestConstraintSystem::new();
+    let mut rng = test_rng();
 
-    let a: TEAffine<P> = UniformRand::rand(&mut test_rng());
-    let gadget_a = GG::alloc(&mut cs.ns(|| "a"), || Ok(a)).unwrap();
+    let cs = ConstraintSystem::<<P::BaseField as Field>::BasePrimeField>::new_ref();
+
+    let a = TEProjective::<P>::rand(&mut rng);
+    let b = TEProjective::<P>::rand(&mut rng);
+    let a_affine = a.into_affine();
+    let b_affine = b.into_affine();
+
+    println!("Allocating things");
+    let ns = cs.ns("allocating variables");
+    println!("{:?}", cs.current_namespace());
+    let mut gadget_a = GG::new_witness(cs.ns("a"), || Ok(a))?;
+    let gadget_b = GG::new_witness(cs.ns("b"), || Ok(b))?;
+    println!("{:?}", cs.current_namespace());
+    ns.leave_namespace();
+    println!("Done Allocating things");
+    assert_eq!(gadget_a.value()?.into_affine().x, a_affine.x);
+    assert_eq!(gadget_a.value()?.into_affine().y, a_affine.y);
+    assert_eq!(gadget_b.value()?.into_affine().x, b_affine.x);
+    assert_eq!(gadget_b.value()?.into_affine().y, b_affine.y);
+    assert_eq!(cs.which_is_unsatisfied(), None);
+
+    println!("Checking addition");
+    // Check addition
+    let ab = a + &b;
+    let ab_affine = ab.into_affine();
+    let gadget_ab = &gadget_a + &gadget_b;
+    let gadget_ba = &gadget_b + &gadget_a;
+    gadget_ba.enforce_equal(&gadget_ab)?;
+
+    let ab_val = gadget_ab.value()?.into_affine();
+    assert_eq!(ab_val, ab_affine, "Result of addition is unequal");
+    assert!(cs.is_satisfied().unwrap());
+    println!("Done checking addition");
+
+    println!("Checking doubling");
+    // Check doubling
+    let aa = Group::double(&a);
+    let aa_affine = aa.into_affine();
+    gadget_a.double_in_place()?;
+    let aa_val = gadget_a.value()?.into_affine();
+    assert_eq!(
+        aa_val, aa_affine,
+        "Gadget and native values are unequal after double."
+    );
+    assert!(cs.is_satisfied().unwrap());
+    println!("Done checking doubling");
+
+    println!("Checking mul_bits");
     // Check mul_bits
-    let scalar: <TEAffine<P> as Group>::ScalarField = UniformRand::rand(&mut test_rng());
-    let native_result = a.mul(&scalar);
+    let scalar = P::ScalarField::rand(&mut rng);
+    let native_result = AffineCurve::mul(&aa.into_affine(), scalar);
+    let native_result = native_result.into_affine();
 
     let mut scalar: Vec<bool> = BitIterator::new(scalar.into_repr()).collect();
     // Get the scalar bits into little-endian form.
     scalar.reverse();
-    let input = Vec::<Boolean>::alloc(cs.ns(|| "Input"), || Ok(scalar)).unwrap();
-    let zero = GG::zero(cs.ns(|| "zero")).unwrap();
-    let result = gadget_a
-        .mul_bits(cs.ns(|| "mul_bits"), &zero, input.iter())
-        .unwrap();
-    let gadget_value = result.get_value().expect("Gadget_result failed");
-    assert_eq!(native_result, gadget_value);
+    let input: Vec<Boolean<_>> = Vec::new_witness(cs.ns("bits"), || Ok(scalar)).unwrap();
+    let result = gadget_a.mul_bits(input.iter())?;
+    let result_val = result.value()?.into_affine();
+    assert_eq!(
+        result_val, native_result,
+        "gadget & native values are diff. after scalar mul"
+    );
+    assert!(cs.is_satisfied().unwrap());
+    println!("Done checking mul_bits");
 
-    assert!(cs.is_satisfied());
+    if !cs.is_satisfied().unwrap() {
+        println!("Not satisfied");
+        println!("{:?}", cs.which_is_unsatisfied().unwrap());
+    }
 
-    // Test the cost of allocation, conditional selection, and point addition.
-    let mut cs = TestConstraintSystem::new();
-
-    let bit = AllocatedBit::alloc(&mut cs.ns(|| "bool"), || Ok(true))
-        .unwrap()
-        .into();
-
-    let mut rng = test_rng();
-    let a: TEAffine<P> = rng.gen();
-    let b: TEAffine<P> = rng.gen();
-    let gadget_a = GG::alloc(&mut cs.ns(|| "a"), || Ok(a)).unwrap();
-    let gadget_b = GG::alloc(&mut cs.ns(|| "b"), || Ok(b)).unwrap();
-    let alloc_cost = cs.num_constraints();
-    let _ =
-        GG::conditionally_select(&mut cs.ns(|| "cond_select"), &bit, &gadget_a, &gadget_b).unwrap();
-    let cond_select_cost = cs.num_constraints() - alloc_cost;
-
-    let _ = gadget_a.add(&mut cs.ns(|| "ab"), &gadget_b).unwrap();
-    let add_cost = cs.num_constraints() - cond_select_cost - alloc_cost;
-    assert_eq!(cond_select_cost, <GG as CondSelectGadget<_>>::cost());
-    assert_eq!(add_cost, GG::cost_of_add());
-    assert!(cs.is_satisfied());
+    assert!(cs.is_satisfied().unwrap());
+    Ok(())
 }
