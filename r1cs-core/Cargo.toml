@@ -21,7 +21,9 @@ edition = "2018"
 
 [dependencies]
 algebra-core = { path = "../algebra-core", default-features = false }
-smallvec = "1.1.0"
+
+[dev-dependencies]
+algebra = { path = "../algebra", default-features = false, features = [ "bls12_381" ] }
 
 [features]
 default = ["std"]
