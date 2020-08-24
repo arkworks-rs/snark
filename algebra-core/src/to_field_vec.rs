@@ -5,7 +5,7 @@ use crate::{
         short_weierstrass_jacobian::{GroupAffine as SWAffine, GroupProjective as SWProjective},
         twisted_edwards_extended::{GroupAffine as TEAffine, GroupProjective as TEProjective},
     },
-    Box, Field, Fp2, Fp2Parameters, FpParameters, PrimeField, Vec,
+    Box, Field, FpParameters, PrimeField, Vec,
 };
 
 type Error = Box<dyn crate::Error>;
@@ -35,17 +35,6 @@ impl<ConstraintF: Field> ToConstraintField<ConstraintF> for () {
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
         Ok(Vec::new())
-    }
-}
-
-// Impl for Fp2<ConstraintF>
-impl<P: Fp2Parameters> ToConstraintField<P::Fp> for Fp2<P> {
-    #[inline]
-    fn to_field_elements(&self) -> Result<Vec<P::Fp>, Error> {
-        let mut c0 = self.c0.to_field_elements()?;
-        let c1 = self.c1.to_field_elements()?;
-        c0.extend_from_slice(&c1);
-        Ok(c0)
     }
 }
 
