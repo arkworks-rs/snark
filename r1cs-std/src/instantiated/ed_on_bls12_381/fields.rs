@@ -1,8 +1,8 @@
-use crate::fields::fp::FpGadget;
+use crate::fields::fp::FpVar;
 
-pub type FqGadget = FpGadget<algebra::ed_on_bls12_381::Fq>;
+pub type FqVar = FpVar<algebra::ed_on_bls12_381::Fq>;
 
 #[test]
 fn test() {
-    crate::fields::tests::field_test::<_, algebra::ed_on_bls12_381::Fq, FqGadget>();
+    crate::fields::tests::field_test::<_, _, FqVar>().unwrap();
 }
