@@ -1,6 +1,6 @@
 use crate::{
-    BTreeMap, LcIndex, LinearCombination, Matrix, Rc, String, SynthesisError, ToString, Variable,
-    Vec,
+    vec, BTreeMap, LcIndex, LinearCombination, Matrix, Rc, String, SynthesisError, ToString,
+    Variable, Vec,
 };
 use algebra_core::Field;
 use core::cell::{Ref, RefCell, RefMut};
