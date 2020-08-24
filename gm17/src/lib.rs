@@ -18,10 +18,10 @@ extern crate bench_utils;
 extern crate alloc;
 
 #[cfg(not(feature = "std"))]
-use alloc::{string::String, vec::Vec};
+use alloc::vec::Vec;
 
 #[cfg(feature = "std")]
-use std::{string::String, vec::Vec};
+use std::vec::Vec;
 
 use algebra_core::{
     bytes::ToBytes,
