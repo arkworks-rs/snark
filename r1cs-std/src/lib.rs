@@ -20,21 +20,16 @@ extern crate algebra;
 #[macro_use]
 extern crate derivative;
 
-/// used by test_constraint_system
-#[cfg(not(feature = "std"))]
-macro_rules! println {
-    () => {};
-    ($($arg: tt)*) => {};
-}
+#[macro_use]
+pub mod macros;
 
 #[cfg(not(feature = "std"))]
-use ralloc::{collections::BTreeMap, string::String, vec::Vec};
+use ralloc::vec::Vec;
 
 #[cfg(feature = "std")]
-use std::{collections::BTreeMap, string::String, vec::Vec};
+use std::vec::Vec;
 
-pub mod test_constraint_counter;
-pub mod test_constraint_system;
+use algebra::prelude::Field;
 
 pub mod bits;
 pub use self::bits::*;
@@ -48,6 +43,9 @@ mod instantiated;
 #[cfg(feature = "bls12_377")]
 pub use instantiated::bls12_377;
 
+#[cfg(feature = "ed_on_bn254")]
+pub use instantiated::ed_on_bn254;
+
 #[cfg(feature = "ed_on_bls12_377")]
 pub use instantiated::ed_on_bls12_377;
 
@@ -60,8 +58,8 @@ pub use instantiated::ed_on_mnt4_753;
 #[cfg(feature = "ed_on_cp6_782")]
 pub use instantiated::ed_on_cp6_782;
 
-#[cfg(feature = "ed_on_bn254")]
-pub use instantiated::ed_on_bn254;
+#[cfg(feature = "ed_on_bw6_761")]
+pub use instantiated::ed_on_bw6_761;
 
 #[cfg(feature = "ed_on_bls12_381")]
 pub use instantiated::ed_on_bls12_381;
@@ -89,12 +87,62 @@ pub mod prelude {
         alloc::*,
         bits::{boolean::Boolean, uint32::UInt32, uint8::UInt8, ToBitsGadget, ToBytesGadget},
         eq::*,
-        fields::{fp::FpGadget, FieldGadget, ToConstraintFieldGadget},
-        groups::GroupGadget,
+        fields::{FieldOpsBounds, FieldVar},
+        groups::{CurveVar, GroupOpsBounds},
         instantiated::*,
-        pairing::PairingGadget,
+        pairing::PairingVar,
         select::*,
+        R1CSVar,
     };
+}
+
+pub trait R1CSVar<F: Field> {
+    type Value: core::fmt::Debug + Eq + Clone;
+
+    /// Returns the underlying `ConstraintSystemRef`.
+    fn cs(&self) -> Option<r1cs_core::ConstraintSystemRef<F>>;
+
+    /// Returns `true` if `self` is a circuit-generation-time constant.
+    fn is_constant(&self) -> bool {
+        self.cs()
+            .map_or(true, |cs| cs == r1cs_core::ConstraintSystemRef::None)
+    }
+
+    /// Returns the value that is assigned to `self` in the underlying
+    /// `ConstraintSystem`.
+    fn value(&self) -> Result<Self::Value, r1cs_core::SynthesisError>;
+}
+
+impl<F: Field, T: R1CSVar<F>> R1CSVar<F> for [T] {
+    type Value = Vec<T::Value>;
+
+    fn cs(&self) -> Option<r1cs_core::ConstraintSystemRef<F>> {
+        let mut result = None;
+        for var in self {
+            result = var.cs().or(result);
+        }
+        result
+    }
+
+    fn value(&self) -> Result<Self::Value, r1cs_core::SynthesisError> {
+        let mut result = Vec::new();
+        for var in self {
+            result.push(var.value()?);
+        }
+        Ok(result)
+    }
+}
+
+impl<'a, F: Field, T: 'a + R1CSVar<F>> R1CSVar<F> for &'a T {
+    type Value = T::Value;
+
+    fn cs(&self) -> Option<r1cs_core::ConstraintSystemRef<F>> {
+        (*self).cs()
+    }
+
+    fn value(&self) -> Result<Self::Value, r1cs_core::SynthesisError> {
+        (*self).value()
+    }
 }
 
 pub trait Assignment<T> {
@@ -103,6 +151,6 @@ pub trait Assignment<T> {
 
 impl<T> Assignment<T> for Option<T> {
     fn get(self) -> Result<T, r1cs_core::SynthesisError> {
-        self.ok_or_else(|| r1cs_core::SynthesisError::AssignmentMissing)
+        self.ok_or(r1cs_core::SynthesisError::AssignmentMissing)
     }
 }

@@ -1,20 +1,17 @@
 use crate::prelude::*;
 use algebra::Field;
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_core::SynthesisError;
 
 /// If condition is `true`, return `true_value`; else, select `false_value`.
 pub trait CondSelectGadget<ConstraintF: Field>
 where
     Self: Sized,
 {
-    fn conditionally_select<CS: ConstraintSystem<ConstraintF>>(
-        cs: CS,
-        cond: &Boolean,
+    fn conditionally_select(
+        cond: &Boolean<ConstraintF>,
         true_value: &Self,
         false_value: &Self,
     ) -> Result<Self, SynthesisError>;
-
-    fn cost() -> usize;
 }
 
 /// Uses two bits to perform a lookup into a table
@@ -23,13 +20,10 @@ where
     Self: Sized,
 {
     type TableConstant;
-    fn two_bit_lookup<CS: ConstraintSystem<ConstraintF>>(
-        cs: CS,
-        bits: &[Boolean],
+    fn two_bit_lookup(
+        bits: &[Boolean<ConstraintF>],
         constants: &[Self::TableConstant],
     ) -> Result<Self, SynthesisError>;
-
-    fn cost() -> usize;
 }
 
 /// Uses three bits to perform a lookup into a table, where the last bit
@@ -39,12 +33,9 @@ where
     Self: Sized,
 {
     type TableConstant;
-    fn three_bit_cond_neg_lookup<CS: ConstraintSystem<ConstraintF>>(
-        cs: CS,
-        bits: &[Boolean],
-        b0b1: &Boolean,
+    fn three_bit_cond_neg_lookup(
+        bits: &[Boolean<ConstraintF>],
+        b0b1: &Boolean<ConstraintF>,
         constants: &[Self::TableConstant],
     ) -> Result<Self, SynthesisError>;
-
-    fn cost() -> usize;
 }
