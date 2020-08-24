@@ -64,6 +64,7 @@ impl MNT4Parameters for Parameters {
         0,
     ]);
     type Fp = Fq;
+    type Fr = Fr;
     type Fp2Params = Fq2Parameters;
     type Fp4Params = Fq4Parameters;
     type G1Parameters = self::g1::Parameters;
