@@ -1,127 +1,89 @@
 use crate::{
     boolean::Boolean,
-    fields::{fp::FpGadget, FieldGadget},
+    fields::{fp::FpVar, FieldVar},
+    prelude::*,
     ToBitsGadget,
 };
 use algebra::PrimeField;
 use core::cmp::Ordering;
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_core::{lc, SynthesisError, Variable};
 
-impl<F: PrimeField> FpGadget<F> {
-    /// This function enforces the ordering between `self` and `b`. The
+impl<F: PrimeField> FpVar<F> {
+    /// This function enforces the ordering between `self` and `other`. The
     /// constraint system will not be satisfied otherwise. If `self` should
-    /// also be checked for equality, e.g. `a <= b` instead of `a < b`, set
-    /// `should_also_check_quality` to `true`. This variant verifies `a` and `b`
+    /// also be checked for equality, e.g. `self <= other` instead of `self < other`, set
+    /// `should_also_check_quality` to `true`. This variant verifies `self` and `other`
     /// are `<= (p-1)/2`.
-    pub fn enforce_cmp<CS: ConstraintSystem<F>>(
+    pub fn enforce_cmp(
         &self,
-        mut cs: CS,
-        b: &FpGadget<F>,
+        other: &FpVar<F>,
         ordering: Ordering,
         should_also_check_equality: bool,
     ) -> Result<(), SynthesisError> {
-        let (left, right) = Self::process_cmp_inputs(
-            cs.ns(|| "process cmp inputs"),
-            &self,
-            b,
-            ordering,
-            should_also_check_equality,
-        )?;
-        Self::enforce_smaller_than(cs.ns(|| "enforce smaller than"), &left, &right)
+        let (left, right) = self.process_cmp_inputs(other, ordering, should_also_check_equality)?;
+        left.enforce_smaller_than(&right)
     }
 
-    /// This function enforces the ordering between `self` and `b`. The
+    /// This function enforces the ordering between `self` and `other`. The
     /// constraint system will not be satisfied otherwise. If `self` should
-    /// also be checked for equality, e.g. `a <= b` instead of `a < b`, set
-    /// `should_also_check_quality` to `true`. This variant assumes `a` and `b`
+    /// also be checked for equality, e.g. `self <= other` instead of `self < other`, set
+    /// `should_also_check_quality` to `true`. This variant assumes `self` and `other`
     /// are `<= (p-1)/2` and does not generate constraints to verify that.
-    pub fn enforce_cmp_unchecked<CS: ConstraintSystem<F>>(
+    pub fn enforce_cmp_unchecked(
         &self,
-        mut cs: CS,
-        b: &FpGadget<F>,
+        other: &FpVar<F>,
         ordering: Ordering,
         should_also_check_equality: bool,
     ) -> Result<(), SynthesisError> {
-        let (left, right) = Self::process_cmp_inputs(
-            cs.ns(|| "process cmp inputs"),
-            &self,
-            b,
-            ordering,
-            should_also_check_equality,
-        )?;
-        Self::enforce_smaller_than_unchecked(cs.ns(|| "enforce smaller than"), &left, &right)
+        let (left, right) = self.process_cmp_inputs(other, ordering, should_also_check_equality)?;
+        left.enforce_smaller_than_unchecked(&right)
     }
 
-    /// This function checks the ordering between `self` and `b`. It outputs a
+    /// This function checks the ordering between `self` and `other`. It outputs self
     /// `Boolean` that contains the result - `1` if true, `0` otherwise. The
     /// constraint system will be satisfied in any case. If `self` should
-    /// also be checked for equality, e.g. `a <= b` instead of `a < b`, set
-    /// `should_also_check_quality` to `true`. This variant verifies `a` and `b`
+    /// also be checked for equality, e.g. `self <= other` instead of `self < other`, set
+    /// `should_also_check_quality` to `true`. This variant verifies `self` and `other`
     /// are `<= (p-1)/2`.
-    pub fn is_cmp<CS: ConstraintSystem<F>>(
+    pub fn is_cmp(
         &self,
-        mut cs: CS,
-        b: &FpGadget<F>,
+        other: &FpVar<F>,
         ordering: Ordering,
         should_also_check_equality: bool,
-    ) -> Result<Boolean, SynthesisError> {
-        let (left, right) = Self::process_cmp_inputs(
-            cs.ns(|| "process cmp inputs"),
-            &self,
-            b,
-            ordering,
-            should_also_check_equality,
-        )?;
-        Self::is_smaller_than(cs.ns(|| "enforce smaller than"), &left, &right)
+    ) -> Result<Boolean<F>, SynthesisError> {
+        let (left, right) = self.process_cmp_inputs(other, ordering, should_also_check_equality)?;
+        left.is_smaller_than(&right)
     }
 
-    /// This function checks the ordering between `self` and `b`. It outputs a
+    /// This function checks the ordering between `self` and `other`. It outputs a
     /// `Boolean` that contains the result - `1` if true, `0` otherwise. The
     /// constraint system will be satisfied in any case. If `self` should
-    /// also be checked for equality, e.g. `a <= b` instead of `a < b`, set
-    /// `should_also_check_quality` to `true`. This variant assumes `a` and `b`
+    /// also be checked for equality, e.g. `self <= other` instead of `self < other`, set
+    /// `should_also_check_quality` to `true`. This variant assumes `self` and `other`
     /// are `<= (p-1)/2` and does not generate constraints to verify that.
-    pub fn is_cmp_unchecked<CS: ConstraintSystem<F>>(
+    pub fn is_cmp_unchecked(
         &self,
-        mut cs: CS,
-        b: &FpGadget<F>,
+        other: &FpVar<F>,
         ordering: Ordering,
         should_also_check_equality: bool,
-    ) -> Result<Boolean, SynthesisError> {
-        let (left, right) = Self::process_cmp_inputs(
-            cs.ns(|| "process cmp inputs"),
-            &self,
-            b,
-            ordering,
-            should_also_check_equality,
-        )?;
-        Self::is_smaller_than_unchecked(cs.ns(|| "enforce smaller than"), &left, &right)
+    ) -> Result<Boolean<F>, SynthesisError> {
+        let (left, right) = self.process_cmp_inputs(other, ordering, should_also_check_equality)?;
+        left.is_smaller_than_unchecked(&right)
     }
 
-    fn process_cmp_inputs<CS: ConstraintSystem<F>>(
-        mut cs: CS,
-        a: &FpGadget<F>,
-        b: &FpGadget<F>,
+    fn process_cmp_inputs(
+        &self,
+        other: &Self,
         ordering: Ordering,
         should_also_check_equality: bool,
-    ) -> Result<(FpGadget<F>, FpGadget<F>), SynthesisError> {
-        let left;
-        let right;
-        match ordering {
-            Ordering::Less => {
-                left = a;
-                right = b;
-            }
-            Ordering::Greater => {
-                left = b;
-                right = a;
-            }
-            Ordering::Equal => {
-                return Err(SynthesisError::Unsatisfiable);
-            }
+    ) -> Result<(Self, Self), SynthesisError> {
+        let (left, right) = match ordering {
+            Ordering::Less => (self, other),
+            Ordering::Greater => (other, self),
+            Ordering::Equal => Err(SynthesisError::Unsatisfiable)?,
         };
         let right_for_check = if should_also_check_equality {
-            right.add_constant(cs.ns(|| "plus one"), &F::one())?
+            right + F::one()
         } else {
             right.clone()
         };
@@ -129,77 +91,47 @@ impl<F: PrimeField> FpGadget<F> {
         Ok((left.clone(), right_for_check))
     }
 
-    // Helper function to enforce `a <= (p-1)/2`.
-    pub fn enforce_smaller_or_equal_than_mod_minus_one_div_two<CS: ConstraintSystem<F>>(
-        mut cs: CS,
-        a: &FpGadget<F>,
+    // Helper function to enforce `self <= (p-1)/2`.
+    pub fn enforce_smaller_or_equal_than_mod_minus_one_div_two(
+        &self,
     ) -> Result<(), SynthesisError> {
-        let a_bits = a.to_bits(cs.ns(|| "a to bits"))?;
-        Boolean::enforce_smaller_or_equal_than::<_, _, F, _>(
-            cs.ns(|| "enforce smaller than modulus minus one div two"),
-            &a_bits,
+        let _ = Boolean::enforce_smaller_or_equal_than(
+            &self.to_bits()?,
             F::modulus_minus_one_div_two(),
         )?;
-
         Ok(())
     }
 
-    /// Helper function to check `a < b` and output a result bit. This function
-    /// verifies `a` and `b` are `<= (p-1)/2`.
-    fn is_smaller_than<CS: ConstraintSystem<F>>(
-        mut cs: CS,
-        a: &FpGadget<F>,
-        b: &FpGadget<F>,
-    ) -> Result<Boolean, SynthesisError> {
-        Self::enforce_smaller_or_equal_than_mod_minus_one_div_two(cs.ns(|| "check a in range"), a)?;
-        Self::enforce_smaller_or_equal_than_mod_minus_one_div_two(cs.ns(|| "check b in range"), b)?;
-        Self::is_smaller_than_unchecked(cs.ns(|| "enforce smaller than"), a, b)
+    /// Helper function to check `self < other` and output a result bit. This function
+    /// verifies `self` and `other` are `<= (p-1)/2`.
+    fn is_smaller_than(&self, other: &FpVar<F>) -> Result<Boolean<F>, SynthesisError> {
+        self.enforce_smaller_or_equal_than_mod_minus_one_div_two()?;
+        other.enforce_smaller_or_equal_than_mod_minus_one_div_two()?;
+        self.is_smaller_than_unchecked(other)
     }
 
-    /// Helper function to check `a < b` and output a result bit. This function
-    /// assumes `a` and `b` are `<= (p-1)/2` and does not generate constraints
+    /// Helper function to check `self < other` and output a result bit. This function
+    /// assumes `self` and `other` are `<= (p-1)/2` and does not generate constraints
     /// to verify that.
-    fn is_smaller_than_unchecked<CS: ConstraintSystem<F>>(
-        mut cs: CS,
-        a: &FpGadget<F>,
-        b: &FpGadget<F>,
-    ) -> Result<Boolean, SynthesisError> {
-        let two = F::one() + F::one();
-        let d0 = a.sub(cs.ns(|| "a - b"), b)?;
-        let d = d0.mul_by_constant(cs.ns(|| "mul 2"), &two)?;
-        let d_bits = d.to_bits(cs.ns(|| "d to bits"))?;
-        let d_bits_len = d_bits.len();
-        Ok(d_bits[d_bits_len - 1])
+    fn is_smaller_than_unchecked(&self, other: &FpVar<F>) -> Result<Boolean<F>, SynthesisError> {
+        Ok((self - other).double()?.to_bits()?.last().unwrap().clone())
     }
 
-    /// Helper function to enforce `a < b`. This function verifies `a` and `b`
+    /// Helper function to enforce `self < other`. This function verifies `self` and `other`
     /// are `<= (p-1)/2`.
-    fn enforce_smaller_than<CS: ConstraintSystem<F>>(
-        mut cs: CS,
-        a: &FpGadget<F>,
-        b: &FpGadget<F>,
-    ) -> Result<(), SynthesisError> {
-        Self::enforce_smaller_or_equal_than_mod_minus_one_div_two(cs.ns(|| "check a in range"), a)?;
-        Self::enforce_smaller_or_equal_than_mod_minus_one_div_two(cs.ns(|| "check b in range"), b)?;
-        Self::enforce_smaller_than_unchecked(cs.ns(|| "enforce smaller than"), a, b)
+    fn enforce_smaller_than(&self, other: &FpVar<F>) -> Result<(), SynthesisError> {
+        self.enforce_smaller_or_equal_than_mod_minus_one_div_two()?;
+        other.enforce_smaller_or_equal_than_mod_minus_one_div_two()?;
+        self.enforce_smaller_than_unchecked(other)
     }
 
-    /// Helper function to enforce `a < b`. This function assumes `a` and `b`
+    /// Helper function to enforce `self < other`. This function assumes `self` and `other`
     /// are `<= (p-1)/2` and does not generate constraints to verify that.
-    fn enforce_smaller_than_unchecked<CS: ConstraintSystem<F>>(
-        mut cs: CS,
-        a: &FpGadget<F>,
-        b: &FpGadget<F>,
-    ) -> Result<(), SynthesisError> {
-        let is_smaller_than = Self::is_smaller_than_unchecked(cs.ns(|| "is smaller than"), a, b)?;
-        cs.enforce(
-            || "enforce smaller than",
-            |_| is_smaller_than.lc(CS::one(), F::one()),
-            |lc| lc + (F::one(), CS::one()),
-            |lc| lc + (F::one(), CS::one()),
-        );
-
-        Ok(())
+    fn enforce_smaller_than_unchecked(&self, other: &FpVar<F>) -> Result<(), SynthesisError> {
+        let cs = [self, other].cs().unwrap();
+        let is_smaller_than = self.is_smaller_than_unchecked(other)?;
+        let lc_one = lc!() + Variable::One;
+        cs.enforce_constraint(is_smaller_than.lc(), lc_one.clone(), lc_one)
     }
 }
 
@@ -209,9 +141,7 @@ mod test {
     use rand_xorshift::XorShiftRng;
     use std::cmp::Ordering;
 
-    use crate::{
-        alloc::AllocGadget, fields::fp::FpGadget, test_constraint_system::TestConstraintSystem,
-    };
+    use crate::{alloc::AllocVar, fields::fp::FpVar};
     use algebra::{bls12_381::Fr, PrimeField, UniformRand};
     use r1cs_core::ConstraintSystem;
 
@@ -233,43 +163,20 @@ mod test {
             r
         }
         for i in 0..10 {
-            let mut cs = TestConstraintSystem::<Fr>::new();
+            let cs = ConstraintSystem::<Fr>::new_ref();
             let a = rand_in_range(&mut rng);
-            let a_var = FpGadget::<Fr>::alloc(cs.ns(|| "a"), || Ok(a)).unwrap();
+            let a_var = FpVar::<Fr>::new_witness(cs.ns("a"), || Ok(a)).unwrap();
             let b = rand_in_range(&mut rng);
-            let b_var = FpGadget::<Fr>::alloc(cs.ns(|| "b"), || Ok(b)).unwrap();
+            let b_var = FpVar::<Fr>::new_witness(cs.ns("b"), || Ok(b)).unwrap();
 
             match a.cmp(&b) {
                 Ordering::Less => {
-                    a_var
-                        .enforce_cmp(cs.ns(|| "smaller than test"), &b_var, Ordering::Less, false)
-                        .unwrap();
-                    a_var
-                        .enforce_cmp(
-                            cs.ns(|| "smaller than test 2"),
-                            &b_var,
-                            Ordering::Less,
-                            true,
-                        )
-                        .unwrap();
+                    a_var.enforce_cmp(&b_var, Ordering::Less, false).unwrap();
+                    a_var.enforce_cmp(&b_var, Ordering::Less, true).unwrap();
                 }
                 Ordering::Greater => {
-                    a_var
-                        .enforce_cmp(
-                            cs.ns(|| "smaller than test"),
-                            &b_var,
-                            Ordering::Greater,
-                            false,
-                        )
-                        .unwrap();
-                    a_var
-                        .enforce_cmp(
-                            cs.ns(|| "smaller than test 2"),
-                            &b_var,
-                            Ordering::Greater,
-                            true,
-                        )
-                        .unwrap();
+                    a_var.enforce_cmp(&b_var, Ordering::Greater, false).unwrap();
+                    a_var.enforce_cmp(&b_var, Ordering::Greater, true).unwrap();
                 }
                 _ => {}
             }
@@ -277,79 +184,46 @@ mod test {
             if i == 0 {
                 println!("number of constraints: {}", cs.num_constraints());
             }
-            assert!(cs.is_satisfied());
+            assert!(cs.is_satisfied().unwrap());
         }
 
         for _i in 0..10 {
-            let mut cs = TestConstraintSystem::<Fr>::new();
+            let cs = ConstraintSystem::<Fr>::new_ref();
             let a = rand_in_range(&mut rng);
-            let a_var = FpGadget::<Fr>::alloc(cs.ns(|| "a"), || Ok(a)).unwrap();
+            let a_var = FpVar::<Fr>::new_witness(cs.ns("a"), || Ok(a)).unwrap();
             let b = rand_in_range(&mut rng);
-            let b_var = FpGadget::<Fr>::alloc(cs.ns(|| "b"), || Ok(b)).unwrap();
+            let b_var = FpVar::<Fr>::new_witness(cs.ns("b"), || Ok(b)).unwrap();
 
             match b.cmp(&a) {
                 Ordering::Less => {
-                    a_var
-                        .enforce_cmp(cs.ns(|| "smaller than test"), &b_var, Ordering::Less, false)
-                        .unwrap();
-                    a_var
-                        .enforce_cmp(
-                            cs.ns(|| "smaller than test 2"),
-                            &b_var,
-                            Ordering::Less,
-                            true,
-                        )
-                        .unwrap();
+                    a_var.enforce_cmp(&b_var, Ordering::Less, false).unwrap();
+                    a_var.enforce_cmp(&b_var, Ordering::Less, true).unwrap();
                 }
                 Ordering::Greater => {
-                    a_var
-                        .enforce_cmp(
-                            cs.ns(|| "smaller than test"),
-                            &b_var,
-                            Ordering::Greater,
-                            false,
-                        )
-                        .unwrap();
-                    a_var
-                        .enforce_cmp(
-                            cs.ns(|| "smaller than test 2"),
-                            &b_var,
-                            Ordering::Greater,
-                            true,
-                        )
-                        .unwrap();
+                    a_var.enforce_cmp(&b_var, Ordering::Greater, false).unwrap();
+                    a_var.enforce_cmp(&b_var, Ordering::Greater, true).unwrap();
                 }
                 _ => {}
             }
 
-            assert!(!cs.is_satisfied());
+            assert!(!cs.is_satisfied().unwrap());
         }
 
         for _i in 0..10 {
-            let mut cs = TestConstraintSystem::<Fr>::new();
+            let cs = ConstraintSystem::<Fr>::new_ref();
             let a = rand_in_range(&mut rng);
-            let a_var = FpGadget::<Fr>::alloc(cs.ns(|| "a"), || Ok(a)).unwrap();
-            a_var
-                .enforce_cmp(cs.ns(|| "smaller than test"), &a_var, Ordering::Less, false)
-                .unwrap();
+            let a_var = FpVar::<Fr>::new_witness(cs.ns("a"), || Ok(a)).unwrap();
+            a_var.enforce_cmp(&a_var, Ordering::Less, false).unwrap();
 
-            assert!(!cs.is_satisfied());
+            assert!(!cs.is_satisfied().unwrap());
         }
 
         for _i in 0..10 {
-            let mut cs = TestConstraintSystem::<Fr>::new();
+            let cs = ConstraintSystem::<Fr>::new_ref();
             let a = rand_in_range(&mut rng);
-            let a_var = FpGadget::<Fr>::alloc(cs.ns(|| "a"), || Ok(a)).unwrap();
-            a_var
-                .enforce_cmp(
-                    cs.ns(|| "smaller than or equal to test"),
-                    &a_var,
-                    Ordering::Less,
-                    true,
-                )
-                .unwrap();
-
-            assert!(cs.is_satisfied());
+            let a_var = FpVar::<Fr>::new_witness(cs.ns("a"), || Ok(a)).unwrap();
+            a_var.enforce_cmp(&a_var, Ordering::Less, true).unwrap();
+            assert!(cs.is_satisfied().unwrap());
         }
     }
 }

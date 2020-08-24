@@ -1,8 +1,14 @@
-use algebra::{fields::BitIterator, Field, PrimeField, Vec};
-use core::fmt::Debug;
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use algebra::{prelude::*, BitIterator};
+use core::{
+    fmt::Debug,
+    ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign},
+};
+use r1cs_core::SynthesisError;
 
 use crate::{prelude::*, Assignment};
+
+pub mod cubic_extension;
+pub mod quadratic_extension;
 
 pub mod fp;
 pub mod fp12;
@@ -12,294 +18,152 @@ pub mod fp4;
 pub mod fp6_2over3;
 pub mod fp6_3over2;
 
-use crate::fields::fp::FpGadget;
-pub trait ToConstraintFieldGadget<ConstraintF: PrimeField> {
-    fn to_constraint_field<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        cs: CS,
-    ) -> Result<Vec<FpGadget<ConstraintF>>, SynthesisError>;
+/// A hack used to work around the lack of implied bounds.
+pub trait FieldOpsBounds<'a, F, T: 'a>:
+    Sized
+    + Add<&'a T, Output = T>
+    + Sub<&'a T, Output = T>
+    + Mul<&'a T, Output = T>
+    + Add<T, Output = T>
+    + Sub<T, Output = T>
+    + Mul<T, Output = T>
+    + Add<F, Output = T>
+    + Sub<F, Output = T>
+    + Mul<F, Output = T>
+{
 }
 
-pub trait FieldGadget<F: Field, ConstraintF: Field>:
-    Sized
+/// A variable representing a field. Corresponds to the native type `F`.
+pub trait FieldVar<F: Field, ConstraintF: Field>:
+    'static
     + Clone
+    + From<Boolean<ConstraintF>>
+    + R1CSVar<ConstraintF, Value = F>
     + EqGadget<ConstraintF>
-    + NEqGadget<ConstraintF>
-    + ConditionalEqGadget<ConstraintF>
     + ToBitsGadget<ConstraintF>
-    + AllocGadget<F, ConstraintF>
+    + AllocVar<F, ConstraintF>
     + ToBytesGadget<ConstraintF>
     + CondSelectGadget<ConstraintF>
-    + TwoBitLookupGadget<ConstraintF, TableConstant = F>
-    + ThreeBitCondNegLookupGadget<ConstraintF, TableConstant = F>
+    + for<'a> FieldOpsBounds<'a, F, Self>
+    + for<'a> AddAssign<&'a Self>
+    + for<'a> SubAssign<&'a Self>
+    + for<'a> MulAssign<&'a Self>
+    + AddAssign<Self>
+    + SubAssign<Self>
+    + MulAssign<Self>
+    + AddAssign<F>
+    + SubAssign<F>
+    + MulAssign<F>
     + Debug
 {
-    type Variable: Clone + Debug;
+    fn zero() -> Self;
 
-    fn get_value(&self) -> Option<F>;
+    fn is_zero(&self) -> Result<Boolean<ConstraintF>, SynthesisError> {
+        self.is_eq(&Self::zero())
+    }
 
-    fn get_variable(&self) -> Self::Variable;
+    fn one() -> Self;
 
-    fn zero<CS: ConstraintSystem<ConstraintF>>(_: CS) -> Result<Self, SynthesisError>;
+    fn is_one(&self) -> Result<Boolean<ConstraintF>, SynthesisError> {
+        self.is_eq(&Self::one())
+    }
 
-    fn one<CS: ConstraintSystem<ConstraintF>>(_: CS) -> Result<Self, SynthesisError>;
+    fn constant(v: F) -> Self;
 
-    fn conditionally_add_constant<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        _: CS,
-        _: &Boolean,
-        _: F,
-    ) -> Result<Self, SynthesisError>;
+    fn double(&self) -> Result<Self, SynthesisError> {
+        Ok(self.clone() + self)
+    }
 
-    fn add<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        _: CS,
-        _: &Self,
-    ) -> Result<Self, SynthesisError>;
-
-    fn add_in_place<CS: ConstraintSystem<ConstraintF>>(
-        &mut self,
-        cs: CS,
-        other: &Self,
-    ) -> Result<&mut Self, SynthesisError> {
-        *self = self.add(cs, other)?;
+    fn double_in_place(&mut self) -> Result<&mut Self, SynthesisError> {
+        *self += self.double()?;
         Ok(self)
     }
 
-    fn double<CS: ConstraintSystem<ConstraintF>>(&self, cs: CS) -> Result<Self, SynthesisError> {
-        self.add(cs, &self)
-    }
-
-    fn double_in_place<CS: ConstraintSystem<ConstraintF>>(
-        &mut self,
-        cs: CS,
-    ) -> Result<&mut Self, SynthesisError> {
-        *self = self.double(cs)?;
-        Ok(self)
-    }
-
-    fn sub<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        _: CS,
-        _: &Self,
-    ) -> Result<Self, SynthesisError>;
-
-    fn sub_in_place<CS: ConstraintSystem<ConstraintF>>(
-        &mut self,
-        cs: CS,
-        other: &Self,
-    ) -> Result<&mut Self, SynthesisError> {
-        *self = self.sub(cs, other)?;
-        Ok(self)
-    }
-
-    fn negate<CS: ConstraintSystem<ConstraintF>>(&self, _: CS) -> Result<Self, SynthesisError>;
+    fn negate(&self) -> Result<Self, SynthesisError>;
 
     #[inline]
-    fn negate_in_place<CS: ConstraintSystem<ConstraintF>>(
-        &mut self,
-        cs: CS,
-    ) -> Result<&mut Self, SynthesisError> {
-        *self = self.negate(cs)?;
+    fn negate_in_place(&mut self) -> Result<&mut Self, SynthesisError> {
+        *self = self.negate()?;
         Ok(self)
     }
 
-    fn mul<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        _: CS,
-        _: &Self,
-    ) -> Result<Self, SynthesisError>;
+    fn square(&self) -> Result<Self, SynthesisError> {
+        Ok(self.clone() * self)
+    }
 
-    fn mul_in_place<CS: ConstraintSystem<ConstraintF>>(
-        &mut self,
-        cs: CS,
-        other: &Self,
-    ) -> Result<&mut Self, SynthesisError> {
-        *self = self.mul(cs, other)?;
+    fn square_in_place(&mut self) -> Result<&mut Self, SynthesisError> {
+        *self = self.square()?;
         Ok(self)
     }
 
-    fn square<CS: ConstraintSystem<ConstraintF>>(&self, cs: CS) -> Result<Self, SynthesisError> {
-        self.mul(cs, &self)
+    /// Enforce that `self * other == result`.
+    fn mul_equals(&self, other: &Self, result: &Self) -> Result<(), SynthesisError> {
+        let actual_result = self.clone() * other;
+        result.enforce_equal(&actual_result)
     }
 
-    fn square_in_place<CS: ConstraintSystem<ConstraintF>>(
-        &mut self,
-        cs: CS,
-    ) -> Result<&mut Self, SynthesisError> {
-        *self = self.square(cs)?;
-        Ok(self)
+    /// Enforce that `self * self == result`.
+    fn square_equals(&self, result: &Self) -> Result<(), SynthesisError> {
+        let actual_result = self.square()?;
+        result.enforce_equal(&actual_result)
     }
 
-    fn mul_equals<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        mut cs: CS,
-        other: &Self,
-        result: &Self,
-    ) -> Result<(), SynthesisError> {
-        let actual_result = self.mul(cs.ns(|| "calc_actual_result"), other)?;
-        result.enforce_equal(&mut cs.ns(|| "test_equals"), &actual_result)
-    }
+    fn inverse(&self) -> Result<Self, SynthesisError>;
 
-    fn square_equals<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        mut cs: CS,
-        result: &Self,
-    ) -> Result<(), SynthesisError> {
-        let actual_result = self.square(cs.ns(|| "calc_actual_result"))?;
-        result.enforce_equal(&mut cs.ns(|| "test_equals"), &actual_result)
-    }
-
-    fn add_constant<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        _: CS,
-        _: &F,
-    ) -> Result<Self, SynthesisError>;
-
-    fn add_constant_in_place<CS: ConstraintSystem<ConstraintF>>(
-        &mut self,
-        cs: CS,
-        other: &F,
-    ) -> Result<&mut Self, SynthesisError> {
-        *self = self.add_constant(cs, other)?;
-        Ok(self)
-    }
-
-    fn sub_constant<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        cs: CS,
-        fe: &F,
-    ) -> Result<Self, SynthesisError> {
-        self.add_constant(cs, &(-(*fe)))
-    }
-
-    fn sub_constant_in_place<CS: ConstraintSystem<ConstraintF>>(
-        &mut self,
-        cs: CS,
-        other: &F,
-    ) -> Result<&mut Self, SynthesisError> {
-        self.add_constant_in_place(cs, &(-(*other)))
-    }
-
-    fn mul_by_constant<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        _: CS,
-        _: &F,
-    ) -> Result<Self, SynthesisError>;
-
-    fn mul_by_constant_in_place<CS: ConstraintSystem<ConstraintF>>(
-        &mut self,
-        cs: CS,
-        other: &F,
-    ) -> Result<&mut Self, SynthesisError> {
-        *self = self.mul_by_constant(cs, other)?;
-        Ok(self)
-    }
-
-    fn inverse<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        mut cs: CS,
-    ) -> Result<Self, SynthesisError> {
-        let one = Self::one(&mut cs.ns(|| "one"))?;
-        let inverse = Self::alloc(&mut cs.ns(|| "alloc inverse"), || {
-            self.get_value().and_then(|val| val.inverse()).get()
+    /// Returns (self / denominator), but requires fewer constraints than
+    /// self * denominator.inverse()
+    /// It is up to the caller to ensure that denominator is non-zero,
+    /// since in that case the result is unconstrained.
+    fn mul_by_inverse(&self, denominator: &Self) -> Result<Self, SynthesisError> {
+        let result = Self::new_witness(self.cs().unwrap(), || {
+            let denominator_inv_native = denominator.value()?.inverse().get()?;
+            let result = self.value()? * &denominator_inv_native;
+            Ok(result)
         })?;
-        self.mul_equals(cs.ns(|| "check inv"), &inverse, &one)?;
-        Ok(inverse)
-    }
-
-    // Returns (self / denominator), but requires fewer constraints than
-    // self * denominator.inverse()
-    // It is up to the caller to ensure that denominator is non-zero,
-    // since in that case the result is unconstrained.
-    fn mul_by_inverse<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        mut cs: CS,
-        denominator: &Self,
-    ) -> Result<Self, SynthesisError> {
-        let denominator_inv_native = denominator
-            .get_value()
-            .and_then(|val| val.inverse())
-            .get()?;
-        let result_native = self.get_value().get()? * &denominator_inv_native;
-
-        let result = Self::alloc(&mut cs.ns(|| "alloc mul_by_inverse result"), || {
-            Ok(result_native)
-        })?;
-        result.mul_equals(cs.ns(|| "check mul_by_inverse"), &denominator, &self)?;
+        result.mul_equals(&denominator, &self)?;
 
         Ok(result)
     }
 
-    fn frobenius_map<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        _: CS,
-        power: usize,
-    ) -> Result<Self, SynthesisError>;
+    fn frobenius_map(&self, power: usize) -> Result<Self, SynthesisError>;
 
-    fn frobenius_map_in_place<CS: ConstraintSystem<ConstraintF>>(
-        &mut self,
-        cs: CS,
-        power: usize,
-    ) -> Result<&mut Self, SynthesisError> {
-        *self = self.frobenius_map(cs, power)?;
+    fn frobenius_map_in_place(&mut self, power: usize) -> Result<&mut Self, SynthesisError> {
+        *self = self.frobenius_map(power)?;
         Ok(self)
     }
 
-    /// Accepts as input a list of bits which, when interpreted in big-endian
+    /// Accepts as input a list of bits which, when interpreted in little-endian
     /// form, are a scalar.
-    #[inline]
-    fn pow<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        mut cs: CS,
-        bits: &[Boolean],
-    ) -> Result<Self, SynthesisError> {
-        let mut res = Self::one(cs.ns(|| "Alloc result"))?;
-        for (i, bit) in bits.iter().enumerate() {
-            res = res.square(cs.ns(|| format!("Double {}", i)))?;
-            let tmp = res.mul(cs.ns(|| format!("Add {}-th base power", i)), self)?;
-            res = Self::conditionally_select(
-                cs.ns(|| format!("Conditional Select {}", i)),
-                bit,
-                &tmp,
-                &res,
-            )?;
+    //
+    // TODO: check that the input really should be in little-endian or not...
+    fn pow(&self, bits: &[Boolean<ConstraintF>]) -> Result<Self, SynthesisError> {
+        let mut res = Self::one();
+        for bit in bits.iter() {
+            res.square_in_place()?;
+            let tmp = res.clone() * self;
+            res = bit.select(&tmp, &res)?;
         }
         Ok(res)
     }
 
-    fn pow_by_constant<S: AsRef<[u64]>, CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        mut cs: CS,
-        exp: S,
-    ) -> Result<Self, SynthesisError> {
+    fn pow_by_constant<S: AsRef<[u64]>>(&self, exp: S) -> Result<Self, SynthesisError> {
         let mut res = self.clone();
         let mut found_one = false;
 
-        for (i, bit) in BitIterator::new(exp).enumerate() {
+        for bit in BitIterator::new(exp) {
             if found_one {
-                res = res.square(cs.ns(|| format!("square for bit {:?}", i)))?;
+                res = res.square()?;
             }
 
             if bit {
                 if found_one {
-                    res = res.mul(cs.ns(|| format!("mul for bit {:?}", i)), self)?;
+                    res *= self;
                 }
                 found_one = true;
             }
         }
 
         Ok(res)
-    }
-
-    fn cost_of_mul() -> usize;
-
-    fn cost_of_mul_equals() -> usize {
-        Self::cost_of_mul() + <Self as EqGadget<ConstraintF>>::cost()
-    }
-
-    fn cost_of_inv() -> usize {
-        Self::cost_of_mul_equals()
     }
 }
 
@@ -308,267 +172,197 @@ pub(crate) mod tests {
     use rand::{self, SeedableRng};
     use rand_xorshift::XorShiftRng;
 
-    use crate::{prelude::*, test_constraint_system::TestConstraintSystem, Vec};
+    use crate::{fields::*, Vec};
     use algebra::{test_rng, BitIterator, Field, UniformRand};
-    use r1cs_core::ConstraintSystem;
+    use r1cs_core::{ConstraintSystem, SynthesisError};
 
     #[allow(dead_code)]
-    pub(crate) fn field_test<FE: Field, ConstraintF: Field, F: FieldGadget<FE, ConstraintF>>() {
-        let mut cs = TestConstraintSystem::<ConstraintF>::new();
+    pub(crate) fn field_test<F, ConstraintF, AF>() -> Result<(), SynthesisError>
+    where
+        F: Field,
+        ConstraintF: Field,
+        AF: FieldVar<F, ConstraintF>,
+        AF: TwoBitLookupGadget<ConstraintF, TableConstant = F>,
+        for<'a> &'a AF: FieldOpsBounds<'a, F, AF>,
+    {
+        let cs = ConstraintSystem::<ConstraintF>::new_ref();
 
         let mut rng = test_rng();
-        let a_native = FE::rand(&mut rng);
-        let b_native = FE::rand(&mut rng);
-        let a = F::alloc(&mut cs.ns(|| "generate_a"), || Ok(a_native)).unwrap();
-        let b = F::alloc(&mut cs.ns(|| "generate_b"), || Ok(b_native)).unwrap();
-        let b_const = F::alloc_constant(&mut cs.ns(|| "generate_b_as_constant"), b_native).unwrap();
+        let a_native = F::rand(&mut rng);
+        let b_native = F::rand(&mut rng);
+        let a = AF::new_witness(cs.ns("generate_a"), || Ok(a_native))?;
+        let b = AF::new_witness(cs.ns("generate_b"), || Ok(b_native))?;
+        let b_const = AF::new_constant(cs.ns("b_as_constant"), b_native)?;
 
-        let zero = F::zero(cs.ns(|| "zero")).unwrap();
-        let zero_native = zero.get_value().unwrap();
-        zero.enforce_equal(&mut cs.ns(|| "zero_equals?"), &zero)
-            .unwrap();
-        assert_eq!(zero, zero);
+        let zero = AF::zero();
+        let zero_native = zero.value()?;
+        zero.enforce_equal(&zero)?;
 
-        let one = F::one(cs.ns(|| "one")).unwrap();
-        let one_native = one.get_value().unwrap();
-        assert_eq!(one, one);
-        one.enforce_equal(&mut cs.ns(|| "one_equals?"), &one)
-            .unwrap();
-        assert_ne!(one, zero);
+        let one = AF::one();
+        let one_native = one.value()?;
+        one.enforce_equal(&one)?;
 
-        let one_dup = zero.add(cs.ns(|| "zero_plus_one"), &one).unwrap();
-        one_dup
-            .enforce_equal(&mut cs.ns(|| "one_plus_zero_equals"), &one)
-            .unwrap();
-        assert_eq!(one_dup, one);
+        one.enforce_not_equal(&zero)?;
 
-        let two = one.add(cs.ns(|| "one_plus_one"), &one).unwrap();
-        two.enforce_equal(&mut cs.ns(|| "two_equals?"), &two)
-            .unwrap();
-        assert_eq!(two, two);
-        assert_ne!(zero, two);
-        assert_ne!(one, two);
+        let one_dup = &zero + &one;
+        one_dup.enforce_equal(&one)?;
 
-        // a == a
-        assert_eq!(a, a);
+        let two = &one + &one;
+        two.enforce_equal(&two)?;
+        two.enforce_equal(&one.double()?)?;
+        two.enforce_not_equal(&one)?;
+        two.enforce_not_equal(&zero)?;
 
         // a + 0 = a
-        let a_plus_zero = a.add(cs.ns(|| "a_plus_zero"), &zero).unwrap();
-        assert_eq!(a_plus_zero, a);
-        assert_eq!(a_plus_zero.get_value().unwrap(), a_native);
-        a_plus_zero
-            .enforce_equal(&mut cs.ns(|| "a_plus_zero_equals?"), &a)
-            .unwrap();
+        let a_plus_zero = &a + &zero;
+        assert_eq!(a_plus_zero.value()?, a_native);
+        a_plus_zero.enforce_equal(&a)?;
+        a_plus_zero.enforce_not_equal(&a.double()?)?;
 
         // a - 0 = a
-        let a_minus_zero = a.sub(cs.ns(|| "a_minus_zero"), &zero).unwrap();
-        assert_eq!(a_minus_zero, a);
-        assert_eq!(a_minus_zero.get_value().unwrap(), a_native);
-        a_minus_zero
-            .enforce_equal(&mut cs.ns(|| "a_minus_zero_equals?"), &a)
-            .unwrap();
+        let a_minus_zero = &a - &zero;
+        assert_eq!(a_minus_zero.value()?, a_native);
+        a_minus_zero.enforce_equal(&a)?;
 
         // a - a = 0
-        let a_minus_a = a.sub(cs.ns(|| "a_minus_a"), &a).unwrap();
-        assert_eq!(a_minus_a, zero);
-        assert_eq!(a_minus_a.get_value().unwrap(), zero_native);
-        a_minus_a
-            .enforce_equal(&mut cs.ns(|| "a_minus_a_equals?"), &zero)
-            .unwrap();
+        let a_minus_a = &a - &a;
+        assert_eq!(a_minus_a.value()?, zero_native);
+        a_minus_a.enforce_equal(&zero)?;
 
         // a + b = b + a
-        let a_b = a.add(cs.ns(|| "a_plus_b"), &b).unwrap();
-        let b_a = b.add(cs.ns(|| "b_plus_a"), &a).unwrap();
-        assert_eq!(a_b, b_a);
-        assert_eq!(a_b.get_value().unwrap(), a_native + &b_native);
-        a_b.enforce_equal(&mut cs.ns(|| "a+b == b+a"), &b_a)
-            .unwrap();
+        let a_b = &a + &b;
+        let b_a = &b + &a;
+        assert_eq!(a_b.value()?, a_native + &b_native);
+        a_b.enforce_equal(&b_a)?;
 
         // (a + b) + a = a + (b + a)
-        let ab_a = a_b.add(cs.ns(|| "a_b_plus_a"), &a).unwrap();
-        let a_ba = a.add(cs.ns(|| "a_plus_b_a"), &b_a).unwrap();
-        assert_eq!(ab_a, a_ba);
-        assert_eq!(ab_a.get_value().unwrap(), a_native + &b_native + &a_native);
-        ab_a.enforce_equal(&mut cs.ns(|| "a+b + a == a+ b+a"), &a_ba)
-            .unwrap();
+        let ab_a = &a_b + &a;
+        let a_ba = &a + &b_a;
+        assert_eq!(ab_a.value()?, a_native + &b_native + &a_native);
+        ab_a.enforce_equal(&a_ba)?;
 
-        let b_times_a_plus_b = a_b.mul(cs.ns(|| "b * (a + b)"), &b).unwrap();
-        let b_times_b_plus_a = b_a.mul(cs.ns(|| "b * (b + a)"), &b).unwrap();
-        assert_eq!(b_times_b_plus_a, b_times_a_plus_b);
+        let b_times_a_plus_b = &a_b * &b;
+        let b_times_b_plus_a = &b_a * &b;
         assert_eq!(
-            b_times_a_plus_b.get_value().unwrap(),
+            b_times_a_plus_b.value()?,
             b_native * &(b_native + &a_native)
         );
         assert_eq!(
-            b_times_a_plus_b.get_value().unwrap(),
+            b_times_a_plus_b.value()?,
             (b_native + &a_native) * &b_native
         );
         assert_eq!(
-            b_times_a_plus_b.get_value().unwrap(),
+            b_times_a_plus_b.value()?,
             (a_native + &b_native) * &b_native
         );
-        b_times_b_plus_a
-            .enforce_equal(&mut cs.ns(|| "b*(a+b) == b * (b+a)"), &b_times_a_plus_b)
-            .unwrap();
-
-        // a * 0 = 0
-        assert_eq!(a.mul(cs.ns(|| "a_times_zero"), &zero).unwrap(), zero);
+        b_times_b_plus_a.enforce_equal(&b_times_a_plus_b)?;
 
         // a * 1 = a
-        assert_eq!(a.mul(cs.ns(|| "a_times_one"), &one).unwrap(), a);
-        assert_eq!(
-            a.mul(cs.ns(|| "a_times_one2"), &one)
-                .unwrap()
-                .get_value()
-                .unwrap(),
-            a_native * &one_native
-        );
+        assert_eq!((&a * &one).value()?, a_native * &one_native);
 
         // a * b = b * a
-        let ab = a.mul(cs.ns(|| "a_times_b"), &b).unwrap();
-        let ba = b.mul(cs.ns(|| "b_times_a"), &a).unwrap();
-        assert_eq!(ab, ba);
-        assert_eq!(ab.get_value().unwrap(), a_native * &b_native);
+        let ab = &a * &b;
+        let ba = &b * &a;
+        assert_eq!(ab.value()?, ba.value()?);
+        assert_eq!(ab.value()?, a_native * &b_native);
 
-        let ab_const = a.mul(cs.ns(|| "a_times_b_const"), &b_const).unwrap();
-        let b_const_a = b_const.mul(cs.ns(|| "b_const_times_a"), &a).unwrap();
-        assert_eq!(ab_const, b_const_a);
-        assert_eq!(ab_const, ab);
-        assert_eq!(ab_const.get_value().unwrap(), a_native * &b_native);
+        let ab_const = &a * &b_const;
+        let b_const_a = &b_const * &a;
+        assert_eq!(ab_const.value()?, b_const_a.value()?);
+        assert_eq!(ab_const.value()?, ab.value()?);
+        assert_eq!(ab_const.value()?, a_native * &b_native);
 
         // (a * b) * a = a * (b * a)
-        let ab_a = ab.mul(cs.ns(|| "ab_times_a"), &a).unwrap();
-        let a_ba = a.mul(cs.ns(|| "a_times_ba"), &ba).unwrap();
-        assert_eq!(ab_a, a_ba);
-        assert_eq!(ab_a.get_value().unwrap(), a_native * &b_native * &a_native);
+        let ab_a = &ab * &a;
+        let a_ba = &a * &ba;
+        assert_eq!(ab_a.value()?, a_ba.value()?);
+        assert_eq!(ab_a.value()?, a_native * &b_native * &a_native);
 
-        let aa = a.mul(cs.ns(|| "a * a"), &a).unwrap();
-        let a_squared = a.square(cs.ns(|| "a^2")).unwrap();
-        a_squared
-            .enforce_equal(&mut cs.ns(|| "a^2 == a*a"), &aa)
-            .unwrap();
-        assert_eq!(aa, a_squared);
-        assert_eq!(aa.get_value().unwrap(), a_native.square());
+        let aa = &a * &a;
+        let a_squared = a.square()?;
+        a_squared.enforce_equal(&aa)?;
+        assert_eq!(aa.value()?, a_squared.value()?);
+        assert_eq!(aa.value()?, a_native.square());
 
-        let aa = a
-            .mul_by_constant(cs.ns(|| "a * a via mul_by_const"), &a.get_value().unwrap())
-            .unwrap();
-        a_squared
-            .enforce_equal(&mut cs.ns(|| "a^2 == a*a via mul_by_const"), &aa)
-            .unwrap();
-        assert_eq!(aa, a_squared);
-        assert_eq!(aa.get_value().unwrap(), a_native.square());
+        let aa = &a * a.value()?;
+        a_squared.enforce_equal(&aa)?;
+        assert_eq!(aa.value()?, a_squared.value()?);
+        assert_eq!(aa.value()?, a_native.square());
 
-        let a_b2 = a
-            .add_constant(cs.ns(|| "a + b via add_const"), &b.get_value().unwrap())
-            .unwrap();
-        a_b.enforce_equal(&mut cs.ns(|| "a + b == a + b via add_const"), &a_b2)
-            .unwrap();
-        assert_eq!(a_b, a_b2);
+        let a_b2 = &a + b_native;
+        a_b.enforce_equal(&a_b2)?;
+        assert_eq!(a_b.value()?, a_b2.value()?);
 
-        let a_inv = a.inverse(cs.ns(|| "a_inv")).unwrap();
-        a_inv
-            .mul_equals(cs.ns(|| "check a_inv * a = 1"), &a, &one)
-            .unwrap();
-        assert_eq!(
-            a_inv.get_value().unwrap(),
-            a.get_value().unwrap().inverse().unwrap()
-        );
-        assert_eq!(a_inv.get_value().unwrap(), a_native.inverse().unwrap());
+        let a_inv = a.inverse()?;
+        a_inv.mul_equals(&a, &one)?;
+        assert_eq!(a_inv.value()?, a.value()?.inverse().unwrap());
+        assert_eq!(a_inv.value()?, a_native.inverse().unwrap());
 
-        let a_b_inv = a.mul_by_inverse(cs.ns(|| "a_b_inv"), &b).unwrap();
-        a_b_inv
-            .mul_equals(cs.ns(|| "check a_b_inv * b = a"), &b, &a)
-            .unwrap();
-        assert_eq!(
-            a_b_inv.get_value().unwrap(),
-            a_native * b_native.inverse().unwrap()
-        );
+        let a_b_inv = a.mul_by_inverse(&b)?;
+        a_b_inv.mul_equals(&b, &a)?;
+        assert_eq!(a_b_inv.value()?, a_native * b_native.inverse().unwrap());
 
         // a * a * a = a^3
         let bits = BitIterator::new([0x3])
             .map(Boolean::constant)
             .collect::<Vec<_>>();
-        assert_eq!(
-            a_native * &(a_native * &a_native),
-            a.pow(cs.ns(|| "test_pow"), &bits)
-                .unwrap()
-                .get_value()
-                .unwrap()
-        );
+        assert_eq!(a_native.pow([0x3]), a.pow(&bits)?.value()?);
 
         // a * a * a = a^3
-        assert_eq!(
-            a_native * &(a_native * &a_native),
-            a.pow_by_constant(cs.ns(|| "test_constant_pow"), &[3])
-                .unwrap()
-                .get_value()
-                .unwrap()
-        );
+        assert_eq!(a_native.pow([0x3]), a.pow_by_constant(&[3])?.value()?);
 
         // a * a * a = a^3
-        let mut constants = [FE::zero(); 4];
+        let mut constants = [F::zero(); 4];
         for c in &mut constants {
             *c = UniformRand::rand(&mut test_rng());
-            println!("Current c[i]: {:?}", c);
         }
-        let bits = [Boolean::constant(false), Boolean::constant(true)];
-        let lookup_result =
-            F::two_bit_lookup(cs.ns(|| "Lookup"), &bits, constants.as_ref()).unwrap();
-        assert_eq!(lookup_result.get_value().unwrap(), constants[2]);
+        let bits = [
+            Boolean::<ConstraintF>::constant(false),
+            Boolean::constant(true),
+        ];
+        let lookup_result = AF::two_bit_lookup(&bits, constants.as_ref())?;
+        assert_eq!(lookup_result.value()?, constants[2]);
 
-        let negone: FE = UniformRand::rand(&mut test_rng());
+        let negone: F = UniformRand::rand(&mut test_rng());
 
-        let n = F::alloc(&mut cs.ns(|| "alloc new var"), || Ok(negone)).unwrap();
-        let _ = n.to_bytes(&mut cs.ns(|| "ToBytes")).unwrap();
-        let _ = n
-            .to_non_unique_bytes(&mut cs.ns(|| "ToBytes Strict"))
-            .unwrap();
+        let n = AF::new_witness(cs.ns("alloc new var"), || Ok(negone)).unwrap();
+        let _ = n.to_bytes()?;
+        let _ = n.to_non_unique_bytes()?;
 
-        let ab_false = a
-            .conditionally_add_constant(
-                cs.ns(|| "Add bool with coeff false"),
-                &Boolean::constant(false),
-                b_native,
-            )
-            .unwrap();
-        assert_eq!(ab_false.get_value().unwrap(), a_native);
-        let ab_true = a
-            .conditionally_add_constant(
-                cs.ns(|| "Add bool with coeff true"),
-                &Boolean::constant(true),
-                b_native,
-            )
-            .unwrap();
-        assert_eq!(ab_true.get_value().unwrap(), a_native + &b_native);
+        let ab_false = &a + (AF::from(Boolean::Constant(false)) * b_native);
+        assert_eq!(ab_false.value()?, a_native);
+        let ab_true = &a + (AF::from(Boolean::Constant(true)) * b_native);
+        assert_eq!(ab_true.value()?, a_native + &b_native);
 
-        if !cs.is_satisfied() {
+        if !cs.is_satisfied().unwrap() {
             println!("{:?}", cs.which_is_unsatisfied().unwrap());
         }
-        assert!(cs.is_satisfied());
+        assert!(cs.is_satisfied().unwrap());
+        Ok(())
     }
 
     #[allow(dead_code)]
-    pub(crate) fn frobenius_tests<
-        FE: Field,
-        ConstraintF: Field,
-        F: FieldGadget<FE, ConstraintF>,
-    >(
+    pub(crate) fn frobenius_tests<F: Field, ConstraintF, AF>(
         maxpower: usize,
-    ) {
-        let mut cs = TestConstraintSystem::<ConstraintF>::new();
+    ) -> Result<(), SynthesisError>
+    where
+        F: Field,
+        ConstraintF: Field,
+        AF: FieldVar<F, ConstraintF>,
+        for<'a> &'a AF: FieldOpsBounds<'a, F, AF>,
+    {
+        let cs = ConstraintSystem::<ConstraintF>::new_ref();
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
         for i in 0..=maxpower {
-            let mut a = FE::rand(&mut rng);
-            let mut a_gadget = F::alloc(cs.ns(|| format!("a_gadget_{:?}", i)), || Ok(a)).unwrap();
-            a_gadget = a_gadget
-                .frobenius_map(cs.ns(|| format!("frob_map_{}", i)), i)
-                .unwrap();
+            let mut a = F::rand(&mut rng);
+            let mut a_gadget = AF::new_witness(cs.ns(format!("a_gadget_{:?}", i)), || Ok(a))?;
+            a_gadget.frobenius_map_in_place(i)?;
             a.frobenius_map(i);
 
-            assert_eq!(a_gadget.get_value().unwrap(), a);
+            assert_eq!(a_gadget.value()?, a);
         }
 
-        assert!(cs.is_satisfied());
+        assert!(cs.is_satisfied().unwrap());
+        Ok(())
     }
 }
