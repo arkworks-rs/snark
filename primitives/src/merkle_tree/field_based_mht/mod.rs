@@ -4,7 +4,11 @@ use crate::{
 use super::*;
 
 pub mod ramht;
+
+#[cfg(feature = "smt")]
 pub mod smt;
+#[cfg(feature = "smt")]
+pub use self::smt::*;
 
 pub trait FieldBasedMerkleTreeConfig {
     const HEIGHT: usize;

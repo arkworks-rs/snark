@@ -31,14 +31,15 @@ derivative = "1"
 rayon = "1"
 hex = "0.4.0"
 
-rocksdb = "0.14.0"
-serde = { version = "1.0" , features = ["derive"] }
-serde_json = "1.0.53"
-bincode = "1.2.1"
+rocksdb = { version = "0.14.0", optional = true }
+serde = { version = "1.0" , features = ["derive"], optional = true }
+serde_json = { version = "1.0.53", optional = true }
+bincode = { version = "1.2.1", optional = true }
 
 [features]
 commitment = ["digest", "blake2"]
 merkle_tree = []
+smt = ["merkle_tree", "rocksdb", "serde", "serde_json", "bincode"]
 prf = ["digest", "blake2"]
 signature = ["digest", "blake2"]
 vrf = []
