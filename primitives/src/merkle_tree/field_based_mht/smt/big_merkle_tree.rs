@@ -92,7 +92,6 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             BigMerkleTreeState::<F, T>::read(state_file)
         }.map_err(|e| Error::Other(e.to_string()))?;
 
-        //TODO: This is the "depth" more than the "height". Which should we keep ?
         let height = state.width as f64;
         let height = height.log(T::MERKLE_ARITY as f64) as usize;
 

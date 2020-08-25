@@ -3,7 +3,6 @@ use std::fmt::Debug;
 
 pub mod poseidon;
 
-//TODO: We can just keep this and remove the implementation at field_based_mht/mod.rs ?
 pub trait RandomAccessMerkleTree: Clone {
     type Data: Field;
     type MerklePath: Clone + Debug;
@@ -30,15 +29,6 @@ pub trait RandomAccessMerkleTree: Clone {
     // This function finalizes the computation of the Merkle tree
     // Once this function is called, it is not possible to further update the tree.
     fn finalize_in_place(&mut self) -> &mut Self;
-
-    // TODO: I propose to remove finalize_in_place and only keep finalize which will
-    //       return a "FinalizedMerkleTree" that will have the below functions. In
-    //       this way we can keep the two things separated without having to use
-    //       a flag to check if we are in "edit" mode or in "read" mode.
-    //       The other solution would be to keep in this trait only the "edit" functions
-    //       and putting the "read" functions in the implementation, without exposing
-    //       the functions in an interface.
-    //       Otherwise we keep this mixed approach.
 
     // Returns the root of the Merkle Tree. Returns None if the tree has not been
     // finalized before calling this function.

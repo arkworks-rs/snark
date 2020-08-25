@@ -62,7 +62,6 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         // specified.
         if !persistent { assert!(state_path.is_none()) } else { assert!(state_path.is_some()) }
 
-        //TODO: This is the "depth" more than the "height". Which should we keep ?
         let height = width as f64;
         let height = height.log(T::MERKLE_ARITY as f64) as usize;
         let state = BigMerkleTreeState::<F, T>::get_default_state(width, height);

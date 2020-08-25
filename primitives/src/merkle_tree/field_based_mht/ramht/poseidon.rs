@@ -66,8 +66,6 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonRandomAccess
     }
 }
 
-//TODO: Remove the underscore from the names of input variables of unimplemented functions
-//      after having implemented them.
 impl<F: PrimeField + MulShort, P: Clone + PoseidonParameters<Fr=F>> RandomAccessMerkleTree
 for PoseidonRandomAccessMerkleTree<F, P> {
 
