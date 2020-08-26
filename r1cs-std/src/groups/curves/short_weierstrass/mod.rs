@@ -328,13 +328,19 @@ where
             .sub(cs.ns(|| "lambda^2 - x"), &self.x)?
             .sub(cs.ns(|| "lambda^2 - 2x"), &self.x)?;
 
+        let allocated_x = F::alloc(cs.ns(|| "allocated_x"), || Ok(x.get_value().get()?))?;
+        allocated_x.enforce_equal(cs.ns(|| "allocated_x_is_x"), &x);
+
         let y = self
             .x
             .sub(cs.ns(|| "x - self.x"), &x)?
             .mul(cs.ns(|| "times lambda"), &lambda)?
             .sub(cs.ns(|| "plus self.y"), &self.y)?;
 
-        *self = Self::new(x, y, Boolean::Constant(false));
+        let allocated_y = F::alloc(cs.ns(|| "allocated_y"), || Ok(y.get_value().get()?))?;
+        allocated_y.enforce_equal(cs.ns(|| "allocated_y_is_y"), &y);
+
+        *self = Self::new(allocated_x, allocated_y, Boolean::Constant(false));
         Ok(())
     }
 
