@@ -119,14 +119,13 @@ impl VariableBaseMSM {
         scalars: &[BigInt],
         num_bits: usize,
     ) -> G::Projective {
-        // batch_bucketed_add_split::<C>()
         let c = if scalars.len() < 32 {
             3
         } else {
             super::ln_without_floats(scalars.len()) + 2
         };
 
-        let num_bits = <G::ScalarField as PrimeField>::Params::MODULUS_BITS as usize;
+        // let num_bits = <G::ScalarField as PrimeField>::Params::MODULUS_BITS as usize;
         let fr_one = G::ScalarField::one().into_repr();
 
         let zero = G::Projective::zero();

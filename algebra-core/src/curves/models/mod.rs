@@ -8,6 +8,7 @@ pub mod mnt6;
 
 #[macro_use]
 pub mod short_weierstrass_affine;
+#[macro_use]
 pub mod short_weierstrass_jacobian;
 pub mod short_weierstrass_projective;
 pub mod twisted_edwards_extended;
@@ -23,6 +24,7 @@ pub trait SWModelParameters: ModelParameters {
     const COFACTOR: &'static [u64];
     const COFACTOR_INV: Self::ScalarField;
     const AFFINE_GENERATOR_COEFFS: (Self::BaseField, Self::BaseField);
+    const GLV: bool;
 
     #[inline(always)]
     fn mul_by_a(elem: &Self::BaseField) -> Self::BaseField {
@@ -36,6 +38,11 @@ pub trait SWModelParameters: ModelParameters {
         let mut copy = *elem;
         copy += &Self::COEFF_B;
         copy
+    }
+
+    #[inline(always)]
+    fn glv_endomorphism_in_place(elem: &mut Self::BaseField) {
+        unimplemented!()
     }
 }
 

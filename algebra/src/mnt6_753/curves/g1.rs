@@ -21,6 +21,7 @@ impl ModelParameters for Parameters {
 }
 
 impl SWModelParameters for Parameters {
+    const GLV: bool = false;
     /// COEFF_A = 11
     #[rustfmt::skip]
     const COEFF_A: Fq = field_new!(Fq, BigInteger768([

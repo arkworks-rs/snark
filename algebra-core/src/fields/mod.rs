@@ -332,6 +332,11 @@ pub trait PrimeField:
     }
 
     /// Returns the trace minus one divided by two.
+    fn modulus() -> Self::BigInt {
+        Self::Params::MODULUS
+    }
+
+    /// Returns the trace minus one divided by two.
     fn trace_minus_one_div_two() -> Self::BigInt {
         Self::Params::T_MINUS_ONE_DIV_TWO
     }

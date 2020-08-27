@@ -1,9 +1,10 @@
 use crate::{
-    biginteger::{BigInteger384, BigInteger768},
+    biginteger::{BigInteger384, BigInteger768, BigInteger1536},
     bw6_761::{Fq, Fr},
     curves::{
         models::{ModelParameters, SWModelParameters},
         short_weierstrass_jacobian::{GroupAffine, GroupProjective},
+        GLVParameters,
     },
     field_new,
 };
@@ -73,6 +74,64 @@ impl SWModelParameters for Parameters {
     fn mul_by_a(_elem: &Self::BaseField) -> Self::BaseField {
         use crate::Zero;
         Self::BaseField::zero()
+    }
+
+    const GLV: bool = true;
+
+    fn glv_endomorphism_in_place(elem: &mut Self::BaseField) {
+        elem *= <Self as GLVParameters>::OMEGA;
+    }
+}
+
+impl GLVParameters for Parameters {
+    type SmallBigInt = BigInteger192;
+    type WideBigInt = BigInteger768;
+
+    const MODULUS: <Self::BaseField as PrimeField>::BigInt = Fr::Params::MODULUS;
+
+    /// lambda in Z s.t. phi(P) = lambda*P for all P
+    /// \lambda = 0x9b3af05dd14f6ec619aaf7d34594aabc5ed1347970dec00452217cc900000008508c00000000001
+
+    // This ought to be the Fr version so that (lambda * R * k2) / R ~ lambda * k2
+    // We can do the modular reductions when adding/sub from k manually
+    const LAMBDA: <Self::Fr as PrimeField>::BigInt = BigInteger384([
+        0x8508c00000000001,
+        0x452217cc90000000,
+        0xc5ed1347970dec00,
+        0x619aaf7d34594aab,
+        0x9b3af05dd14f6ec,
+        0x0
+    ]);
+
+    // This is in the wrong format. It has to be multiplied by R.
+
+    /// phi((x, y)) = (\omega x, y)
+    /// \omega = 0x531dc16c6ecd27aa846c61024e4cca6c1f31e53bd9603c2d17be416c5e44
+    /// 26ee4a737f73b6f952ab5e57926fa701848e0a235a0a398300c65759fc4518315
+    /// 1f2f082d4dcb5e37cb6290012d96f8819c547ba8a4000002f962140000000002a
+    const OMEGA: Fq = field_new!(Fq, BigInteger768([
+        0x962140000000002a,
+        0xc547ba8a4000002f,
+        0xb6290012d96f8819,
+        0xf2f082d4dcb5e37c,
+        0xc65759fc45183151,
+        0x8e0a235a0a398300,
+        0xab5e57926fa70184,
+        0xee4a737f73b6f952,
+        0x2d17be416c5e4426,
+        0x6c1f31e53bd9603c,
+        0xaa846c61024e4cca,
+        0x531dc16c6ecd27,
+    ]));
+
+    const Q1: Self::BigInt;     // round(R*|b2|/n)
+    const Q2: Self::BigInt;     // round(R*|b1|/n)
+    const B1: Self::BigInt;     // |b1|
+    const B2: Self::BigInt;     // |b2|
+    const B1_IS_NEG: bool;
+
+    fn glv_endomorphism_in_place(&mut self) {
+        self.x *= Self::OMEGA;
     }
 }
 

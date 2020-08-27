@@ -1,6 +1,6 @@
 use crate::fields::FpParameters;
 use crate::{
-    batch_bucketed_add_split, cfg_chunks_mut, curves::BatchGroupArithmeticSlice, log2, AffineCurve,
+    cfg_chunks_mut, curves::{BatchGroupArithmeticSlice, batch_bucketed_add_split}, log2, AffineCurve,
     PrimeField, ProjectiveCurve,
 };
 use num_traits::{identities::Zero, Pow};
@@ -36,8 +36,8 @@ fn verify_points<C: AffineCurve>(
     let mut buckets = batch_bucketed_add_split(num_buckets, points, &bucket_assign[..], 12);
 
     // Check that all the buckets belong to the subgroup, either by calling
-    // the batch verify recusively, or by directly checking when the number of buckets
-    // is small enough
+    // the batch verify recusively, or by directly checking by multiplying by group order
+    // when the number of buckets is small enough
     if num_buckets <= MAX_BUCKETS_FOR_FULL_CHECK || new_security_param == None {
         // We use the batch scalar mul to check the subgroup condition if
         // there are sufficient number of buckets
@@ -59,15 +59,17 @@ fn verify_points<C: AffineCurve>(
             return Err(VerificationError);
         }
     } else {
+        // Since !new_security_param.is_none():
+        let new_security_param = new_security_param.unwrap();
         if buckets.len() > 4096 {
-            batch_verify_in_subgroup_recursive(&buckets[..], new_security_param.unwrap())?;
+            batch_verify_in_subgroup_recursive(&buckets[..], new_security_param)?;
         } else {
             batch_verify_in_subgroup_proj(
                 &buckets
                     .iter()
                     .map(|&p| p.into())
                     .collect::<Vec<C::Projective>>()[..],
-                new_security_param.unwrap(),
+                new_security_param,
             )?;
         }
     }
@@ -173,7 +175,8 @@ pub fn batch_verify_in_subgroup_proj<C: ProjectiveCurve>(
 
 // We get the greatest power of 2 number of buckets
 // such that we minimise the number of rounds
-// while satisfying the constraint that number of rounds * buckets * 2 < n
+// while satisfying the constraint that
+// number of rounds * buckets * next_check_per_elem_cost < n
 fn get_max_bucket(
     security_param: usize,
     n_elems: usize,

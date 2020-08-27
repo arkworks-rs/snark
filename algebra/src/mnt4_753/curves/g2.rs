@@ -30,6 +30,7 @@ pub const MUL_BY_A_C0: Fq = G1_COEFF_A_NON_RESIDUE;
 pub const MUL_BY_A_C1: Fq = G1_COEFF_A_NON_RESIDUE;
 
 impl SWModelParameters for Parameters {
+    const GLV: bool = false;
     const COEFF_A: Fq2 = mnt4_753::Parameters::TWIST_COEFF_A;
     // B coefficient of MNT4-753 G2 =
     // ```

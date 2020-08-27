@@ -14,6 +14,7 @@ extern crate std;
 /// see similar issue in [`smallvec#198`]
 ///
 /// [`smallvec#198`]: https://github.com/servo/rust-smallvec/pull/198
+
 #[cfg(not(feature = "std"))]
 #[allow(unused_imports)]
 #[macro_use]

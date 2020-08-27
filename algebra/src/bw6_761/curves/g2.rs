@@ -4,6 +4,7 @@ use crate::{
     curves::{
         models::{ModelParameters, SWModelParameters},
         short_weierstrass_jacobian::{GroupAffine, GroupProjective},
+        GLVParameters,
     },
     field_new,
 };
@@ -20,6 +21,7 @@ impl ModelParameters for Parameters {
 }
 
 impl SWModelParameters for Parameters {
+    const GLV: bool = false;
     /// COEFF_A = 0
     #[rustfmt::skip]
 

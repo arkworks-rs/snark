@@ -21,6 +21,7 @@ impl ModelParameters for Parameters {
 }
 
 impl SWModelParameters for Parameters {
+    const GLV: bool = false;
     /// COEFF_A = [0, 0]
     const COEFF_A: Fq2 = field_new!(Fq2, g1::Parameters::COEFF_A, g1::Parameters::COEFF_A,);
 

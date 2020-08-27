@@ -247,7 +247,7 @@ macro_rules! specialise_affine_to_proj {
                 }
             }
 
-            // Consumes other and mutates self in place. Accepts index function
+            // Mutates self in place. Accepts index function
             #[inline]
             fn batch_add_in_place_same_slice(bases: &mut [Self], index: &[(usize, usize)]) {
                 let mut inversion_tmp = P::BaseField::one();

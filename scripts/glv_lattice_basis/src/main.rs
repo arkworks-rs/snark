@@ -20,11 +20,12 @@ where BigInt: F::BigInt
         r[(i + 2) % 3] = r;
         let int_q = Field::from(q);
         t[(i + 2) % 3] = t[i % 3] - int_q * (t[(i + 1) % 3]);
-
+        i += 1;
     }
-    i += 1;
 
-    vec_1 = (r[(i + 1) % 3], t[(i + 2) % 3].value)
+    let vec_1 = (r[(i + 1) % 3], t[(i + 1) % 3]);
+    let vec_2 = (r[(i + 2) % 3], t[(i + 2) % 3]);
+    (vec_1, vec_2)
 }
 
 fn as_f64(bigint_ref: &[u64]) -> f64 {
