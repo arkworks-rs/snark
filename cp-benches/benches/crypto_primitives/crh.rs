@@ -29,9 +29,7 @@ fn pedersen_crh_eval(c: &mut Criterion) {
     let parameters = CRH::<Edwards, HashWindow>::setup(&mut rng).unwrap();
     let input = vec![5u8; 128];
     c.bench_function("Pedersen CRH Eval", move |b| {
-        b.iter(|| {
-            CRH::<Edwards, HashWindow>::evaluate(&parameters, &input).unwrap();
-        })
+        b.iter(|| CRH::<Edwards, HashWindow>::evaluate(&parameters, &input).unwrap())
     });
 }
 

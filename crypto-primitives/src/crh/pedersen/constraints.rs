@@ -61,11 +61,13 @@ where
         assert_eq!(parameters.params.generators.len(), W::NUM_WINDOWS);
 
         // Allocate new variable for the result.
-        let input_in_bits: Vec<_> = padded_input.iter().flat_map(|b| b.into_bits_le()).collect();
+        let input_in_bits: Vec<Boolean<_>> = padded_input
+            .iter()
+            .flat_map(|b| b.to_bits_le().unwrap())
+            .collect();
         let input_in_bits = input_in_bits.chunks(W::WINDOW_SIZE);
         let result =
-            GG::precomputed_base_multiscalar_mul(&parameters.params.generators, input_in_bits)?;
-
+            GG::precomputed_base_multiscalar_mul_le(&parameters.params.generators, input_in_bits)?;
         Ok(result)
     }
 }

@@ -190,7 +190,8 @@ mod test {
 
         let rng = &mut test_rng();
         let params = <CRH<EdwardsParameters, TestWindow> as FixedLengthCRH>::setup(rng).unwrap();
-        <CRH<EdwardsParameters, TestWindow> as FixedLengthCRH>::evaluate(&params, &[1, 2, 3])
-            .unwrap();
+        let _ =
+            <CRH<EdwardsParameters, TestWindow> as FixedLengthCRH>::evaluate(&params, &[1, 2, 3])
+                .unwrap();
     }
 }

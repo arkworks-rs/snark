@@ -37,7 +37,7 @@ pub trait NIZKVerifierGadget<N: NIZK, ConstraintF: Field> {
 
     fn verify<'a, T: 'a + ToBitsGadget<ConstraintF> + ?Sized>(
         verification_key: &Self::VerificationKeyVar,
-        input: impl Iterator<Item = &'a T>,
+        input: impl IntoIterator<Item = &'a T>,
         proof: &Self::ProofVar,
     ) -> Result<(), SynthesisError> {
         Self::conditional_verify(verification_key, input, proof, &Boolean::constant(true))
@@ -45,14 +45,14 @@ pub trait NIZKVerifierGadget<N: NIZK, ConstraintF: Field> {
 
     fn conditional_verify<'a, T: 'a + ToBitsGadget<ConstraintF> + ?Sized>(
         verification_key: &Self::VerificationKeyVar,
-        input: impl Iterator<Item = &'a T>,
+        input: impl IntoIterator<Item = &'a T>,
         proof: &Self::ProofVar,
         condition: &Boolean<ConstraintF>,
     ) -> Result<(), SynthesisError>;
 
     fn conditional_verify_prepared<'a, T: 'a + ToBitsGadget<ConstraintF> + ?Sized>(
         prepared_verification_key: &Self::PreparedVerificationKeyVar,
-        input: impl Iterator<Item = &'a T>,
+        input: impl IntoIterator<Item = &'a T>,
         proof: &Self::ProofVar,
         condition: &Boolean<ConstraintF>,
     ) -> Result<(), SynthesisError>;

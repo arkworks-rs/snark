@@ -64,9 +64,9 @@ where
         let base = parameters.generator.clone();
         let randomness = randomness
             .iter()
-            .flat_map(|b| b.into_bits_le())
+            .flat_map(|b| b.to_bits_le().unwrap())
             .collect::<Vec<_>>();
-        let rand_pk = &public_key.pub_key + &base.mul_bits(randomness.iter())?;
+        let rand_pk = &public_key.pub_key + &base.scalar_mul_le(randomness.iter())?;
         Ok(PublicKeyVar {
             pub_key: rand_pk,
             _group: PhantomData,

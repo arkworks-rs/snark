@@ -19,7 +19,7 @@ use rand::{
 use crate::{
     bytes::{FromBytes, ToBytes},
     curves::{AffineCurve, ProjectiveCurve},
-    fields::{BitIterator, Field, PrimeField, SquareRootField},
+    fields::{BitIteratorBE, Field, PrimeField, SquareRootField},
 };
 
 #[derive(Derivative)]
@@ -31,6 +31,7 @@ use crate::{
     Debug(bound = "P: Parameters"),
     Hash(bound = "P: Parameters")
 )]
+#[must_use]
 pub struct GroupAffine<P: Parameters> {
     pub x: P::BaseField,
     pub y: P::BaseField,
@@ -72,15 +73,14 @@ impl<P: Parameters> GroupAffine<P> {
     }
 
     pub fn scale_by_cofactor(&self) -> <Self as AffineCurve>::Projective {
-        self.mul_bits(BitIterator::new(P::COFACTOR))
+        self.mul_bits(BitIteratorBE::new(P::COFACTOR))
     }
 
-    pub(crate) fn mul_bits<S: AsRef<[u64]>>(
-        &self,
-        bits: BitIterator<S>,
-    ) -> <Self as AffineCurve>::Projective {
+    /// Multiplies `self` by the scalar represented by `bits`. `bits` must be a big-endian
+    /// bit-wise decomposition of the scalar.
+    pub(crate) fn mul_bits(&self, bits: impl Iterator<Item = bool>) -> GroupProjective<P> {
         let mut res = GroupProjective::zero();
-        for i in bits {
+        for i in bits.skip_while(|b| !b) {
             res.double_in_place();
             if i {
                 res.add_assign_mixed(&self)
@@ -122,7 +122,7 @@ impl<P: Parameters> GroupAffine<P> {
     /// Checks that the current point is in the prime order subgroup given
     /// the point on the curve.
     pub fn is_in_correct_subgroup_assuming_on_curve(&self) -> bool {
-        self.mul_bits(BitIterator::new(P::ScalarField::characteristic()))
+        self.mul_bits(BitIteratorBE::new(P::ScalarField::characteristic()))
             .is_zero()
     }
 }
@@ -184,7 +184,7 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
     }
 
     fn mul<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(&self, by: S) -> GroupProjective<P> {
-        let bits = BitIterator::new(by.into());
+        let bits = BitIteratorBE::new(by.into());
         self.mul_bits(bits)
     }
 
@@ -244,6 +244,7 @@ impl<P: Parameters> Default for GroupAffine<P> {
     Debug(bound = "P: Parameters"),
     Hash(bound = "P: Parameters")
 )]
+#[must_use]
 pub struct GroupProjective<P: Parameters> {
     pub x: P::BaseField,
     pub y: P::BaseField,

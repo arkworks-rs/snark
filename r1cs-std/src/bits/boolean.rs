@@ -1,4 +1,4 @@
-use algebra::{BitIterator, Field};
+use algebra::{BitIteratorBE, Field};
 
 use crate::{prelude::*, Assignment, Vec};
 use core::borrow::Borrow;
@@ -373,14 +373,15 @@ impl<F: Field> Boolean<F> {
         }
     }
 
-    /// Asserts that this bit_gadget representation is "in
-    /// the field" when interpreted in big endian.
-    pub fn enforce_in_field(bits: &[Self]) -> Result<(), SynthesisError> {
-        // b = char() - 1
+    /// Enforces that `bits`, when interpreted as a integer, is less than `F::characteristic()`,
+    /// That is, interpret bits as a little-endian integer, and enforce that this integer
+    /// is "in the field F".
+    pub fn enforce_in_field_le(bits: &[Self]) -> Result<(), SynthesisError> {
+        // `bits` < F::characteristic() <==> `bits` <= F::characteristic() -1
         let mut b = F::characteristic().to_vec();
         assert_eq!(b[0] % 2, 1);
-        b[0] -= 1;
-        let run = Self::enforce_smaller_or_equal_than(bits, b)?;
+        b[0] -= 1; // This works, because the LSB is one, so there's no borrows.
+        let run = Self::enforce_smaller_or_equal_than_le(bits, b)?;
 
         // We should always end in a "run" of zeros, because
         // the characteristic is an odd prime. So, this should
@@ -390,57 +391,35 @@ impl<F: Field> Boolean<F> {
         Ok(())
     }
 
-    /// Asserts that this bit_gadget representation is smaller
-    /// or equal than the provided element
-    pub fn enforce_smaller_or_equal_than(
+    /// Enforces that `bits` is less than or equal to `element`,
+    /// when both are interpreted as (little-endian) integers.
+    pub fn enforce_smaller_or_equal_than_le<'a>(
         bits: &[Self],
         element: impl AsRef<[u64]>,
     ) -> Result<Vec<Self>, SynthesisError> {
-        let mut bits_iter = bits.iter();
         let b: &[u64] = element.as_ref();
+
+        let mut bits_iter = bits.iter().rev(); // Iterate in big-endian
 
         // Runs of ones in r
         let mut last_run = Boolean::constant(true);
         let mut current_run = vec![];
 
-        let mut found_one = false;
+        let mut element_num_bits = 0;
+        for _ in BitIteratorBE::without_leading_zeros(b) {
+            element_num_bits += 1;
+        }
 
-        let char_num_bits = {
-            let mut leading_zeros = 0;
-            let mut total_bits = 0;
-            let mut found_one = false;
-            for b in BitIterator::new(b.clone()) {
-                total_bits += 1;
-                if !b && !found_one {
-                    leading_zeros += 1
-                }
-                if b {
-                    found_one = true;
-                }
-            }
-
-            total_bits - leading_zeros
-        };
-
-        if bits.len() > char_num_bits {
-            let num_extra_bits = bits.len() - char_num_bits;
+        if bits.len() > element_num_bits {
             let mut or_result = Boolean::constant(false);
-            for should_be_zero in &bits[0..num_extra_bits] {
+            for should_be_zero in &bits[element_num_bits..] {
                 or_result = or_result.or(should_be_zero)?;
                 let _ = bits_iter.next().unwrap();
             }
             or_result.enforce_equal(&Boolean::constant(false))?;
         }
 
-        for b in BitIterator::new(b) {
-            // Skip over unset bits at the beginning
-            found_one |= b;
-            if !found_one {
-                continue;
-            }
-
-            let a = bits_iter.next().unwrap();
-
+        for (b, a) in BitIteratorBE::without_leading_zeros(b).zip(bits_iter.by_ref()) {
             if b {
                 // This is part of a run of ones.
                 current_run.push(a.clone());
@@ -586,9 +565,8 @@ impl<F: Field> EqGadget<F> for Boolean<F> {
 impl<F: Field> ToBytesGadget<F> for Boolean<F> {
     /// Outputs `1u8` if `self` is true, and `0u8` otherwise.
     fn to_bytes(&self) -> Result<Vec<UInt8<F>>, SynthesisError> {
-        let mut bits = vec![Boolean::constant(false); 7];
-        bits.push(self.clone());
-        bits.reverse();
+        let mut bits = vec![self.clone()];
+        bits.extend(vec![Boolean::constant(false); 7]);
         let value = self.value().map(|val| val as u8).ok();
         let byte = UInt8 { bits, value };
         Ok(vec![byte])
@@ -655,7 +633,9 @@ impl<F: Field> CondSelectGadget<F> for Boolean<F> {
 mod test {
     use super::{AllocatedBit, Boolean};
     use crate::prelude::*;
-    use algebra::{bls12_381::Fr, BitIterator, Field, One, PrimeField, UniformRand, Zero};
+    use algebra::{
+        bls12_381::Fr, BitIteratorBE, BitIteratorLE, Field, One, PrimeField, UniformRand, Zero,
+    };
     use r1cs_core::{ConstraintSystem, Namespace, SynthesisError};
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
@@ -1332,16 +1312,57 @@ mod test {
     }
 
     #[test]
+    fn test_smaller_than_or_equal_to() -> Result<(), SynthesisError> {
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+        for _ in 0..1000 {
+            let mut r = Fr::rand(&mut rng);
+            let mut s = Fr::rand(&mut rng);
+            if r > s {
+                core::mem::swap(&mut r, &mut s)
+            }
+
+            let cs = ConstraintSystem::<Fr>::new_ref();
+
+            let native_bits: Vec<_> = BitIteratorLE::new(r.into_repr()).collect();
+            let bits = Vec::new_witness(cs.clone(), || Ok(native_bits))?;
+            Boolean::enforce_smaller_or_equal_than_le(&bits, s.into_repr())?;
+
+            assert!(cs.is_satisfied().unwrap());
+        }
+
+        for _ in 0..1000 {
+            let r = Fr::rand(&mut rng);
+            if r == -Fr::one() {
+                continue;
+            }
+            let s = r + Fr::one();
+            let s2 = r.double();
+            let cs = ConstraintSystem::<Fr>::new_ref();
+
+            let native_bits: Vec<_> = BitIteratorLE::new(r.into_repr()).collect();
+            let bits = Vec::new_witness(cs.clone(), || Ok(native_bits))?;
+            Boolean::enforce_smaller_or_equal_than_le(&bits, s.into_repr())?;
+            if r < s2 {
+                Boolean::enforce_smaller_or_equal_than_le(&bits, s2.into_repr())?;
+            }
+
+            assert!(cs.is_satisfied().unwrap());
+        }
+        Ok(())
+    }
+
+    #[test]
     fn test_enforce_in_field() -> Result<(), SynthesisError> {
         {
             let cs = ConstraintSystem::<Fr>::new_ref();
 
             let mut bits = vec![];
-            for b in BitIterator::new(Fr::characteristic()).skip(1) {
+            for b in BitIteratorBE::new(Fr::characteristic()).skip(1) {
                 bits.push(Boolean::new_witness(cs.clone(), || Ok(b))?);
             }
+            bits.reverse();
 
-            Boolean::enforce_in_field(&bits)?;
+            Boolean::enforce_in_field_le(&bits)?;
 
             assert!(!cs.is_satisfied().unwrap());
         }
@@ -1353,11 +1374,12 @@ mod test {
             let cs = ConstraintSystem::<Fr>::new_ref();
 
             let mut bits = vec![];
-            for b in BitIterator::new(r.into_repr()).skip(1) {
+            for b in BitIteratorBE::new(r.into_repr()).skip(1) {
                 bits.push(Boolean::new_witness(cs.clone(), || Ok(b))?);
             }
+            bits.reverse();
 
-            Boolean::enforce_in_field(&bits)?;
+            Boolean::enforce_in_field_le(&bits)?;
 
             assert!(cs.is_satisfied().unwrap());
         }

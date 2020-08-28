@@ -2,7 +2,8 @@ use crate::{Error, Vec};
 use algebra_core::{
     bytes::ToBytes,
     io::{Result as IoResult, Write},
-    BitIterator, Field, FpParameters, PrimeField, ProjectiveCurve, ToConstraintField, UniformRand,
+    BitIteratorLE, Field, FpParameters, PrimeField, ProjectiveCurve, ToConstraintField,
+    UniformRand,
 };
 
 use core::marker::PhantomData;
@@ -99,9 +100,7 @@ impl<C: ProjectiveCurve, W: Window> CommitmentScheme for Commitment<C, W> {
         let randomize_time = start_timer!(|| "Randomize");
 
         // Compute h^r.
-        let mut scalar_bits = BitIterator::new(randomness.0.into_repr()).collect::<Vec<_>>();
-        scalar_bits.reverse();
-        for (bit, power) in scalar_bits
+        for (bit, power) in BitIteratorLE::new(randomness.0.into_repr())
             .into_iter()
             .zip(&parameters.randomness_generator)
         {

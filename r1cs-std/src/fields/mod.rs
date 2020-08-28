@@ -1,4 +1,4 @@
-use algebra::{prelude::*, BitIterator};
+use algebra::{prelude::*, BitIteratorBE};
 use core::{
     fmt::Debug,
     ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign},
@@ -132,37 +132,28 @@ pub trait FieldVar<F: Field, ConstraintF: Field>:
         Ok(self)
     }
 
-    /// Accepts as input a list of bits which, when interpreted in little-endian
-    /// form, are a scalar.
-    //
-    // TODO: check that the input really should be in little-endian or not...
-    fn pow(&self, bits: &[Boolean<ConstraintF>]) -> Result<Self, SynthesisError> {
+    /// Comptues `self^bits`, where `bits` is a *little-endian* bit-wise decomposition
+    /// of the exponent.
+    fn pow_le(&self, bits: &[Boolean<ConstraintF>]) -> Result<Self, SynthesisError> {
         let mut res = Self::one();
-        for bit in bits.iter() {
-            res.square_in_place()?;
-            let tmp = res.clone() * self;
+        let mut power = self.clone();
+        for bit in bits {
+            let tmp = res.clone() * &power;
             res = bit.select(&tmp, &res)?;
+            power.square_in_place()?;
         }
         Ok(res)
     }
 
+    /// Computes `self^S`, where S is interpreted as an integer.
     fn pow_by_constant<S: AsRef<[u64]>>(&self, exp: S) -> Result<Self, SynthesisError> {
-        let mut res = self.clone();
-        let mut found_one = false;
-
-        for bit in BitIterator::new(exp) {
-            if found_one {
-                res = res.square()?;
-            }
-
-            if bit {
-                if found_one {
-                    res *= self;
-                }
-                found_one = true;
+        let mut res = Self::one();
+        for i in BitIteratorBE::without_leading_zeros(exp) {
+            res.square_in_place()?;
+            if i {
+                res *= self;
             }
         }
-
         Ok(res)
     }
 }
@@ -173,7 +164,7 @@ pub(crate) mod tests {
     use rand_xorshift::XorShiftRng;
 
     use crate::{fields::*, Vec};
-    use algebra::{test_rng, BitIterator, Field, UniformRand};
+    use algebra::{test_rng, BitIteratorLE, Field, UniformRand};
     use r1cs_core::{ConstraintSystem, SynthesisError};
 
     #[allow(dead_code)]
@@ -303,13 +294,14 @@ pub(crate) mod tests {
         assert_eq!(a_b_inv.value()?, a_native * b_native.inverse().unwrap());
 
         // a * a * a = a^3
-        let bits = BitIterator::new([0x3])
+        let bits = BitIteratorLE::without_trailing_zeros([3u64])
             .map(Boolean::constant)
             .collect::<Vec<_>>();
-        assert_eq!(a_native.pow([0x3]), a.pow(&bits)?.value()?);
+        assert_eq!(a_native.pow([0x3]), a.pow_le(&bits)?.value()?);
 
         // a * a * a = a^3
-        assert_eq!(a_native.pow([0x3]), a.pow_by_constant(&[3])?.value()?);
+        assert_eq!(a_native.pow([0x3]), a.pow_by_constant(&[0x3])?.value()?);
+        assert!(cs.is_satisfied().unwrap());
 
         // a * a * a = a^3
         let mut constants = [F::zero(); 4];
@@ -322,12 +314,34 @@ pub(crate) mod tests {
         ];
         let lookup_result = AF::two_bit_lookup(&bits, constants.as_ref())?;
         assert_eq!(lookup_result.value()?, constants[2]);
+        assert!(cs.is_satisfied().unwrap());
 
-        let negone: F = UniformRand::rand(&mut test_rng());
+        let f = F::from(1u128 << 64);
+        let f_bits = algebra::BitIteratorLE::new(&[0u64, 1u64]).collect::<Vec<_>>();
+        let fv = AF::new_witness(cs.ns("alloc u128"), || Ok(f))?;
+        assert_eq!(fv.to_bits_le()?.value().unwrap()[..128], f_bits[..128]);
+        assert!(cs.is_satisfied().unwrap());
 
-        let n = AF::new_witness(cs.ns("alloc new var"), || Ok(negone)).unwrap();
-        let _ = n.to_bytes()?;
-        let _ = n.to_non_unique_bytes()?;
+        let r_native: F = UniformRand::rand(&mut test_rng());
+
+        let r = AF::new_witness(cs.ns("r_native"), || Ok(r_native)).unwrap();
+        let _ = r.to_non_unique_bits_le()?;
+        assert!(cs.is_satisfied().unwrap());
+        let _ = r.to_bits_le()?;
+        assert!(cs.is_satisfied().unwrap());
+
+        let bytes = r.to_non_unique_bytes()?;
+        assert_eq!(
+            algebra::to_bytes!(r_native).unwrap(),
+            bytes.value().unwrap()
+        );
+        assert!(cs.is_satisfied().unwrap());
+        let bytes = r.to_bytes()?;
+        assert_eq!(
+            algebra::to_bytes!(r_native).unwrap(),
+            bytes.value().unwrap()
+        );
+        assert!(cs.is_satisfied().unwrap());
 
         let ab_false = &a + (AF::from(Boolean::Constant(false)) * b_native);
         assert_eq!(ab_false.value()?, a_native);

@@ -56,7 +56,10 @@ where
         input: &[UInt8<ConstraintF<P>>],
     ) -> Result<Self::OutputVar, SynthesisError> {
         // Pad the input if it is not the current length.
-        let mut input_in_bits: Vec<_> = input.iter().flat_map(|byte| byte.into_bits_le()).collect();
+        let mut input_in_bits: Vec<Boolean<_>> = input
+            .iter()
+            .flat_map(|byte| byte.to_bits_le().unwrap())
+            .collect();
         if (input_in_bits.len()) % CHUNK_SIZE != 0 {
             let current_length = input_in_bits.len();
             for _ in 0..(CHUNK_SIZE - current_length % CHUNK_SIZE) {

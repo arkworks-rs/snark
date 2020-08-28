@@ -33,7 +33,7 @@ fn pedersen_comm_eval(c: &mut Criterion) {
             let rng = &mut rand::thread_rng();
             let commitment_randomness = Randomness::rand(rng);
             Commitment::<Edwards, CommWindow>::commit(&parameters, &input, &commitment_randomness)
-                .unwrap();
+                .unwrap()
         })
     });
 }

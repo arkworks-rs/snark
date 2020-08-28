@@ -31,7 +31,7 @@ impl<F: PrimeField> CommitmentGadget<blake2s::Commitment, F> for CommGadget {
     ) -> Result<Self::OutputVar, SynthesisError> {
         let mut input_bits = Vec::with_capacity(512);
         for byte in input.iter().chain(r.0.iter()) {
-            input_bits.extend_from_slice(&byte.into_bits_le());
+            input_bits.extend_from_slice(&byte.to_bits_le()?);
         }
         let mut result = Vec::new();
         for int in evaluate_blake2s(&input_bits)?.into_iter() {

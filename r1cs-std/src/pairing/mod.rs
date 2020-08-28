@@ -60,7 +60,7 @@ pub trait PairingVar<E: PairingEngine, ConstraintF: Field = <E as PairingEngine>
 pub(crate) mod tests {
     use crate::{prelude::*, Vec};
     use algebra::{
-        test_rng, BitIterator, Field, PairingEngine, PrimeField, ProjectiveCurve, UniformRand,
+        test_rng, BitIteratorLE, Field, PairingEngine, PrimeField, ProjectiveCurve, UniformRand,
     };
     use r1cs_core::{ConstraintSystem, SynthesisError};
 
@@ -125,14 +125,14 @@ pub(crate) mod tests {
         };
 
         let (ans3_g, ans3_n) = {
-            let s_iter = BitIterator::new(s.into_repr())
+            let s_iter = BitIteratorLE::without_trailing_zeros(s.into_repr())
                 .map(Boolean::constant)
                 .collect::<Vec<_>>();
 
             let mut ans_g = P::pairing(a_prep_g, b_prep_g)?;
             let mut ans_n = E::pairing(a, b);
             ans_n = ans_n.pow(s.into_repr());
-            ans_g = ans_g.pow(&s_iter)?;
+            ans_g = ans_g.pow_le(&s_iter)?;
 
             (ans_g, ans_n)
         };

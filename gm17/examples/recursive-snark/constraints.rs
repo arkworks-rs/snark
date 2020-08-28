@@ -208,10 +208,9 @@ where
                 <<<C::TickGroup as PairingEngine>::Fr as PrimeField>::Params as FftParameters>::BigInt::NUM_LIMBS * 8;
             input_gadgets = input_bytes
                 .chunks(element_size)
-                .map(|chunk| {
-                    chunk
-                        .iter()
-                        .flat_map(|byte| byte.into_bits_le())
+                .map(|c| {
+                    c.iter()
+                        .flat_map(|b| b.to_bits_le().unwrap())
                         .collect::<Vec<_>>()
                 })
                 .collect::<Vec<_>>();
@@ -310,12 +309,7 @@ where
 
             for (i, input) in inputs.into_iter().enumerate() {
                 let input_gadget = FpVar::new_input(cs.ns(format!("Input {}", i)), || Ok(input))?;
-                let mut fp_bits = input_gadget.to_bits()?;
-
-                // FpVar::to_bits outputs a big-endian binary representation of
-                // fe_gadget's value, so we have to reverse it to get the little-endian
-                // form.
-                fp_bits.reverse();
+                let mut fp_bits = input_gadget.to_bits_le()?;
 
                 // Use 320 bits per element.
                 for _ in fp_bits.len()..bigint_size {

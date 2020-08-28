@@ -5,7 +5,7 @@ use crate::{
 };
 use algebra_core::{
     fields::{Field, PrimeField},
-    to_bytes, ProjectiveCurve, ToBytes, Zero,
+    to_bytes, ProjectiveCurve, Zero,
 };
 use r1cs_core::{Namespace, SynthesisError};
 
@@ -73,17 +73,20 @@ where
         assert_eq!(parameters.params.generators.len(), W::NUM_WINDOWS);
 
         // Allocate new variable for commitment output.
-        let input_in_bits: Vec<_> = padded_input
+        let input_in_bits: Vec<Boolean<_>> = padded_input
             .iter()
-            .flat_map(|byte| byte.into_bits_le())
+            .flat_map(|byte| byte.to_bits_le().unwrap())
             .collect();
         let input_in_bits = input_in_bits.chunks(W::WINDOW_SIZE);
         let mut result =
-            GG::precomputed_base_multiscalar_mul(&parameters.params.generators, input_in_bits)?;
+            GG::precomputed_base_multiscalar_mul_le(&parameters.params.generators, input_in_bits)?;
 
         // Compute h^r
-        let rand_bits: Vec<_> = r.0.iter().flat_map(|byte| byte.into_bits_le()).collect();
-        result.precomputed_base_scalar_mul(
+        let rand_bits: Vec<_> =
+            r.0.iter()
+                .flat_map(|byte| byte.to_bits_le().unwrap())
+                .collect();
+        result.precomputed_base_scalar_mul_le(
             rand_bits
                 .iter()
                 .zip(&parameters.params.randomness_generator),

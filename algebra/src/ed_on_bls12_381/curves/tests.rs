@@ -1,5 +1,5 @@
 use algebra_core::{
-    bytes::{FromBytes, ToBytes},
+    bytes::FromBytes,
     curves::{AffineCurve, ProjectiveCurve},
     test_rng, Zero,
 };

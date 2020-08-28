@@ -95,8 +95,10 @@ impl<F: PrimeField> FpVar<F> {
     pub fn enforce_smaller_or_equal_than_mod_minus_one_div_two(
         &self,
     ) -> Result<(), SynthesisError> {
-        let _ = Boolean::enforce_smaller_or_equal_than(
-            &self.to_bits()?,
+        // It's okay to use `to_non_unique_bits` bits here because we're enforcing
+        // self <= (p-1)/2, which implies self < p.
+        let _ = Boolean::enforce_smaller_or_equal_than_le(
+            &self.to_non_unique_bits_le()?,
             F::modulus_minus_one_div_two(),
         )?;
         Ok(())
@@ -114,7 +116,12 @@ impl<F: PrimeField> FpVar<F> {
     /// assumes `self` and `other` are `<= (p-1)/2` and does not generate constraints
     /// to verify that.
     fn is_smaller_than_unchecked(&self, other: &FpVar<F>) -> Result<Boolean<F>, SynthesisError> {
-        Ok((self - other).double()?.to_bits()?.last().unwrap().clone())
+        Ok((self - other)
+            .double()?
+            .to_bits_le()?
+            .first()
+            .unwrap()
+            .clone())
     }
 
     /// Helper function to enforce `self < other`. This function verifies `self` and `other`
@@ -186,6 +193,7 @@ mod test {
             }
             assert!(cs.is_satisfied().unwrap());
         }
+        println!("Finished with satisfaction tests");
 
         for _i in 0..10 {
             let cs = ConstraintSystem::<Fr>::new_ref();

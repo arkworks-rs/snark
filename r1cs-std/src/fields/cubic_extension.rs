@@ -376,19 +376,19 @@ where
     for<'a> &'a BF: FieldOpsBounds<'a, P::BaseField, BF>,
     P: CubicExtVarParams<BF>,
 {
-    fn to_bits(&self) -> Result<Vec<Boolean<P::BasePrimeField>>, SynthesisError> {
-        let mut c0 = self.c0.to_bits()?;
-        let mut c1 = self.c1.to_bits()?;
-        let mut c2 = self.c2.to_bits()?;
+    fn to_bits_le(&self) -> Result<Vec<Boolean<P::BasePrimeField>>, SynthesisError> {
+        let mut c0 = self.c0.to_bits_le()?;
+        let mut c1 = self.c1.to_bits_le()?;
+        let mut c2 = self.c2.to_bits_le()?;
         c0.append(&mut c1);
         c0.append(&mut c2);
         Ok(c0)
     }
 
-    fn to_non_unique_bits(&self) -> Result<Vec<Boolean<P::BasePrimeField>>, SynthesisError> {
-        let mut c0 = self.c0.to_non_unique_bits()?;
-        let mut c1 = self.c1.to_non_unique_bits()?;
-        let mut c2 = self.c2.to_non_unique_bits()?;
+    fn to_non_unique_bits_le(&self) -> Result<Vec<Boolean<P::BasePrimeField>>, SynthesisError> {
+        let mut c0 = self.c0.to_non_unique_bits_le()?;
+        let mut c1 = self.c1.to_non_unique_bits_le()?;
+        let mut c2 = self.c2.to_non_unique_bits_le()?;
         c0.append(&mut c1);
         c0.append(&mut c2);
         Ok(c0)

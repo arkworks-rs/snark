@@ -98,11 +98,7 @@ impl<F: Field> UInt8<F> {
         let mut allocated_bits = Vec::new();
         for field_element in field_elements.into_iter() {
             let fe = AllocatedFp::new_input(cs.clone(), || Ok(field_element))?;
-            let mut fe_bits = fe.to_bits()?;
-            // FpGadget::to_bits outputs a big-endian binary representation of
-            // fe_gadget's value, so we have to reverse it to get the little-endian
-            // form.
-            fe_bits.reverse();
+            let fe_bits = fe.to_bits_le()?;
 
             // Remove the most significant bit, because we know it should be zero
             // because `values.to_field_elements()` only
@@ -113,17 +109,10 @@ impl<F: Field> UInt8<F> {
         }
 
         // Chunk up slices of 8 bit into bytes.
-        Ok(allocated_bits[0..8 * values_len]
+        Ok(allocated_bits[0..(8 * values_len)]
             .chunks(8)
             .map(Self::from_bits_le)
             .collect())
-    }
-
-    /// Turns this `UInt8` into its little-endian byte order representation.
-    /// LSB-first means that we can easily get the corresponding field element
-    /// via double and add.
-    pub fn into_bits_le(&self) -> Vec<Boolean<F>> {
-        self.bits.to_vec()
     }
 
     /// Converts a little-endian byte order representation of bits into a
@@ -134,25 +123,10 @@ impl<F: Field> UInt8<F> {
         let bits = bits.to_vec();
 
         let mut value = Some(0u8);
-        for b in bits.iter().rev() {
-            value.as_mut().map(|v| *v <<= 1);
-
-            match *b {
-                Boolean::Constant(b) => {
-                    value.as_mut().map(|v| *v |= u8::from(b));
-                }
-                Boolean::Is(ref b) => match b.value() {
-                    Ok(b) => {
-                        value.as_mut().map(|v| *v |= u8::from(b));
-                    }
-                    Err(_) => value = None,
-                },
-                Boolean::Not(ref b) => match b.value() {
-                    Ok(b) => {
-                        value.as_mut().map(|v| *v |= u8::from(!b));
-                    }
-                    Err(_) => value = None,
-                },
+        for (i, b) in bits.iter().enumerate() {
+            value = match b.value().ok() {
+                Some(b) => value.map(|v| v + (u8::from(b) << i)),
+                None => None,
             }
         }
 
@@ -241,7 +215,7 @@ mod test {
         let cs = ConstraintSystem::<Fr>::new_ref();
         let byte_val = 0b01110001;
         let byte = UInt8::new_witness(cs.ns("alloc value"), || Ok(byte_val)).unwrap();
-        let bits = byte.into_bits_le();
+        let bits = byte.to_bits_le()?;
         for (i, bit) in bits.iter().enumerate() {
             assert_eq!(bit.value()?, (byte_val >> i) & 1 == 1)
         }
@@ -253,10 +227,17 @@ mod test {
         let cs = ConstraintSystem::<Fr>::new_ref();
         let byte_vals = (64u8..128u8).collect::<Vec<_>>();
         let bytes = UInt8::new_input_vec(cs.ns("alloc value"), &byte_vals).unwrap();
+        dbg!(bytes.value())?;
         for (native, variable) in byte_vals.into_iter().zip(bytes) {
-            let bits = variable.into_bits_le();
+            let bits = variable.to_bits_le()?;
             for (i, bit) in bits.iter().enumerate() {
-                assert_eq!(bit.value()?, (native >> i) & 1 == 1)
+                assert_eq!(
+                    bit.value()?,
+                    (native >> i) & 1 == 1,
+                    "native value {}: bit {:?}",
+                    native,
+                    i
+                )
             }
         }
         Ok(())
@@ -280,7 +261,7 @@ mod test {
                 }
             }
 
-            let expected_to_be_same = val.into_bits_le();
+            let expected_to_be_same = val.to_bits_le()?;
 
             for x in v.iter().zip(expected_to_be_same.iter()) {
                 match x {

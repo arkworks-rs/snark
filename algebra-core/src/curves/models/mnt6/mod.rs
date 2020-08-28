@@ -6,7 +6,7 @@ use crate::{
     fields::{
         fp3::{Fp3, Fp3Parameters},
         fp6_2over3::{Fp6, Fp6Parameters},
-        BitIterator, Field, PrimeField, SquareRootField,
+        BitIteratorBE, Field, PrimeField, SquareRootField,
     },
     One, Zero,
 };
@@ -113,18 +113,9 @@ impl<P: MNT6Parameters> MNT6<P> {
         let mut dbl_idx: usize = 0;
         let mut add_idx: usize = 0;
 
-        let mut found_one = false;
-
-        for bit in BitIterator::new(P::ATE_LOOP_COUNT) {
-            // code below gets executed for all bits (EXCEPT the MSB itself) of
-            // mnt6_param_p (skipping leading zeros) in MSB to LSB order
-            if !found_one && bit {
-                found_one = true;
-                continue;
-            } else if !found_one {
-                continue;
-            }
-
+        // code below gets executed for all bits (EXCEPT the MSB itself) of
+        // mnt6_param_p (skipping leading zeros) in MSB to LSB order
+        for bit in BitIteratorBE::without_leading_zeros(P::ATE_LOOP_COUNT).skip(1) {
             let dc = &q.double_coefficients[dbl_idx];
             dbl_idx += 1;
 

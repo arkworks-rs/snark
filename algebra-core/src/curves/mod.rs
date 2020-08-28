@@ -180,17 +180,9 @@ pub trait ProjectiveCurve:
     /// Performs scalar multiplication of this element.
     fn mul<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(mut self, other: S) -> Self {
         let mut res = Self::zero();
-
-        let mut found_one = false;
-
-        for i in crate::fields::BitIterator::new(other.into()) {
-            if found_one {
-                res.double_in_place();
-            } else {
-                found_one |= i;
-            }
-
-            if i {
+        for b in crate::fields::BitIteratorBE::without_leading_zeros(other.into()) {
+            res.double_in_place();
+            if b {
                 res += self;
             }
         }

@@ -1,8 +1,5 @@
 use crate::Error;
-use algebra::{
-    bytes::{FromBytes, ToBytes},
-    to_bytes, PrimeField, UniformRand,
-};
+use algebra::{bytes::FromBytes, to_bytes, PrimeField, UniformRand};
 use rand::Rng;
 use std::marker::PhantomData;
 

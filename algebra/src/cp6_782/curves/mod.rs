@@ -2,7 +2,7 @@ use crate::{
     biginteger::BigInteger832,
     curves::{models::SWModelParameters, PairingEngine},
     field_new,
-    fields::{BitIterator, Field, FpParameters},
+    fields::{BitIteratorBE, Field, FpParameters},
     One,
 };
 
@@ -71,15 +71,7 @@ impl CP6_782 {
 
         // The for loop is executed for all bits (EXCEPT the MSB itself) of
         // cp6_782_param_p (skipping leading zeros) in MSB to LSB order
-        let mut found_one = false;
-        for bit in BitIterator::new(ATE_LOOP_COUNT) {
-            if !found_one && bit {
-                found_one = true;
-                continue;
-            } else if !found_one {
-                continue;
-            }
-
+        for bit in BitIteratorBE::without_leading_zeros(ATE_LOOP_COUNT).skip(1) {
             old_rx = rx;
             old_ry = ry;
 
