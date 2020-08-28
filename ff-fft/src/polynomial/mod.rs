@@ -3,49 +3,54 @@
 use crate::{Cow, EvaluationDomain, Evaluations, Vec};
 use algebra_core::{FftField, Field};
 use core::convert::TryInto;
-use DenseOrSparsePolynomial::*;
+use DenseOrSparseUniPolynomial::*;
 
-mod dense;
-mod sparse;
+mod uni_dense;
+mod uni_sparse;
 
-pub use dense::DensePolynomial;
-pub use sparse::SparsePolynomial;
+mod multi_sparse;
+mod multi_dense;
+
+pub use uni_dense::DenseUniPolynomial;
+pub use uni_sparse::SparseUniPolynomial;
+pub use multi_sparse::SparseMultiPolynomial;
+pub use multi_dense::DenseMultiPolynomial;
 
 /// Represents either a sparse polynomial or a dense one.
 #[derive(Clone)]
-pub enum DenseOrSparsePolynomial<'a, F: 'a + Field> {
+pub enum DenseOrSparseUniPolynomial<'a, F: 'a + Field> {
     /// Represents the case where `self` is a sparse polynomial
-    SPolynomial(Cow<'a, SparsePolynomial<F>>),
+    SPolynomial(Cow<'a, SparseUniPolynomial<F>>),
     /// Represents the case where `self` is a dense polynomial
-    DPolynomial(Cow<'a, DensePolynomial<F>>),
+    DPolynomial(Cow<'a, DenseUniPolynomial<F>>),
 }
 
-impl<'a, F: 'a + Field> From<DensePolynomial<F>> for DenseOrSparsePolynomial<'a, F> {
-    fn from(other: DensePolynomial<F>) -> Self {
+impl<'a, F: 'a + Field> From<DenseUniPolynomial<F>> for DenseOrSparseUniPolynomial<'a, F> {
+    fn from(other: DenseUniPolynomial<F>) -> Self {
         DPolynomial(Cow::Owned(other))
     }
 }
 
-impl<'a, F: 'a + Field> From<&'a DensePolynomial<F>> for DenseOrSparsePolynomial<'a, F> {
-    fn from(other: &'a DensePolynomial<F>) -> Self {
+impl<'a, F: 'a + Field> From<&'a DenseUniPolynomial<F>> for DenseOrSparseUniPolynomial<'a, F> {
+    fn from(other: &'a DenseUniPolynomial<F>) -> Self {
         DPolynomial(Cow::Borrowed(other))
     }
 }
 
-impl<'a, F: 'a + Field> From<SparsePolynomial<F>> for DenseOrSparsePolynomial<'a, F> {
-    fn from(other: SparsePolynomial<F>) -> Self {
+impl<'a, F: 'a + Field> From<SparseUniPolynomial<F>> for DenseOrSparseUniPolynomial<'a, F> {
+    fn from(other: SparseUniPolynomial<F>) -> Self {
         SPolynomial(Cow::Owned(other))
     }
 }
 
-impl<'a, F: Field> From<&'a SparsePolynomial<F>> for DenseOrSparsePolynomial<'a, F> {
-    fn from(other: &'a SparsePolynomial<F>) -> Self {
+impl<'a, F: Field> From<&'a SparseUniPolynomial<F>> for DenseOrSparseUniPolynomial<'a, F> {
+    fn from(other: &'a SparseUniPolynomial<F>) -> Self {
         SPolynomial(Cow::Borrowed(other))
     }
 }
 
-impl<'a, F: Field> Into<DensePolynomial<F>> for DenseOrSparsePolynomial<'a, F> {
-    fn into(self) -> DensePolynomial<F> {
+impl<'a, F: Field> Into<DenseUniPolynomial<F>> for DenseOrSparseUniPolynomial<'a, F> {
+    fn into(self) -> DenseUniPolynomial<F> {
         match self {
             DPolynomial(p) => p.into_owned(),
             SPolynomial(p) => p.into_owned().into(),
@@ -53,10 +58,10 @@ impl<'a, F: Field> Into<DensePolynomial<F>> for DenseOrSparsePolynomial<'a, F> {
     }
 }
 
-impl<'a, F: 'a + Field> TryInto<SparsePolynomial<F>> for DenseOrSparsePolynomial<'a, F> {
+impl<'a, F: 'a + Field> TryInto<SparseUniPolynomial<F>> for DenseOrSparseUniPolynomial<'a, F> {
     type Error = ();
 
-    fn try_into(self) -> Result<SparsePolynomial<F>, ()> {
+    fn try_into(self) -> Result<SparseUniPolynomial<F>, ()> {
         match self {
             SPolynomial(p) => Ok(p.into_owned()),
             _ => Err(()),
@@ -64,7 +69,7 @@ impl<'a, F: 'a + Field> TryInto<SparsePolynomial<F>> for DenseOrSparsePolynomial
     }
 }
 
-impl<'a, F: Field> DenseOrSparsePolynomial<'a, F> {
+impl<'a, F: Field> DenseOrSparseUniPolynomial<'a, F> {
     /// Checks if the given polynomial is zero.
     pub fn is_zero(&self) -> bool {
         match self {
@@ -102,17 +107,17 @@ impl<'a, F: Field> DenseOrSparsePolynomial<'a, F> {
     pub fn divide_with_q_and_r(
         &self,
         divisor: &Self,
-    ) -> Option<(DensePolynomial<F>, DensePolynomial<F>)> {
+    ) -> Option<(DenseUniPolynomial<F>, DenseUniPolynomial<F>)> {
         if self.is_zero() {
-            Some((DensePolynomial::zero(), DensePolynomial::zero()))
+            Some((DenseUniPolynomial::zero(), DenseUniPolynomial::zero()))
         } else if divisor.is_zero() {
             panic!("Dividing by zero polynomial")
         } else if self.degree() < divisor.degree() {
-            Some((DensePolynomial::zero(), self.clone().into()))
+            Some((DenseUniPolynomial::zero(), self.clone().into()))
         } else {
             // Now we know that self.degree() >= divisor.degree();
             let mut quotient = vec![F::zero(); self.degree() - divisor.degree() + 1];
-            let mut remainder: DensePolynomial<F> = self.clone().into();
+            let mut remainder: DenseUniPolynomial<F> = self.clone().into();
             // Can unwrap here because we know self is not zero.
             let divisor_leading_inv = divisor.leading_coefficient().unwrap().inverse().unwrap();
             while !remainder.is_zero() && remainder.degree() >= divisor.degree() {
@@ -127,11 +132,11 @@ impl<'a, F: Field> DenseOrSparsePolynomial<'a, F> {
                     remainder.coeffs.pop();
                 }
             }
-            Some((DensePolynomial::from_coefficients_vec(quotient), remainder))
+            Some((DenseUniPolynomial::from_coefficients_vec(quotient), remainder))
         }
     }
 }
-impl<'a, F: 'a + FftField> DenseOrSparsePolynomial<'a, F> {
+impl<'a, F: 'a + FftField> DenseOrSparseUniPolynomial<'a, F> {
     /// Construct `Evaluations` by evaluating a polynomial over the domain
     /// `domain`.
     pub fn evaluate_over_domain<D: EvaluationDomain<F>>(

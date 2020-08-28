@@ -1,6 +1,6 @@
 //! A polynomial represented in evaluations form.
 
-use crate::{DensePolynomial, EvaluationDomain, GeneralEvaluationDomain, Vec};
+use crate::{DenseUniPolynomial, EvaluationDomain, GeneralEvaluationDomain, Vec};
 use algebra_core::FftField;
 use core::ops::{Add, AddAssign, Div, DivAssign, Index, Mul, MulAssign, Sub, SubAssign};
 
@@ -20,15 +20,15 @@ impl<F: FftField, D: EvaluationDomain<F>> Evaluations<F, D> {
     }
 
     /// Interpolate a polynomial from a list of evaluations
-    pub fn interpolate_by_ref(&self) -> DensePolynomial<F> {
-        DensePolynomial::from_coefficients_vec(self.domain.ifft(&self.evals))
+    pub fn interpolate_by_ref(&self) -> DenseUniPolynomial<F> {
+        DenseUniPolynomial::from_coefficients_vec(self.domain.ifft(&self.evals))
     }
 
     /// Interpolate a polynomial from a list of evaluations
-    pub fn interpolate(self) -> DensePolynomial<F> {
+    pub fn interpolate(self) -> DenseUniPolynomial<F> {
         let Self { mut evals, domain } = self;
         domain.ifft_in_place(&mut evals);
-        DensePolynomial::from_coefficients_vec(evals)
+        DenseUniPolynomial::from_coefficients_vec(evals)
     }
 }
 

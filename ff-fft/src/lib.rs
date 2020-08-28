@@ -61,6 +61,21 @@ macro_rules! cfg_into_iter {
     }};
 }
 
+/// Bridges a sequential iterator to a parallel one if `parallel`
+/// feature is enabled.
+#[macro_export]
+macro_rules! cfg_into_bridged_iter {
+    ($e: expr) => {{
+        #[cfg(feature = "parallel")]
+        let result = $e.par_bridge();
+
+        #[cfg(not(feature = "parallel"))]
+        let result = $e;
+
+        result
+    }};
+}
+
 /// Returns an iterator over `chunk_size` elements of the slice at a
 /// time.
 #[macro_export]
@@ -100,7 +115,7 @@ pub use domain::{
     EvaluationDomain, GeneralEvaluationDomain, MixedRadixEvaluationDomain, Radix2EvaluationDomain,
 };
 pub use evaluations::Evaluations;
-pub use polynomial::{DenseOrSparsePolynomial, DensePolynomial, SparsePolynomial};
+pub use polynomial::{DenseOrSparseUniPolynomial, DenseUniPolynomial, SparseUniPolynomial};
 
 #[cfg(test)]
 mod test;

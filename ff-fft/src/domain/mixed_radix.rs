@@ -191,9 +191,9 @@ impl<F: FftField> EvaluationDomain<F> for MixedRadixEvaluationDomain<F> {
         }
     }
 
-    fn vanishing_polynomial(&self) -> crate::SparsePolynomial<F> {
+    fn vanishing_polynomial(&self) -> crate::SparseUniPolynomial<F> {
         let coeffs = vec![(0, -F::one()), (self.size(), F::one())];
-        crate::SparsePolynomial::from_coefficients_vec(coeffs)
+        crate::SparseUniPolynomial::from_coefficients_vec(coeffs)
     }
 
     /// This evaluates the vanishing polynomial for this domain at tau.

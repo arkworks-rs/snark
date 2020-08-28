@@ -116,7 +116,7 @@ impl<F: FftField> EvaluationDomain<F> for GeneralEvaluationDomain<F> {
     }
 
     #[inline]
-    fn vanishing_polynomial(&self) -> crate::SparsePolynomial<F> {
+    fn vanishing_polynomial(&self) -> crate::SparseUniPolynomial<F> {
         match self {
             GeneralEvaluationDomain::Radix2(domain) => domain.vanishing_polynomial(),
             GeneralEvaluationDomain::MixedRadix(domain) => domain.vanishing_polynomial(),

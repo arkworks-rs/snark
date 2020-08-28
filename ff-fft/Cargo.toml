@@ -23,6 +23,7 @@ edition = "2018"
 algebra-core = { path = "../algebra-core", default-features = false }
 rand = { version = "0.7", default-features = false }
 rayon = { version = "1", optional = true }
+ndarray = { version = "0.13.1", default-features = false }
 
 [dev-dependencies]
 algebra = { path = "../algebra", default-features = false, features = [ "bls12_381", "mnt6_753", "mnt4_753" ] }
