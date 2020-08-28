@@ -178,7 +178,7 @@ where
 
     fn conditional_verify<'a, T: 'a + ToBitsGadget<E::Fq> + ?Sized>(
         vk: &Self::VerificationKeyVar,
-        input: impl Iterator<Item = &'a T>,
+        input: impl IntoIterator<Item = &'a T>,
         proof: &Self::ProofVar,
         condition: &Boolean<E::Fq>,
     ) -> Result<(), SynthesisError> {
@@ -190,7 +190,7 @@ where
 
     fn conditional_verify_prepared<'a, T: 'a + ToBitsGadget<E::Fq> + ?Sized>(
         pvk: &Self::PreparedVerificationKeyVar,
-        mut input: impl Iterator<Item = &'a T>,
+        input: impl IntoIterator<Item = &'a T>,
         proof: &Self::ProofVar,
         condition: &Boolean<E::Fq>,
     ) -> Result<(), SynthesisError> {
@@ -200,9 +200,10 @@ where
         let g_psi = {
             let mut g_psi = pvk.query[0].clone();
             let mut input_len = 1;
+            let mut input = input.into_iter();
             for (input, b) in input.by_ref().zip(pvk.query.iter().skip(1)) {
-                let input_bits = input.to_bits()?;
-                g_psi += b.mul_bits(input_bits.iter())?;
+                let input_bits = input.to_bits_le()?;
+                g_psi += b.scalar_mul_le(input_bits.iter())?;
                 input_len += 1;
             }
             // Check that the input and the query in the verification are of the
@@ -398,7 +399,7 @@ mod test {
     use super::*;
     use algebra::{
         bls12_377::{Bls12_377, Fq, Fr},
-        test_rng, BitIterator, Field, PrimeField,
+        test_rng, BitIteratorLE, Field, PrimeField,
     };
     use r1cs_std::{bls12_377::PairingVar as Bls12_377PairingVar, boolean::Boolean, Assignment};
     use rand::Rng;
@@ -486,10 +487,7 @@ mod test {
 
             {
                 for (i, input) in inputs.into_iter().enumerate() {
-                    let mut input_bits = BitIterator::new(input.into_repr()).collect::<Vec<_>>();
-                    // Input must be in little-endian, but BitIterator outputs in big-endian.
-                    input_bits.reverse();
-
+                    let input_bits: Vec<_> = BitIteratorLE::new(input.into_repr()).collect();
                     let input_bits =
                         Vec::<Boolean<Fq>>::new_input(cs.ns(format!("Input {}", i)), || {
                             Ok(input_bits)
@@ -505,7 +503,7 @@ mod test {
             println!("Time to verify!\n\n\n\n");
             <TestVerifierGadget as NIZKVerifierGadget<TestProofSystem, Fq>>::verify(
                 &vk_gadget,
-                input_gadgets.iter(),
+                &input_gadgets,
                 &proof_gadget,
             )
             .unwrap();
@@ -637,7 +635,7 @@ mod test_recursive {
                     .map(|chunk| {
                         chunk
                             .iter()
-                            .flat_map(|byte| byte.into_bits_le())
+                            .flat_map(|byte| byte.to_bits_le().unwrap())
                             .collect::<Vec<_>>()
                     })
                     .collect::<Vec<_>>();
@@ -648,7 +646,7 @@ mod test_recursive {
                 TestProofVar1::new_witness(cs.ns("Proof"), || Ok(proof.clone())).unwrap();
             <TestVerifierGadget1 as NIZKVerifierGadget<TestProofSystem1, MNT6Fq>>::verify(
                 &vk_gadget,
-                input_gadgets.iter(),
+                &input_gadgets,
                 &proof_gadget,
             )?;
             Ok(())
@@ -721,12 +719,7 @@ mod test_recursive {
                 for (i, input) in inputs.into_iter().enumerate() {
                     let input_gadget =
                         FpVar::new_input(cs.ns(format!("Input {}", i)), || Ok(input)).unwrap();
-                    let mut fp_bits = input_gadget.to_bits().unwrap();
-
-                    // FpVar::to_bits outputs a big-endian binary representation of
-                    // fe_gadget's value, so we have to reverse it to get the little-endian
-                    // form.
-                    fp_bits.reverse();
+                    let mut fp_bits = input_gadget.to_bits_le().unwrap();
 
                     // Use 320 bits per element.
                     for _ in fp_bits.len()..bigint_size {
@@ -756,7 +749,7 @@ mod test_recursive {
             println!("Time to verify!\n\n\n\n");
             <TestVerifierGadget2 as NIZKVerifierGadget<TestProofSystem2, MNT4Fq>>::verify(
                 &vk_gadget,
-                input_gadgets.iter(),
+                &input_gadgets,
                 &proof_gadget,
             )
             .unwrap();

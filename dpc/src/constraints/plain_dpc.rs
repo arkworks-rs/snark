@@ -13,7 +13,6 @@ use crypto_primitives::{
 use r1cs_core::{ConstraintSystemRef, SynthesisError};
 use r1cs_std::prelude::*;
 
-use algebra::bytes::ToBytes;
 use r1cs_std::boolean::Boolean;
 
 pub fn execute_core_checks_gadget<C: PlainDPCComponents>(
@@ -656,14 +655,8 @@ where
     ];
 
     let pred_input_bits = [
-        pred_input_bytes[0]
-            .iter()
-            .flat_map(|byte| byte.into_bits_le())
-            .collect::<Vec<_>>(),
-        pred_input_bytes[1]
-            .iter()
-            .flat_map(|byte| byte.into_bits_le())
-            .collect::<Vec<_>>(),
+        pred_input_bytes[0].to_bits_le()?,
+        pred_input_bytes[1].to_bits_le()?,
     ];
     // ************************************************************************
     // ************************************************************************
@@ -702,12 +695,12 @@ where
         old_death_pred_hashes.push(claimed_death_pred_hash_bytes);
 
         let _ns = cs.ns("Verify death predicate");
-        let position = UInt8::constant(i as u8).into_bits_le();
+        let position = UInt8::constant(i as u8).to_bits_le()?;
         C::PredicateNIZKGadget::verify(
             &death_pred_vk,
             ([position].iter())
-                .chain(pred_input_bits.iter())
-                .filter(|inp| !inp.is_empty()),
+                .chain(&pred_input_bits)
+                .filter(|v| !v.is_empty()),
             &death_pred_proof,
         )?;
     }
@@ -744,12 +737,12 @@ where
         new_birth_pred_hashes.push(claimed_birth_pred_hash_bytes);
 
         let _ns = cs.ns("Verify birth predicate");
-        let position = UInt8::constant(j as u8).into_bits_le();
+        let position = UInt8::constant(j as u8).to_bits_le()?;
         C::PredicateNIZKGadget::verify(
             &birth_pred_vk,
             ([position].iter())
-                .chain(pred_input_bits.iter())
-                .filter(|inp| !inp.is_empty()),
+                .chain(&pred_input_bits)
+                .filter(|v| !v.is_empty()),
             &birth_pred_proof,
         )?;
     }

@@ -93,12 +93,9 @@ impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for [u8] {
         let fes = self
             .chunks(max_size)
             .map(|chunk| {
-                let mut chunk = chunk.to_vec();
-                let len = chunk.len();
-                for _ in len..bigint_size {
-                    chunk.push(0u8);
-                }
-                ConstraintF::read(chunk.as_slice())
+                let mut bigint = vec![0u8; bigint_size];
+                bigint.iter_mut().zip(chunk).for_each(|(a, b)| *a = *b);
+                ConstraintF::read(bigint.as_slice())
             })
             .collect::<Result<Vec<_>, _>>()
             .map_err(crate::SerializationError::from)
@@ -117,22 +114,6 @@ impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for [u8; 32] {
 impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for Vec<u8> {
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
-        let max_size = <ConstraintF as PrimeField>::Params::CAPACITY / 8;
-        let max_size = max_size as usize;
-        let bigint_size = <ConstraintF as PrimeField>::BigInt::NUM_LIMBS * 8;
-        let fes = self
-            .chunks(max_size)
-            .map(|chunk| {
-                let mut chunk = chunk.to_vec();
-                let len = chunk.len();
-                for _ in len..bigint_size {
-                    chunk.push(0u8);
-                }
-                ConstraintF::read(chunk.as_slice())
-            })
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(crate::SerializationError::from)
-            .map_err(|e| Box::new(e))?;
-        Ok(fes)
+        self.as_slice().to_field_elements()
     }
 }

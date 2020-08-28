@@ -1,5 +1,5 @@
 use crate::Error;
-use algebra::{bytes::ToBytes, to_bytes, ToConstraintField};
+use algebra::{to_bytes, ToConstraintField};
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
 
 use crypto_primitives::{CommitmentScheme, FixedLengthCRH};

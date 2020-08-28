@@ -11,7 +11,7 @@ use crate::{
 };
 use algebra::{
     curves::mnt4::{MNT4Parameters, MNT4},
-    fields::BitIterator,
+    fields::BitIteratorBE,
 };
 use core::marker::PhantomData;
 
@@ -100,18 +100,9 @@ impl<P: MNT4Parameters> PairingVar<P> {
         let mut dbl_idx: usize = 0;
         let mut add_idx: usize = 0;
 
-        let mut found_one = false;
-
-        for bit in BitIterator::new(P::ATE_LOOP_COUNT) {
-            // code below gets executed for all bits (EXCEPT the MSB itself) of
-            // mnt6_param_p (skipping leading zeros) in MSB to LSB order
-            if !found_one && bit {
-                found_one = true;
-                continue;
-            } else if !found_one {
-                continue;
-            }
-
+        // code below gets executed for all bits (EXCEPT the MSB itself) of
+        // mnt6_param_p (skipping leading zeros) in MSB to LSB order
+        for bit in BitIteratorBE::without_leading_zeros(P::ATE_LOOP_COUNT).skip(1) {
             let dc = &q.double_coefficients[dbl_idx];
             dbl_idx += 1;
 

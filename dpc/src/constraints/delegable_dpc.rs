@@ -14,8 +14,6 @@ use algebra::{to_bytes, FpParameters, PrimeField, ToConstraintField};
 use r1cs_core::{ConstraintSystemRef, SynthesisError};
 use r1cs_std::{boolean::Boolean, prelude::*};
 
-use algebra::bytes::ToBytes;
-
 pub fn execute_core_checks_gadget<C: DelegableDPCComponents>(
     cs: ConstraintSystemRef<C::CoreCheckF>,
     // Parameters
@@ -676,7 +674,7 @@ where
     // Then we chunk up the input back into chunks of bytes,
     // such that each chunk corresponds to one of the field elements from above.
     let local_data_bits: Vec<_> = local_data_new_witness_bytes.into_iter()
-        .flat_map(|byte| byte.into_bits_le())
+        .flat_map(|byte| byte.to_bits_le().unwrap())
         .collect::<Vec<_>>()
         // We construct chunks that are equal to the size of underlying
         // BigInteger
@@ -715,10 +713,10 @@ where
 
         old_death_pred_hashes.push(claimed_death_pred_hash_bytes);
 
-        let position = UInt8::constant(i as u8).into_bits_le();
+        let position = UInt8::constant(i as u8).to_bits_le()?;
         C::PredicateNIZKGadget::verify(
             &death_pred_vk,
-            ([position].iter()).chain(local_data_bits.iter()),
+            ([position].iter()).chain(&local_data_bits),
             &death_pred_proof,
         )?;
     }
@@ -748,10 +746,10 @@ where
 
         new_birth_pred_hashes.push(claimed_birth_pred_hash_bytes);
 
-        let position = UInt8::constant(j as u8).into_bits_le();
+        let position = UInt8::constant(j as u8).to_bits_le()?;
         C::PredicateNIZKGadget::verify(
             &birth_pred_vk,
-            ([position].iter()).chain(local_data_bits.iter()),
+            ([position].iter()).chain(&local_data_bits),
             &birth_pred_proof,
         )?;
     }

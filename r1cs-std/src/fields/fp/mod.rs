@@ -1,10 +1,10 @@
-use algebra::{bytes::ToBytes, FpParameters, PrimeField};
+use algebra::{BigInteger, FpParameters, PrimeField};
 use r1cs_core::{lc, ConstraintSystemRef, LinearCombination, Namespace, SynthesisError, Variable};
 
 use core::borrow::Borrow;
 
 use crate::fields::{FieldOpsBounds, FieldVar};
-use crate::{boolean::AllocatedBit, prelude::*, Assignment, Vec};
+use crate::{prelude::*, Assignment, Vec};
 
 pub mod cmp;
 
@@ -338,48 +338,41 @@ impl<F: PrimeField> AllocatedFp<F> {
 impl<F: PrimeField> ToBitsGadget<F> for AllocatedFp<F> {
     /// Outputs the unique bit-wise decomposition of `self` in *big-endian*
     /// form.
-    fn to_bits(&self) -> Result<Vec<Boolean<F>>, SynthesisError> {
-        let bits = self.to_non_unique_bits()?;
-        Boolean::enforce_in_field(&bits)?;
+    fn to_bits_le(&self) -> Result<Vec<Boolean<F>>, SynthesisError> {
+        let bits = self.to_non_unique_bits_le()?;
+        Boolean::enforce_in_field_le(&bits)?;
         Ok(bits)
     }
 
-    fn to_non_unique_bits(&self) -> Result<Vec<Boolean<F>>, SynthesisError> {
+    fn to_non_unique_bits_le(&self) -> Result<Vec<Boolean<F>>, SynthesisError> {
         let cs = self.cs.clone();
-        let num_bits = F::Params::MODULUS_BITS;
-        use algebra::BitIterator;
-        let bit_values = match self.value {
-            Some(value) => {
-                let mut field_char = BitIterator::new(F::characteristic());
-                let mut tmp = Vec::with_capacity(num_bits as usize);
-                let mut found_one = false;
-                for b in BitIterator::new(value.into_repr()) {
-                    // Skip leading bits
-                    found_one |= field_char.next().unwrap();
-                    if !found_one {
-                        continue;
-                    }
-
-                    tmp.push(Some(b));
-                }
-
-                assert_eq!(tmp.len(), num_bits as usize);
-
-                tmp
-            }
-            None => vec![None; num_bits as usize],
+        use algebra::BitIteratorBE;
+        let mut bits = if let Some(value) = self.value {
+            let field_char = BitIteratorBE::new(F::characteristic());
+            let bits: Vec<_> = BitIteratorBE::new(value.into_repr())
+                .zip(field_char)
+                .skip_while(|(_, c)| !c)
+                .map(|(b, _)| Some(b))
+                .collect();
+            assert_eq!(bits.len(), F::Params::MODULUS_BITS as usize);
+            bits
+        } else {
+            vec![None; F::Params::MODULUS_BITS as usize]
         };
 
-        let mut bits = vec![];
-        for b in bit_values {
-            bits.push(AllocatedBit::new_witness(cs.clone(), || b.get())?);
-        }
+        // Convert to little-endian
+        bits.reverse();
+
+        let bits: Vec<_> = bits
+            .into_iter()
+            .map(|b| Boolean::new_witness(cs.clone(), || b.get()))
+            .collect::<Result<_, _>>()?;
 
         let mut lc = LinearCombination::zero();
         let mut coeff = F::one();
 
-        for bit in bits.iter().rev() {
-            lc += (coeff, bit.variable());
+        for bit in bits.iter() {
+            lc = &lc + bit.lc() * coeff;
 
             coeff.double_in_place();
         }
@@ -388,7 +381,7 @@ impl<F: PrimeField> ToBitsGadget<F> for AllocatedFp<F> {
 
         cs.enforce_constraint(lc!(), lc!(), lc)?;
 
-        Ok(bits.into_iter().map(Boolean::from).collect())
+        Ok(bits)
     }
 }
 
@@ -396,52 +389,26 @@ impl<F: PrimeField> ToBytesGadget<F> for AllocatedFp<F> {
     /// Outputs the unique byte decomposition of `self` in *little-endian*
     /// form.
     fn to_bytes(&self) -> Result<Vec<UInt8<F>>, SynthesisError> {
-        let bytes = self.to_non_unique_bytes()?;
-        Boolean::enforce_in_field(
-            &bytes.iter()
-                .flat_map(|b| b.into_bits_le())
-                // This reverse maps the bits into big-endian form, as required by `enforce_in_field`.
-                .rev()
-                .collect::<Vec<_>>(),
-        )?;
-
+        let num_bits = F::BigInt::NUM_LIMBS * 64;
+        let mut bits = self.to_bits_le()?;
+        let remainder = core::iter::repeat(Boolean::constant(false)).take(num_bits - bits.len());
+        bits.extend(remainder);
+        let bytes = bits
+            .chunks(8)
+            .map(|chunk| UInt8::from_bits_le(chunk))
+            .collect();
         Ok(bytes)
     }
 
     fn to_non_unique_bytes(&self) -> Result<Vec<UInt8<F>>, SynthesisError> {
-        let cs = self.cs.clone();
-        let byte_values = match self.value {
-            Some(value) => to_bytes![&value.into_repr()]
-                .unwrap()
-                .into_iter()
-                .map(Some)
-                .collect::<Vec<_>>(),
-            None => {
-                let default = F::default();
-                let default_len = to_bytes![&default].unwrap().len();
-                vec![None; default_len]
-            }
-        };
-
-        let bytes = UInt8::new_witness_vec(cs.clone(), &byte_values)?;
-
-        let mut lc = LinearCombination::zero();
-        let mut coeff = F::one();
-
-        for bit in bytes.iter().flat_map(|b| b.bits.clone()) {
-            match bit {
-                Boolean::Is(bit) => {
-                    lc += (coeff, bit.variable());
-                    coeff.double_in_place();
-                }
-                Boolean::Constant(_) | Boolean::Not(_) => unreachable!(),
-            }
-        }
-
-        lc = lc - &self.variable;
-
-        cs.enforce_constraint(lc!(), lc!(), lc)?;
-
+        let num_bits = F::BigInt::NUM_LIMBS * 64;
+        let mut bits = self.to_non_unique_bits_le()?;
+        let remainder = core::iter::repeat(Boolean::constant(false)).take(num_bits - bits.len());
+        bits.extend(remainder);
+        let bytes = bits
+            .chunks(8)
+            .map(|chunk| UInt8::from_bits_le(chunk))
+            .collect();
         Ok(bytes)
     }
 }
@@ -806,19 +773,20 @@ impl<F: PrimeField> EqGadget<F> for FpVar<F> {
 }
 
 impl<F: PrimeField> ToBitsGadget<F> for FpVar<F> {
-    /// Outputs the unique bit-wise decomposition of `self` in *big-endian*
-    /// form.
-    fn to_bits(&self) -> Result<Vec<Boolean<F>>, SynthesisError> {
+    fn to_bits_le(&self) -> Result<Vec<Boolean<F>>, SynthesisError> {
         match self {
-            Self::Constant(c) => UInt8::constant_vec(&to_bytes![c].unwrap()).to_bits(),
-            Self::Var(v) => v.to_bits(),
+            Self::Constant(_) => self.to_non_unique_bits_le(),
+            Self::Var(v) => v.to_bits_le(),
         }
     }
 
-    fn to_non_unique_bits(&self) -> Result<Vec<Boolean<F>>, SynthesisError> {
+    fn to_non_unique_bits_le(&self) -> Result<Vec<Boolean<F>>, SynthesisError> {
+        use algebra::BitIteratorLE;
         match self {
-            Self::Constant(c) => UInt8::constant_vec(&to_bytes![c].unwrap()).to_non_unique_bits(),
-            Self::Var(v) => v.to_non_unique_bits(),
+            Self::Constant(c) => Ok(BitIteratorLE::without_trailing_zeros(&c.into_repr())
+                .map(Boolean::constant)
+                .collect::<Vec<_>>()),
+            Self::Var(v) => v.to_non_unique_bits_le(),
         }
     }
 }

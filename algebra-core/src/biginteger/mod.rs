@@ -1,6 +1,6 @@
 use crate::{
     bytes::{FromBytes, ToBytes},
-    fields::BitIterator,
+    fields::BitIteratorBE,
     io::{Read, Result as IoResult, Write},
     CanonicalDeserialize, CanonicalSerialize, ConstantSerializedSize, SerializationError,
     UniformRand, Vec,

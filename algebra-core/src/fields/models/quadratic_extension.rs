@@ -314,48 +314,39 @@ impl<P: QuadExtParameters> PartialOrd for QuadExtField<P> {
     }
 }
 
-impl<P: QuadExtParameters> From<u128> for QuadExtField<P>
-where
-    P::BaseField: From<u128>,
-{
+impl<P: QuadExtParameters> From<u128> for QuadExtField<P> {
     fn from(other: u128) -> Self {
         Self::new(other.into(), P::BaseField::zero())
     }
 }
 
-impl<P: QuadExtParameters> From<u64> for QuadExtField<P>
-where
-    P::BaseField: From<u64>,
-{
+impl<P: QuadExtParameters> From<u64> for QuadExtField<P> {
     fn from(other: u64) -> Self {
         Self::new(other.into(), P::BaseField::zero())
     }
 }
 
-impl<P: QuadExtParameters> From<u32> for QuadExtField<P>
-where
-    P::BaseField: From<u32>,
-{
+impl<P: QuadExtParameters> From<u32> for QuadExtField<P> {
     fn from(other: u32) -> Self {
         Self::new(other.into(), P::BaseField::zero())
     }
 }
 
-impl<P: QuadExtParameters> From<u16> for QuadExtField<P>
-where
-    P::BaseField: From<u16>,
-{
+impl<P: QuadExtParameters> From<u16> for QuadExtField<P> {
     fn from(other: u16) -> Self {
         Self::new(other.into(), P::BaseField::zero())
     }
 }
 
-impl<P: QuadExtParameters> From<u8> for QuadExtField<P>
-where
-    P::BaseField: From<u8>,
-{
+impl<P: QuadExtParameters> From<u8> for QuadExtField<P> {
     fn from(other: u8) -> Self {
         Self::new(other.into(), P::BaseField::zero())
+    }
+}
+
+impl<P: QuadExtParameters> From<bool> for QuadExtField<P> {
+    fn from(other: bool) -> Self {
+        Self::new(u8::from(other).into(), P::BaseField::zero())
     }
 }
 

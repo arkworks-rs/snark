@@ -1,8 +1,9 @@
 use super::instantiated::*;
 use algebra::{
     bls12_377::{Fq, Fr},
-    to_bytes, ToBytes,
+    to_bytes,
 };
+
 #[cfg(debug_assertions)]
 use groth16::PreparedVerifyingKey;
 use rand::SeedableRng;

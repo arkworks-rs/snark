@@ -163,14 +163,12 @@ where
         let randomized_pk = *public_key;
         let base = parameters.generator;
         let mut encoded = C::zero();
-        let mut found_one = false;
-        for bit in bytes_to_bits(randomness).into_iter().rev() {
-            if found_one {
-                encoded.double_in_place();
-            } else {
-                found_one |= bit;
-            }
-
+        for bit in bytes_to_bits(randomness)
+            .into_iter()
+            .rev()
+            .skip_while(|b| !b)
+        {
+            encoded.double_in_place();
             if bit {
                 encoded.add_assign_mixed(&base)
             }

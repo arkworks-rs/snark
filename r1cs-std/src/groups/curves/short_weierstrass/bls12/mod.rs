@@ -4,7 +4,7 @@ use algebra::{
         short_weierstrass_jacobian::GroupAffine,
     },
     fields::Field,
-    BitIterator, One,
+    BitIteratorBE, One,
 };
 use r1cs_core::SynthesisError;
 
@@ -164,7 +164,7 @@ impl<P: Bls12Parameters> G2PreparedVar<P> {
         let mut ell_coeffs = vec![];
         let mut r = q.clone();
 
-        for i in BitIterator::new(P::X).skip(1) {
+        for i in BitIteratorBE::new(P::X).skip(1) {
             ell_coeffs.push(Self::double(&mut r, &two_inv)?);
 
             if i {

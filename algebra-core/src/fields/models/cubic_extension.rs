@@ -290,53 +290,48 @@ impl<P: CubicExtParameters> PartialOrd for CubicExtField<P> {
     }
 }
 
-impl<P: CubicExtParameters> From<u128> for CubicExtField<P>
-where
-    P::BaseField: From<u128>,
-{
+impl<P: CubicExtParameters> From<u128> for CubicExtField<P> {
     fn from(other: u128) -> Self {
         let fe: P::BaseField = other.into();
         Self::new(fe, P::BaseField::zero(), P::BaseField::zero())
     }
 }
 
-impl<P: CubicExtParameters> From<u64> for CubicExtField<P>
-where
-    P::BaseField: From<u64>,
-{
+impl<P: CubicExtParameters> From<u64> for CubicExtField<P> {
     fn from(other: u64) -> Self {
         let fe: P::BaseField = other.into();
         Self::new(fe, P::BaseField::zero(), P::BaseField::zero())
     }
 }
 
-impl<P: CubicExtParameters> From<u32> for CubicExtField<P>
-where
-    P::BaseField: From<u32>,
-{
+impl<P: CubicExtParameters> From<u32> for CubicExtField<P> {
     fn from(other: u32) -> Self {
         let fe: P::BaseField = other.into();
         Self::new(fe, P::BaseField::zero(), P::BaseField::zero())
     }
 }
 
-impl<P: CubicExtParameters> From<u16> for CubicExtField<P>
-where
-    P::BaseField: From<u16>,
-{
+impl<P: CubicExtParameters> From<u16> for CubicExtField<P> {
     fn from(other: u16) -> Self {
         let fe: P::BaseField = other.into();
         Self::new(fe, P::BaseField::zero(), P::BaseField::zero())
     }
 }
 
-impl<P: CubicExtParameters> From<u8> for CubicExtField<P>
-where
-    P::BaseField: From<u8>,
-{
+impl<P: CubicExtParameters> From<u8> for CubicExtField<P> {
     fn from(other: u8) -> Self {
         let fe: P::BaseField = other.into();
         Self::new(fe, P::BaseField::zero(), P::BaseField::zero())
+    }
+}
+
+impl<P: CubicExtParameters> From<bool> for CubicExtField<P> {
+    fn from(other: bool) -> Self {
+        Self::new(
+            u8::from(other).into(),
+            P::BaseField::zero(),
+            P::BaseField::zero(),
+        )
     }
 }
 

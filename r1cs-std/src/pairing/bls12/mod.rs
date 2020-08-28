@@ -8,7 +8,7 @@ use crate::{
 };
 use algebra::{
     curves::bls12::{Bls12, Bls12Parameters, TwistType},
-    fields::BitIterator,
+    fields::BitIteratorBE,
 };
 use core::marker::PhantomData;
 
@@ -75,7 +75,7 @@ impl<P: Bls12Parameters> PG<Bls12<P>, P::Fp> for PairingVar<P> {
         }
         let mut f = Self::GTVar::one();
 
-        for i in BitIterator::new(P::X).skip(1) {
+        for i in BitIteratorBE::new(P::X).skip(1) {
             f.square_in_place()?;
 
             for &mut (p, ref mut coeffs) in pairs.iter_mut() {

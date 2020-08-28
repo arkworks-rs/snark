@@ -3,7 +3,7 @@ use algebra::{
         short_weierstrass_jacobian::{GroupAffine as SWAffine, GroupProjective as SWProjective},
         SWModelParameters,
     },
-    AffineCurve, BigInteger, BitIterator, Field, One, PrimeField, ProjectiveCurve, Zero,
+    AffineCurve, BigInteger, BitIteratorBE, Field, One, PrimeField, ProjectiveCurve, Zero,
 };
 use core::{borrow::Borrow, marker::PhantomData};
 use r1cs_core::{ConstraintSystemRef, Namespace, SynthesisError};
@@ -255,22 +255,12 @@ where
     fn enforce_prime_order(&self) -> Result<(), SynthesisError> {
         let r_minus_1 = (-P::ScalarField::one()).into_repr();
 
-        let mut seen_one = false;
         let mut result = Self::zero();
-        for b in BitIterator::new(r_minus_1) {
-            let old_seen_one = seen_one;
-            if seen_one {
-                result.double_in_place()?;
-            } else {
-                seen_one = b;
-            }
+        for b in BitIteratorBE::without_leading_zeros(r_minus_1) {
+            result.double_in_place()?;
 
             if b {
-                result = if old_seen_one {
-                    result + self
-                } else {
-                    self.clone()
-                };
+                result += self;
             }
         }
         self.negate()?.enforce_equal(&result)?;
@@ -527,10 +517,12 @@ where
                     power_of_2 += 1;
                 }
 
-                let cofactor_weight = BitIterator::new(cofactor.as_slice()).filter(|b| *b).count();
+                let cofactor_weight = BitIteratorBE::new(cofactor.as_slice())
+                    .filter(|b| *b)
+                    .count();
                 let modulus_minus_1 = (-P::ScalarField::one()).into_repr(); // r - 1
                 let modulus_minus_1_weight =
-                    BitIterator::new(modulus_minus_1).filter(|b| *b).count();
+                    BitIteratorBE::new(modulus_minus_1).filter(|b| *b).count();
 
                 // We pick the most efficient method of performing the prime order check:
                 // If the cofactor has lower hamming weight than the scalar field's modulus,
@@ -546,7 +538,10 @@ where
                         || f().map(|g| g.borrow().into_affine().mul_by_cofactor_inv().into()),
                         mode,
                     )?;
-                    (ge, BitIterator::new(cofactor.as_slice()))
+                    (
+                        ge,
+                        BitIteratorBE::without_leading_zeros(cofactor.as_slice()),
+                    )
                 } else {
                     let ge = Self::new_variable_omit_prime_order_check(
                         cs.ns("Witness without subgroup check with `r` check"),
@@ -555,37 +550,31 @@ where
                                 let g = g.into_affine();
                                 let mut power_of_two = P::ScalarField::one().into_repr();
                                 power_of_two.muln(power_of_2);
-                                let power_of_two_inv =
-                                    P::ScalarField::from(power_of_two).inverse().unwrap();
+                                let power_of_two_inv = P::ScalarField::from_repr(power_of_two)
+                                    .and_then(|n| n.inverse())
+                                    .unwrap();
                                 g.mul(power_of_two_inv)
                             })
                         },
                         mode,
                     )?;
 
-                    (ge, BitIterator::new(modulus_minus_1.as_ref()))
+                    (
+                        ge,
+                        BitIteratorBE::without_leading_zeros(modulus_minus_1.as_ref()),
+                    )
                 };
                 // Remove the even part of the cofactor
                 for _ in 0..power_of_2 {
                     ge.double_in_place()?;
                 }
 
-                let mut seen_one = false;
                 let mut result = Self::zero();
                 for b in iter {
-                    let old_seen_one = seen_one;
-                    if seen_one {
-                        result.double_in_place()?;
-                    } else {
-                        seen_one = b;
-                    }
+                    result.double_in_place()?;
 
                     if b {
-                        result = if old_seen_one {
-                            result + &ge
-                        } else {
-                            ge.clone()
-                        };
+                        result += &ge
                     }
                 }
                 if cofactor_weight < modulus_minus_1_weight {
@@ -616,23 +605,23 @@ where
     F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
-    fn to_bits(
+    fn to_bits_le(
         &self,
     ) -> Result<Vec<Boolean<<P::BaseField as Field>::BasePrimeField>>, SynthesisError> {
         let g = self.to_affine()?;
-        let mut bits = g.x.to_bits()?;
-        let y_bits = g.y.to_bits()?;
+        let mut bits = g.x.to_bits_le()?;
+        let y_bits = g.y.to_bits_le()?;
         bits.extend_from_slice(&y_bits);
         bits.push(g.infinity);
         Ok(bits)
     }
 
-    fn to_non_unique_bits(
+    fn to_non_unique_bits_le(
         &self,
     ) -> Result<Vec<Boolean<<P::BaseField as Field>::BasePrimeField>>, SynthesisError> {
         let g = self.to_affine()?;
-        let mut bits = g.x.to_non_unique_bits()?;
-        let y_bits = g.y.to_non_unique_bits()?;
+        let mut bits = g.x.to_non_unique_bits_le()?;
+        let y_bits = g.y.to_non_unique_bits_le()?;
         bits.extend_from_slice(&y_bits);
         bits.push(g.infinity);
         Ok(bits)
@@ -679,7 +668,7 @@ where
     for<'a> &'a GG: GroupOpsBounds<'a, SWProjective<P>, GG>,
 {
     use crate::prelude::*;
-    use algebra::{test_rng, Group, UniformRand};
+    use algebra::{test_rng, BitIteratorLE, Group, UniformRand};
     use r1cs_core::ConstraintSystem;
 
     crate::groups::test::group_test::<SWProjective<P>, _, GG>()?;
@@ -739,11 +728,9 @@ where
     let native_result = aa.into_affine().mul(scalar);
     let native_result = native_result.into_affine();
 
-    let mut scalar: Vec<bool> = BitIterator::new(scalar.into_repr()).collect();
-    // Get the scalar bits into little-endian form.
-    scalar.reverse();
+    let scalar: Vec<bool> = BitIteratorLE::new(scalar.into_repr()).collect();
     let input: Vec<Boolean<_>> = Vec::new_witness(cs.ns("bits"), || Ok(scalar)).unwrap();
-    let result = gadget_a.mul_bits(input.iter())?;
+    let result = gadget_a.scalar_mul_le(input.iter())?;
     let result_val = result.value()?.into_affine();
     assert_eq!(
         result_val, native_result,

@@ -72,24 +72,28 @@ pub trait CurveVar<C: ProjectiveCurve, ConstraintF: Field>:
 
     fn negate(&self) -> Result<Self, SynthesisError>;
 
-    /// Inputs must be specified in *little-endian* form.
-    /// If the addition law is incomplete for the identity element,
-    /// `result` must not be the identity element.
-    fn mul_bits<'a>(
+    /// Computes `bits * self`, where `bits` is a little-endian
+    /// `Boolean` representation of a scalar.
+    fn scalar_mul_le<'a>(
         &self,
         bits: impl Iterator<Item = &'a Boolean<ConstraintF>>,
     ) -> Result<Self, SynthesisError> {
-        let mut power = self.clone();
-        let mut result = Self::zero();
+        let mut res = Self::zero();
+        let mut multiple = self.clone();
         for bit in bits {
-            let new_encoded = result.clone() + &power;
-            result = bit.borrow().select(&new_encoded, &result)?;
-            power.double_in_place()?;
+            let tmp = res.clone() + &multiple;
+            res = bit.select(&tmp, &res)?;
+            multiple.double_in_place()?;
         }
-        Ok(result)
+        Ok(res)
     }
 
-    fn precomputed_base_scalar_mul<'a, I, B>(
+    /// Computes a `I * self` in place, where `I` is a `Boolean` *little-endian*
+    /// representation of the scalar.
+    ///
+    /// The base powers are precomputed power-of-two multiples of a single
+    /// base.
+    fn precomputed_base_scalar_mul_le<'a, I, B>(
         &mut self,
         scalar_bits_with_base_powers: I,
     ) -> Result<(), SynthesisError>
@@ -117,7 +121,9 @@ pub trait CurveVar<C: ProjectiveCurve, ConstraintF: Field>:
         Err(SynthesisError::AssignmentMissing)
     }
 
-    fn precomputed_base_multiscalar_mul<'a, T, I, B>(
+    /// Computes a `\sum I_j * B_j`, where `I_j` is a `Boolean`
+    /// representation of the j-th scalar.
+    fn precomputed_base_multiscalar_mul_le<'a, T, I, B>(
         bases: &[B],
         scalars: I,
     ) -> Result<Self, SynthesisError>
@@ -130,8 +136,8 @@ pub trait CurveVar<C: ProjectiveCurve, ConstraintF: Field>:
         // Compute ∏(h_i^{m_i}) for all i.
         for (bits, base_powers) in scalars.zip(bases) {
             let base_powers = base_powers.borrow();
-            let bits = bits.to_bits()?;
-            result.precomputed_base_scalar_mul(bits.iter().zip(base_powers))?;
+            let bits = bits.to_bits_le()?;
+            result.precomputed_base_scalar_mul_le(bits.iter().zip(base_powers))?;
         }
         Ok(result)
     }
@@ -201,7 +207,9 @@ mod test {
         assert_eq!(b2.value()?, b_b.value()?);
 
         let _ = a.to_bytes()?;
+        assert!(cs.is_satisfied().unwrap());
         let _ = a.to_non_unique_bytes()?;
+        assert!(cs.is_satisfied().unwrap());
 
         let _ = b.to_bytes()?;
         let _ = b.to_non_unique_bytes()?;

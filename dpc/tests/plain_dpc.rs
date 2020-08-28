@@ -1,4 +1,4 @@
-use algebra::{to_bytes, ToBytes};
+use algebra::to_bytes;
 #[cfg(debug_assertions)]
 use groth16::PreparedVerifyingKey;
 use rand::SeedableRng;
