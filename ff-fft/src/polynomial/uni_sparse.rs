@@ -139,7 +139,9 @@ impl<F: Field> Into<DenseUniPolynomial<F>> for SparseUniPolynomial<F> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{DenseUniPolynomial, EvaluationDomain, GeneralEvaluationDomain, SparseUniPolynomial};
+    use crate::{
+        DenseUniPolynomial, EvaluationDomain, GeneralEvaluationDomain, SparseUniPolynomial,
+    };
     use algebra::bls12_381::fr::Fr;
     use algebra_core::One;
 

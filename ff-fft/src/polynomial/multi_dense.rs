@@ -104,7 +104,6 @@ impl<'a, 'b, F: Field> Add<&'a DenseMultiPolynomial<F>> for &'b DenseMultiPolyno
 }
 
 impl<'a, F: Field> AddAssign<&'a DenseMultiPolynomial<F>> for DenseMultiPolynomial<F> {
-    
     #[inline]
     fn add_assign(&mut self, other: &'a DenseMultiPolynomial<F>) {
         assert_eq!(self.coeffs.dim(), other.coeffs.dim(), "Invalid dimensions");
@@ -135,7 +134,6 @@ impl<'a, 'b, F: Field> Sub<&'a DenseMultiPolynomial<F>> for &'b DenseMultiPolyno
 }
 
 impl<'a, F: Field> SubAssign<&'a DenseMultiPolynomial<F>> for DenseMultiPolynomial<F> {
-    
     #[inline]
     fn sub_assign(&mut self, other: &'a DenseMultiPolynomial<F>) {
         let neg_other = other.clone().neg();

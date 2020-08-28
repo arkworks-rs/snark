@@ -140,7 +140,10 @@ impl<F: Field> DenseUniPolynomial<F> {
 impl<F: FftField> DenseUniPolynomial<F> {
     /// Multiply `self` by the vanishing polynomial for the domain `domain`.
     /// Returns the result of the multiplication.
-    pub fn mul_by_vanishing_poly<D: EvaluationDomain<F>>(&self, domain: D) -> DenseUniPolynomial<F> {
+    pub fn mul_by_vanishing_poly<D: EvaluationDomain<F>>(
+        &self,
+        domain: D,
+    ) -> DenseUniPolynomial<F> {
         let mut shifted = vec![F::zero(); domain.size()];
         shifted.extend_from_slice(&self.coeffs);
         cfg_iter_mut!(shifted)
@@ -348,8 +351,7 @@ impl<'a, 'b, F: FftField> Mul<&'a DenseUniPolynomial<F>> for &'b DenseUniPolynom
 
 #[cfg(test)]
 mod tests {
-    use crate::polynomial::*;
-    use crate::{EvaluationDomain, GeneralEvaluationDomain};
+    use crate::{polynomial::*, EvaluationDomain, GeneralEvaluationDomain};
     use algebra::bls12_381::fr::Fr;
     use algebra_core::{test_rng, Field, One, UniformRand, Zero};
 
