@@ -164,24 +164,20 @@ where
         })
     }
 
-    fn conditional_verify<'a, T: 'a + ToBitsGadget<E::Fq> + ?Sized>(
+    fn verify<'a, T: 'a + ToBitsGadget<E::Fq> + ?Sized>(
         vk: &Self::VerificationKeyVar,
         input: impl IntoIterator<Item = &'a T>,
         proof: &Self::ProofVar,
-        condition: &Boolean<E::Fq>,
-    ) -> Result<(), SynthesisError> {
+    ) -> Result<Boolean<E::Fq>, SynthesisError> {
         let pvk = vk.prepare()?;
-        <Self as NIZKVerifierGadget<Groth16<E, C, V>, E::Fq>>::conditional_verify_prepared(
-            &pvk, input, proof, condition,
-        )
+        <Self as NIZKVerifierGadget<Groth16<E, C, V>, E::Fq>>::verify_prepared(&pvk, input, proof)
     }
 
-    fn conditional_verify_prepared<'a, T: 'a + ToBitsGadget<E::Fq> + ?Sized>(
+    fn verify_prepared<'a, T: 'a + ToBitsGadget<E::Fq> + ?Sized>(
         pvk: &Self::PreparedVerificationKeyVar,
         public_inputs: impl IntoIterator<Item = &'a T>,
         proof: &Self::ProofVar,
-        condition: &Boolean<E::Fq>,
-    ) -> Result<(), SynthesisError> {
+    ) -> Result<Boolean<E::Fq>, SynthesisError> {
         let pvk = pvk.clone();
 
         let g_ic = {
@@ -216,10 +212,8 @@ where
             )?
         };
 
-        let test = P::final_exponentiation(&test_exp).unwrap();
-
-        test.conditional_enforce_equal(&pvk.alpha_g1_beta_g2, condition)?;
-        Ok(())
+        let test = P::final_exponentiation(&test_exp)?;
+        test.is_eq(&pvk.alpha_g1_beta_g2)
     }
 }
 
@@ -468,6 +462,8 @@ mod test {
                 &input_gadgets,
                 &proof_gadget,
             )
+            .unwrap()
+            .enforce_equal(&Boolean::TRUE)
             .unwrap();
             if !cs.is_satisfied().unwrap() {
                 println!("=========================================================");
@@ -610,7 +606,8 @@ mod test_recursive {
                 &vk_gadget,
                 &input_gadgets,
                 &proof_gadget,
-            )?;
+            )?
+            .enforce_equal(&Boolean::TRUE)?;
             Ok(())
         }
     }
@@ -714,6 +711,8 @@ mod test_recursive {
                 &input_gadgets,
                 &proof_gadget,
             )
+            .unwrap()
+            .enforce_equal(&Boolean::TRUE)
             .unwrap();
             if !cs.is_satisfied().unwrap() {
                 println!("=========================================================");

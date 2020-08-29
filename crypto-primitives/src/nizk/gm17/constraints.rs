@@ -176,24 +176,20 @@ where
         })
     }
 
-    fn conditional_verify<'a, T: 'a + ToBitsGadget<E::Fq> + ?Sized>(
+    fn verify<'a, T: 'a + ToBitsGadget<E::Fq> + ?Sized>(
         vk: &Self::VerificationKeyVar,
         input: impl IntoIterator<Item = &'a T>,
         proof: &Self::ProofVar,
-        condition: &Boolean<E::Fq>,
-    ) -> Result<(), SynthesisError> {
+    ) -> Result<Boolean<E::Fq>, SynthesisError> {
         let pvk = vk.prepare()?;
-        <Self as NIZKVerifierGadget<Gm17<E, C, V>, E::Fq>>::conditional_verify_prepared(
-            &pvk, input, proof, condition,
-        )
+        <Self as NIZKVerifierGadget<Gm17<E, C, V>, E::Fq>>::verify_prepared(&pvk, input, proof)
     }
 
-    fn conditional_verify_prepared<'a, T: 'a + ToBitsGadget<E::Fq> + ?Sized>(
+    fn verify_prepared<'a, T: 'a + ToBitsGadget<E::Fq> + ?Sized>(
         pvk: &Self::PreparedVerificationKeyVar,
         input: impl IntoIterator<Item = &'a T>,
         proof: &Self::ProofVar,
-        condition: &Boolean<E::Fq>,
-    ) -> Result<(), SynthesisError> {
+    ) -> Result<Boolean<E::Fq>, SynthesisError> {
         let pvk = pvk.clone();
         // e(A*G^{alpha}, B*H^{beta}) = e(G^{alpha}, H^{beta}) * e(G^{psi}, H^{gamma}) *
         // e(C, H) where psi = \sum_{i=0}^l input_i pvk.query[i]
@@ -256,9 +252,7 @@ where
         let test2 = P::final_exponentiation(&test2_exp)?;
 
         let one = P::GTVar::one();
-        test1.conditional_enforce_equal(&one, condition)?;
-        test2.conditional_enforce_equal(&one, condition)?;
-        Ok(())
+        test1.is_eq(&one)?.and(&test2.is_eq(&one)?)
     }
 }
 
@@ -506,7 +500,10 @@ mod test {
                 &input_gadgets,
                 &proof_gadget,
             )
+            .unwrap()
+            .enforce_equal(&Boolean::TRUE)
             .unwrap();
+
             if !cs.is_satisfied().unwrap() {
                 println!("=========================================================");
                 println!("Unsatisfied constraints:");
@@ -648,7 +645,8 @@ mod test_recursive {
                 &vk_gadget,
                 &input_gadgets,
                 &proof_gadget,
-            )?;
+            )?
+            .enforce_equal(&Boolean::TRUE)?;
             Ok(())
         }
     }
@@ -752,6 +750,8 @@ mod test_recursive {
                 &input_gadgets,
                 &proof_gadget,
             )
+            .unwrap()
+            .enforce_equal(&Boolean::TRUE)
             .unwrap();
             if !cs.is_satisfied().unwrap() {
                 println!("=========================================================");

@@ -297,18 +297,16 @@ where
         {
             let _witness_ns = cs.ns("Check membership witness");
 
-            let witness_gadget =
+            let witness =
                 merkle_tree::constraints::PathVar::<_, C::MerkleTreeHGadget, _>::new_witness(
                     cs.ns("Declare witness"),
                     || Ok(witness),
                 )?;
 
-            witness_gadget.conditionally_check_membership(
-                &ledger_pp,
-                &digest_gadget,
-                &given_commitment,
-                &given_is_dummy.not(),
-            )?;
+            witness
+                .check_membership(&ledger_pp, &digest_gadget, &given_commitment)?
+                .enforce_equal(&given_is_dummy.not())?;
+            // if it's not dummy, then the membership check can return false.
         }
         // ********************************************************************
 
@@ -702,7 +700,8 @@ where
                 .chain(&pred_input_bits)
                 .filter(|v| !v.is_empty()),
             &death_pred_proof,
-        )?;
+        )?
+        .enforce_equal(&Boolean::TRUE)?;
     }
 
     for j in 0..C::NUM_OUTPUT_RECORDS {
@@ -744,7 +743,8 @@ where
                 .chain(&pred_input_bits)
                 .filter(|v| !v.is_empty()),
             &birth_pred_proof,
-        )?;
+        )?
+        .enforce_equal(&Boolean::TRUE)?;
     }
     {
         let _comm_ns = cs.ns("Check that predicate commitment is well-formed");

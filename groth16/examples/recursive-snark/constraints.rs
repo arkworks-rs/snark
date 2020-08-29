@@ -13,10 +13,7 @@ use crypto_primitives::nizk::{
 };
 use groth16::{Parameters, Proof};
 use r1cs_core::{lc, ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
-use r1cs_std::{
-    alloc::AllocVar, bits::ToBitsGadget, boolean::Boolean, fields::fp::FpVar,
-    pairing::PairingVar as PG, uint8::UInt8,
-};
+use r1cs_std::{fields::fp::FpVar, pairing::PairingVar as PG, prelude::*};
 use std::marker::PhantomData;
 
 pub trait CurvePair
@@ -229,7 +226,8 @@ where
         <InnerVerifierGadget<C, TickPairing> as NIZKVerifierGadget<
             InnerProofSystem<C>,
             <C::TockGroup as PairingEngine>::Fr,
-        >>::verify(&vk_var, input_gadgets.iter(), &proof_var)?;
+        >>::verify(&vk_var, input_gadgets.iter(), &proof_var)?
+        .enforce_equal(&Boolean::TRUE)?;
         println!(
             "|---- Num constraints for sub-SNARK verification: {}",
             cs.num_constraints() - num_constraints
@@ -347,7 +345,8 @@ where
         <MiddleVerifierGadget<C, TockPairing> as NIZKVerifierGadget<
             MiddleProofSystem<C, TickPairing>,
             <C::TickGroup as PairingEngine>::Fr,
-        >>::verify(&vk_var, &input_gadgets, &proof_var)?;
+        >>::verify(&vk_var, &input_gadgets, &proof_var)?
+        .enforce_equal(&Boolean::TRUE)?;
         println!(
             "|---- Num constraints for sub-SNARK verification: {}",
             cs.num_constraints() - num_constraints
