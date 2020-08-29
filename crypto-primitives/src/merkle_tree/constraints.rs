@@ -30,39 +30,21 @@ where
         parameters: &CRHGadget::ParametersVar,
         root: &CRHGadget::OutputVar,
         leaf: impl ToBytesGadget<ConstraintF>,
-    ) -> Result<(), SynthesisError> {
-        self.conditionally_check_membership(parameters, root, leaf, &Boolean::Constant(true))
-    }
-
-    pub fn conditionally_check_membership(
-        &self,
-        parameters: &CRHGadget::ParametersVar,
-        root: &CRHGadget::OutputVar,
-        leaf: impl ToBytesGadget<ConstraintF>,
-        should_enforce: &Boolean<ConstraintF>,
-    ) -> Result<(), SynthesisError> {
+    ) -> Result<Boolean<ConstraintF>, SynthesisError> {
         assert_eq!(self.path.len(), P::HEIGHT - 1);
         // Check that the hash of the given leaf matches the leaf hash in the membership
         // proof.
         let leaf_bits = leaf.to_bytes()?;
         let leaf_hash = CRHGadget::evaluate(parameters, &leaf_bits)?;
-        let cs = leaf_hash
-            .cs()
-            .or(root.cs())
-            .or(should_enforce.cs())
-            .unwrap();
+        let cs = leaf_hash.cs().or(root.cs()).unwrap();
 
         // Check if leaf is one of the bottom-most siblings.
         let leaf_is_left = Boolean::new_witness(cs.ns("leaf_is_left"), || {
             Ok(leaf_hash.value()?.eq(&self.path[0].0.value()?))
         })?;
 
-        leaf_hash.conditional_enforce_equal_or(
-            &leaf_is_left,
-            &self.path[0].0,
-            &self.path[0].1,
-            should_enforce,
-        )?;
+        let mut result =
+            leaf_hash.is_eq(&leaf_is_left.select(&self.path[0].0, &self.path[0].1)?)?;
 
         // Check levels between leaf level and root.
         let mut previous_hash = leaf_hash;
@@ -77,12 +59,8 @@ where
                 "enforcing that inner hash is correct at i-th level{}",
                 i
             ));
-            previous_hash.conditional_enforce_equal_or(
-                &previous_is_left,
-                left_hash,
-                right_hash,
-                should_enforce,
-            )?;
+            let equality_cmp = previous_is_left.select(left_hash, right_hash)?;
+            result = result.and(&previous_hash.is_eq(&equality_cmp)?)?;
             drop(ns);
 
             previous_hash =
@@ -90,7 +68,7 @@ where
             i += 1;
         }
 
-        root.conditional_enforce_equal(&previous_hash, should_enforce)
+        result.and(&root.is_eq(&previous_hash)?)
     }
 }
 
@@ -235,6 +213,8 @@ mod test {
             println!("constraints from path: {}", constraints_from_path);
             let leaf_g: &[_] = leaf_g.as_slice();
             cw.check_membership(&crh_parameters, &root, &leaf_g)
+                .unwrap()
+                .enforce_equal(&Boolean::TRUE)
                 .unwrap();
             if !cs.is_satisfied().unwrap() {
                 satisfied = false;

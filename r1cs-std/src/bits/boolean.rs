@@ -7,6 +7,7 @@ use r1cs_core::{lc, ConstraintSystemRef, LinearCombination, Namespace, Synthesis
 /// Represents a variable in the constraint system which is guaranteed
 /// to be either zero or one.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[must_use]
 pub struct AllocatedBit<F: Field> {
     variable: Variable,
     cs: ConstraintSystemRef<F>,
@@ -216,6 +217,7 @@ impl<F: Field> CondSelectGadget<F> for AllocatedBit<F> {
 /// This is a boolean value which may be either a constant or
 /// an interpretation of an `AllocatedBit`.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[must_use]
 pub enum Boolean<F: Field> {
     /// Existential view of the boolean variable
     Is(AllocatedBit<F>),
@@ -245,6 +247,12 @@ impl<F: Field> R1CSVar<F> for Boolean<F> {
 }
 
 impl<F: Field> Boolean<F> {
+    /// Returns the constrant `true`.
+    pub const TRUE: Self = Boolean::Constant(true);
+
+    /// Returns the constrant `false`.
+    pub const FALSE: Self = Boolean::Constant(false);
+
     pub fn lc(&self) -> LinearCombination<F> {
         match self {
             Boolean::Constant(false) => lc!(),
