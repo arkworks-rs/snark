@@ -1,13 +1,13 @@
 use crate::{
     curves::{
         models::{ModelParameters, SWModelParameters},
-        PairingEngine, GLVParameters
+        PairingEngine, //GLVParameters
     },
     fields::{
         fp3::Fp3Parameters,
         fp6_2over3::{Fp6, Fp6Parameters},
         BitIterator, Field, PrimeField, SquareRootField,
-    }, 
+    },
 };
 use num_traits::One;
 
@@ -29,12 +29,12 @@ pub trait BW6Parameters: 'static {
     type Fp: PrimeField + SquareRootField + Into<<Self::Fp as PrimeField>::BigInt>;
     type Fp3Params: Fp3Parameters<Fp = Self::Fp>;
     type Fp6Params: Fp6Parameters<Fp3Params = Self::Fp3Params>;
-    type G1Parameters: SWModelParameters<BaseField = Self::Fp> + GLVParameters;
+    type G1Parameters: SWModelParameters<BaseField = Self::Fp>;// + GLVParameters;
     type G2Parameters: SWModelParameters<
         BaseField = Self::Fp,
         ScalarField = <Self::G1Parameters as ModelParameters>::ScalarField,
-    >
-    + GLVParameters;
+    >;
+    //+ GLVParameters;
 }
 
 pub mod g1;

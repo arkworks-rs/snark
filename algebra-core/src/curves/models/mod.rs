@@ -44,6 +44,14 @@ pub trait SWModelParameters: ModelParameters {
     fn glv_endomorphism_in_place(elem: &mut Self::BaseField) {
         unimplemented!()
     }
+
+    #[inline(always)]
+
+    fn glv_scalar_decomposition(k: &mut <Self::ScalarField as PrimeField>::BigInt) ->
+        ((bool,  <Self::ScalarField as PrimeField>::BigInt), (bool,  <Self::ScalarField as PrimeField>::BigInt))
+    {
+        unimplemented!()
+    }
 }
 
 pub trait TEModelParameters: ModelParameters {

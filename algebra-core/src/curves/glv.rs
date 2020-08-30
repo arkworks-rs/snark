@@ -2,7 +2,6 @@ use crate::{biginteger::BigInteger, PrimeField, ModelParameters};
 
 // TODO: Make GLV override slower mul
 pub trait GLVParameters: Send + Sync + 'static + ModelParameters {
-    type SmallBigInt: BigInteger;
     type WideBigInt: BigInteger;
 
     const LAMBDA: Self::ScalarField;                         // lambda in ZZ s.t. phi(P) = lambda*P for all P
@@ -14,9 +13,9 @@ pub trait GLVParameters: Send + Sync + 'static + ModelParameters {
     const B1_IS_NEG: bool;
 
     // Not sure if all the data copying due to `from_slice` would result in a very inefficient implementation
-    fn glv_scalar_decomposition(
+    fn glv_scalar_decomposition_inner(
         k: <Self::ScalarField as PrimeField>::BigInt,
-    ) -> ((bool, Self::SmallBigInt), (bool, Self::SmallBigInt)) {
+    ) -> ((bool, <Self::ScalarField as PrimeField>::BigInt), (bool, <Self::ScalarField as PrimeField>::BigInt)) {
         let limbs = <Self::ScalarField as PrimeField>::BigInt::NUM_LIMBS;
         let modulus = Self::ScalarField::modulus();
 
@@ -58,12 +57,7 @@ pub trait GLVParameters: Send + Sync + 'static + ModelParameters {
             k1.add_nocarry(&modulus);
         }
 
-        let s_limbs = Self::SmallBigInt::NUM_LIMBS;
-
         // We should really return field elements and then let the next part of the process determine if
-        let k1 = Self::SmallBigInt::from_slice(&k1.as_ref()[..s_limbs]);
-        let k2 = Self::SmallBigInt::from_slice(&k2.as_ref()[..s_limbs]);
-
         ((neg1, k1), (neg2, k2))
     }
 }

@@ -111,8 +111,8 @@ pub trait BigInteger:
     /// Returns true iff this number is zero.
     fn is_zero(&self) -> bool;
 
-    /// Compute the number of bits needed to encode this number. Always a
-    /// multiple of 64.
+    /// Compute the exact number of bits needed to encode this number. Does not need
+    /// to be multiple of 64
     fn num_bits(&self) -> u32;
 
     /// Compute the `i`-th bit of `self`.

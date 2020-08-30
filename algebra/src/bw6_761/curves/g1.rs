@@ -1,11 +1,12 @@
 use crate::{
-    biginteger::{BigInteger384, BigInteger768, BigInteger1536},
+    biginteger::{BigInteger384, BigInteger768},//, BigInteger1536},
     bw6_761::{Fq, Fr},
     curves::{
         models::{ModelParameters, SWModelParameters},
         short_weierstrass_jacobian::{GroupAffine, GroupProjective},
-        GLVParameters,
+        // GLVParameters,
     },
+    fields::PrimeField,
     field_new,
 };
 
@@ -79,8 +80,18 @@ impl SWModelParameters for Parameters {
     const GLV: bool = true;
 
     fn glv_endomorphism_in_place(elem: &mut Self::BaseField) {
-        elem *= <Self as GLVParameters>::OMEGA;
+        // elem *= <Self as GLVParameters>::OMEGA;
+        unimplemented!()
     }
+
+    fn glv_scalar_decomposition(k: &mut <Self::ScalarField as PrimeField>::BigInt) ->
+        ((bool,  <Self::ScalarField as PrimeField>::BigInt), (bool, <Self::ScalarField as PrimeField>::BigInt))
+    {
+        unimplemented!()
+        // <Self as GLVParameters>::glv_scalar_decomposition(k)
+    }
+
+
 }
 
 impl GLVParameters for Parameters {
@@ -130,9 +141,6 @@ impl GLVParameters for Parameters {
     const B2: Self::BigInt;     // |b2|
     const B1_IS_NEG: bool;
 
-    fn glv_endomorphism_in_place(&mut self) {
-        self.x *= Self::OMEGA;
-    }
 }
 
 /// G1_GENERATOR_X =

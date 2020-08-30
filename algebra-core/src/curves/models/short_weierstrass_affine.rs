@@ -3,6 +3,7 @@ macro_rules! specialise_affine_to_proj {
     ($GroupProjective: ident) => {
         #[cfg(feature = "prefetch")]
         use crate::prefetch;
+        use crate::{curves::batch_arith::{decode_endo_from_usize, ENDO_CODING_BITS}, biginteger::BigInteger};
 
         #[derive(Derivative)]
         #[derivative(
@@ -69,7 +70,33 @@ macro_rules! specialise_affine_to_proj {
             }
         }
 
+        #[cfg(feature = "prefetch")]
+        macro_rules! prefetch_slice {
+            ($slice_1: ident, $slice_2: ident, $prefetch_iter: ident) => {
+                if let Some((idp_1, idp_2)) = $prefetch_iter.next() {
+                    prefetch::<Self>(&mut $slice_1[*idp_1]);
+                    prefetch::<Self>(&mut $slice_2[*idp_2]);
+                }
+            };
+
+            ($slice_1: ident, $prefetch_iter: ident) => {
+                if let Some((idp_1, idp_2)) = $prefetch_iter.next() {
+                    prefetch::<Self>(&mut $slice_1[*idp_1]);
+                }
+            };
+        }
+
+        #[cfg(feature = "prefetch")]
+        macro_rules! prefetch_slice_endo {
+            ($slice_1: ident, $prefetch_iter: ident) => {
+                if let Some((idp_1, idp_2)) = $prefetch_iter.next() {
+                    prefetch::<Self>(&mut $slice_1[*idp_1]);
+                }
+            };
+        }
+
         impl<P: Parameters> BatchGroupArithmetic for GroupAffine<P> {
+            type BBaseField = P::BaseField;
             // This implementation of batch group ops takes particular
             // care to make most use of points fetched from memory to prevent reallocations
             // It is adapted from Aztec's code.
@@ -77,11 +104,24 @@ macro_rules! specialise_affine_to_proj {
             // https://github.com/AztecProtocol/barretenberg/blob/standardplonkjson/barretenberg/src/
             // aztec/ecc/curves/bn254/scalar_multiplication/scalar_multiplication.cpp
 
+            // We require extra scratch space, and since we want to prevent allocation/deallocation overhead
+            // we pass it externally for when this function is called many times
             #[inline]
-            fn batch_double_in_place(bases: &mut [Self], index: &[usize]) {
+            fn batch_double_in_place(bases: &mut [Self], index: &[usize], scratch_space: Option<&mut Vec<Self::BBaseField>>) {
                 let mut inversion_tmp = P::BaseField::one();
-                let mut scratch_space = Vec::new(); // with_capacity? How to get size?
-                                                    // We run two loops over the data separated by an inversion
+
+                let mut _scratch_space_inner = if scratch_space.is_none() {
+                    Vec::with_capacity(index.len())
+                } else {
+                    vec![]
+                };
+                let scratch_space = match scratch_space {
+                    Some(vec) => vec,
+                    None => &mut _scratch_space_inner,
+                };
+
+                debug_assert!(scratch_space.len() == 0);
+
                 #[cfg(feature = "prefetch")]
                 let mut prefetch_iter = index.iter();
                 #[cfg(feature = "prefetch")]
@@ -148,6 +188,12 @@ macro_rules! specialise_affine_to_proj {
                         a.x = *x3;
                     }
                 }
+
+                debug_assert!(scratch_space.len() == 0);
+
+                // We reset the vector
+                // Clearing is really unnecessary, but we can do it anyway
+                scratch_space.clear();
             }
 
             // Consumes other and mutates self in place. Accepts index function
@@ -163,19 +209,13 @@ macro_rules! specialise_affine_to_proj {
                 #[cfg(feature = "prefetch")]
                 let mut prefetch_iter = index.iter();
                 #[cfg(feature = "prefetch")]
-                {
-                    prefetch_iter.next();
-                }
+                prefetch_iter.next();
 
                 // We run two loops over the data separated by an inversion
                 for (idx, idy) in index.iter() {
                     #[cfg(feature = "prefetch")]
-                    {
-                        if let Some((idp_1, idp_2)) = prefetch_iter.next() {
-                            prefetch::<Self>(&mut bases[*idp_1]);
-                            prefetch::<Self>(&mut other[*idp_2]);
-                        }
-                    }
+                    prefetch_slice!(bases, other, prefetch_iter);
+
                     let (mut a, mut b) = (&mut bases[*idx], &mut other[*idy]);
                     if a.is_zero() || b.is_zero() {
                         continue;
@@ -218,19 +258,14 @@ macro_rules! specialise_affine_to_proj {
                 #[cfg(feature = "prefetch")]
                 let mut prefetch_iter = index.iter().rev();
                 #[cfg(feature = "prefetch")]
-                {
-                    prefetch_iter.next();
-                }
+                prefetch_iter.next();
 
                 for (idx, idy) in index.iter().rev() {
                     #[cfg(feature = "prefetch")]
-                    {
-                        if let Some((idp_1, idp_2)) = prefetch_iter.next() {
-                            prefetch::<Self>(&mut bases[*idp_1]);
-                            prefetch::<Self>(&mut other[*idp_2]);
-                        }
-                    }
+                    prefetch_slice!(bases, other, prefetch_iter);
                     let (mut a, b) = (&mut bases[*idx], other[*idy]);
+
+
                     if a.is_zero() {
                         *a = b;
                     } else if !b.is_zero() {
@@ -247,7 +282,6 @@ macro_rules! specialise_affine_to_proj {
                 }
             }
 
-            // Mutates self in place. Accepts index function
             #[inline]
             fn batch_add_in_place_same_slice(bases: &mut [Self], index: &[(usize, usize)]) {
                 let mut inversion_tmp = P::BaseField::one();
@@ -263,12 +297,7 @@ macro_rules! specialise_affine_to_proj {
                 // We run two loops over the data separated by an inversion
                 for (idx, idy) in index.iter() {
                     #[cfg(feature = "prefetch")]
-                    {
-                        if let Some((idp_1, idp_2)) = prefetch_iter.next() {
-                            prefetch::<Self>(&mut bases[*idp_1]);
-                            prefetch::<Self>(&mut bases[*idp_2]);
-                        }
-                    }
+                    prefetch_slice!(bases, bases, prefetch_iter);
                     let (mut a, mut b) = if idx < idy {
                         let (x, y) = bases.split_at_mut(*idy);
                         (&mut x[*idx], &mut y[0])
@@ -317,18 +346,11 @@ macro_rules! specialise_affine_to_proj {
                 #[cfg(feature = "prefetch")]
                 let mut prefetch_iter = index.iter().rev();
                 #[cfg(feature = "prefetch")]
-                {
-                    prefetch_iter.next();
-                }
+                prefetch_iter.next();
 
                 for (idx, idy) in index.iter().rev() {
                     #[cfg(feature = "prefetch")]
-                    {
-                        if let Some((idp_1, idp_2)) = prefetch_iter.next() {
-                            prefetch::<Self>(&mut bases[*idp_1]);
-                            prefetch::<Self>(&mut bases[*idp_2]);
-                        }
-                    }
+                    prefetch_slice!(bases, bases, prefetch_iter);
                     let (mut a, b) = if idx < idy {
                         let (x, y) = bases.split_at_mut(*idy);
                         (&mut x[*idx], y[0])
@@ -348,6 +370,243 @@ macro_rules! specialise_affine_to_proj {
                         // y3 = l*(x2 - x3) - y2 or
                         // for squaring: (3x^2 + a)/2y(x - y - x3) - (y - (3x^2 + a)/2) = l*(x - x3) - y
                         a.y = lambda * &(b.x - &a.x) - &b.y;
+                    }
+                }
+            }
+
+            fn batch_add_in_place_read_only(bases: &mut [Self], other: &[Self], index: &[(usize, usize)], scratch_space: Option<&mut Vec<Self>>) {
+                let mut inversion_tmp = P::BaseField::one();
+                let mut half = None;
+
+                let mut _scratch_space_inner = if scratch_space.is_none() {
+                    Vec::<Self>::with_capacity(index.len())
+                } else {
+                    vec![]
+                };
+                let scratch_space = match scratch_space {
+                    Some(vec) => vec,
+                    None => &mut _scratch_space_inner,
+                };
+
+                #[cfg(feature = "prefetch")]
+                let mut prefetch_iter = index.iter();
+                #[cfg(feature = "prefetch")]
+                prefetch_iter.next();
+
+                // We run two loops over the data separated by an inversion
+                for (idx, idy) in index.iter() {
+                    #[cfg(feature = "prefetch")]
+                    prefetch_slice_endo!(bases, prefetch_iter);
+                    let (idy, endomorphism) = decode_endo_from_usize(*idy);
+
+                    let mut a = &mut bases[*idx];
+                    let mut b = other[idy];
+
+                    // Apply endomorphisms according to encoding
+                    if endomorphism % 2 == 1 {
+                        b = b.neg();
+                    }
+                    if P::GLV {
+                        // println!("ENDO: {}, idy: {}", endomorphism, idy);
+                        if endomorphism >> 1 == 1 {
+                            P::glv_endomorphism_in_place(&mut b.x);
+                        }
+                    }
+
+                    if a.is_zero() || b.is_zero() {
+                        scratch_space.push(b);
+                        continue;
+                    } else if a.x == b.x {
+                        half = match half {
+                            None => P::BaseField::one().double().inverse(),
+                            _ => half,
+                        };
+                        let h = half.unwrap();
+
+                        // Double
+                        // In our model, we consider self additions rare.
+                        // So we consider it inconsequential to make them more expensive
+                        // This costs 1 modular mul more than a standard squaring,
+                        // and one amortised inversion
+                        if a.y == b.y {
+                            let x_sq = b.x.square();
+                            b.x -= &b.y; // x - y
+                            a.x = b.y.double(); // denominator = 2y
+                            a.y = x_sq.double() + &x_sq + &P::COEFF_A; // numerator = 3x^2 + a
+                            b.y -= &(h * &a.y); // y - (3x^2 + a)/2
+                            a.y *= &inversion_tmp; // (3x^2 + a) * tmp
+                            inversion_tmp *= &a.x; // update tmp
+                        } else {
+                            // No inversions take place if either operand is zero
+                            a.infinity = true;
+                            b.infinity = true;
+                        }
+                    } else {
+                        // We can recover x1 + x2 from this. Note this is never 0.
+                        a.x -= &b.x; // denominator = x1 - x2
+                        a.y -= &b.y; // numerator = y1 - y2
+                        a.y *= &inversion_tmp; // (y1 - y2)*tmp
+                        inversion_tmp *= &a.x // update tmp
+                    }
+
+                    scratch_space.push(b);
+                }
+
+                inversion_tmp = inversion_tmp.inverse().unwrap(); // this is always in Fp*
+
+                #[cfg(feature = "prefetch")]
+                let mut prefetch_iter = index.iter().rev();
+                #[cfg(feature = "prefetch")]
+                prefetch_iter.next();
+
+                for (idx, idy) in index.iter().rev() {
+                    #[cfg(feature = "prefetch")]
+                    prefetch_slice_endo!(bases, prefetch_iter);
+                    let (idy, _) = decode_endo_from_usize(*idy);
+                    let (mut a, b) = (&mut bases[*idx], scratch_space.pop().unwrap());
+
+                    if a.is_zero() {
+                        *a = b;
+                    } else if !b.is_zero() {
+                        let lambda = a.y * &inversion_tmp;
+                        inversion_tmp *= &a.x; // Remove the top layer of the denominator
+
+                        // x3 = l^2 - x1 - x2 or for squaring: 2y + l^2 + 2x - 2y = l^2 - 2x
+                        a.x += &b.x.double();
+                        a.x = lambda.square() - &a.x;
+                        // y3 = l*(x2 - x3) - y2 or
+                        // for squaring: (3x^2 + a)/2y(x - y - x3) - (y - (3x^2 + a)/2) = l*(x - x3) - y
+                        a.y = lambda * &(b.x - &a.x) - &b.y;
+                    }
+                }
+            }
+
+            fn batch_scalar_mul_in_place<BigInt: BigInteger>(
+                mut bases: &mut [Self],
+                scalars: &mut [BigInt],
+                w: usize,
+            ) {
+                debug_assert!(bases.len() == scalars.len());
+                if P::GLV {
+                    use itertools::{
+                        Itertools,
+                        EitherOrBoth::*,
+                    };
+                    // let k1_vec = Vec::with_capacity() P::glv_scalar_deco
+                    let opcode_vectorised = Self::batch_wnaf_opcode_recoding::<BigInt>(scalars, w);
+                    let opcode_vectorised_glv = Self::batch_wnaf_opcode_recoding::<BigInt>(scalars, w);
+                    let tables = Self::batch_wnaf_tables(bases, w);
+                    let half_size = 1 << w;
+                    let batch_size = bases.len();
+
+                    println!("table size {}", tables.len());
+
+                    // Set all points to 0;
+                    let zero = Self::zero();
+                    for p in bases.iter_mut() {
+                        *p = zero;
+                    }
+
+                    let noop_vec = vec![None; batch_size];
+
+                    for (opcode_row, opcode_row_glv) in opcode_vectorised
+                        .iter()
+                        .zip_longest(opcode_vectorised_glv)
+                        .map(|x| match x {
+                            Both(a, b) => (a, b),
+                            Left(a) => (a, noop_vec.clone()),
+                            Right(b) => (&noop_vec, b),
+                        })
+                        .rev()
+                    {
+                        let index_double: Vec<usize> = opcode_row
+                            .iter()
+                            .enumerate()
+                            .filter(|x| x.1.is_some())
+                            .map(|x| x.0)
+                            .collect();
+
+                        Self::batch_double_in_place(&mut bases, &index_double[..], None);
+
+                        let index_add: Vec<(usize, usize)> = opcode_row
+                            .iter()
+                            .enumerate()
+                            .filter(|(_, op)| op.is_some() && op.unwrap() != 0)
+                            .map(|(i, op)| {
+                                let idx = op.unwrap();
+                                if idx > 0 {
+                                    // println!("index value: {:?}",
+                                    //     (i, (i * half_size + (idx as usize) / 2) << ENDO_CODING_BITS));
+                                    (i, (i * half_size + (idx as usize) / 2) << ENDO_CODING_BITS)
+                                } else {
+                                    (i, ((i * half_size + (-idx as usize) / 2) << ENDO_CODING_BITS) + 1)
+                                }
+                            })
+                            .collect();
+
+                        Self::batch_add_in_place_read_only(&mut bases, &tables[..], &index_add[..], None);
+
+                        // let index_add: Vec<(usize, usize)> = opcode_row
+                        //     .iter()
+                        //     .enumerate()
+                        //     .filter(|(_, op)| op.is_some() && op.unwrap() != 0)
+                        //     .map(|(i, op)| {
+                        //         let idx = op.unwrap();
+                        //         if idx > 0 {
+                        //             (i, (i * half_size + (idx as usize) / 2) << ENDO_CODING_BITS) + 2
+                        //         } else {
+                        //             (i, ((i * half_size + (-idx as usize) / 2) << ENDO_CODING_BITS) + 3)
+                        //         }
+                        //     })
+                        //      .collect();
+                        //
+                        // Self::batch_add_in_place_read_only(&mut bases, &tables[..], &index_add_glv[..], None);
+                    }
+                } else {
+                    let opcode_vectorised = Self::batch_wnaf_opcode_recoding::<BigInt>(scalars, w);
+                    let tables = Self::batch_wnaf_tables(bases, w);
+                    let half_size = 1 << w;
+
+                    // Set all points to 0;
+                    let zero = Self::zero();
+                    for p in bases.iter_mut() {
+                        *p = zero;
+                    }
+
+                    for opcode_row in opcode_vectorised.iter().rev() {
+                        let index_double: Vec<usize> = opcode_row
+                            .iter()
+                            .enumerate()
+                            .filter(|x| x.1.is_some())
+                            .map(|x| x.0)
+                            .collect();
+
+                        Self::batch_double_in_place(&mut bases, &index_double[..], None);
+
+                        let mut add_ops: Vec<Self> = opcode_row
+                            .iter()
+                            .enumerate()
+                            .filter(|(_, op)| op.is_some() && op.unwrap() != 0)
+                            .map(|(i, op)| {
+                                let idx = op.unwrap();
+                                if idx > 0 {
+                                    tables[i * half_size + (idx as usize) / 2].clone()
+                                } else {
+                                    tables[i * half_size + (-idx as usize) / 2].clone().neg()
+                                }
+                            })
+                            .collect();
+
+                        let index_add: Vec<(usize, usize)> = opcode_row
+                            .iter()
+                            .enumerate()
+                            .filter(|(_, op)| op.is_some() && op.unwrap() != 0)
+                            .map(|x| x.0)
+                            .enumerate()
+                            .map(|(x, y)| (y, x))
+                            .collect();
+
+                        Self::batch_add_in_place(&mut bases, &mut add_ops[..], &index_add[..]);
                     }
                 }
             }

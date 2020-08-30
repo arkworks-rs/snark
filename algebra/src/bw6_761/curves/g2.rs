@@ -4,7 +4,7 @@ use crate::{
     curves::{
         models::{ModelParameters, SWModelParameters},
         short_weierstrass_jacobian::{GroupAffine, GroupProjective},
-        GLVParameters,
+        // GLVParameters,
     },
     field_new,
 };

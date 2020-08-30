@@ -156,6 +156,7 @@ impl VariableBaseMSM {
                         scalar.divn(w_start as u32);
 
                         // We mod the remaining bits by the window size.
+                        // This is wrong and will subtract from zero. FIXME.
                         (scalar.as_ref()[0] % (1 << c)) as usize - 1
                     })
                     .collect::<Vec<usize>>();

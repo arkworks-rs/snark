@@ -82,9 +82,6 @@ pub use to_field_vec::ToConstraintField;
 pub mod msm;
 pub use self::msm::*;
 
-pub mod bucketed_add;
-pub use self::bucketed_add::*;
-
 pub use num_traits::{One, Zero};
 
 pub mod prelude {

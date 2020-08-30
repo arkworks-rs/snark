@@ -3,6 +3,7 @@ use rand_xorshift::XorShiftRng;
 use std::ops::{AddAssign, MulAssign, SubAssign};
 
 use algebra::{
+    curves::BatchGroupArithmeticSlice,
     biginteger::{BigInteger384 as FrRepr, BigInteger768 as FqRepr},
     bw6::{G1Prepared, G2Prepared},
     bw6_761::{
@@ -12,9 +13,10 @@ use algebra::{
     BigInteger, Field, PairingEngine, PrimeField, ProjectiveCurve, SquareRootField, UniformRand,
 };
 
-ec_bench!();
-f_bench!(1, Fq3, Fq3, fq3);
-f_bench!(2, Fq6, Fq6, fq6);
-f_bench!(Fq, Fq, FqRepr, FqRepr, fq);
-f_bench!(Fr, Fr, FrRepr, FrRepr, fr);
-pairing_bench!(BW6_761, Fq6, prepared_v);
+batch_arith!();
+// ec_bench!();
+// f_bench!(1, Fq3, Fq3, fq3);
+// f_bench!(2, Fq6, Fq6, fq6);
+// f_bench!(Fq, Fq, FqRepr, FqRepr, fq);
+// f_bench!(Fr, Fr, FrRepr, FrRepr, fr);
+// pairing_bench!(BW6_761, Fq6, prepared_v);
