@@ -1,7 +1,8 @@
 use crate::fields::FpParameters;
 use crate::{
-    cfg_chunks_mut, curves::{BatchGroupArithmeticSlice, batch_bucketed_add_split}, log2, AffineCurve,
-    PrimeField, ProjectiveCurve,
+    cfg_chunks_mut,
+    curves::{batch_bucketed_add_split, BatchGroupArithmeticSlice},
+    log2, AffineCurve, PrimeField, ProjectiveCurve,
 };
 use num_traits::{identities::Zero, Pow};
 use rand::thread_rng;

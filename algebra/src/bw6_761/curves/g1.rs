@@ -1,13 +1,13 @@
 use crate::{
-    biginteger::{BigInteger384, BigInteger768},//, BigInteger1536},
+    biginteger::{BigInteger384, BigInteger768}, //, BigInteger1536},
     bw6_761::{Fq, Fr},
     curves::{
         models::{ModelParameters, SWModelParameters},
         short_weierstrass_jacobian::{GroupAffine, GroupProjective},
-        // GLVParameters,
+        GLVParameters,
     },
-    fields::PrimeField,
     field_new,
+    fields::PrimeField,
 };
 
 pub type G1Affine = GroupAffine<Parameters>;
@@ -19,6 +19,83 @@ pub struct Parameters;
 impl ModelParameters for Parameters {
     type BaseField = Fq;
     type ScalarField = Fr;
+}
+
+impl GLVParameters for Parameters {
+    type WideBigInt = BigInteger768;
+
+    /// phi((x, y)) = (\omega x, y)
+    /// \omega = 0x531dc16c6ecd27aa846c61024e4cca6c1f31e53bd9603c2d17be416c5e44
+    /// 26ee4a737f73b6f952ab5e57926fa701848e0a235a0a398300c65759fc4518315
+    /// 1f2f082d4dcb5e37cb6290012d96f8819c547ba8a4000002f962140000000002a
+    const OMEGA: Fq = field_new!(
+        Fq,
+        BigInteger768([
+            7467050525960156664,
+            11327349735975181567,
+            4886471689715601876,
+            825788856423438757,
+            532349992164519008,
+            5190235139112556877,
+            10134108925459365126,
+            2188880696701890397,
+            14832254987849135908,
+            2933451070611009188,
+            11385631952165834796,
+            64130670718986244
+        ])
+    );
+
+    /// lambda in Z s.t. phi(P) = lambda*P for all P
+    /// \lambda = 0x9b3af05dd14f6ec619aaf7d34594aabc5ed1347970dec00452217cc900000008508c00000000001
+    const LAMBDA: Self::ScalarField = field_new!(
+        Fr,
+        (BigInteger384([
+            15766275933608376691,
+            15635974902606112666,
+            1934946774703877852,
+            18129354943882397960,
+            15437979634065614942,
+            101285514078273488
+        ]))
+    );
+    /// |round(B1 * R / n)|
+    const Q2: <Self::ScalarField as PrimeField>::BigInt = BigInteger384([
+        14430678704534329733,
+        14479735877321354361,
+        6958676793196883088,
+        21,
+        0,
+        0,
+    ]);
+    const B1: <Self::ScalarField as PrimeField>::BigInt = BigInteger384([
+        9586122913090633729,
+        9963140610363752448,
+        2588746559005780992,
+        0,
+        0,
+        0,
+    ]);
+    const B1_IS_NEG: bool = true;
+    /// |round(B2 * R / n)|
+    const Q1: <Self::ScalarField as PrimeField>::BigInt = BigInteger384([
+        11941976086484053770,
+        4826578625773784813,
+        2319558931065627696,
+        7,
+        0,
+        0,
+    ]);
+    const B2: <Self::ScalarField as PrimeField>::BigInt = BigInteger384([
+        6390748608727089153,
+        3321046870121250816,
+        862915519668593664,
+        0,
+        0,
+        0,
+    ]);
+    const B2_IS_NEG: bool = false;
+    const R_BITS: u32 = 384;
 }
 
 impl SWModelParameters for Parameters {
@@ -80,67 +157,17 @@ impl SWModelParameters for Parameters {
     const GLV: bool = true;
 
     fn glv_endomorphism_in_place(elem: &mut Self::BaseField) {
-        // elem *= <Self as GLVParameters>::OMEGA;
-        unimplemented!()
+        *elem *= &<Self as GLVParameters>::OMEGA;
     }
 
-    fn glv_scalar_decomposition(k: &mut <Self::ScalarField as PrimeField>::BigInt) ->
-        ((bool,  <Self::ScalarField as PrimeField>::BigInt), (bool, <Self::ScalarField as PrimeField>::BigInt))
-    {
-        unimplemented!()
-        // <Self as GLVParameters>::glv_scalar_decomposition(k)
+    fn glv_scalar_decomposition(
+        k: <Self::ScalarField as PrimeField>::BigInt,
+    ) -> (
+        (bool, <Self::ScalarField as PrimeField>::BigInt),
+        (bool, <Self::ScalarField as PrimeField>::BigInt),
+    ) {
+        <Self as GLVParameters>::glv_scalar_decomposition_inner(k)
     }
-
-
-}
-
-impl GLVParameters for Parameters {
-    type SmallBigInt = BigInteger192;
-    type WideBigInt = BigInteger768;
-
-    const MODULUS: <Self::BaseField as PrimeField>::BigInt = Fr::Params::MODULUS;
-
-    /// lambda in Z s.t. phi(P) = lambda*P for all P
-    /// \lambda = 0x9b3af05dd14f6ec619aaf7d34594aabc5ed1347970dec00452217cc900000008508c00000000001
-
-    // This ought to be the Fr version so that (lambda * R * k2) / R ~ lambda * k2
-    // We can do the modular reductions when adding/sub from k manually
-    const LAMBDA: <Self::Fr as PrimeField>::BigInt = BigInteger384([
-        0x8508c00000000001,
-        0x452217cc90000000,
-        0xc5ed1347970dec00,
-        0x619aaf7d34594aab,
-        0x9b3af05dd14f6ec,
-        0x0
-    ]);
-
-    // This is in the wrong format. It has to be multiplied by R.
-
-    /// phi((x, y)) = (\omega x, y)
-    /// \omega = 0x531dc16c6ecd27aa846c61024e4cca6c1f31e53bd9603c2d17be416c5e44
-    /// 26ee4a737f73b6f952ab5e57926fa701848e0a235a0a398300c65759fc4518315
-    /// 1f2f082d4dcb5e37cb6290012d96f8819c547ba8a4000002f962140000000002a
-    const OMEGA: Fq = field_new!(Fq, BigInteger768([
-        0x962140000000002a,
-        0xc547ba8a4000002f,
-        0xb6290012d96f8819,
-        0xf2f082d4dcb5e37c,
-        0xc65759fc45183151,
-        0x8e0a235a0a398300,
-        0xab5e57926fa70184,
-        0xee4a737f73b6f952,
-        0x2d17be416c5e4426,
-        0x6c1f31e53bd9603c,
-        0xaa846c61024e4cca,
-        0x531dc16c6ecd27,
-    ]));
-
-    const Q1: Self::BigInt;     // round(R*|b2|/n)
-    const Q2: Self::BigInt;     // round(R*|b1|/n)
-    const B1: Self::BigInt;     // |b1|
-    const B2: Self::BigInt;     // |b2|
-    const B1_IS_NEG: bool;
-
 }
 
 /// G1_GENERATOR_X =

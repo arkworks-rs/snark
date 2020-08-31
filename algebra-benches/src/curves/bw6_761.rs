@@ -3,13 +3,13 @@ use rand_xorshift::XorShiftRng;
 use std::ops::{AddAssign, MulAssign, SubAssign};
 
 use algebra::{
-    curves::BatchGroupArithmeticSlice,
     biginteger::{BigInteger384 as FrRepr, BigInteger768 as FqRepr},
     bw6::{G1Prepared, G2Prepared},
     bw6_761::{
         fq::Fq, fq3::Fq3, fr::Fr, Fq6, G1Affine, G1Projective as G1, G2Affine, G2Projective as G2,
         Parameters, BW6_761,
     },
+    curves::BatchGroupArithmeticSlice,
     BigInteger, Field, PairingEngine, PrimeField, ProjectiveCurve, SquareRootField, UniformRand,
 };
 

@@ -368,7 +368,10 @@ pub fn random_batch_scalar_mul_test<G: ProjectiveCurve>() {
 
         let c: Vec<G::Affine> = c.iter().map(|p| p.into_affine()).collect();
 
-        assert_eq!(a, c);
+        for (p1, p2) in a.iter().zip(c) {
+            println!("{}", *p1 == p2);
+            // assert_eq!(p1, p2);
+        }
     }
 }
 

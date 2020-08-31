@@ -29,7 +29,7 @@ pub trait BW6Parameters: 'static {
     type Fp: PrimeField + SquareRootField + Into<<Self::Fp as PrimeField>::BigInt>;
     type Fp3Params: Fp3Parameters<Fp = Self::Fp>;
     type Fp6Params: Fp6Parameters<Fp3Params = Self::Fp3Params>;
-    type G1Parameters: SWModelParameters<BaseField = Self::Fp>;// + GLVParameters;
+    type G1Parameters: SWModelParameters<BaseField = Self::Fp>; // + GLVParameters;
     type G2Parameters: SWModelParameters<
         BaseField = Self::Fp,
         ScalarField = <Self::G1Parameters as ModelParameters>::ScalarField,

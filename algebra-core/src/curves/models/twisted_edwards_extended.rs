@@ -169,7 +169,11 @@ impl<P: Parameters> BatchGroupArithmetic for GroupAffine<P> {
     type BBaseField = P::BaseField;
     // This function consumes the second op as it mutates it in place
     // to prevent memory allocation
-    fn batch_double_in_place(bases: &mut [Self], index: &[usize], _scratch_space: Option<&mut Vec<Self::BBaseField>>) {
+    fn batch_double_in_place(
+        bases: &mut [Self],
+        index: &[usize],
+        _scratch_space: Option<&mut Vec<Self::BBaseField>>,
+    ) {
         Self::batch_add_in_place(
             bases,
             &mut bases.to_vec()[..],

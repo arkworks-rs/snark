@@ -22,7 +22,7 @@ pub fn batch_bucketed_add_split<C: AffineCurve>(
         1 << bucket_size
     };
     let num_split = (buckets - 1) / split_size + 1;
-    println!("{}, {}", split_size, num_split);
+    // println!("{}, {}", split_size, num_split);
     let mut elem_split = vec![vec![]; num_split];
     let mut bucket_split = vec![vec![]; num_split];
 
@@ -47,10 +47,10 @@ pub fn batch_bucketed_add_split<C: AffineCurve>(
         // println!("{}: time: {}", i, then.elapsed().as_micros());
     }
 
-    println!(
-        "\nAssign bucket and elem split: {:?}",
-        now.elapsed().as_micros()
-    );
+    // println!(
+    //     "\nAssign bucket and elem split: {:?}",
+    //     now.elapsed().as_micros()
+    // );
 
     let now = std::time::Instant::now();
 
@@ -72,7 +72,7 @@ pub fn batch_bucketed_add_split<C: AffineCurve>(
     //         .collect()
     // };
 
-    println!("Bucketed add: {:?}", now.elapsed().as_micros());
+    // println!("Bucketed add: {:?}", now.elapsed().as_micros());
     res
 }
 

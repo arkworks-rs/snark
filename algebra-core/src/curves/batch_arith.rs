@@ -1,6 +1,9 @@
-use crate::{AffineCurve, biginteger::{BigInteger, arithmetic}, Field};
-use num_traits::Zero;
+use crate::{
+    biginteger::{arithmetic, BigInteger},
+    AffineCurve, Field,
+};
 use core::ops::Neg;
+use num_traits::Zero;
 
 // 0 == Identity; 1 == Neg; 2 == GLV; 3 == GLV + Neg
 pub const ENDO_CODING_BITS: usize = 2;
@@ -75,6 +78,7 @@ where
     fn batch_wnaf_opcode_recoding<BigInt: BigInteger>(
         scalars: &mut [BigInt],
         w: usize,
+        negate: Option<&[bool]>,
     ) -> Vec<Vec<Option<i16>>> {
         assert!(w > 0);
         let batch_size = scalars.len();
@@ -85,34 +89,70 @@ where
             Vec::<Vec<Option<i16>>>::with_capacity(scalars[0].as_ref().len() * 64);
 
         let mut all_none = false;
-        while !all_none {
-            let mut opcode_row = Vec::with_capacity(batch_size);
 
-            for s in scalars.iter_mut() {
-                if s.is_zero() {
-                    opcode_row.push(None);
-                } else {
-                    let op = if s.is_odd() {
-                        let mut z: i16 = (s.as_ref()[0] % (1 << (w + 1))) as i16;
-
-                        if z < half_window_size {
-                            s.sub_noborrow(&BigInt::from(z as u64));
+        match negate {
+            None => {
+                while !all_none {
+                    let mut opcode_row = Vec::with_capacity(batch_size);
+                    for s in scalars.iter_mut() {
+                        if s.is_zero() {
+                            opcode_row.push(None);
                         } else {
-                            z = z - window_size;
-                            s.add_nocarry(&BigInt::from((-z) as u64));
+                            let op = if s.is_odd() {
+                                let mut z: i16 = (s.as_ref()[0] % (1 << (w + 1))) as i16;
+
+                                if z < half_window_size {
+                                    s.sub_noborrow(&BigInt::from(z as u64));
+                                } else {
+                                    z = z - window_size;
+                                    s.add_nocarry(&BigInt::from((-z) as u64));
+                                }
+                                z
+                            } else {
+                                0
+                            };
+                            opcode_row.push(Some(op));
+                            s.div2();
                         }
-                        z
-                    } else {
-                        0
-                    };
-                    opcode_row.push(Some(op));
-                    s.div2();
+                    }
+                    all_none = opcode_row.iter().all(|x| x.is_none());
+                    if !all_none {
+                        op_code_vectorised.push(opcode_row);
+                    }
                 }
             }
-
-            all_none = opcode_row.iter().all(|x| x.is_none());
-            if !all_none {
-                op_code_vectorised.push(opcode_row);
+            Some(bools) => {
+                while !all_none {
+                    let mut opcode_row = Vec::with_capacity(batch_size);
+                    for (s, neg) in scalars.iter_mut().zip(bools) {
+                        if s.is_zero() {
+                            opcode_row.push(None);
+                        } else {
+                            let op = if s.is_odd() {
+                                let mut z: i16 = (s.as_ref()[0] % (1 << (w + 1))) as i16;
+                                if z < half_window_size {
+                                    s.sub_noborrow(&BigInt::from(z as u64));
+                                } else {
+                                    z = z - window_size;
+                                    s.add_nocarry(&BigInt::from((-z) as u64));
+                                }
+                                if *neg {
+                                    -z
+                                } else {
+                                    z
+                                }
+                            } else {
+                                0
+                            };
+                            opcode_row.push(Some(op));
+                            s.div2();
+                        }
+                    }
+                    all_none = opcode_row.iter().all(|x| x.is_none());
+                    if !all_none {
+                        op_code_vectorised.push(opcode_row);
+                    }
+                }
             }
         }
         op_code_vectorised
@@ -120,13 +160,22 @@ where
 
     // This function consumes the second op as it mutates it in place
     // to prevent memory allocation6
-    fn batch_double_in_place(bases: &mut [Self], index: &[usize], scratch_space: Option<&mut Vec<Self::BBaseField>>);
+    fn batch_double_in_place(
+        bases: &mut [Self],
+        index: &[usize],
+        scratch_space: Option<&mut Vec<Self::BBaseField>>,
+    );
 
     fn batch_add_in_place_same_slice(bases: &mut [Self], index: &[(usize, usize)]);
 
     fn batch_add_in_place(bases: &mut [Self], other: &mut [Self], index: &[(usize, usize)]);
 
-    fn batch_add_in_place_read_only(bases: &mut [Self], other: &[Self], index: &[(usize, usize)], scratch_space: Option<&mut Vec<Self>>) {
+    fn batch_add_in_place_read_only(
+        bases: &mut [Self],
+        other: &[Self],
+        index: &[(usize, usize)],
+        scratch_space: Option<&mut Vec<Self>>,
+    ) {
         unimplemented!()
     }
 
@@ -135,7 +184,7 @@ where
         scalars: &mut [BigInt],
         w: usize,
     ) {
-        let opcode_vectorised = Self::batch_wnaf_opcode_recoding::<BigInt>(scalars, w);
+        let opcode_vectorised = Self::batch_wnaf_opcode_recoding::<BigInt>(scalars, w, None);
         let tables = Self::batch_wnaf_tables(bases, w);
         let half_size = 1 << w;
 
