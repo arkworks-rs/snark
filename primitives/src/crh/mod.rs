@@ -23,7 +23,7 @@ pub trait FixedLengthCRH {
     fn evaluate(parameters: &Self::Parameters, input: &[u8]) -> Result<Self::Output, Error>;
 }
 
-pub trait FieldBasedHashParameters{
+pub trait FieldBasedHashParameters: Clone{
     type Fr: Field;
 }
 

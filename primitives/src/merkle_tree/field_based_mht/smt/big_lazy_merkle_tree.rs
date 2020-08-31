@@ -1,9 +1,10 @@
-use crate::merkle_tree::field_based_mht::smt::{SmtPoseidonParameters, Coord, OperationLeaf, BigMerkleTreeState};
-use crate::{PoseidonParameters, BatchFieldBasedHash, merkle_tree};
-use crate::crh::poseidon::batched_crh::PoseidonBatchHash;
+use crate::merkle_tree::field_based_mht::smt::{Coord, OperationLeaf, BigMerkleTreeState};
+use crate::{BatchFieldBasedHash, FieldBasedMerkleTreeParameters, MNT4753MHTPoseidonParameters, MNT6753MHTPoseidonParameters};
+use crate::crh::poseidon::batched_crh::{MNT4BatchPoseidonHash, MNT6BatchPoseidonHash};
 use crate::merkle_tree::field_based_mht::smt::ActionLeaf::Remove;
-use crate::merkle_tree::field_based_mht::smt::parameters::{MNT4753SmtPoseidonParameters, MNT6753SmtPoseidonParameters};
-use crate::crh::poseidon::parameters::{MNT4753PoseidonParameters, MNT6753PoseidonParameters};
+use crate::crh::poseidon::{
+    MNT4PoseidonHash, MNT6PoseidonHash
+};
 
 use rocksdb::{DB, Options};
 
@@ -21,7 +22,11 @@ use crate::merkle_tree::field_based_mht::smt::error::Error;
 use std::path::Path;
 
 #[derive(Debug)]
-pub struct LazyBigMerkleTree<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParameters<Fr=F>> {
+pub struct LazyBigMerkleTree<
+    F: PrimeField + MulShort,
+    T: FieldBasedMerkleTreeParameters<Data = F>,
+    H: BatchFieldBasedHash<Data = F>,
+> {
     // if unset, all DBs and tree internal state will be deleted when an instance of this struct
     // gets dropped
     persistent: bool,
@@ -42,16 +47,16 @@ pub struct LazyBigMerkleTree<F: PrimeField + MulShort, T: SmtPoseidonParameters<
 
     _field: PhantomData<F>,
     _parameters: PhantomData<T>,
-    _poseidon_parameters: PhantomData<P>,
+    _hash_parameters: PhantomData<H>,
 }
 
-impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParameters<Fr=F>> Drop for LazyBigMerkleTree<F, T, P> {
+impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: BatchFieldBasedHash<Data = F>> Drop for LazyBigMerkleTree<F, T, H> {
     fn drop(&mut self) {
         self.close()
     }
 }
 
-impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParameters<Fr=F>> LazyBigMerkleTree<F, T, P> {
+impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: BatchFieldBasedHash<Data = F>> LazyBigMerkleTree<F, T, H> {
     // Creates a new tree of specified `width`.
     // If `persistent` is specified, then DBs will be kept on disk and the tree state will be saved
     // so that the tree can be restored any moment later. Otherwise, no state will be saved on file
@@ -82,7 +87,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             db_cache,
             _field: PhantomData,
             _parameters: PhantomData,
-            _poseidon_parameters: PhantomData,
+            _hash_parameters: PhantomData,
         })
     }
 
@@ -121,7 +126,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             db_cache,
             _field: PhantomData,
             _parameters: PhantomData,
-            _poseidon_parameters: PhantomData,
+            _hash_parameters: PhantomData,
         })
     }
 
@@ -359,7 +364,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
                 } else {
                     right_hash = T::EMPTY_HASH_CST[0];
                 }
-                node_hash = merkle_tree::field_based_mht::smt::big_merkle_tree::BigMerkleTree::<F, T, P>::poseidon_hash(left_hash, right_hash);
+                node_hash = Self::batch_hash(vec![left_hash, right_hash])[0];
             } else {
                 let height_child = coord.height - 1;
                 let left_child_idx = coord.idx * T::MERKLE_ARITY;
@@ -370,7 +375,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
                 let coord_right = Coord { height: height_child, idx: right_child_idx };
                 let right_child_hash = LazyBigMerkleTree::node(self, coord_right);
 
-                node_hash = merkle_tree::field_based_mht::smt::big_merkle_tree::BigMerkleTree::<F, T, P>::poseidon_hash(left_child_hash, right_child_hash);
+                node_hash = Self::batch_hash(vec![left_child_hash, right_child_hash])[0];
             }
             return node_hash;
         }
@@ -386,8 +391,8 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         self.remove_from_cache(coord);
     }
 
-    pub fn batch_poseidon_hash(input: Vec<F>) -> Vec<F> {
-        let output_vec = PoseidonBatchHash::<F, P>::batch_evaluate(&input);
+    pub fn batch_hash(input: Vec<F>) -> Vec<F> {
+        let output_vec = H::batch_evaluate(&input);
         output_vec.unwrap()
     }
 
@@ -512,7 +517,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             }
         }
         // Process the input_vec using batch Poseidon hash
-        let output_vec = merkle_tree::field_based_mht::smt::big_lazy_merkle_tree::LazyBigMerkleTree::<F, T, P>::batch_poseidon_hash(input_vec);
+        let output_vec = Self::batch_hash(input_vec);
         // Place the computed hash in a cache_parallel
         let mut index_output_vec = 0;
         for coord in nodes_to_process_in_parallel[0].clone() {
@@ -566,7 +571,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             }
 
             // Process the input_vec using batch Poseidon hash
-            let output_vec = merkle_tree::field_based_mht::smt::big_lazy_merkle_tree::LazyBigMerkleTree::<F, T, P>::batch_poseidon_hash(input_vec);
+            let output_vec = Self::batch_hash(input_vec);
 
             // Place the computed hash in a cache_parallel
             let mut index_output_vec = 0;
@@ -589,16 +594,16 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
     }
 
 }
-pub type MNT4PoseidonSmt = BigMerkleTree<MNT4753Fr, MNT4753SmtPoseidonParameters, MNT4753PoseidonParameters>;
-pub type MNT4PoseidonSmtLazy = LazyBigMerkleTree<MNT4753Fr, MNT4753SmtPoseidonParameters, MNT4753PoseidonParameters>;
-pub type MNT6PoseidonSmt = BigMerkleTree<MNT6753Fr, MNT6753SmtPoseidonParameters, MNT6753PoseidonParameters>;
-pub type MNT6PoseidonSmtLazy = LazyBigMerkleTree<MNT6753Fr, MNT6753SmtPoseidonParameters, MNT6753PoseidonParameters>;
+pub type MNT4PoseidonSmt = BigMerkleTree<MNT4753Fr, MNT4753MHTPoseidonParameters, MNT4PoseidonHash>;
+pub type MNT4PoseidonSmtLazy = LazyBigMerkleTree<MNT4753Fr, MNT4753MHTPoseidonParameters, MNT4BatchPoseidonHash>;
+pub type MNT6PoseidonSmt = BigMerkleTree<MNT6753Fr, MNT6753MHTPoseidonParameters, MNT6PoseidonHash>;
+pub type MNT6PoseidonSmtLazy = LazyBigMerkleTree<MNT6753Fr, MNT6753MHTPoseidonParameters, MNT6BatchPoseidonHash>;
 
 #[cfg(test)]
 mod test {
-    use crate::merkle_tree::field_based_mht::smt::{MNT4PoseidonHash, OperationLeaf, Coord, ActionLeaf, SmtPoseidonParameters, MNT6PoseidonHash};
-    use crate::merkle_tree::field_based_mht::{FieldBasedMerkleTreeConfig, FieldBasedMerkleHashTree};
-    use crate::merkle_tree::field_based_mht::smt::parameters::{MNT4753SmtPoseidonParameters, MNT6753SmtPoseidonParameters};
+    use crate::merkle_tree::field_based_mht::smt::{MNT4PoseidonHash, OperationLeaf, Coord, ActionLeaf, FieldBasedMerkleTreeParameters, MNT6PoseidonHash};
+    use crate::merkle_tree::field_based_mht::{FieldBasedMerkleTreeConfig, NaiveMerkleTree};
+    use crate::merkle_tree::field_based_mht::poseidon::{MNT4753MHTPoseidonParameters};
     use crate::merkle_tree::field_based_mht::smt::big_lazy_merkle_tree::{MNT4PoseidonSmt, MNT4PoseidonSmtLazy, MNT6PoseidonSmt, MNT6PoseidonSmtLazy};
 
     use algebra::fields::mnt6753::Fr as MNT6753Fr;
@@ -612,6 +617,7 @@ mod test {
     use rand_xorshift::XorShiftRng;
     use rand::{SeedableRng, RngCore};
     use rand::rngs::OsRng;
+    use crate::MNT6753MHTPoseidonParameters;
 
     struct MNT4753FieldBasedMerkleTreeParams;
     struct MNT6753FieldBasedMerkleTreeParams;
@@ -626,8 +632,8 @@ mod test {
         type H = MNT6PoseidonHash;
     }
 
-    type MNT4753FieldBasedMerkleTree = FieldBasedMerkleHashTree<MNT4753FieldBasedMerkleTreeParams>;
-    type MNT6753FieldBasedMerkleTree = FieldBasedMerkleHashTree<MNT6753FieldBasedMerkleTreeParams>;
+    type MNT4753FieldBasedMerkleTree = NaiveMerkleTree<MNT4753FieldBasedMerkleTreeParams>;
+    type MNT6753FieldBasedMerkleTree = NaiveMerkleTree<MNT6753FieldBasedMerkleTreeParams>;
 
     #[test]
     fn process_leaves_mnt4_comp() {
@@ -719,7 +725,7 @@ mod test {
         assert_eq!(root1, root2, "Roots are not equal");
         assert_eq!(root3, root4, "Roots are not equal");
 
-        assert_eq!(root3, MNT4753SmtPoseidonParameters::EMPTY_HASH_CST[23], "Sequence of roots not equal");
+        assert_eq!(root3, MNT4753MHTPoseidonParameters::EMPTY_HASH_CST[23], "Sequence of roots not equal");
 
     }
 
@@ -767,7 +773,7 @@ mod test {
         }
         let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
 
-        assert_eq!(tree.root.unwrap(), smt.state.root, "Roots are not equal");
+        assert_eq!(tree.root(), smt.state.root, "Roots are not equal");
 
     }
 
@@ -861,7 +867,7 @@ mod test {
         assert_eq!(root1, root2, "Roots are not equal");
         assert_eq!(root3, root4, "Roots are not equal");
 
-        assert_eq!(root3, MNT6753SmtPoseidonParameters::EMPTY_HASH_CST[23], "Sequence of roots not equal");
+        assert_eq!(root3, MNT6753MHTPoseidonParameters::EMPTY_HASH_CST[23], "Sequence of roots not equal");
 
     }
 
@@ -908,7 +914,7 @@ mod test {
         }
         let tree = MNT6753FieldBasedMerkleTree::new(&leaves).unwrap();
 
-        assert_eq!(tree.root.unwrap(), smt.state.root, "Roots are not equal");
+        assert_eq!(tree.root(), smt.state.root, "Roots are not equal");
     }
 
     #[test]

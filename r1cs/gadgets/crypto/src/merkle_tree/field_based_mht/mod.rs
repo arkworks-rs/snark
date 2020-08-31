@@ -255,7 +255,7 @@ mod test {
         type H = MNT4PoseidonHash;
     }
 
-    type MNT4753FieldBasedMerkleTree = FieldBasedMerkleHashTree<MNT4753FieldBasedMerkleTreeParams>;
+    type MNT4753FieldBasedMerkleTree = NaiveMerkleTree<MNT4753FieldBasedMerkleTreeParams>;
 
     type HG = MNT4PoseidonHashGadget;
 

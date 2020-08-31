@@ -3,6 +3,7 @@ use algebra::bytes::ToBytes;
 use std::{fmt, rc::Rc};
 
 pub mod field_based_mht;
+pub use self::field_based_mht::*;
 
 pub trait MerkleTreeConfig {
     const HEIGHT: usize;

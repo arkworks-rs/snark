@@ -1,23 +1,507 @@
-use crate::FieldBasedHashParameters;
-use crate::merkle_tree::field_based_mht::smt::SmtPoseidonParameters;
+extern crate rand;
 
-use algebra::fields::mnt6753::Fr as MNT6753Fr;
-use algebra::fields::mnt4753::Fr as MNT4753Fr;
+use algebra::{PrimeField, MulShort};
+use crate::{crh::{
+    BatchFieldBasedHash,
+    poseidon::{PoseidonParameters, batched_crh::PoseidonBatchHash}
+}, merkle_tree::field_based_mht::FieldBasedMerkleTree, PoseidonHash, FieldBasedHash};
+use std::{marker::PhantomData, clone::Clone};
 
-use algebra::biginteger::BigInteger768;
-use algebra::field_new;
+#[derive(Clone, Debug)]
+pub struct PoseidonMerklePath<F: PrimeField + MulShort>(
+    pub Vec<(F, bool)>
+);
 
 #[derive(Clone)]
-pub struct MNT4753SmtPoseidonParameters;
-
-impl FieldBasedHashParameters for MNT4753SmtPoseidonParameters {
-    type Fr = MNT4753Fr;
+pub struct PoseidonMerkleTree<
+    F: PrimeField + MulShort,
+    T: FieldBasedMerkleTreeParameters<Data = F>,
+    P: PoseidonParameters<Fr = F>
+>{
+    root: F,
+    // Stores all MT nodes
+    array_nodes: Vec<F>,
+    processing_step: usize,
+    // Stores the initial index of each level of the MT
+    initial_pos: Vec<usize>,
+    // Stores the final index of each level of the MT
+    final_pos: Vec<usize>,
+    // Stores the index up until the nodes were already hashed, for each level
+    processed_pos: Vec<usize>,
+    // Stores the next available index for each level of the MT
+    new_elem_pos: Vec<usize>,
+    levels: usize,
+    rate: usize,
+    num_leaves: usize,
+    finalized: bool,
+    _tree_parameters: PhantomData<T>,
+    _hash_parameters: PhantomData<P>,
 }
 
-impl SmtPoseidonParameters for MNT4753SmtPoseidonParameters {
+impl<
+    F: PrimeField + MulShort,
+    T: FieldBasedMerkleTreeParameters<Data = F>,
+    P: PoseidonParameters<Fr = F>
+> PoseidonMerkleTree<F, T, P> {
+
+    pub fn compute_subtree(&mut self) {
+        for i in 0..self.levels  {
+
+            if (self.new_elem_pos[i] - self.processed_pos[i]) >= self.rate {
+                let num_groups_leaves = (self.new_elem_pos[i] - self.processed_pos[i]) / self.rate;
+                let last_pos_to_process = self.processed_pos[i] + num_groups_leaves * self.rate;
+
+                let (input_vec, output_vec) =
+                    self.array_nodes[self.initial_pos[i]..self.final_pos[i + 1]].split_at_mut(self.final_pos[i] - self.initial_pos[i]);
+
+                let new_pos_parent = self.new_elem_pos[i + 1] + num_groups_leaves;
+
+                Self::batch_hash(
+                    &mut input_vec[(self.processed_pos[i] - self.initial_pos[i])..(last_pos_to_process - self.initial_pos[i])],
+                   &mut output_vec[(self.new_elem_pos[i + 1] - self.initial_pos[i + 1])..(new_pos_parent - self.initial_pos[i + 1])],
+                    i + 1,
+                );
+
+                self.new_elem_pos[i + 1] += num_groups_leaves;
+                self.processed_pos[i] += num_groups_leaves * self.rate;
+            }
+        }
+    }
+
+    fn batch_hash(input: &mut [F], output: &mut [F], parent_level: usize) {
+
+        let mut i = 0;
+        let empty = T::EMPTY_HASH_CST[parent_level - 1];
+
+        // Stores the chunk that must be hashed, i.e. the ones containing at least one non-empty node
+        let mut to_hash = Vec::new();
+
+        // Stores the positions in the output vec in which the hash of the above chunks must be
+        // placed (assuming that it can happen to have non-consecutive all-empty chunks)
+        let mut output_pos = Vec::new();
+
+        // If the element of each chunk of "rate" size are all equals this means that the nodes
+        // are all empty nodes (with overwhelming probability), therefore we already have the output,
+        // otherwise it must be computed.
+        input.chunks(P::R).for_each(|input_chunk| {
+            if input_chunk.iter().all(|&item| item == empty) {
+                output[i] = T::EMPTY_HASH_CST[parent_level];
+            } else {
+                to_hash.extend_from_slice(input_chunk);
+                output_pos.push(i);
+            }
+            i += 1;
+        });
+
+        // Compute the hash of the non-all-empty chunks
+        let mut to_hash_out = vec![F::zero(); to_hash.len()/P::R];
+        PoseidonBatchHash::<F, P>::batch_evaluate_in_place(
+            to_hash.as_mut_slice(),
+            to_hash_out.as_mut_slice()
+        );
+
+        // Put the hashes in the correct positions in the output vec
+        to_hash_out.iter().enumerate().for_each(|(i, &h)| output[output_pos[i]] = h);
+    }
+}
+
+impl<
+    F: PrimeField + MulShort,
+    T: FieldBasedMerkleTreeParameters<Data = F>,
+    P: PoseidonParameters<Fr = F>
+> FieldBasedMerkleTree for PoseidonMerkleTree<F, T, P> {
+
+    type Data = F;
+    type MerklePath = PoseidonMerklePath<F>;
+    type Parameters = T;
+
+    fn init(num_leaves: usize) -> Self {
+        let rate = P::R;
+        let processing_step = num_leaves;
+
+        let mut initial_pos = Vec::new();
+        let mut final_pos = Vec::new();
+        let mut processed_pos = Vec::new();
+        let mut new_elem_pos = Vec::new();
+
+        let last_level_size = num_leaves.next_power_of_two();
+        let mut size = last_level_size;
+
+        let mut initial_idx = 0;
+        let mut final_idx = last_level_size;
+
+        let mut level_idx = 1;
+
+        while size >= 1 {
+            initial_pos.push(initial_idx);
+            final_pos.push(final_idx);
+            processed_pos.push(initial_idx);
+            new_elem_pos.push(initial_idx);
+
+            initial_idx += size;
+            size /= rate;
+            final_idx = initial_idx + size;
+            level_idx += 1;
+        }
+
+        let tree_size = *final_pos.last().unwrap();
+
+        let mut array_nodes = Vec::with_capacity(tree_size);
+        for _i in 0..tree_size {
+            array_nodes.push(F::zero());
+        }
+
+        let cpus = rayon::current_num_threads();
+        let mut chunk_size = processing_step / (cpus * rate);
+        let mut processing_block_size = chunk_size * cpus * rate;
+        if processing_step < cpus * rate {
+            chunk_size = processing_step / rate;
+            if chunk_size == 0 {
+                chunk_size = 1;
+            }
+            processing_block_size = chunk_size * rate;
+        }
+
+        if processing_block_size > last_level_size {
+            processing_block_size = last_level_size;
+        }
+
+        Self {
+            root: { F::zero() },
+            array_nodes: { array_nodes },
+            processing_step: { processing_block_size },
+            initial_pos: { initial_pos },
+            final_pos: { final_pos },
+            processed_pos: { processed_pos },
+            new_elem_pos: { new_elem_pos },
+            levels: { level_idx - 2 },
+            rate: { P::R },
+            num_leaves: {last_level_size},
+            finalized: false,
+            _tree_parameters: PhantomData,
+            _hash_parameters: PhantomData
+        }
+    }
+
+    fn reset(&mut self) -> &mut Self {
+
+        for i in 0..self.new_elem_pos.len() {
+            self.new_elem_pos[i] = self.initial_pos[i];
+            self.processed_pos[i] = self.initial_pos[i];
+        }
+        self.finalized = false;
+
+        self
+    }
+
+    // Note: `Field` implements the `Copy` trait, therefore invoking this function won't
+    // cause a moving of ownership for `leaf`, but just a copy. Another copy is
+    // performed below in `self.array_nodes[self.new_elem_pos_subarray[0]] = leaf;`
+    // We can reduce this to one copy by passing a reference to leaf, but from an
+    // interface point of view this is not logically correct: someone calling this
+    // functions will likely not use the `leaf` anymore in most of the cases
+    // (in the other cases he can just clone it).
+    fn append(&mut self, leaf: Self::Data) -> &mut Self {
+        if self.new_elem_pos[0] < self.final_pos[0] {
+            self.array_nodes[self.new_elem_pos[0]] = leaf;
+            self.new_elem_pos[0] += 1;
+        }
+
+        if self.new_elem_pos[0] == self.final_pos[0] {
+            self.compute_subtree();
+        }
+
+        if (self.new_elem_pos[0] - self.processed_pos[0]) >= self.processing_step {
+            self.compute_subtree();
+        }
+        self
+    }
+
+    fn finalize(&self) -> Self {
+        let mut copy = (*self).clone();
+        copy.new_elem_pos[0] = copy.final_pos[0];
+        copy.compute_subtree();
+        copy.finalized = true;
+        copy.root = *copy.array_nodes.last().unwrap();
+        copy
+    }
+
+    fn finalize_in_place(&mut self) -> &mut Self {
+        self.new_elem_pos[0] = self.final_pos[0];
+        self.compute_subtree();
+        self.finalized = true;
+        self.root = *self.array_nodes.last().unwrap();
+        self
+    }
+
+    fn root(&self) -> Option<Self::Data> {
+        match self.finalized {
+            true => Some(self.root),
+            false => None
+        }
+    }
+
+    fn get_merkle_path(&self, leaf_index: usize) -> Option<Self::MerklePath> {
+        match self.finalized {
+            true => {
+                let mut merkle_path = Vec::with_capacity(self.levels);
+
+                let mut node_index = leaf_index;
+                for _ in 0..self.levels {
+                    if node_index % P::R == 0 { // Node is a left child
+                        merkle_path.push((self.array_nodes[node_index + 1], false));
+                    } else { // Node is a right child
+                        merkle_path.push((self.array_nodes[node_index - 1], true));
+                    }
+                    node_index = self.num_leaves + (node_index/P::R); // Get parent index
+                }
+                Some(PoseidonMerklePath(merkle_path))
+            },
+            false => None,
+        }
+
+    }
+
+    fn verify_merkle_path(
+        &self,
+        leaf: &Self::Data,
+        path: &Self::MerklePath
+    ) -> Option<bool> {
+        match self.finalized {
+            true => {
+                assert_eq!(path.0.len(), self.levels);
+                let mut digest = PoseidonHash::<F, P>::init(None);
+                let mut previous_node = leaf.clone();
+                for &(node, direction) in &path.0 {
+                    if direction {
+                        digest.update(node).update(previous_node);
+                    } else {
+                        digest.update(previous_node).update(node);
+                    }
+                    previous_node = digest.finalize();
+                    digest.reset(None);
+                }
+                if previous_node == self.root {
+                    Some(true)
+                } else {
+                    Some(false)
+                }
+            }
+            false => None,
+        }
+    }
+}
+
+
+#[cfg(test)]
+mod test {
+    use rand_xorshift::XorShiftRng;
+    use super::rand::SeedableRng;
+    use crate::crh::poseidon::parameters::{
+        MNT4753PoseidonParameters, MNT6753PoseidonParameters,
+    };
+    use algebra::fields::mnt4753::Fr as MNT4753Fr;
+    use algebra::fields::mnt6753::Fr as MNT6753Fr;
+    use algebra::UniformRand;
+    use algebra::biginteger::BigInteger768;
+    use algebra::fields::Field;
+
+    use crate::merkle_tree::field_based_mht::poseidon::PoseidonMerkleTree;
+    use crate::merkle_tree::field_based_mht::FieldBasedMerkleTree;
+    use super::{MNT4753MHTPoseidonParameters, MNT6753MHTPoseidonParameters};
+    use crate::{NaiveMerkleTree, FieldBasedMerkleTreeConfig};
+    use crate::crh::poseidon::{MNT4PoseidonHash, MNT6PoseidonHash};
+
+    struct MNT4753FieldBasedMerkleTreeParams;
+    impl FieldBasedMerkleTreeConfig for MNT4753FieldBasedMerkleTreeParams {
+        const HEIGHT: usize = 7;
+        type H = MNT4PoseidonHash;
+    }
+    type NaiveMNT4PoseidonMHT = NaiveMerkleTree<MNT4753FieldBasedMerkleTreeParams>;
+
+    struct MNT6753FieldBasedMerkleTreeParams;
+    impl FieldBasedMerkleTreeConfig for MNT6753FieldBasedMerkleTreeParams {
+        const HEIGHT: usize = 7;
+        type H = MNT6PoseidonHash;
+    }
+    type NaiveMNT6PoseidonMHT = NaiveMerkleTree<MNT6753FieldBasedMerkleTreeParams>;
+
+    type MNT4PoseidonMHT = PoseidonMerkleTree<MNT4753Fr, MNT4753MHTPoseidonParameters, MNT4753PoseidonParameters>;
+    type MNT6PoseidonMHT = PoseidonMerkleTree<MNT6753Fr, MNT6753MHTPoseidonParameters, MNT6753PoseidonParameters>;
+
+    #[test]
+    fn merkle_tree_test_mnt4() {
+        // running time for 1048576 leaves
+        // processing_step = 1024 => 90278 ms
+        // processing_step = 1024 * 64 => 40753 ms
+        // processing_step = 1024 * 1024 => 38858 ms
+
+        let expected_output = MNT4753Fr::new(BigInteger768([8181981188982771303, 9834648934716236448, 6420360685258842467, 14258691490360951478, 10642011566662929522, 16918207755479993617, 3581400602871836321, 14012664850056020974, 16755211538924649257, 4039951447678776727, 12365175056998155257, 119677729692145]));
+        let num_leaves = 1024 * 1024;
+        let mut tree = MNT4PoseidonMHT::init(num_leaves);
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+        for _ in 0..num_leaves {
+            tree.append(MNT4753Fr::rand(&mut rng));
+        }
+        tree.finalize_in_place();
+        assert_eq!(tree.root().unwrap(), expected_output, "Output of the Merkle tree computation for MNT4 does not match to the expected value.");
+    }
+
+    #[test]
+    fn merkle_tree_test_mnt6() {
+        // running time for 1048576 leaves
+        // processing_step = 1024 => 87798 ms
+        // processing_step = 1024 * 64 => 39199 ms
+        // processing_step = 1024 * 1024 => 37450 ms
+
+        let expected_output = MNT6753Fr::new(BigInteger768([18065863015580309240, 1059485854425188866, 1479096878827665107, 6899132209183155323, 1829690180552438097, 7395327616910893705, 16132683753083562833, 8528890579558218842, 9345795575555751752, 8161305655297462527, 6222078223269068637, 401142754883827]));
+        let num_leaves = 1024 * 1024;
+        let mut tree = MNT6PoseidonMHT::init(num_leaves);
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+        for _ in 0..num_leaves {
+            tree.append(MNT6753Fr::rand(&mut rng));
+        }
+        tree.finalize_in_place();
+        assert_eq!(tree.root().unwrap(), expected_output, "Output of the Merkle tree computation for MNT6 does not match to the expected value.");
+    }
+
+    #[test]
+    fn merkle_tree_test_mnt4_empty_leaves() {
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+        let max_leaves = 64;
+
+        for num_leaves in 1..=max_leaves {
+
+            // Generate random leaves
+            let mut leaves = Vec::with_capacity(num_leaves);
+            for _ in 0..num_leaves {
+                leaves.push(MNT4753Fr::rand(&mut rng))
+            }
+            leaves.extend_from_slice(vec![MNT4753Fr::zero(); max_leaves - num_leaves].as_slice());
+
+            // Push them in a Naive Poseidon Merkle Tree and get the root
+            let naive_mt = NaiveMNT4PoseidonMHT::new(leaves.as_slice()).unwrap();
+            let naive_root = naive_mt.root();
+
+            // Push them in a Poseidon Merkle Tree and get the root
+            let mut mt = MNT4PoseidonMHT::init(max_leaves);
+            leaves[0..num_leaves].iter().for_each(|&leaf| { mt.append(leaf); });
+            let root = mt.finalize_in_place().root().unwrap();
+
+            assert_eq!(naive_root, root);
+        }
+    }
+
+    #[test]
+    fn merkle_tree_test_mnt6_empty_leaves() {
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+        let max_leaves = 64;
+
+        for num_leaves in 1..=max_leaves {
+
+            // Generate random leaves
+            let mut leaves = Vec::with_capacity(num_leaves);
+            for _ in 0..num_leaves {
+                leaves.push(MNT6753Fr::rand(&mut rng))
+            }
+            leaves.extend_from_slice(vec![MNT6753Fr::zero(); max_leaves - num_leaves].as_slice());
+
+            // Push them in a Naive Poseidon Merkle Tree and get the root
+            let naive_mt = NaiveMNT6PoseidonMHT::new(leaves.as_slice()).unwrap();
+            let naive_root = naive_mt.root();
+
+            // Push them in a Poseidon Merkle Tree and get the root
+            let mut mt = MNT6PoseidonMHT::init(max_leaves);
+            leaves[0..num_leaves].iter().for_each(|&leaf| { mt.append(leaf); });
+            let root = mt.finalize_in_place().root().unwrap();
+
+            assert_eq!(naive_root, root);
+        }
+    }
+
+    #[test]
+    fn merkle_tree_path_test_mnt4() {
+
+        let num_leaves = 64;
+        let mut leaves = Vec::with_capacity(num_leaves);
+        let mut tree = MNT4PoseidonMHT::init(num_leaves);
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+        for _ in 0..num_leaves {
+            let leaf = MNT4753Fr::rand(&mut rng);
+            tree.append(leaf);
+            leaves.push(leaf);
+        }
+        tree.finalize_in_place();
+
+        let naive_tree = NaiveMNT4PoseidonMHT::new(leaves.as_slice()).unwrap();
+
+        let root = tree.root().unwrap();
+        let naive_root = naive_tree.root();
+        assert_eq!(root, naive_root);
+
+        for i in 0..num_leaves {
+            let path = tree.get_merkle_path(i).unwrap();
+            assert!(tree.verify_merkle_path(&leaves[i], &path).unwrap());
+
+            let naive_path = naive_tree.generate_proof(i, &leaves[i]).unwrap();
+            assert!(naive_path.verify(&naive_root, &leaves[i]).unwrap());
+
+            assert_eq!(path.0, naive_path.path);
+        }
+    }
+
+    #[test]
+    fn merkle_tree_path_test_mnt6() {
+
+        let num_leaves = 64;
+        let mut leaves = Vec::with_capacity(num_leaves);
+        let mut tree = MNT6PoseidonMHT::init(num_leaves);
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+        for _ in 0..num_leaves {
+            let leaf = MNT6753Fr::rand(&mut rng);
+            tree.append(leaf);
+            leaves.push(leaf);
+        }
+        tree.finalize_in_place();
+
+        let naive_tree = NaiveMNT6PoseidonMHT::new(leaves.as_slice()).unwrap();
+
+        let root = tree.root().unwrap();
+        let naive_root = naive_tree.root();
+        assert_eq!(root, naive_root);
+
+        for i in 0..num_leaves {
+            let path = tree.get_merkle_path(i).unwrap();
+            assert!(tree.verify_merkle_path(&leaves[i], &path).unwrap());
+
+            let naive_path = naive_tree.generate_proof(i, &leaves[i]).unwrap();
+            assert!(naive_path.verify(&naive_root, &leaves[i]).unwrap());
+
+            assert_eq!(path.0, naive_path.path);
+        }
+    }
+}
+
+use crate::merkle_tree::field_based_mht::FieldBasedMerkleTreeParameters;
+
+use algebra::{
+    field_new,
+    biginteger::BigInteger768,
+    fields::{
+        mnt6753::Fr as MNT6753Fr,
+        mnt4753::Fr as MNT4753Fr
+    },
+};
+
+#[derive(Clone)]
+pub struct MNT4753MHTPoseidonParameters;
+
+impl FieldBasedMerkleTreeParameters for MNT4753MHTPoseidonParameters {
+    type Data = MNT4753Fr;
+
     const MERKLE_ARITY: usize = 2;
 
-    const EMPTY_HASH_CST: &'static [MNT4753Fr] = &[
+    const EMPTY_HASH_CST: &'static [Self::Data] = &[
         field_new!(MNT4753Fr,BigInteger768([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])),
         field_new!(MNT4753Fr,BigInteger768([16176523673378133334, 16956778265158276239, 4733072280094522678, 4192433122035539299, 15174036148465069565, 1064698154771993694, 11910330977019062149, 6319782654186851533, 16700914731313914268, 5445268834830289758, 1400505001002362360, 471965325761536])),
         field_new!(MNT4753Fr,BigInteger768([4277889709792061947, 16378415495394357880, 7044435121910608910, 14821584290848291872, 7395794966562039924, 16993255131573590866, 5619183296459254929, 13099791189349530546, 10480178751052362035, 2637008226322547176, 3781718695868806314, 12315153018770])),
@@ -64,16 +548,14 @@ impl SmtPoseidonParameters for MNT4753SmtPoseidonParameters {
 }
 
 #[derive(Clone)]
-pub struct MNT6753SmtPoseidonParameters;
+pub struct MNT6753MHTPoseidonParameters;
 
-impl FieldBasedHashParameters for MNT6753SmtPoseidonParameters {
-    type Fr = MNT6753Fr;
-}
+impl FieldBasedMerkleTreeParameters for MNT6753MHTPoseidonParameters {
+    type Data = MNT6753Fr;
 
-impl SmtPoseidonParameters for MNT6753SmtPoseidonParameters {
     const MERKLE_ARITY: usize = 2;
 
-    const EMPTY_HASH_CST: &'static [MNT6753Fr] = &[
+    const EMPTY_HASH_CST: &'static [Self::Data] = &[
         field_new!(MNT6753Fr,BigInteger768([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])),
         field_new!(MNT6753Fr,BigInteger768([17637649811893425297, 9356568928171551347, 15442933386895351042, 16037249952112432370, 13788858697879839278, 11025667786216957645, 7102709371094193238, 12422915737218740758, 10531053957796416782, 9696092897380549051, 1339040383975805668, 64128018321799])),
         field_new!(MNT6753Fr,BigInteger768([4472923475352101931, 14125459602252897885, 13088438548806363052, 16269053428991819111, 3116242482118239773, 8191706716067520569, 4230313181893216955, 5167780582185616020, 15631071562248952054, 11846663030841039828, 642062297174172342, 296312004800026])),

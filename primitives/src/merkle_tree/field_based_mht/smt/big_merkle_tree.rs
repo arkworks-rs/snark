@@ -1,8 +1,8 @@
 /* Sparse Big Merkle tree */
 /* Assumption in the code: arity of the Merkle tree = 2 */
 
-use crate::merkle_tree::field_based_mht::smt::{SmtPoseidonParameters, Coord, OperationLeaf, BigMerkleTreeState};
-use crate::{PoseidonParameters, PoseidonHash, FieldBasedHash, merkle_tree};
+use crate::merkle_tree::field_based_mht::smt::{Coord, OperationLeaf, BigMerkleTreeState};
+use crate::{FieldBasedHash, FieldBasedMerkleTreeParameters};
 use crate::merkle_tree::field_based_mht::smt::ActionLeaf::Insert;
 
 use algebra::{PrimeField, MulShort, FromBytes};
@@ -16,7 +16,11 @@ use crate::merkle_tree::field_based_mht::smt::error::Error;
 use std::path::Path;
 
 #[derive(Debug)]
-pub struct BigMerkleTree<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParameters<Fr=F>> {
+pub struct BigMerkleTree<
+    F: PrimeField + MulShort,
+    T: FieldBasedMerkleTreeParameters<Data = F>,
+    H: FieldBasedHash<Data = F>,
+>{
     // if unset, all DBs and tree internal state will be deleted when an instance of this struct
     // gets dropped
     persistent: bool,
@@ -37,16 +41,24 @@ pub struct BigMerkleTree<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F
 
     _field: PhantomData<F>,
     _parameters: PhantomData<T>,
-    _poseidon_parameters: PhantomData<P>,
+    _hash_parameters: PhantomData<H>,
 }
 
-impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParameters<Fr=F>> Drop for BigMerkleTree<F, T, P> {
+impl<
+    F: PrimeField + MulShort,
+    H: FieldBasedHash<Data = F>,
+    T: FieldBasedMerkleTreeParameters<Data = F>
+> Drop for BigMerkleTree<F, T, H> {
     fn drop(&mut self) {
         self.close();
     }
 }
 
-impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParameters<Fr=F>> BigMerkleTree<F, T, P> {
+impl<
+    F: PrimeField + MulShort,
+    H: FieldBasedHash<Data = F>,
+    T: FieldBasedMerkleTreeParameters<Data = F>
+> BigMerkleTree<F, T, H> {
     // Creates a new tree of specified `width`.
     // If `persistent` is specified, then DBs will be kept on disk and the tree state will be saved
     // so that the tree can be restored any moment later. Otherwise, no state will be saved on file
@@ -77,7 +89,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             db_cache,
             _field: PhantomData,
             _parameters: PhantomData,
-            _poseidon_parameters: PhantomData,
+            _hash_parameters: PhantomData,
         })
     }
 
@@ -116,7 +128,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
             db_cache,
             _field: PhantomData,
             _parameters: PhantomData,
-            _poseidon_parameters: PhantomData,
+            _hash_parameters: PhantomData,
         })
     }
 
@@ -457,7 +469,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         } else {
 
             // compute the hash of the node with the hashes of the children
-            node_hash = merkle_tree::field_based_mht::smt::big_merkle_tree::BigMerkleTree::<F, T, P>::poseidon_hash(left_hash, right_hash);
+            node_hash = Self::field_hash(left_hash, right_hash);
             // insert the parent node into the cache_path
             self.state.cache_path.insert(parent_coord, node_hash);
             // set the parent as present
@@ -515,7 +527,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
                 // at least one is non-empty
 
                 // compute the hash of the parent node based on the hashes of the children
-                node_hash = merkle_tree::field_based_mht::smt::big_merkle_tree::BigMerkleTree::<F, T, P>::poseidon_hash(left_hash, right_hash);
+                node_hash = Self::field_hash(left_hash, right_hash);
                 // insert the parent node into the cache_path
                 self.state.cache_path.insert(parent_coord, node_hash);
 
@@ -641,7 +653,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
                 } else {
                     right_hash = T::EMPTY_HASH_CST[0];
                 }
-                node_hash = merkle_tree::field_based_mht::smt::big_merkle_tree::BigMerkleTree::<F, T, P>::poseidon_hash(left_hash, right_hash);
+                node_hash = Self::field_hash(left_hash, right_hash);
             } else {
                 let height_child = coord.height - 1;
                 let left_child_idx = coord.idx * T::MERKLE_ARITY;
@@ -652,7 +664,7 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
                 let coord_right = Coord { height: height_child, idx: right_child_idx };
                 let right_child_hash = BigMerkleTree::node(self, coord_right);
 
-                node_hash = merkle_tree::field_based_mht::smt::big_merkle_tree::BigMerkleTree::<F, T, P>::poseidon_hash(left_child_hash, right_child_hash);
+                node_hash = Self::field_hash(left_child_hash, right_child_hash);
             }
             return node_hash;
         }
@@ -660,8 +672,8 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
         res.unwrap()
     }
 
-    pub fn poseidon_hash(x: F, y: F) -> F {
-        PoseidonHash::<F, P>::init(None)
+    pub fn field_hash(x: F, y: F) -> F {
+        H::init(None)
             .update(x)
             .update(y)
             .finalize()
@@ -690,10 +702,11 @@ impl<F: PrimeField + MulShort, T: SmtPoseidonParameters<Fr=F>, P: PoseidonParame
 #[cfg(test)]
 mod test {
     use crate::merkle_tree::field_based_mht::smt::{MNT4PoseidonHash, OperationLeaf, Coord, ActionLeaf};
-    use crate::merkle_tree::field_based_mht::{FieldBasedMerkleTreeConfig, FieldBasedMerkleHashTree};
-    use crate::merkle_tree::field_based_mht::smt::parameters::{MNT4753SmtPoseidonParameters, MNT6753SmtPoseidonParameters};
-    use crate::MNT6PoseidonHash;
-    use crate::crh::poseidon::parameters::{MNT6753PoseidonParameters, MNT4753PoseidonParameters};
+    use crate::merkle_tree::field_based_mht::{FieldBasedMerkleTreeConfig, NaiveMerkleTree};
+    use crate::merkle_tree::field_based_mht::{MNT4753MHTPoseidonParameters, MNT6753MHTPoseidonParameters};
+    use crate::crh::{
+        MNT6PoseidonHash
+    };
 
     use algebra::fields::mnt6753::Fr as MNT6753Fr;
     use algebra::fields::mnt4753::Fr as MNT4753Fr;
@@ -706,7 +719,7 @@ mod test {
     use rand::SeedableRng;
     use crate::merkle_tree::field_based_mht::smt::big_merkle_tree::BigMerkleTree;
 
-    pub type MNT4PoseidonSmt = BigMerkleTree< MNT4753Fr, MNT4753SmtPoseidonParameters, MNT4753PoseidonParameters>;
+    pub type MNT4PoseidonSmt = BigMerkleTree<MNT4753Fr, MNT4753MHTPoseidonParameters, MNT4PoseidonHash>;
 
     struct MNT4753FieldBasedMerkleTreeParams;
 
@@ -715,7 +728,7 @@ mod test {
         type H = MNT4PoseidonHash;
     }
 
-    type MNT4753FieldBasedMerkleTree = FieldBasedMerkleHashTree<MNT4753FieldBasedMerkleTreeParams>;
+    type MNT4753FieldBasedMerkleTree = NaiveMerkleTree<MNT4753FieldBasedMerkleTreeParams>;
 
     #[test]
     fn compare_merkle_trees_mnt4_1() {
@@ -848,9 +861,9 @@ mod test {
         type H = MNT6PoseidonHash;
     }
 
-    type MNT6753FieldBasedMerkleTree = FieldBasedMerkleHashTree<MNT6753FieldBasedMerkleTreeParams>;
+    type MNT6753FieldBasedMerkleTree = NaiveMerkleTree<MNT6753FieldBasedMerkleTreeParams>;
 
-    pub type MNT6PoseidonSmt = BigMerkleTree<MNT6753Fr, MNT6753SmtPoseidonParameters, MNT6753PoseidonParameters>;
+    pub type MNT6PoseidonSmt = BigMerkleTree<MNT6753Fr, MNT6753MHTPoseidonParameters, MNT6PoseidonHash>;
 
     #[test]
     fn compare_merkle_trees_mnt6_1() {

@@ -2,12 +2,14 @@ extern crate rand;
 extern crate rayon;
 
 use algebra::{PrimeField, MulShort};
+use algebra::fields::mnt6753::Fr as MNT6753Fr;
+use algebra::fields::mnt4753::Fr as MNT4753Fr;
 
 use std::marker::PhantomData;
 
 use crate::crh::BatchFieldBasedHash;
 use crate::{Error, PoseidonParameters, matrix_mix_short};
-
+use crate::crh::poseidon::parameters::{MNT6753PoseidonParameters, MNT4753PoseidonParameters};
 
 pub struct PoseidonBatchHash<F: PrimeField, P: PoseidonParameters<Fr = F>>{
     _field:      PhantomData<F>,
@@ -295,8 +297,10 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> BatchFieldBasedHas
             output_array[k] = state[k][0];
         }
     }
-
 }
+
+pub type MNT4BatchPoseidonHash = PoseidonBatchHash<MNT4753Fr, MNT4753PoseidonParameters>;
+pub type MNT6BatchPoseidonHash = PoseidonBatchHash<MNT6753Fr, MNT6753PoseidonParameters>;
 
 #[cfg(test)]
 mod test {
@@ -306,9 +310,7 @@ mod test {
     use crate::{FieldBasedHash, BatchFieldBasedHash, PoseidonHash};
     use super::rand::SeedableRng;
     use algebra::UniformRand;
-    use crate::crh::poseidon::batched_crh::PoseidonBatchHash;
-    use algebra::fields::mnt6753::Fr as MNT6753Fr;
-    use algebra::fields::mnt4753::Fr as MNT4753Fr;
+
     use crate::crh::poseidon::{
         parameters::{MNT4753PoseidonParameters, MNT6753PoseidonParameters}
     };
@@ -316,7 +318,6 @@ mod test {
     #[test]
     fn test_batch_hash_mnt4() {
         type Mnt4PoseidonHash = PoseidonHash<MNT4753Fr, MNT4753PoseidonParameters>;
-        type Mnt4BatchPoseidonHash = PoseidonBatchHash<MNT4753Fr, MNT4753PoseidonParameters>;
 
         //  the number of hashes to test
         let num_hashes = 1000;
@@ -351,7 +352,7 @@ mod test {
         });
 
         // Calculate Poseidon Hash for mnt4753 batch evaluation
-        let output_vec = (Mnt4BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+        let output_vec = (MNT4BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
 
         // =============================================================================
         // Compare results
@@ -364,7 +365,7 @@ mod test {
             .update(input_serial[0][0])
             .update(input_serial[0][1])
             .finalize();
-        let single_batch_output = Mnt4BatchPoseidonHash::batch_evaluate(&input_batch[0..2]);
+        let single_batch_output = MNT4BatchPoseidonHash::batch_evaluate(&input_batch[0..2]);
 
         assert_eq!(single_output, single_batch_output.unwrap()[0], "Single instance hash outputs are not equal for MNT4.");
     }
@@ -373,38 +374,34 @@ mod test {
     #[test]
     #[should_panic]
     fn test_batch_hash_mnt4_null_elem() {
-        type Mnt4BatchPoseidonHash = PoseidonBatchHash<MNT4753Fr, MNT4753PoseidonParameters>;
         let input_batch = Vec::new();
-        let output_vec = (Mnt4BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+        let output_vec = (MNT4BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
         println!("{:?}", output_vec);
     }
 
     #[test]
     #[should_panic]
     fn test_batch_hash_mnt4_one_elem() {
-        type Mnt4BatchPoseidonHash = PoseidonBatchHash<MNT4753Fr, MNT4753PoseidonParameters>;
         let mut input_batch = Vec::new();
         input_batch.push(MNT4753Fr::from_str("1").unwrap());
-        let output_vec = (Mnt4BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+        let output_vec = (MNT4BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
         println!("{:?}", output_vec);
     }
 
     #[test]
     #[should_panic]
     fn test_batch_hash_mnt4_three_elem() {
-        type Mnt4BatchPoseidonHash = PoseidonBatchHash<MNT4753Fr, MNT4753PoseidonParameters>;
         let mut input_batch = Vec::new();
         input_batch.push(MNT4753Fr::from_str("1").unwrap());
         input_batch.push(MNT4753Fr::from_str("2").unwrap());
         input_batch.push(MNT4753Fr::from_str("3").unwrap());
-        let output_vec = (Mnt4BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+        let output_vec = (MNT4BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
         println!("{:?}", output_vec);
     }
 
     #[test]
     fn test_batch_hash_mnt6() {
         type Mnt6PoseidonHash = PoseidonHash<MNT6753Fr, MNT6753PoseidonParameters>;
-        type Mnt6BatchPoseidonHash = PoseidonBatchHash<MNT6753Fr, MNT6753PoseidonParameters>;
 
         //  the number of hashes to test
         let num_hashes = 1000;
@@ -439,7 +436,7 @@ mod test {
         });
 
         // Calculate Poseidon Hash for mnt4753 batch evaluation
-        let output_vec = (Mnt6BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+        let output_vec = (MNT6BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
 
         // =============================================================================
         // Compare results
@@ -452,7 +449,7 @@ mod test {
             .update(input_serial[0][0])
             .update(input_serial[0][1])
             .finalize();
-        let single_batch_output = Mnt6BatchPoseidonHash::batch_evaluate(&input_batch[0..2]);
+        let single_batch_output = MNT6BatchPoseidonHash::batch_evaluate(&input_batch[0..2]);
 
         assert_eq!(single_output, single_batch_output.unwrap()[0], "Single instance hash outputs are not equal for MNT6.");
     }
@@ -461,38 +458,33 @@ mod test {
     #[test]
     #[should_panic]
     fn test_batch_hash_mnt6_null_elem() {
-        type Mnt6BatchPoseidonHash = PoseidonBatchHash<MNT6753Fr, MNT6753PoseidonParameters>;
         let input_batch = Vec::new();
-        let output_vec = (Mnt6BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+        let output_vec = (MNT6BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
         println!("{:?}", output_vec);
     }
 
     #[test]
     #[should_panic]
     fn test_batch_hash_mnt6_one_elem() {
-        type Mnt6BatchPoseidonHash = PoseidonBatchHash<MNT6753Fr, MNT6753PoseidonParameters>;
         let mut input_batch = Vec::new();
         input_batch.push(MNT6753Fr::from_str("1").unwrap());
-        let output_vec = (Mnt6BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+        let output_vec = (MNT6BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
         println!("{:?}", output_vec);
     }
 
     #[test]
     #[should_panic]
     fn test_batch_hash_mnt6_three_elem() {
-        type Mnt6BatchPoseidonHash = PoseidonBatchHash<MNT6753Fr, MNT6753PoseidonParameters>;
         let mut input_batch = Vec::new();
         input_batch.push(MNT6753Fr::from_str("1").unwrap());
         input_batch.push(MNT6753Fr::from_str("2").unwrap());
         input_batch.push(MNT6753Fr::from_str("3").unwrap());
-        let output_vec = (Mnt6BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+        let output_vec = (MNT6BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
         println!("{:?}", output_vec);
     }
 
     #[test]
     fn test_batch_hash_mnt4_in_place() {
-        type Mnt4BatchPoseidonHash = PoseidonBatchHash<MNT4753Fr, MNT4753PoseidonParameters>;
-
         //  the number of hashes to test
         let num_hashes = 1000;
 
@@ -509,10 +501,10 @@ mod test {
         }
 
         // Calculate Poseidon Hash for mnt4753 batch evaluation
-        let output_vec = (Mnt4BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+        let output_vec = (MNT4BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
 
         let mut output_vec_in_place = vec![MNT4753PoseidonParameters::ZERO; num_hashes];
-        Mnt4BatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]);
+        MNT4BatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]);
 
         // =============================================================================
         // Compare results
@@ -523,7 +515,6 @@ mod test {
 
     #[test]
     fn test_batch_hash_mnt6_in_place() {
-        type Mnt6BatchPoseidonHash = PoseidonBatchHash<MNT6753Fr, MNT6753PoseidonParameters>;
 
         //  the number of hashes to test
         let num_hashes = 1000;
@@ -541,10 +532,10 @@ mod test {
         }
 
         // Calculate Poseidon Hash for mnt4753 batch evaluation
-        let output_vec = (Mnt6BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+        let output_vec = (MNT6BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
 
         let mut output_vec_in_place = vec![MNT6753PoseidonParameters::ZERO; num_hashes];
-        Mnt6BatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]);
+        MNT6BatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]);
 
         // =============================================================================
         // Compare results

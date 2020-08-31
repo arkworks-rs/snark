@@ -1,12 +1,12 @@
 #![allow(dead_code)]
 
-pub mod parameters;
 pub mod big_merkle_tree;
 pub mod big_lazy_merkle_tree;
 pub mod error;
 
-use crate::{FieldBasedHashParameters, PoseidonHash};
+use crate::PoseidonHash;
 use crate::crh::poseidon::parameters::{MNT4753PoseidonParameters, MNT6753PoseidonParameters};
+use crate::merkle_tree::field_based_mht::FieldBasedMerkleTreeParameters;
 
 use algebra::fields::mnt6753::Fr as MNT6753Fr;
 use algebra::fields::mnt4753::Fr as MNT4753Fr;
@@ -19,13 +19,6 @@ use std::marker::PhantomData;
 
 pub type MNT4PoseidonHash = PoseidonHash<MNT4753Fr, MNT4753PoseidonParameters>;
 pub type MNT6PoseidonHash = PoseidonHash<MNT6753Fr, MNT6753PoseidonParameters>;
-
-pub trait SmtPoseidonParameters: 'static + FieldBasedHashParameters {
-    // The arity of the Sparse Merkle Tree
-    const MERKLE_ARITY: usize;
-    // The pre-computed hashes of the empty nodes for the different levels of the SMT
-    const EMPTY_HASH_CST: &'static [Self::Fr];
-}
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum ActionLeaf {
@@ -78,7 +71,7 @@ impl<F: PrimeField> OperationLeaf<F> {
 }
 
 #[derive(Debug)]
-pub(crate) struct BigMerkleTreeState<F: PrimeField, T: SmtPoseidonParameters<Fr=F>>{
+pub(crate) struct BigMerkleTreeState<F: PrimeField, T: FieldBasedMerkleTreeParameters<Data = F>>{
     // the number of leaves
     width: usize,
     // stores the nodes of the path
@@ -91,7 +84,7 @@ pub(crate) struct BigMerkleTreeState<F: PrimeField, T: SmtPoseidonParameters<Fr=
     _parameters: PhantomData<T>
 }
 
-impl<F: PrimeField, T: SmtPoseidonParameters<Fr=F>> BigMerkleTreeState<F, T> {
+impl<F: PrimeField, T: FieldBasedMerkleTreeParameters<Data = F>> BigMerkleTreeState<F, T> {
     fn get_default_state(width: usize, height: usize) -> Self {
         Self{
             width,
@@ -103,7 +96,7 @@ impl<F: PrimeField, T: SmtPoseidonParameters<Fr=F>> BigMerkleTreeState<F, T> {
     }
 }
 
-impl<F: PrimeField, T: SmtPoseidonParameters<Fr=F>> ToBytes for BigMerkleTreeState<F, T> {
+impl<F: PrimeField, T: FieldBasedMerkleTreeParameters<Data = F>> ToBytes for BigMerkleTreeState<F, T> {
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
         (self.width as u64).write(&mut writer)?;
 
@@ -122,7 +115,7 @@ impl<F: PrimeField, T: SmtPoseidonParameters<Fr=F>> ToBytes for BigMerkleTreeSta
     }
 }
 
-impl<F: PrimeField, T: SmtPoseidonParameters<Fr=F>> FromBytes for BigMerkleTreeState<F, T> {
+impl<F: PrimeField, T: FieldBasedMerkleTreeParameters<Data = F>> FromBytes for BigMerkleTreeState<F, T> {
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
         let width = u64::read(&mut reader)? as usize;
 

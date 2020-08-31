@@ -8,20 +8,23 @@ use algebra::UniformRand;
 use rand_xorshift::XorShiftRng;
 use rand::SeedableRng;
 use primitives::crh::poseidon::parameters::{MNT4753PoseidonParameters, MNT6753PoseidonParameters};
-use primitives::merkle_tree::field_based_mht::ramht::poseidon::PoseidonRandomAccessMerkleTree;
-use primitives::merkle_tree::field_based_mht::ramht::RandomAccessMerkleTree;
-
+use primitives::merkle_tree::{
+    field_based_mht::poseidon::{
+        PoseidonMerkleTree, MNT4753MHTPoseidonParameters, MNT6753MHTPoseidonParameters,
+    },
+    FieldBasedMerkleTree
+};
 
 //TODO: Bench new added functions ?
 fn batch_poseidon_mht_eval_mnt4(c: &mut Criterion) {
 
-    type MNT4PoseidonRAMT = PoseidonRandomAccessMerkleTree<MNT4753Fr, MNT4753PoseidonParameters>;
+    type MNT4PoseidonMHT = PoseidonMerkleTree<MNT4753Fr, MNT4753MHTPoseidonParameters, MNT4753PoseidonParameters>;
 
     let num_leaves = 64;
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-    let mut tree = MNT4PoseidonRAMT::init(num_leaves);
+    let mut tree = MNT4PoseidonMHT::init(num_leaves);
 
     c.bench_function("Batch Poseidon MHT Eval for MNT4 (64 leaves)", move |b| {
         b.iter(|| {
@@ -36,13 +39,13 @@ fn batch_poseidon_mht_eval_mnt4(c: &mut Criterion) {
 
 fn batch_poseidon_mht_eval_mnt6(c: &mut Criterion) {
 
-    type MNT6PoseidonRAMT = PoseidonRandomAccessMerkleTree<MNT6753Fr, MNT6753PoseidonParameters>;
+    type MNT6PoseidonMHT = PoseidonMerkleTree<MNT6753Fr, MNT6753MHTPoseidonParameters, MNT6753PoseidonParameters>;
 
     let num_leaves = 64;
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-    let mut tree = MNT6PoseidonRAMT::init(num_leaves);
+    let mut tree = MNT6PoseidonMHT::init(num_leaves);
 
     c.bench_function("Batch Poseidon MHT Eval for MNT6 (64 leaves)", move |b| {
         b.iter(|| {

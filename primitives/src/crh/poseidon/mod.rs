@@ -24,7 +24,7 @@ pub struct PoseidonHash<F: PrimeField, P: PoseidonParameters<Fr = F>>{
     _parameters: PhantomData<P>,
 }
 
-pub trait PoseidonParameters: 'static + FieldBasedHashParameters{
+pub trait PoseidonParameters: 'static + FieldBasedHashParameters + Clone {
 
     const T: usize;  // Number of S-Boxes
     const R_F:i32;   // Number of full rounds
