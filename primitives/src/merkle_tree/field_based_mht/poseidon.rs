@@ -60,7 +60,7 @@ impl<
                     &mut input_vec[(self.processed_pos[i] - self.initial_pos[i])..(last_pos_to_process - self.initial_pos[i])],
                    &mut output_vec[(self.new_elem_pos[i + 1] - self.initial_pos[i + 1])..(new_pos_parent - self.initial_pos[i + 1])],
                     i + 1,
-                    index - 1,
+                    index,
                 );
 
                 self.new_elem_pos[i + 1] += num_groups_leaves;
