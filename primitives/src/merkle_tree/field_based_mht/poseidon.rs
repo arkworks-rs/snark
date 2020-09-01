@@ -46,7 +46,6 @@ impl<
 
     pub fn compute_subtree(&mut self) {
         for i in 0..self.levels  {
-
             if (self.new_elem_pos[i] - self.processed_pos[i]) >= self.rate {
                 let num_groups_leaves = (self.new_elem_pos[i] - self.processed_pos[i]) / self.rate;
                 let last_pos_to_process = self.processed_pos[i] + num_groups_leaves * self.rate;
@@ -61,47 +60,60 @@ impl<
                    &mut output_vec[(self.new_elem_pos[i + 1] - self.initial_pos[i + 1])..(new_pos_parent - self.initial_pos[i + 1])],
                     i + 1,
                 );
-
                 self.new_elem_pos[i + 1] += num_groups_leaves;
                 self.processed_pos[i] += num_groups_leaves * self.rate;
             }
         }
     }
 
-    fn batch_hash(input: &mut [F], output: &mut [F], parent_level: usize) {
+    fn get_last_non_empty_index(input: &[F], empty: &F) -> Option<usize> {
+        let mut index = None;
+        let mut is_previous_empty = false;
 
-        let mut i = 0;
-        let empty = T::EMPTY_HASH_CST[parent_level - 1];
-
-        // Stores the chunk that must be hashed, i.e. the ones containing at least one non-empty node
-        let mut to_hash = Vec::new();
-
-        // Stores the positions in the output vec in which the hash of the above chunks must be
-        // placed (assuming that it can happen to have non-consecutive all-empty chunks)
-        let mut output_pos = Vec::new();
-
-        // If the element of each chunk of "rate" size are all equals this means that the nodes
-        // are all empty nodes (with overwhelming probability), therefore we already have the output,
-        // otherwise it must be computed.
-        input.chunks(P::R).for_each(|input_chunk| {
-            if input_chunk.iter().all(|&item| item == empty) {
-                output[i] = T::EMPTY_HASH_CST[parent_level];
-            } else {
-                to_hash.extend_from_slice(input_chunk);
-                output_pos.push(i);
+        // Find the last non-empty in input
+        for (i, elem) in input.iter().enumerate() {
+            if elem == empty && !is_previous_empty {
+                is_previous_empty = true;
+                index = Some(i);
             }
-            i += 1;
-        });
 
-        // Compute the hash of the non-all-empty chunks
-        let mut to_hash_out = vec![F::zero(); to_hash.len()/P::R];
-        PoseidonBatchHash::<F, P>::batch_evaluate_in_place(
-            to_hash.as_mut_slice(),
-            to_hash_out.as_mut_slice()
-        );
+            if elem != empty && is_previous_empty {
+                is_previous_empty = false;
+                index = None;
+            }
+        }
 
-        // Put the hashes in the correct positions in the output vec
-        to_hash_out.iter().enumerate().for_each(|(i, &h)| output[output_pos[i]] = h);
+        if index.is_some() {
+            let mut index = index.unwrap();
+            // If it's not the first children, we must go to the next chunk
+            if index % P::R != 0 {
+                index += index % P::R;
+            }
+
+            // If it was part of the last chunk, then all chunks are non-empty
+            if index >= input.len() { None } else { Some(index) }
+        } else {
+            None // All chunks are non-empty
+        }
+    }
+
+    fn batch_hash(input: &mut [F], output: &mut [F], parent_level: usize) {
+        let starting_index = Self::get_last_non_empty_index(input, &T::EMPTY_HASH_CST[parent_level - 1]);
+
+        if starting_index.is_some() {
+            let starting_index = starting_index.unwrap();
+            let (input_to_process, _) = input.split_at_mut(starting_index);
+            let (output_to_process, output_precomputed) = output.split_at_mut(starting_index / P::R);
+            // Must compute the hash for the non-empty chunks
+            if input_to_process.len() != 0 {
+                PoseidonBatchHash::<F, P>::batch_evaluate_in_place(input_to_process, output_to_process);
+            }
+            // For the empty ones, instead, we can get the precomputed
+            output_precomputed.iter_mut().for_each(|out| *out = T::EMPTY_HASH_CST[parent_level]);
+        }
+        else {
+            PoseidonBatchHash::<F, P>::batch_evaluate_in_place(input, output);
+        }
     }
 }
 
@@ -259,7 +271,6 @@ impl<
             },
             false => None,
         }
-
     }
 
     fn verify_merkle_path(
@@ -271,17 +282,23 @@ impl<
             true => {
                 assert_eq!(path.0.len(), self.levels);
                 let mut digest = PoseidonHash::<F, P>::init(None);
-                let mut previous_node = leaf.clone();
+                let mut sibling = leaf.clone();
+                let mut level = 0;
                 for &(node, direction) in &path.0 {
-                    if direction {
-                        digest.update(node).update(previous_node);
+                    if sibling == node && node == T::EMPTY_HASH_CST[level] {
+                        sibling = T::EMPTY_HASH_CST[level + 1]
                     } else {
-                        digest.update(previous_node).update(node);
+                        if direction {
+                            digest.update(node).update(sibling);
+                        } else {
+                            digest.update(sibling).update(node);
+                        }
+                        sibling = digest.finalize();
+                        digest.reset(None);
                     }
-                    previous_node = digest.finalize();
-                    digest.reset(None);
+                    level += 1;
                 }
-                if previous_node == self.root {
+                if sibling == self.root {
                     Some(true)
                 } else {
                     Some(false)
@@ -377,15 +394,41 @@ mod test {
             for _ in 0..num_leaves {
                 leaves.push(MNT4753Fr::rand(&mut rng))
             }
-            leaves.extend_from_slice(vec![MNT4753Fr::zero(); max_leaves - num_leaves].as_slice());
 
             // Push them in a Naive Poseidon Merkle Tree and get the root
+            leaves.extend_from_slice(vec![MNT4753Fr::zero(); max_leaves - num_leaves].as_slice());
             let naive_mt = NaiveMNT4PoseidonMHT::new(leaves.as_slice()).unwrap();
             let naive_root = naive_mt.root();
 
             // Push them in a Poseidon Merkle Tree and get the root
             let mut mt = MNT4PoseidonMHT::init(max_leaves);
             leaves[0..num_leaves].iter().for_each(|&leaf| { mt.append(leaf); });
+            let root = mt.finalize_in_place().root().unwrap();
+
+            assert_eq!(naive_root, root);
+        }
+
+        // Test the case in which there are empty leaves interleaved with non empty ones
+        // (i.e. misbehaviour of the user or non append only merkle tree)
+        for num_leaves in 1..=max_leaves {
+            //println!("Num leaves: {}", num_leaves);
+            // Make half of the added leaves empty
+            let mut leaves = Vec::with_capacity(num_leaves);
+            for _ in 0..num_leaves/2 {
+                leaves.push(MNT4753Fr::zero())
+            }
+            for _ in num_leaves/2..num_leaves {
+                leaves.push(MNT4753Fr::rand(&mut rng))
+            }
+
+            // Push them in a Naive Poseidon Merkle Tree and get the root
+            leaves.extend_from_slice(vec![MNT4753Fr::zero(); max_leaves - num_leaves].as_slice());
+            let naive_mt = NaiveMNT4PoseidonMHT::new(leaves.as_slice()).unwrap();
+            let naive_root = naive_mt.root();
+
+            // Push them in a Poseidon Merkle Tree and get the root
+            let mut mt = MNT4PoseidonMHT::init(max_leaves);
+            leaves[..].iter().for_each(|&leaf| { mt.append(leaf); });
             let root = mt.finalize_in_place().root().unwrap();
 
             assert_eq!(naive_root, root);
@@ -404,9 +447,35 @@ mod test {
             for _ in 0..num_leaves {
                 leaves.push(MNT6753Fr::rand(&mut rng))
             }
-            leaves.extend_from_slice(vec![MNT6753Fr::zero(); max_leaves - num_leaves].as_slice());
 
             // Push them in a Naive Poseidon Merkle Tree and get the root
+            leaves.extend_from_slice(vec![MNT6753Fr::zero(); max_leaves - num_leaves].as_slice());
+            let naive_mt = NaiveMNT6PoseidonMHT::new(leaves.as_slice()).unwrap();
+            let naive_root = naive_mt.root();
+
+            // Push them in a Poseidon Merkle Tree and get the root
+            let mut mt = MNT6PoseidonMHT::init(max_leaves);
+            leaves[..].iter().for_each(|&leaf| { mt.append(leaf); });
+            let root = mt.finalize_in_place().root().unwrap();
+
+            assert_eq!(naive_root, root);
+        }
+
+        // Test the case in which there are empty leaves interleaved with non empty ones
+        // (i.e. misbehaviour of the user or non append only merkle tree)
+        for num_leaves in 1..=max_leaves {
+
+            // Make half of the added leaves empty
+            let mut leaves = Vec::with_capacity(num_leaves);
+            for _ in 0..num_leaves/2 {
+                leaves.push(MNT6753Fr::zero())
+            }
+            for _ in num_leaves/2..num_leaves {
+                leaves.push(MNT6753Fr::rand(&mut rng))
+            }
+
+            // Push them in a Naive Poseidon Merkle Tree and get the root
+            leaves.extend_from_slice(vec![MNT6753Fr::zero(); max_leaves - num_leaves].as_slice());
             let naive_mt = NaiveMNT6PoseidonMHT::new(leaves.as_slice()).unwrap();
             let naive_root = naive_mt.root();
 
@@ -426,8 +495,13 @@ mod test {
         let mut leaves = Vec::with_capacity(num_leaves);
         let mut tree = MNT4PoseidonMHT::init(num_leaves);
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-        for _ in 0..num_leaves {
+        for _ in 0..num_leaves/2 {
             let leaf = MNT4753Fr::rand(&mut rng);
+            tree.append(leaf);
+            leaves.push(leaf);
+        }
+        for _ in num_leaves/2..num_leaves {
+            let leaf = MNT4753Fr::zero();
             tree.append(leaf);
             leaves.push(leaf);
         }
@@ -457,8 +531,13 @@ mod test {
         let mut leaves = Vec::with_capacity(num_leaves);
         let mut tree = MNT6PoseidonMHT::init(num_leaves);
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-        for _ in 0..num_leaves {
+        for _ in 0..num_leaves/2 {
             let leaf = MNT6753Fr::rand(&mut rng);
+            tree.append(leaf);
+            leaves.push(leaf);
+        }
+        for _ in num_leaves/2..num_leaves {
+            let leaf = MNT6753Fr::zero();
             tree.append(leaf);
             leaves.push(leaf);
         }
