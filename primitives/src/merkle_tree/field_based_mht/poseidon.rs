@@ -44,7 +44,8 @@ impl<
     P: PoseidonParameters<Fr = F>
 > PoseidonMerkleTree<F, T, P> {
 
-    pub fn compute_subtree(&mut self) {
+    pub fn compute_subtree(&mut self, starting_index: usize) {
+        let mut index = starting_index;
         for i in 0..self.levels  {
             if (self.new_elem_pos[i] - self.processed_pos[i]) >= self.rate {
                 let num_groups_leaves = (self.new_elem_pos[i] - self.processed_pos[i]) / self.rate;
@@ -59,46 +60,31 @@ impl<
                     &mut input_vec[(self.processed_pos[i] - self.initial_pos[i])..(last_pos_to_process - self.initial_pos[i])],
                    &mut output_vec[(self.new_elem_pos[i + 1] - self.initial_pos[i + 1])..(new_pos_parent - self.initial_pos[i + 1])],
                     i + 1,
+                    index - 1,
                 );
+
                 self.new_elem_pos[i + 1] += num_groups_leaves;
                 self.processed_pos[i] += num_groups_leaves * self.rate;
+                index += self.num_leaves + (index / P::R);
+                // Get the parent index, i.e. the node from which certainly all the followings are empty
             }
         }
     }
 
-    fn get_last_non_empty_index(input: &[F], empty: &F) -> Option<usize> {
-        let mut index = None;
-        let mut is_previous_empty = false;
+    fn batch_hash(input: &mut [F], output: &mut [F], parent_level: usize, starting_index: usize) {
+        //let starting_index = Self::get_last_non_empty_index(input, &T::EMPTY_HASH_CST[parent_level - 1]);
 
-        // Find the last non-empty in input
-        for (i, elem) in input.iter().enumerate() {
-            if elem == empty && !is_previous_empty {
-                is_previous_empty = true;
-                index = Some(i);
-            }
-
-            if elem != empty && is_previous_empty {
-                is_previous_empty = false;
-                index = None;
-            }
-        }
-
-        if index.is_some() {
-            let mut index = index.unwrap();
+        let starting_index = if starting_index != input.len() {
+            let mut temp_index = starting_index;
             // If it's not the first children, we must go to the next chunk
-            if index % P::R != 0 {
-                index += index % P::R;
+            if temp_index % P::R != 0 {
+                temp_index += P::R - (temp_index % P::R);
             }
-
             // If it was part of the last chunk, then all chunks are non-empty
-            if index >= input.len() { None } else { Some(index) }
+            if temp_index >= input.len() { None } else { Some(temp_index) }
         } else {
             None // All chunks are non-empty
-        }
-    }
-
-    fn batch_hash(input: &mut [F], output: &mut [F], parent_level: usize) {
-        let starting_index = Self::get_last_non_empty_index(input, &T::EMPTY_HASH_CST[parent_level - 1]);
+        };
 
         if starting_index.is_some() {
             let starting_index = starting_index.unwrap();
@@ -220,27 +206,29 @@ impl<
         }
 
         if self.new_elem_pos[0] == self.final_pos[0] {
-            self.compute_subtree();
+            self.compute_subtree(self.new_elem_pos[0]);
         }
 
         if (self.new_elem_pos[0] - self.processed_pos[0]) >= self.processing_step {
-            self.compute_subtree();
+            self.compute_subtree(self.new_elem_pos[0]);
         }
         self
     }
 
     fn finalize(&self) -> Self {
         let mut copy = (*self).clone();
+        let new_elem_pos_copy = copy.new_elem_pos[0];
         copy.new_elem_pos[0] = copy.final_pos[0];
-        copy.compute_subtree();
+        copy.compute_subtree(new_elem_pos_copy);
         copy.finalized = true;
         copy.root = *copy.array_nodes.last().unwrap();
         copy
     }
 
     fn finalize_in_place(&mut self) -> &mut Self {
+        let new_elem_pos_copy = self.new_elem_pos[0];
         self.new_elem_pos[0] = self.final_pos[0];
-        self.compute_subtree();
+        self.compute_subtree(new_elem_pos_copy);
         self.finalized = true;
         self.root = *self.array_nodes.last().unwrap();
         self

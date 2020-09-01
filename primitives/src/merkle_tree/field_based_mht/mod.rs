@@ -87,7 +87,7 @@ pub const MNT4753_PHANTOM_MERKLE_ROOT: MNT4753Fr =
     #[ignore]
     #[test]
     fn generate_mnt4753_phantom_merkle_root(){
-        use crate::crh::FieldBasedHash;
+        use crate::crh::{FieldBasedHash, poseidon::MNT4PoseidonHash};
         use algebra::{FromBytes, PrimeField, FpParameters};
 
         let field_size_in_bytes = (MNT4753Fr::size_in_bits() + (<MNT4753Fr as PrimeField>::Params::REPR_SHAVE_BITS as usize))/8;
