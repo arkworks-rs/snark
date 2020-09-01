@@ -267,6 +267,7 @@ impl<
                     }
                     node_index = self.num_leaves + (node_index/P::R); // Get parent index
                 }
+                assert_eq!(self.array_nodes[node_index], self.root); // Sanity check
                 Some(PoseidonMerklePath(merkle_path))
             },
             false => None,

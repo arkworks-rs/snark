@@ -174,12 +174,12 @@ impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: B
     pub fn insert_to_cache(&self, coord: Coord, data:F) {
         let elem = to_bytes!(data).unwrap();
         let index = bincode::serialize(&coord).unwrap();
-        self.database.put(index, elem).unwrap();
+        self.db_cache.put(index, elem).unwrap();
     }
 
     pub fn contains_key_in_cache(&self, coord:Coord) -> bool {
         let coordinates = bincode::serialize(&coord).unwrap();
-        match self.database.get(coordinates) {
+        match self.db_cache.get(coordinates) {
             Ok(Some(_value)) => {
                 return true;
             },
@@ -195,7 +195,7 @@ impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: B
 
     pub fn get_from_cache(&self, coord:Coord) -> Option<F> {
         let coordinates = bincode::serialize(&coord).unwrap();
-        match self.database.get(coordinates) {
+        match self.db_cache.get(coordinates) {
             Ok(Some(value)) => {
                 let retrieved_elem = F::read(value.as_slice()).unwrap();
                 return Some(retrieved_elem);
@@ -212,10 +212,10 @@ impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: B
 
     pub fn remove_from_cache(&self, coord: Coord) -> Option<F>{
         let coordinates = bincode::serialize(&coord).unwrap();
-        match self.database.get(coordinates.clone()) {
+        match self.db_cache.get(coordinates.clone()) {
             Ok(Some(value)) => {
                 let retrieved_elem = F::read(value.as_slice()).unwrap();
-                let res = self.database.delete(coordinates.clone());
+                let res = self.db_cache.delete(coordinates.clone());
                 match res {
                     Ok(_) => {
                         return Some(retrieved_elem);
@@ -593,7 +593,76 @@ impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: B
         self.state.root
     }
 
+    // NB. Allows to get Merkle Path of empty leaves too
+    pub fn get_merkle_path(&mut self, leaf_coord: Coord) -> Vec<(F, bool)>
+    {
+        // check that the index of the leaf is less than the width of the Merkle tree
+        assert!(leaf_coord.idx < self.state.width, "Leaf index out of bound.");
+
+        // check that the coordinates of the node corresponds to the leaf level
+        assert_eq!(leaf_coord.height, 0, "Coord of the node does not correspond to leaf level");
+
+        let mut path = Vec::with_capacity(self.height);
+        let mut node_idx = leaf_coord.idx;
+        let mut height = 0;
+
+        while height != self.height {
+            // Estabilish if sibling is a left or right child
+            let (sibling_idx, direction) = if node_idx % T::MERKLE_ARITY == 0 {
+                (node_idx + 1, false)
+            } else {
+                (node_idx - 1, true)
+            };
+
+            // Get its hash
+            let sibling_coord = Coord { height, idx: sibling_idx };
+            let sibling = if self.state.present_node.contains(&sibling_coord) {
+                if height == 0 {
+                    self.get_from_db(sibling_idx).unwrap()
+                } else {
+                    self.node(sibling_coord)
+                }
+            } else {
+                T::EMPTY_HASH_CST[height]
+            };
+
+            // Push info to path
+            path.push((sibling, direction));
+
+            // go up one level
+            height += 1;
+            node_idx = node_idx / T::MERKLE_ARITY;
+        }
+        assert_eq!(self.get_from_db(node_idx).unwrap(), self.state.root); //Sanity check
+
+        return path;
+    }
+
+    pub fn verify_merkle_path(&self, leaf: &F, path: &[(F, bool)]) -> bool
+    {
+        assert_eq!(path.len(), self.height);
+        let mut sibling = leaf.clone();
+        let mut height = 0;
+        for &(node, direction) in path {
+            if sibling == node && node == T::EMPTY_HASH_CST[height] {
+                sibling = T::EMPTY_HASH_CST[height + 1]
+            } else {
+                sibling = if direction {
+                    Self::batch_hash(vec![node, sibling])[0]
+                } else {
+                    Self::batch_hash(vec![sibling, node])[0]
+                }
+            }
+            height += 1;
+        }
+        if sibling == self.state.root {
+            true
+        } else {
+            false
+        }
+    }
 }
+
 pub type MNT4PoseidonSmt = BigMerkleTree<MNT4753Fr, MNT4753MHTPoseidonParameters, MNT4PoseidonHash>;
 pub type MNT4PoseidonSmtLazy = LazyBigMerkleTree<MNT4753Fr, MNT4753MHTPoseidonParameters, MNT4BatchPoseidonHash>;
 pub type MNT6PoseidonSmt = BigMerkleTree<MNT6753Fr, MNT6753MHTPoseidonParameters, MNT6PoseidonHash>;
@@ -608,7 +677,9 @@ mod test {
 
     use algebra::fields::mnt6753::Fr as MNT6753Fr;
     use algebra::fields::mnt4753::Fr as MNT4753Fr;
+    use algebra::fields::Field;
     use algebra::biginteger::BigInteger768;
+    use algebra::UniformRand;
 
     use std::str::FromStr;
     use std::path::Path;
@@ -986,8 +1057,96 @@ mod test {
         }
 
         // files and directories should have been deleted
-        assert!(!Path::new("./persistency_test_info").exists());
-        assert!(!Path::new("./db_leaves_persistency_test_info").exists());
-        assert!(!Path::new("./db_cache_persistency_test_info").exists());
+        assert!(!Path::new("./persistency_test_info_lazy").exists());
+        assert!(!Path::new("./db_leaves_persistency_test_info_lazy").exists());
+        assert!(!Path::new("./db_cache_persistency_test_info_lazy").exists());
+    }
+
+    #[test]
+    fn merkle_tree_path_test_mnt4() {
+
+        let num_leaves = 32;
+        let mut leaves = Vec::with_capacity(num_leaves);
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+        let mut smt = MNT4PoseidonSmt::new_unitialized(
+            num_leaves,
+            false,
+            None,
+            String::from("./db_leaves_merkle_tree_path_test_mnt4_lazy"),
+            String::from("./db_cache_merkle_tree_path_test_mnt4_lazy")
+        ).unwrap();
+
+        for i in 0..num_leaves/2 {
+            let leaf = MNT4753Fr::rand(&mut rng);
+            leaves.push(leaf);
+            smt.insert_leaf(Coord{height: 0, idx: i}, leaf);
+        }
+
+        for i in num_leaves/2..num_leaves {
+            let leaf = MNT4753Fr::zero();
+            leaves.push(leaf);
+            smt.insert_leaf(Coord{height: 0, idx: i}, leaf);
+        }
+
+        let naive_tree = MNT4753FieldBasedMerkleTree::new(leaves.as_slice()).unwrap();
+
+        let root = smt.get_root();
+        let naive_root = naive_tree.root();
+        assert_eq!(root, naive_root);
+
+        for i in 0..num_leaves {
+            let path = smt.get_merkle_path(Coord{height: 0, idx: i});
+            assert!(smt.verify_merkle_path(&leaves[i], &path));
+
+            let naive_path = naive_tree.generate_proof(i, &leaves[i]).unwrap();
+            assert!(naive_path.verify(&naive_root, &leaves[i]).unwrap());
+
+            assert_eq!(path, naive_path.path);
+        }
+    }
+
+    #[test]
+    fn merkle_tree_path_test_mnt6() {
+
+        let num_leaves = 32;
+        let mut leaves = Vec::with_capacity(num_leaves);
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+        let mut smt = MNT6PoseidonSmt::new_unitialized(
+            num_leaves,
+            false,
+            None,
+            String::from("./db_leaves_merkle_tree_path_test_mnt6_lazy"),
+            String::from("./db_cache_merkle_tree_path_test_mnt6_lazy")
+        ).unwrap();
+
+        for i in 0..num_leaves/2 {
+            let leaf = MNT6753Fr::rand(&mut rng);
+            leaves.push(leaf);
+            smt.insert_leaf(Coord{height: 0, idx: i}, leaf);
+        }
+
+        for i in num_leaves/2..num_leaves {
+            let leaf = MNT6753Fr::zero();
+            leaves.push(leaf);
+            smt.insert_leaf(Coord{height: 0, idx: i}, leaf);
+        }
+
+        let naive_tree = MNT6753FieldBasedMerkleTree::new(leaves.as_slice()).unwrap();
+
+        let root = smt.get_root();
+        let naive_root = naive_tree.root();
+        assert_eq!(root, naive_root);
+
+        for i in 0..num_leaves {
+            let path = smt.get_merkle_path(Coord{height: 0, idx: i});
+            assert!(smt.verify_merkle_path(&leaves[i], &path));
+
+            let naive_path = naive_tree.generate_proof(i, &leaves[i]).unwrap();
+            assert!(naive_path.verify(&naive_root, &leaves[i]).unwrap());
+
+            assert_eq!(path, naive_path.path);
+        }
     }
 }
