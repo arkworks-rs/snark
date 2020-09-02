@@ -252,8 +252,7 @@ mod test {
     };
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
-    use crate::merkle_tree::field_based_mht::poseidon::PoseidonMerkleTree;
-    use crate::crh::poseidon::parameters::MNT4753PoseidonParameters;
+    use crate::merkle_tree::field_based_mht::poseidon::FieldBasedMHT;
 
     struct MNT4753FieldBasedMerkleTreeParams;
 
@@ -342,7 +341,7 @@ mod test {
 
     use algebra::fields::mnt4753::Fr as MNT4753Fr;
     use crate::merkle_tree::field_based_mht::FieldBasedMerkleTree;
-    type MNT4PoseidonMHT = PoseidonMerkleTree<MNT4753Fr, MNT4753MHTPoseidonParameters, MNT4753PoseidonParameters>;
+    type MNT4PoseidonMHT = FieldBasedMHT<MNT4753MHTPoseidonParameters>;
 
     #[test]
     fn compare_merkle_trees_mnt4() {

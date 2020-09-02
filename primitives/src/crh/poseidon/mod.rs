@@ -29,7 +29,6 @@ pub trait PoseidonParameters: 'static + FieldBasedHashParameters + Clone {
     const T: usize;  // Number of S-Boxes
     const R_F:i32;   // Number of full rounds
     const R_P:i32;   // Number of partial rounds
-    const R:usize;   // The rate of the hash function
     const ZERO:Self::Fr;   // The zero element in the field
     const C2:Self::Fr;     // The constant to add in the position corresponding to the capacity
     const AFTER_ZERO_PERM: &'static[Self::Fr]; // State vector after a zero permutation

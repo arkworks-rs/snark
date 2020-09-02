@@ -11,6 +11,7 @@ pub struct MNT4753PoseidonParameters;
 
 impl FieldBasedHashParameters for MNT4753PoseidonParameters {
     type Fr = MNT4753Fr;
+    const R: usize = 2;  // The rate of the hash function
 }
 
 impl PoseidonParameters for MNT4753PoseidonParameters {
@@ -18,7 +19,6 @@ impl PoseidonParameters for MNT4753PoseidonParameters {
     const T:usize = 3;  // Number of S-Boxes
     const R_F:i32 = 4;  // Number of full rounds (for each of the two full rounds)
     const R_P:i32 = 57; // Number of partial rounds
-    const R:usize = 2;  // The rate of the hash function
 
     // The zero element of the field
     const ZERO:MNT4753Fr = field_new!(MNT4753Fr, BigInteger768([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
@@ -269,6 +269,7 @@ pub struct MNT6753PoseidonParameters;
 
 impl FieldBasedHashParameters for MNT6753PoseidonParameters {
     type Fr = MNT6753Fr;
+    const R: usize = 2;  // The rate of the hash function
 }
 
 impl PoseidonParameters for MNT6753PoseidonParameters {
@@ -279,7 +280,6 @@ impl PoseidonParameters for MNT6753PoseidonParameters {
     // Number of full rounds (for each of the two full rounds)
     const R_P: i32 = 60;
     // Number of partial rounds
-    const R: usize = 2;  // The rate of the hash function
 
     // The zero element of the field
     const ZERO: MNT6753Fr = field_new!(MNT6753Fr, BigInteger768([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]));

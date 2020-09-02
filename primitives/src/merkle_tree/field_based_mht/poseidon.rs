@@ -1,26 +1,28 @@
 extern crate rand;
 
-use algebra::{PrimeField, MulShort};
+use algebra::Field;
 use crate::{crh::{
-    BatchFieldBasedHash,
-    poseidon::{PoseidonParameters, batched_crh::PoseidonBatchHash}
-}, merkle_tree::field_based_mht::FieldBasedMerkleTree, PoseidonHash, FieldBasedHash};
+    FieldBasedHash, BatchFieldBasedHash,
+    poseidon::{
+        MNT4PoseidonHash, MNT6PoseidonHash, batched_crh::{MNT4BatchPoseidonHash, MNT6BatchPoseidonHash}
+    }
+}, merkle_tree::field_based_mht::{
+    FieldBasedMerkleTree, BaseFieldBasedMerkleTreeParameters, BatchFieldBasedMerkleTreeParameters
+}, FieldBasedHashParameters};
 use std::{marker::PhantomData, clone::Clone};
 
 #[derive(Clone, Debug)]
-pub struct PoseidonMerklePath<F: PrimeField + MulShort>(
+pub struct FieldBasedMerklePath<F: Field>(
     pub Vec<(F, bool)>
 );
 
 #[derive(Clone)]
-pub struct PoseidonMerkleTree<
-    F: PrimeField + MulShort,
-    T: FieldBasedMerkleTreeParameters<Data = F>,
-    P: PoseidonParameters<Fr = F>
+pub struct FieldBasedMHT<
+    T: BatchFieldBasedMerkleTreeParameters,
 >{
-    root: F,
+    root: T::Data,
     // Stores all MT nodes
-    array_nodes: Vec<F>,
+    array_nodes: Vec<T::Data>,
     processing_step: usize,
     // Stores the initial index of each level of the MT
     initial_pos: Vec<usize>,
@@ -35,14 +37,9 @@ pub struct PoseidonMerkleTree<
     num_leaves: usize,
     finalized: bool,
     _tree_parameters: PhantomData<T>,
-    _hash_parameters: PhantomData<P>,
 }
 
-impl<
-    F: PrimeField + MulShort,
-    T: FieldBasedMerkleTreeParameters<Data = F>,
-    P: PoseidonParameters<Fr = F>
-> PoseidonMerkleTree<F, T, P> {
+impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMHT<T> {
 
     pub fn compute_subtree(&mut self) {
         for i in 0..self.levels  {
@@ -66,69 +63,55 @@ impl<
         }
     }
 
-    fn get_last_non_empty_index(input: &[F], empty: &F) -> Option<usize> {
-        let mut index = None;
-        let mut is_previous_empty = false;
+    fn batch_hash(input: &mut [T::Data], output: &mut [T::Data], parent_level: usize) {
 
-        // Find the last non-empty in input
-        for (i, elem) in input.iter().enumerate() {
-            if elem == empty && !is_previous_empty {
-                is_previous_empty = true;
-                index = Some(i);
+        let mut i = 0;
+        let empty = T::EMPTY_HASH_CST[parent_level - 1];
+
+        // Stores the chunk that must be hashed, i.e. the ones containing at least one non-empty node
+        let mut to_hash = Vec::new();
+
+        // Stores the positions in the output vec in which the hash of the above chunks must be
+        // placed (assuming that it can happen to have non-consecutive all-empty chunks)
+        let mut output_pos = Vec::new();
+
+        // If the element of each chunk of "rate" size are all equals this means that the nodes
+        // are all empty nodes (with overwhelming probability), therefore we already have the output,
+        // otherwise it must be computed.
+        input.chunks(T::MERKLE_ARITY).for_each(|input_chunk| {
+            if input_chunk.iter().all(|&item| item == empty) {
+                output[i] = T::EMPTY_HASH_CST[parent_level];
+            } else {
+                to_hash.extend_from_slice(input_chunk);
+                output_pos.push(i);
             }
+            i += 1;
+        });
 
-            if elem != empty && is_previous_empty {
-                is_previous_empty = false;
-                index = None;
-            }
-        }
+        // Compute the hash of the non-all-empty chunks
+        if to_hash.len() != 0 {
+            let mut to_hash_out = vec![<T::Data as Field>::zero(); to_hash.len() / T::MERKLE_ARITY];
+            <T::H as BatchFieldBasedHash>::batch_evaluate_in_place(
+                to_hash.as_mut_slice(),
+                to_hash_out.as_mut_slice()
+            );
 
-        if index.is_some() {
-            let mut index = index.unwrap();
-            // If it's not the first children, we must go to the next chunk
-            if index % P::R != 0 {
-                index += index % P::R;
-            }
-
-            // If it was part of the last chunk, then all chunks are non-empty
-            if index >= input.len() { None } else { Some(index) }
-        } else {
-            None // All chunks are non-empty
-        }
-    }
-
-    fn batch_hash(input: &mut [F], output: &mut [F], parent_level: usize) {
-        let starting_index = Self::get_last_non_empty_index(input, &T::EMPTY_HASH_CST[parent_level - 1]);
-
-        if starting_index.is_some() {
-            let starting_index = starting_index.unwrap();
-            let (input_to_process, _) = input.split_at_mut(starting_index);
-            let (output_to_process, output_precomputed) = output.split_at_mut(starting_index / P::R);
-            // Must compute the hash for the non-empty chunks
-            if input_to_process.len() != 0 {
-                PoseidonBatchHash::<F, P>::batch_evaluate_in_place(input_to_process, output_to_process);
-            }
-            // For the empty ones, instead, we can get the precomputed
-            output_precomputed.iter_mut().for_each(|out| *out = T::EMPTY_HASH_CST[parent_level]);
-        }
-        else {
-            PoseidonBatchHash::<F, P>::batch_evaluate_in_place(input, output);
+            // Put the hashes in the correct positions in the output vec
+            to_hash_out.iter().enumerate().for_each(|(i, &h)| output[output_pos[i]] = h);
         }
     }
 }
 
-impl<
-    F: PrimeField + MulShort,
-    T: FieldBasedMerkleTreeParameters<Data = F>,
-    P: PoseidonParameters<Fr = F>
-> FieldBasedMerkleTree for PoseidonMerkleTree<F, T, P> {
+impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBasedMHT<T> {
 
-    type Data = F;
-    type MerklePath = PoseidonMerklePath<F>;
+    type MerklePath = FieldBasedMerklePath<T::Data>;
     type Parameters = T;
 
     fn init(num_leaves: usize) -> Self {
-        let rate = P::R;
+        let rate = <<<T::H as BatchFieldBasedHash>::BaseHash as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
+
+        assert_eq!(rate, T::MERKLE_ARITY);
+
         let processing_step = num_leaves;
 
         let mut initial_pos = Vec::new();
@@ -160,7 +143,7 @@ impl<
 
         let mut array_nodes = Vec::with_capacity(tree_size);
         for _i in 0..tree_size {
-            array_nodes.push(F::zero());
+            array_nodes.push(<T::Data as Field>::zero());
         }
 
         let cpus = rayon::current_num_threads();
@@ -179,7 +162,7 @@ impl<
         }
 
         Self {
-            root: { F::zero() },
+            root: { <T::Data as Field>::zero() },
             array_nodes: { array_nodes },
             processing_step: { processing_block_size },
             initial_pos: { initial_pos },
@@ -187,11 +170,10 @@ impl<
             processed_pos: { processed_pos },
             new_elem_pos: { new_elem_pos },
             levels: { level_idx - 2 },
-            rate: { P::R },
+            rate,
             num_leaves: {last_level_size},
             finalized: false,
             _tree_parameters: PhantomData,
-            _hash_parameters: PhantomData
         }
     }
 
@@ -213,7 +195,7 @@ impl<
     // interface point of view this is not logically correct: someone calling this
     // functions will likely not use the `leaf` anymore in most of the cases
     // (in the other cases he can just clone it).
-    fn append(&mut self, leaf: Self::Data) -> &mut Self {
+    fn append(&mut self, leaf: T::Data) -> &mut Self {
         if self.new_elem_pos[0] < self.final_pos[0] {
             self.array_nodes[self.new_elem_pos[0]] = leaf;
             self.new_elem_pos[0] += 1;
@@ -246,9 +228,9 @@ impl<
         self
     }
 
-    fn root(&self) -> Option<Self::Data> {
+    fn root(&self) -> Option<T::Data> {
         match self.finalized {
-            true => Some(self.root),
+            true => Some(self.root.clone()),
             false => None
         }
     }
@@ -260,15 +242,15 @@ impl<
 
                 let mut node_index = leaf_index;
                 for _ in 0..self.levels {
-                    if node_index % P::R == 0 { // Node is a left child
+                    if node_index % T::MERKLE_ARITY == 0 { // Node is a left child
                         merkle_path.push((self.array_nodes[node_index + 1], false));
                     } else { // Node is a right child
                         merkle_path.push((self.array_nodes[node_index - 1], true));
                     }
-                    node_index = self.num_leaves + (node_index/P::R); // Get parent index
+                    node_index = self.num_leaves + (node_index/T::MERKLE_ARITY); // Get parent index
                 }
                 assert_eq!(self.array_nodes[node_index], self.root); // Sanity check
-                Some(PoseidonMerklePath(merkle_path))
+                Some(FieldBasedMerklePath(merkle_path))
             },
             false => None,
         }
@@ -276,13 +258,13 @@ impl<
 
     fn verify_merkle_path(
         &self,
-        leaf: &Self::Data,
+        leaf: &T::Data,
         path: &Self::MerklePath
     ) -> Option<bool> {
         match self.finalized {
             true => {
                 assert_eq!(path.0.len(), self.levels);
-                let mut digest = PoseidonHash::<F, P>::init(None);
+                let mut digest = <<T::H as BatchFieldBasedHash>::BaseHash as FieldBasedHash>::init(None);
                 let mut sibling = leaf.clone();
                 let mut level = 0;
                 for &(node, direction) in &path.0 {
@@ -310,23 +292,21 @@ impl<
     }
 }
 
+pub type MNT4PoseidonMHT = FieldBasedMHT<MNT4753MHTPoseidonParameters>;
+pub type MNT6PoseidonMHT = FieldBasedMHT<MNT6753MHTPoseidonParameters>;
 
 #[cfg(test)]
 mod test {
     use rand_xorshift::XorShiftRng;
     use super::rand::SeedableRng;
-    use crate::crh::poseidon::parameters::{
-        MNT4753PoseidonParameters, MNT6753PoseidonParameters,
-    };
     use algebra::fields::mnt4753::Fr as MNT4753Fr;
     use algebra::fields::mnt6753::Fr as MNT6753Fr;
     use algebra::UniformRand;
     use algebra::biginteger::BigInteger768;
     use algebra::fields::Field;
 
-    use crate::merkle_tree::field_based_mht::poseidon::PoseidonMerkleTree;
     use crate::merkle_tree::field_based_mht::FieldBasedMerkleTree;
-    use super::{MNT4753MHTPoseidonParameters, MNT6753MHTPoseidonParameters};
+    use super::{MNT4PoseidonMHT, MNT6PoseidonMHT};
     use crate::{NaiveMerkleTree, FieldBasedMerkleTreeConfig};
     use crate::crh::poseidon::{MNT4PoseidonHash, MNT6PoseidonHash};
 
@@ -343,9 +323,6 @@ mod test {
         type H = MNT6PoseidonHash;
     }
     type NaiveMNT6PoseidonMHT = NaiveMerkleTree<MNT6753FieldBasedMerkleTreeParams>;
-
-    type MNT4PoseidonMHT = PoseidonMerkleTree<MNT4753Fr, MNT4753MHTPoseidonParameters, MNT4753PoseidonParameters>;
-    type MNT6PoseidonMHT = PoseidonMerkleTree<MNT6753Fr, MNT6753MHTPoseidonParameters, MNT6753PoseidonParameters>;
 
     #[test]
     fn merkle_tree_test_mnt4() {
@@ -389,7 +366,6 @@ mod test {
         let max_leaves = 64;
 
         for num_leaves in 1..=max_leaves {
-
             // Generate random leaves
             let mut leaves = Vec::with_capacity(num_leaves);
             for _ in 0..num_leaves {
@@ -412,7 +388,6 @@ mod test {
         // Test the case in which there are empty leaves interleaved with non empty ones
         // (i.e. misbehaviour of the user or non append only merkle tree)
         for num_leaves in 1..=max_leaves {
-            //println!("Num leaves: {}", num_leaves);
             // Make half of the added leaves empty
             let mut leaves = Vec::with_capacity(num_leaves);
             for _ in 0..num_leaves/2 {
@@ -627,6 +602,14 @@ impl FieldBasedMerkleTreeParameters for MNT4753MHTPoseidonParameters {
     ];
 }
 
+impl BaseFieldBasedMerkleTreeParameters for MNT4753MHTPoseidonParameters {
+    type H = MNT4PoseidonHash;
+}
+
+impl BatchFieldBasedMerkleTreeParameters for MNT4753MHTPoseidonParameters {
+    type H = MNT4BatchPoseidonHash;
+}
+
 #[derive(Clone)]
 pub struct MNT6753MHTPoseidonParameters;
 
@@ -679,4 +662,12 @@ impl FieldBasedMerkleTreeParameters for MNT6753MHTPoseidonParameters {
         field_new!(MNT6753Fr,BigInteger768([2623819668573158668, 18068100053054478991, 11510571701283286325, 5846159179552586599, 7116703367486880097, 14386197053801562981, 15156005615023383543, 9383873929378927496, 14930130200844661115, 17345013830483094608, 11202472323720105939, 67169217781307])),
         field_new!(MNT6753Fr,BigInteger768([4403869937029740070, 12780380221027360032, 8411002685782179801, 9673734652350638919, 1271006590149990751, 14713224810005625570, 11720231750293065950, 5216848339135916669, 2768835827765483017, 9531440940757609710, 6191833244911324787, 187122239473111])),
     ];
+}
+
+impl BaseFieldBasedMerkleTreeParameters for MNT6753MHTPoseidonParameters {
+    type H = MNT6PoseidonHash;
+}
+
+impl BatchFieldBasedMerkleTreeParameters for MNT6753MHTPoseidonParameters {
+    type H = MNT6BatchPoseidonHash;
 }

@@ -1,10 +1,6 @@
 use crate::merkle_tree::field_based_mht::smt::{Coord, OperationLeaf, BigMerkleTreeState};
-use crate::{BatchFieldBasedHash, FieldBasedMerkleTreeParameters, MNT4753MHTPoseidonParameters, MNT6753MHTPoseidonParameters};
-use crate::crh::poseidon::batched_crh::{MNT4BatchPoseidonHash, MNT6BatchPoseidonHash};
+use crate::{BatchFieldBasedHash, BatchFieldBasedMerkleTreeParameters, MNT4753MHTPoseidonParameters, MNT6753MHTPoseidonParameters, FieldBasedHash};
 use crate::merkle_tree::field_based_mht::smt::ActionLeaf::Remove;
-use crate::crh::poseidon::{
-    MNT4PoseidonHash, MNT6PoseidonHash
-};
 
 use rocksdb::{DB, Options};
 
@@ -13,27 +9,20 @@ use std::marker::PhantomData;
 
 use std::fs;
 
-use algebra::{PrimeField, MulShort};
 use algebra::{ToBytes, to_bytes, FromBytes};
-use algebra::fields::mnt6753::Fr as MNT6753Fr;
-use algebra::fields::mnt4753::Fr as MNT4753Fr;
 use crate::merkle_tree::field_based_mht::smt::big_merkle_tree::BigMerkleTree;
 use crate::merkle_tree::field_based_mht::smt::error::Error;
 use std::path::Path;
 
 #[derive(Debug)]
-pub struct LazyBigMerkleTree<
-    F: PrimeField + MulShort,
-    T: FieldBasedMerkleTreeParameters<Data = F>,
-    H: BatchFieldBasedHash<Data = F>,
-> {
+pub struct LazyBigMerkleTree<T: BatchFieldBasedMerkleTreeParameters> {
     // if unset, all DBs and tree internal state will be deleted when an instance of this struct
     // gets dropped
     persistent: bool,
     // path to state required to restore the tree
     state_path: Option<String>,
     // tree in-memory state
-    state: BigMerkleTreeState<F, T>,
+    state: BigMerkleTreeState<T>,
     // the height of the Merkle tree
     height: usize,
     // path to the db
@@ -45,18 +34,16 @@ pub struct LazyBigMerkleTree<
     // stores the cached nodes
     db_cache: DB,
 
-    _field: PhantomData<F>,
     _parameters: PhantomData<T>,
-    _hash_parameters: PhantomData<H>,
 }
 
-impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: BatchFieldBasedHash<Data = F>> Drop for LazyBigMerkleTree<F, T, H> {
+impl<T: BatchFieldBasedMerkleTreeParameters> Drop for LazyBigMerkleTree<T> {
     fn drop(&mut self) {
         self.close()
     }
 }
 
-impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: BatchFieldBasedHash<Data = F>> LazyBigMerkleTree<F, T, H> {
+impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
     // Creates a new tree of specified `width`.
     // If `persistent` is specified, then DBs will be kept on disk and the tree state will be saved
     // so that the tree can be restored any moment later. Otherwise, no state will be saved on file
@@ -69,7 +56,7 @@ impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: B
 
         let height = width as f64;
         let height = height.log(T::MERKLE_ARITY as f64) as usize;
-        let state = BigMerkleTreeState::<F, T>::get_default_state(width, height);
+        let state = BigMerkleTreeState::<T>::get_default_state(width, height);
         let path_db = path_db;
         let database = DB::open_default(path_db.clone())
             .map_err(|e| Error::Other(e.to_string()))?;
@@ -85,9 +72,7 @@ impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: B
             database,
             path_cache,
             db_cache,
-            _field: PhantomData,
             _parameters: PhantomData,
-            _hash_parameters: PhantomData,
         })
     }
 
@@ -96,10 +81,10 @@ impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: B
     // in `new_unitialized()`.
     pub fn new(persistent: bool, state_path: String, path_db: String, path_cache: String) -> Result<Self, Error> {
 
-        let state = {
+        let state = { 
             let state_file = fs::File::open(state_path.clone())
                 .map_err(|e| Error::Other(e.to_string()))?;
-            BigMerkleTreeState::<F, T>::read(state_file)
+            BigMerkleTreeState::<T>::read(state_file)
         }.map_err(|e| Error::Other(e.to_string()))?;
 
         let height = state.width as f64;
@@ -124,9 +109,7 @@ impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: B
             database,
             path_cache,
             db_cache,
-            _field: PhantomData,
             _parameters: PhantomData,
-            _hash_parameters: PhantomData,
         })
     }
 
@@ -171,7 +154,7 @@ impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: B
         self.persistent = persistency;
     }
 
-    pub fn insert_to_cache(&self, coord: Coord, data:F) {
+    pub fn insert_to_cache(&self, coord: Coord, data:T::Data) {
         let elem = to_bytes!(data).unwrap();
         let index = bincode::serialize(&coord).unwrap();
         self.db_cache.put(index, elem).unwrap();
@@ -193,11 +176,11 @@ impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: B
         }
     }
 
-    pub fn get_from_cache(&self, coord:Coord) -> Option<F> {
+    pub fn get_from_cache(&self, coord:Coord) -> Option<T::Data> {
         let coordinates = bincode::serialize(&coord).unwrap();
         match self.db_cache.get(coordinates) {
             Ok(Some(value)) => {
-                let retrieved_elem = F::read(value.as_slice()).unwrap();
+                let retrieved_elem = T::Data::read(value.as_slice()).unwrap();
                 return Some(retrieved_elem);
             },
             Ok(None) => {
@@ -210,11 +193,11 @@ impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: B
         }
     }
 
-    pub fn remove_from_cache(&self, coord: Coord) -> Option<F>{
+    pub fn remove_from_cache(&self, coord: Coord) -> Option<T::Data>{
         let coordinates = bincode::serialize(&coord).unwrap();
         match self.db_cache.get(coordinates.clone()) {
             Ok(Some(value)) => {
-                let retrieved_elem = F::read(value.as_slice()).unwrap();
+                let retrieved_elem = T::Data::read(value.as_slice()).unwrap();
                 let res = self.db_cache.delete(coordinates.clone());
                 match res {
                     Ok(_) => {
@@ -236,17 +219,17 @@ impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: B
         }
     }
 
-    pub fn insert_to_db(&self, idx: usize, data: F) {
+    pub fn insert_to_db(&self, idx: usize, data: T::Data) {
         let elem = to_bytes!(data).unwrap();
         let index = bincode::serialize(&idx).unwrap();
         self.database.put(index, elem).unwrap();
     }
 
-    pub fn get_from_db(&self, idx: usize) -> Option<F>{
+    pub fn get_from_db(&self, idx: usize) -> Option<T::Data>{
         let index = bincode::serialize(&idx).unwrap();
         match self.database.get(index) {
             Ok(Some(value)) => {
-                let retrieved_elem = F::read(value.as_slice()).unwrap();
+                let retrieved_elem = T::Data::read(value.as_slice()).unwrap();
                 return Some(retrieved_elem);
             },
             Ok(None) => {
@@ -259,11 +242,11 @@ impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: B
         }
     }
 
-    pub fn remove_from_db(&self, idx: usize) -> Option<F>{
+    pub fn remove_from_db(&self, idx: usize) -> Option<T::Data>{
         let index = bincode::serialize(&idx).unwrap();
         match self.database.get(index.clone()) {
             Ok(Some(value)) => {
-                let retrieved_elem = F::read(value.as_slice()).unwrap();
+                let retrieved_elem = T::Data::read(value.as_slice()).unwrap();
                 let res = self.database.delete(index.clone());
                 match res {
                     Ok(_) => {
@@ -330,7 +313,7 @@ impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: B
     // If the node is in the cache, it retrieves from it.
     // If not, recomputes it.
     // Only used for nodes of level >= 1 (not for leaves).
-    pub fn node(&mut self, coord: Coord) -> F {
+    pub fn node(&mut self, coord: Coord) -> T::Data {
 
         assert_eq!(T::MERKLE_ARITY,2, "Arity of the Merkle tree is not 2.");
 
@@ -349,7 +332,7 @@ impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: B
                 /* get leaves to compute */
                 let left_child_idx = coord.idx * T::MERKLE_ARITY;
                 let left_child = self.get_from_db(left_child_idx);
-                let left_hash: F;
+                let left_hash: T::Data;
                 if let Some(i) = left_child {
                     left_hash = i;
                 } else {
@@ -358,13 +341,13 @@ impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: B
 
                 let right_child_idx = left_child_idx + 1;
                 let right_child = self.get_from_db(right_child_idx);
-                let right_hash: F;
+                let right_hash: T::Data;
                 if let Some(i) = right_child {
                     right_hash = i;
                 } else {
                     right_hash = T::EMPTY_HASH_CST[0];
                 }
-                node_hash = Self::batch_hash(vec![left_hash, right_hash])[0];
+                node_hash = Self::field_hash(&left_hash, &right_hash);
             } else {
                 let height_child = coord.height - 1;
                 let left_child_idx = coord.idx * T::MERKLE_ARITY;
@@ -375,7 +358,7 @@ impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: B
                 let coord_right = Coord { height: height_child, idx: right_child_idx };
                 let right_child_hash = LazyBigMerkleTree::node(self, coord_right);
 
-                node_hash = Self::batch_hash(vec![left_child_hash, right_child_hash])[0];
+                node_hash = Self::field_hash(&left_child_hash, &right_child_hash);
             }
             return node_hash;
         }
@@ -383,7 +366,7 @@ impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: B
         res.unwrap()
     }
 
-    pub fn get_root(&self) -> F {
+    pub fn get_root(&self) -> T::Data {
         self.state.root.clone()
     }
 
@@ -391,9 +374,16 @@ impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: B
         self.remove_from_cache(coord);
     }
 
-    pub fn batch_hash(input: Vec<F>) -> Vec<F> {
-        let output_vec = H::batch_evaluate(&input);
-        output_vec.unwrap()
+    pub fn field_hash(x: &T::Data, y: &T::Data) -> T::Data{
+        <<T::H as BatchFieldBasedHash>::BaseHash as FieldBasedHash>::init(None)
+            .update(x.clone())
+            .update(y.clone())
+            .finalize()
+    }
+
+    pub fn batch_hash(input: &[T::Data]) -> Vec<T::Data> {
+        <T::H as BatchFieldBasedHash>::batch_evaluate(input)
+            .expect("Should be able to compute batch hash")
     }
 
     pub fn is_leaf_empty(&self, coord: Coord) -> bool {
@@ -405,7 +395,7 @@ impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: B
         !self.state.present_node.contains(&coord)
     }
 
-    pub fn process_leaves (&mut self, vec_leaf_op: Vec<OperationLeaf<F>>) -> F {
+    pub fn process_leaves (&mut self, vec_leaf_op: Vec<OperationLeaf<T::Data>>) -> T::Data {
 
         assert_eq!(T::MERKLE_ARITY, 2, "Arity of the Merkle tree is not 2.");
 
@@ -517,7 +507,7 @@ impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: B
             }
         }
         // Process the input_vec using batch Poseidon hash
-        let output_vec = Self::batch_hash(input_vec);
+        let output_vec = Self::batch_hash(input_vec.as_slice());
         // Place the computed hash in a cache_parallel
         let mut index_output_vec = 0;
         for coord in nodes_to_process_in_parallel[0].clone() {
@@ -541,8 +531,8 @@ impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: B
                 let idx = coord.idx;
                 let left_child_idx = idx * T::MERKLE_ARITY;
                 let right_child_idx = left_child_idx + 1;
-                let left_hash: F;
-                let right_hash: F;
+                let left_hash: T::Data;
+                let right_hash: T::Data;
                 let left_child_coord = Coord { height: coord.height - 1, idx: left_child_idx};
                 let right_child_coord = Coord { height: coord.height - 1, idx: right_child_idx};
 
@@ -571,7 +561,7 @@ impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: B
             }
 
             // Process the input_vec using batch Poseidon hash
-            let output_vec = Self::batch_hash(input_vec);
+            let output_vec = Self::batch_hash(input_vec.as_slice());
 
             // Place the computed hash in a cache_parallel
             let mut index_output_vec = 0;
@@ -594,7 +584,7 @@ impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: B
     }
 
     // NB. Allows to get Merkle Path of empty leaves too
-    pub fn get_merkle_path(&mut self, leaf_coord: Coord) -> Vec<(F, bool)>
+    pub fn get_merkle_path(&mut self, leaf_coord: Coord) -> Vec<(T::Data, bool)>
     {
         // check that the index of the leaf is less than the width of the Merkle tree
         assert!(leaf_coord.idx < self.state.width, "Leaf index out of bound.");
@@ -638,7 +628,7 @@ impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: B
         return path;
     }
 
-    pub fn verify_merkle_path(&self, leaf: &F, path: &[(F, bool)]) -> bool
+    pub fn verify_merkle_path(&self, leaf: &T::Data, path: &[(T::Data, bool)]) -> bool
     {
         assert_eq!(path.len(), self.height);
         let mut sibling = leaf.clone();
@@ -648,9 +638,9 @@ impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: B
                 sibling = T::EMPTY_HASH_CST[height + 1]
             } else {
                 sibling = if direction {
-                    Self::batch_hash(vec![node, sibling])[0]
+                    Self::field_hash(&node, &sibling)
                 } else {
-                    Self::batch_hash(vec![sibling, node])[0]
+                    Self::field_hash(&sibling, &node)
                 }
             }
             height += 1;
@@ -663,10 +653,10 @@ impl<F: PrimeField + MulShort, T: FieldBasedMerkleTreeParameters<Data = F>, H: B
     }
 }
 
-pub type MNT4PoseidonSmt = BigMerkleTree<MNT4753Fr, MNT4753MHTPoseidonParameters, MNT4PoseidonHash>;
-pub type MNT4PoseidonSmtLazy = LazyBigMerkleTree<MNT4753Fr, MNT4753MHTPoseidonParameters, MNT4BatchPoseidonHash>;
-pub type MNT6PoseidonSmt = BigMerkleTree<MNT6753Fr, MNT6753MHTPoseidonParameters, MNT6PoseidonHash>;
-pub type MNT6PoseidonSmtLazy = LazyBigMerkleTree<MNT6753Fr, MNT6753MHTPoseidonParameters, MNT6BatchPoseidonHash>;
+pub type MNT4PoseidonSmt = BigMerkleTree<MNT4753MHTPoseidonParameters>;
+pub type MNT4PoseidonSmtLazy = LazyBigMerkleTree<MNT4753MHTPoseidonParameters>;
+pub type MNT6PoseidonSmt = BigMerkleTree<MNT6753MHTPoseidonParameters>;
+pub type MNT6PoseidonSmtLazy = LazyBigMerkleTree<MNT6753MHTPoseidonParameters>;
 
 #[cfg(test)]
 mod test {

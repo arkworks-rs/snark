@@ -8,7 +8,7 @@ use algebra::fields::mnt4753::Fr as MNT4753Fr;
 use std::marker::PhantomData;
 
 use crate::crh::BatchFieldBasedHash;
-use crate::{Error, PoseidonParameters, matrix_mix_short};
+use crate::{Error, PoseidonParameters, matrix_mix_short, PoseidonHash};
 use crate::crh::poseidon::parameters::{MNT6753PoseidonParameters, MNT4753PoseidonParameters};
 
 pub struct PoseidonBatchHash<F: PrimeField, P: PoseidonParameters<Fr = F>>{
@@ -172,7 +172,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F,
 
 impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> BatchFieldBasedHash for PoseidonBatchHash<F, P> {
     type Data = F;
-    type Parameters = P;
+    type BaseHash = PoseidonHash<F, P>;
 
     fn batch_evaluate(input_array: &[F]) -> Result<Vec<F>, Error> {
 

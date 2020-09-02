@@ -12,7 +12,7 @@ pub mod poseidon;
 pub use self::poseidon::*;
 
 use crate::Error;
-
+use rayon::prelude::*;
 
 pub trait FixedLengthCRH {
     const INPUT_SIZE_BITS: usize;
@@ -23,8 +23,11 @@ pub trait FixedLengthCRH {
     fn evaluate(parameters: &Self::Parameters, input: &[u8]) -> Result<Self::Output, Error>;
 }
 
-pub trait FieldBasedHashParameters: Clone{
+pub trait FieldBasedHashParameters: Clone {
     type Fr: Field;
+
+    // The rate of the hash function
+    const R: usize;
 }
 
 pub trait FieldBasedHash {
@@ -47,14 +50,23 @@ pub trait FieldBasedHash {
 
 pub trait BatchFieldBasedHash {
     type Data: Field;
-    type Parameters: FieldBasedHashParameters<Fr = Self::Data>;
+    type BaseHash: FieldBasedHash<Data = Self::Data>;
 
     // Given an `input_array` of size n * hash_rate, batches the computation of the n hashes
     // and outputs the n hash results.
     // NOTE: The hashes are independent from each other, therefore the output is not some sort
     // of aggregated hash but it's actually the hash result of each of the inputs, grouped in
     // hash_rate chunks.
-    fn batch_evaluate(input_array: &[Self::Data]) -> Result<Vec<Self::Data>, Error>;
+    fn batch_evaluate(input_array: &[Self::Data]) -> Result<Vec<Self::Data>, Error> {
+
+        let rate = <<Self::BaseHash as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
+
+        Ok(input_array.par_chunks(rate).map(|chunk| {
+            let mut digest = <Self::BaseHash as FieldBasedHash>::init(None);
+            chunk.iter().for_each(|input| { digest.update(input.clone()); } );
+            digest.finalize()
+        }).collect::<Vec<_>>())
+    }
 
     // Given an `input_array` of size n * hash_rate, batches the computation of the n hashes
     // and outputs the n hash results.
@@ -63,5 +75,14 @@ pub trait BatchFieldBasedHash {
     // NOTE: The hashes are independent from each other, therefore the output is not some sort
     // of aggregated hash but it's actually the hash result of each of the inputs, grouped in
     // hash_rate chunks.
-    fn batch_evaluate_in_place(input_array: &mut[Self::Data], output_array: &mut[Self::Data]);
+    fn batch_evaluate_in_place(input_array: &mut[Self::Data], output_array: &mut[Self::Data]) {
+        let output = Self::batch_evaluate(input_array)
+            .expect("Should be able to compute batch hash");
+        assert_eq!(output.len(), output_array.len());
+        // Can avoid this by making output_array mutable, but that would be only to support
+        // this default implementation and probably not worth it.
+        for i in 0..output.len() {
+            output_array[i] = output[i];
+        }
+    }
 }

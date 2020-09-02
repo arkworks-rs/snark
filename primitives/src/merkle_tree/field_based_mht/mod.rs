@@ -13,18 +13,25 @@ pub use self::smt::*;
 
 use algebra::{
     biginteger::BigInteger768, fields::mnt4753::Fr as MNT4753Fr, field_new, Field};
+use crate::{FieldBasedHash, BatchFieldBasedHash};
 
 pub trait FieldBasedMerkleTreeParameters: 'static + Clone {
     type Data: Field;
-
     // The arity of the Sparse Merkle Tree
     const MERKLE_ARITY: usize;
     // The pre-computed hashes of the empty nodes for the different levels of the SMT
     const EMPTY_HASH_CST: &'static [Self::Data];
 }
 
+pub trait BaseFieldBasedMerkleTreeParameters: FieldBasedMerkleTreeParameters {
+    type H: FieldBasedHash<Data = <Self as FieldBasedMerkleTreeParameters>::Data>;
+}
+
+pub trait BatchFieldBasedMerkleTreeParameters: FieldBasedMerkleTreeParameters {
+    type H: BatchFieldBasedHash<Data = <Self as FieldBasedMerkleTreeParameters>::Data>;
+}
+
 pub trait FieldBasedMerkleTree: Clone {
-    type Data: Field;
     type MerklePath: Clone + Debug;
     type Parameters: FieldBasedMerkleTreeParameters;
 
@@ -37,7 +44,7 @@ pub trait FieldBasedMerkleTree: Clone {
     fn reset(&mut self) -> &mut Self;
 
     // This function appends a new leaf to the Merkle tree
-    fn append(&mut self, leaf: Self::Data) -> &mut Self;
+    fn append(&mut self, leaf: <Self::Parameters as FieldBasedMerkleTreeParameters>::Data) -> &mut Self;
 
     // This function finalizes the computation of the Merkle tree and returns an updated
     // copy of it. This method is idempotent, and calling it multiple times will
@@ -50,7 +57,7 @@ pub trait FieldBasedMerkleTree: Clone {
 
     // Returns the root of the Merkle Tree. Returns None if the tree has not been
     // finalized before calling this function.
-    fn root(&self) -> Option<Self::Data>;
+    fn root(&self) -> Option<<Self::Parameters as FieldBasedMerkleTreeParameters>::Data>;
 
     // Given an `index` returns the MerklePath of the leaf at that index up until the root of the
     // `self` Merkle Tree. Returns None if the tree has not been finalized before
@@ -61,7 +68,7 @@ pub trait FieldBasedMerkleTree: Clone {
     // finalized before calling this function.
     fn verify_merkle_path(
         &self,
-        leaf: &Self::Data,
+        leaf: &<Self::Parameters as FieldBasedMerkleTreeParameters>::Data,
         path: &Self::MerklePath
     ) -> Option<bool>;
 }

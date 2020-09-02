@@ -10,7 +10,7 @@ use crate::merkle_tree::field_based_mht::FieldBasedMerkleTreeParameters;
 
 use algebra::fields::mnt6753::Fr as MNT6753Fr;
 use algebra::fields::mnt4753::Fr as MNT4753Fr;
-use algebra::{PrimeField, ToBytes, FromBytes};
+use algebra::{ToBytes, FromBytes, Field};
 
 use serde::{Serialize,Deserialize};
 use std::io::{Write, Result as IoResult, Read};
@@ -58,33 +58,33 @@ impl FromBytes for Coord {
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 // Action associated to the leaf
-pub struct OperationLeaf <F: PrimeField>{
+pub struct OperationLeaf <F: Field>{
     coord: Coord,
     action: ActionLeaf,
     hash: Option<F>,
 }
 
-impl<F: PrimeField> OperationLeaf<F> {
+impl<F: Field> OperationLeaf<F> {
     pub fn new(height: usize, idx: usize, action: ActionLeaf, hash: Option<F>) -> Self {
         Self { coord: Coord { height, idx }, action, hash}
     }
 }
 
 #[derive(Debug)]
-pub(crate) struct BigMerkleTreeState<F: PrimeField, T: FieldBasedMerkleTreeParameters<Data = F>>{
+pub(crate) struct BigMerkleTreeState<T: FieldBasedMerkleTreeParameters>{
     // the number of leaves
     width: usize,
     // stores the nodes of the path
-    cache_path: HashMap<Coord, F>,
+    cache_path: HashMap<Coord, T::Data>,
     // indicates which nodes are present the Merkle tree
     present_node: HashSet<Coord>,
     // root of the Merkle tree
-    root: F,
+    root: T::Data,
 
     _parameters: PhantomData<T>
 }
 
-impl<F: PrimeField, T: FieldBasedMerkleTreeParameters<Data = F>> BigMerkleTreeState<F, T> {
+impl<T: FieldBasedMerkleTreeParameters> BigMerkleTreeState<T> {
     fn get_default_state(width: usize, height: usize) -> Self {
         Self{
             width,
@@ -96,7 +96,7 @@ impl<F: PrimeField, T: FieldBasedMerkleTreeParameters<Data = F>> BigMerkleTreeSt
     }
 }
 
-impl<F: PrimeField, T: FieldBasedMerkleTreeParameters<Data = F>> ToBytes for BigMerkleTreeState<F, T> {
+impl<T: FieldBasedMerkleTreeParameters> ToBytes for BigMerkleTreeState<T> {
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
         (self.width as u64).write(&mut writer)?;
 
@@ -115,7 +115,7 @@ impl<F: PrimeField, T: FieldBasedMerkleTreeParameters<Data = F>> ToBytes for Big
     }
 }
 
-impl<F: PrimeField, T: FieldBasedMerkleTreeParameters<Data = F>> FromBytes for BigMerkleTreeState<F, T> {
+impl<T: FieldBasedMerkleTreeParameters> FromBytes for BigMerkleTreeState<T> {
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
         let width = u64::read(&mut reader)? as usize;
 
@@ -123,7 +123,7 @@ impl<F: PrimeField, T: FieldBasedMerkleTreeParameters<Data = F>> FromBytes for B
         let mut cache_path = HashMap::new();
         for _ in 0..cache_path_len {
             let coord = Coord::read(&mut reader)?;
-            let fe = F::read(&mut reader)?;
+            let fe = T::Data::read(&mut reader)?;
             cache_path.insert(coord, fe);
         }
 
@@ -134,7 +134,7 @@ impl<F: PrimeField, T: FieldBasedMerkleTreeParameters<Data = F>> FromBytes for B
             present_node.insert(coord);
         }
 
-        let root = F::read(&mut reader)?;
+        let root = T::Data::read(&mut reader)?;
 
         Ok(Self{width, cache_path, present_node, root, _parameters: PhantomData})
     }
