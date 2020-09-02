@@ -15,7 +15,6 @@ pub trait GLVParameters: Send + Sync + 'static + ModelParameters {
     const B2_IS_NEG: bool;
     const R_BITS: u32;
 
-    // Not sure if all the data copying due to `from_slice` would result in a very inefficient implementation
     fn glv_scalar_decomposition_inner(
         k: <Self::ScalarField as PrimeField>::BigInt,
     ) -> (
@@ -45,9 +44,6 @@ pub trait GLVParameters: Send + Sync + 'static + ModelParameters {
         let d2 =
             <Self::ScalarField as PrimeField>::BigInt::mul_no_reduce_lo(&c2, Self::B2.as_ref());
 
-        // println!("d1: {:?}", d1);
-        // println!("d2: {:?}", d2);
-
         // We check if they have the same sign. If they do, we must do a subtraction. Else, we must do an
         // addition. Then, we will conditionally add or subtract the product of this with lambda from k.
         let mut k2 = if Self::B1_IS_NEG {
@@ -66,8 +62,6 @@ pub trait GLVParameters: Send + Sync + 'static + ModelParameters {
             k2.sub_noborrow(&modulus);
         }
 
-        // println!("k2 {:?}\n", );
-
         let mut k1 = k;
         let borrow = k1.sub_noborrow(&(Self::ScalarField::from(k2) * &Self::LAMBDA).into_repr());
         if borrow {
@@ -80,18 +74,12 @@ pub trait GLVParameters: Send + Sync + 'static + ModelParameters {
             (false, k2)
         };
 
-        // println!("k2 {:?}", k2);
-
         let (neg1, k1) = if k1.num_bits() > Self::R_BITS / 2 + 1 {
             (true, Self::ScalarField::from(k1).neg().into_repr())
         } else {
             (false, k1)
         };
 
-        // println!("k1 {:?}", k1);
-        // println!("k1 {:?}\n", Self::ScalarField::from(k1).neg().into_repr());
-
-        // We should really return field elements and then let the next part of the process determine if
         ((neg1, k1), (neg2, k2))
     }
 }

@@ -3,7 +3,10 @@ macro_rules! specialise_affine_to_proj {
     ($GroupProjective: ident) => {
         #[cfg(feature = "prefetch")]
         use crate::prefetch;
-        use crate::{curves::batch_arith::{decode_endo_from_usize, ENDO_CODING_BITS}, biginteger::BigInteger};
+        use crate::{
+            biginteger::BigInteger,
+            curves::batch_arith::{decode_endo_from_usize, ENDO_CODING_BITS},
+        };
 
         #[derive(Derivative)]
         #[derivative(
@@ -109,7 +112,11 @@ macro_rules! specialise_affine_to_proj {
             // We require extra scratch space, and since we want to prevent allocation/deallocation overhead
             // we pass it externally for when this function is called many times
             #[inline]
-            fn batch_double_in_place(bases: &mut [Self], index: &[usize], scratch_space: Option<&mut Vec<Self::BBaseField>>) {
+            fn batch_double_in_place(
+                bases: &mut [Self],
+                index: &[usize],
+                scratch_space: Option<&mut Vec<Self::BBaseField>>,
+            ) {
                 let mut inversion_tmp = P::BaseField::one();
 
                 let mut _scratch_space_inner = if scratch_space.is_none() {
@@ -127,9 +134,7 @@ macro_rules! specialise_affine_to_proj {
                 #[cfg(feature = "prefetch")]
                 let mut prefetch_iter = index.iter();
                 #[cfg(feature = "prefetch")]
-                {
-                    prefetch_iter.next();
-                }
+                prefetch_iter.next();
 
                 for idx in index.iter() {
                     // Prefetch next group into cache
@@ -267,7 +272,6 @@ macro_rules! specialise_affine_to_proj {
                     prefetch_slice!(bases, other, prefetch_iter);
                     let (mut a, b) = (&mut bases[*idx], other[*idy]);
 
-
                     if a.is_zero() {
                         *a = b;
                     } else if !b.is_zero() {
@@ -294,6 +298,7 @@ macro_rules! specialise_affine_to_proj {
                 #[cfg(feature = "prefetch")]
                 {
                     prefetch_iter.next();
+                    prefetch_iter.next();
                 }
 
                 // We run two loops over the data separated by an inversion
@@ -304,6 +309,7 @@ macro_rules! specialise_affine_to_proj {
                         let (x, y) = bases.split_at_mut(*idy);
                         (&mut x[*idx], &mut y[0])
                     } else {
+                        println!("idx: {}, idy: {}", idx, idy);
                         let (x, y) = bases.split_at_mut(*idx);
                         (&mut y[0], &mut x[*idy])
                     };
@@ -348,7 +354,10 @@ macro_rules! specialise_affine_to_proj {
                 #[cfg(feature = "prefetch")]
                 let mut prefetch_iter = index.iter().rev();
                 #[cfg(feature = "prefetch")]
-                prefetch_iter.next();
+                {
+                    prefetch_iter.next();
+                    prefetch_iter.next();
+                }
 
                 for (idx, idy) in index.iter().rev() {
                     #[cfg(feature = "prefetch")]
@@ -376,7 +385,12 @@ macro_rules! specialise_affine_to_proj {
                 }
             }
 
-            fn batch_add_in_place_read_only(bases: &mut [Self], other: &[Self], index: &[(usize, usize)], scratch_space: Option<&mut Vec<Self>>) {
+            fn batch_add_in_place_read_only(
+                bases: &mut [Self],
+                other: &[Self],
+                index: &[(usize, usize)],
+                scratch_space: Option<&mut Vec<Self>>,
+            ) {
                 let mut inversion_tmp = P::BaseField::one();
                 let mut half = None;
 
@@ -409,7 +423,6 @@ macro_rules! specialise_affine_to_proj {
                         b = b.neg();
                     }
                     if P::GLV {
-                        // println!("ENDO: {}, idy: {}", endomorphism, idy);
                         if endomorphism >> 1 == 1 {
                             P::glv_endomorphism_in_place(&mut b.x);
                         }
@@ -490,32 +503,32 @@ macro_rules! specialise_affine_to_proj {
             ) {
                 debug_assert!(bases.len() == scalars.len());
                 if P::GLV {
-                    use itertools::{
-                        Itertools,
-                        EitherOrBoth::*,
-                    };
+                    use itertools::{EitherOrBoth::*, Itertools};
                     let now = std::time::Instant::now();
                     let k_vec: Vec<_> = scalars
                         .iter()
-                        .map(|k| P::glv_scalar_decomposition(
-                            <P::ScalarField as PrimeField>::BigInt::from_slice(
-                                k.as_ref()
-                        ))).collect();
+                        .map(|k| {
+                            P::glv_scalar_decomposition(
+                                <P::ScalarField as PrimeField>::BigInt::from_slice(k.as_ref()),
+                            )
+                        })
+                        .collect();
 
+                    // #[cfg(debug_assertions)]
                     // for (k, ((b1, k1), (b2, k2))) in scalars.iter().zip(k_vec.iter()) {
                     //     let k = <Self as AffineCurve>::ScalarField::from(
                     //         <<Self as AffineCurve>::ScalarField as PrimeField>::BigInt::from_slice(
                     //             k.as_ref()
                     //         ));
-                    //     let k1 = if *b1 {
-                    //          <Self as AffineCurve>::ScalarField::from(*k1).neg()
+                    //     let k1: <Self as AffineCurve>::ScalarField = if *b1 {
+                    //          *k1.into().neg()
                     //     } else {
-                    //         <Self as AffineCurve>::ScalarField::from(*k1)
+                    //         *k1.into()
                     //     };
-                    //     let k2 = if *b2 {
-                    //          <Self as AffineCurve>::ScalarField::from(*k2).neg()
+                    //     let k2: <Self as AffineCurve>::ScalarField = if *b2 {
+                    //          *k2.into().neg()
                     //     } else {
-                    //         <Self as AffineCurve>::ScalarField::from(*k2)
+                    //         *k2.into()
                     //     };
                     //     let lambda = <<Self as AffineCurve>::ScalarField as PrimeField>::BigInt::from_slice(&[
                     //         0x8508c00000000001,
@@ -527,34 +540,38 @@ macro_rules! specialise_affine_to_proj {
                     //     ]);
                     //     let lambda = <Self as AffineCurve>::ScalarField::from_repr(lambda).unwrap();
                     //     debug_assert!(k == k1 + &(lambda * &k2));
-                    //
                     // }
-                    // println!("Scalars decompose properly");
 
                     let mut k1_scalars: Vec<_> = k_vec.iter().map(|x| (x.0).1).collect();
-                    // Negative scalars
+                    // Deal with negative scalars by adding the negation of t[id_p] in the table
                     let k1_negates: Vec<_> = k_vec.iter().map(|x| (x.0).0).collect();
                     let mut k2_scalars: Vec<_> = k_vec.iter().map(|x| (x.1).1).collect();
                     let k2_negates: Vec<_> = k_vec.iter().map(|x| (x.1).0).collect();
 
-                    println!("GLV DECOMP for {} elems: {}us", bases.len(), now.elapsed().as_micros());
+                    // println!(
+                    //     "GLV DECOMP for {} elems: {}us",
+                    //     bases.len(),
+                    //     now.elapsed().as_micros()
+                    // );
 
                     println!("collected");
-                    let opcode_vectorised_k1 =
-                        Self::batch_wnaf_opcode_recoding(
-                            &mut k1_scalars[..], w, Some(k1_negates.as_slice())
-                        );
-                    let opcode_vectorised_k2 =
-                        Self::batch_wnaf_opcode_recoding(
-                            &mut k2_scalars[..], w, Some(k2_negates.as_slice())
-                        );
+                    let opcode_vectorised_k1 = Self::batch_wnaf_opcode_recoding(
+                        &mut k1_scalars[..],
+                        w,
+                        Some(k1_negates.as_slice()),
+                    );
+                    let opcode_vectorised_k2 = Self::batch_wnaf_opcode_recoding(
+                        &mut k2_scalars[..],
+                        w,
+                        Some(k2_negates.as_slice()),
+                    );
 
-                    println!("Generating opcodes");
+                    // println!("Generating opcodes");
                     let tables = Self::batch_wnaf_tables(bases, w);
                     let half_size = 1 << w;
                     let batch_size = bases.len();
 
-                    println!("table size {}", tables.len());
+                    // println!("table size {}", tables.len());
 
                     // Set all points to 0;
                     let zero = Self::zero();
@@ -564,16 +581,18 @@ macro_rules! specialise_affine_to_proj {
 
                     let noop_vec = vec![None; batch_size];
 
+                    let mut count = 0;
                     for (opcode_row_k1, opcode_row_k2) in opcode_vectorised_k1
                         .iter()
-                        .zip_longest(opcode_vectorised_k2)
+                        .zip_longest(opcode_vectorised_k2.iter())
                         .map(|x| match x {
                             Both(a, b) => (a, b),
-                            Left(a) => (a, noop_vec.clone()),
+                            Left(a) => (a, &noop_vec),
                             Right(b) => (&noop_vec, b),
                         })
                         .rev()
                     {
+                        count += 1;
                         let index_double: Vec<usize> = opcode_row_k1
                             .iter()
                             .zip(opcode_row_k2.iter())
@@ -593,12 +612,21 @@ macro_rules! specialise_affine_to_proj {
                                 if idx > 0 {
                                     (i, (i * half_size + (idx as usize) / 2) << ENDO_CODING_BITS)
                                 } else {
-                                    (i, ((i * half_size + (-idx as usize) / 2) << ENDO_CODING_BITS) + 1)
+                                    (
+                                        i,
+                                        ((i * half_size + (-idx as usize) / 2) << ENDO_CODING_BITS)
+                                            + 1,
+                                    )
                                 }
                             })
                             .collect();
 
-                        Self::batch_add_in_place_read_only(&mut bases, &tables[..], &index_add_k1[..], None);
+                        Self::batch_add_in_place_read_only(
+                            &mut bases,
+                            &tables[..],
+                            &index_add_k1[..],
+                            None,
+                        );
 
                         let index_add_k2: Vec<(usize, usize)> = opcode_row_k2
                             .iter()
@@ -607,17 +635,32 @@ macro_rules! specialise_affine_to_proj {
                             .map(|(i, op)| {
                                 let idx = op.unwrap();
                                 if idx > 0 {
-                                    (i, ((i * half_size + (idx as usize) / 2) << ENDO_CODING_BITS) + 2)
+                                    (
+                                        i,
+                                        ((i * half_size + (idx as usize) / 2) << ENDO_CODING_BITS)
+                                            + 2,
+                                    )
                                 } else {
-                                    (i, ((i * half_size + (-idx as usize) / 2) << ENDO_CODING_BITS) + 3)
+                                    (
+                                        i,
+                                        ((i * half_size + (-idx as usize) / 2) << ENDO_CODING_BITS)
+                                            + 3,
+                                    )
                                 }
                             })
-                             .collect();
+                            .collect();
 
-                        Self::batch_add_in_place_read_only(&mut bases, &tables[..], &index_add_k2[..], None);
+                        Self::batch_add_in_place_read_only(
+                            &mut bases,
+                            &tables[..],
+                            &index_add_k2[..],
+                            None,
+                        );
                     }
+                    // println!("max {} doublings", count);
                 } else {
-                    let opcode_vectorised = Self::batch_wnaf_opcode_recoding::<BigInt>(scalars, w, None);
+                    let opcode_vectorised =
+                        Self::batch_wnaf_opcode_recoding::<BigInt>(scalars, w, None);
                     let tables = Self::batch_wnaf_tables(bases, w);
                     let half_size = 1 << w;
 

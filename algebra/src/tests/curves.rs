@@ -1,12 +1,25 @@
 #![allow(unused)]
 use algebra_core::{
-    batch_bucketed_add_split, batch_verify_in_subgroup, batch_verify_in_subgroup_recursive,
+    batch_bucketed_add, //split,
+    batch_verify_in_subgroup,
+    batch_verify_in_subgroup_recursive,
     biginteger::BigInteger64,
     curves::{AffineCurve, BatchGroupArithmeticSlice, ProjectiveCurve},
     io::Cursor,
-    CanonicalDeserialize, CanonicalSerialize, Field, MontgomeryModelParameters, One, PrimeField,
-    SWFlags, SWModelParameters, SerializationError, TEModelParameters, UniformRand, Vec,
-    VerificationError, Zero,
+    CanonicalDeserialize,
+    CanonicalSerialize,
+    Field,
+    MontgomeryModelParameters,
+    One,
+    PrimeField,
+    SWFlags,
+    SWModelParameters,
+    SerializationError,
+    TEModelParameters,
+    UniformRand,
+    Vec,
+    VerificationError,
+    Zero,
 };
 use rand::{
     distributions::{Distribution, Uniform},
@@ -369,8 +382,8 @@ pub fn random_batch_scalar_mul_test<G: ProjectiveCurve>() {
         let c: Vec<G::Affine> = c.iter().map(|p| p.into_affine()).collect();
 
         for (p1, p2) in a.iter().zip(c) {
-            println!("{}", *p1 == p2);
-            // assert_eq!(p1, p2);
+            // println!("{}", *p1 == p2);
+            assert_eq!(*p1, p2);
         }
     }
 }
@@ -385,7 +398,6 @@ fn batch_bucketed_add_test<C: AffineCurve>() {
         let n_elems = 1 << i;
         let n_buckets = 1 << (i - 3);
 
-        let mut elems = random_elems[0..n_elems].to_vec();
         let mut bucket_assign = Vec::<usize>::with_capacity(n_elems);
         let step = Uniform::new(0, n_buckets);
 
@@ -394,17 +406,19 @@ fn batch_bucketed_add_test<C: AffineCurve>() {
         }
 
         let mut res1 = vec![];
-        for i in 6..11 {
-            let now = std::time::Instant::now();
-            res1 = batch_bucketed_add_split::<C>(n_buckets, &elems[..], &bucket_assign[..], i);
-            println!(
-                "batch bucketed add for {} elems: {:?}",
-                n_elems,
-                now.elapsed().as_micros()
-            );
-        }
+        let mut elems_mut = random_elems[0..n_elems].to_vec();
+        // for i in 6..11 {
+        let now = std::time::Instant::now();
+        res1 = batch_bucketed_add::<C>(n_buckets, &mut elems_mut[..], &bucket_assign[..]);
+        println!(
+            "batch bucketed add for {} elems: {:?}",
+            n_elems,
+            now.elapsed().as_micros()
+        );
+        // }
 
         let mut res2 = vec![C::Projective::zero(); n_buckets];
+        let mut elems = random_elems[0..n_elems].to_vec();
 
         let now = std::time::Instant::now();
         for (&bucket_idx, elem) in bucket_assign.iter().zip(elems) {
@@ -510,7 +524,7 @@ macro_rules! batch_verify_test {
             }
         }
 
-        // // We can induce a collision and thus failure to identify non-subgroup elements with this
+        // // We can induce a collision and thus failure to identify non-subgroup elements with the following
         // for j in 0..10000 {
         //     // Randomly insert random non-subgroup elems
         //     if j == 0 {

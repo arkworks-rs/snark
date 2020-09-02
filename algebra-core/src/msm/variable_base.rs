@@ -1,8 +1,10 @@
 use crate::{
-    batch_bucketed_add, batch_bucketed_add_split,
+    batch_bucketed_add,
+    batch_bucketed_add_split,
     prelude::{AffineCurve, BigInteger, FpParameters, One, PrimeField, ProjectiveCurve, Zero},
     Vec,
 };
+
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
@@ -71,40 +73,43 @@ impl VariableBaseMSM {
                             }
                         }
                     });
+                println!("before affine: {}", now.elapsed().as_micros());
                 let buckets = G::Projective::batch_normalization_into_affine(&buckets);
 
                 println!(
-                    "Add to {} buckets (batch) for {} elems: {:?}",
+                    "Add to {} buckets (non-batch) for {} elems: {:?}",
                     (1 << log2_n_bucket) - 1,
                     bases.len(),
                     now.elapsed().as_micros()
                 );
 
+                let now = std::time::Instant::now();
                 let mut running_sum = G::Projective::zero();
                 for b in buckets.into_iter().rev() {
                     running_sum.add_assign_mixed(&b);
-                    res += running_sum;
+                    res += &running_sum;
                 }
+                println!("Accumulating sums: {}", now.elapsed().as_micros());
 
-                res
+                (res, log2_n_bucket)
             })
             .collect();
 
         // We store the sum for the lowest window.
-        let lowest = *window_sums.first().unwrap();
+        let lowest = window_sums.first().unwrap().0;
 
         // We're traversing windows from high to low.
         lowest
-            + window_sums[1..]
-                .iter()
-                .rev()
-                .fold(zero, |mut total, sum_i| {
-                    total += sum_i;
-                    for _ in 0..c {
+            + &window_sums[1..].iter().rev().fold(
+                zero,
+                |total: G::Projective, (sum_i, window_size): &(G::Projective, usize)| {
+                    let mut total = total + sum_i;
+                    for _ in 0..*window_size {
                         total.double_in_place();
                     }
                     total
-                })
+                },
+            )
     }
 
     pub fn multi_scalar_mul<G: AffineCurve>(
@@ -119,13 +124,14 @@ impl VariableBaseMSM {
         scalars: &[BigInt],
         num_bits: usize,
     ) -> G::Projective {
+        let then = std::time::Instant::now();
         let c = if scalars.len() < 32 {
             3
         } else {
             super::ln_without_floats(scalars.len()) + 2
         };
 
-        // let num_bits = <G::ScalarField as PrimeField>::Params::MODULUS_BITS as usize;
+        let num_bits = <G::ScalarField as PrimeField>::Params::MODULUS_BITS as usize;
         let fr_one = G::ScalarField::one().into_repr();
 
         let zero = G::Projective::zero();
@@ -139,8 +145,9 @@ impl VariableBaseMSM {
         // Each window is of size `c`.
         // We divide up the bits 0..num_bits into windows of size `c`, and
         // in parallel process each such window.
-        let window_sums: Vec<(G::Projective, usize)> = window_starts_iter
+        let window_sums: Vec<_> = window_starts_iter
             .map(|w_start| {
+                let then = std::time::Instant::now();
                 // We don't need the "zero" bucket, so we only have 2^c - 1 buckets
                 let log2_n_bucket = if (w_start % c) != 0 { w_start % c } else { c };
                 let n_buckets = (1 << log2_n_bucket) - 1;
@@ -156,12 +163,21 @@ impl VariableBaseMSM {
                         scalar.divn(w_start as u32);
 
                         // We mod the remaining bits by the window size.
-                        // This is wrong and will subtract from zero. FIXME.
-                        (scalar.as_ref()[0] % (1 << c)) as usize - 1
+                        (scalar.as_ref()[0] % (1 << c)) as i64
                     })
+                    .map(|s| (s - 1) as usize)
                     .collect::<Vec<usize>>();
+
+                println!("Scalars: {}", now.elapsed().as_micros());
+                let now = std::time::Instant::now();
+                let mut elems = bases.to_vec();
+
+                println!("Copy vec: {}", now.elapsed().as_micros());
+
+                let now = std::time::Instant::now();
                 let buckets = if true {
-                    batch_bucketed_add::<G>(n_buckets, &mut bases.to_vec()[..], scalars.as_slice())
+                    // panic!()
+                    batch_bucketed_add::<G>(n_buckets, &mut elems[..], scalars.as_slice())
                 } else {
                     batch_bucketed_add_split::<G>(n_buckets, bases, scalars.as_slice(), 9)
                 };
@@ -172,6 +188,8 @@ impl VariableBaseMSM {
                     bases.len(),
                     now.elapsed().as_micros()
                 );
+
+                let now = std::time::Instant::now();
                 let mut res = zero;
                 let mut running_sum = G::Projective::zero();
                 for b in buckets.into_iter().rev() {
@@ -179,6 +197,8 @@ impl VariableBaseMSM {
                     res += &running_sum;
                 }
 
+                println!("Accumulating sums: {}", now.elapsed().as_micros());
+                println!("Total before combining: {}", then.elapsed().as_micros());
                 (res, log2_n_bucket)
             })
             .collect();
@@ -187,6 +207,8 @@ impl VariableBaseMSM {
         let lowest = window_sums.first().unwrap().0;
 
         // We're traversing windows from high to low.
+
+        println!("Total: {}", then.elapsed().as_micros());
         lowest
             + &window_sums[1..].iter().rev().fold(
                 zero,

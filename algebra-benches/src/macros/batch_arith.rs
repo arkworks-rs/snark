@@ -2,7 +2,7 @@ macro_rules! batch_arith {
     () => {
         #[bench]
         fn bench_g1_batch_mul_affine(b: &mut ::test::Bencher) {
-            const SAMPLES: usize = 10000;
+            const SAMPLES: usize = 40000;
 
             let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
