@@ -1,24 +1,12 @@
 #![allow(unused)]
 use algebra_core::{
-    batch_bucketed_add,
-    batch_verify_in_subgroup,
+    batch_bucketed_add, batch_verify_in_subgroup,
     biginteger::BigInteger64,
     curves::{AffineCurve, BatchGroupArithmeticSlice, ProjectiveCurve},
     io::Cursor,
-    CanonicalDeserialize,
-    CanonicalSerialize,
-    Field,
-    MontgomeryModelParameters,
-    One,
-    PrimeField,
-    SWFlags,
-    SWModelParameters,
-    SerializationError,
-    TEModelParameters,
-    UniformRand,
-    Vec,
-    VerificationError,
-    Zero,
+    CanonicalDeserialize, CanonicalSerialize, Field, MontgomeryModelParameters, One, PrimeField,
+    SWFlags, SWModelParameters, SerializationError, TEModelParameters, UniformRand, Vec,
+    VerificationError, Zero,
 };
 use rand::{
     distributions::{Distribution, Uniform},
@@ -406,7 +394,6 @@ fn batch_bucketed_add_test<C: AffineCurve>() {
 
         let mut res1 = vec![];
         let mut elems_mut = random_elems[0..n_elems].to_vec();
-        // for i in 6..11 {
         let now = std::time::Instant::now();
         res1 = batch_bucketed_add::<C>(n_buckets, &mut elems_mut[..], &bucket_assign[..]);
         println!(
@@ -414,7 +401,6 @@ fn batch_bucketed_add_test<C: AffineCurve>() {
             n_elems,
             now.elapsed().as_micros()
         );
-        // }
 
         let mut res2 = vec![C::Projective::zero(); n_buckets];
         let mut elems = random_elems[0..n_elems].to_vec();

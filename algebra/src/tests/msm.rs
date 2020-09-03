@@ -67,21 +67,21 @@ fn test_msm<G: AffineCurve>() {
     assert_eq!(even_faster.into_affine(), fast.into_affine());
 }
 
-// #[test]
-// fn test_with_bls12_unequal_numbers() {
-//     const SAMPLES: usize = 1 << 10;
-//
-//     let mut rng = XorShiftRng::seed_from_u64(234872845u64);
-//
-//     let v = (0..SAMPLES - 1)
-//         .map(|_| Fr::rand(&mut rng).into_repr())
-//         .collect::<Vec<_>>();
-//     let g = (0..SAMPLES)
-//         .map(|_| G1Projective::rand(&mut rng).into_affine())
-//         .collect::<Vec<_>>();
-//
-//     let naive = naive_var_base_msm(g.as_slice(), v.as_slice());
-//     let fast = VariableBaseMSM::multi_scalar_mul(g.as_slice(), v.as_slice());
-//
-//     assert_eq!(naive.into_affine(), fast.into_affine());
-// }
+#[test]
+fn test_with_bls12_unequal_numbers() {
+    const SAMPLES: usize = 1 << 10;
+
+    let mut rng = XorShiftRng::seed_from_u64(234872845u64);
+
+    let v = (0..SAMPLES - 1)
+        .map(|_| Fr::rand(&mut rng).into_repr())
+        .collect::<Vec<_>>();
+    let g = (0..SAMPLES)
+        .map(|_| G1Projective::rand(&mut rng).into_affine())
+        .collect::<Vec<_>>();
+
+    let naive = naive_var_base_msm(g.as_slice(), v.as_slice());
+    let fast = VariableBaseMSM::multi_scalar_mul(g.as_slice(), v.as_slice());
+
+    assert_eq!(naive.into_affine(), fast.into_affine());
+}
