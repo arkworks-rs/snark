@@ -203,7 +203,6 @@ macro_rules! specialise_affine_to_proj {
                 scratch_space.clear();
             }
 
-            // Consumes other and mutates self in place. Accepts index function
             #[inline]
             fn batch_add_in_place(
                 bases: &mut [Self],
@@ -514,47 +513,11 @@ macro_rules! specialise_affine_to_proj {
                         })
                         .collect();
 
-                    // #[cfg(debug_assertions)]
-                    // for (k, ((b1, k1), (b2, k2))) in scalars.iter().zip(k_vec.iter()) {
-                    //     let k = <Self as AffineCurve>::ScalarField::from(
-                    //         <<Self as AffineCurve>::ScalarField as PrimeField>::BigInt::from_slice(
-                    //             k.as_ref()
-                    //         ));
-                    //     let k1: <Self as AffineCurve>::ScalarField = if *b1 {
-                    //          *k1.into().neg()
-                    //     } else {
-                    //         *k1.into()
-                    //     };
-                    //     let k2: <Self as AffineCurve>::ScalarField = if *b2 {
-                    //          *k2.into().neg()
-                    //     } else {
-                    //         *k2.into()
-                    //     };
-                    //     let lambda = <<Self as AffineCurve>::ScalarField as PrimeField>::BigInt::from_slice(&[
-                    //         0x8508c00000000001,
-                    //         0x452217cc90000000,
-                    //         0xc5ed1347970dec00,
-                    //         0x619aaf7d34594aab,
-                    //         0x9b3af05dd14f6ec,
-                    //         0x0
-                    //     ]);
-                    //     let lambda = <Self as AffineCurve>::ScalarField::from_repr(lambda).unwrap();
-                    //     debug_assert!(k == k1 + &(lambda * &k2));
-                    // }
-
                     let mut k1_scalars: Vec<_> = k_vec.iter().map(|x| (x.0).1).collect();
-                    // Deal with negative scalars by adding the negation of t[id_p] in the table
                     let k1_negates: Vec<_> = k_vec.iter().map(|x| (x.0).0).collect();
                     let mut k2_scalars: Vec<_> = k_vec.iter().map(|x| (x.1).1).collect();
                     let k2_negates: Vec<_> = k_vec.iter().map(|x| (x.1).0).collect();
 
-                    // println!(
-                    //     "GLV DECOMP for {} elems: {}us",
-                    //     bases.len(),
-                    //     now.elapsed().as_micros()
-                    // );
-
-                    println!("collected");
                     let opcode_vectorised_k1 = Self::batch_wnaf_opcode_recoding(
                         &mut k1_scalars[..],
                         w,
@@ -566,22 +529,17 @@ macro_rules! specialise_affine_to_proj {
                         Some(k2_negates.as_slice()),
                     );
 
-                    // println!("Generating opcodes");
                     let tables = Self::batch_wnaf_tables(bases, w);
                     let half_size = 1 << w;
                     let batch_size = bases.len();
-
-                    // println!("table size {}", tables.len());
 
                     // Set all points to 0;
                     let zero = Self::zero();
                     for p in bases.iter_mut() {
                         *p = zero;
                     }
-
                     let noop_vec = vec![None; batch_size];
 
-                    let mut count = 0;
                     for (opcode_row_k1, opcode_row_k2) in opcode_vectorised_k1
                         .iter()
                         .zip_longest(opcode_vectorised_k2.iter())
@@ -592,7 +550,6 @@ macro_rules! specialise_affine_to_proj {
                         })
                         .rev()
                     {
-                        count += 1;
                         let index_double: Vec<usize> = opcode_row_k1
                             .iter()
                             .zip(opcode_row_k2.iter())
@@ -657,7 +614,6 @@ macro_rules! specialise_affine_to_proj {
                             None,
                         );
                     }
-                // println!("max {} doublings", count);
                 } else {
                     let opcode_vectorised =
                         Self::batch_wnaf_opcode_recoding::<BigInt>(scalars, w, None);

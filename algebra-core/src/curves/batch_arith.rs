@@ -40,11 +40,9 @@ where
     Self: Sized + Clone + Copy + Zero + Neg<Output = Self>,
 {
     type BBaseField: Field;
-    // This function consumes the scalars
-    // We can make this more generic in the future to use other than u16.
 
-    // TODO: Generalise to A != 0
-    // Computes [-p, p, -3p, 3p, ..., -2^wp, 2^wp]
+    /// Computes [[p, 3 * p, ..., (2^w - 1) * p], ..., [q, 3* q,  ..., ]]
+    /// We need to manipulate the offsets when using the table
     fn batch_wnaf_tables(bases: &[Self], w: usize) -> Vec<Self> {
         let half_size = 1 << w;
         let batch_size = bases.len();
@@ -73,8 +71,10 @@ where
         tables
     }
 
-    // This function mutates the scalars in place
-    // We can make this more generic in the future to use other than i16.
+    /// Computes the vectorised version of the wnaf integer recoding
+    /// Optionally takes a slice of booleans which indicate whether that
+    /// scalar is negative. If so, it negates the recoding.
+    /// Mutates scalars in place
     fn batch_wnaf_opcode_recoding<BigInt: BigInteger>(
         scalars: &mut [BigInt],
         w: usize,
@@ -158,18 +158,30 @@ where
         op_code_vectorised
     }
 
-    // This function consumes the second op as it mutates it in place
-    // to prevent memory allocation6
+    /*
+    We define a series of batched primitive EC ops, each of which is most suitable
+    to a particular scenario
+    */
+
+    /// Mutates bases to be doubled in place
+    /// Accepts optional scratch space which might help by reducing the
+    /// number of heap allocations for the Vector-based scratch_space
     fn batch_double_in_place(
         bases: &mut [Self],
         index: &[usize],
         scratch_space: Option<&mut Vec<Self::BBaseField>>,
     );
 
+    /// Mutates bases in place and stores result in the first operand.
+    /// The element corresponding to the second operand becomes junk data.
     fn batch_add_in_place_same_slice(bases: &mut [Self], index: &[(usize, usize)]);
 
+    /// Mutates bases in place and stores result in bases.
+    /// The elements in other become junk data.
     fn batch_add_in_place(bases: &mut [Self], other: &mut [Self], index: &[(usize, usize)]);
 
+    /// Adds elements in bases with elements in other (for instance, a table), utilising
+    /// a scratch space to store intermediate results.
     fn batch_add_in_place_read_only(
         bases: &mut [Self],
         other: &[Self],
@@ -179,6 +191,8 @@ where
         unimplemented!()
     }
 
+    /// Performs a batch scalar multiplication using the w-NAF encoding
+    /// utilising the primitive batched ops
     fn batch_scalar_mul_in_place<BigInt: BigInteger>(
         mut bases: &mut [Self],
         scalars: &mut [BigInt],
@@ -231,6 +245,10 @@ where
         }
     }
 
+    /// Chunks vectorised instructions into a size that does not require
+    /// storing a lot of intermediate state
+
+    // Maybe put this as a helper function instead of in the trait?
     fn get_chunked_instr<T: Clone>(instr: &[T], batch_size: usize) -> Vec<Vec<T>> {
         let mut res = Vec::new();
 
@@ -253,7 +271,7 @@ where
     }
 }
 
-// We make the syntax cleaner by defining corresponding trait and impl for [G]
+/// We make the syntax cleaner by defining corresponding trait and impl for [G]
 pub trait BatchGroupArithmeticSlice<G: AffineCurve> {
     fn batch_double_in_place(&mut self, index: &[usize]);
 
