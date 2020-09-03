@@ -1,5 +1,5 @@
 use crate::{biginteger::BigInteger, ModelParameters, PrimeField};
-use std::ops::Neg;
+use core::ops::Neg;
 
 /// TODO: deal with the case where b1 and b2 have the same sign
 pub trait GLVParameters: Send + Sync + 'static + ModelParameters {

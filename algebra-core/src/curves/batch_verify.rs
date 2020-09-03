@@ -2,7 +2,7 @@ use crate::fields::FpParameters;
 use crate::{
     cfg_chunks_mut,
     curves::{batch_bucketed_add_split, BatchGroupArithmeticSlice},
-    AffineCurve, PrimeField, ProjectiveCurve,
+    AffineCurve, PrimeField, ProjectiveCurve, Vec,
 };
 use num_traits::{identities::Zero, Pow};
 

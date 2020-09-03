@@ -1,4 +1,4 @@
-use crate::{cfg_iter_mut, curves::BatchGroupArithmeticSlice, log2, AffineCurve};
+use crate::{cfg_iter_mut, curves::BatchGroupArithmeticSlice, log2, AffineCurve, Vec};
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
