@@ -130,9 +130,6 @@ impl VariableBaseMSM {
             super::ln_without_floats(scalars.len()) + 2
         };
 
-        let num_bits = <G::ScalarField as PrimeField>::Params::MODULUS_BITS as usize;
-        let fr_one = G::ScalarField::one().into_repr();
-
         let zero = G::Projective::zero();
         let window_starts: Vec<_> = (0..num_bits).step_by(c).collect();
 

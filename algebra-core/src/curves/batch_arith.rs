@@ -183,10 +183,10 @@ where
     /// Adds elements in bases with elements in other (for instance, a table), utilising
     /// a scratch space to store intermediate results.
     fn batch_add_in_place_read_only(
-        bases: &mut [Self],
-        other: &[Self],
-        index: &[(usize, usize)],
-        scratch_space: Option<&mut Vec<Self>>,
+        _bases: &mut [Self],
+        _other: &[Self],
+        _index: &[(usize, usize)],
+        _scratch_space: Option<&mut Vec<Self>>,
     ) {
         unimplemented!()
     }
