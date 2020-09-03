@@ -1,8 +1,7 @@
 #![allow(unused)]
 use algebra_core::{
-    batch_bucketed_add, //split,
+    batch_bucketed_add,
     batch_verify_in_subgroup,
-    batch_verify_in_subgroup_recursive,
     biginteger::BigInteger64,
     curves::{AffineCurve, BatchGroupArithmeticSlice, ProjectiveCurve},
     io::Cursor,
@@ -475,52 +474,52 @@ macro_rules! batch_verify_test {
 
             let mut tmp_elems = random_elems[0..n_elems].to_vec();
 
-            let now = std::time::Instant::now();
+            // let now = std::time::Instant::now();
             batch_verify_in_subgroup::<$GroupAffine<P>, XorShiftRng>(&tmp_elems[..], SECURITY_PARAM, &mut rng)
                 .expect("Should have verified as correct");
-            println!(
-                "Success: In Subgroup. n: {}, time: {}",
-                n_elems,
-                now.elapsed().as_micros()
-            );
+            // println!(
+            //     "Success: In Subgroup. n: {}, time: {}",
+            //     n_elems,
+            //     now.elapsed().as_micros()
+            // );
 
-            let now = std::time::Instant::now();
-            batch_verify_in_subgroup_recursive::<$GroupAffine<P>, XorShiftRng>(&tmp_elems[..], SECURITY_PARAM, &mut rng)
-                .expect("Should have verified as correct");
-            println!(
-                "Success: In Subgroup. n: {}, time: {} (recursive)",
-                n_elems,
-                now.elapsed().as_micros()
-            );
+            // let now = std::time::Instant::now();
+            // batch_verify_in_subgroup_recursive::<$GroupAffine<P>, XorShiftRng>(&tmp_elems[..], SECURITY_PARAM, &mut rng)
+            //     .expect("Should have verified as correct");
+            // println!(
+            //     "Success: In Subgroup. n: {}, time: {} (recursive)",
+            //     n_elems,
+            //     now.elapsed().as_micros()
+            // );
 
             for j in 0..10 {
                 // Randomly insert random non-subgroup elems
                 for k in 0..(1 << j) {
                     tmp_elems[random_location.sample(&mut rng)] = non_subgroup_points[k];
                 }
-                let now = std::time::Instant::now();
+                // let now = std::time::Instant::now();
                 match batch_verify_in_subgroup::<$GroupAffine<P>, XorShiftRng>(&tmp_elems[..], SECURITY_PARAM, &mut rng) {
                     Ok(_) => assert!(false, "did not detect non-subgroup elems"),
                     _ => assert!(true),
                 };
-                println!(
-                    "Success: Not in subgroup. n: {}, non-subgroup elems: {}, time: {}",
-                    n_elems,
-                    (1 << (j + 1)) - 1,
-                    now.elapsed().as_micros()
-                );
+                // println!(
+                //     "Success: Not in subgroup. n: {}, non-subgroup elems: {}, time: {}",
+                //     n_elems,
+                //     (1 << (j + 1)) - 1,
+                //     now.elapsed().as_micros()
+                // );
 
-                let now = std::time::Instant::now();
-                match batch_verify_in_subgroup_recursive::<$GroupAffine<P>, XorShiftRng>(&tmp_elems[..], SECURITY_PARAM, &mut rng) {
-                    Ok(_) => assert!(false, "did not detect non-subgroup elems"),
-                    _ => assert!(true),
-                };
-                println!(
-                    "Success: Not in subgroup. n: {}, non-subgroup elems: {}, time: {} (recursive)",
-                    n_elems,
-                    (1 << (j + 1)) - 1,
-                    now.elapsed().as_micros()
-                );
+                // let now = std::time::Instant::now();
+                // match batch_verify_in_subgroup_recursive::<$GroupAffine<P>, XorShiftRng>(&tmp_elems[..], SECURITY_PARAM, &mut rng) {
+                //     Ok(_) => assert!(false, "did not detect non-subgroup elems"),
+                //     _ => assert!(true),
+                // };
+                // println!(
+                //     "Success: Not in subgroup. n: {}, non-subgroup elems: {}, time: {} (recursive)",
+                //     n_elems,
+                //     (1 << (j + 1)) - 1,
+                //     now.elapsed().as_micros()
+                // );
             }
         }
 

@@ -2,7 +2,7 @@ use crate::fields::FpParameters;
 use crate::{
     cfg_chunks_mut,
     curves::{batch_bucketed_add_split, BatchGroupArithmeticSlice},
-    log2, AffineCurve, PrimeField, ProjectiveCurve,
+    AffineCurve, PrimeField, ProjectiveCurve,
 };
 use num_traits::{identities::Zero, Pow};
 
@@ -65,10 +65,12 @@ fn verify_points<C: AffineCurve, R: Rng>(
         // Since !new_security_param.is_none():
         let new_security_param = new_security_param.unwrap();
 
-        /// Temporarily commented out until a fix can be found for the recursive version of the test
+        // Temporarily commented out until a fix can be found for the recursive version of the test
+
         // if buckets.len() > 4096 {
         //     batch_verify_in_subgroup_recursive(&buckets[..], new_security_param, rng)?;
         // } else {
+
         batch_verify_in_subgroup_proj(
             &buckets
                 .iter()

@@ -1,7 +1,7 @@
 use crate::{biginteger::BigInteger, ModelParameters, PrimeField};
 use std::ops::Neg;
 
-// TODO: Make GLV override slower mul
+/// TODO: deal with the case where b1 and b2 have the same sign
 pub trait GLVParameters: Send + Sync + 'static + ModelParameters {
     type WideBigInt: BigInteger;
 
@@ -83,38 +83,3 @@ pub trait GLVParameters: Send + Sync + 'static + ModelParameters {
         ((neg1, k1), (neg2, k2))
     }
 }
-
-// fn mul_glv(&self, ) {
-//
-// }
-
-// fn batch_scalar_mul_in_place_glv(
-//     w: usize,
-//     points: &mut [Self],
-//     scalars: &mut [<Self::Fr as PrimeField>::BigInt],
-// ) {
-//     assert_eq!(points.len(), scalars.len());
-//     let batch_size = points.len();
-//     let glv_scalars: Vec<(Self::SmallBigInt, Self::SmallBigInt)> = scalars
-//         .iter()
-//         .map(|&s| Self::glv_scalar_decomposition(s))
-//         .collect();
-//     let (mut k1, mut k2): (Vec<Self::SmallBigInt>, Vec<Self::SmallBigInt>) = (
-//         glv_scalars.iter().map(|x| x.0).collect(),
-//         glv_scalars.iter().map(|x| x.1).collect(),
-//     );
-//
-//     let mut p2 = points.to_vec();
-//     p2.iter_mut().for_each(|p| p.glv_endomorphism_in_place());
-//
-//     // THIS IS WRONG and does not achieve the savings hoped for
-//     Self::batch_scalar_mul_in_place::<Self::SmallBigInt>(points, &mut k1[..], w);
-//     Self::batch_scalar_mul_in_place::<Self::SmallBigInt>(&mut p2[..], &mut k2[..], w);
-//     Self::batch_add_in_place(
-//         points,
-//         &mut p2,
-//         &(0..batch_size)
-//             .map(|x| (x, x))
-//             .collect::<Vec<(usize, usize)>>()[..],
-//     );
-// }
