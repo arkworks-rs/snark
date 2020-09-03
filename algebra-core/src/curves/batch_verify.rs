@@ -2,14 +2,14 @@ use crate::fields::FpParameters;
 use crate::{
     cfg_chunks_mut,
     curves::{batch_bucketed_add_split, BatchGroupArithmeticSlice},
-    AffineCurve, PrimeField, ProjectiveCurve,
+    AffineCurve, PrimeField, ProjectiveCurve, Vec,
 };
 use num_traits::{identities::Zero, Pow};
 
+use core::fmt;
 #[cfg(feature = "parallel")]
 use rand::thread_rng;
 use rand::Rng;
-use std::fmt;
 
 const MAX_BUCKETS_FOR_FULL_CHECK: usize = 2;
 

@@ -1,6 +1,6 @@
 use crate::{
     biginteger::BigInteger,
-    AffineCurve, Field,
+    AffineCurve, Field, Vec
 };
 use core::ops::Neg;
 use num_traits::Zero;

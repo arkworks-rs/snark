@@ -299,7 +299,6 @@ macro_rules! specialise_affine_to_proj {
                         let (x, y) = bases.split_at_mut(*idy);
                         (&mut x[*idx], &mut y[0])
                     } else {
-                        println!("idx: {}, idy: {}", idx, idy);
                         let (x, y) = bases.split_at_mut(*idx);
                         (&mut y[0], &mut x[*idy])
                     };

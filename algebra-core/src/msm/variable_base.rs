@@ -43,7 +43,6 @@ impl VariableBaseMSM {
                 // We don't need the "zero" bucket, so we only have 2^c - 1 buckets
                 let log2_n_bucket = if (w_start % c) != 0 { w_start % c } else { c };
                 let mut buckets = vec![zero; (1 << log2_n_bucket) - 1];
-                let now = std::time::Instant::now();
                 scalars
                     .iter()
                     .zip(bases)
@@ -72,23 +71,13 @@ impl VariableBaseMSM {
                             }
                         }
                     });
-                println!("before affine: {}", now.elapsed().as_micros());
                 let buckets = G::Projective::batch_normalization_into_affine(&buckets);
 
-                println!(
-                    "Add to {} buckets (non-batch) for {} elems: {:?}",
-                    (1 << log2_n_bucket) - 1,
-                    bases.len(),
-                    now.elapsed().as_micros()
-                );
-
-                let now = std::time::Instant::now();
                 let mut running_sum = G::Projective::zero();
                 for b in buckets.into_iter().rev() {
                     running_sum.add_assign_mixed(&b);
                     res += &running_sum;
                 }
-                println!("Accumulating sums: {}", now.elapsed().as_micros());
 
                 (res, log2_n_bucket)
             })
@@ -123,7 +112,6 @@ impl VariableBaseMSM {
         scalars: &[BigInt],
         num_bits: usize,
     ) -> G::Projective {
-        let then = std::time::Instant::now();
         let c = if scalars.len() < 32 {
             3
         } else {
@@ -143,12 +131,10 @@ impl VariableBaseMSM {
         // in parallel process each such window.
         let window_sums: Vec<_> = window_starts_iter
             .map(|w_start| {
-                let then = std::time::Instant::now();
                 // We don't need the "zero" bucket, so we only have 2^c - 1 buckets
                 let log2_n_bucket = if (w_start % c) != 0 { w_start % c } else { c };
                 let n_buckets = (1 << log2_n_bucket) - 1;
 
-                let now = std::time::Instant::now();
                 let scalars = scalars
                     .iter()
                     .map(|&scalar| {
@@ -164,37 +150,20 @@ impl VariableBaseMSM {
                     .map(|s| (s - 1) as usize)
                     .collect::<Vec<usize>>();
 
-                println!("Scalars: {}", now.elapsed().as_micros());
-                let now = std::time::Instant::now();
                 let mut elems = bases.to_vec();
 
-                println!("Copy vec: {}", now.elapsed().as_micros());
-
-                let now = std::time::Instant::now();
                 let buckets = if true {
-                    // panic!()
                     batch_bucketed_add::<G>(n_buckets, &mut elems[..], scalars.as_slice())
                 } else {
                     batch_bucketed_add_split::<G>(n_buckets, bases, scalars.as_slice(), 9)
                 };
 
-                println!(
-                    "Add to {} buckets (batch) for {} elems: {:?}",
-                    n_buckets,
-                    bases.len(),
-                    now.elapsed().as_micros()
-                );
-
-                let now = std::time::Instant::now();
                 let mut res = zero;
                 let mut running_sum = G::Projective::zero();
                 for b in buckets.into_iter().rev() {
                     running_sum.add_assign_mixed(&b);
                     res += &running_sum;
                 }
-
-                println!("Accumulating sums: {}", now.elapsed().as_micros());
-                println!("Total before combining: {}", then.elapsed().as_micros());
                 (res, log2_n_bucket)
             })
             .collect();
@@ -203,8 +172,6 @@ impl VariableBaseMSM {
         let lowest = window_sums.first().unwrap().0;
 
         // We're traversing windows from high to low.
-
-        println!("Total: {}", then.elapsed().as_micros());
         lowest
             + &window_sums[1..].iter().rev().fold(
                 zero,
