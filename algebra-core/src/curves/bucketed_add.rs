@@ -148,7 +148,6 @@ pub fn batch_bucketed_add<C: AffineCurve>(
     let split_size = (buckets - 1) / num_split + 1;
     let ratio = elems.len() / buckets * 2;
     // Get the inverted index for the positions assigning to each bucket
-    let now = std::time::Instant::now();
     let mut bucket_split = vec![vec![]; num_split];
     let mut index = vec![Vec::with_capacity(ratio); buckets];
 
@@ -174,7 +173,6 @@ pub fn batch_bucketed_add<C: AffineCurve>(
         .map(|x| log2(x.len()))
         .max().unwrap();
 
-    let now = std::time::Instant::now();
     // Generate in-place addition instructions that implement the addition tree
     // for each bucket from the leaves to the root
     for i in 0..max_depth {
@@ -201,7 +199,6 @@ pub fn batch_bucketed_add<C: AffineCurve>(
         }
     }
 
-    let now = std::time::Instant::now();
     let zero = C::zero();
     let mut res = vec![zero; buckets];
 

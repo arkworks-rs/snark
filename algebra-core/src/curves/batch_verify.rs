@@ -6,10 +6,10 @@ use crate::{
 };
 use num_traits::{identities::Zero, Pow};
 
+use core::fmt;
 #[cfg(feature = "parallel")]
 use rand::thread_rng;
 use rand::Rng;
-use std::fmt;
 
 const MAX_BUCKETS_FOR_FULL_CHECK: usize = 2;
 
