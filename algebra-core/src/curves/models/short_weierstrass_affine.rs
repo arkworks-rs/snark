@@ -455,7 +455,6 @@ macro_rules! specialise_affine_to_proj {
                         a.y *= &inversion_tmp; // (y1 - y2)*tmp
                         inversion_tmp *= &a.x // update tmp
                     }
-
                     scratch_space.push(b);
                 }
 
@@ -468,7 +467,13 @@ macro_rules! specialise_affine_to_proj {
 
                 for (idx, _) in index.iter().rev() {
                     #[cfg(feature = "prefetch")]
-                    prefetch_slice!(bases, prefetch_iter);
+                    {
+                        prefetch_slice!(bases, prefetch_iter);
+                        let len = scratch_space.len();
+                        if len > 0 {
+                            prefetch::<Self>(&mut scratch_space[len - 1]);
+                        }
+                    }
                     let (mut a, b) = (&mut bases[*idx], scratch_space.pop().unwrap());
 
                     if a.is_zero() {
@@ -494,6 +499,8 @@ macro_rules! specialise_affine_to_proj {
             ) {
                 debug_assert!(bases.len() == scalars.len());
                 if P::GLV {
+                    let mut scratch_space = Vec::<Self::BBaseField>::with_capacity(bases.len());
+                    let mut scratch_space_group = Vec::<Self>::with_capacity(bases.len() / w);
                     use itertools::{EitherOrBoth::*, Itertools};
                     let k_vec: Vec<_> = scalars
                         .iter()
@@ -549,7 +556,11 @@ macro_rules! specialise_affine_to_proj {
                             .map(|x| x.0)
                             .collect();
 
-                        Self::batch_double_in_place(&mut bases, &index_double[..], None);
+                        Self::batch_double_in_place(
+                            &mut bases,
+                            &index_double[..],
+                            Some(&mut scratch_space),
+                        );
 
                         let index_add_k1: Vec<(usize, usize)> = opcode_row_k1
                             .iter()
@@ -573,7 +584,7 @@ macro_rules! specialise_affine_to_proj {
                             &mut bases,
                             &tables[..],
                             &index_add_k1[..],
-                            None,
+                            Some(&mut scratch_space_group),
                         );
 
                         let index_add_k2: Vec<(usize, usize)> = opcode_row_k2
@@ -602,10 +613,11 @@ macro_rules! specialise_affine_to_proj {
                             &mut bases,
                             &tables[..],
                             &index_add_k2[..],
-                            None,
+                            Some(&mut scratch_space_group),
                         );
                     }
                 } else {
+                    let mut scratch_space = Vec::<Self::BBaseField>::with_capacity(bases.len());
                     let opcode_vectorised =
                         Self::batch_wnaf_opcode_recoding::<BigInt>(scalars, w, None);
                     let tables = Self::batch_wnaf_tables(bases, w);
@@ -625,7 +637,11 @@ macro_rules! specialise_affine_to_proj {
                             .map(|x| x.0)
                             .collect();
 
-                        Self::batch_double_in_place(&mut bases, &index_double[..], None);
+                        Self::batch_double_in_place(
+                            &mut bases,
+                            &index_double[..],
+                            Some(&mut scratch_space),
+                        );
 
                         let mut add_ops: Vec<Self> = opcode_row
                             .iter()
