@@ -1,4 +1,5 @@
 use crate::{
+    cfg_iter_mut,
     curves::BatchGroupArithmeticSlice, log2, AffineCurve
 };
 
@@ -175,13 +176,11 @@ pub fn batch_bucketed_add_split<C: AffineCurve>(
         }
     }
 
-    for (elems, buckets) in elem_split
-        .iter_mut()
-        .zip(bucket_split.iter())
-    {
-        if elems.len() > 0 {
-             res.append(&mut batch_bucketed_add(split_size, &mut elems[..], &buckets[..]));
-        }
-    }
+    let res = cfg_iter_mut!(elem_split)
+        .zip(cfg_iter_mut!(bucket_split))
+        .filter(|(e, b)| e.len() > 0)
+        .map(|(elems, buckets)| batch_bucketed_add(split_size, &mut elems[..], &buckets[..]))
+        .flatten()
+        .collect();
     res
 }
