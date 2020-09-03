@@ -3,6 +3,9 @@ use std::{clone::Clone, fmt::Debug};
 pub mod naive;
 pub use self::naive::*;
 
+pub mod optimized;
+pub use self::optimized::*;
+
 pub mod poseidon;
 pub use self::poseidon::*;
 
@@ -11,9 +14,9 @@ pub mod smt;
 #[cfg(feature = "smt")]
 pub use self::smt::*;
 
-use algebra::{
-    biginteger::BigInteger768, fields::mnt4753::Fr as MNT4753Fr, field_new, Field};
-use crate::{FieldBasedHash, BatchFieldBasedHash};
+use algebra::Field;
+use crate::{FieldBasedHash, BatchFieldBasedHash, Error, FieldBasedHashParameters, MerkleTreeError};
+use std::marker::PhantomData;
 
 pub trait FieldBasedMerkleTreeParameters: 'static + Clone {
     type Data: Field;
@@ -32,8 +35,8 @@ pub trait BatchFieldBasedMerkleTreeParameters: FieldBasedMerkleTreeParameters {
 }
 
 pub trait FieldBasedMerkleTree: Clone {
-    type MerklePath: Clone + Debug;
     type Parameters: FieldBasedMerkleTreeParameters;
+    type MerklePath: FieldBasedMerkleTreePath<Data = <Self::Parameters as FieldBasedMerkleTreeParameters>::Data>;
 
     // Initialize this tree. The user must pass the maximum number of leaves the tree must
     // support.
@@ -63,48 +66,83 @@ pub trait FieldBasedMerkleTree: Clone {
     // `self` Merkle Tree. Returns None if the tree has not been finalized before
     // calling this function.
     fn get_merkle_path(&self, leaf_index: usize) -> Option<Self::MerklePath>;
-
-    // Verify `path` given `leaf`. Returns None if the tree has not been
-    // finalized before calling this function.
-    fn verify_merkle_path(
-        &self,
-        leaf: &<Self::Parameters as FieldBasedMerkleTreeParameters>::Data,
-        path: &Self::MerklePath
-    ) -> Option<bool>;
 }
 
-// PoseidonHash("This represents an empty Merkle Root for a MNT4753PoseidonHash based Merkle Tree.") padded with 0s
-pub const MNT4753_PHANTOM_MERKLE_ROOT: MNT4753Fr =
-    field_new!(MNT4753Fr, BigInteger768([
-        8534937690304963668,
-        5486292534803213323,
-        1720870611961422927,
-        11405914840660719672,
-        7162329517212056783,
-        11658292353137306079,
-        17490588101047840223,
-        12735752881395833110,
-        11735157047413601083,
-        6658060155531600932,
-        1470933043432945054,
-        312822709740712
-    ]));
+pub trait FieldBasedMerkleTreePath {
+    type Data: Field;
 
+    // A Merkle Path for a leaf of a Merkle Tree with arity >= 2 will be made up of couples of nodes
+    // and an integer. The nodes are all the siblings of the leaf (MERKLE_ARITY - 1) and the integer
+    // is the position of the leaf, among its siblings, in the input to the hash function (valid
+    // values are from 0 to MERKLE_ARITY - 1).
+    fn new(path: &[(Vec<Self::Data>, usize)]) -> Self;
 
-    #[ignore]
-    #[test]
-    fn generate_mnt4753_phantom_merkle_root(){
-        use crate::crh::FieldBasedHash;
-        use algebra::{FromBytes, PrimeField, FpParameters};
+    // Verify the Merkle Path for `leaf` given the `root` of the Merkle Tree and its `height`.
+    fn verify(&self, height: usize, leaf: &Self::Data, root: &Self::Data) -> Result<bool, Error>;
 
-        let field_size_in_bytes = (MNT4753Fr::size_in_bits() + (<MNT4753Fr as PrimeField>::Params::REPR_SHAVE_BITS as usize))/8;
-        let magic_string = b"This represents an empty Merkle Root for a MNT4753PoseidonHash based Merkle Tree.";
+    fn get_raw_path(&self) -> Vec<(Vec<Self::Data>, usize)>;
+}
 
-        let mut hash_input = Vec::new();
-        hash_input.extend_from_slice(magic_string);
-        for _ in magic_string.len()..field_size_in_bytes { hash_input.push(0u8) }
-        let hash_input_f = MNT4753Fr::read(hash_input.as_slice()).unwrap();
+#[derive(Clone, Debug)]
+pub struct FieldBasedMHTPath<H: FieldBasedHash, T: FieldBasedMerkleTreeParameters<Data = H::Data>>{
+    pub path: Vec<(Vec<H::Data>, usize)>,
+    _tree_params: PhantomData<T>
+}
 
-        let hash = MNT4PoseidonHash::init(None).update(hash_input_f).finalize();
-        assert_eq!(hash, MNT4753_PHANTOM_MERKLE_ROOT);
+impl<H: FieldBasedHash, T: FieldBasedMerkleTreeParameters<Data = H::Data>> FieldBasedMHTPath<H, T> {
+
+    pub fn compare_with_binary(&self, binary_path: &[(H::Data, bool)]) -> bool {
+        if self.path.len() != binary_path.len() { return false };
+
+        for ((p1_node, p1_pos), &(p2_node, p2_pos)) in self.path.iter().zip(binary_path.iter()) {
+            if  p1_node.len() != 1 || p1_node[0] != p2_node || (*p1_pos != 0 && *p1_pos != 1) ||
+                (*p1_pos == 0 && p2_pos) || (*p1_pos == 1 && !p2_pos)
+            {
+                return false
+            }
+        }
+        return true;
     }
+}
+
+impl<H: FieldBasedHash, T: FieldBasedMerkleTreeParameters<Data = H::Data>> FieldBasedMerkleTreePath for FieldBasedMHTPath<H, T> {
+
+    type Data = H::Data;
+
+    fn new(path: &[(Vec<H::Data>, usize)]) -> Self {
+        Self {path: path.to_vec(), _tree_params: PhantomData}
+    }
+
+    fn verify(&self, height: usize, leaf: &Self::Data, root: &Self::Data) -> Result<bool, Error>{
+        // Rate may also be smaller than the arity actually, but this assertion
+        // is reasonable and simplify the design.
+        assert_eq!(<H::Parameters as FieldBasedHashParameters>::R , T::MERKLE_ARITY);
+        if self.path.len() != height - 1 {
+            Err(MerkleTreeError::IncorrectPathLength(self.path.len(), height - 1))?
+        }
+        let mut digest = H::init(None);
+        let mut prev_node = leaf.clone();
+        for (sibling_nodes, position) in self.path.as_slice() {
+            assert_eq!(sibling_nodes.len(), T::MERKLE_ARITY - 1);
+            let prev_node_position = *position % T::MERKLE_ARITY;
+            for i in 0..T::MERKLE_ARITY {
+                if i == prev_node_position {
+                    digest.update(prev_node.clone());
+                } else {
+                    digest.update(sibling_nodes[i % (T::MERKLE_ARITY - 1)]);
+                }
+            }
+            prev_node = digest.finalize();
+            digest.reset(None);
+        }
+        if prev_node == root.clone() {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    fn get_raw_path(&self) -> Vec<(Vec<Self::Data>, usize)> {
+        self.path.clone()
+    }
+}

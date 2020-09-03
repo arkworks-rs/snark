@@ -60,6 +60,8 @@ pub trait BatchFieldBasedHash {
     fn batch_evaluate(input_array: &[Self::Data]) -> Result<Vec<Self::Data>, Error> {
 
         let rate = <<Self::BaseHash as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
+        assert_eq!(input_array.len() % rate, 0, "The length of the input data array is not a multiple of the rate.");
+        assert_ne!(input_array.len(), 0, "Input data array does not contain any data.");
 
         Ok(input_array.par_chunks(rate).map(|chunk| {
             let mut digest = <Self::BaseHash as FieldBasedHash>::init(None);
@@ -79,10 +81,62 @@ pub trait BatchFieldBasedHash {
         let output = Self::batch_evaluate(input_array)
             .expect("Should be able to compute batch hash");
         assert_eq!(output.len(), output_array.len());
-        // Can avoid this by making output_array mutable, but that would be only to support
+
+        // Can avoid this copy by making output_array mutable, but that would be only to support
         // this default implementation and probably not worth it.
         for i in 0..output.len() {
             output_array[i] = output[i];
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+
+    use algebra::{
+        fields::mnt4753::Fr as MNT4753Fr, Field, UniformRand
+    };
+
+    use super::BatchFieldBasedHash;
+    use crate::crh::poseidon::{
+        MNT4PoseidonHash,
+        batched_crh::MNT4BatchPoseidonHash,
+    };
+
+    use rand_xorshift::XorShiftRng;
+    use rand::SeedableRng;
+
+    struct DummyMNT4BatchPoseidonHash;
+
+    impl BatchFieldBasedHash for DummyMNT4BatchPoseidonHash {
+        type Data = MNT4753Fr;
+        type BaseHash = MNT4PoseidonHash;
+    }
+
+    //#[ignore]
+    #[test]
+    fn test_default_batch_hash_implementation() {
+        let rate = 2;
+        let num_inputs = 100;
+        let mut inputs = Vec::with_capacity(num_inputs);
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+        for _ in 0..num_inputs {
+            inputs.push(MNT4753Fr::rand(&mut rng))
+        }
+
+        let batch_hash_output = MNT4BatchPoseidonHash::batch_evaluate(inputs.as_slice()).unwrap();
+        let dummy_batch_hash_output = DummyMNT4BatchPoseidonHash::batch_evaluate(inputs.as_slice()).unwrap();
+        assert_eq!(batch_hash_output, dummy_batch_hash_output);
+
+        let mut batch_hash_output_new = vec![MNT4753Fr::zero(); num_inputs/rate];
+        let mut dummy_batch_hash_output_new = vec![MNT4753Fr::zero(); num_inputs/rate];
+
+        MNT4BatchPoseidonHash::batch_evaluate_in_place(inputs.as_mut_slice(), batch_hash_output_new.as_mut_slice());
+        DummyMNT4BatchPoseidonHash::batch_evaluate_in_place(inputs.as_mut_slice(), dummy_batch_hash_output_new.as_mut_slice());
+
+        assert_eq!(batch_hash_output_new, dummy_batch_hash_output_new);
+        assert_eq!(batch_hash_output, batch_hash_output_new);
+        assert_eq!(dummy_batch_hash_output, dummy_batch_hash_output_new);
     }
 }

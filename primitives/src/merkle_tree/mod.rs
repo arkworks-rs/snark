@@ -48,7 +48,7 @@ impl<P: MerkleTreeConfig> MerkleTreePath<P> {
         leaf: &L,
     ) -> Result<bool, Error> {
         if self.path.len() != (P::HEIGHT - 1) as usize {
-            return Err(MerkleTreeError::IncorrectPathLength(self.path.len()))?
+            return Err(MerkleTreeError::IncorrectPathLength(self.path.len(), (P::HEIGHT - 1) as usize))?
         }
         // Check that the given leaf matches the leaf in the membership proof.
         let mut buffer = vec![0u8; P::H::INPUT_SIZE_BITS/8];
@@ -75,7 +75,7 @@ impl<P: MerkleTreeConfig> MerkleTreePath<P> {
             }
             Ok(true)
         } else {
-            return Err(MerkleTreeError::IncorrectPathLength(0))?
+            return Err(MerkleTreeError::IncorrectPathLength(0, (P::HEIGHT - 1) as usize))?
         }
     }
 }
@@ -223,7 +223,7 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
 
         end_timer!(prove_time);
         if path.len() != (Self::HEIGHT - 1) as usize {
-            Err(MerkleTreeError::IncorrectPathLength(path.len()))?
+            Err(MerkleTreeError::IncorrectPathLength(path.len(), (Self::HEIGHT - 1) as usize))?
         } else {
             Ok(MerkleTreePath { path })
         }
@@ -233,7 +233,7 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
 #[derive(Debug)]
 pub enum MerkleTreeError {
     IncorrectLeafIndex(usize),
-    IncorrectPathLength(usize),
+    IncorrectPathLength(usize, usize),
 }
 
 impl std::fmt::Display for MerkleTreeError {
@@ -242,7 +242,9 @@ impl std::fmt::Display for MerkleTreeError {
             MerkleTreeError::IncorrectLeafIndex(index) => {
                 format!("incorrect leaf index: {}", index)
             },
-            MerkleTreeError::IncorrectPathLength(len) => format!("incorrect path length: {}", len),
+            MerkleTreeError::IncorrectPathLength(expected_len, actual_len) => {
+                format!("Incorrect path length. Expected {}, found {}", expected_len, actual_len)
+            },
         };
         write!(f, "{}", msg)
     }

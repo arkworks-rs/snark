@@ -13,7 +13,7 @@ use std::marker::PhantomData;
 
 pub struct FieldBasedMerkleTreePathGadget<P, HGadget, ConstraintF>
     where
-        P: FieldBasedMerkleTreeConfig,
+        P: NaiveFieldBasedMerkleTreeConfig,
         P::H: FieldBasedHash<Data = ConstraintF>,
         HGadget: FieldBasedHashGadget<P::H, ConstraintF>,
         ConstraintF: Field,
@@ -23,7 +23,7 @@ pub struct FieldBasedMerkleTreePathGadget<P, HGadget, ConstraintF>
 
 impl<P, HGadget, ConstraintF> FieldBasedMerkleTreePathGadget<P, HGadget, ConstraintF>
     where
-        P: FieldBasedMerkleTreeConfig,
+        P: NaiveFieldBasedMerkleTreeConfig,
         P::H: FieldBasedHash<Data = ConstraintF>,
         HGadget: FieldBasedHashGadget<P::H, ConstraintF>,
         ConstraintF: PrimeField,
@@ -88,7 +88,7 @@ impl<P, HGadget, ConstraintF> FieldBasedMerkleTreePathGadget<P, HGadget, Constra
 
 pub struct FieldBasedMerkleTreeGadget<P, HGadget, ConstraintF>
     where
-        P: FieldBasedMerkleTreeConfig,
+        P: NaiveFieldBasedMerkleTreeConfig,
         P::H: FieldBasedHash<Data = ConstraintF>,
         HGadget: FieldBasedHashGadget<P::H, ConstraintF>,
         ConstraintF: PrimeField,
@@ -100,7 +100,7 @@ pub struct FieldBasedMerkleTreeGadget<P, HGadget, ConstraintF>
 
 impl<P, HGadget, ConstraintF> FieldBasedMerkleTreeGadget<P, HGadget, ConstraintF>
     where
-        P: FieldBasedMerkleTreeConfig,
+        P: NaiveFieldBasedMerkleTreeConfig,
         P::H: FieldBasedHash<Data = ConstraintF>,
         HGadget: FieldBasedHashGadget<P::H, ConstraintF>,
         ConstraintF: PrimeField,
@@ -179,7 +179,7 @@ pub(crate) fn hash_inner_node_gadget<H, HG, ConstraintF, CS>(
 impl<P, HGadget, ConstraintF> AllocGadget<FieldBasedMerkleTreePath<P>, ConstraintF>
 for FieldBasedMerkleTreePathGadget<P, HGadget, ConstraintF>
     where
-        P: FieldBasedMerkleTreeConfig,
+        P: NaiveFieldBasedMerkleTreeConfig,
         P::H: FieldBasedHash<Data = ConstraintF>,
         HGadget: FieldBasedHashGadget<P::H, ConstraintF>,
         ConstraintF: Field,
@@ -250,7 +250,7 @@ mod test {
 
     struct MNT4753FieldBasedMerkleTreeParams;
 
-    impl FieldBasedMerkleTreeConfig for MNT4753FieldBasedMerkleTreeParams {
+    impl NaiveFieldBasedMerkleTreeConfig for MNT4753FieldBasedMerkleTreeParams {
         const HEIGHT: usize = 6;
         type H = MNT4PoseidonHash;
     }

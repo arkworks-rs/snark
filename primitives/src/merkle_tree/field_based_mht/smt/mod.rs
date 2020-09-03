@@ -1,8 +1,13 @@
 #![allow(dead_code)]
 
 pub mod big_merkle_tree;
+pub use self::big_merkle_tree::*;
+
 pub mod big_lazy_merkle_tree;
+pub use self::big_lazy_merkle_tree::*;
+
 pub mod error;
+pub use self::error::*;
 
 use crate::PoseidonHash;
 use crate::crh::poseidon::parameters::{MNT4753PoseidonParameters, MNT6753PoseidonParameters};

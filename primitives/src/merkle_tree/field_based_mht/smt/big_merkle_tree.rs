@@ -1,18 +1,22 @@
 /* Sparse Big Merkle tree */
-/* Assumption in the code: arity of the Merkle tree = 2 */
-
-use crate::merkle_tree::field_based_mht::smt::{Coord, OperationLeaf, BigMerkleTreeState};
-use crate::{FieldBasedHash, BaseFieldBasedMerkleTreeParameters};
-use crate::merkle_tree::field_based_mht::smt::ActionLeaf::Insert;
-
-use algebra::{ ToBytes, to_bytes, FromBytes};
+use algebra::{ToBytes, to_bytes, FromBytes};
+use crate::{
+    crh::{FieldBasedHash, FieldBasedHashParameters},
+    merkle_tree::{
+        field_based_mht::{
+            BaseFieldBasedMerkleTreeParameters, FieldBasedMerkleTreePath, FieldBasedMHTPath,
+            smt::{
+                Coord, OperationLeaf, ActionLeaf::Insert, BigMerkleTreeState, Error,
+            }
+        }
+    },
+};
 
 use rocksdb::{DB, Options};
 
-use std::marker::PhantomData;
-use std::fs;
-use crate::merkle_tree::field_based_mht::smt::error::Error;
-use std::path::Path;
+use std::{
+    marker::PhantomData, fs, path::Path
+};
 
 #[derive(Debug)]
 pub struct BigMerkleTree<T: BaseFieldBasedMerkleTreeParameters>{
@@ -49,6 +53,12 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
     // so that the tree can be restored any moment later. Otherwise, no state will be saved on file
     // and the DBs will be deleted.
     pub fn new_unitialized(width: usize, persistent: bool, state_path: Option<String>, path_db: String, path_cache: String) -> Result<Self, Error> {
+        let rate = <<T::H  as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
+
+        assert_eq!(T::MERKLE_ARITY, 2); // For now we support only arity 2
+        // Rate may also be smaller than the arity actually, but this assertion
+        // is reasonable and simplify the design.
+        assert_eq!(rate, T::MERKLE_ARITY);
 
         // If the tree must be persistent, that a path to which save the tree state must be
         // specified.
@@ -80,6 +90,11 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
     // The new tree may be persistent or not, the actions taken in both cases are the same as
     // in `new_unitialized()`.
     pub fn new(persistent: bool, state_path: String, path_db: String, path_cache: String) -> Result<Self, Error> {
+        let rate = <<T::H  as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
+        assert_eq!(T::MERKLE_ARITY, 2); // For now we support only arity 2
+        // Rate may also be smaller than the arity actually, but this assertion
+        // is reasonable and simplify the design.
+        assert_eq!(rate, T::MERKLE_ARITY);
 
         let state = {
             let state_file = fs::File::open(state_path.clone())
@@ -355,7 +370,7 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
     }
 
     // NB. Allows to get Merkle Path of empty leaves too
-    pub fn get_merkle_path(&mut self, leaf_coord: Coord) -> Vec<(T::Data, bool)>
+    pub fn get_merkle_path(&mut self, leaf_coord: Coord) -> FieldBasedMHTPath<T::H, T>
     {
         // check that the index of the leaf is less than the width of the Merkle tree
         assert!(leaf_coord.idx < self.state.width, "Leaf index out of bound.");
@@ -369,11 +384,8 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
 
         while height != self.height {
             // Estabilish if sibling is a left or right child
-            let (sibling_idx, direction) = if node_idx % T::MERKLE_ARITY == 0 {
-                (node_idx + 1, false)
-            } else {
-                (node_idx - 1, true)
-            };
+            let direction = node_idx % T::MERKLE_ARITY;
+            let sibling_idx = if direction == 0 { node_idx + 1 } else { node_idx - 1 };
 
             // Get its hash
             let sibling_coord = Coord { height, idx: sibling_idx };
@@ -388,7 +400,7 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
             };
 
             // Push info to path
-            path.push((sibling, direction));
+            path.push((vec![sibling], direction));
 
             // go up one level
             height += 1;
@@ -396,31 +408,7 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         }
         assert_eq!(self.node(Coord { height, idx: node_idx }), self.state.root);
 
-        return path;
-    }
-
-    pub fn verify_merkle_path(&self, leaf: &T::Data, path: &[(T::Data, bool)]) -> bool
-    {
-        assert_eq!(path.len(), self.height);
-        let mut sibling = leaf.clone();
-        let mut height = 0;
-        for &(node, direction) in path {
-            if sibling == node && node == T::EMPTY_HASH_CST[height] {
-                sibling = T::EMPTY_HASH_CST[height + 1]
-            } else {
-                sibling = if direction {
-                    Self::field_hash(&node, &sibling)
-                } else {
-                    Self::field_hash(&sibling, &node)
-                }
-            }
-            height += 1;
-        }
-        if sibling == self.state.root {
-            true
-        } else {
-            false
-        }
+        return FieldBasedMHTPath::<T::H, T>::new(path.as_slice());
     }
 
     pub fn is_leaf_empty(&self, coord: Coord) -> bool {
@@ -751,30 +739,34 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
 
 #[cfg(test)]
 mod test {
-    use crate::merkle_tree::field_based_mht::smt::{MNT4PoseidonHash, OperationLeaf, Coord, ActionLeaf};
-    use crate::merkle_tree::field_based_mht::{FieldBasedMerkleTreeConfig, NaiveMerkleTree};
-    use crate::merkle_tree::field_based_mht::{MNT4753MHTPoseidonParameters, MNT6753MHTPoseidonParameters};
-    use crate::crh::{
-        MNT6PoseidonHash
+
+    use algebra::{
+        biginteger::BigInteger768,
+        fields::{mnt6753::Fr as MNT6753Fr, mnt4753::Fr as MNT4753Fr},
+        Field, UniformRand
     };
 
-    use algebra::fields::mnt6753::Fr as MNT6753Fr;
-    use algebra::fields::mnt4753::Fr as MNT4753Fr;
-    use algebra::fields::Field;
-    use algebra::biginteger::BigInteger768;
-    use algebra::UniformRand;
+    use crate::{crh::{
+        MNT4PoseidonHash, MNT6PoseidonHash
+    }, merkle_tree::field_based_mht::{
+        naive::{NaiveFieldBasedMerkleTreeConfig, NaiveMerkleTree},
+        smt::{OperationLeaf, Coord, ActionLeaf},
+        poseidon::{MNT4753MHTPoseidonParameters, MNT6753MHTPoseidonParameters},
+    }, FieldBasedMerkleTreePath};
 
-    use std::str::FromStr;
-    use std::path::Path;
+    use super::BigMerkleTree;
 
     use rand_xorshift::XorShiftRng;
     use rand::SeedableRng;
-    use crate::merkle_tree::field_based_mht::smt::big_merkle_tree::BigMerkleTree;
+
+    use std::{
+        str::FromStr, path::Path
+    };
 
     pub type MNT4PoseidonSmt = BigMerkleTree<MNT4753MHTPoseidonParameters>;
 
     struct MNT4753FieldBasedMerkleTreeParams;
-    impl FieldBasedMerkleTreeConfig for MNT4753FieldBasedMerkleTreeParams {
+    impl NaiveFieldBasedMerkleTreeConfig for MNT4753FieldBasedMerkleTreeParams {
         const HEIGHT: usize = 6;
         type H = MNT4PoseidonHash;
     }
@@ -906,7 +898,7 @@ mod test {
 
     struct MNT6753FieldBasedMerkleTreeParams;
 
-    impl FieldBasedMerkleTreeConfig for MNT6753FieldBasedMerkleTreeParams {
+    impl NaiveFieldBasedMerkleTreeConfig for MNT6753FieldBasedMerkleTreeParams {
         const HEIGHT: usize = 6;
         type H = MNT6PoseidonHash;
     }
@@ -1139,12 +1131,13 @@ mod test {
 
         for i in 0..num_leaves {
             let path = smt.get_merkle_path(Coord{height: 0, idx: i});
-            assert!(smt.verify_merkle_path(&leaves[i], &path));
+            assert!(path.verify(6, &leaves[i], &root).unwrap());
 
             let naive_path = naive_tree.generate_proof(i, &leaves[i]).unwrap();
             assert!(naive_path.verify(&naive_root, &leaves[i]).unwrap());
 
-            assert_eq!(path, naive_path.path);
+            assert!(path.compare_with_binary(naive_path.path.as_slice()));
+
         }
     }
 
@@ -1183,12 +1176,12 @@ mod test {
 
         for i in 0..num_leaves {
             let path = smt.get_merkle_path(Coord{height: 0, idx: i});
-            assert!(smt.verify_merkle_path(&leaves[i], &path));
+            assert!(path.verify(6, &leaves[i], &root).unwrap());
 
             let naive_path = naive_tree.generate_proof(i, &leaves[i]).unwrap();
             assert!(naive_path.verify(&naive_root, &leaves[i]).unwrap());
 
-            assert_eq!(path, naive_path.path);
+            assert!(path.compare_with_binary(naive_path.path.as_slice()));
         }
     }
 }
