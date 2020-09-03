@@ -3,10 +3,7 @@ macro_rules! specialise_affine_to_proj {
     ($GroupProjective: ident) => {
         #[cfg(feature = "prefetch")]
         use crate::prefetch;
-        use crate::{
-            biginteger::BigInteger,
-            curves::batch_arith::{decode_endo_from_usize, ENDO_CODING_BITS},
-        };
+        use crate::curves::batch_arith::decode_endo_from_usize;
 
         #[derive(Derivative)]
         #[derivative(
@@ -421,11 +418,6 @@ macro_rules! specialise_affine_to_proj {
                     if endomorphism % 2 == 1 {
                         b = b.neg();
                     }
-                    if P::GLV {
-                        if endomorphism >> 1 == 1 {
-                            P::glv_endomorphism_in_place(&mut b.x);
-                        }
-                    }
 
                     if a.is_zero() || b.is_zero() {
                         scratch_space.push(b);
@@ -491,175 +483,6 @@ macro_rules! specialise_affine_to_proj {
                         // y3 = l*(x2 - x3) - y2 or
                         // for squaring: (3x^2 + a)/2y(x - y - x3) - (y - (3x^2 + a)/2) = l*(x - x3) - y
                         a.y = lambda * &(b.x - &a.x) - &b.y;
-                    }
-                }
-            }
-
-            fn batch_scalar_mul_in_place<BigInt: BigInteger>(
-                mut bases: &mut [Self],
-                scalars: &mut [BigInt],
-                w: usize,
-            ) {
-                debug_assert!(bases.len() == scalars.len());
-                if P::GLV {
-                    use itertools::{EitherOrBoth::*, Itertools};
-                    let now = std::time::Instant::now();
-                    let k_vec: Vec<_> = scalars
-                        .iter()
-                        .map(|k| {
-                            P::glv_scalar_decomposition(
-                                <P::ScalarField as PrimeField>::BigInt::from_slice(k.as_ref()),
-                            )
-                        })
-                        .collect();
-
-                    let mut k1_scalars: Vec<_> = k_vec.iter().map(|x| (x.0).1).collect();
-                    let k1_negates: Vec<_> = k_vec.iter().map(|x| (x.0).0).collect();
-                    let mut k2_scalars: Vec<_> = k_vec.iter().map(|x| (x.1).1).collect();
-                    let k2_negates: Vec<_> = k_vec.iter().map(|x| (x.1).0).collect();
-
-                    let opcode_vectorised_k1 = Self::batch_wnaf_opcode_recoding(
-                        &mut k1_scalars[..],
-                        w,
-                        Some(k1_negates.as_slice()),
-                    );
-                    let opcode_vectorised_k2 = Self::batch_wnaf_opcode_recoding(
-                        &mut k2_scalars[..],
-                        w,
-                        Some(k2_negates.as_slice()),
-                    );
-
-                    let tables = Self::batch_wnaf_tables(bases, w);
-                    let half_size = 1 << w;
-                    let batch_size = bases.len();
-
-                    // Set all points to 0;
-                    let zero = Self::zero();
-                    for p in bases.iter_mut() {
-                        *p = zero;
-                    }
-                    let noop_vec = vec![None; batch_size];
-
-                    for (opcode_row_k1, opcode_row_k2) in opcode_vectorised_k1
-                        .iter()
-                        .zip_longest(opcode_vectorised_k2.iter())
-                        .map(|x| match x {
-                            Both(a, b) => (a, b),
-                            Left(a) => (a, &noop_vec),
-                            Right(b) => (&noop_vec, b),
-                        })
-                        .rev()
-                    {
-                        let index_double: Vec<usize> = opcode_row_k1
-                            .iter()
-                            .zip(opcode_row_k2.iter())
-                            .enumerate()
-                            .filter(|x| (x.1).0.is_some() || (x.1).1.is_some())
-                            .map(|x| x.0)
-                            .collect();
-
-                        Self::batch_double_in_place(&mut bases, &index_double[..], None);
-
-                        let index_add_k1: Vec<(usize, usize)> = opcode_row_k1
-                            .iter()
-                            .enumerate()
-                            .filter(|(_, op)| op.is_some() && op.unwrap() != 0)
-                            .map(|(i, op)| {
-                                let idx = op.unwrap();
-                                if idx > 0 {
-                                    (i, (i * half_size + (idx as usize) / 2) << ENDO_CODING_BITS)
-                                } else {
-                                    (
-                                        i,
-                                        ((i * half_size + (-idx as usize) / 2) << ENDO_CODING_BITS)
-                                            + 1,
-                                    )
-                                }
-                            })
-                            .collect();
-
-                        Self::batch_add_in_place_read_only(
-                            &mut bases,
-                            &tables[..],
-                            &index_add_k1[..],
-                            None,
-                        );
-
-                        let index_add_k2: Vec<(usize, usize)> = opcode_row_k2
-                            .iter()
-                            .enumerate()
-                            .filter(|(_, op)| op.is_some() && op.unwrap() != 0)
-                            .map(|(i, op)| {
-                                let idx = op.unwrap();
-                                if idx > 0 {
-                                    (
-                                        i,
-                                        ((i * half_size + (idx as usize) / 2) << ENDO_CODING_BITS)
-                                            + 2,
-                                    )
-                                } else {
-                                    (
-                                        i,
-                                        ((i * half_size + (-idx as usize) / 2) << ENDO_CODING_BITS)
-                                            + 3,
-                                    )
-                                }
-                            })
-                            .collect();
-
-                        Self::batch_add_in_place_read_only(
-                            &mut bases,
-                            &tables[..],
-                            &index_add_k2[..],
-                            None,
-                        );
-                    }
-                } else {
-                    let opcode_vectorised =
-                        Self::batch_wnaf_opcode_recoding::<BigInt>(scalars, w, None);
-                    let tables = Self::batch_wnaf_tables(bases, w);
-                    let half_size = 1 << w;
-
-                    // Set all points to 0;
-                    let zero = Self::zero();
-                    for p in bases.iter_mut() {
-                        *p = zero;
-                    }
-
-                    for opcode_row in opcode_vectorised.iter().rev() {
-                        let index_double: Vec<usize> = opcode_row
-                            .iter()
-                            .enumerate()
-                            .filter(|x| x.1.is_some())
-                            .map(|x| x.0)
-                            .collect();
-
-                        Self::batch_double_in_place(&mut bases, &index_double[..], None);
-
-                        let mut add_ops: Vec<Self> = opcode_row
-                            .iter()
-                            .enumerate()
-                            .filter(|(_, op)| op.is_some() && op.unwrap() != 0)
-                            .map(|(i, op)| {
-                                let idx = op.unwrap();
-                                if idx > 0 {
-                                    tables[i * half_size + (idx as usize) / 2].clone()
-                                } else {
-                                    tables[i * half_size + (-idx as usize) / 2].clone().neg()
-                                }
-                            })
-                            .collect();
-
-                        let index_add: Vec<(usize, usize)> = opcode_row
-                            .iter()
-                            .enumerate()
-                            .filter(|(_, op)| op.is_some() && op.unwrap() != 0)
-                            .map(|x| x.0)
-                            .enumerate()
-                            .map(|(x, y)| (y, x))
-                            .collect();
-
-                        Self::batch_add_in_place(&mut bases, &mut add_ops[..], &index_add[..]);
                     }
                 }
             }

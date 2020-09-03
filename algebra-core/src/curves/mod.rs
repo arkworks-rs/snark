@@ -20,9 +20,6 @@ pub use self::batch_arith::*;
 pub mod bucketed_add;
 pub use self::bucketed_add::*;
 
-pub mod glv;
-pub use self::glv::*;
-
 pub mod models;
 
 pub use self::models::*;
