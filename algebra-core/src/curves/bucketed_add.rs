@@ -1,13 +1,16 @@
 use crate::{cfg_iter_mut, curves::BatchGroupArithmeticSlice, log2, AffineCurve};
 
-#[cfg(features = "std")]
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
+
+#[cfg(feature = "std")]
 use std::collections::HashMap;
 
 const RATIO_MULTIPLIER: usize = 2;
 const BATCH_ADD_SIZE: usize = 4096;
 
 #[inline]
-#[cfg(features = "std")]
+#[cfg(feature = "std")]
 pub fn batch_bucketed_add<C: AffineCurve>(
     buckets: usize,
     elems: &mut [C],
@@ -135,7 +138,7 @@ pub fn batch_bucketed_add<C: AffineCurve>(
     res
 }
 
-#[cfg(not(features = "std"))]
+#[cfg(not(feature = "std"))]
 pub fn batch_bucketed_add<C: AffineCurve>(
     buckets: usize,
     elems: &mut [C],
@@ -248,7 +251,7 @@ pub fn batch_bucketed_add_split<C: AffineCurve>(
 
     let res = cfg_iter_mut!(elem_split)
         .zip(cfg_iter_mut!(bucket_split))
-        .filter(|(e, b)| e.len() > 0)
+        .filter(|(e, _)| e.len() > 0)
         .map(|(elems, buckets)| batch_bucketed_add(split_size, &mut elems[..], &buckets[..]))
         .flatten()
         .collect();

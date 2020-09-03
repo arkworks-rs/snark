@@ -83,7 +83,7 @@ macro_rules! specialise_affine_to_proj {
             };
 
             ($slice_1: ident, $prefetch_iter: ident) => {
-                if let Some((idp_1, idp_2)) = $prefetch_iter.next() {
+                if let Some((idp_1, _)) = $prefetch_iter.next() {
                     prefetch::<Self>(&mut $slice_1[*idp_1]);
                 }
             };
@@ -139,10 +139,8 @@ macro_rules! specialise_affine_to_proj {
                 for idx in index.iter() {
                     // Prefetch next group into cache
                     #[cfg(feature = "prefetch")]
-                    {
-                        if let Some(idp) = prefetch_iter.next() {
-                            prefetch::<Self>(&mut bases[*idp]);
-                        }
+                    if let Some(idp) = prefetch_iter.next() {
+                        prefetch::<Self>(&mut bases[*idp]);
                     }
                     let mut a = &mut bases[*idx];
                     if !a.is_zero() {
@@ -171,18 +169,14 @@ macro_rules! specialise_affine_to_proj {
 
                 for idx in index.iter().rev() {
                     #[cfg(feature = "prefetch")]
-                    {
-                        if let Some(idp) = prefetch_iter.next() {
-                            prefetch::<Self>(&mut bases[*idp]);
-                        }
+                    if let Some(idp) = prefetch_iter.next() {
+                        prefetch::<Self>(&mut bases[*idp]);
                     }
                     let mut a = &mut bases[*idx];
                     if !a.is_zero() {
                         #[cfg(feature = "prefetch")]
-                        {
-                            if let Some(idp) = scratch_space_counter.next() {
-                                prefetch::<P::BaseField>(&mut scratch_space[idp]);
-                            }
+                        if let Some(idp) = scratch_space_counter.next() {
+                            prefetch::<P::BaseField>(&mut scratch_space[idp]);
                         }
                         let z = scratch_space.pop().unwrap();
                         let lambda = z * &inversion_tmp;
@@ -473,10 +467,9 @@ macro_rules! specialise_affine_to_proj {
                 #[cfg(feature = "prefetch")]
                 prefetch_iter.next();
 
-                for (idx, idy) in index.iter().rev() {
+                for (idx, _) in index.iter().rev() {
                     #[cfg(feature = "prefetch")]
-                    prefetch_slice_endo!(bases, other, prefetch_iter);
-                    let (idy, _) = decode_endo_from_usize(*idy);
+                    prefetch_slice!(bases, prefetch_iter);
                     let (mut a, b) = (&mut bases[*idx], scratch_space.pop().unwrap());
 
                     if a.is_zero() {
@@ -503,7 +496,6 @@ macro_rules! specialise_affine_to_proj {
                 debug_assert!(bases.len() == scalars.len());
                 if P::GLV {
                     use itertools::{EitherOrBoth::*, Itertools};
-                    let now = std::time::Instant::now();
                     let k_vec: Vec<_> = scalars
                         .iter()
                         .map(|k| {
