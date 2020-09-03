@@ -26,7 +26,7 @@ build = "build.rs"
 algebra-core-derive = { path = "algebra-core-derive", optional = true }
 derivative = { version = "2", features = ["use_core"] }
 num-traits = { version = "0.2", default-features = false }
-rand = { version = "0.7" }#,default-features = false }
+rand = { version = "0.7", default-features = false }
 rayon = { version = "1", optional = true }
 unroll = { version = "=0.1.4" }
 itertools = {version = "0.9.0", default-features = false }
@@ -39,9 +39,9 @@ rustc_version = "0.2"
 rand_xorshift = "0.2"
 
 [features]
-default = [ "std" ]
+default = [ "std", "rand/default" ]
 std = []
-parallel = [ "std", "rayon" ]
+parallel = [ "std", "rayon", "rand/default" ]
 derive = [ "algebra-core-derive" ]
 llvm_asm = []
 prefetch = []

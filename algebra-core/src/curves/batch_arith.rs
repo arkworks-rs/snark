@@ -1,5 +1,5 @@
 use crate::{
-    biginteger::{arithmetic, BigInteger},
+    biginteger::BigInteger,
     AffineCurve, Field,
 };
 use core::ops::Neg;
@@ -11,28 +11,6 @@ pub const ENDO_CODING_BITS: usize = 2;
 #[inline(always)]
 pub fn decode_endo_from_usize(index_code: usize) -> (usize, u8) {
     (index_code >> 2, index_code as u8 % 4)
-}
-
-#[inline]
-fn add_nocarry(this: &mut [u64], other: &[u64]) -> bool {
-    let mut carry = 0;
-
-    for (a, b) in this.iter_mut().zip(other.iter()) {
-        *a = arithmetic::adc(*a, *b, &mut carry);
-    }
-
-    carry != 0
-}
-
-#[inline]
-fn sub_noborrow(this: &mut [u64], other: &[u64]) -> bool {
-    let mut borrow = 0;
-
-    for (a, b) in this.iter_mut().zip(other.iter()) {
-        *a = arithmetic::sbb(*a, *b, &mut borrow);
-    }
-
-    borrow != 0
 }
 
 pub trait BatchGroupArithmetic
