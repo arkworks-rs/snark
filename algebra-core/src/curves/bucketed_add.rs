@@ -1,14 +1,10 @@
-use crate::{//cfg_iter_mut,
+use crate::{
     curves::BatchGroupArithmeticSlice, log2, AffineCurve
 };
 
 use std::collections::HashMap;
 
-// #[cfg(feature = "parallel")]
-// use rayon::prelude::*;
-
 const RATIO_MULTIPLIER: usize = 2;
-
 const BATCH_ADD_SIZE: usize = 4096;
 
 #[inline]
@@ -27,7 +23,7 @@ pub fn batch_bucketed_add<C: AffineCurve>(
             bucket_split[bucket / split_size].push((bucket as u32, position as u32));
         }
     }
-    
+
     let offset = ((elems.len() - 1) / buckets + 1) * RATIO_MULTIPLIER;
     let mut index = vec![0u32; offset * buckets];
     let mut assign_hash = HashMap::<usize, Vec<u32>>::new();
@@ -185,82 +181,6 @@ pub fn batch_bucketed_add_split<C: AffineCurve>(
     {
         if elems.len() > 0 {
              res.append(&mut batch_bucketed_add(split_size, &mut elems[..], &buckets[..]));
-        }
-    }
-    res
-}
-
-pub fn batch_bucketed_add_old<C: AffineCurve>(
-    buckets: usize,
-    elems: &mut [C],
-    bucket_assign: &[usize],
-) -> Vec<C> {
-    let num_split = 2i32.pow(log2(buckets) / 2 + 2) as usize;
-    let split_size = (buckets - 1) / num_split + 1;
-    let ratio = elems.len() / buckets * 2;
-    // Get the inverted index for the positions assigning to each bucket
-    let now = std::time::Instant::now();
-    let mut bucket_split = vec![vec![]; num_split];
-    let mut index = vec![Vec::with_capacity(ratio); buckets];
-
-    for (position, &bucket) in bucket_assign.iter().enumerate() {
-        // Check the bucket assignment is valid
-        if bucket < buckets {
-            // index[bucket].push(position);
-            bucket_split[bucket / split_size].push((bucket, position));
-        }
-    }
-
-    for split in bucket_split {
-        for (bucket, position) in split {
-            index[bucket].push(position);
-        }
-    }
-
-    // Instructions for indexes for the in place addition tree
-    let mut instr: Vec<Vec<(usize, usize)>> = vec![];
-    // Find the maximum depth of the addition tree
-    let max_depth = index.iter()
-        // log_2
-        .map(|x| log2(x.len()))
-        .max().unwrap();
-
-    let now = std::time::Instant::now();
-    // Generate in-place addition instructions that implement the addition tree
-    // for each bucket from the leaves to the root
-    for i in 0..max_depth {
-        let mut instr_row = Vec::<(usize, usize)>::with_capacity(buckets);
-        for to_add in index.iter_mut() {
-            if to_add.len() > 1 << (max_depth - i - 1) {
-                let mut new_to_add = vec![];
-                for j in 0..(to_add.len() / 2) {
-                    new_to_add.push(to_add[2 * j]);
-                    instr_row.push((to_add[2 * j], to_add[2 * j + 1]));
-                }
-                if to_add.len() % 2 == 1 {
-                    new_to_add.push(*to_add.last().unwrap());
-                }
-                *to_add = new_to_add;
-            }
-        }
-        instr.push(instr_row);
-    }
-
-    for instr_row in instr.iter() {
-        for instr in C::get_chunked_instr::<(usize, usize)>(&instr_row[..], BATCH_ADD_SIZE).iter() {
-            elems[..].batch_add_in_place_same_slice(&instr[..]);
-        }
-    }
-
-    let now = std::time::Instant::now();
-    let zero = C::zero();
-    let mut res = vec![zero; buckets];
-
-    for (i, to_add) in index.iter().enumerate() {
-        if to_add.len() > 1 {
-            panic!("Did not successfully reduce to_add");
-        } else if to_add.len() == 1 {
-            res[i] = elems[to_add[0]];
         }
     }
     res
