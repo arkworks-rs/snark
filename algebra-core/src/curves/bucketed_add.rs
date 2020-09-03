@@ -1,8 +1,5 @@
-use crate::{
-    //cfg_iter_mut,
-    curves::BatchGroupArithmeticSlice,
-    log2,
-    AffineCurve,
+use crate::{//cfg_iter_mut,
+    curves::BatchGroupArithmeticSlice, log2, AffineCurve
 };
 
 use std::collections::HashMap;
@@ -25,15 +22,12 @@ pub fn batch_bucketed_add<C: AffineCurve>(
     let mut bucket_split = vec![Vec::with_capacity(split_size); num_split];
 
     // Get the inverted index for the positions assigning to each buckets
-    let now = std::time::Instant::now();
-
     for (position, &bucket) in bucket_assign.iter().enumerate() {
         if bucket < buckets {
             bucket_split[bucket / split_size].push((bucket as u32, position as u32));
         }
     }
-    // println!("Splitting bucket: {:?}", now.elapsed().as_micros());
-
+    
     let offset = ((elems.len() - 1) / buckets + 1) * RATIO_MULTIPLIER;
     let mut index = vec![0u32; offset * buckets];
     let mut assign_hash = HashMap::<usize, Vec<u32>>::new();
@@ -59,7 +53,6 @@ pub fn batch_bucketed_add<C: AffineCurve>(
             }
         }
     }
-    println!("Generate Inverted Index: {:?}", now.elapsed().as_micros());
 
     // Instructions for indexes for the in place addition tree
     let mut instr: Vec<Vec<(usize, usize)>> = vec![];
@@ -71,15 +64,6 @@ pub fn batch_bucketed_add<C: AffineCurve>(
         .max()
         .unwrap() as usize;
 
-    let now = std::time::Instant::now();
-
-    // for bucket in 0..buckets {
-    //     for assign in 0..offset {
-    //         print!("{:?},", index[bucket * offset + assign]);
-    //     }
-    //     println!("");
-    // }
-    // println!("---");
     // Generate in-place addition instructions that implement the addition tree
     // for each bucket from the leaves to the root
     for i in 0..max_depth {
@@ -134,21 +118,7 @@ pub fn batch_bucketed_add<C: AffineCurve>(
         if instr_row.len() > 0 {
             instr.push(instr_row);
         }
-
-        // for bucket in 0..buckets {
-        //     for assign in 0..offset {
-        //         print!("{:?},", index[bucket * offset + assign]);
-        //     }
-        //     println!("");
-        // }
-        // println!("---");
     }
-    // println!("offset: {}, max depth {}", offset, max_depth);
-    // println!("{:?}", instr);
-    println!("Generate Instr: {:?}", now.elapsed().as_micros());
-
-    let now = std::time::Instant::now();
-    // let mut elems_mut_1 = elems.to_vec();
 
     for instr_row in instr.iter() {
         for instr_chunk in
@@ -157,7 +127,6 @@ pub fn batch_bucketed_add<C: AffineCurve>(
             elems[..].batch_add_in_place_same_slice(&instr_chunk[..]);
         }
     }
-    println!("Batch add in place: {:?}", now.elapsed().as_micros());
 
     let now = std::time::Instant::now();
     let zero = C::zero();
@@ -171,7 +140,6 @@ pub fn batch_bucketed_add<C: AffineCurve>(
         }
     }
 
-    println!("Reassign: {:?}", now.elapsed().as_micros());
     res
 }
 
@@ -189,11 +157,8 @@ pub fn batch_bucketed_add_split<C: AffineCurve>(
         1 << bucket_size
     };
     let num_split = (buckets - 1) / split_size + 1;
-    println!("{}, {}", split_size, num_split);
     let mut elem_split = vec![vec![]; num_split];
     let mut bucket_split = vec![vec![]; num_split];
-
-    let now = std::time::Instant::now();
 
     let split_window = 1 << 5;
     let split_split = (num_split - 1) / split_window + 1;
@@ -203,7 +168,7 @@ pub fn batch_bucketed_add_split<C: AffineCurve>(
         let then = std::time::Instant::now();
         for (position, &bucket) in bucket_assign.iter().enumerate() {
             let split_index = bucket / split_size;
-            // // Check the bucket assignment is valid
+            // Check the bucket assignment is valid
             if bucket < buckets
                 && split_index >= i * split_window
                 && split_index < (i + 1) * split_window
@@ -212,56 +177,16 @@ pub fn batch_bucketed_add_split<C: AffineCurve>(
                 elem_split[split_index].push(elems[position]);
             }
         }
-
-        // println!(
-        //     "\nAssign bucket and elem split: {:?}",
-        //     now.elapsed().as_micros()
-        // );
-
-        // let now = std::time::Instant::now();
-
-        // for (elems, buckets) in elem_split[i * split_window..(i + 1) * split_window]
-        //     .iter_mut()
-        //     .zip(bucket_split[i * split_window..(i + 1) * split_window]
-        //     .iter())
-        // {
-        //     if elems.len() > 0 {
-        //          res.append(&mut batch_bucketed_add(split_size, &mut elems[..], &buckets[..]));
-        //     }
-        // }
-        // println!("{}: time: {}", i, then.elapsed().as_micros());
     }
 
-    for (elems, buckets) in elem_split.iter_mut().zip(bucket_split.iter()) {
+    for (elems, buckets) in elem_split
+        .iter_mut()
+        .zip(bucket_split.iter())
+    {
         if elems.len() > 0 {
-            res.append(&mut batch_bucketed_add(
-                split_size,
-                &mut elems[..],
-                &buckets[..],
-            ));
+             res.append(&mut batch_bucketed_add(split_size, &mut elems[..], &buckets[..]));
         }
     }
-
-    // let res = if split_size < 1 << (bucket_size + 1) {
-    // let res = cfg_iter_mut!(elem_split)
-    //     .zip(cfg_iter_mut!(bucket_split))
-    //     .filter(|(e, b)| e.len() > 0)
-    //     .map(|(elems, buckets)| batch_bucketed_add(split_size, &mut elems[..], &buckets[..]))
-    //     .flatten()
-    // .collect();
-    // } else {
-    //     // println!("CALLING RECURSIVE");
-    //     elem_split
-    //         .iter()
-    //         .zip(bucket_split.iter())
-    //         .map(|(elems, bucket)| {
-    //             batch_bucketed_add_split(split_size, &elems[..], &bucket[..], bucket_size)
-    //         })
-    //         .flatten()
-    //         .collect()
-    // };
-
-    // println!("Bucketed add: {:?}", now.elapsed().as_micros());
     res
 }
 
@@ -278,21 +203,7 @@ pub fn batch_bucketed_add_old<C: AffineCurve>(
     let mut bucket_split = vec![vec![]; num_split];
     let mut index = vec![Vec::with_capacity(ratio); buckets];
 
-    // We use two levels of assignments to help with cache locality.
-    // #[cfg(feature = "prefetch")]
-    // let mut prefetch_iter = bucket_assign.iter();
-    // #[cfg(feature = "prefetch")]
-    // {
-    //     // prefetch_iter.next();
-    // }
-
     for (position, &bucket) in bucket_assign.iter().enumerate() {
-        // #[cfg(feature = "prefetch")]
-        // {
-        //     if let Some(next) = prefetch_iter.next() {
-        //         prefetch(&mut index[*next]);
-        //     }
-        // }
         // Check the bucket assignment is valid
         if bucket < buckets {
             // index[bucket].push(position);
@@ -305,7 +216,6 @@ pub fn batch_bucketed_add_old<C: AffineCurve>(
             index[bucket].push(position);
         }
     }
-    println!("\nGenerate Inverted Index: {:?}", now.elapsed().as_micros());
 
     // Instructions for indexes for the in place addition tree
     let mut instr: Vec<Vec<(usize, usize)>> = vec![];
@@ -335,17 +245,12 @@ pub fn batch_bucketed_add_old<C: AffineCurve>(
         }
         instr.push(instr_row);
     }
-    println!("Generate Instr: {:?}", now.elapsed().as_micros());
-
-    let now = std::time::Instant::now();
-    // let mut elems_mut_1 = elems.to_vec();
 
     for instr_row in instr.iter() {
         for instr in C::get_chunked_instr::<(usize, usize)>(&instr_row[..], BATCH_ADD_SIZE).iter() {
             elems[..].batch_add_in_place_same_slice(&instr[..]);
         }
     }
-    println!("Batch add in place: {:?}", now.elapsed().as_micros());
 
     let now = std::time::Instant::now();
     let zero = C::zero();
@@ -358,7 +263,5 @@ pub fn batch_bucketed_add_old<C: AffineCurve>(
             res[i] = elems[to_add[0]];
         }
     }
-
-    println!("Reassign: {:?}", now.elapsed().as_micros());
     res
 }
