@@ -1,9 +1,9 @@
 #[macro_export]
 macro_rules! specialise_affine_to_proj {
     ($GroupProjective: ident) => {
+        use crate::curves::batch_arith::decode_endo_from_usize;
         #[cfg(feature = "prefetch")]
         use crate::prefetch;
-        use crate::curves::batch_arith::decode_endo_from_usize;
 
         #[derive(Derivative)]
         #[derivative(
@@ -447,7 +447,6 @@ macro_rules! specialise_affine_to_proj {
                         a.y *= &inversion_tmp; // (y1 - y2)*tmp
                         inversion_tmp *= &a.x // update tmp
                     }
-
                     scratch_space.push(b);
                 }
 
@@ -460,7 +459,13 @@ macro_rules! specialise_affine_to_proj {
 
                 for (idx, _) in index.iter().rev() {
                     #[cfg(feature = "prefetch")]
-                    prefetch_slice!(bases, prefetch_iter);
+                    {
+                        prefetch_slice!(bases, prefetch_iter);
+                        let len = scratch_space.len();
+                        if len > 0 {
+                            prefetch::<Self>(&mut scratch_space[len - 1]);
+                        }
+                    }
                     let (mut a, b) = (&mut bases[*idx], scratch_space.pop().unwrap());
 
                     if a.is_zero() {

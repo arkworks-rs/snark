@@ -1,7 +1,4 @@
-use crate::{
-    biginteger::BigInteger,
-    AffineCurve, Field, Vec
-};
+use crate::{biginteger::BigInteger, AffineCurve, Field, Vec};
 use core::ops::Neg;
 use num_traits::Zero;
 
