@@ -476,7 +476,7 @@ macro_rules! batch_verify_test {
             let mut tmp_elems = random_elems[0..n_elems].to_vec();
 
             let now = std::time::Instant::now();
-            batch_verify_in_subgroup::<$GroupAffine<P>>(&tmp_elems[..], SECURITY_PARAM)
+            batch_verify_in_subgroup::<$GroupAffine<P>, XorShiftRng>(&tmp_elems[..], SECURITY_PARAM, &mut rng)
                 .expect("Should have verified as correct");
             println!(
                 "Success: In Subgroup. n: {}, time: {}",
@@ -485,7 +485,7 @@ macro_rules! batch_verify_test {
             );
 
             let now = std::time::Instant::now();
-            batch_verify_in_subgroup_recursive::<$GroupAffine<P>>(&tmp_elems[..], SECURITY_PARAM)
+            batch_verify_in_subgroup_recursive::<$GroupAffine<P>, XorShiftRng>(&tmp_elems[..], SECURITY_PARAM, &mut rng)
                 .expect("Should have verified as correct");
             println!(
                 "Success: In Subgroup. n: {}, time: {} (recursive)",
@@ -499,7 +499,7 @@ macro_rules! batch_verify_test {
                     tmp_elems[random_location.sample(&mut rng)] = non_subgroup_points[k];
                 }
                 let now = std::time::Instant::now();
-                match batch_verify_in_subgroup::<$GroupAffine<P>>(&tmp_elems[..], SECURITY_PARAM) {
+                match batch_verify_in_subgroup::<$GroupAffine<P>, XorShiftRng>(&tmp_elems[..], SECURITY_PARAM, &mut rng) {
                     Ok(_) => assert!(false, "did not detect non-subgroup elems"),
                     _ => assert!(true),
                 };
@@ -511,7 +511,7 @@ macro_rules! batch_verify_test {
                 );
 
                 let now = std::time::Instant::now();
-                match batch_verify_in_subgroup_recursive::<$GroupAffine<P>>(&tmp_elems[..], SECURITY_PARAM) {
+                match batch_verify_in_subgroup_recursive::<$GroupAffine<P>, XorShiftRng>(&tmp_elems[..], SECURITY_PARAM, &mut rng) {
                     Ok(_) => assert!(false, "did not detect non-subgroup elems"),
                     _ => assert!(true),
                 };

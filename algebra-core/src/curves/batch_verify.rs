@@ -5,6 +5,8 @@ use crate::{
     log2, AffineCurve, PrimeField, ProjectiveCurve,
 };
 use num_traits::{identities::Zero, Pow};
+
+#[cfg(feature = "parallel")]
 use rand::thread_rng;
 use rand::Rng;
 use std::fmt;
@@ -24,12 +26,12 @@ impl fmt::Display for VerificationError {
 }
 
 // Only pass new_security_param if possibly recursing
-fn verify_points<C: AffineCurve>(
+fn verify_points<C: AffineCurve, R: Rng>(
     points: &[C],
     num_buckets: usize,
     new_security_param: Option<usize>,
+    rng: &mut R,
 ) -> Result<(), VerificationError> {
-    let rng = &mut thread_rng();
     let mut bucket_assign = Vec::with_capacity(points.len());
     for _ in 0..points.len() {
         bucket_assign.push(rng.gen_range(0, num_buckets));
@@ -62,26 +64,31 @@ fn verify_points<C: AffineCurve>(
     } else {
         // Since !new_security_param.is_none():
         let new_security_param = new_security_param.unwrap();
-        if buckets.len() > 4096 {
-            batch_verify_in_subgroup_recursive(&buckets[..], new_security_param)?;
-        } else {
-            batch_verify_in_subgroup_proj(
-                &buckets
-                    .iter()
-                    .map(|&p| p.into())
-                    .collect::<Vec<C::Projective>>()[..],
-                new_security_param,
-            )?;
-        }
+
+        /// Temporarily commented out until a fix can be found for the recursive version of the test
+        // if buckets.len() > 4096 {
+        //     batch_verify_in_subgroup_recursive(&buckets[..], new_security_param, rng)?;
+        // } else {
+        batch_verify_in_subgroup_proj(
+            &buckets
+                .iter()
+                .map(|&p| p.into())
+                .collect::<Vec<C::Projective>>()[..],
+            new_security_param,
+            rng,
+        )?;
+
+        // }
     }
     Ok(())
 }
 
-fn run_rounds<C: AffineCurve>(
+fn run_rounds<C: AffineCurve, R: Rng>(
     points: &[C],
     num_buckets: usize,
     num_rounds: usize,
     new_security_param: Option<usize>,
+    rng: &mut R,
 ) -> Result<(), VerificationError> {
     #[cfg(feature = "parallel")]
     if num_rounds > 2 {
@@ -89,10 +96,12 @@ fn run_rounds<C: AffineCurve>(
         let ref_points = Arc::new(points.to_vec());
         let mut threads = vec![];
         for _ in 0..num_rounds {
+            let rng = &mut thread_rng();
             let ref_points_thread = ref_points.clone();
+            // We only use std when a multicore environment is available
             threads.push(std::thread::spawn(
                 move || -> Result<(), VerificationError> {
-                    verify_points(&ref_points_thread[..], num_buckets, new_security_param)?;
+                    verify_points(&ref_points_thread[..], num_buckets, new_security_param, rng)?;
                     Ok(())
                 },
             ));
@@ -102,52 +111,58 @@ fn run_rounds<C: AffineCurve>(
         }
     } else {
         for _ in 0..num_rounds {
-            verify_points(points, num_buckets, new_security_param)?;
+            verify_points(points, num_buckets, new_security_param, rng)?;
         }
     }
 
     #[cfg(not(feature = "parallel"))]
-    for _ in 0..num_rounds {
-        verify_points(points, num_buckets, new_security_param)?;
+    {
+        for _ in 0..num_rounds {
+            verify_points(points, num_buckets, new_security_param, rng)?;
+        }
     }
 
     Ok(())
 }
 
-pub fn batch_verify_in_subgroup<C: AffineCurve>(
+pub fn batch_verify_in_subgroup<C: AffineCurve, R: Rng>(
     points: &[C],
     security_param: usize,
+    rng: &mut R,
 ) -> Result<(), VerificationError> {
     let (num_buckets, num_rounds, _) = get_max_bucket(
         security_param,
         points.len(),
         <C::ScalarField as PrimeField>::Params::MODULUS_BITS as usize,
     );
-    run_rounds(points, num_buckets, num_rounds, None)?;
+    run_rounds(points, num_buckets, num_rounds, None, rng)?;
     Ok(())
 }
 
-pub fn batch_verify_in_subgroup_recursive<C: AffineCurve>(
-    points: &[C],
-    security_param: usize,
-) -> Result<(), VerificationError> {
-    // we add security for maximum depth, as recursive depth adds additional error to error bound
-    let security_param = security_param + (log2(log2(security_param) as usize) as usize) + 1;
-    let (num_buckets, num_rounds, new_security_param) =
-        get_max_bucket(security_param, points.len(), 2);
-    run_rounds(points, num_buckets, num_rounds, Some(new_security_param))?;
-    Ok(())
-}
+/// Temporarily commented out until a fix can be found for the recursive version of the test
 
-pub fn batch_verify_in_subgroup_proj<C: ProjectiveCurve>(
+// pub fn batch_verify_in_subgroup_recursive<C: AffineCurve, R: Rng>(
+//     points: &[C],
+//     security_param: usize,
+//     rng: &mut R,
+// ) -> Result<(), VerificationError> {
+//     // we add security for maximum depth, as recursive depth adds additional error to error bound
+//     let security_param = security_param + (log2(log2(security_param) as usize) as usize) + 1;
+//     let (num_buckets, num_rounds, new_security_param) =
+//         get_max_bucket(security_param, points.len(), 2);
+//     run_rounds(points, num_buckets, num_rounds, Some(new_security_param), rng)?;
+//     Ok(())
+// }
+
+pub fn batch_verify_in_subgroup_proj<C: ProjectiveCurve, R: Rng>(
     points: &[C],
     security_param: usize,
+    rng: &mut R,
 ) -> Result<(), VerificationError> {
     let (num_buckets, num_rounds, new_security_param) =
         get_max_bucket(security_param, points.len(), 2);
 
     for _ in 0..num_rounds {
-        let rng = &mut thread_rng();
         let mut bucket_assign = Vec::with_capacity(points.len());
         for _ in 0..points.len() {
             bucket_assign.push(rng.gen_range(0, num_buckets));
@@ -167,8 +182,7 @@ pub fn batch_verify_in_subgroup_proj<C: ProjectiveCurve>(
                 return Err(VerificationError);
             }
         } else {
-            // println!("CALLING BUCKET PROJ RECURSIVE");
-            batch_verify_in_subgroup_proj(&buckets[..], new_security_param)?;
+            batch_verify_in_subgroup_proj(&buckets[..], new_security_param, rng)?;
         }
     }
     Ok(())

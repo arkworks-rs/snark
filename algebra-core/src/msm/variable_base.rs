@@ -1,6 +1,5 @@
 use crate::{
-    batch_bucketed_add,
-    batch_bucketed_add_split,
+    batch_bucketed_add, batch_bucketed_add_split,
     prelude::{AffineCurve, BigInteger, FpParameters, One, PrimeField, ProjectiveCurve, Zero},
     Vec,
 };

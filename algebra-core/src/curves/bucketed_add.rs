@@ -1,5 +1,8 @@
-use crate::{//cfg_iter_mut,
-    curves::BatchGroupArithmeticSlice, log2, AffineCurve
+use crate::{
+    //cfg_iter_mut,
+    curves::BatchGroupArithmeticSlice,
+    log2,
+    AffineCurve,
 };
 
 use std::collections::HashMap;
@@ -215,20 +218,29 @@ pub fn batch_bucketed_add_split<C: AffineCurve>(
         //     now.elapsed().as_micros()
         // );
 
-        let now = std::time::Instant::now();
+        // let now = std::time::Instant::now();
 
-        for (elems, buckets) in elem_split[i * split_window..(i + 1) * split_window]
-            .iter_mut()
-            .zip(bucket_split[i * split_window..(i + 1) * split_window]
-            .iter())
-        {
-            if elems.len() > 0 {
-                 res.append(&mut batch_bucketed_add(split_size, &mut elems[..], &buckets[..]));
-            }
-        }
+        // for (elems, buckets) in elem_split[i * split_window..(i + 1) * split_window]
+        //     .iter_mut()
+        //     .zip(bucket_split[i * split_window..(i + 1) * split_window]
+        //     .iter())
+        // {
+        //     if elems.len() > 0 {
+        //          res.append(&mut batch_bucketed_add(split_size, &mut elems[..], &buckets[..]));
+        //     }
+        // }
         // println!("{}: time: {}", i, then.elapsed().as_micros());
     }
 
+    for (elems, buckets) in elem_split.iter_mut().zip(bucket_split.iter()) {
+        if elems.len() > 0 {
+            res.append(&mut batch_bucketed_add(
+                split_size,
+                &mut elems[..],
+                &buckets[..],
+            ));
+        }
+    }
 
     // let res = if split_size < 1 << (bucket_size + 1) {
     // let res = cfg_iter_mut!(elem_split)
@@ -236,7 +248,7 @@ pub fn batch_bucketed_add_split<C: AffineCurve>(
     //     .filter(|(e, b)| e.len() > 0)
     //     .map(|(elems, buckets)| batch_bucketed_add(split_size, &mut elems[..], &buckets[..]))
     //     .flatten()
-        // .collect();
+    // .collect();
     // } else {
     //     // println!("CALLING RECURSIVE");
     //     elem_split

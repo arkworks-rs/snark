@@ -657,7 +657,7 @@ macro_rules! specialise_affine_to_proj {
                             None,
                         );
                     }
-                    // println!("max {} doublings", count);
+                // println!("max {} doublings", count);
                 } else {
                     let opcode_vectorised =
                         Self::batch_wnaf_opcode_recoding::<BigInt>(scalars, w, None);
