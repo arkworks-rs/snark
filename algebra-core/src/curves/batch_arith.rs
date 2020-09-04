@@ -16,10 +16,17 @@ where
 {
     type BBaseField: Field;
 
+    /*
+    We use the w-NAF method, achieving point density of approximately 1/(w + 1)
+    and requiring storage of only 2^(w - 1).
+    Refer to e.g. Improved Techniques for Fast Exponentiation, Section 4
+    Bodo M¨oller 2002. https://www.bmoeller.de/pdf/fastexp-icisc2002.pdf
+    */
+
     /// Computes [[p, 3 * p, ..., (2^w - 1) * p], ..., [q, 3* q,  ..., ]]
     /// We need to manipulate the offsets when using the table
     fn batch_wnaf_tables(bases: &[Self], w: usize) -> Vec<Self> {
-        let half_size = 1 << w;
+        let half_size = 1 << (w - 1);
         let batch_size = bases.len();
 
         let zero = Self::zero();
@@ -135,7 +142,7 @@ where
 
     /*
     We define a series of batched primitive EC ops, each of which is most suitable
-    to a particular scenario
+    to a given scenario.
     */
 
     /// Mutates bases to be doubled in place
@@ -175,7 +182,7 @@ where
     ) {
         let opcode_vectorised = Self::batch_wnaf_opcode_recoding::<BigInt>(scalars, w, None);
         let tables = Self::batch_wnaf_tables(bases, w);
-        let half_size = 1 << w;
+        let half_size = 1 << (w - 1);
 
         // Set all points to 0;
         let zero = Self::zero();

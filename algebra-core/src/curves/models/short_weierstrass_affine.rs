@@ -60,7 +60,7 @@ macro_rules! specialise_affine_to_proj {
                 by: S,
             ) -> Self::Projective {
                 if P::GLV {
-                    let w = 3;
+                    let w = 4;
                     let mut res = Self::Projective::zero();
                     let self_proj = self.into_projective();
                     impl_glv_mul!(Self::Projective, P, w, self_proj, res, by);
@@ -539,7 +539,7 @@ macro_rules! specialise_affine_to_proj {
                     );
 
                     let tables = Self::batch_wnaf_tables(bases, w);
-                    let half_size = 1 << w;
+                    let half_size = 1 << (w - 1);
                     let batch_size = bases.len();
 
                     // Set all points to 0;
@@ -632,7 +632,7 @@ macro_rules! specialise_affine_to_proj {
                     let opcode_vectorised =
                         Self::batch_wnaf_opcode_recoding::<BigInt>(scalars, w, None);
                     let tables = Self::batch_wnaf_tables(bases, w);
-                    let half_size = 1 << w;
+                    let half_size = 1 << (w - 1);
 
                     // Set all points to 0;
                     let zero = Self::zero();
@@ -829,7 +829,7 @@ macro_rules! specialise_affine_to_proj {
     };
 }
 
-/// Implements GLV mul for a single element with a wNAF table
+/// Implements GLV mul for a single element with a wNAF tables
 #[macro_export]
 macro_rules! impl_glv_mul {
     ($Projective: ty, $P: ident, $w: ident, $self_proj: ident, $res: ident, $by: ident) => {
@@ -869,7 +869,7 @@ macro_rules! impl_glv_mul {
         let mut wnaf_table_k1 = Vec::<$Projective>::with_capacity(1 << $w);
         let double = $self_proj.double();
         wnaf_table_k1.push($self_proj);
-        for _ in 1..(1 << $w) {
+        for _ in 1..(1 << ($w - 1)) {
             wnaf_table_k1.push(*wnaf_table_k1.last().unwrap() + &double);
         }
         let mut wnaf_table_k2 = wnaf_table_k1.clone();
