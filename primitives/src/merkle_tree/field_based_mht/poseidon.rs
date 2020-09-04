@@ -16,18 +16,24 @@ use crate::{crh::{
         optimized::FieldBasedOptimizedMHT, FieldBasedMerkleTreeParameters,
         BaseFieldBasedMerkleTreeParameters, BatchFieldBasedMerkleTreeParameters
     },
-    smt::{BigMerkleTree, LazyBigMerkleTree}
 }};
+
+#[cfg(feature = "smt")]
+use crate::smt::{BigMerkleTree, LazyBigMerkleTree};
 
 use std::clone::Clone;
 
 pub type MNT4PoseidonMHT = FieldBasedOptimizedMHT<MNT4753MHTPoseidonParameters>;
 pub type MNT6PoseidonMHT = FieldBasedOptimizedMHT<MNT6753MHTPoseidonParameters>;
 
+#[cfg(feature = "smt")]
 pub type MNT4PoseidonSMT = BigMerkleTree<MNT4753MHTPoseidonParameters>;
+#[cfg(feature = "smt")]
 pub type MNT6PoseidonSMT = BigMerkleTree<MNT6753MHTPoseidonParameters>;
 
+#[cfg(feature = "smt")]
 pub type MNT4PoseidonSMTLazy = LazyBigMerkleTree<MNT4753MHTPoseidonParameters>;
+#[cfg(feature = "smt")]
 pub type MNT6PoseidonSMTLazy = LazyBigMerkleTree<MNT6753MHTPoseidonParameters>;
 
 #[derive(Clone)]

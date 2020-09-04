@@ -257,7 +257,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBased
 
                 // Sanity check: the last node_index must be the one of the root
                 assert_eq!(self.array_nodes[node_index], self.root);
-                Some(<Self::MerklePath as FieldBasedMerkleTreePath>::new(merkle_path.as_slice()))
+                Some(<Self::MerklePath as FieldBasedMerkleTreePath>::new(&merkle_path))
             },
             false => None,
         }

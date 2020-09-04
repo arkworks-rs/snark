@@ -84,18 +84,16 @@ pub trait FieldBasedMerkleTree: Clone {
 /// trait is generic with respect to the arity of the Merkle Tree and to the hash function used.
 pub trait FieldBasedMerkleTreePath {
     type Data: Field;
+    type Path: Clone + Debug;
 
-    /// A Merkle Path for a leaf of a Merkle Tree with arity >= 2 will be made up of couples of nodes
-    /// and an integer. The nodes are all the siblings of the leaf ( in number MERKLE_ARITY - 1 )
-    /// and the integer is the position of the leaf, among its siblings, in the input of the hash
-    /// function (valid values are from 0 to MERKLE_ARITY - 1).
-    fn new(path: &[(Vec<Self::Data>, usize)]) -> Self;
+    /// Wrapper for Self::Path
+    fn new(path: &Self::Path) -> Self;
 
     /// Verify the Merkle Path for `leaf` given the `root` of the Merkle Tree and its `height`.
     fn verify(&self, height: usize, leaf: &Self::Data, root: &Self::Data) -> Result<bool, Error>;
 
     /// Returns the underlying raw path
-    fn get_raw_path(&self) -> Vec<(Vec<Self::Data>, usize)>;
+    fn get_raw_path(&self) -> Self::Path;
 }
 
 /// An implementation of the FieldBasedMerkleTreePath trait, for a given FieldBasedHash and
@@ -107,29 +105,17 @@ pub struct FieldBasedMHTPath<H: FieldBasedHash, T: FieldBasedMerkleTreeParameter
     _tree_params: PhantomData<T>
 }
 
-impl<H: FieldBasedHash, T: FieldBasedMerkleTreeParameters<Data = H::Data>> FieldBasedMHTPath<H, T> {
-
-    pub fn compare_with_binary(&self, binary_path: &[(H::Data, bool)]) -> bool {
-        if self.path.len() != binary_path.len() { return false };
-
-        for ((p1_node, p1_pos), &(p2_node, p2_pos)) in self.path.iter().zip(binary_path.iter()) {
-            if  p1_node.len() != 1 || // In a binary Merkle Tree, there is only one sibling for each node
-                p1_node[0] != p2_node || // The two nodes along the same leves of the paths must be equal
-                (*p1_pos != 0 && *p1_pos != 1) || // In a binary Merkle Tree, position of the acutal node is either 0 or 1
-                (*p1_pos == 0 && p2_pos) || (*p1_pos == 1 && !p2_pos) // Second path position is expressed as a boolean flag
-            {
-                return false
-            }
-        }
-        return true;
-    }
-}
-
 impl<H: FieldBasedHash, T: FieldBasedMerkleTreeParameters<Data = H::Data>> FieldBasedMerkleTreePath for FieldBasedMHTPath<H, T> {
 
     type Data = H::Data;
 
-    fn new(path: &[(Vec<H::Data>, usize)]) -> Self {
+    /// A Merkle Path for a leaf of a Merkle Tree with arity >= 2 will be made up of couples of nodes
+    /// and an integer. The nodes are all the siblings of the leaf ( in number MERKLE_ARITY - 1 )
+    /// and the integer is the position of the leaf, among its siblings, in the input of the hash
+    /// function (valid values are from 0 to MERKLE_ARITY - 1).
+    type Path = Vec<(Vec<H::Data>, usize)>;
+
+    fn new(path: &Self::Path) -> Self {
         Self {path: path.to_vec(), _tree_params: PhantomData}
     }
 
@@ -171,7 +157,59 @@ impl<H: FieldBasedHash, T: FieldBasedMerkleTreeParameters<Data = H::Data>> Field
         }
     }
 
-    fn get_raw_path(&self) -> Vec<(Vec<Self::Data>, usize)> {
+    fn get_raw_path(&self) -> Self::Path {
         self.path.clone()
     }
 }
+
+/// A wrapper around a Merkle Path for a FieldBasedMerkleTree of arity 2. Merkle Trees of arity
+/// 2 are the most common and it's worth it to explicitly create a separate struct
+#[derive(Clone, Debug)]
+pub struct FieldBasedBinaryMHTPath<H: FieldBasedHash, T: FieldBasedMerkleTreeParameters<Data = H::Data>>{
+    pub path: Vec<(H::Data, bool)>,
+    _tree_params: PhantomData<T>
+}
+
+impl<H: FieldBasedHash, T: FieldBasedMerkleTreeParameters<Data = H::Data>> FieldBasedMerkleTreePath for FieldBasedBinaryMHTPath<H, T> {
+
+    type Data = H::Data;
+    type Path = Vec<(H::Data, bool)>;
+
+    fn new(path: &Self::Path) -> Self {
+        Self {path: path.to_vec(), _tree_params: PhantomData}
+    }
+
+    fn verify(&self, height: usize, leaf: &Self::Data, root: &Self::Data) -> Result<bool, Error>{
+        let mut v = Vec::with_capacity(self.path.len());
+        for &(node, direction) in &self.path {
+            v.push((vec![node], if !direction {0} else {1}));
+        }
+        FieldBasedMHTPath::<H, T>::new(&v).verify(height, leaf, root)
+    }
+
+    fn get_raw_path(&self) -> Self::Path {
+        self.path.clone()
+    }
+}
+
+impl<
+    H: FieldBasedHash,
+    T: FieldBasedMerkleTreeParameters<Data = H::Data>
+> PartialEq<FieldBasedBinaryMHTPath<H, T>> for FieldBasedMHTPath<H, T> {
+    fn eq(&self, other: &FieldBasedBinaryMHTPath<H, T>) -> bool {
+        let binary_path = other.get_raw_path();
+        if self.path.len() != binary_path.len() { return false };
+
+        for ((p1_node, p1_pos), (p2_node, p2_pos)) in self.path.iter().zip(binary_path) {
+            if  p1_node.len() != 1 || // In a binary Merkle Tree, there is only one sibling for each node
+                p1_node[0] != p2_node || // The two nodes along the same leves of the paths must be equal
+                (*p1_pos != 0 && *p1_pos != 1) || // In a binary Merkle Tree, position of the acutal node is either 0 or 1
+                (*p1_pos == 0 && p2_pos) || (*p1_pos == 1 && !p2_pos) // Second path position is expressed as a boolean flag
+            {
+                return false
+            }
+        }
+        return true;
+    }
+}
+
