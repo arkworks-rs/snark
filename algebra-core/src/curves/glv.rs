@@ -15,6 +15,7 @@ pub trait GLVParameters: Send + Sync + 'static + ModelParameters {
     const B2_IS_NEG: bool;
     const R_BITS: u32;
 
+    #[inline]
     fn glv_scalar_decomposition_inner(
         k: <Self::ScalarField as PrimeField>::BigInt,
     ) -> (

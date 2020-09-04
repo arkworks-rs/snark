@@ -2,14 +2,13 @@ use crate::cfg_chunks_mut;
 use algebra_core::{
     AffineCurve, BatchGroupArithmeticSlice, BigInteger64, ProjectiveCurve, UniformRand,
 };
-use rand::{distributions::Uniform, prelude::Distribution};
-use rand_xorshift::XorShiftRng;
+use rand::{distributions::Uniform, prelude::Distribution, Rng};
 
 #[cfg(feature = "parallel_random_gen")]
 use rayon::prelude::*;
 
-pub fn create_pseudo_uniform_random_elems<C: AffineCurve>(
-    rng: &mut XorShiftRng,
+pub fn create_pseudo_uniform_random_elems<C: AffineCurve, R: Rng>(
+    rng: &mut R,
     max_logn: usize,
 ) -> Vec<C> {
     const AFFINE_BATCH_SIZE: usize = 4096;

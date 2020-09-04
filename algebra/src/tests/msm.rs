@@ -41,7 +41,7 @@ fn test_msm<G: AffineCurve>() {
     let v = (0..SAMPLES)
         .map(|_| Fr::rand(&mut rng).into_repr())
         .collect::<Vec<_>>();
-    let g = create_pseudo_uniform_random_elems::<G1Affine>(&mut rng, MAX_LOGN);
+    let g = create_pseudo_uniform_random_elems::<G1Affine, XorShiftRng>(&mut rng, MAX_LOGN);
 
     // let naive = naive_var_base_msm(g.as_slice(), v.as_slice());
 

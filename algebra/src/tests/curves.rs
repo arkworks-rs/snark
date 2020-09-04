@@ -360,11 +360,15 @@ pub fn random_batch_scalar_mul_test<G: ProjectiveCurve>() {
         let mut s: Vec<<G::ScalarField as PrimeField>::BigInt> =
             s.iter().map(|p| p.into_repr()).collect();
 
+        let now = std::time::Instant::now();
         a[..].batch_scalar_mul_in_place::<<G::ScalarField as PrimeField>::BigInt>(&mut s[..], 4);
+        println!("Batch affine mul: {}us", now.elapsed().as_micros());
 
+        let now = std::time::Instant::now();
         for (p_c, s_t) in c.iter_mut().zip(t.iter()) {
             p_c.mul_assign(*s_t);
         }
+        println!("Proj mul: {}us", now.elapsed().as_micros());
 
         let c: Vec<G::Affine> = c.iter().map(|p| p.into_affine()).collect();
 

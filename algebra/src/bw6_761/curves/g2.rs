@@ -156,10 +156,12 @@ impl SWModelParameters for Parameters {
 
     const GLV: bool = false;
 
+    #[inline(always)]
     fn glv_endomorphism_in_place(elem: &mut Self::BaseField) {
         *elem *= &<Self as GLVParameters>::OMEGA;
     }
 
+    #[inline]
     fn glv_scalar_decomposition(
         k: <Self::ScalarField as PrimeField>::BigInt,
     ) -> (

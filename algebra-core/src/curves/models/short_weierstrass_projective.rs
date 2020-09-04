@@ -268,6 +268,34 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
             self.z = vvv * &self.z;
         }
     }
+
+    fn mul<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(mut self, other: S) -> Self {
+        if P::GLV {
+            let w = 3;
+            let mut res = Self::zero();
+            impl_glv_mul!(Self, P, w, self, res, other);
+            res
+        } else {
+            let mut res = Self::zero();
+
+            let mut found_one = false;
+
+            for i in crate::fields::BitIterator::new(other.into()) {
+                if found_one {
+                    res.double_in_place();
+                } else {
+                    found_one = i;
+                }
+
+                if i {
+                    res += self;
+                }
+            }
+
+            self = res;
+            self
+        }
+    }
 }
 
 impl<P: Parameters> Neg for GroupProjective<P> {
