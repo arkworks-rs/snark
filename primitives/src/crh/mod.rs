@@ -23,10 +23,13 @@ pub trait FixedLengthCRH {
     fn evaluate(parameters: &Self::Parameters, input: &[u8]) -> Result<Self::Output, Error>;
 }
 
+/// Define parameters required to implement a hash function working with field arithmetics.
+/// TODO: Depending on the hash construction some parameters may be present and others not
+///       we should think about particularizing or generalizing this trait definition.
 pub trait FieldBasedHashParameters: Clone {
     type Fr: Field;
 
-    // The rate of the hash function
+    /// The rate of the hash function
     const R: usize;
 }
 
@@ -34,29 +37,34 @@ pub trait FieldBasedHash {
     type Data: Field;
     type Parameters: FieldBasedHashParameters<Fr = Self::Data>;
 
-    // Initialize the hash to a null state, or with `personalization` if specified.
+    /// Initialize the hash to a null state, or with `personalization` if specified.
     fn init(personalization: Option<&[Self::Data]>) -> Self;
 
-    // Update the hash with `input`.
+    /// Update the hash with `input`.
     fn update(&mut self, input: Self::Data) -> &mut Self;
 
-    // Return the hash. This method is idempotent, and calling it multiple times will
-    // give the same result. It's also possible to `update` with more inputs in between.
+    /// Return the hash. This method is idempotent, and calling it multiple times will
+    /// give the same result. It's also possible to `update` with more inputs in between.
     fn finalize(&self) -> Self::Data;
 
-    // Reset self to its initial state, allowing to change `personalization` too if needed.
+    /// Reset self to its initial state, allowing to change `personalization` too if needed.
     fn reset(&mut self, personalization: Option<&[Self::Data]>) -> &mut Self;
 }
 
 pub trait BatchFieldBasedHash {
     type Data: Field;
+
+    /// Specification of this type allows to provide a default implementation and more flexibility
+    /// when included in other traits/struct (i.e. a FieldBasedMerkleTree using both simple and
+    /// batch hashes can only specify this trait, simplifying its design and usage).
+    /// Still, it's a reasonable addition for a trait like this.
     type BaseHash: FieldBasedHash<Data = Self::Data>;
 
-    // Given an `input_array` of size n * hash_rate, batches the computation of the n hashes
-    // and outputs the n hash results.
-    // NOTE: The hashes are independent from each other, therefore the output is not some sort
-    // of aggregated hash but it's actually the hash result of each of the inputs, grouped in
-    // hash_rate chunks.
+    /// Given an `input_array` of size n * hash_rate, batches the computation of the n hashes
+    /// and outputs the n hash results.
+    /// NOTE: The hashes are independent from each other, therefore the output is not some sort
+    /// of aggregated hash but it's actually the hash result of each of the inputs, grouped in
+    /// hash_rate chunks.
     fn batch_evaluate(input_array: &[Self::Data]) -> Result<Vec<Self::Data>, Error> {
 
         let rate = <<Self::BaseHash as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
@@ -70,13 +78,13 @@ pub trait BatchFieldBasedHash {
         }).collect::<Vec<_>>())
     }
 
-    // Given an `input_array` of size n * hash_rate, batches the computation of the n hashes
-    // and outputs the n hash results.
-    // Avoids a copy by requiring to pass the `output_array` already as input to the
-    // function.
-    // NOTE: The hashes are independent from each other, therefore the output is not some sort
-    // of aggregated hash but it's actually the hash result of each of the inputs, grouped in
-    // hash_rate chunks.
+    /// Given an `input_array` of size n * hash_rate, batches the computation of the n hashes
+    /// and outputs the n hash results.
+    /// Avoids a copy by requiring to pass the `output_array` already as input to the
+    /// function.
+    /// NOTE: The hashes are independent from each other, therefore the output is not some sort
+    /// of aggregated hash but it's actually the hash result of each of the inputs, grouped in
+    /// hash_rate chunks.
     fn batch_evaluate_in_place(input_array: &mut[Self::Data], output_array: &mut[Self::Data]) {
         let output = Self::batch_evaluate(input_array)
             .expect("Should be able to compute batch hash");
@@ -113,7 +121,7 @@ mod test {
         type BaseHash = MNT4PoseidonHash;
     }
 
-    //#[ignore]
+    #[ignore]
     #[test]
     fn test_default_batch_hash_implementation() {
         let rate = 2;

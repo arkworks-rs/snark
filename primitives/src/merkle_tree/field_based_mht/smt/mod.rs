@@ -9,21 +9,19 @@ pub use self::big_lazy_merkle_tree::*;
 pub mod error;
 pub use self::error::*;
 
-use crate::PoseidonHash;
-use crate::crh::poseidon::parameters::{MNT4753PoseidonParameters, MNT6753PoseidonParameters};
+use algebra::{
+    ToBytes, FromBytes, Field
+};
+
 use crate::merkle_tree::field_based_mht::FieldBasedMerkleTreeParameters;
 
-use algebra::fields::mnt6753::Fr as MNT6753Fr;
-use algebra::fields::mnt4753::Fr as MNT4753Fr;
-use algebra::{ToBytes, FromBytes, Field};
-
 use serde::{Serialize,Deserialize};
-use std::io::{Write, Result as IoResult, Read};
-use std::collections::{HashMap, HashSet};
-use std::marker::PhantomData;
 
-pub type MNT4PoseidonHash = PoseidonHash<MNT4753Fr, MNT4753PoseidonParameters>;
-pub type MNT6PoseidonHash = PoseidonHash<MNT6753Fr, MNT6753PoseidonParameters>;
+use std::{
+    io::{Write, Result as IoResult, Read},
+    collections::{HashMap, HashSet},
+    marker::PhantomData
+};
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum ActionLeaf {

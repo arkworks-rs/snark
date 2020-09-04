@@ -6,6 +6,9 @@ use crate::{
 };
 use std::marker::PhantomData;
 
+/// An implementation of FieldBasedMerkleTree, optimized in time and memory,
+/// and able to support any BatchFieldBasedHash and Merkle arity.
+/// TODO: Test with arity > 2
 #[derive(Clone)]
 pub struct FieldBasedOptimizedMHT<T: BatchFieldBasedMerkleTreeParameters>{
     root: T::Data,
@@ -176,13 +179,13 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBased
         self
     }
 
-    // Note: `Field` implements the `Copy` trait, therefore invoking this function won't
-    // cause a moving of ownership for `leaf`, but just a copy. Another copy is
-    // performed below in `self.array_nodes[self.new_elem_pos_subarray[0]] = leaf;`
-    // We can reduce this to one copy by passing a reference to leaf, but from an
-    // interface point of view this is not logically correct: someone calling this
-    // functions will likely not use the `leaf` anymore in most of the cases
-    // (in the other cases he can just clone it).
+    /// Note: `Field` implements the `Copy` trait, therefore invoking this function won't
+    /// cause a moving of ownership for `leaf`, but just a copy. Another copy is
+    /// performed below in `self.array_nodes[self.new_elem_pos_subarray[0]] = leaf;`
+    /// We can reduce this to one copy by passing a reference to leaf, but from an
+    /// interface point of view this is not logically correct: someone calling this
+    /// functions will likely not use the `leaf` anymore in most of the cases
+    /// (in the other cases he can just clone it).
     fn append(&mut self, leaf: T::Data) -> &mut Self {
         if self.new_elem_pos[0] < self.final_pos[0] {
             self.array_nodes[self.new_elem_pos[0]] = leaf;
@@ -230,20 +233,30 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBased
 
                 let mut node_index = leaf_index;
                 for _ in 0..self.levels {
-                    //let position = node_index % T::MERKLE_ARITY;
                     let mut siblings = Vec::with_capacity(T::MERKLE_ARITY - 1);
 
+                    // Based on the index of the node, we must compute the index of the left-most children
                     let start_position = node_index - ( node_index % T::MERKLE_ARITY );
+
+                    // Then, the right most children index is simply given by adding the arity
                     let end_position = start_position + T::MERKLE_ARITY;
+
+                    // We must save the siblings of the actual node
                     for i in start_position..end_position {
                         if i != node_index {
                             siblings.push(self.array_nodes[i])
                         }
                     }
+
+                    // Remember to normalize the node_index with respect to the length of siblings
                     merkle_path.push((siblings, node_index % T::MERKLE_ARITY));
-                    node_index = self.num_leaves + (node_index/T::MERKLE_ARITY); // Get parent index
+
+                    // Get parent index for next iteration
+                    node_index = self.num_leaves + (node_index/T::MERKLE_ARITY);
                 }
-                assert_eq!(self.array_nodes[node_index], self.root); // Sanity check
+
+                // Sanity check: the last node_index must be the one of the root
+                assert_eq!(self.array_nodes[node_index], self.root);
                 Some(<Self::MerklePath as FieldBasedMerkleTreePath>::new(merkle_path.as_slice()))
             },
             false => None,
@@ -264,10 +277,16 @@ mod test {
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
 
-    use crate::{crh::poseidon::{MNT4PoseidonHash, MNT6PoseidonHash}, merkle_tree::field_based_mht::{
-        MNT4PoseidonMHT, MNT6PoseidonMHT,
-        FieldBasedMerkleTree, NaiveMerkleTree, NaiveFieldBasedMerkleTreeConfig
-    }, FieldBasedMerkleTreePath};
+    use crate::{
+        crh::poseidon::{
+            MNT4PoseidonHash, MNT6PoseidonHash
+        },
+        merkle_tree::field_based_mht::{
+            MNT4PoseidonMHT, MNT6PoseidonMHT,
+            FieldBasedMerkleTree, NaiveMerkleTree, NaiveFieldBasedMerkleTreeConfig,
+            FieldBasedMerkleTreePath
+        },
+    };
 
     struct MNT4753FieldBasedMerkleTreeParams;
     impl NaiveFieldBasedMerkleTreeConfig for MNT4753FieldBasedMerkleTreeParams {
@@ -285,11 +304,6 @@ mod test {
 
     #[test]
     fn merkle_tree_test_mnt4() {
-        // running time for 1048576 leaves
-        // processing_step = 1024 => 90278 ms
-        // processing_step = 1024 * 64 => 40753 ms
-        // processing_step = 1024 * 1024 => 38858 ms
-
         let expected_output = MNT4753Fr::new(BigInteger768([8181981188982771303, 9834648934716236448, 6420360685258842467, 14258691490360951478, 10642011566662929522, 16918207755479993617, 3581400602871836321, 14012664850056020974, 16755211538924649257, 4039951447678776727, 12365175056998155257, 119677729692145]));
         let num_leaves = 1024 * 1024;
         let mut tree = MNT4PoseidonMHT::init(num_leaves);
@@ -303,11 +317,6 @@ mod test {
 
     #[test]
     fn merkle_tree_test_mnt6() {
-        // running time for 1048576 leaves
-        // processing_step = 1024 => 87798 ms
-        // processing_step = 1024 * 64 => 39199 ms
-        // processing_step = 1024 * 1024 => 37450 ms
-
         let expected_output = MNT6753Fr::new(BigInteger768([18065863015580309240, 1059485854425188866, 1479096878827665107, 6899132209183155323, 1829690180552438097, 7395327616910893705, 16132683753083562833, 8528890579558218842, 9345795575555751752, 8161305655297462527, 6222078223269068637, 401142754883827]));
         let num_leaves = 1024 * 1024;
         let mut tree = MNT6PoseidonMHT::init(num_leaves);
@@ -430,6 +439,8 @@ mod test {
         let mut leaves = Vec::with_capacity(num_leaves);
         let mut tree = MNT4PoseidonMHT::init(num_leaves);
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+        // Generate random leaves, half of which empty
         for _ in 0..num_leaves/2 {
             let leaf = MNT4753Fr::rand(&mut rng);
             tree.append(leaf);
@@ -440,20 +451,25 @@ mod test {
             tree.append(leaf);
             leaves.push(leaf);
         }
+
+        // Compute the root of the tree, and do the same for a NaiveMHT, used here as reference
         tree.finalize_in_place();
-
         let naive_tree = NaiveMNT4PoseidonMHT::new(leaves.as_slice()).unwrap();
-
         let root = tree.root().unwrap();
         let naive_root = naive_tree.root();
         assert_eq!(root, naive_root);
 
         for i in 0..num_leaves {
+
+            // Create and verify a FieldBasedMHTPath
             let path = tree.get_merkle_path(i).unwrap();
             assert!(path.verify(7, &leaves[i], &root).unwrap());
 
+            // Create and verify a Naive path
             let naive_path = naive_tree.generate_proof(i, &leaves[i]).unwrap();
             assert!(naive_path.verify(&naive_root, &leaves[i]).unwrap());
+
+            // Assert the two paths are equal
             assert!(path.compare_with_binary(naive_path.path.as_slice()));
         }
     }
@@ -465,6 +481,8 @@ mod test {
         let mut leaves = Vec::with_capacity(num_leaves);
         let mut tree = MNT6PoseidonMHT::init(num_leaves);
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+        // Generate random leaves, half of which empty
         for _ in 0..num_leaves/2 {
             let leaf = MNT6753Fr::rand(&mut rng);
             tree.append(leaf);
@@ -475,24 +493,25 @@ mod test {
             tree.append(leaf);
             leaves.push(leaf);
         }
+
+        // Compute the root of the tree, and do the same for a NaiveMHT, used here as reference
         tree.finalize_in_place();
-
         let naive_tree = NaiveMNT6PoseidonMHT::new(leaves.as_slice()).unwrap();
-
         let root = tree.root().unwrap();
         let naive_root = naive_tree.root();
         assert_eq!(root, naive_root);
 
         for i in 0..num_leaves {
+
+            // Create and verify a FieldBasedMHTPath
             let path = tree.get_merkle_path(i).unwrap();
             assert!(path.verify(7, &leaves[i], &root).unwrap());
 
+            // Create and verify a Naive path
             let naive_path = naive_tree.generate_proof(i, &leaves[i]).unwrap();
             assert!(naive_path.verify(&naive_root, &leaves[i]).unwrap());
 
-            let raw_path = path.get_raw_path();
-            assert_eq!(raw_path.len(), naive_path.path.len());
-
+            // Assert the two paths are equal
             assert!(path.compare_with_binary(naive_path.path.as_slice()));
         }
     }

@@ -52,7 +52,7 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
     // If `persistent` is specified, then DBs will be kept on disk and the tree state will be saved
     // so that the tree can be restored any moment later. Otherwise, no state will be saved on file
     // and the DBs will be deleted.
-    pub fn new_unitialized(width: usize, persistent: bool, state_path: Option<String>, path_db: String, path_cache: String) -> Result<Self, Error> {
+    pub fn new(width: usize, persistent: bool, state_path: Option<String>, path_db: String, path_cache: String) -> Result<Self, Error> {
         let rate = <<T::H  as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
 
         assert_eq!(T::MERKLE_ARITY, 2); // For now we support only arity 2
@@ -86,10 +86,10 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         })
     }
 
-    // Creates a new tree starting from state at `state_path` and DBs at `path_db` and `path_cache`.
+    // Restore a tree from a state saved at `state_path` and DBs at `path_db` and `path_cache`.
     // The new tree may be persistent or not, the actions taken in both cases are the same as
-    // in `new_unitialized()`.
-    pub fn new(persistent: bool, state_path: String, path_db: String, path_cache: String) -> Result<Self, Error> {
+    // in `new` function.
+    pub fn load(persistent: bool, state_path: String, path_db: String, path_cache: String) -> Result<Self, Error> {
         let rate = <<T::H  as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
         assert_eq!(T::MERKLE_ARITY, 2); // For now we support only arity 2
         // Rate may also be smaller than the arity actually, but this assertion
@@ -383,6 +383,7 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         let mut height = 0;
 
         while height != self.height {
+
             // Estabilish if sibling is a left or right child
             let direction = node_idx % T::MERKLE_ARITY;
             let sibling_idx = if direction == 0 { node_idx + 1 } else { node_idx - 1 };
@@ -390,12 +391,13 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
             // Get its hash
             let sibling_coord = Coord { height, idx: sibling_idx };
             let sibling = if self.state.present_node.contains(&sibling_coord) {
+                // If it's not empty
                 if height == 0 {
                     self.get_from_db(sibling_idx).unwrap()
-                } else {
+                } else { // Otherwise, we need to recompute it
                     self.node(sibling_coord)
                 }
-            } else {
+            } else { // If it's empty then we can directly get the precomputed empty at this height
                 T::EMPTY_HASH_CST[height]
             };
 
@@ -404,7 +406,7 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
 
             // go up one level
             height += 1;
-            node_idx = node_idx / T::MERKLE_ARITY;
+            node_idx = node_idx / T::MERKLE_ARITY; // compute the index of the parent
         }
         assert_eq!(self.node(Coord { height, idx: node_idx }), self.state.root);
 
@@ -733,7 +735,6 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         }
         self.state.root.clone()
     }
-
 }
 
 
@@ -746,15 +747,20 @@ mod test {
         Field, UniformRand
     };
 
-    use crate::{crh::{
-        MNT4PoseidonHash, MNT6PoseidonHash
-    }, merkle_tree::field_based_mht::{
-        naive::{NaiveFieldBasedMerkleTreeConfig, NaiveMerkleTree},
-        smt::{OperationLeaf, Coord, ActionLeaf},
-        poseidon::{MNT4753MHTPoseidonParameters, MNT6753MHTPoseidonParameters},
-    }, FieldBasedMerkleTreePath};
+    use crate::{
+        crh::{
+            MNT4PoseidonHash, MNT6PoseidonHash
+        },
+        merkle_tree::field_based_mht::{
+            naive::{NaiveFieldBasedMerkleTreeConfig, NaiveMerkleTree},
+            smt::{OperationLeaf, Coord, ActionLeaf},
+            poseidon::{
+                MNT4PoseidonSMT, MNT6PoseidonSMT,
+            },
+            FieldBasedMerkleTreePath
+        },
 
-    use super::BigMerkleTree;
+    };
 
     use rand_xorshift::XorShiftRng;
     use rand::SeedableRng;
@@ -763,20 +769,24 @@ mod test {
         str::FromStr, path::Path
     };
 
-    pub type MNT4PoseidonSmt = BigMerkleTree<MNT4753MHTPoseidonParameters>;
-
     struct MNT4753FieldBasedMerkleTreeParams;
+    struct MNT6753FieldBasedMerkleTreeParams;
+
     impl NaiveFieldBasedMerkleTreeConfig for MNT4753FieldBasedMerkleTreeParams {
         const HEIGHT: usize = 6;
         type H = MNT4PoseidonHash;
     }
+
+    impl NaiveFieldBasedMerkleTreeConfig for MNT6753FieldBasedMerkleTreeParams {
+        const HEIGHT: usize = 6;
+        type H = MNT6PoseidonHash;
+    }
+
     type MNT4753FieldBasedMerkleTree = NaiveMerkleTree<MNT4753FieldBasedMerkleTreeParams>;
+    type MNT6753FieldBasedMerkleTree = NaiveMerkleTree<MNT6753FieldBasedMerkleTreeParams>;
 
     #[test]
     fn compare_merkle_trees_mnt4_1() {
-        use algebra::{
-            fields::mnt4753::Fr, Field,
-        };
 
         let num_leaves = 32;
         let mut leaves_to_process: Vec<OperationLeaf<MNT4753Fr>> = Vec::new();
@@ -787,7 +797,7 @@ mod test {
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 29 }, action: ActionLeaf::Insert, hash: Some(MNT4753Fr::from_str("3").unwrap()) });
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 16 }, action: ActionLeaf::Remove, hash: Some(MNT4753Fr::from_str("3").unwrap()) });
 
-        let mut smt = MNT4PoseidonSmt::new_unitialized(
+        let mut smt = MNT4PoseidonSMT::new(
             num_leaves,
             false,
             None,
@@ -801,17 +811,17 @@ mod test {
         let mut leaves = Vec::new();
         leaves.push(MNT4753Fr::from_str("1").unwrap());
         for _ in 1..9 {
-            let f = Fr::zero();
+            let f = MNT4753Fr::zero();
             leaves.push(f);
         }
         leaves.push(MNT4753Fr::from_str("2").unwrap());
         for _ in 10..29 {
-            let f = Fr::zero();
+            let f = MNT4753Fr::zero();
             leaves.push(f);
         }
         leaves.push(MNT4753Fr::from_str("3").unwrap());
         for _ in 30..32 {
-            let f = Fr::zero();
+            let f = MNT4753Fr::zero();
             leaves.push(f);
         }
         let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
@@ -821,21 +831,17 @@ mod test {
 
     #[test]
     fn compare_merkle_trees_mnt4_2() {
-        use algebra::{
-            fields::mnt4753::Fr,
-            UniformRand,
-        };
 
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
         let num_leaves = 32;
         let mut leaves = Vec::new();
         for _ in 0..num_leaves {
-            let f = Fr::rand(&mut rng);
+            let f = MNT4753Fr::rand(&mut rng);
             leaves.push(f);
         }
         let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
 
-        let mut smt = MNT4PoseidonSmt::new_unitialized(
+        let mut smt = MNT4PoseidonSMT::new(
             num_leaves,
             false,
             None,
@@ -844,7 +850,7 @@ mod test {
         ).unwrap();
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
         for i in 0..num_leaves {
-            let f = Fr::rand(&mut rng);
+            let f = MNT4753Fr::rand(&mut rng);
             smt.insert_leaf(
                 Coord{height:0, idx:i},
                 f,
@@ -856,30 +862,27 @@ mod test {
 
     #[test]
     fn compare_merkle_trees_mnt4_3() {
-        use algebra::{
-            fields::mnt4753::Fr, Field,
-        };
 
         let num_leaves = 32;
         let mut leaves = Vec::new();
         leaves.push(MNT4753Fr::from_str("1").unwrap());
         for _ in 1..9 {
-            let f = Fr::zero();
+            let f = MNT4753Fr::zero();
             leaves.push(f);
         }
         leaves.push(MNT4753Fr::from_str("2").unwrap());
         for _ in 10..29 {
-            let f = Fr::zero();
+            let f = MNT4753Fr::zero();
             leaves.push(f);
         }
         leaves.push(MNT4753Fr::from_str("3").unwrap());
         for _ in 30..32 {
-            let f = Fr::zero();
+            let f = MNT4753Fr::zero();
             leaves.push(f);
         }
         let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
 
-        let mut smt = MNT4PoseidonSmt::new_unitialized(
+        let mut smt = MNT4PoseidonSMT::new(
             num_leaves,
             false,
             None,
@@ -896,22 +899,8 @@ mod test {
         assert_eq!(tree.root(), smt.state.root, "Outputs of the Merkle trees for MNT4 do not match.");
     }
 
-    struct MNT6753FieldBasedMerkleTreeParams;
-
-    impl NaiveFieldBasedMerkleTreeConfig for MNT6753FieldBasedMerkleTreeParams {
-        const HEIGHT: usize = 6;
-        type H = MNT6PoseidonHash;
-    }
-
-    type MNT6753FieldBasedMerkleTree = NaiveMerkleTree<MNT6753FieldBasedMerkleTreeParams>;
-
-    pub type MNT6PoseidonSmt = BigMerkleTree<MNT6753MHTPoseidonParameters>;
-
     #[test]
     fn compare_merkle_trees_mnt6_1() {
-        use algebra::{
-            fields::mnt6753::Fr, Field,
-        };
 
         let num_leaves = 32;
         let mut leaves_to_process: Vec<OperationLeaf<MNT6753Fr>> = Vec::new();
@@ -922,7 +911,7 @@ mod test {
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 29 }, action: ActionLeaf::Insert, hash: Some(MNT6753Fr::from_str("3").unwrap()) });
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 16 }, action: ActionLeaf::Remove, hash: Some(MNT6753Fr::from_str("3").unwrap()) });
 
-        let mut smt = MNT6PoseidonSmt::new_unitialized(
+        let mut smt = MNT6PoseidonSMT::new(
             num_leaves,
             false,
             None,
@@ -936,17 +925,17 @@ mod test {
         let mut leaves = Vec::new();
         leaves.push(MNT6753Fr::from_str("1").unwrap());
         for _ in 1..9 {
-            let f = Fr::zero();
+            let f = MNT6753Fr::zero();
             leaves.push(f);
         }
         leaves.push(MNT6753Fr::from_str("2").unwrap());
         for _ in 10..29 {
-            let f = Fr::zero();
+            let f = MNT6753Fr::zero();
             leaves.push(f);
         }
         leaves.push(MNT6753Fr::from_str("3").unwrap());
         for _ in 30..32 {
-            let f = Fr::zero();
+            let f = MNT6753Fr::zero();
             leaves.push(f);
         }
         let tree = MNT6753FieldBasedMerkleTree::new(&leaves).unwrap();
@@ -956,21 +945,17 @@ mod test {
 
     #[test]
     fn compare_merkle_trees_mnt6_2() {
-        use algebra::{
-            fields::mnt4753::Fr,
-            UniformRand,
-        };
 
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
         let num_leaves = 32;
         let mut leaves = Vec::new();
         for _ in 0..num_leaves {
-            let f = Fr::rand(&mut rng);
+            let f = MNT6753Fr::rand(&mut rng);
             leaves.push(f);
         }
-        let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
+        let tree = MNT6753FieldBasedMerkleTree::new(&leaves).unwrap();
 
-        let mut smt = MNT4PoseidonSmt::new_unitialized(
+        let mut smt = MNT6PoseidonSMT::new(
             num_leaves,
             false,
             None,
@@ -979,7 +964,7 @@ mod test {
         ).unwrap();
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
         for i in 0..num_leaves {
-            let f = Fr::rand(&mut rng);
+            let f = MNT6753Fr::rand(&mut rng);
             smt.insert_leaf(
                 Coord{height:0, idx:i},
                 f,
@@ -991,39 +976,36 @@ mod test {
 
     #[test]
     fn compare_merkle_trees_mnt6_3() {
-        use algebra::{
-            fields::mnt4753::Fr, Field,
-        };
 
         let num_leaves = 32;
         let mut leaves = Vec::new();
-        leaves.push(MNT4753Fr::from_str("1").unwrap());
+        leaves.push(MNT6753Fr::from_str("1").unwrap());
         for _ in 1..9 {
-            let f = Fr::zero();
+            let f = MNT6753Fr::zero();
             leaves.push(f);
         }
-        leaves.push(MNT4753Fr::from_str("2").unwrap());
+        leaves.push(MNT6753Fr::from_str("2").unwrap());
         for _ in 10..29 {
-            let f = Fr::zero();
+            let f = MNT6753Fr::zero();
             leaves.push(f);
         }
-        leaves.push(MNT4753Fr::from_str("3").unwrap());
+        leaves.push(MNT6753Fr::from_str("3").unwrap());
         for _ in 30..32 {
-            let f = Fr::zero();
+            let f = MNT6753Fr::zero();
             leaves.push(f);
         }
-        let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
+        let tree = MNT6753FieldBasedMerkleTree::new(&leaves).unwrap();
 
-        let mut smt = MNT4PoseidonSmt::new_unitialized(
+        let mut smt = MNT6PoseidonSMT::new(
             num_leaves,
             false,
             None,
             String::from("./db_leaves_compare_merkle_trees_mnt6_3"),
             String::from("./db_cache_compare_merkle_trees_mnt6_3")).unwrap();
-        smt.insert_leaf(Coord{height:0, idx:0}, MNT4753Fr::from_str("1").unwrap());
-        smt.insert_leaf(Coord{height:0, idx:9}, MNT4753Fr::from_str("2").unwrap());
-        smt.insert_leaf(Coord{height:0, idx:16}, MNT4753Fr::from_str("10").unwrap());
-        smt.insert_leaf(Coord{height:0, idx:29}, MNT4753Fr::from_str("3").unwrap());
+        smt.insert_leaf(Coord{height:0, idx:0}, MNT6753Fr::from_str("1").unwrap());
+        smt.insert_leaf(Coord{height:0, idx:9}, MNT6753Fr::from_str("2").unwrap());
+        smt.insert_leaf(Coord{height:0, idx:16}, MNT6753Fr::from_str("10").unwrap());
+        smt.insert_leaf(Coord{height:0, idx:29}, MNT6753Fr::from_str("3").unwrap());
         smt.remove_leaf(Coord{height:0, idx:16});
         println!("{:?}", smt.state.root);
 
@@ -1051,7 +1033,7 @@ mod test {
 
         // create a persistent smt in a separate scope
         {
-            let mut smt = MNT4PoseidonSmt::new_unitialized(
+            let mut smt = MNT4PoseidonSMT::new(
                 32,
                 true,
                 Some(String::from("./persistency_test_info")),
@@ -1072,7 +1054,7 @@ mod test {
 
         // create a non-persistent smt in another scope by restoring the previous one
         {
-            let mut smt = MNT4PoseidonSmt::new(
+            let mut smt = MNT4PoseidonSMT::load(
                 false,
                 String::from("./persistency_test_info"),
                 String::from("./db_leaves_persistency_test_info"),
@@ -1103,7 +1085,7 @@ mod test {
         let mut leaves = Vec::with_capacity(num_leaves);
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-        let mut smt = MNT4PoseidonSmt::new_unitialized(
+        let mut smt = MNT4PoseidonSMT::new(
             num_leaves,
             false,
             None,
@@ -1111,6 +1093,7 @@ mod test {
             String::from("./db_cache_merkle_tree_path_test_mnt4")
         ).unwrap();
 
+        // Generate random leaves, half of which empty
         for i in 0..num_leaves/2 {
             let leaf = MNT4753Fr::rand(&mut rng);
             leaves.push(leaf);
@@ -1123,21 +1106,24 @@ mod test {
             smt.insert_leaf(Coord{height: 0, idx: i}, leaf);
         }
 
+        // Compute the root of the tree, and do the same for a NaiveMHT, used here as reference
         let naive_tree = MNT4753FieldBasedMerkleTree::new(leaves.as_slice()).unwrap();
-
         let root = smt.get_root();
         let naive_root = naive_tree.root();
         assert_eq!(root, naive_root);
 
         for i in 0..num_leaves {
+
+            // Create and verify a FieldBasedMHTPath
             let path = smt.get_merkle_path(Coord{height: 0, idx: i});
             assert!(path.verify(6, &leaves[i], &root).unwrap());
 
+            // Create and verify a Naive path
             let naive_path = naive_tree.generate_proof(i, &leaves[i]).unwrap();
             assert!(naive_path.verify(&naive_root, &leaves[i]).unwrap());
 
+            // Assert the two paths are equal
             assert!(path.compare_with_binary(naive_path.path.as_slice()));
-
         }
     }
 
@@ -1148,7 +1134,7 @@ mod test {
         let mut leaves = Vec::with_capacity(num_leaves);
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-        let mut smt = MNT6PoseidonSmt::new_unitialized(
+        let mut smt = MNT6PoseidonSMT::new(
             num_leaves,
             false,
             None,
@@ -1156,6 +1142,7 @@ mod test {
             String::from("./db_cache_merkle_tree_path_test_mnt6")
         ).unwrap();
 
+        // Generate random leaves, half of which empty
         for i in 0..num_leaves/2 {
             let leaf = MNT6753Fr::rand(&mut rng);
             leaves.push(leaf);
@@ -1168,19 +1155,23 @@ mod test {
             smt.insert_leaf(Coord{height: 0, idx: i}, leaf);
         }
 
+        // Compute the root of the tree, and do the same for a NaiveMHT, used here as reference
         let naive_tree = MNT6753FieldBasedMerkleTree::new(leaves.as_slice()).unwrap();
-
         let root = smt.get_root();
         let naive_root = naive_tree.root();
         assert_eq!(root, naive_root);
 
         for i in 0..num_leaves {
+
+            // Create and verify a FieldBasedMHTPath
             let path = smt.get_merkle_path(Coord{height: 0, idx: i});
             assert!(path.verify(6, &leaves[i], &root).unwrap());
 
+            // Create and verify a Naive path
             let naive_path = naive_tree.generate_proof(i, &leaves[i]).unwrap();
             assert!(naive_path.verify(&naive_root, &leaves[i]).unwrap());
 
+            // Assert the two paths are equal
             assert!(path.compare_with_binary(naive_path.path.as_slice()));
         }
     }

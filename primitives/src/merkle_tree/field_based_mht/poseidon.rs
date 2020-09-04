@@ -1,19 +1,3 @@
-extern crate rand;
-
-use crate::{crh::{
-    poseidon::{
-        MNT4PoseidonHash, MNT6PoseidonHash, batched_crh::{MNT4BatchPoseidonHash, MNT6BatchPoseidonHash}
-    }
-}, merkle_tree::field_based_mht::{
-    BaseFieldBasedMerkleTreeParameters, BatchFieldBasedMerkleTreeParameters
-},  FieldBasedOptimizedMHT};
-use std::clone::Clone;
-
-pub type MNT4PoseidonMHT = FieldBasedOptimizedMHT<MNT4753MHTPoseidonParameters>;
-pub type MNT6PoseidonMHT = FieldBasedOptimizedMHT<MNT6753MHTPoseidonParameters>;
-
-use crate::merkle_tree::field_based_mht::FieldBasedMerkleTreeParameters;
-
 use algebra::{
     field_new,
     biginteger::BigInteger768,
@@ -22,6 +6,29 @@ use algebra::{
         mnt4753::Fr as MNT4753Fr
     },
 };
+
+use crate::{crh::{
+    poseidon::{
+        MNT4PoseidonHash, MNT6PoseidonHash, batched_crh::{MNT4BatchPoseidonHash, MNT6BatchPoseidonHash}
+    }
+}, merkle_tree::{
+    field_based_mht::{
+        optimized::FieldBasedOptimizedMHT, FieldBasedMerkleTreeParameters,
+        BaseFieldBasedMerkleTreeParameters, BatchFieldBasedMerkleTreeParameters
+    },
+    smt::{BigMerkleTree, LazyBigMerkleTree}
+}};
+
+use std::clone::Clone;
+
+pub type MNT4PoseidonMHT = FieldBasedOptimizedMHT<MNT4753MHTPoseidonParameters>;
+pub type MNT6PoseidonMHT = FieldBasedOptimizedMHT<MNT6753MHTPoseidonParameters>;
+
+pub type MNT4PoseidonSMT = BigMerkleTree<MNT4753MHTPoseidonParameters>;
+pub type MNT6PoseidonSMT = BigMerkleTree<MNT6753MHTPoseidonParameters>;
+
+pub type MNT4PoseidonSMTLazy = LazyBigMerkleTree<MNT4753MHTPoseidonParameters>;
+pub type MNT6PoseidonSMTLazy = LazyBigMerkleTree<MNT6753MHTPoseidonParameters>;
 
 #[derive(Clone)]
 pub struct MNT4753MHTPoseidonParameters;
@@ -180,7 +187,7 @@ mod test {
         MNT4753MHTPoseidonParameters, MNT6753MHTPoseidonParameters, MNT4753_PHANTOM_MERKLE_ROOT
     };
 
-    //#[ignore]
+    #[ignore]
     #[test]
     fn generate_mnt4753_phantom_merkle_root() {
         let field_size_in_bytes = (MNT4753Fr::size_in_bits() + (<MNT4753Fr as PrimeField>::Params::REPR_SHAVE_BITS as usize)) / 8;
@@ -195,7 +202,7 @@ mod test {
         assert_eq!(hash, MNT4753_PHANTOM_MERKLE_ROOT);
     }
 
-    //#[ignore]
+    #[ignore]
     #[test]
     fn generate_binary_mnt4753_mht_empty_hash_cst() {
         let mut empty_node = MNT4753MHTPoseidonParameters::EMPTY_HASH_CST[0].clone();
@@ -208,7 +215,7 @@ mod test {
         }
     }
 
-    //#[ignore]
+    #[ignore]
     #[test]
     fn generate_binary_mnt6753_mht_empty_hash_cst() {
         let mut empty_node = MNT6753MHTPoseidonParameters::EMPTY_HASH_CST[0].clone();

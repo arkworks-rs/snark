@@ -4,10 +4,10 @@ use crate::{
     crh::{FieldBasedHash, BatchFieldBasedHash, FieldBasedHashParameters},
     merkle_tree::{
         field_based_mht::{
-            BatchFieldBasedMerkleTreeParameters, MNT4753MHTPoseidonParameters, MNT6753MHTPoseidonParameters,
+            BatchFieldBasedMerkleTreeParameters,
             FieldBasedMerkleTreePath, FieldBasedMHTPath,
             smt::{
-                Coord, OperationLeaf, ActionLeaf::Remove, BigMerkleTreeState, BigMerkleTree, Error
+                Coord, OperationLeaf, ActionLeaf::Remove, BigMerkleTreeState, Error
             },
         },
     }
@@ -53,14 +53,20 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
     // If `persistent` is specified, then DBs will be kept on disk and the tree state will be saved
     // so that the tree can be restored any moment later. Otherwise, no state will be saved on file
     // and the DBs will be deleted.
-    pub fn new_unitialized(width: usize, persistent: bool, state_path: Option<String>, path_db: String, path_cache: String) -> Result<Self, Error> {
+    pub fn new(
+        width: usize,
+        persistent: bool,
+        state_path: Option<String>,
+        path_db: String,
+        path_cache: String
+    ) -> Result<Self, Error> {
         let rate = <<<T::H as BatchFieldBasedHash>::BaseHash as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
         assert_eq!(T::MERKLE_ARITY, 2); // For now we support only arity 2
         // Rate may also be smaller than the arity actually, but this assertion
         // is reasonable and simplify the design.
         assert_eq!(rate, T::MERKLE_ARITY);
 
-        // If the tree must be persistent, that a path to which save the tree state must be
+        // If the tree must be persistent, than a path to which save the tree state must be
         // specified.
         if !persistent { assert!(state_path.is_none()) } else { assert!(state_path.is_some()) }
 
@@ -86,16 +92,22 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         })
     }
 
-    // Creates a new tree starting from state at `state_path` and DBs at `path_db` and `path_cache`.
+    // Restore a tree from a state saved at `state_path` and DBs at `path_db` and `path_cache`.
     // The new tree may be persistent or not, the actions taken in both cases are the same as
-    // in `new_unitialized()`.
-    pub fn new(persistent: bool, state_path: String, path_db: String, path_cache: String) -> Result<Self, Error> {
+    // in `new` function.
+    pub fn load(
+        persistent: bool,
+        state_path: String,
+        path_db: String,
+        path_cache: String
+    ) -> Result<Self, Error> {
         let rate = <<<T::H as BatchFieldBasedHash>::BaseHash as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
         assert_eq!(T::MERKLE_ARITY, 2); // For now we support only arity 2
         // Rate may also be smaller than the arity actually, but this assertion
         // is reasonable and simplify the design.
         assert_eq!(rate, T::MERKLE_ARITY);
 
+        // Reads the state
         let state = { 
             let state_file = fs::File::open(state_path.clone())
                 .map_err(|e| Error::Other(e.to_string()))?;
@@ -131,6 +143,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
     pub fn close(&mut self) {
         if !self.persistent {
 
+            // Removes the state if present
             if self.state_path.is_some() && Path::new(&self.state_path.clone().unwrap()).exists() {
                 match fs::remove_file(self.state_path.clone().unwrap()) {
                     Ok(_) => (),
@@ -614,28 +627,31 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         let mut node_idx = leaf_coord.idx;
         let mut height = 0;
         while height != self.height {
+
             // Estabilish if sibling is a left or right child
             let direction = node_idx % T::MERKLE_ARITY;
             let sibling_idx = if direction == 0 { node_idx + 1 } else { node_idx - 1 };
 
             // Get its hash
             let sibling_coord = Coord { height, idx: sibling_idx };
-            let sibling = if self.state.present_node.contains(&sibling_coord) {
+            let sibling =
+                // If it's not empty
+                if self.state.present_node.contains(&sibling_coord) {
+                // If it's a leaf, it's in the DB and we can get it from there
                 if height == 0 {
                     self.get_from_db(sibling_idx).unwrap()
-                } else {
+                } else { // Otherwise, we need to recompute it
                     self.node(sibling_coord)
                 }
-            } else {
+            } else { // If it's empty then we can directly get the precomputed empty at this height
                 T::EMPTY_HASH_CST[height]
             };
 
             // Push info to path
             path.push((vec![sibling], direction));
 
-            // go up one level
-            height += 1;
-            node_idx = node_idx / T::MERKLE_ARITY;
+            height += 1; // go up one level
+            node_idx = node_idx / T::MERKLE_ARITY; // compute the index of the parent
         }
         assert_eq!(self.node(Coord { height, idx: node_idx }), self.state.root);
 
@@ -643,32 +659,45 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
     }
 }
 
-pub type MNT4PoseidonSmt = BigMerkleTree<MNT4753MHTPoseidonParameters>;
-pub type MNT4PoseidonSmtLazy = LazyBigMerkleTree<MNT4753MHTPoseidonParameters>;
-pub type MNT6PoseidonSmt = BigMerkleTree<MNT6753MHTPoseidonParameters>;
-pub type MNT6PoseidonSmtLazy = LazyBigMerkleTree<MNT6753MHTPoseidonParameters>;
-
 #[cfg(test)]
 mod test {
-    use crate::merkle_tree::field_based_mht::smt::{MNT4PoseidonHash, OperationLeaf, Coord, ActionLeaf, FieldBasedMerkleTreeParameters, MNT6PoseidonHash};
-    use crate::merkle_tree::field_based_mht::{NaiveFieldBasedMerkleTreeConfig, NaiveMerkleTree};
-    use crate::merkle_tree::field_based_mht::poseidon::{MNT4753MHTPoseidonParameters};
-    use crate::merkle_tree::field_based_mht::smt::big_lazy_merkle_tree::{MNT4PoseidonSmt, MNT4PoseidonSmtLazy, MNT6PoseidonSmt, MNT6PoseidonSmtLazy};
 
-    use algebra::fields::mnt6753::Fr as MNT6753Fr;
-    use algebra::fields::mnt4753::Fr as MNT4753Fr;
-    use algebra::fields::Field;
-    use algebra::biginteger::BigInteger768;
-    use algebra::UniformRand;
+    use algebra::{
+        fields::{
+          mnt4753::Fr as MNT4753Fr, mnt6753::Fr as MNT6753Fr
+        },
+        biginteger::BigInteger768,
+        Field, UniformRand
+    };
 
-    use std::str::FromStr;
-    use std::path::Path;
-    use std::time::Instant;
+    use crate::{
+        crh::{
+            MNT4PoseidonHash, MNT6PoseidonHash
+        },
+        merkle_tree::field_based_mht::{
+            naive::{
+                NaiveFieldBasedMerkleTreeConfig, NaiveMerkleTree
+            },
+            smt::{
+                OperationLeaf, Coord, ActionLeaf
+            },
+            poseidon::{
+                MNT4PoseidonSMT, MNT4PoseidonSMTLazy,
+                MNT6PoseidonSMT, MNT6PoseidonSMTLazy,
+                MNT4753MHTPoseidonParameters, MNT6753MHTPoseidonParameters
+            },
+            FieldBasedMerkleTreeParameters, FieldBasedMerkleTreePath
+        }
+    };
 
+    use std::{
+        str::FromStr, path::Path, time::Instant
+    };
+
+    use rand::{
+        rngs::OsRng, SeedableRng, RngCore
+    };
     use rand_xorshift::XorShiftRng;
-    use rand::{SeedableRng, RngCore};
-    use rand::rngs::OsRng;
-    use crate::{MNT6753MHTPoseidonParameters, FieldBasedMerkleTreePath};
 
     struct MNT4753FieldBasedMerkleTreeParams;
     struct MNT6753FieldBasedMerkleTreeParams;
@@ -688,10 +717,6 @@ mod test {
 
     #[test]
     fn process_leaves_mnt4_comp() {
-        use algebra::{
-            fields::mnt4753::Fr,
-            UniformRand,
-        };
 
         let num_leaves = 2usize.pow(23);
         let mut rng1 = XorShiftRng::seed_from_u64(9174123u64);
@@ -703,7 +728,7 @@ mod test {
         for _i in 0..n {
             let random: u64 = OsRng.next_u64();
             let idx = random % num_leaves as u64;
-            let elem = Fr::rand(&mut rng1);
+            let elem = MNT4753Fr::rand(&mut rng1);
 
             leaves_to_insert.push(OperationLeaf { coord: Coord { height: 0, idx: idx as usize }, action: ActionLeaf::Insert, hash: Some(elem.clone()) });
             leaves_to_remove.push(OperationLeaf { coord: Coord { height: 0, idx: idx as usize }, action: ActionLeaf::Remove, hash: None });
@@ -716,7 +741,7 @@ mod test {
         let root3;
         let root4;
         {
-            let mut smt1 = MNT4PoseidonSmt::new_unitialized(
+            let mut smt1 = MNT4PoseidonSMT::new(
                 num_leaves,
                 false,
                 None,
@@ -746,7 +771,7 @@ mod test {
         }
 
         {
-            let mut smt2 = MNT4PoseidonSmtLazy::new_unitialized(
+            let mut smt2 = MNT4PoseidonSMTLazy::new(
                 num_leaves,
                 false,
                 None,
@@ -782,9 +807,6 @@ mod test {
 
     #[test]
     fn process_leaves_mnt4() {
-        use algebra::{
-            fields::mnt4753::Fr, Field,
-        };
 
         let num_leaves = 32;
         let mut leaves_to_process: Vec<OperationLeaf<MNT4753Fr>> = Vec::new();
@@ -795,7 +817,7 @@ mod test {
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 29 }, action: ActionLeaf::Insert, hash: Some(MNT4753Fr::from_str("3").unwrap()) });
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 16 }, action: ActionLeaf::Remove, hash: Some(MNT4753Fr::from_str("3").unwrap()) });
 
-        let mut smt = MNT4PoseidonSmtLazy::new_unitialized(
+        let mut smt = MNT4PoseidonSMTLazy::new(
             num_leaves,
             false,
             None,
@@ -809,17 +831,17 @@ mod test {
         let mut leaves = Vec::new();
         leaves.push(MNT4753Fr::from_str("1").unwrap());
         for _ in 1..9 {
-            let f = Fr::zero();
+            let f = MNT4753Fr::zero();
             leaves.push(f);
         }
         leaves.push(MNT4753Fr::from_str("2").unwrap());
         for _ in 10..29 {
-            let f = Fr::zero();
+            let f = MNT4753Fr::zero();
             leaves.push(f);
         }
         leaves.push(MNT4753Fr::from_str("3").unwrap());
         for _ in 30..31 {
-            let f = Fr::zero();
+            let f = MNT4753Fr::zero();
             leaves.push(f);
         }
         let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
@@ -830,10 +852,6 @@ mod test {
 
     #[test]
     fn process_leaves_mnt6() {
-        use algebra::{
-            fields::mnt6753::Fr,
-            UniformRand,
-        };
 
         let num_leaves = 2usize.pow(23);
         let mut rng1 = XorShiftRng::seed_from_u64(9174123u64);
@@ -845,7 +863,7 @@ mod test {
         for _i in 0..n {
             let random: u64 = OsRng.next_u64();
             let idx = random % num_leaves as u64;
-            let elem = Fr::rand(&mut rng1);
+            let elem = MNT6753Fr::rand(&mut rng1);
 
             leaves_to_insert.push(OperationLeaf { coord: Coord { height: 0, idx: idx as usize }, action: ActionLeaf::Insert, hash: Some(elem.clone()) });
             leaves_to_remove.push(OperationLeaf { coord: Coord { height: 0, idx: idx as usize }, action: ActionLeaf::Remove, hash: None });
@@ -858,7 +876,7 @@ mod test {
         let root3;
         let root4;
         {
-            let mut smt1 = MNT6PoseidonSmt::new_unitialized(
+            let mut smt1 = MNT6PoseidonSMT::new(
                 num_leaves,
                 false,
                 None,
@@ -888,7 +906,7 @@ mod test {
         }
 
         {
-            let mut smt2 = MNT6PoseidonSmtLazy::new_unitialized(
+            let mut smt2 = MNT6PoseidonSMTLazy::new(
                 num_leaves,
                 false,
                 None,
@@ -924,9 +942,6 @@ mod test {
 
     #[test]
     fn process_leaves_mnt6_comp() {
-        use algebra::{
-            fields::mnt6753::Fr, Field,
-        };
 
         let num_leaves = 32;
         let mut leaves_to_process: Vec<OperationLeaf<MNT6753Fr>> = Vec::new();
@@ -937,7 +952,7 @@ mod test {
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 29 }, action: ActionLeaf::Insert, hash: Some(MNT6753Fr::from_str("3").unwrap()) });
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 16 }, action: ActionLeaf::Remove, hash: Some(MNT6753Fr::from_str("3").unwrap()) });
 
-        let mut smt = MNT6PoseidonSmtLazy::new_unitialized(
+        let mut smt = MNT6PoseidonSMTLazy::new(
             num_leaves,
             false,
             None,
@@ -950,17 +965,17 @@ mod test {
         let mut leaves = Vec::new();
         leaves.push(MNT6753Fr::from_str("1").unwrap());
         for _ in 1..9 {
-            let f = Fr::zero();
+            let f = MNT6753Fr::zero();
             leaves.push(f);
         }
         leaves.push(MNT6753Fr::from_str("2").unwrap());
         for _ in 10..29 {
-            let f = Fr::zero();
+            let f = MNT6753Fr::zero();
             leaves.push(f);
         }
         leaves.push(MNT6753Fr::from_str("3").unwrap());
         for _ in 30..31 {
-            let f = Fr::zero();
+            let f = MNT6753Fr::zero();
             leaves.push(f);
         }
         let tree = MNT6753FieldBasedMerkleTree::new(&leaves).unwrap();
@@ -989,7 +1004,7 @@ mod test {
 
         // create a persistent smt in a separate scope
         {
-            let mut smt = MNT4PoseidonSmtLazy::new_unitialized(
+            let mut smt = MNT4PoseidonSMTLazy::new(
                 32,
                 true,
                 Some(String::from("./persistency_test_info_lazy")),
@@ -1014,7 +1029,7 @@ mod test {
 
         // create a non-persistent smt in another scope by restoring the previous one
         {
-            let mut smt = MNT4PoseidonSmtLazy::new(
+            let mut smt = MNT4PoseidonSMTLazy::load(
                 false,
                 String::from("./persistency_test_info_lazy"),
                 String::from("./db_leaves_persistency_test_info_lazy"),
@@ -1050,7 +1065,7 @@ mod test {
         let mut leaves_for_lazy_smt = Vec::with_capacity(num_leaves);
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-        let mut smt = MNT4PoseidonSmtLazy::new_unitialized(
+        let mut smt = MNT4PoseidonSMTLazy::new(
             num_leaves,
             false,
             None,
@@ -1058,6 +1073,7 @@ mod test {
             String::from("./db_cache_merkle_tree_path_test_mnt4_lazy")
         ).unwrap();
 
+        // Generate random leaves, half of which empty
         for i in 0..num_leaves/2 {
             let leaf = MNT4753Fr::rand(&mut rng);
             leaves.push(leaf);
@@ -1070,19 +1086,23 @@ mod test {
             leaves_for_lazy_smt.push(OperationLeaf { coord: Coord { height: 0, idx: i }, action: ActionLeaf::Insert, hash: Some(leaf)});
         }
 
+        // Compute the root of the tree, and do the same for a NaiveMHT, used here as reference
         let naive_tree = MNT4753FieldBasedMerkleTree::new(leaves.as_slice()).unwrap();
-
         let root = smt.process_leaves(leaves_for_lazy_smt);
         let naive_root = naive_tree.root();
         assert_eq!(root, naive_root);
 
         for i in 0..num_leaves {
+
+            // Create and verify a FieldBasedMHTPath
             let path = smt.get_merkle_path(Coord{height: 0, idx: i});
             assert!(path.verify(6, &leaves[i], &root).unwrap());
 
+            // Create and verify a Naive path
             let naive_path = naive_tree.generate_proof(i, &leaves[i]).unwrap();
             assert!(naive_path.verify(&naive_root, &leaves[i]).unwrap());
 
+            // Assert the two paths are equal
             assert!(path.compare_with_binary(naive_path.path.as_slice()));
         }
     }
@@ -1095,7 +1115,7 @@ mod test {
         let mut leaves_for_lazy_smt = Vec::with_capacity(num_leaves);
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-        let mut smt = MNT6PoseidonSmtLazy::new_unitialized(
+        let mut smt = MNT6PoseidonSMTLazy::new(
             num_leaves,
             false,
             None,
@@ -1103,6 +1123,7 @@ mod test {
             String::from("./db_cache_merkle_tree_path_test_mnt6_lazy")
         ).unwrap();
 
+        // Generate random leaves, half of which empty
         for i in 0..num_leaves/2 {
             let leaf = MNT6753Fr::rand(&mut rng);
             leaves.push(leaf);
@@ -1115,19 +1136,23 @@ mod test {
             leaves_for_lazy_smt.push(OperationLeaf { coord: Coord { height: 0, idx: i }, action: ActionLeaf::Insert, hash: Some(leaf)});
         }
 
+        // Compute the root of the tree, and do the same for a NaiveMHT, used here as reference
         let naive_tree = MNT6753FieldBasedMerkleTree::new(leaves.as_slice()).unwrap();
-
         let root = smt.process_leaves(leaves_for_lazy_smt);
         let naive_root = naive_tree.root();
         assert_eq!(root, naive_root);
 
         for i in 0..num_leaves {
+
+            // Create and verify a FieldBasedMHTPath
             let path = smt.get_merkle_path(Coord{height: 0, idx: i});
             assert!(path.verify(6, &leaves[i], &root).unwrap());
 
+            // Create and verify a Naive path
             let naive_path = naive_tree.generate_proof(i, &leaves[i]).unwrap();
             assert!(naive_path.verify(&naive_root, &leaves[i]).unwrap());
 
+            // Assert the two paths are equal
             assert!(path.compare_with_binary(naive_path.path.as_slice()));
         }
     }
