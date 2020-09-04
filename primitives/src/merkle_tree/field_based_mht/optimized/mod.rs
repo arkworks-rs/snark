@@ -1,7 +1,7 @@
 use algebra::Field;
 use crate::{
     BatchFieldBasedMerkleTreeParameters, BatchFieldBasedHash,
-    FieldBasedMerkleTree, FieldBasedMerkleTreePath, FieldBasedMHTPath,
+    FieldBasedMerkleTree, FieldBasedMHTPath,
     FieldBasedHash, FieldBasedHashParameters
 };
 use std::marker::PhantomData;
@@ -95,7 +95,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
 
 impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBasedOptimizedMHT<T> {
     type Parameters = T;
-    type MerklePath = FieldBasedMHTPath<<T::H as BatchFieldBasedHash>::BaseHash, T>;
+    type MerklePath = FieldBasedMHTPath<<T::H as BatchFieldBasedHash>::BaseHash>;
 
     fn init(num_leaves: usize) -> Self {
         let rate = <<<T::H as BatchFieldBasedHash>::BaseHash as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
@@ -257,7 +257,12 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBased
 
                 // Sanity check: the last node_index must be the one of the root
                 assert_eq!(self.array_nodes[node_index], self.root);
-                Some(<Self::MerklePath as FieldBasedMerkleTreePath>::new(&merkle_path))
+                println!("Levels: {}", self.levels);
+                Some(
+                    FieldBasedMHTPath::<<T::H as BatchFieldBasedHash>::BaseHash>::new(
+                        &merkle_path, T::MERKLE_ARITY, self.levels + 1
+                    )
+                )
             },
             false => None,
         }
@@ -463,14 +468,14 @@ mod test {
 
             // Create and verify a FieldBasedMHTPath
             let path = tree.get_merkle_path(i).unwrap();
-            assert!(path.verify(7, &leaves[i], &root).unwrap());
+            assert!(path.verify( &leaves[i], &root).unwrap());
 
             // Create and verify a Naive path
             let naive_path = naive_tree.generate_proof(i, &leaves[i]).unwrap();
-            assert!(naive_path.verify(&naive_root, &leaves[i]).unwrap());
+            assert!(naive_path.verify(&leaves[i], &naive_root ).unwrap());
 
             // Assert the two paths are equal
-            assert!(path.compare_with_binary(naive_path.path.as_slice()));
+            assert_eq!(path, naive_path);
         }
     }
 
@@ -505,14 +510,14 @@ mod test {
 
             // Create and verify a FieldBasedMHTPath
             let path = tree.get_merkle_path(i).unwrap();
-            assert!(path.verify(7, &leaves[i], &root).unwrap());
+            assert!(path.verify(&leaves[i], &root).unwrap());
 
             // Create and verify a Naive path
             let naive_path = naive_tree.generate_proof(i, &leaves[i]).unwrap();
-            assert!(naive_path.verify(&naive_root, &leaves[i]).unwrap());
+            assert!(naive_path.verify(&leaves[i], &naive_root ).unwrap());
 
             // Assert the two paths are equal
-            assert!(path.compare_with_binary(naive_path.path.as_slice()));
+            assert_eq!(path, naive_path);
         }
     }
 }

@@ -6,7 +6,7 @@ use algebra::fields::mnt4753::Fr as MNT4753Fr;
 use algebra::biginteger::BigInteger768;
 use algebra::field_new;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct MNT4753PoseidonParameters;
 
 impl FieldBasedHashParameters for MNT4753PoseidonParameters {
@@ -264,7 +264,7 @@ impl PoseidonParameters for MNT4753PoseidonParameters {
         ];
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct MNT6753PoseidonParameters;
 
 impl FieldBasedHashParameters for MNT6753PoseidonParameters {

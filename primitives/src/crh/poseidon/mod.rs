@@ -18,6 +18,7 @@ use crate::crh::FieldBasedHash;
 pub mod parameters;
 pub mod batched_crh;
 
+#[derive(Debug)]
 pub struct PoseidonHash<F: PrimeField, P: PoseidonParameters<Fr = F>>{
     state: Vec<F>,
     pending: Vec<F>,

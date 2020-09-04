@@ -5,7 +5,7 @@ use crate::{
     merkle_tree::{
         field_based_mht::{
             BatchFieldBasedMerkleTreeParameters,
-            FieldBasedMerkleTreePath, FieldBasedMHTPath,
+            FieldBasedBinaryMHTPath,
             smt::{
                 Coord, OperationLeaf, ActionLeaf::Remove, BigMerkleTreeState, Error
             },
@@ -615,7 +615,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
     }
 
     // NB. Allows to get Merkle Path of empty leaves too
-    pub fn get_merkle_path(&mut self, leaf_coord: Coord) -> FieldBasedMHTPath<<T::H as BatchFieldBasedHash>::BaseHash, T>
+    pub fn get_merkle_path(&mut self, leaf_coord: Coord) -> FieldBasedBinaryMHTPath<<T::H as BatchFieldBasedHash>::BaseHash>
     {
         // check that the index of the leaf is less than the width of the Merkle tree
         assert!(leaf_coord.idx < self.state.width, "Leaf index out of bound.");
@@ -629,8 +629,11 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         while height != self.height {
 
             // Estabilish if sibling is a left or right child
-            let direction = node_idx % T::MERKLE_ARITY;
-            let sibling_idx = if direction == 0 { node_idx + 1 } else { node_idx - 1 };
+            let (sibling_idx, direction) = if node_idx % T::MERKLE_ARITY == 0 {
+                (node_idx + 1, false)
+            } else {
+                (node_idx - 1, true)
+            };
 
             // Get its hash
             let sibling_coord = Coord { height, idx: sibling_idx };
@@ -648,14 +651,14 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
             };
 
             // Push info to path
-            path.push((vec![sibling], direction));
+            path.push((sibling, direction));
 
             height += 1; // go up one level
             node_idx = node_idx / T::MERKLE_ARITY; // compute the index of the parent
         }
         assert_eq!(self.node(Coord { height, idx: node_idx }), self.state.root);
 
-        return FieldBasedMHTPath::<<T::H as BatchFieldBasedHash>::BaseHash, T>::new(path.as_slice());
+        return FieldBasedBinaryMHTPath::<<T::H as BatchFieldBasedHash>::BaseHash>::new(&path, self.height + 1);
     }
 }
 
@@ -1096,14 +1099,14 @@ mod test {
 
             // Create and verify a FieldBasedMHTPath
             let path = smt.get_merkle_path(Coord{height: 0, idx: i});
-            assert!(path.verify(6, &leaves[i], &root).unwrap());
+            assert!(path.verify(&leaves[i], &root).unwrap());
 
             // Create and verify a Naive path
             let naive_path = naive_tree.generate_proof(i, &leaves[i]).unwrap();
-            assert!(naive_path.verify(&naive_root, &leaves[i]).unwrap());
+            assert!(naive_path.verify(&leaves[i], &naive_root ).unwrap());
 
             // Assert the two paths are equal
-            assert!(path.compare_with_binary(naive_path.path.as_slice()));
+            assert_eq!(path, naive_path);
         }
     }
 
@@ -1146,14 +1149,14 @@ mod test {
 
             // Create and verify a FieldBasedMHTPath
             let path = smt.get_merkle_path(Coord{height: 0, idx: i});
-            assert!(path.verify(6, &leaves[i], &root).unwrap());
+            assert!(path.verify(&leaves[i], &root).unwrap());
 
             // Create and verify a Naive path
             let naive_path = naive_tree.generate_proof(i, &leaves[i]).unwrap();
-            assert!(naive_path.verify(&naive_root, &leaves[i]).unwrap());
+            assert!(naive_path.verify(&leaves[i], &naive_root ).unwrap());
 
             // Assert the two paths are equal
-            assert!(path.compare_with_binary(naive_path.path.as_slice()));
+            assert_eq!(path, naive_path);
         }
     }
 }

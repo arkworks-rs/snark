@@ -242,7 +242,7 @@ impl std::fmt::Display for MerkleTreeError {
             MerkleTreeError::IncorrectLeafIndex(index) => {
                 format!("incorrect leaf index: {}", index)
             },
-            MerkleTreeError::IncorrectPathLength(expected_len, actual_len) => {
+            MerkleTreeError::IncorrectPathLength(actual_len, expected_len) => {
                 format!("Incorrect path length. Expected {}, found {}", expected_len, actual_len)
             },
         };

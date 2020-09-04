@@ -8,72 +8,7 @@ pub trait NaiveFieldBasedMerkleTreeConfig {
     type H: FieldBasedHash;
 }
 
-/// Stores the hashes of a particular path (in order) from leaf to root.
-/// Our path `is_left_child()` if the boolean in `path` is false.
-#[derive(Derivative)]
-#[derivative(
-Clone(bound = "P: NaiveFieldBasedMerkleTreeConfig"),
-Debug(bound = "P: NaiveFieldBasedMerkleTreeConfig, <P::H as FieldBasedHash>::Data: fmt::Debug")
-)]
-pub struct NaiveFieldBasedMerkleTreePath<P: NaiveFieldBasedMerkleTreeConfig> {
-    pub path: Vec<(
-        <P::H as FieldBasedHash>::Data,
-        bool,
-    )>,
-}
-
 pub type FieldBasedMerkleTreeDigest<P> = <<P as NaiveFieldBasedMerkleTreeConfig>::H as FieldBasedHash>::Data;
-
-impl<P: NaiveFieldBasedMerkleTreeConfig> Default for NaiveFieldBasedMerkleTreePath<P> {
-    fn default() -> Self {
-        let mut path = Vec::with_capacity(P::HEIGHT as usize);
-        for _i in 1..P::HEIGHT as usize {
-            path.push((
-                <P::H as FieldBasedHash>::Data::default(),
-                false,
-            ));
-        }
-        Self { path }
-    }
-}
-
-impl<P: NaiveFieldBasedMerkleTreeConfig> NaiveFieldBasedMerkleTreePath<P> {
-    pub fn verify(
-        &self,
-        root_hash: &<P::H as FieldBasedHash>::Data,
-        leaf: &<P::H as FieldBasedHash>::Data,
-    ) -> Result<bool, Error>
-        where
-    {
-        if self.path.len() != (P::HEIGHT - 1) as usize {
-            return Err(MerkleTreeError::IncorrectPathLength(self.path.len(), (P::HEIGHT - 1) as usize))?
-        }
-
-        if !self.path.is_empty() {
-            let mut prev = *leaf;
-
-            // Check levels between leaf level and root.
-            for &(sibling_hash, direction) in &self.path {
-
-                // Check if the previous hash matches the correct current hash.
-                prev = {
-                    if direction {
-                        hash_inner_node::<P::H>(sibling_hash, prev)
-                    } else {
-                        hash_inner_node::<P::H>(prev, sibling_hash)
-                    }
-                }?;
-            }
-
-            if root_hash != &prev {
-                return Ok(false);
-            }
-            Ok(true)
-        } else {
-            return Err(MerkleTreeError::IncorrectPathLength(0, (P::HEIGHT - 1) as usize))?
-        }
-    }
-}
 
 /// Merkle Tree whose leaves are field elements, best with hash functions
 /// that works with field elements, such as Poseidon. This implementation
@@ -186,7 +121,7 @@ impl<P: NaiveFieldBasedMerkleTreeConfig> NaiveMerkleTree<P> {
         &self,
         index: usize,
         leaf: &<P::H as FieldBasedHash>::Data,
-    ) -> Result<NaiveFieldBasedMerkleTreePath<P>, Error>
+    ) -> Result<FieldBasedBinaryMHTPath<P::H>, Error>
     {
         let prove_time = start_timer!(|| "MerkleTree::GenProof");
         let mut path = Vec::new();
@@ -223,7 +158,7 @@ impl<P: NaiveFieldBasedMerkleTreeConfig> NaiveMerkleTree<P> {
         if path.len() != (Self::HEIGHT - 1) as usize {
             Err(MerkleTreeError::IncorrectPathLength(path.len(), (Self::HEIGHT - 1) as usize))?
         } else {
-            Ok(NaiveFieldBasedMerkleTreePath { path })
+            Ok(FieldBasedBinaryMHTPath::<P::H>::new(path.as_slice(), Self::HEIGHT as usize))
         }
     }
 }
@@ -247,7 +182,7 @@ pub(crate) fn hash_empty<H: FieldBasedHash>() -> Result<H::Data, Error> {
 mod test {
     use crate::{crh::MNT4PoseidonHash, merkle_tree::field_based_mht::*, FieldBasedHash};
     use algebra::{
-        fields::mnt4753::Fr, Field,
+        fields::mnt4753::Fr as MNT4753Fr, Field,
         UniformRand
     };
     use rand::SeedableRng;
@@ -262,13 +197,15 @@ mod test {
 
     type MNT4753FieldBasedMerkleTree = NaiveMerkleTree<MNT4753FieldBasedMerkleTreeParams>;
 
-    fn generate_merkle_tree(leaves: &[Fr])
+    type MNT4PoseidonMHT = FieldBasedOptimizedMHT<MNT4753MHTPoseidonParameters>;
+
+    fn generate_merkle_tree(leaves: &[MNT4753Fr])
     {
         let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
         let root = tree.root();
         for (i, leaf) in leaves.iter().enumerate() {
             let proof = tree.generate_proof(i, leaf).unwrap();
-            assert!(proof.verify(&root, leaf).unwrap());
+            assert!(proof.verify(&leaf, &root).unwrap());
         }
     }
 
@@ -279,14 +216,14 @@ mod test {
         //Test #leaves << 2^HEIGHT
         let mut leaves = Vec::new();
         for _ in 0..4 {
-            leaves.push(MNT4PoseidonHash::init(None).update(Fr::rand(&mut rng)).finalize());
+            leaves.push(MNT4PoseidonHash::init(None).update(MNT4753Fr::rand(&mut rng)).finalize());
         }
         generate_merkle_tree(&leaves);
 
         //Test #leaves = 2^HEIGHT - 1
         let mut leaves = Vec::new();
         for _ in 0..16 {
-            let f = Fr::rand(&mut rng);
+            let f = MNT4753Fr::rand(&mut rng);
             leaves.push(f);
         }
         generate_merkle_tree(&leaves);
@@ -294,19 +231,19 @@ mod test {
         //Test #leaves == 2^HEIGHT
         let mut leaves = Vec::new();
         for _ in 0..32 {
-            let f = Fr::rand(&mut rng);
+            let f = MNT4753Fr::rand(&mut rng);
             leaves.push(f);
         }
         generate_merkle_tree(&leaves);
     }
 
-    fn bad_merkle_tree_verify(leaves: &[Fr])
+    fn bad_merkle_tree_verify(leaves: &[MNT4753Fr])
     {
         let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
-        let root = Fr::zero();
+        let root = MNT4753Fr::zero();
         for (i, leaf) in leaves.iter().enumerate() {
             let proof = tree.generate_proof(i, leaf).unwrap();
-            assert!(!proof.verify(&root, leaf).unwrap());
+            assert!(!proof.verify(&leaf, &root).unwrap());
         }
     }
 
@@ -317,14 +254,14 @@ mod test {
         //Test #leaves << 2^HEIGHT
         let mut leaves = Vec::new();
         for _ in 0..4 {
-            leaves.push(MNT4PoseidonHash::init(None).update(Fr::rand(&mut rng)).finalize());
+            leaves.push(MNT4PoseidonHash::init(None).update(MNT4753Fr::rand(&mut rng)).finalize());
         }
         bad_merkle_tree_verify(&leaves);
 
         //Test #leaves = 2^HEIGHT - 1
         let mut leaves = Vec::new();
         for _ in 0..16 {
-            let f = Fr::rand(&mut rng);
+            let f = MNT4753Fr::rand(&mut rng);
             leaves.push(f);
         }
         bad_merkle_tree_verify(&leaves);
@@ -332,15 +269,11 @@ mod test {
         //Test #leaves == 2^HEIGHT
         let mut leaves = Vec::new();
         for _ in 0..32 {
-            let f = Fr::rand(&mut rng);
+            let f = MNT4753Fr::rand(&mut rng);
             leaves.push(f);
         }
         bad_merkle_tree_verify(&leaves);
     }
-
-    use algebra::fields::mnt4753::Fr as MNT4753Fr;
-    use crate::merkle_tree::field_based_mht::FieldBasedMerkleTree;
-    type MNT4PoseidonMHT = FieldBasedOptimizedMHT<MNT4753MHTPoseidonParameters>;
 
     #[test]
     fn compare_merkle_trees_mnt4() {
@@ -350,7 +283,7 @@ mod test {
 
         let mut leaves = Vec::new();
         for _ in 0..num_leaves {
-            let f = Fr::rand(&mut rng);
+            let f = MNT4753Fr::rand(&mut rng);
             leaves.push(f);
         }
         let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
