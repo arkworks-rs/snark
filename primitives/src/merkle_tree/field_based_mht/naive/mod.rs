@@ -3,19 +3,12 @@ use crate::crh::FieldBasedHash;
 use crate::merkle_tree::*;
 use crate::Error;
 
-pub trait NaiveFieldBasedMerkleTreeConfig {
-    const HEIGHT: usize;
-    type H: FieldBasedHash;
-}
-
-pub type FieldBasedMerkleTreeDigest<P> = <<P as NaiveFieldBasedMerkleTreeConfig>::H as FieldBasedHash>::Data;
-
 /// Merkle Tree whose leaves are field elements, best with hash functions
 /// that works with field elements, such as Poseidon. This implementation
 /// works with leaves of size 1 field element.
 /// Leaves passed when creating a MerkleTree/MerklePath proof won't be
 /// hashed, it's responsibility of the caller to do it, if desired.
-pub struct NaiveMerkleTree<P: NaiveFieldBasedMerkleTreeConfig> {
+pub struct NaiveMerkleTree<P: FieldBasedMerkleTreeParameters> {
     tree:         Vec<<P::H as FieldBasedHash>::Data>,
     padding_tree: Vec<(
         <P::H as FieldBasedHash>::Data,
@@ -24,7 +17,7 @@ pub struct NaiveMerkleTree<P: NaiveFieldBasedMerkleTreeConfig> {
     root:         Option<<P::H as FieldBasedHash>::Data>,
 }
 
-impl<P: NaiveFieldBasedMerkleTreeConfig> NaiveMerkleTree<P> {
+impl<P: FieldBasedMerkleTreeParameters> NaiveMerkleTree<P> {
     pub const HEIGHT: u8 = P::HEIGHT as u8;
 
     pub fn blank() -> Self {
@@ -121,7 +114,7 @@ impl<P: NaiveFieldBasedMerkleTreeConfig> NaiveMerkleTree<P> {
         &self,
         index: usize,
         leaf: &<P::H as FieldBasedHash>::Data,
-    ) -> Result<FieldBasedBinaryMHTPath<P::H>, Error>
+    ) -> Result<FieldBasedBinaryMHTPath<P>, Error>
     {
         let prove_time = start_timer!(|| "MerkleTree::GenProof");
         let mut path = Vec::new();
@@ -158,7 +151,7 @@ impl<P: NaiveFieldBasedMerkleTreeConfig> NaiveMerkleTree<P> {
         if path.len() != (Self::HEIGHT - 1) as usize {
             Err(MerkleTreeError::IncorrectPathLength(path.len(), (Self::HEIGHT - 1) as usize))?
         } else {
-            Ok(FieldBasedBinaryMHTPath::<P::H>::new(path.as_slice(), Self::HEIGHT as usize))
+            Ok(FieldBasedBinaryMHTPath::<P>::new(path))
         }
     }
 }
@@ -180,7 +173,9 @@ pub(crate) fn hash_empty<H: FieldBasedHash>() -> Result<H::Data, Error> {
 
 #[cfg(test)]
 mod test {
-    use crate::{crh::MNT4PoseidonHash, merkle_tree::field_based_mht::*, FieldBasedHash};
+    use crate::{crh::{
+        MNT4PoseidonHash, batched_crh::MNT4BatchPoseidonHash,
+    }, merkle_tree::field_based_mht::*, FieldBasedHash};
     use algebra::{
         fields::mnt4753::Fr as MNT4753Fr, Field,
         UniformRand
@@ -188,16 +183,22 @@ mod test {
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
 
+    #[derive(Clone)]
     struct MNT4753FieldBasedMerkleTreeParams;
-
-    impl NaiveFieldBasedMerkleTreeConfig for MNT4753FieldBasedMerkleTreeParams {
-        const HEIGHT: usize = 6;
+    impl FieldBasedMerkleTreeParameters for MNT4753FieldBasedMerkleTreeParams {
+        type Data = MNT4753Fr;
         type H = MNT4PoseidonHash;
+        const HEIGHT: usize = 6;
+        const MERKLE_ARITY: usize = 2;
+        const EMPTY_HASH_CST: Option<&'static dyn FieldBasedMerkleTreePrecomputedEmptyConstants<H=Self::H>> = Some(&MNT4753MHTPoseidonParameters);
+    }
+
+    impl BatchFieldBasedMerkleTreeParameters for MNT4753FieldBasedMerkleTreeParams {
+        type BH = MNT4BatchPoseidonHash;
     }
 
     type MNT4753FieldBasedMerkleTree = NaiveMerkleTree<MNT4753FieldBasedMerkleTreeParams>;
-
-    type MNT4PoseidonMHT = FieldBasedOptimizedMHT<MNT4753MHTPoseidonParameters>;
+    type MNT4PoseidonMHT = FieldBasedOptimizedMHT<MNT4753FieldBasedMerkleTreeParams>;
 
     fn generate_merkle_tree(leaves: &[MNT4753Fr])
     {
@@ -289,7 +290,7 @@ mod test {
         let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
         let root1 = tree.root();
 
-        let mut tree = MNT4PoseidonMHT::init(num_leaves);
+        let mut tree = MNT4PoseidonMHT::init();
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
         for _ in 0..num_leaves {
             tree.append(MNT4753Fr::rand(&mut rng));

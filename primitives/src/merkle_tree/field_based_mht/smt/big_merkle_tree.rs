@@ -4,10 +4,12 @@ use crate::{
     crh::{FieldBasedHash, FieldBasedHashParameters},
     merkle_tree::{
         field_based_mht::{
-            BaseFieldBasedMerkleTreeParameters, FieldBasedBinaryMHTPath,
+            FieldBasedMerkleTreeParameters,
+            FieldBasedMerkleTreePath, FieldBasedBinaryMHTPath,
             smt::{
                 Coord, OperationLeaf, ActionLeaf::Insert, BigMerkleTreeState, Error,
-            }
+            },
+            check_precomputed_parameters
         }
     },
 };
@@ -19,7 +21,7 @@ use std::{
 };
 
 #[derive(Debug)]
-pub struct BigMerkleTree<T: BaseFieldBasedMerkleTreeParameters>{
+pub struct BigMerkleTree<T: FieldBasedMerkleTreeParameters>{
     // if unset, all DBs and tree internal state will be deleted when an instance of this struct
     // gets dropped
     persistent: bool,
@@ -27,7 +29,9 @@ pub struct BigMerkleTree<T: BaseFieldBasedMerkleTreeParameters>{
     state_path: Option<String>,
     // tree in-memory state
     state: BigMerkleTreeState<T>,
-    // the height of the Merkle tree
+    // the number of leaves
+    width: usize,
+    // the height of the tree
     height: usize,
     // path to the db
     path_db: String,
@@ -41,18 +45,26 @@ pub struct BigMerkleTree<T: BaseFieldBasedMerkleTreeParameters>{
     _parameters: PhantomData<T>,
 }
 
-impl<T: BaseFieldBasedMerkleTreeParameters> Drop for BigMerkleTree<T> {
+impl<T: FieldBasedMerkleTreeParameters> Drop for BigMerkleTree<T> {
     fn drop(&mut self) {
         self.close();
     }
 }
 
-impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
+impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
     // Creates a new tree of specified `width`.
     // If `persistent` is specified, then DBs will be kept on disk and the tree state will be saved
     // so that the tree can be restored any moment later. Otherwise, no state will be saved on file
     // and the DBs will be deleted.
-    pub fn new(width: usize, persistent: bool, state_path: Option<String>, path_db: String, path_cache: String) -> Result<Self, Error> {
+    pub fn new(
+        persistent: bool,
+        state_path: Option<String>,
+        path_db: String,
+        path_cache: String
+    ) -> Result<Self, Error> {
+        
+        assert!(check_precomputed_parameters::<T>());
+        
         let rate = <<T::H  as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
 
         assert_eq!(T::MERKLE_ARITY, 2); // For now we support only arity 2
@@ -63,10 +75,10 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         // If the tree must be persistent, that a path to which save the tree state must be
         // specified.
         if !persistent { assert!(state_path.is_none()) } else { assert!(state_path.is_some()) }
-
-        let height = width as f64;
-        let height = height.log(T::MERKLE_ARITY as f64) as usize;
-        let state = BigMerkleTreeState::<T>::get_default_state(width, height);
+        
+        let state = BigMerkleTreeState::<T>::get_default_state();
+        let height = T::HEIGHT - 1;
+        let width = T::MERKLE_ARITY.pow(height as u32);
         let path_db = path_db;
         let database = DB::open_default(path_db.clone())
             .map_err(|e| Error::Other(e.to_string()))?;
@@ -78,6 +90,7 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
             state_path,
             state,
             height,
+            width,
             path_db,
             database,
             path_cache,
@@ -89,7 +102,15 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
     // Restore a tree from a state saved at `state_path` and DBs at `path_db` and `path_cache`.
     // The new tree may be persistent or not, the actions taken in both cases are the same as
     // in `new` function.
-    pub fn load(persistent: bool, state_path: String, path_db: String, path_cache: String) -> Result<Self, Error> {
+    pub fn load(
+        persistent: bool,
+        state_path: String,
+        path_db: String,
+        path_cache: String
+    ) -> Result<Self, Error> {
+        
+        assert!(check_precomputed_parameters::<T>());
+
         let rate = <<T::H  as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
         assert_eq!(T::MERKLE_ARITY, 2); // For now we support only arity 2
         // Rate may also be smaller than the arity actually, but this assertion
@@ -102,8 +123,8 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
             BigMerkleTreeState::<T>::read(state_file)
         }.map_err(|e| Error::Other(e.to_string()))?;
 
-        let height = state.width as f64;
-        let height = height.log(T::MERKLE_ARITY as f64) as usize;
+        let height = T::HEIGHT - 1;
+        let width = T::MERKLE_ARITY.pow(height as u32);
 
         let opening_options = Options::default();
 
@@ -119,6 +140,7 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
             persistent,
             state_path: Some(state_path),
             state,
+            width,
             height,
             path_db,
             database,
@@ -162,9 +184,7 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
                 .expect("Should be able to write into tree state file");
         }
     }
-
-    pub fn height(&self) -> usize { self.height }
-
+    
     pub fn set_persistency(&mut self, persistency: bool) {
         self.persistent = persistency;
     }
@@ -320,7 +340,7 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         // Updates the Merkle tree on the path from the leaf to the root
 
         // check that the index of the leaf to be inserted is less than the width of the Merkle tree
-        assert!(coord.idx < self.state.width, "Leaf index out of bound.");
+        assert!(coord.idx < self.width, "Leaf index out of bound.");
         // check that the coordinates of the node corresponds to the leaf level
         assert_eq!(coord.height, 0, "Coord of the node does not correspond to leaf level");
 
@@ -330,7 +350,7 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
             if let Some(i) = old_leaf {
                 old_hash = i;
             } else {
-                old_hash = T::EMPTY_HASH_CST[0];
+                old_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(0);
             }
             if old_hash != leaf {
                 self.insert_to_db(coord.idx, leaf);
@@ -353,14 +373,14 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
     pub fn remove_leaf(&mut self, coord: Coord) {
 
         // check that the index of the leaf to be inserted is less than the width of the Merkle tree
-        assert!(coord.idx < self.state.width, "Leaf index out of bound.");
+        assert!(coord.idx < self.width, "Leaf index out of bound.");
         // check that the coordinates of the node corresponds to the leaf level
         assert_eq!(coord.height, 0, "Coord of the node does not correspond to leaf level");
 
         // take that leaf from the non-empty set
         self.state.present_node.remove(&coord);
         self.state.cache_path.clear();
-        self.state.cache_path.insert(coord, T::EMPTY_HASH_CST[0]);
+        self.state.cache_path.insert(coord, T::EMPTY_HASH_CST.unwrap().get_empty_node(0));
         // removes the leaf from the db
         let res = self.remove_from_db(coord.idx);
         // if it was in the db, update the tree
@@ -370,10 +390,10 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
     }
 
     // NB. Allows to get Merkle Path of empty leaves too
-    pub fn get_merkle_path(&mut self, leaf_coord: Coord) -> FieldBasedBinaryMHTPath<T::H>
+    pub fn get_merkle_path(&mut self, leaf_coord: Coord) -> FieldBasedBinaryMHTPath<T>
     {
         // check that the index of the leaf is less than the width of the Merkle tree
-        assert!(leaf_coord.idx < self.state.width, "Leaf index out of bound.");
+        assert!(leaf_coord.idx < self.width, "Leaf index out of bound.");
 
         // check that the coordinates of the node corresponds to the leaf level
         assert_eq!(leaf_coord.height, 0, "Coord of the node does not correspond to leaf level");
@@ -401,7 +421,7 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
                     self.node(sibling_coord)
                 }
             } else { // If it's empty then we can directly get the precomputed empty at this height
-                T::EMPTY_HASH_CST[height]
+                T::EMPTY_HASH_CST.unwrap().get_empty_node(height)
             };
 
             // Push info to path
@@ -413,12 +433,12 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         }
         assert_eq!(self.node(Coord { height, idx: node_idx }), self.state.root);
 
-        return FieldBasedBinaryMHTPath::<T::H>::new(&path, self.height + 1);
+        return FieldBasedBinaryMHTPath::<T>::new(path);
     }
 
     pub fn is_leaf_empty(&self, coord: Coord) -> bool {
         // check that the index of the leaf is less than the width of the Merkle tree
-        assert!(coord.idx < self.state.width, "Leaf index out of bound.");
+        assert!(coord.idx < self.width, "Leaf index out of bound.");
         // check that the coordinates of the node corresponds to the leaf level
         assert_eq!(coord.height, 0, "Coord of the node does not correspond to leaf level");
 
@@ -452,7 +472,7 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
             if let Some(i) = hash {
                 left_hash = *i;
             } else {
-                left_hash = T::EMPTY_HASH_CST[0];
+                left_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(0);
             }
             right_child_idx = idx + 1;
             right_child_coord = Coord { height, idx: right_child_idx };
@@ -461,10 +481,10 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
                 if let Some(i) = right_child {
                     right_hash = i;
                 } else {
-                    right_hash = T::EMPTY_HASH_CST[0];
+                    right_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(0);
                 }
             } else {
-                right_hash = T::EMPTY_HASH_CST[0];
+                right_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(0);
             }
         } else {
             right_child_idx = idx;
@@ -474,7 +494,7 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
             if let Some(i) = hash {
                 right_hash = *i;
             } else {
-                right_hash = T::EMPTY_HASH_CST[0];
+                right_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(0);
             }
             left_child_idx = idx - 1;
             left_child_coord = Coord { height, idx: left_child_idx };
@@ -483,10 +503,10 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
                 if let Some(i) = left_child {
                     left_hash = i;
                 } else {
-                    left_hash = T::EMPTY_HASH_CST[0];
+                    left_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(0);
                 }
             } else {
-                left_hash = T::EMPTY_HASH_CST[0];
+                left_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(0);
             }
         }
 
@@ -499,7 +519,7 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         if (!self.state.present_node.contains(&left_child_coord)) & (!self.state.present_node.contains(&right_child_coord)) {
             // if both children are empty
 
-            node_hash = T::EMPTY_HASH_CST[height];
+            node_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(height);
 
             // insert the parent node into the cache_path
             self.state.cache_path.insert(parent_coord, node_hash);
@@ -561,7 +581,7 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
             if (!self.state.present_node.contains(&left_child_coord)) & (!self.state.present_node.contains(&right_child_coord)) {
                 // both children are empty => parent as well
 
-                node_hash = T::EMPTY_HASH_CST[height];
+                node_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(height);
                 // insert the parent node into the cache_path
                 self.state.cache_path.insert(parent_coord, node_hash);
                 // remove node from non_empty set
@@ -669,7 +689,7 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         //let coord = Coord{height, idx};
         // if the node is an empty node return the hash constant
         if !self.state.present_node.contains(&coord) {
-            return T::EMPTY_HASH_CST[coord.height];
+            return T::EMPTY_HASH_CST.unwrap().get_empty_node(coord.height);
         }
         let res = self.get_from_cache(coord);
 
@@ -685,7 +705,7 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
                 if let Some(i) = left_child {
                     left_hash = i;
                 } else {
-                    left_hash = T::EMPTY_HASH_CST[0];
+                    left_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(0);
                 }
 
                 let right_child_idx = left_child_idx + 1;
@@ -694,7 +714,7 @@ impl<T: BaseFieldBasedMerkleTreeParameters> BigMerkleTree<T> {
                 if let Some(i) = right_child {
                     right_hash = i;
                 } else {
-                    right_hash = T::EMPTY_HASH_CST[0];
+                    right_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(0);
                 }
                 node_hash = Self::field_hash(&left_hash, &right_hash);
             } else {
@@ -755,11 +775,12 @@ mod test {
             MNT4PoseidonHash, MNT6PoseidonHash
         },
         merkle_tree::field_based_mht::{
-            naive::{NaiveFieldBasedMerkleTreeConfig, NaiveMerkleTree},
-            smt::{OperationLeaf, Coord, ActionLeaf},
+            naive:: NaiveMerkleTree,
+            smt::{OperationLeaf, Coord, ActionLeaf, BigMerkleTree},
             poseidon::{
-                MNT4PoseidonSMT, MNT6PoseidonSMT,
+                MNT4753MHTPoseidonParameters, MNT6753MHTPoseidonParameters
             },
+            FieldBasedMerkleTreeParameters, FieldBasedMerkleTreePrecomputedEmptyConstants,
             FieldBasedMerkleTreePath
         },
 
@@ -772,26 +793,36 @@ mod test {
         str::FromStr, path::Path
     };
 
+    #[derive(Clone, Debug)]
     struct MNT4753FieldBasedMerkleTreeParams;
-    struct MNT6753FieldBasedMerkleTreeParams;
-
-    impl NaiveFieldBasedMerkleTreeConfig for MNT4753FieldBasedMerkleTreeParams {
-        const HEIGHT: usize = 6;
+    impl FieldBasedMerkleTreeParameters for MNT4753FieldBasedMerkleTreeParams {
+        type Data = MNT4753Fr;
         type H = MNT4PoseidonHash;
-    }
-
-    impl NaiveFieldBasedMerkleTreeConfig for MNT6753FieldBasedMerkleTreeParams {
         const HEIGHT: usize = 6;
-        type H = MNT6PoseidonHash;
+        const MERKLE_ARITY: usize = 2;
+        const EMPTY_HASH_CST: Option<&'static dyn FieldBasedMerkleTreePrecomputedEmptyConstants<H=Self::H>> = Some(&MNT4753MHTPoseidonParameters);
     }
 
     type MNT4753FieldBasedMerkleTree = NaiveMerkleTree<MNT4753FieldBasedMerkleTreeParams>;
+    type MNT4PoseidonSMT = BigMerkleTree<MNT4753FieldBasedMerkleTreeParams>;
+
+    #[derive(Clone, Debug)]
+    struct MNT6753FieldBasedMerkleTreeParams;
+    impl FieldBasedMerkleTreeParameters for MNT6753FieldBasedMerkleTreeParams {
+        type Data = MNT6753Fr;
+        type H = MNT6PoseidonHash;
+        const HEIGHT: usize = 6;
+        const MERKLE_ARITY: usize = 2;
+        const EMPTY_HASH_CST: Option<&'static dyn FieldBasedMerkleTreePrecomputedEmptyConstants<H=Self::H>> = Some(&MNT6753MHTPoseidonParameters);
+    }
+
     type MNT6753FieldBasedMerkleTree = NaiveMerkleTree<MNT6753FieldBasedMerkleTreeParams>;
+    type MNT6PoseidonSMT = BigMerkleTree<MNT6753FieldBasedMerkleTreeParams>;
+
 
     #[test]
     fn compare_merkle_trees_mnt4_1() {
 
-        let num_leaves = 32;
         let mut leaves_to_process: Vec<OperationLeaf<MNT4753Fr>> = Vec::new();
 
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 0 }, action: ActionLeaf::Insert, hash: Some(MNT4753Fr::from_str("1").unwrap()) });
@@ -801,7 +832,6 @@ mod test {
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 16 }, action: ActionLeaf::Remove, hash: Some(MNT4753Fr::from_str("3").unwrap()) });
 
         let mut smt = MNT4PoseidonSMT::new(
-            num_leaves,
             false,
             None,
             String::from("./db_leaves_compare_merkle_trees_mnt4_1"),
@@ -845,7 +875,6 @@ mod test {
         let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
 
         let mut smt = MNT4PoseidonSMT::new(
-            num_leaves,
             false,
             None,
             String::from("./db_leaves_compare_merkle_trees_mnt4_2"),
@@ -866,7 +895,6 @@ mod test {
     #[test]
     fn compare_merkle_trees_mnt4_3() {
 
-        let num_leaves = 32;
         let mut leaves = Vec::new();
         leaves.push(MNT4753Fr::from_str("1").unwrap());
         for _ in 1..9 {
@@ -886,7 +914,6 @@ mod test {
         let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
 
         let mut smt = MNT4PoseidonSMT::new(
-            num_leaves,
             false,
             None,
             String::from("./db_leaves_compare_merkle_trees_mnt4_3"),
@@ -905,7 +932,6 @@ mod test {
     #[test]
     fn compare_merkle_trees_mnt6_1() {
 
-        let num_leaves = 32;
         let mut leaves_to_process: Vec<OperationLeaf<MNT6753Fr>> = Vec::new();
 
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 0 }, action: ActionLeaf::Insert, hash: Some(MNT6753Fr::from_str("1").unwrap()) });
@@ -915,7 +941,6 @@ mod test {
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 16 }, action: ActionLeaf::Remove, hash: Some(MNT6753Fr::from_str("3").unwrap()) });
 
         let mut smt = MNT6PoseidonSMT::new(
-            num_leaves,
             false,
             None,
             String::from("./db_leaves_compare_merkle_trees_mnt6_1"),
@@ -959,7 +984,6 @@ mod test {
         let tree = MNT6753FieldBasedMerkleTree::new(&leaves).unwrap();
 
         let mut smt = MNT6PoseidonSMT::new(
-            num_leaves,
             false,
             None,
             String::from("./db_leaves_compare_merkle_trees_mnt6_2"),
@@ -980,7 +1004,6 @@ mod test {
     #[test]
     fn compare_merkle_trees_mnt6_3() {
 
-        let num_leaves = 32;
         let mut leaves = Vec::new();
         leaves.push(MNT6753Fr::from_str("1").unwrap());
         for _ in 1..9 {
@@ -1000,7 +1023,6 @@ mod test {
         let tree = MNT6753FieldBasedMerkleTree::new(&leaves).unwrap();
 
         let mut smt = MNT6PoseidonSMT::new(
-            num_leaves,
             false,
             None,
             String::from("./db_leaves_compare_merkle_trees_mnt6_3"),
@@ -1037,7 +1059,6 @@ mod test {
         // create a persistent smt in a separate scope
         {
             let mut smt = MNT4PoseidonSMT::new(
-                32,
                 true,
                 Some(String::from("./persistency_test_info")),
                 String::from("./db_leaves_persistency_test_info"),
@@ -1089,7 +1110,6 @@ mod test {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         let mut smt = MNT4PoseidonSMT::new(
-            num_leaves,
             false,
             None,
             String::from("./db_leaves_merkle_tree_path_test_mnt4"),
@@ -1138,7 +1158,6 @@ mod test {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         let mut smt = MNT6PoseidonSMT::new(
-            num_leaves,
             false,
             None,
             String::from("./db_leaves_merkle_tree_path_test_mnt6"),

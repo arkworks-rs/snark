@@ -20,24 +20,47 @@ use crate::{FieldBasedHash, BatchFieldBasedHash, Error, FieldBasedHashParameters
 /// Definition of parameters needed to implement and optimize a Merkle Tree whose nodes and leaves
 /// are Field elements. The trait is generic with respect to the arity of the Merkle Tree.
 pub trait FieldBasedMerkleTreeParameters: 'static + Clone {
-    type Data: Field;
+    type Data: Field; /// Actually unnecessary, but simplifies the overall design
+    type H: FieldBasedHash<Data = Self::Data>;
 
+    /// The height of the Merkle Tree
+    const HEIGHT: usize;
     /// The arity of the Merkle Tree
     const MERKLE_ARITY: usize;
-    /// The pre-computed hashes of the empty nodes for the different levels of the SMT
-    const EMPTY_HASH_CST: &'static [Self::Data];
+    /// The pre-computed hashes of the empty nodes for the different levels of the Merkle Tree
+    const EMPTY_HASH_CST: Option<&'static dyn FieldBasedMerkleTreePrecomputedEmptyConstants<H = Self::H>>;
 }
 
-/// Extends the FieldBasedMerkleTreeParameters by specifying the actual hash function,
-/// which must be a hash working with Field arithmetics.
-pub trait BaseFieldBasedMerkleTreeParameters: FieldBasedMerkleTreeParameters {
-    type H: FieldBasedHash<Data = <Self as FieldBasedMerkleTreeParameters>::Data>;
-}
-
-/// For optimized Merkle Tree implementations, it provides the possibily to specify
+/// For optimized Merkle Tree implementations, it provides the possibility to specify
 /// a hash function able to efficiently compute many hashes at the same time
 pub trait BatchFieldBasedMerkleTreeParameters: FieldBasedMerkleTreeParameters {
-    type H: BatchFieldBasedHash<Data = <Self as FieldBasedMerkleTreeParameters>::Data>;
+    type BH: BatchFieldBasedHash<
+        Data = <Self as FieldBasedMerkleTreeParameters>::Data,
+        BaseHash = <Self as FieldBasedMerkleTreeParameters>::H
+    >;
+}
+
+pub trait FieldBasedMerkleTreePrecomputedEmptyConstants {
+    type H: FieldBasedHash;
+
+    fn supported_max_height(&self) -> usize;
+
+    fn supported_arity(&self) -> usize;
+
+    fn get_empty_node(&self, height: usize) -> <Self::H as FieldBasedHash>::Data;
+
+}
+
+pub(crate) fn check_precomputed_parameters<T: FieldBasedMerkleTreeParameters>() -> bool
+{
+    match T::EMPTY_HASH_CST {
+        Some(supported_params) => {
+            T::HEIGHT <= supported_params.supported_max_height() &&
+                T::MERKLE_ARITY == supported_params.supported_arity() &&
+                T::MERKLE_ARITY == <<T::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R
+        }
+        None => false
+    }
 }
 
 /// Definition of a Merkle Tree whose leaves and nodes are Field Elements. The trait is
@@ -47,11 +70,14 @@ pub trait BatchFieldBasedMerkleTreeParameters: FieldBasedMerkleTreeParameters {
 /// of the Merkle Tree and to the hash function used.
 pub trait FieldBasedMerkleTree: Clone {
     type Parameters: FieldBasedMerkleTreeParameters;
-    type MerklePath: FieldBasedMerkleTreePath<Data = <Self::Parameters as FieldBasedMerkleTreeParameters>::Data>;
+    type MerklePath: FieldBasedMerkleTreePath<
+        H = <Self::Parameters as FieldBasedMerkleTreeParameters>::H,
+        Parameters = Self::Parameters
+    >;
 
     /// Initialize this tree. The user must pass the maximum number of leaves the tree must
     /// support.
-    fn init(num_leaves: usize) -> Self;
+    fn init() -> Self;
 
     /// Resets the internal state of the tree, bringing it back to the initial one.
     fn reset(&mut self) -> &mut Self;
@@ -82,11 +108,21 @@ pub trait FieldBasedMerkleTree: Clone {
 /// Definition of a Merkle Path for a Merkle Tree whose leaves and nodes are field elements. The
 /// trait is generic with respect to the arity of the Merkle Tree and to the hash function used.
 pub trait FieldBasedMerkleTreePath {
-    type Data: Field;
+    type H: FieldBasedHash;
     type Path: Clone + Debug;
+    type Parameters: FieldBasedMerkleTreeParameters<
+        Data = <Self::H as FieldBasedHash>::Data,
+        H = Self::H
+    >;
+
+    fn new(path: Self::Path) -> Self;
 
     /// Verify the Merkle Path for `leaf` given the `root` of the Merkle Tree.
-    fn verify(&self, leaf: &Self::Data, root: &Self::Data) -> Result<bool, Error>;
+    fn verify(
+        &self,
+        leaf: &<Self::H as FieldBasedHash>::Data,
+        root: &<Self::H as FieldBasedHash>::Data
+    ) -> Result<bool, Error>;
 
     /// Returns the underlying raw path
     fn get_raw_path(&self) -> Self::Path;
@@ -96,55 +132,59 @@ pub trait FieldBasedMerkleTreePath {
 /// FieldBasedMerkleTree with arbitrary arity.
 /// TODO: Test for arity > 2
 #[derive(Clone, Debug)]
-pub struct FieldBasedMHTPath<H: FieldBasedHash>{
-    path: Vec<(Vec<H::Data>, usize)>,
-    arity: usize,
-    height: usize,
+pub struct FieldBasedMHTPath<T: FieldBasedMerkleTreeParameters>{
+    path: Vec<(Vec<<T::H as FieldBasedHash>::Data>, usize)>,
 }
 
-impl<H: FieldBasedHash> FieldBasedMHTPath<H> {
-    fn new(path: &[(Vec<H::Data>, usize)], arity: usize, height: usize) -> Self {
-        Self { path: path.to_vec(), arity, height }
-    }
-}
-
-impl<H: FieldBasedHash> PartialEq for FieldBasedMHTPath<H> {
+impl<T: FieldBasedMerkleTreeParameters> PartialEq for FieldBasedMHTPath<T> {
     fn eq(&self, other: &Self) -> bool {
-        self.path == other.path && self.arity == other.arity && self.height == other.height
+        self.path == other.path
     }
 }
 
-impl<H: FieldBasedHash> FieldBasedMerkleTreePath for FieldBasedMHTPath<H> {
-
-    type Data = H::Data;
+impl<T: FieldBasedMerkleTreeParameters> FieldBasedMerkleTreePath for FieldBasedMHTPath<T> {
+    type H = T::H;
 
     /// A Merkle Path for a leaf of a Merkle Tree with arity >= 2 will be made up of couples of nodes
     /// and an integer. The nodes are all the siblings of the leaf ( in number MERKLE_ARITY - 1 )
     /// and the integer is the position of the leaf, among its siblings, in the input of the hash
     /// function (valid values are from 0 to MERKLE_ARITY - 1).
-    type Path = Vec<(Vec<H::Data>, usize)>;
+    type Path = Vec<(Vec<<Self::H as FieldBasedHash>::Data>, usize)>;
 
-    fn verify(&self, leaf: &Self::Data, root: &Self::Data) -> Result<bool, Error>{
+    type Parameters = T;
+
+    fn new(path: Self::Path) -> Self {
+        Self { path }
+    }
+
+    fn verify(
+        &self,
+        leaf: &<Self::H as FieldBasedHash>::Data,
+        root: &<Self::H as FieldBasedHash>::Data
+    ) -> Result<bool, Error> {
         // Rate may also be smaller than the arity actually, but this assertion
-        // is reasonable and simplify the design.
-        assert_eq!(<H::Parameters as FieldBasedHashParameters>::R , self.arity);
-        if self.path.len() != self.height - 1 {
-            Err(MerkleTreeError::IncorrectPathLength(self.path.len(), self.height - 1))?
+        // is reasonable and simplify the design. Should be also enforced by the
+        // MerkleTree that creates this instance, but let's do it again.
+        assert_eq!(<<Self::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R, T::MERKLE_ARITY);
+
+        if self.path.len() != T::HEIGHT - 1 {
+            Err(MerkleTreeError::IncorrectPathLength(self.path.len(), T::HEIGHT - 1))?
         }
-        let mut digest = H::init(None);
+
+        let mut digest = <Self::H as FieldBasedHash>::init(None);
         let mut prev_node = leaf.clone();
         for (sibling_nodes, position) in self.path.as_slice() {
-            assert_eq!(sibling_nodes.len(), self.arity - 1);
+            assert_eq!(sibling_nodes.len(), T::MERKLE_ARITY - 1);
 
             // Get the position of the node among its siblings
-            let prev_node_position = *position % self.arity;
+            let prev_node_position = *position % T::MERKLE_ARITY;
 
             // Update the digest respecting the position of each sibling
-            for i in 0..self.arity {
+            for i in 0..T::MERKLE_ARITY {
                 if i == prev_node_position {
                     digest.update(prev_node.clone());
                 } else {
-                    let index = i % (self.arity - 1); // Be sure to not overflow the siblings vector
+                    let index = i % (T::MERKLE_ARITY - 1); // Be sure to not overflow the siblings vector
                     digest.update(sibling_nodes[index]);
                 }
             }
@@ -170,28 +210,29 @@ impl<H: FieldBasedHash> FieldBasedMerkleTreePath for FieldBasedMHTPath<H> {
 /// A wrapper around a Merkle Path for a FieldBasedMerkleTree of arity 2. Merkle Trees of arity
 /// 2 are the most common and it's worth to explicitly create a separate struct
 #[derive(Clone, Debug)]
-pub struct FieldBasedBinaryMHTPath<H: FieldBasedHash>{
-    path: Vec<(H::Data, bool)>,
-    height: usize,
+pub struct FieldBasedBinaryMHTPath<T: FieldBasedMerkleTreeParameters>{
+    path: Vec<(<T::H as FieldBasedHash>::Data, bool)>,
 }
 
-impl<H: FieldBasedHash> FieldBasedBinaryMHTPath<H> {
-    fn new(path: &[(H::Data, bool)], height: usize) -> Self {
-        Self { path: path.to_vec(), height }
+impl<T: FieldBasedMerkleTreeParameters> FieldBasedMerkleTreePath for FieldBasedBinaryMHTPath<T> {
+    type H = T::H;
+    type Path = Vec<(<T::H as FieldBasedHash>::Data, bool)>;
+    type Parameters = T;
+
+    fn new(path: Self::Path) -> Self {
+        Self { path }
     }
-}
 
-impl<H: FieldBasedHash> FieldBasedMerkleTreePath for FieldBasedBinaryMHTPath<H> {
-
-    type Data = H::Data;
-    type Path = Vec<(H::Data, bool)>;
-
-    fn verify(&self, leaf: &Self::Data, root: &Self::Data) -> Result<bool, Error>{
+    fn verify(
+        &self,
+        leaf: &<Self::H as FieldBasedHash>::Data,
+        root: &<Self::H as FieldBasedHash>::Data
+    ) -> Result<bool, Error> {
         let mut v = Vec::with_capacity(self.path.len());
         for &(node, direction) in &self.path {
             v.push((vec![node], if !direction {0} else {1}));
         }
-        FieldBasedMHTPath::<H>::new(v.as_slice(), 2, self.height).verify(leaf, root)
+        FieldBasedMHTPath::<T>::new(v).verify(leaf, root)
     }
 
     fn get_raw_path(&self) -> Self::Path {
@@ -199,8 +240,14 @@ impl<H: FieldBasedHash> FieldBasedMerkleTreePath for FieldBasedBinaryMHTPath<H> 
     }
 }
 
-impl<H: FieldBasedHash> PartialEq<FieldBasedBinaryMHTPath<H>> for FieldBasedMHTPath<H> {
-    fn eq(&self, other: &FieldBasedBinaryMHTPath<H>) -> bool {
+impl<T: FieldBasedMerkleTreeParameters> PartialEq for FieldBasedBinaryMHTPath<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.path == other.path
+    }
+}
+
+impl<T: FieldBasedMerkleTreeParameters> PartialEq<FieldBasedBinaryMHTPath<T>> for FieldBasedMHTPath<T> {
+    fn eq(&self, other: &FieldBasedBinaryMHTPath<T>) -> bool {
         let binary_path = other.get_raw_path();
         if self.path.len() != binary_path.len() { return false };
 
@@ -217,10 +264,3 @@ impl<H: FieldBasedHash> PartialEq<FieldBasedBinaryMHTPath<H>> for FieldBasedMHTP
         return true;
     }
 }
-
-impl<H: FieldBasedHash> PartialEq for FieldBasedBinaryMHTPath<H> {
-    fn eq(&self, other: &Self) -> bool {
-        self.path == other.path && self.height == other.height
-    }
-}
-

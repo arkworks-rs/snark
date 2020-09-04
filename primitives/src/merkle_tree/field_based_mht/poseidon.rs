@@ -9,42 +9,18 @@ use algebra::{
 
 use crate::{crh::{
     poseidon::{
-        MNT4PoseidonHash, MNT6PoseidonHash, batched_crh::{MNT4BatchPoseidonHash, MNT6BatchPoseidonHash}
+        MNT4PoseidonHash, MNT6PoseidonHash,
     }
-}, merkle_tree::{
-    field_based_mht::{
-        optimized::FieldBasedOptimizedMHT, FieldBasedMerkleTreeParameters,
-        BaseFieldBasedMerkleTreeParameters, BatchFieldBasedMerkleTreeParameters
-    },
-}};
-
-#[cfg(feature = "smt")]
-use crate::smt::{BigMerkleTree, LazyBigMerkleTree};
+}, merkle_tree::field_based_mht::FieldBasedMerkleTreePrecomputedEmptyConstants
+};
 
 use std::clone::Clone;
-
-pub type MNT4PoseidonMHT = FieldBasedOptimizedMHT<MNT4753MHTPoseidonParameters>;
-pub type MNT6PoseidonMHT = FieldBasedOptimizedMHT<MNT6753MHTPoseidonParameters>;
-
-#[cfg(feature = "smt")]
-pub type MNT4PoseidonSMT = BigMerkleTree<MNT4753MHTPoseidonParameters>;
-#[cfg(feature = "smt")]
-pub type MNT6PoseidonSMT = BigMerkleTree<MNT6753MHTPoseidonParameters>;
-
-#[cfg(feature = "smt")]
-pub type MNT4PoseidonSMTLazy = LazyBigMerkleTree<MNT4753MHTPoseidonParameters>;
-#[cfg(feature = "smt")]
-pub type MNT6PoseidonSMTLazy = LazyBigMerkleTree<MNT6753MHTPoseidonParameters>;
 
 #[derive(Clone)]
 pub struct MNT4753MHTPoseidonParameters;
 
-impl FieldBasedMerkleTreeParameters for MNT4753MHTPoseidonParameters {
-    type Data = MNT4753Fr;
-
-    const MERKLE_ARITY: usize = 2;
-
-    const EMPTY_HASH_CST: &'static [Self::Data] = &[
+impl MNT4753MHTPoseidonParameters {
+    pub const EMPTY_HASH_CST: &'static [MNT4753Fr] = &[
         field_new!(MNT4753Fr,BigInteger768([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])),
         field_new!(MNT4753Fr,BigInteger768([16176523673378133334, 16956778265158276239, 4733072280094522678, 4192433122035539299, 15174036148465069565, 1064698154771993694, 11910330977019062149, 6319782654186851533, 16700914731313914268, 5445268834830289758, 1400505001002362360, 471965325761536])),
         field_new!(MNT4753Fr,BigInteger768([4277889709792061947, 16378415495394357880, 7044435121910608910, 14821584290848291872, 7395794966562039924, 16993255131573590866, 5619183296459254929, 13099791189349530546, 10480178751052362035, 2637008226322547176, 3781718695868806314, 12315153018770])),
@@ -90,23 +66,28 @@ impl FieldBasedMerkleTreeParameters for MNT4753MHTPoseidonParameters {
     ];
 }
 
-impl BaseFieldBasedMerkleTreeParameters for MNT4753MHTPoseidonParameters {
-    type H = MNT4PoseidonHash;
-}
+impl FieldBasedMerkleTreePrecomputedEmptyConstants for MNT4753MHTPoseidonParameters {
 
-impl BatchFieldBasedMerkleTreeParameters for MNT4753MHTPoseidonParameters {
-    type H = MNT4BatchPoseidonHash;
+    type H = MNT4PoseidonHash;
+
+    fn supported_max_height(&self) -> usize {
+        Self::EMPTY_HASH_CST.len()
+    }
+
+    fn supported_arity(&self) -> usize {
+        2
+    }
+
+    fn get_empty_node(&self, height: usize) -> MNT4753Fr {
+        Self::EMPTY_HASH_CST[height].clone()
+    }
 }
 
 #[derive(Clone)]
 pub struct MNT6753MHTPoseidonParameters;
 
-impl FieldBasedMerkleTreeParameters for MNT6753MHTPoseidonParameters {
-    type Data = MNT6753Fr;
-
-    const MERKLE_ARITY: usize = 2;
-
-    const EMPTY_HASH_CST: &'static [Self::Data] = &[
+impl MNT6753MHTPoseidonParameters {
+    pub const EMPTY_HASH_CST: &'static [MNT6753Fr] = &[
         field_new!(MNT6753Fr,BigInteger768([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])),
         field_new!(MNT6753Fr,BigInteger768([17637649811893425297, 9356568928171551347, 15442933386895351042, 16037249952112432370, 13788858697879839278, 11025667786216957645, 7102709371094193238, 12422915737218740758, 10531053957796416782, 9696092897380549051, 1339040383975805668, 64128018321799])),
         field_new!(MNT6753Fr,BigInteger768([4472923475352101931, 14125459602252897885, 13088438548806363052, 16269053428991819111, 3116242482118239773, 8191706716067520569, 4230313181893216955, 5167780582185616020, 15631071562248952054, 11846663030841039828, 642062297174172342, 296312004800026])),
@@ -152,12 +133,21 @@ impl FieldBasedMerkleTreeParameters for MNT6753MHTPoseidonParameters {
     ];
 }
 
-impl BaseFieldBasedMerkleTreeParameters for MNT6753MHTPoseidonParameters {
-    type H = MNT6PoseidonHash;
-}
+impl FieldBasedMerkleTreePrecomputedEmptyConstants for MNT6753MHTPoseidonParameters {
 
-impl BatchFieldBasedMerkleTreeParameters for MNT6753MHTPoseidonParameters {
-    type H = MNT6BatchPoseidonHash;
+    type H = MNT6PoseidonHash;
+
+    fn supported_max_height(&self) -> usize {
+        Self::EMPTY_HASH_CST.len()
+    }
+
+    fn supported_arity(&self) -> usize {
+        2
+    }
+
+    fn get_empty_node(&self, height: usize) -> MNT6753Fr {
+        Self::EMPTY_HASH_CST[height].clone()
+    }
 }
 
 // PoseidonHash("This represents an empty Merkle Root for a MNT4753PoseidonHash based Merkle Tree.") padded with 0s
@@ -187,7 +177,6 @@ mod test {
         crh::{
             FieldBasedHash, MNT4PoseidonHash, MNT6PoseidonHash
         },
-        merkle_tree::field_based_mht::FieldBasedMerkleTreeParameters,
     };
     use super::{
         MNT4753MHTPoseidonParameters, MNT6753MHTPoseidonParameters, MNT4753_PHANTOM_MERKLE_ROOT

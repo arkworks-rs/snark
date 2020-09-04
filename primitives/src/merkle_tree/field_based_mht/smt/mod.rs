@@ -75,8 +75,6 @@ impl<F: Field> OperationLeaf<F> {
 
 #[derive(Debug)]
 pub(crate) struct BigMerkleTreeState<T: FieldBasedMerkleTreeParameters>{
-    // the number of leaves
-    width: usize,
     // stores the nodes of the path
     cache_path: HashMap<Coord, T::Data>,
     // indicates which nodes are present the Merkle tree
@@ -88,12 +86,11 @@ pub(crate) struct BigMerkleTreeState<T: FieldBasedMerkleTreeParameters>{
 }
 
 impl<T: FieldBasedMerkleTreeParameters> BigMerkleTreeState<T> {
-    fn get_default_state(width: usize, height: usize) -> Self {
+    fn get_default_state() -> Self {
         Self{
-            width,
             cache_path: HashMap::new(),
             present_node: HashSet::new(),
-            root: T::EMPTY_HASH_CST[height],
+            root: T::EMPTY_HASH_CST.unwrap().get_empty_node(T::HEIGHT),
             _parameters: PhantomData,
         }
     }
@@ -101,8 +98,6 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTreeState<T> {
 
 impl<T: FieldBasedMerkleTreeParameters> ToBytes for BigMerkleTreeState<T> {
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
-        (self.width as u64).write(&mut writer)?;
-
         (self.cache_path.len() as u64).write(&mut writer)?;
         for (&coord, &fe) in self.cache_path.iter() {
             coord.write(&mut writer)?;
@@ -120,8 +115,6 @@ impl<T: FieldBasedMerkleTreeParameters> ToBytes for BigMerkleTreeState<T> {
 
 impl<T: FieldBasedMerkleTreeParameters> FromBytes for BigMerkleTreeState<T> {
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
-        let width = u64::read(&mut reader)? as usize;
-
         let cache_path_len = u64::read(&mut reader)? as usize;
         let mut cache_path = HashMap::new();
         for _ in 0..cache_path_len {
@@ -139,7 +132,7 @@ impl<T: FieldBasedMerkleTreeParameters> FromBytes for BigMerkleTreeState<T> {
 
         let root = T::Data::read(&mut reader)?;
 
-        Ok(Self{width, cache_path, present_node, root, _parameters: PhantomData})
+        Ok(Self{cache_path, present_node, root, _parameters: PhantomData})
     }
 }
 

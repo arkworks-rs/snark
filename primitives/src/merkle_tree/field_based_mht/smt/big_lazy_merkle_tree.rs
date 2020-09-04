@@ -4,8 +4,8 @@ use crate::{
     crh::{FieldBasedHash, BatchFieldBasedHash, FieldBasedHashParameters},
     merkle_tree::{
         field_based_mht::{
-            BatchFieldBasedMerkleTreeParameters,
-            FieldBasedBinaryMHTPath,
+            BatchFieldBasedMerkleTreeParameters, check_precomputed_parameters,
+            FieldBasedMerkleTreePath, FieldBasedBinaryMHTPath,
             smt::{
                 Coord, OperationLeaf, ActionLeaf::Remove, BigMerkleTreeState, Error
             },
@@ -28,7 +28,9 @@ pub struct LazyBigMerkleTree<T: BatchFieldBasedMerkleTreeParameters> {
     state_path: Option<String>,
     // tree in-memory state
     state: BigMerkleTreeState<T>,
-    // the height of the Merkle tree
+    // the number of leaves
+    width: usize,
+    // the height of the tree
     height: usize,
     // path to the db
     path_db: String,
@@ -54,13 +56,15 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
     // so that the tree can be restored any moment later. Otherwise, no state will be saved on file
     // and the DBs will be deleted.
     pub fn new(
-        width: usize,
         persistent: bool,
         state_path: Option<String>,
         path_db: String,
         path_cache: String
     ) -> Result<Self, Error> {
-        let rate = <<<T::H as BatchFieldBasedHash>::BaseHash as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
+
+        assert!(check_precomputed_parameters::<T>());
+
+        let rate = <<T::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
         assert_eq!(T::MERKLE_ARITY, 2); // For now we support only arity 2
         // Rate may also be smaller than the arity actually, but this assertion
         // is reasonable and simplify the design.
@@ -69,10 +73,9 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         // If the tree must be persistent, than a path to which save the tree state must be
         // specified.
         if !persistent { assert!(state_path.is_none()) } else { assert!(state_path.is_some()) }
-
-        let height = width as f64;
-        let height = height.log(T::MERKLE_ARITY as f64) as usize;
-        let state = BigMerkleTreeState::<T>::get_default_state(width, height);
+        let state = BigMerkleTreeState::<T>::get_default_state();
+        let height = T::HEIGHT - 1;
+        let width = T::MERKLE_ARITY.pow(height as u32);
         let path_db = path_db;
         let database = DB::open_default(path_db.clone())
             .map_err(|e| Error::Other(e.to_string()))?;
@@ -83,6 +86,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
             persistent,
             state_path,
             state,
+            width,
             height,
             path_db,
             database,
@@ -101,7 +105,10 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         path_db: String,
         path_cache: String
     ) -> Result<Self, Error> {
-        let rate = <<<T::H as BatchFieldBasedHash>::BaseHash as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
+        
+        assert!(check_precomputed_parameters::<T>());
+        
+        let rate = <<T::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
         assert_eq!(T::MERKLE_ARITY, 2); // For now we support only arity 2
         // Rate may also be smaller than the arity actually, but this assertion
         // is reasonable and simplify the design.
@@ -113,10 +120,8 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
                 .map_err(|e| Error::Other(e.to_string()))?;
             BigMerkleTreeState::<T>::read(state_file)
         }.map_err(|e| Error::Other(e.to_string()))?;
-
-        let height = state.width as f64;
-        let height = height.log(T::MERKLE_ARITY as f64) as usize;
-
+        let height = T::HEIGHT - 1;
+        let width = T::MERKLE_ARITY.pow(height as u32);
         let opening_options = Options::default();
 
         let path_db = path_db;
@@ -131,6 +136,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
             persistent,
             state_path: Some(state_path),
             state,
+            width,
             height,
             path_db,
             database,
@@ -175,9 +181,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
                 .expect("Should be able to write into tree state file");
         }
     }
-
-    pub fn height(&self) -> usize { self.height }
-
+    
     pub fn set_persistency(&mut self, persistency: bool) {
         self.persistent = persistency;
     }
@@ -348,7 +352,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         //let coord = Coord{height, idx};
         // if the node is an empty node return the hash constant
         if !self.state.present_node.contains(&coord) {
-            return T::EMPTY_HASH_CST[coord.height];
+            return T::EMPTY_HASH_CST.unwrap().get_empty_node(coord.height);
         }
         let res = self.get_from_cache(coord);
 
@@ -364,7 +368,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
                 if let Some(i) = left_child {
                     left_hash = i;
                 } else {
-                    left_hash = T::EMPTY_HASH_CST[0];
+                    left_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(0);
                 }
 
                 let right_child_idx = left_child_idx + 1;
@@ -373,7 +377,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
                 if let Some(i) = right_child {
                     right_hash = i;
                 } else {
-                    right_hash = T::EMPTY_HASH_CST[0];
+                    right_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(0);
                 }
                 node_hash = Self::field_hash(&left_hash, &right_hash);
             } else {
@@ -403,20 +407,20 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
     }
 
     pub fn field_hash(x: &T::Data, y: &T::Data) -> T::Data{
-        <<T::H as BatchFieldBasedHash>::BaseHash as FieldBasedHash>::init(None)
+        <T::H as FieldBasedHash>::init(None)
             .update(x.clone())
             .update(y.clone())
             .finalize()
     }
 
     pub fn batch_hash(input: &[T::Data]) -> Vec<T::Data> {
-        <T::H as BatchFieldBasedHash>::batch_evaluate(input)
+        <T::BH as BatchFieldBasedHash>::batch_evaluate(input)
             .expect("Should be able to compute batch hash")
     }
 
     pub fn is_leaf_empty(&self, coord: Coord) -> bool {
         // check that the index of the leaf is less than the width of the Merkle tree
-        assert!(coord.idx < self.state.width, "Leaf index out of bound.");
+        assert!(coord.idx < self.width, "Leaf index out of bound.");
         // check that the coordinates of the node corresponds to the leaf level
         assert_eq!(coord.height, 0, "Coord of the node does not correspond to leaf level");
 
@@ -430,7 +434,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         // Validate inputs
         for i in 0..vec_leaf_op.len() {
             // check that the index of the leaf to be inserted/removed is in range
-            assert!(vec_leaf_op[i].coord.idx < self.state.width, "Leaf index out of bound.");
+            assert!(vec_leaf_op[i].coord.idx < self.width, "Leaf index out of bound.");
         }
 
         // Mark nodes to recompute
@@ -514,7 +518,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
                 left_hash = i;
                 left_child_present = true;
             } else {
-                left_hash = T::EMPTY_HASH_CST[0];
+                left_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(0);
                 left_child_present = false;
             }
 
@@ -523,7 +527,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
                 right_hash = i;
                 right_child_present = true;
             } else {
-                right_hash = T::EMPTY_HASH_CST[0];
+                right_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(0);
                 right_child_present = false;
             }
             input_vec.push(left_hash);
@@ -615,10 +619,10 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
     }
 
     // NB. Allows to get Merkle Path of empty leaves too
-    pub fn get_merkle_path(&mut self, leaf_coord: Coord) -> FieldBasedBinaryMHTPath<<T::H as BatchFieldBasedHash>::BaseHash>
+    pub fn get_merkle_path(&mut self, leaf_coord: Coord) -> FieldBasedBinaryMHTPath<T>
     {
         // check that the index of the leaf is less than the width of the Merkle tree
-        assert!(leaf_coord.idx < self.state.width, "Leaf index out of bound.");
+        assert!(leaf_coord.idx < self.width, "Leaf index out of bound.");
 
         // check that the coordinates of the node corresponds to the leaf level
         assert_eq!(leaf_coord.height, 0, "Coord of the node does not correspond to leaf level");
@@ -647,7 +651,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
                     self.node(sibling_coord)
                 }
             } else { // If it's empty then we can directly get the precomputed empty at this height
-                T::EMPTY_HASH_CST[height]
+                T::EMPTY_HASH_CST.unwrap().get_empty_node(height)
             };
 
             // Push info to path
@@ -658,7 +662,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         }
         assert_eq!(self.node(Coord { height, idx: node_idx }), self.state.root);
 
-        return FieldBasedBinaryMHTPath::<<T::H as BatchFieldBasedHash>::BaseHash>::new(&path, self.height + 1);
+        return FieldBasedBinaryMHTPath::<T>::new(path);
     }
 }
 
@@ -675,22 +679,21 @@ mod test {
 
     use crate::{
         crh::{
-            MNT4PoseidonHash, MNT6PoseidonHash
+            MNT4PoseidonHash, MNT6PoseidonHash,
+            batched_crh::{
+                MNT4BatchPoseidonHash, MNT6BatchPoseidonHash,
+            }
         },
         merkle_tree::field_based_mht::{
-            naive::{
-                NaiveFieldBasedMerkleTreeConfig, NaiveMerkleTree
-            },
-            smt::{
-                OperationLeaf, Coord, ActionLeaf
-            },
+            naive:: NaiveMerkleTree,
+            smt::{OperationLeaf, Coord, ActionLeaf, BigMerkleTree, LazyBigMerkleTree},
             poseidon::{
-                MNT4PoseidonSMT, MNT4PoseidonSMTLazy,
-                MNT6PoseidonSMT, MNT6PoseidonSMTLazy,
                 MNT4753MHTPoseidonParameters, MNT6753MHTPoseidonParameters
             },
-            FieldBasedMerkleTreeParameters, FieldBasedMerkleTreePath
-        }
+            FieldBasedMerkleTreeParameters, BatchFieldBasedMerkleTreeParameters,
+            FieldBasedMerkleTreePrecomputedEmptyConstants, FieldBasedMerkleTreePath
+        },
+
     };
 
     use std::{
@@ -702,116 +705,41 @@ mod test {
     };
     use rand_xorshift::XorShiftRng;
 
+    #[derive(Clone, Debug)]
     struct MNT4753FieldBasedMerkleTreeParams;
-    struct MNT6753FieldBasedMerkleTreeParams;
-
-    impl NaiveFieldBasedMerkleTreeConfig for MNT4753FieldBasedMerkleTreeParams {
-        const HEIGHT: usize = 6;
+    impl FieldBasedMerkleTreeParameters for MNT4753FieldBasedMerkleTreeParams {
+        type Data = MNT4753Fr;
         type H = MNT4PoseidonHash;
-    }
-
-    impl NaiveFieldBasedMerkleTreeConfig for MNT6753FieldBasedMerkleTreeParams {
         const HEIGHT: usize = 6;
-        type H = MNT6PoseidonHash;
+        const MERKLE_ARITY: usize = 2;
+        const EMPTY_HASH_CST: Option<&'static dyn FieldBasedMerkleTreePrecomputedEmptyConstants<H=Self::H>> = Some(&MNT4753MHTPoseidonParameters);
     }
-
+    impl BatchFieldBasedMerkleTreeParameters for MNT4753FieldBasedMerkleTreeParams {
+        type BH = MNT4BatchPoseidonHash;
+    }
     type MNT4753FieldBasedMerkleTree = NaiveMerkleTree<MNT4753FieldBasedMerkleTreeParams>;
-    type MNT6753FieldBasedMerkleTree = NaiveMerkleTree<MNT6753FieldBasedMerkleTreeParams>;
+    type MNT4PoseidonSMT = BigMerkleTree<MNT4753FieldBasedMerkleTreeParams>;
+    type MNT4PoseidonSMTLazy = LazyBigMerkleTree<MNT4753FieldBasedMerkleTreeParams>;
 
-    #[test]
-    fn process_leaves_mnt4_comp() {
-
-        let num_leaves = 2usize.pow(23);
-        let mut rng1 = XorShiftRng::seed_from_u64(9174123u64);
-        let mut leaves_to_insert: Vec<OperationLeaf<MNT4753Fr>> = Vec::new();
-        let mut leaves_to_remove: Vec<OperationLeaf<MNT4753Fr>> = Vec::new();
-
-        let n = 1000;
-
-        for _i in 0..n {
-            let random: u64 = OsRng.next_u64();
-            let idx = random % num_leaves as u64;
-            let elem = MNT4753Fr::rand(&mut rng1);
-
-            leaves_to_insert.push(OperationLeaf { coord: Coord { height: 0, idx: idx as usize }, action: ActionLeaf::Insert, hash: Some(elem.clone()) });
-            leaves_to_remove.push(OperationLeaf { coord: Coord { height: 0, idx: idx as usize }, action: ActionLeaf::Remove, hash: None });
-        }
-
-        // Insertion
-
-        let root1;
-        let root2;
-        let root3;
-        let root4;
-        {
-            let mut smt1 = MNT4PoseidonSMT::new(
-                num_leaves,
-                false,
-                None,
-                String::from("./db_leaves_mnt4_comp_1"),
-                String::from("./db_cache_mnt4_comp_1")
-            ).unwrap();
-            let leaves_to_process1 = leaves_to_insert.clone();
-            let now = Instant::now();
-            root1 = smt1.process_leaves_normal(leaves_to_process1);
-            let new_now = Instant::now();
-
-            let duration_normal = new_now.duration_since(now).as_millis();
-
-            println!("duration normal = {}", duration_normal);
-
-            // Removal
-
-            let leaves_to_process3 = leaves_to_remove.clone();
-            let now = Instant::now();
-            root3 = smt1.process_leaves_normal(leaves_to_process3);
-            let new_now = Instant::now();
-
-            let duration_normal = new_now.duration_since(now).as_millis();
-
-            println!("duration normal = {}",duration_normal);
-
-        }
-
-        {
-            let mut smt2 = MNT4PoseidonSMTLazy::new(
-                num_leaves,
-                false,
-                None,
-                String::from("./db_leaves_mnt4_comp_2"),
-                String::from("./db_cache_mnt4_comp_2")
-            ).unwrap();
-            let leaves_to_process2 = leaves_to_insert.clone();
-            let now = Instant::now();
-            root2 = smt2.process_leaves(leaves_to_process2);
-            let new_now = Instant::now();
-
-            let duration_fast = new_now.duration_since(now).as_millis();
-
-            println!("duration fast = {}", duration_fast);
-
-            let leaves_to_process4 = leaves_to_remove.clone();
-            let now = Instant::now();
-            root4 = smt2.process_leaves(leaves_to_process4);
-            let new_now = Instant::now();
-
-            let duration_fast = new_now.duration_since(now).as_millis();
-
-            println!("duration fast = {}",duration_fast);
-
-        }
-
-        assert_eq!(root1, root2, "Roots are not equal");
-        assert_eq!(root3, root4, "Roots are not equal");
-
-        assert_eq!(root3, MNT4753MHTPoseidonParameters::EMPTY_HASH_CST[23], "Sequence of roots not equal");
-
+    #[derive(Clone, Debug)]
+    struct MNT6753FieldBasedMerkleTreeParams;
+    impl FieldBasedMerkleTreeParameters for MNT6753FieldBasedMerkleTreeParams {
+        type Data = MNT6753Fr;
+        type H = MNT6PoseidonHash;
+        const HEIGHT: usize = 6;
+        const MERKLE_ARITY: usize = 2;
+        const EMPTY_HASH_CST: Option<&'static dyn FieldBasedMerkleTreePrecomputedEmptyConstants<H=Self::H>> = Some(&MNT6753MHTPoseidonParameters);
     }
+    impl BatchFieldBasedMerkleTreeParameters for MNT6753FieldBasedMerkleTreeParams {
+        type BH = MNT6BatchPoseidonHash;
+    }
+    type MNT6753FieldBasedMerkleTree = NaiveMerkleTree<MNT6753FieldBasedMerkleTreeParams>;
+    type MNT6PoseidonSMT = BigMerkleTree<MNT6753FieldBasedMerkleTreeParams>;
+    type MNT6PoseidonSMTLazy = LazyBigMerkleTree<MNT6753FieldBasedMerkleTreeParams>;
 
     #[test]
     fn process_leaves_mnt4() {
 
-        let num_leaves = 32;
         let mut leaves_to_process: Vec<OperationLeaf<MNT4753Fr>> = Vec::new();
 
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 0 }, action: ActionLeaf::Insert, hash: Some(MNT4753Fr::from_str("1").unwrap()) });
@@ -821,7 +749,6 @@ mod test {
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 16 }, action: ActionLeaf::Remove, hash: Some(MNT4753Fr::from_str("3").unwrap()) });
 
         let mut smt = MNT4PoseidonSMTLazy::new(
-            num_leaves,
             false,
             None,
             String::from("./db_leaves_mnt4"),
@@ -856,97 +783,6 @@ mod test {
     #[test]
     fn process_leaves_mnt6() {
 
-        let num_leaves = 2usize.pow(23);
-        let mut rng1 = XorShiftRng::seed_from_u64(9174123u64);
-        let mut leaves_to_insert: Vec<OperationLeaf<MNT6753Fr>> = Vec::new();
-        let mut leaves_to_remove: Vec<OperationLeaf<MNT6753Fr>> = Vec::new();
-
-        let n = 1000;
-
-        for _i in 0..n {
-            let random: u64 = OsRng.next_u64();
-            let idx = random % num_leaves as u64;
-            let elem = MNT6753Fr::rand(&mut rng1);
-
-            leaves_to_insert.push(OperationLeaf { coord: Coord { height: 0, idx: idx as usize }, action: ActionLeaf::Insert, hash: Some(elem.clone()) });
-            leaves_to_remove.push(OperationLeaf { coord: Coord { height: 0, idx: idx as usize }, action: ActionLeaf::Remove, hash: None });
-        }
-
-        // Insertion
-
-        let root1;
-        let root2;
-        let root3;
-        let root4;
-        {
-            let mut smt1 = MNT6PoseidonSMT::new(
-                num_leaves,
-                false,
-                None,
-                String::from("./db_leaves_mnt6_comp_1"),
-                String::from("./db_cache_mnt6_comp_1")
-            ).unwrap();
-            let leaves_to_process1 = leaves_to_insert.clone();
-            let now = Instant::now();
-            root1 = smt1.process_leaves_normal(leaves_to_process1);
-            let new_now = Instant::now();
-
-            let duration_normal = new_now.duration_since(now).as_millis();
-
-            println!("duration normal = {}", duration_normal);
-
-            // Removal
-
-            let leaves_to_process3 = leaves_to_remove.clone();
-            let now = Instant::now();
-            root3 = smt1.process_leaves_normal(leaves_to_process3);
-            let new_now = Instant::now();
-
-            let duration_normal = new_now.duration_since(now).as_millis();
-
-            println!("duration normal = {}",duration_normal);
-
-        }
-
-        {
-            let mut smt2 = MNT6PoseidonSMTLazy::new(
-                num_leaves,
-                false,
-                None,
-                String::from("./db_leaves_mnt6_comp_2"),
-                String::from("./db_cache_mnt6_comp_2")
-            ).unwrap();
-            let leaves_to_process2 = leaves_to_insert.clone();
-            let now = Instant::now();
-            root2 = smt2.process_leaves(leaves_to_process2);
-            let new_now = Instant::now();
-
-            let duration_fast = new_now.duration_since(now).as_millis();
-
-            println!("duration fast = {}", duration_fast);
-
-            let leaves_to_process4 = leaves_to_remove.clone();
-            let now = Instant::now();
-            root4 = smt2.process_leaves(leaves_to_process4);
-            let new_now = Instant::now();
-
-            let duration_fast = new_now.duration_since(now).as_millis();
-
-            println!("duration fast = {}",duration_fast);
-
-        }
-
-        assert_eq!(root1, root2, "Roots are not equal");
-        assert_eq!(root3, root4, "Roots are not equal");
-
-        assert_eq!(root3, MNT6753MHTPoseidonParameters::EMPTY_HASH_CST[23], "Sequence of roots not equal");
-
-    }
-
-    #[test]
-    fn process_leaves_mnt6_comp() {
-
-        let num_leaves = 32;
         let mut leaves_to_process: Vec<OperationLeaf<MNT6753Fr>> = Vec::new();
 
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 0 }, action: ActionLeaf::Insert, hash: Some(MNT6753Fr::from_str("1").unwrap()) });
@@ -956,7 +792,6 @@ mod test {
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 16 }, action: ActionLeaf::Remove, hash: Some(MNT6753Fr::from_str("3").unwrap()) });
 
         let mut smt = MNT6PoseidonSMTLazy::new(
-            num_leaves,
             false,
             None,
             String::from("./db_leaves_mnt6"),
@@ -1008,7 +843,6 @@ mod test {
         // create a persistent smt in a separate scope
         {
             let mut smt = MNT4PoseidonSMTLazy::new(
-                32,
                 true,
                 Some(String::from("./persistency_test_info_lazy")),
                 String::from("./db_leaves_persistency_test_info_lazy"),
@@ -1069,7 +903,6 @@ mod test {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         let mut smt = MNT4PoseidonSMTLazy::new(
-            num_leaves,
             false,
             None,
             String::from("./db_leaves_merkle_tree_path_test_mnt4_lazy"),
@@ -1119,7 +952,6 @@ mod test {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         let mut smt = MNT6PoseidonSMTLazy::new(
-            num_leaves,
             false,
             None,
             String::from("./db_leaves_merkle_tree_path_test_mnt6_lazy"),
@@ -1158,5 +990,211 @@ mod test {
             // Assert the two paths are equal
             assert_eq!(path, naive_path);
         }
+    }
+
+    #[derive(Clone, Debug)]
+    struct MNT4753FieldBasedMerkleTreeParamsComp;
+    impl FieldBasedMerkleTreeParameters for MNT4753FieldBasedMerkleTreeParamsComp {
+        type Data = MNT4753Fr;
+        type H = MNT4PoseidonHash;
+        const HEIGHT: usize = 24;
+        const MERKLE_ARITY: usize = 2;
+        const EMPTY_HASH_CST: Option<&'static dyn FieldBasedMerkleTreePrecomputedEmptyConstants<H=Self::H>> = Some(&MNT4753MHTPoseidonParameters);
+    }
+    impl BatchFieldBasedMerkleTreeParameters for MNT4753FieldBasedMerkleTreeParamsComp {
+        type BH = MNT4BatchPoseidonHash;
+    }
+    type MNT4PoseidonSMTComp = BigMerkleTree<MNT4753FieldBasedMerkleTreeParamsComp>;
+    type MNT4PoseidonSMTLazyComp = LazyBigMerkleTree<MNT4753FieldBasedMerkleTreeParamsComp>;
+
+    #[derive(Clone, Debug)]
+    struct MNT6753FieldBasedMerkleTreeParamsComp;
+    impl FieldBasedMerkleTreeParameters for MNT6753FieldBasedMerkleTreeParamsComp {
+        type Data = MNT6753Fr;
+        type H = MNT6PoseidonHash;
+        const HEIGHT: usize = 24;
+        const MERKLE_ARITY: usize = 2;
+        const EMPTY_HASH_CST: Option<&'static dyn FieldBasedMerkleTreePrecomputedEmptyConstants<H=Self::H>> = Some(&MNT6753MHTPoseidonParameters);
+    }
+    impl BatchFieldBasedMerkleTreeParameters for MNT6753FieldBasedMerkleTreeParamsComp {
+        type BH = MNT6BatchPoseidonHash;
+    }
+    type MNT6PoseidonSMTComp = BigMerkleTree<MNT6753FieldBasedMerkleTreeParamsComp>;
+    type MNT6PoseidonSMTLazyComp = LazyBigMerkleTree<MNT6753FieldBasedMerkleTreeParamsComp>;
+
+    #[test]
+    fn process_leaves_mnt4_comp() {
+
+        let num_leaves = 2usize.pow(23);
+        let mut rng1 = XorShiftRng::seed_from_u64(9174123u64);
+        let mut leaves_to_insert: Vec<OperationLeaf<MNT4753Fr>> = Vec::new();
+        let mut leaves_to_remove: Vec<OperationLeaf<MNT4753Fr>> = Vec::new();
+
+        let n = 1000;
+
+        for _i in 0..n {
+            let random: u64 = OsRng.next_u64();
+            let idx = random % num_leaves as u64;
+            let elem = MNT4753Fr::rand(&mut rng1);
+
+            leaves_to_insert.push(OperationLeaf { coord: Coord { height: 0, idx: idx as usize }, action: ActionLeaf::Insert, hash: Some(elem.clone()) });
+            leaves_to_remove.push(OperationLeaf { coord: Coord { height: 0, idx: idx as usize }, action: ActionLeaf::Remove, hash: None });
+        }
+
+        // Insertion
+
+        let root1;
+        let root2;
+        let root3;
+        let root4;
+        {
+            let mut smt1 = MNT4PoseidonSMTComp::new(
+                false,
+                None,
+                String::from("./db_leaves_mnt4_comp_1"),
+                String::from("./db_cache_mnt4_comp_1")
+            ).unwrap();
+            let leaves_to_process1 = leaves_to_insert.clone();
+            let now = Instant::now();
+            root1 = smt1.process_leaves_normal(leaves_to_process1);
+            let new_now = Instant::now();
+
+            let duration_normal = new_now.duration_since(now).as_millis();
+
+            println!("duration normal = {}", duration_normal);
+
+            // Removal
+
+            let leaves_to_process3 = leaves_to_remove.clone();
+            let now = Instant::now();
+            root3 = smt1.process_leaves_normal(leaves_to_process3);
+            let new_now = Instant::now();
+
+            let duration_normal = new_now.duration_since(now).as_millis();
+
+            println!("duration normal = {}",duration_normal);
+
+        }
+
+        {
+            let mut smt2 = MNT4PoseidonSMTLazyComp::new(
+                false,
+                None,
+                String::from("./db_leaves_mnt4_comp_2"),
+                String::from("./db_cache_mnt4_comp_2")
+            ).unwrap();
+            let leaves_to_process2 = leaves_to_insert.clone();
+            let now = Instant::now();
+            root2 = smt2.process_leaves(leaves_to_process2);
+            let new_now = Instant::now();
+
+            let duration_fast = new_now.duration_since(now).as_millis();
+
+            println!("duration fast = {}", duration_fast);
+
+            let leaves_to_process4 = leaves_to_remove.clone();
+            let now = Instant::now();
+            root4 = smt2.process_leaves(leaves_to_process4);
+            let new_now = Instant::now();
+
+            let duration_fast = new_now.duration_since(now).as_millis();
+
+            println!("duration fast = {}",duration_fast);
+
+        }
+
+        assert_eq!(root1, root2, "Roots are not equal");
+        assert_eq!(root3, root4, "Roots are not equal");
+
+        assert_eq!(root3, MNT4753MHTPoseidonParameters::EMPTY_HASH_CST[23], "Sequence of roots not equal");
+
+    }
+
+    #[test]
+    fn process_leaves_mnt6_comp() {
+
+        let num_leaves = 2usize.pow(23);
+        let mut rng1 = XorShiftRng::seed_from_u64(9174123u64);
+        let mut leaves_to_insert: Vec<OperationLeaf<MNT6753Fr>> = Vec::new();
+        let mut leaves_to_remove: Vec<OperationLeaf<MNT6753Fr>> = Vec::new();
+
+        let n = 1000;
+
+        for _i in 0..n {
+            let random: u64 = OsRng.next_u64();
+            let idx = random % num_leaves as u64;
+            let elem = MNT6753Fr::rand(&mut rng1);
+
+            leaves_to_insert.push(OperationLeaf { coord: Coord { height: 0, idx: idx as usize }, action: ActionLeaf::Insert, hash: Some(elem.clone()) });
+            leaves_to_remove.push(OperationLeaf { coord: Coord { height: 0, idx: idx as usize }, action: ActionLeaf::Remove, hash: None });
+        }
+
+        // Insertion
+
+        let root1;
+        let root2;
+        let root3;
+        let root4;
+        {
+            let mut smt1 = MNT6PoseidonSMTComp::new(
+                false,
+                None,
+                String::from("./db_leaves_mnt6_comp_1"),
+                String::from("./db_cache_mnt6_comp_1")
+            ).unwrap();
+            let leaves_to_process1 = leaves_to_insert.clone();
+            let now = Instant::now();
+            root1 = smt1.process_leaves_normal(leaves_to_process1);
+            let new_now = Instant::now();
+
+            let duration_normal = new_now.duration_since(now).as_millis();
+
+            println!("duration normal = {}", duration_normal);
+
+            // Removal
+
+            let leaves_to_process3 = leaves_to_remove.clone();
+            let now = Instant::now();
+            root3 = smt1.process_leaves_normal(leaves_to_process3);
+            let new_now = Instant::now();
+
+            let duration_normal = new_now.duration_since(now).as_millis();
+
+            println!("duration normal = {}",duration_normal);
+
+        }
+
+        {
+            let mut smt2 = MNT6PoseidonSMTLazyComp::new(
+                false,
+                None,
+                String::from("./db_leaves_mnt6_comp_2"),
+                String::from("./db_cache_mnt6_comp_2")
+            ).unwrap();
+            let leaves_to_process2 = leaves_to_insert.clone();
+            let now = Instant::now();
+            root2 = smt2.process_leaves(leaves_to_process2);
+            let new_now = Instant::now();
+
+            let duration_fast = new_now.duration_since(now).as_millis();
+
+            println!("duration fast = {}", duration_fast);
+
+            let leaves_to_process4 = leaves_to_remove.clone();
+            let now = Instant::now();
+            root4 = smt2.process_leaves(leaves_to_process4);
+            let new_now = Instant::now();
+
+            let duration_fast = new_now.duration_since(now).as_millis();
+
+            println!("duration fast = {}",duration_fast);
+
+        }
+
+        assert_eq!(root1, root2, "Roots are not equal");
+        assert_eq!(root3, root4, "Roots are not equal");
+
+        assert_eq!(root3, MNT6753MHTPoseidonParameters::EMPTY_HASH_CST[23], "Sequence of roots not equal");
+
     }
 }
