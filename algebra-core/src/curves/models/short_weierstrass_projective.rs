@@ -567,7 +567,7 @@ impl<P: Parameters> From<GroupAffine<P>> for GroupProjective<P> {
 }
 
 // The projective point X, Y, Z is represented in the affine
-// coordinates as X/Z^2, Y/Z^3.
+// coordinates as X/Z, Y/Z.
 impl<P: Parameters> From<GroupProjective<P>> for GroupAffine<P> {
     fn from(p: GroupProjective<P>) -> GroupAffine<P> {
         if p.is_zero() {
