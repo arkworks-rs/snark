@@ -25,6 +25,16 @@ pub trait GLVParameters: Send + Sync + 'static + ModelParameters {
         let limbs = <Self::ScalarField as PrimeField>::BigInt::NUM_LIMBS;
         let modulus = Self::ScalarField::modulus();
 
+        // If we are doing a subgroup check, we should multiply by the original scalar
+        // since the GLV decomposition does not guarantee that we would not be
+        // adding and subtracting back to zero
+        if k == modulus {
+            return (
+                (false, k),
+                (false, <Self::ScalarField as PrimeField>::BigInt::from(0)),
+            );
+        }
+
         let mut half = Self::WideBigInt::from(1);
         half.muln(Self::R_BITS - 1);
 
@@ -58,19 +68,18 @@ pub trait GLVParameters: Send + Sync + 'static + ModelParameters {
             k2.sub_noborrow(&d2)
         };
         if borrow {
-            k2.add_nocarry(&modulus);
-        } else if k2 > modulus {
-            k2.sub_noborrow(&modulus);
+            while k2 >= modulus {
+                k2.add_nocarry(&modulus);
+            }
+        } else {
+            while k2 >= modulus {
+                k2.sub_noborrow(&modulus);
+            }
         }
-
-        let mut k1 = k;
-        let borrow = k1.sub_noborrow(&(Self::ScalarField::from(k2) * &Self::LAMBDA).into_repr());
-        if borrow {
-            k1.add_nocarry(&modulus);
-        }
-
+        let k2_field = Self::ScalarField::from(k2);
+        let k1 = (Self::ScalarField::from(k) - &(k2_field * &Self::LAMBDA)).into_repr();
         let (neg2, k2) = if k2.num_bits() > Self::R_BITS / 2 + 1 {
-            (true, Self::ScalarField::from(k2).neg().into_repr())
+            (true, k2_field.neg().into_repr())
         } else {
             (false, k2)
         };

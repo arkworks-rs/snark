@@ -48,15 +48,15 @@ fn verify_points<C: AffineCurve, R: Rng>(
             cfg_chunks_mut!(buckets, 4096).for_each(|e| {
                 let length = e.len();
                 e[..].batch_scalar_mul_in_place::<<C::ScalarField as PrimeField>::BigInt>(
-                    &mut vec![<C::ScalarField as PrimeField>::Params::MODULUS.into(); length][..],
+                    &mut vec![C::ScalarField::modulus().into(); length][..],
                     1,
                 );
             });
             !buckets.iter().all(|&p| p == C::zero())
         } else {
-            !buckets.iter().all(|&b| {
-                b.mul(<C::ScalarField as PrimeField>::Params::MODULUS) == C::Projective::zero()
-            })
+            !buckets
+                .iter()
+                .all(|&b| b.mul(C::ScalarField::modulus()) == C::Projective::zero())
         };
         if verification_failure {
             return Err(VerificationError);

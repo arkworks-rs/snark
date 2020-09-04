@@ -829,6 +829,7 @@ macro_rules! specialise_affine_to_proj {
     };
 }
 
+/// Implements GLV mul for a single element with a wNAF table
 #[macro_export]
 macro_rules! impl_glv_mul {
     ($Projective: ty, $P: ident, $w: ident, $self_proj: ident, $res: ident, $by: ident) => {
