@@ -24,7 +24,6 @@ pub trait SWModelParameters: ModelParameters {
     const COFACTOR: &'static [u64];
     const COFACTOR_INV: Self::ScalarField;
     const AFFINE_GENERATOR_COEFFS: (Self::BaseField, Self::BaseField);
-    const GLV: bool;
 
     #[inline(always)]
     fn mul_by_a(elem: &Self::BaseField) -> Self::BaseField {
@@ -41,12 +40,16 @@ pub trait SWModelParameters: ModelParameters {
     }
 
     #[inline(always)]
+    fn has_glv() -> bool {
+        false
+    }
+
+    #[inline(always)]
     fn glv_endomorphism_in_place(_elem: &mut Self::BaseField) {
         unimplemented!()
     }
 
     #[inline(always)]
-
     fn glv_scalar_decomposition(
         _k: <Self::ScalarField as PrimeField>::BigInt,
     ) -> (

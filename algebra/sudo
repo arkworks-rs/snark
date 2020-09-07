@@ -1,1 +1,0 @@
-off tee /sys/devices/system/cpu/smt/control

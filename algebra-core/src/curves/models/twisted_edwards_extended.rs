@@ -170,30 +170,27 @@ impl<P: Parameters> BatchGroupArithmetic for GroupAffine<P> {
 
     fn batch_double_in_place(
         bases: &mut [Self],
-        index: &[usize],
+        index: &[u32],
         _scratch_space: Option<&mut Vec<Self::BBaseField>>,
     ) {
         Self::batch_add_in_place(
             bases,
             &mut bases.to_vec()[..],
-            &index
-                .iter()
-                .map(|&x| (x, x))
-                .collect::<Vec<(usize, usize)>>()[..],
+            &index.iter().map(|&x| (x, x)).collect::<Vec<_>>()[..],
         );
     }
 
     // Total cost: 12 mul. Projective formulas: 11 mul.
-    fn batch_add_in_place_same_slice(bases: &mut [Self], index: &[(usize, usize)]) {
+    fn batch_add_in_place_same_slice(bases: &mut [Self], index: &[(u32, u32)]) {
         let mut inversion_tmp = P::BaseField::one();
         // We run two loops over the data separated by an inversion
         for (idx, idy) in index.iter() {
             let (mut a, mut b) = if idx < idy {
-                let (x, y) = bases.split_at_mut(*idy);
-                (&mut x[*idx], &mut y[0])
+                let (x, y) = bases.split_at_mut(*idy as usize);
+                (&mut x[*idx as usize], &mut y[0])
             } else {
-                let (x, y) = bases.split_at_mut(*idx);
-                (&mut y[0], &mut x[*idy])
+                let (x, y) = bases.split_at_mut(*idx as usize);
+                (&mut y[0], &mut x[*idy as usize])
             };
             if a.is_zero() || b.is_zero() {
                 continue;
@@ -224,11 +221,11 @@ impl<P: Parameters> BatchGroupArithmetic for GroupAffine<P> {
 
         for (idx, idy) in index.iter().rev() {
             let (a, b) = if idx < idy {
-                let (x, y) = bases.split_at_mut(*idy);
-                (&mut x[*idx], y[0])
+                let (x, y) = bases.split_at_mut(*idy as usize);
+                (&mut x[*idx as usize], y[0])
             } else {
-                let (x, y) = bases.split_at_mut(*idx);
-                (&mut y[0], x[*idy])
+                let (x, y) = bases.split_at_mut(*idx as usize);
+                (&mut y[0], x[*idy as usize])
             };
             if a.is_zero() {
                 *a = b;
@@ -242,11 +239,11 @@ impl<P: Parameters> BatchGroupArithmetic for GroupAffine<P> {
     }
 
     // Total cost: 12 mul. Projective formulas: 11 mul.
-    fn batch_add_in_place(bases: &mut [Self], other: &mut [Self], index: &[(usize, usize)]) {
+    fn batch_add_in_place(bases: &mut [Self], other: &mut [Self], index: &[(u32, u32)]) {
         let mut inversion_tmp = P::BaseField::one();
         // We run two loops over the data separated by an inversion
         for (idx, idy) in index.iter() {
-            let (mut a, mut b) = (&mut bases[*idx], &mut other[*idy]);
+            let (mut a, mut b) = (&mut bases[*idx as usize], &mut other[*idy as usize]);
             if a.is_zero() || b.is_zero() {
                 continue;
             } else {
@@ -275,7 +272,7 @@ impl<P: Parameters> BatchGroupArithmetic for GroupAffine<P> {
         inversion_tmp = inversion_tmp.inverse().unwrap(); // this is always in Fp*
 
         for (idx, idy) in index.iter().rev() {
-            let (a, b) = (&mut bases[*idx], other[*idy]);
+            let (a, b) = (&mut bases[*idx as usize], other[*idy as usize]);
             if a.is_zero() {
                 *a = b;
             } else if !b.is_zero() {

@@ -20,7 +20,6 @@ impl ModelParameters for Parameters {
 }
 
 impl SWModelParameters for Parameters {
-    const GLV: bool = false;
     /// COEFF_A = (0, 0, COEFF_A * TWIST^2) = (0, 0, 5)
     #[rustfmt::skip]
     const COEFF_A: Fq3 = field_new!(Fq3,

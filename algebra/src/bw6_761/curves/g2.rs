@@ -154,7 +154,10 @@ impl SWModelParameters for Parameters {
         Self::BaseField::zero()
     }
 
-    const GLV: bool = false;
+    #[inline(always)]
+    fn has_glv() -> bool {
+        true
+    }
 
     #[inline(always)]
     fn glv_endomorphism_in_place(elem: &mut Self::BaseField) {

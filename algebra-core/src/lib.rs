@@ -131,10 +131,25 @@ pub fn log2(x: usize) -> u32 {
     core::mem::size_of::<usize>() as u32 * 8 - n
 }
 
+/// Prefetches as many cache lines as is occupied by the type T.
+/// We assume 64B cache lines
 #[cfg(feature = "prefetch")]
 #[inline]
 pub fn prefetch<T>(p: *const T) {
+    // let n_lines: isize = ((std::mem::size_of::<T>() - 1) / 64 + 1) as isize;
+    // unsafe {
+    //     for i in 0..(n_lines + 1) {
+    //         core::arch::x86_64::_mm_prefetch((p as *const i8).offset(i * 64), core::arch::x86_64::_MM_HINT_T0)
+    //     }
+    // }
+
     unsafe { core::arch::x86_64::_mm_prefetch(p as *const i8, core::arch::x86_64::_MM_HINT_T0) }
+}
+
+#[cfg(feature = "prefetch")]
+#[inline]
+pub fn clear_cache<T>(p: *const T) {
+    unsafe { core::arch::x86_64::_mm_clflush(p as *const u8) }
 }
 
 #[macro_export]

@@ -59,7 +59,6 @@ pub const MUL_BY_A_C1: Fq = field_new!(Fq, BigInteger768([
 pub const MUL_BY_A_C2: Fq = g1::Parameters::COEFF_A;
 
 impl SWModelParameters for Parameters {
-    const GLV: bool = false;
     const COEFF_A: Fq3 = mnt6_753::Parameters::TWIST_COEFF_A;
     // B coefficient of MNT6-753 G2 =
     // ```

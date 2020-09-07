@@ -45,7 +45,6 @@ pub const MUL_BY_A_C1: Fq = field_new!(Fq, BigInteger320([
 pub const MUL_BY_A_C2: Fq = g1::Parameters::COEFF_A;
 
 impl SWModelParameters for Parameters {
-    const GLV: bool = false;
     const COEFF_A: Fq3 = mnt6_298::Parameters::TWIST_COEFF_A;
     #[rustfmt::skip]
     const COEFF_B: Fq3 = field_new!(Fq3,

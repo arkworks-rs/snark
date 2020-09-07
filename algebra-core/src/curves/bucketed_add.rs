@@ -1,4 +1,8 @@
-use crate::{cfg_iter_mut, curves::BatchGroupArithmeticSlice, log2, AffineCurve, Vec};
+use crate::{
+    cfg_iter_mut,
+    curves::{BatchGroupArithmeticSlice, BATCH_SIZE},
+    log2, AffineCurve, Vec,
+};
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
@@ -7,7 +11,6 @@ use rayon::prelude::*;
 use std::collections::HashMap;
 
 const RATIO_MULTIPLIER: usize = 2;
-const BATCH_ADD_SIZE: usize = 4096;
 
 #[inline]
 #[cfg(feature = "std")]
@@ -54,7 +57,7 @@ pub fn batch_bucketed_add<C: AffineCurve>(
     }
 
     // Instructions for indexes for the in place addition tree
-    let mut instr: Vec<Vec<(usize, usize)>> = vec![];
+    let mut instr: Vec<Vec<(u32, u32)>> = vec![];
     // Find the maximum depth of the addition tree
     let max_depth = index
         .iter()
@@ -66,7 +69,7 @@ pub fn batch_bucketed_add<C: AffineCurve>(
     // Generate in-place addition instructions that implement the addition tree
     // for each bucket from the leaves to the root
     for i in 0..max_depth {
-        let mut instr_row = Vec::<(usize, usize)>::with_capacity(buckets);
+        let mut instr_row = Vec::<(u32, u32)>::with_capacity(buckets);
         for bucket in 0..buckets {
             let idx = bucket * offset;
             let len = index[idx] as usize;
@@ -79,8 +82,7 @@ pub fn batch_bucketed_add<C: AffineCurve>(
                     if new_len <= offset - 1 {
                         for j in 0..len / 2 {
                             index[idx + j + 1] = assign_vec[2 * j];
-                            instr_row
-                                .push((assign_vec[2 * j] as usize, assign_vec[2 * j + 1] as usize));
+                            instr_row.push((assign_vec[2 * j], assign_vec[2 * j + 1]));
                         }
                         if len % 2 == 1 {
                             index[idx + new_len] = assign_vec[len - 1];
@@ -89,8 +91,7 @@ pub fn batch_bucketed_add<C: AffineCurve>(
                     } else {
                         for j in 0..len / 2 {
                             assign_vec[j] = assign_vec[2 * j];
-                            instr_row
-                                .push((assign_vec[2 * j] as usize, assign_vec[2 * j + 1] as usize));
+                            instr_row.push((assign_vec[2 * j], assign_vec[2 * j + 1]));
                         }
                         if len % 2 == 1 {
                             assign_vec[new_len - 1] = assign_vec[len - 1];
@@ -99,10 +100,7 @@ pub fn batch_bucketed_add<C: AffineCurve>(
                 } else {
                     for j in 0..len / 2 {
                         index[idx + j + 1] = index[idx + 2 * j + 1];
-                        instr_row.push((
-                            index[idx + 2 * j + 1] as usize,
-                            index[idx + 2 * j + 2] as usize,
-                        ));
+                        instr_row.push((index[idx + 2 * j + 1], index[idx + 2 * j + 2]));
                     }
                     if len % 2 == 1 {
                         index[idx + new_len] = index[idx + len];
@@ -118,9 +116,7 @@ pub fn batch_bucketed_add<C: AffineCurve>(
     }
 
     for instr_row in instr.iter() {
-        for instr_chunk in
-            C::get_chunked_instr::<(usize, usize)>(&instr_row[..], BATCH_ADD_SIZE).iter()
-        {
+        for instr_chunk in C::get_chunked_instr::<(u32, u32)>(&instr_row[..], BATCH_SIZE).iter() {
             elems[..].batch_add_in_place_same_slice(&instr_chunk[..]);
         }
     }
@@ -129,10 +125,10 @@ pub fn batch_bucketed_add<C: AffineCurve>(
     let mut res = vec![zero; buckets];
 
     for bucket in 0..buckets {
-        if index[offset * bucket] > 1 {
-            panic!("Did not successfully reduce to_add");
-        } else if index[offset * bucket] == 1 {
+        if index[offset * bucket] == 1 {
             res[bucket] = elems[index[offset * bucket + 1] as usize];
+        } else if index[offset * bucket] == 1 {
+            debug_assert!(false, "Did not successfully reduce index");
         }
     }
     res
@@ -161,12 +157,12 @@ pub fn batch_bucketed_add<C: AffineCurve>(
 
     for split in bucket_split {
         for (bucket, position) in split {
-            index[bucket].push(position);
+            index[bucket].push(position as u32);
         }
     }
 
     // Instructions for indexes for the in place addition tree
-    let mut instr: Vec<Vec<(usize, usize)>> = vec![];
+    let mut instr: Vec<Vec<(u32, u32)>> = vec![];
     // Find the maximum depth of the addition tree
     let max_depth = index.iter()
         // log_2
@@ -176,7 +172,7 @@ pub fn batch_bucketed_add<C: AffineCurve>(
     // Generate in-place addition instructions that implement the addition tree
     // for each bucket from the leaves to the root
     for i in 0..max_depth {
-        let mut instr_row = Vec::<(usize, usize)>::with_capacity(buckets);
+        let mut instr_row = Vec::<(u32, u32)>::with_capacity(buckets);
         for to_add in index.iter_mut() {
             if to_add.len() > 1 << (max_depth - i - 1) {
                 let mut new_to_add = vec![];
@@ -194,7 +190,7 @@ pub fn batch_bucketed_add<C: AffineCurve>(
     }
 
     for instr_row in instr.iter() {
-        for instr in C::get_chunked_instr::<(usize, usize)>(&instr_row[..], BATCH_ADD_SIZE).iter() {
+        for instr in C::get_chunked_instr::<(u32, u32)>(&instr_row[..], BATCH_SIZE).iter() {
             elems[..].batch_add_in_place_same_slice(&instr[..]);
         }
     }
@@ -203,10 +199,10 @@ pub fn batch_bucketed_add<C: AffineCurve>(
     let mut res = vec![zero; buckets];
 
     for (i, to_add) in index.iter().enumerate() {
-        if to_add.len() > 1 {
-            panic!("Did not successfully reduce to_add");
-        } else if to_add.len() == 1 {
-            res[i] = elems[to_add[0]];
+        if index[offset * bucket] == 1 {
+            res[bucket] = elems[index[offset * bucket + 1] as usize];
+        } else if index[offset * bucket] == 1 {
+            debug_assert!(false, "Did not successfully reduce to_add");
         }
     }
     res

@@ -255,7 +255,7 @@ pub fn random_batch_doubling_test<G: ProjectiveCurve>() {
 
         let mut a: Vec<G::Affine> = a.iter().map(|p| p.into_affine()).collect();
 
-        a[..].batch_double_in_place(&(0..size).collect::<Vec<usize>>()[..]);
+        a[..].batch_double_in_place(&(0..size).map(|x| x as u32).collect::<Vec<_>>()[..]);
 
         for p_c in c.iter_mut() {
             *p_c.double_in_place();
@@ -289,7 +289,7 @@ pub fn random_batch_addition_test<G: ProjectiveCurve>() {
 
         a[..].batch_add_in_place(
             &mut b[..],
-            &(0..size).map(|x| (x, x)).collect::<Vec<(usize, usize)>>()[..],
+            &(0..size).map(|x| (x as u32, x as u32)).collect::<Vec<_>>()[..],
         );
 
         for (p_c, p_d) in c.iter_mut().zip(d.iter()) {
@@ -324,7 +324,7 @@ pub fn random_batch_add_doubling_test<G: ProjectiveCurve>() {
 
         a[..].batch_add_in_place(
             &mut b[..],
-            &(0..size).map(|x| (x, x)).collect::<Vec<(usize, usize)>>()[..],
+            &(0..size).map(|x| (x as u32, x as u32)).collect::<Vec<_>>()[..],
         );
 
         for (p_c, p_d) in c.iter_mut().zip(d.iter()) {
@@ -361,7 +361,7 @@ pub fn random_batch_scalar_mul_test<G: ProjectiveCurve>() {
             s.iter().map(|p| p.into_repr()).collect();
 
         let now = std::time::Instant::now();
-        a[..].batch_scalar_mul_in_place::<<G::ScalarField as PrimeField>::BigInt>(&mut s[..], 5);
+        a[..].batch_scalar_mul_in_place::<<G::ScalarField as PrimeField>::BigInt>(&mut s[..], 4);
         println!(
             "Batch affine mul for {} elems: {}us",
             size,
@@ -450,7 +450,7 @@ macro_rules! batch_verify_test {
             {
                 // If the cofactor is small, with non-negligible probability the sampled point
                 // is in the group, so we should check it isn't. Else we don't waste compute.
-                if $P::COFACTOR[0] != 0 || $P::COFACTOR[1..].iter().any(|&x| x != 0u64) {
+                if $P::COFACTOR[1..].iter().all(|&x| x == 0u64) {
                     if !elem.is_in_correct_subgroup_assuming_on_curve() {
                         non_subgroup_points.push(elem);
                     }
@@ -472,14 +472,14 @@ macro_rules! batch_verify_test {
 
             let mut tmp_elems = random_elems[0..n_elems].to_vec();
 
-            // let now = std::time::Instant::now();
+            let now = std::time::Instant::now();
             batch_verify_in_subgroup::<$GroupAffine<P>, XorShiftRng>(&tmp_elems[..], SECURITY_PARAM, &mut rng)
                 .expect("Should have verified as correct");
-            // println!(
-            //     "Success: In Subgroup. n: {}, time: {}",
-            //     n_elems,
-            //     now.elapsed().as_micros()
-            // );
+            println!(
+                "Success: In Subgroup. n: {}, time: {}",
+                n_elems,
+                now.elapsed().as_micros()
+            );
 
             // let now = std::time::Instant::now();
             // batch_verify_in_subgroup_recursive::<$GroupAffine<P>, XorShiftRng>(&tmp_elems[..], SECURITY_PARAM, &mut rng)
@@ -495,17 +495,17 @@ macro_rules! batch_verify_test {
                 for k in 0..(1 << j) {
                     tmp_elems[random_location.sample(&mut rng)] = non_subgroup_points[k];
                 }
-                // let now = std::time::Instant::now();
+                let now = std::time::Instant::now();
                 match batch_verify_in_subgroup::<$GroupAffine<P>, XorShiftRng>(&tmp_elems[..], SECURITY_PARAM, &mut rng) {
                     Ok(_) => assert!(false, "did not detect non-subgroup elems"),
                     _ => assert!(true),
                 };
-                // println!(
-                //     "Success: Not in subgroup. n: {}, non-subgroup elems: {}, time: {}",
-                //     n_elems,
-                //     (1 << (j + 1)) - 1,
-                //     now.elapsed().as_micros()
-                // );
+                println!(
+                    "Success: Not in subgroup. n: {}, non-subgroup elems: {}, time: {}",
+                    n_elems,
+                    (1 << (j + 1)) - 1,
+                    now.elapsed().as_micros()
+                );
 
                 // let now = std::time::Instant::now();
                 // match batch_verify_in_subgroup_recursive::<$GroupAffine<P>, XorShiftRng>(&tmp_elems[..], SECURITY_PARAM, &mut rng) {
@@ -522,6 +522,8 @@ macro_rules! batch_verify_test {
         }
 
         // // We can induce a collision and thus failure to identify non-subgroup elements with the following
+        // // for small security parameters. This is a non-deterministic "anti-test" that should fail and cause
+        // // panic. It is meant for sanity checking.
         // for j in 0..10000 {
         //     // Randomly insert random non-subgroup elems
         //     if j == 0 {

@@ -130,7 +130,7 @@ pub trait BigInteger:
     fn find_wnaf(&self) -> Vec<i64>;
 
     /// Writes this `BigInteger` as a big endian integer. Always writes
-    /// (`num_bits` / 8) bytes.
+    /// ceil(`num_bits` / 8) bytes.
     fn write_le<W: Write>(&self, writer: &mut W) -> IoResult<()> {
         self.write(writer)
     }
@@ -144,10 +144,11 @@ pub trait BigInteger:
 
     /// Takes two slices of u64 representing big integers and returns a bigger BigInteger
     /// of type Self representing their product. Preferably used only for even NUM_LIMBS.
-    /// We require the invariant that this.len() == other.len() <= NUM_LIMBS / 2
+    /// We require the invariant that this.len() == other.len() == NUM_LIMBS / 2
     fn mul_no_reduce(this: &[u64], other: &[u64]) -> Self;
 
-    /// Similar to `mul_no_reduce` but accepts slices of with len == NUM_LIMBS
+    /// Similar to `mul_no_reduce` but accepts slices of len == NUM_LIMBS and only returns
+    /// lower half of the result
     fn mul_no_reduce_lo(this: &[u64], other: &[u64]) -> Self;
 
     /// Copies data from a slice to Self in a len agnostic way,
@@ -258,7 +259,4 @@ pub mod arithmetic {
 
         *carry = (tmp >> 64) as u64;
     }
-
-    // #[inline]
-    // fn mul_no_reduce(&mut self, &mut other: Self) -> &mut[]
 }

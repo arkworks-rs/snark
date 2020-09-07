@@ -2,12 +2,19 @@ use crate::{biginteger::BigInteger, AffineCurve, Field, Vec};
 use core::ops::Neg;
 use num_traits::Zero;
 
-// 0 == Identity; 1 == Neg; 2 == GLV; 3 == GLV + Neg
+/// We use a batch size that is big enough to amortise the cost of the actual inversion
+/// close to zero while not straining the CPU cache by generating and fetching from
+/// large w-NAF tables and slices [G]
+pub const BATCH_SIZE: usize = 4096;
+/// 0 == Identity; 1 == Neg; 2 == GLV; 3 == GLV + Neg
 pub const ENDO_CODING_BITS: usize = 2;
 
 #[inline(always)]
-pub fn decode_endo_from_usize(index_code: usize) -> (usize, u8) {
-    (index_code >> 2, index_code as u8 % 4)
+pub fn decode_endo_from_u32(index_code: u32) -> (usize, u8) {
+    (
+        index_code as usize >> ENDO_CODING_BITS,
+        index_code as u8 % 4,
+    )
 }
 
 pub trait BatchGroupArithmetic
@@ -35,14 +42,14 @@ where
         let mut a_2 = bases.to_vec();
         let mut tmp = bases.to_vec();
 
-        let instr = (0..batch_size).collect::<Vec<usize>>();
+        let instr = (0..batch_size).map(|x| x as u32).collect::<Vec<_>>();
         Self::batch_double_in_place(&mut a_2, &instr[..], None);
 
         for i in 0..half_size {
             if i != 0 {
                 let instr = (0..batch_size)
-                    .map(|x| (x, x))
-                    .collect::<Vec<(usize, usize)>>();
+                    .map(|x| (x as u32, x as u32))
+                    .collect::<Vec<_>>();
                 Self::batch_add_in_place(&mut tmp, &mut a_2.to_vec()[..], &instr[..]);
             }
 
@@ -143,6 +150,11 @@ where
     /*
     We define a series of batched primitive EC ops, each of which is most suitable
     to a given scenario.
+
+    We encode the indexes as u32s to save on fetch latency via better cacheing. The
+    principle we are applying is that the len of the batch ops should never exceed
+    about 2^20, and the table size would never exceed 2^10, so 32 bits will always
+    be enough
     */
 
     /// Mutates bases to be doubled in place
@@ -150,24 +162,24 @@ where
     /// number of heap allocations for the Vector-based scratch_space
     fn batch_double_in_place(
         bases: &mut [Self],
-        index: &[usize],
+        index: &[u32],
         scratch_space: Option<&mut Vec<Self::BBaseField>>,
     );
 
     /// Mutates bases in place and stores result in the first operand.
     /// The element corresponding to the second operand becomes junk data.
-    fn batch_add_in_place_same_slice(bases: &mut [Self], index: &[(usize, usize)]);
+    fn batch_add_in_place_same_slice(bases: &mut [Self], index: &[(u32, u32)]);
 
     /// Mutates bases in place and stores result in bases.
     /// The elements in other become junk data.
-    fn batch_add_in_place(bases: &mut [Self], other: &mut [Self], index: &[(usize, usize)]);
+    fn batch_add_in_place(bases: &mut [Self], other: &mut [Self], index: &[(u32, u32)]);
 
     /// Adds elements in bases with elements in other (for instance, a table), utilising
     /// a scratch space to store intermediate results.
     fn batch_add_in_place_read_only(
         _bases: &mut [Self],
         _other: &[Self],
-        _index: &[(usize, usize)],
+        _index: &[(u32, u32)],
         _scratch_space: Option<&mut Vec<Self>>,
     ) {
         unimplemented!()
@@ -191,11 +203,11 @@ where
         }
 
         for opcode_row in opcode_vectorised.iter().rev() {
-            let index_double: Vec<usize> = opcode_row
+            let index_double: Vec<_> = opcode_row
                 .iter()
                 .enumerate()
                 .filter(|x| x.1.is_some())
-                .map(|x| x.0)
+                .map(|x| x.0 as u32)
                 .collect();
 
             Self::batch_double_in_place(&mut bases, &index_double[..], None);
@@ -214,13 +226,13 @@ where
                 })
                 .collect();
 
-            let index_add: Vec<(usize, usize)> = opcode_row
+            let index_add: Vec<_> = opcode_row
                 .iter()
                 .enumerate()
                 .filter(|(_, op)| op.is_some() && op.unwrap() != 0)
                 .map(|x| x.0)
                 .enumerate()
-                .map(|(x, y)| (y, x))
+                .map(|(x, y)| (y as u32, x as u32))
                 .collect();
 
             Self::batch_add_in_place(&mut bases, &mut add_ops[..], &index_add[..]);
@@ -229,8 +241,6 @@ where
 
     /// Chunks vectorised instructions into a size that does not require
     /// storing a lot of intermediate state
-
-    // Maybe put this as a helper function instead of in the trait?
     fn get_chunked_instr<T: Clone>(instr: &[T], batch_size: usize) -> Vec<Vec<T>> {
         let mut res = Vec::new();
 
@@ -253,27 +263,28 @@ where
     }
 }
 
-/// We make the syntax cleaner by defining corresponding trait and impl for [G]
+/// We make the syntax for performing batch ops on slices cleaner
+/// by defining a corresponding trait and impl for [G] rather than on G
 pub trait BatchGroupArithmeticSlice<G: AffineCurve> {
-    fn batch_double_in_place(&mut self, index: &[usize]);
+    fn batch_double_in_place(&mut self, index: &[u32]);
 
-    fn batch_add_in_place_same_slice(&mut self, index: &[(usize, usize)]);
+    fn batch_add_in_place_same_slice(&mut self, index: &[(u32, u32)]);
 
-    fn batch_add_in_place(&mut self, other: &mut Self, index: &[(usize, usize)]);
+    fn batch_add_in_place(&mut self, other: &mut Self, index: &[(u32, u32)]);
 
     fn batch_scalar_mul_in_place<BigInt: BigInteger>(&mut self, scalars: &mut [BigInt], w: usize);
 }
 
 impl<G: AffineCurve> BatchGroupArithmeticSlice<G> for [G] {
-    fn batch_double_in_place(&mut self, index: &[usize]) {
+    fn batch_double_in_place(&mut self, index: &[u32]) {
         G::batch_double_in_place(self, index, None);
     }
 
-    fn batch_add_in_place_same_slice(&mut self, index: &[(usize, usize)]) {
+    fn batch_add_in_place_same_slice(&mut self, index: &[(u32, u32)]) {
         G::batch_add_in_place_same_slice(self, index);
     }
 
-    fn batch_add_in_place(&mut self, other: &mut Self, index: &[(usize, usize)]) {
+    fn batch_add_in_place(&mut self, other: &mut Self, index: &[(u32, u32)]) {
         G::batch_add_in_place(self, other, index);
     }
 

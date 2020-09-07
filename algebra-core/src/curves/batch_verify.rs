@@ -1,7 +1,7 @@
 use crate::fields::FpParameters;
 use crate::{
-    cfg_chunks_mut,
-    curves::{batch_bucketed_add_split, BatchGroupArithmeticSlice},
+    cfg_chunks_mut, log2,
+    curves::{batch_bucketed_add_split, BatchGroupArithmeticSlice, BATCH_SIZE},
     AffineCurve, PrimeField, ProjectiveCurve, Vec,
 };
 use num_traits::{identities::Zero, Pow};
@@ -25,11 +25,10 @@ impl fmt::Display for VerificationError {
     }
 }
 
-// Only pass new_security_param if possibly recursing
 fn verify_points<C: AffineCurve, R: Rng>(
     points: &[C],
     num_buckets: usize,
-    new_security_param: Option<usize>,
+    new_security_param: Option<usize>, // Only pass new_security_param if possibly recursing
     rng: &mut R,
 ) -> Result<(), VerificationError> {
     let mut bucket_assign = Vec::with_capacity(points.len());
@@ -44,12 +43,12 @@ fn verify_points<C: AffineCurve, R: Rng>(
     if num_buckets <= MAX_BUCKETS_FOR_FULL_CHECK || new_security_param == None {
         // We use the batch scalar mul to check the subgroup condition if
         // there are sufficient number of buckets
-        let verification_failure = if num_buckets >= 4096 {
-            cfg_chunks_mut!(buckets, 4096).for_each(|e| {
+        let verification_failure = if num_buckets >= BATCH_SIZE {
+            cfg_chunks_mut!(buckets, BATCH_SIZE).for_each(|e| {
                 let length = e.len();
                 e[..].batch_scalar_mul_in_place::<<C::ScalarField as PrimeField>::BigInt>(
                     &mut vec![C::ScalarField::modulus().into(); length][..],
-                    1,
+                    4,
                 );
             });
             !buckets.iter().all(|&p| p == C::zero())
@@ -65,22 +64,18 @@ fn verify_points<C: AffineCurve, R: Rng>(
         // Since !new_security_param.is_none():
         let new_security_param = new_security_param.unwrap();
 
-        // Temporarily commented out until a fix can be found for the recursive version of the test
-
-        // if buckets.len() > 4096 {
-        //     batch_verify_in_subgroup_recursive(&buckets[..], new_security_param, rng)?;
-        // } else {
-
-        batch_verify_in_subgroup_proj(
-            &buckets
-                .iter()
-                .map(|&p| p.into())
-                .collect::<Vec<C::Projective>>()[..],
-            new_security_param,
-            rng,
-        )?;
-
-        // }
+        if buckets.len() > 4096 {
+            batch_verify_in_subgroup_recursive(&buckets[..], new_security_param, rng)?;
+        } else {
+            batch_verify_in_subgroup_proj(
+                &buckets
+                    .iter()
+                    .map(|&p| p.into())
+                    .collect::<Vec<C::Projective>>()[..],
+                new_security_param,
+                rng,
+            )?;
+        }
     }
     Ok(())
 }
@@ -123,10 +118,8 @@ fn run_rounds<C: AffineCurve, R: Rng>(
     }
 
     #[cfg(not(feature = "parallel"))]
-    {
-        for _ in 0..num_rounds {
-            verify_points(points, num_buckets, new_security_param, rng)?;
-        }
+    for _ in 0..num_rounds {
+        verify_points(points, num_buckets, new_security_param, rng)?;
     }
 
     Ok(())
@@ -146,20 +139,24 @@ pub fn batch_verify_in_subgroup<C: AffineCurve, R: Rng>(
     Ok(())
 }
 
-/// Temporarily commented out until a fix can be found for the recursive version of the test
-
-// pub fn batch_verify_in_subgroup_recursive<C: AffineCurve, R: Rng>(
-//     points: &[C],
-//     security_param: usize,
-//     rng: &mut R,
-// ) -> Result<(), VerificationError> {
-//     // we add security for maximum depth, as recursive depth adds additional error to error bound
-//     let security_param = security_param + (log2(log2(security_param) as usize) as usize) + 1;
-//     let (num_buckets, num_rounds, new_security_param) =
-//         get_max_bucket(security_param, points.len(), 2);
-//     run_rounds(points, num_buckets, num_rounds, Some(new_security_param), rng)?;
-//     Ok(())
-// }
+pub fn batch_verify_in_subgroup_recursive<C: AffineCurve, R: Rng>(
+    points: &[C],
+    security_param: usize,
+    rng: &mut R,
+) -> Result<(), VerificationError> {
+    // we add security for maximum depth, as recursive depth adds additional error to error bound
+    let security_param = security_param + (log2(log2(security_param) as usize) as usize) + 1;
+    let (num_buckets, num_rounds, new_security_param) =
+        get_max_bucket(security_param, points.len(), 2);
+    run_rounds(
+        points,
+        num_buckets,
+        num_rounds,
+        Some(new_security_param),
+        rng,
+    )?;
+    Ok(())
+}
 
 pub fn batch_verify_in_subgroup_proj<C: ProjectiveCurve, R: Rng>(
     points: &[C],
@@ -195,10 +192,9 @@ pub fn batch_verify_in_subgroup_proj<C: ProjectiveCurve, R: Rng>(
     Ok(())
 }
 
-// We get the greatest power of 2 number of buckets
-// such that we minimise the number of rounds
-// while satisfying the constraint that
-// number of rounds * buckets * next_check_per_elem_cost < n
+/// We get the greatest power of 2 number of buckets such that we minimise the
+/// number of rounds while satisfying the constraint that
+/// n_rounds * buckets * next_check_per_elem_cost < n
 fn get_max_bucket(
     security_param: usize,
     n_elems: usize,

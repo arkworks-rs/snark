@@ -19,9 +19,7 @@ impl ModelParameters for Parameters {
     type BaseField = Fq;
     type ScalarField = Fr;
 }
-
 impl SWModelParameters for Parameters {
-    const GLV: bool = false;
     /// COEFF_A =
     #[rustfmt::skip]
     const COEFF_A: Fq = field_new!(Fq, BigInteger320([
