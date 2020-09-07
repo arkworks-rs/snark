@@ -7,7 +7,7 @@ use crate::{
             BatchFieldBasedMerkleTreeParameters, check_precomputed_parameters,
             FieldBasedMerkleTreePath, FieldBasedBinaryMHTPath,
             smt::{
-                Coord, OperationLeaf, ActionLeaf::Remove, BigMerkleTreeState, Error
+                Coord, OperationLeaf, ActionLeaf::Remove, BigMerkleTreeState
             },
         },
     }
@@ -16,7 +16,7 @@ use crate::{
 use rocksdb::{DB, Options};
 
 use std::{
-  collections::HashSet, marker::PhantomData, fs, path::Path,
+  collections::HashSet, marker::PhantomData, fs, path::Path, io::{Error, ErrorKind},
 };
 
 #[derive(Debug)]
@@ -78,10 +78,11 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         let width = T::MERKLE_ARITY.pow(height as u32);
         let path_db = path_db;
         let database = DB::open_default(path_db.clone())
-            .map_err(|e| Error::Other(e.to_string()))?;
+            .map_err(|e| Error::new(ErrorKind::Other, e))?;
         let path_cache = path_cache;
         let db_cache = DB::open_default(path_cache.clone())
-            .map_err(|e| Error::Other(e.to_string()))?;
+            .map_err(|e| Error::new(ErrorKind::Other, e))?;
+
         Ok(LazyBigMerkleTree {
             persistent,
             state_path,
@@ -116,21 +117,20 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
 
         // Reads the state
         let state = { 
-            let state_file = fs::File::open(state_path.clone())
-                .map_err(|e| Error::Other(e.to_string()))?;
-            BigMerkleTreeState::<T>::read(state_file)
-        }.map_err(|e| Error::Other(e.to_string()))?;
+            let state_file = fs::File::open(state_path.clone())?;
+            BigMerkleTreeState::<T>::read(state_file)?
+        };
         let height = T::HEIGHT - 1;
         let width = T::MERKLE_ARITY.pow(height as u32);
         let opening_options = Options::default();
 
         let path_db = path_db;
         let database = DB::open(&opening_options, path_db.clone())
-            .map_err(|e| Error::Other(e.to_string()))?;
+            .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
         let path_cache = path_cache;
         let db_cache = DB::open(&opening_options,path_cache.clone())
-            .map_err(|e| Error::Other(e.to_string()))?;
+            .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
         Ok(LazyBigMerkleTree {
             persistent,

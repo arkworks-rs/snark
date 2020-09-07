@@ -7,7 +7,7 @@ use crate::{
             FieldBasedMerkleTreeParameters,
             FieldBasedMerkleTreePath, FieldBasedBinaryMHTPath,
             smt::{
-                Coord, OperationLeaf, ActionLeaf::Insert, BigMerkleTreeState, Error,
+                Coord, OperationLeaf, ActionLeaf::Insert, BigMerkleTreeState,
             },
             check_precomputed_parameters
         }
@@ -17,7 +17,7 @@ use crate::{
 use rocksdb::{DB, Options};
 
 use std::{
-    marker::PhantomData, fs, path::Path
+    marker::PhantomData, fs, path::Path, io::{Error, ErrorKind},
 };
 
 #[derive(Debug)]
@@ -79,12 +79,15 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         let state = BigMerkleTreeState::<T>::get_default_state();
         let height = T::HEIGHT - 1;
         let width = T::MERKLE_ARITY.pow(height as u32);
+
         let path_db = path_db;
         let database = DB::open_default(path_db.clone())
-            .map_err(|e| Error::Other(e.to_string()))?;
+            .map_err(|e| Error::new(ErrorKind::Other, e))?;
+
         let path_cache = path_cache;
         let db_cache = DB::open_default(path_cache.clone())
-            .map_err(|e| Error::Other(e.to_string()))?;
+            .map_err(|e| Error::new(ErrorKind::Other, e))?;
+
         Ok(BigMerkleTree {
             persistent,
             state_path,
@@ -118,10 +121,9 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         assert_eq!(rate, T::MERKLE_ARITY);
 
         let state = {
-            let state_file = fs::File::open(state_path.clone())
-                .map_err(|e| Error::Other(e.to_string()))?;
-            BigMerkleTreeState::<T>::read(state_file)
-        }.map_err(|e| Error::Other(e.to_string()))?;
+            let state_file = fs::File::open(state_path.clone())?;
+            BigMerkleTreeState::<T>::read(state_file)?
+        };
 
         let height = T::HEIGHT - 1;
         let width = T::MERKLE_ARITY.pow(height as u32);
@@ -130,11 +132,11 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
 
         let path_db = path_db;
         let database = DB::open(&opening_options, path_db.clone())
-            .map_err(|e| Error::Other(e.to_string()))?;
+            .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
         let path_cache = path_cache;
         let db_cache = DB::open(&opening_options,path_cache.clone())
-            .map_err(|e| Error::Other(e.to_string()))?;
+            .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
         Ok(BigMerkleTree {
             persistent,
