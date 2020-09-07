@@ -352,7 +352,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         //let coord = Coord{height, idx};
         // if the node is an empty node return the hash constant
         if !self.state.present_node.contains(&coord) {
-            return T::EMPTY_HASH_CST.unwrap().get_empty_node(coord.height);
+            return T::EMPTY_HASH_CST.unwrap().nodes[coord.height];
         }
         let res = self.get_from_cache(coord);
 
@@ -368,7 +368,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
                 if let Some(i) = left_child {
                     left_hash = i;
                 } else {
-                    left_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(0);
+                    left_hash = T::EMPTY_HASH_CST.unwrap().nodes[0];
                 }
 
                 let right_child_idx = left_child_idx + 1;
@@ -377,7 +377,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
                 if let Some(i) = right_child {
                     right_hash = i;
                 } else {
-                    right_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(0);
+                    right_hash = T::EMPTY_HASH_CST.unwrap().nodes[0];
                 }
                 node_hash = Self::field_hash(&left_hash, &right_hash);
             } else {
@@ -518,7 +518,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
                 left_hash = i;
                 left_child_present = true;
             } else {
-                left_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(0);
+                left_hash = T::EMPTY_HASH_CST.unwrap().nodes[0];
                 left_child_present = false;
             }
 
@@ -527,7 +527,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
                 right_hash = i;
                 right_child_present = true;
             } else {
-                right_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(0);
+                right_hash = T::EMPTY_HASH_CST.unwrap().nodes[0];
                 right_child_present = false;
             }
             input_vec.push(left_hash);
@@ -651,7 +651,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
                     self.node(sibling_coord)
                 }
             } else { // If it's empty then we can directly get the precomputed empty at this height
-                T::EMPTY_HASH_CST.unwrap().get_empty_node(height)
+                T::EMPTY_HASH_CST.unwrap().nodes[height]
             };
 
             // Push info to path
@@ -688,7 +688,7 @@ mod test {
             naive:: NaiveMerkleTree,
             smt::{OperationLeaf, Coord, ActionLeaf, BigMerkleTree, LazyBigMerkleTree},
             poseidon::{
-                MNT4753MHTPoseidonParameters, MNT6753MHTPoseidonParameters
+                MNT4753_MHT_POSEIDON_PARAMETERS, MNT6753_MHT_POSEIDON_PARAMETERS
             },
             FieldBasedMerkleTreeParameters, BatchFieldBasedMerkleTreeParameters,
             FieldBasedMerkleTreePrecomputedEmptyConstants, FieldBasedMerkleTreePath
@@ -712,7 +712,7 @@ mod test {
         type H = MNT4PoseidonHash;
         const HEIGHT: usize = 6;
         const MERKLE_ARITY: usize = 2;
-        const EMPTY_HASH_CST: Option<&'static dyn FieldBasedMerkleTreePrecomputedEmptyConstants<H=Self::H>> = Some(&MNT4753MHTPoseidonParameters);
+        const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> = Some(MNT4753_MHT_POSEIDON_PARAMETERS);
     }
     impl BatchFieldBasedMerkleTreeParameters for MNT4753FieldBasedMerkleTreeParams {
         type BH = MNT4BatchPoseidonHash;
@@ -728,7 +728,7 @@ mod test {
         type H = MNT6PoseidonHash;
         const HEIGHT: usize = 6;
         const MERKLE_ARITY: usize = 2;
-        const EMPTY_HASH_CST: Option<&'static dyn FieldBasedMerkleTreePrecomputedEmptyConstants<H=Self::H>> = Some(&MNT6753MHTPoseidonParameters);
+        const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> = Some(MNT6753_MHT_POSEIDON_PARAMETERS);
     }
     impl BatchFieldBasedMerkleTreeParameters for MNT6753FieldBasedMerkleTreeParams {
         type BH = MNT6BatchPoseidonHash;
@@ -999,7 +999,7 @@ mod test {
         type H = MNT4PoseidonHash;
         const HEIGHT: usize = 24;
         const MERKLE_ARITY: usize = 2;
-        const EMPTY_HASH_CST: Option<&'static dyn FieldBasedMerkleTreePrecomputedEmptyConstants<H=Self::H>> = Some(&MNT4753MHTPoseidonParameters);
+        const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> = Some(MNT4753_MHT_POSEIDON_PARAMETERS);
     }
     impl BatchFieldBasedMerkleTreeParameters for MNT4753FieldBasedMerkleTreeParamsComp {
         type BH = MNT4BatchPoseidonHash;
@@ -1014,7 +1014,7 @@ mod test {
         type H = MNT6PoseidonHash;
         const HEIGHT: usize = 24;
         const MERKLE_ARITY: usize = 2;
-        const EMPTY_HASH_CST: Option<&'static dyn FieldBasedMerkleTreePrecomputedEmptyConstants<H=Self::H>> = Some(&MNT6753MHTPoseidonParameters);
+        const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> = Some(MNT6753_MHT_POSEIDON_PARAMETERS);
     }
     impl BatchFieldBasedMerkleTreeParameters for MNT6753FieldBasedMerkleTreeParamsComp {
         type BH = MNT6BatchPoseidonHash;
@@ -1106,7 +1106,7 @@ mod test {
         assert_eq!(root1, root2, "Roots are not equal");
         assert_eq!(root3, root4, "Roots are not equal");
 
-        assert_eq!(root3, MNT4753MHTPoseidonParameters::EMPTY_HASH_CST[23], "Sequence of roots not equal");
+        assert_eq!(root3, MNT4753_MHT_POSEIDON_PARAMETERS.nodes[23], "Sequence of roots not equal");
 
     }
 
@@ -1194,7 +1194,7 @@ mod test {
         assert_eq!(root1, root2, "Roots are not equal");
         assert_eq!(root3, root4, "Roots are not equal");
 
-        assert_eq!(root3, MNT6753MHTPoseidonParameters::EMPTY_HASH_CST[23], "Sequence of roots not equal");
+        assert_eq!(root3, MNT6753_MHT_POSEIDON_PARAMETERS.nodes[23], "Sequence of roots not equal");
 
     }
 }

@@ -90,7 +90,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTreeState<T> {
         Self{
             cache_path: HashMap::new(),
             present_node: HashSet::new(),
-            root: T::EMPTY_HASH_CST.unwrap().get_empty_node(T::HEIGHT),
+            root: T::EMPTY_HASH_CST.unwrap().nodes[T::HEIGHT],
             _parameters: PhantomData,
         }
     }

@@ -28,7 +28,15 @@ pub trait FieldBasedMerkleTreeParameters: 'static + Clone {
     /// The arity of the Merkle Tree
     const MERKLE_ARITY: usize;
     /// The pre-computed hashes of the empty nodes for the different levels of the Merkle Tree
-    const EMPTY_HASH_CST: Option<&'static dyn FieldBasedMerkleTreePrecomputedEmptyConstants<H = Self::H>>;
+    const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>>;
+}
+
+/// Pre-computed hashes of the empty nodes for the different levels of the Merkle Tree
+pub struct FieldBasedMerkleTreePrecomputedEmptyConstants<'a, H: FieldBasedHash> {
+    pub nodes: &'a [H::Data],
+    pub merkle_arity: usize,
+    pub max_height: usize,
+    //_hash: PhantomData<H>,
 }
 
 /// For optimized Merkle Tree implementations, it provides the possibility to specify
@@ -40,23 +48,12 @@ pub trait BatchFieldBasedMerkleTreeParameters: FieldBasedMerkleTreeParameters {
     >;
 }
 
-pub trait FieldBasedMerkleTreePrecomputedEmptyConstants {
-    type H: FieldBasedHash;
-
-    fn supported_max_height(&self) -> usize;
-
-    fn supported_arity(&self) -> usize;
-
-    fn get_empty_node(&self, height: usize) -> <Self::H as FieldBasedHash>::Data;
-
-}
-
 pub(crate) fn check_precomputed_parameters<T: FieldBasedMerkleTreeParameters>() -> bool
 {
     match T::EMPTY_HASH_CST {
         Some(supported_params) => {
-            T::HEIGHT <= supported_params.supported_max_height() &&
-                T::MERKLE_ARITY == supported_params.supported_arity() &&
+            T::HEIGHT <= supported_params.max_height &&
+                T::MERKLE_ARITY == supported_params.merkle_arity &&
                 T::MERKLE_ARITY == <<T::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R
         }
         None => false

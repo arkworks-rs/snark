@@ -350,7 +350,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
             if let Some(i) = old_leaf {
                 old_hash = i;
             } else {
-                old_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(0);
+                old_hash = T::EMPTY_HASH_CST.unwrap().nodes[0];
             }
             if old_hash != leaf {
                 self.insert_to_db(coord.idx, leaf);
@@ -380,7 +380,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         // take that leaf from the non-empty set
         self.state.present_node.remove(&coord);
         self.state.cache_path.clear();
-        self.state.cache_path.insert(coord, T::EMPTY_HASH_CST.unwrap().get_empty_node(0));
+        self.state.cache_path.insert(coord, T::EMPTY_HASH_CST.unwrap().nodes[0]);
         // removes the leaf from the db
         let res = self.remove_from_db(coord.idx);
         // if it was in the db, update the tree
@@ -421,7 +421,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
                     self.node(sibling_coord)
                 }
             } else { // If it's empty then we can directly get the precomputed empty at this height
-                T::EMPTY_HASH_CST.unwrap().get_empty_node(height)
+                T::EMPTY_HASH_CST.unwrap().nodes[height]
             };
 
             // Push info to path
@@ -472,7 +472,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
             if let Some(i) = hash {
                 left_hash = *i;
             } else {
-                left_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(0);
+                left_hash = T::EMPTY_HASH_CST.unwrap().nodes[0];
             }
             right_child_idx = idx + 1;
             right_child_coord = Coord { height, idx: right_child_idx };
@@ -481,10 +481,10 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
                 if let Some(i) = right_child {
                     right_hash = i;
                 } else {
-                    right_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(0);
+                    right_hash = T::EMPTY_HASH_CST.unwrap().nodes[0];
                 }
             } else {
-                right_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(0);
+                right_hash = T::EMPTY_HASH_CST.unwrap().nodes[0];
             }
         } else {
             right_child_idx = idx;
@@ -494,7 +494,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
             if let Some(i) = hash {
                 right_hash = *i;
             } else {
-                right_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(0);
+                right_hash = T::EMPTY_HASH_CST.unwrap().nodes[0];
             }
             left_child_idx = idx - 1;
             left_child_coord = Coord { height, idx: left_child_idx };
@@ -503,10 +503,10 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
                 if let Some(i) = left_child {
                     left_hash = i;
                 } else {
-                    left_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(0);
+                    left_hash = T::EMPTY_HASH_CST.unwrap().nodes[0];
                 }
             } else {
-                left_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(0);
+                left_hash = T::EMPTY_HASH_CST.unwrap().nodes[0];
             }
         }
 
@@ -519,7 +519,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         if (!self.state.present_node.contains(&left_child_coord)) & (!self.state.present_node.contains(&right_child_coord)) {
             // if both children are empty
 
-            node_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(height);
+            node_hash = T::EMPTY_HASH_CST.unwrap().nodes[height];
 
             // insert the parent node into the cache_path
             self.state.cache_path.insert(parent_coord, node_hash);
@@ -581,7 +581,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
             if (!self.state.present_node.contains(&left_child_coord)) & (!self.state.present_node.contains(&right_child_coord)) {
                 // both children are empty => parent as well
 
-                node_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(height);
+                node_hash = T::EMPTY_HASH_CST.unwrap().nodes[height];
                 // insert the parent node into the cache_path
                 self.state.cache_path.insert(parent_coord, node_hash);
                 // remove node from non_empty set
@@ -689,7 +689,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         //let coord = Coord{height, idx};
         // if the node is an empty node return the hash constant
         if !self.state.present_node.contains(&coord) {
-            return T::EMPTY_HASH_CST.unwrap().get_empty_node(coord.height);
+            return T::EMPTY_HASH_CST.unwrap().nodes[coord.height];
         }
         let res = self.get_from_cache(coord);
 
@@ -705,7 +705,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
                 if let Some(i) = left_child {
                     left_hash = i;
                 } else {
-                    left_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(0);
+                    left_hash = T::EMPTY_HASH_CST.unwrap().nodes[0];
                 }
 
                 let right_child_idx = left_child_idx + 1;
@@ -714,7 +714,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
                 if let Some(i) = right_child {
                     right_hash = i;
                 } else {
-                    right_hash = T::EMPTY_HASH_CST.unwrap().get_empty_node(0);
+                    right_hash = T::EMPTY_HASH_CST.unwrap().nodes[0];
                 }
                 node_hash = Self::field_hash(&left_hash, &right_hash);
             } else {
@@ -778,7 +778,7 @@ mod test {
             naive:: NaiveMerkleTree,
             smt::{OperationLeaf, Coord, ActionLeaf, BigMerkleTree},
             poseidon::{
-                MNT4753MHTPoseidonParameters, MNT6753MHTPoseidonParameters
+                MNT4753_MHT_POSEIDON_PARAMETERS, MNT6753_MHT_POSEIDON_PARAMETERS
             },
             FieldBasedMerkleTreeParameters, FieldBasedMerkleTreePrecomputedEmptyConstants,
             FieldBasedMerkleTreePath
@@ -800,7 +800,7 @@ mod test {
         type H = MNT4PoseidonHash;
         const HEIGHT: usize = 6;
         const MERKLE_ARITY: usize = 2;
-        const EMPTY_HASH_CST: Option<&'static dyn FieldBasedMerkleTreePrecomputedEmptyConstants<H=Self::H>> = Some(&MNT4753MHTPoseidonParameters);
+        const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> = Some(MNT4753_MHT_POSEIDON_PARAMETERS);
     }
 
     type MNT4753FieldBasedMerkleTree = NaiveMerkleTree<MNT4753FieldBasedMerkleTreeParams>;
@@ -813,7 +813,7 @@ mod test {
         type H = MNT6PoseidonHash;
         const HEIGHT: usize = 6;
         const MERKLE_ARITY: usize = 2;
-        const EMPTY_HASH_CST: Option<&'static dyn FieldBasedMerkleTreePrecomputedEmptyConstants<H=Self::H>> = Some(&MNT6753MHTPoseidonParameters);
+        const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> = Some(MNT6753_MHT_POSEIDON_PARAMETERS);
     }
 
     type MNT6753FieldBasedMerkleTree = NaiveMerkleTree<MNT6753FieldBasedMerkleTreeParams>;

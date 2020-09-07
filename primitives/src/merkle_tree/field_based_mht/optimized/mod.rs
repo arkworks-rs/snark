@@ -53,7 +53,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
     fn batch_hash(input: &mut [T::Data], output: &mut [T::Data], parent_level: usize) {
 
         let mut i = 0;
-        let empty = T::EMPTY_HASH_CST.unwrap().get_empty_node(parent_level - 1);
+        let empty = T::EMPTY_HASH_CST.unwrap().nodes[parent_level - 1];
 
         // Stores the chunk that must be hashed, i.e. the ones containing at least one non-empty node
         let mut to_hash = Vec::new();
@@ -67,7 +67,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
         // otherwise it must be computed.
         input.chunks(T::MERKLE_ARITY).for_each(|input_chunk| {
             if input_chunk.iter().all(|&item| item == empty) {
-                output[i] = T::EMPTY_HASH_CST.unwrap().get_empty_node(parent_level);
+                output[i] = T::EMPTY_HASH_CST.unwrap().nodes[parent_level];
             } else {
                 to_hash.extend_from_slice(input_chunk);
                 output_pos.push(i);
@@ -280,21 +280,17 @@ mod test {
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
 
-    use crate::{
-        crh::poseidon::{
-            MNT4PoseidonHash, MNT6PoseidonHash,
-            batched_crh::{MNT4BatchPoseidonHash, MNT6BatchPoseidonHash}
-        },
-        merkle_tree::field_based_mht::{
-            FieldBasedMerkleTree, NaiveMerkleTree,
-            FieldBasedMerkleTreePath, FieldBasedMerkleTreeParameters,
-            BatchFieldBasedMerkleTreeParameters, FieldBasedOptimizedMHT,
-            FieldBasedMerkleTreePrecomputedEmptyConstants,
-            poseidon::{
-                MNT4753MHTPoseidonParameters, MNT6753MHTPoseidonParameters
-            }
-        },
-    };
+    use crate::{crh::poseidon::{
+        MNT4PoseidonHash, MNT6PoseidonHash,
+        batched_crh::{MNT4BatchPoseidonHash, MNT6BatchPoseidonHash}
+    }, merkle_tree::field_based_mht::{
+        FieldBasedMerkleTree, NaiveMerkleTree,
+        FieldBasedMerkleTreePath, FieldBasedMerkleTreeParameters,
+        BatchFieldBasedMerkleTreeParameters, FieldBasedOptimizedMHT,
+        poseidon::{
+            MNT4753_MHT_POSEIDON_PARAMETERS, MNT6753_MHT_POSEIDON_PARAMETERS
+        }
+    }, FieldBasedMerkleTreePrecomputedEmptyConstants};
 
     // OptimizedMHT definitions for tests below
     #[derive(Clone, Debug)]
@@ -305,7 +301,7 @@ mod test {
         type H = MNT4PoseidonHash;
         const HEIGHT: usize = 21;
         const MERKLE_ARITY: usize = 2;
-        const EMPTY_HASH_CST: Option<&'static dyn FieldBasedMerkleTreePrecomputedEmptyConstants<H=Self::H>> = Some(&MNT4753MHTPoseidonParameters);
+        const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> = Some(MNT4753_MHT_POSEIDON_PARAMETERS);
     }
 
     impl BatchFieldBasedMerkleTreeParameters for MNT4753FieldBasedOptimizedBigMerkleTreeParams {
@@ -322,7 +318,7 @@ mod test {
         type H = MNT6PoseidonHash;
         const HEIGHT: usize = 21;
         const MERKLE_ARITY: usize = 2;
-        const EMPTY_HASH_CST: Option<&'static dyn FieldBasedMerkleTreePrecomputedEmptyConstants<H=Self::H>> = Some(&MNT6753MHTPoseidonParameters);
+        const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> = Some(MNT6753_MHT_POSEIDON_PARAMETERS);
     }
 
     impl BatchFieldBasedMerkleTreeParameters for MNT6753FieldBasedOptimizedBigMerkleTreeParams {
@@ -365,7 +361,7 @@ mod test {
         type H = MNT4PoseidonHash;
         const HEIGHT: usize = 7;
         const MERKLE_ARITY: usize = 2;
-        const EMPTY_HASH_CST: Option<&'static dyn FieldBasedMerkleTreePrecomputedEmptyConstants<H=Self::H>> = Some(&MNT4753MHTPoseidonParameters);
+        const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> = Some(MNT4753_MHT_POSEIDON_PARAMETERS);
     }
 
     impl BatchFieldBasedMerkleTreeParameters for MNT4753FieldBasedMerkleTreeParams {
@@ -382,7 +378,7 @@ mod test {
         type H = MNT6PoseidonHash;
         const HEIGHT: usize = 7;
         const MERKLE_ARITY: usize = 2;
-        const EMPTY_HASH_CST: Option<&'static dyn FieldBasedMerkleTreePrecomputedEmptyConstants<H=Self::H>> = Some(&MNT6753MHTPoseidonParameters);
+        const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> = Some(MNT6753_MHT_POSEIDON_PARAMETERS);
     }
 
     impl BatchFieldBasedMerkleTreeParameters for MNT6753FieldBasedMerkleTreeParams {

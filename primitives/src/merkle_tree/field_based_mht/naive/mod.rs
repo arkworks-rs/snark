@@ -190,7 +190,7 @@ mod test {
         type H = MNT4PoseidonHash;
         const HEIGHT: usize = 6;
         const MERKLE_ARITY: usize = 2;
-        const EMPTY_HASH_CST: Option<&'static dyn FieldBasedMerkleTreePrecomputedEmptyConstants<H=Self::H>> = Some(&MNT4753MHTPoseidonParameters);
+        const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> = Some(MNT4753_MHT_POSEIDON_PARAMETERS);
     }
 
     impl BatchFieldBasedMerkleTreeParameters for MNT4753FieldBasedMerkleTreeParams {
