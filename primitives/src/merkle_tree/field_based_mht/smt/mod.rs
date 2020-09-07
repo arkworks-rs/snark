@@ -15,8 +15,6 @@ use algebra::{
 
 use crate::merkle_tree::field_based_mht::FieldBasedMerkleTreeParameters;
 
-use serde::{Serialize,Deserialize};
-
 use std::{
     io::{Write, Result as IoResult, Read},
     collections::{HashMap, HashSet},
@@ -29,7 +27,7 @@ pub enum ActionLeaf {
     Remove,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 // Coordinates system for identifying a node
 pub struct Coord {
     // height in the Merkle tree (0 -> leaves)
@@ -47,14 +45,14 @@ impl Coord {
 impl ToBytes for Coord {
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
         (self.height as u8).write(&mut writer)?;
-        (self.idx as u64).write(&mut writer)
+        (self.idx as u32).write(&mut writer)
     }
 }
 
 impl FromBytes for Coord {
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
         let height = u8::read(&mut reader)? as usize;
-        let idx = u64::read(&mut reader)? as usize;
+        let idx = u32::read(&mut reader)? as usize;
         Ok(Self::new(height, idx))
     }
 }
@@ -98,13 +96,13 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTreeState<T> {
 
 impl<T: FieldBasedMerkleTreeParameters> ToBytes for BigMerkleTreeState<T> {
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
-        (self.cache_path.len() as u64).write(&mut writer)?;
+        (self.cache_path.len() as u8).write(&mut writer)?;
         for (&coord, &fe) in self.cache_path.iter() {
             coord.write(&mut writer)?;
             fe.write(&mut writer)?;
         }
 
-        (self.present_node.len() as u64).write(&mut writer)?;
+        (self.present_node.len() as u32).write(&mut writer)?;
         for &coord in self.present_node.iter() {
             coord.write(&mut writer)?;
         }
@@ -115,7 +113,7 @@ impl<T: FieldBasedMerkleTreeParameters> ToBytes for BigMerkleTreeState<T> {
 
 impl<T: FieldBasedMerkleTreeParameters> FromBytes for BigMerkleTreeState<T> {
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
-        let cache_path_len = u64::read(&mut reader)? as usize;
+        let cache_path_len = u8::read(&mut reader)? as usize;
         let mut cache_path = HashMap::new();
         for _ in 0..cache_path_len {
             let coord = Coord::read(&mut reader)?;
@@ -123,7 +121,7 @@ impl<T: FieldBasedMerkleTreeParameters> FromBytes for BigMerkleTreeState<T> {
             cache_path.insert(coord, fe);
         }
 
-        let present_node_len = u64::read(&mut reader)? as usize;
+        let present_node_len = u32::read(&mut reader)? as usize;
         let mut present_node = HashSet::new();
         for _ in 0..present_node_len {
             let coord = Coord::read(&mut reader)?;

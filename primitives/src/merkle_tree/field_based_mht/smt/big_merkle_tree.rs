@@ -197,14 +197,14 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         // Inserts the node into the cache
 
         let elem = to_bytes!(data).unwrap();
-        let index = bincode::serialize(&coord).unwrap();
+        let index = to_bytes!(coord).unwrap();
         self.db_cache.put(index, elem).unwrap();
     }
 
     pub fn contains_key_in_cache(&self, coord:Coord) -> bool {
         // Checks if the node is in the cache
 
-        let coordinates = bincode::serialize(&coord).unwrap();
+        let coordinates = to_bytes!(coord).unwrap();
         match self.db_cache.get(coordinates) {
             Ok(Some(_value)) => {
                 return true;
@@ -224,7 +224,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         // If the node is in the cache, it returns the hash as an option
         // If the node is not in the cache, or there is an error, it returns none
 
-        let coordinates = bincode::serialize(&coord).unwrap();
+        let coordinates = to_bytes!(coord).unwrap();
         match self.db_cache.get(coordinates) {
             Ok(Some(value)) => {
                 let retrieved_elem = T::Data::read(value.as_slice()).unwrap();
@@ -245,7 +245,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         // If the node was in the cache, it deletes the node and returns the hash as an option
         // If the node was not present in the cache, or if there was an error, it returns none
 
-        let coordinates = bincode::serialize(&coord).unwrap();
+        let coordinates = to_bytes!(coord).unwrap();
         match self.db_cache.get(coordinates.clone()) {
             Ok(Some(value)) => {
                 let retrieved_elem = T::Data::read(value.as_slice()).unwrap();
@@ -278,14 +278,14 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         // Inserts the leaf to the db
 
         let elem = to_bytes!(data).unwrap();
-        let index = bincode::serialize(&idx).unwrap();
+        let index = to_bytes!(idx as u32).unwrap();
         self.database.put(index, elem).unwrap();
     }
 
     pub fn get_from_db(&self, idx: usize) -> Option<T::Data>{
         // Retrieves the leaf from the db
 
-        let index = bincode::serialize(&idx).unwrap();
+        let index = to_bytes!(idx as u32).unwrap();
         match self.database.get(index) {
             Ok(Some(value)) => {
                 let retrieved_elem = T::Data::read(value.as_slice()).unwrap();
@@ -306,7 +306,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         // If the leaf was in the db, it return the hash as an option
         // If the leaf was not present, or if there is an error, it returns none
 
-        let index = bincode::serialize(&idx).unwrap();
+        let index = to_bytes!(idx as u32).unwrap();
         match self.database.get(index.clone()) {
             Ok(Some(value)) => {
                 let retrieved_elem = T::Data::read(value.as_slice()).unwrap();

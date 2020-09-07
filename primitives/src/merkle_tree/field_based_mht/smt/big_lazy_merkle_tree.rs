@@ -188,12 +188,12 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
 
     pub fn insert_to_cache(&self, coord: Coord, data:T::Data) {
         let elem = to_bytes!(data).unwrap();
-        let index = bincode::serialize(&coord).unwrap();
+        let index = to_bytes!(coord).unwrap();
         self.db_cache.put(index, elem).unwrap();
     }
 
     pub fn contains_key_in_cache(&self, coord:Coord) -> bool {
-        let coordinates = bincode::serialize(&coord).unwrap();
+        let coordinates = to_bytes!(coord).unwrap();
         match self.db_cache.get(coordinates) {
             Ok(Some(_value)) => {
                 return true;
@@ -209,7 +209,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
     }
 
     pub fn get_from_cache(&self, coord:Coord) -> Option<T::Data> {
-        let coordinates = bincode::serialize(&coord).unwrap();
+        let coordinates = to_bytes!(coord).unwrap();
         match self.db_cache.get(coordinates) {
             Ok(Some(value)) => {
                 let retrieved_elem = T::Data::read(value.as_slice()).unwrap();
@@ -226,7 +226,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
     }
 
     pub fn remove_from_cache(&self, coord: Coord) -> Option<T::Data>{
-        let coordinates = bincode::serialize(&coord).unwrap();
+        let coordinates = to_bytes!(coord).unwrap();
         match self.db_cache.get(coordinates.clone()) {
             Ok(Some(value)) => {
                 let retrieved_elem = T::Data::read(value.as_slice()).unwrap();
@@ -253,12 +253,12 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
 
     pub fn insert_to_db(&self, idx: usize, data: T::Data) {
         let elem = to_bytes!(data).unwrap();
-        let index = bincode::serialize(&idx).unwrap();
+        let index = to_bytes!(idx as u32).unwrap();
         self.database.put(index, elem).unwrap();
     }
 
     pub fn get_from_db(&self, idx: usize) -> Option<T::Data>{
-        let index = bincode::serialize(&idx).unwrap();
+        let index = to_bytes!(idx as u32).unwrap();
         match self.database.get(index) {
             Ok(Some(value)) => {
                 let retrieved_elem = T::Data::read(value.as_slice()).unwrap();
@@ -275,7 +275,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
     }
 
     pub fn remove_from_db(&self, idx: usize) -> Option<T::Data>{
-        let index = bincode::serialize(&idx).unwrap();
+        let index = to_bytes!(idx as u32).unwrap();
         match self.database.get(index.clone()) {
             Ok(Some(value)) => {
                 let retrieved_elem = T::Data::read(value.as_slice()).unwrap();
