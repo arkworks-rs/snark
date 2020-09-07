@@ -86,15 +86,13 @@ pub trait BatchFieldBasedHash {
     /// of aggregated hash but it's actually the hash result of each of the inputs, grouped in
     /// hash_rate chunks.
     fn batch_evaluate_in_place(input_array: &mut[Self::Data], output_array: &mut[Self::Data]) {
-        let output = Self::batch_evaluate(input_array)
-            .expect("Should be able to compute batch hash");
-        assert_eq!(output.len(), output_array.len());
-
-        // Can avoid this copy by making output_array mutable, but that would be only to support
-        // this default implementation and probably not worth it.
-        for i in 0..output.len() {
-            output_array[i] = output[i];
-        }
+        let rate = <<Self::BaseHash as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
+        input_array.par_chunks(rate).zip(output_array.par_iter_mut())
+            .for_each(|(inputs, output)| {
+                let mut digest = <Self::BaseHash as FieldBasedHash>::init(None);
+                inputs.iter().for_each(|input| { digest.update(input.clone()); } );
+                *output = digest.finalize();
+            });
     }
 }
 
