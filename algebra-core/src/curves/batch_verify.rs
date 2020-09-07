@@ -11,8 +11,6 @@ use core::fmt;
 use rand::thread_rng;
 use rand::Rng;
 
-const MAX_BUCKETS_FOR_FULL_CHECK: usize = 2;
-
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 

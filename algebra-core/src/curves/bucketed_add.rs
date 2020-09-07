@@ -127,7 +127,7 @@ pub fn batch_bucketed_add<C: AffineCurve>(
     for bucket in 0..buckets {
         if index[offset * bucket] == 1 {
             res[bucket] = elems[index[offset * bucket + 1] as usize];
-        } else if index[offset * bucket] == 1 {
+        } else if index[offset * bucket] > 1 {
             debug_assert!(false, "Did not successfully reduce index");
         }
     }
@@ -199,9 +199,9 @@ pub fn batch_bucketed_add<C: AffineCurve>(
     let mut res = vec![zero; buckets];
 
     for (i, to_add) in index.iter().enumerate() {
-        if index[offset * bucket] == 1 {
+        if to_add.len() == 1 {
             res[i] = elems[to_add[0]];
-        } else if index[offset * bucket] == 1 {
+        } else if to_add.len() == 1 {
             debug_assert!(false, "Did not successfully reduce to_add");
         }
     }
