@@ -152,10 +152,10 @@ impl VariableBaseMSM {
 
                 let mut elems = bases.to_vec();
 
-                let buckets = if true {
+                let buckets = if bases.len() <= 1 << 23 {
                     batch_bucketed_add::<G>(n_buckets, &mut elems[..], scalars.as_slice())
                 } else {
-                    batch_bucketed_add_split::<G>(n_buckets, bases, scalars.as_slice(), 9)
+                    batch_bucketed_add_split::<G>(n_buckets, bases, scalars.as_slice(), 14)
                 };
 
                 let mut res = zero;
