@@ -509,45 +509,38 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
             let idx = coord.idx;
             let left_child_idx = idx * T::MERKLE_ARITY;
             let right_child_idx= left_child_idx + 1;
-            let left_hash;
-            let right_hash;
-            let left_child_present;
-            let right_child_present;
-            let left_leaf = self.get_from_db(left_child_idx);
-            if let Some(i) = left_leaf {
-                left_hash = i;
-                left_child_present = true;
-            } else {
-                left_hash = T::EMPTY_HASH_CST.unwrap().nodes[0];
-                left_child_present = false;
-            }
 
-            let right_leaf = self.get_from_db(right_child_idx);
-            if let Some(i) = right_leaf {
-                right_hash = i;
-                right_child_present = true;
-            } else {
-                right_hash = T::EMPTY_HASH_CST.unwrap().nodes[0];
+            let mut left_child_present = true;
+            let left_hash = self.get_from_db(left_child_idx).unwrap_or_else(|| {
+                left_child_present = false;
+                T::EMPTY_HASH_CST.unwrap().nodes[0]
+            });
+
+            let mut right_child_present = true;
+            let right_hash = self.get_from_db(right_child_idx).unwrap_or_else(|| {
                 right_child_present = false;
-            }
+                T::EMPTY_HASH_CST.unwrap().nodes[0]
+            });
+
             input_vec.push(left_hash);
             input_vec.push(right_hash);
+
             if left_child_present && right_child_present {
                 self.state.present_node.insert(coord);
-            }
-            if left_child_present && right_child_present {
                 both_children_present.push(true);
             } else {
                 both_children_present.push(false);
             }
         }
+
         // Process the input_vec using batch Poseidon hash
         let output_vec = Self::batch_hash(input_vec.as_slice());
+
         // Place the computed hash in a cache_parallel
         let mut index_output_vec = 0;
         for coord in nodes_to_process_in_parallel[0].clone() {
             self.state.cache_path.insert(coord, output_vec[index_output_vec]);
-            if both_children_present[index_output_vec] == true {
+            if both_children_present[index_output_vec] {
                 self.insert_to_cache(coord,output_vec[index_output_vec]);
             } else {
                 self.remove_from_cache(coord);
@@ -566,28 +559,30 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
                 let idx = coord.idx;
                 let left_child_idx = idx * T::MERKLE_ARITY;
                 let right_child_idx = left_child_idx + 1;
-                let left_hash: T::Data;
-                let right_hash: T::Data;
+
                 let left_child_coord = Coord { height: coord.height - 1, idx: left_child_idx};
                 let right_child_coord = Coord { height: coord.height - 1, idx: right_child_idx};
 
-                if self.state.cache_path.contains_key(&left_child_coord) {
-                    left_hash = *self.state.cache_path.get(&left_child_coord).unwrap();
+                let left_hash = if self.state.cache_path.contains_key(&left_child_coord) {
+                    *self.state.cache_path.get(&left_child_coord).unwrap()
                 } else {
-                    left_hash = self.node(left_child_coord);
-                }
-                if self.state.cache_path.contains_key(&right_child_coord) {
-                    right_hash = *self.state.cache_path.get(&right_child_coord).unwrap();
+                    self.node(left_child_coord)
+                };
+
+                let right_hash = if self.state.cache_path.contains_key(&right_child_coord) {
+                    *self.state.cache_path.get(&right_child_coord).unwrap()
                 } else {
-                    right_hash = self.node(right_child_coord);
-                }
+                    self.node(right_child_coord)
+                };
                 input_vec.push(left_hash);
                 input_vec.push(right_hash);
+
                 if self.state.present_node.contains(&left_child_coord) || self.state.present_node.contains(&right_child_coord){
                     self.state.present_node.insert(coord);
                 } else {
                     self.state.present_node.remove(&coord);
                 }
+
                 if self.state.present_node.contains(&left_child_coord) && self.state.present_node.contains(&right_child_coord){
                     both_children_present.push(true);
                 } else {
