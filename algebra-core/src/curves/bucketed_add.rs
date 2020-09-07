@@ -200,7 +200,7 @@ pub fn batch_bucketed_add<C: AffineCurve>(
 
     for (i, to_add) in index.iter().enumerate() {
         if index[offset * bucket] == 1 {
-            res[bucket] = elems[index[offset * bucket + 1] as usize];
+            res[i] = elems[to_add[0]];
         } else if index[offset * bucket] == 1 {
             debug_assert!(false, "Did not successfully reduce to_add");
         }

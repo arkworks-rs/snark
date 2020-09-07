@@ -28,7 +28,7 @@ impl fmt::Display for VerificationError {
 fn verify_points<C: AffineCurve, R: Rng>(
     points: &[C],
     num_buckets: usize,
-    new_security_param: Option<usize>, // Only pass new_security_param if possibly recursing
+    _new_security_param: Option<usize>, // Only pass new_security_param if possibly recursing (future PRs)
     rng: &mut R,
 ) -> Result<(), VerificationError> {
     let mut bucket_assign = Vec::with_capacity(points.len());
