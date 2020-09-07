@@ -481,15 +481,6 @@ macro_rules! batch_verify_test {
                 now.elapsed().as_micros()
             );
 
-            // let now = std::time::Instant::now();
-            // batch_verify_in_subgroup_recursive::<$GroupAffine<P>, XorShiftRng>(&tmp_elems[..], SECURITY_PARAM, &mut rng)
-            //     .expect("Should have verified as correct");
-            // println!(
-            //     "Success: In Subgroup. n: {}, time: {} (recursive)",
-            //     n_elems,
-            //     now.elapsed().as_micros()
-            // );
-
             for j in 0..10 {
                 // Randomly insert random non-subgroup elems
                 for k in 0..(1 << j) {
@@ -506,18 +497,6 @@ macro_rules! batch_verify_test {
                     (1 << (j + 1)) - 1,
                     now.elapsed().as_micros()
                 );
-
-                // let now = std::time::Instant::now();
-                // match batch_verify_in_subgroup_recursive::<$GroupAffine<P>, XorShiftRng>(&tmp_elems[..], SECURITY_PARAM, &mut rng) {
-                //     Ok(_) => assert!(false, "did not detect non-subgroup elems"),
-                //     _ => assert!(true),
-                // };
-                // println!(
-                //     "Success: Not in subgroup. n: {}, non-subgroup elems: {}, time: {} (recursive)",
-                //     n_elems,
-                //     (1 << (j + 1)) - 1,
-                //     now.elapsed().as_micros()
-                // );
             }
         }
 
