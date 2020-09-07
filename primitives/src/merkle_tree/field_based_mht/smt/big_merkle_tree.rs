@@ -195,7 +195,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
     /* Cache operations */
     /*===============================================================================*/
 
-    pub fn insert_to_cache(&self, coord: Coord, data: T::Data) {
+    fn insert_to_cache(&self, coord: Coord, data: T::Data) {
         // Inserts the node into the cache
 
         let elem = to_bytes!(data).unwrap();
@@ -203,25 +203,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         self.db_cache.put(index, elem).unwrap();
     }
 
-    pub fn contains_key_in_cache(&self, coord:Coord) -> bool {
-        // Checks if the node is in the cache
-
-        let coordinates = to_bytes!(coord).unwrap();
-        match self.db_cache.get(coordinates) {
-            Ok(Some(_value)) => {
-                return true;
-            },
-            Ok(None) => {
-                return false;
-            },
-            Err(e) => {
-                println!("operational problem encountered: {}", e);
-                return false;
-            },
-        }
-    }
-
-    pub fn get_from_cache(&self, coord:Coord) -> Option<T::Data> {
+    fn get_from_cache(&self, coord:Coord) -> Option<T::Data> {
         // Retrieves the node from the cache
         // If the node is in the cache, it returns the hash as an option
         // If the node is not in the cache, or there is an error, it returns none
@@ -242,7 +224,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         }
     }
 
-    pub fn remove_from_cache(&self, coord: Coord) -> Option<T::Data>{
+    fn remove_from_cache(&self, coord: Coord) -> Option<T::Data>{
         // Deletes the node from the cache
         // If the node was in the cache, it deletes the node and returns the hash as an option
         // If the node was not present in the cache, or if there was an error, it returns none
@@ -276,7 +258,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
     /* Leaves operations */
     /*===============================================================================*/
 
-    pub fn insert_to_db(&self, idx: usize, data: T::Data) {
+    fn insert_to_db(&self, idx: usize, data: T::Data) {
         // Inserts the leaf to the db
 
         let elem = to_bytes!(data).unwrap();
@@ -284,7 +266,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         self.database.put(index, elem).unwrap();
     }
 
-    pub fn get_from_db(&self, idx: usize) -> Option<T::Data>{
+    fn get_from_db(&self, idx: usize) -> Option<T::Data>{
         // Retrieves the leaf from the db
 
         let index = to_bytes!(idx as u32).unwrap();
@@ -303,7 +285,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         }
     }
 
-    pub fn remove_from_db(&self, idx: usize) -> Option<T::Data>{
+    fn remove_from_db(&self, idx: usize) -> Option<T::Data>{
         // Deletes the leaf from the db
         // If the leaf was in the db, it return the hash as an option
         // If the leaf was not present, or if there is an error, it returns none
@@ -443,56 +425,38 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
 
     // Updates the tree visiting the parent nodes from the leaf to the root
     // Calculates the hash and caches it
-    pub fn update_tree(&mut self, coord: Coord) {
+    fn update_tree(&mut self, coord: Coord) {
 
         // Process the node of level 1 with the inserted/removed leaf
         // check whether the hash corresponds to the left or right child
         let mut idx = coord.idx;
-        let left_child_coord: Coord;
-        let right_child_coord: Coord;
-        let left_child_idx: usize;
-        let right_child_idx: usize;
-        let left_hash: T::Data;
-        let right_hash: T::Data;
         let mut height = 0;
+        let empty_nodes = T::EMPTY_HASH_CST.unwrap().nodes;
+        let empty_node = empty_nodes[height];
 
         assert_eq!(T::MERKLE_ARITY,2, "Arity of the Merkle tree is not 2.");
 
-        if idx % T::MERKLE_ARITY == 0 {
-            left_child_idx = idx;
-            left_child_coord = Coord { height, idx: left_child_idx };
-            // get the left child from the cache_path
-            let hash = self.state.cache_path.get(&left_child_coord);
-            if let Some(i) = hash {
-                left_hash = *i;
-            } else {
-                left_hash = T::EMPTY_HASH_CST.unwrap().nodes[0];
-            }
-            right_child_idx = idx + 1;
-            right_child_coord = Coord { height, idx: right_child_idx };
-            right_hash = if self.state.present_node.contains(&right_child_coord) {
-                self.get_from_db(right_child_idx).unwrap()
-            } else {
-                T::EMPTY_HASH_CST.unwrap().nodes[0]
-            };
+        // Get left and right child at leaves level
+        let (left_child_idx, right_child_idx, is_coord_left) = if idx % T::MERKLE_ARITY == 0 {
+            (idx, idx + 1, true)
         } else {
-            right_child_idx = idx;
-            right_child_coord = Coord { height, idx: right_child_idx };
-            // get the right child from the cache path
-            let hash = self.state.cache_path.get(&right_child_coord);
-            if let Some(i) = hash {
-                right_hash = *i;
-            } else {
-                right_hash = T::EMPTY_HASH_CST.unwrap().nodes[0];
-            }
-            left_child_idx = idx - 1;
-            left_child_coord = Coord { height, idx: left_child_idx };
-            left_hash = if self.state.present_node.contains(&left_child_coord) {
-                self.get_from_db(left_child_idx).unwrap()
-            } else {
-                T::EMPTY_HASH_CST.unwrap().nodes[0]
-            };
-        }
+            (idx - 1, idx, false)
+        };
+
+        let left_child_coord = Coord { height, idx: left_child_idx };
+        let right_child_coord = Coord { height, idx: right_child_idx };
+
+        let (left_hash, right_hash) = if is_coord_left {
+            (
+                *self.state.cache_path.get(&left_child_coord).unwrap_or(&empty_node),
+                self.get_from_db(right_child_idx).unwrap_or(empty_node)
+            )
+        } else {
+            (
+                self.get_from_db(left_child_idx).unwrap_or(empty_node),
+                *self.state.cache_path.get(&right_child_coord).unwrap_or(&empty_node)
+            )
+        };
 
         // go up one level
         height += 1;
@@ -503,7 +467,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         if (!self.state.present_node.contains(&left_child_coord)) & (!self.state.present_node.contains(&right_child_coord)) {
             // if both children are empty
 
-            node_hash = T::EMPTY_HASH_CST.unwrap().nodes[height];
+            node_hash = empty_nodes[height];
 
             // insert the parent node into the cache_path
             self.state.cache_path.insert(parent_coord, node_hash);
@@ -540,32 +504,29 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
             idx = idx / T::MERKLE_ARITY;
             let parent_coord = Coord { height, idx };
 
-            // retrieve the left child
+            // retrieve the children
             let left_child_idx = parent_coord.idx * T::MERKLE_ARITY;
-            let left_child_coord = Coord { height: left_child_height, idx: left_child_idx };
-            let left_hash: T::Data;
-            if left_child_idx == idx_child {
-                // It was cached in the previous iteration. Get it from the cache_path
-                left_hash = *self.state.cache_path.get(&left_child_coord).unwrap();
-            } else {
-                left_hash = BigMerkleTree::node(self, left_child_coord);
-            }
-
-            // retrieve the right child
             let right_child_idx = left_child_idx + 1;
+
+            let left_child_coord = Coord { height: left_child_height, idx: left_child_idx };
             let right_child_coord = Coord { height: right_child_height, idx: right_child_idx };
-            let right_hash: T::Data;
-            if right_child_idx == idx_child {
-                // It was cached in the previous iteration. Get it from the cache_path
-                right_hash = *self.state.cache_path.get(&right_child_coord).unwrap();
+
+            let (left_hash, right_hash) = if left_child_idx == idx_child {
+                (
+                    *self.state.cache_path.get(&left_child_coord).unwrap(),
+                    BigMerkleTree::node(self, right_child_coord)
+                )
             } else {
-                right_hash = BigMerkleTree::node(self, right_child_coord);
-            }
+                (
+                    BigMerkleTree::node(self, left_child_coord),
+                    *self.state.cache_path.get(&right_child_coord).unwrap()
+                )
+            };
 
             if (!self.state.present_node.contains(&left_child_coord)) & (!self.state.present_node.contains(&right_child_coord)) {
                 // both children are empty => parent as well
 
-                node_hash = T::EMPTY_HASH_CST.unwrap().nodes[height];
+                node_hash = empty_nodes[height];
                 // insert the parent node into the cache_path
                 self.state.cache_path.insert(parent_coord, node_hash);
                 // remove node from non_empty set
@@ -608,7 +569,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         self.state.root.clone()
     }
 
-    pub fn remove_subtree_from_cache(&mut self, coord: Coord) {
+    fn remove_subtree_from_cache(&mut self, coord: Coord) {
 
         assert_eq!(T::MERKLE_ARITY,2, "Arity of the Merkle tree is not 2.");
 
@@ -658,7 +619,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         return;
     }
 
-    pub fn node(&mut self, coord: Coord) -> T::Data {
+    fn node(&mut self, coord: Coord) -> T::Data {
         // Returns the hash value associated to the node.
         // If the node is in the cache, it retrieves from it.
         // If not, recomputes it.
@@ -715,7 +676,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         res.unwrap()
     }
 
-    pub fn field_hash(x: &T::Data, y: &T::Data) -> T::Data {
+    fn field_hash(x: &T::Data, y: &T::Data) -> T::Data {
         <T::H as FieldBasedHash>::init(None)
             .update(x.clone())
             .update(y.clone())

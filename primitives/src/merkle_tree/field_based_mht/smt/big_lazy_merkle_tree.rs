@@ -186,13 +186,13 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         self.persistent = persistency;
     }
 
-    pub fn insert_to_cache(&self, coord: Coord, data:T::Data) {
+    fn insert_to_cache(&self, coord: Coord, data:T::Data) {
         let elem = to_bytes!(data).unwrap();
         let index = to_bytes!(coord).unwrap();
         self.db_cache.put(index, elem).unwrap();
     }
 
-    pub fn contains_key_in_cache(&self, coord:Coord) -> bool {
+    fn contains_key_in_cache(&self, coord:Coord) -> bool {
         let coordinates = to_bytes!(coord).unwrap();
         match self.db_cache.get(coordinates) {
             Ok(Some(_value)) => {
@@ -208,7 +208,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         }
     }
 
-    pub fn get_from_cache(&self, coord:Coord) -> Option<T::Data> {
+    fn get_from_cache(&self, coord:Coord) -> Option<T::Data> {
         let coordinates = to_bytes!(coord).unwrap();
         match self.db_cache.get(coordinates) {
             Ok(Some(value)) => {
@@ -225,7 +225,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         }
     }
 
-    pub fn remove_from_cache(&self, coord: Coord) -> Option<T::Data>{
+    fn remove_from_cache(&self, coord: Coord) -> Option<T::Data>{
         let coordinates = to_bytes!(coord).unwrap();
         match self.db_cache.get(coordinates.clone()) {
             Ok(Some(value)) => {
@@ -251,13 +251,13 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         }
     }
 
-    pub fn insert_to_db(&self, idx: usize, data: T::Data) {
+    fn insert_to_db(&self, idx: usize, data: T::Data) {
         let elem = to_bytes!(data).unwrap();
         let index = to_bytes!(idx as u32).unwrap();
         self.database.put(index, elem).unwrap();
     }
 
-    pub fn get_from_db(&self, idx: usize) -> Option<T::Data>{
+    fn get_from_db(&self, idx: usize) -> Option<T::Data>{
         let index = to_bytes!(idx as u32).unwrap();
         match self.database.get(index) {
             Ok(Some(value)) => {
@@ -274,7 +274,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         }
     }
 
-    pub fn remove_from_db(&self, idx: usize) -> Option<T::Data>{
+    fn remove_from_db(&self, idx: usize) -> Option<T::Data>{
         let index = to_bytes!(idx as u32).unwrap();
         match self.database.get(index.clone()) {
             Ok(Some(value)) => {
@@ -301,7 +301,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         }
     }
 
-    pub fn check_b_plus_caching_level_down(&mut self, coord: Coord) {
+    fn check_b_plus_caching_level_down(&mut self, coord: Coord) {
 
         let left_child_idx = coord.idx * T::MERKLE_ARITY;
         let left_child_height = 0;
@@ -319,7 +319,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         return;
     }
 
-    pub fn check_b_plus_caching(&mut self, coord: Coord) {
+    fn check_b_plus_caching(&mut self, coord: Coord) {
         assert_eq!(T::MERKLE_ARITY, 2, "Arity of the Merkle tree is not 2.");
 
         if coord.height <= 1 {
@@ -345,7 +345,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
     // If the node is in the cache, it retrieves from it.
     // If not, recomputes it.
     // Only used for nodes of level >= 1 (not for leaves).
-    pub fn node(&mut self, coord: Coord) -> T::Data {
+    fn node(&mut self, coord: Coord) -> T::Data {
 
         assert_eq!(T::MERKLE_ARITY,2, "Arity of the Merkle tree is not 2.");
 
@@ -402,18 +402,18 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         self.state.root.clone()
     }
 
-    pub fn remove_node_from_cache(&mut self, coord: Coord) {
+    fn remove_node_from_cache(&mut self, coord: Coord) {
         self.remove_from_cache(coord);
     }
 
-    pub fn field_hash(x: &T::Data, y: &T::Data) -> T::Data{
+    fn field_hash(x: &T::Data, y: &T::Data) -> T::Data{
         <T::H as FieldBasedHash>::init(None)
             .update(x.clone())
             .update(y.clone())
             .finalize()
     }
 
-    pub fn batch_hash(input: &[T::Data]) -> Vec<T::Data> {
+    fn batch_hash(input: &[T::Data]) -> Vec<T::Data> {
         <T::BH as BatchFieldBasedHash>::batch_evaluate(input)
             .expect("Should be able to compute batch hash")
     }
