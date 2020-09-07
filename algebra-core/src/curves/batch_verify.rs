@@ -1,8 +1,8 @@
 use crate::fields::FpParameters;
 use crate::{
     cfg_chunks_mut,
-    curves::{batch_bucketed_add_split, BatchGroupArithmeticSlice, BATCH_SIZE},
-    AffineCurve, PrimeField, Vec,
+    curves::{batch_bucketed_add, BatchGroupArithmeticSlice, BATCH_SIZE},
+    AffineCurve, PrimeField, ProjectiveCurve, Vec,
 };
 use num_traits::{identities::Zero, Pow};
 
@@ -33,10 +33,11 @@ fn verify_points<C: AffineCurve, R: Rng>(
     for _ in 0..points.len() {
         bucket_assign.push(rng.gen_range(0, num_buckets));
     }
-    let mut buckets = batch_bucketed_add_split(num_buckets, points, &bucket_assign[..], 12);
+    let mut buckets = batch_bucketed_add(num_buckets, &mut points.to_vec(), &bucket_assign[..]);
 
-    // We use the batch scalar mul to check the subgroup condition if
-    // there are sufficient number of buckets
+    // We use the batch_scalar_mul to check the subgroup condition if
+    // there are sufficient number of buckets. For SW curves, the number
+    // elems for the batch mul to become useful is around 2^24.
     let verification_failure = if num_buckets >= BATCH_SIZE {
         cfg_chunks_mut!(buckets, BATCH_SIZE).for_each(|e| {
             let length = e.len();
@@ -45,11 +46,11 @@ fn verify_points<C: AffineCurve, R: Rng>(
                 4,
             );
         });
-        !buckets.iter().all(|&p| p == C::zero())
+        !buckets.iter().all(|&p| p.is_zero())
     } else {
         !buckets
             .iter()
-            .all(|&b| b.mul(C::ScalarField::modulus()) == C::Projective::zero())
+            .all(|&b| b.into_projective().mul(C::ScalarField::modulus()).is_zero())
     };
     if verification_failure {
         return Err(VerificationError);
@@ -110,6 +111,7 @@ pub fn batch_verify_in_subgroup<C: AffineCurve, R: Rng>(
     let (num_buckets, num_rounds, _) = get_max_bucket(
         security_param,
         points.len(),
+        // We estimate the costs of a single scalar multiplication
         <C::ScalarField as PrimeField>::Params::MODULUS_BITS as usize,
     );
     run_rounds(points, num_buckets, num_rounds, None, rng)?;
@@ -132,7 +134,7 @@ fn get_max_bucket(
         * next_check_per_elem_cost
         * (2.pow(log2_num_buckets) as usize)
         < n_elems
-        && num_rounds(log2_num_buckets) > 1
+        && num_rounds(log2_num_buckets + 1) > 1
     {
         log2_num_buckets += 1;
     }
