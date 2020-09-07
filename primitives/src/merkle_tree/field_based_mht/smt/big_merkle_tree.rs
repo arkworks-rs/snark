@@ -345,13 +345,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         assert_eq!(coord.height, 0, "Coord of the node does not correspond to leaf level");
 
         if self.state.present_node.contains(&coord) {
-            let old_leaf = self.get_from_db(coord.idx);
-            let old_hash;
-            if let Some(i) = old_leaf {
-                old_hash = i;
-            } else {
-                old_hash = T::EMPTY_HASH_CST.unwrap().nodes[0];
-            }
+            let old_hash = self.get_from_db(coord.idx).unwrap();
             if old_hash != leaf {
                 self.insert_to_db(coord.idx, leaf);
                 self.state.cache_path.clear();
@@ -456,8 +450,6 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         let right_child_coord: Coord;
         let left_child_idx: usize;
         let right_child_idx: usize;
-        let left_child: Option<T::Data>;
-        let right_child: Option<T::Data>;
         let left_hash: T::Data;
         let right_hash: T::Data;
         let mut height = 0;
@@ -476,16 +468,11 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
             }
             right_child_idx = idx + 1;
             right_child_coord = Coord { height, idx: right_child_idx };
-            if self.state.present_node.contains(&right_child_coord) {
-                right_child = self.get_from_db(right_child_idx);
-                if let Some(i) = right_child {
-                    right_hash = i;
-                } else {
-                    right_hash = T::EMPTY_HASH_CST.unwrap().nodes[0];
-                }
+            right_hash = if self.state.present_node.contains(&right_child_coord) {
+                self.get_from_db(right_child_idx).unwrap()
             } else {
-                right_hash = T::EMPTY_HASH_CST.unwrap().nodes[0];
-            }
+                T::EMPTY_HASH_CST.unwrap().nodes[0]
+            };
         } else {
             right_child_idx = idx;
             right_child_coord = Coord { height, idx: right_child_idx };
@@ -498,16 +485,11 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
             }
             left_child_idx = idx - 1;
             left_child_coord = Coord { height, idx: left_child_idx };
-            if self.state.present_node.contains(&left_child_coord) {
-                left_child = self.get_from_db(left_child_idx);
-                if let Some(i) = left_child {
-                    left_hash = i;
-                } else {
-                    left_hash = T::EMPTY_HASH_CST.unwrap().nodes[0];
-                }
+            left_hash = if self.state.present_node.contains(&left_child_coord) {
+                self.get_from_db(left_child_idx).unwrap()
             } else {
-                left_hash = T::EMPTY_HASH_CST.unwrap().nodes[0];
-            }
+                T::EMPTY_HASH_CST.unwrap().nodes[0]
+            };
         }
 
         // go up one level
@@ -628,10 +610,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
 
         assert_eq!(T::MERKLE_ARITY,2, "Arity of the Merkle tree is not 2.");
 
-        if coord.height <= 1 {
-            // This condition should never occur
-            return;
-        }
+        assert!(coord.height > 1);
 
         // remove the parent node from the cache
         self.remove_from_cache(coord.clone());
@@ -686,7 +665,6 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
 
         assert_eq!(T::MERKLE_ARITY,2, "Arity of the Merkle tree is not 2.");
 
-        //let coord = Coord{height, idx};
         // if the node is an empty node return the hash constant
         if !self.state.present_node.contains(&coord) {
             return T::EMPTY_HASH_CST.unwrap().nodes[coord.height];
