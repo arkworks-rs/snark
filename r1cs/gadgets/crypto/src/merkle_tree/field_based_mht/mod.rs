@@ -13,8 +13,7 @@ use std::marker::PhantomData;
 
 pub struct FieldBasedMerkleTreePathGadget<P, HGadget, ConstraintF>
     where
-        P: NaiveFieldBasedMerkleTreeConfig,
-        P::H: FieldBasedHash<Data = ConstraintF>,
+        P: FieldBasedMerkleTreeParameters<Data = ConstraintF>,
         HGadget: FieldBasedHashGadget<P::H, ConstraintF>,
         ConstraintF: Field,
 {
@@ -23,8 +22,7 @@ pub struct FieldBasedMerkleTreePathGadget<P, HGadget, ConstraintF>
 
 impl<P, HGadget, ConstraintF> FieldBasedMerkleTreePathGadget<P, HGadget, ConstraintF>
     where
-        P: NaiveFieldBasedMerkleTreeConfig,
-        P::H: FieldBasedHash<Data = ConstraintF>,
+        P: FieldBasedMerkleTreeParameters<Data = ConstraintF>,
         HGadget: FieldBasedHashGadget<P::H, ConstraintF>,
         ConstraintF: PrimeField,
 {
@@ -88,8 +86,7 @@ impl<P, HGadget, ConstraintF> FieldBasedMerkleTreePathGadget<P, HGadget, Constra
 
 pub struct FieldBasedMerkleTreeGadget<P, HGadget, ConstraintF>
     where
-        P: NaiveFieldBasedMerkleTreeConfig,
-        P::H: FieldBasedHash<Data = ConstraintF>,
+        P: FieldBasedMerkleTreeParameters<Data = ConstraintF>,
         HGadget: FieldBasedHashGadget<P::H, ConstraintF>,
         ConstraintF: PrimeField,
 {
@@ -100,8 +97,7 @@ pub struct FieldBasedMerkleTreeGadget<P, HGadget, ConstraintF>
 
 impl<P, HGadget, ConstraintF> FieldBasedMerkleTreeGadget<P, HGadget, ConstraintF>
     where
-        P: NaiveFieldBasedMerkleTreeConfig,
-        P::H: FieldBasedHash<Data = ConstraintF>,
+        P: FieldBasedMerkleTreeParameters<Data = ConstraintF>,
         HGadget: FieldBasedHashGadget<P::H, ConstraintF>,
         ConstraintF: PrimeField,
 {
@@ -176,11 +172,10 @@ pub(crate) fn hash_inner_node_gadget<H, HG, ConstraintF, CS>(
     HG::check_evaluation_gadget(cs, &[left_child, right_child])
 }
 
-impl<P, HGadget, ConstraintF> AllocGadget<FieldBasedMerkleTreePath<P>, ConstraintF>
+impl<P, HGadget, ConstraintF> AllocGadget<FieldBasedBinaryMHTPath<P>, ConstraintF>
 for FieldBasedMerkleTreePathGadget<P, HGadget, ConstraintF>
     where
-        P: NaiveFieldBasedMerkleTreeConfig,
-        P::H: FieldBasedHash<Data = ConstraintF>,
+        P: FieldBasedMerkleTreeParameters<Data = ConstraintF>,
         HGadget: FieldBasedHashGadget<P::H, ConstraintF>,
         ConstraintF: Field,
 {
@@ -190,10 +185,10 @@ for FieldBasedMerkleTreePathGadget<P, HGadget, ConstraintF>
     ) -> Result<Self, SynthesisError>
         where
             F: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<FieldBasedMerkleTreePath<P>>,
+            T: Borrow<FieldBasedBinaryMHTPath<P>>,
     {
         let mut path = Vec::new();
-        for (i, &(ref sibling, ref d)) in value_gen()?.borrow().path.iter().enumerate() {
+        for (i, &(ref sibling, ref d)) in value_gen()?.borrow().get_raw_path().iter().enumerate() {
             let sibling_hash =
                 HGadget::DataGadget::alloc(&mut cs.ns(|| format!("sibling_hash_{}", i)), || {
                     Ok(sibling)
@@ -213,10 +208,10 @@ for FieldBasedMerkleTreePathGadget<P, HGadget, ConstraintF>
     ) -> Result<Self, SynthesisError>
         where
             F: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<FieldBasedMerkleTreePath<P>>,
+            T: Borrow<FieldBasedBinaryMHTPath<P>>,
     {
         let mut path = Vec::new();
-        for (i, &(ref sibling, ref d)) in value_gen()?.borrow().path.iter().enumerate() {
+        for (i, &(ref sibling, ref d)) in value_gen()?.borrow().get_raw_path().iter().enumerate() {
             let sibling_hash =
                 HGadget::DataGadget::alloc_input(&mut cs.ns(|| format!("sibling_hash_{}", i)), || {
                     Ok(sibling)
@@ -248,11 +243,15 @@ mod test {
         test_constraint_system::TestConstraintSystem,
     };
 
+    #[derive(Clone)]
     struct MNT4753FieldBasedMerkleTreeParams;
 
-    impl NaiveFieldBasedMerkleTreeConfig for MNT4753FieldBasedMerkleTreeParams {
-        const HEIGHT: usize = 6;
+    impl FieldBasedMerkleTreeParameters for MNT4753FieldBasedMerkleTreeParams {
+        type Data = Fr;
         type H = MNT4PoseidonHash;
+        const HEIGHT: usize = 6;
+        const MERKLE_ARITY: usize = 2;
+        const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> = None;
     }
 
     type MNT4753FieldBasedMerkleTree = NaiveMerkleTree<MNT4753FieldBasedMerkleTreeParams>;
@@ -269,7 +268,7 @@ mod test {
         for (i, leaf) in leaves.iter().enumerate() {
             let mut cs = TestConstraintSystem::<Fr>::new();
             let proof = tree.generate_proof(i, leaf).unwrap();
-            assert!(proof.verify(&root, leaf).unwrap());
+            assert!(proof.verify(&leaf, &root).unwrap());
 
             // Allocate Merkle Tree Root
             let root = FqGadget::alloc(
