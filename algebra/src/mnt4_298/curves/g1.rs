@@ -21,7 +21,6 @@ impl ModelParameters for Parameters {
 }
 
 impl SWModelParameters for Parameters {
-    const GLV: bool = false;
     /// COEFF_A = 2
     /// Reference: https://github.com/scipr-lab/libff/blob/c927821ebe02e0a24b5e0f9170cec5e211a35f08/libff/algebra/curves/mnt/mnt4/mnt4_init.cpp#L116
     #[rustfmt::skip]

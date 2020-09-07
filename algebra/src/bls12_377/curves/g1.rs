@@ -15,7 +15,6 @@ impl ModelParameters for Parameters {
 }
 
 impl SWModelParameters for Parameters {
-    const GLV: bool = false;
     /// COEFF_A = 0
     const COEFF_A: Fq = field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0]));
 
