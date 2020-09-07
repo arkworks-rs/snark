@@ -1,7 +1,7 @@
 use crate::{
-    batch_bucketed_add, batch_bucketed_add_split,
+    batch_bucketed_add_radix,
     prelude::{AffineCurve, BigInteger, FpParameters, One, PrimeField, ProjectiveCurve, Zero},
-    Vec,
+    BucketPosition, Vec,
 };
 
 #[cfg(feature = "parallel")]
@@ -135,9 +135,10 @@ impl VariableBaseMSM {
                 let log2_n_bucket = if (w_start % c) != 0 { w_start % c } else { c };
                 let n_buckets = (1 << log2_n_bucket) - 1;
 
-                let scalars = scalars
+                let mut bucket_positions: Vec<_> = scalars
                     .iter()
-                    .map(|&scalar| {
+                    .enumerate()
+                    .map(|(pos, &scalar)| {
                         let mut scalar = scalar;
 
                         // We right-shift by w_start, thus getting rid of the
@@ -145,18 +146,21 @@ impl VariableBaseMSM {
                         scalar.divn(w_start as u32);
 
                         // We mod the remaining bits by the window size.
-                        (scalar.as_ref()[0] % (1 << c)) as i64
+                        let res = (scalar.as_ref()[0] % (1 << c)) as i32;
+                        BucketPosition {
+                            bucket: (res - 1) as u32,
+                            position: pos as u32,
+                        }
                     })
-                    .map(|s| (s - 1) as usize)
-                    .collect::<Vec<usize>>();
+                    .collect();
 
                 let mut elems = bases.to_vec();
 
-                let buckets = if bases.len() <= 1 << 23 {
-                    batch_bucketed_add::<G>(n_buckets, &mut elems[..], scalars.as_slice())
-                } else {
-                    batch_bucketed_add_split::<G>(n_buckets, bases, scalars.as_slice(), 14)
-                };
+                let buckets = batch_bucketed_add_radix::<G>(
+                    n_buckets,
+                    &mut elems[..],
+                    &mut bucket_positions[..],
+                );
 
                 let mut res = zero;
                 let mut running_sum = G::Projective::zero();

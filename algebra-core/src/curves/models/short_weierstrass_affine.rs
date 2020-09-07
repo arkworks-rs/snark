@@ -326,7 +326,6 @@ macro_rules! specialise_affine_to_proj {
                 #[cfg(feature = "prefetch")]
                 {
                     prefetch_iter.next();
-                    prefetch_iter.next();
                 }
 
                 for (idx, idy) in index.iter().rev() {
