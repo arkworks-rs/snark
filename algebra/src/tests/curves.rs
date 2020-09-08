@@ -4,9 +4,9 @@ use algebra_core::{
     biginteger::BigInteger64,
     curves::{AffineCurve, BatchGroupArithmeticSlice, ProjectiveCurve},
     io::Cursor,
-    CanonicalDeserialize, CanonicalSerialize, Field, MontgomeryModelParameters, One, PrimeField,
-    SWFlags, SWModelParameters, SerializationError, TEModelParameters, UniformRand, Vec,
-    VerificationError, Zero,
+    BucketPosition, CanonicalDeserialize, CanonicalSerialize, Field, MontgomeryModelParameters,
+    One, PrimeField, SWFlags, SWModelParameters, SerializationError, TEModelParameters,
+    UniformRand, Vec, VerificationError, Zero,
 };
 use rand::{
     distributions::{Distribution, Uniform},
@@ -397,17 +397,20 @@ fn batch_bucketed_add_test<C: AffineCurve>() {
         let n_elems = 1 << i;
         let n_buckets = 1 << (i - 3);
 
-        let mut bucket_assign = Vec::<usize>::with_capacity(n_elems);
+        let mut bucket_assign = Vec::<_>::with_capacity(n_elems);
         let step = Uniform::new(0, n_buckets);
 
-        for _ in 0..n_elems {
-            bucket_assign.push(step.sample(&mut rng));
+        for i in 0..n_elems {
+            bucket_assign.push(BucketPosition {
+                bucket: step.sample(&mut rng) as u32,
+                position: i as u32,
+            });
         }
 
         let mut res1 = vec![];
         let mut elems_mut = random_elems[0..n_elems].to_vec();
         let now = std::time::Instant::now();
-        res1 = batch_bucketed_add::<C>(n_buckets, &mut elems_mut[..], &bucket_assign[..]);
+        res1 = batch_bucketed_add::<C>(n_buckets, &mut elems_mut[..], &mut bucket_assign[..]);
         println!(
             "batch bucketed add for {} elems: {:?}",
             n_elems,
@@ -419,7 +422,7 @@ fn batch_bucketed_add_test<C: AffineCurve>() {
 
         let now = std::time::Instant::now();
         for (&bucket_idx, elem) in bucket_assign.iter().zip(elems) {
-            res2[bucket_idx].add_assign_mixed(&elem);
+            res2[bucket_idx.bucket as usize].add_assign_mixed(&elem);
         }
         println!(
             "bucketed add for {} elems: {:?}",

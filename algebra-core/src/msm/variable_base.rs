@@ -1,5 +1,5 @@
 use crate::{
-    batch_bucketed_add_radix,
+    batch_bucketed_add,
     prelude::{AffineCurve, BigInteger, FpParameters, One, PrimeField, ProjectiveCurve, Zero},
     BucketPosition, Vec,
 };
@@ -155,7 +155,7 @@ impl VariableBaseMSM {
                     .collect();
 
                 let buckets =
-                    batch_bucketed_add_radix::<G>(n_buckets, &bases[..], &mut bucket_positions[..]);
+                    batch_bucketed_add::<G>(n_buckets, &bases[..], &mut bucket_positions[..]);
 
                 let mut res = zero;
                 let mut running_sum = G::Projective::zero();
