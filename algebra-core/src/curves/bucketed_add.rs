@@ -6,6 +6,9 @@ use crate::{
 #[cfg(feature = "std")]
 use {core::cmp::Ordering, voracious_radix_sort::*};
 
+#[cfg(not(feature = "std"))]
+use crate::log2;
+
 #[derive(Copy, Clone, Debug)]
 pub struct BucketPosition {
     pub bucket: u32,
@@ -184,9 +187,10 @@ pub fn batch_bucketed_add<C: AffineCurve>(
 #[cfg(not(feature = "std"))]
 pub fn batch_bucketed_add<C: AffineCurve>(
     buckets: usize,
-    elems: &mut [C],
+    elems: &[C],
     bucket_assign: &[BucketPosition],
 ) -> Vec<C> {
+    let mut elems = elems.to_vec();
     let num_split = 2i32.pow(log2(buckets) / 2 + 2) as usize;
     let split_size = (buckets - 1) / num_split + 1;
     let ratio = elems.len() / buckets * 2;
@@ -194,8 +198,8 @@ pub fn batch_bucketed_add<C: AffineCurve>(
     let mut bucket_split = vec![vec![]; num_split];
     let mut index = vec![Vec::with_capacity(ratio); buckets];
 
-    for bucket_pos in bucket_assign.iter().enumerate() {
-        let (bucket, position) = (bucket_pos.bucket, bucket_pos.position);
+    for bucket_pos in bucket_assign.iter() {
+        let (bucket, position) = (bucket_pos.bucket as usize, bucket_pos.position as usize);
         // Check the bucket assignment is valid
         if bucket < buckets {
             // index[bucket].push(position);
