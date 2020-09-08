@@ -180,8 +180,21 @@ where
         _bases: &mut [Self],
         _other: &[Self],
         _index: &[(u32, u32)],
-        _scratch_space: Option<&mut Vec<Self>>,
+        _scratch_space: &mut Vec<Self>,
     ) {
+        unimplemented!()
+    }
+
+    fn batch_add_write(
+        _lookup: &[Self],
+        _index: &[(u32, u32)],
+        _new_elems: &mut Vec<Self>,
+        _scratch_space: &mut Vec<Option<Self>>,
+    ) {
+        unimplemented!()
+    }
+
+    fn batch_add_write_shift_in_place(_bases: &mut [Self], _index: &[(u32, u32)], _offset: usize) {
         unimplemented!()
     }
 
@@ -272,6 +285,15 @@ pub trait BatchGroupArithmeticSlice<G: AffineCurve> {
 
     fn batch_add_in_place(&mut self, other: &mut Self, index: &[(u32, u32)]);
 
+    fn batch_add_write(
+        &self,
+        index: &[(u32, u32)],
+        new_elems: &mut Vec<G>,
+        scratch_space: &mut Vec<Option<G>>,
+    );
+
+    fn batch_add_write_shift_in_place(&mut self, index: &[(u32, u32)], offset: usize);
+
     fn batch_scalar_mul_in_place<BigInt: BigInteger>(&mut self, scalars: &mut [BigInt], w: usize);
 }
 
@@ -286,6 +308,19 @@ impl<G: AffineCurve> BatchGroupArithmeticSlice<G> for [G] {
 
     fn batch_add_in_place(&mut self, other: &mut Self, index: &[(u32, u32)]) {
         G::batch_add_in_place(self, other, index);
+    }
+
+    fn batch_add_write(
+        &self,
+        index: &[(u32, u32)],
+        new_elems: &mut Vec<G>,
+        scratch_space: &mut Vec<Option<G>>,
+    ) {
+        G::batch_add_write(self, index, new_elems, scratch_space);
+    }
+
+    fn batch_add_write_shift_in_place(&mut self, index: &[(u32, u32)], offset: usize) {
+        G::batch_add_write_shift_in_place(self, index, offset);
     }
 
     fn batch_scalar_mul_in_place<BigInt: BigInteger>(&mut self, scalars: &mut [BigInt], w: usize) {

@@ -113,7 +113,7 @@ impl VariableBaseMSM {
         num_bits: usize,
     ) -> G::Projective {
         let c = if scalars.len() < 32 {
-            3
+            1
         } else {
             super::ln_without_floats(scalars.len()) + 2
         };
@@ -135,6 +135,7 @@ impl VariableBaseMSM {
                 let log2_n_bucket = if (w_start % c) != 0 { w_start % c } else { c };
                 let n_buckets = (1 << log2_n_bucket) - 1;
 
+                let now = std::time::Instant::now();
                 let mut bucket_positions: Vec<_> = scalars
                     .iter()
                     .enumerate()
@@ -153,21 +154,21 @@ impl VariableBaseMSM {
                         }
                     })
                     .collect();
+                println!("process scalars: {}", now.elapsed().as_micros());
 
-                let mut elems = bases.to_vec();
+                let now = std::time::Instant::now();
+                let buckets =
+                    batch_bucketed_add_radix::<G>(n_buckets, &bases[..], &mut bucket_positions[..]);
+                println!("batch bucket add: {}", now.elapsed().as_micros());
 
-                let buckets = batch_bucketed_add_radix::<G>(
-                    n_buckets,
-                    &mut elems[..],
-                    &mut bucket_positions[..],
-                );
-
+                let now = std::time::Instant::now();
                 let mut res = zero;
                 let mut running_sum = G::Projective::zero();
                 for b in buckets.into_iter().rev() {
                     running_sum.add_assign_mixed(&b);
                     res += &running_sum;
                 }
+                println!("Accumulating sum: {}", now.elapsed().as_micros());
                 (res, log2_n_bucket)
             })
             .collect();

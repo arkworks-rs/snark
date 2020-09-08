@@ -32,7 +32,7 @@ fn test() {
 }
 
 fn test_msm<G: AffineCurve>() {
-    const MAX_LOGN: usize = 15;
+    const MAX_LOGN: usize = 23;
     const SAMPLES: usize = 1 << MAX_LOGN;
 
     let _lol = G1Projective::zero();
@@ -46,13 +46,6 @@ fn test_msm<G: AffineCurve>() {
     // let naive = naive_var_base_msm(g.as_slice(), v.as_slice());
 
     let now = std::time::Instant::now();
-    let fast = VariableBaseMSM::multi_scalar_mul(g.as_slice(), v.as_slice());
-    println!(
-        "old MSM for {} elems: {:?}",
-        SAMPLES,
-        now.elapsed().as_micros()
-    );
-    let now = std::time::Instant::now();
     let even_faster = VariableBaseMSM::multi_scalar_mul_batched(
         g.as_slice(),
         v.as_slice(),
@@ -60,6 +53,14 @@ fn test_msm<G: AffineCurve>() {
     );
     println!(
         "new MSM for {} elems: {:?}",
+        SAMPLES,
+        now.elapsed().as_micros()
+    );
+
+    let now = std::time::Instant::now();
+    let fast = VariableBaseMSM::multi_scalar_mul(g.as_slice(), v.as_slice());
+    println!(
+        "old MSM for {} elems: {:?}",
         SAMPLES,
         now.elapsed().as_micros()
     );

@@ -1,7 +1,7 @@
 use crate::fields::FpParameters;
 use crate::{
     cfg_chunks_mut,
-    curves::{batch_bucketed_add, BatchGroupArithmeticSlice, BATCH_SIZE},
+    curves::{batch_bucketed_add_radix, BatchGroupArithmeticSlice, BucketPosition, BATCH_SIZE},
     AffineCurve, PrimeField, ProjectiveCurve, Vec,
 };
 use num_traits::{identities::Zero, Pow};
@@ -30,10 +30,14 @@ fn verify_points<C: AffineCurve, R: Rng>(
     rng: &mut R,
 ) -> Result<(), VerificationError> {
     let mut bucket_assign = Vec::with_capacity(points.len());
-    for _ in 0..points.len() {
-        bucket_assign.push(rng.gen_range(0, num_buckets));
+    for i in 0..points.len() {
+        bucket_assign.push(BucketPosition {
+            bucket: rng.gen_range(0, num_buckets) as u32,
+            position: i as u32,
+        });
     }
-    let mut buckets = batch_bucketed_add(num_buckets, &mut points.to_vec(), &bucket_assign[..]);
+    let mut buckets =
+        batch_bucketed_add_radix(num_buckets, &mut points.to_vec(), &mut bucket_assign[..]);
 
     // We use the batch_scalar_mul to check the subgroup condition if
     // there are sufficient number of buckets. For SW curves, the number

@@ -108,6 +108,18 @@ macro_rules! specialise_affine_to_proj {
             };
         }
 
+        #[cfg(feature = "prefetch")]
+        macro_rules! prefetch_slice_write {
+            ($slice_1: ident, $slice_2: ident, $prefetch_iter: ident) => {
+                if let Some((idp_1, idp_2)) = $prefetch_iter.next() {
+                    prefetch::<Self>(&$slice_1[*idp_1 as usize]);
+                    if *idp_2 != !0u32 {
+                        prefetch::<Self>(&$slice_2[*idp_2 as usize]);
+                    }
+                }
+            };
+        }
+
         macro_rules! batch_add_loop_1 {
             ($a: ident, $b: ident, $half: ident, $inversion_tmp: ident) => {
                 if $a.is_zero() || $b.is_zero() {
@@ -326,6 +338,7 @@ macro_rules! specialise_affine_to_proj {
                 #[cfg(feature = "prefetch")]
                 {
                     prefetch_iter.next();
+                    prefetch_iter.next();
                 }
 
                 for (idx, idy) in index.iter().rev() {
@@ -347,20 +360,10 @@ macro_rules! specialise_affine_to_proj {
                 bases: &mut [Self],
                 other: &[Self],
                 index: &[(u32, u32)],
-                scratch_space: Option<&mut Vec<Self>>,
+                scratch_space: &mut Vec<Self>,
             ) {
                 let mut inversion_tmp = P::BaseField::one();
                 let mut half = None;
-
-                let mut _scratch_space_inner = if scratch_space.is_none() {
-                    Vec::<Self>::with_capacity(index.len())
-                } else {
-                    vec![]
-                };
-                let scratch_space = match scratch_space {
-                    Some(vec) => vec,
-                    None => &mut _scratch_space_inner,
-                };
 
                 #[cfg(feature = "prefetch")]
                 let mut prefetch_iter = index.iter();
@@ -409,6 +412,103 @@ macro_rules! specialise_affine_to_proj {
                     }
                     let (mut a, b) = (&mut bases[*idx as usize], scratch_space.pop().unwrap());
                     batch_add_loop_2!(a, b, inversion_tmp);
+                }
+            }
+
+            fn batch_add_write(
+                lookup: &[Self],
+                index: &[(u32, u32)],
+                new_elems: &mut Vec<Self>,
+                scratch_space: &mut Vec<Option<Self>>,
+            ) {
+                let mut inversion_tmp = P::BaseField::one();
+                let mut half = None;
+
+                #[cfg(feature = "prefetch")]
+                let mut prefetch_iter = index.iter();
+                #[cfg(feature = "prefetch")]
+                prefetch_iter.next();
+
+                // We run two loops over the data separated by an inversion
+                for (idx, idy) in index.iter() {
+                    #[cfg(feature = "prefetch")]
+                    prefetch_slice_write!(lookup, lookup, prefetch_iter);
+
+                    if *idy == !0u32 {
+                        new_elems.push(lookup[*idx as usize]);
+                        scratch_space.push(None);
+                    } else {
+                        let (mut a, mut b) = (lookup[*idx as usize], lookup[*idy as usize]);
+                        batch_add_loop_1!(a, b, half, inversion_tmp);
+                        new_elems.push(a);
+                        scratch_space.push(Some(b));
+                    }
+                }
+
+                inversion_tmp = inversion_tmp.inverse().unwrap(); // this is always in Fp*
+
+                for (a, op_b) in new_elems.iter_mut().rev().zip(scratch_space.iter().rev()) {
+                    match op_b {
+                        Some(b) => {
+                            let b_ = *b;
+                            batch_add_loop_2!(a, b_, inversion_tmp);
+                        }
+                        None => (),
+                    };
+                }
+                scratch_space.clear();
+            }
+
+            fn batch_add_write_shift_in_place(
+                bases: &mut [Self],
+                index: &[(u32, u32)],
+                offset: usize,
+            ) {
+                let mut inversion_tmp = P::BaseField::one();
+                let mut half = None;
+
+                #[cfg(feature = "prefetch")]
+                let mut prefetch_iter = index.iter();
+                #[cfg(feature = "prefetch")]
+                prefetch_iter.next();
+
+                // We run two loops over the data separated by an inversion
+                for (idx, idy) in index.iter() {
+                    #[cfg(feature = "prefetch")]
+                    prefetch_slice_write!(bases, bases, prefetch_iter);
+
+                    if *idy != !0u32 {
+                        println!("{}, {}", idx, idy);
+                        let (mut a, mut b) = if idx < idy {
+                            let (x, y) = bases.split_at_mut(*idy as usize);
+                            (&mut x[*idx as usize], &mut y[0])
+                        } else {
+                            let (x, y) = bases.split_at_mut(*idx as usize);
+                            (&mut y[0], &mut x[*idy as usize])
+                        };
+                        batch_add_loop_1!(a, b, half, inversion_tmp);
+                    }
+                }
+
+                inversion_tmp = inversion_tmp.inverse().unwrap(); // this is always in Fp*
+
+                #[cfg(feature = "prefetch")]
+                let mut prefetch_iter = index.iter().rev();
+                #[cfg(feature = "prefetch")]
+                prefetch_iter.next();
+
+                for (new_idx, (idx, idy)) in index.iter().enumerate().rev() {
+                    #[cfg(feature = "prefetch")]
+                    prefetch_slice_write!(bases, bases, prefetch_iter);
+                    if *idy != !0u32 {
+                        println!("HERE");
+                        let (mut a, b) = (bases[*idx as usize], bases[*idy as usize]);
+                        let a_ = &mut a;
+                        batch_add_loop_2!(a_, b, inversion_tmp);
+                        bases[offset + new_idx] = a;
+                    } else {
+                        bases[offset + new_idx] = bases[*idx as usize];
+                    }
                 }
             }
 
@@ -509,7 +609,7 @@ macro_rules! specialise_affine_to_proj {
                             &mut bases,
                             &tables[..],
                             &index_add_k1[..],
-                            Some(&mut scratch_space_group),
+                            &mut scratch_space_group,
                         );
 
                         let index_add_k2: Vec<_> = opcode_row_k2
@@ -540,7 +640,7 @@ macro_rules! specialise_affine_to_proj {
                             &mut bases,
                             &tables[..],
                             &index_add_k2[..],
-                            Some(&mut scratch_space_group),
+                            &mut scratch_space_group,
                         );
                     }
                 } else {
