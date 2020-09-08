@@ -574,15 +574,30 @@ pub extern "C" fn zexe_tweedle_fp_det_sqrt(x: *const Fp) -> *mut Fp {
     return Box::into_raw(Box::new(ret));
 }
 
+#[repr(C)]
+pub struct DetSqrtWitness {
+    result: *const Fp,
+    c_witness: *const Fp,
+    d: u64
+}
+
 //TODO : to verify
 #[no_mangle]
-pub extern "C" fn zexe_tweedle_fp_witness_det_sqrt(x: *const Fp) -> (*mut Fp, *mut u64, *mut Fp) {
+pub extern "C" fn zexe_tweedle_fp_witness_det_sqrt(x: *const Fp) -> DetSqrtWitness {
     let x_ = unsafe { &(*x) };
-    let ret = match x_.witness_det_sqrt() {
-        Some(y) => x,
-        None => (Fp::zero(), 0, Fp::zero()),
-    };
-    return Box::into_raw(Box::new(ret));
+    match x_.witness_det_sqrt() {
+        // TODO
+        Some(y) => DetSqrtWitness {
+            result: panic!("TODO"),
+            c_witness: panic!("TODO"),
+            d: panic!("TODO"),
+        },
+        None => DetSqrtWitness {
+            result: Box::into_raw(Box::new(Fp::zero())),
+            c_witness: Box::into_raw(Box::new(Fp::zero())),
+            d: 0
+        },
+    }
 }
 
 #[no_mangle]

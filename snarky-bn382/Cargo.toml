@@ -34,6 +34,8 @@ circuits_dlog = { path = "../../marlin/dlog/circuits" }
 commitment_dlog = { path = "../../marlin/dlog/commitment" }
 protocol_dlog = { path = "../../marlin/dlog/protocol" }
 
+dlog_solver = { path = "../../marlin/dlog_solver" }
+
 #circuits = { git = "https://github.com/o1-labs/marlin/" }
 #oracle = { git = "https://github.com/o1-labs/marlin/" }
 #protocol = { git = "https://github.com/o1-labs/marlin/" }
