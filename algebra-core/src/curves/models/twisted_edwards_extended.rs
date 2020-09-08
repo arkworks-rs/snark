@@ -1,4 +1,5 @@
 use crate::{
+    curves::batch_arith::decode_endo_from_u32,
     io::{Read, Result as IoResult, Write},
     serialize::{EdwardsFlags, Flags},
     BatchGroupArithmetic, CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
@@ -267,6 +268,37 @@ impl<P: Parameters> BatchGroupArithmetic for GroupAffine<P> {
         }
     }
 
+    #[inline]
+    fn batch_add_in_place_read_only(
+        bases: &mut [Self],
+        other: &[Self],
+        index: &[(u32, u32)],
+        scratch_space: &mut Vec<Self>,
+    ) {
+        let mut inversion_tmp = P::BaseField::one();
+        // We run two loops over the data separated by an inversion
+        for (idx, idy) in index.iter() {
+            let (idy, endomorphism) = decode_endo_from_u32(*idy);
+            let mut a = &mut bases[*idx as usize];
+            // Apply endomorphisms according to encoding
+            let mut b = if endomorphism % 2 == 1 {
+                other[idy].neg()
+            } else {
+                other[idy]
+            };
+
+            batch_add_loop_1!(a, b, inversion_tmp);
+            scratch_space.push(b);
+        }
+
+        inversion_tmp = inversion_tmp.inverse().unwrap(); // this is always in Fp*
+
+        for (idx, _) in index.iter().rev() {
+            let (a, b) = (&mut bases[*idx as usize], scratch_space.pop().unwrap());
+            batch_add_loop_2!(a, b, inversion_tmp);
+        }
+    }
+
     fn batch_add_write(
         lookup: &[Self],
         index: &[(u32, u32)],
@@ -281,6 +313,40 @@ impl<P: Parameters> BatchGroupArithmetic for GroupAffine<P> {
                 scratch_space.push(None);
             } else {
                 let (mut a, mut b) = (lookup[*idx as usize], lookup[*idy as usize]);
+                batch_add_loop_1!(a, b, inversion_tmp);
+                new_elems.push(a);
+                scratch_space.push(Some(b));
+            }
+        }
+
+        inversion_tmp = inversion_tmp.inverse().unwrap(); // this is always in Fp*
+
+        for (a, op_b) in new_elems.iter_mut().rev().zip(scratch_space.iter().rev()) {
+            match op_b {
+                Some(b) => {
+                    let b_ = *b;
+                    batch_add_loop_2!(a, b_, inversion_tmp);
+                }
+                None => (),
+            };
+        }
+        scratch_space.clear();
+    }
+
+    fn batch_add_write_read_self(
+        lookup: &[Self],
+        index: &[(u32, u32)],
+        new_elems: &mut Vec<Self>,
+        scratch_space: &mut Vec<Option<Self>>,
+    ) {
+        let mut inversion_tmp = P::BaseField::one();
+
+        for (idx, idy) in index.iter() {
+            if *idy == !0u32 {
+                new_elems.push(lookup[*idx as usize]);
+                scratch_space.push(None);
+            } else {
+                let (mut a, mut b) = (new_elems[*idx as usize], lookup[*idy as usize]);
                 batch_add_loop_1!(a, b, inversion_tmp);
                 new_elems.push(a);
                 scratch_space.push(Some(b));

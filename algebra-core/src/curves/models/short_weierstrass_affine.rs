@@ -459,6 +459,50 @@ macro_rules! specialise_affine_to_proj {
                 scratch_space.clear();
             }
 
+            fn batch_add_write_read_self(
+                lookup: &[Self],
+                index: &[(u32, u32)],
+                new_elems: &mut Vec<Self>,
+                scratch_space: &mut Vec<Option<Self>>,
+            ) {
+                let mut inversion_tmp = P::BaseField::one();
+                let mut half = None;
+
+                #[cfg(feature = "prefetch")]
+                let mut prefetch_iter = index.iter();
+                #[cfg(feature = "prefetch")]
+                prefetch_iter.next();
+
+                // We run two loops over the data separated by an inversion
+                for (idx, idy) in index.iter() {
+                    #[cfg(feature = "prefetch")]
+                    prefetch_slice_write!(new_elems, lookup, prefetch_iter);
+
+                    if *idy == !0u32 {
+                        new_elems.push(lookup[*idx as usize]);
+                        scratch_space.push(None);
+                    } else {
+                        let (mut a, mut b) = (new_elems[*idx as usize], lookup[*idy as usize]);
+                        batch_add_loop_1!(a, b, half, inversion_tmp);
+                        new_elems.push(a);
+                        scratch_space.push(Some(b));
+                    }
+                }
+
+                inversion_tmp = inversion_tmp.inverse().unwrap(); // this is always in Fp*
+
+                for (a, op_b) in new_elems.iter_mut().rev().zip(scratch_space.iter().rev()) {
+                    match op_b {
+                        Some(b) => {
+                            let b_ = *b;
+                            batch_add_loop_2!(a, b_, inversion_tmp);
+                        }
+                        None => (),
+                    };
+                }
+                scratch_space.clear();
+            }
+
             fn batch_scalar_mul_in_place<BigInt: BigInteger>(
                 mut bases: &mut [Self],
                 scalars: &mut [BigInt],
@@ -470,7 +514,6 @@ macro_rules! specialise_affine_to_proj {
                     let mut scratch_space = Vec::<Self::BBaseField>::with_capacity(bases.len());
                     let mut scratch_space_group = Vec::<Self>::with_capacity(bases.len() / w);
                     use itertools::{EitherOrBoth::*, Itertools};
-                    let now = std::time::Instant::now();
                     let k_vec: Vec<_> = scalars
                         .iter()
                         .map(|k| {
@@ -484,9 +527,7 @@ macro_rules! specialise_affine_to_proj {
                     let k1_negates: Vec<_> = k_vec.iter().map(|x| (x.0).0).collect();
                     let mut k2_scalars: Vec<_> = k_vec.iter().map(|x| (x.1).1).collect();
                     let k2_negates: Vec<_> = k_vec.iter().map(|x| (x.1).0).collect();
-                    println!("scalar generation: {}", now.elapsed().as_micros());
 
-                    let now = std::time::Instant::now();
                     let opcode_vectorised_k1 = Self::batch_wnaf_opcode_recoding(
                         &mut k1_scalars[..],
                         w,
@@ -497,9 +538,6 @@ macro_rules! specialise_affine_to_proj {
                         w,
                         Some(k2_negates.as_slice()),
                     );
-                    println!("opcode generation: {}", now.elapsed().as_micros());
-
-                    let now = std::time::Instant::now();
                     let tables = Self::batch_wnaf_tables(bases, w);
                     let tables_k2: Vec<_> = tables
                         .iter()
@@ -509,16 +547,12 @@ macro_rules! specialise_affine_to_proj {
                             p
                         })
                         .collect();
-                    let batch_size = bases.len();
-                    println!("wnaf tables: {}", now.elapsed().as_micros());
-
                     // Set all points to 0;
                     let zero = Self::zero();
                     for p in bases.iter_mut() {
                         *p = zero;
                     }
                     let noop_vec = vec![None; batch_size];
-                    let now = std::time::Instant::now();
                     for (opcode_row_k1, opcode_row_k2) in opcode_vectorised_k1
                         .iter()
                         .zip_longest(opcode_vectorised_k2.iter())
@@ -557,7 +591,7 @@ macro_rules! specialise_affine_to_proj {
                                 } else {
                                     (
                                         i as u32,
-                                        ((((idx as usize) / 2 * batch_size + i) as u32)
+                                        ((((-idx as usize) / 2 * batch_size + i) as u32)
                                             << ENDO_CODING_BITS)
                                             + 1,
                                     )
@@ -581,13 +615,12 @@ macro_rules! specialise_affine_to_proj {
                                     (
                                         i as u32,
                                         ((((idx as usize) / 2 * batch_size + i) as u32)
-                                            << ENDO_CODING_BITS)
-                                            + 0,
+                                            << ENDO_CODING_BITS),
                                     )
                                 } else {
                                     (
                                         i as u32,
-                                        ((((idx as usize) / 2 * batch_size + i) as u32)
+                                        ((((-idx as usize) / 2 * batch_size + i) as u32)
                                             << ENDO_CODING_BITS)
                                             + 1,
                                     )
@@ -602,7 +635,6 @@ macro_rules! specialise_affine_to_proj {
                             &mut scratch_space_group,
                         );
                     }
-                    println!("add and double: {}", now.elapsed().as_micros());
                 } else {
                     let mut scratch_space = Vec::<Self::BBaseField>::with_capacity(bases.len());
                     let opcode_vectorised =

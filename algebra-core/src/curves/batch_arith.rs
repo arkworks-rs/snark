@@ -36,25 +36,24 @@ where
         let half_size = 1 << (w - 1);
         let batch_size = bases.len();
 
-        let zero = Self::zero();
-        let mut tables = vec![zero; half_size * batch_size];
-
-        let mut a_2 = bases.to_vec();
-        let mut tmp = bases.to_vec();
-
+        let mut two_a = bases.to_vec();
         let instr = (0..batch_size).map(|x| x as u32).collect::<Vec<_>>();
-        Self::batch_double_in_place(&mut a_2, &instr[..], None);
+        Self::batch_double_in_place(&mut two_a, &instr[..], None);
 
-        for i in 0..half_size {
-            if i != 0 {
-                let instr = (0..batch_size)
-                    .map(|x| (x as u32, x as u32))
-                    .collect::<Vec<_>>();
-                Self::batch_add_in_place(&mut tmp, &mut a_2.to_vec()[..], &instr[..]);
-            }
-            for (elem_id, &p) in tmp.iter().enumerate() {
-                tables[i * batch_size + elem_id] = p.clone();
-            }
+        let mut tables = Vec::<Self>::with_capacity(half_size * batch_size);
+        tables.extend_from_slice(bases);
+        let mut scratch_space = Vec::<Option<Self>>::with_capacity((batch_size - 1) / 2 + 1);
+
+        for i in 1..half_size {
+            let instr = (0..batch_size)
+                .map(|x| (((i - 1) * batch_size + x) as u32, x as u32))
+                .collect::<Vec<_>>();
+            Self::batch_add_write_read_self(
+                &two_a[..],
+                &instr[..],
+                &mut tables,
+                &mut scratch_space,
+            );
         }
         tables
     }
@@ -176,18 +175,25 @@ where
     /// Adds elements in bases with elements in other (for instance, a table), utilising
     /// a scratch space to store intermediate results.
     fn batch_add_in_place_read_only(
-        _bases: &mut [Self],
-        _other: &[Self],
-        _index: &[(u32, u32)],
-        _scratch_space: &mut Vec<Self>,
-    ) {
-        unimplemented!()
-    }
+        bases: &mut [Self],
+        other: &[Self],
+        index: &[(u32, u32)],
+        scratch_space: &mut Vec<Self>,
+    );
 
     /// Lookups up group elements according to index, and either adds and writes or simply
     /// writes them to new_elems, using scratch space to store intermediate values. Scratch
     /// space is always cleared after use.
     fn batch_add_write(
+        lookup: &[Self],
+        index: &[(u32, u32)],
+        new_elems: &mut Vec<Self>,
+        scratch_space: &mut Vec<Option<Self>>,
+    );
+
+    /// Similar to batch_add_write, only that the lookup for the first operand is performed
+    /// in new_elems rather than lookup
+    fn batch_add_write_read_self(
         lookup: &[Self],
         index: &[(u32, u32)],
         new_elems: &mut Vec<Self>,

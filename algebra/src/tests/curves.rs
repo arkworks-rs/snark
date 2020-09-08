@@ -389,7 +389,7 @@ pub fn random_batch_scalar_mul_test<G: ProjectiveCurve>() {
 fn batch_bucketed_add_test<C: AffineCurve>() {
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-    const MAX_LOGN: usize = 14;
+    const MAX_LOGN: usize = 12;
     let random_elems = create_pseudo_uniform_random_elems(&mut rng, MAX_LOGN);
 
     for i in (MAX_LOGN - 4)..(ITERATIONS / 2 + MAX_LOGN - 4) {
