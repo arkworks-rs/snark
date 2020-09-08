@@ -52,9 +52,8 @@ where
                     .collect::<Vec<_>>();
                 Self::batch_add_in_place(&mut tmp, &mut a_2.to_vec()[..], &instr[..]);
             }
-
             for (elem_id, &p) in tmp.iter().enumerate() {
-                tables[elem_id * half_size + i] = p.clone();
+                tables[i * batch_size + elem_id] = p.clone();
             }
         }
         tables
@@ -185,14 +184,15 @@ where
         unimplemented!()
     }
 
+    /// Lookups up group elements according to index, and either adds and writes or simply
+    /// writes them to new_elems, using scratch space to store intermediate values. Scratch
+    /// space is always cleared after use.
     fn batch_add_write(
-        _lookup: &[Self],
-        _index: &[(u32, u32)],
-        _new_elems: &mut Vec<Self>,
-        _scratch_space: &mut Vec<Option<Self>>,
-    ) {
-        unimplemented!()
-    }
+        lookup: &[Self],
+        index: &[(u32, u32)],
+        new_elems: &mut Vec<Self>,
+        scratch_space: &mut Vec<Option<Self>>,
+    );
 
     /// Performs a batch scalar multiplication using the w-NAF encoding
     /// utilising the primitive batched ops
@@ -201,9 +201,9 @@ where
         scalars: &mut [BigInt],
         w: usize,
     ) {
+        let batch_size = bases.len();
         let opcode_vectorised = Self::batch_wnaf_opcode_recoding::<BigInt>(scalars, w, None);
         let tables = Self::batch_wnaf_tables(bases, w);
-        let half_size = 1 << (w - 1);
 
         // Set all points to 0;
         let zero = Self::zero();
@@ -228,9 +228,9 @@ where
                 .map(|(i, op)| {
                     let idx = op.unwrap();
                     if idx > 0 {
-                        tables[i * half_size + (idx as usize) / 2].clone()
+                        tables[(idx as usize) / 2 * batch_size + i].clone()
                     } else {
-                        tables[i * half_size + (-idx as usize) / 2].clone().neg()
+                        tables[(-idx as usize) / 2 * batch_size + i].clone().neg()
                     }
                 })
                 .collect();

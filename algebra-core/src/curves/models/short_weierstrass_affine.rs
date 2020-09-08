@@ -465,10 +465,12 @@ macro_rules! specialise_affine_to_proj {
                 w: usize,
             ) {
                 debug_assert!(bases.len() == scalars.len());
+                let batch_size = bases.len();
                 if P::has_glv() {
                     let mut scratch_space = Vec::<Self::BBaseField>::with_capacity(bases.len());
                     let mut scratch_space_group = Vec::<Self>::with_capacity(bases.len() / w);
                     use itertools::{EitherOrBoth::*, Itertools};
+                    let now = std::time::Instant::now();
                     let k_vec: Vec<_> = scalars
                         .iter()
                         .map(|k| {
@@ -482,7 +484,9 @@ macro_rules! specialise_affine_to_proj {
                     let k1_negates: Vec<_> = k_vec.iter().map(|x| (x.0).0).collect();
                     let mut k2_scalars: Vec<_> = k_vec.iter().map(|x| (x.1).1).collect();
                     let k2_negates: Vec<_> = k_vec.iter().map(|x| (x.1).0).collect();
+                    println!("scalar generation: {}", now.elapsed().as_micros());
 
+                    let now = std::time::Instant::now();
                     let opcode_vectorised_k1 = Self::batch_wnaf_opcode_recoding(
                         &mut k1_scalars[..],
                         w,
@@ -493,10 +497,20 @@ macro_rules! specialise_affine_to_proj {
                         w,
                         Some(k2_negates.as_slice()),
                     );
+                    println!("opcode generation: {}", now.elapsed().as_micros());
 
+                    let now = std::time::Instant::now();
                     let tables = Self::batch_wnaf_tables(bases, w);
-                    let half_size = 1 << (w - 1);
+                    let tables_k2: Vec<_> = tables
+                        .iter()
+                        .map(|&p| {
+                            let mut p = p;
+                            P::glv_endomorphism_in_place(&mut p.x);
+                            p
+                        })
+                        .collect();
                     let batch_size = bases.len();
+                    println!("wnaf tables: {}", now.elapsed().as_micros());
 
                     // Set all points to 0;
                     let zero = Self::zero();
@@ -504,7 +518,7 @@ macro_rules! specialise_affine_to_proj {
                         *p = zero;
                     }
                     let noop_vec = vec![None; batch_size];
-
+                    let now = std::time::Instant::now();
                     for (opcode_row_k1, opcode_row_k2) in opcode_vectorised_k1
                         .iter()
                         .zip_longest(opcode_vectorised_k2.iter())
@@ -528,7 +542,6 @@ macro_rules! specialise_affine_to_proj {
                             &index_double[..],
                             Some(&mut scratch_space),
                         );
-
                         let index_add_k1: Vec<_> = opcode_row_k1
                             .iter()
                             .enumerate()
@@ -538,13 +551,13 @@ macro_rules! specialise_affine_to_proj {
                                 if idx > 0 {
                                     (
                                         i as u32,
-                                        (((i * half_size + (idx as usize) / 2) as u32)
+                                        ((((idx as usize) / 2 * batch_size + i) as u32)
                                             << ENDO_CODING_BITS),
                                     )
                                 } else {
                                     (
                                         i as u32,
-                                        (((i * half_size + (-idx as usize) / 2) as u32)
+                                        ((((idx as usize) / 2 * batch_size + i) as u32)
                                             << ENDO_CODING_BITS)
                                             + 1,
                                     )
@@ -558,7 +571,6 @@ macro_rules! specialise_affine_to_proj {
                             &index_add_k1[..],
                             &mut scratch_space_group,
                         );
-
                         let index_add_k2: Vec<_> = opcode_row_k2
                             .iter()
                             .enumerate()
@@ -568,16 +580,16 @@ macro_rules! specialise_affine_to_proj {
                                 if idx > 0 {
                                     (
                                         i as u32,
-                                        (((i * half_size + (idx as usize) / 2) as u32)
+                                        ((((idx as usize) / 2 * batch_size + i) as u32)
                                             << ENDO_CODING_BITS)
-                                            + 2,
+                                            + 0,
                                     )
                                 } else {
                                     (
                                         i as u32,
-                                        (((i * half_size + (-idx as usize) / 2) as u32)
+                                        ((((idx as usize) / 2 * batch_size + i) as u32)
                                             << ENDO_CODING_BITS)
-                                            + 3,
+                                            + 1,
                                     )
                                 }
                             })
@@ -585,18 +597,17 @@ macro_rules! specialise_affine_to_proj {
 
                         Self::batch_add_in_place_read_only(
                             &mut bases,
-                            &tables[..],
+                            &tables_k2[..],
                             &index_add_k2[..],
                             &mut scratch_space_group,
                         );
                     }
+                    println!("add and double: {}", now.elapsed().as_micros());
                 } else {
                     let mut scratch_space = Vec::<Self::BBaseField>::with_capacity(bases.len());
                     let opcode_vectorised =
                         Self::batch_wnaf_opcode_recoding::<BigInt>(scalars, w, None);
                     let tables = Self::batch_wnaf_tables(bases, w);
-                    let half_size = 1 << (w - 1);
-
                     // Set all points to 0;
                     let zero = Self::zero();
                     for p in bases.iter_mut() {
@@ -624,9 +635,9 @@ macro_rules! specialise_affine_to_proj {
                             .map(|(i, op)| {
                                 let idx = op.unwrap();
                                 if idx > 0 {
-                                    tables[i * half_size + (idx as usize) / 2].clone()
+                                    tables[(idx as usize) / 2 * batch_size + i].clone()
                                 } else {
-                                    tables[i * half_size + (-idx as usize) / 2].clone().neg()
+                                    tables[(-idx as usize) / 2 * batch_size + i].clone().neg()
                                 }
                             })
                             .collect();
