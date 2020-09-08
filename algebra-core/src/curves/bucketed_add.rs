@@ -5,7 +5,11 @@ use crate::{
 };
 
 #[cfg(feature = "std")]
-use {core::cmp::Ordering, std::collections::HashMap, voracious_radix_sort::*};
+use {
+    core::cmp::Ordering,
+    std::collections::HashMap,
+    voracious_radix_sort::*,
+};
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
@@ -47,6 +51,8 @@ pub fn batch_bucketed_add_radix<C: AffineCurve>(
     assert_eq!(elems.len(), bucket_positions.len());
     assert!(elems.len() > 0);
 
+    dlsd_radixsort(bucket_positions, 16);
+
     let mut len = bucket_positions.len();
     let mut all_ones = true;
     let mut new_len = 0; // len counter
@@ -80,19 +86,18 @@ pub fn batch_bucketed_add_radix<C: AffineCurve>(
             for i in 0..half {
                 instr.push((
                     bucket_positions[glob - (loc - 1) + 2 * i].position,
-                    bucket_positions[glob - (loc - 1) + 2 * i + 1].position,
+                    bucket_positions[glob - (loc - 1) + 2 * i + 1].position
                 ));
-                bucket_positions[new_len + i] = BucketPosition {
-                    bucket: current_bucket,
-                    position: (new_len + i) as u32,
-                };
+                bucket_positions[new_len + i] =
+                    BucketPosition{bucket: current_bucket, position: (new_len + i) as u32};
             }
             if is_odd {
-                instr.push((bucket_positions[glob].position, !0u32));
-                bucket_positions[new_len + half] = BucketPosition {
-                    bucket: current_bucket,
-                    position: (new_len + half) as u32,
-                };
+                instr.push((
+                    bucket_positions[glob].position,
+                    !0u32
+                ));
+                bucket_positions[new_len + half] =
+                    BucketPosition{bucket: current_bucket, position: (new_len + half) as u32};
             }
             // Reset the local_counter and update state
             new_len += half + (loc % 2);
@@ -102,7 +107,8 @@ pub fn batch_bucketed_add_radix<C: AffineCurve>(
             if batch >= BATCH_SIZE / 2 {
                 // We need instructions for copying data in the case
                 // of noops. We encode noops/copies as !0u32
-                elems[..].batch_add_write(&instr[..], &mut new_elems, &mut scratch_space);
+                elems[..]
+                    .batch_add_write(&instr[..], &mut new_elems, &mut scratch_space);
 
                 instr.clear();
                 batch = 0;
@@ -111,7 +117,8 @@ pub fn batch_bucketed_add_radix<C: AffineCurve>(
         glob += 1;
     }
     if instr.len() > 0 {
-        elems[..].batch_add_write(&instr[..], &mut new_elems, &mut scratch_space);
+        elems[..]
+            .batch_add_write(&instr[..], &mut new_elems, &mut scratch_space);
         instr.clear();
     }
     glob = 0;
@@ -140,7 +147,7 @@ pub fn batch_bucketed_add_radix<C: AffineCurve>(
                 for i in 0..half {
                     instr.push((
                         bucket_positions[glob - (loc - 1) + 2 * i].position,
-                        bucket_positions[glob - (loc - 1) + 2 * i + 1].position,
+                        bucket_positions[glob - (loc - 1) + 2 * i + 1].position
                     ));
                     bucket_positions[new_len + i] = bucket_positions[glob - (loc - 1) + 2 * i];
                 }
