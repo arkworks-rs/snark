@@ -410,7 +410,11 @@ fn batch_bucketed_add_test<C: AffineCurve>() {
         let mut res1 = vec![];
         let mut elems_mut = random_elems[0..n_elems].to_vec();
         let now = std::time::Instant::now();
-        res1 = batch_bucketed_add::<C>(n_buckets, &mut elems_mut[..], &mut bucket_assign[..]);
+        res1 = batch_bucketed_add::<C>(
+            n_buckets,
+            &mut elems_mut[..],
+            &mut bucket_assign.to_vec()[..],
+        );
         println!(
             "batch bucketed add for {} elems: {:?}",
             n_elems,
