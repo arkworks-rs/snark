@@ -17,6 +17,8 @@ use algebra::{
     },
     UniformRand,
 };
+
+use dlog_solver::{DetSquareRootField, Witness_correct_sqrt}; 
 use commitment_pairing::urs::{URS};
 use evaluation_domains::EvaluationDomains;
 use circuits_pairing::index::{Index, VerifierIndex, MatrixValues, URSSpec};
@@ -70,6 +72,28 @@ pub extern "C" fn zexe_bn382_fp_sqrt(x: *const Fp) -> *mut Fp {
     let ret = match x_.sqrt() {
         Some(x) => x,
         None => Fp::zero(),
+    };
+    return Box::into_raw(Box::new(ret));
+}
+
+#[no_mangle]
+pub extern "C" fn zexe_bn382_fp_det_sqrt(x: *const Fp) -> *mut Fp {
+    let x_ = unsafe { &(*x) };
+    let ret = match x_.det_sqrt() {
+        Some(x) => x,
+        None => Fp::zero(),
+    };
+    return Box::into_raw(Box::new(ret));
+}
+
+
+//TODO : to verify
+#[no_mangle]
+pub extern "C" fn zexe_bn382_fp_witness_det_sqrt(x: *const Fp) -> (*mut Fp, *mut u64, *mut Fp) {
+    let x_ = unsafe { &(*x) };
+    let ret = match x_.witness_det_sqrt() {
+        Some(y) => x,
+        None => (Fp::zero(), 0, Fp::zero()),
     };
     return Box::into_raw(Box::new(ret));
 }

@@ -862,6 +862,10 @@ struct
 
   let sqrt = foreign (prefix "sqrt") (typ @-> returning typ)
 
+  let det_sqrt = foreign (prefix "det_sqrt") (typ @-> returning typ)
+
+  let witness_det_sqrt = foreign (prefix "witness_det_sqrt") (typ @-> returning (typ, uint64_t, typ))
+
   let random = foreign (prefix "random") (void @-> returning typ)
 
   let of_int = foreign (prefix "of_int") (uint64_t @-> returning typ)

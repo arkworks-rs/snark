@@ -17,6 +17,8 @@ use algebra::{
     UniformRand,
 };
 
+use dlog_solver::{DetSquareRootField, Witness_correct_sqrt}; 
+
 use evaluation_domains::EvaluationDomains;
 
 use ff_fft::{Evaluations, DensePolynomial, EvaluationDomain, Radix2EvaluationDomain as Domain};
@@ -558,6 +560,27 @@ pub extern "C" fn zexe_tweedle_fq_sqrt(x: *const Fq) -> *mut Fq {
     let ret = match x_.sqrt() {
         Some(x) => x,
         None => Fq::zero(),
+    };
+    return Box::into_raw(Box::new(ret));
+}
+
+#[no_mangle]
+pub extern "C" fn zexe_tweedle_fq_det_sqrt(x: *const Fq) -> *mut Fq {
+    let x_ = unsafe { &(*x) };
+    let ret = match x_.det_sqrt() {
+        Some(x) => x,
+        None => Fq::zero(),
+    };
+    return Box::into_raw(Box::new(ret));
+}
+
+//TODO : to verify
+#[no_mangle]
+pub extern "C" fn zexe_tweedle_fq_witness_det_sqrt(x: *const Fq) -> (*mut Fq, *mut u64, *mut Fq) {
+    let x_ = unsafe { &(*x) };
+    let ret = match x_.witness_det_sqrt() {
+        Some(y) => x,
+        None => (Fq::zero(), 0, Fq::zero()),
     };
     return Box::into_raw(Box::new(ret));
 }

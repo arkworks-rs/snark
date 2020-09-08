@@ -82,6 +82,10 @@ bool zexe_bn382_fp_is_square(void *);
 
 void *zexe_bn382_fp_sqrt(void *);
 
+void *zexe_bn382_fp_det_sqrt(void *);
+
+void *zexe_bn382_fp_witness_det_sqrt(void *, uint64_t *, void *);
+
 void *zexe_bn382_fp_random();
 
 void *zexe_bn382_fp_of_int(uint64_t);
@@ -171,6 +175,8 @@ void* zexe_bn382_fq_endo_scalar();
 void *zexe_bn382_fq_size();
 bool zexe_bn382_fq_is_square(void *);
 void *zexe_bn382_fq_sqrt(void *);
+void *zexe_bn382_fq_det_sqrt(void *);
+void *zexe_bn382_fq_witness_det_sqrt(void *, uint64_t *, void *);
 void *zexe_bn382_fq_random();
 void *zexe_bn382_fq_of_int(uint64_t);
 char *zexe_bn382_fq_to_string(void *);
@@ -613,6 +619,8 @@ void* zexe_tweedle_fq_endo_scalar();
 void *zexe_tweedle_fq_size();
 bool zexe_tweedle_fq_is_square(void *);
 void *zexe_tweedle_fq_sqrt(void *);
+void *zexe_tweedle_fq_det_sqrt(void *);
+void *zexe_tweedle_fq_witness_det_sqrt(void *, uint64_t *, void *);
 void *zexe_tweedle_fq_random();
 void *zexe_tweedle_fq_of_int(uint64_t);
 char *zexe_tweedle_fq_to_string(void *);
@@ -876,6 +884,8 @@ void* zexe_tweedle_fp_endo_scalar();
 void *zexe_tweedle_fp_size();
 bool zexe_tweedle_fp_is_square(void *);
 void *zexe_tweedle_fp_sqrt(void *);
+void *zexe_tweedle_fp_det_sqrt(void *);
+void *zexe_bn382_fp_witness_det_sqrt(void *, uint64_t *, void *);
 void *zexe_tweedle_fp_random();
 void *zexe_tweedle_fp_of_int(uint64_t);
 char *zexe_tweedle_fp_to_string(void *);
