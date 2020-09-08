@@ -459,59 +459,6 @@ macro_rules! specialise_affine_to_proj {
                 scratch_space.clear();
             }
 
-            fn batch_add_write_shift_in_place(
-                bases: &mut [Self],
-                index: &[(u32, u32)],
-                offset: usize,
-            ) {
-                let mut inversion_tmp = P::BaseField::one();
-                let mut half = None;
-
-                #[cfg(feature = "prefetch")]
-                let mut prefetch_iter = index.iter();
-                #[cfg(feature = "prefetch")]
-                prefetch_iter.next();
-
-                // We run two loops over the data separated by an inversion
-                for (idx, idy) in index.iter() {
-                    #[cfg(feature = "prefetch")]
-                    prefetch_slice_write!(bases, bases, prefetch_iter);
-
-                    if *idy != !0u32 {
-                        println!("{}, {}", idx, idy);
-                        let (mut a, mut b) = if idx < idy {
-                            let (x, y) = bases.split_at_mut(*idy as usize);
-                            (&mut x[*idx as usize], &mut y[0])
-                        } else {
-                            let (x, y) = bases.split_at_mut(*idx as usize);
-                            (&mut y[0], &mut x[*idy as usize])
-                        };
-                        batch_add_loop_1!(a, b, half, inversion_tmp);
-                    }
-                }
-
-                inversion_tmp = inversion_tmp.inverse().unwrap(); // this is always in Fp*
-
-                #[cfg(feature = "prefetch")]
-                let mut prefetch_iter = index.iter().rev();
-                #[cfg(feature = "prefetch")]
-                prefetch_iter.next();
-
-                for (new_idx, (idx, idy)) in index.iter().enumerate().rev() {
-                    #[cfg(feature = "prefetch")]
-                    prefetch_slice_write!(bases, bases, prefetch_iter);
-                    if *idy != !0u32 {
-                        println!("HERE");
-                        let (mut a, b) = (bases[*idx as usize], bases[*idy as usize]);
-                        let a_ = &mut a;
-                        batch_add_loop_2!(a_, b, inversion_tmp);
-                        bases[offset + new_idx] = a;
-                    } else {
-                        bases[offset + new_idx] = bases[*idx as usize];
-                    }
-                }
-            }
-
             fn batch_scalar_mul_in_place<BigInt: BigInteger>(
                 mut bases: &mut [Self],
                 scalars: &mut [BigInt],

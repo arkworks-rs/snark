@@ -194,10 +194,6 @@ where
         unimplemented!()
     }
 
-    fn batch_add_write_shift_in_place(_bases: &mut [Self], _index: &[(u32, u32)], _offset: usize) {
-        unimplemented!()
-    }
-
     /// Performs a batch scalar multiplication using the w-NAF encoding
     /// utilising the primitive batched ops
     fn batch_scalar_mul_in_place<BigInt: BigInteger>(
@@ -292,8 +288,6 @@ pub trait BatchGroupArithmeticSlice<G: AffineCurve> {
         scratch_space: &mut Vec<Option<G>>,
     );
 
-    fn batch_add_write_shift_in_place(&mut self, index: &[(u32, u32)], offset: usize);
-
     fn batch_scalar_mul_in_place<BigInt: BigInteger>(&mut self, scalars: &mut [BigInt], w: usize);
 }
 
@@ -317,10 +311,6 @@ impl<G: AffineCurve> BatchGroupArithmeticSlice<G> for [G] {
         scratch_space: &mut Vec<Option<G>>,
     ) {
         G::batch_add_write(self, index, new_elems, scratch_space);
-    }
-
-    fn batch_add_write_shift_in_place(&mut self, index: &[(u32, u32)], offset: usize) {
-        G::batch_add_write_shift_in_place(self, index, offset);
     }
 
     fn batch_scalar_mul_in_place<BigInt: BigInteger>(&mut self, scalars: &mut [BigInt], w: usize) {
