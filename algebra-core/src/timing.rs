@@ -15,18 +15,13 @@ macro_rules! timer_println {
                 "batch_scalar_mul_in_place",
             ];
 
-            const WHITELISTED_FUNCTIONS: [&'static str; 1] = [
-                "verify_points",
-                // "batch_bucketed_add",
-            ];
+            const WHITELISTED_FUNCTIONS: [&'static str; 1] = ["verify_points"];
 
             const BLACKLISTED_PARENT_FUNCTIONS: [&'static str; 0] = [];
 
             // If not empty, we only run the instrumentation if
             // one of the parents of the function is contained here
-            const WHITELISTED_PARENT_FUNCTIONS: [&'static str; 0] = [
-                                // "verify_points"
-                            ];
+            const WHITELISTED_PARENT_FUNCTIONS: [&'static str; 0] = [];
 
             macro_rules! function {
                 () => {{

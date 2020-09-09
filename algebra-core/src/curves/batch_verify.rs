@@ -116,8 +116,7 @@ pub fn batch_verify_in_subgroup<C: AffineCurve, R: Rng>(
 ) -> Result<(), VerificationError> {
     #[cfg(feature = "std")]
     let cost_estimate = (<C::ScalarField as PrimeField>::Params::MODULUS_BITS as f64
-        * 0.5
-        * (7.0 / 6.0 + 1.0 / 4.0))
+        * (0.5 * 7.0 / 6.0 * 0.8 + 1.0 / 5.0))
         .ceil() as usize;
     #[cfg(not(feature = "std"))]
     let cost_estimate = <C::ScalarField as PrimeField>::Params::MODULUS_BITS as usize * 5 / 4;
@@ -126,7 +125,8 @@ pub fn batch_verify_in_subgroup<C: AffineCurve, R: Rng>(
         security_param,
         points.len(),
         // We estimate the costs of a single scalar multiplication in the batch affine, w-NAF GLV case as
-        // 7/6 * 0.5 * n_bits (doubling) + 0.5 * 1/(w + 1) * n_bits (addition)
+        // 7/6 * 0.5 * n_bits * 0.8 (doubling) + 0.5 * 1/(w + 1) * n_bits (addition)
+        // We take into account that doubling in the batch add model is cheaper as it requires less cache use
         cost_estimate,
     );
     run_rounds(points, num_buckets, num_rounds, None, rng)?;
