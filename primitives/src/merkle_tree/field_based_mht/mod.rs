@@ -68,12 +68,6 @@ pub trait FieldBasedMerkleTree: Clone {
         Parameters = Self::Parameters
     >;
 
-    /// Initialize this tree. The user must pass the desired height for the tree.
-    fn init(height: usize) -> Self;
-
-    /// Resets the internal state of the tree, bringing it back to the initial one.
-    fn reset(&mut self) -> &mut Self;
-
     /// Append a new leaf to the Merkle Tree. The moment in which the root will be computed
     /// is transparent to the user and obeys to pre-defined internal policies.
     fn append(&mut self, leaf: <Self::Parameters as FieldBasedMerkleTreeParameters>::Data) -> &mut Self;
@@ -87,6 +81,9 @@ pub trait FieldBasedMerkleTree: Clone {
     /// of the Merkle Tree. It's more efficient than `finalize` because avoids a copy; however,
     /// once this function is called, it is not possible to further `update` the tree.
     fn finalize_in_place(&mut self) -> &mut Self;
+
+    /// Resets the internal state of the tree, bringing it back to the initial one.
+    fn reset(&mut self) -> &mut Self;
 
     /// Return the root of the Merkle Tree. Return None if the tree has not been
     /// finalized before calling this function.

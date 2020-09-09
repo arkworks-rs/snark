@@ -27,7 +27,92 @@ pub struct FieldBasedOptimizedMHT<T: BatchFieldBasedMerkleTreeParameters>{
 
 impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
 
-    pub fn compute_subtree(&mut self) {
+    /// Creates a new tree given its `height` and `processing_step`, used to tune
+    /// the memory usage of the tree. In particular, `processing_step` defines the
+    /// number of leaves to store before triggering the computation of the root.
+    /// Decreasing `processing_step` leads to less memory consumption but
+    /// significantly worsen performances, as the computation of the root is
+    /// triggered more often, along with a batch hash that may perform poorly when
+    /// there are few elements to batch; of course, conversely, increasing
+    /// `processing_step` increases the memory usage too but improves performances.
+    /// Meaningful values for `processing_step` are between 1 (i.e. update the root
+    /// at each leaf), leading to best memory efficiency but worse performances, and
+    /// the maximum number of leaves (or the mean number of leaves you plan to add),
+    /// leading to worse memory efficiency but best performances (root is computed
+    /// just once, but all the leaves must be kept in memory).
+    /// You can edit the `mht_poseidon_tuning` benchmarks in `primitives/src/benches/poseidon_mht.rs`
+    /// to properly tune the `processing_step` parameter according to your use case.
+    pub fn init(height: usize, processing_step: usize) -> Self {
+
+        assert!(check_precomputed_parameters::<T>(height));
+
+        let rate = <<T::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
+        // Rate may also be smaller than the arity actually, but this assertion
+        // is reasonable and simplify the design.
+        assert_eq!(rate, T::MERKLE_ARITY);
+
+        let last_level_size = T::MERKLE_ARITY.pow((height - 1) as u32);
+        assert!(processing_step > 0 && processing_step <= last_level_size);
+
+        let mut initial_pos = Vec::new();
+        let mut final_pos = Vec::new();
+        let mut processed_pos = Vec::new();
+        let mut new_elem_pos = Vec::new();
+
+        let mut size = last_level_size;
+
+        let mut initial_idx = 0;
+        let mut final_idx = last_level_size;
+
+        while size >= 1 {
+            initial_pos.push(initial_idx);
+            final_pos.push(final_idx);
+            processed_pos.push(initial_idx);
+            new_elem_pos.push(initial_idx);
+
+            initial_idx += size;
+            size /= rate;
+            final_idx = initial_idx + size;
+        }
+
+        let tree_size = *final_pos.last().unwrap();
+
+        let mut array_nodes = Vec::with_capacity(tree_size);
+        for _i in 0..tree_size {
+            array_nodes.push(<T::Data as Field>::zero());
+        }
+
+        let cpus = rayon::current_num_threads();
+        let mut chunk_size = processing_step / (cpus * rate);
+        let mut processing_block_size = chunk_size * cpus * rate;
+        if processing_step < cpus * rate {
+            chunk_size = processing_step / rate;
+            if chunk_size == 0 {
+                chunk_size = 1;
+            }
+            processing_block_size = chunk_size * rate;
+        }
+
+        if processing_block_size > last_level_size {
+            processing_block_size = last_level_size;
+        }
+
+        Self {
+            root: { <T::Data as Field>::zero() },
+            array_nodes: { array_nodes },
+            processing_step: { processing_block_size },
+            initial_pos: { initial_pos },
+            final_pos: { final_pos },
+            processed_pos: { processed_pos },
+            new_elem_pos: { new_elem_pos },
+            rate,
+            height,
+            finalized: false,
+            _tree_parameters: PhantomData,
+        }
+    }
+
+    fn compute_subtree(&mut self) {
         for i in 0..self.height  {
             if (self.new_elem_pos[i] - self.processed_pos[i]) >= self.rate {
                 let num_groups_leaves = (self.new_elem_pos[i] - self.processed_pos[i]) / self.rate;
@@ -92,87 +177,6 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBased
     type Parameters = T;
     type MerklePath = FieldBasedMHTPath<T>;
 
-    fn init(height: usize) -> Self {
-
-        assert!(check_precomputed_parameters::<T>(height));
-
-        let rate = <<T::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
-        // Rate may also be smaller than the arity actually, but this assertion
-        // is reasonable and simplify the design.
-        assert_eq!(rate, T::MERKLE_ARITY);
-
-        let last_level_size = T::MERKLE_ARITY.pow((height - 1) as u32);
-        let processing_step = last_level_size;
-
-        let mut initial_pos = Vec::new();
-        let mut final_pos = Vec::new();
-        let mut processed_pos = Vec::new();
-        let mut new_elem_pos = Vec::new();
-
-        let mut size = last_level_size;
-
-        let mut initial_idx = 0;
-        let mut final_idx = last_level_size;
-
-        while size >= 1 {
-            initial_pos.push(initial_idx);
-            final_pos.push(final_idx);
-            processed_pos.push(initial_idx);
-            new_elem_pos.push(initial_idx);
-
-            initial_idx += size;
-            size /= rate;
-            final_idx = initial_idx + size;
-        }
-
-        let tree_size = *final_pos.last().unwrap();
-
-        let mut array_nodes = Vec::with_capacity(tree_size);
-        for _i in 0..tree_size {
-            array_nodes.push(<T::Data as Field>::zero());
-        }
-
-        let cpus = rayon::current_num_threads();
-        let mut chunk_size = processing_step / (cpus * rate);
-        let mut processing_block_size = chunk_size * cpus * rate;
-        if processing_step < cpus * rate {
-            chunk_size = processing_step / rate;
-            if chunk_size == 0 {
-                chunk_size = 1;
-            }
-            processing_block_size = chunk_size * rate;
-        }
-
-        if processing_block_size > last_level_size {
-            processing_block_size = last_level_size;
-        }
-
-        Self {
-            root: { <T::Data as Field>::zero() },
-            array_nodes: { array_nodes },
-            processing_step: { processing_block_size },
-            initial_pos: { initial_pos },
-            final_pos: { final_pos },
-            processed_pos: { processed_pos },
-            new_elem_pos: { new_elem_pos },
-            rate,
-            height,
-            finalized: false,
-            _tree_parameters: PhantomData,
-        }
-    }
-
-    fn reset(&mut self) -> &mut Self {
-
-        for i in 0..self.new_elem_pos.len() {
-            self.new_elem_pos[i] = self.initial_pos[i];
-            self.processed_pos[i] = self.initial_pos[i];
-        }
-        self.finalized = false;
-
-        self
-    }
-
     /// Note: `Field` implements the `Copy` trait, therefore invoking this function won't
     /// cause a moving of ownership for `leaf`, but just a copy. Another copy is
     /// performed below in `self.array_nodes[self.new_elem_pos_subarray[0]] = leaf;`
@@ -210,6 +214,17 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBased
         self.compute_subtree();
         self.finalized = true;
         self.root = *self.array_nodes.last().unwrap();
+        self
+    }
+
+    fn reset(&mut self) -> &mut Self {
+
+        for i in 0..self.new_elem_pos.len() {
+            self.new_elem_pos[i] = self.initial_pos[i];
+            self.processed_pos[i] = self.initial_pos[i];
+        }
+        self.finalized = false;
+
         self
     }
 
@@ -330,7 +345,7 @@ mod test {
         let expected_output = MNT4753Fr::new(BigInteger768([8181981188982771303, 9834648934716236448, 6420360685258842467, 14258691490360951478, 10642011566662929522, 16918207755479993617, 3581400602871836321, 14012664850056020974, 16755211538924649257, 4039951447678776727, 12365175056998155257, 119677729692145]));
         let height = 21;
         let num_leaves = 2usize.pow(height as u32 - 1);
-        let mut tree = MNT4PoseidonMHT::init(height);
+        let mut tree = MNT4PoseidonMHT::init(height, num_leaves);
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
         for _ in 0..num_leaves {
             tree.append(MNT4753Fr::rand(&mut rng));
@@ -344,7 +359,7 @@ mod test {
         let expected_output = MNT6753Fr::new(BigInteger768([18065863015580309240, 1059485854425188866, 1479096878827665107, 6899132209183155323, 1829690180552438097, 7395327616910893705, 16132683753083562833, 8528890579558218842, 9345795575555751752, 8161305655297462527, 6222078223269068637, 401142754883827]));
         let height = 21;
         let num_leaves = 2usize.pow(height as u32 - 1);
-        let mut tree = MNT6PoseidonMHT::init(height);
+        let mut tree = MNT6PoseidonMHT::init(height, num_leaves);
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
         for _ in 0..num_leaves {
             tree.append(MNT6753Fr::rand(&mut rng));
@@ -373,7 +388,7 @@ mod test {
             let naive_root = naive_mt.root();
 
             // Push them in a Poseidon Merkle Tree and get the root
-            let mut mt = MNT4PoseidonMHT::init(max_height);
+            let mut mt = MNT4PoseidonMHT::init(max_height, num_leaves);
             leaves[0..num_leaves].iter().for_each(|&leaf| { mt.append(leaf); });
             let root = mt.finalize_in_place().root().unwrap();
 
@@ -399,7 +414,7 @@ mod test {
             let naive_root = naive_mt.root();
 
             // Push them in a Poseidon Merkle Tree and get the root
-            let mut mt = MNT4PoseidonMHT::init(max_height);
+            let mut mt = MNT4PoseidonMHT::init(max_height, num_leaves);
             leaves[..].iter().for_each(|&leaf| { mt.append(leaf); });
             let root = mt.finalize_in_place().root().unwrap();
 
@@ -428,7 +443,7 @@ mod test {
             let naive_root = naive_mt.root();
 
             // Push them in a Poseidon Merkle Tree and get the root
-            let mut mt = MNT6PoseidonMHT::init(max_height);
+            let mut mt = MNT6PoseidonMHT::init(max_height, num_leaves);
             leaves[..].iter().for_each(|&leaf| { mt.append(leaf); });
             let root = mt.finalize_in_place().root().unwrap();
 
@@ -455,7 +470,7 @@ mod test {
             let naive_root = naive_mt.root();
 
             // Push them in a Poseidon Merkle Tree and get the root
-            let mut mt = MNT6PoseidonMHT::init(max_height);
+            let mut mt = MNT6PoseidonMHT::init(max_height, num_leaves);
             leaves[0..num_leaves].iter().for_each(|&leaf| { mt.append(leaf); });
             let root = mt.finalize_in_place().root().unwrap();
 
@@ -469,7 +484,7 @@ mod test {
         let height = 7;
         let num_leaves = 2usize.pow(height as u32 - 1);
         let mut leaves = Vec::with_capacity(num_leaves);
-        let mut tree = MNT4PoseidonMHT::init(height);
+        let mut tree = MNT4PoseidonMHT::init(height, num_leaves);
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         // Generate random leaves, half of which empty
@@ -513,7 +528,7 @@ mod test {
         let height = 7;
         let num_leaves = 2usize.pow(height as u32 - 1);
         let mut leaves = Vec::with_capacity(num_leaves);
-        let mut tree = MNT6PoseidonMHT::init(height);
+        let mut tree = MNT6PoseidonMHT::init(height, num_leaves);
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         // Generate random leaves, half of which empty
