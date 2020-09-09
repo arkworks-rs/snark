@@ -447,7 +447,7 @@ macro_rules! batch_verify_test {
         const MAX_LOGN: usize = 14;
         const SECURITY_PARAM: usize = 128;
         // Generate pseudorandom group elements
-        let random_elems = create_pseudo_uniform_random_elems(&mut rng, MAX_LOGN);
+        let random_elems: Vec<$GroupAffine<P>> = create_pseudo_uniform_random_elems(&mut rng, MAX_LOGN);
 
         let now = std::time::Instant::now();
         let mut non_subgroup_points = Vec::with_capacity(1 << 10);
@@ -471,11 +471,42 @@ macro_rules! batch_verify_test {
         );
 
         println!("Security Param: {}", SECURITY_PARAM);
+        let mut estimated_timing = 0;
         for i in (MAX_LOGN - 4)..(ITERATIONS / 2 + MAX_LOGN - 4) {
             let n_elems = 1 << i;
             println!("n: {}", n_elems);
-            let random_location = Uniform::new(0, n_elems);
 
+            if i == MAX_LOGN - 4 {
+                let mut tmp_elems_for_naive = random_elems[0..n_elems].to_vec();
+                let now = std::time::Instant::now();
+                cfg_chunks_mut!(tmp_elems_for_naive, AFFINE_BATCH_SIZE).map(|e| {
+                    // Probably could optimise this further: single scalar
+                    // We also need to make GLV work with the characteristic
+                    let size = e.len();
+                    e[..].batch_scalar_mul_in_place::<<<$GroupAffine<P> as AffineCurve>::ScalarField as PrimeField>::BigInt>(
+                        &mut vec![<<$GroupAffine<P> as AffineCurve>::ScalarField as PrimeField>::modulus().into(); size][..],
+                        4,
+                    );
+                    e.iter().all(|p| p.is_zero())
+                })
+                .all(|b| b);
+
+                estimated_timing = now.elapsed().as_micros();
+                println!(
+                    "Success: In Subgroup. n: {}, time: {} (naive)",
+                    n_elems,
+                    estimated_timing
+                );
+            } else {
+                estimated_timing *= 2;
+                println!(
+                    "Estimated timing for n: {}, time: {} (naive)",
+                    n_elems,
+                    estimated_timing
+                );
+            }
+
+            let random_location = Uniform::new(0, n_elems);
             let mut tmp_elems = random_elems[0..n_elems].to_vec();
 
             let now = std::time::Instant::now();
@@ -487,23 +518,23 @@ macro_rules! batch_verify_test {
                 now.elapsed().as_micros()
             );
 
-            for j in 0..10 {
-                // Randomly insert random non-subgroup elems
-                for k in 0..(1 << j) {
-                    tmp_elems[random_location.sample(&mut rng)] = non_subgroup_points[k];
-                }
-                let now = std::time::Instant::now();
-                match batch_verify_in_subgroup::<$GroupAffine<P>, XorShiftRng>(&tmp_elems[..], SECURITY_PARAM, &mut rng) {
-                    Ok(_) => assert!(false, "did not detect non-subgroup elems"),
-                    _ => assert!(true),
-                };
-                println!(
-                    "Success: Not in subgroup. n: {}, non-subgroup elems: {}, time: {}",
-                    n_elems,
-                    (1 << (j + 1)) - 1,
-                    now.elapsed().as_micros()
-                );
-            }
+            // for j in 0..10 {
+            //     // Randomly insert random non-subgroup elems
+            //     for k in 0..(1 << j) {
+            //         tmp_elems[random_location.sample(&mut rng)] = non_subgroup_points[k];
+            //     }
+            //     let now = std::time::Instant::now();
+            //     match batch_verify_in_subgroup::<$GroupAffine<P>, XorShiftRng>(&tmp_elems[..], SECURITY_PARAM, &mut rng) {
+            //         Ok(_) => assert!(false, "did not detect non-subgroup elems"),
+            //         _ => assert!(true),
+            //     };
+            //     println!(
+            //         "Success: Not in subgroup. n: {}, non-subgroup elems: {}, time: {}",
+            //         n_elems,
+            //         (1 << (j + 1)) - 1,
+            //         now.elapsed().as_micros()
+            //     );
+            // }
         }
 
         // // We can induce a collision and thus failure to identify non-subgroup elements with the following

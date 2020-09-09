@@ -1,4 +1,4 @@
-use crate::cfg_chunks_mut;
+use crate::cfg_chunks_mut_random_gen;
 use algebra_core::{
     AffineCurve, BatchGroupArithmeticSlice, BigInteger64, ProjectiveCurve, UniformRand,
 };
@@ -21,8 +21,8 @@ pub fn create_pseudo_uniform_random_elems<C: AffineCurve, R: Rng>(
     let mut scalars: Vec<BigInteger64> = (0..1 << max_logn)
         .map(|_| BigInteger64::from(step.sample(rng)))
         .collect();
-    cfg_chunks_mut!(random_elems, AFFINE_BATCH_SIZE)
-        .zip(cfg_chunks_mut!(scalars, AFFINE_BATCH_SIZE))
+    cfg_chunks_mut_random_gen!(random_elems, AFFINE_BATCH_SIZE)
+        .zip(cfg_chunks_mut_random_gen!(scalars, AFFINE_BATCH_SIZE))
         .for_each(|(e, s)| {
             e[..].batch_scalar_mul_in_place::<BigInteger64>(&mut s[..], 1);
         });

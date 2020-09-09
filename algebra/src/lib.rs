@@ -180,12 +180,25 @@ pub(crate) mod bw6_761;
 pub(crate) mod tests;
 
 #[macro_export]
-macro_rules! cfg_chunks_mut {
+macro_rules! cfg_chunks_mut_random_gen {
     ($e: expr, $N: expr) => {{
         #[cfg(feature = "parallel_random_gen")]
         let result = $e.par_chunks_mut($N);
 
         #[cfg(not(feature = "parallel_random_gen"))]
+        let result = $e.chunks_mut($N);
+
+        result
+    }};
+}
+
+#[macro_export]
+macro_rules! cfg_chunks_mut {
+    ($e: expr, $N: expr) => {{
+        #[cfg(feature = "parallel")]
+        let result = $e.par_chunks_mut($N);
+
+        #[cfg(not(feature = "parallel"))]
         let result = $e.chunks_mut($N);
 
         result

@@ -45,6 +45,7 @@ cp6_782 = [ "algebra/cp6_782" ]
 bw6_761 = [ "algebra/bw6_761" ]
 timing = [ "algebra/timing"]
 timing_detailed = [ "algebra/timing_detailed" ]
+timing_thread_id = [ "algebra/timing_thread_id" ]
 
 [build-dependencies]
 rustc_version = "0.2"

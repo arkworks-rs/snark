@@ -32,6 +32,7 @@ unroll = { version = "=0.1.4" }
 itertools = { version = "0.9.0", default-features = false }
 voracious_radix_sort = { version = "1.0.0", optional = true }
 either = { version = "1.6.0", default-features = false }
+thread-id = { version = "3.3.0", optional = true }
 
 [build-dependencies]
 field-assembly = { path = "./field-assembly", optional = true }
@@ -47,5 +48,7 @@ parallel = [ "std", "rayon", "rand/default" ]
 derive = [ "algebra-core-derive" ]
 llvm_asm = [ "field-assembly" ]
 prefetch = [ "std" ]
+
 timing = [ "std" ]
 timing_detailed = [ "std" ]
+timing_thread_id = [ "thread-id" ]
