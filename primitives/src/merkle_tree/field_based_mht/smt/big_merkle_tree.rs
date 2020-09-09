@@ -61,8 +61,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         path_db: String,
         path_cache: String
     ) -> Result<Self, Error> {
-        let height = height - 1;
-        assert!(check_precomputed_parameters::<T>(height));
+        assert!(check_precomputed_parameters::<T>(height + 1));
         
         let rate = <<T::H  as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
 
@@ -118,7 +117,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
             let state_file = fs::File::open(state_path.clone())?;
             BigMerkleTreeState::<T>::read(state_file)?
         };
-        assert!(check_precomputed_parameters::<T>(state.height));
+        assert!(check_precomputed_parameters::<T>(state.height + 1));
         let width = T::MERKLE_ARITY.pow(state.height as u32);
 
         let opening_options = Options::default();
@@ -316,8 +315,6 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         // Updates the Merkle tree on the path from the leaf to the root
 
         // check that the index of the leaf to be inserted is less than the width of the Merkle tree
-        println!("idx: {}", coord.idx);
-        println!("width: {}", self.width);
         assert!(coord.idx < self.width, "Leaf index out of bound.");
         // check that the coordinates of the node corresponds to the leaf level
         assert_eq!(coord.height, 0, "Coord of the node does not correspond to leaf level");
@@ -563,7 +560,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         self.state.root.clone()
     }
 
-    pub fn height(&self) -> usize { self.state.height + 1 }
+    pub fn height(&self) -> usize { self.state.height }
 
     fn remove_subtree_from_cache(&mut self, coord: Coord) {
 
@@ -756,7 +753,7 @@ mod test {
     type MNT6753FieldBasedMerkleTree = NaiveMerkleTree<MNT6753FieldBasedMerkleTreeParams>;
     type MNT6PoseidonSMT = BigMerkleTree<MNT6753FieldBasedMerkleTreeParams>;
 
-    const TEST_HEIGHT: usize = 6;
+    const TEST_HEIGHT: usize = 5;
 
     #[test]
     fn compare_merkle_trees_mnt4_1() {

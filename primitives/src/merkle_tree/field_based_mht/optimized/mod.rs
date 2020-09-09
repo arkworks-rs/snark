@@ -43,7 +43,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
     /// You can edit the `mht_poseidon_tuning` benchmarks in `primitives/src/benches/poseidon_mht.rs`
     /// to properly tune the `processing_step` parameter according to your use case.
     pub fn init(height: usize, processing_step: usize) -> Self {
-
+        let height = height + 1;
         assert!(check_precomputed_parameters::<T>(height));
 
         let rate = <<T::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
@@ -275,7 +275,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBased
         }
     }
 
-    fn height(&self) -> usize { self.height }
+    fn height(&self) -> usize { self.height - 1 }
 }
 
 #[cfg(test)]
@@ -343,8 +343,8 @@ mod test {
     #[test]
     fn merkle_tree_test_mnt4() {
         let expected_output = MNT4753Fr::new(BigInteger768([8181981188982771303, 9834648934716236448, 6420360685258842467, 14258691490360951478, 10642011566662929522, 16918207755479993617, 3581400602871836321, 14012664850056020974, 16755211538924649257, 4039951447678776727, 12365175056998155257, 119677729692145]));
-        let height = 21;
-        let num_leaves = 2usize.pow(height as u32 - 1);
+        let height = 20;
+        let num_leaves = 2usize.pow(height as u32);
         let mut tree = MNT4PoseidonMHT::init(height, num_leaves);
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
         for _ in 0..num_leaves {
@@ -357,8 +357,8 @@ mod test {
     #[test]
     fn merkle_tree_test_mnt6() {
         let expected_output = MNT6753Fr::new(BigInteger768([18065863015580309240, 1059485854425188866, 1479096878827665107, 6899132209183155323, 1829690180552438097, 7395327616910893705, 16132683753083562833, 8528890579558218842, 9345795575555751752, 8161305655297462527, 6222078223269068637, 401142754883827]));
-        let height = 21;
-        let num_leaves = 2usize.pow(height as u32 - 1);
+        let height = 20;
+        let num_leaves = 2usize.pow(height as u32);
         let mut tree = MNT6PoseidonMHT::init(height, num_leaves);
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
         for _ in 0..num_leaves {
@@ -371,8 +371,8 @@ mod test {
     #[test]
     fn merkle_tree_test_mnt4_empty_leaves() {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-        let max_height = 7;
-        let max_leaves = 2usize.pow(max_height as u32 - 1);
+        let max_height = 6;
+        let max_leaves = 2usize.pow(max_height as u32);
 
         for num_leaves in 1..=max_leaves {
             // Generate random leaves
@@ -425,8 +425,8 @@ mod test {
     #[test]
     fn merkle_tree_test_mnt6_empty_leaves() {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-        let max_height = 7;
-        let max_leaves = 2usize.pow(max_height as u32 - 1);
+        let max_height = 6;
+        let max_leaves = 2usize.pow(max_height as u32);
 
         for num_leaves in 1..=max_leaves {
 
@@ -481,8 +481,8 @@ mod test {
     #[test]
     fn merkle_tree_path_test_mnt4() {
 
-        let height = 7;
-        let num_leaves = 2usize.pow(height as u32 - 1);
+        let height = 6;
+        let num_leaves = 2usize.pow(height as u32);
         let mut leaves = Vec::with_capacity(num_leaves);
         let mut tree = MNT4PoseidonMHT::init(height, num_leaves);
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
@@ -525,8 +525,8 @@ mod test {
     #[test]
     fn merkle_tree_path_test_mnt6() {
 
-        let height = 7;
-        let num_leaves = 2usize.pow(height as u32 - 1);
+        let height = 6;
+        let num_leaves = 2usize.pow(height as u32);
         let mut leaves = Vec::with_capacity(num_leaves);
         let mut tree = MNT6PoseidonMHT::init(height, num_leaves);
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);

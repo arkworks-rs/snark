@@ -22,7 +22,7 @@ impl<P: FieldBasedMerkleTreeParameters> NaiveMerkleTree<P> {
     
     pub fn new(height: usize) -> Self {
         NaiveMerkleTree {
-            height,
+            height: height + 1,
             tree: Vec::new(),
             padding_tree: Vec::new(),
             root: None,
@@ -116,7 +116,7 @@ impl<P: FieldBasedMerkleTreeParameters> NaiveMerkleTree<P> {
     }
 
     #[inline]
-    pub fn height(&self) -> usize { self.height }
+    pub fn height(&self) -> usize { self.height - 1 }
 
     pub fn generate_proof(
         &self,
@@ -191,7 +191,7 @@ mod test {
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
 
-    const TEST_HEIGHT: usize = 6;
+    const TEST_HEIGHT: usize = 5;
 
     #[derive(Clone)]
     struct MNT4753FieldBasedMerkleTreeParams;

@@ -120,11 +120,11 @@ impl<P, HGadget, ConstraintF> FieldBasedMerkleTreeGadget<P, HGadget, ConstraintF
         should_enforce: &Boolean,
         height: usize,
     ) -> Result<(), SynthesisError> {
-        debug_assert!(leaves.len() == 2_usize.pow((height - 1) as u32));
+        debug_assert!(leaves.len() == 2_usize.pow(height as u32));
 
         let mut prev_level_nodes = leaves.to_vec();
         //Iterate over all levels except the root
-        for level in 0..height - 1 {
+        for level in 0..height {
             let mut curr_level_nodes = vec![];
 
             //Iterate over all nodes in a level. We assume their number to be even (e.g a power of two)
@@ -257,7 +257,7 @@ mod test {
 
     type HG = MNT4PoseidonHashGadget;
 
-    const TEST_HEIGHT: usize = 6;
+    const TEST_HEIGHT: usize = 5;
 
     fn check_merkle_paths(leaves: &[Fr], use_bad_root: bool) -> bool {
 

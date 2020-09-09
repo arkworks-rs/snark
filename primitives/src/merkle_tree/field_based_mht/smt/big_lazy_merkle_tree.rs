@@ -60,7 +60,6 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         path_db: String,
         path_cache: String
     ) -> Result<Self, Error> {
-        let height = height - 1;
         assert!(check_precomputed_parameters::<T>(height));
 
         let rate = <<T::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
@@ -396,7 +395,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         self.state.root.clone()
     }
 
-    pub fn height(&self) -> usize { self.state.height + 1}
+    pub fn height(&self) -> usize { self.state.height }
 
     fn remove_node_from_cache(&mut self, coord: Coord) {
         self.remove_from_cache(coord);
@@ -726,7 +725,7 @@ mod test {
     type MNT6PoseidonSMT = BigMerkleTree<MNT6753FieldBasedMerkleTreeParams>;
     type MNT6PoseidonSMTLazy = LazyBigMerkleTree<MNT6753FieldBasedMerkleTreeParams>;
 
-    const TEST_HEIGHT_1: usize = 6;
+    const TEST_HEIGHT_1: usize = 5;
 
     #[test]
     fn process_leaves_mnt4() {
@@ -992,7 +991,7 @@ mod test {
         }
     }
 
-    const TEST_HEIGHT_2: usize = 24;
+    const TEST_HEIGHT_2: usize = 23;
 
     #[test]
     fn process_leaves_mnt4_comp() {
