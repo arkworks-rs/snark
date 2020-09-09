@@ -98,7 +98,7 @@ impl<'a, F: Field> ConstraintSynthesizer<F> for MiMCDemo<'a, F> {
 
         for i in 0..MIMC_ROUNDS {
             // xL, xR := xR + (xL + Ci)^3, xL
-            let ns = cs.ns(format!("round {}", i));
+            let ns = r1cs_core::ns!(cs, "round");
             let cs = ns.cs();
 
             // tmp = (xL + Ci)^2
@@ -110,8 +110,7 @@ impl<'a, F: Field> ConstraintSynthesizer<F> for MiMCDemo<'a, F> {
             let tmp =
                 cs.new_witness_variable(|| tmp_value.ok_or(SynthesisError::AssignmentMissing))?;
 
-            cs.enforce_named_constraint(
-                "tmp = (xL + Ci)^2",
+            cs.enforce_constraint(
                 lc!() + xl + (self.constants[i], Variable::One),
                 lc!() + xl + (self.constants[i], Variable::One),
                 lc!() + tmp,
@@ -135,8 +134,7 @@ impl<'a, F: Field> ConstraintSynthesizer<F> for MiMCDemo<'a, F> {
                 cs.new_witness_variable(|| new_xl_value.ok_or(SynthesisError::AssignmentMissing))?
             };
 
-            cs.enforce_named_constraint(
-                "new_xL = xR + (xL + Ci)^3",
+            cs.enforce_constraint(
                 lc!() + tmp,
                 lc!() + xl + (self.constants[i], Variable::One),
                 lc!() + new_xl - xr,

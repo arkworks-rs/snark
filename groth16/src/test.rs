@@ -20,12 +20,12 @@ impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for MySillyCircuit<C
             Ok(a)
         })?;
 
-        cs.enforce_named_constraint("a*b=c", lc!() + a, lc!() + b, lc!() + c)?;
-        cs.enforce_named_constraint("a*b=c", lc!() + a, lc!() + b, lc!() + c)?;
-        cs.enforce_named_constraint("a*b=c", lc!() + a, lc!() + b, lc!() + c)?;
-        cs.enforce_named_constraint("a*b=c", lc!() + a, lc!() + b, lc!() + c)?;
-        cs.enforce_named_constraint("a*b=c", lc!() + a, lc!() + b, lc!() + c)?;
-        cs.enforce_named_constraint("a*b=c", lc!() + a, lc!() + b, lc!() + c)?;
+        cs.enforce_constraint(lc!() + a, lc!() + b, lc!() + c)?;
+        cs.enforce_constraint(lc!() + a, lc!() + b, lc!() + c)?;
+        cs.enforce_constraint(lc!() + a, lc!() + b, lc!() + c)?;
+        cs.enforce_constraint(lc!() + a, lc!() + b, lc!() + c)?;
+        cs.enforce_constraint(lc!() + a, lc!() + b, lc!() + c)?;
+        cs.enforce_constraint(lc!() + a, lc!() + b, lc!() + c)?;
 
         Ok(())
     }

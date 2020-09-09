@@ -181,9 +181,9 @@ pub(crate) mod tests {
         let mut rng = test_rng();
         let a_native = F::rand(&mut rng);
         let b_native = F::rand(&mut rng);
-        let a = AF::new_witness(cs.ns("generate_a"), || Ok(a_native))?;
-        let b = AF::new_witness(cs.ns("generate_b"), || Ok(b_native))?;
-        let b_const = AF::new_constant(cs.ns("b_as_constant"), b_native)?;
+        let a = AF::new_witness(r1cs_core::ns!(cs, "generate_a"), || Ok(a_native))?;
+        let b = AF::new_witness(r1cs_core::ns!(cs, "generate_b"), || Ok(b_native))?;
+        let b_const = AF::new_constant(r1cs_core::ns!(cs, "b_as_constant"), b_native)?;
 
         let zero = AF::zero();
         let zero_native = zero.value()?;
@@ -318,13 +318,13 @@ pub(crate) mod tests {
 
         let f = F::from(1u128 << 64);
         let f_bits = algebra::BitIteratorLE::new(&[0u64, 1u64]).collect::<Vec<_>>();
-        let fv = AF::new_witness(cs.ns("alloc u128"), || Ok(f))?;
+        let fv = AF::new_witness(r1cs_core::ns!(cs, "alloc u128"), || Ok(f))?;
         assert_eq!(fv.to_bits_le()?.value().unwrap()[..128], f_bits[..128]);
         assert!(cs.is_satisfied().unwrap());
 
         let r_native: F = UniformRand::rand(&mut test_rng());
 
-        let r = AF::new_witness(cs.ns("r_native"), || Ok(r_native)).unwrap();
+        let r = AF::new_witness(r1cs_core::ns!(cs, "r_native"), || Ok(r_native)).unwrap();
         let _ = r.to_non_unique_bits_le()?;
         assert!(cs.is_satisfied().unwrap());
         let _ = r.to_bits_le()?;
@@ -369,7 +369,7 @@ pub(crate) mod tests {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
         for i in 0..=maxpower {
             let mut a = F::rand(&mut rng);
-            let mut a_gadget = AF::new_witness(cs.ns(format!("a_gadget_{:?}", i)), || Ok(a))?;
+            let mut a_gadget = AF::new_witness(r1cs_core::ns!(cs, "a"), || Ok(a))?;
             a_gadget.frobenius_map_in_place(i)?;
             a.frobenius_map(i);
 

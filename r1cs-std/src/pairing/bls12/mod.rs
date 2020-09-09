@@ -18,6 +18,7 @@ type Fp2V<P> = Fp2Var<<P as Bls12Parameters>::Fp2Params>;
 
 impl<P: Bls12Parameters> PairingVar<P> {
     // Evaluate the line function at point p.
+    #[tracing::instrument(target = "r1cs")]
     fn ell(
         f: &mut Fp12Var<P::Fp12Params>,
         coeffs: &(Fp2V<P>, Fp2V<P>),
@@ -49,6 +50,7 @@ impl<P: Bls12Parameters> PairingVar<P> {
         }
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn exp_by_x(f: &Fp12Var<P::Fp12Params>) -> Result<Fp12Var<P::Fp12Params>, SynthesisError> {
         let mut result = f.optimized_cyclotomic_exp(P::X)?;
         if P::X_IS_NEGATIVE {
@@ -65,6 +67,7 @@ impl<P: Bls12Parameters> PG<Bls12<P>, P::Fp> for PairingVar<P> {
     type G2PreparedVar = G2PreparedVar<P>;
     type GTVar = Fp12Var<P::Fp12Params>;
 
+    #[tracing::instrument(target = "r1cs")]
     fn miller_loop(
         ps: &[Self::G1PreparedVar],
         qs: &[Self::G2PreparedVar],
@@ -96,6 +99,7 @@ impl<P: Bls12Parameters> PG<Bls12<P>, P::Fp> for PairingVar<P> {
         Ok(f)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn final_exponentiation(f: &Self::GTVar) -> Result<Self::GTVar, SynthesisError> {
         // Computing the final exponentation following
         // https://eprint.iacr.org/2016/130.pdf.
@@ -152,10 +156,12 @@ impl<P: Bls12Parameters> PG<Bls12<P>, P::Fp> for PairingVar<P> {
         })
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn prepare_g1(p: &Self::G1Var) -> Result<Self::G1PreparedVar, SynthesisError> {
         Self::G1PreparedVar::from_group_var(p)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn prepare_g2(q: &Self::G2Var) -> Result<Self::G2PreparedVar, SynthesisError> {
         Self::G2PreparedVar::from_group_var(q)
     }

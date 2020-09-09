@@ -104,6 +104,7 @@ macro_rules! make_uint {
                     Self { value, bits }
                 }
 
+                #[tracing::instrument(target = "r1cs", skip(self))]
                 pub fn rotr(&self, by: usize) -> Self {
                     let by = by % $size;
 
@@ -123,6 +124,7 @@ macro_rules! make_uint {
                 }
 
                 /// XOR this `$name` with another `$name`
+                #[tracing::instrument(target = "r1cs", skip(self))]
                 pub fn xor(&self, other: &Self) -> Result<Self, SynthesisError> {
                     let new_value = match (self.value, other.value) {
                         (Some(a), Some(b)) => Some(a ^ b),
@@ -143,6 +145,7 @@ macro_rules! make_uint {
                 }
 
                 /// Perform modular addition of several `$name` objects.
+                #[tracing::instrument(target = "r1cs")]
                 pub fn addmany(operands: &[Self]) -> Result<Self, SynthesisError>
                 where
                     F: PrimeField,
@@ -261,7 +264,7 @@ macro_rules! make_uint {
             }
 
             impl<ConstraintF: Field> ToBytesGadget<ConstraintF> for $name<ConstraintF> {
-                #[inline]
+                #[tracing::instrument(target = "r1cs", skip(self))]
                 fn to_bytes(&self) -> Result<Vec<UInt8<ConstraintF>>, SynthesisError> {
                     Ok(self
                         .to_bits_le()
@@ -272,10 +275,12 @@ macro_rules! make_uint {
             }
 
             impl<ConstraintF: Field> EqGadget<ConstraintF> for $name<ConstraintF> {
+                #[tracing::instrument(target = "r1cs", skip(self))]
                 fn is_eq(&self, other: &Self) -> Result<Boolean<ConstraintF>, SynthesisError> {
                     self.bits.as_slice().is_eq(&other.bits)
                 }
 
+                #[tracing::instrument(target = "r1cs", skip(self))]
                 fn conditional_enforce_equal(
                     &self,
                     other: &Self,
@@ -284,6 +289,7 @@ macro_rules! make_uint {
                     self.bits.conditional_enforce_equal(&other.bits, condition)
                 }
 
+                #[tracing::instrument(target = "r1cs", skip(self))]
                 fn conditional_enforce_not_equal(
                     &self,
                     other: &Self,
@@ -446,10 +452,10 @@ macro_rules! make_uint {
 
                         let mut expected = (a ^ b).wrapping_add(c).wrapping_add(d);
 
-                        let a_bit = $name::new_witness(cs.ns("a_bit"), || Ok(a))?;
+                        let a_bit = $name::new_witness(r1cs_core::ns!(cs, "a_bit"), || Ok(a))?;
                         let b_bit = $name::constant(b);
                         let c_bit = $name::constant(c);
-                        let d_bit = $name::new_witness(cs.ns("d_bit"), || Ok(d))?;
+                        let d_bit = $name::new_witness(r1cs_core::ns!(cs, "d_bit"), || Ok(d))?;
 
                         let r = a_bit.xor(&b_bit).unwrap();
                         let r = $name::addmany(&[r, c_bit, d_bit]).unwrap();

@@ -32,6 +32,7 @@ pub struct VerifyingKeyVar<E: PairingEngine, P: PairingVar<E>> {
 }
 
 impl<E: PairingEngine, P: PairingVar<E>> VerifyingKeyVar<E, P> {
+    #[tracing::instrument(target = "r1cs", skip(self))]
     pub fn prepare(&self) -> Result<PreparedVerifyingKeyVar<E, P>, SynthesisError> {
         let g_alpha_pc = P::prepare_g1(&self.g_alpha_g1)?;
         let h_beta_pc = P::prepare_g2(&self.h_beta_g2)?;
@@ -89,6 +90,7 @@ where
 
     /// Allocates `N::Proof` in `cs` without performing
     /// subgroup checks.
+    #[tracing::instrument(target = "r1cs", skip(cs, f))]
     fn new_proof_unchecked<T: Borrow<Proof<E>>>(
         cs: impl Into<Namespace<E::Fq>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
@@ -99,17 +101,17 @@ where
         f().and_then(|proof| {
             let proof = proof.borrow();
             let a = CurveVar::new_variable_omit_prime_order_check(
-                cs.ns("Proof.a"),
+                r1cs_core::ns!(cs, "Proof.a"),
                 || Ok(proof.a.into_projective()),
                 mode,
             )?;
             let b = CurveVar::new_variable_omit_prime_order_check(
-                cs.ns("Proof.b"),
+                r1cs_core::ns!(cs, "Proof.b"),
                 || Ok(proof.b.into_projective()),
                 mode,
             )?;
             let c = CurveVar::new_variable_omit_prime_order_check(
-                cs.ns("Proof.c"),
+                r1cs_core::ns!(cs, "Proof.c"),
                 || Ok(proof.c.into_projective()),
                 mode,
             )?;
@@ -119,6 +121,7 @@ where
 
     /// Allocates `N::Proof` in `cs` without performing
     /// subgroup checks.
+    #[tracing::instrument(target = "r1cs", skip(cs, f))]
     fn new_verification_key_unchecked<T: Borrow<VerifyingKey<E>>>(
         cs: impl Into<Namespace<E::Fq>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
@@ -129,27 +132,27 @@ where
         f().and_then(|vk| {
             let vk = vk.borrow();
             let g_alpha_g1 = P::G1Var::new_variable_omit_prime_order_check(
-                cs.ns("g_alpha"),
+                r1cs_core::ns!(cs, "g_alpha"),
                 || Ok(vk.g_alpha_g1.into_projective()),
                 mode,
             )?;
             let h_g2 = P::G2Var::new_variable_omit_prime_order_check(
-                cs.ns("h"),
+                r1cs_core::ns!(cs, "h"),
                 || Ok(vk.h_g2.into_projective()),
                 mode,
             )?;
             let h_beta_g2 = P::G2Var::new_variable_omit_prime_order_check(
-                cs.ns("h_beta"),
+                r1cs_core::ns!(cs, "h_beta"),
                 || Ok(vk.h_beta_g2.into_projective()),
                 mode,
             )?;
             let g_gamma_g1 = P::G1Var::new_variable_omit_prime_order_check(
-                cs.ns("g_gamma"),
+                r1cs_core::ns!(cs, "g_gamma"),
                 || Ok(vk.g_gamma_g1.into_projective()),
                 mode,
             )?;
             let h_gamma_g2 = P::G2Var::new_variable_omit_prime_order_check(
-                cs.ns("h_gamma"),
+                r1cs_core::ns!(cs, "h_gamma"),
                 || Ok(vk.h_gamma_g2.into_projective()),
                 mode,
             )?;
@@ -159,7 +162,7 @@ where
                 .iter()
                 .map(|g| {
                     P::G1Var::new_variable_omit_prime_order_check(
-                        cs.ns("g"),
+                        r1cs_core::ns!(cs, "g"),
                         || Ok(g.into_projective()),
                         mode,
                     )
@@ -176,6 +179,7 @@ where
         })
     }
 
+    #[tracing::instrument(target = "r1cs", skip(vk, input, proof))]
     fn verify<'a, T: 'a + ToBitsGadget<E::Fq> + ?Sized>(
         vk: &Self::VerificationKeyVar,
         input: impl IntoIterator<Item = &'a T>,
@@ -185,6 +189,7 @@ where
         <Self as NIZKVerifierGadget<Gm17<E, C, V>, E::Fq>>::verify_prepared(&pvk, input, proof)
     }
 
+    #[tracing::instrument(target = "r1cs", skip(pvk, input, proof))]
     fn verify_prepared<'a, T: 'a + ToBitsGadget<E::Fq> + ?Sized>(
         pvk: &Self::PreparedVerificationKeyVar,
         input: impl IntoIterator<Item = &'a T>,
@@ -263,6 +268,7 @@ where
     P::G1PreparedVar: AllocVar<E::G1Prepared, E::Fq>,
     P::G2PreparedVar: AllocVar<E::G2Prepared, E::Fq>,
 {
+    #[tracing::instrument(target = "r1cs", skip(cs, f))]
     fn new_variable<T: Borrow<PreparedVerifyingKey<E>>>(
         cs: impl Into<Namespace<E::Fq>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
@@ -273,21 +279,34 @@ where
 
         f().and_then(|pvk| {
             let pvk = pvk.borrow();
-            let g_alpha = P::G1Var::new_variable(cs.ns("g_alpha"), || Ok(pvk.g_alpha), mode)?;
-            let h_beta = P::G2Var::new_variable(cs.ns("h_beta"), || Ok(pvk.h_beta), mode)?;
+            let g_alpha =
+                P::G1Var::new_variable(r1cs_core::ns!(cs, "g_alpha"), || Ok(pvk.g_alpha), mode)?;
+            let h_beta =
+                P::G2Var::new_variable(r1cs_core::ns!(cs, "h_beta"), || Ok(pvk.h_beta), mode)?;
             let g_alpha_pc = P::G1PreparedVar::new_variable(
-                cs.ns("g_alpha_pc"),
+                r1cs_core::ns!(cs, "g_alpha_pc"),
                 || Ok(pvk.g_alpha.into()),
                 mode,
             )?;
-            let h_beta_pc =
-                P::G2PreparedVar::new_variable(cs.ns("h_beta_pc"), || Ok(pvk.h_beta.into()), mode)?;
-            let g_gamma_pc =
-                P::G1PreparedVar::new_variable(cs.ns("g_gamma_pc"), || Ok(&pvk.g_gamma_pc), mode)?;
-            let h_gamma_pc =
-                P::G2PreparedVar::new_variable(cs.ns("h_gamma_pc"), || Ok(&pvk.h_gamma_pc), mode)?;
-            let h_pc = P::G2PreparedVar::new_variable(cs.ns("h_pc"), || Ok(&pvk.h_pc), mode)?;
-            let query = Vec::new_variable(cs.ns("query"), || Ok(pvk.query.clone()), mode)?;
+            let h_beta_pc = P::G2PreparedVar::new_variable(
+                r1cs_core::ns!(cs, "h_beta_pc"),
+                || Ok(pvk.h_beta.into()),
+                mode,
+            )?;
+            let g_gamma_pc = P::G1PreparedVar::new_variable(
+                r1cs_core::ns!(cs, "g_gamma_pc"),
+                || Ok(&pvk.g_gamma_pc),
+                mode,
+            )?;
+            let h_gamma_pc = P::G2PreparedVar::new_variable(
+                r1cs_core::ns!(cs, "h_gamma_pc"),
+                || Ok(&pvk.h_gamma_pc),
+                mode,
+            )?;
+            let h_pc =
+                P::G2PreparedVar::new_variable(r1cs_core::ns!(cs, "h_pc"), || Ok(&pvk.h_pc), mode)?;
+            let query =
+                Vec::new_variable(r1cs_core::ns!(cs, "query"), || Ok(pvk.query.clone()), mode)?;
 
             Ok(Self {
                 g_alpha,
@@ -309,6 +328,7 @@ where
 
     P: PairingVar<E>,
 {
+    #[tracing::instrument(target = "r1cs", skip(cs, f))]
     fn new_variable<T: Borrow<VerifyingKey<E>>>(
         cs: impl Into<Namespace<E::Fq>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
@@ -319,12 +339,17 @@ where
 
         f().and_then(|vk| {
             let vk = vk.borrow();
-            let g_alpha_g1 = P::G1Var::new_variable(cs.ns("g_alpha"), || Ok(vk.g_alpha_g1), mode)?;
-            let h_g2 = P::G2Var::new_variable(cs.ns("h"), || Ok(vk.h_g2), mode)?;
-            let h_beta_g2 = P::G2Var::new_variable(cs.ns("h_beta"), || Ok(vk.h_beta_g2), mode)?;
-            let g_gamma_g1 = P::G1Var::new_variable(cs.ns("g_gamma"), || Ok(&vk.g_gamma_g1), mode)?;
-            let h_gamma_g2 = P::G2Var::new_variable(cs.ns("h_gamma"), || Ok(&vk.h_gamma_g2), mode)?;
-            let query = Vec::new_variable(cs.ns("query"), || Ok(vk.query.clone()), mode)?;
+            let g_alpha_g1 =
+                P::G1Var::new_variable(r1cs_core::ns!(cs, "g_alpha"), || Ok(vk.g_alpha_g1), mode)?;
+            let h_g2 = P::G2Var::new_variable(r1cs_core::ns!(cs, "h"), || Ok(vk.h_g2), mode)?;
+            let h_beta_g2 =
+                P::G2Var::new_variable(r1cs_core::ns!(cs, "h_beta"), || Ok(vk.h_beta_g2), mode)?;
+            let g_gamma_g1 =
+                P::G1Var::new_variable(r1cs_core::ns!(cs, "g_gamma"), || Ok(&vk.g_gamma_g1), mode)?;
+            let h_gamma_g2 =
+                P::G2Var::new_variable(r1cs_core::ns!(cs, "h_gamma"), || Ok(&vk.h_gamma_g2), mode)?;
+            let query =
+                Vec::new_variable(r1cs_core::ns!(cs, "query"), || Ok(vk.query.clone()), mode)?;
             Ok(Self {
                 h_g2,
                 g_alpha_g1,
@@ -344,6 +369,7 @@ where
     P: PairingVar<E>,
 {
     #[inline]
+    #[tracing::instrument(target = "r1cs", skip(cs, f))]
     fn new_variable<T: Borrow<Proof<E>>>(
         cs: impl Into<Namespace<E::Fq>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
@@ -354,9 +380,9 @@ where
 
         f().and_then(|proof| {
             let Proof { a, b, c } = proof.borrow().clone();
-            let a = P::G1Var::new_variable(cs.ns("a"), || Ok(a), mode)?;
-            let b = P::G2Var::new_variable(cs.ns("b"), || Ok(b), mode)?;
-            let c = P::G1Var::new_variable(cs.ns("c"), || Ok(c), mode)?;
+            let a = P::G1Var::new_variable(cs.clone(), || Ok(a), mode)?;
+            let b = P::G2Var::new_variable(cs.clone(), || Ok(b), mode)?;
+            let c = P::G1Var::new_variable(r1cs_core::ns!(cs, "c"), || Ok(c), mode)?;
             Ok(Self { a, b, c })
         })
     }
@@ -428,8 +454,7 @@ mod test {
                     let result_var = cs.new_witness_variable(|| {
                         result_val.ok_or(SynthesisError::AssignmentMissing)
                     })?;
-                    cs.enforce_named_constraint(
-                        format!("Enforce constraint {}", i),
+                    cs.enforce_constraint(
                         lc!() + input_1_var,
                         lc!() + input_2_var,
                         lc!() + result_var,
@@ -480,10 +505,10 @@ mod test {
             let mut input_gadgets = Vec::new();
 
             {
-                for (i, input) in inputs.into_iter().enumerate() {
+                for input in inputs.into_iter() {
                     let input_bits: Vec<_> = BitIteratorLE::new(input.into_repr()).collect();
                     let input_bits =
-                        Vec::<Boolean<Fq>>::new_input(cs.ns(format!("Input {}", i)), || {
+                        Vec::<Boolean<Fq>>::new_input(r1cs_core::ns!(cs, "Input"), || {
                             Ok(input_bits)
                         })
                         .unwrap();
@@ -491,9 +516,11 @@ mod test {
                 }
             }
 
-            let vk_gadget = TestVkVar::new_input(cs.ns("Vk"), || Ok(&params.vk)).unwrap();
+            let vk_gadget =
+                TestVkVar::new_input(r1cs_core::ns!(cs, "Vk"), || Ok(&params.vk)).unwrap();
             let proof_gadget =
-                TestProofVar::new_witness(cs.ns("Proof"), || Ok(proof.clone())).unwrap();
+                TestProofVar::new_witness(r1cs_core::ns!(cs, "Proof"), || Ok(proof.clone()))
+                    .unwrap();
             println!("Time to verify!\n\n\n\n");
             <TestVerifierGadget as NIZKVerifierGadget<TestProofSystem, Fq>>::verify(
                 &vk_gadget,
@@ -573,8 +600,7 @@ mod test_recursive {
                     let result_var = cs.new_witness_variable(|| {
                         result_val.ok_or(SynthesisError::AssignmentMissing)
                     })?;
-                    cs.enforce_named_constraint(
-                        format!("Enforce constraint {}", i),
+                    cs.enforce_constraint(
                         lc!() + input_1_var,
                         lc!() + input_2_var,
                         lc!() + result_var,
@@ -624,7 +650,8 @@ mod test_recursive {
                     .collect::<Vec<_>>();
 
                 // Allocate this byte array as input packed into field elements.
-                let input_bytes = UInt8::new_input_vec(cs.ns("Input"), &input_bytes[..])?;
+                let input_bytes =
+                    UInt8::new_input_vec(r1cs_core::ns!(cs, "Input"), &input_bytes[..])?;
                 // 40 byte
                 let element_size = <MNT4FqParameters as FftParameters>::BigInt::NUM_LIMBS * 8;
                 input_gadgets = input_bytes
@@ -638,9 +665,10 @@ mod test_recursive {
                     .collect::<Vec<_>>();
             }
 
-            let vk_gadget = TestVkVar1::new_witness(cs.ns("Vk"), || Ok(&params.vk))?;
+            let vk_gadget = TestVkVar1::new_witness(r1cs_core::ns!(cs, "Vk"), || Ok(&params.vk))?;
             let proof_gadget =
-                TestProofVar1::new_witness(cs.ns("Proof"), || Ok(proof.clone())).unwrap();
+                TestProofVar1::new_witness(r1cs_core::ns!(cs, "Proof"), || Ok(proof.clone()))
+                    .unwrap();
             <TestVerifierGadget1 as NIZKVerifierGadget<TestProofSystem1, MNT6Fq>>::verify(
                 &vk_gadget,
                 &input_gadgets,
@@ -714,9 +742,9 @@ mod test_recursive {
             {
                 let bigint_size = <MNT4FqParameters as FftParameters>::BigInt::NUM_LIMBS * 64;
                 let mut input_bits = Vec::new();
-                for (i, input) in inputs.into_iter().enumerate() {
+                for input in inputs.into_iter() {
                     let input_gadget =
-                        FpVar::new_input(cs.ns(format!("Input {}", i)), || Ok(input)).unwrap();
+                        FpVar::new_input(r1cs_core::ns!(cs, "Input"), || Ok(input)).unwrap();
                     let mut fp_bits = input_gadget.to_bits_le().unwrap();
 
                     // Use 320 bits per element.
@@ -741,9 +769,11 @@ mod test_recursive {
                 // assert!(!verify_proof(&pvk, &proof, &[a]).unwrap());
             }
 
-            let vk_gadget = TestVkVar2::new_input(cs.ns("Vk"), || Ok(&params.vk)).unwrap();
+            let vk_gadget =
+                TestVkVar2::new_input(r1cs_core::ns!(cs, "Vk"), || Ok(&params.vk)).unwrap();
             let proof_gadget =
-                TestProofVar2::new_witness(cs.ns("Proof"), || Ok(proof.clone())).unwrap();
+                TestProofVar2::new_witness(r1cs_core::ns!(cs, "Proof"), || Ok(proof.clone()))
+                    .unwrap();
             println!("Time to verify!\n\n\n\n");
             <TestVerifierGadget2 as NIZKVerifierGadget<TestProofSystem2, MNT4Fq>>::verify(
                 &vk_gadget,

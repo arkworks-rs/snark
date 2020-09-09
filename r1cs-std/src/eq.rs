@@ -13,6 +13,7 @@ pub trait EqGadget<F: Field> {
 
     /// If `should_enforce == true`, enforce that `self` and `other` are equal; else,
     /// enforce a vacuously true statement.
+    #[tracing::instrument(target = "r1cs", skip(self, other))]
     fn conditional_enforce_equal(
         &self,
         other: &Self,
@@ -23,12 +24,14 @@ pub trait EqGadget<F: Field> {
     }
 
     /// Enforce that `self` and `other` are equal.
+    #[tracing::instrument(target = "r1cs", skip(self, other))]
     fn enforce_equal(&self, other: &Self) -> Result<(), SynthesisError> {
         self.conditional_enforce_equal(other, &Boolean::constant(true))
     }
 
     /// If `should_enforce == true`, enforce that `self` and `other` are not equal; else,
     /// enforce a vacuously true statement.
+    #[tracing::instrument(target = "r1cs", skip(self, other))]
     fn conditional_enforce_not_equal(
         &self,
         other: &Self,
@@ -39,12 +42,14 @@ pub trait EqGadget<F: Field> {
     }
 
     /// Enforce that `self` and `other` are not equal.
+    #[tracing::instrument(target = "r1cs", skip(self, other))]
     fn enforce_not_equal(&self, other: &Self) -> Result<(), SynthesisError> {
         self.conditional_enforce_not_equal(other, &Boolean::constant(true))
     }
 }
 
 impl<T: EqGadget<F> + R1CSVar<F>, F: Field> EqGadget<F> for [T] {
+    #[tracing::instrument(target = "r1cs", skip(self, other))]
     fn is_eq(&self, other: &Self) -> Result<Boolean<F>, SynthesisError> {
         assert_eq!(self.len(), other.len());
         assert!(!self.is_empty());
@@ -55,6 +60,7 @@ impl<T: EqGadget<F> + R1CSVar<F>, F: Field> EqGadget<F> for [T] {
         Boolean::kary_and(&results)
     }
 
+    #[tracing::instrument(target = "r1cs", skip(self, other))]
     fn conditional_enforce_equal(
         &self,
         other: &Self,
@@ -67,6 +73,7 @@ impl<T: EqGadget<F> + R1CSVar<F>, F: Field> EqGadget<F> for [T] {
         Ok(())
     }
 
+    #[tracing::instrument(target = "r1cs", skip(self, other))]
     fn conditional_enforce_not_equal(
         &self,
         other: &Self,

@@ -5,7 +5,7 @@
 #![deny(trivial_numeric_casts, private_in_public, variant_size_differences)]
 #![deny(stable_features, unreachable_pub, non_shorthand_field_patterns)]
 #![deny(unused_attributes, unused_imports, unused_mut, missing_docs)]
-#![deny(renamed_and_removed_lints, stable_features, unused_allocation)]
+#![deny(renamed_and_removed_lints, unused_allocation)]
 #![deny(unused_comparisons, bare_trait_objects, unused_must_use, const_err)]
 #![deny(unsafe_code)]
 
@@ -14,8 +14,7 @@ pub extern crate alloc;
 
 #[cfg(not(feature = "std"))]
 pub use alloc::{
-    borrow::Cow,
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     format,
     rc::Rc,
     string::{String, ToString},
@@ -25,8 +24,7 @@ pub use alloc::{
 
 #[cfg(feature = "std")]
 pub use std::{
-    borrow::Cow,
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     format,
     rc::Rc,
     string::{String, ToString},
@@ -37,10 +35,17 @@ pub use std::{
 mod constraint_system;
 mod error;
 mod impl_lc;
+#[cfg(feature = "std")]
+mod trace;
+
+#[cfg(feature = "std")]
+pub use crate::trace::{ConstraintLayer, ConstraintTrace, TraceStep, TracingMode};
+#[cfg(feature = "std")]
+pub use tracing::info_span;
 
 pub use algebra_core::{Field, ToConstraintField};
 pub use constraint_system::{
-    ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, Name, Namespace, SynthesisMode,
+    ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, Namespace, SynthesisMode,
 };
 pub use error::SynthesisError;
 
@@ -78,6 +83,27 @@ macro_rules! lc {
     () => {
         $crate::LinearCombination::zero()
     };
+}
+
+/// Generate a `Namespace` with name `name` from `ConstraintSystem` `cs`.
+/// `name` must be a `&'static str`.
+#[macro_export]
+macro_rules! ns {
+    ($cs:expr, $name:expr) => {{
+        #[cfg(feature = "std")]
+        {
+            let span = $crate::info_span!(target: "r1cs", $name);
+            let id = span.id();
+            let _enter_guard = span.enter();
+            core::mem::forget(_enter_guard);
+            core::mem::forget(span);
+            $crate::Namespace::new($cs.clone(), id)
+        }
+        #[cfg(not(feature = "std"))]
+        {
+            $crate::Namespace::from($cs.clone())
+        }
+    }};
 }
 
 impl Variable {

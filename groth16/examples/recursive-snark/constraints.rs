@@ -89,8 +89,7 @@ impl<F: Field> ConstraintSynthesizer<F> for InnerCircuit<F> {
                 let (input_2_val, input_2_var) = variables[i + 1];
                 let result_val = input_1_val * input_2_val;
                 let result_var = cs.new_witness_variable(|| Ok(result_val))?;
-                cs.enforce_named_constraint(
-                    format!("Enforce constraint {}", i),
+                cs.enforce_constraint(
                     lc!() + input_1_var,
                     lc!() + input_2_var,
                     lc!() + result_var,
@@ -183,7 +182,7 @@ where
         let input_gadgets;
 
         {
-            let ns = cs.ns("Allocate Input");
+            let ns = r1cs_core::ns!(cs, "Allocate Input");
             let cs = ns.cs();
             // Chain all input values in one large byte array.
             let input_bytes = inputs
@@ -199,7 +198,7 @@ where
                 .collect::<Vec<_>>();
 
             // Allocate this byte array as input packed into field elements.
-            let input_bytes = UInt8::new_input_vec(cs.ns("Input"), &input_bytes[..])?;
+            let input_bytes = UInt8::new_input_vec(r1cs_core::ns!(cs, "Input"), &input_bytes[..])?;
             // 40 byte
             let element_size =
                 <<<C::TickGroup as PairingEngine>::Fr as PrimeField>::Params as FftParameters>::BigInt::NUM_LIMBS * 8;
@@ -220,9 +219,12 @@ where
             num_constraints
         );
 
-        let vk_var = InnerVkVar::<C, TickPairing>::new_witness(cs.ns("Vk"), || Ok(&params.vk))?;
+        let vk_var =
+            InnerVkVar::<C, TickPairing>::new_witness(r1cs_core::ns!(cs, "Vk"), || Ok(&params.vk))?;
         let proof_var =
-            InnerProofVar::<C, TickPairing>::new_witness(cs.ns("Proof"), || Ok(proof.clone()))?;
+            InnerProofVar::<C, TickPairing>::new_witness(r1cs_core::ns!(cs, "Proof"), || {
+                Ok(proof.clone())
+            })?;
         <InnerVerifierGadget<C, TickPairing> as NIZKVerifierGadget<
             InnerProofSystem<C>,
             <C::TockGroup as PairingEngine>::Fr,
@@ -303,11 +305,11 @@ where
             let bigint_size =
                 <<C::TickGroup as PairingEngine>::Fr as PrimeField>::BigInt::NUM_LIMBS * 64;
             let mut input_bits = Vec::new();
-            let ns = cs.ns("Allocate Input");
+            let ns = r1cs_core::ns!(cs, "Allocate Input");
             let cs = ns.cs();
 
-            for (i, input) in inputs.into_iter().enumerate() {
-                let input_gadget = FpVar::new_input(cs.ns(format!("Input {}", i)), || Ok(input))?;
+            for input in inputs.into_iter() {
+                let input_gadget = FpVar::new_input(r1cs_core::ns!(cs, "Input"), || Ok(input))?;
                 let mut fp_bits = input_gadget.to_bits_le()?;
 
                 // Use 320 bits per element.
@@ -339,9 +341,15 @@ where
             num_constraints
         );
 
-        let vk_var = MiddleVkVar::<C, TockPairing>::new_witness(cs.ns("Vk"), || Ok(&params.vk))?;
+        let vk_var =
+            MiddleVkVar::<C, TockPairing>::new_witness(
+                r1cs_core::ns!(cs, "Vk"),
+                || Ok(&params.vk),
+            )?;
         let proof_var =
-            MiddleProofVar::<C, TockPairing>::new_witness(cs.ns("Proof"), || Ok(proof.clone()))?;
+            MiddleProofVar::<C, TockPairing>::new_witness(r1cs_core::ns!(cs, "Proof"), || {
+                Ok(proof.clone())
+            })?;
         <MiddleVerifierGadget<C, TockPairing> as NIZKVerifierGadget<
             MiddleProofSystem<C, TickPairing>,
             <C::TickGroup as PairingEngine>::Fr,

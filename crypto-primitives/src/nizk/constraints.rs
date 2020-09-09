@@ -15,6 +15,7 @@ pub trait NIZKVerifierGadget<N: NIZK, ConstraintF: Field> {
     /// subgroup checks.
     ///
     /// The default implementation doesn't omit these checks.
+    #[tracing::instrument(target = "r1cs", skip(cs, f))]
     fn new_proof_unchecked<T: Borrow<N::Proof>>(
         cs: impl Into<Namespace<ConstraintF>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
@@ -27,6 +28,7 @@ pub trait NIZKVerifierGadget<N: NIZK, ConstraintF: Field> {
     /// without performing subgroup checks.
     ///
     /// The default implementation doesn't omit these checks.
+    #[tracing::instrument(target = "r1cs", skip(cs, f))]
     fn new_verification_key_unchecked<T: Borrow<N::VerificationParameters>>(
         cs: impl Into<Namespace<ConstraintF>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,

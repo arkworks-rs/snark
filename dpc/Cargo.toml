@@ -34,6 +34,8 @@ derivative = "2"
 
 [dev-dependencies]
 rand_xorshift = { version = "0.2" }
+tracing-subscriber = { version = "0.2" }
+tracing = { version = "0.1", default-features = false }
 
 ###############################################################################
 

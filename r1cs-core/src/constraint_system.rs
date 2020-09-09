@@ -1,5 +1,7 @@
+#[cfg(feature = "std")]
+use crate::ConstraintTrace;
 use crate::{
-    vec, BTreeMap, LcIndex, LinearCombination, Matrix, Rc, String, SynthesisError, ToString,
+    format, vec, BTreeMap, LcIndex, LinearCombination, Matrix, Rc, String, SynthesisError,
     Variable, Vec,
 };
 use algebra_core::Field;
@@ -11,18 +13,15 @@ use core::cell::{Ref, RefCell, RefMut};
 ///
 // TODO: Think: should we replace this with just a closure?
 pub trait ConstraintSynthesizer<F: Field> {
-    /// Drives generation of new constraints inside `CS`.
+    /// Drives generation of new constraints inside `cs`.
     fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError>;
 }
-
-/// The name of a constraint in `ConstraintSystem`.
-pub type Name = crate::Cow<'static, str>;
 
 /// An Rank-One `ConstraintSystem`. Enforces constraints of the form
 /// `⟨a_i, z⟩ ⋅ ⟨b_i, z⟩ = ⟨c_i, z⟩`, where `a_i`, `b_i`, and `c_i` are linear
 /// combinations over variables, and `z` is the concrete assignment to these
 /// variables.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct ConstraintSystem<F: Field> {
     /// The mode in which the constraint system is operating. `self` can either
     /// be in setup mode (i.e., `self.mode == SynthesisMode::Setup`) or in proving mode
@@ -45,9 +44,9 @@ pub struct ConstraintSystem<F: Field> {
     pub witness_assignment: Vec<F>,
 
     lc_map: BTreeMap<LcIndex, LinearCombination<F>>,
-    namespace: Vec<Name>,
-    current_namespace_path: String,
-    constraint_names: Vec<String>,
+
+    #[cfg(feature = "std")]
+    constraint_traces: Vec<Option<ConstraintTrace>>,
 
     a_constraints: Vec<LcIndex>,
     b_constraints: Vec<LcIndex>,
@@ -102,10 +101,9 @@ impl<F: Field> ConstraintSystem<F> {
             c_constraints: Vec::new(),
             instance_assignment: vec![F::one()],
             witness_assignment: Vec::new(),
+            #[cfg(feature = "std")]
+            constraint_traces: Vec::new(),
 
-            constraint_names: Vec::new(),
-            namespace: Vec::new(),
-            current_namespace_path: String::new(),
             lc_map: BTreeMap::new(),
             lc_assignment_cache: Rc::new(RefCell::new(BTreeMap::new())),
 
@@ -136,11 +134,6 @@ impl<F: Field> ConstraintSystem<F> {
             SynthesisMode::Setup => true,
             SynthesisMode::Prove { construct_matrices } => construct_matrices,
         }
-    }
-
-    #[inline]
-    fn compute_full_name(&self, name: impl Into<Name>) -> String {
-        [self.current_namespace_path.clone(), name.into().to_string()].join("/")
     }
 
     /// Return a variable representing the constant "zero" inside the constraint
@@ -199,23 +192,10 @@ impl<F: Field> ConstraintSystem<F> {
         Ok(var)
     }
 
-    /// Enforce a R1CS constraint with an automatically generated name.
+    /// Enforce a R1CS constraint with the name `name`.
     #[inline]
     pub fn enforce_constraint(
         &mut self,
-        a: LinearCombination<F>,
-        b: LinearCombination<F>,
-        c: LinearCombination<F>,
-    ) -> Result<(), SynthesisError> {
-        let name = crate::format!("{}", self.num_constraints);
-        self.enforce_named_constraint(name, a, b, c)
-    }
-
-    /// Enforce a R1CS constraint with the name `name`.
-    #[inline]
-    pub fn enforce_named_constraint(
-        &mut self,
-        name: impl Into<Name>,
         a: LinearCombination<F>,
         b: LinearCombination<F>,
         c: LinearCombination<F>,
@@ -229,28 +209,12 @@ impl<F: Field> ConstraintSystem<F> {
             self.c_constraints.push(c_index);
         }
         self.num_constraints += 1;
-        let name = self.compute_full_name(name.into());
-        self.constraint_names.push(name);
+        #[cfg(feature = "std")]
+        {
+            let trace = ConstraintTrace::capture();
+            self.constraint_traces.push(trace);
+        }
         Ok(())
-    }
-
-    /// Return the current namespace
-    pub fn current_namespace(&self) -> &str {
-        &self.current_namespace_path
-    }
-
-    /// Enter a new namespace.
-    #[inline]
-    pub fn enter_namespace(&mut self, name: impl Into<Name>) {
-        self.namespace.push(name.into());
-        self.current_namespace_path = self.namespace.join("/");
-    }
-
-    /// Leave a namespace.
-    #[inline]
-    pub fn leave_namespace(&mut self) {
-        self.namespace.pop();
-        self.current_namespace_path = self.namespace.join("/");
     }
 
     /// Naively inlines symbolic linear combinations into the linear combinations
@@ -260,7 +224,7 @@ impl<F: Field> ConstraintSystem<F> {
     /// For example, in the SNARKs such as [[Groth16]](https://eprint.iacr.org/2016/260) and
     /// [[Groth-Maller17]](https://eprint.iacr.org/2017/540), addition gates
     /// do not contribute to the size of the multi-scalar multiplication, which
-    /// is the dominating cost. (TODO)
+    /// is the dominating cost.
     pub fn inline_all_lcs(&mut self) {
         let mut inlined_lcs = BTreeMap::new();
         for (&index, lc) in &self.lc_map {
@@ -349,29 +313,51 @@ impl<F: Field> ConstraintSystem<F> {
         Some(acc)
     }
 
-    /// Outputs whether or not `self` is satisfied.
-    pub fn is_satisfied(&self) -> Option<bool> {
-        if self.is_in_setup_mode() {
-            None
-        } else {
-            Some(self.which_is_unsatisfied().is_none())
-        }
+    /// If `self` is satisfied, outputs `Ok(true)`.
+    /// If `self` is unsatisfied, outputs `Ok(false)`.
+    /// If `self.is_in_setup_mode()`, outputs `Err(())`.
+    pub fn is_satisfied(&self) -> Result<bool, SynthesisError> {
+        self.which_is_unsatisfied().map(|s| s.is_none())
     }
 
-    /// Outputs the name of the first unsatisfied constraint (if any)
-    pub fn which_is_unsatisfied(&self) -> Option<String> {
+    /// If `self` is satisfied, outputs `Ok(None)`.
+    /// If `self` is unsatisfied, outputs `Some(i)`, where `i` is the index of
+    /// the first unsatisfied constraint. If `self.is_in_setup_mode()`, outputs
+    /// `Err(())`.
+    pub fn which_is_unsatisfied(&self) -> Result<Option<String>, SynthesisError> {
         if self.is_in_setup_mode() {
-            None
+            Err(SynthesisError::AssignmentMissing)
         } else {
             for i in 0..self.num_constraints {
-                let a = self.eval_lc(self.a_constraints[i])?;
-                let b = self.eval_lc(self.b_constraints[i])?;
-                let c = self.eval_lc(self.c_constraints[i])?;
+                let a = self
+                    .eval_lc(self.a_constraints[i])
+                    .ok_or(SynthesisError::AssignmentMissing)?;
+                let b = self
+                    .eval_lc(self.b_constraints[i])
+                    .ok_or(SynthesisError::AssignmentMissing)?;
+                let c = self
+                    .eval_lc(self.c_constraints[i])
+                    .ok_or(SynthesisError::AssignmentMissing)?;
                 if a * b != c {
-                    return Some(self.constraint_names[i].clone());
+                    let trace;
+                    #[cfg(feature = "std")]
+                    {
+                        trace = self.constraint_traces[i].as_ref().map_or_else(
+                            || {
+                                eprintln!("Constraint trace requires enabling `ConstraintLayer`");
+                                format!("{}", i)
+                            },
+                            |t| format!("{}", t),
+                        );
+                    }
+                    #[cfg(not(feature = "std"))]
+                    {
+                        trace = format!("{}", i);
+                    }
+                    return Ok(Some(trace));
                 }
             }
-            None
+            Ok(None)
         }
     }
 
@@ -424,7 +410,7 @@ pub struct ConstraintMatrices<F: Field> {
 
 /// A shared reference to a constraint system that can be stored in high level
 /// variables.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum ConstraintSystemRef<F: Field> {
     /// Represents the case where we *don't* need to allocate variables or enforce
     /// constraints.
@@ -433,38 +419,58 @@ pub enum ConstraintSystemRef<F: Field> {
     CS(Rc<RefCell<ConstraintSystem<F>>>),
 }
 
+impl<F: Field> PartialEq for ConstraintSystemRef<F> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::None, Self::None) => true,
+            (_, _) => false,
+        }
+    }
+}
+
+impl<F: Field> Eq for ConstraintSystemRef<F> {}
+
 /// A namespaced `ConstraintSystemRef`.
 #[derive(Debug, Clone)]
 pub struct Namespace<F: Field> {
     inner: ConstraintSystemRef<F>,
-    entered_ns: bool,
+    #[cfg(feature = "std")]
+    id: Option<tracing::Id>,
 }
 
 impl<F: Field> From<ConstraintSystemRef<F>> for Namespace<F> {
     fn from(other: ConstraintSystemRef<F>) -> Self {
         Self {
             inner: other,
-            entered_ns: false,
+            #[cfg(feature = "std")]
+            id: None,
         }
     }
 }
 
 impl<F: Field> Namespace<F> {
+    /// Construct a new `Namespace`.
+    #[cfg(feature = "std")]
+    pub fn new(inner: ConstraintSystemRef<F>, id: Option<tracing::Id>) -> Self {
+        Self { inner, id }
+    }
+
     /// Obtain the inner `ConstraintSystemRef<F>`.
     pub fn cs(&self) -> ConstraintSystemRef<F> {
         self.inner.clone()
     }
 
     /// Manually leave the namespace.
-    pub fn leave_namespace(self) {
-        self.inner.leave_namespace()
+    pub fn leave_namespace(mut self) {
+        drop(&mut self)
     }
 }
 
+#[cfg(feature = "std")]
 impl<F: Field> Drop for Namespace<F> {
     fn drop(&mut self) {
-        if self.entered_ns {
-            self.inner.leave_namespace();
+        if let Some(id) = self.id.as_ref() {
+            tracing::dispatcher::get_default(|dispatch| dispatch.exit(id))
         }
         drop(&mut self.inner)
     }
@@ -501,31 +507,6 @@ impl<F: Field> ConstraintSystemRef<F> {
     #[inline]
     pub fn borrow_mut(&self) -> Option<RefMut<ConstraintSystem<F>>> {
         self.inner().map(|cs| cs.borrow_mut())
-    }
-
-    /// Return the current namespace.
-    pub fn current_namespace(&self) -> String {
-        self.inner().map_or(String::new(), |cs| {
-            cs.borrow().current_namespace().to_string()
-        })
-    }
-
-    /// Enter a new namespace.
-    #[inline]
-    pub fn ns(&self, name: impl Into<Name>) -> Namespace<F> {
-        let cs = self.inner().cloned();
-        cs.map_or((), |cs| cs.borrow_mut().enter_namespace(name));
-        Namespace {
-            inner: self.clone(),
-            entered_ns: true,
-        }
-    }
-
-    /// Leave a namespace.
-    #[inline]
-    fn leave_namespace(&self) {
-        let cs = self.inner().cloned();
-        cs.map_or((), |cs| cs.borrow_mut().leave_namespace())
     }
 
     /// Set `self.mode` to `mode`.
@@ -615,7 +596,7 @@ impl<F: Field> ConstraintSystemRef<F> {
             .and_then(|cs| cs.borrow_mut().new_lc(lc))
     }
 
-    /// Enforce a R1CS constraint with an automatically generated name.
+    /// Enforce a R1CS constraint with the name `name`.
     #[inline]
     pub fn enforce_constraint(
         &self,
@@ -626,20 +607,6 @@ impl<F: Field> ConstraintSystemRef<F> {
         self.inner()
             .ok_or(SynthesisError::MissingCS)
             .and_then(|cs| cs.borrow_mut().enforce_constraint(a, b, c))
-    }
-
-    /// Enforce a R1CS constraint with the name `name`.
-    #[inline]
-    pub fn enforce_named_constraint(
-        &self,
-        name: impl Into<Name>,
-        a: LinearCombination<F>,
-        b: LinearCombination<F>,
-        c: LinearCombination<F>,
-    ) -> Result<(), SynthesisError> {
-        self.inner()
-            .ok_or(SynthesisError::MissingCS)
-            .and_then(|cs| cs.borrow_mut().enforce_named_constraint(name, a, b, c))
     }
 
     /// Naively inlines symbolic linear combinations into the linear combinations
@@ -674,27 +641,82 @@ impl<F: Field> ConstraintSystemRef<F> {
         self.inner().map_or(None, |cs| cs.borrow().to_matrices())
     }
 
-    /// Outputs whether or not `self` is satisfied.
-    pub fn constraint_names(&self) -> Option<Vec<String>> {
+    /// If `self` is satisfied, outputs `Ok(true)`.
+    /// If `self` is unsatisfied, outputs `Ok(false)`.
+    /// If `self.is_in_setup_mode()` or if `self == None`, outputs `Err(())`.
+    pub fn is_satisfied(&self) -> Result<bool, SynthesisError> {
         self.inner()
-            .map_or(None, |cs| Some(cs.borrow().constraint_names.clone()))
+            .map_or(Err(SynthesisError::AssignmentMissing), |cs| {
+                cs.borrow().is_satisfied()
+            })
     }
 
-    /// Outputs whether or not `self` is satisfied.
-    pub fn is_satisfied(&self) -> Option<bool> {
-        self.inner().map_or(None, |cs| cs.borrow().is_satisfied())
-    }
-
-    /// Outputs the name of the first unsatisfied constraint (if any)
-    pub fn which_is_unsatisfied(&self) -> Option<String> {
+    /// If `self` is satisfied, outputs `Ok(None)`.
+    /// If `self` is unsatisfied, outputs `Some(i)`, where `i` is the index of
+    /// the first unsatisfied constraint.
+    /// If `self.is_in_setup_mode()` or `self == None`, outputs `Err(())`.
+    pub fn which_is_unsatisfied(&self) -> Result<Option<String>, SynthesisError> {
         self.inner()
-            .map_or(None, |cs| cs.borrow().which_is_unsatisfied())
+            .map_or(Err(SynthesisError::AssignmentMissing), |cs| {
+                cs.borrow().which_is_unsatisfied()
+            })
     }
 
     /// Obtain the assignment corresponding to the `Variable` `v`.
     pub fn assigned_value(&self, v: Variable) -> Option<F> {
         self.inner()
             .map_or(None, |cs| cs.borrow().assigned_value(v))
+    }
+
+    /// Get trace information about all constraints in the system
+    pub fn constraint_names(&self) -> Option<Vec<String>> {
+        #[cfg(feature = "std")]
+        {
+            self.inner().and_then(|cs| {
+                cs.borrow()
+                    .constraint_traces
+                    .iter()
+                    .map(|trace| {
+                        let mut constraint_path = String::new();
+                        let mut prev_module_path = "";
+                        let mut prefixes = crate::BTreeSet::new();
+                        for step in trace.as_ref()?.path() {
+                            let module_path = if prev_module_path == step.module_path {
+                                prefixes.insert(step.module_path.to_string());
+                                String::new()
+                            } else {
+                                let mut parts = step
+                                    .module_path
+                                    .split("::")
+                                    .filter(|&part| part != "r1cs_std" && part != "constraints");
+                                let mut path_so_far = String::new();
+                                for part in parts.by_ref() {
+                                    if path_so_far.is_empty() {
+                                        path_so_far += part;
+                                    } else {
+                                        path_so_far += &["::", part].join("");
+                                    }
+                                    if prefixes.contains(&path_so_far) {
+                                        continue;
+                                    } else {
+                                        prefixes.insert(path_so_far.clone());
+                                        break;
+                                    }
+                                }
+                                parts.collect::<Vec<_>>().join("::") + "::"
+                            };
+                            prev_module_path = step.module_path;
+                            constraint_path += &["/", &module_path, step.name].join("");
+                        }
+                        Some(constraint_path)
+                    })
+                    .collect::<Option<Vec<_>>>()
+            })
+        }
+        #[cfg(not(feature = "std"))]
+        {
+            None
+        }
     }
 }
 
@@ -710,11 +732,11 @@ mod tests {
         let a = cs.new_input_variable(|| Ok(Fr::one()))?;
         let b = cs.new_witness_variable(|| Ok(Fr::one()))?;
         let c = cs.new_witness_variable(|| Ok(two))?;
-        cs.enforce_named_constraint("C1", lc!() + a, lc!() + (two, b), lc!() + c)?;
+        cs.enforce_constraint(lc!() + a, lc!() + (two, b), lc!() + c)?;
         let d = cs.new_lc(lc!() + a + b)?;
-        cs.enforce_named_constraint("C2", lc!() + a, lc!() + d, lc!() + d)?;
+        cs.enforce_constraint(lc!() + a, lc!() + d, lc!() + d)?;
         let e = cs.new_lc(lc!() + d + d)?;
-        cs.enforce_named_constraint("C3", lc!() + Variable::One, lc!() + e, lc!() + e)?;
+        cs.enforce_constraint(lc!() + Variable::One, lc!() + e, lc!() + e)?;
         cs.inline_all_lcs();
         let matrices = cs.to_matrices().unwrap();
         assert_eq!(matrices.a[0], vec![(Fr::one(), 1)]);

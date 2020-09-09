@@ -147,6 +147,7 @@ where
     }
 
     #[inline]
+    #[tracing::instrument(target = "r1cs")]
     fn double(&self) -> Result<Self, SynthesisError> {
         let c0 = self.c0.double()?;
         let c1 = self.c1.double()?;
@@ -155,6 +156,7 @@ where
     }
 
     #[inline]
+    #[tracing::instrument(target = "r1cs")]
     fn negate(&self) -> Result<Self, SynthesisError> {
         let mut result = self.clone();
         result.c0.negate_in_place()?;
@@ -169,6 +171,7 @@ where
     /// Abstract Pairing-Friendly
     /// Fields.pdf; Section 4 (CH-SQR2))
     #[inline]
+    #[tracing::instrument(target = "r1cs")]
     fn square(&self) -> Result<Self, SynthesisError> {
         let a = self.c0.clone();
         let b = self.c1.clone();
@@ -188,6 +191,7 @@ where
         Ok(Self::new(c0, c1, c2))
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn mul_equals(&self, other: &Self, result: &Self) -> Result<(), SynthesisError> {
         // Karatsuba multiplication for cubic extensions:
         //     v0 = A.c0 * B.c0
@@ -237,6 +241,7 @@ where
         Ok(())
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn frobenius_map(&self, power: usize) -> Result<Self, SynthesisError> {
         let mut result = self.clone();
         result.c0.frobenius_map_in_place(power)?;
@@ -247,6 +252,7 @@ where
         Ok(result)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn inverse(&self) -> Result<Self, SynthesisError> {
         let cs = self.cs().get()?.clone();
         let one = Self::new_constant(cs.clone(), CubicExtField::one())?;
@@ -342,6 +348,7 @@ where
     for<'a> &'a BF: FieldOpsBounds<'a, P::BaseField, BF>,
     P: CubicExtVarParams<BF>,
 {
+    #[tracing::instrument(target = "r1cs")]
     fn is_eq(&self, other: &Self) -> Result<Boolean<P::BasePrimeField>, SynthesisError> {
         let b0 = self.c0.is_eq(&other.c0)?;
         let b1 = self.c1.is_eq(&other.c1)?;
@@ -350,6 +357,7 @@ where
     }
 
     #[inline]
+    #[tracing::instrument(target = "r1cs")]
     fn conditional_enforce_equal(
         &self,
         other: &Self,
@@ -362,6 +370,7 @@ where
     }
 
     #[inline]
+    #[tracing::instrument(target = "r1cs")]
     fn conditional_enforce_not_equal(
         &self,
         other: &Self,
@@ -380,6 +389,7 @@ where
     for<'a> &'a BF: FieldOpsBounds<'a, P::BaseField, BF>,
     P: CubicExtVarParams<BF>,
 {
+    #[tracing::instrument(target = "r1cs")]
     fn to_bits_le(&self) -> Result<Vec<Boolean<P::BasePrimeField>>, SynthesisError> {
         let mut c0 = self.c0.to_bits_le()?;
         let mut c1 = self.c1.to_bits_le()?;
@@ -389,6 +399,7 @@ where
         Ok(c0)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn to_non_unique_bits_le(&self) -> Result<Vec<Boolean<P::BasePrimeField>>, SynthesisError> {
         let mut c0 = self.c0.to_non_unique_bits_le()?;
         let mut c1 = self.c1.to_non_unique_bits_le()?;
@@ -405,6 +416,7 @@ where
     for<'a> &'a BF: FieldOpsBounds<'a, P::BaseField, BF>,
     P: CubicExtVarParams<BF>,
 {
+    #[tracing::instrument(target = "r1cs")]
     fn to_bytes(&self) -> Result<Vec<UInt8<P::BasePrimeField>>, SynthesisError> {
         let mut c0 = self.c0.to_bytes()?;
         let mut c1 = self.c1.to_bytes()?;
@@ -415,6 +427,7 @@ where
         Ok(c0)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn to_non_unique_bytes(&self) -> Result<Vec<UInt8<P::BasePrimeField>>, SynthesisError> {
         let mut c0 = self.c0.to_non_unique_bytes()?;
         let mut c1 = self.c1.to_non_unique_bytes()?;
@@ -434,6 +447,7 @@ where
     P: CubicExtVarParams<BF>,
 {
     #[inline]
+    #[tracing::instrument(target = "r1cs")]
     fn conditionally_select(
         cond: &Boolean<P::BasePrimeField>,
         true_value: &Self,
@@ -455,6 +469,7 @@ where
 {
     type TableConstant = CubicExtField<P>;
 
+    #[tracing::instrument(target = "r1cs")]
     fn two_bit_lookup(
         b: &[Boolean<P::BasePrimeField>],
         c: &[Self::TableConstant],
@@ -478,6 +493,7 @@ where
 {
     type TableConstant = CubicExtField<P>;
 
+    #[tracing::instrument(target = "r1cs")]
     fn three_bit_cond_neg_lookup(
         b: &[Boolean<P::BasePrimeField>],
         b0b1: &Boolean<P::BasePrimeField>,
@@ -517,9 +533,9 @@ where
             ),
         };
 
-        let c0 = BF::new_variable(cs.ns("c0"), || c0, mode)?;
-        let c1 = BF::new_variable(cs.ns("c1"), || c1, mode)?;
-        let c2 = BF::new_variable(cs.ns("c2"), || c2, mode)?;
+        let c0 = BF::new_variable(r1cs_core::ns!(cs, "c0"), || c0, mode)?;
+        let c1 = BF::new_variable(r1cs_core::ns!(cs, "c1"), || c1, mode)?;
+        let c2 = BF::new_variable(r1cs_core::ns!(cs, "c2"), || c2, mode)?;
         Ok(Self::new(c0, c1, c2))
     }
 }

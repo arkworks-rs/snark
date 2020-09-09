@@ -153,11 +153,12 @@ impl<C: PlainDPCComponents> ConstraintSynthesizer<C::CoreCheckF> for EmptyPredic
         self,
         cs: ConstraintSystemRef<C::CoreCheckF>,
     ) -> Result<(), SynthesisError> {
-        let _position = UInt8::new_input_vec(cs.ns("Alloc position"), &[self.position])?;
+        let _position =
+            UInt8::new_input_vec(r1cs_core::ns!(cs, "Alloc position"), &[self.position])?;
 
         let _local_data_comm_pp =
             <C::LocalDataCommGadget as CommitmentGadget<_, _>>::ParametersVar::new_constant(
-                cs.ns("Declare Pred Input Comm parameters"),
+                r1cs_core::ns!(cs, "Declare Pred Input Comm parameters"),
                 self.comm_and_crh_parameters
                     .as_ref()
                     .get()?
@@ -167,7 +168,7 @@ impl<C: PlainDPCComponents> ConstraintSynthesizer<C::CoreCheckF> for EmptyPredic
 
         let _local_data_comm =
             <C::LocalDataCommGadget as CommitmentGadget<_, _>>::OutputVar::new_input(
-                cs.ns("Allocate predicate commitment"),
+                r1cs_core::ns!(cs, "Allocate predicate commitment"),
                 || self.local_data_comm.get(),
             )?;
 

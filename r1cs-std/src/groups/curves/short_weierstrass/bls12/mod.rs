@@ -6,7 +6,7 @@ use algebra::{
     fields::Field,
     BitIteratorBE, One,
 };
-use r1cs_core::SynthesisError;
+use r1cs_core::{Namespace, SynthesisError};
 
 use crate::{
     fields::{fp::FpVar, fp2::Fp2Var, FieldVar},
@@ -53,9 +53,13 @@ impl<P: Bls12Parameters> AllocVar<G1Prepared<P>, P::Fp> for G1PreparedVar<P> {
         let cs = ns.cs();
         let g1_prep = f().map(|b| b.borrow().0);
 
-        let x = FpVar::new_variable(cs.ns("x"), || g1_prep.map(|g| g.x), mode)?;
-        let y = FpVar::new_variable(cs.ns("y"), || g1_prep.map(|g| g.y), mode)?;
-        let infinity = Boolean::new_variable(cs.ns("inf"), || g1_prep.map(|g| g.infinity), mode)?;
+        let x = FpVar::new_variable(r1cs_core::ns!(cs, "x"), || g1_prep.map(|g| g.x), mode)?;
+        let y = FpVar::new_variable(r1cs_core::ns!(cs, "y"), || g1_prep.map(|g| g.y), mode)?;
+        let infinity = Boolean::new_variable(
+            r1cs_core::ns!(cs, "inf"),
+            || g1_prep.map(|g| g.infinity),
+            mode,
+        )?;
         let g = AffineVar::new(x, y, infinity);
         Ok(Self(g))
     }
@@ -63,6 +67,7 @@ impl<P: Bls12Parameters> AllocVar<G1Prepared<P>, P::Fp> for G1PreparedVar<P> {
 
 impl<P: Bls12Parameters> ToBytesGadget<P::Fp> for G1PreparedVar<P> {
     #[inline]
+    #[tracing::instrument(target = "r1cs")]
     fn to_bytes(&self) -> Result<Vec<UInt8<P::Fp>>, SynthesisError> {
         let mut bytes = self.0.x.to_bytes()?;
         let y_bytes = self.0.y.to_bytes()?;
@@ -72,6 +77,7 @@ impl<P: Bls12Parameters> ToBytesGadget<P::Fp> for G1PreparedVar<P> {
         Ok(bytes)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn to_non_unique_bytes(&self) -> Result<Vec<UInt8<P::Fp>>, SynthesisError> {
         let mut bytes = self.0.x.to_bytes()?;
         let y_bytes = self.0.y.to_bytes()?;
@@ -94,6 +100,7 @@ pub struct G2PreparedVar<P: Bls12Parameters> {
 }
 
 impl<P: Bls12Parameters> AllocVar<G2Prepared<P>, P::Fp> for G2PreparedVar<P> {
+    #[tracing::instrument(target = "r1cs", skip(cs, f, mode))]
     fn new_variable<T: Borrow<G2Prepared<P>>>(
         cs: impl Into<Namespace<P::Fp>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
@@ -116,7 +123,7 @@ impl<P: Bls12Parameters> AllocVar<G2Prepared<P>, P::Fp> for G2PreparedVar<P> {
         });
 
         let l = Vec::new_variable(
-            cs.ns("l"),
+            r1cs_core::ns!(cs, "l"),
             || {
                 g2_prep
                     .clone()
@@ -125,7 +132,7 @@ impl<P: Bls12Parameters> AllocVar<G2Prepared<P>, P::Fp> for G2PreparedVar<P> {
             mode,
         )?;
         let r = Vec::new_variable(
-            cs.ns("r"),
+            r1cs_core::ns!(cs, "r"),
             || g2_prep.map(|c| c.iter().map(|(_, r)| *r).collect::<Vec<_>>()),
             mode,
         )?;
@@ -136,6 +143,7 @@ impl<P: Bls12Parameters> AllocVar<G2Prepared<P>, P::Fp> for G2PreparedVar<P> {
 
 impl<P: Bls12Parameters> ToBytesGadget<P::Fp> for G2PreparedVar<P> {
     #[inline]
+    #[tracing::instrument(target = "r1cs")]
     fn to_bytes(&self) -> Result<Vec<UInt8<P::Fp>>, SynthesisError> {
         let mut bytes = Vec::new();
         for coeffs in &self.ell_coeffs {
@@ -145,6 +153,7 @@ impl<P: Bls12Parameters> ToBytesGadget<P::Fp> for G2PreparedVar<P> {
         Ok(bytes)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn to_non_unique_bytes(&self) -> Result<Vec<UInt8<P::Fp>>, SynthesisError> {
         let mut bytes = Vec::new();
         for coeffs in &self.ell_coeffs {
@@ -156,6 +165,7 @@ impl<P: Bls12Parameters> ToBytesGadget<P::Fp> for G2PreparedVar<P> {
 }
 
 impl<P: Bls12Parameters> G2PreparedVar<P> {
+    #[tracing::instrument(target = "r1cs")]
     pub fn from_group_var(q: &G2Var<P>) -> Result<Self, SynthesisError> {
         let q = q.to_affine()?;
         let two_inv = P::Fp::one().double().inverse().unwrap();
@@ -175,6 +185,7 @@ impl<P: Bls12Parameters> G2PreparedVar<P> {
         Ok(Self { ell_coeffs })
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn double(r: &mut G2AffineVar<P>, two_inv: &P::Fp) -> Result<LCoeff<P>, SynthesisError> {
         let a = r.y.inverse()?;
         let mut b = r.x.square()?;
@@ -198,6 +209,7 @@ impl<P: Bls12Parameters> G2PreparedVar<P> {
         }
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn add(r: &mut G2AffineVar<P>, q: &G2AffineVar<P>) -> Result<LCoeff<P>, SynthesisError> {
         let a = (&q.x - &r.x).inverse()?;
         let b = &q.y - &r.y;

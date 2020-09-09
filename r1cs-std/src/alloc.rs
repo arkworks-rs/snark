@@ -34,6 +34,7 @@ where
         mode: AllocationMode,
     ) -> Result<Self, SynthesisError>;
 
+    #[tracing::instrument(target = "r1cs", skip(cs, t))]
     fn new_constant(
         cs: impl Into<Namespace<F>>,
         t: impl Borrow<V>,
@@ -41,6 +42,7 @@ where
         Self::new_variable(cs, || Ok(t), AllocationMode::Constant)
     }
 
+    #[tracing::instrument(target = "r1cs", skip(cs, f))]
     fn new_input<T: Borrow<V>>(
         cs: impl Into<Namespace<F>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
@@ -48,6 +50,7 @@ where
         Self::new_variable(cs, f, AllocationMode::Input)
     }
 
+    #[tracing::instrument(target = "r1cs", skip(cs, f))]
     fn new_witness<T: Borrow<V>>(
         cs: impl Into<Namespace<F>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,

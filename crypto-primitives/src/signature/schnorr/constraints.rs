@@ -56,6 +56,7 @@ where
     type ParametersVar = ParametersVar<C, GC>;
     type PublicKeyVar = PublicKeyVar<C, GC>;
 
+    #[tracing::instrument(target = "r1cs", skip(parameters, public_key, randomness))]
     fn randomize(
         parameters: &Self::ParametersVar,
         public_key: &Self::PublicKeyVar,

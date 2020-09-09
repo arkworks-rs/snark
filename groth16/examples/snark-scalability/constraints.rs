@@ -34,12 +34,7 @@ impl<F: Field> ConstraintSynthesizer<F> for Benchmark<F> {
                 let c_val = a_val * &b_val;
                 let c_var = cs.new_witness_variable(|| Ok(c_val))?;
 
-                cs.enforce_named_constraint(
-                    format!("{}: a * b = c", i),
-                    lc!() + a_var,
-                    lc!() + b_var,
-                    lc!() + c_var,
-                )?;
+                cs.enforce_constraint(lc!() + a_var, lc!() + b_var, lc!() + c_var)?;
 
                 assignments.push((c_val, c_var));
                 a_val = b_val;
@@ -50,12 +45,7 @@ impl<F: Field> ConstraintSynthesizer<F> for Benchmark<F> {
                 let c_val = a_val + &b_val;
                 let c_var = cs.new_witness_variable(|| Ok(c_val))?;
 
-                cs.enforce_named_constraint(
-                    format!("{}: a + b = c", i),
-                    lc!() + a_var + b_var,
-                    lc!() + Variable::One,
-                    lc!() + c_var,
-                )?;
+                cs.enforce_constraint(lc!() + a_var + b_var, lc!() + Variable::One, lc!() + c_var)?;
 
                 assignments.push((c_val, c_var));
                 a_val = b_val;
@@ -78,12 +68,7 @@ impl<F: Field> ConstraintSynthesizer<F> for Benchmark<F> {
 
         let c_var = cs.new_witness_variable(|| Ok(c_val))?;
 
-        cs.enforce_named_constraint(
-            "assignments.sum().square()",
-            lc!() + a_lc,
-            lc!() + b_lc,
-            lc!() + c_var,
-        )?;
+        cs.enforce_constraint(lc!() + a_lc, lc!() + b_lc, lc!() + c_var)?;
 
         Ok(())
     }

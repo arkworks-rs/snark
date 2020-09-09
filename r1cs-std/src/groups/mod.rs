@@ -47,6 +47,7 @@ pub trait CurveVar<C: ProjectiveCurve, ConstraintF: Field>:
 
     fn zero() -> Self;
 
+    #[tracing::instrument(target = "r1cs")]
     fn is_zero(&self) -> Result<Boolean<ConstraintF>, SynthesisError> {
         self.is_eq(&Self::zero())
     }
@@ -62,6 +63,7 @@ pub trait CurveVar<C: ProjectiveCurve, ConstraintF: Field>:
     /// Enforce that `self` is in the prime-order subgroup.
     fn enforce_prime_order(&self) -> Result<(), SynthesisError>;
 
+    #[tracing::instrument(target = "r1cs")]
     fn double(&self) -> Result<Self, SynthesisError> {
         let mut result = self.clone();
         result.double_in_place()?;
@@ -74,6 +76,7 @@ pub trait CurveVar<C: ProjectiveCurve, ConstraintF: Field>:
 
     /// Computes `bits * self`, where `bits` is a little-endian
     /// `Boolean` representation of a scalar.
+    #[tracing::instrument(target = "r1cs", skip(bits))]
     fn scalar_mul_le<'a>(
         &self,
         bits: impl Iterator<Item = &'a Boolean<ConstraintF>>,
@@ -93,6 +96,7 @@ pub trait CurveVar<C: ProjectiveCurve, ConstraintF: Field>:
     ///
     /// The base powers are precomputed power-of-two multiples of a single
     /// base.
+    #[tracing::instrument(target = "r1cs", skip(scalar_bits_with_base_powers))]
     fn precomputed_base_scalar_mul_le<'a, I, B>(
         &mut self,
         scalar_bits_with_base_powers: I,
@@ -109,6 +113,7 @@ pub trait CurveVar<C: ProjectiveCurve, ConstraintF: Field>:
         Ok(())
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn precomputed_base_3_bit_signed_digit_scalar_mul<'a, I, J, B>(
         _: &[B],
         _: &[J],
@@ -123,6 +128,7 @@ pub trait CurveVar<C: ProjectiveCurve, ConstraintF: Field>:
 
     /// Computes a `\sum I_j * B_j`, where `I_j` is a `Boolean`
     /// representation of the j-th scalar.
+    #[tracing::instrument(target = "r1cs", skip(bases, scalars))]
     fn precomputed_base_multiscalar_mul_le<'a, T, I, B>(
         bases: &[B],
         scalars: I,
@@ -160,8 +166,8 @@ mod test {
         let mut rng = test_rng();
         let a_native = C::rand(&mut rng);
         let b_native = C::rand(&mut rng);
-        let a = GG::new_witness(cs.ns("generate_a"), || Ok(a_native)).unwrap();
-        let b = GG::new_witness(cs.ns("generate_b"), || Ok(b_native)).unwrap();
+        let a = GG::new_witness(r1cs_core::ns!(cs, "generate_a"), || Ok(a_native)).unwrap();
+        let b = GG::new_witness(r1cs_core::ns!(cs, "generate_b"), || Ok(b_native)).unwrap();
 
         let zero = GG::zero();
         assert_eq!(zero.value()?, zero.value()?);
