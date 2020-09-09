@@ -79,7 +79,7 @@ impl<'a, F: PrimeField> FieldOpsBounds<'a, F, Self> for FpVar<F> {}
 impl<'a, F: PrimeField> FieldOpsBounds<'a, F, FpVar<F>> for &'a FpVar<F> {}
 
 impl<F: PrimeField> AllocatedFp<F> {
-    fn from(other: Boolean<F>) -> Self {
+    pub fn from(other: Boolean<F>) -> Self {
         if let Some(cs) = other.cs() {
             let variable = cs.new_lc(other.lc()).unwrap();
             Self::new(other.value().ok().map(|b| F::from(b as u8)), variable, cs)
@@ -88,11 +88,11 @@ impl<F: PrimeField> AllocatedFp<F> {
         }
     }
 
-    fn value(&self) -> Result<F, SynthesisError> {
+    pub fn value(&self) -> Result<F, SynthesisError> {
         self.cs.assigned_value(self.variable).get()
     }
 
-    fn add(&self, other: &Self) -> Self {
+    pub fn add(&self, other: &Self) -> Self {
         let value = match (self.value, other.value) {
             (Some(val1), Some(val2)) => Some(val1 + &val2),
             (..) => None,
@@ -105,7 +105,7 @@ impl<F: PrimeField> AllocatedFp<F> {
         AllocatedFp::new(value, variable, self.cs.clone())
     }
 
-    fn sub(&self, other: &Self) -> Self {
+    pub fn sub(&self, other: &Self) -> Self {
         let value = match (self.value, other.value) {
             (Some(val1), Some(val2)) => Some(val1 - &val2),
             (..) => None,
@@ -118,7 +118,7 @@ impl<F: PrimeField> AllocatedFp<F> {
         AllocatedFp::new(value, variable, self.cs.clone())
     }
 
-    fn mul(&self, other: &Self) -> Self {
+    pub fn mul(&self, other: &Self) -> Self {
         let product = AllocatedFp::new_witness(self.cs.clone(), || {
             Ok(self.value.get()? * &other.value.get()?)
         })
@@ -133,7 +133,7 @@ impl<F: PrimeField> AllocatedFp<F> {
         product
     }
 
-    fn add_constant(&self, other: F) -> Self {
+    pub fn add_constant(&self, other: F) -> Self {
         if other.is_zero() {
             self.clone()
         } else {
@@ -146,11 +146,11 @@ impl<F: PrimeField> AllocatedFp<F> {
         }
     }
 
-    fn sub_constant(&self, other: F) -> Self {
+    pub fn sub_constant(&self, other: F) -> Self {
         self.add_constant(-other)
     }
 
-    fn mul_constant(&self, other: F) -> Self {
+    pub fn mul_constant(&self, other: F) -> Self {
         if other.is_one() {
             self.clone()
         } else {
@@ -160,33 +160,35 @@ impl<F: PrimeField> AllocatedFp<F> {
         }
     }
 
-    fn double(&self) -> Result<Self, SynthesisError> {
+    pub fn double(&self) -> Result<Self, SynthesisError> {
         let value = self.value.map(|val| val.double());
         let variable = self.cs.new_lc(lc!() + self.variable + self.variable)?;
         Ok(Self::new(value, variable, self.cs.clone()))
     }
 
     #[inline]
-    fn negate(&self) -> Self {
+    pub fn negate(&self) -> Self {
         let mut result = self.clone();
         result.negate_in_place();
         result
     }
 
     #[inline]
-    fn negate_in_place(&mut self) -> &mut Self {
+    pub fn negate_in_place(&mut self) -> &mut Self {
         self.value.as_mut().map(|val| *val = -(*val));
         self.variable = self.cs.new_lc(lc!() - self.variable).unwrap();
         self
     }
 
-    fn square(&self) -> Result<Self, SynthesisError> {
+    pub fn square(&self) -> Result<Self, SynthesisError> {
         Ok(self.mul(self))
     }
 
     #[inline]
-    fn inverse(&self) -> Result<Self, SynthesisError> {
-        let inverse = Self::new_witness(self.cs.clone(), || self.value.get()?.inverse().get())?;
+    pub fn inverse(&self) -> Result<Self, SynthesisError> {
+        let inverse = Self::new_witness(self.cs.clone(), || {
+            Ok(self.value.get()?.inverse().unwrap_or(F::zero()))
+        })?;
 
         self.cs.enforce_constraint(
             lc!() + self.variable,
@@ -196,11 +198,11 @@ impl<F: PrimeField> AllocatedFp<F> {
         Ok(inverse)
     }
 
-    fn frobenius_map(&self, _: usize) -> Result<Self, SynthesisError> {
+    pub fn frobenius_map(&self, _: usize) -> Result<Self, SynthesisError> {
         Ok(self.clone())
     }
 
-    fn mul_equals(&self, other: &Self, result: &Self) -> Result<(), SynthesisError> {
+    pub fn mul_equals(&self, other: &Self, result: &Self) -> Result<(), SynthesisError> {
         self.cs.enforce_constraint(
             lc!() + self.variable,
             lc!() + other.variable,
@@ -208,7 +210,7 @@ impl<F: PrimeField> AllocatedFp<F> {
         )
     }
 
-    fn square_equals(&self, result: &Self) -> Result<(), SynthesisError> {
+    pub fn square_equals(&self, result: &Self) -> Result<(), SynthesisError> {
         self.cs.enforce_constraint(
             lc!() + self.variable,
             lc!() + self.variable,
@@ -221,7 +223,7 @@ impl<F: PrimeField> AllocatedFp<F> {
     /// # Constraint cost
     ///
     /// Consumes three constraints
-    fn is_eq(&self, other: &Self) -> Result<Boolean<F>, SynthesisError> {
+    pub fn is_eq(&self, other: &Self) -> Result<Boolean<F>, SynthesisError> {
         Ok(self.is_neq(other)?.not())
     }
 
@@ -230,7 +232,7 @@ impl<F: PrimeField> AllocatedFp<F> {
     /// # Constraint cost
     ///
     /// Consumes three constraints
-    fn is_neq(&self, other: &Self) -> Result<Boolean<F>, SynthesisError> {
+    pub fn is_neq(&self, other: &Self) -> Result<Boolean<F>, SynthesisError> {
         let is_not_equal = Boolean::new_witness(self.cs.clone(), || {
             Ok(self.value.get()? != other.value.get()?)
         })?;
@@ -297,7 +299,7 @@ impl<F: PrimeField> AllocatedFp<F> {
     }
 
     #[inline]
-    fn conditional_enforce_equal(
+    pub fn conditional_enforce_equal(
         &self,
         other: &Self,
         should_enforce: &Boolean<F>,
@@ -310,7 +312,7 @@ impl<F: PrimeField> AllocatedFp<F> {
     }
 
     #[inline]
-    fn conditional_enforce_not_equal(
+    pub fn conditional_enforce_not_equal(
         &self,
         other: &Self,
         should_enforce: &Boolean<F>,
@@ -336,7 +338,7 @@ impl<F: PrimeField> AllocatedFp<F> {
 /****************************************************************************/
 
 impl<F: PrimeField> ToBitsGadget<F> for AllocatedFp<F> {
-    /// Outputs the unique bit-wise decomposition of `self` in *big-endian*
+    /// Outputs the unique bit-wise decomposition of `self` in *little-endian*
     /// form.
     fn to_bits_le(&self) -> Result<Vec<Boolean<F>>, SynthesisError> {
         let bits = self.to_non_unique_bits_le()?;
