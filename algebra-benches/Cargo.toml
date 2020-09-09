@@ -43,6 +43,8 @@ bls12_381 = [ "algebra/bls12_381"]
 bls12_377 = [ "algebra/bls12_377"]
 cp6_782 = [ "algebra/cp6_782" ]
 bw6_761 = [ "algebra/bw6_761" ]
+timing = [ "algebra/timing"]
+timing_detailed = [ "algebra/timing_detailed" ]
 
 [build-dependencies]
 rustc_version = "0.2"

@@ -1,6 +1,6 @@
 use crate::{
     curves::{BatchGroupArithmeticSlice, BATCH_SIZE},
-    AffineCurve, Vec,
+    timing, timing_println, AffineCurve, Vec,
 };
 
 #[cfg(feature = "std")]
@@ -47,7 +47,9 @@ pub fn batch_bucketed_add<C: AffineCurve>(
     assert_eq!(elems.len(), bucket_positions.len());
     assert!(elems.len() > 0);
 
-    dlsd_radixsort(bucket_positions, 16);
+    let now = timing!();
+    dlsd_radixsort(bucket_positions, 8);
+    timing_println!(now, "radixsort");
 
     let mut len = bucket_positions.len();
     let mut all_ones = true;
@@ -60,6 +62,7 @@ pub fn batch_bucketed_add<C: AffineCurve>(
 
     let mut scratch_space = Vec::<Option<C>>::with_capacity(BATCH_SIZE / 2);
 
+    let now = timing!();
     // In the first loop, we copy the results of the first in place addition tree
     // to a local vector, new_elems
     // Subsequently, we perform all the operations in place
@@ -183,6 +186,8 @@ pub fn batch_bucketed_add<C: AffineCurve>(
     }
     let zero = C::zero();
     let mut res = vec![zero; buckets];
+
+    timing_println!(now, "addition tree");
 
     for i in 0..len {
         let (pos, buc) = (bucket_positions[i].position, bucket_positions[i].bucket);

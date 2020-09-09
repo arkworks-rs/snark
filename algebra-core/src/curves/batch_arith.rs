@@ -1,7 +1,7 @@
 use crate::{biginteger::BigInteger, AffineCurve, Field, Vec};
 use core::ops::Neg;
-use num_traits::Zero;
 use either::Either;
+use num_traits::Zero;
 
 /// We use a batch size that is big enough to amortise the cost of the actual inversion
 /// close to zero while not straining the CPU cache by generating and fetching from
@@ -89,10 +89,7 @@ where
                 Some(bools) => Either::Right(bools.iter()),
             };
             let mut opcode_row = Vec::with_capacity(batch_size);
-            for (s, neg) in scalars
-                .iter_mut()
-                .zip(iter)
-            {
+            for (s, &neg) in scalars.iter_mut().zip(iter) {
                 if s.is_zero() {
                     opcode_row.push(None);
                 } else {
@@ -104,7 +101,7 @@ where
                             z = z - window_size;
                             s.add_nocarry(&BigInt::from((-z) as u64));
                         }
-                        if *neg {
+                        if neg {
                             -z
                         } else {
                             z

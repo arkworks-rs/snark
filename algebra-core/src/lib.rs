@@ -190,3 +190,48 @@ macro_rules! cfg_chunks_mut {
         result
     }};
 }
+
+#[macro_export]
+macro_rules! timing_println {
+    ($now: ident, $string: expr) => {
+        #[cfg(feature = "timing")]
+        {
+            println!("[ {} ] {} us", $string, $now.1.elapsed().as_micros(),);
+        }
+
+        #[cfg(feature = "timing_detailed")]
+        {
+            macro_rules! function {
+                () => {{
+                    fn f() {}
+                    fn type_name_of<T>(_: T) -> &'static str {
+                        core::any::type_name::<T>()
+                    }
+                    let name = type_name_of(f);
+                    &name[..name.len() - 3]
+                }};
+            }
+            println!(
+                "{} : {} {}:{} [ {} ] {} us",
+                String::from(function!()).split("::").last().unwrap(),
+                String::from(file!()).split("/").last().unwrap(),
+                $now.0,
+                line!() - 1,
+                $string,
+                $now.1.elapsed().as_micros(),
+            );
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! timing {
+    () => {{
+        #[cfg(any(feature = "timing", feature = "timing_detailed"))]
+        let now = (line!(), std::time::Instant::now());
+
+        #[cfg(not(any(feature = "timing", feature = "timing_detailed")))]
+        let now = ();
+        now
+    }};
+}
