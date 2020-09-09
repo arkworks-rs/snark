@@ -53,6 +53,7 @@ where
     type ParametersVar = ParametersVar<C, GG>;
     type RandomnessVar = RandomnessVar<ConstraintF<C>>;
 
+    #[tracing::instrument(target = "r1cs", skip(parameters, r))]
     fn commit(
         parameters: &Self::ParametersVar,
         input: &[UInt8<ConstraintF<C>>],
@@ -183,13 +184,13 @@ mod test {
 
         let randomness_var =
             <TestCOMMGadget as CommitmentGadget<TestCOMM, Fq>>::RandomnessVar::new_witness(
-                cs.ns("gadget_randomness"),
+                r1cs_core::ns!(cs, "gadget_randomness"),
                 || Ok(&randomness),
             )
             .unwrap();
         let parameters_var =
             <TestCOMMGadget as CommitmentGadget<TestCOMM, Fq>>::ParametersVar::new_witness(
-                cs.ns("gadget_parameters"),
+                r1cs_core::ns!(cs, "gadget_parameters"),
                 || Ok(&parameters),
             )
             .unwrap();

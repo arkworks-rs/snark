@@ -87,6 +87,7 @@ where
     type OutputVar = IG::OutputVar;
     type ParametersVar = ped_constraints::CRHParametersVar<C, GG>;
 
+    #[tracing::instrument(target = "r1cs", skip(parameters, input))]
     fn evaluate(
         parameters: &Self::ParametersVar,
         input: &[UInt8<ConstraintF<C>>],

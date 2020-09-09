@@ -117,6 +117,7 @@ impl<F: Field> UInt8<F> {
 
     /// Converts a little-endian byte order representation of bits into a
     /// `UInt8`.
+    #[tracing::instrument(target = "r1cs")]
     pub fn from_bits_le(bits: &[Boolean<F>]) -> Self {
         assert_eq!(bits.len(), 8);
 
@@ -134,6 +135,7 @@ impl<F: Field> UInt8<F> {
     }
 
     /// XOR this `UInt8` with another `UInt8`
+    #[tracing::instrument(target = "r1cs")]
     pub fn xor(&self, other: &Self) -> Result<Self, SynthesisError> {
         let new_value = match (self.value, other.value) {
             (Some(a), Some(b)) => Some(a ^ b),
@@ -155,10 +157,12 @@ impl<F: Field> UInt8<F> {
 }
 
 impl<ConstraintF: Field> EqGadget<ConstraintF> for UInt8<ConstraintF> {
+    #[tracing::instrument(target = "r1cs")]
     fn is_eq(&self, other: &Self) -> Result<Boolean<ConstraintF>, SynthesisError> {
         self.bits.as_slice().is_eq(&other.bits)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn conditional_enforce_equal(
         &self,
         other: &Self,
@@ -167,6 +171,7 @@ impl<ConstraintF: Field> EqGadget<ConstraintF> for UInt8<ConstraintF> {
         self.bits.conditional_enforce_equal(&other.bits, condition)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn conditional_enforce_not_equal(
         &self,
         other: &Self,
@@ -214,7 +219,7 @@ mod test {
     fn test_uint8_from_bits_to_bits() -> Result<(), SynthesisError> {
         let cs = ConstraintSystem::<Fr>::new_ref();
         let byte_val = 0b01110001;
-        let byte = UInt8::new_witness(cs.ns("alloc value"), || Ok(byte_val)).unwrap();
+        let byte = UInt8::new_witness(r1cs_core::ns!(cs, "alloc value"), || Ok(byte_val)).unwrap();
         let bits = byte.to_bits_le()?;
         for (i, bit) in bits.iter().enumerate() {
             assert_eq!(bit.value()?, (byte_val >> i) & 1 == 1)
@@ -226,7 +231,7 @@ mod test {
     fn test_uint8_new_input_vec() -> Result<(), SynthesisError> {
         let cs = ConstraintSystem::<Fr>::new_ref();
         let byte_vals = (64u8..128u8).collect::<Vec<_>>();
-        let bytes = UInt8::new_input_vec(cs.ns("alloc value"), &byte_vals).unwrap();
+        let bytes = UInt8::new_input_vec(r1cs_core::ns!(cs, "alloc value"), &byte_vals).unwrap();
         dbg!(bytes.value())?;
         for (native, variable) in byte_vals.into_iter().zip(bytes) {
             let bits = variable.to_bits_le()?;
@@ -287,9 +292,9 @@ mod test {
 
             let mut expected = a ^ b ^ c;
 
-            let a_bit = UInt8::new_witness(cs.ns("a_bit"), || Ok(a)).unwrap();
+            let a_bit = UInt8::new_witness(r1cs_core::ns!(cs, "a_bit"), || Ok(a)).unwrap();
             let b_bit = UInt8::constant(b);
-            let c_bit = UInt8::new_witness(cs.ns("c_bit"), || Ok(c)).unwrap();
+            let c_bit = UInt8::new_witness(r1cs_core::ns!(cs, "c_bit"), || Ok(c)).unwrap();
 
             let r = a_bit.xor(&b_bit).unwrap();
             let r = r.xor(&c_bit).unwrap();

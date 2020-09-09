@@ -51,6 +51,7 @@ where
     type OutputVar = AffineVar<P, F>;
     type ParametersVar = ParametersVar<P, W>;
 
+    #[tracing::instrument(target = "r1cs", skip(parameters, input))]
     fn evaluate(
         parameters: &Self::ParametersVar,
         input: &[UInt8<ConstraintF<P>>],
@@ -91,6 +92,7 @@ where
     P: TEModelParameters,
     W: Window,
 {
+    #[tracing::instrument(target = "r1cs", skip(_cs, f))]
     fn new_variable<T: Borrow<Parameters<P>>>(
         _cs: impl Into<Namespace<ConstraintF<P>>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
@@ -158,7 +160,7 @@ mod test {
 
         let parameters_var =
             <TestCRHGadget as FixedLengthCRHGadget<TestCRH, Fr>>::ParametersVar::new_witness(
-                cs.ns("parameters_var"),
+                r1cs_core::ns!(cs, "parameters_var"),
                 || Ok(&parameters),
             )
             .unwrap();

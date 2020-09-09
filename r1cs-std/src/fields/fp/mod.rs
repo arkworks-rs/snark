@@ -92,6 +92,7 @@ impl<F: PrimeField> AllocatedFp<F> {
         self.cs.assigned_value(self.variable).get()
     }
 
+    #[tracing::instrument(target = "r1cs")]
     pub fn add(&self, other: &Self) -> Self {
         let value = match (self.value, other.value) {
             (Some(val1), Some(val2)) => Some(val1 + &val2),
@@ -105,6 +106,7 @@ impl<F: PrimeField> AllocatedFp<F> {
         AllocatedFp::new(value, variable, self.cs.clone())
     }
 
+    #[tracing::instrument(target = "r1cs")]
     pub fn sub(&self, other: &Self) -> Self {
         let value = match (self.value, other.value) {
             (Some(val1), Some(val2)) => Some(val1 - &val2),
@@ -118,6 +120,7 @@ impl<F: PrimeField> AllocatedFp<F> {
         AllocatedFp::new(value, variable, self.cs.clone())
     }
 
+    #[tracing::instrument(target = "r1cs")]
     pub fn mul(&self, other: &Self) -> Self {
         let product = AllocatedFp::new_witness(self.cs.clone(), || {
             Ok(self.value.get()? * &other.value.get()?)
@@ -133,6 +136,7 @@ impl<F: PrimeField> AllocatedFp<F> {
         product
     }
 
+    #[tracing::instrument(target = "r1cs")]
     pub fn add_constant(&self, other: F) -> Self {
         if other.is_zero() {
             self.clone()
@@ -146,10 +150,12 @@ impl<F: PrimeField> AllocatedFp<F> {
         }
     }
 
+    #[tracing::instrument(target = "r1cs")]
     pub fn sub_constant(&self, other: F) -> Self {
         self.add_constant(-other)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     pub fn mul_constant(&self, other: F) -> Self {
         if other.is_one() {
             self.clone()
@@ -160,31 +166,33 @@ impl<F: PrimeField> AllocatedFp<F> {
         }
     }
 
+    #[tracing::instrument(target = "r1cs")]
     pub fn double(&self) -> Result<Self, SynthesisError> {
         let value = self.value.map(|val| val.double());
         let variable = self.cs.new_lc(lc!() + self.variable + self.variable)?;
         Ok(Self::new(value, variable, self.cs.clone()))
     }
 
-    #[inline]
+    #[tracing::instrument(target = "r1cs")]
     pub fn negate(&self) -> Self {
         let mut result = self.clone();
         result.negate_in_place();
         result
     }
 
-    #[inline]
+    #[tracing::instrument(target = "r1cs")]
     pub fn negate_in_place(&mut self) -> &mut Self {
         self.value.as_mut().map(|val| *val = -(*val));
         self.variable = self.cs.new_lc(lc!() - self.variable).unwrap();
         self
     }
 
+    #[tracing::instrument(target = "r1cs")]
     pub fn square(&self) -> Result<Self, SynthesisError> {
         Ok(self.mul(self))
     }
 
-    #[inline]
+    #[tracing::instrument(target = "r1cs")]
     pub fn inverse(&self) -> Result<Self, SynthesisError> {
         let inverse = Self::new_witness(self.cs.clone(), || {
             Ok(self.value.get()?.inverse().unwrap_or(F::zero()))
@@ -198,10 +206,12 @@ impl<F: PrimeField> AllocatedFp<F> {
         Ok(inverse)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     pub fn frobenius_map(&self, _: usize) -> Result<Self, SynthesisError> {
         Ok(self.clone())
     }
 
+    #[tracing::instrument(target = "r1cs")]
     pub fn mul_equals(&self, other: &Self, result: &Self) -> Result<(), SynthesisError> {
         self.cs.enforce_constraint(
             lc!() + self.variable,
@@ -210,6 +220,7 @@ impl<F: PrimeField> AllocatedFp<F> {
         )
     }
 
+    #[tracing::instrument(target = "r1cs")]
     pub fn square_equals(&self, result: &Self) -> Result<(), SynthesisError> {
         self.cs.enforce_constraint(
             lc!() + self.variable,
@@ -223,6 +234,7 @@ impl<F: PrimeField> AllocatedFp<F> {
     /// # Constraint cost
     ///
     /// Consumes three constraints
+    #[tracing::instrument(target = "r1cs")]
     pub fn is_eq(&self, other: &Self) -> Result<Boolean<F>, SynthesisError> {
         Ok(self.is_neq(other)?.not())
     }
@@ -232,6 +244,7 @@ impl<F: PrimeField> AllocatedFp<F> {
     /// # Constraint cost
     ///
     /// Consumes three constraints
+    #[tracing::instrument(target = "r1cs")]
     pub fn is_neq(&self, other: &Self) -> Result<Boolean<F>, SynthesisError> {
         let is_not_equal = Boolean::new_witness(self.cs.clone(), || {
             Ok(self.value.get()? != other.value.get()?)
@@ -298,7 +311,7 @@ impl<F: PrimeField> AllocatedFp<F> {
         Ok(is_not_equal)
     }
 
-    #[inline]
+    #[tracing::instrument(target = "r1cs")]
     pub fn conditional_enforce_equal(
         &self,
         other: &Self,
@@ -311,7 +324,7 @@ impl<F: PrimeField> AllocatedFp<F> {
         )
     }
 
-    #[inline]
+    #[tracing::instrument(target = "r1cs")]
     pub fn conditional_enforce_not_equal(
         &self,
         other: &Self,
@@ -340,12 +353,14 @@ impl<F: PrimeField> AllocatedFp<F> {
 impl<F: PrimeField> ToBitsGadget<F> for AllocatedFp<F> {
     /// Outputs the unique bit-wise decomposition of `self` in *little-endian*
     /// form.
+    #[tracing::instrument(target = "r1cs")]
     fn to_bits_le(&self) -> Result<Vec<Boolean<F>>, SynthesisError> {
         let bits = self.to_non_unique_bits_le()?;
         Boolean::enforce_in_field_le(&bits)?;
         Ok(bits)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn to_non_unique_bits_le(&self) -> Result<Vec<Boolean<F>>, SynthesisError> {
         let cs = self.cs.clone();
         use algebra::BitIteratorBE;
@@ -390,6 +405,7 @@ impl<F: PrimeField> ToBitsGadget<F> for AllocatedFp<F> {
 impl<F: PrimeField> ToBytesGadget<F> for AllocatedFp<F> {
     /// Outputs the unique byte decomposition of `self` in *little-endian*
     /// form.
+    #[tracing::instrument(target = "r1cs")]
     fn to_bytes(&self) -> Result<Vec<UInt8<F>>, SynthesisError> {
         let num_bits = F::BigInt::NUM_LIMBS * 64;
         let mut bits = self.to_bits_le()?;
@@ -402,6 +418,7 @@ impl<F: PrimeField> ToBytesGadget<F> for AllocatedFp<F> {
         Ok(bytes)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn to_non_unique_bytes(&self) -> Result<Vec<UInt8<F>>, SynthesisError> {
         let num_bits = F::BigInt::NUM_LIMBS * 64;
         let mut bits = self.to_non_unique_bits_le()?;
@@ -417,6 +434,7 @@ impl<F: PrimeField> ToBytesGadget<F> for AllocatedFp<F> {
 
 impl<F: PrimeField> CondSelectGadget<F> for AllocatedFp<F> {
     #[inline]
+    #[tracing::instrument(target = "r1cs")]
     fn conditionally_select(
         cond: &Boolean<F>,
         true_val: &Self,
@@ -452,6 +470,7 @@ impl<F: PrimeField> CondSelectGadget<F> for AllocatedFp<F> {
 /// `b` is little-endian: `b[0]` is LSB.
 impl<F: PrimeField> TwoBitLookupGadget<F> for AllocatedFp<F> {
     type TableConstant = F;
+    #[tracing::instrument(target = "r1cs")]
     fn two_bit_lookup(b: &[Boolean<F>], c: &[Self::TableConstant]) -> Result<Self, SynthesisError> {
         debug_assert_eq!(b.len(), 2);
         debug_assert_eq!(c.len(), 4);
@@ -479,6 +498,7 @@ impl<F: PrimeField> TwoBitLookupGadget<F> for AllocatedFp<F> {
 impl<F: PrimeField> ThreeBitCondNegLookupGadget<F> for AllocatedFp<F> {
     type TableConstant = F;
 
+    #[tracing::instrument(target = "r1cs")]
     fn three_bit_cond_neg_lookup(
         b: &[Boolean<F>],
         b0b1: &Boolean<F>,
@@ -561,6 +581,7 @@ impl<F: PrimeField> FieldVar<F, F> for FpVar<F> {
         Self::Constant(F::one())
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn double(&self) -> Result<Self, SynthesisError> {
         match self {
             Self::Constant(c) => Ok(Self::Constant(c.double())),
@@ -568,6 +589,7 @@ impl<F: PrimeField> FieldVar<F, F> for FpVar<F> {
         }
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn negate(&self) -> Result<Self, SynthesisError> {
         match self {
             Self::Constant(c) => Ok(Self::Constant(-*c)),
@@ -575,6 +597,7 @@ impl<F: PrimeField> FieldVar<F, F> for FpVar<F> {
         }
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn square(&self) -> Result<Self, SynthesisError> {
         match self {
             Self::Constant(c) => Ok(Self::Constant(c.square())),
@@ -583,6 +606,7 @@ impl<F: PrimeField> FieldVar<F, F> for FpVar<F> {
     }
 
     /// Enforce that `self * other == result`.
+    #[tracing::instrument(target = "r1cs")]
     fn mul_equals(&self, other: &Self, result: &Self) -> Result<(), SynthesisError> {
         use FpVar::*;
         match (self, other, result) {
@@ -600,6 +624,7 @@ impl<F: PrimeField> FieldVar<F, F> for FpVar<F> {
     }
 
     /// Enforce that `self * self == result`.
+    #[tracing::instrument(target = "r1cs")]
     fn square_equals(&self, result: &Self) -> Result<(), SynthesisError> {
         use FpVar::*;
         match (self, result) {
@@ -618,6 +643,7 @@ impl<F: PrimeField> FieldVar<F, F> for FpVar<F> {
         }
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn inverse(&self) -> Result<Self, SynthesisError> {
         match self {
             FpVar::Var(v) => v.inverse().map(FpVar::Var),
@@ -629,6 +655,7 @@ impl<F: PrimeField> FieldVar<F, F> for FpVar<F> {
     /// self * denominator.inverse()
     /// It is up to the caller to ensure that denominator is non-zero,
     /// since in that case the result is unconstrained.
+    #[tracing::instrument(target = "r1cs")]
     fn mul_by_inverse(&self, denominator: &Self) -> Result<Self, SynthesisError> {
         use FpVar::*;
         match (self, denominator) {
@@ -639,6 +666,7 @@ impl<F: PrimeField> FieldVar<F, F> for FpVar<F> {
         }
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn frobenius_map(&self, power: usize) -> Result<Self, SynthesisError> {
         match self {
             FpVar::Var(v) => v.frobenius_map(power).map(FpVar::Var),
@@ -650,6 +678,7 @@ impl<F: PrimeField> FieldVar<F, F> for FpVar<F> {
         }
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn frobenius_map_in_place(&mut self, power: usize) -> Result<&mut Self, SynthesisError> {
         *self = self.frobenius_map(power)?;
         Ok(self)
@@ -727,6 +756,7 @@ impl_ops!(
 /****************************************************************************/
 
 impl<F: PrimeField> EqGadget<F> for FpVar<F> {
+    #[tracing::instrument(target = "r1cs")]
     fn is_eq(&self, other: &Self) -> Result<Boolean<F>, SynthesisError> {
         match (self, other) {
             (Self::Constant(c1), Self::Constant(c2)) => Ok(Boolean::Constant(c1 == c2)),
@@ -739,7 +769,7 @@ impl<F: PrimeField> EqGadget<F> for FpVar<F> {
         }
     }
 
-    #[inline]
+    #[tracing::instrument(target = "r1cs")]
     fn conditional_enforce_equal(
         &self,
         other: &Self,
@@ -756,7 +786,7 @@ impl<F: PrimeField> EqGadget<F> for FpVar<F> {
         }
     }
 
-    #[inline]
+    #[tracing::instrument(target = "r1cs")]
     fn conditional_enforce_not_equal(
         &self,
         other: &Self,
@@ -775,6 +805,7 @@ impl<F: PrimeField> EqGadget<F> for FpVar<F> {
 }
 
 impl<F: PrimeField> ToBitsGadget<F> for FpVar<F> {
+    #[tracing::instrument(target = "r1cs")]
     fn to_bits_le(&self) -> Result<Vec<Boolean<F>>, SynthesisError> {
         match self {
             Self::Constant(_) => self.to_non_unique_bits_le(),
@@ -782,6 +813,7 @@ impl<F: PrimeField> ToBitsGadget<F> for FpVar<F> {
         }
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn to_non_unique_bits_le(&self) -> Result<Vec<Boolean<F>>, SynthesisError> {
         use algebra::BitIteratorLE;
         match self {
@@ -796,6 +828,7 @@ impl<F: PrimeField> ToBitsGadget<F> for FpVar<F> {
 impl<F: PrimeField> ToBytesGadget<F> for FpVar<F> {
     /// Outputs the unique byte decomposition of `self` in *little-endian*
     /// form.
+    #[tracing::instrument(target = "r1cs")]
     fn to_bytes(&self) -> Result<Vec<UInt8<F>>, SynthesisError> {
         match self {
             Self::Constant(c) => Ok(UInt8::constant_vec(&to_bytes![c].unwrap())),
@@ -803,6 +836,7 @@ impl<F: PrimeField> ToBytesGadget<F> for FpVar<F> {
         }
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn to_non_unique_bytes(&self) -> Result<Vec<UInt8<F>>, SynthesisError> {
         match self {
             Self::Constant(c) => Ok(UInt8::constant_vec(&to_bytes![c].unwrap())),
@@ -812,7 +846,7 @@ impl<F: PrimeField> ToBytesGadget<F> for FpVar<F> {
 }
 
 impl<F: PrimeField> CondSelectGadget<F> for FpVar<F> {
-    #[inline]
+    #[tracing::instrument(target = "r1cs")]
     fn conditionally_select(
         cond: &Boolean<F>,
         true_value: &Self,
@@ -852,6 +886,7 @@ impl<F: PrimeField> CondSelectGadget<F> for FpVar<F> {
 impl<F: PrimeField> TwoBitLookupGadget<F> for FpVar<F> {
     type TableConstant = F;
 
+    #[tracing::instrument(target = "r1cs")]
     fn two_bit_lookup(b: &[Boolean<F>], c: &[Self::TableConstant]) -> Result<Self, SynthesisError> {
         debug_assert_eq!(b.len(), 2);
         debug_assert_eq!(c.len(), 4);
@@ -869,6 +904,7 @@ impl<F: PrimeField> TwoBitLookupGadget<F> for FpVar<F> {
 impl<F: PrimeField> ThreeBitCondNegLookupGadget<F> for FpVar<F> {
     type TableConstant = F;
 
+    #[tracing::instrument(target = "r1cs")]
     fn three_bit_cond_neg_lookup(
         b: &[Boolean<F>],
         b0b1: &Boolean<F>,

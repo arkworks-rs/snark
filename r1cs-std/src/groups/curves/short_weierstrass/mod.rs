@@ -118,6 +118,7 @@ where
     }
 
     /// Convert this point into affine form.
+    #[tracing::instrument(target = "r1cs")]
     pub fn to_affine(&self) -> Result<AffineVar<P, F>, SynthesisError> {
         let cs = self.cs().unwrap_or(ConstraintSystemRef::None);
         let mode = if self.is_constant() {
@@ -131,7 +132,7 @@ where
         let zero_y = F::one();
 
         let non_zero_x = F::new_variable(
-            cs.ns("non-zero x"),
+            r1cs_core::ns!(cs, "non-zero x"),
             || {
                 let z_inv = self.z.value()?.inverse().unwrap_or(P::BaseField::zero());
                 Ok(self.x.value()? * &z_inv)
@@ -139,7 +140,7 @@ where
             mode,
         )?;
         let non_zero_y = F::new_variable(
-            cs.ns("non-zero y"),
+            r1cs_core::ns!(cs, "non-zero y"),
             || {
                 let z_inv = self.z.value()?.inverse().unwrap_or(P::BaseField::zero());
                 Ok(self.y.value()? * &z_inv)
@@ -154,6 +155,7 @@ where
     /// Allocates a new variable without performing an on-curve check, which is
     /// useful if the variable is known to be on the curve (eg., if the point
     /// is a constant or is a public input).
+    #[tracing::instrument(target = "r1cs", skip(cs, f))]
     pub fn new_variable_omit_on_curve_check(
         cs: impl Into<Namespace<<P::BaseField as Field>::BasePrimeField>>,
         f: impl FnOnce() -> Result<SWProjective<P>, SynthesisError>,
@@ -182,9 +184,9 @@ where
             ),
         };
 
-        let x = F::new_variable(cs.ns("x"), || x, mode)?;
-        let y = F::new_variable(cs.ns("y"), || y, mode)?;
-        let z = F::new_variable(cs.ns("z"), || z, mode)?;
+        let x = F::new_variable(r1cs_core::ns!(cs, "x"), || x, mode)?;
+        let y = F::new_variable(r1cs_core::ns!(cs, "y"), || y, mode)?;
+        let z = F::new_variable(r1cs_core::ns!(cs, "z"), || z, mode)?;
 
         Ok(Self::new(x, y, z))
     }
@@ -210,6 +212,7 @@ where
         self.z.is_zero()
     }
 
+    #[tracing::instrument(target = "r1cs", skip(cs, f))]
     fn new_variable_omit_prime_order_check(
         cs: impl Into<Namespace<<P::BaseField as Field>::BasePrimeField>>,
         f: impl FnOnce() -> Result<SWProjective<P>, SynthesisError>,
@@ -252,6 +255,7 @@ where
     /// is unchanged.
     // TODO: at the moment this doesn't work, because the addition and doubling
     // formulae are incomplete for even-order points.
+    #[tracing::instrument(target = "r1cs")]
     fn enforce_prime_order(&self) -> Result<(), SynthesisError> {
         let r_minus_1 = (-P::ScalarField::one()).into_repr();
 
@@ -268,6 +272,7 @@ where
     }
 
     #[inline]
+    #[tracing::instrument(target = "r1cs")]
     fn double_in_place(&mut self) -> Result<(), SynthesisError> {
         // Complete doubling formula from Renes-Costello-Batina 2015
         // Algorithm 3
@@ -306,6 +311,7 @@ where
         Ok(())
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn negate(&self) -> Result<Self, SynthesisError> {
         Ok(Self::new(self.x.clone(), self.y.negate()?, self.z.clone()))
     }
@@ -413,6 +419,7 @@ where
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
     #[inline]
+    #[tracing::instrument(target = "r1cs")]
     fn conditionally_select(
         cond: &Boolean<<P::BaseField as Field>::BasePrimeField>,
         true_value: &Self,
@@ -432,6 +439,7 @@ where
     F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
+    #[tracing::instrument(target = "r1cs")]
     fn is_eq(
         &self,
         other: &Self,
@@ -444,6 +452,7 @@ where
     }
 
     #[inline]
+    #[tracing::instrument(target = "r1cs")]
     fn conditional_enforce_equal(
         &self,
         other: &Self,
@@ -460,6 +469,7 @@ where
     }
 
     #[inline]
+    #[tracing::instrument(target = "r1cs")]
     fn conditional_enforce_not_equal(
         &self,
         other: &Self,
@@ -534,7 +544,7 @@ where
 
                 let (mut ge, iter) = if cofactor_weight < modulus_minus_1_weight {
                     let ge = Self::new_variable_omit_prime_order_check(
-                        cs.ns("Witness without subgroup check with cofactor mul"),
+                        r1cs_core::ns!(cs, "Witness without subgroup check with cofactor mul"),
                         || f().map(|g| g.borrow().into_affine().mul_by_cofactor_inv().into()),
                         mode,
                     )?;
@@ -544,7 +554,7 @@ where
                     )
                 } else {
                     let ge = Self::new_variable_omit_prime_order_check(
-                        cs.ns("Witness without subgroup check with `r` check"),
+                        r1cs_core::ns!(cs, "Witness without subgroup check with `r` check"),
                         || {
                             f().map(|g| {
                                 let g = g.into_affine();
@@ -605,6 +615,7 @@ where
     F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
+    #[tracing::instrument(target = "r1cs")]
     fn to_bits_le(
         &self,
     ) -> Result<Vec<Boolean<<P::BaseField as Field>::BasePrimeField>>, SynthesisError> {
@@ -616,6 +627,7 @@ where
         Ok(bits)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn to_non_unique_bits_le(
         &self,
     ) -> Result<Vec<Boolean<<P::BaseField as Field>::BasePrimeField>>, SynthesisError> {
@@ -634,6 +646,7 @@ where
     F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
+    #[tracing::instrument(target = "r1cs")]
     fn to_bytes(
         &self,
     ) -> Result<Vec<UInt8<<P::BaseField as Field>::BasePrimeField>>, SynthesisError> {
@@ -646,6 +659,7 @@ where
         Ok(bytes)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn to_non_unique_bytes(
         &self,
     ) -> Result<Vec<UInt8<<P::BaseField as Field>::BasePrimeField>>, SynthesisError> {
@@ -683,18 +697,16 @@ where
     let b_affine = b.into_affine();
 
     println!("Allocating things");
-    let ns = cs.ns("allocating variables");
-    println!("{:?}", cs.current_namespace());
-    let mut gadget_a = GG::new_witness(cs.ns("a"), || Ok(a))?;
-    let gadget_b = GG::new_witness(cs.ns("b"), || Ok(b))?;
-    println!("{:?}", cs.current_namespace());
-    ns.leave_namespace();
+    let ns = r1cs_core::ns!(cs, "allocating variables");
+    let mut gadget_a = GG::new_witness(cs.clone(), || Ok(a))?;
+    let gadget_b = GG::new_witness(cs.clone(), || Ok(b))?;
+    drop(ns);
     println!("Done Allocating things");
     assert_eq!(gadget_a.value()?.into_affine().x, a_affine.x);
     assert_eq!(gadget_a.value()?.into_affine().y, a_affine.y);
     assert_eq!(gadget_b.value()?.into_affine().x, b_affine.x);
     assert_eq!(gadget_b.value()?.into_affine().y, b_affine.y);
-    assert_eq!(cs.which_is_unsatisfied(), None);
+    assert_eq!(cs.which_is_unsatisfied().unwrap(), None);
 
     println!("Checking addition");
     // Check addition
@@ -729,7 +741,8 @@ where
     let native_result = native_result.into_affine();
 
     let scalar: Vec<bool> = BitIteratorLE::new(scalar.into_repr()).collect();
-    let input: Vec<Boolean<_>> = Vec::new_witness(cs.ns("bits"), || Ok(scalar)).unwrap();
+    let input: Vec<Boolean<_>> =
+        Vec::new_witness(r1cs_core::ns!(cs, "bits"), || Ok(scalar)).unwrap();
     let result = gadget_a.scalar_mul_le(input.iter())?;
     let result_val = result.value()?.into_affine();
     assert_eq!(

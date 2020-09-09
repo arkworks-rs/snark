@@ -1,4 +1,5 @@
-// Implements AddAssign on Self by deferring to an implementation on &Self
+#[allow(unused_braces)]
+// Implements arithmetic operations with generic bounds.
 #[macro_export]
 macro_rules! impl_ops {
     (
@@ -36,6 +37,8 @@ macro_rules! impl_bounded_ops {
         {
             type Output = $type;
 
+            #[tracing::instrument(target = "r1cs", skip(self))]
+            #[allow(unused_braces)]
             fn $fn(self, other: Self) -> Self::Output {
                 $impl(self, other)
             }
@@ -47,6 +50,8 @@ macro_rules! impl_bounded_ops {
         {
             type Output = $type;
 
+            #[tracing::instrument(target = "r1cs", skip(self))]
+            #[allow(unused_braces)]
             fn $fn(self, other: $type) -> Self::Output {
                 core::ops::$trait::$fn(self, &other)
             }
@@ -58,6 +63,8 @@ macro_rules! impl_bounded_ops {
         {
             type Output = $type;
 
+            #[tracing::instrument(target = "r1cs", skip(self))]
+            #[allow(unused_braces)]
             fn $fn(self, other: &'a $type) -> Self::Output {
                 core::ops::$trait::$fn(&self, other)
             }
@@ -70,6 +77,8 @@ macro_rules! impl_bounded_ops {
         {
             type Output = $type;
 
+            #[tracing::instrument(target = "r1cs", skip(self))]
+            #[allow(unused_braces)]
             fn $fn(self, other: $type) -> Self::Output {
                 core::ops::$trait::$fn(&self, &other)
             }
@@ -80,6 +89,8 @@ macro_rules! impl_bounded_ops {
 
             $($bounds)*
         {
+            #[tracing::instrument(target = "r1cs", skip(self))]
+            #[allow(unused_braces)]
             fn $assign_fn(&mut self, other: $type) {
                 let result = core::ops::$trait::$fn(&*self, &other);
                 *self = result
@@ -91,6 +102,8 @@ macro_rules! impl_bounded_ops {
 
             $($bounds)*
         {
+            #[tracing::instrument(target = "r1cs", skip(self))]
+            #[allow(unused_braces)]
             fn $assign_fn(&mut self, other: &'a $type) {
                 let result = core::ops::$trait::$fn(&*self, other);
                 *self = result
@@ -104,6 +117,8 @@ macro_rules! impl_bounded_ops {
         {
             type Output = $type;
 
+            #[tracing::instrument(target = "r1cs", skip(self))]
+            #[allow(unused_braces)]
             fn $fn(self, other: $native) -> Self::Output {
                 $constant_impl(self, other)
             }
@@ -116,6 +131,8 @@ macro_rules! impl_bounded_ops {
         {
             type Output = $type;
 
+            #[tracing::instrument(target = "r1cs", skip(self))]
+            #[allow(unused_braces)]
             fn $fn(self, other: $native) -> Self::Output {
                 core::ops::$trait::$fn(&self, other)
             }
@@ -127,6 +144,8 @@ macro_rules! impl_bounded_ops {
             $($bounds)*
         {
 
+            #[tracing::instrument(target = "r1cs", skip(self))]
+            #[allow(unused_braces)]
             fn $assign_fn(&mut self, other: $native) {
                 let result = core::ops::$trait::$fn(&*self, other);
                 *self = result

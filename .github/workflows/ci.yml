@@ -98,6 +98,13 @@ jobs:
           target: thumbv6m-none-eabi
           override: true
 
+      - name: Install Rust ARM64 (${{ matrix.rust }})
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: aarch64-unknown-none
+          override: true
+
       - uses: actions/cache@v2
         with:
           path: |
@@ -130,8 +137,8 @@ jobs:
       - name: r1cs-std
         run: |
           cd r1cs-std
-          cargo build -p r1cs-std --no-default-features --target thumbv6m-none-eabi
-          cargo check --examples -p r1cs-std --no-default-features --target thumbv6m-none-eabi
+          cargo build -p r1cs-std --no-default-features --target aarch64-unknown-none
+          cargo check --examples -p r1cs-std --no-default-features --target aarch64-unknown-none
           cd ..
 
       - name: ff-fft
@@ -158,6 +165,6 @@ jobs:
       - name: crypto-primitives
         run: |
           cd crypto-primitives
-          cargo build -p crypto-primitives --no-default-features --target thumbv6m-none-eabi
-          cargo check --examples -p crypto-primitives --no-default-features --target thumbv6m-none-eabi
+          cargo build -p crypto-primitives --no-default-features --target aarch64-unknown-none
+          cargo check --examples -p crypto-primitives --no-default-features --target aarch64-unknown-none
           cd ..

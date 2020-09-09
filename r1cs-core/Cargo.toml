@@ -21,10 +21,12 @@ edition = "2018"
 
 [dependencies]
 algebra-core = { path = "../algebra-core", default-features = false }
+tracing = { version = "0.1", default-features = false, optional = true }
+tracing-subscriber = { version = "0.2", default-features = false, optional = true }
 
 [dev-dependencies]
 algebra = { path = "../algebra", default-features = false, features = [ "bls12_381" ] }
 
 [features]
 default = ["std"]
-std = ["algebra-core/std"]
+std = [ "algebra-core/std", "tracing-subscriber", "tracing/std" ]

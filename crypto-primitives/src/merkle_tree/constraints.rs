@@ -25,6 +25,7 @@ where
     CRHGadget: FixedLengthCRHGadget<P::H, ConstraintF>,
     <CRHGadget::OutputVar as R1CSVar<ConstraintF>>::Value: PartialEq,
 {
+    #[tracing::instrument(target = "r1cs", skip(self, parameters, root, leaf))]
     pub fn check_membership(
         &self,
         parameters: &CRHGadget::ParametersVar,
@@ -39,7 +40,7 @@ where
         let cs = leaf_hash.cs().or(root.cs()).unwrap();
 
         // Check if leaf is one of the bottom-most siblings.
-        let leaf_is_left = Boolean::new_witness(cs.ns("leaf_is_left"), || {
+        let leaf_is_left = Boolean::new_witness(r1cs_core::ns!(cs, "leaf_is_left"), || {
             Ok(leaf_hash.value()?.eq(&self.path[0].0.value()?))
         })?;
 
@@ -48,24 +49,20 @@ where
 
         // Check levels between leaf level and root.
         let mut previous_hash = leaf_hash;
-        let mut i = 0;
         for &(ref left_hash, ref right_hash) in &self.path {
             // Check if the previous_hash matches the correct current hash.
-            let previous_is_left = Boolean::new_witness(cs.ns("previous_is_left"), || {
-                Ok(previous_hash.value()?.eq(&left_hash.value()?))
-            })?;
+            let previous_is_left =
+                Boolean::new_witness(r1cs_core::ns!(cs, "previous_is_left"), || {
+                    Ok(previous_hash.value()?.eq(&left_hash.value()?))
+                })?;
 
-            let ns = cs.ns(format!(
-                "enforcing that inner hash is correct at i-th level{}",
-                i
-            ));
+            let ns = r1cs_core::ns!(cs, "enforcing that inner hash is correct");
             let equality_cmp = previous_is_left.select(left_hash, right_hash)?;
             result = result.and(&previous_hash.is_eq(&equality_cmp)?)?;
             drop(ns);
 
             previous_hash =
                 hash_inner_node::<P::H, CRHGadget, ConstraintF>(parameters, left_hash, right_hash)?;
-            i += 1;
         }
 
         result.and(&root.is_eq(&previous_hash)?)
@@ -106,8 +103,16 @@ where
         f().and_then(|val| {
             let mut path = Vec::new();
             for &(ref l, ref r) in val.borrow().path.iter() {
-                let l_hash = HGadget::OutputVar::new_variable(cs.ns("l_child"), || Ok(l), mode)?;
-                let r_hash = HGadget::OutputVar::new_variable(cs.ns("r_child"), || Ok(r), mode)?;
+                let l_hash = HGadget::OutputVar::new_variable(
+                    r1cs_core::ns!(cs, "l_child"),
+                    || Ok(l),
+                    mode,
+                )?;
+                let r_hash = HGadget::OutputVar::new_variable(
+                    r1cs_core::ns!(cs, "r_child"),
+                    || Ok(r),
+                    mode,
+                )?;
                 path.push((l_hash, r_hash));
             }
             Ok(PathVar { path })
@@ -157,15 +162,14 @@ mod test {
         let crh_parameters = H::setup(&mut rng).unwrap();
         let tree = JubJubMerkleTree::new(crh_parameters.clone(), leaves).unwrap();
         let root = tree.root();
-        let mut satisfied = true;
+        let cs = ConstraintSystem::<Fq>::new_ref();
         for (i, leaf) in leaves.iter().enumerate() {
-            let cs = ConstraintSystem::<Fq>::new_ref();
             let proof = tree.generate_proof(i, &leaf).unwrap();
             assert!(proof.verify(&crh_parameters, &root, &leaf).unwrap());
 
             // Allocate Merkle Tree Root
             let root = <HG as FixedLengthCRHGadget<H, _>>::OutputVar::new_witness(
-                cs.ns("new_digest"),
+                r1cs_core::ns!(cs, "new_digest"),
                 || {
                     if use_bad_root {
                         Ok(<H as FixedLengthCRH>::Output::default())
@@ -181,7 +185,7 @@ mod test {
 
             // Allocate Parameters for CRH
             let crh_parameters = <HG as FixedLengthCRHGadget<H, Fq>>::ParametersVar::new_constant(
-                cs.ns("new_parameter"),
+                r1cs_core::ns!(cs, "new_parameter"),
                 &crh_parameters,
             )
             .unwrap();
@@ -200,7 +204,9 @@ mod test {
             println!("constraints from leaf: {}", constraints_from_leaf);
 
             // Allocate Merkle Tree Path
-            let cw = PathVar::<_, HG, _>::new_witness(cs.ns("new_witness"), || Ok(&proof)).unwrap();
+            let cw =
+                PathVar::<_, HG, _>::new_witness(r1cs_core::ns!(cs, "new_witness"), || Ok(&proof))
+                    .unwrap();
             for (i, (l, r)) in cw.path.iter().enumerate() {
                 assert_eq!(l.value().unwrap(), proof.path[i].0);
                 assert_eq!(r.value().unwrap(), proof.path[i].1);
@@ -216,13 +222,6 @@ mod test {
                 .unwrap()
                 .enforce_equal(&Boolean::TRUE)
                 .unwrap();
-            if !cs.is_satisfied().unwrap() {
-                satisfied = false;
-                println!(
-                    "Unsatisfied constraint: {}",
-                    cs.which_is_unsatisfied().unwrap()
-                );
-            }
             let setup_constraints = constraints_from_leaf
                 + constraints_from_digest
                 + constraints_from_parameters
@@ -233,7 +232,7 @@ mod test {
             );
         }
 
-        assert!(satisfied);
+        assert!(cs.is_satisfied().unwrap());
     }
 
     #[test]

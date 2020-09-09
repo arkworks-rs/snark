@@ -294,12 +294,14 @@ pub struct Blake2sGadget;
 pub struct OutputVar<ConstraintF: PrimeField>(pub Vec<UInt8<ConstraintF>>);
 
 impl<ConstraintF: PrimeField> EqGadget<ConstraintF> for OutputVar<ConstraintF> {
+    #[tracing::instrument(target = "r1cs")]
     fn is_eq(&self, other: &Self) -> Result<Boolean<ConstraintF>, SynthesisError> {
         self.0.is_eq(&other.0)
     }
 
     /// If `should_enforce == true`, enforce that `self` and `other` are equal; else,
     /// enforce a vacuously true statement.
+    #[tracing::instrument(target = "r1cs")]
     fn conditional_enforce_equal(
         &self,
         other: &Self,
@@ -310,6 +312,7 @@ impl<ConstraintF: PrimeField> EqGadget<ConstraintF> for OutputVar<ConstraintF> {
 
     /// If `should_enforce == true`, enforce that `self` and `other` are not equal; else,
     /// enforce a vacuously true statement.
+    #[tracing::instrument(target = "r1cs")]
     fn conditional_enforce_not_equal(
         &self,
         other: &Self,
@@ -329,6 +332,7 @@ impl<ConstraintF: PrimeField> ToBytesGadget<ConstraintF> for OutputVar<Constrain
 }
 
 impl<ConstraintF: PrimeField> AllocVar<[u8; 32], ConstraintF> for OutputVar<ConstraintF> {
+    #[tracing::instrument(target = "r1cs", skip(cs, f))]
     fn new_variable<T: Borrow<[u8; 32]>>(
         cs: impl Into<Namespace<ConstraintF>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
@@ -362,10 +366,14 @@ impl<F: PrimeField> R1CSVar<F> for OutputVar<F> {
 impl<F: PrimeField> PRFGadget<Blake2s, F> for Blake2sGadget {
     type OutputVar = OutputVar<F>;
 
-    fn new_seed(cs: ConstraintSystemRef<F>, seed: &[u8; 32]) -> Vec<UInt8<F>> {
-        UInt8::new_witness_vec(cs.ns("New Blake2s seed"), seed).unwrap()
+    #[tracing::instrument(target = "r1cs", skip(cs))]
+    fn new_seed(cs: impl Into<Namespace<F>>, seed: &[u8; 32]) -> Vec<UInt8<F>> {
+        let ns = cs.into();
+        let cs = ns.cs();
+        UInt8::new_witness_vec(r1cs_core::ns!(cs, "New Blake2s seed"), seed).unwrap()
     }
 
+    #[tracing::instrument(target = "r1cs", skip(seed, input))]
     fn evaluate(seed: &[UInt8<F>], input: &[UInt8<F>]) -> Result<Self::OutputVar, SynthesisError> {
         assert_eq!(seed.len(), 32);
         let input: Vec<_> = seed
@@ -398,7 +406,7 @@ mod test {
     fn test_blake2s_constraints() {
         let cs = ConstraintSystem::<Fr>::new_ref();
         let input_bits: Vec<_> = (0..512)
-            .map(|i| Boolean::new_witness(cs.ns(format!("input bit {}", i)), || Ok(true)).unwrap())
+            .map(|_| Boolean::new_witness(r1cs_core::ns!(cs, "input bit"), || Ok(true)).unwrap())
             .collect();
         evaluate_blake2s(&input_bits).unwrap();
         assert!(cs.is_satisfied().unwrap());
@@ -420,10 +428,11 @@ mod test {
         rng.fill(&mut input);
 
         let seed_var = Blake2sGadget::new_seed(cs.clone(), &seed);
-        let input_var = UInt8::new_witness_vec(cs.ns("declare_input"), &input).unwrap();
+        let input_var =
+            UInt8::new_witness_vec(r1cs_core::ns!(cs, "declare_input"), &input).unwrap();
         let out = B2SPRF::evaluate(&seed, &input).unwrap();
         let actual_out_var = <Blake2sGadget as PRFGadget<_, Fr>>::OutputVar::new_witness(
-            cs.ns("declare_output"),
+            r1cs_core::ns!(cs, "declare_output"),
             || Ok(out),
         )
         .unwrap();
@@ -449,8 +458,8 @@ mod test {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
         let input_bits: Vec<_> = (0..512)
             .map(|_| Boolean::constant(rng.gen()))
-            .chain((0..512).map(|i| {
-                Boolean::new_witness(cs.ns(format!("input bit {}", i)), || Ok(true)).unwrap()
+            .chain((0..512).map(|_| {
+                Boolean::new_witness(r1cs_core::ns!(cs, "input bit"), || Ok(true)).unwrap()
             }))
             .collect();
         evaluate_blake2s(&input_bits).unwrap();
@@ -488,9 +497,9 @@ mod test {
 
             let mut input_bits = vec![];
 
-            for (byte_i, input_byte) in data.into_iter().enumerate() {
+            for input_byte in data.into_iter() {
                 for bit_i in 0..8 {
-                    let cs = cs.ns(format!("input bit {} {}", byte_i, bit_i));
+                    let cs = r1cs_core::ns!(cs, "input bit");
 
                     input_bits.push(
                         Boolean::new_witness(cs, || Ok((input_byte >> bit_i) & 1u8 == 1u8))

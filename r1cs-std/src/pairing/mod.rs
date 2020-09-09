@@ -33,6 +33,7 @@ pub trait PairingVar<E: PairingEngine, ConstraintF: Field = <E as PairingEngine>
 
     fn final_exponentiation(p: &Self::GTVar) -> Result<Self::GTVar, SynthesisError>;
 
+    #[tracing::instrument(target = "r1cs")]
     fn pairing(
         p: Self::G1PreparedVar,
         q: Self::G2PreparedVar,
@@ -43,6 +44,7 @@ pub trait PairingVar<E: PairingEngine, ConstraintF: Field = <E as PairingEngine>
 
     /// Computes a product of pairings.
     #[must_use]
+    #[tracing::instrument(target = "r1cs")]
     fn product_of_pairings(
         p: &[Self::G1PreparedVar],
         q: &[Self::G2PreparedVar],
@@ -84,10 +86,10 @@ pub(crate) mod tests {
         let mut sb = b;
         sb *= s;
 
-        let a_g = P::G1Var::new_witness(cs.ns("a"), || Ok(a.into_affine()))?;
-        let b_g = P::G2Var::new_witness(cs.ns("b"), || Ok(b.into_affine()))?;
-        let sa_g = P::G1Var::new_witness(cs.ns("sa"), || Ok(sa.into_affine()))?;
-        let sb_g = P::G2Var::new_witness(cs.ns("sb"), || Ok(sb.into_affine()))?;
+        let a_g = P::G1Var::new_witness(cs.clone(), || Ok(a.into_affine()))?;
+        let b_g = P::G2Var::new_witness(cs.clone(), || Ok(b.into_affine()))?;
+        let sa_g = P::G1Var::new_witness(cs.clone(), || Ok(sa.into_affine()))?;
+        let sb_g = P::G2Var::new_witness(cs.clone(), || Ok(sb.into_affine()))?;
 
         let mut preparation_num_constraints = cs.num_constraints();
         let a_prep_g = P::prepare_g1(&a_g)?;

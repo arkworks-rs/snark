@@ -403,7 +403,7 @@ impl<Components: DelegableDPCComponents> DPC<Components> {
 
         // Compute the ledger membership witness and serial number from the old records.
         for (i, record) in old_records.iter().enumerate() {
-            let input_record_time = start_timer!(|| format!("Process input record {}", i));
+            let input_record_time = start_timer!(|| format!("Process input record"));
 
             if record.is_dummy() {
                 old_witnesses.push(merkle_tree::Path::default());

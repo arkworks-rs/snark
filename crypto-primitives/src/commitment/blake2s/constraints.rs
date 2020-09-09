@@ -24,6 +24,7 @@ impl<F: PrimeField> CommitmentGadget<blake2s::Commitment, F> for CommGadget {
     type ParametersVar = ParametersVar;
     type RandomnessVar = RandomnessVar<F>;
 
+    #[tracing::instrument(target = "r1cs", skip(input, r))]
     fn commit(
         _: &Self::ParametersVar,
         input: &[UInt8<F>],
@@ -43,6 +44,7 @@ impl<F: PrimeField> CommitmentGadget<blake2s::Commitment, F> for CommGadget {
 }
 
 impl<ConstraintF: Field> AllocVar<(), ConstraintF> for ParametersVar {
+    #[tracing::instrument(target = "r1cs", skip(_cs, _f))]
     fn new_variable<T: Borrow<()>>(
         _cs: impl Into<Namespace<ConstraintF>>,
         _f: impl FnOnce() -> Result<T, SynthesisError>,
@@ -53,6 +55,7 @@ impl<ConstraintF: Field> AllocVar<(), ConstraintF> for ParametersVar {
 }
 
 impl<ConstraintF: PrimeField> AllocVar<[u8; 32], ConstraintF> for RandomnessVar<ConstraintF> {
+    #[tracing::instrument(target = "r1cs", skip(cs, f))]
     fn new_variable<T: Borrow<[u8; 32]>>(
         cs: impl Into<Namespace<ConstraintF>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
@@ -111,7 +114,7 @@ mod test {
 
         let parameters_var =
             <TestCOMMGadget as CommitmentGadget<TestCOMM, Fr>>::ParametersVar::new_witness(
-                cs.ns("gadget_parameters"),
+                r1cs_core::ns!(cs, "gadget_parameters"),
                 || Ok(&parameters),
             )
             .unwrap();

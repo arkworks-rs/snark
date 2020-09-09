@@ -45,6 +45,7 @@ where
     type OutputVar = GG;
     type ParametersVar = CRHParametersVar<C, GG>;
 
+    #[tracing::instrument(target = "r1cs", skip(parameters, input))]
     fn evaluate(
         parameters: &Self::ParametersVar,
         input: &[UInt8<ConstraintF<C>>],
@@ -78,6 +79,7 @@ where
     GG: CurveVar<C, ConstraintF<C>>,
     for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,
 {
+    #[tracing::instrument(target = "r1cs", skip(_cs, f))]
     fn new_variable<T: Borrow<Parameters<C>>>(
         _cs: impl Into<Namespace<ConstraintF<C>>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
@@ -138,7 +140,8 @@ mod test {
         let primitive_result = TestCRH::evaluate(&parameters, &input).unwrap();
 
         let parameters_var =
-            CRHParametersVar::new_constant(cs.ns("CRH Parameters"), &parameters).unwrap();
+            CRHParametersVar::new_constant(r1cs_core::ns!(cs, "CRH Parameters"), &parameters)
+                .unwrap();
 
         let result_var = TestCRHGadget::evaluate(&parameters_var, &input_var).unwrap();
 

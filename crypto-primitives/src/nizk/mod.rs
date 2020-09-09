@@ -91,12 +91,7 @@ mod test {
                 let sum = cs.new_input_variable(|| Ok(self.sum.unwrap()))?;
                 let witness = cs.new_witness_variable(|| Ok(self.w.unwrap()))?;
 
-                cs.enforce_named_constraint(
-                    "enforce sum",
-                    lc!() + sum,
-                    lc!() + Variable::One,
-                    lc!() + input + witness,
-                )?;
+                cs.enforce_constraint(lc!() + sum, lc!() + Variable::One, lc!() + input + witness)?;
                 Ok(())
             }
         }

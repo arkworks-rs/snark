@@ -50,6 +50,7 @@ impl<F: Field> AllocatedBit<F> {
 
     /// Performs an XOR operation over the two operands, returning
     /// an `AllocatedBit`.
+    #[tracing::instrument(target = "r1cs")]
     pub fn xor(&self, b: &Self) -> Result<Self, SynthesisError> {
         let result = Self::new_witness_without_booleanity_check(self.cs.clone(), || {
             Ok(self.value()? ^ b.value()?)
@@ -81,6 +82,7 @@ impl<F: Field> AllocatedBit<F> {
 
     /// Performs an AND operation over the two operands, returning
     /// an `AllocatedBit`.
+    #[tracing::instrument(target = "r1cs")]
     pub fn and(&self, b: &Self) -> Result<Self, SynthesisError> {
         let result = Self::new_witness_without_booleanity_check(self.cs.clone(), || {
             Ok(self.value()? & b.value()?)
@@ -99,6 +101,7 @@ impl<F: Field> AllocatedBit<F> {
 
     /// Performs an OR operation over the two operands, returning
     /// an `AllocatedBit`.
+    #[tracing::instrument(target = "r1cs")]
     pub fn or(&self, b: &Self) -> Result<Self, SynthesisError> {
         let result = Self::new_witness_without_booleanity_check(self.cs.clone(), || {
             Ok(self.value()? | b.value()?)
@@ -116,6 +119,7 @@ impl<F: Field> AllocatedBit<F> {
     }
 
     /// Calculates `a AND (NOT b)`.
+    #[tracing::instrument(target = "r1cs")]
     pub fn and_not(&self, b: &Self) -> Result<Self, SynthesisError> {
         let result = Self::new_witness_without_booleanity_check(self.cs.clone(), || {
             Ok(self.value()? & !b.value()?)
@@ -133,6 +137,7 @@ impl<F: Field> AllocatedBit<F> {
     }
 
     /// Calculates `(NOT a) AND (NOT b)`.
+    #[tracing::instrument(target = "r1cs")]
     pub fn nor(&self, b: &Self) -> Result<Self, SynthesisError> {
         let result = Self::new_witness_without_booleanity_check(self.cs.clone(), || {
             Ok(!(self.value()? | b.value()?))
@@ -184,12 +189,7 @@ impl<F: Field> AllocVar<bool, F> for AllocatedBit<F> {
             // Constrain: (1 - a) * a = 0
             // This constrains a to be either 0 or 1.
 
-            cs.enforce_named_constraint(
-                "Booleanity check",
-                lc!() + Variable::One - variable,
-                lc!() + variable,
-                lc!(),
-            )?;
+            cs.enforce_constraint(lc!() + Variable::One - variable, lc!() + variable, lc!())?;
 
             Ok(Self { variable, cs })
         }
@@ -197,6 +197,7 @@ impl<F: Field> AllocVar<bool, F> for AllocatedBit<F> {
 }
 
 impl<F: Field> CondSelectGadget<F> for AllocatedBit<F> {
+    #[tracing::instrument(target = "r1cs")]
     fn conditionally_select(
         cond: &Boolean<F>,
         true_val: &Self,
@@ -287,8 +288,10 @@ impl<F: Field> Boolean<F> {
         }
     }
 }
+
 impl<F: Field> Boolean<F> {
     /// Perform XOR over two boolean operands
+    #[tracing::instrument(target = "r1cs")]
     pub fn xor<'a>(&'a self, b: &'a Self) -> Result<Self, SynthesisError> {
         use Boolean::*;
         match (self, b) {
@@ -304,6 +307,7 @@ impl<F: Field> Boolean<F> {
     }
 
     /// Perform OR over two boolean operands
+    #[tracing::instrument(target = "r1cs")]
     pub fn or<'a>(&'a self, b: &'a Self) -> Result<Self, SynthesisError> {
         use Boolean::*;
         match (self, b) {
@@ -318,6 +322,7 @@ impl<F: Field> Boolean<F> {
     }
 
     /// Perform AND over two boolean operands
+    #[tracing::instrument(target = "r1cs")]
     pub fn and<'a>(&'a self, b: &'a Self) -> Result<Self, SynthesisError> {
         use Boolean::*;
         match (self, b) {
@@ -334,6 +339,7 @@ impl<F: Field> Boolean<F> {
         }
     }
 
+    #[tracing::instrument(target = "r1cs")]
     pub fn kary_and(bits: &[Self]) -> Result<Self, SynthesisError> {
         assert!(!bits.is_empty());
         let mut cur: Option<Self> = None;
@@ -348,6 +354,7 @@ impl<F: Field> Boolean<F> {
         Ok(cur.expect("should not be 0"))
     }
 
+    #[tracing::instrument(target = "r1cs")]
     pub fn kary_or(bits: &[Self]) -> Result<Self, SynthesisError> {
         assert!(!bits.is_empty());
         let mut cur: Option<Self> = None;
@@ -362,11 +369,13 @@ impl<F: Field> Boolean<F> {
         Ok(cur.expect("should not be 0"))
     }
 
+    #[tracing::instrument(target = "r1cs")]
     pub fn kary_nand(bits: &[Self]) -> Result<Self, SynthesisError> {
         Ok(Self::kary_and(bits)?.not())
     }
 
     /// Assert that at least one input is false.
+    #[tracing::instrument(target = "r1cs")]
     fn enforce_kary_nand(bits: &[Self]) -> Result<(), SynthesisError> {
         use Boolean::*;
         let r = Self::kary_nand(bits)?;
@@ -384,6 +393,7 @@ impl<F: Field> Boolean<F> {
     /// Enforces that `bits`, when interpreted as a integer, is less than `F::characteristic()`,
     /// That is, interpret bits as a little-endian integer, and enforce that this integer
     /// is "in the field F".
+    #[tracing::instrument(target = "r1cs")]
     pub fn enforce_in_field_le(bits: &[Self]) -> Result<(), SynthesisError> {
         // `bits` < F::characteristic() <==> `bits` <= F::characteristic() -1
         let mut b = F::characteristic().to_vec();
@@ -401,6 +411,7 @@ impl<F: Field> Boolean<F> {
 
     /// Enforces that `bits` is less than or equal to `element`,
     /// when both are interpreted as (little-endian) integers.
+    #[tracing::instrument(target = "r1cs", skip(element))]
     pub fn enforce_smaller_or_equal_than_le<'a>(
         bits: &[Self],
         element: impl AsRef<[u64]>,
@@ -455,6 +466,7 @@ impl<F: Field> Boolean<F> {
         Ok(current_run)
     }
 
+    #[tracing::instrument(target = "r1cs", skip(first, second))]
     pub fn select<T: CondSelectGadget<F>>(
         &self,
         first: &T,
@@ -485,6 +497,7 @@ impl<F: Field> AllocVar<bool, F> for Boolean<F> {
 }
 
 impl<F: Field> EqGadget<F> for Boolean<F> {
+    #[tracing::instrument(target = "r1cs")]
     fn is_eq(&self, other: &Self) -> Result<Boolean<F>, SynthesisError> {
         // self | other | XNOR(self, other) | self == other
         // -----|-------|-------------------|--------------
@@ -495,6 +508,7 @@ impl<F: Field> EqGadget<F> for Boolean<F> {
         Ok(self.xor(other)?.not())
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn conditional_enforce_equal(
         &self,
         other: &Self,
@@ -530,6 +544,7 @@ impl<F: Field> EqGadget<F> for Boolean<F> {
         Ok(())
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn conditional_enforce_not_equal(
         &self,
         other: &Self,
@@ -572,6 +587,7 @@ impl<F: Field> EqGadget<F> for Boolean<F> {
 
 impl<F: Field> ToBytesGadget<F> for Boolean<F> {
     /// Outputs `1u8` if `self` is true, and `0u8` otherwise.
+    #[tracing::instrument(target = "r1cs")]
     fn to_bytes(&self) -> Result<Vec<UInt8<F>>, SynthesisError> {
         let mut bits = vec![self.clone()];
         bits.extend(vec![Boolean::constant(false); 7]);
@@ -582,6 +598,7 @@ impl<F: Field> ToBytesGadget<F> for Boolean<F> {
 }
 
 impl<F: Field> CondSelectGadget<F> for Boolean<F> {
+    #[tracing::instrument(target = "r1cs")]
     fn conditionally_select(
         cond: &Boolean<F>,
         true_val: &Self,
@@ -670,8 +687,8 @@ mod test {
         for a_val in [false, true].iter().copied() {
             for b_val in [false, true].iter().copied() {
                 let cs = ConstraintSystem::<Fr>::new_ref();
-                let a = AllocatedBit::new_witness(cs.ns("a"), || Ok(a_val))?;
-                let b = AllocatedBit::new_witness(cs.ns("b"), || Ok(b_val))?;
+                let a = AllocatedBit::new_witness(cs.clone(), || Ok(a_val))?;
+                let b = AllocatedBit::new_witness(cs.clone(), || Ok(b_val))?;
                 let c = AllocatedBit::xor(&a, &b)?;
                 assert_eq!(c.value()?, a_val ^ b_val);
 
@@ -689,8 +706,8 @@ mod test {
         for a_val in [false, true].iter().copied() {
             for b_val in [false, true].iter().copied() {
                 let cs = ConstraintSystem::<Fr>::new_ref();
-                let a = AllocatedBit::new_witness(cs.ns("a"), || Ok(a_val))?;
-                let b = AllocatedBit::new_witness(cs.ns("b"), || Ok(b_val))?;
+                let a = AllocatedBit::new_witness(cs.clone(), || Ok(a_val))?;
+                let b = AllocatedBit::new_witness(cs.clone(), || Ok(b_val))?;
                 let c = AllocatedBit::or(&a, &b)?;
                 assert_eq!(c.value()?, a_val | b_val);
 
@@ -708,8 +725,8 @@ mod test {
         for a_val in [false, true].iter().copied() {
             for b_val in [false, true].iter().copied() {
                 let cs = ConstraintSystem::<Fr>::new_ref();
-                let a = AllocatedBit::new_witness(cs.ns("a"), || Ok(a_val))?;
-                let b = AllocatedBit::new_witness(cs.ns("b"), || Ok(b_val))?;
+                let a = AllocatedBit::new_witness(cs.clone(), || Ok(a_val))?;
+                let b = AllocatedBit::new_witness(cs.clone(), || Ok(b_val))?;
                 let c = AllocatedBit::and(&a, &b)?;
                 assert_eq!(c.value()?, a_val & b_val);
 
@@ -727,8 +744,8 @@ mod test {
         for a_val in [false, true].iter().copied() {
             for b_val in [false, true].iter().copied() {
                 let cs = ConstraintSystem::<Fr>::new_ref();
-                let a = AllocatedBit::new_witness(cs.ns("a"), || Ok(a_val))?;
-                let b = AllocatedBit::new_witness(cs.ns("b"), || Ok(b_val))?;
+                let a = AllocatedBit::new_witness(cs.clone(), || Ok(a_val))?;
+                let b = AllocatedBit::new_witness(cs.clone(), || Ok(b_val))?;
                 let c = AllocatedBit::and_not(&a, &b)?;
                 assert_eq!(c.value()?, a_val & !b_val);
 
@@ -746,8 +763,8 @@ mod test {
         for a_val in [false, true].iter().copied() {
             for b_val in [false, true].iter().copied() {
                 let cs = ConstraintSystem::<Fr>::new_ref();
-                let a = AllocatedBit::new_witness(cs.ns("a"), || Ok(a_val))?;
-                let b = AllocatedBit::new_witness(cs.ns("b"), || Ok(b_val))?;
+                let a = AllocatedBit::new_witness(cs.clone(), || Ok(a_val))?;
+                let b = AllocatedBit::new_witness(cs.clone(), || Ok(b_val))?;
                 let c = AllocatedBit::nor(&a, &b)?;
                 assert_eq!(c.value()?, !a_val & !b_val);
 
@@ -768,8 +785,8 @@ mod test {
                     for b_neg in [false, true].iter().cloned() {
                         let cs = ConstraintSystem::<Fr>::new_ref();
 
-                        let mut a = Boolean::new_witness(cs.ns("a"), || Ok(a_bool))?;
-                        let mut b = Boolean::new_witness(cs.ns("b"), || Ok(b_bool))?;
+                        let mut a = Boolean::new_witness(cs.clone(), || Ok(a_bool))?;
+                        let mut b = Boolean::new_witness(cs.clone(), || Ok(b_bool))?;
 
                         if a_neg {
                             a = a.not();
@@ -822,8 +839,8 @@ mod test {
                         // when we don't want to enforce the condition.
                         let cs = ConstraintSystem::<Fr>::new_ref();
 
-                        let mut a = Boolean::new_witness(cs.ns("a"), || Ok(a_bool))?;
-                        let mut b = Boolean::new_witness(cs.ns("b"), || Ok(b_bool))?;
+                        let mut a = Boolean::new_witness(cs.clone(), || Ok(a_bool))?;
+                        let mut b = Boolean::new_witness(cs.clone(), || Ok(b_bool))?;
 
                         if a_neg {
                             a = a.not();
@@ -832,7 +849,8 @@ mod test {
                             b = b.not();
                         }
 
-                        let false_cond = Boolean::new_witness(cs.ns("cond"), || Ok(false))?;
+                        let false_cond =
+                            Boolean::new_witness(r1cs_core::ns!(cs, "cond"), || Ok(false))?;
                         a.conditional_enforce_equal(&b, &false_cond)?;
 
                         assert!(cs.is_satisfied().unwrap());
@@ -887,12 +905,10 @@ mod test {
     ];
 
     fn construct<F: Field>(
-        cs: impl Into<Namespace<F>>,
+        ns: Namespace<F>,
         operand: OpType,
-        name: &'static str,
     ) -> Result<Boolean<F>, SynthesisError> {
-        let ns = cs.into();
-        let cs = ns.cs().ns(name);
+        let cs = ns.cs();
 
         let b = match operand {
             OpType::True => Boolean::constant(true),
@@ -911,8 +927,8 @@ mod test {
             for second_operand in VARIANTS.iter().cloned() {
                 let cs = ConstraintSystem::<Fr>::new_ref();
 
-                let a = construct(cs.clone(), first_operand, "a")?;
-                let b = construct(cs.clone(), second_operand, "b")?;
+                let a = construct(r1cs_core::ns!(cs, "a"), first_operand)?;
+                let b = construct(r1cs_core::ns!(cs, "b"), second_operand)?;
                 let c = Boolean::xor(&a, &b)?;
 
                 assert!(cs.is_satisfied().unwrap());
@@ -1041,9 +1057,9 @@ mod test {
                 for second_operand in VARIANTS.iter().cloned() {
                     let cs = ConstraintSystem::<Fr>::new_ref();
 
-                    let cond = construct(cs.clone(), condition, "cond")?;
-                    let a = construct(cs.clone(), first_operand, "a")?;
-                    let b = construct(cs.clone(), second_operand, "b")?;
+                    let cond = construct(r1cs_core::ns!(cs, "cond"), condition)?;
+                    let a = construct(r1cs_core::ns!(cs, "a"), first_operand)?;
+                    let b = construct(r1cs_core::ns!(cs, "b"), second_operand)?;
                     let c = cond.select(&a, &b)?;
 
                     assert!(
@@ -1073,8 +1089,8 @@ mod test {
             for second_operand in VARIANTS.iter().cloned() {
                 let cs = ConstraintSystem::<Fr>::new_ref();
 
-                let a = construct(cs.clone(), first_operand, "a")?;
-                let b = construct(cs.clone(), second_operand, "b")?;
+                let a = construct(r1cs_core::ns!(cs, "a"), first_operand)?;
+                let b = construct(r1cs_core::ns!(cs, "b"), second_operand)?;
                 let c = a.or(&b)?;
 
                 assert!(cs.is_satisfied().unwrap());
@@ -1194,8 +1210,8 @@ mod test {
             for second_operand in VARIANTS.iter().cloned() {
                 let cs = ConstraintSystem::<Fr>::new_ref();
 
-                let a = construct(cs.clone(), first_operand, "a")?;
-                let b = construct(cs.clone(), second_operand, "b")?;
+                let a = construct(r1cs_core::ns!(cs, "a"), first_operand)?;
+                let b = construct(r1cs_core::ns!(cs, "b"), second_operand)?;
                 let c = a.and(&b)?;
 
                 assert!(cs.is_satisfied().unwrap());

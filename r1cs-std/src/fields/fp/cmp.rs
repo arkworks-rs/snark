@@ -14,6 +14,7 @@ impl<F: PrimeField> FpVar<F> {
     /// also be checked for equality, e.g. `self <= other` instead of `self < other`, set
     /// `should_also_check_quality` to `true`. This variant verifies `self` and `other`
     /// are `<= (p-1)/2`.
+    #[tracing::instrument(target = "r1cs")]
     pub fn enforce_cmp(
         &self,
         other: &FpVar<F>,
@@ -29,6 +30,7 @@ impl<F: PrimeField> FpVar<F> {
     /// also be checked for equality, e.g. `self <= other` instead of `self < other`, set
     /// `should_also_check_quality` to `true`. This variant assumes `self` and `other`
     /// are `<= (p-1)/2` and does not generate constraints to verify that.
+    #[tracing::instrument(target = "r1cs")]
     pub fn enforce_cmp_unchecked(
         &self,
         other: &FpVar<F>,
@@ -45,6 +47,7 @@ impl<F: PrimeField> FpVar<F> {
     /// also be checked for equality, e.g. `self <= other` instead of `self < other`, set
     /// `should_also_check_quality` to `true`. This variant verifies `self` and `other`
     /// are `<= (p-1)/2`.
+    #[tracing::instrument(target = "r1cs")]
     pub fn is_cmp(
         &self,
         other: &FpVar<F>,
@@ -61,6 +64,7 @@ impl<F: PrimeField> FpVar<F> {
     /// also be checked for equality, e.g. `self <= other` instead of `self < other`, set
     /// `should_also_check_quality` to `true`. This variant assumes `self` and `other`
     /// are `<= (p-1)/2` and does not generate constraints to verify that.
+    #[tracing::instrument(target = "r1cs")]
     pub fn is_cmp_unchecked(
         &self,
         other: &FpVar<F>,
@@ -92,6 +96,7 @@ impl<F: PrimeField> FpVar<F> {
     }
 
     // Helper function to enforce `self <= (p-1)/2`.
+    #[tracing::instrument(target = "r1cs")]
     pub fn enforce_smaller_or_equal_than_mod_minus_one_div_two(
         &self,
     ) -> Result<(), SynthesisError> {
@@ -172,9 +177,9 @@ mod test {
         for i in 0..10 {
             let cs = ConstraintSystem::<Fr>::new_ref();
             let a = rand_in_range(&mut rng);
-            let a_var = FpVar::<Fr>::new_witness(cs.ns("a"), || Ok(a)).unwrap();
+            let a_var = FpVar::<Fr>::new_witness(cs.clone(), || Ok(a)).unwrap();
             let b = rand_in_range(&mut rng);
-            let b_var = FpVar::<Fr>::new_witness(cs.ns("b"), || Ok(b)).unwrap();
+            let b_var = FpVar::<Fr>::new_witness(cs.clone(), || Ok(b)).unwrap();
 
             match a.cmp(&b) {
                 Ordering::Less => {
@@ -198,9 +203,9 @@ mod test {
         for _i in 0..10 {
             let cs = ConstraintSystem::<Fr>::new_ref();
             let a = rand_in_range(&mut rng);
-            let a_var = FpVar::<Fr>::new_witness(cs.ns("a"), || Ok(a)).unwrap();
+            let a_var = FpVar::<Fr>::new_witness(cs.clone(), || Ok(a)).unwrap();
             let b = rand_in_range(&mut rng);
-            let b_var = FpVar::<Fr>::new_witness(cs.ns("b"), || Ok(b)).unwrap();
+            let b_var = FpVar::<Fr>::new_witness(cs.clone(), || Ok(b)).unwrap();
 
             match b.cmp(&a) {
                 Ordering::Less => {
@@ -220,7 +225,7 @@ mod test {
         for _i in 0..10 {
             let cs = ConstraintSystem::<Fr>::new_ref();
             let a = rand_in_range(&mut rng);
-            let a_var = FpVar::<Fr>::new_witness(cs.ns("a"), || Ok(a)).unwrap();
+            let a_var = FpVar::<Fr>::new_witness(cs.clone(), || Ok(a)).unwrap();
             a_var.enforce_cmp(&a_var, Ordering::Less, false).unwrap();
 
             assert!(!cs.is_satisfied().unwrap());
@@ -229,7 +234,7 @@ mod test {
         for _i in 0..10 {
             let cs = ConstraintSystem::<Fr>::new_ref();
             let a = rand_in_range(&mut rng);
-            let a_var = FpVar::<Fr>::new_witness(cs.ns("a"), || Ok(a)).unwrap();
+            let a_var = FpVar::<Fr>::new_witness(cs.clone(), || Ok(a)).unwrap();
             a_var.enforce_cmp(&a_var, Ordering::Less, true).unwrap();
             assert!(cs.is_satisfied().unwrap());
         }

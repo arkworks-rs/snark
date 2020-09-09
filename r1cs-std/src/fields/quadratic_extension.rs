@@ -70,6 +70,7 @@ where
 
     /// This is only to be used when the element is *known* to be in the cyclotomic subgroup.
     #[inline]
+    #[tracing::instrument(target = "r1cs", skip(exponent))]
     pub fn cyclotomic_exp(&self, exponent: impl AsRef<[u64]>) -> Result<Self, SynthesisError>
     where
         Self: FieldVar<QuadExtField<P>, P::BasePrimeField>,
@@ -175,6 +176,7 @@ where
     }
 
     #[inline]
+    #[tracing::instrument(target = "r1cs")]
     fn double(&self) -> Result<Self, SynthesisError> {
         let c0 = self.c0.double()?;
         let c1 = self.c1.double()?;
@@ -182,6 +184,7 @@ where
     }
 
     #[inline]
+    #[tracing::instrument(target = "r1cs")]
     fn negate(&self) -> Result<Self, SynthesisError> {
         let mut result = self.clone();
         result.c0.negate_in_place()?;
@@ -190,6 +193,7 @@ where
     }
 
     #[inline]
+    #[tracing::instrument(target = "r1cs")]
     fn square(&self) -> Result<Self, SynthesisError> {
         // From Libsnark/fp2_gadget.tcc
         // Complex multiplication for Fp2:
@@ -213,6 +217,7 @@ where
         Ok(Self::new(c0, c1))
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn mul_equals(&self, other: &Self, result: &Self) -> Result<(), SynthesisError> {
         // Karatsuba multiplication for Fp2:
         //     v0 = A.c0 * B.c0
@@ -245,6 +250,7 @@ where
         Ok(())
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn frobenius_map(&self, power: usize) -> Result<Self, SynthesisError> {
         let mut result = self.clone();
         result.c0.frobenius_map_in_place(power)?;
@@ -253,6 +259,7 @@ where
         Ok(result)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn inverse(&self) -> Result<Self, SynthesisError> {
         let one = Self::new_constant(self.cs().get()?.clone(), QuadExtField::one())?;
         let inverse = Self::new_witness(self.cs().get()?.clone(), || {
@@ -344,6 +351,7 @@ where
     for<'b> &'b BF: FieldOpsBounds<'b, P::BaseField, BF>,
     P: QuadExtVarParams<BF>,
 {
+    #[tracing::instrument(target = "r1cs")]
     fn is_eq(&self, other: &Self) -> Result<Boolean<P::BasePrimeField>, SynthesisError> {
         let b0 = self.c0.is_eq(&other.c0)?;
         let b1 = self.c1.is_eq(&other.c1)?;
@@ -351,6 +359,7 @@ where
     }
 
     #[inline]
+    #[tracing::instrument(target = "r1cs")]
     fn conditional_enforce_equal(
         &self,
         other: &Self,
@@ -362,6 +371,7 @@ where
     }
 
     #[inline]
+    #[tracing::instrument(target = "r1cs")]
     fn conditional_enforce_not_equal(
         &self,
         other: &Self,
@@ -380,6 +390,7 @@ where
     for<'b> &'b BF: FieldOpsBounds<'b, P::BaseField, BF>,
     P: QuadExtVarParams<BF>,
 {
+    #[tracing::instrument(target = "r1cs")]
     fn to_bits_le(&self) -> Result<Vec<Boolean<P::BasePrimeField>>, SynthesisError> {
         let mut c0 = self.c0.to_bits_le()?;
         let mut c1 = self.c1.to_bits_le()?;
@@ -387,6 +398,7 @@ where
         Ok(c0)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn to_non_unique_bits_le(&self) -> Result<Vec<Boolean<P::BasePrimeField>>, SynthesisError> {
         let mut c0 = self.c0.to_non_unique_bits_le()?;
         let mut c1 = self.c1.to_non_unique_bits_le()?;
@@ -401,6 +413,7 @@ where
     for<'b> &'b BF: FieldOpsBounds<'b, P::BaseField, BF>,
     P: QuadExtVarParams<BF>,
 {
+    #[tracing::instrument(target = "r1cs")]
     fn to_bytes(&self) -> Result<Vec<UInt8<P::BasePrimeField>>, SynthesisError> {
         let mut c0 = self.c0.to_bytes()?;
         let mut c1 = self.c1.to_bytes()?;
@@ -408,6 +421,7 @@ where
         Ok(c0)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn to_non_unique_bytes(&self) -> Result<Vec<UInt8<P::BasePrimeField>>, SynthesisError> {
         let mut c0 = self.c0.to_non_unique_bytes()?;
         let mut c1 = self.c1.to_non_unique_bytes()?;
@@ -443,6 +457,7 @@ where
 {
     type TableConstant = QuadExtField<P>;
 
+    #[tracing::instrument(target = "r1cs")]
     fn two_bit_lookup(
         b: &[Boolean<P::BasePrimeField>],
         c: &[Self::TableConstant],
@@ -464,6 +479,7 @@ where
 {
     type TableConstant = QuadExtField<P>;
 
+    #[tracing::instrument(target = "r1cs")]
     fn three_bit_cond_neg_lookup(
         b: &[Boolean<P::BasePrimeField>],
         b0b1: &Boolean<P::BasePrimeField>,
@@ -498,8 +514,8 @@ where
             ),
         };
 
-        let c0 = BF::new_variable(cs.ns("c0"), || c0, mode)?;
-        let c1 = BF::new_variable(cs.ns("c1"), || c1, mode)?;
+        let c0 = BF::new_variable(r1cs_core::ns!(cs, "c0"), || c0, mode)?;
+        let c1 = BF::new_variable(r1cs_core::ns!(cs, "c1"), || c1, mode)?;
         Ok(Self::new(c0, c1))
     }
 }

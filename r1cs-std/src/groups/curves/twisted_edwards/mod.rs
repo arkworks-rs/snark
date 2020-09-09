@@ -66,6 +66,7 @@ mod montgomery_affine_impl {
             }
         }
 
+        #[tracing::instrument(target = "r1cs")]
         pub fn from_edwards_to_coords(
             p: &TEAffine<P>,
         ) -> Result<(P::BaseField, P::BaseField), SynthesisError> {
@@ -83,20 +84,22 @@ mod montgomery_affine_impl {
             Ok((montgomery_point.x, montgomery_point.y))
         }
 
+        #[tracing::instrument(target = "r1cs")]
         pub fn new_witness_from_edwards(
             cs: ConstraintSystemRef<<P::BaseField as Field>::BasePrimeField>,
             p: &TEAffine<P>,
         ) -> Result<Self, SynthesisError> {
             let montgomery_coords = Self::from_edwards_to_coords(p)?;
-            let u = F::new_witness(cs.ns("u"), || Ok(montgomery_coords.0))?;
-            let v = F::new_witness(cs.ns("v"), || Ok(montgomery_coords.1))?;
+            let u = F::new_witness(r1cs_core::ns!(cs, "u"), || Ok(montgomery_coords.0))?;
+            let v = F::new_witness(r1cs_core::ns!(cs, "v"), || Ok(montgomery_coords.1))?;
             Ok(Self::new(u, v))
         }
 
+        #[tracing::instrument(target = "r1cs")]
         pub fn into_edwards(&self) -> Result<AffineVar<P, F>, SynthesisError> {
             let cs = self.cs().unwrap_or(ConstraintSystemRef::None);
             // Compute u = x / y
-            let u = F::new_witness(cs.ns("u"), || {
+            let u = F::new_witness(r1cs_core::ns!(cs, "u"), || {
                 let y_inv = self
                     .y
                     .value()?
@@ -107,7 +110,7 @@ mod montgomery_affine_impl {
 
             u.mul_equals(&self.y, &self.x)?;
 
-            let v = F::new_witness(cs.ns("v"), || {
+            let v = F::new_witness(r1cs_core::ns!(cs, "v"), || {
                 let mut t0 = self.x.value()?;
                 let mut t1 = t0;
                 t0 -= &P::BaseField::one();
@@ -131,6 +134,8 @@ mod montgomery_affine_impl {
         for<'b> &'b F: FieldOpsBounds<'b, P::BaseField, F>,
     {
         type Output = MontgomeryAffineVar<P, F>;
+
+        #[tracing::instrument(target = "r1cs")]
         fn add(self, other: &'a Self) -> Self::Output {
             let cs = [&self, other].cs();
             let mode = if cs.is_none() || matches!(cs, Some(ConstraintSystemRef::None)) {
@@ -144,7 +149,7 @@ mod montgomery_affine_impl {
             let coeff_a = P::MontgomeryModelParameters::COEFF_A;
 
             let lambda = F::new_variable(
-                cs.ns("lambda"),
+                r1cs_core::ns!(cs, "lambda"),
                 || {
                     let n = other.y.value()? - &self.y.value()?;
                     let d = other.x.value()? - &self.x.value()?;
@@ -159,7 +164,7 @@ mod montgomery_affine_impl {
 
             // Compute x'' = B*lambda^2 - A - x - x'
             let xprime = F::new_variable(
-                cs.ns("xprime"),
+                r1cs_core::ns!(cs, "xprime"),
                 || {
                     Ok(lambda.value()?.square() * &coeff_b
                         - &coeff_a
@@ -176,7 +181,7 @@ mod montgomery_affine_impl {
             lambda_b.mul_equals(&lambda, &xprime_lc).unwrap();
 
             let yprime = F::new_variable(
-                cs.ns("yprime"),
+                r1cs_core::ns!(cs, "yprime"),
                 || {
                     Ok(-(self.y.value()?
                         + &(lambda.value()? * &(xprime.value()? - &self.x.value()?))))
@@ -224,6 +229,7 @@ where
     /// Allocates a new variable without performing an on-curve check, which is
     /// useful if the variable is known to be on the curve (eg., if the point
     /// is a constant or is a public input).
+    #[tracing::instrument(target = "r1cs", skip(cs, f))]
     pub fn new_variable_omit_on_curve_check<T: Into<TEAffine<P>>>(
         cs: impl Into<Namespace<<P::BaseField as Field>::BasePrimeField>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
@@ -243,8 +249,8 @@ where
             ),
         };
 
-        let x = F::new_variable(cs.ns("x"), || x, mode)?;
-        let y = F::new_variable(cs.ns("y"), || y, mode)?;
+        let x = F::new_variable(r1cs_core::ns!(cs, "x"), || x, mode)?;
+        let y = F::new_variable(r1cs_core::ns!(cs, "y"), || y, mode)?;
 
         Ok(Self::new(x, y))
     }
@@ -294,6 +300,7 @@ where
         self.x.is_zero()?.and(&self.x.is_one()?)
     }
 
+    #[tracing::instrument(target = "r1cs", skip(cs, f))]
     fn new_variable_omit_prime_order_check(
         cs: impl Into<Namespace<<P::BaseField as Field>::BasePrimeField>>,
         f: impl FnOnce() -> Result<TEProjective<P>, SynthesisError>,
@@ -325,6 +332,7 @@ where
     ///
     /// Does so by multiplying by the prime order, and checking that the result
     /// is unchanged.
+    #[tracing::instrument(target = "r1cs")]
     fn enforce_prime_order(&self) -> Result<(), SynthesisError> {
         let r_minus_1 = (-P::ScalarField::one()).into_repr();
 
@@ -341,6 +349,7 @@ where
     }
 
     #[inline]
+    #[tracing::instrument(target = "r1cs")]
     fn double_in_place(&mut self) -> Result<(), SynthesisError> {
         if let Some(cs) = self.cs() {
             let a = P::COEFF_A;
@@ -353,7 +362,7 @@ where
             let a_x2 = &x2 * a;
 
             // Compute x3 = (2xy) / (ax^2 + y^2)
-            let x3 = F::new_witness(cs.ns("x3"), || {
+            let x3 = F::new_witness(r1cs_core::ns!(cs, "x3"), || {
                 let t0 = xy.value()?.double();
                 let t1 = a * &x2.value()? + &y2.value()?;
                 Ok(t0 * &t1.inverse().ok_or(SynthesisError::DivisionByZero)?)
@@ -365,7 +374,7 @@ where
 
             // Compute y3 = (y^2 - ax^2) / (2 - ax^2 - y^2)
             let two = P::BaseField::one().double();
-            let y3 = F::new_witness(cs.ns("y3"), || {
+            let y3 = F::new_witness(r1cs_core::ns!(cs, "y3"), || {
                 let a_x2 = a * &x2.value()?;
                 let t0 = y2.value()? - &a_x2;
                 let t1 = two - &a_x2 - &y2.value()?;
@@ -384,10 +393,12 @@ where
         Ok(())
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn negate(&self) -> Result<Self, SynthesisError> {
         Ok(Self::new(self.x.negate()?, self.y.clone()))
     }
 
+    #[tracing::instrument(target = "r1cs", skip(scalar_bits_with_base_powers))]
     fn precomputed_base_scalar_mul_le<'a, I, B>(
         &mut self,
         scalar_bits_with_base_powers: I,
@@ -430,6 +441,7 @@ where
         Ok(())
     }
 
+    #[tracing::instrument(target = "r1cs", skip(bases, scalars))]
     fn precomputed_base_3_bit_signed_digit_scalar_mul<'a, I, J, B>(
         bases: &[B],
         scalars: &[J],
@@ -519,6 +531,7 @@ where
         >,
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
+    #[tracing::instrument(target = "r1cs", skip(cs, f))]
     fn new_variable<Point: Borrow<TEProjective<P>>>(
         cs: impl Into<Namespace<<P::BaseField as Field>::BasePrimeField>>,
         f: impl FnOnce() -> Result<Point, SynthesisError>,
@@ -559,7 +572,7 @@ where
 
                 let (mut ge, iter) = if cofactor_weight < modulus_minus_1_weight {
                     let ge = Self::new_variable_omit_prime_order_check(
-                        cs.ns("Witness without subgroup check with cofactor mul"),
+                        r1cs_core::ns!(cs, "Witness without subgroup check with cofactor mul"),
                         || f().map(|g| g.borrow().into_affine().mul_by_cofactor_inv().into()),
                         mode,
                     )?;
@@ -569,7 +582,7 @@ where
                     )
                 } else {
                     let ge = Self::new_variable_omit_prime_order_check(
-                        cs.ns("Witness without subgroup check with `r` check"),
+                        r1cs_core::ns!(cs, "Witness without subgroup check with `r` check"),
                         || {
                             f().map(|g| {
                                 let g = g.into_affine();
@@ -623,6 +636,7 @@ where
         >,
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
+    #[tracing::instrument(target = "r1cs", skip(cs, f))]
     fn new_variable<Point: Borrow<TEAffine<P>>>(
         cs: impl Into<Namespace<<P::BaseField as Field>::BasePrimeField>>,
         f: impl FnOnce() -> Result<Point, SynthesisError>,
@@ -671,7 +685,7 @@ impl_bounded_ops!(
             let v2 = &v0 * &v1 * d;
 
             // Compute x3 = (v0 + v1) / (1 + v2)
-            let x3 = F::new_witness(cs.ns("x3"), || {
+            let x3 = F::new_witness(r1cs_core::ns!(cs, "x3"), || {
                 let t0 = v0.value()? + &v1.value()?;
                 let t1 = P::BaseField::one() + &v2.value()?;
                 Ok(t0 * &t1.inverse().ok_or(SynthesisError::DivisionByZero)?)
@@ -682,7 +696,7 @@ impl_bounded_ops!(
             x3.mul_equals(&v2_plus_one, &v0_plus_v1).unwrap();
 
             // Compute y3 = (U + a * v0 - v1) / (1 - v2)
-            let y3 = F::new_witness(cs.ns("y3"), || {
+            let y3 = F::new_witness(r1cs_core::ns!(cs, "y3"), || {
                 let t0 = u.value()? + &(a * &v0.value()?) - &v1.value()?;
                 let t1 = P::BaseField::one() - &v2.value()?;
                 Ok(t0 * &t1.inverse().ok_or(SynthesisError::DivisionByZero)?)
@@ -761,6 +775,7 @@ where
     for<'b> &'b F: FieldOpsBounds<'b, P::BaseField, F>,
 {
     #[inline]
+    #[tracing::instrument(target = "r1cs")]
     fn conditionally_select(
         cond: &Boolean<<P::BaseField as Field>::BasePrimeField>,
         true_value: &Self,
@@ -779,6 +794,7 @@ where
     F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
     for<'b> &'b F: FieldOpsBounds<'b, P::BaseField, F>,
 {
+    #[tracing::instrument(target = "r1cs")]
     fn is_eq(
         &self,
         other: &Self,
@@ -789,6 +805,7 @@ where
     }
 
     #[inline]
+    #[tracing::instrument(target = "r1cs")]
     fn conditional_enforce_equal(
         &self,
         other: &Self,
@@ -800,6 +817,7 @@ where
     }
 
     #[inline]
+    #[tracing::instrument(target = "r1cs")]
     fn conditional_enforce_not_equal(
         &self,
         other: &Self,
@@ -817,6 +835,7 @@ where
     F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
     for<'b> &'b F: FieldOpsBounds<'b, P::BaseField, F>,
 {
+    #[tracing::instrument(target = "r1cs")]
     fn to_bits_le(
         &self,
     ) -> Result<Vec<Boolean<<P::BaseField as Field>::BasePrimeField>>, SynthesisError> {
@@ -826,6 +845,7 @@ where
         Ok(x_bits)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn to_non_unique_bits_le(
         &self,
     ) -> Result<Vec<Boolean<<P::BaseField as Field>::BasePrimeField>>, SynthesisError> {
@@ -843,6 +863,7 @@ where
     F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
     for<'b> &'b F: FieldOpsBounds<'b, P::BaseField, F>,
 {
+    #[tracing::instrument(target = "r1cs")]
     fn to_bytes(
         &self,
     ) -> Result<Vec<UInt8<<P::BaseField as Field>::BasePrimeField>>, SynthesisError> {
@@ -852,6 +873,7 @@ where
         Ok(x_bytes)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn to_non_unique_bytes(
         &self,
     ) -> Result<Vec<UInt8<<P::BaseField as Field>::BasePrimeField>>, SynthesisError> {
@@ -887,18 +909,16 @@ where
     let b_affine = b.into_affine();
 
     println!("Allocating things");
-    let ns = cs.ns("allocating variables");
-    println!("{:?}", cs.current_namespace());
-    let mut gadget_a = GG::new_witness(cs.ns("a"), || Ok(a))?;
-    let gadget_b = GG::new_witness(cs.ns("b"), || Ok(b))?;
-    println!("{:?}", cs.current_namespace());
-    ns.leave_namespace();
+    let ns = r1cs_core::ns!(cs, "allocating variables");
+    let mut gadget_a = GG::new_witness(cs.clone(), || Ok(a))?;
+    let gadget_b = GG::new_witness(cs.clone(), || Ok(b))?;
+    drop(ns);
     println!("Done Allocating things");
     assert_eq!(gadget_a.value()?.into_affine().x, a_affine.x);
     assert_eq!(gadget_a.value()?.into_affine().y, a_affine.y);
     assert_eq!(gadget_b.value()?.into_affine().x, b_affine.x);
     assert_eq!(gadget_b.value()?.into_affine().y, b_affine.y);
-    assert_eq!(cs.which_is_unsatisfied(), None);
+    assert_eq!(cs.which_is_unsatisfied()?, None);
 
     println!("Checking addition");
     // Check addition
@@ -933,7 +953,8 @@ where
     let native_result = native_result.into_affine();
 
     let scalar: Vec<bool> = BitIteratorLE::new(scalar.into_repr()).collect();
-    let input: Vec<Boolean<_>> = Vec::new_witness(cs.ns("bits"), || Ok(scalar)).unwrap();
+    let input: Vec<Boolean<_>> =
+        Vec::new_witness(r1cs_core::ns!(cs, "bits"), || Ok(scalar)).unwrap();
     let result = gadget_a.scalar_mul_le(input.iter())?;
     let result_val = result.value()?.into_affine();
     assert_eq!(

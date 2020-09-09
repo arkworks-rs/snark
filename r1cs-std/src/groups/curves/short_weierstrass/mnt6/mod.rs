@@ -44,6 +44,7 @@ impl<P: MNT6Parameters> G1PreparedVar<P> {
         })
     }
 
+    #[tracing::instrument(target = "r1cs")]
     pub fn from_group_var(q: &G1Var<P>) -> Result<Self, SynthesisError> {
         let q = q.to_affine()?;
         let zero = FpVar::<P::Fp>::zero();
@@ -60,6 +61,7 @@ impl<P: MNT6Parameters> G1PreparedVar<P> {
 }
 
 impl<P: MNT6Parameters> AllocVar<G1Prepared<P>, P::Fp> for G1PreparedVar<P> {
+    #[tracing::instrument(target = "r1cs", skip(cs, f))]
     fn new_variable<T: Borrow<G1Prepared<P>>>(
         cs: impl Into<Namespace<P::Fp>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
@@ -70,10 +72,18 @@ impl<P: MNT6Parameters> AllocVar<G1Prepared<P>, P::Fp> for G1PreparedVar<P> {
 
         let g1_prep = f().map(|b| *b.borrow());
 
-        let x = FpVar::new_variable(cs.ns("x"), || g1_prep.map(|g| g.x), mode)?;
-        let y = FpVar::new_variable(cs.ns("y"), || g1_prep.map(|g| g.y), mode)?;
-        let x_twist = Fp3Var::new_variable(cs.ns("x_twist"), || g1_prep.map(|g| g.x_twist), mode)?;
-        let y_twist = Fp3Var::new_variable(cs.ns("y_twist"), || g1_prep.map(|g| g.y_twist), mode)?;
+        let x = FpVar::new_variable(r1cs_core::ns!(cs, "x"), || g1_prep.map(|g| g.x), mode)?;
+        let y = FpVar::new_variable(r1cs_core::ns!(cs, "y"), || g1_prep.map(|g| g.y), mode)?;
+        let x_twist = Fp3Var::new_variable(
+            r1cs_core::ns!(cs, "x_twist"),
+            || g1_prep.map(|g| g.x_twist),
+            mode,
+        )?;
+        let y_twist = Fp3Var::new_variable(
+            r1cs_core::ns!(cs, "y_twist"),
+            || g1_prep.map(|g| g.y_twist),
+            mode,
+        )?;
         Ok(Self {
             x,
             y,
@@ -85,6 +95,7 @@ impl<P: MNT6Parameters> AllocVar<G1Prepared<P>, P::Fp> for G1PreparedVar<P> {
 
 impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for G1PreparedVar<P> {
     #[inline]
+    #[tracing::instrument(target = "r1cs")]
     fn to_bytes(&self) -> Result<Vec<UInt8<P::Fp>>, SynthesisError> {
         let mut x = self.x.to_bytes()?;
         let mut y = self.y.to_bytes()?;
@@ -97,6 +108,7 @@ impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for G1PreparedVar<P> {
         Ok(x)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn to_non_unique_bytes(&self) -> Result<Vec<UInt8<P::Fp>>, SynthesisError> {
         let mut x = self.x.to_non_unique_bytes()?;
         let mut y = self.y.to_non_unique_bytes()?;
@@ -123,6 +135,7 @@ pub struct G2PreparedVar<P: MNT6Parameters> {
 }
 
 impl<P: MNT6Parameters> AllocVar<G2Prepared<P>, P::Fp> for G2PreparedVar<P> {
+    #[tracing::instrument(target = "r1cs", skip(cs, f))]
     fn new_variable<T: Borrow<G2Prepared<P>>>(
         cs: impl Into<Namespace<P::Fp>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
@@ -134,19 +147,25 @@ impl<P: MNT6Parameters> AllocVar<G2Prepared<P>, P::Fp> for G2PreparedVar<P> {
         let g2_prep = f().map(|b| b.borrow().clone());
         let g2 = g2_prep.as_ref().map_err(|e| *e);
 
-        let x = Fp3Var::new_variable(cs.ns("x"), || g2.map(|g| g.x), mode)?;
-        let y = Fp3Var::new_variable(cs.ns("y"), || g2.map(|g| g.y), mode)?;
-        let x_over_twist =
-            Fp3Var::new_variable(cs.ns("x_over_twist"), || g2.map(|g| g.x_over_twist), mode)?;
-        let y_over_twist =
-            Fp3Var::new_variable(cs.ns("y_over_twist"), || g2.map(|g| g.y_over_twist), mode)?;
+        let x = Fp3Var::new_variable(r1cs_core::ns!(cs, "x"), || g2.map(|g| g.x), mode)?;
+        let y = Fp3Var::new_variable(r1cs_core::ns!(cs, "y"), || g2.map(|g| g.y), mode)?;
+        let x_over_twist = Fp3Var::new_variable(
+            r1cs_core::ns!(cs, "x_over_twist"),
+            || g2.map(|g| g.x_over_twist),
+            mode,
+        )?;
+        let y_over_twist = Fp3Var::new_variable(
+            r1cs_core::ns!(cs, "y_over_twist"),
+            || g2.map(|g| g.y_over_twist),
+            mode,
+        )?;
         let double_coefficients = Vec::new_variable(
-            cs.ns("double coeffs"),
+            r1cs_core::ns!(cs, "double coeffs"),
             || g2.map(|g| g.double_coefficients.clone()),
             mode,
         )?;
         let addition_coefficients = Vec::new_variable(
-            cs.ns("add coeffs"),
+            r1cs_core::ns!(cs, "add coeffs"),
             || g2.map(|g| g.addition_coefficients.clone()),
             mode,
         )?;
@@ -163,6 +182,7 @@ impl<P: MNT6Parameters> AllocVar<G2Prepared<P>, P::Fp> for G2PreparedVar<P> {
 
 impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for G2PreparedVar<P> {
     #[inline]
+    #[tracing::instrument(target = "r1cs")]
     fn to_bytes(&self) -> Result<Vec<UInt8<P::Fp>>, SynthesisError> {
         let mut x = self.x.to_bytes()?;
         let mut y = self.y.to_bytes()?;
@@ -182,6 +202,7 @@ impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for G2PreparedVar<P> {
         Ok(x)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn to_non_unique_bytes(&self) -> Result<Vec<UInt8<P::Fp>>, SynthesisError> {
         let mut x = self.x.to_non_unique_bytes()?;
         let mut y = self.y.to_non_unique_bytes()?;
@@ -228,6 +249,7 @@ impl<P: MNT6Parameters> G2PreparedVar<P> {
         })
     }
 
+    #[tracing::instrument(target = "r1cs")]
     pub fn from_group_var(q: &G2Var<P>) -> Result<Self, SynthesisError> {
         let q = q.to_affine()?;
         let twist_inv = P::TWIST.inverse().unwrap();
@@ -307,6 +329,7 @@ pub struct AteDoubleCoefficientsVar<P: MNT6Parameters> {
 }
 
 impl<P: MNT6Parameters> AllocVar<AteDoubleCoefficients<P>, P::Fp> for AteDoubleCoefficientsVar<P> {
+    #[tracing::instrument(target = "r1cs", skip(cs, f))]
     fn new_variable<T: Borrow<AteDoubleCoefficients<P>>>(
         cs: impl Into<Namespace<P::Fp>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
@@ -318,10 +341,10 @@ impl<P: MNT6Parameters> AllocVar<AteDoubleCoefficients<P>, P::Fp> for AteDoubleC
         let c_prep = f().map(|c| c.borrow().clone());
         let c = c_prep.as_ref().map_err(|e| *e);
 
-        let c_h = Fp3Var::new_variable(cs.ns("c_h"), || c.map(|c| c.c_h), mode)?;
-        let c_4c = Fp3Var::new_variable(cs.ns("c_4c"), || c.map(|c| c.c_4c), mode)?;
-        let c_j = Fp3Var::new_variable(cs.ns("c_j"), || c.map(|c| c.c_j), mode)?;
-        let c_l = Fp3Var::new_variable(cs.ns("c_l"), || c.map(|c| c.c_l), mode)?;
+        let c_h = Fp3Var::new_variable(r1cs_core::ns!(cs, "c_h"), || c.map(|c| c.c_h), mode)?;
+        let c_4c = Fp3Var::new_variable(r1cs_core::ns!(cs, "c_4c"), || c.map(|c| c.c_4c), mode)?;
+        let c_j = Fp3Var::new_variable(r1cs_core::ns!(cs, "c_j"), || c.map(|c| c.c_j), mode)?;
+        let c_l = Fp3Var::new_variable(r1cs_core::ns!(cs, "c_l"), || c.map(|c| c.c_l), mode)?;
         Ok(Self {
             c_h,
             c_4c,
@@ -333,6 +356,7 @@ impl<P: MNT6Parameters> AllocVar<AteDoubleCoefficients<P>, P::Fp> for AteDoubleC
 
 impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for AteDoubleCoefficientsVar<P> {
     #[inline]
+    #[tracing::instrument(target = "r1cs")]
     fn to_bytes(&self) -> Result<Vec<UInt8<P::Fp>>, SynthesisError> {
         let mut c_h = self.c_h.to_bytes()?;
         let mut c_4c = self.c_4c.to_bytes()?;
@@ -345,6 +369,7 @@ impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for AteDoubleCoefficientsVar<P> {
         Ok(c_h)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn to_non_unique_bytes(&self) -> Result<Vec<UInt8<P::Fp>>, SynthesisError> {
         let mut c_h = self.c_h.to_non_unique_bytes()?;
         let mut c_4c = self.c_4c.to_non_unique_bytes()?;
@@ -383,6 +408,7 @@ pub struct AteAdditionCoefficientsVar<P: MNT6Parameters> {
 impl<P: MNT6Parameters> AllocVar<AteAdditionCoefficients<P>, P::Fp>
     for AteAdditionCoefficientsVar<P>
 {
+    #[tracing::instrument(target = "r1cs", skip(cs, f))]
     fn new_variable<T: Borrow<AteAdditionCoefficients<P>>>(
         cs: impl Into<Namespace<P::Fp>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
@@ -394,14 +420,15 @@ impl<P: MNT6Parameters> AllocVar<AteAdditionCoefficients<P>, P::Fp>
         let c_prep = f().map(|c| c.borrow().clone());
         let c = c_prep.as_ref().map_err(|e| *e);
 
-        let c_l1 = Fp3Var::new_variable(cs.ns("c_l1"), || c.map(|c| c.c_l1), mode)?;
-        let c_rz = Fp3Var::new_variable(cs.ns("c_rz"), || c.map(|c| c.c_rz), mode)?;
+        let c_l1 = Fp3Var::new_variable(r1cs_core::ns!(cs, "c_l1"), || c.map(|c| c.c_l1), mode)?;
+        let c_rz = Fp3Var::new_variable(r1cs_core::ns!(cs, "c_rz"), || c.map(|c| c.c_rz), mode)?;
         Ok(Self { c_l1, c_rz })
     }
 }
 
 impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for AteAdditionCoefficientsVar<P> {
     #[inline]
+    #[tracing::instrument(target = "r1cs")]
     fn to_bytes(&self) -> Result<Vec<UInt8<P::Fp>>, SynthesisError> {
         let mut c_l1 = self.c_l1.to_bytes()?;
         let mut c_rz = self.c_rz.to_bytes()?;
@@ -410,6 +437,7 @@ impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for AteAdditionCoefficientsVar<P> {
         Ok(c_l1)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn to_non_unique_bytes(&self) -> Result<Vec<UInt8<P::Fp>>, SynthesisError> {
         let mut c_l1 = self.c_l1.to_non_unique_bytes()?;
         let mut c_rz = self.c_rz.to_non_unique_bytes()?;

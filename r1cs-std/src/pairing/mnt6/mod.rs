@@ -22,6 +22,7 @@ type Fp6G<P> = Fp6Var<<P as MNT6Parameters>::Fp6Params>;
 pub type GTVar<P> = Fp6G<P>;
 
 impl<P: MNT6Parameters> PairingVar<P> {
+    #[tracing::instrument(target = "r1cs", skip(r))]
     pub(crate) fn doubling_step_for_flipped_miller_loop(
         r: &G2ProjectiveExtendedVar<P>,
     ) -> Result<(G2ProjectiveExtendedVar<P>, AteDoubleCoefficientsVar<P>), SynthesisError> {
@@ -52,6 +53,7 @@ impl<P: MNT6Parameters> PairingVar<P> {
         Ok((r2, coeff))
     }
 
+    #[tracing::instrument(target = "r1cs", skip(r))]
     pub(crate) fn mixed_addition_step_for_flipped_miller_loop(
         x: &Fp3G<P>,
         y: &Fp3G<P>,
@@ -84,6 +86,7 @@ impl<P: MNT6Parameters> PairingVar<P> {
         Ok((r2, coeff))
     }
 
+    #[tracing::instrument(target = "r1cs", skip(p, q))]
     pub fn ate_miller_loop(
         p: &G1PreparedVar<P>,
         q: &G2PreparedVar<P>,
@@ -134,6 +137,7 @@ impl<P: MNT6Parameters> PairingVar<P> {
         Ok(f)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     pub fn final_exponentiation(value: &Fp6G<P>) -> Result<GTVar<P>, SynthesisError> {
         let value_inv = value.inverse()?;
         let value_to_first_chunk = Self::final_exponentiation_first_chunk(value, &value_inv)?;
@@ -141,6 +145,7 @@ impl<P: MNT6Parameters> PairingVar<P> {
         Self::final_exponentiation_last_chunk(&value_to_first_chunk, &value_inv_to_first_chunk)
     }
 
+    #[tracing::instrument(target = "r1cs", skip(elt, elt_inv))]
     fn final_exponentiation_first_chunk(
         elt: &Fp6G<P>,
         elt_inv: &Fp6G<P>,
@@ -157,6 +162,7 @@ impl<P: MNT6Parameters> PairingVar<P> {
         Ok(alpha * &elt_q3_over_elt)
     }
 
+    #[tracing::instrument(target = "r1cs", skip(elt, elt_inv))]
     fn final_exponentiation_last_chunk(
         elt: &Fp6G<P>,
         elt_inv: &Fp6G<P>,
@@ -181,6 +187,7 @@ impl<P: MNT6Parameters> PG<MNT6<P>, P::Fp> for PairingVar<P> {
     type G2PreparedVar = G2PreparedVar<P>;
     type GTVar = GTVar<P>;
 
+    #[tracing::instrument(target = "r1cs")]
     fn miller_loop(
         ps: &[Self::G1PreparedVar],
         qs: &[Self::G2PreparedVar],
@@ -193,14 +200,17 @@ impl<P: MNT6Parameters> PG<MNT6<P>, P::Fp> for PairingVar<P> {
         Ok(result)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn final_exponentiation(r: &Self::GTVar) -> Result<Self::GTVar, SynthesisError> {
         Self::final_exponentiation(r)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn prepare_g1(p: &Self::G1Var) -> Result<Self::G1PreparedVar, SynthesisError> {
         Self::G1PreparedVar::from_group_var(p)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     fn prepare_g2(q: &Self::G2Var) -> Result<Self::G2PreparedVar, SynthesisError> {
         Self::G2PreparedVar::from_group_var(q)
     }
