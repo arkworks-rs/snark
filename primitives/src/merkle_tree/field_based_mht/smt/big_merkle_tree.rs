@@ -31,8 +31,6 @@ pub struct BigMerkleTree<T: FieldBasedMerkleTreeParameters>{
     state: BigMerkleTreeState<T>,
     // the number of leaves
     width: usize,
-    // the height of the tree
-    height: usize,
     // path to the db
     path_db: String,
     // stores the leaves
@@ -52,18 +50,19 @@ impl<T: FieldBasedMerkleTreeParameters> Drop for BigMerkleTree<T> {
 }
 
 impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
-    // Creates a new tree of specified `width`.
+    // Creates a new tree of specified `height`.
     // If `persistent` is specified, then DBs will be kept on disk and the tree state will be saved
     // so that the tree can be restored any moment later. Otherwise, no state will be saved on file
     // and the DBs will be deleted.
     pub fn new(
+        height: usize,
         persistent: bool,
         state_path: Option<String>,
         path_db: String,
         path_cache: String
     ) -> Result<Self, Error> {
-        
-        assert!(check_precomputed_parameters::<T>());
+        let height = height - 1;
+        assert!(check_precomputed_parameters::<T>(height));
         
         let rate = <<T::H  as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
 
@@ -76,8 +75,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         // specified.
         if !persistent { assert!(state_path.is_none()) } else { assert!(state_path.is_some()) }
         
-        let state = BigMerkleTreeState::<T>::get_default_state();
-        let height = T::HEIGHT - 1;
+        let state = BigMerkleTreeState::<T>::get_default_state(height);
         let width = T::MERKLE_ARITY.pow(height as u32);
 
         let path_db = path_db;
@@ -92,7 +90,6 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
             persistent,
             state_path,
             state,
-            height,
             width,
             path_db,
             database,
@@ -111,9 +108,6 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         path_db: String,
         path_cache: String
     ) -> Result<Self, Error> {
-        
-        assert!(check_precomputed_parameters::<T>());
-
         let rate = <<T::H  as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
         assert_eq!(T::MERKLE_ARITY, 2); // For now we support only arity 2
         // Rate may also be smaller than the arity actually, but this assertion
@@ -124,9 +118,8 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
             let state_file = fs::File::open(state_path.clone())?;
             BigMerkleTreeState::<T>::read(state_file)?
         };
-
-        let height = T::HEIGHT - 1;
-        let width = T::MERKLE_ARITY.pow(height as u32);
+        assert!(check_precomputed_parameters::<T>(state.height));
+        let width = T::MERKLE_ARITY.pow(state.height as u32);
 
         let opening_options = Options::default();
 
@@ -143,7 +136,6 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
             state_path: Some(state_path),
             state,
             width,
-            height,
             path_db,
             database,
             path_cache,
@@ -324,6 +316,8 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         // Updates the Merkle tree on the path from the leaf to the root
 
         // check that the index of the leaf to be inserted is less than the width of the Merkle tree
+        println!("idx: {}", coord.idx);
+        println!("width: {}", self.width);
         assert!(coord.idx < self.width, "Leaf index out of bound.");
         // check that the coordinates of the node corresponds to the leaf level
         assert_eq!(coord.height, 0, "Coord of the node does not correspond to leaf level");
@@ -376,11 +370,11 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         // check that the coordinates of the node corresponds to the leaf level
         assert_eq!(leaf_coord.height, 0, "Coord of the node does not correspond to leaf level");
 
-        let mut path = Vec::with_capacity(self.height);
+        let mut path = Vec::with_capacity(self.state.height);
         let mut node_idx = leaf_coord.idx;
         let mut height = 0;
 
-        while height != self.height {
+        while height != self.state.height {
 
             // Estabilish if sibling is a left or right child
             let (sibling_idx, direction) = if node_idx % T::MERKLE_ARITY == 0 {
@@ -493,7 +487,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         }
 
         // Process level >= 2
-        while height != self.height {
+        while height != self.state.height {
 
             let left_child_height = height;
             let right_child_height = height;
@@ -568,6 +562,8 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
     pub fn get_root(&self) -> T::Data {
         self.state.root.clone()
     }
+
+    pub fn height(&self) -> usize { self.state.height + 1 }
 
     fn remove_subtree_from_cache(&mut self, coord: Coord) {
 
@@ -739,9 +735,9 @@ mod test {
     impl FieldBasedMerkleTreeParameters for MNT4753FieldBasedMerkleTreeParams {
         type Data = MNT4753Fr;
         type H = MNT4PoseidonHash;
-        const HEIGHT: usize = 6;
         const MERKLE_ARITY: usize = 2;
-        const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> = Some(MNT4753_MHT_POSEIDON_PARAMETERS);
+        const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> =
+            Some(MNT4753_MHT_POSEIDON_PARAMETERS);
     }
 
     type MNT4753FieldBasedMerkleTree = NaiveMerkleTree<MNT4753FieldBasedMerkleTreeParams>;
@@ -752,14 +748,15 @@ mod test {
     impl FieldBasedMerkleTreeParameters for MNT6753FieldBasedMerkleTreeParams {
         type Data = MNT6753Fr;
         type H = MNT6PoseidonHash;
-        const HEIGHT: usize = 6;
         const MERKLE_ARITY: usize = 2;
-        const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> = Some(MNT6753_MHT_POSEIDON_PARAMETERS);
+        const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> =
+            Some(MNT6753_MHT_POSEIDON_PARAMETERS);
     }
 
     type MNT6753FieldBasedMerkleTree = NaiveMerkleTree<MNT6753FieldBasedMerkleTreeParams>;
     type MNT6PoseidonSMT = BigMerkleTree<MNT6753FieldBasedMerkleTreeParams>;
 
+    const TEST_HEIGHT: usize = 6;
 
     #[test]
     fn compare_merkle_trees_mnt4_1() {
@@ -773,6 +770,7 @@ mod test {
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 16 }, action: ActionLeaf::Remove, hash: Some(MNT4753Fr::from_str("3").unwrap()) });
 
         let mut smt = MNT4PoseidonSMT::new(
+            TEST_HEIGHT,
             false,
             None,
             String::from("./db_leaves_compare_merkle_trees_mnt4_1"),
@@ -798,7 +796,8 @@ mod test {
             let f = MNT4753Fr::zero();
             leaves.push(f);
         }
-        let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
+        let mut tree = MNT4753FieldBasedMerkleTree::new(TEST_HEIGHT);
+        tree.append(&leaves).unwrap();
 
         assert_eq!(tree.root(), smt.state.root, "Outputs of the Merkle trees for MNT4 do not match.");
     }
@@ -813,9 +812,11 @@ mod test {
             let f = MNT4753Fr::rand(&mut rng);
             leaves.push(f);
         }
-        let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
+        let mut tree = MNT4753FieldBasedMerkleTree::new(TEST_HEIGHT);
+        tree.append(&leaves).unwrap();
 
         let mut smt = MNT4PoseidonSMT::new(
+            TEST_HEIGHT,
             false,
             None,
             String::from("./db_leaves_compare_merkle_trees_mnt4_2"),
@@ -852,9 +853,12 @@ mod test {
             let f = MNT4753Fr::zero();
             leaves.push(f);
         }
-        let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
+
+        let mut tree = MNT4753FieldBasedMerkleTree::new(TEST_HEIGHT);
+        tree.append(&leaves).unwrap();
 
         let mut smt = MNT4PoseidonSMT::new(
+            TEST_HEIGHT,
             false,
             None,
             String::from("./db_leaves_compare_merkle_trees_mnt4_3"),
@@ -882,6 +886,7 @@ mod test {
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 16 }, action: ActionLeaf::Remove, hash: Some(MNT6753Fr::from_str("3").unwrap()) });
 
         let mut smt = MNT6PoseidonSMT::new(
+            TEST_HEIGHT,
             false,
             None,
             String::from("./db_leaves_compare_merkle_trees_mnt6_1"),
@@ -907,9 +912,10 @@ mod test {
             let f = MNT6753Fr::zero();
             leaves.push(f);
         }
-        let tree = MNT6753FieldBasedMerkleTree::new(&leaves).unwrap();
+        let mut tree = MNT6753FieldBasedMerkleTree::new(TEST_HEIGHT);
+        tree.append(&leaves).unwrap();
 
-        assert_eq!(tree.root(), smt.state.root, "Outputs of the Merkle trees for MNT4 do not match.");
+        assert_eq!(tree.root(), smt.state.root, "Outputs of the Merkle trees for MNT6 do not match.");
     }
 
     #[test]
@@ -922,9 +928,12 @@ mod test {
             let f = MNT6753Fr::rand(&mut rng);
             leaves.push(f);
         }
-        let tree = MNT6753FieldBasedMerkleTree::new(&leaves).unwrap();
+
+        let mut tree = MNT6753FieldBasedMerkleTree::new(TEST_HEIGHT);
+        tree.append(&leaves).unwrap();
 
         let mut smt = MNT6PoseidonSMT::new(
+            TEST_HEIGHT,
             false,
             None,
             String::from("./db_leaves_compare_merkle_trees_mnt6_2"),
@@ -939,7 +948,7 @@ mod test {
             );
         }
 
-        assert_eq!(tree.root(), smt.state.root, "Outputs of the Merkle trees for MNT4 do not match.");
+        assert_eq!(tree.root(), smt.state.root, "Outputs of the Merkle trees for MNT6 do not match.");
     }
 
     #[test]
@@ -961,21 +970,25 @@ mod test {
             let f = MNT6753Fr::zero();
             leaves.push(f);
         }
-        let tree = MNT6753FieldBasedMerkleTree::new(&leaves).unwrap();
+        let mut tree = MNT6753FieldBasedMerkleTree::new(TEST_HEIGHT);
+        tree.append(&leaves).unwrap();
 
         let mut smt = MNT6PoseidonSMT::new(
+            TEST_HEIGHT,
             false,
             None,
             String::from("./db_leaves_compare_merkle_trees_mnt6_3"),
             String::from("./db_cache_compare_merkle_trees_mnt6_3")).unwrap();
+
         smt.insert_leaf(Coord{height:0, idx:0}, MNT6753Fr::from_str("1").unwrap());
         smt.insert_leaf(Coord{height:0, idx:9}, MNT6753Fr::from_str("2").unwrap());
         smt.insert_leaf(Coord{height:0, idx:16}, MNT6753Fr::from_str("10").unwrap());
         smt.insert_leaf(Coord{height:0, idx:29}, MNT6753Fr::from_str("3").unwrap());
         smt.remove_leaf(Coord{height:0, idx:16});
+
         println!("{:?}", smt.state.root);
 
-        assert_eq!(tree.root(), smt.state.root, "Outputs of the Merkle trees for MNT4 do not match.");
+        assert_eq!(tree.root(), smt.state.root, "Outputs of the Merkle trees for MNT6 do not match.");
     }
 
     #[test]
@@ -1000,6 +1013,7 @@ mod test {
         // create a persistent smt in a separate scope
         {
             let mut smt = MNT4PoseidonSMT::new(
+                TEST_HEIGHT,
                 true,
                 Some(String::from("./persistency_test_info")),
                 String::from("./db_leaves_persistency_test_info"),
@@ -1051,6 +1065,7 @@ mod test {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         let mut smt = MNT4PoseidonSMT::new(
+            TEST_HEIGHT,
             false,
             None,
             String::from("./db_leaves_merkle_tree_path_test_mnt4"),
@@ -1071,7 +1086,8 @@ mod test {
         }
 
         // Compute the root of the tree, and do the same for a NaiveMHT, used here as reference
-        let naive_tree = MNT4753FieldBasedMerkleTree::new(leaves.as_slice()).unwrap();
+        let mut naive_tree = MNT4753FieldBasedMerkleTree::new(TEST_HEIGHT);
+        naive_tree.append(&leaves).unwrap();
         let root = smt.get_root();
         let naive_root = naive_tree.root();
         assert_eq!(root, naive_root);
@@ -1080,11 +1096,11 @@ mod test {
 
             // Create and verify a FieldBasedMHTPath
             let path = smt.get_merkle_path(Coord{height: 0, idx: i});
-            assert!(path.verify( &leaves[i], &root).unwrap());
+            assert!(path.verify( smt.height(), &leaves[i], &root).unwrap());
 
             // Create and verify a Naive path
             let naive_path = naive_tree.generate_proof(i, &leaves[i]).unwrap();
-            assert!(naive_path.verify(&leaves[i], &naive_root ).unwrap());
+            assert!(naive_path.verify(naive_tree.height(), &leaves[i], &naive_root).unwrap());
 
             // Assert the two paths are equal
             assert_eq!(path, naive_path);
@@ -1099,6 +1115,7 @@ mod test {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         let mut smt = MNT6PoseidonSMT::new(
+            TEST_HEIGHT,
             false,
             None,
             String::from("./db_leaves_merkle_tree_path_test_mnt6"),
@@ -1119,7 +1136,8 @@ mod test {
         }
 
         // Compute the root of the tree, and do the same for a NaiveMHT, used here as reference
-        let naive_tree = MNT6753FieldBasedMerkleTree::new(leaves.as_slice()).unwrap();
+        let mut naive_tree = MNT6753FieldBasedMerkleTree::new(TEST_HEIGHT);
+        naive_tree.append(&leaves).unwrap();
         let root = smt.get_root();
         let naive_root = naive_tree.root();
         assert_eq!(root, naive_root);
@@ -1128,11 +1146,11 @@ mod test {
 
             // Create and verify a FieldBasedMHTPath
             let path = smt.get_merkle_path(Coord{height: 0, idx: i});
-            assert!(path.verify( &leaves[i], &root).unwrap());
+            assert!(path.verify( smt.height(), &leaves[i], &root).unwrap());
 
             // Create and verify a Naive path
             let naive_path = naive_tree.generate_proof(i, &leaves[i]).unwrap();
-            assert!(naive_path.verify(&leaves[i], &naive_root ).unwrap());
+            assert!(naive_path.verify(naive_tree.height(), &leaves[i], &naive_root ).unwrap());
 
             // Assert the two paths are equal
             assert_eq!(path, naive_path);

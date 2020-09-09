@@ -30,8 +30,6 @@ pub struct LazyBigMerkleTree<T: BatchFieldBasedMerkleTreeParameters> {
     state: BigMerkleTreeState<T>,
     // the number of leaves
     width: usize,
-    // the height of the tree
-    height: usize,
     // path to the db
     path_db: String,
     // stores the leaves
@@ -51,18 +49,19 @@ impl<T: BatchFieldBasedMerkleTreeParameters> Drop for LazyBigMerkleTree<T> {
 }
 
 impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
-    // Creates a new tree of specified `width`.
+    // Creates a new tree of specified `height`.
     // If `persistent` is specified, then DBs will be kept on disk and the tree state will be saved
     // so that the tree can be restored any moment later. Otherwise, no state will be saved on file
     // and the DBs will be deleted.
     pub fn new(
+        height: usize,
         persistent: bool,
         state_path: Option<String>,
         path_db: String,
         path_cache: String
     ) -> Result<Self, Error> {
-
-        assert!(check_precomputed_parameters::<T>());
+        let height = height - 1;
+        assert!(check_precomputed_parameters::<T>(height));
 
         let rate = <<T::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
         assert_eq!(T::MERKLE_ARITY, 2); // For now we support only arity 2
@@ -73,8 +72,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         // If the tree must be persistent, than a path to which save the tree state must be
         // specified.
         if !persistent { assert!(state_path.is_none()) } else { assert!(state_path.is_some()) }
-        let state = BigMerkleTreeState::<T>::get_default_state();
-        let height = T::HEIGHT - 1;
+        let state = BigMerkleTreeState::<T>::get_default_state(height);
         let width = T::MERKLE_ARITY.pow(height as u32);
         let path_db = path_db;
         let database = DB::open_default(path_db.clone())
@@ -88,7 +86,6 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
             state_path,
             state,
             width,
-            height,
             path_db,
             database,
             path_cache,
@@ -106,9 +103,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         path_db: String,
         path_cache: String
     ) -> Result<Self, Error> {
-        
-        assert!(check_precomputed_parameters::<T>());
-        
+
         let rate = <<T::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
         assert_eq!(T::MERKLE_ARITY, 2); // For now we support only arity 2
         // Rate may also be smaller than the arity actually, but this assertion
@@ -120,8 +115,8 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
             let state_file = fs::File::open(state_path.clone())?;
             BigMerkleTreeState::<T>::read(state_file)?
         };
-        let height = T::HEIGHT - 1;
-        let width = T::MERKLE_ARITY.pow(height as u32);
+        assert!(check_precomputed_parameters::<T>(state.height));
+        let width = T::MERKLE_ARITY.pow(state.height as u32);
         let opening_options = Options::default();
 
         let path_db = path_db;
@@ -137,7 +132,6 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
             state_path: Some(state_path),
             state,
             width,
-            height,
             path_db,
             database,
             path_cache,
@@ -402,6 +396,8 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         self.state.root.clone()
     }
 
+    pub fn height(&self) -> usize { self.state.height + 1}
+
     fn remove_node_from_cache(&mut self, coord: Coord) {
         self.remove_from_cache(coord);
     }
@@ -461,7 +457,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
 
         // got to the upper levels until the root
         let mut height = 1;
-        while height < self.height {
+        while height < self.state.height {
 
             visited_nodes.clear();
             let mut higher_level_nodes:Vec<Coord> = Vec::new();
@@ -550,7 +546,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
 
         // Compute hashes in parallel - level > 1
         let mut height = 2;
-        while height <= self.height {
+        while height <= self.state.height {
             let mut input_vec = Vec::new();
             let mut both_children_present = Vec::new();
             for j in 0..nodes_to_process_in_parallel[height-1].len() {
@@ -609,7 +605,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
             height += 1;
         }
 
-        self.state.root = *self.state.cache_path.get(&Coord{height:self.height,idx:0}).unwrap();
+        self.state.root = *self.state.cache_path.get(&Coord{height:self.state.height,idx:0}).unwrap();
         self.state.root.clone()
     }
 
@@ -622,10 +618,10 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         // check that the coordinates of the node corresponds to the leaf level
         assert_eq!(leaf_coord.height, 0, "Coord of the node does not correspond to leaf level");
 
-        let mut path = Vec::with_capacity(self.height);
+        let mut path = Vec::with_capacity(self.state.height);
         let mut node_idx = leaf_coord.idx;
         let mut height = 0;
-        while height != self.height {
+        while height != self.state.height {
 
             // Estabilish if sibling is a left or right child
             let (sibling_idx, direction) = if node_idx % T::MERKLE_ARITY == 0 {
@@ -705,7 +701,6 @@ mod test {
     impl FieldBasedMerkleTreeParameters for MNT4753FieldBasedMerkleTreeParams {
         type Data = MNT4753Fr;
         type H = MNT4PoseidonHash;
-        const HEIGHT: usize = 6;
         const MERKLE_ARITY: usize = 2;
         const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> = Some(MNT4753_MHT_POSEIDON_PARAMETERS);
     }
@@ -721,7 +716,6 @@ mod test {
     impl FieldBasedMerkleTreeParameters for MNT6753FieldBasedMerkleTreeParams {
         type Data = MNT6753Fr;
         type H = MNT6PoseidonHash;
-        const HEIGHT: usize = 6;
         const MERKLE_ARITY: usize = 2;
         const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> = Some(MNT6753_MHT_POSEIDON_PARAMETERS);
     }
@@ -731,6 +725,8 @@ mod test {
     type MNT6753FieldBasedMerkleTree = NaiveMerkleTree<MNT6753FieldBasedMerkleTreeParams>;
     type MNT6PoseidonSMT = BigMerkleTree<MNT6753FieldBasedMerkleTreeParams>;
     type MNT6PoseidonSMTLazy = LazyBigMerkleTree<MNT6753FieldBasedMerkleTreeParams>;
+
+    const TEST_HEIGHT_1: usize = 6;
 
     #[test]
     fn process_leaves_mnt4() {
@@ -744,6 +740,7 @@ mod test {
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 16 }, action: ActionLeaf::Remove, hash: Some(MNT4753Fr::from_str("3").unwrap()) });
 
         let mut smt = MNT4PoseidonSMTLazy::new(
+            TEST_HEIGHT_1,
             false,
             None,
             String::from("./db_leaves_mnt4"),
@@ -769,7 +766,8 @@ mod test {
             let f = MNT4753Fr::zero();
             leaves.push(f);
         }
-        let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
+        let mut tree = MNT4753FieldBasedMerkleTree::new(TEST_HEIGHT_1);
+        tree.append(&leaves).unwrap();
 
         assert_eq!(tree.root(), smt.state.root, "Roots are not equal");
 
@@ -787,6 +785,7 @@ mod test {
         leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 16 }, action: ActionLeaf::Remove, hash: Some(MNT6753Fr::from_str("3").unwrap()) });
 
         let mut smt = MNT6PoseidonSMTLazy::new(
+            TEST_HEIGHT_1,
             false,
             None,
             String::from("./db_leaves_mnt6"),
@@ -811,7 +810,8 @@ mod test {
             let f = MNT6753Fr::zero();
             leaves.push(f);
         }
-        let tree = MNT6753FieldBasedMerkleTree::new(&leaves).unwrap();
+        let mut tree = MNT6753FieldBasedMerkleTree::new(TEST_HEIGHT_1);
+        tree.append(&leaves).unwrap();
 
         assert_eq!(tree.root(), smt.state.root, "Roots are not equal");
     }
@@ -838,6 +838,7 @@ mod test {
         // create a persistent smt in a separate scope
         {
             let mut smt = MNT4PoseidonSMTLazy::new(
+                TEST_HEIGHT_1,
                 true,
                 Some(String::from("./persistency_test_info_lazy")),
                 String::from("./db_leaves_persistency_test_info_lazy"),
@@ -898,6 +899,7 @@ mod test {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         let mut smt = MNT4PoseidonSMTLazy::new(
+            TEST_HEIGHT_1,
             false,
             None,
             String::from("./db_leaves_merkle_tree_path_test_mnt4_lazy"),
@@ -918,7 +920,8 @@ mod test {
         }
 
         // Compute the root of the tree, and do the same for a NaiveMHT, used here as reference
-        let naive_tree = MNT4753FieldBasedMerkleTree::new(leaves.as_slice()).unwrap();
+        let mut naive_tree = MNT4753FieldBasedMerkleTree::new(TEST_HEIGHT_1);
+        naive_tree.append(&leaves).unwrap();
         let root = smt.process_leaves(leaves_for_lazy_smt);
         let naive_root = naive_tree.root();
         assert_eq!(root, naive_root);
@@ -927,11 +930,11 @@ mod test {
 
             // Create and verify a FieldBasedMHTPath
             let path = smt.get_merkle_path(Coord{height: 0, idx: i});
-            assert!(path.verify(&leaves[i], &root).unwrap());
+            assert!(path.verify(smt.height(), &leaves[i], &root).unwrap());
 
             // Create and verify a Naive path
             let naive_path = naive_tree.generate_proof(i, &leaves[i]).unwrap();
-            assert!(naive_path.verify(&leaves[i], &naive_root ).unwrap());
+            assert!(naive_path.verify(naive_tree.height(), &leaves[i], &naive_root ).unwrap());
 
             // Assert the two paths are equal
             assert_eq!(path, naive_path);
@@ -947,6 +950,7 @@ mod test {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         let mut smt = MNT6PoseidonSMTLazy::new(
+            TEST_HEIGHT_1,
             false,
             None,
             String::from("./db_leaves_merkle_tree_path_test_mnt6_lazy"),
@@ -967,7 +971,8 @@ mod test {
         }
 
         // Compute the root of the tree, and do the same for a NaiveMHT, used here as reference
-        let naive_tree = MNT6753FieldBasedMerkleTree::new(leaves.as_slice()).unwrap();
+        let mut naive_tree = MNT6753FieldBasedMerkleTree::new(TEST_HEIGHT_1);
+        naive_tree.append(&leaves).unwrap();
         let root = smt.process_leaves(leaves_for_lazy_smt);
         let naive_root = naive_tree.root();
         assert_eq!(root, naive_root);
@@ -976,46 +981,18 @@ mod test {
 
             // Create and verify a FieldBasedMHTPath
             let path = smt.get_merkle_path(Coord{height: 0, idx: i});
-            assert!(path.verify(&leaves[i], &root).unwrap());
+            assert!(path.verify(smt.height(), &leaves[i], &root).unwrap());
 
             // Create and verify a Naive path
             let naive_path = naive_tree.generate_proof(i, &leaves[i]).unwrap();
-            assert!(naive_path.verify(&leaves[i], &naive_root ).unwrap());
+            assert!(naive_path.verify(naive_tree.height(), &leaves[i], &naive_root ).unwrap());
 
             // Assert the two paths are equal
             assert_eq!(path, naive_path);
         }
     }
 
-    #[derive(Clone, Debug)]
-    struct MNT4753FieldBasedMerkleTreeParamsComp;
-    impl FieldBasedMerkleTreeParameters for MNT4753FieldBasedMerkleTreeParamsComp {
-        type Data = MNT4753Fr;
-        type H = MNT4PoseidonHash;
-        const HEIGHT: usize = 24;
-        const MERKLE_ARITY: usize = 2;
-        const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> = Some(MNT4753_MHT_POSEIDON_PARAMETERS);
-    }
-    impl BatchFieldBasedMerkleTreeParameters for MNT4753FieldBasedMerkleTreeParamsComp {
-        type BH = MNT4BatchPoseidonHash;
-    }
-    type MNT4PoseidonSMTComp = BigMerkleTree<MNT4753FieldBasedMerkleTreeParamsComp>;
-    type MNT4PoseidonSMTLazyComp = LazyBigMerkleTree<MNT4753FieldBasedMerkleTreeParamsComp>;
-
-    #[derive(Clone, Debug)]
-    struct MNT6753FieldBasedMerkleTreeParamsComp;
-    impl FieldBasedMerkleTreeParameters for MNT6753FieldBasedMerkleTreeParamsComp {
-        type Data = MNT6753Fr;
-        type H = MNT6PoseidonHash;
-        const HEIGHT: usize = 24;
-        const MERKLE_ARITY: usize = 2;
-        const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> = Some(MNT6753_MHT_POSEIDON_PARAMETERS);
-    }
-    impl BatchFieldBasedMerkleTreeParameters for MNT6753FieldBasedMerkleTreeParamsComp {
-        type BH = MNT6BatchPoseidonHash;
-    }
-    type MNT6PoseidonSMTComp = BigMerkleTree<MNT6753FieldBasedMerkleTreeParamsComp>;
-    type MNT6PoseidonSMTLazyComp = LazyBigMerkleTree<MNT6753FieldBasedMerkleTreeParamsComp>;
+    const TEST_HEIGHT_2: usize = 24;
 
     #[test]
     fn process_leaves_mnt4_comp() {
@@ -1043,7 +1020,8 @@ mod test {
         let root3;
         let root4;
         {
-            let mut smt1 = MNT4PoseidonSMTComp::new(
+            let mut smt1 = MNT4PoseidonSMT::new(
+                TEST_HEIGHT_2,
                 false,
                 None,
                 String::from("./db_leaves_mnt4_comp_1"),
@@ -1072,7 +1050,8 @@ mod test {
         }
 
         {
-            let mut smt2 = MNT4PoseidonSMTLazyComp::new(
+            let mut smt2 = MNT4PoseidonSMTLazy::new(
+                TEST_HEIGHT_2,
                 false,
                 None,
                 String::from("./db_leaves_mnt4_comp_2"),
@@ -1131,7 +1110,8 @@ mod test {
         let root3;
         let root4;
         {
-            let mut smt1 = MNT6PoseidonSMTComp::new(
+            let mut smt1 = MNT6PoseidonSMT::new(
+                TEST_HEIGHT_2,
                 false,
                 None,
                 String::from("./db_leaves_mnt6_comp_1"),
@@ -1160,7 +1140,8 @@ mod test {
         }
 
         {
-            let mut smt2 = MNT6PoseidonSMTLazyComp::new(
+            let mut smt2 = MNT6PoseidonSMTLazy::new(
+                TEST_HEIGHT_2,
                 false,
                 None,
                 String::from("./db_leaves_mnt6_comp_2"),

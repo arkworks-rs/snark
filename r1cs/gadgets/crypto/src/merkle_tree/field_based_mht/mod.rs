@@ -49,8 +49,6 @@ impl<P, HGadget, ConstraintF> FieldBasedMerkleTreePathGadget<P, HGadget, Constra
         should_enforce: &Boolean,
     ) -> Result<(), SynthesisError> {
 
-        debug_assert!(self.path.len() == P::HEIGHT - 1);
-
         let mut previous_hash = (*leaf).clone();
 
         for (i, &(ref sibling_hash, ref direction)) in self.path.iter().enumerate() {
@@ -106,8 +104,9 @@ impl<P, HGadget, ConstraintF> FieldBasedMerkleTreeGadget<P, HGadget, ConstraintF
         cs: CS,
         leaves: &[HGadget::DataGadget],
         root: &HGadget::DataGadget,
+        height: usize,
     ) -> Result<(), SynthesisError> {
-        Self::conditionally_check_leaves(cs, leaves, root, &Boolean::Constant(true))
+        Self::conditionally_check_leaves(cs, leaves, root, &Boolean::Constant(true), height)
     }
 
     /// Starting from all the leaves in the Merkle Tree, reconstructs and enforces
@@ -119,12 +118,13 @@ impl<P, HGadget, ConstraintF> FieldBasedMerkleTreeGadget<P, HGadget, ConstraintF
         leaves: &[HGadget::DataGadget],
         root: &HGadget::DataGadget,
         should_enforce: &Boolean,
+        height: usize,
     ) -> Result<(), SynthesisError> {
-        debug_assert!(leaves.len() == 2_usize.pow((P::HEIGHT - 1) as u32));
+        debug_assert!(leaves.len() == 2_usize.pow((height - 1) as u32));
 
         let mut prev_level_nodes = leaves.to_vec();
         //Iterate over all levels except the root
-        for level in 0..P::HEIGHT-1 {
+        for level in 0..height - 1 {
             let mut curr_level_nodes = vec![];
 
             //Iterate over all nodes in a level. We assume their number to be even (e.g a power of two)
@@ -249,7 +249,6 @@ mod test {
     impl FieldBasedMerkleTreeParameters for MNT4753FieldBasedMerkleTreeParams {
         type Data = Fr;
         type H = MNT4PoseidonHash;
-        const HEIGHT: usize = 6;
         const MERKLE_ARITY: usize = 2;
         const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> = None;
     }
@@ -258,9 +257,12 @@ mod test {
 
     type HG = MNT4PoseidonHashGadget;
 
+    const TEST_HEIGHT: usize = 6;
+
     fn check_merkle_paths(leaves: &[Fr], use_bad_root: bool) -> bool {
 
-        let tree = MNT4753FieldBasedMerkleTree::new(leaves).unwrap();
+        let mut tree = MNT4753FieldBasedMerkleTree::new(TEST_HEIGHT);
+        tree.append(leaves).unwrap();
         let root = tree.root();
         let mut satisfied = true;
 
@@ -268,7 +270,7 @@ mod test {
         for (i, leaf) in leaves.iter().enumerate() {
             let mut cs = TestConstraintSystem::<Fr>::new();
             let proof = tree.generate_proof(i, leaf).unwrap();
-            assert!(proof.verify(&leaf, &root).unwrap());
+            assert!(proof.verify(TEST_HEIGHT, &leaf, &root).unwrap());
 
             // Allocate Merkle Tree Root
             let root = FqGadget::alloc(
@@ -314,7 +316,8 @@ mod test {
 
     fn check_leaves(leaves: &[Fr], use_bad_root: bool) -> bool {
 
-        let tree = MNT4753FieldBasedMerkleTree::new(leaves).unwrap();
+        let mut tree = MNT4753FieldBasedMerkleTree::new(TEST_HEIGHT);
+        tree.append(leaves).unwrap();
         let root = tree.root();
 
         //Merkle Tree Gadget test
@@ -344,6 +347,7 @@ mod test {
             &mut cs.ns(|| "check all leaves belong to MT"),
             &leaves_g,
             &root,
+            TEST_HEIGHT
         ).unwrap();
 
         if !cs.is_satisfied() {

@@ -70,6 +70,8 @@ impl<F: Field> OperationLeaf<F> {
 
 #[derive(Debug)]
 pub(crate) struct BigMerkleTreeState<T: FieldBasedMerkleTreeParameters>{
+    // the height of this tree
+    height: usize,
     // stores the nodes of the path
     cache_path: HashMap<Coord, T::Data>,
     // indicates which nodes are present the Merkle tree
@@ -81,11 +83,12 @@ pub(crate) struct BigMerkleTreeState<T: FieldBasedMerkleTreeParameters>{
 }
 
 impl<T: FieldBasedMerkleTreeParameters> BigMerkleTreeState<T> {
-    fn get_default_state() -> Self {
+    fn get_default_state(height: usize) -> Self {
         Self{
+            height,
             cache_path: HashMap::new(),
             present_node: HashSet::new(),
-            root: T::EMPTY_HASH_CST.unwrap().nodes[T::HEIGHT],
+            root: T::EMPTY_HASH_CST.unwrap().nodes[height],
             _parameters: PhantomData,
         }
     }
@@ -93,6 +96,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTreeState<T> {
 
 impl<T: FieldBasedMerkleTreeParameters> ToBytes for BigMerkleTreeState<T> {
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
+        (self.height as u8).write(&mut writer)?;
         (self.cache_path.len() as u8).write(&mut writer)?;
         for (&coord, &fe) in self.cache_path.iter() {
             coord.write(&mut writer)?;
@@ -110,6 +114,7 @@ impl<T: FieldBasedMerkleTreeParameters> ToBytes for BigMerkleTreeState<T> {
 
 impl<T: FieldBasedMerkleTreeParameters> FromBytes for BigMerkleTreeState<T> {
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
+        let height = u8::read(&mut reader)? as usize;
         let cache_path_len = u8::read(&mut reader)? as usize;
         let mut cache_path = HashMap::new();
         for _ in 0..cache_path_len {
@@ -127,7 +132,7 @@ impl<T: FieldBasedMerkleTreeParameters> FromBytes for BigMerkleTreeState<T> {
 
         let root = T::Data::read(&mut reader)?;
 
-        Ok(Self{cache_path, present_node, root, _parameters: PhantomData})
+        Ok(Self{height, cache_path, present_node, root, _parameters: PhantomData})
     }
 }
 

@@ -22,9 +22,6 @@ use crate::{FieldBasedHash, BatchFieldBasedHash, Error, FieldBasedHashParameters
 pub trait FieldBasedMerkleTreeParameters: 'static + Clone {
     type Data: Field; /// Actually unnecessary, but simplifies the overall design
     type H: FieldBasedHash<Data = Self::Data>;
-
-    /// The height of the Merkle Tree
-    const HEIGHT: usize;
     /// The arity of the Merkle Tree
     const MERKLE_ARITY: usize;
     /// The pre-computed hashes of the empty nodes for the different levels of the Merkle Tree
@@ -36,7 +33,6 @@ pub struct FieldBasedMerkleTreePrecomputedEmptyConstants<'a, H: FieldBasedHash> 
     pub nodes: &'a [H::Data],
     pub merkle_arity: usize,
     pub max_height: usize,
-    //_hash: PhantomData<H>,
 }
 
 /// For optimized Merkle Tree implementations, it provides the possibility to specify
@@ -48,11 +44,11 @@ pub trait BatchFieldBasedMerkleTreeParameters: FieldBasedMerkleTreeParameters {
     >;
 }
 
-pub(crate) fn check_precomputed_parameters<T: FieldBasedMerkleTreeParameters>() -> bool
+pub(crate) fn check_precomputed_parameters<T: FieldBasedMerkleTreeParameters>(tree_height: usize) -> bool
 {
     match T::EMPTY_HASH_CST {
         Some(supported_params) => {
-            T::HEIGHT <= supported_params.max_height &&
+            tree_height <= supported_params.max_height &&
                 T::MERKLE_ARITY == supported_params.merkle_arity &&
                 T::MERKLE_ARITY == <<T::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R
         }
@@ -72,9 +68,8 @@ pub trait FieldBasedMerkleTree: Clone {
         Parameters = Self::Parameters
     >;
 
-    /// Initialize this tree. The user must pass the maximum number of leaves the tree must
-    /// support.
-    fn init() -> Self;
+    /// Initialize this tree. The user must pass the desired height for the tree.
+    fn init(height: usize) -> Self;
 
     /// Resets the internal state of the tree, bringing it back to the initial one.
     fn reset(&mut self) -> &mut Self;
@@ -100,6 +95,9 @@ pub trait FieldBasedMerkleTree: Clone {
     /// Given an `index` returns the MerklePath of the leaf at that index up until the root of the
     /// Merkle Tree. Returns None if the tree has not been finalized before calling this function.
     fn get_merkle_path(&self, leaf_index: usize) -> Option<Self::MerklePath>;
+
+    /// Returns the height of this Merkle Tree.
+    fn height(&self) -> usize;
 }
 
 /// Definition of a Merkle Path for a Merkle Tree whose leaves and nodes are field elements. The
@@ -114,9 +112,10 @@ pub trait FieldBasedMerkleTreePath {
 
     fn new(path: Self::Path) -> Self;
 
-    /// Verify the Merkle Path for `leaf` given the `root` of the Merkle Tree.
+    /// Verify the Merkle Path for `leaf` given the `root` of the Merkle Tree and its `height`.
     fn verify(
         &self,
+        height: usize,
         leaf: &<Self::H as FieldBasedHash>::Data,
         root: &<Self::H as FieldBasedHash>::Data
     ) -> Result<bool, Error>;
@@ -156,6 +155,7 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedMerkleTreePath for FieldBasedM
 
     fn verify(
         &self,
+        height: usize,
         leaf: &<Self::H as FieldBasedHash>::Data,
         root: &<Self::H as FieldBasedHash>::Data
     ) -> Result<bool, Error> {
@@ -164,8 +164,8 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedMerkleTreePath for FieldBasedM
         // MerkleTree that creates this instance, but let's do it again.
         assert_eq!(<<Self::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R, T::MERKLE_ARITY);
 
-        if self.path.len() != T::HEIGHT - 1 {
-            Err(MerkleTreeError::IncorrectPathLength(self.path.len(), T::HEIGHT - 1))?
+        if self.path.len() != height - 1 {
+            Err(MerkleTreeError::IncorrectPathLength(self.path.len(), height - 1))?
         }
 
         let mut digest = <Self::H as FieldBasedHash>::init(None);
@@ -222,6 +222,7 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedMerkleTreePath for FieldBasedB
 
     fn verify(
         &self,
+        height: usize,
         leaf: &<Self::H as FieldBasedHash>::Data,
         root: &<Self::H as FieldBasedHash>::Data
     ) -> Result<bool, Error> {
@@ -229,7 +230,7 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedMerkleTreePath for FieldBasedB
         for &(node, direction) in &self.path {
             v.push((vec![node], if !direction {0} else {1}));
         }
-        FieldBasedMHTPath::<T>::new(v).verify(leaf, root)
+        FieldBasedMHTPath::<T>::new(v).verify(height, leaf, root)
     }
 
     fn get_raw_path(&self) -> Self::Path {

@@ -9,6 +9,7 @@ use crate::Error;
 /// Leaves passed when creating a MerkleTree/MerklePath proof won't be
 /// hashed, it's responsibility of the caller to do it, if desired.
 pub struct NaiveMerkleTree<P: FieldBasedMerkleTreeParameters> {
+    height:       usize,
     tree:         Vec<<P::H as FieldBasedHash>::Data>,
     padding_tree: Vec<(
         <P::H as FieldBasedHash>::Data,
@@ -18,26 +19,27 @@ pub struct NaiveMerkleTree<P: FieldBasedMerkleTreeParameters> {
 }
 
 impl<P: FieldBasedMerkleTreeParameters> NaiveMerkleTree<P> {
-    pub const HEIGHT: u8 = P::HEIGHT as u8;
-
-    pub fn blank() -> Self {
+    
+    pub fn new(height: usize) -> Self {
         NaiveMerkleTree {
+            height,
             tree: Vec::new(),
             padding_tree: Vec::new(),
             root: None,
         }
-    }
+    } 
 
-    pub fn new(
+    pub fn append(
+        &mut self,
         leaves: &[<P::H as FieldBasedHash>::Data],
-    ) -> Result<Self, Error>
+    ) -> Result<(), Error>
     {
         let new_time = start_timer!(|| "MerkleTree::New");
 
         let last_level_size = leaves.len().next_power_of_two();
         let tree_size = 2 * last_level_size - 1;
         let tree_height = tree_height(tree_size);
-        assert!(tree_height as u8 <= Self::HEIGHT);
+        assert!(tree_height <= self.height);
 
         // Initialize the merkle tree.
         let mut tree = Vec::with_capacity(tree_size);
@@ -82,7 +84,7 @@ impl<P: FieldBasedMerkleTreeParameters> NaiveMerkleTree<P> {
         let mut cur_height = tree_height;
         let mut padding_tree = Vec::new();
         let mut cur_hash = tree[0].clone();
-        while cur_height < Self::HEIGHT as usize {
+        while cur_height < self.height as usize {
             cur_hash = hash_inner_node::<P::H>(cur_hash, empty_hash)?;
             padding_tree.push((cur_hash.clone(), empty_hash.clone()));
             cur_height += 1;
@@ -92,11 +94,14 @@ impl<P: FieldBasedMerkleTreeParameters> NaiveMerkleTree<P> {
 
         end_timer!(new_time);
 
-        Ok(NaiveMerkleTree {
+        *self = NaiveMerkleTree {
+            height: self.height,
             tree,
             padding_tree,
             root: Some(root_hash),
-        })
+        };
+
+        Ok(())
     }
 
     #[inline]
@@ -109,6 +114,9 @@ impl<P: FieldBasedMerkleTreeParameters> NaiveMerkleTree<P> {
         let leaf_index = convert_index_to_last_level(0, tree_height(self.tree.len()));
         &self.tree[leaf_index..]
     }
+
+    #[inline]
+    pub fn height(&self) -> usize { self.height }
 
     pub fn generate_proof(
         &self,
@@ -140,7 +148,7 @@ impl<P: FieldBasedMerkleTreeParameters> NaiveMerkleTree<P> {
             current_node = parent(current_node).unwrap();
         }
 
-        assert!(path.len() < Self::HEIGHT as usize);
+        assert!(path.len() < self.height as usize);
 
         //Push the other elements of the padding tree
         for &(_, ref sibling_hash) in &self.padding_tree {
@@ -148,8 +156,8 @@ impl<P: FieldBasedMerkleTreeParameters> NaiveMerkleTree<P> {
         }
 
         end_timer!(prove_time);
-        if path.len() != (Self::HEIGHT - 1) as usize {
-            Err(MerkleTreeError::IncorrectPathLength(path.len(), (Self::HEIGHT - 1) as usize))?
+        if path.len() != (self.height - 1) as usize {
+            Err(MerkleTreeError::IncorrectPathLength(path.len(), (self.height - 1) as usize))?
         } else {
             Ok(FieldBasedBinaryMHTPath::<P>::new(path))
         }
@@ -183,14 +191,16 @@ mod test {
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
 
+    const TEST_HEIGHT: usize = 6;
+
     #[derive(Clone)]
     struct MNT4753FieldBasedMerkleTreeParams;
     impl FieldBasedMerkleTreeParameters for MNT4753FieldBasedMerkleTreeParams {
         type Data = MNT4753Fr;
         type H = MNT4PoseidonHash;
-        const HEIGHT: usize = 6;
         const MERKLE_ARITY: usize = 2;
-        const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> = Some(MNT4753_MHT_POSEIDON_PARAMETERS);
+        const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> =
+            Some(MNT4753_MHT_POSEIDON_PARAMETERS);
     }
 
     impl BatchFieldBasedMerkleTreeParameters for MNT4753FieldBasedMerkleTreeParams {
@@ -202,11 +212,12 @@ mod test {
 
     fn generate_merkle_tree(leaves: &[MNT4753Fr])
     {
-        let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
+        let mut tree = MNT4753FieldBasedMerkleTree::new(TEST_HEIGHT);
+        tree.append(&leaves).unwrap();
         let root = tree.root();
         for (i, leaf) in leaves.iter().enumerate() {
             let proof = tree.generate_proof(i, leaf).unwrap();
-            assert!(proof.verify(&leaf, &root).unwrap());
+            assert!(proof.verify(tree.height(), &leaf, &root).unwrap());
         }
     }
 
@@ -240,11 +251,12 @@ mod test {
 
     fn bad_merkle_tree_verify(leaves: &[MNT4753Fr])
     {
-        let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
+        let mut tree = MNT4753FieldBasedMerkleTree::new(TEST_HEIGHT);
+        tree.append(&leaves).unwrap();
         let root = MNT4753Fr::zero();
         for (i, leaf) in leaves.iter().enumerate() {
             let proof = tree.generate_proof(i, leaf).unwrap();
-            assert!(!proof.verify(&leaf, &root).unwrap());
+            assert!(!proof.verify(tree.height(), &leaf, &root).unwrap());
         }
     }
 
@@ -287,10 +299,11 @@ mod test {
             let f = MNT4753Fr::rand(&mut rng);
             leaves.push(f);
         }
-        let tree = MNT4753FieldBasedMerkleTree::new(&leaves).unwrap();
+        let mut tree = MNT4753FieldBasedMerkleTree::new(TEST_HEIGHT);
+        tree.append(&leaves).unwrap();
         let root1 = tree.root();
 
-        let mut tree = MNT4PoseidonMHT::init();
+        let mut tree = MNT4PoseidonMHT::init(TEST_HEIGHT);
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
         for _ in 0..num_leaves {
             tree.append(MNT4753Fr::rand(&mut rng));
