@@ -192,7 +192,7 @@ macro_rules! cfg_chunks_mut {
 }
 
 #[macro_export]
-macro_rules! timing_println {
+macro_rules! timer_println {
     ($now: ident, $string: expr) => {
         #[cfg(feature = "timing")]
         {
@@ -225,7 +225,7 @@ macro_rules! timing_println {
 }
 
 #[macro_export]
-macro_rules! timing {
+macro_rules! timer {
     () => {{
         #[cfg(any(feature = "timing", feature = "timing_detailed"))]
         let now = (line!(), std::time::Instant::now());

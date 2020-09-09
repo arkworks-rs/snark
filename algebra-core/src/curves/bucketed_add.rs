@@ -1,10 +1,14 @@
 use crate::{
     curves::{BatchGroupArithmeticSlice, BATCH_SIZE},
-    timing, timing_println, AffineCurve, Vec,
+    AffineCurve, Vec,
 };
 
 #[cfg(feature = "std")]
-use {core::cmp::Ordering, voracious_radix_sort::*};
+use {
+    crate::{timer, timer_println},
+    core::cmp::Ordering,
+    voracious_radix_sort::*,
+};
 
 #[cfg(not(feature = "std"))]
 use crate::log2;
@@ -47,9 +51,9 @@ pub fn batch_bucketed_add<C: AffineCurve>(
     assert_eq!(elems.len(), bucket_positions.len());
     assert!(elems.len() > 0);
 
-    let now = timing!();
+    let _now = timer!();
     dlsd_radixsort(bucket_positions, 8);
-    timing_println!(now, "radixsort");
+    timer_println!(_now, "radixsort");
 
     let mut len = bucket_positions.len();
     let mut all_ones = true;
@@ -62,7 +66,7 @@ pub fn batch_bucketed_add<C: AffineCurve>(
 
     let mut scratch_space = Vec::<Option<C>>::with_capacity(BATCH_SIZE / 2);
 
-    let now = timing!();
+    let _now = timer!();
     // In the first loop, we copy the results of the first in place addition tree
     // to a local vector, new_elems
     // Subsequently, we perform all the operations in place
@@ -184,15 +188,17 @@ pub fn batch_bucketed_add<C: AffineCurve>(
         len = new_len;
         new_len = 0;
     }
+    timer_println!(_now, "addition tree");
+
     let zero = C::zero();
     let mut res = vec![zero; buckets];
 
-    timing_println!(now, "addition tree");
-
+    let _now = timer!();
     for i in 0..len {
         let (pos, buc) = (bucket_positions[i].position, bucket_positions[i].bucket);
         res[buc as usize] = new_elems[pos as usize];
     }
+    timer_println!(_now, "reassign");
     res
 }
 
