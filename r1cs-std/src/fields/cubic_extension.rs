@@ -1,6 +1,6 @@
 use algebra::{
     fields::{CubicExtField, CubicExtParameters, Field},
-    One,
+    One, Zero,
 };
 use core::{borrow::Borrow, marker::PhantomData};
 use r1cs_core::{ConstraintSystemRef, Namespace, SynthesisError};
@@ -250,7 +250,11 @@ where
     fn inverse(&self) -> Result<Self, SynthesisError> {
         let cs = self.cs().get()?.clone();
         let one = Self::new_constant(cs.clone(), CubicExtField::one())?;
-        let inverse = Self::new_witness(cs, || self.value().and_then(|v| v.inverse().get()))?;
+
+        let inverse = Self::new_witness(self.cs().get()?.clone(), || {
+            self.value()
+                .map(|f| f.inverse().unwrap_or(CubicExtField::zero()))
+        })?;
         self.mul_equals(&inverse, &one)?;
         Ok(inverse)
     }

@@ -1,6 +1,6 @@
 use algebra::{
     fields::{Field, QuadExtField, QuadExtParameters},
-    One,
+    One, Zero,
 };
 use core::{borrow::Borrow, marker::PhantomData};
 use r1cs_core::{ConstraintSystemRef, Namespace, SynthesisError};
@@ -256,7 +256,8 @@ where
     fn inverse(&self) -> Result<Self, SynthesisError> {
         let one = Self::new_constant(self.cs().get()?.clone(), QuadExtField::one())?;
         let inverse = Self::new_witness(self.cs().get()?.clone(), || {
-            self.value().and_then(|val| val.inverse().get())
+            self.value()
+                .map(|f| f.inverse().unwrap_or(QuadExtField::zero()))
         })?;
         self.mul_equals(&inverse, &one)?;
         Ok(inverse)
