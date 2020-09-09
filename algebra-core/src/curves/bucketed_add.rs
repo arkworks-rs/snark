@@ -71,7 +71,7 @@ pub fn batch_bucketed_add<C: AffineCurve>(
         }
         if current_bucket >= buckets as u32 {
             loc = 1;
-        } else {
+        } else if loc > 1 {
             // all ones is false if next len is not 1
             if loc > 2 {
                 all_ones = false;
@@ -108,6 +108,13 @@ pub fn batch_bucketed_add<C: AffineCurve>(
                 instr.clear();
                 batch = 0;
             }
+        } else {
+            instr.push((bucket_positions[glob].position, !0u32));
+            bucket_positions[new_len] = BucketPosition {
+                bucket: current_bucket,
+                position: new_len as u32,
+            };
+            new_len += 1;
         }
         glob += 1;
     }

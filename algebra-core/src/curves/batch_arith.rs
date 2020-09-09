@@ -1,6 +1,7 @@
 use crate::{biginteger::BigInteger, AffineCurve, Field, Vec};
 use core::ops::Neg;
 use num_traits::Zero;
+use either::Either;
 
 /// We use a batch size that is big enough to amortise the cost of the actual inversion
 /// close to zero while not straining the CPU cache by generating and fetching from
@@ -77,69 +78,47 @@ where
 
         let mut all_none = false;
 
-        match negate {
-            None => {
-                while !all_none {
-                    let mut opcode_row = Vec::with_capacity(batch_size);
-                    for s in scalars.iter_mut() {
-                        if s.is_zero() {
-                            opcode_row.push(None);
-                        } else {
-                            let op = if s.is_odd() {
-                                let mut z: i16 = (s.as_ref()[0] % (1 << (w + 1))) as i16;
+        if negate.is_some() {
+            assert_eq!(scalars.len(), negate.unwrap().len()); // precompute bounds check
+        }
 
-                                if z < half_window_size {
-                                    s.sub_noborrow(&BigInt::from(z as u64));
-                                } else {
-                                    z = z - window_size;
-                                    s.add_nocarry(&BigInt::from((-z) as u64));
-                                }
-                                z
-                            } else {
-                                0
-                            };
-                            opcode_row.push(Some(op));
-                            s.div2();
+        let f = false;
+        while !all_none {
+            let iter = match negate {
+                None => Either::Left(core::iter::repeat(&f).take(batch_size)),
+                Some(bools) => Either::Right(bools.iter()),
+            };
+            let mut opcode_row = Vec::with_capacity(batch_size);
+            for (s, neg) in scalars
+                .iter_mut()
+                .zip(iter)
+            {
+                if s.is_zero() {
+                    opcode_row.push(None);
+                } else {
+                    let op = if s.is_odd() {
+                        let mut z: i16 = (s.as_ref()[0] % (1 << (w + 1))) as i16;
+                        if z < half_window_size {
+                            s.sub_noborrow(&BigInt::from(z as u64));
+                        } else {
+                            z = z - window_size;
+                            s.add_nocarry(&BigInt::from((-z) as u64));
                         }
-                    }
-                    all_none = opcode_row.iter().all(|x| x.is_none());
-                    if !all_none {
-                        op_code_vectorised.push(opcode_row);
-                    }
+                        if *neg {
+                            -z
+                        } else {
+                            z
+                        }
+                    } else {
+                        0
+                    };
+                    opcode_row.push(Some(op));
+                    s.div2();
                 }
             }
-            Some(bools) => {
-                while !all_none {
-                    let mut opcode_row = Vec::with_capacity(batch_size);
-                    for (s, neg) in scalars.iter_mut().zip(bools) {
-                        if s.is_zero() {
-                            opcode_row.push(None);
-                        } else {
-                            let op = if s.is_odd() {
-                                let mut z: i16 = (s.as_ref()[0] % (1 << (w + 1))) as i16;
-                                if z < half_window_size {
-                                    s.sub_noborrow(&BigInt::from(z as u64));
-                                } else {
-                                    z = z - window_size;
-                                    s.add_nocarry(&BigInt::from((-z) as u64));
-                                }
-                                if *neg {
-                                    -z
-                                } else {
-                                    z
-                                }
-                            } else {
-                                0
-                            };
-                            opcode_row.push(Some(op));
-                            s.div2();
-                        }
-                    }
-                    all_none = opcode_row.iter().all(|x| x.is_none());
-                    if !all_none {
-                        op_code_vectorised.push(opcode_row);
-                    }
-                }
+            all_none = opcode_row.iter().all(|x| x.is_none());
+            if !all_none {
+                op_code_vectorised.push(opcode_row);
             }
         }
         op_code_vectorised

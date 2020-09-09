@@ -202,7 +202,7 @@ macro_rules! bigint_impl {
             #[inline]
             fn mul_no_reduce(this: &[u64], other: &[u64]) -> Self {
                 assert!(this.len() == $num_limbs / 2);
-                assert!(this.len() == $num_limbs / 2);
+                assert!(other.len() == $num_limbs / 2);
 
                 let mut r = [0u64; $num_limbs];
                 for i in 0..$num_limbs / 2 {

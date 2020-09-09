@@ -511,9 +511,9 @@ macro_rules! specialise_affine_to_proj {
                 debug_assert!(bases.len() == scalars.len());
                 let batch_size = bases.len();
                 if P::has_glv() {
+                    use itertools::{EitherOrBoth::*, Itertools};
                     let mut scratch_space = Vec::<Self::BBaseField>::with_capacity(bases.len());
                     let mut scratch_space_group = Vec::<Self>::with_capacity(bases.len() / w);
-                    use itertools::{EitherOrBoth::*, Itertools};
                     let k_vec: Vec<_> = scalars
                         .iter()
                         .map(|k| {
@@ -583,18 +583,11 @@ macro_rules! specialise_affine_to_proj {
                             .map(|(i, op)| {
                                 let idx = op.unwrap();
                                 if idx > 0 {
-                                    (
-                                        i as u32,
-                                        ((((idx as usize) / 2 * batch_size + i) as u32)
-                                            << ENDO_CODING_BITS),
-                                    )
+                                    let op2 = ((idx as usize) / 2 * batch_size + i) as u32;
+                                    (i as u32, op2 << ENDO_CODING_BITS)
                                 } else {
-                                    (
-                                        i as u32,
-                                        ((((-idx as usize) / 2 * batch_size + i) as u32)
-                                            << ENDO_CODING_BITS)
-                                            + 1,
-                                    )
+                                    let op2 = ((-idx as usize) / 2 * batch_size + i) as u32;
+                                    (i as u32, (op2 << ENDO_CODING_BITS) + 1)
                                 }
                             })
                             .collect();
@@ -612,18 +605,11 @@ macro_rules! specialise_affine_to_proj {
                             .map(|(i, op)| {
                                 let idx = op.unwrap();
                                 if idx > 0 {
-                                    (
-                                        i as u32,
-                                        ((((idx as usize) / 2 * batch_size + i) as u32)
-                                            << ENDO_CODING_BITS),
-                                    )
+                                    let op2 = ((idx as usize) / 2 * batch_size + i) as u32;
+                                    (i as u32, op2 << ENDO_CODING_BITS)
                                 } else {
-                                    (
-                                        i as u32,
-                                        ((((-idx as usize) / 2 * batch_size + i) as u32)
-                                            << ENDO_CODING_BITS)
-                                            + 1,
-                                    )
+                                    let op2 = ((-idx as usize) / 2 * batch_size + i) as u32;
+                                    (i as u32, (op2 << ENDO_CODING_BITS) + 1)
                                 }
                             })
                             .collect();
