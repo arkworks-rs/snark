@@ -4,11 +4,7 @@ use crate::{
 };
 
 #[cfg(feature = "std")]
-use {
-    crate::{timer, timer_println},
-    core::cmp::Ordering,
-    voracious_radix_sort::*,
-};
+use {core::cmp::Ordering, voracious_radix_sort::*};
 
 #[cfg(not(feature = "std"))]
 use crate::log2;

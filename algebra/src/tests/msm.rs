@@ -32,7 +32,7 @@ fn test() {
 }
 
 fn test_msm<G: AffineCurve>() {
-    const MAX_LOGN: usize = 15;
+    const MAX_LOGN: usize = 20;
     const SAMPLES: usize = 1 << MAX_LOGN;
 
     let _lol = G1Projective::zero();

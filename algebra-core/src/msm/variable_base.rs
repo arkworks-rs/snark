@@ -43,6 +43,7 @@ impl VariableBaseMSM {
                 // We don't need the "zero" bucket, so we only have 2^c - 1 buckets
                 let log2_n_bucket = if (w_start % c) != 0 { w_start % c } else { c };
                 let mut buckets = vec![zero; (1 << log2_n_bucket) - 1];
+
                 scalars
                     .iter()
                     .zip(bases)
@@ -135,6 +136,7 @@ impl VariableBaseMSM {
                 let log2_n_bucket = if (w_start % c) != 0 { w_start % c } else { c };
                 let n_buckets = (1 << log2_n_bucket) - 1;
 
+                let _now = timer!();
                 let mut bucket_positions: Vec<_> = scalars
                     .iter()
                     .enumerate()
@@ -153,16 +155,21 @@ impl VariableBaseMSM {
                         }
                     })
                     .collect();
+                timer_println!(_now, "scalars->buckets");
 
+                let _now = timer!();
                 let buckets =
                     batch_bucketed_add::<G>(n_buckets, &bases[..], &mut bucket_positions[..]);
+                timer_println!(_now, "bucket add");
 
+                let _now = timer!();
                 let mut res = zero;
                 let mut running_sum = G::Projective::zero();
                 for b in buckets.into_iter().rev() {
                     running_sum.add_assign_mixed(&b);
                     res += &running_sum;
                 }
+                timer_println!(_now, "accumulating sums");
                 (res, log2_n_bucket)
             })
             .collect();

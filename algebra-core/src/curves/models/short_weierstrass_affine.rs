@@ -514,6 +514,8 @@ macro_rules! specialise_affine_to_proj {
                     use itertools::{EitherOrBoth::*, Itertools};
                     let mut scratch_space = Vec::<Self::BBaseField>::with_capacity(bases.len());
                     let mut scratch_space_group = Vec::<Self>::with_capacity(bases.len() / w);
+
+                    let _now = timer!();
                     let k_vec: Vec<_> = scalars
                         .iter()
                         .map(|k| {
@@ -522,7 +524,9 @@ macro_rules! specialise_affine_to_proj {
                             )
                         })
                         .collect();
+                    timer_println!(_now, "glv decomp");
 
+                    let _now = timer!();
                     let mut k1_scalars: Vec<_> = k_vec.iter().map(|x| (x.0).1).collect();
                     let k1_negates: Vec<_> = k_vec.iter().map(|x| (x.0).0).collect();
                     let mut k2_scalars: Vec<_> = k_vec.iter().map(|x| (x.1).1).collect();
@@ -538,6 +542,9 @@ macro_rules! specialise_affine_to_proj {
                         w,
                         Some(k2_negates.as_slice()),
                     );
+                    timer_println!(_now, "opcode decomp");
+
+                    let _now = timer!();
                     let tables = Self::batch_wnaf_tables(bases, w);
                     let tables_k2: Vec<_> = tables
                         .iter()
@@ -547,11 +554,14 @@ macro_rules! specialise_affine_to_proj {
                             p
                         })
                         .collect();
+                    timer_println!(_now, "table generation");
                     // Set all points to 0;
                     let zero = Self::zero();
                     for p in bases.iter_mut() {
                         *p = zero;
                     }
+
+                    let _now = timer!();
                     let noop_vec = vec![None; batch_size];
                     for (opcode_row_k1, opcode_row_k2) in opcode_vectorised_k1
                         .iter()
@@ -621,6 +631,7 @@ macro_rules! specialise_affine_to_proj {
                             &mut scratch_space_group,
                         );
                     }
+                    timer_println!(_now, "batch ops");
                 } else {
                     let mut scratch_space = Vec::<Self::BBaseField>::with_capacity(bases.len());
                     let opcode_vectorised =
