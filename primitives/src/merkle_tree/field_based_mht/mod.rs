@@ -206,6 +206,12 @@ pub struct FieldBasedBinaryMHTPath<T: FieldBasedMerkleTreeParameters>{
     path: Vec<(<T::H as FieldBasedHash>::Data, bool)>,
 }
 
+impl<T: FieldBasedMerkleTreeParameters> PartialEq for FieldBasedBinaryMHTPath<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.path == other.path
+    }
+}
+
 impl<T: FieldBasedMerkleTreeParameters> FieldBasedMerkleTreePath for FieldBasedBinaryMHTPath<T> {
     type H = T::H;
     type Path = Vec<(<T::H as FieldBasedHash>::Data, bool)>;
@@ -221,11 +227,39 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedMerkleTreePath for FieldBasedB
         leaf: &<Self::H as FieldBasedHash>::Data,
         root: &<Self::H as FieldBasedHash>::Data
     ) -> Result<bool, Error> {
-        let mut v = Vec::with_capacity(self.path.len());
-        for &(node, direction) in &self.path {
-            v.push((vec![node], if !direction {0} else {1}));
+        // Rate may also be smaller than the arity actually, but this assertion
+        // is reasonable and simplify the design. Should be also enforced by the
+        // MerkleTree that creates this instance, but let's do it again.
+        assert_eq!(<<Self::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R, T::MERKLE_ARITY);
+        if self.path.len() != height {
+            Err(MerkleTreeError::IncorrectPathLength(self.path.len(), height))?
         }
-        FieldBasedMHTPath::<T>::new(v).verify(height, leaf, root)
+        let mut digest = <Self::H as FieldBasedHash>::init(None);
+        let mut prev_node = *leaf;
+        for &(sibling, direction) in self.path.as_slice() {
+
+            // Choose left and right hash according to direction
+            let (left, right) = if !direction {
+                (prev_node, sibling)
+            } else {
+                (sibling, prev_node)
+            };
+
+            // Compute the parent node
+            prev_node = digest
+                .update(left)
+                .update(right)
+                .finalize();
+
+            digest.reset(None);
+        }
+
+        // Check final computed node is equal to the root
+        if prev_node == root.clone() {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     fn get_raw_path(&self) -> Self::Path {
@@ -233,27 +267,32 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedMerkleTreePath for FieldBasedB
     }
 }
 
-impl<T: FieldBasedMerkleTreeParameters> PartialEq for FieldBasedBinaryMHTPath<T> {
-    fn eq(&self, other: &Self) -> bool {
-        self.path == other.path
+/// Conversion utilities for FieldBasedMHTPath and FieldBasedBinaryMHTPath
+impl<T: FieldBasedMerkleTreeParameters> From<FieldBasedBinaryMHTPath<T>> for FieldBasedMHTPath<T> {
+    fn from(other: FieldBasedBinaryMHTPath<T>) -> Self {
+        let mut converted = Vec::with_capacity(other.path.len());
+        for &(node, direction) in &other.path {
+            converted.push((vec![node], if !direction {0} else {1}));
+        }
+        FieldBasedMHTPath::<T>::new(converted)
     }
 }
 
-impl<T: FieldBasedMerkleTreeParameters> PartialEq<FieldBasedBinaryMHTPath<T>> for FieldBasedMHTPath<T> {
-    fn eq(&self, other: &FieldBasedBinaryMHTPath<T>) -> bool {
-        let binary_path = other.get_raw_path();
-        if self.path.len() != binary_path.len() { return false };
+impl<T: FieldBasedMerkleTreeParameters> From<FieldBasedMHTPath<T>> for FieldBasedBinaryMHTPath<T> {
+    fn from(other: FieldBasedMHTPath<T>) -> Self {
+        let mut converted = Vec::with_capacity(other.path.len());
+        for (nodes, position) in other.path {
+            assert!(nodes.len() == 1);
+            assert!(position == 0 || position == 1);
 
-        for ((p1_node, p1_pos), (p2_node, p2_pos)) in
-            self.path.iter().zip(binary_path) {
-            if  p1_node.len() != 1 || // In a binary Merkle Tree, there is only one sibling for each node
-                p1_node[0] != p2_node || // The two nodes along the same leves of the paths must be equal
-                (*p1_pos != 0 && *p1_pos != 1) || // In a binary Merkle Tree, position of the acutal node is either 0 or 1
-                (*p1_pos == 0 && p2_pos) || (*p1_pos == 1 && !p2_pos) // Second path position is expressed as a boolean flag
-            {
-                return false
-            }
+            converted.push((nodes[0], if position == 0 {false} else {true}));
         }
-        return true;
+        FieldBasedBinaryMHTPath::<T>::new(converted)
+    }
+}
+
+impl<T: FieldBasedMerkleTreeParameters> PartialEq<FieldBasedMHTPath<T>> for FieldBasedBinaryMHTPath<T> {
+    fn eq(&self, other: &FieldBasedMHTPath<T>) -> bool {
+        self == other
     }
 }

@@ -518,7 +518,7 @@ mod test {
             assert!(naive_path.verify(naive_tree.height(), &leaves[i], &naive_root ).unwrap());
 
             // Assert the two paths are equal
-            assert_eq!(path, naive_path);
+            assert_eq!(naive_path, path);
         }
     }
 
@@ -562,7 +562,7 @@ mod test {
             assert!(naive_path.verify(naive_tree.height(), &leaves[i], &naive_root ).unwrap());
 
             // Assert the two paths are equal
-            assert_eq!(path, naive_path);
+            assert_eq!(naive_path, path);
         }
     }
 }
