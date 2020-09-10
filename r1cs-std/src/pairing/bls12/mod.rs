@@ -12,6 +12,7 @@ use algebra::{
 };
 use core::marker::PhantomData;
 
+/// Specifies the constraints for computing a pairing in a BLS12 bilinear group.
 pub struct PairingVar<P: Bls12Parameters>(PhantomData<P>);
 
 type Fp2V<P> = Fp2Var<<P as Bls12Parameters>::Fp2Params>;

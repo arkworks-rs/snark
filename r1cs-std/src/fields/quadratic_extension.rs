@@ -12,6 +12,8 @@ use crate::{
     Assignment, ToConstraintFieldGadget, Vec,
 };
 
+/// This struct is the `R1CS` equivalent of the quadratic extension field type
+/// in `algebra-core`, i.e. `algebra_core::QuadExtField`.
 #[derive(Derivative)]
 #[derivative(Debug(bound = "BF: core::fmt::Debug"), Clone(bound = "BF: Clone"))]
 #[must_use]
@@ -19,17 +21,22 @@ pub struct QuadExtVar<BF: FieldVar<P::BaseField, P::BasePrimeField>, P: QuadExtV
 where
     for<'a> &'a BF: FieldOpsBounds<'a, P::BaseField, BF>,
 {
+    /// The zero-th coefficient of this field element.
     pub c0: BF,
+    /// The first coefficient of this field element.
     pub c1: BF,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
 }
 
+/// This trait describes parameters that are used to implement arithmetic for `QuadExtVar`.
 pub trait QuadExtVarParams<BF: FieldVar<Self::BaseField, Self::BasePrimeField>>:
     QuadExtParameters
 where
     for<'a> &'a BF: FieldOpsBounds<'a, Self::BaseField, BF>,
 {
+    /// Multiply the base field of the `QuadExtVar` by the appropriate Frobenius coefficient.
+    /// This is equivalent to `Self::mul_base_field_by_frob_coeff(power)`.
     fn mul_base_field_var_by_frob_coeff(fe: &mut BF, power: usize);
 }
 
@@ -37,6 +44,7 @@ impl<BF: FieldVar<P::BaseField, P::BasePrimeField>, P: QuadExtVarParams<BF>> Qua
 where
     for<'a> &'a BF: FieldOpsBounds<'a, P::BaseField, BF>,
 {
+    /// Constructs a `QuadExtVar` from the underlying coefficients.
     pub fn new(c0: BF, c1: BF) -> Self {
         Self {
             c0,
@@ -45,12 +53,14 @@ where
         }
     }
 
-    /// Multiply a BF by quadratic nonresidue P::NONRESIDUE.
+    /// Multiplies a variable of the base field by the quadratic nonresidue `P::NONRESIDUE` that
+    /// is used to construct the extension field.
     #[inline]
     pub fn mul_base_field_by_nonresidue(fe: &BF) -> Result<BF, SynthesisError> {
         Ok(fe * P::NONRESIDUE)
     }
 
+    /// Multiplies `self` by a constant from the base field.
     #[inline]
     pub fn mul_by_base_field_constant(&self, fe: P::BaseField) -> Self {
         let c0 = self.c0.clone() * fe;
@@ -58,6 +68,7 @@ where
         QuadExtVar::new(c0, c1)
     }
 
+    /// Sets `self = self.mul_by_base_field_constant(fe)`.
     #[inline]
     pub fn mul_assign_by_base_field_constant(&mut self, fe: P::BaseField) {
         *self = (&*self).mul_by_base_field_constant(fe);

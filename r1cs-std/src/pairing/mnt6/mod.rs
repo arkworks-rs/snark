@@ -15,10 +15,12 @@ use algebra::{
 };
 use core::marker::PhantomData;
 
+/// Specifies the constraints for computing a pairing in a MNT6 bilinear group.
 pub struct PairingVar<P: MNT6Parameters>(PhantomData<P>);
 
 type Fp3G<P> = Fp3Var<<P as MNT6Parameters>::Fp3Params>;
 type Fp6G<P> = Fp6Var<<P as MNT6Parameters>::Fp6Params>;
+/// A variable corresponding to `algebra_core::mnt6::GT`.
 pub type GTVar<P> = Fp6G<P>;
 
 impl<P: MNT6Parameters> PairingVar<P> {
@@ -87,7 +89,7 @@ impl<P: MNT6Parameters> PairingVar<P> {
     }
 
     #[tracing::instrument(target = "r1cs", skip(p, q))]
-    pub fn ate_miller_loop(
+    pub(crate) fn ate_miller_loop(
         p: &G1PreparedVar<P>,
         q: &G2PreparedVar<P>,
     ) -> Result<Fp6G<P>, SynthesisError> {
@@ -138,7 +140,7 @@ impl<P: MNT6Parameters> PairingVar<P> {
     }
 
     #[tracing::instrument(target = "r1cs")]
-    pub fn final_exponentiation(value: &Fp6G<P>) -> Result<GTVar<P>, SynthesisError> {
+    pub(crate) fn final_exponentiation(value: &Fp6G<P>) -> Result<GTVar<P>, SynthesisError> {
         let value_inv = value.inverse()?;
         let value_to_first_chunk = Self::final_exponentiation_first_chunk(value, &value_inv)?;
         let value_inv_to_first_chunk = Self::final_exponentiation_first_chunk(&value_inv, value)?;

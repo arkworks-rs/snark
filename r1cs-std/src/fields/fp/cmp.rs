@@ -95,7 +95,7 @@ impl<F: PrimeField> FpVar<F> {
         Ok((left.clone(), right_for_check))
     }
 
-    // Helper function to enforce `self <= (p-1)/2`.
+    /// Helper function to enforce that `self <= (p-1)/2`.
     #[tracing::instrument(target = "r1cs")]
     pub fn enforce_smaller_or_equal_than_mod_minus_one_div_two(
         &self,

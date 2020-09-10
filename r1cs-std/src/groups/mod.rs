@@ -5,6 +5,7 @@ use r1cs_core::{Namespace, SynthesisError};
 
 use core::{borrow::Borrow, fmt::Debug};
 
+/// This module contains implementations of arithmetic for various curve models.
 pub mod curves;
 
 pub use self::curves::short_weierstrass::bls12;
@@ -23,6 +24,8 @@ pub trait GroupOpsBounds<'a, F, T: 'a>:
 {
 }
 
+/// A variable that represents a curve point for
+/// the curve `C`.
 pub trait CurveVar<C: ProjectiveCurve, ConstraintF: Field>:
     'static
     + Sized
@@ -43,17 +46,23 @@ pub trait CurveVar<C: ProjectiveCurve, ConstraintF: Field>:
     + AddAssign<Self>
     + SubAssign<Self>
 {
-    fn constant(other: C) -> Self;
-
+    /// Returns the constant `F::zero()`. This is the identity
+    /// of the group.
     fn zero() -> Self;
 
+    /// Returns a `Boolean` representing whether `self == Self::zero()`.
     #[tracing::instrument(target = "r1cs")]
     fn is_zero(&self) -> Result<Boolean<ConstraintF>, SynthesisError> {
         self.is_eq(&Self::zero())
     }
 
-    /// Allocate a variable in the subgroup without checking if it's in the
-    /// prime-order subgroup
+    /// Returns a constant with value `v`.
+    ///
+    /// This *should not* allocate any variables.
+    fn constant(other: C) -> Self;
+
+    /// Allocates a variable in the subgroup without checking if it's in the
+    /// prime-order subgroup.
     fn new_variable_omit_prime_order_check(
         cs: impl Into<Namespace<ConstraintF>>,
         f: impl FnOnce() -> Result<C, SynthesisError>,
@@ -63,6 +72,7 @@ pub trait CurveVar<C: ProjectiveCurve, ConstraintF: Field>:
     /// Enforce that `self` is in the prime-order subgroup.
     fn enforce_prime_order(&self) -> Result<(), SynthesisError>;
 
+    /// Computes `self + self`.
     #[tracing::instrument(target = "r1cs")]
     fn double(&self) -> Result<Self, SynthesisError> {
         let mut result = self.clone();
@@ -70,8 +80,10 @@ pub trait CurveVar<C: ProjectiveCurve, ConstraintF: Field>:
         Ok(result)
     }
 
+    /// Sets `self = self + self`.
     fn double_in_place(&mut self) -> Result<(), SynthesisError>;
 
+    /// Coputes `-self`.
     fn negate(&self) -> Result<Self, SynthesisError>;
 
     /// Computes `bits * self`, where `bits` is a little-endian
@@ -113,20 +125,7 @@ pub trait CurveVar<C: ProjectiveCurve, ConstraintF: Field>:
         Ok(())
     }
 
-    #[tracing::instrument(target = "r1cs")]
-    fn precomputed_base_3_bit_signed_digit_scalar_mul<'a, I, J, B>(
-        _: &[B],
-        _: &[J],
-    ) -> Result<Self, SynthesisError>
-    where
-        I: Borrow<[Boolean<ConstraintF>]>,
-        J: Borrow<[I]>,
-        B: Borrow<[C]>,
-    {
-        Err(SynthesisError::AssignmentMissing)
-    }
-
-    /// Computes a `\sum I_j * B_j`, where `I_j` is a `Boolean`
+    /// Computes a `\sum_j I_j * B_j`, where `I_j` is a `Boolean`
     /// representation of the j-th scalar.
     #[tracing::instrument(target = "r1cs", skip(bases, scalars))]
     fn precomputed_base_multiscalar_mul_le<'a, T, I, B>(

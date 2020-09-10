@@ -1,6 +1,7 @@
 use crate::fields::fp::FpVar;
 use algebra::ed_on_mnt4_753::fq::Fq;
 
+/// A variable that is the R1CS equivalent of `algebra::ed_on_mnt4_753::Fq`.
 pub type FqVar = FpVar<Fq>;
 
 #[test]

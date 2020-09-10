@@ -254,6 +254,10 @@ impl<F: Field> Boolean<F> {
     /// Returns the constrant `false`.
     pub const FALSE: Self = Boolean::Constant(false);
 
+    /// Constructs a `LinearCombination` from `Self`'s variables.
+    ///
+    /// * `Boolean::Is(v) => lc!() + v.variable()`
+    /// * `Boolean::Not(v) => lc!() + Variable::One - v.variable()`
     pub fn lc(&self) -> LinearCombination<F> {
         match self {
             Boolean::Constant(false) => lc!(),
@@ -263,7 +267,9 @@ impl<F: Field> Boolean<F> {
         }
     }
 
-    /// Construct a boolean vector from a vector of u8
+    /// Constructs a `Boolean` vector from a slice of constant `u8`.
+    ///
+    /// This *does not* create any new variables.
     pub fn constant_vec_from_bytes(values: &[u8]) -> Vec<Self> {
         let mut input_bits = vec![];
         for input_byte in values {
@@ -274,12 +280,12 @@ impl<F: Field> Boolean<F> {
         input_bits
     }
 
-    /// Construct a boolean from a known constant
+    /// Constructs a constant `Boolean` with value `b`.
     pub fn constant(b: bool) -> Self {
         Boolean::Constant(b)
     }
 
-    /// Return a negated interpretation of this boolean.
+    /// Negates `self`.
     pub fn not(&self) -> Self {
         match *self {
             Boolean::Constant(c) => Boolean::Constant(!c),
@@ -290,11 +296,14 @@ impl<F: Field> Boolean<F> {
 }
 
 impl<F: Field> Boolean<F> {
-    /// Perform XOR over two boolean operands
+    /// Outputs `self ^ other`.
+    ///
+    /// If at least one of `self` and `other` are constants, then this method
+    /// *does not* create any constraints or variables.
     #[tracing::instrument(target = "r1cs")]
-    pub fn xor<'a>(&'a self, b: &'a Self) -> Result<Self, SynthesisError> {
+    pub fn xor<'a>(&'a self, other: &'a Self) -> Result<Self, SynthesisError> {
         use Boolean::*;
-        match (self, b) {
+        match (self, other) {
             (&Constant(false), x) | (x, &Constant(false)) => Ok(x.clone()),
             (&Constant(true), x) | (x, &Constant(true)) => Ok(x.not()),
             // a XOR (NOT b) = NOT(a XOR b)
@@ -306,11 +315,14 @@ impl<F: Field> Boolean<F> {
         }
     }
 
-    /// Perform OR over two boolean operands
+    /// Outputs `self | other`.
+    ///
+    /// If at least one of `self` and `other` are constants, then this method
+    /// *does not* create any constraints or variables.
     #[tracing::instrument(target = "r1cs")]
-    pub fn or<'a>(&'a self, b: &'a Self) -> Result<Self, SynthesisError> {
+    pub fn or<'a>(&'a self, other: &'a Self) -> Result<Self, SynthesisError> {
         use Boolean::*;
-        match (self, b) {
+        match (self, other) {
             (&Constant(false), x) | (x, &Constant(false)) => Ok(x.clone()),
             (&Constant(true), _) | (_, &Constant(true)) => Ok(Constant(true)),
             // a OR b = NOT ((NOT a) AND b)
@@ -321,11 +333,14 @@ impl<F: Field> Boolean<F> {
         }
     }
 
-    /// Perform AND over two boolean operands
+    /// Outputs `self & other`.
+    ///
+    /// If at least one of `self` and `other` are constants, then this method
+    /// *does not* create any constraints or variables.
     #[tracing::instrument(target = "r1cs")]
-    pub fn and<'a>(&'a self, b: &'a Self) -> Result<Self, SynthesisError> {
+    pub fn and<'a>(&'a self, other: &'a Self) -> Result<Self, SynthesisError> {
         use Boolean::*;
-        match (self, b) {
+        match (self, other) {
             // false AND x is always false
             (&Constant(false), _) | (_, &Constant(false)) => Ok(Constant(false)),
             // true AND x is always x
@@ -339,6 +354,7 @@ impl<F: Field> Boolean<F> {
         }
     }
 
+    /// Outputs `bits[0] & bits[1] & ... & bits.last().unwrap()`.
     #[tracing::instrument(target = "r1cs")]
     pub fn kary_and(bits: &[Self]) -> Result<Self, SynthesisError> {
         assert!(!bits.is_empty());
@@ -354,6 +370,7 @@ impl<F: Field> Boolean<F> {
         Ok(cur.expect("should not be 0"))
     }
 
+    /// Outputs `bits[0] | bits[1] | ... | bits.last().unwrap()`.
     #[tracing::instrument(target = "r1cs")]
     pub fn kary_or(bits: &[Self]) -> Result<Self, SynthesisError> {
         assert!(!bits.is_empty());
@@ -369,12 +386,15 @@ impl<F: Field> Boolean<F> {
         Ok(cur.expect("should not be 0"))
     }
 
+    /// Outputs `(bits[0] & bits[1] & ... & bits.last().unwrap()).not()`.
     #[tracing::instrument(target = "r1cs")]
     pub fn kary_nand(bits: &[Self]) -> Result<Self, SynthesisError> {
         Ok(Self::kary_and(bits)?.not())
     }
 
-    /// Assert that at least one input is false.
+    /// Enforces that `Self::kary_nand(bits).is_eq(&Boolean::TRUE)`.
+    ///
+    /// Informally, this means that at least one element in `bits` must be `false`.
     #[tracing::instrument(target = "r1cs")]
     fn enforce_kary_nand(bits: &[Self]) -> Result<(), SynthesisError> {
         use Boolean::*;
@@ -392,7 +412,7 @@ impl<F: Field> Boolean<F> {
 
     /// Enforces that `bits`, when interpreted as a integer, is less than `F::characteristic()`,
     /// That is, interpret bits as a little-endian integer, and enforce that this integer
-    /// is "in the field F".
+    /// is "in the field Z_p", where `p = F::characteristic()` .
     #[tracing::instrument(target = "r1cs")]
     pub fn enforce_in_field_le(bits: &[Self]) -> Result<(), SynthesisError> {
         // `bits` < F::characteristic() <==> `bits` <= F::characteristic() -1
@@ -466,6 +486,9 @@ impl<F: Field> Boolean<F> {
         Ok(current_run)
     }
 
+    /// Conditionally selects one of `first` and `second` based on the value of `self`:
+    ///
+    /// If `self.is_eq(&Boolean::TRUE)`, this outputs `first`; else, it outputs `second`.
     #[tracing::instrument(target = "r1cs", skip(first, second))]
     pub fn select<T: CondSelectGadget<F>>(
         &self,
