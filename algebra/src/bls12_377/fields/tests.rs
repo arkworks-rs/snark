@@ -21,7 +21,7 @@ use crate::{
         field_serialization_test, field_test, frobenius_test, primefield_test, sqrt_field_test,
     },
 };
-
+#[allow(unused)]
 pub(crate) const ITERATIONS: usize = 5;
 
 #[allow(unused)]
