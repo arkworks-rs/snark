@@ -61,7 +61,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         path_db: String,
         path_cache: String
     ) -> Result<Self, Error> {
-        assert!(check_precomputed_parameters::<T>(height + 1));
+        assert!(check_precomputed_parameters::<T>(height));
         
         let rate = <<T::H  as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
 
@@ -117,7 +117,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
             let state_file = fs::File::open(state_path.clone())?;
             BigMerkleTreeState::<T>::read(state_file)?
         };
-        assert!(check_precomputed_parameters::<T>(state.height + 1));
+        assert!(check_precomputed_parameters::<T>(state.height));
         let width = T::MERKLE_ARITY.pow(state.height as u32);
 
         let opening_options = Options::default();

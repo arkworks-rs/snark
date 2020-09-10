@@ -520,8 +520,11 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
             input_vec.push(left_hash);
             input_vec.push(right_hash);
 
-            if left_child_present && right_child_present {
+            if left_child_present || right_child_present {
                 self.state.present_node.insert(coord);
+            }
+
+            if left_child_present && right_child_present {
                 both_children_present.push(true);
             } else {
                 both_children_present.push(false);
