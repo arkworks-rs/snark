@@ -39,6 +39,7 @@ pub(crate) mod tests;
 
 ///////////////////////////////////////////////////////////////////////////////
 #[cfg(feature = "bn254")]
+#[macro_use]
 pub mod bn254;
 #[cfg(feature = "bn254")]
 pub use bn254::Bn254;
@@ -54,6 +55,7 @@ pub mod ed_on_bn254;
 
 ///////////////////////////////////////////////////////////////////////////////
 #[cfg(feature = "bls12_377")]
+#[macro_use]
 pub mod bls12_377;
 #[cfg(feature = "bls12_377")]
 pub use bls12_377::Bls12_377;
@@ -70,6 +72,7 @@ pub use bls12_377::Bls12_377;
         feature = "bw6_761",
     )
 ))]
+#[macro_use]
 pub(crate) mod bls12_377;
 
 #[cfg(feature = "ed_on_bls12_377")]
@@ -78,6 +81,7 @@ pub mod ed_on_bls12_377;
 
 ///////////////////////////////////////////////////////////////////////////////
 #[cfg(feature = "bls12_381")]
+#[macro_use]
 pub mod bls12_381;
 #[cfg(feature = "bls12_381")]
 pub use bls12_381::Bls12_381;

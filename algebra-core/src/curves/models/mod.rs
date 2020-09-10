@@ -7,6 +7,8 @@ pub mod mnt4;
 pub mod mnt6;
 
 #[macro_use]
+pub(crate) mod sw_batch_affine;
+#[macro_use]
 pub mod short_weierstrass_affine;
 #[macro_use]
 pub mod short_weierstrass_jacobian;

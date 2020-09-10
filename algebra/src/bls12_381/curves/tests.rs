@@ -6,6 +6,7 @@ use crate::bls12_381::*;
 std_curve_tests!(Bls12_381, Fq12);
 
 #[test]
+#[cfg(feature = "all_tests")]
 fn test_g1_generator_raw() {
     let mut x = Fq::zero();
     let mut i = 0;

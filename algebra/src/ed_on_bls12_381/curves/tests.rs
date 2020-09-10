@@ -1,9 +1,11 @@
+#![allow(unused_imports)]
 use crate::ed_on_bls12_381::*;
 use algebra_core::{FromBytes, ToBytes, Zero};
 use core::str::FromStr;
 edwards_curve_tests!();
 
 #[test]
+#[cfg(feature = "all_tests")]
 fn test_scalar_multiplication() {
     println!("Started getting field elements");
     let f1 = Fr::from_str(
@@ -42,6 +44,7 @@ fn test_scalar_multiplication() {
 }
 
 #[test]
+#[cfg(feature = "all_tests")]
 fn test_bytes() {
     let g_from_repr = EdwardsAffine::from_str(
         "(1158870117176967269192899343636553522971009777237254192973081388797299308391, \

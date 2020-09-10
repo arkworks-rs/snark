@@ -1,3 +1,4 @@
+#[allow(unused_macros)]
 macro_rules! std_curve_tests {
     ($CURVE_IDENT: ident, $GTField: ident) => {
         use algebra_core::{
@@ -9,14 +10,52 @@ macro_rules! std_curve_tests {
         use crate::tests::{curves::*, groups::*, msm::*};
 
         #[test]
-        fn test_g1_projective_curve() {
+        #[cfg(feature = "curve")]
+        fn test_g1_curve() {
             curve_tests::<G1Projective>();
+        }
 
+        #[test]
+        #[cfg(any(
+            feature = "serialisation",
+            feature = "verify",
+            feature = "random_bytes"
+        ))]
+        fn test_sw_g1() {
             sw_tests::<g1::Parameters>();
         }
 
         #[test]
-        fn test_g1_projective_group() {
+        #[cfg(feature = "curve")]
+        fn test_g2_curve() {
+            curve_tests::<G2Projective>();
+        }
+
+        #[test]
+        #[cfg(any(
+            feature = "serialisation",
+            feature = "verify",
+            feature = "random_bytes"
+        ))]
+        fn test_sw_g2() {
+            sw_tests::<g2::Parameters>();
+        }
+
+        #[test]
+        #[cfg(feature = "batch_affine")]
+        fn test_batch_affine_g1() {
+            batch_affine_test::<G1Affine>();
+        }
+
+        #[test]
+        #[cfg(feature = "batch_affine")]
+        fn test_batch_affine_g2() {
+            batch_affine_test::<G2Affine>();
+        }
+
+        #[test]
+        #[cfg(feature = "curve")]
+        fn test_g1_group() {
             let mut rng = test_rng();
             let a: G1Projective = rng.gen();
             let b: G1Projective = rng.gen();
@@ -24,6 +63,7 @@ macro_rules! std_curve_tests {
         }
 
         #[test]
+        #[cfg(feature = "curve")]
         fn test_g1_generator() {
             let generator = G1Affine::prime_subgroup_generator();
             assert!(generator.is_on_curve());
@@ -31,14 +71,8 @@ macro_rules! std_curve_tests {
         }
 
         #[test]
-        fn test_g2_projective_curve() {
-            curve_tests::<G2Projective>();
-
-            sw_tests::<g2::Parameters>();
-        }
-
-        #[test]
-        fn test_g2_projective_group() {
+        #[cfg(feature = "curve")]
+        fn test_g2_group() {
             let mut rng = test_rng();
             let a: G2Projective = rng.gen();
             let b: G2Projective = rng.gen();
@@ -46,6 +80,7 @@ macro_rules! std_curve_tests {
         }
 
         #[test]
+        #[cfg(feature = "curve")]
         fn test_g2_generator() {
             let generator = G2Affine::prime_subgroup_generator();
             assert!(generator.is_on_curve());
@@ -53,16 +88,19 @@ macro_rules! std_curve_tests {
         }
 
         #[test]
+        #[cfg(feature = "msm")]
         fn test_g1_msm() {
             test_msm::<G1Affine>();
         }
 
         #[test]
+        #[cfg(feature = "msm")]
         fn test_g2_msm() {
             test_msm::<G2Affine>();
         }
 
         #[test]
+        #[cfg(feature = "pairing")]
         fn test_bilinearity() {
             let mut rng = test_rng();
             let a: G1Projective = rng.gen();
@@ -89,6 +127,7 @@ macro_rules! std_curve_tests {
         }
 
         #[test]
+        #[cfg(feature = "pairing")]
         fn test_product_of_pairings() {
             let rng = &mut test_rng();
 
@@ -104,6 +143,7 @@ macro_rules! std_curve_tests {
     };
 }
 
+#[allow(unused_macros)]
 macro_rules! edwards_curve_tests {
     () => {
         use algebra_core::{
@@ -115,14 +155,24 @@ macro_rules! edwards_curve_tests {
         use crate::tests::{curves::*, groups::*, msm::*};
 
         #[test]
-        fn test_projective_curve() {
+        #[cfg(feature = "curve")]
+        fn test_curve() {
             curve_tests::<EdwardsProjective>();
+        }
 
+        #[test]
+        #[cfg(any(
+            feature = "serialisation",
+            feature = "verify",
+            feature = "random_bytes"
+        ))]
+        fn test_edwards() {
             edwards_tests::<EdwardsParameters>();
         }
 
         #[test]
-        fn test_projective_group() {
+        #[cfg(feature = "curve")]
+        fn test_group() {
             let mut rng = test_rng();
             let a = rng.gen();
             let b = rng.gen();
@@ -133,6 +183,7 @@ macro_rules! edwards_curve_tests {
         }
 
         #[test]
+        #[cfg(feature = "curve")]
         fn test_affine_group() {
             let mut rng = test_rng();
             let a: EdwardsAffine = rng.gen();
@@ -143,11 +194,13 @@ macro_rules! edwards_curve_tests {
         }
 
         #[test]
+        #[cfg(feature = "msm")]
         fn test_affine_msm() {
             test_msm::<EdwardsAffine>();
         }
 
         #[test]
+        #[cfg(feature = "curve")]
         fn test_generator() {
             let generator = EdwardsAffine::prime_subgroup_generator();
             assert!(generator.is_on_curve());
@@ -155,6 +208,7 @@ macro_rules! edwards_curve_tests {
         }
 
         #[test]
+        #[cfg(feature = "conversion")]
         fn test_conversion() {
             let mut rng = test_rng();
             let a: EdwardsAffine = rng.gen();
@@ -171,6 +225,7 @@ macro_rules! edwards_curve_tests {
         }
 
         #[test]
+        #[cfg(feature = "conversion")]
         fn test_montgomery_conversion() {
             montgomery_conversion_test::<EdwardsParameters>();
         }

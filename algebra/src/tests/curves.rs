@@ -646,6 +646,9 @@ pub fn curve_tests<G: ProjectiveCurve>() {
     random_doubling_test::<G>();
     random_negation_test::<G>();
     random_transformation_test::<G>();
+}
+
+pub fn batch_affine_test<G: ProjectiveCurve>() {
     random_batch_doubling_test::<G>();
     random_batch_add_doubling_test::<G>();
     random_batch_addition_test::<G>();
@@ -654,9 +657,12 @@ pub fn curve_tests<G: ProjectiveCurve>() {
 }
 
 pub fn sw_tests<P: SWModelParameters>() {
+    #[cfg(feature = "serialisation")]
     sw_curve_serialization_test::<P>();
+    #[cfg(feature = "random_bytes")]
     sw_from_random_bytes::<P>();
     // Only check batch verification for non-unit cofactor
+    #[cfg(feature = "verify")]
     if !(P::COFACTOR[0] == 1u64 && P::COFACTOR[1..].iter().all(|&x| x == 0u64)) {
         sw_batch_verify_test::<P>();
     }
@@ -789,9 +795,12 @@ pub fn edwards_tests<P: TEModelParameters>()
 where
     P::BaseField: PrimeField,
 {
+    #[cfg(feature = "serialisation")]
     edwards_curve_serialization_test::<P>();
+    #[cfg(feature = "random_bytes")]
     edwards_from_random_bytes::<P>();
     // Only check batch verification for non-unit cofactor
+    #[cfg(feature = "verify")]
     if !(P::COFACTOR[0] == 1u64 && P::COFACTOR[1..].iter().all(|&x| x == 0u64)) {
         te_batch_verify_test::<P>();
     }

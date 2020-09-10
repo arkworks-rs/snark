@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 use crate::tests::fields::{field_test, primefield_test};
 use algebra_core::test_rng;
 use rand::Rng;

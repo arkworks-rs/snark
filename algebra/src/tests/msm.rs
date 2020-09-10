@@ -18,6 +18,7 @@ fn _naive_var_base_msm<G: AffineCurve>(
     acc
 }
 
+#[allow(unused)]
 pub fn test_msm<G: AffineCurve>() {
     const MAX_LOGN: usize = 14;
     const SAMPLES: usize = 1 << MAX_LOGN;
