@@ -64,6 +64,7 @@ impl<F: Field> UInt8<F> {
         }
     }
 
+    /// Allocates a slice of `u8`'s as private witnesses.
     pub fn new_witness_vec(
         cs: impl Into<Namespace<F>>,
         values: &[impl Into<Option<u8>> + Copy],
@@ -78,10 +79,13 @@ impl<F: Field> UInt8<F> {
         Ok(output_vec)
     }
 
-    /// Allocates a vector of `u8`'s by first converting (chunks of) them to
-    /// `ConstraintF` elements, (thus reducing the number of input allocations),
-    /// and then converts this list of `ConstraintF` gadgets back into
+    /// Allocates a slice of `u8`'s as public inputs by first packing them into
+    /// `F` elements, (thus reducing the number of input allocations),
+    /// and then converts this list of `AllocatedFp<F>` variables back into
     /// bytes.
+    ///
+    /// From a user perspective, this trade-off adds constraints, but improves
+    /// verifier time and verification key size.
     pub fn new_input_vec(
         cs: impl Into<Namespace<F>>,
         values: &[u8],
@@ -134,7 +138,10 @@ impl<F: Field> UInt8<F> {
         Self { value, bits }
     }
 
-    /// XOR this `UInt8` with another `UInt8`
+    /// Outputs `self ^ other`.
+    ///
+    /// If at least one of `self` and `other` are constants, then this method
+    /// *does not* create any constraints or variables.
     #[tracing::instrument(target = "r1cs")]
     pub fn xor(&self, other: &Self) -> Result<Self, SynthesisError> {
         let new_value = match (self.value, other.value) {

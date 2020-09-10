@@ -11,8 +11,17 @@ use r1cs_core::{ConstraintSystemRef, Namespace, SynthesisError};
 use crate::fields::fp::FpVar;
 use crate::{prelude::*, ToConstraintFieldGadget, Vec};
 
+/// This module provides a generic implementation of G1 and G2 for
+/// the [[BLS12]](https://eprint.iacr.org/2002/088.pdf) family of bilinear groups.
 pub mod bls12;
+
+/// This module provides a generic implementation of G1 and G2 for
+/// the [[MNT4]](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.20.8113&rep=rep1&type=pdf)
+///  family of bilinear groups.
 pub mod mnt4;
+/// This module provides a generic implementation of G1 and G2 for
+/// the [[MNT6]](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.20.8113&rep=rep1&type=pdf)
+///  family of bilinear groups.
 pub mod mnt6;
 
 /// An implementation of arithmetic for Short Weierstrass curves that relies on
@@ -72,6 +81,8 @@ where
         }
     }
 
+    /// Returns the value assigned to `self` in the underlying
+    /// constraint system.
     pub fn value(&self) -> Result<SWAffine<P>, SynthesisError> {
         Ok(SWAffine::new(
             self.x.value()?,
@@ -128,6 +139,7 @@ impl<P: SWModelParameters, F: FieldVar<P::BaseField, <P::BaseField as Field>::Ba
 where
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
+    /// Constructs `Self` from an `(x, y, z)` coordinate triple.
     pub fn new(x: F, y: F, z: F) -> Self {
         Self {
             x,

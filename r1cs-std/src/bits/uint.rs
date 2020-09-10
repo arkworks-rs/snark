@@ -1,5 +1,10 @@
 macro_rules! make_uint {
-    ($name:ident, $size:expr, $native:ident, $mod_name:ident) => {
+    ($name:ident, $size:expr, $native:ident, $mod_name:ident, $native_doc_name:expr) => {
+        #[doc = "This module contains a `UInt"]
+        #[doc = $native_doc_name]
+        #[doc = "`, a R1CS equivalent of the `u"]
+        #[doc = $native_doc_name]
+        #[doc = "`type."]
         pub mod $mod_name {
             use algebra::{Field, FpParameters, PrimeField};
             use core::borrow::Borrow;
@@ -15,8 +20,14 @@ macro_rules! make_uint {
                 Assignment, Vec,
             };
 
-            /// Represents an interpretation of `Boolean` objects as an
-            /// unsigned integer.
+            #[doc = "This struct represent an unsigned"]
+            #[doc = $native_doc_name]
+            #[doc = "-bit integer as a sequence of "]
+            #[doc = $native_doc_name]
+            #[doc = " `Boolean`s\n"]
+            #[doc = "This is the R1CS equivalent of the native `u"]
+            #[doc = $native_doc_name]
+            #[doc = "` unsigned integer type."]
             #[derive(Clone, Debug)]
             pub struct $name<F: Field> {
                 // Least significant bit first
@@ -46,7 +57,11 @@ macro_rules! make_uint {
             }
 
             impl<F: Field> $name<F> {
-                /// Construct a constant `$name` from a `$native`
+                #[doc = "Construct a constant `UInt"]
+                #[doc = $native_doc_name]
+                #[doc = "` from the native `u"]
+                #[doc = $native_doc_name]
+                #[doc = "` type."]
                 pub fn constant(value: $native) -> Self {
                     let mut bits = Vec::with_capacity($size);
 
@@ -67,13 +82,18 @@ macro_rules! make_uint {
                     }
                 }
 
-                /// Turns this `$name` into its little-endian byte order representation.
+                /// Turns `self` into the underlying little-endian bits.
                 pub fn to_bits_le(&self) -> Vec<Boolean<F>> {
                     self.bits.clone()
                 }
 
-                /// Converts a little-endian byte order representation of bits into a
-                /// `$name`.
+                /// Construct `Self` from a slice of `Boolean`s.
+                ///
+                /// # Panics
+                ///
+                /// This method panics if `bits.len() != u
+                #[doc($native_doc_name)]
+                #[doc("`.")]
                 pub fn from_bits_le(bits: &[Boolean<F>]) -> Self {
                     assert_eq!(bits.len(), $size);
 
@@ -105,6 +125,7 @@ macro_rules! make_uint {
                     Self { value, bits }
                 }
 
+                /// Rotates `self` to the right by `by` steps, wrapping around.
                 #[tracing::instrument(target = "r1cs", skip(self))]
                 pub fn rotr(&self, by: usize) -> Self {
                     let by = by % $size;
@@ -126,8 +147,11 @@ macro_rules! make_uint {
                     }
                 }
 
-                /// XOR this `$name` with another `$name`
-                #[tracing::instrument(target = "r1cs", skip(self))]
+                /// Outputs `self ^ other`.
+                ///
+                /// If at least one of `self` and `other` are constants, then this method
+                /// *does not* create any constraints or variables.
+                #[tracing::instrument(target = "r1cs", skip(self, other))]
                 pub fn xor(&self, other: &Self) -> Result<Self, SynthesisError> {
                     let new_value = match (self.value, other.value) {
                         (Some(a), Some(b)) => Some(a ^ b),
@@ -147,8 +171,10 @@ macro_rules! make_uint {
                     })
                 }
 
-                /// Perform modular addition of several `$name` objects.
-                #[tracing::instrument(target = "r1cs")]
+                /// Perform modular addition of `operands`.
+                ///
+                /// The user must ensure that overflow does not occur.
+                #[tracing::instrument(target = "r1cs", skip(operands))]
                 pub fn addmany(operands: &[Self]) -> Result<Self, SynthesisError>
                 where
                     F: PrimeField,

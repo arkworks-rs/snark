@@ -2,8 +2,11 @@ use algebra::mnt4_298::{Fq, Fq2Parameters, Fq4Parameters};
 
 use crate::fields::{fp::FpVar, fp2::Fp2Var, fp4::Fp4Var};
 
+/// A variable that is the R1CS equivalent of `algebra::mnt4_298::Fq`.
 pub type FqVar = FpVar<Fq>;
+/// A variable that is the R1CS equivalent of `algebra::mnt4_298::Fq2`.
 pub type Fq2Var = Fp2Var<Fq2Parameters>;
+/// A variable that is the R1CS equivalent of `algebra::mnt4_298::Fq4`.
 pub type Fq4Var = Fp4Var<Fq4Parameters>;
 
 #[test]

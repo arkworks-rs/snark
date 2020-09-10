@@ -2,9 +2,13 @@ use algebra::bls12_377::{Fq, Fq12Parameters, Fq2Parameters, Fq6Parameters};
 
 use crate::fields::{fp::FpVar, fp12::Fp12Var, fp2::Fp2Var, fp6_3over2::Fp6Var};
 
+/// A variable that is the R1CS equivalent of `algebra::bls12_377::Fq`.
 pub type FqVar = FpVar<Fq>;
+/// A variable that is the R1CS equivalent of `algebra::bls12_377::Fq2`.
 pub type Fq2Var = Fp2Var<Fq2Parameters>;
+/// A variable that is the R1CS equivalent of `algebra::bls12_377::Fq6`.
 pub type Fq6Var = Fp6Var<Fq6Parameters>;
+/// A variable that is the R1CS equivalent of `algebra::bls12_377::Fq12`.
 pub type Fq12Var = Fp12Var<Fq12Parameters>;
 
 #[test]

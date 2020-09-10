@@ -13,6 +13,12 @@ use crate::{prelude::*, ToConstraintFieldGadget, Vec};
 use crate::fields::fp::FpVar;
 use core::{borrow::Borrow, marker::PhantomData};
 
+/// An implementation of arithmetic for Montgomery curves that relies on
+/// incomplete addition formulae for the affine model, as outlined in the
+/// [EFD](https://www.hyperelliptic.org/EFD/g1p/auto-montgom.html).
+///
+/// This is intended for use primarily for implementing efficient
+/// multi-scalar-multiplication in the Bowe-Hopwood-Pedersen hash.
 #[derive(Derivative)]
 #[derivative(Debug, Clone)]
 #[must_use]
@@ -22,7 +28,9 @@ pub struct MontgomeryAffineVar<
 > where
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
+    /// The x-coordinate.
     pub x: F,
+    /// The y-coordinate.
     pub y: F,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
@@ -59,6 +67,7 @@ mod montgomery_affine_impl {
     where
         for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
     {
+        /// Constructs `Self` from an `(x, y)` coordinate pair.
         pub fn new(x: F, y: F) -> Self {
             Self {
                 x,
@@ -67,6 +76,8 @@ mod montgomery_affine_impl {
             }
         }
 
+        /// Converts a Twisted Edwards curve point to coordinates for the corresponding affine
+        /// Montgomery curve point.
         #[tracing::instrument(target = "r1cs")]
         pub fn from_edwards_to_coords(
             p: &TEAffine<P>,
@@ -85,6 +96,8 @@ mod montgomery_affine_impl {
             Ok((montgomery_point.x, montgomery_point.y))
         }
 
+        /// Converts a Twisted Edwards curve point to coordinates for the corresponding affine
+        /// Montgomery curve point.
         #[tracing::instrument(target = "r1cs")]
         pub fn new_witness_from_edwards(
             cs: ConstraintSystemRef<<P::BaseField as Field>::BasePrimeField>,
@@ -96,6 +109,7 @@ mod montgomery_affine_impl {
             Ok(Self::new(u, v))
         }
 
+        /// Converts `self` into a Twisted Edwards curve point variable.
         #[tracing::instrument(target = "r1cs")]
         pub fn into_edwards(&self) -> Result<AffineVar<P, F>, SynthesisError> {
             let cs = self.cs().unwrap_or(ConstraintSystemRef::None);
@@ -199,6 +213,9 @@ mod montgomery_affine_impl {
     }
 }
 
+/// An implementation of arithmetic for Twisted Edwards curves that relies on
+/// the complete formulae for the affine model, as outlined in the
+/// [EFD](https://www.hyperelliptic.org/EFD/g1p/auto-twisted.html).
 #[derive(Derivative)]
 #[derivative(Debug, Clone)]
 #[must_use]
@@ -208,7 +225,9 @@ pub struct AffineVar<
 > where
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
+    /// The x-coordinate.
     pub x: F,
+    /// The y-coordinate.
     pub y: F,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
@@ -219,6 +238,7 @@ impl<P: TEModelParameters, F: FieldVar<P::BaseField, <P::BaseField as Field>::Ba
 where
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
+    /// Constructs `Self` from an `(x, y)` coordinate triple.
     pub fn new(x: F, y: F) -> Self {
         Self {
             x,
@@ -257,6 +277,99 @@ where
     }
 }
 
+impl<P: TEModelParameters, F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>>
+    AffineVar<P, F>
+where
+    P: TEModelParameters,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>
+        + TwoBitLookupGadget<<P::BaseField as Field>::BasePrimeField, TableConstant = P::BaseField>
+        + ThreeBitCondNegLookupGadget<
+            <P::BaseField as Field>::BasePrimeField,
+            TableConstant = P::BaseField,
+        >,
+    for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
+{
+    /// Compute a scalar multiplication of `bases` with respect to `scalars`,
+    /// where the elements of `scalars` are length-three slices of bits, and which
+    /// such that the first two bits are use to select one of the bases,
+    /// while the third bit is used to conditionally negate the selection.
+    #[tracing::instrument(target = "r1cs", skip(bases, scalars))]
+    pub fn precomputed_base_3_bit_signed_digit_scalar_mul<J>(
+        bases: &[impl Borrow<[TEProjective<P>]>],
+        scalars: &[impl Borrow<[J]>],
+    ) -> Result<Self, SynthesisError>
+    where
+        J: Borrow<[Boolean<<P::BaseField as Field>::BasePrimeField>]>,
+    {
+        const CHUNK_SIZE: usize = 3;
+        let mut ed_result: Option<AffineVar<P, F>> = None;
+        let mut result: Option<MontgomeryAffineVar<P, F>> = None;
+
+        let mut process_segment_result = |result: &MontgomeryAffineVar<P, F>| {
+            let sgmt_result = result.into_edwards()?;
+            ed_result = match ed_result.as_ref() {
+                None => Some(sgmt_result),
+                Some(r) => Some(sgmt_result + r),
+            };
+            Ok::<(), SynthesisError>(())
+        };
+
+        // Compute ∏(h_i^{m_i}) for all i.
+        for (segment_bits_chunks, segment_powers) in scalars.iter().zip(bases) {
+            for (bits, base_power) in segment_bits_chunks
+                .borrow()
+                .iter()
+                .zip(segment_powers.borrow())
+            {
+                let base_power = base_power.borrow();
+                let mut acc_power = *base_power;
+                let mut coords = vec![];
+                for _ in 0..4 {
+                    coords.push(acc_power);
+                    acc_power += base_power;
+                }
+
+                let bits = bits.borrow().to_bits_le()?;
+                if bits.len() != CHUNK_SIZE {
+                    return Err(SynthesisError::Unsatisfiable);
+                }
+
+                let coords = coords
+                    .iter()
+                    .map(|p| MontgomeryAffineVar::from_edwards_to_coords(&p.into_affine()))
+                    .collect::<Result<Vec<_>, _>>()?;
+
+                let x_coeffs = coords.iter().map(|p| p.0).collect::<Vec<_>>();
+                let y_coeffs = coords.iter().map(|p| p.1).collect::<Vec<_>>();
+
+                let precomp = bits[0].and(&bits[1])?;
+
+                let x = F::zero()
+                    + x_coeffs[0]
+                    + F::from(bits[0].clone()) * (x_coeffs[1] - &x_coeffs[0])
+                    + F::from(bits[1].clone()) * (x_coeffs[2] - &x_coeffs[0])
+                    + F::from(precomp.clone())
+                        * (x_coeffs[3] - &x_coeffs[2] - &x_coeffs[1] + &x_coeffs[0]);
+
+                let y = F::three_bit_cond_neg_lookup(&bits, &precomp, &y_coeffs)?;
+
+                let tmp = MontgomeryAffineVar::new(x, y);
+                result = match result.as_ref() {
+                    None => Some(tmp),
+                    Some(r) => Some(tmp + r),
+                };
+            }
+
+            process_segment_result(&result.unwrap())?;
+            result = None;
+        }
+        if result.is_some() {
+            process_segment_result(&result.unwrap())?;
+        }
+        Ok(ed_result.unwrap())
+    }
+}
+
 impl<P, F> R1CSVar<<P::BaseField as Field>::BasePrimeField> for AffineVar<P, F>
 where
     P: TEModelParameters,
@@ -281,11 +394,7 @@ impl<P, F> CurveVar<TEProjective<P>, <P::BaseField as Field>::BasePrimeField> fo
 where
     P: TEModelParameters,
     F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>
-        + TwoBitLookupGadget<<P::BaseField as Field>::BasePrimeField, TableConstant = P::BaseField>
-        + ThreeBitCondNegLookupGadget<
-            <P::BaseField as Field>::BasePrimeField,
-            TableConstant = P::BaseField,
-        >,
+        + TwoBitLookupGadget<<P::BaseField as Field>::BasePrimeField, TableConstant = P::BaseField>,
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
     fn constant(g: TEProjective<P>) -> Self {
@@ -441,95 +550,13 @@ where
 
         Ok(())
     }
-
-    #[tracing::instrument(target = "r1cs", skip(bases, scalars))]
-    fn precomputed_base_3_bit_signed_digit_scalar_mul<'a, I, J, B>(
-        bases: &[B],
-        scalars: &[J],
-    ) -> Result<Self, SynthesisError>
-    where
-        I: Borrow<[Boolean<<P::BaseField as Field>::BasePrimeField>]>,
-        J: Borrow<[I]>,
-        B: Borrow<[TEProjective<P>]>,
-    {
-        const CHUNK_SIZE: usize = 3;
-        let mut ed_result: Option<AffineVar<P, F>> = None;
-        let mut result: Option<MontgomeryAffineVar<P, F>> = None;
-
-        let mut process_segment_result = |result: &MontgomeryAffineVar<P, F>| {
-            let sgmt_result = result.into_edwards()?;
-            ed_result = match ed_result.as_ref() {
-                None => Some(sgmt_result),
-                Some(r) => Some(sgmt_result + r),
-            };
-            Ok::<(), SynthesisError>(())
-        };
-
-        // Compute ∏(h_i^{m_i}) for all i.
-        for (segment_bits_chunks, segment_powers) in scalars.iter().zip(bases) {
-            for (bits, base_power) in segment_bits_chunks
-                .borrow()
-                .iter()
-                .zip(segment_powers.borrow())
-            {
-                let base_power = base_power.borrow();
-                let mut acc_power = *base_power;
-                let mut coords = vec![];
-                for _ in 0..4 {
-                    coords.push(acc_power);
-                    acc_power += base_power;
-                }
-
-                let bits = bits.borrow().to_bits_le()?;
-                if bits.len() != CHUNK_SIZE {
-                    return Err(SynthesisError::Unsatisfiable);
-                }
-
-                let coords = coords
-                    .iter()
-                    .map(|p| MontgomeryAffineVar::from_edwards_to_coords(&p.into_affine()))
-                    .collect::<Result<Vec<_>, _>>()?;
-
-                let x_coeffs = coords.iter().map(|p| p.0).collect::<Vec<_>>();
-                let y_coeffs = coords.iter().map(|p| p.1).collect::<Vec<_>>();
-
-                let precomp = bits[0].and(&bits[1])?;
-
-                let x = F::zero()
-                    + x_coeffs[0]
-                    + F::from(bits[0].clone()) * (x_coeffs[1] - &x_coeffs[0])
-                    + F::from(bits[1].clone()) * (x_coeffs[2] - &x_coeffs[0])
-                    + F::from(precomp.clone())
-                        * (x_coeffs[3] - &x_coeffs[2] - &x_coeffs[1] + &x_coeffs[0]);
-
-                let y = F::three_bit_cond_neg_lookup(&bits, &precomp, &y_coeffs)?;
-
-                let tmp = MontgomeryAffineVar::new(x, y);
-                result = match result.as_ref() {
-                    None => Some(tmp),
-                    Some(r) => Some(tmp + r),
-                };
-            }
-
-            process_segment_result(&result.unwrap())?;
-            result = None;
-        }
-        if result.is_some() {
-            process_segment_result(&result.unwrap())?;
-        }
-        Ok(ed_result.unwrap())
-    }
 }
 
 impl<P, F> AllocVar<TEProjective<P>, <P::BaseField as Field>::BasePrimeField> for AffineVar<P, F>
 where
     P: TEModelParameters,
     F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>
-        + TwoBitLookupGadget<<P::BaseField as Field>::BasePrimeField, TableConstant = P::BaseField>
-        + ThreeBitCondNegLookupGadget<
-            <P::BaseField as Field>::BasePrimeField,
-            TableConstant = P::BaseField,
-        >,
+        + TwoBitLookupGadget<<P::BaseField as Field>::BasePrimeField, TableConstant = P::BaseField>,
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
     #[tracing::instrument(target = "r1cs", skip(cs, f))]
@@ -630,11 +657,7 @@ impl<P, F> AllocVar<TEAffine<P>, <P::BaseField as Field>::BasePrimeField> for Af
 where
     P: TEModelParameters,
     F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>
-        + TwoBitLookupGadget<<P::BaseField as Field>::BasePrimeField, TableConstant = P::BaseField>
-        + ThreeBitCondNegLookupGadget<
-            <P::BaseField as Field>::BasePrimeField,
-            TableConstant = P::BaseField,
-        >,
+        + TwoBitLookupGadget<<P::BaseField as Field>::BasePrimeField, TableConstant = P::BaseField>,
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
     #[tracing::instrument(target = "r1cs", skip(cs, f))]
@@ -737,8 +760,7 @@ impl_bounded_ops!(
     |this: &'a AffineVar<P, F>, other: TEProjective<P>| this + AffineVar::constant(other),
     (
         F :FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>
-            + TwoBitLookupGadget<<P::BaseField as Field>::BasePrimeField, TableConstant = P::BaseField>
-            + ThreeBitCondNegLookupGadget<<P::BaseField as Field>::BasePrimeField, TableConstant = P::BaseField>,
+            + TwoBitLookupGadget<<P::BaseField as Field>::BasePrimeField, TableConstant = P::BaseField>,
         P: TEModelParameters,
     ),
     for <'b> &'b F: FieldOpsBounds<'b, P::BaseField, F>,
@@ -755,8 +777,7 @@ impl_bounded_ops!(
     |this: &'a AffineVar<P, F>, other: TEProjective<P>| this - AffineVar::constant(other),
     (
         F :FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>
-            + TwoBitLookupGadget<<P::BaseField as Field>::BasePrimeField, TableConstant = P::BaseField>
-            + ThreeBitCondNegLookupGadget<<P::BaseField as Field>::BasePrimeField, TableConstant = P::BaseField>,
+            + TwoBitLookupGadget<<P::BaseField as Field>::BasePrimeField, TableConstant = P::BaseField>,
         P: TEModelParameters,
     ),
     for <'b> &'b F: FieldOpsBounds<'b, P::BaseField, F>
@@ -766,11 +787,7 @@ impl<'a, P, F> GroupOpsBounds<'a, TEProjective<P>, AffineVar<P, F>> for AffineVa
 where
     P: TEModelParameters,
     F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>
-        + TwoBitLookupGadget<<P::BaseField as Field>::BasePrimeField, TableConstant = P::BaseField>
-        + ThreeBitCondNegLookupGadget<
-            <P::BaseField as Field>::BasePrimeField,
-            TableConstant = P::BaseField,
-        >,
+        + TwoBitLookupGadget<<P::BaseField as Field>::BasePrimeField, TableConstant = P::BaseField>,
     for<'b> &'b F: FieldOpsBounds<'b, P::BaseField, F>,
 {
 }
@@ -779,11 +796,7 @@ impl<'a, P, F> GroupOpsBounds<'a, TEProjective<P>, AffineVar<P, F>> for &'a Affi
 where
     P: TEModelParameters,
     F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>
-        + TwoBitLookupGadget<<P::BaseField as Field>::BasePrimeField, TableConstant = P::BaseField>
-        + ThreeBitCondNegLookupGadget<
-            <P::BaseField as Field>::BasePrimeField,
-            TableConstant = P::BaseField,
-        >,
+        + TwoBitLookupGadget<<P::BaseField as Field>::BasePrimeField, TableConstant = P::BaseField>,
     for<'b> &'b F: FieldOpsBounds<'b, P::BaseField, F>,
 {
 }

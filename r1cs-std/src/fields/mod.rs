@@ -7,18 +7,37 @@ use r1cs_core::SynthesisError;
 
 use crate::{prelude::*, Assignment};
 
+/// This module contains a generic implementation of cubic extension field variables.
+/// That is, it implements the R1CS equivalent of `algebra_core::CubicExtField`.
 pub mod cubic_extension;
+/// This module contains a generic implementation of quadratic extension field variables.
+/// That is, it implements the R1CS equivalent of `algebra_core::QuadExtField`.
 pub mod quadratic_extension;
 
+/// This module contains a generic implementation of prime field variables.
+/// That is, it implements the R1CS equivalent of `algebra_core::Fp*`.
 pub mod fp;
+
+/// This module contains a generic implementation of the degree-12 tower extension field.
+/// That is, it implements the R1CS equivalent of  `algebra_core::Fp12`
 pub mod fp12;
+/// This module contains a generic implementation of the degree-2 tower extension field.
+/// That is, it implements the R1CS equivalent of  `algebra_core::Fp2`
 pub mod fp2;
+/// This module contains a generic implementation of the degree-3 tower extension field.
+/// That is, it implements the R1CS equivalent of  `algebra_core::Fp3`
 pub mod fp3;
+/// This module contains a generic implementation of the degree-4 tower extension field.
+/// That is, it implements the R1CS equivalent of  `algebra_core::Fp4`
 pub mod fp4;
+/// This module contains a generic implementation of the degree-6 tower extension field.
+/// That is, it implements the R1CS equivalent of  `algebra_core::fp6_2over3::Fp6`
 pub mod fp6_2over3;
+/// This module contains a generic implementation of the degree-6 tower extension field.
+/// That is, it implements the R1CS equivalent of  `algebra_core::fp6_3over2::Fp6`
 pub mod fp6_3over2;
 
-/// A hack used to work around the lack of implied bounds.
+/// This trait is a hack used to work around the lack of implied bounds.
 pub trait FieldOpsBounds<'a, F, T: 'a>:
     Sized
     + Add<&'a T, Output = T>
@@ -56,62 +75,80 @@ pub trait FieldVar<F: Field, ConstraintF: Field>:
     + MulAssign<F>
     + Debug
 {
+    /// Returns the constant `F::zero()`.
     fn zero() -> Self;
 
+    /// Returns a `Boolean` representing whether `self == Self::zero()`.
     fn is_zero(&self) -> Result<Boolean<ConstraintF>, SynthesisError> {
         self.is_eq(&Self::zero())
     }
 
+    /// Returns the constant `F::one()`.
     fn one() -> Self;
 
+    /// Returns a `Boolean` representing whether `self == Self::one()`.
     fn is_one(&self) -> Result<Boolean<ConstraintF>, SynthesisError> {
         self.is_eq(&Self::one())
     }
 
+    /// Returns a constant with value `v`.
+    ///
+    /// This *should not* allocate any variables.
     fn constant(v: F) -> Self;
 
+    /// Computes `self + self`.
     fn double(&self) -> Result<Self, SynthesisError> {
         Ok(self.clone() + self)
     }
 
+    /// Sets `self = self + self`.
     fn double_in_place(&mut self) -> Result<&mut Self, SynthesisError> {
         *self += self.double()?;
         Ok(self)
     }
 
+    /// Coputes `-self`.
     fn negate(&self) -> Result<Self, SynthesisError>;
 
+    /// Sets `self = -self`.
     #[inline]
     fn negate_in_place(&mut self) -> Result<&mut Self, SynthesisError> {
         *self = self.negate()?;
         Ok(self)
     }
 
+    /// Computes `self * self`.
+    ///
+    /// A default implementation is provided which just invokes the underlying
+    /// multiplication routine. However, this method should be specialized
+    /// for extension fields, where faster algorithms exist for squaring.
     fn square(&self) -> Result<Self, SynthesisError> {
         Ok(self.clone() * self)
     }
 
+    /// Sets `self = self.square()`.
     fn square_in_place(&mut self) -> Result<&mut Self, SynthesisError> {
         *self = self.square()?;
         Ok(self)
     }
 
-    /// Enforce that `self * other == result`.
+    /// Enforces that `self * other == result`.
     fn mul_equals(&self, other: &Self, result: &Self) -> Result<(), SynthesisError> {
         let actual_result = self.clone() * other;
         result.enforce_equal(&actual_result)
     }
 
-    /// Enforce that `self * self == result`.
+    /// Enforces that `self * self == result`.
     fn square_equals(&self, result: &Self) -> Result<(), SynthesisError> {
         let actual_result = self.square()?;
         result.enforce_equal(&actual_result)
     }
 
+    /// Computes `result` such that `self * result == Self::one()`.
     fn inverse(&self) -> Result<Self, SynthesisError>;
 
-    /// Returns (self / denominator), but requires fewer constraints than
-    /// self * denominator.inverse()
+    /// Returns `(self / denominator)`. but requires fewer constraints than
+    /// `self * denominator.inverse()`.
     /// It is up to the caller to ensure that denominator is non-zero,
     /// since in that case the result is unconstrained.
     fn mul_by_inverse(&self, denominator: &Self) -> Result<Self, SynthesisError> {
@@ -125,8 +162,10 @@ pub trait FieldVar<F: Field, ConstraintF: Field>:
         Ok(result)
     }
 
+    /// Computes the frobenius map over `self`.
     fn frobenius_map(&self, power: usize) -> Result<Self, SynthesisError>;
 
+    /// Sets `self = self.frobenius_map()`.
     fn frobenius_map_in_place(&mut self, power: usize) -> Result<&mut Self, SynthesisError> {
         *self = self.frobenius_map(power)?;
         Ok(self)
@@ -145,7 +184,8 @@ pub trait FieldVar<F: Field, ConstraintF: Field>:
         Ok(res)
     }
 
-    /// Computes `self^S`, where S is interpreted as an integer.
+    /// Computes `self^S`, where S is interpreted as an little-endian u64-decomposition of
+    /// an integer.
     fn pow_by_constant<S: AsRef<[u64]>>(&self, exp: S) -> Result<Self, SynthesisError> {
         let mut res = Self::one();
         for i in BitIteratorBE::without_leading_zeros(exp) {

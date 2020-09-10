@@ -12,6 +12,8 @@ use crate::{
     Assignment, ToConstraintFieldGadget, Vec,
 };
 
+/// This struct is the `R1CS` equivalent of the cubic extension field type
+/// in `algebra-core`, i.e. `algebra_core::CubicExtField`.
 #[derive(Derivative)]
 #[derivative(Debug(bound = "BF: core::fmt::Debug"), Clone(bound = "BF: Clone"))]
 #[must_use]
@@ -19,18 +21,24 @@ pub struct CubicExtVar<BF: FieldVar<P::BaseField, P::BasePrimeField>, P: CubicEx
 where
     for<'a> &'a BF: FieldOpsBounds<'a, P::BaseField, BF>,
 {
+    /// The zero-th coefficient of this field element.
     pub c0: BF,
+    /// The first coefficient of this field element.
     pub c1: BF,
+    /// The second coefficient of this field element.
     pub c2: BF,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
 }
 
+/// This trait describes parameters that are used to implement arithmetic for `CubicExtVar`.
 pub trait CubicExtVarParams<BF: FieldVar<Self::BaseField, Self::BasePrimeField>>:
     CubicExtParameters
 where
     for<'a> &'a BF: FieldOpsBounds<'a, Self::BaseField, BF>,
 {
+    /// Multiply the base field of the `CubicExtVar` by the appropriate Frobenius coefficient.
+    /// This is equivalent to `Self::mul_base_field_by_frob_coeff(c1, c2, power)`.
     fn mul_base_field_vars_by_frob_coeff(c1: &mut BF, c2: &mut BF, power: usize);
 }
 
@@ -38,6 +46,7 @@ impl<BF: FieldVar<P::BaseField, P::BasePrimeField>, P: CubicExtVarParams<BF>> Cu
 where
     for<'a> &'a BF: FieldOpsBounds<'a, P::BaseField, BF>,
 {
+    /// Constructs a `CubicExtVar` from the underlying coefficients.
     #[inline]
     pub fn new(c0: BF, c1: BF, c2: BF) -> Self {
         let _params = PhantomData;
@@ -49,13 +58,14 @@ where
         }
     }
 
-    /// Multiply a BF by cubic nonresidue P::NONRESIDUE.
+    /// Multiplies a variable of the base field by the cubic nonresidue `P::NONRESIDUE` that
+    /// is used to construct the extension field.
     #[inline]
     pub fn mul_base_field_by_nonresidue(fe: &BF) -> Result<BF, SynthesisError> {
         Ok(fe * P::NONRESIDUE)
     }
 
-    /// Multiply a CubicExtVar by an element of `P::BaseField`.
+    /// Multiplies `self` by a constant from the base field.
     #[inline]
     pub fn mul_by_base_field_constant(&self, fe: P::BaseField) -> Self {
         let c0 = &self.c0 * fe;
@@ -64,6 +74,7 @@ where
         Self::new(c0, c1, c2)
     }
 
+    /// Sets `self = self.mul_by_base_field_constant(fe)`.
     #[inline]
     pub fn mul_assign_by_base_field_constant(&mut self, fe: P::BaseField) {
         *self = (&*self).mul_by_base_field_constant(fe);

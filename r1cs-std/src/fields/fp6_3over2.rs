@@ -3,6 +3,9 @@ use algebra::fields::{fp6_3over2::*, CubicExtParameters, Fp2};
 use core::ops::MulAssign;
 use r1cs_core::SynthesisError;
 
+/// A sextic extension field constructed as the tower of a
+/// cubic extension over a quadratic extension field.
+/// This is the R1CS equivalent of `algebra_core::fp6_3over3::Fp6<P>`.
 pub type Fp6Var<P> = CubicExtVar<Fp2Var<<P as Fp6Parameters>::Fp2Params>, Fp6ParamsWrapper<P>>;
 
 impl<P: Fp6Parameters> CubicExtVarParams<Fp2Var<P::Fp2Params>> for Fp6ParamsWrapper<P> {
@@ -17,6 +20,7 @@ impl<P: Fp6Parameters> CubicExtVarParams<Fp2Var<P::Fp2Params>> for Fp6ParamsWrap
 }
 
 impl<P: Fp6Parameters> Fp6Var<P> {
+    /// Multiplies `self` by a sparse element which has `c0 == c2 == zero`.
     pub fn mul_by_0_c1_0(&self, c1: &Fp2Var<P::Fp2Params>) -> Result<Self, SynthesisError> {
         // Karatsuba multiplication
         // v0 = a0 * b0 = 0
@@ -44,7 +48,7 @@ impl<P: Fp6Parameters> Fp6Var<P> {
         Ok(Self::new(c0, c1, c2))
     }
 
-    // #[inline]
+    /// Multiplies `self` by a sparse element which has `c2 == zero`.
     pub fn mul_by_c0_c1_0(
         &self,
         c0: &Fp2Var<P::Fp2Params>,
