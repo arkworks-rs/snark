@@ -43,7 +43,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
     /// You can edit the `mht_poseidon_tuning` benchmarks in `primitives/src/benches/poseidon_mht.rs`
     /// to properly tune the `processing_step` parameter according to your use case.
     pub fn init(height: usize, processing_step: usize) -> Self {
-        let height = height + 1;
+        //let height = height + 1;
         assert!(check_precomputed_parameters::<T>(height));
 
         let rate = <<T::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
@@ -51,7 +51,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
         // is reasonable and simplify the design.
         assert_eq!(rate, T::MERKLE_ARITY);
 
-        let last_level_size = T::MERKLE_ARITY.pow((height - 1) as u32);
+        let last_level_size = T::MERKLE_ARITY.pow(height as u32);
         assert!(processing_step > 0 && processing_step <= last_level_size);
 
         let mut initial_pos = Vec::new();
@@ -113,7 +113,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
     }
 
     fn compute_subtree(&mut self) {
-        for i in 0..self.height  {
+        for i in 0..=self.height  {
             if (self.new_elem_pos[i] - self.processed_pos[i]) >= self.rate {
                 let num_groups_leaves = (self.new_elem_pos[i] - self.processed_pos[i]) / self.rate;
                 let last_pos_to_process = self.processed_pos[i] + num_groups_leaves * self.rate;
@@ -238,11 +238,11 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBased
     fn get_merkle_path(&self, leaf_index: usize) -> Option<Self::MerklePath> {
         match self.finalized {
             true => {
-                let num_leaves = T::MERKLE_ARITY.pow((self.height - 1) as u32);
-                let mut merkle_path = Vec::with_capacity(self.height - 1);
+                let num_leaves = T::MERKLE_ARITY.pow(self.height as u32);
+                let mut merkle_path = Vec::with_capacity(self.height);
 
                 let mut node_index = leaf_index;
-                for _ in 0..self.height - 1 {
+                for _ in 0..self.height {
                     let mut siblings = Vec::with_capacity(T::MERKLE_ARITY - 1);
 
                     // Based on the index of the node, we must compute the index of the left-most children
@@ -275,7 +275,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBased
         }
     }
 
-    fn height(&self) -> usize { self.height - 1 }
+    fn height(&self) -> usize { self.height }
 }
 
 #[cfg(test)]

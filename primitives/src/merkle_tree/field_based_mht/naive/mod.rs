@@ -22,7 +22,7 @@ impl<P: FieldBasedMerkleTreeParameters> NaiveMerkleTree<P> {
     
     pub fn new(height: usize) -> Self {
         NaiveMerkleTree {
-            height: height + 1,
+            height,
             tree: Vec::new(),
             padding_tree: Vec::new(),
             root: None,
@@ -51,7 +51,7 @@ impl<P: FieldBasedMerkleTreeParameters> NaiveMerkleTree<P> {
         // Compute the starting indices for each level of the tree.
         let mut index = 0;
         let mut level_indices = Vec::with_capacity(tree_height);
-        for _ in 0..tree_height {
+        for _ in 0..=tree_height {
             level_indices.push(index);
             index = left_child(index);
         }
@@ -81,10 +81,10 @@ impl<P: FieldBasedMerkleTreeParameters> NaiveMerkleTree<P> {
         }
         // Finished computing actual tree.
         // Now, we compute the dummy nodes until we hit our HEIGHT goal.
-        let mut cur_height = tree_height;
+        let mut cur_height = tree_height + 1;
         let mut padding_tree = Vec::new();
         let mut cur_hash = tree[0].clone();
-        while cur_height < self.height as usize {
+        while cur_height <= self.height as usize {
             cur_hash = hash_inner_node::<P::H>(cur_hash, empty_hash)?;
             padding_tree.push((cur_hash.clone(), empty_hash.clone()));
             cur_height += 1;
@@ -116,7 +116,7 @@ impl<P: FieldBasedMerkleTreeParameters> NaiveMerkleTree<P> {
     }
 
     #[inline]
-    pub fn height(&self) -> usize { self.height - 1 }
+    pub fn height(&self) -> usize { self.height }
 
     pub fn generate_proof(
         &self,
@@ -148,7 +148,7 @@ impl<P: FieldBasedMerkleTreeParameters> NaiveMerkleTree<P> {
             current_node = parent(current_node).unwrap();
         }
 
-        assert!(path.len() < self.height as usize);
+        assert!(path.len() <= self.height as usize);
 
         //Push the other elements of the padding tree
         for &(_, ref sibling_hash) in &self.padding_tree {
@@ -156,8 +156,8 @@ impl<P: FieldBasedMerkleTreeParameters> NaiveMerkleTree<P> {
         }
 
         end_timer!(prove_time);
-        if path.len() != (self.height - 1) as usize {
-            Err(MerkleTreeError::IncorrectPathLength(path.len(), (self.height - 1) as usize))?
+        if path.len() != self.height as usize {
+            Err(MerkleTreeError::IncorrectPathLength(path.len(), self.height as usize))?
         } else {
             Ok(FieldBasedBinaryMHTPath::<P>::new(path))
         }

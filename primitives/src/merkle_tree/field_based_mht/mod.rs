@@ -159,10 +159,9 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedMerkleTreePath for FieldBasedM
         // Rate may also be smaller than the arity actually, but this assertion
         // is reasonable and simplify the design. Should be also enforced by the
         // MerkleTree that creates this instance, but let's do it again.
-        let height = height + 1;
         assert_eq!(<<Self::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R, T::MERKLE_ARITY);
-        if self.path.len() != height - 1 {
-            Err(MerkleTreeError::IncorrectPathLength(self.path.len(), height - 1))?
+        if self.path.len() != height {
+            Err(MerkleTreeError::IncorrectPathLength(self.path.len(), height))?
         }
         let mut digest = <Self::H as FieldBasedHash>::init(None);
         let mut prev_node = leaf.clone();
