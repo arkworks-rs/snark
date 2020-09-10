@@ -22,6 +22,9 @@ extern crate std;
 #[doc(hidden)]
 pub extern crate alloc;
 
+#[cfg(any(feature = "timing", feature = "timing_detailed"))]
+pub extern crate backtrace;
+
 #[cfg(not(feature = "std"))]
 #[allow(unused_imports)]
 #[doc(hidden)]

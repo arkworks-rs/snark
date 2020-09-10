@@ -33,6 +33,10 @@ pub use std::{boxed::Box, format, vec, vec::Vec};
 
 pub use algebra_core::*;
 
+#[cfg(test)]
+#[macro_use]
+pub(crate) mod tests;
+
 ///////////////////////////////////////////////////////////////////////////////
 #[cfg(feature = "bn254")]
 pub mod bn254;
@@ -175,9 +179,6 @@ pub mod ed_on_bw6_761;
 #[cfg(all(not(feature = "bw6_761"), feature = "ed_on_cp6_782"))]
 pub(crate) mod bw6_761;
 ///////////////////////////////////////////////////////////////////////////////
-
-#[cfg(test)]
-pub(crate) mod tests;
 
 #[macro_export]
 macro_rules! cfg_chunks_mut_random_gen {

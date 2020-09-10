@@ -1,27 +1,33 @@
 // This instrumentation should only be used for functions
 // which run on the order of >> 1ms, as the time for processing
-// and printing is on the order of 1-3 us
+// and printing is on the order of 20-70 us with whitelists and
+// blacklists (due to needing to unwind the backtrace at runtime)
+// and around 3 us without.
+
 #[macro_export]
 macro_rules! timer_println {
     ($now: ident, $string: expr) => {
         #[cfg(any(feature = "timing", feature = "timing_detailed"))]
         {
+            use backtrace::Backtrace;
             #[cfg(feature = "timing_thread_id")]
             use thread_id;
+
+            const MAX_CALL_DEPTH: usize = 10;
+
+            let elapsed = $now.1.elapsed().as_micros();
+
             // This is for reference
-            const _INSTRUMENTED_FUNCTIONS: [&'static str; 3] = [
+            let _instrumented_functions: Vec<&'static str> = vec![
                 "batch_bucketed_add",
                 "verify_points",
                 "batch_scalar_mul_in_place",
             ];
 
-            const WHITELISTED_FUNCTIONS: [&'static str; 1] = ["verify_points"];
+            let whitelisted_functions: Vec<&'static str> = vec!["verify_points"];
 
-            const BLACKLISTED_PARENT_FUNCTIONS: [&'static str; 0] = [];
-
-            // If not empty, we only run the instrumentation if
-            // one of the parents of the function is contained here
-            const WHITELISTED_PARENT_FUNCTIONS: [&'static str; 0] = [];
+            let blacklisted_parent_functions: Vec<&'static str> = vec![];
+            let whitelisted_parent_functions: Vec<&'static str> = vec![];
 
             macro_rules! function {
                 () => {{
@@ -34,53 +40,76 @@ macro_rules! timer_println {
                 }};
             }
             let func_string = function!();
+            let mut fs_vec = func_string.split("::").collect::<Vec<_>>();
+            while *fs_vec.last().unwrap() == "{{closure}}" {
+                fs_vec.pop();
+            }
+            let func_name = *fs_vec.last().unwrap();
+            let whitelisted = whitelisted_functions.iter().any(|&w| w == func_name);
 
-            let whitelisted_parents = if WHITELISTED_PARENT_FUNCTIONS.len() == 0 {
-                true
-            } else {
-                func_string
-                    .split("::")
-                    .any(|func| WHITELISTED_PARENT_FUNCTIONS.iter().any(|&x| x == func))
-            };
-            // Note this has n^2 complexity, please be cautious.
-            let blacklisted = func_string
-                .split("::")
-                .any(|func| BLACKLISTED_PARENT_FUNCTIONS.iter().any(|&x| x == func));
+            if whitelisted {
+                let (blacklisted, whitelisted_parents) = if whitelisted_parent_functions.len() == 0
+                    && blacklisted_parent_functions.len() == 0
+                {
+                    (false, true)
+                } else {
+                    let bt = Backtrace::new();
+                    let mut bt_iter = bt.frames().iter().flat_map(|x| x.symbols());
 
-            if !blacklisted && whitelisted_parents {
-                let mut fs_vec = func_string.split("::").collect::<Vec<_>>();
-                while *fs_vec.last().unwrap() == "{{closure}}" {
-                    fs_vec.pop();
-                }
+                    let mut b = !(blacklisted_parent_functions.len() == 0);
+                    let mut wp = whitelisted_parent_functions.len() == 0;
 
-                let func_name = *fs_vec.last().unwrap();
-                let whitelisted = WHITELISTED_FUNCTIONS.iter().any(|&w| w == func_name);
+                    for _ in 0..MAX_CALL_DEPTH {
+                        if b == true {
+                            break;
+                        }
+                        if let Some(symbol) = bt_iter.next() {
+                            let calling_func_string = format!("{}", symbol.name().unwrap());
+                            let mut vec = calling_func_string.split("::").collect::<Vec<_>>();
 
-                if cfg!(feature = "timing") && whitelisted {
-                    let std_info = format!("[{:^28}] {} us", $string, $now.1.elapsed().as_micros());
-                    #[cfg(feature = "timing_thread_id")]
-                    let std_info =
-                        format!("{:25} {}", format!("(tid: {})", thread_id::get()), std_info);
-                    println!("{}", std_info);
-                }
+                            vec.pop();
+                            if let Some(func) = vec.last() {
+                                if whitelisted_parent_functions.iter().any(|&x| x == *func) {
+                                    wp = true;
+                                }
+                                if blacklisted_parent_functions.iter().any(|&x| x == *func) {
+                                    b = true;
+                                }
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                    (b, wp)
+                };
 
-                if cfg!(feature = "timing_detailed") && whitelisted {
-                    let std_info = format!(
-                        "{:30} {:26} [{:^28}] {} us",
-                        format!(
-                            "{} {}:{}",
-                            String::from(file!()).split("/").last().unwrap(),
-                            $now.0,
-                            line!()
-                        ),
-                        func_name,
-                        $string,
-                        $now.1.elapsed().as_micros()
-                    );
-                    #[cfg(feature = "timing_thread_id")]
-                    let std_info =
-                        format!("{:25} {}", format!("(tid: {})", thread_id::get()), std_info);
-                    println!("{}", std_info);
+                if !blacklisted && whitelisted_parents {
+                    if cfg!(feature = "timing") {
+                        let std_info = format!("[{:^28}] {} us", $string, elapsed);
+                        #[cfg(feature = "timing_thread_id")]
+                        let std_info =
+                            format!("{:25} {}", format!("(tid: {})", thread_id::get()), std_info);
+                        println!("{}", std_info);
+                    }
+
+                    if cfg!(feature = "timing_detailed") {
+                        let std_info = format!(
+                            "{:30} {:26} [{:^28}] {} us",
+                            format!(
+                                "{} {}:{}",
+                                String::from(file!()).split("/").last().unwrap(),
+                                $now.0,
+                                line!()
+                            ),
+                            func_name,
+                            $string,
+                            elapsed
+                        );
+                        #[cfg(feature = "timing_thread_id")]
+                        let std_info =
+                            format!("{:25} {}", format!("(tid: {})", thread_id::get()), std_info);
+                        println!("{}", std_info);
+                    }
                 }
             }
         }
