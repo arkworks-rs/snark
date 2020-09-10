@@ -82,7 +82,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
             command: test
-            args: --all -- --skip dpc --skip integration_test
+            args: --all --all-features -- --skip dpc --skip integration_test
 
   check_no_std:
     name: Check no_std
