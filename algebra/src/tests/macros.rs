@@ -44,13 +44,13 @@ macro_rules! std_curve_tests {
         #[test]
         #[cfg(feature = "batch_affine")]
         fn test_batch_affine_g1() {
-            batch_affine_test::<G1Affine>();
+            batch_affine_test::<G1Projective>();
         }
 
         #[test]
         #[cfg(feature = "batch_affine")]
         fn test_batch_affine_g2() {
-            batch_affine_test::<G2Affine>();
+            batch_affine_test::<G2Projective>();
         }
 
         #[test]
@@ -180,6 +180,12 @@ macro_rules! edwards_curve_tests {
             for _i in 0..100 {
                 group_test::<EdwardsProjective>(a, b);
             }
+        }
+
+        #[test]
+        #[cfg(feature = "batch_affine")]
+        fn test_batch_affine() {
+            batch_affine_test::<EdwardsProjective>();
         }
 
         #[test]
