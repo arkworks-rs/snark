@@ -84,6 +84,8 @@ serialisation = []
 random_bytes = []
 conversion = []
 
+big_n = [ "parallel_random_gen" ]
+
 std = [ "algebra-core/std" ]
 parallel = [ "std", "algebra-core/parallel" ]
 parallel_random_gen = []

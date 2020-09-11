@@ -20,7 +20,11 @@ fn _naive_var_base_msm<G: AffineCurve>(
 
 #[allow(unused)]
 pub fn test_msm<G: AffineCurve>() {
+    #[cfg(not(feature = "big_n"))]
     const MAX_LOGN: usize = 14;
+    #[cfg(feature = "big_n")]
+    const MAX_LOGN: usize = 21;
+
     const SAMPLES: usize = 1 << MAX_LOGN;
 
     let _lol = G::Projective::zero();
