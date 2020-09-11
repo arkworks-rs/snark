@@ -108,10 +108,10 @@ impl<F: FftField> EvaluationDomain<F> for GeneralEvaluationDomain<F> {
         match self {
             GeneralEvaluationDomain::Radix2(domain) => {
                 domain.evaluate_all_lagrange_coefficients(tau)
-            },
+            }
             GeneralEvaluationDomain::MixedRadix(domain) => {
                 domain.evaluate_all_lagrange_coefficients(tau)
-            },
+            }
         }
     }
 
@@ -129,7 +129,7 @@ impl<F: FftField> EvaluationDomain<F> for GeneralEvaluationDomain<F> {
             GeneralEvaluationDomain::Radix2(domain) => domain.evaluate_vanishing_polynomial(tau),
             GeneralEvaluationDomain::MixedRadix(domain) => {
                 domain.evaluate_vanishing_polynomial(tau)
-            },
+            }
         }
     }
 
@@ -138,10 +138,10 @@ impl<F: FftField> EvaluationDomain<F> for GeneralEvaluationDomain<F> {
         match self {
             GeneralEvaluationDomain::Radix2(domain) => {
                 GeneralElements::BasicElements(domain.elements())
-            },
+            }
             GeneralEvaluationDomain::MixedRadix(domain) => {
                 GeneralElements::BasicElements(domain.elements())
-            },
+            }
         }
     }
 }

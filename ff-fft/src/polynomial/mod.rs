@@ -5,13 +5,11 @@ use algebra_core::{FftField, Field};
 use core::convert::TryInto;
 use DenseOrSparseUniPolynomial::*;
 
+mod multi_sparse;
 mod uni_dense;
 mod uni_sparse;
 
-mod multi_dense;
-mod multi_sparse;
-
-pub use multi_dense::DenseMultiPolynomial;
+pub use multi_sparse::PolyVars;
 pub use multi_sparse::SparseMultiPolynomial;
 pub use uni_dense::DenseUniPolynomial;
 pub use uni_sparse::SparseUniPolynomial;
@@ -155,18 +153,18 @@ impl<'a, F: 'a + FftField> DenseOrSparseUniPolynomial<'a, F> {
             SPolynomial(Cow::Borrowed(s)) => {
                 let evals = domain.elements().map(|elem| s.evaluate(elem)).collect();
                 Evaluations::from_vec_and_domain(evals, domain)
-            },
+            }
             SPolynomial(Cow::Owned(s)) => {
                 let evals = domain.elements().map(|elem| s.evaluate(elem)).collect();
                 Evaluations::from_vec_and_domain(evals, domain)
-            },
+            }
             DPolynomial(Cow::Borrowed(d)) => {
                 Evaluations::from_vec_and_domain(domain.fft(&d.coeffs), domain)
-            },
+            }
             DPolynomial(Cow::Owned(mut d)) => {
                 domain.fft_in_place(&mut d.coeffs);
                 Evaluations::from_vec_and_domain(d.coeffs, domain)
-            },
+            }
         }
     }
 }

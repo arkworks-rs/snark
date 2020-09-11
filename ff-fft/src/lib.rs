@@ -9,6 +9,9 @@
 #![deny(unreachable_pub, unused_extern_crates, trivial_numeric_casts)]
 #![forbid(unsafe_code)]
 
+#[macro_use]
+extern crate derivative;
+
 #[cfg(not(feature = "std"))]
 #[macro_use]
 extern crate alloc;
@@ -61,21 +64,6 @@ macro_rules! cfg_into_iter {
     }};
 }
 
-/// Bridges a sequential iterator to a parallel one if `parallel`
-/// feature is enabled.
-#[macro_export]
-macro_rules! cfg_into_bridged_iter {
-    ($e: expr) => {{
-        #[cfg(feature = "parallel")]
-        let result = $e.par_bridge();
-
-        #[cfg(not(feature = "parallel"))]
-        let result = $e;
-
-        result
-    }};
-}
-
 /// Returns an iterator over `chunk_size` elements of the slice at a
 /// time.
 #[macro_export]
@@ -107,7 +95,6 @@ macro_rules! cfg_chunks_mut {
 }
 
 pub mod domain;
-
 pub mod evaluations;
 pub mod polynomial;
 
@@ -115,7 +102,10 @@ pub use domain::{
     EvaluationDomain, GeneralEvaluationDomain, MixedRadixEvaluationDomain, Radix2EvaluationDomain,
 };
 pub use evaluations::Evaluations;
-pub use polynomial::{DenseOrSparseUniPolynomial, DenseUniPolynomial, SparseUniPolynomial};
+pub use polynomial::{
+    DenseOrSparseUniPolynomial, DenseUniPolynomial, PolyVars, SparseMultiPolynomial,
+    SparseUniPolynomial,
+};
 
 #[cfg(test)]
 mod test;

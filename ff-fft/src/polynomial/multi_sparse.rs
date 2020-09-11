@@ -3,7 +3,7 @@ use algebra_core::Field;
 use core::{
     cmp::Ordering,
     fmt,
-    ops::{Add, Deref, Neg, Sub},
+    ops::{Add, AddAssign, Deref, Neg, Sub},
 };
 use rand::Rng;
 
@@ -11,28 +11,35 @@ use rand::Rng;
 use rayon::prelude::*;
 
 /// Represents a single term in a multivariate polynomial.
-/// Variables are stored in ascending order.
+/// Each element is of the form `(variable, power)`.  
 #[derive(Clone, PartialOrd, PartialEq, Eq, Hash, Default)]
-struct PolyVars(Vec<(usize, usize)>);
+pub struct PolyVars(Vec<(usize, usize)>);
 
 /// Stores a sparse multi-variate polynomial in coefficient form.
-/// Terms are stored in ascending order of total degree
-#[derive(Clone, Eq, Hash, Default)]
+#[derive(Derivative)]
+#[derivative(Clone, PartialEq, Eq, Hash, Default)]
 pub struct SparseMultiPolynomial<F: Field> {
-    num_vars: usize,
-    terms: Vec<(PolyVars, F)>,
+    /// The number of variables the polynomial supports
+    #[derivative(PartialEq = "ignore")]
+    pub num_vars: usize,
+    /// List of every term along with its coefficient
+    pub terms: Vec<(PolyVars, F)>,
 }
 
 impl<F: Field> SparseMultiPolynomial<F> {
-    /// Return the number of variables
-    pub fn num_vars(&self) -> usize {
-        self.num_vars
+    /// Returns the total degree of the polynomial
+    pub fn degree(&self) -> usize {
+        self.terms
+            .iter()
+            .map(|(term, _)| (*term).total_degree())
+            .max()
+            .unwrap_or(0)
     }
 
     /// Returns the zero polynomial.
-    pub fn zero(num_vars: usize) -> Self {
+    pub fn zero() -> Self {
         Self {
-            num_vars,
+            num_vars: 0,
             terms: Vec::new(),
         }
     }
@@ -63,8 +70,8 @@ impl<F: Field> SparseMultiPolynomial<F> {
                         *prev = (prev.0.clone(), prev.1 + term.1);
                         continue;
                     }
-                },
-                _ => {},
+                }
+                _ => {}
             };
             // Assert correct number of indeterminates
             assert!(
@@ -83,7 +90,7 @@ impl<F: Field> SparseMultiPolynomial<F> {
     }
 
     fn remove_zeros(&mut self) {
-        self.terms.retain(|(_, c)| c.is_zero());
+        self.terms.retain(|(_, c)| !c.is_zero());
     }
 
     /// Evaluates `self` at the given `point` in the field.
@@ -102,24 +109,104 @@ impl<F: Field> SparseMultiPolynomial<F> {
     /// from the field `F`.
     pub fn rand<R: Rng>(l: usize, d: usize, rng: &mut R) -> Self {
         let mut random_terms = Vec::new();
+        random_terms.push((PolyVars(vec![]), F::rand(rng)));
         for var in 0..l {
-            for deg in 0..=d {
+            for deg in 1..=d {
                 random_terms.push((PolyVars(vec![(var, deg)]), F::rand(rng)));
             }
         }
         Self::from_coefficients_vec(l, random_terms)
     }
+
+    /// Given some point `z`, compute the quotients `w_i(X)` s.t
+    /// `p(X) - p(z) = (X_1-z_1)*w_1(X) + (X_2-z_2)*w_2(X) + ... + (X_l-z_l)*w_l(X)`
+    ///
+    /// These quotients can always be found with no remainder.
+    pub fn divide_at_point(&self, point: &[F]) -> Vec<SparseMultiPolynomial<F>> {
+        if self.is_zero() {
+            return vec![SparseMultiPolynomial::zero(); self.num_vars];
+        }
+        assert_eq!(point.len(), self.num_vars, "Invalid evaluation point");
+        let mut quotients = Vec::with_capacity(self.num_vars);
+        // `cur` represents the current dividend
+        let mut cur = self.clone();
+        // Divide `cur` by `X_i - z_i`
+        for i in 0..self.num_vars {
+            let mut quotient_terms = Vec::new();
+            let mut remainder_terms = Vec::new();
+            for (mut term, mut coeff) in cur.terms {
+                // Since the final remainder is guaranteed to be 0, all the constant terms
+                // cancel out so we don't need to keep track of them
+                if term.is_empty() {
+                    continue;
+                }
+                // If the current term contains `X_i` then divide appropiately,
+                // otherwise add it to the remainder
+                match term.binary_search_by(|(var, _)| var.cmp(&i)) {
+                    Ok(idx) => {
+                        // Repeatedly divide the term by `X_i - z_i` until the remainder
+                        // doesn't contain any `X_i`s
+                        while term[idx].1 > 1 {
+                            // First divide by `X_i` and add the term to the quotient
+                            term.0[idx] = (i, term[idx].1 - 1);
+                            quotient_terms.push((term.clone(), coeff));
+                            // Then compute the remainder term in-place
+                            coeff *= &point[i];
+                        }
+                        // Since `X_i` is power 1, we can remove it entirely
+                        term.0.remove(idx);
+                        quotient_terms.push((term.clone(), coeff));
+                        remainder_terms.push((term, point[i] * coeff));
+                    }
+                    Err(_) => remainder_terms.push((term, coeff)),
+                }
+            }
+            quotients.push(SparseMultiPolynomial::from_coefficients_vec(
+                self.num_vars,
+                quotient_terms,
+            ));
+            // Set the current dividend to be the remainder of this division
+            cur = SparseMultiPolynomial::from_coefficients_vec(self.num_vars, remainder_terms);
+        }
+        quotients
+    }
 }
 
 impl PolyVars {
-    fn new(mut term: Vec<(usize, usize)>) -> Self {
-        term.sort_by(|(v1, _), (v2, _)| v1.cmp(v2));
+    /// Create a new `PolyVars` object from a Vec of variables and powers
+    pub fn new(mut term: Vec<(usize, usize)>) -> Self {
+        // Remove any terms with power 0
+        term.retain(|(_, pow)| *pow != 0);
+        // If there are more than one variables, make sure they are
+        // in order and combine any duplicates
+        if term.len() > 1 {
+            term.sort_by(|(v1, _), (v2, _)| v1.cmp(v2));
+            term = Self::combine(&term);
+        }
         Self(term)
     }
 
     /// Returns the sum of all variable powers in `self`
-    fn total_degree(&self) -> usize {
+    pub fn total_degree(&self) -> usize {
         self.iter().fold(0, |sum, acc| sum + acc.1)
+    }
+
+    /// Sums the powers of any duplicated variables. Assumes Vec is sorted
+    fn combine(term: &[(usize, usize)]) -> Vec<(usize, usize)> {
+        let mut term_dedup: Vec<(usize, usize)> = Vec::new();
+        for (var, pow) in term {
+            match term_dedup.last_mut() {
+                Some(prev) => {
+                    if prev.0 == *var {
+                        prev.1 += pow;
+                        continue;
+                    }
+                }
+                _ => {}
+            };
+            term_dedup.push((*var, *pow));
+        }
+        term_dedup
     }
 
     /// Evaluates `self` at the given `point` in the field.
@@ -157,15 +244,36 @@ impl<'a, 'b, F: Field> Add<&'a SparseMultiPolynomial<F>> for &'b SparseMultiPoly
                     let other = other_iter.next().unwrap();
                     let cur = cur_iter.next().unwrap();
                     (cur.0.clone(), cur.1 + other.1)
-                },
+                }
                 Some(Ordering::Greater) => other_iter.next().unwrap().clone(),
                 None => break,
             });
         }
         return SparseMultiPolynomial::from_coefficients_vec(
-            core::cmp::max(self.num_vars(), other.num_vars()),
+            core::cmp::max(self.num_vars, other.num_vars),
             result,
         );
+    }
+}
+
+impl<'a, 'b, F: Field> AddAssign<&'a SparseMultiPolynomial<F>> for SparseMultiPolynomial<F> {
+    fn add_assign(&mut self, other: &'a SparseMultiPolynomial<F>) {
+        *self = &*self + other;
+    }
+}
+
+impl<'a, 'b, F: Field> AddAssign<(F, &'a SparseMultiPolynomial<F>)> for SparseMultiPolynomial<F> {
+    fn add_assign(&mut self, (f, other): (F, &'a SparseMultiPolynomial<F>)) {
+        let other = Self {
+            num_vars: other.num_vars,
+            terms: other
+                .terms
+                .iter()
+                .map(|(term, coeff)| (term.clone(), *coeff * &f))
+                .collect(),
+        };
+        *self = &*self + &other;
+        self.remove_zeros()
     }
 }
 
@@ -188,12 +296,6 @@ impl<'a, 'b, F: Field> Sub<&'a SparseMultiPolynomial<F>> for &'b SparseMultiPoly
     fn sub(self, other: &'a SparseMultiPolynomial<F>) -> SparseMultiPolynomial<F> {
         let neg_other = other.clone().neg();
         self + &neg_other
-    }
-}
-
-impl<F: Field> PartialEq for SparseMultiPolynomial<F> {
-    fn eq(&self, other: &Self) -> bool {
-        self.terms == other.terms
     }
 }
 
@@ -259,7 +361,7 @@ impl Ord for PolyVars {
 mod tests {
     use super::*;
     use algebra::bls12_381::fr::Fr;
-    use algebra_core::{test_rng, Field, UniformRand, Zero};
+    use algebra_core::{test_rng, Field, One, UniformRand, Zero};
 
     /// Generate random `l`-variate polynomial of maximum individual degree `d`
     fn rand_poly<R: Rng>(l: usize, d: usize, rng: &mut R) -> SparseMultiPolynomial<Fr> {
@@ -267,7 +369,8 @@ mod tests {
         let num_terms = rng.gen_range(1, 1000);
         // For each term, randomly select up to `l` variables with degree
         // in [1,d] and random coefficient
-        for _ in 0..num_terms {
+        random_terms.push((vec![], Fr::rand(rng)));
+        for _ in 1..num_terms {
             let term = (0..l)
                 .map(|i| {
                     if rng.gen_bool(0.5) {
@@ -282,7 +385,27 @@ mod tests {
             let coeff = Fr::rand(rng);
             random_terms.push((term, coeff));
         }
-        SparseMultiPolynomial::from_coefficients_slice(l, random_terms.as_slice())
+        SparseMultiPolynomial::from_coefficients_slice(l, &random_terms)
+    }
+
+    /// Perform a naive n^2 multiplication of `self` by `other`.
+    fn naive_mul(
+        cur: &SparseMultiPolynomial<Fr>,
+        other: &SparseMultiPolynomial<Fr>,
+    ) -> SparseMultiPolynomial<Fr> {
+        if cur.is_zero() || other.is_zero() {
+            SparseMultiPolynomial::zero()
+        } else {
+            let mut result_terms = Vec::new();
+            for (cur_term, cur_coeff) in cur.terms.iter() {
+                for (other_term, other_coeff) in other.terms.iter() {
+                    let mut term = cur_term.0.clone();
+                    term.extend(other_term.0.clone());
+                    result_terms.push((term, *cur_coeff * *other_coeff));
+                }
+            }
+            SparseMultiPolynomial::from_coefficients_slice(cur.num_vars, result_terms.as_slice())
+        }
     }
 
     #[test]
@@ -360,6 +483,116 @@ mod tests {
                 let eval3 = sum.evaluate(&point);
                 assert_eq!(eval1 + eval2, eval3);
             }
+        }
+    }
+
+    #[test]
+    /// This is just to make sure naive_mul works as expected
+    fn mul_polynomials_fixed() {
+        let a = SparseMultiPolynomial::from_coefficients_slice(
+            4,
+            &[
+                (vec![], "2".parse().unwrap()),
+                (vec![(0, 1), (1, 2)], "4".parse().unwrap()),
+                (vec![(0, 1), (0, 1)], "8".parse().unwrap()),
+                (vec![(3, 0)], "1".parse().unwrap()),
+            ],
+        );
+        let b = SparseMultiPolynomial::from_coefficients_slice(
+            4,
+            &[
+                (vec![(0, 1), (1, 2)], "1".parse().unwrap()),
+                (vec![(2, 1)], "2".parse().unwrap()),
+                (vec![(3, 1)], "1".parse().unwrap()),
+            ],
+        );
+        let result = naive_mul(&a, &b);
+        let expected = SparseMultiPolynomial::from_coefficients_slice(
+            4,
+            &[
+                (vec![(0, 1), (1, 2)], "3".parse().unwrap()),
+                (vec![(2, 1)], "6".parse().unwrap()),
+                (vec![(3, 1)], "3".parse().unwrap()),
+                (vec![(0, 2), (1, 4)], "4".parse().unwrap()),
+                (vec![(0, 1), (1, 2), (2, 1)], "8".parse().unwrap()),
+                (vec![(0, 1), (1, 2), (3, 1)], "4".parse().unwrap()),
+                (vec![(0, 3), (1, 2)], "8".parse().unwrap()),
+                (vec![(0, 2), (2, 1)], "16".parse().unwrap()),
+                (vec![(0, 2), (3, 1)], "8".parse().unwrap()),
+            ],
+        );
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn divide_at_point_fixed() {
+        let dividend = SparseMultiPolynomial::<Fr>::from_coefficients_slice(
+            3,
+            &[
+                (vec![], "4".parse().unwrap()),
+                (vec![(0, 1)], "1".parse().unwrap()),
+                (vec![(0, 1), (1, 1)], "3".parse().unwrap()),
+                (vec![(0, 2), (1, 2), (2, 3)], "5".parse().unwrap()),
+            ],
+        );
+        let point = [
+            "4".parse().unwrap(),
+            "2".parse().unwrap(),
+            "1".parse().unwrap(),
+        ];
+        let result = dividend.divide_at_point(&point);
+        let expected_result = vec![
+            SparseMultiPolynomial::from_coefficients_slice(
+                3,
+                &[
+                    (vec![], "1".parse().unwrap()),
+                    (vec![(1, 1)], "3".parse().unwrap()),
+                    (vec![(1, 2), (2, 3)], "20".parse().unwrap()),
+                    (vec![(0, 1), (1, 2), (2, 3)], "5".parse().unwrap()),
+                ],
+            ),
+            SparseMultiPolynomial::from_coefficients_slice(
+                3,
+                &[
+                    (vec![], "12".parse().unwrap()),
+                    (vec![(2, 3)], "160".parse().unwrap()),
+                    (vec![(1, 1), (2, 3)], "80".parse().unwrap()),
+                ],
+            ),
+            SparseMultiPolynomial::from_coefficients_slice(
+                3,
+                &[
+                    (vec![], "320".parse().unwrap()),
+                    (vec![(2, 1)], "320".parse().unwrap()),
+                    (vec![(2, 2)], "320".parse().unwrap()),
+                ],
+            ),
+        ];
+        assert_eq!(expected_result, result);
+    }
+
+    #[test]
+    fn divide_at_point_random() {
+        let rng = &mut test_rng();
+        let max_degree = 10;
+        for var_count in 0..20 {
+            let dividend = SparseMultiPolynomial::rand(var_count, max_degree, rng);
+            let mut point = Vec::new();
+            for _ in 0..var_count {
+                point.push(Fr::rand(rng));
+            }
+            let dividend_eval = SparseMultiPolynomial::from_coefficients_slice(
+                0,
+                &vec![(vec![], dividend.evaluate(&point))],
+            );
+            let quotients = dividend.divide_at_point(&point);
+            let mut result = SparseMultiPolynomial::zero();
+            for (i, q) in quotients.iter().enumerate() {
+                let test_terms = vec![(vec![(i, 1)], Fr::one()), (vec![], -point[i])];
+                let test = SparseMultiPolynomial::from_coefficients_slice(var_count, &test_terms);
+                result += &naive_mul(q, &test);
+            }
+            assert_eq!(&dividend - &dividend_eval, result);
         }
     }
 }
