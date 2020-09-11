@@ -272,7 +272,7 @@ pub fn clear_cache<T>(p: *const T) {
 
 #[cfg(feature = "prefetch")]
 const fn n_lines<T>() -> isize {
-    ((std::mem::size_of::<T>() + 32) / 64) as isize
+    ((std::mem::size_of::<T>() - 1) / 64 + 1) as isize
 }
 
 #[macro_export]
