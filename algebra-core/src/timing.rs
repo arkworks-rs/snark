@@ -84,14 +84,6 @@ macro_rules! timer_println {
                 };
 
                 if !blacklisted && whitelisted_parents {
-                    if cfg!(feature = "timing") {
-                        let std_info = format!("[{:^28}] {} us", $string, elapsed);
-                        #[cfg(feature = "timing_thread_id")]
-                        let std_info =
-                            format!("{:25} {}", format!("(tid: {})", thread_id::get()), std_info);
-                        println!("{}", std_info);
-                    }
-
                     if cfg!(feature = "timing_detailed") {
                         let std_info = format!(
                             "{:30} {:26} [{:^28}] {} us",
@@ -109,7 +101,15 @@ macro_rules! timer_println {
                         let std_info =
                             format!("{:25} {}", format!("(tid: {})", thread_id::get()), std_info);
                         println!("{}", std_info);
+                    } else if cfg!(feature = "timing")  {
+                        let std_info = format!("[{:^28}] {} us", $string, elapsed);
+                        #[cfg(feature = "timing_thread_id")]
+                        let std_info =
+                            format!("{:25} {}", format!("(tid: {})", thread_id::get()), std_info);
+                        println!("{}", std_info);
                     }
+
+
                 }
             }
         }
