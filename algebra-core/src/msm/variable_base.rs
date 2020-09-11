@@ -116,7 +116,7 @@ impl VariableBaseMSM {
         let c = if scalars.len() < 32 {
             1
         } else {
-            super::ln_without_floats(scalars.len()) + 1
+            super::ln_without_floats(scalars.len()) + 2
         };
 
         let zero = G::Projective::zero();

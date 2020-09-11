@@ -22,9 +22,11 @@ macro_rules! timer_println {
                 "batch_bucketed_add",
                 "verify_points",
                 "batch_scalar_mul_in_place",
+                "multi_scalar_mul_batched",
             ];
 
-            let whitelisted_functions: Vec<&'static str> = vec!["verify_points"];
+            let whitelisted_functions: Vec<&'static str> =
+                vec!["batch_bucketed_add", "multi_scalar_mul_batched"];
 
             let blacklisted_parent_functions: Vec<&'static str> = vec![];
             let whitelisted_parent_functions: Vec<&'static str> = vec![];
