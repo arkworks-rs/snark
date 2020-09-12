@@ -14,21 +14,21 @@ pub(crate) fn bitreverse(mut n: u32, l: u32) -> u32 {
 }
 
 #[cfg(feature = "parallel")]
+fn log2_floor(num: usize) -> u32 {
+    if num == 0 {
+        0
+    } else {
+        1usize.leading_zeros() - num.leading_zeros()
+    }
+}
+
+#[cfg(feature = "parallel")]
 pub(crate) fn best_fft<T: DomainCoeff<F>, F: FftField>(
     a: &mut [T],
     omega: F,
     log_n: u32,
     serial_fft: fn(&mut [T], F, u32),
 ) {
-    fn log2_floor(num: usize) -> u32 {
-        assert!(num > 0);
-        let mut pow = 0;
-        while (1 << (pow + 1)) <= num {
-            pow += 1;
-        }
-        pow
-    }
-
     let num_cpus = rayon::current_num_threads();
     let log_cpus = log2_floor(num_cpus);
     if log_n <= log_cpus {

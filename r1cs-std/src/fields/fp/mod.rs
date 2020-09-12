@@ -476,8 +476,8 @@ impl<F: PrimeField> TwoBitLookupGadget<F> for AllocatedFp<F> {
         debug_assert_eq!(c.len(), 4);
         if let Some(cs) = b.cs() {
             let result = Self::new_witness(cs.clone(), || {
-                let lsb = b[0].value()? as usize;
-                let msb = b[1].value()? as usize;
+                let lsb = usize::from(b[0].value()?);
+                let msb = usize::from(b[1].value()?);
                 let index = lsb + (msb << 1);
                 Ok(c[index])
             })?;
@@ -509,8 +509,8 @@ impl<F: PrimeField> ThreeBitCondNegLookupGadget<F> for AllocatedFp<F> {
 
         if let Some(cs) = b.cs() {
             let result = Self::new_witness(cs.clone(), || {
-                let lsb = b[0].value()? as usize;
-                let msb = b[1].value()? as usize;
+                let lsb = usize::from(b[0].value()?);
+                let msb = usize::from(b[1].value()?);
                 let index = lsb + (msb << 1);
                 let intermediate = c[index];
 
@@ -893,8 +893,8 @@ impl<F: PrimeField> TwoBitLookupGadget<F> for FpVar<F> {
         if b.cs().is_some() {
             AllocatedFp::two_bit_lookup(b, c).map(Self::Var)
         } else {
-            let lsb = b[0].value()? as usize;
-            let msb = b[1].value()? as usize;
+            let lsb = usize::from(b[0].value()?);
+            let msb = usize::from(b[1].value()?);
             let index = lsb + (msb << 1);
             Ok(Self::Constant(c[index]))
         }
@@ -916,8 +916,8 @@ impl<F: PrimeField> ThreeBitCondNegLookupGadget<F> for FpVar<F> {
         if b.cs().or(b0b1.cs()).is_some() {
             AllocatedFp::three_bit_cond_neg_lookup(b, b0b1, c).map(Self::Var)
         } else {
-            let lsb = b[0].value()? as usize;
-            let msb = b[1].value()? as usize;
+            let lsb = usize::from(b[0].value()?);
+            let msb = usize::from(b[1].value()?);
             let index = lsb + (msb << 1);
             let intermediate = c[index];
 

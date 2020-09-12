@@ -76,11 +76,11 @@ where
 
     // Compute query densities
     let non_zero_a: usize = cfg_into_iter!(0..qap_num_variables)
-        .map(|i| (!a[i].is_zero()) as usize)
+        .map(|i| usize::from(!a[i].is_zero()))
         .sum();
 
     let non_zero_b: usize = cfg_into_iter!(0..qap_num_variables)
-        .map(|i| (!b[i].is_zero()) as usize)
+        .map(|i| usize::from(!b[i].is_zero()))
         .sum();
 
     let scalar_bits = E::Fr::size_in_bits();

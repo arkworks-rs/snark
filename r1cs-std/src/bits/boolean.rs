@@ -591,7 +591,7 @@ impl<F: Field> ToBytesGadget<F> for Boolean<F> {
     fn to_bytes(&self) -> Result<Vec<UInt8<F>>, SynthesisError> {
         let mut bits = vec![self.clone()];
         bits.extend(vec![Boolean::constant(false); 7]);
-        let value = self.value().map(|val| val as u8).ok();
+        let value = self.value().map(u8::from).ok();
         let byte = UInt8 { bits, value };
         Ok(vec![byte])
     }
