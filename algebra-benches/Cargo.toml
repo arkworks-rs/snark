@@ -28,7 +28,7 @@ algebra = { path = "../algebra" }
 blake2 = "0.8.1"
 rand = "0.7"
 rand_xorshift = { version = "0.2" }
-paste = "0.1"
+paste = "1.0"
 
 [features]
 asm = [ "algebra/asm"]
