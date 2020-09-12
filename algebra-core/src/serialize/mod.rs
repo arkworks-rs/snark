@@ -182,7 +182,7 @@ impl CanonicalDeserialize for usize {
     }
 }
 
-impl<T: CanonicalSerialize> CanonicalSerialize for Vec<T> {
+impl<T: CanonicalSerialize> CanonicalSerialize for [T] {
     #[inline]
     fn serialize<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
         let len = self.len() as u64;
@@ -227,6 +227,33 @@ impl<T: CanonicalSerialize> CanonicalSerialize for Vec<T> {
             .iter()
             .map(|item| item.uncompressed_size())
             .sum::<usize>()
+    }
+}
+
+impl<T: CanonicalSerialize> CanonicalSerialize for Vec<T> {
+    #[inline]
+    fn serialize<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
+        self.as_slice().serialize(writer)
+    }
+
+    #[inline]
+    fn serialized_size(&self) -> usize {
+        self.as_slice().serialized_size()
+    }
+
+    #[inline]
+    fn serialize_uncompressed<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
+        self.as_slice().serialize_uncompressed(writer)
+    }
+
+    #[inline]
+    fn serialize_unchecked<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
+        self.as_slice().serialize_unchecked(writer)
+    }
+
+    #[inline]
+    fn uncompressed_size(&self) -> usize {
+        self.as_slice().uncompressed_size()
     }
 }
 
