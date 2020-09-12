@@ -25,7 +25,7 @@ edition = "2018"
 algebra-core = { path = "../algebra-core", default-features = false }
 bench-utils = { path = "../bench-utils" }
 
-blake2 = { version = "0.8", default-features = false }
+blake2 = { version = "0.9", default-features = false }
 digest = "0.8"
 
 ff-fft = { path = "../ff-fft", default-features = false }
