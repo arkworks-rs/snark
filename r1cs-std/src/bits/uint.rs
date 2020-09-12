@@ -3,6 +3,7 @@ macro_rules! make_uint {
         pub mod $mod_name {
             use algebra::{Field, FpParameters, PrimeField};
             use core::borrow::Borrow;
+            use core::convert::TryFrom;
 
             use r1cs_core::{
                 lc, ConstraintSystemRef, LinearCombination, Namespace, SynthesisError, Variable,
@@ -119,7 +120,9 @@ macro_rules! make_uint {
 
                     $name {
                         bits: new_bits,
-                        value: self.value.map(|v| v.rotate_right(by as u32)),
+                        value: self
+                            .value
+                            .map(|v| v.rotate_right(u32::try_from(by).unwrap())),
                     }
                 }
 

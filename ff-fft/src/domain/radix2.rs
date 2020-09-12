@@ -10,6 +10,7 @@ use crate::domain::{
 };
 use crate::Vec;
 use algebra_core::{FftField, FftParameters};
+use core::convert::TryFrom;
 use core::fmt;
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
@@ -58,7 +59,7 @@ impl<F: FftField> EvaluationDomain<F> for Radix2EvaluationDomain<F> {
 
         // Compute the generator for the multiplicative subgroup.
         // It should be the 2^(log_size_of_group) root of unity.
-        let group_gen = F::get_root_of_unity(size as usize)?;
+        let group_gen = F::get_root_of_unity(usize::try_from(size).unwrap())?;
         // Check that it is indeed the 2^(log_size_of_group) root of unity.
         debug_assert_eq!(group_gen.pow([size]), F::one());
         let size_as_field_element = F::from(size);
@@ -86,7 +87,7 @@ impl<F: FftField> EvaluationDomain<F> for Radix2EvaluationDomain<F> {
 
     #[inline]
     fn size(&self) -> usize {
-        self.size as usize
+        usize::try_from(self.size).unwrap()
     }
 
     #[inline]
@@ -120,7 +121,7 @@ impl<F: FftField> EvaluationDomain<F> for Radix2EvaluationDomain<F> {
 
     fn evaluate_all_lagrange_coefficients(&self, tau: F) -> Vec<F> {
         // Evaluate all Lagrange polynomials
-        let size = self.size as usize;
+        let size = self.size();
         let t_size = tau.pow(&[self.size]);
         let one = F::one();
         if t_size.is_one() {
@@ -182,7 +183,8 @@ impl<F: FftField> EvaluationDomain<F> for Radix2EvaluationDomain<F> {
 }
 
 pub(crate) fn serial_radix2_fft<T: DomainCoeff<F>, F: FftField>(a: &mut [T], omega: F, log_n: u32) {
-    let n = a.len() as u32;
+    let n =
+        u32::try_from(a.len()).expect("cannot perform FFTs larger on vectors of len > (1 << 32)");
     assert_eq!(n, 1 << log_n);
 
     for k in 0..n {

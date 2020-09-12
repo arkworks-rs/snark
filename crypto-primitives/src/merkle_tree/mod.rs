@@ -258,12 +258,6 @@ impl core::fmt::Display for Error {
 
 impl algebra_core::Error for Error {}
 
-/// Returns the log2 value of the given number.
-#[inline]
-fn log2(number: usize) -> usize {
-    algebra_core::log2(number) as usize
-}
-
 /// Returns the height of the tree, given the size of the tree.
 #[inline]
 fn tree_height(tree_size: usize) -> usize {
@@ -271,7 +265,7 @@ fn tree_height(tree_size: usize) -> usize {
         return 1;
     }
 
-    log2(tree_size)
+    algebra_core::log2(tree_size) as usize
 }
 
 /// Returns true iff the index represents the root.
