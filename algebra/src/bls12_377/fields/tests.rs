@@ -364,7 +364,7 @@ macro_rules! prime_field_tests_bls12_377 {
 }
 
 #[allow(unused)]
-#[cfg(feature = "extensions_fields")]
+#[cfg(feature = "extension_fields")]
 macro_rules! extension_field_tests_bls12_377 {
     () => {
         #[test]
@@ -547,5 +547,5 @@ macro_rules! extension_field_tests_bls12_377 {
 
 #[cfg(feature = "prime_fields")]
 prime_field_tests_bls12_377!();
-#[cfg(feature = "extensions_fields")]
+#[cfg(feature = "extension_fields")]
 extension_field_tests_bls12_377!();

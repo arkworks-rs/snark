@@ -94,5 +94,4 @@ asm = [ "algebra-core/llvm_asm" ]
 prefetch = [ "algebra-core/prefetch"]
 timing = [ "algebra-core/timing"]
 timing_detailed = [ "algebra-core/timing_detailed" ]
-
 timing_thread_id = [ "algebra-core/timing_thread_id" ]

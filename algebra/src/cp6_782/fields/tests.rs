@@ -36,7 +36,7 @@ fn test_fq() {
 }
 
 #[test]
-#[cfg(feature = "extensions_fields")]
+#[cfg(feature = "extension_fields")]
 fn test_fq3() {
     let mut rng = test_rng();
     let a: Fq3 = rng.gen();
@@ -47,7 +47,7 @@ fn test_fq3() {
 }
 
 #[test]
-#[cfg(feature = "extensions_fields")]
+#[cfg(feature = "extension_fields")]
 fn test_fq6() {
     let mut rng = test_rng();
     let a: Fq6 = rng.gen();
