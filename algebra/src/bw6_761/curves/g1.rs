@@ -21,6 +21,13 @@ impl ModelParameters for Parameters {
     type ScalarField = Fr;
 }
 
+/// The parameters can be obtained from
+/// Optimized and secure pairing-friendly elliptic
+/// curves suitable for one layer proof composition
+/// Youssef El Housni and Aurore Guillevic, 2020.
+/// https://eprint.iacr.org/2020/351.pdf
+/// and the precomputed parameters Qi, Bi, *_IS_NEG can be obtained from
+/// scripts/glv_lattice_basis
 impl GLVParameters for Parameters {
     type WideBigInt = BigInteger768;
 

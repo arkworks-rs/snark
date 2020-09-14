@@ -407,9 +407,9 @@ macro_rules! impl_sw_curve_serializer {
                     CanonicalDeserializeWithFlags::deserialize_with_flags(reader)?;
 
                 let p = GroupAffine::<P>::new(x, y, flags.is_infinity());
-                // if !p.is_in_correct_subgroup_assuming_on_curve() {
-                //     return Err(crate::serialize::SerializationError::InvalidData);
-                // }
+                if !p.is_in_correct_subgroup_assuming_on_curve() {
+                    return Err(crate::serialize::SerializationError::InvalidData);
+                }
                 Ok(p)
             }
         }
@@ -491,9 +491,9 @@ macro_rules! impl_edwards_curve_serializer {
                 let y: P::BaseField = CanonicalDeserialize::deserialize(reader)?;
 
                 let p = GroupAffine::<P>::new(x, y);
-                // if !p.is_in_correct_subgroup_assuming_on_curve() {
-                //     return Err(crate::serialize::SerializationError::InvalidData);
-                // }
+                if !p.is_in_correct_subgroup_assuming_on_curve() {
+                    return Err(crate::serialize::SerializationError::InvalidData);
+                }
                 Ok(p)
             }
         }
