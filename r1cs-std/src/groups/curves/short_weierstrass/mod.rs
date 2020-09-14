@@ -119,7 +119,7 @@ where
 {
     type Value = SWProjective<P>;
 
-    fn cs(&self) -> Option<ConstraintSystemRef<<P::BaseField as Field>::BasePrimeField>> {
+    fn cs(&self) -> ConstraintSystemRef<<P::BaseField as Field>::BasePrimeField> {
         self.x.cs().or(self.y.cs()).or(self.z.cs())
     }
 
@@ -152,7 +152,7 @@ where
     /// Convert this point into affine form.
     #[tracing::instrument(target = "r1cs")]
     pub fn to_affine(&self) -> Result<AffineVar<P, F>, SynthesisError> {
-        let cs = self.cs().unwrap_or(ConstraintSystemRef::None);
+        let cs = self.cs();
         let mode = if self.is_constant() {
             let point = self.value()?.into_affine();
             let x = F::new_constant(ConstraintSystemRef::None, point.x)?;

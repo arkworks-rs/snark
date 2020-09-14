@@ -415,7 +415,7 @@ pub struct ConstraintMatrices<F: Field> {
 #[derive(Debug, Clone)]
 pub enum ConstraintSystemRef<F: Field> {
     /// Represents the case where we *don't* need to allocate variables or enforce
-    /// constraints.
+    /// constraints. Encountered when operating over constant values.
     None,
     /// Represents the case where we *do* allocate variables or enforce constraints.
     CS(Rc<RefCell<ConstraintSystem<F>>>),
@@ -479,13 +479,28 @@ impl<F: Field> Drop for Namespace<F> {
 }
 
 impl<F: Field> ConstraintSystemRef<F> {
+    /// Returns `self` if `!self.is_none()`, otherwise returns `other`.
+    pub fn or(self, other: Self) -> Self {
+        match self {
+            ConstraintSystemRef::None => other,
+            _ => self,
+        }
+    }
+
+    /// Returns `true` is `self == ConstraintSystemRef::None`.
+    pub fn is_none(&self) -> bool {
+        match self {
+            ConstraintSystemRef::None => true,
+            _ => false,
+        }
+    }
+
     /// Construct a `ConstraintSystemRef` from a `ConstraintSystem`.
     #[inline]
     pub fn new(inner: ConstraintSystem<F>) -> Self {
         Self::CS(Rc::new(RefCell::new(inner)))
     }
 
-    // TODO: make this and all callers use `#[track_caller]`
     fn inner(&self) -> Option<&Rc<RefCell<ConstraintSystem<F>>>> {
         match self {
             Self::CS(a) => Some(a),

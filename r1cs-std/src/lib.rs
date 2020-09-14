@@ -119,12 +119,13 @@ pub trait R1CSVar<F: Field> {
     type Value: core::fmt::Debug + Eq + Clone;
 
     /// Returns the underlying `ConstraintSystemRef`.
-    fn cs(&self) -> Option<r1cs_core::ConstraintSystemRef<F>>;
+    ///
+    /// If `self` is a constant value, then this *must* return `r1cs_core::ConstraintSystemRef::None`.
+    fn cs(&self) -> r1cs_core::ConstraintSystemRef<F>;
 
     /// Returns `true` if `self` is a circuit-generation-time constant.
     fn is_constant(&self) -> bool {
-        self.cs()
-            .map_or(true, |cs| cs == r1cs_core::ConstraintSystemRef::None)
+        self.cs().is_none()
     }
 
     /// Returns the value that is assigned to `self` in the underlying
@@ -135,8 +136,8 @@ pub trait R1CSVar<F: Field> {
 impl<F: Field, T: R1CSVar<F>> R1CSVar<F> for [T] {
     type Value = Vec<T::Value>;
 
-    fn cs(&self) -> Option<r1cs_core::ConstraintSystemRef<F>> {
-        let mut result = None;
+    fn cs(&self) -> r1cs_core::ConstraintSystemRef<F> {
+        let mut result = r1cs_core::ConstraintSystemRef::None;
         for var in self {
             result = var.cs().or(result);
         }
@@ -155,7 +156,7 @@ impl<F: Field, T: R1CSVar<F>> R1CSVar<F> for [T] {
 impl<'a, F: Field, T: 'a + R1CSVar<F>> R1CSVar<F> for &'a T {
     type Value = T::Value;
 
-    fn cs(&self) -> Option<r1cs_core::ConstraintSystemRef<F>> {
+    fn cs(&self) -> r1cs_core::ConstraintSystemRef<F> {
         (*self).cs()
     }
 

@@ -49,7 +49,7 @@ mod montgomery_affine_impl {
     {
         type Value = (P::BaseField, P::BaseField);
 
-        fn cs(&self) -> Option<ConstraintSystemRef<<P::BaseField as Field>::BasePrimeField>> {
+        fn cs(&self) -> ConstraintSystemRef<<P::BaseField as Field>::BasePrimeField> {
             self.x.cs().or(self.y.cs())
         }
 
@@ -112,7 +112,7 @@ mod montgomery_affine_impl {
         /// Converts `self` into a Twisted Edwards curve point variable.
         #[tracing::instrument(target = "r1cs")]
         pub fn into_edwards(&self) -> Result<AffineVar<P, F>, SynthesisError> {
-            let cs = self.cs().unwrap_or(ConstraintSystemRef::None);
+            let cs = self.cs();
             // Compute u = x / y
             let u = F::new_witness(r1cs_core::ns!(cs, "u"), || {
                 let y_inv = self
@@ -153,12 +153,11 @@ mod montgomery_affine_impl {
         #[tracing::instrument(target = "r1cs")]
         fn add(self, other: &'a Self) -> Self::Output {
             let cs = [&self, other].cs();
-            let mode = if cs.is_none() || matches!(cs, Some(ConstraintSystemRef::None)) {
+            let mode = if cs.is_none() {
                 AllocationMode::Constant
             } else {
                 AllocationMode::Witness
             };
-            let cs = cs.unwrap_or(ConstraintSystemRef::None);
 
             let coeff_b = P::MontgomeryModelParameters::COEFF_B;
             let coeff_a = P::MontgomeryModelParameters::COEFF_A;
@@ -378,7 +377,7 @@ where
 {
     type Value = TEProjective<P>;
 
-    fn cs(&self) -> Option<ConstraintSystemRef<<P::BaseField as Field>::BasePrimeField>> {
+    fn cs(&self) -> ConstraintSystemRef<<P::BaseField as Field>::BasePrimeField> {
         self.x.cs().or(self.y.cs())
     }
 
@@ -465,7 +464,7 @@ where
             let value = self.value()?;
             *self = Self::constant(value.double());
         } else {
-            let cs = self.cs().unwrap();
+            let cs = self.cs();
             let a = P::COEFF_A;
 
             // xy
@@ -714,7 +713,7 @@ impl_bounded_ops!(
             assert!(this.is_constant() && other.is_constant());
             AffineVar::constant(this.value().unwrap() + &other.value().unwrap())
         } else {
-            let cs = [this, other].cs().unwrap();
+            let cs = [this, other].cs();
             let a = P::COEFF_A;
             let d = P::COEFF_D;
 

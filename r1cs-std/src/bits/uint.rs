@@ -38,7 +38,7 @@ macro_rules! make_uint {
             impl<F: Field> R1CSVar<F> for $name<F> {
                 type Value = $native;
 
-                fn cs(&self) -> Option<ConstraintSystemRef<F>> {
+                fn cs(&self) -> ConstraintSystemRef<F> {
                     self.bits.as_slice().cs()
                 }
 
@@ -254,7 +254,7 @@ macro_rules! make_uint {
 
                         return Ok($name::constant(modular_value.unwrap()));
                     }
-                    let cs = operands.cs().unwrap();
+                    let cs = operands.cs();
 
                     // Storage area for the resulting bits
                     let mut result_bits = vec![];

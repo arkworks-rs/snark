@@ -18,7 +18,7 @@ pub struct UInt8<F: Field> {
 impl<F: Field> R1CSVar<F> for UInt8<F> {
     type Value = u8;
 
-    fn cs(&self) -> Option<ConstraintSystemRef<F>> {
+    fn cs(&self) -> ConstraintSystemRef<F> {
         self.bits.as_slice().cs()
     }
 
