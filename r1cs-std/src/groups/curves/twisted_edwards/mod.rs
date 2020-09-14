@@ -461,7 +461,11 @@ where
     #[inline]
     #[tracing::instrument(target = "r1cs")]
     fn double_in_place(&mut self) -> Result<(), SynthesisError> {
-        if let Some(cs) = self.cs() {
+        if self.is_constant() {
+            let value = self.value()?;
+            *self = Self::constant(value.double());
+        } else {
+            let cs = self.cs().unwrap();
             let a = P::COEFF_A;
 
             // xy
@@ -496,9 +500,6 @@ where
             y3.mul_equals(&two_minus_ax2_minus_y2, &y2_minus_a_x2)?;
             self.x = x3;
             self.y = y3;
-        } else {
-            let value = self.value()?;
-            *self = Self::constant(value.double());
         }
         Ok(())
     }
@@ -708,7 +709,12 @@ impl_bounded_ops!(
     AddAssign,
     add_assign,
     |this: &'a AffineVar<P, F>, other: &'a AffineVar<P, F>| {
-        if let Some(cs) = [this, other].cs() {
+
+        if [this, other].is_constant() {
+            assert!(this.is_constant() && other.is_constant());
+            AffineVar::constant(this.value().unwrap() + &other.value().unwrap())
+        } else {
+            let cs = [this, other].cs().unwrap();
             let a = P::COEFF_A;
             let d = P::COEFF_D;
 
@@ -752,9 +758,6 @@ impl_bounded_ops!(
             y3.mul_equals(&one_minus_v2, &u_plus_a_v0_minus_v1).unwrap();
 
             AffineVar::new(x3, y3)
-        } else {
-            assert!(this.is_constant() && other.is_constant());
-            AffineVar::constant(this.value().unwrap() + &other.value().unwrap())
         }
     },
     |this: &'a AffineVar<P, F>, other: TEProjective<P>| this + AffineVar::constant(other),

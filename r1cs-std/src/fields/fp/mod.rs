@@ -48,7 +48,7 @@ impl<F: PrimeField> R1CSVar<F> for FpVar<F> {
 
     fn cs(&self) -> Option<ConstraintSystemRef<F>> {
         match self {
-            Self::Constant(_) => None,
+            Self::Constant(_) => Some(ConstraintSystemRef::None),
             Self::Var(a) => Some(a.cs.clone()),
         }
     }
