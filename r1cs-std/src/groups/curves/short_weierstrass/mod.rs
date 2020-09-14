@@ -154,7 +154,11 @@ where
     pub fn to_affine(&self) -> Result<AffineVar<P, F>, SynthesisError> {
         let cs = self.cs().unwrap_or(ConstraintSystemRef::None);
         let mode = if self.is_constant() {
-            AllocationMode::Constant
+            let point = self.value()?.into_affine();
+            let x = F::new_constant(ConstraintSystemRef::None, point.x)?;
+            let y = F::new_constant(ConstraintSystemRef::None, point.y)?;
+            let infinity = Boolean::constant(point.infinity);
+            return Ok(AffineVar::new(x, y, infinity));
         } else {
             AllocationMode::Witness
         };

@@ -1,6 +1,6 @@
 use algebra::{
     fields::{CubicExtField, CubicExtParameters, Field},
-    One, Zero,
+    Zero,
 };
 use core::{borrow::Borrow, marker::PhantomData};
 use r1cs_core::{ConstraintSystemRef, Namespace, SynthesisError};
@@ -266,14 +266,20 @@ where
 
     #[tracing::instrument(target = "r1cs")]
     fn inverse(&self) -> Result<Self, SynthesisError> {
-        let cs = self.cs().get()?.clone();
-        let one = Self::new_constant(cs.clone(), CubicExtField::one())?;
-
-        let inverse = Self::new_witness(self.cs().get()?.clone(), || {
-            self.value()
-                .map(|f| f.inverse().unwrap_or(CubicExtField::zero()))
-        })?;
-        self.mul_equals(&inverse, &one)?;
+        let mode = if self.is_constant() {
+            AllocationMode::Constant
+        } else {
+            AllocationMode::Witness
+        };
+        let inverse = Self::new_variable(
+            self.cs().get()?.clone(),
+            || {
+                self.value()
+                    .map(|f| f.inverse().unwrap_or(CubicExtField::zero()))
+            },
+            mode,
+        )?;
+        self.mul_equals(&inverse, &Self::one())?;
         Ok(inverse)
     }
 }
