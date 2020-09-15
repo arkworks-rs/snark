@@ -657,7 +657,7 @@ where
     fn to_constraint_field(
         &self,
     ) -> Result<Vec<FpVar<<P::BaseField as Field>::BasePrimeField>>, SynthesisError> {
-        let mut res = Vec::<FpVar<<P::BaseField as Field>::BasePrimeField>>::new();
+        let mut res = Vec::new();
 
         res.extend_from_slice(&self.x.to_constraint_field()?);
         res.extend_from_slice(&self.y.to_constraint_field()?);
