@@ -435,8 +435,7 @@ impl<F: PrimeField> ToBytesGadget<F> for AllocatedFp<F> {
 impl<F: PrimeField> ToConstraintFieldGadget<F> for AllocatedFp<F> {
     #[tracing::instrument(target = "r1cs")]
     fn to_constraint_field(&self) -> Result<Vec<FpVar<F>>, SynthesisError> {
-        let var = FpVar::from(self.clone());
-        Ok(vec![var])
+        Ok(vec![self.clone().into()])
     }
 }
 
