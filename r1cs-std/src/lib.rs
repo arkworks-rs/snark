@@ -154,3 +154,10 @@ impl<T> Assignment<T> for Option<T> {
         self.ok_or(r1cs_core::SynthesisError::AssignmentMissing)
     }
 }
+
+/// Obtains the field variables
+pub trait ToConstraintFieldGadget<ConstraintF: algebra::PrimeField> {
+    fn to_constraint_field(
+        &self,
+    ) -> Result<Vec<crate::fields::fp::FpVar<ConstraintF>>, r1cs_core::SynthesisError>;
+}

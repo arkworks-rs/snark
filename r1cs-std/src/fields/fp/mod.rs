@@ -4,7 +4,7 @@ use r1cs_core::{lc, ConstraintSystemRef, LinearCombination, Namespace, Synthesis
 use core::borrow::Borrow;
 
 use crate::fields::{FieldOpsBounds, FieldVar};
-use crate::{prelude::*, Assignment, Vec};
+use crate::{prelude::*, Assignment, ToConstraintFieldGadget, Vec};
 
 pub mod cmp;
 
@@ -432,6 +432,13 @@ impl<F: PrimeField> ToBytesGadget<F> for AllocatedFp<F> {
     }
 }
 
+impl<F: PrimeField> ToConstraintFieldGadget<F> for AllocatedFp<F> {
+    #[tracing::instrument(target = "r1cs")]
+    fn to_constraint_field(&self) -> Result<Vec<FpVar<F>>, SynthesisError> {
+        Ok(vec![self.clone().into()])
+    }
+}
+
 impl<F: PrimeField> CondSelectGadget<F> for AllocatedFp<F> {
     #[inline]
     #[tracing::instrument(target = "r1cs")]
@@ -842,6 +849,13 @@ impl<F: PrimeField> ToBytesGadget<F> for FpVar<F> {
             Self::Constant(c) => Ok(UInt8::constant_vec(&to_bytes![c].unwrap())),
             Self::Var(v) => v.to_non_unique_bytes(),
         }
+    }
+}
+
+impl<F: PrimeField> ToConstraintFieldGadget<F> for FpVar<F> {
+    #[tracing::instrument(target = "r1cs")]
+    fn to_constraint_field(&self) -> Result<Vec<FpVar<F>>, SynthesisError> {
+        Ok(vec![self.clone()])
     }
 }
 

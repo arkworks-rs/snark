@@ -5,10 +5,11 @@ use algebra::{
 use core::{borrow::Borrow, marker::PhantomData};
 use r1cs_core::{ConstraintSystemRef, Namespace, SynthesisError};
 
+use crate::fields::fp::FpVar;
 use crate::{
     fields::{FieldOpsBounds, FieldVar},
     prelude::*,
-    Assignment, Vec,
+    Assignment, ToConstraintFieldGadget, Vec,
 };
 
 #[derive(Derivative)]
@@ -427,6 +428,24 @@ where
         let mut c1 = self.c1.to_non_unique_bytes()?;
         c0.append(&mut c1);
         Ok(c0)
+    }
+}
+
+impl<BF, P> ToConstraintFieldGadget<P::BasePrimeField> for QuadExtVar<BF, P>
+where
+    BF: FieldVar<P::BaseField, P::BasePrimeField>,
+    for<'a> &'a BF: FieldOpsBounds<'a, P::BaseField, BF>,
+    P: QuadExtVarParams<BF>,
+    BF: ToConstraintFieldGadget<P::BasePrimeField>,
+{
+    #[tracing::instrument(target = "r1cs")]
+    fn to_constraint_field(&self) -> Result<Vec<FpVar<P::BasePrimeField>>, SynthesisError> {
+        let mut res = Vec::new();
+
+        res.extend_from_slice(&self.c0.to_constraint_field()?);
+        res.extend_from_slice(&self.c1.to_constraint_field()?);
+
+        Ok(res)
     }
 }
 

@@ -5,10 +5,11 @@ use algebra::{
 use core::{borrow::Borrow, marker::PhantomData};
 use r1cs_core::{ConstraintSystemRef, Namespace, SynthesisError};
 
+use crate::fields::fp::FpVar;
 use crate::{
     fields::{FieldOpsBounds, FieldVar},
     prelude::*,
-    Assignment, Vec,
+    Assignment, ToConstraintFieldGadget, Vec,
 };
 
 #[derive(Derivative)]
@@ -437,6 +438,25 @@ where
         c0.append(&mut c2);
 
         Ok(c0)
+    }
+}
+
+impl<BF, P> ToConstraintFieldGadget<P::BasePrimeField> for CubicExtVar<BF, P>
+where
+    BF: FieldVar<P::BaseField, P::BasePrimeField>,
+    for<'a> &'a BF: FieldOpsBounds<'a, P::BaseField, BF>,
+    P: CubicExtVarParams<BF>,
+    BF: ToConstraintFieldGadget<P::BasePrimeField>,
+{
+    #[tracing::instrument(target = "r1cs")]
+    fn to_constraint_field(&self) -> Result<Vec<FpVar<P::BasePrimeField>>, SynthesisError> {
+        let mut res = Vec::new();
+
+        res.extend_from_slice(&self.c0.to_constraint_field()?);
+        res.extend_from_slice(&self.c1.to_constraint_field()?);
+        res.extend_from_slice(&self.c2.to_constraint_field()?);
+
+        Ok(res)
     }
 }
 
