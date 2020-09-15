@@ -1,4 +1,5 @@
 //! A sparse multivariate polynomial represented in coefficient form.
+use crate::Vec;
 use algebra_core::Field;
 use core::{
     cmp::Ordering,
