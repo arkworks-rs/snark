@@ -381,7 +381,9 @@ impl<F: Field> ConstraintSystem<F> {
         }
     }
 }
-
+/// The A, B and C matrices of a Rank-One `ConstraintSystem`.
+/// Also contains metadata on the structure of the constraint system
+/// and the matrices.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConstraintMatrices<F: Field> {
     /// The number of variables that are "public instances" to the constraint system.
