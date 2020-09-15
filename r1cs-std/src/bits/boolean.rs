@@ -600,7 +600,7 @@ impl<F: Field> ToBytesGadget<F> for Boolean<F> {
 impl<F: PrimeField> ToConstraintFieldGadget<F> for Boolean<F> {
     #[tracing::instrument(target = "r1cs")]
     fn to_constraint_field(&self) -> Result<Vec<FpVar<F>>, SynthesisError> {
-        let var = <FpVar<F> as From<Boolean<F>>>::from(self.clone());
+        let var = From::from(self.clone());
         Ok(vec![var])
     }
 }
