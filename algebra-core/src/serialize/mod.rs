@@ -11,7 +11,7 @@ pub use flags::*;
 #[doc(hidden)]
 pub use algebra_core_derive::*;
 
-use crate::{Cow, ToOwned, Vec};
+use crate::{BTreeMap, Cow, ToOwned, Vec};
 use core::convert::TryFrom;
 
 /// Serializer in little endian format allowing to encode flags.
@@ -61,9 +61,9 @@ pub trait CanonicalSerialize {
         self.serialize(writer)
     }
 
-    /// Serializes `self` into `writer` without compression, and without performing
-    /// validity checks. Should be used *only* when there is no danger of
-    /// adversarial manipulation of the output.
+    /// Serializes `self` into `writer` without compression, and without
+    /// performing validity checks. Should be used *only* when there is no
+    /// danger of adversarial manipulation of the output.
     #[inline]
     fn serialize_unchecked<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
         self.serialize_uncompressed(writer)
@@ -790,6 +790,44 @@ impl CanonicalDeserialize for bool {
     #[inline]
     fn deserialize<R: Read>(reader: R) -> Result<Self, SerializationError> {
         Ok(bool::read(reader)?)
+    }
+}
+
+impl<K, V> CanonicalSerialize for BTreeMap<K, V>
+where
+    K: CanonicalSerialize,
+    V: CanonicalSerialize,
+{
+    fn serialize<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
+        let len = self.len() as u64;
+        len.serialize(&mut writer)?;
+        for (k, v) in self.iter() {
+            k.serialize(&mut writer)?;
+            v.serialize(&mut writer)?;
+        }
+        Ok(())
+    }
+
+    fn serialized_size(&self) -> usize {
+        8 + self
+            .iter()
+            .map(|(k, v)| k.serialized_size() + v.serialized_size())
+            .sum::<usize>()
+    }
+}
+
+impl<K, V> CanonicalDeserialize for BTreeMap<K, V>
+where
+    K: Ord + CanonicalDeserialize,
+    V: CanonicalDeserialize,
+{
+    fn deserialize<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+        let len = u64::deserialize(&mut reader)?;
+        let mut map = BTreeMap::new();
+        for _ in 0..len {
+            map.insert(K::deserialize(&mut reader)?, V::deserialize(&mut reader)?);
+        }
+        Ok(map)
     }
 }
 

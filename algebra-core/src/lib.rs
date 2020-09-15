@@ -28,6 +28,7 @@ pub extern crate alloc;
 pub use alloc::{
     borrow::{Cow, ToOwned},
     boxed::Box,
+    collections::btree_map::BTreeMap,
     format,
     string::String,
     vec,
@@ -40,6 +41,7 @@ pub use alloc::{
 pub use std::{
     borrow::{Cow, ToOwned},
     boxed::Box,
+    collections::btree_map::BTreeMap,
     format,
     string::String,
     vec,
