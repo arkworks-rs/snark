@@ -31,7 +31,7 @@ impl<F: Field> SparseMultiPolynomial<F> {
     pub fn degree(&self) -> usize {
         self.terms
             .iter()
-            .map(|(term, _)| (*term).total_degree())
+            .map(|(term, _)| (*term).degree())
             .max()
             .unwrap_or(0)
     }
@@ -187,7 +187,7 @@ impl PolyVars {
     }
 
     /// Returns the sum of all variable powers in `self`
-    pub fn total_degree(&self) -> usize {
+    pub fn degree(&self) -> usize {
         self.iter().fold(0, |sum, acc| sum + acc.1)
     }
 
@@ -338,8 +338,8 @@ impl Ord for PolyVars {
     /// is given by exponent weight in lower-numbered variables
     /// ie. `x_1 > x_2`, `x_1^2 > x_1 * x_2`, etc.
     fn cmp(&self, other: &Self) -> Ordering {
-        if self.total_degree() != other.total_degree() {
-            self.total_degree().cmp(&other.total_degree())
+        if self.degree() != other.degree() {
+            self.degree().cmp(&other.degree())
         } else {
             // Iterate through all variables and return the corresponding ordering
             // if they differ in variable numbering or power
