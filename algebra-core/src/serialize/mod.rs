@@ -898,6 +898,18 @@ mod test {
     }
 
     #[test]
+    fn test_btreemap() {
+        let mut map = BTreeMap::new();
+        map.insert(0u64, true);
+        map.insert(5u64, false);
+        test_serialize(map);
+        let mut map = BTreeMap::new();
+        map.insert(10u64, vec![1u8, 2u8, 3u8]);
+        map.insert(50u64, vec![4u8, 5u8, 6u8]);
+        test_serialize(map);
+    }
+
+    #[test]
     fn test_phantomdata() {
         test_serialize(core::marker::PhantomData::<u64>);
     }
