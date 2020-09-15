@@ -440,7 +440,7 @@ where
 {
     #[tracing::instrument(target = "r1cs")]
     fn to_constraint_field(&self) -> Result<Vec<FpVar<P::BasePrimeField>>, SynthesisError> {
-        let mut res = Vec::<FpVar<P::BasePrimeField>>::new();
+        let mut res = Vec::new();
 
         res.extend_from_slice(&self.c0.to_constraint_field()?);
         res.extend_from_slice(&self.c1.to_constraint_field()?);
