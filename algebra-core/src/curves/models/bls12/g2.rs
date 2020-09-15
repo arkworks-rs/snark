@@ -6,7 +6,7 @@ use crate::{
         short_weierstrass_jacobian::{GroupAffine, GroupProjective},
         AffineCurve,
     },
-    fields::{BitIterator, Field, Fp2},
+    fields::{BitIteratorBE, Field, Fp2},
     io::{Result as IoResult, Write},
     Vec,
 };
@@ -75,7 +75,7 @@ impl<P: Bls12Parameters> From<G2Affine<P>> for G2Prepared<P> {
             z: Fp2::one(),
         };
 
-        for i in BitIterator::new(P::X).skip(1) {
+        for i in BitIteratorBE::new(P::X).skip(1) {
             ell_coeffs.push(doubling_step::<P>(&mut r, &two_inv));
 
             if i {

@@ -94,9 +94,19 @@ pub trait Field:
     + for<'a> core::iter::Sum<&'a Self>
     + core::iter::Product<Self>
     + for<'a> core::iter::Product<&'a Self>
+    + From<u128>
+    + From<u64>
+    + From<u32>
+    + From<u16>
+    + From<u8>
+    + From<bool>
 {
+    type BasePrimeField: PrimeField;
+
     /// Returns the characteristic of the field.
-    fn characteristic<'a>() -> &'a [u64];
+    fn characteristic<'a>() -> &'a [u64] {
+        Self::BasePrimeField::characteristic()
+    }
 
     /// Returns `self + self`.
     #[must_use]
@@ -142,17 +152,7 @@ pub trait Field:
     fn pow<S: AsRef<[u64]>>(&self, exp: S) -> Self {
         let mut res = Self::one();
 
-        let mut found_one = false;
-
-        for i in BitIterator::new(exp) {
-            if !found_one {
-                if i {
-                    found_one = true;
-                } else {
-                    continue;
-                }
-            }
-
+        for i in BitIteratorBE::without_leading_zeros(exp) {
             res.square_in_place();
 
             if i {
@@ -230,7 +230,7 @@ pub trait FpParameters: FftParameters {
 }
 
 /// The interface for fields that are able to be used in FFTs.
-pub trait FftField: Field + From<u128> + From<u64> + From<u32> + From<u16> + From<u8> {
+pub trait FftField: Field {
     type FftParams: FftParameters;
 
     /// Returns the 2^s root of unity.
@@ -281,9 +281,10 @@ pub trait FftField: Field + From<u128> + From<u64> + From<u32> + From<u16> + Fro
                 omega.square_in_place();
             }
         } else {
+            use core::convert::TryFrom;
             // Compute the next power of 2.
             let size = n.next_power_of_two() as u64;
-            let log_size_of_group = size.trailing_zeros();
+            let log_size_of_group = crate::log2(usize::try_from(size).expect("too large"));
 
             if n != size as usize || log_size_of_group > Self::FftParams::TWO_ADICITY {
                 return None;
@@ -302,7 +303,8 @@ pub trait FftField: Field + From<u128> + From<u64> + From<u32> + From<u16> + Fro
 
 /// The interface for a prime field.
 pub trait PrimeField:
-    FftField<FftParams = <Self as PrimeField>::Params>
+    Field<BasePrimeField = Self>
+    + FftField<FftParams = <Self as PrimeField>::Params>
     + FromStr
     + From<<Self as PrimeField>::BigInt>
     + Into<<Self as PrimeField>::BigInt>
@@ -376,21 +378,27 @@ impl LegendreSymbol {
     }
 }
 
+/// Iterates over a slice of `u64` in *big-endian* order.
 #[derive(Debug)]
-pub struct BitIterator<E> {
-    t: E,
+pub struct BitIteratorBE<Slice: AsRef<[u64]>> {
+    s: Slice,
     n: usize,
 }
 
-impl<E: AsRef<[u64]>> BitIterator<E> {
-    pub fn new(t: E) -> Self {
-        let n = t.as_ref().len() * 64;
+impl<Slice: AsRef<[u64]>> BitIteratorBE<Slice> {
+    pub fn new(s: Slice) -> Self {
+        let n = s.as_ref().len() * 64;
+        BitIteratorBE { s, n }
+    }
 
-        BitIterator { t, n }
+    /// Construct an iterator that automatically skips any leading zeros.
+    /// That is, it skips all zeros before the most-significant one.
+    pub fn without_leading_zeros(s: Slice) -> impl Iterator<Item = bool> {
+        Self::new(s).skip_while(|b| !b)
     }
 }
 
-impl<E: AsRef<[u64]>> Iterator for BitIterator<E> {
+impl<Slice: AsRef<[u64]>> Iterator for BitIteratorBE<Slice> {
     type Item = bool;
 
     fn next(&mut self) -> Option<bool> {
@@ -401,7 +409,54 @@ impl<E: AsRef<[u64]>> Iterator for BitIterator<E> {
             let part = self.n / 64;
             let bit = self.n - (64 * part);
 
-            Some(self.t.as_ref()[part] & (1 << bit) > 0)
+            Some(self.s.as_ref()[part] & (1 << bit) > 0)
+        }
+    }
+}
+
+/// Iterates over a slice of `u64` in *little-endian* order.
+#[derive(Debug)]
+pub struct BitIteratorLE<Slice: AsRef<[u64]>> {
+    s: Slice,
+    n: usize,
+    max_len: usize,
+}
+
+impl<Slice: AsRef<[u64]>> BitIteratorLE<Slice> {
+    pub fn new(s: Slice) -> Self {
+        let n = 0;
+        let max_len = s.as_ref().len() * 64;
+        BitIteratorLE { s, n, max_len }
+    }
+
+    /// Construct an iterator that automatically skips any trailing zeros.
+    /// That is, it skips all zeros after the most-significant one.
+    pub fn without_trailing_zeros(s: Slice) -> impl Iterator<Item = bool> {
+        let mut first_trailing_zero = 0;
+        for (i, limb) in s.as_ref().iter().enumerate().rev() {
+            first_trailing_zero = i * 64 + (64 - limb.leading_zeros()) as usize;
+            if *limb != 0 {
+                break;
+            }
+        }
+        let mut iter = Self::new(s);
+        iter.max_len = first_trailing_zero;
+        iter
+    }
+}
+
+impl<Slice: AsRef<[u64]>> Iterator for BitIteratorLE<Slice> {
+    type Item = bool;
+
+    fn next(&mut self) -> Option<bool> {
+        if self.n == self.max_len {
+            None
+        } else {
+            let part = self.n / 64;
+            let bit = self.n - (64 * part);
+            self.n += 1;
+
+            Some(self.s.as_ref()[part] & (1 << bit) > 0)
         }
     }
 }
@@ -451,5 +506,23 @@ pub fn batch_inversion<F: Field>(v: &mut [F]) {
         let new_tmp = tmp * *f;
         *f = tmp * &s;
         tmp = new_tmp;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::BitIteratorLE;
+    #[test]
+    fn bit_iterator_le() {
+        let bits = BitIteratorLE::new(&[0, 1 << 10]).collect::<Vec<_>>();
+        dbg!(&bits);
+        assert!(bits[74]);
+        for (i, bit) in bits.into_iter().enumerate() {
+            if i != 74 {
+                assert!(!bit)
+            } else {
+                assert!(bit)
+            }
+        }
     }
 }

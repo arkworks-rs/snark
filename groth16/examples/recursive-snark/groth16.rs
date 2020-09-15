@@ -26,6 +26,7 @@
 )]
 
 use csv;
+use std::ops::MulAssign;
 
 // For randomness (during paramgen and proof generation)
 use algebra_core::{test_rng, PairingEngine};
@@ -40,7 +41,8 @@ use std::{
     time::{Duration, Instant},
 };
 
-pub use algebra::{mnt4_753, mnt6_753, UniformRand};
+pub use algebra::{mnt4_298, mnt6_298, Field, ToConstraintField, UniformRand};
+use r1cs_std::pairing::PairingVar as PG;
 
 // We're going to use the Groth 16 proving system.
 use groth16::{
@@ -52,21 +54,17 @@ use crate::constraints::{CurvePair, InnerCircuit, MiddleCircuit, OuterCircuit};
 
 struct MNT46;
 impl CurvePair for MNT46 {
-    type PairingEngineTick = mnt4_753::MNT4_753;
-    type PairingEngineTock = mnt6_753::MNT6_753;
-    type PairingGadgetTick = r1cs_std::mnt4_753::PairingGadget;
-    type PairingGadgetTock = r1cs_std::mnt6_753::PairingGadget;
-    const TICK_CURVE: &'static str = "MNT4_753";
-    const TOCK_CURVE: &'static str = "MNT6_753";
+    type TickGroup = mnt4_298::MNT4_298;
+    type TockGroup = mnt6_298::MNT6_298;
+    const TICK_CURVE: &'static str = "MNT4_298";
+    const TOCK_CURVE: &'static str = "MNT6_298";
 }
 struct MNT64;
 impl CurvePair for MNT64 {
-    type PairingEngineTick = mnt6_753::MNT6_753;
-    type PairingEngineTock = mnt4_753::MNT4_753;
-    type PairingGadgetTick = r1cs_std::mnt6_753::PairingGadget;
-    type PairingGadgetTock = r1cs_std::mnt4_753::PairingGadget;
-    const TICK_CURVE: &'static str = "MNT6_753";
-    const TOCK_CURVE: &'static str = "MNT4_753";
+    type TickGroup = mnt6_298::MNT6_298;
+    type TockGroup = mnt4_298::MNT4_298;
+    const TICK_CURVE: &'static str = "MNT6_298";
+    const TOCK_CURVE: &'static str = "MNT4_298";
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -76,24 +74,38 @@ fn main() -> Result<(), Box<dyn Error>> {
             "\nHelp: Invoke this as <program> <num_constraints> <output_file_path> [<order>]\n"
         );
         println!("<order> defines the order in which the MNT4/6 curves should be used:");
-        println!("46 (default) uses the MNT4_753 curve for the inner and outer circuit;");
-        println!("64 uses the MNT6_753 curve for the inner and outer circuit.");
+        println!("46 (default) uses the MNT4_298 curve for the inner and outer circuit;");
+        println!("64 uses the MNT6_298 curve for the inner and outer circuit.");
         return Ok(());
     }
     let num_constraints: usize = args[1].parse().unwrap();
     let output_file_path = PathBuf::from(args[2].clone());
 
     if args.len() < 4 || args[3] == "46" {
-        run::<MNT46>(num_constraints, output_file_path)
+        run::<MNT46, r1cs_std::mnt4_298::PairingVar, r1cs_std::mnt6_298::PairingVar>(
+            num_constraints,
+            output_file_path,
+        )
     } else {
-        run::<MNT64>(num_constraints, output_file_path)
+        run::<MNT64, r1cs_std::mnt6_298::PairingVar, r1cs_std::mnt4_298::PairingVar>(
+            num_constraints,
+            output_file_path,
+        )
     }
 }
 
-fn run<C: CurvePair>(
+fn run<C: CurvePair, TickPairing: PG<C::TickGroup>, TockPairing: PG<C::TockGroup>>(
     num_constraints: usize,
     output_file_path: PathBuf,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), Box<dyn Error>>
+where
+    <C::TickGroup as PairingEngine>::G1Projective: MulAssign<<C::TockGroup as PairingEngine>::Fq>,
+    <C::TickGroup as PairingEngine>::G2Projective: MulAssign<<C::TockGroup as PairingEngine>::Fq>,
+    <C::TickGroup as PairingEngine>::G1Affine:
+        ToConstraintField<<<C::TockGroup as PairingEngine>::Fr as Field>::BasePrimeField>,
+    <C::TickGroup as PairingEngine>::G2Affine:
+        ToConstraintField<<<C::TockGroup as PairingEngine>::Fr as Field>::BasePrimeField>,
+{
     let mut wtr = if !output_file_path.exists() {
         println!("Creating output file");
         let f = OpenOptions::new()
@@ -139,17 +151,19 @@ fn run<C: CurvePair>(
 
     for sample in 0..samples {
         println!("Running sample {}/{}", sample + 1, samples);
-        let mut inputs: Vec<<C::PairingEngineTick as PairingEngine>::Fr> =
+        let mut inputs: Vec<<C::TickGroup as PairingEngine>::Fr> =
             Vec::with_capacity(num_constraints);
         for _ in 0..num_constraints {
-            inputs.push(<<C::PairingEngineTick as PairingEngine>::Fr as UniformRand>::rand(rng));
+            inputs.push(<<C::TickGroup as PairingEngine>::Fr as UniformRand>::rand(
+                rng,
+            ));
         }
 
         // Create parameters for our inner circuit
         println!("|-- Generating inner parameters ({})", C::TICK_CURVE);
         let start = Instant::now();
         let params_inner = {
-            let c = InnerCircuit::<<C::PairingEngineTick as PairingEngine>::Fr>::new(
+            let c = InnerCircuit::<<C::TickGroup as PairingEngine>::Fr>::new(
                 num_constraints,
                 inputs.clone(),
             );
@@ -176,8 +190,11 @@ fn run<C: CurvePair>(
         println!("|-- Generating middle parameters ({})", C::TOCK_CURVE);
         let start = Instant::now();
         let params_middle = {
-            let c =
-                MiddleCircuit::<C>::new(inputs.clone(), params_inner.clone(), proof_inner.clone());
+            let c = MiddleCircuit::<C, TickPairing>::new(
+                inputs.clone(),
+                params_inner.clone(),
+                proof_inner.clone(),
+            );
             generate_random_parameters(c, rng)?
         };
         total_setup_middle += start.elapsed();
@@ -187,8 +204,11 @@ fn run<C: CurvePair>(
         let start = Instant::now();
         let proof_middle = {
             // Create an instance of our middle circuit (with the witness)
-            let c =
-                MiddleCircuit::<C>::new(inputs.clone(), params_inner.clone(), proof_inner.clone());
+            let c = MiddleCircuit::<C, TickPairing>::new(
+                inputs.clone(),
+                params_inner.clone(),
+                proof_inner.clone(),
+            );
             // Create a proof with our parameters.
             create_random_proof(c, &params_middle, rng)?
         };
@@ -196,18 +216,24 @@ fn run<C: CurvePair>(
 
         {
             let pvk = prepare_verifying_key(&params_middle.vk);
-            assert!(
-                verify_proof(&pvk, &proof_middle, &MiddleCircuit::<C>::inputs(&inputs)).unwrap()
-            );
+            assert!(verify_proof(
+                &pvk,
+                &proof_middle,
+                &MiddleCircuit::<C, TickPairing>::inputs(&inputs)
+            )
+            .unwrap());
         }
 
         // Create parameters for our outer circuit
         println!("|-- Generating outer parameters ({})", C::TICK_CURVE);
         let start = Instant::now();
         let params_outer = {
-            let c =
-                OuterCircuit::<C>::new(inputs.clone(), params_middle.clone(), proof_middle.clone());
-            generate_random_parameters::<C::PairingEngineTick, _, _>(c, rng)?
+            let c = OuterCircuit::<C, TockPairing, TickPairing>::new(
+                inputs.clone(),
+                params_middle.clone(),
+                proof_middle.clone(),
+            );
+            generate_random_parameters::<C::TickGroup, _, _>(c, rng)?
         };
 
         // Prepare the verification key (for proof verification)
@@ -219,8 +245,11 @@ fn run<C: CurvePair>(
         let start = Instant::now();
         let proof_outer = {
             // Create an instance of our outer circuit (with the witness)
-            let c =
-                OuterCircuit::<C>::new(inputs.clone(), params_middle.clone(), proof_middle.clone());
+            let c = OuterCircuit::<C, TockPairing, TickPairing>::new(
+                inputs.clone(),
+                params_middle.clone(),
+                proof_middle.clone(),
+            );
             // Create a proof with our parameters.
             create_random_proof(c, &params_outer, rng)?
         };

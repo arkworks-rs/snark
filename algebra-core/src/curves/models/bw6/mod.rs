@@ -6,7 +6,7 @@ use crate::{
     fields::{
         fp3::Fp3Parameters,
         fp6_2over3::{Fp6, Fp6Parameters},
-        BitIterator, Field, PrimeField, SquareRootField,
+        BitIteratorBE, Field, PrimeField, SquareRootField,
     },
 };
 use num_traits::One;
@@ -18,7 +18,7 @@ pub enum TwistType {
     D,
 }
 
-pub trait BW6Parameters: 'static {
+pub trait BW6Parameters: 'static + Eq + PartialEq {
     const X: <Self::Fp as PrimeField>::BigInt;
     const X_IS_NEGATIVE: bool;
     const ATE_LOOP_COUNT_1: &'static [u64];
@@ -238,7 +238,7 @@ impl<P: BW6Parameters> PairingEngine for BW6<P> {
         // f_{u+1,Q}(P)
         let mut f_1 = Self::Fqk::one();
 
-        for i in BitIterator::new(P::ATE_LOOP_COUNT_1).skip(1) {
+        for i in BitIteratorBE::new(P::ATE_LOOP_COUNT_1).skip(1) {
             f_1.square_in_place();
 
             for (p, ref mut coeffs) in &mut pairs_1 {

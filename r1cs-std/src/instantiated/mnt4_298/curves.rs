@@ -1,23 +1,23 @@
 use crate::groups::mnt4;
 use algebra::mnt4_298::Parameters;
 
-pub type G1Gadget = mnt4::G1Gadget<Parameters>;
-pub type G2Gadget = mnt4::G2Gadget<Parameters>;
+pub type G1Var = mnt4::G1Var<Parameters>;
+pub type G2Var = mnt4::G2Var<Parameters>;
 
-pub type G1PreparedGadget = mnt4::G1PreparedGadget<Parameters>;
-pub type G2PreparedGadget = mnt4::G2PreparedGadget<Parameters>;
+pub type G1PreparedVar = mnt4::G1PreparedVar<Parameters>;
+pub type G2PreparedVar = mnt4::G2PreparedVar<Parameters>;
 
 #[test]
 fn test() {
     use algebra::curves::models::mnt4::MNT4Parameters;
     crate::groups::curves::short_weierstrass::test::<
-        _,
         <Parameters as MNT4Parameters>::G1Parameters,
-        G1Gadget,
-    >();
+        G1Var,
+    >()
+    .unwrap();
     crate::groups::curves::short_weierstrass::test::<
-        _,
         <Parameters as MNT4Parameters>::G2Parameters,
-        G2Gadget,
-    >();
+        G2Var,
+    >()
+    .unwrap();
 }

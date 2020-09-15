@@ -1,8 +1,8 @@
 use algebra::mnt4_298::Parameters;
 
-pub type PairingGadget = crate::pairing::mnt4::PairingGadget<Parameters>;
+pub type PairingVar = crate::pairing::mnt4::PairingVar<Parameters>;
 
 #[test]
 fn test() {
-    crate::pairing::tests::bilinearity_test::<algebra::MNT4_298, _, PairingGadget>()
+    crate::pairing::tests::bilinearity_test::<algebra::MNT4_298, PairingVar>().unwrap()
 }

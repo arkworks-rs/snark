@@ -19,6 +19,7 @@ use crate::{
     bytes::{FromBytes, ToBytes},
     fields::{Field, PrimeField},
     io::{Read, Result as IoResult, Write},
+    Box, ToConstraintField, Vec,
 };
 
 pub trait CubicExtParameters: 'static + Send + Sync {
@@ -134,10 +135,7 @@ impl<P: CubicExtParameters> One for CubicExtField<P> {
 }
 
 impl<P: CubicExtParameters> Field for CubicExtField<P> {
-    #[inline]
-    fn characteristic<'a>() -> &'a [u64] {
-        P::BaseField::characteristic()
-    }
+    type BasePrimeField = P::BasePrimeField;
 
     fn double(&self) -> Self {
         let mut result = self.clone();
@@ -292,53 +290,48 @@ impl<P: CubicExtParameters> PartialOrd for CubicExtField<P> {
     }
 }
 
-impl<P: CubicExtParameters> From<u128> for CubicExtField<P>
-where
-    P::BaseField: From<u128>,
-{
+impl<P: CubicExtParameters> From<u128> for CubicExtField<P> {
     fn from(other: u128) -> Self {
         let fe: P::BaseField = other.into();
         Self::new(fe, P::BaseField::zero(), P::BaseField::zero())
     }
 }
 
-impl<P: CubicExtParameters> From<u64> for CubicExtField<P>
-where
-    P::BaseField: From<u64>,
-{
+impl<P: CubicExtParameters> From<u64> for CubicExtField<P> {
     fn from(other: u64) -> Self {
         let fe: P::BaseField = other.into();
         Self::new(fe, P::BaseField::zero(), P::BaseField::zero())
     }
 }
 
-impl<P: CubicExtParameters> From<u32> for CubicExtField<P>
-where
-    P::BaseField: From<u32>,
-{
+impl<P: CubicExtParameters> From<u32> for CubicExtField<P> {
     fn from(other: u32) -> Self {
         let fe: P::BaseField = other.into();
         Self::new(fe, P::BaseField::zero(), P::BaseField::zero())
     }
 }
 
-impl<P: CubicExtParameters> From<u16> for CubicExtField<P>
-where
-    P::BaseField: From<u16>,
-{
+impl<P: CubicExtParameters> From<u16> for CubicExtField<P> {
     fn from(other: u16) -> Self {
         let fe: P::BaseField = other.into();
         Self::new(fe, P::BaseField::zero(), P::BaseField::zero())
     }
 }
 
-impl<P: CubicExtParameters> From<u8> for CubicExtField<P>
-where
-    P::BaseField: From<u8>,
-{
+impl<P: CubicExtParameters> From<u8> for CubicExtField<P> {
     fn from(other: u8) -> Self {
         let fe: P::BaseField = other.into();
         Self::new(fe, P::BaseField::zero(), P::BaseField::zero())
+    }
+}
+
+impl<P: CubicExtParameters> From<bool> for CubicExtField<P> {
+    fn from(other: bool) -> Self {
+        Self::new(
+            u8::from(other).into(),
+            P::BaseField::zero(),
+            P::BaseField::zero(),
+        )
     }
 }
 
@@ -494,19 +487,19 @@ impl<P: CubicExtParameters> CanonicalSerializeWithFlags for CubicExtField<P> {
     #[inline]
     fn serialize_with_flags<W: Write, F: Flags>(
         &self,
-        writer: &mut W,
+        mut writer: W,
         flags: F,
     ) -> Result<(), SerializationError> {
-        self.c0.serialize(writer)?;
-        self.c1.serialize(writer)?;
-        self.c2.serialize_with_flags(writer, flags)?;
+        self.c0.serialize(&mut writer)?;
+        self.c1.serialize(&mut writer)?;
+        self.c2.serialize_with_flags(&mut writer, flags)?;
         Ok(())
     }
 }
 
 impl<P: CubicExtParameters> CanonicalSerialize for CubicExtField<P> {
     #[inline]
-    fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
+    fn serialize<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
         self.serialize_with_flags(writer, EmptyFlags)
     }
 
@@ -524,22 +517,40 @@ impl<P: CubicExtParameters> ConstantSerializedSize for CubicExtField<P> {
 impl<P: CubicExtParameters> CanonicalDeserializeWithFlags for CubicExtField<P> {
     #[inline]
     fn deserialize_with_flags<R: Read, F: Flags>(
-        reader: &mut R,
+        mut reader: R,
     ) -> Result<(Self, F), SerializationError> {
-        let c0: P::BaseField = CanonicalDeserialize::deserialize(reader)?;
-        let c1: P::BaseField = CanonicalDeserialize::deserialize(reader)?;
+        let c0: P::BaseField = CanonicalDeserialize::deserialize(&mut reader)?;
+        let c1: P::BaseField = CanonicalDeserialize::deserialize(&mut reader)?;
         let (c2, flags): (P::BaseField, _) =
-            CanonicalDeserializeWithFlags::deserialize_with_flags(reader)?;
+            CanonicalDeserializeWithFlags::deserialize_with_flags(&mut reader)?;
         Ok((CubicExtField::new(c0, c1, c2), flags))
     }
 }
 
 impl<P: CubicExtParameters> CanonicalDeserialize for CubicExtField<P> {
     #[inline]
-    fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
-        let c0: P::BaseField = CanonicalDeserialize::deserialize(reader)?;
-        let c1: P::BaseField = CanonicalDeserialize::deserialize(reader)?;
-        let c2: P::BaseField = CanonicalDeserialize::deserialize(reader)?;
+    fn deserialize<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+        let c0: P::BaseField = CanonicalDeserialize::deserialize(&mut reader)?;
+        let c1: P::BaseField = CanonicalDeserialize::deserialize(&mut reader)?;
+        let c2: P::BaseField = CanonicalDeserialize::deserialize(&mut reader)?;
         Ok(CubicExtField::new(c0, c1, c2))
+    }
+}
+
+impl<P: CubicExtParameters> ToConstraintField<P::BasePrimeField> for CubicExtField<P>
+where
+    P::BaseField: ToConstraintField<P::BasePrimeField>,
+{
+    fn to_field_elements(&self) -> Result<Vec<P::BasePrimeField>, Box<dyn crate::Error>> {
+        let mut res = Vec::new();
+        let mut c0_elems = self.c0.to_field_elements()?;
+        let mut c1_elems = self.c1.to_field_elements()?;
+        let mut c2_elems = self.c2.to_field_elements()?;
+
+        res.append(&mut c0_elems);
+        res.append(&mut c1_elems);
+        res.append(&mut c2_elems);
+
+        Ok(res)
     }
 }

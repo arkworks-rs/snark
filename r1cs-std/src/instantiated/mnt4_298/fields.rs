@@ -1,10 +1,10 @@
 use algebra::mnt4_298::{Fq, Fq2Parameters, Fq4Parameters};
 
-use crate::fields::{fp::FpGadget, fp2::Fp2Gadget, fp4::Fp4Gadget};
+use crate::fields::{fp::FpVar, fp2::Fp2Var, fp4::Fp4Var};
 
-pub type FqGadget = FpGadget<Fq>;
-pub type Fq2Gadget = Fp2Gadget<Fq2Parameters, Fq>;
-pub type Fq4Gadget = Fp4Gadget<Fq4Parameters, Fq>;
+pub type FqVar = FpVar<Fq>;
+pub type Fq2Var = Fp2Var<Fq2Parameters>;
+pub type Fq4Var = Fp4Var<Fq4Parameters>;
 
 #[test]
 fn mnt4_298_field_gadgets_test() {
@@ -12,12 +12,12 @@ fn mnt4_298_field_gadgets_test() {
     use crate::fields::tests::*;
     use algebra::mnt4_298::{Fq, Fq2, Fq4};
 
-    field_test::<_, Fq, FqGadget>();
-    frobenius_tests::<Fq, Fq, FqGadget>(13);
+    field_test::<_, _, FqVar>().unwrap();
+    frobenius_tests::<Fq, _, FqVar>(13).unwrap();
 
-    field_test::<_, Fq, Fq2Gadget>();
-    frobenius_tests::<Fq2, Fq, Fq2Gadget>(13);
+    field_test::<_, _, Fq2Var>().unwrap();
+    frobenius_tests::<Fq2, _, Fq2Var>(13).unwrap();
 
-    field_test::<_, Fq, Fq4Gadget>();
-    frobenius_tests::<Fq4, Fq, Fq4Gadget>(13);
+    field_test::<_, _, Fq4Var>().unwrap();
+    frobenius_tests::<Fq4, _, Fq4Var>(13).unwrap();
 }

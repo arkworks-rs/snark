@@ -152,12 +152,12 @@ macro_rules! to_bytes {
 macro_rules! push_to_vec {
     ($buf:expr, $y:expr, $($x:expr),*) => ({
         {
-            ToBytes::write(&$y, &mut $buf)
+            $crate::ToBytes::write(&$y, &mut $buf)
         }.and({$crate::push_to_vec!($buf, $($x),*)})
     });
 
     ($buf:expr, $x:expr) => ({
-        ToBytes::write(&$x, &mut $buf)
+        $crate::ToBytes::write(&$x, &mut $buf)
     })
 }
 
@@ -311,7 +311,6 @@ impl<T: FromBytes> FromBytes for Option<T> {
 
 #[cfg(test)]
 mod test {
-    use super::ToBytes;
     use crate::Vec;
     #[test]
     fn test_macro_empty() {
