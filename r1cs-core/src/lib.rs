@@ -45,7 +45,8 @@ pub use tracing::info_span;
 
 pub use algebra_core::{Field, ToConstraintField};
 pub use constraint_system::{
-    ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, Namespace, SynthesisMode,
+    ConstraintMatrices, ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, Namespace,
+    SynthesisMode,
 };
 pub use error::SynthesisError;
 
