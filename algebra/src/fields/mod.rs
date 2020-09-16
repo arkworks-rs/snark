@@ -403,11 +403,11 @@ use crate::biginteger::{
     BigInteger256, BigInteger320, BigInteger384, BigInteger768, BigInteger832,
 };
 
-impl_field_into_bigint!(Fp256, BigInteger256, Fp256Parameters);
-impl_field_into_bigint!(Fp320, BigInteger320, Fp320Parameters);
-impl_field_into_bigint!(Fp384, BigInteger384, Fp384Parameters);
-impl_field_into_bigint!(Fp768, BigInteger768, Fp768Parameters);
-impl_field_into_bigint!(Fp832, BigInteger832, Fp832Parameters);
+impl_field_bigint_conv!(Fp256, BigInteger256, Fp256Parameters);
+impl_field_bigint_conv!(Fp320, BigInteger320, Fp320Parameters);
+impl_field_bigint_conv!(Fp384, BigInteger384, Fp384Parameters);
+impl_field_bigint_conv!(Fp768, BigInteger768, Fp768Parameters);
+impl_field_bigint_conv!(Fp832, BigInteger832, Fp832Parameters);
 
 pub fn batch_inversion<F: Field>(v: &mut [F]) {
     // Montgomery’s Trick and Fast Implementation of Masked AES
