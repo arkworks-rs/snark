@@ -108,7 +108,7 @@ cargo +nightly bench --all-features
 
 Compiling with `adcxq`, `adoxq` and `mulxq` instructions can lead to a 30-70% speedup. These are available on most `x86_64` platforms (Broadwell onwards for Intel and Ryzen onwards for AMD). Run the following command:
 ```bash
-RUSTFLAGS="-C target-feature=+bmi2,+adx" cargo +nightly test/build/bench --features asm
+RUSTFLAGS="-C target-feature=+bmi2,+adx" cargo +nightly test/build/bench --features llvm_asm
 ```
 Tip: If optimising for performance, your mileage may vary with passing `--emit=asm` to `RUSTFLAGS`.
 

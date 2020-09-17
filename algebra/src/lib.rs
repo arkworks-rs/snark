@@ -4,7 +4,7 @@
 #![deny(unused_extern_crates, renamed_and_removed_lints, unused_allocation)]
 #![deny(unused_comparisons, bare_trait_objects, const_err, unused_must_use)]
 #![deny(unused_mut, unused_unsafe, private_in_public)]
-#![cfg_attr(use_asm, feature(asm))]
+#![cfg_attr(use_asm, feature(llvm_asm))]
 #![cfg_attr(not(use_asm), forbid(unsafe_code))]
 #![cfg_attr(use_asm, deny(unsafe_code))]
 

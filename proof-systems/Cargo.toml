@@ -36,7 +36,7 @@ csv = { version = "1" }
 print-trace = [ "bench-utils/print-trace" ]
 groth16 = []
 gm17 = []
-asm = ["algebra/asm"]
+llvm_asm = ["algebra/llvm_asm"]
 
 [[example]]
 name = "groth16"

@@ -42,7 +42,7 @@ paste = "1.0"
 parallel = [ "rayon" ]
 fft = ["rayon"]
 n_fold = []
-asm = []
+llvm_asm = []
 
 [build-dependencies]
 field-assembly = { path = "./field-assembly" }

@@ -440,6 +440,18 @@ macro_rules! impl_multiplicative_ops_from_ref {
         }
 
         #[allow(unused_qualifications)]
+        impl<P: $params> MulShort<Self> for $type<P> {
+            type Output = Self;
+
+            #[inline]
+            fn mul_short(self, other: Self) -> Self {
+                let mut result = self;
+                result.mul_short_assign(&other);
+                result
+            }
+        }
+
+        #[allow(unused_qualifications)]
         impl<P: $params> core::ops::Div<Self> for $type<P> {
             type Output = Self;
 
@@ -459,6 +471,18 @@ macro_rules! impl_multiplicative_ops_from_ref {
             fn mul(self, other: &'a mut Self) -> Self {
                 let mut result = self;
                 result.mul_assign(&*other);
+                result
+            }
+        }
+
+        #[allow(unused_qualifications)]
+        impl<'a, P: $params> MulShort<&'a mut Self> for $type<P> {
+            type Output = Self;
+
+            #[inline]
+            fn mul_short(self, other: &'a mut Self) -> Self {
+                let mut result = self;
+                result.mul_short_assign(&*other);
                 result
             }
         }
@@ -497,6 +521,13 @@ macro_rules! impl_multiplicative_ops_from_ref {
         }
 
         #[allow(unused_qualifications)]
+        impl<P: $params> MulShortAssign<Self> for $type<P> {
+            fn mul_short_assign(&mut self, other: Self) {
+                self.mul_short_assign(&other)
+            }
+        }
+
+        #[allow(unused_qualifications)]
         impl<'a, P: $params> core::ops::DivAssign<&'a mut Self> for $type<P> {
             fn div_assign(&mut self, other: &'a mut Self) {
                 self.div_assign(&*other)
@@ -507,6 +538,13 @@ macro_rules! impl_multiplicative_ops_from_ref {
         impl<'a, P: $params> core::ops::MulAssign<&'a mut Self> for $type<P> {
             fn mul_assign(&mut self, other: &'a mut Self) {
                 self.mul_assign(&*other)
+            }
+        }
+
+        #[allow(unused_qualifications)]
+        impl<'a, P: $params> MulShortAssign<&'a mut Self> for $type<P> {
+            fn mul_short_assign(&mut self, other: &'a mut Self) {
+                self.mul_short_assign(&*other)
             }
         }
 
