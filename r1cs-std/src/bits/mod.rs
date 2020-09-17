@@ -28,7 +28,7 @@ pub trait ToBitsGadget<F: Field> {
     /// Outputs a possibly non-unique bit-wise representation of `self`.
     ///
     /// If you're not absolutely certain that your usecase can get away with a
-    /// non-canonical representation, please use `self.to_bits(cs)` instead.
+    /// non-canonical representation, please use `self.to_bits()` instead.
     fn to_non_unique_bits_le(&self) -> Result<Vec<Boolean<F>>, SynthesisError> {
         self.to_bits_le()
     }

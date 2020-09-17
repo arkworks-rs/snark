@@ -6,6 +6,10 @@ use r1cs_core::{lc, ConstraintSystemRef, LinearCombination, Namespace, Synthesis
 
 /// Represents a variable in the constraint system which is guaranteed
 /// to be either zero or one.
+///
+/// In general, one should prefer using `Boolean` instead of `AllocatedBit`,
+/// as `Boolean` offers better support for constant values, and implements
+/// more traits.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[must_use]
 pub struct AllocatedBit<F: Field> {
@@ -156,10 +160,7 @@ impl<F: Field> AllocatedBit<F> {
 }
 
 impl<F: Field> AllocVar<bool, F> for AllocatedBit<F> {
-    /// If `self.mode` == `AllocationMode::Constant`, this method simply outputs
-    /// a `Boolean::Constant`.
-    ///
-    /// Otherwise, it produces a new variable of the appropriate type
+    /// Produces a new variable of the appropriate kind
     /// (instance or witness), with a booleanity check.
     ///
     /// N.B.: we could omit the booleanity check when allocating `self`
@@ -215,16 +216,16 @@ impl<F: Field> CondSelectGadget<F> for AllocatedBit<F> {
     }
 }
 
-/// This is a boolean value which may be either a constant or
-/// an interpretation of an `AllocatedBit`.
+/// Represents a boolean value in the constraint system which is guaranteed
+/// to be either zero or one.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[must_use]
 pub enum Boolean<F: Field> {
-    /// Existential view of the boolean variable
+    /// Existential view of the boolean variable.
     Is(AllocatedBit<F>),
-    /// Negated view of the boolean variable
+    /// Negated view of the boolean variable.
     Not(AllocatedBit<F>),
-    /// Constant (not an allocated variable)
+    /// Constant (not an allocated variable).
     Constant(bool),
 }
 
@@ -248,14 +249,17 @@ impl<F: Field> R1CSVar<F> for Boolean<F> {
 }
 
 impl<F: Field> Boolean<F> {
-    /// Returns the constrant `true`.
+    /// The constant `true`.
     pub const TRUE: Self = Boolean::Constant(true);
 
-    /// Returns the constrant `false`.
+    /// The constant `false`.
     pub const FALSE: Self = Boolean::Constant(false);
 
-    /// Constructs a `LinearCombination` from `Self`'s variables.
+    /// Constructs a `LinearCombination` from `Self`'s variables according
+    /// to the following map.
     ///
+    /// * `Boolean::Constant(true) => lc!() + Variable::One`
+    /// * `Boolean::Constant(false) => lc!()`
     /// * `Boolean::Is(v) => lc!() + v.variable()`
     /// * `Boolean::Not(v) => lc!() + Variable::One - v.variable()`
     pub fn lc(&self) -> LinearCombination<F> {
@@ -268,24 +272,84 @@ impl<F: Field> Boolean<F> {
     }
 
     /// Constructs a `Boolean` vector from a slice of constant `u8`.
+    /// The `u8`s are decomposed in little-endian manner.
     ///
-    /// This *does not* create any new variables.
+    /// This *does not* create any new variables or constraints.
+    ///
+    /// ```
+    /// # fn main() -> Result<(), r1cs_core::SynthesisError> {
+    /// // We'll use the BLS12-381 scalar field for our constraints.
+    /// use algebra::bls12_381::Fr;
+    /// use r1cs_core::*;
+    /// use r1cs_std::prelude::*;
+    ///
+    /// let cs = ConstraintSystem::<Fr>::new_ref();
+    /// let t = Boolean::<Fr>::TRUE;
+    /// let f = Boolean::<Fr>::FALSE;
+    ///
+    /// let bits = vec![f, t];
+    /// let generated_bits = Boolean::constant_vec_from_bytes(&[2]);
+    /// bits[..2].enforce_equal(&generated_bits[..2])?;
+    /// assert!(cs.is_satisfied().unwrap());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn constant_vec_from_bytes(values: &[u8]) -> Vec<Self> {
-        let mut input_bits = vec![];
-        for input_byte in values {
-            for bit_i in (0..8).rev() {
-                input_bits.push(Self::Constant(((input_byte >> bit_i) & 1u8) == 1u8));
+        let mut bits = vec![];
+        for byte in values {
+            for i in 0..8 {
+                bits.push(Self::Constant(((byte >> i) & 1u8) == 1u8));
             }
         }
-        input_bits
+        bits
     }
 
     /// Constructs a constant `Boolean` with value `b`.
+    ///
+    /// This *does not* create any new variables or constraints.
+    /// ```
+    /// # fn main() -> Result<(), r1cs_core::SynthesisError> {
+    /// // We'll use the BLS12-381 scalar field for our constraints.
+    /// use algebra::bls12_381::Fr;
+    /// use r1cs_std::prelude::*;
+    ///
+    /// let true_var = Boolean::<Fr>::TRUE;
+    /// let false_var = Boolean::<Fr>::FALSE;
+    ///
+    /// true_var.enforce_equal(&Boolean::constant(true))?;
+    /// false_var.enforce_equal(&Boolean::constant(false))?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn constant(b: bool) -> Self {
         Boolean::Constant(b)
     }
 
     /// Negates `self`.
+    ///
+    /// This *does not* create any new variables or constraints.
+    /// ```
+    /// # fn main() -> Result<(), r1cs_core::SynthesisError> {
+    /// // We'll use the BLS12-381 scalar field for our constraints.
+    /// use algebra::bls12_381::Fr;
+    /// use r1cs_core::*;
+    /// use r1cs_std::prelude::*;
+    ///
+    /// let cs = ConstraintSystem::<Fr>::new_ref();
+    ///
+    /// let a = Boolean::new_witness(cs.clone(), || Ok(true))?;
+    /// let b = Boolean::new_witness(cs.clone(), || Ok(false))?;
+    ///
+    /// a.not().enforce_equal(&b)?;
+    /// b.not().enforce_equal(&a)?;
+    ///
+    /// a.not().enforce_equal(&Boolean::FALSE)?;
+    /// b.not().enforce_equal(&Boolean::TRUE)?;
+    ///
+    /// assert!(cs.is_satisfied().unwrap());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn not(&self) -> Self {
         match *self {
             Boolean::Constant(c) => Boolean::Constant(!c),
@@ -293,13 +357,34 @@ impl<F: Field> Boolean<F> {
             Boolean::Not(ref v) => Boolean::Is(v.clone()),
         }
     }
-}
 
-impl<F: Field> Boolean<F> {
     /// Outputs `self ^ other`.
     ///
     /// If at least one of `self` and `other` are constants, then this method
     /// *does not* create any constraints or variables.
+    ///
+    /// ```
+    /// # fn main() -> Result<(), r1cs_core::SynthesisError> {
+    /// // We'll use the BLS12-381 scalar field for our constraints.
+    /// use algebra::bls12_381::Fr;
+    /// use r1cs_core::*;
+    /// use r1cs_std::prelude::*;
+    ///
+    /// let cs = ConstraintSystem::<Fr>::new_ref();
+    ///
+    /// let a = Boolean::new_witness(cs.clone(), || Ok(true))?;
+    /// let b = Boolean::new_witness(cs.clone(), || Ok(false))?;
+    ///
+    /// a.xor(&b)?.enforce_equal(&Boolean::TRUE)?;
+    /// b.xor(&a)?.enforce_equal(&Boolean::TRUE)?;
+    ///
+    /// a.xor(&a)?.enforce_equal(&Boolean::FALSE)?;
+    /// b.xor(&b)?.enforce_equal(&Boolean::FALSE)?;
+    ///
+    /// assert!(cs.is_satisfied().unwrap());
+    /// # Ok(())
+    /// # }
+    /// ```
     #[tracing::instrument(target = "r1cs")]
     pub fn xor<'a>(&'a self, other: &'a Self) -> Result<Self, SynthesisError> {
         use Boolean::*;
@@ -319,6 +404,29 @@ impl<F: Field> Boolean<F> {
     ///
     /// If at least one of `self` and `other` are constants, then this method
     /// *does not* create any constraints or variables.
+    ///
+    /// ```
+    /// # fn main() -> Result<(), r1cs_core::SynthesisError> {
+    /// // We'll use the BLS12-381 scalar field for our constraints.
+    /// use algebra::bls12_381::Fr;
+    /// use r1cs_core::*;
+    /// use r1cs_std::prelude::*;
+    ///
+    /// let cs = ConstraintSystem::<Fr>::new_ref();
+    ///
+    /// let a = Boolean::new_witness(cs.clone(), || Ok(true))?;
+    /// let b = Boolean::new_witness(cs.clone(), || Ok(false))?;
+    ///
+    /// a.or(&b)?.enforce_equal(&Boolean::TRUE)?;
+    /// b.or(&a)?.enforce_equal(&Boolean::TRUE)?;
+    ///
+    /// a.or(&a)?.enforce_equal(&Boolean::TRUE)?;
+    /// b.or(&b)?.enforce_equal(&Boolean::FALSE)?;
+    ///
+    /// assert!(cs.is_satisfied().unwrap());
+    /// # Ok(())
+    /// # }
+    /// ```
     #[tracing::instrument(target = "r1cs")]
     pub fn or<'a>(&'a self, other: &'a Self) -> Result<Self, SynthesisError> {
         use Boolean::*;
@@ -337,6 +445,29 @@ impl<F: Field> Boolean<F> {
     ///
     /// If at least one of `self` and `other` are constants, then this method
     /// *does not* create any constraints or variables.
+    ///
+    /// ```
+    /// # fn main() -> Result<(), r1cs_core::SynthesisError> {
+    /// // We'll use the BLS12-381 scalar field for our constraints.
+    /// use algebra::bls12_381::Fr;
+    /// use r1cs_core::*;
+    /// use r1cs_std::prelude::*;
+    ///
+    /// let cs = ConstraintSystem::<Fr>::new_ref();
+    ///
+    /// let a = Boolean::new_witness(cs.clone(), || Ok(true))?;
+    /// let b = Boolean::new_witness(cs.clone(), || Ok(false))?;
+    ///
+    /// a.and(&a)?.enforce_equal(&Boolean::TRUE)?;
+    ///
+    /// a.and(&b)?.enforce_equal(&Boolean::FALSE)?;
+    /// b.and(&a)?.enforce_equal(&Boolean::FALSE)?;
+    /// b.and(&b)?.enforce_equal(&Boolean::FALSE)?;
+    ///
+    /// assert!(cs.is_satisfied().unwrap());
+    /// # Ok(())
+    /// # }
+    /// ```
     #[tracing::instrument(target = "r1cs")]
     pub fn and<'a>(&'a self, other: &'a Self) -> Result<Self, SynthesisError> {
         use Boolean::*;
@@ -355,6 +486,27 @@ impl<F: Field> Boolean<F> {
     }
 
     /// Outputs `bits[0] & bits[1] & ... & bits.last().unwrap()`.
+    ///
+    /// ```
+    /// # fn main() -> Result<(), r1cs_core::SynthesisError> {
+    /// // We'll use the BLS12-381 scalar field for our constraints.
+    /// use algebra::bls12_381::Fr;
+    /// use r1cs_core::*;
+    /// use r1cs_std::prelude::*;
+    ///
+    /// let cs = ConstraintSystem::<Fr>::new_ref();
+    ///
+    /// let a = Boolean::new_witness(cs.clone(), || Ok(true))?;
+    /// let b = Boolean::new_witness(cs.clone(), || Ok(false))?;
+    /// let c = Boolean::new_witness(cs.clone(), || Ok(true))?;
+    ///
+    /// Boolean::kary_and(&[a.clone(), b.clone(), c.clone()])?.enforce_equal(&Boolean::FALSE)?;
+    /// Boolean::kary_and(&[a.clone(), c.clone()])?.enforce_equal(&Boolean::TRUE)?;
+    ///
+    /// assert!(cs.is_satisfied().unwrap());
+    /// # Ok(())
+    /// # }
+    /// ```
     #[tracing::instrument(target = "r1cs")]
     pub fn kary_and(bits: &[Self]) -> Result<Self, SynthesisError> {
         assert!(!bits.is_empty());
@@ -371,6 +523,28 @@ impl<F: Field> Boolean<F> {
     }
 
     /// Outputs `bits[0] | bits[1] | ... | bits.last().unwrap()`.
+    ///
+    /// ```
+    /// # fn main() -> Result<(), r1cs_core::SynthesisError> {
+    /// // We'll use the BLS12-381 scalar field for our constraints.
+    /// use algebra::bls12_381::Fr;
+    /// use r1cs_core::*;
+    /// use r1cs_std::prelude::*;
+    ///
+    /// let cs = ConstraintSystem::<Fr>::new_ref();
+    ///
+    /// let a = Boolean::new_witness(cs.clone(), || Ok(true))?;
+    /// let b = Boolean::new_witness(cs.clone(), || Ok(false))?;
+    /// let c = Boolean::new_witness(cs.clone(), || Ok(false))?;
+    ///
+    /// Boolean::kary_or(&[a.clone(), b.clone(), c.clone()])?.enforce_equal(&Boolean::TRUE)?;
+    /// Boolean::kary_or(&[a.clone(), c.clone()])?.enforce_equal(&Boolean::TRUE)?;
+    /// Boolean::kary_or(&[b.clone(), c.clone()])?.enforce_equal(&Boolean::FALSE)?;
+    ///
+    /// assert!(cs.is_satisfied().unwrap());
+    /// # Ok(())
+    /// # }
+    /// ```
     #[tracing::instrument(target = "r1cs")]
     pub fn kary_or(bits: &[Self]) -> Result<Self, SynthesisError> {
         assert!(!bits.is_empty());
@@ -387,6 +561,28 @@ impl<F: Field> Boolean<F> {
     }
 
     /// Outputs `(bits[0] & bits[1] & ... & bits.last().unwrap()).not()`.
+    ///
+    /// ```
+    /// # fn main() -> Result<(), r1cs_core::SynthesisError> {
+    /// // We'll use the BLS12-381 scalar field for our constraints.
+    /// use algebra::bls12_381::Fr;
+    /// use r1cs_core::*;
+    /// use r1cs_std::prelude::*;
+    ///
+    /// let cs = ConstraintSystem::<Fr>::new_ref();
+    ///
+    /// let a = Boolean::new_witness(cs.clone(), || Ok(true))?;
+    /// let b = Boolean::new_witness(cs.clone(), || Ok(false))?;
+    /// let c = Boolean::new_witness(cs.clone(), || Ok(true))?;
+    ///
+    /// Boolean::kary_nand(&[a.clone(), b.clone(), c.clone()])?.enforce_equal(&Boolean::TRUE)?;
+    /// Boolean::kary_nand(&[a.clone(), c.clone()])?.enforce_equal(&Boolean::FALSE)?;
+    /// Boolean::kary_nand(&[b.clone(), c.clone()])?.enforce_equal(&Boolean::TRUE)?;
+    ///
+    /// assert!(cs.is_satisfied().unwrap());
+    /// # Ok(())
+    /// # }
+    /// ```
     #[tracing::instrument(target = "r1cs")]
     pub fn kary_nand(bits: &[Self]) -> Result<Self, SynthesisError> {
         Ok(Self::kary_and(bits)?.not())
@@ -489,6 +685,27 @@ impl<F: Field> Boolean<F> {
     /// Conditionally selects one of `first` and `second` based on the value of `self`:
     ///
     /// If `self.is_eq(&Boolean::TRUE)`, this outputs `first`; else, it outputs `second`.
+    /// ```
+    /// # fn main() -> Result<(), r1cs_core::SynthesisError> {
+    /// // We'll use the BLS12-381 scalar field for our constraints.
+    /// use algebra::bls12_381::Fr;
+    /// use r1cs_core::*;
+    /// use r1cs_std::prelude::*;
+    ///
+    /// let cs = ConstraintSystem::<Fr>::new_ref();
+    ///
+    /// let a = Boolean::new_witness(cs.clone(), || Ok(true))?;
+    /// let b = Boolean::new_witness(cs.clone(), || Ok(false))?;
+    ///
+    /// let cond = Boolean::new_witness(cs.clone(), || Ok(true))?;
+    ///
+    /// cond.select(&a, &b)?.enforce_equal(&Boolean::TRUE)?;
+    /// cond.select(&b, &a)?.enforce_equal(&Boolean::FALSE)?;
+    ///
+    /// assert!(cs.is_satisfied().unwrap());
+    /// # Ok(())
+    /// # }
+    /// ```
     #[tracing::instrument(target = "r1cs", skip(first, second))]
     pub fn select<T: CondSelectGadget<F>>(
         &self,

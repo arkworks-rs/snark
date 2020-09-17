@@ -40,7 +40,7 @@ where
     Self: Sized,
     V: ?Sized,
 {
-    /// Allocates a new variable of type `Self` in the `ConstraintSystem`.
+    /// Allocates a new variable of type `Self` in the `ConstraintSystem` `cs`.
     /// The mode of allocation is decided by `mode`.
     fn new_variable<T: Borrow<V>>(
         cs: impl Into<Namespace<F>>,
@@ -48,7 +48,9 @@ where
         mode: AllocationMode,
     ) -> Result<Self, SynthesisError>;
 
-    /// Allocates a new constant of type `Self` in the `ConstraintSystem`.
+    /// Allocates a new constant of type `Self` in the `ConstraintSystem` `cs`.
+    ///
+    /// This should *not* allocate any new variables or constraints in `cs`.
     #[tracing::instrument(target = "r1cs", skip(cs, t))]
     fn new_constant(
         cs: impl Into<Namespace<F>>,
@@ -57,7 +59,7 @@ where
         Self::new_variable(cs, || Ok(t), AllocationMode::Constant)
     }
 
-    /// Allocates a new public input of type `Self` in the `ConstraintSystem`.
+    /// Allocates a new public input of type `Self` in the `ConstraintSystem` `cs`.
     #[tracing::instrument(target = "r1cs", skip(cs, f))]
     fn new_input<T: Borrow<V>>(
         cs: impl Into<Namespace<F>>,
@@ -66,7 +68,7 @@ where
         Self::new_variable(cs, f, AllocationMode::Input)
     }
 
-    /// Allocates a new private witness of type `Self` in the `ConstraintSystem`.
+    /// Allocates a new private witness of type `Self` in the `ConstraintSystem` `cs`.
     #[tracing::instrument(target = "r1cs", skip(cs, f))]
     fn new_witness<T: Borrow<V>>(
         cs: impl Into<Namespace<F>>,
@@ -76,6 +78,8 @@ where
     }
 }
 
+/// This blanket implementation just allocates variables in `Self`
+/// element by element.
 impl<I, F: Field, A: AllocVar<I, F>> AllocVar<[I], F> for Vec<A> {
     fn new_variable<T: Borrow<[I]>>(
         cs: impl Into<Namespace<F>>,
