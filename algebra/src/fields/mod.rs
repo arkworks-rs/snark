@@ -17,11 +17,14 @@ pub mod jubjub;
 pub mod mnt4753;
 pub mod mnt6753;
 pub mod mnt6;
-pub mod models;
 pub mod sw6;
 #[cfg(test)]
 pub mod tests;
 
+#[macro_use]
+pub mod arithmetic;
+
+pub mod models;
 pub use self::models::*;
 
 #[macro_export]

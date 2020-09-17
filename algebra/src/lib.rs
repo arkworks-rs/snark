@@ -1,37 +1,12 @@
-#![deny(
-    unused_import_braces,
-    unused_qualifications,
-    trivial_casts,
-    trivial_numeric_casts
-)]
-#![deny(
-    unused_qualifications,
-    variant_size_differences,
-    stable_features,
-    unreachable_pub
-)]
-#![deny(
-    non_shorthand_field_patterns,
-    unused_attributes,
-    unused_imports,
-    unused_extern_crates
-)]
-#![deny(
-    renamed_and_removed_lints,
-    stable_features,
-    unused_allocation,
-    unused_comparisons,
-    bare_trait_objects
-)]
-#![deny(
-    const_err,
-    unused_must_use,
-    unused_mut,
-    unused_unsafe,
-    private_in_public,
-    unsafe_code
-)]
-#![forbid(unsafe_code)]
+#![deny(unused_import_braces, unused_qualifications, trivial_casts)]
+#![deny(trivial_numeric_casts, variant_size_differences)]
+#![deny(non_shorthand_field_patterns, unused_attributes, unused_imports)]
+#![deny(unused_extern_crates, renamed_and_removed_lints, unused_allocation)]
+#![deny(unused_comparisons, bare_trait_objects, const_err, unused_must_use)]
+#![deny(unused_mut, unused_unsafe, private_in_public)]
+#![cfg_attr(use_asm, feature(asm))]
+#![cfg_attr(not(use_asm), forbid(unsafe_code))]
+#![cfg_attr(use_asm, deny(unsafe_code))]
 
 #[macro_use]
 extern crate derivative;

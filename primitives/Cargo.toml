@@ -38,6 +38,9 @@ prf = ["digest", "blake2"]
 signature = ["digest", "blake2"]
 vrf = []
 
+asm = ["algebra/asm"]
+parallel = ["algebra/parallel"]
+
 [dev-dependencies]
 criterion = "0.2"
 rand_xorshift = { version = "0.2" }
