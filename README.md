@@ -114,7 +114,7 @@ Tip: If optimising for performance, your mileage may vary with passing `--emit=a
 
 To bench `algebra-benches` with greater accuracy, especially for functions with execution times on the order of nanoseconds, use the `n_fold` feature to run selected functions 1000x per iteration. To run with multiple features, make sure to double quote the features.
 ```bash
-cargo +nightly bench --features "n_fold bls12_381"
+cargo +nightly bench --features "n_fold"
 ```
 
 ## Contributing
