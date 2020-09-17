@@ -112,7 +112,8 @@ pub mod prelude {
     };
 }
 
-/// This trait describes some core functionality that is common to high-level variables, such as `Boolean`s, `FieldVar`s, `GroupVar`s, etc.
+/// This trait describes some core functionality that is common to high-level variables,
+/// such as `Boolean`s, `FieldVar`s, `GroupVar`s, etc.
 pub trait R1CSVar<F: Field> {
     /// The type of the "native" value that `Self` represents in the constraint system.
     type Value: core::fmt::Debug + Eq + Clone;
@@ -175,8 +176,10 @@ impl<T> Assignment<T> for Option<T> {
     }
 }
 
-/// Obtains the field variables
+/// Specifies how to convert a variable of type `Self` to variables of
+/// type `FpVar<ConstraintF>`
 pub trait ToConstraintFieldGadget<ConstraintF: algebra::PrimeField> {
+    /// Converts `self` to `FpVar<ConstraintF>` variables.
     fn to_constraint_field(
         &self,
     ) -> Result<Vec<crate::fields::fp::FpVar<ConstraintF>>, r1cs_core::SynthesisError>;
