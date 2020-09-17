@@ -48,7 +48,6 @@ impl<F: Field> UInt8<F> {
     /// use r1cs_std::prelude::*;
     ///
     /// let cs = ConstraintSystem::<Fr>::new_ref();
-<<<<<<< HEAD
     /// let var = vec![UInt8::new_witness(cs.clone(), || Ok(2))?];
     ///
     /// let constant = UInt8::constant_vec(&[2]);
@@ -56,14 +55,6 @@ impl<F: Field> UInt8<F> {
     /// assert!(cs.is_satisfied().unwrap());
     /// # Ok(())
     /// # }
-=======
-    /// let var = UInt8::new_witness(cs, || Ok(2))?;
-    ///
-    /// let constant = UInt8::constant_vec(&[2]);
-    /// vec![var].enforce_equal(&constant)?;
-    /// assert!(cs.is_satisfied().unwrap());
-    /// #}
->>>>>>> Add doctests for `Boolean` and `UInt8`.
     /// ```
     pub fn constant_vec(values: &[u8]) -> Vec<Self> {
         let mut result = Vec::new();
@@ -85,21 +76,13 @@ impl<F: Field> UInt8<F> {
     /// use r1cs_std::prelude::*;
     ///
     /// let cs = ConstraintSystem::<Fr>::new_ref();
-<<<<<<< HEAD
     /// let var = UInt8::new_witness(cs.clone(), || Ok(2))?;
-=======
-    /// let var = UInt8::new_witness(cs, || Ok(2))?;
->>>>>>> Add doctests for `Boolean` and `UInt8`.
     ///
     /// let constant = UInt8::constant(2);
     /// var.enforce_equal(&constant)?;
     /// assert!(cs.is_satisfied().unwrap());
-<<<<<<< HEAD
     /// # Ok(())
     /// # }
-=======
-    /// #}
->>>>>>> Add doctests for `Boolean` and `UInt8`.
     /// ```
     pub fn constant(value: u8) -> Self {
         let mut bits = Vec::with_capacity(8);
@@ -148,7 +131,6 @@ impl<F: Field> UInt8<F> {
     /// use r1cs_std::prelude::*;
     ///
     /// let cs = ConstraintSystem::<Fr>::new_ref();
-<<<<<<< HEAD
     /// let two = UInt8::new_witness(cs.clone(), || Ok(2))?;
     /// let var = vec![two.clone(); 32];
     ///
@@ -157,14 +139,6 @@ impl<F: Field> UInt8<F> {
     /// assert!(cs.is_satisfied().unwrap());
     /// # Ok(())
     /// # }
-=======
-    /// let var = vec![UInt8::new_witness(cs, || Ok(2))?; 32];
-    ///
-    /// let c = UInt8::new_input_vec(&[2; 32])?;
-    /// var.enforce_equal(&c)?;
-    /// assert!(cs.is_satisfied().unwrap());
-    /// #}
->>>>>>> Add doctests for `Boolean` and `UInt8`.
     /// ```
     pub fn new_input_vec(
         cs: impl Into<Namespace<F>>,
@@ -210,7 +184,6 @@ impl<F: Field> UInt8<F> {
     /// use r1cs_std::prelude::*;
     ///
     /// let cs = ConstraintSystem::<Fr>::new_ref();
-<<<<<<< HEAD
     /// let var = UInt8::new_witness(cs.clone(), || Ok(128))?;
     ///
     /// let f = Boolean::FALSE;
@@ -225,16 +198,6 @@ impl<F: Field> UInt8<F> {
     /// assert!(cs.is_satisfied().unwrap());
     /// # Ok(())
     /// # }
-=======
-    /// let var = UInt8::new_witness(cs, || Ok(4))?;
-    ///
-    /// let f = Boolean::FALSE;
-    /// let t = Boolean::TRUE;
-    /// let c = UInt8::from_bits_le(&[f, f, t, f, f, f, f, f]);
-    /// var.enforce_equal(&c)?;
-    /// assert!(cs.is_satisfied().unwrap());
-    /// #}
->>>>>>> Add doctests for `Boolean` and `UInt8`.
     /// ```
     #[tracing::instrument(target = "r1cs")]
     pub fn from_bits_le(bits: &[Boolean<F>]) -> Self {
@@ -266,7 +229,6 @@ impl<F: Field> UInt8<F> {
     /// use r1cs_std::prelude::*;
     ///
     /// let cs = ConstraintSystem::<Fr>::new_ref();
-<<<<<<< HEAD
     /// let a = UInt8::new_witness(cs.clone(), || Ok(16))?;
     /// let b = UInt8::new_witness(cs.clone(), || Ok(17))?;
     /// let c = UInt8::new_witness(cs.clone(), || Ok(1))?;
@@ -275,15 +237,6 @@ impl<F: Field> UInt8<F> {
     /// assert!(cs.is_satisfied().unwrap());
     /// # Ok(())
     /// # }
-=======
-    /// let a = UInt8::new_witness(cs, || Ok(16))?;
-    /// let b = UInt8::new_witness(cs, || Ok(17))?;
-    /// let c = UInt8::new_witness(cs, || Ok(1))?;
-    ///
-    /// a.xor(&b)?.enforce_equal(&c)?;
-    /// assert!(cs.is_satisfied().unwrap());
-    /// #}
->>>>>>> Add doctests for `Boolean` and `UInt8`.
     /// ```
     #[tracing::instrument(target = "r1cs")]
     pub fn xor(&self, other: &Self) -> Result<Self, SynthesisError> {
