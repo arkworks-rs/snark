@@ -710,11 +710,11 @@ where
 }
 
 impl<P, F> ToConstraintFieldGadget<<P::BaseField as Field>::BasePrimeField> for ProjectiveVar<P, F>
-    where
-        P: SWModelParameters,
-        F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
-        for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
-        F: ToConstraintFieldGadget<<P::BaseField as Field>::BasePrimeField>,
+where
+    P: SWModelParameters,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
+    for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
+    F: ToConstraintFieldGadget<<P::BaseField as Field>::BasePrimeField>,
 {
     fn to_constraint_field(
         &self,
