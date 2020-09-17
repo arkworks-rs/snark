@@ -2,7 +2,7 @@ use crate::{
     biginteger::{arithmetic as fa, BigInteger as _BigInteger, BigInteger832 as BigInteger},
     bytes::{FromBytes, ToBytes},
     fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
-    MulShort,
+    MulShort, MulShortAssign,
 };
 use std::{
     cmp::{Ord, Ordering, PartialOrd},

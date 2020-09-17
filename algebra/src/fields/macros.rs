@@ -203,17 +203,23 @@ macro_rules! impl_Fp {
 
             #[inline]
             fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
-                let mut result = Self::zero();
-                if result.0.read_le((&bytes[..]).by_ref()).is_ok() {
-                    result.0.as_mut()[11] &= 0xffffffffffffffff >> P::REPR_SHAVE_BITS;
-                    if result.is_valid() {
-                        Some(result)
-                    } else {
-                        None
-                    }
-                } else {
-                    None
+                let mut result_bytes = [0u8; $limbs * 8];
+                for (result_byte, in_byte) in result_bytes.iter_mut().zip(bytes.iter()) {
+                    *result_byte = *in_byte;
                 }
+                BigInteger::read(result_bytes.as_ref())
+                    .ok()
+                    .and_then(|mut res|
+                    {
+                        res.as_mut()[$limbs-1] &= 0xffffffffffffffff >> P::REPR_SHAVE_BITS;
+                        let result = Self::new(res);
+                        if result.is_valid() {
+                            Some(result)
+                        } else {
+                            None
+                        }
+                    }
+                )
             }
 
             #[inline]
@@ -410,7 +416,16 @@ macro_rules! impl_Fp {
             }
         }
 
-        impl_field_mul_short!($Fp, $FpParameters, $limbs);
+        impl<'a, P: $FpParameters> MulShort<&'a $Fp<P>> for $Fp<P> {
+            type Output = Self;
+
+            #[inline]
+            fn mul_short(self, other: &Self) -> Self {
+                let mut result = self.clone();
+                result.mul_short_assign(other);
+                result
+            }
+        }
 
         impl<'a, P: $FpParameters> Div<&'a $Fp<P>> for $Fp<P> {
             type Output = Self;
@@ -451,6 +466,9 @@ macro_rules! impl_Fp {
             impl_field_mul_assign!($limbs);
         }
 
+        impl<'a, P: $FpParameters> MulShortAssign<&'a Self> for $Fp<P> {
+            impl_field_mul_short_assign!($limbs);
+        }
 
         impl<'a, P: $FpParameters> DivAssign<&'a Self> for $Fp<P> {
             #[inline]
@@ -528,36 +546,32 @@ macro_rules! impl_field_mul_assign {
     }
 }
 
-macro_rules! impl_field_mul_short {
-    ($field: ident, $params: ident, $limbs: expr) => {
-        impl<'a, P: $params> MulShort for $field<P> {
-            #[inline]
-            #[unroll_for_loops]
-            //TODO: Probably there's a more compact way to write this
-            fn mul_short(self, other: &Self) -> Self {
-                let mut r = [0u64; $limbs + 1];
-                let mut carry1 = 0u64;
-                let mut carry2 = 0u64;
+macro_rules! impl_field_mul_short_assign {
+    ($limbs: expr) => {
+        #[inline]
+        #[unroll_for_loops]
+        //TODO: Probably there's a more compact way to write this
+        fn mul_short_assign(&mut self, other: &Self) {
+            let mut r = [0u64; $limbs + 1];
+            let mut carry1 = 0u64;
+            let mut carry2 = 0u64;
 
-                for i in 0..$limbs {
-                    r[i] = fa::mac_with_carry(0, (self.0).0[0], (other.0).0[i], &mut carry1);
-                }
-                r[$limbs] = carry1;
-
-                let k = r[0].wrapping_mul(P::INV);
-                fa::mac_with_carry(r[0], k, P::MODULUS.0[0], &mut carry2);
-                for i in 1..$limbs {
-                    r[i] = fa::mac_with_carry(r[i], k, P::MODULUS.0[i], &mut carry2);
-                }
-                r[$limbs] = fa::adc(r[$limbs], 0, &mut carry2);
-
-                let mut result = self.clone();
-                for i in 0..$limbs {
-                    (result.0).0[i] = r[i + 1];
-                }
-                result.reduce();
-                result
+            for i in 0..$limbs {
+                r[i] = fa::mac_with_carry(0, (self.0).0[0], (other.0).0[i], &mut carry1);
             }
+            r[$limbs] = carry1;
+
+            let k = r[0].wrapping_mul(P::INV);
+            fa::mac_with_carry(r[0], k, P::MODULUS.0[0], &mut carry2);
+            for i in 1..$limbs {
+                r[i] = fa::mac_with_carry(r[i], k, P::MODULUS.0[i], &mut carry2);
+            }
+            r[$limbs] = fa::adc(r[$limbs], 0, &mut carry2);
+
+            for i in 0..$limbs {
+                (self.0).0[i] = r[i + 1];
+            }
+            self.reduce();
         }
     }
 }
@@ -865,6 +879,18 @@ macro_rules! impl_multiplicative_ops_from_ref {
         }
 
         #[allow(unused_qualifications)]
+        impl<P: $params> MulShort<Self> for $type<P> {
+            type Output = Self;
+
+            #[inline]
+            fn mul_short(self, other: Self) -> Self {
+                let mut result = self;
+                result.mul_short_assign(&other);
+                result
+            }
+        }
+
+        #[allow(unused_qualifications)]
         impl<P: $params> core::ops::Div<Self> for $type<P> {
             type Output = Self;
 
@@ -884,6 +910,18 @@ macro_rules! impl_multiplicative_ops_from_ref {
             fn mul(self, other: &'a mut Self) -> Self {
                 let mut result = self;
                 result.mul_assign(&*other);
+                result
+            }
+        }
+
+        #[allow(unused_qualifications)]
+        impl<'a, P: $params> MulShort<&'a mut Self> for $type<P> {
+            type Output = Self;
+
+            #[inline]
+            fn mul_short(self, other: &'a mut Self) -> Self {
+                let mut result = self;
+                result.mul_short_assign(&*other);
                 result
             }
         }
@@ -922,6 +960,13 @@ macro_rules! impl_multiplicative_ops_from_ref {
         }
 
         #[allow(unused_qualifications)]
+        impl<P: $params> MulShortAssign<Self> for $type<P> {
+            fn mul_short_assign(&mut self, other: Self) {
+                self.mul_short_assign(&other)
+            }
+        }
+
+        #[allow(unused_qualifications)]
         impl<'a, P: $params> core::ops::DivAssign<&'a mut Self> for $type<P> {
             fn div_assign(&mut self, other: &'a mut Self) {
                 self.div_assign(&*other)
@@ -932,6 +977,13 @@ macro_rules! impl_multiplicative_ops_from_ref {
         impl<'a, P: $params> core::ops::MulAssign<&'a mut Self> for $type<P> {
             fn mul_assign(&mut self, other: &'a mut Self) {
                 self.mul_assign(&*other)
+            }
+        }
+
+        #[allow(unused_qualifications)]
+        impl<'a, P: $params> MulShortAssign<&'a mut Self> for $type<P> {
+            fn mul_short_assign(&mut self, other: &'a mut Self) {
+                self.mul_short_assign(&*other)
             }
         }
 

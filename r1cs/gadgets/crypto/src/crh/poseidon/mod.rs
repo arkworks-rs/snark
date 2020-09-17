@@ -2,7 +2,7 @@ use algebra::{
     fields::{
         mnt4753::Fr as MNT4753Fr,
         mnt6753::Fr as MNT6753Fr,
-    }, PrimeField, MulShort,
+    }, PrimeField, MulShortAssign,
 };
 use primitives::crh::poseidon::PoseidonParameters;
 use crate::crh::FieldBasedHashGadget;
@@ -34,7 +34,7 @@ pub struct PoseidonHashGadget
     _parameters: PhantomData<P>,
 }
 
-impl<ConstraintF: PrimeField + MulShort, P: PoseidonParameters<Fr = ConstraintF>> PoseidonHashGadget<ConstraintF, P> {
+impl<ConstraintF: PrimeField + MulShortAssign<ConstraintF>, P: PoseidonParameters<Fr = ConstraintF>> PoseidonHashGadget<ConstraintF, P> {
 
     fn mod_inv_sbox<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
@@ -223,7 +223,7 @@ impl<ConstraintF: PrimeField + MulShort, P: PoseidonParameters<Fr = ConstraintF>
 
 impl<ConstraintF, P> FieldBasedHashGadget<PoseidonHash<ConstraintF, P>, ConstraintF> for PoseidonHashGadget<ConstraintF, P>
     where
-        ConstraintF: PrimeField + MulShort,
+        ConstraintF: PrimeField + MulShortAssign,
         P:           PoseidonParameters<Fr = ConstraintF>
 {
     type DataGadget = FpGadget<ConstraintF>;

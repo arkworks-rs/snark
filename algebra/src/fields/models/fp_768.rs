@@ -7,7 +7,18 @@ use std::{
     str::FromStr,
 };
 
-use crate::{biginteger::{arithmetic as fa, BigInteger as _BigInteger, BigInteger768 as BigInteger}, bytes::{FromBytes, ToBytes}, fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField}, MulShort};
+use crate::{
+    biginteger::{
+        arithmetic as fa, BigInteger as _BigInteger, BigInteger768 as BigInteger
+    },
+    bytes::{
+        FromBytes, ToBytes
+    },
+    fields::{
+        Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField
+    },
+    MulShort, MulShortAssign,
+};
 
 use unroll::unroll_for_loops;
 

@@ -4,17 +4,17 @@ extern crate rayon;
 
 use algebra::fields::mnt6753::Fr as MNT6753Fr;
 use algebra::fields::mnt4753::Fr as MNT4753Fr;
-use algebra::{PrimeField, MulShort};
+use algebra::{PrimeField, MulShortAssign};
 
 use std::marker::PhantomData;
 
 use crate::crh::{
+    FieldBasedHash, BatchFieldBasedHash,
     FieldBasedHashParameters, poseidon::{
         parameters::{MNT4753PoseidonParameters, MNT6753PoseidonParameters}
     }
 };
 
-use crate::crh::{FieldBasedHash, BatchFieldBasedHash};
 use crate::Error;
 
 pub mod parameters;
@@ -45,7 +45,7 @@ pub trait PoseidonParameters: 'static + FieldBasedHashParameters{
 }
 
 
-impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F, P> {
+impl<F: PrimeField + MulShortAssign<F>, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F, P> {
 
     // Function that does the mix matrix
     // It uses Montgomery multiplication
@@ -114,43 +114,43 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F,
         // the new state where the result will be stored initialized to zero elements
         let mut new_state = vec![F::zero(); P::T];
 
-        let m_11 = P::MDS_CST_SHORT[0];
-        let m_12 = P::MDS_CST_SHORT[1];
-        let m_13 = P::MDS_CST_SHORT[2];
+        let mut m_11 = P::MDS_CST_SHORT[0];
+        let mut m_12 = P::MDS_CST_SHORT[1];
+        let mut m_13 = P::MDS_CST_SHORT[2];
 
-        let elem_0 = m_11.mul_short(&state[0]);
-        let elem_1 = m_12.mul_short(&state[1]);
-        let elem_2 = m_13.mul_short(&state[2]);
+        m_11.mul_short_assign(state[0]);
+        m_12.mul_short_assign(state[1]);
+        m_13.mul_short_assign(state[2]);
 
-        new_state[0] = elem_0;
-        new_state[0] += &elem_1;
-        new_state[0] += &elem_2;
+        new_state[0] = m_11;
+        new_state[0] += &m_12;
+        new_state[0] += &m_13;
 
         // scalar multiplication for position 1 of the state vector
-        let m_21 = P::MDS_CST_SHORT[3];
-        let m_22 = P::MDS_CST_SHORT[4];
-        let m_23 = P::MDS_CST_SHORT[5];
+        let mut m_21 = P::MDS_CST_SHORT[3];
+        let mut m_22 = P::MDS_CST_SHORT[4];
+        let mut m_23 = P::MDS_CST_SHORT[5];
 
-        let elem_3 = m_21.mul_short(&state[0]);
-        let elem_4 = m_22.mul_short(&state[1]);
-        let elem_5 = m_23.mul_short(&state[2]);
+        m_21.mul_short_assign(state[0]);
+        m_22.mul_short_assign(state[1]);
+        m_23.mul_short_assign(state[2]);
 
-        new_state[1] = elem_3;
-        new_state[1] += &elem_4;
-        new_state[1] += &elem_5;
+        new_state[1] = m_21;
+        new_state[1] += &m_22;
+        new_state[1] += &m_23;
 
         // scalar multiplication for the position 2 of the state vector
-        let m_31 = P::MDS_CST_SHORT[6];
-        let m_32 = P::MDS_CST_SHORT[7];
-        let m_33 = P::MDS_CST_SHORT[8];
+        let mut m_31 = P::MDS_CST_SHORT[6];
+        let mut m_32 = P::MDS_CST_SHORT[7];
+        let mut m_33 = P::MDS_CST_SHORT[8];
 
-        let elem_6 = m_31.mul_short(&state[0]);
-        let elem_7 = m_32.mul_short(&state[1]);
-        let elem_8 = m_33.mul_short(&state[2]);
+        m_31.mul_short_assign(state[0]);
+        m_32.mul_short_assign(state[1]);
+        m_33.mul_short_assign(state[2]);
 
-        new_state[2] = elem_6;
-        new_state[2] += &elem_7;
-        new_state[2] += &elem_8;
+        new_state[2] = m_31;
+        new_state[2] += &m_32;
+        new_state[2] += &m_33;
 
         // copy the result to the state vector
         state[0] = new_state[0];
@@ -312,7 +312,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F,
 }
 
 
-impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
+impl<F: PrimeField + MulShortAssign<F>, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
 
     // Function that does the mix matrix
     // It uses Montgomery multiplication
@@ -373,50 +373,48 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
     // It uses a partial Montgomery multiplication defined as PM(x, t) = x * t * 2^-64 mod M
     // t is a 64-bit matrix constant. In the algorithm, the constants are represented in
     // partial Montgomery representation, i.e. t * 2^64 mod M
-    fn matrix_mix_short (state: &mut Vec<F>) {
-
-        //use algebra::MulShort;
+    fn matrix_mix_short (state: & mut Vec<F>) {
 
         // the new state where the result will be stored initialized to zero elements
         let mut new_state = vec![F::zero(); P::T];
 
-        let m_11 = P::MDS_CST_SHORT[0];
-        let m_12 = P::MDS_CST_SHORT[1];
-        let m_13 = P::MDS_CST_SHORT[2];
+        let mut m_11 = P::MDS_CST_SHORT[0];
+        let mut m_12 = P::MDS_CST_SHORT[1];
+        let mut m_13 = P::MDS_CST_SHORT[2];
 
-        let elem_0 = m_11.mul_short(&state[0]);
-        let elem_1 = m_12.mul_short(&state[1]);
-        let elem_2 = m_13.mul_short(&state[2]);
+        m_11.mul_short_assign(state[0]);
+        m_12.mul_short_assign(state[1]);
+        m_13.mul_short_assign(state[2]);
 
-        new_state[0] = elem_0;
-        new_state[0] += &elem_1;
-        new_state[0] += &elem_2;
+        new_state[0] = m_11;
+        new_state[0] += &m_12;
+        new_state[0] += &m_13;
 
         // scalar multiplication for position 1 of the state vector
-        let m_21 = P::MDS_CST_SHORT[3];
-        let m_22 = P::MDS_CST_SHORT[4];
-        let m_23 = P::MDS_CST_SHORT[5];
+        let mut m_21 = P::MDS_CST_SHORT[3];
+        let mut m_22 = P::MDS_CST_SHORT[4];
+        let mut m_23 = P::MDS_CST_SHORT[5];
 
-        let elem_3 = m_21.mul_short(&state[0]);
-        let elem_4 = m_22.mul_short(&state[1]);
-        let elem_5 = m_23.mul_short(&state[2]);
+        m_21.mul_short_assign(state[0]);
+        m_22.mul_short_assign(state[1]);
+        m_23.mul_short_assign(state[2]);
 
-        new_state[1] = elem_3;
-        new_state[1] += &elem_4;
-        new_state[1] += &elem_5;
+        new_state[1] = m_21;
+        new_state[1] += &m_22;
+        new_state[1] += &m_23;
 
         // scalar multiplication for the position 2 of the state vector
-        let m_31 = P::MDS_CST_SHORT[6];
-        let m_32 = P::MDS_CST_SHORT[7];
-        let m_33 = P::MDS_CST_SHORT[8];
+        let mut m_31 = P::MDS_CST_SHORT[6];
+        let mut m_32 = P::MDS_CST_SHORT[7];
+        let mut m_33 = P::MDS_CST_SHORT[8];
 
-        let elem_6 = m_31.mul_short(&state[0]);
-        let elem_7 = m_32.mul_short(&state[1]);
-        let elem_8 = m_33.mul_short(&state[2]);
+        m_31.mul_short_assign(state[0]);
+        m_32.mul_short_assign(state[1]);
+        m_33.mul_short_assign(state[2]);
 
-        new_state[2] = elem_6;
-        new_state[2] += &elem_7;
-        new_state[2] += &elem_8;
+        new_state[2] = m_31;
+        new_state[2] += &m_32;
+        new_state[2] += &m_33;
 
         // copy the result to the state vector
         state[0] = new_state[0];
@@ -424,7 +422,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
         state[2] = new_state[2];
     }
 
-    fn poseidon_perm (state: &mut Vec<F>) {
+    fn poseidon_perm (state: & mut Vec<F>) {
 
         let use_fast = true;
 
@@ -573,7 +571,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
 }
 
 
-impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> FieldBasedHash for PoseidonHash<F, P> {
+impl<F: PrimeField + MulShortAssign<F>, P: PoseidonParameters<Fr = F>> FieldBasedHash for PoseidonHash<F, P> {
     type Data = F;
     type Parameters = P;
 
@@ -616,7 +614,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> FieldBasedHash for
     }
 }
 
-impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> BatchFieldBasedHash for PoseidonBatchHash<F, P> {
+impl<F: PrimeField + MulShortAssign<F>, P: PoseidonParameters<Fr = F>> BatchFieldBasedHash for PoseidonBatchHash<F, P> {
     type Data = F;
     type Parameters = P;
 

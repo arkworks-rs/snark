@@ -49,9 +49,17 @@ macro_rules! field_new {
     };
 }
 
-pub trait MulShort where Self: Sized {
+pub trait MulShort<Rhs = Self> {
 
-    fn mul_short(self, other: &Self) -> Self;
+    type Output;
+
+    #[must_use]
+    fn mul_short(self, rhs: Rhs) -> Self::Output;
+}
+
+pub trait MulShortAssign<Rhs = Self> {
+
+    fn mul_short_assign(&mut self, rhs: Rhs);
 }
 
 /// The interface for a generic field.
