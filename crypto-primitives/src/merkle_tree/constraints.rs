@@ -37,7 +37,7 @@ where
         // proof.
         let leaf_bits = leaf.to_bytes()?;
         let leaf_hash = CRHGadget::evaluate(parameters, &leaf_bits)?;
-        let cs = leaf_hash.cs().or(root.cs()).unwrap();
+        let cs = leaf_hash.cs().or(root.cs());
 
         // Check if leaf is one of the bottom-most siblings.
         let leaf_is_left = Boolean::new_witness(r1cs_core::ns!(cs, "leaf_is_left"), || {

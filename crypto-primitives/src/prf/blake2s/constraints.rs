@@ -350,7 +350,7 @@ impl<ConstraintF: PrimeField> AllocVar<[u8; 32], ConstraintF> for OutputVar<Cons
 impl<F: PrimeField> R1CSVar<F> for OutputVar<F> {
     type Value = [u8; 32];
 
-    fn cs(&self) -> Option<ConstraintSystemRef<F>> {
+    fn cs(&self) -> ConstraintSystemRef<F> {
         self.0.cs()
     }
 

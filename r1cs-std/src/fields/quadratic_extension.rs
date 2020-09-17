@@ -9,7 +9,7 @@ use crate::fields::fp::FpVar;
 use crate::{
     fields::{FieldOpsBounds, FieldVar},
     prelude::*,
-    Assignment, ToConstraintFieldGadget, Vec,
+    ToConstraintFieldGadget, Vec,
 };
 
 /// This struct is the `R1CS` equivalent of the quadratic extension field type
@@ -122,7 +122,7 @@ where
 {
     type Value = QuadExtField<P>;
 
-    fn cs(&self) -> Option<ConstraintSystemRef<P::BasePrimeField>> {
+    fn cs(&self) -> ConstraintSystemRef<P::BasePrimeField> {
         [&self.c0, &self.c1].cs()
     }
 
@@ -279,7 +279,7 @@ where
             AllocationMode::Witness
         };
         let inverse = Self::new_variable(
-            self.cs().get()?.clone(),
+            self.cs(),
             || {
                 self.value()
                     .map(|f| f.inverse().unwrap_or(QuadExtField::zero()))
