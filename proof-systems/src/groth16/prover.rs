@@ -189,21 +189,26 @@ where
     C: ConstraintSynthesizer<E::Fr>,
     R: Rng,
 {
-    let d1 = E::Fr::zero();
-    let d2 = E::Fr::zero();
-    let d3 = E::Fr::zero();
     let r = E::Fr::rand(rng);
     let s = E::Fr::rand(rng);
 
-    create_proof::<E, C>(circuit, params, d1, d2, d3, r, s)
+    create_proof::<E, C>(circuit, params, r, s)
+}
+
+pub fn create_proof_no_zk<E, C>(
+    circuit: C,
+    params: &Parameters<E>,
+) -> Result<Proof<E>, SynthesisError>
+    where
+        E: PairingEngine,
+        C: ConstraintSynthesizer<E::Fr>,
+{
+    create_proof::<E, C>(circuit, params, E::Fr::zero(), E::Fr::zero())
 }
 
 pub fn create_proof<E, C>(
     circuit: C,
     params: &Parameters<E>,
-    d1: E::Fr,
-    d2: E::Fr,
-    d3: E::Fr,
     r: E::Fr,
     s: E::Fr,
 ) -> Result<Proof<E>, SynthesisError>
@@ -235,7 +240,7 @@ where
     end_timer!(synthesis_time);
 
     let witness_map_time = start_timer!(|| "R1CS to QAP witness map");
-    let (full_input_assignment, h, _) = R1CStoQAP::witness_map::<E>(&prover, &d1, &d2, &d3)?;
+    let (full_input_assignment, h, _) = R1CStoQAP::witness_map::<E>(&prover)?;
     end_timer!(witness_map_time);
 
     let input_assignment = Arc::new(
@@ -282,21 +287,27 @@ where
     g_a.add_assign(&params.alpha_g1.into());
     end_timer!(a_acc_time);
 
-    // Compute B in G1
-    let b_g1_acc_time = start_timer!(|| "Compute B in G1");
+    // Compute B in G1 if needed
+    let g1_b = if r != E::Fr::zero() {
+        let b_g1_acc_time = start_timer!(|| "Compute B in G1");
 
-    let (b_inputs_source, b_aux_source) = params.get_b_g1_query(prover.num_inputs)?;
-    let b_inputs_acc = VariableBaseMSM::multi_scalar_mul(b_inputs_source, &input_assignment);
-    let b_aux_acc = VariableBaseMSM::multi_scalar_mul(b_aux_source, &aux_assignment);
+        let (b_inputs_source, b_aux_source) = params.get_b_g1_query(prover.num_inputs)?;
+        let b_inputs_acc = VariableBaseMSM::multi_scalar_mul(b_inputs_source, &input_assignment);
+        let b_aux_acc = VariableBaseMSM::multi_scalar_mul(b_aux_source, &aux_assignment);
 
-    let s_g1 = params.delta_g1.mul(s.clone());
+        let s_g1 = params.delta_g1.mul(s.clone());
 
-    let mut g1_b = s_g1;
-    g1_b.add_assign(&params.get_b_g1_query_full()?[0].into_projective());
-    g1_b.add_assign(&b_inputs_acc);
-    g1_b.add_assign(&b_aux_acc);
-    g1_b.add_assign(&params.beta_g1.into());
-    end_timer!(b_g1_acc_time);
+        let mut g1_b = s_g1;
+        g1_b.add_assign(&params.get_b_g1_query_full()?[0].into_projective());
+        g1_b.add_assign(&b_inputs_acc);
+        g1_b.add_assign(&b_aux_acc);
+        g1_b.add_assign(&params.beta_g1.into());
+        end_timer!(b_g1_acc_time);
+        g1_b
+    } else {
+        <E::G1Projective as ProjectiveCurve>::zero()
+    };
+
 
     // Compute B in G2
     let b_g2_acc_time = start_timer!(|| "Compute B in G2");
