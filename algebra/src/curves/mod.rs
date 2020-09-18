@@ -233,6 +233,10 @@ pub trait AffineCurve:
     #[must_use]
     fn group_membership_test(&self) -> bool;
 
+    /// Adds, for each vector in 'to_add', its elements together
+    /// using Affine point arithmetic
+    fn add_points(to_add: &mut [Vec<Self>]);
+
     /// Performs scalar multiplication of this element with mixed addition.
     #[must_use]
     fn mul<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(&self, other: S)

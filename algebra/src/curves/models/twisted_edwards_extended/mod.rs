@@ -143,6 +143,10 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
         self.is_on_curve() && self.is_in_correct_subgroup_assuming_on_curve()
     }
 
+    fn add_points(_: &mut [Vec<Self>]) {
+        unimplemented!()
+    }
+
     fn mul<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(&self, by: S) -> GroupProjective<P> {
         self.mul_bits(BitIterator::new(by.into()))
     }
