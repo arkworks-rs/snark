@@ -106,6 +106,7 @@ where
 
         res.extend_from_slice(&self.x.to_constraint_field()?);
         res.extend_from_slice(&self.y.to_constraint_field()?);
+        res.extend_from_slice(&self.infinity.to_constraint_field()?);
 
         Ok(res)
     }
@@ -719,17 +720,7 @@ where
     fn to_constraint_field(
         &self,
     ) -> Result<Vec<FpVar<<P::BaseField as Field>::BasePrimeField>>, SynthesisError> {
-        let mut res = Vec::<FpVar<<P::BaseField as Field>::BasePrimeField>>::new();
-
-        let z_inv = self.z.inverse()?;
-
-        let x_div_by_z = &self.x * &z_inv;
-        let y_div_by_z = &self.x * &z_inv;
-
-        res.extend_from_slice(&x_div_by_z.to_constraint_field()?);
-        res.extend_from_slice(&y_div_by_z.to_constraint_field()?);
-
-        Ok(res)
+        self.to_affine()?.to_constraint_field()
     }
 }
 
