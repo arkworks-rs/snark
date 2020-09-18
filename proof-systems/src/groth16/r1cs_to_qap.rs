@@ -2,12 +2,39 @@ use algebra::{Field, PairingEngine};
 use algebra::fft::EvaluationDomain;
 
 use crate::groth16::{generator::KeypairAssembly, prover::ProvingAssignment};
-use r1cs_core::{Index, SynthesisError};
+use r1cs_core::{ConstraintSystem, Index, SynthesisError};
 
 use rayon::prelude::*;
-use std::ops::AddAssign;
+use std::ops::Mul;
 
 pub(crate) struct R1CStoQAP;
+
+#[inline]
+fn evaluate_constraint<'a, E: PairingEngine>(
+    terms: &'a [(E::Fr, Index)],
+    assignment: &'a [E::Fr],
+    num_inputs: usize,
+) -> E::Fr
+{
+    // Need to wrap in a closure when using Rayon
+    let zero = || E::Fr::zero();
+
+    let res = terms.par_iter().fold(zero, |mut sum, (coeff, index)| {
+        let val = match index {
+            Index::Input(i) => &assignment[*i],
+            Index::Aux(i) => &assignment[num_inputs + i],
+        };
+
+        if coeff.is_one() {
+            sum += val;
+        } else {
+            sum += &(val.mul(&coeff));
+        }
+
+        sum
+    }).collect::<Vec<_>>();
+    return res[0]
+}
 
 impl R1CStoQAP {
     #[inline]
@@ -70,49 +97,34 @@ impl R1CStoQAP {
     #[inline]
     pub(crate) fn witness_map<E: PairingEngine>(
         prover: &ProvingAssignment<E>,
-    ) -> Result<(Vec<E::Fr>, Vec<E::Fr>, usize), SynthesisError> {
-        #[inline]
-        fn evaluate_constraint<E: PairingEngine>(
-            terms: &[(E::Fr, Index)],
-            assignment: &[E::Fr],
-            num_input: usize,
-        ) -> E::Fr {
-            let mut acc = E::Fr::zero();
-            for &(coeff, index) in terms {
-                let val = match index {
-                    Index::Input(i) => assignment[i],
-                    Index::Aux(i) => assignment[num_input + i],
-                };
-                acc += &(val * &coeff);
-            }
-            acc
-        }
+    ) -> Result<Vec<E::Fr>, SynthesisError> {
 
         let zero = E::Fr::zero();
-        let one = E::Fr::one();
 
-        let mut full_input_assignment = prover.input_assignment.clone();
-        full_input_assignment.extend(prover.aux_assignment.clone());
+        let num_inputs = prover.input_assignment.len();
+        let num_constraints = prover.num_constraints();
+
+        let full_input_assignment = [&prover.input_assignment[..], &prover.aux_assignment[..]].concat();
 
         let domain =
-            EvaluationDomain::<E::Fr>::new(prover.num_constraints + (prover.num_inputs - 1) + 1)
+            EvaluationDomain::<E::Fr>::new(num_constraints + num_inputs)
                 .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
         let domain_size = domain.size();
 
         let mut a = vec![zero; domain_size];
         let mut b = vec![zero; domain_size];
-        a[..prover.num_constraints]
+        a[..num_constraints]
             .par_iter_mut()
-            .zip(b[..prover.num_constraints].par_iter_mut())
+            .zip(b[..num_constraints].par_iter_mut())
             .zip((&prover.at).par_iter())
             .zip((&prover.bt).par_iter())
             .for_each(|(((a, b), at_i), bt_i)| {
-                *a = evaluate_constraint::<E>(&at_i, &full_input_assignment, prover.num_inputs);
-                *b = evaluate_constraint::<E>(&bt_i, &full_input_assignment, prover.num_inputs);
+                *a = evaluate_constraint::<E>(&at_i, &full_input_assignment, num_inputs);
+                *b = evaluate_constraint::<E>(&bt_i, &full_input_assignment, num_inputs);
             });
 
-        for i in 0..prover.num_inputs {
-            a[prover.num_constraints + i] = if i > 0 { full_input_assignment[i] } else { one };
+        for i in 0..num_inputs {
+            a[num_constraints + i] = full_input_assignment[i];
         }
 
         domain.ifft_in_place(&mut a);
@@ -126,14 +138,14 @@ impl R1CStoQAP {
         drop(b);
 
         let mut c = vec![zero; domain_size];
-        c[..prover.num_constraints]
+        c[..num_constraints]
             .par_iter_mut()
             .enumerate()
             .for_each(|(i, c)| {
                 *c = evaluate_constraint::<E>(
                     &prover.ct[i],
                     &full_input_assignment,
-                    prover.num_inputs,
+                    num_inputs,
                 );
             });
 
@@ -147,12 +159,6 @@ impl R1CStoQAP {
         domain.divide_by_vanishing_poly_on_coset_in_place(&mut ab);
         domain.coset_ifft_in_place(&mut ab);
 
-        let mut h: Vec<E::Fr> = vec![zero; domain_size - 1];
-        h
-            .par_iter_mut()
-            .enumerate()
-            .for_each(|(i, e)| e.add_assign(&ab[i]));
-
-        Ok((full_input_assignment, h, domain_size))
+        Ok(ab)
     }
 }

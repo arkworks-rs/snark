@@ -1,9 +1,9 @@
 //! An implementation of the [Groth][Groth16] zkSNARK.
 //! [Groth16]: https://eprint.iacr.org/2016/260.pdf
-use algebra::{bytes::{
+use algebra::{Field, bytes::{
     ToBytes, FromBytes,
 }, PairingCurve, PairingEngine};
-use r1cs_core::SynthesisError;
+use r1cs_core::{SynthesisError, Index, LinearCombination};
 use std::io::{self, Read, Result as IoResult, Write};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
@@ -152,6 +152,18 @@ impl<E: PairingEngine> PartialEq for VerifyingKey<E> {
     }
 }
 
+pub(crate) fn push_constraints<F: Field>(
+    l: LinearCombination<F>,
+    constraints: &mut [Vec<(F, Index)>],
+    this_constraint: usize,
+) {
+    for (var, coeff) in l.as_ref() {
+        match var.get_unchecked() {
+            Index::Input(i) => constraints[this_constraint].push((*coeff, Index::Input(i))),
+            Index::Aux(i) => constraints[this_constraint].push((*coeff, Index::Aux(i))),
+        }
+    }
+}
 
 /// Full public (prover and verifier) parameters for the Groth16 zkSNARK.
 #[derive(Clone, Debug)]
