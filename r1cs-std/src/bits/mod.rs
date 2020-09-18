@@ -25,12 +25,26 @@ pub trait ToBitsGadget<F: Field> {
     /// This is the correct default for 99% of use cases.
     fn to_bits_le(&self) -> Result<Vec<Boolean<F>>, SynthesisError>;
 
-    /// Outputs a possibly non-unique bit-wise representation of `self`.
+    /// Outputs a possibly non-unique little-endian bit-wise representation of `self`.
     ///
     /// If you're not absolutely certain that your usecase can get away with a
     /// non-canonical representation, please use `self.to_bits()` instead.
     fn to_non_unique_bits_le(&self) -> Result<Vec<Boolean<F>>, SynthesisError> {
         self.to_bits_le()
+    }
+
+    /// Outputs the canonical big-endian bit-wise representation of `self`.
+    fn to_bits_be(&self) -> Result<Vec<Boolean<F>>, SynthesisError> {
+        let mut res = self.to_bits_le()?;
+        res.reverse();
+        Ok(res)
+    }
+
+    /// Outputs a possibly non-unique big-endian bit-wise representation of `self`.
+    fn to_non_unique_bits_be(&self) -> Result<Vec<Boolean<F>>, SynthesisError> {
+        let mut res = self.to_non_unique_bits_le()?;
+        res.reverse();
+        Ok(res)
     }
 }
 
