@@ -27,7 +27,7 @@ impl<F: Field> ToConstraintField<F> for bool {
     fn to_field_elements(&self) -> Result<Vec<F>, Error> {
         if *self == true {
             Ok(vec![F::one()])
-        }else{
+        } else {
             Ok(vec![F::zero()])
         }
     }
