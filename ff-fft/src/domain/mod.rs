@@ -126,7 +126,7 @@ pub trait EvaluationDomain<F: FftField>:
     fn evaluate_all_lagrange_coefficients(&self, tau: F) -> Vec<F>;
 
     /// Return the sparse vanishing polynomial.
-    fn vanishing_polynomial(&self) -> crate::SparseUniPolynomial<F>;
+    fn vanishing_polynomial(&self) -> crate::univariate::SparsePolynomial<F>;
 
     /// This evaluates the vanishing polynomial for this domain at tau.
     fn evaluate_vanishing_polynomial(&self, tau: F) -> F;

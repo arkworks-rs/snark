@@ -2,21 +2,20 @@
 
 use core::fmt;
 
-use crate::{
-    BTreeMap, DenseOrSparseUniPolynomial, DenseUniPolynomial, EvaluationDomain, Evaluations, Vec,
-};
+use crate::univariate::{DenseOrSparsePolynomial, DensePolynomial};
+use crate::{BTreeMap, EvaluationDomain, Evaluations, Vec};
 use algebra_core::{FftField, Field};
 
 /// Stores a sparse polynomial in coefficient form.
 #[derive(Clone, PartialEq, Eq, Hash, Default)]
-pub struct SparseUniPolynomial<F: Field> {
+pub struct SparsePolynomial<F: Field> {
     /// The coefficient a_i of `x^i` is stored as (i, a_i) in `self.coeffs`.
     /// the entries in `self.coeffs` *must*  be sorted in increasing order of
     /// `i`.
     coeffs: Vec<(usize, F)>,
 }
 
-impl<F: Field> fmt::Debug for SparseUniPolynomial<F> {
+impl<F: Field> fmt::Debug for SparsePolynomial<F> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         for (i, coeff) in self.coeffs.iter().filter(|(_, c)| !c.is_zero()) {
             if *i == 0 {
@@ -31,7 +30,7 @@ impl<F: Field> fmt::Debug for SparseUniPolynomial<F> {
     }
 }
 
-impl<F: Field> core::ops::Deref for SparseUniPolynomial<F> {
+impl<F: Field> core::ops::Deref for SparsePolynomial<F> {
     type Target = [(usize, F)];
 
     fn deref(&self) -> &[(usize, F)] {
@@ -39,7 +38,7 @@ impl<F: Field> core::ops::Deref for SparseUniPolynomial<F> {
     }
 }
 
-impl<F: Field> SparseUniPolynomial<F> {
+impl<F: Field> SparsePolynomial<F> {
     /// Returns the zero polynomial.
     pub fn zero() -> Self {
         Self { coeffs: Vec::new() }
@@ -95,7 +94,7 @@ impl<F: Field> SparseUniPolynomial<F> {
     /// Perform a naive n^2 multiplicatoin of `self` by `other`.
     pub fn mul(&self, other: &Self) -> Self {
         if self.is_zero() || other.is_zero() {
-            SparseUniPolynomial::zero()
+            SparsePolynomial::zero()
         } else {
             let mut result = BTreeMap::new();
             for (i, self_coeff) in self.coeffs.iter() {
@@ -105,42 +104,43 @@ impl<F: Field> SparseUniPolynomial<F> {
                 }
             }
             let result = result.into_iter().collect::<Vec<_>>();
-            SparseUniPolynomial::from_coefficients_vec(result)
+            SparsePolynomial::from_coefficients_vec(result)
         }
     }
 }
 
-impl<F: FftField> SparseUniPolynomial<F> {
+impl<F: FftField> SparsePolynomial<F> {
     /// Evaluate `self` over `domain`.
     pub fn evaluate_over_domain_by_ref<D: EvaluationDomain<F>>(
         &self,
         domain: D,
     ) -> Evaluations<F, D> {
-        let poly: DenseOrSparseUniPolynomial<'_, F> = self.into();
-        DenseOrSparseUniPolynomial::<F>::evaluate_over_domain(poly, domain)
+        let poly: DenseOrSparsePolynomial<'_, F> = self.into();
+        DenseOrSparsePolynomial::<F>::evaluate_over_domain(poly, domain)
     }
 
     /// Evaluate `self` over `domain`.
     pub fn evaluate_over_domain<D: EvaluationDomain<F>>(self, domain: D) -> Evaluations<F, D> {
-        let poly: DenseOrSparseUniPolynomial<'_, F> = self.into();
-        DenseOrSparseUniPolynomial::<F>::evaluate_over_domain(poly, domain)
+        let poly: DenseOrSparsePolynomial<'_, F> = self.into();
+        DenseOrSparsePolynomial::<F>::evaluate_over_domain(poly, domain)
     }
 }
 
-impl<F: Field> Into<DenseUniPolynomial<F>> for SparseUniPolynomial<F> {
-    fn into(self) -> DenseUniPolynomial<F> {
+impl<F: Field> Into<DensePolynomial<F>> for SparsePolynomial<F> {
+    fn into(self) -> DensePolynomial<F> {
         let mut other = vec![F::zero(); self.degree() + 1];
         for (i, coeff) in self.coeffs {
             other[i] = coeff;
         }
-        DenseUniPolynomial::from_coefficients_vec(other)
+        DensePolynomial::from_coefficients_vec(other)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{
-        DenseUniPolynomial, EvaluationDomain, GeneralEvaluationDomain, SparseUniPolynomial,
+        univariate::{DensePolynomial, SparsePolynomial},
+        EvaluationDomain, GeneralEvaluationDomain,
     };
     use algebra::bls12_381::fr::Fr;
     use algebra_core::One;
@@ -151,10 +151,10 @@ mod tests {
             let domain_size = 1 << size;
             let domain = GeneralEvaluationDomain::new(domain_size).unwrap();
             let two = Fr::one() + &Fr::one();
-            let sparse_poly = SparseUniPolynomial::from_coefficients_vec(vec![(0, two), (1, two)]);
+            let sparse_poly = SparsePolynomial::from_coefficients_vec(vec![(0, two), (1, two)]);
             let evals1 = sparse_poly.evaluate_over_domain_by_ref(domain);
 
-            let dense_poly: DenseUniPolynomial<Fr> = sparse_poly.into();
+            let dense_poly: DensePolynomial<Fr> = sparse_poly.into();
             let evals2 = dense_poly.clone().evaluate_over_domain(domain);
             assert_eq!(evals1.clone().interpolate(), evals2.clone().interpolate());
             assert_eq!(evals1.interpolate(), dense_poly);
