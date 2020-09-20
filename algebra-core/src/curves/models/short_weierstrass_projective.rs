@@ -41,6 +41,34 @@ pub struct GroupProjective<P: Parameters> {
     _params: PhantomData<P>,
 }
 
+impl<P: Parameters> GroupProjective<P> {
+    #[inline(always)]
+    pub fn has_glv() -> bool {
+        P::has_glv()
+    }
+
+    #[inline(always)]
+    pub fn glv_endomorphism_in_place(elem: &mut <Self as ProjectiveCurve>::BaseField) {
+        P::glv_endomorphism_in_place(elem);
+    }
+
+    #[inline]
+    pub fn glv_scalar_decomposition(
+        k: <<Self as ProjectiveCurve>::ScalarField as PrimeField>::BigInt,
+    ) -> (
+        (
+            bool,
+            <<Self as ProjectiveCurve>::ScalarField as PrimeField>::BigInt,
+        ),
+        (
+            bool,
+            <<Self as ProjectiveCurve>::ScalarField as PrimeField>::BigInt,
+        ),
+    ) {
+        P::glv_scalar_decomposition(k)
+    }
+}
+
 specialise_affine_to_proj!(GroupProjective);
 
 impl<P: Parameters> Display for GroupProjective<P> {

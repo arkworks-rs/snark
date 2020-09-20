@@ -397,3 +397,16 @@ macro_rules! cfg_chunks_mut {
         result
     }};
 }
+
+#[macro_export]
+macro_rules! cfg_chunks {
+    ($e: expr, $N: expr) => {{
+        #[cfg(feature = "parallel")]
+        let result = $e.par_chunks($N);
+
+        #[cfg(not(feature = "parallel"))]
+        let result = $e.chunks($N);
+
+        result
+    }};
+}

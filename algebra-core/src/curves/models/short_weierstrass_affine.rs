@@ -26,6 +26,34 @@ macro_rules! specialise_affine_to_proj {
             _params: PhantomData<P>,
         }
 
+        impl<P: Parameters> GroupAffine<P> {
+            #[inline(always)]
+            pub fn has_glv() -> bool {
+                P::has_glv()
+            }
+
+            #[inline(always)]
+            pub fn glv_endomorphism_in_place(elem: &mut <Self as AffineCurve>::BaseField) {
+                P::glv_endomorphism_in_place(elem);
+            }
+
+            #[inline]
+            pub fn glv_scalar_decomposition(
+                k: <<Self as AffineCurve>::ScalarField as PrimeField>::BigInt,
+            ) -> (
+                (
+                    bool,
+                    <<Self as AffineCurve>::ScalarField as PrimeField>::BigInt,
+                ),
+                (
+                    bool,
+                    <<Self as AffineCurve>::ScalarField as PrimeField>::BigInt,
+                ),
+            ) {
+                P::glv_scalar_decomposition(k)
+            }
+        }
+
         impl<P: Parameters> AffineCurve for GroupAffine<P> {
             const COFACTOR: &'static [u64] = P::COFACTOR;
             type BaseField = P::BaseField;
