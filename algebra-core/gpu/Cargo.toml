@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 algebra-core = { path = "..", default-features = false, features = ["parallel"] }
 algebra = { path = "../../algebra", default-features = false, features = ["bw6_761"] }
-accel = { git = "https://github.com/jon-chuang/accel/accel" }
+accel = { git = "https://github.com/jon-chuang/accel", package = "accel" }
 rayon = { version = "1.3.0" }
 
 rand = { version = "0.7", default-features = false }

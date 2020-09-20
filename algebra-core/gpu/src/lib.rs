@@ -117,9 +117,9 @@ mod kernel {
         const NUM_U8: isize = 2 * ((NUM_BITS - 1) / (2 * (LOG2_W - 1)) + 2);
 
         #[kernel_func]
-        #[dependencies("accel-core" = { git = "https://github.com/jon-chuang/accel/accel-core" })]
-        #[dependencies("algebra-core" = { git = "https://github.com/celo-org/zexe/tree/jonch/gpu_sc_mul/algebra-core", default_features = false})]
-        #[dependencies("algebra" = { git = "https://github.com/celo-org/jonch/gpu_sc_mul/algebra", default_features = false, features = ["bw6_761"]})]
+        #[dependencies("accel-core" = { git = "https://github.com/jon-chuang/accel", package = "accel-core" })]
+        #[dependencies("algebra-core" = { git = "https://github.com/celo-org/zexe", branch = "jonch/gpu_sc_mul", package = "algebra-core", default_features = false})]
+        #[dependencies("algebra" = { git = "https://github.com/celo-org/zexe", branch = "jonch/gpu_sc_mul", package = "algebra", default_features = false, features = ["bw6_761"]})]
         pub unsafe fn scalar_mul(table: *const crate::G1, exps: *const u8, out: *mut crate::G1) {
             if G1::has_glv() {
                 let mut res = G1::zero();
