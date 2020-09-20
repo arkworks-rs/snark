@@ -23,6 +23,16 @@ impl<F: PrimeField> ToConstraintField<F> for F {
     }
 }
 
+impl<F: Field> ToConstraintField<F> for bool {
+    fn to_field_elements(&self) -> Result<Vec<F>, Error> {
+        if *self == true {
+            Ok(vec![F::one()])
+        }else{
+            Ok(vec![F::zero()])
+        }
+    }
+}
+
 // Impl for base field
 impl<F: Field> ToConstraintField<F> for [F] {
     #[inline]
@@ -69,7 +79,9 @@ where
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
         let mut x_fe = self.x.to_field_elements()?;
         let y_fe = self.y.to_field_elements()?;
+        let infinity_fe = self.infinity.to_field_elements()?;
         x_fe.extend_from_slice(&y_fe);
+        x_fe.extend_from_slice(&infinity_fe);
         Ok(x_fe)
     }
 }
