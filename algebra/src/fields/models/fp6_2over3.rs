@@ -76,6 +76,10 @@ impl<P: Fp6Parameters> Fp6<P> {
         res
     }
 
+    pub fn conjugate(&mut self) {
+        self.c1 = self.c1.neg();
+    }
+
     pub fn unitary_inverse(&self) -> Self {
         Self::new(self.c0, -self.c1)
     }

@@ -67,6 +67,10 @@ impl<P: Fp4Parameters> Fp4<P> {
         Fp2::new(new_c0, new_c1)
     }
 
+    pub fn conjugate(&mut self) {
+        self.c1 = self.c1.neg();
+    }
+
     pub fn unitary_inverse(&self) -> Self {
         Self::new(self.c0, self.c1.neg())
     }
