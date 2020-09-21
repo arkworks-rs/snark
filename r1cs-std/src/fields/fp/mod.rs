@@ -872,7 +872,7 @@ impl<F: PrimeField> ToBitsGadget<F> for FpVar<F> {
     fn to_non_unique_bits_le(&self) -> Result<Vec<Boolean<F>>, SynthesisError> {
         use algebra::BitIteratorLE;
         match self {
-            Self::Constant(c) => Ok(BitIteratorLE::without_trailing_zeros(&c.into_repr())
+            Self::Constant(c) => Ok(BitIteratorLE::new(&c.into_repr())
                 .map(Boolean::constant)
                 .collect::<Vec<_>>()),
             Self::Var(v) => v.to_non_unique_bits_le(),
