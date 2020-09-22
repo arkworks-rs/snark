@@ -203,8 +203,8 @@ mod test {
             .collect::<Vec<_>>();
 
         let naive = naive_var_base_msm(g.as_slice(), v.as_slice());
-        let fast = VariableBaseMSM::multi_scalar_mul(g.as_slice(), v.as_slice());
-        let affine = VariableBaseMSM::multi_scalar_mul_affine(g.as_slice(), v.as_slice());
+        let fast = VariableBaseMSM::multi_scalar_mul_affine(g.as_slice(), v.as_slice());
+        let affine = VariableBaseMSM::multi_scalar_mul_affine_affine(g.as_slice(), v.as_slice());
 
         assert_eq!(naive, fast);
         assert_eq!(naive, affine)
@@ -224,8 +224,8 @@ mod test {
             .collect::<Vec<_>>();
 
         let naive = naive_var_base_msm(g.as_slice(), v.as_slice());
-        let fast = VariableBaseMSM::multi_scalar_mul_affine(g.as_slice(), v.as_slice());
-        let affine = VariableBaseMSM::multi_scalar_mul_affine(g.as_slice(), v.as_slice());
+        let fast = VariableBaseMSM::multi_scalar_mul_affine_affine(g.as_slice(), v.as_slice());
+        let affine = VariableBaseMSM::multi_scalar_mul_affine_affine(g.as_slice(), v.as_slice());
 
         assert_eq!(naive, fast);
         assert_eq!(naive, affine)
