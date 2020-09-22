@@ -16,24 +16,22 @@ fn evaluate_constraint<'a, E: PairingEngine>(
     num_inputs: usize,
 ) -> E::Fr
 {
-    // Need to wrap in a closure when using Rayon
-    let zero = || E::Fr::zero();
+    terms
+        .par_iter()
+        .map(|(coeff, index)|
+            {
+                let val = match index {
+                    Index::Input(i) => assignment[*i],
+                    Index::Aux(i) => assignment[num_inputs + i],
+                };
 
-    let res = terms.par_iter().fold(zero, |mut sum, (coeff, index)| {
-        let val = match index {
-            Index::Input(i) => &assignment[*i],
-            Index::Aux(i) => &assignment[num_inputs + i],
-        };
-
-        if coeff.is_one() {
-            sum += val;
-        } else {
-            sum += &(val.mul(&coeff));
-        }
-
-        sum
-    }).collect::<Vec<_>>();
-    return res[0]
+                if coeff.is_one() {
+                    val
+                } else {
+                    val.mul(&coeff)
+                }
+            })
+        .reduce(|| E::Fr::zero(), |sum, val| sum + &val)
 }
 
 impl R1CStoQAP {
