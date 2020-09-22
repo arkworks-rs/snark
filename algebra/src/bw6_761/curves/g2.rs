@@ -94,7 +94,6 @@ impl GLVParameters for Parameters {
         0,
         0,
     ]);
-    const B2_IS_NEG: bool = false;
     const R_BITS: u32 = 384;
 }
 
