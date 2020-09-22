@@ -257,6 +257,9 @@ pub trait AffineCurve:
     /// `Self::ScalarField`.
     #[must_use]
     fn mul_by_cofactor_inv(&self) -> Self;
+
+    // Creates a point from raw X and Y coordinates. On-curve check is performed.
+    fn from_xy_checked(x: Self::BaseField, y: Self::BaseField) -> Result<Self, ()>;
 }
 
 impl<C: ProjectiveCurve> Group for C {

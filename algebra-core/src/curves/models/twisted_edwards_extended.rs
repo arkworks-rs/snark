@@ -162,6 +162,20 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
     fn mul_by_cofactor_inv(&self) -> Self {
         self.mul(P::COFACTOR_INV).into()
     }
+
+    fn from_xy_checked(x: Self::BaseField, y: Self::BaseField) -> Result<Self, ()> {
+        let affine = Self {
+            x,
+            y,
+            _params: PhantomData,
+        };
+
+        if !affine.is_on_curve() {
+            Err(())
+        } else {
+            Ok(affine)
+        }
+    }
 }
 
 impl<P: Parameters> Neg for GroupAffine<P> {
