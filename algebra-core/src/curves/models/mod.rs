@@ -60,6 +60,11 @@ pub trait SWModelParameters: ModelParameters {
     ) {
         unimplemented!()
     }
+
+    #[inline(always)]
+    fn glv_window_size() -> usize {
+        4
+    }
 }
 
 pub trait TEModelParameters: ModelParameters {

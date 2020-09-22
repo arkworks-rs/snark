@@ -348,7 +348,7 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
 
     fn mul<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(mut self, other: S) -> Self {
         if P::has_glv() {
-            let w = 4;
+            let w = P::glv_window_size();
             let mut res = Self::zero();
             impl_glv_mul!(Self, P, w, self, res, other);
             res
