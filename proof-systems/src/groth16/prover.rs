@@ -270,8 +270,8 @@ where
     // Compute A
     let a_acc_time = start_timer!(|| "Compute A");
     let (a_inputs_source, a_aux_source) = params.get_a_query(prover.num_inputs)?;
-    let a_inputs_acc = VariableBaseMSM::multi_scalar_mul(a_inputs_source, &input_assignment);
-    let a_aux_acc = VariableBaseMSM::multi_scalar_mul(a_aux_source, &aux_assignment);
+    let a_inputs_acc = VariableBaseMSM::multi_scalar_mul_affine(a_inputs_source, &input_assignment);
+    let a_aux_acc = VariableBaseMSM::multi_scalar_mul_affine(a_aux_source, &aux_assignment);
 
     let r_g1 = params.delta_g1.mul(r);
 
@@ -286,8 +286,8 @@ where
     let b_g1_acc_time = start_timer!(|| "Compute B in G1");
 
     let (b_inputs_source, b_aux_source) = params.get_b_g1_query(prover.num_inputs)?;
-    let b_inputs_acc = VariableBaseMSM::multi_scalar_mul(b_inputs_source, &input_assignment);
-    let b_aux_acc = VariableBaseMSM::multi_scalar_mul(b_aux_source, &aux_assignment);
+    let b_inputs_acc = VariableBaseMSM::multi_scalar_mul_affine(b_inputs_source, &input_assignment);
+    let b_aux_acc = VariableBaseMSM::multi_scalar_mul_affine(b_aux_source, &aux_assignment);
 
     let s_g1 = params.delta_g1.mul(s.clone());
 
@@ -302,8 +302,8 @@ where
     let b_g2_acc_time = start_timer!(|| "Compute B in G2");
 
     let (b_inputs_source, b_aux_source) = params.get_b_g2_query(prover.num_inputs)?;
-    let b_inputs_acc = VariableBaseMSM::multi_scalar_mul(b_inputs_source, &input_assignment);
-    let b_aux_acc = VariableBaseMSM::multi_scalar_mul(b_aux_source, &aux_assignment);
+    let b_inputs_acc = VariableBaseMSM::multi_scalar_mul_affine(b_inputs_source, &input_assignment);
+    let b_aux_acc = VariableBaseMSM::multi_scalar_mul_affine(b_aux_source, &aux_assignment);
 
     let s_g2 = params.delta_g2.mul(s.clone());
 
@@ -318,11 +318,11 @@ where
     let c_acc_time = start_timer!(|| "Compute C");
 
     let (h_inputs_source, h_aux_source) = params.get_h_query(prover.num_inputs)?;
-    let h_inputs_acc = VariableBaseMSM::multi_scalar_mul(h_inputs_source, &h_input_assignment);
-    let h_aux_acc = VariableBaseMSM::multi_scalar_mul(h_aux_source, &h_aux_assignment);
+    let h_inputs_acc = VariableBaseMSM::multi_scalar_mul_affine(h_inputs_source, &h_input_assignment);
+    let h_aux_acc = VariableBaseMSM::multi_scalar_mul_affine(h_aux_source, &h_aux_assignment);
 
     let l_aux_source = params.get_l_query_full()?;
-    let l_aux_acc = VariableBaseMSM::multi_scalar_mul(l_aux_source, &aux_assignment);
+    let l_aux_acc = VariableBaseMSM::multi_scalar_mul_affine(l_aux_source, &aux_assignment);
 
     let s_g_a = g_a.clone().mul(&s);
     let r_g1_b = g1_b.clone().mul(&r);
