@@ -33,9 +33,36 @@ fn evaluate_constraint<'a, E: PairingEngine>(
             })
         .reduce(|| E::Fr::zero(), |sum, val| sum + &val)
 }
+/*A R1CS consisting of n constraints in m variables
 
+    (a_{i,0} + Sum_j x_j a_{i,j}) * (b_{i,0} + Sum_{j=1}^m x_j b_{i,j}) =
+               c (c_{i,0} + Sum_{j=1}^m x_j c_{i,j}),
+
+i=1..n, translated into the QAP is 
+
+    (a_0(Z) + Sum_j x_j a_j(Z)) * (b_0(Z) + Sum_j x_j b_j(Z)) =
+                (c_0(Z) + Sum_j x_j c_j(Z)) 
+
+in F[Z]/(Z^N-1). The polynomials a_j(Z),b_j(Z),c_j(Z) correspond to the column vectors 
+a_{*,j}, b_{*,j}, c_{*,j} regarded as functions on the FFT domain H = {z^N - 1} = {z_1,..z_N},
+
+    a_j(Z) = Sum_{i=1}^N a_{i,j} L_i (Z),
+
+and similarly to b, c (here, L_i is the Lagrange polynomial at z_i).
+*/
 impl R1CStoQAP {
     #[inline]
+    ///Given a KeypairAssembly, i.e. the constraint-wise description of the R1CS, this function
+    ///returns 
+    ///     - the column polynomials a_j(Z), b_j(Z), c_j(Z) evaluated at the secret point t,
+    ///       as vectors 
+    ///         a = (a_j(t))_{j=0}^m, b=(b_j(t))_{j=0}^m, c=(c_j(t))_{j=0}^m, 
+    ///       as well as
+    ///     - the vanishing polynomial of the FFT domain H evaluated at t,
+    ///         zt= v_H(t),
+    ///       and 
+    ///     - the number qap_num_ variables = m of QAP variables, as well as 
+    ///     - the domain size |H|. 
     pub(crate) fn instance_map_with_evaluation<E: PairingEngine>(
         assembly: &KeypairAssembly<E>,
         t: &E::Fr,
@@ -47,28 +74,34 @@ impl R1CStoQAP {
 
         let zt = domain.evaluate_vanishing_polynomial(*t);
 
-        // Evaluate all Lagrange polynomials
+        //Evaluate all Lagrange polynomials L_i(t) for "i in H".
         let coefficients_time = start_timer!(|| "Evaluate Lagrange coefficients");
         let u = domain.evaluate_all_lagrange_coefficients(*t);
         end_timer!(coefficients_time);
 
+        //one variable in the R1CS is always for the constants
         let qap_num_variables = (assembly.num_inputs - 1) + assembly.num_aux;
 
         let mut a = vec![E::Fr::zero(); qap_num_variables + 1];
         let mut b = vec![E::Fr::zero(); qap_num_variables + 1];
         let mut c = vec![E::Fr::zero(); qap_num_variables + 1];
 
+        //The points i= n, n+1, .. ,n +l-1 correspond to the copy-paste constraints to 
+        //load x_1,..,x_l with the public input
         for i in 0..assembly.num_inputs {
             a[i] = u[assembly.num_constraints + i];
         }
 
+        //constraint-wise, i.e. row-wise scanning of m_{i,j}!=0 
+        //and incrementing column m_j(t), m=a,b,c.
         for i in 0..assembly.num_constraints {
             for &(ref coeff, index) in assembly.at[i].iter() {
+                //convert R1CS index into the corresponding number from [0,...,m]
                 let index = match index {
-                    Index::Input(i) => i,
-                    Index::Aux(i) => assembly.num_inputs + i,
+                    Index::Input(j) => j, //if index is an input variable, return it as it is 
+                    Index::Aux(j) => assembly.num_inputs + j, //if index is a private variable, shift it
                 };
-
+                //update the column sum corresponding to the variable.
                 a[index] += &(u[i] * &coeff);
             }
             for &(ref coeff, index) in assembly.bt[i].iter() {
@@ -92,6 +125,9 @@ impl R1CStoQAP {
         Ok((a, b, c, zt, qap_num_variables, domain_size))
     }
 
+    //computes the coefficients of the quotient polynomial 
+    // h(Z) = (a(Z)*b(Z)-c(Z))/v_H(Z) 
+    //from the witness assignments of the circuit.
     #[inline]
     pub(crate) fn witness_map<E: PairingEngine>(
         prover: &ProvingAssignment<E>,
@@ -111,6 +147,8 @@ impl R1CStoQAP {
 
         let mut a = vec![zero; domain_size];
         let mut b = vec![zero; domain_size];
+        //compute the evaluations of a(Z), b(Z) on H
+        //for each constraint, i=1..n, compute m_i= sum_j xj mij, m=a,b,c.
         a[..num_constraints]
             .par_iter_mut()
             .zip(b[..num_constraints].par_iter_mut())
@@ -120,21 +158,24 @@ impl R1CStoQAP {
                 *a = evaluate_constraint::<E>(&at_i, &full_input_assignment, num_inputs);
                 *b = evaluate_constraint::<E>(&bt_i, &full_input_assignment, num_inputs);
             });
-
+        //the further a_i, i=n+1,..,n+l are for the public inputs 
         for i in 0..num_inputs {
             a[num_constraints + i] = full_input_assignment[i];
         }
-
+        //compute the coefficients of a(Z) and b(Z)
         domain.ifft_in_place(&mut a);
         domain.ifft_in_place(&mut b);
-
+        //and their values on the double-sized FFT domain
+        //K = H v coset(H) 
         domain.coset_fft_in_place(&mut a);
         domain.coset_fft_in_place(&mut b);
 
+        //compute the product of a(Z)*b(Z) on K
         let mut ab = domain.mul_polynomials_in_evaluation_domain(&a, &b);
         drop(a);
         drop(b);
 
+        //compute values of c(Z) on H
         let mut c = vec![zero; domain_size];
         c[..num_constraints]
             .par_iter_mut()
@@ -147,6 +188,8 @@ impl R1CStoQAP {
                 );
             });
 
+        //extrapolate c(Z) from H to K and 
+        //compute a(Z)*b(Z)-c(Z) on K
         domain.ifft_in_place(&mut c);
         domain.coset_fft_in_place(&mut c);
 
@@ -154,6 +197,8 @@ impl R1CStoQAP {
             .zip(c)
             .for_each(|(ab_i, c_i)| *ab_i -= &c_i);
 
+        // compute quotient polynomial (a(Z)*b(Z)-c(Z))/v_H(Z) 
+        // first the values on K by point-wise division
         domain.divide_by_vanishing_poly_on_coset_in_place(&mut ab);
         domain.coset_ifft_in_place(&mut ab);
 
