@@ -1,6 +1,5 @@
 use core::{
     fmt::{Debug, Display},
-    hash::Hash,
     ops::{Add, AddAssign, MulAssign, Neg, Sub, SubAssign},
 };
 use num_traits::Zero;
@@ -23,7 +22,6 @@ pub trait Group:
     + Send
     + Sync
     + Eq
-    + Hash
     + Neg<Output = Self>
     + UniformRand
     + Zero

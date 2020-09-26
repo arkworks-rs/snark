@@ -28,8 +28,7 @@ use crate::{
     Clone(bound = "P: Parameters"),
     PartialEq(bound = "P: Parameters"),
     Eq(bound = "P: Parameters"),
-    Debug(bound = "P: Parameters"),
-    Hash(bound = "P: Parameters")
+    Debug(bound = "P: Parameters")
 )]
 #[must_use]
 pub struct GroupAffine<P: Parameters> {
@@ -241,8 +240,7 @@ impl<P: Parameters> Default for GroupAffine<P> {
     Copy(bound = "P: Parameters"),
     Clone(bound = "P: Parameters"),
     Eq(bound = "P: Parameters"),
-    Debug(bound = "P: Parameters"),
-    Hash(bound = "P: Parameters")
+    Debug(bound = "P: Parameters")
 )]
 #[must_use]
 pub struct GroupProjective<P: Parameters> {

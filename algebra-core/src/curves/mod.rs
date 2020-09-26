@@ -6,7 +6,6 @@ use crate::{
 };
 use core::{
     fmt::{Debug, Display},
-    hash::Hash,
     ops::{Add, AddAssign, MulAssign, Neg, Sub, SubAssign},
 };
 use num_traits::Zero;
@@ -103,7 +102,6 @@ pub trait ProjectiveCurve:
     + Default
     + Send
     + Sync
-    + Hash
     + Debug
     + Display
     + UniformRand
@@ -208,7 +206,6 @@ pub trait AffineCurve:
     + Default
     + Send
     + Sync
-    + Hash
     + Debug
     + Display
     + Zero

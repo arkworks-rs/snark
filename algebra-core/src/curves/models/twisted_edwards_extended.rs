@@ -34,8 +34,7 @@ use rayon::prelude::*;
     Clone(bound = "P: Parameters"),
     PartialEq(bound = "P: Parameters"),
     Eq(bound = "P: Parameters"),
-    Debug(bound = "P: Parameters"),
-    Hash(bound = "P: Parameters")
+    Debug(bound = "P: Parameters")
 )]
 #[must_use]
 pub struct GroupAffine<P: Parameters> {
@@ -291,8 +290,7 @@ mod group_impl {
     Copy(bound = "P: Parameters"),
     Clone(bound = "P: Parameters"),
     Eq(bound = "P: Parameters"),
-    Debug(bound = "P: Parameters"),
-    Hash(bound = "P: Parameters")
+    Debug(bound = "P: Parameters")
 )]
 #[must_use]
 pub struct GroupProjective<P: Parameters> {
@@ -656,8 +654,7 @@ where
     Clone(bound = "P: MontgomeryParameters"),
     PartialEq(bound = "P: MontgomeryParameters"),
     Eq(bound = "P: MontgomeryParameters"),
-    Debug(bound = "P: MontgomeryParameters"),
-    Hash(bound = "P: MontgomeryParameters")
+    Debug(bound = "P: MontgomeryParameters")
 )]
 pub struct MontgomeryGroupAffine<P: MontgomeryParameters> {
     pub x: P::BaseField,
