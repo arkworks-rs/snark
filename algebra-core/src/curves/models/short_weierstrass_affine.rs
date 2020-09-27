@@ -1,12 +1,9 @@
 #[macro_export]
 macro_rules! specialise_affine_to_proj {
     ($GroupProjective: ident) => {
+        use crate::batch_arith::decode_endo_from_u32;
         #[cfg(feature = "prefetch")]
         use crate::prefetch;
-        use crate::{
-            biginteger::BigInteger,
-            curves::batch_arith::{decode_endo_from_u32, ENDO_CODING_BITS},
-        };
 
         #[derive(Derivative)]
         #[derivative(
@@ -59,8 +56,8 @@ macro_rules! specialise_affine_to_proj {
                 &self,
                 by: S,
             ) -> Self::Projective {
-                let bits = BitIterator::new(by.into());
-                self.mul_bits(bits)=
+                let bits = BitIteratorBE::new(by.into());
+                self.mul_bits(bits)
             }
 
             #[inline]
@@ -84,12 +81,12 @@ macro_rules! specialise_affine_to_proj {
             }
 
             pub fn scale_by_cofactor(&self) -> <Self as AffineCurve>::Projective {
-                self.mul_bits(BitIterator::new(P::COFACTOR))
+                self.mul_bits(BitIteratorBE::new(P::COFACTOR))
             }
 
             pub(crate) fn mul_bits<S: AsRef<[u64]>>(
                 &self,
-                bits: BitIterator<S>,
+                bits: BitIteratorBE<S>,
             ) -> <Self as AffineCurve>::Projective {
                 let mut res = <Self as AffineCurve>::Projective::zero();
                 for i in bits {
@@ -134,7 +131,7 @@ macro_rules! specialise_affine_to_proj {
             /// Checks that the current point is in the prime order subgroup given
             /// the point on the curve.
             pub fn is_in_correct_subgroup_assuming_on_curve(&self) -> bool {
-                self.mul_bits(BitIterator::new(P::ScalarField::characteristic()))
+                self.mul_bits(BitIteratorBE::new(P::ScalarField::characteristic()))
                     .is_zero()
             }
         }

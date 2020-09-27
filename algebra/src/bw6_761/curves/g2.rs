@@ -6,7 +6,6 @@ use crate::{
         short_weierstrass_jacobian::{GroupAffine, GroupProjective},
     },
     field_new,
-    fields::PrimeField,
 };
 
 pub type G2Affine = GroupAffine<Parameters>;
