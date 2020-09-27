@@ -39,10 +39,12 @@ use rayon::prelude::*;
     Debug(bound = "P: Parameters"),
     Hash(bound = "P: Parameters")
 )]
+#[must_use]
 pub struct GroupProjective<P: Parameters> {
     pub x: P::BaseField,
     pub y: P::BaseField,
     pub z: P::BaseField,
+    #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
 }
 

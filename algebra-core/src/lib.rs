@@ -31,6 +31,7 @@ pub extern crate backtrace;
 pub use alloc::{
     borrow::{Cow, ToOwned},
     boxed::Box,
+    collections::btree_map::BTreeMap,
     format,
     string::String,
     vec,
@@ -43,6 +44,7 @@ pub use alloc::{
 pub use std::{
     borrow::{Cow, ToOwned},
     boxed::Box,
+    collections::btree_map::BTreeMap,
     format,
     string::String,
     vec,
@@ -128,14 +130,27 @@ fn error(msg: &'static str) -> io::Error {
     io::Error::new(io::ErrorKind::Other, msg)
 }
 
-/// Returns floor(log2(x))
+/// Returns the base-2 logarithm of `x`.
+///
+/// ```
+/// use algebra_core::log2;
+///
+/// assert_eq!(log2(16), 4);
+/// assert_eq!(log2(17), 5);
+/// assert_eq!(log2(1), 0);
+/// assert_eq!(log2(0), 0);
+/// assert_eq!(log2(usize::MAX), (core::mem::size_of::<usize>() * 8) as u32);
+/// assert_eq!(log2(1 << 15), 15);
+/// assert_eq!(log2(2usize.pow(18)), 18);
+/// ```
 pub fn log2(x: usize) -> u32 {
-    if x <= 1 {
-        return 0;
+    if x == 0 {
+        0
+    } else if x.is_power_of_two() {
+        1usize.leading_zeros() - x.leading_zeros()
+    } else {
+        0usize.leading_zeros() - x.leading_zeros()
     }
-
-    let n = x.leading_zeros();
-    core::mem::size_of::<usize>() as u32 * 8 - n
 }
 
 /// Prefetches as many cache lines as is occupied by the type T.

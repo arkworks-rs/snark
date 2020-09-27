@@ -14,6 +14,7 @@ pub type G1Projective<P> = GroupProjective<<P as MNT6Parameters>::G1Parameters>;
 
 #[derive(Derivative)]
 #[derivative(
+    Copy(bound = "P: MNT6Parameters"),
     Clone(bound = "P: MNT6Parameters"),
     Debug(bound = "P: MNT6Parameters"),
     PartialEq(bound = "P: MNT6Parameters"),

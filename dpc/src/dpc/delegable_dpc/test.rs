@@ -347,7 +347,7 @@ fn core_checks_gadget() {
     let mut core_cs = TestConstraintSystem::<Bls12_377>::new();
 
     execute_core_checks_gadget::<_, _>(
-        &mut core_cs.ns(|| "Core checks"),
+        &mut core_r1cs_core::ns!(cs, || "Core checks"),
         &comm_crh_sig_pp,
         ledger.parameters(),
         &ledger_digest,
@@ -496,7 +496,7 @@ fn proof_check_gadget() {
     let mut pf_check_cs = TestConstraintSystem::<CP6_782>::new();
 
     execute_proof_check_gadget::<_, _>(
-        &mut pf_check_cs.ns(|| "Check predicate proofs"),
+        &mut pf_check_r1cs_core::ns!(cs, || "Check predicate proofs"),
         &comm_crh_sig_pp,
         &old_proof_and_vk,
         &new_proof_and_vk,

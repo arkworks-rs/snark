@@ -19,6 +19,7 @@ use rand::{
 use crate::{
     bytes::{FromBytes, ToBytes},
     fields::{Field, LegendreSymbol, PrimeField, SquareRootField},
+    Box, ToConstraintField, Vec,
 };
 
 pub trait QuadExtParameters: 'static + Send + Sync + Sized {
@@ -157,10 +158,7 @@ impl<P: QuadExtParameters> One for QuadExtField<P> {
 }
 
 impl<P: QuadExtParameters> Field for QuadExtField<P> {
-    #[inline]
-    fn characteristic<'a>() -> &'a [u64] {
-        P::BaseField::characteristic()
-    }
+    type BasePrimeField = P::BasePrimeField;
 
     fn double(&self) -> Self {
         let mut result = self.clone();
@@ -316,48 +314,39 @@ impl<P: QuadExtParameters> PartialOrd for QuadExtField<P> {
     }
 }
 
-impl<P: QuadExtParameters> From<u128> for QuadExtField<P>
-where
-    P::BaseField: From<u128>,
-{
+impl<P: QuadExtParameters> From<u128> for QuadExtField<P> {
     fn from(other: u128) -> Self {
         Self::new(other.into(), P::BaseField::zero())
     }
 }
 
-impl<P: QuadExtParameters> From<u64> for QuadExtField<P>
-where
-    P::BaseField: From<u64>,
-{
+impl<P: QuadExtParameters> From<u64> for QuadExtField<P> {
     fn from(other: u64) -> Self {
         Self::new(other.into(), P::BaseField::zero())
     }
 }
 
-impl<P: QuadExtParameters> From<u32> for QuadExtField<P>
-where
-    P::BaseField: From<u32>,
-{
+impl<P: QuadExtParameters> From<u32> for QuadExtField<P> {
     fn from(other: u32) -> Self {
         Self::new(other.into(), P::BaseField::zero())
     }
 }
 
-impl<P: QuadExtParameters> From<u16> for QuadExtField<P>
-where
-    P::BaseField: From<u16>,
-{
+impl<P: QuadExtParameters> From<u16> for QuadExtField<P> {
     fn from(other: u16) -> Self {
         Self::new(other.into(), P::BaseField::zero())
     }
 }
 
-impl<P: QuadExtParameters> From<u8> for QuadExtField<P>
-where
-    P::BaseField: From<u8>,
-{
+impl<P: QuadExtParameters> From<u8> for QuadExtField<P> {
     fn from(other: u8) -> Self {
         Self::new(other.into(), P::BaseField::zero())
+    }
+}
+
+impl<P: QuadExtParameters> From<bool> for QuadExtField<P> {
+    fn from(other: bool) -> Self {
+        Self::new(u8::from(other).into(), P::BaseField::zero())
     }
 }
 
@@ -493,18 +482,18 @@ impl<P: QuadExtParameters> CanonicalSerializeWithFlags for QuadExtField<P> {
     #[inline]
     fn serialize_with_flags<W: Write, F: Flags>(
         &self,
-        writer: &mut W,
+        mut writer: W,
         flags: F,
     ) -> Result<(), SerializationError> {
-        self.c0.serialize(writer)?;
-        self.c1.serialize_with_flags(writer, flags)?;
+        self.c0.serialize(&mut writer)?;
+        self.c1.serialize_with_flags(&mut writer, flags)?;
         Ok(())
     }
 }
 
 impl<P: QuadExtParameters> CanonicalSerialize for QuadExtField<P> {
     #[inline]
-    fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
+    fn serialize<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
         self.serialize_with_flags(writer, EmptyFlags)
     }
 
@@ -522,20 +511,36 @@ impl<P: QuadExtParameters> ConstantSerializedSize for QuadExtField<P> {
 impl<P: QuadExtParameters> CanonicalDeserializeWithFlags for QuadExtField<P> {
     #[inline]
     fn deserialize_with_flags<R: Read, F: Flags>(
-        reader: &mut R,
+        mut reader: R,
     ) -> Result<(Self, F), SerializationError> {
-        let c0: P::BaseField = CanonicalDeserialize::deserialize(reader)?;
+        let c0: P::BaseField = CanonicalDeserialize::deserialize(&mut reader)?;
         let (c1, flags): (P::BaseField, _) =
-            CanonicalDeserializeWithFlags::deserialize_with_flags(reader)?;
+            CanonicalDeserializeWithFlags::deserialize_with_flags(&mut reader)?;
         Ok((QuadExtField::new(c0, c1), flags))
     }
 }
 
 impl<P: QuadExtParameters> CanonicalDeserialize for QuadExtField<P> {
     #[inline]
-    fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
-        let c0: P::BaseField = CanonicalDeserialize::deserialize(reader)?;
-        let c1: P::BaseField = CanonicalDeserialize::deserialize(reader)?;
+    fn deserialize<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+        let c0: P::BaseField = CanonicalDeserialize::deserialize(&mut reader)?;
+        let c1: P::BaseField = CanonicalDeserialize::deserialize(&mut reader)?;
         Ok(QuadExtField::new(c0, c1))
+    }
+}
+
+impl<P: QuadExtParameters> ToConstraintField<P::BasePrimeField> for QuadExtField<P>
+where
+    P::BaseField: ToConstraintField<P::BasePrimeField>,
+{
+    fn to_field_elements(&self) -> Result<Vec<P::BasePrimeField>, Box<dyn crate::Error>> {
+        let mut res = Vec::new();
+        let mut c0_elems = self.c0.to_field_elements()?;
+        let mut c1_elems = self.c1.to_field_elements()?;
+
+        res.append(&mut c0_elems);
+        res.append(&mut c1_elems);
+
+        Ok(res)
     }
 }

@@ -1,23 +1,29 @@
 use crate::groups::mnt6;
 use algebra::mnt6_753::Parameters;
 
-pub type G1Gadget = mnt6::G1Gadget<Parameters>;
-pub type G2Gadget = mnt6::G2Gadget<Parameters>;
+/// An element of G1 in the MNT6-753 bilinear group.
+pub type G1Var = mnt6::G1Var<Parameters>;
+/// An element of G2 in the MNT6-753 bilinear group.
+pub type G2Var = mnt6::G2Var<Parameters>;
 
-pub type G1PreparedGadget = mnt6::G1PreparedGadget<Parameters>;
-pub type G2PreparedGadget = mnt6::G2PreparedGadget<Parameters>;
+/// Represents the cached precomputation that can be performed on a G1 element
+/// which enables speeding up pairing computation.
+pub type G1PreparedVar = mnt6::G1PreparedVar<Parameters>;
+/// Represents the cached precomputation that can be performed on a G2 element
+/// which enables speeding up pairing computation.
+pub type G2PreparedVar = mnt6::G2PreparedVar<Parameters>;
 
 #[test]
 fn test() {
     use algebra::curves::models::mnt6::MNT6Parameters;
     crate::groups::curves::short_weierstrass::test::<
-        _,
         <Parameters as MNT6Parameters>::G1Parameters,
-        G1Gadget,
-    >();
+        G1Var,
+    >()
+    .unwrap();
     crate::groups::curves::short_weierstrass::test::<
-        _,
         <Parameters as MNT6Parameters>::G2Parameters,
-        G2Gadget,
-    >();
+        G2Var,
+    >()
+    .unwrap();
 }

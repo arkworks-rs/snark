@@ -68,6 +68,7 @@ impl MNT6Parameters for Parameters {
         0,
     ]);
     type Fp = Fq;
+    type Fr = Fr;
     type Fp3Params = Fq3Parameters;
     type Fp6Params = Fq6Parameters;
     type G1Parameters = self::g1::Parameters;

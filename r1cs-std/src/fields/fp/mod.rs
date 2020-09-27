@@ -1,679 +1,1011 @@
-use algebra::{bytes::ToBytes, FpParameters, PrimeField};
-use r1cs_core::{
-    ConstraintSystem,
-    ConstraintVar::{self, *},
-    LinearCombination, SynthesisError,
-};
+use algebra::{BigInteger, FpParameters, PrimeField};
+use r1cs_core::{lc, ConstraintSystemRef, LinearCombination, Namespace, SynthesisError, Variable};
 
 use core::borrow::Borrow;
 
-use crate::{boolean::AllocatedBit, prelude::*, Assignment, Vec};
+use crate::fields::{FieldOpsBounds, FieldVar};
+use crate::{prelude::*, Assignment, ToConstraintFieldGadget, Vec};
 
-pub mod cmp;
+mod cmp;
 
-#[derive(Debug)]
-pub struct FpGadget<F: PrimeField> {
-    pub value: Option<F>,
-    pub variable: ConstraintVar<F>,
+/// Represents a variable in the constraint system whose
+/// value can be an arbitrary field element.
+#[derive(Debug, Clone)]
+#[must_use]
+pub struct AllocatedFp<F: PrimeField> {
+    pub(crate) value: Option<F>,
+    /// The allocated variable corresponding to `self` in `self.cs`.
+    pub variable: Variable,
+    /// The constraint system that `self` was allocated in.
+    pub cs: ConstraintSystemRef<F>,
 }
 
-impl<F: PrimeField> FpGadget<F> {
-    #[inline]
-    pub fn from<CS: ConstraintSystem<F>>(mut cs: CS, value: &F) -> Self {
-        Self::alloc(cs.ns(|| "from"), || Ok(*value)).unwrap()
-    }
-
-    fn is_constant(&self) -> bool {
-        match &self.variable {
-            // If you don't do alloc_constant, you are guaranteed to get a variable,
-            // hence we assume that all variables are not the constant variable.
-            // Technically this omits recognizing some constants.
-            // E.g. given variables w,x,y,z with constraints:
-            // w = x + 1
-            // y = -x + 1
-            // and then created the variable z = w + y,
-            // this would not recognize that z is in fact a constant.
-            // Since this is an edge case, this is left as a TODO.
-            Var(_v) => false,
-            LC(l) => l.is_constant(),
+impl<F: PrimeField> AllocatedFp<F> {
+    /// Constructs a new `AllocatedFp` from a (optional) value, a low-level Variable,
+    /// and a `ConstraintSystemRef`.
+    pub fn new(value: Option<F>, variable: Variable, cs: ConstraintSystemRef<F>) -> Self {
+        Self {
+            value,
+            variable,
+            cs,
         }
     }
 }
 
-impl<F: PrimeField> ToConstraintFieldGadget<F> for FpGadget<F> {
-    fn to_constraint_field<CS: ConstraintSystem<F>>(
-        &self,
-        _cs: CS,
-    ) -> Result<Vec<FpGadget<F>>, SynthesisError> {
-        Ok(vec![self.clone()])
+/// Represent variables corresponding to a field element in `F`.
+#[derive(Clone, Debug)]
+#[must_use]
+pub enum FpVar<F: PrimeField> {
+    /// Represents a constant in the constraint system, which means that
+    /// it does not have a corresponding variable.
+    Constant(F),
+    /// Represents an allocated variable constant in the constraint system.
+    Var(AllocatedFp<F>),
+}
+
+impl<F: PrimeField> R1CSVar<F> for FpVar<F> {
+    type Value = F;
+
+    fn cs(&self) -> ConstraintSystemRef<F> {
+        match self {
+            Self::Constant(_) => ConstraintSystemRef::None,
+            Self::Var(a) => a.cs.clone(),
+        }
+    }
+
+    fn value(&self) -> Result<Self::Value, SynthesisError> {
+        match self {
+            Self::Constant(v) => Ok(*v),
+            Self::Var(v) => v.value(),
+        }
     }
 }
 
-impl<F: PrimeField> FieldGadget<F, F> for FpGadget<F> {
-    type Variable = ConstraintVar<F>;
+impl<F: PrimeField> From<Boolean<F>> for FpVar<F> {
+    fn from(other: Boolean<F>) -> Self {
+        if let Boolean::Constant(b) = other {
+            Self::Constant(F::from(b as u8))
+        } else {
+            // `other` is a variable
+            let cs = other.cs();
+            let variable = cs.new_lc(other.lc()).unwrap();
+            Self::Var(AllocatedFp::new(
+                other.value().ok().map(|b| F::from(b as u8)),
+                variable,
+                cs,
+            ))
+        }
+    }
+}
 
-    #[inline]
-    fn get_value(&self) -> Option<F> {
-        self.value
+impl<F: PrimeField> From<AllocatedFp<F>> for FpVar<F> {
+    fn from(other: AllocatedFp<F>) -> Self {
+        Self::Var(other)
+    }
+}
+
+impl<'a, F: PrimeField> FieldOpsBounds<'a, F, Self> for FpVar<F> {}
+impl<'a, F: PrimeField> FieldOpsBounds<'a, F, FpVar<F>> for &'a FpVar<F> {}
+
+impl<F: PrimeField> AllocatedFp<F> {
+    /// Constructs `Self` from a `Boolean`: if `other` is false, this outputs `zero`, else it outputs `one`.
+    pub fn from(other: Boolean<F>) -> Self {
+        let cs = other.cs();
+        let variable = cs.new_lc(other.lc()).unwrap();
+        Self::new(other.value().ok().map(|b| F::from(b as u8)), variable, cs)
     }
 
-    #[inline]
-    fn get_variable(&self) -> Self::Variable {
-        self.variable.clone()
+    /// Returns the value assigned to `self` in the underlying constraint system
+    /// (if a value was assigned).
+    pub fn value(&self) -> Result<F, SynthesisError> {
+        self.cs.assigned_value(self.variable).get()
     }
 
-    #[inline]
-    fn zero<CS: ConstraintSystem<F>>(_cs: CS) -> Result<Self, SynthesisError> {
-        let value = Some(F::zero());
-        Ok(FpGadget {
-            value,
-            variable: ConstraintVar::zero(),
-        })
-    }
-
-    #[inline]
-    fn one<CS: ConstraintSystem<F>>(_cs: CS) -> Result<Self, SynthesisError> {
-        let value = Some(F::one());
-        Ok(FpGadget {
-            value,
-            variable: CS::one().into(),
-        })
-    }
-
-    #[inline]
-    fn conditionally_add_constant<CS: ConstraintSystem<F>>(
-        &self,
-        mut _cs: CS,
-        bit: &Boolean,
-        coeff: F,
-    ) -> Result<Self, SynthesisError> {
-        let value = match (self.value, bit.get_value()) {
-            (Some(v), Some(b)) => Some(if b { v + &coeff } else { v }),
-            (..) => None,
-        };
-        Ok(FpGadget {
-            value,
-            variable: LC(bit.lc(CS::one(), coeff)) + &self.variable,
-        })
-    }
-
-    #[inline]
-    fn add<CS: ConstraintSystem<F>>(
-        &self,
-        mut _cs: CS,
-        other: &Self,
-    ) -> Result<Self, SynthesisError> {
+    /// Outputs `self + other`.
+    ///
+    /// This does not create any constraints.
+    #[tracing::instrument(target = "r1cs")]
+    pub fn add(&self, other: &Self) -> Self {
         let value = match (self.value, other.value) {
             (Some(val1), Some(val2)) => Some(val1 + &val2),
             (..) => None,
         };
 
-        Ok(FpGadget {
-            value,
-            variable: &self.variable + &other.variable,
-        })
+        let variable = self
+            .cs
+            .new_lc(lc!() + self.variable + other.variable)
+            .unwrap();
+        AllocatedFp::new(value, variable, self.cs.clone())
     }
 
-    fn double<CS: ConstraintSystem<F>>(&self, _cs: CS) -> Result<Self, SynthesisError> {
-        let value = self.value.map(|val| val.double());
-        let mut variable = self.variable.clone();
-        variable.double_in_place();
-        Ok(FpGadget { value, variable })
-    }
-
-    fn double_in_place<CS: ConstraintSystem<F>>(
-        &mut self,
-        _cs: CS,
-    ) -> Result<&mut Self, SynthesisError> {
-        self.value.as_mut().map(|val| val.double_in_place());
-        self.variable.double_in_place();
-        Ok(self)
-    }
-
-    #[inline]
-    fn sub<CS: ConstraintSystem<F>>(
-        &self,
-        mut _cs: CS,
-        other: &Self,
-    ) -> Result<Self, SynthesisError> {
+    /// Outputs `self - other`.
+    ///
+    /// This does not create any constraints.
+    #[tracing::instrument(target = "r1cs")]
+    pub fn sub(&self, other: &Self) -> Self {
         let value = match (self.value, other.value) {
             (Some(val1), Some(val2)) => Some(val1 - &val2),
             (..) => None,
         };
 
-        Ok(FpGadget {
-            value,
-            variable: &self.variable - &other.variable,
-        })
+        let variable = self
+            .cs
+            .new_lc(lc!() + self.variable - other.variable)
+            .unwrap();
+        AllocatedFp::new(value, variable, self.cs.clone())
     }
 
-    #[inline]
-    fn negate<CS: ConstraintSystem<F>>(&self, cs: CS) -> Result<Self, SynthesisError> {
-        let mut result = self.clone();
-        result.negate_in_place(cs)?;
-        Ok(result)
-    }
-
-    #[inline]
-    fn negate_in_place<CS: ConstraintSystem<F>>(
-        &mut self,
-        _cs: CS,
-    ) -> Result<&mut Self, SynthesisError> {
-        self.value.as_mut().map(|val| *val = -(*val));
-        self.variable.negate_in_place();
-        Ok(self)
-    }
-
-    #[inline]
-    fn mul<CS: ConstraintSystem<F>>(
-        &self,
-        mut cs: CS,
-        other: &Self,
-    ) -> Result<Self, SynthesisError> {
-        // Apply constant folding if it applies
-        // unwrap is used, because these values are guaranteed to exist.
-        if other.is_constant() {
-            return self.mul_by_constant(cs, &other.get_value().unwrap());
-        } else if self.is_constant() {
-            return other.mul_by_constant(cs, &self.get_value().unwrap());
-        }
-
-        let product = Self::alloc(cs.ns(|| "mul"), || {
+    /// Outputs `self * other`.
+    ///
+    /// This requires *one* constraint.
+    #[tracing::instrument(target = "r1cs")]
+    pub fn mul(&self, other: &Self) -> Self {
+        let product = AllocatedFp::new_witness(self.cs.clone(), || {
             Ok(self.value.get()? * &other.value.get()?)
-        })?;
-        cs.enforce(
-            || "mul_constraint",
-            |lc| &self.variable + lc,
-            |lc| &other.variable + lc,
-            |lc| &product.variable + lc,
-        );
-        Ok(product)
-    }
-
-    #[inline]
-    fn add_constant<CS: ConstraintSystem<F>>(
-        &self,
-        _cs: CS,
-        other: &F,
-    ) -> Result<Self, SynthesisError> {
-        let value = self.value.map(|val| val + other);
-        Ok(FpGadget {
-            value,
-            variable: self.variable.clone() + (*other, CS::one()),
         })
+        .unwrap();
+        self.cs
+            .enforce_constraint(
+                lc!() + self.variable,
+                lc!() + other.variable,
+                lc!() + product.variable,
+            )
+            .unwrap();
+        product
     }
 
-    #[inline]
-    fn add_constant_in_place<CS: ConstraintSystem<F>>(
-        &mut self,
-        _cs: CS,
-        other: &F,
-    ) -> Result<&mut Self, SynthesisError> {
-        self.value.as_mut().map(|val| *val += other);
-        self.variable += (*other, CS::one());
-        Ok(self)
+    /// Output `self + other`
+    ///
+    /// This does not create any constraints.
+    #[tracing::instrument(target = "r1cs")]
+    pub fn add_constant(&self, other: F) -> Self {
+        if other.is_zero() {
+            self.clone()
+        } else {
+            let value = self.value.map(|val| val + other);
+            let variable = self
+                .cs
+                .new_lc(lc!() + self.variable + (other, Variable::One))
+                .unwrap();
+            AllocatedFp::new(value, variable, self.cs.clone())
+        }
     }
 
-    #[inline]
-    fn mul_by_constant<CS: ConstraintSystem<F>>(
-        &self,
-        cs: CS,
-        other: &F,
-    ) -> Result<Self, SynthesisError> {
+    /// Output `self - other`
+    ///
+    /// This does not create any constraints.
+    #[tracing::instrument(target = "r1cs")]
+    pub fn sub_constant(&self, other: F) -> Self {
+        self.add_constant(-other)
+    }
+
+    /// Output `self * other`
+    ///
+    /// This does not create any constraints.
+    #[tracing::instrument(target = "r1cs")]
+    pub fn mul_constant(&self, other: F) -> Self {
+        if other.is_one() {
+            self.clone()
+        } else {
+            let value = self.value.map(|val| val * other);
+            let variable = self.cs.new_lc(lc!() + (other, self.variable)).unwrap();
+            AllocatedFp::new(value, variable, self.cs.clone())
+        }
+    }
+
+    /// Output `self + self`
+    ///
+    /// This does not create any constraints.
+    #[tracing::instrument(target = "r1cs")]
+    pub fn double(&self) -> Result<Self, SynthesisError> {
+        let value = self.value.map(|val| val.double());
+        let variable = self.cs.new_lc(lc!() + self.variable + self.variable)?;
+        Ok(Self::new(value, variable, self.cs.clone()))
+    }
+
+    /// Output `-self`
+    ///
+    /// This does not create any constraints.
+    #[tracing::instrument(target = "r1cs")]
+    pub fn negate(&self) -> Self {
         let mut result = self.clone();
-        result.mul_by_constant_in_place(cs, other)?;
-        Ok(result)
+        result.negate_in_place();
+        result
     }
 
-    #[inline]
-    fn mul_by_constant_in_place<CS: ConstraintSystem<F>>(
-        &mut self,
-        mut _cs: CS,
-        other: &F,
-    ) -> Result<&mut Self, SynthesisError> {
-        self.value.as_mut().map(|val| *val *= other);
-        self.variable *= *other;
-        Ok(self)
+    /// Sets `self = -self`
+    ///
+    /// This does not create any constraints.
+    #[tracing::instrument(target = "r1cs")]
+    pub fn negate_in_place(&mut self) -> &mut Self {
+        self.value.as_mut().map(|val| *val = -(*val));
+        self.variable = self.cs.new_lc(lc!() - self.variable).unwrap();
+        self
     }
 
-    #[inline]
-    fn inverse<CS: ConstraintSystem<F>>(&self, mut cs: CS) -> Result<Self, SynthesisError> {
-        let inverse = Self::alloc(cs.ns(|| "inverse"), || {
-            let result = self.value.get()?;
-            let inv = result.inverse().expect("Inverse doesn't exist!");
-            Ok(inv)
+    /// Outputs `self * self`
+    ///
+    /// This requires *one* constraint.
+    #[tracing::instrument(target = "r1cs")]
+    pub fn square(&self) -> Result<Self, SynthesisError> {
+        Ok(self.mul(self))
+    }
+
+    /// Outputs `result` such that `result * self = 1`.
+    ///
+    /// This requires *one* constraint.
+    #[tracing::instrument(target = "r1cs")]
+    pub fn inverse(&self) -> Result<Self, SynthesisError> {
+        let inverse = Self::new_witness(self.cs.clone(), || {
+            Ok(self.value.get()?.inverse().unwrap_or(F::zero()))
         })?;
 
-        let one = CS::one();
-        cs.enforce(
-            || "inv_constraint",
-            |lc| &self.variable + lc,
-            |lc| &inverse.variable + lc,
-            |lc| lc + one,
-        );
+        self.cs.enforce_constraint(
+            lc!() + self.variable,
+            lc!() + inverse.variable,
+            lc!() + Variable::One,
+        )?;
         Ok(inverse)
     }
 
-    fn frobenius_map<CS: ConstraintSystem<F>>(
-        &self,
-        _: CS,
-        _: usize,
-    ) -> Result<Self, SynthesisError> {
+    /// This is a no-op for prime fields.
+    #[tracing::instrument(target = "r1cs")]
+    pub fn frobenius_map(&self, _: usize) -> Result<Self, SynthesisError> {
         Ok(self.clone())
     }
 
-    fn frobenius_map_in_place<CS: ConstraintSystem<F>>(
-        &mut self,
-        _: CS,
-        _: usize,
-    ) -> Result<&mut Self, SynthesisError> {
-        Ok(self)
+    /// Enforces that `self * other = result`.
+    ///
+    /// This requires *one* constraint.
+    #[tracing::instrument(target = "r1cs")]
+    pub fn mul_equals(&self, other: &Self, result: &Self) -> Result<(), SynthesisError> {
+        self.cs.enforce_constraint(
+            lc!() + self.variable,
+            lc!() + other.variable,
+            lc!() + result.variable,
+        )
     }
 
-    fn mul_equals<CS: ConstraintSystem<F>>(
+    /// Enforces that `self * self = result`.
+    ///
+    /// This requires *one* constraint.
+    #[tracing::instrument(target = "r1cs")]
+    pub fn square_equals(&self, result: &Self) -> Result<(), SynthesisError> {
+        self.cs.enforce_constraint(
+            lc!() + self.variable,
+            lc!() + self.variable,
+            lc!() + result.variable,
+        )
+    }
+
+    /// Outputs the bit `self == other`.
+    ///
+    /// This requires three constraints.
+    #[tracing::instrument(target = "r1cs")]
+    pub fn is_eq(&self, other: &Self) -> Result<Boolean<F>, SynthesisError> {
+        Ok(self.is_neq(other)?.not())
+    }
+
+    /// Outputs the bit `self != other`.
+    ///
+    /// This requires three constraints.
+    #[tracing::instrument(target = "r1cs")]
+    pub fn is_neq(&self, other: &Self) -> Result<Boolean<F>, SynthesisError> {
+        let is_not_equal = Boolean::new_witness(self.cs.clone(), || {
+            Ok(self.value.get()? != other.value.get()?)
+        })?;
+        let multiplier = self.cs.new_witness_variable(|| {
+            if is_not_equal.value()? {
+                (self.value.get()? - other.value.get()?).inverse().get()
+            } else {
+                Ok(F::one())
+            }
+        })?;
+
+        // Completeness:
+        // Case 1: self != other:
+        // ----------------------
+        //   constraint 1:
+        //   (self - other) * multiplier = is_not_equal
+        //   => (non_zero) * multiplier = 1 (satisfied, because multiplier = 1/(self - other)
+        //
+        //   constraint 2:
+        //   (self - other) * not(is_not_equal) = 0
+        //   => (non_zero) * not(1) = 0
+        //   => (non_zero) * 0 = 0
+        //
+        // Case 2: self == other:
+        // ----------------------
+        //   constraint 1:
+        //   (self - other) * multiplier = is_not_equal
+        //   => 0 * multiplier = 0 (satisfied, because multiplier = 1
+        //
+        //   constraint 2:
+        //   (self - other) * not(is_not_equal) = 0
+        //   => 0 * not(0) = 0
+        //   => 0 * 1 = 0
+        //
+        // --------------------------------------------------------------------
+        //
+        // Soundness:
+        // Case 1: self != other, but is_not_equal = 0.
+        // --------------------------------------------
+        //   constraint 1:
+        //   (self - other) * multiplier = is_not_equal
+        //   => non_zero * multiplier = 0 (only satisfiable if multiplier == 0)
+        //
+        //   constraint 2:
+        //   (self - other) * not(is_not_equal) = 0
+        //   => (non_zero) * 1 = 0 (impossible)
+        //
+        // Case 2: self == other, but is_not_equal = 1.
+        // --------------------------------------------
+        //   constraint 1:
+        //   (self - other) * multiplier = is_not_equal
+        //   0 * multiplier = 1 (unsatisfiable)
+        self.cs.enforce_constraint(
+            lc!() + self.variable - other.variable,
+            lc!() + multiplier,
+            is_not_equal.lc(),
+        )?;
+        self.cs.enforce_constraint(
+            lc!() + self.variable - other.variable,
+            is_not_equal.not().lc(),
+            lc!(),
+        )?;
+        Ok(is_not_equal)
+    }
+
+    /// Enforces that self == other if `should_enforce.is_eq(&Boolean::TRUE)`.
+    ///
+    /// This requires one constraint.
+    #[tracing::instrument(target = "r1cs")]
+    pub fn conditional_enforce_equal(
         &self,
-        mut cs: CS,
         other: &Self,
-        result: &Self,
+        should_enforce: &Boolean<F>,
     ) -> Result<(), SynthesisError> {
-        cs.enforce(
-            || "mul_constraint",
-            |lc| &self.variable + lc,
-            |lc| &other.variable + lc,
-            |lc| &result.variable + lc,
-        );
-        Ok(())
+        self.cs.enforce_constraint(
+            lc!() + self.variable - other.variable,
+            lc!() + should_enforce.lc(),
+            lc!(),
+        )
     }
 
-    fn square_equals<CS: ConstraintSystem<F>>(
+    /// Enforces that self != other if `should_enforce.is_eq(&Boolean::TRUE)`.
+    ///
+    /// This requires one constraint.
+    #[tracing::instrument(target = "r1cs")]
+    pub fn conditional_enforce_not_equal(
         &self,
-        mut cs: CS,
-        result: &Self,
-    ) -> Result<(), SynthesisError> {
-        cs.enforce(
-            || "sqr_constraint",
-            |lc| &self.variable + lc,
-            |lc| &self.variable + lc,
-            |lc| &result.variable + lc,
-        );
-        Ok(())
-    }
-
-    fn cost_of_mul() -> usize {
-        1
-    }
-
-    fn cost_of_mul_equals() -> usize {
-        1
-    }
-
-    fn cost_of_inv() -> usize {
-        1
-    }
-}
-
-impl<F: PrimeField> PartialEq for FpGadget<F> {
-    fn eq(&self, other: &Self) -> bool {
-        self.value.is_some() && other.value.is_some() && self.value == other.value
-    }
-}
-
-impl<F: PrimeField> Eq for FpGadget<F> {}
-
-impl<F: PrimeField> EqGadget<F> for FpGadget<F> {}
-
-impl<F: PrimeField> ConditionalEqGadget<F> for FpGadget<F> {
-    #[inline]
-    fn conditional_enforce_equal<CS: ConstraintSystem<F>>(
-        &self,
-        mut cs: CS,
         other: &Self,
-        condition: &Boolean,
+        should_enforce: &Boolean<F>,
     ) -> Result<(), SynthesisError> {
-        let difference = self.sub(cs.ns(|| "difference"), other)?;
-        let one = CS::one();
-        let one_const = F::one();
-        cs.enforce(
-            || "conditional_equals",
-            |lc| &difference.variable + lc,
-            |lc| lc + &condition.lc(one, one_const),
-            |lc| lc,
-        );
-        Ok(())
-    }
+        let multiplier = Self::new_witness(self.cs.clone(), || {
+            if should_enforce.value()? {
+                (self.value.get()? - other.value.get()?).inverse().get()
+            } else {
+                Ok(F::zero())
+            }
+        })?;
 
-    fn cost() -> usize {
-        1
+        self.cs.enforce_constraint(
+            lc!() + self.variable - other.variable,
+            lc!() + multiplier.variable,
+            should_enforce.lc(),
+        )?;
+        Ok(())
     }
 }
 
-impl<F: PrimeField> NEqGadget<F> for FpGadget<F> {
-    #[inline]
-    fn enforce_not_equal<CS: ConstraintSystem<F>>(
-        &self,
-        mut cs: CS,
-        other: &Self,
-    ) -> Result<(), SynthesisError> {
-        let a_minus_b = self.sub(cs.ns(|| "A - B"), other)?;
-        a_minus_b.inverse(cs.ns(|| "Enforce inverse exists"))?;
-        Ok(())
-    }
+/****************************************************************************/
+/****************************************************************************/
 
-    fn cost() -> usize {
-        1
-    }
-}
-
-impl<F: PrimeField> ToBitsGadget<F> for FpGadget<F> {
-    /// Outputs the unique bit-wise decomposition of `self` in *big-endian*
+impl<F: PrimeField> ToBitsGadget<F> for AllocatedFp<F> {
+    /// Outputs the unique bit-wise decomposition of `self` in *little-endian*
     /// form.
-    fn to_bits<CS: ConstraintSystem<F>>(&self, mut cs: CS) -> Result<Vec<Boolean>, SynthesisError> {
-        let bits = self.to_non_unique_bits(&mut cs)?;
-        Boolean::enforce_in_field::<_, _, F>(&mut cs, &bits)?;
+    ///
+    /// This method enforces that the output is in the field, i.e.
+    /// it invokes `Boolean::enforce_in_field_le` on the bit decomposition.
+    #[tracing::instrument(target = "r1cs")]
+    fn to_bits_le(&self) -> Result<Vec<Boolean<F>>, SynthesisError> {
+        let bits = self.to_non_unique_bits_le()?;
+        Boolean::enforce_in_field_le(&bits)?;
         Ok(bits)
     }
 
-    fn to_non_unique_bits<CS: ConstraintSystem<F>>(
-        &self,
-        mut cs: CS,
-    ) -> Result<Vec<Boolean>, SynthesisError> {
-        let num_bits = F::Params::MODULUS_BITS;
-        use algebra::BitIterator;
-        let bit_values = match self.value {
-            Some(value) => {
-                let mut field_char = BitIterator::new(F::characteristic());
-                let mut tmp = Vec::with_capacity(num_bits as usize);
-                let mut found_one = false;
-                for b in BitIterator::new(value.into_repr()) {
-                    // Skip leading bits
-                    found_one |= field_char.next().unwrap();
-                    if !found_one {
-                        continue;
-                    }
-
-                    tmp.push(Some(b));
-                }
-
-                assert_eq!(tmp.len(), num_bits as usize);
-
-                tmp
-            }
-            None => vec![None; num_bits as usize],
+    #[tracing::instrument(target = "r1cs")]
+    fn to_non_unique_bits_le(&self) -> Result<Vec<Boolean<F>>, SynthesisError> {
+        let cs = self.cs.clone();
+        use algebra::BitIteratorBE;
+        let mut bits = if let Some(value) = self.value {
+            let field_char = BitIteratorBE::new(F::characteristic());
+            let bits: Vec<_> = BitIteratorBE::new(value.into_repr())
+                .zip(field_char)
+                .skip_while(|(_, c)| !c)
+                .map(|(b, _)| Some(b))
+                .collect();
+            assert_eq!(bits.len(), F::Params::MODULUS_BITS as usize);
+            bits
+        } else {
+            vec![None; F::Params::MODULUS_BITS as usize]
         };
 
-        let mut bits = vec![];
-        for (i, b) in bit_values.into_iter().enumerate() {
-            bits.push(AllocatedBit::alloc(cs.ns(|| format!("bit {}", i)), || {
-                b.get()
-            })?);
-        }
+        // Convert to little-endian
+        bits.reverse();
+
+        let bits: Vec<_> = bits
+            .into_iter()
+            .map(|b| Boolean::new_witness(cs.clone(), || b.get()))
+            .collect::<Result<_, _>>()?;
 
         let mut lc = LinearCombination::zero();
         let mut coeff = F::one();
 
-        for bit in bits.iter().rev() {
-            lc += (coeff, bit.get_variable());
+        for bit in bits.iter() {
+            lc = &lc + bit.lc() * coeff;
 
             coeff.double_in_place();
         }
 
-        lc = &self.variable - lc;
+        lc = lc - &self.variable;
 
-        cs.enforce(|| "unpacking_constraint", |lc| lc, |lc| lc, |_| lc);
+        cs.enforce_constraint(lc!(), lc!(), lc)?;
 
-        Ok(bits.into_iter().map(Boolean::from).collect())
+        Ok(bits)
     }
 }
 
-impl<F: PrimeField> ToBytesGadget<F> for FpGadget<F> {
+impl<F: PrimeField> ToBytesGadget<F> for AllocatedFp<F> {
     /// Outputs the unique byte decomposition of `self` in *little-endian*
     /// form.
-    fn to_bytes<CS: ConstraintSystem<F>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
-        let bytes = self.to_non_unique_bytes(&mut cs)?;
-        Boolean::enforce_in_field::<_, _, F>(
-            &mut cs,
-            &bytes.iter()
-                .flat_map(|byte_gadget| byte_gadget.into_bits_le())
-                // This reverse maps the bits into big-endian form, as required by `enforce_in_field`.
-                .rev()
-                .collect::<Vec<_>>(),
-        )?;
-
+    ///
+    /// This method enforces that the decomposition represents
+    /// an integer that is less than `F::MODULUS`.
+    #[tracing::instrument(target = "r1cs")]
+    fn to_bytes(&self) -> Result<Vec<UInt8<F>>, SynthesisError> {
+        let num_bits = F::BigInt::NUM_LIMBS * 64;
+        let mut bits = self.to_bits_le()?;
+        let remainder = core::iter::repeat(Boolean::constant(false)).take(num_bits - bits.len());
+        bits.extend(remainder);
+        let bytes = bits
+            .chunks(8)
+            .map(|chunk| UInt8::from_bits_le(chunk))
+            .collect();
         Ok(bytes)
     }
 
-    fn to_non_unique_bytes<CS: ConstraintSystem<F>>(
-        &self,
-        mut cs: CS,
-    ) -> Result<Vec<UInt8>, SynthesisError> {
-        let byte_values = match self.value {
-            Some(value) => to_bytes![&value.into_repr()]?
-                .into_iter()
-                .map(Some)
-                .collect::<Vec<_>>(),
-            None => {
-                let default = F::default();
-                let default_len = to_bytes![&default].unwrap().len();
-                vec![None; default_len]
-            }
-        };
-
-        let bytes = UInt8::alloc_vec(cs.ns(|| "Alloc bytes"), &byte_values)?;
-
-        let mut lc = LinearCombination::zero();
-        let mut coeff = F::one();
-
-        for bit in bytes
-            .iter()
-            .flat_map(|byte_gadget| byte_gadget.bits.clone())
-        {
-            match bit {
-                Boolean::Is(bit) => {
-                    lc += (coeff, bit.get_variable());
-                    coeff.double_in_place();
-                }
-                Boolean::Constant(_) | Boolean::Not(_) => unreachable!(),
-            }
-        }
-
-        lc = &self.variable - lc;
-
-        cs.enforce(|| "unpacking_constraint", |lc| lc, |lc| lc, |_| lc);
-
+    #[tracing::instrument(target = "r1cs")]
+    fn to_non_unique_bytes(&self) -> Result<Vec<UInt8<F>>, SynthesisError> {
+        let num_bits = F::BigInt::NUM_LIMBS * 64;
+        let mut bits = self.to_non_unique_bits_le()?;
+        let remainder = core::iter::repeat(Boolean::constant(false)).take(num_bits - bits.len());
+        bits.extend(remainder);
+        let bytes = bits
+            .chunks(8)
+            .map(|chunk| UInt8::from_bits_le(chunk))
+            .collect();
         Ok(bytes)
     }
 }
 
-impl<F: PrimeField> CondSelectGadget<F> for FpGadget<F> {
+impl<F: PrimeField> ToConstraintFieldGadget<F> for AllocatedFp<F> {
+    #[tracing::instrument(target = "r1cs")]
+    fn to_constraint_field(&self) -> Result<Vec<FpVar<F>>, SynthesisError> {
+        Ok(vec![self.clone().into()])
+    }
+}
+
+impl<F: PrimeField> CondSelectGadget<F> for AllocatedFp<F> {
     #[inline]
-    fn conditionally_select<CS: ConstraintSystem<F>>(
-        mut cs: CS,
-        cond: &Boolean,
+    #[tracing::instrument(target = "r1cs")]
+    fn conditionally_select(
+        cond: &Boolean<F>,
+        true_val: &Self,
+        false_val: &Self,
+    ) -> Result<Self, SynthesisError> {
+        match cond {
+            Boolean::Constant(true) => Ok(true_val.clone()),
+            Boolean::Constant(false) => Ok(false_val.clone()),
+            _ => {
+                let cs = cond.cs();
+                let result = Self::new_witness(cs.clone(), || {
+                    cond.value()
+                        .and_then(|c| if c { true_val } else { false_val }.value.get())
+                })?;
+                // a = self; b = other; c = cond;
+                //
+                // r = c * a + (1  - c) * b
+                // r = b + c * (a - b)
+                // c * (a - b) = r - b
+                cs.enforce_constraint(
+                    cond.lc(),
+                    lc!() + true_val.variable - false_val.variable,
+                    lc!() + result.variable - false_val.variable,
+                )?;
+
+                Ok(result)
+            }
+        }
+    }
+}
+
+/// Uses two bits to perform a lookup into a table
+/// `b` is little-endian: `b[0]` is LSB.
+impl<F: PrimeField> TwoBitLookupGadget<F> for AllocatedFp<F> {
+    type TableConstant = F;
+    #[tracing::instrument(target = "r1cs")]
+    fn two_bit_lookup(b: &[Boolean<F>], c: &[Self::TableConstant]) -> Result<Self, SynthesisError> {
+        debug_assert_eq!(b.len(), 2);
+        debug_assert_eq!(c.len(), 4);
+        let result = Self::new_witness(b.cs(), || {
+            let lsb = usize::from(b[0].value()?);
+            let msb = usize::from(b[1].value()?);
+            let index = lsb + (msb << 1);
+            Ok(c[index])
+        })?;
+        let one = Variable::One;
+        b.cs().enforce_constraint(
+            lc!() + b[1].lc() * (c[3] - &c[2] - &c[1] + &c[0]) + (c[1] - &c[0], one),
+            lc!() + b[0].lc(),
+            lc!() + result.variable - (c[0], one) + b[1].lc() * (c[0] - &c[2]),
+        )?;
+
+        Ok(result)
+    }
+}
+
+impl<F: PrimeField> ThreeBitCondNegLookupGadget<F> for AllocatedFp<F> {
+    type TableConstant = F;
+
+    #[tracing::instrument(target = "r1cs")]
+    fn three_bit_cond_neg_lookup(
+        b: &[Boolean<F>],
+        b0b1: &Boolean<F>,
+        c: &[Self::TableConstant],
+    ) -> Result<Self, SynthesisError> {
+        debug_assert_eq!(b.len(), 3);
+        debug_assert_eq!(c.len(), 4);
+        let result = Self::new_witness(b.cs(), || {
+            let lsb = usize::from(b[0].value()?);
+            let msb = usize::from(b[1].value()?);
+            let index = lsb + (msb << 1);
+            let intermediate = c[index];
+
+            let is_negative = b[2].value()?;
+            let y = if is_negative {
+                -intermediate
+            } else {
+                intermediate
+            };
+            Ok(y)
+        })?;
+
+        let y_lc = b0b1.lc() * (c[3] - &c[2] - &c[1] + &c[0])
+            + b[0].lc() * (c[1] - &c[0])
+            + b[1].lc() * (c[2] - &c[0])
+            + (c[0], Variable::One);
+        b.cs().enforce_constraint(
+            y_lc.clone() + y_lc.clone(),
+            b[2].lc(),
+            y_lc.clone() - result.variable,
+        )?;
+
+        Ok(result)
+    }
+}
+
+impl<F: PrimeField> AllocVar<F, F> for AllocatedFp<F> {
+    fn new_variable<T: Borrow<F>>(
+        cs: impl Into<Namespace<F>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        let ns = cs.into();
+        let cs = ns.cs();
+        if mode == AllocationMode::Constant {
+            let v = *f()?.borrow();
+            let lc = cs.new_lc(lc!() + (v, Variable::One))?;
+            Ok(Self::new(Some(v), lc, cs))
+        } else {
+            let mut value = None;
+            let value_generator = || {
+                value = Some(*f()?.borrow());
+                value.ok_or(SynthesisError::AssignmentMissing)
+            };
+            let variable = if mode == AllocationMode::Input {
+                cs.new_input_variable(value_generator)?
+            } else {
+                cs.new_witness_variable(value_generator)?
+            };
+            Ok(Self::new(value, variable, cs.clone()))
+        }
+    }
+}
+
+impl<F: PrimeField> FieldVar<F, F> for FpVar<F> {
+    fn constant(f: F) -> Self {
+        Self::Constant(f)
+    }
+
+    fn zero() -> Self {
+        Self::Constant(F::zero())
+    }
+
+    fn one() -> Self {
+        Self::Constant(F::one())
+    }
+
+    #[tracing::instrument(target = "r1cs")]
+    fn double(&self) -> Result<Self, SynthesisError> {
+        match self {
+            Self::Constant(c) => Ok(Self::Constant(c.double())),
+            Self::Var(v) => Ok(Self::Var(v.double()?)),
+        }
+    }
+
+    #[tracing::instrument(target = "r1cs")]
+    fn negate(&self) -> Result<Self, SynthesisError> {
+        match self {
+            Self::Constant(c) => Ok(Self::Constant(-*c)),
+            Self::Var(v) => Ok(Self::Var(v.negate())),
+        }
+    }
+
+    #[tracing::instrument(target = "r1cs")]
+    fn square(&self) -> Result<Self, SynthesisError> {
+        match self {
+            Self::Constant(c) => Ok(Self::Constant(c.square())),
+            Self::Var(v) => Ok(Self::Var(v.square()?)),
+        }
+    }
+
+    /// Enforce that `self * other == result`.
+    #[tracing::instrument(target = "r1cs")]
+    fn mul_equals(&self, other: &Self, result: &Self) -> Result<(), SynthesisError> {
+        use FpVar::*;
+        match (self, other, result) {
+            (Constant(_), Constant(_), Constant(_)) => Ok(()),
+            (Constant(_), Constant(_), _) | (Constant(_), Var(_), _) | (Var(_), Constant(_), _) => {
+                result.enforce_equal(&(self * other))
+            } // this multiplication should be free
+            (Var(v1), Var(v2), Var(v3)) => v1.mul_equals(v2, v3),
+            (Var(v1), Var(v2), Constant(f)) => {
+                let cs = v1.cs.clone();
+                let v3 = AllocatedFp::new_constant(cs.clone(), f).unwrap();
+                v1.mul_equals(v2, &v3)
+            }
+        }
+    }
+
+    /// Enforce that `self * self == result`.
+    #[tracing::instrument(target = "r1cs")]
+    fn square_equals(&self, result: &Self) -> Result<(), SynthesisError> {
+        use FpVar::*;
+        match (self, result) {
+            (Constant(_), Constant(_)) => Ok(()),
+            (Constant(f), Var(r)) => {
+                let cs = r.cs.clone();
+                let v = AllocatedFp::new_witness(cs, || Ok(f))?;
+                v.square_equals(&r)
+            }
+            (Var(v), Constant(f)) => {
+                let cs = v.cs.clone();
+                let r = AllocatedFp::new_witness(cs, || Ok(f))?;
+                v.square_equals(&r)
+            }
+            (Var(v1), Var(v2)) => v1.square_equals(v2),
+        }
+    }
+
+    #[tracing::instrument(target = "r1cs")]
+    fn inverse(&self) -> Result<Self, SynthesisError> {
+        match self {
+            FpVar::Var(v) => v.inverse().map(FpVar::Var),
+            FpVar::Constant(f) => f.inverse().get().map(FpVar::Constant),
+        }
+    }
+
+    /// Returns (self / denominator), but requires fewer constraints than
+    /// self * denominator.inverse()
+    /// It is up to the caller to ensure that denominator is non-zero,
+    /// since in that case the result is unconstrained.
+    #[tracing::instrument(target = "r1cs")]
+    fn mul_by_inverse(&self, denominator: &Self) -> Result<Self, SynthesisError> {
+        use FpVar::*;
+        match (self, denominator) {
+            (Constant(s), Constant(d)) => Ok(Constant(*s / *d)),
+            (Var(s), Constant(d)) => Ok(Var(s.mul_constant(d.inverse().get()?))),
+            (Constant(s), Var(d)) => Ok(Var(d.inverse()?.mul_constant(*s))),
+            (Var(s), Var(d)) => Ok(Var(d.inverse()?.mul(s))),
+        }
+    }
+
+    #[tracing::instrument(target = "r1cs")]
+    fn frobenius_map(&self, power: usize) -> Result<Self, SynthesisError> {
+        match self {
+            FpVar::Var(v) => v.frobenius_map(power).map(FpVar::Var),
+            FpVar::Constant(f) => {
+                let mut f = *f;
+                f.frobenius_map(power);
+                Ok(FpVar::Constant(f))
+            }
+        }
+    }
+
+    #[tracing::instrument(target = "r1cs")]
+    fn frobenius_map_in_place(&mut self, power: usize) -> Result<&mut Self, SynthesisError> {
+        *self = self.frobenius_map(power)?;
+        Ok(self)
+    }
+}
+
+/****************************************************************************/
+/****************************************************************************/
+
+impl_ops!(
+    FpVar<F>,
+    F,
+    Add,
+    add,
+    AddAssign,
+    add_assign,
+    |this: &'a FpVar<F>, other: &'a FpVar<F>| {
+        use FpVar::*;
+        match (this, other) {
+            (Constant(c1), Constant(c2)) => Constant(*c1 + *c2),
+            (Constant(c), Var(v)) | (Var(v), Constant(c)) => Var(v.add_constant(*c)),
+            (Var(v1), Var(v2)) => Var(v1.add(v2)),
+        }
+    },
+    |this: &'a FpVar<F>, other: F| { this + &FpVar::Constant(other) },
+    F: PrimeField,
+);
+
+impl_ops!(
+    FpVar<F>,
+    F,
+    Sub,
+    sub,
+    SubAssign,
+    sub_assign,
+    |this: &'a FpVar<F>, other: &'a FpVar<F>| {
+        use FpVar::*;
+        match (this, other) {
+            (Constant(c1), Constant(c2)) => Constant(*c1 - *c2),
+            (Var(v), Constant(c)) => Var(v.sub_constant(*c)),
+            (Constant(c), Var(v)) => Var(v.sub_constant(*c).negate()),
+            (Var(v1), Var(v2)) => Var(v1.sub(v2)),
+        }
+    },
+    |this: &'a FpVar<F>, other: F| { this - &FpVar::Constant(other) },
+    F: PrimeField
+);
+
+impl_ops!(
+    FpVar<F>,
+    F,
+    Mul,
+    mul,
+    MulAssign,
+    mul_assign,
+    |this: &'a FpVar<F>, other: &'a FpVar<F>| {
+        use FpVar::*;
+        match (this, other) {
+            (Constant(c1), Constant(c2)) => Constant(*c1 * *c2),
+            (Constant(c), Var(v)) | (Var(v), Constant(c)) => Var(v.mul_constant(*c)),
+            (Var(v1), Var(v2)) => Var(v1.mul(v2)),
+        }
+    },
+    |this: &'a FpVar<F>, other: F| {
+        if other.is_zero() {
+            FpVar::zero()
+        } else {
+            this * &FpVar::Constant(other)
+        }
+    },
+    F: PrimeField
+);
+
+/****************************************************************************/
+/****************************************************************************/
+
+impl<F: PrimeField> EqGadget<F> for FpVar<F> {
+    #[tracing::instrument(target = "r1cs")]
+    fn is_eq(&self, other: &Self) -> Result<Boolean<F>, SynthesisError> {
+        match (self, other) {
+            (Self::Constant(c1), Self::Constant(c2)) => Ok(Boolean::Constant(c1 == c2)),
+            (Self::Constant(c), Self::Var(v)) | (Self::Var(v), Self::Constant(c)) => {
+                let cs = v.cs.clone();
+                let c = AllocatedFp::new_constant(cs, c)?;
+                c.is_eq(v)
+            }
+            (Self::Var(v1), Self::Var(v2)) => v1.is_eq(v2),
+        }
+    }
+
+    #[tracing::instrument(target = "r1cs")]
+    fn conditional_enforce_equal(
+        &self,
+        other: &Self,
+        should_enforce: &Boolean<F>,
+    ) -> Result<(), SynthesisError> {
+        match (self, other) {
+            (Self::Constant(_), Self::Constant(_)) => Ok(()),
+            (Self::Constant(c), Self::Var(v)) | (Self::Var(v), Self::Constant(c)) => {
+                let cs = v.cs.clone();
+                let c = AllocatedFp::new_constant(cs, c)?;
+                c.conditional_enforce_equal(v, should_enforce)
+            }
+            (Self::Var(v1), Self::Var(v2)) => v1.conditional_enforce_equal(v2, should_enforce),
+        }
+    }
+
+    #[tracing::instrument(target = "r1cs")]
+    fn conditional_enforce_not_equal(
+        &self,
+        other: &Self,
+        should_enforce: &Boolean<F>,
+    ) -> Result<(), SynthesisError> {
+        match (self, other) {
+            (Self::Constant(_), Self::Constant(_)) => Ok(()),
+            (Self::Constant(c), Self::Var(v)) | (Self::Var(v), Self::Constant(c)) => {
+                let cs = v.cs.clone();
+                let c = AllocatedFp::new_constant(cs, c)?;
+                c.conditional_enforce_not_equal(v, should_enforce)
+            }
+            (Self::Var(v1), Self::Var(v2)) => v1.conditional_enforce_not_equal(v2, should_enforce),
+        }
+    }
+}
+
+impl<F: PrimeField> ToBitsGadget<F> for FpVar<F> {
+    #[tracing::instrument(target = "r1cs")]
+    fn to_bits_le(&self) -> Result<Vec<Boolean<F>>, SynthesisError> {
+        match self {
+            Self::Constant(_) => self.to_non_unique_bits_le(),
+            Self::Var(v) => v.to_bits_le(),
+        }
+    }
+
+    #[tracing::instrument(target = "r1cs")]
+    fn to_non_unique_bits_le(&self) -> Result<Vec<Boolean<F>>, SynthesisError> {
+        use algebra::BitIteratorLE;
+        match self {
+            Self::Constant(c) => Ok(BitIteratorLE::without_trailing_zeros(&c.into_repr())
+                .map(Boolean::constant)
+                .collect::<Vec<_>>()),
+            Self::Var(v) => v.to_non_unique_bits_le(),
+        }
+    }
+}
+
+impl<F: PrimeField> ToBytesGadget<F> for FpVar<F> {
+    /// Outputs the unique byte decomposition of `self` in *little-endian*
+    /// form.
+    #[tracing::instrument(target = "r1cs")]
+    fn to_bytes(&self) -> Result<Vec<UInt8<F>>, SynthesisError> {
+        match self {
+            Self::Constant(c) => Ok(UInt8::constant_vec(&to_bytes![c].unwrap())),
+            Self::Var(v) => v.to_bytes(),
+        }
+    }
+
+    #[tracing::instrument(target = "r1cs")]
+    fn to_non_unique_bytes(&self) -> Result<Vec<UInt8<F>>, SynthesisError> {
+        match self {
+            Self::Constant(c) => Ok(UInt8::constant_vec(&to_bytes![c].unwrap())),
+            Self::Var(v) => v.to_non_unique_bytes(),
+        }
+    }
+}
+
+impl<F: PrimeField> ToConstraintFieldGadget<F> for FpVar<F> {
+    #[tracing::instrument(target = "r1cs")]
+    fn to_constraint_field(&self) -> Result<Vec<FpVar<F>>, SynthesisError> {
+        Ok(vec![self.clone()])
+    }
+}
+
+impl<F: PrimeField> CondSelectGadget<F> for FpVar<F> {
+    #[tracing::instrument(target = "r1cs")]
+    fn conditionally_select(
+        cond: &Boolean<F>,
         true_value: &Self,
         false_value: &Self,
     ) -> Result<Self, SynthesisError> {
-        if let Boolean::Constant(cond) = *cond {
-            if cond {
-                Ok(true_value.clone())
-            } else {
-                Ok(false_value.clone())
+        match cond {
+            Boolean::Constant(true) => Ok(true_value.clone()),
+            Boolean::Constant(false) => Ok(false_value.clone()),
+            _ => {
+                match (true_value, false_value) {
+                    (Self::Constant(t), Self::Constant(f)) => {
+                        let is = AllocatedFp::from(cond.clone());
+                        let not = AllocatedFp::from(cond.not());
+                        // cond * t + (1 - cond) * f
+                        Ok(is.mul_constant(*t).add(&not.mul_constant(*f)).into())
+                    }
+                    (_, _) => {
+                        let cs = cond.cs();
+                        let true_value = match true_value {
+                            Self::Constant(f) => AllocatedFp::new_constant(cs.clone(), f)?,
+                            Self::Var(v) => v.clone(),
+                        };
+                        let false_value = match false_value {
+                            Self::Constant(f) => AllocatedFp::new_constant(cs.clone(), f)?,
+                            Self::Var(v) => v.clone(),
+                        };
+                        cond.select(&true_value, &false_value).map(Self::Var)
+                    }
+                }
             }
-        } else {
-            let result = Self::alloc(cs.ns(|| ""), || {
-                cond.get_value()
-                    .and_then(|cond| if cond { true_value } else { false_value }.get_value())
-                    .get()
-            })?;
-            // a = self; b = other; c = cond;
-            //
-            // r = c * a + (1  - c) * b
-            // r = b + c * (a - b)
-            // c * (a - b) = r - b
-            let one = CS::one();
-            cs.enforce(
-                || "conditionally_select",
-                |_| cond.lc(one, F::one()),
-                |lc| (&true_value.variable - &false_value.variable) + lc,
-                |lc| (&result.variable - &false_value.variable) + lc,
-            );
-
-            Ok(result)
         }
     }
-
-    fn cost() -> usize {
-        1
-    }
 }
+
 /// Uses two bits to perform a lookup into a table
 /// `b` is little-endian: `b[0]` is LSB.
-impl<F: PrimeField> TwoBitLookupGadget<F> for FpGadget<F> {
-    type TableConstant = F;
-    fn two_bit_lookup<CS: ConstraintSystem<F>>(
-        mut cs: CS,
-        b: &[Boolean],
-        c: &[Self::TableConstant],
-    ) -> Result<Self, SynthesisError> {
-        debug_assert!(b.len() == 2);
-        debug_assert!(c.len() == 4);
-
-        let result = Self::alloc(cs.ns(|| "Allocate lookup result"), || {
-            match (b[0].get_value().get()?, b[1].get_value().get()?) {
-                (false, false) => Ok(c[0]),
-                (false, true) => Ok(c[2]),
-                (true, false) => Ok(c[1]),
-                (true, true) => Ok(c[3]),
-            }
-        })?;
-        let one = CS::one();
-        cs.enforce(
-            || "Enforce lookup",
-            |lc| lc + b[1].lc(one, c[3] - &c[2] - &c[1] + &c[0]) + (c[1] - &c[0], one),
-            |lc| lc + b[0].lc(one, F::one()),
-            |lc| result.get_variable() + lc + (-c[0], one) + b[1].lc(one, c[0] - &c[2]),
-        );
-
-        Ok(result)
-    }
-
-    fn cost() -> usize {
-        1
-    }
-}
-
-impl<F: PrimeField> ThreeBitCondNegLookupGadget<F> for FpGadget<F> {
+impl<F: PrimeField> TwoBitLookupGadget<F> for FpVar<F> {
     type TableConstant = F;
 
-    fn three_bit_cond_neg_lookup<CS: ConstraintSystem<F>>(
-        mut cs: CS,
-        b: &[Boolean],
-        b0b1: &Boolean,
-        c: &[Self::TableConstant],
-    ) -> Result<Self, SynthesisError> {
-        debug_assert!(b.len() == 3);
-        debug_assert!(c.len() == 4);
-
-        let result = Self::alloc(cs.ns(|| "Allocate lookup result"), || {
-            let y = match (b[0].get_value().get()?, b[1].get_value().get()?) {
-                (false, false) => c[0],
-                (false, true) => c[2],
-                (true, false) => c[1],
-                (true, true) => c[3],
-            };
-            if b[2].get_value().get()? {
-                Ok(-y)
-            } else {
-                Ok(y)
-            }
-        })?;
-
-        let one = CS::one();
-        let y_lc = b0b1.lc(one, c[3] - &c[2] - &c[1] + &c[0])
-            + b[0].lc(one, c[1] - &c[0])
-            + b[1].lc(one, c[2] - &c[0])
-            + (c[0], one);
-        cs.enforce(
-            || "Enforce lookup",
-            |_| y_lc.clone() + y_lc.clone(),
-            |lc| lc + b[2].lc(one, F::one()),
-            |_| -result.get_variable() + y_lc.clone(),
-        );
-
-        Ok(result)
-    }
-
-    fn cost() -> usize {
-        2
-    }
-}
-
-impl<F: PrimeField> Clone for FpGadget<F> {
-    fn clone(&self) -> Self {
-        Self {
-            value: self.value.clone(),
-            variable: self.variable.clone(),
+    #[tracing::instrument(target = "r1cs")]
+    fn two_bit_lookup(b: &[Boolean<F>], c: &[Self::TableConstant]) -> Result<Self, SynthesisError> {
+        debug_assert_eq!(b.len(), 2);
+        debug_assert_eq!(c.len(), 4);
+        if b.is_constant() {
+            let lsb = usize::from(b[0].value()?);
+            let msb = usize::from(b[1].value()?);
+            let index = lsb + (msb << 1);
+            Ok(Self::Constant(c[index]))
+        } else {
+            AllocatedFp::two_bit_lookup(b, c).map(Self::Var)
         }
     }
 }
 
-impl<F: PrimeField> AllocGadget<F, F> for FpGadget<F> {
-    #[inline]
-    fn alloc_constant<T, CS: ConstraintSystem<F>>(_cs: CS, t: T) -> Result<Self, SynthesisError>
-    where
-        T: Borrow<F>,
-    {
-        let value = t.borrow().clone();
-        Ok(Self {
-            value: Some(value),
-            variable: LinearCombination::from((value, CS::one())).into(),
-        })
-    }
+impl<F: PrimeField> ThreeBitCondNegLookupGadget<F> for FpVar<F> {
+    type TableConstant = F;
 
-    #[inline]
-    fn alloc<FN, T, CS: ConstraintSystem<F>>(
-        mut cs: CS,
-        value_gen: FN,
-    ) -> Result<Self, SynthesisError>
-    where
-        FN: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<F>,
-    {
-        let mut value = None;
-        let variable = cs.alloc(
-            || "alloc",
-            || {
-                let tmp = *value_gen()?.borrow();
-                value = Some(tmp);
-                Ok(tmp)
-            },
-        )?;
-        Ok(FpGadget {
-            value,
-            variable: Var(variable),
-        })
-    }
+    #[tracing::instrument(target = "r1cs")]
+    fn three_bit_cond_neg_lookup(
+        b: &[Boolean<F>],
+        b0b1: &Boolean<F>,
+        c: &[Self::TableConstant],
+    ) -> Result<Self, SynthesisError> {
+        debug_assert_eq!(b.len(), 3);
+        debug_assert_eq!(c.len(), 4);
 
-    #[inline]
-    fn alloc_input<FN, T, CS: ConstraintSystem<F>>(
-        mut cs: CS,
-        value_gen: FN,
-    ) -> Result<Self, SynthesisError>
-    where
-        FN: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<F>,
-    {
-        let mut value = None;
-        let variable = cs.alloc_input(
-            || "alloc",
-            || {
-                let tmp = *value_gen()?.borrow();
-                value = Some(tmp);
-                Ok(tmp)
-            },
-        )?;
-        Ok(FpGadget {
-            value,
-            variable: Var(variable),
-        })
+        if !b.cs().or(b0b1.cs()).is_none() {
+            // We only have constants
+
+            let lsb = usize::from(b[0].value()?);
+            let msb = usize::from(b[1].value()?);
+            let index = lsb + (msb << 1);
+            let intermediate = c[index];
+
+            let is_negative = b[2].value()?;
+            let y = if is_negative {
+                -intermediate
+            } else {
+                intermediate
+            };
+            Ok(Self::Constant(y))
+        } else {
+            AllocatedFp::three_bit_cond_neg_lookup(b, b0b1, c).map(Self::Var)
+        }
+    }
+}
+
+impl<F: PrimeField> AllocVar<F, F> for FpVar<F> {
+    fn new_variable<T: Borrow<F>>(
+        cs: impl Into<Namespace<F>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        if mode == AllocationMode::Constant {
+            Ok(Self::Constant(*f()?.borrow()))
+        } else {
+            AllocatedFp::new_variable(cs, f, mode).map(Self::Var)
+        }
     }
 }

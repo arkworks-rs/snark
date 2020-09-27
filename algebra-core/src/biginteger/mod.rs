@@ -1,6 +1,6 @@
 use crate::{
     bytes::{FromBytes, ToBytes},
-    fields::BitIterator,
+    fields::BitIteratorBE,
     io::{Read, Result as IoResult, Write},
     CanonicalDeserialize, CanonicalSerialize, ConstantSerializedSize, SerializationError,
     UniformRand, Vec,
@@ -28,7 +28,7 @@ bigint_impl!(BigInteger1536, 24);
 
 impl<T: BigInteger> CanonicalSerialize for T {
     #[inline]
-    fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
+    fn serialize<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
         self.write(writer)?;
         Ok(())
     }
@@ -46,7 +46,7 @@ impl<T: BigInteger> ConstantSerializedSize for T {
 
 impl<T: BigInteger> CanonicalDeserialize for T {
     #[inline]
-    fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
+    fn deserialize<R: Read>(reader: R) -> Result<Self, SerializationError> {
         let value = Self::read(reader)?;
         Ok(value)
     }

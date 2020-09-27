@@ -37,6 +37,10 @@ fn test_fq3() {
     field_test(a, b);
     sqrt_field_test(a);
     frobenius_test::<Fq3, _>(Fq::characteristic(), 13);
+    assert_eq!(
+        a * Fq6Parameters::NONRESIDUE,
+        <Fp6ParamsWrapper<Fq6Parameters>>::mul_base_field_by_nonresidue(&a)
+    );
 }
 
 #[test]

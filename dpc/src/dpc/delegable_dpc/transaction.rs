@@ -24,7 +24,7 @@ pub struct DPCTransaction<C: DelegableDPCComponents> {
     Eq(bound = "C: DelegableDPCComponents")
 )]
 pub struct DPCStuff<C: DelegableDPCComponents> {
-    pub digest: MerkleTreeDigest<C::MerkleTreeConfig>,
+    pub digest: merkle_tree::Digest<C::MerkleTreeConfig>,
 
     #[derivative(PartialEq = "ignore")]
     pub core_proof: <C::MainNIZK as NIZK>::Proof,
@@ -47,7 +47,7 @@ impl<C: DelegableDPCComponents> DPCTransaction<C> {
         old_serial_numbers: Vec<<Self as Transaction>::SerialNumber>,
         new_commitments: Vec<<Self as Transaction>::Commitment>,
         memorandum: <Self as Transaction>::Memorandum,
-        digest: MerkleTreeDigest<C::MerkleTreeConfig>,
+        digest: merkle_tree::Digest<C::MerkleTreeConfig>,
         core_proof: <C::MainNIZK as NIZK>::Proof,
         predicate_proof: <C::ProofCheckNIZK as NIZK>::Proof,
         predicate_comm: <C::PredVkComm as CommitmentScheme>::Output,

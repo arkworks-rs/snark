@@ -2,10 +2,7 @@ use crate::mnt6_753::{Fq, Fq3, Fq3Parameters, FQ_ONE, FQ_ZERO};
 use algebra_core::{
     biginteger::BigInteger768 as BigInteger,
     field_new,
-    fields::{
-        fp3::Fp3Parameters,
-        fp6_2over3::{Fp6, Fp6Parameters},
-    },
+    fields::fp6_2over3::{Fp6, Fp6Parameters},
 };
 
 pub type Fq6 = Fp6<Fq6Parameters>;
@@ -16,11 +13,7 @@ impl Fp6Parameters for Fq6Parameters {
     type Fp3Params = Fq3Parameters;
 
     #[rustfmt::skip]
-    const NONRESIDUE: Fq3 = field_new!(Fq3,
-        Fq3Parameters::NONRESIDUE,
-        FQ_ZERO,
-        FQ_ZERO,
-    );
+    const NONRESIDUE: Fq3 = field_new!(Fq3, FQ_ZERO, FQ_ONE, FQ_ZERO);
 
     // Coefficients for the Frobenius automorphism.
     // c1[0] = 1,

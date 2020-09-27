@@ -7,7 +7,7 @@ use crate::{
         fp12_2over3over2::{Fp12, Fp12Parameters},
         fp2::Fp2Parameters,
         fp6_3over2::Fp6Parameters,
-        BitIterator, Field, Fp2, PrimeField, SquareRootField,
+        BitIteratorBE, Field, Fp2, PrimeField, SquareRootField,
     },
 };
 use num_traits::One;
@@ -105,7 +105,7 @@ impl<P: Bls12Parameters> PairingEngine for Bls12<P> {
 
         let mut f = Self::Fqk::one();
 
-        for i in BitIterator::new(P::X).skip(1) {
+        for i in BitIteratorBE::new(P::X).skip(1) {
             f.square_in_place();
 
             for (p, ref mut coeffs) in &mut pairs {
