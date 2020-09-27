@@ -3,10 +3,7 @@ macro_rules! specialise_affine_to_proj {
     ($GroupProjective: ident) => {
         #[cfg(feature = "prefetch")]
         use crate::prefetch;
-        use crate::{
-            biginteger::BigInteger,
-            curves::batch_arith::{decode_endo_from_u32, ENDO_CODING_BITS},
-        };
+        use crate::batch_arith::decode_endo_from_u32;
 
         #[derive(Derivative)]
         #[derivative(
@@ -59,21 +56,8 @@ macro_rules! specialise_affine_to_proj {
                 &self,
                 by: S,
             ) -> Self::Projective {
-<<<<<<< HEAD
-                let bits = BitIterator::new(by.into());
-                self.mul_bits(bits)=
-=======
-                if P::has_glv() {
-                    let w = 4;
-                    let mut res = Self::Projective::zero();
-                    let self_proj = self.into_projective();
-                    impl_glv_mul!(Self::Projective, P, w, self_proj, res, by);
-                    res
-                } else {
-                    let bits = BitIteratorBE::new(by.into());
-                    self.mul_bits(bits)
-                }
->>>>>>> jonch/trinity/glv
+                let bits = BitIteratorBE::new(by.into());
+                self.mul_bits(bits)
             }
 
             #[inline]
