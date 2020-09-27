@@ -4,9 +4,7 @@ use algebra_core::{
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 
-use crate::tests::helpers::create_pseudo_uniform_random_elems;
-
-fn _naive_var_base_msm<G: AffineCurve>(
+fn naive_var_base_msm<G: AffineCurve>(
     bases: &[G],
     scalars: &[<G::ScalarField as PrimeField>::BigInt],
 ) -> G::Projective {
@@ -34,7 +32,9 @@ pub fn test_msm<G: AffineCurve>() {
         .map(|_| G::ScalarField::rand(&mut rng).into_repr())
         .collect::<Vec<_>>();
 
-    let v = (0..SAMPLES).map(|_| G::Projective::rand(&mut rng).into_affine()).collect::<Vec<_>>();
+    let g = (0..SAMPLES)
+        .map(|_| G::Projective::rand(&mut rng).into_affine())
+        .collect::<Vec<_>>();
 
     let naive = naive_var_base_msm(g.as_slice(), v.as_slice());
 

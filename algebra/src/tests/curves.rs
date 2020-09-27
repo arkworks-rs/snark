@@ -3,9 +3,8 @@ use algebra_core::{
     biginteger::BigInteger64,
     curves::{AffineCurve, ProjectiveCurve},
     io::Cursor,
-    BucketPosition, CanonicalDeserialize, CanonicalSerialize, Field, MontgomeryModelParameters,
-    One, PrimeField, SWFlags, SWModelParameters, SerializationError, TEModelParameters,
-    UniformRand, Vec, VerificationError, Zero,
+    CanonicalDeserialize, CanonicalSerialize, Field, MontgomeryModelParameters, One, PrimeField,
+    SWFlags, SWModelParameters, SerializationError, TEModelParameters, UniformRand, Vec, Zero,
 };
 use rand::{
     distributions::{Distribution, Uniform},
