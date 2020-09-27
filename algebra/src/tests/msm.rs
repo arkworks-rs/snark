@@ -34,9 +34,7 @@ pub fn test_msm<G: AffineCurve>() {
         .map(|_| G::ScalarField::rand(&mut rng).into_repr())
         .collect::<Vec<_>>();
 
-    let v = (0..SAMPLES)
-        .map(|_| G::rand(&mut rng))
-        .collect::<Vec<_>>();
+    let v = (0..SAMPLES).map(|_| G::rand(&mut rng)).collect::<Vec<_>>();
 
     let naive = naive_var_base_msm(g.as_slice(), v.as_slice());
 
