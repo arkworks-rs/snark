@@ -1,19 +1,20 @@
 use super::instantiated::*;
 use algebra::{
     bls12_377::{Fq, Fr},
-    to_bytes, ToBytes,
+    to_bytes,
 };
+use tracing_subscriber::layer::SubscriberExt;
+
 #[cfg(debug_assertions)]
-use gm17::PreparedVerifyingKey;
+use groth16::PreparedVerifyingKey;
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 
 use crypto_primitives::FixedLengthCRH;
 
-use r1cs_core::ConstraintSystem;
+use r1cs_core::{ConstraintLayer, ConstraintSystem};
 
 use crate::constraints::plain_dpc::{execute_core_checks_gadget, execute_proof_check_gadget};
-use r1cs_std::test_constraint_system::TestConstraintSystem;
 
 use crate::dpc::{
     plain_dpc::{predicate::PrivatePredInput, predicate_circuit::*, ExecuteContext, DPC},
@@ -24,6 +25,10 @@ use crate::ledger::Ledger;
 
 #[test]
 fn test_execute_constraint_systems() {
+    let mut layer = ConstraintLayer::default();
+    layer.mode = r1cs_core::TracingMode::OnlyConstraints;
+    let subscriber = tracing_subscriber::Registry::default().with(layer);
+    tracing::subscriber::set_global_default(subscriber).unwrap();
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
     // Generate parameters for the ledger, commitment schemes, CRH, and the
     // "always-accept" predicate.
@@ -133,10 +138,12 @@ fn test_execute_constraint_systems() {
 
     //////////////////////////////////////////////////////////////////////////
     // Check that the core check constraint system was satisfied.
-    let mut core_cs = TestConstraintSystem::<Fr>::new();
+    let core_cs = ConstraintSystem::<Fr>::new_ref();
 
-    execute_core_checks_gadget::<_, _>(
-        &mut core_cs.ns(|| "Core checks"),
+    let core_ns = r1cs_core::ns!(core_cs, "Core checks");
+    let cs = core_ns.cs();
+    execute_core_checks_gadget::<_>(
+        cs.clone(),
         &comm_and_crh_pp,
         ledger.parameters(),
         &ledger_digest,
@@ -156,25 +163,29 @@ fn test_execute_constraint_systems() {
     )
     .unwrap();
 
-    if !core_cs.is_satisfied() {
+    if !cs.is_satisfied().unwrap() {
         println!("=========================================================");
         println!("Unsatisfied constraints:");
-        println!("{}", core_cs.which_is_unsatisfied().unwrap());
+        println!("{}", core_cs.which_is_unsatisfied().unwrap().unwrap());
         println!("=========================================================");
     }
 
-    if core_cs.is_satisfied() {
+    if cs.is_satisfied().unwrap() {
         println!("\n\n\n\nAll Core check constraints:");
-        core_cs.print_named_objects();
+        for constraint in cs.constraint_names().unwrap() {
+            println!("{}", constraint)
+        }
     }
+
     println!("=========================================================");
     println!("=========================================================");
     println!("=========================================================\n\n\n");
 
-    assert!(core_cs.is_satisfied());
+    assert!(cs.is_satisfied().unwrap());
+    drop(core_ns);
 
     // Check that the proof check constraint system was satisfied.
-    let mut pf_check_cs = TestConstraintSystem::<Fq>::new();
+    let pf_check_cs = ConstraintSystem::<Fq>::new_ref();
 
     let mut old_proof_and_vk = vec![];
     for i in 0..NUM_INPUT_RECORDS {
@@ -220,8 +231,10 @@ fn test_execute_constraint_systems() {
         new_proof_and_vk.push(private_input);
     }
 
-    execute_proof_check_gadget::<_, _>(
-        &mut pf_check_cs.ns(|| "Check predicate proofs"),
+    let pf_check_ns = r1cs_core::ns!(pf_check_cs, "Check predicate proofs");
+    let cs = pf_check_ns.cs();
+    execute_proof_check_gadget::<_>(
+        cs,
         &comm_and_crh_pp,
         &old_proof_and_vk,
         &new_proof_and_vk,
@@ -231,19 +244,21 @@ fn test_execute_constraint_systems() {
     )
     .unwrap();
 
-    if !pf_check_cs.is_satisfied() {
+    if !pf_check_cs.is_satisfied().unwrap() {
         println!("=========================================================");
         println!("Unsatisfied constraints:");
-        println!("{}", pf_check_cs.which_is_unsatisfied().unwrap());
+        println!("{}", pf_check_cs.which_is_unsatisfied().unwrap().unwrap());
         println!("=========================================================");
     }
     println!("\n\n\n\nAll Proof check constraints:");
-    if pf_check_cs.is_satisfied() {
-        pf_check_cs.print_named_objects();
+    if pf_check_cs.is_satisfied().unwrap() {
+        for constraint in pf_check_cs.constraint_names().unwrap() {
+            println!("{}", constraint)
+        }
     }
     println!("=========================================================");
     println!("=========================================================");
     println!("=========================================================");
 
-    assert!(pf_check_cs.is_satisfied());
+    assert!(pf_check_cs.is_satisfied().unwrap());
 }

@@ -1,101 +1,18 @@
 use rand::Rng;
 
 use algebra_core::{
-    msm::VariableBaseMSM, AffineCurve, One, PairingEngine, PrimeField, ProjectiveCurve,
-    UniformRand, Zero,
+    msm::VariableBaseMSM, AffineCurve, PairingEngine, PrimeField, ProjectiveCurve, UniformRand,
+    Zero,
 };
 
-use crate::{push_constraints, r1cs_to_qap::R1CStoQAP, Parameters, Proof, String, Vec};
+use crate::{r1cs_to_qap::R1CStoQAP, Parameters, Proof, Vec};
 
-use r1cs_core::{
-    ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable,
-};
+use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 
-use ff_fft::{cfg_into_iter, EvaluationDomain};
+use ff_fft::{cfg_into_iter, cfg_iter, EvaluationDomain};
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
-
-pub struct ProvingAssignment<E: PairingEngine> {
-    // Constraints
-    pub(crate) at: Vec<Vec<(E::Fr, Index)>>,
-    pub(crate) bt: Vec<Vec<(E::Fr, Index)>>,
-    pub(crate) ct: Vec<Vec<(E::Fr, Index)>>,
-
-    // Assignments of variables
-    pub(crate) input_assignment: Vec<E::Fr>,
-    pub(crate) aux_assignment: Vec<E::Fr>,
-}
-
-impl<E: PairingEngine> ConstraintSystem<E::Fr> for ProvingAssignment<E> {
-    type Root = Self;
-
-    #[inline]
-    fn alloc<F, A, AR>(&mut self, _: A, f: F) -> Result<Variable, SynthesisError>
-    where
-        F: FnOnce() -> Result<E::Fr, SynthesisError>,
-        A: FnOnce() -> AR,
-        AR: Into<String>,
-    {
-        let index = self.aux_assignment.len();
-        self.aux_assignment.push(f()?);
-        Ok(Variable::new_unchecked(Index::Aux(index)))
-    }
-
-    #[inline]
-    fn alloc_input<F, A, AR>(&mut self, _: A, f: F) -> Result<Variable, SynthesisError>
-    where
-        F: FnOnce() -> Result<E::Fr, SynthesisError>,
-        A: FnOnce() -> AR,
-        AR: Into<String>,
-    {
-        let index = self.input_assignment.len();
-        self.input_assignment.push(f()?);
-        Ok(Variable::new_unchecked(Index::Input(index)))
-    }
-
-    #[inline]
-    fn enforce<A, AR, LA, LB, LC>(&mut self, _: A, a: LA, b: LB, c: LC)
-    where
-        A: FnOnce() -> AR,
-        AR: Into<String>,
-        LA: FnOnce(LinearCombination<E::Fr>) -> LinearCombination<E::Fr>,
-        LB: FnOnce(LinearCombination<E::Fr>) -> LinearCombination<E::Fr>,
-        LC: FnOnce(LinearCombination<E::Fr>) -> LinearCombination<E::Fr>,
-    {
-        let num_constraints = self.num_constraints();
-
-        self.at.push(Vec::new());
-        self.bt.push(Vec::new());
-        self.ct.push(Vec::new());
-
-        push_constraints(a(LinearCombination::zero()), &mut self.at, num_constraints);
-
-        push_constraints(b(LinearCombination::zero()), &mut self.bt, num_constraints);
-
-        push_constraints(c(LinearCombination::zero()), &mut self.ct, num_constraints);
-    }
-
-    fn push_namespace<NR, N>(&mut self, _: N)
-    where
-        NR: Into<String>,
-        N: FnOnce() -> NR,
-    {
-        // Do nothing; we don't care about namespaces in this context.
-    }
-
-    fn pop_namespace(&mut self) {
-        // Do nothing; we don't care about namespaces in this context.
-    }
-
-    fn get_root(&mut self) -> &mut Self::Root {
-        self
-    }
-
-    fn num_constraints(&self) -> usize {
-        self.at.len()
-    }
-}
 
 pub fn create_random_proof<E, C, D, R>(
     circuit: C,
@@ -137,35 +54,33 @@ where
     C: ConstraintSynthesizer<E::Fr>,
     D: EvaluationDomain<E::Fr>,
 {
-    let prover_time = start_timer!(|| "Prover");
-    let mut prover = ProvingAssignment {
-        at: vec![],
-        bt: vec![],
-        ct: vec![],
-        input_assignment: vec![],
-        aux_assignment: vec![],
-    };
-
-    // Allocate the "one" input variable
-    prover.alloc_input(|| "", || Ok(E::Fr::one()))?;
+    let prover_time = start_timer!(|| "Groth16::Prover");
+    let cs = ConstraintSystem::new_ref();
 
     // Synthesize the circuit.
     let synthesis_time = start_timer!(|| "Constraint synthesis");
-    circuit.generate_constraints(&mut prover)?;
+    circuit.generate_constraints(cs.clone())?;
+    debug_assert!(cs.is_satisfied().unwrap());
     end_timer!(synthesis_time);
 
-    let witness_map_time = start_timer!(|| "R1CS to QAP witness map");
-    let h = R1CStoQAP::witness_map::<E, D>(&prover)?;
-    end_timer!(witness_map_time);
+    let lc_time = start_timer!(|| "Inlining LCs");
+    cs.inline_all_lcs();
+    end_timer!(lc_time);
 
-    let input_assignment = prover.input_assignment[1..]
+    let witness_map_time = start_timer!(|| "R1CS to QAP witness map");
+    let h = R1CStoQAP::witness_map::<E, D>(cs.clone())?;
+    end_timer!(witness_map_time);
+    let prover = cs.borrow().unwrap();
+
+    let input_assignment = prover.instance_assignment[1..]
         .into_iter()
         .map(|s| s.into_repr())
         .collect::<Vec<_>>();
 
-    let aux_assignment = cfg_into_iter!(prover.aux_assignment)
+    let aux_assignment = cfg_iter!(prover.witness_assignment)
         .map(|s| s.into_repr())
         .collect::<Vec<_>>();
+    drop(prover);
 
     let assignment = [&input_assignment[..], &aux_assignment[..]].concat();
 

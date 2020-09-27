@@ -6,8 +6,6 @@ use rand::Rng;
 
 pub mod generic;
 
-pub use generic::ProvingAssignment;
-
 #[inline]
 pub fn create_random_proof<E, C, R>(
     circuit: C,

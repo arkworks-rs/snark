@@ -6,8 +6,6 @@ use rand::Rng;
 
 pub mod generic;
 
-pub use generic::KeypairAssembly;
-
 /// Generates a random common reference string for
 /// a circuit.
 #[inline]

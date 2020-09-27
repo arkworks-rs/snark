@@ -4,28 +4,25 @@ use algebra::{
 };
 
 use crypto_primitives::{
-    commitment::{blake2s::Blake2sCommitment, injective_map::PedersenCommCompressor},
+    commitment::{blake2s, injective_map::PedersenCommCompressor},
     crh::{
         injective_map::{PedersenCRHCompressor, TECompressor},
-        pedersen::PedersenWindow,
+        pedersen,
     },
-    merkle_tree::MerkleTreeConfig,
-    nizk::Gm17,
+    merkle_tree,
+    nizk::Groth16,
     prf::blake2s::Blake2s,
 };
 
 use crypto_primitives::{
-    commitment::{
-        blake2s::constraints::Blake2sCommitmentGadget,
-        injective_map::constraints::PedersenCommitmentCompressorGadget,
-    },
+    commitment::injective_map,
     crh::injective_map::constraints::{PedersenCRHCompressorGadget, TECompressorGadget},
-    nizk::gm17::constraints::Gm17VerifierGadget,
+    nizk::groth16::constraints::Groth16VerifierGadget,
     prf::blake2s::constraints::Blake2sGadget,
 };
 use r1cs_std::{
-    bls12_377::PairingGadget, ed_on_bls12_377::EdwardsGadget as EdwardsBlsGadget,
-    ed_on_cp6_782::EdwardsGadget as EdwardsCP6Gadget,
+    bls12_377::PairingVar, ed_on_bls12_377::EdwardsVar as EdwardsBlsVar,
+    ed_on_cp6_782::EdwardsVar as EdwardsCP6Var,
 };
 
 use crate::dpc::plain_dpc::{
@@ -43,7 +40,7 @@ pub struct SnNonceWindow;
 
 // `WINDOW_SIZE * NUM_WINDOWS` = 2 * 256 + 8 + 256 bits
 const SN_NONCE_SIZE_BITS: usize = NUM_INPUT_RECORDS * 2 * 256 + 8 + 256;
-impl PedersenWindow for SnNonceWindow {
+impl pedersen::Window for SnNonceWindow {
     const WINDOW_SIZE: usize = SN_NONCE_SIZE_BITS / 8;
     const NUM_WINDOWS: usize = 8;
 }
@@ -51,7 +48,7 @@ impl PedersenWindow for SnNonceWindow {
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct PredVkHashWindow;
 
-impl PedersenWindow for PredVkHashWindow {
+impl pedersen::Window for PredVkHashWindow {
     const WINDOW_SIZE: usize = 248;
     const NUM_WINDOWS: usize = 38;
 }
@@ -59,7 +56,7 @@ impl PedersenWindow for PredVkHashWindow {
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct LocalDataWindow;
 
-impl PedersenWindow for LocalDataWindow {
+impl pedersen::Window for LocalDataWindow {
     const WINDOW_SIZE: usize = 248;
     const NUM_WINDOWS: usize = 30;
 }
@@ -67,27 +64,27 @@ impl PedersenWindow for LocalDataWindow {
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct TwoToOneWindow;
 // `WINDOW_SIZE * NUM_WINDOWS` = 2 * 256 bits
-impl PedersenWindow for TwoToOneWindow {
+impl pedersen::Window for TwoToOneWindow {
     const WINDOW_SIZE: usize = 128;
     const NUM_WINDOWS: usize = 4;
 }
 
 pub struct CommitmentMerkleTreeConfig;
-impl MerkleTreeConfig for CommitmentMerkleTreeConfig {
+impl merkle_tree::Config for CommitmentMerkleTreeConfig {
     const HEIGHT: usize = 32;
     type H = MerkleTreeCRH;
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct RecordWindow;
-impl PedersenWindow for RecordWindow {
+impl pedersen::Window for RecordWindow {
     const WINDOW_SIZE: usize = 225;
     const NUM_WINDOWS: usize = 8;
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct AddressWindow;
-impl PedersenWindow for AddressWindow {
+impl pedersen::Window for AddressWindow {
     const WINDOW_SIZE: usize = 128;
     const NUM_WINDOWS: usize = 4;
 }
@@ -137,7 +134,7 @@ pub type ProofCheckF = bls12_377::Fq;
 
 pub type AddressComm = PedersenCommCompressor<EdwardsBls, EdwardsCompressor, AddressWindow>;
 pub type RecordComm = PedersenCommCompressor<EdwardsBls, EdwardsCompressor, RecordWindow>;
-pub type PredicateComm = Blake2sCommitment;
+pub type PredicateComm = blake2s::Commitment;
 pub type LocalDataComm = PedersenCommCompressor<EdwardsBls, EdwardsCompressor, LocalDataWindow>;
 
 pub type MerkleTreeCRH = PedersenCRHCompressor<EdwardsBls, EdwardsCompressor, TwoToOneWindow>;
@@ -146,62 +143,63 @@ pub type PredVkCRH = PedersenCRHCompressor<EdwardsCP6, EdwardsCompressor, PredVk
 
 pub type Predicate = DPCPredicate<Components>;
 pub type CoreCheckNIZK =
-    Gm17<CoreCheckPairing, CoreChecksCircuit<Components>, CoreChecksVerifierInput<Components>>;
+    Groth16<CoreCheckPairing, CoreChecksCircuit<Components>, CoreChecksVerifierInput<Components>>;
 pub type ProofCheckNIZK =
-    Gm17<ProofCheckPairing, ProofCheckCircuit<Components>, ProofCheckVerifierInput<Components>>;
-pub type PredicateNIZK<C> = Gm17<CoreCheckPairing, EmptyPredicateCircuit<C>, PredicateLocalData<C>>;
+    Groth16<ProofCheckPairing, ProofCheckCircuit<Components>, ProofCheckVerifierInput<Components>>;
+pub type PredicateNIZK<C> =
+    Groth16<CoreCheckPairing, EmptyPredicateCircuit<C>, PredicateLocalData<C>>;
 pub type PRF = Blake2s;
 
 // Gadgets
 pub type EdwardsCompressorGadget = TECompressorGadget;
 
-pub type RecordCommGadget = PedersenCommitmentCompressorGadget<
+pub type RecordCommGadget = injective_map::constraints::CommitmentCompressorGadget<
     EdwardsBls,
     EdwardsCompressor,
-    CoreCheckF,
-    EdwardsBlsGadget,
+    RecordWindow,
+    EdwardsBlsVar,
     EdwardsCompressorGadget,
 >;
-pub type AddressCommGadget = PedersenCommitmentCompressorGadget<
+pub type AddressCommGadget = injective_map::constraints::CommitmentCompressorGadget<
     EdwardsBls,
     EdwardsCompressor,
-    CoreCheckF,
-    EdwardsBlsGadget,
+    AddressWindow,
+    EdwardsBlsVar,
     EdwardsCompressorGadget,
 >;
-pub type PredicateCommGadget = Blake2sCommitmentGadget;
-pub type LocalDataCommGadget = PedersenCommitmentCompressorGadget<
+pub type PredicateCommGadget = blake2s::constraints::CommGadget;
+pub type LocalDataCommGadget = injective_map::constraints::CommitmentCompressorGadget<
     EdwardsBls,
     EdwardsCompressor,
-    CoreCheckF,
-    EdwardsBlsGadget,
+    LocalDataWindow,
+    EdwardsBlsVar,
     EdwardsCompressorGadget,
 >;
 
 pub type SnNonceCRHGadget = PedersenCRHCompressorGadget<
     EdwardsBls,
     EdwardsCompressor,
-    CoreCheckF,
-    EdwardsBlsGadget,
+    SnNonceWindow,
+    EdwardsBlsVar,
     EdwardsCompressorGadget,
 >;
 pub type MerkleTreeCRHGadget = PedersenCRHCompressorGadget<
     EdwardsBls,
     EdwardsCompressor,
-    CoreCheckF,
-    EdwardsBlsGadget,
+    TwoToOneWindow,
+    EdwardsBlsVar,
     EdwardsCompressorGadget,
 >;
 pub type PredVkCRHGadget = PedersenCRHCompressorGadget<
     EdwardsCP6,
     EdwardsCompressor,
-    ProofCheckF,
-    EdwardsCP6Gadget,
+    PredVkHashWindow,
+    EdwardsCP6Var,
     EdwardsCompressorGadget,
 >;
 
 pub type PRFGadget = Blake2sGadget;
-pub type PredicateNIZKGadget = Gm17VerifierGadget<CoreCheckPairing, ProofCheckF, PairingGadget>;
+pub type PredicateNIZKGadget = Groth16VerifierGadget<CoreCheckPairing, PairingVar>;
 //
 
 pub type MerkleTreeIdealLedger = IdealLedger<Tx, CommitmentMerkleTreeConfig>;

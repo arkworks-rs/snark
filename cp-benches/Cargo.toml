@@ -1,6 +1,6 @@
 [package]
 name = "cp-benches"
-version = "0.1.0"
+version = "0.1.1-alpha.0"
 authors = [
     "Sean Bowe",
     "Alessandro Chiesa",
@@ -49,10 +49,4 @@ harness = false
 [[bench]]
 name = "schnorr_sig"
 path = "benches/crypto_primitives/signature.rs"
-harness = false
-
-[[bench]]
-name = "gm17"
-path = "benches/crypto_primitives/nizk.rs"
-required-features = ["r1cs", "gm17"]
 harness = false

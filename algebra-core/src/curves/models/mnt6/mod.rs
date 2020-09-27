@@ -6,7 +6,7 @@ use crate::{
     fields::{
         fp3::{Fp3, Fp3Parameters},
         fp6_2over3::{Fp6, Fp6Parameters},
-        BitIterator, Field, PrimeField, SquareRootField,
+        BitIteratorBE, Field, PrimeField, SquareRootField,
     },
     One, Zero,
 };
@@ -33,9 +33,10 @@ pub trait MNT6Parameters: 'static {
     const FINAL_EXPONENT_LAST_CHUNK_W0_IS_NEG: bool;
     const FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0: <Self::Fp as PrimeField>::BigInt;
     type Fp: PrimeField + SquareRootField + Into<<Self::Fp as PrimeField>::BigInt>;
+    type Fr: PrimeField + SquareRootField + Into<<Self::Fr as PrimeField>::BigInt>;
     type Fp3Params: Fp3Parameters<Fp = Self::Fp>;
     type Fp6Params: Fp6Parameters<Fp3Params = Self::Fp3Params>;
-    type G1Parameters: SWModelParameters<BaseField = Self::Fp>;
+    type G1Parameters: SWModelParameters<BaseField = Self::Fp, ScalarField = Self::Fr>;
     type G2Parameters: SWModelParameters<
         BaseField = Fp3<Self::Fp3Params>,
         ScalarField = <Self::G1Parameters as ModelParameters>::ScalarField,
@@ -60,8 +61,9 @@ impl<P: MNT6Parameters> MNT6<P> {
 
         let d_eight = d.double().double().double();
 
-        let x = -(e + &e + &e + &e) + &g;
-        let y = -d_eight + &(f * &(e + &e - &x));
+        let e2 = e.double();
+        let x = g - &e2.double();
+        let y = -d_eight + &(f * &(e2 - &x));
         let z = (r.y + &r.z).square() - &c - &r.z.square();
         let t = z.square();
 
@@ -89,10 +91,11 @@ impl<P: MNT6Parameters> MNT6<P> {
         let e = i + &i + &i + &i;
         let j = h * &e;
         let v = r.x * &e;
-        let l1 = d - &(r.y + &r.y);
+        let ry2 = r.y.double();
+        let l1 = d - &ry2;
 
         let x = l1.square() - &j - &(v + &v);
-        let y = l1 * &(v - &x) - &(j * &(r.y + &r.y));
+        let y = l1 * &(v - &x) - &(j * &ry2);
         let z = (r.z + &h).square() - &r.t - &i;
         let t = z.square();
 
@@ -110,23 +113,14 @@ impl<P: MNT6Parameters> MNT6<P> {
         let mut dbl_idx: usize = 0;
         let mut add_idx: usize = 0;
 
-        let mut found_one = false;
-
-        for bit in BitIterator::new(P::ATE_LOOP_COUNT) {
-            // code below gets executed for all bits (EXCEPT the MSB itself) of
-            // mnt6_param_p (skipping leading zeros) in MSB to LSB order
-            if !found_one && bit {
-                found_one = true;
-                continue;
-            } else if !found_one {
-                continue;
-            }
-
+        // code below gets executed for all bits (EXCEPT the MSB itself) of
+        // mnt6_param_p (skipping leading zeros) in MSB to LSB order
+        for bit in BitIteratorBE::without_leading_zeros(P::ATE_LOOP_COUNT).skip(1) {
             let dc = &q.double_coefficients[dbl_idx];
             dbl_idx += 1;
 
             let g_rr_at_p = Fp6::new(
-                -dc.c_4c - &(dc.c_j * &p.x_twist) + &dc.c_l,
+                dc.c_l - &dc.c_4c - &(dc.c_j * &p.x_twist),
                 dc.c_h * &p.y_twist,
             );
 
@@ -193,12 +187,11 @@ impl<P: MNT6Parameters> MNT6<P> {
         elt_q.frobenius_map(1);
 
         let w1_part = elt_q.cyclotomic_exp(&P::FINAL_EXPONENT_LAST_CHUNK_1);
-        let w0_part;
-        if P::FINAL_EXPONENT_LAST_CHUNK_W0_IS_NEG {
-            w0_part = elt_inv_clone.cyclotomic_exp(&P::FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0);
+        let w0_part = if P::FINAL_EXPONENT_LAST_CHUNK_W0_IS_NEG {
+            elt_inv_clone.cyclotomic_exp(&P::FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0)
         } else {
-            w0_part = elt_clone.cyclotomic_exp(&P::FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0);
-        }
+            elt_clone.cyclotomic_exp(&P::FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0)
+        };
 
         w1_part * &w0_part
     }

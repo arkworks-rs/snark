@@ -1,11 +1,15 @@
 use algebra_core::{
     biginteger::BigInteger768 as BigInteger,
+    field_new,
     fields::{FftParameters, Fp768, Fp768Parameters, FpParameters},
 };
 
 pub type Fq = Fp768<FqParameters>;
 
 pub struct FqParameters;
+
+pub const FQ_ONE: Fq = field_new!(Fq, FqParameters::R);
+pub const FQ_ZERO: Fq = field_new!(Fq, BigInteger([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
 
 impl Fp768Parameters for FqParameters {}
 impl FftParameters for FqParameters {

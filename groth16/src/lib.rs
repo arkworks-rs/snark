@@ -18,18 +18,18 @@ extern crate bench_utils;
 extern crate alloc;
 
 #[cfg(not(feature = "std"))]
-use alloc::{string::String, vec::Vec};
+use alloc::vec::Vec;
 
 #[cfg(feature = "std")]
-use std::{string::String, vec::Vec};
+use std::vec::Vec;
 
 use algebra_core::{
     bytes::ToBytes,
     io::{self, Result as IoResult},
     serialize::*,
-    Field, PairingEngine,
+    PairingEngine,
 };
-use r1cs_core::{Index, LinearCombination, SynthesisError};
+use r1cs_core::SynthesisError;
 
 /// Reduce an R1CS instance to a *Quadratic Arithmetic Program* instance.
 pub mod r1cs_to_qap;
@@ -75,21 +75,6 @@ impl<E: PairingEngine> Default for Proof<E> {
     }
 }
 
-impl<E: PairingEngine> Proof<E> {
-    /// Serialize the proof into bytes, for storage on disk or transmission
-    /// over the network.
-    pub fn write<W: Write>(&self, mut _writer: W) -> io::Result<()> {
-        // TODO: implement serialization
-        unimplemented!()
-    }
-
-    /// Deserialize the proof from bytes.
-    pub fn read<R: Read>(mut _reader: R) -> io::Result<Self> {
-        // TODO: implement serialization
-        unimplemented!()
-    }
-}
-
 /// A verification key in the Groth16 SNARK.
 #[derive(Clone, Debug, PartialEq, CanonicalSerialize, CanonicalDeserialize)]
 pub struct VerifyingKey<E: PairingEngine> {
@@ -125,21 +110,6 @@ impl<E: PairingEngine> Default for VerifyingKey<E> {
     }
 }
 
-impl<E: PairingEngine> VerifyingKey<E> {
-    /// Serialize the verification key into bytes, for storage on disk
-    /// or transmission over the network.
-    pub fn write<W: Write>(&self, mut _writer: W) -> io::Result<()> {
-        // TODO: implement serialization
-        unimplemented!()
-    }
-
-    /// Deserialize the verification key from bytes.
-    pub fn read<R: Read>(mut _reader: R) -> io::Result<Self> {
-        // TODO: implement serialization
-        unimplemented!()
-    }
-}
-
 /// Full public (prover and verifier) parameters for the Groth16 zkSNARK.
 #[derive(Clone, Debug, PartialEq, CanonicalSerialize, CanonicalDeserialize)]
 pub struct Parameters<E: PairingEngine> {
@@ -151,20 +121,6 @@ pub struct Parameters<E: PairingEngine> {
     pub b_g2_query: Vec<E::G2Affine>,
     pub h_query: Vec<E::G1Affine>,
     pub l_query: Vec<E::G1Affine>,
-}
-
-impl<E: PairingEngine> Parameters<E> {
-    /// Serialize the parameters to bytes.
-    pub fn write<W: Write>(&self, mut _writer: W) -> io::Result<()> {
-        // TODO: implement serialization
-        unimplemented!()
-    }
-
-    /// Deserialize the public parameters from bytes.
-    pub fn read<R: Read>(mut _reader: R, _checked: bool) -> io::Result<Self> {
-        // TODO: implement serialization
-        unimplemented!()
-    }
 }
 
 /// Preprocessed verification key parameters that enable faster verification
@@ -212,19 +168,6 @@ impl<E: PairingEngine> ToBytes for PreparedVerifyingKey<E> {
             q.write(&mut writer)?;
         }
         Ok(())
-    }
-}
-
-fn push_constraints<F: Field>(
-    l: LinearCombination<F>,
-    constraints: &mut [Vec<(F, Index)>],
-    this_constraint: usize,
-) {
-    for (var, coeff) in l.as_ref() {
-        match var.get_unchecked() {
-            Index::Input(i) => constraints[this_constraint].push((*coeff, Index::Input(i))),
-            Index::Aux(i) => constraints[this_constraint].push((*coeff, Index::Aux(i))),
-        }
     }
 }
 

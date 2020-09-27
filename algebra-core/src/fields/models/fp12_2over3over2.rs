@@ -206,14 +206,45 @@ impl<P: Fp12Parameters> Fp12<P> {
 
 // TODO: make `const fn` in 1.46.
 pub fn characteristic_square_mod_6_is_one(characteristic: &[u64]) -> bool {
-    let mut characteristic_mod_3 = 0i64;
-    for limb in characteristic {
-        for i in 0..64i64 {
-            let bit = ((limb >> i) & 1) as i64;
-            let b = if i % 2 == 0 { bit } else { -bit };
-            characteristic_mod_3 = (characteristic_mod_3 + b) % 3;
-        }
+    // characteristic mod 6 = (a_0 + 2**64 * a_1 + ...) mod 6
+    //                      = a_0 mod 6 + (2**64 * a_1 mod 6) + (...) mod 6
+    //                      = a_0 mod 6 + (4 * a_1 mod 6) + (4 * ...) mod 6
+    let mut char_mod_6 = 0u64;
+    for (i, limb) in characteristic.iter().enumerate() {
+        char_mod_6 += if i == 0 {
+            limb % 6
+        } else {
+            (4 * (limb % 6)) % 6
+        };
     }
-    let characteristic_mod_2 = characteristic[0] % 2;
-    (characteristic_mod_3 != 0) && (characteristic_mod_2 == 1)
+    (char_mod_6 * char_mod_6) % 6 == 1
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn test_characteristic_square_mod_6_is_one() {
+        use super::*;
+        assert!(!characteristic_square_mod_6_is_one(&[36]));
+        assert!(characteristic_square_mod_6_is_one(&[37]));
+        assert!(!characteristic_square_mod_6_is_one(&[38]));
+        assert!(!characteristic_square_mod_6_is_one(&[39]));
+        assert!(!characteristic_square_mod_6_is_one(&[40]));
+        assert!(characteristic_square_mod_6_is_one(&[41]));
+
+        assert!(!characteristic_square_mod_6_is_one(&[36, 36]));
+        assert!(!characteristic_square_mod_6_is_one(&[36, 37]));
+        assert!(!characteristic_square_mod_6_is_one(&[36, 38]));
+        assert!(!characteristic_square_mod_6_is_one(&[36, 39]));
+        assert!(!characteristic_square_mod_6_is_one(&[36, 40]));
+        assert!(!characteristic_square_mod_6_is_one(&[36, 41]));
+
+        assert!(!characteristic_square_mod_6_is_one(&[36, 41]));
+        assert!(!characteristic_square_mod_6_is_one(&[37, 41]));
+        assert!(!characteristic_square_mod_6_is_one(&[38, 41]));
+        assert!(characteristic_square_mod_6_is_one(&[39, 41]));
+        assert!(!characteristic_square_mod_6_is_one(&[40, 41]));
+        assert!(characteristic_square_mod_6_is_one(&[41, 41]));
+        assert!(characteristic_square_mod_6_is_one(&[1, u64::MAX]));
+    }
 }

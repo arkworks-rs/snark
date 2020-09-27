@@ -25,17 +25,17 @@ pub mod signature;
 pub use self::{
     commitment::CommitmentScheme,
     crh::FixedLengthCRH,
-    merkle_tree::{MerkleHashTree, MerkleTreePath},
+    merkle_tree::{MerkleTree, Path},
     nizk::NIZK,
     prf::PRF,
     signature::SignatureScheme,
 };
 
 #[cfg(feature = "r1cs")]
+#[cfg(feature = "r1cs")]
 pub use self::{
-    commitment::CommitmentGadget, crh::FixedLengthCRHGadget,
-    merkle_tree::constraints::MerkleTreePathGadget, nizk::NIZKVerifierGadget, prf::PRFGadget,
-    signature::SigRandomizePkGadget,
+    commitment::CommitmentGadget, crh::FixedLengthCRHGadget, merkle_tree::constraints::PathVar,
+    nizk::NIZKVerifierGadget, prf::PRFGadget, signature::SigRandomizePkGadget,
 };
 
 pub type Error = Box<dyn algebra_core::Error>;

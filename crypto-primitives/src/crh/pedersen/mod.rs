@@ -8,29 +8,29 @@ use rand::Rng;
 use rayon::prelude::*;
 
 use crate::crh::FixedLengthCRH;
-use algebra_core::{groups::Group, Field, ToConstraintField};
+use algebra_core::{Field, ProjectiveCurve, ToConstraintField};
 use ff_fft::cfg_chunks;
 
 #[cfg(feature = "r1cs")]
 pub mod constraints;
 
-pub trait PedersenWindow: Clone {
+pub trait Window: Clone {
     const WINDOW_SIZE: usize;
     const NUM_WINDOWS: usize;
 }
 
 #[derive(Clone, Default)]
-pub struct PedersenParameters<G: Group> {
-    pub generators: Vec<Vec<G>>,
+pub struct Parameters<C: ProjectiveCurve> {
+    pub generators: Vec<Vec<C>>,
 }
 
-pub struct PedersenCRH<G: Group, W: PedersenWindow> {
-    group: PhantomData<G>,
+pub struct CRH<C: ProjectiveCurve, W: Window> {
+    group: PhantomData<C>,
     window: PhantomData<W>,
 }
 
-impl<G: Group, W: PedersenWindow> PedersenCRH<G, W> {
-    pub fn create_generators<R: Rng>(rng: &mut R) -> Vec<Vec<G>> {
+impl<C: ProjectiveCurve, W: Window> CRH<C, W> {
+    pub fn create_generators<R: Rng>(rng: &mut R) -> Vec<Vec<C>> {
         let mut generators_powers = Vec::new();
         for _ in 0..W::NUM_WINDOWS {
             generators_powers.push(Self::generator_powers(W::WINDOW_SIZE, rng));
@@ -38,9 +38,9 @@ impl<G: Group, W: PedersenWindow> PedersenCRH<G, W> {
         generators_powers
     }
 
-    pub fn generator_powers<R: Rng>(num_powers: usize, rng: &mut R) -> Vec<G> {
+    pub fn generator_powers<R: Rng>(num_powers: usize, rng: &mut R) -> Vec<C> {
         let mut cur_gen_powers = Vec::with_capacity(num_powers);
-        let mut base = G::rand(rng);
+        let mut base = C::rand(rng);
         for _ in 0..num_powers {
             cur_gen_powers.push(base);
             base.double_in_place();
@@ -49,14 +49,14 @@ impl<G: Group, W: PedersenWindow> PedersenCRH<G, W> {
     }
 }
 
-impl<G: Group, W: PedersenWindow> FixedLengthCRH for PedersenCRH<G, W> {
+impl<C: ProjectiveCurve, W: Window> FixedLengthCRH for CRH<C, W> {
     const INPUT_SIZE_BITS: usize = W::WINDOW_SIZE * W::NUM_WINDOWS;
-    type Output = G;
-    type Parameters = PedersenParameters<G>;
+    type Output = C::Affine;
+    type Parameters = Parameters<C>;
 
     fn setup<R: Rng>(rng: &mut R) -> Result<Self::Parameters, Error> {
         let time = start_timer!(|| format!(
-            "PedersenCRH::Setup: {} {}-bit windows; {{0,1}}^{{{}}} -> G",
+            "PedersenCRH::Setup: {} {}-bit windows; {{0,1}}^{{{}}} -> C",
             W::NUM_WINDOWS,
             W::WINDOW_SIZE,
             W::NUM_WINDOWS * W::WINDOW_SIZE
@@ -71,7 +71,7 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for PedersenCRH<G, W> {
 
         if (input.len() * 8) > W::WINDOW_SIZE * W::NUM_WINDOWS {
             panic!(
-                "incorrect input length {:?} for window params {:?}x{:?}",
+                "incorrect input length {:?} for window params {:?}✕{:?}",
                 input.len(),
                 W::WINDOW_SIZE,
                 W::NUM_WINDOWS
@@ -93,7 +93,7 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for PedersenCRH<G, W> {
         assert_eq!(
             parameters.generators.len(),
             W::NUM_WINDOWS,
-            "Incorrect pp of size {:?}x{:?} for window params {:?}x{:?}",
+            "Incorrect pp of size {:?}✕{:?} for window params {:?}✕{:?}",
             parameters.generators[0].len(),
             parameters.generators.len(),
             W::WINDOW_SIZE,
@@ -105,7 +105,7 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for PedersenCRH<G, W> {
         let result = cfg_chunks!(bits, W::WINDOW_SIZE)
             .zip(&parameters.generators)
             .map(|(bits, generator_powers)| {
-                let mut encoded = G::zero();
+                let mut encoded = C::zero();
                 for (bit, base) in bits.iter().zip(generator_powers.iter()) {
                     if *bit {
                         encoded += base;
@@ -113,11 +113,11 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for PedersenCRH<G, W> {
                 }
                 encoded
             })
-            .sum::<G>();
+            .sum::<C>();
 
         end_timer!(eval_time);
 
-        Ok(result)
+        Ok(result.into())
     }
 }
 
@@ -132,7 +132,7 @@ pub fn bytes_to_bits(bytes: &[u8]) -> Vec<bool> {
     bits
 }
 
-impl<G: Group> Debug for PedersenParameters<G> {
+impl<C: ProjectiveCurve> Debug for Parameters<C> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         write!(f, "Pedersen Hash Parameters {{\n")?;
         for (i, g) in self.generators.iter().enumerate() {
@@ -142,8 +142,8 @@ impl<G: Group> Debug for PedersenParameters<G> {
     }
 }
 
-impl<ConstraintF: Field, G: Group + ToConstraintField<ConstraintF>> ToConstraintField<ConstraintF>
-    for PedersenParameters<G>
+impl<ConstraintF: Field, C: ProjectiveCurve + ToConstraintField<ConstraintF>>
+    ToConstraintField<ConstraintF> for Parameters<C>
 {
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
