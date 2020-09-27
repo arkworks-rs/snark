@@ -171,12 +171,6 @@ macro_rules! edwards_curve_tests {
         }
 
         #[test]
-        #[cfg(feature = "batch_affine")]
-        fn test_batch_affine() {
-            batch_affine_test::<EdwardsProjective>();
-        }
-
-        #[test]
         #[cfg(feature = "curve")]
         fn test_affine_group() {
             let mut rng = test_rng();
