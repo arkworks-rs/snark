@@ -17,7 +17,7 @@ use rand::{
 
 use crate::{
     bytes::{FromBytes, ToBytes},
-    curves::{AffineCurve, BatchGroupArithmetic, ProjectiveCurve},
+    curves::{AffineCurve, ProjectiveCurve},
     fields::{BitIterator, Field, PrimeField, SquareRootField},
 };
 

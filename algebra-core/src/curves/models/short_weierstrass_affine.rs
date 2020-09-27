@@ -189,8 +189,6 @@ macro_rules! specialise_affine_to_proj {
             }
         }
 
-        impl_sw_batch_affine!(GroupAffine);
-
         impl<P: Parameters> ToBytes for GroupAffine<P> {
             #[inline]
             fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {

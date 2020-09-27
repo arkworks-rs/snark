@@ -33,21 +33,12 @@ pub fn test_msm<G: AffineCurve>() {
     let v = (0..SAMPLES)
         .map(|_| G::ScalarField::rand(&mut rng).into_repr())
         .collect::<Vec<_>>();
-    let g = create_pseudo_uniform_random_elems::<G, XorShiftRng>(&mut rng, MAX_LOGN);
 
-    // let naive = naive_var_base_msm(g.as_slice(), v.as_slice());
+    let v = (0..SAMPLES)
+        .map(|_| G::rand(&mut rng))
+        .collect::<Vec<_>>();
 
-    let now = std::time::Instant::now();
-    let even_faster = VariableBaseMSM::multi_scalar_mul_batched(
-        g.as_slice(),
-        v.as_slice(),
-        <G::ScalarField as PrimeField>::size_in_bits(),
-    );
-    println!(
-        "new MSM for {} elems: {:?}",
-        SAMPLES,
-        now.elapsed().as_micros()
-    );
+    let naive = naive_var_base_msm(g.as_slice(), v.as_slice());
 
     let now = std::time::Instant::now();
     let fast = VariableBaseMSM::multi_scalar_mul(g.as_slice(), v.as_slice());
@@ -57,5 +48,5 @@ pub fn test_msm<G: AffineCurve>() {
         now.elapsed().as_micros()
     );
 
-    assert_eq!(even_faster.into_affine(), fast.into_affine());
+    assert_eq!(naive.into_affine(), fast.into_affine());
 }

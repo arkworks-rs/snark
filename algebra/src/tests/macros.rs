@@ -42,18 +42,6 @@ macro_rules! std_curve_tests {
         }
 
         #[test]
-        #[cfg(feature = "batch_affine")]
-        fn test_batch_affine_g1() {
-            batch_affine_test::<G1Projective>();
-        }
-
-        #[test]
-        #[cfg(feature = "batch_affine")]
-        fn test_batch_affine_g2() {
-            batch_affine_test::<G2Projective>();
-        }
-
-        #[test]
         #[cfg(feature = "curve")]
         fn test_g1_group() {
             let mut rng = test_rng();
