@@ -13,7 +13,6 @@ use algebra::{
     BigInteger, Field, PairingEngine, PrimeField, ProjectiveCurve, SquareRootField, UniformRand,
 };
 
-batch_arith!();
 ec_bench!();
 f_bench!(1, Fq3, Fq3, fq3);
 f_bench!(2, Fq6, Fq6, fq6);
