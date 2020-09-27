@@ -1,13 +1,11 @@
 use crate::{
-    biginteger::{BigInteger384, BigInteger768}, //, BigInteger1536},
+    biginteger::{BigInteger384, BigInteger768},
     bw6_761::{Fq, Fr},
     curves::{
         models::{ModelParameters, SWModelParameters},
         short_weierstrass_jacobian::{GroupAffine, GroupProjective},
-        GLVParameters,
     },
     field_new,
-    fields::PrimeField,
 };
 
 pub type G1Affine = GroupAffine<Parameters>;
