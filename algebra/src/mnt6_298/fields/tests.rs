@@ -1,4 +1,6 @@
 #![allow(unused_imports)]
+use algebra_core::fields::models::fp6_2over3::*;
+use algebra_core::fields::quadratic_extension::QuadExtParameters;
 use algebra_core::{test_rng, Field};
 use rand::Rng;
 

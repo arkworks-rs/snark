@@ -18,7 +18,7 @@ use rand::{
 use crate::{
     bytes::{FromBytes, ToBytes},
     curves::{AffineCurve, BatchGroupArithmetic, ProjectiveCurve},
-    fields::{BitIterator, Field, PrimeField, SquareRootField},
+    fields::{BitIteratorBE, Field, PrimeField, SquareRootField},
 };
 
 use crate::{
@@ -268,27 +268,6 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
             // Z3 = vvv*Z1
             self.z = vvv * &self.z;
         }
-    }
-
-    fn mul<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(mut self, other: S) -> Self {
-        let mut res = Self::zero();
-
-        let mut found_one = false;
-
-        for i in crate::fields::BitIterator::new(other.into()) {
-            if found_one {
-                res.double_in_place();
-            } else {
-                found_one = i;
-            }
-
-            if i {
-                res += self;
-            }
-        }
-
-        self = res;
-        self
     }
 }
 

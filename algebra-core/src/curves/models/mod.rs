@@ -17,7 +17,10 @@ pub mod twisted_edwards_extended;
 
 pub trait ModelParameters: Send + Sync + 'static {
     type BaseField: Field + SquareRootField;
-    type ScalarField: PrimeField + SquareRootField + Into<<Self::ScalarField as PrimeField>::BigInt>;
+    type ScalarField: PrimeField
+        + SquareRootField
+        + Into<<Self::ScalarField as PrimeField>::BigInt>
+        + From<<Self::ScalarField as PrimeField>::BigInt>;
 }
 
 pub trait SWModelParameters: ModelParameters {
