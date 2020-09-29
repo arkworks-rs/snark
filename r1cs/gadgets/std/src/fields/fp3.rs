@@ -5,7 +5,7 @@ use algebra::{
 use r1cs_core::{ConstraintSystem, ConstraintVar, SynthesisError};
 use std::{borrow::Borrow, marker::PhantomData};
 
-use crate::{fields::fp::FpGadget, prelude::*};
+use crate::{fields::fp::FpGadget, prelude::*, Assignment};
 
 
 #[derive(Derivative)]
@@ -300,7 +300,6 @@ impl<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootFie
         Ok(Self::new(c0, c1, c2))
     }
 
-    // 6 constraints. Can we bring this down to 5 ?
     #[inline]
     fn mul_equals<CS: ConstraintSystem<ConstraintF>>(
         &self,
@@ -308,55 +307,140 @@ impl<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootFie
         other: &Self,
         result: &Self,
     ) -> Result<(), SynthesisError> {
-        // Karatsuba multiplication for Fp3:
-        //     v0 = A.c0 * B.c0
-        //     v1 = A.c1 * B.c1
-        //     v2 = A.c2 * B.c2
-        //     c0 = v0 + β((a1 + a2)(b1 + b2) − v1 − v2)
-        //     c1 = (a0 + a1)(b0 + b1) − v0 − v1 + βv2
-        //     c2 = (a0 + a2)(b0 + b2) − v0 + v1 − v2,
+        // Uses Toom-Cook-3x multiplicationFf
+        //
         // Reference:
         // "Multiplication and Squaring on Pairing-Friendly Fields"
-        // Devegili, OhEigeartaigh, Scott, Dahab
-        let v0 = self.c0.mul(cs.ns(|| "v0 = a0 * b0"), &other.c0)?;
-        let v1 = self.c1.mul(cs.ns(|| "v1 = a1 * b1"), &other.c1)?;
-        let v2 = self.c2.mul(cs.ns(|| "v2 = a2 * b2"), &other.c2)?;
+        //    Devegili, OhEigeartaigh, Scott, Dahab
 
-        //Check c0
-        let nr_a1_plus_a2 =
-            self.c1.add(cs.ns(|| "a1 + a2"), &self.c2)?
-                .mul_by_constant(cs.ns(|| "nr*(a1 + a2)"), &P::NONRESIDUE)?;
-        let b1_plus_b2 =
-            other.c1.add(cs.ns(|| "b1 + b2"), &other.c2)?;
-        let nr_v1 = v1.mul_by_constant(cs.ns(|| "nr * v1"), &P::NONRESIDUE)?;
-        let nr_v2 = v2.mul_by_constant(cs.ns(|| "nr * v2"), &P::NONRESIDUE)?;
-        let to_check = result.c0
-            .sub(cs.ns(|| "c0 - v0"), &v0)?
-            .add(cs.ns(|| "c0 - v0 + nr * v1"), &nr_v1)?
-            .add(cs.ns(|| "c0 - v0 + nr * v1 + nr * v2"), &nr_v2)?;
-        nr_a1_plus_a2.mul_equals(cs.ns(|| "check c0"), &b1_plus_b2, &to_check)?;
+        // The prover chooses lambda_1 and lambda_2.
+        // We can explicitly enforce lambda_1 without wasting constraints as it turns out
+        // that a(∞)b(∞) = lambda_1 at X = ∞.
+        let lambda_1 = self.c2.mul(cs.ns(|| "lambda_1 <=> check 5"), &other.c2)?;
 
-        //Check c1
-        let a0_plus_a1 =
-            self.c0.add(cs.ns(|| "a0 + a1"), &self.c1)?;
-        let b0_plus_b1 =
-            other.c0.add(cs.ns(|| "b0 + b1"), &other.c1)?;
-        let to_check = result.c1
-            .sub(cs.ns(|| "c1 - nr * v2"), &nr_v2)?
-            .add(cs.ns(|| "c1 - nr * v2 + v0"), &v0)?
-            .add(cs.ns(|| "c1 - nr * v2 + v0 + v1"), &v1)?;
-        a0_plus_a1.mul_equals(cs.ns(|| "check c1"), &b0_plus_b1, &to_check)?;
+        let lambda_2 = FpGadget::<ConstraintF>::alloc(
+            cs.ns(|| "lambda_2"),
+            || {
+                let a1b2 = self.c1.get_value().get()? * &other.c2.get_value().get()?;
+                let a2b1 = self.c2.get_value().get()? * &other.c1.get_value().get()?;
+                Ok(a1b2 + &a2b1)
+            }
+        )?;
 
-        //Check c2
-        let a0_plus_a2 =
-            self.c0.add(cs.ns(|| "a0 + a2"), &self.c2)?;
-        let b0_plus_b2 =
-            other.c0.add(cs.ns(|| "b0 + b2"), &other.c2)?;
-        let to_check = result.c2
-            .add(cs.ns(|| "c2 + v0"), &v0)?
-            .sub(cs.ns(|| "c2 + v0 - v1"), &v1)?
-            .add(cs.ns(|| "c2 + v0 - v1 + v2"), &v2)?;
-        a0_plus_a2.mul_equals(cs.ns(|| "check c2"), &b0_plus_b2, &to_check)?;
+        let one = P::Fp::one();
+
+        // a0b0 = c0 - β*lambda_2 at X = 0
+        {
+            let c0_plus_nr_lambda_2 = lambda_2
+                .mul_by_constant(cs.ns(|| "nr * lambda_2"), &P::NONRESIDUE)?
+                .negate(cs.ns(|| "-(nr * lambda_2)"))?
+                .add(cs.ns(|| "c0 - nr * lambda_2"), &result.c0)?;
+
+            self.c0.mul_equals(cs.ns(|| "check 1"), &other.c0, &c0_plus_nr_lambda_2)?;
+        }
+
+        //(a0 + a1 + a2)(b0 + b1 + b2) = (c0 + c1 + c2) + (lambda_1 + lambda_2)*(1 - β) at X = 1
+        {
+            let a0_plus_a1_plus_a2 = self
+                .c0
+                .add(cs.ns(|| "a0 + a1"), &self.c1)?
+                .add(cs.ns(|| "a0 + a1 + a2"), &self.c2)?;
+            let b0_plus_b1_plus_b2 = other
+                .c0
+                .add(cs.ns(|| "b0 + b1"), &other.c1)?
+                .add(cs.ns(|| "b0 + b1 + b2"), &other.c2)?;
+            let c0_plus_c1_plus_c2 = result
+                .c0
+                .add(cs.ns(|| "c0 + c1"), &result.c1)?
+                .add(cs.ns(|| "c0 + c1 + c2"), &result.c2)?;
+            let lambda_1_plus_lambda_2_times_one_minus_nr = lambda_1
+                .add(cs.ns(|| "lambda_1 + lambda_2"), &lambda_2)?
+                .mul_by_constant(cs.ns(|| "(lambda_1 + lambda_2)*(1 - nr)"), &(one - &P::NONRESIDUE))?;
+
+            let to_check = c0_plus_c1_plus_c2
+                .add(cs.ns(|| "c0 + c1 + c2 + (lambda_1 + lambda_2)*(1 - nr)"), &lambda_1_plus_lambda_2_times_one_minus_nr)?;
+            a0_plus_a1_plus_a2.mul_equals(cs.ns(|| "check 2"), &b0_plus_b1_plus_b2, &to_check)?;
+        }
+
+        //(a0 - a1 + a2)(b0 - b1 + b2) = (c0 - c1 + c2) + (lambda_1 - lambda_2)*(1 + β) at X = -1
+        {
+            let a0_minus_a1_plus_a2 = self
+                .c0
+                .sub(cs.ns(|| "a0 - a1"), &self.c1)?
+                .add(cs.ns(|| "a0 - a1 + a2"), &self.c2)?;
+            let b0_minus_b1_plus_b2 = other
+                .c0
+                .sub(cs.ns(|| "b0 - b1"), &other.c1)?
+                .add(cs.ns(|| "b0 - b1 + b2"), &other.c2)?;
+            let c0_minus_c1_plus_c2 = result
+                .c0
+                .sub(cs.ns(|| "c0 - c1"), &result.c1)?
+                .add(cs.ns(|| "c0 - c1 + c2"), &result.c2)?;
+            let lambda_1_minus_lambda_2_times_one_plus_nr = lambda_1
+                .sub(cs.ns(|| "lambda_1 - lambda_2"), &lambda_2)?
+                .mul_by_constant(cs.ns(|| "(lambda_1 - lambda_2)*(1 + nr)"), &(one + &P::NONRESIDUE))?;
+
+            let to_check = c0_minus_c1_plus_c2
+                .add(cs.ns(|| "c0 - c1 + c2 + (lambda_1 - lambda_2)*(1 + nr)"), &lambda_1_minus_lambda_2_times_one_plus_nr)?;
+            a0_minus_a1_plus_a2.mul_equals(cs.ns(|| "check 3"), &b0_minus_b1_plus_b2, &to_check)?;
+        }
+
+        // (a0 + 2a1 + 4a2)(b0 + 2b1 + 4b2) = (c0 + 2c1 + 4c2) + (2lambda_1 + lambda_2)(8 - β) at X = 2
+        {
+
+            let a0_plus_2_a1_plus_4_a2 = {
+
+                let a1_double = self.c1.double(cs.ns(|| "2 * a1"))?;
+                let a2_quad = self
+                    .c2
+                    .double(cs.ns(|| "2 * a2"))?
+                    .double(cs.ns(|| "4 * a2"))?;
+
+                self
+                    .c0
+                    .add(cs.ns(|| "a0 + 2a1"), &a1_double)?
+                    .add(cs.ns(|| "a0 + 2a1 + 4a2"), &a2_quad)?
+            };
+
+            let b0_plus_2_b1_plus_4_b2 = {
+
+                let b1_double = other.c1.double(cs.ns(|| "2 * b1"))?;
+                let b2_quad = other
+                    .c2
+                    .double(cs.ns(|| "2 * b2"))?
+                    .double(cs.ns(|| "4 * b2"))?;
+
+                other
+                    .c0
+                    .add(cs.ns(|| "b0 + 2b1"), &b1_double)?
+                    .add(cs.ns(|| "b0 + 2b1 + 4b2"), &b2_quad)?
+            };
+
+            let c0_plus_2_c1_plus_4_c2 = {
+
+                let c1_double = result.c1.double(cs.ns(|| "2 * c1"))?;
+                let c2_quad = result
+                    .c2
+                    .double(cs.ns(|| "2 * c2"))?
+                    .double(cs.ns(|| "4 * c2"))?;
+
+                result
+                    .c0
+                    .add(cs.ns(|| "c0 + 2c1"), &c1_double)?
+                    .add(cs.ns(|| "c0 + 2c1 + 4c2"), &c2_quad)?
+            };
+
+            let eight = one.double().double().double();
+            let two_lambda_1_plus_lambda_2_times_eight_minus_nr = lambda_1
+                .double(cs.ns(|| "2*lambda_1"))?
+                .add(cs.ns(|| "2*lambda_1 + lambda_2"), &lambda_2)?
+                .mul_by_constant(cs.ns(|| "(2*lambda_1 + lambda_2)*(8 - nr)"), &(eight - &P::NONRESIDUE))?;
+
+            let to_check = c0_plus_2_c1_plus_4_c2
+                .add(cs.ns(|| "(c0 + 2c1 + 4c2) + (2*lambda_1 + lambda_2)*(8 - nr)"), &two_lambda_1_plus_lambda_2_times_eight_minus_nr)?;
+            a0_plus_2_a1_plus_4_a2.mul_equals(cs.ns(|| "check 4"), &b0_plus_2_b1_plus_4_b2, &to_check)?;
+        }
+
         Ok(())
     }
 
@@ -424,132 +508,46 @@ impl<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootFie
         Ok(self)
     }
 
-    /// Use the Toom-Cook-3x method to compute multiplication.
     #[inline]
     fn mul_by_constant<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Fp3<P>,
     ) -> Result<Self, SynthesisError> {
-        // Uses Toom-Cook-3x multiplication from
-        //
-        // Reference:
-        // "Multiplication and Squaring on Pairing-Friendly Fields"
-        //    Devegili, OhEigeartaigh, Scott, Dahab
+        // Naive Fp3 multiplication
 
-        // v0 = a(0)b(0)   = a0 * b0
-        let v0 = self.c0.mul_by_constant(cs.ns(|| "v0"), &other.c0)?;
-
-        // v1 = a(1)b(1)   = (a0 + a1 + a2)(b0 + b1 + b2)
-        let v1 = {
-            let mut v1_cs = cs.ns(|| "v1");
-            let mut a0_plus_a1_plus_a2 = self
-                .c0
-                .add(v1_cs.ns(|| "a0 + a1"), &self.c1)?
-                .add(v1_cs.ns(|| "a0 + a1 + a2"), &self.c2)?;
-            let b0_plus_b1_plus_b2 = other.c0 + &other.c1 + &other.c2;
-
-            a0_plus_a1_plus_a2.mul_by_constant_in_place(
-                v1_cs.ns(|| "(a0 + a1 + a2)*(b0 + b1 + b2)"),
-                &b0_plus_b1_plus_b2,
-            )?;
-            a0_plus_a1_plus_a2
-        };
-
-        // v2 = a(−1)b(−1) = (a0 − a1 + a2)(b0 − b1 + b2)
-        let mut v2 = {
-            let mut v2_cs = cs.ns(|| "v2");
-            let mut a0_minus_a1_plus_a2 = self
-                .c0
-                .sub(v2_cs.ns(|| "sub1"), &self.c1)?
-                .add(v2_cs.ns(|| "add2"), &self.c2)?;
-            let b0_minus_b1_plus_b2 = other.c0 - &other.c1 + &other.c2;
-            a0_minus_a1_plus_a2.mul_by_constant_in_place(
-                v2_cs.ns(|| "(a0 - a1 + a2)*(b0 - b1 + b2)"),
-                &b0_minus_b1_plus_b2,
-            )?;
-            a0_minus_a1_plus_a2
-        };
-
-        // v3 = a(2)b(2)   = (a0 + 2a1 + 4a2)(b0 + 2b1 + 4b2)
-        let mut v3 = {
-            let mut v3_cs = cs.ns(|| "v3");
-            let a1_double = self.c1.double(v3_cs.ns(|| "2a1"))?;
-            let a2_quad = self
-                .c2
-                .double(v3_cs.ns(|| "2a2"))?
-                .double(v3_cs.ns(|| "4a2"))?;
-            let mut a0_plus_2_a1_plus_4_a2 = self
-                .c0
-                .add(v3_cs.ns(|| "a0 + 2a1"), &a1_double)?
-                .add(v3_cs.ns(|| "a0 + 2a1 + 4a2"), &a2_quad)?;
-
-            let b1_double = other.c1.double();
-            let b2_quad = other.c2.double().double();
-            let b0_plus_2_b1_plus_4_b2 = other.c0 + &b1_double + &b2_quad;
-
-            a0_plus_2_a1_plus_4_a2.mul_by_constant_in_place(
-                v3_cs.ns(|| "(a0 + 2a1 + 4a2)*(b0 + 2b1 + 4b2)"),
-                &b0_plus_2_b1_plus_4_b2,
-            )?;
-            a0_plus_2_a1_plus_4_a2
-        };
-
-        // v4 = a(∞)b(∞)   = a2 * b2
-        let v4 = self.c2.mul_by_constant(cs.ns(|| "v4"), &other.c2)?;
-
-        let two = P::Fp::one().double();
-        let six = two.double() + &two;
-        let mut two_and_six = [two, six];
-        algebra::fields::batch_inversion(&mut two_and_six);
-        let (two_inverse, six_inverse) = (two_and_six[0], two_and_six[1]);
-
-        let mut half_v0 = v0.mul_by_constant(cs.ns(|| "half_v0"), &two_inverse)?;
-        let half_v1 = v1.mul_by_constant(cs.ns(|| "half_v1"), &two_inverse)?;
-        let mut one_sixth_v2 = v2.mul_by_constant(cs.ns(|| "v2_by_6"), &six_inverse)?;
-        let one_sixth_v3 = v3.mul_by_constant_in_place(cs.ns(|| "v3_by_6"), &six_inverse)?;
-        let two_v4 = v4.double(cs.ns(|| "2v4"))?;
-
-        // c0 = v0 + β((1/2)v0 − (1/2)v1 − (1/6)v2 + (1/6)v3 − 2v4)
+        // c0 = b0*a0 + β*b2*a1 + β*b1*a2,
         let c0 = {
-            let mut c0_cs = cs.ns(|| "c0");
+            let a0_b0 = self.c0.mul_by_constant(cs.ns(|| "a0 * b0"), &other.c0)?;
+            let a1_b2_nr = self.c1.mul_by_constant(cs.ns(|| "a1 * b2 * nr"), &(other.c2 * &P::NONRESIDUE))?;
+            let a2_b1_nr = self.c2.mul_by_constant(cs.ns(|| "a2 * b1 * nr"), &(other.c1 * &P::NONRESIDUE))?;
 
-            // No constraints, only get a linear combination back.
-            let mut inner = half_v0
-                .sub(c0_cs.ns(|| "sub1"), &half_v1)?
-                .sub(c0_cs.ns(|| "sub2"), &one_sixth_v2)?
-                .add(c0_cs.ns(|| "add3"), &one_sixth_v3)?
-                .sub(c0_cs.ns(|| "sub4"), &two_v4)?;
-            let non_residue_times_inner =
-                inner.mul_by_constant_in_place(&mut c0_cs, &P::NONRESIDUE)?;
-            v0.add(c0_cs.ns(|| "add5"), non_residue_times_inner)?
-        };
+            a0_b0
+                .add(cs.ns(|| "a0 * b0 + a1 * b2 * nr"), &a1_b2_nr)?
+                .add(cs.ns(|| "a0 * b0 + a1 * b2 * nr + a2 * b1 * nr"), &a2_b1_nr)
+        }?;
 
-        // −(1/2)v0 + v1 − (1/3)v2 − (1/6)v3 + 2v4 + βv4
+        // c1 = b1*a0 + b0*a1 + β*b2*a2,
         let c1 = {
-            let mut c1_cs = cs.ns(|| "c1");
-            let one_third_v2 = one_sixth_v2.double_in_place(c1_cs.ns(|| "double1"))?;
-            let non_residue_v4 =
-                v4.mul_by_constant(c1_cs.ns(|| "mul_by_const1"), &P::NONRESIDUE)?;
+            let a0_b1 = self.c0.mul_by_constant(cs.ns(|| "a0 * b1"), &other.c1)?;
+            let a1_b0 = self.c1.mul_by_constant(cs.ns(|| "a1 * b0"), &other.c0)?;
+            let a2_b2_nr = self.c2.mul_by_constant(cs.ns(|| "a2 * b2 * nr"), &(other.c2 * &P::NONRESIDUE))?;
 
-            half_v0
-                .negate_in_place(c1_cs.ns(|| "neg1"))?
-                .add(c1_cs.ns(|| "add1"), &v1)?
-                .sub(c1_cs.ns(|| "sub2"), one_third_v2)?
-                .sub(c1_cs.ns(|| "sub3"), &one_sixth_v3)?
-                .add(c1_cs.ns(|| "add4"), &two_v4)?
-                .add(c1_cs.ns(|| "add5"), &non_residue_v4)?
-        };
+            a0_b1
+                .add(cs.ns(|| "a0 * b1 + a1 * b0"), &a1_b0)?
+                .add(cs.ns(|| "a0 * b1 + a1 * b0 + a2 * b2 * nr"), &a2_b2_nr)
+        }?;
 
-        // -v0 + (1/2)v1 + (1/2)v2 −v4
+        // c2 = b2*a0 + b1*a1 + b0*a2.
         let c2 = {
-            let mut c2_cs = cs.ns(|| "c2");
-            let half_v2 = v2.mul_by_constant_in_place(c2_cs.ns(|| "half_v2"), &two_inverse)?;
-            half_v1
-                .add(c2_cs.ns(|| "add1"), half_v2)?
-                .sub(c2_cs.ns(|| "sub2"), &v4)?
-                .sub(c2_cs.ns(|| "sub3"), &v0)?
-        };
+            let a0_b2 = self.c0.mul_by_constant(cs.ns(|| "a0 * b2"), &other.c2)?;
+            let a1_b1 = self.c1.mul_by_constant(cs.ns(|| "a1 * b1"), &other.c1)?;
+            let a2_b0 = self.c2.mul_by_constant(cs.ns(|| "a2 * b0"), &other.c0)?;
+
+            a0_b2
+                .add(cs.ns(|| "a0 * b2 + a1 * b1"), &a1_b1)?
+                .add(cs.ns(|| "a0 * b2 + a1 * b1 + a2 * b0"), &a2_b0)
+        }?;
 
         Ok(Self::new(c0, c1, c2))
     }
@@ -587,7 +585,7 @@ impl<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootFie
     }
 
     fn cost_of_mul_equals() -> usize {
-        6
+        5
     }
 
     fn cost_of_inv() -> usize {
