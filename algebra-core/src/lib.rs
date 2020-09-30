@@ -8,6 +8,9 @@
 #![cfg_attr(use_asm, feature(llvm_asm))]
 #![cfg_attr(not(use_asm), forbid(unsafe_code))]
 #![cfg_attr(use_asm, deny(unsafe_code))]
+#![cfg_attr(not(feature = "bw6_asm"), forbid(unsafe_code))]
+#![cfg_attr(feature = "bw6_asm", deny(unsafe_code))]
+
 
 #[cfg(all(test, not(feature = "std")))]
 #[macro_use]
