@@ -595,50 +595,38 @@ impl<P, ConstraintF: PrimeField + SquareRootField> EqGadget<ConstraintF> for Fp6
         P: Fp6Parameters,
         P::Fp3Params: Fp3Parameters<Fp = ConstraintF>,
 {
-}
+    fn is_eq<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        other: &Self
+    ) -> Result<Boolean, SynthesisError> {
+        let b0 = self.c0.is_eq(cs.ns(|| "c0"), &other.c0)?;
+        let b1 = self.c1.is_eq(cs.ns(|| "c1"),&other.c1)?;
+        Boolean::and(cs.ns(|| "b0 AND b1"), &b0, &b1)
+    }
 
-impl<P, ConstraintF: PrimeField + SquareRootField> ConditionalEqGadget<ConstraintF> for Fp6Gadget<P, ConstraintF>
-    where
-        P: Fp6Parameters,
-        P::Fp3Params: Fp3Parameters<Fp = ConstraintF>,
-{
     #[inline]
     fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
-        condition: &Boolean,
+        should_enforce: &Boolean
     ) -> Result<(), SynthesisError> {
-        self.c0
-            .conditional_enforce_equal(&mut cs.ns(|| "c0"), &other.c0, condition)?;
-        self.c1
-            .conditional_enforce_equal(&mut cs.ns(|| "c1"), &other.c1, condition)?;
+        self.c0.conditional_enforce_equal(cs.ns(|| "c0"),&other.c0, should_enforce)?;
+        self.c1.conditional_enforce_equal(cs.ns(|| "c1"),&other.c1, should_enforce)?;
         Ok(())
     }
 
-    fn cost() -> usize {
-        2 * <Fp3Gadget<P, ConstraintF> as ConditionalEqGadget<ConstraintF>>::cost()
-    }
-}
-
-impl<P, ConstraintF: PrimeField + SquareRootField> NEqGadget<ConstraintF> for Fp6Gadget<P, ConstraintF>
-    where
-        P: Fp6Parameters,
-        P::Fp3Params: Fp3Parameters<Fp = ConstraintF>,
-{
     #[inline]
-    fn enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
+    fn conditional_enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
+        should_enforce: &Boolean
     ) -> Result<(), SynthesisError> {
-        self.c0.enforce_not_equal(&mut cs.ns(|| "c0"), &other.c0)?;
-        self.c1.enforce_not_equal(&mut cs.ns(|| "c1"), &other.c1)?;
-        Ok(())
-    }
-
-    fn cost() -> usize {
-        2 * <Fp3Gadget<P, ConstraintF> as NEqGadget<ConstraintF>>::cost()
+        let is_equal = self.is_eq(cs.ns(|| "is_eq(self, other)"), other)?;
+        Boolean::and(cs.ns(|| "is_equal AND should_enforce"), &is_equal, should_enforce)?
+            .enforce_equal(cs.ns(|| "is_equal AND should_enforce == false"), &Boolean::Constant(false))
     }
 }
 

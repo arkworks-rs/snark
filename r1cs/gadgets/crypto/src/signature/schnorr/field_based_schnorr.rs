@@ -14,7 +14,7 @@ use r1cs_std::{
     fields::fp::FpGadget,
     to_field_gadget_vec::ToConstraintFieldGadget,
     alloc::AllocGadget,
-    eq::{EqGadget, EquVerdictGadget},
+    eq::EqGadget,
     groups::GroupGadget,
     bits::boolean::Boolean,
 };
@@ -216,7 +216,7 @@ for FieldBasedSchnorrSigVerificationGadget<ConstraintF, G, GG, H, HG>
         )?;
 
         //Enforce result of signature verification
-        let is_verified = signature.e.enforce_verdict(cs.ns(|| "is e == e_prime"), &e_prime)?;
+        let is_verified = signature.e.is_eq(cs.ns(|| "is e == e_prime"), &e_prime)?;
 
         Ok(is_verified)
     }

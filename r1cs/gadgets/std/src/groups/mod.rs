@@ -14,7 +14,6 @@ pub use self::curves::{
 pub trait GroupGadget<G: Group, ConstraintF: Field>:
     Sized
     + ToBytesGadget<ConstraintF>
-    + NEqGadget<ConstraintF>
     + EqGadget<ConstraintF>
     + ToBitsGadget<ConstraintF>
     + CondSelectGadget<ConstraintF>

@@ -451,46 +451,38 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootFie
 impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootField> EqGadget<ConstraintF>
     for Fp2Gadget<P, ConstraintF>
 {
-}
+    fn is_eq<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        other: &Self
+    ) -> Result<Boolean, SynthesisError> {
+        let b0 = self.c0.is_eq(cs.ns(|| "c0"), &other.c0)?;
+        let b1 = self.c1.is_eq(cs.ns(|| "c1"),&other.c1)?;
+        Boolean::and(cs.ns(|| "b0 AND b1"), &b0, &b1)
+    }
 
-impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootField> ConditionalEqGadget<ConstraintF>
-    for Fp2Gadget<P, ConstraintF>
-{
     #[inline]
     fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
-        condition: &Boolean,
+        should_enforce: &Boolean
     ) -> Result<(), SynthesisError> {
-        self.c0
-            .conditional_enforce_equal(&mut cs.ns(|| "c0"), &other.c0, condition)?;
-        self.c1
-            .conditional_enforce_equal(&mut cs.ns(|| "c1"), &other.c1, condition)?;
+        self.c0.conditional_enforce_equal(cs.ns(|| "c0"),&other.c0, should_enforce)?;
+        self.c1.conditional_enforce_equal(cs.ns(|| "c1"),&other.c1, should_enforce)?;
         Ok(())
     }
 
-    fn cost() -> usize {
-        2
-    }
-}
-
-impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootField> NEqGadget<ConstraintF>
-    for Fp2Gadget<P, ConstraintF>
-{
     #[inline]
-    fn enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
+    fn conditional_enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
+        should_enforce: &Boolean
     ) -> Result<(), SynthesisError> {
-        self.c0.enforce_not_equal(&mut cs.ns(|| "c0"), &other.c0)?;
-        self.c1.enforce_not_equal(&mut cs.ns(|| "c1"), &other.c1)?;
-        Ok(())
-    }
-
-    fn cost() -> usize {
-        2
+        let is_equal = self.is_eq(cs.ns(|| "is_eq(self, other)"), other)?;
+        Boolean::and(cs.ns(|| "is_equal AND should_enforce"), &is_equal, should_enforce)?
+            .enforce_equal(cs.ns(|| "is_equal AND should_enforce == false"), &Boolean::Constant(false))
     }
 }
 

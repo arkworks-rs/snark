@@ -1435,60 +1435,38 @@ where
     ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
-}
+    fn is_eq<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        other: &Self
+    ) -> Result<Boolean, SynthesisError> {
+        let b0 = self.x.is_eq(cs.ns(|| "x"), &other.x)?;
+        let b1 = self.y.is_eq(cs.ns(|| "y"),&other.y)?;
+        Boolean::and(cs.ns(|| "x AND y"), &b0, &b1)
+    }
 
-impl<P, ConstraintF, F> ConditionalEqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
-where
-    P: TEModelParameters,
-    ConstraintF: Field,
-    F: FieldGadget<P::BaseField, ConstraintF>,
-{
     #[inline]
     fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
-        condition: &Boolean,
+        should_enforce: &Boolean
     ) -> Result<(), SynthesisError> {
-        self.x.conditional_enforce_equal(
-            &mut cs.ns(|| "X Coordinate Conditional Equality"),
-            &other.x,
-            condition,
-        )?;
-        self.y.conditional_enforce_equal(
-            &mut cs.ns(|| "Y Coordinate Conditional Equality"),
-            &other.y,
-            condition,
-        )?;
+        self.x.conditional_enforce_equal(cs.ns(|| "x"),&other.x, should_enforce)?;
+        self.y.conditional_enforce_equal(cs.ns(|| "y"),&other.y, should_enforce)?;
         Ok(())
     }
 
-    fn cost() -> usize {
-        2 * <F as ConditionalEqGadget<ConstraintF>>::cost()
-    }
-}
-
-impl<P, ConstraintF, F> NEqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
-where
-    P: TEModelParameters,
-    ConstraintF: Field,
-    F: FieldGadget<P::BaseField, ConstraintF>,
-{
     #[inline]
-    fn enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
+    fn conditional_enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
+        should_enforce: &Boolean
     ) -> Result<(), SynthesisError> {
-        self.x
-            .enforce_not_equal(&mut cs.ns(|| "X Coordinate Inequality"), &other.x)?;
-        self.y
-            .enforce_not_equal(&mut cs.ns(|| "Y Coordinate Inequality"), &other.y)?;
-        Ok(())
-    }
-
-    fn cost() -> usize {
-        2 * <F as NEqGadget<ConstraintF>>::cost()
+        let is_equal = self.is_eq(cs.ns(|| "is_eq(self, other)"), other)?;
+        Boolean::and(cs.ns(|| "is_equal AND should_enforce"), &is_equal, should_enforce)?
+            .enforce_equal(cs.ns(|| "is_equal AND should_enforce == false"), &Boolean::Constant(false))
     }
 }
 

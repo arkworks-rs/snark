@@ -318,25 +318,31 @@ impl PartialEq for UInt32 {
 
 impl Eq for UInt32 {}
 
-impl<ConstraintF: Field> ConditionalEqGadget<ConstraintF> for UInt32 {
-    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
+impl<ConstraintF: Field> EqGadget<ConstraintF> for UInt32 {
+    fn is_eq<CS: ConstraintSystem<ConstraintF>>(
         &self,
-        mut cs: CS,
-        other: &Self,
-        condition: &Boolean,
-    ) -> Result<(), SynthesisError> {
-        for (i, (a, b)) in self.bits.iter().zip(&other.bits).enumerate() {
-            a.conditional_enforce_equal(
-                &mut cs.ns(|| format!("uint32_equal_{}", i)),
-                b,
-                condition,
-            )?;
-        }
-        Ok(())
+        cs: CS,
+        other: &Self
+    ) -> Result<Boolean, SynthesisError> {
+        self.bits.as_slice().is_eq(cs, &other.bits)
     }
 
-    fn cost() -> usize {
-        32 * <Boolean as ConditionalEqGadget<ConstraintF>>::cost()
+    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+        other: &Self,
+        should_enforce: &Boolean
+    ) -> Result<(), SynthesisError> {
+        self.bits.conditional_enforce_equal(cs, &other.bits, should_enforce)
+    }
+
+    fn conditional_enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+        other: &Self,
+        should_enforce: &Boolean
+    ) -> Result<(), SynthesisError> {
+        self.bits.conditional_enforce_not_equal(cs, &other.bits, should_enforce)
     }
 }
 

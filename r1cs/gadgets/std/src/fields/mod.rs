@@ -24,8 +24,6 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
     Sized
     + Clone
     + EqGadget<ConstraintF>
-    + NEqGadget<ConstraintF>
-    + ConditionalEqGadget<ConstraintF>
     + ToBitsGadget<ConstraintF>
     + AllocGadget<F, ConstraintF>
     + ConstantGadget<F, ConstraintF>
@@ -639,7 +637,7 @@ mod test {
                 || Ok(a.clone())
             ).unwrap();
 
-            let v = a_gadget.enforce_verdict(cs.ns(|| "a == b"), &b_gadget).unwrap();
+            let v = a_gadget.is_eq(cs.ns(|| "a == b"), &b_gadget).unwrap();
             v.enforce_equal(cs.ns(|| " v == True"), &Boolean::constant(true)).unwrap();
             assert!(cs.is_satisfied());
 
@@ -670,7 +668,7 @@ mod test {
                 || Ok(ConstraintF::rand(&mut rng))
             ).unwrap();
 
-            let v = a_gadget.enforce_verdict(cs.ns(|| "a != b"), &b_gadget).unwrap();
+            let v = a_gadget.is_eq(cs.ns(|| "a != b"), &b_gadget).unwrap();
             v.enforce_equal(cs.ns(|| " v == False"), &Boolean::constant(false)).unwrap();
             assert!(cs.is_satisfied());
 
