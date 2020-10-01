@@ -12,7 +12,7 @@ use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 use rayon::prelude::*;
 
-const LOG2_N: usize = 21;
+const LOG2_N: usize = 19;
 // Job size needs to be at least 1 << 17
 const JOB_SIZE: usize = 1 << 17;
 // We support n_threads up to JOB_SIZE / CHUNK_SIZE

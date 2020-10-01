@@ -38,11 +38,13 @@ backtrace = { version = "0.3", optional = true }
 [build-dependencies]
 field-assembly = { path = "./field-assembly", optional = true }
 rustc_version = "0.2"
+cc = "1.0"
 
 [dev-dependencies]
 rand_xorshift = "0.2"
 
 [features]
+bw6_asm = []
 default = [ "std", "rand/default" ]
 std = [ "voracious_radix_sort" ]
 parallel = [ "std", "rayon", "rand/default" ]
