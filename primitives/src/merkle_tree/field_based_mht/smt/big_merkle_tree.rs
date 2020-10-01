@@ -701,24 +701,21 @@ mod test {
     use algebra::{
         biginteger::BigInteger768,
         fields::{mnt6753::Fr as MNT6753Fr, mnt4753::Fr as MNT4753Fr},
-        Field, UniformRand
+        Field, UniformRand,
+        ToBytes, to_bytes, FromBytes,
     };
 
-    use crate::{
-        crh::{
-            MNT4PoseidonHash, MNT6PoseidonHash
+    use crate::{crh::{
+        MNT4PoseidonHash, MNT6PoseidonHash
+    }, merkle_tree::field_based_mht::{
+        naive::NaiveMerkleTree,
+        smt::{OperationLeaf, Coord, ActionLeaf, BigMerkleTree},
+        poseidon::{
+            MNT4753_MHT_POSEIDON_PARAMETERS, MNT6753_MHT_POSEIDON_PARAMETERS
         },
-        merkle_tree::field_based_mht::{
-            naive:: NaiveMerkleTree,
-            smt::{OperationLeaf, Coord, ActionLeaf, BigMerkleTree},
-            poseidon::{
-                MNT4753_MHT_POSEIDON_PARAMETERS, MNT6753_MHT_POSEIDON_PARAMETERS
-            },
-            FieldBasedMerkleTreeParameters, FieldBasedMerkleTreePrecomputedEmptyConstants,
-            FieldBasedMerkleTreePath
-        },
-
-    };
+        FieldBasedMerkleTreeParameters, FieldBasedMerkleTreePrecomputedEmptyConstants,
+        FieldBasedMerkleTreePath
+    }, FieldBasedBinaryMHTPath};
 
     use rand_xorshift::XorShiftRng;
     use rand::SeedableRng;
@@ -739,6 +736,7 @@ mod test {
 
     type MNT4753FieldBasedMerkleTree = NaiveMerkleTree<MNT4753FieldBasedMerkleTreeParams>;
     type MNT4PoseidonSMT = BigMerkleTree<MNT4753FieldBasedMerkleTreeParams>;
+    type MNT4MerklePath = FieldBasedBinaryMHTPath<MNT4753FieldBasedMerkleTreeParams>;
 
     #[derive(Clone, Debug)]
     struct MNT6753FieldBasedMerkleTreeParams;
@@ -752,6 +750,7 @@ mod test {
 
     type MNT6753FieldBasedMerkleTree = NaiveMerkleTree<MNT6753FieldBasedMerkleTreeParams>;
     type MNT6PoseidonSMT = BigMerkleTree<MNT6753FieldBasedMerkleTreeParams>;
+    type MNT6MerklePath = FieldBasedBinaryMHTPath<MNT6753FieldBasedMerkleTreeParams>;
 
     const TEST_HEIGHT: usize = 5;
 
@@ -1101,6 +1100,11 @@ mod test {
 
             // Assert the two paths are equal
             assert_eq!(path, naive_path);
+
+            // Serialization/deserialization test
+            let path_serialized = to_bytes!(path).unwrap();
+            let path_deserialized = MNT4MerklePath::read(path_serialized.as_slice()).unwrap();
+            assert_eq!(path, path_deserialized);
         }
     }
 
@@ -1151,6 +1155,11 @@ mod test {
 
             // Assert the two paths are equal
             assert_eq!(path, naive_path);
+
+            // Serialization/deserialization test
+            let path_serialized = to_bytes!(path).unwrap();
+            let path_deserialized = MNT6MerklePath::read(path_serialized.as_slice()).unwrap();
+            assert_eq!(path, path_deserialized);
         }
     }
 }

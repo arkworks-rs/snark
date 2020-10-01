@@ -286,7 +286,8 @@ mod test {
             Field,
             mnt4753::Fr as MNT4753Fr, mnt6753::Fr as MNT6753Fr
         },
-        UniformRand
+        UniformRand,
+        ToBytes, to_bytes, FromBytes,
     };
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
@@ -301,7 +302,7 @@ mod test {
         poseidon::{
             MNT4753_MHT_POSEIDON_PARAMETERS, MNT6753_MHT_POSEIDON_PARAMETERS
         }
-    }, FieldBasedMerkleTreePrecomputedEmptyConstants};
+    }, FieldBasedMerkleTreePrecomputedEmptyConstants, FieldBasedMHTPath};
 
     // OptimizedMHT definitions for tests below
     #[derive(Clone, Debug)]
@@ -321,6 +322,7 @@ mod test {
 
     type NaiveMNT4PoseidonMHT = NaiveMerkleTree<MNT4753FieldBasedOptimizedMerkleTreeParams>;
     type MNT4PoseidonMHT = FieldBasedOptimizedMHT<MNT4753FieldBasedOptimizedMerkleTreeParams>;
+    type MNT4MerklePath = FieldBasedMHTPath<MNT4753FieldBasedOptimizedMerkleTreeParams>;
 
     #[derive(Clone, Debug)]
     struct MNT6753FieldBasedOptimizedMerkleTreeParams;
@@ -339,6 +341,7 @@ mod test {
 
     type NaiveMNT6PoseidonMHT = NaiveMerkleTree<MNT6753FieldBasedOptimizedMerkleTreeParams>;
     type MNT6PoseidonMHT = FieldBasedOptimizedMHT<MNT6753FieldBasedOptimizedMerkleTreeParams>;
+    type MNT6MerklePath = FieldBasedMHTPath<MNT6753FieldBasedOptimizedMerkleTreeParams>;
 
     #[test]
     fn merkle_tree_test_mnt4() {
@@ -519,6 +522,11 @@ mod test {
 
             // Assert the two paths are equal
             assert_eq!(naive_path, path);
+
+            // Serialization/deserialization test
+            let path_serialized = to_bytes!(path).unwrap();
+            let path_deserialized = MNT4MerklePath::read(path_serialized.as_slice()).unwrap();
+            assert_eq!(path, path_deserialized);
         }
     }
 
@@ -563,6 +571,11 @@ mod test {
 
             // Assert the two paths are equal
             assert_eq!(naive_path, path);
+
+            // Serialization/deserialization test
+            let path_serialized = to_bytes!(path).unwrap();
+            let path_deserialized = MNT6MerklePath::read(path_serialized.as_slice()).unwrap();
+            assert_eq!(path, path_deserialized);
         }
     }
 }

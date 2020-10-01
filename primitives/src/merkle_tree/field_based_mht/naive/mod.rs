@@ -186,14 +186,14 @@ mod test {
     }, merkle_tree::field_based_mht::*, FieldBasedHash};
     use algebra::{
         fields::mnt4753::Fr as MNT4753Fr, Field,
-        UniformRand
+        UniformRand, ToBytes, to_bytes, FromBytes,
     };
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
 
     const TEST_HEIGHT: usize = 5;
 
-    #[derive(Clone)]
+    #[derive(Debug, Clone)]
     struct MNT4753FieldBasedMerkleTreeParams;
     impl FieldBasedMerkleTreeParameters for MNT4753FieldBasedMerkleTreeParams {
         type Data = MNT4753Fr;
@@ -209,6 +209,7 @@ mod test {
 
     type MNT4753FieldBasedMerkleTree = NaiveMerkleTree<MNT4753FieldBasedMerkleTreeParams>;
     type MNT4PoseidonMHT = FieldBasedOptimizedMHT<MNT4753FieldBasedMerkleTreeParams>;
+    type TestMerklePath = FieldBasedBinaryMHTPath<MNT4753FieldBasedMerkleTreeParams>;
 
     fn generate_merkle_tree(leaves: &[MNT4753Fr])
     {
@@ -218,6 +219,11 @@ mod test {
         for (i, leaf) in leaves.iter().enumerate() {
             let proof = tree.generate_proof(i, leaf).unwrap();
             assert!(proof.verify(tree.height(), &leaf, &root).unwrap());
+
+            // Serialization/deserialization test
+            let proof_serialized = to_bytes!(proof).unwrap();
+            let proof_deserialized = TestMerklePath::read(proof_serialized.as_slice()).unwrap();
+            assert_eq!(proof, proof_deserialized);
         }
     }
 
@@ -257,6 +263,11 @@ mod test {
         for (i, leaf) in leaves.iter().enumerate() {
             let proof = tree.generate_proof(i, leaf).unwrap();
             assert!(!proof.verify(tree.height(), &leaf, &root).unwrap());
+
+            // Serialization/deserialization test
+            let proof_serialized = to_bytes!(proof).unwrap();
+            let proof_deserialized = TestMerklePath::read(proof_serialized.as_slice()).unwrap();
+            assert_eq!(proof, proof_deserialized);
         }
     }
 
