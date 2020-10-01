@@ -945,6 +945,16 @@ mod test {
             // Assert the two paths are equal
             assert_eq!(path, naive_path);
 
+            // Assert the two paths are equal
+            assert_eq!(naive_path, path);
+
+            // Check leaf index is the correct one
+            assert_eq!(i, path.leaf_index());
+
+            if i == 0 { assert!(path.is_leftmost()); } // leftmost check
+            else if i == 2usize.pow(TEST_HEIGHT_1 as u32) - 1 { assert!(path.is_rightmost()) }  //rightmost check
+            else { assert!(!path.is_leftmost()); assert!(!path.is_rightmost()); } // other cases check
+
             // Serialization/deserialization test
             let path_serialized = to_bytes!(path).unwrap();
             let path_deserialized = MNT4MerklePath::read(path_serialized.as_slice()).unwrap();
@@ -1000,6 +1010,16 @@ mod test {
 
             // Assert the two paths are equal
             assert_eq!(path, naive_path);
+
+            // Assert the two paths are equal
+            assert_eq!(naive_path, path);
+
+            // Check leaf index is the correct one
+            assert_eq!(i, path.leaf_index());
+
+            if i == 0 { assert!(path.is_leftmost()); } // leftmost check
+            else if i == 2usize.pow(TEST_HEIGHT_1 as u32) - 1 { assert!(path.is_rightmost()) }  //rightmost check
+            else { assert!(!path.is_leftmost()); assert!(!path.is_rightmost()); } // other cases check
 
             // Serialization/deserialization test
             let path_serialized = to_bytes!(path).unwrap();

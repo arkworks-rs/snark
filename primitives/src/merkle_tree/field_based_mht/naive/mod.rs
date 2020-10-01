@@ -220,6 +220,13 @@ mod test {
             let proof = tree.generate_proof(i, leaf).unwrap();
             assert!(proof.verify(tree.height(), &leaf, &root).unwrap());
 
+            // Check leaf index is the correct one
+            assert_eq!(i, proof.leaf_index());
+
+            if i == 0 { assert!(proof.is_leftmost()); } // leftmost check
+            else if i == 2usize.pow(TEST_HEIGHT as u32) - 1 { assert!(proof.is_rightmost()) }  //rightmost check
+            else { assert!(!proof.is_leftmost()); assert!(!proof.is_rightmost()); } // other cases check
+
             // Serialization/deserialization test
             let proof_serialized = to_bytes!(proof).unwrap();
             let proof_deserialized = TestMerklePath::read(proof_serialized.as_slice()).unwrap();
@@ -263,6 +270,13 @@ mod test {
         for (i, leaf) in leaves.iter().enumerate() {
             let proof = tree.generate_proof(i, leaf).unwrap();
             assert!(!proof.verify(tree.height(), &leaf, &root).unwrap());
+
+            // Check leaf index is the correct one
+            assert_eq!(i, proof.leaf_index());
+
+            if i == 0 { assert!(proof.is_leftmost()); } // leftmost check
+            else if i == 2usize.pow(TEST_HEIGHT as u32) - 1 { assert!(proof.is_rightmost()) }  //rightmost check
+            else { assert!(!proof.is_leftmost()); assert!(!proof.is_rightmost()); } // other cases check
 
             // Serialization/deserialization test
             let proof_serialized = to_bytes!(proof).unwrap();

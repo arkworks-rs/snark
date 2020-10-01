@@ -13,6 +13,45 @@ pub struct FieldBasedMHTPath<T: FieldBasedMerkleTreeParameters>{
     path: Vec<(Vec<<T::H as FieldBasedHash>::Data>, usize)>,
 }
 
+impl<T: FieldBasedMerkleTreeParameters> FieldBasedMHTPath<T> {
+
+    /// Returns true if `self` is a Merkle Path for the left most leaf of a Merkle Tree,
+    /// false, otherwise.
+    #[inline]
+    pub fn is_leftmost(&self) -> bool {
+        for &(_, direction) in &self.path {
+            if direction != 0 {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /// Returns true if `self` is a Merkle Path for the right most leaf of a Merkle Tree,
+    /// false, otherwise.
+    #[inline]
+    pub fn is_rightmost(&self) -> bool {
+        for &(_, direction) in &self.path {
+            if direction != (T::MERKLE_ARITY - 1) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /// Returns the index of the leaf, corresponding to the `self` Merkle Path, in the
+    /// corresponding Merkle Tree.
+    pub fn leaf_index(&self) -> usize {
+        let mut leaf_index = 0;
+        self.path
+            .iter()
+            .enumerate()
+            .for_each(|(i, (_, pos))| leaf_index += T::MERKLE_ARITY.pow(i as u32) * pos);
+
+        leaf_index
+    }
+}
+
 impl<T: FieldBasedMerkleTreeParameters> PartialEq for FieldBasedMHTPath<T> {
     fn eq(&self, other: &Self) -> bool {
         self.path == other.path
@@ -120,6 +159,47 @@ impl<T: FieldBasedMerkleTreeParameters> FromBytes for FieldBasedMHTPath<T> {
 #[derive(Clone, Debug)]
 pub struct FieldBasedBinaryMHTPath<T: FieldBasedMerkleTreeParameters>{
     path: Vec<(<T::H as FieldBasedHash>::Data, bool)>,
+}
+
+impl<T: FieldBasedMerkleTreeParameters> FieldBasedBinaryMHTPath<T> {
+
+    /// Returns true if `self` is a Merkle Path for the left most leaf of a Merkle Tree,
+    /// false, otherwise.
+    #[inline]
+    pub fn is_leftmost(&self) -> bool {
+        for &(_, direction) in &self.path {
+            if direction {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /// Returns true if `self` is a Merkle Path for the right most leaf of a Merkle Tree,
+    /// false, otherwise.
+    #[inline]
+    pub fn is_rightmost(&self) -> bool {
+        for &(_, direction) in &self.path {
+            if !direction {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /// Returns the index of the leaf, corresponding to the `self` Merkle Path, in the
+    /// corresponding Merkle Tree.
+    pub fn leaf_index(&self) -> usize {
+        let mut leaf_index = 0;
+        self.path
+            .iter()
+            .enumerate()
+            .for_each(|(i, (_, pos))| {
+                if *pos { leaf_index += 1 << i }
+            });
+
+        leaf_index as usize
+    }
 }
 
 impl<T: FieldBasedMerkleTreeParameters> PartialEq for FieldBasedBinaryMHTPath<T> {
