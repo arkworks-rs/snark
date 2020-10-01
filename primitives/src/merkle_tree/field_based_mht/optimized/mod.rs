@@ -29,17 +29,18 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
 
     /// Creates a new tree given its `height` and `processing_step`, used to tune
     /// the memory usage of the tree. In particular, `processing_step` defines the
-    /// number of leaves to store before triggering the computation of the root.
+    /// number of leaves to store before triggering the computation of the hashes
+    /// of the upper level.
     /// Decreasing `processing_step` leads to less memory consumption but
-    /// significantly worsen performances, as the computation of the root is
-    /// triggered more often, along with a batch hash that may perform poorly when
+    /// significantly worsen performances, as the computation of upper levels' hashes
+    /// is triggered more often, along with a batch hash that may perform poorly when
     /// there are few elements to batch; of course, conversely, increasing
     /// `processing_step` increases the memory usage too but improves performances.
-    /// Meaningful values for `processing_step` are between 1 (i.e. update the root
+    /// Meaningful values for `processing_step` are between 1 (i.e. update upper levels
     /// at each leaf), leading to best memory efficiency but worse performances, and
     /// the maximum number of leaves (or the mean number of leaves you plan to add),
-    /// leading to worse memory efficiency but best performances (root is computed
-    /// just once, but all the leaves must be kept in memory).
+    /// leading to worse memory efficiency but best performances (upper levels hashes
+    /// are computed just once, but all the leaves must be kept in memory).
     /// You can edit the `mht_poseidon_tuning` benchmarks in `primitives/src/benches/poseidon_mht.rs`
     /// to properly tune the `processing_step` parameter according to your use case.
     pub fn init(height: usize, processing_step: usize) -> Self {
