@@ -106,84 +106,27 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         let cache_db_path = Path::new(path_cache.as_str());
         let _state_path = Path::new(state_path.as_str());
 
-        match (
-            leaves_db_path.exists(),
-            cache_db_path.exists(),
-            _state_path.exists()
-        ) {
-            // All info available, just load them from disk
-            (true, true, true) => {
-                Self::load_inner(persistent, state_path, path_db, path_cache)
-            },
+        // The DB containing all the leaves it's enough to reconstruct a consistent tree.
+        // Even if other info are available on disk, we would still need to check that
+        // they stand for the same tree state, which is expensive nevertheless (and still
+        // requires to compute the root). At this point, it's worth in any case to
+        // reconstruct the whole tree given the leaves.
+        //TODO: Can we actually do better ?
+        if leaves_db_path.exists()
+        {
+            // Clean up other info
+            if cache_db_path.exists() { fs::remove_dir_all(cache_db_path)?; }
+            if _state_path.exists() { fs::remove_file(_state_path)?; }
 
-            // In exceptional cases it may happen that some info are lost.
-            // However, if a copy of `database` has not been lost, it is
-            // possible to recover by simply creating a new tree and load
-            // all the leaves again. This solution is expensive, but it's
-            // still probably the easiest and most performing one
-            (true, cache_exists, state_exists) => {
-
-                // Clean up the rest, just for safety
-                if cache_exists { fs::remove_dir_all(cache_db_path)?; }
-                if state_exists { fs::remove_file(_state_path)?; }
-
-                // Restore the tree
-                Self::restore_from_leaves(height, persistent, state_path, path_db, path_cache)
-            },
-
+            Self::restore_from_leaves(height, persistent, state_path, path_db, path_cache)
+        } else
+        {
             // If `database` has been lost, it's not possible to load or recover anything
-            (false, _, _) => {
-                Err(Error::new(
-                    ErrorKind::InvalidData,
-                    "Unable to restore MerkleTree: incomplete data")
-                )
-            }
+            Err(Error::new(
+                ErrorKind::InvalidData,
+                "Unable to restore MerkleTree: leaves not available")
+            )
         }
-    }
-
-    // Simply load `state`, `database` and `db_cache` save at `state_path`, `path_db` and `path_cache`
-    fn load_inner(
-        persistent: bool,
-        state_path: String,
-        path_db: String,
-        path_cache: String
-    ) -> Result<Self, Error> {
-
-        let rate = <<T::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
-        assert_eq!(T::MERKLE_ARITY, 2); // For now we support only arity 2
-        // Rate may also be smaller than the arity actually, but this assertion
-        // is reasonable and simplify the design.
-        assert_eq!(rate, T::MERKLE_ARITY);
-
-        // Reads the state
-        let state = { 
-            let state_file = fs::File::open(state_path.clone())?;
-            BigMerkleTreeState::<T>::read(state_file)?
-        };
-        assert!(check_precomputed_parameters::<T>(state.height));
-        let width = T::MERKLE_ARITY.pow(state.height as u32);
-
-        let opening_options = Options::default();
-
-        let path_db = path_db;
-        let database = DB::open(&opening_options, path_db.clone())
-            .map_err(|e| Error::new(ErrorKind::Other, e))?;
-
-        let path_cache = path_cache;
-        let db_cache = DB::open(&opening_options,path_cache.clone())
-            .map_err(|e| Error::new(ErrorKind::Other, e))?;
-
-        Ok(Self {
-            persistent,
-            state_path: Some(state_path),
-            state,
-            width,
-            path_db,
-            database,
-            path_cache,
-            db_cache,
-            _parameters: PhantomData,
-        })
     }
 
     // Use the database at db_path to restore the tree, thus recreating `state` and `db_cache`.
@@ -213,25 +156,13 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         let path_db = path_db;
         let database = DB::open(&opening_options, path_db.clone())
             .map_err(|e| Error::new(ErrorKind::Other, e))?;
+        let database_read = DB::open_for_read_only(&opening_options, path_db.clone(), false)
+            .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
         // Create new cache DB
         let path_cache = path_cache;
         let db_cache = DB::open_default(path_cache.clone())
             .map_err(|e| Error::new(ErrorKind::Other, e))?;
-
-        let db_iter = database.iterator(IteratorMode::Start);
-        let mut leaves_to_add: Vec<OperationLeaf<T::Data>> = Vec::with_capacity(db_iter.size_hint().0);
-
-        // Re-add the leaves to the tree in order to update state and db_cache
-        for (leaf_index, leaf_val) in db_iter {
-            let index = u32::read(&*leaf_index)?;
-            let leaf = T::Data::read(&*leaf_val)?;
-            leaves_to_add.push(OperationLeaf {
-                coord: Coord { height: 0, idx: index as usize },
-                action: ActionLeaf::Insert,
-                hash: Some(leaf.clone())
-            });
-        }
 
         // Create new tree instance
         let mut new_tree = Self {
@@ -246,8 +177,23 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
             _parameters: PhantomData,
         };
 
-        new_tree.process_leaves(leaves_to_add);
+        // Re-add the leaves to the tree in order to update state and db_cache
+        let db_iter = database_read.iterator(IteratorMode::Start);
 
+        for (leaf_index, leaf_val) in db_iter {
+            let index = u32::read(&*leaf_index)?;
+            let leaf = T::Data::read(&*leaf_val)?;
+            //TODO: We are not exploiting the Lazy Merkle Tree feature here,
+            //      because we add one leaf at a time. For sure we cannot
+            //      load all the leaves from the DB in memory because it may
+            //      be extremely big, but maybe we can set an appropriate loading
+            //      size according to some policy.
+            new_tree.process_leaves(vec![OperationLeaf {
+                coord: Coord { height: 0, idx: index as usize },
+                action: ActionLeaf::Insert,
+                hash: Some(leaf.clone())
+            }]);
+        }
         Ok(new_tree)
     }
 
