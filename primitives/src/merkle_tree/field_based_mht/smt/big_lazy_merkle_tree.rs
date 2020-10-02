@@ -1,19 +1,16 @@
 use algebra::{ToBytes, to_bytes, FromBytes};
 
-use crate::{
-    crh::{FieldBasedHash, BatchFieldBasedHash, FieldBasedHashParameters},
-    merkle_tree::{
-        field_based_mht::{
-            BatchFieldBasedMerkleTreeParameters, check_precomputed_parameters,
-            FieldBasedMerkleTreePath, FieldBasedBinaryMHTPath,
-            smt::{
-                Coord, OperationLeaf, ActionLeaf::Remove, BigMerkleTreeState
-            },
+use crate::{crh::{FieldBasedHash, BatchFieldBasedHash, FieldBasedHashParameters}, merkle_tree::{
+    field_based_mht::{
+        BatchFieldBasedMerkleTreeParameters, check_precomputed_parameters,
+        FieldBasedMerkleTreePath, FieldBasedBinaryMHTPath,
+        smt::{
+            Coord, OperationLeaf, ActionLeaf::Remove, BigMerkleTreeState
         },
-    }
-};
+    },
+}, ActionLeaf};
 
-use rocksdb::{DB, Options};
+use rocksdb::{DB, Options, IteratorMode};
 
 use std::{
   collections::HashSet, marker::PhantomData, fs, path::Path, io::{Error, ErrorKind},
@@ -44,7 +41,7 @@ pub struct LazyBigMerkleTree<T: BatchFieldBasedMerkleTreeParameters> {
 
 impl<T: BatchFieldBasedMerkleTreeParameters> Drop for LazyBigMerkleTree<T> {
     fn drop(&mut self) {
-        self.close()
+        self.flush()
     }
 }
 
@@ -80,7 +77,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         let db_cache = DB::open_default(path_cache.clone())
             .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
-        Ok(LazyBigMerkleTree {
+        Ok(Self {
             persistent,
             state_path,
             state,
@@ -95,8 +92,57 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
 
     // Restore a tree from a state saved at `state_path` and DBs at `path_db` and `path_cache`.
     // The new tree may be persistent or not, the actions taken in both cases are the same as
-    // in `new` function.
+    // in `new` function. The function is able to restore the tree iff at least `path_db` is
+    // present.
     pub fn load(
+        height: usize,
+        persistent: bool,
+        state_path: String,
+        path_db: String,
+        path_cache: String
+    ) -> Result<Self, Error> {
+
+        let leaves_db_path = Path::new(path_db.as_str());
+        let cache_db_path = Path::new(path_cache.as_str());
+        let _state_path = Path::new(state_path.as_str());
+
+        match (
+            leaves_db_path.exists(),
+            cache_db_path.exists(),
+            _state_path.exists()
+        ) {
+            // All info available, just load them from disk
+            (true, true, true) => {
+                Self::load_inner(persistent, state_path, path_db, path_cache)
+            },
+
+            // In exceptional cases it may happen that some info are lost.
+            // However, if a copy of `database` has not been lost, it is
+            // possible to recover by simply creating a new tree and load
+            // all the leaves again. This solution is expensive, but it's
+            // still probably the easiest and most performing one
+            (true, cache_exists, state_exists) => {
+
+                // Clean up the rest, just for safety
+                if cache_exists { fs::remove_dir_all(cache_db_path)?; }
+                if state_exists { fs::remove_file(_state_path)?; }
+
+                // Restore the tree
+                Self::restore_from_leaves(height, persistent, state_path, path_db, path_cache)
+            },
+
+            // If `database` has been lost, it's not possible to load or recover anything
+            (false, _, _) => {
+                Err(Error::new(
+                    ErrorKind::InvalidData,
+                    "Unable to restore MerkleTree: incomplete data")
+                )
+            }
+        }
+    }
+
+    // Simply load `state`, `database` and `db_cache` save at `state_path`, `path_db` and `path_cache`
+    fn load_inner(
         persistent: bool,
         state_path: String,
         path_db: String,
@@ -116,6 +162,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         };
         assert!(check_precomputed_parameters::<T>(state.height));
         let width = T::MERKLE_ARITY.pow(state.height as u32);
+
         let opening_options = Options::default();
 
         let path_db = path_db;
@@ -126,7 +173,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         let db_cache = DB::open(&opening_options,path_cache.clone())
             .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
-        Ok(LazyBigMerkleTree {
+        Ok(Self {
             persistent,
             state_path: Some(state_path),
             state,
@@ -139,7 +186,73 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         })
     }
 
-    pub fn close(&mut self) {
+    // Use the database at db_path to restore the tree, thus recreating `state` and `db_cache`.
+    // This operation is expensive.
+    fn restore_from_leaves(
+        height: usize,
+        persistent: bool,
+        state_path: String,
+        path_db: String,
+        path_cache: String
+    ) -> Result<Self, Error> {
+
+        let rate = <<T::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
+        assert_eq!(T::MERKLE_ARITY, 2); // For now we support only arity 2
+        // Rate may also be smaller than the arity actually, but this assertion
+        // is reasonable and simplify the design.
+        assert_eq!(rate, T::MERKLE_ARITY);
+
+        // Create new state
+        let state = BigMerkleTreeState::<T>::get_default_state(height);
+        assert!(check_precomputed_parameters::<T>(state.height));
+        let width = T::MERKLE_ARITY.pow(height as u32);
+
+        let opening_options = Options::default();
+
+        // Restore leaves DB
+        let path_db = path_db;
+        let database = DB::open(&opening_options, path_db.clone())
+            .map_err(|e| Error::new(ErrorKind::Other, e))?;
+
+        // Create new cache DB
+        let path_cache = path_cache;
+        let db_cache = DB::open_default(path_cache.clone())
+            .map_err(|e| Error::new(ErrorKind::Other, e))?;
+
+        let db_iter = database.iterator(IteratorMode::Start);
+        let mut leaves_to_add: Vec<OperationLeaf<T::Data>> = Vec::with_capacity(db_iter.size_hint().0);
+
+        // Re-add the leaves to the tree in order to update state and db_cache
+        for (leaf_index, leaf_val) in db_iter {
+            let index = u32::read(&*leaf_index)?;
+            let leaf = T::Data::read(&*leaf_val)?;
+            leaves_to_add.push(OperationLeaf {
+                coord: Coord { height: 0, idx: index as usize },
+                action: ActionLeaf::Insert,
+                hash: Some(leaf.clone())
+            });
+        }
+
+        // Create new tree instance
+        let mut new_tree = Self {
+            persistent,
+            state_path: Some(state_path),
+            state,
+            width,
+            path_db,
+            database,
+            path_cache,
+            db_cache,
+            _parameters: PhantomData,
+        };
+
+        new_tree.process_leaves(leaves_to_add);
+
+        Ok(new_tree)
+    }
+
+
+    pub fn flush(&mut self) {
         if !self.persistent {
 
             // Removes the state if present
@@ -692,7 +805,7 @@ mod test {
     };
 
     use std::{
-        str::FromStr, path::Path, time::Instant
+        str::FromStr, path::Path, time::Instant, fs
     };
 
     use rand::{
@@ -869,7 +982,8 @@ mod test {
         // create a non-persistent smt in another scope by restoring the previous one
         {
             let mut smt = MNT4PoseidonSMTLazy::load(
-                false,
+                TEST_HEIGHT_1,
+                true,
                 String::from("./persistency_test_info_lazy"),
                 String::from("./db_leaves_persistency_test_info_lazy"),
                 String::from("./db_cache_persistency_test_info_lazy")
@@ -887,7 +1001,25 @@ mod test {
             // computed in one go with another smt
             assert_eq!(root, smt.state.root);
 
-            // smt gets dropped and state and dbs are deleted
+            // smt gets dropped but its info should be saved
+        }
+
+        // Let's delete cache_db and state and let's restore the tree from it
+        {
+            fs::remove_dir_all(Path::new("./db_cache_persistency_test_info_lazy")).unwrap();
+            fs::remove_file(Path::new("./persistency_test_info_lazy")).unwrap();
+
+            let smt = MNT4PoseidonSMTLazy::load(
+                TEST_HEIGHT_1,
+                false,
+                String::from("./persistency_test_info_lazy"),
+                String::from("./db_leaves_persistency_test_info_lazy"),
+                String::from("./db_cache_persistency_test_info_lazy")
+            ).unwrap();
+
+            assert_eq!(root, smt.state.root);
+
+            //smt gets dropped and state and dbs are deleted
         }
 
         // files and directories should have been deleted
