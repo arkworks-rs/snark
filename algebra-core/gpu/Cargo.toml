@@ -12,6 +12,8 @@ algebra = { path = "../../algebra", default-features = false, features = ["all_c
 # accel = { git = "https://github.com/jon-chuang/accel", package = "accel" }
 accel = { path = "/home/jonch/Desktop/Programming/Rust/accel/accel"}
 rayon = { version = "1.3.0" }
+peekmore = "0.5.6"
+closure = "0.3.0"
 
 rand = { version = "0.7", default-features = false }
 rand_xorshift = "0.2"

@@ -20,6 +20,8 @@ macro_rules! impl_scalar_mul_kernel {
                 const TABLE_SIZE: usize = 1 << LOG2_W;
                 const NUM_U8: usize = (NUM_BITS - 1) / LOG2_W + 1;
 
+                impl_gpu_cpu_run_kernel!(G1);
+
                 fn scalar_recode(k: &mut BigInt) -> [u8; NUM_U8] {
                     let mut out = [0; NUM_U8];
                     for i in (0..NUM_U8).rev() {
@@ -118,6 +120,129 @@ macro_rules! impl_scalar_mul_kernel {
 }
 
 #[macro_export]
+macro_rules! impl_gpu_cpu_run_kernel {
+    ($G1: ident) =>  {
+        use peekmore::PeekMore;
+        use closure::closure;
+
+        pub fn cpu_gpu_load_balance_run_kernel(
+            ctx: &Context,
+            bases_h: &[<G1 as ProjectiveCurve>::Affine],
+            exps_h: &[BigInt],
+            cuda_group_size: usize,
+            // size of a single job in the queue e.g. 2 << 14
+            job_size: usize,
+            // size of the batch for cpu scalar mul
+            cpu_chunk_size: usize,
+        ) -> Vec<<G1 as ProjectiveCurve>::Affine> {
+            let mut bases_res = bases_h.to_vec();
+            let queue = Mutex::new(bases_res.chunks_mut(job_size).zip(exps_h.chunks(job_size)).peekmore());
+
+            rayon::scope(|s| {
+                // We launch two concurrent GPU threads that block on waiting for GPU to hide latency
+                for i in 0..2 {
+                    s.spawn(closure!(move i, ref queue, |_| {
+                        std::thread::sleep_ms(i * 500);
+                        let mut iter = queue.lock().unwrap();
+                        while let Some((bases, exps)) = iter.next() {
+                            iter.peek();
+                            if iter.peek().is_none() { break; }
+                            let mut proj_res = par_run_kernel(ctx, bases, exps, cuda_group_size, iter);
+                            G1::batch_normalization(&mut proj_res[..]);
+                            bases.clone_from_slice(&proj_res.par_iter().map(|p| p.into_affine()).collect::<Vec<_>>()[..]);
+                            iter = queue.lock().unwrap();
+                        }
+                    }));
+                }
+
+                s.spawn(|_| {
+                    std::thread::sleep_ms(20);
+                    let mut iter = queue.lock().unwrap();
+                    println!("acquired cpu");
+                    while let Some((bases, exps)) = iter.next() {
+                        let exps_mut = &mut exps.to_vec()[..];
+                        rayon::scope(|t| {
+                            for (b, s) in bases.chunks_mut(cpu_chunk_size).zip(exps_mut.chunks_mut(cpu_chunk_size)) {
+                                t.spawn(move |_| b[..].batch_scalar_mul_in_place(&mut s[..], 4));
+                            }
+                        });
+                        // Sleep to allow other threads to unlock
+                        drop(iter);
+                        println!("unlocked cpu");
+                        std::thread::sleep_ms(20);
+                        iter = queue.lock().unwrap();
+                        println!("acquired cpu");
+                    }
+                    println!("CPU FINISH");
+                });
+            });
+            drop(queue);
+            bases_res
+        }
+
+        // We have some logic here to log microbenchmarking results to a file.
+        // We will use exponential WMA of the ratios of throughput (points/s)
+        // pub fn microbench
+
+        pub fn cpu_gpu_static_partition_run_kernel(
+            ctx: &Context,
+            bases_h: &[<G1 as ProjectiveCurve>::Affine],
+            exps_h: &[BigInt],
+            cuda_group_size: usize,
+            // size of the batch for cpu scalar mul
+            cpu_chunk_size: usize,
+        ) -> Vec<<G1 as ProjectiveCurve>::Affine> {
+            let mut bases_res = bases_h.to_vec();
+
+            let now = std::time::Instant::now();
+            let ratio = 0.6; //from_microbenchmarking();
+
+            let n = bases_res.len();
+            let n_cpu = (ratio * (n as f64)).round() as usize;
+            let n_gpu = n - n_cpu;
+
+            let (bases_cpu, bases_gpu) = bases_res.split_at_mut(n_cpu);
+            let (exps_cpu, exps_gpu) = exps_h.split_at(n_cpu);
+
+            let mut tables = DeviceMemory::<G1>::zeros(&ctx, n_gpu * TABLE_SIZE);
+            let mut exps = DeviceMemory::<u8>::zeros(&ctx, n_gpu * NUM_U8);
+
+            println!("Split statically and allocated device: {}us", now.elapsed().as_micros());
+
+            par_generate_tables_and_recoding(bases_gpu, &mut tables[..], exps_gpu, &mut exps[..]);
+
+            rayon::scope(|s| {
+                // Here, we should write directly to device
+                s.spawn(|_| {
+                    let mut out = DeviceMemory::<G1>::zeros(&ctx, n_gpu);
+                    scalar_mul_kernel::scalar_mul(
+                        &ctx,
+                        (n_gpu - 1) / cuda_group_size + 1, // grid
+                        cuda_group_size,     // block
+                        (tables.as_ptr(), exps.as_ptr(), out.as_mut_ptr(), n_gpu as isize),
+                    )
+                    .expect("Kernel call failed");
+                    G1::batch_normalization(&mut out[..]);
+                    bases_gpu.clone_from_slice(&out.par_iter().map(|p| p.into_affine()).collect::<Vec<_>>()[..]);
+                    println!("GPU finish");
+                });
+
+                s.spawn(|_| {
+                    let exps_mut = &mut exps_cpu.to_vec()[..];
+                    rayon::scope(|t| {
+                        for (b, s) in bases_cpu.chunks_mut(cpu_chunk_size).zip(exps_mut.chunks_mut(cpu_chunk_size)) {
+                            t.spawn(move |_| b[..].batch_scalar_mul_in_place(&mut s[..], 4));
+                        }
+                    });
+                    println!("CPU finish");
+                });
+            });
+            bases_res
+        }
+    }
+}
+
+#[macro_export]
 macro_rules! impl_scalar_mul_kernel_glv {
     ($curve: ident, $curve_string:expr, $type: expr, $ProjCurve: ident) => {
         paste::item! {
@@ -141,65 +266,7 @@ macro_rules! impl_scalar_mul_kernel_glv {
                 const TABLE_SIZE: usize = 1 << LOG2_W;
                 const NUM_U8: usize = 2 * ((NUM_BITS - 1) / (2 * (LOG2_W - 1)) + 2);
 
-                pub fn cpu_gpu_load_balance_run_kernel(
-                    ctx: &Context,
-                    bases_h: &[<G1 as ProjectiveCurve>::Affine],
-                    exps_h: &[BigInt],
-                    cuda_group_size: usize,
-                    // size of a single job in the queue e.g. 2 << 14
-                    job_size: usize,
-                    // size of the batch for cpu scalar mul
-                    cpu_chunk_size: usize,
-                ) -> Vec<<G1 as ProjectiveCurve>::Affine> {
-                    let mut bases_res = bases_h.to_vec();
-                    let queue = Mutex::new(bases_res.chunks_mut(job_size).zip(exps_h.chunks(job_size)));
-
-                    rayon::scope(|s| {
-                        // We launch two concurrent GPU threads that block on waiting for GPU to hide latency
-                        s.spawn(|_| {
-                            let mut iter = queue.lock().unwrap();
-                            while let Some((bases, exps)) = iter.next() {
-                                let bases_proj = &bases.par_iter().map(|p| p.into_projective()).collect::<Vec<_>>()[..];
-                                let mut proj_res = par_run_kernel(ctx, bases_proj, exps, cuda_group_size, iter);
-                                G1::batch_normalization(&mut proj_res[..]);
-                                iter = queue.lock().unwrap();
-                                bases.clone_from_slice(&proj_res.par_iter().map(|p| p.into_affine()).collect::<Vec<_>>()[..]);
-                            }
-                        });
-                        s.spawn(|_| {
-                            std::thread::sleep_ms(500);
-                            let mut iter = queue.lock().unwrap();
-                            while let Some((bases, exps)) = iter.next() {
-                                let bases_proj = &bases.par_iter().map(|p| p.into_projective()).collect::<Vec<_>>()[..];
-                                let mut proj_res = par_run_kernel(ctx, bases_proj, exps, cuda_group_size, iter);
-                                G1::batch_normalization(&mut proj_res[..]);
-                                iter = queue.lock().unwrap();
-                                bases.clone_from_slice(&proj_res.par_iter().map(|p| p.into_affine()).collect::<Vec<_>>()[..]);
-                            }
-                        });
-                        s.spawn(|_| {
-                            std::thread::sleep_ms(30);
-                            let mut iter = queue.lock().unwrap();
-                            println!("acquired cpu");
-                            while let Some((bases, exps)) = iter.next() {
-                                let exps_mut = &mut exps.to_vec()[..];
-                                rayon::scope(|t| {
-                                    for (b, s) in bases.chunks_mut(cpu_chunk_size).zip(exps_mut.chunks_mut(cpu_chunk_size)) {
-                                        t.spawn(move |_| b[..].batch_scalar_mul_in_place(&mut s[..], 4));
-                                    }
-                                });
-                                // Sleep to allow other threads to unlock
-                                drop(iter);
-                                println!("unlocked cpu");
-                                std::thread::sleep_ms(30);
-                                iter = queue.lock().unwrap();
-                                println!("acquired cpu");
-                            }
-                            println!("CPU FINISH");
-                        });
-                    });
-                    bases_res
-                }
+                impl_gpu_cpu_run_kernel!(G1);
 
                 fn scalar_recode_glv(k1: &mut BigInt, k2: &mut BigInt) -> [u8; NUM_U8] {
                     const TABLE_SIZE_GLV: u64 = 1u64 << (LOG2_W - 1);
@@ -223,41 +290,27 @@ macro_rules! impl_scalar_mul_kernel_glv {
                 ) -> DeviceMemory<G1> {
                     assert_eq!(bases_h.len(), exps_h.len());
                     let n = bases_h.len();
+
+                    let now = std::time::Instant::now();
                     let mut tables = DeviceMemory::<G1>::zeros(&ctx, n * TABLE_SIZE);
                     let mut exps = DeviceMemory::<u8>::zeros(&ctx, n * NUM_U8);
                     let mut out = DeviceMemory::<G1>::zeros(&ctx, n);
+                    println!("Allocated device memory: {}us", now.elapsed().as_micros());
 
                     let now = std::time::Instant::now();
-                    let k_vec: Vec<_> = exps_h
+                    exps_h
                         .iter()
-                        .map(|k| G1::glv_scalar_decomposition(*k))
-                        .collect();
-
-                    println!("GLV decomp: {}us", now.elapsed().as_micros());
-
-                    let mut k1_scalars: Vec<_> = k_vec.iter().map(|x| (x.0).1).collect();
-                    let mut k2_scalars: Vec<_> = k_vec.iter().map(|x| (x.1).1).collect();
-                    exps.chunks_mut(NUM_U8)
-                        .zip(k1_scalars.iter_mut().zip(k2_scalars.iter_mut()))
-                        .for_each(|(exps_chunk, (mut k1, mut k2))| {
+                        .zip(exps.chunks_mut(NUM_U8))
+                        .zip(tables.chunks_mut(TABLE_SIZE).zip(bases_h.iter()))
+                        .for_each(|((k, exps_chunk), (table, base))| {
+                            let ((k1_neg, mut k1), (k2_neg, mut k2)) = G1::glv_scalar_decomposition(*k);
                             exps_chunk.clone_from_slice(&scalar_recode_glv(&mut k1, &mut k2));
-                        });
 
-                    println!("{:?}", &exps[..NUM_U8]);
-
-                    let now = std::time::Instant::now();
-                    let k1_negates: Vec<_> = k_vec.iter().map(|x| (x.0).0).collect();
-                    let k2_negates: Vec<_> = k_vec.iter().map(|x| (x.1).0).collect();
-                    tables
-                        .chunks_mut(TABLE_SIZE)
-                        .zip(bases_h.iter())
-                        .zip(k1_negates.iter().zip(k2_negates.iter()))
-                        .for_each(|((table, base), (k1_neg, k2_neg))| {
                             table[0] = G1::zero();
                             table[TABLE_SIZE / 2] = G1::zero();
 
                             for i in 1..TABLE_SIZE / 2 {
-                                let mut res = if *k1_neg {
+                                let mut res = if k1_neg {
                                     table[i - 1] - base
                                 } else {
                                     table[i - 1] + base
@@ -266,88 +319,99 @@ macro_rules! impl_scalar_mul_kernel_glv {
 
                                 G1::glv_endomorphism_in_place(&mut res.x);
                                 table[TABLE_SIZE / 2 + i] =
-                                    if *k2_neg != *k1_neg { res.neg() } else { res };
+                                    if k2_neg != k1_neg { res.neg() } else { res };
                             }
+
                         });
-                    println!("Generated tables: {}us", now.elapsed().as_micros());
+                    println!("Generated tables and recoding: {}us", now.elapsed().as_micros());
                     // Accessible from CPU as usual Rust slice (though this will be slow)
                     // Can this be changed to a memcpy?
                     scalar_mul_kernel::scalar_mul(
                         &ctx,
                         n / cuda_group_size, // grid
                         cuda_group_size,     // block
-                        (tables.as_ptr(), exps.as_ptr(), out.as_mut_ptr()),
+                        (tables.as_ptr(), exps.as_ptr(), out.as_mut_ptr(), n as isize),
                     )
                     .expect("Kernel call failed");
                     out
                 }
 
+                fn par_generate_tables_and_recoding(
+                    bases_h: &[<G1 as ProjectiveCurve>::Affine],
+                    tables_h: &mut [G1],
+                    exps_h: &[BigInt],
+                    exps_recode_h: &mut [u8],
+                ) {
+                    exps_h
+                        .par_iter()
+                        .zip(exps_recode_h.par_chunks_mut(NUM_U8))
+                        .zip(tables_h.par_chunks_mut(TABLE_SIZE).zip(bases_h.par_iter()))
+                        .for_each(|((k, exps_chunk), (table, base))| {
+                            let ((k1_neg, mut k1), (k2_neg, mut k2)) = G1::glv_scalar_decomposition(*k);
+                            let base = base.into_projective();
+                            exps_chunk.clone_from_slice(&scalar_recode_glv(&mut k1, &mut k2));
+
+                            table[0] = G1::zero();
+                            table[TABLE_SIZE / 2] = G1::zero();
+
+                            for i in 1..TABLE_SIZE / 2 {
+                                let mut res = if k1_neg {
+                                    table[i - 1] - base
+                                } else {
+                                    table[i - 1] + base
+                                };
+                                table[i] = res;
+
+                                G1::glv_endomorphism_in_place(&mut res.x);
+                                table[TABLE_SIZE / 2 + i] =
+                                    if k2_neg != k1_neg { res.neg() } else { res };
+                            }
+
+                        }
+                    );
+                }
+
+                // We drop a lock only after the parallel portion has been handled
                 pub fn par_run_kernel<T>(
                     ctx: &Context,
-                    bases_h: &[G1],
+                    bases_h: &[<G1 as ProjectiveCurve>::Affine],
                     exps_h: &[BigInt],
                     cuda_group_size: usize,
                     lock: T,
                 ) -> DeviceMemory<G1> {
                     assert_eq!(bases_h.len(), exps_h.len());
                     let n = bases_h.len();
-                    let mut tables = DeviceMemory::<G1>::zeros(&ctx, n * TABLE_SIZE);
-                    let mut exps = DeviceMemory::<u8>::zeros(&ctx, n * NUM_U8);
-                    let mut out = DeviceMemory::<G1>::zeros(&ctx, n);
+
+                    let mut tables_h = vec![G1::zero(); n * TABLE_SIZE];
+                    let mut exps_recode_h = vec![0u8; n * NUM_U8];
 
                     let now = std::time::Instant::now();
-                    let k_vec: Vec<_> = exps_h
-                        .par_iter()
-                        .map(|k| G1::glv_scalar_decomposition(*k))
-                        .collect();
-
-                    println!("GLV decomp: {}us", now.elapsed().as_micros());
-
-                    let mut k1_scalars: Vec<_> = k_vec.iter().map(|x| (x.0).1).collect();
-                    let mut k2_scalars: Vec<_> = k_vec.iter().map(|x| (x.1).1).collect();
-                    exps.par_chunks_mut(NUM_U8)
-                        .zip(k1_scalars.par_iter_mut().zip(k2_scalars.par_iter_mut()))
-                        .for_each(|(exps_chunk, (mut k1, mut k2))| {
-                            exps_chunk.clone_from_slice(&scalar_recode_glv(&mut k1, &mut k2));
-                        });
-
-                    println!("{:?}", &exps[..NUM_U8]);
-
-                    let now = std::time::Instant::now();
-                    let k1_negates: Vec<_> = k_vec.iter().map(|x| (x.0).0).collect();
-                    let k2_negates: Vec<_> = k_vec.iter().map(|x| (x.1).0).collect();
-                    tables
-                        .par_chunks_mut(TABLE_SIZE)
-                        .zip(bases_h.par_iter())
-                        .zip(k1_negates.par_iter().zip(k2_negates.par_iter()))
-                        .for_each(|((table, base), (k1_neg, k2_neg))| {
-                            table[0] = G1::zero();
-                            table[TABLE_SIZE / 2] = G1::zero();
-
-                            for i in 1..TABLE_SIZE / 2 {
-                                let mut res = if *k1_neg {
-                                    table[i - 1] - base
-                                } else {
-                                    table[i - 1] + base
-                                };
-                                table[i] = res;
-
-                                G1::glv_endomorphism_in_place(&mut res.x);
-                                table[TABLE_SIZE / 2 + i] =
-                                    if *k2_neg != *k1_neg { res.neg() } else { res };
-                            }
-                        });
-                    println!("Generated tables: {}us", now.elapsed().as_micros());
+                    par_generate_tables_and_recoding(bases_h, &mut tables_h[..], exps_h, &mut exps_recode_h[..]);
                     drop(lock);
+                    println!("Generated tables and recoding: {}us", now.elapsed().as_micros());
                     // Accessible from CPU as usual Rust slice (though this will be slow)
                     // Can this be changed to a memcpy?
+                    let now = std::time::Instant::now();
+                    let mut out = DeviceMemory::<G1>::zeros(&ctx, n);
+                    let mut tables = DeviceMemory::<G1>::zeros(&ctx, n * TABLE_SIZE);
+                    let mut exps = DeviceMemory::<u8>::zeros(&ctx, n * NUM_U8);
+                    println!("Allocated device memory: {}us", now.elapsed().as_micros());
+
+                    let now = std::time::Instant::now();
+                    tables.copy_from_slice(&tables_h);
+                    exps.copy_from_slice(&exps_recode_h);
+                    println!("Copied data to device: {}us", now.elapsed().as_micros());
+
+                    let now = std::time::Instant::now();
                     scalar_mul_kernel::scalar_mul(
                         &ctx,
                         n / cuda_group_size, // grid
                         cuda_group_size,     // block
-                        (tables.as_ptr(), exps.as_ptr(), out.as_mut_ptr()),
+                        (tables.as_ptr(), exps.as_ptr(), out.as_mut_ptr(), n as isize),
                     )
                     .expect("Kernel call failed");
+
+                    println!("Ran kernel: {}us", now.elapsed().as_micros());
                     out
                 }
 
@@ -371,28 +435,31 @@ macro_rules! impl_scalar_mul_kernel_glv {
                         table: *const algebra::$curve::$ProjCurve,
                         exps: *const u8,
                         out: *mut algebra::$curve::$ProjCurve,
+                        n: isize,
                     ) {
-                        let mut res = $ProjCurve::zero();
                         let i = accel_core::index();
+                        if i < n {
+                            let mut res = $ProjCurve::zero();
 
-                        res += &(*table.offset(i * TABLE_SIZE + *exps.offset(i * NUM_U8) as isize));
-                        res += &(*table.offset(
-                            i * TABLE_SIZE + HALF_TABLE_SIZE + *exps.offset(i * NUM_U8 + 1) as isize,
-                        ));
-
-                        for j in 1..NUM_U8 as isize / 2 {
-                            for _ in 0..(LOG2_W - 1) {
-                                res.double_in_place();
-                            }
-                            res += &(*table
-                                .offset(i * TABLE_SIZE + *exps.offset(i * NUM_U8 + 2 * j) as isize));
+                            res += &(*table.offset(i * TABLE_SIZE + *exps.offset(i * NUM_U8) as isize));
                             res += &(*table.offset(
-                                i * TABLE_SIZE
-                                    + HALF_TABLE_SIZE
-                                    + *exps.offset(i * NUM_U8 + 2 * j + 1) as isize,
+                                i * TABLE_SIZE + HALF_TABLE_SIZE + *exps.offset(i * NUM_U8 + 1) as isize,
                             ));
+
+                            for j in 1..NUM_U8 as isize / 2 {
+                                for _ in 0..(LOG2_W - 1) {
+                                    res.double_in_place();
+                                }
+                                res += &(*table
+                                    .offset(i * TABLE_SIZE + *exps.offset(i * NUM_U8 + 2 * j) as isize));
+                                res += &(*table.offset(
+                                    i * TABLE_SIZE
+                                        + HALF_TABLE_SIZE
+                                        + *exps.offset(i * NUM_U8 + 2 * j + 1) as isize,
+                                ));
+                            }
+                            *out.offset(i) = res;
                         }
-                        *out.offset(i) = res;
                     }
                 }
             }
