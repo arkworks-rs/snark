@@ -13,7 +13,7 @@ use crate::{crh::{FieldBasedHash, BatchFieldBasedHash, FieldBasedHashParameters}
 use rocksdb::{DB, Options, IteratorMode};
 
 use std::{
-  collections::HashSet, marker::PhantomData, fs, path::Path, io::{Error, ErrorKind},
+  collections::HashSet, marker::PhantomData, fs, path::Path, io::{Error, ErrorKind}, sync::Arc,
 };
 
 #[derive(Debug)]
@@ -30,11 +30,11 @@ pub struct LazyBigMerkleTree<T: BatchFieldBasedMerkleTreeParameters> {
     // path to the db
     path_db: String,
     // stores the leaves
-    database: DB,
+    database: Arc<DB>,
     // path to the cache
     path_cache: String,
     // stores the cached nodes
-    db_cache: DB,
+    db_cache: Arc<DB>,
 
     _parameters: PhantomData<T>,
 }
@@ -71,11 +71,11 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         let state = BigMerkleTreeState::<T>::get_default_state(height);
         let width = T::MERKLE_ARITY.pow(height as u32);
         let path_db = path_db;
-        let database = DB::open_default(path_db.clone())
-            .map_err(|e| Error::new(ErrorKind::Other, e))?;
+        let database = Arc::new(DB::open_default(path_db.clone())
+            .map_err(|e| Error::new(ErrorKind::Other, e))?);
         let path_cache = path_cache;
-        let db_cache = DB::open_default(path_cache.clone())
-            .map_err(|e| Error::new(ErrorKind::Other, e))?;
+        let db_cache = Arc::new(DB::open_default(path_cache.clone())
+            .map_err(|e| Error::new(ErrorKind::Other, e))?);
 
         Ok(Self {
             persistent,
@@ -154,15 +154,14 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
 
         // Restore leaves DB
         let path_db = path_db;
-        let database = DB::open(&opening_options, path_db.clone())
-            .map_err(|e| Error::new(ErrorKind::Other, e))?;
-        let database_read = DB::open_for_read_only(&opening_options, path_db.clone(), false)
-            .map_err(|e| Error::new(ErrorKind::Other, e))?;
+        let database = Arc::new(DB::open(&opening_options, path_db.clone())
+            .map_err(|e| Error::new(ErrorKind::Other, e))?);
+        let database_read = database.clone();
 
         // Create new cache DB
         let path_cache = path_cache;
-        let db_cache = DB::open_default(path_cache.clone())
-            .map_err(|e| Error::new(ErrorKind::Other, e))?;
+        let db_cache = Arc::new(DB::open_default(path_cache.clone())
+            .map_err(|e| Error::new(ErrorKind::Other, e))?);
 
         // Create new tree instance
         let mut new_tree = Self {
@@ -188,7 +187,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
             //      load all the leaves from the DB in memory because it may
             //      be extremely big, but maybe we can set an appropriate loading
             //      size according to some policy.
-            new_tree.process_leaves(vec![OperationLeaf {
+            new_tree.process_leaves(&[OperationLeaf {
                 coord: Coord { height: 0, idx: index as usize },
                 action: ActionLeaf::Insert,
                 hash: Some(leaf.clone())
@@ -481,7 +480,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         !self.state.present_node.contains(&coord)
     }
 
-    pub fn process_leaves (&mut self, vec_leaf_op: Vec<OperationLeaf<T::Data>>) -> T::Data {
+    pub fn process_leaves (&mut self, vec_leaf_op: &[OperationLeaf<T::Data>]) -> T::Data {
 
         assert_eq!(T::MERKLE_ARITY, 2, "Arity of the Merkle tree is not 2.");
 
@@ -811,7 +810,7 @@ mod test {
             String::from("./db_leaves_mnt4"),
             String::from("./db_cache_mnt4")
         ).unwrap();
-        smt.process_leaves(leaves_to_process);
+        smt.process_leaves(leaves_to_process.as_slice());
 
         //=============================================
 
@@ -855,7 +854,7 @@ mod test {
             None,
             String::from("./db_leaves_mnt6"),
             String::from("./db_cache_mnt6")).unwrap();
-        smt.process_leaves(leaves_to_process);
+        smt.process_leaves(leaves_to_process.as_slice());
 
         //=============================================
 
@@ -916,7 +915,7 @@ mod test {
             leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 0 }, action: ActionLeaf::Insert, hash: Some(MNT4753Fr::from_str("1").unwrap()) });
             leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 9 }, action: ActionLeaf::Insert, hash: Some(MNT4753Fr::from_str("2").unwrap()) });
 
-            smt.process_leaves(leaves_to_process);
+            smt.process_leaves(leaves_to_process.as_slice());
 
             // smt gets dropped but its info should be saved
         }
@@ -941,7 +940,7 @@ mod test {
             leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 16 }, action: ActionLeaf::Insert, hash: Some(MNT4753Fr::from_str("10").unwrap()) });
             leaves_to_process.push(OperationLeaf { coord: Coord { height: 0, idx: 29 }, action: ActionLeaf::Insert, hash: Some(MNT4753Fr::from_str("3").unwrap()) });
 
-            smt.process_leaves(leaves_to_process);
+            smt.process_leaves(leaves_to_process.as_slice());
 
             // if truly state has been kept, then the equality below must pass, since `root` was
             // computed in one go with another smt
@@ -1015,7 +1014,7 @@ mod test {
         // Compute the root of the tree, and do the same for a NaiveMHT, used here as reference
         let mut naive_tree = MNT4753FieldBasedMerkleTree::new(TEST_HEIGHT_1);
         naive_tree.append(&leaves).unwrap();
-        let root = smt.process_leaves(leaves_for_lazy_smt);
+        let root = smt.process_leaves(leaves_for_lazy_smt.as_slice());
         let naive_root = naive_tree.root();
         assert_eq!(root, naive_root);
 
@@ -1081,7 +1080,7 @@ mod test {
         // Compute the root of the tree, and do the same for a NaiveMHT, used here as reference
         let mut naive_tree = MNT6753FieldBasedMerkleTree::new(TEST_HEIGHT_1);
         naive_tree.append(&leaves).unwrap();
-        let root = smt.process_leaves(leaves_for_lazy_smt);
+        let root = smt.process_leaves(leaves_for_lazy_smt.as_slice());
         let naive_root = naive_tree.root();
         assert_eq!(root, naive_root);
 
@@ -1182,7 +1181,7 @@ mod test {
             ).unwrap();
             let leaves_to_process2 = leaves_to_insert.clone();
             let now = Instant::now();
-            root2 = smt2.process_leaves(leaves_to_process2);
+            root2 = smt2.process_leaves(leaves_to_process2.as_slice());
             let new_now = Instant::now();
 
             let duration_fast = new_now.duration_since(now).as_millis();
@@ -1191,7 +1190,7 @@ mod test {
 
             let leaves_to_process4 = leaves_to_remove.clone();
             let now = Instant::now();
-            root4 = smt2.process_leaves(leaves_to_process4);
+            root4 = smt2.process_leaves(leaves_to_process4.as_slice());
             let new_now = Instant::now();
 
             let duration_fast = new_now.duration_since(now).as_millis();
@@ -1272,7 +1271,7 @@ mod test {
             ).unwrap();
             let leaves_to_process2 = leaves_to_insert.clone();
             let now = Instant::now();
-            root2 = smt2.process_leaves(leaves_to_process2);
+            root2 = smt2.process_leaves(leaves_to_process2.as_slice());
             let new_now = Instant::now();
 
             let duration_fast = new_now.duration_since(now).as_millis();
@@ -1281,7 +1280,7 @@ mod test {
 
             let leaves_to_process4 = leaves_to_remove.clone();
             let now = Instant::now();
-            root4 = smt2.process_leaves(leaves_to_process4);
+            root4 = smt2.process_leaves(leaves_to_process4.as_slice());
             let new_now = Instant::now();
 
             let duration_fast = new_now.duration_since(now).as_millis();

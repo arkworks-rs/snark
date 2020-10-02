@@ -17,7 +17,7 @@ use crate::{
 use rocksdb::{DB, Options, IteratorMode};
 
 use std::{
-    marker::PhantomData, fs, path::Path, io::{Error, ErrorKind},
+    marker::PhantomData, fs, path::Path, io::{Error, ErrorKind}, sync::Arc,
 };
 
 #[derive(Debug)]
@@ -34,11 +34,11 @@ pub struct BigMerkleTree<T: FieldBasedMerkleTreeParameters>{
     // path to the db
     path_db: String,
     // stores the leaves
-    database: DB,
+    database: Arc<DB>,
     // path to the cache
     path_cache: String,
     // stores the cached nodes
-    db_cache: DB,
+    db_cache: Arc<DB>,
 
     _parameters: PhantomData<T>,
 }
@@ -78,12 +78,12 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         let width = T::MERKLE_ARITY.pow(height as u32);
 
         let path_db = path_db;
-        let database = DB::open_default(path_db.clone())
-            .map_err(|e| Error::new(ErrorKind::Other, e))?;
+        let database = Arc::new(DB::open_default(path_db.clone())
+            .map_err(|e| Error::new(ErrorKind::Other, e))?);
 
         let path_cache = path_cache;
-        let db_cache = DB::open_default(path_cache.clone())
-            .map_err(|e| Error::new(ErrorKind::Other, e))?;
+        let db_cache = Arc::new(DB::open_default(path_cache.clone())
+            .map_err(|e| Error::new(ErrorKind::Other, e))?);
 
         Ok(Self {
             persistent,
@@ -162,15 +162,17 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
 
         // Restore leaves DB
         let path_db = path_db;
-        let database = DB::open(&opening_options, path_db.clone())
-            .map_err(|e| Error::new(ErrorKind::Other, e))?;
-        let database_read = DB::open_for_read_only(&opening_options, path_db.clone(), false)
-            .map_err(|e| Error::new(ErrorKind::Other, e))?;
+        let database = Arc::new(DB::open(&opening_options, path_db.clone())
+            .map_err(|e| Error::new(ErrorKind::Other, e))?);
+        // It's fine here to have one instance writing and the other reading: first because
+        // they are not concurrent and second because `database` already contain all the leaves
+        // we are going to add, so there will be no writings at all.
+        let database_read = database.clone();
 
         // Create new cache DB
         let path_cache = path_cache;
-        let db_cache = DB::open_default(path_cache.clone())
-            .map_err(|e| Error::new(ErrorKind::Other, e))?;
+        let db_cache = Arc::new(DB::open_default(path_cache.clone())
+            .map_err(|e| Error::new(ErrorKind::Other, e))?);
 
         // Create new tree instance
         let mut new_tree = Self {
