@@ -119,7 +119,8 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         // they stand for the same tree state, which is expensive nevertheless (and still
         // requires to compute the root). At this point, it's worth in any case to
         // reconstruct the whole tree given the leaves.
-        //TODO: Can we actually do better ?
+        //TODO: Temporary solution. Use a transactional DB to update and keep all the three
+        //      files consistent.
         if leaves_db_path.exists()
         {
             // Clean up other info
@@ -778,7 +779,7 @@ mod test {
     use rand::SeedableRng;
 
     use std::{
-        str::FromStr, path::Path, fs
+        str::FromStr, path::Path
     };
 
     #[derive(Clone, Debug)]
@@ -1088,7 +1089,7 @@ mod test {
         {
             let mut smt = MNT4PoseidonSMT::load(
                 TEST_HEIGHT,
-                true,
+                false,
                 String::from("./persistency_test_info"),
                 String::from("./db_leaves_persistency_test_info"),
                 String::from("./db_cache_persistency_test_info")
@@ -1102,25 +1103,7 @@ mod test {
             // computed in one go with another smt
             assert_eq!(root, smt.state.root);
 
-            // smt gets dropped but its info should be saved
-        }
-
-        // Let's delete cache_db and state and let's restore the tree from it
-        {
-            fs::remove_dir_all(Path::new("./db_cache_persistency_test_info")).unwrap();
-            fs::remove_file(Path::new("./persistency_test_info")).unwrap();
-
-            let smt = MNT4PoseidonSMT::load(
-                TEST_HEIGHT,
-                false,
-                String::from("./persistency_test_info"),
-                String::from("./db_leaves_persistency_test_info"),
-                String::from("./db_cache_persistency_test_info")
-            ).unwrap();
-
-            assert_eq!(root, smt.state.root);
-
-            //smt gets dropped and state and dbs are deleted
+            // smt gets dropped and the info on disk destroyed
         }
 
         // files and directories should have been deleted
@@ -1186,9 +1169,6 @@ mod test {
             // Assert the two paths are equal
             assert_eq!(path, naive_path);
 
-            // Assert the two paths are equal
-            assert_eq!(naive_path, path);
-
             // Check leaf index is the correct one
             assert_eq!(i, path.leaf_index());
 
@@ -1250,9 +1230,6 @@ mod test {
 
             // Assert the two paths are equal
             assert_eq!(path, naive_path);
-
-            // Assert the two paths are equal
-            assert_eq!(naive_path, path);
 
             // Check leaf index is the correct one
             assert_eq!(i, path.leaf_index());

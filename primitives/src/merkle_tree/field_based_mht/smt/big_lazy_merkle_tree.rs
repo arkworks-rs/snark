@@ -111,7 +111,8 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         // they stand for the same tree state, which is expensive nevertheless (and still
         // requires to compute the root). At this point, it's worth in any case to
         // reconstruct the whole tree given the leaves.
-        //TODO: Can we actually do better ?
+        //TODO: Temporary solution. Use a transactional DB to update and keep all the three
+        //      files consistent.
         if leaves_db_path.exists()
         {
             // Clean up other info
@@ -182,11 +183,6 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         for (leaf_index, leaf_val) in db_iter {
             let index = u32::read(&*leaf_index)?;
             let leaf = T::Data::read(&*leaf_val)?;
-            //TODO: We are not exploiting the Lazy Merkle Tree feature here,
-            //      because we add one leaf at a time. For sure we cannot
-            //      load all the leaves from the DB in memory because it may
-            //      be extremely big, but maybe we can set an appropriate loading
-            //      size according to some policy.
             new_tree.process_leaves(&[OperationLeaf {
                 coord: Coord { height: 0, idx: index as usize },
                 action: ActionLeaf::Insert,
@@ -750,7 +746,7 @@ mod test {
     };
 
     use std::{
-        str::FromStr, path::Path, time::Instant, fs
+        str::FromStr, path::Path, time::Instant
     };
 
     use rand::{
@@ -928,7 +924,7 @@ mod test {
         {
             let mut smt = MNT4PoseidonSMTLazy::load(
                 TEST_HEIGHT_1,
-                true,
+                false,
                 String::from("./persistency_test_info_lazy"),
                 String::from("./db_leaves_persistency_test_info_lazy"),
                 String::from("./db_cache_persistency_test_info_lazy")
@@ -946,25 +942,7 @@ mod test {
             // computed in one go with another smt
             assert_eq!(root, smt.state.root);
 
-            // smt gets dropped but its info should be saved
-        }
-
-        // Let's delete cache_db and state and let's restore the tree from it
-        {
-            fs::remove_dir_all(Path::new("./db_cache_persistency_test_info_lazy")).unwrap();
-            fs::remove_file(Path::new("./persistency_test_info_lazy")).unwrap();
-
-            let smt = MNT4PoseidonSMTLazy::load(
-                TEST_HEIGHT_1,
-                false,
-                String::from("./persistency_test_info_lazy"),
-                String::from("./db_leaves_persistency_test_info_lazy"),
-                String::from("./db_cache_persistency_test_info_lazy")
-            ).unwrap();
-
-            assert_eq!(root, smt.state.root);
-
-            //smt gets dropped and state and dbs are deleted
+            // smt gets dropped and info on disk destroyed
         }
 
         // files and directories should have been deleted
@@ -1029,9 +1007,6 @@ mod test {
             assert!(naive_path.verify(naive_tree.height(), &leaves[i], &naive_root ).unwrap());
 
             // Assert the two paths are equal
-            assert_eq!(path, naive_path);
-
-            // Assert the two paths are equal
             assert_eq!(naive_path, path);
 
             // Check leaf index is the correct one
@@ -1093,9 +1068,6 @@ mod test {
             // Create and verify a Naive path
             let naive_path = naive_tree.generate_proof(i, &leaves[i]).unwrap();
             assert!(naive_path.verify(naive_tree.height(), &leaves[i], &naive_root ).unwrap());
-
-            // Assert the two paths are equal
-            assert_eq!(path, naive_path);
 
             // Assert the two paths are equal
             assert_eq!(naive_path, path);
