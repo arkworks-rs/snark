@@ -1186,6 +1186,15 @@ mod test {
         assert!(!Path::new("./persistency_test_info").exists());
         assert!(!Path::new("./db_leaves_persistency_test_info").exists());
         assert!(!Path::new("./db_cache_persistency_test_info").exists());
+
+        // assert being unable to restore
+        assert!(MNT4PoseidonSMT::load(
+            TEST_HEIGHT,
+            false,
+            String::from("./persistency_test_info"),
+            String::from("./db_leaves_persistency_test_info"),
+            String::from("./db_cache_persistency_test_info")
+        ).is_err());
     }
 
     #[test]

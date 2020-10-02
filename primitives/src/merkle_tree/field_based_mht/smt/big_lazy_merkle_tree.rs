@@ -1026,6 +1026,15 @@ mod test {
         assert!(!Path::new("./persistency_test_info_lazy").exists());
         assert!(!Path::new("./db_leaves_persistency_test_info_lazy").exists());
         assert!(!Path::new("./db_cache_persistency_test_info_lazy").exists());
+
+        // assert being unable to restore
+        assert!(MNT4PoseidonSMTLazy::load(
+            TEST_HEIGHT_1,
+            false,
+            String::from("./persistency_test_info"),
+            String::from("./db_leaves_persistency_test_info"),
+            String::from("./db_cache_persistency_test_info")
+        ).is_err());
     }
 
     #[test]
