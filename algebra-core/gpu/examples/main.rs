@@ -3,15 +3,12 @@ mod helpers;
 use crate::helpers::create_pseudo_uniform_random_elems;
 use algebra::bw6_761::G1Projective;
 use algebra_core::{
-    curves::ProjectiveCurve,
-    fields::PrimeField,
-    BatchGroupArithmeticSlice, UniformRand,
+    curves::ProjectiveCurve, fields::PrimeField, BatchGroupArithmeticSlice, UniformRand,
 };
 use gpu::bw6_761_g1_scalar_mul_kernel::*;
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 use rayon::prelude::*;
-use std::sync::Mutex;
 
 const LOG2_N: usize = 20;
 // Job size needs to be at least 1 << 17
@@ -40,17 +37,40 @@ fn main() -> error::Result<()> {
     let bases_d = bases_h.to_vec();
 
     let mut exps_cpu = exps_h.to_vec();
-    // let now = std::time::Instant::now();
-    // bases_h
-    //     .par_chunks_mut(CHUNK_SIZE)
-    //     .zip(exps_cpu.par_chunks_mut(CHUNK_SIZE))
-    //     .for_each(|(b, s)| b[..].batch_scalar_mul_in_place(&mut s[..], 4));
-    // println!("CPU mul: {}us", now.elapsed().as_micros());
+    let now = std::time::Instant::now();
+    bases_h
+        .par_chunks_mut(CHUNK_SIZE)
+        .zip(exps_cpu.par_chunks_mut(CHUNK_SIZE))
+        .for_each(|(b, s)| b[..].batch_scalar_mul_in_place(&mut s[..], 4));
+    println!("CPU mul: {}us", now.elapsed().as_micros());
 
     if Device::init() {
         let n_devices = Device::get_count().unwrap();
 
+        for _ in 0..10 {
+            let now = std::time::Instant::now();
+            let bases_static = (0..n_devices)
+                .into_par_iter()
+                .flat_map(|i| {
+                    let device = Device::nth(i).unwrap();
+                    let ctx = device.create_context();
 
+                    let _pf = Profiler::start(&ctx);
+                    cpu_gpu_static_partition_run_kernel(
+                        &ctx,
+                        &bases_d[..],
+                        &exps_h[..],
+                        CUDA_GROUP_SIZE,
+                        CHUNK_SIZE,
+                    )
+                    .to_vec()
+                })
+                .collect::<Vec<_>>();
+            println!(
+                "GPU+CPU static partition mul: {}us",
+                now.elapsed().as_micros()
+            );
+        }
         let now = std::time::Instant::now();
         let bases_static = (0..n_devices)
             .into_par_iter()
@@ -69,7 +89,10 @@ fn main() -> error::Result<()> {
                 .to_vec()
             })
             .collect::<Vec<_>>();
-        println!("GPU+CPU static partition mul: {}us", now.elapsed().as_micros());
+        println!(
+            "GPU+CPU static partition mul: {}us",
+            now.elapsed().as_micros()
+        );
 
         let now = std::time::Instant::now();
         let bases = (0..n_devices)
@@ -99,14 +122,7 @@ fn main() -> error::Result<()> {
                 let device = Device::nth(i).unwrap();
                 let ctx = device.create_context();
                 let _pf = Profiler::start(&ctx);
-                par_run_kernel(
-                    &ctx,
-                    &bases_d[..],
-                    &exps_h[..],
-                    CUDA_GROUP_SIZE,
-                    &Mutex::new(true),
-                )
-                .to_vec()
+                par_run_kernel(&ctx, &bases_d[..], &exps_h[..], CUDA_GROUP_SIZE).to_vec()
             })
             .collect::<Vec<_>>();
         println!("GPU mul: {}us", now.elapsed().as_micros());

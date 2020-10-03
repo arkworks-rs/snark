@@ -1,4 +1,7 @@
 #[macro_use]
+mod cpu_gpu;
+
+#[macro_use]
 // We keep this macro module private as the macros should not be used outside of this crate due to dependencies
 mod scalar_mul;
 
