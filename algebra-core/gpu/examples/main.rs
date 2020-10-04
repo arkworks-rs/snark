@@ -49,46 +49,26 @@ fn main() -> error::Result<()> {
 
         for _ in 0..10 {
             let now = std::time::Instant::now();
-            let bases_static = (0..n_devices)
-                .into_par_iter()
-                .flat_map(|i| {
-                    let device = Device::nth(i).unwrap();
-                    let ctx = device.create_context();
-
-                    let _pf = Profiler::start(&ctx);
-                    cpu_gpu_static_partition_run_kernel(
-                        &ctx,
-                        &bases_d[..],
-                        &exps_h[..],
-                        CUDA_GROUP_SIZE,
-                        CHUNK_SIZE,
-                    )
-                    .to_vec()
-                })
-                .collect::<Vec<_>>();
+            let bases_static = cpu_gpu_static_partition_run_kernel(
+                &bases_d[..],
+                &exps_h[..],
+                CUDA_GROUP_SIZE,
+                CHUNK_SIZE,
+            )
+            .to_vec();
             println!(
                 "GPU+CPU static partition mul: {}us",
                 now.elapsed().as_micros()
             );
         }
         let now = std::time::Instant::now();
-        let bases_static = (0..n_devices)
-            .into_par_iter()
-            .flat_map(|i| {
-                let device = Device::nth(i).unwrap();
-                let ctx = device.create_context();
-
-                let _pf = Profiler::start(&ctx);
-                cpu_gpu_static_partition_run_kernel(
-                    &ctx,
-                    &bases_d[..],
-                    &exps_h[..],
-                    CUDA_GROUP_SIZE,
-                    CHUNK_SIZE,
-                )
-                .to_vec()
-            })
-            .collect::<Vec<_>>();
+        let bases_static = cpu_gpu_static_partition_run_kernel(
+            &bases_d[..],
+            &exps_h[..],
+            CUDA_GROUP_SIZE,
+            CHUNK_SIZE,
+        )
+        .to_vec();
         println!(
             "GPU+CPU static partition mul: {}us",
             now.elapsed().as_micros()

@@ -111,14 +111,8 @@ macro_rules! impl_scalar_mul_kernel {
                 const TABLE_SIZE: usize = 1 << LOG2_W;
                 const NUM_U8: usize = (NUM_BITS - 1) / LOG2_W + 1;
 
-                // We will use average of the ratios of throughput (points/s)
-                // We start with a default 50-50 split. In the future, one should be able to set this manually
-                lazy_static! {
-                    static ref [<$curve:upper _ $type:upper _CPU_GPU_AVG_RATIO>]: Mutex<(f64, usize)> = Mutex::new((0.5, 0));
-                }
-
                 impl_run_kernel!();
-                impl_gpu_cpu_run_kernel!([<$curve:upper _ $type:upper _CPU_GPU_AVG_RATIO>]);
+                impl_gpu_cpu_run_kernel!([<$curve _ $type>]);
 
                 fn scalar_recode(k: &mut BigInt) -> [u8; NUM_U8] {
                     let mut out = [0; NUM_U8];
@@ -232,14 +226,8 @@ macro_rules! impl_scalar_mul_kernel_glv {
                 const TABLE_SIZE: usize = 1 << LOG2_W;
                 const NUM_U8: usize = 2 * ((NUM_BITS - 1) / (2 * (LOG2_W - 1)) + 2);
 
-                // We will use average of the ratios of throughput (points/s)
-                // We start with a default 50-50 split. In the future, one should be able to set this manually
-                lazy_static! {
-                    static ref [<$curve:upper _ $type:upper _CPU_GPU_AVG_RATIO>]: Mutex<(f64, usize)> = Mutex::new((0.5, 0));
-                }
-
                 impl_run_kernel!();
-                impl_gpu_cpu_run_kernel!([<$curve:upper _ $type:upper _CPU_GPU_AVG_RATIO>]);
+                impl_gpu_cpu_run_kernel!([<$curve _ $type>]);
 
                 fn scalar_recode_glv(k1: &mut BigInt, k2: &mut BigInt) -> [u8; NUM_U8] {
                     const TABLE_SIZE_GLV: u64 = 1u64 << (LOG2_W - 1);
