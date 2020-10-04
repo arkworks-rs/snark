@@ -6,8 +6,7 @@ macro_rules! impl_gpu_cpu_run_kernel {
             use peekmore::PeekMore;
             use closure::closure;
 
-            // We will use average of the ratios of throughput (points/s)
-            // We start with a default 50-50 split. In the future, one should be able to set this manually
+            // We will use average of the proportions of throughput (points/s)
             lazy_static! {
                 static ref [<$KERNEL_NAME:upper _CPU_GPU_AVG_RATIO>]: Mutex<(Vec<f64>, usize)> = Mutex::new((vec![], 0));
             }
@@ -16,7 +15,7 @@ macro_rules! impl_gpu_cpu_run_kernel {
             // based on continuous profiling stored in a static location in memory.
             // This data is lost the moment the progam stops running.
 
-            // Only one such function should be running at any time.
+            // Only one such procedure should be running at any time.
             pub fn cpu_gpu_static_partition_run_kernel(
                 bases_h: &[<G as ProjectiveCurve>::Affine],
                 exps_h: &[BigInt],
@@ -54,9 +53,11 @@ macro_rules! impl_gpu_cpu_run_kernel {
                 let mut ctxs = Vec::with_capacity(n_devices);
                 let (mut time_cpu, mut times_gpu) = (0, vec![0; n_devices]);
 
+                // Split data and generate tables and u8 scalar encoding in device memory
                 for (i, &num) in n_gpus.iter().enumerate() {
                     let device = Device::nth(i).unwrap();
                     let ctx = device.create_context();
+
                     let (lower, upper) = res_ref.split_at_mut(num);
                     res_ref = upper;
                     let lower_exps = &exps_h_ref[..num];
@@ -64,10 +65,10 @@ macro_rules! impl_gpu_cpu_run_kernel {
 
                     let mut table = DeviceMemory::<G>::zeros(&ctx, num * TABLE_SIZE);
                     let mut exp = DeviceMemory::<u8>::zeros(&ctx, num * NUM_U8);
-                    ctxs.push((device, ctx));
 
                     generate_tables_and_recoding(lower, &mut table[..], lower_exps, &mut exp[..], true);
 
+                    ctxs.push((device, ctx));
                     bases_split.push(lower);
                     tables.push(table);
                     exps.push(exp);
@@ -76,7 +77,7 @@ macro_rules! impl_gpu_cpu_run_kernel {
                 println!("Split statically and allocated device: {}us", now.elapsed().as_micros());
 
                 rayon::scope(|s| {
-                    // Here, we should write directly to device
+                    // Run jobs on GPUs
                     for (i, (bases_gpu, time_gpu)) in bases_split.iter_mut().zip(times_gpu.iter_mut()).enumerate() {
                         let n_gpu = n_gpus[i];
                         let ctx = &ctxs[i].1;
