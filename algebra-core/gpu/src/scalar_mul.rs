@@ -1,7 +1,7 @@
 macro_rules! impl_run_kernel {
     () => {
         // We drop a lock only after the parallel portion has been handled
-        pub fn par_run_kernel_sync<T>(
+        fn par_run_kernel_sync<T>(
             ctx: &Context,
             bases_h: &[<G as ProjectiveCurve>::Affine],
             exps_h: &[BigInt],
@@ -97,8 +97,11 @@ macro_rules! impl_scalar_mul_kernel {
                 use std::sync::Mutex;
                 use lazy_static::lazy_static;
 
-                use algebra::{BigInteger, FpParameters, Zero};
-                use algebra_core::{curves::{ProjectiveCurve, AffineCurve, BatchGroupArithmeticSlice}, fields::PrimeField};
+                use algebra_core::{
+                    biginteger::BigInteger, FpParameters, Zero,
+                    curves::{ProjectiveCurve, AffineCurve, BatchGroupArithmeticSlice},
+                    fields::PrimeField,
+                };
 
                 use algebra::$curve::$ProjCurve;
 
@@ -211,8 +214,11 @@ macro_rules! impl_scalar_mul_kernel_glv {
                 use std::sync::Mutex;
                 use lazy_static::lazy_static;
 
-                use algebra::{BigInteger, FpParameters, Zero};
-                use algebra_core::{curves::{ProjectiveCurve, AffineCurve, BatchGroupArithmeticSlice}, fields::PrimeField};
+                use algebra_core::{
+                    biginteger::BigInteger, FpParameters, Zero,
+                    curves::{ProjectiveCurve, AffineCurve, BatchGroupArithmeticSlice},
+                    fields::PrimeField,
+                };
                 use std::ops::Neg;
 
                 use algebra::$curve::$ProjCurve;

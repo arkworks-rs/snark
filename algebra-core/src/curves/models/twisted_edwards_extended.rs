@@ -208,12 +208,12 @@ macro_rules! batch_add_loop_2 {
 }
 
 impl<P: Parameters> BatchGroupArithmetic for GroupAffine<P> {
-    type BBaseField = P::BaseField;
+    type BaseFieldForBatch = P::BaseField;
 
     fn batch_double_in_place(
         bases: &mut [Self],
         index: &[u32],
-        _scratch_space: Option<&mut Vec<Self::BBaseField>>,
+        _scratch_space: Option<&mut Vec<Self::BaseFieldForBatch>>,
     ) {
         Self::batch_add_in_place(
             bases,

@@ -22,7 +22,7 @@ pub trait BatchGroupArithmetic
 where
     Self: Sized + Clone + Copy + Zero + Neg<Output = Self>,
 {
-    type BBaseField: Field;
+    type BaseFieldForBatch: Field;
 
     /*
     We use the w-NAF method, achieving point density of approximately 1/(w + 1)
@@ -137,7 +137,7 @@ where
     fn batch_double_in_place(
         bases: &mut [Self],
         index: &[u32],
-        scratch_space: Option<&mut Vec<Self::BBaseField>>,
+        scratch_space: Option<&mut Vec<Self::BaseFieldForBatch>>,
     );
 
     /// Mutates bases in place and stores result in the first operand.

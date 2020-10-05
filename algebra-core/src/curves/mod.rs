@@ -234,7 +234,7 @@ pub trait AffineCurve:
     + Zero
     + Neg<Output = Self>
     + From<<Self as AffineCurve>::Projective>
-    + BatchGroupArithmetic<BBaseField = <Self as AffineCurve>::BaseField>
+    + BatchGroupArithmetic<BaseFieldForBatch = <Self as AffineCurve>::BaseField>
 {
     const COFACTOR: &'static [u64];
     type ScalarField: PrimeField + SquareRootField + Into<<Self::ScalarField as PrimeField>::BigInt>;
