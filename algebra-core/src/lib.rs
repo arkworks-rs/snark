@@ -6,8 +6,8 @@
 #![deny(unused_comparisons, bare_trait_objects, const_err, unused_must_use)]
 #![deny(unused_mut, unused_unsafe, private_in_public)]
 #![cfg_attr(use_asm, feature(llvm_asm))]
-#![cfg_attr(not(use_asm), forbid(unsafe_code))]
-#![cfg_attr(use_asm, deny(unsafe_code))]
+#![cfg_attr(not(any(use_asm, use_bw6_asm)), forbid(unsafe_code))]
+#![cfg_attr(not(any(use_asm, use_bw6_asm)), deny(unsafe_code))]
 
 #[cfg(all(test, not(feature = "std")))]
 #[macro_use]

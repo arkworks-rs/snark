@@ -26,4 +26,17 @@ fn main() {
         fs::write(&dest_path, generate_macro_string(NUM_LIMBS)).unwrap();
         println!("cargo:rustc-cfg=use_asm");
     }
+
+    let should_use_bw6_asm = cfg!(all(
+        feature = "bw6_asm",
+        target_feature = "bmi2",
+        target_feature = "adx",
+        target_arch = "x86_64"
+    )) && is_nightly;
+    if should_use_bw6_asm {
+        cc::Build::new()
+            .file("bw6-assembly/modmul768-cios1-nocarry.S")
+            .compile("modmul768");
+        println!("cargo:rustc-cfg=use_bw6_asm");
+    }
 }

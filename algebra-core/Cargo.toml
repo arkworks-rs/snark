@@ -32,6 +32,7 @@ unroll = { version = "=0.1.4" }
 
 [build-dependencies]
 field-assembly = { path = "./field-assembly" }
+cc = "1.0"
 rustc_version = "0.2"
 
 [dev-dependencies]
@@ -43,4 +44,4 @@ std = []
 parallel = [ "std", "rayon" ]
 derive = [ "algebra-core-derive" ]
 llvm_asm = []
-
+bw6_asm = []
