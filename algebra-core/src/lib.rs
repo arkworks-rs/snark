@@ -7,11 +7,11 @@
 #![deny(unused_mut, unused_unsafe, private_in_public)]
 #![cfg_attr(use_asm, feature(llvm_asm))]
 #![cfg_attr(
-    not(any(use_asm, feature = "prefetch", use_bw6_asm)), 
+    not(any(use_asm, feature = "prefetch", use_bw6_asm)),
     forbid(unsafe_code)
 )]
 #![cfg_attr(
-    not(any(use_asm, feature = "prefetch", use_bw6_asm)), 
+    not(any(use_asm, feature = "prefetch", use_bw6_asm)),
     deny(unsafe_code)
 )]
 
