@@ -1,66 +1,11 @@
-use algebra_core::{
-    bytes::FromBytes,
-    curves::{AffineCurve, ProjectiveCurve},
-    test_rng, Zero,
-};
-use core::str::FromStr;
-use rand::Rng;
-
+#![allow(unused_imports)]
 use crate::ed_on_bls12_381::*;
-
-use crate::tests::{curves::*, groups::*};
-
-#[test]
-fn test_projective_curve() {
-    curve_tests::<EdwardsProjective>();
-
-    edwards_tests::<EdwardsParameters>();
-}
+use algebra_core::{FromBytes, ToBytes, Zero};
+use core::str::FromStr;
+edwards_curve_tests!();
 
 #[test]
-fn test_projective_group() {
-    let mut rng = test_rng();
-    let a = rng.gen();
-    let b = rng.gen();
-    for _i in 0..100 {
-        group_test::<EdwardsProjective>(a, b);
-    }
-}
-
-#[test]
-fn test_affine_group() {
-    let mut rng = test_rng();
-    let a: EdwardsAffine = rng.gen();
-    let b: EdwardsAffine = rng.gen();
-    for _i in 0..100 {
-        group_test::<EdwardsAffine>(a, b);
-    }
-}
-
-#[test]
-fn test_generator() {
-    let generator = EdwardsAffine::prime_subgroup_generator();
-    assert!(generator.is_on_curve());
-    assert!(generator.is_in_correct_subgroup_assuming_on_curve());
-}
-
-#[test]
-fn test_conversion() {
-    let mut rng = test_rng();
-    let a: EdwardsAffine = rng.gen();
-    let b: EdwardsAffine = rng.gen();
-    let a_b = {
-        use crate::groups::Group;
-        (a + &b).double().double()
-    };
-    let a_b2 = (a.into_projective() + &b.into_projective())
-        .double()
-        .double();
-    assert_eq!(a_b, a_b2.into_affine());
-    assert_eq!(a_b.into_projective(), a_b2);
-}
-
-#[test]
+#[cfg(feature = "all_tests")]
 fn test_scalar_multiplication() {
     println!("Started getting field elements");
     let f1 = Fr::from_str(
@@ -99,6 +44,7 @@ fn test_scalar_multiplication() {
 }
 
 #[test]
+#[cfg(feature = "all_tests")]
 fn test_bytes() {
     let g_from_repr = EdwardsAffine::from_str(
         "(1158870117176967269192899343636553522971009777237254192973081388797299308391, \
@@ -109,9 +55,4 @@ fn test_bytes() {
     let g_bytes = algebra_core::to_bytes![g_from_repr].unwrap();
     let g = EdwardsAffine::read(g_bytes.as_slice()).unwrap();
     assert_eq!(g_from_repr, g);
-}
-
-#[test]
-fn test_montgomery_conversion() {
-    montgomery_conversion_test::<EdwardsParameters>();
 }

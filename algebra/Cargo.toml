@@ -27,14 +27,32 @@ algebra-core = { path = "../algebra-core", default-features = false }
 [dev-dependencies]
 rand = { version = "0.7", default-features = false }
 rand_xorshift = "0.2"
+rayon = { version = "1" }
 
 [features]
 default = [ "std" ]
 
 full = [
+  "all_curves", "all_tests"
+]
+
+all_curves = [
+  "sw_curves", "te_curves"
+]
+
+sw_curves = [
   "bn254", "bls12_377", "bls12_381", "cp6_782", "bw6_761", "mnt4_298", "mnt4_753",
-  "mnt6_298", "mnt6_753", "ed_on_bls12_377", "ed_on_cp6_782",
+  "mnt6_298", "mnt6_753",
+]
+
+te_curves = [
+  "ed_on_bls12_377", "ed_on_cp6_782",
   "ed_on_bw6_761", "ed_on_bls12_381", "ed_on_mnt4_298", "ed_on_mnt4_753", "ed_on_bn254"
+]
+
+all_tests = [
+  "curve", "batch_affine", "msm", "verify", "random_bytes",
+  "pairing", "serialisation", "conversion"
 ]
 
 bn254 = []
@@ -54,8 +72,27 @@ mnt4_753 = []
 mnt6_298 = []
 mnt6_753 = []
 
+curve = []
+batch_affine = []
+msm = []
+verify = []
+all_fields = [ "prime_fields", "extension_fields" ]
+prime_fields = []
+extension_fields = []
+pairing = []
+serialisation = []
+random_bytes = []
+conversion = []
+
+big_n = [ "parallel_random_gen" ]
+
 std = [ "algebra-core/std" ]
 parallel = [ "std", "algebra-core/parallel" ]
+parallel_random_gen = []
 derive = [ "algebra-core/derive" ]
 asm = [ "algebra-core/llvm_asm" ]
+prefetch = [ "algebra-core/prefetch"]
+timing = [ "algebra-core/timing"]
+timing_detailed = [ "algebra-core/timing_detailed" ]
+timing_thread_id = [ "algebra-core/timing_thread_id" ]
 bw6_asm = [ "algebra-core/bw6_asm" ]

@@ -2,6 +2,7 @@ use crate::{
     prelude::{AffineCurve, BigInteger, FpParameters, One, PrimeField, ProjectiveCurve, Zero},
     Vec,
 };
+
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
@@ -39,7 +40,9 @@ impl VariableBaseMSM {
             .map(|w_start| {
                 let mut res = zero;
                 // We don't need the "zero" bucket, so we only have 2^c - 1 buckets
-                let mut buckets = vec![zero; (1 << c) - 1];
+                let log2_n_bucket = if (w_start % c) != 0 { w_start % c } else { c };
+                let mut buckets = vec![zero; (1 << log2_n_bucket) - 1];
+
                 scalars
                     .iter()
                     .zip(bases)
@@ -73,28 +76,28 @@ impl VariableBaseMSM {
                 let mut running_sum = G::Projective::zero();
                 for b in buckets.into_iter().rev() {
                     running_sum.add_assign_mixed(&b);
-                    res += running_sum;
+                    res += &running_sum;
                 }
 
-                res
+                (res, log2_n_bucket)
             })
             .collect();
 
         // We store the sum for the lowest window.
-        let lowest = *window_sums.first().unwrap();
+        let lowest = window_sums.first().unwrap().0;
 
         // We're traversing windows from high to low.
         lowest
-            + window_sums[1..]
-                .iter()
-                .rev()
-                .fold(zero, |mut total, sum_i| {
-                    total += sum_i;
-                    for _ in 0..c {
+            + &window_sums[1..].iter().rev().fold(
+                zero,
+                |total: G::Projective, (sum_i, window_size): &(G::Projective, usize)| {
+                    let mut total = total + sum_i;
+                    for _ in 0..*window_size {
                         total.double_in_place();
                     }
                     total
-                })
+                },
+            )
     }
 
     pub fn multi_scalar_mul<G: AffineCurve>(

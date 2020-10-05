@@ -22,6 +22,7 @@
 #[cfg(feature = "bn254")]
 mod curves;
 
+#[macro_use]
 mod fields;
 
 #[cfg(feature = "bn254")]

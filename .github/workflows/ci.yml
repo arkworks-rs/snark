@@ -83,11 +83,16 @@ jobs:
         with:
             command: test
             args: "--all \
-                   --all-features \
                    --exclude cp-benches \
                    --exclude algebra-benches \
                    --exclude ff-fft-benches \
                    -- --skip dpc --skip integration_test"
+
+      - name: Test algebra
+        run: |
+          cd algebra
+          cargo test --features full
+          cd ..
 
   check_no_std:
     name: Check no_std

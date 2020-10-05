@@ -17,6 +17,7 @@
 #[cfg(feature = "bls12_377")]
 mod curves;
 
+#[macro_use]
 mod fields;
 
 #[cfg(feature = "bls12_377")]

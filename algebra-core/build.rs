@@ -1,12 +1,13 @@
-use std::env;
-use std::fs;
-use std::path::Path;
-
 extern crate rustc_version;
 use rustc_version::{version_meta, Channel};
 
-use field_assembly::generate_macro_string;
+#[cfg(feature = "llvm_asm")]
+use {
+    field_assembly::generate_macro_string,
+    std::{env, fs, path::Path},
+};
 
+#[cfg(feature = "llvm_asm")]
 const NUM_LIMBS: usize = 8;
 
 fn main() {
@@ -14,13 +15,15 @@ fn main() {
 
     let is_nightly = version_meta().expect("nightly check failed").channel == Channel::Nightly;
 
-    let should_use_asm = cfg!(all(
+    let _should_use_asm = cfg!(all(
         feature = "llvm_asm",
         target_feature = "bmi2",
         target_feature = "adx",
         target_arch = "x86_64"
     )) && is_nightly;
-    if should_use_asm {
+
+    #[cfg(feature = "llvm_asm")]
+    if _should_use_asm {
         let out_dir = env::var_os("OUT_DIR").unwrap();
         let dest_path = Path::new(&out_dir).join("field_assembly.rs");
         fs::write(&dest_path, generate_macro_string(NUM_LIMBS)).unwrap();

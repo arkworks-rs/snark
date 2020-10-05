@@ -198,6 +198,48 @@ macro_rules! bigint_impl {
 
                 res
             }
+
+            #[inline]
+            fn mul_no_reduce(this: &[u64], other: &[u64]) -> Self {
+                assert!(this.len() == $num_limbs / 2);
+                assert!(other.len() == $num_limbs / 2);
+
+                let mut r = [0u64; $num_limbs];
+                for i in 0..$num_limbs / 2 {
+                    let mut carry = 0u64;
+                    for j in 0..$num_limbs / 2 {
+                        r[j + i] =
+                            arithmetic::mac_with_carry(r[j + i], this[i], other[j], &mut carry);
+                    }
+                    r[$num_limbs / 2 + i] = carry;
+                }
+                Self::new(r)
+            }
+
+            #[inline]
+            fn mul_no_reduce_lo(this: &[u64], other: &[u64]) -> Self {
+                assert!(this.len() == $num_limbs);
+                assert!(other.len() == $num_limbs);
+
+                let mut r = [0u64; $num_limbs];
+                for i in 0..$num_limbs {
+                    let mut carry = 0u64;
+                    for j in 0..($num_limbs - i) {
+                        r[j + i] =
+                            arithmetic::mac_with_carry(r[j + i], this[i], other[j], &mut carry);
+                    }
+                }
+                Self::new(r)
+            }
+
+            #[inline]
+            fn from_slice(slice: &[u64]) -> Self {
+                let mut repr = Self::default();
+                for (limb, &value) in repr.0.iter_mut().zip(slice) {
+                    *limb = value;
+                }
+                repr
+            }
         }
 
         impl ToBytes for $name {

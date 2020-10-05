@@ -5,13 +5,20 @@ pub mod bn;
 pub mod bw6;
 pub mod mnt4;
 pub mod mnt6;
+
+#[macro_use]
+pub mod short_weierstrass_affine;
+#[macro_use]
 pub mod short_weierstrass_jacobian;
 pub mod short_weierstrass_projective;
 pub mod twisted_edwards_extended;
 
 pub trait ModelParameters: Send + Sync + 'static {
     type BaseField: Field + SquareRootField;
-    type ScalarField: PrimeField + SquareRootField + Into<<Self::ScalarField as PrimeField>::BigInt>;
+    type ScalarField: PrimeField
+        + SquareRootField
+        + Into<<Self::ScalarField as PrimeField>::BigInt>
+        + From<<Self::ScalarField as PrimeField>::BigInt>;
 }
 
 pub trait SWModelParameters: ModelParameters {

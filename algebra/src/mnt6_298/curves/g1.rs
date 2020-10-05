@@ -19,7 +19,6 @@ impl ModelParameters for Parameters {
     type BaseField = Fq;
     type ScalarField = Fr;
 }
-
 impl SWModelParameters for Parameters {
     /// COEFF_A =
     #[rustfmt::skip]

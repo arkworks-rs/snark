@@ -1,12 +1,22 @@
 #![allow(unused)]
 use algebra_core::{
+    biginteger::BigInteger64,
     curves::{AffineCurve, ProjectiveCurve},
     io::Cursor,
     CanonicalDeserialize, CanonicalSerialize, Field, MontgomeryModelParameters, One, PrimeField,
     SWFlags, SWModelParameters, SerializationError, TEModelParameters, UniformRand, Vec, Zero,
 };
-use rand::SeedableRng;
+use rand::{
+    distributions::{Distribution, Uniform},
+    SeedableRng,
+};
 use rand_xorshift::XorShiftRng;
+
+use std::ops::Neg;
+
+use crate::cfg_chunks_mut;
+#[cfg(any(feature = "parallel"))]
+use rayon::prelude::*;
 
 pub const ITERATIONS: usize = 10;
 
@@ -291,7 +301,9 @@ pub fn curve_tests<G: ProjectiveCurve>() {
 }
 
 pub fn sw_tests<P: SWModelParameters>() {
+    #[cfg(feature = "serialisation")]
     sw_curve_serialization_test::<P>();
+    #[cfg(feature = "random_bytes")]
     sw_from_random_bytes::<P>();
 }
 
@@ -422,7 +434,9 @@ pub fn edwards_tests<P: TEModelParameters>()
 where
     P::BaseField: PrimeField,
 {
+    #[cfg(feature = "serialisation")]
     edwards_curve_serialization_test::<P>();
+    #[cfg(feature = "random_bytes")]
     edwards_from_random_bytes::<P>();
 }
 

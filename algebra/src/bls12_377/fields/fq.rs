@@ -108,6 +108,7 @@ impl FpParameters for FqParameters {
     ]);
 }
 
+// For the sake of use in BW6_761, we allow this to be unused
 #[allow(dead_code)]
 pub const FQ_ONE: Fq = field_new!(Fq, FqParameters::R);
 #[allow(dead_code)]

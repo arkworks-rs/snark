@@ -16,11 +16,15 @@ mod macros;
 
 bigint_impl!(BigInteger64, 1);
 bigint_impl!(BigInteger128, 2);
+bigint_impl!(BigInteger192, 3);
 bigint_impl!(BigInteger256, 4);
 bigint_impl!(BigInteger320, 5);
 bigint_impl!(BigInteger384, 6);
+bigint_impl!(BigInteger512, 8);
+bigint_impl!(BigInteger640, 10);
 bigint_impl!(BigInteger768, 12);
 bigint_impl!(BigInteger832, 13);
+bigint_impl!(BigInteger1536, 24);
 
 impl<T: BigInteger> CanonicalSerialize for T {
     #[inline]
@@ -107,8 +111,8 @@ pub trait BigInteger:
     /// Returns true iff this number is zero.
     fn is_zero(&self) -> bool;
 
-    /// Compute the number of bits needed to encode this number. Always a
-    /// multiple of 64.
+    /// Compute the exact number of bits needed to encode this number. Does not need
+    /// to be multiple of 64
     fn num_bits(&self) -> u32;
 
     /// Compute the `i`-th bit of `self`.
@@ -126,7 +130,7 @@ pub trait BigInteger:
     fn find_wnaf(&self) -> Vec<i64>;
 
     /// Writes this `BigInteger` as a big endian integer. Always writes
-    /// `(num_bits` / 8) bytes.
+    /// ceil(`num_bits` / 8) bytes.
     fn write_le<W: Write>(&self, writer: &mut W) -> IoResult<()> {
         self.write(writer)
     }
@@ -137,6 +141,19 @@ pub trait BigInteger:
         *self = Self::read(reader)?;
         Ok(())
     }
+
+    /// Takes two slices of u64 representing big integers and returns a bigger BigInteger
+    /// of type Self representing their product. Preferably used only for even NUM_LIMBS.
+    /// We require the invariant that this.len() == other.len() == NUM_LIMBS / 2
+    fn mul_no_reduce(this: &[u64], other: &[u64]) -> Self;
+
+    /// Similar to `mul_no_reduce` but accepts slices of len == NUM_LIMBS and only returns
+    /// lower half of the result
+    fn mul_no_reduce_lo(this: &[u64], other: &[u64]) -> Self;
+
+    /// Copies data from a slice to Self in a len agnostic way,
+    // based on whichever of the two is shorter.
+    fn from_slice(slice: &[u64]) -> Self;
 }
 
 pub mod arithmetic {

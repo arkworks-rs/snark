@@ -36,4 +36,5 @@ pub mod fq12;
 pub use self::fq12::*;
 
 #[cfg(all(feature = "bls12_377", test))]
+#[macro_use]
 mod tests;

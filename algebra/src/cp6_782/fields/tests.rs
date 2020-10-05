@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 use algebra_core::{buffer_bit_byte_size, test_rng, CanonicalSerialize, Field, PrimeField};
 use rand::Rng;
 
@@ -8,6 +9,7 @@ use crate::tests::fields::{
 };
 
 #[test]
+#[cfg(feature = "prime_fields")]
 fn test_fr() {
     let mut rng = test_rng();
     let a: Fr = rng.gen();
@@ -18,6 +20,7 @@ fn test_fr() {
 }
 
 #[test]
+#[cfg(feature = "prime_fields")]
 fn test_fq() {
     let mut rng = test_rng();
     let a: Fq = rng.gen();
@@ -33,6 +36,7 @@ fn test_fq() {
 }
 
 #[test]
+#[cfg(feature = "extension_fields")]
 fn test_fq3() {
     let mut rng = test_rng();
     let a: Fq3 = rng.gen();
@@ -43,6 +47,7 @@ fn test_fq3() {
 }
 
 #[test]
+#[cfg(feature = "extension_fields")]
 fn test_fq6() {
     let mut rng = test_rng();
     let a: Fq6 = rng.gen();

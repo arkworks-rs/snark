@@ -32,6 +32,7 @@ paste = "1.0"
 
 [features]
 asm = [ "algebra/asm"]
+prefetch = [ "algebra/prefetch"]
 bw6_asm = [ "algebra/bw6_asm"]
 n_fold = []
 mnt4_298 = [ "algebra/mnt4_298"]
@@ -43,6 +44,9 @@ bls12_381 = [ "algebra/bls12_381"]
 bls12_377 = [ "algebra/bls12_377"]
 cp6_782 = [ "algebra/cp6_782" ]
 bw6_761 = [ "algebra/bw6_761" ]
+timing = [ "algebra/timing"]
+timing_detailed = [ "algebra/timing_detailed" ]
+timing_thread_id = [ "algebra/timing_thread_id" ]
 
 [build-dependencies]
 rustc_version = "0.2"

@@ -14,6 +14,7 @@ extern crate std;
 /// see similar issue in [`smallvec#198`]
 ///
 /// [`smallvec#198`]: https://github.com/servo/rust-smallvec/pull/198
+
 #[cfg(not(feature = "std"))]
 #[allow(unused_imports)]
 #[macro_use]
@@ -32,8 +33,13 @@ pub use std::{boxed::Box, format, vec, vec::Vec};
 
 pub use algebra_core::*;
 
+#[cfg(test)]
+#[macro_use]
+pub(crate) mod tests;
+
 ///////////////////////////////////////////////////////////////////////////////
 #[cfg(feature = "bn254")]
+#[macro_use]
 pub mod bn254;
 #[cfg(feature = "bn254")]
 pub use bn254::Bn254;
@@ -49,6 +55,7 @@ pub mod ed_on_bn254;
 
 ///////////////////////////////////////////////////////////////////////////////
 #[cfg(feature = "bls12_377")]
+#[macro_use]
 pub mod bls12_377;
 #[cfg(feature = "bls12_377")]
 pub use bls12_377::Bls12_377;
@@ -65,6 +72,7 @@ pub use bls12_377::Bls12_377;
         feature = "bw6_761",
     )
 ))]
+#[macro_use]
 pub(crate) mod bls12_377;
 
 #[cfg(feature = "ed_on_bls12_377")]
@@ -73,6 +81,7 @@ pub mod ed_on_bls12_377;
 
 ///////////////////////////////////////////////////////////////////////////////
 #[cfg(feature = "bls12_381")]
+#[macro_use]
 pub mod bls12_381;
 #[cfg(feature = "bls12_381")]
 pub use bls12_381::Bls12_381;
@@ -175,5 +184,28 @@ pub mod ed_on_bw6_761;
 pub(crate) mod bw6_761;
 ///////////////////////////////////////////////////////////////////////////////
 
-#[cfg(test)]
-pub(crate) mod tests;
+#[macro_export]
+macro_rules! cfg_chunks_mut_random_gen {
+    ($e: expr, $N: expr) => {{
+        #[cfg(feature = "parallel_random_gen")]
+        let result = $e.par_chunks_mut($N);
+
+        #[cfg(not(feature = "parallel_random_gen"))]
+        let result = $e.chunks_mut($N);
+
+        result
+    }};
+}
+
+#[macro_export]
+macro_rules! cfg_chunks_mut {
+    ($e: expr, $N: expr) => {{
+        #[cfg(feature = "parallel")]
+        let result = $e.par_chunks_mut($N);
+
+        #[cfg(not(feature = "parallel"))]
+        let result = $e.chunks_mut($N);
+
+        result
+    }};
+}

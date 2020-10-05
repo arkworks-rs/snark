@@ -7,7 +7,7 @@ extern "C" {
 /// reduction for efficient implementation. It also additionally
 /// uses the "no-carry optimization" outlined
 /// [here](https://hackmd.io/@zkteam/modular_multiplication) if
-/// `P::MODULUS` has (a) a non-zero MSB, and (b) at least one
+/// `P::MODULUS` has BOTH (a) a zero MSB, AND (b) at least one
 /// zero bit in the rest of the modulus.
 macro_rules! impl_field_mul_assign {
     ($limbs:expr) => {
