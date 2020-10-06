@@ -37,6 +37,7 @@ backtrace = { version = "0.3", optional = true }
 
 [build-dependencies]
 field-assembly = { path = "./field-assembly", optional = true }
+cc = "1.0"
 rustc_version = "0.2"
 
 [dev-dependencies]
@@ -47,9 +48,11 @@ default = [ "std", "rand/default" ]
 std = [ "voracious_radix_sort" ]
 parallel = [ "std", "rayon", "rand/default" ]
 derive = [ "algebra-core-derive" ]
-llvm_asm = [ "field-assembly" ]
 prefetch = [ "std" ]
 
 timing = [ "std", "backtrace" ]
 timing_detailed = [ "std", "backtrace" ]
 timing_thread_id = [ "thread-id" ]
+
+llvm_asm = [ "field-assembly" ]
+bw6_asm = []
