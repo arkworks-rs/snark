@@ -16,21 +16,30 @@ use crate::{
 };
 use core::borrow::Borrow;
 
+/// Represents a projective point in G1.
 pub type G1Var<P> =
     ProjectiveVar<<P as MNT6Parameters>::G1Parameters, FpVar<<P as MNT6Parameters>::Fp>>;
 
+/// Represents a projective point in G2.
 pub type G2Var<P> = ProjectiveVar<<P as MNT6Parameters>::G2Parameters, Fp3G<P>>;
 
+/// Represents the cached precomputation that can be performed on a G1 element
+/// which enables speeding up pairing computation.
 #[derive(Derivative)]
 #[derivative(Clone(bound = "P: MNT6Parameters"), Debug(bound = "P: MNT6Parameters"))]
 pub struct G1PreparedVar<P: MNT6Parameters> {
+    #[doc(hidden)]
     pub x: FpVar<P::Fp>,
+    #[doc(hidden)]
     pub y: FpVar<P::Fp>,
+    #[doc(hidden)]
     pub x_twist: Fp3Var<P::Fp3Params>,
+    #[doc(hidden)]
     pub y_twist: Fp3Var<P::Fp3Params>,
 }
 
 impl<P: MNT6Parameters> G1PreparedVar<P> {
+    /// Returns the value assigned to `self` in the underlying constraint system.
     pub fn value(&self) -> Result<G1Prepared<P>, SynthesisError> {
         let x = self.x.value()?;
         let y = self.y.value()?;
@@ -44,6 +53,7 @@ impl<P: MNT6Parameters> G1PreparedVar<P> {
         })
     }
 
+    /// Constructs `Self` from a `G1Var`.
     #[tracing::instrument(target = "r1cs")]
     pub fn from_group_var(q: &G1Var<P>) -> Result<Self, SynthesisError> {
         let q = q.to_affine()?;
@@ -123,14 +133,23 @@ impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for G1PreparedVar<P> {
 }
 
 type Fp3G<P> = Fp3Var<<P as MNT6Parameters>::Fp3Params>;
+
+/// Represents the cached precomputation that can be performed on a G2 element
+/// which enables speeding up pairing computation.
 #[derive(Derivative)]
 #[derivative(Clone(bound = "P: MNT6Parameters"), Debug(bound = "P: MNT6Parameters"))]
 pub struct G2PreparedVar<P: MNT6Parameters> {
+    #[doc(hidden)]
     pub x: Fp3Var<P::Fp3Params>,
+    #[doc(hidden)]
     pub y: Fp3Var<P::Fp3Params>,
+    #[doc(hidden)]
     pub x_over_twist: Fp3Var<P::Fp3Params>,
+    #[doc(hidden)]
     pub y_over_twist: Fp3Var<P::Fp3Params>,
+    #[doc(hidden)]
     pub double_coefficients: Vec<AteDoubleCoefficientsVar<P>>,
+    #[doc(hidden)]
     pub addition_coefficients: Vec<AteAdditionCoefficientsVar<P>>,
 }
 
@@ -224,6 +243,7 @@ impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for G2PreparedVar<P> {
 }
 
 impl<P: MNT6Parameters> G2PreparedVar<P> {
+    /// Returns the value assigned to `self` in the underlying constraint system.
     pub fn value(&self) -> Result<G2Prepared<P>, SynthesisError> {
         let x = self.x.value()?;
         let y = self.y.value()?;
@@ -249,6 +269,7 @@ impl<P: MNT6Parameters> G2PreparedVar<P> {
         })
     }
 
+    /// Constructs `Self` from a `G2Var`.
     #[tracing::instrument(target = "r1cs")]
     pub fn from_group_var(q: &G2Var<P>) -> Result<Self, SynthesisError> {
         let q = q.to_affine()?;
@@ -319,6 +340,7 @@ impl<P: MNT6Parameters> G2PreparedVar<P> {
     }
 }
 
+#[doc(hidden)]
 #[derive(Derivative)]
 #[derivative(Clone(bound = "P: MNT6Parameters"), Debug(bound = "P: MNT6Parameters"))]
 pub struct AteDoubleCoefficientsVar<P: MNT6Parameters> {
@@ -384,6 +406,7 @@ impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for AteDoubleCoefficientsVar<P> {
 }
 
 impl<P: MNT6Parameters> AteDoubleCoefficientsVar<P> {
+    /// Returns the value assigned to `self` in the underlying constraint system.
     pub fn value(&self) -> Result<AteDoubleCoefficients<P>, SynthesisError> {
         let c_h = self.c_h.value()?;
         let c_4c = self.c_4c.value()?;
@@ -398,6 +421,7 @@ impl<P: MNT6Parameters> AteDoubleCoefficientsVar<P> {
     }
 }
 
+#[doc(hidden)]
 #[derive(Derivative)]
 #[derivative(Clone(bound = "P: MNT6Parameters"), Debug(bound = "P: MNT6Parameters"))]
 pub struct AteAdditionCoefficientsVar<P: MNT6Parameters> {
@@ -448,6 +472,7 @@ impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for AteAdditionCoefficientsVar<P> {
 }
 
 impl<P: MNT6Parameters> AteAdditionCoefficientsVar<P> {
+    /// Returns the value assigned to `self` in the underlying constraint system.
     pub fn value(&self) -> Result<AteAdditionCoefficients<P>, SynthesisError> {
         let c_l1 = self.c_l1.value()?;
         let c_rz = self.c_rz.value()?;
@@ -455,6 +480,7 @@ impl<P: MNT6Parameters> AteAdditionCoefficientsVar<P> {
     }
 }
 
+#[doc(hidden)]
 pub struct G2ProjectiveExtendedVar<P: MNT6Parameters> {
     pub x: Fp3Var<P::Fp3Params>,
     pub y: Fp3Var<P::Fp3Params>,

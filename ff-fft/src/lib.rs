@@ -102,7 +102,7 @@ pub use domain::{
     EvaluationDomain, GeneralEvaluationDomain, MixedRadixEvaluationDomain, Radix2EvaluationDomain,
 };
 pub use evaluations::Evaluations;
-pub use polynomial::{multivariate, univariate};
+pub use polynomial::{multivariate, univariate, MVPolynomial, Polynomial, UVPolynomial};
 
 #[cfg(test)]
 mod test;

@@ -1,16 +1,19 @@
 use algebra::{
     fields::{Field, QuadExtField, QuadExtParameters},
-    One, Zero,
+    Zero,
 };
 use core::{borrow::Borrow, marker::PhantomData};
 use r1cs_core::{ConstraintSystemRef, Namespace, SynthesisError};
 
+use crate::fields::fp::FpVar;
 use crate::{
     fields::{FieldOpsBounds, FieldVar},
     prelude::*,
-    Assignment, Vec,
+    ToConstraintFieldGadget, Vec,
 };
 
+/// This struct is the `R1CS` equivalent of the quadratic extension field type
+/// in `algebra-core`, i.e. `algebra_core::QuadExtField`.
 #[derive(Derivative)]
 #[derivative(Debug(bound = "BF: core::fmt::Debug"), Clone(bound = "BF: Clone"))]
 #[must_use]
@@ -18,17 +21,22 @@ pub struct QuadExtVar<BF: FieldVar<P::BaseField, P::BasePrimeField>, P: QuadExtV
 where
     for<'a> &'a BF: FieldOpsBounds<'a, P::BaseField, BF>,
 {
+    /// The zero-th coefficient of this field element.
     pub c0: BF,
+    /// The first coefficient of this field element.
     pub c1: BF,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
 }
 
+/// This trait describes parameters that are used to implement arithmetic for `QuadExtVar`.
 pub trait QuadExtVarParams<BF: FieldVar<Self::BaseField, Self::BasePrimeField>>:
     QuadExtParameters
 where
     for<'a> &'a BF: FieldOpsBounds<'a, Self::BaseField, BF>,
 {
+    /// Multiply the base field of the `QuadExtVar` by the appropriate Frobenius coefficient.
+    /// This is equivalent to `Self::mul_base_field_by_frob_coeff(power)`.
     fn mul_base_field_var_by_frob_coeff(fe: &mut BF, power: usize);
 }
 
@@ -36,6 +44,7 @@ impl<BF: FieldVar<P::BaseField, P::BasePrimeField>, P: QuadExtVarParams<BF>> Qua
 where
     for<'a> &'a BF: FieldOpsBounds<'a, P::BaseField, BF>,
 {
+    /// Constructs a `QuadExtVar` from the underlying coefficients.
     pub fn new(c0: BF, c1: BF) -> Self {
         Self {
             c0,
@@ -44,12 +53,14 @@ where
         }
     }
 
-    /// Multiply a BF by quadratic nonresidue P::NONRESIDUE.
+    /// Multiplies a variable of the base field by the quadratic nonresidue `P::NONRESIDUE` that
+    /// is used to construct the extension field.
     #[inline]
     pub fn mul_base_field_by_nonresidue(fe: &BF) -> Result<BF, SynthesisError> {
         Ok(fe * P::NONRESIDUE)
     }
 
+    /// Multiplies `self` by a constant from the base field.
     #[inline]
     pub fn mul_by_base_field_constant(&self, fe: P::BaseField) -> Self {
         let c0 = self.c0.clone() * fe;
@@ -57,6 +68,7 @@ where
         QuadExtVar::new(c0, c1)
     }
 
+    /// Sets `self = self.mul_by_base_field_constant(fe)`.
     #[inline]
     pub fn mul_assign_by_base_field_constant(&mut self, fe: P::BaseField) {
         *self = (&*self).mul_by_base_field_constant(fe);
@@ -110,7 +122,7 @@ where
 {
     type Value = QuadExtField<P>;
 
-    fn cs(&self) -> Option<ConstraintSystemRef<P::BasePrimeField>> {
+    fn cs(&self) -> ConstraintSystemRef<P::BasePrimeField> {
         [&self.c0, &self.c1].cs()
     }
 
@@ -261,12 +273,20 @@ where
 
     #[tracing::instrument(target = "r1cs")]
     fn inverse(&self) -> Result<Self, SynthesisError> {
-        let one = Self::new_constant(self.cs().get()?.clone(), QuadExtField::one())?;
-        let inverse = Self::new_witness(self.cs().get()?.clone(), || {
-            self.value()
-                .map(|f| f.inverse().unwrap_or(QuadExtField::zero()))
-        })?;
-        self.mul_equals(&inverse, &one)?;
+        let mode = if self.is_constant() {
+            AllocationMode::Constant
+        } else {
+            AllocationMode::Witness
+        };
+        let inverse = Self::new_variable(
+            self.cs(),
+            || {
+                self.value()
+                    .map(|f| f.inverse().unwrap_or(QuadExtField::zero()))
+            },
+            mode,
+        )?;
+        self.mul_equals(&inverse, &Self::one())?;
         Ok(inverse)
     }
 }
@@ -427,6 +447,24 @@ where
         let mut c1 = self.c1.to_non_unique_bytes()?;
         c0.append(&mut c1);
         Ok(c0)
+    }
+}
+
+impl<BF, P> ToConstraintFieldGadget<P::BasePrimeField> for QuadExtVar<BF, P>
+where
+    BF: FieldVar<P::BaseField, P::BasePrimeField>,
+    for<'a> &'a BF: FieldOpsBounds<'a, P::BaseField, BF>,
+    P: QuadExtVarParams<BF>,
+    BF: ToConstraintFieldGadget<P::BasePrimeField>,
+{
+    #[tracing::instrument(target = "r1cs")]
+    fn to_constraint_field(&self) -> Result<Vec<FpVar<P::BasePrimeField>>, SynthesisError> {
+        let mut res = Vec::new();
+
+        res.extend_from_slice(&self.c0.to_constraint_field()?);
+        res.extend_from_slice(&self.c1.to_constraint_field()?);
+
+        Ok(res)
     }
 }
 

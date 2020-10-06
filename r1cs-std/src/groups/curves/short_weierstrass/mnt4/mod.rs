@@ -16,17 +16,25 @@ use crate::{
 };
 use core::borrow::Borrow;
 
+/// Represents a projective point in G1.
 pub type G1Var<P> =
     ProjectiveVar<<P as MNT4Parameters>::G1Parameters, FpVar<<P as MNT4Parameters>::Fp>>;
 
+/// Represents a projective point in G2.
 pub type G2Var<P> = ProjectiveVar<<P as MNT4Parameters>::G2Parameters, Fp2G<P>>;
 
+/// Represents the cached precomputation that can be performed on a G1 element
+/// which enables speeding up pairing computation.
 #[derive(Derivative)]
 #[derivative(Clone(bound = "P: MNT4Parameters"), Debug(bound = "P: MNT4Parameters"))]
 pub struct G1PreparedVar<P: MNT4Parameters> {
+    #[doc(hidden)]
     pub x: FpVar<P::Fp>,
+    #[doc(hidden)]
     pub y: FpVar<P::Fp>,
+    #[doc(hidden)]
     pub x_twist: Fp2Var<P::Fp2Params>,
+    #[doc(hidden)]
     pub y_twist: Fp2Var<P::Fp2Params>,
 }
 
@@ -64,6 +72,7 @@ impl<P: MNT4Parameters> AllocVar<G1Prepared<P>, P::Fp> for G1PreparedVar<P> {
 }
 
 impl<P: MNT4Parameters> G1PreparedVar<P> {
+    /// Returns the value assigned to `self` in the underlying constraint system.
     pub fn value(&self) -> Result<G1Prepared<P>, SynthesisError> {
         let (x, y, x_twist, y_twist) = (
             self.x.value()?,
@@ -79,6 +88,7 @@ impl<P: MNT4Parameters> G1PreparedVar<P> {
         })
     }
 
+    /// Constructs `Self` from a `G1Var`.
     #[tracing::instrument(target = "r1cs")]
     pub fn from_group_var(q: &G1Var<P>) -> Result<Self, SynthesisError> {
         let q = q.to_affine()?;
@@ -124,14 +134,22 @@ impl<P: MNT4Parameters> ToBytesGadget<P::Fp> for G1PreparedVar<P> {
 
 type Fp2G<P> = Fp2Var<<P as MNT4Parameters>::Fp2Params>;
 
+/// Represents the cached precomputation that can be performed on a G2 element
+/// which enables speeding up pairing computation.
 #[derive(Derivative)]
 #[derivative(Clone(bound = "P: MNT4Parameters"), Debug(bound = "P: MNT4Parameters"))]
 pub struct G2PreparedVar<P: MNT4Parameters> {
+    #[doc(hidden)]
     pub x: Fp2Var<P::Fp2Params>,
+    #[doc(hidden)]
     pub y: Fp2Var<P::Fp2Params>,
+    #[doc(hidden)]
     pub x_over_twist: Fp2Var<P::Fp2Params>,
+    #[doc(hidden)]
     pub y_over_twist: Fp2Var<P::Fp2Params>,
+    #[doc(hidden)]
     pub double_coefficients: Vec<AteDoubleCoefficientsVar<P>>,
+    #[doc(hidden)]
     pub addition_coefficients: Vec<AteAdditionCoefficientsVar<P>>,
 }
 
@@ -225,6 +243,7 @@ impl<P: MNT4Parameters> ToBytesGadget<P::Fp> for G2PreparedVar<P> {
 }
 
 impl<P: MNT4Parameters> G2PreparedVar<P> {
+    /// Returns the value assigned to `self` in the underlying constraint system.
     pub fn value(&self) -> Result<G2Prepared<P>, SynthesisError> {
         let x = self.x.value()?;
         let y = self.y.value()?;
@@ -250,6 +269,7 @@ impl<P: MNT4Parameters> G2PreparedVar<P> {
         })
     }
 
+    /// Constructs `Self` from a `G2Var`.
     #[tracing::instrument(target = "r1cs")]
     pub fn from_group_var(q: &G2Var<P>) -> Result<Self, SynthesisError> {
         let twist_inv = P::TWIST.inverse().unwrap();
@@ -320,6 +340,7 @@ impl<P: MNT4Parameters> G2PreparedVar<P> {
     }
 }
 
+#[doc(hidden)]
 #[derive(Derivative)]
 #[derivative(Clone(bound = "P: MNT4Parameters"), Debug(bound = "P: MNT4Parameters"))]
 pub struct AteDoubleCoefficientsVar<P: MNT4Parameters> {
@@ -385,6 +406,7 @@ impl<P: MNT4Parameters> ToBytesGadget<P::Fp> for AteDoubleCoefficientsVar<P> {
 }
 
 impl<P: MNT4Parameters> AteDoubleCoefficientsVar<P> {
+    /// Returns the value assigned to `self` in the underlying constraint system.
     pub fn value(&self) -> Result<AteDoubleCoefficients<P>, SynthesisError> {
         let (c_h, c_4c, c_j, c_l) = (
             self.c_l.value()?,
@@ -401,6 +423,7 @@ impl<P: MNT4Parameters> AteDoubleCoefficientsVar<P> {
     }
 }
 
+#[doc(hidden)]
 #[derive(Derivative)]
 #[derivative(Clone(bound = "P: MNT4Parameters"), Debug(bound = "P: MNT4Parameters"))]
 pub struct AteAdditionCoefficientsVar<P: MNT4Parameters> {
@@ -451,12 +474,14 @@ impl<P: MNT4Parameters> ToBytesGadget<P::Fp> for AteAdditionCoefficientsVar<P> {
 }
 
 impl<P: MNT4Parameters> AteAdditionCoefficientsVar<P> {
+    /// Returns the value assigned to `self` in the underlying constraint system.
     pub fn value(&self) -> Result<AteAdditionCoefficients<P>, SynthesisError> {
         let (c_l1, c_rz) = (self.c_l1.value()?, self.c_rz.value()?);
         Ok(AteAdditionCoefficients { c_l1, c_rz })
     }
 }
 
+#[doc(hidden)]
 pub struct G2ProjectiveExtendedVar<P: MNT4Parameters> {
     pub x: Fp2Var<P::Fp2Params>,
     pub y: Fp2Var<P::Fp2Params>,

@@ -4,19 +4,25 @@ use r1cs_core::{lc, ConstraintSystemRef, LinearCombination, Namespace, Synthesis
 use core::borrow::Borrow;
 
 use crate::fields::{FieldOpsBounds, FieldVar};
-use crate::{prelude::*, Assignment, Vec};
+use crate::{prelude::*, Assignment, ToConstraintFieldGadget, Vec};
 
-pub mod cmp;
+mod cmp;
 
+/// Represents a variable in the constraint system whose
+/// value can be an arbitrary field element.
 #[derive(Debug, Clone)]
 #[must_use]
 pub struct AllocatedFp<F: PrimeField> {
     pub(crate) value: Option<F>,
+    /// The allocated variable corresponding to `self` in `self.cs`.
     pub variable: Variable,
+    /// The constraint system that `self` was allocated in.
     pub cs: ConstraintSystemRef<F>,
 }
 
 impl<F: PrimeField> AllocatedFp<F> {
+    /// Constructs a new `AllocatedFp` from a (optional) value, a low-level Variable,
+    /// and a `ConstraintSystemRef`.
     pub fn new(value: Option<F>, variable: Variable, cs: ConstraintSystemRef<F>) -> Self {
         Self {
             value,
@@ -26,21 +32,24 @@ impl<F: PrimeField> AllocatedFp<F> {
     }
 }
 
-/// Represent variables corresponding to the field `F`.
+/// Represent variables corresponding to a field element in `F`.
 #[derive(Clone, Debug)]
 #[must_use]
 pub enum FpVar<F: PrimeField> {
+    /// Represents a constant in the constraint system, which means that
+    /// it does not have a corresponding variable.
     Constant(F),
+    /// Represents an allocated variable constant in the constraint system.
     Var(AllocatedFp<F>),
 }
 
 impl<F: PrimeField> R1CSVar<F> for FpVar<F> {
     type Value = F;
 
-    fn cs(&self) -> Option<ConstraintSystemRef<F>> {
+    fn cs(&self) -> ConstraintSystemRef<F> {
         match self {
-            Self::Constant(_) => None,
-            Self::Var(a) => Some(a.cs.clone()),
+            Self::Constant(_) => ConstraintSystemRef::None,
+            Self::Var(a) => a.cs.clone(),
         }
     }
 
@@ -58,7 +67,7 @@ impl<F: PrimeField> From<Boolean<F>> for FpVar<F> {
             Self::Constant(F::from(b as u8))
         } else {
             // `other` is a variable
-            let cs = other.cs().unwrap();
+            let cs = other.cs();
             let variable = cs.new_lc(other.lc()).unwrap();
             Self::Var(AllocatedFp::new(
                 other.value().ok().map(|b| F::from(b as u8)),
@@ -79,19 +88,22 @@ impl<'a, F: PrimeField> FieldOpsBounds<'a, F, Self> for FpVar<F> {}
 impl<'a, F: PrimeField> FieldOpsBounds<'a, F, FpVar<F>> for &'a FpVar<F> {}
 
 impl<F: PrimeField> AllocatedFp<F> {
+    /// Constructs `Self` from a `Boolean`: if `other` is false, this outputs `zero`, else it outputs `one`.
     pub fn from(other: Boolean<F>) -> Self {
-        if let Some(cs) = other.cs() {
-            let variable = cs.new_lc(other.lc()).unwrap();
-            Self::new(other.value().ok().map(|b| F::from(b as u8)), variable, cs)
-        } else {
-            unreachable!("Cannot create a constant value")
-        }
+        let cs = other.cs();
+        let variable = cs.new_lc(other.lc()).unwrap();
+        Self::new(other.value().ok().map(|b| F::from(b as u8)), variable, cs)
     }
 
+    /// Returns the value assigned to `self` in the underlying constraint system
+    /// (if a value was assigned).
     pub fn value(&self) -> Result<F, SynthesisError> {
         self.cs.assigned_value(self.variable).get()
     }
 
+    /// Outputs `self + other`.
+    ///
+    /// This does not create any constraints.
     #[tracing::instrument(target = "r1cs")]
     pub fn add(&self, other: &Self) -> Self {
         let value = match (self.value, other.value) {
@@ -106,6 +118,9 @@ impl<F: PrimeField> AllocatedFp<F> {
         AllocatedFp::new(value, variable, self.cs.clone())
     }
 
+    /// Outputs `self - other`.
+    ///
+    /// This does not create any constraints.
     #[tracing::instrument(target = "r1cs")]
     pub fn sub(&self, other: &Self) -> Self {
         let value = match (self.value, other.value) {
@@ -120,6 +135,9 @@ impl<F: PrimeField> AllocatedFp<F> {
         AllocatedFp::new(value, variable, self.cs.clone())
     }
 
+    /// Outputs `self * other`.
+    ///
+    /// This requires *one* constraint.
     #[tracing::instrument(target = "r1cs")]
     pub fn mul(&self, other: &Self) -> Self {
         let product = AllocatedFp::new_witness(self.cs.clone(), || {
@@ -136,6 +154,9 @@ impl<F: PrimeField> AllocatedFp<F> {
         product
     }
 
+    /// Output `self + other`
+    ///
+    /// This does not create any constraints.
     #[tracing::instrument(target = "r1cs")]
     pub fn add_constant(&self, other: F) -> Self {
         if other.is_zero() {
@@ -150,11 +171,17 @@ impl<F: PrimeField> AllocatedFp<F> {
         }
     }
 
+    /// Output `self - other`
+    ///
+    /// This does not create any constraints.
     #[tracing::instrument(target = "r1cs")]
     pub fn sub_constant(&self, other: F) -> Self {
         self.add_constant(-other)
     }
 
+    /// Output `self * other`
+    ///
+    /// This does not create any constraints.
     #[tracing::instrument(target = "r1cs")]
     pub fn mul_constant(&self, other: F) -> Self {
         if other.is_one() {
@@ -166,6 +193,9 @@ impl<F: PrimeField> AllocatedFp<F> {
         }
     }
 
+    /// Output `self + self`
+    ///
+    /// This does not create any constraints.
     #[tracing::instrument(target = "r1cs")]
     pub fn double(&self) -> Result<Self, SynthesisError> {
         let value = self.value.map(|val| val.double());
@@ -173,6 +203,9 @@ impl<F: PrimeField> AllocatedFp<F> {
         Ok(Self::new(value, variable, self.cs.clone()))
     }
 
+    /// Output `-self`
+    ///
+    /// This does not create any constraints.
     #[tracing::instrument(target = "r1cs")]
     pub fn negate(&self) -> Self {
         let mut result = self.clone();
@@ -180,6 +213,9 @@ impl<F: PrimeField> AllocatedFp<F> {
         result
     }
 
+    /// Sets `self = -self`
+    ///
+    /// This does not create any constraints.
     #[tracing::instrument(target = "r1cs")]
     pub fn negate_in_place(&mut self) -> &mut Self {
         self.value.as_mut().map(|val| *val = -(*val));
@@ -187,11 +223,17 @@ impl<F: PrimeField> AllocatedFp<F> {
         self
     }
 
+    /// Outputs `self * self`
+    ///
+    /// This requires *one* constraint.
     #[tracing::instrument(target = "r1cs")]
     pub fn square(&self) -> Result<Self, SynthesisError> {
         Ok(self.mul(self))
     }
 
+    /// Outputs `result` such that `result * self = 1`.
+    ///
+    /// This requires *one* constraint.
     #[tracing::instrument(target = "r1cs")]
     pub fn inverse(&self) -> Result<Self, SynthesisError> {
         let inverse = Self::new_witness(self.cs.clone(), || {
@@ -206,11 +248,15 @@ impl<F: PrimeField> AllocatedFp<F> {
         Ok(inverse)
     }
 
+    /// This is a no-op for prime fields.
     #[tracing::instrument(target = "r1cs")]
     pub fn frobenius_map(&self, _: usize) -> Result<Self, SynthesisError> {
         Ok(self.clone())
     }
 
+    /// Enforces that `self * other = result`.
+    ///
+    /// This requires *one* constraint.
     #[tracing::instrument(target = "r1cs")]
     pub fn mul_equals(&self, other: &Self, result: &Self) -> Result<(), SynthesisError> {
         self.cs.enforce_constraint(
@@ -220,6 +266,9 @@ impl<F: PrimeField> AllocatedFp<F> {
         )
     }
 
+    /// Enforces that `self * self = result`.
+    ///
+    /// This requires *one* constraint.
     #[tracing::instrument(target = "r1cs")]
     pub fn square_equals(&self, result: &Self) -> Result<(), SynthesisError> {
         self.cs.enforce_constraint(
@@ -231,9 +280,7 @@ impl<F: PrimeField> AllocatedFp<F> {
 
     /// Outputs the bit `self == other`.
     ///
-    /// # Constraint cost
-    ///
-    /// Consumes three constraints
+    /// This requires three constraints.
     #[tracing::instrument(target = "r1cs")]
     pub fn is_eq(&self, other: &Self) -> Result<Boolean<F>, SynthesisError> {
         Ok(self.is_neq(other)?.not())
@@ -241,9 +288,7 @@ impl<F: PrimeField> AllocatedFp<F> {
 
     /// Outputs the bit `self != other`.
     ///
-    /// # Constraint cost
-    ///
-    /// Consumes three constraints
+    /// This requires three constraints.
     #[tracing::instrument(target = "r1cs")]
     pub fn is_neq(&self, other: &Self) -> Result<Boolean<F>, SynthesisError> {
         let is_not_equal = Boolean::new_witness(self.cs.clone(), || {
@@ -311,6 +356,9 @@ impl<F: PrimeField> AllocatedFp<F> {
         Ok(is_not_equal)
     }
 
+    /// Enforces that self == other if `should_enforce.is_eq(&Boolean::TRUE)`.
+    ///
+    /// This requires one constraint.
     #[tracing::instrument(target = "r1cs")]
     pub fn conditional_enforce_equal(
         &self,
@@ -324,6 +372,9 @@ impl<F: PrimeField> AllocatedFp<F> {
         )
     }
 
+    /// Enforces that self != other if `should_enforce.is_eq(&Boolean::TRUE)`.
+    ///
+    /// This requires one constraint.
     #[tracing::instrument(target = "r1cs")]
     pub fn conditional_enforce_not_equal(
         &self,
@@ -353,6 +404,9 @@ impl<F: PrimeField> AllocatedFp<F> {
 impl<F: PrimeField> ToBitsGadget<F> for AllocatedFp<F> {
     /// Outputs the unique bit-wise decomposition of `self` in *little-endian*
     /// form.
+    ///
+    /// This method enforces that the output is in the field, i.e.
+    /// it invokes `Boolean::enforce_in_field_le` on the bit decomposition.
     #[tracing::instrument(target = "r1cs")]
     fn to_bits_le(&self) -> Result<Vec<Boolean<F>>, SynthesisError> {
         let bits = self.to_non_unique_bits_le()?;
@@ -405,6 +459,9 @@ impl<F: PrimeField> ToBitsGadget<F> for AllocatedFp<F> {
 impl<F: PrimeField> ToBytesGadget<F> for AllocatedFp<F> {
     /// Outputs the unique byte decomposition of `self` in *little-endian*
     /// form.
+    ///
+    /// This method enforces that the decomposition represents
+    /// an integer that is less than `F::MODULUS`.
     #[tracing::instrument(target = "r1cs")]
     fn to_bytes(&self) -> Result<Vec<UInt8<F>>, SynthesisError> {
         let num_bits = F::BigInt::NUM_LIMBS * 64;
@@ -432,6 +489,13 @@ impl<F: PrimeField> ToBytesGadget<F> for AllocatedFp<F> {
     }
 }
 
+impl<F: PrimeField> ToConstraintFieldGadget<F> for AllocatedFp<F> {
+    #[tracing::instrument(target = "r1cs")]
+    fn to_constraint_field(&self) -> Result<Vec<FpVar<F>>, SynthesisError> {
+        Ok(vec![self.clone().into()])
+    }
+}
+
 impl<F: PrimeField> CondSelectGadget<F> for AllocatedFp<F> {
     #[inline]
     #[tracing::instrument(target = "r1cs")]
@@ -444,7 +508,7 @@ impl<F: PrimeField> CondSelectGadget<F> for AllocatedFp<F> {
             Boolean::Constant(true) => Ok(true_val.clone()),
             Boolean::Constant(false) => Ok(false_val.clone()),
             _ => {
-                let cs = cond.cs().unwrap();
+                let cs = cond.cs();
                 let result = Self::new_witness(cs.clone(), || {
                     cond.value()
                         .and_then(|c| if c { true_val } else { false_val }.value.get())
@@ -474,24 +538,20 @@ impl<F: PrimeField> TwoBitLookupGadget<F> for AllocatedFp<F> {
     fn two_bit_lookup(b: &[Boolean<F>], c: &[Self::TableConstant]) -> Result<Self, SynthesisError> {
         debug_assert_eq!(b.len(), 2);
         debug_assert_eq!(c.len(), 4);
-        if let Some(cs) = b.cs() {
-            let result = Self::new_witness(cs.clone(), || {
-                let lsb = usize::from(b[0].value()?);
-                let msb = usize::from(b[1].value()?);
-                let index = lsb + (msb << 1);
-                Ok(c[index])
-            })?;
-            let one = Variable::One;
-            cs.enforce_constraint(
-                lc!() + b[1].lc() * (c[3] - &c[2] - &c[1] + &c[0]) + (c[1] - &c[0], one),
-                lc!() + b[0].lc(),
-                lc!() + result.variable - (c[0], one) + b[1].lc() * (c[0] - &c[2]),
-            )?;
+        let result = Self::new_witness(b.cs(), || {
+            let lsb = usize::from(b[0].value()?);
+            let msb = usize::from(b[1].value()?);
+            let index = lsb + (msb << 1);
+            Ok(c[index])
+        })?;
+        let one = Variable::One;
+        b.cs().enforce_constraint(
+            lc!() + b[1].lc() * (c[3] - &c[2] - &c[1] + &c[0]) + (c[1] - &c[0], one),
+            lc!() + b[0].lc(),
+            lc!() + result.variable - (c[0], one) + b[1].lc() * (c[0] - &c[2]),
+        )?;
 
-            Ok(result)
-        } else {
-            unreachable!("must provide a way to obtain a ConstraintSystemRef")
-        }
+        Ok(result)
     }
 }
 
@@ -506,37 +566,32 @@ impl<F: PrimeField> ThreeBitCondNegLookupGadget<F> for AllocatedFp<F> {
     ) -> Result<Self, SynthesisError> {
         debug_assert_eq!(b.len(), 3);
         debug_assert_eq!(c.len(), 4);
+        let result = Self::new_witness(b.cs(), || {
+            let lsb = usize::from(b[0].value()?);
+            let msb = usize::from(b[1].value()?);
+            let index = lsb + (msb << 1);
+            let intermediate = c[index];
 
-        if let Some(cs) = b.cs() {
-            let result = Self::new_witness(cs.clone(), || {
-                let lsb = usize::from(b[0].value()?);
-                let msb = usize::from(b[1].value()?);
-                let index = lsb + (msb << 1);
-                let intermediate = c[index];
+            let is_negative = b[2].value()?;
+            let y = if is_negative {
+                -intermediate
+            } else {
+                intermediate
+            };
+            Ok(y)
+        })?;
 
-                let is_negative = b[2].value()?;
-                let y = if is_negative {
-                    -intermediate
-                } else {
-                    intermediate
-                };
-                Ok(y)
-            })?;
+        let y_lc = b0b1.lc() * (c[3] - &c[2] - &c[1] + &c[0])
+            + b[0].lc() * (c[1] - &c[0])
+            + b[1].lc() * (c[2] - &c[0])
+            + (c[0], Variable::One);
+        b.cs().enforce_constraint(
+            y_lc.clone() + y_lc.clone(),
+            b[2].lc(),
+            y_lc.clone() - result.variable,
+        )?;
 
-            let y_lc = b0b1.lc() * (c[3] - &c[2] - &c[1] + &c[0])
-                + b[0].lc() * (c[1] - &c[0])
-                + b[1].lc() * (c[2] - &c[0])
-                + (c[0], Variable::One);
-            cs.enforce_constraint(
-                y_lc.clone() + y_lc.clone(),
-                b[2].lc(),
-                y_lc.clone() - result.variable,
-            )?;
-
-            Ok(result)
-        } else {
-            unreachable!("must provide a way to obtain a ConstraintSystemRef")
-        }
+        Ok(result)
     }
 }
 
@@ -845,6 +900,13 @@ impl<F: PrimeField> ToBytesGadget<F> for FpVar<F> {
     }
 }
 
+impl<F: PrimeField> ToConstraintFieldGadget<F> for FpVar<F> {
+    #[tracing::instrument(target = "r1cs")]
+    fn to_constraint_field(&self) -> Result<Vec<FpVar<F>>, SynthesisError> {
+        Ok(vec![self.clone()])
+    }
+}
+
 impl<F: PrimeField> CondSelectGadget<F> for FpVar<F> {
     #[tracing::instrument(target = "r1cs")]
     fn conditionally_select(
@@ -864,7 +926,7 @@ impl<F: PrimeField> CondSelectGadget<F> for FpVar<F> {
                         Ok(is.mul_constant(*t).add(&not.mul_constant(*f)).into())
                     }
                     (_, _) => {
-                        let cs = cond.cs().unwrap();
+                        let cs = cond.cs();
                         let true_value = match true_value {
                             Self::Constant(f) => AllocatedFp::new_constant(cs.clone(), f)?,
                             Self::Var(v) => v.clone(),
@@ -890,13 +952,13 @@ impl<F: PrimeField> TwoBitLookupGadget<F> for FpVar<F> {
     fn two_bit_lookup(b: &[Boolean<F>], c: &[Self::TableConstant]) -> Result<Self, SynthesisError> {
         debug_assert_eq!(b.len(), 2);
         debug_assert_eq!(c.len(), 4);
-        if b.cs().is_some() {
-            AllocatedFp::two_bit_lookup(b, c).map(Self::Var)
-        } else {
+        if b.is_constant() {
             let lsb = usize::from(b[0].value()?);
             let msb = usize::from(b[1].value()?);
             let index = lsb + (msb << 1);
             Ok(Self::Constant(c[index]))
+        } else {
+            AllocatedFp::two_bit_lookup(b, c).map(Self::Var)
         }
     }
 }
@@ -913,9 +975,9 @@ impl<F: PrimeField> ThreeBitCondNegLookupGadget<F> for FpVar<F> {
         debug_assert_eq!(b.len(), 3);
         debug_assert_eq!(c.len(), 4);
 
-        if b.cs().or(b0b1.cs()).is_some() {
-            AllocatedFp::three_bit_cond_neg_lookup(b, b0b1, c).map(Self::Var)
-        } else {
+        if !b.cs().or(b0b1.cs()).is_none() {
+            // We only have constants
+
             let lsb = usize::from(b[0].value()?);
             let msb = usize::from(b[1].value()?);
             let index = lsb + (msb << 1);
@@ -928,6 +990,8 @@ impl<F: PrimeField> ThreeBitCondNegLookupGadget<F> for FpVar<F> {
                 intermediate
             };
             Ok(Self::Constant(y))
+        } else {
+            AllocatedFp::three_bit_cond_neg_lookup(b, b0b1, c).map(Self::Var)
         }
     }
 }

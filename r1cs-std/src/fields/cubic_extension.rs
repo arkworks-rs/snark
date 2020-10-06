@@ -1,16 +1,19 @@
 use algebra::{
     fields::{CubicExtField, CubicExtParameters, Field},
-    One, Zero,
+    Zero,
 };
 use core::{borrow::Borrow, marker::PhantomData};
 use r1cs_core::{ConstraintSystemRef, Namespace, SynthesisError};
 
+use crate::fields::fp::FpVar;
 use crate::{
     fields::{FieldOpsBounds, FieldVar},
     prelude::*,
-    Assignment, Vec,
+    ToConstraintFieldGadget, Vec,
 };
 
+/// This struct is the `R1CS` equivalent of the cubic extension field type
+/// in `algebra-core`, i.e. `algebra_core::CubicExtField`.
 #[derive(Derivative)]
 #[derivative(Debug(bound = "BF: core::fmt::Debug"), Clone(bound = "BF: Clone"))]
 #[must_use]
@@ -18,18 +21,24 @@ pub struct CubicExtVar<BF: FieldVar<P::BaseField, P::BasePrimeField>, P: CubicEx
 where
     for<'a> &'a BF: FieldOpsBounds<'a, P::BaseField, BF>,
 {
+    /// The zero-th coefficient of this field element.
     pub c0: BF,
+    /// The first coefficient of this field element.
     pub c1: BF,
+    /// The second coefficient of this field element.
     pub c2: BF,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
 }
 
+/// This trait describes parameters that are used to implement arithmetic for `CubicExtVar`.
 pub trait CubicExtVarParams<BF: FieldVar<Self::BaseField, Self::BasePrimeField>>:
     CubicExtParameters
 where
     for<'a> &'a BF: FieldOpsBounds<'a, Self::BaseField, BF>,
 {
+    /// Multiply the base field of the `CubicExtVar` by the appropriate Frobenius coefficient.
+    /// This is equivalent to `Self::mul_base_field_by_frob_coeff(c1, c2, power)`.
     fn mul_base_field_vars_by_frob_coeff(c1: &mut BF, c2: &mut BF, power: usize);
 }
 
@@ -37,6 +46,7 @@ impl<BF: FieldVar<P::BaseField, P::BasePrimeField>, P: CubicExtVarParams<BF>> Cu
 where
     for<'a> &'a BF: FieldOpsBounds<'a, P::BaseField, BF>,
 {
+    /// Constructs a `CubicExtVar` from the underlying coefficients.
     #[inline]
     pub fn new(c0: BF, c1: BF, c2: BF) -> Self {
         let _params = PhantomData;
@@ -48,13 +58,14 @@ where
         }
     }
 
-    /// Multiply a BF by cubic nonresidue P::NONRESIDUE.
+    /// Multiplies a variable of the base field by the cubic nonresidue `P::NONRESIDUE` that
+    /// is used to construct the extension field.
     #[inline]
     pub fn mul_base_field_by_nonresidue(fe: &BF) -> Result<BF, SynthesisError> {
         Ok(fe * P::NONRESIDUE)
     }
 
-    /// Multiply a CubicExtVar by an element of `P::BaseField`.
+    /// Multiplies `self` by a constant from the base field.
     #[inline]
     pub fn mul_by_base_field_constant(&self, fe: P::BaseField) -> Self {
         let c0 = &self.c0 * fe;
@@ -63,6 +74,7 @@ where
         Self::new(c0, c1, c2)
     }
 
+    /// Sets `self = self.mul_by_base_field_constant(fe)`.
     #[inline]
     pub fn mul_assign_by_base_field_constant(&mut self, fe: P::BaseField) {
         *self = (&*self).mul_by_base_field_constant(fe);
@@ -77,7 +89,7 @@ where
 {
     type Value = CubicExtField<P>;
 
-    fn cs(&self) -> Option<ConstraintSystemRef<P::BasePrimeField>> {
+    fn cs(&self) -> ConstraintSystemRef<P::BasePrimeField> {
         [&self.c0, &self.c1, &self.c2].cs()
     }
 
@@ -254,14 +266,20 @@ where
 
     #[tracing::instrument(target = "r1cs")]
     fn inverse(&self) -> Result<Self, SynthesisError> {
-        let cs = self.cs().get()?.clone();
-        let one = Self::new_constant(cs.clone(), CubicExtField::one())?;
-
-        let inverse = Self::new_witness(self.cs().get()?.clone(), || {
-            self.value()
-                .map(|f| f.inverse().unwrap_or(CubicExtField::zero()))
-        })?;
-        self.mul_equals(&inverse, &one)?;
+        let mode = if self.is_constant() {
+            AllocationMode::Constant
+        } else {
+            AllocationMode::Witness
+        };
+        let inverse = Self::new_variable(
+            self.cs(),
+            || {
+                self.value()
+                    .map(|f| f.inverse().unwrap_or(CubicExtField::zero()))
+            },
+            mode,
+        )?;
+        self.mul_equals(&inverse, &Self::one())?;
         Ok(inverse)
     }
 }
@@ -437,6 +455,25 @@ where
         c0.append(&mut c2);
 
         Ok(c0)
+    }
+}
+
+impl<BF, P> ToConstraintFieldGadget<P::BasePrimeField> for CubicExtVar<BF, P>
+where
+    BF: FieldVar<P::BaseField, P::BasePrimeField>,
+    for<'a> &'a BF: FieldOpsBounds<'a, P::BaseField, BF>,
+    P: CubicExtVarParams<BF>,
+    BF: ToConstraintFieldGadget<P::BasePrimeField>,
+{
+    #[tracing::instrument(target = "r1cs")]
+    fn to_constraint_field(&self) -> Result<Vec<FpVar<P::BasePrimeField>>, SynthesisError> {
+        let mut res = Vec::new();
+
+        res.extend_from_slice(&self.c0.to_constraint_field()?);
+        res.extend_from_slice(&self.c1.to_constraint_field()?);
+        res.extend_from_slice(&self.c2.to_constraint_field()?);
+
+        Ok(res)
     }
 }
 

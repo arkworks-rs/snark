@@ -1,6 +1,8 @@
 //! A polynomial represented in evaluations form.
 
-use crate::{univariate::DensePolynomial, EvaluationDomain, GeneralEvaluationDomain, Vec};
+use crate::{
+    univariate::DensePolynomial, EvaluationDomain, GeneralEvaluationDomain, UVPolynomial, Vec,
+};
 use algebra_core::FftField;
 use core::ops::{Add, AddAssign, Div, DivAssign, Index, Mul, MulAssign, Sub, SubAssign};
 

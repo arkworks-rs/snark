@@ -8,10 +8,20 @@ use algebra::{
 use core::{borrow::Borrow, marker::PhantomData};
 use r1cs_core::{ConstraintSystemRef, Namespace, SynthesisError};
 
-use crate::{prelude::*, Vec};
+use crate::fields::fp::FpVar;
+use crate::{prelude::*, ToConstraintFieldGadget, Vec};
 
+/// This module provides a generic implementation of G1 and G2 for
+/// the [[BLS12]](https://eprint.iacr.org/2002/088.pdf) family of bilinear groups.
 pub mod bls12;
+
+/// This module provides a generic implementation of G1 and G2 for
+/// the [[MNT4]](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.20.8113&rep=rep1&type=pdf)
+///  family of bilinear groups.
 pub mod mnt4;
+/// This module provides a generic implementation of G1 and G2 for
+/// the [[MNT6]](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.20.8113&rep=rep1&type=pdf)
+///  family of bilinear groups.
 pub mod mnt6;
 
 /// An implementation of arithmetic for Short Weierstrass curves that relies on
@@ -71,12 +81,33 @@ where
         }
     }
 
+    /// Returns the value assigned to `self` in the underlying
+    /// constraint system.
     pub fn value(&self) -> Result<SWAffine<P>, SynthesisError> {
         Ok(SWAffine::new(
             self.x.value()?,
             self.y.value()?,
             self.infinity.value()?,
         ))
+    }
+}
+
+impl<P, F> ToConstraintFieldGadget<<P::BaseField as Field>::BasePrimeField> for AffineVar<P, F>
+where
+    P: SWModelParameters,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField>,
+    for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
+    F: ToConstraintFieldGadget<<P::BaseField as Field>::BasePrimeField>,
+{
+    fn to_constraint_field(
+        &self,
+    ) -> Result<Vec<FpVar<<P::BaseField as Field>::BasePrimeField>>, SynthesisError> {
+        let mut res = Vec::<FpVar<<P::BaseField as Field>::BasePrimeField>>::new();
+
+        res.extend_from_slice(&self.x.to_constraint_field()?);
+        res.extend_from_slice(&self.y.to_constraint_field()?);
+
+        Ok(res)
     }
 }
 
@@ -88,7 +119,7 @@ where
 {
     type Value = SWProjective<P>;
 
-    fn cs(&self) -> Option<ConstraintSystemRef<<P::BaseField as Field>::BasePrimeField>> {
+    fn cs(&self) -> ConstraintSystemRef<<P::BaseField as Field>::BasePrimeField> {
         self.x.cs().or(self.y.cs()).or(self.z.cs())
     }
 
@@ -108,6 +139,7 @@ impl<P: SWModelParameters, F: FieldVar<P::BaseField, <P::BaseField as Field>::Ba
 where
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
+    /// Constructs `Self` from an `(x, y, z)` coordinate triple.
     pub fn new(x: F, y: F, z: F) -> Self {
         Self {
             x,
@@ -120,9 +152,13 @@ where
     /// Convert this point into affine form.
     #[tracing::instrument(target = "r1cs")]
     pub fn to_affine(&self) -> Result<AffineVar<P, F>, SynthesisError> {
-        let cs = self.cs().unwrap_or(ConstraintSystemRef::None);
+        let cs = self.cs();
         let mode = if self.is_constant() {
-            AllocationMode::Constant
+            let point = self.value()?.into_affine();
+            let x = F::new_constant(ConstraintSystemRef::None, point.x)?;
+            let y = F::new_constant(ConstraintSystemRef::None, point.y)?;
+            let infinity = Boolean::constant(point.infinity);
+            return Ok(AffineVar::new(x, y, infinity));
         } else {
             AllocationMode::Witness
         };

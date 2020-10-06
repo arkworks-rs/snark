@@ -95,7 +95,7 @@ impl<F: PrimeField> FpVar<F> {
         Ok((left.clone(), right_for_check))
     }
 
-    // Helper function to enforce `self <= (p-1)/2`.
+    /// Helper function to enforce that `self <= (p-1)/2`.
     #[tracing::instrument(target = "r1cs")]
     pub fn enforce_smaller_or_equal_than_mod_minus_one_div_two(
         &self,
@@ -140,10 +140,11 @@ impl<F: PrimeField> FpVar<F> {
     /// Helper function to enforce `self < other`. This function assumes `self` and `other`
     /// are `<= (p-1)/2` and does not generate constraints to verify that.
     fn enforce_smaller_than_unchecked(&self, other: &FpVar<F>) -> Result<(), SynthesisError> {
-        let cs = [self, other].cs().unwrap();
         let is_smaller_than = self.is_smaller_than_unchecked(other)?;
         let lc_one = lc!() + Variable::One;
-        cs.enforce_constraint(is_smaller_than.lc(), lc_one.clone(), lc_one)
+        [self, other]
+            .cs()
+            .enforce_constraint(is_smaller_than.lc(), lc_one.clone(), lc_one)
     }
 }
 

@@ -2,7 +2,7 @@
 
 use core::fmt;
 
-use crate::univariate::{DenseOrSparsePolynomial, DensePolynomial};
+use crate::univariate::{DenseOrSparsePolynomial, DensePolynomial, UVPolynomial};
 use crate::{BTreeMap, EvaluationDomain, Evaluations, Vec};
 use algebra_core::{FftField, Field};
 

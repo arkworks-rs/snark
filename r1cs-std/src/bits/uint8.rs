@@ -12,14 +12,13 @@ use core::borrow::Borrow;
 pub struct UInt8<F: Field> {
     /// Little-endian representation: least significant bit first
     pub(crate) bits: Vec<Boolean<F>>,
-    /// Little-endian representation: least significant bit first
     pub(crate) value: Option<u8>,
 }
 
 impl<F: Field> R1CSVar<F> for UInt8<F> {
     type Value = u8;
 
-    fn cs(&self) -> Option<ConstraintSystemRef<F>> {
+    fn cs(&self) -> ConstraintSystemRef<F> {
         self.bits.as_slice().cs()
     }
 
@@ -39,6 +38,24 @@ impl<F: Field> R1CSVar<F> for UInt8<F> {
 
 impl<F: Field> UInt8<F> {
     /// Construct a constant vector of `UInt8` from a vector of `u8`
+    ///
+    /// This *does not* create any new variables or constraints.
+    /// ```
+    /// # fn main() -> Result<(), r1cs_core::SynthesisError> {
+    /// // We'll use the BLS12-381 scalar field for our constraints.
+    /// use algebra::bls12_381::Fr;
+    /// use r1cs_core::*;
+    /// use r1cs_std::prelude::*;
+    ///
+    /// let cs = ConstraintSystem::<Fr>::new_ref();
+    /// let var = vec![UInt8::new_witness(cs.clone(), || Ok(2))?];
+    ///
+    /// let constant = UInt8::constant_vec(&[2]);
+    /// var.enforce_equal(&constant)?;
+    /// assert!(cs.is_satisfied().unwrap());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn constant_vec(values: &[u8]) -> Vec<Self> {
         let mut result = Vec::new();
         for value in values {
@@ -48,6 +65,25 @@ impl<F: Field> UInt8<F> {
     }
 
     /// Construct a constant `UInt8` from a `u8`
+    ///
+    /// This *does not* create new variables or constraints.
+    ///
+    /// ```
+    /// # fn main() -> Result<(), r1cs_core::SynthesisError> {
+    /// // We'll use the BLS12-381 scalar field for our constraints.
+    /// use algebra::bls12_381::Fr;
+    /// use r1cs_core::*;
+    /// use r1cs_std::prelude::*;
+    ///
+    /// let cs = ConstraintSystem::<Fr>::new_ref();
+    /// let var = UInt8::new_witness(cs.clone(), || Ok(2))?;
+    ///
+    /// let constant = UInt8::constant(2);
+    /// var.enforce_equal(&constant)?;
+    /// assert!(cs.is_satisfied().unwrap());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn constant(value: u8) -> Self {
         let mut bits = Vec::with_capacity(8);
 
@@ -64,6 +100,7 @@ impl<F: Field> UInt8<F> {
         }
     }
 
+    /// Allocates a slice of `u8`'s as private witnesses.
     pub fn new_witness_vec(
         cs: impl Into<Namespace<F>>,
         values: &[impl Into<Option<u8>> + Copy],
@@ -78,10 +115,31 @@ impl<F: Field> UInt8<F> {
         Ok(output_vec)
     }
 
-    /// Allocates a vector of `u8`'s by first converting (chunks of) them to
-    /// `ConstraintF` elements, (thus reducing the number of input allocations),
-    /// and then converts this list of `ConstraintF` gadgets back into
-    /// bytes.
+    /// Allocates a slice of `u8`'s as public inputs by first packing them into
+    /// elements of `F`, (thus reducing the number of input allocations), allocating
+    /// these elements as public inputs, and then converting these field variables
+    /// `FpVar<F>` variables back into bytes.
+    ///
+    /// From a user perspective, this trade-off adds constraints, but improves
+    /// verifier time and verification key size.
+    ///
+    /// ```
+    /// # fn main() -> Result<(), r1cs_core::SynthesisError> {
+    /// // We'll use the BLS12-381 scalar field for our constraints.
+    /// use algebra::bls12_381::Fr;
+    /// use r1cs_core::*;
+    /// use r1cs_std::prelude::*;
+    ///
+    /// let cs = ConstraintSystem::<Fr>::new_ref();
+    /// let two = UInt8::new_witness(cs.clone(), || Ok(2))?;
+    /// let var = vec![two.clone(); 32];
+    ///
+    /// let c = UInt8::new_input_vec(cs.clone(), &[2; 32])?;
+    /// var.enforce_equal(&c)?;
+    /// assert!(cs.is_satisfied().unwrap());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn new_input_vec(
         cs: impl Into<Namespace<F>>,
         values: &[u8],
@@ -117,6 +175,30 @@ impl<F: Field> UInt8<F> {
 
     /// Converts a little-endian byte order representation of bits into a
     /// `UInt8`.
+    ///
+    /// ```
+    /// # fn main() -> Result<(), r1cs_core::SynthesisError> {
+    /// // We'll use the BLS12-381 scalar field for our constraints.
+    /// use algebra::bls12_381::Fr;
+    /// use r1cs_core::*;
+    /// use r1cs_std::prelude::*;
+    ///
+    /// let cs = ConstraintSystem::<Fr>::new_ref();
+    /// let var = UInt8::new_witness(cs.clone(), || Ok(128))?;
+    ///
+    /// let f = Boolean::FALSE;
+    /// let t = Boolean::TRUE;
+    ///
+    /// // Construct [0, 0, 0, 0, 0, 0, 0, 1]
+    /// let mut bits = vec![f.clone(); 7];
+    /// bits.push(t);
+    ///
+    /// let mut c = UInt8::from_bits_le(&bits);
+    /// var.enforce_equal(&c)?;
+    /// assert!(cs.is_satisfied().unwrap());
+    /// # Ok(())
+    /// # }
+    /// ```
     #[tracing::instrument(target = "r1cs")]
     pub fn from_bits_le(bits: &[Boolean<F>]) -> Self {
         assert_eq!(bits.len(), 8);
@@ -134,7 +216,28 @@ impl<F: Field> UInt8<F> {
         Self { value, bits }
     }
 
-    /// XOR this `UInt8` with another `UInt8`
+    /// Outputs `self ^ other`.
+    ///
+    /// If at least one of `self` and `other` are constants, then this method
+    /// *does not* create any constraints or variables.
+    ///
+    /// ```
+    /// # fn main() -> Result<(), r1cs_core::SynthesisError> {
+    /// // We'll use the BLS12-381 scalar field for our constraints.
+    /// use algebra::bls12_381::Fr;
+    /// use r1cs_core::*;
+    /// use r1cs_std::prelude::*;
+    ///
+    /// let cs = ConstraintSystem::<Fr>::new_ref();
+    /// let a = UInt8::new_witness(cs.clone(), || Ok(16))?;
+    /// let b = UInt8::new_witness(cs.clone(), || Ok(17))?;
+    /// let c = UInt8::new_witness(cs.clone(), || Ok(1))?;
+    ///
+    /// a.xor(&b)?.enforce_equal(&c)?;
+    /// assert!(cs.is_satisfied().unwrap());
+    /// # Ok(())
+    /// # }
+    /// ```
     #[tracing::instrument(target = "r1cs")]
     pub fn xor(&self, other: &Self) -> Result<Self, SynthesisError> {
         let new_value = match (self.value, other.value) {

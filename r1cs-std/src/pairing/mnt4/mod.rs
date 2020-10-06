@@ -15,10 +15,12 @@ use algebra::{
 };
 use core::marker::PhantomData;
 
+/// Specifies the constraints for computing a pairing in a MNT4 bilinear group.
 pub struct PairingVar<P: MNT4Parameters>(PhantomData<P>);
 
 type Fp2G<P> = Fp2Var<<P as MNT4Parameters>::Fp2Params>;
 type Fp4G<P> = Fp4Var<<P as MNT4Parameters>::Fp4Params>;
+/// A variable corresponding to `algebra_core::mnt4::GT`.
 pub type GTVar<P> = Fp4G<P>;
 
 impl<P: MNT4Parameters> PairingVar<P> {
@@ -92,7 +94,7 @@ impl<P: MNT4Parameters> PairingVar<P> {
     }
 
     #[tracing::instrument(target = "r1cs", skip(p, q))]
-    pub fn ate_miller_loop(
+    pub(crate) fn ate_miller_loop(
         p: &G1PreparedVar<P>,
         q: &G2PreparedVar<P>,
     ) -> Result<Fp4G<P>, SynthesisError> {
@@ -142,7 +144,7 @@ impl<P: MNT4Parameters> PairingVar<P> {
     }
 
     #[tracing::instrument(target = "r1cs", skip(value))]
-    pub fn final_exponentiation(value: &Fp4G<P>) -> Result<GTVar<P>, SynthesisError> {
+    pub(crate) fn final_exponentiation(value: &Fp4G<P>) -> Result<GTVar<P>, SynthesisError> {
         let value_inv = value.inverse()?;
         let value_to_first_chunk = Self::final_exponentiation_first_chunk(value, &value_inv)?;
         let value_inv_to_first_chunk = Self::final_exponentiation_first_chunk(&value_inv, value)?;

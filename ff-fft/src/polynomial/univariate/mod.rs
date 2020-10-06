@@ -1,6 +1,6 @@
 //! Work with sparse and dense univariate polynomials.
 
-use crate::{Cow, EvaluationDomain, Evaluations, Vec};
+use crate::{Cow, EvaluationDomain, Evaluations, Polynomial, UVPolynomial, Vec};
 use algebra_core::{FftField, Field};
 use core::convert::TryInto;
 use DenseOrSparsePolynomial::*;

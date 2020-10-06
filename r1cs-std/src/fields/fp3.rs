@@ -1,6 +1,8 @@
 use crate::fields::{cubic_extension::*, fp::FpVar};
 use algebra::fields::{CubicExtParameters, Fp3Parameters, Fp3ParamsWrapper};
 
+/// A cubic extension field constructed over a prime field.
+/// This is the R1CS equivalent of `algebra_core::Fp3<P>`.
 pub type Fp3Var<P> = CubicExtVar<FpVar<<P as Fp3Parameters>::Fp>, Fp3ParamsWrapper<P>>;
 
 impl<P: Fp3Parameters> CubicExtVarParams<FpVar<P::Fp>> for Fp3ParamsWrapper<P> {
