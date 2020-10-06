@@ -34,8 +34,8 @@ voracious_radix_sort = { version = "0.1.0", optional = true }
 either = { version = "1.6.0", default-features = false }
 thread-id = { version = "3.3.0", optional = true }
 backtrace = { version = "0.3", optional = true }
-# accel = { git = "https://github.com/jon-chuang/accel", package = "accel" }
-accel = { path = "/home/jonch/Desktop/Programming/Rust/accel/accel"}
+accel = { git = "https://github.com/jon-chuang/accel", package = "accel" }
+# accel = { path = "/home/jonch/Desktop/Programming/Rust/accel/accel"}
 peekmore = "0.5.6"
 closure = "0.3.0"
 lazy_static = "1.4.0"
