@@ -8,6 +8,7 @@ use crate::{
     },
     field_new,
     fields::PrimeField,
+    impl_scalar_mul_kernel_glv,
 };
 
 pub type G2Affine = GroupAffine<Parameters>;
@@ -20,6 +21,8 @@ impl ModelParameters for Parameters {
     type BaseField = Fq;
     type ScalarField = Fr;
 }
+
+impl_scalar_mul_kernel_glv!(bw6_761, "bw6_761", g2, G2Projective);
 
 impl GLVParameters for Parameters {
     type WideBigInt = BigInteger768;
@@ -172,6 +175,19 @@ impl SWModelParameters for Parameters {
         (bool, <Self::ScalarField as PrimeField>::BigInt),
     ) {
         <Self as GLVParameters>::glv_scalar_decomposition_inner(k)
+    }
+
+    fn scalar_mul_kernel(
+        ctx: &Context,
+        grid: impl Into<Grid>,
+        block: impl Into<Block>,
+        table: *const G2Projective,
+        exps: *const u8,
+        out: *mut G2Projective,
+        n: isize,
+    ) -> error::Result<()> {
+        scalar_mul(ctx, grid, block, (table, exps, out, n))?;
+        Ok(())
     }
 }
 

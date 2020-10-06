@@ -12,54 +12,13 @@ pub(crate) mod sw_batch_affine;
 pub mod short_weierstrass_affine;
 #[macro_use]
 pub mod short_weierstrass_jacobian;
-pub mod short_weierstrass_projective;
 pub mod twisted_edwards_extended;
+
+pub use short_weierstrass_jacobian::SWModelParameters;
 
 pub trait ModelParameters: Send + Sync + 'static {
     type BaseField: Field + SquareRootField;
     type ScalarField: PrimeField + SquareRootField + Into<<Self::ScalarField as PrimeField>::BigInt>;
-}
-
-pub trait SWModelParameters: ModelParameters {
-    const COEFF_A: Self::BaseField;
-    const COEFF_B: Self::BaseField;
-    const COFACTOR: &'static [u64];
-    const COFACTOR_INV: Self::ScalarField;
-    const AFFINE_GENERATOR_COEFFS: (Self::BaseField, Self::BaseField);
-
-    #[inline(always)]
-    fn mul_by_a(elem: &Self::BaseField) -> Self::BaseField {
-        let mut copy = *elem;
-        copy *= &Self::COEFF_A;
-        copy
-    }
-
-    #[inline(always)]
-    fn add_b(elem: &Self::BaseField) -> Self::BaseField {
-        let mut copy = *elem;
-        copy += &Self::COEFF_B;
-        copy
-    }
-
-    #[inline(always)]
-    fn has_glv() -> bool {
-        false
-    }
-
-    #[inline(always)]
-    fn glv_endomorphism_in_place(_elem: &mut Self::BaseField) {
-        unimplemented!()
-    }
-
-    #[inline(always)]
-    fn glv_scalar_decomposition(
-        _k: <Self::ScalarField as PrimeField>::BigInt,
-    ) -> (
-        (bool, <Self::ScalarField as PrimeField>::BigInt),
-        (bool, <Self::ScalarField as PrimeField>::BigInt),
-    ) {
-        unimplemented!()
-    }
 }
 
 pub trait TEModelParameters: ModelParameters {

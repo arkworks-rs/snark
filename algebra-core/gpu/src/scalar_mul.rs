@@ -161,7 +161,10 @@ macro_rules! impl_scalar_mul_kernel {
                     }
                 }
 
-                #[kernel_mod]
+                #[kernel_mod(to_mod)]
+                #[dependencies("accel-core" = { git = "https://github.com/jon-chuang/accel", package = "accel-core" })]
+                #[dependencies("algebra-core" = { git = "https://github.com/celo-org/zexe", branch = "jonch/gpu_sc_mul", package = "algebra-core", default_features = false})]
+                #[dependencies("algebra" = { git = "https://github.com/celo-org/zexe", branch = "jonch/gpu_sc_mul", package = "algebra", default_features = false, features = [$curve_string]})]
                 pub mod scalar_mul {
                     use algebra::{$curve::$ProjCurve, FpParameters, Zero};
                     use algebra_core::{curves::ProjectiveCurve, fields::PrimeField};
@@ -174,13 +177,12 @@ macro_rules! impl_scalar_mul_kernel {
                     const NUM_U8: isize = (NUM_BITS - 1) / LOG2_W + 1;
 
                     #[kernel_func]
-                    #[dependencies("accel-core" = { git = "https://github.com/jon-chuang/accel", package = "accel-core" })]
-                    #[dependencies("algebra-core" = { git = "https://github.com/celo-org/zexe", branch = "jonch/gpu_sc_mul", package = "algebra-core", default_features = false})]
-                    #[dependencies("algebra" = { git = "https://github.com/celo-org/zexe", branch = "jonch/gpu_sc_mul", package = "algebra", default_features = false, features = [$curve_string]})]
                     pub unsafe fn scalar_mul(
-                        table: *const algebra::$curve::$ProjCurve,
+                        #[type_substitute(*const $crate::[<$curve _ $type _scalar_mul_kernel>]::G)]
+                        table: *const $ProjCurve,
                         exps: *const u8,
-                        out: *mut algebra::$curve::$ProjCurve,
+                        #[type_substitute(*mut $crate::[<$curve _ $type _scalar_mul_kernel>]::G)]
+                        out: *mut $ProjCurve,
                         n: isize,
                     ) {
                         let i = accel_core::index();
@@ -295,7 +297,10 @@ macro_rules! impl_scalar_mul_kernel_glv {
                     }
                 }
 
-                #[kernel_mod]
+                #[kernel_mod(to_mod)]
+                #[dependencies("accel-core" = { git = "https://github.com/jon-chuang/accel", package = "accel-core" })]
+                #[dependencies("algebra-core" = { git = "https://github.com/celo-org/zexe", branch = "jonch/gpu_sc_mul", package = "algebra-core", default_features = false})]
+                #[dependencies("algebra" = { git = "https://github.com/celo-org/zexe", branch = "jonch/gpu_sc_mul", package = "algebra", default_features = false, features = [$curve_string]})]
                 pub mod scalar_mul {
                     use algebra::{$curve::$ProjCurve, FpParameters, Zero};
                     use algebra_core::{curves::ProjectiveCurve, fields::PrimeField};
@@ -308,13 +313,12 @@ macro_rules! impl_scalar_mul_kernel_glv {
                     const NUM_U8: isize = 2 * ((NUM_BITS - 1) / (2 * (LOG2_W - 1)) + 2);
 
                     #[kernel_func]
-                    #[dependencies("accel-core" = { git = "https://github.com/jon-chuang/accel", package = "accel-core" })]
-                    #[dependencies("algebra-core" = { git = "https://github.com/celo-org/zexe", branch = "jonch/gpu_sc_mul", package = "algebra-core", default_features = false})]
-                    #[dependencies("algebra" = { git = "https://github.com/celo-org/zexe", branch = "jonch/gpu_sc_mul", package = "algebra", default_features = false, features = [$curve_string]})]
                     pub unsafe fn scalar_mul(
-                        table: *const algebra::$curve::$ProjCurve,
+                        #[type_substitute(*const $crate::[<$curve _ $type _scalar_mul_kernel>]::G)]
+                        table: *const $ProjCurve,
                         exps: *const u8,
-                        out: *mut algebra::$curve::$ProjCurve,
+                        #[type_substitute(*mut $crate::[<$curve _ $type _scalar_mul_kernel>]::G)]
+                        out: *mut $ProjCurve,
                         n: isize,
                     ) {
                         let i = accel_core::index();

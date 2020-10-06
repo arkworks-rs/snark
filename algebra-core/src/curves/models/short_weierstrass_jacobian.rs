@@ -1,5 +1,4 @@
 use crate::{
-    curves::models::SWModelParameters as Parameters,
     io::{Read, Result as IoResult, Write},
     serialize::{Flags, SWFlags},
     UniformRand, Vec,
@@ -15,10 +14,23 @@ use rand::{
     Rng,
 };
 
+use accel::*;
+use closure::closure;
+use peekmore::PeekMore;
+use std::sync::Mutex;
+
 use crate::{
     bytes::{FromBytes, ToBytes},
-    curves::{AffineCurve, BatchGroupArithmetic, ProjectiveCurve},
+    curves::gpu::scalar_mul::{GPUScalarMul, MICROBENCH_CPU_GPU_AVG_RATIO},
+    curves::{
+        AffineCurve, BatchGroupArithmetic, BatchGroupArithmeticSlice, ModelParameters,
+        ProjectiveCurve,
+    },
     fields::{BitIterator, Field, PrimeField, SquareRootField},
+};
+use crate::{
+    cfg_chunks_mut, cfg_iter, fields::FpParameters, impl_gpu_cpu_run_kernel,
+    impl_gpu_sw_projective, impl_run_kernel,
 };
 
 use crate::{
@@ -31,22 +43,76 @@ specialise_affine_to_proj!(GroupProjective);
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
+pub trait SWModelParameters: ModelParameters + Sized {
+    const COEFF_A: Self::BaseField;
+    const COEFF_B: Self::BaseField;
+    const COFACTOR: &'static [u64];
+    const COFACTOR_INV: Self::ScalarField;
+    const AFFINE_GENERATOR_COEFFS: (Self::BaseField, Self::BaseField);
+
+    #[inline(always)]
+    fn mul_by_a(elem: &Self::BaseField) -> Self::BaseField {
+        let mut copy = *elem;
+        copy *= &Self::COEFF_A;
+        copy
+    }
+
+    #[inline(always)]
+    fn add_b(elem: &Self::BaseField) -> Self::BaseField {
+        let mut copy = *elem;
+        copy += &Self::COEFF_B;
+        copy
+    }
+
+    #[inline(always)]
+    fn has_glv() -> bool {
+        false
+    }
+
+    #[inline(always)]
+    fn glv_endomorphism_in_place(_elem: &mut Self::BaseField) {
+        unimplemented!()
+    }
+
+    #[inline(always)]
+    fn glv_scalar_decomposition(
+        _k: <Self::ScalarField as PrimeField>::BigInt,
+    ) -> (
+        (bool, <Self::ScalarField as PrimeField>::BigInt),
+        (bool, <Self::ScalarField as PrimeField>::BigInt),
+    ) {
+        unimplemented!()
+    }
+
+    fn scalar_mul_kernel(
+        ctx: &Context,
+        grid: impl Into<Grid>,
+        block: impl Into<Block>,
+        table: *const GroupProjective<Self>,
+        exps: *const u8,
+        out: *mut GroupProjective<Self>,
+        n: isize,
+    ) -> error::Result<()>;
+}
+
+impl_gpu_sw_projective!(SWModelParameters);
+
 #[derive(Derivative)]
 #[derivative(
-    Copy(bound = "P: Parameters"),
-    Clone(bound = "P: Parameters"),
-    Eq(bound = "P: Parameters"),
-    Debug(bound = "P: Parameters"),
-    Hash(bound = "P: Parameters")
+    Copy(bound = "P: SWModelParameters"),
+    Clone(bound = "P: SWModelParameters"),
+    Eq(bound = "P: SWModelParameters"),
+    Debug(bound = "P: SWModelParameters"),
+    Hash(bound = "P: SWModelParameters")
 )]
-pub struct GroupProjective<P: Parameters> {
+pub struct GroupProjective<P: SWModelParameters> {
     pub x: P::BaseField,
     pub y: P::BaseField,
     pub z: P::BaseField,
     _params: PhantomData<P>,
 }
 
-impl<P: Parameters> GroupProjective<P> {
+impl<P: SWModelParameters> GroupProjective<P> {
     #[inline(always)]
     pub fn has_glv() -> bool {
         P::has_glv()
@@ -74,13 +140,13 @@ impl<P: Parameters> GroupProjective<P> {
     }
 }
 
-impl<P: Parameters> Display for GroupProjective<P> {
+impl<P: SWModelParameters> Display for GroupProjective<P> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         write!(f, "{}", GroupAffine::from(*self))
     }
 }
 
-impl<P: Parameters> PartialEq for GroupProjective<P> {
+impl<P: SWModelParameters> PartialEq for GroupProjective<P> {
     fn eq(&self, other: &Self) -> bool {
         if self.is_zero() {
             return other.is_zero();
@@ -104,7 +170,7 @@ impl<P: Parameters> PartialEq for GroupProjective<P> {
     }
 }
 
-impl<P: Parameters> Distribution<GroupProjective<P>> for Standard {
+impl<P: SWModelParameters> Distribution<GroupProjective<P>> for Standard {
     #[inline]
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> GroupProjective<P> {
         let mut res = GroupProjective::prime_subgroup_generator();
@@ -114,7 +180,7 @@ impl<P: Parameters> Distribution<GroupProjective<P>> for Standard {
     }
 }
 
-impl<P: Parameters> ToBytes for GroupProjective<P> {
+impl<P: SWModelParameters> ToBytes for GroupProjective<P> {
     #[inline]
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
         self.x.write(&mut writer)?;
@@ -123,7 +189,7 @@ impl<P: Parameters> ToBytes for GroupProjective<P> {
     }
 }
 
-impl<P: Parameters> FromBytes for GroupProjective<P> {
+impl<P: SWModelParameters> FromBytes for GroupProjective<P> {
     #[inline]
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
         let x = P::BaseField::read(&mut reader)?;
@@ -133,14 +199,14 @@ impl<P: Parameters> FromBytes for GroupProjective<P> {
     }
 }
 
-impl<P: Parameters> Default for GroupProjective<P> {
+impl<P: SWModelParameters> Default for GroupProjective<P> {
     #[inline]
     fn default() -> Self {
         Self::zero()
     }
 }
 
-impl<P: Parameters> GroupProjective<P> {
+impl<P: SWModelParameters> GroupProjective<P> {
     pub fn new(x: P::BaseField, y: P::BaseField, z: P::BaseField) -> Self {
         Self {
             x,
@@ -151,7 +217,7 @@ impl<P: Parameters> GroupProjective<P> {
     }
 }
 
-impl<P: Parameters> Zero for GroupProjective<P> {
+impl<P: SWModelParameters> Zero for GroupProjective<P> {
     // The point at infinity is always represented by
     // Z = 0.
     #[inline]
@@ -171,7 +237,7 @@ impl<P: Parameters> Zero for GroupProjective<P> {
     }
 }
 
-impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
+impl<P: SWModelParameters> ProjectiveCurve for GroupProjective<P> {
     const COFACTOR: &'static [u64] = P::COFACTOR;
     type BaseField = P::BaseField;
     type ScalarField = P::ScalarField;
@@ -403,7 +469,7 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
     }
 }
 
-impl<P: Parameters> Neg for GroupProjective<P> {
+impl<P: SWModelParameters> Neg for GroupProjective<P> {
     type Output = Self;
 
     #[inline]
@@ -416,9 +482,9 @@ impl<P: Parameters> Neg for GroupProjective<P> {
     }
 }
 
-crate::impl_additive_ops_from_ref!(GroupProjective, Parameters);
+crate::impl_additive_ops_from_ref!(GroupProjective, SWModelParameters);
 
-impl<'a, P: Parameters> Add<&'a Self> for GroupProjective<P> {
+impl<'a, P: SWModelParameters> Add<&'a Self> for GroupProjective<P> {
     type Output = Self;
 
     #[inline]
@@ -429,7 +495,7 @@ impl<'a, P: Parameters> Add<&'a Self> for GroupProjective<P> {
     }
 }
 
-impl<'a, P: Parameters> AddAssign<&'a Self> for GroupProjective<P> {
+impl<'a, P: SWModelParameters> AddAssign<&'a Self> for GroupProjective<P> {
     fn add_assign(&mut self, other: &'a Self) {
         if self.is_zero() {
             *self = *other;
@@ -494,7 +560,7 @@ impl<'a, P: Parameters> AddAssign<&'a Self> for GroupProjective<P> {
     }
 }
 
-impl<'a, P: Parameters> Sub<&'a Self> for GroupProjective<P> {
+impl<'a, P: SWModelParameters> Sub<&'a Self> for GroupProjective<P> {
     type Output = Self;
 
     #[inline]
@@ -505,13 +571,13 @@ impl<'a, P: Parameters> Sub<&'a Self> for GroupProjective<P> {
     }
 }
 
-impl<'a, P: Parameters> SubAssign<&'a Self> for GroupProjective<P> {
+impl<'a, P: SWModelParameters> SubAssign<&'a Self> for GroupProjective<P> {
     fn sub_assign(&mut self, other: &'a Self) {
         *self += &(-(*other));
     }
 }
 
-impl<P: Parameters> MulAssign<P::ScalarField> for GroupProjective<P> {
+impl<P: SWModelParameters> MulAssign<P::ScalarField> for GroupProjective<P> {
     fn mul_assign(&mut self, other: P::ScalarField) {
         *self = self.mul(other.into_repr())
     }
@@ -519,7 +585,7 @@ impl<P: Parameters> MulAssign<P::ScalarField> for GroupProjective<P> {
 
 // The affine point X, Y is represented in the Jacobian
 // coordinates with Z = 1.
-impl<P: Parameters> From<GroupAffine<P>> for GroupProjective<P> {
+impl<P: SWModelParameters> From<GroupAffine<P>> for GroupProjective<P> {
     #[inline]
     fn from(p: GroupAffine<P>) -> GroupProjective<P> {
         if p.is_zero() {
@@ -532,7 +598,7 @@ impl<P: Parameters> From<GroupAffine<P>> for GroupProjective<P> {
 
 // The projective point X, Y, Z is represented in the affine
 // coordinates as X/Z^2, Y/Z^3.
-impl<P: Parameters> From<GroupProjective<P>> for GroupAffine<P> {
+impl<P: SWModelParameters> From<GroupProjective<P>> for GroupAffine<P> {
     #[inline]
     fn from(p: GroupProjective<P>) -> GroupAffine<P> {
         if p.is_zero() {

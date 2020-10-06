@@ -25,6 +25,9 @@ pub use self::glv::*;
 
 pub mod models;
 
+#[macro_use]
+pub mod gpu;
+
 pub use self::models::*;
 
 pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send {
@@ -132,7 +135,7 @@ pub trait ProjectiveCurve:
     + for<'a> SubAssign<&'a Self>
     + core::iter::Sum<Self>
     + for<'a> core::iter::Sum<&'a Self>
-    + From<<Self as ProjectiveCurve>::Affine>
+    + From<<Self as ProjectiveCurve>::Affine> // + GPUScalarMul
 {
     const COFACTOR: &'static [u64];
     type ScalarField: PrimeField + SquareRootField;

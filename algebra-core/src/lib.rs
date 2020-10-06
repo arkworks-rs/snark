@@ -71,6 +71,7 @@ pub use self::fields::*;
 pub mod biginteger;
 pub use self::biginteger::*;
 
+#[macro_use]
 pub mod curves;
 pub use self::curves::*;
 

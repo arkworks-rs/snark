@@ -23,6 +23,9 @@ edition = "2018"
 
 [dependencies]
 algebra-core = { path = "../algebra-core", default-features = false }
+# accel = { git = "https://github.com/jon-chuang/accel", package = "accel" }
+accel = { path = "/home/jonch/Desktop/Programming/Rust/accel/accel"}
+paste = "0.1"
 
 [dev-dependencies]
 rand = { version = "0.7", default-features = false }

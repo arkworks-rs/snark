@@ -97,7 +97,7 @@ macro_rules! impl_sw_batch_affine {
             };
         }
 
-        impl<P: Parameters> BatchGroupArithmetic for $GroupAffine<P> {
+        impl<P: SWModelParameters> BatchGroupArithmetic for $GroupAffine<P> {
             type BaseFieldForBatch = P::BaseField;
             /// This implementation of batch group ops takes particular
             /// care to make most use of points fetched from memory to prevent reallocations
@@ -432,7 +432,8 @@ macro_rules! impl_sw_batch_affine {
                 let batch_size = bases.len();
                 if P::has_glv() {
                     use itertools::{EitherOrBoth::*, Itertools};
-                    let mut scratch_space = Vec::<Self::BaseFieldForBatch>::with_capacity(bases.len());
+                    let mut scratch_space =
+                        Vec::<Self::BaseFieldForBatch>::with_capacity(bases.len());
                     let mut scratch_space_group = Vec::<Self>::with_capacity(bases.len() / w);
 
                     let _now = timer!();
@@ -553,7 +554,8 @@ macro_rules! impl_sw_batch_affine {
                     }
                     timer_println!(_now, "batch ops");
                 } else {
-                    let mut scratch_space = Vec::<Self::BaseFieldForBatch>::with_capacity(bases.len());
+                    let mut scratch_space =
+                        Vec::<Self::BaseFieldForBatch>::with_capacity(bases.len());
                     let opcode_vectorised =
                         Self::batch_wnaf_opcode_recoding::<BigInt>(scalars, w, None);
                     let tables = Self::batch_wnaf_tables(bases, w);
