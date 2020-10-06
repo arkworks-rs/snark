@@ -94,7 +94,7 @@ macro_rules! specialise_affine_to_proj {
                     impl_glv_mul!(Self::Projective, P, w, self_proj, res, by);
                     res
                 } else {
-                    let bits = BitIterator::new(by.into());
+                    let bits = BitIteratorBE::new(by.into());
                     self.mul_bits(bits)
                 }
             }
@@ -120,12 +120,12 @@ macro_rules! specialise_affine_to_proj {
             }
 
             pub fn scale_by_cofactor(&self) -> <Self as AffineCurve>::Projective {
-                self.mul_bits(BitIterator::new(P::COFACTOR))
+                self.mul_bits(BitIteratorBE::new(P::COFACTOR))
             }
 
             pub(crate) fn mul_bits<S: AsRef<[u64]>>(
                 &self,
-                bits: BitIterator<S>,
+                bits: BitIteratorBE<S>,
             ) -> <Self as AffineCurve>::Projective {
                 let mut res = <Self as AffineCurve>::Projective::zero();
                 for i in bits {
@@ -170,7 +170,7 @@ macro_rules! specialise_affine_to_proj {
             /// Checks that the current point is in the prime order subgroup given
             /// the point on the curve.
             pub fn is_in_correct_subgroup_assuming_on_curve(&self) -> bool {
-                self.mul_bits(BitIterator::new(P::ScalarField::characteristic()))
+                self.mul_bits(BitIteratorBE::new(P::ScalarField::characteristic()))
                     .is_zero()
             }
         }

@@ -23,7 +23,7 @@ use std::sync::Mutex;
 use crate::{
     biginteger::BigInteger,
     bytes::{FromBytes, ToBytes},
-    curves::gpu::scalar_mul::{GPUScalarMul, MICROBENCH_CPU_GPU_AVG_RATIO},
+    curves::cuda::scalar_mul::{GPUScalarMul, MICROBENCH_CPU_GPU_AVG_RATIO},
     curves::{
         models::MontgomeryModelParameters, AffineCurve, BatchGroupArithmetic,
         BatchGroupArithmeticSlice, ModelParameters, ProjectiveCurve,

@@ -253,8 +253,7 @@ impl<G: AffineCurve> GPUScalarMulSlice<G> for [G] {
                 .zip(cfg_chunks_mut!(exps_mut, cpu_chunk_size))
                 .for_each(|(b, s)| {
                     b[..].batch_scalar_mul_in_place(&mut s[..], 4);
-                }
-            );
+                });
         }
     }
 }

@@ -21,12 +21,12 @@ use std::sync::Mutex;
 
 use crate::{
     bytes::{FromBytes, ToBytes},
-    curves::gpu::scalar_mul::{GPUScalarMul, MICROBENCH_CPU_GPU_AVG_RATIO},
+    curves::cuda::scalar_mul::{GPUScalarMul, MICROBENCH_CPU_GPU_AVG_RATIO},
     curves::{
         AffineCurve, BatchGroupArithmetic, BatchGroupArithmeticSlice, ModelParameters,
         ProjectiveCurve,
     },
-    fields::{BitIterator, Field, PrimeField, SquareRootField},
+    fields::{BitIteratorBE, Field, PrimeField, SquareRootField},
 };
 use crate::{
     cfg_chunks_mut, cfg_iter, fields::FpParameters, impl_gpu_cpu_run_kernel,
@@ -451,7 +451,7 @@ impl<P: SWModelParameters> ProjectiveCurve for GroupProjective<P> {
 
             let mut found_one = false;
 
-            for i in crate::fields::BitIterator::new(other.into()) {
+            for i in crate::fields::BitIteratorBE::new(other.into()) {
                 if found_one {
                     res.double_in_place();
                 } else {

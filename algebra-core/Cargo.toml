@@ -62,4 +62,3 @@ timing_detailed = [ "std", "backtrace" ]
 timing_thread_id = [ "thread-id" ]
 
 llvm_asm = [ "field-assembly" ]
-bw6_asm = []
