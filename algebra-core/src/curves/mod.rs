@@ -31,7 +31,7 @@ pub use gpu::*;
 
 pub use self::models::*;
 
-pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send {
+pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send + Eq + PartialEq {
     /// This is the scalar field of the G1/G2 groups.
     type Fr: PrimeField + SquareRootField;
 
@@ -199,17 +199,9 @@ pub trait ProjectiveCurve:
     /// Performs scalar multiplication of this element.
     fn mul<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(mut self, other: S) -> Self {
         let mut res = Self::zero();
-
-        let mut found_one = false;
-
-        for i in crate::fields::BitIterator::new(other.into()) {
-            if found_one {
-                res.double_in_place();
-            } else {
-                found_one = i;
-            }
-
-            if i {
+        for b in crate::fields::BitIteratorBE::without_leading_zeros(other.into()) {
+            res.double_in_place();
+            if b {
                 res += self;
             }
         }

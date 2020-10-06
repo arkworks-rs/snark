@@ -28,7 +28,7 @@ use crate::{
         models::MontgomeryModelParameters, AffineCurve, BatchGroupArithmetic,
         BatchGroupArithmeticSlice, ModelParameters, ProjectiveCurve,
     },
-    fields::{BitIterator, Field, PrimeField, SquareRootField},
+    fields::{BitIteratorBE, Field, PrimeField, SquareRootField},
 };
 use crate::{
     cfg_chunks_mut, cfg_iter, fields::FpParameters, impl_gpu_cpu_run_kernel,
@@ -98,16 +98,14 @@ impl<P: TEModelParameters> GroupAffine<P> {
 
     #[must_use]
     pub fn scale_by_cofactor(&self) -> <Self as AffineCurve>::Projective {
-        self.mul_bits(BitIterator::new(P::COFACTOR))
+        self.mul_bits(BitIteratorBE::new(P::COFACTOR))
     }
 
-    #[must_use]
-    pub(crate) fn mul_bits<S: AsRef<[u64]>>(
-        &self,
-        bits: BitIterator<S>,
-    ) -> <Self as AffineCurve>::Projective {
+    /// Multiplies `self` by the scalar represented by `bits`. `bits` must be a big-endian
+    /// bit-wise decomposition of the scalar.
+    pub(crate) fn mul_bits(&self, bits: impl Iterator<Item = bool>) -> GroupProjective<P> {
         let mut res = GroupProjective::zero();
-        for i in bits {
+        for i in bits.skip_while(|b| !b) {
             res.double_in_place();
             if i {
                 res.add_assign_mixed(&self)
@@ -149,7 +147,7 @@ impl<P: TEModelParameters> GroupAffine<P> {
     /// Checks that the current point is in the prime order subgroup given
     /// the point on the curve.
     pub fn is_in_correct_subgroup_assuming_on_curve(&self) -> bool {
-        self.mul_bits(BitIterator::new(P::ScalarField::characteristic()))
+        self.mul_bits(BitIteratorBE::new(P::ScalarField::characteristic()))
             .is_zero()
     }
 }
@@ -175,7 +173,7 @@ impl<P: TEModelParameters> AffineCurve for GroupAffine<P> {
     }
 
     fn mul<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(&self, by: S) -> GroupProjective<P> {
-        self.mul_bits(BitIterator::new(by.into()))
+        self.mul_bits(BitIteratorBE::new(by.into()))
     }
 
     fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
@@ -541,6 +539,18 @@ pub struct GroupProjective<P: TEModelParameters> {
     pub z: P::BaseField,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
+}
+
+impl<P: TEModelParameters> PartialEq<GroupProjective<P>> for GroupAffine<P> {
+    fn eq(&self, other: &GroupProjective<P>) -> bool {
+        self.into_projective() == *other
+    }
+}
+
+impl<P: TEModelParameters> PartialEq<GroupAffine<P>> for GroupProjective<P> {
+    fn eq(&self, other: &GroupAffine<P>) -> bool {
+        *self == other.into_projective()
+    }
 }
 
 impl<P: TEModelParameters> Display for GroupProjective<P> {

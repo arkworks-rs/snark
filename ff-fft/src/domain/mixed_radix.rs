@@ -17,6 +17,7 @@ use crate::domain::{
 use crate::Vec;
 use algebra_core::{fields::utils::k_adicity, FftField, FftParameters};
 use core::cmp::min;
+use core::convert::TryFrom;
 use core::fmt;
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
@@ -64,14 +65,14 @@ impl<F: FftField> EvaluationDomain<F> for MixedRadixEvaluationDomain<F> {
         let num_coeffs = best_mixed_domain_size::<F>(num_coeffs);
 
         // Compute the size of our evaluation domain
-        let q = small_subgroup_base as usize;
+        let q = usize::try_from(small_subgroup_base).unwrap();
         let q_adicity = k_adicity(q, num_coeffs);
         let q_part = q.pow(q_adicity);
 
         let two_adicity = k_adicity(2, num_coeffs);
         let two_part = 1 << two_adicity;
 
-        let size = num_coeffs as u64;
+        let size = u64::try_from(num_coeffs).unwrap();
         let log_size_of_group = two_adicity;
 
         if num_coeffs != q_part * two_part {
@@ -103,7 +104,7 @@ impl<F: FftField> EvaluationDomain<F> for MixedRadixEvaluationDomain<F> {
         // Compute the best size of our evaluation domain.
         let num_coeffs = best_mixed_domain_size::<F>(num_coeffs);
 
-        let q = small_subgroup_base as usize;
+        let q = usize::try_from(small_subgroup_base).unwrap();
         let q_adicity = k_adicity(q, num_coeffs);
         let q_part = q.pow(q_adicity);
 
@@ -119,7 +120,7 @@ impl<F: FftField> EvaluationDomain<F> for MixedRadixEvaluationDomain<F> {
 
     #[inline]
     fn size(&self) -> usize {
-        self.size as usize
+        usize::try_from(self.size).unwrap()
     }
 
     #[inline]
@@ -153,7 +154,7 @@ impl<F: FftField> EvaluationDomain<F> for MixedRadixEvaluationDomain<F> {
 
     fn evaluate_all_lagrange_coefficients(&self, tau: F) -> Vec<F> {
         // Evaluate all Lagrange polynomials
-        let size = self.size as usize;
+        let size = self.size();
         let t_size = tau.pow(&[self.size]);
         let one = F::one();
         if t_size.is_one() {
@@ -250,7 +251,7 @@ fn mixed_radix_fft_permute(
 fn best_mixed_domain_size<F: FftField>(min_size: usize) -> usize {
     let mut best = usize::max_value();
     let small_subgroup_base_adicity = F::FftParams::SMALL_SUBGROUP_BASE_ADICITY.unwrap();
-    let small_subgroup_base = F::FftParams::SMALL_SUBGROUP_BASE.unwrap() as usize;
+    let small_subgroup_base = usize::try_from(F::FftParams::SMALL_SUBGROUP_BASE.unwrap()).unwrap();
 
     for b in 0..=small_subgroup_base_adicity {
         let mut r = small_subgroup_base.pow(b);
@@ -278,7 +279,7 @@ pub(crate) fn serial_mixed_radix_fft<T: DomainCoeff<F>, F: FftField>(
     // and then splits into q sub-arrays q_adicity many times.
 
     let n = a.len();
-    let q = F::FftParams::SMALL_SUBGROUP_BASE.unwrap() as usize;
+    let q = usize::try_from(F::FftParams::SMALL_SUBGROUP_BASE.unwrap()).unwrap();
 
     let q_adicity = k_adicity(q, n);
     let q_part = q.pow(q_adicity);

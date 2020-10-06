@@ -8,31 +8,31 @@ use std::{
 use crate::{dpc::Transaction, ledger::*};
 use algebra::bytes::ToBytes;
 use crypto_primitives::{
-    merkle_tree::{MerkleHashTree, MerkleTreeConfig, MerkleTreePath},
+    merkle_tree::{self, MerkleTree},
     FixedLengthCRH,
 };
 
-pub struct IdealLedger<T: Transaction, P: MerkleTreeConfig>
+pub struct IdealLedger<T: Transaction, P: merkle_tree::Config>
 where
     T::Commitment: ToBytes,
 {
     crh_params: <P::H as FixedLengthCRH>::Parameters,
     transactions: Vec<T>,
-    cm_merkle_tree: MerkleHashTree<P>,
+    cm_merkle_tree: MerkleTree<P>,
     cur_cm_index: usize,
     cur_sn_index: usize,
     cur_memo_index: usize,
     comm_to_index: HashMap<T::Commitment, usize>,
     sn_to_index: HashMap<T::SerialNumber, usize>,
     memo_to_index: HashMap<T::Memorandum, usize>,
-    current_digest: Option<MerkleTreeDigest<P>>,
-    past_digests: HashSet<MerkleTreeDigest<P>>,
+    current_digest: Option<merkle_tree::Digest<P>>,
+    past_digests: HashSet<merkle_tree::Digest<P>>,
     genesis_cm: T::Commitment,
     genesis_sn: T::SerialNumber,
     genesis_memo: T::Memorandum,
 }
 
-impl<T: Transaction, P: MerkleTreeConfig> Ledger for IdealLedger<T, P>
+impl<T: Transaction, P: merkle_tree::Config> Ledger for IdealLedger<T, P>
 where
     T: Eq,
     T::Commitment: ToBytes + Clone,
@@ -46,7 +46,7 @@ where
     type Memo = T::Memorandum;
     type Transaction = T;
 
-    fn setup<R: Rng>(rng: &mut R) -> Result<MerkleTreeParams<Self::Parameters>, Error> {
+    fn setup<R: Rng>(rng: &mut R) -> Result<merkle_tree::Parameters<Self::Parameters>, Error> {
         P::H::setup(rng)
     }
 
@@ -57,7 +57,7 @@ where
         genesis_memo: Self::Memo,
     ) -> Self {
         let cm_merkle_tree =
-            MerkleHashTree::<P>::new(parameters.clone(), &[genesis_cm.clone()]).unwrap();
+            MerkleTree::<P>::new(parameters.clone(), &[genesis_cm.clone()]).unwrap();
 
         let mut cur_cm_index = 0;
         let mut comm_to_index = HashMap::new();
@@ -91,7 +91,7 @@ where
         self.transactions.len()
     }
 
-    fn parameters(&self) -> &MerkleTreeParams<Self::Parameters> {
+    fn parameters(&self) -> &merkle_tree::Parameters<Self::Parameters> {
         &self.crh_params
     }
 
@@ -139,7 +139,7 @@ where
             .cloned()
             .collect::<Vec<_>>();
         assert!(commitments[0] == self.genesis_cm);
-        self.cm_merkle_tree = MerkleHashTree::new(self.crh_params.clone(), &commitments)?;
+        self.cm_merkle_tree = MerkleTree::new(self.crh_params.clone(), &commitments)?;
 
         let new_digest = self.cm_merkle_tree.root();
         self.past_digests.insert(new_digest.clone());
@@ -151,11 +151,11 @@ where
         Ok(())
     }
 
-    fn digest(&self) -> Option<MerkleTreeDigest<Self::Parameters>> {
+    fn digest(&self) -> Option<merkle_tree::Digest<Self::Parameters>> {
         self.current_digest.clone()
     }
 
-    fn validate_digest(&self, digest: &MerkleTreeDigest<Self::Parameters>) -> bool {
+    fn validate_digest(&self, digest: &merkle_tree::Digest<Self::Parameters>) -> bool {
         self.past_digests.contains(digest)
     }
 
@@ -171,7 +171,10 @@ where
         self.memo_to_index.contains_key(memo)
     }
 
-    fn prove_cm(&self, cm: &Self::Commitment) -> Result<MerkleTreePath<Self::Parameters>, Error> {
+    fn prove_cm(
+        &self,
+        cm: &Self::Commitment,
+    ) -> Result<merkle_tree::Path<Self::Parameters>, Error> {
         let witness_time = start_timer!(|| "Generate membership witness");
 
         let cm_index = self
@@ -188,37 +191,37 @@ where
     fn prove_sn(
         &self,
         _sn: &Self::SerialNumber,
-    ) -> Result<MerkleTreePath<Self::Parameters>, Error> {
-        Ok(MerkleTreePath::default())
+    ) -> Result<merkle_tree::Path<Self::Parameters>, Error> {
+        Ok(merkle_tree::Path::default())
     }
 
-    fn prove_memo(&self, _memo: &Self::Memo) -> Result<MerkleTreePath<Self::Parameters>, Error> {
-        Ok(MerkleTreePath::default())
+    fn prove_memo(&self, _memo: &Self::Memo) -> Result<merkle_tree::Path<Self::Parameters>, Error> {
+        Ok(merkle_tree::Path::default())
     }
 
     fn verify_cm(
-        parameters: &MerkleTreeParams<Self::Parameters>,
-        digest: &MerkleTreeDigest<Self::Parameters>,
+        parameters: &merkle_tree::Parameters<Self::Parameters>,
+        digest: &merkle_tree::Digest<Self::Parameters>,
         cm: &Self::Commitment,
-        witness: &MerkleTreePath<Self::Parameters>,
+        witness: &merkle_tree::Path<Self::Parameters>,
     ) -> bool {
         witness.verify(parameters, &digest, cm).unwrap()
     }
 
     fn verify_sn(
-        _parameters: &MerkleTreeParams<Self::Parameters>,
-        _digest: &MerkleTreeDigest<Self::Parameters>,
+        _parameters: &merkle_tree::Parameters<Self::Parameters>,
+        _digest: &merkle_tree::Digest<Self::Parameters>,
         _sn: &Self::SerialNumber,
-        _witness: &MerkleTreePath<Self::Parameters>,
+        _witness: &merkle_tree::Path<Self::Parameters>,
     ) -> bool {
         true
     }
 
     fn verify_memo(
-        _parameters: &MerkleTreeParams<Self::Parameters>,
-        _digest: &MerkleTreeDigest<Self::Parameters>,
+        _parameters: &merkle_tree::Parameters<Self::Parameters>,
+        _digest: &merkle_tree::Digest<Self::Parameters>,
         _memo: &Self::Memo,
-        _witness: &MerkleTreePath<Self::Parameters>,
+        _witness: &merkle_tree::Path<Self::Parameters>,
     ) -> bool {
         true
     }

@@ -325,7 +325,9 @@ pub fn fft_field_test<F: FftField>() {
 
         for i in 0..F::FftParams::TWO_ADICITY {
             for j in 0..small_subgroup_base_adicity {
-                let size = (1 << i as usize) * (small_subgroup_base as u64).pow(j) as usize;
+                use core::convert::TryFrom;
+                let size = usize::try_from(1 << i as usize).unwrap()
+                    * usize::try_from((small_subgroup_base as u64).pow(j)).unwrap();
                 let root = F::get_root_of_unity(size).unwrap();
                 assert_eq!(root.pow([size as u64]), F::one());
             }

@@ -1,7 +1,7 @@
 use crate::Error;
-use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
 
-use crypto_primitives::{merkle_tree::*, CommitmentScheme, FixedLengthCRH, SignatureScheme};
+use crypto_primitives::{merkle_tree, CommitmentScheme, FixedLengthCRH, SignatureScheme};
 
 use crate::{
     constraints::{delegable_dpc::execute_core_checks_gadget, Assignment},
@@ -17,8 +17,8 @@ pub struct CoreChecksVerifierInput<C: DelegableDPCComponents> {
     pub comm_crh_sig_pp: CommCRHSigPublicParameters<C>,
 
     // Ledger parameters and digest
-    pub ledger_pp: MerkleTreeParams<C::MerkleTreeConfig>,
-    pub ledger_digest: MerkleTreeDigest<C::MerkleTreeConfig>,
+    pub ledger_pp: merkle_tree::Parameters<C::MerkleTreeConfig>,
+    pub ledger_digest: merkle_tree::Digest<C::MerkleTreeConfig>,
 
     // Input record serial numbers and death predicate commitments
     pub old_serial_numbers: Vec<<C::S as SignatureScheme>::PublicKey>,
@@ -51,8 +51,8 @@ where
     <C::S as SignatureScheme>::Parameters: ToConstraintField<C::CoreCheckF>,
     <C::S as SignatureScheme>::PublicKey: ToConstraintField<C::CoreCheckF>,
 
-    MerkleTreeParams<C::MerkleTreeConfig>: ToConstraintField<C::CoreCheckF>,
-    MerkleTreeDigest<C::MerkleTreeConfig>: ToConstraintField<C::CoreCheckF>,
+    merkle_tree::Parameters<C::MerkleTreeConfig>: ToConstraintField<C::CoreCheckF>,
+    merkle_tree::Digest<C::MerkleTreeConfig>: ToConstraintField<C::CoreCheckF>,
 {
     fn to_field_elements(&self) -> Result<Vec<C::CoreCheckF>, Error> {
         let mut v = Vec::new();
@@ -97,13 +97,13 @@ where
 pub struct CoreChecksCircuit<C: DelegableDPCComponents> {
     // Parameters
     comm_crh_sig_parameters: Option<CommCRHSigPublicParameters<C>>,
-    ledger_parameters: Option<MerkleTreeParams<C::MerkleTreeConfig>>,
+    ledger_parameters: Option<merkle_tree::Parameters<C::MerkleTreeConfig>>,
 
-    ledger_digest: Option<MerkleTreeDigest<C::MerkleTreeConfig>>,
+    ledger_digest: Option<merkle_tree::Digest<C::MerkleTreeConfig>>,
 
     // Inputs for old records.
     old_records: Option<Vec<DPCRecord<C>>>,
-    old_witnesses: Option<Vec<MerkleTreePath<C::MerkleTreeConfig>>>,
+    old_witnesses: Option<Vec<merkle_tree::Path<C::MerkleTreeConfig>>>,
     old_address_secret_keys: Option<Vec<AddressSecretKey<C>>>,
     old_serial_numbers: Option<Vec<<C::S as SignatureScheme>::PublicKey>>,
 
@@ -126,15 +126,15 @@ pub struct CoreChecksCircuit<C: DelegableDPCComponents> {
 impl<C: DelegableDPCComponents> CoreChecksCircuit<C> {
     pub fn blank(
         comm_crh_sig_parameters: &CommCRHSigPublicParameters<C>,
-        ledger_parameters: &MerkleTreeParams<C::MerkleTreeConfig>,
+        ledger_parameters: &merkle_tree::Parameters<C::MerkleTreeConfig>,
     ) -> Self {
         let num_input_records = C::NUM_INPUT_RECORDS;
         let num_output_records = C::NUM_OUTPUT_RECORDS;
-        let digest = MerkleTreeDigest::<C::MerkleTreeConfig>::default();
+        let digest = merkle_tree::Digest::<C::MerkleTreeConfig>::default();
 
         let old_sn = vec![<C::S as SignatureScheme>::PublicKey::default(); num_input_records];
         let old_records = vec![DPCRecord::default(); num_input_records];
-        let old_witnesses = vec![MerkleTreePath::default(); num_input_records];
+        let old_witnesses = vec![merkle_tree::Path::default(); num_input_records];
         let old_address_secret_keys = vec![AddressSecretKey::default(); num_input_records];
 
         let new_cm = vec![<C::RecC as CommitmentScheme>::Output::default(); num_output_records];
@@ -182,14 +182,14 @@ impl<C: DelegableDPCComponents> CoreChecksCircuit<C> {
     pub fn new(
         // Parameters
         comm_amd_crh_parameters: &CommCRHSigPublicParameters<C>,
-        ledger_parameters: &MerkleTreeParams<C::MerkleTreeConfig>,
+        ledger_parameters: &merkle_tree::Parameters<C::MerkleTreeConfig>,
 
         // Digest
-        ledger_digest: &MerkleTreeDigest<C::MerkleTreeConfig>,
+        ledger_digest: &merkle_tree::Digest<C::MerkleTreeConfig>,
 
         // Old records
         old_records: &[DPCRecord<C>],
-        old_witnesses: &[MerkleTreePath<C::MerkleTreeConfig>],
+        old_witnesses: &[merkle_tree::Path<C::MerkleTreeConfig>],
         old_address_secret_keys: &[AddressSecretKey<C>],
         old_serial_numbers: &[<C::S as SignatureScheme>::PublicKey],
 
@@ -253,13 +253,13 @@ impl<C: DelegableDPCComponents> CoreChecksCircuit<C> {
 }
 
 impl<C: DelegableDPCComponents> ConstraintSynthesizer<C::CoreCheckF> for CoreChecksCircuit<C> {
-    fn generate_constraints<CS: ConstraintSystem<C::CoreCheckF>>(
+    fn generate_constraints(
         self,
-        cs: &mut CS,
+        cs: ConstraintSystemRef<C::CoreCheckF>,
     ) -> Result<(), SynthesisError> {
-        execute_core_checks_gadget::<C, CS>(
+        execute_core_checks_gadget::<C>(
             cs,
-            // Params
+            // Parameters
             self.comm_crh_sig_parameters.get()?,
             self.ledger_parameters.get()?,
             // digest

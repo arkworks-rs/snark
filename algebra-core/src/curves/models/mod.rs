@@ -19,7 +19,10 @@ pub use twisted_edwards_extended::TEModelParameters;
 
 pub trait ModelParameters: Send + Sync + 'static {
     type BaseField: Field + SquareRootField;
-    type ScalarField: PrimeField + SquareRootField + Into<<Self::ScalarField as PrimeField>::BigInt>;
+    type ScalarField: PrimeField
+        + SquareRootField
+        + Into<<Self::ScalarField as PrimeField>::BigInt>
+        + From<<Self::ScalarField as PrimeField>::BigInt>;
 }
 
 pub trait MontgomeryModelParameters: ModelParameters {

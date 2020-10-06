@@ -6,7 +6,7 @@ use crate::{
     fields::{
         fp2::{Fp2, Fp2Parameters},
         fp4::{Fp4, Fp4Parameters},
-        BitIterator, Field, PrimeField, SquareRootField,
+        BitIteratorBE, Field, PrimeField, SquareRootField,
     },
     One, Zero,
 };
@@ -33,9 +33,10 @@ pub trait MNT4Parameters: 'static {
     const FINAL_EXPONENT_LAST_CHUNK_W0_IS_NEG: bool;
     const FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0: <Self::Fp as PrimeField>::BigInt;
     type Fp: PrimeField + SquareRootField + Into<<Self::Fp as PrimeField>::BigInt>;
+    type Fr: PrimeField + SquareRootField + Into<<Self::Fr as PrimeField>::BigInt>;
     type Fp2Params: Fp2Parameters<Fp = Self::Fp>;
     type Fp4Params: Fp4Parameters<Fp2Params = Self::Fp2Params>;
-    type G1Parameters: SWModelParameters<BaseField = Self::Fp>;
+    type G1Parameters: SWModelParameters<BaseField = Self::Fp, ScalarField = Self::Fr>;
     type G2Parameters: SWModelParameters<
         BaseField = Fp2<Self::Fp2Params>,
         ScalarField = <Self::G1Parameters as ModelParameters>::ScalarField,
@@ -110,18 +111,9 @@ impl<P: MNT4Parameters> MNT4<P> {
         let mut dbl_idx: usize = 0;
         let mut add_idx: usize = 0;
 
-        let mut found_one = false;
-
-        for bit in BitIterator::new(P::ATE_LOOP_COUNT) {
-            // code below gets executed for all bits (EXCEPT the MSB itself) of
-            // mnt6_param_p (skipping leading zeros) in MSB to LSB order
-            if !found_one && bit {
-                found_one = true;
-                continue;
-            } else if !found_one {
-                continue;
-            }
-
+        // code below gets executed for all bits (EXCEPT the MSB itself) of
+        // mnt6_param_p (skipping leading zeros) in MSB to LSB order
+        for bit in BitIteratorBE::without_leading_zeros(P::ATE_LOOP_COUNT).skip(1) {
             let dc = &q.double_coefficients[dbl_idx];
             dbl_idx += 1;
 
@@ -188,12 +180,11 @@ impl<P: MNT4Parameters> MNT4<P> {
         elt_q.frobenius_map(1);
 
         let w1_part = elt_q.cyclotomic_exp(&P::FINAL_EXPONENT_LAST_CHUNK_1);
-        let w0_part;
-        if P::FINAL_EXPONENT_LAST_CHUNK_W0_IS_NEG {
-            w0_part = elt_inv_clone.cyclotomic_exp(&P::FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0);
+        let w0_part = if P::FINAL_EXPONENT_LAST_CHUNK_W0_IS_NEG {
+            elt_inv_clone.cyclotomic_exp(&P::FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0)
         } else {
-            w0_part = elt_clone.cyclotomic_exp(&P::FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0);
-        }
+            elt_clone.cyclotomic_exp(&P::FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0)
+        };
 
         w1_part * &w0_part
     }

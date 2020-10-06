@@ -31,7 +31,6 @@ pub struct DPCRecord<C: PlainDPCComponents> {
 }
 
 fn default_predicate_hash<C: FixedLengthCRH>() -> Vec<u8> {
-    use algebra::bytes::ToBytes;
     to_bytes![C::Output::default()].unwrap()
 }
 

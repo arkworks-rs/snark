@@ -5,158 +5,200 @@
 #![deny(trivial_numeric_casts, private_in_public, variant_size_differences)]
 #![deny(stable_features, unreachable_pub, non_shorthand_field_patterns)]
 #![deny(unused_attributes, unused_imports, unused_mut, missing_docs)]
-#![deny(renamed_and_removed_lints, stable_features, unused_allocation)]
+#![deny(renamed_and_removed_lints, unused_allocation)]
 #![deny(unused_comparisons, bare_trait_objects, unused_must_use, const_err)]
-#![forbid(unsafe_code)]
+#![deny(unsafe_code)]
 
 #[cfg(not(feature = "std"))]
-extern crate alloc;
+pub extern crate alloc;
 
 #[cfg(not(feature = "std"))]
-pub(crate) use alloc::string::String;
+pub use alloc::{
+    collections::{BTreeMap, BTreeSet},
+    format,
+    rc::Rc,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 
 #[cfg(feature = "std")]
-pub(crate) use std::string::String;
+pub use std::{
+    collections::{BTreeMap, BTreeSet},
+    format,
+    rc::Rc,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 
 mod constraint_system;
 mod error;
-mod impl_constraint_var;
 mod impl_lc;
+#[cfg(feature = "std")]
+mod trace;
 
-pub use algebra_core::{
-    bytes::{FromBytes, ToBytes},
-    serialize::*,
-    Field, ToConstraintField,
+#[cfg(feature = "std")]
+pub use crate::trace::{ConstraintLayer, ConstraintTrace, TraceStep, TracingMode};
+#[cfg(feature = "std")]
+pub use tracing::info_span;
+
+pub use algebra_core::{Field, ToConstraintField};
+pub use constraint_system::{
+    ConstraintMatrices, ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, Namespace,
+    SynthesisMode,
 };
-pub use constraint_system::{ConstraintSynthesizer, ConstraintSystem, Namespace};
 pub use error::SynthesisError;
 
 use core::cmp::Ordering;
-use smallvec::SmallVec as StackVec;
 
-type SmallVec<F> = StackVec<[(Variable, F); 16]>;
+/// A linear combination of variables according to associated coefficients.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LinearCombination<F: Field>(pub Vec<(F, Variable)>);
 
-/// Represents a variable in a constraint system.
-#[derive(PartialOrd, Ord, PartialEq, Eq, Copy, Clone, Debug)]
-pub struct Variable(Index);
+/// A sparse representation of constraint matrices.
+pub type Matrix<F> = Vec<Vec<(F, usize)>>;
+
+/// Represents the different kinds of variables present in a constraint system.
+#[derive(Copy, Clone, PartialEq, Debug, Eq)]
+pub enum Variable {
+    /// Represents the "zero" constant.
+    Zero,
+    /// Represents of the "one" constant.
+    One,
+    /// Represents a public instance variable.
+    Instance(usize),
+    /// Represents a private witness variable.
+    Witness(usize),
+    /// Represents of a linear combination.
+    SymbolicLc(LcIndex),
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+/// An opaque counter for symbolic linear combinations.
+pub struct LcIndex(usize);
+
+/// Generate a `LinearCombination` from arithmetic expressions involving `Variable`s.
+#[macro_export]
+macro_rules! lc {
+    () => {
+        $crate::LinearCombination::zero()
+    };
+}
+
+/// Generate a `Namespace` with name `name` from `ConstraintSystem` `cs`.
+/// `name` must be a `&'static str`.
+#[macro_export]
+macro_rules! ns {
+    ($cs:expr, $name:expr) => {{
+        #[cfg(feature = "std")]
+        {
+            let span = $crate::info_span!(target: "r1cs", $name);
+            let id = span.id();
+            let _enter_guard = span.enter();
+            core::mem::forget(_enter_guard);
+            core::mem::forget(span);
+            $crate::Namespace::new($cs.clone(), id)
+        }
+        #[cfg(not(feature = "std"))]
+        {
+            $crate::Namespace::from($cs.clone())
+        }
+    }};
+}
 
 impl Variable {
-    /// This constructs a variable with an arbitrary index.
-    /// Circuit implementations are not recommended to use this.
-    pub fn new_unchecked(idx: Index) -> Variable {
-        Variable(idx)
-    }
-
-    /// This returns the index underlying the variable.
-    /// Circuit implementations are not recommended to use this.
-    pub fn get_unchecked(&self) -> Index {
-        self.0
-    }
-}
-
-/// Represents the index of either an input variable or auxiliary variable.
-#[derive(Copy, Clone, PartialEq, Debug, Eq)]
-pub enum Index {
-    /// Index of an input variable.
-    Input(usize),
-    /// Index of an auxiliary (or private) variable.
-    Aux(usize),
-}
-
-impl CanonicalSerialize for Index {
+    /// Is `self` the zero variable?
     #[inline]
-    fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SerializationError> {
-        let inner = match *self {
-            Index::Input(inner) => {
-                true.serialize(writer)?;
-                inner
-            }
-            Index::Aux(inner) => {
-                false.serialize(writer)?;
-                inner
-            }
-        };
-        inner.serialize(writer)?;
-        Ok(())
+    pub fn is_zero(&self) -> bool {
+        match self {
+            Variable::Zero => true,
+            _ => false,
+        }
     }
 
+    /// Is `self` the one variable?
     #[inline]
-    fn serialized_size(&self) -> usize {
-        Self::SERIALIZED_SIZE
+    pub fn is_one(&self) -> bool {
+        match self {
+            Variable::One => true,
+            _ => false,
+        }
     }
-}
 
-impl ConstantSerializedSize for Index {
-    const SERIALIZED_SIZE: usize = usize::SERIALIZED_SIZE + 1;
-    const UNCOMPRESSED_SIZE: usize = Self::SERIALIZED_SIZE;
-}
-
-impl CanonicalDeserialize for Index {
+    /// Is `self` an instance variable?
     #[inline]
-    fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
-        let is_input = bool::deserialize(reader)?;
-        let inner = usize::deserialize(reader)?;
-        Ok(if is_input {
-            Index::Input(inner)
-        } else {
-            Index::Aux(inner)
-        })
+    pub fn is_instance(&self) -> bool {
+        match self {
+            Variable::Instance(_) => true,
+            _ => false,
+        }
     }
-}
 
-impl PartialOrd for Index {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
+    /// Is `self` a witness variable?
+    #[inline]
+    pub fn is_witness(&self) -> bool {
+        match self {
+            Variable::Witness(_) => true,
+            _ => false,
+        }
     }
-}
 
-impl Ord for Index {
-    fn cmp(&self, other: &Self) -> Ordering {
-        match (self, other) {
-            (Index::Input(ref idx1), Index::Input(ref idx2))
-            | (Index::Aux(ref idx1), Index::Aux(ref idx2)) => idx1.cmp(idx2),
-            (Index::Input(_), Index::Aux(_)) => Ordering::Less,
-            (Index::Aux(_), Index::Input(_)) => Ordering::Greater,
+    /// Is `self` a linear combination?
+    #[inline]
+    pub fn is_lc(&self) -> bool {
+        match self {
+            Variable::SymbolicLc(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Get the `LcIndex` in `self` if `self.is_lc()`.
+    #[inline]
+    pub fn get_lc_index(&self) -> Option<LcIndex> {
+        match self {
+            Variable::SymbolicLc(index) => Some(*index),
+            _ => None,
+        }
+    }
+
+    /// Returns `Some(usize)` if `!self.is_lc()`, and `None` otherwise.
+    #[inline]
+    pub fn get_index_unchecked(&self, witness_offset: usize) -> Option<usize> {
+        match self {
+            // The one variable always has index 0
+            Variable::One => Some(0),
+            Variable::Instance(i) => Some(*i),
+            Variable::Witness(i) => Some(witness_offset + *i),
+            _ => None,
         }
     }
 }
 
-/// This represents a linear combination of some variables, with coefficients
-/// in the field `F`.
-/// The `(coeff, var)` pairs in a `LinearCombination` are kept sorted according
-/// to the index of the variable in its constraint system.
-#[derive(Debug, Clone)]
-pub struct LinearCombination<F: Field>(pub SmallVec<F>);
+impl PartialOrd for Variable {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        use crate::Variable::*;
+        match (self, other) {
+            (Zero, Zero) => Some(Ordering::Equal),
+            (One, One) => Some(Ordering::Equal),
+            (Zero, _) => Some(Ordering::Less),
+            (One, _) => Some(Ordering::Less),
+            (_, Zero) => Some(Ordering::Greater),
+            (_, One) => Some(Ordering::Greater),
 
-/// Either a `Variable` or a `LinearCombination`.
-#[derive(Clone, Debug)]
-pub enum ConstraintVar<F: Field> {
-    /// A wrapper around a `LinearCombination`.
-    LC(LinearCombination<F>),
-    /// A wrapper around a `Variable`.
-    Var(Variable),
+            (Instance(i), Instance(j)) | (Witness(i), Witness(j)) => i.partial_cmp(j),
+            (Instance(_), Witness(_)) => Some(Ordering::Less),
+            (Witness(_), Instance(_)) => Some(Ordering::Greater),
+
+            (SymbolicLc(i), SymbolicLc(j)) => i.partial_cmp(j),
+            (_, SymbolicLc(_)) => Some(Ordering::Less),
+            (SymbolicLc(_), _) => Some(Ordering::Greater),
+        }
+    }
 }
 
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn serialize_index() {
-        serialize_index_test(true);
-        serialize_index_test(false);
-    }
-
-    fn serialize_index_test(input: bool) {
-        let idx = if input {
-            Index::Input(32)
-        } else {
-            Index::Aux(32)
-        };
-
-        let mut v = vec![];
-        idx.serialize(&mut v).unwrap();
-        let idx2 = Index::deserialize(&mut &v[..]).unwrap();
-        assert_eq!(idx, idx2);
+impl Ord for Variable {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.partial_cmp(other).unwrap()
     }
 }

@@ -50,6 +50,7 @@ macro_rules! impl_field_mul_assign {
             for i in 1..$limbs {
                 all_bits_set &= P::MODULUS.0[$limbs - i - 1] == !0u64;
             }
+
             let _no_carry: bool = !(first_bit_set || all_bits_set);
 
             // No-carry optimisation applied to CIOS
@@ -136,7 +137,7 @@ macro_rules! impl_field_into_repr {
 }
 
 macro_rules! impl_field_square_in_place {
-    ($limbs: expr) => {
+    ($limbs:expr) => {
         #[inline]
         #[unroll_for_loops]
         #[allow(unused_braces)]

@@ -1,6 +1,6 @@
 [package]
 name = "algebra-core"
-version = "0.1.0"
+version = "0.1.1-alpha.0"
 authors = [
     "Sean Bowe",
     "Alessandro Chiesa",
@@ -54,10 +54,12 @@ default = [ "std", "rand/default" ]
 std = [ "voracious_radix_sort" ]
 parallel = [ "std", "rayon", "rand/default" ]
 derive = [ "algebra-core-derive" ]
-llvm_asm = [ "field-assembly" ]
 prefetch = [ "std" ]
 cuda = [ "std", "parallel" ]
 
 timing = [ "std", "backtrace" ]
 timing_detailed = [ "std", "backtrace" ]
 timing_thread_id = [ "thread-id" ]
+
+llvm_asm = [ "field-assembly" ]
+bw6_asm = []

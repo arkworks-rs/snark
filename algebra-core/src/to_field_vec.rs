@@ -5,7 +5,7 @@ use crate::{
         short_weierstrass_jacobian::{GroupAffine as SWAffine, GroupProjective as SWProjective},
         twisted_edwards_extended::{GroupAffine as TEAffine, GroupProjective as TEProjective},
     },
-    Box, Field, Fp2, Fp2Parameters, FpParameters, PrimeField, Vec,
+    Box, Field, FpParameters, PrimeField, Vec,
 };
 
 type Error = Box<dyn crate::Error>;
@@ -35,17 +35,6 @@ impl<ConstraintF: Field> ToConstraintField<ConstraintF> for () {
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
         Ok(Vec::new())
-    }
-}
-
-// Impl for Fp2<ConstraintF>
-impl<P: Fp2Parameters> ToConstraintField<P::Fp> for Fp2<P> {
-    #[inline]
-    fn to_field_elements(&self) -> Result<Vec<P::Fp>, Error> {
-        let mut c0 = self.c0.to_field_elements()?;
-        let c1 = self.c1.to_field_elements()?;
-        c0.extend_from_slice(&c1);
-        Ok(c0)
     }
 }
 
@@ -98,18 +87,15 @@ where
 impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for [u8] {
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
-        let max_size = <ConstraintF as PrimeField>::Params::CAPACITY / 8;
-        let max_size = max_size as usize;
+        use core::convert::TryFrom;
+        let max_size = usize::try_from(<ConstraintF as PrimeField>::Params::CAPACITY / 8).unwrap();
         let bigint_size = <ConstraintF as PrimeField>::BigInt::NUM_LIMBS * 8;
         let fes = self
             .chunks(max_size)
             .map(|chunk| {
-                let mut chunk = chunk.to_vec();
-                let len = chunk.len();
-                for _ in len..bigint_size {
-                    chunk.push(0u8);
-                }
-                ConstraintF::read(chunk.as_slice())
+                let mut bigint = vec![0u8; bigint_size];
+                bigint.iter_mut().zip(chunk).for_each(|(a, b)| *a = *b);
+                ConstraintF::read(bigint.as_slice())
             })
             .collect::<Result<Vec<_>, _>>()
             .map_err(crate::SerializationError::from)
@@ -128,22 +114,6 @@ impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for [u8; 32] {
 impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for Vec<u8> {
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
-        let max_size = <ConstraintF as PrimeField>::Params::CAPACITY / 8;
-        let max_size = max_size as usize;
-        let bigint_size = <ConstraintF as PrimeField>::BigInt::NUM_LIMBS * 8;
-        let fes = self
-            .chunks(max_size)
-            .map(|chunk| {
-                let mut chunk = chunk.to_vec();
-                let len = chunk.len();
-                for _ in len..bigint_size {
-                    chunk.push(0u8);
-                }
-                ConstraintF::read(chunk.as_slice())
-            })
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(crate::SerializationError::from)
-            .map_err(|e| Box::new(e))?;
-        Ok(fes)
+        self.as_slice().to_field_elements()
     }
 }

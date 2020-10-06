@@ -1,6 +1,6 @@
 [package]
 name = "mince"
-version = "0.1.0"
+version = "0.1.1-alpha.0"
 authors = ["jon-chuang <9093549+jon-chuang@users.noreply.github.com>"]
 edition = "2018"
 

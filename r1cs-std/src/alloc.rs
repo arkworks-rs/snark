@@ -1,141 +1,96 @@
 use crate::Vec;
 use algebra::Field;
 use core::borrow::Borrow;
-use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_core::{Namespace, SynthesisError};
 
-pub trait AllocGadget<V, ConstraintF: Field>
+/// Describes the mode that a variable should be allocated in within
+/// a `ConstraintSystem`.
+#[derive(Eq, PartialEq, Ord, PartialOrd, Debug, Copy, Clone)]
+pub enum AllocationMode {
+    /// Indicate to the `ConstraintSystem` that the high-level variable should
+    /// be allocated as a constant. That is, no `Variable`s should be
+    /// generated.
+    Constant = 0,
+
+    /// Indicate to the `ConstraintSystem` that the high-level variable should
+    /// be allocated as a public input to the `ConstraintSystem`.
+    Input = 1,
+
+    /// Indicate to the `ConstraintSystem` that the high-level variable should
+    /// be allocated as a private witness to the `ConstraintSystem`.
+    Witness = 2,
+}
+
+impl AllocationMode {
+    /// Outputs the maximum according to the relation `Constant < Input < Witness`.
+    pub fn max(&self, other: Self) -> Self {
+        use AllocationMode::*;
+        match (self, other) {
+            (Constant, _) => other,
+            (Input, Constant) => *self,
+            (Input, _) => other,
+            (Witness, _) => *self,
+        }
+    }
+}
+
+/// Specifies how variables of type `Self` should be allocated in a `ConstraintSystem`.
+pub trait AllocVar<V, F: Field>
 where
     Self: Sized,
     V: ?Sized,
 {
-    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
-        cs: CS,
-        t: T,
-    ) -> Result<Self, SynthesisError>
-    where
-        T: Borrow<V>;
+    /// Allocates a new variable of type `Self` in the `ConstraintSystem` `cs`.
+    /// The mode of allocation is decided by `mode`.
+    fn new_variable<T: Borrow<V>>(
+        cs: impl Into<Namespace<F>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError>;
 
-    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(cs: CS, f: F) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<V>;
-
-    fn alloc_checked<F, T, CS: ConstraintSystem<ConstraintF>>(
-        cs: CS,
-        f: F,
-    ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<V>,
-    {
-        Self::alloc(cs, f)
+    /// Allocates a new constant of type `Self` in the `ConstraintSystem` `cs`.
+    ///
+    /// This should *not* allocate any new variables or constraints in `cs`.
+    #[tracing::instrument(target = "r1cs", skip(cs, t))]
+    fn new_constant(
+        cs: impl Into<Namespace<F>>,
+        t: impl Borrow<V>,
+    ) -> Result<Self, SynthesisError> {
+        Self::new_variable(cs, || Ok(t), AllocationMode::Constant)
     }
 
-    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
-        cs: CS,
-        f: F,
-    ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<V>;
+    /// Allocates a new public input of type `Self` in the `ConstraintSystem` `cs`.
+    #[tracing::instrument(target = "r1cs", skip(cs, f))]
+    fn new_input<T: Borrow<V>>(
+        cs: impl Into<Namespace<F>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+    ) -> Result<Self, SynthesisError> {
+        Self::new_variable(cs, f, AllocationMode::Input)
+    }
 
-    fn alloc_input_checked<F, T, CS: ConstraintSystem<ConstraintF>>(
-        cs: CS,
-        f: F,
-    ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<V>,
-    {
-        Self::alloc_input(cs, f)
+    /// Allocates a new private witness of type `Self` in the `ConstraintSystem` `cs`.
+    #[tracing::instrument(target = "r1cs", skip(cs, f))]
+    fn new_witness<T: Borrow<V>>(
+        cs: impl Into<Namespace<F>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+    ) -> Result<Self, SynthesisError> {
+        Self::new_variable(cs, f, AllocationMode::Witness)
     }
 }
 
-impl<I, ConstraintF: Field, A: AllocGadget<I, ConstraintF>> AllocGadget<[I], ConstraintF>
-    for Vec<A>
-{
-    #[inline]
-    fn alloc_constant<T, CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        t: T,
-    ) -> Result<Self, SynthesisError>
-    where
-        T: Borrow<[I]>,
-    {
+/// This blanket implementation just allocates variables in `Self`
+/// element by element.
+impl<I, F: Field, A: AllocVar<I, F>> AllocVar<[I], F> for Vec<A> {
+    fn new_variable<T: Borrow<[I]>>(
+        cs: impl Into<Namespace<F>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        let ns = cs.into();
+        let cs = ns.cs();
         let mut vec = Vec::new();
-        for (i, value) in t.borrow().iter().enumerate() {
-            vec.push(A::alloc_constant(cs.ns(|| format!("value_{}", i)), value)?);
-        }
-        Ok(vec)
-    }
-
-    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        f: F,
-    ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<[I]>,
-    {
-        let mut vec = Vec::new();
-        for (i, value) in f()?.borrow().iter().enumerate() {
-            vec.push(A::alloc(&mut cs.ns(|| format!("value_{}", i)), || {
-                Ok(value)
-            })?);
-        }
-        Ok(vec)
-    }
-
-    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        f: F,
-    ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<[I]>,
-    {
-        let mut vec = Vec::new();
-        for (i, value) in f()?.borrow().iter().enumerate() {
-            vec.push(A::alloc_input(
-                &mut cs.ns(|| format!("value_{}", i)),
-                || Ok(value),
-            )?);
-        }
-        Ok(vec)
-    }
-
-    fn alloc_checked<F, T, CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        f: F,
-    ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<[I]>,
-    {
-        let mut vec = Vec::new();
-        for (i, value) in f()?.borrow().iter().enumerate() {
-            vec.push(A::alloc_checked(
-                &mut cs.ns(|| format!("value_{}", i)),
-                || Ok(value),
-            )?);
-        }
-        Ok(vec)
-    }
-
-    fn alloc_input_checked<F, T, CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        f: F,
-    ) -> Result<Self, SynthesisError>
-    where
-        F: FnOnce() -> Result<T, SynthesisError>,
-        T: Borrow<[I]>,
-    {
-        let mut vec = Vec::new();
-        for (i, value) in f()?.borrow().iter().enumerate() {
-            vec.push(A::alloc_input_checked(
-                &mut cs.ns(|| format!("value_{}", i)),
-                || Ok(value),
-            )?);
+        for value in f()?.borrow().iter() {
+            vec.push(A::new_variable(cs.clone(), || Ok(value), mode)?);
         }
         Ok(vec)
     }

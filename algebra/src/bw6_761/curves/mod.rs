@@ -10,6 +10,7 @@ pub mod g2;
 #[cfg(test)]
 mod tests;
 
+#[derive(PartialEq, Eq)]
 pub struct Parameters;
 
 impl BW6Parameters for Parameters {
