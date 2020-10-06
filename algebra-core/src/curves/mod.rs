@@ -26,8 +26,8 @@ pub use self::glv::*;
 pub mod models;
 
 #[macro_use]
-pub mod gpu;
-pub use gpu::*;
+pub mod cuda;
+pub use cuda::*;
 
 pub use self::models::*;
 
