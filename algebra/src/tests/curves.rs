@@ -527,23 +527,23 @@ macro_rules! batch_verify_test {
                 now.elapsed().as_micros()
             );
 
-            // for j in 0..10 {
-            //     // Randomly insert random non-subgroup elems
-            //     for k in 0..(1 << j) {
-            //         tmp_elems[random_location.sample(&mut rng)] = non_subgroup_points[k];
-            //     }
-            //     let now = std::time::Instant::now();
-            //     match batch_verify_in_subgroup::<$GroupAffine<P>, XorShiftRng>(&tmp_elems[..], SECURITY_PARAM, &mut rng) {
-            //         Ok(_) => assert!(false, "did not detect non-subgroup elems"),
-            //         _ => assert!(true),
-            //     };
-            //     println!(
-            //         "Success: Not in subgroup. n: {}, non-subgroup elems: {}, time: {}",
-            //         n_elems,
-            //         (1 << (j + 1)) - 1,
-            //         now.elapsed().as_micros()
-            //     );
-            // }
+            for j in 0..10 {
+                // Randomly insert random non-subgroup elems
+                for k in 0..(1 << j) {
+                    tmp_elems[random_location.sample(&mut rng)] = non_subgroup_points[k];
+                }
+                let now = std::time::Instant::now();
+                match batch_verify_in_subgroup::<$GroupAffine<P>, XorShiftRng>(&tmp_elems[..], SECURITY_PARAM, &mut rng) {
+                    Ok(_) => assert!(false, "did not detect non-subgroup elems"),
+                    _ => assert!(true),
+                };
+                println!(
+                    "Success: Not in subgroup. n: {}, non-subgroup elems: {}, time: {}",
+                    n_elems,
+                    (1 << (j + 1)) - 1,
+                    now.elapsed().as_micros()
+                );
+            }
         }
 
         // // We can induce a collision and thus failure to identify non-subgroup elements with the following
