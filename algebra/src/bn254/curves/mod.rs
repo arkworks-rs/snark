@@ -1,14 +1,14 @@
 use crate::bn254::*;
 use algebra_core::{
     biginteger::BigInteger256,
-    curves::{
-        bn,
-        bn::{Bn, BnParameters, TwistType},
-    },
+    curves::bn::{Bn, BnParameters, TwistType},
     field_new,
 };
 pub mod g1;
+pub use self::g1::{G1Affine, G1Projective};
+
 pub mod g2;
+pub use self::g2::{G2Affine, G2Projective};
 
 #[cfg(test)]
 mod tests;
@@ -78,8 +78,3 @@ impl BnParameters for Parameters {
 }
 
 pub type Bn254 = Bn<Parameters>;
-
-pub type G1Affine = bn::G1Affine<Parameters>;
-pub type G1Projective = bn::G1Projective<Parameters>;
-pub type G2Affine = bn::G2Affine<Parameters>;
-pub type G2Projective = bn::G2Projective<Parameters>;

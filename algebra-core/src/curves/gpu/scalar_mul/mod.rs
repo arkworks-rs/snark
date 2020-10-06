@@ -12,7 +12,7 @@ use accel::*;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
 
-use crate::{biginteger::BigInteger, curves::ProjectiveCurve, fields::PrimeField};
+use crate::{curves::AffineCurve, fields::PrimeField};
 
 lazy_static! {
     pub static ref MICROBENCH_CPU_GPU_AVG_RATIO: Mutex<(Vec<f64>, usize)> = Mutex::new((vec![], 0));
@@ -20,10 +20,7 @@ lazy_static! {
 
 // We will use average of the proportions of throughput (points/s)
 // Preferably, one could make this mangled and curve specific.
-pub trait GPUScalarMul<G: ProjectiveCurve> {
-    type PrimeF: PrimeField;
-    type BigInt: BigInteger;
-
+pub trait GPUScalarMul<G: AffineCurve>: Sized {
     const NUM_BITS: usize;
     const LOG2_W: usize;
 
@@ -35,55 +32,52 @@ pub trait GPUScalarMul<G: ProjectiveCurve> {
 
     fn par_run_kernel(
         ctx: &Context,
-        bases_h: &[<G as ProjectiveCurve>::Affine],
-        exps_h: &[Self::BigInt],
+        bases_h: &[G],
+        exps_h: &[<<G as AffineCurve>::ScalarField as PrimeField>::BigInt],
         cuda_group_size: usize,
-    ) -> DeviceMemory<G>;
+    ) -> DeviceMemory<Self>;
 
     fn par_run_kernel_sync<T>(
         ctx: &Context,
-        bases_h: &[<G as ProjectiveCurve>::Affine],
-        exps_h: &[Self::BigInt],
+        bases_h: &[G],
+        exps_h: &[<<G as AffineCurve>::ScalarField as PrimeField>::BigInt],
         cuda_group_size: usize,
         lock: T,
-    ) -> DeviceMemory<G>;
+    ) -> DeviceMemory<Self>;
 
     fn generate_tables_and_recoding(
-        bases_h: &[<G as ProjectiveCurve>::Affine],
-        tables_h: &mut [G],
-        exps_h: &[Self::BigInt],
+        bases_h: &[G],
+        tables_h: &mut [Self],
+        exps_h: &[<<G as AffineCurve>::ScalarField as PrimeField>::BigInt],
         exps_recode_h: &mut [u8],
     );
 
     fn cpu_gpu_load_balance_run_kernel(
         ctx: &Context,
-        bases_h: &[<G as ProjectiveCurve>::Affine],
-        exps_h: &[Self::BigInt],
+        bases_h: &[G],
+        exps_h: &[<<G as AffineCurve>::ScalarField as PrimeField>::BigInt],
         cuda_group_size: usize,
         // size of a single job in the queue e.g. 2 << 14
         job_size: usize,
         // size of the batch for cpu scalar mul
         cpu_chunk_size: usize,
-    ) -> Vec<<G as ProjectiveCurve>::Affine>;
+    ) -> Vec<G>;
 
     fn cpu_gpu_static_partition_run_kernel(
-        bases_h: &[<G as ProjectiveCurve>::Affine],
-        exps_h: &[Self::BigInt],
+        bases_h: &mut [G],
+        exps_h: &[<<G as AffineCurve>::ScalarField as PrimeField>::BigInt],
         cuda_group_size: usize,
         // size of the batch for cpu scalar mul
         cpu_chunk_size: usize,
-    ) -> Vec<<G as ProjectiveCurve>::Affine>;
+    );
 }
 
 #[macro_export]
 macro_rules! impl_gpu_sw_projective {
     ($Parameters:ident) => {
-        impl<P: $Parameters> GPUScalarMul<GroupProjective<P>> for GroupProjective<P> {
-            type PrimeF = <Self as ProjectiveCurve>::ScalarField;
-            type BigInt = <Self::PrimeF as PrimeField>::BigInt;
-
+        impl<P: $Parameters> GPUScalarMul<GroupAffine<P>> for GroupProjective<P> {
             const NUM_BITS: usize =
-                <<Self::PrimeF as PrimeField>::Params as FpParameters>::MODULUS_BITS as usize;
+                <<<Self as ProjectiveCurve>::ScalarField as PrimeField>::Params as FpParameters>::MODULUS_BITS as usize;
             const LOG2_W: usize = 5;
 
             fn num_u8() -> usize {
@@ -97,12 +91,12 @@ macro_rules! impl_gpu_sw_projective {
             fn generate_tables_and_recoding(
                 bases_h: &[<Self as ProjectiveCurve>::Affine],
                 tables_h: &mut [Self],
-                exps_h: &[Self::BigInt],
+                exps_h: &[<<Self as ProjectiveCurve>::ScalarField as PrimeField>::BigInt],
                 exps_recode_h: &mut [u8],
             ) {
                 if P::has_glv() {
                     let scalar_recode_glv =
-                        |k1: &mut Self::BigInt, k2: &mut Self::BigInt| -> Vec<u8> {
+                        |k1: &mut <<Self as ProjectiveCurve>::ScalarField as PrimeField>::BigInt, k2: &mut <<Self as ProjectiveCurve>::ScalarField as PrimeField>::BigInt| -> Vec<u8> {
                             let table_size_glv: u64 = 1u64 << (Self::LOG2_W - 1);
                             let mut out = vec![0; Self::num_u8()];
                             for i in (0..Self::num_u8() / 2).rev() {
@@ -142,7 +136,7 @@ macro_rules! impl_gpu_sw_projective {
                             }
                         });
                 } else {
-                    let scalar_recode = |k: &mut Self::BigInt| -> Vec<u8> {
+                    let scalar_recode = |k: &mut <<Self as ProjectiveCurve>::ScalarField as PrimeField>::BigInt| -> Vec<u8> {
                         let mut out = vec![0; Self::num_u8()];
                         for i in (0..Self::num_u8()).rev() {
                             out[i] = (k.as_ref()[0] % Self::table_size() as u64) as u8;
@@ -175,21 +169,18 @@ macro_rules! impl_gpu_sw_projective {
 #[macro_export]
 macro_rules! impl_gpu_te_projective {
     ($Parameters:ident) => {
-        impl<P: $Parameters> GPUScalarMul<GroupProjective<P>> for GroupProjective<P> {
-            type PrimeF = <Self as ProjectiveCurve>::ScalarField;
-            type BigInt = <Self::PrimeF as PrimeField>::BigInt;
-
+        impl<P: $Parameters> GPUScalarMul<GroupAffine<P>> for GroupProjective<P> {
             const NUM_BITS: usize =
-                <<Self::PrimeF as PrimeField>::Params as FpParameters>::MODULUS_BITS as usize;
+                <<<Self as ProjectiveCurve>::ScalarField as PrimeField>::Params as FpParameters>::MODULUS_BITS as usize;
             const LOG2_W: usize = 5;
 
             fn generate_tables_and_recoding(
-                bases_h: &[<G as ProjectiveCurve>::Affine],
-                tables_h: &mut [G],
-                exps_h: &[Self::BigInt],
+                bases_h: &[<Self as ProjectiveCurve>::Affine],
+                tables_h: &mut [Self],
+                exps_h: &[<<Self as ProjectiveCurve>::ScalarField as PrimeField>::BigInt],
                 exps_recode_h: &mut [u8],
             ) {
-                fn scalar_recode(k: &mut Self::BigInt) -> Vec<u8> {
+                let scalar_recode = |k: &mut <<Self as ProjectiveCurve>::ScalarField as PrimeField>::BigInt| -> Vec<u8> {
                     let mut out = vec![0; Self::num_u8()];
                     for i in (0..Self::num_u8()).rev() {
                         out[i] = (k.as_ref()[0] % Self::table_size() as u64) as u8;
@@ -197,15 +188,15 @@ macro_rules! impl_gpu_te_projective {
                     }
                     assert!(k.is_zero());
                     out
-                }
+                };
                 cfg_iter!(exps_h)
                     .zip(cfg_chunks_mut!(exps_recode_h, Self::num_u8()))
                     .zip(cfg_chunks_mut!(tables_h, Self::table_size()).zip(cfg_iter!(bases_h)))
                     .for_each(|((k, exps_chunk), (table, base))| {
                         let base = base.into_projective();
-                        exps_chunk.clone_from_slice(&Self::scalar_recode(&mut k.clone())[..]);
+                        exps_chunk.clone_from_slice(&scalar_recode(&mut k.clone())[..]);
 
-                        table[0] = G::zero();
+                        table[0] = Self::zero();
                         for i in 1..Self::table_size() {
                             table[i] = table[i - 1] + base;
                         }
@@ -222,14 +213,29 @@ macro_rules! impl_gpu_te_projective {
     };
 }
 
-// trait GPUScalarMulSlice {
-//
-// }
-//
-// impl<G: AffineCurve> GPUScalarMulSlice for [G] {
-//
-// }
-//
-// impl<G: ProjectiveCurve> GPUScalarMulSlice for [G] {
-//
-// }
+pub trait GPUScalarMulSlice<G: AffineCurve> {
+    fn cpu_gpu_scalar_mul(
+        &mut self,
+        exps_h: &[<<G as AffineCurve>::ScalarField as PrimeField>::BigInt],
+        cuda_group_size: usize,
+        // size of the batch for cpu scalar mul
+        cpu_chunk_size: usize,
+    );
+}
+
+impl<G: AffineCurve> GPUScalarMulSlice<G> for [G] {
+    fn cpu_gpu_scalar_mul(
+        &mut self,
+        exps_h: &[<<G as AffineCurve>::ScalarField as PrimeField>::BigInt],
+        cuda_group_size: usize,
+        // size of the batch for cpu scalar mul
+        cpu_chunk_size: usize,
+    ) {
+        <G as AffineCurve>::Projective::cpu_gpu_static_partition_run_kernel(
+            self,
+            exps_h,
+            cuda_group_size,
+            cpu_chunk_size,
+        );
+    }
+}

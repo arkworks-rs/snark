@@ -9,20 +9,19 @@ macro_rules! impl_gpu_cpu_run_kernel {
 
         // Only one such procedure should be running at any time.
         fn cpu_gpu_static_partition_run_kernel(
-            bases_h: &[<Self as ProjectiveCurve>::Affine],
-            exps_h: &[Self::BigInt],
+            bases_h: &mut [<Self as ProjectiveCurve>::Affine],
+            exps_h: &[<<Self as ProjectiveCurve>::ScalarField as PrimeField>::BigInt],
             cuda_group_size: usize,
             // size of the batch for cpu scalar mul
             cpu_chunk_size: usize,
-        ) -> Vec<<Self as ProjectiveCurve>::Affine> {
+        ) {
             if !Device::init() {
                 panic!("Do not call this function unless the device has been checked to initialise successfully");
             }
             let n_devices = Device::get_count().unwrap();
-            let mut bases_res = bases_h.to_vec();
-            let n = bases_res.len();
+            let n = bases_h.len();
             // Create references so we can split the slices
-            let mut res_ref = &mut bases_res[..];
+            let mut res_ref = &mut bases_h[..];
             let mut exps_h_ref = exps_h;
 
             let now = std::time::Instant::now();
@@ -129,13 +128,12 @@ macro_rules! impl_gpu_cpu_run_kernel {
                 profile_data.0 = new_proportions.collect();
             }
             println!("new profile_data: {:?}", profile_data);
-            bases_res
         }
 
         fn cpu_gpu_load_balance_run_kernel(
             ctx: &Context,
             bases_h: &[<Self as ProjectiveCurve>::Affine],
-            exps_h: &[Self::BigInt],
+            exps_h: &[<<Self as ProjectiveCurve>::ScalarField as PrimeField>::BigInt],
             cuda_group_size: usize,
             // size of a single job in the queue e.g. 2 << 14
             job_size: usize,

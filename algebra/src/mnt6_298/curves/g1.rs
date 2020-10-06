@@ -5,7 +5,7 @@ use algebra_core::{
         mnt6,
         models::{ModelParameters, SWModelParameters},
     },
-    field_new,
+    field_new, impl_scalar_mul_kernel,
 };
 
 pub type G1Affine = mnt6::G1Affine<mnt6_298::Parameters>;
@@ -19,6 +19,9 @@ impl ModelParameters for Parameters {
     type BaseField = Fq;
     type ScalarField = Fr;
 }
+
+impl_scalar_mul_kernel!(mnt6_298, "mnt6_298", g1, G1Projective);
+
 impl SWModelParameters for Parameters {
     /// COEFF_A =
     #[rustfmt::skip]
@@ -57,6 +60,19 @@ impl SWModelParameters for Parameters {
     /// AFFINE_GENERATOR_COEFFS = (G1_GENERATOR_X, G1_GENERATOR_Y)
     const AFFINE_GENERATOR_COEFFS: (Self::BaseField, Self::BaseField) =
         (G1_GENERATOR_X, G1_GENERATOR_Y);
+
+    fn scalar_mul_kernel(
+        ctx: &Context,
+        grid: impl Into<Grid>,
+        block: impl Into<Block>,
+        table: *const G1Projective,
+        exps: *const u8,
+        out: *mut G1Projective,
+        n: isize,
+    ) -> error::Result<()> {
+        scalar_mul(ctx, grid, block, (table, exps, out, n))?;
+        Ok(())
+    }
 }
 
 /// G1_GENERATOR_X =

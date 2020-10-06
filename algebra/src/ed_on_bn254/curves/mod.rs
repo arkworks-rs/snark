@@ -5,7 +5,7 @@ use algebra_core::{
         models::{ModelParameters, MontgomeryModelParameters, TEModelParameters},
         twisted_edwards_extended::{GroupAffine, GroupProjective},
     },
-    field_new,
+    field_new, impl_scalar_mul_kernel,
 };
 
 #[cfg(test)]
@@ -45,6 +45,7 @@ impl ModelParameters for EdwardsParameters {
     type ScalarField = Fr;
 }
 
+impl_scalar_mul_kernel!(ed_on_bn254, "ed_on_bn254", proj, EdwardsProjective);
 impl TEModelParameters for EdwardsParameters {
     /// COEFF_A = 1
     #[rustfmt::skip]
@@ -87,6 +88,19 @@ impl TEModelParameters for EdwardsParameters {
     const AFFINE_GENERATOR_COEFFS: (Self::BaseField, Self::BaseField) = (GENERATOR_X, GENERATOR_Y);
 
     type MontgomeryModelParameters = EdwardsParameters;
+
+    fn scalar_mul_kernel(
+        ctx: &Context,
+        grid: impl Into<Grid>,
+        block: impl Into<Block>,
+        table: *const EdwardsProjective,
+        exps: *const u8,
+        out: *mut EdwardsProjective,
+        n: isize,
+    ) -> error::Result<()> {
+        scalar_mul(ctx, grid, block, (table, exps, out, n))?;
+        Ok(())
+    }
 }
 
 impl MontgomeryModelParameters for EdwardsParameters {

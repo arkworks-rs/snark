@@ -15,27 +15,11 @@ pub mod short_weierstrass_jacobian;
 pub mod twisted_edwards_extended;
 
 pub use short_weierstrass_jacobian::SWModelParameters;
+pub use twisted_edwards_extended::TEModelParameters;
 
 pub trait ModelParameters: Send + Sync + 'static {
     type BaseField: Field + SquareRootField;
     type ScalarField: PrimeField + SquareRootField + Into<<Self::ScalarField as PrimeField>::BigInt>;
-}
-
-pub trait TEModelParameters: ModelParameters {
-    const COEFF_A: Self::BaseField;
-    const COEFF_D: Self::BaseField;
-    const COFACTOR: &'static [u64];
-    const COFACTOR_INV: Self::ScalarField;
-    const AFFINE_GENERATOR_COEFFS: (Self::BaseField, Self::BaseField);
-
-    type MontgomeryModelParameters: MontgomeryModelParameters<BaseField = Self::BaseField>;
-
-    #[inline(always)]
-    fn mul_by_a(elem: &Self::BaseField) -> Self::BaseField {
-        let mut copy = *elem;
-        copy *= &Self::COEFF_A;
-        copy
-    }
 }
 
 pub trait MontgomeryModelParameters: ModelParameters {

@@ -1,10 +1,17 @@
 use algebra_core::{
     biginteger::{BigInteger256, BigInteger384},
-    curves::models::{ModelParameters, SWModelParameters},
-    field_new, Zero,
+    curves::{
+        bls12,
+        models::{ModelParameters, SWModelParameters},
+    },
+    field_new, impl_scalar_mul_kernel, Zero,
 };
 
-use crate::bls12_377::{Fq, Fr};
+use crate::bls12_377;
+use crate::bls12_377::*;
+
+pub type G1Affine = bls12::G1Affine<bls12_377::Parameters>;
+pub type G1Projective = bls12::G1Projective<bls12_377::Parameters>;
 
 #[derive(Clone, Default, PartialEq, Eq)]
 pub struct Parameters;
@@ -13,6 +20,8 @@ impl ModelParameters for Parameters {
     type BaseField = Fq;
     type ScalarField = Fr;
 }
+
+impl_scalar_mul_kernel!(bls12_377, "bls12_377", g1, G1Projective);
 
 impl SWModelParameters for Parameters {
     /// COEFF_A = 0
@@ -49,6 +58,19 @@ impl SWModelParameters for Parameters {
     #[inline(always)]
     fn mul_by_a(_: &Self::BaseField) -> Self::BaseField {
         Self::BaseField::zero()
+    }
+
+    fn scalar_mul_kernel(
+        ctx: &Context,
+        grid: impl Into<Grid>,
+        block: impl Into<Block>,
+        table: *const G1Projective,
+        exps: *const u8,
+        out: *mut G1Projective,
+        n: isize,
+    ) -> error::Result<()> {
+        scalar_mul(ctx, grid, block, (table, exps, out, n))?;
+        Ok(())
     }
 }
 

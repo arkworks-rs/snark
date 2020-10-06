@@ -5,7 +5,7 @@ macro_rules! impl_run_kernel {
         fn par_run_kernel_sync<T>(
             ctx: &Context,
             bases_h: &[<Self as ProjectiveCurve>::Affine],
-            exps_h: &[Self::BigInt],
+            exps_h: &[<<Self as ProjectiveCurve>::ScalarField as PrimeField>::BigInt],
             cuda_group_size: usize,
             lock: T,
         ) -> DeviceMemory<Self> {
@@ -58,7 +58,7 @@ macro_rules! impl_run_kernel {
         fn par_run_kernel(
             ctx: &Context,
             bases_h: &[<Self as ProjectiveCurve>::Affine],
-            exps_h: &[Self::BigInt],
+            exps_h: &[<<Self as ProjectiveCurve>::ScalarField as PrimeField>::BigInt],
             cuda_group_size: usize,
         ) -> DeviceMemory<Self> {
             assert_eq!(bases_h.len(), exps_h.len());

@@ -4,13 +4,13 @@ macro_rules! impl_scalar_mul_kernel {
         paste::item! {
             use accel::*;
 
-            #[kernel_mod(to_mod)]
+            #[kernel_mod(transparent)]
             #[dependencies("accel-core" = { git = "https://github.com/jon-chuang/accel", package = "accel-core" })]
             #[dependencies("algebra-core" = { git = "https://github.com/celo-org/zexe", branch = "jonch/gpu_sc_mul", package = "algebra-core", default_features = false})]
             #[dependencies("algebra" = { git = "https://github.com/celo-org/zexe", branch = "jonch/gpu_sc_mul", package = "algebra", default_features = false, features = [$curve_string]})]
             pub mod scalar_mul {
-                use crate::{$curve::$ProjCurve, FpParameters, Zero};
-                use algebra_core::{curves::ProjectiveCurve, fields::PrimeField};
+                use algebra::{$curve::$ProjCurve};
+                use algebra_core::{curves::ProjectiveCurve, fields::PrimeField, FpParameters, Zero};
 
                 const NUM_BITS: isize =
                     <<<$ProjCurve as ProjectiveCurve>::ScalarField as PrimeField>::Params as FpParameters>::MODULUS_BITS as isize;
@@ -21,10 +21,10 @@ macro_rules! impl_scalar_mul_kernel {
 
                 #[kernel_func]
                 pub unsafe fn scalar_mul(
-                    #[type_substitute(*const $crate::$curve::$ProjCurve)]
+                    #[type_substitute(*const super::$ProjCurve)]
                     table: *const $ProjCurve,
                     exps: *const u8,
-                    #[type_substitute(*const $crate::$curve::$ProjCurve)]
+                    #[type_substitute(*mut super::$ProjCurve)]
                     out: *mut $ProjCurve,
                     n: isize,
                 ) {

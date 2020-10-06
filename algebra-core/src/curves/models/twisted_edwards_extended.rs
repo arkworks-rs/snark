@@ -2,56 +2,92 @@ use crate::{
     curves::batch_arith::decode_endo_from_u32,
     io::{Read, Result as IoResult, Write},
     serialize::{EdwardsFlags, Flags},
-    BatchGroupArithmetic, CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
+    CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
     CanonicalSerializeWithFlags, ConstantSerializedSize, UniformRand, Vec,
 };
+use accel::*;
+use closure::closure;
 use core::{
     fmt::{Display, Formatter, Result as FmtResult},
     marker::PhantomData,
     ops::{Add, AddAssign, MulAssign, Neg, Sub, SubAssign},
 };
 use num_traits::{One, Zero};
+use peekmore::PeekMore;
 use rand::{
     distributions::{Distribution, Standard},
     Rng,
 };
+use std::sync::Mutex;
 
 use crate::{
+    biginteger::BigInteger,
     bytes::{FromBytes, ToBytes},
+    curves::gpu::scalar_mul::{GPUScalarMul, MICROBENCH_CPU_GPU_AVG_RATIO},
     curves::{
-        models::{
-            MontgomeryModelParameters as MontgomeryParameters, TEModelParameters as Parameters,
-        },
-        AffineCurve, ProjectiveCurve,
+        models::MontgomeryModelParameters, AffineCurve, BatchGroupArithmetic,
+        BatchGroupArithmeticSlice, ModelParameters, ProjectiveCurve,
     },
     fields::{BitIterator, Field, PrimeField, SquareRootField},
 };
+use crate::{
+    cfg_chunks_mut, cfg_iter, fields::FpParameters, impl_gpu_cpu_run_kernel,
+    impl_gpu_te_projective, impl_run_kernel,
+};
+
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
+pub trait TEModelParameters: ModelParameters + Sized {
+    const COEFF_A: Self::BaseField;
+    const COEFF_D: Self::BaseField;
+    const COFACTOR: &'static [u64];
+    const COFACTOR_INV: Self::ScalarField;
+    const AFFINE_GENERATOR_COEFFS: (Self::BaseField, Self::BaseField);
+
+    type MontgomeryModelParameters: MontgomeryModelParameters<BaseField = Self::BaseField>;
+
+    #[inline(always)]
+    fn mul_by_a(elem: &Self::BaseField) -> Self::BaseField {
+        let mut copy = *elem;
+        copy *= &Self::COEFF_A;
+        copy
+    }
+
+    fn scalar_mul_kernel(
+        ctx: &Context,
+        grid: impl Into<Grid>,
+        block: impl Into<Block>,
+        table: *const GroupProjective<Self>,
+        exps: *const u8,
+        out: *mut GroupProjective<Self>,
+        n: isize,
+    ) -> error::Result<()>;
+}
+
 #[derive(Derivative)]
 #[derivative(
-    Copy(bound = "P: Parameters"),
-    Clone(bound = "P: Parameters"),
-    PartialEq(bound = "P: Parameters"),
-    Eq(bound = "P: Parameters"),
-    Debug(bound = "P: Parameters"),
-    Hash(bound = "P: Parameters")
+    Copy(bound = "P: TEModelParameters"),
+    Clone(bound = "P: TEModelParameters"),
+    PartialEq(bound = "P: TEModelParameters"),
+    Eq(bound = "P: TEModelParameters"),
+    Debug(bound = "P: TEModelParameters"),
+    Hash(bound = "P: TEModelParameters")
 )]
-pub struct GroupAffine<P: Parameters> {
+pub struct GroupAffine<P: TEModelParameters> {
     pub x: P::BaseField,
     pub y: P::BaseField,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
 }
 
-impl<P: Parameters> Display for GroupAffine<P> {
+impl<P: TEModelParameters> Display for GroupAffine<P> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         write!(f, "GroupAffine(x={}, y={})", self.x, self.y)
     }
 }
 
-impl<P: Parameters> GroupAffine<P> {
+impl<P: TEModelParameters> GroupAffine<P> {
     pub fn new(x: P::BaseField, y: P::BaseField) -> Self {
         Self {
             x,
@@ -118,7 +154,7 @@ impl<P: Parameters> GroupAffine<P> {
     }
 }
 
-impl<P: Parameters> Zero for GroupAffine<P> {
+impl<P: TEModelParameters> Zero for GroupAffine<P> {
     fn zero() -> Self {
         Self::new(P::BaseField::zero(), P::BaseField::one())
     }
@@ -128,7 +164,7 @@ impl<P: Parameters> Zero for GroupAffine<P> {
     }
 }
 
-impl<P: Parameters> AffineCurve for GroupAffine<P> {
+impl<P: TEModelParameters> AffineCurve for GroupAffine<P> {
     const COFACTOR: &'static [u64] = P::COFACTOR;
     type BaseField = P::BaseField;
     type ScalarField = P::ScalarField;
@@ -207,7 +243,7 @@ macro_rules! batch_add_loop_2 {
     };
 }
 
-impl<P: Parameters> BatchGroupArithmetic for GroupAffine<P> {
+impl<P: TEModelParameters> BatchGroupArithmetic for GroupAffine<P> {
     type BaseFieldForBatch = P::BaseField;
 
     fn batch_double_in_place(
@@ -368,7 +404,7 @@ impl<P: Parameters> BatchGroupArithmetic for GroupAffine<P> {
     }
 }
 
-impl<P: Parameters> Neg for GroupAffine<P> {
+impl<P: TEModelParameters> Neg for GroupAffine<P> {
     type Output = Self;
 
     fn neg(self) -> Self {
@@ -376,9 +412,9 @@ impl<P: Parameters> Neg for GroupAffine<P> {
     }
 }
 
-crate::impl_additive_ops_from_ref!(GroupAffine, Parameters);
+crate::impl_additive_ops_from_ref!(GroupAffine, TEModelParameters);
 
-impl<'a, P: Parameters> Add<&'a Self> for GroupAffine<P> {
+impl<'a, P: TEModelParameters> Add<&'a Self> for GroupAffine<P> {
     type Output = Self;
     fn add(self, other: &'a Self) -> Self {
         let mut copy = self;
@@ -387,7 +423,7 @@ impl<'a, P: Parameters> Add<&'a Self> for GroupAffine<P> {
     }
 }
 
-impl<'a, P: Parameters> AddAssign<&'a Self> for GroupAffine<P> {
+impl<'a, P: TEModelParameters> AddAssign<&'a Self> for GroupAffine<P> {
     fn add_assign(&mut self, other: &'a Self) {
         let y1y2 = self.y * &other.y;
         let x1x2 = self.x * &other.x;
@@ -404,7 +440,7 @@ impl<'a, P: Parameters> AddAssign<&'a Self> for GroupAffine<P> {
     }
 }
 
-impl<'a, P: Parameters> Sub<&'a Self> for GroupAffine<P> {
+impl<'a, P: TEModelParameters> Sub<&'a Self> for GroupAffine<P> {
     type Output = Self;
     fn sub(self, other: &'a Self) -> Self {
         let mut copy = self;
@@ -413,19 +449,19 @@ impl<'a, P: Parameters> Sub<&'a Self> for GroupAffine<P> {
     }
 }
 
-impl<'a, P: Parameters> SubAssign<&'a Self> for GroupAffine<P> {
+impl<'a, P: TEModelParameters> SubAssign<&'a Self> for GroupAffine<P> {
     fn sub_assign(&mut self, other: &'a Self) {
         *self += &(-(*other));
     }
 }
 
-impl<P: Parameters> MulAssign<P::ScalarField> for GroupAffine<P> {
+impl<P: TEModelParameters> MulAssign<P::ScalarField> for GroupAffine<P> {
     fn mul_assign(&mut self, other: P::ScalarField) {
         *self = self.mul(other.into_repr()).into()
     }
 }
 
-impl<P: Parameters> ToBytes for GroupAffine<P> {
+impl<P: TEModelParameters> ToBytes for GroupAffine<P> {
     #[inline]
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
         self.x.write(&mut writer)?;
@@ -433,7 +469,7 @@ impl<P: Parameters> ToBytes for GroupAffine<P> {
     }
 }
 
-impl<P: Parameters> FromBytes for GroupAffine<P> {
+impl<P: TEModelParameters> FromBytes for GroupAffine<P> {
     #[inline]
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
         let x = P::BaseField::read(&mut reader)?;
@@ -442,14 +478,14 @@ impl<P: Parameters> FromBytes for GroupAffine<P> {
     }
 }
 
-impl<P: Parameters> Default for GroupAffine<P> {
+impl<P: TEModelParameters> Default for GroupAffine<P> {
     #[inline]
     fn default() -> Self {
         Self::zero()
     }
 }
 
-impl<P: Parameters> Distribution<GroupAffine<P>> for Standard {
+impl<P: TEModelParameters> Distribution<GroupAffine<P>> for Standard {
     #[inline]
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> GroupAffine<P> {
         loop {
@@ -467,7 +503,7 @@ mod group_impl {
     use super::*;
     use crate::groups::Group;
 
-    impl<P: Parameters> Group for GroupAffine<P> {
+    impl<P: TEModelParameters> Group for GroupAffine<P> {
         type ScalarField = P::ScalarField;
 
         #[inline]
@@ -492,13 +528,13 @@ mod group_impl {
 
 #[derive(Derivative)]
 #[derivative(
-    Copy(bound = "P: Parameters"),
-    Clone(bound = "P: Parameters"),
-    Eq(bound = "P: Parameters"),
-    Debug(bound = "P: Parameters"),
-    Hash(bound = "P: Parameters")
+    Copy(bound = "P: TEModelParameters"),
+    Clone(bound = "P: TEModelParameters"),
+    Eq(bound = "P: TEModelParameters"),
+    Debug(bound = "P: TEModelParameters"),
+    Hash(bound = "P: TEModelParameters")
 )]
-pub struct GroupProjective<P: Parameters> {
+pub struct GroupProjective<P: TEModelParameters> {
     pub x: P::BaseField,
     pub y: P::BaseField,
     pub t: P::BaseField,
@@ -507,13 +543,13 @@ pub struct GroupProjective<P: Parameters> {
     _params: PhantomData<P>,
 }
 
-impl<P: Parameters> Display for GroupProjective<P> {
+impl<P: TEModelParameters> Display for GroupProjective<P> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         write!(f, "{}", GroupAffine::from(*self))
     }
 }
 
-impl<P: Parameters> PartialEq for GroupProjective<P> {
+impl<P: TEModelParameters> PartialEq for GroupProjective<P> {
     fn eq(&self, other: &Self) -> bool {
         if self.is_zero() {
             return other.is_zero();
@@ -528,7 +564,7 @@ impl<P: Parameters> PartialEq for GroupProjective<P> {
     }
 }
 
-impl<P: Parameters> Distribution<GroupProjective<P>> for Standard {
+impl<P: TEModelParameters> Distribution<GroupProjective<P>> for Standard {
     #[inline]
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> GroupProjective<P> {
         loop {
@@ -542,7 +578,7 @@ impl<P: Parameters> Distribution<GroupProjective<P>> for Standard {
     }
 }
 
-impl<P: Parameters> ToBytes for GroupProjective<P> {
+impl<P: TEModelParameters> ToBytes for GroupProjective<P> {
     #[inline]
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
         self.x.write(&mut writer)?;
@@ -552,7 +588,7 @@ impl<P: Parameters> ToBytes for GroupProjective<P> {
     }
 }
 
-impl<P: Parameters> FromBytes for GroupProjective<P> {
+impl<P: TEModelParameters> FromBytes for GroupProjective<P> {
     #[inline]
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
         let x = P::BaseField::read(&mut reader)?;
@@ -563,14 +599,14 @@ impl<P: Parameters> FromBytes for GroupProjective<P> {
     }
 }
 
-impl<P: Parameters> Default for GroupProjective<P> {
+impl<P: TEModelParameters> Default for GroupProjective<P> {
     #[inline]
     fn default() -> Self {
         Self::zero()
     }
 }
 
-impl<P: Parameters> GroupProjective<P> {
+impl<P: TEModelParameters> GroupProjective<P> {
     pub fn new(x: P::BaseField, y: P::BaseField, t: P::BaseField, z: P::BaseField) -> Self {
         Self {
             x,
@@ -582,7 +618,7 @@ impl<P: Parameters> GroupProjective<P> {
     }
 }
 
-impl<P: Parameters> Zero for GroupProjective<P> {
+impl<P: TEModelParameters> Zero for GroupProjective<P> {
     fn zero() -> Self {
         Self::new(
             P::BaseField::zero(),
@@ -597,7 +633,9 @@ impl<P: Parameters> Zero for GroupProjective<P> {
     }
 }
 
-impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
+impl_gpu_te_projective!(TEModelParameters);
+
+impl<P: TEModelParameters> ProjectiveCurve for GroupProjective<P> {
     const COFACTOR: &'static [u64] = P::COFACTOR;
     type BaseField = P::BaseField;
     type ScalarField = P::ScalarField;
@@ -693,7 +731,7 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
     }
 }
 
-impl<P: Parameters> Neg for GroupProjective<P> {
+impl<P: TEModelParameters> Neg for GroupProjective<P> {
     type Output = Self;
     fn neg(mut self) -> Self {
         self.x = -self.x;
@@ -702,9 +740,9 @@ impl<P: Parameters> Neg for GroupProjective<P> {
     }
 }
 
-crate::impl_additive_ops_from_ref!(GroupProjective, Parameters);
+crate::impl_additive_ops_from_ref!(GroupProjective, TEModelParameters);
 
-impl<'a, P: Parameters> Add<&'a Self> for GroupProjective<P> {
+impl<'a, P: TEModelParameters> Add<&'a Self> for GroupProjective<P> {
     type Output = Self;
     fn add(self, other: &'a Self) -> Self {
         let mut copy = self;
@@ -713,7 +751,7 @@ impl<'a, P: Parameters> Add<&'a Self> for GroupProjective<P> {
     }
 }
 
-impl<'a, P: Parameters> AddAssign<&'a Self> for GroupProjective<P> {
+impl<'a, P: TEModelParameters> AddAssign<&'a Self> for GroupProjective<P> {
     fn add_assign(&mut self, other: &'a Self) {
         // See "Twisted Edwards Curves Revisited"
         // Huseyin Hisil, Kenneth Koon-Ho Wong, Gary Carter, and Ed Dawson
@@ -757,7 +795,7 @@ impl<'a, P: Parameters> AddAssign<&'a Self> for GroupProjective<P> {
     }
 }
 
-impl<'a, P: Parameters> Sub<&'a Self> for GroupProjective<P> {
+impl<'a, P: TEModelParameters> Sub<&'a Self> for GroupProjective<P> {
     type Output = Self;
     fn sub(self, other: &'a Self) -> Self {
         let mut copy = self;
@@ -766,13 +804,13 @@ impl<'a, P: Parameters> Sub<&'a Self> for GroupProjective<P> {
     }
 }
 
-impl<'a, P: Parameters> SubAssign<&'a Self> for GroupProjective<P> {
+impl<'a, P: TEModelParameters> SubAssign<&'a Self> for GroupProjective<P> {
     fn sub_assign(&mut self, other: &'a Self) {
         *self += &(-(*other));
     }
 }
 
-impl<P: Parameters> MulAssign<P::ScalarField> for GroupProjective<P> {
+impl<P: TEModelParameters> MulAssign<P::ScalarField> for GroupProjective<P> {
     fn mul_assign(&mut self, other: P::ScalarField) {
         *self = self.mul(other.into_repr())
     }
@@ -780,7 +818,7 @@ impl<P: Parameters> MulAssign<P::ScalarField> for GroupProjective<P> {
 
 // The affine point (X, Y) is represented in the Extended Projective coordinates
 // with Z = 1.
-impl<P: Parameters> From<GroupAffine<P>> for GroupProjective<P> {
+impl<P: TEModelParameters> From<GroupAffine<P>> for GroupProjective<P> {
     fn from(p: GroupAffine<P>) -> GroupProjective<P> {
         Self::new(p.x, p.y, p.x * &p.y, P::BaseField::one())
     }
@@ -788,7 +826,7 @@ impl<P: Parameters> From<GroupAffine<P>> for GroupProjective<P> {
 
 // The projective point X, Y, T, Z is represented in the affine
 // coordinates as X/Z, Y/Z.
-impl<P: Parameters> From<GroupProjective<P>> for GroupAffine<P> {
+impl<P: TEModelParameters> From<GroupProjective<P>> for GroupAffine<P> {
     fn from(p: GroupProjective<P>) -> GroupAffine<P> {
         if p.is_zero() {
             GroupAffine::zero()
@@ -805,7 +843,7 @@ impl<P: Parameters> From<GroupProjective<P>> for GroupAffine<P> {
     }
 }
 
-impl<P: Parameters> core::str::FromStr for GroupAffine<P>
+impl<P: TEModelParameters> core::str::FromStr for GroupAffine<P>
 where
     P::BaseField: core::str::FromStr<Err = ()>,
 {
@@ -843,27 +881,27 @@ where
 
 #[derive(Derivative)]
 #[derivative(
-    Copy(bound = "P: MontgomeryParameters"),
-    Clone(bound = "P: MontgomeryParameters"),
-    PartialEq(bound = "P: MontgomeryParameters"),
-    Eq(bound = "P: MontgomeryParameters"),
-    Debug(bound = "P: MontgomeryParameters"),
-    Hash(bound = "P: MontgomeryParameters")
+    Copy(bound = "P: MontgomeryModelParameters"),
+    Clone(bound = "P: MontgomeryModelParameters"),
+    PartialEq(bound = "P: MontgomeryModelParameters"),
+    Eq(bound = "P: MontgomeryModelParameters"),
+    Debug(bound = "P: MontgomeryModelParameters"),
+    Hash(bound = "P: MontgomeryModelParameters")
 )]
-pub struct MontgomeryGroupAffine<P: MontgomeryParameters> {
+pub struct MontgomeryGroupAffine<P: MontgomeryModelParameters> {
     pub x: P::BaseField,
     pub y: P::BaseField,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
 }
 
-impl<P: MontgomeryParameters> Display for MontgomeryGroupAffine<P> {
+impl<P: MontgomeryModelParameters> Display for MontgomeryGroupAffine<P> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         write!(f, "MontgomeryGroupAffine(x={}, y={})", self.x, self.y)
     }
 }
 
-impl<P: MontgomeryParameters> MontgomeryGroupAffine<P> {
+impl<P: MontgomeryModelParameters> MontgomeryGroupAffine<P> {
     pub fn new(x: P::BaseField, y: P::BaseField) -> Self {
         Self {
             x,
@@ -873,4 +911,4 @@ impl<P: MontgomeryParameters> MontgomeryGroupAffine<P> {
     }
 }
 
-impl_edwards_curve_serializer!(Parameters);
+impl_edwards_curve_serializer!(TEModelParameters);
