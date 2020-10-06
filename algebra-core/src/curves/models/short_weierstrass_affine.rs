@@ -1,9 +1,12 @@
 #[macro_export]
 macro_rules! specialise_affine_to_proj {
     ($GroupProjective: ident) => {
-        use crate::batch_arith::decode_endo_from_u32;
         #[cfg(feature = "prefetch")]
         use crate::prefetch;
+        use crate::{
+            biginteger::BigInteger,
+            curves::batch_arith::{decode_endo_from_u32, ENDO_CODING_BITS},
+        };
 
         #[derive(Derivative)]
         #[derivative(
@@ -56,8 +59,16 @@ macro_rules! specialise_affine_to_proj {
                 &self,
                 by: S,
             ) -> Self::Projective {
-                let bits = BitIteratorBE::new(by.into());
-                self.mul_bits(bits)
+                if P::has_glv() {
+                    let w = 4;
+                    let mut res = Self::Projective::zero();
+                    let self_proj = self.into_projective();
+                    impl_glv_mul!(Self::Projective, P, w, self_proj, res, by);
+                    res
+                } else {
+                    let bits = BitIteratorBE::new(by.into());
+                    self.mul_bits(bits)
+                }
             }
 
             #[inline]
@@ -215,5 +226,91 @@ macro_rules! specialise_affine_to_proj {
         }
 
         impl_sw_curve_serializer!(Parameters);
+    };
+}
+
+/// Implements GLV mul for a single element with a wNAF tables
+#[macro_export]
+macro_rules! impl_glv_mul {
+    ($Projective: ty, $P: ident, $w: ident, $self_proj: ident, $res: ident, $by: ident) => {
+        // In the future, make this a GLV parameter entry
+        let wnaf_recoding =
+            |s: &mut <Self::ScalarField as PrimeField>::BigInt, is_neg: bool| -> Vec<i16> {
+                let window_size: i16 = 1 << ($w + 1);
+                let half_window_size: i16 = 1 << $w;
+
+                let mut recoding = Vec::<i16>::with_capacity(s.num_bits() as usize / ($w + 1));
+
+                while !s.is_zero() {
+                    let op = if s.is_odd() {
+                        let mut z: i16 = (s.as_ref()[0] % (1 << ($w + 1))) as i16;
+
+                        if z < half_window_size {
+                            s.sub_noborrow(&(z as u64).into());
+                        } else {
+                            z = z - window_size;
+                            s.add_nocarry(&((-z) as u64).into());
+                        }
+                        if is_neg {
+                            -z
+                        } else {
+                            z
+                        }
+                    } else {
+                        0
+                    };
+                    recoding.push(op);
+                    s.div2();
+                }
+                recoding
+            };
+
+        let ((k1_neg, mut k1), (k2_neg, mut k2)) = $P::glv_scalar_decomposition($by.into());
+        let mut wnaf_table_k1 = Vec::<$Projective>::with_capacity(1 << $w);
+        let double = $self_proj.double();
+        wnaf_table_k1.push($self_proj);
+        for _ in 1..(1 << ($w - 1)) {
+            wnaf_table_k1.push(*wnaf_table_k1.last().unwrap() + &double);
+        }
+        let mut wnaf_table_k2 = wnaf_table_k1.clone();
+        wnaf_table_k2
+            .iter_mut()
+            .for_each(|p| $P::glv_endomorphism_in_place(&mut p.x));
+
+        let k1_ops = wnaf_recoding(&mut k1, k1_neg);
+        let k2_ops = wnaf_recoding(&mut k2, k2_neg);
+
+        if k1_ops.len() > k2_ops.len() {
+            for &op in k1_ops[k2_ops.len()..].iter().rev() {
+                $res.double_in_place();
+                if op > 0 {
+                    $res += &wnaf_table_k1[(op as usize) / 2];
+                } else if op < 0 {
+                    $res += &wnaf_table_k1[(-op as usize) / 2].neg();
+                }
+            }
+        } else {
+            for &op in k2_ops[k1_ops.len()..].iter().rev() {
+                $res.double_in_place();
+                if op > 0 {
+                    $res += &wnaf_table_k2[(op as usize) / 2];
+                } else if op < 0 {
+                    $res += &wnaf_table_k2[(-op as usize) / 2].neg();
+                }
+            }
+        }
+        for (&op1, &op2) in k1_ops.iter().zip(k2_ops.iter()).rev() {
+            $res.double_in_place();
+            if op1 > 0 {
+                $res += &wnaf_table_k1[(op1 as usize) / 2];
+            } else if op1 < 0 {
+                $res += &wnaf_table_k1[(-op1 as usize) / 2].neg();
+            }
+            if op2 > 0 {
+                $res += &wnaf_table_k2[(op2 as usize) / 2];
+            } else if op2 < 0 {
+                $res += &wnaf_table_k2[(-op2 as usize) / 2].neg();
+            }
+        }
     };
 }

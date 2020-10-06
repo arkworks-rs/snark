@@ -1,0 +1,16 @@
+[package]
+name = "glv_lattice_basis"
+version = "0.1.0"
+authors = ["Jonathan Chuang"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+algebra = { path = "../../algebra", features = ["bw6_761"] }
+algebra-core = { path = "../../algebra-core", default-features = false }
+num-traits = { version = "0.2", default-features = false }
+
+[features]
+default = [ "std" ]
+std = [ "algebra-core/std" ]

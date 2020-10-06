@@ -4,8 +4,10 @@ use crate::{
     curves::{
         models::{ModelParameters, SWModelParameters},
         short_weierstrass_jacobian::{GroupAffine, GroupProjective},
+        GLVParameters,
     },
     field_new,
+    fields::PrimeField,
 };
 
 pub type G2Affine = GroupAffine<Parameters>;
@@ -17,6 +19,82 @@ pub struct Parameters;
 impl ModelParameters for Parameters {
     type BaseField = Fq;
     type ScalarField = Fr;
+}
+
+impl GLVParameters for Parameters {
+    type WideBigInt = BigInteger768;
+
+    /// phi((x, y)) = (\omega x, y)
+    /// \omega = 0x531dc16c6ecd27aa846c61024e4cca6c1f31e53bd9603c2d17be416c5e44
+    /// 26ee4a737f73b6f952ab5e57926fa701848e0a235a0a398300c65759fc4518315
+    /// 1f2f082d4dcb5e37cb6290012d96f8819c547ba8a4000002f962140000000002a
+    const OMEGA: Fq = field_new!(
+        Fq,
+        BigInteger768([
+            9193734820520314185,
+            15390913228415833887,
+            5309822015742495676,
+            5431732283202763350,
+            17252325881282386417,
+            298854800984767943,
+            15252629665615712253,
+            11476276919959978448,
+            6617989123466214626,
+            293279592164056124,
+            3271178847573361778,
+            76563709148138387
+        ])
+    );
+
+    /// lambda in Z s.t. phi(P) = lambda*P for all P
+    /// \lambda = 0x9b3af05dd14f6ec619aaf7d34594aabc5ed1347970dec00452217cc900000008508c00000000001
+    const LAMBDA: Self::ScalarField = field_new!(
+        Fr,
+        (BigInteger384([
+            15766275933608376691,
+            15635974902606112666,
+            1934946774703877852,
+            18129354943882397960,
+            15437979634065614942,
+            101285514078273488
+        ]))
+    );
+    /// |round(B1 * R / n)|
+    const Q2: <Self::ScalarField as PrimeField>::BigInt = BigInteger384([
+        14430678704534329733,
+        14479735877321354361,
+        6958676793196883088,
+        21,
+        0,
+        0,
+    ]);
+    const B1: <Self::ScalarField as PrimeField>::BigInt = BigInteger384([
+        9586122913090633729,
+        9963140610363752448,
+        2588746559005780992,
+        0,
+        0,
+        0,
+    ]);
+    const B1_IS_NEG: bool = true;
+    /// |round(B2 * R / n)|
+    const Q1: <Self::ScalarField as PrimeField>::BigInt = BigInteger384([
+        11941976086484053770,
+        4826578625773784813,
+        2319558931065627696,
+        7,
+        0,
+        0,
+    ]);
+    const B2: <Self::ScalarField as PrimeField>::BigInt = BigInteger384([
+        6390748608727089153,
+        3321046870121250816,
+        862915519668593664,
+        0,
+        0,
+        0,
+    ]);
+    const R_BITS: u32 = 384;
 }
 
 impl SWModelParameters for Parameters {
@@ -73,6 +151,26 @@ impl SWModelParameters for Parameters {
     fn mul_by_a(_elem: &Self::BaseField) -> Self::BaseField {
         use crate::Zero;
         Self::BaseField::zero()
+    }
+
+    #[inline(always)]
+    fn has_glv() -> bool {
+        true
+    }
+
+    #[inline(always)]
+    fn glv_endomorphism_in_place(elem: &mut Self::BaseField) {
+        *elem *= &<Self as GLVParameters>::OMEGA;
+    }
+
+    #[inline]
+    fn glv_scalar_decomposition(
+        k: <Self::ScalarField as PrimeField>::BigInt,
+    ) -> (
+        (bool, <Self::ScalarField as PrimeField>::BigInt),
+        (bool, <Self::ScalarField as PrimeField>::BigInt),
+    ) {
+        <Self as GLVParameters>::glv_scalar_decomposition_inner(k)
     }
 }
 

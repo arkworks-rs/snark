@@ -43,6 +43,31 @@ pub trait SWModelParameters: ModelParameters {
         copy += &Self::COEFF_B;
         copy
     }
+
+    #[inline(always)]
+    fn has_glv() -> bool {
+        false
+    }
+
+    #[inline(always)]
+    fn glv_endomorphism_in_place(_elem: &mut Self::BaseField) {
+        unimplemented!()
+    }
+
+    #[inline(always)]
+    fn glv_scalar_decomposition(
+        _k: <Self::ScalarField as PrimeField>::BigInt,
+    ) -> (
+        (bool, <Self::ScalarField as PrimeField>::BigInt),
+        (bool, <Self::ScalarField as PrimeField>::BigInt),
+    ) {
+        unimplemented!()
+    }
+
+    #[inline(always)]
+    fn glv_window_size() -> usize {
+        4
+    }
 }
 
 pub trait TEModelParameters: ModelParameters {

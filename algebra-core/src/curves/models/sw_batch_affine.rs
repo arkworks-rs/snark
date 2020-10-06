@@ -303,6 +303,11 @@ macro_rules! impl_sw_batch_affine {
                         other[idy]
                     };
 
+                    if P::has_glv() {
+                        if endomorphism >> 1 == 1 {
+                            P::glv_endomorphism_in_place(&mut b.x);
+                        }
+                    }
                     batch_add_loop_1!(a, b, half, inversion_tmp);
                     scratch_space.push(b);
                 }
@@ -416,6 +421,188 @@ macro_rules! impl_sw_batch_affine {
                     };
                 }
                 scratch_space.clear();
+            }
+
+            fn batch_scalar_mul_in_place<BigInt: BigInteger>(
+                mut bases: &mut [Self],
+                scalars: &mut [BigInt],
+                w: usize,
+            ) {
+                debug_assert!(bases.len() == scalars.len());
+                let batch_size = bases.len();
+                if P::has_glv() {
+                    use itertools::{EitherOrBoth::*, Itertools};
+                    let mut scratch_space = Vec::<Self::BBaseField>::with_capacity(bases.len());
+                    let mut scratch_space_group = Vec::<Self>::with_capacity(bases.len() / w);
+
+                    let _now = timer!();
+                    let k_vec: Vec<_> = scalars
+                        .iter()
+                        .map(|k| {
+                            P::glv_scalar_decomposition(
+                                <P::ScalarField as PrimeField>::BigInt::from_slice(k.as_ref()),
+                            )
+                        })
+                        .collect();
+                    timer_println!(_now, "glv decomp");
+
+                    let _now = timer!();
+                    let mut k1_scalars: Vec<_> = k_vec.iter().map(|x| (x.0).1).collect();
+                    let k1_negates: Vec<_> = k_vec.iter().map(|x| (x.0).0).collect();
+                    let mut k2_scalars: Vec<_> = k_vec.iter().map(|x| (x.1).1).collect();
+                    let k2_negates: Vec<_> = k_vec.iter().map(|x| (x.1).0).collect();
+
+                    let opcode_vectorised_k1 = Self::batch_wnaf_opcode_recoding(
+                        &mut k1_scalars[..],
+                        w,
+                        Some(k1_negates.as_slice()),
+                    );
+                    let opcode_vectorised_k2 = Self::batch_wnaf_opcode_recoding(
+                        &mut k2_scalars[..],
+                        w,
+                        Some(k2_negates.as_slice()),
+                    );
+                    timer_println!(_now, "opcode decomp");
+
+                    let _now = timer!();
+                    let tables = Self::batch_wnaf_tables(bases, w);
+                    let tables_k2: Vec<_> = tables
+                        .iter()
+                        .map(|&p| {
+                            let mut p = p;
+                            P::glv_endomorphism_in_place(&mut p.x);
+                            p
+                        })
+                        .collect();
+                    timer_println!(_now, "table generation");
+                    // Set all points to 0;
+                    let zero = Self::zero();
+                    for p in bases.iter_mut() {
+                        *p = zero;
+                    }
+
+                    let _now = timer!();
+                    let noop_vec = vec![None; batch_size];
+                    for (opcode_row_k1, opcode_row_k2) in opcode_vectorised_k1
+                        .iter()
+                        .zip_longest(opcode_vectorised_k2.iter())
+                        .map(|x| match x {
+                            Both(a, b) => (a, b),
+                            Left(a) => (a, &noop_vec),
+                            Right(b) => (&noop_vec, b),
+                        })
+                        .rev()
+                    {
+                        let index_double: Vec<_> = opcode_row_k1
+                            .iter()
+                            .zip(opcode_row_k2.iter())
+                            .enumerate()
+                            .filter(|x| (x.1).0.is_some() || (x.1).1.is_some())
+                            .map(|x| x.0 as u32)
+                            .collect();
+
+                        Self::batch_double_in_place(
+                            &mut bases,
+                            &index_double[..],
+                            Some(&mut scratch_space),
+                        );
+                        let index_add_k1: Vec<_> = opcode_row_k1
+                            .iter()
+                            .enumerate()
+                            .filter(|(_, op)| op.is_some() && op.unwrap() != 0)
+                            .map(|(i, op)| {
+                                let idx = op.unwrap();
+                                if idx > 0 {
+                                    let op2 = ((idx as usize) / 2 * batch_size + i) as u32;
+                                    (i as u32, op2 << ENDO_CODING_BITS)
+                                } else {
+                                    let op2 = ((-idx as usize) / 2 * batch_size + i) as u32;
+                                    (i as u32, (op2 << ENDO_CODING_BITS) + 1)
+                                }
+                            })
+                            .collect();
+
+                        Self::batch_add_in_place_read_only(
+                            &mut bases,
+                            &tables[..],
+                            &index_add_k1[..],
+                            &mut scratch_space_group,
+                        );
+                        let index_add_k2: Vec<_> = opcode_row_k2
+                            .iter()
+                            .enumerate()
+                            .filter(|(_, op)| op.is_some() && op.unwrap() != 0)
+                            .map(|(i, op)| {
+                                let idx = op.unwrap();
+                                if idx > 0 {
+                                    let op2 = ((idx as usize) / 2 * batch_size + i) as u32;
+                                    (i as u32, op2 << ENDO_CODING_BITS)
+                                } else {
+                                    let op2 = ((-idx as usize) / 2 * batch_size + i) as u32;
+                                    (i as u32, (op2 << ENDO_CODING_BITS) + 1)
+                                }
+                            })
+                            .collect();
+
+                        Self::batch_add_in_place_read_only(
+                            &mut bases,
+                            &tables_k2[..],
+                            &index_add_k2[..],
+                            &mut scratch_space_group,
+                        );
+                    }
+                    timer_println!(_now, "batch ops");
+                } else {
+                    let mut scratch_space = Vec::<Self::BBaseField>::with_capacity(bases.len());
+                    let opcode_vectorised =
+                        Self::batch_wnaf_opcode_recoding::<BigInt>(scalars, w, None);
+                    let tables = Self::batch_wnaf_tables(bases, w);
+                    // Set all points to 0;
+                    let zero = Self::zero();
+                    for p in bases.iter_mut() {
+                        *p = zero;
+                    }
+
+                    for opcode_row in opcode_vectorised.iter().rev() {
+                        let index_double: Vec<_> = opcode_row
+                            .iter()
+                            .enumerate()
+                            .filter(|x| x.1.is_some())
+                            .map(|x| x.0 as u32)
+                            .collect();
+
+                        Self::batch_double_in_place(
+                            &mut bases,
+                            &index_double[..],
+                            Some(&mut scratch_space),
+                        );
+
+                        let mut add_ops: Vec<Self> = opcode_row
+                            .iter()
+                            .enumerate()
+                            .filter(|(_, op)| op.is_some() && op.unwrap() != 0)
+                            .map(|(i, op)| {
+                                let idx = op.unwrap();
+                                if idx > 0 {
+                                    tables[(idx as usize) / 2 * batch_size + i].clone()
+                                } else {
+                                    tables[(-idx as usize) / 2 * batch_size + i].clone().neg()
+                                }
+                            })
+                            .collect();
+
+                        let index_add: Vec<_> = opcode_row
+                            .iter()
+                            .enumerate()
+                            .filter(|(_, op)| op.is_some() && op.unwrap() != 0)
+                            .map(|x| x.0)
+                            .enumerate()
+                            .map(|(x, y)| (y as u32, x as u32))
+                            .collect();
+
+                        Self::batch_add_in_place(&mut bases, &mut add_ops[..], &index_add[..]);
+                    }
+                }
             }
         }
     };
