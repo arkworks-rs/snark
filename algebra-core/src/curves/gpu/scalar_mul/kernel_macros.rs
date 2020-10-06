@@ -4,6 +4,7 @@ macro_rules! impl_scalar_mul_kernel {
         paste::item! {
             use accel::*;
 
+            #[cfg(feature = "gpu")]
             #[kernel_mod(transparent)]
             #[dependencies("accel-core" = { git = "https://github.com/jon-chuang/accel", package = "accel-core" })]
             #[dependencies("algebra-core" = { git = "https://github.com/celo-org/zexe", branch = "jonch/gpu_sc_mul", package = "algebra-core", default_features = false})]
@@ -44,6 +45,16 @@ macro_rules! impl_scalar_mul_kernel {
                     }
                 }
             }
+
+            #[cfg(not(feature = "gpu"))]
+            fn scalar_mul(
+                _ctx: &Context,
+                _grid: impl Into<Grid>,
+                _block: impl Into<Block>,
+                _: (*const $ProjCurve, *const u8, *mut $ProjCurve, isize),
+            ) -> error::Result<()> {
+                unimplemented!("gpu kernels have not been compiled, this function should not have been called");
+            }
         }
     }
 }
@@ -54,6 +65,7 @@ macro_rules! impl_scalar_mul_kernel_glv {
         paste::item! {
             use accel::*;
 
+            #[cfg(feature = "gpu")]
             #[kernel_mod(transparent)]
             #[dependencies("accel-core" = { git = "https://github.com/jon-chuang/accel", package = "accel-core" })]
             #[dependencies("algebra-core" = { git = "https://github.com/celo-org/zexe", branch = "jonch/gpu_sc_mul", package = "algebra-core", default_features = false})]
@@ -102,6 +114,16 @@ macro_rules! impl_scalar_mul_kernel_glv {
                         *out.offset(i) = res;
                     }
                 }
+            }
+
+            #[cfg(not(feature = "gpu"))]
+            fn scalar_mul(
+                _ctx: &Context,
+                _grid: impl Into<Grid>,
+                _block: impl Into<Block>,
+                _: (*const $ProjCurve, *const u8, *mut $ProjCurve, isize),
+            ) -> error::Result<()> {
+                unimplemented!("gpu kernels have not been compiled, this function should not have been called");
             }
         }
     }

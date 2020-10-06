@@ -34,6 +34,7 @@ paste = "0.1"
 bw6_asm = [ "algebra/bw6_asm"]
 asm = [ "algebra/asm"]
 prefetch = [ "algebra/prefetch"]
+cuda = [ "algebra/cuda" ]
 n_fold = []
 mnt4_298 = [ "algebra/mnt4_298"]
 mnt6_298 = [ "algebra/mnt6_298"]

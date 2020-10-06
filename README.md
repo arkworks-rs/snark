@@ -87,6 +87,11 @@ To bench `algebra-benches` with greater accuracy, especially for functions with 
 cargo +nightly bench --features "n_fold bls12_381"
 ```
 
+CUDA support is available for a limited set of functions. To allow compilation for CUDA, first run the script
+```
+curl -sSL https://gitlab.com/jon-chuang/accel/raw/master/setup_nvptx_toolchain.sh | bash
+```
+or the equivalent commands for your OS, then, pass the "cuda" feature to rustc or cargo when compiling, and import the relevant traits (e.g. GPUScalarMulSlice) wherever the functions are called. When the "cuda" feature is not activated, Zexe will still compile but the relevant functions will default to a CPU-only implementation of the same functionality.
 
 ## License
 

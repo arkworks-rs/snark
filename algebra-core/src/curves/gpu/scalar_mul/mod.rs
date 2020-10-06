@@ -1,6 +1,6 @@
 #[macro_use]
-mod macros;
-pub use macros::*;
+mod kernel_macros;
+pub use kernel_macros::*;
 
 #[macro_use]
 mod cpu_gpu_macros;
@@ -12,7 +12,16 @@ use accel::*;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
 
-use crate::{curves::AffineCurve, fields::PrimeField};
+use crate::{
+    cfg_chunks_mut,
+    {
+        curves::{AffineCurve, BatchGroupArithmeticSlice},
+        fields::PrimeField,
+    },
+};
+
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
 
 lazy_static! {
     pub static ref MICROBENCH_CPU_GPU_AVG_RATIO: Mutex<(Vec<f64>, usize)> = Mutex::new((vec![], 0));
@@ -231,11 +240,21 @@ impl<G: AffineCurve> GPUScalarMulSlice<G> for [G] {
         // size of the batch for cpu scalar mul
         cpu_chunk_size: usize,
     ) {
-        <G as AffineCurve>::Projective::cpu_gpu_static_partition_run_kernel(
-            self,
-            exps_h,
-            cuda_group_size,
-            cpu_chunk_size,
-        );
+        if accel::Device::init() && cfg!(feature = "gpu") {
+            <G as AffineCurve>::Projective::cpu_gpu_static_partition_run_kernel(
+                self,
+                exps_h,
+                cuda_group_size,
+                cpu_chunk_size,
+            );
+        } else {
+            let mut exps_mut = exps_h.to_vec();
+            cfg_chunks_mut!(self, cpu_chunk_size)
+                .zip(cfg_chunks_mut!(exps_mut, cpu_chunk_size))
+                .for_each(|(b, s)| {
+                    b[..].batch_scalar_mul_in_place(&mut s[..], 4);
+                }
+            );
+        }
     }
 }

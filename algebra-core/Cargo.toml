@@ -56,6 +56,7 @@ parallel = [ "std", "rayon", "rand/default" ]
 derive = [ "algebra-core-derive" ]
 llvm_asm = [ "field-assembly" ]
 prefetch = [ "std" ]
+cuda = [ "std", "parallel" ]
 
 timing = [ "std", "backtrace" ]
 timing_detailed = [ "std", "backtrace" ]
