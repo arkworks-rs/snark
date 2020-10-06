@@ -11,6 +11,15 @@ use core::{
 };
 use num_traits::Zero;
 
+pub mod batch_verify;
+pub use self::batch_verify::*;
+
+pub mod batch_arith;
+pub use self::batch_arith::*;
+
+pub mod bucketed_add;
+pub use self::bucketed_add::*;
+
 pub mod models;
 
 pub use self::models::*;
@@ -214,6 +223,7 @@ pub trait AffineCurve:
     + Zero
     + Neg<Output = Self>
     + From<<Self as AffineCurve>::Projective>
+    + BatchGroupArithmetic<BBaseField = <Self as AffineCurve>::BaseField>
 {
     const COFACTOR: &'static [u64];
     type ScalarField: PrimeField + SquareRootField + Into<<Self::ScalarField as PrimeField>::BigInt>;

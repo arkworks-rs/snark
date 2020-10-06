@@ -1,6 +1,10 @@
 #[macro_export]
 macro_rules! specialise_affine_to_proj {
     ($GroupProjective: ident) => {
+        use crate::batch_arith::decode_endo_from_u32;
+        #[cfg(feature = "prefetch")]
+        use crate::prefetch;
+
         #[derive(Derivative)]
         #[derivative(
             Copy(bound = "P: Parameters"),
@@ -181,6 +185,8 @@ macro_rules! specialise_affine_to_proj {
                 }
             }
         }
+
+        impl_sw_batch_affine!(GroupAffine);
 
         impl<P: Parameters> ToBytes for GroupAffine<P> {
             #[inline]
