@@ -25,8 +25,6 @@ pub struct BigMerkleTree<T: FieldBasedMerkleTreeParameters>{
     // if unset, all DBs and tree internal state will be deleted when an instance of this struct
     // gets dropped
     persistent: bool,
-    // path to state required to restore the tree
-    state_path: Option<String>,
     // tree in-memory state
     state: BigMerkleTreeState<T>,
     // the number of leaves
@@ -57,9 +55,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
     pub fn new(
         height: usize,
         persistent: bool,
-        state_path: Option<String>,
         path_db: String,
-        path_cache: String
     ) -> Result<Self, Error> {
         assert!(check_precomputed_parameters::<T>(height));
         
@@ -69,10 +65,6 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         // Rate may also be smaller than the arity actually, but this assertion
         // is reasonable and simplify the design.
         assert_eq!(rate, T::MERKLE_ARITY);
-
-        // If the tree must be persistent, that a path to which save the tree state must be
-        // specified.
-        if !persistent { assert!(state_path.is_none()) } else { assert!(state_path.is_some()) }
         
         let state = BigMerkleTreeState::<T>::get_default_state(height);
         let width = T::MERKLE_ARITY.pow(height as u32);
@@ -81,13 +73,13 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         let database = Arc::new(DB::open_default(path_db.clone())
             .map_err(|e| Error::new(ErrorKind::Other, e))?);
 
-        let path_cache = path_cache;
+        let mut path_cache = path_db.clone();
+        path_cache.push_str("_cache");
         let db_cache = Arc::new(DB::open_default(path_cache.clone())
             .map_err(|e| Error::new(ErrorKind::Other, e))?);
 
         Ok(Self {
             persistent,
-            state_path,
             state,
             width,
             path_db,
@@ -105,29 +97,19 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
     pub fn load(
         height: usize,
         persistent: bool,
-        state_path: String,
         path_db: String,
-        path_cache: String
     ) -> Result<Self, Error> {
 
         let leaves_db_path = Path::new(path_db.as_str());
-        let cache_db_path = Path::new(path_cache.as_str());
-        let _state_path = Path::new(state_path.as_str());
 
         // The DB containing all the leaves it's enough to reconstruct a consistent tree.
         // Even if other info are available on disk, we would still need to check that
         // they stand for the same tree state, which is expensive nevertheless (and still
-        // requires to compute the root). At this point, it's worth in any case to
-        // reconstruct the whole tree given the leaves.
-        //TODO: Temporary solution. Use a transactional DB to update and keep all the three
-        //      files consistent.
+        // requires to compute the root). At this point, as a temporary solution, it's worth
+        // in any case to reconstruct the whole tree given the leaves.
         if leaves_db_path.exists()
         {
-            // Clean up other info
-            if cache_db_path.exists() { fs::remove_dir_all(cache_db_path)?; }
-            if _state_path.exists() { fs::remove_file(_state_path)?; }
-
-            Self::restore_from_leaves(height, persistent, state_path, path_db, path_cache)
+            Self::restore_from_leaves(height, persistent, path_db)
         } else
         {
             // If `database` has been lost, it's not possible to load or recover anything
@@ -143,9 +125,7 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
     fn restore_from_leaves(
         height: usize,
         persistent: bool,
-        state_path: String,
         path_db: String,
-        path_cache: String
     ) -> Result<Self, Error> {
 
         let rate = <<T::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
@@ -171,14 +151,14 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         let database_read = database.clone();
 
         // Create new cache DB
-        let path_cache = path_cache;
+        let mut path_cache = path_db.clone();
+        path_cache.push_str("_cache");
         let db_cache = Arc::new(DB::open_default(path_cache.clone())
             .map_err(|e| Error::new(ErrorKind::Other, e))?);
 
         // Create new tree instance
         let mut new_tree = Self {
             persistent,
-            state_path: Some(state_path),
             state,
             width,
             path_db,
@@ -202,14 +182,16 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
     }
 
     pub fn flush(&mut self) {
-        if !self.persistent {
 
-            if self.state_path.is_some() && Path::new(&self.state_path.clone().unwrap()).exists() {
-                match fs::remove_file(self.state_path.clone().unwrap()) {
-                    Ok(_) => (),
-                    Err(e) => println!("Error deleting tree state: {}", e)
-                }
+        // Deletes the folder containing the cache
+        match fs::remove_dir_all(self.path_cache.clone()) {
+            Ok(_) => (),
+            Err(e) => {
+                println!("Error deleting the folder containing the db: {}", e);
             }
+        };
+
+        if !self.persistent {
 
             // Deletes the folder containing the db
             match fs::remove_dir_all(self.path_db.clone()) {
@@ -218,21 +200,6 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
                     println!("Error deleting the folder containing the db: {}", e);
                 }
             };
-            // Deletes the folder containing the cache
-            match fs::remove_dir_all(self.path_cache.clone()) {
-                Ok(_) => (),
-                Err(e) => {
-                    println!("Error deleting the folder containing the db: {}", e);
-                }
-            };
-        } else {
-            // Don't delete the DBs and save required state on file in order to restore the
-            // tree later.
-            let tree_state_file = fs::File::create(self.state_path.clone().unwrap())
-                .expect("Should be able to create file for tree state");
-
-            self.state.write(tree_state_file)
-                .expect("Should be able to write into tree state file");
         }
     }
     
@@ -826,9 +793,7 @@ mod test {
         let mut smt = MNT4PoseidonSMT::new(
             TEST_HEIGHT,
             false,
-            None,
             String::from("./db_leaves_compare_merkle_trees_mnt4_1"),
-            String::from("./db_cache_compare_merkle_trees_mnt4_1")
         ).unwrap();
         smt.process_leaves_normal(leaves_to_process);
 
@@ -872,9 +837,7 @@ mod test {
         let mut smt = MNT4PoseidonSMT::new(
             TEST_HEIGHT,
             false,
-            None,
             String::from("./db_leaves_compare_merkle_trees_mnt4_2"),
-            String::from("./db_cache_compare_merkle_trees_mnt4_2")
         ).unwrap();
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
         for i in 0..num_leaves {
@@ -914,9 +877,7 @@ mod test {
         let mut smt = MNT4PoseidonSMT::new(
             TEST_HEIGHT,
             false,
-            None,
             String::from("./db_leaves_compare_merkle_trees_mnt4_3"),
-            String::from("./db_cache_compare_merkle_trees_mnt4_3")
         ).unwrap();
         
         smt.insert_leaf(Coord{height:0, idx:0}, MNT4753Fr::from_str("1").unwrap());
@@ -942,9 +903,7 @@ mod test {
         let mut smt = MNT6PoseidonSMT::new(
             TEST_HEIGHT,
             false,
-            None,
             String::from("./db_leaves_compare_merkle_trees_mnt6_1"),
-            String::from("./db_cache_compare_merkle_trees_mnt6_1")
         ).unwrap();
         smt.process_leaves_normal(leaves_to_process);
 
@@ -989,9 +948,7 @@ mod test {
         let mut smt = MNT6PoseidonSMT::new(
             TEST_HEIGHT,
             false,
-            None,
             String::from("./db_leaves_compare_merkle_trees_mnt6_2"),
-            String::from("./db_cache_compare_merkle_trees_mnt6_2")
         ).unwrap();
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
         for i in 0..num_leaves {
@@ -1030,9 +987,8 @@ mod test {
         let mut smt = MNT6PoseidonSMT::new(
             TEST_HEIGHT,
             false,
-            None,
             String::from("./db_leaves_compare_merkle_trees_mnt6_3"),
-            String::from("./db_cache_compare_merkle_trees_mnt6_3")).unwrap();
+        ).unwrap();
 
         smt.insert_leaf(Coord{height:0, idx:0}, MNT6753Fr::from_str("1").unwrap());
         smt.insert_leaf(Coord{height:0, idx:9}, MNT6753Fr::from_str("2").unwrap());
@@ -1069,9 +1025,7 @@ mod test {
             let mut smt = MNT4PoseidonSMT::new(
                 TEST_HEIGHT,
                 true,
-                Some(String::from("./persistency_test_info")),
                 String::from("./db_leaves_persistency_test_info"),
-                String::from("./db_cache_persistency_test_info")
             ).unwrap();
 
             //Insert some leaves in the tree
@@ -1081,18 +1035,14 @@ mod test {
             // smt gets dropped but its info should be saved
         }
         // files and directories should have been created
-        assert!(Path::new("./persistency_test_info").exists());
         assert!(Path::new("./db_leaves_persistency_test_info").exists());
-        assert!(Path::new("./db_cache_persistency_test_info").exists());
 
         // create a non-persistent smt in another scope by restoring the previous one
         {
             let mut smt = MNT4PoseidonSMT::load(
                 TEST_HEIGHT,
                 false,
-                String::from("./persistency_test_info"),
                 String::from("./db_leaves_persistency_test_info"),
-                String::from("./db_cache_persistency_test_info")
             ).unwrap();
 
             // insert other leaves
@@ -1107,17 +1057,13 @@ mod test {
         }
 
         // files and directories should have been deleted
-        assert!(!Path::new("./persistency_test_info").exists());
         assert!(!Path::new("./db_leaves_persistency_test_info").exists());
-        assert!(!Path::new("./db_cache_persistency_test_info").exists());
 
         // assert being unable to restore
         assert!(MNT4PoseidonSMT::load(
             TEST_HEIGHT,
             false,
-            String::from("./persistency_test_info"),
             String::from("./db_leaves_persistency_test_info"),
-            String::from("./db_cache_persistency_test_info")
         ).is_err());
     }
 
@@ -1131,9 +1077,7 @@ mod test {
         let mut smt = MNT4PoseidonSMT::new(
             TEST_HEIGHT,
             false,
-            None,
             String::from("./db_leaves_merkle_tree_path_test_mnt4"),
-            String::from("./db_cache_merkle_tree_path_test_mnt4")
         ).unwrap();
 
         // Generate random leaves, half of which empty
@@ -1193,9 +1137,7 @@ mod test {
         let mut smt = MNT6PoseidonSMT::new(
             TEST_HEIGHT,
             false,
-            None,
             String::from("./db_leaves_merkle_tree_path_test_mnt6"),
-            String::from("./db_cache_merkle_tree_path_test_mnt6")
         ).unwrap();
 
         // Generate random leaves, half of which empty

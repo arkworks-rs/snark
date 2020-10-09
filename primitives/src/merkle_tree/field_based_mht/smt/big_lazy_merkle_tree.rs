@@ -21,8 +21,6 @@ pub struct LazyBigMerkleTree<T: BatchFieldBasedMerkleTreeParameters> {
     // if unset, all DBs and tree internal state will be deleted when an instance of this struct
     // gets dropped
     persistent: bool,
-    // path to state required to restore the tree
-    state_path: Option<String>,
     // tree in-memory state
     state: BigMerkleTreeState<T>,
     // the number of leaves
@@ -53,33 +51,31 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
     pub fn new(
         height: usize,
         persistent: bool,
-        state_path: Option<String>,
         path_db: String,
-        path_cache: String
     ) -> Result<Self, Error> {
         assert!(check_precomputed_parameters::<T>(height));
 
-        let rate = <<T::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
+        let rate = <<T::H  as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
+
         assert_eq!(T::MERKLE_ARITY, 2); // For now we support only arity 2
         // Rate may also be smaller than the arity actually, but this assertion
         // is reasonable and simplify the design.
         assert_eq!(rate, T::MERKLE_ARITY);
 
-        // If the tree must be persistent, than a path to which save the tree state must be
-        // specified.
-        if !persistent { assert!(state_path.is_none()) } else { assert!(state_path.is_some()) }
         let state = BigMerkleTreeState::<T>::get_default_state(height);
         let width = T::MERKLE_ARITY.pow(height as u32);
+
         let path_db = path_db;
         let database = Arc::new(DB::open_default(path_db.clone())
             .map_err(|e| Error::new(ErrorKind::Other, e))?);
-        let path_cache = path_cache;
+
+        let mut path_cache = path_db.clone();
+        path_cache.push_str("_cache");
         let db_cache = Arc::new(DB::open_default(path_cache.clone())
             .map_err(|e| Error::new(ErrorKind::Other, e))?);
 
         Ok(Self {
             persistent,
-            state_path,
             state,
             width,
             path_db,
@@ -97,29 +93,19 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
     pub fn load(
         height: usize,
         persistent: bool,
-        state_path: String,
         path_db: String,
-        path_cache: String
     ) -> Result<Self, Error> {
 
         let leaves_db_path = Path::new(path_db.as_str());
-        let cache_db_path = Path::new(path_cache.as_str());
-        let _state_path = Path::new(state_path.as_str());
 
         // The DB containing all the leaves it's enough to reconstruct a consistent tree.
         // Even if other info are available on disk, we would still need to check that
         // they stand for the same tree state, which is expensive nevertheless (and still
-        // requires to compute the root). At this point, it's worth in any case to
-        // reconstruct the whole tree given the leaves.
-        //TODO: Temporary solution. Use a transactional DB to update and keep all the three
-        //      files consistent.
+        // requires to compute the root). At this point, as a temporary solution, it's worth
+        // in any case to reconstruct the whole tree given the leaves.
         if leaves_db_path.exists()
         {
-            // Clean up other info
-            if cache_db_path.exists() { fs::remove_dir_all(cache_db_path)?; }
-            if _state_path.exists() { fs::remove_file(_state_path)?; }
-
-            Self::restore_from_leaves(height, persistent, state_path, path_db, path_cache)
+            Self::restore_from_leaves(height, persistent, path_db)
         } else
         {
             // If `database` has been lost, it's not possible to load or recover anything
@@ -135,9 +121,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
     fn restore_from_leaves(
         height: usize,
         persistent: bool,
-        state_path: String,
         path_db: String,
-        path_cache: String
     ) -> Result<Self, Error> {
 
         let rate = <<T::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
@@ -154,20 +138,23 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         let opening_options = Options::default();
 
         // Restore leaves DB
-        let path_db = path_db;
+        let path_db = path_db.clone();
         let database = Arc::new(DB::open(&opening_options, path_db.clone())
             .map_err(|e| Error::new(ErrorKind::Other, e))?);
+        // It's fine here to have one instance writing and the other reading: first because
+        // they are not concurrent and second because `database` already contain all the leaves
+        // we are going to add, so there will be no writings at all.
         let database_read = database.clone();
 
         // Create new cache DB
-        let path_cache = path_cache;
+        let mut path_cache = path_db.clone();
+        path_cache.push_str("_cache");
         let db_cache = Arc::new(DB::open_default(path_cache.clone())
             .map_err(|e| Error::new(ErrorKind::Other, e))?);
 
         // Create new tree instance
         let mut new_tree = Self {
             persistent,
-            state_path: Some(state_path),
             state,
             width,
             path_db,
@@ -192,17 +179,17 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
         Ok(new_tree)
     }
 
-
     pub fn flush(&mut self) {
-        if !self.persistent {
 
-            // Removes the state if present
-            if self.state_path.is_some() && Path::new(&self.state_path.clone().unwrap()).exists() {
-                match fs::remove_file(self.state_path.clone().unwrap()) {
-                    Ok(_) => (),
-                    Err(e) => println!("Error deleting tree state: {}", e)
-                }
+        // Deletes the folder containing the cache
+        match fs::remove_dir_all(self.path_cache.clone()) {
+            Ok(_) => (),
+            Err(e) => {
+                println!("Error deleting the folder containing the db: {}", e);
             }
+        };
+
+        if !self.persistent {
 
             // Deletes the folder containing the db
             match fs::remove_dir_all(self.path_db.clone()) {
@@ -211,21 +198,6 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
                     println!("Error deleting the folder containing the db: {}", e);
                 }
             };
-            // Deletes the folder containing the cache
-            match fs::remove_dir_all(self.path_cache.clone()) {
-                Ok(_) => (),
-                Err(e) => {
-                    println!("Error deleting the folder containing the db: {}", e);
-                }
-            };
-        } else {
-            // Don't delete the DBs and save required state on file in order to restore the
-            // tree later.
-            let tree_state_file = fs::File::create(self.state_path.clone().unwrap())
-                .expect("Should be able to create file for tree state");
-
-            self.state.write(tree_state_file)
-                .expect("Should be able to write into tree state file");
         }
     }
     
@@ -802,9 +774,7 @@ mod test {
         let mut smt = MNT4PoseidonSMTLazy::new(
             TEST_HEIGHT_1,
             false,
-            None,
             String::from("./db_leaves_mnt4"),
-            String::from("./db_cache_mnt4")
         ).unwrap();
         smt.process_leaves(leaves_to_process.as_slice());
 
@@ -847,9 +817,8 @@ mod test {
         let mut smt = MNT6PoseidonSMTLazy::new(
             TEST_HEIGHT_1,
             false,
-            None,
             String::from("./db_leaves_mnt6"),
-            String::from("./db_cache_mnt6")).unwrap();
+        ).unwrap();
         smt.process_leaves(leaves_to_process.as_slice());
 
         //=============================================
@@ -900,9 +869,7 @@ mod test {
             let mut smt = MNT4PoseidonSMTLazy::new(
                 TEST_HEIGHT_1,
                 true,
-                Some(String::from("./persistency_test_info_lazy")),
                 String::from("./db_leaves_persistency_test_info_lazy"),
-                String::from("./db_cache_persistency_test_info_lazy")
             ).unwrap();
 
             //Insert some leaves in the tree
@@ -916,18 +883,14 @@ mod test {
             // smt gets dropped but its info should be saved
         }
         // files and directories should have been created
-        assert!(Path::new("./persistency_test_info_lazy").exists());
         assert!(Path::new("./db_leaves_persistency_test_info_lazy").exists());
-        assert!(Path::new("./db_cache_persistency_test_info_lazy").exists());
 
         // create a non-persistent smt in another scope by restoring the previous one
         {
             let mut smt = MNT4PoseidonSMTLazy::load(
                 TEST_HEIGHT_1,
                 false,
-                String::from("./persistency_test_info_lazy"),
                 String::from("./db_leaves_persistency_test_info_lazy"),
-                String::from("./db_cache_persistency_test_info_lazy")
             ).unwrap();
 
             // insert other leaves
@@ -946,17 +909,14 @@ mod test {
         }
 
         // files and directories should have been deleted
-        assert!(!Path::new("./persistency_test_info_lazy").exists());
         assert!(!Path::new("./db_leaves_persistency_test_info_lazy").exists());
-        assert!(!Path::new("./db_cache_persistency_test_info_lazy").exists());
+        assert!(!Path::new("./db_leaves_persistency_test_info_lazy_cache").exists());
 
         // assert being unable to restore
         assert!(MNT4PoseidonSMTLazy::load(
             TEST_HEIGHT_1,
             false,
-            String::from("./persistency_test_info"),
             String::from("./db_leaves_persistency_test_info"),
-            String::from("./db_cache_persistency_test_info")
         ).is_err());
     }
 
@@ -971,9 +931,7 @@ mod test {
         let mut smt = MNT4PoseidonSMTLazy::new(
             TEST_HEIGHT_1,
             false,
-            None,
             String::from("./db_leaves_merkle_tree_path_test_mnt4_lazy"),
-            String::from("./db_cache_merkle_tree_path_test_mnt4_lazy")
         ).unwrap();
 
         // Generate random leaves, half of which empty
@@ -1034,9 +992,7 @@ mod test {
         let mut smt = MNT6PoseidonSMTLazy::new(
             TEST_HEIGHT_1,
             false,
-            None,
             String::from("./db_leaves_merkle_tree_path_test_mnt6_lazy"),
-            String::from("./db_cache_merkle_tree_path_test_mnt6_lazy")
         ).unwrap();
 
         // Generate random leaves, half of which empty
@@ -1117,9 +1073,7 @@ mod test {
             let mut smt1 = MNT4PoseidonSMT::new(
                 TEST_HEIGHT_2,
                 false,
-                None,
                 String::from("./db_leaves_mnt4_comp_1"),
-                String::from("./db_cache_mnt4_comp_1")
             ).unwrap();
             let leaves_to_process1 = leaves_to_insert.clone();
             let now = Instant::now();
@@ -1147,9 +1101,7 @@ mod test {
             let mut smt2 = MNT4PoseidonSMTLazy::new(
                 TEST_HEIGHT_2,
                 false,
-                None,
                 String::from("./db_leaves_mnt4_comp_2"),
-                String::from("./db_cache_mnt4_comp_2")
             ).unwrap();
             let leaves_to_process2 = leaves_to_insert.clone();
             let now = Instant::now();
@@ -1207,9 +1159,7 @@ mod test {
             let mut smt1 = MNT6PoseidonSMT::new(
                 TEST_HEIGHT_2,
                 false,
-                None,
                 String::from("./db_leaves_mnt6_comp_1"),
-                String::from("./db_cache_mnt6_comp_1")
             ).unwrap();
             let leaves_to_process1 = leaves_to_insert.clone();
             let now = Instant::now();
@@ -1237,9 +1187,7 @@ mod test {
             let mut smt2 = MNT6PoseidonSMTLazy::new(
                 TEST_HEIGHT_2,
                 false,
-                None,
                 String::from("./db_leaves_mnt6_comp_2"),
-                String::from("./db_cache_mnt6_comp_2")
             ).unwrap();
             let leaves_to_process2 = leaves_to_insert.clone();
             let now = Instant::now();
