@@ -95,11 +95,6 @@ impl<F: Field> MVPolynomial<F> for SparsePolynomial<F, SparseTerm> {
     type Term = SparseTerm;
 
     /// Constructs a new polynomial from a list of tuples of the form `(Self::Term, coeff)`
-    fn from_coefficients_slice(num_vars: usize, terms: &[(SparseTerm, F)]) -> Self {
-        Self::from_coefficients_vec(num_vars, terms.to_vec())
-    }
-
-    /// Constructs a new polynomial from a list of tuples of the form `(Self::Term, coeff)`
     fn from_coefficients_vec(num_vars: usize, mut terms: Vec<(SparseTerm, F)>) -> Self {
         // Ensure that terms are in ascending order.
         terms.sort_by(|(c1, _), (c2, _)| c1.cmp(c2));

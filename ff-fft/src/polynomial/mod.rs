@@ -66,15 +66,14 @@ pub trait UVPolynomial<F: Field>: Polynomial<F> {
 }
 
 /// Describes the interface for univariate polynomials
-pub trait MVPolynomial<F: Field>: Polynomial<F>
-where
-    Self::Domain: Index<usize, Output = F>,
-{
+pub trait MVPolynomial<F: Field>: Polynomial<F> {
     /// The type of the terms of `self`
     type Term: multivariate::Term;
 
     /// Constructs a new polynomial from a list of tuples of the form `(Self::Term, coeff)`
-    fn from_coefficients_slice(num_vars: usize, terms: &[(Self::Term, F)]) -> Self;
+    fn from_coefficients_slice(num_vars: usize, terms: &[(Self::Term, F)]) -> Self {
+        Self::from_coefficients_vec(num_vars, terms.to_vec())
+    }
 
     /// Constructs a new polynomial from a list of tuples of the form `(Self::Term, coeff)`
     fn from_coefficients_vec(num_vars: usize, terms: Vec<(Self::Term, F)>) -> Self;
@@ -87,5 +86,7 @@ where
     /// `p(X) - p(z) = (X_1-z_1)*w_1(X) + (X_2-z_2)*w_2(X) + ... + (X_l-z_l)*w_l(X)`
     ///
     /// These quotients can always be found with no remainder.
-    fn divide_at_point(&self, point: &Self::Domain) -> Vec<Self>;
+    fn divide_at_point(&self, point: &Self::Domain) -> Vec<Self>
+    where
+        Self::Domain: Index<usize, Output = F>;
 }
