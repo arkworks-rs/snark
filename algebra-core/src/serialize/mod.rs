@@ -481,7 +481,11 @@ macro_rules! impl_sw_curve_serializer {
             fn deserialize_uncompressed<R: crate::io::Read>(
                 reader: R,
             ) -> Result<Self, crate::serialize::SerializationError> {
-                Self::deserialize(reader)
+                let p = Self::deserialize_uncompressed_unchecked(reader)?;
+                if !p.is_in_correct_subgroup_assuming_on_curve() {
+                    return Err(crate::serialize::SerializationError::InvalidData);
+                }
+                Ok(p)
             }
 
             #[allow(unused_qualifications)]
