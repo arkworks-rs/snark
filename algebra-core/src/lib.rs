@@ -10,10 +10,6 @@
     not(any(use_asm, feature = "prefetch", use_bw6_asm)),
     forbid(unsafe_code)
 )]
-#![cfg_attr(
-    not(any(use_asm, feature = "prefetch", use_bw6_asm)),
-    deny(unsafe_code)
-)]
 
 #[cfg(all(test, not(feature = "std")))]
 #[macro_use]
