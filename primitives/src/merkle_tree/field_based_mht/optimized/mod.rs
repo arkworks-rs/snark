@@ -499,7 +499,7 @@ mod test {
         }
         for _ in num_leaves/2..num_leaves {
             let leaf = MNT4753Fr::zero();
-            tree.append(leaf);
+            //tree.append(leaf);
             leaves.push(leaf);
         }
 
@@ -527,9 +527,23 @@ mod test {
             // Check leaf index is the correct one
             assert_eq!(i, path.leaf_index());
 
-            if i == 0 { assert!(path.is_leftmost()); } // leftmost check
-            else if i == num_leaves - 1 { assert!(path.is_rightmost()) }  //rightmost check
-            else { assert!(!path.is_leftmost()); assert!(!path.is_rightmost()); } // other cases check
+            if i == 0 { // leftmost check
+                assert!(path.is_leftmost());
+            }
+            else if i == (num_leaves / 2) - 1 { // non-empty rightmost check
+                assert!(path.is_non_empty_rightmost());
+            }
+            else if i == num_leaves - 1 { //rightmost check
+                assert!(path.is_rightmost());
+            }
+            else { // Other cases check
+                assert!(!path.is_leftmost());
+                assert!(!path.is_rightmost());
+
+                if i < (num_leaves / 2) - 1 {
+                    assert!(!path.is_non_empty_rightmost());
+                }
+            }
 
             // Assert the two paths are equal
             assert_eq!(naive_path, path);
@@ -538,6 +552,25 @@ mod test {
             let path_serialized = to_bytes!(path).unwrap();
             let path_deserialized = MNT4MerklePath::read(path_serialized.as_slice()).unwrap();
             assert_eq!(path, path_deserialized);
+        }
+    }
+
+    #[test]
+    fn merkle_tree_path_is_non_empty_rightmost_test_mnt4() {
+
+        let height = 6;
+        let num_leaves = 2usize.pow(height as u32);
+        let mut tree = MNT4PoseidonMHT::init(height, num_leaves);
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+        // Generate random leaves, half of which empty
+        for i in 0..num_leaves {
+            let leaf = MNT4753Fr::rand(&mut rng);
+            tree.append(leaf);
+
+            let tree_copy = tree.finalize();
+            let path = tree_copy.get_merkle_path(i).unwrap();
+            assert!(path.is_non_empty_rightmost());
         }
     }
 
@@ -558,7 +591,7 @@ mod test {
         }
         for _ in num_leaves/2..num_leaves {
             let leaf = MNT6753Fr::zero();
-            tree.append(leaf);
+            //tree.append(leaf);
             leaves.push(leaf);
         }
 
@@ -586,9 +619,23 @@ mod test {
             // Check leaf index is the correct one
             assert_eq!(i, path.leaf_index());
 
-            if i == 0 { assert!(path.is_leftmost()); } // leftmost check
-            else if i == num_leaves - 1 { assert!(path.is_rightmost()) }  //rightmost check
-            else { assert!(!path.is_leftmost()); assert!(!path.is_rightmost()); } // other cases check
+            if i == 0 { // leftmost check
+                assert!(path.is_leftmost());
+            }
+            else if i == (num_leaves / 2) - 1 { // non-empty rightmost check
+                assert!(path.is_non_empty_rightmost());
+            }
+            else if i == num_leaves - 1 { //rightmost check
+                assert!(path.is_rightmost());
+            }
+            else { // Other cases check
+                assert!(!path.is_leftmost());
+                assert!(!path.is_rightmost());
+
+                if i < (num_leaves / 2) - 1 {
+                    assert!(!path.is_non_empty_rightmost());
+                }
+            }
 
             // Serialization/deserialization test
             let path_serialized = to_bytes!(path).unwrap();

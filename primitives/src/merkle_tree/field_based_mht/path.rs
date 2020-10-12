@@ -39,6 +39,45 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedMHTPath<T> {
         return true;
     }
 
+    /// Returns true if `self` is a Merkle Path for the righmost non-empty leaf of the Merkle Tree
+    /// (e.g. the leaf which is not physically in the rightmost position of the tree, but it's
+    /// followed by all empty leaves).
+    /// Assumptions:
+    /// 1) Append-only Merkle Tree;
+    /// 2) T::EMPTY_HASH_CST is specified;
+    /// 3) Not to be called on Merkle Path corresponding to an empty leaf.
+    #[inline]
+    pub fn is_non_empty_rightmost(&self) -> bool {
+        let mut height = 0usize;
+        let mut rightmost = true;
+        for &(ref siblings, direction) in &self.path {
+
+            // If the node on the path is not in the rightmost position
+            if direction != T::MERKLE_ARITY - 1 {
+
+                // If its following sibling is the empty node, then the node
+                // must be the non empty rightmost at this height (e.g. all
+                // its following siblings are empty)
+                if siblings[direction] == T::EMPTY_HASH_CST.unwrap().nodes[height] {
+                    rightmost &= true;
+                }
+
+                // Otherwise this node is not the empty rightmost at this height and for the
+                // whole tree
+                else {
+                    rightmost &= false;
+                }
+            }
+
+            // The node on the path is in the rightmost position
+            else {
+                rightmost &= true;
+            }
+            height += 1;
+        }
+        return rightmost;
+    }
+
     /// Returns the index of the leaf, corresponding to the `self` Merkle Path, in the
     /// corresponding Merkle Tree.
     pub fn leaf_index(&self) -> usize {
@@ -185,6 +224,45 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedBinaryMHTPath<T> {
             }
         }
         return true;
+    }
+
+    /// Returns true if `self` is a Merkle Path for the righmost non-empty leaf of the Merkle Tree
+    /// (e.g. the leaf which is not physically in the rightmost position of the tree, but it's
+    /// followed by all empty leaves).
+    /// Assumptions:
+    /// 1) Append-only Merkle Tree;
+    /// 2) T::EMPTY_HASH_CST is specified;
+    /// 3) Not to be called on Merkle Path corresponding to an empty leaf.
+    #[inline]
+    pub fn is_non_empty_rightmost(&self) -> bool {
+        let mut height = 0usize;
+        let mut rightmost = true;
+        for &(sibling, direction) in &self.path {
+
+            // If the node on the path is not in the rightmost position
+            if !direction {
+
+                // If its following sibling is the empty node, then the node
+                // must be the non empty rightmost at this height (e.g. all
+                // its following siblings are empty)
+                if sibling == T::EMPTY_HASH_CST.unwrap().nodes[height] {
+                    rightmost &= true;
+                }
+
+                // Otherwise this node is not the empty rightmost at this height and for the
+                // whole tree
+                else {
+                    rightmost &= false;
+                }
+            }
+
+            // The node on the path is in the rightmost position
+            else {
+                rightmost &= true;
+            }
+            height += 1;
+        }
+        return rightmost;
     }
 
     /// Returns the index of the leaf, corresponding to the `self` Merkle Path, in the
