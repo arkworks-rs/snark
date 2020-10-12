@@ -563,7 +563,7 @@ mod test {
         let mut tree = MNT4PoseidonMHT::init(height, num_leaves);
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-        // Generate random leaves, half of which empty
+        // Generate random leaves
         for i in 0..num_leaves {
             let leaf = MNT4753Fr::rand(&mut rng);
             tree.append(leaf);

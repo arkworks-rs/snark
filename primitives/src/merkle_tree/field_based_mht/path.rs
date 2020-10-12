@@ -48,34 +48,24 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedMHTPath<T> {
     /// 3) Not to be called on Merkle Path corresponding to an empty leaf.
     #[inline]
     pub fn is_non_empty_rightmost(&self) -> bool {
+        assert!(check_precomputed_parameters::<T>(self.path.len()));
+
         let mut height = 0usize;
-        let mut rightmost = true;
         for &(ref siblings, direction) in &self.path {
 
             // If the node on the path is not in the rightmost position
             if direction != T::MERKLE_ARITY - 1 {
 
-                // If its following sibling is the empty node, then the node
-                // must be the non empty rightmost at this height (e.g. all
-                // its following siblings are empty)
-                if siblings[direction] == T::EMPTY_HASH_CST.unwrap().nodes[height] {
-                    rightmost &= true;
-                }
-
-                // Otherwise this node is not the empty rightmost at this height and for the
+                // If its following sibling is not the empty node, then the node
+                // cannot be the non empty rightmost at this height and for the
                 // whole tree
-                else {
-                    rightmost &= false;
+                if siblings[direction] != T::EMPTY_HASH_CST.unwrap().nodes[height] {
+                    return false;
                 }
-            }
-
-            // The node on the path is in the rightmost position
-            else {
-                rightmost &= true;
             }
             height += 1;
         }
-        return rightmost;
+        return true;
     }
 
     /// Returns the index of the leaf, corresponding to the `self` Merkle Path, in the
@@ -235,34 +225,24 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedBinaryMHTPath<T> {
     /// 3) Not to be called on Merkle Path corresponding to an empty leaf.
     #[inline]
     pub fn is_non_empty_rightmost(&self) -> bool {
+        assert!(check_precomputed_parameters::<T>(self.path.len()));
+
         let mut height = 0usize;
-        let mut rightmost = true;
         for &(sibling, direction) in &self.path {
 
             // If the node on the path is not in the rightmost position
             if !direction {
 
-                // If its following sibling is the empty node, then the node
-                // must be the non empty rightmost at this height (e.g. all
-                // its following siblings are empty)
-                if sibling == T::EMPTY_HASH_CST.unwrap().nodes[height] {
-                    rightmost &= true;
-                }
-
-                // Otherwise this node is not the empty rightmost at this height and for the
+                // If its following sibling is not the empty node, then the node
+                // cannot be the non empty rightmost at this height and for the
                 // whole tree
-                else {
-                    rightmost &= false;
+                if sibling != T::EMPTY_HASH_CST.unwrap().nodes[height] {
+                    return false;
                 }
-            }
-
-            // The node on the path is in the rightmost position
-            else {
-                rightmost &= true;
             }
             height += 1;
         }
-        return rightmost;
+        return true;
     }
 
     /// Returns the index of the leaf, corresponding to the `self` Merkle Path, in the
