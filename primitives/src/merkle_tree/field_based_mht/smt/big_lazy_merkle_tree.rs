@@ -20,19 +20,19 @@ use std::{
 pub struct LazyBigMerkleTree<T: BatchFieldBasedMerkleTreeParameters> {
     // if unset, all DBs and tree internal state will be deleted when an instance of this struct
     // gets dropped
-    persistent: bool,
+    pub(crate) persistent: bool,
     // tree in-memory state
-    state: BigMerkleTreeState<T>,
+    pub(crate) state: BigMerkleTreeState<T>,
     // the number of leaves
-    width: usize,
+    pub(crate) width: usize,
     // path to the db
-    path_db: String,
+    pub(crate) path_db: String,
     // stores the leaves
-    database: Arc<DB>,
+    pub(crate) database: Arc<DB>,
     // path to the cache
-    path_cache: String,
+    pub(crate) path_cache: String,
     // stores the cached nodes
-    db_cache: Arc<DB>,
+    pub(crate) db_cache: Arc<DB>,
 
     _parameters: PhantomData<T>,
 }
@@ -97,6 +97,16 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
     ) -> Result<Self, Error> {
 
         let leaves_db_path = Path::new(path_db.as_str());
+        let cache_db_str = {
+            let mut t = path_db.clone();
+            t.push_str("_cache");
+            t
+        };
+        let cache_db_path = Path::new(cache_db_str.as_str());
+
+        // Temporary: clean up anyway, as we have not implemented still a way
+        // to check for dbs consistency
+        if cache_db_path.exists() { fs::remove_dir_all(cache_db_path)? }
 
         // The DB containing all the leaves it's enough to reconstruct a consistent tree.
         // Even if other info are available on disk, we would still need to check that
@@ -166,33 +176,37 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
 
         // Re-add the leaves to the tree in order to update state and db_cache
         let db_iter = database_read.iterator(IteratorMode::Start);
+        let mut leaves_to_insert = Vec::with_capacity(db_iter.size_hint().0);
 
+        // For the moment, let's load all the leaves in memory and update the tree
         for (leaf_index, leaf_val) in db_iter {
             let index = u32::read(&*leaf_index)?;
             let leaf = T::Data::read(&*leaf_val)?;
-            new_tree.process_leaves(&[OperationLeaf {
+            leaves_to_insert.push(OperationLeaf {
                 coord: Coord { height: 0, idx: index as usize },
                 action: ActionLeaf::Insert,
                 hash: Some(leaf.clone())
-            }]);
+            });
         }
+
+        new_tree.process_leaves(leaves_to_insert.as_slice());
         Ok(new_tree)
     }
 
     pub fn flush(&mut self) {
 
-        // Deletes the folder containing the cache
-        match fs::remove_dir_all(self.path_cache.clone()) {
-            Ok(_) => (),
-            Err(e) => {
-                println!("Error deleting the folder containing the db: {}", e);
-            }
-        };
-
         if !self.persistent {
 
             // Deletes the folder containing the db
             match fs::remove_dir_all(self.path_db.clone()) {
+                Ok(_) => (),
+                Err(e) => {
+                    println!("Error deleting the folder containing the db: {}", e);
+                }
+            };
+
+            // Deletes the folder containing the cache
+            match fs::remove_dir_all(self.path_cache.clone()) {
                 Ok(_) => (),
                 Err(e) => {
                     println!("Error deleting the folder containing the db: {}", e);
@@ -846,7 +860,7 @@ mod test {
     }
 
     #[test]
-    fn test_persistency() {
+    fn test_persistency_lazy() {
         let root = MNT4753Fr::new(
             BigInteger768([
                 17131081159200801074,
@@ -914,6 +928,72 @@ mod test {
 
         // assert being unable to restore
         assert!(MNT4PoseidonSMTLazy::load(
+            TEST_HEIGHT_1,
+            false,
+            String::from("./db_leaves_persistency_test_info"),
+        ).is_err());
+    }
+
+    #[test]
+    fn test_persistency_non_lazy() {
+        let root = MNT4753Fr::new(
+            BigInteger768([
+                17131081159200801074,
+                9006481350618111567,
+                12051725085490156787,
+                2023238364439588976,
+                13194888104290656497,
+                14162537977718443379,
+                13575626123664189275,
+                9267800406229717074,
+                8973990559932404408,
+                1830585533392189796,
+                16667600459761825175,
+                476991746583444
+            ])
+        );
+
+        // create a persistent smt in a separate scope
+        {
+            let mut smt = MNT4PoseidonSMT::new(
+                TEST_HEIGHT_1,
+                true,
+                String::from("./db_leaves_persistency_test_info"),
+            ).unwrap();
+
+            //Insert some leaves in the tree
+            smt.insert_leaf(Coord{height:0, idx:0}, MNT4753Fr::from_str("1").unwrap());
+            smt.insert_leaf(Coord{height:0, idx:9}, MNT4753Fr::from_str("2").unwrap());
+
+            // smt gets dropped but its info should be saved
+        }
+        // files and directories should have been created
+        assert!(Path::new("./db_leaves_persistency_test_info").exists());
+
+        // create a non-persistent smt in another scope by restoring the previous one
+        {
+            let mut smt = MNT4PoseidonSMT::load_batch::<MNT4753FieldBasedMerkleTreeParams>(
+                TEST_HEIGHT_1,
+                false,
+                String::from("./db_leaves_persistency_test_info"),
+            ).unwrap();
+
+            // insert other leaves
+            smt.insert_leaf(Coord { height: 0, idx: 16 }, MNT4753Fr::from_str("10").unwrap());
+            smt.insert_leaf(Coord { height: 0, idx: 29 }, MNT4753Fr::from_str("3").unwrap());
+
+            // if truly state has been kept, then the equality below must pass, since `root` was
+            // computed in one go with another smt
+            assert_eq!(root, smt.get_root());
+
+            // smt gets dropped and the info on disk destroyed
+        }
+
+        // files and directories should have been deleted
+        assert!(!Path::new("./db_leaves_persistency_test_info").exists());
+
+        // assert being unable to restore
+        assert!(MNT4PoseidonSMT::load_batch::<MNT4753FieldBasedMerkleTreeParams>(
             TEST_HEIGHT_1,
             false,
             String::from("./db_leaves_persistency_test_info"),

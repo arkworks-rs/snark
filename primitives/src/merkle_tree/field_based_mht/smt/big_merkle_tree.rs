@@ -1,18 +1,15 @@
 /* Sparse Big Merkle tree */
 use algebra::{ToBytes, to_bytes, FromBytes};
-use crate::{
-    crh::{FieldBasedHash, FieldBasedHashParameters},
-    merkle_tree::{
-        field_based_mht::{
-            FieldBasedMerkleTreeParameters,
-            FieldBasedMerkleTreePath, FieldBasedBinaryMHTPath,
-            smt::{
-                Coord, OperationLeaf, ActionLeaf::Insert, BigMerkleTreeState,
-            },
-            check_precomputed_parameters
-        }
-    },
-};
+use crate::{crh::{FieldBasedHash, FieldBasedHashParameters}, merkle_tree::{
+    field_based_mht::{
+        FieldBasedMerkleTreeParameters,
+        FieldBasedMerkleTreePath, FieldBasedBinaryMHTPath,
+        smt::{
+            Coord, OperationLeaf, ActionLeaf::Insert, BigMerkleTreeState,
+        },
+        check_precomputed_parameters
+    }
+}, LazyBigMerkleTree, BatchFieldBasedMerkleTreeParameters};
 
 use rocksdb::{DB, Options, IteratorMode};
 
@@ -44,6 +41,31 @@ pub struct BigMerkleTree<T: FieldBasedMerkleTreeParameters>{
 impl<T: FieldBasedMerkleTreeParameters> Drop for BigMerkleTree<T> {
     fn drop(&mut self) {
         self.flush();
+    }
+}
+
+impl<T: FieldBasedMerkleTreeParameters, BT: BatchFieldBasedMerkleTreeParameters<Data = T::Data>>
+From<LazyBigMerkleTree<BT>> for BigMerkleTree<T>
+{
+    fn from(other: LazyBigMerkleTree<BT>) -> Self {
+        let state = BigMerkleTreeState::<T>{
+            height: other.state.height,
+            cache_path: other.state.cache_path.clone(),
+            present_node: other.state.present_node.clone(),
+            root: other.state.root,
+            _parameters: PhantomData
+        };
+
+        Self {
+            persistent: other.persistent,
+            state,
+            width: other.width,
+            path_db: other.path_db.clone(),
+            database: other.database.clone(),
+            path_cache: other.path_cache.clone(),
+            db_cache: other.db_cache.clone(),
+            _parameters: PhantomData
+        }
     }
 }
 
@@ -101,6 +123,16 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
     ) -> Result<Self, Error> {
 
         let leaves_db_path = Path::new(path_db.as_str());
+        let cache_db_str = {
+            let mut t = path_db.clone();
+            t.push_str("_cache");
+            t
+        };
+        let cache_db_path = Path::new(cache_db_str.as_str());
+
+        // Temporary: clean up anyway, as we have not implemented still a way
+        // to check for dbs consistency
+        if cache_db_path.exists() { fs::remove_dir_all(cache_db_path)? }
 
         // The DB containing all the leaves it's enough to reconstruct a consistent tree.
         // Even if other info are available on disk, we would still need to check that
@@ -113,6 +145,38 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
         } else
         {
             // If `database` has been lost, it's not possible to load or recover anything
+            Err(Error::new(
+                ErrorKind::InvalidData,
+                "Unable to restore MerkleTree: leaves not available")
+            )
+        }
+    }
+
+    pub fn load_batch<BT: BatchFieldBasedMerkleTreeParameters<Data = T::Data>>(
+        height: usize,
+        persistent: bool,
+        path_db: String,
+    ) -> Result<Self, Error> {
+
+        let leaves_db_path = Path::new(path_db.as_str());
+        let cache_db_str = {
+            let mut t = path_db.clone();
+            t.push_str("_cache");
+            t
+        };
+        let cache_db_path = Path::new(cache_db_str.as_str());
+
+        // Temporary: clean up anyway, as we have not implemented still a way
+        // to check for dbs consistency
+        if cache_db_path.exists() { fs::remove_dir_all(cache_db_path)? }
+
+        if leaves_db_path.exists()
+        {
+            let mut new_tree: BigMerkleTree<T> = LazyBigMerkleTree::<BT>::load(height, true, path_db)?.into();
+            new_tree.persistent = persistent;
+            Ok(new_tree)
+        } else
+        {
             Err(Error::new(
                 ErrorKind::InvalidData,
                 "Unable to restore MerkleTree: leaves not available")
@@ -183,18 +247,18 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
 
     pub fn flush(&mut self) {
 
-        // Deletes the folder containing the cache
-        match fs::remove_dir_all(self.path_cache.clone()) {
-            Ok(_) => (),
-            Err(e) => {
-                println!("Error deleting the folder containing the db: {}", e);
-            }
-        };
-
         if !self.persistent {
 
             // Deletes the folder containing the db
             match fs::remove_dir_all(self.path_db.clone()) {
+                Ok(_) => (),
+                Err(e) => {
+                    println!("Error deleting the folder containing the db: {}", e);
+                }
+            };
+
+            // Deletes the folder containing the cache
+            match fs::remove_dir_all(self.path_cache.clone()) {
                 Ok(_) => (),
                 Err(e) => {
                     println!("Error deleting the folder containing the db: {}", e);
@@ -724,7 +788,6 @@ impl<T: FieldBasedMerkleTreeParameters> BigMerkleTree<T> {
 mod test {
 
     use algebra::{
-        biginteger::BigInteger768,
         fields::{mnt6753::Fr as MNT6753Fr, mnt4753::Fr as MNT4753Fr},
         Field, UniformRand,
         ToBytes, to_bytes, FromBytes,
@@ -745,9 +808,7 @@ mod test {
     use rand_xorshift::XorShiftRng;
     use rand::SeedableRng;
 
-    use std::{
-        str::FromStr, path::Path
-    };
+    use std::str::FromStr;
 
     #[derive(Clone, Debug)]
     struct MNT4753FieldBasedMerkleTreeParams;
@@ -999,72 +1060,6 @@ mod test {
         println!("{:?}", smt.state.root);
 
         assert_eq!(tree.root(), smt.state.root, "Outputs of the Merkle trees for MNT6 do not match.");
-    }
-
-    #[test]
-    fn test_persistency() {
-        let root = MNT4753Fr::new(
-            BigInteger768([
-                17131081159200801074,
-                9006481350618111567,
-                12051725085490156787,
-                2023238364439588976,
-                13194888104290656497,
-                14162537977718443379,
-                13575626123664189275,
-                9267800406229717074,
-                8973990559932404408,
-                1830585533392189796,
-                16667600459761825175,
-                476991746583444
-            ])
-        );
-
-        // create a persistent smt in a separate scope
-        {
-            let mut smt = MNT4PoseidonSMT::new(
-                TEST_HEIGHT,
-                true,
-                String::from("./db_leaves_persistency_test_info"),
-            ).unwrap();
-
-            //Insert some leaves in the tree
-            smt.insert_leaf(Coord{height:0, idx:0}, MNT4753Fr::from_str("1").unwrap());
-            smt.insert_leaf(Coord{height:0, idx:9}, MNT4753Fr::from_str("2").unwrap());
-
-            // smt gets dropped but its info should be saved
-        }
-        // files and directories should have been created
-        assert!(Path::new("./db_leaves_persistency_test_info").exists());
-
-        // create a non-persistent smt in another scope by restoring the previous one
-        {
-            let mut smt = MNT4PoseidonSMT::load(
-                TEST_HEIGHT,
-                false,
-                String::from("./db_leaves_persistency_test_info"),
-            ).unwrap();
-
-            // insert other leaves
-            smt.insert_leaf(Coord { height: 0, idx: 16 }, MNT4753Fr::from_str("10").unwrap());
-            smt.insert_leaf(Coord { height: 0, idx: 29 }, MNT4753Fr::from_str("3").unwrap());
-
-            // if truly state has been kept, then the equality below must pass, since `root` was
-            // computed in one go with another smt
-            assert_eq!(root, smt.state.root);
-
-            // smt gets dropped and the info on disk destroyed
-        }
-
-        // files and directories should have been deleted
-        assert!(!Path::new("./db_leaves_persistency_test_info").exists());
-
-        // assert being unable to restore
-        assert!(MNT4PoseidonSMT::load(
-            TEST_HEIGHT,
-            false,
-            String::from("./db_leaves_persistency_test_info"),
-        ).is_err());
     }
 
     #[test]
