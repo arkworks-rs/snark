@@ -285,12 +285,18 @@ where
                 P::G2Var::new_variable(r1cs_core::ns!(cs, "h_beta"), || Ok(pvk.h_beta), mode)?;
             let g_alpha_pc = P::G1PreparedVar::new_variable(
                 r1cs_core::ns!(cs, "g_alpha_pc"),
-                || Ok(pvk.g_alpha.into()),
+                || {
+                    let res: E::G1Prepared = pvk.g_alpha.into();
+                    Ok(res)
+                },
                 mode,
             )?;
             let h_beta_pc = P::G2PreparedVar::new_variable(
                 r1cs_core::ns!(cs, "h_beta_pc"),
-                || Ok(pvk.h_beta.into()),
+                || {
+                    let res: E::G2Prepared = pvk.h_beta.into();
+                    Ok(res)
+                },
                 mode,
             )?;
             let g_gamma_pc = P::G1PreparedVar::new_variable(
@@ -345,9 +351,9 @@ where
             let h_beta_g2 =
                 P::G2Var::new_variable(r1cs_core::ns!(cs, "h_beta"), || Ok(vk.h_beta_g2), mode)?;
             let g_gamma_g1 =
-                P::G1Var::new_variable(r1cs_core::ns!(cs, "g_gamma"), || Ok(&vk.g_gamma_g1), mode)?;
+                P::G1Var::new_variable(r1cs_core::ns!(cs, "g_gamma"), || Ok(vk.g_gamma_g1), mode)?;
             let h_gamma_g2 =
-                P::G2Var::new_variable(r1cs_core::ns!(cs, "h_gamma"), || Ok(&vk.h_gamma_g2), mode)?;
+                P::G2Var::new_variable(r1cs_core::ns!(cs, "h_gamma"), || Ok(vk.h_gamma_g2), mode)?;
             let query =
                 Vec::new_variable(r1cs_core::ns!(cs, "query"), || Ok(vk.query.clone()), mode)?;
             Ok(Self {

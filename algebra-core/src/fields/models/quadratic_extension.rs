@@ -137,8 +137,8 @@ impl<P: QuadExtParameters> QuadExtField<P> {
     }
 
     pub fn mul_assign_by_basefield(&mut self, element: &P::BaseField) {
-        self.c0.mul_assign(&element);
-        self.c1.mul_assign(&element);
+        self.c0.mul_assign(element);
+        self.c1.mul_assign(element);
     }
 }
 
