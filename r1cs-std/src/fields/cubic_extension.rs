@@ -5,9 +5,8 @@ use algebra::{
 use core::{borrow::Borrow, marker::PhantomData};
 use r1cs_core::{ConstraintSystemRef, Namespace, SynthesisError};
 
-use crate::fields::fp::FpVar;
 use crate::{
-    fields::{FieldOpsBounds, FieldVar},
+    fields::{fp::FpVar, FieldOpsBounds, FieldVar},
     prelude::*,
     ToConstraintFieldGadget, Vec,
 };
@@ -31,14 +30,16 @@ where
     _params: PhantomData<P>,
 }
 
-/// This trait describes parameters that are used to implement arithmetic for `CubicExtVar`.
+/// This trait describes parameters that are used to implement arithmetic for
+/// `CubicExtVar`.
 pub trait CubicExtVarParams<BF: FieldVar<Self::BaseField, Self::BasePrimeField>>:
     CubicExtParameters
 where
     for<'a> &'a BF: FieldOpsBounds<'a, Self::BaseField, BF>,
 {
-    /// Multiply the base field of the `CubicExtVar` by the appropriate Frobenius coefficient.
-    /// This is equivalent to `Self::mul_base_field_by_frob_coeff(c1, c2, power)`.
+    /// Multiply the base field of the `CubicExtVar` by the appropriate
+    /// Frobenius coefficient. This is equivalent to
+    /// `Self::mul_base_field_by_frob_coeff(c1, c2, power)`.
     fn mul_base_field_vars_by_frob_coeff(c1: &mut BF, c2: &mut BF, power: usize);
 }
 
@@ -58,8 +59,8 @@ where
         }
     }
 
-    /// Multiplies a variable of the base field by the cubic nonresidue `P::NONRESIDUE` that
-    /// is used to construct the extension field.
+    /// Multiplies a variable of the base field by the cubic nonresidue
+    /// `P::NONRESIDUE` that is used to construct the extension field.
     #[inline]
     pub fn mul_base_field_by_nonresidue(fe: &BF) -> Result<BF, SynthesisError> {
         Ok(fe * P::NONRESIDUE)

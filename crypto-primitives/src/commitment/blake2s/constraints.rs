@@ -1,8 +1,7 @@
 use r1cs_core::{Namespace, SynthesisError};
 
 use crate::{
-    commitment::blake2s,
-    commitment::CommitmentGadget,
+    commitment::{blake2s, CommitmentGadget},
     prf::blake2s::constraints::{evaluate_blake2s, OutputVar},
     Vec,
 };
@@ -72,12 +71,12 @@ impl<ConstraintF: PrimeField> AllocVar<[u8; 32], ConstraintF> for RandomnessVar<
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        commitment::blake2s::{
+    use crate::commitment::{
+        blake2s::{
             constraints::{CommGadget, RandomnessVar},
             Commitment,
         },
-        commitment::{CommitmentGadget, CommitmentScheme},
+        CommitmentGadget, CommitmentScheme,
     };
     use algebra::{ed_on_bls12_381::Fq as Fr, test_rng};
     use r1cs_core::ConstraintSystem;

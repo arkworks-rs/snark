@@ -39,7 +39,8 @@ pub struct G1PreparedVar<P: MNT6Parameters> {
 }
 
 impl<P: MNT6Parameters> G1PreparedVar<P> {
-    /// Returns the value assigned to `self` in the underlying constraint system.
+    /// Returns the value assigned to `self` in the underlying constraint
+    /// system.
     pub fn value(&self) -> Result<G1Prepared<P>, SynthesisError> {
         let x = self.x.value()?;
         let y = self.y.value()?;
@@ -243,7 +244,8 @@ impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for G2PreparedVar<P> {
 }
 
 impl<P: MNT6Parameters> G2PreparedVar<P> {
-    /// Returns the value assigned to `self` in the underlying constraint system.
+    /// Returns the value assigned to `self` in the underlying constraint
+    /// system.
     pub fn value(&self) -> Result<G2Prepared<P>, SynthesisError> {
         let x = self.x.value()?;
         let y = self.y.value()?;
@@ -406,7 +408,8 @@ impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for AteDoubleCoefficientsVar<P> {
 }
 
 impl<P: MNT6Parameters> AteDoubleCoefficientsVar<P> {
-    /// Returns the value assigned to `self` in the underlying constraint system.
+    /// Returns the value assigned to `self` in the underlying constraint
+    /// system.
     pub fn value(&self) -> Result<AteDoubleCoefficients<P>, SynthesisError> {
         let c_h = self.c_h.value()?;
         let c_4c = self.c_4c.value()?;
@@ -472,7 +475,8 @@ impl<P: MNT6Parameters> ToBytesGadget<P::Fp> for AteAdditionCoefficientsVar<P> {
 }
 
 impl<P: MNT6Parameters> AteAdditionCoefficientsVar<P> {
-    /// Returns the value assigned to `self` in the underlying constraint system.
+    /// Returns the value assigned to `self` in the underlying constraint
+    /// system.
     pub fn value(&self) -> Result<AteAdditionCoefficients<P>, SynthesisError> {
         let c_l1 = self.c_l1.value()?;
         let c_rz = self.c_rz.value()?;

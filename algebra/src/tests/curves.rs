@@ -819,8 +819,10 @@ pub fn edwards_from_random_bytes<P: TEModelParameters>()
 where
     P::BaseField: PrimeField,
 {
-    use algebra_core::curves::models::twisted_edwards_extended::{GroupAffine, GroupProjective};
-    use algebra_core::{to_bytes, ToBytes};
+    use algebra_core::{
+        curves::models::twisted_edwards_extended::{GroupAffine, GroupProjective},
+        to_bytes, ToBytes,
+    };
 
     let buf_size = GroupAffine::<P>::zero().serialized_size();
 

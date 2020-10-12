@@ -11,9 +11,9 @@ use r1cs_core::{lc, SynthesisError, Variable};
 impl<F: PrimeField> FpVar<F> {
     /// This function enforces the ordering between `self` and `other`. The
     /// constraint system will not be satisfied otherwise. If `self` should
-    /// also be checked for equality, e.g. `self <= other` instead of `self < other`, set
-    /// `should_also_check_quality` to `true`. This variant verifies `self` and `other`
-    /// are `<= (p-1)/2`.
+    /// also be checked for equality, e.g. `self <= other` instead of `self <
+    /// other`, set `should_also_check_quality` to `true`. This variant
+    /// verifies `self` and `other` are `<= (p-1)/2`.
     #[tracing::instrument(target = "r1cs")]
     pub fn enforce_cmp(
         &self,
@@ -27,9 +27,10 @@ impl<F: PrimeField> FpVar<F> {
 
     /// This function enforces the ordering between `self` and `other`. The
     /// constraint system will not be satisfied otherwise. If `self` should
-    /// also be checked for equality, e.g. `self <= other` instead of `self < other`, set
-    /// `should_also_check_quality` to `true`. This variant assumes `self` and `other`
-    /// are `<= (p-1)/2` and does not generate constraints to verify that.
+    /// also be checked for equality, e.g. `self <= other` instead of `self <
+    /// other`, set `should_also_check_quality` to `true`. This variant
+    /// assumes `self` and `other` are `<= (p-1)/2` and does not generate
+    /// constraints to verify that.
     #[tracing::instrument(target = "r1cs")]
     pub fn enforce_cmp_unchecked(
         &self,
@@ -41,12 +42,12 @@ impl<F: PrimeField> FpVar<F> {
         left.enforce_smaller_than_unchecked(&right)
     }
 
-    /// This function checks the ordering between `self` and `other`. It outputs self
-    /// `Boolean` that contains the result - `1` if true, `0` otherwise. The
-    /// constraint system will be satisfied in any case. If `self` should
-    /// also be checked for equality, e.g. `self <= other` instead of `self < other`, set
-    /// `should_also_check_quality` to `true`. This variant verifies `self` and `other`
-    /// are `<= (p-1)/2`.
+    /// This function checks the ordering between `self` and `other`. It outputs
+    /// self `Boolean` that contains the result - `1` if true, `0`
+    /// otherwise. The constraint system will be satisfied in any case. If
+    /// `self` should also be checked for equality, e.g. `self <= other`
+    /// instead of `self < other`, set `should_also_check_quality` to
+    /// `true`. This variant verifies `self` and `other` are `<= (p-1)/2`.
     #[tracing::instrument(target = "r1cs")]
     pub fn is_cmp(
         &self,
@@ -58,12 +59,13 @@ impl<F: PrimeField> FpVar<F> {
         left.is_smaller_than(&right)
     }
 
-    /// This function checks the ordering between `self` and `other`. It outputs a
-    /// `Boolean` that contains the result - `1` if true, `0` otherwise. The
-    /// constraint system will be satisfied in any case. If `self` should
-    /// also be checked for equality, e.g. `self <= other` instead of `self < other`, set
-    /// `should_also_check_quality` to `true`. This variant assumes `self` and `other`
-    /// are `<= (p-1)/2` and does not generate constraints to verify that.
+    /// This function checks the ordering between `self` and `other`. It outputs
+    /// a `Boolean` that contains the result - `1` if true, `0` otherwise.
+    /// The constraint system will be satisfied in any case. If `self`
+    /// should also be checked for equality, e.g. `self <= other` instead of
+    /// `self < other`, set `should_also_check_quality` to `true`. This
+    /// variant assumes `self` and `other` are `<= (p-1)/2` and does not
+    /// generate constraints to verify that.
     #[tracing::instrument(target = "r1cs")]
     pub fn is_cmp_unchecked(
         &self,
@@ -109,17 +111,17 @@ impl<F: PrimeField> FpVar<F> {
         Ok(())
     }
 
-    /// Helper function to check `self < other` and output a result bit. This function
-    /// verifies `self` and `other` are `<= (p-1)/2`.
+    /// Helper function to check `self < other` and output a result bit. This
+    /// function verifies `self` and `other` are `<= (p-1)/2`.
     fn is_smaller_than(&self, other: &FpVar<F>) -> Result<Boolean<F>, SynthesisError> {
         self.enforce_smaller_or_equal_than_mod_minus_one_div_two()?;
         other.enforce_smaller_or_equal_than_mod_minus_one_div_two()?;
         self.is_smaller_than_unchecked(other)
     }
 
-    /// Helper function to check `self < other` and output a result bit. This function
-    /// assumes `self` and `other` are `<= (p-1)/2` and does not generate constraints
-    /// to verify that.
+    /// Helper function to check `self < other` and output a result bit. This
+    /// function assumes `self` and `other` are `<= (p-1)/2` and does not
+    /// generate constraints to verify that.
     fn is_smaller_than_unchecked(&self, other: &FpVar<F>) -> Result<Boolean<F>, SynthesisError> {
         Ok((self - other)
             .double()?
@@ -129,16 +131,17 @@ impl<F: PrimeField> FpVar<F> {
             .clone())
     }
 
-    /// Helper function to enforce `self < other`. This function verifies `self` and `other`
-    /// are `<= (p-1)/2`.
+    /// Helper function to enforce `self < other`. This function verifies `self`
+    /// and `other` are `<= (p-1)/2`.
     fn enforce_smaller_than(&self, other: &FpVar<F>) -> Result<(), SynthesisError> {
         self.enforce_smaller_or_equal_than_mod_minus_one_div_two()?;
         other.enforce_smaller_or_equal_than_mod_minus_one_div_two()?;
         self.enforce_smaller_than_unchecked(other)
     }
 
-    /// Helper function to enforce `self < other`. This function assumes `self` and `other`
-    /// are `<= (p-1)/2` and does not generate constraints to verify that.
+    /// Helper function to enforce `self < other`. This function assumes `self`
+    /// and `other` are `<= (p-1)/2` and does not generate constraints to
+    /// verify that.
     fn enforce_smaller_than_unchecked(&self, other: &FpVar<F>) -> Result<(), SynthesisError> {
         let is_smaller_than = self.is_smaller_than_unchecked(other)?;
         let lc_one = lc!() + Variable::One;

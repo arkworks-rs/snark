@@ -1,8 +1,8 @@
 //! This module implements the R1CS equivalent of `algebra::bls12_377`.
 //!
-//! It implements field variables for `algebra::bls12_377::{Fq, Fq2, Fq6, Fq12}`,
-//! group variables for `algebra::bls12_377::{G1, G2}`, and implements constraint
-//! generation for computing `Bls12_377::pairing`.
+//! It implements field variables for `algebra::bls12_377::{Fq, Fq2, Fq6,
+//! Fq12}`, group variables for `algebra::bls12_377::{G1, G2}`, and implements
+//! constraint generation for computing `Bls12_377::pairing`.
 //!
 //! The field underlying these constraints is `algebra::bls12_377::Fq`.
 //!

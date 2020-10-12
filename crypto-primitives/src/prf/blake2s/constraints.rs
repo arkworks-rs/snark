@@ -299,8 +299,8 @@ impl<ConstraintF: PrimeField> EqGadget<ConstraintF> for OutputVar<ConstraintF> {
         self.0.is_eq(&other.0)
     }
 
-    /// If `should_enforce == true`, enforce that `self` and `other` are equal; else,
-    /// enforce a vacuously true statement.
+    /// If `should_enforce == true`, enforce that `self` and `other` are equal;
+    /// else, enforce a vacuously true statement.
     #[tracing::instrument(target = "r1cs")]
     fn conditional_enforce_equal(
         &self,
@@ -310,8 +310,8 @@ impl<ConstraintF: PrimeField> EqGadget<ConstraintF> for OutputVar<ConstraintF> {
         self.0.conditional_enforce_equal(&other.0, should_enforce)
     }
 
-    /// If `should_enforce == true`, enforce that `self` and `other` are not equal; else,
-    /// enforce a vacuously true statement.
+    /// If `should_enforce == true`, enforce that `self` and `other` are not
+    /// equal; else, enforce a vacuously true statement.
     #[tracing::instrument(target = "r1cs")]
     fn conditional_enforce_not_equal(
         &self,

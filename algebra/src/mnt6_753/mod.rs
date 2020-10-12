@@ -1,8 +1,9 @@
 //! This module implements the MNT6_753 curve generated in
 //! [[BCTV14]](https://eprint.iacr.org/2014/595). The name denotes that it is a
-//! Miyaji--Nakabayashi--Takano curve of embedding degree 6, defined over a 753-bit (prime) field.
-//! The main feature of this curve is that its scalar field and base field respectively equal the
-//! base field and scalar field of MNT4_753.
+//! Miyaji--Nakabayashi--Takano curve of embedding degree 6, defined over a
+//! 753-bit (prime) field. The main feature of this curve is that its scalar
+//! field and base field respectively equal the base field and scalar field of
+//! MNT4_753.
 //!
 //! Curve information:
 //! * Base field: q = 0x01C4C62D92C41110229022EEE2CDADB7F997505B8FAFED5EB7E8F96C97D87307FDB925E8A0ED8D99D124D9A15AF79DB26C5C28C859A99B3EEBCA9429212636B9DFF97634993AA4D6C381BC3F0057974EA099170FA13A4FD90776E240000001
@@ -15,7 +16,8 @@
 //! * G2 curve equation: y^2 = x^3 + Ax + B, where
 //!    * A = Fq3(0, 0, a)
 //!    * B = Fq3(b * NON_RESIDUE, 0, 0)
-//!    * NON_RESIDUE = 11 is the cubic non-residue used to construct the extension field Fq3
+//!    * NON_RESIDUE = 11 is the cubic non-residue used to construct the
+//!      extension field Fq3
 
 #[cfg(feature = "mnt6_753")]
 mod curves;

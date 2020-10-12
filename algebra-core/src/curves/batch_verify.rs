@@ -1,7 +1,7 @@
-use crate::fields::FpParameters;
 use crate::{
     cfg_chunks_mut,
     curves::{batch_bucketed_add, BatchGroupArithmeticSlice, BucketPosition, BATCH_SIZE},
+    fields::FpParameters,
     AffineCurve, PrimeField, ProjectiveCurve, Vec,
 };
 use num_traits::identities::Zero;
@@ -124,9 +124,10 @@ pub fn batch_verify_in_subgroup<C: AffineCurve, R: Rng>(
     let (num_buckets, num_rounds, _) = get_max_bucket(
         security_param,
         points.len(),
-        // We estimate the costs of a single scalar multiplication in the batch affine, w-NAF GLV case as
-        // 7/6 * 0.5 * n_bits * 0.8 (doubling) + 0.5 * 1/(w + 1) * n_bits (addition)
-        // We take into account that doubling in the batch add model is cheaper as it requires less cache use
+        // We estimate the costs of a single scalar multiplication in the batch affine, w-NAF GLV
+        // case as 7/6 * 0.5 * n_bits * 0.8 (doubling) + 0.5 * 1/(w + 1) * n_bits
+        // (addition) We take into account that doubling in the batch add model is cheaper
+        // as it requires less cache use
         cost_estimate,
     );
     run_rounds(points, num_buckets, num_rounds, None, rng)?;

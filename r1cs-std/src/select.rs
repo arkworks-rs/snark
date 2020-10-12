@@ -7,11 +7,12 @@ pub trait CondSelectGadget<ConstraintF: Field>
 where
     Self: Sized,
 {
-    /// If `cond == &Boolean::TRUE`, then this returns `true_value`; else, returns `false_value`.
+    /// If `cond == &Boolean::TRUE`, then this returns `true_value`; else,
+    /// returns `false_value`.
     ///
     /// # Note
-    /// `Self::conditionally_select(cond, true_value, false_value)?` can be more succinctly written as
-    /// `cond.select(&true_value, &false_value)?`.
+    /// `Self::conditionally_select(cond, true_value, false_value)?` can be more
+    /// succinctly written as `cond.select(&true_value, &false_value)?`.
     fn conditionally_select(
         cond: &Boolean<ConstraintF>,
         true_value: &Self,
@@ -27,11 +28,11 @@ where
     /// The type of values being looked up.
     type TableConstant;
 
-    /// Interprets the slice `bits` as a two-bit integer `b = bits[0] + (bits[1] << 1)`,
-    /// and then outputs `constants[b]`.
+    /// Interprets the slice `bits` as a two-bit integer `b = bits[0] + (bits[1]
+    /// << 1)`, and then outputs `constants[b]`.
     ///
-    /// For example, if `bits == [0, 1]`, and `constants == [0, 1, 2, 3]`, this method
-    /// should output a variable corresponding to `2`.
+    /// For example, if `bits == [0, 1]`, and `constants == [0, 1, 2, 3]`, this
+    /// method should output a variable corresponding to `2`.
     ///
     /// # Panics
     ///
@@ -51,13 +52,14 @@ where
     /// The type of values being looked up.
     type TableConstant;
 
-    /// Interprets the slice `bits` as a two-bit integer `b = bits[0] + (bits[1] << 1)`,
-    /// and then outputs `constants[b] * c`, where `c = if bits[2] { -1 } else { 1 };`.
+    /// Interprets the slice `bits` as a two-bit integer `b = bits[0] + (bits[1]
+    /// << 1)`, and then outputs `constants[b] * c`, where `c = if bits[2] {
+    /// -1 } else { 1 };`.
     ///
     /// That is, `bits[2]` conditionally negates the looked-up value.
     ///
-    /// For example, if `bits == [1, 0, 1]`, and `constants == [0, 1, 2, 3]`, this method
-    /// should output a variable corresponding to `-1`.
+    /// For example, if `bits == [1, 0, 1]`, and `constants == [0, 1, 2, 3]`,
+    /// this method should output a variable corresponding to `-1`.
     ///
     /// # Panics
     ///

@@ -72,7 +72,8 @@ impl<P: MNT4Parameters> AllocVar<G1Prepared<P>, P::Fp> for G1PreparedVar<P> {
 }
 
 impl<P: MNT4Parameters> G1PreparedVar<P> {
-    /// Returns the value assigned to `self` in the underlying constraint system.
+    /// Returns the value assigned to `self` in the underlying constraint
+    /// system.
     pub fn value(&self) -> Result<G1Prepared<P>, SynthesisError> {
         let (x, y, x_twist, y_twist) = (
             self.x.value()?,
@@ -243,7 +244,8 @@ impl<P: MNT4Parameters> ToBytesGadget<P::Fp> for G2PreparedVar<P> {
 }
 
 impl<P: MNT4Parameters> G2PreparedVar<P> {
-    /// Returns the value assigned to `self` in the underlying constraint system.
+    /// Returns the value assigned to `self` in the underlying constraint
+    /// system.
     pub fn value(&self) -> Result<G2Prepared<P>, SynthesisError> {
         let x = self.x.value()?;
         let y = self.y.value()?;
@@ -406,7 +408,8 @@ impl<P: MNT4Parameters> ToBytesGadget<P::Fp> for AteDoubleCoefficientsVar<P> {
 }
 
 impl<P: MNT4Parameters> AteDoubleCoefficientsVar<P> {
-    /// Returns the value assigned to `self` in the underlying constraint system.
+    /// Returns the value assigned to `self` in the underlying constraint
+    /// system.
     pub fn value(&self) -> Result<AteDoubleCoefficients<P>, SynthesisError> {
         let (c_h, c_4c, c_j, c_l) = (
             self.c_l.value()?,
@@ -474,7 +477,8 @@ impl<P: MNT4Parameters> ToBytesGadget<P::Fp> for AteAdditionCoefficientsVar<P> {
 }
 
 impl<P: MNT4Parameters> AteAdditionCoefficientsVar<P> {
-    /// Returns the value assigned to `self` in the underlying constraint system.
+    /// Returns the value assigned to `self` in the underlying constraint
+    /// system.
     pub fn value(&self) -> Result<AteAdditionCoefficients<P>, SynthesisError> {
         let (c_l1, c_rz) = (self.c_l1.value()?, self.c_rz.value()?);
         Ok(AteAdditionCoefficients { c_l1, c_rz })

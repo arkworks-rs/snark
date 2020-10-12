@@ -3,9 +3,9 @@ use core::ops::Neg;
 use either::Either;
 use num_traits::Zero;
 
-/// We use a batch size that is big enough to amortise the cost of the actual inversion
-/// close to zero while not straining the CPU cache by generating and fetching from
-/// large w-NAF tables and slices [G]
+/// We use a batch size that is big enough to amortise the cost of the actual
+/// inversion close to zero while not straining the CPU cache by generating and
+/// fetching from large w-NAF tables and slices [G]
 pub const BATCH_SIZE: usize = 4096;
 /// 0 == Identity; 1 == Neg; 2 == GLV; 3 == GLV + Neg
 pub const ENDO_CODING_BITS: usize = 2;
@@ -24,12 +24,10 @@ where
 {
     type BBaseField: Field;
 
-    /*
-    We use the w-NAF method, achieving point density of approximately 1/(w + 1)
-    and requiring storage of only 2^(w - 1).
-    Refer to e.g. Improved Techniques for Fast Exponentiation, Section 4
-    Bodo M¨oller 2002. https://www.bmoeller.de/pdf/fastexp-icisc2002.pdf
-    */
+    // We use the w-NAF method, achieving point density of approximately 1/(w + 1)
+    // and requiring storage of only 2^(w - 1).
+    // Refer to e.g. Improved Techniques for Fast Exponentiation, Section 4
+    // Bodo M¨oller 2002. https://www.bmoeller.de/pdf/fastexp-icisc2002.pdf
 
     /// Computes [[p, 3 * p, ..., (2^w - 1) * p], ..., [q, 3* q,  ..., ]]
     /// We need to manipulate the offsets when using the table
@@ -79,7 +77,8 @@ where
         let mut all_none = false;
 
         if negate.is_some() {
-            assert_eq!(scalars.len(), negate.unwrap().len()); // precompute bounds check
+            assert_eq!(scalars.len(), negate.unwrap().len()); // precompute
+                                                              // bounds check
         }
 
         let f = false;
@@ -121,15 +120,13 @@ where
         op_code_vectorised
     }
 
-    /*
-    We define a series of batched primitive EC ops, each of which is most suitable
-    to a given scenario.
-
-    We encode the indexes as u32s to save on fetch latency via better cacheing. The
-    principle we are applying is that the len of the batch ops should never exceed
-    about 2^20, and the table size would never exceed 2^10, so 32 bits will always
-    be enough
-    */
+    // We define a series of batched primitive EC ops, each of which is most
+    // suitable to a given scenario.
+    //
+    // We encode the indexes as u32s to save on fetch latency via better cacheing.
+    // The principle we are applying is that the len of the batch ops should
+    // never exceed about 2^20, and the table size would never exceed 2^10, so
+    // 32 bits will always be enough
 
     /// Mutates bases to be doubled in place
     /// Accepts optional scratch space which might help by reducing the
@@ -148,8 +145,8 @@ where
     /// The elements in other become junk data.
     fn batch_add_in_place(bases: &mut [Self], other: &mut [Self], index: &[(u32, u32)]);
 
-    /// Adds elements in bases with elements in other (for instance, a table), utilising
-    /// a scratch space to store intermediate results.
+    /// Adds elements in bases with elements in other (for instance, a table),
+    /// utilising a scratch space to store intermediate results.
     fn batch_add_in_place_read_only(
         bases: &mut [Self],
         other: &[Self],
@@ -157,9 +154,9 @@ where
         scratch_space: &mut Vec<Self>,
     );
 
-    /// Lookups up group elements according to index, and either adds and writes or simply
-    /// writes them to new_elems, using scratch space to store intermediate values. Scratch
-    /// space is always cleared after use.
+    /// Lookups up group elements according to index, and either adds and writes
+    /// or simply writes them to new_elems, using scratch space to store
+    /// intermediate values. Scratch space is always cleared after use.
     fn batch_add_write(
         lookup: &[Self],
         index: &[(u32, u32)],
@@ -167,8 +164,8 @@ where
         scratch_space: &mut Vec<Option<Self>>,
     );
 
-    /// Similar to batch_add_write, only that the lookup for the first operand is performed
-    /// in new_elems rather than lookup
+    /// Similar to batch_add_write, only that the lookup for the first operand
+    /// is performed in new_elems rather than lookup
     fn batch_add_write_read_self(
         lookup: &[Self],
         index: &[(u32, u32)],

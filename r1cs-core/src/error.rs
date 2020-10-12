@@ -4,8 +4,8 @@ use core::fmt;
 /// such as CRS generation, proving or verification.
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum SynthesisError {
-    /// During synthesis, we tried to allocate a variable when `ConstraintSystemRef`
-    /// was `None`.
+    /// During synthesis, we tried to allocate a variable when
+    /// `ConstraintSystemRef` was `None`.
     MissingCS,
     /// During synthesis, we lacked knowledge of a variable assignment.
     AssignmentMissing,

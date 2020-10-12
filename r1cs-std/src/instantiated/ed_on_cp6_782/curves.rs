@@ -3,7 +3,8 @@ use algebra::ed_on_cp6_782::*;
 
 use crate::instantiated::ed_on_cp6_782::FqVar;
 
-/// A variable that is the R1CS equivalent of `algebra::ed_on_cp6_782::EdwardsAffine`.
+/// A variable that is the R1CS equivalent of
+/// `algebra::ed_on_cp6_782::EdwardsAffine`.
 pub type EdwardsVar = AffineVar<EdwardsParameters, FqVar>;
 
 #[test]

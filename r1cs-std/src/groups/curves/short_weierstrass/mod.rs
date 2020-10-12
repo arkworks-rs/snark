@@ -8,8 +8,7 @@ use algebra::{
 use core::{borrow::Borrow, marker::PhantomData};
 use r1cs_core::{ConstraintSystemRef, Namespace, SynthesisError};
 
-use crate::fields::fp::FpVar;
-use crate::{prelude::*, ToConstraintFieldGadget, Vec};
+use crate::{fields::fp::FpVar, prelude::*, ToConstraintFieldGadget, Vec};
 
 /// This module provides a generic implementation of G1 and G2 for
 /// the [[BLS12]](https://eprint.iacr.org/2002/088.pdf) family of bilinear groups.

@@ -39,14 +39,16 @@ use std::vec::Vec;
 
 use algebra::prelude::Field;
 
-/// This module implements gadgets related to bit manipulation, such as `Boolean` and `UInt`s.
+/// This module implements gadgets related to bit manipulation, such as
+/// `Boolean` and `UInt`s.
 pub mod bits;
 pub use self::bits::*;
 
 /// This module implements gadgets related to field arithmetic.
 pub mod fields;
 
-/// This module implements gadgets related to group arithmetic, and specifically elliptic curve arithmetic.
+/// This module implements gadgets related to group arithmetic, and specifically
+/// elliptic curve arithmetic.
 pub mod groups;
 
 mod instantiated;
@@ -87,14 +89,17 @@ pub use instantiated::mnt6_298;
 #[cfg(feature = "mnt6_753")]
 pub use instantiated::mnt6_753;
 
-/// This module implements gadgets related to computing pairings in bilinear groups.
+/// This module implements gadgets related to computing pairings in bilinear
+/// groups.
 pub mod pairing;
 
-/// This module describes a trait for allocating new variables in a constraint system.
+/// This module describes a trait for allocating new variables in a constraint
+/// system.
 pub mod alloc;
 /// This module describes a trait for checking equality of variables.
 pub mod eq;
-/// This module describes traits for conditionally selecting a variable from a list of variables.
+/// This module describes traits for conditionally selecting a variable from a
+/// list of variables.
 pub mod select;
 
 #[allow(missing_docs)]
@@ -112,15 +117,17 @@ pub mod prelude {
     };
 }
 
-/// This trait describes some core functionality that is common to high-level variables,
-/// such as `Boolean`s, `FieldVar`s, `GroupVar`s, etc.
+/// This trait describes some core functionality that is common to high-level
+/// variables, such as `Boolean`s, `FieldVar`s, `GroupVar`s, etc.
 pub trait R1CSVar<F: Field> {
-    /// The type of the "native" value that `Self` represents in the constraint system.
+    /// The type of the "native" value that `Self` represents in the constraint
+    /// system.
     type Value: core::fmt::Debug + Eq + Clone;
 
     /// Returns the underlying `ConstraintSystemRef`.
     ///
-    /// If `self` is a constant value, then this *must* return `r1cs_core::ConstraintSystemRef::None`.
+    /// If `self` is a constant value, then this *must* return
+    /// `r1cs_core::ConstraintSystemRef::None`.
     fn cs(&self) -> r1cs_core::ConstraintSystemRef<F>;
 
     /// Returns `true` if `self` is a circuit-generation-time constant.

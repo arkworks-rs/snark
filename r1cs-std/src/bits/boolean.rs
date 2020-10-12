@@ -590,7 +590,8 @@ impl<F: Field> Boolean<F> {
 
     /// Enforces that `Self::kary_nand(bits).is_eq(&Boolean::TRUE)`.
     ///
-    /// Informally, this means that at least one element in `bits` must be `false`.
+    /// Informally, this means that at least one element in `bits` must be
+    /// `false`.
     #[tracing::instrument(target = "r1cs")]
     fn enforce_kary_nand(bits: &[Self]) -> Result<(), SynthesisError> {
         use Boolean::*;
@@ -605,9 +606,10 @@ impl<F: Field> Boolean<F> {
         }
     }
 
-    /// Enforces that `bits`, when interpreted as a integer, is less than `F::characteristic()`,
-    /// That is, interpret bits as a little-endian integer, and enforce that this integer
-    /// is "in the field Z_p", where `p = F::characteristic()` .
+    /// Enforces that `bits`, when interpreted as a integer, is less than
+    /// `F::characteristic()`, That is, interpret bits as a little-endian
+    /// integer, and enforce that this integer is "in the field Z_p", where
+    /// `p = F::characteristic()` .
     #[tracing::instrument(target = "r1cs")]
     pub fn enforce_in_field_le(bits: &[Self]) -> Result<(), SynthesisError> {
         // `bits` < F::characteristic() <==> `bits` <= F::characteristic() -1
@@ -681,10 +683,11 @@ impl<F: Field> Boolean<F> {
         Ok(current_run)
     }
 
-    /// Conditionally selects one of `first` and `second` based on the value of `self`:
+    /// Conditionally selects one of `first` and `second` based on the value of
+    /// `self`:
     ///
-    /// If `self.is_eq(&Boolean::TRUE)`, this outputs `first`; else, it outputs `second`.
-    /// ```
+    /// If `self.is_eq(&Boolean::TRUE)`, this outputs `first`; else, it outputs
+    /// `second`. ```
     /// # fn main() -> Result<(), r1cs_core::SynthesisError> {
     /// // We'll use the BLS12-381 scalar field for our constraints.
     /// use algebra::bls12_381::Fr;
@@ -865,7 +868,6 @@ impl<F: Field> CondSelectGadget<F> for Boolean<F> {
                             Ok(if cond { a.value()? } else { b.value()? })
                         })?
                         .into();
-                    //
                     // a = self; b = other; c = cond;
                     //
                     // r = c * a + (1  - c) * b

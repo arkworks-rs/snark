@@ -66,8 +66,8 @@ impl<P: Parameters> GroupAffine<P> {
         self.mul_bits(BitIteratorBE::new(P::COFACTOR))
     }
 
-    /// Multiplies `self` by the scalar represented by `bits`. `bits` must be a big-endian
-    /// bit-wise decomposition of the scalar.
+    /// Multiplies `self` by the scalar represented by `bits`. `bits` must be a
+    /// big-endian bit-wise decomposition of the scalar.
     pub(crate) fn mul_bits(&self, bits: impl Iterator<Item = bool>) -> GroupProjective<P> {
         let mut res = GroupProjective::zero();
         for i in bits.skip_while(|b| !b) {

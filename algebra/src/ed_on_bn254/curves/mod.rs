@@ -36,7 +36,6 @@ const GENERATOR_Y: Fq = field_new!(Fq, BigInteger256([
 /// Baby-JubJub's curve equation: x² + y² = 1 + (168696/168700)x²y²
 ///
 /// q = 21888242871839275222246405745257275088548364400416034343698204186575808495617
-///
 #[derive(Clone, Default, PartialEq, Eq)]
 pub struct EdwardsParameters;
 

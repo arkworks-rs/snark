@@ -100,15 +100,17 @@ macro_rules! impl_sw_batch_affine {
         impl<P: Parameters> BatchGroupArithmetic for $GroupAffine<P> {
             type BBaseField = P::BaseField;
             /// This implementation of batch group ops takes particular
-            /// care to make most use of points fetched from memory to prevent reallocations
+            /// care to make most use of points fetched from memory to prevent
+            /// reallocations
 
             /// It is inspired by Aztec's approach:
             /// https://github.com/AztecProtocol/barretenberg/blob/
             /// c358fee3259a949da830f9867df49dc18768fa26/barretenberg/
-            /// src/aztec/ecc/curves/bn254/scalar_multiplication/scalar_multiplication.cpp
+            /// src/aztec/ecc/curves/bn254/scalar_multiplication/scalar_multiplication.
+            /// cpp
 
-            // We require extra scratch space, and since we want to prevent allocation/deallocation overhead
-            // we pass it externally for when this function is called many times
+            // We require extra scratch space, and since we want to prevent allocation/deallocation
+            // overhead we pass it externally for when this function is called many times
             #[inline]
             fn batch_double_in_place(
                 bases: &mut [Self],

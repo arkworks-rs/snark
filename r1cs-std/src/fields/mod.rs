@@ -7,34 +7,42 @@ use r1cs_core::SynthesisError;
 
 use crate::{prelude::*, Assignment};
 
-/// This module contains a generic implementation of cubic extension field variables.
-/// That is, it implements the R1CS equivalent of `algebra_core::CubicExtField`.
+/// This module contains a generic implementation of cubic extension field
+/// variables. That is, it implements the R1CS equivalent of
+/// `algebra_core::CubicExtField`.
 pub mod cubic_extension;
-/// This module contains a generic implementation of quadratic extension field variables.
-/// That is, it implements the R1CS equivalent of `algebra_core::QuadExtField`.
+/// This module contains a generic implementation of quadratic extension field
+/// variables. That is, it implements the R1CS equivalent of
+/// `algebra_core::QuadExtField`.
 pub mod quadratic_extension;
 
 /// This module contains a generic implementation of prime field variables.
 /// That is, it implements the R1CS equivalent of `algebra_core::Fp*`.
 pub mod fp;
 
-/// This module contains a generic implementation of the degree-12 tower extension field.
-/// That is, it implements the R1CS equivalent of  `algebra_core::Fp12`
+/// This module contains a generic implementation of the degree-12 tower
+/// extension field. That is, it implements the R1CS equivalent of
+/// `algebra_core::Fp12`
 pub mod fp12;
-/// This module contains a generic implementation of the degree-2 tower extension field.
-/// That is, it implements the R1CS equivalent of  `algebra_core::Fp2`
+/// This module contains a generic implementation of the degree-2 tower
+/// extension field. That is, it implements the R1CS equivalent of
+/// `algebra_core::Fp2`
 pub mod fp2;
-/// This module contains a generic implementation of the degree-3 tower extension field.
-/// That is, it implements the R1CS equivalent of  `algebra_core::Fp3`
+/// This module contains a generic implementation of the degree-3 tower
+/// extension field. That is, it implements the R1CS equivalent of
+/// `algebra_core::Fp3`
 pub mod fp3;
-/// This module contains a generic implementation of the degree-4 tower extension field.
-/// That is, it implements the R1CS equivalent of  `algebra_core::Fp4`
+/// This module contains a generic implementation of the degree-4 tower
+/// extension field. That is, it implements the R1CS equivalent of
+/// `algebra_core::Fp4`
 pub mod fp4;
-/// This module contains a generic implementation of the degree-6 tower extension field.
-/// That is, it implements the R1CS equivalent of  `algebra_core::fp6_2over3::Fp6`
+/// This module contains a generic implementation of the degree-6 tower
+/// extension field. That is, it implements the R1CS equivalent of
+/// `algebra_core::fp6_2over3::Fp6`
 pub mod fp6_2over3;
-/// This module contains a generic implementation of the degree-6 tower extension field.
-/// That is, it implements the R1CS equivalent of  `algebra_core::fp6_3over2::Fp6`
+/// This module contains a generic implementation of the degree-6 tower
+/// extension field. That is, it implements the R1CS equivalent of
+/// `algebra_core::fp6_3over2::Fp6`
 pub mod fp6_3over2;
 
 /// This trait is a hack used to work around the lack of implied bounds.
@@ -171,8 +179,8 @@ pub trait FieldVar<F: Field, ConstraintF: Field>:
         Ok(self)
     }
 
-    /// Comptues `self^bits`, where `bits` is a *little-endian* bit-wise decomposition
-    /// of the exponent.
+    /// Comptues `self^bits`, where `bits` is a *little-endian* bit-wise
+    /// decomposition of the exponent.
     fn pow_le(&self, bits: &[Boolean<ConstraintF>]) -> Result<Self, SynthesisError> {
         let mut res = Self::one();
         let mut power = self.clone();
@@ -184,8 +192,8 @@ pub trait FieldVar<F: Field, ConstraintF: Field>:
         Ok(res)
     }
 
-    /// Computes `self^S`, where S is interpreted as an little-endian u64-decomposition of
-    /// an integer.
+    /// Computes `self^S`, where S is interpreted as an little-endian
+    /// u64-decomposition of an integer.
     fn pow_by_constant<S: AsRef<[u64]>>(&self, exp: S) -> Result<Self, SynthesisError> {
         let mut res = Self::one();
         for i in BitIteratorBE::without_leading_zeros(exp) {

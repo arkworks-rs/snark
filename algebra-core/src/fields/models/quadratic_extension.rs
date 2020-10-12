@@ -23,7 +23,8 @@ use crate::{
 };
 
 pub trait QuadExtParameters: 'static + Send + Sync + Sized {
-    /// The prime field that this quadratic extension is eventually an extension of.
+    /// The prime field that this quadratic extension is eventually an extension
+    /// of.
     type BasePrimeField: PrimeField;
     /// The base field that this field is a quadratic extension of.
     type BaseField: Field;
@@ -107,22 +108,26 @@ impl<P: QuadExtParameters> QuadExtField<P> {
         }
     }
 
-    /// This is only to be used when the element is *known* to be in the cyclotomic subgroup.
+    /// This is only to be used when the element is *known* to be in the
+    /// cyclotomic subgroup.
     pub fn conjugate(&mut self) {
         self.c1 = -self.c1;
     }
 
-    /// This is only to be used when the element is *known* to be in the cyclotomic subgroup.
+    /// This is only to be used when the element is *known* to be in the
+    /// cyclotomic subgroup.
     pub fn unitary_inverse(&self) -> Self {
         Self::new(self.c0, -self.c1)
     }
 
-    /// This is only to be used when the element is *known* to be in the cyclotomic subgroup.
+    /// This is only to be used when the element is *known* to be in the
+    /// cyclotomic subgroup.
     pub fn cyclotomic_exp(&self, exponent: impl AsRef<[u64]>) -> Self {
         P::cyclotomic_exp(self, exponent)
     }
 
-    /// Norm of QuadExtField over P::BaseField: Norm(a) = a.x^2 - P::NON_RESIDUE * a.y^2
+    /// Norm of QuadExtField over P::BaseField: Norm(a) = a.x^2 - P::NON_RESIDUE
+    /// * a.y^2
     pub fn norm(&self) -> P::BaseField {
         let t0 = self.c0.square();
         let mut t1 = self.c1.square();

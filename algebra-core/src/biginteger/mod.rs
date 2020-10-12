@@ -111,8 +111,8 @@ pub trait BigInteger:
     /// Returns true iff this number is zero.
     fn is_zero(&self) -> bool;
 
-    /// Compute the exact number of bits needed to encode this number. Does not need
-    /// to be multiple of 64
+    /// Compute the exact number of bits needed to encode this number. Does not
+    /// need to be multiple of 64
     fn num_bits(&self) -> u32;
 
     /// Compute the `i`-th bit of `self`.
@@ -142,13 +142,14 @@ pub trait BigInteger:
         Ok(())
     }
 
-    /// Takes two slices of u64 representing big integers and returns a bigger BigInteger
-    /// of type Self representing their product. Preferably used only for even NUM_LIMBS.
-    /// We require the invariant that this.len() == other.len() == NUM_LIMBS / 2
+    /// Takes two slices of u64 representing big integers and returns a bigger
+    /// BigInteger of type Self representing their product. Preferably used
+    /// only for even NUM_LIMBS. We require the invariant that this.len() ==
+    /// other.len() == NUM_LIMBS / 2
     fn mul_no_reduce(this: &[u64], other: &[u64]) -> Self;
 
-    /// Similar to `mul_no_reduce` but accepts slices of len == NUM_LIMBS and only returns
-    /// lower half of the result
+    /// Similar to `mul_no_reduce` but accepts slices of len == NUM_LIMBS and
+    /// only returns lower half of the result
     fn mul_no_reduce_lo(this: &[u64], other: &[u64]) -> Self;
 
     /// Copies data from a slice to Self in a len agnostic way,

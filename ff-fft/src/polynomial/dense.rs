@@ -348,8 +348,7 @@ impl<'a, 'b, F: FftField> Mul<&'a DensePolynomial<F>> for &'b DensePolynomial<F>
 
 #[cfg(test)]
 mod tests {
-    use crate::polynomial::*;
-    use crate::{EvaluationDomain, GeneralEvaluationDomain};
+    use crate::{polynomial::*, EvaluationDomain, GeneralEvaluationDomain};
     use algebra::bls12_381::fr::Fr;
     use algebra_core::{test_rng, Field, One, UniformRand, Zero};
 

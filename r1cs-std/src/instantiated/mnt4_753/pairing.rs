@@ -1,6 +1,7 @@
 use algebra::mnt4_753::Parameters;
 
-/// Specifies the constraints for computing a pairing in the MNT4-753 bilinear group.
+/// Specifies the constraints for computing a pairing in the MNT4-753 bilinear
+/// group.
 pub type PairingVar = crate::pairing::mnt4::PairingVar<Parameters>;
 
 #[test]

@@ -1,5 +1,4 @@
-use algebra::Field;
-use algebra::{FpParameters, PrimeField, ToConstraintField};
+use algebra::{Field, FpParameters, PrimeField, ToConstraintField};
 
 use r1cs_core::{ConstraintSystemRef, Namespace, SynthesisError};
 
@@ -116,9 +115,9 @@ impl<F: Field> UInt8<F> {
     }
 
     /// Allocates a slice of `u8`'s as public inputs by first packing them into
-    /// elements of `F`, (thus reducing the number of input allocations), allocating
-    /// these elements as public inputs, and then converting these field variables
-    /// `FpVar<F>` variables back into bytes.
+    /// elements of `F`, (thus reducing the number of input allocations),
+    /// allocating these elements as public inputs, and then converting
+    /// these field variables `FpVar<F>` variables back into bytes.
     ///
     /// From a user perspective, this trade-off adds constraints, but improves
     /// verifier time and verification key size.

@@ -18,7 +18,8 @@ impl<P: Fp12Parameters> QuadExtVarParams<Fp6Var<P::Fp6Params>> for Fp12ParamsWra
 }
 
 impl<P: Fp12Parameters> Fp12Var<P> {
-    /// Multiplies by a sparse element of the form `(c0 = (c0, c1, 0), c1 = (0, d1, 0))`.
+    /// Multiplies by a sparse element of the form `(c0 = (c0, c1, 0), c1 = (0,
+    /// d1, 0))`.
     #[inline]
     pub fn mul_by_014(
         &self,
@@ -34,7 +35,8 @@ impl<P: Fp12Parameters> Fp12Var<P> {
         Ok(Self::new(new_c0, new_c1))
     }
 
-    /// Multiplies by a sparse element of the form `(c0 = (c0, 0, 0), c1 = (d0, d1, 0))`.
+    /// Multiplies by a sparse element of the form `(c0 = (c0, 0, 0), c1 = (d0,
+    /// d1, 0))`.
     #[inline]
     pub fn mul_by_034(
         &self,

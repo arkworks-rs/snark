@@ -28,9 +28,10 @@ pub fn get_lattice_basis<F: PrimeField>(
     println!("Log sqrtn: {}", sqrt_n.log2());
 
     let mut i = 0;
-    // While r_i >= sqrt(n), we perform the extended euclidean algorithm so that si*n + ti*lambda = ri
-    // then return the vectors (r_i, (sign(t_i), |t_i|)), (r_i+1, (sign(t_i+1), |t_i+1|))
-    // Notice this makes ri + (-ti)*lambda = 0 mod n, which is what we desire for our short lattice basis
+    // While r_i >= sqrt(n), we perform the extended euclidean algorithm so that
+    // si*n + ti*lambda = ri then return the vectors (r_i, (sign(t_i), |t_i|)),
+    // (r_i+1, (sign(t_i+1), |t_i+1|)) Notice this makes ri + (-ti)*lambda = 0
+    // mod n, which is what we desire for our short lattice basis
     while as_f64(r[i % 3].as_ref()) >= sqrt_n {
         // while i < 20 {
         let (q, rem): (F::BigInt, F::BigInt) =

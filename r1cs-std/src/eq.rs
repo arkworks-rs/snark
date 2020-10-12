@@ -2,23 +2,27 @@ use crate::{prelude::*, Vec};
 use algebra::Field;
 use r1cs_core::SynthesisError;
 
-/// Specifies how to generate constraints that check for equality for two variables of type `Self`.
+/// Specifies how to generate constraints that check for equality for two
+/// variables of type `Self`.
 pub trait EqGadget<F: Field> {
-    /// Output a `Boolean` value representing whether `self.value() == other.value()`.
+    /// Output a `Boolean` value representing whether `self.value() ==
+    /// other.value()`.
     fn is_eq(&self, other: &Self) -> Result<Boolean<F>, SynthesisError>;
 
-    /// Output a `Boolean` value representing whether `self.value() != other.value()`.
+    /// Output a `Boolean` value representing whether `self.value() !=
+    /// other.value()`.
     ///
     /// By default, this is defined as `self.is_eq(other)?.not()`.
     fn is_neq(&self, other: &Self) -> Result<Boolean<F>, SynthesisError> {
         Ok(self.is_eq(other)?.not())
     }
 
-    /// If `should_enforce == true`, enforce that `self` and `other` are equal; else,
-    /// enforce a vacuously true statement.
+    /// If `should_enforce == true`, enforce that `self` and `other` are equal;
+    /// else, enforce a vacuously true statement.
     ///
-    /// A safe default implementation is provided that generates the following constraints:
-    /// `self.is_eq(other)?.conditional_enforce_equal(&Boolean::TRUE, should_enforce)`.
+    /// A safe default implementation is provided that generates the following
+    /// constraints: `self.is_eq(other)?.conditional_enforce_equal(&Boolean:
+    /// :TRUE, should_enforce)`.
     ///
     /// More efficient specialized implementation may be possible; implementors
     /// are encouraged to carefully analyze the efficiency and safety of these.
@@ -34,8 +38,9 @@ pub trait EqGadget<F: Field> {
 
     /// Enforce that `self` and `other` are equal.
     ///
-    /// A safe default implementation is provided that generates the following constraints:
-    /// `self.conditional_enforce_equal(other, &Boolean::TRUE)`.
+    /// A safe default implementation is provided that generates the following
+    /// constraints: `self.conditional_enforce_equal(other,
+    /// &Boolean::TRUE)`.
     ///
     /// More efficient specialized implementation may be possible; implementors
     /// are encouraged to carefully analyze the efficiency and safety of these.
@@ -44,11 +49,12 @@ pub trait EqGadget<F: Field> {
         self.conditional_enforce_equal(other, &Boolean::constant(true))
     }
 
-    /// If `should_enforce == true`, enforce that `self` and `other` are *not* equal; else,
-    /// enforce a vacuously true statement.
+    /// If `should_enforce == true`, enforce that `self` and `other` are *not*
+    /// equal; else, enforce a vacuously true statement.
     ///
-    /// A safe default implementation is provided that generates the following constraints:
-    /// `self.is_neq(other)?.conditional_enforce_equal(&Boolean::TRUE, should_enforce)`.
+    /// A safe default implementation is provided that generates the following
+    /// constraints: `self.is_neq(other)?.conditional_enforce_equal(&
+    /// Boolean::TRUE, should_enforce)`.
     ///
     /// More efficient specialized implementation may be possible; implementors
     /// are encouraged to carefully analyze the efficiency and safety of these.
@@ -64,8 +70,9 @@ pub trait EqGadget<F: Field> {
 
     /// Enforce that `self` and `other` are *not* equal.
     ///
-    /// A safe default implementation is provided that generates the following constraints:
-    /// `self.conditional_enforce_not_equal(other, &Boolean::TRUE)`.
+    /// A safe default implementation is provided that generates the following
+    /// constraints: `self.conditional_enforce_not_equal(other,
+    /// &Boolean::TRUE)`.
     ///
     /// More efficient specialized implementation may be possible; implementors
     /// are encouraged to carefully analyze the efficiency and safety of these.

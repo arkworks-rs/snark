@@ -7,10 +7,10 @@
 //! depending on the number of coefficients and the two-adicity of the prime.
 
 pub use crate::domain::utils::Elements;
-use crate::domain::{
-    DomainCoeff, EvaluationDomain, MixedRadixEvaluationDomain, Radix2EvaluationDomain,
+use crate::{
+    domain::{DomainCoeff, EvaluationDomain, MixedRadixEvaluationDomain, Radix2EvaluationDomain},
+    Vec,
 };
-use crate::Vec;
 use algebra_core::{FftField, FftParameters};
 
 /// Defines a domain over which finite field (I)FFTs can be performed.
@@ -148,7 +148,8 @@ impl<F: FftField> EvaluationDomain<F> for GeneralEvaluationDomain<F> {
 
 /// A generalized version of an iterator over the elements of a domain.
 pub enum GeneralElements<F: FftField> {
-    /// A basic iterator over the elements of a domain (currently, the only one in use).
+    /// A basic iterator over the elements of a domain (currently, the only one
+    /// in use).
     BasicElements(Elements<F>),
 }
 

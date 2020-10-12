@@ -78,7 +78,8 @@ pub enum Variable {
 /// An opaque counter for symbolic linear combinations.
 pub struct LcIndex(usize);
 
-/// Generate a `LinearCombination` from arithmetic expressions involving `Variable`s.
+/// Generate a `LinearCombination` from arithmetic expressions involving
+/// `Variable`s.
 #[macro_export]
 macro_rules! lc {
     () => {

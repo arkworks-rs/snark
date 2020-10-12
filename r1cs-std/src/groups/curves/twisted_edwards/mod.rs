@@ -76,8 +76,8 @@ mod montgomery_affine_impl {
             }
         }
 
-        /// Converts a Twisted Edwards curve point to coordinates for the corresponding affine
-        /// Montgomery curve point.
+        /// Converts a Twisted Edwards curve point to coordinates for the
+        /// corresponding affine Montgomery curve point.
         #[tracing::instrument(target = "r1cs")]
         pub fn from_edwards_to_coords(
             p: &TEAffine<P>,
@@ -96,8 +96,8 @@ mod montgomery_affine_impl {
             Ok((montgomery_point.x, montgomery_point.y))
         }
 
-        /// Converts a Twisted Edwards curve point to coordinates for the corresponding affine
-        /// Montgomery curve point.
+        /// Converts a Twisted Edwards curve point to coordinates for the
+        /// corresponding affine Montgomery curve point.
         #[tracing::instrument(target = "r1cs")]
         pub fn new_witness_from_edwards(
             cs: ConstraintSystemRef<<P::BaseField as Field>::BasePrimeField>,
@@ -289,9 +289,10 @@ where
     for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
 {
     /// Compute a scalar multiplication of `bases` with respect to `scalars`,
-    /// where the elements of `scalars` are length-three slices of bits, and which
-    /// such that the first two bits are use to select one of the bases,
-    /// while the third bit is used to conditionally negate the selection.
+    /// where the elements of `scalars` are length-three slices of bits, and
+    /// which such that the first two bits are use to select one of the
+    /// bases, while the third bit is used to conditionally negate the
+    /// selection.
     #[tracing::instrument(target = "r1cs", skip(bases, scalars))]
     pub fn precomputed_base_3_bit_signed_digit_scalar_mul<J>(
         bases: &[impl Borrow<[TEProjective<P>]>],

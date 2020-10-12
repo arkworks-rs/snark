@@ -1,7 +1,9 @@
 #[allow(unused_braces)]
-/// Implements arithmetic traits (eg: `Add`, `Sub`, `Mul`) for the given type using the impl in `$impl`.
+/// Implements arithmetic traits (eg: `Add`, `Sub`, `Mul`) for the given type
+/// using the impl in `$impl`.
 ///
-/// Used primarily for implementing these traits for `FieldVar`s and `GroupVar`s.
+/// Used primarily for implementing these traits for `FieldVar`s and
+/// `GroupVar`s.
 #[macro_export]
 macro_rules! impl_ops {
     (
@@ -19,11 +21,14 @@ macro_rules! impl_ops {
     };
 }
 
-/// Implements arithmetic traits (eg: `Add`, `Sub`, `Mul`) for the given type using the impl in `$impl`.
+/// Implements arithmetic traits (eg: `Add`, `Sub`, `Mul`) for the given type
+/// using the impl in `$impl`.
 ///
-/// Used primarily for implementing these traits for `FieldVar`s and `GroupVar`s.
+/// Used primarily for implementing these traits for `FieldVar`s and
+/// `GroupVar`s.
 ///
-/// When compared to `impl_ops`, this macro allows specifying additional trait bounds.
+/// When compared to `impl_ops`, this macro allows specifying additional trait
+/// bounds.
 #[macro_export]
 macro_rules! impl_bounded_ops {
     (

@@ -1,15 +1,18 @@
 // adapted from `tracing_error::{SpanTrace, ErrorLayer}`.
 
-use core::any::{type_name, TypeId};
-use core::fmt;
-use core::marker::PhantomData;
+use core::{
+    any::{type_name, TypeId},
+    fmt,
+    marker::PhantomData,
+};
 use tracing::{span, Dispatch, Metadata, Subscriber};
 use tracing_subscriber::{
     layer::{self, Layer},
     registry::LookupSpan,
 };
 
-/// A subscriber [`Layer`] that enables capturing a trace of R1CS constraint generation.
+/// A subscriber [`Layer`] that enables capturing a trace of R1CS constraint
+/// generation.
 ///
 /// [`Layer`]: https://docs.rs/tracing-subscriber/0.2.10/tracing_subscriber/layer/trait.Layer.html
 /// [field formatter]: https://docs.rs/tracing-subscriber/0.2.10/tracing_subscriber/fmt/trait.FormatFields.html
@@ -25,9 +28,11 @@ pub struct ConstraintLayer<S> {
 /// Instructs `ConstraintLayer` to conditionally filter out spans.
 #[derive(PartialEq, Eq, Ord, PartialOrd, Hash, Debug)]
 pub enum TracingMode {
-    /// Instructs `ConstraintLayer` to filter out any spans that *do not* have `target == "r1cs"`.
+    /// Instructs `ConstraintLayer` to filter out any spans that *do not* have
+    /// `target == "r1cs"`.
     OnlyConstraints,
-    /// Instructs `ConstraintLayer` to filter out any spans that *do* have `target == "r1cs"`.
+    /// Instructs `ConstraintLayer` to filter out any spans that *do* have
+    /// `target == "r1cs"`.
     NoConstraints,
     /// Instructs `ConstraintLayer` to not filter out any spans.
     All,
@@ -163,8 +168,8 @@ macro_rules! try_bool {
 ///
 /// # Formatting
 ///
-/// The `ConstraintTrace` type implements `fmt::Display`, formatting the span trace
-/// similarly to how Rust formats panics. For example:
+/// The `ConstraintTrace` type implements `fmt::Display`, formatting the span
+/// trace similarly to how Rust formats panics. For example:
 ///
 /// ```text
 ///    0: r1cs-std::bits::something
@@ -243,8 +248,8 @@ impl ConstraintTrace {
         });
     }
 
-    /// Compute a `Vec` of `TraceStep`s, one for each `Span` on the path from the root
-    /// `Span`.
+    /// Compute a `Vec` of `TraceStep`s, one for each `Span` on the path from
+    /// the root `Span`.
     ///
     /// The output starts from the root of the span tree.
     pub fn path(&self) -> Vec<TraceStep> {

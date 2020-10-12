@@ -5,9 +5,8 @@ use algebra::{
 use core::{borrow::Borrow, marker::PhantomData};
 use r1cs_core::{ConstraintSystemRef, Namespace, SynthesisError};
 
-use crate::fields::fp::FpVar;
 use crate::{
-    fields::{FieldOpsBounds, FieldVar},
+    fields::{fp::FpVar, FieldOpsBounds, FieldVar},
     prelude::*,
     ToConstraintFieldGadget, Vec,
 };
@@ -29,14 +28,16 @@ where
     _params: PhantomData<P>,
 }
 
-/// This trait describes parameters that are used to implement arithmetic for `QuadExtVar`.
+/// This trait describes parameters that are used to implement arithmetic for
+/// `QuadExtVar`.
 pub trait QuadExtVarParams<BF: FieldVar<Self::BaseField, Self::BasePrimeField>>:
     QuadExtParameters
 where
     for<'a> &'a BF: FieldOpsBounds<'a, Self::BaseField, BF>,
 {
-    /// Multiply the base field of the `QuadExtVar` by the appropriate Frobenius coefficient.
-    /// This is equivalent to `Self::mul_base_field_by_frob_coeff(power)`.
+    /// Multiply the base field of the `QuadExtVar` by the appropriate Frobenius
+    /// coefficient. This is equivalent to
+    /// `Self::mul_base_field_by_frob_coeff(power)`.
     fn mul_base_field_var_by_frob_coeff(fe: &mut BF, power: usize);
 }
 
@@ -53,8 +54,8 @@ where
         }
     }
 
-    /// Multiplies a variable of the base field by the quadratic nonresidue `P::NONRESIDUE` that
-    /// is used to construct the extension field.
+    /// Multiplies a variable of the base field by the quadratic nonresidue
+    /// `P::NONRESIDUE` that is used to construct the extension field.
     #[inline]
     pub fn mul_base_field_by_nonresidue(fe: &BF) -> Result<BF, SynthesisError> {
         Ok(fe * P::NONRESIDUE)
@@ -74,13 +75,15 @@ where
         *self = (&*self).mul_by_base_field_constant(fe);
     }
 
-    /// This is only to be used when the element is *known* to be in the cyclotomic subgroup.
+    /// This is only to be used when the element is *known* to be in the
+    /// cyclotomic subgroup.
     #[inline]
     pub fn unitary_inverse(&self) -> Result<Self, SynthesisError> {
         Ok(Self::new(self.c0.clone(), self.c1.negate()?))
     }
 
-    /// This is only to be used when the element is *known* to be in the cyclotomic subgroup.
+    /// This is only to be used when the element is *known* to be in the
+    /// cyclotomic subgroup.
     #[inline]
     #[tracing::instrument(target = "r1cs", skip(exponent))]
     pub fn cyclotomic_exp(&self, exponent: impl AsRef<[u64]>) -> Result<Self, SynthesisError>

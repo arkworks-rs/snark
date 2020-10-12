@@ -4,14 +4,15 @@
 //! FFTs of size at most `2^F::TWO_ADICITY`.
 
 pub use crate::domain::utils::Elements;
-use crate::domain::{
-    utils::{best_fft, bitreverse},
-    DomainCoeff, EvaluationDomain,
+use crate::{
+    domain::{
+        utils::{best_fft, bitreverse},
+        DomainCoeff, EvaluationDomain,
+    },
+    Vec,
 };
-use crate::Vec;
 use algebra_core::{FftField, FftParameters};
-use core::convert::TryFrom;
-use core::fmt;
+use core::{convert::TryFrom, fmt};
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
@@ -277,8 +278,7 @@ mod tests {
     #[cfg(feature = "parallel")]
     fn parallel_fft_consistency() {
         use super::serial_radix2_fft;
-        use crate::domain::utils::parallel_fft;
-        use crate::Vec;
+        use crate::{domain::utils::parallel_fft, Vec};
         use algebra::bls12_381::Bls12_381;
         use algebra_core::{test_rng, PairingEngine, UniformRand};
         use core::cmp::min;

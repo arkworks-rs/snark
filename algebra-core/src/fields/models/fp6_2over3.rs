@@ -1,6 +1,5 @@
 use super::quadratic_extension::*;
-use core::marker::PhantomData;
-use core::ops::MulAssign;
+use core::{marker::PhantomData, ops::MulAssign};
 
 use crate::fields::{Fp3, Fp3Parameters};
 

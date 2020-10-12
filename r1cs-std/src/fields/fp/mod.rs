@@ -3,8 +3,11 @@ use r1cs_core::{lc, ConstraintSystemRef, LinearCombination, Namespace, Synthesis
 
 use core::borrow::Borrow;
 
-use crate::fields::{FieldOpsBounds, FieldVar};
-use crate::{prelude::*, Assignment, ToConstraintFieldGadget, Vec};
+use crate::{
+    fields::{FieldOpsBounds, FieldVar},
+    prelude::*,
+    Assignment, ToConstraintFieldGadget, Vec,
+};
 
 mod cmp;
 
@@ -21,8 +24,8 @@ pub struct AllocatedFp<F: PrimeField> {
 }
 
 impl<F: PrimeField> AllocatedFp<F> {
-    /// Constructs a new `AllocatedFp` from a (optional) value, a low-level Variable,
-    /// and a `ConstraintSystemRef`.
+    /// Constructs a new `AllocatedFp` from a (optional) value, a low-level
+    /// Variable, and a `ConstraintSystemRef`.
     pub fn new(value: Option<F>, variable: Variable, cs: ConstraintSystemRef<F>) -> Self {
         Self {
             value,
@@ -88,7 +91,8 @@ impl<'a, F: PrimeField> FieldOpsBounds<'a, F, Self> for FpVar<F> {}
 impl<'a, F: PrimeField> FieldOpsBounds<'a, F, FpVar<F>> for &'a FpVar<F> {}
 
 impl<F: PrimeField> AllocatedFp<F> {
-    /// Constructs `Self` from a `Boolean`: if `other` is false, this outputs `zero`, else it outputs `one`.
+    /// Constructs `Self` from a `Boolean`: if `other` is false, this outputs
+    /// `zero`, else it outputs `one`.
     pub fn from(other: Boolean<F>) -> Self {
         let cs = other.cs();
         let variable = cs.new_lc(other.lc()).unwrap();
@@ -307,7 +311,8 @@ impl<F: PrimeField> AllocatedFp<F> {
         // ----------------------
         //   constraint 1:
         //   (self - other) * multiplier = is_not_equal
-        //   => (non_zero) * multiplier = 1 (satisfied, because multiplier = 1/(self - other)
+        //   => (non_zero) * multiplier = 1 (satisfied, because multiplier = 1/(self -
+        // other)
         //
         //   constraint 2:
         //   (self - other) * not(is_not_equal) = 0
@@ -398,8 +403,8 @@ impl<F: PrimeField> AllocatedFp<F> {
     }
 }
 
-/****************************************************************************/
-/****************************************************************************/
+/// *************************************************************************
+/// *************************************************************************
 
 impl<F: PrimeField> ToBitsGadget<F> for AllocatedFp<F> {
     /// Outputs the unique bit-wise decomposition of `self` in *little-endian*
@@ -740,8 +745,8 @@ impl<F: PrimeField> FieldVar<F, F> for FpVar<F> {
     }
 }
 
-/****************************************************************************/
-/****************************************************************************/
+/// *************************************************************************
+/// *************************************************************************
 
 impl_ops!(
     FpVar<F>,
@@ -807,8 +812,8 @@ impl_ops!(
     F: PrimeField
 );
 
-/****************************************************************************/
-/****************************************************************************/
+/// *************************************************************************
+/// *************************************************************************
 
 impl<F: PrimeField> EqGadget<F> for FpVar<F> {
     #[tracing::instrument(target = "r1cs")]
@@ -925,7 +930,7 @@ impl<F: PrimeField> CondSelectGadget<F> for FpVar<F> {
                         // cond * t + (1 - cond) * f
                         Ok(is.mul_constant(*t).add(&not.mul_constant(*f)).into())
                     }
-                    (_, _) => {
+                    (..) => {
                         let cs = cond.cs();
                         let true_value = match true_value {
                             Self::Constant(f) => AllocatedFp::new_constant(cs.clone(), f)?,
