@@ -420,25 +420,12 @@ macro_rules! impl_Fp {
         impl_multiplicative_ops_from_ref!($Fp, $FpParameters);
 
         impl<'a, P: $FpParameters> AddAssign<&'a Self> for $Fp<P> {
-            #[inline]
-            fn add_assign(&mut self, other: &Self) {
-                // This cannot exceed the backing capacity.
-                self.0.add_nocarry(&other.0);
-                // However, it may need to be reduced
-                self.reduce();
-            }
+            impl_field_add_assign!($limbs);
         }
 
         impl<'a, P: $FpParameters> SubAssign<&'a Self> for $Fp<P> {
-            #[inline]
-            fn sub_assign(&mut self, other: &Self) {
-                // If `other` is larger than `self`, add the modulus to self first.
-                if other.0 > self.0 {
-                    self.0.add_nocarry(&P::MODULUS);
-                }
-                self.0.sub_noborrow(&other.0);
-            }
-        }
+            impl_field_sub_assign!($limbs);
+       }
 
         impl<'a, P: $FpParameters> MulAssign<&'a Self> for $Fp<P> {
             impl_field_mul_assign!($limbs);
