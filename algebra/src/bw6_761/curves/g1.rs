@@ -83,7 +83,7 @@ impl GLVParameters for Parameters {
         0,
         0,
     ]);
-    const B1_IS_NEG: bool = true;
+    const B1_IS_NEG: bool = false;
     /// |round(B2 * R / n)|
     const Q1: <Self::ScalarField as PrimeField>::BigInt = BigInteger384([
         11941976086484053770,

@@ -43,18 +43,19 @@ pub fn get_lattice_basis<F: PrimeField>(
         i += 1;
     }
     let just_computed = (i + 1) % 3;
+    // We reverse the signs due to s_i*n = r_i - t_i*LAMBDA
     let (neg_flag1, t1) = if t[just_computed].into_repr().num_bits() <= max_num_bits_lattice {
-        (false, t[just_computed].into_repr())
+        (true, t[just_computed].into_repr())
     } else {
-        (true, t[just_computed].neg().into_repr())
+        (false, t[just_computed].neg().into_repr())
     };
     let vec_1 = (r[just_computed], (neg_flag1, t1));
 
     let prev = i % 3;
     let (neg_flag2, t2) = if t[prev].into_repr().num_bits() <= max_num_bits_lattice {
-        (false, t[prev].into_repr())
+        (true, t[prev].into_repr())
     } else {
-        (true, t[prev].neg().into_repr())
+        (false, t[prev].neg().into_repr())
     };
     let vec_2 = (r[prev], (neg_flag2, t2));
 
@@ -62,7 +63,7 @@ pub fn get_lattice_basis<F: PrimeField>(
 }
 
 pub fn recompose_integer<F: PrimeField>(k1: F, k2: F, lambda: F) -> F {
-    k1 - &(k2 * &lambda)
+    k1 + &(k2 * &lambda)
 }
 
 fn as_f64(bigint_ref: &[u64]) -> f64 {
