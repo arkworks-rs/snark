@@ -4,7 +4,8 @@ use crate::{
         PairingCurve, PairingEngine,
     },
     fields::{
-        fp12_2over3over2::{Fp12, Fp12Parameters},
+        models::quadratic_extension::QuadExtParameters,
+        fp12_2over3over2::{Fp12, Fp12Parameters, Fp12ParamsWrapper},
         fp2::Fp2Parameters,
         fp6_3over2::Fp6Parameters,
         BitIterator, Field, Fp2, PrimeField, SquareRootField,
@@ -58,13 +59,13 @@ impl<P: Bls12Parameters> Bls12<P> {
 
         match P::TWIST_TYPE {
             TwistType::M => {
-                c2.mul_by_fp(&p.y);
-                c1.mul_by_fp(&p.x);
+                c2.mul_assign_by_basefield(&p.y);
+                c1.mul_assign_by_basefield(&p.x);
                 f.mul_by_014(&c0, &c1, &c2);
             },
             TwistType::D => {
-                c0.mul_by_fp(&p.y);
-                c1.mul_by_fp(&p.x);
+                c0.mul_assign_by_basefield(&p.y);
+                c1.mul_assign_by_basefield(&p.x);
                 f.mul_by_034(&c0, &c1, &c2);
             },
         }
@@ -174,12 +175,12 @@ where
 
                 // Hard part of the final exponentation is below:
                 // From https://eprint.iacr.org/2016/130.pdf, Table 1
-                let mut y0 = r.cyclotomic_square();
+                let mut y0 = Fp12ParamsWrapper::<P::Fp12Params>::cyclotomic_square(&r);
                 y0.conjugate();
 
                 let mut y5 = Self::exp_by_x(r);
 
-                let mut y1 = y5.cyclotomic_square();
+                let mut y1 = Fp12ParamsWrapper::<P::Fp12Params>::cyclotomic_square(&y5);
                 let mut y3 = y0 * &y5;
                 y0 = Self::exp_by_x(y3);
                 let y2 = Self::exp_by_x(y0);

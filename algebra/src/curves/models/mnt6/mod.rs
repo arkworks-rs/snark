@@ -2,7 +2,7 @@ use crate::{Fp3, BigInteger768 as BigInteger, PrimeField, SquareRootField, Fp3Pa
             Fp6Parameters, SWModelParameters, ModelParameters, PairingEngine, Fp6, PairingCurve,
             Field};
 use std::marker::PhantomData;
-use std::ops::{Add, Mul, Sub, MulAssign};
+use std::ops::{Add, Mul, Sub};
 
 
 // Ate pairing e: G_1 x G_2 -> G_T for MNT6 curves over prime fields
@@ -238,12 +238,12 @@ impl<P: MNT6Parameters> MNT6p<P> {
         // elt^{q^3}
         elt_q3.frobenius_map(3);
         // elt^{q^3-1}
-        let mut elt_q3_over_elt = elt_q3 * &elt_inv;
+        let mut elt_q3_over_elt = elt_q3 * elt_inv;
         let elt_q3_over_elt_clone = elt_q3_over_elt.clone();
         // elt^{(q^3-1)q}
         elt_q3_over_elt.frobenius_map(1);
         // elt^{(q^3-1)*(q+1)}
-        elt_q3_over_elt.mul_assign(&elt_q3_over_elt_clone);
+        elt_q3_over_elt *= &elt_q3_over_elt_clone;
 
         elt_q3_over_elt
     }

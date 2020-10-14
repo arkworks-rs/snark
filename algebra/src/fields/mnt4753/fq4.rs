@@ -4,7 +4,7 @@ use crate::{
     fields::{
         fp4::{Fp4, Fp4Parameters},
         mnt4753::{
-            fq::Fq,
+            fq::{Fq, FQ_ZERO, FQ_ONE},
             fq2::{Fq2, Fq2Parameters},
         },
     },
@@ -17,42 +17,10 @@ pub struct Fq4Parameters;
 impl Fp4Parameters for Fq4Parameters {
     type Fp2Params = Fq2Parameters;
 
-    /// NONRESIDUE = (8,1)
-    /// this should be alpha = 13
-    /// however, it does no harm as the arithmetics of fp4 does rely on it
-    const NONRESIDUE: Fq2 = field_new!(Fq2,
-        field_new!(Fq, BigInteger([
-            587330122779359758,
-            14352661462510473462,
-            17802452401246596498,
-            18018663494943049411,
-            17948754733747257098,
-            10253180574146027531,
-            6683223122694781837,
-            13573468617269213174,
-            5059368039312883748,
-            950479668716233863,
-            9936591501985804621,
-            88719447132658
-        ])),
+    const NONRESIDUE: Fq2 = field_new!(Fq2, FQ_ZERO, FQ_ONE);
 
-        field_new!(Fq, BigInteger([
-            11000302312691101506,
-            10506108233708684934,
-            10935835699472258862,
-            8743905913029047809,
-            17088517996127229807,
-            2166035204362411368,
-            3606323059104122201,
-            6452324570546309730,
-            4644558993695221281,
-            1127165286758606988,
-            10756108507984535957,
-            135547536859714
-        ]))
-    );
     /// Coefficients for the Frobenius automorphism.
-    const FROBENIUS_COEFF_FP4_C1: [Fq; 4] = [
+    const FROBENIUS_COEFF_FP4_C1: &'static [Fq] = &[
 
         //NONRESIDUE^((q^0 - 1)/4)
         field_new!(Fq, BigInteger([

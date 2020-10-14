@@ -272,7 +272,7 @@ impl MNT6 {
         let mut elt_q3 = elt.clone();
         elt_q3.frobenius_map(3);
         // elt_q3_over_elt = elt^(q^3-1)
-        let elt_q3_over_elt = elt_q3 * &elt_inv;
+        let elt_q3_over_elt = elt_q3 * elt_inv;
         // alpha = elt^((q^3-1) * q)
         let mut alpha = elt_q3_over_elt.clone();
         alpha.frobenius_map(1);

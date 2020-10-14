@@ -86,7 +86,7 @@ impl<P: MNT4Parameters> MNT4p<P> {
     // The latter is needed for optimizing point evaluation of the Miller lines
     fn ate_precompute_g1(value: &G1Affine<P>) -> G1Prepared<P> {
         let mut py_twist_squared = P::TWIST.square();
-        py_twist_squared.mul_by_fp(&value.y);
+        py_twist_squared.mul_assign_by_basefield(&value.y);
 
         G1Prepared {p: *value, py_twist_squared}
     }
@@ -181,7 +181,7 @@ impl<P: MNT4Parameters> MNT4p<P> {
             // The scale factor twist^2 from F2 is cancelled out by the final exponentiation.
 
             let mut gamma_twist_times_x = c.gamma.mul(&P::TWIST);
-            gamma_twist_times_x.mul_by_fp(&p.p.x);
+            gamma_twist_times_x.mul_assign_by_basefield(&p.p.x);
 
             let g_rr_at_p = Fp4::<P::Fp4Params>::new(
                 p.py_twist_squared,
@@ -200,7 +200,7 @@ impl<P: MNT4Parameters> MNT4p<P> {
                 //I suggest to write a separate function for the point evaluation
                 //as done in the implementation of the sw6 Miller loop
                 let mut gamma_twist_times_x = c.gamma.mul(&P::TWIST);
-                gamma_twist_times_x.mul_by_fp(&p.p.x);
+                gamma_twist_times_x.mul_assign_by_basefield(&p.p.x);
                 let g_rq_at_p_c1 = if n > 0 {
                     c.gamma_x - &gamma_twist_times_x - &q.q.y
                 } else {
@@ -239,7 +239,7 @@ impl<P: MNT4Parameters> MNT4p<P> {
         // elt^(q^2)
         elt_q2.frobenius_map(2);
         // elt^(q^2-1)
-        let elt_q2_over_elt = elt_q2 * &elt_inv;
+        let elt_q2_over_elt = elt_q2 * elt_inv;
 
         elt_q2_over_elt
     }

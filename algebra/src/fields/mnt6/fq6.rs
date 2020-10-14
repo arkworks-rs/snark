@@ -4,7 +4,7 @@ use crate::{
     fields::{
         fp6_2over3::{Fp6, Fp6Parameters},
         mnt6::{
-            fq::Fq,
+            fq::{Fq, FQ_ZERO, FQ_ONE},
             fq3::{Fq3, Fq3Parameters},
         },
     },
@@ -17,19 +17,9 @@ pub struct Fq6Parameters;
 impl Fp6Parameters for Fq6Parameters {
     type Fp3Params = Fq3Parameters;
 
-    const NONRESIDUE: Fq3 = field_new!(Fq3, 
-        field_new!(Fq, BigInteger([
-            6408337942890780106,
-            1364954624287809540,
-            5152173214042605211,
-            9848521082393849561,
-            1424783596008,
-        ])),
-        field_new!(Fq, BigInteger([0, 0, 0, 0, 0])),
-        field_new!(Fq, BigInteger([0, 0, 0, 0, 0])),
-    );
+    const NONRESIDUE: Fq3 = field_new!(Fq3, FQ_ZERO, FQ_ONE, FQ_ZERO);
 
-    const FROBENIUS_COEFF_FP6_C1: [Fq; 6] = [
+    const FROBENIUS_COEFF_FP6_C1: &'static [Fq] = &[
         field_new!(Fq, BigInteger([
             0xc3177aefffbb845c,
             0x9b80c702f9961788,
