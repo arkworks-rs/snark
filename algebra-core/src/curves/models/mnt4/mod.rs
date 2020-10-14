@@ -131,7 +131,7 @@ impl<P: MNT4Parameters> MNT4<P> {
                     add_idx += 1;
 
                     g_rq_at_p = Fp4::new(
-                            ac.c_rz * &p.y_twist,
+                        ac.c_rz * &p.y_twist,
                         -(q.y_over_twist * &ac.c_rz + &(l1_coeff * &ac.c_l1)),
                     );
                 }
@@ -140,7 +140,7 @@ impl<P: MNT4Parameters> MNT4<P> {
                     add_idx += 1;
 
                     g_rq_at_p = Fp4::new(
-                            ac.c_rz * &p.y_twist,
+                        ac.c_rz * &p.y_twist,
                         q.y_over_twist * &ac.c_rz - &(l1_coeff * &ac.c_l1),
                     );
                 }
