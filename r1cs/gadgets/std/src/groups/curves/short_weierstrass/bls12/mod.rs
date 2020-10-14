@@ -132,7 +132,7 @@ impl<P: Bls12Parameters> G2PreparedGadget<P> {
         let a = r.y.inverse(cs.ns(|| "Inverse"))?;
         let mut b = r.x.square(cs.ns(|| "square x"))?;
         let b_tmp = b.clone();
-        b.mul_by_fp_constant_in_place(cs.ns(|| "mul by two_inv"), two_inv)?;
+        b.mul_by_base_field_constant_in_place(cs.ns(|| "mul by two_inv"), two_inv)?;
         b.add_in_place(cs.ns(|| "compute b"), &b_tmp)?;
 
         let c = a.mul(cs.ns(|| "compute c"), &b)?;

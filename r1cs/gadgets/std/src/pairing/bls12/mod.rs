@@ -3,7 +3,7 @@ use r1cs_core::{ConstraintSystem, SynthesisError};
 use super::PairingGadget as PG;
 
 use crate::{
-    fields::{fp::FpGadget, fp12::Fp12Gadget, fp2::Fp2Gadget, FieldGadget},
+    fields::{fp::FpGadget, fp12::Fp12Gadget, fp2::Fp2Gadget, FieldGadget, quadratic_extension::*},
     groups::bls12::{G1Gadget, G1PreparedGadget, G2Gadget, G2PreparedGadget},
 };
 use algebra::{
@@ -15,7 +15,7 @@ use algebra::{
         models::ModelParameters,
         PairingCurve,
     },
-    fields::{fp12_2over3over2::Fp12, BitIterator},
+    fields::{fp12_2over3over2::{Fp12, Fp12ParamsWrapper}, BitIterator},
 };
 use std::marker::PhantomData;
 
@@ -160,12 +160,12 @@ where
 
             // Hard part of the final exponentation is below:
             // From https://eprint.iacr.org/2016/130.pdf, Table 1
-            let mut y0 = r.cyclotomic_square(cs.ns(|| "cyclotomic_sq 1"))?;
+            let mut y0 = Fp12ParamsWrapper::<P::Fp12Params>::cyclotomic_square_gadget(cs.ns(|| "cyclotomic_sq 1"), &r)?;
             y0.conjugate_in_place(&mut cs.ns(|| "conjugate 2"))?;
 
             let mut y5 = Self::exp_by_x(&mut cs.ns(|| "exp_by_x 1"), &r)?;
 
-            let mut y1 = y5.cyclotomic_square(&mut cs.ns(|| "square 1"))?;
+            let mut y1 = Fp12ParamsWrapper::<P::Fp12Params>::cyclotomic_square_gadget(cs.ns(|| "square 1"), &y5)?;
             let mut y3 = y0.mul(&mut cs.ns(|| "mul 1"), &y5)?;
             y0 = Self::exp_by_x(cs.ns(|| "exp_by_x 2"), &y3)?;
             let y2 = Self::exp_by_x(cs.ns(|| "exp_by_x 3"), &y0)?;
