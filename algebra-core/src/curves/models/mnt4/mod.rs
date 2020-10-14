@@ -6,7 +6,7 @@ use crate::{
     fields::{
         fp2::{Fp2, Fp2Parameters},
         fp4::{Fp4, Fp4Parameters},
-        BitIteratorBE, Field, PrimeField, SquareRootField,
+        Field, PrimeField, SquareRootField,
     },
     One, Zero,
 };
@@ -27,7 +27,7 @@ pub type GT<P> = Fp4<P>;
 pub trait MNT4Parameters: 'static {
     const TWIST: Fp2<Self::Fp2Params>;
     const TWIST_COEFF_A: Fp2<Self::Fp2Params>;
-    const ATE_LOOP_COUNT: &'static [u64];
+    const ATE_LOOP_COUNT: &'static [i8];
     const ATE_IS_LOOP_COUNT_NEG: bool;
     const FINAL_EXPONENT_LAST_CHUNK_1: <Self::Fp as PrimeField>::BigInt;
     const FINAL_EXPONENT_LAST_CHUNK_W0_IS_NEG: bool;
@@ -111,9 +111,7 @@ impl<P: MNT4Parameters> MNT4<P> {
         let mut dbl_idx: usize = 0;
         let mut add_idx: usize = 0;
 
-        // code below gets executed for all bits (EXCEPT the MSB itself) of
-        // mnt6_param_p (skipping leading zeros) in MSB to LSB order
-        for bit in BitIteratorBE::without_leading_zeros(P::ATE_LOOP_COUNT).skip(1) {
+        for i in (1..P::ATE_LOOP_COUNT.len()).rev() {
             let dc = &q.double_coefficients[dbl_idx];
             dbl_idx += 1;
 
@@ -124,16 +122,31 @@ impl<P: MNT4Parameters> MNT4<P> {
 
             f = f.square() * &g_rr_at_p;
 
-            if bit {
-                let ac = &q.addition_coefficients[add_idx];
-                add_idx += 1;
+            let g_rq_at_p;
+            let ac;
+            let bit = P::ATE_LOOP_COUNT[i - 1];
+            match bit {
+                1 => {
+                    ac = &q.addition_coefficients[add_idx];
+                    add_idx += 1;
 
-                let g_rq_at_p = Fp4::new(
-                    ac.c_rz * &p.y_twist,
-                    -(q.y_over_twist * &ac.c_rz + &(l1_coeff * &ac.c_l1)),
-                );
-                f *= &g_rq_at_p;
+                    g_rq_at_p = Fp4::new(
+                            ac.c_rz * &p.y_twist,
+                        -(q.y_over_twist * &ac.c_rz + &(l1_coeff * &ac.c_l1)),
+                    );
+                }
+                -1 => {
+                    ac = &q.addition_coefficients[add_idx];
+                    add_idx += 1;
+
+                    g_rq_at_p = Fp4::new(
+                            ac.c_rz * &p.y_twist,
+                        q.y_over_twist * &ac.c_rz - &(l1_coeff * &ac.c_l1),
+                    );
+                }
+                _ => continue,
             }
+            f *= &g_rq_at_p;
         }
 
         if P::ATE_IS_LOOP_COUNT_NEG {

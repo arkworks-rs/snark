@@ -36,8 +36,9 @@ impl MNT4Parameters for Parameters {
         G1_COEFF_A_NON_RESIDUE,
         FQ_ZERO,
     );
-
-    const ATE_LOOP_COUNT: &'static [u64] = &[993502997770534912, 5071219579242586943, 2027349];
+    const ATE_LOOP_COUNT: &'static [i8] = &[
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 1, 0, -1, 0, -1, 0, 1, 0, 0, -1, 0, 0, 1, 0, -1, 0, -1, 0, 0, -1, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0, 1, 0, 1, 0, 0, -1, 0, 0, -1, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0, 0, 0, 1, 0, -1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, -1, 0, -1, 0, 0, 0, 0, 0, -1, 0, -1, 0, 0, -1, 0, -1, 0, -1, 0, 0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 0, -1, 0, 1, 0, -1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, -1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0, 0, 1,
+    ];
     const ATE_IS_LOOP_COUNT_NEG: bool = false;
     const FINAL_EXPONENT_LAST_CHUNK_1: BigInteger320 = BigInteger320([0x1, 0x0, 0x0, 0x0, 0x0]);
     const FINAL_EXPONENT_LAST_CHUNK_W0_IS_NEG: bool = false;
