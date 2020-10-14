@@ -55,12 +55,14 @@ pub trait MNT6Parameters: 'static {
 
     // base field F of the curve
     type Fp: PrimeField + SquareRootField + Into<<Self::Fp as PrimeField>::BigInt>;
+    // scalar field of the curve
+    type Fr: PrimeField + SquareRootField + Into<<Self::Fr as PrimeField>::BigInt>;
     // parameters of the quadratic extension field F3
     type Fp3Params: Fp3Parameters<Fp = Self::Fp>;
     // paramters of the embedding field F6
     type Fp6Params: Fp6Parameters<Fp3Params = Self::Fp3Params>;
     // parameters for E with defining field F
-    type G1Parameters: SWModelParameters<BaseField = Self::Fp>;
+    type G1Parameters: SWModelParameters<BaseField = Self::Fp, ScalarField = Self::Fr>;
     // parameters for the quadratic twist E' over F3
     type G2Parameters: SWModelParameters<
         BaseField = Fp3<Self::Fp3Params>,

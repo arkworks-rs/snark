@@ -99,6 +99,8 @@ pub trait Field:
     + for<'a> MulAssign<&'a Self>
     + for<'a> DivAssign<&'a Self>
 {
+    type BasePrimeField: PrimeField;
+
     /// Returns the zero element of the field, the additive identity.
     fn zero() -> Self;
 
@@ -115,7 +117,9 @@ pub trait Field:
     fn is_odd(&self) -> bool;
 
     /// Returns the characteristic of the field.
-    fn characteristic<'a>() -> &'a [u64];
+    fn characteristic<'a>() -> &'a [u64] {
+        Self::BasePrimeField::characteristic()
+    }
 
     /// Returns `self + self`.
     #[must_use]
@@ -219,7 +223,7 @@ pub trait FpParameters: 'static + Send + Sync + Sized {
 }
 
 /// The interface for a prime field.
-pub trait PrimeField: Field + FromStr {
+pub trait PrimeField: Field<BasePrimeField = Self> + FromStr {
     type Params: FpParameters<BigInt = Self::BigInt>;
     type BigInt: BigInteger;
 

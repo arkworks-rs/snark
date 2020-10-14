@@ -112,6 +112,8 @@ impl<P: CubicExtParameters> CubicExtField<P> {
 
 
 impl<P: CubicExtParameters> Field for CubicExtField<P> {
+    type BasePrimeField = P::BasePrimeField;
+
     fn zero() -> Self {
         CubicExtField {
             c0: P::BaseField::zero(),

@@ -52,12 +52,14 @@ pub trait MNT4Parameters: 'static {
 
     // base field F of the curve
     type Fp: PrimeField + SquareRootField + Into<<Self::Fp as PrimeField>::BigInt>;
+    // scalar field of the curve
+    type Fr: PrimeField + SquareRootField + Into<<Self::Fr as PrimeField>::BigInt>;
     // parameters of the quadratic extension field F2
     type Fp2Params: Fp2Parameters<Fp = Self::Fp>;
     // paramters of the embedding field F4
     type Fp4Params: Fp4Parameters<Fp2Params = Self::Fp2Params>;
     // parameters for E with defining field F
-    type G1Parameters: SWModelParameters<BaseField = Self::Fp>;
+    type G1Parameters: SWModelParameters<BaseField = Self::Fp, ScalarField = Self::Fr>;
     // parameters for the quadratic twist E' over F2
     type G2Parameters: SWModelParameters<
         BaseField = Fp2<Self::Fp2Params>,
@@ -88,7 +90,7 @@ impl<P: MNT4Parameters> MNT4p<P> {
         let mut py_twist_squared = P::TWIST.square();
         py_twist_squared.mul_assign_by_basefield(&value.y);
 
-        G1Prepared {p: *value, py_twist_squared}
+        G1Prepared {p: value.clone(), py_twist_squared}
     }
 
     // Takes as input a (non-zero) point Q from G2 in affine coordinates, and outputs the
@@ -100,7 +102,7 @@ impl<P: MNT4Parameters> MNT4p<P> {
     fn ate_precompute_g2(value: &G2Affine<P>) -> G2Prepared<P> {
 
         let mut g2p = G2Prepared {
-            q: *value,
+            q: value.clone(),
             coeffs: vec![],
         };
 

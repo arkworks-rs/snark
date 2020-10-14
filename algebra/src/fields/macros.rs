@@ -41,6 +41,8 @@ macro_rules! impl_Fp {
         }
 
         impl<P: $FpParameters> Field for $Fp<P> {
+            type BasePrimeField = Self;
+
             #[inline]
             fn zero() -> Self {
                 $Fp::<P>($BigInteger::from(0), PhantomData)

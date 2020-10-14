@@ -6,6 +6,7 @@ use crate::{
             fq::{Fq, FqParameters},
             fq2::Fq2Parameters, fq4::Fq4Parameters,
             Fq2, Fq4,
+            Fr,
         },
     FpParameters,
     },
@@ -96,6 +97,7 @@ impl MNT4Parameters for MNT4_753Parameters {
     const FINAL_EXPONENT_LAST_CHUNK_W0_IS_NEG: bool = true;
 
     type Fp = Fq;
+    type Fr = Fr;
     type Fp2Params = Fq2Parameters;
     type Fp4Params = Fq4Parameters;
     type G1Parameters = MNT4G1Parameters;

@@ -143,6 +143,8 @@ impl<P: QuadExtParameters> QuadExtField<P> {
 }
 
 impl<P: QuadExtParameters> Field for QuadExtField<P> {
+    type BasePrimeField = P::BasePrimeField;
+
     fn zero() -> Self {
         QuadExtField::new(P::BaseField::zero(), P::BaseField::zero())
     }

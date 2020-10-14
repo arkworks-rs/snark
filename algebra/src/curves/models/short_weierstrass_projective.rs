@@ -41,6 +41,18 @@ impl<P: Parameters> Display for GroupAffine<P> {
     }
 }
 
+impl<P: Parameters> PartialEq<GroupProjective<P>> for GroupAffine<P> {
+    fn eq(&self, other: &GroupProjective<P>) -> bool {
+        self.into_projective() == *other
+    }
+}
+
+impl<P: Parameters> PartialEq<GroupAffine<P>> for GroupProjective<P> {
+    fn eq(&self, other: &GroupAffine<P>) -> bool {
+        *self == other.into_projective()
+    }
+}
+
 impl<P: Parameters> GroupAffine<P> {
     pub fn new(x: P::BaseField, y: P::BaseField, infinity: bool) -> Self {
         Self {
