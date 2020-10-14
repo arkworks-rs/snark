@@ -129,20 +129,20 @@ impl<P: MNT6Parameters> MNT6<P> {
             let bit = P::ATE_LOOP_COUNT[i - 1];
             match bit {
                 1 => {
-                ac = &q.addition_coefficients[add_idx];
-                add_idx += 1;
-                g_rq_at_p = Fp6::new(
-                    ac.c_rz * &p.y_twist,
-                    -(q.y_over_twist * &ac.c_rz + &(l1_coeff * &ac.c_l1)),
-                );
+                    ac = &q.addition_coefficients[add_idx];
+                    add_idx += 1;
+                    g_rq_at_p = Fp6::new(
+                        ac.c_rz * &p.y_twist,
+                        -(q.y_over_twist * &ac.c_rz + &(l1_coeff * &ac.c_l1)),
+                    );
                 }
                 -1 => {
-                ac = &q.addition_coefficients[add_idx];
-                add_idx += 1;
-                g_rq_at_p = Fp6::new(
-                    ac.c_rz * &p.y_twist,
-                    q.y_over_twist * &ac.c_rz - &(l1_coeff * &ac.c_l1),
-                );
+                    ac = &q.addition_coefficients[add_idx];
+                    add_idx += 1;
+                    g_rq_at_p = Fp6::new(
+                        ac.c_rz * &p.y_twist,
+                        q.y_over_twist * &ac.c_rz - &(l1_coeff * &ac.c_l1),
+                    );
                 }
                 _ => continue,
             }

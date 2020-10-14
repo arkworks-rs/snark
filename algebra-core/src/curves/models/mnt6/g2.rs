@@ -70,12 +70,14 @@ impl<P: MNT6Parameters> From<G2Affine<P>> for G2Prepared<P> {
             let bit = P::ATE_LOOP_COUNT[i - 1];
             match bit {
                 1 => {
-                    let (r2, coeff) = MNT6::<P>::mixed_addition_step_for_flipped_miller_loop(&g2.x, &g2.y, &r);
+                    let (r2, coeff) =
+                        MNT6::<P>::mixed_addition_step_for_flipped_miller_loop(&g2.x, &g2.y, &r);
                     g2p.addition_coefficients.push(coeff);
                     r = r2;
                 }
                 -1 => {
-                    let (r2, coeff) = MNT6::<P>::mixed_addition_step_for_flipped_miller_loop(&g2.x, &-g2.y, &r);
+                    let (r2, coeff) =
+                        MNT6::<P>::mixed_addition_step_for_flipped_miller_loop(&g2.x, &-g2.y, &r);
                     g2p.addition_coefficients.push(coeff);
                     r = r2;
                 }
