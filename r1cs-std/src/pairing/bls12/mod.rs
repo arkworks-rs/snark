@@ -108,7 +108,7 @@ impl<P: Bls12Parameters> PG<Bls12<P>, P::Fp> for PairingVar<P> {
         // it work for curves with odd `P::X`.
         // Hence we implement the slower algorithm from Table 1 below.
 
-        let f1 = f.frobenius_map(6)?;
+        let f1 = f.unitary_inverse()?;
 
         f.inverse().and_then(|mut f2| {
             // f2 = f^(-1);
