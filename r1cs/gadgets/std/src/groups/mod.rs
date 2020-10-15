@@ -7,7 +7,7 @@ use std::{borrow::Borrow, fmt::Debug};
 pub mod curves;
 
 pub use self::curves::{
-    short_weierstrass::bls12,
+    short_weierstrass::{bls12, bn, mnt},
     twisted_edwards::{edwards_sw6, jubjub},
 };
 
