@@ -135,12 +135,12 @@ impl<P: BnParameters> PG<Bn<P>, P::Fp> for PairingGadget<P>
             f.conjugate_in_place(cs.ns(|| "f conjugate"))?;
         }
 
-        for &mut (p, ref mut coeffs) in &mut pairs {
-            Self::ell(cs.ns(|| "Last addition step 1"), &mut f, coeffs.next().unwrap(), &p.0)?;
+        for (i, &mut (p, ref mut coeffs)) in pairs.iter_mut().enumerate() {
+            Self::ell(cs.ns(|| format!("Last addition step 1_{}", i)), &mut f, coeffs.next().unwrap(), &p.0)?;
         }
 
-        for &mut (p, ref mut coeffs) in &mut pairs {
-            Self::ell(cs.ns(|| "Last addition step 2"), &mut f, coeffs.next().unwrap(), &p.0)?;
+        for (i, &mut (p, ref mut coeffs)) in pairs.iter_mut().enumerate() {
+            Self::ell(cs.ns(|| format!("Last addition step 2_{}", i)), &mut f, coeffs.next().unwrap(), &p.0)?;
         }
 
         Ok(f)

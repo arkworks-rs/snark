@@ -608,6 +608,7 @@ mod test {
         assert_eq!(cs.num_constraints(), 0);
     }
 
+    #[ignore]
     #[test]
     fn test_blake2s() {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
