@@ -1,48 +1,54 @@
-use crate::{bytes::ToBytes, curves::{
-    bls12::{Bls12Parameters, TwistType},
-    models::SWModelParameters,
-    short_weierstrass_jacobian::{GroupAffine, GroupProjective},
-    AffineCurve,
-}, fields::{BitIterator, Field, Fp2}, FromBytes};
-use std::io::{Result as IoResult, Write, Read, Error, ErrorKind};
+use crate::{
+    bytes::{
+        ToBytes, FromBytes,
+    },
+    curves::{
+        bn::{BnParameters, TwistType},
+        models::SWModelParameters,
+        short_weierstrass_jacobian::{GroupAffine, GroupProjective},
+        AffineCurve,
+    },
+    fields::{Field, Fp2},
+};
+use std::{io::{Result as IoResult, Write, Read, Error, ErrorKind}, ops::Neg};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
-pub type G2Affine<P> = GroupAffine<<P as Bls12Parameters>::G2Parameters>;
-pub type G2Projective<P> = GroupProjective<<P as Bls12Parameters>::G2Parameters>;
+pub type G2Affine<P> = GroupAffine<<P as BnParameters>::G2Parameters>;
+pub type G2Projective<P> = GroupProjective<<P as BnParameters>::G2Parameters>;
 
 #[derive(Derivative)]
 #[derivative(
-    Clone(bound = "P: Bls12Parameters"),
-    Debug(bound = "P: Bls12Parameters"),
-    PartialEq(bound = "P: Bls12Parameters"),
-    Eq(bound = "P: Bls12Parameters")
+    Clone(bound = "P: BnParameters"),
+    Debug(bound = "P: BnParameters"),
+    PartialEq(bound = "P: BnParameters"),
+    Eq(bound = "P: BnParameters")
 )]
-pub struct G2Prepared<P: Bls12Parameters> {
+pub struct G2Prepared<P: BnParameters> {
     // Stores the coefficients of the line evaluations as calculated in
     // https://eprint.iacr.org/2013/722.pdf
     pub ell_coeffs: Vec<(Fp2<P::Fp2Params>, Fp2<P::Fp2Params>, Fp2<P::Fp2Params>)>,
-    pub infinity:   bool,
+    pub infinity: bool,
 }
 
 #[derive(Derivative)]
 #[derivative(
-    Clone(bound = "P: Bls12Parameters"),
-    Copy(bound = "P: Bls12Parameters"),
-    Debug(bound = "P: Bls12Parameters")
+    Clone(bound = "P: BnParameters"),
+    Copy(bound = "P: BnParameters"),
+    Debug(bound = "P: BnParameters")
 )]
-struct G2HomProjective<P: Bls12Parameters> {
+struct G2HomProjective<P: BnParameters> {
     x: Fp2<P::Fp2Params>,
     y: Fp2<P::Fp2Params>,
     z: Fp2<P::Fp2Params>,
 }
 
-impl<P: Bls12Parameters> Default for G2Prepared<P> {
+impl<P: BnParameters> Default for G2Prepared<P> {
     fn default() -> Self {
         Self::from_affine(G2Affine::<P>::prime_subgroup_generator())
     }
 }
 
-impl<P: Bls12Parameters> ToBytes for G2Prepared<P> {
+impl<P: BnParameters> ToBytes for G2Prepared<P> {
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
         writer.write_u32::<BigEndian>(self.ell_coeffs.len() as u32)?;
         for coeff in &self.ell_coeffs {
@@ -54,7 +60,7 @@ impl<P: Bls12Parameters> ToBytes for G2Prepared<P> {
     }
 }
 
-impl<P: Bls12Parameters> FromBytes for G2Prepared<P> {
+impl<P: BnParameters> FromBytes for G2Prepared<P> {
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
         let ell_coeffs_len = reader.read_u32::<BigEndian>()? as usize;
         let mut ell_coeffs = vec![];
@@ -73,7 +79,7 @@ impl<P: Bls12Parameters> FromBytes for G2Prepared<P> {
     }
 }
 
-impl<P: Bls12Parameters> G2Prepared<P> {
+impl<P: BnParameters> G2Prepared<P> {
     pub fn is_zero(&self) -> bool {
         self.infinity
     }
@@ -83,7 +89,7 @@ impl<P: Bls12Parameters> G2Prepared<P> {
         if q.is_zero() {
             return Self {
                 ell_coeffs: vec![],
-                infinity:   true,
+                infinity: true,
             };
         }
 
@@ -94,13 +100,35 @@ impl<P: Bls12Parameters> G2Prepared<P> {
             z: Fp2::one(),
         };
 
-        for i in BitIterator::new(P::X).skip(1) {
+        let negq = q.neg();
+
+        for i in (1..P::ATE_LOOP_COUNT.len()).rev() {
             ell_coeffs.push(doubling_step::<P>(&mut r, &two_inv));
 
-            if i {
-                ell_coeffs.push(addition_step::<P>(&mut r, &q));
+            let bit = P::ATE_LOOP_COUNT[i - 1];
+
+            match bit {
+                1 => {
+                    ell_coeffs.push(addition_step::<P>(&mut r, &q));
+                }
+                -1 => {
+                    ell_coeffs.push(addition_step::<P>(&mut r, &negq));
+                }
+                _ => continue,
             }
         }
+
+        let q1 = mul_by_char::<P>(q);
+        let mut q2 = mul_by_char::<P>(q1);
+
+        if P::ATE_LOOP_COUNT_IS_NEGATIVE {
+            r.y = -r.y;
+        }
+
+        q2.y = -q2.y;
+
+        ell_coeffs.push(addition_step::<P>(&mut r, &q1));
+        ell_coeffs.push(addition_step::<P>(&mut r, &q2));
 
         Self {
             ell_coeffs,
@@ -109,7 +137,19 @@ impl<P: Bls12Parameters> G2Prepared<P> {
     }
 }
 
-fn doubling_step<B: Bls12Parameters>(
+fn mul_by_char<P: BnParameters>(r: G2Affine<P>) -> G2Affine<P> {
+    // multiply by field characteristic
+
+    let mut s = r;
+    s.x.frobenius_map(1);
+    s.x *= &P::TWIST_MUL_BY_Q_X;
+    s.y.frobenius_map(1);
+    s.y *= &P::TWIST_MUL_BY_Q_Y;
+
+    s
+}
+
+fn doubling_step<B: BnParameters>(
     r: &mut G2HomProjective<B>,
     two_inv: &B::Fp,
 ) -> (Fp2<B::Fp2Params>, Fp2<B::Fp2Params>, Fp2<B::Fp2Params>) {
@@ -138,7 +178,7 @@ fn doubling_step<B: Bls12Parameters>(
     }
 }
 
-fn addition_step<B: Bls12Parameters>(
+fn addition_step<B: BnParameters>(
     r: &mut G2HomProjective<B>,
     q: &G2Affine<B>,
 ) -> (Fp2<B::Fp2Params>, Fp2<B::Fp2Params>, Fp2<B::Fp2Params>) {
