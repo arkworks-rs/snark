@@ -19,8 +19,6 @@ use algebra::{
 };
 use std::marker::PhantomData;
 
-pub mod bls12_377;
-
 pub struct PairingGadget<P: Bls12Parameters>(PhantomData<P>);
 
 type Fp2G<P> = Fp2Gadget<<P as Bls12Parameters>::Fp2Params, <P as Bls12Parameters>::Fp>;

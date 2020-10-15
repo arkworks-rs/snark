@@ -12,8 +12,6 @@ use crate::{
 };
 use std::fmt::Debug;
 
-pub mod bn_382;
-
 pub type G1Gadget<P> = AffineGadget<
     <P as BnParameters>::G1Parameters,
     <P as BnParameters>::Fp,

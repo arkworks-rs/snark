@@ -433,7 +433,7 @@ mod test {
             curves::bls12_377::Bls12_377,
             fields::bls12_377::{Fq, Fr},
         };
-        use r1cs_std::pairing::bls12_377::PairingGadget as Bls12_377PairingGadget;
+        use r1cs_std::instantiated::bls12_377::PairingGadget as Bls12_377PairingGadget;
 
         type TestProofSystem = Groth16<Bls12_377, Bench<Fr>, Fr>;
         type TestVerifierGadget = Groth16VerifierGadget<Bls12_377, Fq, Bls12_377PairingGadget>;
@@ -520,7 +520,7 @@ mod test {
             fields::mnt4753::{Fq, Fr},
         };
 
-        use r1cs_std::pairing::mnt4753::MNT4753PairingGadget;
+        use r1cs_std::instantiated::mnt4_753::PairingGadget as MNT4753PairingGadget;
 
         type TestProofSystem = Groth16<MNT4, Bench<Fr>, Fr>;
         type TestVerifierGadget = Groth16VerifierGadget<MNT4, Fq, MNT4753PairingGadget>;
@@ -608,7 +608,7 @@ mod test {
             fields::mnt6753::{Fq, Fr},
         };
 
-        use r1cs_std::pairing::mnt6753::MNT6753PairingGadget;
+        use r1cs_std::instantiated::mnt6_753::PairingGadget as MNT6753PairingGadget;
 
         type TestProofSystem = Groth16<MNT6, Bench<Fr>, Fr>;
         type TestVerifierGadget = Groth16VerifierGadget<MNT6, Fq, MNT6753PairingGadget>;

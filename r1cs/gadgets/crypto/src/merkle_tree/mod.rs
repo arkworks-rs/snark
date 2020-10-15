@@ -186,7 +186,7 @@ mod test {
     use rand_xorshift::XorShiftRng;
     use super::*;
     use r1cs_std::{
-        groups::curves::twisted_edwards::jubjub::JubJubGadget,
+        instantiated::jubjub::JubJubGadget,
         test_constraint_system::TestConstraintSystem,
     };
 

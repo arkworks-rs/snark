@@ -49,6 +49,9 @@ pub mod groups;
 
 pub mod pairing;
 
+pub mod instantiated;
+pub use instantiated::*;
+
 pub mod alloc;
 pub mod eq;
 pub mod select;

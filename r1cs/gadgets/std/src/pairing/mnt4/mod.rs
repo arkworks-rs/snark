@@ -11,8 +11,6 @@ use algebra::curves::models::mnt4::{MNT4p, MNT4Parameters,
 };
 use std::marker::PhantomData;
 
-pub mod mnt4753;
-
 pub struct MNT4PairingGadget<P: MNT4Parameters>(PhantomData<P>);
 
 impl<P: MNT4Parameters> PairingGadget<MNT4p<P>, P::Fp> for MNT4PairingGadget<P>

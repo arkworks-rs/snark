@@ -10,9 +10,6 @@ use algebra::curves::models::mnt6::{MNT6p, MNT6Parameters,
 };
 use std::marker::PhantomData;
 
-pub mod mnt6753;
-
-
 pub struct MNT6PairingGadget<P: MNT6Parameters>(PhantomData<P>);
 
 impl<P: MNT6Parameters> PairingGadget<MNT6p<P>, P::Fp> for MNT6PairingGadget<P>

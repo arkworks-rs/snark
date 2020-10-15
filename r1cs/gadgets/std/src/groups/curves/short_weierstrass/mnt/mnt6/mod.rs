@@ -13,8 +13,6 @@ use std::fmt::Debug;
 use std::ops::Mul;
 use crate::bits::boolean::Boolean;
 
-pub mod mnt6753;
-
 pub type G1Gadget<P> = AffineGadget<
     <P as MNT6Parameters>::G1Parameters,
     <P as MNT6Parameters>::Fp,
