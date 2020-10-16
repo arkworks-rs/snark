@@ -1,8 +1,4 @@
-use crate::{
-    biginteger::{arithmetic as fa, BigInteger as _BigInteger, BigInteger832 as BigInteger},
-    bytes::{FromBytes, ToBytes},
-    fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
-};
+use crate::{biginteger::{arithmetic as fa, BigInteger as _BigInteger, BigInteger832 as BigInteger}, bytes::{FromBytes, ToBytes}, fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField}, SemanticallyValid};
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
     fmt::{Display, Formatter, Result as FmtResult},
@@ -36,11 +32,6 @@ impl<P: Fp832Parameters> Fp832<P> {
     #[inline]
     pub fn new(element: BigInteger) -> Self {
         Fp832::<P>(element, PhantomData)
-    }
-
-    #[inline]
-    pub(crate) fn is_valid(&self) -> bool {
-        self.0 < P::MODULUS
     }
 
     #[inline]
@@ -757,6 +748,14 @@ impl_prime_field_from_int!(Fp832, u16, Fp832Parameters);
 impl_prime_field_from_int!(Fp832, u8, Fp832Parameters);
 
 impl_prime_field_standard_sample!(Fp832, Fp832Parameters);
+
+impl<P: Fp832Parameters> SemanticallyValid for Fp832<P>
+{
+    #[inline]
+    fn is_valid(&self) -> bool {
+        self.0 < P::MODULUS
+    }
+}
 
 impl<P: Fp832Parameters> ToBytes for Fp832<P> {
     #[inline]

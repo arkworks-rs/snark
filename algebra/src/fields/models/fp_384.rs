@@ -7,11 +7,7 @@ use std::{
     str::FromStr,
 };
 
-use crate::{
-    biginteger::{arithmetic as fa, BigInteger as _BigInteger, BigInteger384 as BigInteger},
-    bytes::{FromBytes, ToBytes},
-    fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
-};
+use crate::{biginteger::{arithmetic as fa, BigInteger as _BigInteger, BigInteger384 as BigInteger}, bytes::{FromBytes, ToBytes}, fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField}, SemanticallyValid};
 
 pub trait Fp384Parameters: FpParameters<BigInt = BigInteger> {}
 
@@ -39,10 +35,6 @@ impl<P: Fp384Parameters> Fp384<P> {
         Fp384::<P>(element, PhantomData)
     }
 
-    #[inline]
-    pub(crate) fn is_valid(&self) -> bool {
-        self.0 < P::MODULUS
-    }
 
     #[inline]
     fn reduce(&mut self) {
@@ -458,6 +450,15 @@ impl_prime_field_from_int!(Fp384, u16, Fp384Parameters);
 impl_prime_field_from_int!(Fp384, u8, Fp384Parameters);
 
 impl_prime_field_standard_sample!(Fp384, Fp384Parameters);
+
+impl<P: Fp384Parameters> SemanticallyValid for Fp384<P>
+{
+    #[inline]
+    fn is_valid(&self) -> bool {
+        self.0 < P::MODULUS
+    }
+}
+
 
 impl<P: Fp384Parameters> ToBytes for Fp384<P> {
     #[inline]

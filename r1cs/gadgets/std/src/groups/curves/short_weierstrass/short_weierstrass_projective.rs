@@ -156,6 +156,11 @@ for AffineGadget<P, ConstraintF, F>
     }
 
     #[inline]
+    fn is_zero<CS: ConstraintSystem<ConstraintF>>(&self, _: CS) -> Result<Boolean, SynthesisError>{
+        Ok(self.infinity)
+    }
+
+    #[inline]
     /// Incomplete addition: neither `self` nor `other` can be the neutral
     /// element.
     fn add<CS: ConstraintSystem<ConstraintF>>(
@@ -637,6 +642,9 @@ for AffineGadget<P, ConstraintF, F>
         ConstraintF: Field,
         F: FieldGadget<P::BaseField, ConstraintF>,
 {
+    /// On curve test is performed on x and y coordinates regardless of the infinity flag.
+    /// NOTE: Depending on the curve, this might be inconsistent with our default values
+    /// for x and y if infinity is true.
     #[inline]
     fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
@@ -707,6 +715,10 @@ for AffineGadget<P, ConstraintF, F>
         Ok(Self::new(x, y, infinity))
     }
 
+    /// On curve and group membership test is performed on x and y coordinates regardless
+    /// of the infinity flag.
+    /// NOTE: Depending on the curve, this might be inconsistent with our default values
+    /// for x and y if infinity is true.
     #[inline]
     fn alloc_checked<FN, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
@@ -794,18 +806,6 @@ for AffineGadget<P, ConstraintF, F>
             value_gen
         )?;
 
-        // Check that y^2 = x^3 + ax +b: it's a cheap check so we do it anyway
-        // We do this by checking that y^2 - b = x * (x^2 +a)
-        let b = P::COEFF_B;
-        let a = P::COEFF_A;
-
-        let x2 = ge.x.square(&mut cs.ns(|| "x^2"))?;
-        let y2 = ge.y.square(&mut cs.ns(|| "y^2"))?;
-
-        let x2_plus_a = x2.add_constant(cs.ns(|| "x^2 + a"), &a)?;
-        let y2_minus_b = y2.add_constant(cs.ns(|| "y^2 - b"), &b.neg())?;
-
-        x2_plus_a.mul_equals(cs.ns(|| "on curve check"), &ge.x, &y2_minus_b)?;
         Ok(ge)
     }
 

@@ -1,9 +1,9 @@
 use rand::{Rng, distributions::{Standard, Distribution}};
-use crate::{UniformRand, ToCompressedBits, FromCompressedBits, Error, BitSerializationError};
+use crate::{UniformRand, ToCompressedBits, FromCompressedBits, Error, BitSerializationError, SemanticallyValid, FromBytesChecked};
 use crate::curves::models::SWModelParameters as Parameters;
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
-    io::{Read, Result as IoResult, Write},
+    io::{Read, Result as IoResult, Write, Error as IoError, ErrorKind},
     marker::PhantomData,
 };
 
@@ -119,6 +119,7 @@ impl<P: Parameters> GroupAffine<P> {
         self.mul_bits(BitIterator::new(P::ScalarField::characteristic()))
             .is_zero()
     }
+
 }
 
 impl<P: Parameters> AffineCurve for GroupAffine<P> {
@@ -126,6 +127,8 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
     type BaseField = P::BaseField;
     type Projective = GroupProjective<P>;
 
+    // Altough the non-affine element is always handled only through the infinity flag,
+    // we still set x and y coordinates in a normalized manner.
     #[inline]
     fn zero() -> Self {
         Self::new(Self::BaseField::zero(), Self::BaseField::one(), true)
@@ -170,6 +173,15 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
     }
 }
 
+impl<P: Parameters> SemanticallyValid for GroupAffine<P>
+{
+    fn is_valid(&self) -> bool {
+        self.x.is_valid() &&
+        self.y.is_valid() &&
+        self.group_membership_test()
+    }
+}
+
 impl<P: Parameters> Neg for GroupAffine<P> {
     type Output = Self;
 
@@ -197,7 +209,23 @@ impl<P: Parameters> FromBytes for GroupAffine<P> {
         let x = P::BaseField::read(&mut reader)?;
         let y = P::BaseField::read(&mut reader)?;
         let infinity = bool::read(reader)?;
+
         Ok(Self::new(x, y, infinity))
+    }
+}
+
+impl<P: Parameters> FromBytesChecked for GroupAffine<P> {
+    #[inline]
+    fn read_checked<R: Read>(reader: R) -> IoResult<Self> {
+        Self::read(reader)
+            .map_err(|e| IoError::new(ErrorKind::InvalidData, e))
+            .and_then(|p| {
+                if !p.group_membership_test() {
+                    return Err(IoError::new(ErrorKind::InvalidData, "invalid point: group membership test failed"));
+                }
+                Ok(p)
+            }
+        )
     }
 }
 
@@ -308,9 +336,12 @@ impl<P: Parameters> PartialEq for GroupProjective<P> {
         // x1/z1 == x2/z2  <==> x1 * z2 == x2 * z1
         if (self.x * &other.z) != (other.x * &self.z) {
             false
-        } else if (self.y * &other.z) != (other.y * &self.z) {
+        }
+        // y1/z1 == y2/z2  <==> y1 * z2 == y2 * z1
+        else if (self.y * &other.z) != (other.y * &self.z) {
             false
-        } else {
+        }
+        else {
             true
         }
     }
@@ -341,6 +372,21 @@ impl<P: Parameters> FromBytes for GroupProjective<P> {
         let y = P::BaseField::read(&mut reader)?;
         let z = P::BaseField::read(reader)?;
         Ok(Self::new(x, y, z))
+    }
+}
+
+impl<P: Parameters> FromBytesChecked for GroupProjective<P> {
+    #[inline]
+    fn read_checked<R: Read>(reader: R) -> IoResult<Self> {
+        Self::read(reader)
+            .map_err(|e| IoError::new(ErrorKind::InvalidData, e))
+            .and_then(|p| {
+                if !p.group_membership_test() {
+                    return Err(IoError::new(ErrorKind::InvalidData, "invalid point: group membership test failed"));
+                }
+                Ok(p)
+            }
+        )
     }
 }
 
@@ -548,6 +594,16 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
 
     fn recommended_wnaf_for_num_scalars(num_scalars: usize) -> usize {
         P::empirical_recommended_wnaf_for_num_scalars(num_scalars)
+    }
+}
+
+impl<P: Parameters> SemanticallyValid for GroupProjective<P>
+{
+    fn is_valid(&self) -> bool {
+        self.x.is_valid() &&
+        self.y.is_valid() &&
+        self.z.is_valid() &&
+        self.group_membership_test()
     }
 }
 
