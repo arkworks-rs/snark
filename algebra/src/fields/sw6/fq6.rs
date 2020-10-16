@@ -4,7 +4,7 @@ use crate::{
     fields::{
         fp6_2over3::{Fp6, Fp6Parameters},
         sw6::{
-            fq::Fq,
+            fq::{Fq, FQ_ZERO, FQ_ONE},
             fq3::{Fq3, Fq3Parameters},
         },
     },
@@ -17,32 +17,9 @@ pub struct Fq6Parameters;
 impl Fp6Parameters for Fq6Parameters {
     type Fp3Params = Fq3Parameters;
 
-    /// NONRESIDUE = 13
-    const NONRESIDUE: Fq3 = field_new!(Fq3,
-        field_new!(Fq, BigInteger([
-            0xe755952f4650755e,
-            0x16c44ce1331ef791,
-            0x162f8835b467306f,
-            0xac1c2b31e1062c4c,
-            0x20b3dab9a2a935e1,
-            0xccd2ec5fd01e00c1,
-            0x4d1d1bf190c8da9b,
-            0x49cba09fb0e13fbe,
-            0xe392ed2957c061a3,
-            0x3159d02b3c93d6e1,
-            0x71566d160a9f8614,
-            0xa5840728fc854414,
-            0x2dc4,
-        ])),
-        field_new!(Fq, BigInteger([
-            0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-        ])),
-        field_new!(Fq, BigInteger([
-            0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-        ])),
-    );
+    const NONRESIDUE: Fq3 = field_new!(Fq3, FQ_ZERO, FQ_ONE, FQ_ZERO);
 
-    const FROBENIUS_COEFF_FP6_C1: [Fq; 6] = [
+    const FROBENIUS_COEFF_FP6_C1: &'static [Fq] = &[
         field_new!(Fq, BigInteger([
             0x9b4e60b420910c71,
             0xe068d7c83f284a6e,

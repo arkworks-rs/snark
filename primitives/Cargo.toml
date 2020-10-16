@@ -20,7 +20,7 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-algebra = { path = "../algebra" }
+algebra = { path = "../algebra", features = ["parallel"] }
 bench-utils = { path = "../bench-utils" }
 
 digest = { version = "0.7", optional = true }
@@ -40,6 +40,8 @@ smt = ["merkle_tree", "rocksdb"]
 prf = ["digest", "blake2"]
 signature = ["digest", "blake2"]
 vrf = []
+
+llvm_asm = ["algebra/llvm_asm"]
 
 [dev-dependencies]
 criterion = "0.3.2"

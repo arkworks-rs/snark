@@ -38,14 +38,14 @@ impl<P: MNT6Parameters> FromBytes for G1Prepared<P> {
     }
 }
 
-impl<P: MNT6Parameters> G1Prepared<P> {
-    pub fn from_affine(point: &G1Affine<P>) -> Self {
-        MNT6p::<P>::ate_precompute_g1(&point)
+impl<P: MNT6Parameters> From<G1Affine<P>> for G1Prepared<P> {
+    fn from(other: G1Affine<P>) -> Self {
+        MNT6p::<P>::ate_precompute_g1(&other)
     }
 }
 
 impl<P: MNT6Parameters> Default for G1Prepared<P> {
     fn default() -> Self {
-        Self::from_affine(&G1Affine::<P>::prime_subgroup_generator())
+        Self::from(G1Affine::<P>::prime_subgroup_generator())
     }
 }

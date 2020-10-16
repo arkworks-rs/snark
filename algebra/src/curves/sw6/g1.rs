@@ -1,32 +1,15 @@
 use crate::field_new;
-use super::{G2Affine, SW6};
 use crate::{
     biginteger::{BigInteger384, BigInteger832},
     curves::{
         models::{ModelParameters, SWModelParameters},
         short_weierstrass_jacobian::{GroupAffine, GroupProjective},
-        PairingCurve, PairingEngine,
     },
-    fields::sw6::{Fq, Fq6, Fr},
+    fields::sw6::{Fq, Fr},
 };
 
 pub type G1Affine = GroupAffine<SW6G1Parameters>;
 pub type G1Projective = GroupProjective<SW6G1Parameters>;
-
-impl PairingCurve for G1Affine {
-    type Engine = SW6;
-    type Prepared = Self;
-    type PairWith = G2Affine;
-    type PairingResult = Fq6;
-
-    fn prepare(&self) -> Self::Prepared {
-        self.clone()
-    }
-
-    fn pairing_with(&self, other: &Self::PairWith) -> Self::PairingResult {
-        SW6::pairing(*self, *other)
-    }
-}
 
 #[derive(Copy, Clone, Default, PartialEq, Eq)]
 pub struct SW6G1Parameters;

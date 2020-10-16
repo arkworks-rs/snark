@@ -2,7 +2,7 @@ use crate::field_new;
 use crate::{
     biginteger::BigInteger384,
     fields::{
-        bls12_377::{fq::Fq, fq2::Fq2, fq6::Fq6Parameters},
+        bls12_377::{fq::Fq, fq2::{Fq2, FQ2_ONE, FQ2_ZERO}, fq6::{Fq6, Fq6Parameters}},
         fp12_2over3over2::{Fp12, Fp12Parameters},
     },
 };
@@ -15,7 +15,9 @@ pub struct Fq12Parameters;
 impl Fp12Parameters for Fq12Parameters {
     type Fp6Params = Fq6Parameters;
 
-    const FROBENIUS_COEFF_FP12_C1: [Fq2; 12] = [
+    const NONRESIDUE: Fq6 = field_new!(Fq6, FQ2_ZERO, FQ2_ONE, FQ2_ZERO);
+
+    const FROBENIUS_COEFF_FP12_C1: &'static [Fq2] = &[
         // Fp2::NONRESIDUE^(((q^0) - 1) / 6)
         field_new!(Fq2,
             field_new!(Fq, BigInteger384([

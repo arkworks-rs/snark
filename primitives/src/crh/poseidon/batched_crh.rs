@@ -16,7 +16,7 @@ pub struct PoseidonBatchHash<F: PrimeField, P: PoseidonParameters<Fr = F>>{
     _parameters: PhantomData<P>,
 }
 
-impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F, P> {
+impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F, P> {
 
     fn poseidon_full_round(vec_state: &mut [Vec<P::Fr>], round_cst_idx: &mut usize) {
 
@@ -170,7 +170,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F,
 }
 
 
-impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr = F>> BatchFieldBasedHash for PoseidonBatchHash<F, P> {
+impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr = F>> BatchFieldBasedHash for PoseidonBatchHash<F, P> {
     type Data = F;
     type BaseHash = PoseidonHash<F, P>;
 

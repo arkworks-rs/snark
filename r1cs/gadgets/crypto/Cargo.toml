@@ -20,7 +20,7 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-algebra = { path = "../../../algebra" }
+algebra = { path = "../../../algebra", features = ["parallel"] }
 primitives = {path = "../../../primitives"}
 r1cs-core = { path = "../../core"}
 r1cs-std = { path = "../std"}
@@ -41,6 +41,8 @@ prf = ["digest", "blake2", "primitives/prf"]
 signature = ["primitives/signature", "digest"]
 vrf = ["primitives/vrf"]
 nizk = ["proof-systems"]
+
+llvm_asm = ["algebra/llvm_asm"]
 
 [dev-dependencies]
 criterion = "0.2"

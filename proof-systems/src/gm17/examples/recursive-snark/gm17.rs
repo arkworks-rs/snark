@@ -36,9 +36,9 @@ use algebra::{
     UniformRand, PairingEngine
 };
 
-use r1cs_std::pairing::{
-    mnt4753::MNT4753PairingGadget,
-    mnt6753::MNT6753PairingGadget,
+use r1cs_std::instantiated::{
+    mnt4_753::PairingGadget as MNT4753PairingGadget,
+    mnt6_753::PairingGadget as MNT6753PairingGadget,
 };
 
 // For benchmarking

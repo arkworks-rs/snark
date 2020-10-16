@@ -8,12 +8,11 @@ use algebra::{PrimeField, MulShort};
 use std::marker::PhantomData;
 
 use crate::crh::{
+    FieldBasedHash,
     FieldBasedHashParameters, poseidon::{
         parameters::{MNT4753PoseidonParameters, MNT6753PoseidonParameters}
     }
 };
-
-use crate::crh::FieldBasedHash;
 
 pub mod parameters;
 pub mod batched_crh;
@@ -45,7 +44,7 @@ pub trait PoseidonParameters: 'static + FieldBasedHashParameters + Clone {
 // that is the Montgomery representation of the operand x * t mod M, and t is the 64-bit constant
 #[allow(dead_code)]
 #[inline]
-pub fn scalar_mul<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> (res: &mut F, state: &mut[F], mut start_idx_cst: usize) {
+pub fn scalar_mul<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> (res: &mut F, state: &mut[F], mut start_idx_cst: usize) {
 
     state.iter().for_each(|x| {
         let elem = x.mul(&P::MDS_CST[start_idx_cst]);
@@ -57,7 +56,7 @@ pub fn scalar_mul<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> (res: &
 // Function that does the mix matrix
 #[allow(dead_code)]
 #[inline]
-pub fn matrix_mix<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>>  (state: &mut Vec<F>) {
+pub fn matrix_mix<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>>  (state: &mut Vec<F>) {
 
     // the new state where the result will be stored initialized to zero elements
     let mut new_state = vec![F::zero(); P::T];
@@ -75,9 +74,9 @@ pub fn matrix_mix<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>>  (state
 // t is a 64-bit matrix constant. In the algorithm, the constants are represented in
 // partial Montgomery representation, i.e. t * 2^64 mod M
 #[inline]
-pub fn scalar_mul_fast<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> (res: &mut F, state: &mut[F], mut start_idx_cst: usize) {
-    state.iter().for_each(|x| {
-        let elem = P::MDS_CST_SHORT[start_idx_cst].mul_short(&x);
+pub fn scalar_mul_fast<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> (res: &mut F, state: &mut[F], mut start_idx_cst: usize) {
+    state.iter().for_each(|&x| {
+        let elem = P::MDS_CST_SHORT[start_idx_cst].mul_short(x);
         start_idx_cst += 1;
         *res += &elem;
     });
@@ -85,7 +84,7 @@ pub fn scalar_mul_fast<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> (r
 
 // Function that does the mix matrix with fast algorithm
 #[inline]
-pub fn matrix_mix_short<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> (state: &mut Vec<F>) {
+pub fn matrix_mix_short<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> (state: &mut Vec<F>) {
 
     // the new state where the result will be stored initialized to zero elements
     let mut new_state = vec![F::zero(); P::T];
@@ -98,7 +97,7 @@ pub fn matrix_mix_short<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> (
     *state = new_state;
 }
 
-impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
+impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
 
     #[inline]
     fn apply_permutation(&mut self) {
@@ -160,7 +159,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
             }
 
             // Perform the matrix mix
-            matrix_mix_short::<F,P>(state);
+            matrix_mix_short::<F, P>(state);
 
         }
 
@@ -255,7 +254,7 @@ impl<F: PrimeField + MulShort, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
 
 impl<F, P> FieldBasedHash for PoseidonHash<F, P>
     where
-        F: PrimeField + MulShort,
+        F: PrimeField + MulShort<F, Output = F>,
         P: PoseidonParameters<Fr = F>,
 {
     type Data = F;

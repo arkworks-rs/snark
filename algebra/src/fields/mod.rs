@@ -11,17 +11,21 @@ mod macros;
 
 pub mod bls12_377;
 pub mod bls12_381;
+pub mod bn_382;
 pub mod edwards_bls12;
 pub mod edwards_sw6;
 pub mod jubjub;
 pub mod mnt4753;
 pub mod mnt6753;
 pub mod mnt6;
-pub mod models;
 pub mod sw6;
 #[cfg(test)]
 pub mod tests;
 
+#[macro_use]
+pub mod arithmetic;
+
+pub mod models;
 pub use self::models::*;
 
 #[macro_export]
@@ -49,9 +53,17 @@ macro_rules! field_new {
     };
 }
 
-pub trait MulShort where Self: Sized {
+pub trait MulShort<Rhs = Self> {
 
-    fn mul_short(self, other: &Self) -> Self;
+    type Output;
+
+    #[must_use]
+    fn mul_short(self, rhs: Rhs) -> Self::Output;
+}
+
+pub trait MulShortAssign<Rhs = Self> {
+
+    fn mul_short_assign(&mut self, rhs: Rhs);
 }
 
 /// The interface for a generic field.
@@ -89,6 +101,8 @@ pub trait Field:
     + for<'a> MulAssign<&'a Self>
     + for<'a> DivAssign<&'a Self>
 {
+    type BasePrimeField: PrimeField;
+
     /// Returns the zero element of the field, the additive identity.
     fn zero() -> Self;
 
@@ -105,7 +119,9 @@ pub trait Field:
     fn is_odd(&self) -> bool;
 
     /// Returns the characteristic of the field.
-    fn characteristic<'a>() -> &'a [u64];
+    fn characteristic<'a>() -> &'a [u64] {
+        Self::BasePrimeField::characteristic()
+    }
 
     /// Returns `self + self`.
     #[must_use]
@@ -218,7 +234,7 @@ pub trait FpParameters: 'static + Send + Sync + Sized {
 }
 
 /// The interface for a prime field.
-pub trait PrimeField: Field + FromStr {
+pub trait PrimeField: Field<BasePrimeField = Self> + FromStr {
     type Params: FpParameters<BigInt = Self::BigInt>;
     type BigInt: BigInteger;
 
@@ -302,6 +318,7 @@ impl<F: PrimeField> FromBits for F {
     #[inline]
     fn read_bits(bits: Vec<bool>) -> Result<Self, Error> {
         let modulus_bits = <Self as PrimeField>::Params::MODULUS_BITS as usize;
+        println!("Bits len: {}", bits.len());
 
         //NOTE: We allow bits having enough leading bits to zero s.t. the length will be <= F::MODULUS_BITS
         let leading_zeros = leading_zeros(bits.as_slice()) as usize;
@@ -416,11 +433,11 @@ use crate::biginteger::{
     BigInteger256, BigInteger320, BigInteger384, BigInteger768, BigInteger832,
 };
 
-impl_field_into_bigint!(Fp256, BigInteger256, Fp256Parameters);
-impl_field_into_bigint!(Fp320, BigInteger320, Fp320Parameters);
-impl_field_into_bigint!(Fp384, BigInteger384, Fp384Parameters);
-impl_field_into_bigint!(Fp768, BigInteger768, Fp768Parameters);
-impl_field_into_bigint!(Fp832, BigInteger832, Fp832Parameters);
+impl_field_bigint_conv!(Fp256, BigInteger256, Fp256Parameters);
+impl_field_bigint_conv!(Fp320, BigInteger320, Fp320Parameters);
+impl_field_bigint_conv!(Fp384, BigInteger384, Fp384Parameters);
+impl_field_bigint_conv!(Fp768, BigInteger768, Fp768Parameters);
+impl_field_bigint_conv!(Fp832, BigInteger832, Fp832Parameters);
 
 pub fn batch_inversion<F: Field>(v: &mut [F]) {
     // Montgomery’s Trick and Fast Implementation of Masked AES

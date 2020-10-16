@@ -1,19 +1,19 @@
 use crate::field_new;
 use crate::{
-    curves::{PairingCurve, PairingEngine},
     fields::{
         mnt6753::{
             fq::{Fq, FqParameters},
             fq3::Fq3Parameters, fq6::Fq6Parameters,
-            Fq3, Fq6,
+            Fq3,
+            Fr,
         },
         FpParameters,
     },
     BigInteger768 as BigInteger
 };
 use crate::curves::models::mnt6::{MNT6Parameters, MNT6p,
-                                  G1Affine as MNT6G1Affine, G1Projective as MNT6G1Projective, G1Prepared,
-                                  G2Affine as MNT6G2Affine, G2Projective as MNT6G2Projective, G2Prepared,
+                                  G1Affine as MNT6G1Affine, G1Projective as MNT6G1Projective,
+                                  G2Affine as MNT6G2Affine, G2Projective as MNT6G2Projective,
 };
 use self::{g1::MNT6G1Parameters, g2::MNT6G2Parameters};
 
@@ -97,6 +97,7 @@ impl MNT6Parameters for MNT6_753Parameters {
     const FINAL_EXPONENT_LAST_CHUNK_W0_IS_NEG: bool = false;
 
     type Fp = Fq;
+    type Fr = Fr;
     type Fp3Params = Fq3Parameters;
     type Fp6Params = Fq6Parameters;
     type G1Parameters = MNT6G1Parameters;
@@ -108,36 +109,6 @@ pub type G1Affine = MNT6G1Affine<MNT6_753Parameters>;
 pub type G1Projective = MNT6G1Projective<MNT6_753Parameters>;
 pub type G2Affine = MNT6G2Affine<MNT6_753Parameters>;
 pub type G2Projective = MNT6G2Projective<MNT6_753Parameters>;
-
-impl PairingCurve for G1Affine {
-    type Engine = MNT6;
-    type Prepared = G1Prepared<MNT6_753Parameters>;
-    type PairWith = G2Affine;
-    type PairingResult = Fq6;
-
-    fn prepare(&self) -> Self::Prepared {
-        Self::Prepared::from_affine(self)
-    }
-
-    fn pairing_with(&self, other: &Self::PairWith) -> Self::PairingResult {
-        MNT6::pairing(*self, *other)
-    }
-}
-
-impl PairingCurve for G2Affine {
-    type Engine = MNT6;
-    type Prepared = G2Prepared<MNT6_753Parameters>;
-    type PairWith = G1Affine;
-    type PairingResult = Fq6;
-
-    fn prepare(&self) -> Self::Prepared {
-        Self::Prepared::from_affine(self)
-    }
-
-    fn pairing_with(&self, other: &Self::PairWith) -> Self::PairingResult {
-        MNT6::pairing(*other, *self)
-    }
-}
 
 pub const FQ_ZERO: Fq = field_new!(Fq, BigInteger([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
 pub const FQ_ONE: Fq = field_new!(Fq, FqParameters::R);

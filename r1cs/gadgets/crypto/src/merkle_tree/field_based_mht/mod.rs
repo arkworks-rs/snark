@@ -239,7 +239,7 @@ mod test {
     use rand_xorshift::XorShiftRng;
     use super::*;
     use r1cs_std::{
-        fields::mnt6753::FqGadget,
+        instantiated::mnt6_753::FqGadget,
         test_constraint_system::TestConstraintSystem,
     };
 

@@ -19,7 +19,7 @@ use r1cs_std::fields::FieldGadget;
 use r1cs_std::bits::boolean::Boolean;
 use r1cs_std::alloc::{AllocGadget, ConstantGadget};
 use r1cs_std::Assignment;
-use r1cs_std::eq::ConditionalEqGadget;
+use r1cs_std::eq::EqGadget;
 
 pub type MNT4PoseidonHashGadget = PoseidonHashGadget<MNT4753Fr, MNT4753PoseidonParameters>;
 pub type MNT6PoseidonHashGadget = PoseidonHashGadget<MNT6753Fr, MNT6753PoseidonParameters>;
@@ -34,8 +34,11 @@ pub struct PoseidonHashGadget
     _parameters: PhantomData<P>,
 }
 
-impl<ConstraintF: PrimeField + MulShort, P: PoseidonParameters<Fr = ConstraintF>> PoseidonHashGadget<ConstraintF, P> {
-
+impl<
+    ConstraintF: PrimeField + MulShort<ConstraintF, Output = ConstraintF>,
+    P: PoseidonParameters<Fr = ConstraintF>
+> PoseidonHashGadget<ConstraintF, P>
+{
     fn mod_inv_sbox<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         x: &mut FpGadget<ConstraintF>,
@@ -214,7 +217,7 @@ impl<ConstraintF: PrimeField + MulShort, P: PoseidonParameters<Fr = ConstraintF>
 
 impl<ConstraintF, P> FieldBasedHashGadget<PoseidonHash<ConstraintF, P>, ConstraintF> for PoseidonHashGadget<ConstraintF, P>
     where
-        ConstraintF: PrimeField + MulShort,
+        ConstraintF: PrimeField + MulShort<ConstraintF, Output = ConstraintF>,
         P:           PoseidonParameters<Fr = ConstraintF>
 {
     type DataGadget = FpGadget<ConstraintF>;

@@ -245,7 +245,7 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
 
                 message.into_iter().for_each(|&m| { digest.update(m); });
                 digest
-                    .update(pk.to_field_elements().unwrap()[0])
+                    .update(pk.0.to_field_elements().unwrap()[0])
                     .update(a.to_field_elements().unwrap()[0])
                     .update(b.to_field_elements().unwrap()[0])
                     .finalize()
@@ -308,7 +308,7 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
 
             message.into_iter().for_each(|&m| { digest.update(m); });
             digest
-                .update(pk.to_field_elements().unwrap()[0])
+                .update(pk.0.to_field_elements().unwrap()[0])
                 .update(u.to_field_elements().unwrap()[0])
                 .update(v.to_field_elements().unwrap()[0])
                 .finalize()

@@ -461,9 +461,9 @@ mod test {
 
     use r1cs_core::ConstraintSystem;
     use r1cs_std::alloc::AllocGadget;
-    use r1cs_std::groups::curves::short_weierstrass::mnt::{
-        mnt4::mnt4753::MNT4G1Gadget,
-        mnt6::mnt6753::MNT6G1Gadget,
+    use r1cs_std::instantiated::{
+        mnt4_753::G1Gadget as MNT4G1Gadget,
+        mnt6_753::G1Gadget as MNT6G1Gadget,
     };
     use r1cs_std::test_constraint_system::TestConstraintSystem;
 
