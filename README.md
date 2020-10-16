@@ -94,11 +94,21 @@ This library comes with unit tests for each of the provided crates. Run the test
 cargo test --all-features 
 ``` 
 
-Please note: by default, ```cargo test``` will execute the tests concurrently on all available cores. Since some tests are resource-intensive, this may abort the tests execution. If this happens, you may want to reduce the number of cores running the tests with the command:
+Note: If you compile/test/bench with the `smt` feature enabled, you need `clang` installed. 
+
+By default, ```cargo test``` will execute the tests concurrently on all available cores. Since some tests are resource-intensive, this may abort the tests execution. If this happens, you may want to reduce the number of cores running the tests with the command:
 
 ```bash
-cargo test --all-features --test-threads=<#threads>
+cargo test --all-features -- --test-threads=#threads
 ``` 
+ Also, some tests take a long time to be executed. The reason for this is the dev profile set in the root Cargo.toml:
+ 
+ ```
+[profile.dev]
+opt-level = 0
+``` 
+
+Set it to 3 for maximum speed but longer compilation times: this is suggested for executing all the tests in the project, but for single test's execution might be unnecessary.
 
 Lastly, this library comes with benchmarks for the [`algebra`](algebra) crate.
 These benchmarks require the nightly Rust toolchain; to install this, run `rustup install nightly`. Then, to run benchmarks, run the following command: 

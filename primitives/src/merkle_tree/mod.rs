@@ -3,6 +3,7 @@ use algebra::bytes::ToBytes;
 use std::{fmt, rc::Rc};
 
 pub mod field_based_mht;
+pub use self::field_based_mht::*;
 
 pub trait MerkleTreeConfig {
     const HEIGHT: usize;
@@ -46,8 +47,8 @@ impl<P: MerkleTreeConfig> MerkleTreePath<P> {
         root_hash: &<P::H as FixedLengthCRH>::Output,
         leaf: &L,
     ) -> Result<bool, Error> {
-        if self.path.len() != (P::HEIGHT - 1) as usize {
-            return Err(MerkleTreeError::IncorrectPathLength(self.path.len()))?
+        if self.path.len() != P::HEIGHT as usize {
+            return Err(MerkleTreeError::IncorrectPathLength(self.path.len(), P::HEIGHT as usize))?
         }
         // Check that the given leaf matches the leaf in the membership proof.
         let mut buffer = vec![0u8; P::H::INPUT_SIZE_BITS/8];
@@ -74,7 +75,7 @@ impl<P: MerkleTreeConfig> MerkleTreePath<P> {
             }
             Ok(true)
         } else {
-            return Err(MerkleTreeError::IncorrectPathLength(0))?
+            return Err(MerkleTreeError::IncorrectPathLength(0, P::HEIGHT as usize))?
         }
     }
 }
@@ -122,7 +123,7 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
         // Compute the starting indices for each level of the tree.
         let mut index = 0;
         let mut level_indices = Vec::with_capacity(tree_height);
-        for _ in 0..tree_height {
+        for _ in 0..=tree_height {
             level_indices.push(index);
             index = left_child(index);
         }
@@ -156,10 +157,10 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
         }
         // Finished computing actual tree.
         // Now, we compute the dummy nodes until we hit our HEIGHT goal.
-        let mut cur_height = tree_height;
+        let mut cur_height = tree_height + 1;
         let mut padding_tree = Vec::new();
         let mut cur_hash = tree[0].clone();
-        while cur_height < Self::HEIGHT as usize {
+        while cur_height <= Self::HEIGHT as usize {
             cur_hash = hash_inner_node::<P::H>(&parameters, &cur_hash, &empty_hash, &mut buffer)?;
             padding_tree.push((cur_hash.clone(), empty_hash.clone()));
             cur_height += 1;
@@ -213,7 +214,7 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
             current_node = parent(current_node).unwrap();
         }
 
-        assert!(path.len() < Self::HEIGHT as usize);
+        assert!(path.len() <= Self::HEIGHT as usize);
 
         //Push the other elements of the padding tree
         for &(_, ref sibling_hash) in &self.padding_tree {
@@ -221,8 +222,8 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
         }
 
         end_timer!(prove_time);
-        if path.len() != (Self::HEIGHT - 1) as usize {
-            Err(MerkleTreeError::IncorrectPathLength(path.len()))?
+        if path.len() != Self::HEIGHT as usize {
+            Err(MerkleTreeError::IncorrectPathLength(path.len(), Self::HEIGHT as usize))?
         } else {
             Ok(MerkleTreePath { path })
         }
@@ -232,7 +233,7 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
 #[derive(Debug)]
 pub enum MerkleTreeError {
     IncorrectLeafIndex(usize),
-    IncorrectPathLength(usize),
+    IncorrectPathLength(usize, usize),
 }
 
 impl std::fmt::Display for MerkleTreeError {
@@ -241,7 +242,9 @@ impl std::fmt::Display for MerkleTreeError {
             MerkleTreeError::IncorrectLeafIndex(index) => {
                 format!("incorrect leaf index: {}", index)
             },
-            MerkleTreeError::IncorrectPathLength(len) => format!("incorrect path length: {}", len),
+            MerkleTreeError::IncorrectPathLength(actual_len, expected_len) => {
+                format!("Incorrect path length. Expected {}, found {}", expected_len, actual_len)
+            },
         };
         write!(f, "{}", msg)
     }
@@ -263,7 +266,11 @@ fn log2(number: usize) -> usize {
 /// Returns the height of the tree, given the size of the tree.
 #[inline]
 fn tree_height(tree_size: usize) -> usize {
-    log2(tree_size + 1)
+    if tree_size == 1 {
+        return 1;
+    }
+
+    log2(tree_size)
 }
 
 /// Returns true iff the index represents the root.
@@ -314,7 +321,7 @@ fn parent(index: usize) -> Option<usize> {
 
 #[inline]
 fn convert_index_to_last_level(index: usize, tree_height: usize) -> usize {
-    index + (1 << (tree_height - 1)) - 1
+    index + (1 << tree_height) - 1
 }
 
 /// Returns the output hash, given a left and right hash value.
@@ -379,7 +386,7 @@ mod test {
     struct JubJubMerkleTreeParams;
 
     impl MerkleTreeConfig for JubJubMerkleTreeParams {
-        const HEIGHT: usize = 6;
+        const HEIGHT: usize = 5;
         type H = H;
     }
     type JubJubMerkleTree = MerkleHashTree<JubJubMerkleTreeParams>;
@@ -458,3 +465,4 @@ mod test {
         bad_merkle_tree_verify(&leaves);
     }
 }
+

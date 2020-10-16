@@ -24,7 +24,7 @@ incremental = true
 debug-assertions = false
 
 [profile.dev]
-opt-level = 0
+opt-level = 3
 
 [profile.test]
 opt-level = 3

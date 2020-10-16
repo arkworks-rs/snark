@@ -240,12 +240,17 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
             let b = message_on_curve.mul(&r);
 
             //Compute c = H(m||pk.x||a.x||b.x)
-            let mut hash_input = Vec::new();
-            hash_input.extend_from_slice(message);
-            hash_input.push(pk.0.to_field_elements().unwrap()[0]);
-            hash_input.push(a.to_field_elements().unwrap()[0]);
-            hash_input.push(b.to_field_elements().unwrap()[0]);
-            let c = FH::evaluate(hash_input.as_ref())?;
+            let c = {
+                let mut digest = FH::init(None);
+
+                message.into_iter().for_each(|&m| { digest.update(m); });
+                digest
+                    .update(pk.to_field_elements().unwrap()[0])
+                    .update(a.to_field_elements().unwrap()[0])
+                    .update(b.to_field_elements().unwrap()[0])
+                    .finalize()
+            };
+
             let c_bits = c.write_bits();
             let c_leading_zeros = leading_zeros(c_bits.as_slice()) as usize;
 
@@ -298,13 +303,16 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
         let v = message_on_curve.mul(&s_conv) - &proof.gamma.mul(&c_conv);
 
         //Compute c' = H(m||pk.x||u.x||v.x)
-        let mut hash_input = Vec::new();
-        let pk_coords = pk.0.to_field_elements()?;
-        hash_input.extend_from_slice(message);
-        hash_input.push(pk_coords[0]);
-        hash_input.push(u.to_field_elements().unwrap()[0]);
-        hash_input.push(v.to_field_elements().unwrap()[0]);
-        let c_prime = FH::evaluate(hash_input.as_ref())?;
+        let c_prime = {
+            let mut digest = FH::init(None);
+
+            message.into_iter().for_each(|&m| { digest.update(m); });
+            digest
+                .update(pk.to_field_elements().unwrap()[0])
+                .update(u.to_field_elements().unwrap()[0])
+                .update(v.to_field_elements().unwrap()[0])
+                .finalize()
+        };
 
         //Verify valid proof
         match proof.c == c_prime {
@@ -313,10 +321,12 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
                 let gamma_coords = proof.gamma.to_field_elements().unwrap();
 
                 //Compute VRF output
-                hash_input = Vec::new();
-                hash_input.extend_from_slice(message);
-                hash_input.extend_from_slice(gamma_coords.as_slice());
-                let output = FH::evaluate(hash_input.as_ref())?;
+                let output = {
+                    let mut digest = FH::init(None);
+                    message.into_iter().for_each(|&m| { digest.update(m); });
+                    gamma_coords.into_iter().for_each(|c| { digest.update(c); });
+                    digest.finalize()
+                };
 
                 //Return VRF output
                 Ok(output)

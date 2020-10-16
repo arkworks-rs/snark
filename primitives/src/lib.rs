@@ -48,6 +48,7 @@ pub enum CryptoError {
     InvalidElement(String),
     NotPrimeOrder(String),
     FailedVerification,
+    InitializationError(String),
 }
 
 impl std::fmt::Display for CryptoError {
@@ -57,6 +58,7 @@ impl std::fmt::Display for CryptoError {
             CryptoError::InvalidElement(elem) => format!("{} is invalid", elem),
             CryptoError::NotPrimeOrder(elem) => format!("element {} is not prime order", elem),
             CryptoError::FailedVerification => "verification failed".to_owned(),
+            CryptoError::InitializationError(message) => format!("{}", message),
         };
         write!(f, "{}", msg)
     }

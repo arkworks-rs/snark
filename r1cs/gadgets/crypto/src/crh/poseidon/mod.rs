@@ -143,7 +143,6 @@ impl<ConstraintF: PrimeField + MulShort, P: PoseidonParameters<Fr = ConstraintF>
 
             // Add the round constants
             for d in state.iter_mut() {
-                //let rc = MNT4753Fr::from_str(ROUND_CST[round_cst_idx]).map_err(|_| ()).unwrap();
                 let rc = P::ROUND_CST[round_cst_idx];
                 (*d).add_constant_in_place(cs.ns(|| format!("add_constant_3_{}", round_cst_idx)), &rc)?;
                 round_cst_idx += 1;
@@ -161,8 +160,24 @@ impl<ConstraintF: PrimeField + MulShort, P: PoseidonParameters<Fr = ConstraintF>
         Ok(())
     }
 
+    // Function that does the dot product for the mix matrix
+    fn dot_prod<CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        res: &mut FpGadget<ConstraintF>,
+        state: &mut [FpGadget<ConstraintF>],
+        mut start_idx_cst: usize,
+    ) -> Result<(), SynthesisError>
+    {
+        for x in state.iter() {
+            let elem = x.mul_by_constant(cs.ns(|| format!("partial_product_{}", start_idx_cst)), &P::MDS_CST[start_idx_cst])?;
+            start_idx_cst += 1;
+            (*res).add_in_place(cs.ns(|| format!("add_partial_product_{}", start_idx_cst)), &elem)?;
+        }
+
+        Ok(())
+    }
+
     // Function that does the mix matrix
-    // Assumption: t = 3
     fn matrix_mix<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         state: &mut [FpGadget<ConstraintF>],
@@ -172,50 +187,26 @@ impl<ConstraintF: PrimeField + MulShort, P: PoseidonParameters<Fr = ConstraintF>
         // Check that the length of the state vector is t
         assert_eq!(state.len(), P::T);
 
-        let m_11 = P::MDS_CST[0];
-        let m_12 = P::MDS_CST[1];
-        let m_13 = P::MDS_CST[2];
+        // Destination state vector
+        let mut new_state = Vec::new();
 
-        // scalar multiplication for position 0 of the state vector
-        let mut el_0 = state[0].mul_by_constant(cs.ns(||"partial_product_1_1"), &m_11)?;
-        let elem_1 = state[1].mul_by_constant(cs.ns(||"partial_product_1_2"), &m_12)?;
-        let elem_2 = state[2].mul_by_constant(cs.ns(||"partial_product_1_3"), &m_13)?;
+        // Initialize new destination state vector with zero elements
+        for i in 0..P::T {
+            let elem = FpGadget::<ConstraintF>::from_value(cs.ns(|| format!("hardcode_new_state_elem_{}", i)), &P::ZERO);
+            new_state.push(elem);
+        }
 
-        // sum of partial products
-        el_0.add_in_place(cs.ns(|| "add_partial_product_1_2"), &elem_1)?;
-        el_0.add_in_place(cs.ns(|| "add_partial_product_1_3"), &elem_2)?;
+        // Performs the dot products
+        let mut idx_cst = 0;
+        for i in 0..P::T {
+            Self::dot_prod(cs.ns(|| format!("poseidon_dot_product_{}", i)), &mut new_state[i], state, idx_cst)?;
+            idx_cst += P::T;
+        }
 
-        // scalar multiplication for position 1 of the state vector
-        let m_21 = P::MDS_CST[3];
-        let m_22 = P::MDS_CST[4];
-        let m_23 = P::MDS_CST[5];
-
-        // scalar multiplication for position 1 of the state vector
-        let mut el_1 = state[0].mul_by_constant(cs.ns(||"partial_product_2_1"), &m_21)?;
-        let elem_4 = state[1].mul_by_constant(cs.ns(||"partial_product_2_2"), &m_22)?;
-        let elem_5 = state[2].mul_by_constant(cs.ns(||"partial_product_2_3"), &m_23)?;
-
-        // sum of partial products
-        el_1.add_in_place(cs.ns(|| "add_partial_product_2_2"), &elem_4)?;
-        el_1.add_in_place(cs.ns(|| "add_partial_product_2_3"), &elem_5)?;
-
-        // scalar multiplication for the position 2 of the state vector
-        let m_31 = P::MDS_CST[6];
-        let m_32 = P::MDS_CST[7];
-        let m_33 = P::MDS_CST[8];
-
-        // scalar multiplication for position 2 of the state vector
-        let mut el_2 = state[0].mul_by_constant(cs.ns(||"partial_product_3_1"), &m_31)?;
-        let elem_7 = state[1].mul_by_constant(cs.ns(||"partial_product_3_2"), &m_32)?;
-        let elem_8 = state[2].mul_by_constant(cs.ns(||"partial_product_3_3"), &m_33)?;
-
-        // sum of partial products
-        el_2.add_in_place(cs.ns(|| "add_partial_product_3_2"), &elem_7)?;
-        el_2.add_in_place(cs.ns(|| "add_partial_product_3_3"), &elem_8)?;
-
-        state[0] = el_0;
-        state[1] = el_1;
-        state[2] = el_2;
+        // Copy result to the state vector
+        for i in 0..P::T {
+            state[i] = new_state[i].clone();
+        }
 
         Ok(())
     }
@@ -233,15 +224,16 @@ impl<ConstraintF, P> FieldBasedHashGadget<PoseidonHash<ConstraintF, P>, Constrai
         input: &[Self::DataGadget],
     ) -> Result<Self::DataGadget, SynthesisError>
     // Assumption:
-    //     rate r = 2
     //     capacity c = 1
-    //     t = 3
     {
-        let state_0 = FpGadget::<ConstraintF>::from_value(cs.ns(|| "hardcode_state_0"), &P::AFTER_ZERO_PERM[0]);
-        let state_1 = FpGadget::<ConstraintF>::from_value(cs.ns(|| "hardcode_state_1"), &P::AFTER_ZERO_PERM[1]);
-        let state_2 = FpGadget::<ConstraintF>::from_value(cs.ns(|| "hardcode_state_2"), &P::AFTER_ZERO_PERM[2]);
+        assert_ne!(input.len(), 0, "Input data array does not contain any data.");
+        assert_eq!(P::T - P::R, 1, "The assumption that the capacity is one field element is not satisfied.");
 
-        let mut state = [state_0, state_1, state_2];
+        let mut state = Vec::new();
+        for i in 0..P::T {
+            let elem = FpGadget::<ConstraintF>::from_value(cs.ns(|| format!("hardcode_state_{}",i)), &P::AFTER_ZERO_PERM[i]);
+            state.push(elem);
+        }
 
         // calculate the number of cycles to process the input dividing in portions of rate elements
         let num_cycles = input.len() / P::R;
@@ -265,14 +257,14 @@ impl<ConstraintF, P> FieldBasedHashGadget<PoseidonHash<ConstraintF, P>, Constrai
             Self::poseidon_perm(cs.ns(|| format!("poseidon_perm_{}", i)), &mut state)?;
         }
 
-        // in case the input is not a multiple of the rate process the remainder part padding a zero
-        // in this case add C2 to state[2]
-        //
-        //   rem_input   0       C2
-        // + state[0] state[1] state[2]
-        //
+        // in case the input is not a multiple of the rate, process the remainder part padding zeros
         if rem != 0 {
-            state[0].add_in_place(cs.ns(|| "poseidon_padding_add"), &input[input_idx])?;
+            for j in 0..rem {
+                state[j].add_in_place(cs.ns(|| format!("poseidon_padding_add_{}",j)), &input[input_idx])?;
+                input_idx += 1;
+            }
+            // add the constant associated to the m-ary Merkle tree
+            // assumption capacity = 1
             state[P::R].add_constant_in_place(cs.ns(|| "add_constant_C2_last_chunk"), &P::C2)?;
             // apply permutation after adding the input vector
             Self::poseidon_perm(cs.ns(|| "poseidon_padding_perm"), &mut state)?;
@@ -316,7 +308,11 @@ mod test {
         vec_elem_4753.push(v1);
         vec_elem_4753.push(v2);
 
-        let primitive_result = MNT4PoseidonHash::evaluate(&vec_elem_4753).unwrap();
+        let primitive_result = {
+            let mut digest = MNT4PoseidonHash::init(None);
+            vec_elem_4753.into_iter().for_each(|elem| { digest.update(elem);});
+            digest.finalize()
+        };
 
         let v1_gadget = Mnt4FieldGadget::alloc(cs.ns(|| "alloc_v1"),|| Ok(v1)).unwrap();
         let v2_gadget = Mnt4FieldGadget::alloc(cs.ns(|| "alloc_v2"),|| Ok(v2)).unwrap();
@@ -348,7 +344,11 @@ mod test {
         vec_elem_6753.push(v1);
         vec_elem_6753.push(v2);
 
-        let primitive_result = MNT6PoseidonHash::evaluate(&vec_elem_6753).unwrap();
+        let primitive_result = {
+            let mut digest = MNT6PoseidonHash::init(None);
+            vec_elem_6753.into_iter().for_each(|elem| { digest.update(elem); });
+            digest.finalize()
+        };
 
         let v1_gadget = Mnt6FieldGadget::alloc(cs.ns(|| "alloc_v1"),|| Ok(v1)).unwrap();
         let v2_gadget = Mnt6FieldGadget::alloc(cs.ns(|| "alloc_v2"),|| Ok(v2)).unwrap();
