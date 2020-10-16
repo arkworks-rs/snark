@@ -482,9 +482,7 @@ mod test {
                     input_bits.reverse();
 
                     let input_bits =
-                        Vec::<Boolean>::alloc_input(cs.ns(|| format!("Input {}", i)), || {
-                            Ok(input_bits)
-                        })
+                        Boolean::alloc_input_vec(cs.ns(|| format!("Input {}", i)), input_bits.as_slice())
                             .unwrap();
                     input_gadgets.push(input_bits);
                 }
@@ -569,9 +567,7 @@ mod test {
                     input_bits.reverse();
 
                     let input_bits =
-                        Vec::<Boolean>::alloc_input(cs.ns(|| format!("Input {}", i)), || {
-                            Ok(input_bits)
-                        })
+                        Boolean::alloc_input_vec(cs.ns(|| format!("Input {}", i)), input_bits.as_slice())
                             .unwrap();
                     input_gadgets.push(input_bits);
                 }
@@ -657,9 +653,7 @@ mod test {
                     input_bits.reverse();
 
                     let input_bits =
-                        Vec::<Boolean>::alloc_input(cs.ns(|| format!("Input {}", i)), || {
-                            Ok(input_bits)
-                        })
+                        Boolean::alloc_input_vec(cs.ns(|| format!("Input {}", i)), input_bits.as_slice())
                             .unwrap();
                     input_gadgets.push(input_bits);
                 }

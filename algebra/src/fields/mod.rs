@@ -205,6 +205,15 @@ pub trait FpParameters: 'static + Send + Sync + Sized {
 
     /// (Self::MODULUS - 1) / 2
     const MODULUS_MINUS_ONE_DIV_TWO: Self::BigInt;
+
+    const SMALL_SUBGROUP_DEFINED: bool = false;
+
+    const SMALL_SUBGROUP_BASE: Option<u64> = None;
+
+    const SMALL_SUBGROUP_POWER: Option<u64> = None;
+
+    // generator^((modulus-1) / (2^s * small_subgroup_base^small_subgroup_power))
+    const FULL_ROOT_OF_UNITY: Option<Self::BigInt> = None;
 }
 
 /// The interface for a prime field.
@@ -233,6 +242,9 @@ pub trait PrimeField: Field + FromStr {
 
     /// Returns the 2^s root of unity.
     fn root_of_unity() -> Self;
+
+    ///Returns the full root of unity
+    fn full_root_of_unity() -> Self;
 
     /// Return the a QNR^T
     fn qnr_to_t() -> Self {

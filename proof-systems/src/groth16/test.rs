@@ -307,7 +307,7 @@ mod mnt6753 {
         create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
     };
 
-    use rand::thread_rng;
+    use rand::{Rng, thread_rng};
 
     use algebra::{curves::mnt6753::MNT6, fields::mnt6753::Fr as MNT6Fr, Field, UniformRand,
                   ToBytes, FromBytes, to_bytes,};
@@ -384,5 +384,95 @@ mod mnt6753 {
         assert_eq!(pvk, pvk_deserialized);
 
         assert!(verify_proof(&pvk_deserialized, &proof_deserialized, &[c]).unwrap());
+    }
+
+    struct Bench<F: Field> {
+        inputs:          Vec<Option<F>>,
+        num_constraints: usize,
+    }
+
+    impl<F: Field> ConstraintSynthesizer<F> for Bench<F> {
+        fn generate_constraints<CS: ConstraintSystem<F>>(
+            self,
+            cs: &mut CS,
+        ) -> Result<(), SynthesisError> {
+            assert!(self.inputs.len() >= 2);
+            assert!(self.num_constraints >= self.inputs.len());
+
+            let mut variables: Vec<_> = Vec::with_capacity(self.inputs.len());
+            for (i, input) in self.inputs.into_iter().enumerate() {
+                let input_var = cs.alloc_input(
+                    || format!("Input {}", i),
+                    || input.ok_or(SynthesisError::AssignmentMissing),
+                )?;
+                variables.push((input, input_var));
+            }
+
+            for i in 0..self.num_constraints {
+                let new_entry = {
+                    let (input_1_val, input_1_var) = variables[i];
+                    let (input_2_val, input_2_var) = variables[i + 1];
+                    let result_val = input_1_val
+                        .and_then(|input_1| input_2_val.map(|input_2| input_1 * &input_2));
+                    let result_var = cs.alloc(
+                        || format!("Result {}", i),
+                        || result_val.ok_or(SynthesisError::AssignmentMissing),
+                    )?;
+                    cs.enforce(
+                        || format!("Enforce constraint {}", i),
+                        |lc| lc + input_1_var,
+                        |lc| lc + input_2_var,
+                        |lc| lc + result_var,
+                    );
+                    (result_val, result_var)
+                };
+                variables.push(new_entry);
+            }
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn prove_and_verify_with_mixed_domain() {
+        let num_inputs = 2;
+        let num_constraints = 40000;
+        let rng = &mut thread_rng();
+        let mut inputs: Vec<Option<MNT6Fr>> = Vec::with_capacity(num_inputs);
+        for _ in 0..num_inputs {
+            inputs.push(Some(rng.gen()));
+        }
+        let params = {
+            let c = Bench::<MNT6Fr> {
+                inputs: vec![None; num_inputs],
+                num_constraints,
+            };
+
+            generate_random_parameters(c, rng).unwrap()
+        };
+
+        let pvk = prepare_verifying_key::<MNT6>(&params.vk);
+
+        let proof = {
+            // Create an instance of our circuit (with the
+            // witness)
+            let c = Bench {
+                inputs: inputs.clone(),
+                num_constraints,
+            };
+            // Create a groth16 proof with our parameters.
+            create_random_proof(c, &params, rng).unwrap()
+        };
+        assert!(verify_proof(
+            &pvk,
+            &proof,
+            inputs.iter().map(|input| input.unwrap()).collect::<Vec<_>>().as_slice()
+        ).unwrap());
+
+        //Create new, wrong, inputs
+        let mut inputs: Vec<MNT6Fr> = Vec::with_capacity(num_inputs);
+        for _ in 0..num_inputs {
+            inputs.push(rng.gen());
+        }
+        assert!(!verify_proof(&pvk, &proof, inputs.as_slice()).unwrap());
     }
 }

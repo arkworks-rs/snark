@@ -437,25 +437,29 @@ impl Boolean {
     {
         let field_elements: Vec<ConstraintF> =
             ToConstraintField::<ConstraintF>::to_field_elements(values).unwrap();
-        let values_len = values.len();
-
+        let modulus_size = ConstraintF::size_in_bits();
         let max_size = ConstraintF::Params::CAPACITY as usize;
+
         let mut allocated_bits = Vec::new();
-        for (i, field_element) in field_elements.into_iter().enumerate() {
+
+        for (i, (field_element, bit_chunk)) in field_elements
+            .into_iter()
+            .zip(values.chunks(max_size))
+            .enumerate()
+        {
             let fe = FpGadget::<ConstraintF>::alloc_input(&mut cs.ns(|| format!("Field element {}", i)), || {
                 Ok(field_element)
             })?;
+
             let fe_bits = fe.to_bits(cs.ns(|| format!("Convert fe to bits {}", i)))?;
 
-            // Remove the most significant bit, because we know it should be zero
-            // because `values.to_field_elements()` only
-            // packs field elements up to the penultimate bit.
-            // That is, the most significant bit (`ConstraintF::NUM_BITS`-th bit) is
-            // unset, so we can just pop it off.
-            allocated_bits.extend_from_slice(&fe_bits[0..max_size]);
+            // Since bit serialization/deserialization functions assumes a big-endian representation,
+            // padding is added at the beginning of the bit vector, so we need to know the exact size
+            // of the padding in order to correctly get rid of the padding zeros.
+            let to_remove = modulus_size - bit_chunk.len();
+            allocated_bits.extend_from_slice(&fe_bits[to_remove..]);
         }
-
-        Ok(allocated_bits[0..values_len].to_vec())
+        Ok(allocated_bits.to_vec())
     }
 
     /// Construct a boolean from a known constant
@@ -942,6 +946,14 @@ mod test {
         //Test zero
         let bit_vals = Fr::zero().write_bits();
         let bits = Boolean::alloc_input_vec(cs.ns(|| "alloc zero"), &bit_vals).unwrap();
+        assert_eq!(bit_vals.len(), bits.len());
+        for (native_bit, gadget_bit) in bit_vals.into_iter().zip(bits) {
+            assert_eq!(gadget_bit.get_value().unwrap(), native_bit);
+        }
+
+        //Test over the modulus bit vec
+        let bit_vals = vec![true; Fr::size_in_bits()];
+        let bits = Boolean::alloc_input_vec(cs.ns(|| "alloc all 1s bit vec"), &bit_vals).unwrap();
         assert_eq!(bit_vals.len(), bits.len());
         for (native_bit, gadget_bit) in bit_vals.into_iter().zip(bits) {
             assert_eq!(gadget_bit.get_value().unwrap(), native_bit);
