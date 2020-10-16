@@ -10,7 +10,7 @@ macro_rules! pairing_bench {
 
             let mut count = 0;
             b.iter(|| {
-                let tmp = $curve::miller_loop(&[(&v[count].0, &v[count].1)]);
+                let tmp = $curve::miller_loop(&[(v[count].0.clone(), v[count].1.clone())]);
                 count = (count + 1) % SAMPLES;
                 tmp
             });
@@ -25,11 +25,11 @@ macro_rules! pairing_bench {
             let v: Vec<$pairing_field> = (0..SAMPLES)
                 .map(|_| {
                     (
-                        G1Affine::from(G1::rand(&mut rng)).prepare(),
-                        G2Affine::from(G2::rand(&mut rng)).prepare(),
+                        G1Affine::from(G1::rand(&mut rng)).into(),
+                        G2Affine::from(G2::rand(&mut rng)).into(),
                     )
                 })
-                .map(|(ref p, ref q)| $curve::miller_loop(&[(p, q)]))
+                .map(|(p, q)| $curve::miller_loop(&[(p, q)]))
                 .collect();
 
             let mut count = 0;

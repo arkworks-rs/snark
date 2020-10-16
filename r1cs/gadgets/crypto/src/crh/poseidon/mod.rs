@@ -19,7 +19,7 @@ use r1cs_std::fields::FieldGadget;
 use r1cs_std::bits::boolean::Boolean;
 use r1cs_std::alloc::{AllocGadget, ConstantGadget};
 use r1cs_std::Assignment;
-use r1cs_std::eq::ConditionalEqGadget;
+use r1cs_std::eq::EqGadget;
 
 pub type MNT4PoseidonHashGadget = PoseidonHashGadget<MNT4753Fr, MNT4753PoseidonParameters>;
 pub type MNT6PoseidonHashGadget = PoseidonHashGadget<MNT6753Fr, MNT6753PoseidonParameters>;

@@ -463,7 +463,7 @@ mod test {
         BitIterator, PrimeField,
     };
     use r1cs_std::{
-        boolean::Boolean, pairing::bls12_377::PairingGadget as Bls12_377PairingGadget,
+        boolean::Boolean, instantiated::bls12_377::PairingGadget as Bls12_377PairingGadget,
         test_constraint_system::TestConstraintSystem,
     };
     use super::*;

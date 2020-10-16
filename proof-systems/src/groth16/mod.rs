@@ -2,7 +2,7 @@
 //! [Groth16]: https://eprint.iacr.org/2016/260.pdf
 use algebra::{Field, bytes::{
     ToBytes, FromBytes,
-}, PairingCurve, PairingEngine};
+}, PairingEngine};
 use r1cs_core::{SynthesisError, Index, LinearCombination};
 use std::io::{self, Read, Result as IoResult, Write};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
@@ -255,8 +255,8 @@ impl<E: PairingEngine> FromBytes for Parameters<E>{
 #[derive(Clone, Debug)]
 pub struct PreparedVerifyingKey<E: PairingEngine> {
     pub alpha_g1_beta_g2: E::Fqk,
-    pub gamma_g2_neg_pc:  <E::G2Affine as PairingCurve>::Prepared,
-    pub delta_g2_neg_pc:  <E::G2Affine as PairingCurve>::Prepared,
+    pub gamma_g2_neg_pc:  E::G2Prepared,
+    pub delta_g2_neg_pc:  E::G2Prepared,
     pub gamma_abc_g1:     Vec<E::G1Affine>,
 }
 
@@ -270,8 +270,8 @@ impl<E: PairingEngine> Default for PreparedVerifyingKey<E> {
     fn default() -> Self {
         Self {
             alpha_g1_beta_g2: E::Fqk::default(),
-            gamma_g2_neg_pc:  <E::G2Affine as PairingCurve>::Prepared::default(),
-            delta_g2_neg_pc:  <E::G2Affine as PairingCurve>::Prepared::default(),
+            gamma_g2_neg_pc:  E::G2Prepared::default(),
+            delta_g2_neg_pc:  E::G2Prepared::default(),
             gamma_abc_g1:     Vec::new(),
         }
     }
@@ -296,9 +296,9 @@ impl<E: PairingEngine> FromBytes for PreparedVerifyingKey<E> {
 
         let alpha_g1_beta_g2 = E::Fqk::read(&mut reader)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-        let gamma_g2_neg_pc = <E::G2Affine as PairingCurve>::Prepared::read(&mut reader)
+        let gamma_g2_neg_pc = E::G2Prepared::read(&mut reader)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-        let delta_g2_neg_pc = <E::G2Affine as PairingCurve>::Prepared::read(&mut reader)
+        let delta_g2_neg_pc = E::G2Prepared::read(&mut reader)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
         let ic_len = reader.read_u32::<BigEndian>()? as usize;

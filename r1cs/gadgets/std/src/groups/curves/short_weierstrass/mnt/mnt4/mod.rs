@@ -14,8 +14,6 @@ use std::fmt::Debug;
 use std::ops::Mul;
 use crate::bits::boolean::Boolean;
 
-pub mod mnt4753;
-
 pub type G1Gadget<P> = AffineGadget<
     <P as MNT4Parameters>::G1Parameters,
     <P as MNT4Parameters>::Fp,

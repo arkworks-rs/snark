@@ -384,28 +384,36 @@ impl PartialEq for Blake2sOutputGadget {
 
 impl Eq for Blake2sOutputGadget {}
 
-impl<ConstraintF: PrimeField> EqGadget<ConstraintF> for Blake2sOutputGadget {}
+impl<ConstraintF: PrimeField> EqGadget<ConstraintF> for Blake2sOutputGadget {
+    #[inline]
+    fn is_eq<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+        other: &Self
+    ) -> Result<Boolean, SynthesisError> {
+        self.0.is_eq(cs, &other.0)
+    }
 
-impl<ConstraintF: PrimeField> ConditionalEqGadget<ConstraintF> for Blake2sOutputGadget {
     #[inline]
     fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
-        mut cs: CS,
+        cs: CS,
         other: &Self,
         condition: &Boolean,
     ) -> Result<(), SynthesisError> {
-        for (i, (a, b)) in self.0.iter().zip(other.0.iter()).enumerate() {
-            a.conditional_enforce_equal(
-                &mut cs.ns(|| format!("blake2s_equal_{}", i)),
-                b,
-                condition,
-            )?;
-        }
-        Ok(())
+        self.0.conditional_enforce_equal(cs, &other.0, condition)
     }
 
-    fn cost() -> usize {
-        32 * <UInt8 as ConditionalEqGadget<ConstraintF>>::cost()
+    #[inline]
+    fn conditional_enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+        other: &Self,
+        condition: &Boolean,
+    ) -> Result<(), SynthesisError> {
+        self.0
+            .as_slice()
+            .conditional_enforce_not_equal(cs, other.0.as_slice(), condition)
     }
 }
 
@@ -600,6 +608,7 @@ mod test {
         assert_eq!(cs.num_constraints(), 0);
     }
 
+    #[ignore]
     #[test]
     fn test_blake2s() {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);

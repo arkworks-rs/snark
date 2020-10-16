@@ -11,6 +11,7 @@ mod macros;
 
 pub mod bls12_377;
 pub mod bls12_381;
+pub mod bn_382;
 pub mod edwards_bls12;
 pub mod edwards_sw6;
 pub mod jubjub;
@@ -99,6 +100,8 @@ pub trait Field:
     + for<'a> MulAssign<&'a Self>
     + for<'a> DivAssign<&'a Self>
 {
+    type BasePrimeField: PrimeField;
+
     /// Returns the zero element of the field, the additive identity.
     fn zero() -> Self;
 
@@ -115,7 +118,9 @@ pub trait Field:
     fn is_odd(&self) -> bool;
 
     /// Returns the characteristic of the field.
-    fn characteristic<'a>() -> &'a [u64];
+    fn characteristic<'a>() -> &'a [u64] {
+        Self::BasePrimeField::characteristic()
+    }
 
     /// Returns `self + self`.
     #[must_use]
@@ -219,7 +224,7 @@ pub trait FpParameters: 'static + Send + Sync + Sized {
 }
 
 /// The interface for a prime field.
-pub trait PrimeField: Field + FromStr {
+pub trait PrimeField: Field<BasePrimeField = Self> + FromStr {
     type Params: FpParameters<BigInt = Self::BigInt>;
     type BigInt: BigInteger;
 
@@ -300,6 +305,7 @@ impl<F: PrimeField> FromBits for F {
     #[inline]
     fn read_bits(bits: Vec<bool>) -> Result<Self, Error> {
         let modulus_bits = <Self as PrimeField>::Params::MODULUS_BITS as usize;
+        println!("Bits len: {}", bits.len());
 
         //NOTE: We allow bits having enough leading bits to zero s.t. the length will be <= F::MODULUS_BITS
         let leading_zeros = leading_zeros(bits.clone()) as usize;

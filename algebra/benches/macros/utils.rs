@@ -27,8 +27,8 @@ macro_rules! prepared_v {
         let $v: Vec<(G1Prepared<Parameters>, G2Prepared<Parameters>)> = (0..SAMPLES)
             .map(|_| {
                 (
-                    G1Affine::from(G1::rand(&mut $rng)).prepare(),
-                    G2Affine::from(G2::rand(&mut $rng)).prepare(),
+                    G1Affine::from(G1::rand(&mut $rng)).into(),
+                    G2Affine::from(G2::rand(&mut $rng)).into(),
                 )
             })
             .collect();

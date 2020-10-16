@@ -376,57 +376,8 @@ impl<F: PrimeField> PartialEq for FpGadget<F> {
 
 impl<F: PrimeField> Eq for FpGadget<F> {}
 
-impl<F: PrimeField> EqGadget<F> for FpGadget<F> {}
-
-impl<F: PrimeField> ConditionalEqGadget<F> for FpGadget<F> {
-    #[inline]
-    fn conditional_enforce_equal<CS: ConstraintSystem<F>>(
-        &self,
-        mut cs: CS,
-        other: &Self,
-        condition: &Boolean,
-    ) -> Result<(), SynthesisError> {
-        let difference = self.sub(cs.ns(|| "difference"), other)?;
-        let one = CS::one();
-        let one_const = F::one();
-        cs.enforce(
-            || "conditional_equals",
-            |lc| &difference.variable + lc,
-            |lc| lc + &condition.lc(one, one_const),
-            |lc| lc,
-        );
-        Ok(())
-    }
-
-    fn cost() -> usize {
-        1
-    }
-}
-
-impl<F: PrimeField> NEqGadget<F> for FpGadget<F> {
-    #[inline]
-    fn enforce_not_equal<CS: ConstraintSystem<F>>(
-        &self,
-        mut cs: CS,
-        other: &Self,
-    ) -> Result<(), SynthesisError> {
-        let a_minus_b = self.sub(cs.ns(|| "A - B"), other)?;
-        a_minus_b.inverse(cs.ns(|| "Enforce inverse exists"))?;
-        Ok(())
-    }
-
-    fn cost() -> usize {
-        1
-    }
-}
-
-impl<F: PrimeField> EquVerdictGadget<F> for FpGadget<F> {
-    fn enforce_verdict<CS: ConstraintSystem<F>>(
-        &self,
-        mut cs: CS,
-        other: &Self,
-    ) -> Result<Boolean, SynthesisError> {
-
+impl<F: PrimeField> EqGadget<F> for FpGadget<F> {
+    fn is_eq<CS: ConstraintSystem<F>>(&self, mut cs: CS, other: &Self) -> Result<Boolean, SynthesisError> {
         // The Boolean we want to constrain.
         let v = Boolean::alloc(cs.ns(|| "alloc verdict"), || {
             let self_val = self.get_value().get()?;
@@ -439,7 +390,7 @@ impl<F: PrimeField> EquVerdictGadget<F> for FpGadget<F> {
         let c = Self::alloc(cs.ns(|| "alloc c"), || {
             let v_val = v.get_value().get()?;
             if v_val {
-               Ok(F::one()) //Just one random value
+                Ok(F::one()) //Just one random value
             }
             else {
                 let self_val = self.get_value().get()?;
@@ -464,6 +415,48 @@ impl<F: PrimeField> EquVerdictGadget<F> for FpGadget<F> {
         );
 
         Ok(v)
+    }
+
+    fn conditional_enforce_equal<CS: ConstraintSystem<F>>(
+        &self,
+        mut cs: CS,
+        other: &Self,
+        should_enforce: &Boolean,
+    ) -> Result<(), SynthesisError> {
+        let difference = self.sub(cs.ns(|| "difference"), other)?;
+        let one = CS::one();
+        let one_const = F::one();
+        cs.enforce(
+            || "conditional_equals",
+            |lc| &difference.variable + lc,
+            |lc| lc + &should_enforce.lc(one, one_const),
+            |lc| lc,
+        );
+        Ok(())
+    }
+
+    fn conditional_enforce_not_equal<CS: ConstraintSystem<F>>(
+        &self,
+        mut cs: CS,
+        other: &Self,
+        should_enforce: &Boolean,
+    ) -> Result<(), SynthesisError> {
+        let multiplier = Self::alloc(
+            cs.ns(|| "alloc multiplier"),
+            || {
+            if should_enforce.get_value().get()? {
+                (self.value.get()? - &other.value.get()?).inverse().get()
+            } else {
+                Ok(F::zero())
+            }
+        })?;
+        cs.enforce(
+            || "conditional enforce not equal",
+            |lc| &self.variable - &other.variable + lc,
+            |lc| &multiplier.variable + lc,
+            |lc| lc + &should_enforce.lc(CS::one(), F::one())
+        );
+        Ok(())
     }
 }
 

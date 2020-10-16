@@ -190,7 +190,7 @@ mod test {
     use algebra::curves::{jubjub::JubJubProjective as JubJub, ProjectiveCurve};
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
-        groups::jubjub::JubJubGadget, prelude::*, test_constraint_system::TestConstraintSystem,
+        instantiated::jubjub::JubJubGadget, prelude::*, test_constraint_system::TestConstraintSystem,
     };
 
     #[test]

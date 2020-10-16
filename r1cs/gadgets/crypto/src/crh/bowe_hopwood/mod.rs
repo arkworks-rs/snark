@@ -139,7 +139,7 @@ mod test {
     use algebra::{curves::edwards_sw6::EdwardsProjective as Edwards, ProjectiveCurve};
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
-        alloc::AllocGadget, groups::curves::twisted_edwards::edwards_sw6::EdwardsSWGadget,
+        alloc::AllocGadget, instantiated::edwards_sw6::EdwardsSWGadget,
         test_constraint_system::TestConstraintSystem, uint8::UInt8,
     };
 

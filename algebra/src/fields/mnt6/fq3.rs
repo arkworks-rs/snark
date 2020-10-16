@@ -54,7 +54,7 @@ impl Fp3Parameters for Fq3Parameters {
         field_new!(Fq, BigInteger([0, 0, 0, 0, 0])),
     );
 
-    const FROBENIUS_COEFF_FP3_C1: [Fq; 3] = [
+    const FROBENIUS_COEFF_FP3_C1: &'static [Fq] = &[
         field_new!(Fq, BigInteger([
             0xc3177aefffbb845c,
             0x9b80c702f9961788,
@@ -78,7 +78,7 @@ impl Fp3Parameters for Fq3Parameters {
         ])),
     ];
 
-    const FROBENIUS_COEFF_FP3_C2: [Fq; 3] = [
+    const FROBENIUS_COEFF_FP3_C2: &'static [Fq] = &[
         field_new!(Fq, BigInteger([
             0xc3177aefffbb845c,
             0x9b80c702f9961788,
