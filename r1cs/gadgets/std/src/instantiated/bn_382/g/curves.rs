@@ -1,18 +1,18 @@
-use crate::groups::bn;
-use algebra::curves::bn_382::g::Bn382GParameters;
+use crate::{
+    bn_382::g::FqGadget,
+    groups::curves::short_weierstrass::AffineGadget
+};
+use algebra::{
+    fields::bn_382::Fr,
+    curves::bn_382::g::Bn382GParameters,
+};
 
-pub type G1Gadget = bn::G1Gadget<Bn382GParameters>;
-pub type G2Gadget = bn::G2Gadget<Bn382GParameters>;
+pub type Bn382GGadget = AffineGadget<Bn382GParameters, Fr, FqGadget>;
 
-pub type G1PreparedGadget = bn::G1PreparedGadget<Bn382GParameters>;
-pub type G2PreparedGadget = bn::G2PreparedGadget<Bn382GParameters>;
 
 #[test]
 fn test() {
     crate::groups::test::group_test_with_unsafe_add::<
-        _, _, G1Gadget
-    >();
-    crate::groups::test::group_test_with_unsafe_add::<
-        _, _, G2Gadget
+        _, _, Bn382GGadget
     >();
 }
