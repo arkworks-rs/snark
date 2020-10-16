@@ -2,34 +2,13 @@ use r1cs_core::{ConstraintSystem, SynthesisError};
 
 use crate::{fields::{fp6_2over3::Fp6Gadget, FieldGadget}, groups::curves::short_weierstrass::mnt::mnt6::{G1Gadget, G2Gadget, G1PreparedGadget, G2PreparedGadget}};
 
-use algebra::{ModelParameters, Fp6, PairingCurve};
 use crate::pairing::PairingGadget;
-use algebra::curves::models::mnt6::{MNT6p, MNT6Parameters,
-                                    G1Affine, G1Projective, G1Prepared,
-                                    G2Affine, G2Projective, G2Prepared,
-};
+use algebra::curves::models::mnt6::{MNT6p, MNT6Parameters};
 use std::marker::PhantomData;
 
 pub struct MNT6PairingGadget<P: MNT6Parameters>(PhantomData<P>);
 
 impl<P: MNT6Parameters> PairingGadget<MNT6p<P>, P::Fp> for MNT6PairingGadget<P>
-    where
-        G1Affine<P>: PairingCurve<
-            BaseField = <P::G1Parameters as ModelParameters>::BaseField,
-            ScalarField = <P::G1Parameters as ModelParameters>::ScalarField,
-            Projective = G1Projective<P>,
-            PairWith = G2Affine<P>,
-            Prepared = G1Prepared<P>,
-            PairingResult = Fp6<P::Fp6Params>,
-        >,
-        G2Affine<P>: PairingCurve<
-            BaseField = <P::G2Parameters as ModelParameters>::BaseField,
-            ScalarField = <P::G1Parameters as ModelParameters>::ScalarField,
-            Projective = G2Projective<P>,
-            PairWith = G1Affine<P>,
-            Prepared = G2Prepared<P>,
-            PairingResult = Fp6<P::Fp6Params>,
-        >,
 {
     type G1Gadget = G1Gadget<P>;
     type G2Gadget = G2Gadget<P>;

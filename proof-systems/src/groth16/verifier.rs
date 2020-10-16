@@ -1,4 +1,4 @@
-use algebra::{AffineCurve, PairingCurve, PairingEngine, PrimeField, ProjectiveCurve};
+use algebra::{AffineCurve, PairingEngine, PrimeField, ProjectiveCurve};
 
 use super::{PreparedVerifyingKey, Proof, VerifyingKey};
 
@@ -9,8 +9,8 @@ use std::ops::{AddAssign, Neg};
 pub fn prepare_verifying_key<E: PairingEngine>(vk: &VerifyingKey<E>) -> PreparedVerifyingKey<E> {
     PreparedVerifyingKey {
         alpha_g1_beta_g2: vk.alpha_g1_beta_g2.clone(),
-        gamma_g2_neg_pc:  vk.gamma_g2.neg().prepare(),
-        delta_g2_neg_pc:  vk.delta_g2.neg().prepare(),
+        gamma_g2_neg_pc:  vk.gamma_g2.neg().into(),
+        delta_g2_neg_pc:  vk.delta_g2.neg().into(),
         gamma_abc_g1:     vk.gamma_abc_g1.clone(),
     }
 }
@@ -31,9 +31,9 @@ pub fn verify_proof<E: PairingEngine>(
 
     let qap = E::miller_loop(
         [
-            (&proof.a.prepare(), &proof.b.prepare()),
-            (&g_ic.into_affine().prepare(), &pvk.gamma_g2_neg_pc),
-            (&proof.c.prepare(), &pvk.delta_g2_neg_pc),
+            (proof.a.into(), proof.b.into()),
+            (g_ic.into_affine().into(), pvk.gamma_g2_neg_pc.clone()),
+            (proof.c.into(), pvk.delta_g2_neg_pc.clone()),
         ]
             .iter(),
     );

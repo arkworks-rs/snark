@@ -13,7 +13,6 @@ use algebra::{
             SW6,
         },
     BigInteger, Field, PairingEngine, PrimeField, ProjectiveCurve, SquareRootField, UniformRand,
-    PairingCurve
 };
 
 ec_bench!();

@@ -44,7 +44,7 @@ struct G2HomProjective<P: BnParameters> {
 
 impl<P: BnParameters> Default for G2Prepared<P> {
     fn default() -> Self {
-        Self::from_affine(G2Affine::<P>::prime_subgroup_generator())
+        Self::from(G2Affine::<P>::prime_subgroup_generator())
     }
 }
 
@@ -83,8 +83,10 @@ impl<P: BnParameters> G2Prepared<P> {
     pub fn is_zero(&self) -> bool {
         self.infinity
     }
+}
 
-    pub fn from_affine(q: G2Affine<P>) -> Self {
+impl<P: BnParameters> From<G2Affine<P>> for G2Prepared<P> {
+    fn from(q: G2Affine<P>) -> Self {
         let two_inv = P::Fp::one().double().inverse().unwrap();
         if q.is_zero() {
             return Self {

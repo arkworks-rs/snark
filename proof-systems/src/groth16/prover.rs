@@ -279,7 +279,7 @@ where
     g_a.add_assign(&params.get_a_query_full()?[0].into_projective());
     g_a.add_assign(&a_inputs_acc);
     g_a.add_assign(&a_aux_acc);
-    g_a.add_assign(&params.alpha_g1.into());
+    g_a.add_assign(&params.alpha_g1.into_projective());
     end_timer!(a_acc_time);
 
     // Compute B in G1
@@ -295,7 +295,7 @@ where
     g1_b.add_assign(&params.get_b_g1_query_full()?[0].into_projective());
     g1_b.add_assign(&b_inputs_acc);
     g1_b.add_assign(&b_aux_acc);
-    g1_b.add_assign(&params.beta_g1.into());
+    g1_b.add_assign(&params.beta_g1.into_projective());
     end_timer!(b_g1_acc_time);
 
     // Compute B in G2
@@ -311,7 +311,7 @@ where
     g2_b.add_assign(&params.get_b_g2_query_full()?[0].into_projective());
     g2_b.add_assign(&b_inputs_acc);
     g2_b.add_assign(&b_aux_acc);
-    g2_b.add_assign(&params.beta_g2.into());
+    g2_b.add_assign(&params.beta_g2.into_projective());
     end_timer!(b_g2_acc_time);
 
     // Compute C

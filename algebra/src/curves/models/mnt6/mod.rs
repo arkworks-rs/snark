@@ -1,5 +1,5 @@
 use crate::{Fp3, BigInteger768 as BigInteger, PrimeField, SquareRootField, Fp3Parameters,
-            Fp6Parameters, SWModelParameters, ModelParameters, PairingEngine, Fp6, PairingCurve,
+            Fp6Parameters, SWModelParameters, ModelParameters, PairingEngine, Fp6,
             Field};
 use std::marker::PhantomData;
 use std::ops::{Add, Mul, Sub};
@@ -275,42 +275,21 @@ impl<P: MNT6Parameters> MNT6p<P> {
 }
 
 impl<P: MNT6Parameters> PairingEngine for MNT6p<P>
-    where
-        G1Affine<P>: PairingCurve<
-            BaseField = <P::G1Parameters as ModelParameters>::BaseField,
-            ScalarField = <P::G1Parameters as ModelParameters>::ScalarField,
-            Projective = G1Projective<P>,
-            PairWith = G2Affine<P>,
-            Prepared = G1Prepared<P>,
-            PairingResult = Fp6<P::Fp6Params>,
-        >,
-        G2Affine<P>: PairingCurve<
-            BaseField = <P::G2Parameters as ModelParameters>::BaseField,
-            ScalarField = <P::G1Parameters as ModelParameters>::ScalarField,
-            Projective = G2Projective<P>,
-            PairWith = G1Affine<P>,
-            Prepared = G2Prepared<P>,
-            PairingResult = Fp6<P::Fp6Params>,
-        >,
-
 {
     type Fr = <P::G1Parameters as ModelParameters>::ScalarField;
     type G1Projective = G1Projective<P>;
     type G1Affine = G1Affine<P>;
+    type G1Prepared = G1Prepared<P>;
     type G2Projective = G2Projective<P>;
     type G2Affine = G2Affine<P>;
+    type G2Prepared = G2Prepared<P>;
     type Fq = P::Fp;
     type Fqe = Fp3<P::Fp3Params>;
     type Fqk = Fp6<P::Fp6Params>;
 
     fn miller_loop<'a, I>(i: I) -> Self::Fqk
         where
-            I: IntoIterator<
-                Item = &'a (
-                    &'a <Self::G1Affine as PairingCurve>::Prepared,
-                    &'a <Self::G2Affine as PairingCurve>::Prepared,
-                ),
-            >,
+            I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>,
     {
         let mut result = Self::Fqk::one();
         for &(ref p, ref q) in i {

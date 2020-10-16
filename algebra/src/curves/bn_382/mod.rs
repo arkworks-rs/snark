@@ -8,11 +8,10 @@ use crate::{
     biginteger::BigInteger384 as BigInteger,
     fields::bn_382::*,
     curves::bn::{Bn, BnParameters, TwistType,
-                 g1::{G1Affine as BnG1Affine, G1Projective as BnG1Projective, G1Prepared},
-                 g2::{G2Affine as BnG2Affine, G2Projective as BnG2Projective, G2Prepared},
+                 g1::{G1Affine as BnG1Affine, G1Projective as BnG1Projective},
+                 g2::{G2Affine as BnG2Affine, G2Projective as BnG2Projective},
     },
     field_new,
-    PairingCurve, PairingEngine
 };
 
 pub type Bn382 = Bn<Bn382Parameters>;
@@ -72,34 +71,3 @@ impl BnParameters for Bn382Parameters {
     type G1Parameters = self::g1::Bn382G1Parameters;
     type G2Parameters = self::g2::Bn382G2Parameters;
 }
-
-impl PairingCurve for G1Affine {
-    type Engine = Bn382;
-    type Prepared = G1Prepared<Bn382Parameters>;
-    type PairWith = G2Affine;
-    type PairingResult = Fq12;
-
-    fn prepare(&self) -> Self::Prepared {
-        Self::Prepared::from_affine(*self)
-    }
-
-    fn pairing_with(&self, other: &Self::PairWith) -> Self::PairingResult {
-        Bn382::pairing(*self, *other)
-    }
-}
-
-impl PairingCurve for G2Affine {
-    type Engine = Bn382;
-    type Prepared = G2Prepared<Bn382Parameters>;
-    type PairWith = G1Affine;
-    type PairingResult = Fq12;
-
-    fn prepare(&self) -> Self::Prepared {
-        Self::Prepared::from_affine(*self)
-    }
-
-    fn pairing_with(&self, other: &Self::PairWith) -> Self::PairingResult {
-        Bn382::pairing(*other, *self)
-    }
-}
-

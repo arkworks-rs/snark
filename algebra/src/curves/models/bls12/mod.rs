@@ -1,7 +1,6 @@
 use crate::{
     curves::{
-        models::{ModelParameters, SWModelParameters},
-        PairingCurve, PairingEngine,
+        models::{ModelParameters, SWModelParameters}, PairingEngine
     },
     fields::{
         models::quadratic_extension::QuadExtParameters,
@@ -81,44 +80,24 @@ impl<P: Bls12Parameters> Bls12<P> {
 }
 
 impl<P: Bls12Parameters> PairingEngine for Bls12<P>
-where
-    G1Affine<P>: PairingCurve<
-        BaseField = <P::G1Parameters as ModelParameters>::BaseField,
-        ScalarField = <P::G1Parameters as ModelParameters>::ScalarField,
-        Projective = G1Projective<P>,
-        PairWith = G2Affine<P>,
-        Prepared = G1Prepared<P>,
-        PairingResult = Fp12<P::Fp12Params>,
-    >,
-    G2Affine<P>: PairingCurve<
-        BaseField = <P::G2Parameters as ModelParameters>::BaseField,
-        ScalarField = <P::G1Parameters as ModelParameters>::ScalarField,
-        Projective = G2Projective<P>,
-        PairWith = G1Affine<P>,
-        Prepared = G2Prepared<P>,
-        PairingResult = Fp12<P::Fp12Params>,
-    >,
 {
     type Fr = <P::G1Parameters as ModelParameters>::ScalarField;
     type G1Projective = G1Projective<P>;
     type G1Affine = G1Affine<P>;
+    type G1Prepared = G1Prepared<P>;
     type G2Projective = G2Projective<P>;
     type G2Affine = G2Affine<P>;
+    type G2Prepared = G2Prepared<P>;
     type Fq = P::Fp;
     type Fqe = Fp2<P::Fp2Params>;
     type Fqk = Fp12<P::Fp12Params>;
 
     fn miller_loop<'a, I>(i: I) -> Self::Fqk
-    where
-        I: IntoIterator<
-            Item = &'a (
-                &'a <Self::G1Affine as PairingCurve>::Prepared,
-                &'a <Self::G2Affine as PairingCurve>::Prepared,
-            ),
-        >,
+        where
+            I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>,
     {
         let mut pairs = vec![];
-        for &(p, q) in i {
+        for (p, q) in i {
             if !p.is_zero() && !q.is_zero() {
                 pairs.push((p, q.ell_coeffs.iter()));
             }

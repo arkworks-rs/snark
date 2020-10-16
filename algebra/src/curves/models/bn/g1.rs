@@ -27,9 +27,11 @@ impl<P: BnParameters> G1Prepared<P> {
     pub fn is_zero(&self) -> bool {
         self.0.is_zero()
     }
+}
 
-    pub fn from_affine(p: G1Affine<P>) -> Self {
-        G1Prepared(p)
+impl<P: BnParameters> From<G1Affine<P>> for G1Prepared<P> {
+    fn from(other: G1Affine<P>) -> Self {
+        G1Prepared(other)
     }
 }
 

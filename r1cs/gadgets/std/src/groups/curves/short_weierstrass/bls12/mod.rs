@@ -29,7 +29,7 @@ pub struct G1PreparedGadget<P: Bls12Parameters>(pub G1Gadget<P>);
 
 impl<P: Bls12Parameters> G1PreparedGadget<P> {
     pub fn get_value(&self) -> Option<G1Prepared<P>> {
-        Some(G1Prepared::from_affine(
+        Some(G1Prepared::from(
             self.0.get_value().unwrap().into_affine(),
         ))
     }

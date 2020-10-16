@@ -13,7 +13,6 @@ use algebra::{
     biginteger::{BigInteger256 as FrRepr, BigInteger384 as FqRepr},
     bls12::{G1Prepared, G2Prepared},
     BigInteger, Field, PairingEngine, PrimeField, ProjectiveCurve, SquareRootField, UniformRand,
-    PairingCurve
 };
 
 ec_bench!();

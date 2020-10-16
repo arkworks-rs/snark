@@ -1,7 +1,7 @@
 use crate::field_new;
 use crate::{
     biginteger::BigInteger320,
-    curves::{PairingCurve, PairingEngine, ProjectiveCurve},
+    curves::{PairingEngine, ProjectiveCurve},
     fields::{
         mnt6::{
             fq::{Fq, FqParameters},
@@ -24,27 +24,24 @@ pub use self::{
 
 pub type GT = Fq6;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct MNT6;
 
 impl PairingEngine for MNT6 {
     type Fr = Fr;
     type G1Projective = G1Projective;
     type G1Affine = G1Affine;
+    type G1Prepared = G1Prepared;
     type G2Projective = G2Projective;
     type G2Affine = G2Affine;
+    type G2Prepared = G2Prepared;
     type Fq = Fq;
     type Fqe = Fq3;
     type Fqk = Fq6;
 
     fn miller_loop<'a, I>(i: I) -> Self::Fqk
     where
-        I: IntoIterator<
-            Item = &'a (
-                &'a <Self::G1Affine as PairingCurve>::Prepared,
-                &'a <Self::G2Affine as PairingCurve>::Prepared,
-            ),
-        >,
+        I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>,
     {
         let mut result = Self::Fqk::one();
         for &(ref p, ref q) in i {

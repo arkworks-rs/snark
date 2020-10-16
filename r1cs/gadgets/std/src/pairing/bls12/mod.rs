@@ -7,15 +7,8 @@ use crate::{
     groups::bls12::{G1Gadget, G1PreparedGadget, G2Gadget, G2PreparedGadget},
 };
 use algebra::{
-    curves::{
-        bls12::{
-            Bls12, Bls12Parameters, G1Affine, G1Prepared, G1Projective, G2Affine, G2Prepared,
-            G2Projective, TwistType,
-        },
-        models::ModelParameters,
-        PairingCurve,
-    },
-    fields::{fp12_2over3over2::{Fp12, Fp12ParamsWrapper}, BitIterator},
+    curves::bls12::{Bls12, Bls12Parameters, TwistType},
+    fields::{fp12_2over3over2::Fp12ParamsWrapper, BitIterator},
 };
 use std::marker::PhantomData;
 
@@ -70,23 +63,6 @@ impl<P: Bls12Parameters> PairingGadget<P> {
 }
 
 impl<P: Bls12Parameters> PG<Bls12<P>, P::Fp> for PairingGadget<P>
-where
-    G1Affine<P>: PairingCurve<
-        BaseField = <P::G1Parameters as ModelParameters>::BaseField,
-        ScalarField = <P::G1Parameters as ModelParameters>::ScalarField,
-        Projective = G1Projective<P>,
-        PairWith = G2Affine<P>,
-        Prepared = G1Prepared<P>,
-        PairingResult = Fp12<P::Fp12Params>,
-    >,
-    G2Affine<P>: PairingCurve<
-        BaseField = <P::G2Parameters as ModelParameters>::BaseField,
-        ScalarField = <P::G1Parameters as ModelParameters>::ScalarField,
-        Projective = G2Projective<P>,
-        PairWith = G1Affine<P>,
-        Prepared = G2Prepared<P>,
-        PairingResult = Fp12<P::Fp12Params>,
-    >,
 {
     type G1Gadget = G1Gadget<P>;
     type G2Gadget = G2Gadget<P>;
