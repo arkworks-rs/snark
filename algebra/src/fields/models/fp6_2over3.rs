@@ -44,6 +44,7 @@ impl<P: Fp6Parameters> QuadExtParameters for Fp6ParamsWrapper<P> {
 
     const DEGREE_OVER_BASE_PRIME_FIELD: usize = 6;
 
+
     const NONRESIDUE: Self::BaseField = P::NONRESIDUE;
 
     const FROBENIUS_COEFF_C1: &'static [Self::FrobCoeff] = P::FROBENIUS_COEFF_FP6_C1;
