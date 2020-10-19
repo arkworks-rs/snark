@@ -71,8 +71,7 @@ where
         let window_size: i16 = 1 << (w + 1);
         let half_window_size: i16 = 1 << w;
 
-        let mut op_code_vectorised =
-            Vec::<Vec<Option<i16>>>::with_capacity(scalars[0].as_ref().len() * 64);
+        let mut op_code_vectorised = Vec::<Vec<Option<i16>>>::with_capacity(BigInt::NUM_LIMBS * 64);
 
         let mut all_none = false;
 
@@ -157,6 +156,10 @@ where
     /// Lookups up group elements according to index, and either adds and writes
     /// or simply writes them to new_elems, using scratch space to store
     /// intermediate values. Scratch space is always cleared after use.
+
+    /// No-ops, or copies of the elem in the slice `lookup` in the position of the index
+    /// of the first operand to the new_elems vector, are encoded as !0u32 in the index
+    /// for the second operand
     fn batch_add_write(
         lookup: &[Self],
         index: &[(u32, u32)],
@@ -166,6 +169,10 @@ where
 
     /// Similar to batch_add_write, only that the lookup for the first operand
     /// is performed in new_elems rather than lookup
+
+    /// No-ops, or copies of the elem in the slice `lookup` in the position of the index
+    /// of the first operand to the new_elems vector, are encoded as !0u32 in the index
+    /// for the second operand
     fn batch_add_write_read_self(
         lookup: &[Self],
         index: &[(u32, u32)],
