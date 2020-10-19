@@ -32,15 +32,22 @@ rayon = "1"
 hex = "0.4.0"
 
 [features]
+llvm_asm = ["algebra/llvm_asm"]
+
 commitment = ["digest", "blake2"]
 merkle_tree = []
 prf = ["digest", "blake2"]
 signature = ["digest", "blake2"]
 vrf = []
 
-llvm_asm = ["algebra/llvm_asm"]
+# For Poseidon CRH / Merkle Tree
+mnt4_753 = ["algebra/mnt4_753"]
+mnt6_753 = ["algebra/mnt6_753"]
 
 [dev-dependencies]
+algebra = { path = "../algebra", features = ["edwards_sw6", "jubjub", "sw6"] }
+primitives = { path = "../primitives", features = ["mnt4_753", "mnt6_753"] }
+
 criterion = "0.2"
 rand_xorshift = { version = "0.2" }
 
@@ -50,12 +57,13 @@ rand_xorshift = { version = "0.2" }
 name = "pedersen_crh"
 path = "benches/crypto_primitives/crh.rs"
 harness = false
+required-features = ["mnt4_753"]
 
 [[bench]]
 name = "pedersen_comm"
 path = "benches/crypto_primitives/comm.rs"
 harness = false
-required-features = ["commitment"]
+required-features = ["commitment", "mnt4_753"]
 
 [[bench]]
 name = "blake2s_prf"
@@ -67,10 +75,10 @@ required-features = ["prf"]
 name = "schnorr_sig"
 path = "benches/crypto_primitives/signature.rs"
 harness = false
-required-features = ["signature"]
+required-features = ["signature", "mnt4_753", "mnt6_753"]
 
 [[bench]]
 name = "ecvrf"
 path = "benches/crypto_primitives/ecvrf.rs"
 harness = false
-required-features = ["vrf"]
+required-features = ["vrf", "mnt4_753", "mnt6_753"]

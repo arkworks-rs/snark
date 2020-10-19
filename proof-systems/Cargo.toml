@@ -31,6 +31,7 @@ byteorder = { version = "1" }
 
 [dev-dependencies]
 csv = { version = "1" }
+algebra = { path = "../algebra", features = [ "bls12_377", "mnt4_753", "mnt6_753", "sw6", "bn_382" ] }
 
 [features]
 print-trace = [ "bench-utils/print-trace" ]
@@ -41,9 +42,9 @@ llvm_asm = ["algebra/llvm_asm"]
 [[example]]
 name = "groth16"
 path = "src/groth16/examples/snark-scalability/groth16.rs"
-required-features = ["groth16"]
+required-features = ["groth16", "algebra/bls12_377"]
 
 [[example]]
 name = "gm17"
 path = "src/gm17/examples/snark-scalability/gm17.rs"
-required-features = ["gm17"]
+required-features = ["gm17", "algebra/bls12_377"]

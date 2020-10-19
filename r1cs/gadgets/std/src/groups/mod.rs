@@ -238,6 +238,7 @@ pub(crate) mod test {
             .unwrap();
     }
 
+    #[allow(dead_code)]
     pub(crate) fn group_test_with_unsafe_add<
         ConstraintF: Field,
         G: Group,

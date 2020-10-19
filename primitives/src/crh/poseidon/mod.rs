@@ -2,22 +2,19 @@ extern crate hex;
 extern crate rand;
 extern crate rayon;
 
-use algebra::fields::mnt6753::Fr as MNT6753Fr;
-use algebra::fields::mnt4753::Fr as MNT4753Fr;
 use algebra::{PrimeField, MulShortAssign};
 
 use std::marker::PhantomData;
 
 use crate::crh::{
     FieldBasedHash, BatchFieldBasedHash,
-    FieldBasedHashParameters, poseidon::{
-        parameters::{MNT4753PoseidonParameters, MNT6753PoseidonParameters}
-    }
+    FieldBasedHashParameters,
 };
 
 use crate::Error;
 
 pub mod parameters;
+pub use self::parameters::*;
 
 pub struct PoseidonHash<F: PrimeField, P: PoseidonParameters<Fr = F>>{
     _field:      PhantomData<F>,
@@ -667,18 +664,27 @@ impl<F: PrimeField + MulShortAssign<F>, P: PoseidonParameters<Fr = F>> BatchFiel
     }
 }
 
-pub type MNT4PoseidonHash = PoseidonHash<MNT4753Fr, MNT4753PoseidonParameters>;
-pub type MNT6PoseidonHash = PoseidonHash<MNT6753Fr, MNT6753PoseidonParameters>;
-
 #[cfg(test)]
 mod test {
+    use algebra::{
+        fields::{
+            mnt4753::Fr as MNT4753Fr,
+            mnt6753::Fr as MNT6753Fr,
+        },
+        UniformRand
+    };
     use super::*;
     use rayon::prelude::*;
     use rand_xorshift::XorShiftRng;
     use std::str::FromStr;
-    use crate::{FieldBasedHash, BatchFieldBasedHash, PoseidonBatchHash};
+    use crate::{
+        parameters::{
+            mnt4753::{MNT4PoseidonHash, MNT4753PoseidonParameters},
+            mnt6753::{MNT6PoseidonHash, MNT6753PoseidonParameters},
+        },
+        FieldBasedHash, BatchFieldBasedHash, PoseidonBatchHash
+    };
     use super::rand::SeedableRng;
-    use algebra::UniformRand;
     use std::time::Instant;
 
     #[test]

@@ -1,28 +1,30 @@
-use algebra::{
-    fields::{
-        mnt4753::Fr as MNT4753Fr,
-        mnt6753::Fr as MNT6753Fr,
-    }, PrimeField, MulShortAssign,
+use algebra::{PrimeField, MulShortAssign};
+use primitives::crh::poseidon::{
+    PoseidonHash, PoseidonParameters
 };
-use primitives::crh::poseidon::PoseidonParameters;
 use crate::crh::FieldBasedHashGadget;
-use primitives::crh::{
-    poseidon::PoseidonHash,
-    parameters::{
-        MNT4753PoseidonParameters, MNT6753PoseidonParameters
+use r1cs_std::{
+    fields::{
+        FieldGadget, fp::FpGadget
     },
+    bits::boolean::Boolean,
+    alloc::{AllocGadget, ConstantGadget},
+    eq::EqGadget,
+    Assignment
 };
-use std::marker::PhantomData;
 use r1cs_core::{ConstraintSystem, SynthesisError};
-use r1cs_std::fields::fp::FpGadget;
-use r1cs_std::fields::FieldGadget;
-use r1cs_std::bits::boolean::Boolean;
-use r1cs_std::alloc::{AllocGadget, ConstantGadget};
-use r1cs_std::Assignment;
-use r1cs_std::eq::EqGadget;
+use std::marker::PhantomData;
 
-pub type MNT4PoseidonHashGadget = PoseidonHashGadget<MNT4753Fr, MNT4753PoseidonParameters>;
-pub type MNT6PoseidonHashGadget = PoseidonHashGadget<MNT6753Fr, MNT6753PoseidonParameters>;
+#[cfg(feature = "mnt4_753")]
+pub mod mnt4753;
+#[cfg(feature = "mnt4_753")]
+pub use self::mnt4753::*;
+
+#[cfg(feature = "mnt6_753")]
+pub mod mnt6753;
+#[cfg(feature = "mnt6_753")]
+pub use self::mnt6753::*;
+
 
 pub struct PoseidonHashGadget
 <
@@ -290,6 +292,7 @@ mod test {
     use primitives::crh::{
         FieldBasedHash, MNT4PoseidonHash, MNT6PoseidonHash,
     };
+    use crate::{MNT4PoseidonHashGadget, MNT6PoseidonHashGadget};
     use r1cs_std::fields::fp::FpGadget;
     use r1cs_std::alloc::AllocGadget;
     use r1cs_core::ConstraintSystem;
