@@ -72,7 +72,7 @@ where
         let half_window_size: i16 = 1 << w;
 
         let mut op_code_vectorised =
-            Vec::<Vec<Option<i16>>>::with_capacity(scalars[0].as_ref().len() * 64);
+            Vec::<Vec<Option<i16>>>::with_capacity(BigInt::NUM_LIMBS * 64);
 
         let mut all_none = false;
 
