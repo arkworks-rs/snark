@@ -25,6 +25,18 @@ r1cs-core = { path = "../../core"}
 derivative = "1"
 radix_trie = "0.1"
 
+[features]
+
+full = [ "bls12_377", "bn_382", "edwards_bls12", "edwards_sw6", "jubjub", "mnt4_753", "mnt6_753" ]
+
+bls12_377 = [ "algebra/bls12_377" ]
+bn_382 = [ "algebra/bn_382" ]
+edwards_bls12 = [ "algebra/edwards_bls12"]
+edwards_sw6 = [ "algebra/edwards_sw6"]
+jubjub = [ "algebra/jubjub" ]
+mnt4_753 = [ "algebra/mnt4_753" ]
+mnt6_753 = [ "algebra/mnt6_753" ]
+
 [dev-dependencies]
 rand = { version = "0.7" }
 rand_xorshift = { version = "0.2" }

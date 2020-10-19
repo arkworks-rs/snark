@@ -1,6 +1,7 @@
 pub mod path;
 pub use self::path::*;
 
+<<<<<<< HEAD
 pub mod naive;
 pub use self::naive::*;
 
@@ -14,6 +15,9 @@ pub use self::poseidon::*;
 pub mod smt;
 #[cfg(feature = "smt")]
 pub use self::smt::*;
+
+pub mod parameters;
+pub use self::parameters::*;
 
 use algebra::{
     Field, ToBytes, FromBytes,
