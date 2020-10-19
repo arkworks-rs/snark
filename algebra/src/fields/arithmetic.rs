@@ -237,7 +237,7 @@ macro_rules! impl_prime_field_standard_sample {
                     tmp.0
                         .as_mut()
                         .last_mut()
-                        .map(|val| *val &= core::u64::MAX >> P::REPR_SHAVE_BITS);
+                        .map(|val| *val &= std::u64::MAX >> P::REPR_SHAVE_BITS);
 
                     if tmp.is_valid() {
                         return tmp;
@@ -332,7 +332,7 @@ macro_rules! sqrt_impl {
 macro_rules! impl_additive_ops_from_ref {
     ($type: ident, $params: ident) => {
         #[allow(unused_qualifications)]
-        impl<P: $params> core::ops::Add<Self> for $type<P> {
+        impl<P: $params> std::ops::Add<Self> for $type<P> {
             type Output = Self;
 
             #[inline]
@@ -344,7 +344,7 @@ macro_rules! impl_additive_ops_from_ref {
         }
 
         #[allow(unused_qualifications)]
-        impl<'a, P: $params> core::ops::Add<&'a mut Self> for $type<P> {
+        impl<'a, P: $params> std::ops::Add<&'a mut Self> for $type<P> {
             type Output = Self;
 
             #[inline]
@@ -356,7 +356,7 @@ macro_rules! impl_additive_ops_from_ref {
         }
 
         #[allow(unused_qualifications)]
-        impl<P: $params> core::ops::Sub<Self> for $type<P> {
+        impl<P: $params> std::ops::Sub<Self> for $type<P> {
             type Output = Self;
 
             #[inline]
@@ -368,7 +368,7 @@ macro_rules! impl_additive_ops_from_ref {
         }
 
         #[allow(unused_qualifications)]
-        impl<'a, P: $params> core::ops::Sub<&'a mut Self> for $type<P> {
+        impl<'a, P: $params> std::ops::Sub<&'a mut Self> for $type<P> {
             type Output = Self;
 
             #[inline]
@@ -380,42 +380,42 @@ macro_rules! impl_additive_ops_from_ref {
         }
 
         #[allow(unused_qualifications)]
-        impl<P: $params> core::iter::Sum<Self> for $type<P> {
+        impl<P: $params> std::iter::Sum<Self> for $type<P> {
             fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
-                iter.fold(Self::zero(), core::ops::Add::add)
+                iter.fold(Self::zero(), std::ops::Add::add)
             }
         }
 
         #[allow(unused_qualifications)]
-        impl<'a, P: $params> core::iter::Sum<&'a Self> for $type<P> {
+        impl<'a, P: $params> std::iter::Sum<&'a Self> for $type<P> {
             fn sum<I: Iterator<Item = &'a Self>>(iter: I) -> Self {
-                iter.fold(Self::zero(), core::ops::Add::add)
+                iter.fold(Self::zero(), std::ops::Add::add)
             }
         }
 
         #[allow(unused_qualifications)]
-        impl<P: $params> core::ops::AddAssign<Self> for $type<P> {
+        impl<P: $params> std::ops::AddAssign<Self> for $type<P> {
             fn add_assign(&mut self, other: Self) {
                 self.add_assign(&other)
             }
         }
 
         #[allow(unused_qualifications)]
-        impl<P: $params> core::ops::SubAssign<Self> for $type<P> {
+        impl<P: $params> std::ops::SubAssign<Self> for $type<P> {
             fn sub_assign(&mut self, other: Self) {
                 self.sub_assign(&other)
             }
         }
 
         #[allow(unused_qualifications)]
-        impl<'a, P: $params> core::ops::AddAssign<&'a mut Self> for $type<P> {
+        impl<'a, P: $params> std::ops::AddAssign<&'a mut Self> for $type<P> {
             fn add_assign(&mut self, other: &'a mut Self) {
                 self.add_assign(&*other)
             }
         }
 
         #[allow(unused_qualifications)]
-        impl<'a, P: $params> core::ops::SubAssign<&'a mut Self> for $type<P> {
+        impl<'a, P: $params> std::ops::SubAssign<&'a mut Self> for $type<P> {
             fn sub_assign(&mut self, other: &'a mut Self) {
                 self.sub_assign(&*other)
             }
@@ -428,7 +428,7 @@ macro_rules! impl_additive_ops_from_ref {
 macro_rules! impl_multiplicative_ops_from_ref {
     ($type: ident, $params: ident) => {
         #[allow(unused_qualifications)]
-        impl<P: $params> core::ops::Mul<Self> for $type<P> {
+        impl<P: $params> std::ops::Mul<Self> for $type<P> {
             type Output = Self;
 
             #[inline]
@@ -452,7 +452,7 @@ macro_rules! impl_multiplicative_ops_from_ref {
         }
 
         #[allow(unused_qualifications)]
-        impl<P: $params> core::ops::Div<Self> for $type<P> {
+        impl<P: $params> std::ops::Div<Self> for $type<P> {
             type Output = Self;
 
             #[inline]
@@ -464,7 +464,7 @@ macro_rules! impl_multiplicative_ops_from_ref {
         }
 
         #[allow(unused_qualifications)]
-        impl<'a, P: $params> core::ops::Mul<&'a mut Self> for $type<P> {
+        impl<'a, P: $params> std::ops::Mul<&'a mut Self> for $type<P> {
             type Output = Self;
 
             #[inline]
@@ -488,7 +488,7 @@ macro_rules! impl_multiplicative_ops_from_ref {
         }
 
         #[allow(unused_qualifications)]
-        impl<'a, P: $params> core::ops::Div<&'a mut Self> for $type<P> {
+        impl<'a, P: $params> std::ops::Div<&'a mut Self> for $type<P> {
             type Output = Self;
 
             #[inline]
@@ -500,21 +500,21 @@ macro_rules! impl_multiplicative_ops_from_ref {
         }
 
         #[allow(unused_qualifications)]
-        impl<P: $params> core::iter::Product<Self> for $type<P> {
+        impl<P: $params> std::iter::Product<Self> for $type<P> {
             fn product<I: Iterator<Item = Self>>(iter: I) -> Self {
-                iter.fold(Self::one(), core::ops::Mul::mul)
+                iter.fold(Self::one(), std::ops::Mul::mul)
             }
         }
 
         #[allow(unused_qualifications)]
-        impl<'a, P: $params> core::iter::Product<&'a Self> for $type<P> {
+        impl<'a, P: $params> std::iter::Product<&'a Self> for $type<P> {
             fn product<I: Iterator<Item = &'a Self>>(iter: I) -> Self {
                 iter.fold(Self::one(), Mul::mul)
             }
         }
 
         #[allow(unused_qualifications)]
-        impl<P: $params> core::ops::MulAssign<Self> for $type<P> {
+        impl<P: $params> std::ops::MulAssign<Self> for $type<P> {
             fn mul_assign(&mut self, other: Self) {
                 self.mul_assign(&other)
             }
@@ -528,14 +528,14 @@ macro_rules! impl_multiplicative_ops_from_ref {
         }
 
         #[allow(unused_qualifications)]
-        impl<'a, P: $params> core::ops::DivAssign<&'a mut Self> for $type<P> {
+        impl<'a, P: $params> std::ops::DivAssign<&'a mut Self> for $type<P> {
             fn div_assign(&mut self, other: &'a mut Self) {
                 self.div_assign(&*other)
             }
         }
 
         #[allow(unused_qualifications)]
-        impl<'a, P: $params> core::ops::MulAssign<&'a mut Self> for $type<P> {
+        impl<'a, P: $params> std::ops::MulAssign<&'a mut Self> for $type<P> {
             fn mul_assign(&mut self, other: &'a mut Self) {
                 self.mul_assign(&*other)
             }
@@ -549,7 +549,7 @@ macro_rules! impl_multiplicative_ops_from_ref {
         }
 
         #[allow(unused_qualifications)]
-        impl<P: $params> core::ops::DivAssign<Self> for $type<P> {
+        impl<P: $params> std::ops::DivAssign<Self> for $type<P> {
             fn div_assign(&mut self, other: Self) {
                 self.div_assign(&other)
             }

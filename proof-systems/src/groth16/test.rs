@@ -37,16 +37,13 @@ impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for MySillyCircuit<C
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::groth16::{
-        Parameters, Proof, VerifyingKey, PreparedVerifyingKey,
-        create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
-    };
+    use crate::groth16::{Parameters, Proof, VerifyingKey, PreparedVerifyingKey, create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof, create_proof_no_zk};
 
     use algebra::{UniformRand, ToBytes, FromBytes, to_bytes, PairingEngine};
     use rand::thread_rng;
     use std::ops::MulAssign;
 
-    fn prove_and_verify<E: PairingEngine>() {
+    fn prove_and_verify<E: PairingEngine>(zk: bool) {
         let rng = &mut thread_rng();
 
         let params =
@@ -61,15 +58,24 @@ mod test {
             let mut c = a;
             c.mul_assign(&b);
 
-            let proof = create_random_proof(
-                MySillyCircuit {
-                    a: Some(a),
-                    b: Some(b),
-                },
-                &params,
-                rng,
-            )
-                .unwrap();
+            let proof = if zk {
+                 create_random_proof(
+                    MySillyCircuit {
+                        a: Some(a),
+                        b: Some(b),
+                    },
+                    &params,
+                    rng,
+                ).unwrap()
+            } else {
+                create_proof_no_zk(
+                    MySillyCircuit {
+                        a: Some(a),
+                        b: Some(b),
+                    },
+                    &params,
+                ).unwrap()
+            };
 
             assert!(verify_proof(&pvk, &proof, &[c]).unwrap());
             assert!(!verify_proof(&pvk, &proof, &[a]).unwrap());
@@ -120,31 +126,36 @@ mod test {
 
     #[test]
     fn bls12_377_groth16_test() {
-        prove_and_verify::<algebra::curves::bls12_377::Bls12_377>();
+        prove_and_verify::<algebra::curves::bls12_377::Bls12_377>(true);
+        prove_and_verify::<algebra::curves::bls12_377::Bls12_377>(false);
         serialize_deserialize::<algebra::curves::bls12_377::Bls12_377>();
     }
 
     #[test]
     fn sw6_groth16_test() {
-        prove_and_verify::<algebra::curves::sw6::SW6>();
+        prove_and_verify::<algebra::curves::sw6::SW6>(true);
+        prove_and_verify::<algebra::curves::sw6::SW6>(false);
         serialize_deserialize::<algebra::curves::sw6::SW6>();
     }
 
     #[test]
     fn mnt4753_groth16_test() {
-        prove_and_verify::<algebra::curves::mnt4753::MNT4>();
+        prove_and_verify::<algebra::curves::mnt4753::MNT4>(true);
+        prove_and_verify::<algebra::curves::mnt4753::MNT4>(false);
         serialize_deserialize::<algebra::curves::mnt4753::MNT4>();
     }
 
     #[test]
     fn mnt6753_groth16_test() {
-        prove_and_verify::<algebra::curves::mnt6753::MNT6>();
+        prove_and_verify::<algebra::curves::mnt6753::MNT6>(true);
+        prove_and_verify::<algebra::curves::mnt6753::MNT6>(false);
         serialize_deserialize::<algebra::curves::mnt6753::MNT6>();
     }
 
     #[test]
     fn bn_382_groth16_test() {
-        prove_and_verify::<algebra::curves::bn_382::Bn382>();
+        prove_and_verify::<algebra::curves::bn_382::Bn382>(true);
+        prove_and_verify::<algebra::curves::bn_382::Bn382>(false);
         serialize_deserialize::<algebra::curves::bn_382::Bn382>();
     }
 }

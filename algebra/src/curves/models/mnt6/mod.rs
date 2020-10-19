@@ -238,7 +238,7 @@ impl<P: MNT6Parameters> MNT6p<P> {
 
         let mut elt_q3 = elt.clone();
         // elt^{q^3}
-        elt_q3.frobenius_map(3);
+        elt_q3.conjugate();
         // elt^{q^3-1}
         let mut elt_q3_over_elt = elt_q3 * elt_inv;
         let elt_q3_over_elt_clone = elt_q3_over_elt.clone();

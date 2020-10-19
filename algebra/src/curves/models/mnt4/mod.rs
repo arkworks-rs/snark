@@ -239,7 +239,7 @@ impl<P: MNT4Parameters> MNT4p<P> {
         // elt^(q^2-1)
         let mut elt_q2 = elt.clone();
         // elt^(q^2)
-        elt_q2.frobenius_map(2);
+        elt_q2.conjugate();
         // elt^(q^2-1)
         let elt_q2_over_elt = elt_q2 * elt_inv;
 

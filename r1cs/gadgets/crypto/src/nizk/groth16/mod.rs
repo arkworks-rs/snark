@@ -713,6 +713,7 @@ mod test {
         groth16_verifier_test::<MNT4, PairingGadget>();
     }
 
+    #[ignore]
     #[test]
     fn mnt6_753_groth16_verifier_test() {
         use algebra::curves::mnt6753::MNT6;
