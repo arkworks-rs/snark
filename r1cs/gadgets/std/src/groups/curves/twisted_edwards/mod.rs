@@ -1521,6 +1521,7 @@ where
 }
 
 #[cfg(test)]
+#[allow(dead_code)]
 pub(crate) fn test<ConstraintF, P, GG>()
     where
         ConstraintF: Field,

@@ -45,7 +45,7 @@ mnt4_753 = ["algebra/mnt4_753"]
 mnt6_753 = ["algebra/mnt6_753"]
 
 [dev-dependencies]
-algebra = { path = "../algebra", features = ["edwards_sw6", "jubjub", "sw6"] }
+algebra = { path = "../algebra", features = ["edwards_sw6", "jubjub", "sw6", "bls12_377"] }
 primitives = { path = "../primitives", features = ["mnt4_753", "mnt6_753"] }
 
 criterion = "0.2"

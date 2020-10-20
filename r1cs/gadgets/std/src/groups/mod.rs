@@ -182,6 +182,7 @@ pub(crate) mod test {
     use algebra::groups::Group;
     use rand::thread_rng;
 
+    #[allow(dead_code)]
     pub(crate) fn group_test<
         ConstraintF: Field,
         G: Group,
