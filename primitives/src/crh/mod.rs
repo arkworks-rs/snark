@@ -105,8 +105,7 @@ mod test {
 
     use super::BatchFieldBasedHash;
     use crate::crh::poseidon::{
-        MNT4PoseidonHash,
-        batched_crh::MNT4BatchPoseidonHash,
+        MNT4PoseidonHash, MNT4BatchPoseidonHash
     };
 
     use rand_xorshift::XorShiftRng;

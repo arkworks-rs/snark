@@ -300,7 +300,7 @@ mod test {
     use super::*;
     use rand_xorshift::XorShiftRng;
     use std::str::FromStr;
-    use crate::{FieldBasedHash, BatchFieldBasedHash, PoseidonHash};
+    use crate::{FieldBasedHash, BatchFieldBasedHash};
     use super::rand::SeedableRng;
     use algebra::UniformRand;
     use algebra::fields::mnt6753::Fr as MNT6753Fr;
@@ -342,7 +342,7 @@ mod test {
         let mut output_4753 = Vec::new();
 
         input_serial.iter().for_each(|p| {
-            let mut digest = Mnt4PoseidonHash::init(None);
+            let mut digest = MNT4PoseidonHash::init(None);
             p.into_iter().for_each(|&f| { digest.update(f); });
             output_4753.push(digest.finalize());
         });
@@ -357,7 +357,7 @@ mod test {
         }
 
         // Check with one single hash
-        let single_output = Mnt4PoseidonHash::init(None)
+        let single_output = MNT4PoseidonHash::init(None)
             .update(input_serial[0][0])
             .update(input_serial[0][1])
             .finalize();
@@ -425,7 +425,7 @@ mod test {
         let mut output_6753 = Vec::new();
 
         input_serial.iter().for_each(|p| {
-            let mut digest = Mnt6PoseidonHash::init(None);
+            let mut digest = MNT6PoseidonHash::init(None);
             p.into_iter().for_each(|&f| { digest.update(f); });
             output_6753.push(digest.finalize());
         });
@@ -440,7 +440,7 @@ mod test {
         }
 
         // Check with one single hash
-        let single_output = Mnt6PoseidonHash::init(None)
+        let single_output = MNT6PoseidonHash::init(None)
             .update(input_serial[0][0])
             .update(input_serial[0][1])
             .finalize();
