@@ -1,4 +1,4 @@
-use crate::crh::{PoseidonParameters, FieldBasedHashParameters, PoseidonHash};
+use crate::crh::{PoseidonParameters, FieldBasedHashParameters, PoseidonHash, batched_crh::PoseidonBatchHash};
 
 use algebra::fields::mnt6753::Fr as MNT6753Fr;
 
@@ -9,6 +9,7 @@ use algebra::field_new;
 pub struct MNT6753PoseidonParameters;
 
 pub type MNT6PoseidonHash = PoseidonHash<MNT6753Fr, MNT6753PoseidonParameters>;
+pub type MNT6BatchPoseidonHash = PoseidonBatchHash<MNT6753Fr, MNT6753PoseidonParameters>;
 
 impl FieldBasedHashParameters for MNT6753PoseidonParameters {
     type Fr = MNT6753Fr;

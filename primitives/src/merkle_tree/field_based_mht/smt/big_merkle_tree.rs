@@ -798,7 +798,7 @@ mod test {
     }, merkle_tree::field_based_mht::{
         naive::NaiveMerkleTree,
         smt::{OperationLeaf, Coord, ActionLeaf, BigMerkleTree},
-        poseidon::{
+        parameters::{
             MNT4753_MHT_POSEIDON_PARAMETERS, MNT6753_MHT_POSEIDON_PARAMETERS
         },
         FieldBasedMerkleTreeParameters, FieldBasedMerkleTreePrecomputedEmptyConstants,

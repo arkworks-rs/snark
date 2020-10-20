@@ -255,6 +255,7 @@ pub(crate) mod tests {
     use algebra::{BitIterator, Field, UniformRand, PrimeField, leading_zeros};
     use r1cs_core::ConstraintSystem;
 
+    #[allow(dead_code)]
     pub(crate) fn field_test<
         FE: Field,
         ConstraintF: Field,
@@ -463,6 +464,7 @@ pub(crate) mod tests {
         assert_eq!(ab_true.get_value().unwrap(), a_native + &b_native);
     }
 
+    #[allow(dead_code)]
     pub(crate) fn frobenius_tests<
         FE: Field,
         ConstraintF: Field,
@@ -483,6 +485,7 @@ pub(crate) mod tests {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn from_bits_fp_gadget_test<ConstraintF: PrimeField>()
     {
         let mut rng = thread_rng();
@@ -535,6 +538,7 @@ pub(crate) mod tests {
         assert_eq!("pack f_g_bits/packing constraint", cs.which_is_unsatisfied().unwrap());
     }
 
+    #[allow(dead_code)]
     pub(crate) fn bit_fp_gadgets_test<ConstraintF: PrimeField>(){
         use crate::algebra::FpParameters;
 
@@ -612,6 +616,7 @@ pub(crate) mod tests {
         assert!(!cs.is_satisfied());
     }
 
+    #[allow(dead_code)]
     pub(crate) fn equ_verdict_fp_gadget_test<ConstraintF: PrimeField>()
     {
         let mut rng = thread_rng();

@@ -2,14 +2,9 @@ extern crate rand;
 extern crate rayon;
 
 use algebra::{PrimeField, MulShort};
-use algebra::fields::mnt6753::Fr as MNT6753Fr;
-use algebra::fields::mnt4753::Fr as MNT4753Fr;
-
 use std::marker::PhantomData;
-
 use crate::crh::BatchFieldBasedHash;
 use crate::{Error, PoseidonParameters, matrix_mix_short, PoseidonHash};
-use crate::crh::poseidon::parameters::{MNT6753PoseidonParameters, MNT4753PoseidonParameters};
 
 pub struct PoseidonBatchHash<F: PrimeField, P: PoseidonParameters<Fr = F>>{
     _field:      PhantomData<F>,
@@ -299,8 +294,6 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr = F>> Bat
     }
 }
 
-pub type MNT4BatchPoseidonHash = PoseidonBatchHash<MNT4753Fr, MNT4753PoseidonParameters>;
-pub type MNT6BatchPoseidonHash = PoseidonBatchHash<MNT6753Fr, MNT6753PoseidonParameters>;
 
 #[cfg(test)]
 mod test {
@@ -310,14 +303,17 @@ mod test {
     use crate::{FieldBasedHash, BatchFieldBasedHash, PoseidonHash};
     use super::rand::SeedableRng;
     use algebra::UniformRand;
+    use algebra::fields::mnt6753::Fr as MNT6753Fr;
+    use algebra::fields::mnt4753::Fr as MNT4753Fr;
 
     use crate::crh::poseidon::{
+        MNT4PoseidonHash, MNT6PoseidonHash,
+        MNT4BatchPoseidonHash, MNT6BatchPoseidonHash,
         parameters::{MNT4753PoseidonParameters, MNT6753PoseidonParameters}
     };
 
     #[test]
     fn test_batch_hash_mnt4() {
-        type Mnt4PoseidonHash = PoseidonHash<MNT4753Fr, MNT4753PoseidonParameters>;
 
         //  the number of hashes to test
         let num_hashes = 1000;
@@ -401,7 +397,6 @@ mod test {
 
     #[test]
     fn test_batch_hash_mnt6() {
-        type Mnt6PoseidonHash = PoseidonHash<MNT6753Fr, MNT6753PoseidonParameters>;
 
         //  the number of hashes to test
         let num_hashes = 1000;

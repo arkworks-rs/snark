@@ -300,7 +300,7 @@ mod test {
         FieldBasedMerkleTree, NaiveMerkleTree,
         FieldBasedMerkleTreePath, FieldBasedMerkleTreeParameters,
         BatchFieldBasedMerkleTreeParameters, FieldBasedOptimizedMHT,
-        poseidon::{
+        parameters::{
             MNT4753_MHT_POSEIDON_PARAMETERS, MNT6753_MHT_POSEIDON_PARAMETERS
         }
     }, FieldBasedMerkleTreePrecomputedEmptyConstants, FieldBasedMHTPath};

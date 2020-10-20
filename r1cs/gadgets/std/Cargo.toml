@@ -26,6 +26,7 @@ derivative = "1"
 radix_trie = "0.1"
 
 [features]
+llvm_asm = ["algebra/llvm_asm"]
 
 full = [ "bls12_377", "bn_382", "edwards_bls12", "edwards_sw6", "jubjub", "mnt4_753", "mnt6_753" ]
 
@@ -40,3 +41,4 @@ mnt6_753 = [ "algebra/mnt6_753" ]
 [dev-dependencies]
 rand = { version = "0.7" }
 rand_xorshift = { version = "0.2" }
+algebra = { path = "../../../algebra", features = ["bls12_381", "jubjub"] }
