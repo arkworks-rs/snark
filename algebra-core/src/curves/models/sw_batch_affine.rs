@@ -431,6 +431,9 @@ macro_rules! impl_sw_batch_affine {
                 w: usize,
             ) {
                 debug_assert!(bases.len() == scalars.len());
+                if bases.len() == 0 {
+                    return;
+                }
                 let batch_size = bases.len();
                 if P::has_glv() {
                     use itertools::{EitherOrBoth::*, Itertools};

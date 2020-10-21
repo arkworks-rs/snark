@@ -66,7 +66,7 @@ where
         w: usize,
         negate: Option<&[bool]>,
     ) -> Vec<Vec<Option<i16>>> {
-        assert!(w > 0);
+        debug_assert!(w > 0);
         let batch_size = scalars.len();
         let window_size: i16 = 1 << (w + 1);
         let half_window_size: i16 = 1 << w;
@@ -76,8 +76,7 @@ where
         let mut all_none = false;
 
         if negate.is_some() {
-            assert_eq!(scalars.len(), negate.unwrap().len()); // precompute
-                                                              // bounds check
+            debug_assert_eq!(scalars.len(), negate.unwrap().len()); // precompute
         }
 
         let f = false;
