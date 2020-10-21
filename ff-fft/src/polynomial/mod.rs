@@ -27,7 +27,7 @@ pub trait Polynomial<F: Field>:
     + for<'a> SubAssign<&'a Self>
 {
     /// The domain of the polynomial.
-    type Domain: Sized + Clone + Ord + Debug;
+    type Domain: Sized + Clone + Ord + Debug + Sync;
 
     /// Returns the zero polynomial.
     fn zero() -> Self;
