@@ -930,7 +930,7 @@ mod test {
         assert!(MNT4PoseidonSMTLazy::load(
             TEST_HEIGHT_1,
             false,
-            String::from("./db_leaves_persistency_test_info"),
+            String::from("./db_leaves_persistency_test_info_lazy"),
         ).is_err());
     }
 
