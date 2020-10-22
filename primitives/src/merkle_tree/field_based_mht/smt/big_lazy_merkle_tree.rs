@@ -712,11 +712,9 @@ mod test {
     };
 
     use crate::{
-        crh::{
+        crh::parameters::{
             MNT4PoseidonHash, MNT6PoseidonHash,
-            batched_crh::{
-                MNT4BatchPoseidonHash, MNT6BatchPoseidonHash,
-            }
+            MNT4BatchPoseidonHash, MNT6BatchPoseidonHash,
         },
         merkle_tree::field_based_mht::{
             naive:: NaiveMerkleTree,

@@ -79,20 +79,20 @@ pub const MNT4753_MHT_POSEIDON_PARAMETERS: FieldBasedMerkleTreePrecomputedEmptyC
 #[cfg(test)]
 mod test {
 
+    use algebra::{
+        fields::mnt4753::Fr,
+        FromBytes, Field, PrimeField, FpParameters
+    };
+    use crate::crh::{
+        MNT4PoseidonHash, FieldBasedHash,
+    };
+    use super::{
+        MNT4753_PHANTOM_MERKLE_ROOT, MNT4753_MHT_POSEIDON_PARAMETERS
+    };
+
     #[ignore]
     #[test]
     fn generate_mnt4753_phantom_merkle_root(){
-        use algebra::{
-            fields::mnt4753::Fr,
-            FromBytes, PrimeField, FpParameters
-        };
-        use crate::crh::{
-            MNT4PoseidonHash, FieldBasedHash,
-        };
-        use super::{
-            MNT4753_PHANTOM_MERKLE_ROOT, MNT4753_MHT_POSEIDON_PARAMETERS
-        };
-
         let field_size_in_bytes = (Fr::size_in_bits() + (<Fr as PrimeField>::Params::REPR_SHAVE_BITS as usize))/8;
         let magic_string = b"This represents an empty Merkle Root for a MNT4753PoseidonHash based Merkle Tree.";
 
@@ -101,15 +101,16 @@ mod test {
         for _ in magic_string.len()..field_size_in_bytes { hash_input.push(0u8) }
         let hash_input_f = Fr::read(hash_input.as_slice()).unwrap();
 
-        let hash = MNT4PoseidonHash::evaluate(&[hash_input_f]).unwrap();
-        assert_eq!(hash, MNT4753_PHANTOM_MERKLE_ROOT);
+        let mut digest = MNT4PoseidonHash::init(None);
+        digest.update(hash_input_f);
+        assert_eq!(digest.finalize(), MNT4753_PHANTOM_MERKLE_ROOT);
     }
 
     #[ignore]
     #[test]
     fn generate_binary_mnt4753_mht_nodes() {
         let mut empty_node = MNT4753_MHT_POSEIDON_PARAMETERS.nodes[0].clone();
-        assert_eq!(empty_node, MNT4753Fr::zero());
+        assert_eq!(empty_node, Fr::zero());
         let mut digest = MNT4PoseidonHash::init(None);
         for node in MNT4753_MHT_POSEIDON_PARAMETERS.nodes {
             assert_eq!(node, &empty_node);
