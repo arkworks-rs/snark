@@ -123,15 +123,40 @@ impl<P, HGadget, ConstraintF> FieldBasedMerkleTreePathGadget<P, HGadget, Constra
             (ConstraintF::Params::MODULUS_BITS as usize) - self.path.len()
         )?;
 
+        self.conditionally_enforce_leaf_index_bits(
+            cs.ns(|| "enforce leaf index bits"),
+            leaf_index_bits.as_slice(),
+            should_enforce
+        )?;
+
+        Ok(())
+    }
+
+    pub fn enforce_leaf_index_bits<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+        leaf_index_bits: &[Boolean],
+    ) -> Result<(), SynthesisError>
+    {
+        self.conditionally_enforce_leaf_index_bits(cs, leaf_index_bits, &Boolean::Constant(true))
+    }
+
+    pub fn conditionally_enforce_leaf_index_bits<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        leaf_index_bits: &[Boolean],
+        should_enforce: &Boolean
+    ) -> Result<(), SynthesisError>
+    {
         for (i, ((_, path_bit), leaf_index_bit)) in self.path
-                .iter().zip(leaf_index_bits.iter().rev()).enumerate()
-        {
-            path_bit.conditional_enforce_equal(
-                cs.ns(|| format!("index_equality_{}", i)),
-                leaf_index_bit,
-                should_enforce
-            )?;
-        }
+            .iter().zip(leaf_index_bits.iter().rev()).enumerate()
+            {
+                path_bit.conditional_enforce_equal(
+                    cs.ns(|| format!("index_equality_{}", i)),
+                    leaf_index_bit,
+                    should_enforce
+                )?;
+            }
 
         Ok(())
     }
