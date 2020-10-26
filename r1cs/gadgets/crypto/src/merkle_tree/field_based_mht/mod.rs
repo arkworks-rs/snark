@@ -31,10 +31,10 @@ impl<P, HGadget, ConstraintF> FieldBasedMerkleTreePathGadget<P, HGadget, Constra
     >(
         &self,
         cs: CS,
-        root: &HGadget::DataGadget,
+        expected_root: &HGadget::DataGadget,
         leaf: &HGadget::DataGadget,
     ) -> Result<(), SynthesisError> {
-        self.conditionally_check_membership(cs, root, leaf, &Boolean::Constant(true))
+        self.conditionally_check_membership(cs, expected_root, leaf, &Boolean::Constant(true))
     }
 
     /// Coherently with the primitive, if `P::HASH_LEAVES` = `true` then we hash the
@@ -44,27 +44,46 @@ impl<P, HGadget, ConstraintF> FieldBasedMerkleTreePathGadget<P, HGadget, Constra
     >(
         &self,
         mut cs: CS,
-        root: &HGadget::DataGadget,
+        expected_root: &HGadget::DataGadget,
         leaf: &HGadget::DataGadget,
         should_enforce: &Boolean,
     ) -> Result<(), SynthesisError> {
 
+        let root = self.enforce_merkle_path(
+            cs.ns(|| "reconstruct root"),
+            leaf
+        )?;
+
+        root.conditional_enforce_equal(
+            &mut cs.ns(|| "root_is_last"),
+            expected_root,
+            should_enforce,
+        )
+    }
+
+    /// Enforces correct reconstruction of the root of the Merkle Tree
+    /// from `self` and `leaf`.
+    pub fn enforce_merkle_path<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        leaf: &HGadget::DataGadget,
+    ) -> Result<HGadget::DataGadget, SynthesisError> {
         let mut previous_hash = (*leaf).clone();
 
         for (i, &(ref sibling_hash, ref direction)) in self.path.iter().enumerate() {
 
             //Select left hash based on direction
             let lhs = HGadget::DataGadget::conditionally_select(cs.ns(|| format!("Choose left hash {}", i)),
-                                                                  direction,
-                                                                  &sibling_hash,
-                                                                  &previous_hash
+                                                                direction,
+                                                                &sibling_hash,
+                                                                &previous_hash
             )?;
 
             //Select right hash based on direction
             let rhs = HGadget::DataGadget::conditionally_select(cs.ns(|| format!("Choose right hash {}", i)),
-                                                                  direction,
-                                                                  &previous_hash,
-                                                                  &sibling_hash
+                                                                direction,
+                                                                &previous_hash,
+                                                                &sibling_hash
             )?;
 
             previous_hash = hash_inner_node_gadget::<P::H, HGadget, ConstraintF, _>(
@@ -74,11 +93,7 @@ impl<P, HGadget, ConstraintF> FieldBasedMerkleTreePathGadget<P, HGadget, Constra
             )?;
         }
 
-        root.conditional_enforce_equal(
-            &mut cs.ns(|| "root_is_last"),
-            &previous_hash,
-            should_enforce,
-        )
+        Ok(previous_hash)
     }
 }
 
