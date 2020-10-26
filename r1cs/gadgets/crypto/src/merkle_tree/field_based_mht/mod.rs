@@ -1,6 +1,9 @@
-use algebra::{Field, PrimeField};
+use algebra::{Field, PrimeField, FpParameters};
 use r1cs_core::{ConstraintSystem, SynthesisError};
-use r1cs_std::prelude::*;
+use r1cs_std::{
+    prelude::*,
+    fields::fp::FpGadget,
+};
 
 use primitives::{
     crh::FieldBasedHash,
@@ -94,6 +97,42 @@ impl<P, HGadget, ConstraintF> FieldBasedMerkleTreePathGadget<P, HGadget, Constra
         }
 
         Ok(previous_hash)
+    }
+
+    pub fn enforce_leaf_index<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+        leaf_index: &FpGadget<ConstraintF>,
+    ) -> Result<(), SynthesisError>
+    {
+        self.conditionally_enforce_leaf_index(cs, leaf_index, &Boolean::Constant(true))
+    }
+
+    /// Given a field element `leaf_index` representing the position of a leaf in a
+    /// Merkle Tree, enforces
+    pub fn conditionally_enforce_leaf_index<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        leaf_index: &FpGadget<ConstraintF>,
+        should_enforce: &Boolean
+    ) -> Result<(), SynthesisError>
+    {
+        let leaf_index_bits = leaf_index.to_bits_with_length_restriction(
+            cs.ns(|| "get leaf index bits"),
+            (ConstraintF::Params::MODULUS_BITS as usize) - self.path.len()
+        )?;
+
+        for (i, ((_, path_bit), leaf_index_bit)) in self.path
+                .iter().zip(leaf_index_bits.iter().rev()).enumerate()
+        {
+            path_bit.conditional_enforce_equal(
+                cs.ns(|| format!("index_equality_{}", i)),
+                leaf_index_bit,
+                should_enforce
+            )?;
+        }
+
+        Ok(())
     }
 }
 
@@ -310,12 +349,36 @@ mod test {
             )
                 .unwrap();
 
+            // Check_membership test
             cw.check_membership(
-                &mut cs.ns(|| format!("new_witness_check_{}", i)),
+                &mut cs.ns(|| format!("check_membership_{}", i)),
                 &root,
                 &leaf_g,
             )
                 .unwrap();
+
+            // Enforce Merkle Path test
+            let root_1 = cw.enforce_merkle_path(
+                &mut cs.ns(|| format!("enforce_merkle_path_{}", i)),
+                &leaf_g,
+            ).unwrap();
+
+            root.enforce_equal(
+                &mut cs.ns(|| format!("check_{} root == root_1", i)),
+                &root_1,
+            ).unwrap();
+
+            // Enforce leaf_index check
+            let fe_index = Fr::from(i as u32);
+            let fe_index_g = FqGadget::alloc(
+                cs.ns(|| format!("alloc_index_{}", i)),
+                || Ok(fe_index)
+            ).unwrap();
+
+            cw.enforce_leaf_index(
+                &mut cs.ns(|| format!("enforce_leaf_index_{}", i)),
+                &fe_index_g
+            ).unwrap();
 
             if !cs.is_satisfied() {
                 satisfied = false;
