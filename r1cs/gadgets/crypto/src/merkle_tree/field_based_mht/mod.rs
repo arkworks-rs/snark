@@ -109,7 +109,8 @@ impl<P, HGadget, ConstraintF> FieldBasedMerkleTreePathGadget<P, HGadget, Constra
     }
 
     /// Given a field element `leaf_index` representing the position of a leaf in a
-    /// Merkle Tree, enforces
+    /// Merkle Tree, enforce that the leaf index corresponding to `self` path is the
+    /// same of `leaf_index`.
     pub fn conditionally_enforce_leaf_index<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
