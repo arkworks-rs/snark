@@ -25,7 +25,7 @@ build = "build.rs"
 
 [dev-dependencies]
 algebra = { path = "../algebra" }
-blake2 = "0.8.1"
+blake2 = "0.9.1"
 rand = "0.7"
 rand_xorshift = { version = "0.2" }
 paste = "1.0"
