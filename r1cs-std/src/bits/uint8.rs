@@ -285,6 +285,31 @@ impl<ConstraintF: Field> EqGadget<ConstraintF> for UInt8<ConstraintF> {
     }
 }
 
+impl<ConstraintF: Field> CondSelectGadget<ConstraintF> for UInt8<ConstraintF> {
+    #[tracing::instrument(target = "r1cs")]
+    fn conditionally_select(
+        cond: &Boolean<ConstraintF>,
+        true_value: &Self,
+        false_value: &Self,
+    ) -> Result<Self, SynthesisError> {
+        let selected_bits = true_value.bits.iter().zip(&false_value.bits)
+            .map(|(true_bit, false_bit)| {
+                cond.select(true_bit, false_bit)
+            }).collect::<Result<Vec<Boolean<ConstraintF>>, SynthesisError>>()?;
+        let selected_value = match (cond.value(), true_value.value(), false_value.value()) {
+            (Ok(true), Err(_), _) => None,
+            (Ok(true), Ok(v), _) => Some(v),
+            (Ok(false), _, Err(_)) => None,
+            (Ok(false), _, Ok(v)) => Some(v),
+            (Err(_), _, _) => None,
+        };
+        Ok(Self {
+            bits: selected_bits,
+            value: selected_value,
+        })
+    }
+}
+
 impl<ConstraintF: Field> AllocVar<u8, ConstraintF> for UInt8<ConstraintF> {
     fn new_variable<T: Borrow<u8>>(
         cs: impl Into<Namespace<ConstraintF>>,
