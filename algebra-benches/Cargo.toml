@@ -44,4 +44,4 @@ cp6_782 = [ "algebra/cp6_782" ]
 bw6_761 = [ "algebra/bw6_761" ]
 
 [build-dependencies]
-rustc_version = "0.2"
+rustc_version = "0.3"
