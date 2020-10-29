@@ -51,6 +51,16 @@ pub trait FieldBasedHash {
     fn reset(&mut self, personalization: Option<&[Self::Data]>) -> &mut Self;
 }
 
+/// Helper allowing to hash the implementor of this trait into a Field
+pub trait FieldHasher<F: Field, H: FieldBasedHash<Data = F>> {
+
+    /// Hash `self`, given some optional `personalization` into a Field
+    fn hash(
+        &self,
+        personalization: Option<&[H::Data]>
+    ) -> Result<H::Data, Error>;
+}
+
 pub trait BatchFieldBasedHash {
     type Data: Field;
 
