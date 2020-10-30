@@ -974,7 +974,7 @@ impl<F: PrimeField> ThreeBitCondNegLookupGadget<F> for FpVar<F> {
         debug_assert_eq!(b.len(), 3);
         debug_assert_eq!(c.len(), 4);
 
-        if !b.cs().or(b0b1.cs()).is_none() {
+        if b.cs().or(b0b1.cs()).is_none() {
             // We only have constants
 
             let lsb = usize::from(b[0].value()?);
