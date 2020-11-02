@@ -25,6 +25,7 @@ use std::{
 };
 use rand::rngs::OsRng;
 use primitives::signature::schnorr::field_based_schnorr::FieldBasedSchnorrPk;
+use r1cs_std::alloc::ConstantGadget;
 
 #[derive(Derivative)]
 #[derivative(
@@ -159,6 +160,23 @@ for FieldBasedSchnorrPkGadget<ConstraintF, G, GG>
     {
         let pk = GG::alloc_input(cs.ns(|| "alloc pk"), || f().map(|pk| pk.borrow().0))?;
         Ok( Self{ pk, _field: PhantomData, _group: PhantomData } )
+    }
+}
+
+impl<ConstraintF, G, GG> ConstantGadget<FieldBasedSchnorrPk<G>, ConstraintF>
+for FieldBasedSchnorrPkGadget<ConstraintF, G, GG>
+    where
+        ConstraintF: PrimeField,
+        G: Group,
+        GG: GroupGadget<G, ConstraintF, Value = G>,
+{
+    fn from_value<CS: ConstraintSystem<ConstraintF>>(mut cs: CS, value: &FieldBasedSchnorrPk<G>) -> Self {
+        let pk = GG::from_value(cs.ns(|| "hardcode pk"), &value.0);
+        Self{ pk, _field: PhantomData, _group: PhantomData }
+    }
+
+    fn get_constant(&self) -> FieldBasedSchnorrPk<G> {
+        FieldBasedSchnorrPk::<G>(self.pk.get_value().unwrap())
     }
 }
 
