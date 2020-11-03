@@ -39,11 +39,23 @@ pub trait FieldBasedSigGadget<S: FieldBasedSignatureScheme, ConstraintF: Field> 
         message:    &[Self::DataGadget],
     ) -> Result<Boolean, SynthesisError>;
 
-    ///Enforce `signature` verification with `public_key` on `message` to be successful.
+    /// Enforce `signature` verification with `public_key` on `message` to be successful.
     fn enforce_signature_verification<CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
+        public_key: &Self::PublicKeyGadget,
+        signature: &Self::SignatureGadget,
+        message: &[Self::DataGadget],
+    ) -> Result<(), SynthesisError> {
+        Self::conditionally_enforce_signature_verification(cs, public_key, signature, message, &Boolean::Constant(true))
+    }
+
+    /// Enforce or not enforce, according to `should_enforce` value, `signature` verification with
+    /// `public_key` on `message` to be successful.
+    fn conditionally_enforce_signature_verification<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
         public_key: &Self::PublicKeyGadget,
         signature:  &Self::SignatureGadget,
         message:    &[Self::DataGadget],
+        should_enforce: &Boolean,
     ) -> Result<(), SynthesisError>;
 }

@@ -335,11 +335,12 @@ for FieldBasedSchnorrSigVerificationGadget<ConstraintF, G, GG, H, HG>
         Ok(is_verified)
     }
 
-    fn enforce_signature_verification<CS: ConstraintSystem<ConstraintF>>(
+    fn conditionally_enforce_signature_verification<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         public_key: &Self::PublicKeyGadget,
         signature: &Self::SignatureGadget,
-        message: &[Self::DataGadget]
+        message: &[Self::DataGadget],
+        should_enforce: &Boolean,
     ) -> Result<(), SynthesisError> {
 
         let e_prime = Self::enforce_signature_computation(
@@ -348,7 +349,11 @@ for FieldBasedSchnorrSigVerificationGadget<ConstraintF, G, GG, H, HG>
             signature,
             message
         )?;
-        signature.e.enforce_equal(cs.ns(|| "signature must be verified"), &e_prime)?;
+        signature.e.conditional_enforce_equal(
+            cs.ns(|| "conditional verify signature"),
+            &e_prime,
+            should_enforce
+        )?;
         Ok(())
     }
 }
