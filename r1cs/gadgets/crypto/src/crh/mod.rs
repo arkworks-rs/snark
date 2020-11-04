@@ -47,9 +47,9 @@ pub trait FieldHasherGadget<
     HG: FieldBasedHashGadget<H, ConstraintF>
 >
 {
-
-    fn enforce_hash(
+    fn enforce_hash<CS: ConstraintSystem<ConstraintF>>(
         &self,
+        cs: CS,
         personalization: Option<&[HG::DataGadget]>
     ) -> Result<HG::DataGadget, SynthesisError>;
 }

@@ -286,7 +286,7 @@ impl<ConstraintF, G, GG, H, HG> FieldBasedSchnorrSigVerificationGadget<Constrain
             // If add is incomplete, and s * G - e * pk = 0, the circuit of the add won't be satisfiable
             .add(cs.ns(|| "s * G - e * pk "), &neg_e_times_pk)?;
 
-        let r_prime_coords = r_prime.to_field_gadget_elements()?;
+        let r_prime_coords = r_prime.to_field_gadget_elements(cs.ns(|| "r_prime to fes"))?;
 
         // Check e' = H(m || R' || pk.x)
         // Best constraints-efficiency is achieved when m is one field element
@@ -294,7 +294,7 @@ impl<ConstraintF, G, GG, H, HG> FieldBasedSchnorrSigVerificationGadget<Constrain
         let mut hash_input = Vec::new();
         hash_input.extend_from_slice(message);
         hash_input.extend_from_slice(r_prime_coords.as_slice());
-        hash_input.push(public_key.to_field_gadget_elements().unwrap()[0].clone());
+        hash_input.push(public_key.to_field_gadget_elements(cs.ns(|| "pk to fes")).unwrap()[0].clone());
 
         HG::check_evaluation_gadget(
             cs.ns(|| "check e_prime"),
