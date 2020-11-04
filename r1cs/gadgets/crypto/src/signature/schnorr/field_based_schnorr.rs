@@ -94,6 +94,7 @@ for FieldBasedSchnorrSigGadget<ConstraintF, G>
     }
 }
 
+#[derive(Clone)]
 pub struct FieldBasedSchnorrPkGadget<
     ConstraintF: PrimeField,
     G: Group,
