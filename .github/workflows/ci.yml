@@ -94,6 +94,12 @@ jobs:
           cargo test --features full
           cd ..
 
+      - name: Test algebra with BW6 assembly
+        run: |
+          cd algebra
+          RUSTFLAGS="-C target-feature=+bmi2,+adx" cargo test --features full --features bw6_asm
+          cd ..
+
   check_no_std:
     name: Check no_std
     runs-on: ubuntu-latest
