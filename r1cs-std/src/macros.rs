@@ -52,7 +52,7 @@ macro_rules! impl_bounded_ops {
             #[tracing::instrument(target = "r1cs", skip(self))]
             #[allow(unused_braces)]
             fn $fn(self, other: Self) -> Self::Output {
-                $impl(self, other)
+                ($impl)(self, other)
             }
         }
 
@@ -132,7 +132,7 @@ macro_rules! impl_bounded_ops {
             #[tracing::instrument(target = "r1cs", skip(self))]
             #[allow(unused_braces)]
             fn $fn(self, other: $native) -> Self::Output {
-                $constant_impl(self, other)
+                ($constant_impl)(self, other)
             }
         }
 

@@ -76,7 +76,7 @@ macro_rules! make_uint {
                         tmp >>= 1;
                     }
 
-                    $name {
+                    Self {
                         bits,
                         value: Some(value),
                     }
@@ -139,7 +139,7 @@ macro_rules! make_uint {
                         .cloned()
                         .collect();
 
-                    $name {
+                    Self {
                         bits: new_bits,
                         value: self
                             .value
@@ -165,7 +165,7 @@ macro_rules! make_uint {
                         .map(|(a, b)| a.xor(b))
                         .collect::<Result<_, _>>()?;
 
-                    Ok($name {
+                    Ok(Self {
                         bits,
                         value: new_value,
                     })
@@ -192,7 +192,7 @@ macro_rules! make_uint {
 
                     // Compute the maximum value of the sum so we allocate enough bits for
                     // the result
-                    let mut max_value = (operands.len() as u128) * u128::from($native::max_value());
+                    let mut max_value = (operands.len() as u128) * u128::from(core::$native::MAX);
 
                     // Keep track of the resulting value
                     let mut result_value = Some(0u128);
@@ -252,7 +252,7 @@ macro_rules! make_uint {
                         // We can just return a constant, rather than
                         // unpacking the result into allocated bits.
 
-                        return Ok($name::constant(modular_value.unwrap()));
+                        return Ok(Self::constant(modular_value.unwrap()));
                     }
                     let cs = operands.cs();
 
@@ -285,7 +285,7 @@ macro_rules! make_uint {
                     // Discard carry bits that we don't care about
                     result_bits.truncate($size);
 
-                    Ok($name {
+                    Ok(Self {
                         bits: result_bits,
                         value: modular_value,
                     })

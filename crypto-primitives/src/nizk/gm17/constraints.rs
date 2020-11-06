@@ -285,18 +285,12 @@ where
                 P::G2Var::new_variable(r1cs_core::ns!(cs, "h_beta"), || Ok(pvk.h_beta), mode)?;
             let g_alpha_pc = P::G1PreparedVar::new_variable(
                 r1cs_core::ns!(cs, "g_alpha_pc"),
-                || {
-                    let res: E::G1Prepared = pvk.g_alpha.into();
-                    Ok(res)
-                },
+                || Ok(E::G1Prepared::from(pvk.g_alpha)),
                 mode,
             )?;
             let h_beta_pc = P::G2PreparedVar::new_variable(
                 r1cs_core::ns!(cs, "h_beta_pc"),
-                || {
-                    let res: E::G2Prepared = pvk.h_beta.into();
-                    Ok(res)
-                },
+                || Ok(E::G2Prepared::from(pvk.h_beta)),
                 mode,
             )?;
             let g_gamma_pc = P::G1PreparedVar::new_variable(
