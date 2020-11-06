@@ -7,6 +7,9 @@ use num_traits::Zero;
 /// inversion close to zero while not straining the CPU cache by generating and
 /// fetching from large w-NAF tables and slices [G]
 pub const BATCH_SIZE: usize = 4096;
+
+/// We code this in the second operand for the `batch_add_in_place_read_only`
+/// method utilised in the `batch_scalar_mul_in_place` method.
 /// 0 == Identity; 1 == Neg; 2 == GLV; 3 == GLV + Neg
 pub const ENDO_CODING_BITS: usize = 2;
 
@@ -29,8 +32,9 @@ where
     // Refer to e.g. Improved Techniques for Fast Exponentiation, Section 4
     // Bodo M¨oller 2002. https://www.bmoeller.de/pdf/fastexp-icisc2002.pdf
 
-    /// Computes [[p, 3 * p, ..., (2^w - 1) * p], ..., [q, 3* q,  ..., ]]
-    /// We need to manipulate the offsets when using the table
+    /// Computes [[p_1, 3 * p_1, ..., (2^w - 1) * p_1], ..., [p_n, 3*p_n,  ...,
+    /// (2^w - 1) p_n]] We need to manipulate the offsets when using the
+    /// table
     fn batch_wnaf_tables(bases: &[Self], w: usize) -> Vec<Self> {
         let half_size = 1 << (w - 1);
         let batch_size = bases.len();
@@ -156,9 +160,9 @@ where
     /// or simply writes them to new_elems, using scratch space to store
     /// intermediate values. Scratch space is always cleared after use.
 
-    /// No-ops, or copies of the elem in the slice `lookup` in the position of the index
-    /// of the first operand to the new_elems vector, are encoded as !0u32 in the index
-    /// for the second operand
+    /// No-ops, or copies of the elem in the slice `lookup` in the position of
+    /// the index of the first operand to the new_elems vector, are encoded
+    /// as !0u32 in the index for the second operand
     fn batch_add_write(
         lookup: &[Self],
         index: &[(u32, u32)],
@@ -169,9 +173,9 @@ where
     /// Similar to batch_add_write, only that the lookup for the first operand
     /// is performed in new_elems rather than lookup
 
-    /// No-ops, or copies of the elem in the slice `lookup` in the position of the index
-    /// of the first operand to the new_elems vector, are encoded as !0u32 in the index
-    /// for the second operand
+    /// No-ops, or copies of the elem in the slice `lookup` in the position of
+    /// the index of the first operand to the new_elems vector, are encoded
+    /// as !0u32 in the index for the second operand
     fn batch_add_write_read_self(
         lookup: &[Self],
         index: &[(u32, u32)],

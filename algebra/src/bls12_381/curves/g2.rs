@@ -1,12 +1,13 @@
 use crate::{
-    biginteger::{BigInteger256, BigInteger384},
+    biginteger::{BigInteger256, BigInteger384, BigInteger512},
     bls12_381,
     bls12_381::*,
     curves::{
         bls12,
         models::{ModelParameters, SWModelParameters},
+        GLVParameters,
     },
-    field_new, Zero,
+    field_new, impl_glv_for_sw, PrimeField, Zero,
 };
 
 pub type G2Affine = bls12::G2Affine<bls12_381::Parameters>;
@@ -18,6 +19,44 @@ pub struct Parameters;
 impl ModelParameters for Parameters {
     type BaseField = Fq2;
     type ScalarField = Fr;
+}
+
+impl GLVParameters for Parameters {
+    type WideBigInt = BigInteger512;
+    const OMEGA: Self::BaseField = field_new!(
+        Fq2,
+        field_new!(
+            Fq,
+            BigInteger384([
+                14772873186050699377,
+                6749526151121446354,
+                6372666795664677781,
+                10283423008382700446,
+                286397964926079186,
+                1796971870900422465
+            ])
+        ),
+        field_new!(Fq, BigInteger384([0, 0, 0, 0, 0, 0]))
+    );
+    const LAMBDA: Self::ScalarField = field_new!(
+        Fr,
+        BigInteger256([
+            7865245318337523249,
+            18346590209729131401,
+            15545362854776399464,
+            6505881510324251116
+        ])
+    );
+    /// |round(B1 * R / n)|
+    const Q2: <Self::ScalarField as PrimeField>::BigInt =
+        BigInteger256([7203196592358157870, 8965520006802549469, 1, 0]);
+    const B1: <Self::ScalarField as PrimeField>::BigInt =
+        BigInteger256([4294967295, 12413508272118670338, 0, 0]);
+    const B1_IS_NEG: bool = true;
+    /// |round(B2 * R / n)|
+    const Q1: <Self::ScalarField as PrimeField>::BigInt = BigInteger256([2, 0, 0, 0]);
+    const B2: <Self::ScalarField as PrimeField>::BigInt = BigInteger256([1, 0, 0, 0]);
+    const R_BITS: u32 = 256;
 }
 
 impl SWModelParameters for Parameters {
@@ -60,6 +99,8 @@ impl SWModelParameters for Parameters {
     fn mul_by_a(_: &Self::BaseField) -> Self::BaseField {
         Self::BaseField::zero()
     }
+
+    impl_glv_for_sw!();
 }
 
 pub const G2_GENERATOR_X: Fq2 = field_new!(Fq2, G2_GENERATOR_X_C0, G2_GENERATOR_X_C1);

@@ -1,7 +1,7 @@
 use algebra_core::{
-    biginteger::BigInteger256,
+    biginteger::{BigInteger256, BigInteger512},
     curves::models::{ModelParameters, SWModelParameters},
-    field_new, Zero,
+    field_new, impl_glv_for_sw, GLVParameters, PrimeField, Zero,
 };
 
 use crate::bn254::{g1, Fq, Fq2, Fr};
@@ -12,6 +12,44 @@ pub struct Parameters;
 impl ModelParameters for Parameters {
     type BaseField = Fq2;
     type ScalarField = Fr;
+}
+
+impl GLVParameters for Parameters {
+    type WideBigInt = BigInteger512;
+    const OMEGA: Self::BaseField = field_new!(
+        Fq2,
+        field_new!(
+            Fq,
+            BigInteger256([
+                8183898218631979349,
+                12014359695528440611,
+                12263358156045030468,
+                3187210487005268291
+            ])
+        ),
+        field_new!(Fq, BigInteger256([0, 0, 0, 0])),
+    );
+    const LAMBDA: Self::ScalarField = field_new!(
+        Fr,
+        BigInteger256([
+            244305545194690131,
+            8351807910065594880,
+            14266533074055306532,
+            404339206190769364
+        ])
+    );
+    /// |round(B1 * R / n)|
+    const Q2: <Self::ScalarField as PrimeField>::BigInt =
+        BigInteger256([6023842690951505253, 5534624963584316114, 2, 0]);
+    const B1: <Self::ScalarField as PrimeField>::BigInt =
+        BigInteger256([857057580304901387, 8020209761171036669, 0, 0]);
+    const B1_IS_NEG: bool = false;
+    /// |round(B2 * R / n)|
+    const Q1: <Self::ScalarField as PrimeField>::BigInt =
+        BigInteger256([15644699364383830999, 2, 0, 0]);
+    const B2: <Self::ScalarField as PrimeField>::BigInt =
+        BigInteger256([9931322734385697763, 0, 0, 0]);
+    const R_BITS: u32 = 256;
 }
 
 impl SWModelParameters for Parameters {
@@ -68,6 +106,8 @@ impl SWModelParameters for Parameters {
     fn mul_by_a(_: &Self::BaseField) -> Self::BaseField {
         Self::BaseField::zero()
     }
+
+    impl_glv_for_sw!();
 }
 
 #[rustfmt::skip]

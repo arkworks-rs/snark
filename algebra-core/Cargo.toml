@@ -30,7 +30,6 @@ rand = { version = "0.7", default-features = false }
 rayon = { version = "1", optional = true }
 unroll = { version = "=0.1.4" }
 itertools = { version = "0.9.0", default-features = false }
-voracious_radix_sort = { version = "0.1.0", optional = true }
 either = { version = "1.6.0", default-features = false }
 thread-id = { version = "3.3.0", optional = true }
 backtrace = { version = "0.3", optional = true }
@@ -46,7 +45,7 @@ rand_xorshift = "0.2"
 
 [features]
 default = [ "std", "rand/default" ]
-std = [ "voracious_radix_sort" ]
+std = []
 parallel = [ "std", "rayon", "rand/default" ]
 derive = [ "algebra-core-derive" ]
 prefetch = [ "std" ]

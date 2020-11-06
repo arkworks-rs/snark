@@ -20,6 +20,7 @@ pub use self::batch_arith::*;
 pub mod bucketed_add;
 pub use self::bucketed_add::*;
 
+#[macro_use]
 pub mod glv;
 pub use self::glv::*;
 
@@ -202,6 +203,8 @@ pub trait ProjectiveCurve:
         self = res;
         self
     }
+
+    fn get_x(&mut self) -> &mut Self::BaseField;
 }
 
 /// Affine representation of an elliptic curve point guaranteed to be

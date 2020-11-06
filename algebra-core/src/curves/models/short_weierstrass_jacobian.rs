@@ -367,6 +367,10 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
             self
         }
     }
+
+    fn get_x(&mut self) -> &mut Self::BaseField {
+        &mut self.x
+    }
 }
 
 impl<P: Parameters> Neg for GroupProjective<P> {

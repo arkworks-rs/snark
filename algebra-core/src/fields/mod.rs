@@ -103,6 +103,8 @@ pub trait Field:
 {
     type BasePrimeField: PrimeField;
 
+    fn extension_degree() -> usize;
+
     /// Returns the characteristic of the field.
     fn characteristic<'a>() -> &'a [u64] {
         Self::BasePrimeField::characteristic()

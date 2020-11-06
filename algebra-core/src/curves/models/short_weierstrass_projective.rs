@@ -141,6 +141,10 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
     type ScalarField = P::ScalarField;
     type Affine = GroupAffine<P>;
 
+    fn get_x(&mut self) -> &mut Self::BaseField {
+        &mut self.x
+    }
+
     #[inline]
     fn prime_subgroup_generator() -> Self {
         GroupAffine::prime_subgroup_generator().into()

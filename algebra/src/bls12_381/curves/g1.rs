@@ -1,12 +1,13 @@
 use crate::{
-    biginteger::{BigInteger256, BigInteger384},
+    biginteger::{BigInteger256, BigInteger384, BigInteger512},
     bls12_381,
     bls12_381::*,
     curves::{
         bls12,
         models::{ModelParameters, SWModelParameters},
+        GLVParameters,
     },
-    field_new, Zero,
+    field_new, impl_glv_for_sw, PrimeField, Zero,
 };
 
 pub type G1Affine = bls12::G1Affine<bls12_381::Parameters>;
@@ -20,6 +21,39 @@ impl ModelParameters for Parameters {
     type ScalarField = Fr;
 }
 
+impl GLVParameters for Parameters {
+    type WideBigInt = BigInteger512;
+    const OMEGA: Self::BaseField = field_new!(
+        Fq,
+        BigInteger384([
+            3526659474838938856,
+            17562030475567847978,
+            1632777218702014455,
+            14009062335050482331,
+            3906511377122991214,
+            368068849512964448,
+        ])
+    );
+    const LAMBDA: Self::ScalarField = field_new!(
+        Fr,
+        BigInteger256([
+            7865245318337523249,
+            18346590209729131401,
+            15545362854776399464,
+            6505881510324251116,
+        ])
+    );
+    /// |round(B1 * R / n)|
+    const Q2: <Self::ScalarField as PrimeField>::BigInt =
+        BigInteger256([7203196592358157870, 8965520006802549469, 1, 0]);
+    const B1: <Self::ScalarField as PrimeField>::BigInt =
+        BigInteger256([4294967295, 12413508272118670338, 0, 0]);
+    const B1_IS_NEG: bool = true;
+    /// |round(B2 * R / n)|
+    const Q1: <Self::ScalarField as PrimeField>::BigInt = BigInteger256([2, 0, 0, 0]);
+    const B2: <Self::ScalarField as PrimeField>::BigInt = BigInteger256([1, 0, 0, 0]);
+    const R_BITS: u32 = 256;
+}
 impl SWModelParameters for Parameters {
     /// COEFF_A = 0
     const COEFF_A: Fq = field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0]));
@@ -56,6 +90,8 @@ impl SWModelParameters for Parameters {
     fn mul_by_a(_: &Self::BaseField) -> Self::BaseField {
         Self::BaseField::zero()
     }
+
+    impl_glv_for_sw!();
 }
 
 /// G1_GENERATOR_X =

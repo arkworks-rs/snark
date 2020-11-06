@@ -136,6 +136,29 @@ fn random_multiplication_test<G: ProjectiveCurve>() {
     }
 }
 
+fn glv_multiplication_test<G: ProjectiveCurve>() {
+    use algebra_core::fields::BitIteratorBE;
+    let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+    for _ in 0..ITERATIONS {
+        let mut a = G::rand(&mut rng);
+        let b = a;
+
+        let s = G::ScalarField::rand(&mut rng);
+        a.mul_assign(s);
+
+        let mut res = G::zero();
+        for bit in BitIteratorBE::without_leading_zeros(s.into()) {
+            res.double_in_place();
+            if bit {
+                res += b;
+            }
+        }
+
+        assert_eq!(a, res);
+    }
+}
+
 fn random_doubling_test<G: ProjectiveCurve>() {
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
@@ -655,6 +678,7 @@ pub fn curve_tests<G: ProjectiveCurve>() {
     random_doubling_test::<G>();
     random_negation_test::<G>();
     random_transformation_test::<G>();
+    glv_multiplication_test::<G>();
 }
 
 pub fn batch_affine_test<G: ProjectiveCurve>() {
