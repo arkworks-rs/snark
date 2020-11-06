@@ -94,10 +94,10 @@ jobs:
           cargo test --features full
           cd ..
 
-      - name: Test algebra with BW6 assembly
+      - name: Test algebra with assembly
         run: |
           cd algebra
-          RUSTFLAGS="-C target-feature=+bmi2,+adx" cargo test --features full --features bw6_asm
+          RUSTFLAGS="-C target-feature=+bmi2,+adx" cargo test --features "full bw6_asm asm"
           cd ..
 
   check_no_std:
