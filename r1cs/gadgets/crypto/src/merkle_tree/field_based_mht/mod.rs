@@ -29,6 +29,10 @@ impl<P, HGadget, ConstraintF> FieldBasedMerkleTreePathGadget<P, HGadget, Constra
         HGadget: FieldBasedHashGadget<P::H, ConstraintF>,
         ConstraintF: PrimeField,
 {
+    pub fn length(&self) -> usize {
+        self.path.len()
+    }
+    
     pub fn check_membership<
         CS: ConstraintSystem<ConstraintF>,
     >(
