@@ -6,7 +6,7 @@ use algebra_core::{
         mnt4::MNT4Parameters,
         models::{ModelParameters, SWModelParameters},
     },
-    field_new,
+    field_new, impl_scalar_mul_kernel, impl_scalar_mul_parameters,
 };
 
 pub type G2Affine = mnt4::G2Affine<mnt4_753::Parameters>;
@@ -28,6 +28,8 @@ pub const MUL_BY_A_C0: Fq = G1_COEFF_A_NON_RESIDUE;
 /// MUL_BY_A_C1 = NONRESIDUE * COEFF_A
 #[rustfmt::skip]
 pub const MUL_BY_A_C1: Fq = G1_COEFF_A_NON_RESIDUE;
+
+impl_scalar_mul_kernel!(mnt4_753, "mnt4_753", g2, G2Projective);
 
 impl SWModelParameters for Parameters {
     const COEFF_A: Fq2 = mnt4_753::Parameters::TWIST_COEFF_A;
@@ -103,6 +105,8 @@ impl SWModelParameters for Parameters {
     fn mul_by_a(elt: &Fq2) -> Fq2 {
         field_new!(Fq2, MUL_BY_A_C0 * &elt.c0, MUL_BY_A_C1 * &elt.c1,)
     }
+
+    impl_scalar_mul_parameters!(G2Projective);
 }
 
 const G2_GENERATOR_X: Fq2 = field_new!(Fq2, G2_GENERATOR_X_C0, G2_GENERATOR_X_C1);

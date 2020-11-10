@@ -15,6 +15,7 @@ pub trait GLVParameters: Send + Sync + 'static + ModelParameters {
     const B1: <Self::ScalarField as PrimeField>::BigInt; // |b1|
     const B2: <Self::ScalarField as PrimeField>::BigInt; // |b2|
     const B1_IS_NEG: bool;
+
     const R_BITS: u32;
 
     #[inline]

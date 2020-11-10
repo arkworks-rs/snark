@@ -10,15 +10,15 @@ macro_rules! specialise_affine_to_proj {
 
         #[derive(Derivative)]
         #[derivative(
-            Copy(bound = "P: Parameters"),
-            Clone(bound = "P: Parameters"),
-            PartialEq(bound = "P: Parameters"),
-            Eq(bound = "P: Parameters"),
-            Debug(bound = "P: Parameters"),
-            Hash(bound = "P: Parameters")
+            Copy(bound = "P: SWModelParameters"),
+            Clone(bound = "P: SWModelParameters"),
+            PartialEq(bound = "P: SWModelParameters"),
+            Eq(bound = "P: SWModelParameters"),
+            Debug(bound = "P: SWModelParameters"),
+            Hash(bound = "P: SWModelParameters")
         )]
         #[repr(C)]
-        pub struct GroupAffine<P: Parameters> {
+        pub struct GroupAffine<P: SWModelParameters> {
             pub infinity: bool,
             pub x: P::BaseField,
             pub y: P::BaseField,
@@ -26,7 +26,35 @@ macro_rules! specialise_affine_to_proj {
             _params: PhantomData<P>,
         }
 
-        impl<P: Parameters> AffineCurve for GroupAffine<P> {
+        impl<P: SWModelParameters> GroupAffine<P> {
+            #[inline(always)]
+            pub fn has_glv() -> bool {
+                P::has_glv()
+            }
+
+            #[inline(always)]
+            pub fn glv_endomorphism_in_place(elem: &mut <Self as AffineCurve>::BaseField) {
+                P::glv_endomorphism_in_place(elem);
+            }
+
+            #[inline]
+            pub fn glv_scalar_decomposition(
+                k: <<Self as AffineCurve>::ScalarField as PrimeField>::BigInt,
+            ) -> (
+                (
+                    bool,
+                    <<Self as AffineCurve>::ScalarField as PrimeField>::BigInt,
+                ),
+                (
+                    bool,
+                    <<Self as AffineCurve>::ScalarField as PrimeField>::BigInt,
+                ),
+            ) {
+                P::glv_scalar_decomposition(k)
+            }
+        }
+
+        impl<P: SWModelParameters> AffineCurve for GroupAffine<P> {
             const COFACTOR: &'static [u64] = P::COFACTOR;
             type BaseField = P::BaseField;
             type ScalarField = P::ScalarField;
@@ -81,7 +109,7 @@ macro_rules! specialise_affine_to_proj {
             }
         }
 
-        impl<P: Parameters> GroupAffine<P> {
+        impl<P: SWModelParameters> GroupAffine<P> {
             pub fn new(x: P::BaseField, y: P::BaseField, infinity: bool) -> Self {
                 Self {
                     x,
@@ -147,7 +175,7 @@ macro_rules! specialise_affine_to_proj {
             }
         }
 
-        impl<P: Parameters> Display for GroupAffine<P> {
+        impl<P: SWModelParameters> Display for GroupAffine<P> {
             fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
                 if self.infinity {
                     write!(f, "GroupAffine(Infinity)")
@@ -157,7 +185,7 @@ macro_rules! specialise_affine_to_proj {
             }
         }
 
-        impl<P: Parameters> Zero for GroupAffine<P> {
+        impl<P: SWModelParameters> Zero for GroupAffine<P> {
             fn zero() -> Self {
                 Self::new(P::BaseField::zero(), P::BaseField::one(), true)
             }
@@ -167,7 +195,7 @@ macro_rules! specialise_affine_to_proj {
             }
         }
 
-        impl<P: Parameters> Add<Self> for GroupAffine<P> {
+        impl<P: SWModelParameters> Add<Self> for GroupAffine<P> {
             type Output = Self;
             fn add(self, other: Self) -> Self {
                 let mut copy = self;
@@ -176,7 +204,7 @@ macro_rules! specialise_affine_to_proj {
             }
         }
 
-        impl<'a, P: Parameters> AddAssign<&'a Self> for GroupAffine<P> {
+        impl<'a, P: SWModelParameters> AddAssign<&'a Self> for GroupAffine<P> {
             fn add_assign(&mut self, other: &'a Self) {
                 let mut s_proj = <Self as AffineCurve>::Projective::from(*self);
                 s_proj.add_assign_mixed(other);
@@ -184,7 +212,7 @@ macro_rules! specialise_affine_to_proj {
             }
         }
 
-        impl<P: Parameters> Neg for GroupAffine<P> {
+        impl<P: SWModelParameters> Neg for GroupAffine<P> {
             type Output = Self;
 
             #[inline]
@@ -199,7 +227,7 @@ macro_rules! specialise_affine_to_proj {
 
         impl_sw_batch_affine!(GroupAffine);
 
-        impl<P: Parameters> ToBytes for GroupAffine<P> {
+        impl<P: SWModelParameters> ToBytes for GroupAffine<P> {
             #[inline]
             fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
                 self.x.write(&mut writer)?;
@@ -208,7 +236,7 @@ macro_rules! specialise_affine_to_proj {
             }
         }
 
-        impl<P: Parameters> FromBytes for GroupAffine<P> {
+        impl<P: SWModelParameters> FromBytes for GroupAffine<P> {
             #[inline]
             fn read<R: Read>(mut reader: R) -> IoResult<Self> {
                 let x = P::BaseField::read(&mut reader)?;
@@ -218,14 +246,14 @@ macro_rules! specialise_affine_to_proj {
             }
         }
 
-        impl<P: Parameters> Default for GroupAffine<P> {
+        impl<P: SWModelParameters> Default for GroupAffine<P> {
             #[inline]
             fn default() -> Self {
                 Self::zero()
             }
         }
 
-        impl_sw_curve_serializer!(Parameters);
+        impl_sw_curve_serializer!(SWModelParameters);
     };
 }
 

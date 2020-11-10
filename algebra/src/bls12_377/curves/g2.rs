@@ -1,12 +1,18 @@
-use crate::bls12_377::{g1, Fq, Fq2, Fr};
 use algebra_core::{
     biginteger::{BigInteger256, BigInteger384, BigInteger512},
     curves::{
+        bls12,
         models::{ModelParameters, SWModelParameters},
         GLVParameters,
     },
-    field_new, impl_glv_for_sw, PrimeField, Zero,
+    field_new, impl_glv_for_sw, impl_scalar_mul_kernel, impl_scalar_mul_parameters, PrimeField,
+    Zero,
 };
+
+use crate::{bls12_377, bls12_377::*};
+
+pub type G2Affine = bls12::G2Affine<bls12_377::Parameters>;
+pub type G2Projective = bls12::G2Projective<bls12_377::Parameters>;
 
 #[derive(Clone, Default, PartialEq, Eq)]
 pub struct Parameters;
@@ -15,6 +21,8 @@ impl ModelParameters for Parameters {
     type BaseField = Fq2;
     type ScalarField = Fr;
 }
+
+impl_scalar_mul_kernel!(bls12_377, "bls12_377", g2, G2Projective);
 
 impl GLVParameters for Parameters {
     type WideBigInt = BigInteger512;
@@ -114,6 +122,7 @@ impl SWModelParameters for Parameters {
         Self::BaseField::zero()
     }
 
+    impl_scalar_mul_parameters!(G2Projective);
     impl_glv_for_sw!();
 }
 

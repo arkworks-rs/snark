@@ -4,7 +4,7 @@ use crate::{
         models::{ModelParameters, MontgomeryModelParameters, TEModelParameters},
         twisted_edwards_extended::{GroupAffine, GroupProjective},
     },
-    field_new,
+    field_new, impl_scalar_mul_kernel, impl_scalar_mul_parameters,
 };
 
 use crate::ed_on_cp6_782::{fq::Fq, fr::Fr};
@@ -23,6 +23,7 @@ impl ModelParameters for EdwardsParameters {
     type ScalarField = Fr;
 }
 
+impl_scalar_mul_kernel!(ed_on_cp6_782, "ed_on_cp6_782", proj, EdwardsProjective);
 impl TEModelParameters for EdwardsParameters {
     /// COEFF_A = -1 =
     /// 258664426012969094010652733694893533536393512754914660539884262666720468348340822774968888139573360124440321458176
@@ -72,6 +73,8 @@ impl TEModelParameters for EdwardsParameters {
     fn mul_by_a(elem: &Self::BaseField) -> Self::BaseField {
         -*elem
     }
+
+    impl_scalar_mul_parameters!(EdwardsProjective);
 }
 
 impl MontgomeryModelParameters for EdwardsParameters {

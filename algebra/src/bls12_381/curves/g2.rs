@@ -7,7 +7,8 @@ use crate::{
         models::{ModelParameters, SWModelParameters},
         GLVParameters,
     },
-    field_new, impl_glv_for_sw, PrimeField, Zero,
+    field_new, impl_glv_for_sw, impl_scalar_mul_kernel, impl_scalar_mul_parameters, PrimeField,
+    Zero,
 };
 
 pub type G2Affine = bls12::G2Affine<bls12_381::Parameters>;
@@ -20,6 +21,8 @@ impl ModelParameters for Parameters {
     type BaseField = Fq2;
     type ScalarField = Fr;
 }
+
+impl_scalar_mul_kernel!(bls12_381, "bls12_381", g2, G2Projective);
 
 impl GLVParameters for Parameters {
     type WideBigInt = BigInteger512;
@@ -100,6 +103,7 @@ impl SWModelParameters for Parameters {
         Self::BaseField::zero()
     }
 
+    impl_scalar_mul_parameters!(G2Projective);
     impl_glv_for_sw!();
 }
 

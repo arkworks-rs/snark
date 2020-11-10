@@ -5,7 +5,7 @@ use algebra_core::{
         models::{ModelParameters, MontgomeryModelParameters, TEModelParameters},
         twisted_edwards_extended::{GroupAffine, GroupProjective},
     },
-    field_new,
+    field_new, impl_scalar_mul_kernel, impl_scalar_mul_parameters,
 };
 
 #[cfg(test)]
@@ -26,6 +26,8 @@ impl ModelParameters for EdwardsParameters {
 // discussed below. Some useful numbers:
 // R for Fq: 223364648326281414938801705359223029554923725549792420683051274872200260503540791531766876
 // R for Fr: 104384076783966083500464392945960916666734135485183910065100558776489954102951241798239545
+
+impl_scalar_mul_kernel!(ed_on_mnt4_298, "ed_on_mnt4_298", proj, EdwardsProjective);
 
 impl TEModelParameters for EdwardsParameters {
     /// COEFF_A = -1
@@ -81,6 +83,8 @@ impl TEModelParameters for EdwardsParameters {
     fn mul_by_a(elem: &Self::BaseField) -> Self::BaseField {
         -*elem
     }
+
+    impl_scalar_mul_parameters!(EdwardsProjective);
 }
 
 impl MontgomeryModelParameters for EdwardsParameters {

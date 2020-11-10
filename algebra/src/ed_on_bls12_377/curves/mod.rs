@@ -5,8 +5,10 @@ use algebra_core::{
         models::{ModelParameters, MontgomeryModelParameters, TEModelParameters},
         twisted_edwards_extended::{GroupAffine, GroupProjective},
     },
-    field_new,
+    field_new, impl_scalar_mul_kernel, impl_scalar_mul_parameters,
 };
+
+impl_scalar_mul_kernel!(ed_on_bls12_377, "ed_on_bls12_377", proj, EdwardsProjective);
 
 #[cfg(test)]
 mod tests;
@@ -65,6 +67,8 @@ impl TEModelParameters for EdwardsParameters {
     fn mul_by_a(elem: &Self::BaseField) -> Self::BaseField {
         -*elem
     }
+
+    impl_scalar_mul_parameters!(EdwardsProjective);
 }
 
 impl MontgomeryModelParameters for EdwardsParameters {

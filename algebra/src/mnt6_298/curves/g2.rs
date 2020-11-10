@@ -6,7 +6,7 @@ use algebra_core::{
         mnt6::MNT6Parameters,
         models::{ModelParameters, SWModelParameters},
     },
-    field_new,
+    field_new, impl_scalar_mul_kernel, impl_scalar_mul_parameters,
 };
 
 pub type G2Affine = mnt6::G2Affine<mnt6_298::Parameters>;
@@ -43,6 +43,8 @@ pub const MUL_BY_A_C1: Fq = field_new!(Fq, BigInteger320([
 
 /// MUL_BY_A_C2 = COEFF_A
 pub const MUL_BY_A_C2: Fq = g1::Parameters::COEFF_A;
+
+impl_scalar_mul_kernel!(mnt6_298, "mnt6_298", g2, G2Projective);
 
 impl SWModelParameters for Parameters {
     const COEFF_A: Fq3 = mnt6_298::Parameters::TWIST_COEFF_A;
@@ -99,6 +101,8 @@ impl SWModelParameters for Parameters {
             MUL_BY_A_C2 * &elt.c0,
         )
     }
+
+    impl_scalar_mul_parameters!(G2Projective);
 }
 
 const G2_GENERATOR_X: Fq3 =

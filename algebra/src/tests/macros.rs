@@ -7,7 +7,7 @@ macro_rules! std_curve_tests {
         };
         use rand::Rng;
 
-        use crate::tests::{curves::*, groups::*, msm::*};
+        use crate::tests::{cuda::*, curves::*, groups::*, msm::*};
 
         #[test]
         #[cfg(feature = "curve")]
@@ -100,6 +100,18 @@ macro_rules! std_curve_tests {
         }
 
         #[test]
+        #[cfg(any(feature = "curve", feature = "cuda_test"))]
+        fn test_g1_cuda_scalar_mul() {
+            test_cuda_scalar_mul::<G1Affine>();
+        }
+
+        #[test]
+        #[cfg(any(feature = "curve", feature = "cuda_test"))]
+        fn test_g2_cuda_scalar_mul() {
+            test_cuda_scalar_mul::<G2Affine>();
+        }
+
+        #[test]
         #[cfg(feature = "pairing")]
         fn test_bilinearity() {
             let mut rng = test_rng();
@@ -152,7 +164,7 @@ macro_rules! edwards_curve_tests {
         };
         use rand::Rng;
 
-        use crate::tests::{curves::*, groups::*, msm::*};
+        use crate::tests::{cuda::*, curves::*, groups::*, msm::*};
 
         #[test]
         #[cfg(feature = "curve")]
@@ -206,7 +218,13 @@ macro_rules! edwards_curve_tests {
         }
 
         #[test]
-        #[cfg(feature = "curve")]
+        #[cfg(any(feature = "curve", feature = "cuda_test"))]
+        fn test_edwards_cuda_scalar_mul() {
+            test_cuda_scalar_mul::<EdwardsAffine>();
+        }
+
+        #[test]
+        #[cfg(any(feature = "curve", feature = "cuda_test"))]
         fn test_generator() {
             let generator = EdwardsAffine::prime_subgroup_generator();
             assert!(generator.is_on_curve());

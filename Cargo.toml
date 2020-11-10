@@ -15,7 +15,7 @@ members = [
     "r1cs-core",
     "r1cs-std",
     "algebra-core/algebra-core-derive",
-    "scripts/glv_lattice_basis"
+    "scripts/glv_lattice_basis",
 ]
 
 [profile.release]

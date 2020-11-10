@@ -8,7 +8,7 @@ use crate::{
     },
     field_new,
     fields::PrimeField,
-    impl_glv_for_sw,
+    impl_glv_for_sw, impl_scalar_mul_kernel_glv, impl_scalar_mul_parameters,
 };
 
 pub type G2Affine = GroupAffine<Parameters>;
@@ -21,6 +21,8 @@ impl ModelParameters for Parameters {
     type BaseField = Fq;
     type ScalarField = Fr;
 }
+
+impl_scalar_mul_kernel_glv!(bw6_761, "bw6_761", g2, G2Projective);
 
 impl GLVParameters for Parameters {
     type WideBigInt = BigInteger768;
@@ -154,6 +156,7 @@ impl SWModelParameters for Parameters {
         Self::BaseField::zero()
     }
 
+    impl_scalar_mul_parameters!(G2Projective);
     impl_glv_for_sw!();
 }
 

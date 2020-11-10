@@ -12,8 +12,10 @@ pub(crate) mod sw_batch_affine;
 pub mod short_weierstrass_affine;
 #[macro_use]
 pub mod short_weierstrass_jacobian;
-pub mod short_weierstrass_projective;
 pub mod twisted_edwards_extended;
+
+pub use short_weierstrass_jacobian::SWModelParameters;
+pub use twisted_edwards_extended::TEModelParameters;
 
 pub trait ModelParameters: Send + Sync + 'static {
     type BaseField: Field + SquareRootField;
@@ -21,70 +23,6 @@ pub trait ModelParameters: Send + Sync + 'static {
         + SquareRootField
         + Into<<Self::ScalarField as PrimeField>::BigInt>
         + From<<Self::ScalarField as PrimeField>::BigInt>;
-}
-
-pub trait SWModelParameters: ModelParameters {
-    const COEFF_A: Self::BaseField;
-    const COEFF_B: Self::BaseField;
-    const COFACTOR: &'static [u64];
-    const COFACTOR_INV: Self::ScalarField;
-    const AFFINE_GENERATOR_COEFFS: (Self::BaseField, Self::BaseField);
-
-    #[inline(always)]
-    fn mul_by_a(elem: &Self::BaseField) -> Self::BaseField {
-        let mut copy = *elem;
-        copy *= &Self::COEFF_A;
-        copy
-    }
-
-    #[inline(always)]
-    fn add_b(elem: &Self::BaseField) -> Self::BaseField {
-        let mut copy = *elem;
-        copy += &Self::COEFF_B;
-        copy
-    }
-
-    #[inline(always)]
-    fn has_glv() -> bool {
-        false
-    }
-
-    #[inline(always)]
-    fn glv_endomorphism_in_place(_elem: &mut Self::BaseField) {
-        unimplemented!()
-    }
-
-    #[inline(always)]
-    fn glv_scalar_decomposition(
-        _k: <Self::ScalarField as PrimeField>::BigInt,
-    ) -> (
-        (bool, <Self::ScalarField as PrimeField>::BigInt),
-        (bool, <Self::ScalarField as PrimeField>::BigInt),
-    ) {
-        unimplemented!()
-    }
-
-    #[inline(always)]
-    fn glv_window_size() -> usize {
-        4
-    }
-}
-
-pub trait TEModelParameters: ModelParameters {
-    const COEFF_A: Self::BaseField;
-    const COEFF_D: Self::BaseField;
-    const COFACTOR: &'static [u64];
-    const COFACTOR_INV: Self::ScalarField;
-    const AFFINE_GENERATOR_COEFFS: (Self::BaseField, Self::BaseField);
-
-    type MontgomeryModelParameters: MontgomeryModelParameters<BaseField = Self::BaseField>;
-
-    #[inline(always)]
-    fn mul_by_a(elem: &Self::BaseField) -> Self::BaseField {
-        let mut copy = *elem;
-        copy *= &Self::COEFF_A;
-        copy
-    }
 }
 
 pub trait MontgomeryModelParameters: ModelParameters {

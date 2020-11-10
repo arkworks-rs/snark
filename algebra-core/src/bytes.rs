@@ -316,7 +316,7 @@ mod test {
     fn test_macro_empty() {
         let array: Vec<u8> = vec![];
         let bytes: Vec<u8> = to_bytes![array].unwrap();
-        assert_eq!(&bytes, &[]);
+        assert_eq!(bytes, Vec::<u8>::new());
         assert_eq!(bytes.len(), 0);
     }
 

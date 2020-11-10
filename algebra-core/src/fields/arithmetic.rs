@@ -1,18 +1,18 @@
 /// All of these methods store intermediate results on the stack, and so
 /// they support overlap of input and output parameters.
-#[cfg(feature = "bw6_asm")]
+#[cfg(use_bw6_asm)]
 extern "C" {
     pub fn modmul768(x: *const u64, y: *const u64, m: *const u64, z: *mut u64);
     pub fn modadd768(x: *const u64, y: *const u64, m: *const u64, z: *mut u64);
     pub fn modsub768(x: *const u64, y: *const u64, m: *const u64, z: *mut u64);
 }
-
 /// This modular multiplication algorithm uses Montgomery
 /// reduction for efficient implementation. It also additionally
 /// uses the "no-carry optimization" outlined
 /// [here](https://hackmd.io/@zkteam/modular_multiplication) if
 /// `P::MODULUS` has BOTH (a) a zero MSB, AND (b) at least one
 /// zero bit in the rest of the modulus.
+
 macro_rules! impl_field_mul_assign {
     ($limbs:expr) => {
         #[inline]
@@ -255,6 +255,7 @@ macro_rules! impl_field_square_in_place {
                     return self;
                 }
             }
+
             // Checking the modulus at compile time
             let first_bit_set = P::MODULUS.0[$limbs - 1] >> 63 != 0;
             let mut all_bits_set = P::MODULUS.0[$limbs - 1] == !0 - (1 << 63);
