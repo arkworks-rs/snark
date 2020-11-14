@@ -28,7 +28,7 @@ pub type ScalarMulProfiler = ();
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
-pub const MAX_GROUP_ELEM_BYTES: usize = 400;
+pub const MAX_GROUP_ELEM_BYTES: usize = 300;
 
 #[derive(Debug)]
 pub enum CudaScalarMulError {

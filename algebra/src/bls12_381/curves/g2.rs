@@ -7,7 +7,7 @@ use crate::{
         models::{ModelParameters, SWModelParameters},
         GLVParameters,
     },
-    field_new, impl_glv_for_sw, impl_scalar_mul_kernel, impl_scalar_mul_parameters, PrimeField,
+    field_new, impl_glv_for_sw, impl_scalar_mul_kernel_glv, impl_scalar_mul_parameters, PrimeField,
     Zero,
 };
 
@@ -22,7 +22,7 @@ impl ModelParameters for Parameters {
     type ScalarField = Fr;
 }
 
-impl_scalar_mul_kernel!(bls12_381, "bls12_381", g2, G2Projective);
+impl_scalar_mul_kernel_glv!(bls12_381, "bls12_381", g2, G2Projective);
 
 impl GLVParameters for Parameters {
     type WideBigInt = BigInteger512;

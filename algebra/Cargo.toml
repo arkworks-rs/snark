@@ -56,7 +56,7 @@ te_curves = [
 
 all_tests = [
   "curve", "batch_affine", "msm", "verify", "random_bytes",
-  "pairing", "serialisation", "conversion"
+  "pairing", "serialisation", "conversion", "cuda_test"
 ]
 
 bn254 = []

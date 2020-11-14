@@ -34,6 +34,8 @@ pub fn test_cuda_scalar_mul<G: AffineCurve>() {
         .collect::<Vec<_>>();
     let mut bases_h = create_pseudo_uniform_random_elems::<G, XorShiftRng>(&mut rng, MAX_LOGN);
 
+    let (mut first_b, mut first_e) = (bases_h[0].into_projective(), exps_h[0].clone());
+    let (mut first_b_, mut first_e_) = (bases_h[0].into_projective(), exps_h[0].clone());
     let mut bases_d = bases_h.to_vec();
     let mut exps_cpu = exps_h.to_vec();
 
@@ -53,9 +55,8 @@ pub fn test_cuda_scalar_mul<G: AffineCurve>() {
     }
     let now = std::time::Instant::now();
     &mut bases_d[..].cpu_gpu_scalar_mul(&exps_h[..], cuda_group_size, CHUNK_SIZE);
-    println!("CPU + GPU mul: {}us", now.elapsed().as_micros());
 
-    for (b_h, b_d) in bases_h.into_iter().zip(bases_d.into_iter()) {
-        assert_eq!(b_h, b_d);
+    for (i, (b_h, b_d)) in bases_h.into_iter().zip(bases_d.into_iter()).enumerate() {
+        assert_eq!(b_h, b_d, "{}", i);
     }
 }
