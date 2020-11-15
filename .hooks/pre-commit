@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+
+rustfmt --version &>/dev/null
+if [ $? != 0 ]; then
+        printf "[pre_commit] \033[0;31merror\033[0m: \"rustfmt\" not available. \n"
+        printf "[pre_commit] \033[0;31merror\033[0m: rustfmt can be installed via - \n"
+        printf "[pre_commit] $ rustup component add rustfmt \n"
+        exit 1
+fi
+
+problem_files=()
+
+# collect ill-formatted files
+for file in $(git diff --name-only --cached); do
+        if [ ${file: -3} == ".rs" ]; then
+                rustfmt +stable --check $file &>/dev/null
+                if [ $? != 0 ]; then
+                        problem_files+=($file)
+                fi
+        fi
+done
+
+if [ ${#problem_files[@]} == 0 ]; then
+  # done
+  printf "[pre_commit] rustfmt \033[0;32mok\033[0m \n"
+else
+  # reformat the files that need it and re-stage them.
+  printf "[pre_commit] the following files were rustfmt'd before commit: \n"
+  for file in ${problem_files[@]}; do
+    rustfmt +stable $file
+    git add $file
+    printf "\033[0;32m    $file\033[0m \n"
+  done
+fi
+
+exit 0

@@ -1,0 +1,9 @@
+reorder_imports = true
+wrap_comments = true
+normalize_comments = true
+use_try_shorthand = true
+match_block_trailing_comma = true
+use_field_init_shorthand = true
+edition = "2018"
+condense_wildcard_suffixes = true
+merge_imports = true
