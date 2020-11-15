@@ -80,7 +80,9 @@
 
 .globl  modadd768
 #ifndef __APPLE__
+#ifndef _WIN64
 .type   modadd768, @function
+#endif
 #endif
 
 .p2align 6,,15

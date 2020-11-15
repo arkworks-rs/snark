@@ -117,7 +117,9 @@
 
 .globl  modmul768
 #ifndef __APPLE__
+#ifndef _WIN64
 .type   modmul768, @function
+#endif
 #endif
 
 .p2align 6,,63
