@@ -696,8 +696,10 @@ pub fn sw_tests<P: SWModelParameters>() {
     sw_from_random_bytes::<P>();
     // Only check batch verification for non-unit cofactor
     #[cfg(feature = "verify")]
-    if !(P::COFACTOR[0] == 1u64 && P::COFACTOR[1..].iter().all(|&x| x == 0u64)) {
-        sw_batch_verify_test::<P>();
+    {
+        if !(P::COFACTOR[0] == 1u64 && P::COFACTOR[1..].iter().all(|&x| x == 0u64)) {
+            sw_batch_verify_test::<P>();
+        }
     }
 }
 
@@ -834,8 +836,10 @@ where
     edwards_from_random_bytes::<P>();
     // Only check batch verification for non-unit cofactor
     #[cfg(feature = "verify")]
-    if !(P::COFACTOR[0] == 1u64 && P::COFACTOR[1..].iter().all(|&x| x == 0u64)) {
-        te_batch_verify_test::<P>();
+    {
+        if !(P::COFACTOR[0] == 1u64 && P::COFACTOR[1..].iter().all(|&x| x == 0u64)) {
+            te_batch_verify_test::<P>();
+        }
     }
 }
 

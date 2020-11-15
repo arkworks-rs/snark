@@ -20,30 +20,32 @@ macro_rules! impl_field_mul_assign {
         fn mul_assign(&mut self, other: &Self) {
             #[cfg(use_bw6_asm)]
             #[allow(unsafe_code, unused_mut, unconditional_panic)]
-            if $limbs == 12 {
-                unsafe {
-                    let modulus_with_inv = [
-                        P::MODULUS.0[0],
-                        P::MODULUS.0[1],
-                        P::MODULUS.0[2],
-                        P::MODULUS.0[3],
-                        P::MODULUS.0[4],
-                        P::MODULUS.0[5],
-                        P::MODULUS.0[6],
-                        P::MODULUS.0[7],
-                        P::MODULUS.0[8],
-                        P::MODULUS.0[9],
-                        P::MODULUS.0[10],
-                        P::MODULUS.0[11],
-                        P::INV,
-                    ];
-                    crate::fields::arithmetic::modmul768(
-                        ((self.0).0).as_ptr(),
-                        ((other.0).0).as_ptr(),
-                        modulus_with_inv.as_ptr(),
-                        ((self.0).0).as_mut_ptr(),
-                    );
-                    return;
+            {
+                if $limbs == 12 {
+                    unsafe {
+                        let modulus_with_inv = [
+                            P::MODULUS.0[0],
+                            P::MODULUS.0[1],
+                            P::MODULUS.0[2],
+                            P::MODULUS.0[3],
+                            P::MODULUS.0[4],
+                            P::MODULUS.0[5],
+                            P::MODULUS.0[6],
+                            P::MODULUS.0[7],
+                            P::MODULUS.0[8],
+                            P::MODULUS.0[9],
+                            P::MODULUS.0[10],
+                            P::MODULUS.0[11],
+                            P::INV,
+                        ];
+                        crate::fields::arithmetic::modmul768(
+                            ((self.0).0).as_ptr(),
+                            ((other.0).0).as_ptr(),
+                            modulus_with_inv.as_ptr(),
+                            ((self.0).0).as_mut_ptr(),
+                        );
+                        return;
+                    }
                 }
             }
             // Checking the modulus at compile time
@@ -120,30 +122,32 @@ macro_rules! impl_field_add_assign {
         fn add_assign(&mut self, other: &Self) {
             #[cfg(use_bw6_asm)]
             #[allow(unsafe_code, unused_mut, unconditional_panic)]
-            if $limbs == 12 {
-                unsafe {
-                    let modulus_with_inv = [
-                        P::MODULUS.0[0],
-                        P::MODULUS.0[1],
-                        P::MODULUS.0[2],
-                        P::MODULUS.0[3],
-                        P::MODULUS.0[4],
-                        P::MODULUS.0[5],
-                        P::MODULUS.0[6],
-                        P::MODULUS.0[7],
-                        P::MODULUS.0[8],
-                        P::MODULUS.0[9],
-                        P::MODULUS.0[10],
-                        P::MODULUS.0[11],
-                        P::INV,
-                    ];
-                    crate::fields::arithmetic::modadd768(
-                        ((self.0).0).as_ptr(),
-                        ((other.0).0).as_ptr(),
-                        modulus_with_inv.as_ptr(),
-                        ((self.0).0).as_mut_ptr(),
-                    );
-                    return;
+            {
+                if $limbs == 12 {
+                    unsafe {
+                        let modulus_with_inv = [
+                            P::MODULUS.0[0],
+                            P::MODULUS.0[1],
+                            P::MODULUS.0[2],
+                            P::MODULUS.0[3],
+                            P::MODULUS.0[4],
+                            P::MODULUS.0[5],
+                            P::MODULUS.0[6],
+                            P::MODULUS.0[7],
+                            P::MODULUS.0[8],
+                            P::MODULUS.0[9],
+                            P::MODULUS.0[10],
+                            P::MODULUS.0[11],
+                            P::INV,
+                        ];
+                        crate::fields::arithmetic::modadd768(
+                            ((self.0).0).as_ptr(),
+                            ((other.0).0).as_ptr(),
+                            modulus_with_inv.as_ptr(),
+                            ((self.0).0).as_mut_ptr(),
+                        );
+                        return;
+                    }
                 }
             }
             // This cannot exceed the backing capacity.
@@ -161,30 +165,32 @@ macro_rules! impl_field_sub_assign {
         fn sub_assign(&mut self, other: &Self) {
             #[cfg(use_bw6_asm)]
             #[allow(unsafe_code, unused_mut, unconditional_panic)]
-            if $limbs == 12 {
-                unsafe {
-                    let modulus_with_inv = [
-                        P::MODULUS.0[0],
-                        P::MODULUS.0[1],
-                        P::MODULUS.0[2],
-                        P::MODULUS.0[3],
-                        P::MODULUS.0[4],
-                        P::MODULUS.0[5],
-                        P::MODULUS.0[6],
-                        P::MODULUS.0[7],
-                        P::MODULUS.0[8],
-                        P::MODULUS.0[9],
-                        P::MODULUS.0[10],
-                        P::MODULUS.0[11],
-                        P::INV,
-                    ];
-                    crate::fields::arithmetic::modsub768(
-                        ((self.0).0).as_ptr(),
-                        ((other.0).0).as_ptr(),
-                        modulus_with_inv.as_ptr(),
-                        ((self.0).0).as_mut_ptr(),
-                    );
-                    return;
+            {
+                if $limbs == 12 {
+                    unsafe {
+                        let modulus_with_inv = [
+                            P::MODULUS.0[0],
+                            P::MODULUS.0[1],
+                            P::MODULUS.0[2],
+                            P::MODULUS.0[3],
+                            P::MODULUS.0[4],
+                            P::MODULUS.0[5],
+                            P::MODULUS.0[6],
+                            P::MODULUS.0[7],
+                            P::MODULUS.0[8],
+                            P::MODULUS.0[9],
+                            P::MODULUS.0[10],
+                            P::MODULUS.0[11],
+                            P::INV,
+                        ];
+                        crate::fields::arithmetic::modsub768(
+                            ((self.0).0).as_ptr(),
+                            ((other.0).0).as_ptr(),
+                            modulus_with_inv.as_ptr(),
+                            ((self.0).0).as_mut_ptr(),
+                        );
+                        return;
+                    }
                 }
             }
             // If `other` is larger than `self`, add the modulus to self first.
@@ -229,30 +235,32 @@ macro_rules! impl_field_square_in_place {
         fn square_in_place(&mut self) -> &mut Self {
             #[cfg(use_bw6_asm)]
             #[allow(unsafe_code, unused_mut, unconditional_panic)]
-            if $limbs == 12 {
-                unsafe {
-                    let modulus_with_inv = [
-                        P::MODULUS.0[0],
-                        P::MODULUS.0[1],
-                        P::MODULUS.0[2],
-                        P::MODULUS.0[3],
-                        P::MODULUS.0[4],
-                        P::MODULUS.0[5],
-                        P::MODULUS.0[6],
-                        P::MODULUS.0[7],
-                        P::MODULUS.0[8],
-                        P::MODULUS.0[9],
-                        P::MODULUS.0[10],
-                        P::MODULUS.0[11],
-                        P::INV,
-                    ];
-                    crate::fields::arithmetic::modmul768(
-                        ((self.0).0).as_ptr(),
-                        ((self.0).0).as_ptr(),
-                        modulus_with_inv.as_ptr(),
-                        ((self.0).0).as_mut_ptr(),
-                    );
-                    return self;
+            {
+                if $limbs == 12 {
+                    unsafe {
+                        let modulus_with_inv = [
+                            P::MODULUS.0[0],
+                            P::MODULUS.0[1],
+                            P::MODULUS.0[2],
+                            P::MODULUS.0[3],
+                            P::MODULUS.0[4],
+                            P::MODULUS.0[5],
+                            P::MODULUS.0[6],
+                            P::MODULUS.0[7],
+                            P::MODULUS.0[8],
+                            P::MODULUS.0[9],
+                            P::MODULUS.0[10],
+                            P::MODULUS.0[11],
+                            P::INV,
+                        ];
+                        crate::fields::arithmetic::modmul768(
+                            ((self.0).0).as_ptr(),
+                            ((self.0).0).as_ptr(),
+                            modulus_with_inv.as_ptr(),
+                            ((self.0).0).as_mut_ptr(),
+                        );
+                        return self;
+                    }
                 }
             }
 

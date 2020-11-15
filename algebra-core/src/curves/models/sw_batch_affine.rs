@@ -19,25 +19,25 @@ macro_rules! impl_sw_batch_affine {
 
         #[cfg(feature = "prefetch")]
         macro_rules! prefetch_slice_endo {
-            ($slice_1: ident, $slice_2: ident, $prefetch_iter: ident) => {
+            ($slice_1: ident, $slice_2: ident, $prefetch_iter: ident) => {{
                 if let Some((idp_1, idp_2)) = $prefetch_iter.next() {
                     let (idp_2, _) = decode_endo_from_u32(*idp_2);
                     prefetch::<Self>(&mut $slice_1[*idp_1 as usize]);
                     prefetch::<Self>(&$slice_2[idp_2]);
                 }
-            };
+            }};
         }
 
         #[cfg(feature = "prefetch")]
         macro_rules! prefetch_slice_write {
-            ($slice_1: ident, $slice_2: ident, $prefetch_iter: ident) => {
+            ($slice_1: ident, $slice_2: ident, $prefetch_iter: ident) => {{
                 if let Some((idp_1, idp_2)) = $prefetch_iter.next() {
                     prefetch::<Self>(&$slice_1[*idp_1 as usize]);
                     if *idp_2 != !0u32 {
                         prefetch::<Self>(&$slice_2[*idp_2 as usize]);
                     }
                 }
-            };
+            }};
         }
 
         macro_rules! batch_add_loop_1 {
@@ -139,8 +139,10 @@ macro_rules! impl_sw_batch_affine {
                 for idx in index.iter() {
                     // Prefetch next group into cache
                     #[cfg(feature = "prefetch")]
-                    if let Some(idp) = prefetch_iter.next() {
-                        prefetch::<Self>(&mut bases[*idp as usize]);
+                    {
+                        if let Some(idp) = prefetch_iter.next() {
+                            prefetch::<Self>(&mut bases[*idp as usize]);
+                        }
                     }
                     let mut a = &mut bases[*idx as usize];
                     if !a.is_zero() {
@@ -164,15 +166,19 @@ macro_rules! impl_sw_batch_affine {
 
                 for idx in index.iter().rev() {
                     #[cfg(feature = "prefetch")]
-                    if let Some(idp) = prefetch_iter.next() {
-                        prefetch::<Self>(&mut bases[*idp as usize]);
+                    {
+                        if let Some(idp) = prefetch_iter.next() {
+                            prefetch::<Self>(&mut bases[*idp as usize]);
+                        }
                     }
                     let mut a = &mut bases[*idx as usize];
                     if !a.is_zero() {
                         let z = scratch_space.pop().unwrap();
                         #[cfg(feature = "prefetch")]
-                        if let Some(e) = scratch_space.last() {
-                            prefetch::<P::BaseField>(e);
+                        {
+                            if let Some(e) = scratch_space.last() {
+                                prefetch::<P::BaseField>(e);
+                            }
                         }
                         let lambda = z * &inversion_tmp;
                         inversion_tmp *= &a.y.double(); // Remove the top layer of the denominator

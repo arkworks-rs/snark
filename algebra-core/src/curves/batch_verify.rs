@@ -72,32 +72,34 @@ fn run_rounds<C: AffineCurve, R: Rng>(
     rng: &mut R,
 ) -> Result<(), VerificationError> {
     #[cfg(feature = "parallel")]
-    if num_rounds > 2 {
-        use std::sync::Arc;
-        let ref_points = Arc::new(points.to_vec());
-        let mut threads = vec![];
-        for _ in 0..num_rounds {
-            let ref_points_thread = ref_points.clone();
-            // We only use std when a multicore environment is available
-            threads.push(std::thread::spawn(
-                move || -> Result<(), VerificationError> {
-                    let mut rng = &mut thread_rng();
-                    verify_points(
-                        &ref_points_thread[..],
-                        num_buckets,
-                        new_security_param,
-                        &mut rng,
-                    )?;
-                    Ok(())
-                },
-            ));
-        }
-        for thread in threads {
-            thread.join().unwrap()?;
-        }
-    } else {
-        for _ in 0..num_rounds {
-            verify_points(points, num_buckets, new_security_param, rng)?;
+    {
+        if num_rounds > 2 {
+            use std::sync::Arc;
+            let ref_points = Arc::new(points.to_vec());
+            let mut threads = vec![];
+            for _ in 0..num_rounds {
+                let ref_points_thread = ref_points.clone();
+                // We only use std when a multicore environment is available
+                threads.push(std::thread::spawn(
+                    move || -> Result<(), VerificationError> {
+                        let mut rng = &mut thread_rng();
+                        verify_points(
+                            &ref_points_thread[..],
+                            num_buckets,
+                            new_security_param,
+                            &mut rng,
+                        )?;
+                        Ok(())
+                    },
+                ));
+            }
+            for thread in threads {
+                thread.join().unwrap()?;
+            }
+        } else {
+            for _ in 0..num_rounds {
+                verify_points(points, num_buckets, new_security_param, rng)?;
+            }
         }
     }
 
