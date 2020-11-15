@@ -44,8 +44,8 @@ paste = "0.1"
 
 [build-dependencies]
 field-assembly = { path = "./field-assembly", optional = true }
-rustc_version = "0.2"
 cc = "1.0"
+rustc_version = "0.2"
 
 [dev-dependencies]
 rand_xorshift = "0.2"
@@ -64,3 +64,4 @@ timing_detailed = [ "std", "backtrace" ]
 timing_thread_id = [ "thread-id" ]
 
 llvm_asm = [ "field-assembly" ]
+force_bw6_asm = [ "bw6_asm" ]
