@@ -4,8 +4,8 @@ use algebra_core::{
         bn,
         models::{ModelParameters, SWModelParameters},
     },
-    field_new, impl_glv_for_sw, impl_scalar_mul_kernel, impl_scalar_mul_parameters, GLVParameters,
-    PrimeField, Zero,
+    field_new, impl_glv_for_sw, impl_scalar_mul_kernel_glv, impl_scalar_mul_parameters,
+    GLVParameters, PrimeField, Zero,
 };
 
 use crate::{bn254, bn254::*};
@@ -21,7 +21,7 @@ impl ModelParameters for Parameters {
     type ScalarField = Fr;
 }
 
-impl_scalar_mul_kernel!(bn254, "bn254", g1, G1Projective);
+impl_scalar_mul_kernel_glv!(bn254, "bn254", g1, G1Projective);
 
 impl GLVParameters for Parameters {
     type WideBigInt = BigInteger512;

@@ -92,8 +92,11 @@ macro_rules! impl_gpu_cpu_run_kernel {
                 // cached profile data. If it does not exist, we create a new file
                 if proportions.is_empty() {
                     let _ = Self::read_profile_data()
-                        .and_then(|s| { let res = serde_json::from_str(&s).map_err(|_| crate::CudaScalarMulError::ProfilingDeserializationError)?; Ok(res) })
-                        .and_then(|cached_data| {
+                        .and_then(|s| {
+                            let res = serde_json::from_str(&s)
+                                .map_err(|_| crate::CudaScalarMulError::ProfilingDeserializationError)?;
+                            Ok(res)
+                        }).and_then(|cached_data| {
                             *profile_data = cached_data;
                             proportions = profile_data.0.clone();
                             Ok(())
