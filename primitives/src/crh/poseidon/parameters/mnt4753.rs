@@ -1,12 +1,16 @@
-use crate::crh::{PoseidonParameters, FieldBasedHashParameters, PoseidonHash, batched_crh::PoseidonBatchHash};
+use crate::crh::{
+    PoseidonParameters, PoseidonInverseParameters,
+    FieldBasedHashParameters, PoseidonHash, batched_crh::PoseidonBatchHash,
+    PoseidonInverseSBox,
+};
 
 use algebra::fields::mnt4753::Fr as MNT4753Fr;
-
 use algebra::biginteger::BigInteger768;
 use algebra::field_new;
 
-pub type MNT4PoseidonHash = PoseidonHash<MNT4753Fr, MNT4753PoseidonParameters>;
-pub type MNT4BatchPoseidonHash = PoseidonBatchHash<MNT4753Fr, MNT4753PoseidonParameters>;
+pub type MNT4InversePoseidonSBox = PoseidonInverseSBox<MNT4753Fr, MNT4753PoseidonParameters>;
+pub type MNT4PoseidonHash = PoseidonHash<MNT4753Fr, MNT4753PoseidonParameters, MNT4InversePoseidonSBox>;
+pub type MNT4BatchPoseidonHash = PoseidonBatchHash<MNT4753Fr, MNT4753PoseidonParameters, MNT4InversePoseidonSBox>;
 
 #[derive(Debug, Clone)]
 pub struct MNT4753PoseidonParameters;
@@ -249,7 +253,9 @@ impl PoseidonParameters for MNT4753PoseidonParameters {
         field_new!(MNT4753Fr,BigInteger768([12808334774796013055, 6014810033042959692, 18007003149979884301, 9756749817021895528, 12935258847809382779, 2563582509321683994, 10159093414348995465, 7627091618146380391, 13098543392133066749, 9833810780432364434, 3438108215511958627, 156932927433464])),
         field_new!(MNT4753Fr,BigInteger768([2645972488122500518, 15174087784261972608, 6012496592884668757, 16888489121435014067, 9408068342580935725, 11672250714878796655, 4677362699477437319, 5084801265611243754, 1031670177470027200, 6927805189305206633, 15792063270661056320, 339600880556469]))
     ];
+}
 
+impl PoseidonInverseParameters for MNT4753PoseidonParameters {
     // The MDS matrix for fast matrix multiplication
     const MDS_CST_SHORT: &'static[MNT4753Fr]  = &[
         // These constants are in Partial Montgomery representation with R = 2^64

@@ -46,12 +46,13 @@ vrf = []
 # For Poseidon CRH / Merkle Tree
 mnt4_753 = ["algebra/mnt4_753"]
 mnt6_753 = ["algebra/mnt6_753"]
+bn_382 = ["algebra/bn_382"]
 
 [dev-dependencies]
 algebra = { path = "../algebra", features = ["edwards_sw6", "jubjub", "sw6", "bls12_377"] }
-primitives = { path = "../primitives", features = ["mnt4_753", "mnt6_753"] }
+primitives = { path = "../primitives", features = ["mnt4_753", "mnt6_753", "bn_382"] }
 
-criterion = "0.3.2"
+criterion = "0.3"
 rand_xorshift = { version = "0.2" }
 
 ################################# Benchmarks ##################################
@@ -90,7 +91,7 @@ required-features = ["vrf", "mnt4_753", "mnt6_753"]
 name = "poseidon_crh"
 path = "benches/crypto_primitives/poseidon_crh.rs"
 harness = false
-required-features = ["mnt4_753", "mnt6_753"]
+required-features = ["bn_382", "mnt4_753", "mnt6_753"]
 
 [[bench]]
 name = "poseidon_mht"

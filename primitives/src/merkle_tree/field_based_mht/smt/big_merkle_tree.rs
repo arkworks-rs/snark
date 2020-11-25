@@ -793,9 +793,9 @@ mod test {
         ToBytes, to_bytes, FromBytes,
     };
 
-    use crate::{crh::{
-        MNT4PoseidonHash, MNT6PoseidonHash
-    }, merkle_tree::field_based_mht::{
+    use crate::{
+        crh::parameters::{MNT4PoseidonHash, MNT6PoseidonHash},
+        merkle_tree::field_based_mht::{
         naive::NaiveMerkleTree,
         smt::{OperationLeaf, Coord, ActionLeaf, BigMerkleTree},
         parameters::{

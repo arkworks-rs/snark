@@ -8,6 +8,9 @@ pub mod bowe_hopwood;
 pub mod injective_map;
 pub mod pedersen;
 
+pub mod sbox;
+pub use self::sbox::*;
+
 pub mod poseidon;
 pub use self::poseidon::*;
 

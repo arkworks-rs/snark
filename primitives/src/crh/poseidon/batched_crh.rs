@@ -1,19 +1,26 @@
 extern crate rand;
 extern crate rayon;
 
-use algebra::{PrimeField, MulShort};
+use algebra::PrimeField;
 use std::marker::PhantomData;
 use crate::crh::BatchFieldBasedHash;
-use crate::{Error, PoseidonParameters, matrix_mix_short, PoseidonHash};
+use crate::{Error, PoseidonParameters, PoseidonHash, PoseidonBatchSBox};
 
-pub struct PoseidonBatchHash<F: PrimeField, P: PoseidonParameters<Fr = F>>{
+pub struct PoseidonBatchHash<F: PrimeField, P: PoseidonParameters<Fr = F>, SB: PoseidonBatchSBox<P>>
+{
     _field:      PhantomData<F>,
     _parameters: PhantomData<P>,
+    _sbox:       PhantomData<SB>,
 }
 
-impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> PoseidonBatchHash<F, P> {
+impl<F, P, SB> PoseidonBatchHash<F, P, SB>
+    where
+        F: PrimeField,
+        P: PoseidonParameters<Fr = F>,
+        SB: PoseidonBatchSBox<P>,
+{
 
-    fn poseidon_full_round(vec_state: &mut [Vec<P::Fr>], round_cst_idx: &mut usize) {
+    fn poseidon_full_round(vec_state: &mut [Vec<P::Fr>], round_cst_idx: &mut usize, last: bool) {
 
         // For each of the element position of the state vector
         for j in 0..P::T {
@@ -29,47 +36,8 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
         }
 
         // Apply the S-BOX to each of the elements of the state vector
-        // Use Montgomery simultaneous inversion
-        let mut w: Vec<P::Fr> = Vec::new();
-        let mut accum_prod = P::Fr::one();
+        SB::apply_full_batch(vec_state, last);
 
-        w.push(accum_prod);
-        // Calculate the intermediate partial products
-        for i in 0..vec_state.len() {
-            for j in 0..P::T {
-                accum_prod = accum_prod * &vec_state[i][j];
-                w.push(accum_prod);
-            }
-        }
-
-        // if the accum_prod is zero, it means that one of the S-Boxes is zero
-        // in that case compute the inverses individually
-        if accum_prod == P::Fr::zero() {
-            for i in 0..vec_state.len() {
-                for j in 0..P::T {
-                    if vec_state[i][j] != P::Fr::zero() {
-                        vec_state[i][j] = vec_state[i][j].inverse().unwrap();
-                    }
-                }
-            }
-        } else {
-
-            // Calculate the inversion of the products
-            // The inverse always exists in this case
-            let mut w_bar = accum_prod.inverse().unwrap();
-
-            // Extract the individual inversions
-            let mut idx: i64 = w.len() as i64 - 2;
-            for i in (0..vec_state.len()).rev() {
-                for j in (0..P::T).rev() {
-                    let vec_1 = vec_state[i][j].clone();
-                    vec_state[i][j] = w_bar * &w[idx as usize];
-                    w_bar = w_bar * &vec_1;
-                    idx -= 1;
-                }
-            }
-
-        }
     }
 
     fn poseidon_partial_round(vec_state: &mut [Vec<P::Fr>], round_cst_idx: &mut usize) {
@@ -88,39 +56,8 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
         }
 
         // Apply the S-BOX to the first elements of each of the state vector
-        let mut w: Vec<P::Fr> = Vec::new();
-        let mut accum_prod = P::Fr::one();
+        SB::apply_partial_batch(vec_state);
 
-        w.push(accum_prod);
-        // Calculate the intermediate partial products
-        for i in 0..vec_state.len() {
-            accum_prod = accum_prod * &vec_state[i][0];
-            w.push(accum_prod);
-        }
-
-        // if the accum_prod is zero, it means that one of the S-Boxes is zero
-        // in that case compute the inverses individually
-        if accum_prod == P::Fr::zero() {
-            for i in 0..(vec_state.len() - 1) {
-                if vec_state[i][0] != P::Fr::zero() {
-                    vec_state[i][0] = vec_state[i][0].inverse().unwrap();
-                }
-            }
-        } else {
-
-            // Calculate the inversion of the products
-            // Use Montgomery simultaneous inversion
-            let mut w_bar = accum_prod.inverse().unwrap();
-
-            // Extract the individual inversions
-            let mut idx: i64 = w.len() as i64 - 2;
-            for i in (0..vec_state.len()).rev() {
-                let vec_1 = vec_state[i][0].clone();
-                vec_state[i][0] = w_bar * &w[idx as usize];
-                w_bar = w_bar * &vec_1;
-                idx -= 1;
-            }
-        }
     }
 
     pub fn poseidon_perm_gen(vec_state: &mut [Vec<P::Fr>]) {
@@ -130,44 +67,33 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
 
         // Full rounds
         for _i in 0..P::R_F {
-            Self::poseidon_full_round(vec_state, &mut round_cst_idx);
-
-            // Perform the matrix mix
-            for i in 0..vec_state.len() {
-                matrix_mix_short::<F,P>(&mut vec_state[i]);
-            }
-
+            Self::poseidon_full_round(vec_state, &mut round_cst_idx, false);
         }
 
         // Partial rounds
         for _i in 0..P::R_P {
             Self::poseidon_partial_round(vec_state, &mut round_cst_idx);
-
-            // Perform the matrix mix
-            for i in 0..vec_state.len() {
-                matrix_mix_short::<F,P>(&mut vec_state[i]);
-            }
         }
 
         // Full rounds
         // Last round does not contain the matrix mix
         for _i in 0..(P::R_F - 1) {
-            Self::poseidon_full_round(vec_state, &mut round_cst_idx);
-
-            // Perform the matrix mix
-            for i in 0..vec_state.len() {
-                matrix_mix_short::<F,P>(&mut vec_state[i]);
-            }
+            Self::poseidon_full_round(vec_state, &mut round_cst_idx, false);
         }
 
-        Self::poseidon_full_round(vec_state, &mut round_cst_idx);
+        Self::poseidon_full_round(vec_state, &mut round_cst_idx, true);
     }
 }
 
 
-impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr = F>> BatchFieldBasedHash for PoseidonBatchHash<F, P> {
+impl<F, P, SB> BatchFieldBasedHash for PoseidonBatchHash<F, P, SB>
+    where
+        F: PrimeField,
+        P: PoseidonParameters<Fr = F>,
+        SB: PoseidonBatchSBox<P>,
+{
     type Data = F;
-    type BaseHash = PoseidonHash<F, P>;
+    type BaseHash = PoseidonHash<F, P, SB>;
 
     fn batch_evaluate(input_array: &[F]) -> Result<Vec<F>, Error> {
 
@@ -302,14 +228,25 @@ mod test {
     use std::str::FromStr;
     use crate::{FieldBasedHash, BatchFieldBasedHash};
     use super::rand::SeedableRng;
-    use algebra::UniformRand;
-    use algebra::fields::mnt6753::Fr as MNT6753Fr;
-    use algebra::fields::mnt4753::Fr as MNT4753Fr;
+    use algebra::{
+        fields::{
+            mnt6753::Fr as MNT6753Fr,
+            mnt4753::Fr as MNT4753Fr,
+            bn_382::Fq as BN382Fq,
+            bn_382::Fr as BN382Fr,
+        },
+        UniformRand
+    };
 
     use crate::crh::poseidon::{
         MNT4PoseidonHash, MNT6PoseidonHash,
         MNT4BatchPoseidonHash, MNT6BatchPoseidonHash,
-        parameters::{MNT4753PoseidonParameters, MNT6753PoseidonParameters}
+        BN382FqPoseidonHash, BN382FrPoseidonHash,
+        BN382FqBatchPoseidonHash, BN382FrBatchPoseidonHash,
+        parameters::{
+            MNT4753PoseidonParameters, MNT6753PoseidonParameters,
+            BN382FqPoseidonParameters, BN382FrPoseidonParameters
+        }
     };
 
     #[test]
@@ -364,6 +301,59 @@ mod test {
         let single_batch_output = MNT4BatchPoseidonHash::batch_evaluate(&input_batch[0..2]);
 
         assert_eq!(single_output, single_batch_output.unwrap()[0], "Single instance hash outputs are not equal for MNT4.");
+    }
+
+
+    #[test]
+    fn test_batch_hash_bn382fq() {
+
+        //  the number of hashes to test
+        let num_hashes = 1000;
+
+        // the vectors that store random input data
+        let mut input_serial = Vec::new();
+        let mut input_batch = Vec::new();
+
+        // the random number generator to generate random input data
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+        // we need the double of number of rounds because we have two inputs
+        for _ in 0..num_hashes {
+            let mut pair_elem = Vec::new();
+            let elem1 = BN382Fq::rand(&mut rng);
+            let elem2 = BN382Fq::rand(&mut rng);
+            pair_elem.push(elem1.clone());
+            pair_elem.push(elem2.clone());
+            input_serial.push(pair_elem);
+            input_batch.push(elem1.clone());
+            input_batch.push(elem2.clone());
+        }
+
+        // =============================================================================
+        let mut output = Vec::new();
+
+        input_serial.iter().for_each(|p| {
+            let mut digest = BN382FqPoseidonHash::init(None);
+            p.into_iter().for_each(|&f| { digest.update(f); });
+            output.push(digest.finalize());
+        });
+
+        let output_vec = (BN382FqBatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+
+        // =============================================================================
+        // Compare results
+        for i in 0..num_hashes {
+            assert_eq!(output[i], output_vec[i], "Hash outputs, position {}, for BN382Fr are not equal.", i);
+        }
+
+        // Check with one single hash
+        let single_output = BN382FqPoseidonHash::init(None)
+            .update(input_serial[0][0])
+            .update(input_serial[0][1])
+            .finalize();
+        let single_batch_output = BN382FqBatchPoseidonHash::batch_evaluate(&input_batch[0..2]);
+
+        assert_eq!(single_output, single_batch_output.unwrap()[0], "Single instance hash outputs are not equal for BN382Fr.");
     }
 
 
@@ -447,6 +437,58 @@ mod test {
         let single_batch_output = MNT6BatchPoseidonHash::batch_evaluate(&input_batch[0..2]);
 
         assert_eq!(single_output, single_batch_output.unwrap()[0], "Single instance hash outputs are not equal for MNT6.");
+    }
+
+    #[test]
+    fn test_batch_hash_bn382fr() {
+
+        //  the number of hashes to test
+        let num_hashes = 1000;
+
+        // the vectors that store random input data
+        let mut input_serial = Vec::new();
+        let mut input_batch = Vec::new();
+
+        // the random number generator to generate random input data
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+        // we need the double of number of rounds because we have two inputs
+        for _ in 0..num_hashes {
+            let mut pair_elem = Vec::new();
+            let elem1 = BN382Fr::rand(&mut rng);
+            let elem2 = BN382Fr::rand(&mut rng);
+            pair_elem.push(elem1.clone());
+            pair_elem.push(elem2.clone());
+            input_serial.push(pair_elem);
+            input_batch.push(elem1.clone());
+            input_batch.push(elem2.clone());
+        }
+
+        // =============================================================================
+        let mut output = Vec::new();
+
+        input_serial.iter().for_each(|p| {
+            let mut digest = BN382FrPoseidonHash::init(None);
+            p.into_iter().for_each(|&f| { digest.update(f); });
+            output.push(digest.finalize());
+        });
+
+        let output_vec = (BN382FrBatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+
+        // =============================================================================
+        // Compare results
+        for i in 0..num_hashes {
+            assert_eq!(output[i], output_vec[i], "Hash outputs, position {}, for BN382Fr are not equal.", i);
+        }
+
+        // Check with one single hash
+        let single_output = BN382FrPoseidonHash::init(None)
+            .update(input_serial[0][0])
+            .update(input_serial[0][1])
+            .finalize();
+        let single_batch_output = BN382FrBatchPoseidonHash::batch_evaluate(&input_batch[0..2]);
+
+        assert_eq!(single_output, single_batch_output.unwrap()[0], "Single instance hash outputs are not equal for BN382Fr.");
     }
 
 
@@ -536,6 +578,67 @@ mod test {
         // Compare results
         for i in 0..num_hashes {
             assert_eq!(output_vec_in_place[i], output_vec[i], "Hash outputs, position {}, for MNT6 are not equal.", i);
+        }
+    }
+
+    #[test]
+    fn test_batch_hash_bn382fq_in_place() {
+        //  the number of hashes to test
+        let num_hashes = 1000;
+
+        // the vectors that store random input data
+        let mut input_batch = Vec::new();
+
+        // the random number generator to generate random input data
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+        // we need the double of number of rounds because we have two inputs
+        for _ in 0..num_hashes {
+            input_batch.push(BN382Fq::rand(&mut rng));
+            input_batch.push(BN382Fq::rand(&mut rng));
+        }
+
+        // Calculate Poseidon Hash for mnt4753 batch evaluation
+        let output_vec = (BN382FqBatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+
+        let mut output_vec_in_place = vec![BN382FqPoseidonParameters::ZERO; num_hashes];
+        BN382FqBatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]);
+
+        // =============================================================================
+        // Compare results
+        for i in 0..num_hashes {
+            assert_eq!(output_vec_in_place[i], output_vec[i], "Hash outputs, position {}, for BN382Fq are not equal.", i);
+        }
+    }
+
+    #[test]
+    fn test_batch_hash_bn382fr_in_place() {
+
+        //  the number of hashes to test
+        let num_hashes = 1000;
+
+        // the vectors that store random input data
+        let mut input_batch = Vec::new();
+
+        // the random number generator to generate random input data
+        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+        // we need the double of number of rounds because we have two inputs
+        for _ in 0..num_hashes {
+            input_batch.push(BN382Fr::rand(&mut rng));
+            input_batch.push(BN382Fr::rand(&mut rng));
+        }
+
+        // Calculate Poseidon Hash for mnt4753 batch evaluation
+        let output_vec = (BN382FrBatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+
+        let mut output_vec_in_place = vec![BN382FrPoseidonParameters::ZERO; num_hashes];
+        BN382FrBatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]);
+
+        // =============================================================================
+        // Compare results
+        for i in 0..num_hashes {
+            assert_eq!(output_vec_in_place[i], output_vec[i], "Hash outputs, position {}, for BN382Fr are not equal.", i);
         }
     }
 }

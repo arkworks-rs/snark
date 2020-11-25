@@ -1,16 +1,15 @@
-use algebra::{PrimeField, MulShort};
+use algebra::PrimeField;
 use primitives::crh::poseidon::{
-    PoseidonHash, PoseidonParameters
+        PoseidonHash, PoseidonParameters
 };
-use crate::crh::FieldBasedHashGadget;
+use crate::crh::{
+    SBoxGadget, FieldBasedHashGadget
+};
 use r1cs_std::{
     fields::{
         FieldGadget, fp::FpGadget
     },
-    bits::boolean::Boolean,
-    alloc::{AllocGadget, ConstantGadget},
-    eq::EqGadget,
-    Assignment
+    alloc::ConstantGadget,
 };
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use std::marker::PhantomData;
@@ -25,55 +24,33 @@ pub mod mnt6753;
 #[cfg(feature = "mnt6_753")]
 pub use self::mnt6753::*;
 
+#[cfg(feature = "bn_382")]
+pub mod bn382;
+#[cfg(feature = "bn_382")]
+pub use self::bn382::*;
+use primitives::PoseidonSBox;
 
 pub struct PoseidonHashGadget
 <
     ConstraintF: PrimeField,
     P:           PoseidonParameters<Fr = ConstraintF>,
+    SB:          PoseidonSBox<P>,
+    SBG:         SBoxGadget<ConstraintF, SB>,
 >
 {
-    _field:      PhantomData<ConstraintF>,
-    _parameters: PhantomData<P>,
+    _field:             PhantomData<ConstraintF>,
+    _parameters:        PhantomData<P>,
+    _sbox:              PhantomData<SB>,
+    _sbox_gadget:       PhantomData<SBG>,
 }
 
 impl<
-    ConstraintF: PrimeField + MulShort<ConstraintF, Output = ConstraintF>,
-    P: PoseidonParameters<Fr = ConstraintF>
-> PoseidonHashGadget<ConstraintF, P>
+    ConstraintF: PrimeField,
+    P:   PoseidonParameters<Fr = ConstraintF>,
+    SB:  PoseidonSBox<P>,
+    SBG: SBoxGadget<ConstraintF, SB>
+> PoseidonHashGadget<ConstraintF, P, SB, SBG>
 {
-    fn mod_inv_sbox<CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        x: &mut FpGadget<ConstraintF>,
-    ) -> Result<(), SynthesisError>
-    {
-        let b = Boolean::alloc(cs.ns(|| "alloc b"), || {
-            let x_val = x.get_value().get()?;
-            if x_val == ConstraintF::zero() {
-                Ok(false)
-            } else {
-                Ok(true)
-            }
-        })?;
-        let y = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc y"), || {
-            let x_val = x.get_value().get()?;
-            if x_val == ConstraintF::zero() {
-                Ok(x_val)
-            } else {
-                let inv = x_val.inverse().get()?;
-                Ok(inv)
-            }
-        })?;
-        cs.enforce(
-            || "b=x*y",
-            |lc| &x.variable + lc,
-            |lc| &y.variable + lc,
-            |lc| lc + &b.lc(CS::one(), ConstraintF::one()),
-        );
-        x.conditional_enforce_equal(cs.ns(|| "0=(1-b)*(x-y)"), &y, &b.not())?;
-
-        *x=y;
-        Ok(())
-    }
 
     fn poseidon_perm<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
@@ -98,7 +75,7 @@ impl<
 
             // Apply the S-BOX to each of the elements of the state vector
             for (j, d) in state.iter_mut().enumerate() {
-                Self::mod_inv_sbox(cs.ns(||format!("mod_inv_S-Box_1_{}_{}",i, j)), d)?;
+                SBG::apply(cs.ns(||format!("mod_inv_S-Box_1_{}_{}",i, j)), d)?;
             }
 
             // Perform the matrix mix
@@ -117,7 +94,7 @@ impl<
         for _i in 0..P::R_P {
 
             // Apply S-Box only to the first element of the state vector
-            Self::mod_inv_sbox(
+            SBG::apply(
                 cs.ns(||format!("mod_inv_S-Box_2_{}_{}",_i, 0)),
                 &mut state[0]
             )?;
@@ -140,7 +117,7 @@ impl<
 
             // Apply the S-BOX to each of the elements of the state vector
             for (j, d) in state.iter_mut().enumerate() {
-                Self::mod_inv_sbox(cs.ns(||format!("mod_inv_S-Box_3_{}_{}",_i, j)), d)?;
+                SBG::apply(cs.ns(||format!("mod_inv_S-Box_3_{}_{}",_i, j)), d)?;
             }
 
             // Perform the matrix mix
@@ -158,7 +135,7 @@ impl<
         {
             // Apply the S-BOX to each of the elements of the state vector
             for (j, d) in state.iter_mut().enumerate() {
-                Self::mod_inv_sbox(cs.ns(|| format!("mod_inv_S-Box_4_{}_{}", P::R_F-1, j)), d)?;
+                SBG::apply(cs.ns(|| format!("mod_inv_S-Box_4_{}_{}", P::R_F-1, j)), d)?;
             }
         }
 
@@ -217,10 +194,13 @@ impl<
     }
 }
 
-impl<ConstraintF, P> FieldBasedHashGadget<PoseidonHash<ConstraintF, P>, ConstraintF> for PoseidonHashGadget<ConstraintF, P>
-    where
-        ConstraintF: PrimeField + MulShort<ConstraintF, Output = ConstraintF>,
-        P:           PoseidonParameters<Fr = ConstraintF>
+impl<ConstraintF, P, SB, SBG> FieldBasedHashGadget<PoseidonHash<ConstraintF, P, SB>, ConstraintF>
+    for PoseidonHashGadget<ConstraintF, P, SB, SBG>
+        where
+            ConstraintF: PrimeField,
+            P:           PoseidonParameters<Fr = ConstraintF>,
+            SB:          PoseidonSBox<P>,
+            SBG:         SBoxGadget<ConstraintF, SB>,
 {
     type DataGadget = FpGadget<ConstraintF>;
 
@@ -285,11 +265,23 @@ mod test {
     use rand::thread_rng;
     use r1cs_std::test_constraint_system::TestConstraintSystem;
     use primitives::crh::{
-        FieldBasedHash, MNT4PoseidonHash, MNT6PoseidonHash,
+        FieldBasedHash,
+        MNT4PoseidonHash, MNT6PoseidonHash,
+        BN382FrPoseidonHash, BN382FqPoseidonHash,
     };
-    use crate::{MNT4PoseidonHashGadget, MNT6PoseidonHashGadget};
-    use r1cs_std::fields::fp::FpGadget;
-    use r1cs_std::alloc::AllocGadget;
+    use crate::{
+        MNT4PoseidonHashGadget, MNT6PoseidonHashGadget,
+        BN382FqPoseidonHashGadget, BN382FrPoseidonHashGadget,
+    };
+    use r1cs_std::{
+        alloc::AllocGadget,
+        instantiated::{
+            mnt4_753::FqGadget as Mnt6FieldGadget,
+            mnt6_753::FqGadget as Mnt4FieldGadget,
+            bn_382::FqGadget as BN382FqGadget,
+            bn_382::g::FqGadget as BN382FrGadget,
+        }
+    };
     use r1cs_core::ConstraintSystem;
     use algebra::UniformRand;
     use super::*;
@@ -297,10 +289,9 @@ mod test {
     use algebra::fields::{
         mnt4753::Fr as MNT4753Fr,
         mnt6753::Fr as MNT6753Fr,
+        bn_382::Fr as BN382Fr,
+        bn_382::Fq as BN382Fq,
     };
-
-    type Mnt4FieldGadget = FpGadget<MNT4753Fr>;
-    type Mnt6FieldGadget = FpGadget<MNT6753Fr>;
 
     #[test]
     fn crh_mnt4_753_primitive_gadget_test() {
@@ -365,6 +356,78 @@ mod test {
 
         let gadget_result =
             MNT6PoseidonHashGadget::check_evaluation_gadget(
+                cs.ns(||"check_poseidon_gadget"),
+                vec_elem_gadget.as_slice()).unwrap();
+
+        println!("number of constraints total: {}", cs.num_constraints());
+
+        assert_eq!(primitive_result, gadget_result.value.unwrap());
+        assert!(cs.is_satisfied());
+    }
+
+    #[test]
+    fn crh_bn382_fr_primitive_gadget_test() {
+
+        let mut rng = &mut thread_rng();
+        let mut cs = TestConstraintSystem::<BN382Fr>::new();
+
+        let mut vec_elem = Vec::new();
+        let v1 = BN382Fr::rand(&mut rng);
+        let v2 = BN382Fr::rand(&mut rng);
+        vec_elem.push(v1);
+        vec_elem.push(v2);
+
+        let primitive_result = {
+            let mut digest = BN382FrPoseidonHash::init(None);
+            vec_elem.into_iter().for_each(|elem| { digest.update(elem); });
+            digest.finalize()
+        };
+
+        let v1_gadget = BN382FrGadget::alloc(cs.ns(|| "alloc_v1"),|| Ok(v1)).unwrap();
+        let v2_gadget = BN382FrGadget::alloc(cs.ns(|| "alloc_v2"),|| Ok(v2)).unwrap();
+
+        let mut vec_elem_gadget = Vec::new();
+        vec_elem_gadget.push(v1_gadget);
+        vec_elem_gadget.push(v2_gadget);
+
+        let gadget_result =
+            BN382FrPoseidonHashGadget::check_evaluation_gadget(
+                cs.ns(||"check_poseidon_gadget"),
+                vec_elem_gadget.as_slice()).unwrap();
+
+        println!("number of constraints total: {}", cs.num_constraints());
+
+        assert_eq!(primitive_result, gadget_result.value.unwrap());
+        assert!(cs.is_satisfied());
+    }
+
+    #[test]
+    fn crh_bn382_fq_primitive_gadget_test() {
+
+        let mut rng = &mut thread_rng();
+        let mut cs = TestConstraintSystem::<BN382Fq>::new();
+
+        let mut vec_elem = Vec::new();
+        let v1 = BN382Fq::rand(&mut rng);
+        let v2 = BN382Fq::rand(&mut rng);
+        vec_elem.push(v1);
+        vec_elem.push(v2);
+
+        let primitive_result = {
+            let mut digest = BN382FqPoseidonHash::init(None);
+            vec_elem.into_iter().for_each(|elem| { digest.update(elem); });
+            digest.finalize()
+        };
+
+        let v1_gadget = BN382FqGadget::alloc(cs.ns(|| "alloc_v1"),|| Ok(v1)).unwrap();
+        let v2_gadget = BN382FqGadget::alloc(cs.ns(|| "alloc_v2"),|| Ok(v2)).unwrap();
+
+        let mut vec_elem_gadget = Vec::new();
+        vec_elem_gadget.push(v1_gadget);
+        vec_elem_gadget.push(v2_gadget);
+
+        let gadget_result =
+            BN382FqPoseidonHashGadget::check_evaluation_gadget(
                 cs.ns(||"check_poseidon_gadget"),
                 vec_elem_gadget.as_slice()).unwrap();
 

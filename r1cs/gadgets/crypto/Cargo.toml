@@ -45,12 +45,12 @@ nizk = ["proof-systems"]
 # For Poseidon CRH / Merkle Tree
 mnt4_753 = ["primitives/mnt4_753"]
 mnt6_753 = ["primitives/mnt6_753"]
+bn_382 = ["primitives/bn_382"]
 
 llvm_asm = ["algebra/llvm_asm"]
 
 [dev-dependencies]
-criterion = "0.2"
 rand_xorshift = { version = "0.2" }
 algebra = { path = "../../../algebra", features = ["bls12_381", "sw6"] }
 r1cs-std = { path = "../std", features = ["jubjub", "edwards_sw6", "bls12_377", "mnt4_753", "mnt6_753", "bn_382"] }
-r1cs-crypto = { path = "../crypto", features = ["mnt4_753", "mnt6_753"] }
+r1cs-crypto = { path = "../crypto", features = ["mnt4_753", "mnt6_753", "bn_382"] }

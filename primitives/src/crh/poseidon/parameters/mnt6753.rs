@@ -1,4 +1,8 @@
-use crate::crh::{PoseidonParameters, FieldBasedHashParameters, PoseidonHash, batched_crh::PoseidonBatchHash};
+use crate::crh::{
+    PoseidonParameters, PoseidonInverseParameters,
+    FieldBasedHashParameters, PoseidonHash, batched_crh::PoseidonBatchHash,
+    PoseidonInverseSBox,
+};
 
 use algebra::fields::mnt6753::Fr as MNT6753Fr;
 
@@ -8,8 +12,9 @@ use algebra::field_new;
 #[derive(Debug, Clone)]
 pub struct MNT6753PoseidonParameters;
 
-pub type MNT6PoseidonHash = PoseidonHash<MNT6753Fr, MNT6753PoseidonParameters>;
-pub type MNT6BatchPoseidonHash = PoseidonBatchHash<MNT6753Fr, MNT6753PoseidonParameters>;
+pub type MNT6InversePoseidonSBox = PoseidonInverseSBox<MNT6753Fr, MNT6753PoseidonParameters>;
+pub type MNT6PoseidonHash = PoseidonHash<MNT6753Fr, MNT6753PoseidonParameters, MNT6InversePoseidonSBox>;
+pub type MNT6BatchPoseidonHash = PoseidonBatchHash<MNT6753Fr, MNT6753PoseidonParameters, MNT6InversePoseidonSBox>;
 
 impl FieldBasedHashParameters for MNT6753PoseidonParameters {
     type Fr = MNT6753Fr;
@@ -256,6 +261,9 @@ impl PoseidonParameters for MNT6753PoseidonParameters {
         field_new!(MNT6753Fr,BigInteger768([14171412726025009976, 7111267246636000863, 1825358777167011672, 6530753981658051874, 3791270535187294262, 5464998045424662500, 5102973230380526019, 6672444138504113284, 2769639325424441346, 17928954250998808933, 3942370689359358825, 296443860783422])),
         field_new!(MNT6753Fr,BigInteger768([4700957091855560976, 6321749939000513571, 3986127287804284905, 14787117947656435373, 1752249663818719547, 13200901751925719051, 14518686523481547758, 14226701265191878637, 3484444629948253625, 1446660298549585645, 12944892059483427095, 492396350662227]))
     ];
+}
+
+impl PoseidonInverseParameters for MNT6753PoseidonParameters {
 
     // The MDS matrix for fast matrix multiplication
     const MDS_CST_SHORT: &'static[MNT6753Fr]  = &[

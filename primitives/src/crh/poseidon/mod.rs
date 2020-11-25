@@ -1,7 +1,7 @@
 extern crate rand;
 extern crate rayon;
 
-use algebra::{PrimeField, MulShort};
+use algebra::PrimeField;
 
 use std::marker::PhantomData;
 
@@ -15,15 +15,10 @@ pub mod batched_crh;
 pub mod parameters;
 pub use self::parameters::*;
 
-#[derive(Debug)]
-pub struct PoseidonHash<F: PrimeField, P: PoseidonParameters<Fr = F>>{
-    state: Vec<F>,
-    pending: Vec<F>,
-    _parameters: PhantomData<P>,
-}
+pub mod sbox;
+pub use self::sbox::*;
 
 pub trait PoseidonParameters: 'static + FieldBasedHashParameters + Clone {
-
     const T: usize;  // Number of S-Boxes
     const R_F:i32;   // Number of full rounds
     const R_P:i32;   // Number of partial rounds
@@ -32,71 +27,22 @@ pub trait PoseidonParameters: 'static + FieldBasedHashParameters + Clone {
     const AFTER_ZERO_PERM: &'static[Self::Fr]; // State vector after a zero permutation
     const ROUND_CST: &'static[Self::Fr];  // Array of round constants
     const MDS_CST: &'static[Self::Fr];  // The MDS matrix
-    const MDS_CST_SHORT: &'static[Self::Fr];  // The MDS matrix for fast matrix multiplication
-
 }
 
-// Function that does the scalar multiplication
-// It uses Montgomery multiplication
-// Constants are defined such that the result is x * t * 2^n mod M,
-// that is the Montgomery representation of the operand x * t mod M, and t is the 64-bit constant
-#[allow(dead_code)]
-#[inline]
-pub fn scalar_mul<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> (res: &mut F, state: &mut[F], mut start_idx_cst: usize) {
-
-    state.iter().for_each(|x| {
-        let elem = x.mul(&P::MDS_CST[start_idx_cst]);
-        start_idx_cst += 1;
-        *res += &elem;
-    });
+#[derive(Debug)]
+pub struct PoseidonHash<F: PrimeField, P: PoseidonParameters<Fr = F>, SB: PoseidonSBox<P>>{
+    state: Vec<F>,
+    pending: Vec<F>,
+    _parameters: PhantomData<P>,
+    _sbox: PhantomData<SB>,
 }
 
-// Function that does the mix matrix
-#[allow(dead_code)]
-#[inline]
-pub fn matrix_mix<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>>  (state: &mut Vec<F>) {
-
-    // the new state where the result will be stored initialized to zero elements
-    let mut new_state = vec![F::zero(); P::T];
-
-    let mut idx_cst = 0;
-    for i in 0..P::T {
-        scalar_mul::<F,P>(&mut new_state[i], state, idx_cst);
-        idx_cst += P::T;
-    }
-    *state = new_state;
-}
-
-// Function that does the scalar multiplication
-// It uses a partial Montgomery multiplication defined as PM(x, t) = x * t * 2^-64 mod M
-// t is a 64-bit matrix constant. In the algorithm, the constants are represented in
-// partial Montgomery representation, i.e. t * 2^64 mod M
-#[inline]
-pub fn scalar_mul_fast<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> (res: &mut F, state: &mut[F], mut start_idx_cst: usize) {
-    state.iter().for_each(|&x| {
-        let elem = P::MDS_CST_SHORT[start_idx_cst].mul_short(x);
-        start_idx_cst += 1;
-        *res += &elem;
-    });
-}
-
-// Function that does the mix matrix with fast algorithm
-#[inline]
-pub fn matrix_mix_short<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> (state: &mut Vec<F>) {
-
-    // the new state where the result will be stored initialized to zero elements
-    let mut new_state = vec![F::zero(); P::T];
-
-    let mut idx_cst = 0;
-    for i in 0..P::T {
-        scalar_mul_fast::<F,P>(&mut new_state[i], state, idx_cst);
-        idx_cst += P::T;
-    }
-    *state = new_state;
-}
-
-impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
-
+impl<F, P, SB> PoseidonHash<F, P, SB>
+    where
+        F: PrimeField,
+        P: PoseidonParameters<Fr = F>,
+        SB: PoseidonSBox<P>,
+{
     #[inline]
     fn apply_permutation(&mut self) {
         for (input, state) in self.pending.iter().zip(self.state.iter_mut()) {
@@ -133,32 +79,7 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
             }
 
             // Apply the S-BOX to each of the elements of the state vector
-            // Apply Montomgery's simulateneous inversion
-            let w2 = state[0] * &state[1];
-            let w = state[2] * &w2;
-            if w == P::Fr::zero() {
-                // At least one of the S-Boxes is zero
-                // Calculate inverses individually
-                for d in state.iter_mut() {
-                    // The S-BOX is an inversion function
-                    if *d != P::Fr::zero() {
-                        *d = (*d).inverse().unwrap();
-                    }
-                }
-            } else {
-                let mut w_bar = w.inverse().unwrap();
-
-                let z_2 = w_bar * &w2;
-                w_bar = w_bar * &state[2];
-                state[2] = z_2;
-                let z_1 = w_bar * &state[0];
-                state[0] = w_bar * &state[1];
-                state[1] = z_1;
-            }
-
-            // Perform the matrix mix
-            matrix_mix_short::<F, P>(state);
-
+            SB::apply_full(state, false)
         }
 
         // Partial rounds
@@ -172,12 +93,7 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
             }
 
             // Apply S-BOX only to the first element of the state vector
-            if state[0]!=P::Fr::zero() {
-                state[0] = state[0].inverse().unwrap();
-            }
-
-            // Apply the matrix mix
-            matrix_mix_short::<F,P>(state);
+            SB::apply_partial(state);
         }
 
         // Second full rounds
@@ -192,30 +108,7 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
             }
 
             // Apply the S-BOX to each of the elements of the state vector
-            // Apply Montgomery's simulatenous inversion
-            let w2 = state[0] * &state[1];
-            let w = state[2] * &w2;
-            if w == P::Fr::zero() {
-                // At least one of the S-Boxes is zero
-                for d in state.iter_mut() {
-                    // The S-BOX is an inversion function
-                    if *d != P::Fr::zero() {
-                        *d = (*d).inverse().unwrap();
-                    }
-                }
-            } else {
-                let mut w_bar = w.inverse().unwrap();
-
-                let z_2 = w_bar * &w2;
-                w_bar = w_bar * &state[2];
-                state[2] = z_2;
-                let z_1 = w_bar * &state[0];
-                state[0] = w_bar * &state[1];
-                state[1] = z_1;
-            }
-
-            // Apply matrix mix
-            matrix_mix_short::<F,P>(state);
+            SB::apply_full(state, false);
         }
 
         // Last full round does not perform the matrix_mix
@@ -227,33 +120,15 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
         }
 
         // Apply the S-BOX to each of the elements of the state vector
-        // Apply Montgomery's simultaneous inversion
-        let w2 = state[0] * &state[1];
-        let w = state[2] * &w2;
-        if w == P::Fr::zero() {
-            for d in state.iter_mut() {
-                // The S-BOX is an inversion function
-                if *d != P::Fr::zero() {
-                    *d = (*d).inverse().unwrap();
-                }
-            }
-        } else {
-            let mut w_bar = w.inverse().unwrap();
-
-            let z_2 = w_bar * &w2;
-            w_bar = w_bar * &state[2];
-            state[2] = z_2;
-            let z_1 = w_bar * &state[0];
-            state[0] = w_bar * &state[1];
-            state[1] = z_1;
-        }
+        SB::apply_full(state, true);
     }
 }
 
-impl<F, P> FieldBasedHash for PoseidonHash<F, P>
+impl<F, P, SB> FieldBasedHash for PoseidonHash<F, P, SB>
     where
-        F: PrimeField + MulShort<F, Output = F>,
+        F: PrimeField,
         P: PoseidonParameters<Fr = F>,
+        SB: PoseidonSBox<P>,
 {
     type Data = F;
     type Parameters = P;
@@ -267,6 +142,7 @@ impl<F, P> FieldBasedHash for PoseidonHash<F, P>
             state,
             pending: Vec::with_capacity(P::R),
             _parameters: PhantomData,
+            _sbox: PhantomData,
         };
 
         // If personalization Vec is not multiple of the rate, we pad it with zero field elements.
@@ -438,4 +314,37 @@ mod test {
         let output = poseidon_digest.finalize();
         assert_eq!(output, expected_output, "Outputs do not match for MNT6753.");
     }
+
+    use algebra::{
+        fields::bn_382::{
+            Fr as BN382Fr, Fq as BN382Fq,
+        },
+        biginteger::BigInteger384,
+    };
+    use crate::crh::parameters::bn382::*;
+
+    #[test]
+    fn test_poseidon_hash_bn382_fr() {
+        let expected_output = BN382Fr::new(BigInteger384([5374955110091081208, 9708994766202121080, 14988884941712225891, 5210165913215347951, 13114182334648522197, 392522167697949297]));
+
+        let mut digest = BN382FrPoseidonHash::init(None);
+        digest.update(BN382Fr::from_str("1").unwrap());
+        digest.update(BN382Fr::from_str("2").unwrap());
+        let output = digest.finalize();
+
+        assert_eq!(output, expected_output, "Outputs do not match for BN382Fr");
+    }
+
+    #[test]
+    fn test_poseidon_hash_bn382_fq() {
+        let expected_output = BN382Fq::new(BigInteger384([10704305393280846886, 13510271104066299406, 8759721062701909552, 14597420682011858322, 7770486455870140465, 1389855295932765543]));
+
+        let mut digest = BN382FqPoseidonHash::init(None);
+        digest.update(BN382Fq::from_str("1").unwrap());
+        digest.update(BN382Fq::from_str("2").unwrap());
+        let output = digest.finalize();
+
+        assert_eq!(output, expected_output, "Outputs do not match for BN382Fq");
+    }
+
 }

@@ -293,9 +293,9 @@ mod test {
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
 
-    use crate::{crh::parameters::{
-        MNT4PoseidonHash, MNT6PoseidonHash, MNT4BatchPoseidonHash, MNT6BatchPoseidonHash
-    }, merkle_tree::field_based_mht::{
+    use crate::{
+        crh::parameters::{MNT4PoseidonHash, MNT4BatchPoseidonHash, MNT6PoseidonHash, MNT6BatchPoseidonHash},
+        merkle_tree::field_based_mht::{
         FieldBasedMerkleTree, NaiveMerkleTree,
         FieldBasedMerkleTreePath, FieldBasedMerkleTreeParameters,
         BatchFieldBasedMerkleTreeParameters, FieldBasedOptimizedMHT,
