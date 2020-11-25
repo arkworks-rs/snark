@@ -2,10 +2,7 @@ use algebra::{Field, PrimeField};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
 
-use primitives::{
-    crh::FixedLengthCRH,
-    merkle_tree::*
-};
+use primitives::{crh::FixedLengthCRH, merkle_tree::*, FieldBasedHash};
 use crate::{FixedLengthCRHGadget, FieldBasedHashGadget};
 
 use std::borrow::Borrow;
@@ -14,10 +11,12 @@ use r1cs_std::fields::fp::FpGadget;
 pub mod field_based_mht;
 
 pub trait FieldBasedMerkleTreePathGadget<
-    P: FieldBasedMerkleTreeParameters<Data = ConstraintF>,
-    HGadget: FieldBasedHashGadget<P::H, ConstraintF>,
+    P: FieldBasedMerkleTreePath<H = H>,
+    H:  FieldBasedHash<Data = ConstraintF>,
+    HGadget: FieldBasedHashGadget<H, ConstraintF>,
     ConstraintF: PrimeField,
->
+>: AllocGadget<P, ConstraintF>
+where
 {
     /// Return the length of the path
     fn length(&self) -> usize;

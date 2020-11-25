@@ -60,7 +60,7 @@ impl<P, HGadget, ConstraintF> FieldBasedBinaryMerkleTreePathGadget<P, HGadget, C
     }
 }
 
-impl<P, HGadget, ConstraintF> FieldBasedMerkleTreePathGadget<P, HGadget, ConstraintF>
+impl<P, HGadget, ConstraintF> FieldBasedMerkleTreePathGadget<FieldBasedBinaryMHTPath<P>, P::H, HGadget, ConstraintF>
 for FieldBasedBinaryMerkleTreePathGadget<P, HGadget, ConstraintF>
     where
         P: FieldBasedMerkleTreeParameters<Data = ConstraintF>,
