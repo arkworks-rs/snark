@@ -52,7 +52,7 @@ required-features = ["groth16", "algebra/bls12_377"]
 [[example]]
 name = "groth16-recursive"
 path = "src/groth16/examples/recursive-snark/groth16.rs"
-required-features = ["groth16", "r1cs-crypto/mnt4_753", "r1cs-crypto/mnt6_753"]
+required-features = ["groth16", "r1cs-crypto/mnt4_753", "r1cs-crypto/mnt6_753", "r1cs-std/mnt4_753", "r1cs-std/mnt6_753"]
 
 [[example]]
 name = "gm17"
@@ -62,7 +62,7 @@ required-features = ["gm17", "algebra/bls12_377"]
 [[example]]
 name = "gm17-recursive"
 path = "src/gm17/examples/recursive-snark/gm17.rs"
-required-features = ["gm17", "r1cs-crypto/mnt4_753", "r1cs-crypto/mnt6_753"]
+required-features = ["gm17", "r1cs-crypto/mnt4_753", "r1cs-crypto/mnt6_753", "r1cs-std/mnt4_753", "r1cs-std/mnt6_753" ]
 
 [[bench]]
 name = "gro16_bench"

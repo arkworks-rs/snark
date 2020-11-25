@@ -218,6 +218,7 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
                         let y = -p[i].y - &(s * &(x - &p[i].x));
                         p[j].x = x;
                         p[j].y = y;
+                        p[j].infinity = false;
                     }
                     else
                     {
@@ -226,6 +227,7 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
                         let y = -p[i].y - &(s * &(x - &p[i].x));
                         p[j].x = x;
                         p[j].y = y;
+                        p[j].infinity = false;
                     }
                     dx += 1;
                 }
