@@ -18,6 +18,11 @@ pub struct UInt64 {
 }
 
 impl UInt64 {
+
+    pub fn get_value(&self) -> Option<u64> {
+        self.value
+    }
+
     /// Construct a constant `UInt64` from a `u64`
     pub fn constant(value: u64) -> Self {
         let mut bits = Vec::with_capacity(64);
