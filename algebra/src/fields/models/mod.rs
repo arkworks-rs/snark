@@ -21,6 +21,7 @@ use crate::{
 };
 
 use std::io::{Read, Result as IoResult, Write, ErrorKind, Error as IoError};
+use serde::{Serialize, Deserialize};
 
 
 #[cfg(use_asm)]

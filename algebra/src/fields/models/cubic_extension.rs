@@ -11,7 +11,7 @@ use rand::{
 };
 
 use crate::{bytes::{FromBytes, ToBytes}, bits::{FromBits, ToBits}, fields::{Field, FpParameters, PrimeField}, UniformRand, Error, SemanticallyValid};
-
+use serde::{Serialize, Deserialize};
 
 /// Model for cubic extension field of a prime field F=BasePrimeField
 ///     F3 = F[X]/(X^3-alpha),
@@ -66,8 +66,9 @@ Clone(bound = "P: CubicExtParameters"),
 Copy(bound = "P: CubicExtParameters"),
 Debug(bound = "P: CubicExtParameters"),
 PartialEq(bound = "P: CubicExtParameters"),
-Eq(bound = "P: CubicExtParameters")
+Eq(bound = "P: CubicExtParameters"),
 )]
+#[derive(Serialize, Deserialize)]
 pub struct CubicExtField<P: CubicExtParameters> {
     pub c0: P::BaseField,
     pub c1: P::BaseField,

@@ -12,6 +12,7 @@ use rand::{
 
 use crate::{bytes::{FromBytes, ToBytes}, bits::{FromBits, ToBits}, fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField}, UniformRand, Error, SemanticallyValid};
 use crate::biginteger::arithmetic::find_wnaf;
+use serde::{Serialize, Deserialize};
 
 /// Model for quadratic extension field of prime field F=Fp
 ///     F2 = F[X]/(X^2-alpha),
@@ -65,8 +66,9 @@ Clone(bound = "P: QuadExtParameters"),
 Copy(bound = "P: QuadExtParameters"),
 Debug(bound = "P: QuadExtParameters"),
 PartialEq(bound = "P: QuadExtParameters"),
-Eq(bound = "P: QuadExtParameters")
+Eq(bound = "P: QuadExtParameters"),
 )]
+#[derive(Serialize, Deserialize)]
 pub struct QuadExtField<P: QuadExtParameters> {
     pub c0: P::BaseField,
     pub c1: P::BaseField,

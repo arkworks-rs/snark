@@ -5,6 +5,7 @@ use std::{
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
     str::FromStr,
 };
+use serde::{Serialize, Deserialize};
 
 #[macro_use]
 mod macros;
@@ -92,6 +93,8 @@ pub trait Field:
     + FromBytes
     + ToBits
     + FromBits
+    + Serialize
+    + for <'a> Deserialize<'a>
     + SemanticallyValid
     + Copy
     + Clone

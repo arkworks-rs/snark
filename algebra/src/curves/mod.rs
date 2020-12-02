@@ -5,6 +5,7 @@ use std::{
     hash::Hash,
     ops::{Add, AddAssign, Neg, Sub, SubAssign},
 };
+use serde::{Serialize, Deserialize};
 
 pub mod models;
 
@@ -123,6 +124,8 @@ pub trait ProjectiveCurve:
     + Sized
     + ToBytes
     + FromBytes
+    + Serialize
+    + for <'a> Deserialize<'a>
     + SemanticallyValid
     + FromBytesChecked
     + Copy
@@ -210,6 +213,8 @@ pub trait AffineCurve:
     + Sized
     + ToBytes
     + FromBytes
+    + Serialize
+    + for <'a> Deserialize<'a>
     + SemanticallyValid
     + FromBytesChecked
     + Copy

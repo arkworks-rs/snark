@@ -12,6 +12,7 @@ macro_rules! impl_Fp {
             PartialEq(bound = ""),
             Eq(bound = "")
         )]
+        #[derive(Serialize, Deserialize)]
         pub struct $Fp<P>(
             pub $BigIntegerType,
             #[derivative(Debug = "ignore")]

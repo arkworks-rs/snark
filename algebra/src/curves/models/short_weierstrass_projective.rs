@@ -13,6 +13,7 @@ use crate::{
     fields::{BitIterator, Field, PrimeField, SquareRootField},
 };
 use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+use serde::{Serialize, Deserialize};
 
 #[derive(Derivative)]
 #[derivative(
@@ -23,6 +24,7 @@ use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
     Debug(bound = "P: Parameters"),
     Hash(bound = "P: Parameters")
 )]
+#[derive(Serialize, Deserialize)]
 pub struct GroupAffine<P: Parameters> {
     pub x: P::BaseField,
     pub y: P::BaseField,
@@ -403,6 +405,7 @@ impl<P: Parameters> Default for GroupAffine<P> {
     Debug(bound = "P: Parameters"),
     Hash(bound = "P: Parameters")
 )]
+#[derive(Serialize, Deserialize)]
 pub struct GroupProjective<P: Parameters> {
     pub x:   P::BaseField,
     pub y:   P::BaseField,

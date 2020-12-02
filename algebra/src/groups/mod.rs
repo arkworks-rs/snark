@@ -10,6 +10,7 @@ use crate::{
     bytes::{FromBytes, ToBytes},
     fields::PrimeField,
 };
+use serde::{Serialize, Deserialize};
 
 #[cfg(test)]
 pub mod tests;
@@ -19,6 +20,8 @@ pub trait Group:
     + FromBytes
     + FromBytesChecked
     + SemanticallyValid
+    + Serialize
+    + for<'a> Deserialize<'a>
     + Copy
     + Clone
     + Debug

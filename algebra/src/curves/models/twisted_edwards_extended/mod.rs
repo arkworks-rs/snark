@@ -13,6 +13,7 @@ use crate::{
     fields::{BitIterator, Field, PrimeField, SquareRootField},
 };
 use std::io::ErrorKind;
+use serde::{Serialize, Deserialize};
 
 #[cfg(test)]
 pub mod tests;
@@ -26,6 +27,7 @@ pub mod tests;
     Debug(bound = "P: Parameters"),
     Hash(bound = "P: Parameters")
 )]
+#[derive(Serialize, Deserialize)]
 pub struct GroupAffine<P: Parameters> {
     pub x: P::BaseField,
     pub y: P::BaseField,
@@ -347,6 +349,7 @@ mod group_impl {
     Debug(bound = "P: Parameters"),
     Hash(bound = "P: Parameters")
 )]
+#[derive(Serialize, Deserialize)]
 pub struct GroupProjective<P: Parameters> {
     pub x: P::BaseField,
     pub y: P::BaseField,
