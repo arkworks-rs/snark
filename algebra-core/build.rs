@@ -52,4 +52,24 @@ fn main() {
             .compile("modsub768");
         println!("cargo:rustc-cfg=use_bw6_asm");
     }
+
+    let should_use_bw6_asm_armv8 = cfg!(any(
+        all(
+            feature = "bw6_asm",
+            target_arch = "aarch64"
+        ),
+        feature = "force_bw6_asm_armv8"
+    ));
+    if should_use_bw6_asm_armv8 {
+        cc::Build::new()
+            .file("bw6-assembly/modmul768-armv8-kos.S")
+            .compile("modmul768");
+        cc::Build::new()
+            .file("bw6-assembly/modadd768-armv8.S")
+            .compile("modadd768");
+        cc::Build::new()
+            .file("bw6-assembly/modsub768-armv8.S")
+            .compile("modsub768");
+        println!("cargo:rustc-cfg=use_bw6_asm");
+    }
 }
