@@ -5,6 +5,7 @@ extern "C" {
     pub fn modmul768(x: *const u64, y: *const u64, m: *const u64, z: *mut u64);
     pub fn modadd768(x: *const u64, y: *const u64, m: *const u64, z: *mut u64);
     pub fn modsub768(x: *const u64, y: *const u64, m: *const u64, z: *mut u64);
+    pub fn modsqr768(x: *const u64, m: *const u64, z: *mut u64);
 }
 /// This modular multiplication algorithm uses Montgomery
 /// reduction for efficient implementation. It also additionally
@@ -253,8 +254,7 @@ macro_rules! impl_field_square_in_place {
                             P::MODULUS.0[11],
                             P::INV,
                         ];
-                        crate::fields::arithmetic::modmul768(
-                            ((self.0).0).as_ptr(),
+                        crate::fields::arithmetic::modsqr768(
                             ((self.0).0).as_ptr(),
                             modulus_with_inv.as_ptr(),
                             ((self.0).0).as_mut_ptr(),
