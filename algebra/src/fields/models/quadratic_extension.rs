@@ -73,6 +73,7 @@ pub struct QuadExtField<P: QuadExtParameters> {
     pub c0: P::BaseField,
     pub c1: P::BaseField,
     #[derivative(Debug = "ignore")]
+    #[serde(skip)]
     #[doc(hidden)]
     pub _parameters: PhantomData<P>,
 }

@@ -17,6 +17,7 @@ macro_rules! impl_Fp {
             pub $BigIntegerType,
             #[derivative(Debug = "ignore")]
             #[doc(hidden)]
+            #[serde(skip)]
             pub PhantomData<P>,
         );
 

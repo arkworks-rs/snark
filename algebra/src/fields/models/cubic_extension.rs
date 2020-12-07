@@ -74,6 +74,7 @@ pub struct CubicExtField<P: CubicExtParameters> {
     pub c1: P::BaseField,
     pub c2: P::BaseField,
     #[derivative(Debug = "ignore")]
+    #[serde(skip)]
     #[doc(hidden)]
     pub _parameters: PhantomData<P>,
 }

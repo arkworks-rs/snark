@@ -79,6 +79,8 @@ pub(crate) struct BigMerkleTreeState<T: FieldBasedMerkleTreeParameters>{
     present_node: HashSet<Coord>,
     // root of the Merkle tree
     root: T::Data,
+
+    #[serde(skip)]
     _parameters: PhantomData<T>
 }
 

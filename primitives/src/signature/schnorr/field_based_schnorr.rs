@@ -33,6 +33,7 @@ Debug(bound = "F: PrimeField, G: Group")
 pub struct FieldBasedSchnorrSignature<F: PrimeField, G: Group> {
     pub e:    F,
     pub s:    F,
+    #[serde(skip)]
     _group:   PhantomData<G>,
 }
 

@@ -28,6 +28,7 @@ pub struct SchnorrSignature<G: Group, D: Digest> {
 #[serde(bound(serialize = "G: Group, H: Digest"))]
 #[serde(bound(deserialize = "G: Group, H: Digest"))]
 pub struct SchnorrSigParameters<G: Group, H: Digest> {
+    #[serde(skip)]
     _hash:         PhantomData<H>,
     pub generator: G,
     pub salt:      [u8; 32],

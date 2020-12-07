@@ -30,6 +30,7 @@ pub struct GroupAffine<P: Parameters> {
     pub y: P::BaseField,
     pub infinity: bool,
     #[derivative(Debug = "ignore")]
+    #[serde(skip)]
     _params: PhantomData<P>,
 }
 
@@ -340,6 +341,7 @@ pub struct GroupProjective<P: Parameters> {
     pub y:   P::BaseField,
     pub z:   P::BaseField,
     #[derivative(Debug = "ignore")]
+    #[serde(skip)]
     _params: PhantomData<P>,
 }
 
