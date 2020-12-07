@@ -19,6 +19,8 @@ pub type G2Projective<P> = GroupProjective<<P as Bls12Parameters>::G2Parameters>
     Eq(bound = "P: Bls12Parameters")
 )]
 #[derive(Serialize, Deserialize)]
+#[serde(bound(serialize = "P: Bls12Parameters"))]
+#[serde(bound(deserialize = "P: Bls12Parameters"))]
 pub struct G2Prepared<P: Bls12Parameters> {
     // Stores the coefficients of the line evaluations as calculated in
     // https://eprint.iacr.org/2013/722.pdf

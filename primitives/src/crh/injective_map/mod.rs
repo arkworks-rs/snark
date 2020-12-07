@@ -16,8 +16,10 @@ use algebra::{
     groups::Group,
 };
 
+use serde::{Serialize, Deserialize};
+
 pub trait InjectiveMap<G: Group> {
-    type Output: ToBytes + Clone + Eq + Hash + Default + Debug;
+    type Output: ToBytes + Serialize + for<'a> Deserialize <'a> + Clone + Eq + Hash + Default + Debug;
     fn injective_map(ge: &G) -> Result<Self::Output, CryptoError>;
 }
 

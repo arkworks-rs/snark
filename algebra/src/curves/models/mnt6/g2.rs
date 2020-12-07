@@ -54,6 +54,8 @@ PartialEq(bound = "P: MNT6Parameters"),
 Eq(bound = "P: MNT6Parameters")
 )]
 #[derive(Serialize, Deserialize)]
+#[serde(bound(serialize = "P: MNT6Parameters"))]
+#[serde(bound(deserialize = "P: MNT6Parameters"))]
 pub struct G2Prepared<P: MNT6Parameters>{
     pub q:      G2Affine<P>,
     pub coeffs: Vec<G2PreparedCoefficients<P>>,

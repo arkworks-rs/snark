@@ -7,6 +7,7 @@ use algebra::{Field, bytes::{
 use r1cs_core::{SynthesisError, Index, LinearCombination};
 use std::io::{self, Read, Result as IoResult, Write};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use serde::{Serialize, Deserialize};
 
 /// Reduce an R1CS instance to a *Quadratic Arithmetic Program* instance.
 pub mod r1cs_to_qap;
@@ -26,7 +27,7 @@ mod test;
 pub use self::{generator::*, prover::*, verifier::*};
 
 /// A proof in the Groth16 SNARK.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Proof<E: PairingEngine> {
     pub a: E::G1Affine,
     pub b: E::G2Affine,
@@ -142,7 +143,7 @@ fn read_affine_vec<G: AffineCurve, R: Read>(len: usize, mut reader: R) -> IoResu
 }
 
 /// A verification key in the Groth16 SNARK.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct VerifyingKey<E: PairingEngine> {
     pub alpha_g1_beta_g2:   E::Fqk,
     pub gamma_g2:           E::G2Affine,
@@ -292,7 +293,7 @@ pub(crate) fn push_constraints<F: Field>(
 }
 
 /// Full public (prover and verifier) parameters for the Groth16 zkSNARK.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Parameters<E: PairingEngine> {
     pub vk:         VerifyingKey<E>,
     pub alpha_g1:   E::G1Affine,
@@ -467,7 +468,7 @@ impl<E: PairingEngine> FromBytes for Parameters<E> {
 
 /// Preprocessed verification key parameters that enable faster verification
 /// at the expense of larger size in memory.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PreparedVerifyingKey<E: PairingEngine> {
     pub alpha_g1_beta_g2: E::Fqk,
     pub gamma_g2_neg_pc:  E::G2Prepared,

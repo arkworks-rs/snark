@@ -1,6 +1,7 @@
 use crate::{crh::FixedLengthCRH, Error};
 use algebra::bytes::ToBytes;
 use std::{fmt, rc::Rc};
+use serde::{Serialize, Deserialize};
 
 pub mod field_based_mht;
 pub use self::field_based_mht::*;
@@ -17,6 +18,7 @@ pub trait MerkleTreeConfig {
     Clone(bound = "P: MerkleTreeConfig"),
     Debug(bound = "P: MerkleTreeConfig, <P::H as FixedLengthCRH>::Output: fmt::Debug")
 )]
+#[derive(Serialize, Deserialize)]
 pub struct MerkleTreePath<P: MerkleTreeConfig> {
     pub path: Vec<(
         <P::H as FixedLengthCRH>::Output,

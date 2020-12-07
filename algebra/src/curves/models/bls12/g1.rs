@@ -18,6 +18,8 @@ pub type G1Projective<P> = GroupProjective<<P as Bls12Parameters>::G1Parameters>
     Eq(bound = "P: Bls12Parameters")
 )]
 #[derive(Serialize, Deserialize)]
+#[serde(bound(serialize = "P: Bls12Parameters"))]
+#[serde(bound(deserialize = "P: Bls12Parameters"))]
 pub struct G1Prepared<P: Bls12Parameters>(pub G1Affine<P>);
 
 impl<P: Bls12Parameters> G1Prepared<P> {

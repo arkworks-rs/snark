@@ -29,6 +29,8 @@ rayon = { version = "1" }
 smallvec = { version = "0.6" }
 byteorder = { version = "1" }
 
+serde = { version = "1.0.117", features = ["derive"]}
+
 [dev-dependencies]
 csv = { version = "1" }
 criterion = "0.3"

@@ -17,6 +17,8 @@ PartialEq(bound = "P: MNT4Parameters"),
 Eq(bound = "P: MNT4Parameters")
 )]
 #[derive(Serialize, Deserialize)]
+#[serde(bound(serialize = "P: MNT4Parameters"))]
+#[serde(bound(deserialize = "P: MNT4Parameters"))]
 pub struct G1Prepared<P: MNT4Parameters> {
     pub p:                  G1Affine<P>,
     pub py_twist_squared:   Fp2<P::Fp2Params>,

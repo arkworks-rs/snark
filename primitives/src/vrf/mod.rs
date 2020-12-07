@@ -2,16 +2,19 @@ use algebra::{Field, ToBytes, FromBytes, FromBytesChecked, SemanticallyValid, Un
 use rand::Rng;
 use std::{hash::Hash, fmt::Debug};
 use crate::Error;
+use serde::{Serialize, Deserialize};
 
 pub mod ecvrf;
 
 pub trait FieldBasedVrf {
     type Data: Field;
     type PublicKey: FromBytes + FromBytesChecked + ToBytes + Hash + Eq + Copy +
-                    Clone + Default + Debug + Send + Sync + UniformRand;
-    type SecretKey: ToBytes + Clone + Default;
+                    Clone + Default + Debug + Send + Sync + UniformRand
+                    + Serialize + for<'a> Deserialize<'a>;
+    type SecretKey: ToBytes + Clone + Default + Serialize + for<'a> Deserialize<'a>;
     type Proof: Copy + Clone + Default + Send + Sync + Debug + Eq + PartialEq + ToBytes
-                + FromBytes + FromBytesChecked + SemanticallyValid;
+                + FromBytes + FromBytesChecked + SemanticallyValid
+                + Serialize + for<'a> Deserialize<'a>;
     type GHParams: Clone + Default;
 
     fn keygen<R: Rng>(

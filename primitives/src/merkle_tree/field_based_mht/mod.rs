@@ -20,6 +20,7 @@ use algebra::{
 };
 use crate::{FieldBasedHash, BatchFieldBasedHash, Error, FieldBasedHashParameters, MerkleTreeError};
 use std::{clone::Clone, fmt::Debug};
+use serde::{Serialize, Deserialize};
 
 /// Definition of parameters needed to implement and optimize a Merkle Tree whose nodes and leaves
 /// are Field elements. The trait is generic with respect to the arity of the Merkle Tree.
@@ -105,7 +106,7 @@ pub trait FieldBasedMerkleTree: Clone {
 /// trait is generic with respect to the arity of the Merkle Tree and to the hash function used.
 pub trait FieldBasedMerkleTreePath {
     type H: FieldBasedHash;
-    type Path: Clone + Debug;
+    type Path: Clone + Debug + Serialize + for<'a> Deserialize<'a>;
     type Parameters: FieldBasedMerkleTreeParameters<
         Data = <Self::H as FieldBasedHash>::Data,
         H = Self::H

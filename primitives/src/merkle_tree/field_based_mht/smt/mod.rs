@@ -17,6 +17,7 @@ use std::{
     collections::{HashMap, HashSet},
     marker::PhantomData
 };
+use serde::{Serialize, Deserialize};
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum ActionLeaf {
@@ -24,7 +25,7 @@ pub enum ActionLeaf {
     Remove,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
 // Coordinates system for identifying a node
 pub struct Coord {
     // height in the Merkle tree (0 -> leaves)
@@ -68,7 +69,7 @@ impl<F: Field> OperationLeaf<F> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct BigMerkleTreeState<T: FieldBasedMerkleTreeParameters>{
     // the height of this tree
     height: usize,

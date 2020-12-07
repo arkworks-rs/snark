@@ -12,6 +12,7 @@ use std::{
     io::{Result as IoResult, Write},
     marker::PhantomData,
 };
+use serde::{Serialize, Deserialize};
 
 pub mod field_based_schnorr;
 
@@ -23,6 +24,9 @@ pub struct SchnorrSignature<G: Group, D: Digest> {
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "G: Group, H: Digest"))]
+#[derive(Serialize, Deserialize)]
+#[serde(bound(serialize = "G: Group, H: Digest"))]
+#[serde(bound(deserialize = "G: Group, H: Digest"))]
 pub struct SchnorrSigParameters<G: Group, H: Digest> {
     _hash:         PhantomData<H>,
     pub generator: G,
@@ -33,6 +37,9 @@ pub type SchnorrPublicKey<G> = G;
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "G: Group"), Default(bound = "G: Group"))]
+#[derive(Serialize, Deserialize)]
+#[serde(bound(serialize = "G: Group"))]
+#[serde(bound(deserialize = "G: Group"))]
 pub struct SchnorrSecretKey<G: Group>(pub G::ScalarField);
 
 impl<G: Group> ToBytes for SchnorrSecretKey<G> {
@@ -44,6 +51,9 @@ impl<G: Group> ToBytes for SchnorrSecretKey<G> {
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "G: Group"), Default(bound = "G: Group"))]
+#[derive(Serialize, Deserialize)]
+#[serde(bound(serialize = "G: Group"))]
+#[serde(bound(deserialize = "G: Group"))]
 pub struct SchnorrSig<G: Group> {
     pub prover_response:    G::ScalarField,
     pub verifier_challenge: G::ScalarField,

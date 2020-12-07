@@ -8,7 +8,7 @@ use std::{
 /// An implementation of the FieldBasedMerkleTreePath trait, for a given FieldBasedHash and
 /// FieldBasedMerkleTree with arbitrary arity.
 /// TODO: Test for arity > 2
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FieldBasedMHTPath<T: FieldBasedMerkleTreeParameters>{
     path: Vec<(Vec<<T::H as FieldBasedHash>::Data>, usize)>,
 }
@@ -185,7 +185,7 @@ impl<T: FieldBasedMerkleTreeParameters> FromBytes for FieldBasedMHTPath<T> {
 
 /// A wrapper around a Merkle Path for a FieldBasedMerkleTree of arity 2. Merkle Trees of arity
 /// 2 are the most common and it's worth to explicitly create a separate struct
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FieldBasedBinaryMHTPath<T: FieldBasedMerkleTreeParameters>{
     path: Vec<(<T::H as FieldBasedHash>::Data, bool)>,
 }
