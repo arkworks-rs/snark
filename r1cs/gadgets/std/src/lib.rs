@@ -71,15 +71,22 @@ pub mod prelude {
     };
 }
 
+use algebra::Field;
+use r1cs_core::{ConstraintSystem, SynthesisError};
+
 pub trait Assignment<T> {
-    fn get(self) -> Result<T, r1cs_core::SynthesisError>;
+    fn get(self) -> Result<T, SynthesisError>;
 }
 
 impl<T> Assignment<T> for Option<T> {
-    fn get(self) -> Result<T, r1cs_core::SynthesisError> {
+    fn get(self) -> Result<T, SynthesisError> {
         match self {
             Some(v) => Ok(v),
-            None => Err(r1cs_core::SynthesisError::AssignmentMissing),
+            None => Err(SynthesisError::AssignmentMissing),
         }
     }
+}
+
+pub trait FromGadget<T, ConstraintF: Field>: Sized {
+    fn from<CS: ConstraintSystem<ConstraintF>>(other: T) -> Result<Self, SynthesisError>;
 }
