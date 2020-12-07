@@ -39,6 +39,7 @@ pub struct PedersenCommitment<G: Group, W: PedersenWindow> {
     Default(bound = "G: Group")
 )]
 #[derive(Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct PedersenRandomness<G: Group>(pub G::ScalarField);
 
 impl<G: Group> UniformRand for PedersenRandomness<G> {

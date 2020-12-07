@@ -118,7 +118,9 @@ Debug(bound = "G: Group"),
 )]
 #[derive(Serialize, Deserialize)]
 #[serde(bound(serialize = "G: Group"))]
-#[serde(bound(deserialize = "G: Group"))]pub struct FieldBasedSchnorrPk<G: Group>(pub G);
+#[serde(bound(deserialize = "G: Group"))]
+#[serde(transparent)]
+pub struct FieldBasedSchnorrPk<G: Group>(pub G);
 
 impl<G: Group> Distribution<FieldBasedSchnorrPk<G>> for Standard {
     #[inline]

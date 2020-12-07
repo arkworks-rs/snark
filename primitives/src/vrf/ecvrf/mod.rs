@@ -126,6 +126,7 @@ Debug(bound = "G: Group"),
 #[derive(Serialize, Deserialize)]
 #[serde(bound(serialize = "G: Group"))]
 #[serde(bound(deserialize = "G: Group"))]
+#[serde(transparent)]
 pub struct FieldBasedEcVrfPk<G: Group>(pub G);
 
 impl<G: Group> Distribution<FieldBasedEcVrfPk<G>> for Standard {

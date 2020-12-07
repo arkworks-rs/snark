@@ -41,6 +41,7 @@ pub type SchnorrPublicKey<G> = G;
 #[derive(Serialize, Deserialize)]
 #[serde(bound(serialize = "G: Group"))]
 #[serde(bound(deserialize = "G: Group"))]
+#[serde(transparent)]
 pub struct SchnorrSecretKey<G: Group>(pub G::ScalarField);
 
 impl<G: Group> ToBytes for SchnorrSecretKey<G> {
