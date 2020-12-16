@@ -15,6 +15,7 @@ edition = "2018"
 [dependencies]
 ark-ff = { git = "https://github.com/arkworks-rs/algebra", default-features = false }
 ark-std = { git = "https://github.com/arkworks-rs/utils", default-features = false }
+indexmap = { version = "0.9", default-features = false, features = [ "ahash", "inline-more"] }
 tracing = { version = "0.1", default-features = false }
 tracing-subscriber = { version = "0.2", default-features = false, optional = true }
 

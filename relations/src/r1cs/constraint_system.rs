@@ -1,12 +1,12 @@
 #[cfg(feature = "std")]
 use crate::r1cs::ConstraintTrace;
+use hashbrown::HashMap;
 use crate::r1cs::{LcIndex, LinearCombination, Matrix, SynthesisError, Variable};
 use ark_ff::Field;
 use ark_std::{
     any::{Any, TypeId},
     boxed::Box,
     cell::{Ref, RefCell, RefMut},
-    collections::BTreeMap,
     format,
     rc::Rc,
     string::String,
@@ -23,7 +23,13 @@ pub trait ConstraintSynthesizer<F: Field> {
     fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> crate::r1cs::Result<()>;
 }
 
-/// An Rank-One `ConstraintSystem`. Enforces constraints of the form
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Hash)]
+struct CoeffIndex(usize);
+
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Hash)]
+struct InternedLC(Vec<(CoeffIndex, Variable)>);
+
+/// A Rank-One `ConstraintSystem`. Enforces constraints of the form
 /// `⟨a_i, z⟩ ⋅ ⟨b_i, z⟩ = ⟨c_i, z⟩`, where `a_i`, `b_i`, and `c_i` are linear
 /// combinations over variables, and `z` is the concrete assignment to these
 /// variables.
@@ -55,9 +61,9 @@ pub struct ConstraintSystem<F: Field> {
     pub witness_assignment: Vec<F>,
 
     /// Map for gadgets to cache computation results.
-    pub cache_map: Rc<RefCell<BTreeMap<TypeId, Box<dyn Any>>>>,
+    pub cache_map: Rc<RefCell<HashMap<TypeId, Box<dyn Any>>>>,
 
-    lc_map: BTreeMap<LcIndex, LinearCombination<F>>,
+    lc_map: HashMap<LcIndex, InternedLC>,
 
     #[cfg(feature = "std")]
     constraint_traces: Vec<Option<ConstraintTrace>>,
@@ -66,7 +72,9 @@ pub struct ConstraintSystem<F: Field> {
     b_constraints: Vec<LcIndex>,
     c_constraints: Vec<LcIndex>,
 
-    lc_assignment_cache: Rc<RefCell<BTreeMap<LcIndex, F>>>,
+    lc_coeff_interner: HashMap<CoeffIndex, F>,
+
+    lc_assignment_cache: Rc<RefCell<HashMap<LcIndex, F>>>,
 }
 
 impl<F: Field> Default for ConstraintSystem<F> {
@@ -121,12 +129,13 @@ impl<F: Field> ConstraintSystem<F> {
             c_constraints: Vec::new(),
             instance_assignment: vec![F::one()],
             witness_assignment: Vec::new(),
-            cache_map: Rc::new(RefCell::new(BTreeMap::new())),
+            cache_map: Rc::new(RefCell::new(HashMap::new())),
             #[cfg(feature = "std")]
             constraint_traces: Vec::new(),
 
-            lc_map: BTreeMap::new(),
-            lc_assignment_cache: Rc::new(RefCell::new(BTreeMap::new())),
+            lc_coeff_interner: HashMap::new(),
+            lc_map: HashMap::new(),
+            lc_assignment_cache: Rc::new(RefCell::new(HashMap::new())),
 
             mode: SynthesisMode::Prove {
                 construct_matrices: true,
@@ -207,7 +216,16 @@ impl<F: Field> ConstraintSystem<F> {
         let index = LcIndex(self.num_linear_combinations);
         let var = Variable::SymbolicLc(index);
 
-        self.lc_map.insert(index, lc);
+        let lc = lc
+            .0
+            .into_iter()
+            .map(|(coeff, var)| {
+                let num_coeffs = self.lc_coeff_interner.len();
+                let index = self.lc_coeff_interner.entry(coeff).or_insert(CoeffIndex(num_coeffs));
+                (index, var)
+            })
+            .collect::<Vec<_>>();
+        self.lc_map.insert(index, InternedLC(lc));
 
         self.num_linear_combinations += 1;
         Ok(var)
@@ -265,7 +283,7 @@ impl<F: Field> ConstraintSystem<F> {
     /// do not contribute to the size of the multi-scalar multiplication, which
     /// is the dominating cost.
     pub fn inline_all_lcs(&mut self) {
-        let mut inlined_lcs = BTreeMap::new();
+        let mut inlined_lcs = HashMap::new();
         let mut num_times_used = self.lc_num_times_used(false);
 
         for (&index, lc) in &self.lc_map {
@@ -311,7 +329,7 @@ impl<F: Field> ConstraintSystem<F> {
         let used_times = self.lc_num_times_used(true);
 
         // step 2: Modify the lcs accordingly
-        let mut outlined_lcs = BTreeMap::new();
+        let mut outlined_lcs = HashMap::new();
 
         let mut additional_a_constraints = Vec::<LcIndex>::new();
         let mut additional_c_constraints_witness_assignments = Vec::<usize>::new();

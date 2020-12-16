@@ -29,12 +29,12 @@ use core::cmp::Ordering;
 /// A sparse representation of constraint matrices.
 pub type Matrix<F> = Vec<Vec<(F, usize)>>;
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 /// An opaque counter for symbolic linear combinations.
 pub struct LcIndex(usize);
 
 /// Represents the different kinds of variables present in a constraint system.
-#[derive(Copy, Clone, PartialEq, Debug, Eq)]
+#[derive(Copy, Clone, PartialEq, Debug, Eq, Hash)]
 pub enum Variable {
     /// Represents the "zero" constant.
     Zero,
