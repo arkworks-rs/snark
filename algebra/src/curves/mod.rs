@@ -1,11 +1,4 @@
-use crate::{
-    bytes::{FromBytes, ToBytes},
-    fields::{Field, PrimeField, SquareRootField},
-    groups::Group,
-    SemanticallyValid,
-    FromBytesChecked,
-    bits::{ToBits, FromCompressedBits}
-};
+use crate::{bytes::{FromBytes, ToBytes}, fields::{Field, PrimeField, SquareRootField}, groups::Group, SemanticallyValid, FromBytesChecked, bits::{ToBits, FromCompressedBits}, ToCompressedBits};
 use crate::UniformRand;
 use std::{
     fmt::{Debug, Display},
@@ -231,6 +224,8 @@ pub trait AffineCurve:
     + for <'a> Deserialize<'a>
     + SemanticallyValid
     + FromBytesChecked
+    + ToCompressedBits
+    + FromCompressedBits
     + Copy
     + Clone
     + Default
@@ -262,7 +257,7 @@ pub trait AffineCurve:
     /// Returns a group element if the set of bytes forms a valid group element,
     /// otherwise returns None. This function is primarily intended for sampling
     /// random group elements from a hash-function or RNG output.
-    fn from_random_bytes(bytes: &[u8]) -> Option<Self> where Self: FromCompressedBits {
+    fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
 
         let fe = match <Self::BaseField as Field>::BasePrimeField::from_random_bytes(bytes) {
             Some(fe) => fe,

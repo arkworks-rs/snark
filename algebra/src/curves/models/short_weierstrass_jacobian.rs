@@ -1,6 +1,6 @@
 use rand::{Rng, distributions::{Standard, Distribution}};
 use crate::curves::models::SWModelParameters as Parameters;
-use crate::{UniformRand, SemanticallyValid, FromBytesChecked};
+use crate::{UniformRand, SemanticallyValid, Error, FromBytesChecked, BitSerializationError, FromCompressedBits, ToCompressedBits};
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
     io::{Read, Result as IoResult, Write, Error as IoError, ErrorKind},
@@ -317,6 +317,72 @@ impl<P: Parameters> FromBytesChecked for GroupAffine<P> {
                 Ok(p)
             }
         )
+    }
+}
+
+use crate::{ToBits, FromBits};
+impl<P: Parameters> ToCompressedBits for GroupAffine<P>
+{
+    #[inline]
+    fn compress(&self) -> Vec<bool> {
+        // Strictly speaking, self.x is zero already when self.infinity is true, but
+        // to guard against implementation mistakes we do not assume this.
+        let p = if self.infinity {P::BaseField::zero()} else {self.x};
+        let mut res = p.write_bits();
+
+        // Is this the point at infinity? If so, set the most significant bit.
+        res.push(self.infinity);
+
+        // Is the y-coordinate the odd one of the two associated with the
+        // x-coordinate? If so, set the third-most significant bit so long as this is not
+        // the point at infinity.
+
+        res.push(!self.infinity && self.y.is_odd());
+
+        res
+    }
+}
+
+impl<P: Parameters> FromCompressedBits for GroupAffine<P>
+{
+    #[inline]
+    fn decompress(compressed: Vec<bool>) -> Result<Self, Error> {
+        let len = compressed.len() - 1;
+        let parity_flag_set = compressed[len];
+        let infinity_flag_set = compressed[len - 1];
+
+        //Mask away the flag bits and try to get the x coordinate
+        let x = P::BaseField::read_bits(compressed[0..(len - 1)].to_vec())?;
+        match (infinity_flag_set, parity_flag_set, x.is_zero()) {
+
+            //If the infinity flag is set, return the value assuming
+            //the x-coordinate is zero and the parity bit is not set.
+            (true, false, true) => Ok(Self::zero()),
+
+            //If infinity flag is not set, then we attempt to construct
+            //a point from the x coordinate and the parity.
+            (false, _, _) => {
+
+                //Attempt to get the y coordinate from its parity and x
+                match Self::get_point_from_x_and_parity(x, parity_flag_set) {
+
+                    //Check p belongs to the subgroup we expect
+                    Some(p) => {
+                        if p.is_in_correct_subgroup_assuming_on_curve() {
+                            Ok(p)
+                        }
+                        else {
+                            let e = BitSerializationError::NotPrimeOrder;
+                            Err(Box::new(e))
+                        }
+                    }
+                    _ => Err(Box::new(BitSerializationError::NotOnCurve)),
+                }
+            },
+
+            //Other combinations are illegal
+            _ => Err(Box::new(BitSerializationError::InvalidFlags)),
+        }
     }
 }
 
