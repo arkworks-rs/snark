@@ -1,5 +1,6 @@
 use crate::{crh::FixedLengthCRH, Error};
 use algebra::bytes::ToBytes;
+
 use std::{fmt, rc::Rc};
 use serde::{Serialize, Deserialize};
 
@@ -259,12 +260,6 @@ impl std::error::Error for MerkleTreeError {
     }
 }
 
-/// Returns the log2 value of the given number.
-#[inline]
-fn log2(number: usize) -> usize {
-    (number as f64).log2() as usize
-}
-
 /// Returns the height of the tree, given the size of the tree.
 #[inline]
 fn tree_height(tree_size: usize) -> usize {
@@ -272,7 +267,7 @@ fn tree_height(tree_size: usize) -> usize {
         return 1;
     }
 
-    log2(tree_size)
+    algebra::log2_floor(tree_size) as usize
 }
 
 /// Returns true iff the index represents the root.
