@@ -260,8 +260,8 @@ impl<F: Field> ConstraintSystem<F> {
     /// combinations that use them.
     ///
     /// Useful for standard pairing-based SNARKs where addition gates are cheap.
-    /// For example, in the SNARKs such as [[Groth16]](https://eprint.iacr.org/2016/260) and
-    /// [[Groth-Maller17]](https://eprint.iacr.org/2017/540), addition gates
+    /// For example, in the SNARKs such as [\[Groth16\]](https://eprint.iacr.org/2016/260) and
+    /// [\[Groth-Maller17\]](https://eprint.iacr.org/2017/540), addition gates
     /// do not contribute to the size of the multi-scalar multiplication, which
     /// is the dominating cost.
     pub fn inline_all_lcs(&mut self) {
@@ -301,7 +301,8 @@ impl<F: Field> ConstraintSystem<F> {
     /// combination, and then uses that variable in every location the
     /// `SymbolicLc` is used.
     ///
-    /// Useful for SNARKs like `Marlin` or `Fractal`, where addition gates
+    /// Useful for SNARKs like [\[Marlin\]](https://eprint.iacr.org/2019/1047) or
+    /// [\[Fractal\]](https://eprint.iacr.org/2019/1076), where addition gates
     /// are not cheap.
     pub fn outline_lcs(&mut self) {
         if !self.should_construct_matrices() {
@@ -763,22 +764,26 @@ impl<F: Field> ConstraintSystemRef<F> {
     /// Naively inlines symbolic linear combinations into the linear
     /// combinations that use them.
     ///
-    /// Useful for standard pairing-based SNARKs where addition gates are free,
-    /// such as the SNARKs in [[Groth16]](https://eprint.iacr.org/2016/260) and
-    /// [[Groth-Maller17]](https://eprint.iacr.org/2017/540).
+    /// Useful for standard pairing-based SNARKs where addition gates are cheap.
+    /// For example, in the SNARKs such as [\[Groth16\]](https://eprint.iacr.org/2016/260) and
+    /// [\[Groth-Maller17\]](https://eprint.iacr.org/2017/540), addition gates
+    /// do not contribute to the size of the multi-scalar multiplication, which
+    /// is the dominating cost.
     pub fn inline_all_lcs(&self) {
         if let Some(cs) = self.inner() {
             cs.borrow_mut().inline_all_lcs()
         }
     }
 
-    /// If a `SymbolicLc` is used in more than one location, this method makes a
-    /// new variable for that `SymbolicLc`, adds a constraint ensuring the
-    /// equality of the variable and the linear combination, and then uses
-    /// that variable in every location the `SymbolicLc` is used.
+    /// If a `SymbolicLc` is used in more than one location and has sufficient
+    /// length, this method makes a new variable for that `SymbolicLc`, adds
+    /// a constraint ensuring the equality of the variable and the linear
+    /// combination, and then uses that variable in every location the
+    /// `SymbolicLc` is used.
     ///
-    /// Useful for SNARKs like `Marlin` or `Fractal`, where where addition gates
-    /// are not (entirely) free.
+    /// Useful for SNARKs like [\[Marlin\]](https://eprint.iacr.org/2019/1047) or
+    /// [\[Fractal\]](https://eprint.iacr.org/2019/1076), where addition gates
+    /// are not cheap.
     pub fn outline_lcs(&self) {
         if let Some(cs) = self.inner() {
             cs.borrow_mut().outline_lcs()
