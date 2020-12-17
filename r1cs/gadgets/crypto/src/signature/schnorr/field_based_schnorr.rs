@@ -29,10 +29,10 @@ use r1cs_std::alloc::ConstantGadget;
 
 #[derive(Derivative)]
 #[derivative(
-Debug(bound = "ConstraintF: PrimeField, G: Group"),
-Clone(bound = "ConstraintF: PrimeField, G: Group"),
-PartialEq(bound = "ConstraintF: PrimeField, G: Group"),
-Eq(bound = "ConstraintF: PrimeField, G: Group")
+    Debug(bound = "ConstraintF: PrimeField, G: Group"),
+    Clone(bound = "ConstraintF: PrimeField, G: Group"),
+    PartialEq(bound = "ConstraintF: PrimeField, G: Group"),
+    Eq(bound = "ConstraintF: PrimeField, G: Group")
 )]
 pub struct FieldBasedSchnorrSigGadget<
     ConstraintF: PrimeField,
@@ -94,7 +94,65 @@ for FieldBasedSchnorrSigGadget<ConstraintF, G>
     }
 }
 
-#[derive(Clone)]
+impl<ConstraintF, G> ConstantGadget<FieldBasedSchnorrSignature<ConstraintF, G>, ConstraintF>
+for FieldBasedSchnorrSigGadget<ConstraintF, G>
+    where
+        ConstraintF: PrimeField,
+        G: Group,
+{
+    fn from_value<CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        value: &FieldBasedSchnorrSignature<ConstraintF, G>
+    ) -> Self {
+        let e = FpGadget::<ConstraintF>::from_value(cs.ns(|| "hardcode e"), &value.e);
+        let s = FpGadget::<ConstraintF>::from_value(cs.ns(|| "hardcode s"), &value.s);
+        Self{ e, s, _field: PhantomData, _group: PhantomData }
+    }
+
+    fn get_constant(&self) -> FieldBasedSchnorrSignature<ConstraintF, G>
+    {
+        let e = self.e.value.unwrap();
+        let s = self.s.value.unwrap();
+        FieldBasedSchnorrSignature::<ConstraintF, G>::new(e, s)
+    }
+}
+
+impl<ConstraintF, G> EqGadget<ConstraintF> for FieldBasedSchnorrSigGadget<ConstraintF, G>
+    where
+        ConstraintF: PrimeField,
+        G: Group,
+{
+    fn is_eq<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS, other: &Self) -> Result<Boolean, SynthesisError> {
+        let b1 = self.e.is_eq(cs.ns(|| "b1"), &other.e)?;
+        let b2 = self.s.is_eq(cs.ns(|| "b2"), &other.s)?;
+        Boolean::and(cs.ns(|| "b1 && b2"), &b1, &b2)
+    }
+
+    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        other: &Self,
+        should_enforce: &Boolean
+    ) -> Result<(), SynthesisError> {
+        self.e.conditional_enforce_equal(cs.ns(|| "self.e =? other.e"), &other.e, should_enforce)?;
+        self.s.conditional_enforce_equal(cs.ns(|| "self.s =? other.s"), &other.s, should_enforce)?;
+        Ok(())
+    }
+
+    fn conditional_enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        other: &Self,
+        should_enforce: &Boolean
+    ) -> Result<(), SynthesisError> {
+        self.e.conditional_enforce_not_equal(cs.ns(|| "self.e !=? other.e"), &other.e, should_enforce)?;
+        self.s.conditional_enforce_not_equal(cs.ns(|| "self.s !=? other.s"), &other.s, should_enforce)?;
+        Ok(())
+    }
+}
+
+
+#[derive(Clone, Eq, PartialEq)]
 pub struct FieldBasedSchnorrPkGadget<
     ConstraintF: PrimeField,
     G: Group,
@@ -180,6 +238,48 @@ for FieldBasedSchnorrPkGadget<ConstraintF, G, GG>
         FieldBasedSchnorrPk::<G>(self.pk.get_value().unwrap())
     }
 }
+
+impl<ConstraintF, G, GG> EqGadget<ConstraintF> for FieldBasedSchnorrPkGadget<ConstraintF, G, GG>
+    where
+    ConstraintF: PrimeField,
+    G: Group,
+    GG: GroupGadget<G, ConstraintF, Value = G>,
+{
+    fn is_eq<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+        other: &Self
+    ) -> Result<Boolean, SynthesisError> {
+        self.pk.is_eq(cs, &other.pk)
+    }
+
+    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+        other: &Self,
+        should_enforce: &Boolean,
+    ) -> Result<(), SynthesisError> {
+         self.pk.conditional_enforce_equal(
+             cs,
+             &other.pk,
+             should_enforce
+         )
+    }
+
+    fn conditional_enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+        other: &Self,
+        should_enforce: &Boolean,
+    ) -> Result<(), SynthesisError> {
+        self.pk.conditional_enforce_not_equal(
+            cs,
+            &other.pk,
+            should_enforce
+        )
+    }
+}
+
 
 pub struct FieldBasedSchnorrSigVerificationGadget<
     ConstraintF: PrimeField,

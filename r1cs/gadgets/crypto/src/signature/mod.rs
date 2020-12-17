@@ -27,8 +27,12 @@ pub trait SigRandomizePkGadget<S: SignatureScheme, ConstraintF: Field> {
 pub trait FieldBasedSigGadget<S: FieldBasedSignatureScheme, ConstraintF: Field> {
 
     type DataGadget:      FieldGadget<ConstraintF, ConstraintF>;
-    type SignatureGadget: AllocGadget<S::Signature, ConstraintF>;
-    type PublicKeyGadget: AllocGadget<S::PublicKey, ConstraintF>;
+    type SignatureGadget: AllocGadget<S::Signature, ConstraintF> +
+                          ConstantGadget<S::Signature, ConstraintF> +
+                          EqGadget<ConstraintF>;
+    type PublicKeyGadget: AllocGadget<S::PublicKey, ConstraintF> +
+                          ConstantGadget<S::PublicKey, ConstraintF> +
+                          EqGadget<ConstraintF>;
 
     /// Enforce `signature` verification with `public_key` on `message`, returning a Boolean
     /// enforced to be `true` if signature verification is successful, and `false` otherwise.
