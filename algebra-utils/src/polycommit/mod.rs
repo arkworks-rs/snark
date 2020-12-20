@@ -1,4 +1,4 @@
-use algebra::{AffineCurve, PrimeField, SquareRootField};
+use algebra::AffineCurve;
 
 #[cfg(not(feature = "gpu"))]
 use rayon::prelude::*;
@@ -6,15 +6,14 @@ use rayon::prelude::*;
 use algebra_kernels::polycommit::get_kernels;
 
 pub fn polycommit_round_reduce<
-    F: PrimeField + SquareRootField + Into<<G::ScalarField as PrimeField>::BigInt>,
-    G: AffineCurve<ScalarField = F>
+    G: AffineCurve
 >(
-    round_challenge: F,
-    round_challenge_inv: F,
-    c_l: &mut [F],
-    c_r: &[F],
-    z_l: &mut [F],
-    z_r: &[F],
+    round_challenge: G::ScalarField,
+    round_challenge_inv: G::ScalarField,
+    c_l: &mut [G::ScalarField],
+    c_r: &[G::ScalarField],
+    z_l: &mut [G::ScalarField],
+    z_r: &[G::ScalarField],
     k_l: &mut [G::Projective],
     k_r: &[G],
 ) {
