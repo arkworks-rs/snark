@@ -1,5 +1,5 @@
 use algebra::{UniformRand, Field, PrimeField, FpParameters};
-use algebra::curves::{mnt6753::MNT6, PairingEngine};
+use algebra::curves::{bls12_381::Bls12_381, PairingEngine};
 use crate::{domain::*, multicore::*};
 use rand;
 use std::cmp::min;
@@ -42,7 +42,7 @@ fn fft_composition() {
 
     let rng = &mut rand::thread_rng();
 
-    test_fft_composition::<MNT6, _>(rng);
+    test_fft_composition::<Bls12_381, _>(rng);
 }
 
 #[test]
@@ -75,5 +75,5 @@ fn parallel_fft_consistency() {
 
     let rng = &mut rand::thread_rng();
 
-    test_consistency::<MNT6, _>(rng);
+    test_consistency::<Bls12_381, _>(rng);
 }
