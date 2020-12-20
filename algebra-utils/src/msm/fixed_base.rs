@@ -1,4 +1,4 @@
-use crate::{BigInteger, FpParameters, PrimeField, ProjectiveCurve};
+use algebra::{BigInteger, FpParameters, PrimeField, ProjectiveCurve};
 use rayon::prelude::*;
 
 pub struct FixedBaseMSM;

@@ -1,6 +1,7 @@
-use algebra::fft::domain::get_best_evaluation_domain;
+use algebra_utils::fft::domain::get_best_evaluation_domain;
+use algebra_utils::msm::FixedBaseMSM;
 use algebra::{
-    msm::FixedBaseMSM, UniformRand,
+    UniformRand,
     AffineCurve, Field, PairingEngine, PrimeField, ProjectiveCurve,
 };
 

@@ -1,4 +1,4 @@
-use crate::{FpParameters, PrimeField};
+use algebra::{FpParameters, PrimeField};
 use crate::{multicore::Worker, EvaluationDomain};
 use rayon::prelude::*;
 use std::fmt;

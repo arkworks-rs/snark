@@ -2,9 +2,10 @@ use rand::Rng;
 use rayon::prelude::*;
 
 use algebra::{
-    groups::Group, msm::VariableBaseMSM, AffineCurve, Field, PairingEngine, PrimeField,
+    groups::Group, AffineCurve, Field, PairingEngine, PrimeField,
     ProjectiveCurve, UniformRand,
 };
+use algebra_utils::msm::VariableBaseMSM;
 
 use crate::groth16::{push_constraints, r1cs_to_qap::R1CStoQAP, Parameters, Proof};
 

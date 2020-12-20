@@ -1,7 +1,7 @@
 //! A polynomial represented in evaluations form.
 
 use std::ops::{Add, Sub, Mul, Div, AddAssign, SubAssign, MulAssign, DivAssign};
-use crate::PrimeField;
+use algebra::PrimeField;
 use crate::{DensePolynomial, EvaluationDomain};
 
 /// Stores a polynomial in evaluation form.

@@ -20,7 +20,8 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-algebra = { path = "../algebra", features = [ "parallel", "fft" ] }
+algebra = { path = "../algebra", features = [ "parallel" ] }
+algebra-utils = { path = "../algebra-utils", features = [ "parallel", "fft" ] }
 r1cs-core = { path = "../r1cs/core" }
 bench-utils = { path = "../bench-utils" }
 

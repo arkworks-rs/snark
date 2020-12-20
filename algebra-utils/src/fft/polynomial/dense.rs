@@ -3,8 +3,8 @@
 use std::fmt;
 use std::ops::{Add, AddAssign, Deref, DerefMut, Div, Mul, Neg, Sub, SubAssign};
 
-use crate::{Field, PrimeField, get_best_evaluation_domain};
-use crate::{Evaluations, EvaluationDomain, DenseOrSparsePolynomial};
+use algebra::{Field, PrimeField};
+use crate::{Evaluations, EvaluationDomain, DenseOrSparsePolynomial, get_best_evaluation_domain};
 use rand::Rng;
 use rayon::prelude::*;
 
@@ -361,8 +361,8 @@ impl<'a, 'b, F: PrimeField> Mul<&'a DensePolynomial<F>> for &'b DensePolynomial<
 mod tests {
     use crate::domain::get_best_evaluation_domain;
     use crate::polynomial::*;
-    use crate::fields::{mnt6753::fr::Fr, Field};
-    use crate::UniformRand;
+    use algebra::fields::{mnt6753::fr::Fr, Field};
+    use algebra::UniformRand;
     use rand::thread_rng;
 
     #[test]

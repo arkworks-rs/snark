@@ -2,8 +2,9 @@ use rand::Rng;
 use rayon::prelude::*;
 
 use algebra::{
-    UniformRand, msm::VariableBaseMSM, AffineCurve, Field, PairingEngine, PrimeField, ProjectiveCurve,
+    UniformRand, AffineCurve, Field, PairingEngine, PrimeField, ProjectiveCurve,
 };
+use algebra_utils::msm::VariableBaseMSM;
 
 use crate::gm17::{Parameters, Proof};
 use crate::gm17::r1cs_to_sap::R1CStoSAP;

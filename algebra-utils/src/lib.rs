@@ -8,36 +8,14 @@
 #![cfg_attr(not(use_asm), forbid(unsafe_code))]
 #![cfg_attr(use_asm, deny(unsafe_code))]
 
-#[macro_use]
-extern crate derivative;
+#[cfg(feature = "parallel")]
+pub mod msm;
+#[cfg(feature = "parallel")]
+pub use self::msm::*;
 
-#[cfg_attr(test, macro_use)]
-pub mod bytes;
-pub use self::bytes::*;
-
-pub mod bits;
-pub use self::bits::*;
-
-pub mod biginteger;
-pub use self::biginteger::*;
-
-pub mod curves;
-pub use self::curves::*;
-
-#[macro_use]
-pub mod fields;
-pub use self::fields::*;
-
-pub mod groups;
-pub use self::groups::*;
-
-pub mod validity;
-pub use self::validity::*;
-
-mod rand;
-pub use self::rand::*;
-
-mod to_field_vec;
-pub use to_field_vec::ToConstraintField;
+#[cfg(feature = "fft")]
+pub mod fft;
+#[cfg(feature = "fft")]
+pub use self::fft::*;
 
 pub type Error = Box<dyn std::error::Error>;

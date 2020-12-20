@@ -1,5 +1,5 @@
 [package]
-name = "algebra"
+name = "algebra-utils"
 version = "0.1.0"
 authors = [
     "Sean Bowe",
@@ -16,23 +16,20 @@ description = "A library for finite fields, elliptic curves and FFTs evaluation 
 include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
 license = "MIT/Apache-2.0"
 edition = "2018"
-build = "build.rs"
-
 
 ################################# Dependencies ################################
 
 [dependencies]
-byteorder = { version = "1" }
+algebra = { path = "../algebra", features = [ "parallel" ] }
+
 rand = { version = "0.7" }
-derivative = { version = "2" }
 
-colored = { version = "1", optional = true }
 rayon = { version = "1", optional = true }
-clippy = { version = "*", optional = true }
 
-unroll = "0.1.4"
-
-serde = { version = "1.0.117", features = ["derive"]}
+# gpu feature
+algebra-kernels = { path = "../../ginger-algebra-ocl/algebra-kernels", optional = true }
+bellperson = { path = "../../ginger-algebra-ocl/bellperson", optional = true }
+crossbeam = { version = "0.7", optional = true }
 
 [dev-dependencies]
 blake2 = "0.7"
@@ -40,25 +37,13 @@ criterion = "0.2"
 rand_xorshift = { version = "0.2" }
 paste = "1.0"
 algebra = { path = "../algebra", features = ["bls12_381", "jubjub", "mnt4_753", "mnt6_753"] }
+algebra-utils = { path = "../algebra-utils", features = [ "parallel", "fft" ] }
+algebra-kernels = { path = "../../ginger-algebra-ocl/algebra-kernels", features = ["bls12_381", "jubjub"] }
 
 [features]
 parallel = [ "rayon" ]
-n_fold = []
-llvm_asm = []
-
-bls12_377 = []
-bls12_381 = [ "jubjub" ]
-edwards_bls12 = []
-edwards_sw6 = []
-jubjub = []
-sw6 = []
-mnt4_753 = []
-mnt6_298 = []
-mnt6_753 = []
-bn_382 = []
-
-full = [ "bls12_377", "bls12_381", "sw6", "mnt4_753", "mnt6_298", "mnt6_753", "edwards_bls12", "edwards_sw6", "jubjub", "bn_382" ]
+fft = []
+gpu = [ "algebra-kernels", "bellperson", "crossbeam" ]
 
 [build-dependencies]
-field-assembly = { path = "./field-assembly" }
 rustc_version = "0.2"

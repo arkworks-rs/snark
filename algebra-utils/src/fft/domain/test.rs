@@ -1,5 +1,5 @@
-use crate::{UniformRand, Field, PrimeField, FpParameters};
-use crate::curves::{mnt6753::MNT6, PairingEngine};
+use algebra::{UniformRand, Field, PrimeField, FpParameters};
+use algebra::curves::{mnt6753::MNT6, PairingEngine};
 use crate::{domain::*, multicore::*};
 use rand;
 use std::cmp::min;

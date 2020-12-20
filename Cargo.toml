@@ -2,6 +2,7 @@
 
 members = [
     "algebra",
+    "algebra-utils",
     "bench-utils",
     "primitives",
     "proof-systems",

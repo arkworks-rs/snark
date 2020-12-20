@@ -26,7 +26,7 @@ use crate::{
     SparsePolynomial,
     multicore::Worker,
 };
-use crate::PrimeField;
+use algebra::PrimeField;
 use rayon::prelude::*;
 //use std::hash::Hash;
 use std::fmt::Debug;
@@ -143,7 +143,7 @@ pub trait EvaluationDomain<F: PrimeField>: Debug
             }
             u
         } else {
-            use crate::fields::batch_inversion;
+            use algebra::fields::batch_inversion;
 
             let mut l = (t_size - &one) * &self.size_inv();
             let mut r = one;
@@ -221,8 +221,8 @@ impl<F: PrimeField> Iterator for Elements<F> {
 #[cfg(test)]
 mod tests {
     use crate::get_best_evaluation_domain;
-    use crate::Field;
-    use crate::fields::mnt6753::fr::Fr;
+    use algebra::Field;
+    use algebra::fields::mnt6753::fr::Fr;
     use rand::{Rng, thread_rng};
 
     #[test]

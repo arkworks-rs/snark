@@ -1,4 +1,4 @@
-use algebra::fft::domain::get_best_evaluation_domain;
+use algebra_utils::fft::domain::get_best_evaluation_domain;
 use algebra::{Field, PairingEngine};
 
 use crate::gm17::{generator::KeypairAssembly, prover::ProvingAssignment};
