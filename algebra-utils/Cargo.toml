@@ -28,7 +28,7 @@ rayon = { version = "1", optional = true }
 
 # gpu feature
 algebra-kernels = { path = "../../ginger-algebra-ocl/algebra-kernels", optional = true }
-bellperson = { path = "../../ginger-algebra-ocl/bellperson", optional = true }
+algebra-cl-gen = { path = "../../ginger-algebra-ocl/algebra-cl-gen", optional = true }
 crossbeam = { version = "0.7", optional = true }
 
 [dev-dependencies]

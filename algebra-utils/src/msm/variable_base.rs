@@ -2,11 +2,9 @@ use algebra::{AffineCurve, BigInteger, Field, FpParameters, PrimeField, Projecti
 use rayon::prelude::*;
 
 #[cfg(feature = "gpu")]
-use algebra_kernels::msm::{
-    get_cpu_utilization, get_kernels, get_gpu_min_length
-};
+use algebra_kernels::msm::{get_cpu_utilization, get_kernels, get_gpu_min_length};
 #[cfg(feature = "gpu")]
-use bellperson::gpu::GPUError;
+use algebra_cl_gen::gpu::GPUError;
 #[cfg(feature = "gpu")]
 use crossbeam::thread;
 
