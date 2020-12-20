@@ -240,12 +240,12 @@ impl<F: Field> ConstraintSystem<F> {
 
     /// Count the number of times a given LC is used within another LC
     fn lc_num_times_used(&self, count_sinks: bool) -> Vec<usize> {
-        // step 1: Identify all lcs that have been many times
         let mut num_times_used = vec![0; self.lc_map.len()];
 
         for (index, lc) in self.lc_map.iter() {
             num_times_used[index.0] += count_sinks as usize;
 
+            // Increment the counter for each lc that this lc has a direct dependency on.
             for &(_, var) in lc.iter() {
                 if var.is_lc() {
                     let lc_index = var.get_lc_index().expect("should be lc");
@@ -311,12 +311,11 @@ impl<F: Field> ConstraintSystem<F> {
 
         let used_times = self.lc_num_times_used(true);
 
-        // step 2: Modify the lcs accordingly
+        let mut new_witness_linear_combinations = Vec::<LinearCombination<F>>::new();
+        let mut new_witness_indices = Vec::<usize>::new();
+
+        // `outlined_lcs` stores the modified linear combinations.
         let mut outlined_lcs = BTreeMap::new();
-
-        let mut additional_a_constraints = Vec::<LinearCombination<F>>::new();
-        let mut additional_c_constraints_witness_assignments = Vec::<usize>::new();
-
         for (&index, lc) in self.lc_map.iter() {
             let mut outlined_lc = LinearCombination::new();
             for &(coeff, var) in lc.iter() {
@@ -334,19 +333,23 @@ impl<F: Field> ConstraintSystem<F> {
             }
             outlined_lc.compactify();
 
-            let mut should_promote = false;
+            let mut should_outline = false;
 
+            // Check if outlining is worthwhile.
             let this_used_times = used_times[index.0];
             let this_len = outlined_lc.len();
 
             if this_used_times * this_len > this_used_times + 2 + this_len {
-                should_promote = true;
+                should_outline = true;
             }
 
-            if should_promote {
+            // If outlining is worthwhile,
+            if should_outline {
+                // Add a new witness (the value of the linear combination).
                 let witness_assignment = self.num_witness_variables;
                 self.num_witness_variables += 1;
 
+                // Add the witness assignment (if not in the setup mode).
                 if !self.is_in_setup_mode() {
                     let mut acc = F::zero();
                     for (coeff, var) in outlined_lc.iter() {
@@ -356,9 +359,11 @@ impl<F: Field> ConstraintSystem<F> {
                     self.witness_assignment.push(acc);
                 }
 
-                additional_a_constraints.push(outlined_lc.clone());
-                additional_c_constraints_witness_assignments.push(witness_assignment);
+                // Add a new constarint for this new witness
+                new_witness_linear_combinations.push(outlined_lc.clone());
+                new_witness_indices.push(witness_assignment);
 
+                // Replace the linear combination with (1 * this new witness).
                 outlined_lcs.insert(
                     index,
                     LinearCombination::from(Variable::Witness(witness_assignment)),
@@ -368,42 +373,42 @@ impl<F: Field> ConstraintSystem<F> {
             }
         }
 
-        let mut new_lc_index = self.lc_map.len();
-
-        let one_lc_index = LcIndex(new_lc_index);
-        outlined_lcs.insert(LcIndex(new_lc_index), LinearCombination::from(Self::one()));
-        new_lc_index += 1;
-
+        // Create a linear combination of (1 * one).
+        let one_lc_index = LcIndex(self.num_linear_combinations);
+        outlined_lcs.insert(one_lc_index, LinearCombination::from(Self::one()));
         self.num_linear_combinations += 1;
 
-        for (additional_a, additional_c) in additional_a_constraints
+        for (new_witness_linear_combination, new_witness_index) in new_witness_linear_combinations
             .iter()
-            .zip(additional_c_constraints_witness_assignments.iter())
+            .zip(new_witness_indices.iter())
         {
-            let new_lc_long_index = LcIndex(new_lc_index);
-            new_lc_index += 1;
-            outlined_lcs.insert(new_lc_long_index, additional_a.clone());
+            // Create the linear combination to be enforced with respect to the new witness.
+            let new_lc_long_index = LcIndex(self.num_linear_combinations);
+            outlined_lcs.insert(new_lc_long_index, new_witness_linear_combination.clone());
+            self.num_linear_combinations += 1;
 
-            let new_lc_shortened_index = LcIndex(new_lc_index);
-            new_lc_index += 1;
+            // Create the linear combination of (1 * the new witness).
+            let new_lc_shortened_index = LcIndex(self.num_linear_combinations);
             outlined_lcs.insert(
                 new_lc_shortened_index,
-                LinearCombination::from(Variable::Witness(additional_c.clone())),
+                LinearCombination::from(Variable::Witness(new_witness_index.clone())),
             );
+            self.num_linear_combinations += 1;
 
-            self.num_linear_combinations += 2;
-            self.num_constraints += 1;
-
+            // Add a new constraint
             self.a_constraints.push(new_lc_long_index);
             self.b_constraints.push(one_lc_index);
             self.c_constraints.push(new_lc_shortened_index);
+            self.num_constraints += 1;
 
+            // For tracing, push a trace (None here).
             #[cfg(feature = "std")]
             {
                 self.constraint_traces.push(None);
             }
         }
 
+        // Update the `lc_map`
         self.lc_map = outlined_lcs;
     }
 
