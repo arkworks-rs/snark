@@ -43,7 +43,7 @@ algebra-kernels = { path = "../../ginger-algebra-ocl/algebra-kernels", features 
 [features]
 parallel = [ "rayon" ]
 fft = []
-gpu = [ "algebra-kernels", "bellperson", "crossbeam" ]
+gpu = [ "algebra-kernels", "algebra-cl-gen", "crossbeam" ]
 
 [build-dependencies]
 rustc_version = "0.2"
