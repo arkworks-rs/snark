@@ -314,7 +314,7 @@ impl<F: Field> ConstraintSystem<F> {
         // step 2: Modify the lcs accordingly
         let mut outlined_lcs = BTreeMap::new();
 
-        let mut additional_a_constraints = Vec::<LcIndex>::new();
+        let mut additional_a_constraints = Vec::<LinearCombination<F>>::new();
         let mut additional_c_constraints_witness_assignments = Vec::<usize>::new();
 
         for (&index, lc) in self.lc_map.iter() {
@@ -356,9 +356,7 @@ impl<F: Field> ConstraintSystem<F> {
                     self.witness_assignment.push(acc);
                 }
 
-                self.num_constraints += 1;
-
-                additional_a_constraints.push(index);
+                additional_a_constraints.push(outlined_lc.clone());
                 additional_c_constraints_witness_assignments.push(witness_assignment);
 
                 outlined_lcs.insert(
@@ -376,21 +374,34 @@ impl<F: Field> ConstraintSystem<F> {
         outlined_lcs.insert(LcIndex(new_lc_index), LinearCombination::from(Self::one()));
         new_lc_index += 1;
 
+        self.num_linear_combinations += 1;
+
         for (additional_a, additional_c) in additional_a_constraints
             .iter()
             .zip(additional_c_constraints_witness_assignments.iter())
         {
+            let new_lc_long_index = LcIndex(new_lc_index);
+            new_lc_index += 1;
+            outlined_lcs.insert(new_lc_long_index, additional_a.clone());
+
             let new_lc_shortened_index = LcIndex(new_lc_index);
+            new_lc_index += 1;
             outlined_lcs.insert(
                 new_lc_shortened_index,
                 LinearCombination::from(Variable::Witness(additional_c.clone())),
             );
 
-            self.a_constraints.push(additional_a.clone());
+            self.num_linear_combinations += 2;
+            self.num_constraints += 1;
+
+            self.a_constraints.push(new_lc_long_index);
             self.b_constraints.push(one_lc_index);
             self.c_constraints.push(new_lc_shortened_index);
 
-            new_lc_index += 1;
+            #[cfg(feature = "std")]
+            {
+                self.constraint_traces.push(None);
+            }
         }
 
         self.lc_map = outlined_lcs;
