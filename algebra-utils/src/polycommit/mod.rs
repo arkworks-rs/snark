@@ -47,11 +47,11 @@ pub fn polycommit_round_reduce<
                 k_r        
             ) {
                 Ok(_) => {},
-                Err(error) => { panic!(error); }
+                Err(error) => { panic!("{}", error); }
             }
         },
         Err(error) => {
-            panic!(error);
+            panic!("{}", error);
         }
     }    
 }

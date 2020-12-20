@@ -145,11 +145,11 @@ impl<F: PrimeField> BasicRadix2Domain<F> {
                 Ok(kernels) => {
                     match kernels[0].radix_fft(a, &omega, log_n) {
                         Ok(_) => {},
-                        Err(error) => { panic!(error); }
+                        Err(error) => { panic!("{}", error); }
                     }
                 },
                 Err(error) => {
-                    panic!(error);
+                    panic!("{}", error);
                 }
             }    
         }
