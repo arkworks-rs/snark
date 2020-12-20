@@ -6,7 +6,7 @@ use rand::Rng;
 use std::any::Any;
 
 #[cfg(feature = "gpu")]
-use algebra_kernels::fft::get_kernels;
+use algebra_kernels::fft::{get_kernels, get_gpu_min_length};
 
 /// Defines a domain over which finite field (I)FFTs can be performed. Works
 /// only for fields that have a large multiplicative subgroup of size that is
@@ -364,20 +364,9 @@ impl<F: PrimeField> MixedRadix2Domain<F> {
         });
     }
 
-    fn best_fft(a: &mut [F], worker: &Worker, omega: F, log_n: u32) {
-        #[cfg(not(feature = "gpu"))]
-        {
-            let log_cpus = worker.log_num_cpus();
-
-            if log_n <= log_cpus {
-                Self::mixed_serial_fft(a, omega, log_n);
-            } else {
-                Self::mixed_parallel_fft(a, worker, omega, log_n, log_cpus);
-            }    
-        }
-
+    fn best_fft(a: &mut [F], _worker: &Worker, omega: F, log_n: u32) {
         #[cfg(feature = "gpu")]
-        {
+        if get_gpu_min_length() <= 1 << log_n {
             match get_kernels() {
                 Ok(kernels) => {
                     match kernels[0].radix_fft(a, &omega, log_n) {
@@ -389,7 +378,16 @@ impl<F: PrimeField> MixedRadix2Domain<F> {
                     panic!("{}", error);
                 }
             }    
+            return;
         }
+
+        let log_cpus = _worker.log_num_cpus();
+
+        if log_n <= log_cpus {
+            Self::mixed_serial_fft(a, omega, log_n);
+        } else {
+            Self::mixed_parallel_fft(a, _worker, omega, log_n, log_cpus);
+        }    
     }
 }
 

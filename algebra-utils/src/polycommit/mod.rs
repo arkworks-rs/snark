@@ -1,9 +1,9 @@
 use algebra::AffineCurve;
 
-#[cfg(not(feature = "gpu"))]
 use rayon::prelude::*;
+
 #[cfg(feature = "gpu")]
-use algebra_kernels::polycommit::get_kernels;
+use algebra_kernels::polycommit::{get_kernels, get_gpu_min_length};
 
 pub fn polycommit_round_reduce<
     G: AffineCurve
@@ -17,42 +17,42 @@ pub fn polycommit_round_reduce<
     k_l: &mut [G::Projective],
     k_r: &[G],
 ) {
-    #[cfg(not(feature = "gpu"))]
-    {
-        c_l.par_iter_mut()
-            .zip(c_r)
-            .for_each(|(c_l, c_r)| *c_l += &(round_challenge_inv * &c_r));
-
-        z_l.par_iter_mut()
-            .zip(z_r)
-            .for_each(|(z_l, z_r)| *z_l += &(round_challenge * &z_r));
-
-        k_l.par_iter_mut()
-            .zip(k_r)
-            .for_each(|(k_l, k_r)| *k_l += &(k_r.mul(round_challenge)));
+    #[cfg(feature = "gpu")]
+    if get_gpu_min_length() <= k_l.len() {
+        match get_kernels() {
+            Ok(kernels) => {
+                match kernels[0].polycommit_round_reduce(
+                    round_challenge,
+                    round_challenge_inv,
+                    c_l,
+                    c_r,
+                    z_l,
+                    z_r,
+                    k_l,
+                    k_r        
+                ) {
+                    Ok(_) => {},
+                    Err(error) => { panic!("{}", error); }
+                }
+            },
+            Err(error) => {
+                panic!("{}", error);
+            }
+        }   
+        return; 
     }
 
-    #[cfg(feature = "gpu")]
-    match get_kernels() {
-        Ok(kernels) => {
-            match kernels[0].polycommit_round_reduce(
-                round_challenge,
-                round_challenge_inv,
-                c_l,
-                c_r,
-                z_l,
-                z_r,
-                k_l,
-                k_r        
-            ) {
-                Ok(_) => {},
-                Err(error) => { panic!("{}", error); }
-            }
-        },
-        Err(error) => {
-            panic!("{}", error);
-        }
-    }    
+    c_l.par_iter_mut()
+        .zip(c_r)
+        .for_each(|(c_l, c_r)| *c_l += &(round_challenge_inv * &c_r));
+
+    z_l.par_iter_mut()
+        .zip(z_r)
+        .for_each(|(z_l, z_r)| *z_l += &(round_challenge * &z_r));
+
+    k_l.par_iter_mut()
+        .zip(k_r)
+        .for_each(|(k_l, k_r)| *k_l += &(k_r.mul(round_challenge)));
 }
 
 #[cfg(test)]
