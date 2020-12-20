@@ -361,7 +361,11 @@ impl<'a, 'b, F: PrimeField> Mul<&'a DensePolynomial<F>> for &'b DensePolynomial<
 mod tests {
     use crate::domain::get_best_evaluation_domain;
     use crate::polynomial::*;
-    use algebra::fields::{mnt6753::fr::Fr, Field};
+    #[cfg(not(feature = "gpu"))]
+    use algebra::fields::mnt6753::fr::Fr;
+    #[cfg(feature = "gpu")]
+    use algebra::fields::bls12_381::fr::Fr;
+    use algebra::fields::Field;
     use algebra::UniformRand;
     use rand::thread_rng;
 
