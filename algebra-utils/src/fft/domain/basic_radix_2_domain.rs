@@ -129,20 +129,30 @@ impl<F: PrimeField> BasicRadix2Domain<F> {
 
     fn best_fft(a: &mut [F], worker: &Worker, omega: F, log_n: u32) {
         #[cfg(not(feature = "gpu"))]
-        Self::best_cpu_fft(a, worker, omega, log_n);
+        {
+            let log_cpus = worker.log_num_cpus();
+
+            if log_n <= log_cpus {
+                Self::serial_fft(a, omega, log_n);
+            } else {
+                Self::parallel_fft(a, worker, omega, log_n, log_cpus);
+            }                    
+        }
 
         #[cfg(feature = "gpu")]
-        Self::gpu_fft(a, worker, omega, log_n);
-    }
-
-    fn best_cpu_fft(a: &mut [F], worker: &Worker, omega: F, log_n: u32) {
-        let log_cpus = worker.log_num_cpus();
-
-        if log_n <= log_cpus {
-            Self::serial_fft(a, omega, log_n);
-        } else {
-            Self::parallel_fft(a, worker, omega, log_n, log_cpus);
-        }    
+        {
+            match get_kernels() {
+                Ok(kernels) => {
+                    match kernels[0].radix_fft(a, &omega, log_n) {
+                        Ok(_) => {},
+                        Err(error) => { panic!(error); }
+                    }
+                },
+                Err(error) => {
+                    panic!(error);
+                }
+            }    
+        }
     }
 
     pub(crate) fn serial_fft(a: &mut [F], omega: F, log_n: u32) {
@@ -244,22 +254,6 @@ impl<F: PrimeField> BasicRadix2Domain<F> {
                 });
             }
         });
-    }
-
-    #[cfg(feature = "gpu")]
-    pub(crate) fn gpu_fft(a: &mut [F], cpu_worker: &Worker, omega: F, log_n: u32) {
-        
-        match get_kernels() {
-            Ok(kernels) => {
-                match kernels[0].radix_fft(a, &omega, log_n) {
-                    Ok(_) => {},
-                    Err(error) => { panic!(error); }
-                }
-            },
-            Err(error) => {
-                panic!(error);
-            }
-        }
     }
 }
 
