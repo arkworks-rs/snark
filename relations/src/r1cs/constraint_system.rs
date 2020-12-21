@@ -311,8 +311,8 @@ impl<F: Field> ConstraintSystem<F> {
 
         let used_times = self.lc_num_times_used(true);
 
-        let mut new_witness_linear_combinations = Vec::<LinearCombination<F>>::new();
-        let mut new_witness_indices = Vec::<usize>::new();
+        let mut new_witness_linear_combinations = Vec::new();
+        let mut new_witness_indices = Vec::new();
 
         // `outlined_lcs` stores the modified linear combinations.
         let mut outlined_lcs = BTreeMap::new();
@@ -346,7 +346,7 @@ impl<F: Field> ConstraintSystem<F> {
             // If outlining is worthwhile,
             if should_outline {
                 // Add a new witness (the value of the linear combination).
-                let witness_assignment = self.num_witness_variables;
+                let witness_index = self.num_witness_variables;
                 self.num_witness_variables += 1;
 
                 // Add the witness assignment (if not in the setup mode).
@@ -361,55 +361,33 @@ impl<F: Field> ConstraintSystem<F> {
 
                 // Add a new constraint for this new witness
                 new_witness_linear_combinations.push(outlined_lc.clone());
-                new_witness_indices.push(witness_assignment);
+                new_witness_indices.push(witness_index);
 
                 // Replace the linear combination with (1 * this new witness).
                 outlined_lcs.insert(
                     index,
-                    LinearCombination::from(Variable::Witness(witness_assignment)),
+                    LinearCombination::from(Variable::Witness(witness_index)),
                 );
             } else {
                 outlined_lcs.insert(index, outlined_lc);
             }
         }
 
-        // Create a linear combination of (1 * one).
-        let one_lc_index = LcIndex(self.num_linear_combinations);
-        outlined_lcs.insert(one_lc_index, LinearCombination::from(Self::one()));
-        self.num_linear_combinations += 1;
-
-        for (new_witness_linear_combination, new_witness_index) in new_witness_linear_combinations
-            .iter()
-            .zip(new_witness_indices.iter())
-        {
-            // Create the linear combination to be enforced with respect to the new witness.
-            let new_lc_long_index = LcIndex(self.num_linear_combinations);
-            outlined_lcs.insert(new_lc_long_index, new_witness_linear_combination.clone());
-            self.num_linear_combinations += 1;
-
-            // Create the linear combination of (1 * the new witness).
-            let new_lc_shortened_index = LcIndex(self.num_linear_combinations);
-            outlined_lcs.insert(
-                new_lc_shortened_index,
-                LinearCombination::from(Variable::Witness(new_witness_index.clone())),
-            );
-            self.num_linear_combinations += 1;
-
-            // Add a new constraint
-            self.a_constraints.push(new_lc_long_index);
-            self.b_constraints.push(one_lc_index);
-            self.c_constraints.push(new_lc_shortened_index);
-            self.num_constraints += 1;
-
-            // For tracing, push a trace (None here).
-            #[cfg(feature = "std")]
-            {
-                self.constraint_traces.push(None);
-            }
-        }
-
         // Update the `lc_map`
         self.lc_map = outlined_lcs;
+
+        for (new_witness_linear_combination, new_witness_variable) in
+            new_witness_linear_combinations
+                .iter()
+                .zip(new_witness_indices.iter())
+        {
+            // Add a new constraint
+            self.enforce_constraint(
+                new_witness_linear_combination.clone(),
+                LinearCombination::from(Self::one()),
+                LinearCombination::from(Variable::Witness(*new_witness_variable)),
+            ).unwrap();
+        }
     }
 
     /// This step must be called after constraint generation has completed, and
