@@ -315,7 +315,7 @@ impl<F: Field> ConstraintSystem<F> {
         let mut new_witness_linear_combinations = Vec::new();
         let mut new_witness_indices = Vec::new();
 
-        // `new_lc_msp` stores the modified linear combinations.
+        // `new_lc_map` stores the modified linear combinations.
         //
         // This loop goes through all the LCs in the map, starting from
         // the early ones, and decides whether or not to dedicate a witness
@@ -324,7 +324,7 @@ impl<F: Field> ConstraintSystem<F> {
         // If true, the LC is replaced with 1 * this witness variable.
         // Otherwise, the LC is inlined.
         //
-        let mut new_lc_msp = BTreeMap::new();
+        let mut new_lc_map = BTreeMap::new();
         for (&index, lc) in self.lc_map.iter() {
             // Inline the LC.
             let mut inlined_lc = LinearCombination::new();
@@ -336,16 +336,16 @@ impl<F: Field> ConstraintSystem<F> {
                     // inlined LC, and substitute it in.
                     //
                     // We have the guarantee that `lc_index` must exist in
-                    // `new_lc_msp` since a LC can only depend on other
+                    // `new_lc_map` since a LC can only depend on other
                     // LCs with lower indices, which we have modified.
                     //
-                    let lc = new_lc_msp.get(&lc_index).expect("should be inlined");
+                    let lc = new_lc_map.get(&lc_index).expect("should be inlined");
                     inlined_lc.extend((lc * coeff).0.into_iter());
 
                     num_times_used[lc_index.0] -= 1;
                     if num_times_used[lc_index.0] == 0 {
                         // This lc is not used any more, so remove it.
-                        new_lc_msp.remove(&lc_index);
+                        new_lc_map.remove(&lc_index);
                     }
                 } else {
                     // Otherwise, it's a concrete variable and so we
@@ -389,17 +389,17 @@ impl<F: Field> ConstraintSystem<F> {
                 new_witness_indices.push(witness_index);
 
                 // Replace the linear combination with (1 * this new witness).
-                new_lc_msp.insert(
+                new_lc_map.insert(
                     index,
                     LinearCombination::from(Variable::Witness(witness_index)),
                 );
             } else {
-                new_lc_msp.insert(index, inlined_lc);
+                new_lc_map.insert(index, inlined_lc);
             }
         }
 
         // Update the `lc_map`
-        self.lc_map = new_lc_msp;
+        self.lc_map = new_lc_map;
 
         // Add the constraints for the newly added witness variables.
         for (new_witness_linear_combination, new_witness_variable) in
