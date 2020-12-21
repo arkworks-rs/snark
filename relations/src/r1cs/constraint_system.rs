@@ -386,7 +386,8 @@ impl<F: Field> ConstraintSystem<F> {
                 new_witness_linear_combination.clone(),
                 LinearCombination::from(Self::one()),
                 LinearCombination::from(Variable::Witness(*new_witness_variable)),
-            ).unwrap();
+            )
+            .unwrap();
         }
     }
 
