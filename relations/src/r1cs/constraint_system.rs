@@ -238,10 +238,11 @@ impl<F: Field> ConstraintSystem<F> {
         Ok(())
     }
 
-    /// Count the number of times a given LC is used within another LC
+    /// Count the number of times each LC is used within other LCs in the constraint system
     fn lc_num_times_used(&self, count_sinks: bool) -> Vec<usize> {
         let mut num_times_used = vec![0; self.lc_map.len()];
 
+        // Iterate over every lc in constraint system
         for (index, lc) in self.lc_map.iter() {
             num_times_used[index.0] += count_sinks as usize;
 
@@ -345,6 +346,10 @@ impl<F: Field> ConstraintSystem<F> {
             let this_used_times = num_times_used[index.0] + 1;
             let this_len = outlined_lc.len();
 
+            // Cost with no outlining = `lc_len * number of usages`
+            // Cost with outlining is one constraint for `(lc_len) * 1 = {new variable}` and 
+            // using that single new variable in each of the prior usages.
+            // This has total cost `number_of_usages + lc_len + 2`
             if this_used_times * this_len > this_used_times + 2 + this_len {
                 should_outline = true;
             }
