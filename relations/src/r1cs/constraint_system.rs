@@ -359,7 +359,7 @@ impl<F: Field> ConstraintSystem<F> {
                     self.witness_assignment.push(acc);
                 }
 
-                // Add a new constarint for this new witness
+                // Add a new constraint for this new witness
                 new_witness_linear_combinations.push(outlined_lc.clone());
                 new_witness_indices.push(witness_assignment);
 
