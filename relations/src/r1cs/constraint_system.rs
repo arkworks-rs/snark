@@ -314,75 +314,89 @@ impl<F: Field> ConstraintSystem<F> {
         let mut new_witness_linear_combinations = Vec::new();
         let mut new_witness_indices = Vec::new();
 
-        // `outlined_lcs` stores the modified linear combinations.
-        let mut outlined_lcs = BTreeMap::new();
+        // `new_lc_msp` stores the modified linear combinations.
+        //
+        // This loop goes through all the LCs in the map, starting from
+        // the early ones, and decides whether or not to dedicate a witness
+        // variable for this LC.
+        //
+        // If true, the LC is replaced with 1 * this witness variable
+        // Otherwise, the LC is inlined.
+        //
+        let mut new_lc_msp = BTreeMap::new();
         for (&index, lc) in self.lc_map.iter() {
-            let mut outlined_lc = LinearCombination::new();
+            // Inline the LC.
+            let mut inlined_lc = LinearCombination::new();
             for &(coeff, var) in lc.iter() {
                 if var.is_lc() {
                     let lc_index = var.get_lc_index().expect("should be lc");
+
                     // If `var` is a `SymbolicLc`, fetch the corresponding
                     // inlined LC, and substitute it in.
-                    let lc = outlined_lcs.get(&lc_index).expect("should be inlined");
-                    outlined_lc.extend((lc * coeff).0.into_iter());
+                    //
+                    // We have the guarantee that `lc_index` must exist in
+                    // `new_lc_msp` since a LC can only depend on other
+                    // LCs with lower indices, which we have modified.
+                    //
+                    let lc = new_lc_msp.get(&lc_index).expect("should be inlined");
+                    inlined_lc.extend((lc * coeff).0.into_iter());
 
                     num_times_used[lc_index.0] -= 1;
                     if num_times_used[lc_index.0] == 0 {
                         // This lc is not used any more, so remove it.
-                        outlined_lcs.remove(&lc_index);
+                        new_lc_msp.remove(&lc_index);
                     }
                 } else {
                     // Otherwise, it's a concrete variable and so we
                     // substitute it in directly.
-                    outlined_lc.push((coeff, var));
+                    inlined_lc.push((coeff, var));
                 }
             }
-            outlined_lc.compactify();
+            inlined_lc.compactify();
 
-            let mut should_outline = false;
+            let mut should_dedicate_a_witness_variable = false;
 
-            // Check if outlining is worthwhile.
+            // Check if it is worthwhile to dedicate a witness variable.
             let this_used_times = num_times_used[index.0] + 1;
-            let this_len = outlined_lc.len();
+            let this_len = inlined_lc.len();
 
             if this_used_times * this_len > this_used_times + 2 + this_len {
-                should_outline = true;
+                should_dedicate_a_witness_variable = true;
             }
 
-            // If outlining is worthwhile,
-            if should_outline {
+            // If it is worthwhile to dedicate a witness variable,
+            if should_dedicate_a_witness_variable {
                 // Add a new witness (the value of the linear combination).
                 // This part follows the same logic of `new_witness_variable`.
                 let witness_index = self.num_witness_variables;
                 self.num_witness_variables += 1;
 
-                // Add the witness assignment (if not in the setup mode).
                 if !self.is_in_setup_mode() {
                     let mut acc = F::zero();
-                    for (coeff, var) in outlined_lc.iter() {
+                    for (coeff, var) in inlined_lc.iter() {
                         acc += *coeff * &self.assigned_value(*var).unwrap();
                     }
-
                     self.witness_assignment.push(acc);
                 }
 
-                // Add a new constraint for this new witness
-                new_witness_linear_combinations.push(outlined_lc.clone());
+                // Add a new constraint for this new witness.
+                new_witness_linear_combinations.push(inlined_lc.clone());
                 new_witness_indices.push(witness_index);
 
                 // Replace the linear combination with (1 * this new witness).
-                outlined_lcs.insert(
+                new_lc_msp.insert(
                     index,
                     LinearCombination::from(Variable::Witness(witness_index)),
                 );
             } else {
-                outlined_lcs.insert(index, outlined_lc);
+                new_lc_msp.insert(index, inlined_lc);
             }
         }
 
         // Update the `lc_map`
-        self.lc_map = outlined_lcs;
+        self.lc_map = new_lc_msp;
 
+        // Add the constraints for the newly added witness variables.
         for (new_witness_linear_combination, new_witness_variable) in
             new_witness_linear_combinations
                 .iter()
