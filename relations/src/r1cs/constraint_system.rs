@@ -321,7 +321,7 @@ impl<F: Field> ConstraintSystem<F> {
         // the early ones, and decides whether or not to dedicate a witness
         // variable for this LC.
         //
-        // If true, the LC is replaced with 1 * this witness variable
+        // If true, the LC is replaced with 1 * this witness variable.
         // Otherwise, the LC is inlined.
         //
         let mut new_lc_msp = BTreeMap::new();
