@@ -362,7 +362,7 @@ impl<F: Field> ConstraintSystem<F> {
             let this_len = inlined_lc.len();
 
             // Cost with no outlining = `lc_len * number of usages`
-            // Cost with outlining is one constraint for `(lc_len) * 1 = {new variable}` and 
+            // Cost with outlining is one constraint for `(lc_len) * 1 = {new variable}` and
             // using that single new variable in each of the prior usages.
             // This has total cost `number_of_usages + lc_len + 2`
             if this_used_times * this_len > this_used_times + 2 + this_len {
