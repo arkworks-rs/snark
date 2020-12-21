@@ -309,7 +309,7 @@ impl<F: Field> ConstraintSystem<F> {
             return;
         }
 
-        let used_times = self.lc_num_times_used(true);
+        let mut num_times_used = self.lc_num_times_used(false);
 
         let mut new_witness_linear_combinations = Vec::new();
         let mut new_witness_indices = Vec::new();
@@ -325,6 +325,12 @@ impl<F: Field> ConstraintSystem<F> {
                     // inlined LC, and substitute it in.
                     let lc = outlined_lcs.get(&lc_index).expect("should be inlined");
                     outlined_lc.extend((lc * coeff).0.into_iter());
+
+                    num_times_used[lc_index.0] -= 1;
+                    if num_times_used[lc_index.0] == 0 {
+                        // This lc is not used any more, so remove it.
+                        outlined_lcs.remove(&lc_index);
+                    }
                 } else {
                     // Otherwise, it's a concrete variable and so we
                     // substitute it in directly.
@@ -336,7 +342,7 @@ impl<F: Field> ConstraintSystem<F> {
             let mut should_outline = false;
 
             // Check if outlining is worthwhile.
-            let this_used_times = used_times[index.0];
+            let this_used_times = num_times_used[index.0] + 1;
             let this_len = outlined_lc.len();
 
             if this_used_times * this_len > this_used_times + 2 + this_len {
@@ -346,6 +352,7 @@ impl<F: Field> ConstraintSystem<F> {
             // If outlining is worthwhile,
             if should_outline {
                 // Add a new witness (the value of the linear combination).
+                // This part follows the same logic of `new_witness_variable`.
                 let witness_index = self.num_witness_variables;
                 self.num_witness_variables += 1;
 
