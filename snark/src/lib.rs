@@ -1,8 +1,7 @@
 //! This crate contains traits that define the basic behaviour of SNARKs.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![deny(
-    warnings,
+#![warn(
     unused,
     future_incompatible,
     nonstandard_style,

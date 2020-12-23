@@ -3,8 +3,7 @@
 //! Constraint Systems (R1CS).
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![deny(
-    warnings,
+#![warn(
     unused,
     future_incompatible,
     nonstandard_style,
