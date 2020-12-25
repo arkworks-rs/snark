@@ -18,7 +18,7 @@ Before we can merge this PR, please make sure that all the following items have 
 checked off. If any of the checklist items are not applicable, please leave them but
 write a little note why.
 
-- [ ] Targeted PR against correct branch (masteer)
+- [ ] Targeted PR against correct branch (master)
 - [ ] Linked to Github issue with discussion and accepted design OR have an explanation in the PR that describes this work.
 - [ ] Wrote unit tests
 - [ ] Updated relevant documentation in the code
