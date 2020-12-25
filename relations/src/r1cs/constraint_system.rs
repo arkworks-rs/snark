@@ -262,11 +262,11 @@ impl<F: Field> ConstraintSystem<F> {
     ///
     /// This method is used as a subroutine of `inline_all_lcs` and `outline_lcs`.
     ///
-    /// The transformer function is given references of this constraint system (&self),
-    /// number of times used, and the linear combination to be transformed.
+    /// The transformer function is given a references of this constraint system (&self),
+    /// number of times used, and a mutable reference of the linear combination to be transformed.
     ///     (&ConstraintSystem<F>, usize, &mut LinearCombination<F>)
     ///
-    /// The transformer function returns numbers of new witness variables needed,
+    /// The transformer function returns the number of new witness variables needed
     /// and a vector of new witness assignments (if not in the setup mode).
     ///     (usize, Option<Vec<F>>)
     ///
@@ -331,7 +331,7 @@ impl<F: Field> ConstraintSystem<F> {
             }
             transformed_lc.compactify();
 
-            // Call the transformer.
+            // Call the transformer function.
             let (num_new_witness_variables, new_witness_assignments) =
                 transformer(&self, num_times_used[index.0], &mut transformed_lc);
 
@@ -393,7 +393,7 @@ impl<F: Field> ConstraintSystem<F> {
 
         // Store information about new witness variables created
         // for outlining. New constraints will be added after the
-        // tansformation of the LC map.
+        // transformation of the LC map.
         let mut new_witness_linear_combinations = Vec::new();
         let mut new_witness_indices = Vec::new();
 
