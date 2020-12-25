@@ -450,8 +450,8 @@ impl<F: Field> ConstraintSystem<F> {
             // Otherwise, the LC remains unchanged.
 
             // Return information about new witness variables.
-            if let Some(new_witness_index) = new_witness_index {
-                (new_witness_index, Some(new_witness_assignment))
+            if new_witness_index.is_some() {
+                (1, Some(new_witness_assignment))
             } else {
                 (0, None)
             }
