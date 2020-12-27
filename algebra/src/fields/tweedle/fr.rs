@@ -1,29 +1,16 @@
 use crate::{
     biginteger::BigInteger256 as BigInteger,
-    fields::{FftParameters, Fp256, Fp256Parameters},
+    fields::{FpParameters, Fp256, Fp256Parameters},
 };
 
-pub type Fr = Fp256<FpParameters>;
+pub type Fr = Fp256<FrParameters>;
 
-pub struct FpParameters;
+pub struct FrParameters;
 
-impl Fp256Parameters for FpParameters {}
-impl FftParameters for FpParameters {
+impl Fp256Parameters for FrParameters {}
+impl FpParameters for FrParameters {
     type BigInt = BigInteger;
 
-    const TWO_ADICITY: u32 = 33;
-
-    #[rustfmt::skip]
-    const TWO_ADIC_ROOT_OF_UNITY: BigInteger = BigInteger([
-        0xa189b4c6deb5f0b4,
-        0x84b1839059d394b6,
-        0x62394c58292596e9,
-        0x3017cc8a62e742c4,
-    ]);
-
-}
-
-impl algebra_core::fields::FpParameters for FpParameters {
     // 28948022309329048855892746252171976963322203655955319056773317069363642105857
     const MODULUS: BigInteger = BigInteger([
         11619397960441266177,
@@ -70,6 +57,15 @@ impl algebra_core::fields::FpParameters for FpParameters {
     const MODULUS_BITS: u32 = 255;
 
     const CAPACITY: u32 = Self::MODULUS_BITS - 1;
+
+    const TWO_ADICITY: u32 = 33;
+
+    const ROOT_OF_UNITY: BigInteger = BigInteger([
+        0xa189b4c6deb5f0b4,
+        0x84b1839059d394b6,
+        0x62394c58292596e9,
+        0x3017cc8a62e742c4,
+    ]);
 
     const REPR_SHAVE_BITS: u32 = 1;
 

@@ -1,11 +1,11 @@
-use crate::field_new;
 use crate::{
     biginteger::BigInteger256,
     curves::{
         models::short_weierstrass_jacobian::{GroupAffine, GroupProjective},
-        ModelParameters, SWModelParameters},
-    Zero,
-    fields::tweedle::{Fq, Fp}
+        ModelParameters, SWModelParameters
+    },
+    Field, field_new,
+    fields::tweedle::*
 };
 
 #[derive(Copy, Clone, Default, PartialEq, Eq)]
@@ -13,7 +13,7 @@ pub struct TweedledeeParameters;
 
 impl ModelParameters for TweedledeeParameters {
     type BaseField = Fq;
-    type ScalarField = Fp;
+    type ScalarField = Fr;
 }
 
 pub type Affine = GroupAffine<TweedledeeParameters>;
@@ -38,8 +38,8 @@ impl SWModelParameters for TweedledeeParameters {
     const COFACTOR: &'static [u64] = &[0x1];
 
     /// COFACTOR_INV = 1
-    const COFACTOR_INV: Fp = field_new!(
-        Fp,
+    const COFACTOR_INV: Fr = field_new!(
+        Fr,
         BigInteger256([
             0x1c3ed159fffffffd,
             0xf5601c89bb41f2d3,

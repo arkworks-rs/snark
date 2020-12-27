@@ -1,18 +1,18 @@
-use crate::field_new;
 use crate::{
     biginteger::BigInteger256,
     curves::{
         models::short_weierstrass_jacobian::{GroupAffine, GroupProjective},
-        ModelParameters, SWModelParameters},
-    Zero,
-    fields::tweedle::{Fq, Fp}
+        ModelParameters, SWModelParameters
+    },
+    Field, field_new,
+    fields::tweedle::*
 };
 
 #[derive(Copy, Clone, Default, PartialEq, Eq)]
 pub struct TweedledumParameters;
 
 impl ModelParameters for TweedledumParameters {
-    type BaseField = Fp;
+    type BaseField = Fr;
     type ScalarField = Fq;
 }
 
@@ -21,11 +21,11 @@ pub type Projective = GroupProjective<TweedledumParameters>;
 
 impl SWModelParameters for TweedledumParameters {
     /// COEFF_A = 0
-    const COEFF_A: Fp = field_new!(Fp, BigInteger256([0x0, 0x0, 0x0, 0x0]));
+    const COEFF_A: Fr = field_new!(Fr, BigInteger256([0x0, 0x0, 0x0, 0x0]));
 
     /// COEFF_B = 5
-    const COEFF_B: Fp = field_new!(
-        Fp,
+    const COEFF_B: Fr = field_new!(
+        Fr,
         BigInteger256([
             0x8388339ffffffed,
             0xbcb60a12f74c5739,
@@ -60,8 +60,8 @@ impl SWModelParameters for TweedledumParameters {
 
 /// G_GENERATOR_X =
 /// 1
-pub const G_GENERATOR_X: Fp = field_new!(
-    Fp,
+pub const G_GENERATOR_X: Fr = field_new!(
+    Fr,
     BigInteger256([
         0x1c3ed159fffffffd,
         0xf5601c89bb41f2d3,
@@ -72,8 +72,8 @@ pub const G_GENERATOR_X: Fp = field_new!(
 
 /// G1_GENERATOR_Y =
 /// 385654983219305453067387443941241858913435815837190103938162313975739315615
-pub const G_GENERATOR_Y: Fp = field_new!(
-    Fp,
+pub const G_GENERATOR_Y: Fr = field_new!(
+    Fr,
     BigInteger256([
         0x7414a31870fe2315,
         0x5771cccafdb1a2b5,

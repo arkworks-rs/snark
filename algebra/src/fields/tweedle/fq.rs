@@ -1,6 +1,7 @@
 use crate::{
     biginteger::BigInteger256 as BigInteger,
-    fields::{FftParameters, Fp256, Fp256Parameters, FpParameters},
+    fields::{Fp256, Fp256Parameters, FpParameters},
+    field_new
 };
 
 pub struct FqParameters;
@@ -8,20 +9,9 @@ pub struct FqParameters;
 pub type Fq = Fp256<FqParameters>;
 
 impl Fp256Parameters for FqParameters {}
-impl FftParameters for FqParameters {
+impl FpParameters for FqParameters {
     type BigInt = BigInteger;
 
-    const TWO_ADICITY: u32 = 34;
-
-    #[rustfmt::skip]
-    const TWO_ADIC_ROOT_OF_UNITY: BigInteger = BigInteger([
-        0xb5373d390b45cde8,
-        0x1437982d8ca321e6,
-        0x5f6fd892c6494e7e,
-        0x19f5297fb35e2ae1,
-    ]);
-}
-impl FpParameters for FqParameters {
     // 28948022309329048855892746252171976963322203655954433126947083963168578338817
     const MODULUS: BigInteger = BigInteger([
         0x842cafd400000001,
@@ -70,8 +60,20 @@ impl FpParameters for FqParameters {
 
     const CAPACITY: u32 = Self::MODULUS_BITS - 1;
 
+    const TWO_ADICITY: u32 = 34;
+
+    const ROOT_OF_UNITY: BigInteger = BigInteger([
+        0xb5373d390b45cde8,
+        0x1437982d8ca321e6,
+        0x5f6fd892c6494e7e,
+        0x19f5297fb35e2ae1,
+    ]);
+
     // Check this
     const REPR_SHAVE_BITS: u32 = 1;
 
     const INV: u64 = 9524180637049683967;
 }
+
+pub const FQ_ONE: Fq = field_new!(Fq, FqParameters::R);
+pub const FQ_ZERO: Fq = field_new!(Fq, BigInteger([0, 0, 0, 0]));
