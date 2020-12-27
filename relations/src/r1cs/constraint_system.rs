@@ -385,7 +385,7 @@ impl<F: Field> ConstraintSystem<F> {
     /// Useful for SNARKs like [\[Marlin\]](https://eprint.iacr.org/2019/1047) or
     /// [\[Fractal\]](https://eprint.iacr.org/2019/1076), where addition gates
     /// are not cheap.
-    pub fn outline_lcs(&mut self) {
+    fn outline_lcs(&mut self) {
         // Only inline when a matrix representing R1CS is needed.
         if !self.should_construct_matrices() {
             return;
@@ -471,6 +471,18 @@ impl<F: Field> ConstraintSystem<F> {
             )
             .unwrap();
         }
+    }
+
+    /// Reduce the constraint weight.
+    ///
+    /// At this moment, it is a wrapper to `outline_lcs`.
+    /// More weight reductions may be added later.
+    ///
+    /// Useful for SNARKs like [\[Marlin\]](https://eprint.iacr.org/2019/1047) or
+    /// [\[Fractal\]](https://eprint.iacr.org/2019/1076), where addition gates
+    /// are not cheap.
+    pub fn reduce_constraint_weight(&mut self) {
+        self.outline_lcs();
     }
 
     /// This step must be called after constraint generation has completed, and
@@ -852,18 +864,14 @@ impl<F: Field> ConstraintSystemRef<F> {
         }
     }
 
-    /// If a `SymbolicLc` is used in more than one location and has sufficient
-    /// length, this method makes a new variable for that `SymbolicLc`, adds
-    /// a constraint ensuring the equality of the variable and the linear
-    /// combination, and then uses that variable in every location the
-    /// `SymbolicLc` is used.
+    /// Reduce the constraint weight.
     ///
     /// Useful for SNARKs like [\[Marlin\]](https://eprint.iacr.org/2019/1047) or
     /// [\[Fractal\]](https://eprint.iacr.org/2019/1076), where addition gates
     /// are not cheap.
-    pub fn outline_lcs(&self) {
+    pub fn reduce_constraint_weight(&self) {
         if let Some(cs) = self.inner() {
-            cs.borrow_mut().outline_lcs()
+            cs.borrow_mut().reduce_constraint_weight()
         }
     }
 
