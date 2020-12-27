@@ -238,14 +238,15 @@ impl<F: Field> ConstraintSystem<F> {
         Ok(())
     }
 
-    /// Count the number of times a given LC is used within another LC
+    /// Count the number of times each LC is used within other LCs in the constraint system
     fn lc_num_times_used(&self, count_sinks: bool) -> Vec<usize> {
-        // step 1: Identify all lcs that have been many times
         let mut num_times_used = vec![0; self.lc_map.len()];
 
+        // Iterate over every lc in constraint system
         for (index, lc) in self.lc_map.iter() {
             num_times_used[index.0] += count_sinks as usize;
 
+            // Increment the counter for each lc that this lc has a direct dependency on.
             for &(_, var) in lc.iter() {
                 if var.is_lc() {
                     let lc_index = var.get_lc_index().expect("should be lc");
@@ -254,6 +255,105 @@ impl<F: Field> ConstraintSystem<F> {
             }
         }
         num_times_used
+    }
+
+    /// Transform the map of linear combinations.
+    /// Specifically, allow the creation of additional witness assignments.
+    ///
+    /// This method is used as a subroutine of `inline_all_lcs` and `outline_lcs`.
+    ///
+    /// The transformer function is given a references of this constraint system (&self),
+    /// number of times used, and a mutable reference of the linear combination to be transformed.
+    ///     (&ConstraintSystem<F>, usize, &mut LinearCombination<F>)
+    ///
+    /// The transformer function returns the number of new witness variables needed
+    /// and a vector of new witness assignments (if not in the setup mode).
+    ///     (usize, Option<Vec<F>>)
+    ///
+    pub fn transform_lc_map(
+        &mut self,
+        transformer: &mut dyn FnMut(
+            &ConstraintSystem<F>,
+            usize,
+            &mut LinearCombination<F>,
+        ) -> (usize, Option<Vec<F>>),
+    ) {
+        // `transformed_lc_map` stores the transformed linear combinations.
+        let mut transformed_lc_map = BTreeMap::new();
+        let mut num_times_used = self.lc_num_times_used(false);
+
+        // This loop goes through all the LCs in the map, starting from
+        // the early ones. The transformer function is applied to the
+        // inlined LC, where new witness variables can be created.
+        for (&index, lc) in &self.lc_map {
+            let mut transformed_lc = LinearCombination::new();
+
+            // Inline the LC, unwrapping symbolic LCs that may constitute it,
+            // and updating them according to transformations in prior iterations.
+            for &(coeff, var) in lc.iter() {
+                if var.is_lc() {
+                    let lc_index = var.get_lc_index().expect("should be lc");
+
+                    // If `var` is a `SymbolicLc`, fetch the corresponding
+                    // inlined LC, and substitute it in.
+                    //
+                    // We have the guarantee that `lc_index` must exist in
+                    // `new_lc_map` since a LC can only depend on other
+                    // LCs with lower indices, which we have transformed.
+                    //
+                    let lc = transformed_lc_map
+                        .get(&lc_index)
+                        .expect("should be inlined");
+                    transformed_lc.extend((lc * coeff).0.into_iter());
+
+                    // Delete linear combinations that are no longer used.
+                    //
+                    // Deletion is safe for both outlining and inlining:
+                    // * Inlining: the LC is substituted directly into all use
+                    //   sites, and so once it is fully inlined, it is redundant.
+                    //
+                    // * Outlining: the LC is associated with a new variable `w`,
+                    //   and a new constraint of the form `lc_data * 1 = w`, where
+                    //   `lc_data` is the actual data in the linear combination.
+                    //   Furthermore, we replace its entry in `new_lc_map` with `(1, w)`.
+                    //   Once `w` is fully inlined, then we can delete the entry from `new_lc_map`
+                    //
+                    num_times_used[lc_index.0] -= 1;
+                    if num_times_used[lc_index.0] == 0 {
+                        // This lc is not used any more, so remove it.
+                        transformed_lc_map.remove(&lc_index);
+                    }
+                } else {
+                    // Otherwise, it's a concrete variable and so we
+                    // substitute it in directly.
+                    transformed_lc.push((coeff, var));
+                }
+            }
+            transformed_lc.compactify();
+
+            // Call the transformer function.
+            let (num_new_witness_variables, new_witness_assignments) =
+                transformer(&self, num_times_used[index.0], &mut transformed_lc);
+
+            // Insert the transformed LC.
+            transformed_lc_map.insert(index, transformed_lc);
+
+            // Update the witness counter.
+            self.num_witness_variables += num_new_witness_variables;
+
+            // Supply additional witness assignments if not in the
+            // setup mode and if new witness variables are created.
+            if !self.is_in_setup_mode() && num_new_witness_variables > 0 {
+                assert!(new_witness_assignments.is_some());
+                if let Some(new_witness_assignments) = new_witness_assignments {
+                    assert_eq!(new_witness_assignments.len(), num_new_witness_variables);
+                    self.witness_assignment
+                        .extend_from_slice(&new_witness_assignments);
+                }
+            }
+        }
+        // Replace the LC map.
+        self.lc_map = transformed_lc_map;
     }
 
     /// Naively inlines symbolic linear combinations into the linear
@@ -265,34 +365,15 @@ impl<F: Field> ConstraintSystem<F> {
     /// do not contribute to the size of the multi-scalar multiplication, which
     /// is the dominating cost.
     pub fn inline_all_lcs(&mut self) {
-        let mut inlined_lcs = BTreeMap::new();
-        let mut num_times_used = self.lc_num_times_used(false);
-
-        for (&index, lc) in &self.lc_map {
-            let mut inlined_lc = LinearCombination::new();
-            for &(coeff, var) in lc.iter() {
-                if var.is_lc() {
-                    let lc_index = var.get_lc_index().expect("should be lc");
-                    // If `var` is a `SymbolicLc`, fetch the corresponding
-                    // inlined LC, and substitute it in.
-                    let lc = inlined_lcs.get(&lc_index).expect("should be inlined");
-                    inlined_lc.extend((lc * coeff).0.into_iter());
-
-                    num_times_used[lc_index.0] -= 1;
-                    if num_times_used[lc_index.0] == 0 {
-                        // This lc is not used any more, so remove it.
-                        inlined_lcs.remove(&lc_index);
-                    }
-                } else {
-                    // Otherwise, it's a concrete variable and so we
-                    // substitute it in directly.
-                    inlined_lc.push((coeff, var));
-                }
-            }
-            inlined_lc.compactify();
-            inlined_lcs.insert(index, inlined_lc);
+        // Only inline when a matrix representing R1CS is needed.
+        if !self.should_construct_matrices() {
+            return;
         }
-        self.lc_map = inlined_lcs;
+
+        // A dummy closure is used, which means that
+        // - it does not modify the inlined LC.
+        // - it does not add new witness variables.
+        self.transform_lc_map(&mut |_, _, _| (0, None));
     }
 
     /// If a `SymbolicLc` is used in more than one location and has sufficient
@@ -304,96 +385,104 @@ impl<F: Field> ConstraintSystem<F> {
     /// Useful for SNARKs like [\[Marlin\]](https://eprint.iacr.org/2019/1047) or
     /// [\[Fractal\]](https://eprint.iacr.org/2019/1076), where addition gates
     /// are not cheap.
-    pub fn outline_lcs(&mut self) {
+    fn outline_lcs(&mut self) {
+        // Only inline when a matrix representing R1CS is needed.
         if !self.should_construct_matrices() {
             return;
         }
 
-        let used_times = self.lc_num_times_used(true);
+        // Store information about new witness variables created
+        // for outlining. New constraints will be added after the
+        // transformation of the LC map.
+        let mut new_witness_linear_combinations = Vec::new();
+        let mut new_witness_indices = Vec::new();
 
-        // step 2: Modify the lcs accordingly
-        let mut outlined_lcs = BTreeMap::new();
+        // It goes through all the LCs in the map, starting from
+        // the early ones, and decides whether or not to dedicate a witness
+        // variable for this LC.
+        //
+        // If true, the LC is replaced with 1 * this witness variable.
+        // Otherwise, the LC is inlined.
+        //
+        // Each iteration first updates the LC according to outlinings in prior iterations,
+        // and then sees if it should be outlined, and if so adds the outlining to the map.
+        //
+        self.transform_lc_map(&mut |cs, num_times_used, inlined_lc| {
+            let mut should_dedicate_a_witness_variable = false;
+            let mut new_witness_index = None;
+            let mut new_witness_assignment = Vec::new();
 
-        let mut additional_a_constraints = Vec::<LcIndex>::new();
-        let mut additional_c_constraints_witness_assignments = Vec::<usize>::new();
+            // Check if it is worthwhile to dedicate a witness variable.
+            let this_used_times = num_times_used + 1;
+            let this_len = inlined_lc.len();
 
-        for (&index, lc) in self.lc_map.iter() {
-            let mut outlined_lc = LinearCombination::new();
-            for &(coeff, var) in lc.iter() {
-                if var.is_lc() {
-                    let lc_index = var.get_lc_index().expect("should be lc");
-                    // If `var` is a `SymbolicLc`, fetch the corresponding
-                    // inlined LC, and substitute it in.
-                    let lc = outlined_lcs.get(&lc_index).expect("should be inlined");
-                    outlined_lc.extend((lc * coeff).0.into_iter());
-                } else {
-                    // Otherwise, it's a concrete variable and so we
-                    // substitute it in directly.
-                    outlined_lc.push((coeff, var));
-                }
-            }
-            outlined_lc.compactify();
-
-            let mut should_promote = false;
-
-            let this_used_times = used_times[index.0];
-            let this_len = outlined_lc.len();
-
+            // Cost with no outlining = `lc_len * number of usages`
+            // Cost with outlining is one constraint for `(lc_len) * 1 = {new variable}` and
+            // using that single new variable in each of the prior usages.
+            // This has total cost `number_of_usages + lc_len + 2`
             if this_used_times * this_len > this_used_times + 2 + this_len {
-                should_promote = true;
+                should_dedicate_a_witness_variable = true;
             }
 
-            if should_promote {
-                let witness_assignment = self.num_witness_variables;
-                self.num_witness_variables += 1;
+            // If it is worthwhile to dedicate a witness variable,
+            if should_dedicate_a_witness_variable {
+                // Add a new witness (the value of the linear combination).
+                // This part follows the same logic of `new_witness_variable`.
+                let witness_index = cs.num_witness_variables;
+                new_witness_index = Some(witness_index);
 
-                if !self.is_in_setup_mode() {
+                // Compute the witness assignment.
+                if !cs.is_in_setup_mode() {
                     let mut acc = F::zero();
-                    for (coeff, var) in outlined_lc.iter() {
-                        acc += *coeff * &self.assigned_value(*var).unwrap();
+                    for (coeff, var) in inlined_lc.iter() {
+                        acc += *coeff * &cs.assigned_value(*var).unwrap();
                     }
-
-                    self.witness_assignment.push(acc);
+                    new_witness_assignment.push(acc);
                 }
 
-                self.num_constraints += 1;
+                // Add a new constraint for this new witness.
+                new_witness_linear_combinations.push(inlined_lc.clone());
+                new_witness_indices.push(witness_index);
 
-                additional_a_constraints.push(index);
-                additional_c_constraints_witness_assignments.push(witness_assignment);
-
-                outlined_lcs.insert(
-                    index,
-                    LinearCombination::from(Variable::Witness(witness_assignment)),
-                );
-            } else {
-                outlined_lcs.insert(index, outlined_lc);
+                // Replace the linear combination with (1 * this new witness).
+                *inlined_lc = LinearCombination::from(Variable::Witness(witness_index));
             }
-        }
+            // Otherwise, the LC remains unchanged.
 
-        let mut new_lc_index = self.lc_map.len();
+            // Return information about new witness variables.
+            if new_witness_index.is_some() {
+                (1, Some(new_witness_assignment))
+            } else {
+                (0, None)
+            }
+        });
 
-        let one_lc_index = LcIndex(new_lc_index);
-        outlined_lcs.insert(LcIndex(new_lc_index), LinearCombination::from(Self::one()));
-        new_lc_index += 1;
-
-        for (additional_a, additional_c) in additional_a_constraints
-            .iter()
-            .zip(additional_c_constraints_witness_assignments.iter())
+        // Add the constraints for the newly added witness variables.
+        for (new_witness_linear_combination, new_witness_variable) in
+            new_witness_linear_combinations
+                .iter()
+                .zip(new_witness_indices.iter())
         {
-            let new_lc_shortened_index = LcIndex(new_lc_index);
-            outlined_lcs.insert(
-                new_lc_shortened_index,
-                LinearCombination::from(Variable::Witness(additional_c.clone())),
-            );
-
-            self.a_constraints.push(additional_a.clone());
-            self.b_constraints.push(one_lc_index);
-            self.c_constraints.push(new_lc_shortened_index);
-
-            new_lc_index += 1;
+            // Add a new constraint
+            self.enforce_constraint(
+                new_witness_linear_combination.clone(),
+                LinearCombination::from(Self::one()),
+                LinearCombination::from(Variable::Witness(*new_witness_variable)),
+            )
+            .unwrap();
         }
+    }
 
-        self.lc_map = outlined_lcs;
+    /// Reduce the constraint weight.
+    ///
+    /// At this moment, it is a wrapper to `outline_lcs`.
+    /// More weight reductions may be added later.
+    ///
+    /// Useful for SNARKs like [\[Marlin\]](https://eprint.iacr.org/2019/1047) or
+    /// [\[Fractal\]](https://eprint.iacr.org/2019/1076), where addition gates
+    /// are not cheap.
+    pub fn reduce_constraint_weight(&mut self) {
+        self.outline_lcs();
     }
 
     /// This step must be called after constraint generation has completed, and
@@ -775,18 +864,14 @@ impl<F: Field> ConstraintSystemRef<F> {
         }
     }
 
-    /// If a `SymbolicLc` is used in more than one location and has sufficient
-    /// length, this method makes a new variable for that `SymbolicLc`, adds
-    /// a constraint ensuring the equality of the variable and the linear
-    /// combination, and then uses that variable in every location the
-    /// `SymbolicLc` is used.
+    /// Reduce the constraint weight.
     ///
     /// Useful for SNARKs like [\[Marlin\]](https://eprint.iacr.org/2019/1047) or
     /// [\[Fractal\]](https://eprint.iacr.org/2019/1076), where addition gates
     /// are not cheap.
-    pub fn outline_lcs(&self) {
+    pub fn reduce_constraint_weight(&self) {
         if let Some(cs) = self.inner() {
-            cs.borrow_mut().outline_lcs()
+            cs.borrow_mut().reduce_constraint_weight()
         }
     }
 
