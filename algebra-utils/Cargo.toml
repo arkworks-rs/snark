@@ -45,6 +45,7 @@ bench-utils = { path = "../bench-utils" }
 parallel = [ "rayon" ]
 fft = []
 gpu = [ "algebra-kernels", "algebra-cl-gen", "crossbeam" ]
+llvm_asm = [ "algebra/llvm_asm" ]
 
 [build-dependencies]
 rustc_version = "0.2"
