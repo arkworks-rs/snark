@@ -20,7 +20,7 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-algebra = { path = "../algebra", features = ["parallel"] }
+algebra = { git = "ssh://git@github.com/HorizenOfficial/ginger-lib", branch = "algebra_ocl", features = ["parallel"] }
 bench-utils = { path = "../bench-utils" }
 
 digest = { version = "0.7", optional = true }
@@ -51,7 +51,7 @@ mnt6_753 = ["algebra/mnt6_753"]
 bn_382 = ["algebra/bn_382"]
 
 [dev-dependencies]
-algebra = { path = "../algebra", features = ["edwards_sw6", "jubjub", "sw6", "bls12_377"] }
+algebra = { git = "ssh://git@github.com/HorizenOfficial/ginger-lib", branch = "algebra_ocl", features = ["edwards_sw6", "jubjub", "sw6", "bls12_377"] }
 primitives = { path = "../primitives", features = ["mnt4_753", "mnt6_753", "bn_382"] }
 
 criterion = "0.3"

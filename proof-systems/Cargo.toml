@@ -20,7 +20,7 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-algebra = { path = "../algebra", features = [ "parallel" ] }
+algebra = { git = "ssh://git@github.com/HorizenOfficial/ginger-lib", branch = "algebra_ocl", features = [ "parallel" ] }
 algebra-utils = { path = "../algebra-utils", features = [ "parallel", "fft" ] }
 r1cs-core = { path = "../r1cs/core" }
 bench-utils = { path = "../bench-utils" }
@@ -37,7 +37,7 @@ csv = { version = "1" }
 criterion = "0.3"
 rand_xorshift = { version = "0.2" }
 
-algebra = { path = "../algebra", features = [ "bls12_377", "mnt4_753", "mnt6_753", "sw6", "bn_382" ] }
+algebra = { git = "ssh://git@github.com/HorizenOfficial/ginger-lib", branch = "algebra_ocl", features = ["bn_382", "tweedle", "bls12_381", "jubjub", "mnt4_753", "mnt6_753"] }
 r1cs-crypto = { path = "../r1cs/gadgets/crypto", features = ["nizk"] }
 r1cs-std = { path = "../r1cs/gadgets/std" }
 
@@ -46,6 +46,7 @@ print-trace = [ "bench-utils/print-trace" ]
 groth16 = []
 gm17 = []
 llvm_asm = ["algebra/llvm_asm"]
+gpu = ["algebra-utils/gpu"]
 
 [[example]]
 name = "groth16"
@@ -70,5 +71,11 @@ required-features = ["gm17", "r1cs-crypto/mnt4_753", "r1cs-crypto/mnt6_753", "r1
 [[bench]]
 name = "gro16_bench"
 path = "src/groth16/benches/gro16_bench.rs"
+harness = false
+required-features = ["groth16", "algebra/bn_382"]
+
+[[bench]]
+name = "bn382_gro16_test_circuits"
+path = "src/groth16/benches/bn382_gro16_test_circuits.rs"
 harness = false
 required-features = ["groth16", "algebra/bn_382"]

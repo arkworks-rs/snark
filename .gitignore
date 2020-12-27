@@ -1,6 +1,11 @@
+/.vscode
+
 target
 Cargo.lock
 *.idea
 *.iml
 *.orig
 primitives/src/merkle_tree/field_based_mht/smt/rocksdb_storage/*
+
+coeffs_*
+msm_bases_*
