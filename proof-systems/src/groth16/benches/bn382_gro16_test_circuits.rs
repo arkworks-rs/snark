@@ -150,7 +150,7 @@ fn bench_prover_circuit1(c: &mut Criterion){
 
     let mut group = c.benchmark_group("gro16-bn382-test circuit 1-variable constraints");
 
-    let num_constraints = (14..=23).map(|i| 2usize.pow(i)).collect::<Vec<_>>();
+    let num_constraints = (14..=22).map(|i| 2usize.pow(i)).collect::<Vec<_>>();
 
     for &num_constraints in num_constraints.iter()
         {
@@ -198,7 +198,7 @@ fn bench_prover_circuit2(c: &mut Criterion){
 
     let mut group = c.benchmark_group("gro16-bn382-test circuit 2-variable constraints");
 
-    let num_constraints = (14..=23).map(|i| 2usize.pow(i)).collect::<Vec<_>>();
+    let num_constraints = (14..=22).map(|i| 2usize.pow(i)).collect::<Vec<_>>();
 
     for &num_constraints in num_constraints.iter()
         {
