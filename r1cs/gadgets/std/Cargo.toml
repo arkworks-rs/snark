@@ -28,7 +28,7 @@ radix_trie = "0.1"
 [features]
 llvm_asm = ["algebra/llvm_asm"]
 
-full = [ "bls12_377", "bn_382", "edwards_bls12", "edwards_sw6", "jubjub", "mnt4_753", "mnt6_753" ]
+full = [ "bls12_377", "bn_382", "edwards_bls12", "edwards_sw6", "jubjub", "mnt4_753", "mnt6_753", "tweedle" ]
 
 bls12_377 = [ "algebra/bls12_377" ]
 bn_382 = [ "algebra/bn_382" ]
@@ -37,6 +37,7 @@ edwards_sw6 = [ "algebra/edwards_sw6"]
 jubjub = [ "algebra/jubjub" ]
 mnt4_753 = [ "algebra/mnt4_753" ]
 mnt6_753 = [ "algebra/mnt6_753" ]
+tweedle = [ "algebra/tweedle" ]
 
 [dev-dependencies]
 rand = { version = "0.7" }
