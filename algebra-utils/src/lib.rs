@@ -18,9 +18,4 @@ pub mod fft;
 #[cfg(feature = "fft")]
 pub use self::fft::*;
 
-#[cfg(feature = "parallel")]
-pub mod polycommit;
-#[cfg(feature = "parallel")]
-pub use self::polycommit::*;
-
 pub type Error = Box<dyn std::error::Error>;
