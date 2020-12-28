@@ -252,7 +252,7 @@ impl<F: PrimeField> Iterator for Elements<F> {
 pub fn sample_element_outside_domain<
     F: PrimeField,
     R: Rng
->(domain: Box<dyn EvaluationDomain<F>>, rng: &mut R) -> F {
+>(domain: &Box<dyn EvaluationDomain<F>>, rng: &mut R) -> F {
     let mut t = F::rand(rng);
     while domain.evaluate_vanishing_polynomial(t).is_zero() {
         t = F::rand(rng);

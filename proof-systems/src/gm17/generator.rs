@@ -184,7 +184,7 @@ where
         .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
 
     //Sample element outside domain
-    let t = sample_element_outside_domain(domain, rng);
+    let t = sample_element_outside_domain(&domain, rng);
     end_timer!(domain_time);
     ///////////////////////////////////////////////////////////////////////////
 
