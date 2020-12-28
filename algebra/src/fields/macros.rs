@@ -453,6 +453,7 @@ macro_rules! impl_Fp {
 
         impl_additive_ops_from_ref!($Fp, $FpParameters);
         impl_multiplicative_ops_from_ref!($Fp, $FpParameters);
+        impl_mul_short!($Fp, $FpParameters);
 
         impl<'a, P: $FpParameters> AddAssign<&'a Self> for $Fp<P> {
             #[inline]

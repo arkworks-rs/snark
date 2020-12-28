@@ -15,7 +15,7 @@ pub trait FieldBasedMerkleTreePathGadget<
     H:  FieldBasedHash<Data = ConstraintF>,
     HGadget: FieldBasedHashGadget<H, ConstraintF>,
     ConstraintF: PrimeField,
->: AllocGadget<P, ConstraintF>
+>: AllocGadget<P, ConstraintF> + ConstantGadget<P, ConstraintF> + EqGadget<ConstraintF>
 where
 {
     /// Return the length of the path

@@ -118,6 +118,14 @@ pub trait Field:
     + From<u32>
     + From<u16>
     + From<u8>
+    + Add<Self, Output = Self>
+    + Sub<Self, Output = Self>
+    + Mul<Self, Output = Self>
+    + Div<Self, Output = Self>
+    + AddAssign<Self>
+    + SubAssign<Self>
+    + MulAssign<Self>
+    + DivAssign<Self>
     + for<'a> Add<&'a Self, Output = Self>
     + for<'a> Sub<&'a Self, Output = Self>
     + for<'a> Mul<&'a Self, Output = Self>
@@ -126,6 +134,10 @@ pub trait Field:
     + for<'a> SubAssign<&'a Self>
     + for<'a> MulAssign<&'a Self>
     + for<'a> DivAssign<&'a Self>
+    + std::iter::Sum<Self>
+    + for<'a> std::iter::Sum<&'a Self>
+    + std::iter::Product<Self>
+    + for<'a> std::iter::Product<&'a Self>
 {
     type BasePrimeField: PrimeField;
 
@@ -474,7 +486,7 @@ pub fn batch_inversion<F: Field>(v: &mut [F]) {
     let mut prod = Vec::with_capacity(v.len());
     let mut tmp = F::one();
     for f in v.iter().filter(|f| !f.is_zero()) {
-        tmp.mul_assign(&f);
+        tmp.mul_assign(f);
         prod.push(tmp);
     }
 
@@ -491,7 +503,7 @@ pub fn batch_inversion<F: Field>(v: &mut [F]) {
         .zip(prod.into_iter().rev().skip(1).chain(Some(F::one())))
     {
         // tmp := tmp * g.z; g.z := tmp * s = 1/z
-        let newtmp = tmp * &f;
+        let newtmp = tmp * *f;
         *f = tmp * &s;
         tmp = newtmp;
     }

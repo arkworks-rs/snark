@@ -2,7 +2,6 @@ use algebra::{FpParameters, PrimeField};
 use crate::{multicore::Worker, EvaluationDomain};
 use std::fmt;
 use rayon::prelude::*;
-use rand::Rng;
 use std::any::Any;
 
 #[cfg(feature = "gpu")]
@@ -90,41 +89,6 @@ impl<F: PrimeField> BasicRadix2Domain<F> {
                 });
             }
         });
-    }
-
-    /// Sample an element that is *not* in the domain.
-    pub fn sample_element_outside_domain<R: Rng>(&self, rng: &mut R) -> F {
-        let mut t = F::rand(rng);
-        while self.evaluate_vanishing_polynomial(t).is_zero() {
-            t = F::rand(rng);
-        }
-        t
-    }
-
-    /// Given an index which assumes the first elements of this domain are the elements of
-    /// another (sub)domain with size size_s,
-    /// this returns the actual index into this domain.
-    pub fn reindex_by_subdomain(&self, other: Self, index: usize) -> usize {
-        assert!(self.size() >= other.size());
-        // Let this subgroup be G, and the subgroup we're re-indexing by be S.
-        // Since its a subgroup, the 0th element of S is at index 0 in G, the first element of S is at
-        // index |G|/|S|, the second at 2*|G|/|S|, etc.
-        // Thus for an index i that corresponds to S, the index in G is i*|G|/|S|
-        let period = self.size() / other.size();
-        if index < other.size() {
-            index * period
-        } else {
-            // Let i now be the index of this element in G \ S
-            // Let x be the number of elements in G \ S, for every element in S. Then x = (|G|/|S| - 1).
-            // At index i in G \ S, the number of elements in S that appear before the index in G to which
-            // i corresponds to, is floor(i / x) + 1.
-            // The +1 is because index 0 of G is S_0, so the position is offset by at least one.
-            // The floor(i / x) term is because after x elements in G \ S, there is one more element from S
-            // that will have appeared in G.
-            let i = index - other.size();
-            let x = period - 1;
-            i + (i / x) + 1
-        }
     }
 
     fn best_fft(a: &mut [F], worker: &Worker, omega: F, log_n: u32) {

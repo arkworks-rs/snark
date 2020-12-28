@@ -15,6 +15,11 @@ use crate::FieldBasedMerkleTreePathGadget;
 use std::borrow::Borrow;
 use std::marker::PhantomData;
 
+#[derive(Derivative)]
+#[derivative(
+    PartialEq(bound = "P: FieldBasedMerkleTreeParameters"),
+    Eq(bound = "P: FieldBasedMerkleTreeParameters")
+)]
 pub struct FieldBasedBinaryMerkleTreePathGadget<P, HGadget, ConstraintF>
     where
         P: FieldBasedMerkleTreeParameters<Data = ConstraintF>,
@@ -272,6 +277,88 @@ for FieldBasedBinaryMerkleTreePathGadget<P, HGadget, ConstraintF>
             path.push((sibling_hash, direction));
         }
         Ok(FieldBasedBinaryMerkleTreePathGadget { path })
+    }
+}
+
+impl<P, HGadget, ConstraintF> ConstantGadget<FieldBasedBinaryMHTPath<P>, ConstraintF>
+for FieldBasedBinaryMerkleTreePathGadget<P, HGadget, ConstraintF>
+    where
+        P: FieldBasedMerkleTreeParameters<Data = ConstraintF>,
+        HGadget: FieldBasedHashGadget<P::H, ConstraintF>,
+        ConstraintF: Field,
+{
+    fn from_value<CS: ConstraintSystem<ConstraintF>>(mut cs: CS, value: &FieldBasedBinaryMHTPath<P>) -> Self {
+        let mut path = Vec::new();
+        for (i, (sibling, d)) in value.get_raw_path().iter().enumerate() {
+            let sibling_hash = HGadget::DataGadget::from_value(
+                cs.ns(|| format!("hardcode sibling {}", i)),
+                sibling
+            );
+            let direction = Boolean::Constant(*d);
+            path.push((sibling_hash, direction));
+        }
+        Self { path }
+    }
+
+    fn get_constant(&self) -> FieldBasedBinaryMHTPath<P> {
+        let mut path = Vec::new();
+        for (sibling_g, d_g) in self.path.iter() {
+            let sibling = sibling_g.get_constant();
+            let d = d_g.get_value().unwrap();
+            path.push((sibling, d))
+        }
+        FieldBasedBinaryMHTPath::<P>::new(path)
+    }
+}
+
+impl<P, HGadget, ConstraintF> EqGadget<ConstraintF>
+for FieldBasedBinaryMerkleTreePathGadget<P, HGadget, ConstraintF>
+    where
+        P: FieldBasedMerkleTreeParameters<Data = ConstraintF>,
+        HGadget: FieldBasedHashGadget<P::H, ConstraintF>,
+        ConstraintF: Field,
+{
+    fn is_eq<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS, other: &Self) -> Result<Boolean, SynthesisError> {
+        let mut v = Vec::new();
+        let len = self.path.len();
+        assert_eq!(self.path.len(), other.path.len());
+        for i in 0..len {
+            let b1_i = &self.path[i].0.is_eq(cs.ns(|| format!("b1_{}", i)), &other.path[i].0)?;
+            let b2_i = &self.path[i].1.is_eq(cs.ns(|| format!("b2_{}", i)), &other.path[i].1)?;
+            let b_i = Boolean::and(cs.ns(|| format!("b1_{} && b2_{}", i, i)), &b1_i, &b2_i)?;
+            v.push(b_i);
+        }
+        Boolean::kary_and(cs.ns(|| "is eq final"), v.as_slice())
+    }
+
+    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        other: &Self,
+        should_enforce: &Boolean
+    ) -> Result<(), SynthesisError> {
+        let len = self.path.len();
+        assert_eq!(self.path.len(), other.path.len());
+        for i in 0..len {
+            &self.path[i].0.conditional_enforce_equal(cs.ns(|| format!("conditional_eq_1_{}", i)), &other.path[i].0, should_enforce)?;
+            &self.path[i].1.conditional_enforce_equal(cs.ns(|| format!("conditional_eq_2_{}", i)), &other.path[i].1, should_enforce)?;
+        }
+        Ok(())
+    }
+
+    fn conditional_enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        other: &Self,
+        should_enforce: &Boolean
+    ) -> Result<(), SynthesisError> {
+        let len = self.path.len();
+        assert_eq!(self.path.len(), other.path.len());
+        for i in 0..len {
+            &self.path[i].0.conditional_enforce_not_equal(cs.ns(|| format!("conditional_neq_1_{}", i)), &other.path[i].0, should_enforce)?;
+            &self.path[i].1.conditional_enforce_not_equal(cs.ns(|| format!("conditional_neq_2_{}", i)), &other.path[i].1, should_enforce)?;
+        }
+        Ok(())
     }
 }
 

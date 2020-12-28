@@ -88,5 +88,5 @@ impl<T> Assignment<T> for Option<T> {
 }
 
 pub trait FromGadget<T, ConstraintF: Field>: Sized {
-    fn from<CS: ConstraintSystem<ConstraintF>>(other: T) -> Result<Self, SynthesisError>;
+    fn from<CS: ConstraintSystem<ConstraintF>>(other: T, cs: CS) -> Result<Self, SynthesisError>;
 }

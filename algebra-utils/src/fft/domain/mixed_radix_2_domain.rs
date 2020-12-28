@@ -2,7 +2,6 @@ use algebra::{FpParameters, PrimeField};
 use crate::{multicore::Worker, EvaluationDomain};
 use rayon::prelude::*;
 use std::fmt;
-use rand::Rng;
 use std::any::Any;
 
 #[cfg(feature = "gpu")]
@@ -100,14 +99,6 @@ impl<F: PrimeField> MixedRadix2Domain<F> {
         }
 
         return Some(best as usize);
-    }
-
-    pub fn sample_element_outside_domain<R: Rng>(&self, rng: &mut R) -> F {
-        let mut t = F::rand(rng);
-        while self.evaluate_vanishing_polynomial(t).is_zero() {
-            t = F::rand(rng);
-        }
-        t
     }
 
     fn k_adicity(k: u64, n: u64) -> u64{
