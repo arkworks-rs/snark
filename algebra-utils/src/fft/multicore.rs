@@ -15,7 +15,7 @@ impl Worker {
     }
 
     pub(crate) fn log_num_cpus(&self) -> u32 {
-        crate::log2_floor(self.cpus)
+        algebra::log2_floor(self.cpus)
     }
 
     pub(crate) fn scope<'a, F, R>(&self, elements: usize, f: F) -> R
