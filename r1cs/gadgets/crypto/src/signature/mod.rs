@@ -1,4 +1,4 @@
-use algebra::Field;
+use algebra::{Field, PrimeField};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
 use primitives::signature::{
@@ -25,7 +25,7 @@ pub trait SigRandomizePkGadget<S: SignatureScheme, ConstraintF: Field> {
 }
 
 
-pub trait FieldBasedSigGadget<S: FieldBasedSignatureScheme, ConstraintF: Field> {
+pub trait FieldBasedSigGadget<S: FieldBasedSignatureScheme, ConstraintF: PrimeField> {
 
     type DataGadget:      FieldGadget<ConstraintF, ConstraintF>;
     type SignatureGadget: AllocGadget<S::Signature, ConstraintF> +

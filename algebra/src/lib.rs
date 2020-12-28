@@ -60,7 +60,7 @@ pub type Error = Box<dyn std::error::Error>;
 /// assert_eq!(log2(17), 5);
 /// assert_eq!(log2(1), 0);
 /// assert_eq!(log2(0), 0);
-/// assert_eq!(log2(usize::MAX), (core::mem::size_of::<usize>() * 8) as u32);
+/// assert_eq!(log2(usize::MAX), (std::mem::size_of::<usize>() * 8) as u32);
 /// assert_eq!(log2(1 << 15), 15);
 /// assert_eq!(log2(2usize.pow(18)), 18);
 /// ```

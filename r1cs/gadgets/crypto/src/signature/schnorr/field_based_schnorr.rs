@@ -151,6 +151,21 @@ impl<ConstraintF, G> EqGadget<ConstraintF> for FieldBasedSchnorrSigGadget<Constr
     }
 }
 
+impl<ConstraintF, G> ToConstraintFieldGadget<ConstraintF> for FieldBasedSchnorrSigGadget<ConstraintF, G>
+    where
+        ConstraintF: PrimeField,
+        G: Group,
+{
+    type FieldGadget = FpGadget<ConstraintF>;
+
+    fn to_field_gadget_elements<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        _cs: CS
+    ) -> Result<Vec<Self::FieldGadget>, SynthesisError>
+    {
+        Ok(vec![self.e.clone(), self.s.clone()])
+    }
+}
 
 #[derive(Clone, Eq, PartialEq)]
 pub struct FieldBasedSchnorrPkGadget<
@@ -280,6 +295,21 @@ impl<ConstraintF, G, GG> EqGadget<ConstraintF> for FieldBasedSchnorrPkGadget<Con
     }
 }
 
+impl<ConstraintF, G, GG> ToConstraintFieldGadget<ConstraintF> for FieldBasedSchnorrPkGadget<ConstraintF, G, GG>
+    where
+        ConstraintF: PrimeField,
+        G: Group,
+        GG: GroupGadget<G, ConstraintF, Value = G>  + ToConstraintFieldGadget<ConstraintF, FieldGadget = FpGadget<ConstraintF>>,
+{
+    type FieldGadget = FpGadget<ConstraintF>;
+
+    fn to_field_gadget_elements<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS
+    ) -> Result<Vec<Self::FieldGadget>, SynthesisError> {
+        self.pk.to_field_gadget_elements(cs)
+    }
+}
 
 pub struct FieldBasedSchnorrSigVerificationGadget<
     ConstraintF: PrimeField,

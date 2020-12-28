@@ -158,7 +158,7 @@ pub trait EvaluationDomain<F: PrimeField>: Debug
 
             batch_inversion(u.as_mut_slice());
             u.par_iter_mut().zip(ls).for_each(|(tau_minus_r, l)| {
-                *tau_minus_r = l * tau_minus_r;
+                *tau_minus_r *= l;
             });
             u
         }
