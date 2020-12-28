@@ -34,7 +34,7 @@ use std::any::Any;
 use rand::Rng;
 
 /// Defines a domain over which finite field (I)FFTs can be performed.
-pub trait EvaluationDomain<F: PrimeField>: Debug
+pub trait EvaluationDomain<F: PrimeField>: Debug + Send + Sync
 {
     /// Returns the size of the domain
     fn size(&self) -> usize;
