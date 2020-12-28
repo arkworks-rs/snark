@@ -10,6 +10,7 @@ use criterion::{BenchmarkId, BatchSize};
 use criterion::Criterion;
 use r1cs_std::Assignment;
 use r1cs_std::fields::fp::FpGadget;
+use r1cs_std::eq::EqGadget;
 use r1cs_std::fields::FieldGadget;
 use r1cs_std::alloc::AllocGadget;
 
@@ -53,10 +54,10 @@ impl<F: PrimeField> ConstraintSynthesizer<F> for TestCircuit1<F> {
             || self.b.ok_or(SynthesisError::AssignmentMissing)
         )?;
 
-        // let zero = FpGadget::<F>::zero(cs.ns(|| "alloc zero"))?;
+        let zero = FpGadget::<F>::zero(cs.ns(|| "alloc zero"))?;
 
-        // a_k_minus_1.enforce_not_equal(cs.ns(|| "a_0 != 0"), &zero)?;
-        // b_k_minus_1.enforce_not_equal(cs.ns(|| "b_0 != 0"), &zero)?;
+        a_k_minus_1.enforce_not_equal(cs.ns(|| "a_0 != 0"), &zero)?;
+        b_k_minus_1.enforce_not_equal(cs.ns(|| "b_0 != 0"), &zero)?;
 
         for k in 0..(self.num_constraints - 5)/2 {
 
@@ -106,10 +107,10 @@ impl<F: PrimeField> ConstraintSynthesizer<F> for TestCircuit2<F> {
             || self.b.ok_or(SynthesisError::AssignmentMissing)
         )?;
 
-        // let zero = FpGadget::<F>::zero(cs.ns(|| "alloc zero"))?;
+        let zero = FpGadget::<F>::zero(cs.ns(|| "alloc zero"))?;
 
-        // a_k_minus_1.enforce_not_equal(cs.ns(|| "a_0 != 0"), &zero)?;
-        // b_k_minus_1.enforce_not_equal(cs.ns(|| "b_0 != 0"), &zero)?;
+        a_k_minus_1.enforce_not_equal(cs.ns(|| "a_0 != 0"), &zero)?;
+        b_k_minus_1.enforce_not_equal(cs.ns(|| "b_0 != 0"), &zero)?;
 
         for k in 0..(self.num_constraints - 5)/2 {
 

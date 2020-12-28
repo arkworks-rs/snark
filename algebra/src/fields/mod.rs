@@ -356,7 +356,6 @@ impl<F: PrimeField> FromBits for F {
     #[inline]
     fn read_bits(bits: Vec<bool>) -> Result<Self, Error> {
         let modulus_bits = <Self as PrimeField>::Params::MODULUS_BITS as usize;
-        println!("Bits len: {}", bits.len());
 
         //NOTE: We allow bits having enough leading bits to zero s.t. the length will be <= F::MODULUS_BITS
         let leading_zeros = leading_zeros(bits.as_slice()) as usize;
