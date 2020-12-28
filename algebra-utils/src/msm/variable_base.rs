@@ -224,7 +224,7 @@ impl VariableBaseMSM {
             if cpu_n > 0 {
                 threads.push(s.spawn(
                     move |_| -> Result<G::Projective, GPUError> {
-                        let acc = Self::msm_inner(cpu_bases, cpu_scalars);
+                        let acc = Self::multi_scalar_mul_affine(cpu_bases, cpu_scalars);
                         Ok(acc)
                     }
                 ))
@@ -251,7 +251,7 @@ impl VariableBaseMSM {
     ) -> G::Projective {
 
         #[cfg(not(feature = "gpu"))]
-        return Self::msm_inner(bases, scalars);
+        return Self::multi_scalar_mul_affine(bases, scalars);
 
         #[cfg(feature = "gpu")]
         return Self::msm_inner_gpu(bases, scalars);
