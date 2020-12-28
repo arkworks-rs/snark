@@ -47,6 +47,18 @@ fft = []
 gpu = [ "algebra-kernels", "algebra-cl-gen", "crossbeam" ]
 llvm_asm = [ "algebra/llvm_asm" ]
 
+bls12_377 = [ "algebra-kernels/bls12_377", "algebra/bls12_377" ]
+bls12_381 = [ "algebra-kernels/bls12_381", "algebra/bls12_381" ]
+edwards_bls12 = [ "algebra-kernels/edwards_bls12", "algebra/edwards_bls12" ]
+edwards_sw6 = [ "algebra-kernels/edwards_sw6", "algebra/edwards_sw6" ]
+jubjub = [ "algebra-kernels/jubjub", "algebra/jubjub" ]
+sw6 = [ "algebra-kernels/sw6", "algebra/sw6" ]
+mnt4_753 = [ "algebra-kernels/mnt4_753", "algebra/mnt4_753" ]
+mnt6_298 = [ "algebra-kernels/mnt6_298", "algebra/mnt6_298" ]
+mnt6_753 = [ "algebra-kernels/mnt6_753", "algebra/mnt6_753" ]
+bn_382 = [ "algebra-kernels/bn_382", "algebra/bls12_377" ]
+tweedle = [ "algebra-kernels/tweedle", "algebra/tweedle" ]
+
 [build-dependencies]
 rustc_version = "0.2"
 
