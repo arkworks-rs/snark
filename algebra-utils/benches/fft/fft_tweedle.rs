@@ -306,7 +306,7 @@ fn bench_dense_poly_div_by_vanishing_poly<F: PrimeField, D: EvaluationDomain<F>>
             );
 
             let _ans1 = p.divide_by_vanishing_poly(
-                domain.clone(),
+                &domain.clone(),
             );
 
             add_to_trace!(
