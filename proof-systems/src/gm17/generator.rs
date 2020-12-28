@@ -1,4 +1,6 @@
-use algebra::fft::domain::get_best_evaluation_domain;
+use algebra::fft::domain::{
+    get_best_evaluation_domain, sample_element_outside_domain,
+};
 use algebra::{
     msm::FixedBaseMSM, UniformRand,
     AffineCurve, Field, PairingEngine, PrimeField, ProjectiveCurve,
@@ -182,12 +184,7 @@ where
         .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
 
     //Sample element outside domain
-    let t = loop {
-        let random_t = E::Fr::rand(rng);
-        if !domain.evaluate_vanishing_polynomial(random_t).is_zero() {
-            break (random_t)
-        }
-    };
+    let t = sample_element_outside_domain(domain, rng);
     end_timer!(domain_time);
     ///////////////////////////////////////////////////////////////////////////
 
