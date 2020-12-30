@@ -347,4 +347,36 @@ mod test {
         assert_eq!(output, expected_output, "Outputs do not match for BN382Fq");
     }
 
+    use algebra::{
+        fields::tweedle::{
+            fr::Fr as tweedleFr, fq::Fq as tweedleFq,
+        },
+        biginteger::BigInteger256,
+    };
+    use crate::crh::parameters::tweedle::*;
+
+    #[test]
+    fn test_poseidon_hash_tweedle_fr() {
+        let expected_output = tweedleFr::new(BigInteger256([10853721058648678319, 16685221779982166148, 7657542961996224896, 317411048550701368]));
+
+        let mut digest = TweedleFrPoseidonHash::init(None);
+        digest.update(tweedleFr::from_str("1").unwrap());
+        digest.update(tweedleFr::from_str("2").unwrap());
+        let output = digest.finalize();
+
+        assert_eq!(output, expected_output, "Outputs do not match for tweedleFr");
+    }
+
+    #[test]
+    fn test_poseidon_hash_tweedle_fq() {
+        let expected_output = tweedleFq::new(BigInteger256([9400878458790897114, 15068972336691613232, 13673927707991766433, 1032370839092625161]));
+
+        let mut digest = TweedleFqPoseidonHash::init(None);
+        digest.update(tweedleFq::from_str("1").unwrap());
+        digest.update(tweedleFq::from_str("2").unwrap());
+        let output = digest.finalize();
+
+        assert_eq!(output, expected_output, "Outputs do not match for tweedleFq");
+    }
+
 }
