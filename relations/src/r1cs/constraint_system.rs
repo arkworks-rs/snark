@@ -47,6 +47,10 @@ pub struct ConstraintSystem<F: Field> {
     /// The number of linear combinations
     pub num_linear_combinations: usize,
 
+    /// The parameter we aim to minimize in this constraint system (either the
+    /// number of constraints or their total weight).
+    pub optimization_goal: OptimizationGoal,
+
     /// Assignments to the public input variables. This is empty if `self.mode
     /// == SynthesisMode::Setup`.
     pub instance_assignment: Vec<F>,
@@ -91,6 +95,16 @@ pub enum SynthesisMode {
     },
 }
 
+/// Defines the parameter to optimize for a `ConstraintSystem`.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum OptimizationGoal {
+    /// Minimize the number of constraints.
+    Constraints,
+    /// Minimize the total weight of the constraints (the number of nonzero
+    /// entries across all constraints).
+    Weight,
+}
+
 impl<F: Field> ConstraintSystem<F> {
     #[inline]
     fn make_row(&self, l: &LinearCombination<F>) -> Vec<(F, usize)> {
@@ -109,7 +123,7 @@ impl<F: Field> ConstraintSystem<F> {
             .collect()
     }
 
-    /// Construct an ampty `ConstraintSystem`.
+    /// Construct an empty `ConstraintSystem`.
     pub fn new() -> Self {
         Self {
             num_instance_variables: 1,
@@ -131,6 +145,8 @@ impl<F: Field> ConstraintSystem<F> {
             mode: SynthesisMode::Prove {
                 construct_matrices: true,
             },
+
+            optimization_goal: OptimizationGoal::Constraints,
         }
     }
 
@@ -147,6 +163,12 @@ impl<F: Field> ConstraintSystem<F> {
     /// Check whether `self.mode == SynthesisMode::Setup`.
     pub fn is_in_setup_mode(&self) -> bool {
         self.mode == SynthesisMode::Setup
+    }
+
+    /// Check whether this constraint system aims to optimize weight,
+    /// rather than number of constraints.
+    pub fn is_optimizing_weight(&self) -> bool {
+        self.optimization_goal == OptimizationGoal::Weight
     }
 
     /// Check whether or not `self` will construct matrices.
@@ -481,8 +503,17 @@ impl<F: Field> ConstraintSystem<F> {
     /// Useful for SNARKs like [\[Marlin\]](https://eprint.iacr.org/2019/1047) or
     /// [\[Fractal\]](https://eprint.iacr.org/2019/1076), where addition gates
     /// are not cheap.
-    pub fn reduce_constraint_weight(&mut self) {
+    fn reduce_constraint_weight(&mut self) {
         self.outline_lcs();
+    }
+
+    /// Finalize the constraint system (either by outlining or inlining, depending
+    /// on the set optimization mode).
+    pub fn finalize(&mut self) {
+        match self.optimization_goal {
+            OptimizationGoal::Constraints => self.inline_all_lcs(),
+            OptimizationGoal::Weight => self.outline_lcs(),
+        };
     }
 
     /// This step must be called after constraint generation has completed, and
