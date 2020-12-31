@@ -148,7 +148,7 @@ impl<F: Field> ConstraintSystem<F> {
                 construct_matrices: true,
             },
 
-            optimization_goal: OptimizationGoal::None,
+            optimization_goal: OptimizationGoal::Constraints,
         }
     }
 
