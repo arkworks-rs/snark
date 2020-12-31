@@ -98,6 +98,8 @@ pub enum SynthesisMode {
 /// Defines the parameter to optimize for a `ConstraintSystem`.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum OptimizationGoal {
+    /// Make no attempt to optimize.
+    None,
     /// Minimize the number of constraints.
     Constraints,
     /// Minimize the total weight of the constraints (the number of nonzero
@@ -146,7 +148,7 @@ impl<F: Field> ConstraintSystem<F> {
                 construct_matrices: true,
             },
 
-            optimization_goal: OptimizationGoal::Constraints,
+            optimization_goal: OptimizationGoal::None,
         }
     }
 
@@ -165,14 +167,14 @@ impl<F: Field> ConstraintSystem<F> {
         self.mode == SynthesisMode::Setup
     }
 
-    /// Check whether this constraint system aims to optimize weight or
-    /// number of constraints.
-    pub fn get_optimization_goal(&self) -> OptimizationGoal {
+    /// Check whether this constraint system aims to optimize weight,
+    /// number of constraints, or neither.
+    pub fn optimization_goal(&self) -> OptimizationGoal {
         self.optimization_goal
     }
 
-    /// Specify whether this constraint system should aim to optimize weight
-    /// or number of constraints.
+    /// Specify whether this constraint system should aim to optimize weight,
+    /// number of constraints, or neither.
     pub fn set_optimization_goal(&mut self, goal: OptimizationGoal) {
         self.optimization_goal = goal;
     }
@@ -289,17 +291,15 @@ impl<F: Field> ConstraintSystem<F> {
     /// Transform the map of linear combinations.
     /// Specifically, allow the creation of additional witness assignments.
     ///
-    /// This method is used as a subroutine of `inline_all_lcs` and
-    /// `outline_lcs`.
+    /// This method is used as a subroutine of `inline_all_lcs` and `outline_lcs`.
     ///
-    /// The transformer function is given a references of this constraint system
-    /// (&self), number of times used, and a mutable reference of the linear
-    /// combination to be transformed.     (&ConstraintSystem<F>, usize,
-    /// &mut LinearCombination<F>)
+    /// The transformer function is given a references of this constraint system (&self),
+    /// number of times used, and a mutable reference of the linear combination to be transformed.
+    ///     (&ConstraintSystem<F>, usize, &mut LinearCombination<F>)
     ///
-    /// The transformer function returns the number of new witness variables
-    /// needed and a vector of new witness assignments (if not in the setup
-    /// mode).     (usize, Option<Vec<F>>)
+    /// The transformer function returns the number of new witness variables needed
+    /// and a vector of new witness assignments (if not in the setup mode).
+    ///     (usize, Option<Vec<F>>)
     pub fn transform_lc_map(
         &mut self,
         transformer: &mut dyn FnMut(
@@ -517,9 +517,10 @@ impl<F: Field> ConstraintSystem<F> {
     }
 
     /// Finalize the constraint system (either by outlining or inlining,
-    /// depending on the set optimization mode).
+    /// if an optimization goal is set).
     pub fn finalize(&mut self) {
         match self.optimization_goal {
+            OptimizationGoal::None => (),
             OptimizationGoal::Constraints => self.inline_all_lcs(),
             OptimizationGoal::Weight => self.outline_lcs(),
         };
@@ -644,7 +645,7 @@ impl<F: Field> ConstraintSystem<F> {
                     self.lc_assignment_cache.borrow_mut().insert(idx, value);
                     Some(value)
                 }
-            },
+            }
         }
     }
 }
@@ -822,17 +823,17 @@ impl<F: Field> ConstraintSystemRef<F> {
             .map_or(0, |cs| cs.borrow().num_witness_variables)
     }
 
-    /// Check whether this constraint system aims to optimize weight or
-    /// number of constraints.
+    /// Check whether this constraint system aims to optimize weight,
+    /// number of constraints, or neither.
     #[inline]
-    pub fn get_optimization_goal(&self) -> OptimizationGoal {
+    pub fn optimization_goal(&self) -> OptimizationGoal {
         self.inner().map_or(OptimizationGoal::Constraints, |cs| {
-            cs.borrow().get_optimization_goal()
+            cs.borrow().optimization_goal()
         })
     }
 
-    /// Specify whether this constraint system should aim to optimize weight
-    /// or number of constraints.
+    /// Specify whether this constraint system should aim to optimize weight,
+    /// number of constraints, or neither.
     #[inline]
     pub fn set_optimization_goal(&self, goal: OptimizationGoal) {
         self.inner()
@@ -933,7 +934,7 @@ impl<F: Field> ConstraintSystemRef<F> {
     }
 
     /// Finalize the constraint system (either by outlining or inlining,
-    /// depending on the set optimization mode).
+    /// if an optimization goal is set).
     pub fn finalize(&self) {
         if let Some(cs) = self.inner() {
             cs.borrow_mut().finalize()
