@@ -266,7 +266,8 @@ impl<F: Field> ConstraintSystem<F> {
         Ok(())
     }
 
-    /// Count the number of times each LC is used within other LCs in the constraint system
+    /// Count the number of times each LC is used within other LCs in the
+    /// constraint system
     fn lc_num_times_used(&self, count_sinks: bool) -> Vec<usize> {
         let mut num_times_used = vec![0; self.lc_map.len()];
 
@@ -288,16 +289,17 @@ impl<F: Field> ConstraintSystem<F> {
     /// Transform the map of linear combinations.
     /// Specifically, allow the creation of additional witness assignments.
     ///
-    /// This method is used as a subroutine of `inline_all_lcs` and `outline_lcs`.
+    /// This method is used as a subroutine of `inline_all_lcs` and
+    /// `outline_lcs`.
     ///
-    /// The transformer function is given a references of this constraint system (&self),
-    /// number of times used, and a mutable reference of the linear combination to be transformed.
-    ///     (&ConstraintSystem<F>, usize, &mut LinearCombination<F>)
+    /// The transformer function is given a references of this constraint system
+    /// (&self), number of times used, and a mutable reference of the linear
+    /// combination to be transformed.     (&ConstraintSystem<F>, usize,
+    /// &mut LinearCombination<F>)
     ///
-    /// The transformer function returns the number of new witness variables needed
-    /// and a vector of new witness assignments (if not in the setup mode).
-    ///     (usize, Option<Vec<F>>)
-    ///
+    /// The transformer function returns the number of new witness variables
+    /// needed and a vector of new witness assignments (if not in the setup
+    /// mode).     (usize, Option<Vec<F>>)
     pub fn transform_lc_map(
         &mut self,
         transformer: &mut dyn FnMut(
@@ -337,14 +339,14 @@ impl<F: Field> ConstraintSystem<F> {
                     // Delete linear combinations that are no longer used.
                     //
                     // Deletion is safe for both outlining and inlining:
-                    // * Inlining: the LC is substituted directly into all use
-                    //   sites, and so once it is fully inlined, it is redundant.
+                    // * Inlining: the LC is substituted directly into all use sites, and so once it
+                    //   is fully inlined, it is redundant.
                     //
-                    // * Outlining: the LC is associated with a new variable `w`,
-                    //   and a new constraint of the form `lc_data * 1 = w`, where
-                    //   `lc_data` is the actual data in the linear combination.
-                    //   Furthermore, we replace its entry in `new_lc_map` with `(1, w)`.
-                    //   Once `w` is fully inlined, then we can delete the entry from `new_lc_map`
+                    // * Outlining: the LC is associated with a new variable `w`, and a new
+                    //   constraint of the form `lc_data * 1 = w`, where `lc_data` is the actual
+                    //   data in the linear combination. Furthermore, we replace its entry in
+                    //   `new_lc_map` with `(1, w)`. Once `w` is fully inlined, then we can delete
+                    //   the entry from `new_lc_map`
                     //
                     num_times_used[lc_index.0] -= 1;
                     if num_times_used[lc_index.0] == 0 {
@@ -432,8 +434,9 @@ impl<F: Field> ConstraintSystem<F> {
         // If true, the LC is replaced with 1 * this witness variable.
         // Otherwise, the LC is inlined.
         //
-        // Each iteration first updates the LC according to outlinings in prior iterations,
-        // and then sees if it should be outlined, and if so adds the outlining to the map.
+        // Each iteration first updates the LC according to outlinings in prior
+        // iterations, and then sees if it should be outlined, and if so adds
+        // the outlining to the map.
         //
         self.transform_lc_map(&mut |cs, num_times_used, inlined_lc| {
             let mut should_dedicate_a_witness_variable = false;
@@ -513,8 +516,8 @@ impl<F: Field> ConstraintSystem<F> {
         self.outline_lcs();
     }
 
-    /// Finalize the constraint system (either by outlining or inlining, depending
-    /// on the set optimization mode).
+    /// Finalize the constraint system (either by outlining or inlining,
+    /// depending on the set optimization mode).
     pub fn finalize(&mut self) {
         match self.optimization_goal {
             OptimizationGoal::Constraints => self.inline_all_lcs(),
@@ -641,7 +644,7 @@ impl<F: Field> ConstraintSystem<F> {
                     self.lc_assignment_cache.borrow_mut().insert(idx, value);
                     Some(value)
                 }
-            }
+            },
         }
     }
 }
@@ -823,15 +826,17 @@ impl<F: Field> ConstraintSystemRef<F> {
     /// number of constraints.
     #[inline]
     pub fn get_optimization_goal(&self) -> OptimizationGoal {
-        self.inner()
-            .map_or(OptimizationGoal::Constraints, |cs| cs.borrow().get_optimization_goal())
+        self.inner().map_or(OptimizationGoal::Constraints, |cs| {
+            cs.borrow().get_optimization_goal()
+        })
     }
 
     /// Specify whether this constraint system should aim to optimize weight
     /// or number of constraints.
     #[inline]
     pub fn set_optimization_goal(&self, goal: OptimizationGoal) {
-        self.inner().map_or((), |cs| cs.borrow_mut().set_optimization_goal(goal))
+        self.inner()
+            .map_or((), |cs| cs.borrow_mut().set_optimization_goal(goal))
     }
 
     /// Check whether or not `self` will construct matrices.
@@ -927,8 +932,8 @@ impl<F: Field> ConstraintSystemRef<F> {
         }
     }
 
-    /// Finalize the constraint system (either by outlining or inlining, depending
-    /// on the set optimization mode).
+    /// Finalize the constraint system (either by outlining or inlining,
+    /// depending on the set optimization mode).
     pub fn finalize(&self) {
         if let Some(cs) = self.inner() {
             cs.borrow_mut().finalize()

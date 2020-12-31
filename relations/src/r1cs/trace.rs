@@ -68,7 +68,7 @@ where
             id if id == TypeId::of::<Self>() => Some(self as *const _ as *const ()),
             id if id == TypeId::of::<WithContext>() => {
                 Some(&self.get_context as *const _ as *const ())
-            }
+            },
             _ => None,
         }
     }
