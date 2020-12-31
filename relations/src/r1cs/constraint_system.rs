@@ -165,10 +165,16 @@ impl<F: Field> ConstraintSystem<F> {
         self.mode == SynthesisMode::Setup
     }
 
-    /// Check whether this constraint system aims to optimize weight,
-    /// rather than number of constraints.
-    pub fn is_optimizing_weight(&self) -> bool {
-        self.optimization_goal == OptimizationGoal::Weight
+    /// Check whether this constraint system aims to optimize weight or
+    /// number of constraints.
+    pub fn get_optimization_goal(&self) -> OptimizationGoal {
+        self.optimization_goal
+    }
+
+    /// Specify whether this constraint system should aim to optimize weight
+    /// or number of constraints.
+    pub fn set_optimization_goal(&mut self, goal: OptimizationGoal) {
+        self.optimization_goal = goal;
     }
 
     /// Check whether or not `self` will construct matrices.
@@ -813,6 +819,21 @@ impl<F: Field> ConstraintSystemRef<F> {
             .map_or(0, |cs| cs.borrow().num_witness_variables)
     }
 
+    /// Check whether this constraint system aims to optimize weight or
+    /// number of constraints.
+    #[inline]
+    pub fn get_optimization_goal(&self) -> OptimizationGoal {
+        self.inner()
+            .map_or(OptimizationGoal::Constraints, |cs| cs.borrow().get_optimization_goal())
+    }
+
+    /// Specify whether this constraint system should aim to optimize weight
+    /// or number of constraints.
+    #[inline]
+    pub fn set_optimization_goal(&self, goal: OptimizationGoal) {
+        self.inner().map_or((), |cs| cs.borrow_mut().set_optimization_goal(goal))
+    }
+
     /// Check whether or not `self` will construct matrices.
     #[inline]
     pub fn should_construct_matrices(&self) -> bool {
@@ -903,6 +924,14 @@ impl<F: Field> ConstraintSystemRef<F> {
     pub fn reduce_constraint_weight(&self) {
         if let Some(cs) = self.inner() {
             cs.borrow_mut().reduce_constraint_weight()
+        }
+    }
+
+    /// Finalize the constraint system (either by outlining or inlining, depending
+    /// on the set optimization mode).
+    pub fn finalize(&self) {
+        if let Some(cs) = self.inner() {
+            cs.borrow_mut().finalize()
         }
     }
 
