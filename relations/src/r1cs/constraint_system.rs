@@ -508,7 +508,7 @@ impl<F: Field> ConstraintSystem<F> {
     /// if an optimization goal is set).
     pub fn finalize(&mut self) {
         match self.optimization_goal {
-            OptimizationGoal::None => (),
+            OptimizationGoal::None => self.inline_all_lcs(),
             OptimizationGoal::Constraints => self.inline_all_lcs(),
             OptimizationGoal::Weight => self.outline_lcs(),
         };
