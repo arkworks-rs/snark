@@ -504,18 +504,6 @@ impl<F: Field> ConstraintSystem<F> {
         }
     }
 
-    /// Reduce the constraint weight.
-    ///
-    /// At this moment, it is a wrapper to `outline_lcs`.
-    /// More weight reductions may be added later.
-    ///
-    /// Useful for SNARKs like [\[Marlin\]](https://eprint.iacr.org/2019/1047) or
-    /// [\[Fractal\]](https://eprint.iacr.org/2019/1076), where addition gates
-    /// are not cheap.
-    fn reduce_constraint_weight(&mut self) {
-        self.outline_lcs();
-    }
-
     /// Finalize the constraint system (either by outlining or inlining,
     /// if an optimization goal is set).
     pub fn finalize(&mut self) {
@@ -919,17 +907,6 @@ impl<F: Field> ConstraintSystemRef<F> {
     pub fn inline_all_lcs(&self) {
         if let Some(cs) = self.inner() {
             cs.borrow_mut().inline_all_lcs()
-        }
-    }
-
-    /// Reduce the constraint weight.
-    ///
-    /// Useful for SNARKs like [\[Marlin\]](https://eprint.iacr.org/2019/1047) or
-    /// [\[Fractal\]](https://eprint.iacr.org/2019/1076), where addition gates
-    /// are not cheap.
-    pub fn reduce_constraint_weight(&self) {
-        if let Some(cs) = self.inner() {
-            cs.borrow_mut().reduce_constraint_weight()
         }
     }
 
