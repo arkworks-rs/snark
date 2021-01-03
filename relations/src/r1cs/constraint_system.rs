@@ -213,6 +213,51 @@ impl<F: Field> ConstraintSystem<F> {
         Ok(var)
     }
 
+    /// Optimized routine for multiplying a variable by a constant `other`.
+    #[inline]
+    pub fn mul_var_by_constant(
+        &mut self,
+        var: &Variable,
+        other: &F,
+    ) -> crate::r1cs::Result<Variable> {
+        // Create a new symbolic LC using this constant
+        #[inline]
+        fn base_mul_by_constant<F: Field>(
+            cs: &mut ConstraintSystem<F>,
+            var: &Variable,
+            other: F,
+        ) -> crate::r1cs::Result<Variable> {
+            let variable = cs.new_lc(lc!() + (other, *var)).unwrap();
+            Ok(variable)
+        }
+
+        return match var {
+            Variable::Zero => Ok(Variable::Zero),
+            Variable::One => base_mul_by_constant(self, var, *other),
+            Variable::Instance(_) => base_mul_by_constant(self, var, *other),
+            Variable::Witness(_) => base_mul_by_constant(self, var, *other),
+            Variable::SymbolicLc(index) => {
+                // If the underlying symbolic lc only has one element,
+                // don't create another nested symbolic LC.
+                // Instead re-use the symbolic LC underlying this variable.
+                let mut new_lc = lc!();
+                {
+                    let lc = self.lc_map.get(&index).unwrap();
+                    // Case that we make a non-nested symbolic LC
+                    if lc.len() == 1 {
+                        new_lc += (*other * lc[0].0, lc[0].1);
+                    } else {
+                        // Make a nested symbolic LC
+                        // TODO: Under optimization target none, make this non-nested.
+                        return base_mul_by_constant(self, var, *other);
+                    }
+                }
+                let variable = self.new_lc(new_lc).unwrap();
+                Ok(variable)
+            }
+        };
+    }
+
     /// Enforce a R1CS constraint with the name `name`.
     #[inline]
     pub fn enforce_constraint(
