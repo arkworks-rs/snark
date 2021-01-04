@@ -47,6 +47,10 @@ pub struct ConstraintSystem<F: Field> {
     /// The number of linear combinations
     pub num_linear_combinations: usize,
 
+    /// The parameter we aim to minimize in this constraint system (either the
+    /// number of constraints or their total weight).
+    pub optimization_goal: OptimizationGoal,
+
     /// Assignments to the public input variables. This is empty if `self.mode
     /// == SynthesisMode::Setup`.
     pub instance_assignment: Vec<F>,
@@ -91,6 +95,18 @@ pub enum SynthesisMode {
     },
 }
 
+/// Defines the parameter to optimize for a `ConstraintSystem`.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum OptimizationGoal {
+    /// Make no attempt to optimize.
+    None,
+    /// Minimize the number of constraints.
+    Constraints,
+    /// Minimize the total weight of the constraints (the number of nonzero
+    /// entries across all constraints).
+    Weight,
+}
+
 impl<F: Field> ConstraintSystem<F> {
     #[inline]
     fn make_row(&self, l: &LinearCombination<F>) -> Vec<(F, usize)> {
@@ -109,7 +125,7 @@ impl<F: Field> ConstraintSystem<F> {
             .collect()
     }
 
-    /// Construct an ampty `ConstraintSystem`.
+    /// Construct an empty `ConstraintSystem`.
     pub fn new() -> Self {
         Self {
             num_instance_variables: 1,
@@ -131,6 +147,8 @@ impl<F: Field> ConstraintSystem<F> {
             mode: SynthesisMode::Prove {
                 construct_matrices: true,
             },
+
+            optimization_goal: OptimizationGoal::Constraints,
         }
     }
 
@@ -147,6 +165,24 @@ impl<F: Field> ConstraintSystem<F> {
     /// Check whether `self.mode == SynthesisMode::Setup`.
     pub fn is_in_setup_mode(&self) -> bool {
         self.mode == SynthesisMode::Setup
+    }
+
+    /// Check whether this constraint system aims to optimize weight,
+    /// number of constraints, or neither.
+    pub fn optimization_goal(&self) -> OptimizationGoal {
+        self.optimization_goal
+    }
+
+    /// Specify whether this constraint system should aim to optimize weight,
+    /// number of constraints, or neither.
+    pub fn set_optimization_goal(&mut self, goal: OptimizationGoal) {
+        // `set_optimization_goal` should only be executed before any constraint or value is created.
+        assert_eq!(self.num_instance_variables, 1);
+        assert_eq!(self.num_witness_variables, 0);
+        assert_eq!(self.num_constraints, 0);
+        assert_eq!(self.num_linear_combinations, 0);
+
+        self.optimization_goal = goal;
     }
 
     /// Check whether or not `self` will construct matrices.
@@ -238,7 +274,8 @@ impl<F: Field> ConstraintSystem<F> {
         Ok(())
     }
 
-    /// Count the number of times each LC is used within other LCs in the constraint system
+    /// Count the number of times each LC is used within other LCs in the
+    /// constraint system
     fn lc_num_times_used(&self, count_sinks: bool) -> Vec<usize> {
         let mut num_times_used = vec![0; self.lc_map.len()];
 
@@ -269,7 +306,6 @@ impl<F: Field> ConstraintSystem<F> {
     /// The transformer function returns the number of new witness variables needed
     /// and a vector of new witness assignments (if not in the setup mode).
     ///     (usize, Option<Vec<F>>)
-    ///
     pub fn transform_lc_map(
         &mut self,
         transformer: &mut dyn FnMut(
@@ -309,14 +345,14 @@ impl<F: Field> ConstraintSystem<F> {
                     // Delete linear combinations that are no longer used.
                     //
                     // Deletion is safe for both outlining and inlining:
-                    // * Inlining: the LC is substituted directly into all use
-                    //   sites, and so once it is fully inlined, it is redundant.
+                    // * Inlining: the LC is substituted directly into all use sites, and so once it
+                    //   is fully inlined, it is redundant.
                     //
-                    // * Outlining: the LC is associated with a new variable `w`,
-                    //   and a new constraint of the form `lc_data * 1 = w`, where
-                    //   `lc_data` is the actual data in the linear combination.
-                    //   Furthermore, we replace its entry in `new_lc_map` with `(1, w)`.
-                    //   Once `w` is fully inlined, then we can delete the entry from `new_lc_map`
+                    // * Outlining: the LC is associated with a new variable `w`, and a new
+                    //   constraint of the form `lc_data * 1 = w`, where `lc_data` is the actual
+                    //   data in the linear combination. Furthermore, we replace its entry in
+                    //   `new_lc_map` with `(1, w)`. Once `w` is fully inlined, then we can delete
+                    //   the entry from `new_lc_map`
                     //
                     num_times_used[lc_index.0] -= 1;
                     if num_times_used[lc_index.0] == 0 {
@@ -404,8 +440,9 @@ impl<F: Field> ConstraintSystem<F> {
         // If true, the LC is replaced with 1 * this witness variable.
         // Otherwise, the LC is inlined.
         //
-        // Each iteration first updates the LC according to outlinings in prior iterations,
-        // and then sees if it should be outlined, and if so adds the outlining to the map.
+        // Each iteration first updates the LC according to outlinings in prior
+        // iterations, and then sees if it should be outlined, and if so adds
+        // the outlining to the map.
         //
         self.transform_lc_map(&mut |cs, num_times_used, inlined_lc| {
             let mut should_dedicate_a_witness_variable = false;
@@ -473,16 +510,14 @@ impl<F: Field> ConstraintSystem<F> {
         }
     }
 
-    /// Reduce the constraint weight.
-    ///
-    /// At this moment, it is a wrapper to `outline_lcs`.
-    /// More weight reductions may be added later.
-    ///
-    /// Useful for SNARKs like [\[Marlin\]](https://eprint.iacr.org/2019/1047) or
-    /// [\[Fractal\]](https://eprint.iacr.org/2019/1076), where addition gates
-    /// are not cheap.
-    pub fn reduce_constraint_weight(&mut self) {
-        self.outline_lcs();
+    /// Finalize the constraint system (either by outlining or inlining,
+    /// if an optimization goal is set).
+    pub fn finalize(&mut self) {
+        match self.optimization_goal {
+            OptimizationGoal::None => self.inline_all_lcs(),
+            OptimizationGoal::Constraints => self.inline_all_lcs(),
+            OptimizationGoal::Weight => self.outline_lcs(),
+        };
     }
 
     /// This step must be called after constraint generation has completed, and
@@ -782,6 +817,23 @@ impl<F: Field> ConstraintSystemRef<F> {
             .map_or(0, |cs| cs.borrow().num_witness_variables)
     }
 
+    /// Check whether this constraint system aims to optimize weight,
+    /// number of constraints, or neither.
+    #[inline]
+    pub fn optimization_goal(&self) -> OptimizationGoal {
+        self.inner().map_or(OptimizationGoal::Constraints, |cs| {
+            cs.borrow().optimization_goal()
+        })
+    }
+
+    /// Specify whether this constraint system should aim to optimize weight,
+    /// number of constraints, or neither.
+    #[inline]
+    pub fn set_optimization_goal(&self, goal: OptimizationGoal) {
+        self.inner()
+            .map_or((), |cs| cs.borrow_mut().set_optimization_goal(goal))
+    }
+
     /// Check whether or not `self` will construct matrices.
     #[inline]
     pub fn should_construct_matrices(&self) -> bool {
@@ -864,14 +916,11 @@ impl<F: Field> ConstraintSystemRef<F> {
         }
     }
 
-    /// Reduce the constraint weight.
-    ///
-    /// Useful for SNARKs like [\[Marlin\]](https://eprint.iacr.org/2019/1047) or
-    /// [\[Fractal\]](https://eprint.iacr.org/2019/1076), where addition gates
-    /// are not cheap.
-    pub fn reduce_constraint_weight(&self) {
+    /// Finalize the constraint system (either by outlining or inlining,
+    /// if an optimization goal is set).
+    pub fn finalize(&self) {
         if let Some(cs) = self.inner() {
-            cs.borrow_mut().reduce_constraint_weight()
+            cs.borrow_mut().finalize()
         }
     }
 

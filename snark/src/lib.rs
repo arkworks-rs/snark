@@ -35,8 +35,8 @@ pub trait SNARK<F: PrimeField> {
     /// Errors encountered during setup, proving, or verification.
     type Error: 'static + ark_std::error::Error;
 
-    /// Takes in a description of a computation (specified in R1CS constraints), and
-    /// samples proving and verification keys for that circuit.
+    /// Takes in a description of a computation (specified in R1CS constraints),
+    /// and samples proving and verification keys for that circuit.
     fn circuit_specific_setup<C: ConstraintSynthesizer<F>, R: RngCore + CryptoRng>(
         circuit: C,
         rng: &mut R,
@@ -51,8 +51,8 @@ pub trait SNARK<F: PrimeField> {
     ) -> Result<Self::Proof, Self::Error>;
 
     /// Checks that `proof` is a valid proof of the satisfaction of circuit
-    /// encoded in `circuit_vk`, with respect to the public input `public_input`.
-    /// as R1CS constraints).
+    /// encoded in `circuit_vk`, with respect to the public input `public_input`,
+    /// specified as R1CS constraints.
     fn verify(
         circuit_vk: &Self::VerifyingKey,
         public_input: &[F],
@@ -68,8 +68,8 @@ pub trait SNARK<F: PrimeField> {
     ) -> Result<Self::ProcessedVerifyingKey, Self::Error>;
 
     /// Checks that `proof` is a valid proof of the satisfaction of circuit
-    /// encoded in `circuit_pvk`, with respect to the public input `public_input`.
-    /// as R1CS constraints).
+    /// encoded in `circuit_pvk`, with respect to the public input `public_input`,
+    /// specified as R1CS constraints.
     fn verify_with_processed_vk(
         circuit_pvk: &Self::ProcessedVerifyingKey,
         public_input: &[F],
@@ -102,21 +102,23 @@ pub enum UniversalSetupIndexError<Bound, E> {
 /// A SNARK with universal setup. That is, a SNARK where the trusted setup is
 /// circuit-independent.
 pub trait UniversalSetupSNARK<F: PrimeField>: SNARK<F> {
-    /// Specifies how to bound the size of public parameters required to generate
-    /// the index proving and verification keys for a given circuit.
+    /// Specifies how to bound the size of public parameters required to
+    /// generate the index proving and verification keys for a given
+    /// circuit.
     type ComputationBound: Clone + Default + Debug;
     /// Specifies the type of universal public parameters.
     type PublicParameters: Clone + Debug;
 
-    /// Specifies how to bound the size of public parameters required to generate
-    /// the index proving and verification keys for a given circuit.
+    /// Specifies how to bound the size of public parameters required to
+    /// generate the index proving and verification keys for a given
+    /// circuit.
     fn universal_setup<R: RngCore + CryptoRng>(
         compute_bound: &Self::ComputationBound,
         rng: &mut R,
     ) -> Result<Self::PublicParameters, Self::Error>;
 
-    /// Indexes the public parameters according to the circuit `circuit`, and outputs
-    /// circuit-specific proving and verification keys.
+    /// Indexes the public parameters according to the circuit `circuit`, and
+    /// outputs circuit-specific proving and verification keys.
     fn index<C: ConstraintSynthesizer<F>, R: RngCore + CryptoRng>(
         pp: &Self::PublicParameters,
         circuit: C,
