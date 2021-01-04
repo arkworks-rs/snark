@@ -3,6 +3,7 @@
 ## Pending
 
 ### Breaking changes
+- #334 Outlining linear combinations is now specified via the optimization goal interface.
 
 ### Features
 
