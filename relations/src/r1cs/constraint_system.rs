@@ -176,6 +176,12 @@ impl<F: Field> ConstraintSystem<F> {
     /// Specify whether this constraint system should aim to optimize weight,
     /// number of constraints, or neither.
     pub fn set_optimization_goal(&mut self, goal: OptimizationGoal) {
+        // `set_optimization_goal` should only be executed before any constraint or value is created.
+        assert_eq!(self.num_instance_variables, 1);
+        assert_eq!(self.num_witness_variables, 0);
+        assert_eq!(self.num_constraints, 0);
+        assert_eq!(self.num_linear_combinations, 0);
+
         self.optimization_goal = goal;
     }
 
