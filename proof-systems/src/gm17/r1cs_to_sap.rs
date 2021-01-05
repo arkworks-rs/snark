@@ -49,7 +49,7 @@ impl R1CStoSAP {
                     Index::Aux(i) => assembly.num_inputs + i,
                 };
 
-                a[index] += &(u_add * &coeff);
+                a[index] += &(u_add * coeff);
             }
 
             for &(ref coeff, index) in assembly.bt[i].iter() {
@@ -58,7 +58,7 @@ impl R1CStoSAP {
                     Index::Aux(i) => assembly.num_inputs + i,
                 };
 
-                a[index] += &(u_sub * &coeff);
+                a[index] += &(u_sub * coeff);
             }
 
             for &(ref coeff, index) in assembly.ct[i].iter() {
@@ -67,7 +67,7 @@ impl R1CStoSAP {
                     Index::Aux(i) => assembly.num_inputs + i,
                 };
 
-                c[index] += &((u_2i * &coeff).double().double());
+                c[index] += &((u_2i * coeff).double().double());
             }
             c[extra_var_offset + i].add_assign(&u_add);
         }
@@ -193,7 +193,7 @@ impl R1CStoSAP {
         let d1_double = d1.double();
         let mut h: Vec<E::Fr> = vec![d1_double; domain_size];
         h.par_iter_mut().zip(&a).for_each(|(h_i, a_i)| *h_i *= a_i);
-        h[0].sub_assign(&d2);
+        h[0].sub_assign(d2);
         let d1d1 = d1.square();
         h[0].sub_assign(&d1d1);
         h.push(d1d1);
