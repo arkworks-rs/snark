@@ -20,7 +20,7 @@ pub use tracing::info_span;
 pub use ark_ff::{Field, ToConstraintField};
 pub use constraint_system::{
     ConstraintMatrices, ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, Namespace,
-    SynthesisMode,
+    OptimizationGoal, SynthesisMode,
 };
 pub use error::SynthesisError;
 
