@@ -9,6 +9,7 @@
 
 ### Improvements
 - #325 Reduce memory consumption during inlining
+- #339 Reduce memory consumption under `Constraints` optimization goal
 
 ### Bug fixes
 

@@ -273,8 +273,9 @@ impl<F: Field> ConstraintSystem<F> {
             Variable::Instance(_) => base_mul_by_constant(self, var, *other),
             Variable::Witness(_) => base_mul_by_constant(self, var, *other),
             Variable::SymbolicLc(index) => {
-                if self.optimization_goal == OptimizationGoal::Constraints ||
-                    self.optimization_goal == OptimizationGoal::None {
+                if self.optimization_goal == OptimizationGoal::Constraints
+                    || self.optimization_goal == OptimizationGoal::None
+                {
                     // In this case we are optimizing for the number of constraints,
                     // so we Inline this multiplication by a constant immediately.
                     let lc = self.lc_map.get(&index).unwrap();
@@ -284,8 +285,7 @@ impl<F: Field> ConstraintSystem<F> {
                     }
                     let variable = self.new_lc(new_lc).unwrap();
                     return Ok(variable);
-                }
-                else {
+                } else {
                     // In this case we are optimizing for constraint density,
                     // so we want to know when a symbolic LC is being re-used.
                     base_mul_by_constant(self, var, *other)
