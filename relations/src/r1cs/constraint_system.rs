@@ -273,23 +273,28 @@ impl<F: Field> ConstraintSystem<F> {
             Variable::Instance(_) => base_mul_by_constant(self, var, *other),
             Variable::Witness(_) => base_mul_by_constant(self, var, *other),
             Variable::SymbolicLc(index) => {
-                // If the underlying symbolic lc only has one element,
-                // don't create another nested symbolic LC.
-                // Instead re-use the symbolic LC underlying this variable.
-                let mut new_lc = lc!();
-                {
+                if self.optimization_goal == OptimizationGoal::Constraints ||
+                    self.optimization_goal == OptimizationGoal::None {
+                    // In this case we are optimizing for the number of constraints,
+                    // so we Inline this multiplication by a constant immediately.
                     let lc = self.lc_map.get(&index).unwrap();
-                    // Case that we make a non-nested symbolic LC
-                    if lc.len() == 1 {
-                        new_lc += (*other * lc[0].0, lc[0].1);
-                    } else {
-                        // Make a nested symbolic LC
-                        // TODO: Under optimization target none, make this non-nested.
-                        return base_mul_by_constant(self, var, *other);
+                    let mut new_lc = lc.clone();
+                    for i in 0..new_lc.len() {
+                        new_lc[i].0 *= other;
                     }
+                    let variable = self.new_lc(new_lc).unwrap();
+                    return Ok(variable);
                 }
-                let variable = self.new_lc(new_lc).unwrap();
-                Ok(variable)
+                else {
+                    // In this case we are optimizing for constraint density,
+                    // so we want to know when a symbolic LC is being re-used.
+                    base_mul_by_constant(self, var, *other)
+                    // TODO: If `var` is a symbolic LC with a single element,
+                    // we don't need to make the new symbolic LC nest on top of var.
+                    // It can instead re-use the single variable underlying `var`.
+                    // This costs us an extra lookup though, so we should only do such
+                    // a switch if benchmarks prove it to be useful.
+                }
             }
         };
     }
