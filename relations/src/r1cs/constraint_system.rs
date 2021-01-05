@@ -256,7 +256,8 @@ impl<F: Field> ConstraintSystem<F> {
         var: &Variable,
         other: &F,
     ) -> crate::r1cs::Result<Variable> {
-        // Create a new symbolic LC using this constant
+        // Create a new symbolic LC using this constant, deffering the inlining
+        // until the finalize phase
         #[inline]
         fn base_mul_by_constant<F: Field>(
             cs: &mut ConstraintSystem<F>,
@@ -277,7 +278,8 @@ impl<F: Field> ConstraintSystem<F> {
                     || self.optimization_goal == OptimizationGoal::None
                 {
                     // In this case we are optimizing for the number of constraints,
-                    // so we Inline this multiplication by a constant immediately.
+                    // so we have no need for symbolic variables of intermediate computation steps.
+                    // Thus we inline this multiplication by a constant immediately.
                     let lc = self.lc_map.get(&index).unwrap();
                     let mut new_lc = lc.clone();
                     for i in 0..new_lc.len() {
