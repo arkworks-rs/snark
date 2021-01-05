@@ -256,8 +256,8 @@ impl<F: Field> ConstraintSystem<F> {
         var: &Variable,
         other: &F,
     ) -> crate::r1cs::Result<Variable> {
-        // Create a new symbolic LC using this constant, deffering the inlining
-        // until the finalize phase
+        // Create a new symbolic LC using this constant, deferring the inlining
+        // until the finalization phase.
         #[inline]
         fn base_mul_by_constant<F: Field>(
             cs: &mut ConstraintSystem<F>,
