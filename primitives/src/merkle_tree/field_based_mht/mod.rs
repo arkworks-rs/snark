@@ -104,7 +104,17 @@ pub trait FieldBasedMerkleTree: Clone {
 
 /// Definition of a Merkle Path for a Merkle Tree whose leaves and nodes are field elements. The
 /// trait is generic with respect to the arity of the Merkle Tree and to the hash function used.
-pub trait FieldBasedMerkleTreePath {
+pub trait FieldBasedMerkleTreePath:
+    ToBytes +
+    FromBytes +
+    Serialize +
+    for<'a> Deserialize<'a> +
+    Eq +
+    PartialEq +
+    Clone +
+    Debug +
+    Default
+{
     type H: FieldBasedHash;
     type Path: Clone + Debug + Serialize + for<'a> Deserialize<'a>;
     type Parameters: FieldBasedMerkleTreeParameters<

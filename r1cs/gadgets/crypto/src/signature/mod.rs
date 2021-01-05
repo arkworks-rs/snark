@@ -31,11 +31,12 @@ pub trait FieldBasedSigGadget<S: FieldBasedSignatureScheme, ConstraintF: PrimeFi
     type SignatureGadget: AllocGadget<S::Signature, ConstraintF> +
                           ConstantGadget<S::Signature, ConstraintF> +
                           EqGadget<ConstraintF> +
-                          ToConstraintFieldGadget<ConstraintF>;
+                          ToConstraintFieldGadget<ConstraintF, FieldGadget = Self::DataGadget>;
+
     type PublicKeyGadget: AllocGadget<S::PublicKey, ConstraintF> +
                           ConstantGadget<S::PublicKey, ConstraintF> +
                           EqGadget<ConstraintF> +
-                          ToConstraintFieldGadget<ConstraintF>;
+                          ToConstraintFieldGadget<ConstraintF, FieldGadget = Self::DataGadget>;
 
     /// Enforce `signature` verification with `public_key` on `message`, returning a Boolean
     /// enforced to be `true` if signature verification is successful, and `false` otherwise.

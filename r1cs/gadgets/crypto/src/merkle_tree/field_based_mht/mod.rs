@@ -18,7 +18,8 @@ use std::marker::PhantomData;
 #[derive(Derivative)]
 #[derivative(
     PartialEq(bound = "P: FieldBasedMerkleTreeParameters"),
-    Eq(bound = "P: FieldBasedMerkleTreeParameters")
+    Eq(bound = "P: FieldBasedMerkleTreeParameters"),
+    Clone(bound = "P: FieldBasedMerkleTreeParameters"),
 )]
 pub struct FieldBasedBinaryMerkleTreePathGadget<P, HGadget, ConstraintF>
     where
