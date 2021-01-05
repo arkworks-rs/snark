@@ -20,6 +20,12 @@ use rand_xorshift::XorShiftRng;
 pub(crate) const ITERATIONS: usize = 5;
 
 #[test]
+fn test_size_fr() {
+    println!("{}", <Fr as PrimeField>::Params::MODULUS_BITS);
+    println!("{}", std::mem::size_of::<<Fr as PrimeField>::BigInt>() * 8)
+}
+
+#[test]
 fn test_bn_382_fr() {
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
     for _ in 0..ITERATIONS {
