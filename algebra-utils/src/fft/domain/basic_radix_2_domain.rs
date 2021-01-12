@@ -94,18 +94,7 @@ impl<F: PrimeField> BasicRadix2Domain<F> {
     fn best_fft(a: &mut [F], worker: &Worker, omega: F, log_n: u32) {
         #[cfg(feature = "gpu")]
         if get_gpu_min_length() <= 1 << log_n {
-            match get_kernels() {
-                Ok(kernels) => {
-                    match kernels[0].radix_fft(a, &omega, log_n) {
-                        Ok(_) => {},
-                        Err(error) => { panic!("{}", error); }
-                    }
-                },
-                Err(error) => {
-                    panic!("{}", error);
-                }
-            }
-            return;
+            return Self::gpu_fft(a, omega, log_n);
         }
 
         let log_cpus = worker.log_num_cpus();
@@ -115,6 +104,21 @@ impl<F: PrimeField> BasicRadix2Domain<F> {
         } else {
             Self::parallel_fft(a, worker, omega, log_n, log_cpus);
         }                    
+    }
+
+    #[cfg(feature = "gpu")]
+    pub (crate) fn gpu_fft(a: &mut [F], omega: F, log_n: u32) {
+        match get_kernels() {
+            Ok(kernels) => {
+                match kernels[0].radix_fft(a, &omega, log_n) {
+                    Ok(_) => {},
+                    Err(error) => { panic!("{}", error); }
+                }
+            },
+            Err(error) => {
+                panic!("{}", error);
+            }
+        }
     }
 
     pub(crate) fn serial_fft(a: &mut [F], omega: F, log_n: u32) {

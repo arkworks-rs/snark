@@ -11,6 +11,7 @@ use crossbeam::thread;
 pub struct VariableBaseMSM;
 
 impl VariableBaseMSM {
+
     pub fn multi_scalar_mul_affine<G: AffineCurve>(
         bases: &[G],
         scalars: &[<G::ScalarField as PrimeField>::BigInt],
@@ -92,7 +93,7 @@ impl VariableBaseMSM {
         }) + lowest
     }
 
-    fn msm_inner<G: AffineCurve>(
+    pub fn multi_scalar_mul_mixed<G: AffineCurve>(
         bases: &[G],
         scalars: &[<G::ScalarField as PrimeField>::BigInt],
     ) -> G::Projective {
@@ -167,6 +168,21 @@ impl VariableBaseMSM {
         }) + lowest
     }
 
+    fn msm_inner_cpu<G>(
+        bases: &[G],
+        scalars: &[<G::ScalarField as PrimeField>::BigInt]
+    ) -> G::Projective
+    where
+        G: AffineCurve,
+        G::Projective: ProjectiveCurve<Affine = G>
+    {
+        #[cfg(not(feature = "msm_affine"))]
+        return Self::multi_scalar_mul_mixed(bases, scalars);
+
+        #[cfg(feature = "msm_affine")]
+        return Self::multi_scalar_mul_affine(bases, scalars);   
+    }
+
     #[cfg(feature = "gpu")]
     fn msm_inner_gpu<G>(
         bases: &[G],
@@ -224,7 +240,7 @@ impl VariableBaseMSM {
             if cpu_n > 0 {
                 threads.push(s.spawn(
                     move |_| -> Result<G::Projective, GPUError> {
-                        let acc = Self::multi_scalar_mul_affine(cpu_bases, cpu_scalars);
+                        let acc = Self::msm_inner_cpu(cpu_bases, cpu_scalars);
                         Ok(acc)
                     }
                 ))
@@ -251,7 +267,7 @@ impl VariableBaseMSM {
     ) -> G::Projective {
 
         #[cfg(not(feature = "gpu"))]
-        return Self::multi_scalar_mul_affine(bases, scalars);
+        return Self::msm_inner_cpu(bases, scalars);
 
         #[cfg(feature = "gpu")]
         return Self::msm_inner_gpu(bases, scalars);
@@ -281,7 +297,7 @@ mod test {
 
     #[test]
     fn test_all_variants() {
-        const SAMPLES: usize = 1 << 10;
+        const SAMPLES: usize = 1 << 12;
 
         let mut rng = XorShiftRng::seed_from_u64(234872845u64);
 
@@ -293,16 +309,22 @@ mod test {
             .collect::<Vec<_>>();
 
         let naive = naive_var_base_msm(g.as_slice(), v.as_slice());
-        let fast = VariableBaseMSM::multi_scalar_mul(g.as_slice(), v.as_slice());
+        let mixed = VariableBaseMSM::multi_scalar_mul_mixed(g.as_slice(), v.as_slice());
         let affine = VariableBaseMSM::multi_scalar_mul_affine(g.as_slice(), v.as_slice());
 
-        assert_eq!(naive, fast);
-        assert_eq!(naive, affine)
+        #[cfg(feature = "gpu")]
+        let gpu = VariableBaseMSM::multi_scalar_mul(g.as_slice(), v.as_slice());
+
+        assert_eq!(naive, mixed);
+        assert_eq!(naive, affine);
+
+        #[cfg(feature = "gpu")]
+        assert_eq!(naive, gpu);
     }
 
     #[test]
     fn test_with_unequal_numbers() {
-        const SAMPLES: usize = 1 << 10;
+        const SAMPLES: usize = 1 << 12;
 
         let mut rng = XorShiftRng::seed_from_u64(234872845u64);
 
@@ -314,10 +336,16 @@ mod test {
             .collect::<Vec<_>>();
 
         let naive = naive_var_base_msm(g.as_slice(), v.as_slice());
-        let fast = VariableBaseMSM::multi_scalar_mul(g.as_slice(), v.as_slice());
+        let mixed = VariableBaseMSM::multi_scalar_mul_mixed(g.as_slice(), v.as_slice());
         let affine = VariableBaseMSM::multi_scalar_mul_affine(g.as_slice(), v.as_slice());
 
-        assert_eq!(naive, fast);
-        assert_eq!(naive, affine)
+        #[cfg(feature = "gpu")]
+        let gpu = VariableBaseMSM::multi_scalar_mul(g.as_slice(), v.as_slice());
+
+        assert_eq!(naive, mixed);
+        assert_eq!(naive, affine);
+
+        #[cfg(feature = "gpu")]
+        assert_eq!(naive, gpu);
     }
 }
