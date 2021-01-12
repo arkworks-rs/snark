@@ -1,6 +1,8 @@
 use algebra::{AffineCurve, BigInteger, Field, FpParameters, PrimeField, ProjectiveCurve};
 use rayon::prelude::*;
 
+use std::any::TypeId;
+
 #[cfg(feature = "gpu")]
 use algebra_kernels::msm::{get_cpu_utilization, get_kernels, get_gpu_min_length};
 #[cfg(feature = "gpu")]
@@ -12,15 +14,225 @@ pub struct VariableBaseMSM;
 
 impl VariableBaseMSM {
 
-    pub fn multi_scalar_mul_affine<G: AffineCurve>(
+    // Function that recodes the scalars into SD numbers
+    // The output is a vector
+    pub fn recode_sd<G: AffineCurve>(
+        scalar: &<G::ScalarField as PrimeField>::BigInt,
+        c: usize
+    ) -> Vec<i64> {
+
+        let num_bits =
+            <G::ScalarField as PrimeField>::Params::MODULUS_BITS as usize;
+
+        let window_starts: Vec<_> = (0..num_bits).step_by(c).collect();
+
+        let mut vec_coeff = Vec::new();
+
+        window_starts.iter().rev().for_each(|x| {
+            let mut scal = (*scalar).clone();
+            scal.divn(*x as u32);
+            // We mod the remaining bits by the window size.
+            let a = scal.as_ref()[0] % (1 << c);
+            vec_coeff.push(a as i64);
+        });
+
+        for idx in (0..vec_coeff.len()).rev() {
+            if vec_coeff[idx] >= (1 << (c-1)) {
+                vec_coeff[idx] -= 1 << c;
+                if idx!= 0 {
+                    vec_coeff[idx-1] += 1;
+                }
+            }
+        }
+
+        // last element is the least significant digit
+        return vec_coeff;
+
+    }
+
+    // Recodes in SD the portions of the scalar divided in c bits
+    // Takes as input the carry_in and generates the vector of SD digits corresponding to
+    // the processing chunk and the carry_out
+    // For example: for 4 cores, it takes the carry_in and
+    // generates carry_out, a_(i+3), a_(i+2), a_(i+1), a_i
+    #[inline]
+    pub fn recode_sd_chunk<G:AffineCurve>(
+        scalar: &<G::ScalarField as PrimeField>::BigInt,
+        c: usize,
+        chunk_pos: usize,
+        num_cores: usize,
+        vec_coeff: &mut Vec<i64>,
+        carry_in: &mut i64
+    )   {
+
+        // starting bit position of the chunk
+        let start_w_bit = chunk_pos * (c * num_cores);
+
+        for i in 0..num_cores {
+            let windows_starts = start_w_bit + i * c;
+            let mut scal = (*scalar).clone();
+            scal.divn(windows_starts as u32);
+            let mut a = (scal.as_ref()[0] % (1 << c)) as i64 + *carry_in;
+            if a >= (1 << (c-1)) {
+                a -= 1 << c;
+                *carry_in = 1;
+            } else {
+                *carry_in = 0;
+            }
+            (*vec_coeff)[i] = a;
+        }
+    }
+
+    pub fn multi_scalar_mul_affine_sd_c<G: AffineCurve>(
         bases: &[G],
         scalars: &[<G::ScalarField as PrimeField>::BigInt],
+        c:usize
     ) -> G::Projective {
-        let c = if scalars.len() < 32 {
-            3
-        } else {
-            (2.0 / 3.0 * (f64::from(scalars.len() as u32)).log2() - 2.0).ceil() as usize
-        };
+
+        let cc = 1 << c;
+
+        let num_bits =
+            <G::ScalarField as PrimeField>::Params::MODULUS_BITS as usize;
+
+        let zero = G::zero().into_projective();
+
+        // The number of windows of the scalars in groups of c bits
+        let num_w = (num_bits as f64 / c as f64).ceil() as usize;
+        // The number of cores present
+        let cpus = rayon::current_num_threads();
+        // The number of chunks of cpus digits
+        let num_chunks = (num_w as f64/cpus as f64).floor() as usize;
+        // The remaining digits to process sequentially
+        let remaining_digits = num_w - (num_chunks * cpus);
+
+        let mut window_sums =  Vec::new();
+        let mut small_window_sums:Vec<_>;
+
+        let mut carry_vec = vec![0; scalars.len()];
+        let mut vec_coeff = vec![vec![0; cpus]; scalars.len()];
+
+        for i in 0..num_chunks {
+            // index of the digit within the small window of cpus number of digits
+            let idx: Vec<_> = (0..cpus).rev().collect();
+
+            vec_coeff.par_iter_mut().zip(carry_vec.par_iter_mut()).enumerate().for_each( |(l, (v1, c1))| {
+                Self::recode_sd_chunk::<G>(&scalars[l], c, i, cpus, v1, c1);
+            });
+
+            small_window_sums = idx
+                .into_par_iter()
+                .map(|w_idx| {
+                    // We don't need the "zero" bucket, we use 2^c-1 bucket for units
+                    let mut buckets = vec![Vec::with_capacity(bases.len() / cc * 2); cc / 2];
+                    for i in 0..scalars.len() {
+                        if !scalars[i].is_zero() {
+
+                            let scalar = vec_coeff[i][w_idx];
+
+                            // If the scalar is non-zero, we update the corresponding
+                            // bucket.
+                            // (Recall that `buckets` doesn't have a zero bucket.)
+                            if scalar != 0 && bases[i].is_zero() == false {
+                                if scalar < 0 {
+                                    buckets[(-scalar - 1) as usize].push(-(bases[i]));
+                                } else {
+                                    buckets[(scalar - 1) as usize].push(bases[i]);
+                                }
+                            }
+                        }
+                    }
+                    G::add_points(&mut buckets);
+                    let mut res = zero.clone();
+
+                    let mut running_sum = zero.clone();
+                    for b in buckets[0..cc / 2].iter_mut().rev() {
+                        if b.len() != 0 && b[0].is_zero() == false {
+                            running_sum.add_assign_mixed(&b[0])
+                        }
+                        res += &running_sum;
+                    }
+
+                    res
+                })
+                .collect();
+
+            small_window_sums.iter().rev().for_each(|x| {
+                window_sums.push(x.clone());
+            });
+        }
+
+        if remaining_digits != 0 {
+
+            let idx:Vec<_> = (0..remaining_digits).rev().collect();
+
+            vec_coeff.par_iter_mut().zip(carry_vec.par_iter_mut()).enumerate().for_each( |(l, (v1, c1))| {
+                Self::recode_sd_chunk::<G>(&scalars[l], c, num_chunks, cpus, v1, c1);
+            });
+
+            // Each window is of size `c`.
+            // We divide up the bits 0..num_bits into windows of size `c`, and
+            // in parallel process each such window.
+            small_window_sums = idx
+                .into_par_iter()
+                .map(|w_idx| {
+                    // We don't need the "zero" bucket, we use 2^c-1 bucket for units
+                    let mut buckets = vec![Vec::with_capacity(bases.len() / cc * 2); cc / 2];
+                    for i in 0..scalars.len() {
+                        if !scalars[i].is_zero() {
+
+                            let scalar = vec_coeff[i][w_idx];
+
+                            // If the scalar is non-zero, we update the corresponding
+                            // bucket.
+                            // (Recall that `buckets` doesn't have a zero bucket.)
+                            if scalar != 0 && bases[i].is_zero() == false {
+                                if scalar < 0 {
+                                    buckets[(-scalar - 1) as usize].push(-(bases[i]));
+                                } else {
+                                    buckets[(scalar - 1) as usize].push(bases[i]);
+                                }
+                            }
+                        }
+                    }
+                    G::add_points(&mut buckets);
+                    let mut res = zero.clone();
+
+                    let mut running_sum = zero.clone();
+                    for b in buckets[0..cc / 2].iter_mut().rev() {
+                        if b.len() != 0 && b[0].is_zero() == false {
+                            running_sum.add_assign_mixed(&b[0])
+                        }
+                        res += &running_sum;
+                    }
+                    res
+                })
+                .collect();
+
+            small_window_sums.iter().rev().for_each(|x| {
+                window_sums.push(x.clone());
+            });
+        }
+
+        // We store the sum for the lowest window.
+        let lowest = window_sums.first().unwrap();
+
+        // We're traversing windows from high to low.
+        window_sums[1..].iter().rev().fold(zero, |mut total, sum_i| {
+            total += sum_i;
+            for _ in 0..c {
+                total.double_in_place();
+            }
+            total
+        }) + lowest
+    }
+
+
+    pub fn multi_scalar_mul_affine_c<G: AffineCurve>(
+        bases: &[G],
+        scalars: &[<G::ScalarField as PrimeField>::BigInt],
+        c: usize
+    ) -> G::Projective {
+
         let cc = 1 << c;
 
         let num_bits =
@@ -37,12 +249,12 @@ impl VariableBaseMSM {
             .into_par_iter()
             .map(|w_start| {
                 // We don't need the "zero" bucket, we use 2^c-1 bucket for units
-                let mut buckets = vec![Vec::with_capacity(bases.len()/cc * 2); cc];
+                let mut buckets = vec![Vec::with_capacity(bases.len()/cc*2); cc];
                 scalars.iter().zip(bases).filter(|(s, _)| !s.is_zero()).for_each(|(&scalar, base)|  {
                     if scalar == fr_one {
                         // We only process unit scalars once in the first window.
                         if w_start == 0 && base.is_zero() == false {
-                            buckets[cc - 1].push(*base);
+                            buckets[cc-1].push(*base);
                         }
                     } else {
                         let mut scalar = scalar;
@@ -63,14 +275,10 @@ impl VariableBaseMSM {
                     }
                 });
                 G::add_points(&mut buckets);
-                let mut res = if buckets[cc - 1].len() == 0 {
-                    zero
-                } else {
-                    buckets[cc - 1][0].into_projective()
-                };
+                let mut res = if buckets[cc-1].len() == 0 {zero} else {buckets[cc-1][0].into_projective()};
 
                 let mut running_sum = zero;
-                for b in buckets[0..cc - 1].iter_mut().rev() {
+                for b in buckets[0..cc-1].iter_mut().rev() {
                     if b.len() != 0 && b[0].is_zero() == false {
                         running_sum.add_assign_mixed(&b[0])
                     }
@@ -93,15 +301,11 @@ impl VariableBaseMSM {
         }) + lowest
     }
 
-    pub fn multi_scalar_mul_mixed<G: AffineCurve>(
+    pub fn msm_inner_c<G: AffineCurve>(
         bases: &[G],
         scalars: &[<G::ScalarField as PrimeField>::BigInt],
+        c:usize
     ) -> G::Projective {
-        let c = if scalars.len() < 32 {
-            3
-        } else {
-            (2.0 / 3.0 * (f64::from(scalars.len() as u32)).log2() + 2.0).ceil() as usize
-        };
 
         let num_bits =
             <G::ScalarField as PrimeField>::Params::MODULUS_BITS as usize;
@@ -176,11 +380,50 @@ impl VariableBaseMSM {
         G: AffineCurve,
         G::Projective: ProjectiveCurve<Affine = G>
     {
-        #[cfg(not(feature = "msm_affine"))]
-        return Self::multi_scalar_mul_mixed(bases, scalars);
 
-        #[cfg(feature = "msm_affine")]
-        return Self::multi_scalar_mul_affine(bases, scalars);   
+        let scal_len = scalars.len();
+
+        if TypeId::of::<G>() == TypeId::of::<algebra::curves::bn_382::G1Affine>()
+        {
+            let c: usize = if scal_len < 32 {
+                3
+            } else if (scal_len < 1 << 17) || (scal_len > 1 << 23) {
+                (2.0 / 3.0 * (f64::from(scalars.len() as u32)).log2() - 2.0).ceil() as usize
+            } else if scal_len < 1 << 21 {
+                12
+            } else {
+                16
+            };
+            return Self::multi_scalar_mul_affine_sd_c(bases, scalars, c);
+        } else if TypeId::of::<G>() == TypeId::of::<algebra::curves::tweedle::dee::Affine>() {
+            if scal_len < 1 << 17 {
+                let c: usize = if scal_len < 32 {
+                    3
+                } else {
+                    (2.0 / 3.0 * (f64::from(scalars.len() as u32)).log2() - 2.0).ceil() as usize
+                };
+                return Self::multi_scalar_mul_affine_sd_c(bases, scalars, c);
+            } else if scal_len < 1 << 19 {
+                let c: usize = 11;
+                return Self::multi_scalar_mul_affine_sd_c(bases, scalars, c);
+            } else if scal_len < 1 << 23 {
+                let c: usize = 11;
+                return Self::multi_scalar_mul_affine_c(bases, scalars, c);
+            } else if scal_len < 1 << 24 {
+                let c: usize = 16;
+                return Self::msm_inner_c(bases, scalars, c);
+            } else {
+                let c: usize = (2.0 / 3.0 * (f64::from(scalars.len() as u32)).log2() - 2.0).ceil() as usize;
+                return Self::msm_inner_c(bases, scalars, c);
+            }
+        } else {
+            let c: usize = if scal_len < 32 {
+                3
+            } else {
+                (2.0 / 3.0 * (f64::from(scalars.len() as u32)).log2() - 2.0).ceil() as usize
+            };
+            return Self::multi_scalar_mul_affine_c(bases, scalars, c);
+        }
     }
 
     #[cfg(feature = "gpu")]
@@ -277,8 +520,14 @@ impl VariableBaseMSM {
 #[cfg(test)]
 mod test {
     use super::*;
-    use algebra::curves::bls12_381::G1Projective;
-    use algebra::fields::bls12_381::Fr;
+
+    use algebra::curves::bn_382::G1Projective as Bn382G1Projective;
+    use algebra::fields::bn_382::Fr as Bn382Fr;
+    use algebra::curves::tweedle::dee::Projective as TweedleDee;
+    use algebra::fields::tweedle::Fr as TweedleFr;
+    use algebra::curves::bls12_381::G1Projective as BlsG1Projective;
+    use algebra::fields::bls12_381::Fr as BlsFr;
+
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
     use algebra::UniformRand;
@@ -295,57 +544,108 @@ mod test {
         acc
     }
 
+    #[cfg(feature = "tweedle")]
     #[test]
-    fn test_all_variants() {
+    fn test_all_variants_tweedle() {
         const SAMPLES: usize = 1 << 12;
 
         let mut rng = XorShiftRng::seed_from_u64(234872845u64);
 
         let v = (0..SAMPLES)
-            .map(|_| Fr::rand(&mut rng).into_repr())
+            .map(|_| TweedleFr::rand(&mut rng).into_repr())
             .collect::<Vec<_>>();
         let g = (0..SAMPLES)
-            .map(|_| G1Projective::rand(&mut rng).into_affine())
+            .map(|_| TweedleDee::rand(&mut rng).into_affine())
             .collect::<Vec<_>>();
 
         let naive = naive_var_base_msm(g.as_slice(), v.as_slice());
-        let mixed = VariableBaseMSM::multi_scalar_mul_mixed(g.as_slice(), v.as_slice());
-        let affine = VariableBaseMSM::multi_scalar_mul_affine(g.as_slice(), v.as_slice());
+        let fast = VariableBaseMSM::msm_inner_cpu(g.as_slice(), v.as_slice());
+
+        let c = 16;
+        let affine = VariableBaseMSM::multi_scalar_mul_affine_c(g.as_slice(), v.as_slice(),c);
+        let affine_sd = VariableBaseMSM::multi_scalar_mul_affine_sd_c(g.as_slice(), v.as_slice(),c);
+        let inner = VariableBaseMSM::msm_inner_c(g.as_slice(), v.as_slice(),c);
+
 
         #[cfg(feature = "gpu")]
-        let gpu = VariableBaseMSM::multi_scalar_mul(g.as_slice(), v.as_slice());
+            let gpu = VariableBaseMSM::multi_scalar_mul(g.as_slice(), v.as_slice());
 
-        assert_eq!(naive, mixed);
+        assert_eq!(naive, fast);
+
         assert_eq!(naive, affine);
+        assert_eq!(naive, affine_sd);
+        assert_eq!(naive, inner);
 
         #[cfg(feature = "gpu")]
         assert_eq!(naive, gpu);
     }
 
     #[test]
-    fn test_with_unequal_numbers() {
+    fn test_all_variants_bn382() {
         const SAMPLES: usize = 1 << 12;
 
         let mut rng = XorShiftRng::seed_from_u64(234872845u64);
 
-        let v = (0..SAMPLES-1)
-            .map(|_| Fr::rand(&mut rng).into_repr())
+        let v = (0..SAMPLES)
+            .map(|_| Bn382Fr::rand(&mut rng).into_repr())
             .collect::<Vec<_>>();
         let g = (0..SAMPLES)
-            .map(|_| G1Projective::rand(&mut rng).into_affine())
+            .map(|_| Bn382G1Projective::rand(&mut rng).into_affine())
             .collect::<Vec<_>>();
 
         let naive = naive_var_base_msm(g.as_slice(), v.as_slice());
-        let mixed = VariableBaseMSM::multi_scalar_mul_mixed(g.as_slice(), v.as_slice());
-        let affine = VariableBaseMSM::multi_scalar_mul_affine(g.as_slice(), v.as_slice());
+        let fast = VariableBaseMSM::msm_inner_cpu(g.as_slice(), v.as_slice());
+
+        let c = 16;
+        let affine = VariableBaseMSM::multi_scalar_mul_affine_c(g.as_slice(), v.as_slice(),c);
+        let affine_sd = VariableBaseMSM::multi_scalar_mul_affine_sd_c(g.as_slice(), v.as_slice(),c);
+        let inner = VariableBaseMSM::msm_inner_c(g.as_slice(), v.as_slice(),c);
 
         #[cfg(feature = "gpu")]
         let gpu = VariableBaseMSM::multi_scalar_mul(g.as_slice(), v.as_slice());
 
-        assert_eq!(naive, mixed);
+        assert_eq!(naive, fast);
+
         assert_eq!(naive, affine);
+        assert_eq!(naive, affine_sd);
+        assert_eq!(naive, inner);
 
         #[cfg(feature = "gpu")]
         assert_eq!(naive, gpu);
     }
+
+    #[test]
+    fn test_all_variants_bls() {
+        const SAMPLES: usize = 1 << 12;
+
+        let mut rng = XorShiftRng::seed_from_u64(234872845u64);
+
+        let v = (0..SAMPLES)
+            .map(|_| BlsFr::rand(&mut rng).into_repr())
+            .collect::<Vec<_>>();
+        let g = (0..SAMPLES)
+            .map(|_| BlsG1Projective::rand(&mut rng).into_affine())
+            .collect::<Vec<_>>();
+
+        let naive = naive_var_base_msm(g.as_slice(), v.as_slice());
+        let fast = VariableBaseMSM::msm_inner_cpu(g.as_slice(), v.as_slice());
+
+        let c = 16;
+        let affine = VariableBaseMSM::multi_scalar_mul_affine_c(g.as_slice(), v.as_slice(),c);
+        let affine_sd = VariableBaseMSM::multi_scalar_mul_affine_sd_c(g.as_slice(), v.as_slice(),c);
+        let inner = VariableBaseMSM::msm_inner_c(g.as_slice(), v.as_slice(),c);
+
+        #[cfg(feature = "gpu")]
+            let gpu = VariableBaseMSM::multi_scalar_mul(g.as_slice(), v.as_slice());
+
+        assert_eq!(naive, fast);
+
+        assert_eq!(naive, affine);
+        assert_eq!(naive, affine_sd);
+        assert_eq!(naive, inner);
+
+        #[cfg(feature = "gpu")]
+        assert_eq!(naive, gpu);
+    }
+
 }
