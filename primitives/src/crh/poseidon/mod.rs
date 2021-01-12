@@ -17,6 +17,7 @@ pub use self::parameters::*;
 
 pub mod sbox;
 pub use self::sbox::*;
+use crate::AlgebraicSponge;
 
 pub trait PoseidonParameters: 'static + FieldBasedHashParameters + Clone {
     const T: usize;  // Number of S-Boxes
@@ -29,7 +30,11 @@ pub trait PoseidonParameters: 'static + FieldBasedHashParameters + Clone {
     const MDS_CST: &'static[Self::Fr];  // The MDS matrix
 }
 
-#[derive(Debug)]
+#[derive(Derivative)]
+#[derivative(
+    Clone(bound = ""),
+    Debug(bound = "")
+)]
 pub struct PoseidonHash<F: PrimeField, P: PoseidonParameters<Fr = F>, SB: PoseidonSBox<P>>{
     state: Vec<F>,
     pending: Vec<F>,
@@ -44,22 +49,21 @@ impl<F, P, SB> PoseidonHash<F, P, SB>
         SB: PoseidonSBox<P>,
 {
     #[inline]
-    fn apply_permutation(&mut self) {
+    fn apply_permutation(&mut self, add_c2: bool) {
         for (input, state) in self.pending.iter().zip(self.state.iter_mut()) {
             *state += input;
         }
-        self.state[P::R] += &P::C2;
+        if add_c2 { self.state[P::R] += &P::C2 };
         Self::poseidon_perm(&mut self.state);
     }
 
     #[inline]
-    fn _finalize(&self) -> F {
-        let mut state = self.state.clone();
+    fn _finalize(&self, state: &mut Vec<F>, add_c2: bool) -> F {
         for (input, s) in self.pending.iter().zip(state.iter_mut()) {
             *s += input;
         }
-        state[P::R] += &P::C2;
-        Self::poseidon_perm(&mut state);
+        if add_c2 { state[P::R] += &P::C2; }
+        Self::poseidon_perm(state);
         state[0]
     }
 
@@ -134,6 +138,8 @@ impl<F, P, SB> FieldBasedHash for PoseidonHash<F, P, SB>
     type Parameters = P;
 
     fn init(personalization: Option<&[Self::Data]>) -> Self {
+        assert_eq!(P::T - P::R, 1, "The assumption that the capacity is one field element is not satisfied.");
+
         let mut state = Vec::with_capacity(P::T);
         for i in 0..P::T {
             state.push(P::AFTER_ZERO_PERM[i]);
@@ -180,7 +186,7 @@ impl<F, P, SB> FieldBasedHash for PoseidonHash<F, P, SB>
     fn update(&mut self, input: Self::Data) -> &mut Self {
         self.pending.push(input);
         if self.pending.len() == P::R {
-            self.apply_permutation();
+            self.apply_permutation(true);
             self.pending.clear();
         }
         self
@@ -188,7 +194,7 @@ impl<F, P, SB> FieldBasedHash for PoseidonHash<F, P, SB>
 
     fn finalize(&self) -> Self::Data {
         if !self.pending.is_empty() {
-            self._finalize()
+            self._finalize(&mut self.state.clone(), true)
         } else {
             self.state[0]
         }
@@ -201,118 +207,117 @@ impl<F, P, SB> FieldBasedHash for PoseidonHash<F, P, SB>
     }
 }
 
+impl<F, P, SB> AlgebraicSponge<F> for PoseidonHash<F, P, SB>
+    where
+        F: PrimeField,
+        P: PoseidonParameters<Fr = F>,
+        SB: PoseidonSBox<P>,
+{
+    fn new() -> Self {
+        Self::init(None)
+    }
+
+    fn absorb(&mut self, elems: Vec<F>) {
+        elems.into_iter().for_each(|f| {
+            self.pending.push(f);
+            if self.pending.len() == P::R {
+                self.apply_permutation(false);
+                self.pending.clear();
+            }
+        })
+    }
+
+    fn squeeze(&mut self, num: usize) -> Vec<F> {
+        for (input, s) in self.pending.iter().zip(self.state.iter_mut()) {
+            *s += input;
+        }
+        let mut output = Vec::with_capacity(num);
+        for _ in 0..num {
+            Self::poseidon_perm(&mut self.state);
+            output.push(self.state[0].clone());
+        }
+        output
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use algebra::{
-        fields::{
-            mnt4753::Fr as MNT4753Fr,
-            mnt6753::Fr as MNT6753Fr,
-        },
-    };
-    use std::str::FromStr;
+    use algebra::{fields::{
+        mnt4753::Fr as MNT4753Fr,
+        mnt6753::Fr as MNT6753Fr,
+    }, PrimeField};
     use algebra::biginteger::BigInteger768;
     use crate::crh::{
         poseidon::parameters::{
             mnt4753::MNT4PoseidonHash,
             mnt6753::MNT6PoseidonHash,
         },
-        FieldBasedHash,
+        test::{field_based_hash_test, algebraic_sponge_test}
     };
+
+    fn generate_inputs<F: PrimeField>(num: usize) -> Vec<F>{
+        let mut inputs = Vec::with_capacity(num);
+        for i in 1..=num {
+            let input = F::from(i as u32);
+            inputs.push(input);
+        }
+        inputs
+    }
 
     #[test]
     fn test_poseidon_hash_mnt4() {
+        field_based_hash_test::<MNT4PoseidonHash>(
+            None,
+            generate_inputs(1),
+            MNT4753Fr::new(BigInteger768([10133114337753187244, 13011129467758174047, 14520750556687040981, 911508844858788085, 1859877757310385382, 9602832310351473622, 8300303689130833769, 981323167857397563, 5760566649679562093, 8644351468476031499, 10679665778836668809, 404482168782668]))
+        );
 
-        // Regression test
-        let expected_output = MNT4753Fr::new(BigInteger768([120759599714708995, 15132412086599307425, 1270378153255747692, 3280164418217209635, 5680179791594071572, 2475152338055275001, 9455820118751334058, 6363436228419696186, 3538976751580678769, 14987158621073838958, 10703097083485496843, 48481977539350]));
-        let mut poseidon_digest = MNT4PoseidonHash::init(None);
-        let input = [MNT4753Fr::from_str("1").unwrap(), MNT4753Fr::from_str("2").unwrap()];
+        field_based_hash_test::<MNT4PoseidonHash>(
+            None,
+            generate_inputs(2),
+            MNT4753Fr::new(BigInteger768([120759599714708995, 15132412086599307425, 1270378153255747692, 3280164418217209635, 5680179791594071572, 2475152338055275001, 9455820118751334058, 6363436228419696186, 3538976751580678769, 14987158621073838958, 10703097083485496843, 48481977539350]))
+        );
 
-        let output = poseidon_digest
-            .update(input[0])
-            .update(input[1])
-            .finalize();
-        assert_eq!(output, expected_output, "Outputs do not match for MNT4753.");
+        field_based_hash_test::<MNT4PoseidonHash>(
+            None,
+            generate_inputs(3),
+            MNT4753Fr::new(BigInteger768([5991160601160569512, 9804741598782512164, 8257389273544061943, 15170134696519047397, 9908596892162673198, 7815454566429677811, 9000639780203615183, 8443915450757188195, 1987926952117715938, 17724141978374492147, 13890449093436164383, 191068391234529]))
 
-        // Test finalize() holding the state and allowing updates in between different calls to it
-        poseidon_digest
-            .reset(None)
-            .update(input[0].clone());
-        poseidon_digest.finalize();
-        poseidon_digest.update(input[1].clone());
-        assert_eq!(output, poseidon_digest.finalize());
+        );
 
-        //Test finalize() being idempotent
-        assert_eq!(output, poseidon_digest.finalize());
-    }
-
-    #[test]
-    fn test_poseidon_hash_mnt4_single_element() {
-        let expected_output = MNT4753Fr::new(BigInteger768([10133114337753187244, 13011129467758174047, 14520750556687040981, 911508844858788085, 1859877757310385382, 9602832310351473622, 8300303689130833769, 981323167857397563, 5760566649679562093, 8644351468476031499, 10679665778836668809, 404482168782668]));
-        let mut poseidon_digest = MNT4PoseidonHash::init(None);
-        poseidon_digest.update(MNT4753Fr::from_str("1").unwrap());
-        let output = poseidon_digest.finalize();
-        assert_eq!(output, expected_output, "Outputs do not match for MNT4753.");
-    }
-
-    #[test]
-    fn test_poseidon_hash_mnt4_three_element() {
-        let expected_output = MNT4753Fr::new(BigInteger768([5991160601160569512, 9804741598782512164, 8257389273544061943, 15170134696519047397, 9908596892162673198, 7815454566429677811, 9000639780203615183, 8443915450757188195, 1987926952117715938, 17724141978374492147, 13890449093436164383, 191068391234529]));
-        let mut poseidon_digest = MNT4PoseidonHash::init(None);
-
-        for i in 1..=3{
-            poseidon_digest.update(MNT4753Fr::from(i as u64));
-        }
-
-        let output = poseidon_digest.finalize();
-        assert_eq!(output, expected_output, "Outputs do not match for MNT4753.");
+        algebraic_sponge_test::<MNT4PoseidonHash, _>(
+            generate_inputs(5),
+            MNT4753Fr::new(BigInteger768([5523198498380909748, 115671896985227974, 1569791264643314974, 10995686465166995133, 13403013599916971011, 9712036026598684290, 2998254759663594264, 8111306964576313791, 14787788173217046374, 5019183223370964031, 2046072629858084037, 254417771852919])),
+        );
     }
 
     #[test]
     fn test_poseidon_hash_mnt6() {
-        let expected_output = MNT6753Fr::new(BigInteger768([8195238283171732026, 13694263410588344527, 1885103367289967816, 17142467091011072910, 13844754763865913168, 14332001103319040991, 8911700442280604823, 6452872831806760781, 17467681867740706391, 5384727593134901588, 2343350281633109128, 244405261698305]));
-        let mut poseidon_digest = MNT6PoseidonHash::init(None);
-        let input = [MNT6753Fr::from_str("1").unwrap(), MNT6753Fr::from_str("2").unwrap()];
-
-        let output = poseidon_digest
-            .update(input[0])
-            .update(input[1])
-            .finalize();
-        assert_eq!(output, expected_output, "Outputs do not match for MNT6753.");
-
-        // Test finalize() holding the state and allowing updates in between different calls to it
-        poseidon_digest
-            .reset(None)
-            .update(input[0].clone());
-        poseidon_digest.finalize();
-        poseidon_digest.update(input[1].clone());
-        assert_eq!(output, poseidon_digest.finalize());
-
-        //Test finalize() being idempotent
-        assert_eq!(output, poseidon_digest.finalize());
-    }
-
-    #[test]
-    fn test_poseidon_hash_mnt6_single_element() {
         let expected_output = MNT6753Fr::new(BigInteger768([9820480440897423048, 13953114361017832007, 6124683910518350026, 12198883805142820977, 16542063359667049427, 16554395404701520536, 6092728884107650560, 1511127385771028618, 14755502041894115317, 9806346309586473535, 5880260960930089738, 191119811429922]));
-        let mut poseidon_digest = MNT6PoseidonHash::init(None);
-        let input = MNT6753Fr::from_str("1").unwrap();
-        poseidon_digest.update(input);
-        let output = poseidon_digest.finalize();
-        assert_eq!(output, expected_output, "Outputs do not match for MNT6753.");
-    }
+        field_based_hash_test::<MNT6PoseidonHash>(
+            None,
+            generate_inputs(1),
+            expected_output
+        );
 
-    #[test]
-    fn test_poseidon_hash_mnt6_three_element() {
+        let expected_output = MNT6753Fr::new(BigInteger768([8195238283171732026, 13694263410588344527, 1885103367289967816, 17142467091011072910, 13844754763865913168, 14332001103319040991, 8911700442280604823, 6452872831806760781, 17467681867740706391, 5384727593134901588, 2343350281633109128, 244405261698305]));
+        field_based_hash_test::<MNT6PoseidonHash>(
+            None,
+            generate_inputs(2),
+            expected_output
+        );
+
         let expected_output = MNT6753Fr::new(BigInteger768([13800884891843937189, 3814452749758584714, 14612220153016028606, 15886322817426727111, 12444362646204085653, 5214641378156871899, 4248022398370599899, 5982332416470364372, 3842784910369906888, 11445718704595887413, 5723531295320926061, 101830932453997]));
-        let mut poseidon_digest = MNT6PoseidonHash::init(None);
+        field_based_hash_test::<MNT6PoseidonHash>(
+            None,
+            generate_inputs(3),
+            expected_output
+        );
 
-        for i in 1..=3{
-            let input = MNT6753Fr::from(i as u64);
-            poseidon_digest.update(input);
-        }
-
-        let output = poseidon_digest.finalize();
-        assert_eq!(output, expected_output, "Outputs do not match for MNT6753.");
+        algebraic_sponge_test::<MNT6PoseidonHash, _>(
+            generate_inputs(5),
+            MNT6753Fr::new(BigInteger768([4415375432859735514, 15277127492869068266, 6420528934628268057, 5636828761846368316, 15914884428340991861, 12211035015422291435, 9014434969167954921, 15632055196340174537, 1936740514626417030, 2037074531769378557, 3262429322356753926, 159992276980186])),
+        );
     }
 
     use algebra::{
@@ -326,25 +331,30 @@ mod test {
     #[test]
     fn test_poseidon_hash_bn382_fr() {
         let expected_output = BN382Fr::new(BigInteger384([5374955110091081208, 9708994766202121080, 14988884941712225891, 5210165913215347951, 13114182334648522197, 392522167697949297]));
+        field_based_hash_test::<BN382FrPoseidonHash>(
+            None,
+            generate_inputs(2),
+            expected_output
+        );
 
-        let mut digest = BN382FrPoseidonHash::init(None);
-        digest.update(BN382Fr::from_str("1").unwrap());
-        digest.update(BN382Fr::from_str("2").unwrap());
-        let output = digest.finalize();
-
-        assert_eq!(output, expected_output, "Outputs do not match for BN382Fr");
+        algebraic_sponge_test::<BN382FrPoseidonHash, _>(
+            generate_inputs(5),
+            BN382Fr::new(BigInteger384([10936988494830768508, 13847454081411578749, 11142634849204675481, 15630701206177827142, 9268091518839142138, 1696903081923115093])),
+        );
     }
 
     #[test]
     fn test_poseidon_hash_bn382_fq() {
         let expected_output = BN382Fq::new(BigInteger384([10704305393280846886, 13510271104066299406, 8759721062701909552, 14597420682011858322, 7770486455870140465, 1389855295932765543]));
+        field_based_hash_test::<BN382FqPoseidonHash>(
+            None,
+            generate_inputs(2),
+            expected_output
+        );
 
-        let mut digest = BN382FqPoseidonHash::init(None);
-        digest.update(BN382Fq::from_str("1").unwrap());
-        digest.update(BN382Fq::from_str("2").unwrap());
-        let output = digest.finalize();
-
-        assert_eq!(output, expected_output, "Outputs do not match for BN382Fq");
+        algebraic_sponge_test::<BN382FqPoseidonHash, _>(
+            generate_inputs(5),
+            BN382Fq::new(BigInteger384([1720359977283232686, 13054139547712885489, 5187034200847661218, 4192055198669470320, 9342360683435217824, 2331312681920757379])),
+        );
     }
-
 }
