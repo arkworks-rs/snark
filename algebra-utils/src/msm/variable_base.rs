@@ -1,9 +1,10 @@
 use algebra::{AffineCurve, BigInteger, Field, FpParameters, PrimeField, ProjectiveCurve};
 use rayon::prelude::*;
-use std::sync::{Arc, Mutex};
 
 #[cfg(feature = "gpu")]
 use algebra_kernels::msm::{get_cpu_utilization, get_kernels, get_gpu_min_length};
+#[cfg(feature = "gpu")]
+use std::sync::{Arc, Mutex};
 
 pub struct VariableBaseMSM;
 
@@ -305,14 +306,8 @@ mod test {
         let mixed = VariableBaseMSM::multi_scalar_mul_mixed(g.as_slice(), v.as_slice());
         let affine = VariableBaseMSM::multi_scalar_mul_affine(g.as_slice(), v.as_slice());
 
-        #[cfg(feature = "gpu")]
-        let gpu = VariableBaseMSM::multi_scalar_mul(g.as_slice(), v.as_slice());
-
         assert_eq!(naive, mixed);
         assert_eq!(naive, affine);
-
-        #[cfg(feature = "gpu")]
-        assert_eq!(naive, gpu);
     }
 
     #[test]
@@ -332,13 +327,48 @@ mod test {
         let mixed = VariableBaseMSM::multi_scalar_mul_mixed(g.as_slice(), v.as_slice());
         let affine = VariableBaseMSM::multi_scalar_mul_affine(g.as_slice(), v.as_slice());
 
-        #[cfg(feature = "gpu")]
-        let gpu = VariableBaseMSM::multi_scalar_mul(g.as_slice(), v.as_slice());
-
         assert_eq!(naive, mixed);
         assert_eq!(naive, affine);
+    }
 
-        #[cfg(feature = "gpu")]
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_all_variants_gpu() {
+        const SAMPLES: usize = 1 << 12;
+
+        let mut rng = XorShiftRng::seed_from_u64(234872845u64);
+
+        let v = (0..SAMPLES)
+            .map(|_| Fr::rand(&mut rng).into_repr())
+            .collect::<Vec<_>>();
+        let g = (0..SAMPLES)
+            .map(|_| G1Projective::rand(&mut rng).into_affine())
+            .collect::<Vec<_>>();
+
+        let naive = naive_var_base_msm(g.as_slice(), v.as_slice());
+        let gpu = VariableBaseMSM::multi_scalar_mul(g.as_slice(), v.as_slice());
+
+        assert_eq!(naive, gpu);
+    }
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_with_unequal_numbers_gpu() {
+        const SAMPLES: usize = 1 << 12;
+
+        let mut rng = XorShiftRng::seed_from_u64(234872845u64);
+
+        let v = (0..SAMPLES-1)
+            .map(|_| Fr::rand(&mut rng).into_repr())
+            .collect::<Vec<_>>();
+        let g = (0..SAMPLES)
+            .map(|_| G1Projective::rand(&mut rng).into_affine())
+            .collect::<Vec<_>>();
+
+        let naive = naive_var_base_msm(g.as_slice(), v.as_slice());
+        let gpu = VariableBaseMSM::multi_scalar_mul(g.as_slice(), v.as_slice());
+
         assert_eq!(naive, gpu);
     }
 }
