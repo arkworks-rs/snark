@@ -1,7 +1,4 @@
 use algebra::{UniformRand, Field, PrimeField, FpParameters};
-#[cfg(not(feature = "gpu"))]
-use algebra::curves::{mnt6753::MNT6, PairingEngine};
-#[cfg(feature = "gpu")]
 use algebra::curves::{bls12_381::Bls12_381, PairingEngine};
 use crate::{domain::*, multicore::*};
 use rand;
@@ -45,10 +42,6 @@ fn fft_composition() {
 
     let rng = &mut rand::thread_rng();
 
-    #[cfg(not(feature = "gpu"))]
-    test_fft_composition::<MNT6, _>(rng);
-
-    #[cfg(feature = "gpu")]
     test_fft_composition::<Bls12_381, _>(rng);
 }
 
@@ -91,9 +84,5 @@ fn fft_consistency() {
 
     let rng = &mut rand::thread_rng();
 
-    #[cfg(not(feature = "gpu"))]
-    test_consistency::<MNT6, _>(rng);
-
-    #[cfg(feature = "gpu")]
     test_consistency::<Bls12_381, _>(rng);
 }

@@ -264,9 +264,6 @@ pub fn sample_element_outside_domain<
 mod tests {
     use crate::get_best_evaluation_domain;
     use algebra::Field;
-    #[cfg(not(feature = "gpu"))]
-    use algebra::fields::mnt6753::fr::Fr;
-    #[cfg(feature = "gpu")]
     use algebra::fields::bls12_381::fr::Fr;
     use rand::{Rng, thread_rng};
 

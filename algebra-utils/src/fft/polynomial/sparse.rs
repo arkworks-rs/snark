@@ -128,9 +128,6 @@ impl<F: Field> Into<DensePolynomial<F>> for SparsePolynomial<F> {
 #[cfg(test)]
 mod tests {
     use crate::{get_best_evaluation_domain, DensePolynomial, SparsePolynomial};
-    #[cfg(not(feature = "gpu"))]
-    use algebra::fields::mnt6753::fr::Fr;
-    #[cfg(feature = "gpu")]
     use algebra::fields::bls12_381::fr::Fr;
     use algebra::Field;
 

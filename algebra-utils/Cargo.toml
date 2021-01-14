@@ -40,12 +40,12 @@ bench-utils = { path = "../bench-utils" }
 algebra-utils = { path = "../algebra-utils", features = ["dev"] }
 
 [features]
-default = [ "parallel", "fft", "msm_affiine" ]
+default = [ "parallel", "fft", "msm_affine" ]
 dev = [ "bls12_381", "bn_382", "tweedle", "mnt4_753", "mnt6_753" ]
 
 parallel = [ "rayon" ]
 fft = []
-msm_affiine = []
+msm_affine = []
 gpu = [ "algebra-kernels", "algebra-cl-gen", "crossbeam" ]
 llvm_asm = [ "algebra/llvm_asm" ]
 
