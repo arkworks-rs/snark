@@ -29,7 +29,6 @@ rayon = { version = "1", optional = true }
 # gpu feature
 algebra-kernels = { git = "https://github.com/HorizenOfficial/ginger-algebra-ocl", branch = "ginger_ocl", optional = true }
 algebra-cl-gen = { git = "https://github.com/HorizenOfficial/ginger-algebra-ocl", branch = "ginger_ocl", optional = true }
-crossbeam = { version = "0.7", optional = true }
 
 [dev-dependencies]
 blake2 = "0.7"
@@ -46,7 +45,7 @@ dev = [ "bls12_381", "bn_382", "tweedle", "mnt4_753", "mnt6_753" ]
 parallel = [ "rayon" ]
 fft = []
 msm_affine = []
-gpu = [ "algebra-kernels", "algebra-cl-gen", "crossbeam" ]
+gpu = [ "parallel", "algebra-kernels", "algebra-cl-gen" ]
 llvm_asm = [ "algebra/llvm_asm" ]
 
 bls12_377 = [ "algebra-kernels/bls12_377", "algebra/bls12_377" ]

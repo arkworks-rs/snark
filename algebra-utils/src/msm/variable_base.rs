@@ -1,12 +1,9 @@
 use algebra::{AffineCurve, BigInteger, Field, FpParameters, PrimeField, ProjectiveCurve};
 use rayon::prelude::*;
+use std::sync::{Arc, Mutex};
 
 #[cfg(feature = "gpu")]
 use algebra_kernels::msm::{get_cpu_utilization, get_kernels, get_gpu_min_length};
-#[cfg(feature = "gpu")]
-use algebra_cl_gen::gpu::GPUError;
-#[cfg(feature = "gpu")]
-use crossbeam::thread;
 
 pub struct VariableBaseMSM;
 
@@ -192,8 +189,6 @@ impl VariableBaseMSM {
         G: AffineCurve,
         G::Projective: ProjectiveCurve<Affine = G>
     {
-        let zero = G::Projective::zero();
-
         let mut n = bases.len();
         let cpu_n;
 
@@ -214,9 +209,9 @@ impl VariableBaseMSM {
 
         let chunk_size = ((n as f64) / (num_devices as f64)).ceil() as usize;
 
-        match thread::scope(|s| -> Result<G::Projective, GPUError> {
-            let mut acc = G::Projective::zero();
-            let mut threads = Vec::new();
+        let results = Arc::new(Mutex::new(vec![]));
+
+        rayon::scope(|s| {
 
             if n > 0 {
                 for ((bases, scalars), kern) in bases
@@ -224,41 +219,39 @@ impl VariableBaseMSM {
                     .zip(scalars.chunks(chunk_size))
                     .zip(kernels.iter())
                 {
-                    threads.push(s.spawn(
-                        move |_| -> Result<G::Projective, GPUError> {
+                    let results = Arc::clone(&results);
+                    s.spawn(
+                        move |_| {
                             let mut acc = G::Projective::zero();
                             for (bases, scalars) in bases.chunks(kern.n).zip(scalars.chunks(kern.n)) {
-                                let result = kern.msm(bases, scalars, bases.len())?;
-                                acc.add_assign_mixed(&result.into_affine());
+                                let result = kern.msm(bases, scalars, bases.len());
+                                acc.add_assign_mixed(&result.unwrap().into_affine());
                             }
-                            Ok(acc)
+                            results.lock().unwrap().push(acc);
                         },
-                    ));
+                    );
                 }
             }
 
             if cpu_n > 0 {
-                threads.push(s.spawn(
-                    move |_| -> Result<G::Projective, GPUError> {
+                let results = Arc::clone(&results);
+                s.spawn(
+                    move |_| {
                         let acc = Self::msm_inner_cpu(cpu_bases, cpu_scalars);
-                        Ok(acc)
+                        results.lock().unwrap().push(acc);
                     }
-                ))
+                );
             }
+        });
 
-            let mut results = vec![];
-            for t in threads {
-                results.push(t.join());
-            }
-            for r in results {
-                acc.add_assign_mixed(&r??.into_affine());
-            }
+        let mut acc = G::Projective::zero();
+        let results = Arc::try_unwrap(results).unwrap().lock().unwrap().clone();
 
-            Ok(acc)
-        }) {
-            Ok(res) => res.unwrap(),
-            Err(_) => zero
+        for r in results.into_iter() {
+            acc.add_assign_mixed(&r.into_affine());
         }
+
+        acc
     }
 
     pub fn multi_scalar_mul<G: AffineCurve>(
