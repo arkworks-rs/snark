@@ -1,10 +1,11 @@
+use crate::field_new;
 use crate::{
     biginteger::BigInteger256,
     curves::{
         models::short_weierstrass_jacobian::{GroupAffine, GroupProjective},
         ModelParameters, SWModelParameters
     },
-    Field, field_new,
+    Field,
     fields::tweedle::*
 };
 
