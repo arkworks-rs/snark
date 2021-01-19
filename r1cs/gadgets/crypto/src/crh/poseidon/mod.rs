@@ -316,17 +316,18 @@ for PoseidonHashGadget<ConstraintF, P, SB, SBG>
     }
 
     fn enforce_squeeze<CS: ConstraintSystem<ConstraintF>>(
-        &mut self,
+        &self,
         mut cs: CS,
         num: usize
     ) -> Result<Vec<Self::DataGadget>, SynthesisError> {
-        for (i, (input, state)) in self.pending.iter().zip(self.state.iter_mut()).enumerate() {
+        let mut state = self.state.clone();
+        for (i, (input, state)) in self.pending.iter().zip(state.iter_mut()).enumerate() {
             state.add_in_place(cs.ns(|| format!("add_input_{}_to_state", i)), input)?;
         }
         let mut output = Vec::with_capacity(num);
         for i in 0..num {
-            Self::poseidon_perm(cs.ns(|| format!("squeeze field {}", i)), &mut self.state)?;
-            output.push(self.state[0].clone())
+            Self::poseidon_perm(cs.ns(|| format!("squeeze field {}", i)), &mut state)?;
+            output.push(state[0].clone())
         }
         Ok(output)
     }

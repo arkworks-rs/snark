@@ -72,7 +72,7 @@ pub trait AlgebraicSpongeGadget<H: AlgebraicSponge<ConstraintF>, ConstraintF: Pr
     ) -> Result<(), SynthesisError>;
 
     fn enforce_squeeze<CS: ConstraintSystem<ConstraintF>>(
-        &mut self,
+        &self,
         cs: CS,
         num: usize,
     ) -> Result<Vec<Self::DataGadget>, SynthesisError>;

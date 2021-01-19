@@ -116,8 +116,11 @@ pub trait AlgebraicSponge<F: PrimeField>: Clone {
     fn new() -> Self;
     /// Update the sponge with `elems`
     fn absorb(&mut self, elems: Vec<F>);
-    /// Output `num` field elements from the sponge.
-    fn squeeze(&mut self, num: usize) -> Vec<F>;
+    /// Output `num` field elements from the sponge. This function
+    /// is idempotent and calling it multiple times will result
+    /// in the same outputs, unless more absorbing are performed
+    /// in between the calls.
+    fn squeeze(&self, num: usize) -> Vec<F>;
 }
 
 #[cfg(test)]
@@ -175,7 +178,7 @@ mod test {
 
     pub(crate) fn algebraic_sponge_test<H: AlgebraicSponge<F>, F: PrimeField>(
         to_absorb: Vec<F>,
-        expected_squeeze: F
+        expected_squeezes: Vec<F>
     )
     {
         let mut sponge = H::new();
@@ -183,8 +186,10 @@ mod test {
         // Absorb all field elements
         sponge.absorb(to_absorb);
 
-        // Squeeze and check the output
-        assert_eq!(expected_squeeze, sponge.squeeze(1)[0]);
+        // Squeeze and check the outputs
+        for i in 0..expected_squeezes.len() {
+            assert_eq!(&expected_squeezes[..i + 1], &sponge.squeeze(i + 1)[..]);
+        }
     }
 
     #[ignore]
