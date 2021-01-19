@@ -1,5 +1,5 @@
 use algebra::{
-    Field, PrimeField, bytes::ToBytes
+    Field, bytes::ToBytes
 };
 use rand::Rng;
 use std::hash::Hash;
@@ -110,24 +110,11 @@ pub trait BatchFieldBasedHash {
     }
 }
 
-/// the trait for algebraic sponge
-pub trait AlgebraicSponge<F: PrimeField>: Clone {
-    /// Initialize the sponge
-    fn new() -> Self;
-    /// Update the sponge with `elems`
-    fn absorb(&mut self, elems: Vec<F>);
-    /// Output `num` field elements from the sponge. This function
-    /// is idempotent and calling it multiple times will result
-    /// in the same outputs, unless more absorbing are performed
-    /// in between the calls.
-    fn squeeze(&self, num: usize) -> Vec<F>;
-}
-
 #[cfg(test)]
 mod test {
 
     use algebra::{
-        fields::mnt4753::Fr as MNT4753Fr, Field, PrimeField, UniformRand
+        fields::mnt4753::Fr as MNT4753Fr, Field, UniformRand
     };
 
     use super::BatchFieldBasedHash;
@@ -137,59 +124,12 @@ mod test {
 
     use rand_xorshift::XorShiftRng;
     use rand::SeedableRng;
-    use crate::{
-        FieldBasedHash, AlgebraicSponge
-    };
 
     struct DummyMNT4BatchPoseidonHash;
 
     impl BatchFieldBasedHash for DummyMNT4BatchPoseidonHash {
         type Data = MNT4753Fr;
         type BaseHash = MNT4PoseidonHash;
-    }
-
-    pub(crate) fn field_based_hash_test<H: FieldBasedHash>(
-        personalization: Option<&[H::Data]>,
-        inputs: Vec<H::Data>,
-        expected_output: H::Data
-    )
-    {
-        // Test H(inputs) == expected_output
-        let mut digest = H::init(personalization);
-        inputs.iter().for_each(|fe| { digest.update(fe.clone()); });
-        let output = digest.finalize();
-        assert_eq!(output, expected_output, "Outputs do not match");
-
-        let inputs_len = inputs.len();
-        if inputs_len > 1 {
-            let final_elem = inputs[inputs_len - 1].clone();
-            // Test finalize() holding the state and allowing updates in between different calls to it
-            digest.reset(None);
-            inputs.into_iter().take(inputs_len - 1).for_each(|fe| { digest.update(fe); });
-
-            digest.finalize();
-            digest.update(final_elem);
-            assert_eq!(output, digest.finalize());
-
-            //Test finalize() being idempotent
-            assert_eq!(output, digest.finalize());
-        }
-    }
-
-    pub(crate) fn algebraic_sponge_test<H: AlgebraicSponge<F>, F: PrimeField>(
-        to_absorb: Vec<F>,
-        expected_squeezes: Vec<F>
-    )
-    {
-        let mut sponge = H::new();
-
-        // Absorb all field elements
-        sponge.absorb(to_absorb);
-
-        // Squeeze and check the outputs
-        for i in 0..expected_squeezes.len() {
-            assert_eq!(&expected_squeezes[..i + 1], &sponge.squeeze(i + 1)[..]);
-        }
     }
 
     #[ignore]
