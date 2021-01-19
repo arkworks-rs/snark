@@ -7,10 +7,12 @@ use crate::crh::{
 use algebra::fields::mnt4753::Fr as MNT4753Fr;
 use algebra::biginteger::BigInteger768;
 use algebra::field_new;
+use crate::PoseidonSponge;
 
 pub type MNT4InversePoseidonSBox = PoseidonInverseSBox<MNT4753Fr, MNT4753PoseidonParameters>;
 pub type MNT4PoseidonHash = PoseidonHash<MNT4753Fr, MNT4753PoseidonParameters, MNT4InversePoseidonSBox>;
 pub type MNT4BatchPoseidonHash = PoseidonBatchHash<MNT4753Fr, MNT4753PoseidonParameters, MNT4InversePoseidonSBox>;
+pub type MNT4PoseidonSponge = PoseidonSponge<MNT4753Fr, MNT4753PoseidonParameters, MNT4InversePoseidonSBox>;
 
 #[derive(Debug, Clone)]
 pub struct MNT4753PoseidonParameters;

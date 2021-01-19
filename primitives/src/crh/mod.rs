@@ -110,6 +110,12 @@ pub trait BatchFieldBasedHash {
     }
 }
 
+#[derive(Clone, Debug)]
+pub enum SpongeState {
+    Absorbing,
+    Squeezing,
+}
+
 /// the trait for algebraic sponge
 pub trait AlgebraicSponge<F: PrimeField>: Clone {
     /// Initialize the sponge
@@ -134,9 +140,7 @@ mod test {
 
     use rand_xorshift::XorShiftRng;
     use rand::SeedableRng;
-    use crate::{
-        FieldBasedHash, AlgebraicSponge
-    };
+    use crate::{FieldBasedHash, AlgebraicSponge};
 
     struct DummyMNT4BatchPoseidonHash;
 
@@ -185,6 +189,21 @@ mod test {
 
         // Squeeze and check the output
         assert_eq!(expected_squeeze, sponge.squeeze(1)[0]);
+
+        // Check that calling squeeze() multiple times without absorbing
+        // changes the output
+        let mut prev = expected_squeeze;
+        for _ in 0..100 {
+            let curr = sponge.squeeze(1)[0];
+            assert!(prev != curr);
+            prev = curr;
+        }
+
+        // Check squeeze() outputs the correct number of field elements
+        for i in 1..=10 {
+            assert_eq!(i, sponge.squeeze(i).len())
+        }
+
     }
 
     #[ignore]

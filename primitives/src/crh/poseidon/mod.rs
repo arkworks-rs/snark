@@ -17,7 +17,7 @@ pub use self::parameters::*;
 
 pub mod sbox;
 pub use self::sbox::*;
-use crate::AlgebraicSponge;
+use crate::{AlgebraicSponge, SpongeState};
 
 pub trait PoseidonParameters: 'static + FieldBasedHashParameters + Clone {
     const T: usize;  // Number of S-Boxes
@@ -207,36 +207,86 @@ impl<F, P, SB> FieldBasedHash for PoseidonHash<F, P, SB>
     }
 }
 
-impl<F, P, SB> AlgebraicSponge<F> for PoseidonHash<F, P, SB>
+#[derive(Derivative)]
+#[derivative(
+    Clone(bound = ""),
+    Debug(bound = "")
+)]
+pub struct PoseidonSponge<F: PrimeField, P: PoseidonParameters<Fr = F>, SB: PoseidonSBox<P>> {
+    pub(crate) mode:   SpongeState,
+    pub(crate) digest: PoseidonHash<F, P, SB>,
+}
+
+impl<F, P, SB> AlgebraicSponge<F> for PoseidonSponge<F, P, SB>
     where
         F: PrimeField,
         P: PoseidonParameters<Fr = F>,
         SB: PoseidonSBox<P>,
 {
     fn new() -> Self {
-        Self::init(None)
+        let digest = PoseidonHash::<F, P, SB>::init(None);
+        let mode = SpongeState::Absorbing;
+        Self { mode, digest }
     }
 
     fn absorb(&mut self, elems: Vec<F>) {
-        elems.into_iter().for_each(|f| {
-            self.pending.push(f);
-            if self.pending.len() == P::R {
-                self.apply_permutation(false);
-                self.pending.clear();
+        match self.mode {
+
+            // If we were absorbing keep doing it
+            SpongeState::Absorbing => {
+                elems.into_iter().for_each(|f| {
+                    self.digest.pending.push(f);
+                    if self.digest.pending.len() == P::R {
+                        // Apply a permutation when we reach rate field elements
+                        self.digest.apply_permutation(false);
+                        self.digest.pending.clear();
+                    }
+                })
+            },
+
+            // If we were squeezing, change the state into absorbing
+            SpongeState::Squeezing => {
+                self.mode = SpongeState::Absorbing;
+                self.absorb(elems);
             }
-        })
+        }
     }
 
     fn squeeze(&mut self, num: usize) -> Vec<F> {
-        for (input, s) in self.pending.iter().zip(self.state.iter_mut()) {
-            *s += input;
+        let mut outputs = Vec::with_capacity(num);
+
+        if num > 0 {
+            match self.mode {
+                SpongeState::Absorbing => {
+
+                    // If pending is empty and we were in absorbing, it means that a Poseidon
+                    // permutation was applied just before calling squeeze(), therefore it's
+                    // wasted to apply another permutation, and we can directly add state[0]
+                    // to the outputs
+                    if self.digest.pending.len() == 0 {
+                        outputs.push(self.digest.state[0].clone());
+                    }
+
+                    // If pending is not empty and we were absorbing, then we need to add the
+                    // pending elements to the state before applying a permutation
+                    else {
+                        self.digest.apply_permutation(false);
+                        outputs.push(self.digest.state[0].clone());
+                    }
+                    self.mode = SpongeState::Squeezing;
+                    outputs.append(&mut self.squeeze(num - 1));
+                },
+
+                // If we were squeezing, then squeeze the required number of field elements
+                SpongeState::Squeezing => {
+                    for _ in 0..num {
+                        PoseidonHash::<F, P, SB>::poseidon_perm(&mut self.digest.state);
+                        outputs.push(self.digest.state[0].clone());
+                    }
+                }
+            }
         }
-        let mut output = Vec::with_capacity(num);
-        for _ in 0..num {
-            Self::poseidon_perm(&mut self.state);
-            output.push(self.state[0].clone());
-        }
-        output
+        outputs
     }
 }
 
@@ -249,8 +299,12 @@ mod test {
     use algebra::biginteger::BigInteger768;
     use crate::crh::{
         poseidon::parameters::{
-            mnt4753::MNT4PoseidonHash,
-            mnt6753::MNT6PoseidonHash,
+            mnt4753::{
+                MNT4PoseidonHash, MNT4PoseidonSponge,
+            },
+            mnt6753::{
+                MNT6PoseidonHash, MNT6PoseidonSponge,
+            },
         },
         test::{field_based_hash_test, algebraic_sponge_test}
     };
@@ -285,7 +339,7 @@ mod test {
 
         );
 
-        algebraic_sponge_test::<MNT4PoseidonHash, _>(
+        algebraic_sponge_test::<MNT4PoseidonSponge, _>(
             generate_inputs(5),
             MNT4753Fr::new(BigInteger768([5523198498380909748, 115671896985227974, 1569791264643314974, 10995686465166995133, 13403013599916971011, 9712036026598684290, 2998254759663594264, 8111306964576313791, 14787788173217046374, 5019183223370964031, 2046072629858084037, 254417771852919])),
         );
@@ -314,7 +368,7 @@ mod test {
             expected_output
         );
 
-        algebraic_sponge_test::<MNT6PoseidonHash, _>(
+        algebraic_sponge_test::<MNT6PoseidonSponge, _>(
             generate_inputs(5),
             MNT6753Fr::new(BigInteger768([4415375432859735514, 15277127492869068266, 6420528934628268057, 5636828761846368316, 15914884428340991861, 12211035015422291435, 9014434969167954921, 15632055196340174537, 1936740514626417030, 2037074531769378557, 3262429322356753926, 159992276980186])),
         );
@@ -337,7 +391,7 @@ mod test {
             expected_output
         );
 
-        algebraic_sponge_test::<BN382FrPoseidonHash, _>(
+        algebraic_sponge_test::<BN382FrPoseidonSponge, _>(
             generate_inputs(5),
             BN382Fr::new(BigInteger384([10936988494830768508, 13847454081411578749, 11142634849204675481, 15630701206177827142, 9268091518839142138, 1696903081923115093])),
         );
@@ -352,7 +406,7 @@ mod test {
             expected_output
         );
 
-        algebraic_sponge_test::<BN382FqPoseidonHash, _>(
+        algebraic_sponge_test::<BN382FqPoseidonSponge, _>(
             generate_inputs(5),
             BN382Fq::new(BigInteger384([1720359977283232686, 13054139547712885489, 5187034200847661218, 4192055198669470320, 9342360683435217824, 2331312681920757379])),
         );

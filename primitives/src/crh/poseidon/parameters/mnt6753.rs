@@ -8,6 +8,7 @@ use algebra::fields::mnt6753::Fr as MNT6753Fr;
 
 use algebra::biginteger::BigInteger768;
 use algebra::field_new;
+use crate::PoseidonSponge;
 
 #[derive(Debug, Clone)]
 pub struct MNT6753PoseidonParameters;
@@ -15,6 +16,7 @@ pub struct MNT6753PoseidonParameters;
 pub type MNT6InversePoseidonSBox = PoseidonInverseSBox<MNT6753Fr, MNT6753PoseidonParameters>;
 pub type MNT6PoseidonHash = PoseidonHash<MNT6753Fr, MNT6753PoseidonParameters, MNT6InversePoseidonSBox>;
 pub type MNT6BatchPoseidonHash = PoseidonBatchHash<MNT6753Fr, MNT6753PoseidonParameters, MNT6InversePoseidonSBox>;
+pub type MNT6PoseidonSponge = PoseidonSponge<MNT6753Fr, MNT6753PoseidonParameters, MNT6InversePoseidonSBox>;
 
 impl FieldBasedHashParameters for MNT6753PoseidonParameters {
     type Fr = MNT6753Fr;
