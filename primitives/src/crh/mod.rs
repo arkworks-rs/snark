@@ -111,7 +111,7 @@ pub trait BatchFieldBasedHash {
 }
 
 #[derive(Clone, Debug)]
-pub enum SpongeState {
+pub enum SpongeMode {
     Absorbing,
     Squeezing,
 }
@@ -120,10 +120,18 @@ pub enum SpongeState {
 pub trait AlgebraicSponge<F: PrimeField>: Clone {
     /// Initialize the sponge
     fn new() -> Self;
+    /// Initialize the sponge given a state
+    fn from_state(state: Vec<F>) -> Self;
+    /// Get the sponge internal state
+    fn get_state(&self) -> &[F];
     /// Update the sponge with `elems`
     fn absorb(&mut self, elems: Vec<F>);
     /// Output `num` field elements from the sponge.
     fn squeeze(&mut self, num: usize) -> Vec<F>;
+    /// Reset the sponge to its initial state
+    fn reset(&mut self) {
+        *self = Self::new();
+    }
 }
 
 #[cfg(test)]
@@ -139,8 +147,9 @@ mod test {
     };
 
     use rand_xorshift::XorShiftRng;
-    use rand::SeedableRng;
+    use rand::{SeedableRng, thread_rng};
     use crate::{FieldBasedHash, AlgebraicSponge};
+    use std::collections::HashSet;
 
     struct DummyMNT4BatchPoseidonHash;
 
@@ -199,11 +208,46 @@ mod test {
             prev = curr;
         }
 
+        let rng = &mut thread_rng();
+
         // Check squeeze() outputs the correct number of field elements
-        for i in 1..=10 {
-            assert_eq!(i, sponge.squeeze(i).len())
+        // all different from each others
+        let mut set = HashSet::new();
+        for i in 0..=10 {
+            sponge.absorb(vec![F::rand(rng); i]);
+            let outs = sponge.squeeze(i);
+            assert_eq!(i, outs.len());
+
+            // HashSet::insert(val) returns false if val was already present, so to check
+            // that all the elements output by the sponge are different, we assert insert()
+            // returning always true
+            outs.into_iter().for_each(|f| assert!(set.insert(f)));
         }
 
+        //Test edge cases. Assumption: R = 2
+        sponge.reset();
+
+        // Absorb nothing. Check that the internal state is not changed.
+        let prev_state = sponge.get_state().to_vec();
+        sponge.absorb(vec![]);
+        assert_eq!(prev_state, sponge.get_state());
+
+        // Squeeze nothing. Check that the internal state is not changed.
+        let prev_state = sponge.get_state().to_vec();
+        sponge.squeeze(0);
+        assert_eq!(prev_state, sponge.get_state());
+
+        // Absorb up to rate elements and trigger a permutation. Assert that calling squeeze()
+        // afterwards won't trigger another permutation.
+        sponge.absorb(vec![F::rand(rng); 2]);
+        let prev_state = sponge.get_state().to_vec();
+        sponge.squeeze(1);
+        let curr_state = sponge.get_state().to_vec();
+        assert_eq!(prev_state, curr_state);
+
+        // The next squeeze() should instead change the state
+        sponge.squeeze(1);
+        assert!(curr_state != sponge.get_state());
     }
 
     #[ignore]

@@ -17,7 +17,7 @@ pub use self::parameters::*;
 
 pub mod sbox;
 pub use self::sbox::*;
-use crate::{AlgebraicSponge, SpongeState};
+use crate::{AlgebraicSponge, SpongeMode};
 
 pub trait PoseidonParameters: 'static + FieldBasedHashParameters + Clone {
     const T: usize;  // Number of S-Boxes
@@ -213,7 +213,7 @@ impl<F, P, SB> FieldBasedHash for PoseidonHash<F, P, SB>
     Debug(bound = "")
 )]
 pub struct PoseidonSponge<F: PrimeField, P: PoseidonParameters<Fr = F>, SB: PoseidonSBox<P>> {
-    pub(crate) mode:   SpongeState,
+    pub(crate) mode:   SpongeMode,
     pub(crate) digest: PoseidonHash<F, P, SB>,
 }
 
@@ -225,29 +225,43 @@ impl<F, P, SB> AlgebraicSponge<F> for PoseidonSponge<F, P, SB>
 {
     fn new() -> Self {
         let digest = PoseidonHash::<F, P, SB>::init(None);
-        let mode = SpongeState::Absorbing;
+        let mode = SpongeMode::Absorbing;
         Self { mode, digest }
     }
 
+    fn from_state(state: Vec<F>) -> Self {
+        assert_eq!(state.len(), P::T);
+        let mut digest = PoseidonHash::<F, P, SB>::init(None);
+        digest.state = state;
+        let mode = SpongeMode::Absorbing;
+        Self { mode, digest }
+    }
+
+    fn get_state(&self) -> &[F] {
+        self.digest.state.as_slice()
+    }
+
     fn absorb(&mut self, elems: Vec<F>) {
-        match self.mode {
 
-            // If we were absorbing keep doing it
-            SpongeState::Absorbing => {
-                elems.into_iter().for_each(|f| {
-                    self.digest.pending.push(f);
-                    if self.digest.pending.len() == P::R {
-                        // Apply a permutation when we reach rate field elements
-                        self.digest.apply_permutation(false);
-                        self.digest.pending.clear();
-                    }
-                })
-            },
+        if elems.len() > 0 {
+            match self.mode {
+                // If we were absorbing keep doing it
+                SpongeMode::Absorbing => {
+                    elems.into_iter().for_each(|f| {
+                        self.digest.pending.push(f);
+                        if self.digest.pending.len() == P::R {
+                            // Apply a permutation when we reach rate field elements
+                            self.digest.apply_permutation(false);
+                            self.digest.pending.clear();
+                        }
+                    })
+                },
 
-            // If we were squeezing, change the state into absorbing
-            SpongeState::Squeezing => {
-                self.mode = SpongeState::Absorbing;
-                self.absorb(elems);
+                // If we were squeezing, change the state into absorbing
+                SpongeMode::Squeezing => {
+                    self.mode = SpongeMode::Absorbing;
+                    self.absorb(elems);
+                }
             }
         }
     }
@@ -257,28 +271,27 @@ impl<F, P, SB> AlgebraicSponge<F> for PoseidonSponge<F, P, SB>
 
         if num > 0 {
             match self.mode {
-                SpongeState::Absorbing => {
-
+                SpongeMode::Absorbing => {
                     // If pending is empty and we were in absorbing, it means that a Poseidon
-                    // permutation was applied just before calling squeeze(), therefore it's
-                    // wasted to apply another permutation, and we can directly add state[0]
-                    // to the outputs
+                    // permutation was applied just before calling squeeze(), (unless you absorbed
+                    // nothing, but that is handled) therefore it's wasted to apply another
+                    // permutation, and we can directly add state[0] to the outputs
                     if self.digest.pending.len() == 0 {
                         outputs.push(self.digest.state[0].clone());
                     }
 
                     // If pending is not empty and we were absorbing, then we need to add the
-                    // pending elements to the state before applying a permutation
+                    // pending elements to the state and then apply a permutation
                     else {
                         self.digest.apply_permutation(false);
                         outputs.push(self.digest.state[0].clone());
                     }
-                    self.mode = SpongeState::Squeezing;
+                    self.mode = SpongeMode::Squeezing;
                     outputs.append(&mut self.squeeze(num - 1));
                 },
 
                 // If we were squeezing, then squeeze the required number of field elements
-                SpongeState::Squeezing => {
+                SpongeMode::Squeezing => {
                     for _ in 0..num {
                         PoseidonHash::<F, P, SB>::poseidon_perm(&mut self.digest.state);
                         outputs.push(self.digest.state[0].clone());
@@ -318,6 +331,7 @@ mod test {
         inputs
     }
 
+    #[cfg(feature = "mnt4_753")]
     #[test]
     fn test_poseidon_hash_mnt4() {
         field_based_hash_test::<MNT4PoseidonHash>(
@@ -345,6 +359,7 @@ mod test {
         );
     }
 
+    #[cfg(feature = "mnt6_753")]
     #[test]
     fn test_poseidon_hash_mnt6() {
         let expected_output = MNT6753Fr::new(BigInteger768([9820480440897423048, 13953114361017832007, 6124683910518350026, 12198883805142820977, 16542063359667049427, 16554395404701520536, 6092728884107650560, 1511127385771028618, 14755502041894115317, 9806346309586473535, 5880260960930089738, 191119811429922]));
@@ -382,6 +397,7 @@ mod test {
     };
     use crate::crh::parameters::bn382::*;
 
+    #[cfg(feature = "bn_382")]
     #[test]
     fn test_poseidon_hash_bn382_fr() {
         let expected_output = BN382Fr::new(BigInteger384([5374955110091081208, 9708994766202121080, 14988884941712225891, 5210165913215347951, 13114182334648522197, 392522167697949297]));
@@ -397,6 +413,7 @@ mod test {
         );
     }
 
+    #[cfg(feature = "bn_382")]
     #[test]
     fn test_poseidon_hash_bn382_fq() {
         let expected_output = BN382Fq::new(BigInteger384([10704305393280846886, 13510271104066299406, 8759721062701909552, 14597420682011858322, 7770486455870140465, 1389855295932765543]));
