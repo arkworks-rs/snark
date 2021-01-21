@@ -11,6 +11,7 @@
 - #325 Reduce memory consumption during inlining
 
 ### Bug fixes
+- #340 Compile with `panic='abort'` in release mode, for safety of the library across FFI boundaries.
 
 ## v0.1.0
 
