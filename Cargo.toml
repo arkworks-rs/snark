@@ -9,6 +9,7 @@ members = [
 opt-level = 3
 lto = "thin"
 incremental = true
+panic = 'abort'
 
 [profile.bench]
 opt-level = 3
@@ -20,6 +21,7 @@ debug-assertions = false
 
 [profile.dev]
 opt-level = 0
+panic = 'abort'
 
 [profile.test]
 opt-level = 3
