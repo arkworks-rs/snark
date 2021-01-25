@@ -28,7 +28,7 @@ pub use self::mnt6753::*;
 pub mod bn382;
 #[cfg(feature = "bn_382")]
 pub use self::bn382::*;
-use primitives::PoseidonSBox;
+use primitives::{PoseidonSBox, SpongeMode, PoseidonSponge};
 use crate::AlgebraicSpongeGadget;
 
 pub struct PoseidonHashGadget
@@ -39,9 +39,7 @@ pub struct PoseidonHashGadget
     SBG:         SBoxGadget<ConstraintF, SB>,
 >
 {
-    state:   Vec<FpGadget<ConstraintF>>,
-    pending: Vec<FpGadget<ConstraintF>>,
-
+    _field:             PhantomData<ConstraintF>,
     _parameters:        PhantomData<P>,
     _sbox:              PhantomData<SB>,
     _sbox_gadget:       PhantomData<SBG>,
@@ -55,7 +53,7 @@ impl<
 > PoseidonHashGadget<ConstraintF, P, SB, SBG>
 {
 
-    fn poseidon_perm<CS: ConstraintSystem<ConstraintF>>(
+    pub(crate) fn poseidon_perm<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         state: &mut [FpGadget<ConstraintF>],
     ) -> Result<(), SynthesisError>
@@ -262,8 +260,54 @@ impl<ConstraintF, P, SB, SBG> FieldBasedHashGadget<PoseidonHash<ConstraintF, P, 
     }
 }
 
-impl<ConstraintF, P, SB, SBG> AlgebraicSpongeGadget<PoseidonHash<ConstraintF, P, SB>, ConstraintF>
-for PoseidonHashGadget<ConstraintF, P, SB, SBG>
+pub struct PoseidonSpongeGadget
+<
+    ConstraintF: PrimeField,
+    P:           PoseidonParameters<Fr = ConstraintF>,
+    SB:          PoseidonSBox<P>,
+    SBG:         SBoxGadget<ConstraintF, SB>,
+>
+{
+    mode:           SpongeMode,
+    state:          Vec<FpGadget<ConstraintF>>,
+    pending:        Vec<FpGadget<ConstraintF>>,
+    _field:             PhantomData<ConstraintF>,
+    _parameters:        PhantomData<P>,
+    _sbox:              PhantomData<SB>,
+    _sbox_gadget:       PhantomData<SBG>,
+}
+
+impl<ConstraintF, P, SB, SBG> PoseidonSpongeGadget<ConstraintF, P, SB, SBG>
+    where
+        ConstraintF: PrimeField,
+        P:           PoseidonParameters<Fr = ConstraintF>,
+        SB:          PoseidonSBox<P>,
+        SBG:         SBoxGadget<ConstraintF, SB>,
+{
+    fn clear_pending_and_apply_permutation<CS: ConstraintSystem<ConstraintF>>(
+        &mut self,
+        mut cs: CS
+    ) -> Result<(), SynthesisError>
+    {
+        // add the elements to the state vector. Add rate elements
+        for (i, (input, state)) in self.pending.iter().zip(self.state.iter_mut()).enumerate() {
+            state.add_in_place(cs.ns(|| format!("add_input_{}_to_state", i)), input)?;
+        }
+
+        // apply permutation after adding the input vector
+        PoseidonHashGadget::<ConstraintF, P, SB, SBG>::poseidon_perm(
+            cs.ns(|| "poseidon_perm"),
+            &mut self.state
+        )?;
+
+        self.pending.clear();
+
+        Ok(())
+    }
+}
+
+impl<ConstraintF, P, SB, SBG> AlgebraicSpongeGadget<PoseidonSponge<ConstraintF, P, SB>, ConstraintF>
+for PoseidonSpongeGadget<ConstraintF, P, SB, SBG>
     where
         ConstraintF: PrimeField,
         P:           PoseidonParameters<Fr = ConstraintF>,
@@ -275,7 +319,7 @@ for PoseidonHashGadget<ConstraintF, P, SB, SBG>
     fn new<CS: ConstraintSystem<ConstraintF>>(mut cs: CS) -> Result<Self, SynthesisError> {
         assert_eq!(P::T - P::R, 1, "The assumption that the capacity is one field element is not satisfied.");
 
-        let mut state = Vec::new();
+        let mut state = Vec::with_capacity(P::T);
         for i in 0..P::T {
             let elem = FpGadget::<ConstraintF>::from_value(
                 cs.ns(|| format!("hardcode_state_{}",i)),
@@ -285,11 +329,13 @@ for PoseidonHashGadget<ConstraintF, P, SB, SBG>
         }
 
         Ok(Self {
+            mode: SpongeMode::Absorbing,
             state,
             pending: Vec::with_capacity(P::R),
+            _field: PhantomData,
             _parameters: PhantomData,
             _sbox: PhantomData,
-            _sbox_gadget: PhantomData,
+            _sbox_gadget: PhantomData
         })
     }
 
@@ -298,20 +344,27 @@ for PoseidonHashGadget<ConstraintF, P, SB, SBG>
         mut cs: CS,
         elems: &[Self::DataGadget]
     ) -> Result<(), SynthesisError> {
-        elems.iter().enumerate().map(|(i, f)| {
-            self.pending.push(f.clone());
-            if self.pending.len() == P::R {
-                // add the elements to the state vector. Add rate elements
-                for (j, (input, state)) in self.pending.iter().zip(self.state.iter_mut()).enumerate() {
-                    state.add_in_place(cs.ns(|| format!("add_input_{}_{}_to_state", i, j)), input)?;
-                }
-                // apply permutation after adding the input vector
-                Self::poseidon_perm(cs.ns(|| format!("poseidon_perm_{}", i)), &mut self.state)?;
+        if elems.len() > 0 {
+            match self.mode {
 
-                self.pending.clear();
+                SpongeMode::Absorbing => {
+                    elems.iter().enumerate().map(|(i, f)| {
+                        self.pending.push(f.clone());
+                        if self.pending.len() == P::R {
+                            self.clear_pending_and_apply_permutation(
+                                cs.ns(|| format!("permutation {}",i ))
+                            )?;
+                        }
+                        Ok(())
+                    }).collect::<Result<(), SynthesisError>>()?;
+                },
+
+                SpongeMode::Squeezing => {
+                    self.mode = SpongeMode::Absorbing;
+                    self.enforce_absorb(cs, elems)?;
+                }
             }
-            Ok(())
-        }).collect::<Result<(), SynthesisError>>()?;
+        }
         Ok(())
     }
 
@@ -320,23 +373,51 @@ for PoseidonHashGadget<ConstraintF, P, SB, SBG>
         mut cs: CS,
         num: usize
     ) -> Result<Vec<Self::DataGadget>, SynthesisError> {
-        for (i, (input, state)) in self.pending.iter().zip(self.state.iter_mut()).enumerate() {
-            state.add_in_place(cs.ns(|| format!("add_input_{}_to_state", i)), input)?;
+        let mut outputs = Vec::with_capacity(num);
+
+        if num > 0 {
+            match self.mode {
+                SpongeMode::Absorbing => {
+
+                    if self.pending.len() == 0 {
+                        outputs.push(self.state[0].clone());
+                    } else {
+                        self.clear_pending_and_apply_permutation(
+                            cs.ns(|| "permutation")
+                        )?;
+
+                        outputs.push(self.state[0].clone());
+                    }
+                    self.mode = SpongeMode::Squeezing;
+                    outputs.append(&mut self.enforce_squeeze(
+                        cs.ns(|| "squeeze remaining elements"),
+                        num - 1
+                    )?);
+                },
+
+                // If we were squeezing, then squeeze the required number of field elements
+                SpongeMode::Squeezing => {
+                    for i in 0..num {
+                        PoseidonHashGadget::<ConstraintF, P, SB, SBG>::poseidon_perm(
+                            cs.ns(|| format!("poseidon_perm_{}", i)),
+                            &mut self.state
+                        )?;
+                        outputs.push(self.state[0].clone());
+                    }
+                }
+            }
         }
-        let mut output = Vec::with_capacity(num);
-        for i in 0..num {
-            Self::poseidon_perm(cs.ns(|| format!("squeeze field {}", i)), &mut self.state)?;
-            output.push(self.state[0].clone())
-        }
-        Ok(output)
+        Ok(outputs)
     }
 }
 
 #[cfg(test)]
 mod test {
     use crate::{
-        MNT4PoseidonHashGadget, MNT6PoseidonHashGadget,
-        BN382FqPoseidonHashGadget, BN382FrPoseidonHashGadget,
+        MNT4PoseidonHashGadget, MNT4PoseidonSpongeGadget,
+        MNT6PoseidonHashGadget, MNT6PoseidonSpongeGadget,
+        BN382FqPoseidonHashGadget, BN382FqPoseidonSpongeGadget,
+        BN382FrPoseidonHashGadget, BN382FrPoseidonSpongeGadget
     };
 
     use algebra::fields::PrimeField;
@@ -353,27 +434,31 @@ mod test {
         inputs
     }
 
+    #[cfg(feature = "mnt4_753")]
     #[test]
     fn poseidon_mnt4_753_gadget_native_test() {
         field_based_hash_gadget_native_test::<_, _, MNT4PoseidonHashGadget>(generate_inputs(2));
-        algebraic_sponge_gadget_native_test::<_, _, MNT4PoseidonHashGadget>(generate_inputs(5));
+        algebraic_sponge_gadget_native_test::<_, _, MNT4PoseidonSpongeGadget>(generate_inputs(5));
     }
 
+    #[cfg(feature = "mnt6_753")]
     #[test]
     fn poseidon_mnt6_753_gadget_native_test() {
         field_based_hash_gadget_native_test::<_, _, MNT6PoseidonHashGadget>(generate_inputs(2));
-        algebraic_sponge_gadget_native_test::<_, _, MNT6PoseidonHashGadget>(generate_inputs(5));
+        algebraic_sponge_gadget_native_test::<_, _, MNT6PoseidonSpongeGadget>(generate_inputs(5));
     }
 
+    #[cfg(feature = "bn_382")]
     #[test]
     fn poseidon_bn382_fr_gadget_native_test() {
         field_based_hash_gadget_native_test::<_, _, BN382FrPoseidonHashGadget>(generate_inputs(2));
-        algebraic_sponge_gadget_native_test::<_, _, BN382FrPoseidonHashGadget>(generate_inputs(5));
+        algebraic_sponge_gadget_native_test::<_, _, BN382FrPoseidonSpongeGadget>(generate_inputs(5));
     }
 
+    #[cfg(feature = "bn_382")]
     #[test]
     fn poseidon_bn382_fq_gadget_native_test() {
         field_based_hash_gadget_native_test::<_, _, BN382FqPoseidonHashGadget>(generate_inputs(2));
-        algebraic_sponge_gadget_native_test::<_, _, BN382FqPoseidonHashGadget>(generate_inputs(5));
+        algebraic_sponge_gadget_native_test::<_, _, BN382FqPoseidonSpongeGadget>(generate_inputs(5));
     }
 }

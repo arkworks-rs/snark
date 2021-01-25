@@ -132,8 +132,11 @@ mod test {
         HG: AlgebraicSpongeGadget<H, F, DataGadget = FpGadget<F>>
     >(inputs: Vec<F>)
     {
+        use std::collections::HashSet;
+
         let mut cs = TestConstraintSystem::<F>::new();
 
+        // Check equality between primitive and gadget result
         let mut primitive_sponge = H::new();
         primitive_sponge.absorb(inputs.clone());
 
@@ -155,6 +158,23 @@ mod test {
                 i + 1
             ).unwrap().iter().map(|fe_gadget| fe_gadget.value.unwrap()).collect::<Vec<_>>();
             assert_eq!(output_gadgets, primitive_sponge.squeeze(i + 1));
+        }
+
+        // Check squeeze() outputs the correct number of field elements
+        // all different from each others
+        let mut set = HashSet::new();
+        for i in 0..=10 {
+
+            let outs = sponge_gadget.enforce_squeeze(
+                cs.ns(|| format!("test squeeze {} field elements",  i)),
+                i
+            ).unwrap();
+            assert_eq!(i, outs.len());
+
+            // HashSet::insert(val) returns false if val was already present, so to check
+            // that all the elements output by the sponge are different, we assert insert()
+            // returning always true
+            outs.into_iter().for_each(|f| assert!(set.insert(f.value.unwrap())));
         }
 
         assert!(cs.is_satisfied());

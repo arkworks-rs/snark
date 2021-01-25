@@ -217,6 +217,18 @@ pub struct PoseidonSponge<F: PrimeField, P: PoseidonParameters<Fr = F>, SB: Pose
     pub(crate) digest: PoseidonHash<F, P, SB>,
 }
 
+impl<F, P, SB> PoseidonSponge<F, P, SB>
+    where
+        F: PrimeField,
+        P: PoseidonParameters<Fr = F>,
+        SB: PoseidonSBox<P>,
+{
+    fn clear_pending_and_apply_permutation(&mut self) {
+        self.digest.apply_permutation(false);
+        self.digest.pending.clear();
+    }
+}
+
 impl<F, P, SB> AlgebraicSponge<F> for PoseidonSponge<F, P, SB>
     where
         F: PrimeField,
@@ -251,8 +263,7 @@ impl<F, P, SB> AlgebraicSponge<F> for PoseidonSponge<F, P, SB>
                         self.digest.pending.push(f);
                         if self.digest.pending.len() == P::R {
                             // Apply a permutation when we reach rate field elements
-                            self.digest.apply_permutation(false);
-                            self.digest.pending.clear();
+                            self.clear_pending_and_apply_permutation();
                         }
                     })
                 },
@@ -283,7 +294,7 @@ impl<F, P, SB> AlgebraicSponge<F> for PoseidonSponge<F, P, SB>
                     // If pending is not empty and we were absorbing, then we need to add the
                     // pending elements to the state and then apply a permutation
                     else {
-                        self.digest.apply_permutation(false);
+                        self.clear_pending_and_apply_permutation();
                         outputs.push(self.digest.state[0].clone());
                     }
                     self.mode = SpongeMode::Squeezing;
