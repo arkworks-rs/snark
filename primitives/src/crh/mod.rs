@@ -1,5 +1,5 @@
 use algebra::{
-    Field, bytes::ToBytes
+    Field, PrimeField, bytes::ToBytes
 };
 use rand::Rng;
 use std::hash::Hash;
@@ -110,11 +110,35 @@ pub trait BatchFieldBasedHash {
     }
 }
 
+#[derive(Clone, Debug)]
+pub enum SpongeMode {
+    Absorbing,
+    Squeezing,
+}
+
+/// the trait for algebraic sponge
+pub trait AlgebraicSponge<F: PrimeField>: Clone {
+    /// Initialize the sponge
+    fn new() -> Self;
+    /// Initialize the sponge given a state
+    fn from_state(state: Vec<F>) -> Self;
+    /// Get the sponge internal state
+    fn get_state(&self) -> &[F];
+    /// Update the sponge with `elems`
+    fn absorb(&mut self, elems: Vec<F>);
+    /// Output `num` field elements from the sponge.
+    fn squeeze(&mut self, num: usize) -> Vec<F>;
+    /// Reset the sponge to its initial state
+    fn reset(&mut self) {
+        *self = Self::new();
+    }
+}
+
 #[cfg(test)]
 mod test {
 
     use algebra::{
-        fields::mnt4753::Fr as MNT4753Fr, Field, UniformRand
+        fields::mnt4753::Fr as MNT4753Fr, Field, PrimeField, UniformRand
     };
 
     use super::BatchFieldBasedHash;
@@ -123,13 +147,107 @@ mod test {
     };
 
     use rand_xorshift::XorShiftRng;
-    use rand::SeedableRng;
+    use rand::{SeedableRng, thread_rng};
+    use crate::{FieldBasedHash, AlgebraicSponge};
+    use std::collections::HashSet;
 
     struct DummyMNT4BatchPoseidonHash;
 
     impl BatchFieldBasedHash for DummyMNT4BatchPoseidonHash {
         type Data = MNT4753Fr;
         type BaseHash = MNT4PoseidonHash;
+    }
+
+    pub(crate) fn field_based_hash_test<H: FieldBasedHash>(
+        personalization: Option<&[H::Data]>,
+        inputs: Vec<H::Data>,
+        expected_output: H::Data
+    )
+    {
+        // Test H(inputs) == expected_output
+        let mut digest = H::init(personalization);
+        inputs.iter().for_each(|fe| { digest.update(fe.clone()); });
+        let output = digest.finalize();
+        assert_eq!(output, expected_output, "Outputs do not match");
+
+        let inputs_len = inputs.len();
+        if inputs_len > 1 {
+            let final_elem = inputs[inputs_len - 1].clone();
+            // Test finalize() holding the state and allowing updates in between different calls to it
+            digest.reset(None);
+            inputs.into_iter().take(inputs_len - 1).for_each(|fe| { digest.update(fe); });
+
+            digest.finalize();
+            digest.update(final_elem);
+            assert_eq!(output, digest.finalize());
+
+            //Test finalize() being idempotent
+            assert_eq!(output, digest.finalize());
+        }
+    }
+
+    pub(crate) fn algebraic_sponge_test<H: AlgebraicSponge<F>, F: PrimeField>(
+        to_absorb: Vec<F>,
+        expected_squeeze: F
+    )
+    {
+        let mut sponge = H::new();
+
+        // Absorb all field elements
+        sponge.absorb(to_absorb);
+
+        // Squeeze and check the output
+        assert_eq!(expected_squeeze, sponge.squeeze(1)[0]);
+
+        // Check that calling squeeze() multiple times without absorbing
+        // changes the output
+        let mut prev = expected_squeeze;
+        for _ in 0..100 {
+            let curr = sponge.squeeze(1)[0];
+            assert!(prev != curr);
+            prev = curr;
+        }
+
+        let rng = &mut thread_rng();
+
+        // Check squeeze() outputs the correct number of field elements
+        // all different from each others
+        let mut set = HashSet::new();
+        for i in 0..=10 {
+            sponge.absorb(vec![F::rand(rng); i]);
+            let outs = sponge.squeeze(i);
+            assert_eq!(i, outs.len());
+
+            // HashSet::insert(val) returns false if val was already present, so to check
+            // that all the elements output by the sponge are different, we assert insert()
+            // returning always true
+            outs.into_iter().for_each(|f| assert!(set.insert(f)));
+        }
+
+        //Test edge cases. Assumption: R = 2
+        sponge.reset();
+
+        // Absorb nothing. Check that the internal state is not changed.
+        let prev_state = sponge.get_state().to_vec();
+        sponge.absorb(vec![]);
+        assert_eq!(prev_state, sponge.get_state());
+
+        // Squeeze nothing. Check that the internal state is not changed.
+        let prev_state = sponge.get_state().to_vec();
+        sponge.squeeze(0);
+        assert_eq!(prev_state, sponge.get_state());
+
+        // Absorb up to rate elements and trigger a permutation. Assert that calling squeeze()
+        // afterwards won't trigger another permutation.
+        sponge.absorb(vec![F::rand(rng); 2]);
+        let prev_state = sponge.get_state().to_vec();
+        sponge.squeeze(1);
+        let curr_state = sponge.get_state().to_vec();
+        assert_eq!(prev_state, curr_state);
+
+        // The next squeeze() should instead change the state
+        sponge.squeeze(1);
+        assert!(curr_state != sponge.get_state());
     }
 
     #[ignore]

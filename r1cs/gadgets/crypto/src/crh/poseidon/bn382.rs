@@ -10,7 +10,9 @@ use primitives::crh::parameters::{
 };
 use crate::crh::{
     sbox::QuinticSBoxGadget,
-    poseidon::PoseidonHashGadget,
+    poseidon::{
+        PoseidonHashGadget, PoseidonSpongeGadget,
+    },
 };
 
 type BN382FqQuinticSBoxGadget = QuinticSBoxGadget<BN382Fq, BN382FqQuinticSbox>;
@@ -21,8 +23,22 @@ pub type BN382FqPoseidonHashGadget = PoseidonHashGadget<
     BN382FqQuinticSBoxGadget,
 >;
 
+pub type BN382FqPoseidonSpongeGadget = PoseidonSpongeGadget<
+    BN382Fq,
+    BN382FqPoseidonParameters,
+    BN382FqQuinticSbox,
+    BN382FqQuinticSBoxGadget,
+>;
+
 type BN382FrQuinticSBoxGadget = QuinticSBoxGadget<BN382Fr, BN382FrQuinticSbox>;
 pub type BN382FrPoseidonHashGadget = PoseidonHashGadget<
+    BN382Fr,
+    BN382FrPoseidonParameters,
+    BN382FrQuinticSbox,
+    BN382FrQuinticSBoxGadget,
+>;
+
+pub type BN382FrPoseidonSpongeGadget = PoseidonSpongeGadget<
     BN382Fr,
     BN382FrPoseidonParameters,
     BN382FrQuinticSbox,

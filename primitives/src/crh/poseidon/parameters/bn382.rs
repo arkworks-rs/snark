@@ -8,6 +8,7 @@ use algebra::fields::bn_382::Fr as BN382Fr;
 
 use algebra::biginteger::BigInteger384;
 use algebra::field_new;
+use crate::PoseidonSponge;
 
 #[derive(Clone)]
 pub struct BN382FqPoseidonParameters;
@@ -244,6 +245,7 @@ impl PoseidonParameters for BN382FqPoseidonParameters {
 pub type BN382FqQuinticSbox = PoseidonQuinticSBox<BN382Fq, BN382FqPoseidonParameters>;
 pub type BN382FqPoseidonHash = PoseidonHash<BN382Fq, BN382FqPoseidonParameters, BN382FqQuinticSbox>;
 pub type BN382FqBatchPoseidonHash = PoseidonBatchHash<BN382Fq, BN382FqPoseidonParameters, BN382FqQuinticSbox>;
+pub type BN382FqPoseidonSponge = PoseidonSponge<BN382Fq, BN382FqPoseidonParameters, BN382FqQuinticSbox>;
 
 #[derive(Clone)]
 pub struct BN382FrPoseidonParameters;
@@ -482,3 +484,4 @@ impl PoseidonParameters for BN382FrPoseidonParameters {
 pub type BN382FrQuinticSbox = PoseidonQuinticSBox<BN382Fr, BN382FrPoseidonParameters>;
 pub type BN382FrPoseidonHash = PoseidonHash<BN382Fr, BN382FrPoseidonParameters, BN382FrQuinticSbox>;
 pub type BN382FrBatchPoseidonHash = PoseidonBatchHash<BN382Fr, BN382FrPoseidonParameters, BN382FrQuinticSbox>;
+pub type BN382FrPoseidonSponge = PoseidonSponge<BN382Fr, BN382FrPoseidonParameters, BN382FrQuinticSbox>;
