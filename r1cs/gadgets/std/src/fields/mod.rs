@@ -15,6 +15,8 @@ pub mod fp6_2over3;
 pub mod quadratic_extension;
 pub mod cubic_extension;
 
+pub mod nonnative;
+
 pub trait FieldGadget<F: Field, ConstraintF: Field>:
     Sized
     + Clone

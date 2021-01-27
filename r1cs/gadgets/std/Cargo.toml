@@ -25,6 +25,10 @@ r1cs-core = { path = "../../core"}
 derivative = "1"
 radix_trie = "0.1"
 
+num-traits = { version = "0.2", default-features = false, optional = true }
+num-bigint = { version = "0.3.0", default-features = false, optional = true }
+num-integer = { version = "0.1.44", default-features = false, optional = true }
+
 [features]
 llvm_asm = ["algebra/llvm_asm"]
 
@@ -38,6 +42,9 @@ jubjub = [ "algebra/jubjub" ]
 mnt4_753 = [ "algebra/mnt4_753" ]
 mnt6_753 = [ "algebra/mnt6_753" ]
 tweedle = [ "algebra/tweedle" ]
+
+nonnative = ["num-traits", "num-bigint", "num-integer"]
+density-optimized = []
 
 [dev-dependencies]
 rand = { version = "0.7" }
