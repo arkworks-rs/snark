@@ -602,6 +602,7 @@ mod test {
         #[cfg(feature = "gpu")]
         let gpu = VariableBaseMSM::msm_inner_gpu(g.as_slice(), v.as_slice());
 
+        assert_eq!(naive, fast);
         assert_eq!(naive, affine);
         assert_eq!(naive, affine_sd);
         assert_eq!(naive, inner);
@@ -633,6 +634,8 @@ mod test {
 
         #[cfg(feature = "gpu")]
         let gpu = VariableBaseMSM::msm_inner_gpu(g.as_slice(), v.as_slice());
+
+        assert_eq!(naive, fast);
 
         assert_eq!(naive, affine);
         assert_eq!(naive, affine_sd);
