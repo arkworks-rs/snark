@@ -129,7 +129,7 @@ impl<SimulationF: PrimeField, ConstraintF: PrimeField> NonNativeFieldMulResultGa
         };
 
         let k_limbs = {
-            let zero = FpGadget::zero(cs.ns(|| "hardcode zero"))?;
+            let zero = FpGadget::zero(cs.ns(|| "hardcode zero for k_limbs"))?;
             let mut limbs = Vec::new();
 
             let mut k_bits_cur = k_bits.clone();
@@ -178,7 +178,7 @@ impl<SimulationF: PrimeField, ConstraintF: PrimeField> NonNativeFieldMulResultGa
 
         // Step 1: reduce `self` and `other` if necessary
         let mut prod_limbs = Vec::new();
-        let zero = FpGadget::<ConstraintF>::zero(cs.ns(|| "hardcode zero"))?;
+        let zero = FpGadget::<ConstraintF>::zero(cs.ns(|| "hardcode zero for step 1"))?;
 
         for _ in 0..2 * params.num_limbs - 1 {
             prod_limbs.push(zero.clone());
@@ -191,7 +191,7 @@ impl<SimulationF: PrimeField, ConstraintF: PrimeField> NonNativeFieldMulResultGa
                     &k_gadget.limbs[j]
                 )?;
                 prod_limbs[i + j] = prod_limbs[i + j].add(
-                    cs.ns(|| format!("prod_limbs[{}] = prod_limbs[{}] + mul_result", i + j, i + j)),
+                    cs.ns(|| format!("prod_limbs[{},{}] = prod_limbs[{},{}] + mul_result", i, j, i, j)),
                     &mul_result
                 )?;
             }

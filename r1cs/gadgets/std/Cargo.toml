@@ -47,6 +47,7 @@ nonnative = ["num-traits", "num-bigint", "num-integer"]
 density-optimized = []
 
 [dev-dependencies]
+paste = "1.0"
 rand = { version = "0.7" }
 rand_xorshift = { version = "0.2" }
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "nonnative", features = ["bls12_381", "jubjub"] }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "nonnative", features = ["full"] }

@@ -30,6 +30,9 @@ pub mod nonnative_field_gadget;
 
 pub mod nonnative_field_mul_result_gadget;
 
+#[cfg(test)]
+mod tests;
+
 /// a macro for computing ceil(log2(x)) for a field element x
 #[doc(hidden)]
 #[macro_export]

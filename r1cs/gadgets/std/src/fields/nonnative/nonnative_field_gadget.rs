@@ -121,22 +121,22 @@ impl<SimulationF: PrimeField, ConstraintF: PrimeField> NonNativeFieldGadget<Simu
                 if i != 0 {
                     let new_limb = this_limb
                         .add_constant(
-                            cs.ns(|| "this_limb + pad_non_top_limb + *pad_to_kp_limb"),
+                            cs.ns(|| format!("this_limb + pad_non_top_limb + *pad_to_kp_limb {}", i)),
                             &(pad_non_top_limb + pad_to_kp_limb)
                         )?
                         .sub(
-                            cs.ns(|| "this_limb + pad_non_top_limb + pad_to_kp_limb - other_limb"),
+                            cs.ns(|| format!("this_limb + pad_non_top_limb + pad_to_kp_limb - other_limb {}", i)),
                             other_limb
                         )?;
                     limbs.push(new_limb);
                 } else {
                     let new_limb = this_limb
                         .add_constant(
-                            cs.ns(|| "this_limb + pad_top_limb + *pad_to_kp_limb"),
+                            cs.ns(|| format!("this_limb + pad_top_limb + *pad_to_kp_limb {}", i)),
                             &(pad_top_limb + pad_to_kp_limb)
                         )?
                         .sub(
-                            cs.ns(|| "this_limb + pad_top_limb + pad_to_kp_limb - other_limb"),
+                            cs.ns(|| format!("this_limb + pad_top_limb + pad_to_kp_limb - other_limb {}", i)),
                             other_limb
                         )?;
                     limbs.push(new_limb);
@@ -219,7 +219,7 @@ impl<SimulationF: PrimeField, ConstraintF: PrimeField> NonNativeFieldGadget<Simu
                             cs.ns(|| format!("self_reduced.limbs[{}] * other_reduced.limbs[{}]", i, j)),
                             &other_reduced.limbs[j]
                         )?;
-                        prod_limbs[i + j].add(cs.ns(|| format!("prod_limbs[{}] + mul", i + j)), &mul)
+                        prod_limbs[i + j].add(cs.ns(|| format!("prod_limbs[{},{}] + mul", i, j)), &mul)
                     }?;
                 }
             }
@@ -249,25 +249,25 @@ impl<SimulationF: PrimeField, ConstraintF: PrimeField> NonNativeFieldGadget<Simu
                     .map(|i| ConstraintF::from((c + 1) as u128).pow(&vec![i as u64]))
                     .collect();
 
-                let mut x = FpGadget::<ConstraintF>::zero(cs.ns(|| "alloc x"))?;
+                let mut x = FpGadget::<ConstraintF>::zero(cs.ns(|| format!("alloc x {}", c)))?;
                 for (i, (var, c_pow)) in self_reduced.limbs.iter().zip(c_pows.iter()).enumerate() {
-                    let mul_result = var.mul_by_constant(cs.ns(|| format!("self var * c_pow[{}]", i)), &c_pow)?;
-                    x.add_in_place(cs.ns(|| format!("x + mul result {}", i)), &mul_result)?;
+                    let mul_result = var.mul_by_constant(cs.ns(|| format!("self var * c_pow[{}]{}", i, c)), &c_pow)?;
+                    x.add_in_place(cs.ns(|| format!("x + mul result {},{}", c, i)), &mul_result)?;
                 }
 
-                let mut y = FpGadget::<ConstraintF>::zero(cs.ns(|| "alloc y"))?;
+                let mut y = FpGadget::<ConstraintF>::zero(cs.ns(|| format!("alloc y {}", c)))?;
                 for (i, (var, c_pow)) in other_reduced.limbs.iter().zip(c_pows.iter()).enumerate() {
-                    let mul_result = var.mul_by_constant(cs.ns(|| format!("other var * c_pow[{}]", i)), &c_pow)?;
-                    y.add_in_place(cs.ns(|| format!("y + mul result {}", i)), &mul_result)?;
+                    let mul_result = var.mul_by_constant(cs.ns(|| format!("other var * c_pow[{}]{}", i, c)), &c_pow)?;
+                    y.add_in_place(cs.ns(|| format!("y + mul result {},{}", c, i)), &mul_result)?;
                 }
 
-                let mut z = FpGadget::<ConstraintF>::zero(cs.ns(|| "alloc z"))?;
+                let mut z = FpGadget::<ConstraintF>::zero(cs.ns(|| format!("alloc z {}", c)))?;
                 for (i, (var, c_pow)) in prod_limbs.iter().zip(c_pows.iter()).enumerate() {
-                    let mul_result = var.mul_by_constant(cs.ns(|| format!("prod var * c_pow[{}]", i)), &c_pow)?;
-                    z.add_in_place(cs.ns(|| format!("z + mul result {}", i)), &mul_result)?;
+                    let mul_result = var.mul_by_constant(cs.ns(|| format!("prod var * c_pow[{}]{}", i, c)), &c_pow)?;
+                    z.add_in_place(cs.ns(|| format!("z + mul result {},{}", c, i)), &mul_result)?;
                 }
 
-                x.mul_equals(cs.ns(|| "x * y = z"), &y, &z)?;
+                x.mul_equals(cs.ns(|| format!("x * y = z {}", c)), &y, &z)?;
             }
         }
 
@@ -769,7 +769,7 @@ for NonNativeFieldGadget<SimulationF, ConstraintF>
         }
 
         Reducer::<SimulationF, ConstraintF>::limb_to_bits(
-            cs.ns(|| "limb 0 to bits"),
+            cs.ns(|| "initial limb to bits"),
             &limbs[0],
             SimulationF::size_in_bits() - (params.num_limbs - 1) * params.bits_per_limb,
         )?;

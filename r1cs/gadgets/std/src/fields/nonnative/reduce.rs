@@ -15,9 +15,11 @@ use crate::{
 };
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use std::{cmp::min, marker::PhantomData, vec::Vec};
+
 use num_bigint::BigUint;
 use num_integer::Integer;
 use num_traits::{Zero, One};
+
 use crate::fields::FieldGadget;
 
 pub fn limbs_to_bigint<ConstraintF: PrimeField>(
@@ -214,20 +216,20 @@ impl<SimulationF: PrimeField, ConstraintF: PrimeField> Reducer<SimulationF, Cons
                 limb_pairs_in_a_group.iter().zip(shift_array.iter()).enumerate()
                 {
                     let left_mul = left_limb.mul_by_constant(
-                        cs.ns(|| format!("left_limb * shift {}{}", i, j)),
+                        cs.ns(|| format!("left_limb * shift {},{}", i, j)),
                         shift
                     )?;
                     left_total_limb.add_in_place(
-                        cs.ns(|| format!("left_total_limb += left_mul {}{}", i, j)),
+                        cs.ns(|| format!("left_total_limb += left_mul {},{}", i, j)),
                         &left_mul
                     )?;
 
                     let right_mul = right_limb.mul_by_constant(
-                        cs.ns(|| format!("right_limb * shift {}{}", i, j)),
+                        cs.ns(|| format!("right_limb * shift {},{}", i, j)),
                         shift
                     )?;
                     right_total_limb.add_in_place(
-                        cs.ns(|| format!("right_total_limb += right_mul {}{}", i, j)),
+                        cs.ns(|| format!("right_total_limb += right_mul {},{}", i, j)),
                         &right_mul
                     )?;
                 }
