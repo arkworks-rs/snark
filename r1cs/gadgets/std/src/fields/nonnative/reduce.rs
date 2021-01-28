@@ -1,7 +1,4 @@
-use algebra::{
-    biginteger::BigInteger,
-    fields::{PrimeField, FpParameters}
-};
+use algebra::{biginteger::BigInteger, fields::{PrimeField, FpParameters}, BitIterator};
 
 use crate::{
     prelude::*,
@@ -79,13 +76,32 @@ impl<SimulationF: PrimeField, ConstraintF: PrimeField> Reducer<SimulationF, Cons
     ) -> Result<Vec<Boolean>, SynthesisError> {
 
         let num_bits = min(ConstraintF::size_in_bits() - 1, num_bits);
-        let to_skip = <<ConstraintF as PrimeField>::Params as FpParameters>::REPR_SHAVE_BITS as usize
-            + (ConstraintF::size_in_bits() - num_bits);
+        let mut bits_considered = Vec::with_capacity(num_bits);
+        let limb_value = limb.get_value().unwrap_or_default();
 
-        limb.to_bits_with_length_restriction(
-            cs.ns(|| "to bits with length restriction"),
-            to_skip
-        )
+        for b in BitIterator::new(limb_value.into_repr()).skip(
+            <<ConstraintF as PrimeField>::Params as FpParameters>::REPR_SHAVE_BITS as usize
+                + (ConstraintF::size_in_bits() - num_bits),
+        ) {
+            bits_considered.push(b);
+        }
+
+        let mut bits = vec![];
+        for (i, b) in bits_considered.iter().enumerate() {
+            bits.push(Boolean::alloc(
+                cs.ns(|| format!("alloc bit {}", i)),
+                || Ok(b),
+            )?);
+        }
+
+        let bit_sum = FpGadget::<ConstraintF>::from_bits(
+            cs.ns(|| "pack bits"),
+            bits.as_slice()
+        )?;
+
+        bit_sum.enforce_equal(cs.ns(|| "bit_sum == limb"), &limb)?;
+
+        Ok(bits)
     }
 
     /// Reduction to the normal form

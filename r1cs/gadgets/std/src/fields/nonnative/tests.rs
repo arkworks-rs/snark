@@ -23,8 +23,8 @@ use rand::{
     RngCore, thread_rng,
 };
 
-const NUM_REPETITIONS: usize = 100;
-const TEST_COUNT: usize = 100;
+const NUM_REPETITIONS: usize = 10;
+const TEST_COUNT: usize = 10;
 
 fn allocation_test<SimulationF: PrimeField, ConstraintF: PrimeField, R: RngCore>(
     rng: &mut R,
