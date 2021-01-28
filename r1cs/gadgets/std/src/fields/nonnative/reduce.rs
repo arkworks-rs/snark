@@ -1,7 +1,6 @@
 use algebra::{
     biginteger::BigInteger,
-    fields::{Field, PrimeField, FpParameters},
-    BitIterator
+    fields::{PrimeField, FpParameters}
 };
 
 use crate::{
@@ -9,15 +8,17 @@ use crate::{
     fields::{
         fp::FpGadget,
         nonnative::{
-            params::get_params, overhead, nonnative_field_gadget::NonNativeFieldGadget
+            params::get_params, nonnative_field_gadget::NonNativeFieldGadget
         }
-    }
+    },
+    overhead
 };
-use r1cs_core::{ConstraintSystem, SynthesisError, LinearCombination};
-use std::{cmp::min, marker::PhantomData, vec, vec::Vec};
+use r1cs_core::{ConstraintSystem, SynthesisError};
+use std::{cmp::min, marker::PhantomData, vec::Vec};
 use num_bigint::BigUint;
 use num_integer::Integer;
 use num_traits::{Zero, One};
+use crate::fields::FieldGadget;
 
 pub fn limbs_to_bigint<ConstraintF: PrimeField>(
     bits_per_limb: usize,
@@ -47,7 +48,7 @@ pub fn bigint_to_constraint_field<ConstraintF: PrimeField>(bigint: &BigUint) -> 
     let mut cur = ConstraintF::one();
     let bytes = bigint.to_bytes_be();
 
-    let basefield_256 = ConstraintF::from_repr(<ConstraintF as PrimeField>::BigInt::from(256)).unwrap();
+    let basefield_256 = ConstraintF::from_repr(<ConstraintF as PrimeField>::BigInt::from(256));
 
     for byte in bytes.iter().rev() {
         let bytes_basefield = ConstraintF::from(*byte as u128);
@@ -95,7 +96,7 @@ impl<SimulationF: PrimeField, ConstraintF: PrimeField> Reducer<SimulationF, Cons
             cs.ns(|| "alloc normal form"),
             || { Ok(elem.get_value().unwrap_or_default()) }
         )?;
-        elem.enforce_equal(cs.ns("elem == new_elem"),&new_elem)?;
+        elem.enforce_equal(cs.ns(|| "elem == new_elem"),&new_elem)?;
         *elem = new_elem;
         Ok(())
     }
@@ -117,7 +118,7 @@ impl<SimulationF: PrimeField, ConstraintF: PrimeField> Reducer<SimulationF, Cons
 
     /// Reduction used before multiplication to reduce the representations in a way that allows efficient multiplication
     pub fn pre_mul_reduce<CS: ConstraintSystem<ConstraintF>>(
-        cs: CS,
+        mut cs: CS,
         elem: &mut NonNativeFieldGadget<SimulationF, ConstraintF>,
         elem_other: &mut NonNativeFieldGadget<SimulationF, ConstraintF>
     ) -> Result<(), SynthesisError> {
@@ -129,6 +130,7 @@ impl<SimulationF: PrimeField, ConstraintF: PrimeField> Reducer<SimulationF, Cons
             panic!("The current limb parameters do not support multiplication.");
         }
 
+        let mut i = 0;
         loop {
             let prod_of_num_of_additions = (elem.num_of_additions_over_normal_form
                 + ConstraintF::one())
@@ -137,7 +139,6 @@ impl<SimulationF: PrimeField, ConstraintF: PrimeField> Reducer<SimulationF, Cons
                 &ConstraintF::from_repr(<ConstraintF as PrimeField>::BigInt::from(
                     (params.num_limbs) as u64
                 ))
-                .unwrap()
             ));
             let bits_per_mulresult_limb = 2 * (params.bits_per_limb + 1) + overhead_limb;
 
@@ -148,10 +149,11 @@ impl<SimulationF: PrimeField, ConstraintF: PrimeField> Reducer<SimulationF, Cons
             if elem.num_of_additions_over_normal_form
                 >= elem_other.num_of_additions_over_normal_form
             {
-                Self::reduce(cs, elem)?;
+                Self::reduce(cs.ns(|| format!("reduce elem {}", i)), elem)?;
             } else {
-                Self::reduce(cs,elem_other)?;
+                Self::reduce(cs.ns(|| format!("reduce elem other {}", i)),elem_other)?;
             }
+            i += 1;
         }
 
         Ok(())
@@ -159,6 +161,7 @@ impl<SimulationF: PrimeField, ConstraintF: PrimeField> Reducer<SimulationF, Cons
 
     /// Reduction to the normal form
     pub fn pre_eq_reduce<CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
         elem: &mut NonNativeFieldGadget<SimulationF, ConstraintF>,
     ) -> Result<(), SynthesisError> {
         if elem.is_in_the_normal_form {
@@ -178,7 +181,7 @@ impl<SimulationF: PrimeField, ConstraintF: PrimeField> Reducer<SimulationF, Cons
         right: &[FpGadget<ConstraintF>],
     ) -> Result<(), SynthesisError> {
 
-        let zero = FpGadget::<ConstraintF>::zero();
+        let zero = FpGadget::<ConstraintF>::zero(cs.ns(|| "hardcode zero"))?;
 
         let mut limb_pairs = Vec::<(FpGadget<ConstraintF>, FpGadget<ConstraintF>)>::new();
         let num_limb_in_a_group =
@@ -189,7 +192,7 @@ impl<SimulationF: PrimeField, ConstraintF: PrimeField> Reducer<SimulationF, Cons
             let mut array = Vec::new();
             let mut cur = ConstraintF::one().into_repr();
             for _ in 0..num_limb_in_a_group {
-                array.push(ConstraintF::from_repr(cur).unwrap());
+                array.push(ConstraintF::from_repr(cur));
                 cur.muln(shift_per_limb as u32);
             }
 
@@ -253,7 +256,7 @@ impl<SimulationF: PrimeField, ConstraintF: PrimeField> Reducer<SimulationF, Cons
                         + 1
                         + 1) as u32,
                 );
-                let pad_limb = ConstraintF::from_repr(pad_limb_repr).unwrap();
+                let pad_limb = ConstraintF::from_repr(pad_limb_repr);
 
                 let left_total_limb_value = left_total_limb.get_value().unwrap_or_default();
                 let right_total_limb_value = right_total_limb.get_value().unwrap_or_default();
@@ -264,7 +267,7 @@ impl<SimulationF: PrimeField, ConstraintF: PrimeField> Reducer<SimulationF, Cons
                 let mut carry_repr = carry_value.into_repr();
                 carry_repr.divn((shift_per_limb * num_limb_in_this_group) as u32);
 
-                carry_value = ConstraintF::from_repr(carry_repr).unwrap();
+                carry_value = ConstraintF::from_repr(carry_repr);
 
                 let carry = FpGadget::<ConstraintF>::alloc(
                     cs.ns(|| format!("alloc carry {}", group_id)),
@@ -294,15 +297,15 @@ impl<SimulationF: PrimeField, ConstraintF: PrimeField> Reducer<SimulationF, Cons
                     .sub(
                         cs.ns(|| format!("left_total_limb + pad_limb + carry_in - right_total_limb {}", group_id)),
                         right_total_limb
-                    );
+                    )?;
 
                 let eqn_right = carry
                     .mul_by_constant(
-                        cs.ns(|| format!("carry * 2^(shift_per_limb * num_limb_in_this_group)", group_id)),
+                        cs.ns(|| format!("carry * 2^(shift_per_limb * num_limb_in_this_group) {}", group_id)),
                         &ConstraintF::from(2u64).pow(&[(shift_per_limb * num_limb_in_this_group) as u64])
                     )?
                     .add_constant(
-                        cs.ns(|| format!("carry * 2^(shift_per_limb * num_limb_in_this_group) + remainder_limb", group_id)),
+                        cs.ns(|| format!("carry * 2^(shift_per_limb * num_limb_in_this_group) + remainder_limb {}", group_id)),
                         &remainder_limb
                     )?;
 

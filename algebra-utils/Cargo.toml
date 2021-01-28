@@ -20,7 +20,7 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "poseidon_sponge", features = [ "parallel" ] }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "nonnative", features = [ "parallel" ] }
 
 rand = { version = "0.7" }
 
