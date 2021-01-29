@@ -105,7 +105,8 @@ impl<SimulationF: PrimeField, ConstraintF: PrimeField> Reducer<SimulationF, Cons
     }
 
     /// Reduction to the normal form
-    /// TODO: ???
+    /// allocates a non-native field element which carries the reduced representation,
+    /// which again has no excess in the limbs
     pub fn reduce<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         elem: &mut NonNativeFieldGadget<SimulationF, ConstraintF>

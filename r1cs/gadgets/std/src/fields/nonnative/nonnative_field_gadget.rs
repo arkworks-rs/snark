@@ -409,9 +409,10 @@ for NonNativeFieldGadget<SimulationF, ConstraintF> {
         let inverse = Self::alloc(cs.ns(|| "inverse"), || {
             Ok(self.get_value().get()?.inverse().unwrap_or_else(SimulationF::zero))
         })?;
+        let one = Self::one(cs.ns(|| "alloc one"))?;
 
         let actual_result = self.clone().mul(cs.ns(||"self * inverse"), &inverse)?;
-        actual_result.enforce_equal(cs.ns(|| "self * inverse == 1"), &inverse)?;
+        actual_result.enforce_equal(cs.ns(|| "self * inverse == 1"), &one)?;
         Ok(inverse)
     }
 

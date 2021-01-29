@@ -113,7 +113,7 @@ impl<SimulationF: PrimeField, ConstraintF: PrimeField> NonNativeFieldMulResultGa
             }
 
             let value_bigint = limbs_to_bigint(params.bits_per_limb, &limbs_values);
-            let mut k_cur = value_bigint / p_bigint;
+            let mut k_cur = value_bigint / p_bigint; // drops the remainder
 
             let total_len = SimulationF::size_in_bits() + surfeit;
 
@@ -123,7 +123,7 @@ impl<SimulationF: PrimeField, ConstraintF: PrimeField> NonNativeFieldMulResultGa
                     || {
                     Ok(&k_cur % 2u64 == BigUint::from(1u64))
                 })?);
-                k_cur /= 2u64;
+                k_cur /= 2u64; // drops the remainder
             }
             res
         };
