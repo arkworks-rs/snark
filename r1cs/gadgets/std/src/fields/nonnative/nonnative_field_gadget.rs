@@ -369,10 +369,6 @@ for NonNativeFieldGadget<SimulationF, ConstraintF> {
         Ok(res_reduced)
     }
 
-    // TODO: Unlike arkworks, we still don't have an implicit way to discriminate whether a Gadget
-    //       represents a variable or a constant. For the moment let's get away with the implementation
-    //       below (for addition it doesn't make a difference in terms of constraints anyway), but
-    //       we need to have a specific implementation for this function.
     fn add_constant<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
@@ -386,10 +382,6 @@ for NonNativeFieldGadget<SimulationF, ConstraintF> {
         self.add(cs.ns(|| "add constant"), &other_g)
     }
 
-    // TODO: Unlike arkworks, we still don't have an implicit way to discriminate whether a Gadget
-    //       represents a variable or a constant. For the moment let's get away with the implementation
-    //       below (for subtraction it doesn't make a difference in terms of constraints anyway), but
-    //       we need to have a specific implementation for this function.
     fn sub_constant<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS, fe: &SimulationF) -> Result<Self, SynthesisError> {
         let other_g = Self::from_value(
             cs.ns(|| "hardcode sub constant"),
@@ -398,9 +390,7 @@ for NonNativeFieldGadget<SimulationF, ConstraintF> {
         self.sub(cs.ns(|| "subtract constant"), &other_g)
     }
 
-    // TODO: Unlike arkworks, we still don't have an implicit way to discriminate whether a Gadget
-    //       represents a variable or a constant. For the moment let's get away with the implementation
-    //       below but we need to have a specific implementation for this function (it saves constraints)
+    // TODO: Can be optimized by implementing a mul_by_constant_without_reduce() ?
     fn mul_by_constant<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS, fe: &SimulationF) -> Result<Self, SynthesisError> {
         let other_g = Self::from_value(
             cs.ns(|| "hardcode mul constant"),
