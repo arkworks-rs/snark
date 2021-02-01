@@ -28,7 +28,7 @@ pub use self::mnt6753::*;
 pub mod bn382;
 #[cfg(feature = "bn_382")]
 pub use self::bn382::*;
-use primitives::{PoseidonSBox, SpongeMode, PoseidonSponge};
+use primitives::{PoseidonSBox, SpongeMode, PoseidonSponge, AlgebraicSponge};
 use crate::AlgebraicSpongeGadget;
 
 pub struct PoseidonHashGadget
@@ -268,9 +268,9 @@ pub struct PoseidonSpongeGadget
     SBG:         SBoxGadget<ConstraintF, SB>,
 >
 {
-    mode:           SpongeMode,
-    state:          Vec<FpGadget<ConstraintF>>,
-    pending:        Vec<FpGadget<ConstraintF>>,
+    pub(crate) mode:               SpongeMode,
+    pub(crate) state:              Vec<FpGadget<ConstraintF>>,
+    pub(crate) pending:            Vec<FpGadget<ConstraintF>>,
     _field:             PhantomData<ConstraintF>,
     _parameters:        PhantomData<P>,
     _sbox:              PhantomData<SB>,
@@ -337,6 +337,23 @@ for PoseidonSpongeGadget<ConstraintF, P, SB, SBG>
             _sbox: PhantomData,
             _sbox_gadget: PhantomData
         })
+    }
+
+    fn get_state(&self) -> &[FpGadget<ConstraintF>] {
+        &self.state
+    }
+
+    fn set_state(&mut self, state: Vec<FpGadget<ConstraintF>>) {
+        assert_eq!(state.len(), P::T);
+        self.state = state;
+    }
+
+    fn get_mode(&self) -> &SpongeMode {
+        &self.mode
+    }
+
+    fn set_mode(&mut self, mode: SpongeMode) {
+        self.mode = mode;
     }
 
     fn enforce_absorb<CS: ConstraintSystem<ConstraintF>>(
@@ -408,6 +425,70 @@ for PoseidonSpongeGadget<ConstraintF, P, SB, SBG>
             }
         }
         Ok(outputs)
+    }
+}
+
+impl<ConstraintF, P, SB, SBG> ConstantGadget<PoseidonSponge<ConstraintF, P, SB>, ConstraintF>
+for PoseidonSpongeGadget<ConstraintF, P, SB, SBG>
+    where
+        ConstraintF: PrimeField,
+        P:           PoseidonParameters<Fr = ConstraintF>,
+        SB:          PoseidonSBox<P>,
+        SBG:         SBoxGadget<ConstraintF, SB>,
+{
+    fn from_value<CS: ConstraintSystem<ConstraintF>>(mut cs: CS, value: &PoseidonSponge<ConstraintF, P, SB>) -> Self {
+        let state_g = Vec::<FpGadget<ConstraintF>>::from_value(
+            cs.ns(|| "hardcode state"),
+            &value.get_state().to_vec()
+        );
+
+        let pending_g = Vec::<FpGadget<ConstraintF>>::from_value(
+            cs.ns(|| "hardcode pending"),
+            &value.get_pending().to_vec()
+        );
+
+        Self {
+            mode: value.get_mode().clone(),
+            state: state_g,
+            pending: pending_g,
+            _field: PhantomData,
+            _parameters: PhantomData,
+            _sbox: PhantomData,
+            _sbox_gadget: PhantomData
+        }
+    }
+
+    fn get_constant(&self) -> PoseidonSponge<ConstraintF, P, SB> {
+        let digest = PoseidonHash::<ConstraintF, P, SB>::new(
+            self.state.get_constant(),
+            self.pending.get_constant(),
+        );
+        PoseidonSponge::<ConstraintF, P, SB>::new(
+            self.mode.clone(),
+            digest
+        )
+    }
+}
+
+impl<ConstraintF, P, SB, SBG> From<Vec<FpGadget<ConstraintF>>>
+for PoseidonSpongeGadget<ConstraintF, P, SB, SBG>
+    where
+        ConstraintF: PrimeField,
+        P:           PoseidonParameters<Fr = ConstraintF>,
+        SB:          PoseidonSBox<P>,
+        SBG:         SBoxGadget<ConstraintF, SB>,
+{
+    fn from(other: Vec<FpGadget<ConstraintF>>) -> Self {
+        assert_eq!(other.len(), P::T);
+        Self {
+            mode: SpongeMode::Absorbing,
+            state: other,
+            pending: Vec::with_capacity(P::R),
+            _field: PhantomData,
+            _parameters: PhantomData,
+            _sbox: PhantomData,
+            _sbox_gadget: PhantomData
+        }
     }
 }
 

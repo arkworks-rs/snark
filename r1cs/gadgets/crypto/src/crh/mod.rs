@@ -19,7 +19,8 @@ pub use self::sbox::*;
 
 pub mod poseidon;
 pub use self::poseidon::*;
-use primitives::AlgebraicSponge;
+use primitives::{AlgebraicSponge, SpongeMode};
+use r1cs_std::fields::fp::FpGadget;
 
 pub trait FixedLengthCRHGadget<H: FixedLengthCRH, ConstraintF: Field>: Sized {
     type OutputGadget: EqGadget<ConstraintF>
@@ -60,10 +61,22 @@ pub trait FieldHasherGadget<
     ) -> Result<HG::DataGadget, SynthesisError>;
 }
 
-pub trait AlgebraicSpongeGadget<H: AlgebraicSponge<ConstraintF>, ConstraintF: PrimeField>: Sized {
+pub trait AlgebraicSpongeGadget<H: AlgebraicSponge<ConstraintF>, ConstraintF: PrimeField>:
+    ConstantGadget<H, ConstraintF>
+    + From<Vec<FpGadget<ConstraintF>>>
+    + Sized
+{
     type DataGadget: FieldGadget<ConstraintF, ConstraintF>;
 
     fn new<CS: ConstraintSystem<ConstraintF>>(cs: CS) -> Result<Self, SynthesisError>;
+
+    fn get_state(&self) -> &[FpGadget<ConstraintF>];
+
+    fn set_state(&mut self, state: Vec<FpGadget<ConstraintF>>);
+
+    fn get_mode(&self) -> &SpongeMode;
+
+    fn set_mode(&mut self, mode: SpongeMode);
 
     fn enforce_absorb<CS: ConstraintSystem<ConstraintF>>(
         &mut self,
@@ -137,7 +150,7 @@ mod test {
         let mut cs = TestConstraintSystem::<F>::new();
 
         // Check equality between primitive and gadget result
-        let mut primitive_sponge = H::new();
+        let mut primitive_sponge = H::init();
         primitive_sponge.absorb(inputs.clone());
 
         let mut input_gadgets = Vec::with_capacity(inputs.len());

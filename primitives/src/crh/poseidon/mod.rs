@@ -48,6 +48,15 @@ impl<F, P, SB> PoseidonHash<F, P, SB>
         P: PoseidonParameters<Fr = F>,
         SB: PoseidonSBox<P>,
 {
+    pub fn new(state: Vec<F>, pending: Vec<F>) -> Self {
+        Self {
+            state,
+            pending,
+            _parameters: PhantomData,
+            _sbox: PhantomData
+        }
+    }
+
     #[inline]
     fn apply_permutation(&mut self, add_c2: bool) {
         for (input, state) in self.pending.iter().zip(self.state.iter_mut()) {
@@ -223,9 +232,20 @@ impl<F, P, SB> PoseidonSponge<F, P, SB>
         P: PoseidonParameters<Fr = F>,
         SB: PoseidonSBox<P>,
 {
+    pub fn new(mode: SpongeMode, digest: PoseidonHash<F, P, SB>) -> Self {
+        Self {
+            mode,
+            digest
+        }
+    }
+
     fn clear_pending_and_apply_permutation(&mut self) {
         self.digest.apply_permutation(false);
         self.digest.pending.clear();
+    }
+
+    pub fn get_pending(&self) -> &[F] {
+        &self.digest.pending
     }
 }
 
@@ -235,22 +255,27 @@ impl<F, P, SB> AlgebraicSponge<F> for PoseidonSponge<F, P, SB>
         P: PoseidonParameters<Fr = F>,
         SB: PoseidonSBox<P>,
 {
-    fn new() -> Self {
+    fn init() -> Self {
         let digest = PoseidonHash::<F, P, SB>::init(None);
-        let mode = SpongeMode::Absorbing;
-        Self { mode, digest }
-    }
-
-    fn from_state(state: Vec<F>) -> Self {
-        assert_eq!(state.len(), P::T);
-        let mut digest = PoseidonHash::<F, P, SB>::init(None);
-        digest.state = state;
         let mode = SpongeMode::Absorbing;
         Self { mode, digest }
     }
 
     fn get_state(&self) -> &[F] {
         self.digest.state.as_slice()
+    }
+
+    fn set_state(&mut self, state: Vec<F>) {
+        assert_eq!(state.len(), P::T);
+        self.digest.state = state;
+    }
+
+    fn get_mode(&self) -> &SpongeMode {
+        &self.mode
+    }
+
+    fn set_mode(&mut self, mode: SpongeMode) {
+        self.mode = mode;
     }
 
     fn absorb(&mut self, elems: Vec<F>) {
@@ -311,6 +336,25 @@ impl<F, P, SB> AlgebraicSponge<F> for PoseidonSponge<F, P, SB>
             }
         }
         outputs
+    }
+}
+
+impl<F, P, SB> From<Vec<F>> for PoseidonSponge<F, P, SB>
+    where
+        F: PrimeField,
+        P: PoseidonParameters<Fr = F>,
+        SB: PoseidonSBox<P>,
+{
+    fn from(other: Vec<F>) -> Self {
+        assert_eq!(other.len(), P::T);
+        let digest = PoseidonHash::<F, P, SB>{
+            state: other,
+            pending: Vec::with_capacity(P::R),
+            _parameters: PhantomData,
+            _sbox: PhantomData
+        };
+        let mode = SpongeMode::Absorbing;
+        Self { mode, digest }
     }
 }
 

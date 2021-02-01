@@ -117,20 +117,24 @@ pub enum SpongeMode {
 }
 
 /// the trait for algebraic sponge
-pub trait AlgebraicSponge<F: PrimeField>: Clone {
+pub trait AlgebraicSponge<F: PrimeField>: Clone + From<Vec<F>> {
     /// Initialize the sponge
-    fn new() -> Self;
-    /// Initialize the sponge given a state
-    fn from_state(state: Vec<F>) -> Self;
+    fn init() -> Self;
     /// Get the sponge internal state
     fn get_state(&self) -> &[F];
+    /// Set the sponge internal state
+    fn set_state(&mut self, state: Vec<F>);
+    /// Get Sponge current operating mode
+    fn get_mode(&self) -> &SpongeMode;
+    /// Set Sponge operating mode
+    fn set_mode(&mut self, mode: SpongeMode);
     /// Update the sponge with `elems`
     fn absorb(&mut self, elems: Vec<F>);
     /// Output `num` field elements from the sponge.
     fn squeeze(&mut self, num: usize) -> Vec<F>;
     /// Reset the sponge to its initial state
     fn reset(&mut self) {
-        *self = Self::new();
+        *self = Self::init();
     }
 }
 
@@ -191,7 +195,7 @@ mod test {
         expected_squeeze: F
     )
     {
-        let mut sponge = H::new();
+        let mut sponge = H::init();
 
         // Absorb all field elements
         sponge.absorb(to_absorb);

@@ -137,3 +137,25 @@ pub trait ConstantGadget<V, ConstraintF: Field>
 
     fn get_constant(&self) -> V;
 }
+
+impl<I, ConstraintF: Field, A: ConstantGadget<I, ConstraintF>> ConstantGadget<Vec<I>, ConstraintF> for Vec<A> {
+    fn from_value<CS: ConstraintSystem<ConstraintF>>(mut cs: CS, value: &Vec<I>) -> Self {
+        let mut vec = Vec::new();
+
+        for (i, value) in value.iter().enumerate() {
+            vec.push(A::from_value(cs.ns(|| format!("hardcode val {}", i)), value));
+        }
+
+        vec
+    }
+
+    fn get_constant(&self) -> Vec<I> {
+        let mut vec = Vec::new();
+
+        for value in self.iter() {
+            vec.push(A::get_constant(value));
+        }
+
+        vec
+    }
+}
