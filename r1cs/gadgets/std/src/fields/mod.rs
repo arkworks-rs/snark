@@ -1,5 +1,5 @@
 // use std::ops::{Mul, MulAssign};
-use algebra::Field;
+use algebra::{Field, BitIterator};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use std::fmt::Debug;
 
@@ -238,6 +238,35 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
                 &tmp,
                 &res,
             )?;
+        }
+        Ok(res)
+    }
+
+    /// Computes `self^S`, where S is interpreted as an little-endian
+    /// u64-decomposition of an integer.
+    fn pow_by_constant<S: AsRef<[u64]>, CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        exp: S
+    ) -> Result<Self, SynthesisError> {
+        let mut res = Self::one(cs.ns(|| "alloc result"))?;
+        let mut found_one = false;
+
+        for i in BitIterator::new(exp) {
+
+            // Skip leading zeros
+            if !found_one {
+                if i {
+                    found_one = true;
+                } else {
+                    continue;
+                }
+            }
+            res.square_in_place(cs.ns(|| format!("square_{}", i)))?;
+
+            if i {
+                res.mul_in_place(cs.ns(|| format!("multiply_{}", i)), self)?;
+            }
         }
         Ok(res)
     }
