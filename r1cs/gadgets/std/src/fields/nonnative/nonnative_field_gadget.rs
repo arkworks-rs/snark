@@ -16,7 +16,7 @@ use std::cmp::{max, min};
 use std::marker::PhantomData;
 use std::{borrow::Borrow, vec, vec::Vec};
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Hash)]
 #[must_use]
 pub struct NonNativeFieldGadget<SimulationF: PrimeField, ConstraintF: PrimeField> {
     /// The limbs, each of which is a ConstraintF gadget.
