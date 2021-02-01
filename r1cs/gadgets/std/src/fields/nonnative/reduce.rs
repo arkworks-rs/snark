@@ -99,6 +99,8 @@ impl<SimulationF: PrimeField, ConstraintF: PrimeField> Reducer<SimulationF, Cons
             bits.as_slice()
         )?;
 
+        // TODO: Is the packing constraint coming from "from_bits()" already enough
+        //       without having this additional one ?
         bit_sum.enforce_equal(cs.ns(|| "bit_sum == limb"), &limb)?;
 
         Ok(bits)
@@ -203,9 +205,14 @@ impl<SimulationF: PrimeField, ConstraintF: PrimeField> Reducer<SimulationF, Cons
         let zero = FpGadget::<ConstraintF>::zero(cs.ns(|| "hardcode zero"))?;
 
         let mut limb_pairs = Vec::<(FpGadget<ConstraintF>, FpGadget<ConstraintF>)>::new();
-        let num_limb_in_a_group =
-            (ConstraintF::size_in_bits() - 1 - surfeit - 1 - 1 - (bits_per_limb - shift_per_limb))
-                / shift_per_limb;
+        let num_limb_in_a_group = (ConstraintF::size_in_bits()
+            - 1
+            - surfeit
+            - 1
+            - 1
+            - 1
+            - (bits_per_limb - shift_per_limb))
+            / shift_per_limb;
 
         let shift_array = {
             let mut array = Vec::new();

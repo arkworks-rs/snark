@@ -39,8 +39,12 @@ impl<SimulationF: PrimeField, ConstraintF: PrimeField> NonNativeFieldGadget<Simu
         let params = get_params(SimulationF::size_in_bits(), ConstraintF::size_in_bits());
 
         let mut base_repr: <SimulationF as PrimeField>::BigInt = SimulationF::one().into_repr();
-        base_repr.muln(params.bits_per_limb as u32);
-        let base: SimulationF = SimulationF::from_repr(base_repr);
+
+        // Convert 2^{(params.bits_per_limb - 1)} into the SimulationF then double the base
+        // This is because 2^{(params.bits_per_limb)} might indeed be larger than the target field's prime.
+        base_repr.muln((params.bits_per_limb - 1) as u32);
+        let mut base = SimulationF::from_repr(base_repr);
+        base = base + &base;
 
         let mut result = SimulationF::zero();
         let mut power = SimulationF::one();
@@ -939,20 +943,24 @@ for NonNativeFieldGadget<SimulationF, ConstraintF>
         Ok(())
     }
 
-    //TODO: ?
-    /*fn conditional_enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
+    fn conditional_enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
         should_enforce: &Boolean
     ) -> Result<(), SynthesisError> {
-
-        let _ = should_enforce
-            .select(&self.sub(other)?, &Self::one(cs)?)?
-            .inverse()?;
+        let one = Self::one(cs.ns(|| "hardcode one"))?;
+        let sub = self.sub(cs.ns(|| "self - other"), &other)?;
+        let _ = Self::conditionally_select(
+            cs.ns(|| "SELECT self - other OR one"),
+            should_enforce,
+            &sub,
+            &one
+        )?
+            .inverse(cs.ns(|| "invert cond select result"))?;
 
         Ok(())
-    }*/
+    }
 }
 
 /*
