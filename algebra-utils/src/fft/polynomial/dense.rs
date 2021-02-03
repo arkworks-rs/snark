@@ -495,4 +495,20 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn compute_lagrange_polynomials_test() {
+        for size in 1..8 {
+            let domain = get_best_evaluation_domain::<Fr>(1 << size).unwrap();
+            let polys = domain.compute_all_lagrange_polynomials();
+            for (i, poly) in polys.iter().enumerate() {
+                let mut i_th_unit_vector = vec![Fr::zero(); 1 << size];
+                i_th_unit_vector[i] = Fr::one();
+
+                let evals = poly.evaluate_over_domain_by_ref(domain.clone()).evals;
+
+                assert_eq!(i_th_unit_vector, evals);
+            }
+        }
+    }
 }

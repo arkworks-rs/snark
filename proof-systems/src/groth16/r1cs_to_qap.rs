@@ -76,7 +76,7 @@ impl R1CStoQAP {
 
         //Evaluate all Lagrange polynomials L_i(t) for "i in H".
         let coefficients_time = start_timer!(|| "Evaluate Lagrange coefficients");
-        let u = domain.evaluate_all_lagrange_coefficients(*t);
+        let u = domain.evaluate_all_lagrange_polynomials(*t);
         end_timer!(coefficients_time);
 
         //one variable in the R1CS is always for the constants

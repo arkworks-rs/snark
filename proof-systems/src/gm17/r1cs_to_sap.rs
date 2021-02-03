@@ -24,7 +24,7 @@ impl R1CStoSAP {
 
         // Evaluate all Lagrange polynomials
         let coefficients_time = start_timer!(|| "Evaluate Lagrange coefficients");
-        let u = domain.evaluate_all_lagrange_coefficients(*t);
+        let u = domain.evaluate_all_lagrange_polynomials(*t);
         end_timer!(coefficients_time);
 
         let sap_num_variables =

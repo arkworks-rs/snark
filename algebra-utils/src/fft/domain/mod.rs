@@ -22,10 +22,7 @@ pub use self::mixed_radix_2_domain::*;
 #[cfg(test)]
 mod test;
 
-use crate::{
-    SparsePolynomial,
-    multicore::Worker,
-};
+use crate::{SparsePolynomial, multicore::Worker, DensePolynomial};
 use algebra::PrimeField;
 use rayon::prelude::*;
 //use std::hash::Hash;
@@ -129,9 +126,25 @@ pub trait EvaluationDomain<F: PrimeField>: Debug + Send + Sync
         result
     }
 
+    /// Compute the coefficients of all the lagrange polynomials defined
+    /// by this domain (unfeasible for big domains).
+    /// TODO: Maybe optimize ? Even if probably not worth it because we are going
+    ///       to call this for small domain sizes
+    fn compute_all_lagrange_polynomials(&self) -> Vec<DensePolynomial<F>> {
+
+        let size = self.size();
+
+        (0..size).into_iter().map(|i| {
+            let mut i_th_unit_vector = vec![F::zero(); size];
+            i_th_unit_vector[i] = F::one();
+            self.ifft_in_place(&mut i_th_unit_vector);
+            DensePolynomial::from_coefficients_vec(i_th_unit_vector)
+        }).collect()
+    }
+
     /// Evaluate all the lagrange polynomials defined by this domain at the point
     /// `tau`.
-    fn evaluate_all_lagrange_coefficients(&self, tau: F) -> Vec<F> {
+    fn evaluate_all_lagrange_polynomials(&self, tau: F) -> Vec<F> {
         // Evaluate all Lagrange polynomials
         let size = self.size();
         let t_size = tau.pow(&[size as u64]);
