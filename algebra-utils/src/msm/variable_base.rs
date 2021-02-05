@@ -385,6 +385,7 @@ impl VariableBaseMSM {
 
         let scal_len = scalars.len();
 
+        #[cfg(feature = "bn_382")]
         if TypeId::of::<G>() == TypeId::of::<algebra::curves::bn_382::G1Affine>()
         {
             let c: usize = if scal_len < 32 {
@@ -397,7 +398,10 @@ impl VariableBaseMSM {
                 16
             };
             return Self::multi_scalar_mul_affine_sd_c(bases, scalars, c);
-        } else if TypeId::of::<G>() == TypeId::of::<algebra::curves::tweedle::dee::Affine>() {
+        }
+
+        #[cfg(feature = "tweedle")]
+        if TypeId::of::<G>() == TypeId::of::<algebra::curves::tweedle::dee::Affine>() {
             if scal_len < 1 << 17 {
                 let c: usize = if scal_len < 32 {
                     3
@@ -418,14 +422,15 @@ impl VariableBaseMSM {
                 let c: usize = (2.0 / 3.0 * (f64::from(scalars.len() as u32)).log2() - 2.0).ceil() as usize;
                 return Self::msm_inner_c(bases, scalars, c);
             }
-        } else {
-            let c: usize = if scal_len < 32 {
-                3
-            } else {
-                (2.0 / 3.0 * (f64::from(scalars.len() as u32)).log2() - 2.0).ceil() as usize
-            };
-            return Self::multi_scalar_mul_affine_c(bases, scalars, c);
         }
+
+        let c: usize = if scal_len < 32 {
+            3
+        } else {
+            (2.0 / 3.0 * (f64::from(scalars.len() as u32)).log2() - 2.0).ceil() as usize
+        };
+        return Self::multi_scalar_mul_affine_c(bases, scalars, c);
+
     }
 
     #[cfg(feature = "gpu")]
