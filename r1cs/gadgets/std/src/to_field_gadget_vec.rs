@@ -6,7 +6,10 @@ use algebra::{
 
 use crate::{
     fields::FieldGadget,
-    groups::curves::short_weierstrass::short_weierstrass_projective::AffineGadget as SWPAffineGadget,
+    groups::curves::short_weierstrass::{
+        short_weierstrass_projective::AffineGadget as SWPAffineGadget,
+        short_weierstrass_jacobian::AffineGadget as SWJAffineGadget,
+    },
     groups::curves::twisted_edwards::AffineGadget as TEAffineGadget,
 };
 use crate::fields::fp::FpGadget;
@@ -49,6 +52,24 @@ impl<ConstraintF: PrimeField> ToConstraintFieldGadget<ConstraintF> for () {
 }
 
 impl<M, ConstraintF, FG> ToConstraintFieldGadget<ConstraintF> for SWPAffineGadget<M, ConstraintF, FG>
+    where
+        M:              SWModelParameters,
+        ConstraintF:    PrimeField,
+        FG:             FieldGadget<M::BaseField, ConstraintF> +
+        ToConstraintFieldGadget<ConstraintF, FieldGadget = FpGadget<ConstraintF>>,
+{
+    type FieldGadget = FpGadget<ConstraintF>;
+
+    #[inline]
+    fn to_field_gadget_elements<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Vec<Self::FieldGadget>, Error> {
+        let mut x_fe = self.x.to_field_gadget_elements(cs.ns(|| "x"))?;
+        let y_fe = self.y.to_field_gadget_elements(cs.ns(|| "y"))?;
+        x_fe.extend_from_slice(&y_fe);
+        Ok(x_fe)
+    }
+}
+
+impl<M, ConstraintF, FG> ToConstraintFieldGadget<ConstraintF> for SWJAffineGadget<M, ConstraintF, FG>
     where
         M:              SWModelParameters,
         ConstraintF:    PrimeField,
