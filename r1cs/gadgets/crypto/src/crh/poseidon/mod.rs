@@ -28,6 +28,13 @@ pub use self::mnt6753::*;
 pub mod bn382;
 #[cfg(feature = "bn_382")]
 pub use self::bn382::*;
+
+#[cfg(feature = "tweedle")]
+pub mod tweedle;
+#[cfg(feature = "tweedle")]
+pub use self::tweedle::*;
+
+
 use primitives::{PoseidonSBox, SpongeMode, PoseidonSponge, AlgebraicSponge};
 use crate::AlgebraicSpongeGadget;
 
@@ -502,7 +509,9 @@ mod test {
         MNT4PoseidonHashGadget, MNT4PoseidonSpongeGadget,
         MNT6PoseidonHashGadget, MNT6PoseidonSpongeGadget,
         BN382FqPoseidonHashGadget, BN382FqPoseidonSpongeGadget,
-        BN382FrPoseidonHashGadget, BN382FrPoseidonSpongeGadget
+        BN382FrPoseidonHashGadget, BN382FrPoseidonSpongeGadget,
+        TweedleFqPoseidonHashGadget, TweedleFqPoseidonSpongeGadget,
+        TweedleFrPoseidonHashGadget, TweedleFrPoseidonSpongeGadget,
     };
 
     use algebra::fields::PrimeField;
@@ -536,14 +545,28 @@ mod test {
     #[cfg(feature = "bn_382")]
     #[test]
     fn poseidon_bn382_fr_gadget_native_test() {
-        field_based_hash_gadget_native_test::<_, _, BN382FrPoseidonHashGadget>(generate_inputs(2));
-        algebraic_sponge_gadget_native_test::<_, _, BN382FrPoseidonSpongeGadget>(generate_inputs(5));
-    }
+    field_based_hash_gadget_native_test::<_, _, BN382FrPoseidonHashGadget>(generate_inputs(2));
+    algebraic_sponge_gadget_native_test::<_, _, BN382FrPoseidonSpongeGadget>(generate_inputs(5));
+}
 
     #[cfg(feature = "bn_382")]
     #[test]
     fn poseidon_bn382_fq_gadget_native_test() {
         field_based_hash_gadget_native_test::<_, _, BN382FqPoseidonHashGadget>(generate_inputs(2));
         algebraic_sponge_gadget_native_test::<_, _, BN382FqPoseidonSpongeGadget>(generate_inputs(5));
+    }
+
+    #[cfg(feature = "tweedle")]
+    #[test]
+    fn poseidon_tweedle_fr_gadget_native_test() {
+        field_based_hash_gadget_native_test::<_, _, TweedleFrPoseidonHashGadget>(generate_inputs(2));
+        algebraic_sponge_gadget_native_test::<_, _, TweedleFrPoseidonSpongeGadget>(generate_inputs(5));
+    }
+
+    #[cfg(feature = "tweedle")]
+    #[test]
+    fn poseidon_tweedle_fq_gadget_native_test() {
+        field_based_hash_gadget_native_test::<_, _, TweedleFqPoseidonHashGadget>(generate_inputs(2));
+        algebraic_sponge_gadget_native_test::<_, _, TweedleFqPoseidonSpongeGadget>(generate_inputs(5));
     }
 }

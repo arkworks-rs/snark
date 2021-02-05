@@ -38,7 +38,7 @@ impl PoseidonParameters for BN382FqPoseidonParameters {
 
     // Array of round constants
     const ROUND_CST: &'static[BN382Fq]  = &[
-        // Constants converted to Montgomery representation. Montgomery constant = 2^768
+        // Constants converted to Montgomery representation. Montgomery constant = 2^384
         // For rounds 4 + 53 + 4 = 61
 
         field_new!(BN382Fq,BigInteger384([1142645960830323570, 13103856874656979564, 2413523699113461786, 6879845599697826609, 5058580133776391234, 1554316228962593243])),
@@ -278,7 +278,7 @@ impl PoseidonParameters for BN382FrPoseidonParameters {
 
     // Array of round constants
     const ROUND_CST: &'static [BN382Fr] = &[
-        // Constants converted to Montgomery representation. Montgomery constant = 2^768
+        // Constants converted to Montgomery representation. Montgomery constant = 2^384
         // For rounds 4 + 53 + 4 = 61
 
         field_new!(BN382Fr,BigInteger384([8194766694145669507, 7188863510214511890, 13912473340830233741, 8410018237892050446, 755366085174236854, 2391227650143111718])),

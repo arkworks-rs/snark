@@ -57,7 +57,7 @@ fn load_data(samples: usize) -> (Vec<BigInteger256>,Vec<G1Affine>) {
     (v, g)    
 }
 
-fn variable_msm_affine(c: &mut Criterion) {
+fn variable_msm(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("variable_base_msm_affine-tweedle-variable number of bases = number of scalars");
     let samples = (14..=23).map(|i| 2usize.pow(i)).collect::<Vec<_>>();
@@ -73,35 +73,6 @@ fn variable_msm_affine(c: &mut Criterion) {
              || format!("****************{}*******************", samples),
              || format!("--->START TIMESTAMP: {:?}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs())
         );
-                               //VariableBaseMSM::multi_scalar_mul_affine_c(g.as_slice(), v.as_slice(), PARAM_C);
-                               VariableBaseMSM::multi_scalar_mul_affine(g.as_slice(), v.as_slice());
-                               add_to_trace!(
-             || format!("****************{}*******************", samples),
-             || format!("--->END TIMESTAMP: {:?}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs())
-        );
-                           },
-                           BatchSize::PerIteration);
-        });
-    }
-}
-
-fn variable_msm_fast(c: &mut Criterion) {
-    let mut group = c.benchmark_group("variable_base_msm_fast-tweedle-variable number of bases = number of scalars");
-    let samples = (14..=23).map(|i| 2usize.pow(i)).collect::<Vec<_>>();
-
-
-    for &samples in samples.iter() {
-        group.bench_with_input(BenchmarkId::from_parameter(samples), &samples, |b, _samples| {
-            b.iter_batched(|| {
-                let (v, g) = load_data(samples);
-                (v, g)
-            },
-                           |(v, g)| {
-                               add_to_trace!(
-             || format!("****************{}*******************", samples),
-             || format!("--->START TIMESTAMP: {:?}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs())
-        );
-
                                VariableBaseMSM::multi_scalar_mul(g.as_slice(), v.as_slice());
                                add_to_trace!(
              || format!("****************{}*******************", samples),
@@ -116,7 +87,7 @@ fn variable_msm_fast(c: &mut Criterion) {
 criterion_group! {
     name = variable_msm_eval_tweedle;
     config = Criterion::default().sample_size(10);
-    targets = variable_msm_fast, variable_msm_affine,
+    targets = variable_msm,
 }
 
 criterion_main! (

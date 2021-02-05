@@ -483,4 +483,43 @@ mod test {
             BN382Fq::new(BigInteger384([1720359977283232686, 13054139547712885489, 5187034200847661218, 4192055198669470320, 9342360683435217824, 2331312681920757379])),
         );
     }
+
+    use algebra::{
+        fields::tweedle::{
+            fr::Fr as tweedleFr, fq::Fq as tweedleFq,
+        },
+        biginteger::BigInteger256,
+    };
+    use crate::crh::parameters::tweedle::*;
+
+    #[cfg(feature = "tweedle")]
+    #[test]
+    fn test_poseidon_hash_tweedle_fr() {
+        let expected_output = tweedleFr::new(BigInteger256([10853721058648678319, 16685221779982166148, 7657542961996224896, 317411048550701368]));
+        field_based_hash_test::<TweedleFrPoseidonHash>(
+            None,
+            generate_inputs(2),
+            expected_output
+        );
+
+        algebraic_sponge_test::<TweedleFrPoseidonSponge, _>(
+            generate_inputs(5),
+            tweedleFr::new(BigInteger256([7978538512485120357, 2855094910189988323, 8391520218117106983, 4530816604245346005]))
+        );
+    }
+
+    #[cfg(feature = "tweedle")]
+    #[test]
+    fn test_poseidon_hash_tweedle_fq() {
+        let expected_output = tweedleFq::new(BigInteger256([9400878458790897114, 15068972336691613232, 13673927707991766433, 1032370839092625161]));
+        field_based_hash_test::<TweedleFqPoseidonHash>(
+            None,
+            generate_inputs(2),
+            expected_output
+        );
+        algebraic_sponge_test::<TweedleFqPoseidonSponge, _>(
+            generate_inputs(5),
+            tweedleFq::new(BigInteger256([6129396713371884441, 13029129558030886129, 9912298868009899566, 385156517461505756]))
+        );
+    }
 }

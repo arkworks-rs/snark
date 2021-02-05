@@ -12,3 +12,8 @@ pub use self::mnt6753::*;
 pub mod bn382;
 #[cfg(feature = "bn_382")]
 pub use self::bn382::*;
+
+#[cfg(feature = "tweedle")]
+pub mod tweedle;
+#[cfg(feature = "tweedle")]
+pub use self::tweedle::*;
