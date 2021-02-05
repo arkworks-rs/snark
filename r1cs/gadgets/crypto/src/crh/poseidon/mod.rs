@@ -260,6 +260,10 @@ for PoseidonHashGadget<ConstraintF, P, SB, SBG>
     }
 }
 
+#[derive(Derivative)]
+#[derivative(
+    Clone(bound = ""),
+)]
 pub struct PoseidonSpongeGadget
 <
     ConstraintF: PrimeField,
