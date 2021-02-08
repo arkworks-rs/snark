@@ -643,7 +643,13 @@ for AffineGadget<P, ConstraintF, F>
         let x2_plus_a = x2.add_constant(cs.ns(|| "x^2 + a"), &a)?;
         let y2_minus_b = y2.add_constant(cs.ns(|| "y^2 - b"), &b.neg())?;
 
-        x2_plus_a.mul_equals(cs.ns(|| "on curve check"), &x, &y2_minus_b)?;
+        let x2_plus_a_times_x = x2_plus_a.mul(cs.ns(|| "(x^2 + a)*x"), &x)?;
+
+        x2_plus_a_times_x.conditional_enforce_equal(
+            cs.ns(|| "on curve check"),
+            &y2_minus_b,
+            &infinity
+        )?;
 
         Ok(Self::new(x, y, infinity))
     }
@@ -796,7 +802,13 @@ for AffineGadget<P, ConstraintF, F>
         let x2_plus_a = x2.add_constant(cs.ns(|| "x^2 + a"), &a)?;
         let y2_minus_b = y2.add_constant(cs.ns(|| "y^2 - b"), &b.neg())?;
 
-        x2_plus_a.mul_equals(cs.ns(|| "on curve check"), &x, &y2_minus_b)?;
+        let x2_plus_a_times_x = x2_plus_a.mul(cs.ns(|| "(x^2 + a)*x"), &x)?;
+
+        x2_plus_a_times_x.conditional_enforce_equal(
+            cs.ns(|| "on curve check"),
+            &y2_minus_b,
+            &infinity
+        )?;
 
         Ok(Self::new(x, y, infinity))
     }
