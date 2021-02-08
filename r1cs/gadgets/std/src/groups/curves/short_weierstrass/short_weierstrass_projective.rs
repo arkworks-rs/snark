@@ -670,7 +670,7 @@ for AffineGadget<P, ConstraintF, F>
         x2_plus_a_times_x.conditional_enforce_equal(
             cs.ns(|| "on curve check"),
             &y2_minus_b,
-            &infinity
+            &infinity.not()
         )?;
 
         Ok(Self::new(x, y, infinity))
@@ -839,7 +839,7 @@ for AffineGadget<P, ConstraintF, F>
         x2_plus_a_times_x.conditional_enforce_equal(
             cs.ns(|| "on curve check"),
             &y2_minus_b,
-            &infinity
+            &infinity.not()
         )?;
 
         Ok(Self::new(x, y, infinity))
