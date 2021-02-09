@@ -382,7 +382,6 @@ impl VariableBaseMSM {
         G: AffineCurve,
         G::Projective: ProjectiveCurve<Affine = G>
     {
-
         let scal_len = scalars.len();
 
         if TypeId::of::<G>() == TypeId::of::<algebra::curves::bn_382::G1Affine>()
@@ -396,7 +395,7 @@ impl VariableBaseMSM {
             } else {
                 16
             };
-            return Self::multi_scalar_mul_affine_sd_c(bases, scalars, c);
+            return Self::multi_scalar_mul_affine_c(bases, scalars, c);
         } else if TypeId::of::<G>() == TypeId::of::<algebra::curves::tweedle::dee::Affine>() {
             if scal_len < 1 << 17 {
                 let c: usize = if scal_len < 32 {
@@ -404,10 +403,10 @@ impl VariableBaseMSM {
                 } else {
                     (2.0 / 3.0 * (f64::from(scalars.len() as u32)).log2() - 2.0).ceil() as usize
                 };
-                return Self::multi_scalar_mul_affine_sd_c(bases, scalars, c);
+                return Self::multi_scalar_mul_affine_c(bases, scalars, c);
             } else if scal_len < 1 << 19 {
                 let c: usize = 11;
-                return Self::multi_scalar_mul_affine_sd_c(bases, scalars, c);
+                return Self::multi_scalar_mul_affine_c(bases, scalars, c);
             } else if scal_len < 1 << 23 {
                 let c: usize = 11;
                 return Self::multi_scalar_mul_affine_c(bases, scalars, c);
