@@ -18,3 +18,6 @@ pub mod mnt4_753;
 
 #[cfg(feature = "mnt6_753")]
 pub mod mnt6_753;
+
+#[cfg(feature = "tweedle")]
+pub mod tweedle;
