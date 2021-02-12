@@ -81,6 +81,9 @@ impl VariableBaseMSM {
         }
     }
 
+    //TODO: Seems that this function has problems not captured by the UTs.
+    //      Thus for the moment its invokation is disabled.
+    #[allow(unused)]
     pub fn multi_scalar_mul_affine_sd_c<G: AffineCurve>(
         bases: &[G],
         scalars: &[<G::ScalarField as PrimeField>::BigInt],
@@ -382,7 +385,6 @@ impl VariableBaseMSM {
         G: AffineCurve,
         G::Projective: ProjectiveCurve<Affine = G>
     {
-
         let scal_len = scalars.len();
 
         #[cfg(feature = "bn_382")]
@@ -397,7 +399,7 @@ impl VariableBaseMSM {
             } else {
                 16
             };
-            return Self::multi_scalar_mul_affine_sd_c(bases, scalars, c);
+            return Self::multi_scalar_mul_affine_c(bases, scalars, c);
         }
 
         #[cfg(feature = "tweedle")]
@@ -408,10 +410,10 @@ impl VariableBaseMSM {
                 } else {
                     (2.0 / 3.0 * (f64::from(scalars.len() as u32)).log2() - 2.0).ceil() as usize
                 };
-                return Self::multi_scalar_mul_affine_sd_c(bases, scalars, c);
+                return Self::multi_scalar_mul_affine_c(bases, scalars, c);
             } else if scal_len < 1 << 19 {
                 let c: usize = 11;
-                return Self::multi_scalar_mul_affine_sd_c(bases, scalars, c);
+                return Self::multi_scalar_mul_affine_c(bases, scalars, c);
             } else if scal_len < 1 << 23 {
                 let c: usize = 11;
                 return Self::multi_scalar_mul_affine_c(bases, scalars, c);
@@ -525,13 +527,12 @@ mod test {
     use super::*;
 
     use algebra::curves::bn_382::G1Projective as Bn382G1Projective;
-    use algebra::fields::bn_382::Fr as Bn382Fr;
+    use algebra::curves::bn_382::g::Projective as Bn382GProjective;
     use algebra::curves::tweedle::dee::Projective as TweedleDee;
-    use algebra::fields::tweedle::Fr as TweedleFr;
+    use algebra::curves::tweedle::dum::Projective as TweedleDum;
     use algebra::curves::bls12_381::G1Projective as BlsG1Projective;
-    use algebra::fields::bls12_381::Fr as BlsFr;
 
-    use rand::SeedableRng;
+    use rand::{SeedableRng, Rng};
     use rand_xorshift::XorShiftRng;
     use algebra::UniformRand;
 
@@ -547,107 +548,61 @@ mod test {
         acc
     }
 
+    fn test_all_variants<G: ProjectiveCurve, R: Rng>(
+        samples: usize,
+        c: usize,
+        rng: &mut R,
+    ) {
+        let v = (0..samples)
+            .map(|_| G::ScalarField::rand(rng).into_repr())
+            .collect::<Vec<_>>();
+        let g = (0..samples)
+            .map(|_| G::rand(rng).into_affine())
+            .collect::<Vec<_>>();
+
+        let naive = naive_var_base_msm(g.as_slice(), v.as_slice());
+        let fast = VariableBaseMSM::msm_inner_cpu(g.as_slice(), v.as_slice());
+
+        let affine = VariableBaseMSM::multi_scalar_mul_affine_c(g.as_slice(), v.as_slice(), c);
+        //let affine_sd = VariableBaseMSM::multi_scalar_mul_affine_sd_c(g.as_slice(), v.as_slice(), c);
+        let inner = VariableBaseMSM::msm_inner_c(g.as_slice(), v.as_slice(), c);
+
+        #[cfg(feature = "gpu")]
+        let gpu = VariableBaseMSM::msm_inner_gpu(g.as_slice(), v.as_slice());
+
+        assert_eq!(naive, fast);
+
+        assert_eq!(naive, affine);
+        //assert_eq!(naive, affine_sd);
+        assert_eq!(naive, inner);
+
+        #[cfg(feature = "gpu")]
+        assert_eq!(naive, gpu);
+    }
+
     #[cfg(feature = "tweedle")]
     #[test]
     fn test_all_variants_tweedle() {
-        const SAMPLES: usize = 1 << 12;
+        let rng = &mut XorShiftRng::seed_from_u64(234872845u64);
 
-        let mut rng = XorShiftRng::seed_from_u64(234872845u64);
-
-        let v = (0..SAMPLES)
-            .map(|_| TweedleFr::rand(&mut rng).into_repr())
-            .collect::<Vec<_>>();
-        let g = (0..SAMPLES)
-            .map(|_| TweedleDee::rand(&mut rng).into_affine())
-            .collect::<Vec<_>>();
-
-        let naive = naive_var_base_msm(g.as_slice(), v.as_slice());
-        let fast = VariableBaseMSM::msm_inner_cpu(g.as_slice(), v.as_slice());
-
-        let c = 16;
-        let affine = VariableBaseMSM::multi_scalar_mul_affine_c(g.as_slice(), v.as_slice(),c);
-        let affine_sd = VariableBaseMSM::multi_scalar_mul_affine_sd_c(g.as_slice(), v.as_slice(),c);
-        let inner = VariableBaseMSM::msm_inner_c(g.as_slice(), v.as_slice(),c);
-
-
-        #[cfg(feature = "gpu")]
-        let gpu = VariableBaseMSM::msm_inner_gpu(g.as_slice(), v.as_slice());
-
-        assert_eq!(naive, fast);
-
-        assert_eq!(naive, affine);
-        assert_eq!(naive, affine_sd);
-        assert_eq!(naive, inner);
-
-        #[cfg(feature = "gpu")]
-        assert_eq!(naive, gpu);
+        test_all_variants::<TweedleDee, _>(1 << 12, 16, rng);
+        test_all_variants::<TweedleDum, _>(1 << 12, 16, rng);
     }
 
+    #[cfg(feature = "bn_382")]
     #[test]
     fn test_all_variants_bn382() {
-        const SAMPLES: usize = 1 << 12;
+        let rng = &mut XorShiftRng::seed_from_u64(234872845u64);
 
-        let mut rng = XorShiftRng::seed_from_u64(234872845u64);
-
-        let v = (0..SAMPLES)
-            .map(|_| Bn382Fr::rand(&mut rng).into_repr())
-            .collect::<Vec<_>>();
-        let g = (0..SAMPLES)
-            .map(|_| Bn382G1Projective::rand(&mut rng).into_affine())
-            .collect::<Vec<_>>();
-
-        let naive = naive_var_base_msm(g.as_slice(), v.as_slice());
-        let fast = VariableBaseMSM::msm_inner_cpu(g.as_slice(), v.as_slice());
-
-        let c = 16;
-        let affine = VariableBaseMSM::multi_scalar_mul_affine_c(g.as_slice(), v.as_slice(),c);
-        let affine_sd = VariableBaseMSM::multi_scalar_mul_affine_sd_c(g.as_slice(), v.as_slice(),c);
-        let inner = VariableBaseMSM::msm_inner_c(g.as_slice(), v.as_slice(),c);
-
-        #[cfg(feature = "gpu")]
-        let gpu = VariableBaseMSM::msm_inner_gpu(g.as_slice(), v.as_slice());
-
-        assert_eq!(naive, fast);
-        assert_eq!(naive, affine);
-        assert_eq!(naive, affine_sd);
-        assert_eq!(naive, inner);
-
-        #[cfg(feature = "gpu")]
-        assert_eq!(naive, gpu);
+        test_all_variants::<Bn382G1Projective, _>(1 << 12, 16, rng);
+        test_all_variants::<Bn382GProjective, _>(1 << 12, 16, rng);
     }
 
+    #[cfg(feature = "bls12_381")]
     #[test]
     fn test_all_variants_bls() {
-        const SAMPLES: usize = 1 << 12;
+        let rng = &mut XorShiftRng::seed_from_u64(234872845u64);
 
-        let mut rng = XorShiftRng::seed_from_u64(234872845u64);
-
-        let v = (0..SAMPLES)
-            .map(|_| BlsFr::rand(&mut rng).into_repr())
-            .collect::<Vec<_>>();
-        let g = (0..SAMPLES)
-            .map(|_| BlsG1Projective::rand(&mut rng).into_affine())
-            .collect::<Vec<_>>();
-
-        let naive = naive_var_base_msm(g.as_slice(), v.as_slice());
-        let fast = VariableBaseMSM::msm_inner_cpu(g.as_slice(), v.as_slice());
-
-        let c = 16;
-        let affine = VariableBaseMSM::multi_scalar_mul_affine_c(g.as_slice(), v.as_slice(),c);
-        let affine_sd = VariableBaseMSM::multi_scalar_mul_affine_sd_c(g.as_slice(), v.as_slice(),c);
-        let inner = VariableBaseMSM::msm_inner_c(g.as_slice(), v.as_slice(),c);
-
-        #[cfg(feature = "gpu")]
-        let gpu = VariableBaseMSM::msm_inner_gpu(g.as_slice(), v.as_slice());
-
-        assert_eq!(naive, fast);
-
-        assert_eq!(naive, affine);
-        assert_eq!(naive, affine_sd);
-        assert_eq!(naive, inner);
-
-        #[cfg(feature = "gpu")]
-        assert_eq!(naive, gpu);
+        test_all_variants::<BlsG1Projective, _>(1 << 12, 16, rng);
     }
-
 }
