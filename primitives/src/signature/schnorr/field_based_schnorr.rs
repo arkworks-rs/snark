@@ -57,7 +57,7 @@ impl<F: PrimeField, G: Group> FromBytes for FieldBasedSchnorrSignature<F, G> {
 
 impl<F: PrimeField, G: Group> FromBytesChecked for FieldBasedSchnorrSignature<F, G> {
     fn read_checked<R: Read>(mut reader: R) -> IoResult<Self> {
-        let e = F::read(&mut reader)
+        let e = F::read_checked(&mut reader)
             .map_err(|err| IoError::new(ErrorKind::InvalidData, format!("invalid sig.e: {}", err)))
             .and_then(|e| {
                 let e_bits = e.write_bits();
@@ -67,7 +67,7 @@ impl<F: PrimeField, G: Group> FromBytesChecked for FieldBasedSchnorrSignature<F,
                 }
                 Ok(e)
             })?;
-        let s = F::read(&mut reader)
+        let s = F::read_checked(&mut reader)
             .map_err(|err| IoError::new(ErrorKind::InvalidData, format!("invalid sig.e: {}", err)))
             .and_then(|s| {
                 let s_bits = s.write_bits();

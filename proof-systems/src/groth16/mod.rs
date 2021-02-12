@@ -207,7 +207,7 @@ impl<E: PairingEngine> SemanticallyValid for VerifyingKey<E> {
 impl<E: PairingEngine> FromBytesChecked for VerifyingKey<E> {
     #[inline]
     fn read_checked<R: Read>(mut reader: R) -> IoResult<Self> {
-        let alpha_g1_beta_g2 = E::Fqk::read(&mut reader)
+        let alpha_g1_beta_g2 = E::Fqk::read_checked(&mut reader)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("invalid alpha_g1_beta_g2: {}", e)))
             .and_then(|f| {
                 if f.is_zero() { return Err(io::Error::new(io::ErrorKind::InvalidData, "invalid alpha_g1_beta_g2: zero")); }
@@ -358,7 +358,7 @@ impl<E: PairingEngine> SemanticallyValid for Parameters<E> {
 impl<E: PairingEngine> FromBytesChecked for Parameters<E> {
     #[inline]
     fn read_checked<R: Read>(mut reader: R) -> IoResult<Self> {
-        let vk = VerifyingKey::<E>::read(&mut reader)
+        let vk = VerifyingKey::<E>::read_checked(&mut reader)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
         let alpha_g1 = E::G1Affine::read_checked(&mut reader)
@@ -492,6 +492,7 @@ impl<E: PairingEngine> ToBytes for PreparedVerifyingKey<E> {
     }
 }
 
+//TODO: Maybe implemet FromBytesChecked also for PreparedVk ?
 impl<E: PairingEngine> FromBytes for PreparedVerifyingKey<E> {
     #[inline]
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
