@@ -81,6 +81,9 @@ impl VariableBaseMSM {
         }
     }
 
+    //TODO: Seems that this function has problems not captured by the UTs.
+    //      Thus for the moment its invokation is disabled.
+    #[allow(unused)]
     pub fn multi_scalar_mul_affine_sd_c<G: AffineCurve>(
         bases: &[G],
         scalars: &[<G::ScalarField as PrimeField>::BigInt],
@@ -556,7 +559,7 @@ mod test {
         let fast = VariableBaseMSM::msm_inner_cpu(g.as_slice(), v.as_slice());
 
         let affine = VariableBaseMSM::multi_scalar_mul_affine_c(g.as_slice(), v.as_slice(), c);
-        let affine_sd = VariableBaseMSM::multi_scalar_mul_affine_sd_c(g.as_slice(), v.as_slice(), c);
+        //let affine_sd = VariableBaseMSM::multi_scalar_mul_affine_sd_c(g.as_slice(), v.as_slice(), c);
         let inner = VariableBaseMSM::msm_inner_c(g.as_slice(), v.as_slice(), c);
 
         #[cfg(feature = "gpu")]
@@ -565,7 +568,7 @@ mod test {
         assert_eq!(naive, fast);
 
         assert_eq!(naive, affine);
-        assert_eq!(naive, affine_sd);
+        //assert_eq!(naive, affine_sd);
         assert_eq!(naive, inner);
 
         #[cfg(feature = "gpu")]
