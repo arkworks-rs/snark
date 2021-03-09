@@ -12,3 +12,8 @@ pub use self::mnt6753::*;
 pub mod tweedle_fr;
 #[cfg(feature = "tweedle")]
 pub use self::tweedle_fr::*;
+
+#[cfg(feature = "tweedle")]
+pub mod tweedle_fq;
+#[cfg(feature = "tweedle")]
+pub use self::tweedle_fq::*;
