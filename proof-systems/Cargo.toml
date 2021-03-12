@@ -25,11 +25,14 @@ algebra-utils = { path = "../algebra-utils", features = [ "parallel", "fft" ] }
 r1cs-core = { path = "../r1cs/core" }
 bench-utils = { path = "../bench-utils" }
 
+marlin = { git = "https://github.com/HorizenLabs/marlin", branch = "sync_with_pc_pcd", optional = true }
+poly-commit = { git = "https://github.com/HorizenLabs/poly-commit", branch = "mods_for_pcd", optional = true }
+
 rand = { version = "0.7" }
 rayon = { version = "1" }
 smallvec = { version = "0.6" }
 byteorder = { version = "1" }
-
+digest = { version = "0.8", optional = true }
 serde = { version = "1.0.117", features = ["derive"]}
 
 [dev-dependencies]
@@ -46,6 +49,7 @@ r1cs-std = { path = "../r1cs/gadgets/std" }
 print-trace = [ "bench-utils/print-trace" ]
 groth16 = []
 gm17 = []
+darlin = ["marlin", "poly-commit", "digest"]
 llvm_asm = ["algebra/llvm_asm"]
 gpu = ["algebra-utils/gpu"]
 
