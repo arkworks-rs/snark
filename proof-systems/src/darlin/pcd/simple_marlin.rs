@@ -2,7 +2,7 @@ use algebra::{AffineCurve, Field, UniformRand};
 use digest::Digest;
 use marlin::{
     VerifierKey as MarlinVerifierKey,
-    Proof as MarlinProof, MarlinConfig, Marlin
+    Proof as MarlinProof, Marlin
 };
 use poly_commit::{
     ipa_pc::{
@@ -13,13 +13,11 @@ use poly_commit::{
 use crate::darlin::pcd::PCD;
 use rand::RngCore;
 use crate::darlin::accumulators::dlog::DLogAccumulator;
-use std::marker::PhantomData;
 use poly_commit::ipa_pc::Commitment;
 
-pub struct SimpleMarlinPCD<G: AffineCurve, D: Digest, MC: MarlinConfig> {
+pub struct SimpleMarlinPCD<G: AffineCurve, D: Digest> {
     proof:                     MarlinProof<G::ScalarField, InnerProductArgPC<G, D>>,
     usr_ins:                   Vec<G::ScalarField>,
-    #[doc(hidden)] _config:    PhantomData<MC>
 }
 
 pub struct SimpleMarlinPCDVerifierKey<'a, G: AffineCurve, D: Digest>(
@@ -33,11 +31,10 @@ impl<'a, G: AffineCurve, D: Digest> AsRef<DLogVerifierKey<G>> for SimpleMarlinPC
     }
 }
 
-impl<'a, G, D, MC> PCD<'a> for SimpleMarlinPCD<G, D, MC>
+impl<'a, G, D> PCD<'a> for SimpleMarlinPCD<G, D>
     where
         G: AffineCurve,
         D: Digest + 'a,
-        MC: MarlinConfig,
 {
     type PCDAccumulator = DLogAccumulator<G>;
     type PCDVerifierKey = SimpleMarlinPCDVerifierKey<'a, G, D>;
@@ -51,7 +48,7 @@ impl<'a, G, D, MC> PCD<'a> for SimpleMarlinPCD<G, D, MC>
         let succinct_time = start_timer!(|| "Marlin succinct verifier");
 
         // Verify sumchecks
-        let ahp_result = Marlin::<G::ScalarField, InnerProductArgPC<G, D>, D, MC>::verify_ahp(
+        let ahp_result = Marlin::<G::ScalarField, InnerProductArgPC<G, D>, D>::verify_ahp(
             &vk.0,
             self.usr_ins.as_slice(),
             &self.proof,

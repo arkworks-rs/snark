@@ -1,7 +1,7 @@
 use algebra::{
     AffineCurve, ToConstraintField
 };
-use marlin::{MarlinConfig, VerifierKey as MarlinVerifierKey};
+use marlin::VerifierKey as MarlinVerifierKey;
 use poly_commit::{
     ipa_pc::{
         InnerProductArgPC,
@@ -29,16 +29,11 @@ pub mod accumulators;
 
 //TODO: Remove dependency from R: RngCore when not needed
 
-//TODO: Get rid of this MarlinConfig template as it obliges all the proofs to have the same
-//      MarlinConfig. Either we keep it inside the proof or the PCD (by converting it to a struct)
-//      or we remove it (regarding LC_OPT, we never use it; regarding ZK, only the prover needs to
-//      know about it; regarding SegmentSize it can be done in a transparent way)
-
 //TODO: Do the same with Digest template
-pub fn accumulate_proofs<G1, G2, D: Digest, R: RngCore, MC: MarlinConfig>(
-    final_darlin_pcds:      &[FinalDarlinPCD<G1, G2, D, MC>],
+pub fn accumulate_proofs<G1, G2, D: Digest, R: RngCore>(
+    final_darlin_pcds:      &[FinalDarlinPCD<G1, G2, D>],
     final_darlin_vks:       &[MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>],
-    marlin_pcds:            &[SimpleMarlinPCD<G1, D, MC>],
+    marlin_pcds:            &[SimpleMarlinPCD<G1, D>],
     marlin_vks:             &[MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>],
     g1_ck:                  &DLogCommitterKey<G1>,
     g2_ck:                  &DLogCommitterKey<G2>,
@@ -89,10 +84,10 @@ pub fn accumulate_proofs<G1, G2, D: Digest, R: RngCore, MC: MarlinConfig>(
     Ok((acc_proof_g1, acc_proof_g2))
 }
 
-pub fn verify_aggregated_proofs<G1, G2, D: Digest, R: RngCore, MC: MarlinConfig>(
-    final_darlin_pcds:      &[FinalDarlinPCD<G1, G2, D, MC>],
+pub fn verify_aggregated_proofs<G1, G2, D: Digest, R: RngCore>(
+    final_darlin_pcds:      &[FinalDarlinPCD<G1, G2, D>],
     final_darlin_vks:       &[MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>],
-    marlin_pcds:            &[SimpleMarlinPCD<G1, D, MC>],
+    marlin_pcds:            &[SimpleMarlinPCD<G1, D>],
     marlin_vks:             &[MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>],
     accumulation_proof_g1:  &AccumulationProof<G1>,
     accumulation_proof_g2:  &AccumulationProof<G2>,

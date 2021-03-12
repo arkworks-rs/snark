@@ -1,7 +1,6 @@
 use algebra::{AffineCurve, Field, UniformRand, ToBits, ToConstraintField};
 use digest::Digest;
 use marlin::{
-    MarlinConfig,
     VerifierKey as MarlinVerifierKey,
     Marlin, Proof as MarlinProof
 };
@@ -14,7 +13,6 @@ use poly_commit::{
 use crate::darlin::accumulators::dlog::{DLogAccumulator, RecursiveDLogAccumulator};
 use crate::darlin::pcd::PCD;
 use rand::RngCore;
-use std::marker::PhantomData;
 
 // Maybe later we will deferr algebraic checks over G1::BaseField
 pub struct FinalDarlinDeferredData<G1: AffineCurve, G2: AffineCurve> {
@@ -56,12 +54,11 @@ where
 }
 
 /// FinalDarlinPCD with two deferred DLOG accumulators.
-pub struct FinalDarlinPCD<G1: AffineCurve, G2: AffineCurve, D: Digest, MC: MarlinConfig> {
+pub struct FinalDarlinPCD<G1: AffineCurve, G2: AffineCurve, D: Digest> {
     /// Full Marlin proof without deferred arithmetics in G1.
     marlin_proof:       MarlinProof<G1::ScalarField, InnerProductArgPC<G1, D>>,
     deferred:           FinalDarlinDeferredData<G1, G2>,
     usr_ins:            Vec<G1::ScalarField>,
-    _config:            PhantomData<MC>,
 }
 
 pub struct FinalDarlinPCDVerifierKey<'a, G1: AffineCurve, G2: AffineCurve, D: Digest> {
@@ -80,12 +77,11 @@ impl<
     }
 }
 
-impl<'a, G1, G2, D, MC> PCD<'a> for FinalDarlinPCD<G1, G2, D, MC>
+impl<'a, G1, G2, D> PCD<'a> for FinalDarlinPCD<G1, G2, D>
 where
     G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
     G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
     D: Digest + 'a,
-    MC: MarlinConfig,
 {
     type PCDAccumulator = RecursiveDLogAccumulator<G1, G2>;
     type PCDVerifierKey = FinalDarlinPCDVerifierKey<'a, G1, G2, D>;
@@ -106,7 +102,7 @@ where
         // Append user inputs
         public_inputs.append(&mut self.usr_ins.clone());
 
-        let ahp_result = Marlin::<G1::ScalarField, InnerProductArgPC<G1, D>, D, MC>::verify_ahp(
+        let ahp_result = Marlin::<G1::ScalarField, InnerProductArgPC<G1, D>, D>::verify_ahp(
             vk.marlin_vk,
             public_inputs.as_slice(),
             &self.marlin_proof,
