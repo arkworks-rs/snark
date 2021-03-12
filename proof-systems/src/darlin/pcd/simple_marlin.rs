@@ -10,7 +10,7 @@ use poly_commit::{
     },
     Error
 };
-use crate::darlin::PCD;
+use crate::darlin::pcd::PCD;
 use rand::RngCore;
 use crate::darlin::accumulators::dlog::DLogAccumulator;
 use std::marker::PhantomData;
