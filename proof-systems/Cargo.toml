@@ -20,7 +20,7 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "algebra_ocl", features = [ "parallel" ] }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "darlin", features = [ "parallel" ] }
 algebra-utils = { path = "../algebra-utils", features = [ "parallel", "fft" ] }
 r1cs-core = { path = "../r1cs/core" }
 bench-utils = { path = "../bench-utils" }
@@ -40,7 +40,7 @@ csv = { version = "1" }
 criterion = "0.3"
 rand_xorshift = { version = "0.2" }
 
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "algebra_ocl", features = ["bn_382", "tweedle", "bls12_381", "jubjub", "mnt4_753", "mnt6_753"] }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "darlin", features = ["bn_382", "tweedle", "bls12_381", "jubjub", "mnt4_753", "mnt6_753"] }
 algebra-utils = { path = "../algebra-utils", features = [ "parallel", "fft", "bn_382", "tweedle", "bls12_381", "jubjub", "mnt4_753", "mnt6_753"] }
 r1cs-crypto = { path = "../r1cs/gadgets/crypto", features = ["nizk"] }
 r1cs-std = { path = "../r1cs/gadgets/std" }
