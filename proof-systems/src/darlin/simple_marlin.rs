@@ -16,32 +16,31 @@ use crate::darlin::accumulators::dlog::DLogAccumulator;
 use std::marker::PhantomData;
 use poly_commit::ipa_pc::Commitment;
 
-pub struct SimpleMarlinPCD<G: AffineCurve, D: Digest, MC: MarlinConfig + Send + Sync> {
+pub struct SimpleMarlinPCD<G: AffineCurve, D: Digest, MC: MarlinConfig> {
     proof:                     MarlinProof<G::ScalarField, InnerProductArgPC<G, D>>,
     usr_ins:                   Vec<G::ScalarField>,
     #[doc(hidden)] _config:    PhantomData<MC>
 }
 
-//TODO: Use references
-pub struct SimpleMarlinPCDVerifierKey<G: AffineCurve, D: Digest>(
-    pub MarlinVerifierKey<G::ScalarField, InnerProductArgPC<G, D>>,
-    pub DLogVerifierKey<G>
+pub struct SimpleMarlinPCDVerifierKey<'a, G: AffineCurve, D: Digest>(
+    pub &'a MarlinVerifierKey<G::ScalarField, InnerProductArgPC<G, D>>,
+    pub &'a DLogVerifierKey<G>
 );
 
-impl<G: AffineCurve, D: Digest> AsRef<DLogVerifierKey<G>> for SimpleMarlinPCDVerifierKey<G, D> {
+impl<'a, G: AffineCurve, D: Digest> AsRef<DLogVerifierKey<G>> for SimpleMarlinPCDVerifierKey<'a, G, D> {
     fn as_ref(&self) -> &DLogVerifierKey<G> {
         &self.1
     }
 }
 
-impl<G, D, MC> PCD for SimpleMarlinPCD<G, D, MC>
+impl<'a, G, D, MC> PCD<'a> for SimpleMarlinPCD<G, D, MC>
     where
         G: AffineCurve,
-        D: Digest,
-        MC: MarlinConfig + Send + Sync,
+        D: Digest + 'a,
+        MC: MarlinConfig,
 {
     type PCDAccumulator = DLogAccumulator<G>;
-    type PCDVerifierKey = SimpleMarlinPCDVerifierKey<G, D>;
+    type PCDVerifierKey = SimpleMarlinPCDVerifierKey<'a, G, D>;
 
     fn succinct_verify<R: RngCore>(
         &self,

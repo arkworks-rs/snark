@@ -22,7 +22,7 @@ edition = "2018"
 [dependencies]
 algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "darlin", features = [ "parallel" ] }
 primitives = {path = "../../../primitives"}
-r1cs-core = { path = "../../core"}
+r1cs-core = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "darlin" }
 r1cs-std = { path = "../std"}
 proof-systems = { path = "../../../proof-systems", features = ["groth16", "gm17"], optional = true }
 bench-utils = { path = "../../../bench-utils" }

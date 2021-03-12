@@ -27,7 +27,7 @@ pub struct AccumulationProof<G: AffineCurve> {
 /// It is considered as part of the PCDProof. Although within our PCD we do not separate the
 /// accumulation strategy from the proving system, we nevertheless serve this functionality
 /// for post processing outside the PCD.
-pub trait Accumulator: Sized + ToBytes {
+pub trait Accumulator<'a>: Sized + ToBytes {
     type AccumulatorProverKey;
     type AccumulatorVerifierKey;
     type AccumulationProof;

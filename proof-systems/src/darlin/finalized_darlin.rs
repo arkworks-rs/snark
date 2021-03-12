@@ -23,7 +23,7 @@ pub struct FinalDarlinDeferredData<G1: AffineCurve, G2: AffineCurve> {
 }
 
 /// FinalDarlinPCD with two deferred DLOG accumulators.
-pub struct FinalDarlinPCD<G1: AffineCurve, G2: AffineCurve, D: Digest, MC: MarlinConfig + Send + Sync> {
+pub struct FinalDarlinPCD<G1: AffineCurve, G2: AffineCurve, D: Digest, MC: MarlinConfig> {
     /// Full Marlin proof without deferred arithmetics in G1.
     marlin_proof:       MarlinProof<G1::ScalarField, InnerProductArgPC<G1, D>>,
     deferred:           FinalDarlinDeferredData<G1, G2>,
@@ -31,32 +31,31 @@ pub struct FinalDarlinPCD<G1: AffineCurve, G2: AffineCurve, D: Digest, MC: Marli
     _config:            PhantomData<MC>,
 }
 
-//TODO: Use references
-pub struct FinalDarlinPCDVerifierKey<G1: AffineCurve, G2: AffineCurve, D: Digest>(
-    pub MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>,
-    pub DLogVerifierKey<G1>,
-    pub DLogVerifierKey<G2>,
-);
+pub struct FinalDarlinPCDVerifierKey<'a, G1: AffineCurve, G2: AffineCurve, D: Digest> {
+    pub marlin_vk: &'a MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>,
+    pub dlog_vks: (&'a DLogVerifierKey<G1>, &'a DLogVerifierKey<G2>)
+}
 
 impl<
+    'a,
     G1: AffineCurve,
     G2: AffineCurve,
     D: Digest
-> AsRef<(DLogVerifierKey<G1>, DLogVerifierKey<G2>)> for FinalDarlinPCDVerifierKey<G1, G2, D> {
-    fn as_ref(&self) -> &(DLogVerifierKey<G1>, DLogVerifierKey<G2>) {
-        &(self.1.clone(), self.2.clone())
+> AsRef<(&'a DLogVerifierKey<G1>, &'a DLogVerifierKey<G2>)> for FinalDarlinPCDVerifierKey<'a, G1, G2, D> {
+    fn as_ref(&self) -> &(&'a DLogVerifierKey<G1>, &'a DLogVerifierKey<G2>) {
+        &self.dlog_vks
     }
 }
 
-impl<G1, G2, D, MC> PCD for FinalDarlinPCD<G1, G2, D, MC>
+impl<'a, G1, G2, D, MC> PCD<'a> for FinalDarlinPCD<G1, G2, D, MC>
 where
     G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField>,
     G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField>,
-    D: Digest,
-    MC: MarlinConfig + Send + Sync,
+    D: Digest + 'a,
+    MC: MarlinConfig,
 {
     type PCDAccumulator = RecursiveDLogAccumulator<G1, G2>;
-    type PCDVerifierKey = FinalDarlinPCDVerifierKey<G1, G2, D>;
+    type PCDVerifierKey = FinalDarlinPCDVerifierKey<'a, G1, G2, D>;
 
     fn succinct_verify<R: RngCore>(
         &self,
@@ -82,7 +81,7 @@ where
         public_inputs.append(&mut self.usr_ins.clone());
 
         let ahp_result = Marlin::<G1::ScalarField, InnerProductArgPC<G1, D>, D, MC>::verify_ahp(
-            &vk.0,
+            vk.marlin_vk,
             public_inputs.as_slice(),
             &self.marlin_proof,
         );
@@ -99,7 +98,7 @@ where
 
         // Succinct verify DLOG proof
         let succinct_result = InnerProductArgPC::<G1, D>::succinct_batch_check_individual_opening_challenges(
-            &vk.1,
+            vk.dlog_vks.0,
             &labeled_comms,
             &query_set,
             &evaluations,

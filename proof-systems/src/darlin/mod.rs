@@ -31,7 +31,7 @@ pub struct PCDParameters {
 }
 
 impl PCDParameters {
-    fn universal_setup<G: AffineCurve, D: Digest>(
+    pub fn universal_setup<G: AffineCurve, D: Digest>(
         &self,
         params: &UniversalParams<G>
     ) -> Result<(DLogCommitterKey<G>, DLogVerifierKey<G>), PCError>
@@ -44,7 +44,7 @@ impl PCDParameters {
         )
     }
 
-    fn circuit_specific_setup<G: AffineCurve, C: ConstraintSynthesizer<G::ScalarField>, D: Digest>(
+    pub fn circuit_specific_setup<G: AffineCurve, C: ConstraintSynthesizer<G::ScalarField>, D: Digest>(
         &self,
         circuit: C,
         ck: &DLogCommitterKey<G>,
@@ -81,9 +81,9 @@ impl PCDParameters {
 
 /// this trait expresses the functions for proof carrying data, in which the PCD is assumed
 /// to be a set of data consisting of a statement, some deferred elements and a proof.
-pub trait PCD: Sized + Send + Sync {
-    type PCDAccumulator: Accumulator;
-    type PCDVerifierKey: AsRef<<Self::PCDAccumulator as Accumulator>::AccumulatorVerifierKey>;
+pub trait PCD<'a>: Sized + Send + Sync {
+    type PCDAccumulator: Accumulator<'a>;
+    type PCDVerifierKey: AsRef<<Self::PCDAccumulator as Accumulator<'a>>::AccumulatorVerifierKey>;
 
     //TODO: IN ORDER TO ALLOW SIDECHAINS TO CHOOSE ARBITRARILY THE SEGMENT SIZE:
     //      In the IPA succinct verification code we should remove any reference
@@ -125,7 +125,7 @@ pub trait PCD: Sized + Send + Sync {
 
 //TODO: Consider using RecursiveDLogAccumulator (maybe renaming it into DualDLogAccumulator)
 //      to recycle its code in here
-pub fn accumulate_proofs<'a, G1, G2, D: Digest, R: RngCore, MC: MarlinConfig + Send + Sync + Sync + Send>(
+pub fn accumulate_proofs<'a, G1, G2, D: Digest, R: RngCore, MC: MarlinConfig + Sync + Send>(
     final_darlin_pcds:      impl IntoIterator<Item = &'a FinalDarlinPCD<G1, G2, D, MC>>,
     final_darlin_vks:       impl IntoIterator<Item = &'a MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>>,
     marlin_pcds:            impl IntoIterator<Item = &'a SimpleMarlinPCD<G1, D, MC>>,
@@ -150,28 +150,31 @@ where
     let final_darlin_vks = final_darlin_vks.into_iter().collect::<Vec<_>>();
 
     let darlin_accs = final_darlin_pcds
-        .par_iter()
+        .into_par_iter()
         .zip(final_darlin_vks)
         .map(|(final_darlin_pcd, final_darlin_vk)|
             {
-                let vk = FinalDarlinPCDVerifierKey::<G1, G2, D>(final_darlin_vk.clone(), g1_ck.clone(), g2_ck.clone());
+                let vk = FinalDarlinPCDVerifierKey::<G1, G2, D>{
+                    marlin_vk: final_darlin_vk,
+                    dlog_vks: (g1_ck, g2_ck)
+                };
                 final_darlin_pcd.succinct_verify(&vk, &mut thread_rng())
             }
         ).collect::<Result<Vec<_>, PCError>>()?;
 
     let mut accs_g1 = darlin_accs.iter().flat_map(|acc| acc.0.clone()).collect::<Vec<_>>();
-    let mut accs_g2 = darlin_accs.into_iter().flat_map(|acc| acc.1.clone()).collect::<Vec<_>>();
+    let accs_g2 = darlin_accs.into_iter().flat_map(|acc| acc.1.clone()).collect::<Vec<_>>();
 
     // Marlin
     let marlin_pcds = marlin_pcds.into_iter().collect::<Vec<_>>();
     let marlin_vks = marlin_vks.into_iter().collect::<Vec<_>>();
 
-    let marlin_accs_g1 = marlin_pcds
+    let mut marlin_accs_g1 = marlin_pcds
         .into_par_iter()
         .zip(marlin_vks)
         .map(|(marlin_pcd, marlin_vk)|
             {
-                let vk = SimpleMarlinPCDVerifierKey::<G1, D>(marlin_vk.clone(), g1_ck.clone());
+                let vk = SimpleMarlinPCDVerifierKey::<G1, D>(marlin_vk, g1_ck);
                 marlin_pcd.succinct_verify(&vk, &mut thread_rng())
             }
         ).collect::<Result<Vec<_>, PCError>>()?;
@@ -185,7 +188,7 @@ where
     Ok((acc_proof_g1, acc_proof_g2))
 }
 
-pub fn verify_aggregated_proofs<'a, G1, G2, D: Digest, R: RngCore, MC: MarlinConfig + Send + Sync>(
+pub fn verify_aggregated_proofs<'a, G1, G2, D: Digest, R: RngCore, MC: MarlinConfig>(
     final_darlin_pcds:      impl IntoIterator<Item = &'a FinalDarlinPCD<G1, G2, D, MC>>,
     final_darlin_vks:       impl IntoIterator<Item = &'a MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>>,
     marlin_pcds:            impl IntoIterator<Item = &'a SimpleMarlinPCD<G1, D, MC>>,
@@ -212,24 +215,27 @@ pub fn verify_aggregated_proofs<'a, G1, G2, D: Digest, R: RngCore, MC: MarlinCon
         .zip(final_darlin_vks)
         .map(|(final_darlin_pcd, final_darlin_vk)|
             {
-                let vk = FinalDarlinPCDVerifierKey::<G1, G2, D>(final_darlin_vk.clone(), g1_vk.clone(), g2_vk.clone());
+                let vk = FinalDarlinPCDVerifierKey::<G1, G2, D>{
+                    marlin_vk: final_darlin_vk,
+                    dlog_vks: (g1_vk, g2_vk)
+                };
                 final_darlin_pcd.succinct_verify(&vk, &mut thread_rng())
             }
         ).collect::<Result<Vec<_>, PCError>>()?;
 
     let mut accs_g1 = darlin_accs.iter().flat_map(|acc| acc.0.clone()).collect::<Vec<_>>();
-    let mut accs_g2 = darlin_accs.into_iter().flat_map(|acc| acc.1.clone()).collect::<Vec<_>>();
+    let accs_g2 = darlin_accs.into_iter().flat_map(|acc| acc.1.clone()).collect::<Vec<_>>();
 
     // Marlin
     let marlin_pcds = marlin_pcds.into_iter().collect::<Vec<_>>();
     let marlin_vks = marlin_vks.into_iter().collect::<Vec<_>>();
 
-    let marlin_accs_g1 = marlin_pcds
+    let mut marlin_accs_g1 = marlin_pcds
         .into_par_iter()
         .zip(marlin_vks)
         .map(|(marlin_pcd, marlin_vk)|
             {
-                let vk = SimpleMarlinPCDVerifierKey::<G1, D>(marlin_vk.clone(), g1_vk.clone());
+                let vk = SimpleMarlinPCDVerifierKey::<G1, D>(marlin_vk, g1_vk);
                 marlin_pcd.succinct_verify(&vk, &mut thread_rng())
             }
         ).collect::<Result<Vec<_>, PCError>>()?;

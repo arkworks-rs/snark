@@ -21,7 +21,7 @@ license = "MIT/Apache-2.0"
 
 [dependencies]
 algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "darlin" }
-r1cs-core = { path = "../../core"}
+r1cs-core = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "darlin" }
 derivative = "1"
 radix_trie = "0.1"
 

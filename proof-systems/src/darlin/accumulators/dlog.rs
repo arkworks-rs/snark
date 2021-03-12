@@ -138,7 +138,7 @@ impl<G: AffineCurve> ToBytes for DLogAccumulator<G> {
     }
 }
 
-impl<G: AffineCurve> Accumulator for DLogAccumulator<G> {
+impl<'a, G: AffineCurve> Accumulator<'a> for DLogAccumulator<G> {
     type AccumulatorProverKey = CommitterKey<G>;
     type AccumulatorVerifierKey = VerifierKey<G>;
     type AccumulationProof = AccumulationProof<G>;
@@ -343,14 +343,13 @@ impl<G1: AffineCurve, G2: AffineCurve> ToBytes for RecursiveDLogAccumulator<G1, 
     }
 }
 
-impl<G1, G2> Accumulator for RecursiveDLogAccumulator<G1, G2>
+impl<'a, G1, G2> Accumulator<'a> for RecursiveDLogAccumulator<G1, G2>
     where
         G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField>,
         G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField>,
 {
-    //TODO: Pass keys as references
-    type AccumulatorProverKey = (CommitterKey<G1>, CommitterKey<G2>);
-    type AccumulatorVerifierKey = (VerifierKey<G1>, VerifierKey<G2>);
+    type AccumulatorProverKey = (&'a CommitterKey<G1>, &'a CommitterKey<G2>);
+    type AccumulatorVerifierKey = (&'a VerifierKey<G1>, &'a VerifierKey<G2>);
     type AccumulationProof = (AccumulationProof<G1>, AccumulationProof<G2>);
 
     fn check_accumulators<R: RngCore, D: Digest>(
