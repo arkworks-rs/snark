@@ -1,4 +1,6 @@
-use algebra::AffineCurve;
+use algebra::{
+    AffineCurve, ToConstraintField
+};
 use marlin::{MarlinConfig, VerifierKey as MarlinVerifierKey};
 use poly_commit::{
     ipa_pc::{
@@ -33,14 +35,11 @@ pub mod accumulators;
 //      know about it; regarding SegmentSize it can be done in a transparent way)
 
 //TODO: Do the same with Digest template
-
-//TODO: Consider using RecursiveDLogAccumulator (maybe renaming it into DualDLogAccumulator)
-//      to recycle its code in here
-pub fn accumulate_proofs<'a, G1, G2, D: Digest, R: RngCore, MC: MarlinConfig + Sync + Send>(
-    final_darlin_pcds:      impl IntoIterator<Item = &'a FinalDarlinPCD<G1, G2, D, MC>>,
-    final_darlin_vks:       impl IntoIterator<Item = &'a MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>>,
-    marlin_pcds:            impl IntoIterator<Item = &'a SimpleMarlinPCD<G1, D, MC>>,
-    marlin_vks:             impl IntoIterator<Item = &'a MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>>,
+pub fn accumulate_proofs<G1, G2, D: Digest, R: RngCore, MC: MarlinConfig>(
+    final_darlin_pcds:      &[FinalDarlinPCD<G1, G2, D, MC>],
+    final_darlin_vks:       &[MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>],
+    marlin_pcds:            &[SimpleMarlinPCD<G1, D, MC>],
+    marlin_vks:             &[MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>],
     g1_ck:                  &DLogCommitterKey<G1>,
     g2_ck:                  &DLogCommitterKey<G2>,
     rng:                    &mut R
@@ -50,18 +49,12 @@ pub fn accumulate_proofs<'a, G1, G2, D: Digest, R: RngCore, MC: MarlinConfig + S
         AccumulationProof<G2>,
     ), PCError>
     where
-        SimpleMarlinPCD<G1, D, MC>: 'a,
-        FinalDarlinPCD<G1, G2, D, MC>: 'a,
-        MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>: 'a,
-        G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField>,
-        G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField>,
+        G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
+        G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
 {
     // Final Darlin
-    let final_darlin_pcds = final_darlin_pcds.into_iter().collect::<Vec<_>>();
-    let final_darlin_vks = final_darlin_vks.into_iter().collect::<Vec<_>>();
-
     let darlin_accs = final_darlin_pcds
-        .into_par_iter()
+        .par_iter()
         .zip(final_darlin_vks)
         .map(|(final_darlin_pcd, final_darlin_vk)|
             {
@@ -74,12 +67,9 @@ pub fn accumulate_proofs<'a, G1, G2, D: Digest, R: RngCore, MC: MarlinConfig + S
         ).collect::<Result<Vec<_>, PCError>>()?;
 
     let mut accs_g1 = darlin_accs.iter().flat_map(|acc| acc.0.clone()).collect::<Vec<_>>();
-    let accs_g2 = darlin_accs.into_iter().flat_map(|acc| acc.1.clone()).collect::<Vec<_>>();
+    let accs_g2 = darlin_accs.into_iter().flat_map(|acc| acc.1).collect::<Vec<_>>();
 
     // Marlin
-    let marlin_pcds = marlin_pcds.into_iter().collect::<Vec<_>>();
-    let marlin_vks = marlin_vks.into_iter().collect::<Vec<_>>();
-
     let mut marlin_accs_g1 = marlin_pcds
         .into_par_iter()
         .zip(marlin_vks)
@@ -99,11 +89,11 @@ pub fn accumulate_proofs<'a, G1, G2, D: Digest, R: RngCore, MC: MarlinConfig + S
     Ok((acc_proof_g1, acc_proof_g2))
 }
 
-pub fn verify_aggregated_proofs<'a, G1, G2, D: Digest, R: RngCore, MC: MarlinConfig>(
-    final_darlin_pcds:      impl IntoIterator<Item = &'a FinalDarlinPCD<G1, G2, D, MC>>,
-    final_darlin_vks:       impl IntoIterator<Item = &'a MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>>,
-    marlin_pcds:            impl IntoIterator<Item = &'a SimpleMarlinPCD<G1, D, MC>>,
-    marlin_vks:             impl IntoIterator<Item = &'a MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>>,
+pub fn verify_aggregated_proofs<G1, G2, D: Digest, R: RngCore, MC: MarlinConfig>(
+    final_darlin_pcds:      &[FinalDarlinPCD<G1, G2, D, MC>],
+    final_darlin_vks:       &[MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>],
+    marlin_pcds:            &[SimpleMarlinPCD<G1, D, MC>],
+    marlin_vks:             &[MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>],
     accumulation_proof_g1:  &AccumulationProof<G1>,
     accumulation_proof_g2:  &AccumulationProof<G2>,
     g1_vk:                  &DLogVerifierKey<G1>,
@@ -111,16 +101,10 @@ pub fn verify_aggregated_proofs<'a, G1, G2, D: Digest, R: RngCore, MC: MarlinCon
     rng:                    &mut R
 ) -> Result<bool, PCError>
     where
-        SimpleMarlinPCD<G1, D, MC>: 'a,
-        FinalDarlinPCD<G1, G2, D, MC>: 'a,
-        MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>: 'a,
-        G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField>,
-        G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField>,
+        G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
+        G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
 {
     // Final Darlin
-    let final_darlin_pcds = final_darlin_pcds.into_iter().collect::<Vec<_>>();
-    let final_darlin_vks = final_darlin_vks.into_iter().collect::<Vec<_>>();
-
     let darlin_accs = final_darlin_pcds
         .into_par_iter()
         .zip(final_darlin_vks)
@@ -135,12 +119,9 @@ pub fn verify_aggregated_proofs<'a, G1, G2, D: Digest, R: RngCore, MC: MarlinCon
         ).collect::<Result<Vec<_>, PCError>>()?;
 
     let mut accs_g1 = darlin_accs.iter().flat_map(|acc| acc.0.clone()).collect::<Vec<_>>();
-    let accs_g2 = darlin_accs.into_iter().flat_map(|acc| acc.1.clone()).collect::<Vec<_>>();
+    let accs_g2 = darlin_accs.into_iter().flat_map(|acc| acc.1).collect::<Vec<_>>();
 
     // Marlin
-    let marlin_pcds = marlin_pcds.into_iter().collect::<Vec<_>>();
-    let marlin_vks = marlin_vks.into_iter().collect::<Vec<_>>();
-
     let mut marlin_accs_g1 = marlin_pcds
         .into_par_iter()
         .zip(marlin_vks)

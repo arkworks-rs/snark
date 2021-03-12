@@ -1,4 +1,4 @@
-use algebra::{AffineCurve, Field, ToBytes, to_bytes, UniformRand, ToConstraintField};
+use algebra::{AffineCurve, Field, UniformRand, ToBits, ToConstraintField};
 use digest::Digest;
 use marlin::{
     MarlinConfig,
@@ -20,6 +20,39 @@ use std::marker::PhantomData;
 pub struct FinalDarlinDeferredData<G1: AffineCurve, G2: AffineCurve> {
     pub(crate) previous_acc:       DLogAccumulator<G2>,
     pub(crate) pre_previous_acc:   DLogAccumulator<G1>,
+}
+
+impl<G1, G2> ToConstraintField<G1::ScalarField> for FinalDarlinDeferredData<G1, G2>
+where
+    G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
+    G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
+{
+    fn to_field_elements(&self) -> Result<Vec<G1::ScalarField>, Box<dyn std::error::Error>> {
+        let mut fes = Vec::new();
+
+        // Convert previous_acc into G1::ScalarField field elements
+        let g_final_g2 = self.previous_acc.g_final.comm.clone();
+        for c in g_final_g2.into_iter() {
+            fes.append(&mut c.to_field_elements()?);
+        }
+
+        for fe in self.previous_acc.xi_s.0.clone().into_iter() {
+            fes.append(&mut fe.write_bits().to_field_elements()?);
+        }
+
+        // Convert pre_previous_acc into G1::ScalarField field elements
+        fes.append(&mut self.pre_previous_acc.xi_s.0.clone());
+
+        let g_final_g1 = self.pre_previous_acc.g_final.comm.clone();
+        for c in g_final_g1 {
+            let c_fes = c.to_field_elements()?;
+            for fe in c_fes {
+                fes.append(&mut fe.write_bits().to_field_elements()?);
+            }
+        }
+
+        Ok(fes)
+    }
 }
 
 /// FinalDarlinPCD with two deferred DLOG accumulators.
@@ -49,8 +82,8 @@ impl<
 
 impl<'a, G1, G2, D, MC> PCD<'a> for FinalDarlinPCD<G1, G2, D, MC>
 where
-    G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField>,
-    G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField>,
+    G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
+    G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
     D: Digest + 'a,
     MC: MarlinConfig,
 {
@@ -68,14 +101,7 @@ where
         // Verify sumchecks
 
         // Get "system inputs"
-        // TODO: Take into account the specific structure of the accumulators to save constraints
-        // Convert accumulator to bytes
-        let mut input_bytes = Vec::new();
-        input_bytes.append(&mut to_bytes!(self.deferred.pre_previous_acc).unwrap());
-        input_bytes.append(&mut to_bytes!(self.deferred.previous_acc).unwrap());
-
-        // Extract C::F1 field element from input_bytes
-        let mut public_inputs = input_bytes.as_slice().to_field_elements().unwrap();
+        let mut public_inputs = self.deferred.to_field_elements().unwrap();
 
         // Append user inputs
         public_inputs.append(&mut self.usr_ins.clone());
@@ -114,7 +140,7 @@ where
 
         let (xi_s, g_final) = succinct_result.unwrap();
         let acc = DLogAccumulator::<G1> {
-            g_final: Commitment::<G1> { comm: g_final, shifted_comm: None},
+            g_final: Commitment::<G1> { comm: vec![g_final], shifted_comm: None},
             xi_s,
         };
 

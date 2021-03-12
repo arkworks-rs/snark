@@ -113,7 +113,7 @@ impl<G: AffineCurve> DLogAccumulator<G> {
 
         if xi_s.is_some() {
             Some(Self {
-                g_final: Commitment::<G>{ comm: proof.final_comm_key.clone(), shifted_comm: None },
+                g_final: Commitment::<G>{ comm: vec![proof.final_comm_key.clone()], shifted_comm: None },
                 xi_s: xi_s.unwrap(),
             })
         } else {
@@ -151,7 +151,7 @@ impl<'a, G: AffineCurve> Accumulator<'a> for DLogAccumulator<G> {
     {
         let check_time = start_timer!(|| "Check accumulators");
 
-        let final_comm_keys = accumulators.iter().map(|acc| acc.g_final.comm.clone()).collect::<Vec<_>>();
+        let final_comm_keys = accumulators.iter().flat_map(|acc| acc.g_final.comm.clone()).collect::<Vec<_>>();
         let xi_s_vec = accumulators.iter().map(|acc| acc.xi_s.clone()).collect::<Vec<_>>();
 
         let batching_time = start_timer!(|| "Combine check polynomials and final comm keys");
