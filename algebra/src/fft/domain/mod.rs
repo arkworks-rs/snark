@@ -140,14 +140,18 @@ pub trait EvaluationDomainImpl<F: PrimeField>: Sized + Copy + Clone + Eq + Parti
         result
     }
 
-    /// Evaluate all the lagrange polynomials defined by this domain at the point
-    /// `tau`.
+    /// Given an arbitrary field element `tau`, compute the Lagrange kernel 
+    ///     L(z,tau) = 1/n * z * (1 - tau^n)/(z -tau).
+    /// The Lagrange kernel is useful when one needs to evaluate many polynomials given in 
+    /// Lagrange representation at that given point.
+    /// This implementation works also if `tau` is selected from the domain.
     fn evaluate_all_lagrange_coefficients(&self, tau: F) -> Vec<F> {
         // Evaluate all Lagrange polynomials
         let size = self.size();
         let t_size = tau.pow(&[size as u64]);
         let one = F::one();
         if t_size.is_one() {
+            // if tau is from the domain itself, then L(z,tau) is "trivial"
             let mut u = vec![F::zero(); size];
             let mut omega_i = one;
             for i in 0..size {
@@ -159,12 +163,16 @@ pub trait EvaluationDomainImpl<F: PrimeField>: Sized + Copy + Clone + Eq + Parti
             }
             u
         } else {
+            // we compute L(z,tau) = 1/n * z * (tau^n - 1)/(tau - z)
+            // using batch inversion for (tau - z), z over H.
             use crate::fields::batch_inversion;
 
             let mut l = (t_size - &one) * &self.size_inv();
             let mut r = one;
             let mut u = vec![F::zero(); size];
             let mut ls = vec![F::zero(); size];
+            // u[i] = tau - z  at z = g^i,
+            // ls[i] = (tau^n - 1)/n * g^i, 
             for i in 0..size {
                 u[i] = tau - &r;
                 ls[i] = l;
@@ -173,6 +181,8 @@ pub trait EvaluationDomainImpl<F: PrimeField>: Sized + Copy + Clone + Eq + Parti
             }
 
             batch_inversion(u.as_mut_slice());
+            // We compute L(z,tau) = u[i]*ls[i]. 
+            // Very misleading notation here.
             u.par_iter_mut().zip(ls).for_each(|(tau_minus_r, l)| {
                 *tau_minus_r = l * tau_minus_r;
             });
@@ -181,6 +191,8 @@ pub trait EvaluationDomainImpl<F: PrimeField>: Sized + Copy + Clone + Eq + Parti
     }
 
     #[doc(hidden)]
+    // Given a polynomial as coefficient vector (c0,c1,c2,...) and an element g, 
+    // computes (c0,c1*g,c2*g^2,...)
     fn distribute_powers(coeffs: &mut Vec<F>, g: F) {
         Worker::new().scope(coeffs.len(), |scope, chunk| {
             for (i, v) in coeffs.chunks_mut(chunk).enumerate() {
