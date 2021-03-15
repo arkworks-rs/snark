@@ -2,10 +2,10 @@ use algebra::{Field, AffineCurve, ProjectiveCurve, ToBytes, to_bytes, UniformRan
 use algebra_utils::polynomial::DensePolynomial as Polynomial;
 use poly_commit::{ipa_pc::{
     InnerProductArgPC,
-    Commitment, Randomness,
+    Commitment,
     VerifierKey, CommitterKey,
     SuccinctCheckPolynomial,
-}, PCVerifierKey, PolynomialCommitment, PCRandomness, LabeledPolynomial, LabeledCommitment, Error, LabeledRandomness};
+}, LabeledCommitment, Error};
 use crate::darlin::accumulators::{
     Accumulator, AccumulationProof,
 };
@@ -32,7 +32,7 @@ impl<G: AffineCurve> DLogAccumulator<G> {
         vk:                    &VerifierKey<G>,
         previous_accumulators: Vec<Self>,
         proof:                 &AccumulationProof<G>,
-    ) -> Option<Self>
+    ) -> Result<Option<Self>, Error>
     {
         let succinct_time = start_timer!(|| "Succinct verify accumulate");
 
@@ -79,23 +79,6 @@ impl<G: AffineCurve> DLogAccumulator<G> {
         end_timer!(poly_time);
 
         let check_time = start_timer!(|| "Succinct check IPA proof");
-        let d = vk.supported_degree();
-
-        // `log_d` is ceil(log2 (d + 1)), which is the number of steps to compute all of the challenges
-        let log_d = algebra::log2(d + 1) as usize;
-        let proof = &proof.pc_proof;
-
-        if proof.l_vec.len() != proof.r_vec.len() || proof.l_vec.len() != log_d {
-            println!(
-                "Expected proof vectors to be {:}. Instead, l_vec size is {:} and r_vec size is {:}",
-                log_d,
-                proof.l_vec.len(),
-                proof.r_vec.len()
-            );
-            end_timer!(check_time);
-            end_timer!(succinct_time);
-            return None;
-        }
 
         // Sample new opening challenge
         let opening_challenge = InnerProductArgPC::<G, D>::compute_random_oracle_challenge(
@@ -105,19 +88,19 @@ impl<G: AffineCurve> DLogAccumulator<G> {
 
         // Succinct check
         let xi_s = InnerProductArgPC::<G, D>::succinct_check(
-            vk, comms.iter(), z, values, proof, &opening_challenges
-        );
+            vk, comms.iter(), z, values, &proof.pc_proof, &opening_challenges
+        )?;
 
         end_timer!(check_time);
         end_timer!(succinct_time);
 
         if xi_s.is_some() {
-            Some(Self {
-                g_final: Commitment::<G>{ comm: vec![proof.final_comm_key.clone()], shifted_comm: None },
+            Ok(Some(Self {
+                g_final: Commitment::<G>{ comm: vec![proof.pc_proof.final_comm_key.clone()], shifted_comm: None },
                 xi_s: xi_s.unwrap(),
-            })
+            }))
         } else {
-            None
+            Ok(None)
         }
     }
 }
@@ -176,6 +159,16 @@ impl<'a, G: AffineCurve> Accumulator<'a> for DLogAccumulator<G> {
             }).reduce(|| Polynomial::zero(), |acc, scaled_poly| &acc + &scaled_poly);
         end_timer!(batching_time);
 
+        //Trim the vk to the length of the combined_check_poly, as we did for accumulate()
+        let vk = VerifierKey::<G> {
+            comm_key: (&vk.comm_key[..combined_check_poly.coeffs.len()]).to_vec(),
+            h: vk.h.clone(),
+            s: vk.s.clone(),
+            max_degree: vk.max_degree,
+            hash: vk.hash.clone(),
+        };
+
+
         // DLOG hard part.
         // The equation to check would be:
         // lambda_1 * gfin_1 + ... + lambda_n * gfin_n - combined_h_1 * g_vk_1 - ... - combined_h_m * g_vk_m = 0
@@ -198,106 +191,64 @@ impl<'a, G: AffineCurve> Accumulator<'a> for DLogAccumulator<G> {
         Ok(true)
     }
 
-    fn accumulate<R: RngCore, D: Digest>(
+    fn accumulate<D: Digest>(
         ck: &Self::AccumulatorProverKey,
         accumulators: Vec<Self>,
-        rng: &mut R
     ) -> Result<(Self, Self::AccumulationProof), Error>
     {
         let accumulate_time = start_timer!(|| "Accumulate");
 
-        let poly_time = start_timer!(|| "Compute Bullet Polys and their evaluations");
-
-        // Sample a new challenge z
+        // Sample a new challenge point z
         let z = InnerProductArgPC::<G, D>::compute_random_oracle_challenge(
             &to_bytes![ck.hash.clone(), accumulators.as_slice()].unwrap(),
         );
 
-        let polys_comms_values = accumulators
-            .into_par_iter()
-            .enumerate()
-            .map(|(i, acc)| {
-                let final_comm_key = acc.g_final.comm.clone();
-                let xi_s = acc.xi_s;
+        // Collect GFinals from the accumulators
+        let g_fins = accumulators.iter().map(|acc| {
+            Commitment::<G> {
+                comm: acc.g_final.comm.clone(),
+                shifted_comm: None
+            }
+        }).collect::<Vec<_>>();
 
-                // Create a LabeledCommitment out of the g_final
-                let labeled_comm = {
-                    let comm = Commitment {
-                        comm: final_comm_key,
-                        shifted_comm: None
-                    };
+        // Collect xi_s from the accumulators
+        let mut max_size = 0;
+        let xi_s = accumulators.into_iter().map(|acc| {
+            let chals_num = acc.xi_s.0.len();
+            if chals_num > max_size {
+                max_size = chals_num;
+            }
+            acc.xi_s
+        }).collect::<Vec<_>>();
 
-                    LabeledCommitment::new(
-                        format!("check_poly_{}", i),
-                        comm,
-                        None,
-                    )
-                };
+        let poly_time = start_timer!(|| "Open Bullet Polys");
 
-                // Compute the evaluation of the Bullet polynomial at z starting from the xi_s
-                let eval = xi_s.evaluate(z);
+        let max_segment_size = 1 << max_size;
 
-                // Compute the coefficients of the Bullet polynomial starting from the xi_s
-                // TODO: We need to keep all these polynomials in memory. How many we can afford ?
-                //       (200 polys of size 2^17 in Tweedle will cost 4MB * 200 = 800MB)
-                //       We can fix this by changing the implementation of open_individual_opening_challenges
-                //       by adding a new function that only takes the xi_s and internally it incrementally
-                //       computes the batched bullet polynomial.
-                let check_poly = Polynomial::from_coefficients_vec(xi_s.compute_coeffs());
+        // Trim the ck to the max of the segment size among all the proofs to accumulate.
+        let ck = CommitterKey::<G> {
+            comm_key: (&ck.comm_key[..max_segment_size]).to_vec(),
+            h: ck.h.clone(),
+            s: ck.s.clone(),
+            max_degree: max_segment_size,
+            hash: ck.hash.clone(),
+        };
 
-                (check_poly, labeled_comm, eval)
-            }).collect::<Vec<_>>();
+        let opening_proof = InnerProductArgPC::<G, D>::open_check_polys(
+            &ck,
+            xi_s.iter(),
+            g_fins.iter(),
+            z
+        )?;
 
-        let len = polys_comms_values.len();
-
-        // Sample new opening challenge
-        let opening_challenge = InnerProductArgPC::<G, D>::compute_random_oracle_challenge(
-            &polys_comms_values.iter().flat_map(|(_, _, val)| to_bytes!(val).unwrap()).collect::<Vec<_>>()
-        );
-        let opening_challenges = |pow| opening_challenge.pow(&[pow]);
-
-        // Save comms and polys into separate vectors
-        let comms = polys_comms_values.iter().map(|(_, comm, _)| comm.clone()).collect::<Vec<_>>();
-        let polys = polys_comms_values.into_iter().enumerate().map(|(i, (poly, _, _))|
-            LabeledPolynomial::new(
-                format!("check_poly_{}", i),
-                poly,
-                None,
-                None
-            )
-        ).collect::<Vec<_>>();
         end_timer!(poly_time);
-
-        let mut labeled_rands = Vec::new();
-        for i in 0..len {
-            labeled_rands.push(
-                LabeledRandomness::<Randomness<G>>::new(
-                    format!("check_poly_{}", i),
-                    Randomness::<G>::empty()
-                )
-            );
-        }
-
-        let open_time = start_timer!(|| "Produce opening proof for Bullet polys and GFin s");
-
-        // Compute and return opening proof
-        let opening_proof = InnerProductArgPC::<G, D>::open_individual_opening_challenges(
-            ck,
-            polys.iter(),
-            comms.iter(),
-            z,
-            &opening_challenges,
-            labeled_rands.iter(),
-            Some(rng)
-        ).unwrap();
-        end_timer!(open_time);
-
-        end_timer!(accumulate_time);
 
         let accumulator = DLogAccumulator::<G>::default();
 
         let mut accumulation_proof = AccumulationProof::<G>::default();
         accumulation_proof.pc_proof = opening_proof;
+
+        end_timer!(accumulate_time);
 
         Ok((accumulator, accumulation_proof))
     }
@@ -313,7 +264,7 @@ impl<'a, G: AffineCurve> Accumulator<'a> for DLogAccumulator<G> {
         let check_acc_time = start_timer!(|| "Verify Accumulation");
 
         // Succinct part
-        let new_acc = Self::succinct_verify_accumulate::<D>(vk, previous_accumulators, proof);
+        let new_acc = Self::succinct_verify_accumulate::<D>(vk, previous_accumulators, proof)?;
         if new_acc.is_none() {
             end_timer!(check_acc_time);
             return Ok(false)
@@ -371,17 +322,16 @@ impl<'a, G1, G2> Accumulator<'a> for RecursiveDLogAccumulator<G1, G2>
         Ok(true)
     }
 
-    fn accumulate<R: RngCore, D: Digest>(
+    fn accumulate<D: Digest>(
         ck: &Self::AccumulatorProverKey,
         accumulators: Vec<Self>,
-        rng: &mut R
     ) -> Result<(Self, Self::AccumulationProof), Error>
     {
         let g1_accumulators = accumulators.iter().flat_map(|acc| { acc.0.clone() }).collect::<Vec<_>>();
-        let (_, g1_acc_proof) = DLogAccumulator::<G1>::accumulate::<R, D>(&ck.0, g1_accumulators, rng)?;
+        let (_, g1_acc_proof) = DLogAccumulator::<G1>::accumulate::<D>(&ck.0, g1_accumulators)?;
 
         let g2_accumulators = accumulators.into_iter().flat_map(|acc| { acc.1 }).collect::<Vec<_>>();
-        let (_, g2_acc_proof) = DLogAccumulator::<G2>::accumulate::<R, D>(&ck.1, g2_accumulators, rng)?;
+        let (_, g2_acc_proof) = DLogAccumulator::<G2>::accumulate::<D>(&ck.1, g2_accumulators)?;
 
         let accumulator = RecursiveDLogAccumulator::<G1, G2>(vec![DLogAccumulator::<G1>::default()], vec![DLogAccumulator::<G2>::default()]);
         let accumulation_proof = (g1_acc_proof, g2_acc_proof);

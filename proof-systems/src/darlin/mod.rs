@@ -17,7 +17,7 @@ use crate::darlin::{
     pcd::{
         PCD,
         simple_marlin::{SimpleMarlinPCD, SimpleMarlinPCDVerifierKey},
-        finalized_darlin::{FinalDarlinPCD, FinalDarlinPCDVerifierKey}
+        final_darlin::{FinalDarlinPCD, FinalDarlinPCDVerifierKey}
     }
 };
 use rand::{RngCore, thread_rng};
@@ -28,7 +28,6 @@ pub mod pcd;
 pub mod accumulators;
 
 //TODO: Remove dependency from R: RngCore when not needed
-
 //TODO: Do the same with Digest template
 pub fn accumulate_proofs<G1, G2, D: Digest, R: RngCore>(
     final_darlin_pcds:      &[FinalDarlinPCD<G1, G2, D>],
@@ -37,7 +36,6 @@ pub fn accumulate_proofs<G1, G2, D: Digest, R: RngCore>(
     marlin_vks:             &[MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>],
     g1_ck:                  &DLogCommitterKey<G1>,
     g2_ck:                  &DLogCommitterKey<G2>,
-    rng:                    &mut R
 ) -> Result<
     (
         AccumulationProof<G1>,
@@ -78,8 +76,8 @@ pub fn accumulate_proofs<G1, G2, D: Digest, R: RngCore>(
     accs_g1.append(&mut marlin_accs_g1);
 
     // Create accumulation proofs
-    let (_, acc_proof_g1) = DLogAccumulator::<G1>::accumulate::<R, D>(g1_ck, accs_g1, rng)?;
-    let (_, acc_proof_g2) = DLogAccumulator::<G2>::accumulate::<R, D>(g2_ck, accs_g2, rng)?;
+    let (_, acc_proof_g1) = DLogAccumulator::<G1>::accumulate::<D>(g1_ck, accs_g1)?;
+    let (_, acc_proof_g2) = DLogAccumulator::<G2>::accumulate::<D>(g2_ck, accs_g2)?;
 
     Ok((acc_proof_g1, acc_proof_g2))
 }

@@ -44,10 +44,9 @@ pub trait Accumulator<'a>: Sized + ToBytes {
     /// Return the new "updated" accumulator and a non-interactive
     /// proof of its correct derivation from the given accumulators
     /// to be aggregated.
-    fn accumulate<R: RngCore, D: Digest>(
+    fn accumulate<D: Digest>(
         ck: &Self::AccumulatorProverKey,
         accumulators: Vec<Self>,
-        rng: &mut R,
     ) -> Result<(Self, Self::AccumulationProof), Error>;
 
     /// Fully verifies a proof produced by accumulate() given the accumulator.

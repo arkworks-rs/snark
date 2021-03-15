@@ -13,7 +13,7 @@ use rand::RngCore;
 use digest::Digest;
 
 pub mod simple_marlin;
-pub mod finalized_darlin;
+pub mod final_darlin;
 
 pub struct PCDParameters {
     segment_size: usize
@@ -74,10 +74,6 @@ pub trait PCD<'a>: Sized + Send + Sync {
     type PCDAccumulator: Accumulator<'a>;
     type PCDVerifierKey: AsRef<<Self::PCDAccumulator as Accumulator<'a>>::AccumulatorVerifierKey>;
 
-    //TODO: IN ORDER TO ALLOW SIDECHAINS TO CHOOSE ARBITRARILY THE SEGMENT SIZE:
-    //      In the IPA succinct verification code we should remove any reference
-    //      to the vk length/supported degree and derive the info we need directly
-    //      from the length of the L and R vector (length = segment size)
     fn succinct_verify<R: RngCore>(
         &self,
         vk:         &Self::PCDVerifierKey,
