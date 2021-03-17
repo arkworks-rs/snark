@@ -85,7 +85,7 @@ impl<'a, G, D> PCD<'a> for SimpleMarlinPCD<G, D>
 
         let (xi_s, g_final) = succinct_result.unwrap();
         let acc = DLogAccumulator::<G> {
-            g_final: Commitment::<G> {  comm: vec![g_final], shifted_comm: None   },
+            g_final: Commitment::<G> {  comm: vec![g_final], shifted_comm: None  },
             xi_s,
         };
 

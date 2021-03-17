@@ -11,11 +11,15 @@ use crate::darlin::pcd::{PCDParameters, simple_marlin::SimpleMarlinPCD, GeneralP
 use digest::Digest;
 use rand::thread_rng;
 use poly_commit::PolynomialCommitment;
-use crate::darlin::proof_aggregator::{accumulate_proofs, verify_aggregated_proofs};
+use crate::darlin::proof_aggregator::{accumulate_proofs, verify_aggregated_proofs, batch_verify_proofs};
 use std::ops::MulAssign;
 
 type TestIPAPCDee = InnerProductArgPC<DeeAffine, Blake2s>;
 type TestIPAPCDum = InnerProductArgPC<DumAffine, Blake2s>;
+
+//TODO: Test also FinalDarlinPCD
+//TODO: Add negative test cases failing not on the AHP but on the hard verify
+//TODO: Test also with proofs of variable segment size
 
 #[derive(Copy, Clone)]
 struct Circuit<F: Field> {
@@ -116,10 +120,8 @@ fn test_circuit<G: AffineCurve, D: Digest>(
     }
 }
 
-
 #[test]
 fn test_accumulate_verify_simple_marlin_fixed_segment_size() {
-
     let rng = &mut thread_rng();
 
     // Set params
@@ -198,7 +200,7 @@ fn test_accumulate_verify_simple_marlin_fixed_segment_size() {
         &mut thread_rng()
     ).unwrap());
 
-    // Pass wrong public inputs for one marlin PCD and check verification of accumulation fail
+    // Pass wrong public inputs for one marlin PCD and check verification of accumulation fails
     simple_marlin_pcds[0] = GeneralPCD::SimpleMarlin(wrong_marlin_pcd);
 
     assert!(verify_aggregated_proofs::<DeeAffine, DumAffine, Blake2s, _>(
@@ -206,6 +208,72 @@ fn test_accumulate_verify_simple_marlin_fixed_segment_size() {
         simple_marlin_vks.as_slice(),
         Some(&proof_g1),
         None,
+        &verifier_key_g1,
+        &verifier_key_g2,
+        &mut thread_rng()
+    ).is_err());
+}
+
+#[test]
+fn test_batch_verify_simple_marlin_fixed_segment_size() {
+    let rng = &mut thread_rng();
+
+    // Set params
+    let num_constraints = 100;
+    let segment_size = num_constraints;
+
+    // Generate committer key and verifier key
+    let config = PCDParameters { segment_size };
+    let (committer_key_g1, verifier_key_g1) = config.universal_setup::<_, Blake2s>(
+        &TestIPAPCDee::setup(num_constraints, rng).unwrap()
+    ).unwrap();
+    let (_, verifier_key_g2) = config.universal_setup::<_, Blake2s>(
+        &TestIPAPCDum::setup(num_constraints, rng).unwrap()
+    ).unwrap();
+
+    // Generate Marlin prover and verifier key
+    let circ = Circuit {
+        a: None,
+        b: None,
+        num_constraints,
+        num_variables: num_constraints,
+    };
+
+    let (index_pk, index_vk) = config.circuit_specific_setup(circ.clone(), &committer_key_g1).unwrap();
+
+    // Generate Marlin PCDs
+    let samples = 100usize;
+    let simple_marlin_pcd = test_circuit::<DeeAffine, Blake2s>(
+        &committer_key_g1,
+        &index_pk,
+        num_constraints,
+        false
+    );
+
+    // Change public inputs for one marlin PCD to be used later for a negative test
+    let wrong_usr_ins = vec![Fr::rand(rng); simple_marlin_pcd.usr_ins.len()];
+    let mut wrong_marlin_pcd = simple_marlin_pcd.clone();
+    wrong_marlin_pcd.usr_ins = wrong_usr_ins;
+
+    // Collect PCDs (clone the same one, it's good enough for test)
+    let mut simple_marlin_pcds = vec![GeneralPCD::SimpleMarlin(simple_marlin_pcd); samples];
+    let simple_marlin_vks = vec![index_vk; samples];
+
+    // Batch Verify
+    assert!(batch_verify_proofs::<DeeAffine, DumAffine, Blake2s, _>(
+        simple_marlin_pcds.as_slice(),
+        simple_marlin_vks.as_slice(),
+        &verifier_key_g1,
+        &verifier_key_g2,
+        rng
+    ).unwrap());
+
+    // Pass wrong public inputs for one marlin PCD and check batch verification fails
+    simple_marlin_pcds[0] = GeneralPCD::SimpleMarlin(wrong_marlin_pcd);
+
+    assert!(batch_verify_proofs::<DeeAffine, DumAffine, Blake2s, _>(
+        simple_marlin_pcds.as_slice(),
+        simple_marlin_vks.as_slice(),
         &verifier_key_g1,
         &verifier_key_g2,
         &mut thread_rng()

@@ -24,6 +24,9 @@ use digest::Digest;
 use rayon::prelude::*;
 use crate::darlin::pcd::GeneralPCD;
 
+//TODO: Add support for variable segment size
+//TODO: Would be nice to return, when possible, for which PCD the verification has failed
+
 pub(crate) fn get_accumulators<G1, G2, D: Digest>(
     pcds:      &[GeneralPCD<G1, G2, D>],
     vks:       &[MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>],
@@ -118,4 +121,34 @@ pub fn verify_aggregated_proofs<G1, G2, D: Digest, R: RngCore>(
     };
 
     Ok(result_accumulate_g1 && result_accumulate_g2)
+}
+
+pub fn batch_verify_proofs<G1, G2, D: Digest, R: RngCore>(
+    pcds:                   &[GeneralPCD<G1, G2, D>],
+    vks:                    &[MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>],
+    g1_vk:                  &DLogVerifierKey<G1>,
+    g2_vk:                  &DLogVerifierKey<G2>,
+    rng:                    &mut R
+) -> Result<bool, PCError>
+    where
+        G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
+        G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
+{
+    // Get accumulators from pcds (perform succinct verification)
+    let (accs_g1, accs_g2) = get_accumulators::<G1, G2, D>(pcds, vks, g1_vk, g2_vk)?;
+
+    // Verify accumulators (hard part)
+    let result_g1 = if accs_g1.is_empty() {
+        true
+    } else {
+        DLogAccumulator::<G1>::check_accumulators::<R, D>(g1_vk, &accs_g1, rng)?
+    };
+
+    let result_g2 = if accs_g2.is_empty() {
+        true
+    } else {
+        DLogAccumulator::<G2>::check_accumulators::<R, D>(g2_vk, &accs_g2, rng)?
+    };
+
+    Ok(result_g1 && result_g2)
 }

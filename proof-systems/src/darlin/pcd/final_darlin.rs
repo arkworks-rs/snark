@@ -10,7 +10,7 @@ use poly_commit::{
     },
     Error
 };
-use crate::darlin::accumulators::dlog::{DLogAccumulator, RecursiveDLogAccumulator};
+use crate::darlin::accumulators::dlog::{DLogAccumulator, DualDLogAccumulator};
 use crate::darlin::pcd::PCD;
 use rand::RngCore;
 
@@ -86,7 +86,7 @@ where
     G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
     D: Digest + 'a,
 {
-    type PCDAccumulator = RecursiveDLogAccumulator<G1, G2>;
+    type PCDAccumulator = DualDLogAccumulator<G1, G2>;
     type PCDVerifierKey = FinalDarlinPCDVerifierKey<'a, G1, G2, D>;
 
     fn succinct_verify<R: RngCore>(
@@ -144,7 +144,7 @@ where
         };
 
         end_timer!(succinct_time);
-        Ok(RecursiveDLogAccumulator::<G1, G2>(vec![acc, self.deferred.pre_previous_acc.clone()], vec![self.deferred.previous_acc.clone()]))
+        Ok(DualDLogAccumulator::<G1, G2>(vec![acc, self.deferred.pre_previous_acc.clone()], vec![self.deferred.previous_acc.clone()]))
     }
 }
 

@@ -13,7 +13,7 @@ use rand::RngCore;
 use digest::Digest;
 use crate::darlin::pcd::final_darlin::{FinalDarlinPCD, FinalDarlinPCDVerifierKey};
 use crate::darlin::pcd::simple_marlin::{SimpleMarlinPCD, SimpleMarlinPCDVerifierKey};
-use crate::darlin::accumulators::dlog::RecursiveDLogAccumulator;
+use crate::darlin::accumulators::dlog::DualDLogAccumulator;
 
 pub mod simple_marlin;
 pub mod final_darlin;
@@ -115,7 +115,7 @@ where
     G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
     D: Digest + 'a,
 {
-    type PCDAccumulator = RecursiveDLogAccumulator<G1, G2>;
+    type PCDAccumulator = DualDLogAccumulator<G1, G2>;
     type PCDVerifierKey = FinalDarlinPCDVerifierKey<'a, G1, G2, D>;
 
     fn succinct_verify<R: RngCore>(
@@ -128,7 +128,7 @@ where
             Self::SimpleMarlin(simple_marlin) => {
                 let simple_marlin_vk = SimpleMarlinPCDVerifierKey (vk.marlin_vk, vk.dlog_vks.0);
                 let acc = simple_marlin.succinct_verify(&simple_marlin_vk, rng)?;
-                Ok(RecursiveDLogAccumulator (vec![acc], vec![]))
+                Ok(DualDLogAccumulator (vec![acc], vec![]))
             },
             Self::FinalDarlin(final_darlin) => {
                 final_darlin.succinct_verify(vk, rng)

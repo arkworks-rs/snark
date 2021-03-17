@@ -316,19 +316,19 @@ impl<'a, G: AffineCurve> Accumulator<'a> for DLogAccumulator<G> {
     }
 }
 
-pub struct RecursiveDLogAccumulator<G1: AffineCurve, G2: AffineCurve>(
+pub struct DualDLogAccumulator<G1: AffineCurve, G2: AffineCurve>(
     pub(crate) Vec<DLogAccumulator<G1>>,
     pub(crate) Vec<DLogAccumulator<G2>>,
 );
 
-impl<G1: AffineCurve, G2: AffineCurve> ToBytes for RecursiveDLogAccumulator<G1, G2> {
+impl<G1: AffineCurve, G2: AffineCurve> ToBytes for DualDLogAccumulator<G1, G2> {
     fn write<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
         self.0.write(&mut writer)?;
         self.1.write(&mut writer)
     }
 }
 
-impl<'a, G1, G2> Accumulator<'a> for RecursiveDLogAccumulator<G1, G2>
+impl<'a, G1, G2> Accumulator<'a> for DualDLogAccumulator<G1, G2>
     where
         G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField>,
         G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField>,
@@ -367,7 +367,7 @@ impl<'a, G1, G2> Accumulator<'a> for RecursiveDLogAccumulator<G1, G2>
         let g2_accumulators = accumulators.into_iter().flat_map(|acc| { acc.1 }).collect::<Vec<_>>();
         let (_, g2_acc_proof) = DLogAccumulator::<G2>::accumulate::<D>(&ck.1, g2_accumulators)?;
 
-        let accumulator = RecursiveDLogAccumulator::<G1, G2>(vec![DLogAccumulator::<G1>::default()], vec![DLogAccumulator::<G2>::default()]);
+        let accumulator = DualDLogAccumulator::<G1, G2>(vec![DLogAccumulator::<G1>::default()], vec![DLogAccumulator::<G2>::default()]);
         let accumulation_proof = (g1_acc_proof, g2_acc_proof);
 
         Ok((accumulator, accumulation_proof))
