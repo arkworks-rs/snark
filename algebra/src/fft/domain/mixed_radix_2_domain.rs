@@ -71,6 +71,11 @@ impl<F: PrimeField> MixedRadix2Domain<F> {
             // 2. We need to do q_adicity many merge passes, each of which is a bit more complicated than the
             // specialized q=2 case.
 
+            // The algorithm reindexes the FFT domain C by reversing the digits of the mixed-radix representation
+            // x = (b_0 + b_1*2 + ... + b_{two_adicity-1}* 2^{two_adicity-1} 
+            //        +  2^{two_adicity} (x_0  + x_1*q+..+ x_{q_adicity -1}*q^{q_adicity - 1}),
+            // see the mixed_radix_fft_permute() below.
+            
             // Applying the permutation
             let mut seen = vec![false; n as usize];
             for k in 0..n
@@ -90,6 +95,13 @@ impl<F: PrimeField> MixedRadix2Domain<F> {
                         }
                 }
 
+            // We recursively compute the FFTs over the cosets of C_{q*m} from the 
+            // FFTs over the cosets of C_m, starting with m=1. 
+            // With this convention, 
+            //          new_a[k' || i || j ] =  Sum_{l=0..q}  w^{ (i*m + j) * l} * a[k' || l || j] 
+            // where w is a generator of C_{q*m} (and hence w^{m*i*l} is a q-th 
+            // unit root 
+            //          qth_roots[i*l mod q] = g^{n/q* i*l}).
             let omega_q = omega.pow(n_over_q);
             let mut qth_roots = vec![F::one(); q];
             for i in 1..q
@@ -99,19 +111,22 @@ impl<F: PrimeField> MixedRadix2Domain<F> {
 
             let mut terms = vec![F::one(); q-1];
 
-            //Doing the q_adicity passes
             for _ in 0..q_adicity
                 {
                     let n_over_q_times_m = F::BigInt::from(n/((q*m) as u64));
+                    // w_m is the generator of the cyclic subgroup C_{q*m}
                     let w_m = omega.pow(n_over_q_times_m);
                     let mut k = 0;
+                    // k enumerates the partition of C_n into cosets of C_{q*m}
                     while k < (n as usize)
                         {
-                            let mut w_j = F::one(); // w_j is omega_m ^ j
+                            let mut w_j = F::one(); // w_j keeps track of omega_m ^ j
+                            // compute the FFT for the coset C_{q*m} at k.
                             for j in 0..m
                                 {
+                                    //  terms[i-1] = w^{i*j} * a[k || i || j], i= 1..q
                                     let base_term = a[k+j];
-                                    let mut w_j_i = w_j.clone();
+                                    let mut w_j_i = w_j.clone(); // w_j_i keeps track of the powers w^{j*i}
                                     for i in 1..q
                                         {
                                             terms[i - 1] = w_j_i * &a[k+j+(i*m)];
@@ -120,6 +135,8 @@ impl<F: PrimeField> MixedRadix2Domain<F> {
 
                                     for i in 0..q
                                         {
+                                            //  a[k || i || j] <-  Sum_{l=0..q}  w^{ (i*m + j) * l} * a[k' || l || j] =
+                                            //                  =  Sum_{l=0..q} qth_roots[(i*l)%q] * w^{ (l * j} * a[k' || l || j]
                                             a[k+j+(i*m)] = base_term;
                                             for l in 1..q
                                                 {
@@ -128,6 +145,7 @@ impl<F: PrimeField> MixedRadix2Domain<F> {
                                         }
                                     w_j *= &w_m;
                                 }
+                            // choose next coset of C_{q*m}    
                             k += q*m ;
                         }
                     m *= q;
