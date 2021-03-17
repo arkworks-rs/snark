@@ -97,12 +97,14 @@ fn test_accumulation<G1: AffineCurve, G2: AffineCurve, D: Digest, R: RngCore>(
     ).unwrap());
 
     // Pass wrong public inputs for one marlin PCD and check AHP verification fails
-    let wrong_usr_ins = vec![G1::ScalarField::rand(rng); pcds[0].get_usr_ins().len()];
-    let mut wrong_ins_pcd = pcds[0].clone();
+    // Select randomly one pcds to which changing the input
+    let idx: usize = rng.gen_range(0, pcds.len());
+    let wrong_usr_ins = vec![G1::ScalarField::rand(rng); pcds[idx].get_usr_ins().len()];
+    let mut wrong_ins_pcd = pcds[idx].clone();
     wrong_ins_pcd.set_usr_ins(wrong_usr_ins);
-    pcds[0] = wrong_ins_pcd;
+    pcds[idx] = wrong_ins_pcd;
 
-    assert!(verify_aggregated_proofs::<G1, G2, D, R>(
+    let result = verify_aggregated_proofs::<G1, G2, D, R>(
         pcds,
         vks,
         &proof_g1,
@@ -110,7 +112,13 @@ fn test_accumulation<G1: AffineCurve, G2: AffineCurve, D: Digest, R: RngCore>(
         verifier_key_g1,
         verifier_key_g2,
         rng
-    ).is_err());
+    );
+
+    // Check AHP failed
+    assert!(result.is_err());
+
+    // Since the AHP failed, we are able to determine which proof verification has failed
+    assert_eq!(result.unwrap_err().unwrap(), idx)
 }
 
 fn test_batch_verification<G1: AffineCurve, G2: AffineCurve, D: Digest, R: RngCore>(
@@ -134,18 +142,26 @@ fn test_batch_verification<G1: AffineCurve, G2: AffineCurve, D: Digest, R: RngCo
     ).unwrap());
 
     // Pass wrong public inputs for one marlin PCD and check AHP verification fails
-    let wrong_usr_ins = vec![G1::ScalarField::rand(rng); pcds[0].get_usr_ins().len()];
-    let mut wrong_ins_pcd = pcds[0].clone();
+    // Select randomly one pcds to which changing the input
+    let idx: usize = rng.gen_range(0, pcds.len());
+    let wrong_usr_ins = vec![G1::ScalarField::rand(rng); pcds[idx].get_usr_ins().len()];
+    let mut wrong_ins_pcd = pcds[idx].clone();
     wrong_ins_pcd.set_usr_ins(wrong_usr_ins);
-    pcds[0] = wrong_ins_pcd;
+    pcds[idx] = wrong_ins_pcd;
 
-    assert!(batch_verify_proofs::<G1, G2, D, R>(
+    let result = batch_verify_proofs::<G1, G2, D, R>(
         pcds,
         vks,
         verifier_key_g1,
         verifier_key_g2,
         rng
-    ).is_err());
+    );
+
+    // Check AHP failed
+    assert!(result.is_err());
+
+    // Since the AHP failed, we are able to determine which proof verification has failed
+    assert_eq!(result.unwrap_err().unwrap(), idx)
 }
 
 type TestIPAPCDee = InnerProductArgPC<DeeAffine, Blake2s>;
