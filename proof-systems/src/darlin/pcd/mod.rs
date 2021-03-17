@@ -103,10 +103,41 @@ pub trait PCD<'a>: Sized + Send + Sync {
     }
 }
 
-#[derive(Clone)]
+#[derive(Derivative)]
+#[derivative(Clone(bound = ""))]
 pub enum GeneralPCD<G1: AffineCurve, G2: AffineCurve, D: Digest> {
     SimpleMarlin(SimpleMarlinPCD<G1, D>),
     FinalDarlin(FinalDarlinPCD<G1, G2, D>)
+}
+
+impl<G1, G2, D> GeneralPCD<G1, G2, D>
+    where
+        G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
+        G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
+        D: Digest,
+{
+    // For testing purposes
+    pub fn get_usr_ins(&self) -> &[G1::ScalarField] {
+        match self {
+            Self::SimpleMarlin(simple_marlin) => {
+                simple_marlin.usr_ins.as_slice()
+            },
+            Self::FinalDarlin(final_darlin) => {
+                final_darlin.usr_ins.as_slice()
+            }
+        }
+    }
+
+    pub fn set_usr_ins(&mut self, usr_ins: Vec<G1::ScalarField>) {
+        match self {
+            Self::SimpleMarlin(simple_marlin) => {
+                simple_marlin.usr_ins = usr_ins;
+            },
+            Self::FinalDarlin(final_darlin) => {
+                final_darlin.usr_ins = usr_ins;
+            }
+        }
+    }
 }
 
 impl<'a, G1, G2, D> PCD<'a> for GeneralPCD<G1, G2, D>

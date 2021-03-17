@@ -24,7 +24,7 @@ use digest::Digest;
 use rayon::prelude::*;
 use crate::darlin::pcd::GeneralPCD;
 
-//TODO: Add support for variable segment size
+//TODO: Add support for allowing SCs to choose arbitrarily the segment size
 //TODO: Would be nice to return, when possible, for which PCD the verification has failed
 
 pub(crate) fn get_accumulators<G1, G2, D: Digest>(
@@ -92,8 +92,8 @@ pub fn accumulate_proofs<G1, G2, D: Digest>(
 pub fn verify_aggregated_proofs<G1, G2, D: Digest, R: RngCore>(
     pcds:                   &[GeneralPCD<G1, G2, D>],
     vks:                    &[MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>],
-    accumulation_proof_g1:  Option<&AccumulationProof<G1>>,
-    accumulation_proof_g2:  Option<&AccumulationProof<G2>>,
+    accumulation_proof_g1:  &Option<AccumulationProof<G1>>,
+    accumulation_proof_g2:  &Option<AccumulationProof<G2>>,
     g1_vk:                  &DLogVerifierKey<G1>,
     g2_vk:                  &DLogVerifierKey<G2>,
     rng:                    &mut R
@@ -108,14 +108,14 @@ pub fn verify_aggregated_proofs<G1, G2, D: Digest, R: RngCore>(
     // Verify accumulators and accumulation proofs
     let result_accumulate_g1 = if accumulation_proof_g1.is_some() {
         let dummy_g1 = DLogAccumulator::<G1>::default();
-        dummy_g1.verify_accumulate::<R, D>(g1_vk, accs_g1, accumulation_proof_g1.unwrap(), rng)?
+        dummy_g1.verify_accumulate::<R, D>(g1_vk, accs_g1, accumulation_proof_g1.as_ref().unwrap(), rng)?
     } else {
         true
     };
 
     let result_accumulate_g2 = if accumulation_proof_g2.is_some() {
         let dummy_g2 = DLogAccumulator::<G2>::default();
-        dummy_g2.verify_accumulate::<R, D>(g2_vk, accs_g2, accumulation_proof_g2.unwrap(), rng)?
+        dummy_g2.verify_accumulate::<R, D>(g2_vk, accs_g2, accumulation_proof_g2.as_ref().unwrap(), rng)?
     } else {
         true
     };
