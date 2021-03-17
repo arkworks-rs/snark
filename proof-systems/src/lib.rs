@@ -11,6 +11,10 @@
 extern crate bench_utils;
 
 #[cfg(feature = "darlin")]
+#[macro_use]
+extern crate derivative;
+
+#[cfg(feature = "darlin")]
 pub mod darlin;
 
 #[cfg(feature = "groth16")]

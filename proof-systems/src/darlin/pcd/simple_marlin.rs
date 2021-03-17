@@ -15,9 +15,11 @@ use rand::RngCore;
 use crate::darlin::accumulators::dlog::DLogAccumulator;
 use poly_commit::ipa_pc::Commitment;
 
+#[derive(Derivative)]
+#[derivative(Clone(bound = ""))]
 pub struct SimpleMarlinPCD<G: AffineCurve, D: Digest> {
-    proof:                     MarlinProof<G::ScalarField, InnerProductArgPC<G, D>>,
-    usr_ins:                   Vec<G::ScalarField>,
+    pub proof:                     MarlinProof<G::ScalarField, InnerProductArgPC<G, D>>,
+    pub usr_ins:                   Vec<G::ScalarField>,
 }
 
 pub struct SimpleMarlinPCDVerifierKey<'a, G: AffineCurve, D: Digest>(

@@ -159,16 +159,6 @@ impl<'a, G: AffineCurve> Accumulator<'a> for DLogAccumulator<G> {
             }).reduce(|| Polynomial::zero(), |acc, scaled_poly| &acc + &scaled_poly);
         end_timer!(batching_time);
 
-        //Trim the vk to the length of the combined_check_poly, as we did for accumulate()
-        let vk = VerifierKey::<G> {
-            comm_key: (&vk.comm_key[..combined_check_poly.coeffs.len()]).to_vec(),
-            h: vk.h.clone(),
-            s: vk.s.clone(),
-            max_degree: vk.max_degree,
-            hash: vk.hash.clone(),
-        };
-
-
         // DLOG hard part.
         // The equation to check would be:
         // lambda_1 * gfin_1 + ... + lambda_n * gfin_n - combined_h_1 * g_vk_1 - ... - combined_h_m * g_vk_m = 0
@@ -196,59 +186,104 @@ impl<'a, G: AffineCurve> Accumulator<'a> for DLogAccumulator<G> {
         accumulators: Vec<Self>,
     ) -> Result<(Self, Self::AccumulationProof), Error>
     {
+        use poly_commit::{
+            PCRandomness, LabeledRandomness, LabeledPolynomial, PolynomialCommitment,
+            ipa_pc::Randomness
+        };
         let accumulate_time = start_timer!(|| "Accumulate");
 
-        // Sample a new challenge point z
+        let poly_time = start_timer!(|| "Compute Bullet Polys and their evaluations");
+
+        // Sample a new challenge z
         let z = InnerProductArgPC::<G, D>::compute_random_oracle_challenge(
             &to_bytes![ck.hash.clone(), accumulators.as_slice()].unwrap(),
         );
 
-        // Collect GFinals from the accumulators
-        let g_fins = accumulators.iter().map(|acc| {
-            Commitment::<G> {
-                comm: acc.g_final.comm.clone(),
-                shifted_comm: None
-            }
-        }).collect::<Vec<_>>();
+        let polys_comms_values = accumulators
+            .into_par_iter()
+            .enumerate()
+            .map(|(i, acc)| {
+                let final_comm_key = acc.g_final.comm.clone();
+                let xi_s = acc.xi_s;
 
-        // Collect xi_s from the accumulators
-        let mut max_size = 0;
-        let xi_s = accumulators.into_iter().map(|acc| {
-            let chals_num = acc.xi_s.0.len();
-            if chals_num > max_size {
-                max_size = chals_num;
-            }
-            acc.xi_s
-        }).collect::<Vec<_>>();
+                // Create a LabeledCommitment out of the g_final
+                let labeled_comm = {
+                    let comm = Commitment {
+                        comm: final_comm_key,
+                        shifted_comm: None
+                    };
 
-        let poly_time = start_timer!(|| "Open Bullet Polys");
+                    LabeledCommitment::new(
+                        format!("check_poly_{}", i),
+                        comm,
+                        None,
+                    )
+                };
 
-        let max_segment_size = 1 << max_size;
+                // Compute the evaluation of the Bullet polynomial at z starting from the xi_s
+                let eval = xi_s.evaluate(z);
 
-        // Trim the ck to the max of the segment size among all the proofs to accumulate.
-        let ck = CommitterKey::<G> {
-            comm_key: (&ck.comm_key[..max_segment_size]).to_vec(),
-            h: ck.h.clone(),
-            s: ck.s.clone(),
-            max_degree: max_segment_size,
-            hash: ck.hash.clone(),
-        };
+                // Compute the coefficients of the Bullet polynomial starting from the xi_s
+                // TODO: We need to keep all these polynomials in memory. How many we can afford ?
+                //       (200 polys of size 2^17 in Tweedle will cost 4MB * 200 = 800MB)
+                //       We can fix this by changing the implementation of open_individual_opening_challenges
+                //       by adding a new function that only takes the xi_s and internally it incrementally
+                //       computes the batched bullet polynomial.
+                let check_poly = Polynomial::from_coefficients_vec(xi_s.compute_coeffs());
 
-        let opening_proof = InnerProductArgPC::<G, D>::open_check_polys(
-            &ck,
-            xi_s.iter(),
-            g_fins.iter(),
-            z
-        )?;
+                (check_poly, labeled_comm, eval)
+            }).collect::<Vec<_>>();
 
+        let len = polys_comms_values.len();
+
+        // Sample new opening challenge
+        let opening_challenge = InnerProductArgPC::<G, D>::compute_random_oracle_challenge(
+            &polys_comms_values.iter().flat_map(|(_, _, val)| to_bytes!(val).unwrap()).collect::<Vec<_>>()
+        );
+        let opening_challenges = |pow| opening_challenge.pow(&[pow]);
+
+        // Save comms and polys into separate vectors
+        let comms = polys_comms_values.iter().map(|(_, comm, _)| comm.clone()).collect::<Vec<_>>();
+        let polys = polys_comms_values.into_iter().enumerate().map(|(i, (poly, _, _))|
+            LabeledPolynomial::new(
+                format!("check_poly_{}", i),
+                poly,
+                None,
+                None
+            )
+        ).collect::<Vec<_>>();
         end_timer!(poly_time);
+
+        let mut labeled_rands = Vec::new();
+        for i in 0..len {
+            labeled_rands.push(
+                LabeledRandomness::<Randomness<G>>::new(
+                    format!("check_poly_{}", i),
+                    Randomness::<G>::empty()
+                )
+            );
+        }
+
+        let open_time = start_timer!(|| "Produce opening proof for Bullet polys and GFin s");
+
+        // Compute and return opening proof
+        let opening_proof = InnerProductArgPC::<G, D>::open_individual_opening_challenges(
+            ck,
+            polys.iter(),
+            comms.iter(),
+            z,
+            &opening_challenges,
+            labeled_rands.iter(),
+            None
+        ).unwrap();
+        end_timer!(open_time);
+
+        end_timer!(accumulate_time);
 
         let accumulator = DLogAccumulator::<G>::default();
 
         let mut accumulation_proof = AccumulationProof::<G>::default();
         accumulation_proof.pc_proof = opening_proof;
-
-        end_timer!(accumulate_time);
 
         Ok((accumulator, accumulation_proof))
     }
@@ -269,7 +304,6 @@ impl<'a, G: AffineCurve> Accumulator<'a> for DLogAccumulator<G> {
             end_timer!(check_acc_time);
             return Ok(false)
         }
-        end_timer!(check_acc_time);
 
         // Hard part
         let hard_time = start_timer!(|| "DLOG hard part");

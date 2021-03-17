@@ -11,7 +11,7 @@ pub mod dlog;
 
 /// General struct of a proof for an amortization strategy not
 /// based on a separate definition of an information-theoretic protocol.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct AccumulationProof<G: AffineCurve> {
     /// Commitments to the polynomials produced by the prover.
     pub commitments: Vec<Vec<Commitment<G>>>,

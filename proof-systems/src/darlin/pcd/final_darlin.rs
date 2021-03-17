@@ -15,6 +15,7 @@ use crate::darlin::pcd::PCD;
 use rand::RngCore;
 
 // Maybe later we will deferr algebraic checks over G1::BaseField
+#[derive(Clone)]
 pub struct FinalDarlinDeferredData<G1: AffineCurve, G2: AffineCurve> {
     pub(crate) previous_acc:       DLogAccumulator<G2>,
     pub(crate) pre_previous_acc:   DLogAccumulator<G1>,
@@ -54,11 +55,13 @@ where
 }
 
 /// FinalDarlinPCD with two deferred DLOG accumulators.
+#[derive(Derivative)]
+#[derivative(Clone(bound = ""))]
 pub struct FinalDarlinPCD<G1: AffineCurve, G2: AffineCurve, D: Digest> {
     /// Full Marlin proof without deferred arithmetics in G1.
-    marlin_proof:       MarlinProof<G1::ScalarField, InnerProductArgPC<G1, D>>,
-    deferred:           FinalDarlinDeferredData<G1, G2>,
-    usr_ins:            Vec<G1::ScalarField>,
+    pub marlin_proof:       MarlinProof<G1::ScalarField, InnerProductArgPC<G1, D>>,
+    pub deferred:           FinalDarlinDeferredData<G1, G2>,
+    pub usr_ins:            Vec<G1::ScalarField>,
 }
 
 pub struct FinalDarlinPCDVerifierKey<'a, G1: AffineCurve, G2: AffineCurve, D: Digest> {

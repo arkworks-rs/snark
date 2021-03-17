@@ -16,7 +16,7 @@ pub mod simple_marlin;
 pub mod final_darlin;
 
 pub struct PCDParameters {
-    segment_size: usize
+    pub segment_size: usize
 }
 
 impl PCDParameters {
@@ -53,6 +53,7 @@ impl PCDParameters {
             .into_iter()
             .map(|c| c.commitment().clone())
             .collect();
+
         let index_vk = MarlinVerifierKey {
             index_info: index.index_info,
             index_comms,
