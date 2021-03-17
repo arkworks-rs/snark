@@ -1,4 +1,4 @@
-use algebra::AffineCurve;
+use algebra::{AffineCurve, ToConstraintField};
 use r1cs_core::ConstraintSynthesizer;
 use marlin::{ProverKey as MarlinProverKey, VerifierKey as MarlinVerifierKey, Error as MarlinError, AHPForR1CS};
 use poly_commit::{
@@ -11,6 +11,9 @@ use poly_commit::{
 use crate::darlin::accumulators::Accumulator;
 use rand::RngCore;
 use digest::Digest;
+use crate::darlin::pcd::final_darlin::{FinalDarlinPCD, FinalDarlinPCDVerifierKey};
+use crate::darlin::pcd::simple_marlin::{SimpleMarlinPCD, SimpleMarlinPCDVerifierKey};
+use crate::darlin::accumulators::dlog::RecursiveDLogAccumulator;
 
 pub mod simple_marlin;
 pub mod final_darlin;
@@ -97,5 +100,39 @@ pub trait PCD<'a>: Sized + Send + Sync {
     {
         let acc = self.succinct_verify::<R>(vk, rng)?;
         self.hard_verify::<R, D>(acc, vk, rng)
+    }
+}
+
+#[derive(Clone)]
+pub enum GeneralPCD<G1: AffineCurve, G2: AffineCurve, D: Digest> {
+    SimpleMarlin(SimpleMarlinPCD<G1, D>),
+    FinalDarlin(FinalDarlinPCD<G1, G2, D>)
+}
+
+impl<'a, G1, G2, D> PCD<'a> for GeneralPCD<G1, G2, D>
+where
+    G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
+    G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
+    D: Digest + 'a,
+{
+    type PCDAccumulator = RecursiveDLogAccumulator<G1, G2>;
+    type PCDVerifierKey = FinalDarlinPCDVerifierKey<'a, G1, G2, D>;
+
+    fn succinct_verify<R: RngCore>(
+        &self,
+        vk: &Self::PCDVerifierKey,
+        rng: &mut R
+    ) ->  Result<Self::PCDAccumulator, PCError>
+    {
+        match self {
+            Self::SimpleMarlin(simple_marlin) => {
+                let simple_marlin_vk = SimpleMarlinPCDVerifierKey (vk.marlin_vk, vk.dlog_vks.0);
+                let acc = simple_marlin.succinct_verify(&simple_marlin_vk, rng)?;
+                Ok(RecursiveDLogAccumulator (vec![acc], vec![]))
+            },
+            Self::FinalDarlin(final_darlin) => {
+                final_darlin.succinct_verify(vk, rng)
+            }
+        }
     }
 }

@@ -7,11 +7,11 @@ use marlin::{
 };
 use poly_commit::ipa_pc::{InnerProductArgPC, CommitterKey};
 use blake2::Blake2s;
-use crate::darlin::pcd::{PCDParameters, simple_marlin::SimpleMarlinPCD};
+use crate::darlin::pcd::{PCDParameters, simple_marlin::SimpleMarlinPCD, GeneralPCD};
 use digest::Digest;
 use rand::thread_rng;
 use poly_commit::PolynomialCommitment;
-use crate::darlin::{accumulate_proofs, verify_aggregated_proofs};
+use crate::darlin::proof_aggregator::{accumulate_proofs, verify_aggregated_proofs};
 use std::ops::MulAssign;
 
 type TestIPAPCDee = InnerProductArgPC<DeeAffine, Blake2s>;
@@ -153,13 +153,18 @@ fn test_accumulate_verify_simple_marlin_fixed_segment_size() {
         num_constraints,
         false
     );
-    let mut simple_marlin_pcds = vec![simple_marlin_pcd; samples];
+
+    // Change public inputs for one marlin PCD to be used later for a negative test
+    let wrong_usr_ins = vec![Fr::rand(rng); simple_marlin_pcd.usr_ins.len()];
+    let mut wrong_marlin_pcd = simple_marlin_pcd.clone();
+    wrong_marlin_pcd.usr_ins = wrong_usr_ins;
+
+    // Collect PCDs (clone the same one, it's good enough for test)
+    let mut simple_marlin_pcds = vec![GeneralPCD::SimpleMarlin(simple_marlin_pcd); samples];
     let simple_marlin_vks = vec![index_vk; samples];
     
     // Accumulate PCDs
     let (proof_g1, _) = accumulate_proofs::<DeeAffine, DumAffine, Blake2s>(
-        &[],
-        &[],
         simple_marlin_pcds.as_slice(),
         simple_marlin_vks.as_slice(),
         &committer_key_g1,
@@ -170,8 +175,6 @@ fn test_accumulate_verify_simple_marlin_fixed_segment_size() {
 
     // Verify accumulation
     assert!(verify_aggregated_proofs::<DeeAffine, DumAffine, Blake2s, _>(
-        &[],
-        &[],
         simple_marlin_pcds.as_slice(),
         simple_marlin_vks.as_slice(),
         Some(&proof_g1),
@@ -186,8 +189,6 @@ fn test_accumulate_verify_simple_marlin_fixed_segment_size() {
     let mut wrong_proof_g1 = proof_g1.clone();
     wrong_proof_g1.pc_proof.c = Fr::rand(rng);
     assert!(!verify_aggregated_proofs::<DeeAffine, DumAffine, Blake2s, _>(
-        &[],
-        &[],
         simple_marlin_pcds.as_slice(),
         simple_marlin_vks.as_slice(),
         Some(&wrong_proof_g1),
@@ -198,12 +199,9 @@ fn test_accumulate_verify_simple_marlin_fixed_segment_size() {
     ).unwrap());
 
     // Pass wrong public inputs for one marlin PCD and check verification of accumulation fail
-    let wrong_usr_ins = vec![Fr::rand(rng); simple_marlin_pcds[0].usr_ins.len()];
-    simple_marlin_pcds[0].usr_ins = wrong_usr_ins;
+    simple_marlin_pcds[0] = GeneralPCD::SimpleMarlin(wrong_marlin_pcd);
 
     assert!(verify_aggregated_proofs::<DeeAffine, DumAffine, Blake2s, _>(
-        &[],
-        &[],
         simple_marlin_pcds.as_slice(),
         simple_marlin_vks.as_slice(),
         Some(&proof_g1),
