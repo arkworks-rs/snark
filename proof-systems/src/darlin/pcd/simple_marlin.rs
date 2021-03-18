@@ -56,6 +56,7 @@ impl<'a, G, D> PCD<'a> for SimpleMarlinPCD<G, D>
 
         if ahp_result.is_err() {
             println!("AHP verification failed");
+            end_timer!(succinct_time);
             return Err(Error::FailedSuccinctCheck)
         }
 
@@ -77,6 +78,7 @@ impl<'a, G, D> PCD<'a> for SimpleMarlinPCD<G, D>
 
         if succinct_result.is_err() {
             println!("Succinct verification failed: {:?}", succinct_result.err());
+            end_timer!(succinct_time);
             return Err(Error::FailedSuccinctCheck)
         }
 

@@ -33,6 +33,7 @@ pub(crate) fn get_accumulators<G1, G2, D: Digest>(
         G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
         G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
 {
+    let accumulators_time = start_timer!(|| "Compute accumulators");
     let accs = pcds
         .into_par_iter()
         .zip(vks)
@@ -53,6 +54,8 @@ pub(crate) fn get_accumulators<G1, G2, D: Digest>(
     let accs_g1 = accs.iter().flat_map(|acc| acc.0.clone()).collect::<Vec<_>>();
     let accs_g2 = accs.into_iter().flat_map(|acc| acc.1).collect::<Vec<_>>();
 
+    end_timer!(accumulators_time);
+
     Ok((accs_g1, accs_g2))
 }
 
@@ -70,6 +73,8 @@ pub fn accumulate_proofs<G1, G2, D: Digest>(
         G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
         G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
 {
+    let accumulation_time = start_timer!(|| "Accumulate proofs");
+
     // Get accumulators from pcds
     let (accs_g1, accs_g2) = get_accumulators::<G1, G2, D>(pcds, vks, g1_ck, g2_ck)?;
 
@@ -94,6 +99,8 @@ pub fn accumulate_proofs<G1, G2, D: Digest>(
         )
     };
 
+    end_timer!(accumulation_time);
+
     Ok((acc_proof_g1, acc_proof_g2))
 }
 
@@ -110,6 +117,8 @@ pub fn verify_aggregated_proofs<G1, G2, D: Digest, R: RngCore>(
         G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
         G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
 {
+    let verification_time = start_timer!(|| "Verify aggregated proofs");
+
     // Get accumulators from pcds
     let (accs_g1, accs_g2) = get_accumulators::<G1, G2, D>(pcds, vks, g1_vk, g2_vk)?;
 
@@ -132,6 +141,8 @@ pub fn verify_aggregated_proofs<G1, G2, D: Digest, R: RngCore>(
         true
     };
 
+    end_timer!(verification_time);
+
     Ok(result_accumulate_g1 && result_accumulate_g2)
 }
 
@@ -146,6 +157,8 @@ pub fn batch_verify_proofs<G1, G2, D: Digest, R: RngCore>(
         G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
         G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
 {
+    let verification_time = start_timer!(|| "Batch verify proofs");
+
     // Get accumulators from pcds (perform succinct verification)
     let (accs_g1, accs_g2) = get_accumulators::<G1, G2, D>(pcds, vks, g1_vk, g2_vk)?;
 
@@ -165,6 +178,8 @@ pub fn batch_verify_proofs<G1, G2, D: Digest, R: RngCore>(
             g2_vk, &accs_g2, rng
         ).map_err(|_| None)?
     };
+
+    end_timer!(verification_time);
 
     Ok(result_g1 && result_g2)
 }
