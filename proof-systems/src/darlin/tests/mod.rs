@@ -34,15 +34,11 @@ fn get_keys<G1: AffineCurve, G2: AffineCurve, D: Digest>(
     let (ck_g1, vk_g1) = InnerProductArgPC::<G1, D>::trim(
         params_g1,
         params_g1.max_degree(),
-        0,
-        None,
     ).unwrap();
 
     let (ck_g2, vk_g2) = InnerProductArgPC::<G2, D>::trim(
         params_g2,
         params_g2.max_degree(),
-        0,
-        None,
     ).unwrap();
 
     (ck_g1, vk_g1, ck_g2, vk_g2)
@@ -176,8 +172,8 @@ fn test_simple_marlin_proof_aggregator() {
     let segment_size = num_constraints;
 
     //Generate keys
-    let params_g1 = TestIPAPCDee::setup(segment_size, rng).unwrap();
-    let params_g2 = TestIPAPCDum::setup(segment_size, rng).unwrap();
+    let params_g1 = TestIPAPCDee::setup(segment_size).unwrap();
+    let params_g2 = TestIPAPCDum::setup(segment_size).unwrap();
 
     let (
         committer_key_g1, verifier_key_g1,
@@ -242,8 +238,8 @@ fn test_final_darlin_proof_aggregator() {
     let segment_size = num_constraints;
 
     //Generate keys
-    let params_g1 = TestIPAPCDee::setup(segment_size, rng).unwrap();
-    let params_g2 = TestIPAPCDum::setup(segment_size, rng).unwrap();
+    let params_g1 = TestIPAPCDee::setup(segment_size).unwrap();
+    let params_g2 = TestIPAPCDum::setup(segment_size).unwrap();
 
     let (
         committer_key_g1, verifier_key_g1,
@@ -309,8 +305,8 @@ fn test_mixed_proof_aggregator() {
     let segment_size = num_constraints;
 
     //Generate keys
-    let params_g1 = TestIPAPCDee::setup(segment_size, rng).unwrap();
-    let params_g2 = TestIPAPCDum::setup(segment_size, rng).unwrap();
+    let params_g1 = TestIPAPCDee::setup(segment_size).unwrap();
+    let params_g2 = TestIPAPCDum::setup(segment_size).unwrap();
 
     let (
         committer_key_g1, verifier_key_g1,

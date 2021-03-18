@@ -11,7 +11,7 @@ use marlin::{
     Marlin, ProverKey as MarlinProverKey, VerifierKey as MarlinVerifierKey,
 };
 use poly_commit::ipa_pc::{InnerProductArgPC, Commitment, CommitterKey, SuccinctCheckPolynomial, UniversalParams};
-use rand::{thread_rng, RngCore};
+use rand::RngCore;
 use digest::Digest;
 use std::ops::MulAssign;
 
@@ -128,7 +128,7 @@ pub(crate) fn generate_test_pcd<G1: AffineCurve, G2:AffineCurve, D: Digest, R: R
         pc_ck_g1,
         circ,
         zk,
-        &mut if zk { Some(thread_rng()) } else { None }
+        if zk { Some(rng) } else { None }
     ).unwrap();
 
     FinalDarlinPCD::<G1, G2, D> {

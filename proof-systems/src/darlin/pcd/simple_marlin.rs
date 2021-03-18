@@ -11,7 +11,6 @@ use poly_commit::{
     Error
 };
 use crate::darlin::pcd::PCD;
-use rand::RngCore;
 use crate::darlin::accumulators::dlog::DLogAccumulator;
 use poly_commit::ipa_pc::Commitment;
 
@@ -41,10 +40,9 @@ impl<'a, G, D> PCD<'a> for SimpleMarlinPCD<G, D>
     type PCDAccumulator = DLogAccumulator<G>;
     type PCDVerifierKey = SimpleMarlinPCDVerifierKey<'a, G, D>;
 
-    fn succinct_verify<R: RngCore>(
+    fn succinct_verify(
         &self,
         vk: &Self::PCDVerifierKey,
-        rng: &mut R
     ) -> Result<Self::PCDAccumulator, Error>
     {
         let succinct_time = start_timer!(|| "Marlin succinct verifier");
@@ -75,7 +73,6 @@ impl<'a, G, D> PCD<'a> for SimpleMarlinPCD<G, D>
             &evaluations,
             &self.proof.pc_proof.proof,
             &opening_challenges,
-            rng
         );
 
         if succinct_result.is_err() {

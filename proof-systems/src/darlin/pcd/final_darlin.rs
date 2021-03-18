@@ -12,7 +12,6 @@ use poly_commit::{
 };
 use crate::darlin::accumulators::dlog::{DLogAccumulator, DualDLogAccumulator};
 use crate::darlin::pcd::PCD;
-use rand::RngCore;
 
 // Maybe later we will deferr algebraic checks over G1::BaseField
 #[derive(Clone)]
@@ -101,10 +100,9 @@ where
     type PCDAccumulator = DualDLogAccumulator<G1, G2>;
     type PCDVerifierKey = FinalDarlinPCDVerifierKey<'a, G1, G2, D>;
 
-    fn succinct_verify<R: RngCore>(
+    fn succinct_verify(
         &self,
         vk: &Self::PCDVerifierKey,
-        rng: &mut R
     ) -> Result<Self::PCDAccumulator, Error>
     {
         let succinct_time = start_timer!(|| "Finalized Darlin succinct verifier");
@@ -141,7 +139,6 @@ where
             &evaluations,
             &self.marlin_proof.pc_proof.proof,
             &opening_challenges,
-            rng
         );
 
         if succinct_result.is_err() {

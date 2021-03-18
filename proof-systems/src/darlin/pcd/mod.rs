@@ -31,8 +31,6 @@ impl PCDParameters {
         InnerProductArgPC::<G, D>::trim(
             params,
             self.segment_size,
-            0,
-            None
         )
     }
 
@@ -78,10 +76,9 @@ pub trait PCD<'a>: Sized + Send + Sync {
     type PCDAccumulator: Accumulator<'a>;
     type PCDVerifierKey: AsRef<<Self::PCDAccumulator as Accumulator<'a>>::AccumulatorVerifierKey>;
 
-    fn succinct_verify<R: RngCore>(
+    fn succinct_verify(
         &self,
         vk:         &Self::PCDVerifierKey,
-        rng:        &mut R,
     ) -> Result<Self::PCDAccumulator, PCError>;
 
     fn hard_verify<R: RngCore, D: Digest>(
@@ -98,7 +95,7 @@ pub trait PCD<'a>: Sized + Send + Sync {
         rng:        &mut R,
     ) -> Result<bool, PCError>
     {
-        let acc = self.succinct_verify::<R>(vk, rng)?;
+        let acc = self.succinct_verify(vk)?;
         self.hard_verify::<R, D>(acc, vk, rng)
     }
 }
@@ -149,20 +146,19 @@ where
     type PCDAccumulator = DualDLogAccumulator<G1, G2>;
     type PCDVerifierKey = FinalDarlinPCDVerifierKey<'a, G1, G2, D>;
 
-    fn succinct_verify<R: RngCore>(
+    fn succinct_verify(
         &self,
         vk: &Self::PCDVerifierKey,
-        rng: &mut R
     ) ->  Result<Self::PCDAccumulator, PCError>
     {
         match self {
             Self::SimpleMarlin(simple_marlin) => {
                 let simple_marlin_vk = SimpleMarlinPCDVerifierKey (vk.marlin_vk, vk.dlog_vks.0);
-                let acc = simple_marlin.succinct_verify(&simple_marlin_vk, rng)?;
+                let acc = simple_marlin.succinct_verify(&simple_marlin_vk)?;
                 Ok(DualDLogAccumulator (vec![acc], vec![]))
             },
             Self::FinalDarlin(final_darlin) => {
-                final_darlin.succinct_verify(vk, rng)
+                final_darlin.succinct_verify(vk)
             }
         }
     }

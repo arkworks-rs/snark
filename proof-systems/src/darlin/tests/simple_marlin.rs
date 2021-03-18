@@ -7,7 +7,7 @@ use marlin::{
 use crate::darlin::pcd::{
     PCDParameters, simple_marlin::SimpleMarlinPCD
 };
-use rand::{RngCore, thread_rng};
+use rand::RngCore;
 use digest::Digest;
 use std::ops::MulAssign;
 
@@ -100,7 +100,7 @@ pub(crate) fn generate_test_pcd<G: AffineCurve, D: Digest, R: RngCore>(
         pc_ck,
         circ,
         zk,
-        &mut if zk { Some(thread_rng()) } else { None }
+        if zk { Some(rng) } else { None }
     ).unwrap();
 
     SimpleMarlinPCD::<G, D> {

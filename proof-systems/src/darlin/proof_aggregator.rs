@@ -18,7 +18,7 @@ use crate::darlin::{
         final_darlin::FinalDarlinPCDVerifierKey,
     },
 };
-use rand::{RngCore, thread_rng};
+use rand::RngCore;
 use digest::Digest;
 use rayon::prelude::*;
 use crate::darlin::pcd::GeneralPCD;
@@ -46,7 +46,7 @@ pub(crate) fn get_accumulators<G1, G2, D: Digest>(
                 // No need to trim the vk here to the specific segment size used
                 // to generate the proof for this pcd, as the IPA succinct_check
                 // function doesn't use vk.comm_key at all.
-                pcd.succinct_verify(&vk, &mut thread_rng()).map_err(|_| Some(i))
+                pcd.succinct_verify(&vk).map_err(|_| Some(i))
             }
         ).collect::<Result<Vec<_>, _>>()?;
 
