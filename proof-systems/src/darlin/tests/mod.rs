@@ -26,8 +26,6 @@ use rand_xorshift::XorShiftRng;
 mod simple_marlin;
 mod final_darlin;
 
-//TODO: Test also with proofs of variable segment size
-
 fn get_keys<G1: AffineCurve, G2: AffineCurve, D: Digest>(
     params_g1: &UniversalParams<G1>,
     params_g2: &UniversalParams<G2>,
@@ -172,12 +170,14 @@ fn test_simple_marlin_proof_aggregator() {
     let rng = &mut XorShiftRng::seed_from_u64(1234567890u64);
 
     // Set params
-    let num_constraints = 100;
+    let max_proofs = 100;
+    let max_pow = 7usize;
+    let num_constraints = 1 << max_pow;
     let segment_size = num_constraints;
 
     //Generate keys
-    let params_g1 = TestIPAPCDee::setup(num_constraints, rng).unwrap();
-    let params_g2 = TestIPAPCDum::setup(num_constraints, rng).unwrap();
+    let params_g1 = TestIPAPCDee::setup(segment_size, rng).unwrap();
+    let params_g2 = TestIPAPCDum::setup(segment_size, rng).unwrap();
 
     let (
         committer_key_g1, verifier_key_g1,
@@ -185,7 +185,24 @@ fn test_simple_marlin_proof_aggregator() {
     ) = get_keys::<_, _, Blake2s>(&params_g1, &params_g2);
 
     // Generate pcds and index vks
-    let (pcds, simple_marlin_vks) = generate_simple_marlin_test_data(num_constraints, segment_size, &params_g1, 100, rng);
+    let mut generated_proofs = 0;
+    let mut pcds = Vec::new();
+    let mut simple_marlin_vks = Vec::new();
+    let generation_rng = &mut thread_rng();
+    while generated_proofs < max_proofs {
+        let iteration_num_proofs: usize = generation_rng.gen_range(1, max_proofs);
+        generated_proofs += iteration_num_proofs;
+        let iteration_segment_size = 1 << (generation_rng.gen_range(1, max_pow));
+        let (mut iteration_pcds, mut iteration_vks) = generate_simple_marlin_test_data(
+            num_constraints,
+            iteration_segment_size,
+            &params_g1,
+            iteration_num_proofs,
+            generation_rng
+        );
+        pcds.append(&mut iteration_pcds);
+        simple_marlin_vks.append(&mut iteration_vks);
+    }
 
     // Collect PCDs
     let mut simple_marlin_pcds = pcds
@@ -219,12 +236,14 @@ fn test_final_darlin_proof_aggregator() {
     let rng = &mut XorShiftRng::seed_from_u64(1234567890u64);
 
     // Set params
-    let num_constraints = 100;
+    let max_proofs = 100;
+    let max_pow = 7usize;
+    let num_constraints = 1 << max_pow;
     let segment_size = num_constraints;
 
     //Generate keys
-    let params_g1 = TestIPAPCDee::setup(num_constraints, rng).unwrap();
-    let params_g2 = TestIPAPCDum::setup(num_constraints, rng).unwrap();
+    let params_g1 = TestIPAPCDee::setup(segment_size, rng).unwrap();
+    let params_g2 = TestIPAPCDum::setup(segment_size, rng).unwrap();
 
     let (
         committer_key_g1, verifier_key_g1,
@@ -232,9 +251,25 @@ fn test_final_darlin_proof_aggregator() {
     ) = get_keys::<_, _, Blake2s>(&params_g1, &params_g2);
 
     // Generate pcds and index vks
-    let (pcds, final_darlin_vks) = generate_final_darlin_test_data(
-        num_constraints, segment_size, &params_g1, &params_g2, 100, rng
-    );
+    let mut generated_proofs = 0;
+    let mut pcds = Vec::new();
+    let mut final_darlin_vks = Vec::new();
+    let generation_rng = &mut thread_rng();
+    while generated_proofs < max_proofs {
+        let iteration_num_proofs: usize = generation_rng.gen_range(1, max_proofs);
+        generated_proofs += iteration_num_proofs;
+        let iteration_segment_size = 1 << (generation_rng.gen_range(1, max_pow));
+        let (mut iteration_pcds, mut iteration_vks) = generate_final_darlin_test_data(
+            num_constraints,
+            iteration_segment_size,
+            &params_g1,
+            &params_g2,
+            iteration_num_proofs,
+            generation_rng
+        );
+        pcds.append(&mut iteration_pcds);
+        final_darlin_vks.append(&mut iteration_vks);
+    }
 
     // Collect PCDs
     let mut final_darlin_pcds = pcds
@@ -268,12 +303,14 @@ fn test_mixed_proof_aggregator() {
     let rng = &mut XorShiftRng::seed_from_u64(1234567890u64);
 
     // Set params
-    let num_constraints = 100;
+    let max_proofs = 100;
+    let max_pow = 7usize;
+    let num_constraints = 1 << max_pow;
     let segment_size = num_constraints;
 
     //Generate keys
-    let params_g1 = TestIPAPCDee::setup(num_constraints, rng).unwrap();
-    let params_g2 = TestIPAPCDum::setup(num_constraints, rng).unwrap();
+    let params_g1 = TestIPAPCDee::setup(segment_size, rng).unwrap();
+    let params_g2 = TestIPAPCDum::setup(segment_size, rng).unwrap();
 
     let (
         committer_key_g1, verifier_key_g1,
@@ -282,32 +319,38 @@ fn test_mixed_proof_aggregator() {
 
     // Generate pcds and index vks
     // Randomly choose if to generate a SimpleMarlinProof or a FinalDarlinProof
-    let boolean_rng = &mut thread_rng();
+    let generation_rng = &mut thread_rng();
+    let mut generated_proofs = 0;
     let mut pcds = Vec::new();
     let mut vks = Vec::new();
-    for _ in 0..100 {
-        let simple: bool = boolean_rng.gen();
+    while generated_proofs < max_proofs {
+        let iteration_num_proofs: usize = generation_rng.gen_range(1, max_proofs);
+        generated_proofs += iteration_num_proofs;
+        let iteration_segment_size = 1 << (generation_rng.gen_range(1, max_pow));
+        let simple: bool = generation_rng.gen();
         if simple {
-            let (pcd, vk) = generate_simple_marlin_test_data(
+            let (iteration_pcds, mut iteration_vks) = generate_simple_marlin_test_data(
                 num_constraints,
-                segment_size,
+                iteration_segment_size,
                 &params_g1,
-                1,
-                rng
+                iteration_num_proofs,
+                generation_rng
             );
-            pcds.push(GeneralPCD::SimpleMarlin(pcd[0].clone()));
-            vks.push(vk[0].clone());
+            let mut iteration_pcds = iteration_pcds.into_iter().map(|pcd| GeneralPCD::SimpleMarlin(pcd)).collect::<Vec<_>>();
+            pcds.append(&mut iteration_pcds);
+            vks.append(&mut iteration_vks);
         } else {
-            let (pcd, vk) = generate_final_darlin_test_data(
+            let (iteration_pcds, mut iteration_vks) = generate_final_darlin_test_data(
                 num_constraints,
-                segment_size,
+                iteration_segment_size,
                 &params_g1,
                 &params_g2,
-                1,
-                rng
+                iteration_num_proofs,
+                generation_rng
             );
-            pcds.push(GeneralPCD::FinalDarlin(pcd[0].clone()));
-            vks.push(vk[0].clone());
+            let mut iteration_pcds = iteration_pcds.into_iter().map(|pcd| GeneralPCD::FinalDarlin(pcd)).collect::<Vec<_>>();
+            pcds.append(&mut iteration_pcds);
+            vks.append(&mut iteration_vks);
         }
     }
 

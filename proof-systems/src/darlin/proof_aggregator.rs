@@ -23,8 +23,6 @@ use digest::Digest;
 use rayon::prelude::*;
 use crate::darlin::pcd::GeneralPCD;
 
-//TODO: Add support for allowing SCs to choose arbitrarily the segment size
-
 pub(crate) fn get_accumulators<G1, G2, D: Digest>(
     pcds:      &[GeneralPCD<G1, G2, D>],
     vks:       &[MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>],
@@ -45,6 +43,9 @@ pub(crate) fn get_accumulators<G1, G2, D: Digest>(
                     marlin_vk: vk,
                     dlog_vks: (g1_ck, g2_ck)
                 };
+                // No need to trim the vk here to the specific segment size used
+                // to generate the proof for this pcd, as the IPA succinct_check
+                // function doesn't use vk.comm_key at all.
                 pcd.succinct_verify(&vk, &mut thread_rng()).map_err(|_| Some(i))
             }
         ).collect::<Result<Vec<_>, _>>()?;

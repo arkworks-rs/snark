@@ -166,6 +166,9 @@ impl<'a, G: AffineCurve> Accumulator<'a> for DLogAccumulator<G> {
         // We do final verification and the batching of the GFin in a single MSM
         let hard_time = start_timer!(|| "Batch verify hard parts");
         let final_val = InnerProductArgPC::<G, D>::cm_commit(
+            // The vk might be oversized, but the VariableBaseMSM function, will "trim"
+            // the bases in order to be as big as the scalars vector, so no need to explicitly
+            // trim the vk here.
             &[final_comm_keys.as_slice(), vk.comm_key.as_slice()].concat(),
             &[batching_chal_pows.as_slice(), combined_check_poly.coeffs.as_slice()].concat(),
             None,
@@ -268,6 +271,14 @@ impl<'a, G: AffineCurve> Accumulator<'a> for DLogAccumulator<G> {
 
         // Compute and return opening proof
         let opening_proof = InnerProductArgPC::<G, D>::open_individual_opening_challenges(
+            //TODO: It's possible that all the proofs have been computed using a ck with
+            //      a smaller segment size: in that case, using the full sized ck is not
+            //      required and we can improve performances of the opening by trimming
+            //      to the max degree among all the segment sizes of the bullet polys, but:
+            //      1) It's expensive in memory as it requires to do a memcopy of a subset of the ck;
+            //      2) Maybe it's not very likely that all proofs (all SCs) have chosen a smaller
+            //         segment size with respect to the ck published in MC.
+            //      We need to make a decision.
             ck,
             polys.iter(),
             comms.iter(),
