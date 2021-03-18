@@ -1,3 +1,6 @@
+// This example uses Groth17 over Coda's MNT cycle to wrap a base circuit (the "inner circuit") of 
+// specified number of inputs and constraints twice. See the description of the Groth16 example for 
+// details.
 use algebra::{fields::FpParameters, Field, PrimeField, PairingEngine, ToConstraintField, ToBits};
 
 use r1cs_crypto::nizk::{
