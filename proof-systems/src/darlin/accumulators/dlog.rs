@@ -189,112 +189,43 @@ impl<'a, G: AffineCurve> Accumulator<'a> for DLogAccumulator<G> {
         accumulators: Vec<Self>,
     ) -> Result<(Self, Self::AccumulationProof), Error>
     {
-        use poly_commit::{
-            PCRandomness, LabeledRandomness, LabeledPolynomial, PolynomialCommitment,
-            ipa_pc::Randomness
-        };
         let accumulate_time = start_timer!(|| "Accumulate");
 
-        let poly_time = start_timer!(|| "Compute Bullet Polys and their evaluations");
-
-        // Sample a new challenge z
+        // Sample a new challenge point z
         let z = InnerProductArgPC::<G, D>::compute_random_oracle_challenge(
             &to_bytes![ck.hash.clone(), accumulators.as_slice()].unwrap(),
         );
 
-        let polys_comms_values = accumulators
-            .into_par_iter()
-            .enumerate()
-            .map(|(i, acc)| {
-                let final_comm_key = acc.g_final.comm.clone();
-                let xi_s = acc.xi_s;
+        // Collect GFinals from the accumulators
+        let g_fins = accumulators.iter().map(|acc| {
+            Commitment::<G> {
+                comm: acc.g_final.comm.clone(),
+                shifted_comm: None
+            }
+        }).collect::<Vec<_>>();
 
-                // Create a LabeledCommitment out of the g_final
-                let labeled_comm = {
-                    let comm = Commitment {
-                        comm: final_comm_key,
-                        shifted_comm: None
-                    };
+        // Collect xi_s from the accumulators
+        let xi_s = accumulators.into_iter().map(|acc| {
+            acc.xi_s
+        }).collect::<Vec<_>>();
 
-                    LabeledCommitment::new(
-                        format!("check_poly_{}", i),
-                        comm,
-                        None,
-                    )
-                };
+        let poly_time = start_timer!(|| "Open Bullet Polys");
 
-                // Compute the evaluation of the Bullet polynomial at z starting from the xi_s
-                let eval = xi_s.evaluate(z);
+        let opening_proof = InnerProductArgPC::<G, D>::open_check_polys(
+            &ck,
+            xi_s.iter(),
+            g_fins.iter(),
+            z
+        )?;
 
-                // Compute the coefficients of the Bullet polynomial starting from the xi_s
-                // TODO: We need to keep all these polynomials in memory. How many we can afford ?
-                //       (200 polys of size 2^17 in Tweedle will cost 4MB * 200 = 800MB)
-                //       We can fix this by changing the implementation of open_individual_opening_challenges
-                //       by adding a new function that only takes the xi_s and internally it incrementally
-                //       computes the batched bullet polynomial.
-                let check_poly = Polynomial::from_coefficients_vec(xi_s.compute_coeffs());
-
-                (check_poly, labeled_comm, eval)
-            }).collect::<Vec<_>>();
-
-        let len = polys_comms_values.len();
-
-        // Sample new opening challenge
-        let opening_challenge = InnerProductArgPC::<G, D>::compute_random_oracle_challenge(
-            &polys_comms_values.iter().flat_map(|(_, _, val)| to_bytes!(val).unwrap()).collect::<Vec<_>>()
-        );
-        let opening_challenges = |pow| opening_challenge.pow(&[pow]);
-
-        // Save comms and polys into separate vectors
-        let comms = polys_comms_values.iter().map(|(_, comm, _)| comm.clone()).collect::<Vec<_>>();
-        let polys = polys_comms_values.into_iter().enumerate().map(|(i, (poly, _, _))|
-            LabeledPolynomial::new(
-                format!("check_poly_{}", i),
-                poly,
-                None,
-                None
-            )
-        ).collect::<Vec<_>>();
         end_timer!(poly_time);
-
-        let mut labeled_rands = Vec::new();
-        for i in 0..len {
-            labeled_rands.push(
-                LabeledRandomness::<Randomness<G>>::new(
-                    format!("check_poly_{}", i),
-                    Randomness::<G>::empty()
-                )
-            );
-        }
-
-        let open_time = start_timer!(|| "Produce opening proof for Bullet polys and GFin s");
-
-        // Compute and return opening proof
-        let opening_proof = InnerProductArgPC::<G, D>::open_individual_opening_challenges(
-            //TODO: It's possible that all the proofs have been computed using a ck with
-            //      a smaller segment size: in that case, using the full sized ck is not
-            //      required and we can improve performances of the opening by trimming
-            //      to the max degree among all the segment sizes of the bullet polys, but:
-            //      1) It's expensive in memory as it requires to do a memcopy of a subset of the ck;
-            //      2) Maybe it's not very likely that all proofs (all SCs) have chosen a smaller
-            //         segment size with respect to the ck published in MC.
-            //      We need to make a decision.
-            ck,
-            polys.iter(),
-            comms.iter(),
-            z,
-            &opening_challenges,
-            labeled_rands.iter(),
-            None
-        ).unwrap();
-        end_timer!(open_time);
-
-        end_timer!(accumulate_time);
 
         let accumulator = DLogAccumulator::<G>::default();
 
         let mut accumulation_proof = AccumulationProof::<G>::default();
         accumulation_proof.pc_proof = opening_proof;
+
+        end_timer!(accumulate_time);
 
         Ok((accumulator, accumulation_proof))
     }
