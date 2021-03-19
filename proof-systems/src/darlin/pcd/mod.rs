@@ -1,4 +1,4 @@
-use algebra::{AffineCurve, ToConstraintField};
+use algebra::{AffineCurve, ToConstraintField, UniformRand};
 use r1cs_core::ConstraintSynthesizer;
 use marlin::{ProverKey as MarlinProverKey, VerifierKey as MarlinVerifierKey, Error as MarlinError, AHPForR1CS};
 use poly_commit::{
@@ -11,7 +11,7 @@ use poly_commit::{
 use crate::darlin::accumulators::Accumulator;
 use rand::RngCore;
 use digest::Digest;
-use crate::darlin::pcd::final_darlin::{FinalDarlinPCD, FinalDarlinPCDVerifierKey};
+use crate::darlin::pcd::final_darlin::{FinalDarlinPCD, FinalDarlinPCDVerifierKey, FinalDarlinDeferredData};
 use crate::darlin::pcd::simple_marlin::{SimpleMarlinPCD, SimpleMarlinPCDVerifierKey};
 use crate::darlin::accumulators::dlog::DualDLogAccumulator;
 
@@ -107,31 +107,48 @@ pub enum GeneralPCD<G1: AffineCurve, G2: AffineCurve, D: Digest> {
     FinalDarlin(FinalDarlinPCD<G1, G2, D>)
 }
 
+// Testing functions
 impl<G1, G2, D> GeneralPCD<G1, G2, D>
     where
         G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
         G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
         D: Digest,
 {
-    // For testing purposes
-    pub fn get_usr_ins(&self) -> &[G1::ScalarField] {
+    pub fn randomize_usr_ins<R: RngCore>(
+        &mut self,
+        rng: &mut R
+    )
+    {
         match self {
             Self::SimpleMarlin(simple_marlin) => {
-                simple_marlin.usr_ins.as_slice()
+                // No sys ins (for now) for SimpleMarlin, so modify the usr_ins instead
+                let ins_len = simple_marlin.usr_ins.len();
+                simple_marlin.usr_ins = vec![G1::ScalarField::rand(rng); ins_len];
             },
             Self::FinalDarlin(final_darlin) => {
-                final_darlin.usr_ins.as_slice()
+                let ins_len = final_darlin.usr_ins.len();
+                final_darlin.usr_ins = vec![G1::ScalarField::rand(rng); ins_len];
             }
         }
     }
 
-    pub fn set_usr_ins(&mut self, usr_ins: Vec<G1::ScalarField>) {
+    pub fn randomize_sys_ins<R: RngCore>(
+        &mut self,
+        ck_g1: &DLogCommitterKey<G1>,
+        ck_g2: &DLogCommitterKey<G2>,
+        rng: &mut R
+    )
+    {
         match self {
             Self::SimpleMarlin(simple_marlin) => {
-                simple_marlin.usr_ins = usr_ins;
+                // No sys ins (for now) for SimpleMarlin, so modify the usr_ins instead
+                let ins_len = simple_marlin.usr_ins.len();
+                simple_marlin.usr_ins = vec![G1::ScalarField::rand(rng); ins_len];
             },
             Self::FinalDarlin(final_darlin) => {
-                final_darlin.usr_ins = usr_ins;
+                final_darlin.deferred = FinalDarlinDeferredData::<G1, G2>::generate_random::<R, D>(
+                    rng, ck_g1, ck_g2
+                );
             }
         }
     }

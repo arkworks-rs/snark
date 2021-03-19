@@ -1,4 +1,4 @@
-use algebra::{AffineCurve, Field, UniformRand, ToBits, ToConstraintField};
+use algebra::{AffineCurve, ProjectiveCurve, Field, UniformRand, ToBits, ToConstraintField};
 use digest::Digest;
 use marlin::{
     VerifierKey as MarlinVerifierKey,
@@ -6,18 +6,72 @@ use marlin::{
 };
 use poly_commit::{
     ipa_pc::{
-        InnerProductArgPC, VerifierKey as DLogVerifierKey, Commitment
+        InnerProductArgPC,
+        CommitterKey as DLogCommitterKey,
+        VerifierKey as DLogVerifierKey,
+        Commitment, SuccinctCheckPolynomial
     },
     Error
 };
 use crate::darlin::accumulators::dlog::{DLogAccumulator, DualDLogAccumulator};
 use crate::darlin::pcd::PCD;
+use rand::RngCore;
 
 // Maybe later we will deferr algebraic checks over G1::BaseField
 #[derive(Clone)]
 pub struct FinalDarlinDeferredData<G1: AffineCurve, G2: AffineCurve> {
     pub(crate) previous_acc:       DLogAccumulator<G2>,
     pub(crate) pre_previous_acc:   DLogAccumulator<G1>,
+}
+
+impl<G1, G2> FinalDarlinDeferredData<G1, G2>
+    where
+        G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
+        G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
+{
+    pub fn generate_random<R: RngCore, D: Digest>(
+        rng: &mut R,
+        committer_key_g1: &DLogCommitterKey<G1>,
+        committer_key_g2: &DLogCommitterKey<G2>
+    ) -> Self
+    {
+        // Generate valid accumulator over G1 starting from random xi_s
+        let log_key_len_g1 = algebra::log2(committer_key_g1.comm_key.len());
+        let random_xi_s_g1 = SuccinctCheckPolynomial::<G1::ScalarField>(vec![G1::ScalarField::rand(rng); log_key_len_g1 as usize]);
+        let g_final_g1 = InnerProductArgPC::<G1, D>::cm_commit(
+            committer_key_g1.comm_key.as_slice(),
+            random_xi_s_g1.compute_coeffs().as_slice(),
+            None,
+            None,
+        );
+
+        let acc_g1 = DLogAccumulator::<G1> {
+            g_final: Commitment::<G1> {comm: vec![g_final_g1.into_affine()], shifted_comm: None },
+            xi_s: random_xi_s_g1
+        };
+
+        // Generate valid accumulator over G2 starting from random xi_s
+        let log_key_len_g2 = algebra::log2(committer_key_g2.comm_key.len());
+        let random_xi_s_g2 = SuccinctCheckPolynomial::<G2::ScalarField>(vec![G2::ScalarField::rand(rng); log_key_len_g2 as usize]);
+
+        let g_final_g2 = InnerProductArgPC::<G2, D>::cm_commit(
+            committer_key_g2.comm_key.as_slice(),
+            random_xi_s_g2.compute_coeffs().as_slice(),
+            None,
+            None,
+        );
+
+        let acc_g2 = DLogAccumulator::<G2> {
+            g_final: Commitment::<G2> {comm: vec![g_final_g2.into_affine()], shifted_comm: None },
+            xi_s: random_xi_s_g2
+        };
+
+        // Return accumulators in deferred struct
+        Self {
+            previous_acc: acc_g2,
+            pre_previous_acc: acc_g1
+        }
+    }
 }
 
 impl<G1, G2> ToConstraintField<G1::ScalarField> for FinalDarlinDeferredData<G1, G2>

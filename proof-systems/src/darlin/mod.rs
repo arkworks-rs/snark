@@ -5,6 +5,5 @@ pub mod proof_aggregator;
 #[cfg(test)]
 mod tests;
 
-//TODO: Add doc where missing
-//TODO: Do the same with Digest template
-//TODO: Add benches
+//TODO: Re-examine traits and add doc where missing
+//TODO: Add bench

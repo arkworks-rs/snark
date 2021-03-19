@@ -1,19 +1,21 @@
-use algebra::{AffineCurve, ProjectiveCurve, ToConstraintField, UniformRand};
+use algebra::{AffineCurve, ToConstraintField, UniformRand};
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
-use crate::darlin::{
-    pcd::{
+use crate::darlin::pcd::{
         PCDParameters,
         final_darlin::{FinalDarlinDeferredData, FinalDarlinPCD}
-    },
-    accumulators::dlog::DLogAccumulator
 };
 use marlin::{
     Marlin, ProverKey as MarlinProverKey, VerifierKey as MarlinVerifierKey,
 };
-use poly_commit::ipa_pc::{InnerProductArgPC, Commitment, CommitterKey, SuccinctCheckPolynomial, UniversalParams};
+use poly_commit::ipa_pc::{InnerProductArgPC, CommitterKey, UniversalParams};
 use rand::RngCore;
 use digest::Digest;
 use std::ops::MulAssign;
+use r1cs_std::{
+    alloc::AllocGadget,
+    fields::fp::FpGadget,
+    eq::EqGadget,
+};
 
 #[derive(Clone)]
 struct Circuit<G1: AffineCurve, G2: AffineCurve> {
@@ -36,15 +38,39 @@ impl<G1: AffineCurve, G2: AffineCurve> ConstraintSynthesizer<G1::ScalarField> fo
         cs: &mut CS,
     ) -> Result<(), SynthesisError>
     {
-        // Alloc deferred data as public input and do nothing with them, it's
-        // solely for testing purposes
         let deferred_as_native_fes = self.deferred.to_field_elements().unwrap();
-        for (i, fe) in deferred_as_native_fes.into_iter().enumerate() {
-            cs.alloc_input(
-                || format!("Alloc input deferred elem {}", i),
+
+        // Alloc deferred data as public input
+        let mut deferred_input_gs = Vec::new();
+        for (i, fe) in deferred_as_native_fes.iter().enumerate() {
+            let ins_g = FpGadget::<G1::ScalarField>::alloc_input(
+                cs.ns(|| format!("Alloc input deferred elem {}", i)),
                 || Ok(fe)
             )?;
+            deferred_input_gs.push(ins_g);
         }
+
+        // Alloc deferred data as witness
+        let mut deferred_gs = Vec::new();
+        for (i, fe) in deferred_as_native_fes.into_iter().enumerate() {
+            let witness_g = FpGadget::<G1::ScalarField>::alloc(
+                cs.ns(|| format!("Alloc deferred elem {}", i)),
+                || Ok(fe)
+            )?;
+            deferred_gs.push(witness_g);
+        }
+
+        // As a simple way to use the public inputs and being able to test cases where sys data
+        // (i.e. the deferred accumulators) are wrong, enforce equality between witnesses and
+        // public inputs
+        for (i, (deferred_w, deferred_ins)) in deferred_input_gs.into_iter().zip(deferred_gs).enumerate() {
+            deferred_w.enforce_equal(
+                cs.ns(|| format!("enforce deferred equal {}", i)),
+                &deferred_ins
+            )?;
+        }
+
+        // The following is equal to the SimpleMarlin circuit
 
         let a = cs.alloc(|| "a", || self.a.ok_or(SynthesisError::AssignmentMissing))?;
         let b = cs.alloc(|| "b", || self.b.ok_or(SynthesisError::AssignmentMissing))?;
@@ -159,43 +185,11 @@ pub(crate) fn generate_test_data<G1: AffineCurve, G2: AffineCurve, D: Digest, R:
     let (committer_key_g2, _) = config.universal_setup::<_, D>(params_g2).unwrap();
 
     // Generate random (but valid) deferred data
-
-    // Generate valid accumulator over G1 starting from random xi_s
-    let log_key_len_g1 = algebra::log2(committer_key_g1.comm_key.len());
-    let random_xi_s_g1 = SuccinctCheckPolynomial::<G1::ScalarField>(vec![G1::ScalarField::rand(rng); log_key_len_g1 as usize]);
-    let g_final_g1 = InnerProductArgPC::<G1, D>::cm_commit(
-        committer_key_g1.comm_key.as_slice(),
-        random_xi_s_g1.compute_coeffs().as_slice(),
-        None,
-        None,
+    let deferred = FinalDarlinDeferredData::<G1, G2>::generate_random::<R, D>(
+        rng,
+        &committer_key_g1,
+        &committer_key_g2,
     );
-
-    let acc_g1 = DLogAccumulator::<G1> {
-        g_final: Commitment::<G1> {comm: vec![g_final_g1.into_affine()], shifted_comm: None },
-        xi_s: random_xi_s_g1
-    };
-
-    // Generate valid accumulator over G2 starting from random xi_s
-    let log_key_len_g2 = algebra::log2(committer_key_g2.comm_key.len());
-    let random_xi_s_g2 = SuccinctCheckPolynomial::<G2::ScalarField>(vec![G2::ScalarField::rand(rng); log_key_len_g2 as usize]);
-
-    let g_final_g2 = InnerProductArgPC::<G2, D>::cm_commit(
-        committer_key_g2.comm_key.as_slice(),
-        random_xi_s_g2.compute_coeffs().as_slice(),
-        None,
-        None,
-    );
-
-    let acc_g2 = DLogAccumulator::<G2> {
-        g_final: Commitment::<G2> {comm: vec![g_final_g2.into_affine()], shifted_comm: None },
-        xi_s: random_xi_s_g2
-    };
-
-    // Collect accumulators in deferred struct
-    let deferred = FinalDarlinDeferredData::<G1, G2> {
-        previous_acc: acc_g2,
-        pre_previous_acc: acc_g1
-    };
 
     // Generate Marlin prover and verifier key
     let circ = Circuit {

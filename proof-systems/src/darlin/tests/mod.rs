@@ -90,13 +90,10 @@ fn test_accumulation<G1: AffineCurve, G2: AffineCurve, D: Digest, R: RngCore>(
         rng
     ).unwrap());
 
-    // Pass wrong public inputs for one marlin PCD and check AHP verification fails
-    // Select randomly one pcds to which changing the input
+    // Randomize usr_ins for one marlin PCD and assert AHP verification fails
     let idx: usize = rng.gen_range(0, pcds.len());
-    let wrong_usr_ins = vec![G1::ScalarField::rand(rng); pcds[idx].get_usr_ins().len()];
-    let mut wrong_ins_pcd = pcds[idx].clone();
-    wrong_ins_pcd.set_usr_ins(wrong_usr_ins);
-    pcds[idx] = wrong_ins_pcd;
+    let original_pcd = pcds[idx].clone(); // Save correct pcd
+    pcds[idx].randomize_usr_ins(rng);
 
     let result = verify_aggregated_proofs::<G1, G2, D, R>(
         pcds,
@@ -112,7 +109,30 @@ fn test_accumulation<G1: AffineCurve, G2: AffineCurve, D: Digest, R: RngCore>(
     assert!(result.is_err());
 
     // Since the AHP failed, we are able to determine which proof verification has failed
-    assert_eq!(result.unwrap_err().unwrap(), idx)
+    assert_eq!(result.unwrap_err().unwrap(), idx);
+
+    // Restore correct PCD
+    pcds[idx] = original_pcd;
+
+    // Randomize sys_ins for one marlin PCD and assert AHP verification fails
+    let idx: usize = rng.gen_range(0, pcds.len());
+    pcds[idx].randomize_sys_ins(committer_key_g1, committer_key_g2, rng);
+
+    let result = verify_aggregated_proofs::<G1, G2, D, R>(
+        pcds,
+        vks,
+        &proof_g1,
+        &proof_g2,
+        verifier_key_g1,
+        verifier_key_g2,
+        rng
+    );
+
+    // Check AHP failed
+    assert!(result.is_err());
+
+    // Since the AHP failed, we are able to determine which proof verification has failed
+    assert_eq!(result.unwrap_err().unwrap(), idx);
 }
 
 fn test_batch_verification<G1: AffineCurve, G2: AffineCurve, D: Digest, R: RngCore>(
@@ -138,10 +158,8 @@ fn test_batch_verification<G1: AffineCurve, G2: AffineCurve, D: Digest, R: RngCo
     // Pass wrong public inputs for one marlin PCD and check AHP verification fails
     // Select randomly one pcds to which changing the input
     let idx: usize = rng.gen_range(0, pcds.len());
-    let wrong_usr_ins = vec![G1::ScalarField::rand(rng); pcds[idx].get_usr_ins().len()];
-    let mut wrong_ins_pcd = pcds[idx].clone();
-    wrong_ins_pcd.set_usr_ins(wrong_usr_ins);
-    pcds[idx] = wrong_ins_pcd;
+    let original_pcd = pcds[idx].clone(); // Save correct pcd
+    pcds[idx].randomize_usr_ins(rng);
 
     let result = batch_verify_proofs::<G1, G2, D, R>(
         pcds,
@@ -155,7 +173,28 @@ fn test_batch_verification<G1: AffineCurve, G2: AffineCurve, D: Digest, R: RngCo
     assert!(result.is_err());
 
     // Since the AHP failed, we are able to determine which proof verification has failed
-    assert_eq!(result.unwrap_err().unwrap(), idx)
+    assert_eq!(result.unwrap_err().unwrap(), idx);
+
+    // Restore correct PCD
+    pcds[idx] = original_pcd;
+
+    // Randomize sys_ins for one marlin PCD and assert AHP verification fails
+    let idx: usize = rng.gen_range(0, pcds.len());
+    pcds[idx].randomize_sys_ins(verifier_key_g1, verifier_key_g2, rng);
+
+    let result = batch_verify_proofs::<G1, G2, D, R>(
+        pcds,
+        vks,
+        verifier_key_g1,
+        verifier_key_g2,
+        rng
+    );
+
+    // Check AHP failed
+    assert!(result.is_err());
+
+    // Since the AHP failed, we are able to determine which proof verification has failed
+    assert_eq!(result.unwrap_err().unwrap(), idx);
 }
 
 type TestIPAPCDee = InnerProductArgPC<DeeAffine, Blake2s>;
