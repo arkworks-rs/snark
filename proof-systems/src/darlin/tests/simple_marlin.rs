@@ -48,7 +48,7 @@ impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for Circuit<Constrai
             },
         )?;
 
-        for i in 0..(self.num_variables - 3) {
+        for i in 0..(self.num_variables - 5) {
             let _ = cs.alloc(
                 || format!("var {}", i),
                 || self.a.ok_or(SynthesisError::AssignmentMissing),
@@ -93,7 +93,7 @@ pub(crate) fn generate_test_pcd<G: AffineCurve, D: Digest, R: RngCore>(
         a: Some(a),
         b: Some(b),
         num_constraints,
-        num_variables: num_constraints,
+        num_variables: num_constraints/2,
     };
 
     let proof = Marlin::<G::ScalarField, InnerProductArgPC<G, D>, D>::prove(
@@ -131,7 +131,7 @@ pub(crate) fn generate_test_data<G: AffineCurve, D: Digest, R: RngCore>(
         a: None,
         b: None,
         num_constraints,
-        num_variables: num_constraints,
+        num_variables: num_constraints/2,
     };
 
     let (index_pk, index_vk) = config.circuit_specific_setup(circ.clone(), &committer_key).unwrap();

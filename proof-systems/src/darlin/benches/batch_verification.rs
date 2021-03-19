@@ -56,8 +56,8 @@ where
     let circ = Circuit {
         a: None,
         b: None,
-        num_constraints,
-        num_variables: num_constraints,
+        num_constraints: num_constraints - 1,
+        num_variables: num_constraints/2,
         deferred: deferred.clone()
     };
 
@@ -71,7 +71,7 @@ where
         &committer_key_g1,
         deferred,
         &index_pk,
-        num_constraints,
+        num_constraints - 1,
         false,
         rng,
     );

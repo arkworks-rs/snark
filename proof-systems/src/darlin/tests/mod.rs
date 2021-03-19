@@ -235,7 +235,7 @@ mod test {
             generated_proofs += iteration_num_proofs;
             let iteration_segment_size = 1 << (generation_rng.gen_range(1, max_pow));
             let (mut iteration_pcds, mut iteration_vks) = generate_simple_marlin_test_data(
-                num_constraints,
+                num_constraints - 1,
                 iteration_segment_size,
                 &params_g1,
                 iteration_num_proofs,
@@ -301,7 +301,7 @@ mod test {
             generated_proofs += iteration_num_proofs;
             let iteration_segment_size = 1 << (generation_rng.gen_range(1, max_pow));
             let (mut iteration_pcds, mut iteration_vks) = generate_final_darlin_test_data(
-                num_constraints,
+                num_constraints - 1,
                 iteration_segment_size,
                 &params_g1,
                 &params_g2,
@@ -371,7 +371,7 @@ mod test {
             let simple: bool = generation_rng.gen();
             if simple {
                 let (iteration_pcds, mut iteration_vks) = generate_simple_marlin_test_data(
-                    num_constraints,
+                    num_constraints - 1,
                     iteration_segment_size,
                     &params_g1,
                     iteration_num_proofs,
@@ -382,7 +382,7 @@ mod test {
                 vks.append(&mut iteration_vks);
             } else {
                 let (iteration_pcds, mut iteration_vks) = generate_final_darlin_test_data(
-                    num_constraints,
+                    num_constraints - 1,
                     iteration_segment_size,
                     &params_g1,
                     &params_g2,

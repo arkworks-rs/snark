@@ -56,8 +56,8 @@ fn bench_verify<G1: AffineCurve, G2: AffineCurve, D: Digest>(
     let circ = Circuit {
         a: None,
         b: None,
-        num_constraints,
-        num_variables: num_constraints,
+        num_constraints: num_constraints - 1,
+        num_variables: num_constraints/2,
         deferred: deferred.clone()
     };
 
@@ -147,8 +147,8 @@ fn bench_accumulate<G1: AffineCurve, G2: AffineCurve, D: Digest>(
     let circ = Circuit {
         a: None,
         b: None,
-        num_constraints,
-        num_variables: num_constraints,
+        num_constraints: num_constraints - 1,
+        num_variables: num_constraints/2,
         deferred: deferred.clone()
     };
 

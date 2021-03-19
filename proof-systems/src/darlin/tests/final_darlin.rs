@@ -39,6 +39,7 @@ impl<G1: AffineCurve, G2: AffineCurve> ConstraintSynthesizer<G1::ScalarField> fo
     ) -> Result<(), SynthesisError>
     {
         let deferred_as_native_fes = self.deferred.to_field_elements().unwrap();
+        let deferred_len = deferred_as_native_fes.len();
 
         // Alloc deferred data as public input
         let mut deferred_input_gs = Vec::new();
@@ -98,7 +99,7 @@ impl<G1: AffineCurve, G2: AffineCurve> ConstraintSynthesizer<G1::ScalarField> fo
             },
         )?;
 
-        for i in 0..(self.num_variables - 3) {
+        for i in 0..(self.num_variables - 5 - (2 * deferred_len)) {
             let _ = cs.alloc(
                 || format!("var {}", i),
                 || self.a.ok_or(SynthesisError::AssignmentMissing),
@@ -148,7 +149,7 @@ pub fn generate_test_pcd<G1: AffineCurve, G2:AffineCurve, D: Digest, R: RngCore>
         a: Some(a),
         b: Some(b),
         num_constraints,
-        num_variables: num_constraints,
+        num_variables: num_constraints/2,
         deferred: deferred.clone(),
     };
 
@@ -200,7 +201,7 @@ pub fn generate_test_data<G1: AffineCurve, G2: AffineCurve, D: Digest, R: RngCor
         a: None,
         b: None,
         num_constraints,
-        num_variables: num_constraints,
+        num_variables: num_constraints/2,
         deferred: deferred.clone()
     };
 
