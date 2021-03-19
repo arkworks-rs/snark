@@ -30,7 +30,7 @@ impl PCDParameters {
     {
         InnerProductArgPC::<G, D>::trim(
             params,
-            self.segment_size,
+            self.segment_size - 1,
         )
     }
 

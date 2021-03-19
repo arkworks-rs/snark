@@ -28,6 +28,8 @@ bench-utils = { path = "../bench-utils" }
 marlin = { git = "https://github.com/HorizenLabs/marlin", branch = "sync_with_pc_pcd", optional = true }
 poly-commit = { git = "https://github.com/HorizenLabs/poly-commit", branch = "mods_for_pcd", optional = true }
 
+r1cs-std = { path = "../r1cs/gadgets/std", optional = true }
+
 rand = { version = "0.7" }
 rayon = { version = "1" }
 smallvec = { version = "0.6" }
@@ -45,13 +47,12 @@ blake2 = { version = "0.8", default-features = false }
 algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "darlin", features = ["full"] }
 algebra-utils = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "darlin", features = [ "parallel", "fft", "bn_382", "tweedle", "bls12_381", "jubjub", "mnt4_753", "mnt6_753"] }
 r1cs-crypto = { path = "../r1cs/gadgets/crypto", features = ["nizk"] }
-r1cs-std = { path = "../r1cs/gadgets/std" }
 
 [features]
 print-trace = [ "bench-utils/print-trace" ]
 groth16 = []
 gm17 = []
-darlin = ["marlin", "poly-commit", "digest", "derivative"]
+darlin = ["marlin", "poly-commit", "digest", "derivative", "r1cs-std"]
 llvm_asm = ["algebra/llvm_asm"]
 gpu = ["algebra-utils/gpu"]
 
@@ -86,3 +87,21 @@ name = "bn382_gro16_test_circuits"
 path = "src/groth16/benches/bn382_gro16_test_circuits.rs"
 harness = false
 required-features = ["groth16", "algebra/bn_382"]
+
+[[bench]]
+name = "darlin_batch_verification_bench"
+path = "src/darlin/benches/batch_verification.rs"
+harness = false
+required-features = [
+    "darlin", "llvm_asm", "algebra/tweedle",
+    "print-trace", "marlin/print-trace", "poly-commit/print-trace"
+]
+
+[[bench]]
+name = "darlin_accumulate_verify_bench"
+path = "src/darlin/benches/accumulate_verify.rs"
+harness = false
+required-features = [
+    "darlin", "llvm_asm", "algebra/tweedle",
+    "print-trace", "marlin/print-trace", "poly-commit/print-trace"
+]

@@ -18,14 +18,14 @@ use r1cs_std::{
 };
 
 #[derive(Clone)]
-struct Circuit<G1: AffineCurve, G2: AffineCurve> {
-    a: Option<G1::ScalarField>,
-    b: Option<G1::ScalarField>,
-    num_constraints: usize,
-    num_variables: usize,
+pub struct Circuit<G1: AffineCurve, G2: AffineCurve> {
+    pub a: Option<G1::ScalarField>,
+    pub b: Option<G1::ScalarField>,
+    pub num_constraints: usize,
+    pub num_variables: usize,
 
     // Deferred elements (sys ins)
-    deferred: FinalDarlinDeferredData<G1, G2>
+    pub deferred: FinalDarlinDeferredData<G1, G2>
 }
 
 impl<G1: AffineCurve, G2: AffineCurve> ConstraintSynthesizer<G1::ScalarField> for Circuit<G1, G2>
@@ -63,12 +63,14 @@ impl<G1: AffineCurve, G2: AffineCurve> ConstraintSynthesizer<G1::ScalarField> fo
         // As a simple way to use the public inputs and being able to test cases where sys data
         // (i.e. the deferred accumulators) are wrong, enforce equality between witnesses and
         // public inputs
+        let mut test_constraints = cs.num_constraints();
         for (i, (deferred_w, deferred_ins)) in deferred_input_gs.into_iter().zip(deferred_gs).enumerate() {
             deferred_w.enforce_equal(
                 cs.ns(|| format!("enforce deferred equal {}", i)),
                 &deferred_ins
             )?;
         }
+        test_constraints = cs.num_constraints() - test_constraints;
 
         // The following is equal to the SimpleMarlin circuit
 
@@ -103,7 +105,7 @@ impl<G1: AffineCurve, G2: AffineCurve> ConstraintSynthesizer<G1::ScalarField> fo
             )?;
         }
 
-        for i in 0..(self.num_constraints - 1){
+        for i in 0..(self.num_constraints - 1 - test_constraints){
             cs.enforce(
                 || format!("constraint {}", i),
                 |lc| lc + a,
@@ -122,7 +124,8 @@ impl<G1: AffineCurve, G2: AffineCurve> ConstraintSynthesizer<G1::ScalarField> fo
     }
 }
 
-pub(crate) fn generate_test_pcd<G1: AffineCurve, G2:AffineCurve, D: Digest, R: RngCore>(
+#[allow(dead_code)]
+pub fn generate_test_pcd<G1: AffineCurve, G2:AffineCurve, D: Digest, R: RngCore>(
     pc_ck_g1: &CommitterKey<G1>,
     deferred: FinalDarlinDeferredData<G1, G2>,
     marlin_pk: &MarlinProverKey<G1::ScalarField, InnerProductArgPC<G1, D>>,
@@ -164,7 +167,8 @@ pub(crate) fn generate_test_pcd<G1: AffineCurve, G2:AffineCurve, D: Digest, R: R
     }
 }
 
-pub(crate) fn generate_test_data<G1: AffineCurve, G2: AffineCurve, D: Digest, R: RngCore>(
+#[allow(dead_code)]
+pub fn generate_test_data<G1: AffineCurve, G2: AffineCurve, D: Digest, R: RngCore>(
     num_constraints: usize,
     segment_size: usize,
     params_g1: &UniversalParams<G1>,
