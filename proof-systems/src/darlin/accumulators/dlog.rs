@@ -336,3 +336,341 @@ impl<'a, G1, G2> Accumulator<'a> for DualDLogAccumulator<G1, G2>
         Ok(true)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use poly_commit::{QuerySet, Evaluations, LabeledPolynomial, ipa_pc::{
+        BatchProof, UniversalParams,
+    }, PolynomialCommitment};
+
+    use rand::{distributions::Distribution, thread_rng};
+    use std::marker::PhantomData;
+    use digest::Digest;
+    use blake2::Blake2s;
+
+
+    #[derive(Copy, Clone, Default)]
+    struct TestInfo {
+        max_degree: Option<usize>,
+        supported_degree: Option<usize>,
+        num_polynomials: usize,
+        enforce_degree_bounds: bool,
+        max_num_queries: usize,
+        segmented: bool
+    }
+
+    #[derive(Derivative)]
+    #[derivative(Clone(bound = ""))]
+    struct VerifierData<'a, G: AffineCurve> {
+        vk:                      VerifierKey<G>,
+        comms:                   Vec<LabeledCommitment<Commitment<G>>>,
+        query_set:               QuerySet<'a, G::ScalarField>,
+        values:                  Evaluations<'a, G::ScalarField>,
+        proof:                   BatchProof<G>,
+        opening_challenge:       G::ScalarField,
+        polynomials:             Vec<LabeledPolynomial<G::ScalarField>>,
+        num_polynomials:         usize,
+        num_points_in_query_set: usize,
+        _m:                      PhantomData<&'a G::ScalarField>, // To avoid compilation issue 'a
+    }
+
+    fn get_data_for_verifier<'a, G, D>(
+        info: TestInfo,
+        pp: Option<UniversalParams<G>>
+    ) -> Result<VerifierData<'a, G>, Error>
+        where
+            G: AffineCurve,
+            D: Digest
+    {
+        let TestInfo {
+            max_degree,
+            supported_degree,
+            num_polynomials,
+            enforce_degree_bounds,
+            max_num_queries,
+            segmented,
+            ..
+        } = info;
+
+        let rng = &mut thread_rng();
+        let max_degree =
+            max_degree.unwrap_or(rand::distributions::Uniform::from(2..=64).sample(rng));
+        let pp = if pp.is_some() { pp.unwrap() } else { InnerProductArgPC::<G, D>::setup(max_degree)? };
+
+        let supported_degree = match supported_degree {
+            Some(0) => 0,
+            Some(d) => d,
+            None => rand::distributions::Uniform::from(1..=max_degree).sample(rng)
+        };
+        assert!(
+            max_degree >= supported_degree,
+            "max_degree < supported_degree"
+        );
+        let mut polynomials = Vec::new();
+        let mut degree_bounds = if enforce_degree_bounds {
+            Some(Vec::new())
+        } else {
+            None
+        };
+
+        let mut labels = Vec::new();
+        println!("Sampled supported degree");
+
+        // Generate polynomials
+        let num_points_in_query_set =
+            rand::distributions::Uniform::from(1..=max_num_queries).sample(rng);
+        for i in 0..num_polynomials {
+            let label = format!("Test{}", i);
+            labels.push(label.clone());
+            let degree = if supported_degree > 0 {
+                rand::distributions::Uniform::from(1..=supported_degree).sample(rng)
+            } else {
+                0
+            };
+            let poly = Polynomial::rand(degree * if segmented { 10 } else { 1 }, rng);
+
+            let degree_bound = if let Some(degree_bounds) = &mut degree_bounds {
+                let range = rand::distributions::Uniform::from(degree..=supported_degree);
+                let degree_bound = range.sample(rng);
+                degree_bounds.push(degree_bound);
+                Some(degree_bound)
+            } else {
+                None
+            };
+
+            let hiding_bound = if num_points_in_query_set >= degree {
+                Some(degree)
+            } else {
+                Some(num_points_in_query_set)
+            };
+            println!("Hiding bound: {:?}", hiding_bound);
+
+            polynomials.push(LabeledPolynomial::new(
+                label,
+                poly,
+                degree_bound,
+                hiding_bound,
+            ))
+        }
+        let supported_hiding_bound = polynomials
+            .iter()
+            .map(|p| p.hiding_bound().unwrap_or(0))
+            .max()
+            .unwrap_or(0);
+        println!("supported degree: {:?}", supported_degree);
+        println!("supported hiding bound: {:?}", supported_hiding_bound);
+        println!("num_points_in_query_set: {:?}", num_points_in_query_set);
+        let (ck, vk) = InnerProductArgPC::<G, D>::trim(
+            &pp,
+            supported_degree,
+        )?;
+        println!("Trimmed");
+
+        let (comms, rands) = InnerProductArgPC::<G, D>::commit(&ck, &polynomials, Some(rng))?;
+
+        // Construct query set
+        let mut query_set = QuerySet::new();
+        let mut values = Evaluations::new();
+        // let mut point = F::one();
+        for _ in 0..num_points_in_query_set {
+            let point = G::ScalarField::rand(rng);
+            for (i, label) in labels.iter().enumerate() {
+                query_set.insert((label.clone(), (format!("{}", i), point)));
+                let value = polynomials[i].evaluate(point);
+                values.insert((label.clone(), point), value);
+            }
+        }
+        println!("Generated query set");
+
+        let opening_challenge = G::ScalarField::rand(rng);
+        let proof = InnerProductArgPC::<G, D>::batch_open(
+            &ck,
+            &polynomials,
+            &comms,
+            &query_set,
+            opening_challenge,
+            &rands,
+            Some(rng),
+        )?;
+
+        Ok(VerifierData {
+            vk,
+            comms,
+            query_set,
+            values,
+            proof,
+            opening_challenge,
+            polynomials,
+            num_polynomials,
+            num_points_in_query_set,
+            _m: PhantomData,
+        })
+    }
+
+    fn accumulation_test<G, D>() -> Result<(), Error>
+        where
+            G: AffineCurve,
+            D: Digest,
+    {
+        let rng = &mut thread_rng();
+        let max_degree = rand::distributions::Uniform::from(2..=64).sample(rng);
+
+        let info = TestInfo {
+            max_degree: Some(max_degree),
+            supported_degree: None,
+            num_polynomials: 10,
+            enforce_degree_bounds: true,
+            max_num_queries: 5,
+            segmented: true,
+            ..Default::default()
+        };
+
+        let pp = InnerProductArgPC::<G, D>::setup(max_degree)?;
+
+        for num_proofs in 1..10 {
+            // Generate all proofs and the data needed by the verifier to verify them
+            let verifier_data_vec = vec![get_data_for_verifier::<G, D>(info, Some(pp.clone())).unwrap(); num_proofs];
+
+            let vk = &verifier_data_vec[0].vk;
+
+            let mut comms = Vec::new();
+            let mut query_sets = Vec::new();
+            let mut evals = Vec::new();
+            let mut proofs = Vec::new();
+            let mut opening_challenges = Vec::new();
+
+            verifier_data_vec.iter().for_each(|verifier_data| {
+                assert_eq!(&verifier_data.vk, vk); // Vk should be equal for all proofs
+                comms.push(verifier_data.comms.as_slice());
+                query_sets.push(&verifier_data.query_set);
+                evals.push(&verifier_data.values);
+                proofs.push(&verifier_data.proof);
+                opening_challenges.push(verifier_data.opening_challenge.clone());
+            });
+
+            // Prover side
+            let (xi_s_vec, g_fins) = InnerProductArgPC::<G, D>::succinct_batch_check(
+                vk,
+                comms.clone(),
+                query_sets.clone(),
+                evals.clone(),
+                proofs.clone(),
+                opening_challenges.clone(),
+            )?;
+
+            let accumulators = xi_s_vec
+                .into_iter()
+                .zip(g_fins)
+                .map(|(xi_s, g_final)| {
+                    DLogAccumulator::<G> { g_final: Commitment::<G> {comm: vec![g_final], shifted_comm: None},  xi_s }
+                }).collect::<Vec<_>>();
+
+            let (_, proof) = DLogAccumulator::<G>::accumulate::<D>(
+                vk,
+                accumulators.clone(),
+            )?;
+
+            // Verifier side
+            let dummy = DLogAccumulator::<G>::default();
+            assert!(
+                dummy.verify_accumulate::<_, D>(
+                    vk,
+                    // Actually the verifier should recompute the accumulators with the succinct verification
+                    accumulators,
+                    &proof,
+                    rng
+                )?
+            );
+        }
+        Ok(())
+    }
+
+    fn batch_verification_test<G, D>() -> Result<(), Error>
+        where
+            G: AffineCurve,
+            D: Digest,
+    {
+        let rng = &mut thread_rng();
+        let max_degree = rand::distributions::Uniform::from(2..=64).sample(rng);
+
+        let info = TestInfo {
+            max_degree: Some(max_degree),
+            supported_degree: None,
+            num_polynomials: 10,
+            enforce_degree_bounds: true,
+            max_num_queries: 5,
+            //TODO: If segmented is enabled and also enforce_degree_bounds, test fails. Fix the
+            //      test data generation procedure in poly-commit for this case then report the
+            //      same mods here.
+            segmented: false,
+            ..Default::default()
+        };
+
+        let pp = InnerProductArgPC::<G, D>::setup(max_degree)?;
+
+        for num_proofs in 1..10 {
+            // Generate all proofs and the data needed by the verifier to verify them
+            let verifier_data_vec = vec![get_data_for_verifier::<G, D>(info, Some(pp.clone())).unwrap(); num_proofs];
+
+            let vk = &verifier_data_vec[0].vk;
+
+            let mut comms = Vec::new();
+            let mut query_sets = Vec::new();
+            let mut evals = Vec::new();
+            let mut proofs = Vec::new();
+            let mut opening_challenges = Vec::new();
+
+            verifier_data_vec.iter().for_each(|verifier_data| {
+                assert_eq!(&verifier_data.vk, vk); // Vk should be equal for all proofs
+                comms.push(verifier_data.comms.as_slice());
+                query_sets.push(&verifier_data.query_set);
+                evals.push(&verifier_data.values);
+                proofs.push(&verifier_data.proof);
+                opening_challenges.push(verifier_data.opening_challenge.clone());
+            });
+
+            let (xi_s_vec, g_fins) = InnerProductArgPC::<G, D>::succinct_batch_check(
+                vk,
+                comms.clone(),
+                query_sets.clone(),
+                evals.clone(),
+                proofs.clone(),
+                opening_challenges.clone(),
+            )?;
+
+            let accumulators = xi_s_vec
+                .into_iter()
+                .zip(g_fins)
+                .map(|(xi_s, g_final)| {
+                    DLogAccumulator::<G> { g_final: Commitment::<G> {comm: vec![g_final], shifted_comm: None},  xi_s }
+                }).collect::<Vec<_>>();
+
+            assert!(
+                DLogAccumulator::<G>::check_accumulators::<_, D>(
+                    vk,
+                    &accumulators,
+                    rng
+                )?
+            );
+        }
+        Ok(())
+    }
+
+    use algebra::curves::tweedle::{
+        dee::Affine as TweedleDee,
+        dum::Affine as TweedleDum,
+    };
+
+    #[test]
+    fn test_tweedle_accumulate_verify() {
+        accumulation_test::<TweedleDee, Blake2s>().unwrap();
+        accumulation_test::<TweedleDum, Blake2s>().unwrap();
+    }
+
+    #[test]
+    fn test_tweedle_batch_verify() {
+        batch_verification_test::<TweedleDee, Blake2s>().unwrap();
+        batch_verification_test::<TweedleDum, Blake2s>().unwrap();
+    }
+}
