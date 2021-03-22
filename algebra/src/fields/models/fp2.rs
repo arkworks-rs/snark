@@ -1,4 +1,4 @@
-use crate::{UniformRand, ToBits, FromBits, Error};
+use crate::{UniformRand, ToBits, FromBits, Error, SemanticallyValid};
 use rand::{Rng, distributions::{Standard, Distribution}};
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
@@ -267,6 +267,14 @@ impl<P: Fp2Parameters> From<u16> for Fp2<P> {
 impl<P: Fp2Parameters> From<u8> for Fp2<P> {
     fn from(other: u8) -> Self {
         Self::new(other.into(), P::Fp::zero())
+    }
+}
+
+impl<P: Fp2Parameters> SemanticallyValid for Fp2<P>
+{
+    #[inline]
+    fn is_valid(&self) -> bool {
+        self.c0.is_valid() && self.c1.is_valid()
     }
 }
 

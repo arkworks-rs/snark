@@ -23,32 +23,37 @@ use std::{
     borrow::Borrow,
     marker::PhantomData,
 };
+use rand::rngs::OsRng;
+use primitives::signature::schnorr::field_based_schnorr::FieldBasedSchnorrPk;
 
 #[derive(Derivative)]
 #[derivative(
-Debug(bound = "ConstraintF: PrimeField"),
-Clone(bound = "ConstraintF: PrimeField"),
-PartialEq(bound = "ConstraintF: PrimeField"),
-Eq(bound = "ConstraintF: PrimeField")
+Debug(bound = "ConstraintF: PrimeField, G: Group"),
+Clone(bound = "ConstraintF: PrimeField, G: Group"),
+PartialEq(bound = "ConstraintF: PrimeField, G: Group"),
+Eq(bound = "ConstraintF: PrimeField, G: Group")
 )]
 pub struct FieldBasedSchnorrSigGadget<
     ConstraintF: PrimeField,
+    G:  Group,
 >
 {
     pub e:       FpGadget<ConstraintF>,
     pub s:       FpGadget<ConstraintF>,
     _field:      PhantomData<ConstraintF>,
+    _group:      PhantomData<G>,
 }
 
-impl<ConstraintF> AllocGadget<FieldBasedSchnorrSignature<ConstraintF>, ConstraintF>
-for FieldBasedSchnorrSigGadget<ConstraintF>
+impl<ConstraintF, G> AllocGadget<FieldBasedSchnorrSignature<ConstraintF, G>, ConstraintF>
+for FieldBasedSchnorrSigGadget<ConstraintF, G>
     where
         ConstraintF: PrimeField,
+        G: Group,
 {
     fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, f: FN) -> Result<Self, SynthesisError>
         where
             FN: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<FieldBasedSchnorrSignature<ConstraintF>>,
+            T: Borrow<FieldBasedSchnorrSignature<ConstraintF, G>>,
     {
         let (e, s) = match f() {
             Ok(sig) => {
@@ -63,13 +68,13 @@ for FieldBasedSchnorrSigGadget<ConstraintF>
 
         let e = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc e"), || e)?;
         let s = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc s"), || s)?;
-        Ok(Self{e, s, _field: PhantomData})
+        Ok(Self{e, s, _field: PhantomData, _group: PhantomData})
     }
 
     fn alloc_input<FN, T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, f: FN) -> Result<Self, SynthesisError>
         where
             FN: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<FieldBasedSchnorrSignature<ConstraintF>>,
+            T: Borrow<FieldBasedSchnorrSignature<ConstraintF, G>>,
     {
         let (e, s) = match f() {
             Ok(sig) => {
@@ -84,7 +89,76 @@ for FieldBasedSchnorrSigGadget<ConstraintF>
 
         let e = FpGadget::<ConstraintF>::alloc_input(cs.ns(|| "alloc e"), || e)?;
         let s = FpGadget::<ConstraintF>::alloc_input(cs.ns(|| "alloc s"), || s)?;
-        Ok(Self{e, s, _field: PhantomData})
+        Ok(Self{e, s, _field: PhantomData, _group: PhantomData})
+    }
+}
+
+pub struct FieldBasedSchnorrPkGadget<
+    ConstraintF: PrimeField,
+    G: Group,
+    GG: GroupGadget<G, ConstraintF>,
+>
+{
+    pub pk: GG,
+    _field: PhantomData<ConstraintF>,
+    _group: PhantomData<G>,
+}
+
+impl<ConstraintF, G, GG> AllocGadget<FieldBasedSchnorrPk<G>, ConstraintF>
+for FieldBasedSchnorrPkGadget<ConstraintF, G, GG>
+    where
+        ConstraintF: PrimeField,
+        G: Group,
+        GG: GroupGadget<G, ConstraintF>,
+{
+    fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, f: F) -> Result<Self, SynthesisError> where
+        F: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<FieldBasedSchnorrPk<G>>
+    {
+        let pk = GG::alloc(cs.ns(|| "alloc pk"), || f().map(|pk| pk.borrow().0))
+            .and_then(|pk_g|{
+                pk_g
+                    .is_zero(cs.ns(|| "is pk zero"))?
+                    .enforce_equal(
+                        cs.ns(|| "pk must not be zero"),
+                        &Boolean::constant(false),
+                    )?;
+                Ok(pk_g)
+            })?;
+        Ok( Self{ pk, _field: PhantomData, _group: PhantomData } )
+    }
+
+    fn alloc_without_check<F, T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, f: F) -> Result<Self, SynthesisError> where
+        F: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<FieldBasedSchnorrPk<G>>,
+    {
+        let pk = GG::alloc_without_check(cs.ns(|| "alloc pk"), || f().map(|pk| pk.borrow().0))?;
+        Ok( Self{ pk, _field: PhantomData, _group: PhantomData } )
+    }
+
+    fn alloc_checked<F, T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, f: F) -> Result<Self, SynthesisError> where
+        F: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<FieldBasedSchnorrPk<G>>,
+    {
+        let pk = GG::alloc_checked(cs.ns(|| "alloc pk checked"), || f().map(|pk| pk.borrow().0))
+            .and_then(|pk_g|{
+                pk_g
+                    .is_zero(cs.ns(|| "is pk zero"))?
+                    .enforce_equal(
+                        cs.ns(|| "pk must not be zero"),
+                        &Boolean::constant(false),
+                    )?;
+                Ok(pk_g)
+            })?;
+        Ok( Self{ pk, _field: PhantomData, _group: PhantomData } )
+    }
+
+    fn alloc_input<F, T, CS: ConstraintSystem<ConstraintF>>(mut cs: CS, f: F) -> Result<Self, SynthesisError> where
+        F: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<FieldBasedSchnorrPk<G>>
+    {
+        let pk = GG::alloc_input(cs.ns(|| "alloc pk"), || f().map(|pk| pk.borrow().0))?;
+        Ok( Self{ pk, _field: PhantomData, _group: PhantomData } )
     }
 }
 
@@ -103,6 +177,15 @@ pub struct FieldBasedSchnorrSigVerificationGadget<
     _hash_gadget:   PhantomData<HG>,
 }
 
+// This implementation supports both complete and incomplete (safe) point addition.
+// Assumes provided key material to be already checked.
+//
+// In case of incomplete point addition, with negligible probability, the
+// proof creation might fail at first attempt and must be re-run (in order to sample
+// fresh randomnesses).
+// Furthermore, one exceptional case (e, s) has to be treated outside the circuit:
+// if e * pk = s * G, i.e. when R' is trivial (therefore leaking the sk), then
+// the circuit is not satisfiable.
 impl<ConstraintF, G, GG, H, HG> FieldBasedSchnorrSigVerificationGadget<ConstraintF, G, GG, H, HG>
     where
         ConstraintF: PrimeField,
@@ -114,9 +197,10 @@ impl<ConstraintF, G, GG, H, HG> FieldBasedSchnorrSigVerificationGadget<Constrain
     fn enforce_signature_computation<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         public_key: &GG,
-        signature: &FieldBasedSchnorrSigGadget<ConstraintF>,
+        signature: &FieldBasedSchnorrSigGadget<ConstraintF, G>,
         message: &[FpGadget<ConstraintF>],
     ) -> Result<FpGadget<ConstraintF>, SynthesisError> {
+
         //Enforce e' * pk
         let e_bits = {
 
@@ -133,12 +217,21 @@ impl<ConstraintF, G, GG, H, HG> FieldBasedSchnorrSigVerificationGadget<Constrain
             e_bits
         };
 
-        //Let's hardcode generator and use it as `result` param here to avoid edge cases in addition
-        let g = GG::from_value(cs.ns(|| "hardcode generator"), &G::prime_subgroup_generator());
+        // Random shift to avoid exceptional cases if add is incomplete.
+        // With overwhelming probability the circuit will be satisfiable,
+        // otherwise the prover can sample another shift by re-running
+        // the proof creation.
+        let shift = GG::alloc(cs.ns(|| "alloc random shift"), || {
+            let mut rng = OsRng::default();
+            Ok(loop {
+                let r = G::rand(&mut rng);
+                if !r.is_zero() { break(r) }
+            })
+        })?;
+
         let neg_e_times_pk = public_key
-            .mul_bits(cs.ns(|| "pk * e + g"), &g, e_bits.as_slice().iter().rev())?
-            .sub(cs.ns(|| "subtract g"), &g)?
-            .negate(cs.ns(|| "- (e * pk)"))?;
+            .mul_bits(cs.ns(|| "pk * e + shift"), &shift, e_bits.as_slice().iter().rev())?
+            .negate(cs.ns(|| "- (pk * e + shift)"))?;
 
         //Enforce s * G and R' = s*G - e*pk
         let mut s_bits = {
@@ -164,16 +257,19 @@ impl<ConstraintF, G, GG, H, HG> FieldBasedSchnorrSigVerificationGadget<Constrain
         };
 
         s_bits.reverse();
+        let g = GG::from_value(cs.ns(|| "hardcode generator"), &G::prime_subgroup_generator());
         let r_prime = GG::mul_bits_fixed_base(
             &g.get_constant(),
-            cs.ns(|| "(s * G) - (e * pk)"),
-            &neg_e_times_pk,
+            cs.ns(|| "(s * G + shift)"),
+            &shift,
             s_bits.as_slice()
-        )?;
+            )?
+            // If add is incomplete, and s * G - e * pk = 0, the circuit of the add won't be satisfiable
+            .add(cs.ns(|| "s * G - e * pk "), &neg_e_times_pk)?;
 
         let r_prime_coords = r_prime.to_field_gadget_elements()?;
 
-        // Check e' = H(m || signature.r || pk.x)
+        // Check e' = H(m || R' || pk.x)
         // Best constraints-efficiency is achieved when m is one field element
         // (or an odd number of field elements).
         let mut hash_input = Vec::new();
@@ -198,8 +294,8 @@ for FieldBasedSchnorrSigVerificationGadget<ConstraintF, G, GG, H, HG>
         HG:          FieldBasedHashGadget<H, ConstraintF, DataGadget = FpGadget<ConstraintF>>,
 {
     type DataGadget = FpGadget<ConstraintF>;
-    type SignatureGadget = FieldBasedSchnorrSigGadget<ConstraintF>;
-    type PublicKeyGadget = GG;
+    type SignatureGadget = FieldBasedSchnorrSigGadget<ConstraintF, G>;
+    type PublicKeyGadget = FieldBasedSchnorrPkGadget<ConstraintF, G, GG>;
 
     fn enforce_signature_verdict<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
@@ -210,7 +306,7 @@ for FieldBasedSchnorrSigVerificationGadget<ConstraintF, G, GG, H, HG>
 
         let e_prime = Self::enforce_signature_computation(
             cs.ns(|| "is sig verified"),
-            public_key,
+            &public_key.pk,
             signature,
             message,
         )?;
@@ -230,7 +326,7 @@ for FieldBasedSchnorrSigVerificationGadget<ConstraintF, G, GG, H, HG>
 
         let e_prime = Self::enforce_signature_computation(
             cs.ns(|| "is sig verified"),
-            public_key,
+            &public_key.pk,
             signature,
             message
         )?;
@@ -244,6 +340,7 @@ mod test {
     use algebra::curves::{
         mnt4753::G1Projective as MNT4G1Projective,
         mnt6753::G1Projective as MNT6G1Projective,
+
     };
     use algebra::fields::{
         mnt4753::Fr as MNT4Fr,
@@ -278,8 +375,11 @@ mod test {
     type SchnorrMNT4 = FieldBasedSchnorrSignatureScheme<MNT4Fr, MNT6G1Projective, MNT4PoseidonHash>;
     type SchnorrMNT6 = FieldBasedSchnorrSignatureScheme<MNT6Fr, MNT4G1Projective, MNT6PoseidonHash>;
 
-    type SchnorrMNT4Sig = FieldBasedSchnorrSignature<MNT4Fr>;
-    type SchnorrMNT6Sig = FieldBasedSchnorrSignature<MNT6Fr>;
+    type SchnorrMNT4Sig = FieldBasedSchnorrSignature<MNT4Fr, MNT6G1Projective>;
+    type SchnorrMNT6Sig = FieldBasedSchnorrSignature<MNT6Fr, MNT4G1Projective>;
+
+    type SchnorrMNT4Pk = FieldBasedSchnorrPk<MNT6G1Projective>;
+    type SchnorrMNT6Pk = FieldBasedSchnorrPk<MNT4G1Projective>;
 
     type SchnorrMNT4Gadget = FieldBasedSchnorrSigVerificationGadget<
         MNT4Fr, MNT6G1Projective, MNT6G1Gadget, MNT4PoseidonHash, MNT4PoseidonHashGadget
@@ -296,7 +396,7 @@ mod test {
         (sig, pk)
     }
 
-    fn mnt4_schnorr_gadget_generate_constraints(message: MNT4Fr, pk: MNT6G1Projective, sig: SchnorrMNT4Sig) -> bool {
+    fn mnt4_schnorr_gadget_generate_constraints(message: MNT4Fr, pk: &SchnorrMNT4Pk, sig: SchnorrMNT4Sig) -> bool {
         let mut cs = TestConstraintSystem::<MNT4Fr>::new();
 
         //Alloc signature, pk and message
@@ -346,22 +446,22 @@ mod test {
         let (sig, pk) = sign::<SchnorrMNT4, _>(rng, &[message]);
 
         //Positive case
-        assert!(mnt4_schnorr_gadget_generate_constraints(message, pk, sig));
+        assert!(mnt4_schnorr_gadget_generate_constraints(message, &pk, sig));
 
         //Change message
         let wrong_message: MNT4Fr = rng.gen();
-        assert!(!mnt4_schnorr_gadget_generate_constraints(wrong_message, pk, sig));
+        assert!(!mnt4_schnorr_gadget_generate_constraints(wrong_message, &pk, sig));
 
         //Change pk
-        let wrong_pk: MNT6G1Projective = rng.gen();
-        assert!(!mnt4_schnorr_gadget_generate_constraints(message, wrong_pk, sig));
+        let wrong_pk: SchnorrMNT4Pk = rng.gen();
+        assert!(!mnt4_schnorr_gadget_generate_constraints(message, &wrong_pk, sig));
 
         //Change sig
         let (wrong_sig, _) = sign::<SchnorrMNT4, _>(rng, &[wrong_message]);
-        assert!(!mnt4_schnorr_gadget_generate_constraints(message, pk, wrong_sig));
+        assert!(!mnt4_schnorr_gadget_generate_constraints(message, &pk, wrong_sig));
     }
 
-    fn mnt6_schnorr_gadget_generate_constraints(message: MNT6Fr, pk: MNT4G1Projective, sig: SchnorrMNT6Sig) -> bool {
+    fn mnt6_schnorr_gadget_generate_constraints(message: MNT6Fr, pk: &SchnorrMNT6Pk, sig: SchnorrMNT6Sig) -> bool {
         let mut cs = TestConstraintSystem::<MNT6Fr>::new();
 
         //Alloc signature, pk and message
@@ -402,6 +502,7 @@ mod test {
         is_cs_satisfied
     }
 
+    #[ignore]
     #[test]
     fn mnt6_schnorr_gadget_test() {
         //Sign a random field element f and get the signature and the public key
@@ -410,21 +511,22 @@ mod test {
         let (sig, pk) = sign::<SchnorrMNT6, _>(rng, &[message]);
 
         //Positive case
-        assert!(mnt6_schnorr_gadget_generate_constraints(message, pk, sig));
+        assert!(mnt6_schnorr_gadget_generate_constraints(message, &pk, sig));
 
         //Change message
         let wrong_message: MNT6Fr = rng.gen();
-        assert!(!mnt6_schnorr_gadget_generate_constraints(wrong_message, pk, sig));
+        assert!(!mnt6_schnorr_gadget_generate_constraints(wrong_message, &pk, sig));
 
         //Change pk
-        let wrong_pk: MNT4G1Projective = rng.gen();
-        assert!(!mnt6_schnorr_gadget_generate_constraints(message, wrong_pk, sig));
+        let wrong_pk: SchnorrMNT6Pk = rng.gen();
+        assert!(!mnt6_schnorr_gadget_generate_constraints(message, &wrong_pk, sig));
 
         //Change sig
         let (wrong_sig, _) = sign::<SchnorrMNT6, _>(rng, &[wrong_message]);
-        assert!(!mnt6_schnorr_gadget_generate_constraints(message, pk, wrong_sig));
+        assert!(!mnt6_schnorr_gadget_generate_constraints(message, &pk, wrong_sig));
     }
 
+    #[ignore]
     #[test]
     fn random_schnorr_gadget_test() {
         let rng = &mut thread_rng();

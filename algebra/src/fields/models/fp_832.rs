@@ -1,12 +1,8 @@
-use crate::{
-    biginteger::{arithmetic as fa, BigInteger as _BigInteger, BigInteger832 as BigInteger},
-    bytes::{FromBytes, ToBytes},
-    fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
-};
+use crate::{biginteger::{arithmetic as fa, BigInteger as _BigInteger, BigInteger832 as BigInteger}, bytes::{FromBytes, ToBytes}, fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField}, SemanticallyValid};
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
     fmt::{Display, Formatter, Result as FmtResult},
-    io::{Read, Result as IoResult, Write},
+    io::{Read, Result as IoResult, Write, Error as IoError, ErrorKind},
     marker::PhantomData,
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
     str::FromStr,
@@ -36,11 +32,6 @@ impl<P: Fp832Parameters> Fp832<P> {
     #[inline]
     pub fn new(element: BigInteger) -> Self {
         Fp832::<P>(element, PhantomData)
-    }
-
-    #[inline]
-    pub(crate) fn is_valid(&self) -> bool {
-        self.0 < P::MODULUS
     }
 
     #[inline]
@@ -758,6 +749,14 @@ impl_prime_field_from_int!(Fp832, u8, Fp832Parameters);
 
 impl_prime_field_standard_sample!(Fp832, Fp832Parameters);
 
+impl<P: Fp832Parameters> SemanticallyValid for Fp832<P>
+{
+    #[inline]
+    fn is_valid(&self) -> bool {
+        self.0 < P::MODULUS
+    }
+}
+
 impl<P: Fp832Parameters> ToBytes for Fp832<P> {
     #[inline]
     fn write<W: Write>(&self, writer: W) -> IoResult<()> {
@@ -768,7 +767,21 @@ impl<P: Fp832Parameters> ToBytes for Fp832<P> {
 impl<P: Fp832Parameters> FromBytes for Fp832<P> {
     #[inline]
     fn read<R: Read>(reader: R) -> IoResult<Self> {
-        BigInteger::read(reader).map(Fp832::from_repr)
+        BigInteger::read(reader).and_then( |b|
+            if b.is_zero() {
+                Ok(Fp832::zero())
+            } else {
+                let f = Fp832::from_repr(b);
+                if f == Fp832::zero() {
+                    Err(IoError::new(
+                        ErrorKind::InvalidData,
+                        "Attempt to deserialize a field element over the modulus")
+                    )
+                } else {
+                    Ok(f)
+                }
+            }
+        )
     }
 }
 

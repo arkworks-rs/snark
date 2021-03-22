@@ -29,6 +29,14 @@ pub fn verify_proof<E: PairingEngine>(
         g_ic.add_assign(&b.mul(i.into_repr()));
     }
 
+    // The original verification equation is:
+    // A * B = alpha * beta + inputs * gamma + C * delta
+    // ... however, we rearrange it so that it is:
+    // A * B - inputs * gamma - C * delta = alpha * beta
+    // or equivalently:
+    // A * B + inputs * (-gamma) + C * (-delta) = alpha * beta
+    // which allows us to do a single final exponentiation.
+
     let qap = E::miller_loop(
         [
             (&proof.a.prepare(), &proof.b.prepare()),
