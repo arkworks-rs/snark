@@ -126,6 +126,25 @@ impl<G: Group> Debug for PedersenParameters<G> {
     }
 }
 
+impl<G: Group> PedersenParameters<G>{
+    pub fn check_consistency(&self) -> bool {
+        for (i, p1) in self.generators.iter().enumerate() {
+            if p1[0] == G::zero() {
+                return false; // infinity generator
+            }
+            for p2 in self.generators.iter().skip(i + 1) {
+                if p1[0] == p2[0] {
+                    return false; // duplicate generator
+                }
+                if p1[0] == p2[0].neg() {
+                    return false; // inverse generator
+                }
+            }
+        }
+        return true;
+    }
+}
+
 impl<ConstraintF: Field, G: Group + ToConstraintField<ConstraintF>> ToConstraintField<ConstraintF>
     for PedersenParameters<G>
 {

@@ -7,7 +7,7 @@ use crate::{curves::{
     AffineCurve, PairingEngine,
 }, biginteger::BigInteger768, fields::mnt4753::{fq::Fq, fq2::Fq2, fq4::Fq4, fr::Fr}, groups::tests::{
     group_test, compression_test, gt_compression_test
-}, ProjectiveCurve, Field, PrimeField, ToBits, FromCompressedBits};
+}, ProjectiveCurve, Field, PrimeField, ToBits, FromCompressedBits, SemanticallyValid};
 use rand;
 use std::ops::AddAssign;
 
@@ -26,8 +26,95 @@ fn test_g1_projective_group() {
 #[test]
 fn test_g1_generator() {
     let generator = G1Affine::prime_subgroup_generator();
-    assert!(generator.is_on_curve());
-    assert!(generator.is_in_correct_subgroup_assuming_on_curve());
+    assert!(generator.is_valid());
+}
+
+#[test]
+fn test_g1_is_valid(){
+
+    // Reject point with invalid x coordinate
+    let p = G1Affine::new(
+        Fq::new(BigInteger768([
+            0xffffffffffffffff,
+            0xffffffffffffffff,
+            0xffffffffffffffff,
+            0xffffffffffffffff,
+            0xffffffffffffffff,
+            0xffffffffffffffff,
+            0xffffffffffffffff,
+            0xffffffffffffffff,
+            0xffffffffffffffff,
+            0xffffffffffffffff,
+            0xffffffffffffffff,
+            0xffffffffffffffff,
+        ])),
+        Fq::from_repr(BigInteger768([
+            0x717e3ffa2193697,
+            0x411a81406abf8fc7,
+            0x6c3f0710357570d0,
+            0x9d999acc5cf81a11,
+            0x81b6bf821df14a35,
+            0x31135663344492a8,
+            0x6da16e1624afd3a0,
+            0x1c9a4d2e8eda6ba8,
+            0xabe3b7346ad95eee,
+            0xe39afac6814ca651,
+            0xe0da6a8c4eb633d9,
+            0xeed8b99aecdc,
+        ])),
+        false,
+    );
+    assert!(!p.is_valid());
+    assert!(!p.x.is_valid());
+
+    // Reject point with invalid y coordinate
+    let p = G1Affine::new(
+        Fq::from_repr(BigInteger768([
+            0x4c0019d20f21bf0a,
+            0x2412bb7c69103f8c,
+            0xd837c81e51c23d86,
+            0x25863118bf7cfccd,
+            0xe33772d47fca8100,
+            0xce263b8a45563538,
+            0xd6d598765ee2b934,
+            0x34e9e3c25ccc604f,
+            0x4e3fdafc45d53a68,
+            0xc92e2e4e5131ab8e,
+            0x6da3e8856ccf21c3,
+            0x89821510d8c7,
+        ])),
+        Fq::new(BigInteger768([
+            0xffffffffffffffff,
+            0xffffffffffffffff,
+            0xffffffffffffffff,
+            0xffffffffffffffff,
+            0xffffffffffffffff,
+            0xffffffffffffffff,
+            0xffffffffffffffff,
+            0xffffffffffffffff,
+            0xffffffffffffffff,
+            0xffffffffffffffff,
+            0xffffffffffffffff,
+            0xffffffffffffffff,
+        ])),
+        false,
+    );
+    assert!(!p.is_valid());
+    assert!(!p.y.is_valid());
+
+    //Reject point not belonging to curve
+    let p = G1Affine::new(
+        Fq::zero(),
+        Fq::zero(),
+        false,
+    );
+    assert!(!p.is_valid());
+    assert!(!p.is_on_curve());
+
+    // Accept valid point
+    let p: G1Projective = rand::random();
+    let p_affine = p.into_affine();
+    assert!(p_affine.is_valid());
 }
 
 #[test]
@@ -125,8 +212,160 @@ fn test_g2_projective_group() {
 #[test]
 fn test_g2_generator() {
     let generator = G2Affine::prime_subgroup_generator();
-    assert!(generator.is_on_curve());
-    assert!(generator.is_in_correct_subgroup_assuming_on_curve());
+    assert!(generator.is_valid());
+}
+
+#[test]
+fn test_g2_is_valid(){
+
+    // Reject point with invalid x coordinate
+    let p = G2Affine::new(
+        Fq2::new(
+            Fq::new(BigInteger768([
+                0xffffffffffffffff,
+                0xffffffffffffffff,
+                0xffffffffffffffff,
+                0xffffffffffffffff,
+                0xffffffffffffffff,
+                0xffffffffffffffff,
+                0xffffffffffffffff,
+                0xffffffffffffffff,
+                0xffffffffffffffff,
+                0xffffffffffffffff,
+                0xffffffffffffffff,
+                0xffffffffffffffff,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x786b46445f82e73c,
+                0x7f65e493fad0e8b4,
+                0x72f9e2017edbd8a0,
+                0xa962e30713eac14b,
+                0x4ff84799b321a106,
+                0x8edd421b3377e583,
+                0xaba7726f60af7957,
+                0x333613a05885fc6b,
+                0x6566cb2720173f7,
+                0x2fbd93f05fb4aafb,
+                0x5c36413ccc1c397b,
+                0x101e0d7f5c50b,
+            ])),
+        ),
+        Fq2::new(
+            Fq::from_repr(BigInteger768([
+                0xe7542befc7c77e7e,
+                0x3d532adf08c50ee,
+                0x7931d21d45cf5b88,
+                0xf3facf495cde403,
+                0x6cb921a14e9a4f4f,
+                0xa2c6fa913de0db27,
+                0x9cd5563862ee6b52,
+                0x609c608ee22298d1,
+                0xc61a7826940542f7,
+                0xa62753b7c5522ed8,
+                0x8944940494f84bd9,
+                0x134882728983e,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0xd5ae2443316eca5e,
+                0x1e5d2cab9ea75b61,
+                0x9c598bb3764d1f4a,
+                0x8664602317bb85ca,
+                0xeeb80880a81b30dd,
+                0x7fa2cb7313ad08af,
+                0xb8fa25436f268402,
+                0xd0b2fb568b2db00,
+                0xf85d0eda012e353e,
+                0xddcd8a006eaad8b1,
+                0x22349e5f59a72ea6,
+                0x147db456d4e50,
+            ])),
+        ),
+        false,
+    );
+    assert!(!p.is_valid());
+    assert!(!p.x.is_valid());
+
+    // Reject point with invalid y coordinate
+    let p = G2Affine::new(
+        Fq2::new(
+            Fq::from_repr(BigInteger768([
+                0xcd3192cf5e7bfd5f,
+                0x6cbe38e97527e8af,
+                0xdd06c276b9a60b50,
+                0xcba1ce70e3002cf2,
+                0x4585e29519699027,
+                0xd3a145616a69bffe,
+                0xd00683c57b1918c2,
+                0xf186e5d5c72154c0,
+                0xa2d24f00463b7065,
+                0xba25111f5a5085f3,
+                0xcc0093f39b311579,
+                0xaac25dd8a401,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x786b46445f82e73c,
+                0x7f65e493fad0e8b4,
+                0x72f9e2017edbd8a0,
+                0xa962e30713eac14b,
+                0x4ff84799b321a106,
+                0x8edd421b3377e583,
+                0xaba7726f60af7957,
+                0x333613a05885fc6b,
+                0x6566cb2720173f7,
+                0x2fbd93f05fb4aafb,
+                0x5c36413ccc1c397b,
+                0x101e0d7f5c50b,
+            ])),
+        ),
+        Fq2::new(
+            Fq::from_repr(BigInteger768([
+                0xe7542befc7c77e7e,
+                0x3d532adf08c50ee,
+                0x7931d21d45cf5b88,
+                0xf3facf495cde403,
+                0x6cb921a14e9a4f4f,
+                0xa2c6fa913de0db27,
+                0x9cd5563862ee6b52,
+                0x609c608ee22298d1,
+                0xc61a7826940542f7,
+                0xa62753b7c5522ed8,
+                0x8944940494f84bd9,
+                0x134882728983e,
+            ])),
+            Fq::new(BigInteger768([
+                0xffffffffffffffff,
+                0xffffffffffffffff,
+                0xffffffffffffffff,
+                0xffffffffffffffff,
+                0xffffffffffffffff,
+                0xffffffffffffffff,
+                0xffffffffffffffff,
+                0xffffffffffffffff,
+                0xffffffffffffffff,
+                0xffffffffffffffff,
+                0xffffffffffffffff,
+                0xffffffffffffffff,
+            ])),
+        ),
+        false,
+    );
+    assert!(!p.is_valid());
+    assert!(!p.y.is_valid());
+
+    //Reject point not belonging to curve
+    let p = G2Affine::new(
+        Fq2::zero(),
+        Fq2::zero(),
+        false,
+    );
+    assert!(!p.is_valid());
+    assert!(!p.is_on_curve());
+
+    // Accept valid point
+    let p: G2Projective = rand::random();
+    let p_affine = p.into_affine();
+    assert!(p_affine.is_valid());
+
 }
 
 #[test]

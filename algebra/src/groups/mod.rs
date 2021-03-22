@@ -1,4 +1,4 @@
-use crate::BitIterator;
+use crate::{BitIterator, FromBytesChecked, SemanticallyValid};
 use crate::UniformRand;
 use std::{
     fmt::{Debug, Display},
@@ -17,6 +17,8 @@ pub mod tests;
 pub trait Group:
     ToBytes
     + FromBytes
+    + FromBytesChecked
+    + SemanticallyValid
     + Copy
     + Clone
     + Debug

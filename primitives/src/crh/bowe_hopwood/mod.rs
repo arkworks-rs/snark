@@ -161,6 +161,25 @@ impl<G: Group> Debug for BoweHopwoodPedersenParameters<G> {
     }
 }
 
+impl<G: Group> BoweHopwoodPedersenParameters<G>{
+    pub fn check_consistency(&self) -> bool {
+        for (i, p1) in self.generators.iter().enumerate() {
+            if p1[0] == G::zero() {
+                return false; // infinity generator
+            }
+            for p2 in self.generators.iter().skip(i + 1) {
+                if p1[0] == p2[0] {
+                    return false; // duplicate generator
+                }
+                if p1[0] == p2[0].neg() {
+                    return false; // inverse generator
+                }
+            }
+        }
+        return true;
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::{

@@ -1,4 +1,4 @@
-use crate::{biginteger::BigInteger, bytes::{FromBytes, ToBytes}, UniformRand, bits::{ToBits, FromBits}, Error, BitSerializationError};
+use crate::{biginteger::BigInteger, bytes::{FromBytes, ToBytes}, UniformRand, bits::{ToBits, FromBits}, Error, BitSerializationError, SemanticallyValid, FromBytesChecked};
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
@@ -58,8 +58,10 @@ pub trait MulShort where Self: Sized {
 pub trait Field:
     ToBytes
     + FromBytes
+    + FromBytesChecked
     + ToBits
     + FromBits
+    + SemanticallyValid
     + Copy
     + Clone
     + Debug
@@ -155,6 +157,12 @@ pub trait Field:
         }
         res
     }
+}
+
+use std::io::{ Read, Result as IoResult };
+impl<F: Field> FromBytesChecked for F {
+    fn read_checked<R: Read>(reader: R) -> IoResult<Self>
+    { Self::read(reader) }
 }
 
 /// A trait that defines parameters for a prime field.
@@ -291,7 +299,7 @@ impl<F: PrimeField> FromBits for F {
         let modulus_bits = <Self as PrimeField>::Params::MODULUS_BITS as usize;
 
         //NOTE: We allow bits having enough leading bits to zero s.t. the length will be <= F::MODULUS_BITS
-        let leading_zeros = leading_zeros(bits.clone()) as usize;
+        let leading_zeros = leading_zeros(bits.as_slice()) as usize;
         let bits = &bits.as_slice()[leading_zeros..];
         match bits.len() <=  modulus_bits {
             true => {
@@ -323,9 +331,9 @@ pub fn convert<ToF: PrimeField>(from: Vec<bool>) -> Result<ToF, Error> {
 }
 
 #[inline]
-pub fn leading_zeros(bits: Vec<bool>) -> u32 {
+pub fn leading_zeros(bits: &[bool]) -> u32 {
     let mut ctr = 0;
-    for b in bits.iter() {
+    for &b in bits.iter() {
         if !b {
             ctr += 1;
         } else {

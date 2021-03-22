@@ -7,7 +7,7 @@ use std::{
     str::FromStr,
 };
 
-use crate::{biginteger::{arithmetic as fa, BigInteger as _BigInteger, BigInteger768 as BigInteger}, bytes::{FromBytes, ToBytes}, fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField}, MulShort};
+use crate::{biginteger::{arithmetic as fa, BigInteger as _BigInteger, BigInteger768 as BigInteger}, bytes::{FromBytes, ToBytes}, fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField}, MulShort, SemanticallyValid};
 
 pub trait Fp768Parameters: FpParameters<BigInt = BigInteger> {}
 
@@ -33,11 +33,6 @@ impl<P: Fp768Parameters> Fp768<P> {
     #[inline]
     pub fn new(element: BigInteger) -> Self {
         Fp768::<P>(element, PhantomData)
-    }
-
-    #[inline]
-    pub(crate) fn is_valid(&self) -> bool {
-        self.0 < P::MODULUS
     }
 
     #[inline]
@@ -780,6 +775,15 @@ impl_prime_field_from_int!(Fp768, u16, Fp768Parameters);
 impl_prime_field_from_int!(Fp768, u8, Fp768Parameters);
 
 impl_prime_field_standard_sample!(Fp768, Fp768Parameters);
+
+impl<P: Fp768Parameters> SemanticallyValid for Fp768<P>
+{
+    #[inline]
+    fn is_valid(&self) -> bool {
+        self.0 < P::MODULUS
+    }
+}
+
 
 impl<P: Fp768Parameters> ToBytes for Fp768<P> {
     #[inline]
