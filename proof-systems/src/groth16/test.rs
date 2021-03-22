@@ -121,6 +121,7 @@ mod test{
         assert!(verify_proof(&pvk_deserialized, &proof_deserialized, &[c]).unwrap())
     }
 
+
     #[test]
     fn prove_verify() {
         test_prove_and_verify::<Bls12_377>();
@@ -136,4 +137,6 @@ mod test{
         test_serialize_deserialize::<MNT4>();
         test_serialize_deserialize::<MNT6>();
     }
+
 }
+

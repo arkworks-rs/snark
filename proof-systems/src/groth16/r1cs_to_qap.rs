@@ -1,5 +1,5 @@
 use algebra::{Field, PairingEngine};
-use algebra::fft::EvaluationDomain;
+use algebra::fft::domain::{EvaluationDomain, EvaluationDomainImpl};
 
 use crate::groth16::{generator::KeypairAssembly, prover::ProvingAssignment};
 use r1cs_core::{Index, SynthesisError};

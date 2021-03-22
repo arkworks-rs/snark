@@ -2,7 +2,7 @@ use algebra::{
     groups::Group, msm::FixedBaseMSM, Field, PairingEngine, PrimeField, ProjectiveCurve,
     UniformRand,
 };
-use algebra::fft::EvaluationDomain;
+use algebra::fft::domain::{EvaluationDomain, EvaluationDomainImpl};
 
 use r1cs_core::{
     ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable,

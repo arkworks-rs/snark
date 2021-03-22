@@ -1,15 +1,16 @@
-use crate::UniformRand;
-use crate::curves::{bls12_381::Bls12_381, PairingEngine};
+use crate::{UniformRand, Field, PrimeField, FpParameters};
+use crate::curves::{mnt6753::MNT6, PairingEngine};
 use crate::{domain::*, multicore::*};
 use rand;
 use std::cmp::min;
+use rand::Rng;
 
 // Test multiplying various (low degree) polynomials together and
 // comparing with naive evaluations.
 #[test]
 fn fft_composition() {
-    fn test_fft_composition<E: PairingEngine, R: rand::Rng>(rng: &mut R) {
-        for coeffs in 0..10 {
+    fn test_fft_composition<E: PairingEngine, R: Rng>(rng: &mut R) {
+        for coeffs in 0..18 {
             let coeffs = 1 << coeffs;
 
             let mut v = vec![];
@@ -19,6 +20,8 @@ fn fft_composition() {
             let mut v2 = v.clone();
 
             let domain = EvaluationDomain::<E::Fr>::new(coeffs).unwrap();
+            v.resize(domain.size(), E::Fr::zero());
+
             domain.ifft_in_place(&mut v2);
             domain.fft_in_place(&mut v2);
             assert_eq!(v, v2, "ifft(fft(.)) != iden");
@@ -39,16 +42,16 @@ fn fft_composition() {
 
     let rng = &mut rand::thread_rng();
 
-    test_fft_composition::<Bls12_381, _>(rng);
+    test_fft_composition::<MNT6, _>(rng);
 }
 
 #[test]
 fn parallel_fft_consistency() {
-    fn test_consistency<E: PairingEngine, R: rand::Rng>(rng: &mut R) {
+    fn test_consistency<E: PairingEngine, R: Rng>(rng: &mut R) {
         let worker = Worker::new();
 
         for _ in 0..5 {
-            for log_d in 0..10 {
+            for log_d in 0..18 {
                 let d = 1 << log_d;
 
                 let mut v1 = (0..d).map(|_| E::Fr::rand(rng)).collect::<Vec<_>>();
@@ -57,9 +60,13 @@ fn parallel_fft_consistency() {
                 let domain = EvaluationDomain::new(v1.len()).unwrap();
 
                 for log_cpus in log_d..min(log_d + 1, 3) {
-                    parallel_fft(&mut v1, &worker, domain.group_gen, log_d, log_cpus);
-                    serial_fft(&mut v2, domain.group_gen, log_d);
-
+                    if log_d < <E::Fr as PrimeField>::Params::TWO_ADICITY{
+                        BasicRadix2Domain::parallel_fft(&mut v1, &worker, domain.group_gen(), log_d, log_cpus);
+                        BasicRadix2Domain::serial_fft(&mut v2, domain.group_gen(), log_d);
+                    } else {
+                        MixedRadix2Domain::mixed_parallel_fft(&mut v1, &worker, domain.group_gen(), log_d, log_cpus);
+                        MixedRadix2Domain::mixed_serial_fft(&mut v2, domain.group_gen(), log_d);
+                    }
                     assert_eq!(v1, v2);
                 }
             }
@@ -68,5 +75,5 @@ fn parallel_fft_consistency() {
 
     let rng = &mut rand::thread_rng();
 
-    test_consistency::<Bls12_381, _>(rng);
+    test_consistency::<MNT6, _>(rng);
 }

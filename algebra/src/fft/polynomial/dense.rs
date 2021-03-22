@@ -4,7 +4,7 @@ use std::fmt;
 use std::ops::{Add, AddAssign, Deref, DerefMut, Div, Mul, Neg, Sub, SubAssign};
 
 use crate::{Field, PrimeField};
-use crate::{Evaluations, EvaluationDomain, DenseOrSparsePolynomial};
+use crate::{Evaluations, EvaluationDomain, EvaluationDomainImpl, DenseOrSparsePolynomial};
 use rand::Rng;
 use rayon::prelude::*;
 
@@ -359,8 +359,8 @@ impl<'a, 'b, F: PrimeField> Mul<&'a DensePolynomial<F>> for &'b DensePolynomial<
 #[cfg(test)]
 mod tests {
     use crate::polynomial::*;
-    use crate::fields::{bls12_381::fr::Fr, Field};
-    use crate::UniformRand; 
+    use crate::fields::{mnt6753::fr::Fr, Field};
+    use crate::UniformRand;
     use rand::thread_rng;
 
     #[test]
@@ -482,7 +482,7 @@ mod tests {
     #[test]
     fn mul_by_vanishing_poly() {
         let rng = &mut thread_rng();
-        for size in 1..10 {
+        for size in 1..18 {
             let domain = EvaluationDomain::new(1 << size).unwrap();
             for degree in 0..70 {
                 let p = DensePolynomial::<Fr>::rand(degree, rng);

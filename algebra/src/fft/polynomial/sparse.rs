@@ -127,13 +127,13 @@ impl<F: Field> Into<DensePolynomial<F>> for SparsePolynomial<F> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{EvaluationDomain, DensePolynomial, SparsePolynomial};
-    use crate::fields::bls12_381::fr::Fr;
+    use crate::{EvaluationDomain, EvaluationDomainImpl, DensePolynomial, SparsePolynomial};
+    use crate::fields::mnt6753::fr::Fr;
     use crate::Field;
 
     #[test]
     fn evaluate_over_domain() {
-        for size in 2..10 {
+        for size in 2..18 {
             let domain_size = 1 << size;
             let domain = EvaluationDomain::new(domain_size).unwrap();
             let two = Fr::one() + &Fr::one();
