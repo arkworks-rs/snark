@@ -71,7 +71,7 @@ fn bench_verify<G1: AffineCurve, G2: AffineCurve, D: Digest>(
         &committer_key_g1,
         deferred,
         &index_pk,
-        num_constraints,
+        num_constraints - 1,
         false,
         rng,
     );
@@ -162,7 +162,7 @@ fn bench_accumulate<G1: AffineCurve, G2: AffineCurve, D: Digest>(
         &committer_key_g1,
         deferred,
         &index_pk,
-        num_constraints,
+        num_constraints - 1,
         false,
         rng,
     );
