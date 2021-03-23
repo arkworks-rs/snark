@@ -111,6 +111,8 @@ impl<M: SWModelParameters, ConstraintF: Field> ToConstraintField<ConstraintF> fo
 {
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
+        // Affine coordinates are defined even if `self` is the neutral elements. For more
+        // information, see the definition of zero() in SWPAffine.
         let mut x_fe = self.x.to_field_elements()?;
         let y_fe = self.y.to_field_elements()?;
         x_fe.extend_from_slice(&y_fe);
@@ -124,7 +126,7 @@ impl<M: SWModelParameters, ConstraintF: Field> ToConstraintField<ConstraintF> fo
 {
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
-        let affine = self.into_affine();
+        let affine = self.into_affine(); // Affine coordinates are defined even if `self` is the neutral elements
         let mut x_fe = affine.x.to_field_elements()?;
         let y_fe = affine.y.to_field_elements()?;
         x_fe.extend_from_slice(&y_fe);

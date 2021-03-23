@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::{Error, bytes_to_bits};
 use rand::Rng;
 use rayon::prelude::*;
 use std::{
@@ -116,17 +116,6 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for PedersenCRH<G, W> {
     }
 }
 
-pub fn bytes_to_bits(bytes: &[u8]) -> Vec<bool> {
-    let mut bits = Vec::with_capacity(bytes.len() * 8);
-    for byte in bytes {
-        for i in 0..8 {
-            let bit = (*byte >> i) & 1;
-            bits.push(bit == 1)
-        }
-    }
-    bits
-}
-
 impl<G: Group> Debug for PedersenParameters<G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         write!(f, "Pedersen Hash Parameters {{\n")?;
@@ -134,6 +123,25 @@ impl<G: Group> Debug for PedersenParameters<G> {
             write!(f, "\t  Generator {}: {:?}\n", i, g)?;
         }
         write!(f, "}}\n")
+    }
+}
+
+impl<G: Group> PedersenParameters<G>{
+    pub fn check_consistency(&self) -> bool {
+        for (i, p1) in self.generators.iter().enumerate() {
+            if p1[0] == G::zero() {
+                return false; // infinity generator
+            }
+            for p2 in self.generators.iter().skip(i + 1) {
+                if p1[0] == p2[0] {
+                    return false; // duplicate generator
+                }
+                if p1[0] == p2[0].neg() {
+                    return false; // inverse generator
+                }
+            }
+        }
+        return true;
     }
 }
 

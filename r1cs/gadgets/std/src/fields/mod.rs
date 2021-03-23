@@ -489,7 +489,7 @@ mod test {
         // (Because `from_bits` pack only up until MODULUS_BITS - 1 bits)
         let (f, leading_zeros) = loop {
             let val = ConstraintF::rand(&mut rng);
-            let zeros = leading_zeros(val.write_bits());
+            let zeros = leading_zeros(val.write_bits().as_slice());
             if zeros > 1 {
                 break (val, zeros as usize)
             }
@@ -568,7 +568,7 @@ mod test {
         //to_bits_with_length_restriction test
         let (b, leading_zeros) = loop {
             let val = ConstraintF::rand(&mut rng);
-            let zeros = leading_zeros(val.write_bits());
+            let zeros = leading_zeros(val.write_bits().as_slice());
             if zeros >= 3 {
                 break (val, zeros)
             }
@@ -681,7 +681,7 @@ mod test {
     /*
     Test for the inverse gadget, should fail on old, insecure gadget
     which does not implement sufficiently many restristrictions to enforce the inverse relation.
-    See https://github.com/ZencashOfficial/ginger-lib/issues/45 for details.
+    See https://github.com/HorizenOfficial/ginger-lib/issues/45 for details.
     */
     use algebra::fields::{
         SquareRootField, Fp2Parameters

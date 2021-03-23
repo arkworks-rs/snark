@@ -522,7 +522,7 @@ mod test {
 
     #[test]
     fn gm17_verifier_test() {
-        let num_inputs = 100;
+        let num_inputs = 2;
         let num_constraints = num_inputs;
         let rng = &mut thread_rng();
         let mut inputs: Vec<Option<Fr>> = Vec::with_capacity(num_inputs);

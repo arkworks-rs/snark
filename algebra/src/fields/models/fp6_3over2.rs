@@ -1,5 +1,5 @@
 use rand::{Rng, distributions::{Standard, Distribution}};
-use crate::{UniformRand, ToBits, FromBits, PrimeField, Error};
+use crate::{UniformRand, ToBits, FromBits, PrimeField, Error, SemanticallyValid};
 use std::{
     cmp::Ordering,
     io::{Read, Result as IoResult, Write},
@@ -447,6 +447,16 @@ impl<P: Fp6Parameters> From<u16> for Fp6<P> {
 impl<P: Fp6Parameters> From<u8> for Fp6<P> {
     fn from(other: u8) -> Self {
         Self::new(other.into(), Fp2::zero(), Fp2::zero())
+    }
+}
+
+impl<P: Fp6Parameters> SemanticallyValid for Fp6<P>
+{
+    #[inline]
+    fn is_valid(&self) -> bool {
+        self.c0.is_valid() &&
+            self.c1.is_valid() &&
+            self.c2.is_valid()
     }
 }
 

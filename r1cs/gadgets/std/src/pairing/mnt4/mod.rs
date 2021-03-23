@@ -104,7 +104,9 @@ impl<P: MNT4Parameters> PairingGadget<MNT4p<P>, P::Fp> for MNT4PairingGadget<P>
                     f = f.mul_by_023(cs.ns(||"add compute f"), &g_rq_at_p)?;
                 }
             }
-            f = f.unitary_inverse(cs.ns(|| "f unitary inverse"))?;
+            if P::ATE_IS_LOOP_COUNT_NEG {
+                f = f.unitary_inverse(cs.ns(|| "f unitary inverse"))?;
+            }
             result.mul_in_place(cs.ns(|| format!("mul_assign_{}", i)), &f)?;
         }
         Ok(result)
@@ -117,23 +119,29 @@ impl<P: MNT4Parameters> PairingGadget<MNT4p<P>, P::Fp> for MNT4PairingGadget<P>
         let value_inv = value.inverse(cs.ns(|| "value_inverse"))?;
 
         //Final exp first chunk
+        //use the Frobenius map a to compute value^(q^2-1)
         let elt = value.clone()
             .frobenius_map(cs.ns(|| "value_frobenius_2"), 2)?
             .mul(cs.ns(|| "value_frobenius_2_div_value"), &value_inv)?;
-        let elt_inv = value_inv.clone()
-            .frobenius_map(cs.ns(|| "value_inv_frobenius_2"), 2)?
-            .mul(cs.ns(|| "value_inv_frobenius_2_div_value"), &value)?;
 
-        //Final exp last chunk
-
+        //Final exp last chunk (p^2 +1)/r = m_1*q + m_0, m_0 can be signed.
+        //compute elt^q
         let elt_q = elt.clone()
             .frobenius_map(cs.ns(|| "elt_q_frobenius_1"), 1)?;
 
+        //compute elt^{m1*q}
         let w1_part = elt_q
             .cyclotomic_exp(cs.ns(|| "compute w1"), P::FINAL_EXPONENT_LAST_CHUNK_1)?;
 
-        let w0_part = elt_inv.clone()
-            .cyclotomic_exp(cs.ns(|| "compute w0"),P::FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0)?;
+        let w0_part = if P::FINAL_EXPONENT_LAST_CHUNK_W0_IS_NEG {
+            // we need the inverse of elt in this case, by recomputing first chunk exp
+            let elt_inv = value_inv
+                .frobenius_map(cs.ns(|| "value_inv_frobenius_2"), 2)?
+                .mul(cs.ns(|| "value_inv_frobenius_2_div_value"), &value)?;
+            elt_inv.cyclotomic_exp(cs.ns(|| "compute w0"),P::FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0)
+        } else {
+            elt.cyclotomic_exp(cs.ns(|| "compute w0"),P::FINAL_EXPONENT_LAST_CHUNK_ABS_OF_W0)
+        }?;
 
         w1_part.mul(cs.ns(|| "w0 * w1"), &w0_part)
 
