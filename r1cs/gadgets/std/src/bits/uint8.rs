@@ -84,24 +84,42 @@ impl UInt8 {
         let field_elements: Vec<ConstraintF> =
             ToConstraintField::<ConstraintF>::to_field_elements(values).unwrap();
 
-        let max_size = 8 * (ConstraintF::Params::CAPACITY / 8) as usize;
+        let max_size = (<ConstraintF as PrimeField>::Params::CAPACITY / 8) as usize;
+
         let mut allocated_bits = Vec::new();
-        for (i, field_element) in field_elements.into_iter().enumerate() {
-            let fe = FpGadget::alloc_input(&mut cs.ns(|| format!("Field element {}", i)), || {
-                Ok(field_element)
-            })?;
-            let mut fe_bits = fe.to_bits(cs.ns(|| format!("Convert fe to bits {}", i)))?;
+        for (i, (field_element, byte_chunk)) in field_elements
+            .into_iter()
+            .zip(values.chunks(max_size))
+            .enumerate()
+        {
+            let fe = FpGadget::alloc_input(
+                &mut cs.ns(|| format!("Field element {}", i)),
+                || { Ok(field_element) }
+            )?;
+
+            // Let's use the length-restricted variant of the ToBitsGadget to remove the
+            // padding: the padding bits are not constrained to be zero, so any field element
+            // passed as input (as long as it has the last bits set to the proper value) can
+            // satisfy the constraints. This kind of freedom might not be desiderable in
+            // recursive SNARK circuits, where the public inputs of the inner circuit are
+            // usually involved in other kind of constraints inside the wrap circuit.
+            let to_skip: usize = <ConstraintF as PrimeField>::Params::MODULUS_BITS as usize - (byte_chunk.len() * 8);
+            let mut fe_bits = fe.to_bits_with_length_restriction(
+                cs.ns(|| format!("Convert fe to bits {}", i)),
+                to_skip
+            )?;
+
             // FpGadget::to_bits outputs a big-endian binary representation of
             // fe_gadget's value, so we have to reverse it to get the little-endian
             // form.
             fe_bits.reverse();
 
-            // Remove the most significant bit, because we know it should be zero
-            // because `values.to_field_elements()` only
-            // packs field elements up to the penultimate bit.
-            // That is, the most significant bit (`ConstraintF::NUM_BITS`-th bit) is
-            // unset, so we can just pop it off.
-            allocated_bits.extend_from_slice(&fe_bits[0..max_size]);
+            // Pad to reach bigint bit size
+            for _ in fe_bits.len()..max_size * 8 {
+                fe_bits.push(Boolean::Constant(false));
+            }
+
+            allocated_bits.extend_from_slice(fe_bits.as_slice());
         }
 
         // Chunk up slices of 8 bit into bytes.

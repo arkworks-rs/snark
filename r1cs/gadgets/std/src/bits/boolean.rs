@@ -451,13 +451,19 @@ impl Boolean {
                 Ok(field_element)
             })?;
 
-            let fe_bits = fe.to_bits(cs.ns(|| format!("Convert fe to bits {}", i)))?;
+            // Let's use the length-restricted variant of the ToBitsGadget to remove the
+            // padding: the padding bits are not constrained to be zero, so any field element
+            // passed as input (as long as it has the last bits set to the proper value) can
+            // satisfy the constraints. This kind of freedom might not be desiderable in
+            // recursive SNARK circuits, where the public inputs of the inner circuit are
+            // usually involved in other kind of constraints inside the wrap circuit.
+            let to_skip = modulus_size - bit_chunk.len();
+            let fe_bits = fe.to_bits_with_length_restriction(
+                cs.ns(|| format!("Convert fe to bits {}", i)),
+                to_skip
+            )?;
 
-            // Since bit serialization/deserialization functions assumes a big-endian representation,
-            // padding is added at the beginning of the bit vector, so we need to know the exact size
-            // of the padding in order to correctly get rid of the padding zeros.
-            let to_remove = modulus_size - bit_chunk.len();
-            allocated_bits.extend_from_slice(&fe_bits[to_remove..]);
+            allocated_bits.extend_from_slice(fe_bits.as_slice());
         }
         Ok(allocated_bits.to_vec())
     }
