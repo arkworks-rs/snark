@@ -19,7 +19,7 @@ fn fft_composition() {
             }
             let mut v2 = v.clone();
 
-            let domain = EvaluationDomain::<E::Fr>::new(coeffs).unwrap();
+            let domain = get_best_evaluation_domain::<E::Fr>(coeffs).unwrap();
             v.resize(domain.size(), E::Fr::zero());
 
             domain.ifft_in_place(&mut v2);
@@ -57,7 +57,7 @@ fn parallel_fft_consistency() {
                 let mut v1 = (0..d).map(|_| E::Fr::rand(rng)).collect::<Vec<_>>();
                 let mut v2 = v1.clone();
 
-                let domain = EvaluationDomain::new(v1.len()).unwrap();
+                let domain = get_best_evaluation_domain::<E::Fr>(v1.len()).unwrap();
 
                 for log_cpus in log_d..min(log_d + 1, 3) {
                     if log_d < <E::Fr as PrimeField>::Params::TWO_ADICITY{

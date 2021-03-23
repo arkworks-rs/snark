@@ -28,20 +28,13 @@ use crate::{
 };
 use crate::PrimeField;
 use rayon::prelude::*;
-use std::hash::Hash;
+//use std::hash::Hash;
 use std::fmt::Debug;
-use rand::Rng;
+use std::any::Any;
 
 /// Defines a domain over which finite field (I)FFTs can be performed.
-pub trait EvaluationDomainImpl<F: PrimeField>: Sized + Copy + Clone + Eq + PartialEq + Debug + Hash + Default
+pub trait EvaluationDomain<F: PrimeField>: Debug
 {
-    /// Creates an EvaluationDomain of size at least `num_coeffs`.
-    fn new(num_coeffs: usize) -> Option<Self>;
-
-    /// Return the size of a domain that is large enough for evaluations of a polynomial
-    /// having `num_coeffs` coefficients.
-    fn compute_size_of_domain(num_coeffs: usize) -> Option<usize>;
-
     /// Returns the size of the domain
     fn size(&self) -> usize;
 
@@ -50,15 +43,6 @@ pub trait EvaluationDomainImpl<F: PrimeField>: Sized + Copy + Clone + Eq + Parti
 
     /// Returns the generator of the multiplicative subgroup over which FFT is performed
     fn group_gen(&self) -> F;
-
-    /// Sample an element that is *not* in the domain.
-    fn sample_element_outside_domain<R: Rng>(&self, rng: &mut R) -> F {
-        let mut t = F::rand(rng);
-        while self.evaluate_vanishing_polynomial(t).is_zero() {
-            t = F::rand(rng);
-        }
-        t
-    }
 
     /// Compute a FFT.
     fn fft(&self, coeffs: &[F]) -> Vec<F> {
@@ -190,23 +174,6 @@ pub trait EvaluationDomainImpl<F: PrimeField>: Sized + Copy + Clone + Eq + Parti
         }
     }
 
-    #[doc(hidden)]
-    // Given a polynomial as coefficient vector (c0,c1,c2,...) and an element g, 
-    // computes (c0,c1*g,c2*g^2,...)
-    fn distribute_powers(coeffs: &mut Vec<F>, g: F) {
-        Worker::new().scope(coeffs.len(), |scope, chunk| {
-            for (i, v) in coeffs.chunks_mut(chunk).enumerate() {
-                scope.spawn(move |_| {
-                    let mut u = g.pow(&[(i * chunk) as u64]);
-                    for v in v.iter_mut() {
-                        *v *= &u;
-                        u *= &g;
-                    }
-                });
-            }
-        });
-    }
-
     /// Return an iterator over the elements of the domain.
     fn elements(&self) -> Elements<F> {
         Elements {
@@ -215,6 +182,27 @@ pub trait EvaluationDomainImpl<F: PrimeField>: Sized + Copy + Clone + Eq + Parti
             size: self.size() as u64,
             group_gen: self.group_gen()
         }
+    }
+
+    // Support to PartialEq to make this trait a trait object
+    fn eq(&self, other: & dyn EvaluationDomain<F>) -> bool;
+
+    fn as_any(&self) -> & dyn Any;
+
+    // Support to Clone to make this trait a trait object
+    fn clone_and_box(&self) -> Box<dyn EvaluationDomain<F>>;
+}
+
+impl<'a, 'b, F: PrimeField> PartialEq<dyn EvaluationDomain<F>+'b> for dyn EvaluationDomain<F>+'a {
+    fn eq(&self, other: &(dyn EvaluationDomain<F>+'b)) -> bool {
+        EvaluationDomain::<F>::eq(self, other)
+    }
+}
+
+impl<F: PrimeField> Clone for Box<dyn EvaluationDomain<F>>
+{
+    fn clone(&self) -> Box<dyn EvaluationDomain<F>> {
+        self.clone_and_box()
     }
 }
 
@@ -242,7 +230,7 @@ impl<F: PrimeField> Iterator for Elements<F> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{EvaluationDomain, EvaluationDomainImpl};
+    use crate::get_best_evaluation_domain;
     use crate::Field;
     use crate::fields::mnt6753::fr::Fr;
     use rand::{Rng, thread_rng};
@@ -252,7 +240,7 @@ mod tests {
         let rng = &mut thread_rng();
         for coeffs in 0..18 {
             let size = 1 << coeffs;
-            let domain = EvaluationDomain::<Fr>::new(size).unwrap();
+            let domain = get_best_evaluation_domain::<Fr>(size).unwrap();
             let z = domain.vanishing_polynomial();
             for _ in 0..100 {
                 let point = rng.gen();
@@ -265,7 +253,7 @@ mod tests {
     fn vanishing_polynomial_vanishes_on_domain() {
         for coeffs in 0..18 {
             let size = 1 << coeffs;
-            let domain = EvaluationDomain::<Fr>::new(size).unwrap();
+            let domain = get_best_evaluation_domain::<Fr>(size).unwrap();
             let z = domain.vanishing_polynomial();
             for point in domain.elements() {
                 assert!(z.evaluate(point).is_zero())
@@ -277,7 +265,7 @@ mod tests {
     fn size_of_elements() {
         for coeffs in 1..18 {
             let size = 1 << coeffs;
-            let domain = EvaluationDomain::<Fr>::new(size).unwrap();
+            let domain = get_best_evaluation_domain::<Fr>(size).unwrap();
             let domain_size = domain.size();
             assert_eq!(domain_size, domain.elements().collect::<Vec<_>>().len());
         }
@@ -287,7 +275,7 @@ mod tests {
     fn elements_contents() {
         for coeffs in 1..18 {
             let size = 1 << coeffs;
-            let domain = EvaluationDomain::<Fr>::new(size).unwrap();
+            let domain = get_best_evaluation_domain::<Fr>(size).unwrap();
             for (i, element) in domain.elements().enumerate() {
                 assert_eq!(element, domain.group_gen().pow([i as u64]));
             }

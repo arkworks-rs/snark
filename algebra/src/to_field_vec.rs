@@ -139,12 +139,16 @@ impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for [u8] {
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
         let max_size = <ConstraintF as PrimeField>::Params::CAPACITY / 8;
         let max_size = max_size as usize;
+        let bigint_size = (
+            <ConstraintF as PrimeField>::Params::MODULUS_BITS +
+            <ConstraintF as PrimeField>::Params::REPR_SHAVE_BITS
+        )/8;
         let fes = self
             .chunks(max_size)
             .map(|chunk| {
                 let mut chunk = chunk.to_vec();
                 let len = chunk.len();
-                for _ in len..(max_size + 1) {
+                for _ in len..(bigint_size as usize) {
                     chunk.push(0u8);
                 }
                 ConstraintF::read(chunk.as_slice())
@@ -157,17 +161,11 @@ impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for [u8] {
 impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for [bool] {
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
-        let max_size = <ConstraintF as PrimeField>::Params::CAPACITY;
-        let max_size = max_size as usize;
+        let max_size = <ConstraintF as PrimeField>::Params::CAPACITY as usize;
         let fes = self
             .chunks(max_size)
             .map(|chunk| {
-                let mut chunk = chunk.to_vec();
-                let len = chunk.len();
-                for _ in len..(max_size + 1) {
-                    chunk.push(false);
-                }
-                ConstraintF::read_bits(chunk)
+                ConstraintF::read_bits(chunk.to_vec())
             })
             .collect::<Result<Vec<_>, _>>()?;
         Ok(fes)

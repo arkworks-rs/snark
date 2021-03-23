@@ -7,3 +7,6 @@ mod bls12_381;
 mod mnt4753;
 mod mnt6753;
 mod sw6;
+
+#[cfg(feature = "fft")]
+mod fft;
