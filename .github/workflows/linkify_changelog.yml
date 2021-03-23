@@ -1,0 +1,20 @@
+name: Linkify Changelog
+
+on:
+  workflow_dispatch
+
+jobs:
+  linkify:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Add links
+      run: python3 scripts/linkify_changelog.py CHANGELOG.md
+    - name: Commit
+      run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add .
+          git commit -m "Linkify Changelog"
+          git push
