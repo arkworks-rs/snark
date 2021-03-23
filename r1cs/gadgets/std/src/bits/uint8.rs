@@ -114,11 +114,6 @@ impl UInt8 {
             // form.
             fe_bits.reverse();
 
-            // Pad to reach bigint bit size
-            for _ in fe_bits.len()..max_size * 8 {
-                fe_bits.push(Boolean::Constant(false));
-            }
-
             allocated_bits.extend_from_slice(fe_bits.as_slice());
         }
 
