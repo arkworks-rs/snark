@@ -271,6 +271,12 @@ mod affine_impl {
             ))
         }
 
+        //TODO: Implement this using enforce_verdict
+        #[inline]
+        fn is_zero<CS: ConstraintSystem<ConstraintF>>(&self, _: CS) -> Result<Boolean, SynthesisError>{
+            unimplemented!()
+        }
+
         /// Optimized constraints for checking Edwards point addition from ZCash
         /// developers Daira Hopwood and Sean Bowe. Requires only 6 constraints
         /// compared to 7 for the straightforward version we had earlier.
@@ -627,25 +633,6 @@ mod affine_impl {
                 value_gen
             )?;
 
-            let d = P::COEFF_D;
-            let a = P::COEFF_A;
-
-            // Check that ax^2 + y^2 = 1 + dx^2y^2: is a cheap check so we do it anyway
-            // We do this by checking that ax^2 - 1 = y^2 * (dx^2 - 1)
-            let x2 = ge.x.square(&mut cs.ns(|| "x^2"))?;
-            let y2 = ge.y.square(&mut cs.ns(|| "y^2"))?;
-
-            let one = P::BaseField::one();
-            let d_x2_minus_one = x2
-                .mul_by_constant(cs.ns(|| "d * x^2"), &d)?
-                .add_constant(cs.ns(|| "d * x^2 - 1"), &one.neg())?;
-
-            let a_x2_minus_one = x2
-                .mul_by_constant(cs.ns(|| "a * x^2"), &a)?
-                .add_constant(cs.ns(|| "a * x^2 - 1"), &one.neg())?;
-
-            d_x2_minus_one.mul_equals(cs.ns(|| "on curve check"), &y2, &a_x2_minus_one)?;
-
             Ok(ge)
         }
 
@@ -760,6 +747,12 @@ mod projective_impl {
                 F::zero(cs.ns(|| "zero"))?,
                 F::one(cs.ns(|| "one"))?,
             ))
+        }
+
+        //TODO: Implement this using enforce_verdict
+        #[inline]
+        fn is_zero<CS: ConstraintSystem<ConstraintF>>(&self, _: CS) -> Result<Boolean, SynthesisError>{
+            unimplemented!()
         }
 
         /// Optimized constraints for checking Edwards point addition from ZCash
@@ -1297,25 +1290,6 @@ mod projective_impl {
                 cs.ns(|| "alloc and prime order check"),
                 value_gen
             )?;
-
-            let d = P::COEFF_D;
-            let a = P::COEFF_A;
-
-            // Check that ax^2 + y^2 = 1 + dx^2y^2: is a cheap check so we do it anyway
-            // We do this by checking that ax^2 - 1 = y^2 * (dx^2 - 1)
-            let x2 = ge.x.square(&mut cs.ns(|| "x^2"))?;
-            let y2 = ge.y.square(&mut cs.ns(|| "y^2"))?;
-
-            let one = P::BaseField::one();
-            let d_x2_minus_one = x2
-                .mul_by_constant(cs.ns(|| "d * x^2"), &d)?
-                .add_constant(cs.ns(|| "d * x^2 - 1"), &one.neg())?;
-
-            let a_x2_minus_one = x2
-                .mul_by_constant(cs.ns(|| "a * x^2"), &a)?
-                .add_constant(cs.ns(|| "a * x^2 - 1"), &one.neg())?;
-
-            d_x2_minus_one.mul_equals(cs.ns(|| "on curve check"), &y2, &a_x2_minus_one)?;
 
             Ok(ge)
         }

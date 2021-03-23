@@ -190,6 +190,50 @@ for VerifyingKeyGadget<PairingE, ConstraintF, P>
         ConstraintF: Field,
         P: PairingGadget<PairingE, ConstraintF>,
 {
+
+    #[inline]
+    fn alloc_without_check<FN, T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        value_gen: FN,
+    ) -> Result<Self, SynthesisError>
+        where
+            FN: FnOnce() -> Result<T, SynthesisError>,
+            T: Borrow<VerifyingKey<PairingE>>,
+    {
+        value_gen().and_then(|vk| {
+            let VerifyingKey {
+                alpha_g1_beta_g2,
+                gamma_g2,
+                delta_g2,
+                gamma_abc_g1,
+            } = vk.borrow().clone();
+            let alpha_g1_beta_g2 =
+                P::GTGadget::alloc_without_check(cs.ns(|| "alpha_g1_beta_g2"), || Ok(alpha_g1_beta_g2))?;
+            let gamma_g2 =
+                P::G2Gadget::alloc_without_check(cs.ns(|| "gamma_g2"), || Ok(gamma_g2.into_projective()))?;
+            let delta_g2 =
+                P::G2Gadget::alloc_without_check(cs.ns(|| "delta_g2"), || Ok(delta_g2.into_projective()))?;
+
+            let gamma_abc_g1 = gamma_abc_g1
+                .iter()
+                .enumerate()
+                .map(|(i, gamma_abc_i)| {
+                    P::G1Gadget::alloc_without_check(cs.ns(|| format!("gamma_abc_{}", i)), || {
+                        Ok(gamma_abc_i.into_projective())
+                    })
+                })
+                .collect::<Vec<_>>()
+                .into_iter()
+                .collect::<Result<_, _>>()?;
+            Ok(Self {
+                alpha_g1_beta_g2,
+                gamma_g2,
+                delta_g2,
+                gamma_abc_g1,
+            })
+        })
+    }
+
     #[inline]
     fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
@@ -207,11 +251,40 @@ for VerifyingKeyGadget<PairingE, ConstraintF, P>
                 gamma_abc_g1,
             } = vk.borrow().clone();
             let alpha_g1_beta_g2 =
-                P::GTGadget::alloc(cs.ns(|| "alpha_g1_beta_g2"), || Ok(alpha_g1_beta_g2))?;
+                P::GTGadget::alloc(cs.ns(|| "alpha_g1_beta_g2"), || Ok(alpha_g1_beta_g2))
+                    .and_then(|alpha_g1_beta_g2_g|{
+                        let zero_g = P::GTGadget::zero(cs.ns(|| "alloc zero for alpha_g1_beta_g2 comparison"))?;
+                        alpha_g1_beta_g2_g
+                            .enforce_not_equal(
+                                cs.ns(|| "alpha_g1_beta_g2 must not be zero"),
+                                &zero_g,
+                            )?;
+                        Ok(alpha_g1_beta_g2_g)
+                    })?;
+
             let gamma_g2 =
-                P::G2Gadget::alloc(cs.ns(|| "gamma_g2"), || Ok(gamma_g2.into_projective()))?;
+                P::G2Gadget::alloc(cs.ns(|| "gamma_g2"), || Ok(gamma_g2.into_projective()))
+                    .and_then(|gamma_g2_g|{
+                        gamma_g2_g
+                            .is_zero(cs.ns(|| "is gamma_g2 zero"))?
+                            .enforce_equal(
+                                cs.ns(|| "gamma_g2 must not be zero"),
+                                &Boolean::constant(false),
+                            )?;
+                        Ok(gamma_g2_g)
+                    })?;
+
             let delta_g2 =
-                P::G2Gadget::alloc(cs.ns(|| "delta_g2"), || Ok(delta_g2.into_projective()))?;
+                P::G2Gadget::alloc(cs.ns(|| "delta_g2"), || Ok(delta_g2.into_projective()))
+                    .and_then(|delta_g2_g|{
+                        delta_g2_g
+                            .is_zero(cs.ns(|| "is delta_g2 zero"))?
+                            .enforce_equal(
+                                cs.ns(|| "delta_g2 must not be zero"),
+                                &Boolean::constant(false),
+                            )?;
+                        Ok(delta_g2_g)
+                    })?;
 
             let gamma_abc_g1 = gamma_abc_g1
                 .iter()
@@ -220,6 +293,96 @@ for VerifyingKeyGadget<PairingE, ConstraintF, P>
                     P::G1Gadget::alloc(cs.ns(|| format!("gamma_abc_{}", i)), || {
                         Ok(gamma_abc_i.into_projective())
                     })
+                        .and_then(|input_g| {
+                            input_g
+                                .is_zero(cs.ns(|| format!("is input {} zero", i)))?
+                                .enforce_equal(
+                                    cs.ns(|| format!("input {} must not be zero", i)),
+                                    &Boolean::constant(false),
+                                )?;
+                            Ok(input_g)
+                        })
+                })
+                .collect::<Vec<_>>()
+                .into_iter()
+                .collect::<Result<_, _>>()?;
+            Ok(Self {
+                alpha_g1_beta_g2,
+                gamma_g2,
+                delta_g2,
+                gamma_abc_g1,
+            })
+        })
+    }
+
+    #[inline]
+    fn alloc_checked<FN, T, CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        value_gen: FN,
+    ) -> Result<Self, SynthesisError>
+        where
+            FN: FnOnce() -> Result<T, SynthesisError>,
+            T: Borrow<VerifyingKey<PairingE>>,
+    {
+        value_gen().and_then(|vk| {
+            let VerifyingKey {
+                alpha_g1_beta_g2,
+                gamma_g2,
+                delta_g2,
+                gamma_abc_g1,
+            } = vk.borrow().clone();
+            let alpha_g1_beta_g2 =
+                P::GTGadget::alloc_checked(cs.ns(|| "alpha_g1_beta_g2"), || Ok(alpha_g1_beta_g2))
+                    .and_then(|alpha_g1_beta_g2_g|{
+                        let zero_g = P::GTGadget::zero(cs.ns(|| "alloc zero for alpha_g1_beta_g2 comparison"))?;
+                        alpha_g1_beta_g2_g
+                            .enforce_not_equal(
+                                cs.ns(|| "alpha_g1_beta_g2 must not be zero"),
+                                &zero_g,
+                            )?;
+                        Ok(alpha_g1_beta_g2_g)
+                    })?;
+
+            let gamma_g2 =
+                P::G2Gadget::alloc_checked(cs.ns(|| "gamma_g2"), || Ok(gamma_g2.into_projective()))
+                    .and_then(|gamma_g2_g|{
+                        gamma_g2_g
+                            .is_zero(cs.ns(|| "is gamma_g2 zero"))?
+                            .enforce_equal(
+                                cs.ns(|| "gamma_g2 must not be zero"),
+                                &Boolean::constant(false),
+                            )?;
+                        Ok(gamma_g2_g)
+                    })?;
+
+            let delta_g2 =
+                P::G2Gadget::alloc_checked(cs.ns(|| "delta_g2"), || Ok(delta_g2.into_projective()))
+                    .and_then(|delta_g2_g|{
+                        delta_g2_g
+                            .is_zero(cs.ns(|| "is delta_g2 zero"))?
+                            .enforce_equal(
+                                cs.ns(|| "delta_g2 must not be zero"),
+                                &Boolean::constant(false),
+                            )?;
+                        Ok(delta_g2_g)
+                    })?;
+
+            let gamma_abc_g1 = gamma_abc_g1
+                .iter()
+                .enumerate()
+                .map(|(i, gamma_abc_i)| {
+                    P::G1Gadget::alloc_checked(cs.ns(|| format!("gamma_abc_{}", i)), || {
+                        Ok(gamma_abc_i.into_projective())
+                    })
+                        .and_then(|input_g| {
+                            input_g
+                                .is_zero(cs.ns(|| format!("is input {} zero", i)))?
+                                .enforce_equal(
+                                    cs.ns(|| format!("input {} must not be zero", i)),
+                                    &Boolean::constant(false),
+                                )?;
+                            Ok(input_g)
+                        })
                 })
                 .collect::<Vec<_>>()
                 .into_iter()
@@ -296,9 +459,40 @@ for ProofGadget<PairingE, ConstraintF, P>
     {
         value_gen().and_then(|proof| {
             let Proof { a, b, c } = proof.borrow().clone();
-            let a = P::G1Gadget::alloc_checked(cs.ns(|| "a"), || Ok(a.into_projective()))?;
-            let b = P::G2Gadget::alloc_checked(cs.ns(|| "b"), || Ok(b.into_projective()))?;
-            let c = P::G1Gadget::alloc_checked(cs.ns(|| "c"), || Ok(c.into_projective()))?;
+
+            let a = P::G1Gadget::alloc_checked(cs.ns(|| "a"), || Ok(a.into_projective()))
+                .and_then(|a_g|{
+                    a_g
+                        .is_zero(cs.ns(|| "is a zero"))?
+                        .enforce_equal(
+                            cs.ns(|| "a must not be zero"),
+                            &Boolean::constant(false),
+                        )?;
+                    Ok(a_g)
+                })?;
+
+            let b = P::G2Gadget::alloc_checked(cs.ns(|| "b"), || Ok(b.into_projective()))
+                .and_then(|b_g| {
+                    b_g
+                        .is_zero(cs.ns(|| "is b zero"))?
+                        .enforce_equal(
+                            cs.ns(|| "b must not be zero"),
+                            &Boolean::constant(false),
+                        )?;
+                    Ok(b_g)
+                })?;
+
+            let c = P::G1Gadget::alloc_checked(cs.ns(|| "c"), || Ok(c.into_projective()))
+                .and_then(|c_g| {
+                    c_g
+                        .is_zero(cs.ns(|| "is c zero"))?
+                        .enforce_equal(
+                            cs.ns(|| "c must not be zero"),
+                            &Boolean::constant(false),
+                        )?;
+                    Ok(c_g)
+                })?;
+
             Ok(Self { a, b, c })
         })
     }
@@ -430,7 +624,7 @@ mod test {
     fn groth16_verifier_test<E: PairingEngine, PG: PairingGadget<E, E::Fq>>() {
 
         let num_inputs = 2;
-        let num_constraints = num_inputs;
+        let num_constraints = 100;
         let rng = &mut thread_rng();
         let mut inputs: Vec<Option<E::Fr>> = Vec::with_capacity(num_inputs);
         for _ in 0..num_inputs {
@@ -471,9 +665,7 @@ mod test {
                     input_bits.reverse();
 
                     let input_bits =
-                        Vec::<Boolean>::alloc_input(cs.ns(|| format!("Input {}", i)), || {
-                            Ok(input_bits)
-                        })
+                        Boolean::alloc_input_vec(cs.ns(|| format!("Input {}", i)), input_bits.as_slice())
                             .unwrap();
                     input_gadgets.push(input_bits);
                 }
@@ -509,7 +701,6 @@ mod test {
     fn bls12_377_groth16_verifier_test() {
         use algebra::curves::bls12_377::Bls12_377;
         use r1cs_std::instantiated::bls12_377::PairingGadget;
-
         groth16_verifier_test::<Bls12_377, PairingGadget>();
     }
 

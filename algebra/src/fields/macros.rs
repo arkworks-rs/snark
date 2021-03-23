@@ -28,11 +28,6 @@ macro_rules! impl_Fp {
 
         impl<P: $FpParameters> $Fp<P> {
             #[inline]
-            pub(crate) fn is_valid(&self) -> bool {
-                self.0 < P::MODULUS
-            }
-
-            #[inline]
             fn reduce(&mut self) {
                 if !self.is_valid() {
                     self.0.sub_noborrow(&P::MODULUS);
@@ -233,6 +228,11 @@ macro_rules! impl_Fp {
             fn root_of_unity() -> Self {
                 $Fp::<P>(P::ROOT_OF_UNITY, PhantomData)
             }
+
+            #[inline]
+            fn full_root_of_unity() -> Self {
+                $Fp::<P>(P::FULL_ROOT_OF_UNITY.unwrap(), PhantomData)
+            }
         }
 
         impl<P: $FpParameters> SquareRootField for $Fp<P> {
@@ -311,6 +311,13 @@ macro_rules! impl_Fp {
                         }
                     }
                 )
+            }
+        }
+
+        impl<P: $FpParameters> SemanticallyValid for $Fp<P> {
+            #[inline]
+            fn is_valid(&self) -> bool {
+                self.0 < P::MODULUS
             }
         }
 

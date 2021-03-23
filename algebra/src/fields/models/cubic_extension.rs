@@ -10,12 +10,7 @@ use rand::{
     Rng,
 };
 
-use crate::{
-    bytes::{FromBytes, ToBytes},
-    bits::{FromBits, ToBits},
-    fields::{Field, FpParameters, PrimeField},
-    UniformRand, Error,
-};
+use crate::{bytes::{FromBytes, ToBytes}, bits::{FromBits, ToBits}, fields::{Field, FpParameters, PrimeField}, UniformRand, Error, SemanticallyValid};
 
 
 /// Model for cubic extension field of a prime field F=BasePrimeField
@@ -370,6 +365,15 @@ impl<P: CubicExtParameters> FromBits for CubicExtField<P> {
         let c1 = P::BaseField::read_bits(bits[size..(2*size)].to_vec())?;
         let c2 = P::BaseField::read_bits(bits[(2*size)..].to_vec())?;
         Ok(CubicExtField::new(c0, c1, c2))
+    }
+}
+
+impl<P: CubicExtParameters> SemanticallyValid for CubicExtField<P> {
+    #[inline]
+    fn is_valid(&self) -> bool {
+        self.c0.is_valid() &&
+            self.c1.is_valid() &&
+            self.c2.is_valid()
     }
 }
 

@@ -12,7 +12,7 @@ use crate::{
         arithmetic as fa, BigInteger as _BigInteger, BigInteger256, BigInteger320, BigInteger384,
         BigInteger768, BigInteger832,
     },
-    bytes::{FromBytes, ToBytes},
+    bytes::{FromBytes, ToBytes}, SemanticallyValid,
     fields::{
         Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField,
         MulShort, MulShortAssign

@@ -1,4 +1,4 @@
-use algebra::Field;
+use algebra::{Field, FromBytesChecked};
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 struct MySillyCircuit<F: Field> {
     a: Option<F>,
@@ -59,7 +59,7 @@ mod test {
             c.mul_assign(&b);
 
             let proof = if zk {
-                 create_random_proof(
+                create_random_proof(
                     MySillyCircuit {
                         a: Some(a),
                         b: Some(b),
@@ -83,7 +83,6 @@ mod test {
     }
 
     fn serialize_deserialize<E: PairingEngine>() {
-
         let rng = &mut thread_rng();
 
         let params =
@@ -93,13 +92,12 @@ mod test {
         let vk = params.vk.clone();
 
         let params_serialized = to_bytes!(params).unwrap();
-        let params_deserialized = Parameters::<E>::read(params_serialized.as_slice()).unwrap();
+        let params_deserialized = Parameters::<E>::read_checked(params_serialized.as_slice()).unwrap();
         assert_eq!(params, params_deserialized);
 
         let vk_serialized = to_bytes!(vk).unwrap();
-        let vk_deserialized = VerifyingKey::<E>::read(vk_serialized.as_slice()).unwrap();
+        let vk_deserialized = VerifyingKey::<E>::read_checked(vk_serialized.as_slice()).unwrap();
         assert_eq!(vk, vk_deserialized);
-
 
         let a = E::Fr::rand(rng);
         let b = E::Fr::rand(rng);
@@ -115,16 +113,15 @@ mod test {
         )
             .unwrap();
 
-        let proof_serialized = to_bytes!(proof).unwrap();
-        let proof_deserialized = Proof::<E>::read(proof_serialized.as_slice()).unwrap();
+        let proof_deserialized = Proof::<E>::read_checked(to_bytes!(proof).unwrap().as_slice()).unwrap();
         assert_eq!(proof, proof_deserialized);
+        drop(proof);
 
         let pvk = prepare_verifying_key(&vk_deserialized);
-        let pvk_serialized = to_bytes!(pvk).unwrap();
-        let pvk_deserialized = PreparedVerifyingKey::<E>::read(pvk_serialized.as_slice()).unwrap();
+        let pvk_deserialized = PreparedVerifyingKey::<E>::read(to_bytes!(pvk).unwrap().as_slice()).unwrap();
         assert_eq!(pvk, pvk_deserialized);
 
-        assert!(verify_proof(&pvk_deserialized, &proof_deserialized, &[c]).unwrap());
+        assert!(verify_proof(&pvk_deserialized, &proof_deserialized, &[c]).unwrap())
     }
 
     #[test]

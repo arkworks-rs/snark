@@ -28,6 +28,8 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
 
     fn zero<CS: ConstraintSystem<ConstraintF>>(cs: CS) -> Result<Self, SynthesisError>;
 
+    fn is_zero<CS: ConstraintSystem<ConstraintF>>(&self, cs: CS) -> Result<Boolean, SynthesisError>;
+
     fn add<CS: ConstraintSystem<ConstraintF>>(
         &self,
         cs: CS,

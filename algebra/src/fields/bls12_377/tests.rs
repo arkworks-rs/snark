@@ -6,7 +6,7 @@ use crate::{
         tests::{field_test, frobenius_test, primefield_test, sqrt_field_test},
         Field, Fp2Parameters, FpParameters, PrimeField, SquareRootField,
     },
-    ToBits,
+    ToBits, SemanticallyValid,
 };
 use crate::UniformRand;
 use rand::SeedableRng;
@@ -367,8 +367,8 @@ fn test_convert_fq_fr() {
     loop {
         let q: Fq = UniformRand::rand(&mut rng);
         let q_bits = q.write_bits();
-        if leading_zeros(q_bits) >= 125 { continue } //In this case the assertion below will fail
-        assert!(convert::<Fr>(q.write_bits()).is_err()); //Fq is much more bigger than Fr
+        if leading_zeros(q_bits.as_slice()) >= 125 { continue } //In this case the assertion below will fail
+        assert!(convert::<Fr>(q_bits).is_err()); //Fq is much more bigger than Fr
         break;
     }
 }

@@ -1,4 +1,4 @@
-use crate::{bytes::{FromBytes, ToBytes}, fields::{Field, PrimeField, SquareRootField}, groups::Group};
+use crate::{bytes::{FromBytes, ToBytes}, fields::{Field, PrimeField, SquareRootField}, groups::Group, SemanticallyValid, FromBytesChecked};
 use crate::UniformRand;
 use std::{
     fmt::{Debug, Display},
@@ -123,6 +123,8 @@ pub trait ProjectiveCurve:
     + Sized
     + ToBytes
     + FromBytes
+    + SemanticallyValid
+    + FromBytesChecked
     + Copy
     + Clone
     + Default
@@ -208,6 +210,8 @@ pub trait AffineCurve:
     + Sized
     + ToBytes
     + FromBytes
+    + SemanticallyValid
+    + FromBytesChecked
     + Copy
     + Clone
     + Default

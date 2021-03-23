@@ -135,6 +135,8 @@ impl<M: SWModelParameters, ConstraintF: Field> ToConstraintField<ConstraintF> fo
 {
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
+        // Affine coordinates are defined even if `self` is the neutral elements. For more
+        // information, see the definition of zero() in SWPAffine.
         let mut x_fe = self.x.to_field_elements()?;
         let y_fe = self.y.to_field_elements()?;
         x_fe.extend_from_slice(&y_fe);
@@ -148,7 +150,7 @@ impl<M: SWModelParameters, ConstraintF: Field> ToConstraintField<ConstraintF> fo
 {
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
-        let affine = self.into_affine();
+        let affine = self.into_affine(); // Affine coordinates are defined even if `self` is the neutral elements
         let mut x_fe = affine.x.to_field_elements()?;
         let y_fe = affine.y.to_field_elements()?;
         x_fe.extend_from_slice(&y_fe);
@@ -161,12 +163,16 @@ impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for [u8] {
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
         let max_size = <ConstraintF as PrimeField>::Params::CAPACITY / 8;
         let max_size = max_size as usize;
+        let bigint_size = (
+            <ConstraintF as PrimeField>::Params::MODULUS_BITS +
+            <ConstraintF as PrimeField>::Params::REPR_SHAVE_BITS
+        )/8;
         let fes = self
             .chunks(max_size)
             .map(|chunk| {
                 let mut chunk = chunk.to_vec();
                 let len = chunk.len();
-                for _ in len..(max_size + 1) {
+                for _ in len..(bigint_size as usize) {
                     chunk.push(0u8);
                 }
                 ConstraintF::read(chunk.as_slice())
@@ -179,17 +185,11 @@ impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for [u8] {
 impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for [bool] {
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
-        let max_size = <ConstraintF as PrimeField>::Params::CAPACITY;
-        let max_size = max_size as usize;
+        let max_size = <ConstraintF as PrimeField>::Params::CAPACITY as usize;
         let fes = self
             .chunks(max_size)
             .map(|chunk| {
-                let mut chunk = chunk.to_vec();
-                let len = chunk.len();
-                for _ in len..(max_size + 1) {
-                    chunk.push(false);
-                }
-                ConstraintF::read_bits(chunk)
+                ConstraintF::read_bits(chunk.to_vec())
             })
             .collect::<Result<Vec<_>, _>>()?;
         Ok(fes)

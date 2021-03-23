@@ -1,4 +1,11 @@
-use crate::{BigInteger, BigInteger768, fields::tests::{field_test, frobenius_test, primefield_test, sqrt_field_test}, fields::mnt6753::{Fq, Fq3, Fq6, FqParameters, Fq3Parameters, Fq6Parameters}, fields::FpParameters, fields::models::{Fp3Parameters, Fp6Parameters}, Field, PrimeField, SquareRootField, UniformRand, bytes::ToBytes, to_bytes, ToBits};
+use crate::{
+    BigInteger, BigInteger768,
+    fields::tests::{field_test, frobenius_test, primefield_test, sqrt_field_test},
+    fields::mnt6753::{Fq, Fq3, Fq6, FqParameters, Fq3Parameters, Fq6Parameters},
+    fields::FpParameters, fields::models::{Fp3Parameters, Fp6Parameters},
+    Field, PrimeField, SquareRootField, UniformRand, bytes::ToBytes, to_bytes, ToBits,
+    SemanticallyValid,
+};
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 use std::{

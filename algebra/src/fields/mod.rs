@@ -1,4 +1,4 @@
-use crate::{biginteger::BigInteger, bytes::{FromBytes, ToBytes}, UniformRand, bits::{ToBits, FromBits}, Error, BitSerializationError};
+use crate::{biginteger::BigInteger, bytes::{FromBytes, ToBytes}, UniformRand, bits::{ToBits, FromBits}, Error, BitSerializationError, SemanticallyValid, FromBytesChecked};
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
@@ -90,8 +90,10 @@ pub trait MulShortAssign<Rhs = Self> {
 pub trait Field:
     ToBytes
     + FromBytes
+    + FromBytesChecked
     + ToBits
     + FromBits
+    + SemanticallyValid
     + Copy
     + Clone
     + Debug
@@ -193,6 +195,12 @@ pub trait Field:
     }
 }
 
+use std::io::{ Read, Result as IoResult };
+impl<F: Field> FromBytesChecked for F {
+    fn read_checked<R: Read>(reader: R) -> IoResult<Self>
+    { Self::read(reader) }
+}
+
 /// A trait that defines parameters for a prime field.
 pub trait FpParameters: 'static + Send + Sync + Sized {
     type BigInt: BigInteger;
@@ -241,6 +249,15 @@ pub trait FpParameters: 'static + Send + Sync + Sized {
 
     /// (Self::MODULUS - 1) / 2
     const MODULUS_MINUS_ONE_DIV_TWO: Self::BigInt;
+
+    const SMALL_SUBGROUP_DEFINED: bool = false;
+
+    const SMALL_SUBGROUP_BASE: Option<u64> = None;
+
+    const SMALL_SUBGROUP_POWER: Option<u64> = None;
+
+    // generator^((modulus-1) / (2^s * small_subgroup_base^small_subgroup_power))
+    const FULL_ROOT_OF_UNITY: Option<Self::BigInt> = None;
 }
 
 /// The interface for a prime field.
@@ -269,6 +286,9 @@ pub trait PrimeField: Field<BasePrimeField = Self> + FromStr {
 
     /// Returns the 2^s root of unity.
     fn root_of_unity() -> Self;
+
+    ///Returns the full root of unity
+    fn full_root_of_unity() -> Self;
 
     /// Return the a QNR^T
     fn qnr_to_t() -> Self {
@@ -328,7 +348,7 @@ impl<F: PrimeField> FromBits for F {
         println!("Bits len: {}", bits.len());
 
         //NOTE: We allow bits having enough leading bits to zero s.t. the length will be <= F::MODULUS_BITS
-        let leading_zeros = leading_zeros(bits.clone()) as usize;
+        let leading_zeros = leading_zeros(bits.as_slice()) as usize;
         let bits = &bits.as_slice()[leading_zeros..];
         match bits.len() <=  modulus_bits {
             true => {
@@ -360,9 +380,9 @@ pub fn convert<ToF: PrimeField>(from: Vec<bool>) -> Result<ToF, Error> {
 }
 
 #[inline]
-pub fn leading_zeros(bits: Vec<bool>) -> u32 {
+pub fn leading_zeros(bits: &[bool]) -> u32 {
     let mut ctr = 0;
-    for b in bits.iter() {
+    for &b in bits.iter() {
         if !b {
             ctr += 1;
         } else {

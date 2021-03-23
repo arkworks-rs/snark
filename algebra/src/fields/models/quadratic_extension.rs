@@ -10,12 +10,7 @@ use rand::{
     Rng,
 };
 
-use crate::{
-    bytes::{FromBytes, ToBytes},
-    bits::{FromBits, ToBits},
-    fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
-    UniformRand, Error,
-};
+use crate::{bytes::{FromBytes, ToBytes}, bits::{FromBits, ToBits}, fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField}, UniformRand, Error, SemanticallyValid};
 use crate::biginteger::arithmetic::find_wnaf;
 
 /// Model for quadratic extension field of prime field F=Fp
@@ -383,6 +378,13 @@ impl<P: QuadExtParameters> FromBits for QuadExtField<P> {
         let c0 = P::BaseField::read_bits(bits[..size].to_vec())?;
         let c1 = P::BaseField::read_bits(bits[size..].to_vec())?;
         Ok(QuadExtField::new(c0, c1))
+    }
+}
+
+impl<P: QuadExtParameters> SemanticallyValid for QuadExtField<P> {
+    #[inline]
+    fn is_valid(&self) -> bool {
+        self.c0.is_valid() && self.c1.is_valid()
     }
 }
 

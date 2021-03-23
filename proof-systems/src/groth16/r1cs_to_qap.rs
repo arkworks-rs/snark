@@ -1,5 +1,5 @@
 use algebra::{Field, PairingEngine};
-use algebra::fft::EvaluationDomain;
+use algebra::fft::domain::get_best_evaluation_domain;
 
 use crate::groth16::{generator::KeypairAssembly, prover::ProvingAssignment};
 use r1cs_core::{ConstraintSystem, Index, SynthesisError};
@@ -68,7 +68,7 @@ impl R1CStoQAP {
         t: &E::Fr,
     ) -> Result<(Vec<E::Fr>, Vec<E::Fr>, Vec<E::Fr>, E::Fr, usize, usize), SynthesisError> {
         let domain_size = assembly.num_constraints + (assembly.num_inputs - 1) + 1;
-        let domain = EvaluationDomain::<E::Fr>::new(domain_size)
+        let domain = get_best_evaluation_domain::<E::Fr>(domain_size)
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
         let domain_size = domain.size();
 
@@ -141,7 +141,7 @@ impl R1CStoQAP {
         let full_input_assignment = [&prover.input_assignment[..], &prover.aux_assignment[..]].concat();
 
         let domain =
-            EvaluationDomain::<E::Fr>::new(num_constraints + num_inputs)
+           get_best_evaluation_domain::<E::Fr>(num_constraints + num_inputs)
                 .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
         let domain_size = domain.size();
 

@@ -136,13 +136,13 @@ impl<F: PrimeField> DenseOrSparsePolynomial<'_, F> {
     /// Construct `Evaluations` by evaluating a polynomial over the domain `domain`.
     pub fn evaluate_over_domain(
         poly: impl Into<Self>,
-        domain: EvaluationDomain<F>
+        domain: Box<dyn EvaluationDomain<F>>
     ) -> Evaluations<F> {
         let poly = poly.into();
         poly.eval_over_domain_helper(domain)
     }
 
-    fn eval_over_domain_helper(self, domain: EvaluationDomain<F>) -> Evaluations<F> {
+    fn eval_over_domain_helper(self, domain: Box<dyn EvaluationDomain<F>>) -> Evaluations<F> {
         match self {
             SPolynomial(Cow::Borrowed(s)) => {
                 let evals = domain.elements().map(|elem| s.evaluate(elem)).collect();

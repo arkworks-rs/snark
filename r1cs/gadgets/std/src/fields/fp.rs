@@ -298,8 +298,11 @@ impl<F: PrimeField> FieldGadget<F, F> for FpGadget<F> {
     fn inverse<CS: ConstraintSystem<F>>(&self, mut cs: CS) -> Result<Self, SynthesisError> {
         let inverse = Self::alloc(cs.ns(|| "inverse"), || {
             let result = self.value.get()?;
-            let inv = result.inverse().expect("Inverse doesn't exist!");
-            Ok(inv)
+            if result.is_zero() {
+                Err(SynthesisError::DivisionByZero)
+            } else {
+                Ok(result.inverse().unwrap())
+            }
         })?;
 
         let one = CS::one();

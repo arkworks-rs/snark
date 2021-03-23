@@ -1,4 +1,4 @@
-use algebra::fft::EvaluationDomain;
+use algebra::fft::domain::get_best_evaluation_domain;
 use algebra::{Field, PairingEngine};
 
 use crate::gm17::{generator::KeypairAssembly, prover::ProvingAssignment};
@@ -16,7 +16,7 @@ impl R1CStoSAP {
         t: &E::Fr,
     ) -> Result<(Vec<E::Fr>, Vec<E::Fr>, E::Fr, usize, usize), SynthesisError> {
         let domain_size = 2 * assembly.num_constraints + 2 * (assembly.num_inputs - 1) + 1;
-        let domain = EvaluationDomain::<E::Fr>::new(domain_size)
+        let domain = get_best_evaluation_domain::<E::Fr>(domain_size)
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
         let domain_size = domain.size();
 
@@ -150,7 +150,7 @@ impl R1CStoSAP {
             full_input_assignment.push(extra_var);
         }
 
-        let domain = EvaluationDomain::<E::Fr>::new(
+        let domain = get_best_evaluation_domain::<E::Fr>(
             2 * prover.num_constraints + 2 * (prover.num_inputs - 1) + 1,
         )
         .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;

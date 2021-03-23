@@ -1,8 +1,8 @@
 use rand::{Rng, distributions::{Standard, Distribution}};
-use crate::UniformRand;
+use crate::{UniformRand, SemanticallyValid, FromBytesChecked};
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
-    io::{Read, Result as IoResult, Write},
+    io::{Read, Result as IoResult, Error as IoError, Write},
     marker::PhantomData,
     ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
@@ -12,6 +12,7 @@ use crate::{
     curves::{models::TEModelParameters as Parameters, models::MontgomeryModelParameters as MontgomeryParameters, AffineCurve, ProjectiveCurve},
     fields::{BitIterator, Field, PrimeField, SquareRootField},
 };
+use std::io::ErrorKind;
 
 #[cfg(test)]
 pub mod tests;
@@ -176,6 +177,16 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
     }
 }
 
+impl<P: Parameters> SemanticallyValid for GroupAffine<P>
+{
+    fn is_valid(&self) -> bool {
+
+        self.x.is_valid() &&
+        self.y.is_valid() &&
+        self.group_membership_test()
+    }
+}
+
 impl<P: Parameters> Neg for GroupAffine<P> {
     type Output = Self;
 
@@ -256,6 +267,20 @@ impl<P: Parameters> FromBytes for GroupAffine<P> {
         Ok(Self::new(x, y))
     }
 }
+
+impl<P: Parameters> FromBytesChecked for GroupAffine<P> {
+    #[inline]
+    fn read_checked<R: Read>(mut reader: R) -> IoResult<Self> {
+        let x = P::BaseField::read_checked(&mut reader)?;
+        let y = P::BaseField::read_checked(reader)?;
+        let p = Self::new(x, y);
+        if !p.group_membership_test() {
+            return Err(IoError::new(ErrorKind::InvalidData, "invalid point: group membership test failed"));
+        }
+        Ok(p)
+    }
+}
+
 
 impl<P: Parameters> Default for GroupAffine<P> {
     #[inline]
@@ -382,6 +407,21 @@ impl<P: Parameters> FromBytes for GroupProjective<P> {
         let t = P::BaseField::read(&mut reader)?;
         let z = P::BaseField::read(reader)?;
         Ok(Self::new(x, y, t, z))
+    }
+}
+
+impl<P: Parameters> FromBytesChecked for GroupProjective<P> {
+    #[inline]
+    fn read_checked<R: Read>(mut reader: R) -> IoResult<Self> {
+        let x = P::BaseField::read_checked(&mut reader)?;
+        let y = P::BaseField::read_checked(&mut reader)?;
+        let t = P::BaseField::read_checked(&mut reader)?;
+        let z = P::BaseField::read_checked(reader)?;
+        let p = Self::new(x, y, t, z);
+        if !p.group_membership_test() {
+            return Err(IoError::new(ErrorKind::InvalidData, "invalid point: group membership test failed"));
+        }
+        Ok(p)
     }
 }
 
@@ -541,6 +581,18 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
 
     fn recommended_wnaf_for_num_scalars(num_scalars: usize) -> usize {
         P::empirical_recommended_wnaf_for_num_scalars(num_scalars)
+    }
+}
+
+impl<P: Parameters> SemanticallyValid for GroupProjective<P>
+{
+    fn is_valid(&self) -> bool {
+
+        self.x.is_valid() &&
+        self.y.is_valid() &&
+        self.z.is_valid() &&
+        self.t.is_valid() &&
+        self.group_membership_test()
     }
 }
 

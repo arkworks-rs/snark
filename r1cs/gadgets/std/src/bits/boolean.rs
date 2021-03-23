@@ -437,25 +437,35 @@ impl Boolean {
     {
         let field_elements: Vec<ConstraintF> =
             ToConstraintField::<ConstraintF>::to_field_elements(values).unwrap();
-        let values_len = values.len();
-
+        let modulus_size = ConstraintF::size_in_bits();
         let max_size = ConstraintF::Params::CAPACITY as usize;
+
         let mut allocated_bits = Vec::new();
-        for (i, field_element) in field_elements.into_iter().enumerate() {
+
+        for (i, (field_element, bit_chunk)) in field_elements
+            .into_iter()
+            .zip(values.chunks(max_size))
+            .enumerate()
+        {
             let fe = FpGadget::<ConstraintF>::alloc_input(&mut cs.ns(|| format!("Field element {}", i)), || {
                 Ok(field_element)
             })?;
-            let fe_bits = fe.to_bits(cs.ns(|| format!("Convert fe to bits {}", i)))?;
 
-            // Remove the most significant bit, because we know it should be zero
-            // because `values.to_field_elements()` only
-            // packs field elements up to the penultimate bit.
-            // That is, the most significant bit (`ConstraintF::NUM_BITS`-th bit) is
-            // unset, so we can just pop it off.
-            allocated_bits.extend_from_slice(&fe_bits[0..max_size]);
+            // Let's use the length-restricted variant of the ToBitsGadget to remove the
+            // padding: the padding bits are not constrained to be zero, so any field element
+            // passed as input (as long as it has the last bits set to the proper value) can
+            // satisfy the constraints. This kind of freedom might not be desiderable in
+            // recursive SNARK circuits, where the public inputs of the inner circuit are
+            // usually involved in other kind of constraints inside the wrap circuit.
+            let to_skip = modulus_size - bit_chunk.len();
+            let fe_bits = fe.to_bits_with_length_restriction(
+                cs.ns(|| format!("Convert fe to bits {}", i)),
+                to_skip
+            )?;
+
+            allocated_bits.extend_from_slice(fe_bits.as_slice());
         }
-
-        Ok(allocated_bits[0..values_len].to_vec())
+        Ok(allocated_bits.to_vec())
     }
 
     /// Construct a boolean from a known constant
@@ -926,7 +936,7 @@ mod test {
     use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
     use algebra::{fields::bls12_381::Fr, BitIterator, Field, PrimeField, UniformRand, ToBits};
     use r1cs_core::ConstraintSystem;
-    use rand::SeedableRng;
+    use rand::{SeedableRng, Rng};
     use rand_xorshift::XorShiftRng;
     use std::str::FromStr;
 
@@ -973,8 +983,17 @@ mod test {
         //Random test
         let samples = 100;
         for i in 0..samples {
+            // Test with random field
             let bit_vals = Fr::rand(rng).write_bits();
             let bits = Boolean::alloc_input_vec(cs.ns(|| format!("alloc value {}", i)), &bit_vals).unwrap();
+            assert_eq!(bit_vals.len(), bits.len());
+            for (native_bit, gadget_bit) in bit_vals.into_iter().zip(bits) {
+                assert_eq!(gadget_bit.get_value().unwrap(), native_bit);
+            }
+
+            // Test with random bools
+            let bit_vals = vec![rng.gen_bool(0.5); rng.gen_range(1, 1600)];
+            let bits = Boolean::alloc_input_vec(cs.ns(|| format!("alloc random value {}", i)), &bit_vals).unwrap();
             assert_eq!(bit_vals.len(), bits.len());
             for (native_bit, gadget_bit) in bit_vals.into_iter().zip(bits) {
                 assert_eq!(gadget_bit.get_value().unwrap(), native_bit);
@@ -992,6 +1011,14 @@ mod test {
         //Test zero
         let bit_vals = Fr::zero().write_bits();
         let bits = Boolean::alloc_input_vec(cs.ns(|| "alloc zero"), &bit_vals).unwrap();
+        assert_eq!(bit_vals.len(), bits.len());
+        for (native_bit, gadget_bit) in bit_vals.into_iter().zip(bits) {
+            assert_eq!(gadget_bit.get_value().unwrap(), native_bit);
+        }
+
+        //Test over the modulus bit vec
+        let bit_vals = vec![true; Fr::size_in_bits()];
+        let bits = Boolean::alloc_input_vec(cs.ns(|| "alloc all 1s bit vec"), &bit_vals).unwrap();
         assert_eq!(bit_vals.len(), bits.len());
         for (native_bit, gadget_bit) in bit_vals.into_iter().zip(bits) {
             assert_eq!(gadget_bit.get_value().unwrap(), native_bit);

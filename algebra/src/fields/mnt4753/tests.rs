@@ -6,7 +6,7 @@ use crate::{
     fields::models::{fp2::Fp2Parameters, fp4::Fp4Parameters},
     Field, PrimeField, SquareRootField,
     UniformRand,
-    bytes::{ToBytes, FromBytes}, to_bytes, ToBits,
+    bytes::{ToBytes, FromBytes}, to_bytes, ToBits, SemanticallyValid,
 };
 
 use rand::SeedableRng;

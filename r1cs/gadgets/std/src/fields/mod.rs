@@ -495,7 +495,7 @@ pub(crate) mod tests {
         // (Because `from_bits` pack only up until MODULUS_BITS - 1 bits)
         let (f, leading_zeros) = loop {
             let val = ConstraintF::rand(&mut rng);
-            let zeros = leading_zeros(val.write_bits());
+            let zeros = leading_zeros(val.write_bits().as_slice());
             if zeros > 1 {
                 break (val, zeros as usize)
             }
@@ -575,7 +575,7 @@ pub(crate) mod tests {
         //to_bits_with_length_restriction test
         let (b, leading_zeros) = loop {
             let val = ConstraintF::rand(&mut rng);
-            let zeros = leading_zeros(val.write_bits());
+            let zeros = leading_zeros(val.write_bits().as_slice());
             if zeros >= 3 {
                 break (val, zeros)
             }
