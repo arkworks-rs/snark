@@ -886,7 +886,7 @@ mod test {
     use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
     use algebra::{fields::bls12_381::Fr, BitIterator, Field, PrimeField, UniformRand, ToBits};
     use r1cs_core::ConstraintSystem;
-    use rand::SeedableRng;
+    use rand::{SeedableRng, Rng};
     use rand_xorshift::XorShiftRng;
     use std::str::FromStr;
 
@@ -933,8 +933,17 @@ mod test {
         //Random test
         let samples = 100;
         for i in 0..samples {
+            // Test with random field
             let bit_vals = Fr::rand(rng).write_bits();
             let bits = Boolean::alloc_input_vec(cs.ns(|| format!("alloc value {}", i)), &bit_vals).unwrap();
+            assert_eq!(bit_vals.len(), bits.len());
+            for (native_bit, gadget_bit) in bit_vals.into_iter().zip(bits) {
+                assert_eq!(gadget_bit.get_value().unwrap(), native_bit);
+            }
+
+            // Test with random bools
+            let bit_vals = vec![rng.gen_bool(0.5); rng.gen_range(1, 1600)];
+            let bits = Boolean::alloc_input_vec(cs.ns(|| format!("alloc random value {}", i)), &bit_vals).unwrap();
             assert_eq!(bit_vals.len(), bits.len());
             for (native_bit, gadget_bit) in bit_vals.into_iter().zip(bits) {
                 assert_eq!(gadget_bit.get_value().unwrap(), native_bit);

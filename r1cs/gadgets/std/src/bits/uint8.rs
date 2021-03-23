@@ -343,7 +343,7 @@ mod test {
     use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
     use algebra::fields::bls12_381::Fr;
     use r1cs_core::ConstraintSystem;
-    use rand::{Rng, SeedableRng};
+    use rand::{Rng, SeedableRng, RngCore};
     use rand_xorshift::XorShiftRng;
 
     #[test]
@@ -359,14 +359,56 @@ mod test {
 
     #[test]
     fn test_uint8_alloc_input_vec() {
+        use algebra::{to_bytes, ToBytes, Field, PrimeField, FpParameters, UniformRand};
+        use rand::thread_rng;
+
         let mut cs = TestConstraintSystem::<Fr>::new();
-        let byte_vals = (64u8..128u8).into_iter().collect::<Vec<_>>();
-        let bytes = UInt8::alloc_input_vec(cs.ns(|| "alloc value"), &byte_vals).unwrap();
-        for (native_byte, gadget_byte) in byte_vals.into_iter().zip(bytes) {
-            let bits = gadget_byte.into_bits_le();
-            for (i, bit) in bits.iter().enumerate() {
-                assert_eq!(bit.get_value().unwrap(), (native_byte >> i) & 1 == 1)
+        let rng = &mut thread_rng();
+
+        //Random test
+        let samples = 100;
+        for i in 0..samples {
+
+            // Test with random field
+            let byte_vals = to_bytes!(Fr::rand(rng)).unwrap();
+            let bytes = UInt8::alloc_input_vec(cs.ns(|| format!("alloc value {}", i)), &byte_vals).unwrap();
+            assert_eq!(byte_vals.len(), bytes.len());
+            for (native_byte, gadget_byte) in byte_vals.into_iter().zip(bytes) {
+                assert_eq!(gadget_byte.get_value().unwrap(), native_byte);
             }
+
+            // Test with random bytes
+            let mut byte_vals = vec![0u8; rng.gen_range(1, 200)];
+            rng.fill_bytes(byte_vals.as_mut_slice());
+            let bytes = UInt8::alloc_input_vec(cs.ns(|| format!("alloc random {}", i)), &byte_vals).unwrap();
+            assert_eq!(byte_vals.len(), bytes.len());
+            for (native_byte, gadget_byte) in byte_vals.into_iter().zip(bytes) {
+                assert_eq!(gadget_byte.get_value().unwrap(), native_byte);
+            }
+        }
+
+        //Test one
+        let byte_vals = to_bytes!(Fr::one()).unwrap();
+        let bytes = UInt8::alloc_input_vec(cs.ns(|| "alloc one bytes"), &byte_vals).unwrap();
+        assert_eq!(byte_vals.len(), bytes.len());
+        for (native_byte, gadget_byte) in byte_vals.into_iter().zip(bytes) {
+            assert_eq!(gadget_byte.get_value().unwrap(), native_byte);
+        }
+
+        //Test zero
+        let byte_vals = to_bytes!(Fr::zero()).unwrap();
+        let bytes = UInt8::alloc_input_vec(cs.ns(|| "alloc zero bytes"), &byte_vals).unwrap();
+        assert_eq!(byte_vals.len(), bytes.len());
+        for (native_byte, gadget_byte) in byte_vals.into_iter().zip(bytes) {
+            assert_eq!(gadget_byte.get_value().unwrap(), native_byte);
+        }
+
+        //Test over the modulus byte vec
+        let byte_vals = vec![std::u8::MAX; ((<Fr as PrimeField>::Params::MODULUS_BITS + <Fr as PrimeField>::Params::REPR_SHAVE_BITS)/8) as usize];
+        let bytes = UInt8::alloc_input_vec(cs.ns(|| "alloc all 1s byte vec"), &byte_vals).unwrap();
+        assert_eq!(byte_vals.len(), bytes.len());
+        for (native_byte, gadget_byte) in byte_vals.into_iter().zip(bytes) {
+            assert_eq!(gadget_byte.get_value().unwrap(), native_byte);
         }
     }
 
