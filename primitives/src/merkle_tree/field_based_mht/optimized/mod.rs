@@ -135,8 +135,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
         }
     }
 
-    #[allow(dead_code)]
-    fn get_leaves(&self) -> &[T::Data] {
+    pub fn get_leaves(&self) -> &[T::Data] {
         &self.array_nodes[self.initial_pos[0]..self.new_elem_pos[0]]
     }
 
