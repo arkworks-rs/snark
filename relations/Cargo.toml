@@ -1,25 +1,25 @@
 [package]
 name = "ark-relations"
-version = "0.1.0"
+version = "0.2.0"
 authors = [ "arkworks constributors" ]
 description = "A library for rank-one constraint systems"
 homepage = "https://arkworks.rs"
 repository = "https://github.com/arkworks-rs/snark"
 documentation = "https://docs.rs/ark-relations/"
-keywords = ["zero knowledge", "cryptography", "zkSNARK", "SNARK", "constraint systems"]
+keywords = ["zero-knowledge", "cryptography", "zkSNARK", "SNARK", "constraint-systems"]
 categories = ["cryptography"]
 include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
 license = "MIT/Apache-2.0"
 edition = "2018"
 
 [dependencies]
-ark-ff = { git = "https://github.com/arkworks-rs/algebra", default-features = false }
-ark-std = { git = "https://github.com/arkworks-rs/utils", default-features = false }
+ark-ff = { version = "0.2.0", default-features = false }
+ark-std = { version = "0.2.0", default-features = false }
 tracing = { version = "0.1", default-features = false }
 tracing-subscriber = { version = "0.2", default-features = false, optional = true }
 
 [dev-dependencies]
-ark-test-curves = { git = "https://github.com/arkworks-rs/algebra", default-features = false, features = [ "bls12_381_scalar_field" ] }
+ark-test-curves = { version = "0.2.0", default-features = false, features = [ "bls12_381_scalar_field" ] }
 
 [features]
 default = []
