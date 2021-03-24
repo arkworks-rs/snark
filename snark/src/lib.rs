@@ -12,8 +12,8 @@
 
 use ark_ff::{PrimeField, ToBytes};
 use ark_relations::r1cs::ConstraintSynthesizer;
+use ark_std::rand::{CryptoRng, RngCore};
 use core::fmt::Debug;
-use rand::{CryptoRng, RngCore};
 
 /// The basic functionality for a SNARK.
 pub trait SNARK<F: PrimeField> {

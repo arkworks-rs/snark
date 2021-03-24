@@ -16,5 +16,3 @@ edition = "2018"
 ark-ff = { git = "https://github.com/arkworks-rs/algebra", default-features = false }
 ark-std = { git = "https://github.com/arkworks-rs/utils", default-features = false }
 ark-relations = { path = "../relations", default-features = false }
-
-rand = { version = "0.7", default-features = false }
