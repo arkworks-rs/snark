@@ -1,6 +1,6 @@
 [package]
 name = "ark-relations"
-version = "0.1.0"
+version = "0.2.0"
 authors = [ "arkworks constributors" ]
 description = "A library for rank-one constraint systems"
 homepage = "https://arkworks.rs"
