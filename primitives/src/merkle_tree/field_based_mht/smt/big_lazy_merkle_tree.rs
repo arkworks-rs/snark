@@ -714,16 +714,12 @@ mod test {
     use crate::{
         crh::{
             MNT4PoseidonHash, MNT6PoseidonHash,
-            batched_crh::{
-                MNT4BatchPoseidonHash, MNT6BatchPoseidonHash,
-            }
+            MNT4BatchPoseidonHash, MNT6BatchPoseidonHash,
         },
         merkle_tree::field_based_mht::{
             naive:: NaiveMerkleTree,
             smt::{OperationLeaf, Coord, ActionLeaf, BigMerkleTree, LazyBigMerkleTree},
-            poseidon::{
-                MNT4753_MHT_POSEIDON_PARAMETERS, MNT6753_MHT_POSEIDON_PARAMETERS
-            },
+            parameters::{MNT4753_MHT_POSEIDON_PARAMETERS, MNT6753_MHT_POSEIDON_PARAMETERS},
             FieldBasedMerkleTreeParameters, BatchFieldBasedMerkleTreeParameters,
             FieldBasedMerkleTreePrecomputedEmptyConstants, FieldBasedMerkleTreePath,
             FieldBasedBinaryMHTPath,
