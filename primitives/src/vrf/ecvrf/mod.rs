@@ -67,7 +67,7 @@ impl<F: PrimeField, G: ProjectiveCurve> FromBytesChecked for FieldBasedEcVrfProo
                 if p.is_zero() { return Err(io::Error::new(io::ErrorKind::InvalidData, "invalid proof.gamma: point at infinity")); }
                 Ok(p)
             })?;
-        let c = F::read(&mut reader)
+        let c = F::read_checked(&mut reader)
             .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, format!("invalid proof.c: {}", err)))
             .and_then(|c| {
                 let c_bits = c.write_bits();
@@ -77,7 +77,7 @@ impl<F: PrimeField, G: ProjectiveCurve> FromBytesChecked for FieldBasedEcVrfProo
                 }
                 Ok(c)
             })?;
-        let s = F::read(&mut reader)
+        let s = F::read_checked(&mut reader)
             .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, format!("invalid proof.s: {}", err)))
             .and_then(|s| {
                 let s_bits = s.write_bits();
