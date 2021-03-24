@@ -3,7 +3,7 @@ use algebra::Field;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use std::fmt::Debug;
 
-use crate::prelude::*;
+use crate::{prelude::*, Assignment};
 
 pub mod fp;
 pub mod fp12;
@@ -12,20 +12,13 @@ pub mod fp3;
 pub mod fp4;
 pub mod fp6_3over2;
 pub mod fp6_2over3;
-
-pub mod bls12_377;
-pub mod edwards_bls12;
-pub mod edwards_sw6;
-pub mod jubjub;
-pub mod mnt4753;
-pub mod mnt6753;
+pub mod quadratic_extension;
+pub mod cubic_extension;
 
 pub trait FieldGadget<F: Field, ConstraintF: Field>:
     Sized
     + Clone
     + EqGadget<ConstraintF>
-    + NEqGadget<ConstraintF>
-    + ConditionalEqGadget<ConstraintF>
     + ToBitsGadget<ConstraintF>
     + AllocGadget<F, ConstraintF>
     + ConstantGadget<F, ConstraintF>
@@ -197,7 +190,17 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
         Ok(self)
     }
 
-    fn inverse<CS: ConstraintSystem<ConstraintF>>(&self, _: CS) -> Result<Self, SynthesisError>;
+    fn inverse<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Self, SynthesisError> {
+        let one = Self::one(&mut cs.ns(|| "one"))?;
+        let inverse = Self::alloc(&mut cs.ns(|| "alloc inverse"), || {
+            self.get_value().and_then(|val| val.inverse()).get()
+        })?;
+        self.mul_equals(cs.ns(|| "check inv"), &inverse, &one)?;
+        Ok(inverse)
+    }
 
     fn frobenius_map<CS: ConstraintSystem<ConstraintF>>(
         &self,
@@ -244,7 +247,7 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
 }
 
 #[cfg(test)]
-mod test {
+pub(crate) mod tests {
     use rand::{self, thread_rng, SeedableRng, Rng};
     use rand_xorshift::XorShiftRng;
 
@@ -252,18 +255,21 @@ mod test {
     use algebra::{BitIterator, Field, UniformRand, PrimeField, leading_zeros};
     use r1cs_core::ConstraintSystem;
 
-    fn field_test<
+    #[allow(dead_code)]
+    pub(crate) fn field_test<
         FE: Field,
         ConstraintF: Field,
         F: FieldGadget<FE, ConstraintF>,
-        CS: ConstraintSystem<ConstraintF>,
-    >(
-        mut cs: CS,
-        a: F,
-        b: F,
-    ) {
-        let a_native = a.get_value().unwrap();
-        let b_native = b.get_value().unwrap();
+    >()
+    {
+        let mut cs = TestConstraintSystem::<ConstraintF>::new();
+
+        let mut rng = &mut thread_rng();
+
+        let a_native = FE::rand(&mut rng);
+        let b_native = FE::rand(&mut rng);
+        let a = F::alloc(&mut cs.ns(|| "generate_a"), || Ok(a_native)).unwrap();
+        let b = F::alloc(&mut cs.ns(|| "generate_b"), || Ok(b_native)).unwrap();
 
         let zero = F::zero(cs.ns(|| "zero")).unwrap();
         let zero_native = zero.get_value().unwrap();
@@ -458,15 +464,14 @@ mod test {
         assert_eq!(ab_true.get_value().unwrap(), a_native + &b_native);
     }
 
-    fn random_frobenius_tests<
+    #[allow(dead_code)]
+    pub(crate) fn frobenius_tests<
         FE: Field,
         ConstraintF: Field,
         F: FieldGadget<FE, ConstraintF>,
-        CS: ConstraintSystem<ConstraintF>,
-    >(
-        mut cs: CS,
-        maxpower: usize,
-    ) {
+    >(maxpower: usize)
+    {
+        let mut cs = TestConstraintSystem::<ConstraintF>::new();
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
         for i in 0..(maxpower + 1) {
             let mut a = FE::rand(&mut rng);
@@ -480,7 +485,8 @@ mod test {
         }
     }
 
-    fn from_bits_fp_gadget_test<ConstraintF: PrimeField>()
+    #[allow(dead_code)]
+    pub(crate) fn from_bits_fp_gadget_test<ConstraintF: PrimeField>()
     {
         let mut rng = thread_rng();
         let mut cs = TestConstraintSystem::<ConstraintF>::new();
@@ -532,7 +538,8 @@ mod test {
         assert_eq!("pack f_g_bits/packing constraint", cs.which_is_unsatisfied().unwrap());
     }
 
-    fn bit_fp_gadgets_test<ConstraintF: PrimeField>(){
+    #[allow(dead_code)]
+    pub(crate) fn bit_fp_gadgets_test<ConstraintF: PrimeField>(){
         use crate::algebra::FpParameters;
 
         let mut rng = thread_rng();
@@ -609,7 +616,8 @@ mod test {
         assert!(!cs.is_satisfied());
     }
 
-    fn equ_verdict_fp_gadget_test<ConstraintF: PrimeField>()
+    #[allow(dead_code)]
+    pub(crate) fn equ_verdict_fp_gadget_test<ConstraintF: PrimeField>()
     {
         let mut rng = thread_rng();
         let a = ConstraintF::rand(&mut rng);
@@ -629,7 +637,7 @@ mod test {
                 || Ok(a.clone())
             ).unwrap();
 
-            let v = a_gadget.enforce_verdict(cs.ns(|| "a == b"), &b_gadget).unwrap();
+            let v = a_gadget.is_eq(cs.ns(|| "a == b"), &b_gadget).unwrap();
             v.enforce_equal(cs.ns(|| " v == True"), &Boolean::constant(true)).unwrap();
             assert!(cs.is_satisfied());
 
@@ -660,7 +668,7 @@ mod test {
                 || Ok(ConstraintF::rand(&mut rng))
             ).unwrap();
 
-            let v = a_gadget.enforce_verdict(cs.ns(|| "a != b"), &b_gadget).unwrap();
+            let v = a_gadget.is_eq(cs.ns(|| "a != b"), &b_gadget).unwrap();
             v.enforce_equal(cs.ns(|| " v == False"), &Boolean::constant(false)).unwrap();
             assert!(cs.is_satisfied());
 
@@ -676,209 +684,5 @@ mod test {
             assert!(!cs.is_satisfied());
             assert_eq!("a != b/1 - v = c * (x - y)", cs.which_is_unsatisfied().unwrap());
         }
-    }
-
-    /*
-    Test for the inverse gadget, should fail on old, insecure gadget
-    which does not implement sufficiently many restristrictions to enforce the inverse relation.
-    See https://github.com/HorizenOfficial/ginger-lib/issues/45 for details.
-    */
-    use algebra::fields::{
-        SquareRootField, Fp2Parameters
-    };
-    use crate::fields::fp2::Fp2Gadget;
-
-    fn inverse_fp2_gadget_test<
-        P: Fp2Parameters<Fp = ConstraintF>,
-        ConstraintF: PrimeField + SquareRootField,
-    >()
-    {
-        let mut cs = TestConstraintSystem::<ConstraintF>::new();
-
-        let a = Fp2Gadget::<P, ConstraintF>::one(cs.ns(|| "alloc one")).unwrap();
-        let a_inv =a.inverse(cs.ns(|| "inverse")).unwrap();
-        assert!(cs.is_satisfied());
-        assert_eq!(
-            a_inv.get_value().unwrap(),
-            a.get_value().unwrap().inverse().unwrap()
-        );
-
-        cs.set("inverse/alloc inverse/c0/alloc", ConstraintF::zero()); //Set b.c0
-        cs.set("inverse/alloc inverse/c1/alloc", ConstraintF::one()); //Set b.c1
-        cs.set("inverse/inv_constraint_1/mul/alloc", ConstraintF::zero()); //Set v1
-        assert!(!cs.is_satisfied());
-    }
-
-    #[test]
-    fn bls12_377_field_gadgets_test() {
-        use crate::fields::bls12_377::{Fq12Gadget, Fq2Gadget, Fq6Gadget, FqGadget};
-        use algebra::fields::bls12_377::{Fq, Fq12, Fq2, Fq2Parameters, Fq6};
-
-        let mut cs = TestConstraintSystem::<Fq>::new();
-
-        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-
-        let a = FqGadget::alloc(&mut cs.ns(|| "generate_a"), || Ok(Fq::rand(&mut rng))).unwrap();
-        let b = FqGadget::alloc(&mut cs.ns(|| "generate_b"), || Ok(Fq::rand(&mut rng))).unwrap();
-        field_test(cs.ns(|| "test_fq"), a, b);
-        if !cs.is_satisfied() {
-            println!("{:?}", cs.which_is_unsatisfied().unwrap());
-        }
-
-        equ_verdict_fp_gadget_test::<Fq>();
-        from_bits_fp_gadget_test::<Fq>();
-        bit_fp_gadgets_test::<Fq>();
-
-        let c = Fq2Gadget::alloc(&mut cs.ns(|| "generate_c"), || Ok(Fq2::rand(&mut rng))).unwrap();
-        let d = Fq2Gadget::alloc(&mut cs.ns(|| "generate_d"), || Ok(Fq2::rand(&mut rng))).unwrap();
-        field_test(cs.ns(|| "test_fq2"), c, d);
-        random_frobenius_tests::<Fq2, _, Fq2Gadget, _>(cs.ns(|| "test_frob_fq2"), 13);
-        inverse_fp2_gadget_test::<Fq2Parameters, _>();
-        if !cs.is_satisfied() {
-            println!("{:?}", cs.which_is_unsatisfied().unwrap());
-        }
-
-        let a = Fq6Gadget::alloc(&mut cs.ns(|| "generate_e"), || Ok(Fq6::rand(&mut rng))).unwrap();
-        let b = Fq6Gadget::alloc(&mut cs.ns(|| "generate_f"), || Ok(Fq6::rand(&mut rng))).unwrap();
-        field_test(cs.ns(|| "test_fq6"), a, b);
-        random_frobenius_tests::<Fq6, _, Fq6Gadget, _>(cs.ns(|| "test_frob_fq6"), 13);
-        if !cs.is_satisfied() {
-            println!("{:?}", cs.which_is_unsatisfied().unwrap());
-        }
-
-        let c =
-            Fq12Gadget::alloc(&mut cs.ns(|| "generate_g"), || Ok(Fq12::rand(&mut rng))).unwrap();
-        let d =
-            Fq12Gadget::alloc(&mut cs.ns(|| "generate_h"), || Ok(Fq12::rand(&mut rng))).unwrap();
-        field_test(cs.ns(|| "test_fq12"), c, d);
-        random_frobenius_tests::<Fq12, _, Fq12Gadget, _>(cs.ns(|| "test_frob_fq12"), 13);
-        if !cs.is_satisfied() {
-            println!("{:?}", cs.which_is_unsatisfied().unwrap());
-        }
-        assert!(cs.is_satisfied());
-
-    }
-
-    #[test]
-    fn jubjub_field_gadgets_test() {
-        use crate::fields::jubjub::FqGadget;
-        use algebra::fields::jubjub::fq::Fq;
-
-        let mut cs = TestConstraintSystem::<Fq>::new();
-
-        let mut rng = thread_rng();
-
-        let a = FqGadget::alloc(&mut cs.ns(|| "generate_a"), || Ok(Fq::rand(&mut rng))).unwrap();
-        let b = FqGadget::alloc(&mut cs.ns(|| "generate_b"), || Ok(Fq::rand(&mut rng))).unwrap();
-        field_test(cs.ns(|| "test_fq"), a, b);
-        if !cs.is_satisfied() {
-            println!("{:?}", cs.which_is_unsatisfied().unwrap());
-        }
-        assert!(cs.is_satisfied());
-        equ_verdict_fp_gadget_test::<Fq>();
-        from_bits_fp_gadget_test::<Fq>();
-        bit_fp_gadgets_test::<Fq>();
-    }
-
-    #[test]
-    fn edwards_field_gadgets_test() {
-        use crate::fields::edwards_bls12::FqGadget;
-        use algebra::fields::edwards_bls12::fq::Fq;
-
-        let mut cs = TestConstraintSystem::<Fq>::new();
-
-        let mut rng = thread_rng();
-
-        let a = FqGadget::alloc(&mut cs.ns(|| "generate_a"), || Ok(Fq::rand(&mut rng))).unwrap();
-        let b = FqGadget::alloc(&mut cs.ns(|| "generate_b"), || Ok(Fq::rand(&mut rng))).unwrap();
-        field_test(cs.ns(|| "test_fq"), a, b);
-        if !cs.is_satisfied() {
-            println!("{:?}", cs.which_is_unsatisfied().unwrap());
-        }
-        assert!(cs.is_satisfied());
-        equ_verdict_fp_gadget_test::<Fq>();
-        from_bits_fp_gadget_test::<Fq>();
-        bit_fp_gadgets_test::<Fq>();
-    }
-
-    #[test]
-    fn mnt4_field_gadgets_test() {
-        use crate::fields::mnt4753::{Fq4Gadget, Fq2Gadget, FqGadget};
-        use algebra::{
-            fields::mnt4753::{Fq, Fq2, Fq2Parameters, Fq4},
-        };
-
-        let mut cs = TestConstraintSystem::<Fq>::new();
-
-        let mut rng = thread_rng();
-
-        let a = FqGadget::alloc(&mut cs.ns(|| "generate_a"), || Ok(Fq::rand(&mut rng))).unwrap();
-        let b = FqGadget::alloc(&mut cs.ns(|| "generate_b"), || Ok(Fq::rand(&mut rng))).unwrap();
-        field_test(cs.ns(|| "test_fq"), a, b);
-        if !cs.is_satisfied() {
-            println!("{:?}", cs.which_is_unsatisfied().unwrap());
-        }
-
-        equ_verdict_fp_gadget_test::<Fq>();
-        from_bits_fp_gadget_test::<Fq>();
-        bit_fp_gadgets_test::<Fq>();
-
-        let c = Fq2Gadget::alloc(&mut cs.ns(|| "generate_c"), || Ok(Fq2::rand(&mut rng))).unwrap();
-        let d = Fq2Gadget::alloc(&mut cs.ns(|| "generate_d"), || Ok(Fq2::rand(&mut rng))).unwrap();
-        field_test(cs.ns(|| "test_fq2"), c, d);
-        random_frobenius_tests::<Fq2, _, Fq2Gadget, _>(cs.ns(|| "test_frob_fq2"), 13);
-        inverse_fp2_gadget_test::<Fq2Parameters, _>();
-        if !cs.is_satisfied() {
-            println!("{:?}", cs.which_is_unsatisfied().unwrap());
-        }
-
-        let a = Fq4Gadget::alloc(&mut cs.ns(|| "generate_e"), || Ok(Fq4::rand(&mut rng))).unwrap();
-        let b = Fq4Gadget::alloc(&mut cs.ns(|| "generate_f"), || Ok(Fq4::rand(&mut rng))).unwrap();
-        field_test(cs.ns(|| "test_fq4"), a, b);
-        random_frobenius_tests::<Fq4, _, Fq4Gadget, _>(cs.ns(|| "test_frob_fq4"), 13);
-        if !cs.is_satisfied() {
-            println!("{:?}", cs.which_is_unsatisfied().unwrap());
-        }
-        assert!(cs.is_satisfied());
-    }
-
-    #[test]
-    fn mnt6_field_gadgets_test() {
-        use crate::fields::mnt6753::{Fq6Gadget, Fq3Gadget, FqGadget};
-        use algebra::{
-            fields::mnt6753::{Fq, Fq3, Fq6},
-        };
-
-        let mut cs = TestConstraintSystem::<Fq>::new();
-
-        let mut rng = thread_rng();
-
-        let a = FqGadget::alloc(&mut cs.ns(|| "generate_a"), || Ok(Fq::rand(&mut rng))).unwrap();
-        let b = FqGadget::alloc(&mut cs.ns(|| "generate_b"), || Ok(Fq::rand(&mut rng))).unwrap();
-        field_test(cs.ns(|| "test_fq"), a, b);
-        if !cs.is_satisfied() {
-            println!("{:?}", cs.which_is_unsatisfied().unwrap());
-        }
-
-        equ_verdict_fp_gadget_test::<Fq>();
-        from_bits_fp_gadget_test::<Fq>();
-        bit_fp_gadgets_test::<Fq>();
-
-        let c = Fq3Gadget::alloc(&mut cs.ns(|| "generate_c"), || Ok(Fq3::rand(&mut rng))).unwrap();
-        let d = Fq3Gadget::alloc(&mut cs.ns(|| "generate_d"), || Ok(Fq3::rand(&mut rng))).unwrap();
-        field_test(cs.ns(|| "test_fq2"), c, d);
-        random_frobenius_tests::<Fq3, _, Fq3Gadget, _>(cs.ns(|| "test_frob_fq3"), 13);
-        if !cs.is_satisfied() {
-            println!("{:?}", cs.which_is_unsatisfied().unwrap());
-        }
-
-        let a = Fq6Gadget::alloc(&mut cs.ns(|| "generate_e"), || Ok(Fq6::rand(&mut rng))).unwrap();
-        let b = Fq6Gadget::alloc(&mut cs.ns(|| "generate_f"), || Ok(Fq6::rand(&mut rng))).unwrap();
-        field_test(cs.ns(|| "test_fq4"), a, b);
-        random_frobenius_tests::<Fq6, _, Fq6Gadget, _>(cs.ns(|| "test_frob_fq4"), 13);
-        if !cs.is_satisfied() {
-            println!("{:?}", cs.which_is_unsatisfied().unwrap());
-        }
-        assert!(cs.is_satisfied());
     }
 }

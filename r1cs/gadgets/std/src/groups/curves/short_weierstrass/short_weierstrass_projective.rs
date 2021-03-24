@@ -540,65 +540,49 @@ impl<P, ConstraintF, F> EqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F
         ConstraintF: Field,
         F: FieldGadget<P::BaseField, ConstraintF>,
 {
-}
+    fn is_eq<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        other: &Self
+    ) -> Result<Boolean, SynthesisError> {
+        let b0 = self.x.is_eq(cs.ns(|| "x"), &other.x)?;
+        let b1 = self.y.is_eq(cs.ns(|| "y"),&other.y)?;
+        let coordinates_equal = Boolean::and(cs.ns(|| "x AND y"), &b0, &b1)?;
+        let both_are_zero = Boolean::and(
+            cs.ns(|| "self.infinity AND other.infinity"),
+            &self.infinity,
+            &other.infinity
+        )?;
+        Boolean::or(cs.ns(|| "coordinates_equal OR both_are_zero"), &coordinates_equal, &both_are_zero)
 
-impl<P, ConstraintF, F> ConditionalEqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
-    where
-        P: SWModelParameters,
-        ConstraintF: Field,
-        F: FieldGadget<P::BaseField, ConstraintF>,
-{
+    }
+
     #[inline]
     fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
-        condition: &Boolean,
+        should_enforce: &Boolean
     ) -> Result<(), SynthesisError> {
-        self.x.conditional_enforce_equal(
-            &mut cs.ns(|| "X Coordinate Conditional Equality"),
-            &other.x,
-            condition,
-        )?;
-        self.y.conditional_enforce_equal(
-            &mut cs.ns(|| "Y Coordinate Conditional Equality"),
-            &other.y,
-            condition,
-        )?;
-        self.infinity.conditional_enforce_equal(
-            &mut cs.ns(|| "Infinity Conditional Equality"),
-            &other.infinity,
-            condition,
-        )?;
+        self
+            .is_eq(cs.ns(|| "is_eq(self, other)"), &other)?
+            .conditional_enforce_equal(
+                cs.ns(|| "enforce condition"),
+                &Boolean::constant(true), &should_enforce
+            )?;
         Ok(())
     }
 
-    fn cost() -> usize {
-        2 * <F as ConditionalEqGadget<ConstraintF>>::cost()
-    }
-}
-
-impl<P, ConstraintF, F> NEqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
-    where
-        P: SWModelParameters,
-        ConstraintF: Field,
-        F: FieldGadget<P::BaseField, ConstraintF>,
-{
     #[inline]
-    fn enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
+    fn conditional_enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
+        should_enforce: &Boolean
     ) -> Result<(), SynthesisError> {
-        self.x
-            .enforce_not_equal(&mut cs.ns(|| "X Coordinate Inequality"), &other.x)?;
-        self.y
-            .enforce_not_equal(&mut cs.ns(|| "Y Coordinate Inequality"), &other.y)?;
-        Ok(())
-    }
-
-    fn cost() -> usize {
-        2 * <F as NEqGadget<ConstraintF>>::cost()
+        let is_equal = self.is_eq(cs.ns(|| "is_eq(self, other)"), other)?;
+        Boolean::and(cs.ns(|| "is_equal AND should_enforce"), &is_equal, should_enforce)?
+            .enforce_equal(cs.ns(|| "is_equal AND should_enforce == false"), &Boolean::Constant(false))
     }
 }
 

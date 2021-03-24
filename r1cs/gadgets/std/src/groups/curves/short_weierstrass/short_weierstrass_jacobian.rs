@@ -271,7 +271,6 @@ for AffineGadget<P, ConstraintF, F>
         Ok(Self::new(x_3, y_3, Boolean::Constant(false)))
     }
 
-
     #[inline]
     fn double_in_place<CS: ConstraintSystem<ConstraintF>>(
         &mut self,
@@ -323,6 +322,61 @@ for AffineGadget<P, ConstraintF, F>
         ))
     }
 
+    ///This will take [(4 + 1) * ceil(len(bits)/2)] constraints to put the x lookup constraint
+    ///into the addition formula. See coda/src/lib/snarky_curves/snarky_curves.ml "scale_known"
+    ///Note: `self` must be different from `result` due to SW incomplete addition.
+    #[inline]
+    fn mul_bits_fixed_base<'a, CS: ConstraintSystem<ConstraintF>>(
+        base: &'a SWProjective<P>,
+        mut cs: CS,
+        result: &Self,
+        bits: &[Boolean],
+    ) -> Result<Self, SynthesisError>{
+
+        let mut to_sub = SWProjective::<P>::zero();
+
+        let mut t = base.clone();
+        let sigma = base.clone();
+        let mut result = result.clone();
+
+        let mut bit_vec = Vec::new();
+        bit_vec.extend_from_slice(bits);
+        //Simply add padding. This should be safe, since the padding bit will be part of the
+        //circuit. (It is also done elsewhere).
+        if bits.len() % 2 != 0 {
+            bit_vec.push(Boolean::constant(false))
+        }
+
+        for (i, bits) in bit_vec.chunks(2).enumerate() {
+            let ti = t.clone();
+            let two_ti = ti.double();
+            let mut table = [
+                sigma,
+                sigma + &ti,
+                sigma + &two_ti,
+                sigma + &ti + &two_ti,
+            ];
+
+            //Compute constants
+            SWProjective::batch_normalization(&mut table);
+            let x_coords = [table[0].x, table[1].x, table[2].x, table[3].x];
+            let y_coords = [table[0].y, table[1].y, table[2].y, table[3].y];
+            let precomp = Boolean::and(cs.ns(|| format!("b0 AND b1_{}", i)), &bits[0], &bits[1])?;
+
+            //Lookup x and y
+            let x = F::two_bit_lookup_lc(cs.ns(|| format!("Lookup x_{}", i)), &precomp, &[bits[0], bits[1]],  &x_coords)?;
+            let y = F::two_bit_lookup_lc(cs.ns(|| format!("Lookup y_{}", i)), &precomp, &[bits[0], bits[1]],  &y_coords)?;
+
+            //Perform addition
+            let adder: Self = Self::new(x, y, Boolean::constant(false));
+            result = result.add(cs.ns(||format!("Add_{}", i)), &adder)?;
+            t = t.double().double();
+            to_sub += &sigma;
+        }
+        result = result.sub_constant(cs.ns(|| "result - sigma*n_div_2"), &to_sub)?;
+        Ok(result)
+    }
+
     /// Useful in context when you have some signed representation of the scalar's digits, like
     /// in BH hash. I decided here to keep the same logic as TE implementation  for future extensibility:
     /// in fact there is no actual difference between "outer" and "inner" sums since they all
@@ -342,6 +396,7 @@ for AffineGadget<P, ConstraintF, F>
         const CHUNK_SIZE: usize = 3;
         let mut sw_result: Option<AffineGadget<P, ConstraintF, F>> = None;
         let mut result: Option<AffineGadget<P, ConstraintF, F>> = None;
+
         let mut process_segment_result =
             |mut cs: r1cs_core::Namespace<_, _>,
              result: &AffineGadget<P, ConstraintF, F>|
@@ -360,6 +415,7 @@ for AffineGadget<P, ConstraintF, F>
                 }
                 Ok(())
             };
+
         // Compute ∏(h_i^{m_i}) for all i.
         for (segment_i, (segment_bits_chunks, segment_powers)) in
             scalars.into_iter().zip(bases.iter()).enumerate()
@@ -377,38 +433,46 @@ for AffineGadget<P, ConstraintF, F>
                             coords.push(acc_power);
                             acc_power = acc_power + base_power;
                         }
+
                         let bits = bits.borrow().to_bits(
                             &mut cs.ns(|| format!("Convert Scalar {}, {} to bits", segment_i, i)),
                         )?;
                         if bits.len() != CHUNK_SIZE {
                             return Err(SynthesisError::Unsatisfiable);
                         }
+
                         let coords = coords
                             .iter()
                             .map(|p| {
                                 p.into_affine()
                             })
                             .collect::<Vec<_>>();
+
                         let x_coeffs = coords.iter().map(|p| p.x).collect::<Vec<_>>();
                         let y_coeffs = coords.iter().map(|p| p.y).collect::<Vec<_>>();
+
                         let precomp = Boolean::and(
                             cs.ns(|| format!("precomp in window {}, {}", segment_i, i)),
                             &bits[0],
                             &bits[1],
                         )?;
+
                         let x = F::two_bit_lookup_lc(
                             cs.ns(|| format!("x in window {}, {}", segment_i, i)),
                             &precomp,
                             &[bits[0], bits[1]],
                             &x_coeffs
                         )?;
+
                         let y = F::three_bit_cond_neg_lookup(
                             cs.ns(|| format!("y lookup in window {}, {}", segment_i, i)),
                             &bits,
                             &precomp,
                             &y_coeffs,
                         )?;
+
                         let tmp = Self::new(x, y, Boolean::constant(false));
+
                         match result {
                             None => {
                                 result = Some(tmp);
@@ -421,6 +485,7 @@ for AffineGadget<P, ConstraintF, F>
                             },
                         }
                     }
+
                 process_segment_result(
                     cs.ns(|| format!("window {}", segment_i)),
                     &result.unwrap(),
@@ -474,65 +539,49 @@ impl<P, ConstraintF, F> EqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F
         ConstraintF: Field,
         F: FieldGadget<P::BaseField, ConstraintF>,
 {
-}
+    fn is_eq<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        other: &Self
+    ) -> Result<Boolean, SynthesisError> {
+        let b0 = self.x.is_eq(cs.ns(|| "x"), &other.x)?;
+        let b1 = self.y.is_eq(cs.ns(|| "y"),&other.y)?;
+        let coordinates_equal = Boolean::and(cs.ns(|| "x AND y"), &b0, &b1)?;
+        let both_are_zero = Boolean::and(
+            cs.ns(|| "self.infinity AND other.infinity"),
+            &self.infinity,
+            &other.infinity
+        )?;
+        Boolean::or(cs.ns(|| "coordinates_equal OR both_are_zero"), &coordinates_equal, &both_are_zero)
 
-impl<P, ConstraintF, F> ConditionalEqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
-    where
-        P: SWModelParameters,
-        ConstraintF: Field,
-        F: FieldGadget<P::BaseField, ConstraintF>,
-{
+    }
+
     #[inline]
     fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
-        condition: &Boolean,
+        should_enforce: &Boolean
     ) -> Result<(), SynthesisError> {
-        self.x.conditional_enforce_equal(
-            &mut cs.ns(|| "X Coordinate Conditional Equality"),
-            &other.x,
-            condition,
-        )?;
-        self.y.conditional_enforce_equal(
-            &mut cs.ns(|| "Y Coordinate Conditional Equality"),
-            &other.y,
-            condition,
-        )?;
-        self.infinity.conditional_enforce_equal(
-            &mut cs.ns(|| "Infinity Conditional Equality"),
-            &other.infinity,
-            condition,
-        )?;
+        self
+            .is_eq(cs.ns(|| "is_eq(self, other)"), &other)?
+            .conditional_enforce_equal(
+                cs.ns(|| "enforce condition"),
+                &Boolean::constant(true), &should_enforce
+            )?;
         Ok(())
     }
 
-    fn cost() -> usize {
-        2 * <F as ConditionalEqGadget<ConstraintF>>::cost()
-    }
-}
-
-impl<P, ConstraintF, F> NEqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
-    where
-        P: SWModelParameters,
-        ConstraintF: Field,
-        F: FieldGadget<P::BaseField, ConstraintF>,
-{
     #[inline]
-    fn enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
+    fn conditional_enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
+        should_enforce: &Boolean
     ) -> Result<(), SynthesisError> {
-        self.x
-            .enforce_not_equal(&mut cs.ns(|| "X Coordinate Inequality"), &other.x)?;
-        self.y
-            .enforce_not_equal(&mut cs.ns(|| "Y Coordinate Inequality"), &other.y)?;
-        Ok(())
-    }
-
-    fn cost() -> usize {
-        2 * <F as NEqGadget<ConstraintF>>::cost()
+        let is_equal = self.is_eq(cs.ns(|| "is_eq(self, other)"), other)?;
+        Boolean::and(cs.ns(|| "is_equal AND should_enforce"), &is_equal, should_enforce)?
+            .enforce_equal(cs.ns(|| "is_equal AND should_enforce == false"), &Boolean::Constant(false))
     }
 }
 
@@ -628,6 +677,7 @@ for AffineGadget<P, ConstraintF, F>
                 // If we multiply by r, we actually multiply by r - 2.
                 let r_minus_1 = (-P::ScalarField::one()).into_repr();
                 let r_weight = BitIterator::new(&r_minus_1).filter(|b| *b).count();
+
                 // We pick the most efficient method of performing the prime order check:
                 // If the cofactor has lower hamming weight than the scalar field's modulus,
                 // we first multiply by the inverse of the cofactor, and then, after allocating,
@@ -648,12 +698,14 @@ for AffineGadget<P, ConstraintF, F>
                     let mut result = Self::zero(cs.ns(|| "result"))?;
                     for (i, b) in BitIterator::new(P::COFACTOR).enumerate() {
                         let mut cs = cs.ns(|| format!("Iteration {}", i));
+
                         let old_seen_one = seen_one;
                         if seen_one {
                             result.double_in_place(cs.ns(|| "Double"))?;
                         } else {
                             seen_one = b;
                         }
+
                         if b {
                             result = if old_seen_one {
                                 result.add(cs.ns(|| "Add"), &ge)?
@@ -670,12 +722,14 @@ for AffineGadget<P, ConstraintF, F>
                     // Returns bits in big-endian order
                     for (i, b) in BitIterator::new(r_minus_1).enumerate() {
                         let mut cs = cs.ns(|| format!("Iteration {}", i));
+
                         let old_seen_one = seen_one;
                         if seen_one {
                             result.double_in_place(cs.ns(|| "Double"))?;
                         } else {
                             seen_one = b;
                         }
+
                         if b {
                             result = if old_seen_one {
                                 result.add(cs.ns(|| "Add"), &ge)?
@@ -689,6 +743,7 @@ for AffineGadget<P, ConstraintF, F>
                     Ok(ge)
                 }
             };
+
         let ge = alloc_and_prime_order_check(
             cs.ns(|| "alloc and prime order check"),
             value_gen
@@ -745,7 +800,6 @@ impl<P, ConstraintF, F> ConstantGadget<SWProjective<P>, ConstraintF> for AffineG
         ConstraintF: Field,
         F: FieldGadget<P::BaseField, ConstraintF>,
 {
-    #[inline]
     fn from_value<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         value: &SWProjective<P>,
@@ -759,7 +813,6 @@ impl<P, ConstraintF, F> ConstantGadget<SWProjective<P>, ConstraintF> for AffineG
         Self::new(x, y, infinity)
     }
 
-    #[inline]
     fn get_constant(&self) ->SWProjective<P> {
         let value_proj = SWAffine::<P>::new(
             self.x.get_value().unwrap(),
@@ -843,6 +896,7 @@ impl<P, ConstraintF, F> ToBytesGadget<ConstraintF> for AffineGadget<P, Constrain
     }
 }
 
+
 #[derive(Derivative)]
 #[derivative(Debug, Clone)]
 #[must_use]
@@ -854,6 +908,7 @@ pub struct CompressAffinePointGadget<
     pub infinity:   Boolean,
     _engine: PhantomData<ConstraintF>,
 }
+
 impl<ConstraintF> CompressAffinePointGadget<ConstraintF>
     where
         ConstraintF: PrimeField,
@@ -867,12 +922,15 @@ impl<ConstraintF> CompressAffinePointGadget<ConstraintF>
         }
     }
 }
+
 use crate::ToCompressedBitsGadget;
 use crate::fields::fp::FpGadget;
+
 impl<ConstraintF> ToCompressedBitsGadget<ConstraintF> for CompressAffinePointGadget<ConstraintF>
     where
         ConstraintF: PrimeField,
 {
+
     /// Enforce compression of a point through serialization of the x coordinate and storing
     /// a sign bit for the y coordinate.
     fn to_compressed<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS)
@@ -880,8 +938,10 @@ impl<ConstraintF> ToCompressedBitsGadget<ConstraintF> for CompressAffinePointGad
         //Enforce x_coordinate to bytes
         let mut compressed_bits = self.x.to_bits_strict(cs.ns(|| "x_to_bits_strict"))?;
         compressed_bits.push(self.infinity);
+
         let is_odd = self.y.is_odd(cs.ns(|| "y parity"))?;
         compressed_bits.push(is_odd);
+
         Ok(compressed_bits)
     }
 }

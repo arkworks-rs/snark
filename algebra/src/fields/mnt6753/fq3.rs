@@ -95,7 +95,7 @@ impl Fp3Parameters for Fq3Parameters {
         field_new!(Fq, BigInteger([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])),
     );
 
-    const FROBENIUS_COEFF_FP3_C1: [Fq; 3] = [
+    const FROBENIUS_COEFF_FP3_C1: &'static [Fq] = &[
 
         //X^{q^0} = alpha^((q^0 - 1)/ 3)*X = 1*X
         field_new!(Fq, BigInteger([
@@ -146,7 +146,7 @@ impl Fp3Parameters for Fq3Parameters {
         ])),
     ];
 
-    const FROBENIUS_COEFF_FP3_C2: [Fq; 3] = [
+    const FROBENIUS_COEFF_FP3_C2: &'static [Fq] = &[
 
         //(X^2)^{q^0} = alpha^(2(q^0 - 1)/ 3)*X^2 = 1*X^2
         field_new!(Fq, BigInteger([

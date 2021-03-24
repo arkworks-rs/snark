@@ -16,8 +16,7 @@ pub mod poseidon;
 pub use self::poseidon::*;
 
 pub trait FixedLengthCRHGadget<H: FixedLengthCRH, ConstraintF: Field>: Sized {
-    type OutputGadget: ConditionalEqGadget<ConstraintF>
-        + EqGadget<ConstraintF>
+    type OutputGadget: EqGadget<ConstraintF>
         + ToBytesGadget<ConstraintF>
         + CondSelectGadget<ConstraintF>
         + AllocGadget<H::Output, ConstraintF>

@@ -1,4 +1,4 @@
-use algebra::{AffineCurve, Field, PairingCurve, PairingEngine, PrimeField, ProjectiveCurve};
+use algebra::{AffineCurve, Field, PairingEngine, PrimeField, ProjectiveCurve};
 
 use super::{PreparedVerifyingKey, Proof, VerifyingKey};
 
@@ -12,11 +12,11 @@ pub fn prepare_verifying_key<E: PairingEngine>(vk: &VerifyingKey<E>) -> Prepared
         g_alpha:           vk.g_alpha_g1,
         h_beta:            vk.h_beta_g2,
         g_alpha_h_beta_ml: E::miller_loop(
-            [(&vk.g_alpha_g1.prepare(), &vk.h_beta_g2.prepare())].iter(),
+            [(vk.g_alpha_g1.into(), vk.h_beta_g2.into())].iter(),
         ),
-        g_gamma_pc:        vk.g_gamma_g1.prepare(),
-        h_gamma_pc:        vk.h_gamma_g2.prepare(),
-        h_pc:              vk.h_g2.prepare(),
+        g_gamma_pc:        vk.g_gamma_g1.into(),
+        h_gamma_pc:        vk.h_gamma_g2.into(),
+        h_pc:              vk.h_g2.into(),
         query:             vk.query.clone(),
     }
 }
@@ -49,9 +49,9 @@ pub fn verify_proof<E: PairingEngine>(
     let test1_r1 = pvk.g_alpha_h_beta_ml;
     let test1_r2 = E::miller_loop(
         [
-            (&test1_a_g_alpha.neg().prepare(), &test1_b_h_beta.prepare()),
-            (&g_psi.into_affine().prepare(), &pvk.h_gamma_pc),
-            (&proof.c.prepare(), &pvk.h_pc),
+            (test1_a_g_alpha.neg().into(), test1_b_h_beta.into()),
+            (g_psi.into_affine().into(), pvk.h_gamma_pc.clone()),
+            (proof.c.into(), pvk.h_pc.clone()),
         ]
         .iter(),
     );
@@ -64,8 +64,8 @@ pub fn verify_proof<E: PairingEngine>(
 
     let test2_exp = E::miller_loop(
         [
-            (&proof.a.prepare(), &pvk.h_gamma_pc),
-            (&pvk.g_gamma_pc, &proof.b.neg().prepare()),
+            (proof.a.into(), pvk.h_gamma_pc.clone()),
+            (pvk.g_gamma_pc.clone(), proof.b.neg().into()),
         ]
         .iter(),
     );

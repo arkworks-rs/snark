@@ -1,6 +1,6 @@
 //! An implementation of the [Groth-Maller][GM17] simulation extractable zkSNARK.
 //! [GM17]: https://eprint.iacr.org/2017/540
-use algebra::{bytes::ToBytes, PairingCurve, PairingEngine};
+use algebra::{bytes::ToBytes, PairingEngine};
 use r1cs_core::SynthesisError;
 use std::io::{self, Read, Result as IoResult, Write};
 
@@ -185,9 +185,9 @@ pub struct PreparedVerifyingKey<E: PairingEngine> {
     pub g_alpha:           E::G1Affine,
     pub h_beta:            E::G2Affine,
     pub g_alpha_h_beta_ml: E::Fqk,
-    pub g_gamma_pc:        <E::G1Affine as PairingCurve>::Prepared,
-    pub h_gamma_pc:        <E::G2Affine as PairingCurve>::Prepared,
-    pub h_pc:              <E::G2Affine as PairingCurve>::Prepared,
+    pub g_gamma_pc:        E::G1Prepared,
+    pub h_gamma_pc:        E::G2Prepared,
+    pub h_pc:              E::G2Prepared,
     pub query:             Vec<E::G1Affine>,
 }
 
@@ -210,9 +210,9 @@ impl<E: PairingEngine> Default for PreparedVerifyingKey<E> {
             g_alpha:           E::G1Affine::default(),
             h_beta:            E::G2Affine::default(),
             g_alpha_h_beta_ml: E::Fqk::default(),
-            g_gamma_pc:        <E::G1Affine as PairingCurve>::Prepared::default(),
-            h_gamma_pc:        <E::G2Affine as PairingCurve>::Prepared::default(),
-            h_pc:              <E::G2Affine as PairingCurve>::Prepared::default(),
+            g_gamma_pc:        E::G1Prepared::default(),
+            h_gamma_pc:        E::G2Prepared::default(),
+            h_pc:              E::G2Prepared::default(),
             query:             Vec::new(),
         }
     }

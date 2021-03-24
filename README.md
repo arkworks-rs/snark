@@ -106,6 +106,17 @@ These benchmarks require the nightly Rust toolchain; to install this, run `rustu
 cargo +nightly bench --all-features 
 ```
 
+Compiling with `adcxq`, `adoxq` and `mulxq` instructions can lead to a 30-70% speedup. These are available on most `x86_64` platforms (Broadwell onwards for Intel and Ryzen onwards for AMD). Run the following command:
+```bash
+RUSTFLAGS="-C target-feature=+bmi2,+adx" cargo +nightly test/build/bench --features llvm_asm
+```
+Tip: If optimising for performance, your mileage may vary with passing `--emit=asm` to `RUSTFLAGS`.
+
+To bench `algebra-benches` with greater accuracy, especially for functions with execution times on the order of nanoseconds, use the `n_fold` feature to run selected functions 1000x per iteration. To run with multiple features, make sure to double quote the features.
+```bash
+cargo +nightly bench --features "n_fold"
+```
+
 ## Contributing
 
 Contributions are welcomed! Bug fixes and new features can be initiated through GitHub pull requests. To speed the code review process, please adhere to the following guidelines:

@@ -227,29 +227,30 @@ impl PartialEq for UInt8 {
 
 impl Eq for UInt8 {}
 
-impl<ConstraintF: Field> ConditionalEqGadget<ConstraintF> for UInt8 {
+impl<ConstraintF: Field> EqGadget<ConstraintF> for UInt8 {
+    fn is_eq<CS: ConstraintSystem<ConstraintF>>(&self, cs: CS, other: &Self) -> Result<Boolean, SynthesisError> {
+        self.bits.as_slice().is_eq(cs, &other.bits)
+    }
+
     fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
-        mut cs: CS,
+        cs: CS,
         other: &Self,
         condition: &Boolean,
     ) -> Result<(), SynthesisError> {
-        for (i, (a, b)) in self.bits.iter().zip(&other.bits).enumerate() {
-            a.conditional_enforce_equal(
-                &mut cs.ns(|| format!("UInt8 equality check for {}-th bit", i)),
-                b,
-                condition,
-            )?;
-        }
-        Ok(())
+        self.bits.conditional_enforce_equal(cs, &other.bits, condition)
     }
 
-    fn cost() -> usize {
-        8 * <Boolean as ConditionalEqGadget<ConstraintF>>::cost()
+    fn conditional_enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+        other: &Self,
+        condition: &Boolean,
+    ) -> Result<(), SynthesisError> {
+        self.bits
+            .conditional_enforce_not_equal(cs, &other.bits, condition)
     }
 }
-
-impl<ConstraintF: Field> EqGadget<ConstraintF> for UInt8 {}
 
 impl<ConstraintF: Field> AllocGadget<u8, ConstraintF> for UInt8 {
     fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(

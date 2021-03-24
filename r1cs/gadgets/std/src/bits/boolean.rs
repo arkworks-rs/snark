@@ -747,18 +747,23 @@ impl<ConstraintF: Field> AllocGadget<bool, ConstraintF> for Boolean {
     }
 }
 
-impl<ConstraintF: Field> EqGadget<ConstraintF> for Boolean {}
+impl<ConstraintF: Field> EqGadget<ConstraintF> for Boolean {
+    fn is_eq<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS, other: &Self) -> Result<Boolean, SynthesisError> {
+        // self | other | XNOR(self, other) | self == other
+        // -----|-------|-------------------|--------------
+        //   0  |   0   |         1         |      1
+        //   0  |   1   |         0         |      0
+        //   1  |   0   |         0         |      0
+        //   1  |   1   |         1         |      1
+        Ok(Boolean::xor(cs.ns(|| "self XOR other"), &other, &self)?.not())
+    }
 
-impl<ConstraintF: Field> ConditionalEqGadget<ConstraintF> for Boolean {
-    fn conditional_enforce_equal<CS>(
+    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
-        condition: &Boolean,
-    ) -> Result<(), SynthesisError>
-        where
-            CS: ConstraintSystem<ConstraintF>,
-    {
+        should_enforce: &Boolean,
+    ) -> Result<(), SynthesisError> {
         use self::Boolean::*;
         let one = CS::one();
         let difference: LinearCombination<ConstraintF> = match (self, other) {
@@ -792,21 +797,66 @@ impl<ConstraintF: Field> ConditionalEqGadget<ConstraintF> for Boolean {
             (Not(a), Not(b)) => LinearCombination::zero() + a.get_variable() - b.get_variable(),
         };
 
-        if let Constant(false) = condition {
+        if let Constant(false) = should_enforce {
             Ok(())
         } else {
             cs.enforce(
                 || "conditional_equals",
                 |lc| difference + &lc,
-                |lc| condition.lc(one, ConstraintF::one()) + &lc,
+                |lc| should_enforce.lc(one, ConstraintF::one()) + &lc,
                 |lc| lc,
             );
             Ok(())
         }
     }
 
-    fn cost() -> usize {
-        1
+    fn conditional_enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        other: &Self,
+        should_enforce: &Boolean,
+    ) -> Result<(), SynthesisError> {
+        use Boolean::*;
+        let one = CS::one();
+        let difference = match (self, other) {
+            // 1 != 0; 0 != 1
+            (Constant(true), Constant(false)) | (Constant(false), Constant(true)) => return Ok(()),
+            // false == false and true == true
+            (Constant(_), Constant(_)) => return Err(SynthesisError::AssignmentMissing),
+            // 1 - a
+            (Constant(true), Is(a)) | (Is(a), Constant(true)) =>
+                LinearCombination::zero() + one - a.get_variable(),
+            // a - 0 = a
+            (Constant(false), Is(a)) | (Is(a), Constant(false)) =>
+                LinearCombination::zero() + a.get_variable(),
+            // 1 - !a = 1 - (1 - a) = a
+            (Constant(true), Not(a)) | (Not(a), Constant(true)) =>
+                LinearCombination::zero() + a.get_variable(),
+            // !a - 0 = !a = 1 - a
+            (Constant(false), Not(a)) | (Not(a), Constant(false)) =>
+                LinearCombination::zero() + one - a.get_variable(),
+            // b - a,
+            (Is(a), Is(b)) =>
+                LinearCombination::zero() + b.get_variable() - a.get_variable(),
+            // !b - a = (1 - b) - a
+            (Is(a), Not(b)) | (Not(b), Is(a)) =>
+                LinearCombination::zero() + one - b.get_variable() - a.get_variable(),
+            // !b - !a = (1 - b) - (1 - a) = a - b,
+            (Not(a), Not(b)) =>
+                LinearCombination::zero() + a.get_variable() - b.get_variable(),
+        };
+
+        if let Constant(false) = should_enforce {
+            Ok(())
+        } else {
+            cs.enforce(
+                || "conditional_equals",
+                |lc| difference + &lc,
+                |lc| should_enforce.lc(one, ConstraintF::one()) + &lc,
+                |lc| should_enforce.lc(one, ConstraintF::one()) + &lc,
+            );
+            Ok(())
+        }
     }
 }
 

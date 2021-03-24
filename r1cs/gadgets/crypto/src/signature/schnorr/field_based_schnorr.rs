@@ -14,7 +14,7 @@ use r1cs_std::{
     fields::fp::FpGadget,
     to_field_gadget_vec::ToConstraintFieldGadget,
     alloc::AllocGadget,
-    eq::{EqGadget, EquVerdictGadget},
+    eq::EqGadget,
     groups::GroupGadget,
     bits::boolean::Boolean,
 };
@@ -312,7 +312,7 @@ for FieldBasedSchnorrSigVerificationGadget<ConstraintF, G, GG, H, HG>
         )?;
 
         //Enforce result of signature verification
-        let is_verified = signature.e.enforce_verdict(cs.ns(|| "is e == e_prime"), &e_prime)?;
+        let is_verified = signature.e.is_eq(cs.ns(|| "is e == e_prime"), &e_prime)?;
 
         Ok(is_verified)
     }
@@ -364,9 +364,9 @@ mod test {
     use r1cs_core::ConstraintSystem;
     use r1cs_std::alloc::AllocGadget;
 
-    use r1cs_std::groups::curves::short_weierstrass::mnt::{
-        mnt4::mnt4753::MNT4G1Gadget,
-        mnt6::mnt6753::MNT6G1Gadget,
+    use r1cs_std::instantiated::{
+        mnt4_753::G1Gadget as MNT4G1Gadget,
+        mnt6_753::G1Gadget as MNT6G1Gadget,
     };
 
     use rand::{Rng, thread_rng};

@@ -6,7 +6,9 @@ use crate::{
         twisted_edwards_extended::{GroupAffine as TEAffine, GroupProjective as TEProjective},
         ProjectiveCurve,
     },
-    Fp2, Fp2Parameters, FpParameters, Field, PrimeField,
+    QuadExtField, QuadExtParameters,
+    CubicExtField, CubicExtParameters,
+    FpParameters, Field, PrimeField,
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -39,15 +41,37 @@ impl<ConstraintF: Field> ToConstraintField<ConstraintF> for () {
     }
 }
 
-// Impl for Fp2<ConstraintF>
-impl<P: Fp2Parameters> ToConstraintField<P::Fp> for Fp2<P>
+impl<P: QuadExtParameters> ToConstraintField<P::BasePrimeField> for QuadExtField<P>
+    where
+        P::BaseField: ToConstraintField<P::BasePrimeField>,
 {
-    #[inline]
-    fn to_field_elements(&self) -> Result<Vec<P::Fp>, Error> {
-        let mut c0 = self.c0.to_field_elements()?;
-        let c1 = self.c1.to_field_elements()?;
-        c0.extend_from_slice(&c1);
-        Ok(c0)
+    fn to_field_elements(&self) -> Result<Vec<P::BasePrimeField>, Error> {
+        let mut res = Vec::new();
+        let mut c0_elems = self.c0.to_field_elements()?;
+        let mut c1_elems = self.c1.to_field_elements()?;
+
+        res.append(&mut c0_elems);
+        res.append(&mut c1_elems);
+
+        Ok(res)
+    }
+}
+
+impl<P: CubicExtParameters> ToConstraintField<P::BasePrimeField> for CubicExtField<P>
+    where
+        P::BaseField: ToConstraintField<P::BasePrimeField>,
+{
+    fn to_field_elements(&self) -> Result<Vec<P::BasePrimeField>, Error> {
+        let mut res = Vec::new();
+        let mut c0_elems = self.c0.to_field_elements()?;
+        let mut c1_elems = self.c1.to_field_elements()?;
+        let mut c2_elems = self.c2.to_field_elements()?;
+
+        res.append(&mut c0_elems);
+        res.append(&mut c1_elems);
+        res.append(&mut c2_elems);
+
+        Ok(res)
     }
 }
 
