@@ -59,7 +59,7 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
             let mut w_bar = accum_prod.inverse().unwrap();
 
             // Extract the individual inversions
-            let mut idx: i64 = w.len() as i64 - 2;
+            let mut idx: i64 = w.len() as i64 - P::R as i64;
             for i in (0..vec_state.len()).rev() {
                 for j in (0..P::T).rev() {
                     let vec_1 = vec_state[i][j].clone();
@@ -113,7 +113,7 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
             let mut w_bar = accum_prod.inverse().unwrap();
 
             // Extract the individual inversions
-            let mut idx: i64 = w.len() as i64 - 2;
+            let mut idx: i64 = w.len() as i64 - P::R as i64;
             for i in (0..vec_state.len()).rev() {
                 let vec_1 = vec_state[i][0].clone();
                 vec_state[i][0] = w_bar * &w[idx as usize];
@@ -185,6 +185,7 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr = F>> Bat
         use rayon::prelude::*;
 
         // Checks that size of input/output vector
+        assert_eq!(P::T - P::R, 1, "The assumption that the capacity is one field element is not satisfied.");
         let array_length = input_array.len() / P::R;
         assert_eq!(input_array.len() % P::R, 0, "The length of the input data array is not a multiple of the rate.");
         assert_ne!(input_array.len(), 0, "Input data array does not contain any data.");
@@ -248,6 +249,7 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr = F>> Bat
 
         // Checks that size of input/output vector
         let array_length = input_array.len() / P::R;
+        assert_eq!(P::T - P::R, 1, "The assumption that the capacity is one field element is not satisfied.");
         assert_eq!(input_array.len() % P::R, 0, "The length of the input data array is not a multiple of the rate.");
         assert_ne!(input_array.len(), 0, "Input data array does not contain any data.");
         assert_eq!(output_array.len(), array_length,  "The size of the output vector is equal to the size of the input vector divided by the rate.");

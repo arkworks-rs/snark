@@ -133,10 +133,19 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
             }
 
             // Apply the S-BOX to each of the elements of the state vector
-            // Apply Montomgery's simulateneous inversion
-            let w2 = state[0] * &state[1];
-            let w = state[2] * &w2;
-            if w == P::Fr::zero() {
+            // Use Montgomery simultaneous inversion
+            let mut w: Vec<P::Fr> = Vec::new();
+            let mut accum_prod = P::Fr::one();
+
+            w.push(accum_prod);
+
+            // Calculate the intermediate partial products
+            for d in state.iter() {
+                accum_prod = accum_prod * &d;
+                w.push(accum_prod);
+            }
+
+            if accum_prod == P::Fr::zero() {
                 // At least one of the S-Boxes is zero
                 // Calculate inverses individually
                 for d in state.iter_mut() {
@@ -146,14 +155,16 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
                     }
                 }
             } else {
-                let mut w_bar = w.inverse().unwrap();
+                let mut w_bar = accum_prod.inverse().unwrap();
 
-                let z_2 = w_bar * &w2;
-                w_bar = w_bar * &state[2];
-                state[2] = z_2;
-                let z_1 = w_bar * &state[0];
-                state[0] = w_bar * &state[1];
-                state[1] = z_1;
+                // Extract the individual inversions
+                let mut idx: i64 = w.len() as i64 - P::R as i64;
+                for d in state.iter_mut().rev() {
+                    let tmp = d.clone();
+                    *d = w_bar * &w[idx as usize];
+                    w_bar = w_bar * &tmp;
+                    idx -= 1;
+                }
             }
 
             // Perform the matrix mix
@@ -172,17 +183,17 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
             }
 
             // Apply S-BOX only to the first element of the state vector
-            if state[0]!=P::Fr::zero() {
+            if state[0]!= P::Fr::zero() {
                 state[0] = state[0].inverse().unwrap();
             }
 
             // Apply the matrix mix
-            matrix_mix_short::<F,P>(state);
+            matrix_mix_short::<F, P>(state);
         }
 
         // Second full rounds
-        // Process only to R_F - 1 iterations. The last iteration does not contain a matrix mix
-        for _i in 0..(P::R_F-1) {
+        // Process only to R_F - 1 iterations.
+        for _i in 0..(P::R_F - 1) {
 
             // Add the round constants
             for d in state.iter_mut() {
@@ -192,11 +203,21 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
             }
 
             // Apply the S-BOX to each of the elements of the state vector
-            // Apply Montgomery's simulatenous inversion
-            let w2 = state[0] * &state[1];
-            let w = state[2] * &w2;
-            if w == P::Fr::zero() {
+            // Use Montgomery simultaneous inversion
+            let mut w: Vec<P::Fr> = Vec::new();
+            let mut accum_prod = P::Fr::one();
+
+            w.push(accum_prod);
+
+            // Calculate the intermediate partial products
+            for d in state.iter() {
+                accum_prod = accum_prod * &d;
+                w.push(accum_prod);
+            }
+
+            if accum_prod == P::Fr::zero() {
                 // At least one of the S-Boxes is zero
+                // Calculate inverses individually
                 for d in state.iter_mut() {
                     // The S-BOX is an inversion function
                     if *d != P::Fr::zero() {
@@ -204,18 +225,20 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
                     }
                 }
             } else {
-                let mut w_bar = w.inverse().unwrap();
+                let mut w_bar = accum_prod.inverse().unwrap();
 
-                let z_2 = w_bar * &w2;
-                w_bar = w_bar * &state[2];
-                state[2] = z_2;
-                let z_1 = w_bar * &state[0];
-                state[0] = w_bar * &state[1];
-                state[1] = z_1;
+                // Extract the individual inversions
+                let mut idx: i64 = w.len() as i64 - P::R as i64;
+                for d in state.iter_mut().rev() {
+                    let tmp = d.clone();
+                    *d = w_bar * &w[idx as usize];
+                    w_bar = w_bar * &tmp;
+                    idx -= 1;
+                }
             }
 
-            // Apply matrix mix
-            matrix_mix_short::<F,P>(state);
+            // Perform the matrix mix
+            matrix_mix_short::<F, P>(state);
         }
 
         // Last full round does not perform the matrix_mix
@@ -227,10 +250,21 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
         }
 
         // Apply the S-BOX to each of the elements of the state vector
-        // Apply Montgomery's simultaneous inversion
-        let w2 = state[0] * &state[1];
-        let w = state[2] * &w2;
-        if w == P::Fr::zero() {
+        // Use Montgomery simultaneous inversion
+        let mut w: Vec<P::Fr> = Vec::new();
+        let mut accum_prod = P::Fr::one();
+
+        w.push(accum_prod);
+
+        // Calculate the intermediate partial products
+        for d in state.iter() {
+            accum_prod = accum_prod * &d;
+            w.push(accum_prod);
+        }
+
+        if accum_prod == P::Fr::zero() {
+            // At least one of the S-Boxes is zero
+            // Calculate inverses individually
             for d in state.iter_mut() {
                 // The S-BOX is an inversion function
                 if *d != P::Fr::zero() {
@@ -238,14 +272,16 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
                 }
             }
         } else {
-            let mut w_bar = w.inverse().unwrap();
+            let mut w_bar = accum_prod.inverse().unwrap();
 
-            let z_2 = w_bar * &w2;
-            w_bar = w_bar * &state[2];
-            state[2] = z_2;
-            let z_1 = w_bar * &state[0];
-            state[0] = w_bar * &state[1];
-            state[1] = z_1;
+            // Extract the individual inversions
+            let mut idx: i64 = w.len() as i64 - P::R as i64;
+            for d in state.iter_mut().rev() {
+                let tmp = d.clone();
+                *d = w_bar * &w[idx as usize];
+                w_bar = w_bar * &tmp;
+                idx -= 1;
+            }
         }
     }
 }
@@ -259,6 +295,8 @@ impl<F, P> FieldBasedHash for PoseidonHash<F, P>
     type Parameters = P;
 
     fn init(personalization: Option<&[Self::Data]>) -> Self {
+        assert_eq!(P::T - P::R, 1, "The assumption that the capacity is one field element is not satisfied.");
+
         let mut state = Vec::with_capacity(P::T);
         for i in 0..P::T {
             state.push(P::AFTER_ZERO_PERM[i]);
