@@ -91,7 +91,7 @@ mod test {
     };
 
     #[ignore]
-    #[test]
+    //#[test]
     fn generate_mnt4753_phantom_merkle_root(){
         let field_size_in_bytes = (Fr::size_in_bits() + (<Fr as PrimeField>::Params::REPR_SHAVE_BITS as usize))/8;
         let magic_string = b"This represents an empty Merkle Root for a MNT4753PoseidonHash based Merkle Tree.";
@@ -107,7 +107,7 @@ mod test {
     }
 
     #[ignore]
-    #[test]
+    //#[test]
     fn generate_binary_mnt4753_mht_nodes() {
         let mut empty_node = MNT4753_MHT_POSEIDON_PARAMETERS.nodes[0].clone();
         assert_eq!(empty_node, Fr::zero());

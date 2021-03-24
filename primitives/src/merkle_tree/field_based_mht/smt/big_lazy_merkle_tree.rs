@@ -770,7 +770,7 @@ mod test {
 
     const TEST_HEIGHT_1: usize = 5;
 
-    #[test]
+    //#[test]
     fn process_leaves_mnt4() {
 
         let mut leaves_to_process: Vec<OperationLeaf<MNT4753Fr>> = Vec::new();
@@ -813,7 +813,7 @@ mod test {
 
     }
 
-    #[test]
+    //#[test]
     fn process_leaves_mnt6() {
 
         let mut leaves_to_process: Vec<OperationLeaf<MNT6753Fr>> = Vec::new();
@@ -855,7 +855,7 @@ mod test {
         assert_eq!(tree.root(), smt.state.root, "Roots are not equal");
     }
 
-    #[test]
+    //#[test]
     fn test_persistency_lazy() {
         let root = MNT4753Fr::new(
             BigInteger768([
@@ -930,7 +930,7 @@ mod test {
         ).is_err());
     }
 
-    #[test]
+    //#[test]
     fn test_persistency_non_lazy() {
         let root = MNT4753Fr::new(
             BigInteger768([
@@ -1120,7 +1120,7 @@ mod test {
 
     const TEST_HEIGHT_2: usize = 23;
 
-    #[test]
+    //#[test]
     fn process_leaves_mnt4_comp() {
 
         let num_leaves = 2usize.pow(23);
@@ -1206,7 +1206,7 @@ mod test {
 
     }
 
-    #[test]
+    //#[test]
     fn process_leaves_mnt6_comp() {
 
         let num_leaves = 2usize.pow(23);

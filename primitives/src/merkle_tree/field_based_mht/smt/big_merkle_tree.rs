@@ -838,7 +838,7 @@ mod test {
 
     const TEST_HEIGHT: usize = 5;
 
-    #[test]
+    //#[test]
     fn compare_merkle_trees_mnt4_1() {
 
         let mut leaves_to_process: Vec<OperationLeaf<MNT4753Fr>> = Vec::new();
@@ -910,7 +910,7 @@ mod test {
         assert_eq!(tree.root(), smt.state.root, "Outputs of the Merkle trees for MNT4 do not match.");
     }
 
-    #[test]
+    //#[test]
     fn compare_merkle_trees_mnt4_3() {
 
         let mut leaves = Vec::new();
@@ -948,7 +948,7 @@ mod test {
         assert_eq!(tree.root(), smt.state.root, "Outputs of the Merkle trees for MNT4 do not match.");
     }
 
-    #[test]
+    //#[test]
     fn compare_merkle_trees_mnt6_1() {
 
         let mut leaves_to_process: Vec<OperationLeaf<MNT6753Fr>> = Vec::new();
@@ -1021,7 +1021,7 @@ mod test {
         assert_eq!(tree.root(), smt.state.root, "Outputs of the Merkle trees for MNT6 do not match.");
     }
 
-    #[test]
+    //#[test]
     fn compare_merkle_trees_mnt6_3() {
 
         let mut leaves = Vec::new();

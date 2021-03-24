@@ -256,8 +256,6 @@ impl<ConstraintF, P> FieldBasedHashGadget<PoseidonHash<ConstraintF, P>, Constrai
                 state[j].add_in_place(cs.ns(|| format!("add_input_{}_{}", i, j)), &input[input_idx])?;
                 input_idx += 1;
             }
-            // for application to a 2-1 Merkle tree, add the constant 3 to the third state vector
-            state[P::R].add_constant_in_place(cs.ns(|| format!("add_constant_C2_{}", i)), &P::C2)?;
             // apply permutation after adding the input vector
             Self::poseidon_perm(cs.ns(|| format!("poseidon_perm_{}", i)), &mut state)?;
         }
@@ -268,9 +266,6 @@ impl<ConstraintF, P> FieldBasedHashGadget<PoseidonHash<ConstraintF, P>, Constrai
                 state[j].add_in_place(cs.ns(|| format!("poseidon_padding_add_{}",j)), &input[input_idx])?;
                 input_idx += 1;
             }
-            // add the constant associated to the m-ary Merkle tree
-            // assumption capacity = 1
-            state[P::R].add_constant_in_place(cs.ns(|| "add_constant_C2_last_chunk"), &P::C2)?;
             // apply permutation after adding the input vector
             Self::poseidon_perm(cs.ns(|| "poseidon_padding_perm"), &mut state)?;
         }

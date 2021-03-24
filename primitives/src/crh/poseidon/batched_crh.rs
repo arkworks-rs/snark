@@ -212,8 +212,6 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr = F>> Bat
                 state[k][j] += &input_array[input_idx];
                 input_idx += 1;
             }
-            // constant for m-ary Merkle tree
-            state[k][P::R] += &P::C2;
         }
 
         // Calculate the chunk size to split the state vector
@@ -275,8 +273,6 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr = F>> Bat
                 state[k][j] += &input_array[input_idx];
                 input_idx += 1;
             }
-            // constant for m-ary Merkle tree
-            state[k][P::R] += &P::C2;
         }
 
         // Calculate the chunk size to split the state vector

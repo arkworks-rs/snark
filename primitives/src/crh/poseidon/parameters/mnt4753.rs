@@ -24,8 +24,6 @@ impl PoseidonParameters for MNT4753PoseidonParameters {
 
     // The zero element of the field
     const ZERO:MNT4753Fr = field_new!(MNT4753Fr, BigInteger768([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
-    // The constant 3 to add to the position corresponding to the capacity
-    const C2:MNT4753Fr = field_new!(MNT4753Fr, BigInteger768([3225562759756139974, 17011283570626227194, 16556209194167805035, 3339161890853831311, 82450953113211004, 16084037735897522728, 10818969177312366025, 910229637929377574, 13933676981085663844, 3381495860275820964, 13821581450244056255, 406642610579143]));
 
     // State vector after permutation of zero state vector
     const AFTER_ZERO_PERM: &'static[MNT4753Fr] = &[

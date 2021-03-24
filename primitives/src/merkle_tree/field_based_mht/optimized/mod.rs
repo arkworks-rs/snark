@@ -344,7 +344,7 @@ mod test {
     type MNT6PoseidonMHT = FieldBasedOptimizedMHT<MNT6753FieldBasedOptimizedMerkleTreeParams>;
     type MNT6MerklePath = FieldBasedMHTPath<MNT6753FieldBasedOptimizedMerkleTreeParams>;
 
-    #[test]
+    //#[test]
     fn merkle_tree_test_mnt4() {
         let expected_output = MNT4753Fr::new(BigInteger768([8181981188982771303, 9834648934716236448, 6420360685258842467, 14258691490360951478, 10642011566662929522, 16918207755479993617, 3581400602871836321, 14012664850056020974, 16755211538924649257, 4039951447678776727, 12365175056998155257, 119677729692145]));
         let height = 20;
@@ -358,7 +358,7 @@ mod test {
         assert_eq!(tree.root().unwrap(), expected_output, "Output of the Merkle tree computation for MNT4 does not match to the expected value.");
     }
 
-    #[test]
+    //#[test]
     fn merkle_tree_test_mnt6() {
         let expected_output = MNT6753Fr::new(BigInteger768([18065863015580309240, 1059485854425188866, 1479096878827665107, 6899132209183155323, 1829690180552438097, 7395327616910893705, 16132683753083562833, 8528890579558218842, 9345795575555751752, 8161305655297462527, 6222078223269068637, 401142754883827]));
         let height = 20;
@@ -372,7 +372,7 @@ mod test {
         assert_eq!(tree.root().unwrap(), expected_output, "Output of the Merkle tree computation for MNT6 does not match to the expected value.");
     }
 
-    #[test]
+    //#[test]
     fn merkle_tree_test_mnt4_empty_leaves() {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
         let max_height = 6;
@@ -426,7 +426,7 @@ mod test {
         }
     }
 
-    #[test]
+    //#[test]
     fn merkle_tree_test_mnt6_empty_leaves() {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
         let max_height = 6;
@@ -482,7 +482,7 @@ mod test {
         }
     }
 
-    #[test]
+    //#[test]
     fn merkle_tree_path_test_mnt4() {
 
         let height = 6;
@@ -574,7 +574,7 @@ mod test {
         }
     }
 
-    #[test]
+    //#[test]
     fn merkle_tree_path_test_mnt6() {
 
         let height = 6;

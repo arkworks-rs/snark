@@ -72,7 +72,7 @@ mod test {
     use super::MNT6753_MHT_POSEIDON_PARAMETERS;
 
     #[ignore]
-    #[test]
+    //#[test]
     fn generate_binary_mnt6753_mht_nodes() {
         let mut empty_node = MNT6753_MHT_POSEIDON_PARAMETERS.nodes[0].clone();
         assert_eq!(empty_node, MNT6753Fr::zero());
