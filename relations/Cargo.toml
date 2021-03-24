@@ -19,7 +19,7 @@ tracing = { version = "0.1", default-features = false }
 tracing-subscriber = { version = "0.2", default-features = false, optional = true }
 
 [dev-dependencies]
-ark-test-curves = { git = "https://github.com/arkworks-rs/algebra", default-features = false, features = [ "bls12_381_scalar_field" ] }
+ark-test-curves = { version = "0.2.0", default-features = false, features = [ "bls12_381_scalar_field" ] }
 
 [features]
 default = []
