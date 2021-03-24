@@ -1,19 +1,15 @@
 #![allow(unused_imports)]
-use crate::{
-    curves::{
-        bls12_377::{
-            g1::Bls12_377G1Parameters, Bls12_377, G1Affine, G1Projective, G2Affine, G2Projective,
-        },
-        models::SWModelParameters,
-        tests::curve_tests,
-        AffineCurve, PairingEngine, ProjectiveCurve,
+use crate::{curves::{
+    bls12_377::{
+        g1::Bls12_377G1Parameters, Bls12_377, G1Affine, G1Projective, G2Affine, G2Projective,
     },
-    fields::{
-        bls12_377::{Fq, Fq12, Fq2, Fr},
-        Field, FpParameters, PrimeField, SquareRootField,
-    },
-    groups::tests::group_test,
-};
+    models::SWModelParameters,
+    tests::curve_tests,
+    AffineCurve, PairingEngine, ProjectiveCurve,
+}, fields::{
+    bls12_377::{Fq, Fq12, Fq2, Fr},
+    Field, FpParameters, PrimeField, SquareRootField,
+}, groups::tests::group_test, SemanticallyValid};
 use std::ops::{AddAssign, MulAssign};
 
 #[test]
@@ -31,8 +27,7 @@ fn test_g1_projective_group() {
 #[test]
 fn test_g1_generator() {
     let generator = G1Affine::prime_subgroup_generator();
-    assert!(generator.is_on_curve());
-    assert!(generator.is_in_correct_subgroup_assuming_on_curve());
+    assert!(generator.is_valid());
 }
 
 #[test]
@@ -50,8 +45,7 @@ fn test_g2_projective_group() {
 #[test]
 fn test_g2_generator() {
     let generator = G2Affine::prime_subgroup_generator();
-    assert!(generator.is_on_curve());
-    assert!(generator.is_in_correct_subgroup_assuming_on_curve());
+    assert!(generator.is_valid());
 }
 
 //    #[test]

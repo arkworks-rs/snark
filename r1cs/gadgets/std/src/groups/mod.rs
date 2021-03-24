@@ -6,15 +6,11 @@ use std::{borrow::Borrow, fmt::Debug};
 
 pub mod curves;
 
-pub use self::curves::{
-    short_weierstrass::bls12,
-    twisted_edwards::{edwards_sw6, jubjub},
-};
+pub use self::curves::short_weierstrass::{bls12, bn, mnt};
 
 pub trait GroupGadget<G: Group, ConstraintF: Field>:
     Sized
     + ToBytesGadget<ConstraintF>
-    + NEqGadget<ConstraintF>
     + EqGadget<ConstraintF>
     + ToBitsGadget<ConstraintF>
     + CondSelectGadget<ConstraintF>
@@ -31,6 +27,8 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
     fn get_variable(&self) -> Self::Variable;
 
     fn zero<CS: ConstraintSystem<ConstraintF>>(cs: CS) -> Result<Self, SynthesisError>;
+
+    fn is_zero<CS: ConstraintSystem<ConstraintF>>(&self, cs: CS) -> Result<Boolean, SynthesisError>;
 
     fn add<CS: ConstraintSystem<ConstraintF>>(
         &self,
@@ -178,25 +176,29 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
 }
 
 #[cfg(test)]
-mod test {
-    use algebra::{Field, ProjectiveCurve, ToCompressedBits};
+pub(crate) mod test {
+    use algebra::{Field, UniformRand};
     use r1cs_core::ConstraintSystem;
 
-    use crate::{prelude::*, test_constraint_system::TestConstraintSystem, ToCompressedBitsGadget};
+    use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
     use algebra::groups::Group;
-    use rand;
-    use crate::groups::curves::short_weierstrass::short_weierstrass_projective::CompressAffinePointGadget;
+    use rand::thread_rng;
 
+    #[allow(dead_code)]
     pub(crate) fn group_test<
         ConstraintF: Field,
         G: Group,
         GG: GroupGadget<G, ConstraintF>,
-        CS: ConstraintSystem<ConstraintF>,
-    >(
-        cs: &mut CS,
-        a: GG,
-        b: GG,
-    ) {
+    >()
+    {
+        let mut cs = TestConstraintSystem::<ConstraintF>::new();
+
+        let a: G = UniformRand::rand(&mut thread_rng());
+        let b: G = UniformRand::rand(&mut thread_rng());
+
+        let a = GG::alloc(&mut cs.ns(|| "generate_a"), || Ok(a)).unwrap();
+        let b = GG::alloc(&mut cs.ns(|| "generate_b"), || Ok(b)).unwrap();
+
         let zero = GG::zero(cs.ns(|| "Zero")).unwrap();
         assert_eq!(zero, zero);
 
@@ -239,16 +241,21 @@ mod test {
             .unwrap();
     }
 
+    #[allow(dead_code)]
     pub(crate) fn group_test_with_unsafe_add<
         ConstraintF: Field,
         G: Group,
         GG: GroupGadget<G, ConstraintF>,
-        CS: ConstraintSystem<ConstraintF>,
-    >(
-        cs: &mut CS,
-        a: GG,
-        b: GG,
-    ) {
+    >()
+    {
+        let mut cs = TestConstraintSystem::<ConstraintF>::new();
+
+        let a: G = UniformRand::rand(&mut thread_rng());
+        let b: G = UniformRand::rand(&mut thread_rng());
+
+        let a = GG::alloc(&mut cs.ns(|| "generate_a"), || Ok(a)).unwrap();
+        let b = GG::alloc(&mut cs.ns(|| "generate_b"), || Ok(b)).unwrap();
+
         let zero = GG::zero(cs.ns(|| "Zero")).unwrap();
         assert_eq!(zero, zero);
 
@@ -290,82 +297,5 @@ mod test {
         let _ = b
             .to_bytes_strict(&mut cs.ns(|| "b ToBytes Strict"))
             .unwrap();
-    }
-
-    #[test]
-    fn jubjub_group_gadgets_test() {
-        use crate::groups::jubjub::JubJubGadget;
-        use algebra::{curves::jubjub::JubJubProjective, fields::jubjub::fq::Fq};
-
-        let mut cs = TestConstraintSystem::<Fq>::new();
-
-        let a: JubJubProjective = rand::random();
-        let b: JubJubProjective = rand::random();
-
-        let a = JubJubGadget::alloc(&mut cs.ns(|| "generate_a"), || Ok(a)).unwrap();
-        let b = JubJubGadget::alloc(&mut cs.ns(|| "generate_b"), || Ok(b)).unwrap();
-        group_test::<_, JubJubProjective, _, _>(&mut cs.ns(|| "GroupTest(a, b)"), a, b);
-    }
-
-    #[test]
-    fn mnt4_group_gadgets_test() {
-        use crate::groups::curves::short_weierstrass::mnt::mnt4::mnt4753::MNT4G1Gadget;
-        use algebra::{
-            curves::mnt4753::G1Projective as MNT4G1Projective,
-            fields::mnt4753::Fq,
-        };
-
-        let mut cs = TestConstraintSystem::<Fq>::new();
-
-        //Test G1
-        let a: MNT4G1Projective = rand::random();
-        let b: MNT4G1Projective = rand::random();
-
-        let a = MNT4G1Gadget::alloc(&mut cs.ns(|| "generate_a_g1"), || Ok(a)).unwrap();
-        let b = MNT4G1Gadget::alloc(&mut cs.ns(|| "generate_b_g1"), || Ok(b)).unwrap();
-        group_test_with_unsafe_add::<_, MNT4G1Projective, _, _>(&mut cs.ns(|| "GroupTest(a, b)_g1"), a, b);
-
-        let p1: MNT4G1Projective = rand::random();
-        let p1_compressed = p1.into_affine().compress();
-        let p1_gadget = MNT4G1Gadget::alloc(&mut cs.ns(|| "generate_p1"), || Ok(p1)).unwrap();
-        let p1_compression_gadget = CompressAffinePointGadget::<Fq>::new(p1_gadget.x, p1_gadget.y, p1_gadget.infinity);
-        let p1_compressed_by_gadget = p1_compression_gadget.to_compressed(cs.ns(|| "p1 compressed g1")).unwrap();
-        let mut p1_compressed_by_gadget_conv = vec![];
-        for b in p1_compressed_by_gadget {
-            p1_compressed_by_gadget_conv.push(b.get_value().unwrap());
-        }
-        assert_eq!(p1_compressed_by_gadget_conv, p1_compressed);
-
-    }
-
-    #[test]
-    fn mnt6_group_gadgets_test() {
-        use crate::groups::curves::short_weierstrass::mnt::mnt6::mnt6753::MNT6G1Gadget;
-        use algebra::{
-            curves::mnt6753::G1Projective as MNT6G1Projective,
-            fields::mnt6753::Fq,
-        };
-
-        let mut cs = TestConstraintSystem::<Fq>::new();
-
-        //Test G1
-        let a: MNT6G1Projective = rand::random();
-        let b: MNT6G1Projective = rand::random();
-
-        let a = MNT6G1Gadget::alloc(&mut cs.ns(|| "generate_a_g1"), || Ok(a)).unwrap();
-        let b = MNT6G1Gadget::alloc(&mut cs.ns(|| "generate_b_g1"), || Ok(b)).unwrap();
-        group_test_with_unsafe_add::<_, MNT6G1Projective, _, _>(&mut cs.ns(|| "GroupTest(a, b)_g1"), a, b);
-
-        let p1: MNT6G1Projective = rand::random();
-        let p1_compressed = p1.into_affine().compress();
-        let p1_gadget = MNT6G1Gadget::alloc(&mut cs.ns(|| "generate_p1"), || Ok(p1)).unwrap();
-        let p1_compression_gadget = CompressAffinePointGadget::<Fq>::new(p1_gadget.x, p1_gadget.y, p1_gadget.infinity);
-        let p1_compressed_by_gadget = p1_compression_gadget.to_compressed(cs.ns(|| "p1 compressed g1")).unwrap();
-        let mut p1_compressed_by_gadget_conv = vec![];
-        for b in p1_compressed_by_gadget {
-            p1_compressed_by_gadget_conv.push(b.get_value().unwrap());
-        }
-        assert_eq!(p1_compressed_by_gadget_conv, p1_compressed);
-
     }
 }

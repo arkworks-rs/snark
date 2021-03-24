@@ -1,4 +1,11 @@
-use crate::{BigInteger, BigInteger768, fields::tests::{field_test, frobenius_test, primefield_test, sqrt_field_test}, fields::mnt6753::{Fq, Fq3, Fq6, FqParameters, Fq3Parameters, Fq6Parameters}, fields::FpParameters, fields::models::{Fp3Parameters, Fp6Parameters}, Field, PrimeField, SquareRootField, UniformRand, bytes::ToBytes, to_bytes, ToBits};
+use crate::{
+    BigInteger, BigInteger768,
+    fields::tests::{field_test, frobenius_test, primefield_test, sqrt_field_test},
+    fields::mnt6753::{Fq, Fq3, Fq6, FqParameters, Fq3Parameters, Fq6Parameters},
+    fields::FpParameters, fields::models::{Fp3Parameters, Fp6Parameters},
+    Field, PrimeField, SquareRootField, UniformRand, bytes::ToBytes, to_bytes, ToBits,
+    SemanticallyValid,
+};
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 use std::{
@@ -2348,21 +2355,8 @@ fn test_fq3_mul_nonresidue() {
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     let nqr = Fq3::new(
-        Fq::new(BigInteger768([
-            0x4768931cfff9c7d4,
-            0xc45e46d6ada96ca0,
-            0x479b0bdb0b3c0107,
-            0x362a089610f8d41b,
-            0xdbafcec2c8a91aaf,
-            0x78428b0ff9d96a06,
-            0xf2e4472a9080c353,
-            0xc9006ed33f0e971c,
-            0x0794d9d10bdb7288,
-            0x3c1e44cab5419e2c,
-            0x49b5fc6c81f4560c,
-            0x1c287777c30ba,
-        ])),
         Fq::zero(),
+        Fq::one(),
         Fq::zero()
     );
 

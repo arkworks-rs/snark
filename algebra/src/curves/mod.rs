@@ -1,4 +1,4 @@
-use crate::{bytes::{FromBytes, ToBytes}, fields::{Field, PrimeField, SquareRootField}, groups::Group};
+use crate::{bytes::{FromBytes, ToBytes}, fields::{Field, PrimeField, SquareRootField}, groups::Group, SemanticallyValid, FromBytesChecked};
 use crate::UniformRand;
 use std::{
     fmt::{Debug, Display},
@@ -6,15 +6,36 @@ use std::{
     ops::{Add, AddAssign, Neg, Sub, SubAssign},
 };
 
-pub mod bls12_377;
-pub mod bls12_381;
-pub mod edwards_bls12;
-pub mod edwards_sw6;
-pub mod jubjub;
-pub mod mnt4753;
-pub mod mnt6753;
-pub mod mnt6;
 pub mod models;
+
+#[cfg(feature = "bls12_377")]
+pub mod bls12_377;
+
+#[cfg(feature = "bls12_381")]
+pub mod bls12_381;
+
+#[cfg(feature = "bn_382")]
+pub mod bn_382;
+
+#[cfg(feature = "edwards_bls12")]
+pub mod edwards_bls12;
+
+#[cfg(feature = "edwards_sw6")]
+pub mod edwards_sw6;
+
+#[cfg(feature = "jubjub")]
+pub mod jubjub;
+
+#[cfg(feature = "mnt4_753")]
+pub mod mnt4753;
+
+#[cfg(feature = "mnt6_753")]
+pub mod mnt6753;
+
+#[cfg(feature = "mnt6")]
+pub mod mnt6;
+
+#[cfg(feature = "sw6")]
 pub mod sw6;
 
 #[cfg(test)]
@@ -22,39 +43,37 @@ pub mod tests;
 
 pub use self::models::*;
 
-pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send {
+pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send + Eq + PartialEq {
     /// This is the scalar field of the G1/G2 groups.
     type Fr: PrimeField + SquareRootField + Into<<Self::Fr as PrimeField>::BigInt>;
 
     /// The projective representation of an element in G1.
-    type G1Projective: ProjectiveCurve<
-            BaseField = Self::Fq,
-            ScalarField = Self::Fr,
-            Affine = Self::G1Affine,
-        > + From<Self::G1Affine>;
+    type G1Projective: ProjectiveCurve<BaseField = Self::Fq, ScalarField = Self::Fr, Affine = Self::G1Affine>
+        + From<Self::G1Affine>
+        + Into<Self::G1Affine>;
 
     /// The affine representation of an element in G1.
-    type G1Affine: AffineCurve<
-            BaseField = Self::Fq,
-            ScalarField = Self::Fr,
-            Projective = Self::G1Projective,
-        > + PairingCurve<PairWith = Self::G2Affine, PairingResult = Self::Fqk>
-        + From<Self::G1Projective>;
+    type G1Affine: AffineCurve<BaseField = Self::Fq, ScalarField = Self::Fr, Projective = Self::G1Projective>
+        + From<Self::G1Projective>
+        + Into<Self::G1Projective>
+        + Into<Self::G1Prepared>;
+
+    /// A G1 element that has been preprocessed for use in a pairing.
+    type G1Prepared: ToBytes + FromBytes + Default + Clone + Send + Sync + Debug + From<Self::G1Affine>;
 
     /// The projective representation of an element in G2.
-    type G2Projective: ProjectiveCurve<
-            BaseField = Self::Fqe,
-            ScalarField = Self::Fr,
-            Affine = Self::G2Affine,
-        > + From<Self::G2Affine>;
+    type G2Projective: ProjectiveCurve<BaseField = Self::Fqe, ScalarField = Self::Fr, Affine = Self::G2Affine>
+        + From<Self::G2Affine>
+        + Into<Self::G2Affine>;
 
     /// The affine representation of an element in G2.
-    type G2Affine: AffineCurve<
-            BaseField = Self::Fqe,
-            ScalarField = Self::Fr,
-            Projective = Self::G2Projective,
-        > + PairingCurve<PairWith = Self::G1Affine, PairingResult = Self::Fqk>
-        + From<Self::G2Projective>;
+    type G2Affine: AffineCurve<BaseField = Self::Fqe, ScalarField = Self::Fr, Projective = Self::G2Projective>
+        + From<Self::G2Projective>
+        + Into<Self::G2Projective>
+        + Into<Self::G2Prepared>;
+
+    /// A G2 element that has been preprocessed for use in a pairing.
+    type G2Prepared: ToBytes + FromBytes + Default + Eq + PartialEq + Clone + Send + Sync + Debug + From<Self::G2Affine>;
 
     /// The base field that hosts G1.
     type Fq: PrimeField + SquareRootField;
@@ -68,13 +87,8 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send {
     /// Perform a miller loop with some number of (G1, G2) pairs.
     #[must_use]
     fn miller_loop<'a, I>(i: I) -> Self::Fqk
-    where
-        I: IntoIterator<
-            Item = &'a (
-                &'a <Self::G1Affine as PairingCurve>::Prepared,
-                &'a <Self::G2Affine as PairingCurve>::Prepared,
-            ),
-        >;
+        where
+            I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>;
 
     /// Perform final exponentiation of the result of a miller loop.
     #[must_use]
@@ -83,13 +97,8 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send {
     /// Computes a product of pairings.
     #[must_use]
     fn product_of_pairings<'a, I>(i: I) -> Self::Fqk
-    where
-        I: IntoIterator<
-            Item = &'a (
-                &'a <Self::G1Affine as PairingCurve>::Prepared,
-                &'a <Self::G2Affine as PairingCurve>::Prepared,
-            ),
-        >,
+        where
+            I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>,
     {
         Self::final_exponentiation(&Self::miller_loop(i)).unwrap()
     }
@@ -97,14 +106,13 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send {
     /// Performs multiple pairing operations
     #[must_use]
     fn pairing<G1, G2>(p: G1, q: G2) -> Self::Fqk
-    where
-        G1: Into<Self::G1Affine>,
-        G2: Into<Self::G2Affine>,
+        where
+            G1: Into<Self::G1Affine>,
+            G2: Into<Self::G2Affine>,
     {
-        Self::final_exponentiation(&Self::miller_loop(
-            [(&(p.into().prepare()), &(q.into().prepare()))].iter(),
-        ))
-        .unwrap()
+        let g1_prep = Self::G1Prepared::from(p.into());
+        let g2_prep = Self::G2Prepared::from(q.into());
+        Self::product_of_pairings(std::iter::once(&(g1_prep, g2_prep)))
     }
 }
 
@@ -115,6 +123,8 @@ pub trait ProjectiveCurve:
     + Sized
     + ToBytes
     + FromBytes
+    + SemanticallyValid
+    + FromBytesChecked
     + Copy
     + Clone
     + Default
@@ -200,6 +210,8 @@ pub trait AffineCurve:
     + Sized
     + ToBytes
     + FromBytes
+    + SemanticallyValid
+    + FromBytesChecked
     + Copy
     + Clone
     + Default
@@ -233,6 +245,10 @@ pub trait AffineCurve:
     #[must_use]
     fn group_membership_test(&self) -> bool;
 
+    /// Adds, for each vector in 'to_add', its elements together
+    /// using Affine point arithmetic
+    fn add_points(to_add: &mut [Vec<Self>]);
+
     /// Performs scalar multiplication of this element with mixed addition.
     #[must_use]
     fn mul<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(&self, other: S)
@@ -250,21 +266,6 @@ pub trait AffineCurve:
     /// `Self::ScalarField`.
     #[must_use]
     fn mul_by_cofactor_inv(&self) -> Self;
-}
-
-pub trait PairingCurve: AffineCurve {
-    type Engine: PairingEngine<Fr = Self::ScalarField>;
-    type Prepared: ToBytes + FromBytes + Default + Clone + Eq + PartialEq + Send + Sync + Debug + 'static;
-    type PairWith: PairingCurve<PairWith = Self>;
-    type PairingResult: Field;
-
-    /// Prepares this element for pairing purposes.
-    #[must_use]
-    fn prepare(&self) -> Self::Prepared;
-
-    /// Perform a pairing
-    #[must_use]
-    fn pairing_with(&self, other: &Self::PairWith) -> Self::PairingResult;
 }
 
 impl<C: ProjectiveCurve> Group for C {
@@ -291,4 +292,16 @@ impl<C: ProjectiveCurve> Group for C {
     fn double_in_place(&mut self) -> &mut Self {
         <C as ProjectiveCurve>::double_in_place(self)
     }
+}
+
+/// Preprocess a G1 element for use in a pairing.
+pub fn prepare_g1<E: PairingEngine>(g: impl Into<E::G1Affine>) -> E::G1Prepared {
+    let g: E::G1Affine = g.into();
+    E::G1Prepared::from(g)
+}
+
+/// Preprocess a G2 element for use in a pairing.
+pub fn prepare_g2<E: PairingEngine>(g: impl Into<E::G2Affine>) -> E::G2Prepared {
+    let g: E::G2Affine = g.into();
+    E::G2Prepared::from(g)
 }

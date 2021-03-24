@@ -6,7 +6,9 @@ use crate::{
         twisted_edwards_extended::{GroupAffine as TEAffine, GroupProjective as TEProjective},
         ProjectiveCurve,
     },
-    Fp2, Fp2Parameters, FpParameters, Field, PrimeField,
+    QuadExtField, QuadExtParameters,
+    CubicExtField, CubicExtParameters,
+    FpParameters, Field, PrimeField,
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -39,15 +41,37 @@ impl<ConstraintF: Field> ToConstraintField<ConstraintF> for () {
     }
 }
 
-// Impl for Fp2<ConstraintF>
-impl<P: Fp2Parameters> ToConstraintField<P::Fp> for Fp2<P>
+impl<P: QuadExtParameters> ToConstraintField<P::BasePrimeField> for QuadExtField<P>
+    where
+        P::BaseField: ToConstraintField<P::BasePrimeField>,
 {
-    #[inline]
-    fn to_field_elements(&self) -> Result<Vec<P::Fp>, Error> {
-        let mut c0 = self.c0.to_field_elements()?;
-        let c1 = self.c1.to_field_elements()?;
-        c0.extend_from_slice(&c1);
-        Ok(c0)
+    fn to_field_elements(&self) -> Result<Vec<P::BasePrimeField>, Error> {
+        let mut res = Vec::new();
+        let mut c0_elems = self.c0.to_field_elements()?;
+        let mut c1_elems = self.c1.to_field_elements()?;
+
+        res.append(&mut c0_elems);
+        res.append(&mut c1_elems);
+
+        Ok(res)
+    }
+}
+
+impl<P: CubicExtParameters> ToConstraintField<P::BasePrimeField> for CubicExtField<P>
+    where
+        P::BaseField: ToConstraintField<P::BasePrimeField>,
+{
+    fn to_field_elements(&self) -> Result<Vec<P::BasePrimeField>, Error> {
+        let mut res = Vec::new();
+        let mut c0_elems = self.c0.to_field_elements()?;
+        let mut c1_elems = self.c1.to_field_elements()?;
+        let mut c2_elems = self.c2.to_field_elements()?;
+
+        res.append(&mut c0_elems);
+        res.append(&mut c1_elems);
+        res.append(&mut c2_elems);
+
+        Ok(res)
     }
 }
 
@@ -111,6 +135,8 @@ impl<M: SWModelParameters, ConstraintF: Field> ToConstraintField<ConstraintF> fo
 {
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
+        // Affine coordinates are defined even if `self` is the neutral elements. For more
+        // information, see the definition of zero() in SWPAffine.
         let mut x_fe = self.x.to_field_elements()?;
         let y_fe = self.y.to_field_elements()?;
         x_fe.extend_from_slice(&y_fe);
@@ -124,7 +150,7 @@ impl<M: SWModelParameters, ConstraintF: Field> ToConstraintField<ConstraintF> fo
 {
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
-        let affine = self.into_affine();
+        let affine = self.into_affine(); // Affine coordinates are defined even if `self` is the neutral elements
         let mut x_fe = affine.x.to_field_elements()?;
         let y_fe = affine.y.to_field_elements()?;
         x_fe.extend_from_slice(&y_fe);
@@ -137,12 +163,16 @@ impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for [u8] {
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
         let max_size = <ConstraintF as PrimeField>::Params::CAPACITY / 8;
         let max_size = max_size as usize;
+        let bigint_size = (
+            <ConstraintF as PrimeField>::Params::MODULUS_BITS +
+            <ConstraintF as PrimeField>::Params::REPR_SHAVE_BITS
+        )/8;
         let fes = self
             .chunks(max_size)
             .map(|chunk| {
                 let mut chunk = chunk.to_vec();
                 let len = chunk.len();
-                for _ in len..(max_size + 1) {
+                for _ in len..(bigint_size as usize) {
                     chunk.push(0u8);
                 }
                 ConstraintF::read(chunk.as_slice())
@@ -155,17 +185,11 @@ impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for [u8] {
 impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for [bool] {
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
-        let max_size = <ConstraintF as PrimeField>::Params::CAPACITY;
-        let max_size = max_size as usize;
+        let max_size = <ConstraintF as PrimeField>::Params::CAPACITY as usize;
         let fes = self
             .chunks(max_size)
             .map(|chunk| {
-                let mut chunk = chunk.to_vec();
-                let len = chunk.len();
-                for _ in len..(max_size + 1) {
-                    chunk.push(false);
-                }
-                ConstraintF::read_bits(chunk)
+                ConstraintF::read_bits(chunk.to_vec())
             })
             .collect::<Result<Vec<_>, _>>()?;
         Ok(fes)

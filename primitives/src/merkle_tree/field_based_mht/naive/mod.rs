@@ -182,7 +182,7 @@ pub(crate) fn hash_empty<H: FieldBasedHash>() -> Result<H::Data, Error> {
 #[cfg(test)]
 mod test {
     use crate::{crh::{
-        MNT4PoseidonHash, batched_crh::MNT4BatchPoseidonHash,
+        MNT4PoseidonHash, MNT4BatchPoseidonHash,
     }, merkle_tree::field_based_mht::*, FieldBasedHash};
     use algebra::{
         fields::mnt4753::Fr as MNT4753Fr, Field,

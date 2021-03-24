@@ -1,7 +1,4 @@
-use crate::{
-    curves::{edwards_bls12::*, tests::curve_tests, AffineCurve, ProjectiveCurve, models::twisted_edwards_extended::tests::montgomery_conversion_test},
-    groups::tests::group_test,
-};
+use crate::{curves::{edwards_bls12::*, tests::curve_tests, AffineCurve, ProjectiveCurve, models::twisted_edwards_extended::tests::montgomery_conversion_test}, groups::tests::group_test, SemanticallyValid};
 use rand;
 
 #[test]
@@ -30,8 +27,7 @@ fn test_affine_group() {
 #[test]
 fn test_generator() {
     let generator = EdwardsAffine::prime_subgroup_generator();
-    assert!(generator.is_on_curve());
-    assert!(generator.is_in_correct_subgroup_assuming_on_curve());
+    assert!(generator.is_valid());
 }
 
 #[test]

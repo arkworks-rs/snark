@@ -84,24 +84,37 @@ impl UInt8 {
         let field_elements: Vec<ConstraintF> =
             ToConstraintField::<ConstraintF>::to_field_elements(values).unwrap();
 
-        let max_size = 8 * (ConstraintF::Params::CAPACITY / 8) as usize;
+        let max_size = (<ConstraintF as PrimeField>::Params::CAPACITY / 8) as usize;
+
         let mut allocated_bits = Vec::new();
-        for (i, field_element) in field_elements.into_iter().enumerate() {
-            let fe = FpGadget::alloc_input(&mut cs.ns(|| format!("Field element {}", i)), || {
-                Ok(field_element)
-            })?;
-            let mut fe_bits = fe.to_bits(cs.ns(|| format!("Convert fe to bits {}", i)))?;
+        for (i, (field_element, byte_chunk)) in field_elements
+            .into_iter()
+            .zip(values.chunks(max_size))
+            .enumerate()
+        {
+            let fe = FpGadget::alloc_input(
+                &mut cs.ns(|| format!("Field element {}", i)),
+                || { Ok(field_element) }
+            )?;
+
+            // Let's use the length-restricted variant of the ToBitsGadget to remove the
+            // padding: the padding bits are not constrained to be zero, so any field element
+            // passed as input (as long as it has the last bits set to the proper value) can
+            // satisfy the constraints. This kind of freedom might not be desiderable in
+            // recursive SNARK circuits, where the public inputs of the inner circuit are
+            // usually involved in other kind of constraints inside the wrap circuit.
+            let to_skip: usize = <ConstraintF as PrimeField>::Params::MODULUS_BITS as usize - (byte_chunk.len() * 8);
+            let mut fe_bits = fe.to_bits_with_length_restriction(
+                cs.ns(|| format!("Convert fe to bits {}", i)),
+                to_skip
+            )?;
+
             // FpGadget::to_bits outputs a big-endian binary representation of
             // fe_gadget's value, so we have to reverse it to get the little-endian
             // form.
             fe_bits.reverse();
 
-            // Remove the most significant bit, because we know it should be zero
-            // because `values.to_field_elements()` only
-            // packs field elements up to the penultimate bit.
-            // That is, the most significant bit (`ConstraintF::NUM_BITS`-th bit) is
-            // unset, so we can just pop it off.
-            allocated_bits.extend_from_slice(&fe_bits[0..max_size]);
+            allocated_bits.extend_from_slice(fe_bits.as_slice());
         }
 
         // Chunk up slices of 8 bit into bytes.
@@ -214,29 +227,30 @@ impl PartialEq for UInt8 {
 
 impl Eq for UInt8 {}
 
-impl<ConstraintF: Field> ConditionalEqGadget<ConstraintF> for UInt8 {
+impl<ConstraintF: Field> EqGadget<ConstraintF> for UInt8 {
+    fn is_eq<CS: ConstraintSystem<ConstraintF>>(&self, cs: CS, other: &Self) -> Result<Boolean, SynthesisError> {
+        self.bits.as_slice().is_eq(cs, &other.bits)
+    }
+
     fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
-        mut cs: CS,
+        cs: CS,
         other: &Self,
         condition: &Boolean,
     ) -> Result<(), SynthesisError> {
-        for (i, (a, b)) in self.bits.iter().zip(&other.bits).enumerate() {
-            a.conditional_enforce_equal(
-                &mut cs.ns(|| format!("UInt8 equality check for {}-th bit", i)),
-                b,
-                condition,
-            )?;
-        }
-        Ok(())
+        self.bits.conditional_enforce_equal(cs, &other.bits, condition)
     }
 
-    fn cost() -> usize {
-        8 * <Boolean as ConditionalEqGadget<ConstraintF>>::cost()
+    fn conditional_enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+        other: &Self,
+        condition: &Boolean,
+    ) -> Result<(), SynthesisError> {
+        self.bits
+            .conditional_enforce_not_equal(cs, &other.bits, condition)
     }
 }
-
-impl<ConstraintF: Field> EqGadget<ConstraintF> for UInt8 {}
 
 impl<ConstraintF: Field> AllocGadget<u8, ConstraintF> for UInt8 {
     fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
@@ -325,7 +339,7 @@ mod test {
     use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
     use algebra::fields::bls12_381::Fr;
     use r1cs_core::ConstraintSystem;
-    use rand::{Rng, SeedableRng};
+    use rand::{Rng, SeedableRng, RngCore};
     use rand_xorshift::XorShiftRng;
 
     #[test]
@@ -341,14 +355,56 @@ mod test {
 
     #[test]
     fn test_uint8_alloc_input_vec() {
+        use algebra::{to_bytes, ToBytes, Field, PrimeField, FpParameters, UniformRand};
+        use rand::thread_rng;
+
         let mut cs = TestConstraintSystem::<Fr>::new();
-        let byte_vals = (64u8..128u8).into_iter().collect::<Vec<_>>();
-        let bytes = UInt8::alloc_input_vec(cs.ns(|| "alloc value"), &byte_vals).unwrap();
-        for (native_byte, gadget_byte) in byte_vals.into_iter().zip(bytes) {
-            let bits = gadget_byte.into_bits_le();
-            for (i, bit) in bits.iter().enumerate() {
-                assert_eq!(bit.get_value().unwrap(), (native_byte >> i) & 1 == 1)
+        let rng = &mut thread_rng();
+
+        //Random test
+        let samples = 100;
+        for i in 0..samples {
+
+            // Test with random field
+            let byte_vals = to_bytes!(Fr::rand(rng)).unwrap();
+            let bytes = UInt8::alloc_input_vec(cs.ns(|| format!("alloc value {}", i)), &byte_vals).unwrap();
+            assert_eq!(byte_vals.len(), bytes.len());
+            for (native_byte, gadget_byte) in byte_vals.into_iter().zip(bytes) {
+                assert_eq!(gadget_byte.get_value().unwrap(), native_byte);
             }
+
+            // Test with random bytes
+            let mut byte_vals = vec![0u8; rng.gen_range(1, 200)];
+            rng.fill_bytes(byte_vals.as_mut_slice());
+            let bytes = UInt8::alloc_input_vec(cs.ns(|| format!("alloc random {}", i)), &byte_vals).unwrap();
+            assert_eq!(byte_vals.len(), bytes.len());
+            for (native_byte, gadget_byte) in byte_vals.into_iter().zip(bytes) {
+                assert_eq!(gadget_byte.get_value().unwrap(), native_byte);
+            }
+        }
+
+        //Test one
+        let byte_vals = to_bytes!(Fr::one()).unwrap();
+        let bytes = UInt8::alloc_input_vec(cs.ns(|| "alloc one bytes"), &byte_vals).unwrap();
+        assert_eq!(byte_vals.len(), bytes.len());
+        for (native_byte, gadget_byte) in byte_vals.into_iter().zip(bytes) {
+            assert_eq!(gadget_byte.get_value().unwrap(), native_byte);
+        }
+
+        //Test zero
+        let byte_vals = to_bytes!(Fr::zero()).unwrap();
+        let bytes = UInt8::alloc_input_vec(cs.ns(|| "alloc zero bytes"), &byte_vals).unwrap();
+        assert_eq!(byte_vals.len(), bytes.len());
+        for (native_byte, gadget_byte) in byte_vals.into_iter().zip(bytes) {
+            assert_eq!(gadget_byte.get_value().unwrap(), native_byte);
+        }
+
+        //Test over the modulus byte vec
+        let byte_vals = vec![std::u8::MAX; ((<Fr as PrimeField>::Params::MODULUS_BITS + <Fr as PrimeField>::Params::REPR_SHAVE_BITS)/8) as usize];
+        let bytes = UInt8::alloc_input_vec(cs.ns(|| "alloc all 1s byte vec"), &byte_vals).unwrap();
+        assert_eq!(byte_vals.len(), bytes.len());
+        for (native_byte, gadget_byte) in byte_vals.into_iter().zip(bytes) {
+            assert_eq!(gadget_byte.get_value().unwrap(), native_byte);
         }
     }
 

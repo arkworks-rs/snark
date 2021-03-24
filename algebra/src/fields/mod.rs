@@ -1,4 +1,4 @@
-use crate::{biginteger::BigInteger, bytes::{FromBytes, ToBytes}, UniformRand, bits::{ToBits, FromBits}, Error, BitSerializationError};
+use crate::{biginteger::BigInteger, bytes::{FromBytes, ToBytes}, UniformRand, bits::{ToBits, FromBits}, Error, BitSerializationError, SemanticallyValid, FromBytesChecked};
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
@@ -9,19 +9,43 @@ use std::{
 #[macro_use]
 mod macros;
 
+#[cfg(feature = "bls12_377")]
 pub mod bls12_377;
+
+#[cfg(feature = "bls12_381")]
 pub mod bls12_381;
+
+#[cfg(feature = "bn_382")]
+pub mod bn_382;
+
+#[cfg(feature = "edwards_bls12")]
 pub mod edwards_bls12;
+
+#[cfg(feature = "edwards_sw6")]
 pub mod edwards_sw6;
+
+#[cfg(feature = "jubjub")]
 pub mod jubjub;
+
+#[cfg(feature = "mnt4_753")]
 pub mod mnt4753;
+
+#[cfg(feature = "mnt6_753")]
 pub mod mnt6753;
+
+#[cfg(feature = "mnt6")]
 pub mod mnt6;
-pub mod models;
+
+#[cfg(feature = "sw6")]
 pub mod sw6;
+
 #[cfg(test)]
 pub mod tests;
 
+#[macro_use]
+pub mod arithmetic;
+
+pub mod models;
 pub use self::models::*;
 
 #[macro_export]
@@ -49,17 +73,27 @@ macro_rules! field_new {
     };
 }
 
-pub trait MulShort where Self: Sized {
+pub trait MulShort<Rhs = Self> {
 
-    fn mul_short(self, other: &Self) -> Self;
+    type Output;
+
+    #[must_use]
+    fn mul_short(self, rhs: Rhs) -> Self::Output;
+}
+
+pub trait MulShortAssign<Rhs = Self> {
+
+    fn mul_short_assign(&mut self, rhs: Rhs);
 }
 
 /// The interface for a generic field.
 pub trait Field:
     ToBytes
     + FromBytes
+    + FromBytesChecked
     + ToBits
     + FromBits
+    + SemanticallyValid
     + Copy
     + Clone
     + Debug
@@ -88,6 +122,8 @@ pub trait Field:
     + for<'a> MulAssign<&'a Self>
     + for<'a> DivAssign<&'a Self>
 {
+    type BasePrimeField: PrimeField;
+
     /// Returns the zero element of the field, the additive identity.
     fn zero() -> Self;
 
@@ -104,7 +140,9 @@ pub trait Field:
     fn is_odd(&self) -> bool;
 
     /// Returns the characteristic of the field.
-    fn characteristic<'a>() -> &'a [u64];
+    fn characteristic<'a>() -> &'a [u64] {
+        Self::BasePrimeField::characteristic()
+    }
 
     /// Returns `self + self`.
     #[must_use]
@@ -157,6 +195,12 @@ pub trait Field:
     }
 }
 
+use std::io::{ Read, Result as IoResult };
+impl<F: Field> FromBytesChecked for F {
+    fn read_checked<R: Read>(reader: R) -> IoResult<Self>
+    { Self::read(reader) }
+}
+
 /// A trait that defines parameters for a prime field.
 pub trait FpParameters: 'static + Send + Sync + Sized {
     type BigInt: BigInteger;
@@ -205,10 +249,19 @@ pub trait FpParameters: 'static + Send + Sync + Sized {
 
     /// (Self::MODULUS - 1) / 2
     const MODULUS_MINUS_ONE_DIV_TWO: Self::BigInt;
+
+    const SMALL_SUBGROUP_DEFINED: bool = false;
+
+    const SMALL_SUBGROUP_BASE: Option<u64> = None;
+
+    const SMALL_SUBGROUP_POWER: Option<u64> = None;
+
+    // generator^((modulus-1) / (2^s * small_subgroup_base^small_subgroup_power))
+    const FULL_ROOT_OF_UNITY: Option<Self::BigInt> = None;
 }
 
 /// The interface for a prime field.
-pub trait PrimeField: Field + FromStr {
+pub trait PrimeField: Field<BasePrimeField = Self> + FromStr {
     type Params: FpParameters<BigInt = Self::BigInt>;
     type BigInt: BigInteger;
 
@@ -233,6 +286,9 @@ pub trait PrimeField: Field + FromStr {
 
     /// Returns the 2^s root of unity.
     fn root_of_unity() -> Self;
+
+    ///Returns the full root of unity
+    fn full_root_of_unity() -> Self;
 
     /// Return the a QNR^T
     fn qnr_to_t() -> Self {
@@ -289,9 +345,10 @@ impl<F: PrimeField> FromBits for F {
     #[inline]
     fn read_bits(bits: Vec<bool>) -> Result<Self, Error> {
         let modulus_bits = <Self as PrimeField>::Params::MODULUS_BITS as usize;
+        println!("Bits len: {}", bits.len());
 
         //NOTE: We allow bits having enough leading bits to zero s.t. the length will be <= F::MODULUS_BITS
-        let leading_zeros = leading_zeros(bits.clone()) as usize;
+        let leading_zeros = leading_zeros(bits.as_slice()) as usize;
         let bits = &bits.as_slice()[leading_zeros..];
         match bits.len() <=  modulus_bits {
             true => {
@@ -323,9 +380,9 @@ pub fn convert<ToF: PrimeField>(from: Vec<bool>) -> Result<ToF, Error> {
 }
 
 #[inline]
-pub fn leading_zeros(bits: Vec<bool>) -> u32 {
+pub fn leading_zeros(bits: &[bool]) -> u32 {
     let mut ctr = 0;
-    for b in bits.iter() {
+    for &b in bits.iter() {
         if !b {
             ctr += 1;
         } else {
@@ -403,11 +460,11 @@ use crate::biginteger::{
     BigInteger256, BigInteger320, BigInteger384, BigInteger768, BigInteger832,
 };
 
-impl_field_into_bigint!(Fp256, BigInteger256, Fp256Parameters);
-impl_field_into_bigint!(Fp320, BigInteger320, Fp320Parameters);
-impl_field_into_bigint!(Fp384, BigInteger384, Fp384Parameters);
-impl_field_into_bigint!(Fp768, BigInteger768, Fp768Parameters);
-impl_field_into_bigint!(Fp832, BigInteger832, Fp832Parameters);
+impl_field_bigint_conv!(Fp256, BigInteger256, Fp256Parameters);
+impl_field_bigint_conv!(Fp320, BigInteger320, Fp320Parameters);
+impl_field_bigint_conv!(Fp384, BigInteger384, Fp384Parameters);
+impl_field_bigint_conv!(Fp768, BigInteger768, Fp768Parameters);
+impl_field_bigint_conv!(Fp832, BigInteger832, Fp832Parameters);
 
 pub fn batch_inversion<F: Field>(v: &mut [F]) {
     // Montgomery’s Trick and Fast Implementation of Masked AES

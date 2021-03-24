@@ -1,9 +1,9 @@
 use rand::{Rng, distributions::{Standard, Distribution}};
 use crate::curves::models::SWModelParameters as Parameters;
-use crate::UniformRand;
+use crate::{UniformRand, SemanticallyValid, FromBytesChecked};
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
-    io::{Read, Result as IoResult, Write},
+    io::{Read, Result as IoResult, Write, Error as IoError, ErrorKind},
     marker::PhantomData,
 };
 
@@ -29,6 +29,18 @@ pub struct GroupAffine<P: Parameters> {
     pub infinity: bool,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
+}
+
+impl<P: Parameters> PartialEq<GroupProjective<P>> for GroupAffine<P> {
+    fn eq(&self, other: &GroupProjective<P>) -> bool {
+        self.into_projective() == *other
+    }
+}
+
+impl<P: Parameters> PartialEq<GroupAffine<P>> for GroupProjective<P> {
+    fn eq(&self, other: &GroupAffine<P>) -> bool {
+        *self == other.into_projective()
+    }
 }
 
 impl<P: Parameters> Display for GroupAffine<P> {
@@ -147,6 +159,85 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
         self.is_on_curve() && self.is_in_correct_subgroup_assuming_on_curve()
     }
 
+    fn add_points(to_add: &mut [Vec<Self>]) {
+        let zero = P::BaseField::zero();
+        let one = P::BaseField::one();
+        let length = to_add.iter().map(|l| l.len()).fold(0, |x, y| x + y);
+        let mut denoms = vec![zero; length / 2];
+
+        while to_add.iter().position(|x| x.len() > 1) != None {
+            let mut dx: usize = 0;
+            for p in to_add.iter_mut(){
+                if p.len() < 2 { continue }
+                let len = if p.len() % 2 == 0 { p.len() } else { p.len() - 1 };
+                for i in (0..len).step_by(2){
+                    denoms[dx] = {
+                        if p[i].x == p[i + 1].x {
+                            if p[i + 1].y == zero { one } else { p[i + 1].y.double() }
+                        } else {
+                            p[i].x - &p[i + 1].x
+                        }
+                    };
+                    dx += 1;
+                }
+            }
+
+            denoms.truncate(dx);
+            crate::fields::batch_inversion(&mut denoms);
+            dx = 0;
+
+            for p in to_add.iter_mut() {
+                if p.len() < 2 { continue }
+                let len = if p.len() % 2 == 0 { p.len() } else { p.len() - 1 };
+
+                for i in (0..len).step_by(2) {
+                    let j = i/2;
+                    if p[i+1].is_zero()
+                    {
+                        p[j] = p[i];
+                    }
+                    else if p[i].is_zero()
+                    {
+                        p[j] = p[i+1];
+                    }
+                    else if p[i+1].x == p[i].x && (p[i+1].y != p[i].y || p[i+1].y.is_zero())
+                    {
+                        p[j] = Self::zero();
+                    }
+                    else if p[i+1].x == p[i].x && p[i+1].y == p[i].y
+                    {
+                        let sq = p[i].x.square();
+                        let s = (sq.double() + &sq + &P::COEFF_A) * &denoms[dx];
+                        let x = s.square() - &p[i].x.double();
+                        let y = -p[i].y - &(s * &(x - &p[i].x));
+                        p[j].x = x;
+                        p[j].y = y;
+                    }
+                    else
+                    {
+                        let s = (p[i].y - &p[i+1].y) * &denoms[dx];
+                        let x = s.square() - &p[i].x - &p[i+1].x;
+                        let y = -p[i].y - &(s * &(x - &p[i].x));
+                        p[j].x = x;
+                        p[j].y = y;
+                    }
+                    dx += 1;
+                }
+
+                let len = p.len();
+                if len % 2 == 1
+                {
+                    p[len/2] = p[len-1];
+                    p.truncate(len/2+1);
+                }
+                else
+                {
+                    p.truncate(len/2);
+                }
+            }
+        }
+    }
+
     #[inline]
     fn mul<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(&self, by: S) -> GroupProjective<P> {
         let bits = BitIterator::new(by.into());
@@ -164,6 +255,15 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
 
     fn mul_by_cofactor_inv(&self) -> Self {
         self.mul(P::COFACTOR_INV).into()
+    }
+}
+
+impl<P: Parameters> SemanticallyValid for GroupAffine<P>
+{
+    fn is_valid(&self) -> bool {
+        self.x.is_valid() &&
+        self.y.is_valid() &&
+        self.group_membership_test()
     }
 }
 
@@ -195,7 +295,22 @@ impl<P: Parameters> FromBytes for GroupAffine<P> {
         let x = P::BaseField::read(&mut reader)?;
         let y = P::BaseField::read(&mut reader)?;
         let infinity = bool::read(reader)?;
+
         Ok(Self::new(x, y, infinity))
+    }
+}
+
+impl<P: Parameters> FromBytesChecked for GroupAffine<P> {
+    #[inline]
+    fn read_checked<R: Read>(mut reader: R) -> IoResult<Self> {
+        let x = P::BaseField::read_checked(&mut reader)?;
+        let y = P::BaseField::read_checked(&mut reader)?;
+        let infinity = bool::read(reader)?;
+        let point = Self::new(x, y, infinity);
+        if !point.group_membership_test() {
+            return Err(IoError::new(ErrorKind::InvalidData, "invalid point: group membership test failed"));
+        }
+        Ok(point)
     }
 }
 
@@ -218,6 +333,7 @@ pub struct GroupProjective<P: Parameters> {
     pub x:   P::BaseField,
     pub y:   P::BaseField,
     pub z:   P::BaseField,
+    #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
 }
 
@@ -280,6 +396,19 @@ impl<P: Parameters> FromBytes for GroupProjective<P> {
         let y = P::BaseField::read(&mut reader)?;
         let z = P::BaseField::read(reader)?;
         Ok(Self::new(x, y, z))
+    }
+}
+
+impl<P: Parameters> FromBytesChecked for GroupProjective<P> {
+    fn read_checked<R: Read>(mut reader: R) -> IoResult<Self> {
+        let x = P::BaseField::read_checked(&mut reader)?;
+        let y = P::BaseField::read_checked(&mut reader)?;
+        let z = P::BaseField::read_checked(reader)?;
+        let point = Self::new(x, y, z);
+        if !point.group_membership_test() {
+            return Err(IoError::new(ErrorKind::InvalidData, "invalid point: group membership test failed"));
+    }
+        Ok(point)
     }
 }
 
@@ -540,7 +669,7 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
             if found_one {
                 res.double_in_place();
             } else {
-                found_one = i;
+                found_one |= i;
             }
 
             if i {
@@ -569,6 +698,16 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
     #[inline]
     fn group_membership_test(&self) -> bool {
         self.into_affine().group_membership_test()
+    }
+}
+
+impl<P: Parameters> SemanticallyValid for GroupProjective<P>
+{
+    fn is_valid(&self) -> bool {
+        self.x.is_valid() &&
+        self.y.is_valid() &&
+        self.z.is_valid() &&
+        self.group_membership_test()
     }
 }
 

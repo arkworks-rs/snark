@@ -49,6 +49,9 @@ pub mod groups;
 
 pub mod pairing;
 
+pub mod instantiated;
+pub use instantiated::*;
+
 pub mod alloc;
 pub mod eq;
 pub mod select;
@@ -59,7 +62,9 @@ pub mod prelude {
         alloc::*,
         bits::{boolean::Boolean, uint32::UInt32, uint8::UInt8, ToBitsGadget, FromBitsGadget, ToBytesGadget},
         eq::*,
-        fields::FieldGadget,
+        fields::{
+            FieldGadget, quadratic_extension::*, cubic_extension::*,
+        },
         groups::GroupGadget,
         pairing::PairingGadget,
         select::*,

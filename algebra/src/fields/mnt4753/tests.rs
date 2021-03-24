@@ -6,7 +6,7 @@ use crate::{
     fields::models::{fp2::Fp2Parameters, fp4::Fp4Parameters},
     Field, PrimeField, SquareRootField,
     UniformRand,
-    bytes::{ToBytes, FromBytes}, to_bytes, ToBits,
+    bytes::{ToBytes, FromBytes}, to_bytes, ToBits, SemanticallyValid,
 };
 
 use rand::SeedableRng;
@@ -1840,21 +1840,9 @@ fn test_fq2_mul_nonresidue() {
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     let nqr = Fq2::new(
-        Fq::new(BigInteger768([
-            587330122779359758,
-            14352661462510473462,
-            17802452401246596498,
-            18018663494943049411,
-            17948754733747257098,
-            10253180574146027531,
-            6683223122694781837,
-            13573468617269213174,
-            5059368039312883748,
-            950479668716233863,
-            9936591501985804621,
-            88719447132658
-        ])),
-        Fq::one());
+        Fq::zero(),
+        Fq::one()
+    );
 
     for _ in 0..1000 {
         let mut a = Fq2::rand(&mut rng);

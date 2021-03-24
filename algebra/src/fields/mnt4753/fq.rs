@@ -1,6 +1,7 @@
 use crate::{
     biginteger::BigInteger768 as BigInteger,
     fields::{Fp768, Fp768Parameters, FpParameters},
+    field_new,
 };
 
 pub type Fq = Fp768<FqParameters>;
@@ -161,4 +162,29 @@ impl FpParameters for FqParameters {
         0xC41110229022EEE2,
         0x1C4C62D92,
     ]);
+
+    const SMALL_SUBGROUP_DEFINED: bool = true;
+
+    const SMALL_SUBGROUP_BASE: Option<u64> = Some(5);
+
+    const SMALL_SUBGROUP_POWER: Option<u64> = Some(2);
+
+    // generator^((modulus-1) / (2^s * small_subgroup_base^small_subgroup_power))
+    const FULL_ROOT_OF_UNITY: Option<BigInteger> = Some(BigInteger([
+        0x7be1f1d123f7b888,
+        0x96e4f023c4994337,
+        0x5a7b50cd5499351b,
+        0x6d9fdec8de6ec83a,
+        0x74cdad01951aa963,
+        0xb3bd7998bcd80684,
+        0x627226cdd7f87f17,
+        0xc6d3c3097b11a675,
+        0xfcf853509bb56358,
+        0x272fa61396a4d851,
+        0x17b5335959bbbd2b,
+        0x63abadde7527,
+    ]));
 }
+
+pub const FQ_ONE: Fq = field_new!(Fq, FqParameters::R);
+pub const FQ_ZERO: Fq = field_new!(Fq, BigInteger([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]));

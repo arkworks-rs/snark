@@ -190,7 +190,7 @@ mod test {
     use algebra::curves::{jubjub::JubJubProjective as JubJub, ProjectiveCurve};
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
-        groups::jubjub::JubJubGadget, prelude::*, test_constraint_system::TestConstraintSystem,
+        instantiated::jubjub::JubJubGadget, prelude::*, test_constraint_system::TestConstraintSystem,
     };
 
     #[test]
@@ -218,14 +218,13 @@ mod test {
         let primitive_result =
             PedersenCommitment::<JubJub, Window>::commit(&parameters, &input, &randomness).unwrap();
 
-        let mut input_bytes = vec![];
-        for (byte_i, input_byte) in input.iter().enumerate() {
-            let cs = cs.ns(|| format!("input_byte_gadget_{}", byte_i));
-            input_bytes.push(UInt8::alloc(cs, || Ok(*input_byte)).unwrap());
-        }
+        let input_bytes = UInt8::alloc_input_vec(
+            cs.ns(|| "alloc input bytes as public input"),
+            &input
+        ).unwrap();
 
         let randomness =
-            <TestCOMMGadget as CommitmentGadget<TestCOMM, Fq>>::RandomnessGadget::alloc(
+            <TestCOMMGadget as CommitmentGadget<TestCOMM, Fq>>::RandomnessGadget::alloc_input(
                 &mut cs.ns(|| "gadget_randomness"),
                 || Ok(&randomness),
             )

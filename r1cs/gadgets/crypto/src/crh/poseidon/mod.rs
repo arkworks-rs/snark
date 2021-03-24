@@ -1,28 +1,30 @@
-use algebra::{
-    fields::{
-        mnt4753::Fr as MNT4753Fr,
-        mnt6753::Fr as MNT6753Fr,
-    }, PrimeField, MulShort,
+use algebra::{PrimeField, MulShort};
+use primitives::crh::poseidon::{
+    PoseidonHash, PoseidonParameters
 };
-use primitives::crh::poseidon::PoseidonParameters;
 use crate::crh::FieldBasedHashGadget;
-use primitives::crh::{
-    poseidon::PoseidonHash,
-    parameters::{
-        MNT4753PoseidonParameters, MNT6753PoseidonParameters
+use r1cs_std::{
+    fields::{
+        FieldGadget, fp::FpGadget
     },
+    bits::boolean::Boolean,
+    alloc::{AllocGadget, ConstantGadget},
+    eq::EqGadget,
+    Assignment
 };
-use std::marker::PhantomData;
 use r1cs_core::{ConstraintSystem, SynthesisError};
-use r1cs_std::fields::fp::FpGadget;
-use r1cs_std::fields::FieldGadget;
-use r1cs_std::bits::boolean::Boolean;
-use r1cs_std::alloc::{AllocGadget, ConstantGadget};
-use r1cs_std::Assignment;
-use r1cs_std::eq::ConditionalEqGadget;
+use std::marker::PhantomData;
 
-pub type MNT4PoseidonHashGadget = PoseidonHashGadget<MNT4753Fr, MNT4753PoseidonParameters>;
-pub type MNT6PoseidonHashGadget = PoseidonHashGadget<MNT6753Fr, MNT6753PoseidonParameters>;
+#[cfg(feature = "mnt4_753")]
+pub mod mnt4753;
+#[cfg(feature = "mnt4_753")]
+pub use self::mnt4753::*;
+
+#[cfg(feature = "mnt6_753")]
+pub mod mnt6753;
+#[cfg(feature = "mnt6_753")]
+pub use self::mnt6753::*;
+
 
 pub struct PoseidonHashGadget
 <
@@ -34,8 +36,11 @@ pub struct PoseidonHashGadget
     _parameters: PhantomData<P>,
 }
 
-impl<ConstraintF: PrimeField + MulShort, P: PoseidonParameters<Fr = ConstraintF>> PoseidonHashGadget<ConstraintF, P> {
-
+impl<
+    ConstraintF: PrimeField + MulShort<ConstraintF, Output = ConstraintF>,
+    P: PoseidonParameters<Fr = ConstraintF>
+> PoseidonHashGadget<ConstraintF, P>
+{
     fn mod_inv_sbox<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         x: &mut FpGadget<ConstraintF>,
@@ -214,7 +219,7 @@ impl<ConstraintF: PrimeField + MulShort, P: PoseidonParameters<Fr = ConstraintF>
 
 impl<ConstraintF, P> FieldBasedHashGadget<PoseidonHash<ConstraintF, P>, ConstraintF> for PoseidonHashGadget<ConstraintF, P>
     where
-        ConstraintF: PrimeField + MulShort,
+        ConstraintF: PrimeField + MulShort<ConstraintF, Output = ConstraintF>,
         P:           PoseidonParameters<Fr = ConstraintF>
 {
     type DataGadget = FpGadget<ConstraintF>;
@@ -282,6 +287,7 @@ mod test {
     use primitives::crh::{
         FieldBasedHash, MNT4PoseidonHash, MNT6PoseidonHash,
     };
+    use crate::{MNT4PoseidonHashGadget, MNT6PoseidonHashGadget};
     use r1cs_std::fields::fp::FpGadget;
     use r1cs_std::alloc::AllocGadget;
     use r1cs_core::ConstraintSystem;

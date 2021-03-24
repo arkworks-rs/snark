@@ -1,4 +1,4 @@
-use crate::{Fp2, BigInteger768 as BigInteger, PrimeField, SquareRootField, Fp2Parameters, Fp4Parameters, SWModelParameters, ModelParameters, PairingEngine, Fp4, PairingCurve, Field};
+use crate::{Fp2, BigInteger768 as BigInteger, PrimeField, SquareRootField, Fp2Parameters, Fp4Parameters, SWModelParameters, ModelParameters, PairingEngine, Fp4, Field};
 use std::marker::PhantomData;
 use std::ops::{Add, Mul, Sub};
 
@@ -52,12 +52,14 @@ pub trait MNT4Parameters: 'static {
 
     // base field F of the curve
     type Fp: PrimeField + SquareRootField + Into<<Self::Fp as PrimeField>::BigInt>;
+    // scalar field of the curve
+    type Fr: PrimeField + SquareRootField + Into<<Self::Fr as PrimeField>::BigInt>;
     // parameters of the quadratic extension field F2
     type Fp2Params: Fp2Parameters<Fp = Self::Fp>;
     // paramters of the embedding field F4
     type Fp4Params: Fp4Parameters<Fp2Params = Self::Fp2Params>;
     // parameters for E with defining field F
-    type G1Parameters: SWModelParameters<BaseField = Self::Fp>;
+    type G1Parameters: SWModelParameters<BaseField = Self::Fp, ScalarField = Self::Fr>;
     // parameters for the quadratic twist E' over F2
     type G2Parameters: SWModelParameters<
         BaseField = Fp2<Self::Fp2Params>,
@@ -86,9 +88,9 @@ impl<P: MNT4Parameters> MNT4p<P> {
     // The latter is needed for optimizing point evaluation of the Miller lines
     fn ate_precompute_g1(value: &G1Affine<P>) -> G1Prepared<P> {
         let mut py_twist_squared = P::TWIST.square();
-        py_twist_squared.mul_by_fp(&value.y);
+        py_twist_squared.mul_assign_by_basefield(&value.y);
 
-        G1Prepared {p: *value, py_twist_squared}
+        G1Prepared {p: value.clone(), py_twist_squared}
     }
 
     // Takes as input a (non-zero) point Q from G2 in affine coordinates, and outputs the
@@ -100,7 +102,7 @@ impl<P: MNT4Parameters> MNT4p<P> {
     fn ate_precompute_g2(value: &G2Affine<P>) -> G2Prepared<P> {
 
         let mut g2p = G2Prepared {
-            q: *value,
+            q: value.clone(),
             coeffs: vec![],
         };
 
@@ -181,7 +183,7 @@ impl<P: MNT4Parameters> MNT4p<P> {
             // The scale factor twist^2 from F2 is cancelled out by the final exponentiation.
 
             let mut gamma_twist_times_x = c.gamma.mul(&P::TWIST);
-            gamma_twist_times_x.mul_by_fp(&p.p.x);
+            gamma_twist_times_x.mul_assign_by_basefield(&p.p.x);
 
             let g_rr_at_p = Fp4::<P::Fp4Params>::new(
                 p.py_twist_squared,
@@ -200,7 +202,7 @@ impl<P: MNT4Parameters> MNT4p<P> {
                 //I suggest to write a separate function for the point evaluation
                 //as done in the implementation of the sw6 Miller loop
                 let mut gamma_twist_times_x = c.gamma.mul(&P::TWIST);
-                gamma_twist_times_x.mul_by_fp(&p.p.x);
+                gamma_twist_times_x.mul_assign_by_basefield(&p.p.x);
                 let g_rq_at_p_c1 = if n > 0 {
                     c.gamma_x - &gamma_twist_times_x - &q.q.y
                 } else {
@@ -237,9 +239,9 @@ impl<P: MNT4Parameters> MNT4p<P> {
         // elt^(q^2-1)
         let mut elt_q2 = elt.clone();
         // elt^(q^2)
-        elt_q2.frobenius_map(2);
+        elt_q2.conjugate();
         // elt^(q^2-1)
-        let elt_q2_over_elt = elt_q2 * &elt_inv;
+        let elt_q2_over_elt = elt_q2 * elt_inv;
 
         elt_q2_over_elt
     }
@@ -270,42 +272,21 @@ impl<P: MNT4Parameters> MNT4p<P> {
 }
 
 impl<P: MNT4Parameters> PairingEngine for MNT4p<P>
-    where
-        G1Affine<P>: PairingCurve<
-            BaseField = <P::G1Parameters as ModelParameters>::BaseField,
-            ScalarField = <P::G1Parameters as ModelParameters>::ScalarField,
-            Projective = G1Projective<P>,
-            PairWith = G2Affine<P>,
-            Prepared = G1Prepared<P>,
-            PairingResult = Fp4<P::Fp4Params>,
-        >,
-        G2Affine<P>: PairingCurve<
-            BaseField = <P::G2Parameters as ModelParameters>::BaseField,
-            ScalarField = <P::G1Parameters as ModelParameters>::ScalarField,
-            Projective = G2Projective<P>,
-            PairWith = G1Affine<P>,
-            Prepared = G2Prepared<P>,
-            PairingResult = Fp4<P::Fp4Params>,
-        >,
-
 {
     type Fr = <P::G1Parameters as ModelParameters>::ScalarField;
     type G1Projective = G1Projective<P>;
     type G1Affine = G1Affine<P>;
+    type G1Prepared = G1Prepared<P>;
     type G2Projective = G2Projective<P>;
     type G2Affine = G2Affine<P>;
+    type G2Prepared = G2Prepared<P>;
     type Fq = P::Fp;
     type Fqe = Fp2<P::Fp2Params>;
     type Fqk = Fp4<P::Fp4Params>;
 
     fn miller_loop<'a, I>(i: I) -> Self::Fqk
         where
-            I: IntoIterator<
-                Item = &'a (
-                    &'a <Self::G1Affine as PairingCurve>::Prepared,
-                    &'a <Self::G2Affine as PairingCurve>::Prepared,
-                ),
-            >,
+            I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>,
     {
         let mut result = Self::Fqk::one();
         for &(ref p, ref q) in i {

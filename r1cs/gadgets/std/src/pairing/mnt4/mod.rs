@@ -3,36 +3,13 @@ use r1cs_core::{ConstraintSystem, SynthesisError};
 use crate::{fields::{fp4::Fp4Gadget, FieldGadget}, groups::curves::short_weierstrass::mnt::mnt4::{G1Gadget, G2Gadget, G1PreparedGadget, G2PreparedGadget},
 };
 
-use algebra::{ModelParameters, Fp4, PairingCurve};
 use crate::pairing::PairingGadget;
-use algebra::curves::models::mnt4::{MNT4p, MNT4Parameters,
-                                    G1Affine, G1Projective, G1Prepared,
-                                    G2Affine, G2Projective, G2Prepared,
-};
+use algebra::curves::models::mnt4::{MNT4p, MNT4Parameters};
 use std::marker::PhantomData;
-
-pub mod mnt4753;
 
 pub struct MNT4PairingGadget<P: MNT4Parameters>(PhantomData<P>);
 
 impl<P: MNT4Parameters> PairingGadget<MNT4p<P>, P::Fp> for MNT4PairingGadget<P>
-    where
-        G1Affine<P>: PairingCurve<
-            BaseField = <P::G1Parameters as ModelParameters>::BaseField,
-            ScalarField = <P::G1Parameters as ModelParameters>::ScalarField,
-            Projective = G1Projective<P>,
-            PairWith = G2Affine<P>,
-            Prepared = G1Prepared<P>,
-            PairingResult = Fp4<P::Fp4Params>,
-        >,
-        G2Affine<P>: PairingCurve<
-            BaseField = <P::G2Parameters as ModelParameters>::BaseField,
-            ScalarField = <P::G1Parameters as ModelParameters>::ScalarField,
-            Projective = G2Projective<P>,
-            PairWith = G1Affine<P>,
-            Prepared = G2Prepared<P>,
-            PairingResult = Fp4<P::Fp4Params>,
-        >,
 {
     type G1Gadget = G1Gadget<P>;
     type G2Gadget = G2Gadget<P>;
@@ -69,7 +46,7 @@ impl<P: MNT4Parameters> PairingGadget<MNT4p<P>, P::Fp> for MNT4PairingGadget<P>
                 let g_rr_at_p_c0 = ps.clone().p_y_twist_squared;
 
                 let mut t = c.gamma.mul_by_constant(cs.ns(|| "double compute gamma_twist"), &P::TWIST)?;
-                t.mul_assign_by_fp_gadget(cs.ns(|| "double gamma_twist * ps.p.x"), &ps.p.x)?;
+                t.mul_assign_by_base_field_gadget(cs.ns(|| "double gamma_twist * ps.p.x"), &ps.p.x)?;
                 let g_rr_at_p_c1 = c.gamma_x
                     .sub(cs.ns(|| "gamma_x - r_y"), &c.r_y)?
                     .sub(cs.ns(|| "gamma_x - r_y - t"), &t)?;
@@ -92,7 +69,7 @@ impl<P: MNT4Parameters> PairingGadget<MNT4p<P>, P::Fp> for MNT4PairingGadget<P>
                     let q_y = if n > 0 {qs.clone().q.y} else {neg_q_y};
 
                     let mut t = c.gamma.mul_by_constant(cs.ns(|| "add compute gamma_twist"), &P::TWIST)?;
-                    t.mul_assign_by_fp_gadget(cs.ns(|| "add gamma_twist * ps.p.x"), &ps.p.x)?;
+                    t.mul_assign_by_base_field_gadget(cs.ns(|| "add gamma_twist * ps.p.x"), &ps.p.x)?;
                     let g_rq_at_p_c1 = c.gamma_x
                         .sub(cs.ns(|| "gamma_x - q_y"), &q_y)?
                         .sub(cs.ns(|| "gamma_x - q_y - t"), &t)?;

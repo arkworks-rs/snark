@@ -2,37 +2,21 @@ use crate::field_new;
 use crate::{
     biginteger::{BigInteger256, BigInteger384},
     curves::{
-        bls12::{G2Affine as Bls12G2Affine, G2Prepared, G2Projective as Bls12G2Projective},
+        bls12::{G2Affine as Bls12G2Affine, G2Projective as Bls12G2Projective},
         bls12_381::{
-            g1::{Bls12_381G1Parameters, G1Affine},
-            Bls12_381, Bls12_381Parameters,
+            g1::Bls12_381G1Parameters,
+            Bls12_381Parameters,
         },
         models::{ModelParameters, SWModelParameters},
-        PairingCurve, PairingEngine,
     },
     fields::{
-        bls12_381::{Fq, Fq12, Fq2, Fr},
+        bls12_381::{Fq, Fq2, Fr},
         Field,
     },
 };
 
 pub type G2Affine = Bls12G2Affine<Bls12_381Parameters>;
 pub type G2Projective = Bls12G2Projective<Bls12_381Parameters>;
-
-impl PairingCurve for G2Affine {
-    type Engine = Bls12_381;
-    type Prepared = G2Prepared<Bls12_381Parameters>;
-    type PairWith = G1Affine;
-    type PairingResult = Fq12;
-
-    fn prepare(&self) -> Self::Prepared {
-        Self::Prepared::from_affine(*self)
-    }
-
-    fn pairing_with(&self, other: &Self::PairWith) -> Self::PairingResult {
-        Bls12_381::pairing(*other, *self)
-    }
-}
 
 #[derive(Copy, Clone, Default, PartialEq, Eq)]
 pub struct Bls12_381G2Parameters;

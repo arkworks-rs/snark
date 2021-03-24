@@ -1,9 +1,15 @@
-#![feature(test)]
+#![cfg_attr(nightly, feature(test))]
+#![allow(unused_macros)]
 
+#[cfg(nightly)]
 extern crate test;
 
-mod bls12_377;
-mod bls12_381;
-mod mnt4753;
-mod mnt6753;
-mod sw6;
+#[cfg(all(nightly, test))]
+#[macro_use]
+pub mod macros;
+
+#[cfg(all(nightly, test))]
+mod curves;
+
+#[cfg(feature = "fft")]
+mod fft;

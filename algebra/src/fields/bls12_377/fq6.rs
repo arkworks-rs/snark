@@ -32,7 +32,7 @@ impl Fp6Parameters for Fq6Parameters {
         ])),
     );
 
-    const FROBENIUS_COEFF_FP6_C1: [Fq2; 6] = [
+    const FROBENIUS_COEFF_FP6_C1: &'static [Fq2] = &[
         // Fp2::NONRESIDUE^(((q^0) - 1) / 3)
         field_new!(Fq2, 
             field_new!(Fq, BigInteger384([
@@ -106,7 +106,7 @@ impl Fp6Parameters for Fq6Parameters {
             field_new!(Fq, BigInteger384([0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         ),
     ];
-    const FROBENIUS_COEFF_FP6_C2: [Fq2; 6] = [
+    const FROBENIUS_COEFF_FP6_C2: &'static [Fq2] = &[
         // Fp2::NONRESIDUE^((2*(q^0) - 2) / 3)
         field_new!(Fq2, 
             field_new!(Fq, BigInteger384([

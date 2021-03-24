@@ -10,7 +10,7 @@ use crate::{
         Field, Fp2Parameters, FpParameters, PrimeField, SquareRootField,
 
     },
-    ToBits,
+    ToBits, SemanticallyValid,
 };
 use crate::UniformRand;
 use rand::SeedableRng;
@@ -1711,8 +1711,8 @@ fn test_convert_fq_fr() {
     loop {
         let q: Fq = UniformRand::rand(&mut rng);
         let q_bits = q.write_bits();
-        if leading_zeros(q_bits) >= 127 { continue } //In this case the assertion below will fail
-        assert!(convert::<Fr>(q.write_bits()).is_err()); //Fq is much more bigger than Fr
+        if leading_zeros(q_bits.as_slice()) >= 127 { continue } //In this case the assertion below will fail
+        assert!(convert::<Fr>(q_bits).is_err()); //Fq is much more bigger than Fr
         break;
     }
 }
@@ -2350,7 +2350,7 @@ fn test_fq6_mul_nonresidue() {
     for _ in 0..1000 {
         let mut a = Fq6::rand(&mut rng);
         let mut b = a;
-        a = Fq12::mul_fp6_by_nonresidue(&a);
+        a = Fq12Parameters::mul_fp6_by_nonresidue(&a);
         b.mul_assign(&nqr);
 
         assert_eq!(a, b);
