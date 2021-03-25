@@ -5,9 +5,11 @@ use algebra::{PrimeField, MulShort};
 
 use std::marker::PhantomData;
 
-use crate::crh::{
-    FieldBasedHash,
-    FieldBasedHashParameters,
+use crate::{
+    crh::{
+        FieldBasedHash,
+        FieldBasedHashParameters,
+    }, CryptoError, Error
 };
 
 pub mod batched_crh;
@@ -15,10 +17,17 @@ pub mod batched_crh;
 pub mod parameters;
 pub use self::parameters::*;
 
-#[derive(Debug)]
+#[derive(Derivative)]
+#[derivative(
+    Clone(bound = ""),
+    Debug(bound = ""),
+)]
 pub struct PoseidonHash<F: PrimeField, P: PoseidonParameters<Fr = F>>{
     state: Vec<F>,
     pending: Vec<F>,
+    input_size: Option<usize>,
+    updates_ctr: usize,
+    mod_rate: bool,
     _parameters: PhantomData<P>,
 }
 
@@ -96,22 +105,110 @@ pub fn matrix_mix_short<F: PrimeField + MulShort<F, Output = F>, P: PoseidonPara
 
 impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
 
-    #[inline]
-    fn apply_permutation(&mut self) {
-        for (input, state) in self.pending.iter().zip(self.state.iter_mut()) {
-            *state += input;
+    fn _init(constant_size: Option<usize>, mod_rate: bool, personalization: Option<&[F]>) -> Self
+    {
+        assert_eq!(P::T - P::R, 1, "The assumption that the capacity is one field element is not satisfied.");
+
+        let mut state = Vec::with_capacity(P::T);
+        for i in 0..P::T {
+            state.push(P::AFTER_ZERO_PERM[i]);
         }
-        Self::poseidon_perm(&mut self.state);
+
+
+        let mut instance = Self {
+            state,
+            pending: Vec::with_capacity(P::R),
+            input_size: constant_size,
+            updates_ctr: 0,
+            mod_rate,
+            _parameters: PhantomData,
+        };
+
+        // If personalization Vec is not multiple of the rate, we pad it with zero field elements.
+        // This will allow eventually to precompute the constants of the initial state. This
+        // is exactly as doing H(personalization, padding, ...). NOTE: this way of personalizing
+        // the hash is not mentioned in https://eprint.iacr.org/2019/458.pdf
+        if personalization.is_some(){
+            let personalization = personalization.unwrap();
+
+            for &p in personalization.into_iter(){
+                instance.update(p);
+            }
+
+            let padding = if personalization.len() % P::R != 0 {
+                P::R - ( personalization.len() % P::R )
+            } else {
+                0
+            };
+
+            for _ in 0..padding {
+                instance.update(F::zero());
+            }
+            assert_eq!(instance.pending.len(), 0);
+            instance.updates_ctr = 0;
+        }
+        instance
     }
 
     #[inline]
-    fn _finalize(&self) -> F {
-        let mut state = self.state.clone();
-        for (input, s) in self.pending.iter().zip(state.iter_mut()) {
+    fn apply_permutation_if_needed(&mut self) {
+        if self.pending.len() == P::R {
+            for (input, state) in self.pending.iter().zip(self.state.iter_mut()) {
+                *state += input;
+            }
+            Self::poseidon_perm(&mut self.state);
+            self.pending.clear();
+        }
+    }
+
+    #[inline]
+    fn get_hash(mut state: Vec<F>, inputs: Vec<F>) -> F {
+        for (input, s) in inputs.iter().zip(state.iter_mut()) {
             *s += input;
         }
         Self::poseidon_perm(&mut state);
         state[0]
+    }
+
+    #[inline]
+    // Padding strategy is described in https://eprint.iacr.org/2019/458.pdf(Section 4.2)
+    fn pad_and_finalize(&self) -> F
+    {
+        // Constant input length instance
+        if self.input_size.is_some() {
+
+            // The constant size is modulus rate, so we already have the hash output in state[0]
+            // as a permutation is applied each time pending reaches P::R length
+            if self.pending.is_empty() {
+                self.state[0].clone()
+            }
+
+            // Pending is not empty: pad with 0s up to rate then compute the hash
+            else {
+                let mut pending = self.pending.clone();
+                pending.append(&mut vec![F::zero(); P::R - (pending.len() % P::R)]);
+                Self::get_hash(self.state.clone(), pending)
+            }
+        }
+
+        // Variable input length instance
+        else {
+
+            // The input is of variable length, but always modulus rate: result is already available
+            // in state[0] as a permutation is applied each time pending reaches P::R length
+            if self.mod_rate {
+                self.state[0].clone()
+            }
+
+            // The input is of variable length, but not modulus rate: we always need to apply
+            // padding. Pad with a single 1 and then 0s up to rate. Compute hash.
+            else {
+                let mut pending = self.pending.clone();
+                pending.push(F::one());
+                pending.append(&mut vec![F::zero(); P::R - (pending.len() % P::R)]);
+                Self::get_hash(self.state.clone(), pending)
+            }
+        }
     }
 
     pub(crate) fn poseidon_perm (state: &mut Vec<F>) {
@@ -291,70 +388,52 @@ impl<F, P> FieldBasedHash for PoseidonHash<F, P>
     type Data = F;
     type Parameters = P;
 
-    fn init(personalization: Option<&[Self::Data]>) -> Self {
-        assert_eq!(P::T - P::R, 1, "The assumption that the capacity is one field element is not satisfied.");
-
-        let mut state = Vec::with_capacity(P::T);
-        for i in 0..P::T {
-            state.push(P::AFTER_ZERO_PERM[i]);
-        }
-        let mut instance = Self {
-            state,
-            pending: Vec::with_capacity(P::R),
-            _parameters: PhantomData,
-        };
-
-        // If personalization Vec is not multiple of the rate, we pad it with zero field elements.
-        // This will allow eventually to precompute the constants of the initial state. This
-        // is exactly as doing H(personalization, padding, ...). NOTE: this way of personalizing
-        // the hash is not mentioned in https://eprint.iacr.org/2019/458.pdf
-        if personalization.is_some(){
-            let personalization = personalization.unwrap();
-
-            for &p in personalization.into_iter(){
-                instance.update(p);
-            }
-
-            let padding = if personalization.len() % P::R != 0 {
-                P::R - ( personalization.len() % P::R )
-            } else {
-                0
-            };
-
-            for _ in 0..padding {
-                instance.update(F::zero());
-            }
-            assert_eq!(instance.pending.len(), 0);
-        }
-        instance
+    fn init_constant_length(input_size: usize, personalization: Option<&[Self::Data]>) -> Self {
+        Self::_init(
+            Some(input_size),
+            input_size % P::R == 0, // Not taken into account, can be any
+            personalization
+        )
     }
 
-    // Note: `Field` implements the `Copy` trait, therefore invoking this function won't
-    // cause a moving of ownership for `input`, but just a copy. Another copy is
-    // performed below in `self.pending.push(input);`
-    // We can reduce this to one copy by passing a reference to `input`, but from an
-    // interface point of view this is not logically correct: someone calling this
-    // functions will likely not use the `input` anymore in most of the cases
-    // (in the other cases he can just clone it).
+    fn init_variable_length(mod_rate: bool, personalization: Option<&[Self::Data]>) -> Self {
+        Self::_init(None, mod_rate, personalization)
+    }
+
     fn update(&mut self, input: Self::Data) -> &mut Self {
         self.pending.push(input);
-        if self.pending.len() == P::R {
-            self.apply_permutation();
-            self.pending.clear();
-        }
+        self.updates_ctr += 1;
+        self.apply_permutation_if_needed();
         self
     }
 
-    fn finalize(&self) -> Self::Data {
-        if !self.pending.is_empty() {
-            self._finalize()
-        } else {
-            self.state[0]
+    fn finalize(&self) -> Result<Self::Data, Error> {
+
+        let error_condition =
+
+            // Constant input length instance, but the size of the input is different from the declared one
+            (self.input_size.is_some() && self.updates_ctr != self.input_size.unwrap())
+
+            ||
+
+            // Variable modulus rate input length instance, but the size of the input is not modulus rate
+            (self.input_size.is_none() && self.mod_rate && self.updates_ctr % P::R != 0);
+
+        // If one of the conditions above is true, we must throw an error
+        if error_condition
+        {
+            Err(Box::new(CryptoError::HashingError("attempt to finalize with an input of invalid size".to_owned())))
+        }
+
+        // Otherwise pad if needed (according to the Self instance type) and return the hash output
+        else
+        {
+            Ok(self.pad_and_finalize())
         }
     }
 
     fn reset(&mut self, personalization: Option<&[Self::Data]>) -> &mut Self {
-        let new_instance = Self::init(personalization);
+        let new_instance = Self::_init(self.input_size, self.mod_rate, personalization);
         *self = new_instance;
         self
     }
@@ -362,115 +441,120 @@ impl<F, P> FieldBasedHash for PoseidonHash<F, P>
 
 #[cfg(test)]
 mod test {
-    use algebra::{
-        fields::{
-            mnt4753::Fr as MNT4753Fr,
-            mnt6753::Fr as MNT6753Fr,
-        },
-    };
-    use std::str::FromStr;
-    use algebra::biginteger::BigInteger768;
+    use algebra::{Field, PrimeField};
     use crate::crh::{
-        poseidon::parameters::{
-            mnt4753::MNT4PoseidonHash,
-            mnt6753::MNT6PoseidonHash,
-        },
         FieldBasedHash,
+        test::{
+            field_based_hash_regression_test, constant_length_field_based_hash_test, variable_length_field_based_hash_test
+        }
     };
+    use crate::FieldBasedHashParameters;
 
-    //#[test]
+    fn generate_inputs<F: PrimeField>(num: usize) -> Vec<F>{
+        let mut inputs = Vec::with_capacity(num);
+        for i in 1..=num {
+            let input = F::from(i as u32);
+            inputs.push(input);
+        }
+        inputs
+    }
+
+    fn test_routine<F: PrimeField, H: FieldBasedHash<Data = F>>(
+        expected_outputs: Vec<(F, F)>
+    )
+    {
+        let rate = <H::Parameters as FieldBasedHashParameters>::R;
+        expected_outputs.into_iter().enumerate().for_each(|(i, (expected_output_constant, expected_output_variable))| {
+
+            let ins = generate_inputs::<F>(i + 1);
+
+            // Constant length
+            {
+                let mut digest = H::init_constant_length(i + 1, None);
+
+                /*field_based_hash_regression_test::<H>(
+                    &mut digest,
+                    ins.clone(),
+                    expected_output_constant,
+                );*/
+
+                constant_length_field_based_hash_test::<H>(
+                    &mut digest,
+                    ins.clone()
+                );
+            }
+
+            // Variable length
+            {
+                let mod_rate = (i + 1) % rate == 0;
+                let mut digest = H::init_variable_length(mod_rate, None);
+
+                /*field_based_hash_regression_test::<H>(
+                    &mut digest,
+                    ins.clone(),
+                    expected_output_variable
+                );*/
+
+                variable_length_field_based_hash_test::<H>(
+                    &mut digest,
+                    ins,
+                    mod_rate
+                );
+            }
+        });
+    }
+
+    #[cfg(feature = "mnt4_753")]
+    #[test]
     fn test_poseidon_hash_mnt4() {
+        use algebra::{
+            biginteger::BigInteger768,
+            fields::mnt4753::Fr as MNT4753Fr
+        };
+        use crate::crh::poseidon::parameters::mnt4753::MNT4PoseidonHash;
 
-        // Regression test
-        let expected_output = MNT4753Fr::new(BigInteger768([120759599714708995, 15132412086599307425, 1270378153255747692, 3280164418217209635, 5680179791594071572, 2475152338055275001, 9455820118751334058, 6363436228419696186, 3538976751580678769, 14987158621073838958, 10703097083485496843, 48481977539350]));
-        let mut poseidon_digest = MNT4PoseidonHash::init(None);
-        let input = [MNT4753Fr::from_str("1").unwrap(), MNT4753Fr::from_str("2").unwrap()];
+        let expected_outputs = vec![
+            (
+                MNT4753Fr::zero(),
+                MNT4753Fr::zero(),
+            ),
+            (
+                MNT4753Fr::zero(),
+                MNT4753Fr::zero(),
+            ),
+            (
+                MNT4753Fr::zero(),
+                MNT4753Fr::zero(),
+            ),
+        ];
 
-        let output = poseidon_digest
-            .update(input[0])
-            .update(input[1])
-            .finalize();
-        assert_eq!(output, expected_output, "Outputs do not match for MNT4753.");
-
-        // Test finalize() holding the state and allowing updates in between different calls to it
-        poseidon_digest
-            .reset(None)
-            .update(input[0].clone());
-        poseidon_digest.finalize();
-        poseidon_digest.update(input[1].clone());
-        assert_eq!(output, poseidon_digest.finalize());
-
-        //Test finalize() being idempotent
-        assert_eq!(output, poseidon_digest.finalize());
+        test_routine::<MNT4753Fr, MNT4PoseidonHash>(expected_outputs)
     }
 
-    //#[test]
-    fn test_poseidon_hash_mnt4_single_element() {
-        let expected_output = MNT4753Fr::new(BigInteger768([10133114337753187244, 13011129467758174047, 14520750556687040981, 911508844858788085, 1859877757310385382, 9602832310351473622, 8300303689130833769, 981323167857397563, 5760566649679562093, 8644351468476031499, 10679665778836668809, 404482168782668]));
-        let mut poseidon_digest = MNT4PoseidonHash::init(None);
-        poseidon_digest.update(MNT4753Fr::from_str("1").unwrap());
-        let output = poseidon_digest.finalize();
-        assert_eq!(output, expected_output, "Outputs do not match for MNT4753.");
-    }
-
-    //#[test]
-    fn test_poseidon_hash_mnt4_three_element() {
-        let expected_output = MNT4753Fr::new(BigInteger768([5991160601160569512, 9804741598782512164, 8257389273544061943, 15170134696519047397, 9908596892162673198, 7815454566429677811, 9000639780203615183, 8443915450757188195, 1987926952117715938, 17724141978374492147, 13890449093436164383, 191068391234529]));
-        let mut poseidon_digest = MNT4PoseidonHash::init(None);
-
-        for i in 1..=3{
-            poseidon_digest.update(MNT4753Fr::from(i as u64));
-        }
-
-        let output = poseidon_digest.finalize();
-        assert_eq!(output, expected_output, "Outputs do not match for MNT4753.");
-    }
-
-    //#[test]
+    #[cfg(feature = "mnt6_753")]
+    #[test]
     fn test_poseidon_hash_mnt6() {
-        let expected_output = MNT6753Fr::new(BigInteger768([8195238283171732026, 13694263410588344527, 1885103367289967816, 17142467091011072910, 13844754763865913168, 14332001103319040991, 8911700442280604823, 6452872831806760781, 17467681867740706391, 5384727593134901588, 2343350281633109128, 244405261698305]));
-        let mut poseidon_digest = MNT6PoseidonHash::init(None);
-        let input = [MNT6753Fr::from_str("1").unwrap(), MNT6753Fr::from_str("2").unwrap()];
+        use algebra::{
+            biginteger::BigInteger768,
+            fields::mnt6753::Fr as MNT6753Fr
+        };
+        use crate::crh::poseidon::parameters::mnt6753::MNT6PoseidonHash;
 
-        let output = poseidon_digest
-            .update(input[0])
-            .update(input[1])
-            .finalize();
-        assert_eq!(output, expected_output, "Outputs do not match for MNT6753.");
+        let expected_outputs = vec![
+            (
+                MNT6753Fr::zero(),
+                MNT6753Fr::zero(),
+            ),
+            (
+                MNT6753Fr::zero(),
+                MNT6753Fr::zero(),
+            ),
+            (
+                MNT6753Fr::zero(),
+                MNT6753Fr::zero(),
+            ),
+        ];
 
-        // Test finalize() holding the state and allowing updates in between different calls to it
-        poseidon_digest
-            .reset(None)
-            .update(input[0].clone());
-        poseidon_digest.finalize();
-        poseidon_digest.update(input[1].clone());
-        assert_eq!(output, poseidon_digest.finalize());
-
-        //Test finalize() being idempotent
-        assert_eq!(output, poseidon_digest.finalize());
-    }
-
-    //#[test]
-    fn test_poseidon_hash_mnt6_single_element() {
-        let expected_output = MNT6753Fr::new(BigInteger768([9820480440897423048, 13953114361017832007, 6124683910518350026, 12198883805142820977, 16542063359667049427, 16554395404701520536, 6092728884107650560, 1511127385771028618, 14755502041894115317, 9806346309586473535, 5880260960930089738, 191119811429922]));
-        let mut poseidon_digest = MNT6PoseidonHash::init(None);
-        let input = MNT6753Fr::from_str("1").unwrap();
-        poseidon_digest.update(input);
-        let output = poseidon_digest.finalize();
-        assert_eq!(output, expected_output, "Outputs do not match for MNT6753.");
-    }
-
-    //#[test]
-    fn test_poseidon_hash_mnt6_three_element() {
-        let expected_output = MNT6753Fr::new(BigInteger768([13800884891843937189, 3814452749758584714, 14612220153016028606, 15886322817426727111, 12444362646204085653, 5214641378156871899, 4248022398370599899, 5982332416470364372, 3842784910369906888, 11445718704595887413, 5723531295320926061, 101830932453997]));
-        let mut poseidon_digest = MNT6PoseidonHash::init(None);
-
-        for i in 1..=3{
-            let input = MNT6753Fr::from(i as u64);
-            poseidon_digest.update(input);
-        }
-
-        let output = poseidon_digest.finalize();
-        assert_eq!(output, expected_output, "Outputs do not match for MNT6753.");
+        test_routine::<MNT6753Fr, MNT6PoseidonHash>(expected_outputs)
     }
 }
