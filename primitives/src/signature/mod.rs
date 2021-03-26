@@ -69,12 +69,12 @@ pub trait FieldBasedSignatureScheme {
         rng: &mut R,
         pk: &Self::PublicKey,
         sk: &Self::SecretKey,
-        message: &[Self::Data],
+        message: Self::Data,
     ) -> Result<Self::Signature, Error>;
 
     fn verify(
         pk: &Self::PublicKey,
-        message: &[Self::Data],
+        message: Self::Data,
         signature: &Self::Signature,
     ) -> Result<bool, Error>;
 

@@ -36,7 +36,7 @@ pub trait FieldBasedSigGadget<S: FieldBasedSignatureScheme, ConstraintF: Field> 
         cs: CS,
         public_key: &Self::PublicKeyGadget,
         signature:  &Self::SignatureGadget,
-        message:    &[Self::DataGadget],
+        message:    Self::DataGadget,
     ) -> Result<Boolean, SynthesisError>;
 
     ///Enforce `signature` verification with `public_key` on `message` to be successful.
@@ -44,6 +44,6 @@ pub trait FieldBasedSigGadget<S: FieldBasedSignatureScheme, ConstraintF: Field> 
         cs: CS,
         public_key: &Self::PublicKeyGadget,
         signature:  &Self::SignatureGadget,
-        message:    &[Self::DataGadget],
+        message:    Self::DataGadget,
     ) -> Result<(), SynthesisError>;
 }

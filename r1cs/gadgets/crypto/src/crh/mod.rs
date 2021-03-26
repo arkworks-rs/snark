@@ -39,12 +39,6 @@ pub trait FieldBasedHashGadget<H: FieldBasedHash<Data = ConstraintF>, Constraint
         cs: CS,
         input: &[Self::DataGadget],
     ) -> Result<Self::DataGadget, SynthesisError>;
-
-    fn enforce_hash_variable_length<CS: ConstraintSystem<ConstraintF>>(
-        cs: CS,
-        input: &[Self::DataGadget],
-        mod_rate: bool,
-    ) -> Result<Self::DataGadget, SynthesisError>;
 }
 
 pub trait FieldHasherGadget<
@@ -97,43 +91,6 @@ mod test {
         let gadget_result = HG::enforce_hash_constant_length(
             cs.ns(|| "check_poseidon_gadget"),
             input_gadgets.as_slice()
-        ).unwrap();
-
-        assert_eq!(primitive_result, gadget_result.value.unwrap());
-
-        if !cs.is_satisfied(){
-            println!("{:?}", cs.which_is_unsatisfied());
-        }
-        assert!(cs.is_satisfied());
-    }
-
-    pub(crate) fn variable_length_field_based_hash_gadget_native_test<
-        F: PrimeField,
-        H: FieldBasedHash<Data = F>,
-        HG: FieldBasedHashGadget<H, F, DataGadget = FpGadget<F>>
-    >(inputs: Vec<F>, mod_rate: bool)
-    {
-        let mut cs = TestConstraintSystem::<F>::new();
-
-        let primitive_result = {
-            let mut digest = H::init_variable_length(mod_rate, None);
-            inputs.iter().for_each(|elem| { digest.update(*elem); });
-            digest.finalize().unwrap()
-        };
-
-        let mut input_gadgets = Vec::with_capacity(inputs.len());
-        inputs.into_iter().enumerate().for_each(|(i, elem)| {
-            let elem_gadget = HG::DataGadget::alloc(
-                cs.ns(|| format!("alloc input {}", i)),
-                || Ok(elem)
-            ).unwrap();
-            input_gadgets.push(elem_gadget);
-        });
-
-        let gadget_result = HG::enforce_hash_variable_length(
-            cs.ns(|| "check_poseidon_gadget"),
-            input_gadgets.as_slice(),
-            mod_rate
         ).unwrap();
 
         assert_eq!(primitive_result, gadget_result.value.unwrap());

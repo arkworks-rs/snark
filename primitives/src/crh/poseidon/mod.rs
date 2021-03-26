@@ -399,7 +399,7 @@ mod test {
     use crate::crh::{
         FieldBasedHash,
         test::{
-            field_based_hash_regression_test, constant_length_field_based_hash_test, variable_length_field_based_hash_test
+            constant_length_field_based_hash_test, variable_length_field_based_hash_test
         }
     };
     use crate::FieldBasedHashParameters;

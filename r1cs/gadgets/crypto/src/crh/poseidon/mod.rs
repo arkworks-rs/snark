@@ -87,24 +87,25 @@ impl<
         // First full rounds
         for i in 0..P::R_F {
 
-            // Add initial round constants
+            // Add the round constants to the state vector
             for d in state.iter_mut() {
                 let rc = P::ROUND_CST[round_cst_idx];
-                (*d).add_constant_in_place(cs.ns(|| format!("add_constant_{}", round_cst_idx)), &rc)?;
+                (*d).add_constant_in_place(cs.ns(|| format!("add_constant_1_{}", round_cst_idx)), &rc)?;
                 round_cst_idx += 1;
             }
 
             // Apply the S-BOX to each of the elements of the state vector
             for (j, d) in state.iter_mut().enumerate() {
-                Self::mod_inv_sbox(cs.ns(||format!("mod_inv_S-Box_1_{}_{}", i, j)), d)?;
+                Self::mod_inv_sbox(cs.ns(||format!("mod_inv_S-Box_1_{}_{}",i, j)), d)?;
             }
 
             // Perform the matrix mix
             Self::matrix_mix (cs.ns(|| format!("poseidon_mix_matrix_first_full_round_{}", i)), state)?;
+
         }
 
         // Partial rounds
-        for i in 0..P::R_P {
+        for _i in 0..P::R_P {
 
             // Add the round constants to the state vector
             for d in state.iter_mut() {
@@ -115,17 +116,16 @@ impl<
 
             // Apply S-Box only to the first element of the state vector
             Self::mod_inv_sbox(
-                cs.ns(||format!("mod_inv_S-Box_2_{}_{}", i, 0)),
+                cs.ns(||format!("mod_inv_S-Box_2_{}_{}",_i, 0)),
                 &mut state[0]
             )?;
 
             // Perform the matrix mix
-            Self::matrix_mix (cs.ns(|| format!("poseidon_mix_matrix_partial_round_{}", i)), state)?;
+            Self::matrix_mix (cs.ns(|| format!("poseidon_mix_matrix_partial_round_{}", _i)), state)?;
         }
 
         // Second full rounds
-        // Process only R_F  iterations. The last iteration does not contain a matrix mix
-        for i in 0..P::R_F {
+        for _i in 0..P::R_F {
 
             // Add the round constants
             for d in state.iter_mut() {
@@ -136,12 +136,13 @@ impl<
 
             // Apply the S-BOX to each of the elements of the state vector
             for (j, d) in state.iter_mut().enumerate() {
-                Self::mod_inv_sbox(cs.ns(||format!("mod_inv_S-Box_3_{}_{}", i, j)), d)?;
+                Self::mod_inv_sbox(cs.ns(||format!("mod_inv_S-Box_3_{}_{}",_i, j)), d)?;
             }
 
             // Perform the matrix mix
-            Self::matrix_mix (cs.ns(|| format!("poseidon_mix_matrix_second_full_round_{}", i)), state)?;
+            Self::matrix_mix (cs.ns(|| format!("poseidon_mix_matrix_second_full_round_{}", _i)), state)?;
         }
+
         Ok(())
     }
 
@@ -195,52 +196,6 @@ impl<
 
         Ok(())
     }
-
-    fn process_mod_rate_part<CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        mod_rate_inputs: &[FpGadget<ConstraintF>],
-    ) -> Result<Vec<FpGadget<ConstraintF>>, SynthesisError>
-    // Assumption:
-    //     capacity c = 1
-    {
-        // Initialize state
-        let mut state = Vec::new();
-        for i in 0..P::T {
-            let elem = FpGadget::<ConstraintF>::from_value(
-                cs.ns(|| format!("hardcode_state_{}", i)),
-                &P::AFTER_ZERO_PERM[i]
-            );
-            state.push(elem);
-        }
-
-        // Apply permutations each P::R inputs
-        mod_rate_inputs.chunks(P::R).enumerate().map(|(i, input)|{
-            for j in 0..P::R {
-                state[j].add_in_place(cs.ns(|| format!("add_input_{}_{}", i, j)), &input[j])?;
-            }
-            Self::poseidon_perm(cs.ns(|| format!("poseidon_perm_{}", i)), &mut state)
-        }).collect::<Result<_, SynthesisError>>()?;
-
-        Ok(state)
-    }
-
-    fn process_rem_part<CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        rem_inputs: &[FpGadget<ConstraintF>],
-        state: &mut [FpGadget<ConstraintF>],
-    ) -> Result<(), SynthesisError>
-    {
-        // Process remaining inputs and pad with 0s up to rate size
-        rem_inputs.iter().enumerate().map(|(j, input)| {
-            state[j].add_in_place(cs.ns(|| format!("poseidon_padding_add_{}",j)), &input)?;
-            Ok(())
-        }).collect::<Result<_, SynthesisError>>()?;
-
-        // apply permutation after adding the input vector
-        Self::poseidon_perm(cs.ns(|| "poseidon_padding_perm"), state)?;
-
-        Ok(())
-    }
 }
 
 impl<ConstraintF, P> FieldBasedHashGadget<PoseidonHash<ConstraintF, P>, ConstraintF> for PoseidonHashGadget<ConstraintF, P>
@@ -257,79 +212,46 @@ impl<ConstraintF, P> FieldBasedHashGadget<PoseidonHash<ConstraintF, P>, Constrai
     // Assumption:
     //     capacity c = 1
     {
-        // Sanity checks
         assert_ne!(input.len(), 0, "Input data array does not contain any data.");
         assert_eq!(P::T - P::R, 1, "The assumption that the capacity is one field element is not satisfied.");
 
+        let mut state = Vec::new();
+        for i in 0..P::T {
+            let elem = FpGadget::<ConstraintF>::from_value(
+                cs.ns(|| format!("hardcode_state_{}",i)),
+                &P::AFTER_ZERO_PERM[i]
+            );
+            state.push(elem);
+        }
+
         // calculate the number of cycles to process the input dividing in portions of rate elements
         let num_cycles = input.len() / P::R;
-
         // check if the input is a multiple of the rate by calculating the remainder of the division
+        // the remainder of dividing the input length by the rate can be 1 or 0 because we are assuming
+        // that the rate is 2
         let rem = input.len() % P::R;
 
-        let (mod_rate_inputs, rem_inputs) = input.split_at(num_cycles * P::R);
-
-        let mut state = Self::process_mod_rate_part(
-            cs.ns(|| "process mod rate part"),
-            mod_rate_inputs
-        )?;
+        // index to process the input
+        let mut input_idx = 0;
+        // iterate of the portions of rate elements
+        for i in 0..num_cycles {
+            // add the elements to the state vector. Add rate elements
+            for j in 0..P::R {
+                state[j].add_in_place(cs.ns(|| format!("add_input_{}_{}", i, j)), &input[input_idx])?;
+                input_idx += 1;
+            }
+            // apply permutation after adding the input vector
+            Self::poseidon_perm(cs.ns(|| format!("poseidon_perm_{}", i)), &mut state)?;
+        }
 
         // in case the input is not a multiple of the rate, process the remainder part padding zeros
         if rem != 0 {
-            Self::process_rem_part(
-                cs.ns(|| "process rem part"),
-                rem_inputs,
-                state.as_mut_slice(),
-            )?;
-        }
-
-        // return the first element of the state vector as the hash digest
-        Ok(state[0].clone())
-    }
-
-    fn enforce_hash_variable_length<CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        input: &[Self::DataGadget],
-        mod_rate: bool,
-    ) -> Result<Self::DataGadget, SynthesisError>
-    // Assumption:
-    //     capacity c = 1
-    {
-        // Sanity checks
-        assert_ne!(input.len(), 0, "Input data array does not contain any data.");
-        assert_eq!(P::T - P::R, 1, "The assumption that the capacity is one field element is not satisfied.");
-
-        // calculate the number of cycles to process the input dividing in portions of rate elements
-        let num_cycles = input.len() / P::R;
-
-        // check if the input is a multiple of the rate by calculating the remainder of the division
-        let rem = input.len() % P::R;
-
-        if mod_rate { assert_eq!(rem, 0, "Input is not multiple of the rate")}
-
-        let (mod_rate_inputs, rem_inputs) = input.split_at(num_cycles * P::R);
-
-        let mut state = Self::process_mod_rate_part(
-            cs.ns(|| "process mod rate part"),
-            mod_rate_inputs
-        )?;
-
-        // in case the input is not a multiple of the rate (possible only if mod_rate is false),
-        // process the remainder part of the input and apply padding
-        if !mod_rate {
-
-            // Concat to rem inputs a padding 1. The padding 0s will be added in the process_rem_part function
-            let one_const = FpGadget::<ConstraintF>::from_value(
-                cs.ns(|| "alloc padding 1"),
-                &ConstraintF::one()
-            );
-            let rem_inputs = [rem_inputs, &[one_const]].concat();
-
-            Self::process_rem_part(
-                cs.ns(|| "process rem part"),
-                rem_inputs.as_slice(),
-                state.as_mut_slice(),
-            )?;
+            for j in 0..rem {
+                state[j].add_in_place(cs.ns(|| format!("poseidon_padding_add_{}",j)), &input[input_idx])?;
+                input_idx += 1;
+            }
+            // apply permutation after adding the input vector
+            Self::poseidon_perm(cs.ns(|| "poseidon_padding_perm"), &mut state)?;
         }
 
         // return the first element of the state vector as the hash digest
@@ -340,10 +262,7 @@ impl<ConstraintF, P> FieldBasedHashGadget<PoseidonHash<ConstraintF, P>, Constrai
 #[cfg(test)]
 mod test {
     use algebra::PrimeField;
-    use crate::crh::test::{
-        constant_length_field_based_hash_gadget_native_test,
-        variable_length_field_based_hash_gadget_native_test
-    };
+    use crate::crh::test::constant_length_field_based_hash_gadget_native_test;
 
     fn generate_inputs<F: PrimeField>(num: usize) -> Vec<F>{
         let mut inputs = Vec::with_capacity(num);
@@ -360,14 +279,7 @@ mod test {
         use crate::MNT4PoseidonHashGadget;
 
         for ins in 1..=3 {
-            let mod_rate = ins % 2 == 0;
             constant_length_field_based_hash_gadget_native_test::<_, _, MNT4PoseidonHashGadget>(generate_inputs(ins));
-            variable_length_field_based_hash_gadget_native_test::<_, _, MNT4PoseidonHashGadget>(generate_inputs(ins), mod_rate);
-
-            // Test also case in which mod_rate is false but the input happens to be mod rate
-            if mod_rate {
-                variable_length_field_based_hash_gadget_native_test::<_, _, MNT4PoseidonHashGadget>(generate_inputs(ins), !mod_rate);
-            }
         }
     }
 
@@ -377,15 +289,7 @@ mod test {
         use crate::MNT6PoseidonHashGadget;
 
         for ins in 1..=3 {
-            let mod_rate = ins % 2 == 0;
-
             constant_length_field_based_hash_gadget_native_test::<_, _, MNT6PoseidonHashGadget>(generate_inputs(ins));
-            variable_length_field_based_hash_gadget_native_test::<_, _, MNT6PoseidonHashGadget>(generate_inputs(ins), mod_rate);
-
-            // Test also case in which mod_rate is false but the input happens to be mod rate
-            if mod_rate {
-                variable_length_field_based_hash_gadget_native_test::<_, _, MNT6PoseidonHashGadget>(generate_inputs(ins), !mod_rate);
-            }
         }
     }
 }
