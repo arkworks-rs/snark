@@ -208,6 +208,7 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
         }
     }
 
+    /// Inversion S-Box only !
     pub(crate) fn poseidon_perm (state: &mut Vec<F>) {
 
         // index that goes over the round constants
@@ -283,8 +284,7 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
         }
 
         // Second full rounds
-        // Process only to R_F - 1 iterations.
-        for _i in 0..(P::R_F - 1) {
+        for _i in 0..P::R_F {
 
             // Add the round constants
             for d in state.iter_mut() {
@@ -330,49 +330,6 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
 
             // Perform the matrix mix
             matrix_mix_short::<F, P>(state);
-        }
-
-        // Last full round does not perform the matrix_mix
-        // Add the round constants
-        for d in state.iter_mut() {
-            let rc = P::ROUND_CST[round_cst_idx];
-            *d += &rc;
-            round_cst_idx += 1;
-        }
-
-        // Apply the S-BOX to each of the elements of the state vector
-        // Use Montgomery simultaneous inversion
-        let mut w: Vec<P::Fr> = Vec::new();
-        let mut accum_prod = P::Fr::one();
-
-        w.push(accum_prod);
-
-        // Calculate the intermediate partial products
-        for d in state.iter() {
-            accum_prod = accum_prod * &d;
-            w.push(accum_prod);
-        }
-
-        if accum_prod == P::Fr::zero() {
-            // At least one of the S-Boxes is zero
-            // Calculate inverses individually
-            for d in state.iter_mut() {
-                // The S-BOX is an inversion function
-                if *d != P::Fr::zero() {
-                    *d = (*d).inverse().unwrap();
-                }
-            }
-        } else {
-            let mut w_bar = accum_prod.inverse().unwrap();
-
-            // Extract the individual inversions
-            let mut idx: i64 = w.len() as i64 - P::R as i64;
-            for d in state.iter_mut().rev() {
-                let tmp = d.clone();
-                *d = w_bar * &w[idx as usize];
-                w_bar = w_bar * &tmp;
-                idx -= 1;
-            }
         }
     }
 }

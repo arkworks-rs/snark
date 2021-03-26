@@ -151,7 +151,7 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
 
         // Full rounds
         // Last round does not contain the matrix mix
-        for _i in 0..(P::R_F - 1) {
+        for _i in 0..P::R_F {
             Self::poseidon_full_round(vec_state, &mut round_cst_idx);
 
             // Perform the matrix mix
@@ -159,8 +159,6 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
                 matrix_mix_short::<F,P>(&mut vec_state[i]);
             }
         }
-
-        Self::poseidon_full_round(vec_state, &mut round_cst_idx);
     }
 }
 
