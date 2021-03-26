@@ -7,11 +7,6 @@ pub use self::naive::*;
 pub mod optimized;
 pub use self::optimized::*;
 
-#[cfg(feature = "smt")]
-pub mod smt;
-#[cfg(feature = "smt")]
-pub use self::smt::*;
-
 pub mod parameters;
 pub use self::parameters::*;
 
