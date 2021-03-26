@@ -113,7 +113,7 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedMerkleTreePath for FieldBasedM
         // MerkleTree that creates this instance, but let's do it again.
         assert_eq!(<<Self::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R, T::MERKLE_ARITY);
 
-        let mut digest = <Self::H as FieldBasedHash>::init(None);
+        let mut digest = <Self::H as FieldBasedHash>::init_constant_length(T::MERKLE_ARITY, None);
         let mut prev_node = leaf.clone();
         for (sibling_nodes, position) in self.path.as_slice() {
             assert_eq!(sibling_nodes.len(), T::MERKLE_ARITY - 1);
@@ -132,7 +132,7 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedMerkleTreePath for FieldBasedM
             }
 
             // Compute the parent node
-            prev_node = digest.finalize();
+            prev_node = digest.finalize().unwrap();
             digest.reset(None);
         }
 
@@ -285,7 +285,7 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedMerkleTreePath for FieldBasedB
         // is reasonable and simplify the design. Should be also enforced by the
         // MerkleTree that creates this instance, but let's do it again.
         assert_eq!(<<Self::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R, T::MERKLE_ARITY);
-        let mut digest = <Self::H as FieldBasedHash>::init(None);
+        let mut digest = <Self::H as FieldBasedHash>::init_constant_length(2, None);
         let mut prev_node = *leaf;
         for &(sibling, direction) in self.path.as_slice() {
 
@@ -300,7 +300,8 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedMerkleTreePath for FieldBasedB
             prev_node = digest
                 .update(left)
                 .update(right)
-                .finalize();
+                .finalize()
+                .unwrap();
 
             digest.reset(None);
         }

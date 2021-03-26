@@ -241,14 +241,14 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
 
             //Compute c = H(m||pk.x||a.x||b.x)
             let c = {
-                let mut digest = FH::init(None);
+                let mut digest = FH::init_variable_length(false, None);
 
                 message.into_iter().for_each(|&m| { digest.update(m); });
                 digest
                     .update(pk.0.to_field_elements().unwrap()[0])
                     .update(a.to_field_elements().unwrap()[0])
                     .update(b.to_field_elements().unwrap()[0])
-                    .finalize()
+                    .finalize().unwrap()
             };
 
             let c_bits = c.write_bits();
@@ -304,14 +304,14 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
 
         //Compute c' = H(m||pk.x||u.x||v.x)
         let c_prime = {
-            let mut digest = FH::init(None);
+            let mut digest = FH::init_variable_length(false, None);
 
             message.into_iter().for_each(|&m| { digest.update(m); });
             digest
                 .update(pk.0.to_field_elements().unwrap()[0])
                 .update(u.to_field_elements().unwrap()[0])
                 .update(v.to_field_elements().unwrap()[0])
-                .finalize()
+                .finalize().unwrap()
         };
 
         //Verify valid proof
@@ -322,10 +322,10 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
 
                 //Compute VRF output
                 let output = {
-                    let mut digest = FH::init(None);
+                    let mut digest = FH::init_variable_length(false, None);
                     message.into_iter().for_each(|&m| { digest.update(m); });
                     gamma_coords.into_iter().for_each(|c| { digest.update(c); });
-                    digest.finalize()
+                    digest.finalize().unwrap()
                 };
 
                 //Return VRF output

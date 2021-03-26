@@ -183,11 +183,9 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
                 self.state[0].clone()
             }
 
-            // Pending is not empty: pad with 0s up to rate then compute the hash
+            // Pending is not empty: pad with 0s up to rate then compute the hash,
             else {
-                let mut pending = self.pending.clone();
-                pending.append(&mut vec![F::zero(); P::R - (pending.len() % P::R)]);
-                Self::get_hash(self.state.clone(), pending)
+                Self::get_hash(self.state.clone(), self.pending.clone())
             }
         }
 
@@ -203,9 +201,8 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
             // The input is of variable length, but not modulus rate: we always need to apply
             // padding. Pad with a single 1 and then 0s up to rate. Compute hash.
             else {
-                let mut pending = self.pending.clone();
+                let mut pending = self.pending.clone(); // Can also be empty if the input happens to be mod rate
                 pending.push(F::one());
-                pending.append(&mut vec![F::zero(); P::R - (pending.len() % P::R)]);
                 Self::get_hash(self.state.clone(), pending)
             }
         }
@@ -497,9 +494,19 @@ mod test {
 
                 variable_length_field_based_hash_test::<H>(
                     &mut digest,
-                    ins,
+                    ins.clone(),
                     mod_rate
                 );
+
+                // Test also case in which mod_rate is false but the input happens to be mod rate
+                if mod_rate {
+                    let mut digest = H::init_variable_length(!mod_rate, None);
+                    variable_length_field_based_hash_test::<H>(
+                        &mut digest,
+                        ins,
+                        !mod_rate
+                    );
+                }
             }
         });
     }

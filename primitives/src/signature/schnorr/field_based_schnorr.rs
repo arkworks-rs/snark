@@ -219,11 +219,11 @@ FieldBasedSchnorrSignatureScheme<F, G, H>
 
             // Compute e = H(m || R || pk.x)
             let e = {
-                let mut digest = H::init(None);
+                let mut digest = H::init_variable_length(false, None);
                 message.into_iter().for_each(|&m| { digest.update(m); });
                 r_coords.into_iter().for_each(|coord| { digest.update(coord); });
                 digest.update(pk_coords[0]);
-                digest.finalize()
+                digest.finalize().unwrap()
             };
 
             let e_bits = e.write_bits();
@@ -277,11 +277,11 @@ FieldBasedSchnorrSignatureScheme<F, G, H>
 
         // Compute e' = H(m || R' || pk.x)
         let e_prime = {
-            let mut digest = H::init(None);
+            let mut digest = H::init_variable_length(false, None);
             message.into_iter().for_each(|&m| { digest.update(m); });
             r_prime_coords.into_iter().for_each(|coord| { digest.update(coord); });
             digest.update(pk_coords[0]);
-            digest.finalize()
+            digest.finalize().unwrap()
         };
 
         Ok(signature.e == e_prime)

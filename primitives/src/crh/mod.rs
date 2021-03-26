@@ -200,10 +200,8 @@ mod test {
         let inputs_len = inputs.len();
 
         if mod_rate {
-            assert!(inputs_len % rate == 0 );
             constant_length_field_based_hash_test(digest, inputs);
         } else {
-            assert!(inputs_len % rate != 0 );
 
             // Check padding is added correctly and that the hash is collision free when input
             // is not modulus rate

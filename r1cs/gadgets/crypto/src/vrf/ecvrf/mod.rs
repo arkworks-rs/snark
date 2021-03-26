@@ -404,9 +404,10 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
         hash_input.push(u.to_field_gadget_elements().unwrap()[0].clone());
         hash_input.push(v.to_field_gadget_elements().unwrap()[0].clone());
 
-        let c_prime = FHG::check_evaluation_gadget(
+        let c_prime = FHG::enforce_hash_variable_length(
             cs.ns(|| "check c_prime"),
-            hash_input.as_slice()
+            hash_input.as_slice(),
+            false
         )?;
 
         //Enforce c = c'
@@ -417,9 +418,10 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
         hash_input.extend_from_slice(message);
         hash_input.extend_from_slice(proof.gamma.to_field_gadget_elements().unwrap().as_slice());
 
-        let vrf_output = FHG::check_evaluation_gadget(
+        let vrf_output = FHG::enforce_hash_variable_length(
             cs.ns(|| "check vrf_output"),
-            hash_input.as_slice()
+            hash_input.as_slice(),
+            false
         )?;
 
         Ok(vrf_output)

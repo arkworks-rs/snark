@@ -101,9 +101,9 @@ mod test {
         for _ in magic_string.len()..field_size_in_bytes { hash_input.push(0u8) }
         let hash_input_f = Fr::read(hash_input.as_slice()).unwrap();
 
-        let mut digest = MNT4PoseidonHash::init(None);
+        let mut digest = MNT4PoseidonHash::init_constant_length(1, None);
         digest.update(hash_input_f);
-        assert_eq!(digest.finalize(), MNT4753_PHANTOM_MERKLE_ROOT);
+        assert_eq!(digest.finalize().unwrap(), MNT4753_PHANTOM_MERKLE_ROOT);
     }
 
     #[ignore]
@@ -111,10 +111,14 @@ mod test {
     fn generate_binary_mnt4753_mht_nodes() {
         let mut empty_node = MNT4753_MHT_POSEIDON_PARAMETERS.nodes[0].clone();
         assert_eq!(empty_node, Fr::zero());
-        let mut digest = MNT4PoseidonHash::init(None);
+        let mut digest = MNT4PoseidonHash::init_constant_length(2, None);
         for node in MNT4753_MHT_POSEIDON_PARAMETERS.nodes {
             assert_eq!(node, &empty_node);
-            empty_node = digest.update(empty_node).update(empty_node).finalize();
+            empty_node = digest
+                .update(empty_node)
+                .update(empty_node)
+                .finalize()
+                .unwrap();
             digest.reset(None);
         }
     }

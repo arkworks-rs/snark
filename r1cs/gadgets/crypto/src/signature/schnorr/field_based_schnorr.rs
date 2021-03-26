@@ -277,9 +277,10 @@ impl<ConstraintF, G, GG, H, HG> FieldBasedSchnorrSigVerificationGadget<Constrain
         hash_input.extend_from_slice(r_prime_coords.as_slice());
         hash_input.push(public_key.to_field_gadget_elements().unwrap()[0].clone());
 
-        HG::check_evaluation_gadget(
+        HG::enforce_hash_variable_length(
             cs.ns(|| "check e_prime"),
-            hash_input.as_slice()
+            hash_input.as_slice(),
+            false
         )
     }
 }

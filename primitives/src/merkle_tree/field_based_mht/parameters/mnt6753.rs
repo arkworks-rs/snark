@@ -76,10 +76,14 @@ mod test {
     fn generate_binary_mnt6753_mht_nodes() {
         let mut empty_node = MNT6753_MHT_POSEIDON_PARAMETERS.nodes[0].clone();
         assert_eq!(empty_node, MNT6753Fr::zero());
-        let mut digest = MNT6PoseidonHash::init(None);
+        let mut digest = MNT6PoseidonHash::init_constant_length(2, None);
         for node in MNT6753_MHT_POSEIDON_PARAMETERS.nodes {
             assert_eq!(node, &empty_node);
-            empty_node = digest.update(empty_node).update(empty_node).finalize();
+            empty_node = digest
+                .update(empty_node)
+                .update(empty_node)
+                .finalize()
+                .unwrap();
             digest.reset(None);
         }
     }

@@ -442,10 +442,11 @@ impl<T: BatchFieldBasedMerkleTreeParameters> LazyBigMerkleTree<T> {
     }
 
     fn field_hash(x: &T::Data, y: &T::Data) -> T::Data{
-        <T::H as FieldBasedHash>::init(None)
+        <T::H as FieldBasedHash>::init_constant_length(2, None)
             .update(x.clone())
             .update(y.clone())
             .finalize()
+            .unwrap()
     }
 
     fn batch_hash(input: &[T::Data]) -> Vec<T::Data> {
