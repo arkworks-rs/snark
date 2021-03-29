@@ -13,6 +13,7 @@ pub mod simple_marlin;
 pub mod final_darlin;
 
 #[allow(dead_code)]
+/// Extract DLogCommitterKey and DLogVerifierKey from UniversalParams struct
 pub fn get_keys<G1: AffineCurve, G2: AffineCurve, D: Digest>(
     params_g1: &UniversalParams<G1>,
     params_g2: &UniversalParams<G2>,
@@ -50,6 +51,7 @@ mod test {
     use rand::{Rng, RngCore, SeedableRng, thread_rng};
     use rand_xorshift::XorShiftRng;
 
+    /// Generic test for `accumulate_proofs` and `verify_aggregated_proofs`
     fn test_accumulation<G1: AffineCurve, G2: AffineCurve, D: Digest, R: RngCore>(
         pcds: &mut [GeneralPCD<G1, G2, D>],
         vks: &[MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>],
@@ -141,6 +143,7 @@ mod test {
         assert_eq!(result.unwrap_err().unwrap(), idx);
     }
 
+    /// Generic test for `batch_verify_proofs`
     fn test_batch_verification<G1: AffineCurve, G2: AffineCurve, D: Digest, R: RngCore>(
         pcds: &mut [GeneralPCD<G1, G2, D>],
         vks: &[MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>],
@@ -225,7 +228,11 @@ mod test {
             committer_key_g2, verifier_key_g2
         ) = get_keys::<_, _, Blake2s>(&params_g1, &params_g2);
 
-        // Generate pcds and index vks
+        // Generate pcds and index vks: we want to generate PCDs with different segment
+        // sizes up at least to max_proofs, so we are going to randomly sample the segment size
+        // and the number of proofs with that specific segment size to generate (to save
+        // time without lacking in expressivity we just generate one and clone it
+        // iteration_num_proofs time.
         let mut generated_proofs = 0;
         let mut pcds = Vec::new();
         let mut simple_marlin_vks = Vec::new();
@@ -291,7 +298,11 @@ mod test {
             committer_key_g2, verifier_key_g2
         ) = get_keys::<_, _, Blake2s>(&params_g1, &params_g2);
 
-        // Generate pcds and index vks
+        // Generate pcds and index vks: we want to generate PCDs with different segment
+        // sizes up to at least max_proofs, so we are going to randomly sample the segment size
+        // and the number of proofs with that specific segment size to generate (to save
+        // time without lacking in expressivity we just generate one and clone it
+        // iteration_num_proofs time.
         let mut generated_proofs = 0;
         let mut pcds = Vec::new();
         let mut final_darlin_vks = Vec::new();
@@ -358,8 +369,11 @@ mod test {
             committer_key_g2, verifier_key_g2
         ) = get_keys::<_, _, Blake2s>(&params_g1, &params_g2);
 
-        // Generate pcds and index vks
-        // Randomly choose if to generate a SimpleMarlinProof or a FinalDarlinProof
+        // Generate pcds and index vks: we want to generate PCDs with different segment
+        // sizes up to at least max_proofs, so we are going to randomly sample the segment size
+        // and the number of proofs with that specific segment size to generate (to save
+        // time without lacking in expressivity we just generate one and clone it
+        // iteration_num_proofs time.
         let generation_rng = &mut thread_rng();
         let mut generated_proofs = 0;
         let mut pcds = Vec::new();
@@ -368,6 +382,8 @@ mod test {
             let iteration_num_proofs: usize = generation_rng.gen_range(1, max_proofs);
             generated_proofs += iteration_num_proofs;
             let iteration_segment_size = 1 << (generation_rng.gen_range(1, max_pow));
+
+            // Randomly choose if to generate a SimpleMarlinProof or a FinalDarlinProof
             let simple: bool = generation_rng.gen();
             if simple {
                 let (iteration_pcds, mut iteration_vks) = generate_simple_marlin_test_data(

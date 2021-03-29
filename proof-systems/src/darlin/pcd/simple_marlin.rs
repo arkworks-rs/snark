@@ -62,6 +62,7 @@ impl<'a, G, D> PCD<'a> for SimpleMarlinPCD<G, D>
 
         let (query_set, evaluations, labeled_comms, mut fs_rng) = ahp_result.unwrap();
 
+        // Absorb evaluations and sample new challenge
         fs_rng.absorb(&self.proof.evaluations);
         let opening_challenge: G::ScalarField = u128::rand(&mut fs_rng).into();
         let opening_challenges = |pow| opening_challenge.pow(&[pow]);
@@ -82,6 +83,7 @@ impl<'a, G, D> PCD<'a> for SimpleMarlinPCD<G, D>
             return Err(Error::FailedSuccinctCheck)
         }
 
+        // Successfull verification: return current accumulator
         let (xi_s, g_final) = succinct_result.unwrap();
         let acc = DLogAccumulator::<G> {
             g_final: Commitment::<G> {  comm: vec![g_final], shifted_comm: None  },

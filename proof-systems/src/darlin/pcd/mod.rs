@@ -18,11 +18,17 @@ use crate::darlin::accumulators::dlog::DualDLogAccumulator;
 pub mod simple_marlin;
 pub mod final_darlin;
 
+/// Configuration parameters for the PCD scheme: for now, just the size of the
+/// committer key to be used throughout the PCD scheme.
 pub struct PCDParameters {
     pub segment_size: usize
 }
 
 impl PCDParameters {
+
+    /// We assume the DLOG keys to be generated outside the PCD scheme,
+    /// so this function actually just trim them to the segment size
+    /// specified in the config.
     pub fn universal_setup<G: AffineCurve, D: Digest>(
         &self,
         params: &UniversalParams<G>
@@ -34,6 +40,10 @@ impl PCDParameters {
         )
     }
 
+    /// Generate prover and verifier key for `circuit`. Current implementation generates
+    /// just simple Marlin prover and verifier keys for generic circuit and assumes to
+    /// use some parameters in self: this will radically change in future when we are
+    /// going to implement full support for recursion.
     pub fn circuit_specific_setup<G: AffineCurve, C: ConstraintSynthesizer<G::ScalarField>, D: Digest>(
         &self,
         circuit: C,
@@ -70,17 +80,22 @@ impl PCDParameters {
     }
 }
 
-/// this trait expresses the functions for proof carrying data, in which the PCD is assumed
+/// This trait expresses the functions for proof carrying data, in which the PCD is assumed
 /// to be a set of data consisting of a statement, some deferred elements and a proof.
 pub trait PCD<'a>: Sized + Send + Sync {
     type PCDAccumulator: Accumulator<'a>;
     type PCDVerifierKey: AsRef<<Self::PCDAccumulator as Accumulator<'a>>::AccumulatorVerifierKey>;
 
+    /// Perform only cheap verification that tipically includes algebraic checks which
+    /// are not MSM, e.g. verification of Marlin's sumcheck equations, Bullet reduction
+    /// and so on. Return an accumulator for the proof if verification was succesfull,
+    /// Error otherwise.
     fn succinct_verify(
         &self,
         vk:         &Self::PCDVerifierKey,
     ) -> Result<Self::PCDAccumulator, PCError>;
 
+    /// Check the current accumulator, tipically via one or more MSMs
     fn hard_verify<R: RngCore, D: Digest>(
         &self,
         acc:    Self::PCDAccumulator,
@@ -89,6 +104,7 @@ pub trait PCD<'a>: Sized + Send + Sync {
     ) -> Result<bool, PCError>
     { <Self::PCDAccumulator as Accumulator>::check_accumulators::<R, D>(vk.as_ref(), &[acc], rng) }
 
+    /// Perform full verification of `self`, i.e. both succinct and hard part.
     fn verify<R: RngCore, D: Digest>(
         &self,
         vk:         &Self::PCDVerifierKey,
@@ -102,6 +118,8 @@ pub trait PCD<'a>: Sized + Send + Sync {
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""))]
+/// Achieve polymorphism for PCD via an enumerable. This provides nice APIs for
+/// the proof aggregation implementation and testing.
 pub enum GeneralPCD<G1: AffineCurve, G2: AffineCurve, D: Digest> {
     SimpleMarlin(SimpleMarlinPCD<G1, D>),
     FinalDarlin(FinalDarlinPCD<G1, G2, D>)

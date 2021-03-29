@@ -17,7 +17,7 @@ use crate::darlin::accumulators::dlog::{DLogAccumulator, DualDLogAccumulator};
 use crate::darlin::pcd::PCD;
 use rand::RngCore;
 
-// Maybe later we will deferr algebraic checks over G1::BaseField
+// Maybe later this will include more element as we will deferr algebraic checks over G1::BaseField
 #[derive(Clone)]
 pub struct FinalDarlinDeferredData<G1: AffineCurve, G2: AffineCurve> {
     pub(crate) previous_acc:       DLogAccumulator<G2>,
@@ -182,6 +182,7 @@ where
         }
         let (query_set, evaluations, labeled_comms, mut fs_rng) = ahp_result.unwrap();
 
+        // Absorb evaluations and sample new challenge
         fs_rng.absorb(&self.marlin_proof.evaluations);
         let opening_challenge: G1::ScalarField = u128::rand(&mut fs_rng).into();
         let opening_challenges = |pow| opening_challenge.pow(&[pow]);
@@ -202,6 +203,7 @@ where
             return Err(Error::FailedSuccinctCheck)
         }
 
+        // Verification successfull: return new accumulator
         let (xi_s, g_final) = succinct_result.unwrap();
         let acc = DLogAccumulator::<G1> {
             g_final: Commitment::<G1> { comm: vec![g_final], shifted_comm: None},

@@ -86,7 +86,8 @@ impl<G: AffineCurve> DLogAccumulator<G> {
         );
         let opening_challenges = |pow| opening_challenge.pow(&[pow]);
 
-        // Succinct check
+        // Succinct verify the commitments of the Bullet polys opened at the new challenge,
+        // and get the new chals
         let xi_s = InnerProductArgPC::<G, D>::succinct_check(
             vk, comms.iter(), z, values, &proof.pc_proof, &opening_challenges
         )?;
@@ -126,6 +127,8 @@ impl<'a, G: AffineCurve> Accumulator<'a> for DLogAccumulator<G> {
     type AccumulatorVerifierKey = VerifierKey<G>;
     type AccumulationProof = AccumulationProof<G>;
 
+    /// Batch verification of DLog accumulators: combine Bullet polys and the corresponding GFins
+    /// and perform a single MSM.
     fn check_accumulators<R: RngCore, D: Digest>(
         vk: &Self::AccumulatorVerifierKey,
         accumulators: &[Self],
@@ -184,6 +187,10 @@ impl<'a, G: AffineCurve> Accumulator<'a> for DLogAccumulator<G> {
         Ok(true)
     }
 
+    /// Our implementation is size optimized: the accumulation proof is all that it's needed since
+    /// that the g_fin of the new accumulator can be derived from the AccumulationProof (which is
+    /// a DLOG opening proof) and the xi_s can be recomputed via succinct verification of the previous
+    /// accumulators.
     fn accumulate<D: Digest>(
         ck: &Self::AccumulatorProverKey,
         accumulators: Vec<Self>,
@@ -211,6 +218,8 @@ impl<'a, G: AffineCurve> Accumulator<'a> for DLogAccumulator<G> {
 
         let poly_time = start_timer!(|| "Open Bullet Polys");
 
+        // Compute multi poly single point opening proof of the Bullet polys
+        // at the GFin(s)
         let opening_proof = InnerProductArgPC::<G, D>::open_check_polys(
             &ck,
             xi_s.iter(),
@@ -220,6 +229,9 @@ impl<'a, G: AffineCurve> Accumulator<'a> for DLogAccumulator<G> {
 
         end_timer!(poly_time);
 
+        // Even if our implementation is size optimized, the API requires us to
+        // return an accumulator too: so we return a dummy one instead (to be
+        // discarded by the caller).
         let accumulator = DLogAccumulator::<G>::default();
 
         let mut accumulation_proof = AccumulationProof::<G>::default();
@@ -240,14 +252,15 @@ impl<'a, G: AffineCurve> Accumulator<'a> for DLogAccumulator<G> {
     {
         let check_acc_time = start_timer!(|| "Verify Accumulation");
 
-        // Succinct part
+        // Succinct part: compute the aggregated accumulator by recomputing the xi_s from
+        // the previous_accumulator and the g_fin from the accumulation proof
         let new_acc = Self::succinct_verify_accumulate::<D>(vk, previous_accumulators, proof)?;
         if new_acc.is_none() {
             end_timer!(check_acc_time);
             return Ok(false)
         }
 
-        // Hard part
+        // Verify the aggregated accumulator
         let hard_time = start_timer!(|| "DLOG hard part");
         let result = Self::check_accumulators::<R, D>(vk, &vec![new_acc.unwrap()], rng)?;
         end_timer!(hard_time);

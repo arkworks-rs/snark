@@ -23,6 +23,12 @@ use digest::Digest;
 use rayon::prelude::*;
 use crate::darlin::pcd::GeneralPCD;
 
+/// Given a set of PCDs, their corresponding Marlin verification keys, and the DLogCommitterKey(s)
+/// over two groups of a curve cycle, compute and return the associated accumulators via the
+/// succinct verification of them; in case of failure, if it's possible to estabilish it, return the
+/// index of the proof that has caused the failure. It is implicitly allowed for the PCDs to be
+/// produced (thus verified) using DLogCommitterKey of different sizes, as long as they are smaller
+/// equal than `g1_ck` and `g2_ck`.
 pub(crate) fn get_accumulators<G1, G2, D: Digest>(
     pcds:      &[GeneralPCD<G1, G2, D>],
     vks:       &[MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>],
@@ -59,6 +65,12 @@ pub(crate) fn get_accumulators<G1, G2, D: Digest>(
     Ok((accs_g1, accs_g2))
 }
 
+/// Given a set of PCDs, their corresponding Marlin verification keys, and the DLogCommitterKey(s)
+/// over two groups of a curve cycle, compute and return the accumulation proofs for the PCDs
+/// on both groups (if needed); in case of failure, if it's possible to estabilish it, return the
+/// index of the proof that has caused the failure. It is implicitly allowed for the PCDs to be
+/// produced using DLogCommitterKey of different sizes, as long as they are smaller equal than
+/// `g1_ck` and `g2_ck`.
 pub fn accumulate_proofs<G1, G2, D: Digest>(
     pcds:      &[GeneralPCD<G1, G2, D>],
     vks:       &[MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>],
@@ -104,6 +116,12 @@ pub fn accumulate_proofs<G1, G2, D: Digest>(
     Ok((acc_proof_g1, acc_proof_g2))
 }
 
+/// Given a set of PCDs, their corresponding Marlin verification keys, the DLogVerifierKey(s)
+/// over two groups of a curve cycle, and an accumulation proof in both (if needed) of the groups
+/// verify the latters; in case of failure, if it's possible to estabilish it, return the
+/// index of the proof that has caused the failure. It is implicitly allowed for the PCDs to be
+/// produced (thus verified) using DLogVerifierKey of different sizes, as long as they are
+/// smaller equal than `g1_vk` and `g2_vk`.
 pub fn verify_aggregated_proofs<G1, G2, D: Digest, R: RngCore>(
     pcds:                   &[GeneralPCD<G1, G2, D>],
     vks:                    &[MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>],
@@ -146,6 +164,11 @@ pub fn verify_aggregated_proofs<G1, G2, D: Digest, R: RngCore>(
     Ok(result_accumulate_g1 && result_accumulate_g2)
 }
 
+/// Given a set of PCDs, their corresponding Marlin verification keys, the DLogVerifierKey(s)
+/// over two groups of a curve cycle, verify the proofs; in case of failure, if it's possible
+/// to estabilish it, return the index of the proof that has caused the failure. It is
+/// implicitly allowed for the PCDs to be produced (thus verified) using DLogVerifierKey of
+/// different sizes, as long as they are smaller equal than `g1_vk` and `g2_vk`.
 pub fn batch_verify_proofs<G1, G2, D: Digest, R: RngCore>(
     pcds:                   &[GeneralPCD<G1, G2, D>],
     vks:                    &[MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>],
