@@ -25,8 +25,8 @@ algebra-utils = { git = "https://github.com/HorizenOfficial/ginger-lib", branch 
 r1cs-core = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "darlin" }
 bench-utils = { path = "../bench-utils" }
 
-marlin = { git = "https://github.com/HorizenLabs/marlin", branch = "sync_with_pc_pcd", optional = true }
-poly-commit = { git = "https://github.com/HorizenLabs/poly-commit", branch = "mods_for_pcd", optional = true }
+marlin = { git = "https://github.com/HorizenLabs/marlin", branch = "mods_for_darlin", optional = true }
+poly-commit = { git = "https://github.com/HorizenLabs/poly-commit", branch = "mods_for_darlin", optional = true }
 
 r1cs-std = { path = "../r1cs/gadgets/std", optional = true }
 
