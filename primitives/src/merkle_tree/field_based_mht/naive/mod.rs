@@ -234,7 +234,7 @@ mod test {
         }
     }
 
-
+    #[test]
     fn good_root_test() {
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
 
@@ -293,7 +293,7 @@ mod test {
         }
     }
 
-
+    #[test]
     fn bad_root_test() {
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
 
@@ -329,7 +329,7 @@ mod test {
         bad_merkle_tree_verify(&leaves);
     }
 
-    //#[test]
+    #[test]
     fn compare_merkle_trees_mnt4() {
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
 

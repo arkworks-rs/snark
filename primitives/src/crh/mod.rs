@@ -143,21 +143,6 @@ mod test {
         type BaseHash = MNT4PoseidonHash;
     }
 
-    pub(crate) fn field_based_hash_regression_test<H: FieldBasedHash>(
-        digest: &mut H,
-        inputs: Vec<H::Data>,
-        expected_output: H::Data
-    )
-    {
-        // Test H(inputs) == expected_output
-        inputs.iter().for_each(|fe| { digest.update(fe.clone()); });
-        let output = digest.finalize().unwrap();
-        assert_eq!(
-            expected_output,
-            output,
-            "Outputs do not match: expected\n{:?}\n, found\n {:?}\n", expected_output, output);
-    }
-
     pub(crate) fn constant_length_field_based_hash_test<H: FieldBasedHash>(
         digest: &mut H,
         inputs: Vec<H::Data>,
@@ -196,8 +181,6 @@ mod test {
             inputs.append(&mut vec![H::Data::zero(); rate - (inputs.len() % rate)]);
             inputs
         };
-
-        let inputs_len = inputs.len();
 
         if mod_rate {
             constant_length_field_based_hash_test(digest, inputs);

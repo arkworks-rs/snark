@@ -28,6 +28,12 @@ pub trait FieldBasedMerkleTreeParameters: 'static + Clone {
 }
 
 /// Pre-computed hashes of the empty nodes for the different levels of the Merkle Tree
+#[derive(Derivative)]
+#[derivative(
+    Debug(bound = ""),
+    Eq(bound = ""),
+    PartialEq(bound = ""),
+)]
 pub struct FieldBasedMerkleTreePrecomputedEmptyConstants<'a, H: FieldBasedHash> {
     pub nodes: &'a [H::Data],
     pub merkle_arity: usize,
