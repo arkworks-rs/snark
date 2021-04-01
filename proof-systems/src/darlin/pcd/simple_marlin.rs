@@ -73,7 +73,7 @@ impl<'a, G, D> PCD<'a> for SimpleMarlinPCD<G, D>
             &labeled_comms,
             &query_set,
             &evaluations,
-            &self.proof.pc_proof.proof,
+            &self.proof.pc_proof,
             &opening_challenges,
         );
 

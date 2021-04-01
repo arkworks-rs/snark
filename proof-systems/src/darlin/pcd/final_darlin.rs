@@ -193,7 +193,7 @@ where
             &labeled_comms,
             &query_set,
             &evaluations,
-            &self.marlin_proof.pc_proof.proof,
+            &self.marlin_proof.pc_proof,
             &opening_challenges,
         );
 
