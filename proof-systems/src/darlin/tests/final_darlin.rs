@@ -8,7 +8,7 @@ use marlin::{
     Marlin, ProverKey as MarlinProverKey, VerifierKey as MarlinVerifierKey,
 };
 use poly_commit::ipa_pc::{InnerProductArgPC, CommitterKey, UniversalParams};
-use rand::RngCore;
+use rand::{ Rng, RngCore };
 use digest::Digest;
 use std::ops::MulAssign;
 use r1cs_std::{
@@ -126,14 +126,14 @@ impl<G1: AffineCurve, G2: AffineCurve> ConstraintSynthesizer<G1::ScalarField> fo
 }
 
 #[allow(dead_code)]
-pub fn generate_test_pcd<G1: AffineCurve, G2:AffineCurve, D: Digest, R: RngCore>(
+pub fn generate_test_pcd<'a, G1: AffineCurve, G2:AffineCurve, D: Digest + 'a, R: RngCore>(
     pc_ck_g1: &CommitterKey<G1>,
     deferred: FinalDarlinDeferredData<G1, G2>,
     marlin_pk: &MarlinProverKey<G1::ScalarField, InnerProductArgPC<G1, D>>,
     num_constraints: usize,
     zk: bool,
     rng: &mut R,
-) -> FinalDarlinPCD<G1, G2, D>
+) -> FinalDarlinPCD<'a, G1, G2, D>
     where
         G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
         G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
@@ -161,15 +161,15 @@ pub fn generate_test_pcd<G1: AffineCurve, G2:AffineCurve, D: Digest, R: RngCore>
         if zk { Some(rng) } else { None }
     ).unwrap();
 
-    FinalDarlinPCD::<G1, G2, D> {
-        marlin_proof: proof,
+    FinalDarlinPCD::<'a, G1, G2, D>::new(
+        proof,
         deferred,
-        usr_ins: vec![c, d]
-    }
+        vec![c, d]
+    )
 }
 
 #[allow(dead_code)]
-pub fn generate_test_data<G1: AffineCurve, G2: AffineCurve, D: Digest, R: RngCore>(
+pub fn generate_test_data<'a, G1: AffineCurve, G2: AffineCurve, D: Digest + 'a, R: RngCore>(
     num_constraints: usize,
     segment_size: usize,
     params_g1: &UniversalParams<G1>,
@@ -177,7 +177,7 @@ pub fn generate_test_data<G1: AffineCurve, G2: AffineCurve, D: Digest, R: RngCor
     num_proofs: usize,
     rng: &mut R,
 ) -> (
-    Vec<FinalDarlinPCD<G1, G2, D>>,
+    Vec<FinalDarlinPCD<'a, G1, G2, D>>,
     Vec<MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>>
 )
     where
@@ -213,7 +213,7 @@ pub fn generate_test_data<G1: AffineCurve, G2: AffineCurve, D: Digest, R: RngCor
         deferred,
         &index_pk,
         num_constraints,
-        false,
+        rng.gen(),
         rng,
     );
 

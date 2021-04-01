@@ -7,15 +7,16 @@ use poly_commit::{ipa_pc::{
     SuccinctCheckPolynomial,
 }, LabeledCommitment, Error};
 use crate::darlin::accumulators::{
-    Accumulator, AccumulationProof,
+    ItemAccumulator, AccumulationProof,
 };
 use rayon::prelude::*;
 use rand::RngCore;
 use digest::Digest;
+use std::marker::PhantomData;
 
 /// This implements the public aggregator for the IPA/DLOG commitment scheme.
 #[derive(Clone)]
-pub struct DLogAccumulator<G: AffineCurve> {
+pub struct DLogItem<G: AffineCurve> {
     /// Final committer key after the DLOG reduction.
     pub(crate) g_final:     Commitment<G>,
 
@@ -23,16 +24,42 @@ pub struct DLogAccumulator<G: AffineCurve> {
     pub(crate) xi_s:        SuccinctCheckPolynomial<G::ScalarField>,
 }
 
-impl<G: AffineCurve> DLogAccumulator<G> {
+impl<G: AffineCurve> Default for DLogItem<G> {
+    fn default() -> Self {
+        Self {
+            g_final: Commitment::<G>::default(),
+            xi_s: SuccinctCheckPolynomial(vec![])
+        }
+    }
+}
+
+impl<G: AffineCurve> ToBytes for DLogItem<G> {
+    fn write<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        self.g_final.write(&mut writer)?;
+        self.xi_s.0.write(&mut writer)
+    }
+}
+
+pub struct DLogItemAccumulator<G: AffineCurve, D: Digest> {
+    _digest: PhantomData<D>,
+    _group:  PhantomData<G>,
+}
+
+impl<G: AffineCurve, D: Digest> DLogItemAccumulator<G, D> {
+
+    pub fn get_instance() -> Self
+    {
+        Self { _group: PhantomData, _digest: PhantomData }
+    }
 
     /// This implementation reflects the procedure for size-optimized DLOG accumulation proofs
     /// in which we need to recompute the xi_s. If successfull, returns the new accumulator
     /// (the GFinal is taken from proof itself).
-    pub fn succinct_verify_accumulate<D: Digest>(
+    pub fn succinct_verify_accumulated_items(
         vk:                    &VerifierKey<G>,
-        previous_accumulators: Vec<Self>,
+        previous_accumulators: Vec<DLogItem<G>>,
         proof:                 &AccumulationProof<G>,
-    ) -> Result<Option<Self>, Error>
+    ) -> Result<Option<DLogItem<G>>, Error>
     {
         let succinct_time = start_timer!(|| "Succinct verify accumulate");
 
@@ -96,7 +123,7 @@ impl<G: AffineCurve> DLogAccumulator<G> {
         end_timer!(succinct_time);
 
         if xi_s.is_some() {
-            Ok(Some(Self {
+            Ok(Some(DLogItem::<G>{
                 g_final: Commitment::<G>{ comm: vec![proof.pc_proof.final_comm_key.clone()], shifted_comm: None },
                 xi_s: xi_s.unwrap(),
             }))
@@ -106,32 +133,17 @@ impl<G: AffineCurve> DLogAccumulator<G> {
     }
 }
 
-impl<G: AffineCurve> Default for DLogAccumulator<G> {
-    fn default() -> Self {
-        Self {
-            g_final: Commitment::<G>::default(),
-            xi_s: SuccinctCheckPolynomial(vec![])
-        }
-    }
-}
-
-impl<G: AffineCurve> ToBytes for DLogAccumulator<G> {
-    fn write<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
-        self.g_final.write(&mut writer)?;
-        self.xi_s.0.write(&mut writer)
-    }
-}
-
-impl<'a, G: AffineCurve> Accumulator<'a> for DLogAccumulator<G> {
+impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
     type AccumulatorProverKey = CommitterKey<G>;
     type AccumulatorVerifierKey = VerifierKey<G>;
     type AccumulationProof = AccumulationProof<G>;
+    type Item = DLogItem<G>;
 
     /// Batch verification of DLog accumulators: combine Bullet polys and the corresponding GFins
     /// and perform a single MSM.
-    fn check_accumulators<R: RngCore, D: Digest>(
+    fn check_items<R: RngCore>(
         vk: &Self::AccumulatorVerifierKey,
-        accumulators: &[Self],
+        accumulators: &[Self::Item],
         rng: &mut R
     ) -> Result<bool, Error>
     {
@@ -191,10 +203,10 @@ impl<'a, G: AffineCurve> Accumulator<'a> for DLogAccumulator<G> {
     /// that the g_fin of the new accumulator can be derived from the AccumulationProof (which is
     /// a DLOG opening proof) and the xi_s can be recomputed via succinct verification of the previous
     /// accumulators.
-    fn accumulate<D: Digest>(
+    fn accumulate_items(
         ck: &Self::AccumulatorProverKey,
-        accumulators: Vec<Self>,
-    ) -> Result<(Self, Self::AccumulationProof), Error>
+        accumulators: Vec<Self::Item>,
+    ) -> Result<(Self::Item, Self::AccumulationProof), Error>
     {
         let accumulate_time = start_timer!(|| "Accumulate");
 
@@ -232,7 +244,7 @@ impl<'a, G: AffineCurve> Accumulator<'a> for DLogAccumulator<G> {
         // Even if our implementation is size optimized, the API requires us to
         // return an accumulator too: so we return a dummy one instead (to be
         // discarded by the caller).
-        let accumulator = DLogAccumulator::<G>::default();
+        let accumulator = DLogItem::<G>::default();
 
         let mut accumulation_proof = AccumulationProof::<G>::default();
         accumulation_proof.pc_proof = opening_proof;
@@ -242,10 +254,10 @@ impl<'a, G: AffineCurve> Accumulator<'a> for DLogAccumulator<G> {
         Ok((accumulator, accumulation_proof))
     }
 
-    fn verify_accumulate<R: RngCore, D: Digest>(
-        &self,
+    fn verify_accumulated_items<R: RngCore>(
+        _current_acc: &Self::Item,
         vk: &Self::AccumulatorVerifierKey,
-        previous_accumulators: Vec<Self>,
+        previous_accumulators: Vec<Self::Item>,
         proof: &Self::AccumulationProof,
         rng: &mut R
     ) -> Result<bool, Error>
@@ -254,7 +266,7 @@ impl<'a, G: AffineCurve> Accumulator<'a> for DLogAccumulator<G> {
 
         // Succinct part: compute the aggregated accumulator by recomputing the xi_s from
         // the previous_accumulator and the g_fin from the accumulation proof
-        let new_acc = Self::succinct_verify_accumulate::<D>(vk, previous_accumulators, proof)?;
+        let new_acc = Self::succinct_verify_accumulated_items(vk, previous_accumulators, proof)?;
         if new_acc.is_none() {
             end_timer!(check_acc_time);
             return Ok(false)
@@ -262,7 +274,7 @@ impl<'a, G: AffineCurve> Accumulator<'a> for DLogAccumulator<G> {
 
         // Verify the aggregated accumulator
         let hard_time = start_timer!(|| "DLOG hard part");
-        let result = Self::check_accumulators::<R, D>(vk, &vec![new_acc.unwrap()], rng)?;
+        let result = Self::check_items::<R>(vk, &vec![new_acc.unwrap()], rng)?;
         end_timer!(hard_time);
 
         end_timer!(check_acc_time);
@@ -271,78 +283,87 @@ impl<'a, G: AffineCurve> Accumulator<'a> for DLogAccumulator<G> {
     }
 }
 
-pub struct DualDLogAccumulator<G1: AffineCurve, G2: AffineCurve>(
-    pub(crate) Vec<DLogAccumulator<G1>>,
-    pub(crate) Vec<DLogAccumulator<G2>>,
+pub struct DualDLogItem<G1: AffineCurve, G2: AffineCurve>(
+    pub(crate) Vec<DLogItem<G1>>,
+    pub(crate) Vec<DLogItem<G2>>,
 );
 
-impl<G1: AffineCurve, G2: AffineCurve> ToBytes for DualDLogAccumulator<G1, G2> {
+impl<G1: AffineCurve, G2: AffineCurve> ToBytes for DualDLogItem<G1, G2> {
     fn write<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
         self.0.write(&mut writer)?;
         self.1.write(&mut writer)
     }
 }
 
-impl<'a, G1, G2> Accumulator<'a> for DualDLogAccumulator<G1, G2>
+pub struct DualDLogItemAccumulator<'a, G1: AffineCurve, G2: AffineCurve, D: Digest> {
+    _lifetime: PhantomData<&'a ()>,
+    _group_1:  PhantomData<G1>,
+    _group_2:  PhantomData<G2>,
+    _digest:   PhantomData<D>,
+}
+
+impl<'a, G1, G2, D> ItemAccumulator for DualDLogItemAccumulator<'a, G1, G2, D>
     where
         G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField>,
         G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField>,
+        D: Digest,
 {
     type AccumulatorProverKey = (&'a CommitterKey<G1>, &'a CommitterKey<G2>);
     type AccumulatorVerifierKey = (&'a VerifierKey<G1>, &'a VerifierKey<G2>);
     type AccumulationProof = (AccumulationProof<G1>, AccumulationProof<G2>);
+    type Item = DualDLogItem<G1, G2>;
 
-    fn check_accumulators<R: RngCore, D: Digest>(
+    fn check_items<R: RngCore>(
         vk: &Self::AccumulatorVerifierKey,
-        accumulators: &[Self],
+        accumulators: &[Self::Item],
         rng: &mut R
     ) -> Result<bool, Error>
     {
         let g1_accumulators = accumulators.iter().flat_map(|acc| { acc.0.clone() }).collect::<Vec<_>>();
-        if !DLogAccumulator::<G1>::check_accumulators::<R, D>(&vk.0, g1_accumulators.as_slice(), rng)? {
+        if !DLogItemAccumulator::<G1, D>::check_items::<R>(&vk.0, g1_accumulators.as_slice(), rng)? {
             return Ok(false)
         }
 
         let g2_accumulators = accumulators.iter().flat_map(|acc| { acc.1.clone() }).collect::<Vec<_>>();
-        if !DLogAccumulator::<G2>::check_accumulators::<R, D>(&vk.1, g2_accumulators.as_slice(), rng)? {
+        if !DLogItemAccumulator::<G2, D>::check_items::<R>(&vk.1, g2_accumulators.as_slice(), rng)? {
             return Ok(false)
         }
 
         Ok(true)
     }
 
-    fn accumulate<D: Digest>(
+    fn accumulate_items(
         ck: &Self::AccumulatorProverKey,
-        accumulators: Vec<Self>,
-    ) -> Result<(Self, Self::AccumulationProof), Error>
+        accumulators: Vec<Self::Item>,
+    ) -> Result<(Self::Item, Self::AccumulationProof), Error>
     {
         let g1_accumulators = accumulators.iter().flat_map(|acc| { acc.0.clone() }).collect::<Vec<_>>();
-        let (_, g1_acc_proof) = DLogAccumulator::<G1>::accumulate::<D>(&ck.0, g1_accumulators)?;
+        let (_, g1_acc_proof) = DLogItemAccumulator::<G1, D>::accumulate_items(&ck.0, g1_accumulators)?;
 
         let g2_accumulators = accumulators.into_iter().flat_map(|acc| { acc.1 }).collect::<Vec<_>>();
-        let (_, g2_acc_proof) = DLogAccumulator::<G2>::accumulate::<D>(&ck.1, g2_accumulators)?;
+        let (_, g2_acc_proof) = DLogItemAccumulator::<G2, D>::accumulate_items(&ck.1, g2_accumulators)?;
 
-        let accumulator = DualDLogAccumulator::<G1, G2>(vec![DLogAccumulator::<G1>::default()], vec![DLogAccumulator::<G2>::default()]);
+        let accumulator = DualDLogItem::<G1, G2>(vec![DLogItem::<G1>::default()], vec![DLogItem::<G2>::default()]);
         let accumulation_proof = (g1_acc_proof, g2_acc_proof);
 
         Ok((accumulator, accumulation_proof))
     }
 
-    fn verify_accumulate<R: RngCore, D: Digest>(
-        &self,
+    fn verify_accumulated_items<R: RngCore>(
+        _current_acc: &Self::Item,
         vk: &Self::AccumulatorVerifierKey,
-        previous_accumulators: Vec<Self>,
+        previous_accumulators: Vec<Self::Item>,
         proof: &Self::AccumulationProof,
         rng: &mut R
     ) -> Result<bool, Error>
     {
         let g1_accumulators = previous_accumulators.iter().flat_map(|acc| { acc.0.clone() }).collect();
-        if !(&DLogAccumulator::<G1>::default()).verify_accumulate::<R, D>(&vk.0, g1_accumulators, &proof.0, rng)? {
+        if !DLogItemAccumulator::<G1, D>::verify_accumulated_items::<R>(&DLogItem::<G1>::default(), &vk.0, g1_accumulators, &proof.0, rng)? {
             return Ok(false)
         }
 
         let g2_accumulators = previous_accumulators.into_iter().flat_map(|acc| { acc.1 }).collect();
-        if !(&DLogAccumulator::<G2>::default()).verify_accumulate::<R, D>(&vk.1, g2_accumulators, &proof.1, rng)? {
+        if !DLogItemAccumulator::<G2, D>::verify_accumulated_items::<R>(&DLogItem::<G2>::default(), &vk.1, g2_accumulators, &proof.1, rng)? {
             return Ok(false)
         }
 
@@ -357,7 +378,7 @@ mod test {
         BatchProof, UniversalParams,
     }, PolynomialCommitment};
 
-    use rand::{distributions::Distribution, thread_rng};
+    use rand::{distributions::Distribution, thread_rng, Rng};
     use std::marker::PhantomData;
     use digest::Digest;
     use blake2::Blake2s;
@@ -369,6 +390,7 @@ mod test {
         supported_degree: Option<usize>,
         num_polynomials: usize,
         enforce_degree_bounds: bool,
+        hiding: bool,
         max_num_queries: usize,
         segmented: bool
     }
@@ -403,6 +425,7 @@ mod test {
             enforce_degree_bounds,
             max_num_queries,
             segmented,
+            hiding,
             ..
         } = info;
 
@@ -467,10 +490,14 @@ mod test {
                 None
             };
 
-            let hiding_bound = if num_points_in_query_set >= degree {
-                Some(degree)
+            let hiding_bound = if hiding {
+                if num_points_in_query_set >= degree {
+                    Some(degree)
+                } else {
+                    Some(num_points_in_query_set)
+                }
             } else {
-                Some(num_points_in_query_set)
+                None
             };
             println!("Hiding bound: {:?}", hiding_bound);
 
@@ -542,25 +569,31 @@ mod test {
             D: Digest,
     {
         let rng = &mut thread_rng();
-        let max_degree = rand::distributions::Uniform::from(2..=64).sample(rng);
+        let max_degree = rand::distributions::Uniform::from(2..=128).sample(rng);
 
-        let info = TestInfo {
+        let mut info = TestInfo {
             max_degree: Some(max_degree),
             supported_degree: None,
             num_polynomials: 10,
-            enforce_degree_bounds: true,
             max_num_queries: 5,
-            segmented: true,
             ..Default::default()
         };
 
         let pp = InnerProductArgPC::<G, D>::setup(max_degree)?;
+        let (ck, vk) = InnerProductArgPC::<G, D>::trim(&pp, max_degree)?;
 
-        for num_proofs in 1..10 {
+        for num_proofs in 1..20 {
+
+            let mut verifier_data_vec = Vec::with_capacity(num_proofs);
+
             // Generate all proofs and the data needed by the verifier to verify them
-            let verifier_data_vec = vec![get_data_for_verifier::<G, D>(info, Some(pp.clone())).unwrap(); num_proofs];
-
-            let vk = &verifier_data_vec[0].vk;
+            for _ in 0..num_proofs {
+                // Modify requirements at random
+                info.enforce_degree_bounds = rng.gen();
+                info.hiding = rng.gen();
+                info.segmented = rng.gen();
+                verifier_data_vec.push(get_data_for_verifier::<G, D>(info, Some(pp.clone())).unwrap())
+            }
 
             let mut comms = Vec::new();
             let mut query_sets = Vec::new();
@@ -569,7 +602,8 @@ mod test {
             let mut opening_challenges = Vec::new();
 
             verifier_data_vec.iter().for_each(|verifier_data| {
-                assert_eq!(&verifier_data.vk, vk); // Vk should be equal for all proofs
+                let len = verifier_data.vk.comm_key.len();
+                assert_eq!(&verifier_data.vk.comm_key[..], &vk.comm_key[..len]); // Vk should be equal for all proofs
                 comms.push(verifier_data.comms.as_slice());
                 query_sets.push(&verifier_data.query_set);
                 evals.push(&verifier_data.values);
@@ -579,7 +613,7 @@ mod test {
 
             // Prover side
             let (xi_s_vec, g_fins) = InnerProductArgPC::<G, D>::succinct_batch_check(
-                vk,
+                &vk,
                 comms.clone(),
                 query_sets.clone(),
                 evals.clone(),
@@ -591,19 +625,20 @@ mod test {
                 .into_iter()
                 .zip(g_fins)
                 .map(|(xi_s, g_final)| {
-                    DLogAccumulator::<G> { g_final: Commitment::<G> {comm: vec![g_final], shifted_comm: None},  xi_s }
+                    DLogItem::<G> { g_final: Commitment::<G> {comm: vec![g_final], shifted_comm: None},  xi_s }
                 }).collect::<Vec<_>>();
 
-            let (_, proof) = DLogAccumulator::<G>::accumulate::<D>(
-                vk,
+            let (_, proof) = DLogItemAccumulator::<G, D>::accumulate_items(
+                &ck,
                 accumulators.clone(),
             )?;
 
             // Verifier side
-            let dummy = DLogAccumulator::<G>::default();
+            let dummy = DLogItem::<G>::default();
             assert!(
-                dummy.verify_accumulate::<_, D>(
-                    vk,
+                DLogItemAccumulator::<G, D>::verify_accumulated_items(
+                    &dummy,
+                    &vk,
                     // Actually the verifier should recompute the accumulators with the succinct verification
                     accumulators,
                     &proof,
@@ -620,25 +655,31 @@ mod test {
             D: Digest,
     {
         let rng = &mut thread_rng();
-        let max_degree = rand::distributions::Uniform::from(2..=64).sample(rng);
+        let max_degree = rand::distributions::Uniform::from(2..=128).sample(rng);
 
-        let info = TestInfo {
+        let mut info = TestInfo {
             max_degree: Some(max_degree),
             supported_degree: None,
             num_polynomials: 10,
-            enforce_degree_bounds: true,
             max_num_queries: 5,
-            segmented: true,
             ..Default::default()
         };
 
         let pp = InnerProductArgPC::<G, D>::setup(max_degree)?;
+        let (_, vk) = InnerProductArgPC::<G, D>::trim(&pp, max_degree)?;
 
-        for num_proofs in 1..10 {
+        for num_proofs in 1..20 {
+
+            let mut verifier_data_vec = Vec::with_capacity(num_proofs);
+
             // Generate all proofs and the data needed by the verifier to verify them
-            let verifier_data_vec = vec![get_data_for_verifier::<G, D>(info, Some(pp.clone())).unwrap(); num_proofs];
-
-            let vk = &verifier_data_vec[0].vk;
+            for _ in 0..num_proofs {
+                // Modify requirements at random
+                info.enforce_degree_bounds = rng.gen();
+                info.hiding = rng.gen();
+                info.segmented = rng.gen();
+                verifier_data_vec.push(get_data_for_verifier::<G, D>(info, Some(pp.clone())).unwrap())
+            }
 
             let mut comms = Vec::new();
             let mut query_sets = Vec::new();
@@ -647,7 +688,8 @@ mod test {
             let mut opening_challenges = Vec::new();
 
             verifier_data_vec.iter().for_each(|verifier_data| {
-                assert_eq!(&verifier_data.vk, vk); // Vk should be equal for all proofs
+                let len = verifier_data.vk.comm_key.len();
+                assert_eq!(&verifier_data.vk.comm_key[..], &vk.comm_key[..len]); // Vk should be equal for all proofs
                 comms.push(verifier_data.comms.as_slice());
                 query_sets.push(&verifier_data.query_set);
                 evals.push(&verifier_data.values);
@@ -656,7 +698,7 @@ mod test {
             });
 
             let (xi_s_vec, g_fins) = InnerProductArgPC::<G, D>::succinct_batch_check(
-                vk,
+                &vk,
                 comms.clone(),
                 query_sets.clone(),
                 evals.clone(),
@@ -668,12 +710,12 @@ mod test {
                 .into_iter()
                 .zip(g_fins)
                 .map(|(xi_s, g_final)| {
-                    DLogAccumulator::<G> { g_final: Commitment::<G> {comm: vec![g_final], shifted_comm: None},  xi_s }
+                    DLogItem::<G> { g_final: Commitment::<G> {comm: vec![g_final], shifted_comm: None},  xi_s }
                 }).collect::<Vec<_>>();
 
             assert!(
-                DLogAccumulator::<G>::check_accumulators::<_, D>(
-                    vk,
+                DLogItemAccumulator::<G, D>::check_items(
+                    &vk,
                     &accumulators,
                     rng
                 )?

@@ -13,15 +13,17 @@ use poly_commit::{
     },
     Error
 };
-use crate::darlin::accumulators::dlog::{DLogAccumulator, DualDLogAccumulator};
+use crate::darlin::accumulators::dlog::{DLogItem, DualDLogItem, DualDLogItemAccumulator};
 use crate::darlin::pcd::PCD;
 use rand::RngCore;
+use std::marker::PhantomData;
+use crate::darlin::accumulators::ItemAccumulator;
 
 // Maybe later this will include more element as we will deferr algebraic checks over G1::BaseField
 #[derive(Clone)]
 pub struct FinalDarlinDeferredData<G1: AffineCurve, G2: AffineCurve> {
-    pub(crate) previous_acc:       DLogAccumulator<G2>,
-    pub(crate) pre_previous_acc:   DLogAccumulator<G1>,
+    pub(crate) previous_acc:       DLogItem<G2>,
+    pub(crate) pre_previous_acc:   DLogItem<G1>,
 }
 
 impl<G1, G2> FinalDarlinDeferredData<G1, G2>
@@ -45,7 +47,7 @@ impl<G1, G2> FinalDarlinDeferredData<G1, G2>
             None,
         );
 
-        let acc_g1 = DLogAccumulator::<G1> {
+        let acc_g1 = DLogItem::<G1> {
             g_final: Commitment::<G1> {comm: vec![g_final_g1.into_affine()], shifted_comm: None },
             xi_s: random_xi_s_g1
         };
@@ -61,7 +63,7 @@ impl<G1, G2> FinalDarlinDeferredData<G1, G2>
             None,
         );
 
-        let acc_g2 = DLogAccumulator::<G2> {
+        let acc_g2 = DLogItem::<G2> {
             g_final: Commitment::<G2> {comm: vec![g_final_g2.into_affine()], shifted_comm: None },
             xi_s: random_xi_s_g2
         };
@@ -122,11 +124,28 @@ where
 /// FinalDarlinPCD with two deferred DLOG accumulators.
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""))]
-pub struct FinalDarlinPCD<G1: AffineCurve, G2: AffineCurve, D: Digest> {
+pub struct FinalDarlinPCD<'a, G1: AffineCurve, G2: AffineCurve, D: Digest> {
     /// Full Marlin proof without deferred arithmetics in G1.
     pub marlin_proof:       MarlinProof<G1::ScalarField, InnerProductArgPC<G1, D>>,
     pub deferred:           FinalDarlinDeferredData<G1, G2>,
     pub usr_ins:            Vec<G1::ScalarField>,
+    _lifetime:              PhantomData<&'a ()>,
+}
+
+impl<'a, G1, G2, D> FinalDarlinPCD<'a, G1, G2, D>
+    where
+        G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
+        G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
+        D: Digest + 'a,
+{
+    pub fn new(
+        marlin_proof: MarlinProof<G1::ScalarField, InnerProductArgPC<G1, D>>,
+        deferred:     FinalDarlinDeferredData<G1, G2>,
+        usr_ins:      Vec<G1::ScalarField>
+    ) -> Self
+    {
+        Self { marlin_proof, deferred, usr_ins, _lifetime: PhantomData }
+    }
 }
 
 pub struct FinalDarlinPCDVerifierKey<'a, G1: AffineCurve, G2: AffineCurve, D: Digest> {
@@ -145,19 +164,19 @@ impl<
     }
 }
 
-impl<'a, G1, G2, D> PCD<'a> for FinalDarlinPCD<G1, G2, D>
+impl<'a, G1, G2, D> PCD for FinalDarlinPCD<'a, G1, G2, D>
 where
     G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
     G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
     D: Digest + 'a,
 {
-    type PCDAccumulator = DualDLogAccumulator<G1, G2>;
+    type PCDAccumulator = DualDLogItemAccumulator<'a, G1, G2, D>;
     type PCDVerifierKey = FinalDarlinPCDVerifierKey<'a, G1, G2, D>;
 
     fn succinct_verify(
         &self,
         vk: &Self::PCDVerifierKey,
-    ) -> Result<Self::PCDAccumulator, Error>
+    ) -> Result<<Self::PCDAccumulator as ItemAccumulator>::Item, Error>
     {
         let succinct_time = start_timer!(|| "Finalized Darlin succinct verifier");
 
@@ -205,13 +224,13 @@ where
 
         // Verification successfull: return new accumulator
         let (xi_s, g_final) = succinct_result.unwrap();
-        let acc = DLogAccumulator::<G1> {
+        let acc = DLogItem::<G1> {
             g_final: Commitment::<G1> { comm: vec![g_final], shifted_comm: None},
             xi_s,
         };
 
         end_timer!(succinct_time);
-        Ok(DualDLogAccumulator::<G1, G2>(vec![acc, self.deferred.pre_previous_acc.clone()], vec![self.deferred.previous_acc.clone()]))
+        Ok(DualDLogItem::<G1, G2>(vec![acc, self.deferred.pre_previous_acc.clone()], vec![self.deferred.previous_acc.clone()]))
     }
 }
 

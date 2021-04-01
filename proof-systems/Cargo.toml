@@ -94,7 +94,6 @@ path = "src/darlin/benches/batch_verification.rs"
 harness = false
 required-features = [
     "darlin", "llvm_asm", "algebra/tweedle",
-    "print-trace", "marlin/print-trace", "poly-commit/print-trace"
 ]
 
 [[bench]]
@@ -103,5 +102,4 @@ path = "src/darlin/benches/accumulate_verify.rs"
 harness = false
 required-features = [
     "darlin", "llvm_asm", "algebra/tweedle",
-    "print-trace", "marlin/print-trace", "poly-commit/print-trace"
 ]

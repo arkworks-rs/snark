@@ -1,10 +1,9 @@
-use algebra::{ToBytes, AffineCurve};
+use algebra::AffineCurve;
 use rand::RngCore;
 use poly_commit::{
     ipa_pc::Proof,
     Error
 };
-use digest::Digest;
 use poly_commit::ipa_pc::Commitment;
 
 pub mod dlog;
@@ -27,16 +26,17 @@ pub struct AccumulationProof<G: AffineCurve> {
 /// It is considered as part of the PCDProof. Although within our PCD we do not separate the
 /// accumulation strategy from the proving system, we nevertheless serve this functionality
 /// for post processing outside the PCD.
-pub trait Accumulator<'a>: Sized + ToBytes {
+pub trait ItemAccumulator {
     type AccumulatorProverKey;
     type AccumulatorVerifierKey;
     type AccumulationProof;
+    type Item;
 
     /// Decide whether the public accumulators are correct.
     /// Typically involves a non-succinct MSM.
-    fn check_accumulators<R: RngCore, D: Digest>(
+    fn check_items<R: RngCore>(
         vk: &Self::AccumulatorVerifierKey,
-        accumulators: &[Self],
+        accumulators: &[Self::Item],
         rng: &mut R,
     ) -> Result<bool, Error>;
 
@@ -44,17 +44,17 @@ pub trait Accumulator<'a>: Sized + ToBytes {
     /// Return the new "updated" accumulator and a non-interactive
     /// proof of its correct derivation from the given accumulators
     /// to be aggregated.
-    fn accumulate<D: Digest>(
+    fn accumulate_items(
         ck: &Self::AccumulatorProverKey,
-        accumulators: Vec<Self>,
-    ) -> Result<(Self, Self::AccumulationProof), Error>;
+        accumulators: Vec<Self::Item>,
+    ) -> Result<(Self::Item, Self::AccumulationProof), Error>;
 
-    /// Fully verifies a proof produced by accumulate() given the accumulator.
+    /// Fully verifies a proof produced by accumulate_items() given the accumulator.
     /// Depending on the PC it may involve a non-succinct MSM.
-    fn verify_accumulate<R: RngCore, D: Digest>(
-        &self,
+    fn verify_accumulated_items<R: RngCore>(
+        current_accumulator: &Self::Item,
         vk: &Self::AccumulatorVerifierKey,
-        previous_accumulators: Vec<Self>,
+        previous_accumulators: Vec<Self::Item>,
         proof: &Self::AccumulationProof,
         rng: &mut R,
     ) -> Result<bool, Error>;

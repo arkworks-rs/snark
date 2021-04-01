@@ -11,14 +11,31 @@ use poly_commit::{
     Error
 };
 use crate::darlin::pcd::PCD;
-use crate::darlin::accumulators::dlog::DLogAccumulator;
+use crate::darlin::accumulators::dlog::{DLogItem, DLogItemAccumulator};
 use poly_commit::ipa_pc::Commitment;
+use std::marker::PhantomData;
+use crate::darlin::accumulators::ItemAccumulator;
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""))]
-pub struct SimpleMarlinPCD<G: AffineCurve, D: Digest> {
+pub struct SimpleMarlinPCD<'a, G: AffineCurve, D: Digest> {
     pub proof:                     MarlinProof<G::ScalarField, InnerProductArgPC<G, D>>,
     pub usr_ins:                   Vec<G::ScalarField>,
+    _lifetime:                     PhantomData<&'a ()>,
+}
+
+impl<'a, G, D> SimpleMarlinPCD<'a, G, D>
+    where
+        G: AffineCurve,
+        D: Digest + 'a,
+{
+    pub fn new(
+        proof:   MarlinProof<G::ScalarField, InnerProductArgPC<G, D>>,
+        usr_ins: Vec<G::ScalarField>
+    ) -> Self
+    {
+        Self { proof, usr_ins, _lifetime: PhantomData }
+    }
 }
 
 pub struct SimpleMarlinPCDVerifierKey<'a, G: AffineCurve, D: Digest>(
@@ -32,18 +49,18 @@ impl<'a, G: AffineCurve, D: Digest> AsRef<DLogVerifierKey<G>> for SimpleMarlinPC
     }
 }
 
-impl<'a, G, D> PCD<'a> for SimpleMarlinPCD<G, D>
+impl<'a, G, D> PCD for SimpleMarlinPCD<'a, G, D>
     where
         G: AffineCurve,
         D: Digest + 'a,
 {
-    type PCDAccumulator = DLogAccumulator<G>;
+    type PCDAccumulator = DLogItemAccumulator<G, D>;
     type PCDVerifierKey = SimpleMarlinPCDVerifierKey<'a, G, D>;
 
     fn succinct_verify(
         &self,
         vk: &Self::PCDVerifierKey,
-    ) -> Result<Self::PCDAccumulator, Error>
+    ) -> Result<<Self::PCDAccumulator as ItemAccumulator>::Item, Error>
     {
         let succinct_time = start_timer!(|| "Marlin succinct verifier");
 
@@ -85,7 +102,7 @@ impl<'a, G, D> PCD<'a> for SimpleMarlinPCD<G, D>
 
         // Successfull verification: return current accumulator
         let (xi_s, g_final) = succinct_result.unwrap();
-        let acc = DLogAccumulator::<G> {
+        let acc = DLogItem::<G> {
             g_final: Commitment::<G> {  comm: vec![g_final], shifted_comm: None  },
             xi_s,
         };

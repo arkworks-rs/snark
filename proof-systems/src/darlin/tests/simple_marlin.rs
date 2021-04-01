@@ -7,7 +7,7 @@ use marlin::{
 use crate::darlin::pcd::{
     PCDParameters, simple_marlin::SimpleMarlinPCD
 };
-use rand::RngCore;
+use rand::{ Rng, RngCore };
 use digest::Digest;
 use std::ops::MulAssign;
 
@@ -74,13 +74,13 @@ impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for Circuit<Constrai
 }
 
 #[allow(dead_code)]
-pub(crate) fn generate_test_pcd<G: AffineCurve, D: Digest, R: RngCore>(
+pub(crate) fn generate_test_pcd<'a, G: AffineCurve, D: Digest + 'a, R: RngCore>(
     pc_ck: &CommitterKey<G>,
     marlin_pk: &MarlinProverKey<G::ScalarField, InnerProductArgPC<G, D>>,
     num_constraints: usize,
     zk: bool,
     rng: &mut R,
-) -> SimpleMarlinPCD<G, D>
+) -> SimpleMarlinPCD<'a, G, D>
 {
     let a = G::ScalarField::rand(rng);
     let b = G::ScalarField::rand(rng);
@@ -104,21 +104,18 @@ pub(crate) fn generate_test_pcd<G: AffineCurve, D: Digest, R: RngCore>(
         if zk { Some(rng) } else { None }
     ).unwrap();
 
-    SimpleMarlinPCD::<G, D> {
-        proof,
-        usr_ins: vec![c, d]
-    }
+    SimpleMarlinPCD::<'a, G, D>::new(proof, vec![c, d])
 }
 
 #[allow(dead_code)]
-pub(crate) fn generate_test_data<G: AffineCurve, D: Digest, R: RngCore>(
+pub(crate) fn generate_test_data<'a, G: AffineCurve, D: Digest + 'a, R: RngCore>(
     num_constraints: usize,
     segment_size: usize,
     params: &UniversalParams<G>,
     num_proofs: usize,
     rng: &mut R,
 ) -> (
-    Vec<SimpleMarlinPCD<G, D>>,
+    Vec<SimpleMarlinPCD<'a, G, D>>,
     Vec<MarlinVerifierKey<G::ScalarField, InnerProductArgPC<G, D>>>
 )
 {
@@ -141,7 +138,7 @@ pub(crate) fn generate_test_data<G: AffineCurve, D: Digest, R: RngCore>(
         &committer_key,
         &index_pk,
         num_constraints,
-        false,
+        rng.gen(),
         rng,
     );
 

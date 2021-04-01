@@ -8,12 +8,12 @@ use poly_commit::{
     },
     PolynomialCommitment, Error as PCError
 };
-use crate::darlin::accumulators::Accumulator;
+use crate::darlin::accumulators::ItemAccumulator;
 use rand::RngCore;
 use digest::Digest;
 use crate::darlin::pcd::final_darlin::{FinalDarlinPCD, FinalDarlinPCDVerifierKey, FinalDarlinDeferredData};
 use crate::darlin::pcd::simple_marlin::{SimpleMarlinPCD, SimpleMarlinPCDVerifierKey};
-use crate::darlin::accumulators::dlog::DualDLogAccumulator;
+use crate::darlin::accumulators::dlog::{DualDLogItem, DualDLogItemAccumulator};
 
 pub mod simple_marlin;
 pub mod final_darlin;
@@ -82,9 +82,9 @@ impl PCDParameters {
 
 /// This trait expresses the functions for proof carrying data, in which the PCD is assumed
 /// to be a set of data consisting of a statement, some deferred elements and a proof.
-pub trait PCD<'a>: Sized + Send + Sync {
-    type PCDAccumulator: Accumulator<'a>;
-    type PCDVerifierKey: AsRef<<Self::PCDAccumulator as Accumulator<'a>>::AccumulatorVerifierKey>;
+pub trait PCD: Sized + Send + Sync {
+    type PCDAccumulator: ItemAccumulator;
+    type PCDVerifierKey: AsRef<<Self::PCDAccumulator as ItemAccumulator>::AccumulatorVerifierKey>;
 
     /// Perform only cheap verification that tipically includes algebraic checks which
     /// are not MSM, e.g. verification of Marlin's sumcheck equations, Bullet reduction
@@ -93,26 +93,26 @@ pub trait PCD<'a>: Sized + Send + Sync {
     fn succinct_verify(
         &self,
         vk:         &Self::PCDVerifierKey,
-    ) -> Result<Self::PCDAccumulator, PCError>;
+    ) -> Result<<Self::PCDAccumulator as ItemAccumulator>::Item, PCError>;
 
     /// Check the current accumulator, tipically via one or more MSMs
-    fn hard_verify<R: RngCore, D: Digest>(
+    fn hard_verify<R: RngCore>(
         &self,
-        acc:    Self::PCDAccumulator,
+        acc:    <Self::PCDAccumulator as ItemAccumulator>::Item,
         vk:     &Self::PCDVerifierKey,
         rng:    &mut R,
     ) -> Result<bool, PCError>
-    { <Self::PCDAccumulator as Accumulator>::check_accumulators::<R, D>(vk.as_ref(), &[acc], rng) }
+    { <Self::PCDAccumulator as ItemAccumulator>::check_items::<R>(vk.as_ref(), &[acc], rng) }
 
     /// Perform full verification of `self`, i.e. both succinct and hard part.
-    fn verify<R: RngCore, D: Digest>(
+    fn verify<R: RngCore>(
         &self,
         vk:         &Self::PCDVerifierKey,
         rng:        &mut R,
     ) -> Result<bool, PCError>
     {
         let acc = self.succinct_verify(vk)?;
-        self.hard_verify::<R, D>(acc, vk, rng)
+        self.hard_verify::<R>(acc, vk, rng)
     }
 }
 
@@ -120,13 +120,13 @@ pub trait PCD<'a>: Sized + Send + Sync {
 #[derivative(Clone(bound = ""))]
 /// Achieve polymorphism for PCD via an enumerable. This provides nice APIs for
 /// the proof aggregation implementation and testing.
-pub enum GeneralPCD<G1: AffineCurve, G2: AffineCurve, D: Digest> {
-    SimpleMarlin(SimpleMarlinPCD<G1, D>),
-    FinalDarlin(FinalDarlinPCD<G1, G2, D>)
+pub enum GeneralPCD<'a, G1: AffineCurve, G2: AffineCurve, D: Digest> {
+    SimpleMarlin(SimpleMarlinPCD<'a, G1, D>),
+    FinalDarlin(FinalDarlinPCD<'a, G1, G2, D>)
 }
 
 // Testing functions
-impl<G1, G2, D> GeneralPCD<G1, G2, D>
+impl<'a, G1, G2, D> GeneralPCD<'a, G1, G2, D>
     where
         G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
         G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
@@ -172,25 +172,25 @@ impl<G1, G2, D> GeneralPCD<G1, G2, D>
     }
 }
 
-impl<'a, G1, G2, D> PCD<'a> for GeneralPCD<G1, G2, D>
+impl<'a, G1, G2, D> PCD for GeneralPCD<'a, G1, G2, D>
 where
     G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
     G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
     D: Digest + 'a,
 {
-    type PCDAccumulator = DualDLogAccumulator<G1, G2>;
+    type PCDAccumulator = DualDLogItemAccumulator<'a, G1, G2, D>;
     type PCDVerifierKey = FinalDarlinPCDVerifierKey<'a, G1, G2, D>;
 
     fn succinct_verify(
         &self,
         vk: &Self::PCDVerifierKey,
-    ) ->  Result<Self::PCDAccumulator, PCError>
+    ) ->  Result<<Self::PCDAccumulator as ItemAccumulator>::Item, PCError>
     {
         match self {
             Self::SimpleMarlin(simple_marlin) => {
                 let simple_marlin_vk = SimpleMarlinPCDVerifierKey (vk.marlin_vk, vk.dlog_vks.0);
                 let acc = simple_marlin.succinct_verify(&simple_marlin_vk)?;
-                Ok(DualDLogAccumulator (vec![acc], vec![]))
+                Ok(DualDLogItem (vec![acc], vec![]))
             },
             Self::FinalDarlin(final_darlin) => {
                 final_darlin.succinct_verify(vk)

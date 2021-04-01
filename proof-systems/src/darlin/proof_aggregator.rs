@@ -10,8 +10,8 @@ use poly_commit::{
 };
 use crate::darlin::{
     accumulators::{
-        dlog::DLogAccumulator,
-        Accumulator, AccumulationProof
+        dlog::DLogItem,
+        ItemAccumulator, AccumulationProof
     },
     pcd::{
         PCD,
@@ -22,6 +22,7 @@ use rand::RngCore;
 use digest::Digest;
 use rayon::prelude::*;
 use crate::darlin::pcd::GeneralPCD;
+use crate::darlin::accumulators::dlog::DLogItemAccumulator;
 
 /// Given a set of PCDs, their corresponding Marlin verification keys, and the DLogCommitterKey(s)
 /// over two groups of a curve cycle, compute and return the associated accumulators via the
@@ -34,7 +35,7 @@ pub(crate) fn get_accumulators<G1, G2, D: Digest>(
     vks:       &[MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>],
     g1_ck:     &DLogCommitterKey<G1>,
     g2_ck:     &DLogCommitterKey<G2>,
-) -> Result<(Vec<DLogAccumulator<G1>>, Vec<DLogAccumulator<G2>>), Option<usize>>
+) -> Result<(Vec<DLogItem<G1>>, Vec<DLogItem<G2>>), Option<usize>>
     where
         G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
         G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
@@ -95,7 +96,7 @@ pub fn accumulate_proofs<G1, G2, D: Digest>(
         None
     } else {
         Some(
-            DLogAccumulator::<G1>::accumulate::<D>(g1_ck, accs_g1)
+            DLogItemAccumulator::<G1, D>::accumulate_items(g1_ck, accs_g1)
             .map_err(|_| None)?
             .1
         )
@@ -105,7 +106,7 @@ pub fn accumulate_proofs<G1, G2, D: Digest>(
         None
     } else {
         Some(
-            DLogAccumulator::<G2>::accumulate::<D>(g2_ck, accs_g2)
+            DLogItemAccumulator::<G2, D>::accumulate_items(g2_ck, accs_g2)
                 .map_err(|_| None)?
                 .1
         )
@@ -142,18 +143,18 @@ pub fn verify_aggregated_proofs<G1, G2, D: Digest, R: RngCore>(
 
     // Verify accumulators and accumulation proofs
     let result_accumulate_g1 = if accumulation_proof_g1.is_some() {
-        let dummy_g1 = DLogAccumulator::<G1>::default();
-        dummy_g1.verify_accumulate::<R, D>(
-            g1_vk, accs_g1, accumulation_proof_g1.as_ref().unwrap(), rng
+        let dummy_g1 = DLogItem::<G1>::default();
+        DLogItemAccumulator::<G1, D>::verify_accumulated_items::<R>(
+            &dummy_g1, g1_vk, accs_g1, accumulation_proof_g1.as_ref().unwrap(), rng
         ).map_err(|_| None)?
     } else {
         true
     };
 
     let result_accumulate_g2 = if accumulation_proof_g2.is_some() {
-        let dummy_g2 = DLogAccumulator::<G2>::default();
-        dummy_g2.verify_accumulate::<R, D>(
-            g2_vk, accs_g2, accumulation_proof_g2.as_ref().unwrap(), rng
+        let dummy_g2 = DLogItem::<G2>::default();
+        DLogItemAccumulator::<G2, D>::verify_accumulated_items::<R>(
+            &dummy_g2, g2_vk, accs_g2, accumulation_proof_g2.as_ref().unwrap(), rng
         ).map_err(|_| None)?
     } else {
         true
@@ -189,7 +190,7 @@ pub fn batch_verify_proofs<G1, G2, D: Digest, R: RngCore>(
     let result_g1 = if accs_g1.is_empty() {
         true
     } else {
-        DLogAccumulator::<G1>::check_accumulators::<R, D>(
+        DLogItemAccumulator::<G1, D>::check_items::<R>(
             g1_vk, &accs_g1, rng
         ).map_err(|_| None)?
     };
@@ -197,7 +198,7 @@ pub fn batch_verify_proofs<G1, G2, D: Digest, R: RngCore>(
     let result_g2 = if accs_g2.is_empty() {
         true
     } else {
-        DLogAccumulator::<G2>::check_accumulators::<R, D>(
+        DLogItemAccumulator::<G2, D>::check_items::<R>(
             g2_vk, &accs_g2, rng
         ).map_err(|_| None)?
     };
