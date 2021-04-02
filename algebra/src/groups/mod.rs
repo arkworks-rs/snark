@@ -1,4 +1,4 @@
-use crate::{BitIterator, FromBytesChecked, SemanticallyValid};
+use crate::{BitIterator, FromBytesChecked, SemanticallyValid, CanonicalSerialize, CanonicalDeserialize};
 use crate::UniformRand;
 use std::{
     fmt::{Debug, Display},
@@ -22,6 +22,8 @@ pub trait Group:
     + SemanticallyValid
     + Serialize
     + for<'a> Deserialize<'a>
+    + CanonicalSerialize
+    + CanonicalDeserialize
     + Copy
     + Clone
     + Debug

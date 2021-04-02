@@ -13,6 +13,10 @@ use std::{
 pub use error::*;
 pub use flags::*;
 
+#[cfg(feature = "derive")]
+#[doc(hidden)]
+pub use algebra_derive::*;
+
 /// Serializer in little endian format allowing to encode flags.
 pub trait CanonicalSerializeWithFlags: CanonicalSerialize {
     /// Serializes `self` and `flags` into `writer`.
