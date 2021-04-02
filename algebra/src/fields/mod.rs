@@ -1,4 +1,12 @@
-use crate::{biginteger::BigInteger, bytes::{FromBytes, ToBytes}, UniformRand, bits::{ToBits, FromBits}, Error, BitSerializationError, SemanticallyValid};
+use crate::{
+    biginteger::BigInteger, bytes::{FromBytes, ToBytes}, UniformRand, bits::{ToBits, FromBits},
+    Error, BitSerializationError, SemanticallyValid,
+    serialize:: {
+        CanonicalSerialize, CanonicalDeserialize,
+        CanonicalSerializeWithFlags, CanonicalDeserializeWithFlags,
+        Flags, EmptyFlags
+    }
+};
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
@@ -98,6 +106,10 @@ pub trait Field:
     + FromBits
     + Serialize
     + for <'a> Deserialize<'a>
+    + CanonicalSerialize
+    + CanonicalSerializeWithFlags
+    + CanonicalDeserialize
+    + CanonicalDeserializeWithFlags
     + SemanticallyValid
     + Copy
     + Clone
@@ -181,6 +193,19 @@ pub trait Field:
 
     // Sets `self` to `self`'s inverse if it exists. Otherwise it is a no-op.
     fn inverse_in_place(&mut self) -> Option<&mut Self>;
+
+    /// Returns a field element if the set of bytes forms a valid field element,
+    /// otherwise returns None. This function is primarily intended for sampling
+    /// random field elements from a hash-function or RNG output.
+    fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
+        Self::from_random_bytes_with_flags::<EmptyFlags>(bytes).map(|f| f.0)
+    }
+
+    /// Returns a field element with an extra sign bit used for group parsing if
+    /// the set of bytes forms a valid field element, otherwise returns
+    /// None. This function is primarily intended for sampling
+    /// random field elements from a hash-function or RNG output.
+    fn from_random_bytes_with_flags<F: Flags>(bytes: &[u8]) -> Option<(Self, F)>;
 
     /// Exponentiates this element by a power of the base prime modulus via
     /// the Frobenius automorphism.

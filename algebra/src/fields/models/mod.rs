@@ -17,7 +17,12 @@ use crate::{
         Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField,
         MulShort, MulShortAssign
     },
-    SemanticallyValid
+    SemanticallyValid,
+    serialize:: {
+        CanonicalSerialize, CanonicalDeserialize,
+        CanonicalSerializeWithFlags, CanonicalDeserializeWithFlags,
+        Flags, EmptyFlags, SerializationError, buffer_byte_size
+    }
 };
 
 use std::io::{Read, Result as IoResult, Write, ErrorKind, Error as IoError};

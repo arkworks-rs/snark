@@ -14,10 +14,14 @@ use rand::{
     Rng, SeedableRng
 };
 use rand_xorshift::XorShiftRng;
+use crate::curves::tests::sw_jacobian_tests;
+use crate::curves::tweedle::dee::TweedledeeParameters;
+use crate::curves::tweedle::dum::TweedledumParameters;
 
 #[test]
 fn test_dee_projective_curve() {
     curve_tests::<dee::Projective>();
+    sw_jacobian_tests::<TweedledeeParameters>()
 }
 
 #[test]
@@ -38,6 +42,7 @@ fn test_dee_generator() {
 #[test]
 fn test_dum_projective_curve() {
     curve_tests::<dum::Projective>();
+    sw_jacobian_tests::<TweedledumParameters>()
 }
 
 #[test]

@@ -1,10 +1,11 @@
 #![allow(unused_imports)]
 use crate::{curves::{
     bls12_377::{
-        g1::Bls12_377G1Parameters, Bls12_377, G1Affine, G1Projective, G2Affine, G2Projective,
+        g1::Bls12_377G1Parameters, g2::Bls12_377G2Parameters,
+        Bls12_377, G1Affine, G1Projective, G2Affine, G2Projective,
     },
     models::SWModelParameters,
-    tests::curve_tests,
+    tests::{curve_tests, sw_jacobian_tests},
     AffineCurve, PairingEngine, ProjectiveCurve,
 }, fields::{
     bls12_377::{Fq, Fq12, Fq2, Fr},
@@ -15,6 +16,7 @@ use std::ops::{AddAssign, MulAssign};
 #[test]
 fn test_g1_projective_curve() {
     curve_tests::<G1Projective>();
+    sw_jacobian_tests::<Bls12_377G1Parameters>()
 }
 
 #[test]
@@ -33,6 +35,7 @@ fn test_g1_generator() {
 #[test]
 fn test_g2_projective_curve() {
     curve_tests::<G2Projective>();
+    sw_jacobian_tests::<Bls12_377G2Parameters>()
 }
 
 #[test]

@@ -31,6 +31,10 @@ pub use self::fields::*;
 pub mod groups;
 pub use self::groups::*;
 
+#[macro_use]
+pub mod serialize;
+pub use self::serialize::*;
+
 pub mod validity;
 pub use self::validity::*;
 

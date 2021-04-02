@@ -108,13 +108,13 @@ impl<F: PrimeField, G: Group> SemanticallyValid for FieldBasedSchnorrSignature<F
 
 #[derive(Derivative)]
 #[derivative(
-Copy(bound = "G: Group"),
-Clone(bound = "G: Group"),
-Default(bound = "G: Group"),
-Hash(bound = "G: Group"),
-Eq(bound = "G: Group"),
-PartialEq(bound = "G: Group"),
-Debug(bound = "G: Group"),
+    Copy(bound = "G: Group"),
+    Clone(bound = "G: Group"),
+    Default(bound = "G: Group"),
+    Hash(bound = "G: Group"),
+    Eq(bound = "G: Group"),
+    PartialEq(bound = "G: Group"),
+    Debug(bound = "G: Group"),
 )]
 #[derive(Serialize, Deserialize)]
 #[serde(bound(serialize = "G: Group"))]

@@ -199,6 +199,27 @@ macro_rules! bigint_impl {
             }
         }
 
+        impl CanonicalSerialize for $name {
+            #[inline]
+            fn serialize<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
+                self.write(writer)?;
+                Ok(())
+            }
+
+            #[inline]
+            fn serialized_size(&self) -> usize {
+                $num_limbs * 8
+            }
+        }
+
+        impl CanonicalDeserialize for $name {
+            #[inline]
+            fn deserialize<R: Read>(reader: R) -> Result<Self, SerializationError> {
+                let value = Self::read(reader)?;
+                Ok(value)
+            }
+        }
+
         impl ToBytes for $name {
             #[inline]
             fn write<W: Write>(&self, writer: W) -> IoResult<()> {

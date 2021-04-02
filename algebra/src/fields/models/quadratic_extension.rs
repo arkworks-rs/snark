@@ -10,7 +10,15 @@ use rand::{
     Rng,
 };
 
-use crate::{bytes::{FromBytes, ToBytes}, bits::{FromBits, ToBits}, fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField}, UniformRand, Error, SemanticallyValid};
+use crate::{
+    bytes::{FromBytes, ToBytes},
+    bits::{FromBits, ToBits},
+    fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
+    UniformRand, Error, SemanticallyValid,
+    CanonicalSerialize, Flags,
+    SerializationError, CanonicalSerializeWithFlags, CanonicalDeserialize,
+    CanonicalDeserializeWithFlags, EmptyFlags
+};
 use crate::biginteger::arithmetic::find_wnaf;
 use serde::{Serialize, Deserialize};
 
@@ -237,6 +245,24 @@ impl<P: QuadExtParameters> Field for QuadExtField<P> {
         self.c1.frobenius_map(power);
         P::mul_base_field_by_frob_coeff(&mut self.c1, power);
     }
+
+    #[inline]
+    fn from_random_bytes_with_flags<F: Flags>(bytes: &[u8]) -> Option<(Self, F)> {
+        let split_at = bytes.len() / 2;
+        if let Some(c0) = P::BaseField::from_random_bytes(&bytes[..split_at]) {
+            if let Some((c1, flags)) =
+            P::BaseField::from_random_bytes_with_flags(&bytes[split_at..])
+            {
+                return Some((QuadExtField::new(c0, c1), flags));
+            }
+        }
+        None
+    }
+
+    #[inline]
+    fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
+        Self::from_random_bytes_with_flags::<EmptyFlags>(bytes).map(|f| f.0)
+    }
 }
 
 impl<'a, P: QuadExtParameters> SquareRootField for QuadExtField<P>
@@ -380,6 +406,57 @@ impl<P: QuadExtParameters> FromBits for QuadExtField<P> {
         let size = (P::DEGREE_OVER_BASE_PRIME_FIELD/2) * <P::BasePrimeField as PrimeField>::Params::MODULUS_BITS as usize;
         let c0 = P::BaseField::read_bits(bits[..size].to_vec())?;
         let c1 = P::BaseField::read_bits(bits[size..].to_vec())?;
+        Ok(QuadExtField::new(c0, c1))
+    }
+}
+
+impl<P: QuadExtParameters> CanonicalSerializeWithFlags for QuadExtField<P> {
+    #[inline]
+    fn serialize_with_flags<W: Write, F: Flags>(
+        &self,
+        mut writer: W,
+        flags: F,
+    ) -> Result<(), SerializationError> {
+        CanonicalSerialize::serialize(&self.c0, &mut writer)?;
+        self.c1.serialize_with_flags(&mut writer, flags)?;
+        Ok(())
+    }
+
+    #[inline]
+    fn serialized_size_with_flags<F: Flags>(&self) -> usize {
+        self.c0.serialized_size() + self.c1.serialized_size_with_flags::<F>()
+    }
+}
+
+impl<P: QuadExtParameters> CanonicalSerialize for QuadExtField<P> {
+    #[inline]
+    fn serialize<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
+        self.serialize_with_flags(writer, EmptyFlags)
+    }
+
+    #[inline]
+    fn serialized_size(&self) -> usize {
+        self.serialized_size_with_flags::<EmptyFlags>()
+    }
+}
+
+impl<P: QuadExtParameters> CanonicalDeserializeWithFlags for QuadExtField<P> {
+    #[inline]
+    fn deserialize_with_flags<R: Read, F: Flags>(
+        mut reader: R,
+    ) -> Result<(Self, F), SerializationError> {
+        let c0: P::BaseField = CanonicalDeserialize::deserialize(&mut reader)?;
+        let (c1, flags): (P::BaseField, _) =
+            CanonicalDeserializeWithFlags::deserialize_with_flags(&mut reader)?;
+        Ok((QuadExtField::new(c0, c1), flags))
+    }
+}
+
+impl<P: QuadExtParameters> CanonicalDeserialize for QuadExtField<P> {
+    #[inline]
+    fn deserialize<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+        let c0: P::BaseField = CanonicalDeserialize::deserialize(&mut reader)?;
+        let c1: P::BaseField = CanonicalDeserialize::deserialize(&mut reader)?;
         Ok(QuadExtField::new(c0, c1))
     }
 }

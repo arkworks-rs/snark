@@ -5,7 +5,7 @@ use crate::{biginteger::BigInteger384, curves::{
         Bls12_381,
     },
     models::SWModelParameters,
-    tests::curve_tests,
+    tests::{curve_tests, sw_jacobian_tests},
     AffineCurve, PairingEngine, ProjectiveCurve,
 }, fields::{
     bls12_381::{Fq, Fq12, Fq2, Fr},
@@ -17,6 +17,7 @@ use std::ops::{AddAssign, MulAssign};
 #[test]
 fn test_g1_projective_curve() {
     curve_tests::<G1Projective>();
+    sw_jacobian_tests::<Bls12_381G1Parameters>();
 }
 
 #[test]
@@ -35,6 +36,7 @@ fn test_g1_generator() {
 #[test]
 fn test_g2_projective_curve() {
     curve_tests::<G2Projective>();
+    sw_jacobian_tests::<Bls12_381G2Parameters>();
 }
 
 #[test]
