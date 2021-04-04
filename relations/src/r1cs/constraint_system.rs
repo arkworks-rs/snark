@@ -767,6 +767,15 @@ impl<F: Field> ConstraintSystemRef<F> {
         }
     }
 
+    /// Consumes self to return the inner `ConstraintSystem<F>`. Panics if
+    /// any other references to `self` exist.
+    pub fn into_inner(self) -> ConstraintSystem<F> {
+        match self {
+            Self::CS(a) => Rc::try_unwrap(a).unwrap().into_inner(),
+            Self::None => panic!()
+        }
+    }
+
     /// Obtain an immutable reference to the underlying `ConstraintSystem`.
     ///
     /// # Panics
