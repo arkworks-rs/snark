@@ -772,7 +772,7 @@ impl<F: Field> ConstraintSystemRef<F> {
     pub fn into_inner(self) -> ConstraintSystem<F> {
         match self {
             Self::CS(a) => Rc::try_unwrap(a).unwrap().into_inner(),
-            Self::None => panic!()
+            Self::None => panic!(),
         }
     }
 
