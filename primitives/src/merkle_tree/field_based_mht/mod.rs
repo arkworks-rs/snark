@@ -37,7 +37,6 @@ pub trait FieldBasedMerkleTreeParameters: 'static + Clone {
 pub struct FieldBasedMerkleTreePrecomputedEmptyConstants<'a, H: FieldBasedHash> {
     pub nodes: &'a [H::Data],
     pub merkle_arity: usize,
-    pub max_height: usize,
 }
 
 /// For optimized Merkle Tree implementations, it provides the possibility to specify
@@ -53,7 +52,7 @@ pub(crate) fn check_precomputed_parameters<T: FieldBasedMerkleTreeParameters>(tr
 {
     match T::EMPTY_HASH_CST {
         Some(supported_params) => {
-            tree_height <= supported_params.max_height &&
+            tree_height <= supported_params.nodes.len() &&
                 T::MERKLE_ARITY == supported_params.merkle_arity &&
                 T::MERKLE_ARITY == <<T::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R
         }

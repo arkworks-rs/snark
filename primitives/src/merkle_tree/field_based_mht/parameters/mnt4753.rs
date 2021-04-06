@@ -64,7 +64,6 @@ pub const MNT4753_MHT_POSEIDON_PARAMETERS: FieldBasedMerkleTreePrecomputedEmptyC
             field_new!(MNT4753Fr, BigInteger768([1214525150360138110, 16730010020447477237, 2974388837665379820, 239714683347011625, 1344568049668497831, 14614250391340271530, 8877516492314574160, 7020608802630085427, 10105119508116907748, 15166529063145820970, 14035625450675726455, 186843123237636])),
         ],
         merkle_arity: 2,
-        max_height: 32,
     };
 
 #[cfg(test)]
@@ -102,7 +101,7 @@ mod test {
         assert_eq!(empty_nodes.len(), max_height);
 
         let params = FieldBasedMerkleTreePrecomputedEmptyConstants::<MNT4PoseidonHash> {
-            nodes: empty_nodes.as_slice(), merkle_arity, max_height
+            nodes: empty_nodes.as_slice(), merkle_arity
         };
         assert_eq!(params, MNT4753_MHT_POSEIDON_PARAMETERS)
     }

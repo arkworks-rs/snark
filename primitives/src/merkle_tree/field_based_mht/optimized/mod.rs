@@ -27,24 +27,13 @@ pub struct FieldBasedOptimizedMHT<T: BatchFieldBasedMerkleTreeParameters>{
 
 impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
 
-    /// Creates a new tree given its `height` and `processing_step`, used to tune
-    /// the memory usage of the tree. In particular, `processing_step` defines the
+    /// Creates a new tree given its `height` and `processing_step`, that defines the
     /// number of leaves to store before triggering the computation of the hashes
-    /// of the upper level.
-    /// Decreasing `processing_step` leads to less memory consumption but
-    /// significantly worsen performances, as the computation of upper levels' hashes
-    /// is triggered more often, along with a batch hash that may perform poorly when
-    /// there are few elements to batch; of course, conversely, increasing
-    /// `processing_step` increases the memory usage too but improves performances.
-    /// Meaningful values for `processing_step` are between 1 (i.e. update upper levels
-    /// at each leaf), leading to best memory efficiency but worse performances, and
-    /// the maximum number of leaves (or the mean number of leaves you plan to add),
-    /// leading to worse memory efficiency but best performances (upper levels hashes
-    /// are computed just once, but all the leaves must be kept in memory).
-    /// You can edit the `mht_poseidon_tuning` benchmarks in `primitives/src/benches/poseidon_mht.rs`
-    /// to properly tune the `processing_step` parameter according to your use case.
+    /// of the upper levels. Changing this parameter will affect the performances of
+    /// the batch hash: you can edit the `mht_poseidon_tuning` benchmarks in
+    /// `primitives/src/benches/poseidon_mht.rs` to properly tune the `processing_step`
+    /// parameter according to your use case.
     pub fn init(height: usize, processing_step: usize) -> Self {
-        //let height = height + 1;
         assert!(check_precomputed_parameters::<T>(height));
 
         let rate = <<T::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
@@ -65,6 +54,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
         let mut initial_idx = 0;
         let mut final_idx = last_level_size;
 
+        // Compute indexes
         while size >= 1 {
             initial_pos.push(initial_idx);
             final_pos.push(final_idx);
@@ -78,11 +68,14 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
 
         let tree_size = *final_pos.last().unwrap();
 
+        // Initialize to zero all tree nodes
         let mut array_nodes = Vec::with_capacity(tree_size);
         for _i in 0..tree_size {
             array_nodes.push(<T::Data as Field>::zero());
         }
 
+        // Decide optimal processing block size based on the number of available
+        // threads and the chosen processing step
         let cpus = rayon::current_num_threads();
         let mut chunk_size = processing_step / (cpus * rate);
         let mut processing_block_size = chunk_size * cpus * rate;
@@ -113,24 +106,46 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
         }
     }
 
+    /// Recursively update the nodes in the tree affected by some changes in the value of their children,
+    /// starting from the leaves (as long as the number of affected nodes at a certain level is bigger
+    /// equal than the rate of the hash function, therefore this function doesn't necessarily update
+    /// all the nodes up until the root).
     fn compute_subtree(&mut self) {
         for i in 0..=self.height  {
+
+            // Enter only if the number of nodes to process at this level is bigger than the rate
             if (self.new_elem_pos[i] - self.processed_pos[i]) >= self.rate {
-                let num_groups_leaves = (self.new_elem_pos[i] - self.processed_pos[i]) / self.rate;
-                let last_pos_to_process = self.processed_pos[i] + num_groups_leaves * self.rate;
 
+                // The number of chunks of rate nodes to be processed
+                let num_groups_nodes = (self.new_elem_pos[i] - self.processed_pos[i]) / self.rate;
+
+                // Take as input vec all the nodes in the current level and all their parents
+                // (i.e. all the nodes at the next level)
                 let (input_vec, output_vec) =
-                    self.array_nodes[self.initial_pos[i]..self.final_pos[i + 1]].split_at_mut(self.final_pos[i] - self.initial_pos[i]);
+                    self.array_nodes[self.initial_pos[i]..self.final_pos[i + 1]]
+                        .split_at_mut(self.final_pos[i] - self.initial_pos[i]);
 
-                let new_pos_parent = self.new_elem_pos[i + 1] + num_groups_leaves;
+                // The position of the last node in this level that will be affected by the changes.
+                // It's recomputed in this way as num_groups_nodes may have a remainder if
+                // the number of nodes to process it's not multiple of the rate.
+                let last_pos_to_process = self.processed_pos[i] + num_groups_nodes * self.rate;
 
+                // The position of the last node at parent level that will be affected by the changes.
+                let new_pos_parent = self.new_elem_pos[i + 1] + num_groups_nodes;
+
+                // From the input and the output vectors, use last_pos_to_process and new_pos_parent
+                // to isolate the nodes in this level and at parent level that are affected
+                // by changes, leaving the other ones out of the computation.
                 Self::batch_hash(
                     &mut input_vec[(self.processed_pos[i] - self.initial_pos[i])..(last_pos_to_process - self.initial_pos[i])],
                     &mut output_vec[(self.new_elem_pos[i + 1] - self.initial_pos[i + 1])..(new_pos_parent - self.initial_pos[i + 1])],
                     i + 1,
                 );
-                self.new_elem_pos[i + 1] += num_groups_leaves;
-                self.processed_pos[i] += num_groups_leaves * self.rate;
+
+                // Update new_elem_pos and processed_pos (in a consistent way as we did with
+                // new_pos_parent and last_pos_to_process.
+                self.new_elem_pos[i + 1] += num_groups_nodes;
+                self.processed_pos[i] += num_groups_nodes * self.rate;
             }
         }
     }
@@ -147,9 +162,8 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
         // placed (assuming that it can happen to have non-consecutive all-empty chunks)
         let mut output_pos = Vec::new();
 
-        // If the element of each chunk of "rate" size are all equals this means that the nodes
-        // are all empty nodes (with overwhelming probability), therefore we already have the output,
-        // otherwise it must be computed.
+        // If the element of each chunk of "rate" size are all equals to the empty node at that level,
+        // therefore we already have the output, otherwise it must be computed.
         input.chunks(T::MERKLE_ARITY).for_each(|input_chunk| {
             if input_chunk.iter().all(|&item| item == empty) {
                 output[i] = T::EMPTY_HASH_CST.unwrap().nodes[parent_level];
@@ -178,13 +192,6 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBased
     type Parameters = T;
     type MerklePath = FieldBasedMHTPath<T>;
 
-    /// Note: `Field` implements the `Copy` trait, therefore invoking this function won't
-    /// cause a moving of ownership for `leaf`, but just a copy. Another copy is
-    /// performed below in `self.array_nodes[self.new_elem_pos_subarray[0]] = leaf;`
-    /// We can reduce this to one copy by passing a reference to leaf, but from an
-    /// interface point of view this is not logically correct: someone calling this
-    /// functions will likely not use the `leaf` anymore in most of the cases
-    /// (in the other cases he can just clone it).
     fn append(&mut self, leaf: T::Data) -> &mut Self {
         if self.new_elem_pos[0] < self.final_pos[0] {
             self.array_nodes[self.new_elem_pos[0]] = leaf;
@@ -219,7 +226,6 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBased
     }
 
     fn reset(&mut self) -> &mut Self {
-
         for i in 0..self.new_elem_pos.len() {
             self.new_elem_pos[i] = self.initial_pos[i];
             self.processed_pos[i] = self.initial_pos[i];
