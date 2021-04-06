@@ -16,6 +16,7 @@ use r1cs_std::{
     fields::fp::FpGadget,
     eq::EqGadget,
 };
+use crate::darlin::pcd::final_darlin::FinalDarlinProof;
 
 #[derive(Clone)]
 pub struct Circuit<G1: AffineCurve, G2: AffineCurve> {
@@ -162,8 +163,7 @@ pub fn generate_test_pcd<'a, G1: AffineCurve, G2:AffineCurve, D: Digest + 'a, R:
     ).unwrap();
 
     FinalDarlinPCD::<'a, G1, G2, D>::new(
-        proof,
-        deferred,
+        FinalDarlinProof::<G1, G2, D> { proof, deferred },
         vec![c, d]
     )
 }

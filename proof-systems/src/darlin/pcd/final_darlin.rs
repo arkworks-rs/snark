@@ -121,13 +121,20 @@ where
     }
 }
 
-/// FinalDarlinPCD with two deferred DLOG accumulators.
+#[derive(Derivative)]
+#[derivative(Clone(bound = ""))]
+/// FinalDarlinProof with two deferred DLOG accumulators.
+pub struct FinalDarlinProof<G1: AffineCurve, G2: AffineCurve, D: Digest> {
+    /// Full Marlin proof without deferred arithmetics in G1.
+    pub proof:       MarlinProof<G1::ScalarField, InnerProductArgPC<G1, D>>,
+    /// Deferred accumulators
+    pub deferred:           FinalDarlinDeferredData<G1, G2>,
+}
+
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""))]
 pub struct FinalDarlinPCD<'a, G1: AffineCurve, G2: AffineCurve, D: Digest> {
-    /// Full Marlin proof without deferred arithmetics in G1.
-    pub marlin_proof:       MarlinProof<G1::ScalarField, InnerProductArgPC<G1, D>>,
-    pub deferred:           FinalDarlinDeferredData<G1, G2>,
+    pub final_darlin_proof: FinalDarlinProof<G1, G2, D>,
     pub usr_ins:            Vec<G1::ScalarField>,
     _lifetime:              PhantomData<&'a ()>,
 }
@@ -139,12 +146,11 @@ impl<'a, G1, G2, D> FinalDarlinPCD<'a, G1, G2, D>
         D: Digest + 'a,
 {
     pub fn new(
-        marlin_proof: MarlinProof<G1::ScalarField, InnerProductArgPC<G1, D>>,
-        deferred:     FinalDarlinDeferredData<G1, G2>,
-        usr_ins:      Vec<G1::ScalarField>
+        final_darlin_proof: FinalDarlinProof<G1, G2, D>,
+        usr_ins:            Vec<G1::ScalarField>
     ) -> Self
     {
-        Self { marlin_proof, deferred, usr_ins, _lifetime: PhantomData }
+        Self { final_darlin_proof, usr_ins, _lifetime: PhantomData }
     }
 }
 
@@ -183,7 +189,7 @@ where
         // Verify sumchecks
 
         // Get "system inputs"
-        let mut public_inputs = self.deferred.to_field_elements().unwrap();
+        let mut public_inputs = self.final_darlin_proof.deferred.to_field_elements().unwrap();
 
         // Append user inputs
         public_inputs.append(&mut self.usr_ins.clone());
@@ -191,7 +197,7 @@ where
         let ahp_result = Marlin::<G1::ScalarField, InnerProductArgPC<G1, D>, D>::verify_ahp(
             vk.marlin_vk,
             public_inputs.as_slice(),
-            &self.marlin_proof,
+            &self.final_darlin_proof.proof,
         );
 
         if ahp_result.is_err() {
@@ -202,7 +208,7 @@ where
         let (query_set, evaluations, labeled_comms, mut fs_rng) = ahp_result.unwrap();
 
         // Absorb evaluations and sample new challenge
-        fs_rng.absorb(&self.marlin_proof.evaluations);
+        fs_rng.absorb(&self.final_darlin_proof.proof.evaluations);
         let opening_challenge: G1::ScalarField = u128::rand(&mut fs_rng).into();
         let opening_challenges = |pow| opening_challenge.pow(&[pow]);
 
@@ -212,7 +218,7 @@ where
             &labeled_comms,
             &query_set,
             &evaluations,
-            &self.marlin_proof.pc_proof,
+            &self.final_darlin_proof.proof.pc_proof,
             &opening_challenges,
         );
 
@@ -230,7 +236,12 @@ where
         };
 
         end_timer!(succinct_time);
-        Ok(DualDLogItem::<G1, G2>(vec![acc, self.deferred.pre_previous_acc.clone()], vec![self.deferred.previous_acc.clone()]))
+        Ok(DualDLogItem::<G1, G2>(vec![
+                acc,
+                self.final_darlin_proof.deferred.pre_previous_acc.clone()
+            ],
+            vec![self.final_darlin_proof.deferred.previous_acc.clone()]
+        ))
     }
 }
 

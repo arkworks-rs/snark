@@ -164,7 +164,7 @@ impl<'a, G1, G2, D> GeneralPCD<'a, G1, G2, D>
                 simple_marlin.usr_ins = vec![G1::ScalarField::rand(rng); ins_len];
             },
             Self::FinalDarlin(final_darlin) => {
-                final_darlin.deferred = FinalDarlinDeferredData::<G1, G2>::generate_random::<R, D>(
+                final_darlin.final_darlin_proof.deferred = FinalDarlinDeferredData::<G1, G2>::generate_random::<R, D>(
                     rng, ck_g1, ck_g2
                 );
             }
