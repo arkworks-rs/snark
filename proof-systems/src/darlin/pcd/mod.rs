@@ -51,7 +51,11 @@ impl PCDParameters {
 
 /// Trait for recursive circuit of a PCD scheme. Both witnesses and public inputs
 /// are derived from previous proofs and some additional "payload".
-pub trait PCDCircuit<G: AffineCurve> {
+pub trait PCDCircuit<G: AffineCurve>: ConstraintSynthesizer<G::ScalarField> {
+
+    /// Any data that may be needed to bootstrap the circuit that is not covered by the other
+    /// fields.
+    type SetupData: Clone;
 
     /// Witnesses needed to enforce the business logic of the circuit,
     /// (e.g. all the things not related to recursion).
@@ -63,29 +67,26 @@ pub trait PCDCircuit<G: AffineCurve> {
     /// PCD type the circuit need to verify
     type PreviousPCD:  PCD;
 
-    /// The circuit itself
-    type Circuit: ConstraintSynthesizer<G::ScalarField>;
-
     /// Initialize the circuit state without explicitly assigning inputs and witnesses.
     /// To be used to generate pk and vk.
-    fn init(&self) -> Self::Circuit;
+    fn init(config: Self::SetupData) -> Self;
 
     /// Assign a concrete state to the circuit, using previous proofs and some "payload".
     /// As the circuit needs to verify previous proofs, it also needs the corresponding vks;
     fn init_state(
-        &self,
+        config:               Self::SetupData,
         previous_proofs_data: Vec<Self::PreviousPCD>,
         previous_proofs_vks:  Vec<<Self::PreviousPCD as PCD>::PCDVerifierKey>,
         incremental_data:     Self::IncrementalData,
-    ) -> Self::Circuit;
+    ) -> Self;
 
     /// Extract the system inputs from a concrete instantiation of the circuit.
     /// Return Error if it's not possible to derive SystemInputs.
-    fn get_sys_ins(c: &Self::Circuit) -> Result<Self::SystemInputs, PCDError>;
+    fn get_sys_ins(&self) -> Result<&Self::SystemInputs, PCDError>;
 
     /// Extract the user inputs from a concrete instantiation of the circuit.
     /// Return Error if it's not possible to derive UserInputs.
-    fn get_usr_ins(c: &Self::Circuit) -> Result<Vec<G::ScalarField>, PCDError>;
+    fn get_usr_ins(&self) -> Result<Vec<G::ScalarField>, PCDError>;
 }
 
 /// This trait expresses the functions for proof carrying data, in which the PCD is assumed

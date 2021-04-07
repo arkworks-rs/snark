@@ -80,13 +80,13 @@ impl<'a, G1, G2, D>FinalDarlin<'a, G1, G2, D>
     /// keys. This is a deterministic algorithm that anyone can rerun.
     pub fn index<C: PCDCircuit<G1>>(
         committer_key: &DLogProverKey<G1>,
-        pcd_circuit:   &C,
+        config:   C::SetupData,
     ) -> Result<(
             FinalDarlinProverKey<G1::ScalarField, InnerProductArgPC<G1, D>>,
             FinalDarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>,
         ), FinalDarlinError>
     {
-        let c = pcd_circuit.init();
+        let c = C::init(config);
         let res = Marlin::<G1::ScalarField, InnerProductArgPC<G1, D>, D>::index(committer_key, c)?;
 
         Ok(res)
@@ -97,7 +97,7 @@ impl<'a, G1, G2, D>FinalDarlin<'a, G1, G2, D>
     pub fn prove<C>(
         index_pk:         &FinalDarlinProverKey<G1::ScalarField, InnerProductArgPC<G1, D>>,
         pc_pk:            &DLogProverKey<G1>,
-        pcd_circuit:      &C,
+        config:           C::SetupData,
         // In future, this will be explicitly a RainbowDarlinPCD
         previous:         Vec<C::PreviousPCD>,
         previous_vks:     Vec<<C::PreviousPCD as PCD>::PCDVerifierKey>,
@@ -108,15 +108,16 @@ impl<'a, G1, G2, D>FinalDarlin<'a, G1, G2, D>
         where
             C: PCDCircuit<G1, SystemInputs = FinalDarlinDeferredData<G1, G2>>,
     {
-        let c = pcd_circuit.init_state(
+        let c = C::init_state(
+            config,
             previous,
             previous_vks,
             incremental_data
         );
 
-        let sys_ins = C::get_sys_ins(&c)?.clone();
+        let sys_ins = c.get_sys_ins()?.clone();
 
-        let usr_ins = C::get_usr_ins(&c)?.clone();
+        let usr_ins = c.get_usr_ins()?;
 
         let proof = Marlin::<G1::ScalarField, InnerProductArgPC<G1, D>, D>::prove(
             index_pk, pc_pk, c, zk, zk_rng

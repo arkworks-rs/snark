@@ -86,6 +86,7 @@ impl<G1, G2> PCD for TestPrevPCD<G1, G2>
     }
 }
 
+#[derive(Clone)]
 pub struct CircuitInfo<G1: AffineCurve, G2: AffineCurve> {
     pub num_constraints: usize,
     pub num_variables:   usize,
@@ -189,34 +190,34 @@ impl<G1, G2> ConstraintSynthesizer<G1::ScalarField> for TestCircuit<G1, G2>
     }
 }
 
-impl<G1, G2> PCDCircuit<G1> for CircuitInfo<G1, G2>
+impl<G1, G2> PCDCircuit<G1> for TestCircuit<G1, G2>
     where
         G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
         G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
 {
+    type SetupData       =  CircuitInfo<G1, G2>;
     type IncrementalData =  (G1::ScalarField, G1::ScalarField);
     type SystemInputs    =  FinalDarlinDeferredData<G1, G2>;
     type PreviousPCD     =  TestPrevPCD<G1, G2>;
-    type Circuit         =  TestCircuit<G1, G2>;
 
-    fn init(&self) -> Self::Circuit {
-        TestCircuit::<G1, G2> {
+    fn init(config: Self::SetupData) -> Self {
+        Self {
             a: None,
             b: None,
             c: None,
             d: None,
-            num_constraints: self.num_constraints,
-            num_variables: self.num_variables,
-            deferred: self.dummy_deferred.clone()
+            num_constraints: config.num_constraints,
+            num_variables: config.num_variables,
+            deferred: config.dummy_deferred.clone()
         }
     }
 
     fn init_state(
-        &self,
+        config:               Self::SetupData,
         previous_proofs_data: Vec<Self::PreviousPCD>,
         _previous_proofs_vks: Vec<<Self::PreviousPCD as PCD>::PCDVerifierKey>,
         incremental_data:     Self::IncrementalData
-    ) -> Self::Circuit
+    ) -> Self
     {
         assert_eq!(previous_proofs_data.len(), 1);
 
@@ -228,24 +229,24 @@ impl<G1, G2> PCDCircuit<G1> for CircuitInfo<G1, G2>
         let mut d = c;
         d.mul_assign(&b);
 
-        TestCircuit::<G1, G2>{
+        Self {
             a: Some(a),
             b: Some(b),
             c: Some(c),
             d: Some(d),
-            num_constraints: self.num_constraints,
-            num_variables: self.num_constraints/2,
+            num_constraints: config.num_constraints,
+            num_variables: config.num_variables,
             deferred: previous_proofs_data[0].0.clone(),
         }
     }
 
-    fn get_sys_ins(circuit: &Self::Circuit) -> Result<Self::SystemInputs, PCDError> {
-        Ok(circuit.deferred.clone())
+    fn get_sys_ins(&self) -> Result<&Self::SystemInputs, PCDError> {
+        Ok(&self.deferred)
     }
 
-    fn get_usr_ins(circuit: &Self::Circuit) -> Result<Vec<G1::ScalarField>, PCDError> {
-        let c = circuit.c.ok_or(PCDError::MissingUserInputs("c".to_owned()))?;
-        let d = circuit.d.ok_or(PCDError::MissingUserInputs("d".to_owned()))?;
+    fn get_usr_ins(&self) -> Result<Vec<G1::ScalarField>, PCDError> {
+        let c = self.c.ok_or(PCDError::MissingUserInputs("c".to_owned()))?;
+        let d = self.d.ok_or(PCDError::MissingUserInputs("d".to_owned()))?;
         Ok(vec![c, d])
     }
 }
@@ -267,10 +268,10 @@ pub fn generate_test_pcd<'a, G1: AffineCurve, G2:AffineCurve, D: Digest + 'a, R:
     let a = G1::ScalarField::rand(rng);
     let b = G1::ScalarField::rand(rng);
 
-    FinalDarlin::<G1, G2, D>::prove(
+    FinalDarlin::<G1, G2, D>::prove::<TestCircuit<G1, G2>>(
         final_darlin_pk,
         pc_ck_g1,
-        &info,
+        info,
         prev_pcds,
         vec![],
         (a, b),
@@ -313,9 +314,9 @@ pub fn generate_test_data<'a, G1: AffineCurve, G2: AffineCurve, D: Digest + 'a, 
         dummy_deferred,
     };
 
-    let (index_pk, index_vk) = FinalDarlin::<G1, G2, D>::index(
+    let (index_pk, index_vk) = FinalDarlin::<G1, G2, D>::index::<TestCircuit<G1, G2>>(
         &committer_key_g1,
-        &info
+        info.clone()
     ).unwrap();
 
     // Generate Final Darlin PCDs
