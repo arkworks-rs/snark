@@ -1,35 +1,111 @@
 use algebra::{AffineCurve, ToConstraintField, UniformRand};
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
-use crate::darlin::pcd::{
-        PCDParameters,
-        final_darlin::{FinalDarlinDeferredData, FinalDarlinPCD}
+use crate::darlin::{
+    pcd::{
+        PCD, PCDParameters, PCDCircuit,
+        final_darlin::FinalDarlinPCD,
+        error::PCDError,
+    },
+    accumulators::ItemAccumulator,
+    data_structures::FinalDarlinDeferredData,
+    FinalDarlinProverKey, FinalDarlinVerifierKey, FinalDarlin,
 };
-use marlin::{
-    Marlin, ProverKey as MarlinProverKey, VerifierKey as MarlinVerifierKey,
+use poly_commit::{
+    ipa_pc::{InnerProductArgPC, CommitterKey, UniversalParams},
+    Error as PCError
 };
-use poly_commit::ipa_pc::{InnerProductArgPC, CommitterKey, UniversalParams};
 use rand::{ Rng, RngCore };
 use digest::Digest;
-use std::ops::MulAssign;
 use r1cs_std::{
     alloc::AllocGadget,
     fields::fp::FpGadget,
     eq::EqGadget,
 };
-use crate::darlin::pcd::final_darlin::FinalDarlinProof;
+use std::ops::MulAssign;
 
-#[derive(Clone)]
-pub struct Circuit<G1: AffineCurve, G2: AffineCurve> {
+// Dummy Acc used for testing
+pub struct TestAcc {}
+
+impl ItemAccumulator for TestAcc {
+    type AccumulatorProverKey = ();
+    type AccumulatorVerifierKey = ();
+    type AccumulationProof = ();
+    type Item = ();
+
+    fn check_items<R: RngCore>(
+        _vk: &Self::AccumulatorVerifierKey,
+        _accumulators: &[Self::Item],
+        _rng: &mut R
+    ) -> Result<bool, PCError>
+    {
+        Ok(true)
+    }
+
+    fn accumulate_items(
+        _ck: &Self::AccumulatorProverKey,
+        _accumulators: Vec<Self::Item>
+    ) -> Result<(Self::Item, Self::AccumulationProof), PCError>
+    {
+        Ok(((), ()))
+    }
+
+    fn verify_accumulated_items<R: RngCore>(
+        _current_accumulator: &Self::Item,
+        _vk: &Self::AccumulatorVerifierKey,
+        _previous_accumulators: Vec<Self::Item>,
+        _proof: &Self::AccumulationProof,
+        _rng: &mut R
+    ) -> Result<bool, PCError>
+    {
+        Ok(true)
+    }
+}
+
+// Test PCDVk
+pub struct TestPCDVk {}
+
+impl AsRef<()> for TestPCDVk
+{
+    fn as_ref(&self) -> &() { &() }
+}
+
+/// A PCD with dummy implementation, it is used just to carry the FinalDarlinDeferredData
+/// for testing purposes
+pub struct TestPrevPCD<G1: AffineCurve, G2: AffineCurve>(FinalDarlinDeferredData<G1, G2>);
+
+impl<G1, G2> PCD for TestPrevPCD<G1, G2>
+    where
+        G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
+        G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
+{
+    type PCDAccumulator = TestAcc;
+    type PCDVerifierKey = TestPCDVk;
+
+    fn succinct_verify(&self, _vk: &Self::PCDVerifierKey) -> Result<<Self::PCDAccumulator as ItemAccumulator>::Item, PCDError> {
+        Ok(())
+    }
+}
+
+pub struct CircuitInfo<G1: AffineCurve, G2: AffineCurve> {
+    pub num_constraints: usize,
+    pub num_variables:   usize,
+    pub dummy_deferred:  FinalDarlinDeferredData<G1, G2>,
+}
+
+#[derive(Clone, Default)]
+pub struct TestCircuit<G1: AffineCurve, G2: AffineCurve> {
     pub a: Option<G1::ScalarField>,
     pub b: Option<G1::ScalarField>,
+    pub c: Option<G1::ScalarField>,
+    pub d: Option<G1::ScalarField>,
     pub num_constraints: usize,
     pub num_variables: usize,
 
     // Deferred elements (sys ins)
-    pub deferred: FinalDarlinDeferredData<G1, G2>
+    pub deferred: FinalDarlinDeferredData<G1, G2>,
 }
 
-impl<G1: AffineCurve, G2: AffineCurve> ConstraintSynthesizer<G1::ScalarField> for Circuit<G1, G2>
+impl<G1, G2> ConstraintSynthesizer<G1::ScalarField> for TestCircuit<G1, G2>
     where
         G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
         G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
@@ -80,24 +156,11 @@ impl<G1: AffineCurve, G2: AffineCurve> ConstraintSynthesizer<G1::ScalarField> fo
         let b = cs.alloc(|| "b", || self.b.ok_or(SynthesisError::AssignmentMissing))?;
         let c = cs.alloc_input(
             || "c",
-            || {
-                let mut a = self.a.ok_or(SynthesisError::AssignmentMissing)?;
-                let b = self.b.ok_or(SynthesisError::AssignmentMissing)?;
-
-                a.mul_assign(&b);
-                Ok(a)
-            },
+            || self.c.ok_or(SynthesisError::AssignmentMissing)
         )?;
         let d = cs.alloc_input(
             || "d",
-            || {
-                let mut a = self.a.ok_or(SynthesisError::AssignmentMissing)?;
-                let b = self.b.ok_or(SynthesisError::AssignmentMissing)?;
-
-                a.mul_assign(&b);
-                a.mul_assign(&b);
-                Ok(a)
-            },
+            || self.d.ok_or(SynthesisError::AssignmentMissing)
         )?;
 
         for i in 0..(self.num_variables - 5 - (2 * deferred_len)) {
@@ -126,12 +189,72 @@ impl<G1: AffineCurve, G2: AffineCurve> ConstraintSynthesizer<G1::ScalarField> fo
     }
 }
 
+impl<G1, G2> PCDCircuit<G1> for CircuitInfo<G1, G2>
+    where
+        G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
+        G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
+{
+    type IncrementalData =  (G1::ScalarField, G1::ScalarField);
+    type SystemInputs    =  FinalDarlinDeferredData<G1, G2>;
+    type PreviousPCD     =  TestPrevPCD<G1, G2>;
+    type Circuit         =  TestCircuit<G1, G2>;
+
+    fn init(&self) -> Self::Circuit {
+        TestCircuit::<G1, G2> {
+            a: None,
+            b: None,
+            c: None,
+            d: None,
+            num_constraints: self.num_constraints,
+            num_variables: self.num_variables,
+            deferred: self.dummy_deferred.clone()
+        }
+    }
+
+    fn init_state(
+        &self,
+        previous_proofs_data: Vec<Self::PreviousPCD>,
+        _previous_proofs_vks: Vec<<Self::PreviousPCD as PCD>::PCDVerifierKey>,
+        incremental_data:     Self::IncrementalData
+    ) -> Self::Circuit
+    {
+        assert_eq!(previous_proofs_data.len(), 1);
+
+        let a = incremental_data.0;
+        let b = incremental_data.1;
+
+        let mut c = a;
+        c.mul_assign(&b);
+        let mut d = c;
+        d.mul_assign(&b);
+
+        TestCircuit::<G1, G2>{
+            a: Some(a),
+            b: Some(b),
+            c: Some(c),
+            d: Some(d),
+            num_constraints: self.num_constraints,
+            num_variables: self.num_constraints/2,
+            deferred: previous_proofs_data[0].0.clone(),
+        }
+    }
+
+    fn get_sys_ins(circuit: &Self::Circuit) -> Result<Self::SystemInputs, PCDError> {
+        Ok(circuit.deferred.clone())
+    }
+
+    fn get_usr_ins(circuit: &Self::Circuit) -> Result<Vec<G1::ScalarField>, PCDError> {
+        let c = circuit.c.ok_or(PCDError::MissingUserInputs("c".to_owned()))?;
+        let d = circuit.d.ok_or(PCDError::MissingUserInputs("d".to_owned()))?;
+        Ok(vec![c, d])
+    }
+}
+
 #[allow(dead_code)]
 pub fn generate_test_pcd<'a, G1: AffineCurve, G2:AffineCurve, D: Digest + 'a, R: RngCore>(
     pc_ck_g1: &CommitterKey<G1>,
-    deferred: FinalDarlinDeferredData<G1, G2>,
-    marlin_pk: &MarlinProverKey<G1::ScalarField, InnerProductArgPC<G1, D>>,
-    num_constraints: usize,
+    final_darlin_pk: &FinalDarlinProverKey<G1::ScalarField, InnerProductArgPC<G1, D>>,
+    info: CircuitInfo<G1, G2>,
     zk: bool,
     rng: &mut R,
 ) -> FinalDarlinPCD<'a, G1, G2, D>
@@ -139,33 +262,21 @@ pub fn generate_test_pcd<'a, G1: AffineCurve, G2:AffineCurve, D: Digest + 'a, R:
         G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
         G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
 {
+    let prev_pcds = vec![TestPrevPCD::<G1, G2>(info.dummy_deferred.clone())];
+
     let a = G1::ScalarField::rand(rng);
     let b = G1::ScalarField::rand(rng);
-    let mut c = a;
-    c.mul_assign(&b);
-    let mut d = c;
-    d.mul_assign(&b);
 
-    let circ = Circuit::<G1, G2> {
-        a: Some(a),
-        b: Some(b),
-        num_constraints,
-        num_variables: num_constraints/2,
-        deferred: deferred.clone(),
-    };
-
-    let proof = Marlin::<G1::ScalarField, InnerProductArgPC<G1, D>, D>::prove(
-        marlin_pk,
+    FinalDarlin::<G1, G2, D>::prove(
+        final_darlin_pk,
         pc_ck_g1,
-        circ,
+        &info,
+        prev_pcds,
+        vec![],
+        (a, b),
         zk,
         if zk { Some(rng) } else { None }
-    ).unwrap();
-
-    FinalDarlinPCD::<'a, G1, G2, D>::new(
-        FinalDarlinProof::<G1, G2, D> { proof, deferred },
-        vec![c, d]
-    )
+    ).unwrap()
 }
 
 #[allow(dead_code)]
@@ -178,7 +289,7 @@ pub fn generate_test_data<'a, G1: AffineCurve, G2: AffineCurve, D: Digest + 'a, 
     rng: &mut R,
 ) -> (
     Vec<FinalDarlinPCD<'a, G1, G2, D>>,
-    Vec<MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>>
+    Vec<FinalDarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>>
 )
     where
         G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
@@ -190,29 +301,28 @@ pub fn generate_test_data<'a, G1: AffineCurve, G2: AffineCurve, D: Digest + 'a, 
     let (committer_key_g2, _) = config.universal_setup::<_, D>(params_g2).unwrap();
 
     // Generate random (but valid) deferred data
-    let deferred = FinalDarlinDeferredData::<G1, G2>::generate_random::<R, D>(
+    let dummy_deferred = FinalDarlinDeferredData::<G1, G2>::generate_random::<R, D>(
         rng,
         &committer_key_g1,
         &committer_key_g2,
     );
 
-    // Generate Marlin prover and verifier key
-    let circ = Circuit {
-        a: None,
-        b: None,
+    let info = CircuitInfo::<G1, G2> {
         num_constraints,
         num_variables: num_constraints/2,
-        deferred: deferred.clone()
+        dummy_deferred,
     };
 
-    let (index_pk, index_vk) = config.circuit_specific_setup(circ.clone(), &committer_key_g1).unwrap();
+    let (index_pk, index_vk) = FinalDarlin::<G1, G2, D>::index(
+        &committer_key_g1,
+        &info
+    ).unwrap();
 
     // Generate Final Darlin PCDs
     let final_darlin_pcd = generate_test_pcd::<G1, G2, D, R>(
         &committer_key_g1,
-        deferred,
         &index_pk,
-        num_constraints,
+        info,
         rng.gen(),
         rng,
     );

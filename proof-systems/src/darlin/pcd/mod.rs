@@ -1,6 +1,5 @@
 use algebra::{AffineCurve, ToConstraintField, UniformRand};
 use r1cs_core::ConstraintSynthesizer;
-use marlin::{ProverKey as MarlinProverKey, VerifierKey as MarlinVerifierKey, Error as MarlinError, AHPForR1CS};
 use poly_commit::{
     ipa_pc::{
         InnerProductArgPC, UniversalParams,
@@ -8,15 +7,25 @@ use poly_commit::{
     },
     PolynomialCommitment, Error as PCError
 };
-use crate::darlin::accumulators::ItemAccumulator;
+use crate::darlin::{
+    accumulators::{
+        ItemAccumulator,
+        dlog::{DualDLogItem, DualDLogItemAccumulator},
+    },
+    pcd::{
+        final_darlin::{FinalDarlinPCD, FinalDarlinPCDVerifierKey},
+        simple_marlin::{SimpleMarlinPCD, SimpleMarlinPCDVerifierKey},
+        error::PCDError,
+    },
+    data_structures::FinalDarlinDeferredData,
+};
 use rand::RngCore;
 use digest::Digest;
-use crate::darlin::pcd::final_darlin::{FinalDarlinPCD, FinalDarlinPCDVerifierKey, FinalDarlinDeferredData};
-use crate::darlin::pcd::simple_marlin::{SimpleMarlinPCD, SimpleMarlinPCDVerifierKey};
-use crate::darlin::accumulators::dlog::{DualDLogItem, DualDLogItemAccumulator};
+use std::fmt::Debug;
 
 pub mod simple_marlin;
 pub mod final_darlin;
+pub mod error;
 
 /// Configuration parameters for the PCD scheme: for now, just the size of the
 /// committer key to be used throughout the PCD scheme.
@@ -25,7 +34,6 @@ pub struct PCDParameters {
 }
 
 impl PCDParameters {
-
     /// We assume the DLOG keys to be generated outside the PCD scheme,
     /// so this function actually just trim them to the segment size
     /// specified in the config.
@@ -39,45 +47,45 @@ impl PCDParameters {
             self.segment_size - 1,
         )
     }
+}
 
-    /// Generate prover and verifier key for `circuit`. Current implementation generates
-    /// just simple Marlin prover and verifier keys for generic circuit and assumes to
-    /// use some parameters in self: this will radically change in future when we are
-    /// going to implement full support for recursion.
-    pub fn circuit_specific_setup<G: AffineCurve, C: ConstraintSynthesizer<G::ScalarField>, D: Digest>(
+/// Trait for recursive circuit of a PCD scheme. Both witnesses and public inputs
+/// are derived from previous proofs and some additional "payload".
+pub trait PCDCircuit<G: AffineCurve> {
+
+    /// Witnesses needed to enforce the business logic of the circuit,
+    /// (e.g. all the things not related to recursion).
+    type IncrementalData;
+
+    /// Elements that are deferred in recursion. They should be derived from the previous proofs.
+    type SystemInputs: ToConstraintField<G::ScalarField> + Debug + Clone;
+
+    /// PCD type the circuit need to verify
+    type PreviousPCD:  PCD;
+
+    /// The circuit itself
+    type Circuit: ConstraintSynthesizer<G::ScalarField>;
+
+    /// Initialize the circuit state without explicitly assigning inputs and witnesses.
+    /// To be used to generate pk and vk.
+    fn init(&self) -> Self::Circuit;
+
+    /// Assign a concrete state to the circuit, using previous proofs and some "payload".
+    /// As the circuit needs to verify previous proofs, it also needs the corresponding vks;
+    fn init_state(
         &self,
-        circuit: C,
-        ck: &DLogCommitterKey<G>,
-    ) -> Result<
-        (
-            MarlinProverKey<G::ScalarField, InnerProductArgPC<G, D>>,
-            MarlinVerifierKey<G::ScalarField, InnerProductArgPC<G, D>>
-        ), MarlinError<PCError>
-    >
-    {
-        let index = AHPForR1CS::index(circuit)?;
+        previous_proofs_data: Vec<Self::PreviousPCD>,
+        previous_proofs_vks:  Vec<<Self::PreviousPCD as PCD>::PCDVerifierKey>,
+        incremental_data:     Self::IncrementalData,
+    ) -> Self::Circuit;
 
-        let (index_comms, index_comm_rands): (_, _) =
-            InnerProductArgPC::<G, D>::commit(ck, index.iter(), None).map_err(MarlinError::from_pc_err)?;
+    /// Extract the system inputs from a concrete instantiation of the circuit.
+    /// Return Error if it's not possible to derive SystemInputs.
+    fn get_sys_ins(c: &Self::Circuit) -> Result<Self::SystemInputs, PCDError>;
 
-        let index_comms = index_comms
-            .into_iter()
-            .map(|c| c.commitment().clone())
-            .collect();
-
-        let index_vk = MarlinVerifierKey {
-            index_info: index.index_info,
-            index_comms,
-        };
-
-        let index_pk = MarlinProverKey {
-            index,
-            index_comm_rands,
-            index_vk: index_vk.clone(),
-        };
-
-        Ok((index_pk, index_vk))
-    }
+    /// Extract the user inputs from a concrete instantiation of the circuit.
+    /// Return Error if it's not possible to derive UserInputs.
+    fn get_usr_ins(c: &Self::Circuit) -> Result<Vec<G::ScalarField>, PCDError>;
 }
 
 /// This trait expresses the functions for proof carrying data, in which the PCD is assumed
@@ -93,7 +101,7 @@ pub trait PCD: Sized + Send + Sync {
     fn succinct_verify(
         &self,
         vk:         &Self::PCDVerifierKey,
-    ) -> Result<<Self::PCDAccumulator as ItemAccumulator>::Item, PCError>;
+    ) -> Result<<Self::PCDAccumulator as ItemAccumulator>::Item, PCDError>;
 
     /// Check the current accumulator, tipically via one or more MSMs
     fn hard_verify<R: RngCore>(
@@ -101,15 +109,17 @@ pub trait PCD: Sized + Send + Sync {
         acc:    <Self::PCDAccumulator as ItemAccumulator>::Item,
         vk:     &Self::PCDVerifierKey,
         rng:    &mut R,
-    ) -> Result<bool, PCError>
-    { <Self::PCDAccumulator as ItemAccumulator>::check_items::<R>(vk.as_ref(), &[acc], rng) }
+    ) -> Result<bool, PCDError>
+    { <Self::PCDAccumulator as ItemAccumulator>::check_items::<R>(vk.as_ref(), &[acc], rng)
+        .map_err(|e| PCDError::FailedHardVerification(e.to_string()))
+    }
 
     /// Perform full verification of `self`, i.e. both succinct and hard part.
     fn verify<R: RngCore>(
         &self,
         vk:         &Self::PCDVerifierKey,
         rng:        &mut R,
-    ) -> Result<bool, PCError>
+    ) -> Result<bool, PCDError>
     {
         let acc = self.succinct_verify(vk)?;
         self.hard_verify::<R>(acc, vk, rng)
@@ -184,11 +194,12 @@ where
     fn succinct_verify(
         &self,
         vk: &Self::PCDVerifierKey,
-    ) ->  Result<<Self::PCDAccumulator as ItemAccumulator>::Item, PCError>
+    ) ->  Result<<Self::PCDAccumulator as ItemAccumulator>::Item, PCDError>
     {
         match self {
             Self::SimpleMarlin(simple_marlin) => {
-                let simple_marlin_vk = SimpleMarlinPCDVerifierKey (vk.marlin_vk, vk.dlog_vks.0);
+                // Works because a FinalDarlinVk is a MarlinVk
+                let simple_marlin_vk = SimpleMarlinPCDVerifierKey (vk.final_darlin_vk, vk.dlog_vks.0);
                 let acc = simple_marlin.succinct_verify(&simple_marlin_vk)?;
                 Ok(DualDLogItem (vec![acc], vec![]))
             },

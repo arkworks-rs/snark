@@ -131,7 +131,9 @@ pub(crate) fn generate_test_data<'a, G: AffineCurve, D: Digest + 'a, R: RngCore>
         num_variables: num_constraints/2,
     };
 
-    let (index_pk, index_vk) = config.circuit_specific_setup(circ.clone(), &committer_key).unwrap();
+    let (index_pk, index_vk) = Marlin::<G::ScalarField, InnerProductArgPC<G, D>, D>::index(
+        &committer_key, circ.clone()
+    ).unwrap();
 
     // Generate Marlin PCDs
     let simple_marlin_pcd = generate_test_pcd::<G, D, R>(

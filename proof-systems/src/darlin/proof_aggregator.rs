@@ -48,7 +48,7 @@ pub(crate) fn get_accumulators<G1, G2, D: Digest>(
         .map(|(i, (pcd, vk))|
             {
                 let vk = FinalDarlinPCDVerifierKey::<G1, G2, D>{
-                    marlin_vk: vk,
+                    final_darlin_vk: vk,
                     dlog_vks: (g1_ck, g2_ck)
                 };
                 // No need to trim the vk here to the specific segment size used
