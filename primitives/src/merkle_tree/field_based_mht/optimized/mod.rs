@@ -595,7 +595,7 @@ mod test {
                 assert!(path.is_leftmost());
             }
             else if i == (num_leaves / 2) - 1 { // non-empty rightmost check
-                assert!(path.is_non_empty_rightmost());
+                assert!(path.are_right_leaves_empty());
             }
             else if i == num_leaves - 1 { //rightmost check
                 assert!(path.is_rightmost());
@@ -605,7 +605,7 @@ mod test {
                 assert!(!path.is_rightmost());
 
                 if i < (num_leaves / 2) - 1 {
-                    assert!(!path.is_non_empty_rightmost());
+                    assert!(!path.are_right_leaves_empty());
                 }
             }
 
@@ -620,7 +620,7 @@ mod test {
     }
 
     #[test]
-    fn merkle_tree_path_is_non_empty_rightmost_test_mnt4() {
+    fn merkle_tree_path_are_right_leaves_empty_test_mnt4() {
 
         let height = 6;
         let num_leaves = 2usize.pow(height as u32);
@@ -634,7 +634,7 @@ mod test {
 
             let tree_copy = tree.finalize();
             let path = tree_copy.get_merkle_path(i).unwrap();
-            assert!(path.is_non_empty_rightmost());
+            assert!(path.are_right_leaves_empty());
         }
     }
 
@@ -687,7 +687,7 @@ mod test {
                 assert!(path.is_leftmost());
             }
             else if i == (num_leaves / 2) - 1 { // non-empty rightmost check
-                assert!(path.is_non_empty_rightmost());
+                assert!(path.are_right_leaves_empty());
             }
             else if i == num_leaves - 1 { //rightmost check
                 assert!(path.is_rightmost());
@@ -697,7 +697,7 @@ mod test {
                 assert!(!path.is_rightmost());
 
                 if i < (num_leaves / 2) - 1 {
-                    assert!(!path.is_non_empty_rightmost());
+                    assert!(!path.are_right_leaves_empty());
                 }
             }
 

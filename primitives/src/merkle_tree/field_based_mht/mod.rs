@@ -138,8 +138,23 @@ pub trait FieldBasedMerkleTreePath {
     ) -> Result<bool, Error>;
 
     /// Returns the underlying raw path
-    fn get_raw_path(&self) -> Self::Path;
+    fn get_raw_path(&self) -> &Self::Path;
 
     /// Returns the length of the underlying raw path
     fn get_length(&self) -> usize;
+
+    /// Returns true if `self` is a Merkle Path for the left most leaf of a Merkle Tree,
+    /// false, otherwise.
+    fn is_leftmost(&self) -> bool;
+
+    /// Returns true if `self` is a Merkle Path for the right most leaf of a Merkle Tree,
+    /// false, otherwise.
+    fn is_rightmost(&self) -> bool;
+
+    /// Returns true if `self` is a Merkle Path for a leaf whose right leaves are all empty.
+    fn are_right_leaves_empty(&self) -> bool;
+
+    /// Returns the index of the leaf, corresponding to the `self` Merkle Path, in the
+    /// corresponding Merkle Tree.
+    fn leaf_index(&self) -> usize;
 }
