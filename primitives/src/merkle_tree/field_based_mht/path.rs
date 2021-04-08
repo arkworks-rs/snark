@@ -2,90 +2,20 @@ use crate::{
     crh::*, field_based_mht::*, Error
 };
 use std::{
-    clone::Clone, io::{Write, Result as IoResult, Read}
+    clone::Clone, fmt::Debug, io::{Write, Result as IoResult, Read}
 };
 
 /// An implementation of the FieldBasedMerkleTreePath trait, for a given FieldBasedHash and
 /// FieldBasedMerkleTree with arbitrary arity.
 /// TODO: Test for arity > 2
-#[derive(Derivative)]
-#[derivative(
-    Clone(bound = "T: FieldBasedMerkleTreeParameters"),
-    Debug(bound = "T: FieldBasedMerkleTreeParameters"),
-    Default(bound = "T: FieldBasedMerkleTreeParameters"),
-    PartialEq(bound = "T: FieldBasedMerkleTreeParameters"),
-    Eq(bound = "T: FieldBasedMerkleTreeParameters")
-)]
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 pub struct FieldBasedMHTPath<T: FieldBasedMerkleTreeParameters>{
     path: Vec<(Vec<<T::H as FieldBasedHash>::Data>, usize)>,
 }
 
-impl<T: FieldBasedMerkleTreeParameters> FieldBasedMHTPath<T> {
-
-    /// Returns true if `self` is a Merkle Path for the left most leaf of a Merkle Tree,
-    /// false, otherwise.
-    #[inline]
-    pub fn is_leftmost(&self) -> bool {
-        for &(_, direction) in &self.path {
-            if direction != 0 {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /// Returns true if `self` is a Merkle Path for the right most leaf of a Merkle Tree,
-    /// false, otherwise.
-    #[inline]
-    pub fn is_rightmost(&self) -> bool {
-        for &(_, direction) in &self.path {
-            if direction != (T::MERKLE_ARITY - 1) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /// Returns true if `self` is a Merkle Path for the righmost non-empty leaf of the Merkle Tree
-    /// (e.g. the leaf which is not physically in the rightmost position of the tree, but it's
-    /// followed by all empty leaves).
-    /// Assumptions:
-    /// 1) Append-only Merkle Tree;
-    /// 2) T::EMPTY_HASH_CST is specified;
-    /// 3) Not to be called on Merkle Path corresponding to an empty leaf.
-    #[inline]
-    pub fn is_non_empty_rightmost(&self) -> bool {
-        assert!(check_precomputed_parameters::<T>(self.path.len()));
-
-        let mut height = 0usize;
-        for &(ref siblings, direction) in &self.path {
-
-            // If the node on the path is not in the rightmost position
-            if direction != T::MERKLE_ARITY - 1 {
-
-                // If its following sibling is not the empty node, then the node
-                // cannot be the non empty rightmost at this height and for the
-                // whole tree
-                if siblings[direction] != T::EMPTY_HASH_CST.unwrap().nodes[height] {
-                    return false;
-                }
-            }
-            height += 1;
-        }
-        return true;
-    }
-
-    /// Returns the index of the leaf, corresponding to the `self` Merkle Path, in the
-    /// corresponding Merkle Tree.
-    pub fn leaf_index(&self) -> usize {
-        let mut leaf_index = 0;
-        self.path
-            .iter()
-            .enumerate()
-            .for_each(|(i, (_, pos))| leaf_index += T::MERKLE_ARITY.pow(i as u32) * pos);
-
-        leaf_index
+impl<T: FieldBasedMerkleTreeParameters> PartialEq for FieldBasedMHTPath<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.path == other.path
     }
 }
 
@@ -115,26 +45,25 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedMerkleTreePath for FieldBasedM
         // MerkleTree that creates this instance, but let's do it again.
         assert_eq!(<<Self::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R, T::MERKLE_ARITY);
 
-        let mut digest = <Self::H as FieldBasedHash>::init(None);
+        let mut digest = <Self::H as FieldBasedHash>::init_constant_length(T::MERKLE_ARITY, None);
         let mut prev_node = leaf.clone();
-        for (sibling_nodes, position) in self.path.as_slice() {
+        for (sibling_nodes, position) in self.path.iter() {
             assert_eq!(sibling_nodes.len(), T::MERKLE_ARITY - 1);
-
-            // Get the position of the node among its siblings
-            let prev_node_position = *position % T::MERKLE_ARITY;
+            assert!(*position < T::MERKLE_ARITY);
 
             // Update the digest respecting the position of each sibling
+            let mut sibling_idx = 0;
             for i in 0..T::MERKLE_ARITY {
-                if i == prev_node_position {
+                if i == *position {
                     digest.update(prev_node.clone());
                 } else {
-                    let index = i % (T::MERKLE_ARITY - 1); // Be sure to not overflow the siblings vector
-                    digest.update(sibling_nodes[index]);
+                    digest.update(sibling_nodes[sibling_idx]);
+                    sibling_idx += 1;
                 }
             }
 
             // Compute the parent node
-            prev_node = digest.finalize();
+            prev_node = digest.finalize().unwrap();
             digest.reset(None);
         }
 
@@ -146,12 +75,70 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedMerkleTreePath for FieldBasedM
         }
     }
 
-    fn get_raw_path(&self) -> Self::Path {
-        self.path.clone()
+    fn get_raw_path(&self) -> &Self::Path {
+        &self.path
     }
 
     fn get_length(&self) -> usize {
         self.path.len()
+    }
+
+    #[inline]
+    fn is_leftmost(&self) -> bool {
+        for &(_, direction) in &self.path {
+            if direction != 0 {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    #[inline]
+    fn is_rightmost(&self) -> bool {
+        for &(_, direction) in &self.path {
+            if direction != (T::MERKLE_ARITY - 1) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    #[inline]
+    fn are_right_leaves_empty(&self) -> bool {
+        assert!(check_precomputed_parameters::<T>(self.path.len()));
+
+        let mut height = 0usize;
+        for &(ref siblings, direction) in &self.path {
+
+            // If the node on the path is not in the rightmost position
+            if direction != T::MERKLE_ARITY - 1 {
+
+                // Save the empty node for this height
+                let empty_node = T::EMPTY_HASH_CST.unwrap().nodes[height].clone();
+
+                // If its following siblings are not the empty nodes, then the node
+                // cannot be the non empty rightmost at this height and for the
+                // whole tree
+                for i in direction..T::MERKLE_ARITY - 1 {
+                    if siblings[i] != empty_node  {
+                        return false;
+                    }
+                }
+            }
+            height += 1;
+        }
+        return true;
+    }
+
+    #[inline]
+    fn leaf_index(&self) -> usize {
+        let mut leaf_index = 0;
+        self.path
+            .iter()
+            .enumerate()
+            .for_each(|(i, (_, pos))| leaf_index += T::MERKLE_ARITY.pow(i as u32) * pos);
+
+        leaf_index
     }
 }
 
@@ -159,7 +146,6 @@ impl<T: FieldBasedMerkleTreeParameters> ToBytes for FieldBasedMHTPath<T> {
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
         (self.path.len() as u8).write(&mut writer)?;
         for &(ref siblings, position) in self.path.as_slice() {
-            (siblings.len() as u8).write(&mut writer)?;
             siblings.write(&mut writer)?;
             (position as u8).write(&mut writer)?;
         }
@@ -169,11 +155,11 @@ impl<T: FieldBasedMerkleTreeParameters> ToBytes for FieldBasedMHTPath<T> {
 
 impl<T: FieldBasedMerkleTreeParameters> FromBytes for FieldBasedMHTPath<T> {
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
+        let siblings_len = (T::MERKLE_ARITY - 1) as usize;
         let length = u8::read(&mut reader)? as usize;
         let mut path = Vec::with_capacity(length);
         for _ in 0..length {
-            let siblings_len = u8::read(&mut reader)?;
-            let mut siblings = Vec::with_capacity(siblings_len as usize);
+            let mut siblings = Vec::with_capacity(siblings_len);
             for _ in 0..siblings_len {
                 let sibling = <T::H as FieldBasedHash>::Data::read(&mut reader)?;
                 siblings.push(sibling);
@@ -187,86 +173,14 @@ impl<T: FieldBasedMerkleTreeParameters> FromBytes for FieldBasedMHTPath<T> {
 
 /// A wrapper around a Merkle Path for a FieldBasedMerkleTree of arity 2. Merkle Trees of arity
 /// 2 are the most common and it's worth to explicitly create a separate struct
-#[derive(Derivative)]
-#[derivative(
-    Clone(bound = "T: FieldBasedMerkleTreeParameters"),
-    Debug(bound = "T: FieldBasedMerkleTreeParameters"),
-    Default(bound = "T: FieldBasedMerkleTreeParameters"),
-    PartialEq(bound = "T: FieldBasedMerkleTreeParameters"),
-    Eq(bound = "T: FieldBasedMerkleTreeParameters")
-)]
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 pub struct FieldBasedBinaryMHTPath<T: FieldBasedMerkleTreeParameters>{
     path: Vec<(<T::H as FieldBasedHash>::Data, bool)>,
 }
 
-impl<T: FieldBasedMerkleTreeParameters> FieldBasedBinaryMHTPath<T> {
-
-    /// Returns true if `self` is a Merkle Path for the left most leaf of a Merkle Tree,
-    /// false, otherwise.
-    #[inline]
-    pub fn is_leftmost(&self) -> bool {
-        for &(_, direction) in &self.path {
-            if direction {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /// Returns true if `self` is a Merkle Path for the right most leaf of a Merkle Tree,
-    /// false, otherwise.
-    #[inline]
-    pub fn is_rightmost(&self) -> bool {
-        for &(_, direction) in &self.path {
-            if !direction {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /// Returns true if `self` is a Merkle Path for the righmost non-empty leaf of the Merkle Tree
-    /// (e.g. the leaf which is not physically in the rightmost position of the tree, but it's
-    /// followed by all empty leaves).
-    /// Assumptions:
-    /// 1) Append-only Merkle Tree;
-    /// 2) T::EMPTY_HASH_CST is specified;
-    /// 3) Not to be called on Merkle Path corresponding to an empty leaf.
-    #[inline]
-    pub fn is_non_empty_rightmost(&self) -> bool {
-        assert!(check_precomputed_parameters::<T>(self.path.len()));
-
-        let mut height = 0usize;
-        for &(sibling, direction) in &self.path {
-
-            // If the node on the path is not in the rightmost position
-            if !direction {
-
-                // If its following sibling is not the empty node, then the node
-                // cannot be the non empty rightmost at this height and for the
-                // whole tree
-                if sibling != T::EMPTY_HASH_CST.unwrap().nodes[height] {
-                    return false;
-                }
-            }
-            height += 1;
-        }
-        return true;
-    }
-
-    /// Returns the index of the leaf, corresponding to the `self` Merkle Path, in the
-    /// corresponding Merkle Tree.
-    pub fn leaf_index(&self) -> usize {
-        let mut leaf_index = 0;
-        self.path
-            .iter()
-            .enumerate()
-            .for_each(|(i, (_, pos))| {
-                if *pos { leaf_index += 1 << i }
-            });
-
-        leaf_index as usize
+impl<T: FieldBasedMerkleTreeParameters> PartialEq for FieldBasedBinaryMHTPath<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.path == other.path
     }
 }
 
@@ -289,22 +203,23 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedMerkleTreePath for FieldBasedB
         // is reasonable and simplify the design. Should be also enforced by the
         // MerkleTree that creates this instance, but let's do it again.
         assert_eq!(<<Self::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R, T::MERKLE_ARITY);
-        let mut digest = <Self::H as FieldBasedHash>::init(None);
-        let mut prev_node = *leaf;
-        for &(sibling, direction) in self.path.as_slice() {
+        let mut digest = <Self::H as FieldBasedHash>::init_constant_length(2, None);
+        let mut prev_node = leaf.clone();
+        for (sibling, direction) in self.path.iter() {
 
             // Choose left and right hash according to direction
             let (left, right) = if !direction {
-                (prev_node, sibling)
+                (prev_node, sibling.clone())
             } else {
-                (sibling, prev_node)
+                (sibling.clone(), prev_node)
             };
 
             // Compute the parent node
             prev_node = digest
                 .update(left)
                 .update(right)
-                .finalize();
+                .finalize()
+                .unwrap();
 
             digest.reset(None);
         }
@@ -317,12 +232,67 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedMerkleTreePath for FieldBasedB
         }
     }
 
-    fn get_raw_path(&self) -> Self::Path {
-        self.path.clone()
+    fn get_raw_path(&self) -> &Self::Path {
+        &self.path
     }
 
     fn get_length(&self) -> usize {
         self.path.len()
+    }
+
+    #[inline]
+    fn is_leftmost(&self) -> bool {
+        for &(_, direction) in &self.path {
+            if direction {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    #[inline]
+    fn is_rightmost(&self) -> bool {
+        for &(_, direction) in &self.path {
+            if !direction {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    #[inline]
+    fn are_right_leaves_empty(&self) -> bool {
+        assert!(check_precomputed_parameters::<T>(self.path.len()));
+
+        let mut height = 0usize;
+        for &(sibling, direction) in &self.path {
+
+            // If the node on the path is not in the rightmost position
+            if !direction {
+
+                // If its following sibling is not the empty node, then the node
+                // cannot be the non empty rightmost at this height and for the
+                // whole tree
+                if sibling != T::EMPTY_HASH_CST.unwrap().nodes[height] {
+                    return false;
+                }
+            }
+            height += 1;
+        }
+        return true;
+    }
+
+    #[inline]
+    fn leaf_index(&self) -> usize {
+        let mut leaf_index = 0;
+        self.path
+            .iter()
+            .enumerate()
+            .for_each(|(i, (_, pos))| {
+                if *pos { leaf_index += 1 << i }
+            });
+
+        leaf_index as usize
     }
 }
 

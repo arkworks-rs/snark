@@ -211,16 +211,11 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
         group_hash_params: &Self::GHParams,
         pk:                &Self::PublicKey,
         sk:                &Self::SecretKey,
-        message:           &[Self::Data],
+        message:           Self::Data,
     )-> Result<Self::Proof, Error>
     {
         //Compute mh = hash_to_curve(message)
-        let mut message_bytes = Vec::new();
-        for field_element in message.iter() {
-            message_bytes.extend_from_slice(to_bytes!(field_element).unwrap().as_slice())
-        }
-
-        let message_on_curve = GH::evaluate(group_hash_params, message_bytes.as_slice())?;
+        let message_on_curve = GH::evaluate(group_hash_params, to_bytes!(&message).unwrap().as_slice())?;
 
         //Compute gamma = message_on_curve^sk
         let gamma = message_on_curve.mul(sk);
@@ -248,15 +243,14 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
 
             //Compute c = H(m||pk.x||a.x||b.x)
             let c = {
-                let mut digest = FH::init(None);
-
-                message.into_iter().for_each(|&m| { digest.update(m); });
+                let mut digest = FH::init_constant_length(4, None);
                 digest
+                    .update(message)
                     .update(pk.0.to_field_elements().unwrap()[0])
                     .update(a.to_field_elements().unwrap()[0])
                     .update(b.to_field_elements().unwrap()[0])
                     .finalize()
-            };
+            }?;
 
             let c_bits = c.write_bits();
             let c_leading_zeros = leading_zeros(c_bits.as_slice()) as usize;
@@ -284,19 +278,14 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
     fn proof_to_hash(
         group_hash_params: &Self::GHParams,
         pk:                &Self::PublicKey,
-        message:           &[Self::Data],
+        message:           Self::Data,
         proof:             &Self::Proof
     )
         -> Result<Self::Data, Error>
     {
 
         //Compute mh = hash_to_curve(message)
-        let mut message_bytes = Vec::new();
-        for field_element in message.iter() {
-            message_bytes.extend_from_slice(to_bytes!(field_element).unwrap().as_slice())
-        }
-
-        let message_on_curve = GH::evaluate(group_hash_params, message_bytes.as_slice())?;
+        let message_on_curve = GH::evaluate(group_hash_params, to_bytes!(&message).unwrap().as_slice())?;
 
         let c_bits = proof.c.write_bits();
         let s_bits = proof.s.write_bits();
@@ -311,15 +300,15 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
 
         //Compute c' = H(m||pk.x||u.x||v.x)
         let c_prime = {
-            let mut digest = FH::init(None);
+            let mut digest = FH::init_constant_length(4, None);
 
-            message.into_iter().for_each(|&m| { digest.update(m); });
             digest
+                .update(message.clone())
                 .update(pk.0.to_field_elements().unwrap()[0])
                 .update(u.to_field_elements().unwrap()[0])
                 .update(v.to_field_elements().unwrap()[0])
                 .finalize()
-        };
+        }?;
 
         //Verify valid proof
         match proof.c == c_prime {
@@ -329,11 +318,11 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
 
                 //Compute VRF output
                 let output = {
-                    let mut digest = FH::init(None);
-                    message.into_iter().for_each(|&m| { digest.update(m); });
+                    let mut digest = FH::init_constant_length(3, None);
+                    digest.update(message);
                     gamma_coords.into_iter().for_each(|c| { digest.update(c); });
                     digest.finalize()
-                };
+                }?;
 
                 //Return VRF output
                 Ok(output)
@@ -384,17 +373,17 @@ mod test {
     type EcVrfMNT4 = FieldBasedEcVrf<MNT4Fr, MNT6G1Projective, MNT4PoseidonHash, BHMNT6>;
     type EcVrfMNT6 = FieldBasedEcVrf<MNT6Fr, MNT4G1Projective, MNT6PoseidonHash, BHMNT4>;
 
-    fn prove_and_verify<S: FieldBasedVrf, R: Rng>(rng: &mut R, message: &[S::Data], pp: &S::GHParams) {
+    fn prove_and_verify<S: FieldBasedVrf, R: Rng>(rng: &mut R, message: S::Data, pp: &S::GHParams) {
         let (pk, sk) = S::keygen(rng);
         assert!(S::keyverify(&pk));
         assert_eq!(pk, S::get_public_key(&sk));
 
-        let proof = S::prove(rng, pp, &pk, &sk, &message).unwrap();
+        let proof = S::prove(rng, pp, &pk, &sk, message).unwrap();
         assert!(proof.is_valid());
-        assert!(S::proof_to_hash(pp, &pk, &message, &proof).is_ok());
+        assert!(S::proof_to_hash(pp, &pk, message, &proof).is_ok());
     }
 
-    fn failed_verification<S: FieldBasedVrf, R: Rng>(rng: &mut R, message: &[S::Data], bad_message: &[S::Data], pp: &S::GHParams) {
+    fn failed_verification<S: FieldBasedVrf, R: Rng>(rng: &mut R, message: S::Data, bad_message: S::Data, pp: &S::GHParams) {
         let (pk, sk) = S::keygen(rng);
         assert!(S::keyverify(&pk));
         assert_eq!(pk, S::get_public_key(&sk));
@@ -412,16 +401,16 @@ mod test {
         assert!(S::proof_to_hash(pp, &new_pk, message, &proof).is_err());
     }
 
-    fn serialize_deserialize<S: FieldBasedVrf, R: Rng>(rng: &mut R, message: &[S::Data], pp: &S::GHParams) {
+    fn serialize_deserialize<S: FieldBasedVrf, R: Rng>(rng: &mut R, message: S::Data, pp: &S::GHParams) {
         let (pk, sk) = S::keygen(rng);
-        let proof = S::prove(rng, pp, &pk, &sk, &message).unwrap();
+        let proof = S::prove(rng, pp, &pk, &sk, message).unwrap();
 
         let proof_serialized = to_bytes!(proof).unwrap();
 
         let proof_deserialized = <S as FieldBasedVrf>::Proof::read(proof_serialized.as_slice()).unwrap();
         assert_eq!(proof, proof_deserialized);
         assert!(<S as FieldBasedVrf>::Proof::read_checked(proof_serialized.as_slice()).is_ok());
-        assert!(S::proof_to_hash(pp, &pk, &message, &proof_deserialized).is_ok());
+        assert!(S::proof_to_hash(pp, &pk, message, &proof_deserialized).is_ok());
     }
 
     #[test]
@@ -432,9 +421,9 @@ mod test {
         for _ in 0..samples {
             let f: MNT4Fr = rng.gen();
             let g: MNT4Fr = rng.gen();
-            prove_and_verify::<EcVrfMNT4, _>(rng, &[f], &pp);
-            failed_verification::<EcVrfMNT4, _>(rng, &[f], &[g], &pp);
-            serialize_deserialize::<EcVrfMNT4, _>(rng, &[f], &pp);
+            prove_and_verify::<EcVrfMNT4, _>(rng, f, &pp);
+            failed_verification::<EcVrfMNT4, _>(rng, f, g, &pp);
+            serialize_deserialize::<EcVrfMNT4, _>(rng, f, &pp);
         }
     }
 
@@ -446,9 +435,9 @@ mod test {
         for _ in 0..samples {
             let f: MNT6Fr = rng.gen();
             let g: MNT6Fr = rng.gen();
-            prove_and_verify::<EcVrfMNT6, _>(rng, &[f], &pp);
-            failed_verification::<EcVrfMNT6, _>(rng, &[f], &[g], &pp);
-            serialize_deserialize::<EcVrfMNT6, _>(rng, &[f], &pp);
+            prove_and_verify::<EcVrfMNT6, _>(rng, f, &pp);
+            failed_verification::<EcVrfMNT6, _>(rng, f, g, &pp);
+            serialize_deserialize::<EcVrfMNT6, _>(rng, f, &pp);
         }
     }
 }

@@ -347,7 +347,7 @@ impl<ConstraintF, G, GG, H, HG> FieldBasedSchnorrSigVerificationGadget<Constrain
         mut cs: CS,
         public_key: &GG,
         signature: &FieldBasedSchnorrSigGadget<ConstraintF, G>,
-        message: &[FpGadget<ConstraintF>],
+        message: FpGadget<ConstraintF>,
     ) -> Result<FpGadget<ConstraintF>, SynthesisError> {
 
         //Enforce e' * pk
@@ -422,13 +422,13 @@ impl<ConstraintF, G, GG, H, HG> FieldBasedSchnorrSigVerificationGadget<Constrain
         // Best constraints-efficiency is achieved when m is one field element
         // (or an odd number of field elements).
         let mut hash_input = Vec::new();
-        hash_input.extend_from_slice(message);
+        hash_input.push(message);
         hash_input.extend_from_slice(r_prime_coords.as_slice());
         hash_input.push(public_key.to_field_gadget_elements(cs.ns(|| "pk to fes")).unwrap()[0].clone());
 
-        HG::check_evaluation_gadget(
+        HG::enforce_hash_constant_length(
             cs.ns(|| "check e_prime"),
-            hash_input.as_slice()
+            hash_input.as_slice(),
         )
     }
 }
@@ -450,7 +450,7 @@ for FieldBasedSchnorrSigVerificationGadget<ConstraintF, G, GG, H, HG>
         mut cs: CS,
         public_key: &Self::PublicKeyGadget,
         signature: &Self::SignatureGadget,
-        message: &[Self::DataGadget]
+        message: Self::DataGadget
     ) -> Result<Boolean, SynthesisError> {
 
         let e_prime = Self::enforce_signature_computation(
@@ -470,7 +470,7 @@ for FieldBasedSchnorrSigVerificationGadget<ConstraintF, G, GG, H, HG>
         mut cs: CS,
         public_key: &Self::PublicKeyGadget,
         signature: &Self::SignatureGadget,
-        message: &[Self::DataGadget],
+        message: Self::DataGadget,
         should_enforce: &Boolean,
     ) -> Result<(), SynthesisError> {
 
@@ -542,11 +542,11 @@ mod test {
         MNT6Fr, MNT4G1Projective, MNT4G1Gadget, MNT6PoseidonHash, MNT6PoseidonHashGadget
     >;
 
-    fn sign<S: FieldBasedSignatureScheme, R: Rng>(rng: &mut R, message: &[S::Data]) -> (S::Signature, S::PublicKey)
+    fn sign<S: FieldBasedSignatureScheme, R: Rng>(rng: &mut R, message: S::Data) -> (S::Signature, S::PublicKey)
     {
         let (pk, sk) = S::keygen(rng);
         assert!(S::keyverify(&pk));
-        let sig = S::sign(rng, &pk, &sk, &message).unwrap();
+        let sig = S::sign(rng, &pk, &sk, message).unwrap();
         (sig, pk)
     }
 
@@ -569,7 +569,7 @@ mod test {
             cs.ns(|| "verify sig1"),
             &pk_g,
             &sig_g,
-            &[message_g.clone()]
+            message_g.clone()
         ).unwrap();
 
         let is_cs_satisfied = cs.is_satisfied();
@@ -579,7 +579,7 @@ mod test {
             cs.ns(|| "sig1 result"),
             &pk_g,
             &sig_g,
-            &[message_g.clone()]
+            message_g
         ).unwrap();
 
         assert_eq!(is_verified.get_value().unwrap(), is_cs_satisfied);
@@ -597,7 +597,7 @@ mod test {
         //Sign a random field element f and get the signature and the public key
         let rng = &mut thread_rng();
         let message: MNT4Fr = rng.gen();
-        let (sig, pk) = sign::<SchnorrMNT4, _>(rng, &[message]);
+        let (sig, pk) = sign::<SchnorrMNT4, _>(rng, message);
 
         //Positive case
         assert!(mnt4_schnorr_gadget_generate_constraints(message, &pk, sig));
@@ -611,7 +611,7 @@ mod test {
         assert!(!mnt4_schnorr_gadget_generate_constraints(message, &wrong_pk, sig));
 
         //Change sig
-        let (wrong_sig, _) = sign::<SchnorrMNT4, _>(rng, &[wrong_message]);
+        let (wrong_sig, _) = sign::<SchnorrMNT4, _>(rng, wrong_message);
         assert!(!mnt4_schnorr_gadget_generate_constraints(message, &pk, wrong_sig));
     }
 
@@ -634,7 +634,7 @@ mod test {
             cs.ns(|| "verify sig1"),
             &pk_g,
             &sig_g,
-            &[message_g.clone()]
+            message_g.clone()
         ).unwrap();
 
         let is_cs_satisfied = cs.is_satisfied();
@@ -643,7 +643,7 @@ mod test {
             cs.ns(|| "sig1 result"),
             &pk_g,
             &sig_g,
-            &[message_g.clone()]
+            message_g
         ).unwrap();
 
         assert_eq!(is_verified.get_value().unwrap(), is_cs_satisfied);
@@ -662,7 +662,7 @@ mod test {
         //Sign a random field element f and get the signature and the public key
         let rng = &mut thread_rng();
         let message: MNT6Fr = rng.gen();
-        let (sig, pk) = sign::<SchnorrMNT6, _>(rng, &[message]);
+        let (sig, pk) = sign::<SchnorrMNT6, _>(rng, message);
 
         //Positive case
         assert!(mnt6_schnorr_gadget_generate_constraints(message, &pk, sig));
@@ -676,7 +676,7 @@ mod test {
         assert!(!mnt6_schnorr_gadget_generate_constraints(message, &wrong_pk, sig));
 
         //Change sig
-        let (wrong_sig, _) = sign::<SchnorrMNT6, _>(rng, &[wrong_message]);
+        let (wrong_sig, _) = sign::<SchnorrMNT6, _>(rng, wrong_message);
         assert!(!mnt6_schnorr_gadget_generate_constraints(message, &pk, wrong_sig));
     }
 
@@ -688,7 +688,7 @@ mod test {
         let samples = 10;
         for _ in 0..samples {
             let message: MNT4Fr = rng.gen();
-            let (sig, pk) = sign::<SchnorrMNT4, _>(rng, &[message]);
+            let (sig, pk) = sign::<SchnorrMNT4, _>(rng, message);
             let mut cs = TestConstraintSystem::<MNT4Fr>::new();
 
             //Alloc signature, pk and message
@@ -712,7 +712,7 @@ mod test {
                 cs.ns(|| "sig result"),
                 &pk_g,
                 &sig_g,
-                &[message_g.clone()]
+                message_g.clone()
             ).unwrap();
 
             assert!(is_verified.get_value().unwrap());
@@ -721,7 +721,7 @@ mod test {
                 cs.ns(|| "verify sig"),
                 &pk_g,
                 &sig_g,
-                &[message_g.clone()]
+                message_g
             ).unwrap();
 
             assert!(cs.is_satisfied());
@@ -737,7 +737,7 @@ mod test {
                 cs.ns(|| "new sig result"),
                 &pk_g,
                 &sig_g,
-                &[new_message_g.clone()]
+                new_message_g.clone()
             ).unwrap();
 
             if !cs.is_satisfied() {
@@ -752,7 +752,7 @@ mod test {
                 cs.ns(|| "verify new sig"),
                 &pk_g,
                 &sig_g,
-                &[new_message_g.clone()]
+                new_message_g
             ).unwrap();
 
             assert!(!cs.is_satisfied());

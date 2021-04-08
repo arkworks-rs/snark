@@ -37,7 +37,6 @@ impl<F, P, SB> PoseidonBatchHash<F, P, SB>
 
         // Apply the S-BOX to each of the elements of the state vector
         SB::apply_full_batch(vec_state, last);
-
     }
 
     fn poseidon_partial_round(vec_state: &mut [Vec<P::Fr>], round_cst_idx: &mut usize) {
@@ -57,7 +56,6 @@ impl<F, P, SB> PoseidonBatchHash<F, P, SB>
 
         // Apply the S-BOX to the first elements of each of the state vector
         SB::apply_partial_batch(vec_state);
-
     }
 
     pub fn poseidon_perm_gen(vec_state: &mut [Vec<P::Fr>]) {
@@ -77,11 +75,9 @@ impl<F, P, SB> PoseidonBatchHash<F, P, SB>
 
         // Full rounds
         // Last round does not contain the matrix mix
-        for _i in 0..(P::R_F - 1) {
+        for _i in 0..P::R_F {
             Self::poseidon_full_round(vec_state, &mut round_cst_idx, false);
         }
-
-        Self::poseidon_full_round(vec_state, &mut round_cst_idx, true);
     }
 }
 
@@ -111,6 +107,7 @@ impl<F, P, SB> BatchFieldBasedHash for PoseidonBatchHash<F, P, SB>
         use rayon::prelude::*;
 
         // Checks that size of input/output vector
+        assert_eq!(P::T - P::R, 1, "The assumption that the capacity is one field element is not satisfied.");
         let array_length = input_array.len() / P::R;
         assert_eq!(input_array.len() % P::R, 0, "The length of the input data array is not a multiple of the rate.");
         assert_ne!(input_array.len(), 0, "Input data array does not contain any data.");
@@ -137,8 +134,6 @@ impl<F, P, SB> BatchFieldBasedHash for PoseidonBatchHash<F, P, SB>
                 state[k][j] += &input_array[input_idx];
                 input_idx += 1;
             }
-            // constant for m-ary Merkle tree
-            state[k][P::R] += &P::C2;
         }
 
         // Calculate the chunk size to split the state vector
@@ -174,6 +169,7 @@ impl<F, P, SB> BatchFieldBasedHash for PoseidonBatchHash<F, P, SB>
 
         // Checks that size of input/output vector
         let array_length = input_array.len() / P::R;
+        assert_eq!(P::T - P::R, 1, "The assumption that the capacity is one field element is not satisfied.");
         assert_eq!(input_array.len() % P::R, 0, "The length of the input data array is not a multiple of the rate.");
         assert_ne!(input_array.len(), 0, "Input data array does not contain any data.");
         assert_eq!(output_array.len(), array_length,  "The size of the output vector is equal to the size of the input vector divided by the rate.");
@@ -199,8 +195,6 @@ impl<F, P, SB> BatchFieldBasedHash for PoseidonBatchHash<F, P, SB>
                 state[k][j] += &input_array[input_idx];
                 input_idx += 1;
             }
-            // constant for m-ary Merkle tree
-            state[k][P::R] += &P::C2;
         }
 
         // Calculate the chunk size to split the state vector
@@ -279,9 +273,9 @@ mod test {
         let mut output_4753 = Vec::new();
 
         input_serial.iter().for_each(|p| {
-            let mut digest = MNT4PoseidonHash::init(None);
+            let mut digest = MNT4PoseidonHash::init_constant_length(2, None);
             p.into_iter().for_each(|&f| { digest.update(f); });
-            output_4753.push(digest.finalize());
+            output_4753.push(digest.finalize().unwrap());
         });
 
         // Calculate Poseidon Hash for mnt4753 batch evaluation
@@ -294,10 +288,10 @@ mod test {
         }
 
         // Check with one single hash
-        let single_output = MNT4PoseidonHash::init(None)
+        let single_output = MNT4PoseidonHash::init_constant_length(2, None)
             .update(input_serial[0][0])
             .update(input_serial[0][1])
-            .finalize();
+            .finalize().unwrap();
         let single_batch_output = MNT4BatchPoseidonHash::batch_evaluate(&input_batch[0..2]);
 
         assert_eq!(single_output, single_batch_output.unwrap()[0], "Single instance hash outputs are not equal for MNT4.");
@@ -415,9 +409,9 @@ mod test {
         let mut output_6753 = Vec::new();
 
         input_serial.iter().for_each(|p| {
-            let mut digest = MNT6PoseidonHash::init(None);
+            let mut digest = MNT6PoseidonHash::init_constant_length(2, None);
             p.into_iter().for_each(|&f| { digest.update(f); });
-            output_6753.push(digest.finalize());
+            output_6753.push(digest.finalize().unwrap());
         });
 
         // Calculate Poseidon Hash for mnt4753 batch evaluation
@@ -430,10 +424,10 @@ mod test {
         }
 
         // Check with one single hash
-        let single_output = MNT6PoseidonHash::init(None)
+        let single_output = MNT6PoseidonHash::init_constant_length(2, None)
             .update(input_serial[0][0])
             .update(input_serial[0][1])
-            .finalize();
+            .finalize().unwrap();
         let single_batch_output = MNT6BatchPoseidonHash::batch_evaluate(&input_batch[0..2]);
 
         assert_eq!(single_output, single_batch_output.unwrap()[0], "Single instance hash outputs are not equal for MNT6.");

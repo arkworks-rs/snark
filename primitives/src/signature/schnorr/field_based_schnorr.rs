@@ -198,7 +198,7 @@ FieldBasedSchnorrSignatureScheme<F, G, H>
         rng: &mut R,
         pk: &Self::PublicKey,
         sk: &Self::SecretKey,
-        message: &[Self::Data],
+        message: Self::Data,
     )-> Result<Self::Signature, Error>
     {
         let required_leading_zeros_e = compute_truncation_size(
@@ -228,12 +228,12 @@ FieldBasedSchnorrSignatureScheme<F, G, H>
 
             // Compute e = H(m || R || pk.x)
             let e = {
-                let mut digest = H::init(None);
-                message.into_iter().for_each(|&m| { digest.update(m); });
+                let mut digest = H::init_constant_length(4, None);
+                digest.update(message);
                 r_coords.into_iter().for_each(|coord| { digest.update(coord); });
                 digest.update(pk_coords[0]);
                 digest.finalize()
-            };
+            }?;
 
             let e_bits = e.write_bits();
             let e_leading_zeros = leading_zeros(e_bits.as_slice()) as usize;
@@ -261,7 +261,7 @@ FieldBasedSchnorrSignatureScheme<F, G, H>
 
     fn verify(
         pk: &Self::PublicKey,
-        message: &[Self::Data],
+        message: Self::Data,
         signature: &Self::Signature
     )
         -> Result<bool, Error>
@@ -286,12 +286,12 @@ FieldBasedSchnorrSignatureScheme<F, G, H>
 
         // Compute e' = H(m || R' || pk.x)
         let e_prime = {
-            let mut digest = H::init(None);
-            message.into_iter().for_each(|&m| { digest.update(m); });
+            let mut digest = H::init_constant_length(4, None);
+            digest.update(message);
             r_prime_coords.into_iter().for_each(|coord| { digest.update(coord); });
             digest.update(pk_coords[0]);
             digest.finalize()
-        };
+        }?;
 
         Ok(signature.e == e_prime)
     }
@@ -320,23 +320,23 @@ mod test {
     type SchnorrMNT4 = FieldBasedSchnorrSignatureScheme<MNT4Fr, MNT6G1Projective, MNT4PoseidonHash>;
     type SchnorrMNT6 = FieldBasedSchnorrSignatureScheme<MNT6Fr, MNT4G1Projective, MNT6PoseidonHash>;
 
-    fn sign_and_verify<S: FieldBasedSignatureScheme, R: Rng>(rng: &mut R, message: &[S::Data]) {
+    fn sign_and_verify<S: FieldBasedSignatureScheme, R: Rng>(rng: &mut R, message: S::Data) {
         let (pk, sk) = S::keygen(rng);
         assert!(S::keyverify(&pk));
         assert_eq!(pk, S::get_public_key(&sk));
-        let sig = S::sign(rng, &pk, &sk, &message).unwrap();
+        let sig = S::sign(rng, &pk, &sk, message).unwrap();
         assert!(sig.is_valid());
-        assert!(S::verify(&pk, &message, &sig).unwrap());
+        assert!(S::verify(&pk, message, &sig).unwrap());
 
         //Serialization/deserialization test
         let sig_serialized = to_bytes!(sig).unwrap();
         let sig_deserialized = <S as FieldBasedSignatureScheme>::Signature::read(sig_serialized.as_slice()).unwrap();
         assert_eq!(sig, sig_deserialized);
         assert!(<S as FieldBasedSignatureScheme>::Signature::read_checked(sig_serialized.as_slice()).is_ok());
-        assert!(S::verify(&pk, &message, &sig_deserialized).unwrap());
+        assert!(S::verify(&pk, message, &sig_deserialized).unwrap());
     }
 
-    fn failed_verification<S: FieldBasedSignatureScheme, R: Rng>(rng: &mut R, message: &[S::Data], bad_message: &[S::Data]) {
+    fn failed_verification<S: FieldBasedSignatureScheme, R: Rng>(rng: &mut R, message: S::Data, bad_message: S::Data) {
         let (pk, sk) = S::keygen(rng);
         assert!(S::keyverify(&pk));
         assert_eq!(pk, S::get_public_key(&sk));
@@ -361,8 +361,8 @@ mod test {
         for _ in 0..samples {
             let f: MNT4Fr = rng.gen();
             let g: MNT4Fr = rng.gen();
-            sign_and_verify::<SchnorrMNT4, _>(rng, &[f, g]);
-            failed_verification::<SchnorrMNT4, _>(rng, &[f], &[g]);
+            sign_and_verify::<SchnorrMNT4, _>(rng, f);
+            failed_verification::<SchnorrMNT4, _>(rng, f, g);
         }
     }
 
@@ -373,8 +373,8 @@ mod test {
         for _ in 0..samples{
             let f: MNT6Fr = rng.gen();
             let g: MNT6Fr = rng.gen();
-            sign_and_verify::<SchnorrMNT6, _>(rng,&[f, g]);
-            failed_verification::<SchnorrMNT6, _>(rng, &[f], &[g]);
+            sign_and_verify::<SchnorrMNT6, _>(rng,f);
+            failed_verification::<SchnorrMNT6, _>(rng, f, g);
         }
     }
 }

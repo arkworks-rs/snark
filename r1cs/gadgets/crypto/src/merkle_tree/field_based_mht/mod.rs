@@ -189,7 +189,7 @@ impl<P, HGadget, ConstraintF> FieldBasedMerkleTreeGadget<P, HGadget, ConstraintF
                 let mut children = vec![];
                 children.push(nodes[0].clone());
                 children.push(nodes[1].clone());
-                let parent_hash = HGadget::check_evaluation_gadget(
+                let parent_hash = HGadget::enforce_hash_constant_length(
                     cs.ns(|| format!("hash_children_pair_{}_of_level_{}", i, level)),
                     children.as_slice(),
                 )?;
@@ -224,7 +224,7 @@ pub(crate) fn hash_inner_node_gadget<H, HG, ConstraintF, CS>(
         H: FieldBasedHash<Data = ConstraintF>,
         HG: FieldBasedHashGadget<H, ConstraintF>,
 {
-    HG::check_evaluation_gadget(cs, &[left_child, right_child])
+    HG::enforce_hash_constant_length(cs, &[left_child, right_child])
 }
 
 impl<P, HGadget, ConstraintF> AllocGadget<FieldBasedBinaryMHTPath<P>, ConstraintF>

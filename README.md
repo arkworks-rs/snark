@@ -94,8 +94,6 @@ This library comes with unit tests for each of the provided crates. Run the test
 cargo test --all-features 
 ``` 
 
-Note: If you compile/test/bench with the `smt` feature enabled, you need `clang` installed. 
-
 By default, ```cargo test``` will execute the tests concurrently on all available cores. Since some tests are resource-intensive, this may abort the tests execution. If this happens, you may want to reduce the number of cores running the tests with the command:
 
 ```bash
