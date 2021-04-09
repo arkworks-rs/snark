@@ -184,7 +184,7 @@ mod test {
     use algebra::{Field, UniformRand};
     use crate::{FieldBasedHash, BatchFieldBasedHash};
     use rand_xorshift::XorShiftRng;
-    use rand::{Rng, SeedableRng};
+    use rand::SeedableRng;
     use std::str::FromStr;
 
     #[cfg(feature = "mnt4_753")]

@@ -78,6 +78,10 @@ pub trait PoseidonParameters: 'static + FieldBasedHashParameters + Clone {
     }
 }
 
+pub trait PoseidonShortParameters: PoseidonParameters {
+    const MDS_CST_SHORT: &'static [Self::Fr];  // The MDS matrix for fast matrix multiplication
+}
+
 #[derive(Derivative)]
 #[derivative(
 Clone(bound = ""),
