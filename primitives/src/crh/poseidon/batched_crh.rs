@@ -425,168 +425,182 @@ mod test {
         }
     }
 
-    /*#[test]
-    fn test_batch_hash_bn382fq() {
+    #[cfg(feature = "bn_382")]
+    mod bn_382 {
+        use super::*;
+        use algebra::fields::bn_382::{
+            Fr as BN382Fr,
+            Fq as BN382Fq,
+        };
+        use crate::{
+            BN382FrPoseidonHash, BN382FrBatchPoseidonHash,
+            BN382FqPoseidonHash, BN382FqBatchPoseidonHash,
+        };
 
-        //  the number of hashes to test
-        let num_hashes = 1000;
+        #[test]
+        fn test_batch_hash_bn382fq() {
+            //  the number of hashes to test
+            let num_hashes = 1000;
 
-        // the vectors that store random input data
-        let mut input_serial = Vec::new();
-        let mut input_batch = Vec::new();
+            // the vectors that store random input data
+            let mut input_serial = Vec::new();
+            let mut input_batch = Vec::new();
 
-        // the random number generator to generate random input data
-        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+            // the random number generator to generate random input data
+            let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-        // we need the double of number of rounds because we have two inputs
-        for _ in 0..num_hashes {
-            let mut pair_elem = Vec::new();
-            let elem1 = BN382Fq::rand(&mut rng);
-            let elem2 = BN382Fq::rand(&mut rng);
-            pair_elem.push(elem1.clone());
-            pair_elem.push(elem2.clone());
-            input_serial.push(pair_elem);
-            input_batch.push(elem1.clone());
-            input_batch.push(elem2.clone());
+            // we need the double of number of rounds because we have two inputs
+            for _ in 0..num_hashes {
+                let mut pair_elem = Vec::new();
+                let elem1 = BN382Fq::rand(&mut rng);
+                let elem2 = BN382Fq::rand(&mut rng);
+                pair_elem.push(elem1.clone());
+                pair_elem.push(elem2.clone());
+                input_serial.push(pair_elem);
+                input_batch.push(elem1.clone());
+                input_batch.push(elem2.clone());
+            }
+
+            // =============================================================================
+            let mut output = Vec::new();
+
+            input_serial.iter().for_each(|p| {
+                let mut digest = BN382FqPoseidonHash::init_constant_length(2, None);
+                p.into_iter().for_each(|&f| { digest.update(f); });
+                output.push(digest.finalize().unwrap());
+            });
+
+            let output_vec = (BN382FqBatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+
+            // =============================================================================
+            // Compare results
+            for i in 0..num_hashes {
+                assert_eq!(output[i], output_vec[i], "Hash outputs, position {}, for BN382Fr are not equal.", i);
+            }
+
+            // Check with one single hash
+            let single_output = BN382FqPoseidonHash::init_constant_length(2, None)
+                .update(input_serial[0][0])
+                .update(input_serial[0][1])
+                .finalize()
+                .unwrap();
+            let single_batch_output = BN382FqBatchPoseidonHash::batch_evaluate(&input_batch[0..2]);
+
+            assert_eq!(single_output, single_batch_output.unwrap()[0], "Single instance hash outputs are not equal for BN382Fr.");
         }
 
-        // =============================================================================
-        let mut output = Vec::new();
+        #[test]
+        fn test_batch_hash_bn382fr() {
 
-        input_serial.iter().for_each(|p| {
-            let mut digest = BN382FqPoseidonHash::init(None);
-            p.into_iter().for_each(|&f| { digest.update(f); });
-            output.push(digest.finalize());
-        });
+            //  the number of hashes to test
+            let num_hashes = 1000;
 
-        let output_vec = (BN382FqBatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+            // the vectors that store random input data
+            let mut input_serial = Vec::new();
+            let mut input_batch = Vec::new();
 
-        // =============================================================================
-        // Compare results
-        for i in 0..num_hashes {
-            assert_eq!(output[i], output_vec[i], "Hash outputs, position {}, for BN382Fr are not equal.", i);
+            // the random number generator to generate random input data
+            let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+            // we need the double of number of rounds because we have two inputs
+            for _ in 0..num_hashes {
+                let mut pair_elem = Vec::new();
+                let elem1 = BN382Fr::rand(&mut rng);
+                let elem2 = BN382Fr::rand(&mut rng);
+                pair_elem.push(elem1.clone());
+                pair_elem.push(elem2.clone());
+                input_serial.push(pair_elem);
+                input_batch.push(elem1.clone());
+                input_batch.push(elem2.clone());
+            }
+
+            // =============================================================================
+            let mut output = Vec::new();
+
+            input_serial.iter().for_each(|p| {
+                let mut digest = BN382FrPoseidonHash::init_constant_length(2, None);
+                p.into_iter().for_each(|&f| { digest.update(f); });
+                output.push(digest.finalize().unwrap());
+            });
+
+            let output_vec = (BN382FrBatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+
+            // =============================================================================
+            // Compare results
+            for i in 0..num_hashes {
+                assert_eq!(output[i], output_vec[i], "Hash outputs, position {}, for BN382Fr are not equal.", i);
+            }
+
+            // Check with one single hash
+            let single_output = BN382FrPoseidonHash::init_constant_length(2, None)
+                .update(input_serial[0][0])
+                .update(input_serial[0][1])
+                .finalize()
+                .unwrap();
+            let single_batch_output = BN382FrBatchPoseidonHash::batch_evaluate(&input_batch[0..2]);
+
+            assert_eq!(single_output, single_batch_output.unwrap()[0], "Single instance hash outputs are not equal for BN382Fr.");
         }
 
-        // Check with one single hash
-        let single_output = BN382FqPoseidonHash::init(None)
-            .update(input_serial[0][0])
-            .update(input_serial[0][1])
-            .finalize();
-        let single_batch_output = BN382FqBatchPoseidonHash::batch_evaluate(&input_batch[0..2]);
+        #[test]
+        fn test_batch_hash_bn382fq_in_place() {
+            //  the number of hashes to test
+            let num_hashes = 1000;
 
-        assert_eq!(single_output, single_batch_output.unwrap()[0], "Single instance hash outputs are not equal for BN382Fr.");
-    }*/
+            // the vectors that store random input data
+            let mut input_batch = Vec::new();
 
-    /*#[test]
-    fn test_batch_hash_bn382fr() {
+            // the random number generator to generate random input data
+            let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-        //  the number of hashes to test
-        let num_hashes = 1000;
+            // we need the double of number of rounds because we have two inputs
+            for _ in 0..num_hashes {
+                input_batch.push(BN382Fq::rand(&mut rng));
+                input_batch.push(BN382Fq::rand(&mut rng));
+            }
 
-        // the vectors that store random input data
-        let mut input_serial = Vec::new();
-        let mut input_batch = Vec::new();
+            // Calculate Poseidon Hash for mnt4753 batch evaluation
+            let output_vec = (BN382FqBatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
 
-        // the random number generator to generate random input data
-        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+            let mut output_vec_in_place = vec![BN382Fq::zero(); num_hashes];
+            BN382FqBatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]);
 
-        // we need the double of number of rounds because we have two inputs
-        for _ in 0..num_hashes {
-            let mut pair_elem = Vec::new();
-            let elem1 = BN382Fr::rand(&mut rng);
-            let elem2 = BN382Fr::rand(&mut rng);
-            pair_elem.push(elem1.clone());
-            pair_elem.push(elem2.clone());
-            input_serial.push(pair_elem);
-            input_batch.push(elem1.clone());
-            input_batch.push(elem2.clone());
+            // =============================================================================
+            // Compare results
+            for i in 0..num_hashes {
+                assert_eq!(output_vec_in_place[i], output_vec[i], "Hash outputs, position {}, for BN382Fq are not equal.", i);
+            }
         }
 
-        // =============================================================================
-        let mut output = Vec::new();
+        #[test]
+        fn test_batch_hash_bn382fr_in_place() {
 
-        input_serial.iter().for_each(|p| {
-            let mut digest = BN382FrPoseidonHash::init(None);
-            p.into_iter().for_each(|&f| { digest.update(f); });
-            output.push(digest.finalize());
-        });
+            //  the number of hashes to test
+            let num_hashes = 1000;
 
-        let output_vec = (BN382FrBatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+            // the vectors that store random input data
+            let mut input_batch = Vec::new();
 
-        // =============================================================================
-        // Compare results
-        for i in 0..num_hashes {
-            assert_eq!(output[i], output_vec[i], "Hash outputs, position {}, for BN382Fr are not equal.", i);
-        }
+            // the random number generator to generate random input data
+            let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-        // Check with one single hash
-        let single_output = BN382FrPoseidonHash::init(None)
-            .update(input_serial[0][0])
-            .update(input_serial[0][1])
-            .finalize();
-        let single_batch_output = BN382FrBatchPoseidonHash::batch_evaluate(&input_batch[0..2]);
+            // we need the double of number of rounds because we have two inputs
+            for _ in 0..num_hashes {
+                input_batch.push(BN382Fr::rand(&mut rng));
+                input_batch.push(BN382Fr::rand(&mut rng));
+            }
 
-        assert_eq!(single_output, single_batch_output.unwrap()[0], "Single instance hash outputs are not equal for BN382Fr.");
-    }*/
+            // Calculate Poseidon Hash for mnt4753 batch evaluation
+            let output_vec = (BN382FrBatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
 
-    /*#[test]
-    fn test_batch_hash_bn382fq_in_place() {
-        //  the number of hashes to test
-        let num_hashes = 1000;
+            let mut output_vec_in_place = vec![BN382Fr::zero(); num_hashes];
+            BN382FrBatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]);
 
-        // the vectors that store random input data
-        let mut input_batch = Vec::new();
-
-        // the random number generator to generate random input data
-        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-
-        // we need the double of number of rounds because we have two inputs
-        for _ in 0..num_hashes {
-            input_batch.push(BN382Fq::rand(&mut rng));
-            input_batch.push(BN382Fq::rand(&mut rng));
-        }
-
-        // Calculate Poseidon Hash for mnt4753 batch evaluation
-        let output_vec = (BN382FqBatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
-
-        let mut output_vec_in_place = vec![BN382FqPoseidonParameters::ZERO; num_hashes];
-        BN382FqBatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]);
-
-        // =============================================================================
-        // Compare results
-        for i in 0..num_hashes {
-            assert_eq!(output_vec_in_place[i], output_vec[i], "Hash outputs, position {}, for BN382Fq are not equal.", i);
+            // =============================================================================
+            // Compare results
+            for i in 0..num_hashes {
+                assert_eq!(output_vec_in_place[i], output_vec[i], "Hash outputs, position {}, for BN382Fr are not equal.", i);
+            }
         }
     }
-
-    #[test]
-    fn test_batch_hash_bn382fr_in_place() {
-
-        //  the number of hashes to test
-        let num_hashes = 1000;
-
-        // the vectors that store random input data
-        let mut input_batch = Vec::new();
-
-        // the random number generator to generate random input data
-        let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-
-        // we need the double of number of rounds because we have two inputs
-        for _ in 0..num_hashes {
-            input_batch.push(BN382Fr::rand(&mut rng));
-            input_batch.push(BN382Fr::rand(&mut rng));
-        }
-
-        // Calculate Poseidon Hash for mnt4753 batch evaluation
-        let output_vec = (BN382FrBatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
-
-        let mut output_vec_in_place = vec![BN382FrPoseidonParameters::ZERO; num_hashes];
-        BN382FrBatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]);
-
-        // =============================================================================
-        // Compare results
-        for i in 0..num_hashes {
-            assert_eq!(output_vec_in_place[i], output_vec[i], "Hash outputs, position {}, for BN382Fr are not equal.", i);
-        }
-    }*/
 }

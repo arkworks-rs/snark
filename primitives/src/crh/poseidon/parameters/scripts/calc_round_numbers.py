@@ -114,3 +114,13 @@ def print_latex_table_combinations(combinations, alpha, security_margin):
 # prime = 0x1c4c62d92c41110229022eee2cdadb7f997505b8fafed5eb7e8f96c97d87307fdb925e8a0ed8d99d124d9a15af79db117e776f218059db80f0da5cb537e38685acce9767254a4638810719ac425f0e39d54522cdd119f5e9063de245e8001 
 # print(calc_final_numbers_fixed(prime, 3, -1, 128, True))
 # print(calc_final_numbers_fixed(prime, 3, -1, 128, False))
+
+# BN-382 scalar field characteristic
+# prime = 0x2404893fdad8878e71503c69b09dbf88b48a3614289b09012012246d2242412000000001800c18180000000000000001
+# print(calc_final_numbers_fixed(prime, 3, 5, 128, True))
+# print(calc_final_numbers_fixed(prime, 3, 5, 128, False))
+
+# BN-382 dual scalar field characteristic
+# prime = 0x2404893fdad8878e71503c69b09dbf88b48a3614289b0901801830918303018000000001800c18180000000000000001
+# print(calc_final_numbers_fixed(prime, 3, 5, 128, True))
+# print(calc_final_numbers_fixed(prime, 3, 5, 128, False))

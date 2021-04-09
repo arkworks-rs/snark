@@ -8,7 +8,12 @@ pub mod mnt6753;
 #[cfg(feature = "mnt6_753")]
 pub use self::mnt6753::*;
 
-/*#[cfg(feature = "bn_382")]
+#[cfg(feature = "bn_382")]
 pub mod bn382;
 #[cfg(feature = "bn_382")]
-pub use self::bn382::*;*/
+pub use self::bn382::*;
+
+#[cfg(feature = "bn_382")]
+pub mod bn382_dual;
+#[cfg(feature = "bn_382")]
+pub use self::bn382_dual::*;
