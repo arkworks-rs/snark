@@ -1,14 +1,18 @@
 extern crate rand;
 extern crate rayon;
 
-use algebra::PrimeField;
+use algebra::{Field, PrimeField};
 
-use std::marker::PhantomData;
+use std::{
+    ops::Mul,
+    marker::PhantomData
+};
 
 use crate::{
     crh::{
         FieldBasedHash,
         FieldBasedHashParameters,
+        SBox,
     }, CryptoError, Error
 };
 
@@ -28,6 +32,50 @@ pub trait PoseidonParameters: 'static + FieldBasedHashParameters + Clone {
     const AFTER_ZERO_PERM: &'static[Self::Fr]; // State vector after a zero permutation
     const ROUND_CST: &'static[Self::Fr];  // Array of round constants
     const MDS_CST: &'static[Self::Fr];  // The MDS matrix
+
+    /// Add round constants to `state` starting from `start_idx_cst`, modifying `state` in place.
+    #[inline]
+    fn add_round_constants(
+        state: &mut [<Self as FieldBasedHashParameters>::Fr],
+        start_idx_cst: &mut usize
+    )
+    {
+        for d in state.iter_mut() {
+            let rc = Self::ROUND_CST[*start_idx_cst];
+            *d += &rc;
+            *start_idx_cst += 1;
+        }
+    }
+
+    /// Perform scalar multiplication between vectors `res` and `state`,
+    /// modifying `res` in place.
+    #[inline]
+    fn scalar_mul(
+        res: &mut <Self as FieldBasedHashParameters>::Fr,
+        state: &mut [<Self as FieldBasedHashParameters>::Fr],
+        mut start_idx_cst: usize
+    ) {
+        state.iter().for_each(|x| {
+            let elem = x.mul(&Self::MDS_CST[start_idx_cst]);
+            start_idx_cst += 1;
+            *res += &elem;
+        });
+    }
+
+    /// Perform matrix mix on `state`, modifying `state` in place.
+    #[inline]
+    fn matrix_mix(state: &mut Vec<<Self as FieldBasedHashParameters>::Fr>)
+    {
+        // the new state where the result will be stored initialized to zero elements
+        let mut new_state = vec![<Self as FieldBasedHashParameters>::Fr::zero(); Self::T];
+
+        let mut idx_cst = 0;
+        for i in 0..Self::T {
+            Self::scalar_mul(&mut new_state[i], state, idx_cst);
+            idx_cst += Self::T;
+        }
+        *state = new_state;
+    }
 }
 
 #[derive(Derivative)]
@@ -35,7 +83,7 @@ pub trait PoseidonParameters: 'static + FieldBasedHashParameters + Clone {
 Clone(bound = ""),
 Debug(bound = ""),
 )]
-pub struct PoseidonHash<F: PrimeField, P: PoseidonParameters<Fr = F>, SB: PoseidonSBox<P>>{
+pub struct PoseidonHash<F: PrimeField, P: PoseidonParameters<Fr = F>, SB: SBox<Field = F, Parameters = P>>{
     state: Vec<F>,
     pending: Vec<F>,
     input_size: Option<usize>,
@@ -49,7 +97,7 @@ impl<F, P, SB> PoseidonHash<F, P, SB>
     where
         F: PrimeField,
         P: PoseidonParameters<Fr = F>,
-        SB: PoseidonSBox<P>,
+        SB: SBox<Field = F, Parameters = P>,
 {
     fn _init(constant_size: Option<usize>, mod_rate: bool, personalization: Option<&[F]>) -> Self
     {
@@ -60,7 +108,6 @@ impl<F, P, SB> PoseidonHash<F, P, SB>
             state.push(P::AFTER_ZERO_PERM[i]);
         }
 
-
         let mut instance = Self {
             state,
             pending: Vec::with_capacity(P::R),
@@ -68,6 +115,7 @@ impl<F, P, SB> PoseidonHash<F, P, SB>
             updates_ctr: 0,
             mod_rate,
             _parameters: PhantomData,
+            _sbox: PhantomData,
         };
 
         // If personalization Vec is not multiple of the rate, we pad it with zero field elements.
@@ -157,48 +205,42 @@ impl<F, P, SB> PoseidonHash<F, P, SB>
     pub(crate) fn poseidon_perm (state: &mut Vec<F>) {
 
         // index that goes over the round constants
-        let mut round_cst_idx = 0;
+        let round_cst_idx = &mut 0;
 
         // First full rounds
         for _i in 0..P::R_F {
-
             // Add the round constants to the state vector
-            for d in state.iter_mut() {
-                let rc = P::ROUND_CST[round_cst_idx];
-                *d += &rc;
-                round_cst_idx += 1;
-            }
+            P::add_round_constants(state, round_cst_idx);
 
             // Apply the S-BOX to each of the elements of the state vector
-            SB::apply_full(state, false)
+            SB::apply_full(state);
+
+            // Perform matrix mix
+            P::matrix_mix(state);
         }
 
         // Partial rounds
         for _i in 0..P::R_P {
-
             // Add the round constants to the state vector
-            for d in state.iter_mut() {
-                let rc = P::ROUND_CST[round_cst_idx];
-                *d += &rc;
-                round_cst_idx += 1;
-            }
+            P::add_round_constants(state, round_cst_idx);
 
             // Apply S-BOX only to the first element of the state vector
             SB::apply_partial(state);
+
+            // Perform matrix mix
+            P::matrix_mix(state);
         }
 
         // Second full rounds
         for _i in 0..P::R_F {
-
             // Add the round constants
-            for d in state.iter_mut() {
-                let rc = P::ROUND_CST[round_cst_idx];
-                *d += &rc;
-                round_cst_idx += 1;
-            }
+            P::add_round_constants(state, round_cst_idx);
 
             // Apply the S-BOX to each of the elements of the state vector
-            SB::apply_full(state, false);
+            SB::apply_full(state);
+
+            // Perform matrix mix
+            P::matrix_mix(state);
         }
     }
 }
@@ -207,7 +249,7 @@ impl<F, P, SB> FieldBasedHash for PoseidonHash<F, P, SB>
     where
         F: PrimeField,
         P: PoseidonParameters<Fr = F>,
-        SB: PoseidonSBox<P>,
+        SB: SBox<Field = F, Parameters = P>,
 {
     type Data = F;
     type Parameters = P;
@@ -265,9 +307,9 @@ impl<F, P, SB> FieldBasedHash for PoseidonHash<F, P, SB>
 
 #[cfg(test)]
 mod test {
-    use algebra::{Field, PrimeField, MulShort};
+    use algebra::{Field, PrimeField};
     use crate::crh::{
-        FieldBasedHash,
+        FieldBasedHash, SBox,
         test::{
             constant_length_field_based_hash_test, variable_length_field_based_hash_test
         }
@@ -283,14 +325,14 @@ mod test {
         inputs
     }
 
-    fn poseidon_permutation_regression_test<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr = F>>(
+    fn poseidon_permutation_regression_test<F: PrimeField, P: PoseidonParameters<Fr = F>, SB: SBox<Field = F, Parameters = P>>(
         start_states: Vec<Vec<F>>,
         end_states:   Vec<Vec<F>>,
     )
     {
         // Regression test
         start_states.into_iter().zip(end_states).enumerate().for_each(|(i, (mut start_state, end_state))| {
-            PoseidonHash::<F, P>::poseidon_perm(&mut start_state);
+            PoseidonHash::<F, P, SB>::poseidon_perm(&mut start_state);
             assert_eq!(
                 start_state,
                 end_state,
@@ -349,7 +391,7 @@ mod test {
             fields::mnt4753::Fr as MNT4753Fr
         };
         use crate::crh::poseidon::parameters::mnt4753::{
-            MNT4PoseidonHash, MNT4753PoseidonParameters
+            MNT4PoseidonHash, MNT4753PoseidonParameters, MNT4InversePoseidonSBox
         };
 
         // Test vectors are computed via the script in ./parameters/scripts/permutation_mnt4fr.sage
@@ -405,7 +447,9 @@ mod test {
             ]
         ];
 
-        poseidon_permutation_regression_test::<MNT4753Fr, MNT4753PoseidonParameters>(start_states, end_states);
+        poseidon_permutation_regression_test::<MNT4753Fr, MNT4753PoseidonParameters, MNT4InversePoseidonSBox>(
+            start_states, end_states
+        );
         test_routine::<MNT4753Fr, MNT4PoseidonHash>(3)
     }
 
@@ -417,7 +461,7 @@ mod test {
             fields::mnt6753::Fr as MNT6753Fr
         };
         use crate::crh::poseidon::parameters::mnt6753::{
-            MNT6PoseidonHash, MNT6753PoseidonParameters,
+            MNT6PoseidonHash, MNT6753PoseidonParameters, MNT6InversePoseidonSBox,
         };
 
         // Test vectors are computed via the script in ./parameters/scripts/permutation_mnt6fr.sage
@@ -473,7 +517,9 @@ mod test {
             ]
         ];
 
-        poseidon_permutation_regression_test::<MNT6753Fr, MNT6753PoseidonParameters>(start_states, end_states);
+        poseidon_permutation_regression_test::<MNT6753Fr, MNT6753PoseidonParameters, MNT6InversePoseidonSBox>(
+            start_states, end_states
+        );
         test_routine::<MNT6753Fr, MNT6PoseidonHash>(3)
     }
 

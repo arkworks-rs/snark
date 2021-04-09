@@ -29,13 +29,13 @@ pub mod bn382;
 #[cfg(feature = "bn_382")]
 pub use self::bn382::*;*/
 
-use primitives::PoseidonSBox;
+use primitives::SBox;
 
 pub struct PoseidonHashGadget
 <
     ConstraintF: PrimeField,
     P:           PoseidonParameters<Fr = ConstraintF>,
-    SB:          PoseidonSBox<P>,
+    SB:          SBox<Field = ConstraintF, Parameters = P>,
     SBG:         SBoxGadget<ConstraintF, SB>,
 >
 {
@@ -48,7 +48,7 @@ pub struct PoseidonHashGadget
 impl<
     ConstraintF: PrimeField,
     P:   PoseidonParameters<Fr = ConstraintF>,
-    SB:  PoseidonSBox<P>,
+    SB:  SBox<Field = ConstraintF, Parameters = P>,
     SBG: SBoxGadget<ConstraintF, SB>
 > PoseidonHashGadget<ConstraintF, P, SB, SBG>
 {
@@ -58,7 +58,6 @@ impl<
         state: &mut [FpGadget<ConstraintF>],
     ) -> Result<(), SynthesisError>
     {
-
         // index that goes over the round constants
         let mut round_cst_idx = 0;
 
@@ -74,7 +73,7 @@ impl<
 
             // Apply the S-BOX to each of the elements of the state vector
             for (j, d) in state.iter_mut().enumerate() {
-                SBG::apply(cs.ns(||format!("mod_inv_S-Box_1_{}_{}",i, j)), d)?;
+                SBG::apply(cs.ns(||format!("S-Box_1_{}_{}",i, j)), d)?;
             }
 
             // Perform the matrix mix
@@ -94,7 +93,7 @@ impl<
 
             // Apply S-Box only to the first element of the state vector
             SBG::apply(
-                cs.ns(||format!("mod_inv_S-Box_2_{}_{}",_i, 0)),
+                cs.ns(||format!("S-Box_2_{}_{}",_i, 0)),
                 &mut state[0]
             )?;
 
@@ -105,9 +104,16 @@ impl<
         // Second full rounds
         for _i in 0..P::R_F {
 
+            // Add the round constants to the state vector
+            for d in state.iter_mut() {
+                let rc = P::ROUND_CST[round_cst_idx];
+                (*d).add_constant_in_place(cs.ns(|| format!("add_constant_3_{}", round_cst_idx)), &rc)?;
+                round_cst_idx += 1;
+            }
+
             // Apply the S-BOX to each of the elements of the state vector
             for (j, d) in state.iter_mut().enumerate() {
-                SBG::apply(cs.ns(|| format!("mod_inv_S-Box_3_{}_{}", _i, j)), d)?;
+                SBG::apply(cs.ns(|| format!("S-Box_3_{}_{}", _i, j)), d)?;
             }
 
             // Perform the matrix mix
@@ -173,7 +179,7 @@ impl<ConstraintF, P, SB, SBG> FieldBasedHashGadget<PoseidonHash<ConstraintF, P, 
         where
             ConstraintF: PrimeField,
             P:           PoseidonParameters<Fr = ConstraintF>,
-            SB:          PoseidonSBox<P>,
+            SB:          SBox<Field = ConstraintF, Parameters = P>,
             SBG:         SBoxGadget<ConstraintF, SB>,
 {
     type DataGadget = FpGadget<ConstraintF>;

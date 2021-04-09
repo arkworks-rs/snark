@@ -207,7 +207,7 @@ mod test {
         }
     }
 
-    //#[ignore]
+    #[ignore]
     #[test]
     fn test_default_batch_hash_implementation() {
         let rate = 2;

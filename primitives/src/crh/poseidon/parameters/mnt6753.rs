@@ -1,12 +1,15 @@
 use crate::crh::{
-    PoseidonParameters, PoseidonInverseParameters,
+    PoseidonParameters,
     FieldBasedHashParameters, PoseidonHash, batched_crh::PoseidonBatchHash,
     PoseidonInverseSBox,
 };
 
-use algebra::fields::mnt6753::Fr;
-use algebra::biginteger::BigInteger768 as BigInteger;
-use algebra::field_new;
+use algebra::{
+    fields::mnt6753::Fr,
+    biginteger::BigInteger768 as BigInteger,
+    field_new,
+    MulShort
+};
 
 
 #[derive(Debug, Clone)]
@@ -261,25 +264,8 @@ impl PoseidonParameters for MNT6753PoseidonParameters {
         field_new!(Fr,BigInteger([0xf5c0fa703ceef967,0x7e8a76ea209882a9,0x5bc0effae852025,0x78e01fbdadf36b3a,0x9c4474e50c7fdcad,0x8988335c5ccdd9d1,0xb019423ddb77c37b,0xff99a012e26b272,0xbbeefe2ebd4a84c4,0x2919528dd8a266fc,0x2ff9472bc05d2a52,0xfbdd82904763,])),
     ];
 
-    // The MDS matrix
+    // This MDS matrix supports fast matrix multiplication
     const MDS_CST: &'static[Fr]  = &[
-        // The short MDS matrix in Fr's Montgomery representation
-        field_new!(Fr,BigInteger([0x501a4942604a70b9,0xa76ccc949aa7c642,0x6c4cc86c95605cda,0xbccf7d4f7354e493,0x1206801ab772b03d,0x7bced5d373023379,0x15d6072feb4315e3,0xeac86ddb0d72d1b7,0xf457c575fc343aa0,0x59e953592fd74c9d,0x7ff7fa50750bc70a,0x18886f925d6ba,])),
-        field_new!(Fr,BigInteger([0x2c2d74682546a0a6,0x9865dc7630bda9e1,0x84100fa0ccf644d8,0x9e0952f7ee653d45,0xb4a4ad4288ceb171,0xdeb37c57f9787f3f,0x4fcc489c84216dd7,0x917d7587f44f023,0x73e38903794b3798,0xb319fbc57d331066,0x805c5d11d9f039a7,0x1b0be2cc8f360,])),
-        field_new!(Fr,BigInteger([0x334837292ab79a30,0xfde71188546dce34,0x72f5d1a2dda92279,0x63616694a7b65f2a,0x83628012db5d30ff,0xae4201d7d244363c,0x8288328402659901,0x67cd9c6b7f861f43,0x7ba84d7fdc3ac062,0xc825a95ead868c4,0x410d1b5e6c935945,0xaf1562721ddc,])),
-        field_new!(Fr,BigInteger([0xc13874eda5ad61f7,0x8f9667da8429b450,0x8e4a1bde92a86fdb,0xb0cb6fe9700fc28e,0xc3df17581145f3c9,0xf908ec72ac7f51e2,0x15543370aac8d0b3,0xfc620c67f6810dff,0x1e3b9481634be904,0x487e4371f154ff8e,0x61e4d6c705ec6955,0xb7876d9dcb5d,])),
-        field_new!(Fr,BigInteger([0x9ba02a198259e4c4,0xf3b92022b540fac,0x52602a0d0a06b389,0xf71b59ca2e46d2f9,0x460850b28a1e77c5,0xf8fc3496b9c70c9f,0xe41868f99690555c,0x5e019b94813a6396,0x6753171688952332,0x8e8b0f8262c4bb60,0x92b2889e172678e1,0xe3a19fcebe4e,])),
-        field_new!(Fr,BigInteger([0xa2240e8253eafb8e,0x2e9f2ab49147a98d,0x8d26e6fe040f572c,0x1c5d1a2f77c3bd3d,0xcd1554fe26d8e940,0xc3bd113fd13708e3,0x3c4a3090b99f4502,0x7a1ef57be4a0008a,0xf2765b3b44ffd0a6,0x2c7d5cc8fb43f2d0,0x465b44b613c9b1c4,0x233cf8e79cb2,])),
-        field_new!(Fr,BigInteger([0xd72c82540065191,0x9a1ac4ed2fab8e8,0x650c74eea62243a7,0x6fcf337d1937c2d6,0x7d054a93d61e22ca,0xeb0b43ecb693398a,0xb9b1eaa4b1104ccd,0xf1b7e8c337898df6,0xe2652a56a1447aaf,0x6196f3b47b16110e,0xcb1d39edaab39a9e,0x10a95fbcd6967,])),
-        field_new!(Fr,BigInteger([0x4b9a96ec4445d17c,0x5db9c19124d846d5,0x3ae31b9cf40b26e4,0xe05c645661d6d15a,0x63c92bfa2844c829,0x6415472ada9ac39a,0x1b89e4ca7499fcde,0x49e7b8a722561159,0x1d4f0de0b8cfb940,0x4a1d8a1cf84ca296,0x784767101218bb5e,0x3171621a22cf,])),
-        field_new!(Fr,BigInteger([0xa11074f03ec07e15,0x713f4663f3ff3355,0x1a08761c29cb3afb,0xd9d8fc39d2b7a8b5,0xfb20d30306dce9cf,0x57270eddabed3a7f,0xfbde52978687148d,0xac5de44ad3586169,0x5544299cb8c3db5f,0x244ac8e0636993bb,0xdb58cffd2ff83d0,0x1120aca75573a,])),
-    ];
-}
-
-impl PoseidonInverseParameters for MNT6753PoseidonParameters {
-
-    // The MDS matrix for fast matrix multiplication
-    const MDS_CST_SHORT: &'static[Fr]  = &[
         // These constants are in Partial Montgomery representation with R = 2^64
         field_new!(Fr,BigInteger([0x1b06b82936573768, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         field_new!(Fr,BigInteger([0xa8a66953a924365d, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
@@ -291,4 +277,16 @@ impl PoseidonInverseParameters for MNT6753PoseidonParameters {
         field_new!(Fr,BigInteger([0x524543d141024c82, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
         field_new!(Fr,BigInteger([0x3657a2432f363f4, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
     ];
+
+    // It uses a partial Montgomery multiplication defined as PM(x, t) = x * t * 2^-64 mod M
+    // t is a 64-bit matrix constant. In the algorithm, the constants are represented in
+    // partial Montgomery representation, i.e. t * 2^64 mod M
+    #[inline]
+    fn scalar_mul(res: &mut Fr, state: &mut [Fr], mut start_idx_cst: usize) {
+        state.iter().for_each(|&x| {
+            let elem = Self::MDS_CST[start_idx_cst].mul_short(x);
+            start_idx_cst += 1;
+            *res += &elem;
+        });
+    }
 }
