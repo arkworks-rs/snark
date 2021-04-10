@@ -767,7 +767,7 @@ impl<F: Field> ConstraintSystemRef<F> {
         }
     }
 
-    /// Consumes self to return the inner `ConstraintSystem<F>`. Returns 
+    /// Consumes self to return the inner `ConstraintSystem<F>`. Returns
     /// `None` if `Self::CS` is `None` or if any other references to
     /// `Self::CS` exist.  
     pub fn into_inner(self) -> Option<ConstraintSystem<F>> {
