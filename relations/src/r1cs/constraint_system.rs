@@ -767,12 +767,13 @@ impl<F: Field> ConstraintSystemRef<F> {
         }
     }
 
-    /// Consumes self to return the inner `ConstraintSystem<F>`. Panics if
-    /// any other references to `self` exist.
-    pub fn into_inner(self) -> ConstraintSystem<F> {
+    /// Consumes self to return the inner `ConstraintSystem<F>`. Returns 
+    /// `None` if `Self::CS` is `None` or if any other references to
+    /// `Self::CS` exist.  
+    pub fn into_inner(self) -> Option<ConstraintSystem<F>> {
         match self {
-            Self::CS(a) => Rc::try_unwrap(a).unwrap().into_inner(),
-            Self::None => panic!(),
+            Self::CS(a) => Some(Rc::try_unwrap(a).unwrap().into_inner()),
+            Self::None => None,
         }
     }
 
