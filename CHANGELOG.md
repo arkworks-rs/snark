@@ -1,3 +1,15 @@
+## Pending
+
+### Breaking changes
+
+### Features
+- [\#347](https://github.com/arkworks-rs/snark/pull/347) Add `into_inner` function for `ConstraintSystemRef<F>`.
+
+### Improvements
+
+### Bug fixes
+
+
 ## v0.2.0
 
 ### Breaking changes
