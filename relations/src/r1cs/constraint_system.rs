@@ -771,10 +771,10 @@ impl<F: Field> ConstraintSystemRef<F> {
     /// `None` if `Self::CS` is `None` or if any other references to
     /// `Self::CS` exist.  
     pub fn into_inner(self) -> Option<ConstraintSystem<F>> {
-		match self {
-			Self::CS(a) => Rc::try_unwrap(a).ok().map(|s| s.into_inner()),
-			Self::None => None,
-		}
+        match self {
+            Self::CS(a) => Rc::try_unwrap(a).ok().map(|s| s.into_inner()),
+            Self::None => None,
+        }
     }
 
     /// Obtain an immutable reference to the underlying `ConstraintSystem`.
