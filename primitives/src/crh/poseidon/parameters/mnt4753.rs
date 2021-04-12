@@ -290,9 +290,7 @@ impl PoseidonParameters for MNT4753PoseidonParameters {
         field_new!(Fr,BigInteger([0xbeaefc0f3ffffe15,0x31fa60c505c528da,0x17062bf32a5800cc,0x7f6c8a491e1c85d8,0x51c275d51d6bb509,0xca2b3dc7bc07b33e,0xfbde52978687148a,0xac5de44ad3586169,0x5544299cb8c3db5f,0x244ac8e0636993bb,0xdb58cffd2ff83d0,0x1120aca75573a,])),
     ];
 
-    // It uses a partial Montgomery multiplication defined as PM(x, t) = x * t * 2^-64 mod M
-    // t is a 64-bit matrix constant. In the algorithm, the constants are represented in
-    // partial Montgomery representation, i.e. t * 2^64 mod M
+    /// Short Montgomery multiplication with respect to the short Montgomery constant R_2=2^64
     #[inline]
     fn scalar_mul(res: &mut Fr, state: &mut [Fr], mut start_idx_cst: usize) {
         state.iter().for_each(|&x| {

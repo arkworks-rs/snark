@@ -79,7 +79,9 @@ pub trait PoseidonParameters: 'static + FieldBasedHashParameters + Clone {
 }
 
 pub trait PoseidonShortParameters: PoseidonParameters {
-    const MDS_CST_SHORT: &'static [Self::Fr];  // The MDS matrix for fast matrix multiplication
+    /// MDS matrix supporting short Montgomery multiplication with respect to the short
+    /// Montgomery constant R_2=2^64
+    const MDS_CST_SHORT: &'static [Self::Fr];
 }
 
 #[derive(Derivative)]

@@ -16,7 +16,7 @@ impl<F: PrimeField, P: PoseidonParameters<Fr = F>> SBox for PoseidonInverseSBox<
     #[inline]
     fn apply_full(state: &mut Vec<F>) {
         // Apply the S-BOX to each of the elements of the state vector
-        // Use Montgomery simultaneous inversion
+        // Use batch inversion
         let mut w: Vec<F> = Vec::new();
         let mut accum_prod = F::one();
 
@@ -63,7 +63,7 @@ impl<F: PrimeField, P: PoseidonParameters<Fr = F>> BatchSBox for PoseidonInverse
 
     fn apply_full_batch(vec_state: &mut [Vec<F>]) {
         // Apply the S-BOX to each of the elements of the state vector
-        // Use Montgomery simultaneous inversion
+        // Use batch inversion
         let mut w: Vec<F> = Vec::new();
         let mut accum_prod = F::one();
 
@@ -126,7 +126,7 @@ impl<F: PrimeField, P: PoseidonParameters<Fr = F>> BatchSBox for PoseidonInverse
             }
         } else {
             // Calculate the inversion of the products
-            // Use Montgomery simultaneous inversion
+            // Use batch inversion
             let mut w_bar = accum_prod.inverse().unwrap();
 
             // Extract the individual inversions

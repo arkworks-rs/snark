@@ -52,7 +52,7 @@ pub use self::fft::*;
 
 pub type Error = Box<dyn std::error::Error>;
 
-/// Returns the base-2 logarithm of `x`.
+/// Returns the ceiling of the base-2 logarithm of `x`.
 /// ```
 /// use algebra::log2;
 ///
