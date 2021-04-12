@@ -17,10 +17,9 @@ impl<F, P, SB> PoseidonBatchHash<F, P, SB>
         P: PoseidonParameters<Fr = F>,
         SB: BatchSBox<Field = F, Parameters = P>,
 {
-    fn init_state(input_array: &[F]) -> Vec<Vec<F>> {
+    fn apply_permutation(input_array: &[F]) -> Vec<Vec<F>> {
 
         // Sanity checks
-        assert_eq!(P::T - P::R, 1, "The assumption that the capacity is one field element is not satisfied.");
         let array_length = input_array.len() / P::R;
         assert_eq!(input_array.len() % P::R, 0, "The length of the input data array is not a multiple of the rate.");
         assert_ne!(input_array.len(), 0, "Input data array does not contain any data.");
@@ -142,7 +141,7 @@ impl<F, P, SB> BatchFieldBasedHash for PoseidonBatchHash<F, P, SB>
         // Output:
         // The output is returned as an array of size input length / P::R
 
-        let state = Self::init_state(input_array);
+        let state = Self::apply_permutation(input_array);
 
         // write the result of the hash extracted from the state vector to the output vector
         let mut output_array = Vec::new();
@@ -169,7 +168,7 @@ impl<F, P, SB> BatchFieldBasedHash for PoseidonBatchHash<F, P, SB>
             "The size of the output vector is equal to the size of the input vector divided by the rate."
         );
 
-        let state = Self::init_state(input_array);
+        let state = Self::apply_permutation(input_array);
 
         // write the result of the hash extracted from the state vector to the output vector
         for k in 0..input_array.len() / P::R {

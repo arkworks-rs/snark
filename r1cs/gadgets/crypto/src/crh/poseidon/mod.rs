@@ -192,7 +192,6 @@ impl<ConstraintF, P, SB, SBG> FieldBasedHashGadget<PoseidonHash<ConstraintF, P, 
     //     capacity c = 1
     {
         assert_ne!(input.len(), 0, "Input data array does not contain any data.");
-        assert_eq!(P::T - P::R, 1, "The assumption that the capacity is one field element is not satisfied.");
 
         let mut state = Vec::new();
         for i in 0..P::T {
