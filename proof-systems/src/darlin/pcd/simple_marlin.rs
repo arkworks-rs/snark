@@ -4,17 +4,17 @@ use marlin::{
     VerifierKey as MarlinVerifierKey,
     Proof as MarlinProof, Marlin
 };
-use poly_commit::{
-    ipa_pc::{
-        InnerProductArgPC, VerifierKey as DLogVerifierKey
-    },
-    Error
+use poly_commit::ipa_pc::{
+    InnerProductArgPC, VerifierKey as DLogVerifierKey
 };
-use crate::darlin::pcd::PCD;
-use crate::darlin::accumulators::dlog::{DLogItem, DLogItemAccumulator};
+use crate::darlin::{
+    pcd::{PCD, error::PCDError},
+    accumulators::{
+        dlog::{DLogItem, DLogItemAccumulator}, ItemAccumulator
+    },
+};
 use poly_commit::ipa_pc::Commitment;
 use std::marker::PhantomData;
-use crate::darlin::accumulators::ItemAccumulator;
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""))]
@@ -60,24 +60,16 @@ impl<'a, G, D> PCD for SimpleMarlinPCD<'a, G, D>
     fn succinct_verify(
         &self,
         vk: &Self::PCDVerifierKey,
-    ) -> Result<<Self::PCDAccumulator as ItemAccumulator>::Item, Error>
+    ) -> Result<<Self::PCDAccumulator as ItemAccumulator>::Item, PCDError>
     {
         let succinct_time = start_timer!(|| "Marlin succinct verifier");
 
         // Verify sumchecks
-        let ahp_result = Marlin::<G::ScalarField, InnerProductArgPC<G, D>, D>::verify_ahp(
+        let (query_set, evaluations, labeled_comms, mut fs_rng) = Marlin::<G::ScalarField, InnerProductArgPC<G, D>, D>::verify_ahp(
             &vk.0,
             self.usr_ins.as_slice(),
             &self.proof,
-        );
-
-        if ahp_result.is_err() {
-            println!("AHP verification failed");
-            end_timer!(succinct_time);
-            return Err(Error::FailedSuccinctCheck)
-        }
-
-        let (query_set, evaluations, labeled_comms, mut fs_rng) = ahp_result.unwrap();
+        ).map_err(|e| PCDError::FailedSuccinctVerification(format!("{:?}", e)))?;
 
         // Absorb evaluations and sample new challenge
         fs_rng.absorb(&self.proof.evaluations);
@@ -85,23 +77,16 @@ impl<'a, G, D> PCD for SimpleMarlinPCD<'a, G, D>
         let opening_challenges = |pow| opening_challenge.pow(&[pow]);
 
         // Succinct verify DLOG proof
-        let succinct_result = InnerProductArgPC::<G, D>::succinct_batch_check_individual_opening_challenges(
+        let (xi_s, g_final) = InnerProductArgPC::<G, D>::succinct_batch_check_individual_opening_challenges(
             &vk.1,
             &labeled_comms,
             &query_set,
             &evaluations,
             &self.proof.pc_proof,
             &opening_challenges,
-        );
-
-        if succinct_result.is_err() {
-            println!("Succinct verification failed: {:?}", succinct_result.err());
-            end_timer!(succinct_time);
-            return Err(Error::FailedSuccinctCheck)
-        }
+        ).map_err(|e| PCDError::FailedSuccinctVerification(e.to_string()))?;
 
         // Successfull verification: return current accumulator
-        let (xi_s, g_final) = succinct_result.unwrap();
         let acc = DLogItem::<G> {
             g_final: Commitment::<G> {  comm: vec![g_final], shifted_comm: None  },
             xi_s,

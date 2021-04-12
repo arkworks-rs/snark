@@ -15,7 +15,7 @@ use digest::Digest;
 use std::marker::PhantomData;
 
 /// This implements the public aggregator for the IPA/DLOG commitment scheme.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DLogItem<G: AffineCurve> {
     /// Final committer key after the DLOG reduction.
     pub(crate) g_final:     Commitment<G>,
