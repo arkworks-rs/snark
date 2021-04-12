@@ -17,6 +17,7 @@ use criterion::Criterion;
 
 use std::marker::PhantomData;
 
+/// Circuit designed to have low R1CS density (d = 1) and synthesization cost (no field inversions).
 pub struct Benchmark<F: PrimeField> {
     inputs: Vec<Option<F>>,
     num_constraints: usize,
@@ -30,7 +31,7 @@ impl<F: PrimeField> ConstraintSynthesizer<F> for Benchmark<F> {
         assert!(self.inputs.len() >= 2);
         assert!(self.num_constraints >= self.inputs.len());
 
-        let mut variables: Vec<_> = Vec::with_capacity(self.inputs.len());
+        let mut variables: Vec<_> = Vec::with_capacity(self.inputs.len() + self.num_constraints);
         for (i, input) in self.inputs.into_iter().enumerate() {
             let input_var = cs.alloc_input(
                 || format!("Input {}", i),
@@ -145,7 +146,7 @@ impl<F: Field> ConstraintSynthesizer<F> for BenchmarkHighDensities<F> {
 
 fn bench_prover_circuit_high_densities(c: &mut Criterion){
     let mut rng = XorShiftRng::seed_from_u64(1234567890u64);
-    let mut group = c.benchmark_group("bench gro16 provervarying the number of constraints");
+    let mut group = c.benchmark_group("bench gro16 prover varying the number of constraints");
 
     let num_constraints = (15..=23).map(|i| 2usize.pow(i) - 3).collect::<Vec<_>>();
 

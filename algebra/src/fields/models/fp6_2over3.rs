@@ -138,7 +138,6 @@ impl<P: Fp6Parameters> Fp6<P> {
     }
 }
 
-
 /// Note: compression and decompression of a Fqk element is possible thanks to a property of Ate pairing.
 /// if c0 + i*c1 is the output of an Ate pairing, then holds that c0^2 - nr * c1^2 = 1.
 /// Therefore, we can save c1 and compute c0 as sqrt(1 + nr*c1^2), dedicating a bit also for the sign

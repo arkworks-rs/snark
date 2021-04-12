@@ -41,15 +41,28 @@ pub trait FieldBasedHash {
     type Data: Field;
     type Parameters: FieldBasedHashParameters<Fr = Self::Data>;
 
+    /// Initialize a Field Hash accepting inputs of constant length `input_size`:
+    /// any attempt to finalize the hash after having updated the Self instance
+    /// with a number of inputs not equal to `input_size` should result in an error.
     /// Initialize the hash to a null state, or with `personalization` if specified.
-    fn init(personalization: Option<&[Self::Data]>) -> Self;
+    fn init_constant_length(input_size: usize, personalization: Option<&[Self::Data]>) -> Self;
+
+    /// Initialize a Field Hash accepting inputs of variable length, adapting the padding
+    /// strategy according to the inputs being `mod_rate` or not: if the input is of
+    /// variable length but always multiple of the rate it is possible to avoid padding
+    /// without any security issue, saving constraints in SNARK applications;
+    /// If `mod_rate` is true, any attempt to finalize the hash after having updated the
+    /// Self instance with a number of inputs which are not multiple of the rate should
+    /// result in an error.
+    /// Initialize the hash to a null state, or with `personalization` if specified.
+    fn init_variable_length(mod_rate: bool, personalization: Option<&[Self::Data]>) -> Self;
 
     /// Update the hash with `input`.
     fn update(&mut self, input: Self::Data) -> &mut Self;
 
     /// Return the hash. This method is idempotent, and calling it multiple times will
-    /// give the same result. It's also possible to `update` with more inputs in between.
-    fn finalize(&self) -> Self::Data;
+    /// give the same result.
+    fn finalize(&self) -> Result<Self::Data, Error>;
 
     /// Reset self to its initial state, allowing to change `personalization` too if needed.
     fn reset(&mut self, personalization: Option<&[Self::Data]>) -> &mut Self;
@@ -86,9 +99,9 @@ pub trait BatchFieldBasedHash {
         assert_ne!(input_array.len(), 0, "Input data array does not contain any data.");
 
         Ok(input_array.par_chunks(rate).map(|chunk| {
-            let mut digest = <Self::BaseHash as FieldBasedHash>::init(None);
+            let mut digest = <Self::BaseHash as FieldBasedHash>::init_constant_length(rate, None);
             chunk.iter().for_each(|input| { digest.update(input.clone()); } );
-            digest.finalize()
+            digest.finalize().unwrap()
         }).collect::<Vec<_>>())
     }
 
@@ -103,9 +116,9 @@ pub trait BatchFieldBasedHash {
         let rate = <<Self::BaseHash as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
         input_array.par_chunks(rate).zip(output_array.par_iter_mut())
             .for_each(|(inputs, output)| {
-                let mut digest = <Self::BaseHash as FieldBasedHash>::init(None);
+                let mut digest = <Self::BaseHash as FieldBasedHash>::init_constant_length(rate, None);
                 inputs.iter().for_each(|input| { digest.update(input.clone()); } );
-                *output = digest.finalize();
+                *output = digest.finalize().unwrap();
             });
     }
 }
@@ -124,12 +137,74 @@ mod test {
 
     use rand_xorshift::XorShiftRng;
     use rand::SeedableRng;
+    use crate::{FieldBasedHash, FieldBasedHashParameters};
 
     struct DummyMNT4BatchPoseidonHash;
 
     impl BatchFieldBasedHash for DummyMNT4BatchPoseidonHash {
         type Data = MNT4753Fr;
         type BaseHash = MNT4PoseidonHash;
+    }
+
+    pub(crate) fn constant_length_field_based_hash_test<H: FieldBasedHash>(
+        digest: &mut H,
+        inputs: Vec<H::Data>,
+    ) {
+        let inputs_len = inputs.len();
+
+        let final_elem = inputs[inputs_len - 1].clone();
+
+        digest.reset(None);
+        inputs.into_iter().take(inputs_len - 1).for_each(|fe| { digest.update(fe); });
+
+        // Test call to finalize() with too few inputs with respect to the declared size
+        // results in an error.
+        assert!(digest.finalize().is_err(), "Success call to finalize despite smaller number of inputs");
+
+        //Test finalize() being idempotent
+        digest.update(final_elem);
+        let output = digest.finalize().unwrap();
+        assert_eq!(output, digest.finalize().unwrap(), "Two subsequent calls to finalize gave different results");
+
+        // Test call to finalize() with too much inputs with respect to the declared size
+        // results in an error.
+        digest.update(final_elem);
+        assert!(digest.finalize().is_err(), "Success call to finalize despite bigger number of inputs");
+    }
+
+    pub(crate) fn variable_length_field_based_hash_test<H: FieldBasedHash>(
+        digest: &mut H,
+        inputs: Vec<H::Data>,
+        mod_rate: bool,
+    ) {
+        let rate = <H::Parameters as FieldBasedHashParameters>::R;
+
+        let pad_inputs = |mut inputs: Vec<H::Data>| -> Vec<H::Data> {
+            inputs.push(H::Data::one());
+            inputs.append(&mut vec![H::Data::zero(); rate - (inputs.len() % rate)]);
+            inputs
+        };
+
+        if mod_rate {
+            constant_length_field_based_hash_test(digest, inputs);
+        } else {
+
+            // Check padding is added correctly and that the hash is collision free when input
+            // is not modulus rate
+            let output = digest.finalize().unwrap();
+            let padded_inputs = pad_inputs(inputs.clone());
+            digest.reset(None);
+            padded_inputs.iter().for_each(|fe| { digest.update(fe.clone()); });
+            assert_ne!(output, digest.finalize().unwrap(), "Incorrect padding: collision detected");
+
+            // Check padding is added correctly and that the hash is collision free also when input
+            // happens to be modulus rate
+            let output = digest.finalize().unwrap();
+            let padded_inputs = pad_inputs(padded_inputs);
+            digest.reset(None);
+            padded_inputs.into_iter().for_each(|fe| { digest.update(fe); });
+            assert_ne!(output, digest.finalize().unwrap(), "Incorrect padding: collision detected");
+        }
     }
 
     #[ignore]

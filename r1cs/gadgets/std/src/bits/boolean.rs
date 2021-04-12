@@ -451,13 +451,19 @@ impl Boolean {
                 Ok(field_element)
             })?;
 
-            let fe_bits = fe.to_bits(cs.ns(|| format!("Convert fe to bits {}", i)))?;
+            // Let's use the length-restricted variant of the ToBitsGadget to remove the
+            // padding: the padding bits are not constrained to be zero, so any field element
+            // passed as input (as long as it has the last bits set to the proper value) can
+            // satisfy the constraints. This kind of freedom might not be desiderable in
+            // recursive SNARK circuits, where the public inputs of the inner circuit are
+            // usually involved in other kind of constraints inside the wrap circuit.
+            let to_skip = modulus_size - bit_chunk.len();
+            let fe_bits = fe.to_bits_with_length_restriction(
+                cs.ns(|| format!("Convert fe to bits {}", i)),
+                to_skip
+            )?;
 
-            // Since bit serialization/deserialization functions assumes a big-endian representation,
-            // padding is added at the beginning of the bit vector, so we need to know the exact size
-            // of the padding in order to correctly get rid of the padding zeros.
-            let to_remove = modulus_size - bit_chunk.len();
-            allocated_bits.extend_from_slice(&fe_bits[to_remove..]);
+            allocated_bits.extend_from_slice(fe_bits.as_slice());
         }
         Ok(allocated_bits.to_vec())
     }
@@ -930,7 +936,7 @@ mod test {
     use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
     use algebra::{fields::bls12_381::Fr, BitIterator, Field, PrimeField, UniformRand, ToBits};
     use r1cs_core::ConstraintSystem;
-    use rand::SeedableRng;
+    use rand::{SeedableRng, Rng};
     use rand_xorshift::XorShiftRng;
     use std::str::FromStr;
 
@@ -977,8 +983,17 @@ mod test {
         //Random test
         let samples = 100;
         for i in 0..samples {
+            // Test with random field
             let bit_vals = Fr::rand(rng).write_bits();
             let bits = Boolean::alloc_input_vec(cs.ns(|| format!("alloc value {}", i)), &bit_vals).unwrap();
+            assert_eq!(bit_vals.len(), bits.len());
+            for (native_bit, gadget_bit) in bit_vals.into_iter().zip(bits) {
+                assert_eq!(gadget_bit.get_value().unwrap(), native_bit);
+            }
+
+            // Test with random bools
+            let bit_vals = vec![rng.gen_bool(0.5); rng.gen_range(1, 1600)];
+            let bits = Boolean::alloc_input_vec(cs.ns(|| format!("alloc random value {}", i)), &bit_vals).unwrap();
             assert_eq!(bit_vals.len(), bits.len());
             for (native_bit, gadget_bit) in bit_vals.into_iter().zip(bits) {
                 assert_eq!(gadget_bit.get_value().unwrap(), native_bit);

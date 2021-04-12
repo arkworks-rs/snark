@@ -26,6 +26,10 @@ debug-assertions = false
 
 [profile.dev]
 opt-level = 3
+lto = "thin"
+incremental = true
+debug-assertions = true
+debug = true
 
 [profile.test]
 opt-level = 3

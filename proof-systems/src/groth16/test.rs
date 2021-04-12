@@ -59,7 +59,7 @@ mod test {
             c.mul_assign(&b);
 
             let proof = if zk {
-                 create_random_proof(
+                create_random_proof(
                     MySillyCircuit {
                         a: Some(a),
                         b: Some(b),

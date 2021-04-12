@@ -21,14 +21,15 @@ use primitives::crh::{
 fn poseidon_crh_eval_mnt4(c: &mut Criterion) {
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-    let mut h = MNT4PoseidonHash::init(None);
+    let samples = 2000;
+    let mut h = MNT4PoseidonHash::init_constant_length(samples, None);
 
     c.bench_function("Poseidon CRH Eval for MNT4", move |b| {
         b.iter(|| {
-            for _ in 0..2000 {
+            for _ in 0..samples {
                 h.update(MNT4753Fr::rand(&mut rng));
             }
-            h.finalize();
+            h.finalize().unwrap();
         })
     });
 }
@@ -36,14 +37,15 @@ fn poseidon_crh_eval_mnt4(c: &mut Criterion) {
 fn poseidon_crh_eval_mnt6(c: &mut Criterion) {
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-    let mut h = MNT6PoseidonHash::init(None);
+    let samples = 2000;
+    let mut h = MNT6PoseidonHash::init_constant_length(samples, None);
 
     c.bench_function("Poseidon CRH Eval for MNT6", move |b| {
         b.iter(|| {
-            for _ in 0..2000 {
+            for _ in 0..samples {
                 h.update(MNT6753Fr::rand(&mut rng));
             }
-            h.finalize();
+            h.finalize().unwrap();
         })
     });
 }
@@ -51,14 +53,15 @@ fn poseidon_crh_eval_mnt6(c: &mut Criterion) {
 fn poseidon_crh_eval_bn382fr(c: &mut Criterion) {
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-    let mut h = BN382FrPoseidonHash::init(None);
+    let samples = 2000;
+    let mut h = BN382FrPoseidonHash::init_constant_length(samples, None);
 
     c.bench_function("Poseidon CRH Eval for BN382Fr", move |b| {
         b.iter(|| {
-            for _ in 0..2000 {
+            for _ in 0..samples {
                 h.update(BN382Fr::rand(&mut rng));
             }
-            h.finalize();
+            h.finalize().unwrap();
         })
     });
 }
@@ -66,14 +69,15 @@ fn poseidon_crh_eval_bn382fr(c: &mut Criterion) {
 fn poseidon_crh_eval_bn382fq(c: &mut Criterion) {
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-    let mut h = BN382FqPoseidonHash::init(None);
+    let samples = 2000;
+    let mut h = BN382FqPoseidonHash::init_constant_length(samples, None);
 
     c.bench_function("Poseidon CRH Eval for BN382Fq", move |b| {
         b.iter(|| {
-            for _ in 0..2000 {
+            for _ in 0..samples {
                 h.update(BN382Fq::rand(&mut rng));
             }
-            h.finalize();
+            h.finalize().unwrap();
         })
     });
 }
