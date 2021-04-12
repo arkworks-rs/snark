@@ -6,6 +6,7 @@ use std::marker::PhantomData;
 use crate::crh::BatchFieldBasedHash;
 use crate::{Error, PoseidonParameters, matrix_mix_short, PoseidonHash};
 
+/// Batch evaluation for x^{-1}-Poseidon with MDS matrix supporting short Montgomery multiplication.
 pub struct PoseidonBatchHash<F: PrimeField, P: PoseidonParameters<Fr = F>>{
     _field:      PhantomData<F>,
     _parameters: PhantomData<P>,
@@ -29,7 +30,7 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
         }
 
         // Apply the S-BOX to each of the elements of the state vector
-        // Use Montgomery simultaneous inversion
+        // Use batch inversion
         let mut w: Vec<P::Fr> = Vec::new();
         let mut accum_prod = P::Fr::one();
 
@@ -150,7 +151,6 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
         }
 
         // Full rounds
-        // Last round does not contain the matrix mix
         for _i in 0..P::R_F {
             Self::poseidon_full_round(vec_state, &mut round_cst_idx);
 
