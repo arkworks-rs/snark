@@ -114,7 +114,6 @@ impl<F, P, SB> PoseidonBatchHash<F, P, SB>
         }
 
         // Full rounds
-        // Last round does not contain the matrix mix
         for _i in 0..P::R_F {
             Self::poseidon_full_round(vec_state, &mut round_cst_idx);
         }
