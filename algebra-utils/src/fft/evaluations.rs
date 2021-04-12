@@ -1,8 +1,8 @@
 //! A polynomial represented in evaluations form.
 
 use std::ops::{Add, Sub, Mul, Div, AddAssign, SubAssign, MulAssign, DivAssign};
-use algebra::PrimeField;
-use crate::{DensePolynomial, EvaluationDomain};
+use algebra::{PrimeField, serialize::*};
+use crate::{DensePolynomial, EvaluationDomain, get_best_evaluation_domain};
 
 /// Stores a polynomial in evaluation form.
 pub struct Evaluations<F: PrimeField> {
@@ -10,6 +10,26 @@ pub struct Evaluations<F: PrimeField> {
     pub evals: Vec<F>,
     /// Evaluation domain
     pub domain: Box<dyn EvaluationDomain<F>>,
+}
+
+impl<F: PrimeField> CanonicalSerialize for Evaluations<F> {
+    fn serialize<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
+        CanonicalSerialize::serialize(&self.evals, writer)
+    }
+
+    fn serialized_size(&self) -> usize {
+        self.evals.serialized_size()
+    }
+}
+
+impl<F: PrimeField> CanonicalDeserialize for Evaluations<F> {
+    fn deserialize<R: Read>(reader: R) -> Result<Self, SerializationError> {
+        let evals: Vec<F> = CanonicalDeserialize::deserialize(reader)?;
+        let domain = get_best_evaluation_domain::<F>(evals.len())
+            .ok_or(SerializationError::InvalidData)?;
+
+        Ok(Self { evals, domain})
+    }
 }
 
 impl<F: PrimeField> Evaluations<F> {
