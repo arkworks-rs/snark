@@ -18,9 +18,11 @@ pub trait FieldBasedMerkleTreePathGadget<
 >: AllocGadget<P, ConstraintF> + ConstantGadget<P, ConstraintF> + EqGadget<ConstraintF> + Clone
 where
 {
-    /// Return the length of the path
+    /// Return the length of the `self` path.
     fn length(&self) -> usize;
 
+    /// Enforce that the root reconstructed from `self` and `leaf` is equal to
+    /// `expected_root`.
     fn check_membership<CS: ConstraintSystem<ConstraintF>>(
         &self,
         cs: CS,
@@ -30,8 +32,8 @@ where
         self.conditionally_check_membership(cs, expected_root, leaf, &Boolean::Constant(true))
     }
 
-    /// Coherently with the primitive, if `P::HASH_LEAVES` = `true` then we hash the
-    /// leaf, otherwise we assume it to be just one FieldGadget element.
+    /// Enforce that the root reconstructed from `self` and `leaf` is equal to
+    /// `expected_root` if `should_enforce` is True, otherwise enforce nothing.
     fn conditionally_check_membership<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
@@ -40,7 +42,7 @@ where
         should_enforce: &Boolean,
     ) -> Result<(), SynthesisError>
     {
-        let root = self.enforce_merkle_path(
+        let root = self.enforce_root_from_leaf(
             cs.ns(|| "reconstruct root"),
             leaf
         )?;
@@ -52,14 +54,17 @@ where
         )
     }
 
-    /// Enforces correct reconstruction of the root of the Merkle Tree
-    /// from `self` and `leaf`.
-    fn enforce_merkle_path<CS: ConstraintSystem<ConstraintF>>(
+    /// Enforce correct reconstruction of the root of the Merkle Tree
+    /// from `self` path and `leaf`.
+    fn enforce_root_from_leaf<CS: ConstraintSystem<ConstraintF>>(
         &self,
         cs: CS,
         leaf: &HGadget::DataGadget,
     ) -> Result<HGadget::DataGadget, SynthesisError>;
 
+    /// Given a field element `leaf_index` representing the position of a leaf in a
+    /// Merkle Tree, enforce that the leaf index corresponding to `self` path is the
+    /// same of `leaf_index`.
     fn enforce_leaf_index<CS: ConstraintSystem<ConstraintF>>(
         &self,
         cs: CS,
@@ -69,9 +74,10 @@ where
         self.conditionally_enforce_leaf_index(cs, leaf_index, &Boolean::Constant(true))
     }
 
+
     /// Given a field element `leaf_index` representing the position of a leaf in a
     /// Merkle Tree, enforce that the leaf index corresponding to `self` path is the
-    /// same of `leaf_index`.
+    /// same of `leaf_index` if `should_enforce` is True, otherwise enforce nothing.
     fn conditionally_enforce_leaf_index<CS: ConstraintSystem<ConstraintF>>(
         &self,
         cs: CS,

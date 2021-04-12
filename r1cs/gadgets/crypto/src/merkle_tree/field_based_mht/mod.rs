@@ -79,7 +79,7 @@ for FieldBasedBinaryMerkleTreePathGadget<P, HGadget, ConstraintF>
 
     /// Enforces correct reconstruction of the root of the Merkle Tree
     /// from `self` and `leaf`.
-    fn enforce_merkle_path<CS: ConstraintSystem<ConstraintF>>(
+    fn enforce_root_from_leaf<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         leaf: &HGadget::DataGadget,
@@ -441,8 +441,8 @@ mod test {
                 .unwrap();
 
             // Enforce Merkle Path test
-            let root_1 = cw.enforce_merkle_path(
-                &mut cs.ns(|| format!("enforce_merkle_path_{}", i)),
+            let root_1 = cw.enforce_root_from_leaf(
+                &mut cs.ns(|| format!("enforce_root_from_leaf_{}", i)),
                 &leaf_g,
             ).unwrap();
 
