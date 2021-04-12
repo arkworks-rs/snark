@@ -107,8 +107,6 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
 
     fn _init(constant_size: Option<usize>, mod_rate: bool, personalization: Option<&[F]>) -> Self
     {
-        assert_eq!(P::T - P::R, 1, "The assumption that the capacity is one field element is not satisfied.");
-
         let mut state = Vec::with_capacity(P::T);
         for i in 0..P::T {
             state.push(P::AFTER_ZERO_PERM[i]);

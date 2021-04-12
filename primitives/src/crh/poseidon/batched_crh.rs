@@ -183,7 +183,6 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr = F>> Bat
         use rayon::prelude::*;
 
         // Checks that size of input/output vector
-        assert_eq!(P::T - P::R, 1, "The assumption that the capacity is one field element is not satisfied.");
         let array_length = input_array.len() / P::R;
         assert_eq!(input_array.len() % P::R, 0, "The length of the input data array is not a multiple of the rate.");
         assert_ne!(input_array.len(), 0, "Input data array does not contain any data.");
@@ -245,7 +244,6 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr = F>> Bat
 
         // Checks that size of input/output vector
         let array_length = input_array.len() / P::R;
-        assert_eq!(P::T - P::R, 1, "The assumption that the capacity is one field element is not satisfied.");
         assert_eq!(input_array.len() % P::R, 0, "The length of the input data array is not a multiple of the rate.");
         assert_ne!(input_array.len(), 0, "Input data array does not contain any data.");
         assert_eq!(output_array.len(), array_length,  "The size of the output vector is equal to the size of the input vector divided by the rate.");
