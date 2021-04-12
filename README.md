@@ -109,7 +109,7 @@ opt-level = 0
 
 Set it to 3 for maximum speed but longer compilation times: this is suggested for executing all the tests in the project, but for single test's execution might be unnecessary.
 
-Lastly, this library comes with benchmarks for the [`algebra`](algebra) crate.
+This library comes with benchmarks for the [`algebra`](algebra) crate.
 These benchmarks require the nightly Rust toolchain; to install this, run `rustup install nightly`. Then, to run benchmarks, run the following command: 
 ```bash
 cargo +nightly bench --all-features 
@@ -125,6 +125,13 @@ To bench `algebra-benches` with greater accuracy, especially for functions with 
 ```bash
 cargo +nightly bench --features "n_fold"
 ```
+
+__Note:__ Some of the dependencies between the crates in GingerLib are specified via Git rather than via local paths: this is due to some cross-dependency errors between GingerLib's crates and some external crates. 
+One example of such errors is in crate `algebra-utils`: it depends both on `algebra` and on external crates located in [ginger-algebra-ocl](https://github.com/HorizenOfficial/ginger-algebra-ocl) depending on `algebra` too; if the version of `algebra` on which these crates depend is not exactly the same, a compilation error will occur:
+```bash
+error[E0308]: mismatched types [...] note: perhaps two different versions of crate `algebra` are being used?
+```
+By specifying in both crates the dependency on `algebra` in Git form, we ensure that all the crates will take the same version; however, if during development `algebra` crate is modified, we would be forced to push the changes to Git first before seeing them applied in local. For this reason, in the root `Cargo.toml`, we pushed instructions allowing to override Git dependencies with (local) path dependencies; unfortunately, this will require to store locally all the crates involved in the cross-dependency issue and to  comment/uncomment these lines before/after pushing changes.
 
 ## Contributing
 
