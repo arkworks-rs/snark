@@ -805,11 +805,95 @@ impl<T: CanonicalDeserialize + Ord> CanonicalDeserialize for BTreeSet<T> {
     }
 }
 
+#[allow(dead_code)]
+pub fn test_canonical_serialize_deserialize<
+    T: PartialEq + std::fmt::Debug + CanonicalSerialize + CanonicalDeserialize,
+>(
+    negative_test: bool,
+    data: &T,
+) {
+    {
+        let buf_size = data.serialized_size();
+
+        let mut serialized = vec![0; buf_size];
+        CanonicalSerialize::serialize(data, &mut serialized[..]).unwrap();
+        let de = T::deserialize(&serialized[..]).unwrap();
+        assert_eq!(data, &de);
+
+        if negative_test {
+            let wrong_buf_size = buf_size - 1;
+            T::deserialize(&serialized[..wrong_buf_size]).unwrap_err();
+            CanonicalSerialize::serialize(data, &mut serialized[..wrong_buf_size]).unwrap_err();
+        }
+    }
+
+    {
+        let buf_size = data.uncompressed_size();
+
+        let mut serialized = vec![0; buf_size];
+        data.serialize_uncompressed(&mut serialized[..]).unwrap();
+        let de = T::deserialize_uncompressed(&serialized[..]).unwrap();
+        assert_eq!(data, &de);
+
+        if negative_test {
+            let wrong_buf_size = buf_size - 1;
+            T::deserialize_uncompressed(&serialized[..wrong_buf_size]).unwrap_err();
+            data.serialize_uncompressed(&mut serialized[..wrong_buf_size]).unwrap_err();
+        }
+    }
+
+    {
+        let buf_size = data.uncompressed_size();
+
+        let mut serialized = vec![0; buf_size];
+        data.serialize_unchecked(&mut serialized[..]).unwrap();
+        let de = T::deserialize_unchecked(&serialized[..]).unwrap();
+        assert_eq!(data, &de);
+
+        if negative_test {
+            let wrong_buf_size = buf_size - 1;
+            T::deserialize_unchecked(&serialized[..wrong_buf_size]).unwrap_err();
+            data.serialize_unchecked(&mut serialized[..wrong_buf_size]).unwrap_err();
+        }
+    }
+
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
     use rand::RngCore;
     use std::vec;
+
+    // Serialize T, randomly mutate the data, and deserialize it.
+    // Ensure it fails.
+    // Up to the caller to provide a valid mutation criterion
+    // to ensure that this test always fails.
+    // This method requires a concrete instance of the data to be provided,
+    // to get the serialized size.
+    pub fn ensure_non_malleable_encoding<
+        T: PartialEq + std::fmt::Debug + CanonicalSerialize + CanonicalDeserialize,
+    >(
+        data: T,
+        valid_mutation: fn(&[u8]) -> bool,
+    ) {
+        let r = &mut rand::thread_rng();
+        let mut serialized = vec![0; data.serialized_size()];
+        r.fill_bytes(&mut serialized);
+        while !valid_mutation(&serialized) {
+            r.fill_bytes(&mut serialized);
+        }
+        let de = T::deserialize(&serialized[..]);
+        assert!(de.is_err());
+
+        let mut serialized = vec![0; data.uncompressed_size()];
+        r.fill_bytes(&mut serialized);
+        while !valid_mutation(&serialized) {
+            r.fill_bytes(&mut serialized);
+        }
+        let de = T::deserialize_uncompressed(&serialized[..]);
+        assert!(de.is_err());
+    }
 
     #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug)]
     struct Dummy;
@@ -869,92 +953,41 @@ mod test {
         }
     }
 
-    fn test_serialize<
-        T: PartialEq + std::fmt::Debug + CanonicalSerialize + CanonicalDeserialize,
-    >(
-        data: T,
-    ) {
-        let mut serialized = vec![0; data.serialized_size()];
-        CanonicalSerialize::serialize(&data, &mut serialized[..]).unwrap();
-        let de = T::deserialize(&serialized[..]).unwrap();
-        assert_eq!(data, de);
-
-        let mut serialized = vec![0; data.uncompressed_size()];
-        data.serialize_uncompressed(&mut serialized[..]).unwrap();
-        let de = T::deserialize_uncompressed(&serialized[..]).unwrap();
-        assert_eq!(data, de);
-
-        let mut serialized = vec![0; data.uncompressed_size()];
-        data.serialize_unchecked(&mut serialized[..]).unwrap();
-        let de = T::deserialize_unchecked(&serialized[..]).unwrap();
-        assert_eq!(data, de);
-    }
-
-    // Serialize T, randomly mutate the data, and deserialize it.
-    // Ensure it fails.
-    // Up to the caller to provide a valid mutation criterion
-    // to ensure that this test always fails.
-    // This method requires a concrete instance of the data to be provided,
-    // to get the serialized size.
-    fn ensure_non_malleable_encoding<
-        T: PartialEq + std::fmt::Debug + CanonicalSerialize + CanonicalDeserialize,
-    >(
-        data: T,
-        valid_mutation: fn(&[u8]) -> bool,
-    ) {
-        let r = &mut rand::thread_rng();
-        let mut serialized = vec![0; data.serialized_size()];
-        r.fill_bytes(&mut serialized);
-        while !valid_mutation(&serialized) {
-            r.fill_bytes(&mut serialized);
-        }
-        let de = T::deserialize(&serialized[..]);
-        assert!(de.is_err());
-
-        let mut serialized = vec![0; data.uncompressed_size()];
-        r.fill_bytes(&mut serialized);
-        while !valid_mutation(&serialized) {
-            r.fill_bytes(&mut serialized);
-        }
-        let de = T::deserialize_uncompressed(&serialized[..]);
-        assert!(de.is_err());
-    }
-
     #[test]
     fn test_vec() {
-        test_serialize(vec![1u64, 2, 3, 4, 5]);
-        test_serialize(Vec::<u64>::new());
+        test_canonical_serialize_deserialize(true, &vec![1u64, 2, 3, 4, 5]);
+        test_canonical_serialize_deserialize(true, &Vec::<u64>::new());
     }
 
     #[test]
     fn test_uint() {
-        test_serialize(192830918usize);
-        test_serialize(192830918u64);
-        test_serialize(192830918u32);
-        test_serialize(22313u16);
-        test_serialize(123u8);
+        test_canonical_serialize_deserialize(true, &192830918usize);
+        test_canonical_serialize_deserialize(true, &192830918u64);
+        test_canonical_serialize_deserialize(true, &192830918u32);
+        test_canonical_serialize_deserialize(true, &22313u16);
+        test_canonical_serialize_deserialize(true, &123u8);
     }
 
     #[test]
     fn test_string() {
-        test_serialize(String::from("arkworks"));
+        test_canonical_serialize_deserialize(true, &String::from("arkworks"));
     }
 
     #[test]
     fn test_tuple() {
-        test_serialize(());
-        test_serialize((123u64, Dummy));
-        test_serialize((123u64, 234u32, Dummy));
+        test_canonical_serialize_deserialize(false, &());
+        test_canonical_serialize_deserialize(true, &(123u64, Dummy));
+        test_canonical_serialize_deserialize(true, &(123u64, 234u32, Dummy));
     }
 
     #[test]
     fn test_tuple_vec() {
-        test_serialize(vec![
+        test_canonical_serialize_deserialize(true, &vec![
             (Dummy, Dummy, Dummy),
             (Dummy, Dummy, Dummy),
             (Dummy, Dummy, Dummy),
         ]);
-        test_serialize(vec![
+        test_canonical_serialize_deserialize(true, &vec![
             (86u8, 98u64, Dummy),
             (86u8, 98u64, Dummy),
             (86u8, 98u64, Dummy),
@@ -963,22 +996,22 @@ mod test {
 
     #[test]
     fn test_option() {
-        test_serialize(Some(Dummy));
-        test_serialize(None::<Dummy>);
+        test_canonical_serialize_deserialize(true, &Some(Dummy));
+        test_canonical_serialize_deserialize(true, &None::<Dummy>);
 
-        test_serialize(Some(10u64));
-        test_serialize(None::<u64>);
+        test_canonical_serialize_deserialize(true, &Some(10u64));
+        test_canonical_serialize_deserialize(true, &None::<u64>);
     }
 
     #[test]
     fn test_rc() {
-        test_serialize(Rc::new(Dummy));
+        test_canonical_serialize_deserialize(true, &Rc::new(Dummy));
     }
 
     #[test]
     fn test_bool() {
-        test_serialize(true);
-        test_serialize(false);
+        test_canonical_serialize_deserialize(true, &true);
+        test_canonical_serialize_deserialize(true, &false);
 
         let valid_mutation = |data: &[u8]| -> bool {
             return data.len() == 1 && data[0] > 1;
@@ -994,11 +1027,11 @@ mod test {
         let mut map = BTreeMap::new();
         map.insert(0u64, Dummy);
         map.insert(5u64, Dummy);
-        test_serialize(map);
+        test_canonical_serialize_deserialize(true, &map);
         let mut map = BTreeMap::new();
         map.insert(10u64, vec![1u8, 2u8, 3u8]);
         map.insert(50u64, vec![4u8, 5u8, 6u8]);
-        test_serialize(map);
+        test_canonical_serialize_deserialize(true, &map);
     }
 
     #[test]
@@ -1006,15 +1039,15 @@ mod test {
         let mut set = BTreeSet::new();
         set.insert(Dummy);
         set.insert(Dummy);
-        test_serialize(set);
+        test_canonical_serialize_deserialize(true, &set);
         let mut set = BTreeSet::new();
         set.insert(vec![1u8, 2u8, 3u8]);
         set.insert(vec![4u8, 5u8, 6u8]);
-        test_serialize(set);
+        test_canonical_serialize_deserialize(true, &set);
     }
 
     #[test]
     fn test_phantomdata() {
-        test_serialize(std::marker::PhantomData::<Dummy>);
+        test_canonical_serialize_deserialize(false, &std::marker::PhantomData::<Dummy>);
     }
 }
