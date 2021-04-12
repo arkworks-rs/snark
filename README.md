@@ -57,7 +57,8 @@ Continuous performance improvement will be a key goal for all future releases an
 
 The high-level structure of the repository is as follows:
 
-* [`algebra`](algebra): Rust crate that provides all the mathematical "bricks": finite fields, elliptic curves, FFT.
+* [`algebra`](algebra): Rust crate that provides all the mathematical "bricks": finite fields and elliptic curves arithmetic as long as concrete instantiations.
+* [`algebra-utils`](algebra-utils): Rust crate that provides MSM and FFT implementations, both on CPU (single-thread and multi-thread), and GPU.
 * [`primitives`](primitives): Rust crate that implements all the key cryptographic primitives.
 * [`proof-systems`](proof-systems): Rust crate that implements the [Groth16](https://ia.cr/2016/260) and [GM17](https://ia.cr/2017/540) zk-SNARK proving systems.
 * [`r1cs-core`](r1cs/core): Rust crate that defines core interfaces for a Rank-1 Constraint System (R1CS).

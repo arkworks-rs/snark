@@ -20,7 +20,7 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "algebra_ocl", features = [ "parallel" ] }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "algebra_ocl_tmp", features = [ "parallel" ] }
 
 rand = { version = "0.7" }
 
@@ -39,12 +39,11 @@ bench-utils = { path = "../bench-utils" }
 algebra-utils = { path = "../algebra-utils", features = ["dev"] }
 
 [features]
-default = [ "parallel", "fft", "msm_affine" ]
+default = [ "parallel", "fft" ]
 dev = [ "bls12_381", "bn_382", "tweedle", "mnt4_753", "mnt6_753" ]
 
 parallel = [ "rayon" ]
 fft = []
-msm_affine = []
 gpu = [ "parallel", "algebra-kernels", "algebra-cl-gen" ]
 llvm_asm = [ "algebra/llvm_asm" ]
 
