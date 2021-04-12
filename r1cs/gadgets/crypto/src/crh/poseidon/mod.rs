@@ -24,10 +24,10 @@ pub mod mnt6753;
 #[cfg(feature = "mnt6_753")]
 pub use self::mnt6753::*;
 
-/*#[cfg(feature = "bn_382")]
+#[cfg(feature = "bn_382")]
 pub mod bn382;
 #[cfg(feature = "bn_382")]
-pub use self::bn382::*;*/
+pub use self::bn382::*;
 
 use primitives::SBox;
 
@@ -271,77 +271,23 @@ mod test {
         }
     }
 
-    /*
+    #[cfg(feature = "bn_382")]
     #[test]
     fn crh_bn382_fr_primitive_gadget_test() {
+        use crate::BN382FrPoseidonHashGadget;
 
-        let mut rng = &mut thread_rng();
-        let mut cs = TestConstraintSystem::<BN382Fr>::new();
-
-        let mut vec_elem = Vec::new();
-        let v1 = BN382Fr::rand(&mut rng);
-        let v2 = BN382Fr::rand(&mut rng);
-        vec_elem.push(v1);
-        vec_elem.push(v2);
-
-        let primitive_result = {
-            let mut digest = BN382FrPoseidonHash::init(None);
-            vec_elem.into_iter().for_each(|elem| { digest.update(elem); });
-            digest.finalize()
-        };
-
-        let v1_gadget = BN382FrGadget::alloc(cs.ns(|| "alloc_v1"),|| Ok(v1)).unwrap();
-        let v2_gadget = BN382FrGadget::alloc(cs.ns(|| "alloc_v2"),|| Ok(v2)).unwrap();
-
-        let mut vec_elem_gadget = Vec::new();
-        vec_elem_gadget.push(v1_gadget);
-        vec_elem_gadget.push(v2_gadget);
-
-        let gadget_result =
-            BN382FrPoseidonHashGadget::check_evaluation_gadget(
-                cs.ns(||"check_poseidon_gadget"),
-                vec_elem_gadget.as_slice()).unwrap();
-
-        println!("number of constraints total: {}", cs.num_constraints());
-
-        assert_eq!(primitive_result, gadget_result.value.unwrap());
-        assert!(cs.is_satisfied());
+        for ins in 1..=3 {
+            constant_length_field_based_hash_gadget_native_test::<_, _, BN382FrPoseidonHashGadget>(generate_inputs(ins));
+        }
     }
 
+    #[cfg(feature = "bn_382")]
     #[test]
     fn crh_bn382_fq_primitive_gadget_test() {
+        use crate::BN382FqPoseidonHashGadget;
 
-        let mut rng = &mut thread_rng();
-        let mut cs = TestConstraintSystem::<BN382Fq>::new();
-
-        let mut vec_elem = Vec::new();
-        let v1 = BN382Fq::rand(&mut rng);
-        let v2 = BN382Fq::rand(&mut rng);
-        vec_elem.push(v1);
-        vec_elem.push(v2);
-
-        let primitive_result = {
-            let mut digest = BN382FqPoseidonHash::init(None);
-            vec_elem.into_iter().for_each(|elem| { digest.update(elem); });
-            digest.finalize()
-        };
-
-        let v1_gadget = BN382FqGadget::alloc(cs.ns(|| "alloc_v1"),|| Ok(v1)).unwrap();
-        let v2_gadget = BN382FqGadget::alloc(cs.ns(|| "alloc_v2"),|| Ok(v2)).unwrap();
-
-        let mut vec_elem_gadget = Vec::new();
-        vec_elem_gadget.push(v1_gadget);
-        vec_elem_gadget.push(v2_gadget);
-
-        let gadget_result =
-            BN382FqPoseidonHashGadget::check_evaluation_gadget(
-                cs.ns(||"check_poseidon_gadget"),
-                vec_elem_gadget.as_slice()).unwrap();
-
-        println!("number of constraints total: {}", cs.num_constraints());
-
-        assert_eq!(primitive_result, gadget_result.value.unwrap());
-        assert!(cs.is_satisfied());
+        for ins in 1..=3 {
+            constant_length_field_based_hash_gadget_native_test::<_, _, BN382FqPoseidonHashGadget>(generate_inputs(ins));
+        }
     }
-    */
 }
