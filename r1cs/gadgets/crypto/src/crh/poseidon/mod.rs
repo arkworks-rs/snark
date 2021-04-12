@@ -24,12 +24,10 @@ pub mod mnt6753;
 #[cfg(feature = "mnt6_753")]
 pub use self::mnt6753::*;
 
-/*
 #[cfg(feature = "tweedle")]
 pub mod tweedle;
 #[cfg(feature = "tweedle")]
 pub use self::tweedle::*;
-*/
 
 #[cfg(feature = "bn_382")]
 pub mod bn382;
@@ -299,75 +297,23 @@ mod test {
         }
     }
 
-    /*#[test]
+    #[cfg(feature = "tweedle")]
+    #[test]
     fn crh_tweedle_fr_primitive_gadget_test() {
+        use crate::TweedleFrPoseidonHashGadget;
 
-        let mut rng = &mut thread_rng();
-        let mut cs = TestConstraintSystem::<TweedleFr>::new();
-
-        let mut vec_elem = Vec::new();
-        let v1 = TweedleFr::rand(&mut rng);
-        let v2 = TweedleFr::rand(&mut rng);
-        vec_elem.push(v1);
-        vec_elem.push(v2);
-
-        let primitive_result = {
-            let mut digest = TweedleFrPoseidonHash::init(None);
-            vec_elem.into_iter().for_each(|elem| { digest.update(elem); });
-            digest.finalize()
-        };
-
-        let v1_gadget = TweedleFrGadget::alloc(cs.ns(|| "alloc_v1"),|| Ok(v1)).unwrap();
-        let v2_gadget = TweedleFrGadget::alloc(cs.ns(|| "alloc_v2"),|| Ok(v2)).unwrap();
-
-        let mut vec_elem_gadget = Vec::new();
-        vec_elem_gadget.push(v1_gadget);
-        vec_elem_gadget.push(v2_gadget);
-
-        let gadget_result =
-            TweedleFrPoseidonHashGadget::check_evaluation_gadget(
-                cs.ns(||"check_poseidon_gadget"),
-                vec_elem_gadget.as_slice()).unwrap();
-
-        println!("number of constraints total: {}", cs.num_constraints());
-
-        assert_eq!(primitive_result, gadget_result.value.unwrap());
-        assert!(cs.is_satisfied());
+        for ins in 1..=3 {
+            constant_length_field_based_hash_gadget_native_test::<_, _, TweedleFrPoseidonHashGadget>(generate_inputs(ins));
+        }
     }
 
+    #[cfg(feature = "tweedle")]
     #[test]
     fn crh_tweedle_fq_primitive_gadget_test() {
+        use crate::TweedleFqPoseidonHashGadget;
 
-        let mut rng = &mut thread_rng();
-        let mut cs = TestConstraintSystem::<TweedleFq>::new();
-
-        let mut vec_elem = Vec::new();
-        let v1 = TweedleFq::rand(&mut rng);
-        let v2 = TweedleFq::rand(&mut rng);
-        vec_elem.push(v1);
-        vec_elem.push(v2);
-
-        let primitive_result = {
-            let mut digest = TweedleFqPoseidonHash::init(None);
-            vec_elem.into_iter().for_each(|elem| { digest.update(elem); });
-            digest.finalize()
-        };
-
-        let v1_gadget = TweedleFqGadget::alloc(cs.ns(|| "alloc_v1"),|| Ok(v1)).unwrap();
-        let v2_gadget = TweedleFqGadget::alloc(cs.ns(|| "alloc_v2"),|| Ok(v2)).unwrap();
-
-        let mut vec_elem_gadget = Vec::new();
-        vec_elem_gadget.push(v1_gadget);
-        vec_elem_gadget.push(v2_gadget);
-
-        let gadget_result =
-            TweedleFqPoseidonHashGadget::check_evaluation_gadget(
-                cs.ns(||"check_poseidon_gadget"),
-                vec_elem_gadget.as_slice()).unwrap();
-
-        println!("number of constraints total: {}", cs.num_constraints());
-
-        assert_eq!(primitive_result, gadget_result.value.unwrap());
-        assert!(cs.is_satisfied());
-    }*/
+        for ins in 1..=3 {
+            constant_length_field_based_hash_gadget_native_test::<_, _, TweedleFqPoseidonHashGadget>(generate_inputs(ins));
+        }
+    }
 }

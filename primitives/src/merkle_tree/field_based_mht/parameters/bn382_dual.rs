@@ -9,7 +9,7 @@ use crate::{
     FieldBasedMerkleTreePrecomputedEmptyConstants,
 };
 
-// PoseidonHash("This represents an empty Merkle Root for a BN382PoseidonHash based Merkle Tree.")
+// PoseidonHash("This represents an empty Merkle Root for a BN382FqPoseidonHash based Merkle Tree.")
 pub const BN382_DUAL_PHANTOM_MERKLE_ROOT: BN382Fq =
     field_new!(BN382Fq, BigInteger384([
         8979936313940592922,
