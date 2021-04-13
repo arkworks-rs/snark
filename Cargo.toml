@@ -44,3 +44,9 @@ debug = true
 # [patch.'https://github.com/HorizenOfficial/ginger-algebra-ocl']
 # algebra-kernels = { path = '../ginger-algebra-ocl/algebra-kernels' }
 # algebra-cl-gen = { path = '../ginger-algebra-ocl/algebra-cl-gen' }
+
+#[patch.'https://github.com/HorizenLabs/marlin']
+#marlin = { path = '../marlin' }
+#
+#[patch.'https://github.com/HorizenLabs/poly-commit']
+#poly-commit = { path = '../poly-commit' }
