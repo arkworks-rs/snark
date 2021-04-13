@@ -299,7 +299,7 @@ impl<ConstraintF, G, GG> ToConstraintFieldGadget<ConstraintF> for FieldBasedSchn
     where
         ConstraintF: PrimeField,
         G: Group,
-        GG: GroupGadget<G, ConstraintF, Value = G>  + ToConstraintFieldGadget<ConstraintF, FieldGadget = FpGadget<ConstraintF>>,
+        GG: GroupGadget<G, ConstraintF, Value = G> + ToConstraintFieldGadget<ConstraintF, FieldGadget = FpGadget<ConstraintF>>,
 {
     type FieldGadget = FpGadget<ConstraintF>;
 

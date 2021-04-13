@@ -15,6 +15,32 @@ pub struct DensePolynomial<F: Field> {
     pub coeffs: Vec<F>,
 }
 
+impl<F: Field> algebra::ToBytes for DensePolynomial<F>
+{
+    fn write<W: std::io::Write>(&self, mut w: W) -> std::io::Result<()> {
+        (self.coeffs.len() as u64).write(&mut w)?;
+        for c in self.coeffs.iter() {
+            c.write(&mut w)?;
+        }
+        Ok(())
+    }
+}
+
+impl<F: Field> algebra::FromBytes for DensePolynomial<F>
+{
+    fn read<Read: std::io::Read>(mut reader: Read) -> std::io::Result<DensePolynomial<F>> {
+        let mut coeffs = vec![];
+        let coeffs_count = u64::read(&mut reader)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+        for _ in 0..coeffs_count {
+            let coeff = F::read(&mut reader)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+            coeffs.push(coeff);
+        }
+        Ok(DensePolynomial::from_coefficients_vec(coeffs))
+    }
+}
+
 impl<F: Field> fmt::Debug for DensePolynomial<F> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         for (i, coeff) in self.coeffs.iter().enumerate().filter(|(_, c)| !c.is_zero()) {

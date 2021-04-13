@@ -135,6 +135,10 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
         }
     }
 
+    pub fn get_leaves(&self) -> &[T::Data] {
+        &self.array_nodes[self.initial_pos[0]..self.new_elem_pos[0]]
+    }
+
     fn batch_hash(input: &mut [T::Data], output: &mut [T::Data], parent_level: usize) {
 
         let mut i = 0;
@@ -349,12 +353,17 @@ mod test {
         let height = 20;
         let num_leaves = 2usize.pow(height as u32);
         let mut tree = MNT4PoseidonMHT::init(height, num_leaves);
+        assert_eq!(tree.get_leaves().len(), 0);
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+        let mut leaves = Vec::new();
         for _ in 0..num_leaves {
-            tree.append(MNT4753Fr::rand(&mut rng));
+            let r = MNT4753Fr::rand(&mut rng);
+            leaves.push(r);
+            tree.append(r);
         }
         tree.finalize_in_place();
         assert_eq!(tree.root().unwrap(), expected_output, "Output of the Merkle tree computation for MNT4 does not match to the expected value.");
+        assert_eq!(tree.get_leaves(), leaves.as_slice(), "");
     }
 
     #[test]
@@ -363,12 +372,17 @@ mod test {
         let height = 20;
         let num_leaves = 2usize.pow(height as u32);
         let mut tree = MNT6PoseidonMHT::init(height, num_leaves);
+        assert_eq!(tree.get_leaves().len(), 0);
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+        let mut leaves = Vec::new();
         for _ in 0..num_leaves {
-            tree.append(MNT6753Fr::rand(&mut rng));
+            let r = MNT6753Fr::rand(&mut rng);
+            leaves.push(r);
+            tree.append(r);
         }
         tree.finalize_in_place();
         assert_eq!(tree.root().unwrap(), expected_output, "Output of the Merkle tree computation for MNT6 does not match to the expected value.");
+        assert_eq!(tree.get_leaves(), leaves.as_slice());
     }
 
     #[test]
