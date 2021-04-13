@@ -23,9 +23,9 @@ fn bench_batch_verification<G1: AffineCurve, G2: AffineCurve, D: Digest>(
     segment_size: usize,
     max_proofs: Vec<usize>,
 )
-where
-    G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
-    G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
+    where
+        G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
+        G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
 {
     let rng = &mut XorShiftRng::seed_from_u64(1234567890u64);
     let mut group = c.benchmark_group(bench_name);
@@ -58,15 +58,15 @@ where
 
         group.bench_with_input(BenchmarkId::from_parameter(num_proofs), &num_proofs, |bn, _num_proofs| {
             bn.iter(|| {
-                    assert!(batch_verify_proofs::<G1, G2, D, _>(
-                        pcds.as_slice(),
-                        vks.as_slice(),
-                        &verifier_key_g1,
-                        &verifier_key_g2,
-                        &mut thread_rng()
-                    ).unwrap());
-                });
+                assert!(batch_verify_proofs::<G1, G2, D, _>(
+                    pcds.as_slice(),
+                    vks.as_slice(),
+                    &verifier_key_g1,
+                    &verifier_key_g2,
+                    &mut thread_rng()
+                ).unwrap());
             });
+        });
     }
     group.finish();
 }

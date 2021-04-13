@@ -24,6 +24,11 @@ pub mod mnt6753;
 #[cfg(feature = "mnt6_753")]
 pub use self::mnt6753::*;
 
+#[cfg(feature = "tweedle")]
+pub mod tweedle;
+#[cfg(feature = "tweedle")]
+pub use self::tweedle::*;
+
 #[cfg(feature = "bn_382")]
 pub mod bn382;
 #[cfg(feature = "bn_382")]
@@ -268,10 +273,12 @@ mod test {
         FieldBasedHash,
         MNT4PoseidonHash, MNT6PoseidonHash,
         BN382FrPoseidonHash, BN382FqPoseidonHash,
+        TweedleFrPoseidonHash, TweedleFqPoseidonHash,
     };
     use crate::{
         MNT4PoseidonHashGadget, MNT6PoseidonHashGadget,
         BN382FqPoseidonHashGadget, BN382FrPoseidonHashGadget,
+        TweedleFqPoseidonHashGadget, TweedleFrPoseidonHashGadget,
     };
     use r1cs_std::{
         alloc::AllocGadget,
@@ -280,6 +287,8 @@ mod test {
             mnt6_753::FqGadget as Mnt4FieldGadget,
             bn_382::FqGadget as BN382FqGadget,
             bn_382::g::FqGadget as BN382FrGadget,
+            tweedle::FqGadget as TweedleFqGadget,
+            tweedle::FrGadget as TweedleFrGadget,
         }
     };
     use r1cs_core::ConstraintSystem;
@@ -291,6 +300,8 @@ mod test {
         mnt6753::Fr as MNT6753Fr,
         bn_382::Fr as BN382Fr,
         bn_382::Fq as BN382Fq,
+        tweedle::Fr as TweedleFr,
+        tweedle::Fq as TweedleFq,
     };
 
     #[test]
@@ -428,6 +439,78 @@ mod test {
 
         let gadget_result =
             BN382FqPoseidonHashGadget::check_evaluation_gadget(
+                cs.ns(||"check_poseidon_gadget"),
+                vec_elem_gadget.as_slice()).unwrap();
+
+        println!("number of constraints total: {}", cs.num_constraints());
+
+        assert_eq!(primitive_result, gadget_result.value.unwrap());
+        assert!(cs.is_satisfied());
+    }
+
+    #[test]
+    fn crh_tweedle_fr_primitive_gadget_test() {
+
+        let mut rng = &mut thread_rng();
+        let mut cs = TestConstraintSystem::<TweedleFr>::new();
+
+        let mut vec_elem = Vec::new();
+        let v1 = TweedleFr::rand(&mut rng);
+        let v2 = TweedleFr::rand(&mut rng);
+        vec_elem.push(v1);
+        vec_elem.push(v2);
+
+        let primitive_result = {
+            let mut digest = TweedleFrPoseidonHash::init(None);
+            vec_elem.into_iter().for_each(|elem| { digest.update(elem); });
+            digest.finalize()
+        };
+
+        let v1_gadget = TweedleFrGadget::alloc(cs.ns(|| "alloc_v1"),|| Ok(v1)).unwrap();
+        let v2_gadget = TweedleFrGadget::alloc(cs.ns(|| "alloc_v2"),|| Ok(v2)).unwrap();
+
+        let mut vec_elem_gadget = Vec::new();
+        vec_elem_gadget.push(v1_gadget);
+        vec_elem_gadget.push(v2_gadget);
+
+        let gadget_result =
+            TweedleFrPoseidonHashGadget::check_evaluation_gadget(
+                cs.ns(||"check_poseidon_gadget"),
+                vec_elem_gadget.as_slice()).unwrap();
+
+        println!("number of constraints total: {}", cs.num_constraints());
+
+        assert_eq!(primitive_result, gadget_result.value.unwrap());
+        assert!(cs.is_satisfied());
+    }
+
+    #[test]
+    fn crh_tweedle_fq_primitive_gadget_test() {
+
+        let mut rng = &mut thread_rng();
+        let mut cs = TestConstraintSystem::<TweedleFq>::new();
+
+        let mut vec_elem = Vec::new();
+        let v1 = TweedleFq::rand(&mut rng);
+        let v2 = TweedleFq::rand(&mut rng);
+        vec_elem.push(v1);
+        vec_elem.push(v2);
+
+        let primitive_result = {
+            let mut digest = TweedleFqPoseidonHash::init(None);
+            vec_elem.into_iter().for_each(|elem| { digest.update(elem); });
+            digest.finalize()
+        };
+
+        let v1_gadget = TweedleFqGadget::alloc(cs.ns(|| "alloc_v1"),|| Ok(v1)).unwrap();
+        let v2_gadget = TweedleFqGadget::alloc(cs.ns(|| "alloc_v2"),|| Ok(v2)).unwrap();
+
+        let mut vec_elem_gadget = Vec::new();
+        vec_elem_gadget.push(v1_gadget);
+        vec_elem_gadget.push(v2_gadget);
+
+        let gadget_result =
+            TweedleFqPoseidonHashGadget::check_evaluation_gadget(
                 cs.ns(||"check_poseidon_gadget"),
                 vec_elem_gadget.as_slice()).unwrap();
 

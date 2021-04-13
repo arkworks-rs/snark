@@ -36,14 +36,14 @@ debug = true
 
 # Uncomment these lines for local development paths
 
-#[patch.'https://github.com/HorizenOfficial/ginger-lib']
-#algebra = { path = './algebra' }
-#algebra-utils = { path = "./algebra-utils" }
-#r1cs-core = { path = "./r1cs/core" }
+# [patch.'https://github.com/HorizenOfficial/ginger-lib']
+# algebra = { path = './algebra' }
+# algebra-utils = { path = "./algebra-utils" }
+# r1cs-core = { path = "./r1cs/core" }
 #
-#[patch.'https://github.com/HorizenOfficial/ginger-algebra-ocl']
-#algebra-kernels = { path = '../ginger-algebra-ocl/algebra-kernels' }
-#algebra-cl-gen = { path = '../ginger-algebra-ocl/algebra-cl-gen' }
+# [patch.'https://github.com/HorizenOfficial/ginger-algebra-ocl']
+# algebra-kernels = { path = '../ginger-algebra-ocl/algebra-kernels' }
+# algebra-cl-gen = { path = '../ginger-algebra-ocl/algebra-cl-gen' }
 #
 #[patch.'https://github.com/HorizenLabs/marlin']
 #marlin = { path = '../marlin' }
