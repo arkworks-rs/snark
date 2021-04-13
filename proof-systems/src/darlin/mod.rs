@@ -32,8 +32,8 @@ use std::marker::PhantomData;
 
 
 /// FinalDarlin proving system. For now, mainly a wrapper for SimpleMarlin calls.
-type FinalDarlinProverKey<F, PC> = MarlinProverKey<F, PC>;
-type FinalDarlinVerifierKey<F, PC> = MarlinVerifierKey<F, PC>;
+pub type FinalDarlinProverKey<F, PC> = MarlinProverKey<F, PC>;
+pub type FinalDarlinVerifierKey<F, PC> = MarlinVerifierKey<F, PC>;
 
 pub struct FinalDarlin<'a, G1: AffineCurve, G2: AffineCurve, D: Digest>(
     #[doc(hidden)] PhantomData<G1>,
