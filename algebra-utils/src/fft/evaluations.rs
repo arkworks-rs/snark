@@ -5,6 +5,7 @@ use algebra::{PrimeField, serialize::*};
 use crate::{DensePolynomial, EvaluationDomain, get_best_evaluation_domain};
 
 /// Stores a polynomial in evaluation form.
+#[derive(Debug)]
 pub struct Evaluations<F: PrimeField> {
     /// The evaluations of a polynomial over the domain `D`
     pub evals: Vec<F>,

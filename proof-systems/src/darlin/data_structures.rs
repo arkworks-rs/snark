@@ -1,4 +1,4 @@
-use algebra::{AffineCurve, ToConstraintField, ToBits, ProjectiveCurve, UniformRand};
+use algebra::{AffineCurve, ToConstraintField, ToBits, ProjectiveCurve, UniformRand, serialize::*};
 use marlin::Proof as MarlinProof;
 use crate::darlin::accumulators::dlog::DLogItem;
 use poly_commit::ipa_pc::{
@@ -9,7 +9,7 @@ use digest::Digest;
 use rand::RngCore;
 
 // Maybe later this will include more element as we will deferr algebraic checks over G1::BaseField
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, Eq, PartialEq, CanonicalSerialize, CanonicalDeserialize)]
 pub struct FinalDarlinDeferredData<G1: AffineCurve, G2: AffineCurve> {
     pub(crate) previous_acc:       DLogItem<G2>,
     pub(crate) pre_previous_acc:   DLogItem<G1>,
@@ -111,7 +111,8 @@ impl<G1, G2> ToConstraintField<G1::ScalarField> for FinalDarlinDeferredData<G1, 
 }
 
 #[derive(Derivative)]
-#[derivative(Clone(bound = ""))]
+#[derivative(Clone(bound = ""), Debug(bound = ""), Eq(bound = ""), PartialEq(bound = ""))]
+#[derive(CanonicalSerialize, CanonicalDeserialize)]
 /// FinalDarlinProof with two deferred DLOG accumulators.
 pub struct FinalDarlinProof<G1: AffineCurve, G2: AffineCurve, D: Digest> {
     /// Full Marlin proof without deferred arithmetics in G1.

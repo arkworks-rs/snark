@@ -6,10 +6,7 @@ use poly_commit::{
 use proof_systems::darlin::{
     tests::{
         get_keys,
-        final_darlin::{
-            generate_test_pcd as generate_final_darlin_test_pcd,
-            Circuit
-        }
+        final_darlin::generate_test_data as generate_final_darlin_test_data
     },
     proof_aggregator::batch_verify_proofs,
 };
@@ -17,8 +14,7 @@ use digest::Digest;
 use criterion::*;
 use rand::{thread_rng, SeedableRng};
 use blake2::Blake2s;
-use proof_systems::darlin::pcd::{GeneralPCD, PCDParameters};
-use proof_systems::darlin::pcd::final_darlin::FinalDarlinDeferredData;
+use proof_systems::darlin::pcd::GeneralPCD;
 use rand_xorshift::XorShiftRng;
 
 fn bench_batch_verification<G1: AffineCurve, G2: AffineCurve, D: Digest>(
@@ -40,48 +36,25 @@ where
     let params_g2 = InnerProductArgPC::<G2, D>::setup(segment_size - 1).unwrap();
 
     let (
-        committer_key_g1, verifier_key_g1,
-        committer_key_g2, verifier_key_g2
+        _, verifier_key_g1,
+        _, verifier_key_g2
     ) = get_keys::<_, _, D>(&params_g1, &params_g2);
 
-    // Generate Marlin keys
-
-    // Generate random (but valid) deferred data
-    let deferred = FinalDarlinDeferredData::<G1, G2>::generate_random::<_, D>(
-        rng,
-        &committer_key_g1,
-        &committer_key_g2,
-    );
-
-    let circ = Circuit {
-        a: None,
-        b: None,
-        num_constraints: num_constraints - 1,
-        num_variables: num_constraints/2,
-        deferred: deferred.clone()
-    };
-
-    let (index_pk, index_vk) = PCDParameters {segment_size}.circuit_specific_setup(
-        circ.clone(),
-        &committer_key_g1
-    ).unwrap();
-
-    // Generate pcd
-    let final_darlin_pcd = generate_final_darlin_test_pcd::<G1, G2, D, _>(
-        &committer_key_g1,
-        deferred,
-        &index_pk,
-        num_constraints - 1,
-        false,
-        rng,
+    let (final_darlin_pcd, index_vk) = generate_final_darlin_test_data::<G1, G2, D, _>(
+        num_constraints,
+        segment_size,
+        &params_g1,
+        &params_g2,
+        1,
+        rng
     );
 
     // Generate proofs and bench
     for num_proofs in max_proofs.into_iter() {
 
         // Collect PCDs and vks
-        let pcds = vec![GeneralPCD::FinalDarlin(final_darlin_pcd.clone()); num_proofs];
-        let vks = vec![index_vk.clone(); num_proofs];
+        let pcds = vec![GeneralPCD::FinalDarlin(final_darlin_pcd[0].clone()); num_proofs];
+        let vks = vec![index_vk[0].clone(); num_proofs];
 
         group.bench_with_input(BenchmarkId::from_parameter(num_proofs), &num_proofs, |bn, _num_proofs| {
             bn.iter(|| {

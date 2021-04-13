@@ -1,4 +1,4 @@
-use algebra::{Field, AffineCurve, ProjectiveCurve, ToBytes, to_bytes, UniformRand};
+use algebra::{Field, AffineCurve, ProjectiveCurve, ToBytes, to_bytes, UniformRand, serialize::*};
 use algebra_utils::polynomial::DensePolynomial as Polynomial;
 use poly_commit::{ipa_pc::{
     InnerProductArgPC,
@@ -15,7 +15,7 @@ use digest::Digest;
 use std::marker::PhantomData;
 
 /// This implements the public aggregator for the IPA/DLOG commitment scheme.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq, CanonicalSerialize, CanonicalDeserialize)]
 pub struct DLogItem<G: AffineCurve> {
     /// Final committer key after the DLOG reduction.
     pub(crate) g_final:     Commitment<G>,
@@ -34,7 +34,7 @@ impl<G: AffineCurve> Default for DLogItem<G> {
 }
 
 impl<G: AffineCurve> ToBytes for DLogItem<G> {
-    fn write<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+    fn write<W: Write>(&self, mut writer: W) -> std::io::Result<()> {
         self.g_final.write(&mut writer)?;
         self.xi_s.0.write(&mut writer)
     }
@@ -289,7 +289,7 @@ pub struct DualDLogItem<G1: AffineCurve, G2: AffineCurve>(
 );
 
 impl<G1: AffineCurve, G2: AffineCurve> ToBytes for DualDLogItem<G1, G2> {
-    fn write<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+    fn write<W: Write>(&self, mut writer: W) -> std::io::Result<()> {
         self.0.write(&mut writer)?;
         self.1.write(&mut writer)
     }
@@ -434,6 +434,8 @@ mod test {
             max_degree.unwrap_or(rand::distributions::Uniform::from(2..=64).sample(rng));
         let pp = if pp.is_some() { pp.unwrap() } else { InnerProductArgPC::<G, D>::setup(max_degree)? };
 
+        test_canonical_serialize_deserialize(true, &pp);
+
         let supported_degree = match supported_degree {
             Some(0) => 0,
             Some(d) => d,
@@ -522,6 +524,9 @@ mod test {
         )?;
         println!("Trimmed");
 
+        test_canonical_serialize_deserialize(true, &ck);
+        test_canonical_serialize_deserialize(true, &vk);
+
         let (comms, rands) = InnerProductArgPC::<G, D>::commit(&ck, &polynomials, Some(rng))?;
 
         // Construct query set
@@ -548,6 +553,8 @@ mod test {
             &rands,
             Some(rng),
         )?;
+
+        test_canonical_serialize_deserialize(true, &proof);
 
         Ok(VerifierData {
             vk,
@@ -580,7 +587,13 @@ mod test {
         };
 
         let pp = InnerProductArgPC::<G, D>::setup(max_degree)?;
+
+        test_canonical_serialize_deserialize(true, &pp);
+
         let (ck, vk) = InnerProductArgPC::<G, D>::trim(&pp, max_degree)?;
+
+        test_canonical_serialize_deserialize(true, &ck);
+        test_canonical_serialize_deserialize(true, &vk);
 
         for num_proofs in 1..20 {
 
@@ -625,13 +638,17 @@ mod test {
                 .into_iter()
                 .zip(g_fins)
                 .map(|(xi_s, g_final)| {
-                    DLogItem::<G> { g_final: Commitment::<G> {comm: vec![g_final], shifted_comm: None},  xi_s }
+                    let acc = DLogItem::<G> { g_final: Commitment::<G> {comm: vec![g_final], shifted_comm: None},  xi_s };
+                    test_canonical_serialize_deserialize(true, &acc);
+                    acc
                 }).collect::<Vec<_>>();
 
             let (_, proof) = DLogItemAccumulator::<G, D>::accumulate_items(
                 &ck,
                 accumulators.clone(),
             )?;
+
+            test_canonical_serialize_deserialize(true, &proof);
 
             // Verifier side
             let dummy = DLogItem::<G>::default();
@@ -667,6 +684,9 @@ mod test {
 
         let pp = InnerProductArgPC::<G, D>::setup(max_degree)?;
         let (_, vk) = InnerProductArgPC::<G, D>::trim(&pp, max_degree)?;
+
+        test_canonical_serialize_deserialize(true, &pp);
+        test_canonical_serialize_deserialize(true, &vk);
 
         for num_proofs in 1..20 {
 
@@ -710,7 +730,9 @@ mod test {
                 .into_iter()
                 .zip(g_fins)
                 .map(|(xi_s, g_final)| {
-                    DLogItem::<G> { g_final: Commitment::<G> {comm: vec![g_final], shifted_comm: None},  xi_s }
+                    let acc = DLogItem::<G> { g_final: Commitment::<G> {comm: vec![g_final], shifted_comm: None},  xi_s };
+                    test_canonical_serialize_deserialize(true, &acc);
+                    acc
                 }).collect::<Vec<_>>();
 
             assert!(

@@ -1,4 +1,4 @@
-use algebra::AffineCurve;
+use algebra::{AffineCurve, serialize::*};
 use rand::RngCore;
 use poly_commit::{
     ipa_pc::Proof,
@@ -10,7 +10,7 @@ pub mod dlog;
 
 /// General struct of a proof for an amortization strategy not
 /// based on a separate definition of an information-theoretic protocol.
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug, Eq, PartialEq, CanonicalSerialize, CanonicalDeserialize)]
 pub struct AccumulationProof<G: AffineCurve> {
     /// Commitments to the polynomials produced by the prover.
     pub commitments: Vec<Vec<Commitment<G>>>,
