@@ -6,7 +6,6 @@
 #![deny(unused_comparisons, bare_trait_objects, unused_must_use, const_err)]
 #![forbid(unsafe_code)]
 
-#[cfg(any(feature = "groth16", feature = "gm17"))]
 #[macro_use]
 extern crate bench_utils;
 
