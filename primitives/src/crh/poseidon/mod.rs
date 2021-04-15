@@ -138,7 +138,7 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
 
             // Apply padding (according to the variable length input strategy)
             personalization_instance.update(F::one());
-            for _ in personalization_instance.pending.len()..P::R {
+            while personalization_instance.pending.len() != 0 {
                 personalization_instance.update(F::zero());
             }
             assert_eq!(personalization_instance.pending.len(), 0);
