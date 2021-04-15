@@ -50,7 +50,7 @@ pub trait PoseidonParameters: 'static + FieldBasedHashParameters + Clone {
     /// Perform scalar multiplication between vectors `res` and `state`,
     /// modifying `res` in place.
     #[inline]
-    fn scalar_mul(
+    fn dot_product(
         res: &mut <Self as FieldBasedHashParameters>::Fr,
         state: &mut [<Self as FieldBasedHashParameters>::Fr],
         mut start_idx_cst: usize
@@ -71,7 +71,7 @@ pub trait PoseidonParameters: 'static + FieldBasedHashParameters + Clone {
 
         let mut idx_cst = 0;
         for i in 0..Self::T {
-            Self::scalar_mul(&mut new_state[i], state, idx_cst);
+            Self::dot_product(&mut new_state[i], state, idx_cst);
             idx_cst += Self::T;
         }
         *state = new_state;

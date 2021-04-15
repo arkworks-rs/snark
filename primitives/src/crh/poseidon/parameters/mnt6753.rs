@@ -294,7 +294,7 @@ impl PoseidonParameters for MNT6753PoseidonParameters {
 
     /// Short Montgomery multiplication with respect to the short Montgomery constant R_2=2^64
     #[inline]
-    fn scalar_mul(res: &mut Fr, state: &mut [Fr], mut start_idx_cst: usize) {
+    fn dot_product(res: &mut Fr, state: &mut [Fr], mut start_idx_cst: usize) {
         state.iter().for_each(|&x| {
             let elem = Self::MDS_CST_SHORT[start_idx_cst].mul_short(x);
             start_idx_cst += 1;
