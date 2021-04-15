@@ -50,7 +50,7 @@ pub trait PoseidonParameters: 'static + FieldBasedHashParameters + Clone {
     /// Perform scalar multiplication between vectors `res` and `state`,
     /// modifying `res` in place.
     #[inline]
-    fn scalar_mul(
+    fn dot_product(
         res: &mut <Self as FieldBasedHashParameters>::Fr,
         state: &mut [<Self as FieldBasedHashParameters>::Fr],
         mut start_idx_cst: usize
@@ -71,7 +71,7 @@ pub trait PoseidonParameters: 'static + FieldBasedHashParameters + Clone {
 
         let mut idx_cst = 0;
         for i in 0..Self::T {
-            Self::scalar_mul(&mut new_state[i], state, idx_cst);
+            Self::dot_product(&mut new_state[i], state, idx_cst);
             idx_cst += Self::T;
         }
         *state = new_state;
@@ -127,23 +127,24 @@ impl<F, P, SB> PoseidonHash<F, P, SB>
         // is exactly as doing H(personalization, padding, ...). NOTE: this way of personalizing
         // the hash is not mentioned in https://eprint.iacr.org/2019/458.pdf
         if personalization.is_some(){
+            // Use a support variable-length non mod rate instance
+            let mut personalization_instance = Self::init_variable_length(false, None);
             let personalization = personalization.unwrap();
 
+            // Apply personalization
             for &p in personalization.into_iter(){
-                instance.update(p);
+                personalization_instance.update(p);
             }
 
-            let padding = if personalization.len() % P::R != 0 {
-                P::R - ( personalization.len() % P::R )
-            } else {
-                0
-            };
-
-            for _ in 0..padding {
-                instance.update(F::zero());
+            // Apply padding (according to the variable length input strategy)
+            personalization_instance.update(F::one());
+            for _ in personalization_instance.pending.len()..P::R {
+                personalization_instance.update(F::zero());
             }
-            assert_eq!(instance.pending.len(), 0);
-            instance.updates_ctr = 0;
+            assert_eq!(personalization_instance.pending.len(), 0);
+
+            // Set the new initial state
+            instance.state = personalization_instance.state;
         }
         instance
     }

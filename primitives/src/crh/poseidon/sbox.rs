@@ -13,6 +13,7 @@ impl<F: PrimeField, P: PoseidonParameters<Fr = F>> SBox for PoseidonInverseSBox<
     type Field = F;
     type Parameters = P;
 
+    // Uses batch inversion on the state.
     #[inline]
     fn apply_full(state: &mut Vec<F>) {
         // Apply the S-BOX to each of the elements of the state vector
@@ -61,6 +62,7 @@ impl<F: PrimeField, P: PoseidonParameters<Fr = F>> SBox for PoseidonInverseSBox<
 
 impl<F: PrimeField, P: PoseidonParameters<Fr = F>> BatchSBox for PoseidonInverseSBox<F, P> {
 
+    // Uses batch inversion across all instances in the batch.
     fn apply_full_batch(vec_state: &mut [Vec<F>]) {
         // Apply the S-BOX to each of the elements of the state vector
         // Use batch inversion
@@ -104,6 +106,7 @@ impl<F: PrimeField, P: PoseidonParameters<Fr = F>> BatchSBox for PoseidonInverse
         }
     }
 
+    // Uses batch inversion across all instances in the batch.
     fn apply_partial_batch(vec_state: &mut [Vec<F>]) {
         // Apply the S-BOX to the first elements of each of the state vector
         let mut w: Vec<F> = Vec::new();
