@@ -127,23 +127,24 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
         // is exactly as doing H(personalization, padding, ...). NOTE: this way of personalizing
         // the hash is not mentioned in https://eprint.iacr.org/2019/458.pdf
         if personalization.is_some(){
+            // Use a support variable-length non mod rate instance
+            let mut personalization_instance = Self::init_variable_length(false, None);
             let personalization = personalization.unwrap();
 
+            // Apply personalization
             for &p in personalization.into_iter(){
-                instance.update(p);
+                personalization_instance.update(p);
             }
 
-            let padding = if personalization.len() % P::R != 0 {
-                P::R - ( personalization.len() % P::R )
-            } else {
-                0
-            };
-
-            for _ in 0..padding {
-                instance.update(F::zero());
+            // Apply padding (according to the variable length input strategy)
+            personalization_instance.update(F::one());
+            for _ in personalization_instance.pending.len()..P::R {
+                personalization_instance.update(F::zero());
             }
-            assert_eq!(instance.pending.len(), 0);
-            instance.updates_ctr = 0;
+            assert_eq!(personalization_instance.pending.len(), 0);
+
+            // Set the new initial state
+            instance.state = personalization_instance.state;
         }
         instance
     }
