@@ -28,7 +28,7 @@ pub trait FieldBasedVrf {
         pp:      &Self::GHParams,
         pk:      &Self::PublicKey,
         sk:      &Self::SecretKey,
-        message: &[Self::Data],
+        message: Self::Data,
     ) -> Result<Self::Proof, Error>;
 
     // Verifies the VRF proof and returns the VRF output
@@ -36,7 +36,7 @@ pub trait FieldBasedVrf {
     (
         pp:      &Self::GHParams,
         pk:      &Self::PublicKey,
-        message: &[Self::Data],
+        message: Self::Data,
         proof:   &Self::Proof,
     ) -> Result<Self::Data, Error>;
 

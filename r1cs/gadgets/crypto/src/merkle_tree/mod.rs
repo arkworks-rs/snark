@@ -45,7 +45,7 @@ where
         leaf: impl ToBytesGadget<ConstraintF>,
         should_enforce: &Boolean,
     ) -> Result<(), SynthesisError> {
-        assert_eq!(self.path.len(), P::HEIGHT - 1);
+        debug_assert!(self.path.len() == P::HEIGHT);
 
         // Check that the hash of the given leaf matches the leaf hash in the membership
         // proof.
@@ -203,7 +203,7 @@ mod test {
     struct JubJubMerkleTreeParams;
 
     impl MerkleTreeConfig for JubJubMerkleTreeParams {
-        const HEIGHT: usize = 4;
+        const HEIGHT: usize = 3;
         type H = H;
     }
 

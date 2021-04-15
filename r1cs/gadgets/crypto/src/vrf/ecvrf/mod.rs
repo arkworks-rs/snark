@@ -286,24 +286,13 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
         group_hash_params: &Self::GHParametersGadget,
         public_key:        &Self::PublicKeyGadget,
         proof:             &Self::ProofGadget,
-        message:           &[Self::DataGadget]
+        message:           Self::DataGadget
     ) -> Result<Self::DataGadget, SynthesisError> {
 
         //Check mh = hash_to_curve(message)
-        let mut message_bytes = Vec::new();
-
-        for (i, field_gadget) in message.iter().enumerate() {
-            // The reason for a secure de-packing is not collision resistance (the non-restricted variant
-            // would be still), but that inside the circuit a field element might be proven to hash to
-            // one of two possible fingerprints (as there might be two different byte sequences satisfying
-            // the depacking constraint mod q). Hence via SNARKs the output of the VRF is not unique and
-            // can be chosen between two possible outputs, which is what we definitely do not want in the
-            // application of the VRF (the VRF is now rather a verifiable random relation, not function).
-            let field_gadget_bytes = field_gadget.to_bytes_strict(
-                cs.ns(|| format!("message_{}_to_bytes_restricted", i)),
-            )?;
-            message_bytes.extend_from_slice(field_gadget_bytes.as_slice())
-        }
+        let message_bytes = message.to_bytes_strict(
+            cs.ns(|| "message_to_bytes_restricted"),
+        )?;
 
         let message_on_curve = GHG::check_evaluation_gadget(
             cs.ns(|| "check message_on_curve"),
@@ -399,14 +388,14 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
         // Best constraints-efficiency is achieved when m is one field element
         // (or an odd number of field elements).
         let mut hash_input = Vec::new();
-        hash_input.extend_from_slice(message);
+        hash_input.push(message.clone());
         hash_input.push(public_key.pk.to_field_gadget_elements().unwrap()[0].clone());
         hash_input.push(u.to_field_gadget_elements().unwrap()[0].clone());
         hash_input.push(v.to_field_gadget_elements().unwrap()[0].clone());
 
-        let c_prime = FHG::check_evaluation_gadget(
+        let c_prime = FHG::enforce_hash_constant_length(
             cs.ns(|| "check c_prime"),
-            hash_input.as_slice()
+            hash_input.as_slice(),
         )?;
 
         //Enforce c = c'
@@ -414,12 +403,12 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
 
         //Check and return VRF output
         hash_input = Vec::new();
-        hash_input.extend_from_slice(message);
+        hash_input.push(message);
         hash_input.extend_from_slice(proof.gamma.to_field_gadget_elements().unwrap().as_slice());
 
-        let vrf_output = FHG::check_evaluation_gadget(
+        let vrf_output = FHG::enforce_hash_constant_length(
             cs.ns(|| "check vrf_output"),
-            hash_input.as_slice()
+            hash_input.as_slice(),
         )?;
 
         Ok(vrf_output)
@@ -513,12 +502,12 @@ mod test {
         BHMNT4,
         BHMNT6Gadget>;
 
-    fn prove<S: FieldBasedVrf, R: Rng>(rng: &mut R, pp: &S::GHParams, message: &[S::Data])
+    fn prove<S: FieldBasedVrf, R: Rng>(rng: &mut R, pp: &S::GHParams, message: S::Data)
         -> (S::Proof, S::PublicKey)
     {
         let (pk, sk) = S::keygen(rng);
         assert!(S::keyverify(&pk));
-        let proof = S::prove(rng, pp, &pk, &sk, &message).unwrap();
+        let proof = S::prove(rng, pp, &pk, &sk, message).unwrap();
         (proof, pk)
     }
 
@@ -547,7 +536,7 @@ mod test {
             &pp_g,
             &pk_g,
             &proof_g,
-            &[message_g.clone()]
+            message_g
         ).unwrap();
 
         if !cs.is_satisfied() {
@@ -563,7 +552,7 @@ mod test {
         let rng = &mut thread_rng();
         let message: MNT4Fr = rng.gen();
         let pp = <BHMNT6 as FixedLengthCRH>::setup(rng).unwrap();
-        let (proof, pk) = prove::<EcVrfMNT4, _>(rng, &pp, &[message]);
+        let (proof, pk) = prove::<EcVrfMNT4, _>(rng, &pp, message);
 
         //Positive case
         assert!(mnt4_ecvrf_gadget_generate_constraints(message, &pk, proof, &pp));
@@ -577,7 +566,7 @@ mod test {
         assert!(!mnt4_ecvrf_gadget_generate_constraints(message, &wrong_pk, proof, &pp));
 
         //Change proof
-        let (wrong_proof, _) = prove::<EcVrfMNT4, _>(rng, &pp, &[wrong_message]);
+        let (wrong_proof, _) = prove::<EcVrfMNT4, _>(rng, &pp, wrong_message);
         assert!(!mnt4_ecvrf_gadget_generate_constraints(message, &pk, wrong_proof, &pp));
     }
 
@@ -603,7 +592,7 @@ mod test {
             &pp_g,
             &pk_g,
             &proof_g,
-            &[message_g.clone()]
+            message_g
         ).unwrap();
 
         if !cs.is_satisfied() {
@@ -620,7 +609,7 @@ mod test {
         let rng = &mut thread_rng();
         let message: MNT6Fr = rng.gen();
         let pp = <BHMNT4 as FixedLengthCRH>::setup(rng).unwrap();
-        let (proof, pk) = prove::<EcVrfMNT6, _>(rng, &pp, &[message]);
+        let (proof, pk) = prove::<EcVrfMNT6, _>(rng, &pp, message);
 
         //Positive case
         assert!(mnt6_ecvrf_gadget_generate_constraints(message, &pk, proof, &pp));
@@ -634,7 +623,7 @@ mod test {
         assert!(!mnt6_ecvrf_gadget_generate_constraints(message, &wrong_pk, proof, &pp));
 
         //Change proof
-        let (wrong_proof, _) = prove::<EcVrfMNT6, _>(rng, &pp, &[wrong_message]);
+        let (wrong_proof, _) = prove::<EcVrfMNT6, _>(rng, &pp, wrong_message);
         assert!(!mnt6_ecvrf_gadget_generate_constraints(message, &pk, wrong_proof, &pp));
     }
 
@@ -649,7 +638,7 @@ mod test {
         let samples = 10;
         for _ in 0..samples {
             let message: MNT4Fr = rng.gen();
-            let (sig, pk) = prove::<EcVrfMNT4, _>(rng, &pp, &[message]);
+            let (sig, pk) = prove::<EcVrfMNT4, _>(rng, &pp, message);
             let mut cs = TestConstraintSystem::<MNT4Fr>::new();
 
             //Alloc proof, pk, hash params and message
@@ -679,7 +668,7 @@ mod test {
                 &pp_g,
                 &pk_g,
                 &proof_g,
-                &[message_g.clone()]
+                message_g
             ).unwrap();
 
             if !cs.is_satisfied() {
@@ -702,7 +691,7 @@ mod test {
                 &pp_g,
                 &pk_g,
                 &proof_g,
-                &[new_message_g.clone()]
+                new_message_g
             ).unwrap();
 
             assert!(!cs.is_satisfied());
