@@ -201,7 +201,6 @@ fn random_serialization_tests<F: Field, R: Rng>(rng: &mut R) {
 
 fn field_canonical_serialization_test<F: Field>(buf_size: usize) {
     let rng = &mut thread_rng();
-    println!("Buf size: {:?}", buf_size);
 
     for _ in 0..ITERATIONS {
         let a = F::rand(rng);

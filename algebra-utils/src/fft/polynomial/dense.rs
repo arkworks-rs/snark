@@ -17,7 +17,7 @@ pub struct DensePolynomial<F: Field> {
 
 impl<F: Field> algebra::ToBytes for DensePolynomial<F>
 {
-    fn write<W: std::io::Write>(&self, mut w: W) -> std::io::Result<()> {
+    fn write<W: Write>(&self, mut w: W) -> std::io::Result<()> {
         (self.coeffs.len() as u64).write(&mut w)?;
         for c in self.coeffs.iter() {
             c.write(&mut w)?;
