@@ -58,7 +58,6 @@ Continuous performance improvement will be a key goal for all future releases an
 The high-level structure of the repository is as follows:
 
 * [`algebra`](algebra): Rust crate that provides all the mathematical "bricks": finite fields and elliptic curves arithmetic as long as concrete instantiations.
-* [`algebra-utils`](algebra-utils): Rust crate that provides MSM and FFT implementations, both on CPU (single-thread and multi-thread), and GPU.
 * [`primitives`](primitives): Rust crate that implements all the key cryptographic primitives.
 * [`proof-systems`](proof-systems): Rust crate that implements the [Groth16](https://ia.cr/2016/260) and [GM17](https://ia.cr/2017/540) zk-SNARK proving systems.
 * [`r1cs-core`](r1cs/core): Rust crate that defines core interfaces for a Rank-1 Constraint System (R1CS).
@@ -125,13 +124,6 @@ To bench `algebra-benches` with greater accuracy, especially for functions with 
 ```bash
 cargo +nightly bench --features "n_fold"
 ```
-
-__Note:__ Some of the dependencies between the crates in GingerLib are specified via Git rather than via local paths: this is due to some cross-dependency errors between GingerLib's crates and some external crates. 
-One example of such errors is in crate `algebra-utils`: it depends both on `algebra` and on external crates located in [ginger-algebra-ocl](https://github.com/HorizenOfficial/ginger-algebra-ocl) depending on `algebra` too; if the version of `algebra` on which these crates depend is not exactly the same, a compilation error will occur:
-```bash
-error[E0308]: mismatched types [...] note: perhaps two different versions of crate `algebra` are being used?
-```
-By specifying in both crates the dependency on `algebra` in Git form, we ensure that all the crates will take the same version; however, if during development `algebra` crate is modified, we would be forced to push the changes to Git first before seeing them applied in local. For this reason, in the root `Cargo.toml`, we pushed instructions allowing to override Git dependencies with (local) path dependencies; unfortunately, this will require to store locally all the crates involved in the cross-dependency issue and to  comment/uncomment these lines before/after pushing changes.
 
 ## Contributing
 

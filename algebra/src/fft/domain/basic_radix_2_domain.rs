@@ -1,11 +1,8 @@
-use algebra::{FpParameters, PrimeField};
+use crate::{FpParameters, PrimeField};
 use crate::{multicore::Worker, EvaluationDomain};
 use std::fmt;
 use rayon::prelude::*;
 use std::any::Any;
-
-#[cfg(feature = "gpu")]
-use algebra_kernels::fft::{get_kernels, get_gpu_min_length};
 
 /// Defines a domain over which finite field (I)FFTs can be performed. Works
 /// only for fields that have a large multiplicative subgroup of size that is
@@ -92,11 +89,6 @@ impl<F: PrimeField> BasicRadix2Domain<F> {
     }
 
     fn best_fft(a: &mut [F], worker: &Worker, omega: F, log_n: u32) {
-        #[cfg(feature = "gpu")]
-        if get_gpu_min_length() <= 1 << log_n {
-            return Self::gpu_fft(a, omega, log_n);
-        }
-
         let log_cpus = worker.log_num_cpus();
 
         if log_n <= log_cpus {
@@ -104,21 +96,6 @@ impl<F: PrimeField> BasicRadix2Domain<F> {
         } else {
             Self::parallel_fft(a, worker, omega, log_n, log_cpus);
         }                    
-    }
-
-    #[cfg(feature = "gpu")]
-    pub (crate) fn gpu_fft(a: &mut [F], omega: F, log_n: u32) {
-        match get_kernels() {
-            Ok(kernels) => {
-                match kernels[0].radix_fft(a, &omega, log_n) {
-                    Ok(_) => {},
-                    Err(error) => { panic!("{}", error); }
-                }
-            },
-            Err(error) => {
-                panic!("{}", error);
-            }
-        }
     }
 
     /// Computes the radix-2 FFT of a[0..n] over an FFT domain {z: z^n - 1 = 0} of size n=2^log_n, 

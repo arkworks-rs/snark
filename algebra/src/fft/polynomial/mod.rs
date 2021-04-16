@@ -1,6 +1,6 @@
 //! Work with sparse and dense polynomials.
 
-use algebra::{Field, PrimeField};
+use crate::{Field, PrimeField};
 use std::borrow::Cow;
 use std::convert::TryInto;
 use DenseOrSparsePolynomial::*;

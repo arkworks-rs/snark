@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use algebra::{Field, PrimeField};
+use crate::{Field, PrimeField};
 use crate::DensePolynomial;
 use crate::{DenseOrSparsePolynomial, EvaluationDomain, Evaluations};
 
@@ -128,8 +128,8 @@ impl<F: Field> Into<DensePolynomial<F>> for SparsePolynomial<F> {
 #[cfg(test)]
 mod tests {
     use crate::{get_best_evaluation_domain, DensePolynomial, SparsePolynomial};
-    use algebra::fields::bls12_381::fr::Fr;
-    use algebra::Field;
+    use crate::fields::bls12_381::fr::Fr;
+    use crate::Field;
 
     #[test]
     fn evaluate_over_domain() {

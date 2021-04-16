@@ -2,7 +2,6 @@
 
 members = [
     "algebra",
-    "algebra-utils",
     "bench-utils",
     "primitives",
     "proof-systems",
@@ -33,13 +32,3 @@ lto = "thin"
 incremental = true
 debug-assertions = true
 debug = true
-
-# Uncomment these lines for local development paths
-
-#[patch.'https://github.com/HorizenOfficial/ginger-lib']
-#algebra = { path = './algebra' }
-#primitives = { path = './primitives' }
-#
-#[patch.'https://github.com/HorizenOfficial/ginger-algebra-ocl']
-#algebra-kernels = { path = '../ginger-algebra-ocl/algebra-kernels' }
-#algebra-cl-gen = { path = '../ginger-algebra-ocl/algebra-cl-gen' }

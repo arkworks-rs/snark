@@ -1,5 +1,5 @@
 use crate::{BasicRadix2Domain, EvaluationDomain, MixedRadix2Domain};
-use algebra::{
+use crate::{
     PrimeField, FpParameters,
 };
 
@@ -46,7 +46,7 @@ pub fn get_best_evaluation_domain<F: PrimeField>(num_coeffs: usize) -> Option<Bo
 
 #[cfg(test)]
 mod test {
-    use algebra::fields::mnt6753::fr::Fr;
+    use crate::fields::mnt6753::fr::Fr;
     use crate::domain::*;
 
     #[test]

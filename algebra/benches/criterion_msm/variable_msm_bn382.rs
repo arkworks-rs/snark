@@ -10,7 +10,7 @@ use algebra::{
     curves::bn_382::{G1Projective, G1Affine},
     BigInteger384, UniformRand, ProjectiveCurve, FromBytes, ToBytes
 };
-use algebra_utils::msm::VariableBaseMSM;
+use algebra::msm::VariableBaseMSM;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::fs::File;

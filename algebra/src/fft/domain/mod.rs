@@ -26,7 +26,7 @@ use crate::{
     SparsePolynomial,
     multicore::Worker,
 };
-use algebra::PrimeField;
+use crate::PrimeField;
 use rayon::prelude::*;
 //use std::hash::Hash;
 use std::fmt::Debug;
@@ -154,7 +154,7 @@ pub trait EvaluationDomain<F: PrimeField>: Debug + Send + Sync
         } else {
             // we compute L(z,tau) = 1/n * z * (tau^n - 1)/(tau - z)
             // using batch inversion for (tau - z), z over H.
-            use algebra::fields::batch_inversion;
+            use crate::fields::batch_inversion;
 
             let mut l = (t_size - &one) * &self.size_inv();
             let mut r = one;
@@ -271,8 +271,8 @@ pub fn sample_element_outside_domain<
 #[cfg(test)]
 mod tests {
     use crate::get_best_evaluation_domain;
-    use algebra::Field;
-    use algebra::fields::bls12_381::fr::Fr;
+    use crate::Field;
+    use crate::fields::bls12_381::fr::Fr;
     use rand::{Rng, thread_rng};
 
     #[test]

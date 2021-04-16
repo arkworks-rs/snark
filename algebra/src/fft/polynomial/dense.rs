@@ -3,7 +3,7 @@
 use std::fmt;
 use std::ops::{Add, AddAssign, Deref, DerefMut, Div, Mul, Neg, Sub, SubAssign};
 
-use algebra::{Field, PrimeField};
+use crate::{Field, PrimeField, ToBytes, FromBytes};
 use crate::{Evaluations, EvaluationDomain, DenseOrSparsePolynomial, get_best_evaluation_domain};
 use rand::Rng;
 use rayon::prelude::*;
@@ -15,7 +15,7 @@ pub struct DensePolynomial<F: Field> {
     pub coeffs: Vec<F>,
 }
 
-impl<F: Field> algebra::ToBytes for DensePolynomial<F>
+impl<F: Field> ToBytes for DensePolynomial<F>
 {
     fn write<W: std::io::Write>(&self, mut w: W) -> std::io::Result<()> {
         (self.coeffs.len() as u64).write(&mut w)?;
@@ -26,7 +26,7 @@ impl<F: Field> algebra::ToBytes for DensePolynomial<F>
     }
 }
 
-impl<F: Field> algebra::FromBytes for DensePolynomial<F>
+impl<F: Field> FromBytes for DensePolynomial<F>
 {
     fn read<Read: std::io::Read>(mut reader: Read) -> std::io::Result<DensePolynomial<F>> {
         let mut coeffs = vec![];
@@ -387,9 +387,9 @@ impl<'a, 'b, F: PrimeField> Mul<&'a DensePolynomial<F>> for &'b DensePolynomial<
 mod tests {
     use crate::domain::get_best_evaluation_domain;
     use crate::polynomial::*;
-    use algebra::fields::bls12_381::fr::Fr;
-    use algebra::fields::Field;
-    use algebra::UniformRand;
+    use crate::fields::bls12_381::fr::Fr;
+    use crate::fields::Field;
+    use crate::UniformRand;
     use rand::thread_rng;
 
     #[test]

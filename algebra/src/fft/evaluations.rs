@@ -1,7 +1,7 @@
 //! A polynomial represented in evaluations form.
 
 use std::ops::{Add, Sub, Mul, Div, AddAssign, SubAssign, MulAssign, DivAssign};
-use algebra::PrimeField;
+use crate::{PrimeField, ToBytes, FromBytes};
 use crate::{DensePolynomial, EvaluationDomain, get_best_evaluation_domain};
 
 /// Stores a polynomial in evaluation form.
@@ -34,7 +34,7 @@ impl<F: PrimeField> Evaluations<F> {
     }
 }
 
-impl<F: PrimeField> algebra::ToBytes for Evaluations<F>
+impl<F: PrimeField> ToBytes for Evaluations<F>
 {
     fn write<W: std::io::Write>(&self, mut w: W) -> std::io::Result<()> {
         (self.evals.len() as u64).write(&mut w)?;
@@ -45,7 +45,7 @@ impl<F: PrimeField> algebra::ToBytes for Evaluations<F>
     }
 }
 
-impl<F: PrimeField> algebra::FromBytes for Evaluations<F>
+impl<F: PrimeField> FromBytes for Evaluations<F>
 {
     #[inline]
     fn read<Read: std::io::Read>(mut reader: Read) -> std::io::Result<Evaluations<F>> {

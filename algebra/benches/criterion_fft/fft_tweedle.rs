@@ -5,10 +5,10 @@ extern crate criterion;
 extern crate bench_utils;
 
 use algebra::{
-    fields::bn_382::Fr,
+    fields::tweedle::Fr,
     PrimeField, UniformRand,
 };
-use algebra_utils::fft::{DensePolynomial, EvaluationDomain, BasicRadix2Domain, get_best_evaluation_domain};
+use algebra::fft::{DensePolynomial, EvaluationDomain, BasicRadix2Domain, get_best_evaluation_domain};
 use rand;
 
 use std::{
@@ -18,8 +18,7 @@ use std::{
 };
 
 use criterion::{BatchSize, BenchmarkId, Criterion};
-
-const DATA_PATH: &'static str = "./coeffs_bn382";
+const DATA_PATH: &'static str = "./coeffs_tweedle";
 
 fn save_data<F: PrimeField>(num_coeffs: usize) {
 
@@ -105,17 +104,17 @@ fn bench_ffts<F: PrimeField, D: EvaluationDomain<F>>(
     );
 }
 
-fn bench_fft_bn382(c: &mut Criterion) {
-    bench_ffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 14, "radix-2 FFT - 2^14 - bn382");
-    bench_ffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 15, "radix-2 FFT - 2^15 - bn382");
-    bench_ffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 16, "radix-2 FFT - 2^16 - bn382");
-    bench_ffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 17, "radix-2 FFT - 2^17 - bn382");
-    bench_ffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 18, "radix-2 FFT - 2^18 - bn382");
-    bench_ffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 19, "radix-2 FFT - 2^19 - bn382");
-    bench_ffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 20, "radix-2 FFT - 2^20 - bn382");
-    bench_ffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 21, "radix-2 FFT - 2^21 - bn382");
-    bench_ffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 22, "radix-2 FFT - 2^22 - bn382");
-    bench_ffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 23, "radix-2 FFT - 2^23 - bn382");
+fn bench_fft_tweedle(c: &mut Criterion) {
+    bench_ffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 14, "radix-2 FFT - 2^14 - tweedle");
+    bench_ffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 15, "radix-2 FFT - 2^15 - tweedle");
+    bench_ffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 16, "radix-2 FFT - 2^16 - tweedle");
+    bench_ffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 17, "radix-2 FFT - 2^17 - tweedle");
+    bench_ffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 18, "radix-2 FFT - 2^18 - tweedle");
+    bench_ffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 19, "radix-2 FFT - 2^19 - tweedle");
+    bench_ffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 20, "radix-2 FFT - 2^20 - tweedle");
+    bench_ffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 21, "radix-2 FFT - 2^21 - tweedle");
+    bench_ffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 22, "radix-2 FFT - 2^22 - tweedle");
+    bench_ffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 23, "radix-2 FFT - 2^23 - tweedle");
 }
 
 fn bench_iffts<F: PrimeField, D: EvaluationDomain<F>>(
@@ -172,17 +171,17 @@ fn bench_iffts<F: PrimeField, D: EvaluationDomain<F>>(
     );
 }
 
-fn bench_ifft_bn382(c: &mut Criterion) {
-    bench_iffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 14, "radix-2 iFFT - 2^14 - bn382");
-    bench_iffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 15, "radix-2 iFFT - 2^15 - bn382");
-    bench_iffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 16, "radix-2 iFFT - 2^16 - bn382");
-    bench_iffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 17, "radix-2 iFFT - 2^17 - bn382");
-    bench_iffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 18, "radix-2 iFFT - 2^18 - bn382");
-    bench_iffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 19, "radix-2 iFFT - 2^19 - bn382");
-    bench_iffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 20, "radix-2 iFFT - 2^20 - bn382");
-    bench_iffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 21, "radix-2 iFFT - 2^21 - bn382");
-    bench_iffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 22, "radix-2 iFFT - 2^22 - bn382");
-    bench_iffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 23, "radix-2 iFFT - 2^23 - bn382");
+fn bench_ifft_tweedle(c: &mut Criterion) {
+    bench_iffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 14, "radix-2 iFFT - 2^14 - tweedle");
+    bench_iffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 15, "radix-2 iFFT - 2^15 - tweedle");
+    bench_iffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 16, "radix-2 iFFT - 2^16 - tweedle");
+    bench_iffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 17, "radix-2 iFFT - 2^17 - tweedle");
+    bench_iffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 18, "radix-2 iFFT - 2^18 - tweedle");
+    bench_iffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 19, "radix-2 iFFT - 2^19 - tweedle");
+    bench_iffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 20, "radix-2 iFFT - 2^20 - tweedle");
+    bench_iffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 21, "radix-2 iFFT - 2^21 - tweedle");
+    bench_iffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 22, "radix-2 iFFT - 2^22 - tweedle");
+    bench_iffts::<Fr, BasicRadix2Domain<Fr>>(c, 1 << 23, "radix-2 iFFT - 2^23 - tweedle");
 }
 
 fn bench_dense_poly_muls<F: PrimeField, D: EvaluationDomain<F>>(
@@ -225,56 +224,56 @@ fn bench_dense_poly_muls<F: PrimeField, D: EvaluationDomain<F>>(
     });
 }
 
-fn bench_dense_poly_mul_bn382(c: &mut Criterion) {
+fn bench_dense_poly_mul_tweedle(c: &mut Criterion) {
     bench_dense_poly_muls::<Fr, BasicRadix2Domain<Fr>>(
         c,
         1 << 14,
-        "radix-2 DensePolynomial::mul - 2^14 - bn382",
+        "radix-2 DensePolynomial::mul - 2^14 - tweedle",
     );
     bench_dense_poly_muls::<Fr, BasicRadix2Domain<Fr>>(
         c,
         1 << 15,
-        "radix-2 DensePolynomial::mul - 2^15 - bn382",
+        "radix-2 DensePolynomial::mul - 2^15 - tweedle",
     );
     bench_dense_poly_muls::<Fr, BasicRadix2Domain<Fr>>(
         c,
         1 << 16,
-        "radix-2 DensePolynomial::mul - 2^16 - bn382",
+        "radix-2 DensePolynomial::mul - 2^16 - tweedle",
     );
     bench_dense_poly_muls::<Fr, BasicRadix2Domain<Fr>>(
         c,
         1 << 17,
-        "radix-2 DensePolynomial::mul - 2^17 - bn382",
+        "radix-2 DensePolynomial::mul - 2^17 - tweedle",
     );
     bench_dense_poly_muls::<Fr, BasicRadix2Domain<Fr>>(
         c,
         1 << 18,
-        "radix-2 DensePolynomial::mul - 2^18 - bn382",
+        "radix-2 DensePolynomial::mul - 2^18 - tweedle",
     );
     bench_dense_poly_muls::<Fr, BasicRadix2Domain<Fr>>(
         c,
         1 << 19,
-        "radix-2 DensePolynomial::mul - 2^19 - bn382",
+        "radix-2 DensePolynomial::mul - 2^19 - tweedle",
     );
     bench_dense_poly_muls::<Fr, BasicRadix2Domain<Fr>>(
         c,
         1 << 20,
-        "radix-2 DensePolynomial::mul - 2^20 - bn382",
+        "radix-2 DensePolynomial::mul - 2^20 - tweedle",
     );
     bench_dense_poly_muls::<Fr, BasicRadix2Domain<Fr>>(
         c,
         1 << 21,
-        "radix-2 DensePolynomial::mul - 2^21 - bn382",
+        "radix-2 DensePolynomial::mul - 2^21 - tweedle",
     );
     bench_dense_poly_muls::<Fr, BasicRadix2Domain<Fr>>(
         c,
         1 << 22,
-        "radix-2 DensePolynomial::mul - 2^22 - bn382",
+        "radix-2 DensePolynomial::mul - 2^22 - tweedle",
     );
     bench_dense_poly_muls::<Fr, BasicRadix2Domain<Fr>>(
         c,
         1 << 23,
-        "radix-2 DensePolynomial::mul - 2^23 - bn382",
+        "radix-2 DensePolynomial::mul - 2^23 - tweedle",
     );
 }
 
@@ -324,63 +323,63 @@ fn bench_dense_poly_div_by_vanishing_poly<F: PrimeField, D: EvaluationDomain<F>>
     });
 }
 
-fn bench_dense_poly_divide_by_vanishing_poly_bn382(c: &mut Criterion) {
+fn bench_dense_poly_divide_by_vanishing_poly_tweedle(c: &mut Criterion) {
     bench_dense_poly_div_by_vanishing_poly::<Fr, BasicRadix2Domain<Fr>>(
         c,
         1 << 14,
-        "radix-2 DensePolynomial::div by vanishing poly - 2^14 - bn382",
+        "radix-2 DensePolynomial::div by vanishing poly - 2^14 - tweedle",
     );
     bench_dense_poly_div_by_vanishing_poly::<Fr, BasicRadix2Domain<Fr>>(
         c,
         1 << 15,
-        "radix-2 DensePolynomial::div by vanishing poly - 2^15 - bn382",
+        "radix-2 DensePolynomial::div by vanishing poly - 2^15 - tweedle",
     );
     bench_dense_poly_div_by_vanishing_poly::<Fr, BasicRadix2Domain<Fr>>(
         c,
         1 << 16,
-        "radix-2 DensePolynomial::div by vanishing poly - 2^16 - bn382",
+        "radix-2 DensePolynomial::div by vanishing poly - 2^16 - tweedle",
     );
     bench_dense_poly_div_by_vanishing_poly::<Fr, BasicRadix2Domain<Fr>>(
         c,
         1 << 17,
-        "radix-2 DensePolynomial::div by vanishing poly - 2^17 - bn382",
+        "radix-2 DensePolynomial::div by vanishing poly - 2^17 - tweedle",
     );
     bench_dense_poly_div_by_vanishing_poly::<Fr, BasicRadix2Domain<Fr>>(
         c,
         1 << 18,
-        "radix-2 DensePolynomial::div by vanishing poly - 2^18 - bn382",
+        "radix-2 DensePolynomial::div by vanishing poly - 2^18 - tweedle",
     );
     bench_dense_poly_div_by_vanishing_poly::<Fr, BasicRadix2Domain<Fr>>(
         c,
         1 << 19,
-        "radix-2 DensePolynomial::div by vanishing poly - 2^19 - bn382",
+        "radix-2 DensePolynomial::div by vanishing poly - 2^19 - tweedle",
     );
     bench_dense_poly_div_by_vanishing_poly::<Fr, BasicRadix2Domain<Fr>>(
         c,
         1 << 20,
-        "radix-2 DensePolynomial::div by vanishing poly - 2^20 - bn382",
+        "radix-2 DensePolynomial::div by vanishing poly - 2^20 - tweedle",
     );
     bench_dense_poly_div_by_vanishing_poly::<Fr, BasicRadix2Domain<Fr>>(
         c,
         1 << 21,
-        "radix-2 DensePolynomial::div by vanishing poly - 2^21 - bn382",
+        "radix-2 DensePolynomial::div by vanishing poly - 2^21 - tweedle",
     );
     bench_dense_poly_div_by_vanishing_poly::<Fr, BasicRadix2Domain<Fr>>(
         c,
         1 << 22,
-        "radix-2 DensePolynomial::div by vanishing poly - 2^22 - bn382",
+        "radix-2 DensePolynomial::div by vanishing poly - 2^22 - tweedle",
     );
     bench_dense_poly_div_by_vanishing_poly::<Fr, BasicRadix2Domain<Fr>>(
         c,
         1 << 23,
-        "radix-2 DensePolynomial::div by vanishing poly - 2^23 - bn382",
+        "radix-2 DensePolynomial::div by vanishing poly - 2^23 - tweedle",
     );
 }
 
 criterion_group! {
     name = radix_2_fft;
     config = Criterion::default().sample_size(10);
-    targets = bench_fft_bn382, bench_ifft_bn382, bench_dense_poly_mul_bn382, bench_dense_poly_divide_by_vanishing_poly_bn382
+    targets = bench_fft_tweedle, bench_ifft_tweedle, bench_dense_poly_mul_tweedle, bench_dense_poly_divide_by_vanishing_poly_tweedle
 }
 
 criterion_main!(radix_2_fft);

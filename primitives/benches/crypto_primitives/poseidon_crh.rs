@@ -85,14 +85,15 @@ fn poseidon_crh_eval_bn382fq(c: &mut Criterion) {
 fn poseidon_crh_eval_tweedlefr(c: &mut Criterion) {
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-    let mut h = TweedleFrPoseidonHash::init(None);
+    let samples = 2000;
+    let mut h = TweedleFrPoseidonHash::init_constant_length(samples, None);
 
     c.bench_function("Poseidon CRH Eval for tweedleFr", move |b| {
         b.iter(|| {
-            for _ in 0..2000 {
+            for _ in 0..samples {
                 h.update(tweedleFr::rand(&mut rng));
             }
-            h.finalize();
+            h.finalize().unwrap();
         })
     });
 }
@@ -100,14 +101,15 @@ fn poseidon_crh_eval_tweedlefr(c: &mut Criterion) {
 fn poseidon_crh_eval_tweedlefq(c: &mut Criterion) {
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
-    let mut h = TweedleFqPoseidonHash::init(None);
+    let samples = 2000;
+    let mut h = TweedleFqPoseidonHash::init_constant_length(samples, None);
 
     c.bench_function("Poseidon CRH Eval for tweedleFq", move |b| {
         b.iter(|| {
-            for _ in 0..2000 {
+            for _ in 0..samples {
                 h.update(tweedleFq::rand(&mut rng));
             }
-            h.finalize();
+            h.finalize().unwrap();
         })
     });
 }

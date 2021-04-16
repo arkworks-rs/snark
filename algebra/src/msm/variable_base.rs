@@ -1,10 +1,5 @@
-use algebra::{AffineCurve, BigInteger, Field, FpParameters, PrimeField, ProjectiveCurve};
+use crate::{AffineCurve, BigInteger, Field, FpParameters, PrimeField, ProjectiveCurve};
 use rayon::prelude::*;
-
-#[cfg(feature = "gpu")]
-use algebra_kernels::msm::{get_cpu_utilization, get_kernels, get_gpu_min_length};
-#[cfg(feature = "gpu")]
-use std::sync::{Arc, Mutex};
 
 pub struct VariableBaseMSM;
 
@@ -159,12 +154,27 @@ impl VariableBaseMSM {
         }) + lowest
     }
 
-    fn msm_inner_cpu<G>(
+    pub fn msm_inner<G: AffineCurve>(
         bases: &[G],
-        scalars: &[<G::ScalarField as PrimeField>::BigInt]
+        scalars: &[<G::ScalarField as PrimeField>::BigInt],
+    ) -> G::Projective
+    {
+        let scal_len = scalars.len();
+
+        let c: usize = if scal_len < 32 {
+            3
+        } else {
+            (2.0 / 3.0 * (f64::from(scalars.len() as u32)).log2() - 2.0).ceil() as usize
+        };
+
+        return Self::msm_inner_c(bases, scalars, c);
+    }
+
+    pub fn multi_scalar_mul<G: AffineCurve>(
+        bases: &[G],
+        scalars: &[<G::ScalarField as PrimeField>::BigInt],
     ) -> G::Projective
     where
-        G: AffineCurve,
         G::Projective: ProjectiveCurve<Affine = G>
     {
         let scal_len = scalars.len();
@@ -177,107 +187,21 @@ impl VariableBaseMSM {
 
         return Self::multi_scalar_mul_affine_c(bases, scalars, c);
     }
-
-    #[cfg(feature = "gpu")]
-    fn msm_inner_gpu<G>(
-        bases: &[G],
-        scalars: &[<G::ScalarField as PrimeField>::BigInt]
-    ) -> G::Projective
-    where
-        G: AffineCurve,
-        G::Projective: ProjectiveCurve<Affine = G>
-    {
-        let mut n = bases.len();
-        let cpu_n;
-
-        let kernels = get_kernels().unwrap();
-        let num_devices = kernels.len();
-        let gpu_min_length = get_gpu_min_length();
-        
-        if gpu_min_length > n {
-            cpu_n = n;
-            n = 0;
-        } else {
-            cpu_n = ((n as f64) * get_cpu_utilization()) as usize;
-            n = n - cpu_n;                
-        }
-
-        let (cpu_bases, bases) = bases.split_at(cpu_n);
-        let (cpu_scalars, scalars) = scalars.split_at(cpu_n);
-
-        let chunk_size = ((n as f64) / (num_devices as f64)).ceil() as usize;
-
-        let results = Arc::new(Mutex::new(vec![]));
-
-        rayon::scope(|s| {
-
-            if n > 0 {
-                for ((bases, scalars), kern) in bases
-                    .chunks(chunk_size)
-                    .zip(scalars.chunks(chunk_size))
-                    .zip(kernels.iter())
-                {
-                    let results = Arc::clone(&results);
-                    s.spawn(
-                        move |_| {
-                            let mut acc = G::Projective::zero();
-                            for (bases, scalars) in bases.chunks(kern.n).zip(scalars.chunks(kern.n)) {
-                                let result = kern.msm(bases, scalars, bases.len());
-                                acc.add_assign_mixed(&result.unwrap().into_affine());
-                            }
-                            results.lock().unwrap().push(acc);
-                        },
-                    );
-                }
-            }
-
-            if cpu_n > 0 {
-                let results = Arc::clone(&results);
-                s.spawn(
-                    move |_| {
-                        let acc = Self::msm_inner_cpu(cpu_bases, cpu_scalars);
-                        results.lock().unwrap().push(acc);
-                    }
-                );
-            }
-        });
-
-        let mut acc = G::Projective::zero();
-        let results = Arc::try_unwrap(results).unwrap().lock().unwrap().clone();
-
-        for r in results.into_iter() {
-            acc.add_assign_mixed(&r.into_affine());
-        }
-
-        acc
-    }
-
-    pub fn multi_scalar_mul<G: AffineCurve>(
-        bases: &[G],
-        scalars: &[<G::ScalarField as PrimeField>::BigInt],
-    ) -> G::Projective {
-
-        #[cfg(not(feature = "gpu"))]
-        return Self::msm_inner_cpu(bases, scalars);
-
-        #[cfg(feature = "gpu")]
-        return Self::msm_inner_gpu(bases, scalars);
-    }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
 
-    use algebra::curves::bn_382::G1Projective as Bn382G1Projective;
-    use algebra::curves::bn_382::g::Projective as Bn382GProjective;
-    use algebra::curves::tweedle::dee::Projective as TweedleDee;
-    use algebra::curves::tweedle::dum::Projective as TweedleDum;
-    use algebra::curves::bls12_381::G1Projective as BlsG1Projective;
+    use crate::curves::bn_382::G1Projective as Bn382G1Projective;
+    use crate::curves::bn_382::g::Projective as Bn382GProjective;
+    use crate::curves::tweedle::dee::Projective as TweedleDee;
+    use crate::curves::tweedle::dum::Projective as TweedleDum;
+    use crate::curves::bls12_381::G1Projective as BlsG1Projective;
 
     use rand::{SeedableRng, Rng};
     use rand_xorshift::XorShiftRng;
-    use algebra::UniformRand;
+    use crate::UniformRand;
 
     fn naive_var_base_msm<G: AffineCurve>(
         bases: &[G],
@@ -304,21 +228,15 @@ mod test {
             .collect::<Vec<_>>();
 
         let naive = naive_var_base_msm(g.as_slice(), v.as_slice());
-        let fast = VariableBaseMSM::msm_inner_cpu(g.as_slice(), v.as_slice());
+        let fast = VariableBaseMSM::msm_inner(g.as_slice(), v.as_slice());
 
         let affine = VariableBaseMSM::multi_scalar_mul_affine_c(g.as_slice(), v.as_slice(), c);
         let inner = VariableBaseMSM::msm_inner_c(g.as_slice(), v.as_slice(), c);
-
-        #[cfg(feature = "gpu")]
-        let gpu = VariableBaseMSM::msm_inner_gpu(g.as_slice(), v.as_slice());
 
         assert_eq!(naive, fast);
 
         assert_eq!(naive, affine);
         assert_eq!(naive, inner);
-
-        #[cfg(feature = "gpu")]
-        assert_eq!(naive, gpu);
     }
 
     #[cfg(feature = "tweedle")]

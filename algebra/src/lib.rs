@@ -40,6 +40,16 @@ pub use self::rand::*;
 mod to_field_vec;
 pub use to_field_vec::ToConstraintField;
 
+#[cfg(feature = "parallel")]
+pub mod msm;
+#[cfg(feature = "parallel")]
+pub use self::msm::*;
+
+#[cfg(feature = "fft")]
+pub mod fft;
+#[cfg(feature = "fft")]
+pub use self::fft::*;
+
 pub type Error = Box<dyn std::error::Error>;
 
 /// Returns the ceiling of the base-2 logarithm of `x`.
