@@ -12,6 +12,7 @@ use crate::{
 };
 use std::{io::{Result as IoResult, Write, Read, Error, ErrorKind}, ops::Neg};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use serde::{Serialize, Deserialize};
 
 pub type G2Affine<P> = GroupAffine<<P as BnParameters>::G2Parameters>;
 pub type G2Projective<P> = GroupProjective<<P as BnParameters>::G2Parameters>;
@@ -23,6 +24,9 @@ pub type G2Projective<P> = GroupProjective<<P as BnParameters>::G2Parameters>;
     PartialEq(bound = "P: BnParameters"),
     Eq(bound = "P: BnParameters")
 )]
+#[derive(Serialize, Deserialize)]
+#[serde(bound(serialize = "P: BnParameters"))]
+#[serde(bound(deserialize = "P: BnParameters"))]
 pub struct G2Prepared<P: BnParameters> {
     // Stores the coefficients of the line evaluations as calculated in
     // https://eprint.iacr.org/2013/722.pdf

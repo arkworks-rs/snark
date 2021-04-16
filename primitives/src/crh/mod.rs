@@ -3,10 +3,14 @@ use algebra::{
 };
 use rand::Rng;
 use std::hash::Hash;
+use serde::{Serialize, Deserialize};
 
 pub mod bowe_hopwood;
 pub mod injective_map;
 pub mod pedersen;
+
+pub mod sbox;
+pub use self::sbox::*;
 
 pub mod poseidon;
 pub use self::poseidon::*;
@@ -16,8 +20,8 @@ use rayon::prelude::*;
 
 pub trait FixedLengthCRH {
     const INPUT_SIZE_BITS: usize;
-    type Output: ToBytes + Clone + Eq + Hash + Default;
-    type Parameters: Clone + Default;
+    type Output: ToBytes + Serialize + for<'a> Deserialize<'a> + Clone + Eq + Hash + Default;
+    type Parameters: Clone + Serialize + for<'a> Deserialize<'a> + Default;
 
     fn setup<R: Rng>(r: &mut R) -> Result<Self::Parameters, Error>;
     fn evaluate(parameters: &Self::Parameters, input: &[u8]) -> Result<Self::Output, Error>;
@@ -43,14 +47,12 @@ pub trait FieldBasedHash {
     /// Initialize the hash to a null state, or with `personalization` if specified.
     fn init_constant_length(input_size: usize, personalization: Option<&[Self::Data]>) -> Self;
 
-    /// Initialize a Field Hash accepting inputs of variable length, adapting the padding
-    /// strategy according to the inputs being `mod_rate` or not: if the input is of
-    /// variable length but always multiple of the rate it is possible to avoid padding
-    /// without any security issue, saving constraints in SNARK applications;
-    /// If `mod_rate` is true, any attempt to finalize the hash after having updated the
-    /// Self instance with a number of inputs which are not multiple of the rate should
-    /// result in an error.
-    /// Initialize the hash to a null state, or with `personalization` if specified.
+    /// Initialize a Field Hash accepting inputs of variable length.
+    /// It is able to serve two different modes, selected by the boolean `mod_rate`:
+    /// - `mod_rate` = False is for the ususal variable length hash, whereas 
+    /// - `mod_rate` = True allows the input only to be a multiple of the rate (and hence
+    /// should throw an error when trying to finalize with a non-multiple of rate input). 
+    /// This mode allows an optimized handling of padding, saving constraints in SNARK applications;
     fn init_variable_length(mod_rate: bool, personalization: Option<&[Self::Data]>) -> Self;
 
     /// Update the hash with `input`.
@@ -128,8 +130,7 @@ mod test {
 
     use super::BatchFieldBasedHash;
     use crate::crh::poseidon::{
-        MNT4PoseidonHash,
-        MNT4BatchPoseidonHash,
+        MNT4PoseidonHash, MNT4BatchPoseidonHash
     };
 
     use rand_xorshift::XorShiftRng;
@@ -204,7 +205,7 @@ mod test {
         }
     }
 
-    //#[ignore]
+    #[ignore]
     #[test]
     fn test_default_batch_hash_implementation() {
         let rate = 2;

@@ -12,6 +12,7 @@ use crate::{
 };
 use std::io::{Result as IoResult, Write, Read};
 use std::io;
+use serde::{Serialize, Deserialize};
 
 pub type G1Affine = GroupAffine<MNT6G1Parameters>;
 pub type G1Projective = GroupProjective<MNT6G1Parameters>;
@@ -79,7 +80,7 @@ pub const G1_GENERATOR_Y: Fq = field_new!(Fq, BigInteger320([
     0x3140fbc3593,
 ]));
 
-#[derive(Eq, PartialEq, Copy, Clone, Debug)]
+#[derive(Eq, PartialEq, Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct G1Prepared {
     pub x:       Fq,
     pub y:       Fq,

@@ -1,5 +1,5 @@
 use rand::{Rng, distributions::{Standard, Distribution}};
-use crate::{UniformRand, SemanticallyValid, FromBytesChecked};
+use crate::{UniformRand, SemanticallyValid, Error, FromBytesChecked, ToCompressedBits, FromCompressedBits, BitSerializationError};
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
     io::{Read, Result as IoResult, Error as IoError, Write},
@@ -13,6 +13,7 @@ use crate::{
     fields::{BitIterator, Field, PrimeField, SquareRootField},
 };
 use std::io::ErrorKind;
+use serde::{Serialize, Deserialize};
 
 #[cfg(test)]
 pub mod tests;
@@ -26,10 +27,12 @@ pub mod tests;
     Debug(bound = "P: Parameters"),
     Hash(bound = "P: Parameters")
 )]
+#[derive(Serialize, Deserialize)]
 pub struct GroupAffine<P: Parameters> {
     pub x: P::BaseField,
     pub y: P::BaseField,
     #[derivative(Debug = "ignore")]
+    #[serde(skip)]
     _params: PhantomData<P>,
 }
 
@@ -281,6 +284,49 @@ impl<P: Parameters> FromBytesChecked for GroupAffine<P> {
     }
 }
 
+use crate::{ToBits, FromBits};
+impl<P: Parameters> ToCompressedBits for GroupAffine<P>
+{
+    #[inline]
+    fn compress(&self) -> Vec<bool> {
+
+        let mut res = self.x.write_bits();
+
+        // Is the y-coordinate the odd one of the two associated with the
+        // x-coordinate?
+        res.push(self.y.is_odd());
+
+        res
+    }
+}
+
+impl<P: Parameters> FromCompressedBits for GroupAffine<P>
+{
+    #[inline]
+    fn decompress(compressed: Vec<bool>) -> Result<Self, Error> {
+        let len = compressed.len() - 1;
+        let parity_flag_set = compressed[len];
+
+        //Mask away the flag bits and try to get the x coordinate
+        let x = P::BaseField::read_bits(compressed[0..(len - 1)].to_vec())?;
+
+        //Attempt to get the y coordinate from its parity and x
+        match Self::get_point_from_x_and_parity(x, parity_flag_set) {
+
+            //Check p belongs to the subgroup we expect
+            Some(p) => {
+                if p.is_in_correct_subgroup_assuming_on_curve() {
+                    Ok(p)
+                }
+                else {
+                    let e = BitSerializationError::NotPrimeOrder;
+                    Err(Box::new(e))
+                }
+            }
+            _ => Err(Box::new(BitSerializationError::NotOnCurve)),
+        }
+    }
+}
 
 impl<P: Parameters> Default for GroupAffine<P> {
     #[inline]
@@ -345,12 +391,14 @@ mod group_impl {
     Debug(bound = "P: Parameters"),
     Hash(bound = "P: Parameters")
 )]
+#[derive(Serialize, Deserialize)]
 pub struct GroupProjective<P: Parameters> {
     pub x: P::BaseField,
     pub y: P::BaseField,
     pub t: P::BaseField,
     pub z: P::BaseField,
     #[derivative(Debug = "ignore")]
+    #[serde(skip)]
     _params: PhantomData<P>,
 }
 

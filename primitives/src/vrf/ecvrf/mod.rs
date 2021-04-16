@@ -9,7 +9,7 @@ use std::marker::PhantomData;
 use rand::Rng;
 use std::io::{self, Read, Result as IoResult, Write, Error as IoError, ErrorKind};
 use rand::distributions::{Distribution, Standard};
-
+use serde::{Serialize, Deserialize};
 
 pub struct FieldBasedEcVrf<
     F: PrimeField,
@@ -33,6 +33,9 @@ Eq(bound = "F: PrimeField, G: ProjectiveCurve"),
 PartialEq(bound = "F: PrimeField, G: ProjectiveCurve"),
 Debug(bound = "F: PrimeField, G: ProjectiveCurve")
 )]
+#[derive(Serialize, Deserialize)]
+#[serde(bound(serialize = "F: PrimeField, G: ProjectiveCurve"))]
+#[serde(bound(deserialize = "F: PrimeField, G: ProjectiveCurve"))]
 pub struct FieldBasedEcVrfProof<F: PrimeField, G: ProjectiveCurve> {
     pub gamma:  G,
     pub c:      F,
@@ -120,6 +123,10 @@ Eq(bound = "G: Group"),
 PartialEq(bound = "G: Group"),
 Debug(bound = "G: Group"),
 )]
+#[derive(Serialize, Deserialize)]
+#[serde(bound(serialize = "G: Group"))]
+#[serde(bound(deserialize = "G: Group"))]
+#[serde(transparent)]
 pub struct FieldBasedEcVrfPk<G: Group>(pub G);
 
 impl<G: Group> Distribution<FieldBasedEcVrfPk<G>> for Standard {

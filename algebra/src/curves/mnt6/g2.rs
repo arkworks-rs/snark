@@ -13,6 +13,7 @@ use crate::{
 use std::io::{Result as IoResult, Write, Read};
 use std::io;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use serde::{Serialize, Deserialize};
 
 pub type G2Affine = GroupAffine<MNT6G2Parameters>;
 pub type G2Projective = GroupProjective<MNT6G2Parameters>;
@@ -150,7 +151,7 @@ pub const G2_GENERATOR_Y_C2: Fq = field_new!(Fq, BigInteger320([
     0x2d3c3d195a1,
 ]));
 
-#[derive(Eq, PartialEq, Clone, Debug)]
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct G2Prepared {
     pub x:                     Fq3,
     pub y:                     Fq3,

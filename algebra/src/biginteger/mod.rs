@@ -8,6 +8,7 @@ use std::{
     fmt::{Debug, Display},
     io::{Read, Result as IoResult, Write},
 };
+use serde::{Serialize, Deserialize};
 
 #[macro_use]
 mod macros;
@@ -28,6 +29,8 @@ mod tests;
 pub trait BigInteger:
     ToBytes
     + FromBytes
+    + Serialize
+    + for <'a> Deserialize<'a>
     + Copy
     + Clone
     + Debug

@@ -12,6 +12,9 @@ pub mod bowe_hopwood;
 pub mod injective_map;
 pub mod pedersen;
 
+pub mod sbox;
+pub use self::sbox::*;
+
 pub mod poseidon;
 pub use self::poseidon::*;
 
@@ -47,8 +50,9 @@ pub trait FieldHasherGadget<
     HG: FieldBasedHashGadget<H, ConstraintF>
 >
 {
-    fn enforce_hash(
+    fn enforce_hash<CS: ConstraintSystem<ConstraintF>>(
         &self,
+        cs: CS,
         personalization: Option<&[HG::DataGadget]>
     ) -> Result<HG::DataGadget, SynthesisError>;
 }

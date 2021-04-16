@@ -4,6 +4,7 @@ use std::marker::PhantomData;
 use rand::Rng;
 use std::io::{Write, Read, Result as IoResult, Error as IoError, ErrorKind};
 use rand::distributions::{Distribution, Standard};
+use serde::{Serialize, Deserialize};
 
 #[allow(dead_code)]
 pub struct FieldBasedSchnorrSignatureScheme<
@@ -26,9 +27,13 @@ Eq(bound = "F: PrimeField, G: Group"),
 PartialEq(bound = "F: PrimeField, G: Group"),
 Debug(bound = "F: PrimeField, G: Group")
 )]
+#[derive(Serialize, Deserialize)]
+#[serde(bound(serialize = "F: PrimeField, G: Group"))]
+#[serde(bound(deserialize = "F: PrimeField, G: Group"))]
 pub struct FieldBasedSchnorrSignature<F: PrimeField, G: Group> {
     pub e:    F,
     pub s:    F,
+    #[serde(skip)]
     _group:   PhantomData<G>,
 }
 
@@ -111,6 +116,10 @@ Eq(bound = "G: Group"),
 PartialEq(bound = "G: Group"),
 Debug(bound = "G: Group"),
 )]
+#[derive(Serialize, Deserialize)]
+#[serde(bound(serialize = "G: Group"))]
+#[serde(bound(deserialize = "G: Group"))]
+#[serde(transparent)]
 pub struct FieldBasedSchnorrPk<G: Group>(pub G);
 
 impl<G: Group> Distribution<FieldBasedSchnorrPk<G>> for Standard {

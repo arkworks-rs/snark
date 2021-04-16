@@ -1,16 +1,90 @@
-use algebra::Field;
+use algebra::{Field, PrimeField};
 use r1cs_core::{ConstraintSystem, SynthesisError};
-use r1cs_std:: prelude::*;
+use r1cs_std::prelude::*;
 
-use primitives::{
-    crh::FixedLengthCRH,
-    merkle_tree::*
-};
-use crate::FixedLengthCRHGadget;
+use primitives::{crh::FixedLengthCRH, merkle_tree::*, FieldBasedHash};
+use crate::{FixedLengthCRHGadget, FieldBasedHashGadget};
 
 use std::borrow::Borrow;
+use r1cs_std::fields::fp::FpGadget;
 
 pub mod field_based_mht;
+
+pub trait FieldBasedMerkleTreePathGadget<
+    P: FieldBasedMerkleTreePath<H = H>,
+    H:  FieldBasedHash<Data = ConstraintF>,
+    HGadget: FieldBasedHashGadget<H, ConstraintF>,
+    ConstraintF: PrimeField,
+>: AllocGadget<P, ConstraintF> + ConstantGadget<P, ConstraintF> + EqGadget<ConstraintF> + Clone
+where
+{
+    /// Return the length of the `self` path.
+    fn length(&self) -> usize;
+
+    /// Enforce that the root reconstructed from `self` and `leaf` is equal to
+    /// `expected_root`.
+    fn check_membership<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+        expected_root: &HGadget::DataGadget,
+        leaf: &HGadget::DataGadget,
+    ) -> Result<(), SynthesisError> {
+        self.conditionally_check_membership(cs, expected_root, leaf, &Boolean::Constant(true))
+    }
+
+    /// Enforce that the root reconstructed from `self` and `leaf` is equal to
+    /// `expected_root` if `should_enforce` is True, otherwise enforce nothing.
+    fn conditionally_check_membership<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        expected_root: &HGadget::DataGadget,
+        leaf: &HGadget::DataGadget,
+        should_enforce: &Boolean,
+    ) -> Result<(), SynthesisError>
+    {
+        let root = self.enforce_root_from_leaf(
+            cs.ns(|| "reconstruct root"),
+            leaf
+        )?;
+
+        root.conditional_enforce_equal(
+            &mut cs.ns(|| "root_is_last"),
+            expected_root,
+            should_enforce,
+        )
+    }
+
+    /// Enforce correct reconstruction of the root of the Merkle Tree
+    /// from `self` path and `leaf`.
+    fn enforce_root_from_leaf<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+        leaf: &HGadget::DataGadget,
+    ) -> Result<HGadget::DataGadget, SynthesisError>;
+
+    /// Given a field element `leaf_index` representing the position of a leaf in a
+    /// Merkle Tree, enforce that the leaf index corresponding to `self` path is the
+    /// same of `leaf_index`.
+    fn enforce_leaf_index<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+        leaf_index: &FpGadget<ConstraintF>,
+    ) -> Result<(), SynthesisError>
+    {
+        self.conditionally_enforce_leaf_index(cs, leaf_index, &Boolean::Constant(true))
+    }
+
+
+    /// Given a field element `leaf_index` representing the position of a leaf in a
+    /// Merkle Tree, enforce that the leaf index corresponding to `self` path is the
+    /// same of `leaf_index` if `should_enforce` is True, otherwise enforce nothing.
+    fn conditionally_enforce_leaf_index<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+        leaf_index: &FpGadget<ConstraintF>,
+        should_enforce: &Boolean
+    ) -> Result<(), SynthesisError>;
+}
 
 pub struct MerkleTreePathGadget<P, HGadget, ConstraintF>
 where

@@ -1,6 +1,6 @@
 use rand::{Rng, distributions::{Standard, Distribution}};
 use crate::curves::models::SWModelParameters as Parameters;
-use crate::{UniformRand, SemanticallyValid, FromBytesChecked};
+use crate::{UniformRand, SemanticallyValid, Error, FromBytesChecked, BitSerializationError, FromCompressedBits, ToCompressedBits};
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
     io::{Read, Result as IoResult, Write, Error as IoError, ErrorKind},
@@ -13,6 +13,7 @@ use crate::{
     fields::{BitIterator, Field, PrimeField, SquareRootField},
 };
 use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+use serde::{Serialize, Deserialize};
 
 #[derive(Derivative)]
 #[derivative(
@@ -23,11 +24,13 @@ use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
     Debug(bound = "P: Parameters"),
     Hash(bound = "P: Parameters")
 )]
+#[derive(Serialize, Deserialize)]
 pub struct GroupAffine<P: Parameters> {
     pub x: P::BaseField,
     pub y: P::BaseField,
     pub infinity: bool,
     #[derivative(Debug = "ignore")]
+    #[serde(skip)]
     _params: PhantomData<P>,
 }
 
@@ -212,6 +215,7 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
                         let y = -p[i].y - &(s * &(x - &p[i].x));
                         p[j].x = x;
                         p[j].y = y;
+                        p[j].infinity = false;
                     }
                     else
                     {
@@ -220,6 +224,7 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
                         let y = -p[i].y - &(s * &(x - &p[i].x));
                         p[j].x = x;
                         p[j].y = y;
+                        p[j].infinity = false;
                     }
                     dx += 1;
                 }
@@ -314,6 +319,69 @@ impl<P: Parameters> FromBytesChecked for GroupAffine<P> {
     }
 }
 
+use crate::{ToBits, FromBits};
+impl<P: Parameters> ToCompressedBits for GroupAffine<P>
+{
+    #[inline]
+    fn compress(&self) -> Vec<bool> {
+        // Strictly speaking, self.x is zero already when self.infinity is true, but
+        // to guard against implementation mistakes we do not assume this.
+        let p = if self.infinity {P::BaseField::zero()} else {self.x};
+        let mut res = p.write_bits();
+
+        // Add infinity flag
+        res.push(self.infinity);
+
+        // Add parity coordinate (set by default to false if self is infinity)
+        res.push(!self.infinity && self.y.is_odd());
+
+        res
+    }
+}
+
+impl<P: Parameters> FromCompressedBits for GroupAffine<P>
+{
+    #[inline]
+    fn decompress(compressed: Vec<bool>) -> Result<Self, Error> {
+        let len = compressed.len() - 1;
+        let parity_flag_set = compressed[len];
+        let infinity_flag_set = compressed[len - 1];
+
+        //Mask away the flag bits and try to get the x coordinate
+        let x = P::BaseField::read_bits(compressed[0..(len - 1)].to_vec())?;
+        match (infinity_flag_set, parity_flag_set, x.is_zero()) {
+
+            //If the infinity flag is set, return the value assuming
+            //the x-coordinate is zero and the parity bit is not set.
+            (true, false, true) => Ok(Self::zero()),
+
+            //If infinity flag is not set, then we attempt to construct
+            //a point from the x coordinate and the parity.
+            (false, _, _) => {
+
+                //Attempt to get the y coordinate from its parity and x
+                match Self::get_point_from_x_and_parity(x, parity_flag_set) {
+
+                    //Check p belongs to the subgroup we expect
+                    Some(p) => {
+                        if p.is_in_correct_subgroup_assuming_on_curve() {
+                            Ok(p)
+                        }
+                        else {
+                            let e = BitSerializationError::NotInCorrectSubgroup;
+                            Err(Box::new(e))
+                        }
+                    }
+                    _ => Err(Box::new(BitSerializationError::NotOnCurve)),
+                }
+            },
+
+            //Other combinations are illegal
+            _ => Err(Box::new(BitSerializationError::InvalidFlags)),
+        }
+    }
+}
+
 impl<P: Parameters> Default for GroupAffine<P> {
     #[inline]
     fn default() -> Self {
@@ -329,11 +397,13 @@ impl<P: Parameters> Default for GroupAffine<P> {
     Debug(bound = "P: Parameters"),
     Hash(bound = "P: Parameters")
 )]
+#[derive(Serialize, Deserialize)]
 pub struct GroupProjective<P: Parameters> {
     pub x:   P::BaseField,
     pub y:   P::BaseField,
     pub z:   P::BaseField,
     #[derivative(Debug = "ignore")]
+    #[serde(skip)]
     _params: PhantomData<P>,
 }
 
@@ -541,7 +611,7 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
             let d = ((self.x + &b).square() - &a - &c).double();
 
             // E = 3*A
-            let e = a + a.double_in_place();
+            let e = a + &*a.double_in_place();
 
             // F = E^2
             let f = e.square();
@@ -554,7 +624,7 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
             self.x = f - &d - &d;
 
             // Y3 = E*(D-X3)-8*C
-            self.y = (d - &self.x) * &e - c.double_in_place().double_in_place().double_in_place();
+            self.y = (d - &self.x) * &e - &*c.double_in_place().double_in_place().double_in_place();
             self
         } else {
             // http://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-0.html#doubling-dbl-2009-l
@@ -583,7 +653,7 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
             self.x = t;
             // Y3 = M*(S-T)-8*YYYY
             let old_y = self.y;
-            self.y = m * &(s - &t) - yyyy.double_in_place().double_in_place().double_in_place();
+            self.y = m * &(s - &t) - &*yyyy.double_in_place().double_in_place().double_in_place();
             // Z3 = (Y1+Z1)^2-YY-ZZ
             self.z = (old_y + &self.z).square() - &yy - &zz;
             self
@@ -792,7 +862,7 @@ impl<'a, P: Parameters> AddAssign<&'a Self> for GroupProjective<P> {
             self.x = r.square() - &j - &(v.double());
 
             // Y3 = r*(V - X3) - 2*S1*J
-            self.y = r * &(v - &self.x) - (s1 * &j).double_in_place();
+            self.y = r * &(v - &self.x) - &*(s1 * &j).double_in_place();
 
             // Z3 = ((Z1+Z2)^2 - Z1Z1 - Z2Z2)*H
             self.z = ((self.z + &other.z).square() - &z1z1 - &z2z2) * &h;

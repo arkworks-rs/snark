@@ -3,6 +3,7 @@
 use algebra::{bytes::ToBytes, PairingEngine};
 use r1cs_core::SynthesisError;
 use std::io::{self, Read, Result as IoResult, Write};
+use serde::{Serialize, Deserialize};
 
 /// Reduce an R1CS instance to a *Square Arithmetic Program* instance.
 pub mod r1cs_to_sap;
@@ -22,7 +23,7 @@ mod test;
 pub use self::{generator::*, prover::*, verifier::*};
 
 /// A proof in the GM17 SNARK.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Proof<E: PairingEngine> {
     pub a: E::G1Affine,
     pub b: E::G2Affine,
@@ -70,7 +71,7 @@ impl<E: PairingEngine> Proof<E> {
 }
 
 /// A verification key in the GM17 SNARK.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct VerifyingKey<E: PairingEngine> {
     pub h_g2:       E::G2Affine,
     pub g_alpha_g1: E::G1Affine,
@@ -134,7 +135,7 @@ impl<E: PairingEngine> VerifyingKey<E> {
 }
 
 /// Full public (prover and verifier) parameters for the GM17 zkSNARK.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Parameters<E: PairingEngine> {
     pub vk:           VerifyingKey<E>,
     pub a_query:      Vec<E::G1Affine>,
@@ -179,7 +180,7 @@ impl<E: PairingEngine> Parameters<E> {
 
 /// Preprocessed verification key parameters that enable faster verification
 /// at the expense of larger size in memory.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct PreparedVerifyingKey<E: PairingEngine> {
     pub vk:                VerifyingKey<E>,
     pub g_alpha:           E::G1Affine,

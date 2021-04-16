@@ -10,6 +10,7 @@ use crate::{
 };
 
 use std::io::{Result as IoResult, Read, Write, Error, ErrorKind};
+use serde::{Serialize, Deserialize};
 
 pub type G1Affine<P> = GroupAffine<<P as BnParameters>::G1Parameters>;
 pub type G1Projective<P> = GroupProjective<<P as BnParameters>::G1Parameters>;
@@ -21,6 +22,10 @@ pub type G1Projective<P> = GroupProjective<<P as BnParameters>::G1Parameters>;
     PartialEq(bound = "P: BnParameters"),
     Eq(bound = "P: BnParameters")
 )]
+#[derive(Serialize, Deserialize)]
+#[serde(bound(serialize = "P: BnParameters"))]
+#[serde(bound(deserialize = "P: BnParameters"))]
+#[serde(transparent)]
 pub struct G1Prepared<P: BnParameters>(pub G1Affine<P>);
 
 impl<P: BnParameters> G1Prepared<P> {

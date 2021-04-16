@@ -28,7 +28,7 @@ fn evaluate_constraint<'a, E: PairingEngine>(
                 if coeff.is_one() {
                     val
                 } else {
-                    val.mul(&coeff)
+                    val.mul(coeff)
                 }
             })
         .reduce(|| E::Fr::zero(), |sum, val| sum + &val)
@@ -102,7 +102,7 @@ impl R1CStoQAP {
                     Index::Aux(j) => assembly.num_inputs + j, //if index is a private variable, shift it
                 };
                 //update the column sum corresponding to the variable.
-                a[index] += &(u[i] * &coeff);
+                a[index] += &(u[i] * coeff);
             }
             for &(ref coeff, index) in assembly.bt[i].iter() {
                 let index = match index {
@@ -110,7 +110,7 @@ impl R1CStoQAP {
                     Index::Aux(i) => assembly.num_inputs + i,
                 };
 
-                b[index] += &(u[i] * &coeff);
+                b[index] += &(u[i] * coeff);
             }
             for &(ref coeff, index) in assembly.ct[i].iter() {
                 let index = match index {
@@ -118,7 +118,7 @@ impl R1CStoQAP {
                     Index::Aux(i) => assembly.num_inputs + i,
                 };
 
-                c[index] += &(u[i] * &coeff);
+                c[index] += &(u[i] * coeff);
             }
         }
 

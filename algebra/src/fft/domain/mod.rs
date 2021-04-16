@@ -31,12 +31,17 @@ use rayon::prelude::*;
 //use std::hash::Hash;
 use std::fmt::Debug;
 use std::any::Any;
+use rand::Rng;
 
 /// Defines a domain over which finite field (I)FFTs can be performed.
-pub trait EvaluationDomain<F: PrimeField>: Debug
+pub trait EvaluationDomain<F: PrimeField>: Debug + Send + Sync
 {
     /// Returns the size of the domain
     fn size(&self) -> usize;
+
+    fn size_as_field_element(&self) -> F {
+        F::from_repr(F::BigInt::from(self.size() as u64))
+    }
 
     /// Interprets size as a field element F and returns its inverse in the field
     fn size_inv(&self) -> F;
@@ -168,9 +173,35 @@ pub trait EvaluationDomain<F: PrimeField>: Debug
             // We compute L(z,tau) = u[i]*ls[i]. 
             // Very misleading notation here.
             u.par_iter_mut().zip(ls).for_each(|(tau_minus_r, l)| {
-                *tau_minus_r = l * tau_minus_r;
+                *tau_minus_r *= l;
             });
             u
+        }
+    }
+
+    /// Given an index which assumes the first elements of this domain are the elements of
+    /// another (sub)domain with size size_s,
+    /// this returns the actual index into this domain.
+    fn reindex_by_subdomain(&self, other_size: usize, index: usize) -> usize {
+        assert!(self.size() >= other_size);
+        // Let this subgroup be G, and the subgroup we're re-indexing by be S.
+        // Since its a subgroup, the 0th element of S is at index 0 in G, the first element of S is at
+        // index |G|/|S|, the second at 2*|G|/|S|, etc.
+        // Thus for an index i that corresponds to S, the index in G is i*|G|/|S|
+        let period = self.size() / other_size;
+        if index < other_size {
+            index * period
+        } else {
+            // Let i now be the index of this element in G \ S
+            // Let x be the number of elements in G \ S, for every element in S. Then x = (|G|/|S| - 1).
+            // At index i in G \ S, the number of elements in S that appear before the index in G to which
+            // i corresponds to, is floor(i / x) + 1.
+            // The +1 is because index 0 of G is S_0, so the position is offset by at least one.
+            // The floor(i / x) term is because after x elements in G \ S, there is one more element from S
+            // that will have appeared in G.
+            let i = index - other_size;
+            let x = period - 1;
+            i + (i / x) + 1
         }
     }
 
@@ -226,6 +257,17 @@ impl<F: PrimeField> Iterator for Elements<F> {
             Some(cur_elem)
         }
     }
+}
+
+pub fn sample_element_outside_domain<
+    F: PrimeField,
+    R: Rng
+>(domain: &Box<dyn EvaluationDomain<F>>, rng: &mut R) -> F {
+    let mut t = F::rand(rng);
+    while domain.evaluate_vanishing_polynomial(t).is_zero() {
+        t = F::rand(rng);
+    }
+    t
 }
 
 #[cfg(test)]

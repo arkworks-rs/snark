@@ -1,14 +1,18 @@
 extern crate rand;
 extern crate rayon;
 
-use algebra::{PrimeField, MulShort};
+use algebra::{Field, PrimeField};
 
-use std::marker::PhantomData;
+use std::{
+    ops::Mul,
+    marker::PhantomData
+};
 
 use crate::{
     crh::{
         FieldBasedHash,
         FieldBasedHashParameters,
+        SBox,
     }, CryptoError, Error
 };
 
@@ -17,22 +21,10 @@ pub mod batched_crh;
 pub mod parameters;
 pub use self::parameters::*;
 
-#[derive(Derivative)]
-#[derivative(
-    Clone(bound = ""),
-    Debug(bound = ""),
-)]
-pub struct PoseidonHash<F: PrimeField, P: PoseidonParameters<Fr = F>>{
-    state: Vec<F>,
-    pending: Vec<F>,
-    input_size: Option<usize>,
-    updates_ctr: usize,
-    mod_rate: bool,
-    _parameters: PhantomData<P>,
-}
+pub mod sbox;
+pub use self::sbox::*;
 
 pub trait PoseidonParameters: 'static + FieldBasedHashParameters + Clone {
-
     const T: usize;  // Number of S-Boxes
     const R_F:i32;   // Number of full rounds
     const R_P:i32;   // Number of partial rounds
@@ -40,78 +32,85 @@ pub trait PoseidonParameters: 'static + FieldBasedHashParameters + Clone {
     const AFTER_ZERO_PERM: &'static[Self::Fr]; // State vector after a zero permutation
     const ROUND_CST: &'static[Self::Fr];  // Array of round constants
     const MDS_CST: &'static[Self::Fr];  // The MDS matrix
-    const MDS_CST_SHORT: &'static[Self::Fr];  // The MDS matrix for fast matrix multiplication
 
-}
-
-// Function that does the scalar multiplication
-// It uses Montgomery multiplication
-// Constants are defined such that the result is x * t * 2^n mod M,
-// that is the Montgomery representation of the operand x * t mod M, and t is the 64-bit constant
-#[allow(dead_code)]
-#[inline]
-pub fn scalar_mul<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> (res: &mut F, state: &mut[F], mut start_idx_cst: usize) {
-
-    state.iter().for_each(|x| {
-        let elem = x.mul(&P::MDS_CST[start_idx_cst]);
-        start_idx_cst += 1;
-        *res += &elem;
-    });
-}
-
-// Function that does the mix matrix
-#[allow(dead_code)]
-#[inline]
-pub fn matrix_mix<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>>  (state: &mut Vec<F>) {
-
-    // the new state where the result will be stored initialized to zero elements
-    let mut new_state = vec![F::zero(); P::T];
-
-    let mut idx_cst = 0;
-    for i in 0..P::T {
-        scalar_mul::<F,P>(&mut new_state[i], state, idx_cst);
-        idx_cst += P::T;
+    /// Add round constants to `state` starting from `start_idx_cst`, modifying `state` in place.
+    #[inline]
+    fn add_round_constants(
+        state: &mut [<Self as FieldBasedHashParameters>::Fr],
+        start_idx_cst: &mut usize
+    )
+    {
+        for d in state.iter_mut() {
+            let rc = Self::ROUND_CST[*start_idx_cst];
+            *d += &rc;
+            *start_idx_cst += 1;
+        }
     }
-    *state = new_state;
-}
 
-// Function that does the scalar multiplication
-// It uses a partial Montgomery multiplication defined as PM(x, t) = x * t * 2^-64 mod M
-// t is a 64-bit matrix constant. In the algorithm, the constants are represented in
-// partial Montgomery representation, i.e. t * 2^64 mod M
-#[inline]
-pub fn scalar_mul_fast<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> (res: &mut F, state: &mut[F], mut start_idx_cst: usize) {
-    state.iter().for_each(|&x| {
-        let elem = P::MDS_CST_SHORT[start_idx_cst].mul_short(x);
-        start_idx_cst += 1;
-        *res += &elem;
-    });
-}
-
-// Function that does the mix matrix with fast algorithm
-#[inline]
-pub fn matrix_mix_short<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> (state: &mut Vec<F>) {
-
-    // the new state where the result will be stored initialized to zero elements
-    let mut new_state = vec![F::zero(); P::T];
-
-    let mut idx_cst = 0;
-    for i in 0..P::T {
-        scalar_mul_fast::<F,P>(&mut new_state[i], state, idx_cst);
-        idx_cst += P::T;
+    /// Perform scalar multiplication between vectors `res` and `state`,
+    /// modifying `res` in place.
+    #[inline]
+    fn dot_product(
+        res: &mut <Self as FieldBasedHashParameters>::Fr,
+        state: &mut [<Self as FieldBasedHashParameters>::Fr],
+        mut start_idx_cst: usize
+    ) {
+        state.iter().for_each(|x| {
+            let elem = x.mul(&Self::MDS_CST[start_idx_cst]);
+            start_idx_cst += 1;
+            *res += &elem;
+        });
     }
-    *state = new_state;
+
+    /// Perform matrix mix on `state`, modifying `state` in place.
+    #[inline]
+    fn matrix_mix(state: &mut Vec<<Self as FieldBasedHashParameters>::Fr>)
+    {
+        // the new state where the result will be stored initialized to zero elements
+        let mut new_state = vec![<Self as FieldBasedHashParameters>::Fr::zero(); Self::T];
+
+        let mut idx_cst = 0;
+        for i in 0..Self::T {
+            Self::dot_product(&mut new_state[i], state, idx_cst);
+            idx_cst += Self::T;
+        }
+        *state = new_state;
+    }
 }
 
-impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> PoseidonHash<F, P> {
+pub trait PoseidonShortParameters: PoseidonParameters {
+    /// MDS matrix supporting short Montgomery multiplication with respect to the short
+    /// Montgomery constant R_2=2^64
+    const MDS_CST_SHORT: &'static [Self::Fr];
+}
 
+#[derive(Derivative)]
+#[derivative(
+Clone(bound = ""),
+Debug(bound = ""),
+)]
+pub struct PoseidonHash<F: PrimeField, P: PoseidonParameters<Fr = F>, SB: SBox<Field = F, Parameters = P>>{
+    state: Vec<F>,
+    pending: Vec<F>,
+    input_size: Option<usize>,
+    updates_ctr: usize,
+    mod_rate: bool,
+    _parameters: PhantomData<P>,
+    _sbox: PhantomData<SB>,
+}
+
+impl<F, P, SB> PoseidonHash<F, P, SB>
+    where
+        F: PrimeField,
+        P: PoseidonParameters<Fr = F>,
+        SB: SBox<Field = F, Parameters = P>,
+{
     fn _init(constant_size: Option<usize>, mod_rate: bool, personalization: Option<&[F]>) -> Self
     {
         let mut state = Vec::with_capacity(P::T);
         for i in 0..P::T {
             state.push(P::AFTER_ZERO_PERM[i]);
         }
-
 
         let mut instance = Self {
             state,
@@ -120,6 +119,7 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
             updates_ctr: 0,
             mod_rate,
             _parameters: PhantomData,
+            _sbox: PhantomData,
         };
 
         // If personalization Vec is not multiple of the rate, we pad it with zero field elements.
@@ -207,136 +207,54 @@ impl<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr=F>> Posei
         }
     }
 
-    /// Inversion S-Box only !
     pub(crate) fn poseidon_perm (state: &mut Vec<F>) {
 
         // index that goes over the round constants
-        let mut round_cst_idx = 0;
+        let round_cst_idx = &mut 0;
 
         // First full rounds
         for _i in 0..P::R_F {
-
             // Add the round constants to the state vector
-            for d in state.iter_mut() {
-                let rc = P::ROUND_CST[round_cst_idx];
-                *d += &rc;
-                round_cst_idx += 1;
-            }
+            P::add_round_constants(state, round_cst_idx);
 
             // Apply the S-BOX to each of the elements of the state vector
-            // Use Montgomery simultaneous inversion
-            let mut w: Vec<P::Fr> = Vec::new();
-            let mut accum_prod = P::Fr::one();
+            SB::apply_full(state);
 
-            w.push(accum_prod);
-
-            // Calculate the intermediate partial products
-            for d in state.iter() {
-                accum_prod = accum_prod * &d;
-                w.push(accum_prod);
-            }
-
-            if accum_prod == P::Fr::zero() {
-                // At least one of the S-Boxes is zero
-                // Calculate inverses individually
-                for d in state.iter_mut() {
-                    // The S-BOX is an inversion function
-                    if *d != P::Fr::zero() {
-                        *d = (*d).inverse().unwrap();
-                    }
-                }
-            } else {
-                let mut w_bar = accum_prod.inverse().unwrap();
-
-                // Extract the individual inversions
-                let mut idx: i64 = w.len() as i64 - P::R as i64;
-                for d in state.iter_mut().rev() {
-                    let tmp = d.clone();
-                    *d = w_bar * &w[idx as usize];
-                    w_bar = w_bar * &tmp;
-                    idx -= 1;
-                }
-            }
-
-            // Perform the matrix mix
-            matrix_mix_short::<F, P>(state);
-
+            // Perform matrix mix
+            P::matrix_mix(state);
         }
 
         // Partial rounds
         for _i in 0..P::R_P {
-
             // Add the round constants to the state vector
-            for d in state.iter_mut() {
-                let rc = P::ROUND_CST[round_cst_idx];
-                *d += &rc;
-                round_cst_idx += 1;
-            }
+            P::add_round_constants(state, round_cst_idx);
 
             // Apply S-BOX only to the first element of the state vector
-            if state[0]!= P::Fr::zero() {
-                state[0] = state[0].inverse().unwrap();
-            }
+            SB::apply_partial(state);
 
-            // Apply the matrix mix
-            matrix_mix_short::<F, P>(state);
+            // Perform matrix mix
+            P::matrix_mix(state);
         }
 
         // Second full rounds
         for _i in 0..P::R_F {
-
             // Add the round constants
-            for d in state.iter_mut() {
-                let rc = P::ROUND_CST[round_cst_idx];
-                *d += &rc;
-                round_cst_idx += 1;
-            }
+            P::add_round_constants(state, round_cst_idx);
 
             // Apply the S-BOX to each of the elements of the state vector
-            // Use Montgomery simultaneous inversion
-            let mut w: Vec<P::Fr> = Vec::new();
-            let mut accum_prod = P::Fr::one();
+            SB::apply_full(state);
 
-            w.push(accum_prod);
-
-            // Calculate the intermediate partial products
-            for d in state.iter() {
-                accum_prod = accum_prod * &d;
-                w.push(accum_prod);
-            }
-
-            if accum_prod == P::Fr::zero() {
-                // At least one of the S-Boxes is zero
-                // Calculate inverses individually
-                for d in state.iter_mut() {
-                    // The S-BOX is an inversion function
-                    if *d != P::Fr::zero() {
-                        *d = (*d).inverse().unwrap();
-                    }
-                }
-            } else {
-                let mut w_bar = accum_prod.inverse().unwrap();
-
-                // Extract the individual inversions
-                let mut idx: i64 = w.len() as i64 - P::R as i64;
-                for d in state.iter_mut().rev() {
-                    let tmp = d.clone();
-                    *d = w_bar * &w[idx as usize];
-                    w_bar = w_bar * &tmp;
-                    idx -= 1;
-                }
-            }
-
-            // Perform the matrix mix
-            matrix_mix_short::<F, P>(state);
+            // Perform matrix mix
+            P::matrix_mix(state);
         }
     }
 }
 
-impl<F, P> FieldBasedHash for PoseidonHash<F, P>
+impl<F, P, SB> FieldBasedHash for PoseidonHash<F, P, SB>
     where
-        F: PrimeField + MulShort<F, Output = F>,
+        F: PrimeField,
         P: PoseidonParameters<Fr = F>,
+        SB: SBox<Field = F, Parameters = P>,
 {
     type Data = F;
     type Parameters = P;
@@ -394,9 +312,9 @@ impl<F, P> FieldBasedHash for PoseidonHash<F, P>
 
 #[cfg(test)]
 mod test {
-    use algebra::{Field, PrimeField, MulShort};
+    use algebra::{Field, PrimeField};
     use crate::crh::{
-        FieldBasedHash,
+        FieldBasedHash, SBox,
         test::{
             constant_length_field_based_hash_test, variable_length_field_based_hash_test
         }
@@ -412,14 +330,14 @@ mod test {
         inputs
     }
 
-    fn poseidon_permutation_regression_test<F: PrimeField + MulShort<F, Output = F>, P: PoseidonParameters<Fr = F>>(
+    fn poseidon_permutation_regression_test<F: PrimeField, P: PoseidonParameters<Fr = F>, SB: SBox<Field = F, Parameters = P>>(
         start_states: Vec<Vec<F>>,
         end_states:   Vec<Vec<F>>,
     )
     {
         // Regression test
         start_states.into_iter().zip(end_states).enumerate().for_each(|(i, (mut start_state, end_state))| {
-            PoseidonHash::<F, P>::poseidon_perm(&mut start_state);
+            PoseidonHash::<F, P, SB>::poseidon_perm(&mut start_state);
             assert_eq!(
                 start_state,
                 end_state,
@@ -478,7 +396,7 @@ mod test {
             fields::mnt4753::Fr as MNT4753Fr
         };
         use crate::crh::poseidon::parameters::mnt4753::{
-            MNT4PoseidonHash, MNT4753PoseidonParameters
+            MNT4PoseidonHash, MNT4753PoseidonParameters, MNT4InversePoseidonSBox
         };
 
         // Test vectors are computed via the script in ./parameters/scripts/permutation_mnt4fr.sage
@@ -534,7 +452,9 @@ mod test {
             ]
         ];
 
-        poseidon_permutation_regression_test::<MNT4753Fr, MNT4753PoseidonParameters>(start_states, end_states);
+        poseidon_permutation_regression_test::<MNT4753Fr, MNT4753PoseidonParameters, MNT4InversePoseidonSBox>(
+            start_states, end_states
+        );
         test_routine::<MNT4753Fr, MNT4PoseidonHash>(3)
     }
 
@@ -546,7 +466,7 @@ mod test {
             fields::mnt6753::Fr as MNT6753Fr
         };
         use crate::crh::poseidon::parameters::mnt6753::{
-            MNT6PoseidonHash, MNT6753PoseidonParameters,
+            MNT6PoseidonHash, MNT6753PoseidonParameters, MNT6InversePoseidonSBox,
         };
 
         // Test vectors are computed via the script in ./parameters/scripts/permutation_mnt6fr.sage
@@ -602,7 +522,149 @@ mod test {
             ]
         ];
 
-        poseidon_permutation_regression_test::<MNT6753Fr, MNT6753PoseidonParameters>(start_states, end_states);
+        poseidon_permutation_regression_test::<MNT6753Fr, MNT6753PoseidonParameters, MNT6InversePoseidonSBox>(
+            start_states, end_states
+        );
         test_routine::<MNT6753Fr, MNT6PoseidonHash>(3)
+    }
+
+    #[cfg(feature = "bn_382")]
+    #[test]
+    fn test_poseidon_hash_bn382_fr() {
+        use algebra::{
+            biginteger::BigInteger384,
+            fields::bn_382::Fr as BN382Fr
+        };
+        use crate::crh::poseidon::parameters::bn382::{
+            BN382FrPoseidonHash, BN382FrPoseidonParameters, BN382FrQuinticSbox
+        };
+
+        // Test vectors are computed via the script in ./parameters/scripts/permutation_mnt6fr.sage
+        let start_states = vec![
+            vec![BN382Fr::zero(); 3],
+            vec![
+                BN382Fr::new(BigInteger384([0x3c2fc28fee546f2f,0x46673e3f762a05a9,0xf3a4196fb7f077b0,0xea452bd940906dd0,0x61a33d4ae39ee3a1,0xb0fe1409f6b6ad,])),
+                BN382Fr::new(BigInteger384([0x4ca6094864916d57,0x2ca4974e3b8e4d6,0x4a05915e47dd8a18,0x5e6888ec4e9811ed,0xb1ddb601c4144f40,0x45c5e2dccf92992,])),
+                BN382Fr::new(BigInteger384([0x20e98c5412e8a53c,0xb2df907a45237f4,0x89db0df005eb52fb,0xc77948ae1a2a2cda,0xf5ddb01fdc5f2ca4,0x17cd7c819448cb46,])),
+            ],
+            vec![
+                BN382Fr::new(BigInteger384([0x541a0ca7bfcc881f,0xf88b8f238697be3c,0x36e61e96d2fb8d14,0x1a3edaa7cbaee4cb,0x55a2ae58ee66a979,0x100171f764d62113,])),
+                BN382Fr::new(BigInteger384([0x4abbd93002288653,0x37e17a329d1fa261,0xcd880c8eaf7a18b9,0xb0c2cd616408d2cf,0x5e938101f5333493,0x22a361e49171b56c,])),
+                BN382Fr::new(BigInteger384([0x75efbb3b47ed610d,0x872b59023b1582f,0x154f1c9f55385a05,0x130ecac1483ed87c,0xc9c4f03d0a0e838,0x11985516d2a7f963,])),
+            ],
+            vec![
+                BN382Fr::new(BigInteger384([0x5676a2aa9827db5c,0x42dffaf55931d898,0x4df6a1acb8359ba6,0xb6c57235a1057d95,0x8c80b33063239cec,0xc7219289e5b6fbe,])),
+                BN382Fr::new(BigInteger384([0xe17739d0259851fc,0x8cf3a336d885e861,0x5147bc1f93978a33,0x371ff88b2aaa0b59,0xc4fac8e7e213807e,0x49b925c3136f71b,])),
+                BN382Fr::new(BigInteger384([0xe2fdff72d46fcb0a,0x4067d514d9cb9ecf,0xf51b3c5b3bc11d00,0xeed7a12d7d42ee4c,0xc8bb6a1b0a079aa7,0xd047e537eb9ac58,])),
+            ],
+            vec![
+                BN382Fr::new(BigInteger384([0xcd0f5560277aad4d,0xffe03011802d3fd1,0xf74446bb0aa3e8e2,0x5e1f3daa54d09f36,0x459daf13600a2960,0x1cd498d82eb74a2d,])),
+                BN382Fr::new(BigInteger384([0xc1ca68ef9f0d7346,0x78bfeb6a95ea63e5,0xce164dee9dba93a,0x60f8dbaa8634a63a,0xfcfb923ab4911528,0x93128aeb82dbf04,])),
+                BN382Fr::new(BigInteger384([0x16c5a3b0f84a1808,0x1bb720c4473aa741,0xe3dd83f67121d1fb,0x31dc7f9ff20507b8,0xc86761e6ec443333,0x6f67c54083f05db,])),
+            ]
+        ];
+
+        let end_states = vec![
+            vec![
+                BN382Fr::new(BigInteger384([0x3600ae9dea9ba41a,0x17a35e3bedfc2e1,0x7ee93e40052b3867,0xc555ef28f09e84e9,0x1ef349664ad402cf,0x1c49706c59f09b25,])),
+                BN382Fr::new(BigInteger384([0xbb6f865c755b9100,0x6f6ccbea5f0c5847,0x4cfd3606c21c2573,0x3512ec3dc6889f67,0xc7981de6b0710b5f,0x109fe23f817aa0cf,])),
+                BN382Fr::new(BigInteger384([0x39de13d041934215,0x5370089a3da7c4fe,0x512952ce97e48c03,0xe1c26f50f4c9c4c1,0x1f008942e907b93e,0x1910b7b5453ff08f,])),
+            ],
+            vec![
+                BN382Fr::new(BigInteger384([0xf3b93ceda4f3a5c,0x5dcd6b6bc043fd10,0x8d383811267393b4,0x66f48dee2d1b12df,0xbdb9d022d8ef1832,0x3d7e58786b39ef4,])),
+                BN382Fr::new(BigInteger384([0x44aa122585436d31,0x28935d91839eef2b,0xda2ba836d955d3fe,0x200274d572c207a8,0x68ea32c32bf9e76c,0x1b6e87d7d7bd71b6,])),
+                BN382Fr::new(BigInteger384([0x65ba9efee2204115,0x81b822106a189c40,0x72b7d6e504e281b4,0xa51d8ac7dd820df0,0x1ea1f1cb92430cbc,0x23a85bdeb2d2dd16,])),
+            ],
+            vec![
+                BN382Fr::new(BigInteger384([0x47c7598c44ff8d16,0x9a2a4de7e4caa199,0xa64228ccfb671b,0xe507c52bab4c227c,0xa03bae146874c577,0x142abb97131a15ce,])),
+                BN382Fr::new(BigInteger384([0x6e5c0a1b6c74884d,0xf5bb78ce31dc03be,0xe12a8aea2fdbfb1c,0x27806b8e798e5047,0xdb908a200b3040d9,0xe722e2590de5b3d,])),
+                BN382Fr::new(BigInteger384([0xa3c9528966e64486,0x475589fea46633f1,0xd74899c26b7cc411,0x1771d0995b78fb5d,0xf4e48a25c61e9202,0x13751c53efdbf754,])),
+            ],
+            vec![
+                BN382Fr::new(BigInteger384([0xbaa9e75cb23bcf05,0x35d727f254ae75d7,0xacb20d326450e2b8,0x177c73eda4c84fdb,0x51f291a5f9dd6033,0x8788cee947e9501,])),
+                BN382Fr::new(BigInteger384([0xf1b326ebc984ec0,0x866f44f24cf07054,0x5f070db622ccd3da,0xceb0f26208090d9e,0xdd7bd626dbb1d31e,0xa8a45f03c973521,])),
+                BN382Fr::new(BigInteger384([0x32e4799fc1db07b1,0xbbdcbf7c6b9e2f24,0xf7cbd541b37e4650,0xd8143503afc7320a,0x75a91583524c9a16,0x1c9f9295f8bce898,])),
+            ],
+            vec![
+                BN382Fr::new(BigInteger384([0xd5db324446615bf8,0x96f94dd6887732e0,0x56020c6319093a3a,0x5ef153e7bc15f69b,0x1b87643733a4b798,0x16787d5e34111ed,])),
+                BN382Fr::new(BigInteger384([0x4558ed95b354fe81,0x31ba491852c4023,0x98af2996db40ba92,0xb4c3ac53e548ec3d,0x96c9e81d713719ea,0x1eefdfa3b6b479ae,])),
+                BN382Fr::new(BigInteger384([0x3340788274f54c1f,0xb2d040485d2fd9d6,0xd7df55b13440dbf3,0x856bf5fc77c7f48b,0x48cf9764e0e67a05,0x1816ef21b6373a7,])),
+            ]
+        ];
+
+        poseidon_permutation_regression_test::<BN382Fr, BN382FrPoseidonParameters, BN382FrQuinticSbox>(
+            start_states, end_states
+        );
+        test_routine::<BN382Fr, BN382FrPoseidonHash>(3)
+    }
+
+    #[cfg(feature = "bn_382")]
+    #[test]
+    fn test_poseidon_hash_bn382_fq() {
+        use algebra::{
+            biginteger::BigInteger384,
+            fields::bn_382::Fq as BN382Fq
+        };
+        use crate::crh::poseidon::parameters::bn382_dual::{
+            BN382FqPoseidonHash, BN382FqPoseidonParameters, BN382FqQuinticSbox
+        };
+
+        // Test vectors are computed via the script in ./parameters/scripts/permutation_mnt6fr.sage
+        let start_states = vec![
+            vec![BN382Fq::zero(); 3],
+            vec![
+                BN382Fq::new(BigInteger384([0x239d004c236ddb,0x88d83e760e8bd5bb,0x2ca0f68190713e45,0x8f6a964f924c8fff,0x62a854d505daa3f3,0x295e6179129332c,])),
+                BN382Fq::new(BigInteger384([0xa4a0f24f69849fbf,0x751e1bb2f93df901,0x6955afa141342da,0x3a242cea266d1ac2,0x4f838810d428645,0x397b9821248dd08,])),
+                BN382Fq::new(BigInteger384([0x5985d03eb267a372,0x6491f79810a21027,0xe65805fff01b641a,0x3aa8f9b916f74025,0x7ed27d962144ab7f,0x17f25f1815f2512c,])),
+            ],
+            vec![
+                BN382Fq::new(BigInteger384([0x86ead0985648077a,0x7a50ef9f2086cc9d,0x69c612dbec57975e,0x8647aacd9ab88959,0x3a5fabf8692b8d12,0xbdb03daf76eb57,])),
+                BN382Fq::new(BigInteger384([0x4409ea78e288db0a,0xc14e0a759b5fd26b,0x1ae0285264db243b,0xf2be0cf31a448a05,0xd103243aef14ada3,0x1189adbc498d1570,])),
+                BN382Fq::new(BigInteger384([0xfa5e0c518b29c440,0x28cbb1257edeb8a6,0x7a120a8c0658b3b5,0x13040f12fb2249f8,0xb71143b9ada3922c,0x1ee9611738dbe1b3,])),
+            ],
+            vec![
+                BN382Fq::new(BigInteger384([0x3bbae40afacfabc1,0x518f05b12a86d30,0xa7c6c267a8c546f3,0xdff2338e035d8c38,0x45cad929932db574,0x179803640786a069,])),
+                BN382Fq::new(BigInteger384([0xe4c488029c73ab3d,0x9cbea6f936421688,0xa733a951138f8904,0x9566d6bc3392168,0xe102fe13109c07ae,0x1e4c4733f9c926f1,])),
+                BN382Fq::new(BigInteger384([0xbeeabdfd33d7d4d4,0x258d58e0edf24637,0x644767bec95dd149,0x780c156441e1c292,0xb0b849ce82fd90a2,0xb189d134bfa9ced,])),
+            ],
+            vec![
+                BN382Fq::new(BigInteger384([0x1d9b42d2a2f73ea8,0xb9b3cf9c1e9aea41,0xa3c8780de2c255f2,0xff9617a521bc6a15,0x3dfe0e09411bbce1,0x1872aac1dea2aba8,])),
+                BN382Fq::new(BigInteger384([0x166383182fda3435,0x3125ac12879ae7e6,0x425286423e9432b,0x796686a5176807f8,0x826f8b280eb7669c,0x37172d9cb2e8efd,])),
+                BN382Fq::new(BigInteger384([0x2fc9a35fae8c69f3,0x8dca72688a8fa1c4,0xe7a690c67ed759d6,0xcde98c6072dd8eb4,0xa4bd01fd0dbe1bcd,0xf556423e114180e,])),
+            ]
+        ];
+
+        let end_states = vec![
+            vec![
+                BN382Fq::new(BigInteger384([0x27dcc9c1f001c02d,0x7fc9de4b5ab915ed,0x7c6832557c4a410d,0x320b95a8fa27bf32,0xe5c89c9c09bd67e5,0x65748e22de4f8c5,])),
+                BN382Fq::new(BigInteger384([0x7cdb27778c5d6796,0xad588ee542be3389,0x68e926bfdd6398ec,0xe432240624573240,0x2766c91ade70f83f,0x170646120652b37c,])),
+                BN382Fq::new(BigInteger384([0xcada65af3ba4e9c4,0x7e4561e9933627cd,0x8cb8757ddb2e0730,0x610ecc5beda633e0,0x984de49537e8c3ec,0x1349deb07a8f6f52,]))
+            ],
+            vec![
+                BN382Fq::new(BigInteger384([0xcfd422c316b20422,0xf15801f500d95821,0x360f5beb123f7d4e,0xfc13f1eabfe897f0,0xc70e46eea3b47d2c,0x14eb20b8f8cc25e5,])),
+                BN382Fq::new(BigInteger384([0x18fb3a5f70545729,0xadc0d9cd0b986c7b,0xc0f502215de819a9,0x21bff5966fdde339,0xc39b173777b1f86b,0x1e01840238fce37a,])),
+                BN382Fq::new(BigInteger384([0x70fd0a437704dfb5,0xc0afdaef11a41929,0x8a3d1c5e46648541,0x97c16c79daeb557d,0xd18b01c167ec00e6,0x10d02b9f59132a1d,])),
+            ],
+            vec![
+                BN382Fq::new(BigInteger384([0x1035143aba9695b9,0xf532c66887edbfcd,0xa6bd2998470d554f,0x831687ccd8a703ff,0xb75bed9a7ae1bab5,0x8b4c6d206c82fb8,])),
+                BN382Fq::new(BigInteger384([0x7e3d0019dd9387ab,0x746b6db1b8c19f4b,0x2964ec70d389adf6,0x8333f2f4045ebb5f,0x31832aff0cd42bc1,0x16572d68fc8031d5,])),
+                BN382Fq::new(BigInteger384([0x208b12c54d10bf3b,0xce12a04a890b4859,0x24fc1c25be961547,0xf8e6e4ee5cf48107,0x43a590c19365296e,0x58b7ff26592e23f,])),
+            ],
+            vec![
+                BN382Fq::new(BigInteger384([0x4f52c2933ef585f2,0x93b9868fb78ca000,0x390b415d3dda671c,0x7376e52933a4470,0x6f4cb578d987419,0xc539440279dc102,])),
+                BN382Fq::new(BigInteger384([0x3b8ed76f186a092f,0xfc7e9b70f3a206d0,0xa3bbb0c1436c65a2,0xfe0aeae213ba4473,0x9d8ff7b60fe2b888,0x35cb00af8ae79df,])),
+                BN382Fq::new(BigInteger384([0x1e27e68b262adee9,0xd4b7220a4be055ae,0x4ac1d5ab2530b8b,0x34e9beab4c8c6260,0xa37fff7e0bb5c229,0xa75e8ec286abe8e,])),
+            ],
+            vec![
+                BN382Fq::new(BigInteger384([0x9b735d2a3353402c,0xd4547e70eb8130fa,0x2438c5a8bed96075,0x32fdf7691a26f030,0xa1f649648c34ed64,0x22a1ead2ba837f97,])),
+                BN382Fq::new(BigInteger384([0x39b0c7a9271496c,0xcfec5f805bdb5e00,0xa9aead920a13442d,0xf8c824e2dedc3993,0x81b407a948baa360,0x205d8c200fb40967,])),
+                BN382Fq::new(BigInteger384([0xf9cc3c9cf970f38c,0xaf92136db468bbb9,0xb1c839b8e1eb9561,0xf92e59ecbe79cc84,0x34c857f5954e45f8,0x8344e8ada34f5d1,])),
+            ]
+        ];
+
+        poseidon_permutation_regression_test::<BN382Fq, BN382FqPoseidonParameters, BN382FqQuinticSbox>(
+            start_states, end_states
+        );
+        test_routine::<BN382Fq, BN382FqPoseidonHash>(3)
     }
 }

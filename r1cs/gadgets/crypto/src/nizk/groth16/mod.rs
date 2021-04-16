@@ -701,6 +701,7 @@ mod test {
     fn bls12_377_groth16_verifier_test() {
         use algebra::curves::bls12_377::Bls12_377;
         use r1cs_std::instantiated::bls12_377::PairingGadget;
+
         groth16_verifier_test::<Bls12_377, PairingGadget>();
     }
 
@@ -720,7 +721,6 @@ mod test {
 
         groth16_verifier_test::<MNT6, PairingGadget>();
     }
-
 
     #[test]
     fn bn_382_groth16_verifier_test() {

@@ -12,6 +12,7 @@ use rand::{
 
 use crate::{bytes::{FromBytes, ToBytes}, bits::{FromBits, ToBits}, fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField}, UniformRand, Error, SemanticallyValid};
 use crate::biginteger::arithmetic::find_wnaf;
+use serde::{Serialize, Deserialize};
 
 /// Model for quadratic extension field of prime field F=Fp
 ///     F2 = F[X]/(X^2-alpha),
@@ -65,12 +66,14 @@ Clone(bound = "P: QuadExtParameters"),
 Copy(bound = "P: QuadExtParameters"),
 Debug(bound = "P: QuadExtParameters"),
 PartialEq(bound = "P: QuadExtParameters"),
-Eq(bound = "P: QuadExtParameters")
+Eq(bound = "P: QuadExtParameters"),
 )]
+#[derive(Serialize, Deserialize)]
 pub struct QuadExtField<P: QuadExtParameters> {
     pub c0: P::BaseField,
     pub c1: P::BaseField,
     #[derivative(Debug = "ignore")]
+    #[serde(skip)]
     #[doc(hidden)]
     pub _parameters: PhantomData<P>,
 }
@@ -132,8 +135,8 @@ impl<P: QuadExtParameters> QuadExtField<P> {
     }
 
     pub fn mul_assign_by_basefield(&mut self, element: &P::BaseField) {
-        self.c0.mul_assign(&element);
-        self.c1.mul_assign(&element);
+        self.c0.mul_assign(element);
+        self.c1.mul_assign(element);
     }
 }
 
@@ -466,6 +469,9 @@ impl<'a, P: QuadExtParameters> SubAssign<&'a Self> for QuadExtField<P> {
         self.c1.sub_assign(&other.c1);
     }
 }
+
+impl_additive_ops_from_ref!(QuadExtField, QuadExtParameters);
+impl_multiplicative_ops_from_ref!(QuadExtField, QuadExtParameters);
 
 impl<'a, P: QuadExtParameters> MulAssign<&'a Self> for QuadExtField<P> {
     #[inline]

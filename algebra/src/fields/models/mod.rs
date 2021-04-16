@@ -12,14 +12,16 @@ use crate::{
         arithmetic as fa, BigInteger as _BigInteger, BigInteger256, BigInteger320, BigInteger384,
         BigInteger768, BigInteger832,
     },
-    bytes::{FromBytes, ToBytes}, SemanticallyValid,
+    bytes::{FromBytes, ToBytes},
     fields::{
         Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField,
         MulShort, MulShortAssign
     },
+    SemanticallyValid
 };
 
 use std::io::{Read, Result as IoResult, Write, ErrorKind, Error as IoError};
+use serde::{Serialize, Deserialize};
 
 
 #[cfg(use_asm)]

@@ -25,13 +25,14 @@ use std::{
 };
 use rand::rngs::OsRng;
 use primitives::signature::schnorr::field_based_schnorr::FieldBasedSchnorrPk;
+use r1cs_std::alloc::ConstantGadget;
 
 #[derive(Derivative)]
 #[derivative(
-Debug(bound = "ConstraintF: PrimeField, G: Group"),
-Clone(bound = "ConstraintF: PrimeField, G: Group"),
-PartialEq(bound = "ConstraintF: PrimeField, G: Group"),
-Eq(bound = "ConstraintF: PrimeField, G: Group")
+    Debug(bound = "ConstraintF: PrimeField, G: Group"),
+    Clone(bound = "ConstraintF: PrimeField, G: Group"),
+    PartialEq(bound = "ConstraintF: PrimeField, G: Group"),
+    Eq(bound = "ConstraintF: PrimeField, G: Group")
 )]
 pub struct FieldBasedSchnorrSigGadget<
     ConstraintF: PrimeField,
@@ -93,6 +94,80 @@ for FieldBasedSchnorrSigGadget<ConstraintF, G>
     }
 }
 
+impl<ConstraintF, G> ConstantGadget<FieldBasedSchnorrSignature<ConstraintF, G>, ConstraintF>
+for FieldBasedSchnorrSigGadget<ConstraintF, G>
+    where
+        ConstraintF: PrimeField,
+        G: Group,
+{
+    fn from_value<CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        value: &FieldBasedSchnorrSignature<ConstraintF, G>
+    ) -> Self {
+        let e = FpGadget::<ConstraintF>::from_value(cs.ns(|| "hardcode e"), &value.e);
+        let s = FpGadget::<ConstraintF>::from_value(cs.ns(|| "hardcode s"), &value.s);
+        Self{ e, s, _field: PhantomData, _group: PhantomData }
+    }
+
+    fn get_constant(&self) -> FieldBasedSchnorrSignature<ConstraintF, G>
+    {
+        let e = self.e.value.unwrap();
+        let s = self.s.value.unwrap();
+        FieldBasedSchnorrSignature::<ConstraintF, G>::new(e, s)
+    }
+}
+
+impl<ConstraintF, G> EqGadget<ConstraintF> for FieldBasedSchnorrSigGadget<ConstraintF, G>
+    where
+        ConstraintF: PrimeField,
+        G: Group,
+{
+    fn is_eq<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS, other: &Self) -> Result<Boolean, SynthesisError> {
+        let b1 = self.e.is_eq(cs.ns(|| "b1"), &other.e)?;
+        let b2 = self.s.is_eq(cs.ns(|| "b2"), &other.s)?;
+        Boolean::and(cs.ns(|| "b1 && b2"), &b1, &b2)
+    }
+
+    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        other: &Self,
+        should_enforce: &Boolean
+    ) -> Result<(), SynthesisError> {
+        self.e.conditional_enforce_equal(cs.ns(|| "self.e =? other.e"), &other.e, should_enforce)?;
+        self.s.conditional_enforce_equal(cs.ns(|| "self.s =? other.s"), &other.s, should_enforce)?;
+        Ok(())
+    }
+
+    fn conditional_enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        other: &Self,
+        should_enforce: &Boolean
+    ) -> Result<(), SynthesisError> {
+        self.e.conditional_enforce_not_equal(cs.ns(|| "self.e !=? other.e"), &other.e, should_enforce)?;
+        self.s.conditional_enforce_not_equal(cs.ns(|| "self.s !=? other.s"), &other.s, should_enforce)?;
+        Ok(())
+    }
+}
+
+impl<ConstraintF, G> ToConstraintFieldGadget<ConstraintF> for FieldBasedSchnorrSigGadget<ConstraintF, G>
+    where
+        ConstraintF: PrimeField,
+        G: Group,
+{
+    type FieldGadget = FpGadget<ConstraintF>;
+
+    fn to_field_gadget_elements<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        _cs: CS
+    ) -> Result<Vec<Self::FieldGadget>, SynthesisError>
+    {
+        Ok(vec![self.e.clone(), self.s.clone()])
+    }
+}
+
+#[derive(Clone, Eq, PartialEq)]
 pub struct FieldBasedSchnorrPkGadget<
     ConstraintF: PrimeField,
     G: Group,
@@ -159,6 +234,80 @@ for FieldBasedSchnorrPkGadget<ConstraintF, G, GG>
     {
         let pk = GG::alloc_input(cs.ns(|| "alloc pk"), || f().map(|pk| pk.borrow().0))?;
         Ok( Self{ pk, _field: PhantomData, _group: PhantomData } )
+    }
+}
+
+impl<ConstraintF, G, GG> ConstantGadget<FieldBasedSchnorrPk<G>, ConstraintF>
+for FieldBasedSchnorrPkGadget<ConstraintF, G, GG>
+    where
+        ConstraintF: PrimeField,
+        G: Group,
+        GG: GroupGadget<G, ConstraintF, Value = G>,
+{
+    fn from_value<CS: ConstraintSystem<ConstraintF>>(mut cs: CS, value: &FieldBasedSchnorrPk<G>) -> Self {
+        let pk = GG::from_value(cs.ns(|| "hardcode pk"), &value.0);
+        Self{ pk, _field: PhantomData, _group: PhantomData }
+    }
+
+    fn get_constant(&self) -> FieldBasedSchnorrPk<G> {
+        FieldBasedSchnorrPk::<G>(self.pk.get_value().unwrap())
+    }
+}
+
+impl<ConstraintF, G, GG> EqGadget<ConstraintF> for FieldBasedSchnorrPkGadget<ConstraintF, G, GG>
+    where
+    ConstraintF: PrimeField,
+    G: Group,
+    GG: GroupGadget<G, ConstraintF, Value = G>,
+{
+    fn is_eq<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+        other: &Self
+    ) -> Result<Boolean, SynthesisError> {
+        self.pk.is_eq(cs, &other.pk)
+    }
+
+    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+        other: &Self,
+        should_enforce: &Boolean,
+    ) -> Result<(), SynthesisError> {
+         self.pk.conditional_enforce_equal(
+             cs,
+             &other.pk,
+             should_enforce
+         )
+    }
+
+    fn conditional_enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+        other: &Self,
+        should_enforce: &Boolean,
+    ) -> Result<(), SynthesisError> {
+        self.pk.conditional_enforce_not_equal(
+            cs,
+            &other.pk,
+            should_enforce
+        )
+    }
+}
+
+impl<ConstraintF, G, GG> ToConstraintFieldGadget<ConstraintF> for FieldBasedSchnorrPkGadget<ConstraintF, G, GG>
+    where
+        ConstraintF: PrimeField,
+        G: Group,
+        GG: GroupGadget<G, ConstraintF, Value = G>  + ToConstraintFieldGadget<ConstraintF, FieldGadget = FpGadget<ConstraintF>>,
+{
+    type FieldGadget = FpGadget<ConstraintF>;
+
+    fn to_field_gadget_elements<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS
+    ) -> Result<Vec<Self::FieldGadget>, SynthesisError> {
+        self.pk.to_field_gadget_elements(cs)
     }
 }
 
@@ -267,7 +416,7 @@ impl<ConstraintF, G, GG, H, HG> FieldBasedSchnorrSigVerificationGadget<Constrain
             // If add is incomplete, and s * G - e * pk = 0, the circuit of the add won't be satisfiable
             .add(cs.ns(|| "s * G - e * pk "), &neg_e_times_pk)?;
 
-        let r_prime_coords = r_prime.to_field_gadget_elements()?;
+        let r_prime_coords = r_prime.to_field_gadget_elements(cs.ns(|| "r_prime to fes"))?;
 
         // Check e' = H(m || R' || pk.x)
         // Best constraints-efficiency is achieved when m is one field element
@@ -275,7 +424,7 @@ impl<ConstraintF, G, GG, H, HG> FieldBasedSchnorrSigVerificationGadget<Constrain
         let mut hash_input = Vec::new();
         hash_input.push(message);
         hash_input.extend_from_slice(r_prime_coords.as_slice());
-        hash_input.push(public_key.to_field_gadget_elements().unwrap()[0].clone());
+        hash_input.push(public_key.to_field_gadget_elements(cs.ns(|| "pk to fes")).unwrap()[0].clone());
 
         HG::enforce_hash_constant_length(
             cs.ns(|| "check e_prime"),
@@ -317,11 +466,12 @@ for FieldBasedSchnorrSigVerificationGadget<ConstraintF, G, GG, H, HG>
         Ok(is_verified)
     }
 
-    fn enforce_signature_verification<CS: ConstraintSystem<ConstraintF>>(
+    fn conditionally_enforce_signature_verification<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         public_key: &Self::PublicKeyGadget,
         signature: &Self::SignatureGadget,
-        message: Self::DataGadget
+        message: Self::DataGadget,
+        should_enforce: &Boolean,
     ) -> Result<(), SynthesisError> {
 
         let e_prime = Self::enforce_signature_computation(
@@ -330,7 +480,11 @@ for FieldBasedSchnorrSigVerificationGadget<ConstraintF, G, GG, H, HG>
             signature,
             message
         )?;
-        signature.e.enforce_equal(cs.ns(|| "signature must be verified"), &e_prime)?;
+        signature.e.conditional_enforce_equal(
+            cs.ns(|| "conditional verify signature"),
+            &e_prime,
+            should_enforce
+        )?;
         Ok(())
     }
 }

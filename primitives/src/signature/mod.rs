@@ -5,14 +5,15 @@ use algebra::{bytes::{
 use rand::Rng;
 use std::hash::Hash;
 use std::fmt::Debug;
+use serde::{Serialize, Deserialize};
 
 pub mod schnorr;
 
 pub trait SignatureScheme {
-    type Parameters: Clone + Send + Sync;
-    type PublicKey: ToBytes + Hash + Eq + Clone + Default + Send + Sync;
-    type SecretKey: ToBytes + Clone + Default;
-    type Signature: Clone + Default + Send + Sync;
+    type Parameters: Clone + Send + Sync + Serialize + for<'a> Deserialize<'a>;
+    type PublicKey: ToBytes + Serialize + for<'a> Deserialize<'a> + Hash + Eq + Clone + Default + Send + Sync;
+    type SecretKey: ToBytes + Serialize + for<'a> Deserialize<'a> + Clone + Default;
+    type Signature: Serialize + for<'a> Deserialize<'a> + Clone + Default + Send + Sync;
 
     fn setup<R: Rng>(rng: &mut R) -> Result<Self::Parameters, Error>;
 
@@ -52,10 +53,12 @@ pub trait FieldBasedSignatureScheme {
 
     type Data: Field;
     type PublicKey: FromBytes + FromBytesChecked + ToBytes + Hash + Eq + Copy +
-                    Clone + Default + Debug + Send + Sync + UniformRand;
-    type SecretKey: ToBytes + Clone + Default;
+                    Clone + Default + Debug + Send + Sync + UniformRand
+                    + Serialize + for<'a> Deserialize<'a>;
+    type SecretKey: ToBytes + Clone + Default + Serialize + for<'a> Deserialize<'a>;
     type Signature: Copy + Clone + Default + Send + Sync + Debug + Eq + PartialEq
-                    + ToBytes + FromBytes + FromBytesChecked;
+                    + ToBytes + FromBytes + FromBytesChecked + Serialize
+                    + for<'a> Deserialize<'a>;
 
     fn keygen<R: Rng>(
         rng: &mut R,

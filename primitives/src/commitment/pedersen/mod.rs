@@ -16,7 +16,10 @@ use crate::crh::{
     FixedLengthCRH,
 };
 
-#[derive(Clone)]
+use serde::{Serialize, Deserialize};
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(bound(deserialize = "G: Group"))]
 pub struct PedersenParameters<G: Group> {
     pub randomness_generator: Vec<G>,
     pub generators:           Vec<Vec<G>>,
@@ -35,6 +38,8 @@ pub struct PedersenCommitment<G: Group, W: PedersenWindow> {
     Eq(bound = "G: Group"),
     Default(bound = "G: Group")
 )]
+#[derive(Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct PedersenRandomness<G: Group>(pub G::ScalarField);
 
 impl<G: Group> UniformRand for PedersenRandomness<G> {

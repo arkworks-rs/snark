@@ -9,11 +9,12 @@ use std::{
 use super::pedersen::{PedersenCRH, PedersenWindow};
 use crate::crh::FixedLengthCRH;
 use algebra::{biginteger::BigInteger, fields::PrimeField, groups::Group};
-
+use serde::{Serialize, Deserialize};
 
 pub const CHUNK_SIZE: usize = 3;
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Serialize, Deserialize)]
+#[serde(bound(deserialize = "G: Group"))]
 pub struct BoweHopwoodPedersenParameters<G: Group> {
     pub generators: Vec<Vec<G>>,
 }

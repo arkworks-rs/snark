@@ -11,7 +11,7 @@ use rand::{
 };
 
 use crate::{bytes::{FromBytes, ToBytes}, bits::{FromBits, ToBits}, fields::{Field, FpParameters, PrimeField}, UniformRand, Error, SemanticallyValid};
-
+use serde::{Serialize, Deserialize};
 
 /// Model for cubic extension field of a prime field F=BasePrimeField
 ///     F3 = F[X]/(X^3-alpha),
@@ -66,13 +66,15 @@ Clone(bound = "P: CubicExtParameters"),
 Copy(bound = "P: CubicExtParameters"),
 Debug(bound = "P: CubicExtParameters"),
 PartialEq(bound = "P: CubicExtParameters"),
-Eq(bound = "P: CubicExtParameters")
+Eq(bound = "P: CubicExtParameters"),
 )]
+#[derive(Serialize, Deserialize)]
 pub struct CubicExtField<P: CubicExtParameters> {
     pub c0: P::BaseField,
     pub c1: P::BaseField,
     pub c2: P::BaseField,
     #[derivative(Debug = "ignore")]
+    #[serde(skip)]
     #[doc(hidden)]
     pub _parameters: PhantomData<P>,
 }
@@ -461,6 +463,9 @@ impl<'a, P: CubicExtParameters> SubAssign<&'a Self> for CubicExtField<P> {
         self.c2.sub_assign(&other.c2);
     }
 }
+
+impl_additive_ops_from_ref!(CubicExtField, CubicExtParameters);
+impl_multiplicative_ops_from_ref!(CubicExtField, CubicExtParameters);
 
 impl<'a, P: CubicExtParameters> MulAssign<&'a Self> for CubicExtField<P> {
     #[inline]

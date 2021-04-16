@@ -1,13 +1,16 @@
 use crate::crh::{
-    PoseidonParameters, FieldBasedHashParameters, PoseidonHash, batched_crh::PoseidonBatchHash,
+    PoseidonParameters, PoseidonShortParameters,
+    FieldBasedHashParameters, PoseidonHash, batched_crh::PoseidonBatchHash,
+    PoseidonInverseSBox,
 };
 
-use algebra::fields::mnt6753::Fr;
-use algebra::biginteger::BigInteger768 as BigInteger;
-use algebra::field_new;
+use algebra::{
+    fields::mnt6753::Fr,
+    biginteger::BigInteger768 as BigInteger,
+    field_new,
+    MulShort
+};
 
-pub type MNT6PoseidonHash = PoseidonHash<Fr, MNT6753PoseidonParameters>;
-pub type MNT6BatchPoseidonHash = PoseidonBatchHash<Fr, MNT6753PoseidonParameters>;
 
 #[derive(Debug, Clone)]
 /// x^{-1}-POSEIDON-128 parameters for scalar field Fr MNT6-753, with an MDS matrix supporting
@@ -17,9 +20,28 @@ pub type MNT6BatchPoseidonHash = PoseidonBatchHash<Fr, MNT6753PoseidonParameters
 /// are generated using the script ./scripts/generate_parameters_short_grain.
 pub struct MNT6753PoseidonParameters;
 
+pub type MNT6InversePoseidonSBox = PoseidonInverseSBox<Fr, MNT6753PoseidonParameters>;
+pub type MNT6PoseidonHash = PoseidonHash<Fr, MNT6753PoseidonParameters, MNT6InversePoseidonSBox>;
+pub type MNT6BatchPoseidonHash = PoseidonBatchHash<Fr, MNT6753PoseidonParameters, MNT6InversePoseidonSBox>;
+
 impl FieldBasedHashParameters for MNT6753PoseidonParameters {
     type Fr = Fr;
     const R: usize = 2;  // The rate of the hash function
+}
+
+impl PoseidonShortParameters for MNT6753PoseidonParameters {
+    const MDS_CST_SHORT: &'static[Fr]  = &[
+        // These constants are in Partial Montgomery representation with R = 2^64
+        field_new!(Fr,BigInteger([0x1b06b82936573768, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+        field_new!(Fr,BigInteger([0xa8a66953a924365d, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+        field_new!(Fr,BigInteger([0xb412c015510c2717, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+        field_new!(Fr,BigInteger([0x351fdbd63ac0afdb, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+        field_new!(Fr,BigInteger([0x302be8e2c8e27f02, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+        field_new!(Fr,BigInteger([0x7dcdc338f53308c, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+        field_new!(Fr,BigInteger([0x5220f8b41dab7db4, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+        field_new!(Fr,BigInteger([0x524543d141024c82, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+        field_new!(Fr,BigInteger([0x3657a2432f363f4, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
+    ];
 }
 
 impl PoseidonParameters for MNT6753PoseidonParameters {
@@ -257,9 +279,8 @@ impl PoseidonParameters for MNT6753PoseidonParameters {
         field_new!(Fr,BigInteger([0xf5c0fa703ceef967,0x7e8a76ea209882a9,0x5bc0effae852025,0x78e01fbdadf36b3a,0x9c4474e50c7fdcad,0x8988335c5ccdd9d1,0xb019423ddb77c37b,0xff99a012e26b272,0xbbeefe2ebd4a84c4,0x2919528dd8a266fc,0x2ff9472bc05d2a52,0xfbdd82904763,])),
     ];
 
-    // The MDS matrix
+    // This MDS matrix supports fast matrix multiplication
     const MDS_CST: &'static[Fr]  = &[
-        // The short MDS matrix in Fr's Montgomery representation
         field_new!(Fr,BigInteger([0x501a4942604a70b9,0xa76ccc949aa7c642,0x6c4cc86c95605cda,0xbccf7d4f7354e493,0x1206801ab772b03d,0x7bced5d373023379,0x15d6072feb4315e3,0xeac86ddb0d72d1b7,0xf457c575fc343aa0,0x59e953592fd74c9d,0x7ff7fa50750bc70a,0x18886f925d6ba,])),
         field_new!(Fr,BigInteger([0x2c2d74682546a0a6,0x9865dc7630bda9e1,0x84100fa0ccf644d8,0x9e0952f7ee653d45,0xb4a4ad4288ceb171,0xdeb37c57f9787f3f,0x4fcc489c84216dd7,0x917d7587f44f023,0x73e38903794b3798,0xb319fbc57d331066,0x805c5d11d9f039a7,0x1b0be2cc8f360,])),
         field_new!(Fr,BigInteger([0x334837292ab79a30,0xfde71188546dce34,0x72f5d1a2dda92279,0x63616694a7b65f2a,0x83628012db5d30ff,0xae4201d7d244363c,0x8288328402659901,0x67cd9c6b7f861f43,0x7ba84d7fdc3ac062,0xc825a95ead868c4,0x410d1b5e6c935945,0xaf1562721ddc,])),
@@ -271,17 +292,13 @@ impl PoseidonParameters for MNT6753PoseidonParameters {
         field_new!(Fr,BigInteger([0xa11074f03ec07e15,0x713f4663f3ff3355,0x1a08761c29cb3afb,0xd9d8fc39d2b7a8b5,0xfb20d30306dce9cf,0x57270eddabed3a7f,0xfbde52978687148d,0xac5de44ad3586169,0x5544299cb8c3db5f,0x244ac8e0636993bb,0xdb58cffd2ff83d0,0x1120aca75573a,])),
     ];
 
-    // The MDS matrix for fast matrix multiplication
-    const MDS_CST_SHORT: &'static[Fr]  = &[
-        // These constants are in Partial Montgomery representation with R = 2^64
-        field_new!(Fr,BigInteger([0x1b06b82936573768, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
-        field_new!(Fr,BigInteger([0xa8a66953a924365d, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
-        field_new!(Fr,BigInteger([0xb412c015510c2717, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
-        field_new!(Fr,BigInteger([0x351fdbd63ac0afdb, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
-        field_new!(Fr,BigInteger([0x302be8e2c8e27f02, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
-        field_new!(Fr,BigInteger([0x7dcdc338f53308c, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
-        field_new!(Fr,BigInteger([0x5220f8b41dab7db4, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
-        field_new!(Fr,BigInteger([0x524543d141024c82, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
-        field_new!(Fr,BigInteger([0x3657a2432f363f4, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0])),
-    ];
+    /// Short Montgomery multiplication with respect to the short Montgomery constant R_2=2^64
+    #[inline]
+    fn dot_product(res: &mut Fr, state: &mut [Fr], mut start_idx_cst: usize) {
+        state.iter().for_each(|&x| {
+            let elem = Self::MDS_CST_SHORT[start_idx_cst].mul_short(x);
+            start_idx_cst += 1;
+            *res += &elem;
+        });
+    }
 }

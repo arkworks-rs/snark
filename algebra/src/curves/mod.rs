@@ -1,10 +1,11 @@
-use crate::{bytes::{FromBytes, ToBytes}, fields::{Field, PrimeField, SquareRootField}, groups::Group, SemanticallyValid, FromBytesChecked};
+use crate::{bytes::{FromBytes, ToBytes}, fields::{Field, PrimeField, SquareRootField}, groups::Group, SemanticallyValid, FromBytesChecked, bits::{ToBits, FromCompressedBits}, ToCompressedBits};
 use crate::UniformRand;
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
     ops::{Add, AddAssign, Neg, Sub, SubAssign},
 };
+use serde::{Serialize, Deserialize};
 
 pub mod models;
 
@@ -59,7 +60,8 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send + Eq + Par
         + Into<Self::G1Prepared>;
 
     /// A G1 element that has been preprocessed for use in a pairing.
-    type G1Prepared: ToBytes + FromBytes + Default + Clone + Send + Sync + Debug + From<Self::G1Affine>;
+    type G1Prepared: ToBytes + FromBytes + Serialize + for<'a> Deserialize<'a> + Default + Clone +
+                     Send + Sync + Debug + From<Self::G1Affine>;
 
     /// The projective representation of an element in G2.
     type G2Projective: ProjectiveCurve<BaseField = Self::Fqe, ScalarField = Self::Fr, Affine = Self::G2Affine>
@@ -73,7 +75,8 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send + Eq + Par
         + Into<Self::G2Prepared>;
 
     /// A G2 element that has been preprocessed for use in a pairing.
-    type G2Prepared: ToBytes + FromBytes + Default + Eq + PartialEq + Clone + Send + Sync + Debug + From<Self::G2Affine>;
+    type G2Prepared: ToBytes + FromBytes + Serialize + for<'a> Deserialize<'a> + Default + Eq +
+                     PartialEq + Clone + Send + Sync + Debug + From<Self::G2Affine>;
 
     /// The base field that hosts G1.
     type Fq: PrimeField + SquareRootField;
@@ -123,6 +126,8 @@ pub trait ProjectiveCurve:
     + Sized
     + ToBytes
     + FromBytes
+    + Serialize
+    + for <'a> Deserialize<'a>
     + SemanticallyValid
     + FromBytesChecked
     + Copy
@@ -165,6 +170,11 @@ pub trait ProjectiveCurve:
     /// Normalizes a slice of projective elements so that
     /// conversion to affine is cheap.
     fn batch_normalization(v: &mut [Self]);
+
+    fn batch_normalization_into_affine(mut v: Vec<Self>) -> Vec<Self::Affine> {
+        Self::batch_normalization(v.as_mut_slice());
+        v.into_iter().map(|p| p.into_affine()).collect()
+    }
 
     /// Checks if the point is already "normalized" so that
     /// cheap affine conversion is possible.
@@ -210,8 +220,12 @@ pub trait AffineCurve:
     + Sized
     + ToBytes
     + FromBytes
+    + Serialize
+    + for <'a> Deserialize<'a>
     + SemanticallyValid
     + FromBytesChecked
+    + ToCompressedBits
+    + FromCompressedBits
     + Copy
     + Clone
     + Default
@@ -239,6 +253,28 @@ pub trait AffineCurve:
     /// additive identity.
     #[must_use]
     fn is_zero(&self) -> bool;
+
+    /// Returns a group element if the set of bytes forms a valid group element,
+    /// otherwise returns None. This function is primarily intended for sampling
+    /// random group elements from a hash-function or RNG output.
+    fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
+
+        let fe = match <Self::BaseField as Field>::BasePrimeField::from_random_bytes(bytes) {
+            Some(fe) => fe,
+            None => return None
+        };
+
+        //Get point from chunks
+        let mut fe_bits = fe.write_bits();
+        fe_bits.push(false); //We don't want an infinity point
+        fe_bits.push(false); //We decide to choose the even y coordinate
+        match Self::decompress(fe_bits) {
+            Ok(point) => {
+                Some(point)
+            },
+            Err(_) => None
+        }
+    }
 
     /// Checks that the current point is on curve and is in the
     /// prime order subgroup

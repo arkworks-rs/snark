@@ -167,8 +167,13 @@ impl UInt32 {
         // Make some arbitrary bounds for ourselves to avoid overflows
         // in the scalar field
         assert!(ConstraintF::Params::MODULUS_BITS >= 64);
-        assert!(operands.len() >= 2); // Weird trivial cases that should never happen
+
+        assert!(operands.len() >= 1);
         assert!(operands.len() <= 10);
+
+        if operands.len() == 1 {
+            return Ok(operands[0].clone());
+        }
 
         // Compute the maximum value of the sum so we allocate enough bits for
         // the result

@@ -389,9 +389,9 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
         // (or an odd number of field elements).
         let mut hash_input = Vec::new();
         hash_input.push(message.clone());
-        hash_input.push(public_key.pk.to_field_gadget_elements().unwrap()[0].clone());
-        hash_input.push(u.to_field_gadget_elements().unwrap()[0].clone());
-        hash_input.push(v.to_field_gadget_elements().unwrap()[0].clone());
+        hash_input.push(public_key.pk.to_field_gadget_elements(cs.ns(|| "pk to fes")).unwrap()[0].clone());
+        hash_input.push(u.to_field_gadget_elements(cs.ns(|| "u to fes")).unwrap()[0].clone());
+        hash_input.push(v.to_field_gadget_elements(cs.ns(|| "v to fes")).unwrap()[0].clone());
 
         let c_prime = FHG::enforce_hash_constant_length(
             cs.ns(|| "check c_prime"),
@@ -404,7 +404,7 @@ for FieldBasedEcVrfProofVerificationGadget<ConstraintF, G, GG, FH, FHG, GH, GHG>
         //Check and return VRF output
         hash_input = Vec::new();
         hash_input.push(message);
-        hash_input.extend_from_slice(proof.gamma.to_field_gadget_elements().unwrap().as_slice());
+        hash_input.extend_from_slice(proof.gamma.to_field_gadget_elements(cs.ns(|| "gamma to fes")).unwrap().as_slice());
 
         let vrf_output = FHG::enforce_hash_constant_length(
             cs.ns(|| "check vrf_output"),

@@ -8,6 +8,7 @@ use std::{
 
 use crate::crh::FixedLengthCRH;
 use algebra::{groups::Group, Field, ToConstraintField};
+use serde::{Serialize, Deserialize};
 
 
 pub trait PedersenWindow: Clone {
@@ -15,7 +16,8 @@ pub trait PedersenWindow: Clone {
     const NUM_WINDOWS: usize;
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Serialize, Deserialize)]
+#[serde(bound(deserialize = "G: Group"))]
 pub struct PedersenParameters<G: Group> {
     pub generators: Vec<Vec<G>>,
 }

@@ -12,10 +12,13 @@ macro_rules! impl_Fp {
             PartialEq(bound = ""),
             Eq(bound = "")
         )]
+        #[derive(Serialize, Deserialize)]
+        #[serde(transparent)]
         pub struct $Fp<P>(
             pub $BigIntegerType,
             #[derivative(Debug = "ignore")]
             #[doc(hidden)]
+            #[serde(skip)]
             pub PhantomData<P>,
         );
 
@@ -449,6 +452,7 @@ macro_rules! impl_Fp {
 
         impl_additive_ops_from_ref!($Fp, $FpParameters);
         impl_multiplicative_ops_from_ref!($Fp, $FpParameters);
+        impl_mul_short!($Fp, $FpParameters);
 
         impl<'a, P: $FpParameters> AddAssign<&'a Self> for $Fp<P> {
             #[inline]

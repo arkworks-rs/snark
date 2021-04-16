@@ -13,6 +13,7 @@ use crate::{
     fields::{BitIterator, Field, PrimeField, SquareRootField},
 };
 use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+use serde::{Serialize, Deserialize};
 
 #[derive(Derivative)]
 #[derivative(
@@ -23,11 +24,13 @@ use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
     Debug(bound = "P: Parameters"),
     Hash(bound = "P: Parameters")
 )]
+#[derive(Serialize, Deserialize)]
 pub struct GroupAffine<P: Parameters> {
     pub x: P::BaseField,
     pub y: P::BaseField,
     pub infinity: bool,
     #[derivative(Debug = "ignore")]
+    #[serde(skip)]
     _params: PhantomData<P>,
 }
 
@@ -218,6 +221,7 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
                         let y = -p[i].y - &(s * &(x - &p[i].x));
                         p[j].x = x;
                         p[j].y = y;
+                        p[j].infinity = false;
                     }
                     else
                     {
@@ -226,6 +230,7 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
                         let y = -p[i].y - &(s * &(x - &p[i].x));
                         p[j].x = x;
                         p[j].y = y;
+                        p[j].infinity = false;
                     }
                     dx += 1;
                 }
@@ -329,13 +334,10 @@ impl<P: Parameters> ToCompressedBits for GroupAffine<P>
         let p = if self.infinity {P::BaseField::zero()} else {self.x};
         let mut res = p.write_bits();
 
-        // Is this the point at infinity? If so, set the most significant bit.
+        // Add infinity flag
         res.push(self.infinity);
 
-        // Is the y-coordinate the odd one of the two associated with the
-        // x-coordinate? If so, set the third-most significant bit so long as this is not
-        // the point at infinity.
-
+        // Add parity coordinate (set by default to false if self is infinity)
         res.push(!self.infinity && self.y.is_odd());
 
         res
@@ -371,7 +373,7 @@ impl<P: Parameters> FromCompressedBits for GroupAffine<P>
                             Ok(p)
                         }
                         else {
-                            let e = BitSerializationError::NotPrimeOrder;
+                            let e = BitSerializationError::NotInCorrectSubgroup;
                             Err(Box::new(e))
                         }
                     }
@@ -400,10 +402,12 @@ impl<P: Parameters> Default for GroupAffine<P> {
     Debug(bound = "P: Parameters"),
     Hash(bound = "P: Parameters")
 )]
+#[derive(Serialize, Deserialize)]
 pub struct GroupProjective<P: Parameters> {
     pub x:   P::BaseField,
     pub y:   P::BaseField,
     pub z:   P::BaseField,
+    #[serde(skip)]
     _params: PhantomData<P>,
 }
 
