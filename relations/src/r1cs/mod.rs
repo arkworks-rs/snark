@@ -1,9 +1,106 @@
-//! Core interface for working with Rank-1 Constraint Systems (R1CS).
+//! Core interfaces for working with Rank-1 Constraint Systems (R1CS), which is
+//! an indexed NP relation.
 
-use ark_std::vec::Vec;
+use crate::{Relation, NPRelation};
+use ark_std::{vec::Vec, marker::PhantomData, cmp::Ordering};
 
-/// A result type specialized to `SynthesisError`.
-pub type Result<T> = core::result::Result<T, SynthesisError>;
+/// An *indexed NP relation* is a relation with an efficient membership check.
+pub struct R1CS<F: Field> {
+    f: PhantomData<F>
+}
+
+/// An R1CS index consists of three matrices, as well as the number of instance variables
+/// and number of witness variables.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConstraintMatrices<F: Field> {
+    /// The number of variables that are "public instances" to the constraint
+    /// system.
+    pub num_instance_variables: usize,
+    /// The number of variables that are "private witnesses" to the constraint
+    /// system.
+    pub num_witness_variables: usize,
+    /// The number of constraints in the constraint system.
+    pub num_constraints: usize,
+    /// The number of non_zero entries in the A matrix.
+    pub a_num_non_zero: usize,
+    /// The number of non_zero entries in the B matrix.
+    pub b_num_non_zero: usize,
+    /// The number of non_zero entries in the C matrix.
+    pub c_num_non_zero: usize,
+
+    /// The A constraint matrix.
+    /// `self.mode == SynthesisMode::Prove { construct_matrices = false }`.
+    pub a: Matrix<F>,
+    /// The B constraint matrix.
+    pub b: Matrix<F>,
+    /// The C constraint matrix.
+    pub c: Matrix<F>,
+}
+
+/// An R1CS instance consists of variable assignments to the instance variables.
+/// The first variable must be assigned a value of `F::one()`.
+#[derive(Eq, PartialEq, Debug, Hash)]
+pub struct Instance<F: Field>(pub Vec<F>);
+
+/// An R1CS instance consists of variable assignments to the witness variables.
+#[derive(Eq, PartialEq, Debug, Hash)]
+pub struct Witness<F: Field>(pub Vec<F>);
+
+impl<F: Field> Relation for R1CS<F> {
+    type Index = ConstraintMatrices<F>;
+    type Instance = Instance<F>;
+    type Witness = Witness<F>;
+}
+
+impl<F: Field> NPRelation for R1CS<F> {
+    fn check_membership(index: &Self::Index, instance: &Self::Instance, witness: &Self::Witness) -> bool {
+        // The number of instance variables does not match.
+        if instance.0.len() != index.num_instance_variables {
+            return false;
+        }
+        // The number of witness variables does not match.
+        if witness.0.len() != index.num_witness_variables {
+            return false;
+        }
+        // The first instance variable must be 1.
+        if instance.0[0] != F::one() {
+            return false;
+        }
+
+        cfg_iter!(&index.a)
+            .zip(&index.b)
+            .zip(&index.c)
+            .all(|((a_row, b_row), c_row)| {
+                let a = inner_product(&a_row, index.num_instance_variables, &instance.0, &witness.0);
+                let b = inner_product(&b_row, index.num_instance_variables, &instance.0, &witness.0);
+                let c = inner_product(&c_row, index.num_instance_variables, &instance.0, &witness.0);
+                a * b == c
+            })
+    }
+}
+
+// Compute the inner product of `row` with `instance.concat(witness)`.
+fn inner_product<F: Field>(
+    row: &[(F, usize)],
+    num_instance_variables: usize,
+    instance: &[F],
+    witness: &[F]
+) -> F {
+    let mut acc = F::zero();
+    for &(ref coeff, i) in row {
+        let tmp = if i < num_instance_variables {
+            instance[i]
+        } else {
+            witness[i - num_instance_variables]
+        };
+        acc += &(if coeff.is_one() { tmp } else { tmp * coeff });
+    }
+    acc
+}
+
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
 
 #[macro_use]
 mod impl_lc;
@@ -19,12 +116,13 @@ pub use tracing::info_span;
 
 pub use ark_ff::{Field, ToConstraintField};
 pub use constraint_system::{
-    ConstraintMatrices, ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, Namespace,
+    ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, Namespace,
     OptimizationGoal, SynthesisMode,
 };
 pub use error::SynthesisError;
+/// A result type specialized to `SynthesisError`.
+pub type Result<T> = core::result::Result<T, SynthesisError>;
 
-use core::cmp::Ordering;
 
 /// A sparse representation of constraint matrices.
 pub type Matrix<F> = Vec<Vec<(F, usize)>>;
