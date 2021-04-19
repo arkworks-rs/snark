@@ -217,6 +217,6 @@ mod test {
         assert!(characteristic_square_mod_6_is_one(&[39, 41]));
         assert!(!characteristic_square_mod_6_is_one(&[40, 41]));
         assert!(characteristic_square_mod_6_is_one(&[41, 41]));
-        assert!(characteristic_square_mod_6_is_one(&[1, u64::MAX]));
+        assert!(characteristic_square_mod_6_is_one(&[1, std::u64::MAX]));
     }
 }

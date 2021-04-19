@@ -95,7 +95,7 @@ impl<F: PrimeField> BasicRadix2Domain<F> {
             Self::serial_fft(a, omega, log_n);
         } else {
             Self::parallel_fft(a, worker, omega, log_n, log_cpus);
-        }
+        }                    
     }
 
     /// Computes the radix-2 FFT of a[0..n] over an FFT domain {z: z^n - 1 = 0} of size n=2^log_n, 

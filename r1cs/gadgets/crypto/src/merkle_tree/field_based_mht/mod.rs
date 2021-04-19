@@ -387,7 +387,7 @@ mod test {
         type Data = Fr;
         type H = MNT4PoseidonHash;
         const MERKLE_ARITY: usize = 2;
-        const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> = None;
+        const ZERO_NODE_CST: Option<FieldBasedMerkleTreePrecomputedZeroConstants<'static, Self::H>> = None;
     }
 
     type MNT4753FieldBasedMerkleTree = NaiveMerkleTree<MNT4753FieldBasedMerkleTreeParams>;

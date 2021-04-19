@@ -171,7 +171,6 @@ pub trait EvaluationDomain<F: PrimeField>: Debug + Send + Sync
 
             batch_inversion(u.as_mut_slice());
             // We compute L(z,tau) = u[i]*ls[i]. 
-            // Very misleading notation here.
             u.par_iter_mut().zip(ls).for_each(|(tau_minus_r, l)| {
                 *tau_minus_r *= l;
             });
@@ -180,8 +179,7 @@ pub trait EvaluationDomain<F: PrimeField>: Debug + Send + Sync
     }
 
     /// Given an index which assumes the first elements of this domain are the elements of
-    /// another (sub)domain with size size_s,
-    /// this returns the actual index into this domain.
+    /// another (sub)domain with size size_s, this returns the actual index into this domain.
     fn reindex_by_subdomain(&self, other_size: usize, index: usize) -> usize {
         assert!(self.size() >= other_size);
         // Let this subgroup be G, and the subgroup we're re-indexing by be S.
@@ -274,7 +272,7 @@ pub fn sample_element_outside_domain<
 mod tests {
     use crate::get_best_evaluation_domain;
     use crate::Field;
-    use crate::fields::mnt6753::fr::Fr;
+    use crate::fields::bls12_381::fr::Fr;
     use rand::{Rng, thread_rng};
 
     #[test]

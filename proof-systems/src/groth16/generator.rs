@@ -1,4 +1,5 @@
-use algebra::{groups::Group, msm::FixedBaseMSM, Field, PairingEngine, PrimeField, ProjectiveCurve, UniformRand};
+use algebra::{groups::Group, Field, PairingEngine, PrimeField, ProjectiveCurve, UniformRand};
+use algebra::msm::FixedBaseMSM;
 use algebra::fft::domain::{
     get_best_evaluation_domain, sample_element_outside_domain
 };

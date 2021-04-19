@@ -1,5 +1,9 @@
+/.vscode
+
 target
 Cargo.lock
 *.idea
 *.iml
 *.orig
+coeffs_*
+msm_bases_*

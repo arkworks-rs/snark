@@ -108,7 +108,7 @@ opt-level = 0
 
 Set it to 3 for maximum speed but longer compilation times: this is suggested for executing all the tests in the project, but for single test's execution might be unnecessary.
 
-Lastly, this library comes with benchmarks for the [`algebra`](algebra) crate.
+This library comes with benchmarks for the [`algebra`](algebra) crate.
 These benchmarks require the nightly Rust toolchain; to install this, run `rustup install nightly`. Then, to run benchmarks, run the following command: 
 ```bash
 cargo +nightly bench --all-features 

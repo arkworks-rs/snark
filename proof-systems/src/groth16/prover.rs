@@ -2,9 +2,10 @@ use rand::Rng;
 use rayon::prelude::*;
 
 use algebra::{
-    groups::Group, msm::VariableBaseMSM, AffineCurve, Field, PairingEngine, PrimeField,
+    groups::Group, AffineCurve, Field, PairingEngine, PrimeField,
     ProjectiveCurve, UniformRand,
 };
+use algebra::msm::VariableBaseMSM;
 
 use crate::groth16::{push_constraints, r1cs_to_qap::R1CStoQAP, Parameters, Proof};
 
@@ -211,10 +212,10 @@ where
     let c_acc_time = start_timer!(|| "Compute C");
 
     let h_query = params.get_h_query_full()?;
-    let h_acc = VariableBaseMSM::multi_scalar_mul_affine(&h_query, &h_assignment);
+    let h_acc = VariableBaseMSM::multi_scalar_mul(&h_query, &h_assignment);
 
     let l_aux_source = params.get_l_query_full()?;
-    let l_aux_acc = VariableBaseMSM::multi_scalar_mul_affine(l_aux_source, &aux_assignment);
+    let l_aux_acc = VariableBaseMSM::multi_scalar_mul(l_aux_source, &aux_assignment);
 
     let s_g_a = g_a.mul(&s);
     let r_g1_b = g1_b.mul(&r);
@@ -244,7 +245,7 @@ fn calculate_coeff<G: AffineCurve>(
     assignment: &[<G::ScalarField as PrimeField>::BigInt],
 ) -> G::Projective {
     let el = query[0];
-    let acc = VariableBaseMSM::multi_scalar_mul_affine(&query[1..], assignment);
+    let acc = VariableBaseMSM::multi_scalar_mul(&query[1..], assignment);
 
     let mut res = initial;
     res.add_assign_mixed(&el);

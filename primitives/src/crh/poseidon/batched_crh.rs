@@ -473,7 +473,7 @@ mod test {
             // =============================================================================
             // Compare results
             for i in 0..num_hashes {
-                assert_eq!(output[i], output_vec[i], "Hash outputs, position {}, for BN382Fr are not equal.", i);
+                assert_eq!(output[i], output_vec[i], "Hash outputs, position {}, for BN382Fq are not equal.", i);
             }
 
             // Check with one single hash
@@ -484,7 +484,7 @@ mod test {
                 .unwrap();
             let single_batch_output = BN382FqBatchPoseidonHash::batch_evaluate(&input_batch[0..2]);
 
-            assert_eq!(single_output, single_batch_output.unwrap()[0], "Single instance hash outputs are not equal for BN382Fr.");
+            assert_eq!(single_output, single_batch_output.unwrap()[0], "Single instance hash outputs are not equal for BN382Fq.");
         }
 
         #[test]
@@ -598,6 +598,185 @@ mod test {
             // Compare results
             for i in 0..num_hashes {
                 assert_eq!(output_vec_in_place[i], output_vec[i], "Hash outputs, position {}, for BN382Fr are not equal.", i);
+            }
+        }
+    }
+
+    #[cfg(feature = "tweedle")]
+    mod tweedle {
+        use super::*;
+        use algebra::fields::tweedle::{
+            Fr as TweedleFr,
+            Fq as TweedleFq,
+        };
+        use crate::{
+            TweedleFrPoseidonHash, TweedleFrBatchPoseidonHash,
+            TweedleFqPoseidonHash, TweedleFqBatchPoseidonHash,
+        };
+
+        #[test]
+        fn test_batch_hash_tweedlefq() {
+            //  the number of hashes to test
+            let num_hashes = 1000;
+
+            // the vectors that store random input data
+            let mut input_serial = Vec::new();
+            let mut input_batch = Vec::new();
+
+            // the random number generator to generate random input data
+            let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+            // we need the double of number of rounds because we have two inputs
+            for _ in 0..num_hashes {
+                let mut pair_elem = Vec::new();
+                let elem1 = TweedleFq::rand(&mut rng);
+                let elem2 = TweedleFq::rand(&mut rng);
+                pair_elem.push(elem1.clone());
+                pair_elem.push(elem2.clone());
+                input_serial.push(pair_elem);
+                input_batch.push(elem1.clone());
+                input_batch.push(elem2.clone());
+            }
+
+            // =============================================================================
+            let mut output = Vec::new();
+
+            input_serial.iter().for_each(|p| {
+                let mut digest = TweedleFqPoseidonHash::init_constant_length(2, None);
+                p.into_iter().for_each(|&f| { digest.update(f); });
+                output.push(digest.finalize().unwrap());
+            });
+
+            let output_vec = (TweedleFqBatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+
+            // =============================================================================
+            // Compare results
+            for i in 0..num_hashes {
+                assert_eq!(output[i], output_vec[i], "Hash outputs, position {}, for TweedleFr are not equal.", i);
+            }
+
+            // Check with one single hash
+            let single_output = TweedleFqPoseidonHash::init_constant_length(2, None)
+                .update(input_serial[0][0])
+                .update(input_serial[0][1])
+                .finalize()
+                .unwrap();
+            let single_batch_output = TweedleFqBatchPoseidonHash::batch_evaluate(&input_batch[0..2]);
+
+            assert_eq!(single_output, single_batch_output.unwrap()[0], "Single instance hash outputs are not equal for TweedleFq.");
+        }
+
+        #[test]
+        fn test_batch_hash_tweedlefr() {
+
+            //  the number of hashes to test
+            let num_hashes = 1000;
+
+            // the vectors that store random input data
+            let mut input_serial = Vec::new();
+            let mut input_batch = Vec::new();
+
+            // the random number generator to generate random input data
+            let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+            // we need the double of number of rounds because we have two inputs
+            for _ in 0..num_hashes {
+                let mut pair_elem = Vec::new();
+                let elem1 = TweedleFr::rand(&mut rng);
+                let elem2 = TweedleFr::rand(&mut rng);
+                pair_elem.push(elem1.clone());
+                pair_elem.push(elem2.clone());
+                input_serial.push(pair_elem);
+                input_batch.push(elem1.clone());
+                input_batch.push(elem2.clone());
+            }
+
+            // =============================================================================
+            let mut output = Vec::new();
+
+            input_serial.iter().for_each(|p| {
+                let mut digest = TweedleFrPoseidonHash::init_constant_length(2, None);
+                p.into_iter().for_each(|&f| { digest.update(f); });
+                output.push(digest.finalize().unwrap());
+            });
+
+            let output_vec = (TweedleFrBatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+
+            // =============================================================================
+            // Compare results
+            for i in 0..num_hashes {
+                assert_eq!(output[i], output_vec[i], "Hash outputs, position {}, for TweedleFr are not equal.", i);
+            }
+
+            // Check with one single hash
+            let single_output = TweedleFrPoseidonHash::init_constant_length(2, None)
+                .update(input_serial[0][0])
+                .update(input_serial[0][1])
+                .finalize()
+                .unwrap();
+            let single_batch_output = TweedleFrBatchPoseidonHash::batch_evaluate(&input_batch[0..2]);
+
+            assert_eq!(single_output, single_batch_output.unwrap()[0], "Single instance hash outputs are not equal for TweedleFr.");
+        }
+
+        #[test]
+        fn test_batch_hash_tweedlefq_in_place() {
+            //  the number of hashes to test
+            let num_hashes = 1000;
+
+            // the vectors that store random input data
+            let mut input_batch = Vec::new();
+
+            // the random number generator to generate random input data
+            let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+            // we need the double of number of rounds because we have two inputs
+            for _ in 0..num_hashes {
+                input_batch.push(TweedleFq::rand(&mut rng));
+                input_batch.push(TweedleFq::rand(&mut rng));
+            }
+
+            // Calculate Poseidon Hash for mnt4753 batch evaluation
+            let output_vec = (TweedleFqBatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+
+            let mut output_vec_in_place = vec![TweedleFq::zero(); num_hashes];
+            TweedleFqBatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]);
+
+            // =============================================================================
+            // Compare results
+            for i in 0..num_hashes {
+                assert_eq!(output_vec_in_place[i], output_vec[i], "Hash outputs, position {}, for TweedleFq are not equal.", i);
+            }
+        }
+
+        #[test]
+        fn test_batch_hash_tweedlefr_in_place() {
+
+            //  the number of hashes to test
+            let num_hashes = 1000;
+
+            // the vectors that store random input data
+            let mut input_batch = Vec::new();
+
+            // the random number generator to generate random input data
+            let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+            // we need the double of number of rounds because we have two inputs
+            for _ in 0..num_hashes {
+                input_batch.push(TweedleFr::rand(&mut rng));
+                input_batch.push(TweedleFr::rand(&mut rng));
+            }
+
+            // Calculate Poseidon Hash for mnt4753 batch evaluation
+            let output_vec = (TweedleFrBatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
+
+            let mut output_vec_in_place = vec![TweedleFr::zero(); num_hashes];
+            TweedleFrBatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]);
+
+            // =============================================================================
+            // Compare results
+            for i in 0..num_hashes {
+                assert_eq!(output_vec_in_place[i], output_vec[i], "Hash outputs, position {}, for TweedleFr are not equal.", i);
             }
         }
     }

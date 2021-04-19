@@ -4,15 +4,13 @@ use rayon::prelude::*;
 pub struct VariableBaseMSM;
 
 impl VariableBaseMSM {
-    pub fn multi_scalar_mul_affine<G: AffineCurve>(
+
+    pub fn multi_scalar_mul_affine_c<G: AffineCurve>(
         bases: &[G],
         scalars: &[<G::ScalarField as PrimeField>::BigInt],
+        c: usize
     ) -> G::Projective {
-        let c = if scalars.len() < 32 {
-            3
-        } else {
-            (2.0 / 3.0 * (f64::from(scalars.len() as u32)).log2() - 2.0).ceil() as usize
-        };
+
         let cc = 1 << c;
 
         let num_bits =
@@ -85,15 +83,11 @@ impl VariableBaseMSM {
         }) + lowest
     }
 
-    fn msm_inner<G: AffineCurve>(
+    pub fn msm_inner_c<G: AffineCurve>(
         bases: &[G],
         scalars: &[<G::ScalarField as PrimeField>::BigInt],
+        c:usize
     ) -> G::Projective {
-        let c = if scalars.len() < 32 {
-            3
-        } else {
-            (2.0 / 3.0 * (f64::from(scalars.len() as u32)).log2() + 2.0).ceil() as usize
-        };
 
         let num_bits =
             <G::ScalarField as PrimeField>::Params::MODULUS_BITS as usize;
@@ -160,20 +154,52 @@ impl VariableBaseMSM {
         }) + lowest
     }
 
+    pub fn msm_inner<G: AffineCurve>(
+        bases: &[G],
+        scalars: &[<G::ScalarField as PrimeField>::BigInt],
+    ) -> G::Projective
+    {
+        let scal_len = scalars.len();
+
+        let c: usize = if scal_len < 32 {
+            3
+        } else {
+            (2.0 / 3.0 * (f64::from(scalars.len() as u32)).log2() - 2.0).ceil() as usize
+        };
+
+        return Self::msm_inner_c(bases, scalars, c);
+    }
+
     pub fn multi_scalar_mul<G: AffineCurve>(
         bases: &[G],
         scalars: &[<G::ScalarField as PrimeField>::BigInt],
-    ) -> G::Projective {
-        Self::msm_inner(bases, scalars)
+    ) -> G::Projective
+    where
+        G::Projective: ProjectiveCurve<Affine = G>
+    {
+        let scal_len = scalars.len();
+
+        let c: usize = if scal_len < 32 {
+            3
+        } else {
+            (2.0 / 3.0 * (f64::from(scalars.len() as u32)).log2() - 2.0).ceil() as usize
+        };
+
+        return Self::multi_scalar_mul_affine_c(bases, scalars, c);
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::curves::bls12_381::G1Projective;
-    use crate::fields::bls12_381::Fr;
-    use rand::SeedableRng;
+
+    use crate::curves::bn_382::G1Projective as Bn382G1Projective;
+    use crate::curves::bn_382::g::Projective as Bn382GProjective;
+    use crate::curves::tweedle::dee::Projective as TweedleDee;
+    use crate::curves::tweedle::dum::Projective as TweedleDum;
+    use crate::curves::bls12_381::G1Projective as BlsG1Projective;
+
+    use rand::{SeedableRng, Rng};
     use rand_xorshift::XorShiftRng;
     use crate::UniformRand;
 
@@ -189,45 +215,53 @@ mod test {
         acc
     }
 
-    #[test]
-    fn test_all_variants() {
-        const SAMPLES: usize = 1 << 10;
-
-        let mut rng = XorShiftRng::seed_from_u64(234872845u64);
-
-        let v = (0..SAMPLES)
-            .map(|_| Fr::rand(&mut rng).into_repr())
+    fn test_all_variants<G: ProjectiveCurve, R: Rng>(
+        samples: usize,
+        c: usize,
+        rng: &mut R,
+    ) {
+        let v = (0..samples)
+            .map(|_| G::ScalarField::rand(rng).into_repr())
             .collect::<Vec<_>>();
-        let g = (0..SAMPLES)
-            .map(|_| G1Projective::rand(&mut rng).into_affine())
+        let g = (0..samples)
+            .map(|_| G::rand(rng).into_affine())
             .collect::<Vec<_>>();
 
         let naive = naive_var_base_msm(g.as_slice(), v.as_slice());
-        let fast = VariableBaseMSM::multi_scalar_mul(g.as_slice(), v.as_slice());
-        let affine = VariableBaseMSM::multi_scalar_mul_affine(g.as_slice(), v.as_slice());
+        let fast = VariableBaseMSM::msm_inner(g.as_slice(), v.as_slice());
+
+        let affine = VariableBaseMSM::multi_scalar_mul_affine_c(g.as_slice(), v.as_slice(), c);
+        let inner = VariableBaseMSM::msm_inner_c(g.as_slice(), v.as_slice(), c);
 
         assert_eq!(naive, fast);
-        assert_eq!(naive, affine)
+
+        assert_eq!(naive, affine);
+        assert_eq!(naive, inner);
     }
 
+    #[cfg(feature = "tweedle")]
     #[test]
-    fn test_with_unequal_numbers() {
-        const SAMPLES: usize = 1 << 10;
+    fn test_all_variants_tweedle() {
+        let rng = &mut XorShiftRng::seed_from_u64(234872845u64);
 
-        let mut rng = XorShiftRng::seed_from_u64(234872845u64);
+        test_all_variants::<TweedleDee, _>(1 << 12, 16, rng);
+        test_all_variants::<TweedleDum, _>(1 << 12, 16, rng);
+    }
 
-        let v = (0..SAMPLES-1)
-            .map(|_| Fr::rand(&mut rng).into_repr())
-            .collect::<Vec<_>>();
-        let g = (0..SAMPLES)
-            .map(|_| G1Projective::rand(&mut rng).into_affine())
-            .collect::<Vec<_>>();
+    #[cfg(feature = "bn_382")]
+    #[test]
+    fn test_all_variants_bn382() {
+        let rng = &mut XorShiftRng::seed_from_u64(234872845u64);
 
-        let naive = naive_var_base_msm(g.as_slice(), v.as_slice());
-        let fast = VariableBaseMSM::multi_scalar_mul(g.as_slice(), v.as_slice());
-        let affine = VariableBaseMSM::multi_scalar_mul_affine(g.as_slice(), v.as_slice());
+        test_all_variants::<Bn382G1Projective, _>(1 << 12, 16, rng);
+        test_all_variants::<Bn382GProjective, _>(1 << 12, 16, rng);
+    }
 
-        assert_eq!(naive, fast);
-        assert_eq!(naive, affine)
+    #[cfg(feature = "bls12_381")]
+    #[test]
+    fn test_all_variants_bls() {
+        let rng = &mut XorShiftRng::seed_from_u64(234872845u64);
+
+        test_all_variants::<BlsG1Projective, _>(1 << 12, 16, rng);
     }
 }

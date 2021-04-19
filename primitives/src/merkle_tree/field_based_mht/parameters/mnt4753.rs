@@ -6,7 +6,7 @@ use algebra::{
 
 use crate::{
     crh::poseidon::parameters::mnt4753::MNT4PoseidonHash,
-    FieldBasedMerkleTreePrecomputedEmptyConstants,
+    FieldBasedMerkleTreePrecomputedZeroConstants,
 };
 
 // PoseidonHash("This represents an empty Merkle Root for a MNT4753PoseidonHash based Merkle Tree.") padded with 0s
@@ -27,8 +27,8 @@ pub const MNT4753_PHANTOM_MERKLE_ROOT: MNT4753Fr =
     ])
 );
 
-pub const MNT4753_MHT_POSEIDON_PARAMETERS: FieldBasedMerkleTreePrecomputedEmptyConstants<'static, MNT4PoseidonHash> =
-    FieldBasedMerkleTreePrecomputedEmptyConstants {
+pub const MNT4753_MHT_POSEIDON_PARAMETERS: FieldBasedMerkleTreePrecomputedZeroConstants<'static, MNT4PoseidonHash> =
+    FieldBasedMerkleTreePrecomputedZeroConstants {
         nodes: &[
             field_new!(MNT4753Fr, BigInteger768([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])),
             field_new!(MNT4753Fr, BigInteger768([8006651735201630156, 9690860117920174136, 17224466678789631133, 6780594604568324163, 10846822411885063383, 7705408890208139333, 17852453186369903215, 4603099682590023221, 6867488836877866745, 9012707624260102571, 2160379244411329684, 405517700872843])),
@@ -76,7 +76,7 @@ mod test {
     use crate::{crh::MNT4PoseidonHash, merkle_tree::field_based_mht::parameters::{
         generate_phantom_merkle_root_from_magic_string,
         generate_mht_empty_nodes,
-    }, FieldBasedMerkleTreePrecomputedEmptyConstants};
+    }, FieldBasedMerkleTreePrecomputedZeroConstants};
     use super::{
         MNT4753_PHANTOM_MERKLE_ROOT, MNT4753_MHT_POSEIDON_PARAMETERS
     };
@@ -100,7 +100,7 @@ mod test {
         let empty_nodes = generate_mht_empty_nodes::<Fr, MNT4PoseidonHash>(merkle_arity, max_height, Fr::zero());
         assert_eq!(empty_nodes.len(), max_height);
 
-        let params = FieldBasedMerkleTreePrecomputedEmptyConstants::<MNT4PoseidonHash> {
+        let params = FieldBasedMerkleTreePrecomputedZeroConstants::<MNT4PoseidonHash> {
             nodes: empty_nodes.as_slice(), merkle_arity
         };
         assert_eq!(params, MNT4753_MHT_POSEIDON_PARAMETERS)

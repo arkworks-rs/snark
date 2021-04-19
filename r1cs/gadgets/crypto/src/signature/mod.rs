@@ -32,6 +32,7 @@ pub trait FieldBasedSigGadget<S: FieldBasedSignatureScheme, ConstraintF: PrimeFi
                           ConstantGadget<S::Signature, ConstraintF> +
                           EqGadget<ConstraintF> +
                           ToConstraintFieldGadget<ConstraintF, FieldGadget = Self::DataGadget>;
+
     type PublicKeyGadget: AllocGadget<S::PublicKey, ConstraintF> +
                           ConstantGadget<S::PublicKey, ConstraintF> +
                           EqGadget<ConstraintF> +

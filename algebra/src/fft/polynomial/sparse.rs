@@ -128,7 +128,7 @@ impl<F: Field> Into<DensePolynomial<F>> for SparsePolynomial<F> {
 #[cfg(test)]
 mod tests {
     use crate::{get_best_evaluation_domain, DensePolynomial, SparsePolynomial};
-    use crate::fields::mnt6753::fr::Fr;
+    use crate::fields::bls12_381::fr::Fr;
     use crate::Field;
 
     #[test]

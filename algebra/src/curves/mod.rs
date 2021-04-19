@@ -39,6 +39,9 @@ pub mod mnt6;
 #[cfg(feature = "sw6")]
 pub mod sw6;
 
+#[cfg(feature = "tweedle")]
+pub mod tweedle;
+
 #[cfg(test)]
 pub mod tests;
 

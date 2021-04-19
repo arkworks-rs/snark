@@ -370,14 +370,15 @@ impl<F: PrimeField> MixedRadix2Domain<F> {
         });
     }
 
-    fn best_fft(a: &mut [F], worker: &Worker, omega: F, log_n: u32) {
-        let log_cpus = worker.log_num_cpus();
+
+    fn best_fft(a: &mut [F], _worker: &Worker, omega: F, log_n: u32) {
+        let log_cpus = _worker.log_num_cpus();
 
         if log_n <= log_cpus {
-            Self::mixed_serial_fft(a, omega, log_n);
+            return Self::mixed_serial_fft(a, omega, log_n);
         } else {
-            Self::mixed_parallel_fft(a, worker, omega, log_n, log_cpus);
-        }
+            return Self::mixed_parallel_fft(a, _worker, omega, log_n, log_cpus);
+        }    
     }
 }
 

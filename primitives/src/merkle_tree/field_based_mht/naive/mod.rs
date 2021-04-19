@@ -200,7 +200,7 @@ mod test {
         type Data = MNT4753Fr;
         type H = MNT4PoseidonHash;
         const MERKLE_ARITY: usize = 2;
-        const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> =
+        const ZERO_NODE_CST: Option<FieldBasedMerkleTreePrecomputedZeroConstants<'static, Self::H>> =
             Some(MNT4753_MHT_POSEIDON_PARAMETERS);
     }
 

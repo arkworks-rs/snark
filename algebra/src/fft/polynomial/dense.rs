@@ -3,8 +3,8 @@
 use std::fmt;
 use std::ops::{Add, AddAssign, Deref, DerefMut, Div, Mul, Neg, Sub, SubAssign};
 
-use crate::{Field, PrimeField, get_best_evaluation_domain};
-use crate::{Evaluations, EvaluationDomain, DenseOrSparsePolynomial};
+use crate::{Field, PrimeField, ToBytes, FromBytes};
+use crate::{Evaluations, EvaluationDomain, DenseOrSparsePolynomial, get_best_evaluation_domain};
 use rand::Rng;
 use rayon::prelude::*;
 
@@ -13,6 +13,32 @@ use rayon::prelude::*;
 pub struct DensePolynomial<F: Field> {
     /// The coefficient of `x^i` is stored at location `i` in `self.coeffs`.
     pub coeffs: Vec<F>,
+}
+
+impl<F: Field> ToBytes for DensePolynomial<F>
+{
+    fn write<W: std::io::Write>(&self, mut w: W) -> std::io::Result<()> {
+        (self.coeffs.len() as u64).write(&mut w)?;
+        for c in self.coeffs.iter() {
+            c.write(&mut w)?;
+        }
+        Ok(())
+    }
+}
+
+impl<F: Field> FromBytes for DensePolynomial<F>
+{
+    fn read<Read: std::io::Read>(mut reader: Read) -> std::io::Result<DensePolynomial<F>> {
+        let mut coeffs = vec![];
+        let coeffs_count = u64::read(&mut reader)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+        for _ in 0..coeffs_count {
+            let coeff = F::read(&mut reader)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+            coeffs.push(coeff);
+        }
+        Ok(DensePolynomial::from_coefficients_vec(coeffs))
+    }
 }
 
 impl<F: Field> fmt::Debug for DensePolynomial<F> {
@@ -361,7 +387,8 @@ impl<'a, 'b, F: PrimeField> Mul<&'a DensePolynomial<F>> for &'b DensePolynomial<
 mod tests {
     use crate::domain::get_best_evaluation_domain;
     use crate::polynomial::*;
-    use crate::fields::{mnt6753::fr::Fr, Field};
+    use crate::fields::bls12_381::fr::Fr;
+    use crate::fields::Field;
     use crate::UniformRand;
     use rand::thread_rng;
 

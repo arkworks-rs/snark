@@ -24,6 +24,11 @@ pub mod mnt6753;
 #[cfg(feature = "mnt6_753")]
 pub use self::mnt6753::*;
 
+#[cfg(feature = "tweedle")]
+pub mod tweedle;
+#[cfg(feature = "tweedle")]
+pub use self::tweedle::*;
+
 #[cfg(feature = "bn_382")]
 pub mod bn382;
 #[cfg(feature = "bn_382")]
@@ -239,6 +244,7 @@ impl<ConstraintF, P, SB, SBG> FieldBasedHashGadget<PoseidonHash<ConstraintF, P, 
 
 #[cfg(test)]
 mod test {
+
     use algebra::PrimeField;
     use crate::crh::test::constant_length_field_based_hash_gadget_native_test;
 
@@ -288,6 +294,26 @@ mod test {
 
         for ins in 1..=3 {
             constant_length_field_based_hash_gadget_native_test::<_, _, BN382FqPoseidonHashGadget>(generate_inputs(ins));
+        }
+    }
+
+    #[cfg(feature = "tweedle")]
+    #[test]
+    fn crh_tweedle_fr_primitive_gadget_test() {
+        use crate::TweedleFrPoseidonHashGadget;
+
+        for ins in 1..=3 {
+            constant_length_field_based_hash_gadget_native_test::<_, _, TweedleFrPoseidonHashGadget>(generate_inputs(ins));
+        }
+    }
+
+    #[cfg(feature = "tweedle")]
+    #[test]
+    fn crh_tweedle_fq_primitive_gadget_test() {
+        use crate::TweedleFqPoseidonHashGadget;
+
+        for ins in 1..=3 {
+            constant_length_field_based_hash_gadget_native_test::<_, _, TweedleFqPoseidonHashGadget>(generate_inputs(ins));
         }
     }
 }

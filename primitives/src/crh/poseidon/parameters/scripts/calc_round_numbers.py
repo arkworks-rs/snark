@@ -124,3 +124,13 @@ def print_latex_table_combinations(combinations, alpha, security_margin):
 # prime = 0x2404893fdad8878e71503c69b09dbf88b48a3614289b0901801830918303018000000001800c18180000000000000001
 # print(calc_final_numbers_fixed(prime, 3, 5, 128, True))
 # print(calc_final_numbers_fixed(prime, 3, 5, 128, False))
+
+# Tweedle dee scalar field characteristic
+#prime = 0x40000000000000000000000000000000038aa1276c3f59b9a14064e200000001
+#print(calc_final_numbers_fixed(prime, 3, 5, 128, True))
+#print(calc_final_numbers_fixed(prime, 3, 5, 128, False))
+
+# Tweedle dum scalar field characteristic
+#prime = 0x40000000000000000000000000000000038aa127696286c9842cafd400000001
+#print(calc_final_numbers_fixed(prime, 3, 5, 128, True))
+#print(calc_final_numbers_fixed(prime, 3, 5, 128, False))

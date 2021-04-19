@@ -6,10 +6,10 @@ use algebra::{
 
 use crate::{
     crh::poseidon::BN382FrPoseidonHash,
-    FieldBasedMerkleTreePrecomputedEmptyConstants,
+    FieldBasedMerkleTreePrecomputedZeroConstants,
 };
 
-// PoseidonHash("This represents an empty Merkle Root for a BN382PoseidonHash based Merkle Tree.")
+// PoseidonHash("This represents an empty Merkle Root for a BN382FrPoseidonHash based Merkle Tree.")
 pub const BN382_PHANTOM_MERKLE_ROOT: BN382Fr =
     field_new!(BN382Fr, BigInteger384([
         99773930179339435,
@@ -20,8 +20,8 @@ pub const BN382_PHANTOM_MERKLE_ROOT: BN382Fr =
         1508748032991309384
     ]));
 
-pub const BN382_MHT_POSEIDON_PARAMETERS: FieldBasedMerkleTreePrecomputedEmptyConstants<'static, BN382FrPoseidonHash> =
-    FieldBasedMerkleTreePrecomputedEmptyConstants {
+pub const BN382_MHT_POSEIDON_PARAMETERS: FieldBasedMerkleTreePrecomputedZeroConstants<'static, BN382FrPoseidonHash> =
+    FieldBasedMerkleTreePrecomputedZeroConstants {
         nodes: &[
             field_new!(BN382Fr, BigInteger384([0, 0, 0, 0, 0, 0])),
             field_new!(BN382Fr, BigInteger384([15745522788649903907, 16652409264296773101, 9580329627252538379, 14449588676843283900, 18075316901601731326, 2096864981361276526])),
@@ -71,7 +71,7 @@ mod test {
             generate_phantom_merkle_root_from_magic_string,
             generate_mht_empty_nodes,
         },
-        FieldBasedMerkleTreePrecomputedEmptyConstants
+        FieldBasedMerkleTreePrecomputedZeroConstants
     };
     use super::{
         BN382_PHANTOM_MERKLE_ROOT, BN382_MHT_POSEIDON_PARAMETERS
@@ -96,7 +96,7 @@ mod test {
         let empty_nodes = generate_mht_empty_nodes::<Fr, BN382FrPoseidonHash>(merkle_arity, max_height, Fr::zero());
         assert_eq!(empty_nodes.len(), max_height);
 
-        let params = FieldBasedMerkleTreePrecomputedEmptyConstants::<BN382FrPoseidonHash> {
+        let params = FieldBasedMerkleTreePrecomputedZeroConstants::<BN382FrPoseidonHash> {
             nodes: empty_nodes.as_slice(), merkle_arity
         };
         assert_eq!(params, BN382_MHT_POSEIDON_PARAMETERS)
