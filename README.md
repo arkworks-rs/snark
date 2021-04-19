@@ -124,6 +124,12 @@ To bench `algebra-benches` with greater accuracy, especially for functions with 
 ```bash
 cargo +nightly bench --features "n_fold"
 ```
+__Note:__ Some of the dependencies between the crates in GingerLib are specified via Git rather than via local paths: this is due to a cross-dependency issue between GingerLib's crates and some external crates. 
+One example of such errors is in crate `proof-systems`: it depends both on `algebra` and on external crates located in [marlin](https://github.com/HorizenLabs/marlin) and [poly-commit](https://github.com/HorizenLabs/poly-commit) depending on `algebra` too; if the version of `algebra` on which these crates depend is not exactly the same, a compilation error will occur:
+```bash
+error[E0308]: mismatched types [...] note: perhaps two different versions of crate `algebra` are being used?
+```
+By specifying in all the crates the dependency on `algebra` in Git form, we ensure that all the crates will take the same version; however, if during development `algebra` crate is modified, we would be forced to push the changes to Git first before seeing them applied in local. For this reason, in the root `Cargo.toml`, we pushed instructions allowing to override Git dependencies with (local) path dependencies; unfortunately, this will require to store locally all the crates involved in the cross-dependency issue and to  comment/uncomment these lines (if needed) before/after pushing changes.
 
 ## Contributing
 
