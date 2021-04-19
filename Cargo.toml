@@ -37,7 +37,7 @@ debug = true
 #
 #[patch.'https://github.com/HorizenOfficial/ginger-lib']
 #algebra = { path = './algebra' }
-#r1cs-core = { path = "./r1cs-core" }
+#r1cs-core = { path = "./r1cs/core" }
 #
 #[patch.'https://github.com/HorizenLabs/marlin']
 #marlin = { path = '../marlin' }
