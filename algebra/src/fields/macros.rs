@@ -118,7 +118,6 @@ macro_rules! impl_Fp {
         }
 
         impl<P: $FpParameters> $Fp<P> {
-
             #[inline]
             fn reduce(&mut self) {
                 if !self.is_valid() {

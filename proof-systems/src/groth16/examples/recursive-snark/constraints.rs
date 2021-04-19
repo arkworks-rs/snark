@@ -1,3 +1,5 @@
+// This example uses Groth16 over Coda's MNT cycle to wrap a base circuit (the "inner circuit") of 
+// specified number of inputs and constraints twice. 
 use algebra::{fields::FpParameters, Field, PrimeField, PairingEngine, ToConstraintField, ToBits};
 
 use r1cs_crypto::nizk::{
@@ -31,12 +33,14 @@ pub trait CurvePair {
     const TOCK_CURVE: &'static str;
 }
 
-// Verifying InnerCircuit in MiddleCircuit
+// The base proof is in the Tick curve, its circuit is over the base field of the Tock.
 type InnerProofSystem<C> = Groth16<
     <C as CurvePair>::PairingEngineTick,
     InnerCircuit<<<C as CurvePair>::PairingEngineTick as PairingEngine>::Fr>,
     <<C as CurvePair>::PairingEngineTick as PairingEngine>::Fr,
 >;
+// Proof, key and verifier of a base proof are over the base field of the Tick, which is the scalar field 
+// of the Tock.
 type InnerVerifierGadget<C> = Groth16VerifierGadget<
     <C as CurvePair>::PairingEngineTick,
     <<C as CurvePair>::PairingEngineTock as PairingEngine>::Fr,
@@ -53,12 +57,14 @@ type InnerVkGadget<C> = VerifyingKeyGadget<
     <C as CurvePair>::PairingGadgetTick,
 >;
 
-// Verifying MiddleCircuit in OuterCircuit
+// The first wrap is in the Tock curve, as its circuit is over the base field of the Tick.
 type MiddleProofSystem<C> = Groth16<
     <C as CurvePair>::PairingEngineTock,
     MiddleCircuit<C>,
     <<C as CurvePair>::PairingEngineTock as PairingEngine>::Fr,
 >;
+// Proof, key and verifier of the wrap are over the base field of the Tock, which is the scalar field 
+// of the Tick.
 type MiddleVerifierGadget<C> = Groth16VerifierGadget<
     <C as CurvePair>::PairingEngineTock,
     <<C as CurvePair>::PairingEngineTick as PairingEngine>::Fr,
@@ -75,6 +81,9 @@ type MiddleVkGadget<C> = VerifyingKeyGadget<
     <C as CurvePair>::PairingGadgetTock,
 >;
 
+// The second wrap, the "wrap wrap", is in the Tick curve, as its circuit is over the base field of the Tock.
+// As we do not put its verifier into circuit, no need to declare OuterProofSystem and its gadgets.
+
 pub struct InnerCircuit<F: Field> {
     num_constraints: usize,
     inputs: Vec<F>,
@@ -89,6 +98,17 @@ impl<F: Field> InnerCircuit<F> {
     }
 }
 
+// The inner circuit is designed so that it produces typical timings for the Groth16 prover
+// but keeps the synthesizer costs low (no field inversions used):
+// Its R1CS has m= |num_inputs|+|num_constraints| variables, and n = num_constraints simple 
+// multiplication constraints (R1CS density = 1 for all matrices). All QAP polynomials 
+// u_i(X), v_i(X) and w_i(X) are non-trivial, hence the prover key overwhelmingly consists 
+// of non-trivial elements only. 
+// The circuit accepts any vector of field elements as inputs, and extends this vector recursively
+// by setting each new variable as the product of its two previous ones. (This is done until the number
+// of constraints reaches the targeted one.) If the inputs are all non-zero, then all other 
+// witnesses are non-zero too, hence the computation of the proof elements A,B,C involve full 
+// length MSMs. 
 impl<F: Field> ConstraintSynthesizer<F> for InnerCircuit<F> {
     fn generate_constraints<CS: ConstraintSystem<F>>(
         self,
@@ -124,6 +144,8 @@ impl<F: Field> ConstraintSynthesizer<F> for InnerCircuit<F> {
 }
 
 pub struct MiddleCircuit<C: CurvePair> {
+    // the inputs for the base circuit are in the scalar field of the Tick, which are 
+    // non-native field elements for a Tock proof system
     inputs: Vec<<C::PairingEngineTick as PairingEngine>::Fr>,
     params: Parameters<C::PairingEngineTick>,
     proof: Proof<C::PairingEngineTick>,
@@ -144,6 +166,7 @@ impl<C: CurvePair> MiddleCircuit<C> {
         }
     }
 
+    // converts the non-native Tick Fr elements into bits.
     pub fn inputs(
         inputs: &[<C::PairingEngineTick as PairingEngine>::Fr],
     ) -> Vec<<C::PairingEngineTock as PairingEngine>::Fr> {
@@ -158,6 +181,8 @@ impl<C: CurvePair> MiddleCircuit<C> {
     }
 }
 
+// The circuit of the first wrap verifies the base proof ("inner proof") and defers its
+// input to the "outside".
 impl<C: CurvePair> ConstraintSynthesizer<<C::PairingEngineTock as PairingEngine>::Fr>
     for MiddleCircuit<C>
 {
@@ -219,7 +244,11 @@ impl<C: CurvePair> ConstraintSynthesizer<<C::PairingEngineTock as PairingEngine>
     }
 }
 
+// The circuit of the second wrap verifies the wrap of the base proof ("middle proof") and defers its
+// input to the "outside".
 pub struct OuterCircuit<C: CurvePair> {
+    // the inputs for the base circuit are in the scalar field of the Tick, hence native for the
+    // outer circuit
     inputs: Vec<<C::PairingEngineTick as PairingEngine>::Fr>,
     params: Parameters<C::PairingEngineTock>,
     proof: Proof<C::PairingEngineTock>,

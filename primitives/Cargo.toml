@@ -31,7 +31,6 @@ derivative = "1"
 rayon = "1"
 hex = "0.4.0"
 
-rocksdb = { version = "0.14.0", optional = true }
 
 serde = { version = "1.0.117", features = ["derive"]}
 
@@ -40,7 +39,6 @@ llvm_asm = ["algebra/llvm_asm"]
 
 commitment = ["digest", "blake2"]
 merkle_tree = []
-smt = ["merkle_tree", "rocksdb"]
 prf = ["digest", "blake2"]
 signature = ["digest", "blake2"]
 vrf = []
@@ -55,7 +53,7 @@ tweedle = ["algebra/tweedle"]
 algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "import_canonical_serialize_deserialize", features = ["edwards_sw6", "jubjub", "sw6", "bls12_377"] }
 primitives = { path = "../primitives", features = ["mnt4_753", "mnt6_753", "bn_382", "tweedle"] }
 
-criterion = "0.3"
+criterion = "0.3.2"
 rand_xorshift = { version = "0.2" }
 
 ################################# Benchmarks ##################################

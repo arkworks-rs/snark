@@ -13,7 +13,17 @@ pub mod bn382;
 #[cfg(feature = "bn_382")]
 pub use self::bn382::*;
 
+#[cfg(feature = "bn_382")]
+pub mod bn382_dual;
+#[cfg(feature = "bn_382")]
+pub use self::bn382_dual::*;
+
 #[cfg(feature = "tweedle")]
-pub mod tweedle;
+pub mod tweedle_dee;
 #[cfg(feature = "tweedle")]
-pub use self::tweedle::*;
+pub use self::tweedle_dee::*;
+
+#[cfg(feature = "tweedle")]
+pub mod tweedle_dum;
+#[cfg(feature = "tweedle")]
+pub use self::tweedle_dum::*;

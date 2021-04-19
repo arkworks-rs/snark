@@ -26,12 +26,15 @@ extern crate criterion;
 #[macro_use]
 extern crate bench_utils;
 
+/// Has R1CS density d = 1 and keeps the synthesizer costs low (no field inversion needed).
 pub struct TestCircuit1<F: PrimeField> {
     num_constraints: usize,
     a: Option<F>,
     b: Option<F>,
 }
 
+/// Hash R1CS density d = 1 and that every second constraint costs the synthesizer a field
+/// inversion (this should simulate EC arithmetics over prime fields).
 pub struct TestCircuit2<F: PrimeField> {
     num_constraints: usize,
     a: Option<F>,

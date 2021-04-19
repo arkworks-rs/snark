@@ -326,16 +326,15 @@ impl<P: Parameters> FromBytes for GroupAffine<P> {
 
 impl<P: Parameters> FromBytesChecked for GroupAffine<P> {
     #[inline]
-    fn read_checked<R: Read>(reader: R) -> IoResult<Self> {
-        Self::read(reader)
-            .map_err(|e| IoError::new(ErrorKind::InvalidData, e))
-            .and_then(|p| {
-                if !p.group_membership_test() {
-                    return Err(IoError::new(ErrorKind::InvalidData, "invalid point: group membership test failed"));
-                }
-                Ok(p)
-            }
-        )
+    fn read_checked<R: Read>(mut reader: R) -> IoResult<Self> {
+        let x = P::BaseField::read_checked(&mut reader)?;
+        let y = P::BaseField::read_checked(&mut reader)?;
+        let infinity = bool::read(reader)?;
+        let point = Self::new(x, y, infinity);
+        if !point.group_membership_test() {
+            return Err(IoError::new(ErrorKind::InvalidData, "invalid point: group membership test failed"));
+        }
+        Ok(point)
     }
 }
 
@@ -349,13 +348,10 @@ impl<P: Parameters> ToCompressedBits for GroupAffine<P>
         let p = if self.infinity {P::BaseField::zero()} else {self.x};
         let mut res = p.write_bits();
 
-        // Is this the point at infinity? If so, set the most significant bit.
+        // Add infinity flag
         res.push(self.infinity);
 
-        // Is the y-coordinate the odd one of the two associated with the
-        // x-coordinate? If so, set the third-most significant bit so long as this is not
-        // the point at infinity.
-
+        // Add parity coordinate (set by default to false if self is infinity)
         res.push(!self.infinity && self.y.is_odd());
 
         res
@@ -391,7 +387,7 @@ impl<P: Parameters> FromCompressedBits for GroupAffine<P>
                             Ok(p)
                         }
                         else {
-                            let e = BitSerializationError::NotPrimeOrder;
+                            let e = BitSerializationError::NotInCorrectSubgroup;
                             Err(Box::new(e))
                         }
                     }
@@ -488,17 +484,15 @@ impl<P: Parameters> FromBytes for GroupProjective<P> {
 }
 
 impl<P: Parameters> FromBytesChecked for GroupProjective<P> {
-    #[inline]
-    fn read_checked<R: Read>(reader: R) -> IoResult<Self> {
-        Self::read(reader)
-            .map_err(|e| IoError::new(ErrorKind::InvalidData, e))
-            .and_then(|p| {
-                if !p.group_membership_test() {
-                    return Err(IoError::new(ErrorKind::InvalidData, "invalid point: group membership test failed"));
-                }
-                Ok(p)
-            }
-        )
+    fn read_checked<R: Read>(mut reader: R) -> IoResult<Self> {
+        let x = P::BaseField::read_checked(&mut reader)?;
+        let y = P::BaseField::read_checked(&mut reader)?;
+        let z = P::BaseField::read_checked(reader)?;
+        let point = Self::new(x, y, z);
+        if !point.group_membership_test() {
+            return Err(IoError::new(ErrorKind::InvalidData, "invalid point: group membership test failed"));
+        }
+        Ok(point)
     }
 }
 

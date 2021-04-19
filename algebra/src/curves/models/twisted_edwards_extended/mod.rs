@@ -288,16 +288,14 @@ impl<P: Parameters> FromBytes for GroupAffine<P> {
 
 impl<P: Parameters> FromBytesChecked for GroupAffine<P> {
     #[inline]
-    fn read_checked<R: Read>(reader: R) -> IoResult<Self> {
-        Self::read(reader)
-            .map_err(|e| IoError::new(ErrorKind::InvalidData, e))
-            .and_then(|p| {
-                if !p.group_membership_test() {
-                    return Err(IoError::new(ErrorKind::InvalidData, "invalid point: group membership test failed"));
-                }
-                Ok(p)
-            }
-        )
+    fn read_checked<R: Read>(mut reader: R) -> IoResult<Self> {
+        let x = P::BaseField::read_checked(&mut reader)?;
+        let y = P::BaseField::read_checked(reader)?;
+        let p = Self::new(x, y);
+        if !p.group_membership_test() {
+            return Err(IoError::new(ErrorKind::InvalidData, "invalid point: group membership test failed"));
+        }
+        Ok(p)
     }
 }
 
@@ -477,16 +475,16 @@ impl<P: Parameters> FromBytes for GroupProjective<P> {
 
 impl<P: Parameters> FromBytesChecked for GroupProjective<P> {
     #[inline]
-    fn read_checked<R: Read>(reader: R) -> IoResult<Self> {
-        Self::read(reader)
-            .map_err(|e| IoError::new(ErrorKind::InvalidData, e))
-            .and_then(|p| {
-                if !p.group_membership_test() {
-                    return Err(IoError::new(ErrorKind::InvalidData, "invalid point: group membership test failed"));
-                }
-                Ok(p)
-            }
-        )
+    fn read_checked<R: Read>(mut reader: R) -> IoResult<Self> {
+        let x = P::BaseField::read_checked(&mut reader)?;
+        let y = P::BaseField::read_checked(&mut reader)?;
+        let t = P::BaseField::read_checked(&mut reader)?;
+        let z = P::BaseField::read_checked(reader)?;
+        let p = Self::new(x, y, t, z);
+        if !p.group_membership_test() {
+            return Err(IoError::new(ErrorKind::InvalidData, "invalid point: group membership test failed"));
+        }
+        Ok(p)
     }
 }
 

@@ -2,7 +2,6 @@
 
 members = [
     "algebra",
-    "algebra-utils",
     "bench-utils",
     "primitives",
     "proof-systems",
@@ -25,7 +24,7 @@ incremental = true
 debug-assertions = false
 
 [profile.dev]
-opt-level = 3
+opt-level = 0
 
 [profile.test]
 opt-level = 3
@@ -35,15 +34,10 @@ debug-assertions = true
 debug = true
 
 # Uncomment these lines for local development paths
-
-# [patch.'https://github.com/HorizenOfficial/ginger-lib']
-# algebra = { path = './algebra' }
-# algebra-utils = { path = "./algebra-utils" }
-# r1cs-core = { path = "./r1cs/core" }
 #
-# [patch.'https://github.com/HorizenOfficial/ginger-algebra-ocl']
-# algebra-kernels = { path = '../ginger-algebra-ocl/algebra-kernels' }
-# algebra-cl-gen = { path = '../ginger-algebra-ocl/algebra-cl-gen' }
+#[patch.'https://github.com/HorizenOfficial/ginger-lib']
+#algebra = { path = './algebra' }
+#r1cs-core = { path = "./r1cs/core" }
 #
 #[patch.'https://github.com/HorizenLabs/marlin']
 #marlin = { path = '../marlin' }

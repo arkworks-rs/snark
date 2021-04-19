@@ -1,6 +1,6 @@
 use crate::{
     biginteger::BigInteger, bytes::{FromBytes, ToBytes}, UniformRand, bits::{ToBits, FromBits},
-    Error, BitSerializationError, SemanticallyValid,
+    Error, BitSerializationError, SemanticallyValid, FromBytesChecked,
     serialize:: {
         CanonicalSerialize, CanonicalDeserialize,
         CanonicalSerializeWithFlags, CanonicalDeserializeWithFlags,
@@ -102,6 +102,7 @@ pub trait MulShortAssign<Rhs = Self> {
 pub trait Field:
     ToBytes
     + FromBytes
+    + FromBytesChecked
     + ToBits
     + FromBits
     + Serialize
@@ -235,6 +236,12 @@ pub trait Field:
         }
         res
     }
+}
+
+use std::io::{ Read, Result as IoResult };
+impl<F: Field> FromBytesChecked for F {
+    fn read_checked<R: Read>(reader: R) -> IoResult<Self>
+    { Self::read(reader) }
 }
 
 /// A trait that defines parameters for a prime field.

@@ -245,7 +245,7 @@ mod test {
         while generated_proofs < max_proofs {
             let iteration_num_proofs: usize = generation_rng.gen_range(1, max_proofs);
             generated_proofs += iteration_num_proofs;
-            let iteration_segment_size = 1 << (generation_rng.gen_range(1, max_pow));
+            let iteration_segment_size = 1 << (generation_rng.gen_range(2, max_pow));
             let (mut iteration_pcds, mut iteration_vks) = generate_simple_marlin_test_data(
                 num_constraints - 1,
                 iteration_segment_size,
@@ -324,7 +324,7 @@ mod test {
         while generated_proofs < max_proofs {
             let iteration_num_proofs: usize = generation_rng.gen_range(1, max_proofs);
             generated_proofs += iteration_num_proofs;
-            let iteration_segment_size = 1 << (generation_rng.gen_range(1, max_pow));
+            let iteration_segment_size = 1 << (generation_rng.gen_range(2, max_pow));
             let (mut iteration_pcds, mut iteration_vks) = generate_final_darlin_test_data(
                 num_constraints - 1,
                 iteration_segment_size,
@@ -404,7 +404,7 @@ mod test {
         while generated_proofs < max_proofs {
             let iteration_num_proofs: usize = generation_rng.gen_range(1, max_proofs);
             generated_proofs += iteration_num_proofs;
-            let iteration_segment_size = 1 << (generation_rng.gen_range(1, max_pow));
+            let iteration_segment_size = 1 << (generation_rng.gen_range(2, max_pow));
 
             // Randomly choose if to generate a SimpleMarlinProof or a FinalDarlinProof
             let simple: bool = generation_rng.gen();
