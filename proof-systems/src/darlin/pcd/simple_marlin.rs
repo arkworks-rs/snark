@@ -1,11 +1,14 @@
-use algebra::{AffineCurve, Field, UniformRand};
+use algebra::AffineCurve;
 use digest::Digest;
 use marlin::{
     VerifierKey as MarlinVerifierKey,
     Proof as MarlinProof, Marlin
 };
-use poly_commit::ipa_pc::{
-    InnerProductArgPC, VerifierKey as DLogVerifierKey
+use poly_commit::{
+    ipa_pc::{
+        InnerProductArgPC, VerifierKey as DLogVerifierKey
+    },
+    rng::FiatShamirRng,
 };
 use crate::darlin::{
     pcd::{PCD, error::PCDError},
@@ -73,8 +76,6 @@ impl<'a, G, D> PCD for SimpleMarlinPCD<'a, G, D>
 
         // Absorb evaluations and sample new challenge
         fs_rng.absorb(&self.proof.evaluations);
-        let opening_challenge: G::ScalarField = u128::rand(&mut fs_rng).into();
-        let opening_challenges = |pow| opening_challenge.pow(&[pow]);
 
         // Succinct verify DLOG proof
         let (xi_s, g_final) = InnerProductArgPC::<G, D>::succinct_batch_check_individual_opening_challenges(
@@ -83,7 +84,7 @@ impl<'a, G, D> PCD for SimpleMarlinPCD<'a, G, D>
             &query_set,
             &evaluations,
             &self.proof.pc_proof,
-            &opening_challenges,
+            &mut fs_rng,
         ).map_err(|e| PCDError::FailedSuccinctVerification(e.to_string()))?;
 
         // Successfull verification: return current accumulator

@@ -12,11 +12,10 @@ use poly_commit::{ ipa_pc::{
     CommitterKey as DLogProverKey,
     VerifierKey as DLogVerifierKey,
     Commitment
-}, QuerySet, LabeledCommitment, Evaluations};
+}, PolynomialCommitment, QuerySet, LabeledCommitment, Evaluations};
 use marlin::{
     Marlin,
     ProverKey as MarlinProverKey, VerifierKey as MarlinVerifierKey,
-    rng::FiatShamirRng
 };
 use crate::darlin::{
     data_structures::*,
@@ -167,7 +166,7 @@ impl<'a, G1, G2, D>FinalDarlin<'a, G1, G2, D>
         QuerySet<'a, G1::ScalarField>,
         Evaluations<'a, G1::ScalarField>,
         Vec<LabeledCommitment<Commitment<G1>>>,
-        FiatShamirRng<D>
+        <InnerProductArgPC<G1, D> as PolynomialCommitment<G1::ScalarField>>::RandomOracle,
     ), FinalDarlinError>
     {
         // Get "system inputs"
@@ -193,7 +192,7 @@ impl<'a, G1, G2, D>FinalDarlin<'a, G1, G2, D>
         labeled_comms:  Vec<LabeledCommitment<Commitment<G1>>>,
         query_set:      QuerySet<'a, G1::ScalarField>,
         evaluations:    Evaluations<'a, G1::ScalarField>,
-        fs_rng:         &mut FiatShamirRng<D>,
+        fs_rng:         &mut <InnerProductArgPC<G1, D> as PolynomialCommitment<G1::ScalarField>>::RandomOracle,
     ) -> Result<bool, FinalDarlinError>
     {
         let res = Marlin::<G1::ScalarField, InnerProductArgPC<G1, D>, D>::verify_opening(

@@ -5,7 +5,7 @@ use poly_commit::{ipa_pc::{
     Commitment,
     VerifierKey, CommitterKey,
     SuccinctCheckPolynomial,
-}, LabeledCommitment, Error};
+}, rng::FiatShamirRng, LabeledCommitment, Error, PolynomialCommitment};
 use crate::darlin::accumulators::{
     ItemAccumulator, AccumulationProof,
 };
@@ -65,10 +65,13 @@ impl<G: AffineCurve, D: Digest> DLogItemAccumulator<G, D> {
 
         let poly_time = start_timer!(|| "Compute Bullet Polys evaluations");
 
-        // Sample a new challenge z
-        let z = InnerProductArgPC::<G, D>::compute_random_oracle_challenge(
-            &to_bytes![vk.hash.clone(), previous_accumulators.as_slice()].unwrap(),
+        // Initialize Fiat-Shamir rng
+        let mut fs_rng = <InnerProductArgPC<G, D> as PolynomialCommitment<G::ScalarField>>::RandomOracle::from_seed(
+            &to_bytes![vk.hash.clone(), previous_accumulators.as_slice()].unwrap()
         );
+
+        // Sample a new challenge z
+        let z = fs_rng.squeeze_128_bits_challenge::<G::ScalarField>();
 
         let comms_values = previous_accumulators
             .into_par_iter()
@@ -107,16 +110,12 @@ impl<G: AffineCurve, D: Digest> DLogItemAccumulator<G, D> {
 
         let check_time = start_timer!(|| "Succinct check IPA proof");
 
-        // Sample new opening challenge
-        let opening_challenge = InnerProductArgPC::<G, D>::compute_random_oracle_challenge(
-            &values.iter().flat_map(|val| to_bytes!(val).unwrap()).collect::<Vec<_>>()
-        );
-        let opening_challenges = |pow| opening_challenge.pow(&[pow]);
+        fs_rng.absorb(&values.iter().flat_map(|val| to_bytes!(val).unwrap()).collect::<Vec<_>>());
 
         // Succinct verify the commitments of the Bullet polys opened at the new challenge,
         // and get the new chals
         let xi_s = InnerProductArgPC::<G, D>::succinct_check(
-            vk, comms.iter(), z, values, &proof.pc_proof, &opening_challenges
+            vk, comms.iter(), z, values, &proof.pc_proof, &mut fs_rng
         )?;
 
         end_timer!(check_time);
@@ -210,10 +209,13 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
     {
         let accumulate_time = start_timer!(|| "Accumulate");
 
-        // Sample a new challenge point z
-        let z = InnerProductArgPC::<G, D>::compute_random_oracle_challenge(
-            &to_bytes![ck.hash.clone(), accumulators.as_slice()].unwrap(),
+        // Initialize Fiat-Shamir rng
+        let mut fs_rng = <InnerProductArgPC<G, D> as PolynomialCommitment<G::ScalarField>>::RandomOracle::from_seed(
+            &to_bytes![ck.hash.clone(), accumulators.as_slice()].unwrap()
         );
+
+        // Sample a new challenge z
+        let z = fs_rng.squeeze_128_bits_challenge::<G::ScalarField>();
 
         // Collect GFinals from the accumulators
         let g_fins = accumulators.iter().map(|acc| {
@@ -236,7 +238,8 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
             &ck,
             xi_s.iter(),
             g_fins.iter(),
-            z
+            z,
+            &mut fs_rng
         )?;
 
         end_timer!(poly_time);
@@ -403,7 +406,6 @@ mod test {
         query_set:               QuerySet<'a, G::ScalarField>,
         values:                  Evaluations<'a, G::ScalarField>,
         proof:                   BatchProof<G>,
-        opening_challenge:       G::ScalarField,
         polynomials:             Vec<LabeledPolynomial<G::ScalarField>>,
         num_polynomials:         usize,
         num_points_in_query_set: usize,
@@ -538,13 +540,13 @@ mod test {
         }
         println!("Generated query set");
 
-        let opening_challenge = G::ScalarField::rand(rng);
+        let mut fs_rng = <InnerProductArgPC<G, D> as PolynomialCommitment<G::ScalarField>>::RandomOracle::new();
         let proof = InnerProductArgPC::<G, D>::batch_open(
             &ck,
             &polynomials,
             &comms,
             &query_set,
-            opening_challenge,
+            &mut fs_rng,
             &rands,
             Some(rng),
         )?;
@@ -555,7 +557,6 @@ mod test {
             query_set,
             values,
             proof,
-            opening_challenge,
             polynomials,
             num_polynomials,
             num_points_in_query_set,
@@ -599,7 +600,9 @@ mod test {
             let mut query_sets = Vec::new();
             let mut evals = Vec::new();
             let mut proofs = Vec::new();
-            let mut opening_challenges = Vec::new();
+            let mut states = Vec::new();
+
+            let state = FiatShamirChaChaRng::<D>::new().get_seed().clone();
 
             verifier_data_vec.iter().for_each(|verifier_data| {
                 let len = verifier_data.vk.comm_key.len();
@@ -608,7 +611,7 @@ mod test {
                 query_sets.push(&verifier_data.query_set);
                 evals.push(&verifier_data.values);
                 proofs.push(&verifier_data.proof);
-                opening_challenges.push(verifier_data.opening_challenge.clone());
+                states.push(&state);
             });
 
             // Prover side
@@ -618,7 +621,7 @@ mod test {
                 query_sets.clone(),
                 evals.clone(),
                 proofs.clone(),
-                opening_challenges.clone(),
+                states.clone(),
             )?;
 
             let accumulators = xi_s_vec
@@ -685,7 +688,9 @@ mod test {
             let mut query_sets = Vec::new();
             let mut evals = Vec::new();
             let mut proofs = Vec::new();
-            let mut opening_challenges = Vec::new();
+            let mut states = Vec::new();
+
+            let state = FiatShamirChaChaRng::<D>::new().get_seed().clone();
 
             verifier_data_vec.iter().for_each(|verifier_data| {
                 let len = verifier_data.vk.comm_key.len();
@@ -694,7 +699,7 @@ mod test {
                 query_sets.push(&verifier_data.query_set);
                 evals.push(&verifier_data.values);
                 proofs.push(&verifier_data.proof);
-                opening_challenges.push(verifier_data.opening_challenge.clone());
+                states.push(&state);
             });
 
             let (xi_s_vec, g_fins) = InnerProductArgPC::<G, D>::succinct_batch_check(
@@ -703,7 +708,7 @@ mod test {
                 query_sets.clone(),
                 evals.clone(),
                 proofs.clone(),
-                opening_challenges.clone(),
+                states.clone(),
             )?;
 
             let accumulators = xi_s_vec
@@ -728,6 +733,7 @@ mod test {
         dee::Affine as TweedleDee,
         dum::Affine as TweedleDum,
     };
+    use poly_commit::rng::FiatShamirChaChaRng;
 
     #[test]
     fn test_tweedle_accumulate_verify() {

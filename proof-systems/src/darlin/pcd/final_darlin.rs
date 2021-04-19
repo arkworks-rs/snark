@@ -1,9 +1,12 @@
-use algebra::{AffineCurve, Field, UniformRand, ToConstraintField};
+use algebra::{AffineCurve, ToConstraintField};
 use digest::Digest;
-use poly_commit::ipa_pc::{
-    InnerProductArgPC,
-    VerifierKey as DLogVerifierKey,
-    Commitment,
+use poly_commit::{
+    ipa_pc::{
+        InnerProductArgPC,
+        VerifierKey as DLogVerifierKey,
+        Commitment,
+    },
+    rng::FiatShamirRng,
 };
 use crate::darlin::{
     accumulators::dlog::{DLogItem, DualDLogItem, DualDLogItemAccumulator},
@@ -76,8 +79,6 @@ where
 
         // Absorb evaluations and sample new challenge
         fs_rng.absorb(&self.final_darlin_proof.proof.evaluations);
-        let opening_challenge: G1::ScalarField = u128::rand(&mut fs_rng).into();
-        let opening_challenges = |pow| opening_challenge.pow(&[pow]);
 
         // Succinct verify DLOG proof
         let (xi_s, g_final) = InnerProductArgPC::<G1, D>::succinct_batch_check_individual_opening_challenges(
@@ -86,7 +87,7 @@ where
             &query_set,
             &evaluations,
             &self.final_darlin_proof.proof.pc_proof,
-            &opening_challenges,
+            &mut fs_rng,
         ).map_err(|e| PCDError::FailedSuccinctVerification(e.to_string()))?;
 
         // Verification successfull: return new accumulator

@@ -34,7 +34,6 @@ debug-assertions = true
 debug = true
 
 # Uncomment these lines for local development paths
-
 [patch.'https://github.com/HorizenLabs/marlin']
 marlin = { path = '../marlin' }
 
