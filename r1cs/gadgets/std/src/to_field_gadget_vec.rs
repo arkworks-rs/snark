@@ -6,8 +6,10 @@ use algebra::{
 
 use crate::{
     fields::FieldGadget,
-    groups::curves::short_weierstrass::short_weierstrass_jacobian::AffineGadget as SWAffineGadget,
-    groups::curves::short_weierstrass::short_weierstrass_projective::AffineGadget as SWPAffineGadget,
+    groups::curves::short_weierstrass::{
+        short_weierstrass_projective::AffineGadget as SWPAffineGadget,
+        short_weierstrass_jacobian::AffineGadget as SWJAffineGadget,
+    },
     groups::curves::twisted_edwards::AffineGadget as TEAffineGadget,
 };
 use crate::fields::fp::FpGadget;
@@ -49,7 +51,7 @@ impl<ConstraintF: PrimeField> ToConstraintFieldGadget<ConstraintF> for () {
     }
 }
 
-impl<M, ConstraintF, FG> ToConstraintFieldGadget<ConstraintF> for SWAffineGadget<M, ConstraintF, FG>
+impl<M, ConstraintF, FG> ToConstraintFieldGadget<ConstraintF> for SWPAffineGadget<M, ConstraintF, FG>
     where
         M:              SWModelParameters,
         ConstraintF:    PrimeField,
@@ -67,7 +69,7 @@ impl<M, ConstraintF, FG> ToConstraintFieldGadget<ConstraintF> for SWAffineGadget
     }
 }
 
-impl<M, ConstraintF, FG> ToConstraintFieldGadget<ConstraintF> for SWPAffineGadget<M, ConstraintF, FG>
+impl<M, ConstraintF, FG> ToConstraintFieldGadget<ConstraintF> for SWJAffineGadget<M, ConstraintF, FG>
     where
         M:              SWModelParameters,
         ConstraintF:    PrimeField,

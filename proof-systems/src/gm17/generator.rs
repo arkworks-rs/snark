@@ -1,5 +1,5 @@
-use algebra_utils::msm::FixedBaseMSM;
-use algebra_utils::fft::domain::{
+use algebra::msm::FixedBaseMSM;
+use algebra::fft::domain::{
     get_best_evaluation_domain, sample_element_outside_domain,
 };
 use algebra::{

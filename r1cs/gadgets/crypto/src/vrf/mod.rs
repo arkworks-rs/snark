@@ -18,6 +18,6 @@ pub trait FieldBasedVrfGadget<S: FieldBasedVrf, ConstraintF: Field> {
         pp:         &Self::GHParametersGadget,
         public_key: &Self::PublicKeyGadget,
         proof:      &Self::ProofGadget,
-        message:    &[Self::DataGadget],
+        message:    Self::DataGadget,
     ) -> Result<Self::DataGadget, SynthesisError>;
 }

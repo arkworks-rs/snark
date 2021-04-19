@@ -24,6 +24,7 @@ pub enum BitSerializationError {
     UndefinedSqrt,
     NotPrimeOrder,
     NotOnCurve,
+    NotInCorrectSubgroup,
     InvalidFlags,
 }
 
@@ -34,6 +35,7 @@ impl std::fmt::Display for BitSerializationError {
             BitSerializationError::UndefinedSqrt => "square root doesn't exist in field".to_owned(),
             BitSerializationError::NotPrimeOrder => "point is not in the prime order subgroup".to_owned(),
             BitSerializationError::NotOnCurve => "point is not on curve".to_owned(),
+            BitSerializationError::NotInCorrectSubgroup => "point is not in the correct subgroup".to_owned(),
             BitSerializationError::InvalidFlags => "illegal flags combination".to_owned(),
         };
         write!(f, "{}", msg)

@@ -169,10 +169,10 @@ pub(crate) fn hash_inner_node<H: FieldBasedHash>(
     left: H::Data,
     right: H::Data,
 ) -> Result<H::Data, Error> {
-    Ok(H::init(None)
+    H::init_constant_length(2, None)
         .update(left)
         .update(right)
-        .finalize())
+        .finalize()
 }
 
 pub(crate) fn hash_empty<H: FieldBasedHash>() -> Result<H::Data, Error> {
@@ -200,7 +200,7 @@ mod test {
         type Data = MNT4753Fr;
         type H = MNT4PoseidonHash;
         const MERKLE_ARITY: usize = 2;
-        const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> =
+        const EMPTY_NODE_CST: Option<FieldBasedMerkleTreePrecomputedZeroConstants<'static, Self::H>> =
             Some(MNT4753_MHT_POSEIDON_PARAMETERS);
     }
 
@@ -242,7 +242,15 @@ mod test {
         //Test #leaves << 2^HEIGHT
         let mut leaves = Vec::new();
         for _ in 0..4 {
-            leaves.push(MNT4PoseidonHash::init(None).update(MNT4753Fr::rand(&mut rng)).finalize());
+            leaves.push(
+                MNT4PoseidonHash::init_constant_length(
+                    1,
+                    None
+                )
+                .update(MNT4753Fr::rand(&mut rng))
+                .finalize()
+                .unwrap()
+            );
         }
         generate_merkle_tree(&leaves);
 
@@ -293,7 +301,15 @@ mod test {
         //Test #leaves << 2^HEIGHT
         let mut leaves = Vec::new();
         for _ in 0..4 {
-            leaves.push(MNT4PoseidonHash::init(None).update(MNT4753Fr::rand(&mut rng)).finalize());
+            leaves.push(
+                MNT4PoseidonHash::init_constant_length(
+                    1,
+                    None
+                )
+                    .update(MNT4753Fr::rand(&mut rng))
+                    .finalize()
+                    .unwrap()
+            );
         }
         bad_merkle_tree_verify(&leaves);
 
