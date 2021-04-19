@@ -25,7 +25,7 @@ pub trait FieldBasedMerkleTreeParameters: 'static + Clone {
     /// The arity of the Merkle Tree
     const MERKLE_ARITY: usize;
     /// The pre-computed hashes of the empty nodes for the different levels of the Merkle Tree
-    const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>>;
+    const EMPTY_NODE_CST: Option<FieldBasedMerkleTreePrecomputedZeroConstants<'static, Self::H>>;
 }
 
 /// Pre-computed hashes of the empty nodes for the different levels of the Merkle Tree
@@ -35,7 +35,7 @@ pub trait FieldBasedMerkleTreeParameters: 'static + Clone {
     Eq(bound = ""),
     PartialEq(bound = ""),
 )]
-pub struct FieldBasedMerkleTreePrecomputedEmptyConstants<'a, H: FieldBasedHash> {
+pub struct FieldBasedMerkleTreePrecomputedZeroConstants<'a, H: FieldBasedHash> {
     pub nodes: &'a [H::Data],
     pub merkle_arity: usize,
 }
@@ -51,7 +51,7 @@ pub trait BatchFieldBasedMerkleTreeParameters: FieldBasedMerkleTreeParameters {
 
 pub(crate) fn check_precomputed_parameters<T: FieldBasedMerkleTreeParameters>(tree_height: usize) -> bool
 {
-    match T::EMPTY_HASH_CST {
+    match T::EMPTY_NODE_CST {
         Some(supported_params) => {
             tree_height <= supported_params.nodes.len() &&
                 T::MERKLE_ARITY == supported_params.merkle_arity &&

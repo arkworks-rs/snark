@@ -121,7 +121,7 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedMerkleTreePath for FieldBasedM
             if direction != T::MERKLE_ARITY - 1 {
 
                 // Save the empty node for this height
-                let empty_node = T::EMPTY_HASH_CST.unwrap().nodes[height].clone();
+                let empty_node = T::EMPTY_NODE_CST.unwrap().nodes[height].clone();
 
                 // If its following siblings are not the empty nodes, then the node
                 // cannot be the non empty rightmost at this height and for the
@@ -287,7 +287,7 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedMerkleTreePath for FieldBasedB
                 // If its following sibling is not the empty node, then the node
                 // cannot be the non empty rightmost at this height and for the
                 // whole tree
-                if sibling != T::EMPTY_HASH_CST.unwrap().nodes[height] {
+                if sibling != T::EMPTY_NODE_CST.unwrap().nodes[height] {
                     return false;
                 }
             }

@@ -6,7 +6,7 @@ use algebra::{
 
 use crate::{
     crh::poseidon::TweedleFqPoseidonHash,
-    FieldBasedMerkleTreePrecomputedEmptyConstants,
+    FieldBasedMerkleTreePrecomputedZeroConstants,
 };
 
 // PoseidonHash("This represents an empty Merkle Root for a TweedleDumPoseidonHash based Merkle Tree.")
@@ -18,8 +18,8 @@ pub const TWEEDLE_DUM_PHANTOM_MERKLE_ROOT: TweedleFq =
         3097632584773363944
     ]));
 
-pub const TWEEDLE_DUM_MHT_POSEIDON_PARAMETERS: FieldBasedMerkleTreePrecomputedEmptyConstants<'static, TweedleFqPoseidonHash> =
-    FieldBasedMerkleTreePrecomputedEmptyConstants {
+pub const TWEEDLE_DUM_MHT_POSEIDON_PARAMETERS: FieldBasedMerkleTreePrecomputedZeroConstants<'static, TweedleFqPoseidonHash> =
+    FieldBasedMerkleTreePrecomputedZeroConstants {
         nodes: &[
             field_new!(TweedleFq, BigInteger256([0, 0, 0, 0])),
             field_new!(TweedleFq, BigInteger256([6139372262132429377, 6616513606251009568, 10180936183985522127, 1871256090268734000])),
@@ -69,7 +69,7 @@ mod test {
             generate_phantom_merkle_root_from_magic_string,
             generate_mht_empty_nodes,
         },
-        FieldBasedMerkleTreePrecomputedEmptyConstants
+        FieldBasedMerkleTreePrecomputedZeroConstants
     };
     use super::{
         TWEEDLE_DUM_PHANTOM_MERKLE_ROOT, TWEEDLE_DUM_MHT_POSEIDON_PARAMETERS
@@ -93,7 +93,7 @@ mod test {
         let empty_nodes = generate_mht_empty_nodes::<Fq, TweedleFqPoseidonHash>(merkle_arity, max_height, Fq::zero());
         assert_eq!(empty_nodes.len(), max_height);
 
-        let params = FieldBasedMerkleTreePrecomputedEmptyConstants::<TweedleFqPoseidonHash> {
+        let params = FieldBasedMerkleTreePrecomputedZeroConstants::<TweedleFqPoseidonHash> {
             nodes: empty_nodes.as_slice(), merkle_arity
         };
         assert_eq!(params, TWEEDLE_DUM_MHT_POSEIDON_PARAMETERS)

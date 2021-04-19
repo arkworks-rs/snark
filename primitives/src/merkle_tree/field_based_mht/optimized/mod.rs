@@ -157,7 +157,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
     fn batch_hash(input: &mut [T::Data], output: &mut [T::Data], parent_level: usize) {
 
         let mut i = 0;
-        let empty = T::EMPTY_HASH_CST.unwrap().nodes[parent_level - 1];
+        let empty = T::EMPTY_NODE_CST.unwrap().nodes[parent_level - 1];
 
         // Stores the chunk that must be hashed, i.e. the ones containing at least one non-empty node
         let mut to_hash = Vec::new();
@@ -170,7 +170,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
         // therefore we already have the output, otherwise it must be computed.
         input.chunks(T::MERKLE_ARITY).for_each(|input_chunk| {
             if input_chunk.iter().all(|&item| item == empty) {
-                output[i] = T::EMPTY_HASH_CST.unwrap().nodes[parent_level];
+                output[i] = T::EMPTY_NODE_CST.unwrap().nodes[parent_level];
             } else {
                 to_hash.extend_from_slice(input_chunk);
                 output_pos.push(i);
@@ -312,7 +312,7 @@ mod test {
         parameters::{
             MNT4753_MHT_POSEIDON_PARAMETERS, MNT6753_MHT_POSEIDON_PARAMETERS
         }
-    }, FieldBasedMerkleTreePrecomputedEmptyConstants, FieldBasedMHTPath};
+    }, FieldBasedMerkleTreePrecomputedZeroConstants, FieldBasedMHTPath};
 
     // OptimizedMHT definitions for tests below
     #[derive(Clone, Debug)]
@@ -322,7 +322,7 @@ mod test {
         type Data = MNT4753Fr;
         type H = MNT4PoseidonHash;
         const MERKLE_ARITY: usize = 2;
-        const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> =
+        const EMPTY_NODE_CST: Option<FieldBasedMerkleTreePrecomputedZeroConstants<'static, Self::H>> =
             Some(MNT4753_MHT_POSEIDON_PARAMETERS);
     }
 
@@ -341,7 +341,7 @@ mod test {
         type Data = MNT6753Fr;
         type H = MNT6PoseidonHash;
         const MERKLE_ARITY: usize = 2;
-        const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> =
+        const EMPTY_NODE_CST: Option<FieldBasedMerkleTreePrecomputedZeroConstants<'static, Self::H>> =
             Some(MNT6753_MHT_POSEIDON_PARAMETERS);
     }
 

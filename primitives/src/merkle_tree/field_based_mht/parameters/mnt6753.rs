@@ -5,7 +5,7 @@ use algebra::{
 
 use crate::{
     crh::poseidon::parameters::mnt6753::MNT6PoseidonHash,
-    FieldBasedMerkleTreePrecomputedEmptyConstants,
+    FieldBasedMerkleTreePrecomputedZeroConstants,
 };
 
 // PoseidonHash("This represents an empty Merkle Root for a MNT6753PoseidonHash based Merkle Tree.") padded with 0s
@@ -26,8 +26,8 @@ pub const MNT6753_PHANTOM_MERKLE_ROOT: MNT6753Fr =
     ])
 );
 
-pub const MNT6753_MHT_POSEIDON_PARAMETERS: FieldBasedMerkleTreePrecomputedEmptyConstants<'static, MNT6PoseidonHash> =
-    FieldBasedMerkleTreePrecomputedEmptyConstants {
+pub const MNT6753_MHT_POSEIDON_PARAMETERS: FieldBasedMerkleTreePrecomputedZeroConstants<'static, MNT6PoseidonHash> =
+    FieldBasedMerkleTreePrecomputedZeroConstants {
         nodes: &[
             field_new!(MNT6753Fr, BigInteger768([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])),
             field_new!(MNT6753Fr, BigInteger768([6532273791827364841, 8129439058117860676, 11951671852543742466, 4932126643213168419, 3432346478526347932, 17290815965948604094, 16841611152871512489, 16265777562074717134, 10956818927095834646, 11239269346882274360, 10703980782105434237, 242741090634251])),
@@ -75,7 +75,7 @@ mod test {
     use crate::{crh::MNT6PoseidonHash, merkle_tree::field_based_mht::parameters::{
         generate_phantom_merkle_root_from_magic_string,
         generate_mht_empty_nodes,
-    }, FieldBasedMerkleTreePrecomputedEmptyConstants};
+    }, FieldBasedMerkleTreePrecomputedZeroConstants};
     use super::{
         MNT6753_PHANTOM_MERKLE_ROOT, MNT6753_MHT_POSEIDON_PARAMETERS
     };
@@ -99,7 +99,7 @@ mod test {
         let empty_nodes = generate_mht_empty_nodes::<Fr, MNT6PoseidonHash>(merkle_arity, max_height, Fr::zero());
         assert_eq!(empty_nodes.len(), max_height);
 
-        let params = FieldBasedMerkleTreePrecomputedEmptyConstants::<MNT6PoseidonHash> {
+        let params = FieldBasedMerkleTreePrecomputedZeroConstants::<MNT6PoseidonHash> {
             nodes: empty_nodes.as_slice(), merkle_arity
         };
 

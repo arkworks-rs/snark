@@ -6,7 +6,7 @@ use algebra::{
 
 use crate::{
     crh::poseidon::BN382FqPoseidonHash,
-    FieldBasedMerkleTreePrecomputedEmptyConstants,
+    FieldBasedMerkleTreePrecomputedZeroConstants,
 };
 
 // PoseidonHash("This represents an empty Merkle Root for a BN382FqPoseidonHash based Merkle Tree.")
@@ -20,8 +20,8 @@ pub const BN382_DUAL_PHANTOM_MERKLE_ROOT: BN382Fq =
         1056984384425758049
     ]));
 
-pub const BN382_DUAL_MHT_POSEIDON_PARAMETERS: FieldBasedMerkleTreePrecomputedEmptyConstants<'static, BN382FqPoseidonHash> =
-    FieldBasedMerkleTreePrecomputedEmptyConstants {
+pub const BN382_DUAL_MHT_POSEIDON_PARAMETERS: FieldBasedMerkleTreePrecomputedZeroConstants<'static, BN382FqPoseidonHash> =
+    FieldBasedMerkleTreePrecomputedZeroConstants {
         nodes: &[
             field_new!(BN382Fq, BigInteger384([0, 0, 0, 0, 0, 0])),
             field_new!(BN382Fq, BigInteger384([7636599113261288821, 6557727936151308107, 3241378259940865905, 15871565890065558290, 16630733516914421307, 1324540765431294349])),
@@ -71,7 +71,7 @@ mod test {
             generate_phantom_merkle_root_from_magic_string,
             generate_mht_empty_nodes,
         },
-        FieldBasedMerkleTreePrecomputedEmptyConstants
+        FieldBasedMerkleTreePrecomputedZeroConstants
     };
     use super::{
         BN382_DUAL_PHANTOM_MERKLE_ROOT, BN382_DUAL_MHT_POSEIDON_PARAMETERS
@@ -96,7 +96,7 @@ mod test {
         let empty_nodes = generate_mht_empty_nodes::<Fq, BN382FqPoseidonHash>(merkle_arity, max_height, Fq::zero());
         assert_eq!(empty_nodes.len(), max_height);
 
-        let params = FieldBasedMerkleTreePrecomputedEmptyConstants::<BN382FqPoseidonHash> {
+        let params = FieldBasedMerkleTreePrecomputedZeroConstants::<BN382FqPoseidonHash> {
             nodes: empty_nodes.as_slice(), merkle_arity
         };
         assert_eq!(params, BN382_DUAL_MHT_POSEIDON_PARAMETERS)
