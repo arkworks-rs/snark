@@ -52,9 +52,11 @@ impl<G: AffineCurve, D: Digest> DLogItemAccumulator<G, D> {
         Self { _group: PhantomData, _digest: PhantomData }
     }
 
-    /// This implementation reflects the procedure for size-optimized DLOG accumulation proofs
-    /// in which we need to recompute the xi_s. If successfull, returns the new accumulator
-    /// (the GFinal is taken from proof itself).
+    /// This implementation handles the succinct verification of an aggregation proof
+    /// for dlog "items". 
+    /// Recall that in the special situation of dlog items, the accumulated item 
+    /// is part of the proof itself. However, as we use size-optimized proofs, the 
+    /// xi_s are recomputed from the proof and returned by the verifier (if successful).
     pub fn succinct_verify_accumulated_items(
         vk:                    &VerifierKey<G>,
         previous_accumulators: Vec<DLogItem<G>>,
@@ -94,7 +96,7 @@ impl<G: AffineCurve, D: Digest> DLogItemAccumulator<G, D> {
                     )
                 };
 
-                // Compute the evaluation of the Bullet polynomial at z starting from the xi_s
+                // Evaluate the Bullet polynomial at z starting from the xi_s
                 let eval = xi_s.evaluate(z);
 
                 (labeled_comm, eval)
@@ -198,10 +200,9 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
         Ok(true)
     }
 
-    /// Our implementation is size optimized: the accumulation proof is all that it's needed since
-    /// that the g_fin of the new accumulator can be derived from the AccumulationProof (which is
-    /// a DLOG opening proof) and the xi_s can be recomputed via succinct verification of the previous
-    /// accumulators.
+    /// Accumulate dlog "items" via the dlog aggregation strategy. The new dlog item is part of 
+    /// the aggregation proof itself. 
+    /// However, we do not return the xi_s as they can be recomputed from the proof.
     fn accumulate_items(
         ck: &Self::AccumulatorProverKey,
         accumulators: Vec<Self::Item>,
@@ -232,7 +233,7 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
 
         let poly_time = start_timer!(|| "Open Bullet Polys");
 
-        // Compute multi poly single point opening proof of the Bullet polys
+        // Compute multi poly single point opening proof of the item polys
         // at the GFin(s)
         let opening_proof = InnerProductArgPC::<G, D>::open_check_polys(
             &ck,
@@ -250,6 +251,9 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
         let accumulator = DLogItem::<G>::default();
 
         let mut accumulation_proof = AccumulationProof::<G>::default();
+        // As we consider the items to be accumulated as common inputs (of
+        // the protocol), and the challenge z can be reconstructed from them, 
+        // the accumulation proof consists only of the dlog opening proof.
         accumulation_proof.pc_proof = opening_proof;
 
         end_timer!(accumulate_time);
@@ -257,6 +261,8 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
         Ok((accumulator, accumulation_proof))
     }
 
+    /// Full verification of an aggregation proof for dlog "items". 
+    /// Calls the succinct verifier and then does the remaining check of the aggregated item.
     fn verify_accumulated_items<R: RngCore>(
         _current_acc: &Self::Item,
         vk: &Self::AccumulatorVerifierKey,
