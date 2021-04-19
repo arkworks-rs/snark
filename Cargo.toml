@@ -34,8 +34,13 @@ debug-assertions = true
 debug = true
 
 # Uncomment these lines for local development paths
-[patch.'https://github.com/HorizenLabs/marlin']
-marlin = { path = '../marlin' }
-
-[patch.'https://github.com/HorizenLabs/poly-commit']
-poly-commit = { path = '../poly-commit' }
+#
+#[patch.'https://github.com/HorizenOfficial/ginger-lib']
+#algebra = { path = './algebra' }
+#algebra-utils = { path = "./algebra-utils" }
+#
+#[patch.'https://github.com/HorizenLabs/marlin']
+#marlin = { path = '../marlin' }
+#
+#[patch.'https://github.com/HorizenLabs/poly-commit']
+#poly-commit = { path = '../poly-commit' }

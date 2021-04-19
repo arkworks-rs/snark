@@ -1,5 +1,5 @@
 use algebra::{Field, AffineCurve, ProjectiveCurve, ToBytes, to_bytes, UniformRand};
-use algebra_utils::polynomial::DensePolynomial as Polynomial;
+use algebra::polynomial::DensePolynomial as Polynomial;
 use poly_commit::{ipa_pc::{
     InnerProductArgPC,
     Commitment,
