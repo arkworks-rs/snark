@@ -38,7 +38,7 @@ impl FieldBasedMerkleTreeParameters for MNT4753FieldBasedMerkleTreeParams {
     type Data = MNT4753Fr;
     type H = MNT4PoseidonHash;
     const MERKLE_ARITY: usize = 2;
-    const EMPTY_NODE_CST: Option<FieldBasedMerkleTreePrecomputedZeroConstants<'static, Self::H>> = Some(MNT4753_MHT_POSEIDON_PARAMETERS);
+    const ZERO_NODE_CST: Option<FieldBasedMerkleTreePrecomputedZeroConstants<'static, Self::H>> = Some(MNT4753_MHT_POSEIDON_PARAMETERS);
 }
 
 impl BatchFieldBasedMerkleTreeParameters for MNT4753FieldBasedMerkleTreeParams {
@@ -53,7 +53,7 @@ impl FieldBasedMerkleTreeParameters for MNT6753FieldBasedMerkleTreeParams {
     type Data = MNT6753Fr;
     type H = MNT6PoseidonHash;
     const MERKLE_ARITY: usize = 2;
-    const EMPTY_NODE_CST: Option<FieldBasedMerkleTreePrecomputedZeroConstants<'static, Self::H>> = Some(MNT6753_MHT_POSEIDON_PARAMETERS);
+    const ZERO_NODE_CST: Option<FieldBasedMerkleTreePrecomputedZeroConstants<'static, Self::H>> = Some(MNT6753_MHT_POSEIDON_PARAMETERS);
 }
 
 impl BatchFieldBasedMerkleTreeParameters for MNT6753FieldBasedMerkleTreeParams {
