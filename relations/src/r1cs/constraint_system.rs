@@ -510,9 +510,9 @@ impl<F: Field> ConstraintSystem<F> {
         }
     }
 
-    /// Finalize the constraint system (either by outlining or inlining,
+    /// Optimize the constraint system (either by outlining or inlining,
     /// if an optimization goal is set).
-    pub fn finalize(&mut self) {
+    pub fn optimize(&mut self) {
         match self.optimization_goal {
             OptimizationGoal::None => self.inline_all_lcs(),
             OptimizationGoal::Constraints => self.inline_all_lcs(),
@@ -896,11 +896,11 @@ impl<F: Field> ConstraintSystemRef<F> {
         }
     }
 
-    /// Finalize the constraint system (either by outlining or inlining,
+    /// Optimize the constraint system (either by outlining or inlining,
     /// if an optimization goal is set).
-    pub fn finalize(&self) {
+    pub fn optimize(&self) {
         if let Some(cs) = self.inner() {
-            cs.borrow_mut().finalize()
+            cs.borrow_mut().optimize()
         }
     }
 

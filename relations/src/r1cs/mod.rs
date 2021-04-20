@@ -39,11 +39,11 @@ pub struct ConstraintMatrices<F: Field> {
 
 /// An R1CS instance consists of variable assignments to the instance variables.
 /// The first variable must be assigned a value of `F::one()`.
-#[derive(Eq, PartialEq, Debug, Hash)]
+#[derive(Eq, PartialEq, Debug, Hash, Clone)]
 pub struct Instance<F: Field>(pub Vec<F>);
 
 /// An R1CS instance consists of variable assignments to the witness variables.
-#[derive(Eq, PartialEq, Debug, Hash)]
+#[derive(Eq, PartialEq, Debug, Hash, Clone)]
 pub struct Witness<F: Field>(pub Vec<F>);
 
 impl<F: Field> Relation for R1CS<F> {

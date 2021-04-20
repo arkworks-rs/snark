@@ -1,70 +1,54 @@
-use ark_relations::r1cs::{R1CS, ConstraintSynthesizer};
+use ark_std::rand::{RngCore, CryptoRng};
+use ark_ff::Field;
+use ark_relations::r1cs::{R1CS, ConstraintMatrices, Instance, Witness, ConstraintSynthesizer};
+use crate::SNARK;
 
-/// The basic functionality for a SNARK.
+/// A [`SNARKForR1CS`] is a [`SNARK`] for the [`R1CS`] relation.
 pub trait SNARKForR1CS<F: Field>: SNARK<R1CS<F>> {
-    /// Generates a proof of satisfaction of the arithmetic circuit C (specified
-    /// as R1CS constraints).
-    fn prove<C: ConstraintSynthesizer<F>, Rng: RngCore + CryptoRng>(
-        circuit_pk: &Self::ProvingKey,
-        witness_generator: C,
-        rng: &mut Rng,
-    ) -> Result<Self::Proof, Self::Error>;
+    /// Generate inputs for the SNARK indexer from [`cs`].
+    fn indexer_inputs<CS: ConstraintSynthesizer<F>>(cs: &CS) -> ConstraintMatrices<F>;
 
-    /// Checks that `proof` is a valid proof of the satisfaction of circuit
-    /// encoded in `circuit_vk`, with respect to the public input `public_input`,
-    /// specified as R1CS constraints.
-    fn verify<C: ConstraintSynthesizer<F>>(
-        circuit_vk: &Self::VerifyingKey,
-        public_input_generator: C,
-        proof: &Self::Proof,
-    ) -> Result<bool, Self::Error> {
-        let pvk = Self::process_vk(circuit_vk)?;
-        Self::verify_with_processed_vk(&pvk, public_input_generator, proof)
+    /// Generate inputs for the SNARK prover from [`cs`].
+    fn prover_inputs<CS: ConstraintSynthesizer<F>>(
+        cs: &CS,
+    ) -> (
+        Instance<F>,
+        Witness<F>,
+    );
+
+    /// Generate inputs for the SNARK verifier from [`cs`].
+    fn verifier_inputs<CS: ConstraintSynthesizer<F>>(cs: &CS) -> Instance<F>;
+
+    /// Generates a proof of satisfaction of the constraint system induced by [`cs`].
+    fn prove_with_cs<CS: ConstraintSynthesizer<F>, Rng: RngCore + CryptoRng>(
+        pk: &Self::ProvingKey,
+        c: CS,
+        rng: &mut Rng,
+    ) -> Result<Self::Proof, Self::Error> {
+        let (instance, witness) = Self::prover_inputs(&c);
+        Self::prove(pk, &instance, &witness, rng)
     }
 
-    /// Preprocesses `circuit_vk` to enable faster verification.
-    fn process_vk(
-        circuit_vk: &Self::VerifyingKey,
-    ) -> Result<Self::ProcessedVerifyingKey, Self::Error>;
 
-    /// Checks that `proof` is a valid proof of the satisfaction of circuit
-    /// encoded in `circuit_pvk`, with respect to the public input `public_input`,
-    /// specified as R1CS constraints.
-    fn verify_with_processed_vk<C: ConstraintSynthesizer<F>>(
-        circuit_pvk: &Self::ProcessedVerifyingKey,
-        public_input_generator: C,
+    /// Verify that [`proof`] is a valid proof with respect to [`vk`] and to the
+    /// instance induced by [`cs`].
+    fn verify_with_cs<CS: ConstraintSynthesizer<F>>(
+        vk: &Self::VerifyingKey,
+        cs: CS,
         proof: &Self::Proof,
-    ) -> Result<bool, Self::Error>;
-}
+    ) -> Result<bool, Self::Error> {
+        let instance = Self::verifier_inputs(&cs);
+        Self::verify(vk, &instance, proof)
+    }
 
-/// A SNARK with (only) circuit-specific setup.
-pub trait CircuitSpecificSetupSNARKForR1CS<F: Field>: CircuitSpecificSetupSNARK<R1CS<F>> + SNARK<R1CS<F>> {
-    /// The setup algorithm for circuit-specific SNARKs.
-    fn setup<C: ConstraintSynthesizer<F>, Rng: RngCore + CryptoRng>(
-        index_generator: C,
-        rng: &mut Rng,
-    ) -> Result<(Self::ProvingKey, Self::VerifyingKey), Self::Error>;
-}
-
-/// A SNARK with universal setup. That is, a SNARK where the trusted setup is
-/// circuit-independent.
-pub trait UniversalSetupSNARKForR1CS<F: Field>: UniversalSetupSNARK<R1CS<F>> + SNARKForR1CS<F> {
-    /// Specifies how to bound the size of public parameters required to
-    /// generate the index proving and verification keys for a given
-    /// circuit.
-    fn universal_setup<Rng: RngCore + CryptoRng>(
-        compute_bound: &Self::ComputationBound,
-        rng: &mut Rng,
-    ) -> Result<Self::PublicParameters, Self::Error>;
-
-    /// Indexes the public parameters according to the circuit `circuit`, and
-    /// outputs circuit-specific proving and verification keys.
-    fn index<C: ConstraintSynthesizer<F>>(
-        pp: &Self::PublicParameters,
-        index_generator: C,
-        rng: &mut Rng,
-    ) -> Result<
-        (Self::ProvingKey, Self::VerifyingKey),
-        IndexingError<Self::ComputationBound, Self::Error>,
-    >;
+    /// Checks that [`proof`] is a valid proof of with respect to [`pvk`] and
+    /// the instance induced by [`cs`].
+    fn verify_with_cs_and_processed_vk<CS: ConstraintSynthesizer<F>>(
+        pvk: &Self::ProcessedVerifyingKey,
+        cs: CS,
+        proof: &Self::Proof,
+    ) -> Result<bool, Self::Error> {
+        let instance = Self::verifier_inputs(&cs);
+        Self::verify_with_processed_vk(pvk, &instance, proof)
+    }
 }

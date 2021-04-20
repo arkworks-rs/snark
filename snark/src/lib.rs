@@ -15,6 +15,9 @@ use ark_relations::NPRelation;
 use ark_std::rand::{CryptoRng, RngCore};
 use core::fmt::Debug;
 
+/// Specialized interface for R1CS-based SNARKs.
+pub mod r1cs;
+
 /// The basic functionality for a SNARK.
 pub trait SNARK<R: NPRelation> {
     /// The information required by the prover to produce a proof for a specific
@@ -38,34 +41,34 @@ pub trait SNARK<R: NPRelation> {
     /// Generates a proof of satisfaction of the arithmetic circuit C (specified
     /// as R1CS constraints).
     fn prove<Rng: RngCore + CryptoRng>(
-        circuit_pk: &Self::ProvingKey,
+        pk: &Self::ProvingKey,
         instance: &R::Instance,
         witness: &R::Witness,
         rng: &mut Rng,
     ) -> Result<Self::Proof, Self::Error>;
 
     /// Checks that `proof` is a valid proof of the satisfaction of circuit
-    /// encoded in `circuit_vk`, with respect to the public input `public_input`,
+    /// encoded in `vk`, with respect to the public input `public_input`,
     /// specified as R1CS constraints.
     fn verify(
-        circuit_vk: &Self::VerifyingKey,
+        vk: &Self::VerifyingKey,
         instance: &R::Instance,
         proof: &Self::Proof,
     ) -> Result<bool, Self::Error> {
-        let pvk = Self::process_vk(circuit_vk)?;
+        let pvk = Self::process_vk(vk)?;
         Self::verify_with_processed_vk(&pvk, instance, proof)
     }
 
-    /// Preprocesses `circuit_vk` to enable faster verification.
+    /// Preprocesses `vk` to enable faster verification.
     fn process_vk(
-        circuit_vk: &Self::VerifyingKey,
+        vk: &Self::VerifyingKey,
     ) -> Result<Self::ProcessedVerifyingKey, Self::Error>;
 
     /// Checks that `proof` is a valid proof of the satisfaction of circuit
-    /// encoded in `circuit_pvk`, with respect to the public input `public_input`,
+    /// encoded in `pvk`, with respect to the public input `public_input`,
     /// specified as R1CS constraints.
     fn verify_with_processed_vk(
-        circuit_pvk: &Self::ProcessedVerifyingKey,
+        pvk: &Self::ProcessedVerifyingKey,
         instance: &R::Instance,
         proof: &Self::Proof,
     ) -> Result<bool, Self::Error>;
@@ -74,7 +77,7 @@ pub trait SNARK<R: NPRelation> {
 /// A SNARK with (only) circuit-specific setup.
 pub trait CircuitSpecificSetupSNARK<R: NPRelation>: SNARK<R> {
     /// The setup algorithm for circuit-specific SNARKs.
-    fn setup<Rng: RngCore + CryptoRng>(
+    fn circuit_specific_setup<Rng: RngCore + CryptoRng>(
         index: &R::Index,
         rng: &mut Rng,
     ) -> Result<(Self::ProvingKey, Self::VerifyingKey), Self::Error>;
@@ -127,7 +130,7 @@ where
     S: UniversalSetupSNARK<R>,
 {
     /// The setup algorithm for circuit-specific SNARKs.
-    fn setup<Rng: RngCore + CryptoRng>(
+    fn circuit_specific_setup<Rng: RngCore + CryptoRng>(
         index: &R::Index,
         rng: &mut Rng,
     ) -> Result<(Self::ProvingKey, Self::VerifyingKey), Self::Error> {
