@@ -1,6 +1,6 @@
 #[cfg(feature = "std")]
 use crate::r1cs::ConstraintTrace;
-use crate::r1cs::{LcIndex, LinearCombination, SynthesisError, Variable, ConstraintMatrices};
+use crate::r1cs::{ConstraintMatrices, LcIndex, LinearCombination, SynthesisError, Variable};
 use ark_ff::Field;
 use ark_std::{
     any::{Any, TypeId},

@@ -1,12 +1,12 @@
 //! Core interfaces for working with Rank-1 Constraint Systems (R1CS), which is
 //! an indexed NP relation.
 
-use crate::{Relation, NPRelation};
-use ark_std::{vec::Vec, marker::PhantomData, cmp::Ordering};
+use crate::{NPRelation, Relation};
+use ark_std::{cmp::Ordering, marker::PhantomData, vec::Vec};
 
 /// An *indexed NP relation* is a relation with an efficient membership check.
 pub struct R1CS<F: Field> {
-    f: PhantomData<F>
+    f: PhantomData<F>,
 }
 
 /// An R1CS index consists of three matrices, as well as the number of instance variables
@@ -53,7 +53,11 @@ impl<F: Field> Relation for R1CS<F> {
 }
 
 impl<F: Field> NPRelation for R1CS<F> {
-    fn check_membership(index: &Self::Index, instance: &Self::Instance, witness: &Self::Witness) -> bool {
+    fn check_membership(
+        index: &Self::Index,
+        instance: &Self::Instance,
+        witness: &Self::Witness,
+    ) -> bool {
         // The number of instance variables does not match.
         if instance.0.len() != index.num_instance_variables {
             return false;
@@ -71,9 +75,24 @@ impl<F: Field> NPRelation for R1CS<F> {
             .zip(&index.b)
             .zip(&index.c)
             .all(|((a_row, b_row), c_row)| {
-                let a = inner_product(&a_row, index.num_instance_variables, &instance.0, &witness.0);
-                let b = inner_product(&b_row, index.num_instance_variables, &instance.0, &witness.0);
-                let c = inner_product(&c_row, index.num_instance_variables, &instance.0, &witness.0);
+                let a = inner_product(
+                    &a_row,
+                    index.num_instance_variables,
+                    &instance.0,
+                    &witness.0,
+                );
+                let b = inner_product(
+                    &b_row,
+                    index.num_instance_variables,
+                    &instance.0,
+                    &witness.0,
+                );
+                let c = inner_product(
+                    &c_row,
+                    index.num_instance_variables,
+                    &instance.0,
+                    &witness.0,
+                );
                 a * b == c
             })
     }
@@ -84,7 +103,7 @@ fn inner_product<F: Field>(
     row: &[(F, usize)],
     num_instance_variables: usize,
     instance: &[F],
-    witness: &[F]
+    witness: &[F],
 ) -> F {
     let mut acc = F::zero();
     for &(ref coeff, i) in row {
@@ -116,13 +135,12 @@ pub use tracing::info_span;
 
 pub use ark_ff::{Field, ToConstraintField};
 pub use constraint_system::{
-    ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, Namespace,
-    OptimizationGoal, SynthesisMode,
+    ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, Namespace, OptimizationGoal,
+    SynthesisMode,
 };
 pub use error::SynthesisError;
 /// A result type specialized to `SynthesisError`.
 pub type Result<T> = core::result::Result<T, SynthesisError>;
-
 
 /// A sparse representation of constraint matrices.
 pub type Matrix<F> = Vec<Vec<(F, usize)>>;

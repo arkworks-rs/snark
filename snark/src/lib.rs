@@ -10,8 +10,8 @@
 )]
 #![forbid(unsafe_code)]
 
-use ark_relations::NPRelation;
 use ark_ff::ToBytes;
+use ark_relations::NPRelation;
 use ark_std::rand::{CryptoRng, RngCore};
 use core::fmt::Debug;
 
@@ -100,7 +100,7 @@ pub trait UniversalSetupSNARK<R: NPRelation>: SNARK<R> {
     /// Specifies the type of universal public parameters.
     type PublicParameters: Clone + Debug;
 
-    /// Specifies the bound size that is necessary and sufficient to 
+    /// Specifies the bound size that is necessary and sufficient to
     /// generate public parameters for `index`.
     fn bound_for_index(index: &R::Index) -> Self::IndexBound;
 
@@ -119,15 +119,12 @@ pub trait UniversalSetupSNARK<R: NPRelation>: SNARK<R> {
     fn index(
         pp: &Self::PublicParameters,
         index: &R::Index,
-    ) -> Result<
-        (Self::ProvingKey, Self::VerifyingKey),
-        IndexingError<Self::IndexBound, Self::Error>,
-    >;
+    ) -> Result<(Self::ProvingKey, Self::VerifyingKey), IndexingError<Self::IndexBound, Self::Error>>;
 }
 
 impl<R: NPRelation, S> CircuitSpecificSetupSNARK<R> for S
 where
-    S: UniversalSetupSNARK<R> 
+    S: UniversalSetupSNARK<R>,
 {
     /// The setup algorithm for circuit-specific SNARKs.
     fn setup<Rng: RngCore + CryptoRng>(
