@@ -4,7 +4,10 @@
 use crate::{NPRelation, Relation};
 use ark_std::{cmp::Ordering, marker::PhantomData, vec::Vec};
 
-/// An *indexed NP relation* is a relation with an efficient membership check.
+/// R1CS is an *indexed NP relation*. 
+/// An index consists of three matrices (A, B, C), 
+/// while the instance *x* and witness *w* are vectors of field elements 
+/// such that, for z := (x||w), Az ○ Bz = Cz
 pub struct R1CS<F: Field> {
     f: PhantomData<F>,
 }
@@ -29,7 +32,6 @@ pub struct ConstraintMatrices<F: Field> {
     pub c_num_non_zero: usize,
 
     /// The A constraint matrix.
-    /// `self.mode == SynthesisMode::Prove { construct_matrices = false }`.
     pub a: Matrix<F>,
     /// The B constraint matrix.
     pub b: Matrix<F>,
@@ -71,6 +73,11 @@ impl<F: Field> NPRelation for R1CS<F> {
             return false;
         }
 
+        // Let z = instance || witness. Check that Az ○ Bz = Cz, where ○ is the Hadamard product.
+        // The Hadamard product of two vectors is the product of them entry-wise, so
+        // [ 2 ]   [ 3 ]   [ 6 ]
+        // [ 3 ] ○ [ 6 ] = [ 18 ]
+        // [ 4 ]   [ 7 ]   [ 28 ]
         cfg_iter!(&index.a)
             .zip(&index.b)
             .zip(&index.c)
