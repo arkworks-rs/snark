@@ -71,8 +71,11 @@ impl<
 
             // Add the round constants to the state vector
             for d in state.iter_mut() {
-                let rc = P::ROUND_CST[round_cst_idx];
-                (*d).add_constant_in_place(cs.ns(|| format!("add_constant_1_{}", round_cst_idx)), &rc)?;
+                let rc = FpGadget::<ConstraintF>::from_value(
+                    cs.ns(|| format!("hardcode round constant {}", round_cst_idx)),
+                    &P::ROUND_CST[round_cst_idx]
+                );
+                *d = rc.add(cs.ns(|| format!("add_constant_{}", round_cst_idx)), d)?;
                 round_cst_idx += 1;
             }
 
@@ -91,8 +94,11 @@ impl<
 
             // Add the round constants to the state vector
             for d in state.iter_mut() {
-                let rc = P::ROUND_CST[round_cst_idx];
-                (*d).add_constant_in_place(cs.ns(|| format!("add_constant_2_{}", round_cst_idx)), &rc)?;
+                let rc = FpGadget::<ConstraintF>::from_value(
+                    cs.ns(|| format!("hardcode round constant {}", round_cst_idx)),
+                    &P::ROUND_CST[round_cst_idx]
+                );
+                *d = rc.add(cs.ns(|| format!("add_constant_{}", round_cst_idx)), d)?;
                 round_cst_idx += 1;
             }
 
@@ -111,8 +117,11 @@ impl<
 
             // Add the round constants to the state vector
             for d in state.iter_mut() {
-                let rc = P::ROUND_CST[round_cst_idx];
-                (*d).add_constant_in_place(cs.ns(|| format!("add_constant_3_{}", round_cst_idx)), &rc)?;
+                let rc = FpGadget::<ConstraintF>::from_value(
+                    cs.ns(|| format!("hardcode round constant {}", round_cst_idx)),
+                    &P::ROUND_CST[round_cst_idx]
+                );
+                *d = rc.add(cs.ns(|| format!("add_constant_{}", round_cst_idx)), d)?;
                 round_cst_idx += 1;
             }
 
