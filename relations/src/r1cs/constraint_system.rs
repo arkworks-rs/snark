@@ -20,7 +20,7 @@ use ark_std::{
 // TODO: Think: should we replace this with just a closure?
 pub trait ConstraintSynthesizer<F: Field> {
     /// Drives generation of new constraints inside `cs`.
-    fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> crate::r1cs::Result<()>;
+    fn generate_constraints(&self, cs: ConstraintSystemRef<F>) -> crate::r1cs::Result<()>;
 }
 
 /// An Rank-One `ConstraintSystem`. Enforces constraints of the form
