@@ -28,7 +28,7 @@ impl<G1, G2> FinalDarlinDeferredData<G1, G2>
     {
         // Generate valid accumulator over G1 starting from random xi_s
         let log_key_len_g1 = algebra::log2(committer_key_g1.comm_key.len());
-        let random_xi_s_g1 = SuccinctCheckPolynomial::<G1::ScalarField>(vec![G1::ScalarField::rand(rng); log_key_len_g1 as usize]);
+        let random_xi_s_g1 = SuccinctCheckPolynomial::<G1::ScalarField>(vec![u128::rand(rng).into(); log_key_len_g1 as usize]);
         let g_final_g1 = InnerProductArgPC::<G1, D>::cm_commit(
             committer_key_g1.comm_key.as_slice(),
             random_xi_s_g1.compute_coeffs().as_slice(),
@@ -43,7 +43,7 @@ impl<G1, G2> FinalDarlinDeferredData<G1, G2>
 
         // Generate valid accumulator over G2 starting from random xi_s
         let log_key_len_g2 = algebra::log2(committer_key_g2.comm_key.len());
-        let random_xi_s_g2 = SuccinctCheckPolynomial::<G2::ScalarField>(vec![G2::ScalarField::rand(rng); log_key_len_g2 as usize]);
+        let random_xi_s_g2 = SuccinctCheckPolynomial::<G2::ScalarField>(vec![u128::rand(rng).into(); log_key_len_g2 as usize]);
 
         let g_final_g2 = InnerProductArgPC::<G2, D>::cm_commit(
             committer_key_g2.comm_key.as_slice(),
@@ -81,12 +81,12 @@ impl<G1, G2> ToConstraintField<G1::ScalarField> for FinalDarlinDeferredData<G1, 
         }
 
         // Convert xi_s to G1::ScalarField elements, the field is not matching:
-        // serialize them all to bits and pack them safely into native field elements
-        // TODO: Later the xi_s will be only 128 bits long, so no need to take all
-        //       the bits from each one.
+        // Since the xi_s will be only 128 bits long, we optimize the packing by
+        // concatenating all the bits in a single array and (safely) read as
+        // many native field elements as possible.
         let mut xi_s_bits = Vec::new();
         for fe in self.previous_acc.xi_s.0.clone().into_iter() {
-            xi_s_bits.append(&mut fe.write_bits());
+            xi_s_bits.extend_from_slice(&fe.write_bits()[..128]);
         }
         fes.append(&mut xi_s_bits.to_field_elements()?);
 
@@ -103,8 +103,15 @@ impl<G1, G2> ToConstraintField<G1::ScalarField> for FinalDarlinDeferredData<G1, 
         }
         fes.append(&mut g_final_g1_bits.to_field_elements()?);
 
-        // Convert pre_previous_acc into G1::ScalarField field elements (matching field)
-        fes.append(&mut self.pre_previous_acc.xi_s.0.clone());
+        // Convert pre_previous_acc into G1::ScalarField field elements.
+        // Even if the field is matching, we are still interested in
+        // optimizing the final number of G1::ScalarField elements by
+        // leveraging the fact that they are only 128 bits long.
+        let mut xi_s_bits = Vec::new();
+        for fe in self.pre_previous_acc.xi_s.0.clone().into_iter() {
+            xi_s_bits.extend_from_slice(&fe.write_bits()[..128]);
+        }
+        fes.append(&mut xi_s_bits.to_field_elements()?);
 
         Ok(fes)
     }
