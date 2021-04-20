@@ -75,7 +75,10 @@ where
         // Verify sumchecks
         let (query_set, evaluations, labeled_comms, mut fs_rng)  = FinalDarlin::<G1, G2, D>::verify_ahp(
             vk.final_darlin_vk, self.usr_ins.as_slice(), &self.final_darlin_proof
-        ).map_err(|e| PCDError::FailedSuccinctVerification(format!("{:?}", e)))?;
+        ).map_err(|e| {
+            end_timer!(succinct_time);
+            PCDError::FailedSuccinctVerification(format!("{:?}", e))
+        })?;
 
         // Absorb evaluations and sample new challenge
         fs_rng.absorb(&self.final_darlin_proof.proof.evaluations);
@@ -88,7 +91,10 @@ where
             &evaluations,
             &self.final_darlin_proof.proof.pc_proof,
             &mut fs_rng,
-        ).map_err(|e| PCDError::FailedSuccinctVerification(e.to_string()))?;
+        ).map_err(|e| {
+            end_timer!(succinct_time);
+            PCDError::FailedSuccinctVerification(e.to_string())
+        })?;
 
         // Verification successfull: return new accumulator
         let acc = DLogItem::<G1> {

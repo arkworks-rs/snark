@@ -56,7 +56,10 @@ pub(crate) fn get_accumulators<G1, G2, D: Digest>(
                 // function doesn't use vk.comm_key at all.
                 pcd.succinct_verify(&vk).map_err(|_| Some(i))
             }
-        ).collect::<Result<Vec<_>, _>>()?;
+        ).collect::<Result<Vec<_>, _>>().map_err(|e| {
+            end_timer!(accumulators_time);
+            e
+        })?;
 
     let accs_g1 = accs.iter().flat_map(|acc| acc.0.clone()).collect::<Vec<_>>();
     let accs_g2 = accs.into_iter().flat_map(|acc| acc.1).collect::<Vec<_>>();
@@ -89,7 +92,11 @@ pub fn accumulate_proofs<G1, G2, D: Digest>(
     let accumulation_time = start_timer!(|| "Accumulate proofs");
 
     // Get accumulators from pcds
-    let (accs_g1, accs_g2) = get_accumulators::<G1, G2, D>(pcds, vks, g1_ck, g2_ck)?;
+    let (accs_g1, accs_g2) = get_accumulators::<G1, G2, D>(pcds, vks, g1_ck, g2_ck)
+        .map_err(|e| {
+            end_timer!(accumulation_time);
+            e
+        })?;
 
     // Create accumulation proofs
     let acc_proof_g1 = if accs_g1.is_empty() {
@@ -97,7 +104,10 @@ pub fn accumulate_proofs<G1, G2, D: Digest>(
     } else {
         Some(
             DLogItemAccumulator::<G1, D>::accumulate_items(g1_ck, accs_g1)
-            .map_err(|_| None)?
+            .map_err(|_| {
+                end_timer!(accumulation_time);
+                None
+            })?
             .1
         )
     };
@@ -107,7 +117,10 @@ pub fn accumulate_proofs<G1, G2, D: Digest>(
     } else {
         Some(
             DLogItemAccumulator::<G2, D>::accumulate_items(g2_ck, accs_g2)
-                .map_err(|_| None)?
+                .map_err(|_| {
+                    end_timer!(accumulation_time);
+                    None
+                })?
                 .1
         )
     };
@@ -139,14 +152,21 @@ pub fn verify_aggregated_proofs<G1, G2, D: Digest, R: RngCore>(
     let verification_time = start_timer!(|| "Verify aggregated proofs");
 
     // Get accumulators from pcds
-    let (accs_g1, accs_g2) = get_accumulators::<G1, G2, D>(pcds, vks, g1_vk, g2_vk)?;
+    let (accs_g1, accs_g2) = get_accumulators::<G1, G2, D>(pcds, vks, g1_vk, g2_vk)
+        .map_err(|e| {
+            end_timer!(verification_time);
+            e
+        })?;
 
     // Verify accumulators and accumulation proofs
     let result_accumulate_g1 = if accumulation_proof_g1.is_some() {
         let dummy_g1 = DLogItem::<G1>::default();
         DLogItemAccumulator::<G1, D>::verify_accumulated_items::<R>(
             &dummy_g1, g1_vk, accs_g1, accumulation_proof_g1.as_ref().unwrap(), rng
-        ).map_err(|_| None)?
+        ).map_err(|_| {
+            end_timer!(verification_time);
+            None
+        })?
     } else {
         true
     };
@@ -155,7 +175,10 @@ pub fn verify_aggregated_proofs<G1, G2, D: Digest, R: RngCore>(
         let dummy_g2 = DLogItem::<G2>::default();
         DLogItemAccumulator::<G2, D>::verify_accumulated_items::<R>(
             &dummy_g2, g2_vk, accs_g2, accumulation_proof_g2.as_ref().unwrap(), rng
-        ).map_err(|_| None)?
+        ).map_err(|_| {
+            end_timer!(verification_time);
+            None
+        })?
     } else {
         true
     };
@@ -184,7 +207,11 @@ pub fn batch_verify_proofs<G1, G2, D: Digest, R: RngCore>(
     let verification_time = start_timer!(|| "Batch verify proofs");
 
     // Get accumulators from pcds (perform succinct verification)
-    let (accs_g1, accs_g2) = get_accumulators::<G1, G2, D>(pcds, vks, g1_vk, g2_vk)?;
+    let (accs_g1, accs_g2) = get_accumulators::<G1, G2, D>(pcds, vks, g1_vk, g2_vk)
+        .map_err(|e| {
+            end_timer!(verification_time);
+            e
+        })?;
 
     // Verify accumulators (hard part)
     let result_g1 = if accs_g1.is_empty() {
@@ -192,7 +219,10 @@ pub fn batch_verify_proofs<G1, G2, D: Digest, R: RngCore>(
     } else {
         DLogItemAccumulator::<G1, D>::check_items::<R>(
             g1_vk, &accs_g1, rng
-        ).map_err(|_| None)?
+        ).map_err(|_| {
+            end_timer!(verification_time);
+            None
+        })?
     };
 
     let result_g2 = if accs_g2.is_empty() {
@@ -200,7 +230,10 @@ pub fn batch_verify_proofs<G1, G2, D: Digest, R: RngCore>(
     } else {
         DLogItemAccumulator::<G2, D>::check_items::<R>(
             g2_vk, &accs_g2, rng
-        ).map_err(|_| None)?
+        ).map_err(|_| {
+            end_timer!(verification_time);
+            None
+        })?
     };
 
     end_timer!(verification_time);

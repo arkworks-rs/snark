@@ -118,7 +118,11 @@ impl<G: AffineCurve, D: Digest> DLogItemAccumulator<G, D> {
         // and get the new chals
         let xi_s = InnerProductArgPC::<G, D>::succinct_check(
             vk, comms.iter(), z, values, &proof.pc_proof, &mut fs_rng
-        )?;
+        ).map_err(|e| {
+            end_timer!(check_time);
+            end_timer!(succinct_time);
+            e
+        })?;
 
         end_timer!(check_time);
         end_timer!(succinct_time);
@@ -241,7 +245,11 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
             g_fins.iter(),
             z,
             &mut fs_rng
-        )?;
+        ).map_err(|e| {
+            end_timer!(poly_time);
+            end_timer!(accumulate_time);
+            e
+        })?;
 
         end_timer!(poly_time);
 
@@ -275,7 +283,11 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
 
         // Succinct part: compute the aggregated accumulator by recomputing the xi_s from
         // the previous_accumulator and the g_fin from the accumulation proof
-        let new_acc = Self::succinct_verify_accumulated_items(vk, previous_accumulators, proof)?;
+        let new_acc = Self::succinct_verify_accumulated_items(vk, previous_accumulators, proof)
+            .map_err(|e| {
+                end_timer!(check_acc_time);
+                e
+            })?;
         if new_acc.is_none() {
             end_timer!(check_acc_time);
             return Ok(false)
@@ -283,7 +295,12 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
 
         // Verify the aggregated accumulator
         let hard_time = start_timer!(|| "DLOG hard part");
-        let result = Self::check_items::<R>(vk, &vec![new_acc.unwrap()], rng)?;
+        let result = Self::check_items::<R>(vk, &vec![new_acc.unwrap()], rng)
+            .map_err(|e| {
+                end_timer!(hard_time);
+                end_timer!(check_acc_time);
+                e
+            })?;
         end_timer!(hard_time);
 
         end_timer!(check_acc_time);
