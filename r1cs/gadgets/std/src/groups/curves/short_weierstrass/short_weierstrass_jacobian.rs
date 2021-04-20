@@ -296,16 +296,38 @@ for AffineGadget<P, ConstraintF, F>
         // Check lambda
         lambda.mul_equals(cs.ns(|| "check lambda"), &two_y, &three_x_squared_plus_a)?;
 
-        let x = lambda
-            .square(cs.ns(|| "lambda^2"))?
-            .sub(cs.ns(|| "lambda^2 - x"), &self.x)?
-            .sub(cs.ns(|| "lambda^2 - 2x"), &self.x)?;
+        let x = F::alloc(
+            cs.ns(|| "new x"),
+            || {
+                let lambda_val = lambda.get_value().get()?;
+                let x_val = self.x.get_value().get()?;
+                Ok((lambda_val * &lambda_val) - &x_val - &x_val)
+            }
+        )?;
 
-        let y = self
-            .x
-            .sub(cs.ns(|| "x - self.x"), &x)?
-            .mul(cs.ns(|| "times lambda"), &lambda)?
-            .sub(cs.ns(|| "plus self.y"), &self.y)?;
+        // lambda * lambda = new_x + 2_old_x
+        let new_x_plus_two_x = self.x
+            .add(cs.ns(|| "2old_x"), &self.x)?
+            .add(cs.ns(|| "new_x + 2old_x"), &x)?;
+        lambda.mul_equals(cs.ns(|| "check new x"), &lambda, &new_x_plus_two_x)?;
+
+        let y = F::alloc(
+            cs.ns(|| "new y"),
+            || {
+                let lambda_val = lambda.get_value().get()?;
+                let x_val = self.x.get_value().get()?;
+                let y_val = self.y.get_value().get()?;
+                let new_x_val = x.get_value().get()?;
+                Ok(((x_val - &new_x_val) * &lambda_val) - &y_val)
+            }
+        )?;
+
+        //lambda * (old_x - new_x) = new_y + old_y
+        let old_x_minus_new_x = self.x
+            .sub(cs.ns(|| "old_x - new_x"), &x)?;
+        let old_y_plus_new_y = self.y
+            .add(cs.ns(|| "old_y + new_y"), &y)?;
+        lambda.mul_equals(cs.ns(|| "check new y"), &old_x_minus_new_x, &old_y_plus_new_y)?;
 
         *self = Self::new(x, y, Boolean::constant(false));
         Ok(())

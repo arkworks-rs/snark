@@ -47,7 +47,7 @@ algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "imp
 r1cs-crypto = { path = "../r1cs/gadgets/crypto", features = ["nizk"] }
 
 [features]
-print-trace = [ "bench-utils/print-trace" ]
+print-trace = [ "bench-utils/print-trace", "marlin/print-trace", "poly-commit/print-trace" ]
 groth16 = []
 gm17 = []
 darlin = ["marlin", "poly-commit", "digest", "derivative", "r1cs-std"]

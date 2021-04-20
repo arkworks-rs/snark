@@ -72,7 +72,10 @@ impl<'a, G, D> PCD for SimpleMarlinPCD<'a, G, D>
             &vk.0,
             self.usr_ins.as_slice(),
             &self.proof,
-        ).map_err(|e| PCDError::FailedSuccinctVerification(format!("{:?}", e)))?;
+        ).map_err(|e| {
+            end_timer!(succinct_time);
+            PCDError::FailedSuccinctVerification(format!("{:?}", e))
+        })?;
 
         // Absorb evaluations and sample new challenge
         fs_rng.absorb(&self.proof.evaluations);
@@ -85,7 +88,10 @@ impl<'a, G, D> PCD for SimpleMarlinPCD<'a, G, D>
             &evaluations,
             &self.proof.pc_proof,
             &mut fs_rng,
-        ).map_err(|e| PCDError::FailedSuccinctVerification(e.to_string()))?;
+        ).map_err(|e| {
+            end_timer!(succinct_time);
+            PCDError::FailedSuccinctVerification(e.to_string())
+        })?;
 
         // Successfull verification: return current accumulator
         let acc = DLogItem::<G> {
