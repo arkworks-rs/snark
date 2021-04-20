@@ -60,9 +60,7 @@ pub trait SNARK<R: NPRelation> {
     }
 
     /// Preprocesses `vk` to enable faster verification.
-    fn process_vk(
-        vk: &Self::VerifyingKey,
-    ) -> Result<Self::ProcessedVerifyingKey, Self::Error>;
+    fn process_vk(vk: &Self::VerifyingKey) -> Result<Self::ProcessedVerifyingKey, Self::Error>;
 
     /// Checks that `proof` is a valid proof of the satisfaction of circuit
     /// encoded in `pvk`, with respect to the public input `public_input`,
