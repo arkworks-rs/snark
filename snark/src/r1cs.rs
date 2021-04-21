@@ -6,12 +6,15 @@ use ark_std::rand::{CryptoRng, RngCore};
 /// A [`SNARKForR1CS`] is a [`SNARK`] for the [`R1CS`] relation.
 pub trait SNARKForR1CS<F: Field>: SNARK<R1CS<F>> {
     /// Generate inputs for the SNARK indexer from [`cs`].
+    /// These inputs consist of the constraint matrices.
     fn indexer_inputs<CS: ConstraintSynthesizer<F>>(cs: &CS) -> ConstraintMatrices<F>;
 
     /// Generate inputs for the SNARK prover from [`cs`].
+    /// These inputs consist of the instance and witness.
     fn prover_inputs<CS: ConstraintSynthesizer<F>>(cs: &CS) -> (Instance<F>, Witness<F>);
 
     /// Generate inputs for the SNARK verifier from [`cs`].
+    /// This input consists of the instance.
     fn verifier_inputs<CS: ConstraintSynthesizer<F>>(cs: &CS) -> Instance<F>;
 
     /// Generates a proof of satisfaction of the constraint system induced by [`cs`].
