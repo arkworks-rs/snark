@@ -17,7 +17,7 @@ pub trait SNARKForR1CS<F: Field>: SNARK<R1CS<F>> {
     /// This input consists of the instance.
     fn verifier_inputs<CS: ConstraintSynthesizer<F>>(cs: &CS) -> Instance<F>;
 
-    /// Generates a proof of satisfaction of the constraint system induced by [`cs`].
+    /// Generates a proof of satisfaction of the constraint system with inputs and witness induced by [`cs`].
     fn prove_with_cs<CS: ConstraintSynthesizer<F>, Rng: RngCore + CryptoRng>(
         pk: &Self::ProvingKey,
         c: CS,
