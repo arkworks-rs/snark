@@ -4,9 +4,9 @@
 use crate::{NPRelation, Relation};
 use ark_std::{cmp::Ordering, marker::PhantomData, vec::Vec};
 
-/// R1CS is an *indexed NP relation*. 
-/// An index consists of three matrices (A, B, C), 
-/// while the instance *x* and witness *w* are vectors of field elements 
+/// R1CS is an *indexed NP relation*.
+/// An index consists of three matrices (A, B, C),
+/// while the instance *x* and witness *w* are vectors of field elements
 /// such that, for z := (x||w), Az ○ Bz = Cz
 pub struct R1CS<F: Field> {
     f: PhantomData<F>,
