@@ -1,3 +1,11 @@
+//! Trait for general (public, or "atomic") accumulation schemes [BCMS20](https://eprint.iacr.org/2020/499).
+//! Comes with the aggregation/verification of "items", i.e. some data structure typically satisfying a 
+//! non-efficient predicate).  
+//! The trait applies to mixed type accumulators as described in our Darlin Proof Tree document:
+//! There, a (full) accumulator is a composite structure of dlog and inner sumcheck ("single") accumulators, 
+//! from both groups of the EC cycle (the "current", and the "collected" ones). 
+//! Although within recursion we do not separate accumulation strategy from the SNARK on protocol level,
+//! we nevertheless serve this functionality for post processing outside the PCD.
 use algebra::AffineCurve;
 use rand::RngCore;
 use poly_commit::{
@@ -8,7 +16,8 @@ use poly_commit::ipa_pc::Commitment;
 
 pub mod dlog;
 
-/// General struct of an aggregation proof.  
+/// General struct of an aggregation proof. Typically, such proof stems from an 
+/// interactive oracle protocol (IOP) and a polynomial commitment scheme.  
 #[derive(Clone, Default)]
 pub struct AccumulationProof<G: AffineCurve> {
     /// Commitments to the polynomials produced by the prover.
@@ -19,36 +28,33 @@ pub struct AccumulationProof<G: AffineCurve> {
     pub pc_proof: Proof<G>,
 }
 
-/// This trait embraces our accumulator notion from the Darlin Proof Tree doc:
-/// There, a (full) accumulator is a composite structure of dlog and inner sumcheck "single"
-/// accumulators from the two groups of the cycle (the "current", and the "collected" ones).
-/// It is considered as part of the PCDProof. Although within our PCD we do not separate the
-/// accumulation strategy from the proving system, we nevertheless serve this functionality
-/// for post processing outside the PCD.
+/// The ItemAccumulator trait comes with the essential functions for proving
+/// and verifying aggregation, as well as checking ("deciding") if an item
+/// satisfies the predicate.
 pub trait ItemAccumulator {
     type AccumulatorProverKey;
     type AccumulatorVerifierKey;
     type AccumulationProof;
     type Item;
 
-    /// Decide whether the public accumulators are correct.
-    /// Typically involves a non-succinct MSM.
+    /// Decide whether an/the public accumulator/s are correct,
+    /// i.e. whether they satisfy the non-efficient predicate.
+    /// Typically involves non-succinct MSMs.
     fn check_items<R: RngCore>(
         vk: &Self::AccumulatorVerifierKey,
         accumulators: &[Self::Item],
         rng: &mut R,
     ) -> Result<bool, Error>;
 
-    /// Amortization strategy for Accumulator as a separate protocol.
-    /// Return the new "updated" accumulator and a non-interactive
-    /// proof of its correct derivation from the given accumulators
-    /// to be aggregated.
+    /// Amortization strategy for items as a separate argument.  
+    /// Returns the new/"updated" item and a non-interactive
+    /// proof of its correct aggregation.
     fn accumulate_items(
         ck: &Self::AccumulatorProverKey,
         accumulators: Vec<Self::Item>,
     ) -> Result<(Self::Item, Self::AccumulationProof), Error>;
 
-    /// Fully verifies a proof produced by accumulate_items() given the accumulator.
+    /// Fully verifies a proof produced by accumulate_items() given the accumulators.
     /// Depending on the PC it may involve a non-succinct MSM.
     fn verify_accumulated_items<R: RngCore>(
         current_accumulator: &Self::Item,

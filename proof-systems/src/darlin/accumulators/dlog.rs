@@ -1,3 +1,9 @@
+//! Halo's amortization strategy for the hard parts of the dlog/IPA commitment scheme
+//! as separate public aggregation/accumulation scheme according to [BCMS20](https://eprint.iacr.org/2020/499).
+//! The hard part consists of checking that the final committer key G_f (after all the 
+//! reduction steps) is the polynomial commitment of the succinct 'reduction polynomial'
+//!     h(X) = (1 + xi_d * X^1)*(1 + xi_{d-1} * X^2) * ... (1 + xi_{1}*X^{2^d}),
+//! where the xi_1,...,xi_d are the challenges of the dlog reduction.
 use algebra::{Field, AffineCurve, ProjectiveCurve, ToBytes, to_bytes, UniformRand};
 use algebra::polynomial::DensePolynomial as Polynomial;
 use poly_commit::{ipa_pc::{
@@ -204,9 +210,12 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
         Ok(true)
     }
 
-    /// Accumulate dlog "items" via the dlog aggregation strategy. The new dlog item is part of 
-    /// the aggregation proof itself. 
-    /// However, we do not return the xi_s as they can be recomputed from the proof.
+    /// Accumulate dlog "items" via the dlog amortization strategy: Given dlog items
+    /// are challenged at a random query point and compared against the expected value.
+    /// The item returned is a just the default dlog item to be discarded, 
+    /// the new "aggregated" dlog item is part of the aggregation proof itself. 
+    /// However, we do not explicitly provide the reduction challenges (the xi's) as they can 
+    /// be reconstructed from the proof.
     fn accumulate_items(
         ck: &Self::AccumulatorProverKey,
         accumulators: Vec<Self::Item>,
@@ -237,8 +246,8 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
 
         let poly_time = start_timer!(|| "Open Bullet Polys");
 
-        // Compute multi poly single point opening proof of the item polys
-        // at the GFin(s)
+        // Compute multi poly single point opening proof of the commitments
+        // of the item polys.
         let opening_proof = InnerProductArgPC::<G, D>::open_check_polys(
             &ck,
             xi_s.iter(),
