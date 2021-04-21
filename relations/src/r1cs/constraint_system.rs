@@ -14,13 +14,25 @@ use ark_std::{
     vec::Vec,
 };
 
-/// Computations are expressed in terms of rank-1 constraint systems (R1CS).
-/// The `generate_constraints` method is called to generate constraints for
-/// both CRS generation and for proving.
-// TODO: Think: should we replace this with just a closure?
-pub trait ConstraintSynthesizer<F: Field> {
-    /// Drives generation of new constraints inside `cs`.
-    fn generate_constraints(&self, cs: ConstraintSystemRef<F>) -> crate::r1cs::Result<()>;
+/// Describes how to generate an R1CS index for a given high-level computation.
+pub trait ConstraintGenerator<F: Field> {
+    /// Generates R1CS constraint matrices by modifying [`cs`] in place.
+    /// The result is stored in [`cs`].
+    fn make_constraints(&self, cs: ConstraintSystemRef<F>) -> crate::r1cs::Result<()>;
+}
+
+/// Describes how to generate an R1CS instance for a given high-level computation.
+pub trait InstanceGenerator<F: Field>: ConstraintGenerator<F> {
+    /// Generates an R1CS instance assignment by modifying [`cs`] in place.
+    /// The result is stored in [`cs`].
+    fn make_instance(&self, cs: ConstraintSystemRef<F>) -> crate::r1cs::Result<()>;
+}
+
+/// Describes how to generate an R1CS witness for a given high-level computation.
+pub trait WitnessGenerator<F: Field>: InstanceGenerator<F> {
+    /// Generates an R1CS witness assignment by modifying [`cs`] in place.
+    /// The result is stored in [`cs`].
+    fn make_witness(&self, cs: ConstraintSystemRef<F>) -> crate::r1cs::Result<()>;
 }
 
 /// An Rank-One `ConstraintSystem`. Enforces constraints of the form
