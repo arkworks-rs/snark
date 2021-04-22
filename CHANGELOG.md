@@ -1,6 +1,7 @@
 ## Pending
 
 ### Breaking changes
+- [\#348](https://github.com/arkworks-rs/snark/pull/334) Introduce a `Relation` trait, change the `SNARK` traits to use it, and break down `ConstraintSynthesizer` into three traits.
 
 ### Features
 - [\#347](https://github.com/arkworks-rs/snark/pull/347) Add `into_inner` function for `ConstraintSystemRef<F>`.
@@ -8,6 +9,7 @@
 ### Improvements
 
 ### Bug fixes
+
 
 
 ## v0.2.0
@@ -22,6 +24,8 @@
 
 ### Bug fixes
 - [\#340](https://github.com/arkworks-rs/snark/pull/340) Compile with `panic='abort'` in release mode, for safety of the library across FFI boundaries.
+
+
 
 ## v0.1.0
 

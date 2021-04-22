@@ -97,7 +97,7 @@ pub trait UniversalSetupSNARK<R: NPRelation>: SNARK<R> {
     /// Specifies how to bound the size of public parameters required to
     /// generate the index proving and verification keys for a given
     /// circuit.
-    /// 
+    ///
     /// For example, for SNARKs that rely on polynomial commitments, this would
     /// be the maximum degree of polynomials required to prove a given
     /// instance.
