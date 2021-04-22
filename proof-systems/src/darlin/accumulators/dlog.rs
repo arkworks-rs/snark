@@ -1,3 +1,9 @@
+//! Halo's amortization strategy for the hard parts of the dlog/IPA commitment scheme
+//! as separate public aggregation/accumulation scheme according to [BCMS20](https://eprint.iacr.org/2020/499).
+//! The hard part consists of checking that the final committer key G_f (after all the 
+//! reduction steps) is the polynomial commitment of the succinct 'reduction polynomial'
+//!     h(X) = (1 + xi_d * X^1)*(1 + xi_{d-1} * X^2) * ... (1 + xi_{1}*X^{2^d}),
+//! where the xi_1,...,xi_d are the challenges of the dlog reduction.
 use algebra::{Field, AffineCurve, ProjectiveCurve, ToBytes, to_bytes, UniformRand, serialize::*};
 use algebra::polynomial::DensePolynomial as Polynomial;
 use poly_commit::{ipa_pc::{
@@ -96,7 +102,7 @@ impl<G: AffineCurve, D: Digest> DLogItemAccumulator<G, D> {
                     )
                 };
 
-                // Evaluate the Bullet polynomial at z starting from the xi_s
+                // Compute the expected value, i.e. the value of the reduction polynomial at z.
                 let eval = xi_s.evaluate(z);
 
                 (labeled_comm, eval)
@@ -114,8 +120,8 @@ impl<G: AffineCurve, D: Digest> DLogItemAccumulator<G, D> {
 
         fs_rng.absorb(&values.iter().flat_map(|val| to_bytes!(val).unwrap()).collect::<Vec<_>>());
 
-        // Succinct verify the commitments of the Bullet polys opened at the new challenge,
-        // and get the new chals
+        // Succinctly verify the dlog opening proof, 
+        // and get the new reduction polynomial (the new xi's).
         let xi_s = InnerProductArgPC::<G, D>::succinct_check(
             vk, comms.iter(), z, values, &proof.pc_proof, &mut fs_rng
         ).map_err(|e| {
@@ -144,7 +150,7 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
     type AccumulationProof = AccumulationProof<G>;
     type Item = DLogItem<G>;
 
-    /// Batch verification of DLog accumulators: combine Bullet polys and the corresponding GFins
+    /// Batch verification of dLog items: combine reduction polynomials and their corresponding G_fins
     /// and perform a single MSM.
     fn check_items<R: RngCore>(
         vk: &Self::AccumulatorVerifierKey,
@@ -159,7 +165,7 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
 
         let batching_time = start_timer!(|| "Combine check polynomials and final comm keys");
 
-        // Sample batching challenge
+        // Sample the batching challenge (using a cryptographically secure rng)
         let random_scalar = G::ScalarField::rand(rng);
         let mut batching_chal = G::ScalarField::one();
 
@@ -170,7 +176,8 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
             batching_chal *= &random_scalar;
         }
 
-        // Compute the combined_check_poly
+        // Compute the linear combination of the reduction polys,
+        //  h_bar(X) = sum_k lambda^k * h(xi's[k],X).
         let combined_check_poly = batching_chal_pows
             .par_iter()
             .zip(xi_s_vec)
@@ -179,7 +186,7 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
             }).reduce(|| Polynomial::zero(), |acc, scaled_poly| &acc + &scaled_poly);
         end_timer!(batching_time);
 
-        // DLOG hard part.
+        // The dlog "hard part", checking that G_bar = sum_k lambda^k * G_f[k] == Comm(h_bar(X))
         // The equation to check would be:
         // lambda_1 * gfin_1 + ... + lambda_n * gfin_n - combined_h_1 * g_vk_1 - ... - combined_h_m * g_vk_m = 0
         // Where combined_h_i = lambda_1 * h_1_i + ... + lambda_n * h_n_i
@@ -204,9 +211,12 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
         Ok(true)
     }
 
-    /// Accumulate dlog "items" via the dlog aggregation strategy. The new dlog item is part of 
-    /// the aggregation proof itself. 
-    /// However, we do not return the xi_s as they can be recomputed from the proof.
+    /// Accumulate dlog "items" via the dlog amortization strategy: 
+    /// The given dlog items are challenged at a random query point and compared against 
+    /// the expected value. The item returned is a just the default dlog item to be discarded, 
+    /// the new "aggregated" dlog item is part of the aggregation proof itself. 
+    /// However, we do not explicitly provide the reduction challenges (the xi's) as they can 
+    /// be reconstructed from the proof.
     fn accumulate_items(
         ck: &Self::AccumulatorProverKey,
         accumulators: Vec<Self::Item>,
@@ -237,8 +247,8 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
 
         let poly_time = start_timer!(|| "Open Bullet Polys");
 
-        // Compute multi poly single point opening proof of the item polys
-        // at the GFin(s)
+        // Compute multi-poly single-point opening proof for the G_f's, i.e. 
+        // the commitments of the item polys.
         let opening_proof = InnerProductArgPC::<G, D>::open_check_polys(
             &ck,
             xi_s.iter(),
@@ -259,9 +269,9 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
         let accumulator = DLogItem::<G>::default();
 
         let mut accumulation_proof = AccumulationProof::<G>::default();
-        // As we consider the items to be accumulated as common inputs (of
+        // We consider the items to be accumulated as common inputs (of
         // the protocol), and the challenge z can be reconstructed from them, 
-        // the accumulation proof consists only of the dlog opening proof.
+        // hence the accumulation proof consists only of the dlog opening proof.
         accumulation_proof.pc_proof = opening_proof;
 
         end_timer!(accumulate_time);
@@ -281,8 +291,7 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
     {
         let check_acc_time = start_timer!(|| "Verify Accumulation");
 
-        // Succinct part: compute the aggregated accumulator by recomputing the xi_s from
-        // the previous_accumulator and the g_fin from the accumulation proof
+        // Succinct part: verify the "easy" part of the aggregation proof
         let new_acc = Self::succinct_verify_accumulated_items(vk, previous_accumulators, proof)
             .map_err(|e| {
                 end_timer!(check_acc_time);

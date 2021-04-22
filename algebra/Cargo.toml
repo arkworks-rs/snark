@@ -46,7 +46,7 @@ algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "imp
 
 [features]
 parallel = [ "rayon" ]
-fft = ["rayon"]
+fft = ["rayon", "derive"]
 n_fold = []
 llvm_asm = []
 derive = ["algebra-derive"]
