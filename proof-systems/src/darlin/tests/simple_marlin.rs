@@ -74,7 +74,7 @@ impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for Circuit<Constrai
 }
 
 #[allow(dead_code)]
-pub(crate) fn generate_test_pcd<'a, G: AffineCurve, D: Digest + 'a, R: RngCore>(
+pub fn generate_test_pcd<'a, G: AffineCurve, D: Digest + 'a, R: RngCore>(
     pc_ck: &CommitterKey<G>,
     marlin_pk: &MarlinProverKey<G::ScalarField, InnerProductArgPC<G, D>>,
     num_constraints: usize,
@@ -108,7 +108,7 @@ pub(crate) fn generate_test_pcd<'a, G: AffineCurve, D: Digest + 'a, R: RngCore>(
 }
 
 #[allow(dead_code)]
-pub(crate) fn generate_test_data<'a, G: AffineCurve, D: Digest + 'a, R: RngCore>(
+pub fn generate_test_data<'a, G: AffineCurve, D: Digest + 'a, R: RngCore>(
     num_constraints: usize,
     segment_size: usize,
     params: &UniversalParams<G>,
