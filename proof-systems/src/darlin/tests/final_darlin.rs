@@ -1,3 +1,6 @@
+//! A test circuit which, besides processing incremental data according to 
+//! a simple quadratic relation, allocates a given instance of `FinalDarlinDeferredData`,
+//! and wires it to the outside via system inputs.
 use algebra::{AffineCurve, ToConstraintField, UniformRand};
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 use crate::darlin::{
@@ -69,8 +72,7 @@ impl AsRef<()> for TestPCDVk
     fn as_ref(&self) -> &() { &() }
 }
 
-/// A PCD with dummy implementation, it is used just to carry the FinalDarlinDeferredData
-/// for testing purposes
+/// For test purpose only: The previous PCD is just a valid instance of FinalDarlinDeferredData.
 pub struct TestPrevPCD<G1: AffineCurve, G2: AffineCurve>(FinalDarlinDeferredData<G1, G2>);
 
 impl<G1, G2> PCD for TestPrevPCD<G1, G2>
@@ -81,18 +83,31 @@ impl<G1, G2> PCD for TestPrevPCD<G1, G2>
     type PCDAccumulator = TestAcc;
     type PCDVerifierKey = TestPCDVk;
 
+    // there is nothing to succinctly verify
     fn succinct_verify(&self, _vk: &Self::PCDVerifierKey) -> Result<<Self::PCDAccumulator as ItemAccumulator>::Item, PCDError> {
         Ok(())
     }
 }
 
+/// The parameters for our test circuit
 #[derive(Clone)]
 pub struct CircuitInfo<G1: AffineCurve, G2: AffineCurve> {
     pub num_constraints: usize,
     pub num_variables:   usize,
+    /// used to deduce the number of field elements (well, not consistently)
     pub dummy_deferred:  FinalDarlinDeferredData<G1, G2>,
 }
 
+
+/// This test circuit simply allocates `deferred`, i.e. a valid instance of FinalDarlinDeferredData,
+/// and wires it to the outside via system inputs.
+/// The user inputs are the field elements c, d, enforced to satisfy
+///     (c,d) = a*(b,b^2),
+/// using the prepared a,b. To produce the given `num_constraints`, the same two constraints
+///     a * b = c
+///     c * b = d
+/// are repeated accordingly. To acchieve the give `num_variables`, a corresponding number of
+/// dummy witness variables are allocated.
 #[derive(Clone, Default)]
 pub struct TestCircuit<G1: AffineCurve, G2: AffineCurve> {
     pub a: Option<G1::ScalarField>,
@@ -116,6 +131,7 @@ impl<G1, G2> ConstraintSynthesizer<G1::ScalarField> for TestCircuit<G1, G2>
         cs: &mut CS,
     ) -> Result<(), SynthesisError>
     {
+        // convert the FinalDarlinDeferred efficiently to circuit inputs
         let deferred_as_native_fes = self.deferred.to_field_elements().unwrap();
         let deferred_len = deferred_as_native_fes.len();
 
@@ -139,9 +155,9 @@ impl<G1, G2> ConstraintSynthesizer<G1::ScalarField> for TestCircuit<G1, G2>
             deferred_gs.push(witness_g);
         }
 
-        // As a simple way to use the public inputs and being able to test cases where sys data
-        // (i.e. the deferred accumulators) are wrong, enforce equality between witnesses and
-        // public inputs
+        // Enforce the system inputs to the circuit to be equal to the allocated `deferred`.
+        // This is a simple way to allow test cases where sys data (i.e. the deferred 
+        // accumulators) are wrong.
         let mut test_constraints = cs.num_constraints();
         for (i, (deferred_w, deferred_ins)) in deferred_input_gs.into_iter().zip(deferred_gs).enumerate() {
             deferred_w.enforce_equal(
@@ -251,6 +267,9 @@ impl<G1, G2> PCDCircuit<G1> for TestCircuit<G1, G2>
     }
 }
 
+/// Generates a FinalDarlinPCD from TestCircuit1, given an instance of 
+/// FinalDarlinDeferred as previous PCD (via CircuitInfo). 
+/// The incremental data a,b is sampled randomly.
 #[allow(dead_code)]
 pub fn generate_test_pcd<'a, G1: AffineCurve, G2:AffineCurve, D: Digest + 'a, R: RngCore>(
     pc_ck_g1: &CommitterKey<G1>,
@@ -280,6 +299,8 @@ pub fn generate_test_pcd<'a, G1: AffineCurve, G2:AffineCurve, D: Digest + 'a, R:
     ).unwrap()
 }
 
+/// Generates `num_proofs` random instances of FinalDarlinPCDs for TestCircuit1 at given 
+/// `num_constraints`, using `segment_size` for the dlog commitment scheme.
 #[allow(dead_code)]
 pub fn generate_test_data<'a, G1: AffineCurve, G2: AffineCurve, D: Digest + 'a, R: RngCore>(
     num_constraints: usize,

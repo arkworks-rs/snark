@@ -1,11 +1,6 @@
-//! Trait for general (public, or "atomic") accumulation schemes [BCMS20](https://eprint.iacr.org/2020/499).
-//! Comes with the aggregation/verification of "items", i.e. some data structure typically satisfying a 
-//! non-efficient predicate).  
-//! The trait applies to mixed type accumulators as described in our Darlin Proof Tree document:
-//! There, a (full) accumulator is a composite structure of dlog and inner sumcheck ("single") accumulators, 
-//! from both groups of the EC cycle (the "current", and the "collected" ones). 
-//! Although within recursion we do not separate accumulation strategy from the SNARK on protocol level,
-//! we nevertheless serve this functionality for post processing outside the PCD.
+//! General (public, or "atomic") accumulation schemes as in [BCMS20](https://eprint.iacr.org/2020/499).
+//! Comes with the aggregation/verification of "items", i.e. some data structure 
+//! typically satisfying a non-efficient predicate.   
 use algebra::AffineCurve;
 use rand::RngCore;
 use poly_commit::{
@@ -15,6 +10,8 @@ use poly_commit::{
 use poly_commit::ipa_pc::Commitment;
 
 pub mod dlog;
+
+
 
 /// General struct of an aggregation proof. Typically, such proof stems from an 
 /// interactive oracle protocol (IOP) and a polynomial commitment scheme.  
@@ -28,9 +25,15 @@ pub struct AccumulationProof<G: AffineCurve> {
     pub pc_proof: Proof<G>,
 }
 
-/// The ItemAccumulator trait comes with the essential functions for proving
+/// The `ItemAccumulator` trait comes with the essential functions for proving
 /// and verifying aggregation, as well as checking ("deciding") if an item
 /// satisfies the predicate.
+/// It applies to mixed type accumulators as described in our [Darlin Proof Tree doc](TODO: add link):
+/// There, a (full) accumulator is a composite structure of dlog and inner 
+/// sumcheck ("single") accumulators, from both groups of the EC cycle (the 
+/// "current", and the "collected" ones). Although within recursion we do 
+/// not separate accumulation strategy from the SNARK on protocol level,
+/// we nevertheless serve this functionality for post processing outside the PCD.
 pub trait ItemAccumulator {
     type AccumulatorProverKey;
     type AccumulatorVerifierKey;
