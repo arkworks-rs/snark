@@ -7,7 +7,7 @@ use ark_std::{cmp::Ordering, marker::PhantomData, vec::Vec};
 /// R1CS is an *indexed NP relation*.
 /// An index consists of three matrices (A, B, C),
 /// while the instance *x* and witness *w* are vectors of field elements
-/// such that, for z := (x||w), Az ○ Bz = Cz
+/// such that, for z := (1|| x || w), Az ○ Bz = Cz.
 pub struct R1CS<F: Field> {
     f: PhantomData<F>,
 }
@@ -17,7 +17,7 @@ pub struct R1CS<F: Field> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConstraintMatrices<F: Field> {
     /// The number of variables that are "public instances" to the constraint
-    /// system.
+    /// system. This includes the one variable.
     pub num_instance_variables: usize,
     /// The number of variables that are "private witnesses" to the constraint
     /// system.
@@ -40,7 +40,6 @@ pub struct ConstraintMatrices<F: Field> {
 }
 
 /// An R1CS instance consists of variable assignments to the instance variables.
-/// The first variable must be assigned a value of `F::one()`.
 #[derive(Eq, PartialEq, Debug, Hash, Clone)]
 pub struct Instance<F: Field>(pub Vec<F>);
 
@@ -60,16 +59,14 @@ impl<F: Field> NPRelation for R1CS<F> {
         instance: &Self::Instance,
         witness: &Self::Witness,
     ) -> bool {
+        let mut instance = instance.0.to_vec();
+        instance.insert(0, F::one());
         // The number of instance variables does not match.
-        if instance.0.len() != index.num_instance_variables {
+        if instance.len() != index.num_instance_variables {
             return false;
         }
         // The number of witness variables does not match.
         if witness.0.len() != index.num_witness_variables {
-            return false;
-        }
-        // The first instance variable must be 1.
-        if instance.0[0] != F::one() {
             return false;
         }
 
@@ -82,24 +79,9 @@ impl<F: Field> NPRelation for R1CS<F> {
             .zip(&index.b)
             .zip(&index.c)
             .all(|((a_row, b_row), c_row)| {
-                let a = inner_product(
-                    &a_row,
-                    index.num_instance_variables,
-                    &instance.0,
-                    &witness.0,
-                );
-                let b = inner_product(
-                    &b_row,
-                    index.num_instance_variables,
-                    &instance.0,
-                    &witness.0,
-                );
-                let c = inner_product(
-                    &c_row,
-                    index.num_instance_variables,
-                    &instance.0,
-                    &witness.0,
-                );
+                let a = inner_product(&a_row, index.num_instance_variables, &instance, &witness.0);
+                let b = inner_product(&b_row, index.num_instance_variables, &instance, &witness.0);
+                let c = inner_product(&c_row, index.num_instance_variables, &instance, &witness.0);
                 a * b == c
             })
     }

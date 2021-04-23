@@ -64,10 +64,10 @@ pub struct ConstraintSystem<F: Field> {
 
     /// Assignments to the public input variables. This is empty if `self.mode
     /// == SynthesisMode::Setup`.
-    pub instance_assignment: Vec<F>,
+    instance_assignment: Vec<F>,
     /// Assignments to the private input variables. This is empty if `self.mode
     /// == SynthesisMode::Setup`.
-    pub witness_assignment: Vec<F>,
+    witness_assignment: Vec<F>,
 
     /// Map for gadgets to cache computation results.
     pub cache_map: Rc<RefCell<BTreeMap<TypeId, Box<dyn Any>>>>,
@@ -949,7 +949,13 @@ impl<F: Field> ConstraintSystemRef<F> {
     #[inline]
     pub fn instance_assignment(&self) -> Option<Instance<F>> {
         self.inner()
-            .map(|cs| cs.borrow().instance_assignment.clone())
+            .map(|cs| {
+                // Drop the leading 1 before returning the assignment.
+                let mut inst = cs.borrow().instance_assignment.clone();
+                inst.remove(0);
+                assert_eq!(inst.len(), cs.borrow().num_instance_variables - 1);
+                inst
+            })
             .map(Instance)
     }
 
