@@ -44,9 +44,11 @@ pub trait WitnessGenerator<F: Field>: InstanceGenerator<F> {
 #[derive(Debug, Clone)]
 pub struct ConstraintSystem<F: Field> {
     /// The mode in which the constraint system is operating. `self` can either
-    /// be in setup mode (i.e., `self.mode == SynthesisMode::Setup`) or in
-    /// proving mode (i.e., `self.mode == SynthesisMode::Prove`). If we are
-    /// in proving mode, then we have the additional option of whether or
+    /// be in setup mode (`self.mode == SynthesisMode::Setup`), in
+    /// proving mode (`self.mode == SynthesisMode::Prove`), or in verifying mode
+    /// (`self.mode == SynthesisMode::Verify`).
+    ///
+    /// If we are in proving mode, then we have the additional option of whether or
     /// not to construct the A, B, and C matrices of the constraint system
     /// (see below).
     pub mode: SynthesisMode,
@@ -99,7 +101,7 @@ pub enum SynthesisMode {
     /// Indicate to the `ConstraintSystem` that it should only generate
     /// constraint matrices and not populate the variable assignments.
     Setup,
-    /// Indicate to the `ConstraintSystem` that it populate the variable
+    /// Indicate to the `ConstraintSystem` that it should populate the witnessvariable
     /// assignments. If additionally `construct_matrices == true`, then generate
     /// the matrices as in the `Setup` case.
     Prove {
@@ -107,6 +109,9 @@ pub enum SynthesisMode {
         /// the matrices as in the `Setup` case.
         construct_matrices: bool,
     },
+    /// Indicate to the `ConstraintSystem` that it populate the instance variable
+    /// assignments.
+    Verify,
 }
 
 /// Defines the parameter to optimize for a `ConstraintSystem`.
@@ -181,6 +186,11 @@ impl<F: Field> ConstraintSystem<F> {
         self.mode == SynthesisMode::Setup
     }
 
+    /// Check whether `self.mode == SynthesisMode::Verify`.
+    pub fn is_in_verify_mode(&self) -> bool {
+        self.mode == SynthesisMode::Verify
+    }
+
     /// Check whether this constraint system aims to optimize weight,
     /// number of constraints, or neither.
     pub fn optimization_goal(&self) -> OptimizationGoal {
@@ -204,6 +214,7 @@ impl<F: Field> ConstraintSystem<F> {
         match self.mode {
             SynthesisMode::Setup => true,
             SynthesisMode::Prove { construct_matrices } => construct_matrices,
+            SynthesisMode::Verify => false,
         }
     }
 
@@ -230,6 +241,8 @@ impl<F: Field> ConstraintSystem<F> {
         let index = self.num_instance_variables;
         self.num_instance_variables += 1;
 
+        // Only generate instance variable assignments when `self.mode` is either
+        // `SynthesisMode::Prove` or `SynthesisMode::Verify`.
         if !self.is_in_setup_mode() {
             self.instance_assignment.push(f()?);
         }
@@ -245,7 +258,7 @@ impl<F: Field> ConstraintSystem<F> {
         let index = self.num_witness_variables;
         self.num_witness_variables += 1;
 
-        if !self.is_in_setup_mode() {
+        if !(self.is_in_setup_mode() || self.is_in_verify_mode()) {
             self.witness_assignment.push(f()?);
         }
         Ok(Variable::Witness(index))
@@ -278,13 +291,14 @@ impl<F: Field> ConstraintSystem<F> {
             self.a_constraints.push(a_index);
             self.b_constraints.push(b_index);
             self.c_constraints.push(c_index);
+            #[cfg(feature = "std")]
+            {
+                let trace = ConstraintTrace::capture();
+                self.constraint_traces.push(trace);
+            }
         }
         self.num_constraints += 1;
-        #[cfg(feature = "std")]
-        {
-            let trace = ConstraintTrace::capture();
-            self.constraint_traces.push(trace);
-        }
+        
         Ok(())
     }
 
@@ -538,10 +552,7 @@ impl<F: Field> ConstraintSystem<F> {
     /// after all symbolic LCs have been inlined into the places that they
     /// are used.
     pub fn to_matrices(&self) -> Option<ConstraintMatrices<F>> {
-        if let SynthesisMode::Prove {
-            construct_matrices: false,
-        } = self.mode
-        {
+        if !self.should_construct_matrices() {
             None
         } else {
             let a: Vec<_> = self
@@ -601,7 +612,7 @@ impl<F: Field> ConstraintSystem<F> {
     /// the first unsatisfied constraint. If `self.is_in_setup_mode()`, outputs
     /// `Err(())`.
     pub fn which_is_unsatisfied(&self) -> crate::r1cs::Result<Option<String>> {
-        if self.is_in_setup_mode() {
+        if self.is_in_setup_mode() || self.is_in_verify_mode() {
             Err(SynthesisError::AssignmentMissing)
         } else {
             for i in 0..self.num_constraints {
@@ -753,7 +764,7 @@ impl<F: Field> ConstraintSystemRef<F> {
 
     /// Consumes self to return the inner `ConstraintSystem<F>`. Returns
     /// `None` if `Self::CS` is `None` or if any other references to
-    /// `Self::CS` exist.  
+    /// `Self::CS` exist.
     pub fn into_inner(self) -> Option<ConstraintSystem<F>> {
         match self {
             Self::CS(a) => Rc::try_unwrap(a).ok().map(|s| s.into_inner()),
@@ -789,6 +800,13 @@ impl<F: Field> ConstraintSystemRef<F> {
     pub fn is_in_setup_mode(&self) -> bool {
         self.inner()
             .map_or(false, |cs| cs.borrow().is_in_setup_mode())
+    }
+
+    /// Check whether `self.mode == SynthesisMode::Verify`.
+    #[inline]
+    pub fn is_in_verify_mode(&self) -> bool {
+        self.inner()
+            .map_or(false, |cs| cs.borrow().is_in_verify_mode())
     }
 
     /// Returns the number of constraints.
@@ -864,7 +882,7 @@ impl<F: Field> ConstraintSystemRef<F> {
         self.inner()
             .ok_or(SynthesisError::MissingCS)
             .and_then(|cs| {
-                if !self.is_in_setup_mode() {
+                if !(self.is_in_setup_mode() || self.is_in_verify_mode()) {
                     // This is needed to avoid double-borrows, because `f`
                     // might itself mutably borrow `cs` (eg: `f = || g.value()`).
                     let value = f();
