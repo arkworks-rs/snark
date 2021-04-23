@@ -8,13 +8,21 @@ use ark_std::rand::{CryptoRng, RngCore};
 
 /// A [`SNARKForR1CS`] is a [`SNARK`] for the [`R1CS`] relation.
 pub trait SNARKForR1CS<F: Field>: SNARK<R1CS<F>> {
+    /// Does the proving algorithm explicitly require the matrices, or is it stored
+    /// in the proving key?
+    const PROVING_REQUIRES_MATRICES: bool;
+
     /// Generate inputs for the SNARK indexer from [`cs`].
     /// These inputs consist of the constraint matrices.
     fn indexer_inputs<CG: ConstraintGenerator<F>>(cs: &CG) -> ConstraintMatrices<F>;
 
     /// Generate inputs for the SNARK prover from [`cs`].
-    /// These inputs consist of the instance and witness.
-    fn prover_inputs<WG: WitnessGenerator<F>>(cs: &WG) -> (Instance<F>, Witness<F>);
+    /// These inputs consist of the instance and witness. Additionally,
+    /// if `Self::PROVING_REQUIRES_MATRICES == true`, then this method returns
+    /// `Some(index)` as well.
+    fn prover_inputs<WG: WitnessGenerator<F>>(
+        cs: &WG,
+    ) -> (Option<ConstraintMatrices<F>>, Instance<F>, Witness<F>);
 
     /// Generate inputs for the SNARK verifier from [`cs`].
     /// This input consists of the instance.
@@ -54,8 +62,8 @@ pub trait SNARKForR1CS<F: Field>: SNARK<R1CS<F>> {
         c: &WG,
         rng: &mut Rng,
     ) -> Result<Self::Proof, Self::Error> {
-        let (instance, witness) = Self::prover_inputs(c);
-        Self::prove(pk, &instance, &witness, rng)
+        let (index, instance, witness) = Self::prover_inputs(c);
+        Self::prove(pk, &index, &instance, &witness, rng)
     }
 
     /// Verify that [`proof`] is a valid proof with respect to [`vk`] and to the

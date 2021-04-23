@@ -42,6 +42,7 @@ pub trait SNARK<R: NPRelation> {
     /// as R1CS constraints).
     fn prove<Rng: RngCore + CryptoRng>(
         pk: &Self::ProvingKey,
+        index: &Option<R::Index>,
         instance: &R::Instance,
         witness: &R::Witness,
         rng: &mut Rng,
