@@ -298,7 +298,7 @@ impl<F: Field> ConstraintSystem<F> {
             }
         }
         self.num_constraints += 1;
-        
+
         Ok(())
     }
 
@@ -541,11 +541,15 @@ impl<F: Field> ConstraintSystem<F> {
     /// Optimize the constraint system (either by outlining or inlining,
     /// if an optimization goal is set).
     pub fn optimize(&mut self) {
-        match self.optimization_goal {
-            OptimizationGoal::None => self.inline_all_lcs(),
-            OptimizationGoal::Constraints => self.inline_all_lcs(),
-            OptimizationGoal::Weight => self.outline_lcs(),
-        };
+        // In verify mode we don't have any linear combinations; all variables
+        // are instance variables, and there are no generated constraints
+        if !self.is_in_verify_mode() {
+            match self.optimization_goal {
+                OptimizationGoal::None => self.inline_all_lcs(),
+                OptimizationGoal::Constraints => self.inline_all_lcs(),
+                OptimizationGoal::Weight => self.outline_lcs(),
+            };
+        }
     }
 
     /// This step must be called after constraint generation has completed, and
