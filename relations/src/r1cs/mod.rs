@@ -7,17 +7,18 @@ use ark_std::{cmp::Ordering, marker::PhantomData, vec::Vec};
 /// R1CS is an *indexed NP relation*.
 /// An index consists of three matrices (A, B, C),
 /// while the instance *x* and witness *w* are vectors of field elements
-/// such that, for z := (1|| x || w), Az ○ Bz = Cz.
+/// such that, for z := (1 || x || w), Az ○ Bz = Cz.
 pub struct R1CS<F: Field> {
     f: PhantomData<F>,
 }
 
 /// An R1CS index consists of three matrices, as well as the number of instance variables
-/// and number of witness variables.
+/// and number of witness variables. The "one" variable is treated as a defacto instance
+/// variable for the purposes of counting.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConstraintMatrices<F: Field> {
     /// The number of variables that are "public instances" to the constraint
-    /// system. This *does not* include the one variable.
+    /// system. This includes the one variable.
     pub num_instance_variables: usize,
     /// The number of variables that are "private witnesses" to the constraint
     /// system.
