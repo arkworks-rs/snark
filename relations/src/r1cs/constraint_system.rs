@@ -48,8 +48,8 @@ pub struct ConstraintSystem<F: Field> {
     /// (see below).
     pub mode: SynthesisMode,
     /// The number of variables that are "public inputs" to the constraint
-    /// system.
-    pub num_instance_variables: usize,
+    /// system. This includes the 1 variable.
+    num_instance_variables: usize,
     /// The number of variables that are "private inputs" to the constraint
     /// system.
     pub num_witness_variables: usize,

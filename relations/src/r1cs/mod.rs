@@ -17,7 +17,7 @@ pub struct R1CS<F: Field> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConstraintMatrices<F: Field> {
     /// The number of variables that are "public instances" to the constraint
-    /// system. This includes the one variable.
+    /// system. This *does not* include the one variable.
     pub num_instance_variables: usize,
     /// The number of variables that are "private witnesses" to the constraint
     /// system.
@@ -62,7 +62,7 @@ impl<F: Field> NPRelation for R1CS<F> {
         let mut instance = instance.0.to_vec();
         instance.insert(0, F::one());
         // The number of instance variables does not match.
-        if instance.len() != index.num_instance_variables {
+        if instance.len() != index.num_instance_variables + 1 {
             return false;
         }
         // The number of witness variables does not match.
