@@ -14,7 +14,9 @@ pub trait SNARKForR1CS<F: Field>: SNARK<R1CS<F>> {
 
     /// Generate inputs for the SNARK indexer from [`cs`].
     /// These inputs consist of the constraint matrices.
-    fn indexer_inputs<CG: ConstraintGenerator<F>>(cs: &CG) -> ConstraintMatrices<F>;
+    fn indexer_inputs<CG: ConstraintGenerator<F>>(
+        cs: &CG,
+    ) -> Result<ConstraintMatrices<F>, Self::Error>;
 
     /// Generate inputs for the SNARK prover from [`cs`].
     /// These inputs consist of the instance and witness. Additionally,
@@ -22,11 +24,11 @@ pub trait SNARKForR1CS<F: Field>: SNARK<R1CS<F>> {
     /// `Some(index)` as well.
     fn prover_inputs<WG: WitnessGenerator<F>>(
         cs: &WG,
-    ) -> (Option<ConstraintMatrices<F>>, Instance<F>, Witness<F>);
+    ) -> Result<(Option<ConstraintMatrices<F>>, Instance<F>, Witness<F>), Self::Error>;
 
     /// Generate inputs for the SNARK verifier from [`cs`].
     /// This input consists of the instance.
-    fn verifier_inputs<IG: InstanceGenerator<F>>(cs: &IG) -> Instance<F>;
+    fn verifier_inputs<IG: InstanceGenerator<F>>(cs: &IG) -> Result<Instance<F>, Self::Error>;
 
     /// Indexes the public parameters according to the circuit `circuit`, and
     /// outputs circuit-specific proving and verification keys.
@@ -37,7 +39,7 @@ pub trait SNARKForR1CS<F: Field>: SNARK<R1CS<F>> {
     where
         Self: CircuitSpecificSetupSNARK<R1CS<F>>,
     {
-        let index = Self::indexer_inputs(c);
+        let index = Self::indexer_inputs(c)?;
         Self::circuit_specific_setup(&index, rng)
     }
 
@@ -52,7 +54,7 @@ pub trait SNARKForR1CS<F: Field>: SNARK<R1CS<F>> {
     where
         Self: UniversalSetupSNARK<R1CS<F>>,
     {
-        let index = Self::indexer_inputs(c);
+        let index = Self::indexer_inputs(c).map_err(IndexingError::Other)?;
         Self::index(pp, &index)
     }
 
@@ -62,7 +64,7 @@ pub trait SNARKForR1CS<F: Field>: SNARK<R1CS<F>> {
         c: &WG,
         rng: &mut Rng,
     ) -> Result<Self::Proof, Self::Error> {
-        let (index, instance, witness) = Self::prover_inputs(c);
+        let (index, instance, witness) = Self::prover_inputs(c)?;
         Self::prove(pk, &index, &instance, &witness, rng)
     }
 
@@ -73,7 +75,7 @@ pub trait SNARKForR1CS<F: Field>: SNARK<R1CS<F>> {
         c: &IG,
         proof: &Self::Proof,
     ) -> Result<bool, Self::Error> {
-        let instance = Self::verifier_inputs(c);
+        let instance = Self::verifier_inputs(c)?;
         Self::verify(vk, &instance, proof)
     }
 
@@ -84,7 +86,7 @@ pub trait SNARKForR1CS<F: Field>: SNARK<R1CS<F>> {
         c: &IG,
         proof: &Self::Proof,
     ) -> Result<bool, Self::Error> {
-        let instance = Self::verifier_inputs(c);
+        let instance = Self::verifier_inputs(c)?;
         Self::verify_with_processed_vk(pvk, &instance, proof)
     }
 }

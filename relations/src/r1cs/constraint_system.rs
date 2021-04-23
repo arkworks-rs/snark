@@ -1,6 +1,8 @@
 #[cfg(feature = "std")]
 use crate::r1cs::ConstraintTrace;
-use crate::r1cs::{ConstraintMatrices, LcIndex, LinearCombination, SynthesisError, Variable};
+use crate::r1cs::{
+    ConstraintMatrices, Instance, LcIndex, LinearCombination, SynthesisError, Variable, Witness,
+};
 use ark_ff::Field;
 use ark_std::{
     any::{Any, TypeId},
@@ -922,6 +924,26 @@ impl<F: Field> ConstraintSystemRef<F> {
     #[inline]
     pub fn to_matrices(&self) -> Option<ConstraintMatrices<F>> {
         self.inner().and_then(|cs| cs.borrow().to_matrices())
+    }
+
+    /// This step must be called after constraint generation has completed, and
+    /// after all symbolic LCs have been inlined into the places that they
+    /// are used.
+    #[inline]
+    pub fn instance_assignment(&self) -> Option<Instance<F>> {
+        self.inner()
+            .map(|cs| cs.borrow().instance_assignment.clone())
+            .map(Instance)
+    }
+
+    /// This step must be called after constraint generation has completed, and
+    /// after all symbolic LCs have been inlined into the places that they
+    /// are used.
+    #[inline]
+    pub fn witness_assignment(&self) -> Option<Witness<F>> {
+        self.inner()
+            .map(|cs| cs.borrow().witness_assignment.clone())
+            .map(Witness)
     }
 
     /// If `self` is satisfied, outputs `Ok(true)`.
