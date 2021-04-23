@@ -100,6 +100,9 @@ pub trait PCDCircuit<G: AffineCurve>: ConstraintSynthesizer<G::ScalarField> {
     /// Extract the user inputs from a concrete instantiation of the circuit.
     /// Return Error if it's not possible to derive UserInputs.
     fn get_usr_ins(&self) -> Result<Vec<G::ScalarField>, PCDError>;
+
+    // TODO: Think about having an additional get_circuit_inputs() function if
+    //       the two above don't turn out to be flexible enough for our applications.
 }
 
 /// This trait expresses the verifier for proof carrying data from accumulator SNARKs.
@@ -201,6 +204,11 @@ impl<'a, G1, G2, D> GeneralPCD<'a, G1, G2, D>
     }
 }
 
+/// We can re-use the FinalDarlinPCDVerifierKey for GeneralPCD as it contains both
+/// committer keys, and a CoboundaryMarlin and FinalDarlinProof are both verifiable
+/// with a standard Marlin Verifier key. Let's introduce a new type just to be clean.
+pub type DualPCDVerifierKey<'a, G1, G2, D> = FinalDarlinPCDVerifierKey<'a, G1, G2, D>;
+
 impl<'a, G1, G2, D> PCD for GeneralPCD<'a, G1, G2, D>
 where
     G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
@@ -208,9 +216,7 @@ where
     D: Digest + 'a,
 {
     type PCDAccumulator = DualDLogItemAccumulator<'a, G1, G2, D>;
-    // a work-around: we use throughout aFinalDarlinPCDVerifierKey for both 
-    // final Marlin and simple Marlin PCDs, as it contains both dlog vks.
-    type PCDVerifierKey = FinalDarlinPCDVerifierKey<'a, G1, G2, D>;
+    type PCDVerifierKey = DualPCDVerifierKey<'a, G1, G2, D>;
 
     fn succinct_verify(
         &self,

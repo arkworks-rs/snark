@@ -35,9 +35,9 @@ impl<'a, G, D> SimpleMarlinPCD<'a, G, D>
         D: Digest + 'a,
 {
     pub fn new(
-        /// A normal (coboundary) Marlin proof 
+        // A normal (coboundary) Marlin proof
         proof:   MarlinProof<G::ScalarField, InnerProductArgPC<G, D>>,
-        /// The "statement" of the proof. Typically the full public inputs
+        // The "statement" of the proof. Typically the full public inputs
         usr_ins: Vec<G::ScalarField>
     ) -> Self
     {

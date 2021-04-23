@@ -103,7 +103,6 @@ impl<'a, G1, G2, D>FinalDarlin<'a, G1, G2, D>
         ), FinalDarlinError>
     {
         let c = C::init(config);
-        // call 
         let res = Marlin::<G1::ScalarField, InnerProductArgPC<G1, D>, D>::index(committer_key, c)?;
 
         Ok(res)

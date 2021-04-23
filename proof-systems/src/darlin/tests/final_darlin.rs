@@ -94,7 +94,9 @@ impl<G1, G2> PCD for TestPrevPCD<G1, G2>
 pub struct CircuitInfo<G1: AffineCurve, G2: AffineCurve> {
     pub num_constraints: usize,
     pub num_variables:   usize,
-    /// used to deduce the number of field elements (well, not consistently)
+    /// just used to deduce the number of field elements to allocate on the
+    /// circuit for simplicity. Would've been the same passing a parameter
+    /// like "number_of_deferred_field_element_to_allocate"
     pub dummy_deferred:  FinalDarlinDeferredData<G1, G2>,
 }
 
@@ -282,8 +284,11 @@ pub fn generate_test_pcd<'a, G1: AffineCurve, G2:AffineCurve, D: Digest + 'a, R:
         G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
         G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
 {
+    // as we have already generated a dummy deferred for CircuitInfo, let's
+    // just re-use it
     let prev_pcds = vec![TestPrevPCD::<G1, G2>(info.dummy_deferred.clone())];
 
+    // our incremental data witnesses
     let a = G1::ScalarField::rand(rng);
     let b = G1::ScalarField::rand(rng);
 

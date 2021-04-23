@@ -12,19 +12,16 @@ use poly_commit::{
 };
 use crate::darlin::{
     accumulators::{
-        dlog::DLogItem,
+        dlog::{DLogItemAccumulator, DLogItem},
         ItemAccumulator, AccumulationProof
     },
     pcd::{
-        PCD,
-        final_darlin::FinalDarlinPCDVerifierKey,
+        PCD, GeneralPCD, DualPCDVerifierKey
     },
 };
 use rand::RngCore;
 use digest::Digest;
 use rayon::prelude::*;
-use crate::darlin::pcd::GeneralPCD;
-use crate::darlin::accumulators::dlog::DLogItemAccumulator;
 
 /// Given a set of PCDs, their corresponding Marlin verification keys, and the DLogCommitterKey(s)
 /// over two groups of a curve cycle, compute and return the associated accumulators via the
@@ -51,7 +48,7 @@ pub(crate) fn get_accumulators<G1, G2, D: Digest>(
             {
                 // recall that we use FinalDarlinVerifierKeys to handle 
                 // polymorphic verification of final Darlin/simpleM arlin PCDs
-                let vk = FinalDarlinPCDVerifierKey::<G1, G2, D>{
+                let vk = DualPCDVerifierKey::<G1, G2, D>{
                     final_darlin_vk: vk,
                     dlog_vks: (g1_ck, g2_ck)
                 };
