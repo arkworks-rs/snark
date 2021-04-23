@@ -142,8 +142,8 @@ pub use tracing::info_span;
 
 pub use ark_ff::{Field, ToConstraintField};
 pub use constraint_system::{
-    ConstraintGenerator, ConstraintSystem, ConstraintSystemRef, InstanceGenerator, Namespace,
-    OptimizationGoal, SynthesisMode, WitnessGenerator,
+    ConstraintGenerator, ConstraintSystem, ConstraintSystemRef, Namespace, OptimizationGoal,
+    SynthesisMode,
 };
 pub use error::SynthesisError;
 /// A result type specialized to `SynthesisError`.

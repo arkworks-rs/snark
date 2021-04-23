@@ -18,23 +18,18 @@ use ark_std::{
 
 /// Describes how to generate an R1CS index for a given high-level computation.
 pub trait ConstraintGenerator<F: Field> {
-    /// Generates R1CS constraint matrices by modifying [`cs`] in place.
-    /// The result is stored in [`cs`].
-    fn make_constraints(&self, cs: ConstraintSystemRef<F>) -> crate::r1cs::Result<()>;
-}
+    /// Generates R1CS constraint matrices, and, optionally, the variable assignments
+    /// by modifying [`cs`] in place. The result is stored in [`cs`].
+    ///
+    /// Variable assignments are generated if `!cs.is_in_setup_mode()`.
+    fn generate_constraints_and_variable_assignments(
+        &self,
+        cs: ConstraintSystemRef<F>,
+    ) -> crate::r1cs::Result<()>;
 
-/// Describes how to generate an R1CS instance for a given high-level computation.
-pub trait InstanceGenerator<F: Field>: ConstraintGenerator<F> {
     /// Generates an R1CS instance assignment by modifying [`cs`] in place.
     /// The result is stored in [`cs`].
-    fn make_instance(&self, cs: ConstraintSystemRef<F>) -> crate::r1cs::Result<()>;
-}
-
-/// Describes how to generate an R1CS witness for a given high-level computation.
-pub trait WitnessGenerator<F: Field>: InstanceGenerator<F> {
-    /// Generates an R1CS witness assignment by modifying [`cs`] in place.
-    /// The result is stored in [`cs`].
-    fn make_witness(&self, cs: ConstraintSystemRef<F>) -> crate::r1cs::Result<()>;
+    fn generate_instance_assignment(&self, cs: ConstraintSystemRef<F>) -> crate::r1cs::Result<()>;
 }
 
 /// An Rank-One `ConstraintSystem`. Enforces constraints of the form
