@@ -4,7 +4,7 @@
 //! reduction steps) is the polynomial commitment of the succinct 'reduction polynomial'
 //!     h(X) = (1 + xi_d * X^1)*(1 + xi_{d-1} * X^2) * ... (1 + xi_{1}*X^{2^d}),
 //! where the xi_1,...,xi_d are the challenges of the dlog reduction.
-use algebra::{Field, AffineCurve, ProjectiveCurve, ToBytes, to_bytes, UniformRand, serialize::*};
+use algebra::{SemanticallyValid, Field, AffineCurve, ProjectiveCurve, ToBytes, to_bytes, UniformRand, serialize::*};
 use algebra::polynomial::DensePolynomial as Polynomial;
 use poly_commit::{ipa_pc::{
     InnerProductArgPC,
@@ -28,6 +28,15 @@ pub struct DLogItem<G: AffineCurve> {
 
     /// Challenges of the DLOG reduction.
     pub(crate) xi_s:        SuccinctCheckPolynomial<G::ScalarField>,
+}
+
+impl<G: AffineCurve> SemanticallyValid for DLogItem<G> {
+    fn is_valid(&self) -> bool {
+        self.g_final.is_valid() &&
+            self.g_final.comm.len() == 1 &&
+            self.g_final.shifted_comm.is_none() &&
+            self.xi_s.0.is_valid()
+    }
 }
 
 impl<G: AffineCurve> Default for DLogItem<G> {

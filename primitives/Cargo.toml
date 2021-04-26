@@ -38,10 +38,10 @@ serde = { version = "1.0.117", features = ["derive"]}
 llvm_asm = ["algebra/llvm_asm"]
 
 commitment = ["digest", "blake2"]
-merkle_tree = []
+merkle_tree = ["algebra/derive"]
 prf = ["digest", "blake2"]
-signature = ["digest", "blake2"]
-vrf = []
+signature = ["digest", "blake2", "algebra/derive"]
+vrf = ["algebra/derive"]
 
 # For Poseidon CRH / Merkle Tree
 mnt4_753 = ["algebra/mnt4_753"]

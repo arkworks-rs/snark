@@ -1,3 +1,4 @@
+use algebra::serialize::*;
 use crate::{
     crh::*, field_based_mht::*, Error
 };
@@ -15,7 +16,7 @@ use std::{
     Default(bound = ""),
     Eq(bound = "")
 )]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, CanonicalSerialize, CanonicalDeserialize)]
 pub struct FieldBasedMHTPath<T: FieldBasedMerkleTreeParameters>{
     path: Vec<(Vec<<T::H as FieldBasedHash>::Data>, usize)>,
 }
@@ -187,7 +188,7 @@ impl<T: FieldBasedMerkleTreeParameters> FromBytes for FieldBasedMHTPath<T> {
     Default(bound = ""),
     Eq(bound = "")
 )]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, CanonicalSerialize, CanonicalDeserialize)]
 pub struct FieldBasedBinaryMHTPath<T: FieldBasedMerkleTreeParameters>{
     path: Vec<(<T::H as FieldBasedHash>::Data, bool)>,
 }

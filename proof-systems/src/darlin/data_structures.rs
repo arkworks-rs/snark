@@ -1,4 +1,4 @@
-use algebra::{AffineCurve, ToConstraintField, ToBits, ProjectiveCurve, UniformRand, serialize::*};
+use algebra::{AffineCurve, ToConstraintField, ToBits, ProjectiveCurve, UniformRand, serialize::*, SemanticallyValid};
 use marlin::Proof as MarlinProof;
 use crate::darlin::accumulators::dlog::DLogItem;
 use poly_commit::ipa_pc::{
@@ -13,6 +13,13 @@ use rand::RngCore;
 pub struct FinalDarlinDeferredData<G1: AffineCurve, G2: AffineCurve> {
     pub(crate) previous_acc:       DLogItem<G2>,
     pub(crate) pre_previous_acc:   DLogItem<G1>,
+}
+
+impl<G1: AffineCurve, G2: AffineCurve> SemanticallyValid for FinalDarlinDeferredData<G1, G2>
+{
+    fn is_valid(&self) -> bool {
+        self.previous_acc.is_valid() && self.pre_previous_acc.is_valid()
+    }
 }
 
 impl<G1, G2> FinalDarlinDeferredData<G1, G2>
@@ -126,4 +133,11 @@ pub struct FinalDarlinProof<G1: AffineCurve, G2: AffineCurve, D: Digest> {
     pub proof:       MarlinProof<G1::ScalarField, InnerProductArgPC<G1, D>>,
     /// Deferred accumulators
     pub deferred:    FinalDarlinDeferredData<G1, G2>,
+}
+
+impl<G1: AffineCurve, G2: AffineCurve, D: Digest> SemanticallyValid for FinalDarlinProof<G1, G2, D>
+{
+    fn is_valid(&self) -> bool {
+        self.proof.is_valid() && self.deferred.is_valid()
+    }
 }
