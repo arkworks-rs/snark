@@ -53,6 +53,10 @@ pub struct DLogItemAccumulator<G: AffineCurve, D: Digest> {
 
 impl<G: AffineCurve, D: Digest> DLogItemAccumulator<G, D> {
 
+    /// The personalization string for this protocol. Used to personalize the
+    /// Fiat-Shamir rng.
+    pub const PROTOCOL_NAME: &'static [u8] = b"DL-ACC-2021";
+
     pub fn get_instance() -> Self
     {
         Self { _group: PhantomData, _digest: PhantomData }
@@ -75,7 +79,7 @@ impl<G: AffineCurve, D: Digest> DLogItemAccumulator<G, D> {
 
         // Initialize Fiat-Shamir rng
         let mut fs_rng = <InnerProductArgPC<G, D> as PolynomialCommitment<G::ScalarField>>::RandomOracle::from_seed(
-            &to_bytes![vk.hash.clone(), previous_accumulators.as_slice()].unwrap()
+            &to_bytes![&Self::PROTOCOL_NAME, vk.hash.clone(), previous_accumulators.as_slice()].unwrap()
         );
 
         // Sample a new challenge z
@@ -226,7 +230,7 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
 
         // Initialize Fiat-Shamir rng
         let mut fs_rng = <InnerProductArgPC<G, D> as PolynomialCommitment<G::ScalarField>>::RandomOracle::from_seed(
-            &to_bytes![ck.hash.clone(), accumulators.as_slice()].unwrap()
+            &to_bytes![&Self::PROTOCOL_NAME, ck.hash.clone(), accumulators.as_slice()].unwrap()
         );
 
         // Sample a new challenge z
