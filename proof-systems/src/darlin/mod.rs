@@ -1,3 +1,17 @@
+//! The module for our Darlin proof carrying data (PCD) scheme as described in 
+//! our [DarlinProofTree doc](TODO: link). 
+//! The Darlin PCD scheme is based on (a variant of) Marlin/dlog, aggregating 
+//! the dlog "hard parts" as well as the inner sumchecks across multiple 
+//! circuits. 
+//! For now the module serves only basic structs and functions for the final 
+//! nodes of our conversion/exiting chain (which is either a "Simple Marlin", 
+//! or a "Final Darlin"). It is split into the following submodules
+//!     - `accumulators`: accumulator structs and their aggregation schemes as 
+//!     stand-alone non-interactive arguments. Although the stand-alone NI arguments
+//!     are not applied in recursion, they are useful for post-prossing.
+//!     - `pcd`: Proof carrying data from the verifier point of view. 
+//!     - `proof_aggregator`: utilities for proof post-processing, such as batch 
+//!     verification and aggregation of their dlog hard parts.
 pub mod pcd;
 pub mod accumulators;
 pub mod proof_aggregator;
@@ -31,10 +45,12 @@ use digest::Digest;
 use std::marker::PhantomData;
 
 
-/// FinalDarlin proving system. For now, mainly a wrapper for SimpleMarlin calls.
-pub type FinalDarlinProverKey<F, PC> = MarlinProverKey<F, PC>;
-pub type FinalDarlinVerifierKey<F, PC> = MarlinVerifierKey<F, PC>;
+/// FinalDarlin proof system. It is simply a (coboundary) Marlin SNARK of a dedicated
+/// recursive `PCDCircuit`.
+type FinalDarlinProverKey<F, PC> = MarlinProverKey<F, PC>;
+type FinalDarlinVerifierKey<F, PC> = MarlinVerifierKey<F, PC>;
 
+// A final Darlin in G1, and the previous node in G2.
 pub struct FinalDarlin<'a, G1: AffineCurve, G2: AffineCurve, D: Digest>(
     #[doc(hidden)] PhantomData<G1>,
     #[doc(hidden)] PhantomData<G2>,
@@ -48,7 +64,7 @@ impl<'a, G1, G2, D>FinalDarlin<'a, G1, G2, D>
         G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
         D:  Digest + 'a,
 {
-    /// Generate the universal prover and verifier keys for the argument system.
+    /// Generate the universal prover and verifier keys for Marlin.
     pub fn universal_setup(
         num_constraints: usize,
         num_variables: usize,
@@ -77,7 +93,8 @@ impl<'a, G1, G2, D>FinalDarlin<'a, G1, G2, D>
     }
 
     /// Generate the index-specific (i.e., circuit-specific) prover and verifier
-    /// keys. This is a deterministic algorithm that anyone can rerun.
+    /// keys from the dedicated PCDCircuit. 
+    /// This is a deterministic algorithm that anyone can rerun.
     pub fn index<C: PCDCircuit<G1>>(
         committer_key: &DLogProverKey<G1>,
         config:   C::SetupData,
@@ -92,8 +109,8 @@ impl<'a, G1, G2, D>FinalDarlin<'a, G1, G2, D>
         Ok(res)
     }
 
-    /// Create and return a FinalDarlinPCD, given previous PCDs and a PCDCircuit that verify them
-    /// along with some incremental data.
+    /// Create and return a FinalDarlinPCD, given previous PCDs and a PCDCircuit 
+    /// that (partially) verify them along with some incremental data.
     pub fn prove<C>(
         index_pk:         &FinalDarlinProverKey<G1::ScalarField, InnerProductArgPC<G1, D>>,
         pc_pk:            &DLogProverKey<G1>,
@@ -108,6 +125,7 @@ impl<'a, G1, G2, D>FinalDarlin<'a, G1, G2, D>
         where
             C: PCDCircuit<G1, SystemInputs = FinalDarlinDeferredData<G1, G2>>,
     {
+        // init the recursive circuit using the previous PCDs and the incremental data.
         let c = C::init_state(
             config,
             previous,
@@ -115,10 +133,12 @@ impl<'a, G1, G2, D>FinalDarlin<'a, G1, G2, D>
             incremental_data
         );
 
+        // get the system and user inputs from the recursive circuit 
         let sys_ins = c.get_sys_ins()?.clone();
 
         let usr_ins = c.get_usr_ins()?;
 
+        // run the Marlin prover on the initialized recursive circuit
         let proof = Marlin::<G1::ScalarField, InnerProductArgPC<G1, D>, D>::prove(
             index_pk, pc_pk, c, zk, zk_rng
         )?;
@@ -131,8 +151,8 @@ impl<'a, G1, G2, D>FinalDarlin<'a, G1, G2, D>
         Ok(FinalDarlinPCD::<G1, G2, D>::new(proof, usr_ins))
     }
 
-    /// Verify that a proof for the constrain system defined by `C` asserts that
-    /// all constraints are satisfied.
+    /// Fully verify a `FinalDarlinProof` from the PCDCircuit `C`, using the PCD implementation for 
+    /// the FinalDarlinPCD.
     pub fn verify<R: RngCore>(
         index_vk:     &FinalDarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>,
         pc_vk_g1:     &DLogVerifierKey<G1>,
@@ -156,9 +176,8 @@ impl<'a, G1, G2, D>FinalDarlin<'a, G1, G2, D>
         Ok(res)
     }
 
-    /// Verify that a proof for the constrain system defined by `C` asserts that
-    /// all constraints are satisfied. Checks only that the sumcheck equations
-    /// are satisfied.
+    /// Verifies only the IOP part of a `FinalDarlinProof`, i.e. a Marlin AHP 
+    /// for the PCDCircuit with correctly combined system and user inputs.
     pub fn verify_ahp(
         index_vk:       &FinalDarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>,
         usr_ins:        &[G1::ScalarField],
@@ -184,9 +203,8 @@ impl<'a, G1, G2, D>FinalDarlin<'a, G1, G2, D>
         Ok(res)
     }
 
-    /// Verify that a proof for the constrain system defined by `C` asserts that
-    /// all constraints are satisfied. Checks only that the opening proof is
-    /// satisfied.
+    /// Verifies the dlog open part of a `FinalDarlinProof`. This also checks the 
+    /// "hard part" of the opening proof.
     pub fn verify_opening(
         pc_vk:          &DLogVerifierKey<G1>,
         proof:          &FinalDarlinProof<G1, G2, D>,

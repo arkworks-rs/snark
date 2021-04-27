@@ -1,3 +1,4 @@
+//! Simple Marlin "proof carrying data". This corresponds to non-recursive applications.
 use algebra::{AffineCurve, SemanticallyValid, serialize::*};
 use digest::Digest;
 use marlin::{VerifierKey as MarlinVerifierKey, Proof, Marlin, AHPForR1CS};
@@ -70,13 +71,16 @@ pub struct SimpleMarlinPCD<'a, G: AffineCurve, D: Digest> {
     _lifetime:                     PhantomData<&'a ()>,
 }
 
+/// As every PCD, the `SimpleMarlinPCD` comes as a proof plus "statement".
 impl<'a, G, D> SimpleMarlinPCD<'a, G, D>
     where
         G: AffineCurve,
         D: Digest + 'a,
 {
     pub fn new(
+        // A normal (coboundary) Marlin proof
         proof:   MarlinProof<G, D>,
+        // The "statement" of the proof. Typically the full public inputs
         usr_ins: Vec<G::ScalarField>
     ) -> Self
     {
@@ -84,6 +88,8 @@ impl<'a, G, D> SimpleMarlinPCD<'a, G, D>
     }
 }
 
+/// To verify the PCD of a simple Marlin we only need the `MarlinVerifierKey` (or, the 
+/// IOP verifier key) of the circuit, and the two dlog committer keys for G1 and G2.
 pub struct SimpleMarlinPCDVerifierKey<'a, G: AffineCurve, D: Digest>(
     pub &'a MarlinVerifierKey<G::ScalarField, InnerProductArgPC<G, D>>,
     pub &'a DLogVerifierKey<G>
@@ -110,7 +116,7 @@ impl<'a, G, D> PCD for SimpleMarlinPCD<'a, G, D>
     {
         let succinct_time = start_timer!(|| "Marlin succinct verifier");
 
-        // Verify sumchecks
+        // Verify the IOP/AHP 
         let (query_set, evaluations, labeled_comms, mut fs_rng) = Marlin::<G::ScalarField, InnerProductArgPC<G, D>, D>::verify_ahp(
             &vk.0,
             self.usr_ins.as_slice(),

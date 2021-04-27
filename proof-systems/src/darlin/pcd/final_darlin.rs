@@ -1,3 +1,6 @@
+//! Final Darlin proof carrying data. The final Darlin is the last node of the 
+//! exiting/conversion chain of our Darlin PCD scheme, and provides a (coboundary)
+//! Marlin proof plus the dlog accumulators of the previous and pre-previous node.
 use algebra::{AffineCurve, ToConstraintField};
 use digest::Digest;
 use poly_commit::{
@@ -17,10 +20,13 @@ use crate::darlin::{
 };
 use std::marker::PhantomData;
 
+/// As every PCD, the `FinalDarlinPCD` comes as a proof plus "statement".
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""))]
 pub struct FinalDarlinPCD<'a, G1: AffineCurve, G2: AffineCurve, D: Digest> {
+    /// A `FinalDarlinProof` is a Marlin proof plus deferred dlog accumulators
     pub final_darlin_proof: FinalDarlinProof<G1, G2, D>,
+    /// The user inputs form essentially the "statement" of the recursive proof.
     pub usr_ins:            Vec<G1::ScalarField>,
     _lifetime:              PhantomData<&'a ()>,
 }
@@ -40,6 +46,8 @@ impl<'a, G1, G2, D> FinalDarlinPCD<'a, G1, G2, D>
     }
 }
 
+/// To verify the PCD of a final Darlin we only need the `FinalDarlinVerifierKey` (or, the 
+/// IOP verifier key) of the final circuit and the two dlog committer keys for G1 and G2.
 pub struct FinalDarlinPCDVerifierKey<'a, G1: AffineCurve, G2: AffineCurve, D: Digest> {
     pub final_darlin_vk: &'a FinalDarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>,
     pub dlog_vks:        (&'a DLogVerifierKey<G1>, &'a DLogVerifierKey<G2>)

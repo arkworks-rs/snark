@@ -1,3 +1,5 @@
+//! A R1CS density one test circuit of specified number of constraints, which processes 
+//! two public inputs satisfying a simple quadratic relation.
 use algebra::{Field, AffineCurve, UniformRand};
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 use poly_commit::ipa_pc::{InnerProductArgPC, CommitterKey, UniversalParams};
@@ -11,6 +13,13 @@ use rand::{ Rng, RngCore };
 use digest::Digest;
 use std::ops::MulAssign;
 
+/// A simple test circuit with two field elements c,d as inputs, enforced to satisfy
+///     (c,d) = a*(b,b^2),
+/// To produce the given `num_constraints`, the same two constraints
+///     a * b = c
+///     c * b = d
+/// are repeated accordingly. To acchieve the give `num_variables`, a corresponding number of
+/// dummy witness variables are allocated.
 #[derive(Copy, Clone)]
 pub(crate) struct Circuit<F: Field> {
     a: Option<F>,
@@ -73,6 +82,8 @@ impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for Circuit<Constrai
     }
 }
 
+/// Generates a SimpleMarlinPCD from `Circuit`, by sampling the internal
+/// witnesses a,b at random.
 #[allow(dead_code)]
 pub fn generate_test_pcd<'a, G: AffineCurve, D: Digest + 'a, R: RngCore>(
     pc_ck: &CommitterKey<G>,
@@ -107,6 +118,8 @@ pub fn generate_test_pcd<'a, G: AffineCurve, D: Digest + 'a, R: RngCore>(
     SimpleMarlinPCD::<'a, G, D>::new(MarlinProof::<G, D>(proof), vec![c, d])
 }
 
+/// Generates `num_proofs` random instances of SimpleMarlinPCDs for `Circuit` with
+/// `num_constraints`, using the given `segment_size` for the dlog commitment scheme. 
 #[allow(dead_code)]
 pub fn generate_test_data<'a, G: AffineCurve, D: Digest + 'a, R: RngCore>(
     num_constraints: usize,

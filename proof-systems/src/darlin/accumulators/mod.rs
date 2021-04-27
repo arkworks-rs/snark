@@ -28,9 +28,15 @@ pub struct AccumulationProof<G: AffineCurve> {
     pub pc_proof: Proof<G>,
 }
 
-/// The ItemAccumulator trait comes with the essential functions for proving
+/// The `ItemAccumulator` trait comes with the essential functions for proving
 /// and verifying aggregation, as well as checking ("deciding") if an item
 /// satisfies the predicate.
+/// It applies to mixed type accumulators as described in our [Darlin Proof Tree doc](TODO: add link):
+/// There, a (full) accumulator is a composite structure of dlog and inner 
+/// sumcheck ("single") accumulators, from both groups of the EC cycle (the 
+/// "current", and the "collected" ones). Although within recursion we do 
+/// not separate accumulation strategy from the SNARK on protocol level,
+/// we nevertheless serve this functionality for post processing outside the PCD.
 pub trait ItemAccumulator {
     type AccumulatorProverKey;
     type AccumulatorVerifierKey;

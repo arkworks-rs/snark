@@ -62,6 +62,10 @@ pub struct DLogItemAccumulator<G: AffineCurve, D: Digest> {
 
 impl<G: AffineCurve, D: Digest> DLogItemAccumulator<G, D> {
 
+    /// The personalization string for this protocol. Used to personalize the
+    /// Fiat-Shamir rng.
+    pub const PROTOCOL_NAME: &'static [u8] = b"DL-ACC-2021";
+
     pub fn get_instance() -> Self
     {
         Self { _group: PhantomData, _digest: PhantomData }
@@ -84,7 +88,7 @@ impl<G: AffineCurve, D: Digest> DLogItemAccumulator<G, D> {
 
         // Initialize Fiat-Shamir rng
         let mut fs_rng = <InnerProductArgPC<G, D> as PolynomialCommitment<G::ScalarField>>::RandomOracle::from_seed(
-            &to_bytes![vk.hash.clone(), previous_accumulators.as_slice()].unwrap()
+            &to_bytes![&Self::PROTOCOL_NAME, vk.hash.clone(), previous_accumulators.as_slice()].unwrap()
         );
 
         // Sample a new challenge z
@@ -235,19 +239,11 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
 
         // Initialize Fiat-Shamir rng
         let mut fs_rng = <InnerProductArgPC<G, D> as PolynomialCommitment<G::ScalarField>>::RandomOracle::from_seed(
-            &to_bytes![ck.hash.clone(), accumulators.as_slice()].unwrap()
+            &to_bytes![&Self::PROTOCOL_NAME, ck.hash.clone(), accumulators.as_slice()].unwrap()
         );
 
         // Sample a new challenge z
         let z = fs_rng.squeeze_128_bits_challenge::<G::ScalarField>();
-
-        // Collect GFinals from the accumulators
-        let g_fins = accumulators.iter().map(|acc| {
-            Commitment::<G> {
-                comm: acc.g_final.comm.clone(),
-                shifted_comm: None
-            }
-        }).collect::<Vec<_>>();
 
         // Collect xi_s from the accumulators
         let xi_s = accumulators.into_iter().map(|acc| {
@@ -261,7 +257,6 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
         let opening_proof = InnerProductArgPC::<G, D>::open_check_polys(
             &ck,
             xi_s.iter(),
-            g_fins.iter(),
             z,
             &mut fs_rng
         ).map_err(|e| {
@@ -327,6 +322,8 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
     }
 }
 
+/// A composite dlog accumulator/item, comprised of several single dlog items
+/// from both groups of the EC cycle. 
 pub struct DualDLogItem<G1: AffineCurve, G2: AffineCurve>(
     pub(crate) Vec<DLogItem<G1>>,
     pub(crate) Vec<DLogItem<G2>>,
@@ -346,6 +343,7 @@ pub struct DualDLogItemAccumulator<'a, G1: AffineCurve, G2: AffineCurve, D: Dige
     _digest:   PhantomData<D>,
 }
 
+// Straight-forward generalization of the dlog item aggregation to DualDLogItem.
 impl<'a, G1, G2, D> ItemAccumulator for DualDLogItemAccumulator<'a, G1, G2, D>
     where
         G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField>,
@@ -453,6 +451,8 @@ mod test {
         _m:                      PhantomData<&'a G::ScalarField>, // To avoid compilation issue 'a
     }
 
+    // Samples a random instance of a dlog multi-point multi-poly opening proof according to the 
+    // specifications in the TestInfo. 
     fn get_data_for_verifier<'a, G, D>(
         info: TestInfo,
         pp: Option<UniversalParams<G>>
@@ -462,13 +462,13 @@ mod test {
             D: Digest
     {
         let TestInfo {
-            max_degree,
-            supported_degree,
-            num_polynomials,
-            enforce_degree_bounds,
-            max_num_queries,
-            segmented,
-            hiding,
+            max_degree, // maximum degree supported by the dlog commitment scheme
+            supported_degree, // the supported maximum degree after trimming
+            num_polynomials, // number of random polynomials involved in the opening proof
+            enforce_degree_bounds, // provide degree bound proofs or not
+            max_num_queries, // size of the random query set for the opening proof
+            segmented, // use segmentation or not
+            hiding, // hiding or not
             ..
         } = info;
 
@@ -495,11 +495,12 @@ mod test {
             None
         };
 
+        // random degree multiplier when using segementation
         let seg_mul = rand::distributions::Uniform::from(5..=15).sample(rng);
         let mut labels = Vec::new();
         println!("Sampled supported degree");
 
-        // Generate polynomials
+        // Generate random dense polynomials
         let num_points_in_query_set =
             rand::distributions::Uniform::from(1..=max_num_queries).sample(rng);
         for i in 0..num_polynomials {
@@ -572,7 +573,8 @@ mod test {
 
         let (comms, rands) = InnerProductArgPC::<G, D>::commit(&ck, &polynomials, Some(rng))?;
 
-        // Construct query set
+        // Construct "symmetric" query set: every polynomial is evaluated at every
+        // point.
         let mut query_set = QuerySet::new();
         let mut values = Evaluations::new();
         // let mut point = F::one();
@@ -612,6 +614,8 @@ mod test {
         })
     }
 
+    // We sample random instances of multi-point multi-poly dlog opening proofs,
+    // produce aggregation proofs for their dlog items and fully verify these aggregation proofs.
     fn accumulation_test<G, D>() -> Result<(), Error>
         where
             G: AffineCurve,
@@ -656,7 +660,7 @@ mod test {
             let mut proofs = Vec::new();
             let mut states = Vec::new();
 
-            let state = FiatShamirChaChaRng::<D>::new().get_seed().clone();
+            let state = FiatShamirChaChaRng::<D>::new().get_state().clone();
 
             verifier_data_vec.iter().for_each(|verifier_data| {
                 let len = verifier_data.vk.comm_key.len();
@@ -668,7 +672,7 @@ mod test {
                 states.push(&state);
             });
 
-            // Prover side
+            // extract the xi's and G_fin's from the proof
             let (xi_s_vec, g_fins) = InnerProductArgPC::<G, D>::succinct_batch_check(
                 &vk,
                 comms.clone(),
@@ -689,6 +693,7 @@ mod test {
 
             assert!(accumulators.is_valid());
 
+            // provide aggregation proof of the extracted dlog items
             let (_, proof) = DLogItemAccumulator::<G, D>::accumulate_items(
                 &ck,
                 accumulators.clone(),
@@ -712,6 +717,8 @@ mod test {
         Ok(())
     }
 
+    // We sample random instances of multi-point multi-poly dlog opening proofs,
+    // and batch verify their dlog items.
     fn batch_verification_test<G, D>() -> Result<(), Error>
         where
             G: AffineCurve,
@@ -753,7 +760,7 @@ mod test {
             let mut proofs = Vec::new();
             let mut states = Vec::new();
 
-            let state = FiatShamirChaChaRng::<D>::new().get_seed().clone();
+            let state = FiatShamirChaChaRng::<D>::new().get_state().clone();
 
             verifier_data_vec.iter().for_each(|verifier_data| {
                 let len = verifier_data.vk.comm_key.len();
@@ -765,6 +772,7 @@ mod test {
                 states.push(&state);
             });
 
+            // extract the xi's and G_fin's from the proof
             let (xi_s_vec, g_fins) = InnerProductArgPC::<G, D>::succinct_batch_check(
                 &vk,
                 comms.clone(),
@@ -785,6 +793,7 @@ mod test {
 
             assert!(accumulators.is_valid());
 
+            // batch verify the extracted dlog items
             assert!(
                 DLogItemAccumulator::<G, D>::check_items(
                     &vk,

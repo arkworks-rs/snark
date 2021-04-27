@@ -1,3 +1,4 @@
+//! Test suite for PCD post processing (batch-verification, aggregation)
 use algebra::AffineCurve;
 use poly_commit::{
     PCUniversalParams, PolynomialCommitment,
