@@ -37,7 +37,7 @@ mod test {
     use super::*;
     use algebra::{curves::tweedle::{
         dee::Affine as DeeAffine, dum::Affine as DumAffine,
-    }, UniformRand, ToConstraintField, serialize::test_canonical_serialize_deserialize};
+    }, UniformRand, ToConstraintField, serialize::test_canonical_serialize_deserialize, SemanticallyValid};
     use marlin::VerifierKey as MarlinVerifierKey;
     use crate::darlin::{
         pcd::GeneralPCD,
@@ -254,6 +254,7 @@ mod test {
                 generation_rng
             );
 
+            assert!(&iteration_pcds[0].proof.is_valid());
             test_canonical_serialize_deserialize(true, &iteration_pcds[0].proof);
             test_canonical_serialize_deserialize(true, &iteration_vks[0]);
 
@@ -334,6 +335,7 @@ mod test {
                 generation_rng
             );
 
+            assert!(&iteration_pcds[0].final_darlin_proof.is_valid());
             test_canonical_serialize_deserialize(true, &iteration_pcds[0].final_darlin_proof);
             test_canonical_serialize_deserialize(true, &iteration_vks[0]);
 
@@ -417,6 +419,7 @@ mod test {
                     generation_rng
                 );
 
+                assert!(&iteration_pcds[0].proof.is_valid());
                 test_canonical_serialize_deserialize(true, &iteration_pcds[0].proof);
                 test_canonical_serialize_deserialize(true, &iteration_vks[0]);
 
@@ -434,6 +437,7 @@ mod test {
                     generation_rng
                 );
 
+                assert!(&iteration_pcds[0].final_darlin_proof.is_valid());
                 test_canonical_serialize_deserialize(true, &iteration_pcds[0].final_darlin_proof);
                 test_canonical_serialize_deserialize(true, &iteration_vks[0]);
 

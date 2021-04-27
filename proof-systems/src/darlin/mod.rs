@@ -21,6 +21,7 @@ use crate::darlin::{
     data_structures::*,
     pcd::{
         PCD, PCDCircuit,
+        simple_marlin::MarlinProof,
         final_darlin::{FinalDarlinPCD, FinalDarlinPCDVerifierKey}
     },
     error::FinalDarlinError,
@@ -122,7 +123,7 @@ impl<'a, G1, G2, D>FinalDarlin<'a, G1, G2, D>
             index_pk, pc_pk, c, zk, zk_rng
         )?;
 
-        let proof = FinalDarlinProof::<G1, G2, D> { proof, deferred: sys_ins };
+        let proof = FinalDarlinProof::<G1, G2, D> { proof: MarlinProof(proof), deferred: sys_ins };
         let usr_ins = usr_ins
             .to_field_elements()
             .map_err(|_| FinalDarlinError::Other("Failed to convert usr ins to field elements".to_owned()))?;

@@ -1,6 +1,8 @@
 use algebra::{AffineCurve, ToConstraintField, ToBits, ProjectiveCurve, UniformRand, serialize::*, SemanticallyValid};
-use marlin::Proof as MarlinProof;
-use crate::darlin::accumulators::dlog::DLogItem;
+use crate::darlin::{
+    pcd::simple_marlin::MarlinProof,
+    accumulators::dlog::DLogItem
+};
 use poly_commit::ipa_pc::{
     SuccinctCheckPolynomial, InnerProductArgPC,
     CommitterKey as DLogCommitterKey, Commitment,
@@ -130,7 +132,7 @@ impl<G1, G2> ToConstraintField<G1::ScalarField> for FinalDarlinDeferredData<G1, 
 /// FinalDarlinProof with two deferred DLOG accumulators.
 pub struct FinalDarlinProof<G1: AffineCurve, G2: AffineCurve, D: Digest> {
     /// Full Marlin proof without deferred arithmetics in G1.
-    pub proof:       MarlinProof<G1::ScalarField, InnerProductArgPC<G1, D>>,
+    pub proof:       MarlinProof<G1, D>,
     /// Deferred accumulators
     pub deferred:    FinalDarlinDeferredData<G1, G2>,
 }

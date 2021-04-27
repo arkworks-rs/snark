@@ -5,7 +5,7 @@ use marlin::{
     Marlin, ProverKey as MarlinProverKey, VerifierKey as MarlinVerifierKey,
 };
 use crate::darlin::pcd::{
-    PCDParameters, simple_marlin::SimpleMarlinPCD
+    PCDParameters, simple_marlin::{SimpleMarlinPCD, MarlinProof}
 };
 use rand::{ Rng, RngCore };
 use digest::Digest;
@@ -104,7 +104,7 @@ pub fn generate_test_pcd<'a, G: AffineCurve, D: Digest + 'a, R: RngCore>(
         if zk { Some(rng) } else { None }
     ).unwrap();
 
-    SimpleMarlinPCD::<'a, G, D>::new(proof, vec![c, d])
+    SimpleMarlinPCD::<'a, G, D>::new(MarlinProof::<G, D>(proof), vec![c, d])
 }
 
 #[allow(dead_code)]

@@ -687,6 +687,8 @@ mod test {
                     acc
                 }).collect::<Vec<_>>();
 
+            assert!(accumulators.is_valid());
+
             let (_, proof) = DLogItemAccumulator::<G, D>::accumulate_items(
                 &ck,
                 accumulators.clone(),
@@ -780,6 +782,8 @@ mod test {
                     test_canonical_serialize_deserialize(true, &acc);
                     acc
                 }).collect::<Vec<_>>();
+
+            assert!(accumulators.is_valid());
 
             assert!(
                 DLogItemAccumulator::<G, D>::check_items(
