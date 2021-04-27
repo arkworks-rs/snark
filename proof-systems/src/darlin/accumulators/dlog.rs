@@ -232,14 +232,6 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
         // Sample a new challenge z
         let z = fs_rng.squeeze_128_bits_challenge::<G::ScalarField>();
 
-        // Collect GFinals from the accumulators
-        let g_fins = accumulators.iter().map(|acc| {
-            Commitment::<G> {
-                comm: acc.g_final.comm.clone(),
-                shifted_comm: None
-            }
-        }).collect::<Vec<_>>();
-
         // Collect xi_s from the accumulators
         let xi_s = accumulators.into_iter().map(|acc| {
             acc.xi_s
@@ -252,7 +244,6 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
         let opening_proof = InnerProductArgPC::<G, D>::open_check_polys(
             &ck,
             xi_s.iter(),
-            g_fins.iter(),
             z,
             &mut fs_rng
         ).map_err(|e| {
@@ -643,7 +634,7 @@ mod test {
             let mut proofs = Vec::new();
             let mut states = Vec::new();
 
-            let state = FiatShamirChaChaRng::<D>::new().get_seed().clone();
+            let state = FiatShamirChaChaRng::<D>::new().get_state().clone();
 
             verifier_data_vec.iter().for_each(|verifier_data| {
                 let len = verifier_data.vk.comm_key.len();
@@ -734,7 +725,7 @@ mod test {
             let mut proofs = Vec::new();
             let mut states = Vec::new();
 
-            let state = FiatShamirChaChaRng::<D>::new().get_seed().clone();
+            let state = FiatShamirChaChaRng::<D>::new().get_state().clone();
 
             verifier_data_vec.iter().for_each(|verifier_data| {
                 let len = verifier_data.vk.comm_key.len();
