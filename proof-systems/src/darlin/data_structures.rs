@@ -107,7 +107,7 @@ impl<G1, G2> ToConstraintField<G1::ScalarField> for FinalDarlinDeferredData<G1, 
         // still secure).
         let mut xi_s_bits = Vec::new();
         for fe in self.previous_acc.xi_s.0.clone().into_iter() {
-            xi_s_bits.extend_from_slice(&fe.write_bits()[..128]);
+            xi_s_bits.extend_from_slice(&fe.write_bits()[128..]);
         }
         fes.append(&mut xi_s_bits.to_field_elements()?);
 
@@ -131,7 +131,7 @@ impl<G1, G2> ToConstraintField<G1::ScalarField> for FinalDarlinDeferredData<G1, 
         // field elements as efficient as possible (yet secure).
         let mut xi_s_bits = Vec::new();
         for fe in self.pre_previous_acc.xi_s.0.clone().into_iter() {
-            xi_s_bits.extend_from_slice(&fe.write_bits()[..128]);
+            xi_s_bits.extend_from_slice(&fe.write_bits()[128..]);
         }
         fes.append(&mut xi_s_bits.to_field_elements()?);
 
