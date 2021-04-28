@@ -298,7 +298,7 @@ mod test {
             mnt4753::Fr as MNT4753Fr, mnt6753::Fr as MNT6753Fr
         },
         UniformRand,
-        ToBytes, to_bytes, FromBytes,
+        ToBytes, to_bytes, FromBytes, SemanticallyValid
     };
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
@@ -584,10 +584,12 @@ mod test {
 
             // Create and verify a FieldBasedMHTPath
             let path = tree.get_merkle_path(i).unwrap();
+            assert!(path.is_valid());
             assert!(path.verify(tree.height(), &leaves[i], &root).unwrap());
 
             // Create and verify a Naive path
             let naive_path = naive_tree.generate_proof(i, &leaves[i]).unwrap();
+            assert!(naive_path.is_valid());
             assert!(naive_path.verify(naive_tree.height(), &leaves[i], &naive_root ).unwrap());
 
             // Assert the two paths are equal
@@ -676,10 +678,12 @@ mod test {
 
             // Create and verify a FieldBasedMHTPath
             let path = tree.get_merkle_path(i).unwrap();
+            assert!(path.is_valid());
             assert!(path.verify(tree.height(), &leaves[i], &root).unwrap());
 
             // Create and verify a Naive path
             let naive_path = naive_tree.generate_proof(i, &leaves[i]).unwrap();
+            assert!(naive_path.is_valid());
             assert!(naive_path.verify(naive_tree.height(), &leaves[i], &naive_root ).unwrap());
 
             // Assert the two paths are equal

@@ -1,4 +1,6 @@
-use algebra::serialize::*;
+use algebra::{
+    SemanticallyValid, serialize::*
+};
 use crate::{
     crh::*, field_based_mht::*, Error
 };
@@ -19,6 +21,17 @@ use std::{
 #[derive(Serialize, Deserialize, CanonicalSerialize, CanonicalDeserialize)]
 pub struct FieldBasedMHTPath<T: FieldBasedMerkleTreeParameters>{
     path: Vec<(Vec<<T::H as FieldBasedHash>::Data>, usize)>,
+}
+
+impl<T: FieldBasedMerkleTreeParameters> SemanticallyValid for FieldBasedMHTPath<T> {
+    fn is_valid(&self) -> bool {
+        for (fes, pos) in self.path.iter() {
+            if fes.len() != T::MERKLE_ARITY - 1 || pos >= &T::MERKLE_ARITY || !fes.is_valid() {
+                return false
+            }
+        }
+        true
+    }
 }
 
 impl<T: FieldBasedMerkleTreeParameters> PartialEq for FieldBasedMHTPath<T> {
@@ -191,6 +204,15 @@ impl<T: FieldBasedMerkleTreeParameters> FromBytes for FieldBasedMHTPath<T> {
 #[derive(Serialize, Deserialize, CanonicalSerialize, CanonicalDeserialize)]
 pub struct FieldBasedBinaryMHTPath<T: FieldBasedMerkleTreeParameters>{
     path: Vec<(<T::H as FieldBasedHash>::Data, bool)>,
+}
+
+impl<T: FieldBasedMerkleTreeParameters> SemanticallyValid for FieldBasedBinaryMHTPath<T> {
+    fn is_valid(&self) -> bool {
+        for (fe, _) in self.path.iter() {
+            if !fe.is_valid() { return false }
+        }
+        true
+    }
 }
 
 impl<T: FieldBasedMerkleTreeParameters> PartialEq for FieldBasedBinaryMHTPath<T> {
