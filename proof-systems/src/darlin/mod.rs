@@ -47,8 +47,8 @@ use std::marker::PhantomData;
 
 /// FinalDarlin proof system. It is simply a (coboundary) Marlin SNARK of a dedicated
 /// recursive `PCDCircuit`.
-type FinalDarlinProverKey<F, PC> = MarlinProverKey<F, PC>;
-type FinalDarlinVerifierKey<F, PC> = MarlinVerifierKey<F, PC>;
+pub type FinalDarlinProverKey<F, PC> = MarlinProverKey<F, PC>;
+pub type FinalDarlinVerifierKey<F, PC> = MarlinVerifierKey<F, PC>;
 
 // A final Darlin in G1, and the previous node in G2.
 pub struct FinalDarlin<'a, G1: AffineCurve, G2: AffineCurve, D: Digest>(
