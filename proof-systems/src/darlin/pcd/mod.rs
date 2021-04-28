@@ -55,12 +55,12 @@ impl PCDParameters {
 }
 
 /// Trait for the recursive circuit of a PCD node in G. Both witnesses and public inputs
-/// are derived from previous proofs (PCDs) and some additional incremental data ("payload").
+/// are derived from previous proofs (PCDs) and some additional data ("payload").
 /// A recursive circuit comes with a universal circuit interface, comprised of 
 ///     - `user inputs` (i.e. the proof "statement") and 
 ///     - `system inputs`, which is the data due to amortization and split verification, 
 ///     aka deferred checks. 
-/// The incremental data is used only by dedicated circuits such as a base proofs or
+/// The additional data is used only by dedicated circuits such as a base proofs or
 /// a finalizing block proofs. For the ordinary merger nodes, it is simply `None`.
 pub trait PCDCircuit<G: AffineCurve>: ConstraintSynthesizer<G::ScalarField> {
 
@@ -71,7 +71,7 @@ pub trait PCDCircuit<G: AffineCurve>: ConstraintSynthesizer<G::ScalarField> {
     /// Additional data to be processed by the circuit. 
     /// This might be related to recursion (incremental "payload"). In our PCD it is  
     /// supplementary witness data to serve additional business logic of the circuit.
-    type IncrementalData;
+    type AdditionalData;
 
     /// Elements that are deferred during recursion. The are derived from the PCDs 
     /// passed by the nodes "below" 
@@ -90,7 +90,7 @@ pub trait PCDCircuit<G: AffineCurve>: ConstraintSynthesizer<G::ScalarField> {
         config:               Self::SetupData,
         previous_proofs_data: Vec<Self::PreviousPCD>,
         previous_proofs_vks:  Vec<<Self::PreviousPCD as PCD>::PCDVerifierKey>,
-        incremental_data:     Self::IncrementalData,
+        additional_data:      Self::AdditionalData,
     ) -> Self;
 
     /// Extract the system inputs from a concrete instantiation of the circuit.

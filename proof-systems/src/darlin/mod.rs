@@ -109,7 +109,7 @@ impl<'a, G1, G2, D>FinalDarlin<'a, G1, G2, D>
     }
 
     /// Create and return a FinalDarlinPCD, given previous PCDs and a PCDCircuit 
-    /// that (partially) verify them along with some incremental data.
+    /// that (partially) verify them along with some additional data.
     pub fn prove<C>(
         index_pk:         &FinalDarlinProverKey<G1::ScalarField, InnerProductArgPC<G1, D>>,
         pc_pk:            &DLogProverKey<G1>,
@@ -117,19 +117,19 @@ impl<'a, G1, G2, D>FinalDarlin<'a, G1, G2, D>
         // In future, this will be explicitly a RainbowDarlinPCD
         previous:         Vec<C::PreviousPCD>,
         previous_vks:     Vec<<C::PreviousPCD as PCD>::PCDVerifierKey>,
-        incremental_data: C::IncrementalData,
+        additional_data: C::AdditionalData,
         zk:               bool,
         zk_rng:           Option<&mut dyn RngCore>,
     ) -> Result<FinalDarlinPCD<'a, G1, G2, D>, FinalDarlinError>
         where
             C: PCDCircuit<G1, SystemInputs = FinalDarlinDeferredData<G1, G2>>,
     {
-        // init the recursive circuit using the previous PCDs and the incremental data.
+        // init the recursive circuit using the previous PCDs and the additional data.
         let c = C::init_state(
             config,
             previous,
             previous_vks,
-            incremental_data
+            additional_data
         );
 
         // get the system and user inputs from the recursive circuit 
