@@ -41,7 +41,7 @@ blake2 = "0.7"
 rand_xorshift = { version = "0.2" }
 paste = "1.0"
 criterion = "0.3"
-algebra = { path = "../algebra", features = ["full"] }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "darlin", features = ["full"] }
 
 [features]
 parallel = [ "rayon" ]

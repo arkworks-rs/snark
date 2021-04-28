@@ -20,30 +20,37 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-algebra = { path = "../algebra", features = [ "parallel", "fft" ] }
-r1cs-core = { path = "../r1cs/core" }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "darlin", features = [ "parallel", "fft" ] }
+r1cs-core = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "darlin" }
 bench-utils = { path = "../bench-utils" }
+
+marlin = { git = "https://github.com/HorizenLabs/marlin", branch = "mods_for_darlin", optional = true }
+poly-commit = { git = "https://github.com/HorizenLabs/poly-commit", branch = "mods_for_darlin", optional = true }
+
+r1cs-std = { path = "../r1cs/gadgets/std", optional = true }
 
 rand = { version = "0.7" }
 rayon = { version = "1" }
 smallvec = { version = "0.6" }
 byteorder = { version = "1" }
-
+digest = { version = "0.8", optional = true }
 serde = { version = "1.0.117", features = ["derive"]}
+derivative = { version = "1", optional = true }
 
 [dev-dependencies]
 csv = { version = "1" }
 criterion = "0.3"
 rand_xorshift = { version = "0.2" }
+blake2 = { version = "0.8", default-features = false }
 
-algebra = { path = "../algebra", features = ["parallel", "fft", "full"] }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "darlin", features = ["parallel", "fft", "full"] }
 r1cs-crypto = { path = "../r1cs/gadgets/crypto", features = ["nizk"] }
-r1cs-std = { path = "../r1cs/gadgets/std" }
 
 [features]
-print-trace = [ "bench-utils/print-trace" ]
+print-trace = [ "bench-utils/print-trace", "marlin/print-trace", "poly-commit/print-trace" ]
 groth16 = []
 gm17 = []
+darlin = ["marlin", "poly-commit", "digest", "derivative", "r1cs-std"]
 llvm_asm = ["algebra/llvm_asm"]
 
 [[example]]
@@ -77,3 +84,19 @@ name = "bn382_gro16_test_circuits"
 path = "src/groth16/benches/bn382_gro16_test_circuits.rs"
 harness = false
 required-features = ["groth16", "algebra/bn_382"]
+
+[[bench]]
+name = "darlin_batch_verification_bench"
+path = "src/darlin/benches/batch_verification.rs"
+harness = false
+required-features = [
+    "darlin", "llvm_asm", "algebra/tweedle",
+]
+
+[[bench]]
+name = "darlin_accumulate_verify_bench"
+path = "src/darlin/benches/accumulate_verify.rs"
+harness = false
+required-features = [
+    "darlin", "llvm_asm", "algebra/tweedle",
+]

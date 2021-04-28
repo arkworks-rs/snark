@@ -6,9 +6,15 @@
 #![deny(unused_comparisons, bare_trait_objects, unused_must_use, const_err)]
 #![forbid(unsafe_code)]
 
-#[cfg(any(feature = "groth16", feature = "gm17"))]
 #[macro_use]
 extern crate bench_utils;
+
+#[cfg(feature = "darlin")]
+#[macro_use]
+extern crate derivative;
+
+#[cfg(feature = "darlin")]
+pub mod darlin;
 
 #[cfg(feature = "groth16")]
 pub mod groth16;
