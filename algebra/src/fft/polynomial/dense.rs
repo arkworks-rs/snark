@@ -2,14 +2,13 @@
 
 use std::fmt;
 use std::ops::{Add, AddAssign, Deref, DerefMut, Div, Mul, Neg, Sub, SubAssign};
-
-use crate::{Field, PrimeField, ToBytes, FromBytes};
+use crate::{Field, PrimeField, ToBytes, FromBytes, serialize::*};
 use crate::{Evaluations, EvaluationDomain, DenseOrSparsePolynomial, get_best_evaluation_domain};
 use rand::Rng;
 use rayon::prelude::*;
 
 /// Stores a polynomial in coefficient form.
-#[derive(Clone, PartialEq, Eq, Hash, Default)]
+#[derive(Clone, PartialEq, Eq, Hash, Default, CanonicalSerialize, CanonicalDeserialize)]
 pub struct DensePolynomial<F: Field> {
     /// The coefficient of `x^i` is stored at location `i` in `self.coeffs`.
     pub coeffs: Vec<F>,
@@ -17,7 +16,7 @@ pub struct DensePolynomial<F: Field> {
 
 impl<F: Field> ToBytes for DensePolynomial<F>
 {
-    fn write<W: std::io::Write>(&self, mut w: W) -> std::io::Result<()> {
+    fn write<W: Write>(&self, mut w: W) -> std::io::Result<()> {
         (self.coeffs.len() as u64).write(&mut w)?;
         for c in self.coeffs.iter() {
             c.write(&mut w)?;

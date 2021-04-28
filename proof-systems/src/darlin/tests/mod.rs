@@ -38,7 +38,7 @@ mod test {
     use super::*;
     use algebra::{curves::tweedle::{
         dee::Affine as DeeAffine, dum::Affine as DumAffine,
-    }, UniformRand, ToConstraintField};
+    }, UniformRand, ToConstraintField, serialize::test_canonical_serialize_deserialize, SemanticallyValid};
     use marlin::VerifierKey as MarlinVerifierKey;
     use crate::darlin::{
         pcd::GeneralPCD,
@@ -229,6 +229,11 @@ mod test {
             committer_key_g2, verifier_key_g2
         ) = get_keys::<_, _, Blake2s>(&params_g1, &params_g2);
 
+        test_canonical_serialize_deserialize(true, &committer_key_g1);
+        test_canonical_serialize_deserialize(true, &committer_key_g2);
+        test_canonical_serialize_deserialize(true, &verifier_key_g1);
+        test_canonical_serialize_deserialize(true, &verifier_key_g2);
+
         // Generate pcds and index vks: we want to generate PCDs with different segment
         // sizes up at least to max_proofs, so we are going to randomly sample the segment size
         // and the number of proofs with that specific segment size to generate (to save
@@ -249,6 +254,11 @@ mod test {
                 iteration_num_proofs,
                 generation_rng
             );
+
+            assert!(&iteration_pcds[0].proof.is_valid());
+            test_canonical_serialize_deserialize(true, &iteration_pcds[0].proof);
+            test_canonical_serialize_deserialize(true, &iteration_vks[0]);
+
             pcds.append(&mut iteration_pcds);
             simple_marlin_vks.append(&mut iteration_vks);
         }
@@ -299,6 +309,11 @@ mod test {
             committer_key_g2, verifier_key_g2
         ) = get_keys::<_, _, Blake2s>(&params_g1, &params_g2);
 
+        test_canonical_serialize_deserialize(true, &committer_key_g1);
+        test_canonical_serialize_deserialize(true, &committer_key_g2);
+        test_canonical_serialize_deserialize(true, &verifier_key_g1);
+        test_canonical_serialize_deserialize(true, &verifier_key_g2);
+
         // Generate pcds and index vks: we want to generate PCDs with different segment
         // sizes up to at least max_proofs, so we are going to randomly sample the segment size
         // and the number of proofs with that specific segment size to generate (to save
@@ -320,6 +335,11 @@ mod test {
                 iteration_num_proofs,
                 generation_rng
             );
+
+            assert!(&iteration_pcds[0].final_darlin_proof.is_valid());
+            test_canonical_serialize_deserialize(true, &iteration_pcds[0].final_darlin_proof);
+            test_canonical_serialize_deserialize(true, &iteration_vks[0]);
+
             pcds.append(&mut iteration_pcds);
             final_darlin_vks.append(&mut iteration_vks);
         }
@@ -370,6 +390,11 @@ mod test {
             committer_key_g2, verifier_key_g2
         ) = get_keys::<_, _, Blake2s>(&params_g1, &params_g2);
 
+        test_canonical_serialize_deserialize(true, &committer_key_g1);
+        test_canonical_serialize_deserialize(true, &committer_key_g2);
+        test_canonical_serialize_deserialize(true, &verifier_key_g1);
+        test_canonical_serialize_deserialize(true, &verifier_key_g2);
+
         // Generate pcds and index vks: we want to generate PCDs with different segment
         // sizes up to at least max_proofs, so we are going to randomly sample the segment size
         // and the number of proofs with that specific segment size to generate (to save
@@ -394,7 +419,13 @@ mod test {
                     iteration_num_proofs,
                     generation_rng
                 );
+
+                assert!(&iteration_pcds[0].proof.is_valid());
+                test_canonical_serialize_deserialize(true, &iteration_pcds[0].proof);
+                test_canonical_serialize_deserialize(true, &iteration_vks[0]);
+
                 let mut iteration_pcds = iteration_pcds.into_iter().map(|pcd| GeneralPCD::SimpleMarlin(pcd)).collect::<Vec<_>>();
+
                 pcds.append(&mut iteration_pcds);
                 vks.append(&mut iteration_vks);
             } else {
@@ -406,7 +437,13 @@ mod test {
                     iteration_num_proofs,
                     generation_rng
                 );
+
+                assert!(&iteration_pcds[0].final_darlin_proof.is_valid());
+                test_canonical_serialize_deserialize(true, &iteration_pcds[0].final_darlin_proof);
+                test_canonical_serialize_deserialize(true, &iteration_vks[0]);
+
                 let mut iteration_pcds = iteration_pcds.into_iter().map(|pcd| GeneralPCD::FinalDarlin(pcd)).collect::<Vec<_>>();
+
                 pcds.append(&mut iteration_pcds);
                 vks.append(&mut iteration_vks);
             }

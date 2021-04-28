@@ -10,7 +10,15 @@ use rand::{
     Rng,
 };
 
-use crate::{bytes::{FromBytes, ToBytes}, bits::{FromBits, ToBits}, fields::{Field, FpParameters, PrimeField}, UniformRand, Error, SemanticallyValid};
+use crate::{
+    bytes::{FromBytes, ToBytes},
+    bits::{FromBits, ToBits},
+    fields::{Field, FpParameters, PrimeField},
+    UniformRand, Error, SemanticallyValid,
+    CanonicalSerialize, Flags,
+    SerializationError, CanonicalSerializeWithFlags, CanonicalDeserialize,
+    CanonicalDeserializeWithFlags, EmptyFlags
+};
 use serde::{Serialize, Deserialize};
 
 /// Model for cubic extension field of a prime field F=BasePrimeField
@@ -253,6 +261,26 @@ impl<P: CubicExtParameters> Field for CubicExtField<P> {
 
         P::mul_base_field_by_frob_coeff(&mut self.c1, &mut self.c2, power);
     }
+
+    #[inline]
+    fn from_random_bytes_with_flags<F: Flags>(bytes: &[u8]) -> Option<(Self, F)> {
+        let split_at = bytes.len() / 3;
+        if let Some(c0) = P::BaseField::from_random_bytes(&bytes[..split_at]) {
+            if let Some(c1) = P::BaseField::from_random_bytes(&bytes[split_at..2 * split_at]) {
+                if let Some((c2, flags)) =
+                P::BaseField::from_random_bytes_with_flags(&bytes[2 * split_at..])
+                {
+                    return Some((CubicExtField::new(c0, c1, c2), flags));
+                }
+            }
+        }
+        None
+    }
+
+    #[inline]
+    fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
+        Self::from_random_bytes_with_flags::<EmptyFlags>(bytes).map(|f| f.0)
+    }
 }
 
 /// `CubicExtField` elements are ordered lexicographically.
@@ -366,6 +394,61 @@ impl<P: CubicExtParameters> FromBits for CubicExtField<P> {
         let c0 = P::BaseField::read_bits(bits[..size].to_vec())?;
         let c1 = P::BaseField::read_bits(bits[size..(2*size)].to_vec())?;
         let c2 = P::BaseField::read_bits(bits[(2*size)..].to_vec())?;
+        Ok(CubicExtField::new(c0, c1, c2))
+    }
+}
+
+impl<P: CubicExtParameters> CanonicalSerializeWithFlags for CubicExtField<P> {
+    #[inline]
+    fn serialize_with_flags<W: Write, F: Flags>(
+        &self,
+        mut writer: W,
+        flags: F,
+    ) -> Result<(), SerializationError> {
+        CanonicalSerialize::serialize(&self.c0, &mut writer)?;
+        CanonicalSerialize::serialize(&self.c1, &mut writer)?;
+        self.c2.serialize_with_flags(&mut writer, flags)?;
+        Ok(())
+    }
+
+    #[inline]
+    fn serialized_size_with_flags<F: Flags>(&self) -> usize {
+        self.c0.serialized_size()
+            + self.c1.serialized_size()
+            + self.c2.serialized_size_with_flags::<F>()
+    }
+}
+
+impl<P: CubicExtParameters> CanonicalSerialize for CubicExtField<P> {
+    #[inline]
+    fn serialize<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
+        self.serialize_with_flags(writer, EmptyFlags)
+    }
+
+    #[inline]
+    fn serialized_size(&self) -> usize {
+        self.serialized_size_with_flags::<EmptyFlags>()
+    }
+}
+
+impl<P: CubicExtParameters> CanonicalDeserializeWithFlags for CubicExtField<P> {
+    #[inline]
+    fn deserialize_with_flags<R: Read, F: Flags>(
+        mut reader: R,
+    ) -> Result<(Self, F), SerializationError> {
+        let c0 = CanonicalDeserialize::deserialize(&mut reader)?;
+        let c1 = CanonicalDeserialize::deserialize(&mut reader)?;
+        let (c2, flags) = CanonicalDeserializeWithFlags::deserialize_with_flags(&mut reader)?;
+        Ok((CubicExtField::new(c0, c1, c2), flags))
+    }
+}
+
+impl<P: CubicExtParameters> CanonicalDeserialize for CubicExtField<P> {
+    #[inline]
+    fn deserialize<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+        let c0: P::BaseField = CanonicalDeserialize::deserialize(&mut reader)?;
+        let c1: P::BaseField = CanonicalDeserialize::deserialize(&mut reader)?;
+        let c2: P::BaseField = CanonicalDeserialize::deserialize(&mut reader)?;
         Ok(CubicExtField::new(c0, c1, c2))
     }
 }

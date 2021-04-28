@@ -35,6 +35,7 @@ use crate::darlin::{
     data_structures::*,
     pcd::{
         PCD, PCDCircuit,
+        simple_marlin::MarlinProof,
         final_darlin::{FinalDarlinPCD, FinalDarlinPCDVerifierKey}
     },
     error::FinalDarlinError,
@@ -46,8 +47,8 @@ use std::marker::PhantomData;
 
 /// FinalDarlin proof system. It is simply a (coboundary) Marlin SNARK of a dedicated
 /// recursive `PCDCircuit`.
-type FinalDarlinProverKey<F, PC> = MarlinProverKey<F, PC>;
-type FinalDarlinVerifierKey<F, PC> = MarlinVerifierKey<F, PC>;
+pub type FinalDarlinProverKey<F, PC> = MarlinProverKey<F, PC>;
+pub type FinalDarlinVerifierKey<F, PC> = MarlinVerifierKey<F, PC>;
 
 // A final Darlin in G1, and the previous node in G2.
 pub struct FinalDarlin<'a, G1: AffineCurve, G2: AffineCurve, D: Digest>(
@@ -142,7 +143,7 @@ impl<'a, G1, G2, D>FinalDarlin<'a, G1, G2, D>
             index_pk, pc_pk, c, zk, zk_rng
         )?;
 
-        let proof = FinalDarlinProof::<G1, G2, D> { proof, deferred: sys_ins };
+        let proof = FinalDarlinProof::<G1, G2, D> { proof: MarlinProof(proof), deferred: sys_ins };
         let usr_ins = usr_ins
             .to_field_elements()
             .map_err(|_| FinalDarlinError::Other("Failed to convert usr ins to field elements".to_owned()))?;

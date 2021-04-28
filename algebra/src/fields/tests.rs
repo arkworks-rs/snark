@@ -1,9 +1,7 @@
-use crate::{
-    fields::{Field, LegendreSymbol, PrimeField, SquareRootField},
-    ToBytes, to_bytes,
-};
-use rand::{Rng, SeedableRng};
+use crate::{fields::{Field, LegendreSymbol, PrimeField, SquareRootField}, ToBytes, to_bytes, Flags, CanonicalSerialize, CanonicalDeserialize, SWFlags};
+use rand::{Rng, SeedableRng, thread_rng};
 use rand_xorshift::XorShiftRng;
+use std::io::Cursor;
 
 pub const ITERATIONS: u32 = 40;
 
@@ -201,6 +199,88 @@ fn random_serialization_tests<F: Field, R: Rng>(rng: &mut R) {
     }
 }
 
+fn field_canonical_serialization_test<F: Field>(buf_size: usize) {
+    let rng = &mut thread_rng();
+
+    for _ in 0..ITERATIONS {
+        let a = F::rand(rng);
+        {
+            let mut serialized = vec![0u8; buf_size];
+            let mut cursor = Cursor::new(&mut serialized[..]);
+            CanonicalSerialize::serialize(&a, &mut cursor).unwrap();
+
+            let mut cursor = Cursor::new(&serialized[..]);
+            let b = <F as CanonicalDeserialize>::deserialize(&mut cursor).unwrap();
+            assert_eq!(a, b);
+        }
+
+        {
+            let mut serialized = vec![0u8; a.uncompressed_size()];
+            let mut cursor = Cursor::new(&mut serialized[..]);
+            a.serialize_uncompressed(&mut cursor).unwrap();
+
+            let mut cursor = Cursor::new(&serialized[..]);
+            let b = F::deserialize_uncompressed(&mut cursor).unwrap();
+            assert_eq!(a, b);
+        }
+
+        {
+            let mut serialized = vec![0u8; buf_size + 1];
+            let mut cursor = Cursor::new(&mut serialized[..]);
+            a.serialize_with_flags(&mut cursor, SWFlags::from_y_sign(true))
+                .unwrap();
+            let mut cursor = Cursor::new(&serialized[..]);
+            let (b, flags) = F::deserialize_with_flags::<_, SWFlags>(&mut cursor).unwrap();
+            assert_eq!(flags.is_positive(), Some(true));
+            assert!(!flags.is_infinity());
+            assert_eq!(a, b);
+        }
+
+        #[derive(Default, Clone, Copy, Debug)]
+        struct DummyFlags;
+        impl Flags for DummyFlags {
+            const BIT_SIZE: usize = 200;
+
+            fn u8_bitmask(&self) -> u8 {
+                0
+            }
+
+            fn from_u8(_value: u8) -> Option<Self> {
+                Some(DummyFlags)
+            }
+        }
+
+        use crate::serialize::SerializationError;
+        {
+            let mut serialized = vec![0; buf_size];
+            assert!(if let SerializationError::NotEnoughSpace = a
+                .serialize_with_flags(&mut &mut serialized[..], DummyFlags)
+                .unwrap_err()
+            {
+                true
+            } else {
+                false
+            });
+            assert!(if let SerializationError::NotEnoughSpace =
+            F::deserialize_with_flags::<_, DummyFlags>(&mut &serialized[..]).unwrap_err()
+            {
+                true
+            } else {
+                false
+            });
+        }
+
+        {
+            let mut serialized = vec![0; buf_size - 1];
+            let mut cursor = Cursor::new(&mut serialized[..]);
+            CanonicalSerialize::serialize(&a, &mut cursor).unwrap_err();
+
+            let mut cursor = Cursor::new(&serialized[..]);
+            <F as CanonicalDeserialize>::deserialize(&mut cursor).unwrap_err();
+        }
+    }
+}
+
 fn random_field_tests<F: Field>() {
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
@@ -212,6 +292,7 @@ fn random_field_tests<F: Field>() {
     random_doubling_tests::<F, _>(&mut rng);
     random_squaring_tests::<F, _>(&mut rng);
     random_expansion_tests::<F, _>(&mut rng);
+    field_canonical_serialization_test::<F>(F::zero().serialized_size());
 
     assert!(F::zero().is_zero());
     {

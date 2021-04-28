@@ -1,8 +1,10 @@
-//! The proof data struct (and its components) of a final Darlin, i.e. last node of 
-//! our conversion/exiting chain. 
-use algebra::{AffineCurve, ToConstraintField, ToBits, ProjectiveCurve, UniformRand};
-use marlin::Proof as MarlinProof;
-use crate::darlin::accumulators::dlog::DLogItem;
+//! The proof data struct (and its components) of a final Darlin, i.e. last node of
+//! our conversion/exiting chain.
+use algebra::{AffineCurve, ToConstraintField, ToBits, ProjectiveCurve, UniformRand, serialize::*, SemanticallyValid};
+use crate::darlin::{
+    pcd::simple_marlin::MarlinProof,
+    accumulators::dlog::DLogItem
+};
 use poly_commit::ipa_pc::{
     SuccinctCheckPolynomial, InnerProductArgPC,
     CommitterKey as DLogCommitterKey, Commitment,
@@ -11,16 +13,23 @@ use digest::Digest;
 use rand::RngCore;
 
 /// The `FinalDarlinDeferredData`, assuming that the final node is in G1.
-/// This node serves an ordinary Marlin proof plus the dlog accumulators 
+/// This node serves an ordinary Marlin proof plus the dlog accumulators
 /// passed from the previous two nodes of the conversion chain.
-/// Note: Later the struct could include more elements as we might want to defer 
+/// Note: Later the struct could include more elements as we might want to defer
 /// addional algebraic checks over G1::BaseField.
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, Eq, PartialEq, CanonicalSerialize, CanonicalDeserialize)]
 pub struct FinalDarlinDeferredData<G1: AffineCurve, G2: AffineCurve> {
     // the dlog accumulator from the previous node, a Rainbow-Marlin node in G2
     pub(crate) previous_acc:       DLogItem<G2>,
     // the dlog accumulator from the pre-previous node, a Rainbow-Marlin node in G1
     pub(crate) pre_previous_acc:   DLogItem<G1>,
+}
+
+impl<G1: AffineCurve, G2: AffineCurve> SemanticallyValid for FinalDarlinDeferredData<G1, G2>
+{
+    fn is_valid(&self) -> bool {
+        self.previous_acc.is_valid() && self.pre_previous_acc.is_valid()
+    }
 }
 
 impl<G1, G2> FinalDarlinDeferredData<G1, G2>
@@ -131,12 +140,20 @@ impl<G1, G2> ToConstraintField<G1::ScalarField> for FinalDarlinDeferredData<G1, 
 }
 
 #[derive(Derivative)]
-#[derivative(Clone(bound = ""))]
-/// A FinalDarlinProof has two dlog accumulators, one from the previous, and on from the 
+#[derivative(Clone(bound = ""), Debug(bound = ""), Eq(bound = ""), PartialEq(bound = ""))]
+#[derive(CanonicalSerialize, CanonicalDeserialize)]
+/// A FinalDarlinProof has two dlog accumulators, one from the previous, and on from the
 /// pre-previous node of the conversion chain.
 pub struct FinalDarlinProof<G1: AffineCurve, G2: AffineCurve, D: Digest> {
     /// Full Marlin proof without deferred arithmetics in G1.
-    pub proof:       MarlinProof<G1::ScalarField, InnerProductArgPC<G1, D>>,
+    pub proof:       MarlinProof<G1, D>,
     /// Deferred accumulators
     pub deferred:    FinalDarlinDeferredData<G1, G2>,
+}
+
+impl<G1: AffineCurve, G2: AffineCurve, D: Digest> SemanticallyValid for FinalDarlinProof<G1, G2, D>
+{
+    fn is_valid(&self) -> bool {
+        self.proof.is_valid() && self.deferred.is_valid()
+    }
 }

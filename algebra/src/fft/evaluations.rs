@@ -1,15 +1,36 @@
 //! A polynomial represented in evaluations form.
 
 use std::ops::{Add, Sub, Mul, Div, AddAssign, SubAssign, MulAssign, DivAssign};
-use crate::{PrimeField, ToBytes, FromBytes};
+use crate::{PrimeField, serialize::*};
 use crate::{DensePolynomial, EvaluationDomain, get_best_evaluation_domain};
 
 /// Stores a polynomial in evaluation form.
+#[derive(Debug)]
 pub struct Evaluations<F: PrimeField> {
     /// The evaluations of a polynomial over the domain `D`
     pub evals: Vec<F>,
     /// Evaluation domain
     pub domain: Box<dyn EvaluationDomain<F>>,
+}
+
+impl<F: PrimeField> CanonicalSerialize for Evaluations<F> {
+    fn serialize<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
+        CanonicalSerialize::serialize(&self.evals, writer)
+    }
+
+    fn serialized_size(&self) -> usize {
+        self.evals.serialized_size()
+    }
+}
+
+impl<F: PrimeField> CanonicalDeserialize for Evaluations<F> {
+    fn deserialize<R: Read>(reader: R) -> Result<Self, SerializationError> {
+        let evals: Vec<F> = CanonicalDeserialize::deserialize(reader)?;
+        let domain = get_best_evaluation_domain::<F>(evals.len())
+            .ok_or(SerializationError::InvalidData)?;
+
+        Ok(Self { evals, domain})
+    }
 }
 
 impl<F: PrimeField> Evaluations<F> {
@@ -31,37 +52,6 @@ impl<F: PrimeField> Evaluations<F> {
         let Self { mut evals, domain } = self;
         domain.ifft_in_place(&mut evals);
         DensePolynomial::from_coefficients_vec(evals)
-    }
-}
-
-impl<F: PrimeField> ToBytes for Evaluations<F>
-{
-    fn write<W: std::io::Write>(&self, mut w: W) -> std::io::Result<()> {
-        (self.evals.len() as u64).write(&mut w)?;
-        for e in self.evals.iter() {
-            e.write(&mut w)?;
-        }
-        Ok(())
-    }
-}
-
-impl<F: PrimeField> FromBytes for Evaluations<F>
-{
-    #[inline]
-    fn read<Read: std::io::Read>(mut reader: Read) -> std::io::Result<Evaluations<F>> {
-        let evals_count = u64::read(&mut reader)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-        let mut evals = vec![];
-        for _ in 0..evals_count {
-            let eval = F::read(&mut reader)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-            evals.push(eval);
-        }
-        let domain = get_best_evaluation_domain::<F>(evals.len()).unwrap();
-        Ok(Evaluations::<F> {
-            evals,
-            domain
-        })
     }
 }
 

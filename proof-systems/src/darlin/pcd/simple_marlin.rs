@@ -1,10 +1,7 @@
 //! Simple Marlin "proof carrying data". This corresponds to non-recursive applications.
-use algebra::AffineCurve;
+use algebra::{AffineCurve, SemanticallyValid, serialize::*};
 use digest::Digest;
-use marlin::{
-    VerifierKey as MarlinVerifierKey,
-    Proof as MarlinProof, Marlin
-};
+use marlin::{VerifierKey as MarlinVerifierKey, Proof, Marlin, AHPForR1CS};
 use poly_commit::{
     ipa_pc::{
         InnerProductArgPC, VerifierKey as DLogVerifierKey
@@ -18,12 +15,58 @@ use crate::darlin::{
     },
 };
 use poly_commit::ipa_pc::Commitment;
+use std::ops::Deref;
 use std::marker::PhantomData;
+
+#[derive(Derivative)]
+#[derivative(Clone(bound = ""), Debug(bound = ""), Eq(bound = ""), PartialEq(bound = ""))]
+#[derive(CanonicalSerialize, CanonicalDeserialize)]
+pub struct MarlinProof<G: AffineCurve, D: Digest>(pub Proof<G::ScalarField, InnerProductArgPC<G, D>>);
+
+impl<G: AffineCurve, D: Digest> Deref for MarlinProof<G, D> {
+    type Target = Proof<G::ScalarField, InnerProductArgPC<G, D>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<G: AffineCurve, D: Digest> SemanticallyValid for MarlinProof<G, D> {
+    fn is_valid(&self) -> bool {
+        // Check commitments number and validity
+        let num_rounds = 3;
+        let comms_per_round = vec![3, 3, 2];
+
+        // Check commitments are grouped into correct num_rounds
+        if self.commitments.len() != num_rounds { return false };
+
+        // Check that each round has the expected number of commitments
+        for i in 0..comms_per_round.len() {
+            if self.commitments[i].len() != comms_per_round[i] { return false };
+        }
+
+        // Check evaluations num
+        let num_polys = AHPForR1CS::<G::ScalarField>::PROVER_POLYNOMIALS.len() +
+            AHPForR1CS::<G::ScalarField>::INDEXER_POLYNOMIALS.len();
+        let evaluations_num = num_polys + 2;
+
+        self.commitments.is_valid() &&  // Check that each commitment is valid
+            self.evaluations.len() == evaluations_num && // Check correct number of evaluations
+            self.evaluations.is_valid() && // Check validity of each evaluation
+            self.prover_messages.len() == num_rounds &&// Check correct number of prover messages
+            self.prover_messages.is_valid() && // Check prover messages are valid
+            // Check opening proof
+            self.pc_proof.proof.is_valid() &&
+            self.pc_proof.batch_commitment.is_valid() &&
+            self.pc_proof.batch_values.len() == num_polys &&
+            self.pc_proof.batch_values.iter().all(|(_, v)| v.is_valid())
+    }
+}
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""))]
 pub struct SimpleMarlinPCD<'a, G: AffineCurve, D: Digest> {
-    pub proof:                     MarlinProof<G::ScalarField, InnerProductArgPC<G, D>>,
+    pub proof:                     MarlinProof<G, D>,
     pub usr_ins:                   Vec<G::ScalarField>,
     _lifetime:                     PhantomData<&'a ()>,
 }
@@ -36,7 +79,7 @@ impl<'a, G, D> SimpleMarlinPCD<'a, G, D>
 {
     pub fn new(
         // A normal (coboundary) Marlin proof
-        proof:   MarlinProof<G::ScalarField, InnerProductArgPC<G, D>>,
+        proof:   MarlinProof<G, D>,
         // The "statement" of the proof. Typically the full public inputs
         usr_ins: Vec<G::ScalarField>
     ) -> Self

@@ -1,6 +1,7 @@
 use crate::{curves::{
     mnt6753::{
-        G1Affine, G1Projective, G2Affine, G2Projective, MNT6
+        G1Affine, G1Projective, G2Affine, G2Projective, MNT6,
+        g1::MNT6G1Parameters, g2::MNT6G2Parameters,
     },
     tests::curve_tests,
     AffineCurve, PairingEngine,
@@ -8,10 +9,12 @@ use crate::{curves::{
 use rand;
 use std::ops::AddAssign;
 use crate::groups::tests::{compression_test, gt_compression_test};
+use crate::curves::tests::sw_projective_tests;
 
 #[test]
 fn test_g1_projective_curve() {
     curve_tests::<G1Projective>();
+    sw_projective_tests::<MNT6G1Parameters>()
 }
 
 #[test]
@@ -199,6 +202,7 @@ fn test_g1_compression_decompression() {
 #[test]
 fn test_g2_projective_curve() {
     curve_tests::<G2Projective>();
+    sw_projective_tests::<MNT6G2Parameters>()
 }
 
 #[test]

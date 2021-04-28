@@ -1,13 +1,15 @@
 use crate::{curves::{
-    mnt6::{G1Affine, G1Projective, G2Affine, G2Projective, MNT6},
+    mnt6::{G1Affine, G1Projective, G2Affine, G2Projective, MNT6, g1::MNT6G1Parameters, g2::MNT6G2Parameters},
     tests::curve_tests,
     AffineCurve, PairingEngine,
 }, fields::mnt6::fr::Fr, groups::tests::group_test, SemanticallyValid};
 use rand;
+use crate::curves::tests::sw_projective_tests;
 
 #[test]
 fn test_g1_projective_curve() {
     curve_tests::<G1Projective>();
+    sw_projective_tests::<MNT6G1Parameters>()
 }
 
 #[test]
@@ -26,6 +28,7 @@ fn test_g1_generator() {
 #[test]
 fn test_g2_projective_curve() {
     curve_tests::<G2Projective>();
+    sw_projective_tests::<MNT6G2Parameters>()
 }
 
 #[test]

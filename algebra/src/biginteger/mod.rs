@@ -1,7 +1,6 @@
 use crate::{
-    bytes::{FromBytes, ToBytes},
-    fields::BitIterator,
-    UniformRand,
+    bytes::{FromBytes, ToBytes}, fields::BitIterator,
+    UniformRand, CanonicalSerialize, CanonicalDeserialize, SerializationError
 };
 use rand::{Rng, distributions::{Distribution, Standard}};
 use std::{
@@ -31,6 +30,8 @@ pub trait BigInteger:
     + FromBytes
     + Serialize
     + for <'a> Deserialize<'a>
+    + CanonicalSerialize
+    + CanonicalDeserialize
     + Copy
     + Clone
     + Debug

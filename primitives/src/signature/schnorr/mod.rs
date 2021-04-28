@@ -121,7 +121,7 @@ impl<G: Group + Hash, D: Digest + Send + Sync> SignatureScheme for SchnorrSignat
 
             // Compute the supposed verifier response: e := H(salt || r || msg);
             if let Some(verifier_challenge) =
-            G::ScalarField::from_random_bytes(&D::digest(&hash_input))
+            <G::ScalarField as Field>::from_random_bytes(&D::digest(&hash_input))
             {
                 break (random_scalar, verifier_challenge);
             };
@@ -160,7 +160,7 @@ impl<G: Group + Hash, D: Digest + Send + Sync> SignatureScheme for SchnorrSignat
         hash_input.extend_from_slice(&message);
 
         let obtained_verifier_challenge = if let Some(obtained_verifier_challenge) =
-        G::ScalarField::from_random_bytes(&D::digest(&hash_input))
+        <G::ScalarField as Field>::from_random_bytes(&D::digest(&hash_input))
         {
             obtained_verifier_challenge
         } else {

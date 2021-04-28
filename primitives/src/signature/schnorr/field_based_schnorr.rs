@@ -1,5 +1,10 @@
 use crate::{crh::FieldBasedHash, signature::FieldBasedSignatureScheme, Error, compute_truncation_size};
-use algebra::{Field, PrimeField, Group, UniformRand, ProjectiveCurve, convert, leading_zeros, ToBits, ToConstraintField, ToBytes, FromBytes, SemanticallyValid, FromBytesChecked};
+use algebra::{
+    Field, PrimeField, Group, UniformRand, ProjectiveCurve,
+    convert, leading_zeros, ToBits, ToConstraintField, ToBytes,
+    FromBytes, SemanticallyValid, FromBytesChecked,
+    serialize::*,
+};
 use std::marker::PhantomData;
 use rand::Rng;
 use std::io::{Write, Read, Result as IoResult, Error as IoError, ErrorKind};
@@ -30,6 +35,7 @@ Debug(bound = "F: PrimeField, G: Group")
 #[derive(Serialize, Deserialize)]
 #[serde(bound(serialize = "F: PrimeField, G: Group"))]
 #[serde(bound(deserialize = "F: PrimeField, G: Group"))]
+#[derive(CanonicalSerialize, CanonicalDeserialize)]
 pub struct FieldBasedSchnorrSignature<F: PrimeField, G: Group> {
     pub e:    F,
     pub s:    F,
@@ -108,13 +114,13 @@ impl<F: PrimeField, G: Group> SemanticallyValid for FieldBasedSchnorrSignature<F
 
 #[derive(Derivative)]
 #[derivative(
-Copy(bound = "G: Group"),
-Clone(bound = "G: Group"),
-Default(bound = "G: Group"),
-Hash(bound = "G: Group"),
-Eq(bound = "G: Group"),
-PartialEq(bound = "G: Group"),
-Debug(bound = "G: Group"),
+    Copy(bound = "G: Group"),
+    Clone(bound = "G: Group"),
+    Default(bound = "G: Group"),
+    Hash(bound = "G: Group"),
+    Eq(bound = "G: Group"),
+    PartialEq(bound = "G: Group"),
+    Debug(bound = "G: Group"),
 )]
 #[derive(Serialize, Deserialize)]
 #[serde(bound(serialize = "G: Group"))]

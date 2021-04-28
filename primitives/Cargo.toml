@@ -20,7 +20,7 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "darlin", features = ["parallel"] }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "import_canonical_serialize_deserialize", features = ["parallel"] }
 bench-utils = { path = "../bench-utils" }
 
 digest = { version = "0.7", optional = true }
@@ -38,10 +38,10 @@ serde = { version = "1.0.117", features = ["derive"]}
 llvm_asm = ["algebra/llvm_asm"]
 
 commitment = ["digest", "blake2"]
-merkle_tree = []
+merkle_tree = ["algebra/derive"]
 prf = ["digest", "blake2"]
-signature = ["digest", "blake2"]
-vrf = []
+signature = ["digest", "blake2", "algebra/derive"]
+vrf = ["algebra/derive"]
 
 # For Poseidon CRH / Merkle Tree
 mnt4_753 = ["algebra/mnt4_753"]
@@ -50,7 +50,7 @@ bn_382 = ["algebra/bn_382"]
 tweedle = ["algebra/tweedle"]
 
 [dev-dependencies]
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "darlin", features = ["edwards_sw6", "jubjub", "sw6", "bls12_377"] }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "import_canonical_serialize_deserialize", features = ["edwards_sw6", "jubjub", "sw6", "bls12_377"] }
 primitives = { path = "../primitives", features = ["mnt4_753", "mnt6_753", "bn_382", "tweedle"] }
 
 criterion = "0.3.2"

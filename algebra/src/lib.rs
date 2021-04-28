@@ -11,6 +11,11 @@
 #[macro_use]
 extern crate derivative;
 
+#[cfg(feature = "derive")]
+#[allow(unused_imports)]
+#[macro_use]
+extern crate algebra_derive;
+
 #[cfg_attr(test, macro_use)]
 pub mod bytes;
 pub use self::bytes::*;
@@ -30,6 +35,10 @@ pub use self::fields::*;
 
 pub mod groups;
 pub use self::groups::*;
+
+#[macro_use]
+pub mod serialize;
+pub use self::serialize::*;
 
 pub mod validity;
 pub use self::validity::*;

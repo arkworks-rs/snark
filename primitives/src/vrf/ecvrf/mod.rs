@@ -1,6 +1,6 @@
 use algebra::{Field, PrimeField, convert, leading_zeros, Group, AffineCurve,
               ProjectiveCurve, ToBytes, to_bytes, ToBits, UniformRand, ToConstraintField, FromBytes,
-              FromBytesChecked, SemanticallyValid
+              FromBytesChecked, SemanticallyValid, serialize::*,
 };
 use crate::{crh::{
     FieldBasedHash, FixedLengthCRH,
@@ -36,6 +36,7 @@ Debug(bound = "F: PrimeField, G: ProjectiveCurve")
 #[derive(Serialize, Deserialize)]
 #[serde(bound(serialize = "F: PrimeField, G: ProjectiveCurve"))]
 #[serde(bound(deserialize = "F: PrimeField, G: ProjectiveCurve"))]
+#[derive(CanonicalSerialize, CanonicalDeserialize)]
 pub struct FieldBasedEcVrfProof<F: PrimeField, G: ProjectiveCurve> {
     pub gamma:  G,
     pub c:      F,

@@ -22,11 +22,12 @@ build = "build.rs"
 ################################# Dependencies ################################
 
 [dependencies]
-bench-utils = { path = "../bench-utils", optional = true }
+algebra-derive = { path = "algebra-derive", optional = true }
 
+bench-utils = { path = "../bench-utils", optional = true }
 byteorder = { version = "1" }
 rand = { version = "0.7" }
-derivative = { version = "2" }
+derivative = { version = "2", features = ["use_core"] }
 
 colored = { version = "1", optional = true }
 rayon = { version = "1", optional = true }
@@ -41,13 +42,14 @@ blake2 = "0.7"
 rand_xorshift = { version = "0.2" }
 paste = "1.0"
 criterion = "0.3"
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "darlin", features = ["full"] }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "import_canonical_serialize_deserialize", features = ["full"] }
 
 [features]
 parallel = [ "rayon" ]
-fft = ["rayon"]
+fft = ["rayon", "derive"]
 n_fold = []
 llvm_asm = []
+derive = ["algebra-derive"]
 
 bls12_377 = []
 bls12_381 = []
