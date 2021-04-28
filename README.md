@@ -130,6 +130,7 @@ One example of such errors is in crate `proof-systems`: it depends both on `alge
 error[E0308]: mismatched types [...] note: perhaps two different versions of crate `algebra` are being used?
 ```
 By specifying in all the crates the dependency on `algebra` in Git form, we ensure that all the crates will take the same version; however, if during development `algebra` crate is modified, we would be forced to push the changes to Git first before seeing them applied in local. For this reason, in the root `Cargo.toml`, we pushed instructions allowing to override Git dependencies with (local) path dependencies; unfortunately, this will require to store locally all the crates involved in the cross-dependency issue and to  comment/uncomment these lines (if needed) before/after pushing changes.
+We are considering to restructure the involved repositories to avoid this issue.
 
 ## Contributing
 

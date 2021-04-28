@@ -71,6 +71,9 @@ impl<
 
             // Add the round constants to the state vector
             for d in state.iter_mut() {
+                // Temporary workaround: hardcoding the round constant and using it
+                // in the following add() constraint, instead of using add_constant(),
+                // helps reducing the R1CS density a little.
                 let rc = FpGadget::<ConstraintF>::from_value(
                     cs.ns(|| format!("hardcode round constant {}", round_cst_idx)),
                     &P::ROUND_CST[round_cst_idx]
@@ -94,6 +97,9 @@ impl<
 
             // Add the round constants to the state vector
             for d in state.iter_mut() {
+                // Temporary workaround: hardcoding the round constant and using it
+                // in the following add() constraint, instead of using add_constant(),
+                // helps reducing the R1CS density a little.
                 let rc = FpGadget::<ConstraintF>::from_value(
                     cs.ns(|| format!("hardcode round constant {}", round_cst_idx)),
                     &P::ROUND_CST[round_cst_idx]
@@ -117,6 +123,9 @@ impl<
 
             // Add the round constants to the state vector
             for d in state.iter_mut() {
+                // Temporary workaround: hardcoding the round constant and using it
+                // in the following add() constraint, instead of using add_constant(),
+                // helps reducing the R1CS density a little.
                 let rc = FpGadget::<ConstraintF>::from_value(
                     cs.ns(|| format!("hardcode round constant {}", round_cst_idx)),
                     &P::ROUND_CST[round_cst_idx]

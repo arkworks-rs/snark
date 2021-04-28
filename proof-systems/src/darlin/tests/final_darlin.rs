@@ -1,4 +1,4 @@
-//! A test circuit which, besides processing incremental data according to 
+//! A test circuit which, besides processing additional data according to
 //! a simple quadratic relation, allocates a given instance of `FinalDarlinDeferredData`,
 //! and wires it to the outside via system inputs.
 use algebra::{AffineCurve, ToConstraintField, UniformRand};
@@ -24,7 +24,6 @@ use r1cs_std::{
     fields::fp::FpGadget,
     eq::EqGadget,
 };
-use std::ops::MulAssign;
 
 // Dummy Acc used for testing
 pub struct TestAcc {}
@@ -72,8 +71,12 @@ impl AsRef<()> for TestPCDVk
     fn as_ref(&self) -> &() { &() }
 }
 
-/// For test purpose only: The previous PCD is just a valid instance of FinalDarlinDeferredData.
-pub struct TestPrevPCD<G1: AffineCurve, G2: AffineCurve>(FinalDarlinDeferredData<G1, G2>);
+/// For testing purposes, TestPrevPCD already serves correct sys_ins and usr_ins
+/// to the our test PCDCircuit.
+pub struct TestPrevPCD<G1: AffineCurve, G2: AffineCurve> {
+    sys_ins: FinalDarlinDeferredData<G1, G2>,
+    usr_ins: (G1::ScalarField, G1::ScalarField),
+}
 
 impl<G1, G2> PCD for TestPrevPCD<G1, G2>
     where
@@ -103,8 +106,9 @@ pub struct CircuitInfo<G1: AffineCurve, G2: AffineCurve> {
 
 /// This test circuit simply allocates `deferred`, i.e. a valid instance of FinalDarlinDeferredData,
 /// and wires it to the outside via system inputs.
-/// The user inputs are the field elements c, d, enforced to satisfy
-///     (c,d) = a*(b,b^2),
+/// The user inputs are the field elements c, d, used along the user inputs (c_prev, d_prev)
+/// of the previous proof in order to satisfy:
+///     (c,d) = (a * b - c_prev, a * b^2 - d_prev),
 /// using the prepared a,b. To produce the given `num_constraints`, the same two constraints
 ///     a * b = c
 ///     c * b = d
@@ -112,15 +116,25 @@ pub struct CircuitInfo<G1: AffineCurve, G2: AffineCurve> {
 /// dummy witness variables are allocated.
 #[derive(Clone, Default)]
 pub struct TestCircuit<G1: AffineCurve, G2: AffineCurve> {
+
+    /// Incremental data (to be allocated as witnesses)
     pub a: Option<G1::ScalarField>,
     pub b: Option<G1::ScalarField>,
+
+    /// Previous user inputs (to be allocated as witnesses)
+    pub c_prev: Option<G1::ScalarField>,
+    pub d_prev: Option<G1::ScalarField>,
+
+    /// Actual user inputs (to be allocated as public inputs)
     pub c: Option<G1::ScalarField>,
     pub d: Option<G1::ScalarField>,
+
+    // System inputs (i.e previous accumulators, to be allocated as public inputs)
+    pub deferred: FinalDarlinDeferredData<G1, G2>,
+
+    /// Setup data
     pub num_constraints: usize,
     pub num_variables: usize,
-
-    // Deferred elements (sys ins)
-    pub deferred: FinalDarlinDeferredData<G1, G2>,
 }
 
 impl<G1, G2> ConstraintSynthesizer<G1::ScalarField> for TestCircuit<G1, G2>
@@ -173,6 +187,8 @@ impl<G1, G2> ConstraintSynthesizer<G1::ScalarField> for TestCircuit<G1, G2>
 
         let a = cs.alloc(|| "a", || self.a.ok_or(SynthesisError::AssignmentMissing))?;
         let b = cs.alloc(|| "b", || self.b.ok_or(SynthesisError::AssignmentMissing))?;
+        let c_prev = cs.alloc(|| "c_prev", || self.c_prev.ok_or(SynthesisError::AssignmentMissing))?;
+        let d_prev = cs.alloc(|| "d_prev", || self.d_prev.ok_or(SynthesisError::AssignmentMissing))?;
         let c = cs.alloc_input(
             || "c",
             || self.c.ok_or(SynthesisError::AssignmentMissing)
@@ -182,7 +198,7 @@ impl<G1, G2> ConstraintSynthesizer<G1::ScalarField> for TestCircuit<G1, G2>
             || self.d.ok_or(SynthesisError::AssignmentMissing)
         )?;
 
-        for i in 0..(self.num_variables - 5 - (2 * deferred_len)) {
+        for i in 0..(self.num_variables - 7 - (2 * deferred_len)) {
             let _ = cs.alloc(
                 || format!("var {}", i),
                 || self.a.ok_or(SynthesisError::AssignmentMissing),
@@ -194,14 +210,14 @@ impl<G1, G2> ConstraintSynthesizer<G1::ScalarField> for TestCircuit<G1, G2>
                 || format!("constraint {}", i),
                 |lc| lc + a,
                 |lc| lc + b,
-                |lc| lc + c,
+                |lc| lc + c_prev + c,
             );
         }
         cs.enforce(
             || format!("constraint {}", self.num_constraints - 1),
             |lc| lc + c,
             |lc| lc + b,
-            |lc| lc + d,
+            |lc| lc + d_prev + d,
         );
 
         Ok(())
@@ -214,7 +230,7 @@ impl<G1, G2> PCDCircuit<G1> for TestCircuit<G1, G2>
         G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
 {
     type SetupData       =  CircuitInfo<G1, G2>;
-    type IncrementalData =  (G1::ScalarField, G1::ScalarField);
+    type AdditionalData =  (G1::ScalarField, G1::ScalarField);
     type SystemInputs    =  FinalDarlinDeferredData<G1, G2>;
     type PreviousPCD     =  TestPrevPCD<G1, G2>;
 
@@ -222,6 +238,8 @@ impl<G1, G2> PCDCircuit<G1> for TestCircuit<G1, G2>
         Self {
             a: None,
             b: None,
+            c_prev: None,
+            d_prev: None,
             c: None,
             d: None,
             num_constraints: config.num_constraints,
@@ -234,27 +252,29 @@ impl<G1, G2> PCDCircuit<G1> for TestCircuit<G1, G2>
         config:               Self::SetupData,
         previous_proofs_data: Vec<Self::PreviousPCD>,
         _previous_proofs_vks: Vec<<Self::PreviousPCD as PCD>::PCDVerifierKey>,
-        incremental_data:     Self::IncrementalData
+        additional_data:     Self::AdditionalData
     ) -> Self
     {
         assert_eq!(previous_proofs_data.len(), 1);
 
-        let a = incremental_data.0;
-        let b = incremental_data.1;
+        let a = additional_data.0;
+        let b = additional_data.1;
+        let c_prev = previous_proofs_data[0].usr_ins.0;
+        let d_prev = previous_proofs_data[0].usr_ins.1;
 
-        let mut c = a;
-        c.mul_assign(&b);
-        let mut d = c;
-        d.mul_assign(&b);
+        let c = (a * &b) - &c_prev;
+        let d = (c * &b) - &d_prev;
 
         Self {
             a: Some(a),
             b: Some(b),
+            c_prev: Some(c_prev),
+            d_prev: Some(d_prev),
             c: Some(c),
             d: Some(d),
             num_constraints: config.num_constraints,
             num_variables: config.num_variables,
-            deferred: previous_proofs_data[0].0.clone(),
+            deferred: previous_proofs_data[0].sys_ins.clone(),
         }
     }
 
@@ -271,7 +291,7 @@ impl<G1, G2> PCDCircuit<G1> for TestCircuit<G1, G2>
 
 /// Generates a FinalDarlinPCD from TestCircuit1, given an instance of 
 /// FinalDarlinDeferred as previous PCD (via CircuitInfo). 
-/// The incremental data a,b is sampled randomly.
+/// The additional data a,b is sampled randomly.
 #[allow(dead_code)]
 pub fn generate_test_pcd<'a, G1: AffineCurve, G2:AffineCurve, D: Digest + 'a, R: RngCore>(
     pc_ck_g1: &CommitterKey<G1>,
@@ -284,11 +304,15 @@ pub fn generate_test_pcd<'a, G1: AffineCurve, G2:AffineCurve, D: Digest + 'a, R:
         G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
         G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
 {
-    // as we have already generated a dummy deferred for CircuitInfo, let's
-    // just re-use it
-    let prev_pcds = vec![TestPrevPCD::<G1, G2>(info.dummy_deferred.clone())];
 
-    // our incremental data witnesses
+    let prev_pcd = TestPrevPCD::<G1, G2> {
+        // as we have already generated a dummy deferred for CircuitInfo, let's
+        // just re-use it
+        sys_ins: info.dummy_deferred.clone(),
+        usr_ins: (G1::ScalarField::rand(rng), G1::ScalarField::rand(rng))
+    };
+
+    // our additional data witnesses
     let a = G1::ScalarField::rand(rng);
     let b = G1::ScalarField::rand(rng);
 
@@ -296,7 +320,7 @@ pub fn generate_test_pcd<'a, G1: AffineCurve, G2:AffineCurve, D: Digest + 'a, R:
         final_darlin_pk,
         pc_ck_g1,
         info,
-        prev_pcds,
+        vec![prev_pcd],
         vec![],
         (a, b),
         zk,
