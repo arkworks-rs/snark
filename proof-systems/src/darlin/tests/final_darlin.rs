@@ -205,7 +205,7 @@ impl<G1, G2> ConstraintSynthesizer<G1::ScalarField> for TestCircuit<G1, G2>
             )?;
         }
 
-        for i in 0..(self.num_constraints - 2 - test_constraints){
+        for i in 0..(self.num_constraints - 1 - test_constraints){
             cs.enforce(
                 || format!("constraint {}", i),
                 |lc| lc + a,
@@ -214,7 +214,7 @@ impl<G1, G2> ConstraintSynthesizer<G1::ScalarField> for TestCircuit<G1, G2>
             );
         }
         cs.enforce(
-            || format!("constraint {}", self.num_constraints - 2),
+            || format!("constraint {}", self.num_constraints - 1),
             |lc| lc + c,
             |lc| lc + b,
             |lc| lc + d_prev + d,
