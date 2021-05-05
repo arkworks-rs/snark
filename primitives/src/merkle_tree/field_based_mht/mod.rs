@@ -75,7 +75,7 @@ pub trait FieldBasedMerkleTree: Clone {
 
     /// Append a new leaf to the Merkle Tree. The moment in which the root will be computed
     /// is transparent to the user and obeys to pre-defined internal policies.
-    fn append(&mut self, leaf: <Self::Parameters as FieldBasedMerkleTreeParameters>::Data) -> &mut Self;
+    fn append(&mut self, leaf: <Self::Parameters as FieldBasedMerkleTreeParameters>::Data) -> Result<&mut Self, Error>;
 
     /// Force the computation of the root whatever its internal state and return an updated copy
     /// of the Merkle Tree. This function is idempotent, i.e. calling it multiple times will give
@@ -125,18 +125,21 @@ pub trait FieldBasedMerkleTreePath:
     /// Return a new instance of the struct implementing this trait given the raw `path`
     fn new(path: Self::Path) -> Self;
 
+    /// Compute the root of a Merkle Tree starting from a Merkle Path for a given `leaf`
+    fn compute_root(&self, leaf: &<Self::H as FieldBasedHash>::Data) -> <Self::H as FieldBasedHash>::Data;
+
     /// Verify the Merkle Path for `leaf` given the `root` of a Merkle Tree with height `height`.
     fn verify(
         &self,
         height: usize,
         leaf: &<Self::H as FieldBasedHash>::Data,
-        root: &<Self::H as FieldBasedHash>::Data
+        expected_root: &<Self::H as FieldBasedHash>::Data
     ) -> Result<bool, Error> {
         let path_len = self.get_length();
         if path_len != height {
             Err(MerkleTreeError::IncorrectPathLength(path_len, height))?
         }
-        self.verify_without_length_check(leaf, root)
+        Ok(self.verify_without_length_check(leaf, expected_root))
     }
 
     /// Verify the Merkle Path for `leaf` given the `root` of a Merkle Tree. Doesn't check if the
@@ -145,8 +148,12 @@ pub trait FieldBasedMerkleTreePath:
     fn verify_without_length_check(
         &self,
         leaf: &<Self::H as FieldBasedHash>::Data,
-        root: &<Self::H as FieldBasedHash>::Data
-    ) -> Result<bool, Error>;
+        expected_root: &<Self::H as FieldBasedHash>::Data
+    ) -> bool
+    {
+        let actual_root = self.compute_root(leaf);
+        &actual_root == expected_root
+    }
 
     /// Returns the underlying raw path
     fn get_raw_path(&self) -> &Self::Path;

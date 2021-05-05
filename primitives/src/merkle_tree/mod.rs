@@ -235,6 +235,7 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
 
 #[derive(Debug)]
 pub enum MerkleTreeError {
+    MaximumLeavesReached(usize),
     IncorrectLeafIndex(usize),
     IncorrectPathLength(usize, usize),
 }
@@ -242,6 +243,7 @@ pub enum MerkleTreeError {
 impl std::fmt::Display for MerkleTreeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let msg = match self {
+            MerkleTreeError::MaximumLeavesReached(height) => format!("Reached maximum number of leaves for a tree of height {}", height),
             MerkleTreeError::IncorrectLeafIndex(index) => {
                 format!("incorrect leaf index: {}", index)
             },
