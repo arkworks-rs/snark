@@ -348,7 +348,7 @@ mod test {
         let mut tree = MNT4PoseidonMHT::init(TEST_HEIGHT, num_leaves);
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
         for _ in 0..num_leaves {
-            tree.append(MNT4753Fr::rand(&mut rng));
+            tree.append(MNT4753Fr::rand(&mut rng)).unwrap();
         }
         tree.finalize_in_place();
         assert_eq!(tree.root().unwrap(), root1, "Outputs of the Merkle trees for MNT4 do not match.");

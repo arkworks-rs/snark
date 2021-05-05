@@ -1,12 +1,13 @@
 use crate::Error;
 
 pub trait ToBits {
-    /// Serialize `self` into a bit vector.
+    /// Serialize `self` into a bit vector using a BigEndian bit order representation.
     fn write_bits(&self) -> Vec<bool>;
 }
 
 pub trait FromBits: Sized {
-    /// Reads `self` from `bits`
+    /// Reads `self` from `bits`, where `bits` are expected to be
+    /// in a BigEndian bit order representation.
     fn read_bits(bits: Vec<bool>) -> Result<Self, Error>;
 }
 
