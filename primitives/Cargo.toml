@@ -27,7 +27,7 @@ digest = { version = "0.7", optional = true }
 blake2 = { version = "0.7", optional = true }
 
 rand = { version = "0.7" }
-derivative = "1"
+derivative = "2.2.0"
 rayon = "1"
 hex = "0.4.0"
 
