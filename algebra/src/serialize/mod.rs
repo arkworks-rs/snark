@@ -286,7 +286,7 @@ impl<T: CanonicalSerialize> CanonicalSerialize for Vec<T> {
     }
 
     #[inline]
-    fn serialize_without_metadata<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
+    fn serialize_without_metadata<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
         self.as_slice().serialize_without_metadata(writer)
     }
 
@@ -518,9 +518,9 @@ impl<T: CanonicalSerialize> CanonicalSerialize for Option<T> {
     }
 
     #[inline]
-    fn serialize_without_metadata<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
+    fn serialize_without_metadata<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
         if self.is_some() {
-            self.serialize_without_metadata(writer)
+            self.serialize_without_metadata(writer)?;
         }
         Ok(())
     }
@@ -791,7 +791,7 @@ impl<T: CanonicalSerialize> CanonicalSerialize for BTreeSet<T> {
     #[inline]
     fn serialize_without_metadata<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
         for elem in self.iter() {
-            elem.serialize_without_metadata(writer)?;
+            elem.serialize_without_metadata(&mut writer)?;
         }
         Ok(())
     }

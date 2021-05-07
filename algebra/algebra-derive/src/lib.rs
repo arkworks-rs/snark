@@ -122,7 +122,7 @@ fn impl_canonical_serialize(ast: &syn::DeriveInput) -> TokenStream {
             }
 
             #[allow(unused_mut, unused_variables)]
-            fn serialize_uncompressed<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
+            fn serialize_without_metadata<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
                 #(#serialize_without_metadata_body)*
                 Ok(())
             }
