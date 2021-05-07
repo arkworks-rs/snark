@@ -69,6 +69,14 @@ pub trait CanonicalSerialize {
 
     fn serialized_size(&self) -> usize;
 
+    /// Like `serialize()`, but doesn't write (if present) any additional information
+    /// required to reconstruct `self` (e.g. the length of a container type).
+    /// For this reason, there isn't any deserialization counterpart function in
+    /// CanonicalDeserialize trait.
+    fn serialize_without_metadata<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
+        CanonicalSerialize::serialize(self, writer)
+    }
+
     /// Serializes `self` into `writer` without compression.
     #[inline]
     fn serialize_uncompressed<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
@@ -230,6 +238,14 @@ impl<T: CanonicalSerialize> CanonicalSerialize for [T] {
     }
 
     #[inline]
+    fn serialize_without_metadata<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
+        for item in self.iter() {
+            item.serialize_without_metadata(&mut writer)?;
+        }
+        Ok(())
+    }
+
+    #[inline]
     fn serialize_uncompressed<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
         let len = self.len() as u64;
         CanonicalSerialize::serialize(&len, &mut writer)?;
@@ -267,6 +283,11 @@ impl<T: CanonicalSerialize> CanonicalSerialize for Vec<T> {
     #[inline]
     fn serialized_size(&self) -> usize {
         self.as_slice().serialized_size()
+    }
+
+    #[inline]
+    fn serialize_without_metadata<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
+        self.as_slice().serialize_without_metadata(writer)
     }
 
     #[inline]
@@ -497,10 +518,28 @@ impl<T: CanonicalSerialize> CanonicalSerialize for Option<T> {
     }
 
     #[inline]
+    fn serialize_without_metadata<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
+        if self.is_some() {
+            self.serialize_without_metadata(writer)
+        }
+        Ok(())
+    }
+
+    #[inline]
     fn serialize_uncompressed<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
         self.is_some().serialize_uncompressed(&mut writer)?;
         if let Some(item) = self {
             item.serialize_uncompressed(&mut writer)?;
+        }
+
+        Ok(())
+    }
+
+    #[inline]
+    fn serialize_unchecked<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
+        self.is_some().serialize_unchecked(&mut writer)?;
+        if let Some(item) = self {
+            item.serialize_unchecked(&mut writer)?;
         }
 
         Ok(())
@@ -514,16 +553,6 @@ impl<T: CanonicalSerialize> CanonicalSerialize for Option<T> {
         } else {
             0
         }
-    }
-
-    #[inline]
-    fn serialize_unchecked<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
-        self.is_some().serialize_unchecked(&mut writer)?;
-        if let Some(item) = self {
-            item.serialize_unchecked(&mut writer)?;
-        }
-
-        Ok(())
     }
 }
 
@@ -665,6 +694,15 @@ impl<K, V> CanonicalSerialize for BTreeMap<K, V>
             .sum::<usize>()
     }
 
+    #[inline]
+    fn serialize_without_metadata<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
+        for (k, v) in self.iter() {
+            k.serialize_without_metadata(&mut writer)?;
+            v.serialize_without_metadata(&mut writer)?;
+        }
+        Ok(())
+    }
+
     fn serialize_uncompressed<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
         let len = self.len() as u64;
         len.serialize_uncompressed(&mut writer)?;
@@ -748,6 +786,14 @@ impl<T: CanonicalSerialize> CanonicalSerialize for BTreeSet<T> {
             .iter()
             .map(|elem| elem.serialized_size())
             .sum::<usize>()
+    }
+
+    #[inline]
+    fn serialize_without_metadata<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
+        for elem in self.iter() {
+            elem.serialize_without_metadata(writer)?;
+        }
+        Ok(())
     }
 
     fn serialize_uncompressed<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {

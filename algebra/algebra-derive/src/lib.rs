@@ -15,6 +15,7 @@ pub fn derive_canonical_serialize(input: proc_macro::TokenStream) -> proc_macro:
 fn impl_serialize_field(
     serialize_body: &mut Vec<TokenStream>,
     serialized_size_body: &mut Vec<TokenStream>,
+    serialize_without_metadata_body: &mut Vec<TokenStream>,
     serialize_uncompressed_body: &mut Vec<TokenStream>,
     serialize_unchecked_body: &mut Vec<TokenStream>,
     uncompressed_size_body: &mut Vec<TokenStream>,
@@ -30,6 +31,7 @@ fn impl_serialize_field(
                 impl_serialize_field(
                     serialize_body,
                     serialized_size_body,
+                    serialize_without_metadata_body,
                     serialize_uncompressed_body,
                     serialize_unchecked_body,
                     uncompressed_size_body,
@@ -44,6 +46,8 @@ fn impl_serialize_field(
                 .push(quote! { CanonicalSerialize::serialize(&self.#(#idents).*, &mut writer)?; });
             serialized_size_body
                 .push(quote! { size += CanonicalSerialize::serialized_size(&self.#(#idents).*); });
+            serialize_without_metadata_body
+                .push(quote! { CanonicalSerialize::serialize_without_metadata(&self.#(#idents).*, &mut writer)?; });
             serialize_uncompressed_body.push(
                 quote! { CanonicalSerialize::serialize_uncompressed(&self.#(#idents).*, &mut writer)?; },
             );
@@ -64,6 +68,7 @@ fn impl_canonical_serialize(ast: &syn::DeriveInput) -> TokenStream {
 
     let mut serialize_body = Vec::<TokenStream>::new();
     let mut serialized_size_body = Vec::<TokenStream>::new();
+    let mut serialize_without_metadata_body = Vec::<TokenStream>::new();
     let mut serialize_uncompressed_body = Vec::<TokenStream>::new();
     let mut serialize_unchecked_body = Vec::<TokenStream>::new();
     let mut uncompressed_size_body = Vec::<TokenStream>::new();
@@ -85,6 +90,7 @@ fn impl_canonical_serialize(ast: &syn::DeriveInput) -> TokenStream {
                 impl_serialize_field(
                     &mut serialize_body,
                     &mut serialized_size_body,
+                    &mut serialize_without_metadata_body,
                     &mut serialize_uncompressed_body,
                     &mut serialize_unchecked_body,
                     &mut uncompressed_size_body,
@@ -101,17 +107,26 @@ fn impl_canonical_serialize(ast: &syn::DeriveInput) -> TokenStream {
 
     let gen = quote! {
         impl #impl_generics CanonicalSerialize for #name #ty_generics #where_clause {
+
             #[allow(unused_mut, unused_variables)]
             fn serialize<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
                 #(#serialize_body)*
                 Ok(())
             }
+
             #[allow(unused_mut, unused_variables)]
             fn serialized_size(&self) -> usize {
                 let mut size = 0;
                 #(#serialized_size_body)*
                 size
             }
+
+            #[allow(unused_mut, unused_variables)]
+            fn serialize_uncompressed<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
+                #(#serialize_without_metadata_body)*
+                Ok(())
+            }
+
             #[allow(unused_mut, unused_variables)]
             fn serialize_uncompressed<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
                 #(#serialize_uncompressed_body)*
