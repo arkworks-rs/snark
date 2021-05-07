@@ -1,5 +1,5 @@
 use algebra::Field;
-use crate::{BatchFieldBasedMerkleTreeParameters, BatchFieldBasedHash, FieldBasedMerkleTree, FieldBasedMerkleTreePath, FieldBasedMHTPath, FieldBasedHash, FieldBasedHashParameters, check_precomputed_parameters};
+use crate::{Error, BatchFieldBasedMerkleTreeParameters, BatchFieldBasedHash, FieldBasedMerkleTree, FieldBasedMerkleTreePath, FieldBasedMHTPath, FieldBasedHash, FieldBasedHashParameters, check_precomputed_parameters, MerkleTreeError};
 use std::marker::PhantomData;
 
 /// An implementation of FieldBasedMerkleTree, optimized in time and memory,
@@ -196,7 +196,10 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBased
     type Parameters = T;
     type MerklePath = FieldBasedMHTPath<T>;
 
-    fn append(&mut self, leaf: T::Data) -> &mut Self {
+    fn append(&mut self, leaf: T::Data) -> Result<&mut Self, Error> {
+        if self.processed_pos[0] == self.final_pos[0] {
+            Err(MerkleTreeError::MaximumLeavesReached(self.height))?
+        }
         if self.new_elem_pos[0] < self.final_pos[0] {
             self.array_nodes[self.new_elem_pos[0]] = leaf;
             self.new_elem_pos[0] += 1;
@@ -209,7 +212,8 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBased
         if (self.new_elem_pos[0] - self.processed_pos[0]) >= self.processing_step {
             self.compute_subtree();
         }
-        self
+
+        Ok(self)
     }
 
     fn finalize(&self) -> Self {
@@ -381,9 +385,13 @@ mod test {
         let mut leaves = Vec::new();
         for _ in 0..num_leaves {
             let leaf = MNT4753Fr::rand(&mut rng);
-            tree.append(leaf.clone());
+            tree.append(leaf.clone()).unwrap();
             leaves.push(leaf);
         }
+
+        // Exceeding maximum leaves will result in an error
+        assert!(tree.append(MNT4753Fr::rand(&mut rng)).is_err());
+
         tree.finalize_in_place();
         naive_mt.append(leaves.as_slice()).unwrap();
 
@@ -425,9 +433,13 @@ mod test {
         let mut leaves = Vec::new();
         for _ in 0..num_leaves {
             let leaf = MNT6753Fr::rand(&mut rng);
-            tree.append(leaf.clone());
+            tree.append(leaf.clone()).unwrap();
             leaves.push(leaf);
         }
+
+        // Exceeding maximum leaves will result in an error
+        assert!(tree.append(MNT6753Fr::rand(&mut rng)).is_err());
+
         tree.finalize_in_place();
         naive_mt.append(leaves.as_slice()).unwrap();
 
@@ -462,7 +474,7 @@ mod test {
 
             // Push them in a Poseidon Merkle Tree and get the root
             let mut mt = MNT4PoseidonMHT::init(max_height, num_leaves);
-            leaves[0..num_leaves].iter().for_each(|&leaf| { mt.append(leaf); });
+            leaves[0..num_leaves].iter().for_each(|&leaf| { mt.append(leaf).unwrap(); });
             let root = mt.finalize_in_place().root().unwrap();
 
             assert_eq!(naive_root, root);
@@ -488,7 +500,7 @@ mod test {
 
             // Push them in a Poseidon Merkle Tree and get the root
             let mut mt = MNT4PoseidonMHT::init(max_height, num_leaves);
-            leaves[..].iter().for_each(|&leaf| { mt.append(leaf); });
+            leaves[..].iter().for_each(|&leaf| { mt.append(leaf).unwrap(); });
             let root = mt.finalize_in_place().root().unwrap();
 
             assert_eq!(naive_root, root);
@@ -517,7 +529,7 @@ mod test {
 
             // Push them in a Poseidon Merkle Tree and get the root
             let mut mt = MNT6PoseidonMHT::init(max_height, num_leaves);
-            leaves[..].iter().for_each(|&leaf| { mt.append(leaf); });
+            leaves[..].iter().for_each(|&leaf| { mt.append(leaf).unwrap(); });
             let root = mt.finalize_in_place().root().unwrap();
 
             assert_eq!(naive_root, root);
@@ -544,7 +556,7 @@ mod test {
 
             // Push them in a Poseidon Merkle Tree and get the root
             let mut mt = MNT6PoseidonMHT::init(max_height, num_leaves);
-            leaves[0..num_leaves].iter().for_each(|&leaf| { mt.append(leaf); });
+            leaves[0..num_leaves].iter().for_each(|&leaf| { mt.append(leaf).unwrap(); });
             let root = mt.finalize_in_place().root().unwrap();
 
             assert_eq!(naive_root, root);
@@ -563,7 +575,7 @@ mod test {
         // Generate random leaves, half of which empty
         for _ in 0..num_leaves/2 {
             let leaf = MNT4753Fr::rand(&mut rng);
-            tree.append(leaf);
+            tree.append(leaf).unwrap();
             leaves.push(leaf);
         }
         for _ in num_leaves/2..num_leaves {
@@ -637,7 +649,7 @@ mod test {
         // Generate random leaves
         for i in 0..num_leaves {
             let leaf = MNT4753Fr::rand(&mut rng);
-            tree.append(leaf);
+            tree.append(leaf).unwrap();
 
             let tree_copy = tree.finalize();
             let path = tree_copy.get_merkle_path(i).unwrap();
@@ -657,7 +669,7 @@ mod test {
         // Generate random leaves, half of which empty
         for _ in 0..num_leaves/2 {
             let leaf = MNT6753Fr::rand(&mut rng);
-            tree.append(leaf);
+            tree.append(leaf).unwrap();
             leaves.push(leaf);
         }
         for _ in num_leaves/2..num_leaves {
