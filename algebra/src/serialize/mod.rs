@@ -274,6 +274,38 @@ impl<T: CanonicalSerialize> CanonicalSerialize for [T] {
     }
 }
 
+impl<'a, T: 'a + CanonicalSerialize> CanonicalSerialize for &'a [T] {
+    #[inline]
+    fn serialize<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
+        CanonicalSerialize::serialize(*self, writer)
+    }
+
+    #[inline]
+    fn serialized_size(&self) -> usize {
+        (*self).serialized_size()
+    }
+
+    #[inline]
+    fn serialize_without_metadata<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
+        CanonicalSerialize::serialize_without_metadata(*self, writer)
+    }
+
+    #[inline]
+    fn serialize_uncompressed<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
+        CanonicalSerialize::serialize_uncompressed(*self, writer)
+    }
+
+    #[inline]
+    fn serialize_unchecked<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
+        CanonicalSerialize::serialize_unchecked(*self, writer)
+    }
+
+    #[inline]
+    fn uncompressed_size(&self) -> usize {
+        (*self).uncompressed_size()
+    }
+}
+
 impl<T: CanonicalSerialize> CanonicalSerialize for Vec<T> {
     #[inline]
     fn serialize<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
