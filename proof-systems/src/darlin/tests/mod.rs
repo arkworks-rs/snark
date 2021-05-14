@@ -38,7 +38,7 @@ mod test {
     use super::*;
     use algebra::{curves::tweedle::{
         dee::Affine as DeeAffine, dum::Affine as DumAffine,
-    }, UniformRand, ToConstraintField, serialize::test_canonical_serialize_deserialize, SemanticallyValid};
+    }, UniformRand, ToConstraintField, serialize::test_canonical_serialize_deserialize, SemanticallyValid, CanonicalSerialize};
     use marlin::VerifierKey as MarlinVerifierKey;
     use crate::darlin::{
         pcd::GeneralPCD,
@@ -468,5 +468,42 @@ mod test {
             &verifier_key_g2,
             rng
         );
+    }
+
+    #[test]
+    fn test_final_darlin_size() {
+
+        // Set params
+        let num_constraints = 1 << 19;
+        let segment_size = 1 << 17;
+
+        //Generate keys
+        let params_g1 = TestIPAPCDee::setup(segment_size - 1).unwrap();
+        let params_g2 = TestIPAPCDum::setup(segment_size - 1).unwrap();
+
+        let generation_rng = &mut thread_rng();
+
+        let (iteration_pcds, _) = generate_final_darlin_test_data::<_, _, Blake2s, _>(
+            num_constraints - 1,
+            segment_size,
+            &params_g1,
+            &params_g2,
+            1,
+            generation_rng
+        );
+
+        let proof = &iteration_pcds[0].final_darlin_proof;
+
+        test_canonical_serialize_deserialize(true, proof);
+
+        println!("{} - FinalDarlinProof", proof.serialized_size());
+        println!("-- {} - MarlinProof", proof.proof.serialized_size());
+        println!("-- {} - FinalDarlinDeferredData", proof.deferred.serialized_size());
+        println!("---- {} - DLogAccumulatorG1", proof.deferred.pre_previous_acc.serialized_size());
+        println!("------ {} - G_final", proof.deferred.pre_previous_acc.g_final.serialized_size());
+        println!("------ {} - xi_s", proof.deferred.pre_previous_acc.xi_s.serialized_size());
+        println!("---- {} - DLogAccumulatorG2", proof.deferred.previous_acc.serialized_size());
+        println!("------ {} - G_final", proof.deferred.previous_acc.g_final.serialized_size());
+        println!("------ {} - xi_s", proof.deferred.previous_acc.xi_s.serialized_size());
     }
 }
