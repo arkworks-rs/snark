@@ -34,7 +34,7 @@ rayon = { version = "1" }
 smallvec = { version = "0.6" }
 byteorder = { version = "1" }
 digest = { version = "0.8", optional = true }
-serde = { version = "1.0.117", features = ["derive"]}
+serde = { version = "=1.0.125", features = ["derive"]}
 derivative = { version = "1", optional = true }
 
 [dev-dependencies]
