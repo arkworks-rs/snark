@@ -22,7 +22,7 @@ license = "MIT/Apache-2.0"
 [dependencies]
 algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "development_asm" }
 r1cs-core = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "development_asm" }
-derivative = "1"
+derivative = "2.2.0"
 radix_trie = "0.1"
 
 [features]
