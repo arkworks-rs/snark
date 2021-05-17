@@ -35,7 +35,7 @@ smallvec = { version = "0.6" }
 byteorder = { version = "1" }
 digest = { version = "0.8", optional = true }
 serde = { version = "1.0.117", features = ["derive"]}
-derivative = { version = "1", optional = true }
+derivative = { version = "2.2.0", optional = true }
 
 [dev-dependencies]
 csv = { version = "1" }
