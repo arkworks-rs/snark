@@ -1,6 +1,9 @@
 //! The proof data struct (and its components) of a final Darlin, i.e. last node of
 //! our conversion/exiting chain.
-use algebra::{AffineCurve, ToConstraintField, ToBits, ProjectiveCurve, UniformRand, serialize::*, SemanticallyValid};
+use algebra::{
+    PrimeField, AffineCurve, ToConstraintField, ToBits,
+    ProjectiveCurve, UniformRand, serialize::*, SemanticallyValid
+};
 use crate::darlin::{
     pcd::simple_marlin::MarlinProof,
     accumulators::dlog::DLogItem
@@ -88,9 +91,10 @@ impl<G1, G2> ToConstraintField<G1::ScalarField> for FinalDarlinDeferredData<G1, 
         G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
         G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
 {
-    /// Conversion of the MarlinDeferredData to circuit inputs, which are elements 
-    /// over G1::ScalarField. 
+    /// Conversion of the MarlinDeferredData to circuit inputs, which are elements
+    /// over G1::ScalarField.
     fn to_field_elements(&self) -> Result<Vec<G1::ScalarField>, Box<dyn std::error::Error>> {
+        let to_skip = <G1::ScalarField as PrimeField>::size_in_bits() - 128;
         let mut fes = Vec::new();
 
         // Convert previous_acc into G1::ScalarField field elements (the circuit field,
@@ -107,9 +111,14 @@ impl<G1, G2> ToConstraintField<G1::ScalarField> for FinalDarlinDeferredData<G1, 
         // still secure).
         let mut xi_s_bits = Vec::new();
         for fe in self.previous_acc.xi_s.0.clone().into_iter() {
-            let mut bits = fe.write_bits();
-            bits.reverse();
-            xi_s_bits.extend_from_slice(&bits[..128]);
+            let bits = fe.write_bits();
+            // write_bits() outputs a Big Endian bit order representation of fe and the same
+            // expects [bool].to_field_elements(): therefore we need to take the last 128 bits,
+            // e.g. we need to skip the first MODULUS_BITS - 128 bits.
+            debug_assert!(
+                <[bool] as ToConstraintField<G2::ScalarField>>::to_field_elements(&bits[to_skip..]).unwrap()[0] == fe
+            );
+            xi_s_bits.extend_from_slice(&bits[to_skip..]);
         }
         fes.append(&mut xi_s_bits.to_field_elements()?);
 
@@ -127,16 +136,20 @@ impl<G1, G2> ToConstraintField<G1::ScalarField> for FinalDarlinDeferredData<G1, 
         }
         fes.append(&mut g_final_g1_bits.to_field_elements()?);
 
-        // Although the xi's of the pre-previous node are by default 128 bit elements from G1::ScalarField 
+        // Although the xi's of the pre-previous node are by default 128 bit elements from G1::ScalarField
         // (we do field arithmetics with them lateron) we do not want waste space.
-        // As for the xi's of the previous node, we serialize them all to bits and pack them into native 
+        // As for the xi's of the previous node, we serialize them all to bits and pack them into native
         // field elements as efficient as possible (yet secure).
         let mut xi_s_bits = Vec::new();
         for fe in self.pre_previous_acc.xi_s.0.clone().into_iter() {
-            let mut bits = fe.write_bits();
-            bits.reverse();
-            println!("{}", &bits[127]);
-            xi_s_bits.extend_from_slice(&bits[..128]);
+            let bits = fe.write_bits();
+            // write_bits() outputs a Big Endian bit order representation of fe and the same
+            // expects [bool].to_field_elements(): therefore we need to take the last 128 bits,
+            // e.g. we need to skip the first MODULUS_BITS - 128 bits.
+            debug_assert!(
+                <[bool] as ToConstraintField<G1::ScalarField>>::to_field_elements(&bits[to_skip..]).unwrap()[0] == fe
+            );
+            xi_s_bits.extend_from_slice(&bits[to_skip..]);
         }
         fes.append(&mut xi_s_bits.to_field_elements()?);
 
