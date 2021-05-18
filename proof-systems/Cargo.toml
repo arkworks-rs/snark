@@ -20,12 +20,12 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "development_tmp", features = [ "parallel", "fft"] }
-r1cs-core = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "development_tmp" }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "development_asm", features = [ "parallel", "fft"] }
+r1cs-core = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "development_asm" }
 bench-utils = { path = "../bench-utils" }
 
-marlin = { git = "https://github.com/HorizenLabs/marlin", branch = "dev", optional = true }
-poly-commit = { git = "https://github.com/HorizenLabs/poly-commit", branch = "dev", optional = true }
+marlin = { git = "https://github.com/HorizenLabs/marlin", branch = "optimizations_asm", optional = true }
+poly-commit = { git = "https://github.com/HorizenLabs/poly-commit", branch = "optimizations_asm", optional = true }
 
 r1cs-std = { path = "../r1cs/gadgets/std", optional = true }
 
@@ -35,7 +35,7 @@ smallvec = { version = "0.6" }
 byteorder = { version = "1" }
 digest = { version = "0.8", optional = true }
 serde = { version = "1.0.117", features = ["derive"]}
-derivative = { version = "1", optional = true }
+derivative = { version = "2.2.0", optional = true }
 
 [dev-dependencies]
 csv = { version = "1" }
@@ -43,7 +43,7 @@ criterion = "0.3"
 rand_xorshift = { version = "0.2" }
 blake2 = { version = "0.8", default-features = false }
 
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "development_tmp", features = ["full", "parallel", "fft"] }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "development_asm", features = ["full", "parallel", "fft"] }
 r1cs-crypto = { path = "../r1cs/gadgets/crypto", features = ["nizk"] }
 
 [features]
