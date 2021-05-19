@@ -96,7 +96,7 @@ pub enum SynthesisMode {
     /// Indicate to the `ConstraintSystem` that it should only generate
     /// constraint matrices and not populate the variable assignments.
     Setup,
-    /// Indicate to the `ConstraintSystem` that it should populate the witnessvariable
+    /// Indicate to the `ConstraintSystem` that it should populate the witness variable
     /// assignments. If additionally `construct_matrices == true`, then generate
     /// the matrices as in the `Setup` case.
     Prove {
