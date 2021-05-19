@@ -25,7 +25,7 @@ pub trait Relation {
     type Index: Eq;
     /// The instance is a "small" part of the triple. Like the index, it is publicly known.
     type Instance: Eq;
-    /// The instance is a "large" but private part of the triple.
+    /// The witness is a "large" but private part of the triple.
     type Witness: Eq;
 }
 
