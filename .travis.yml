@@ -1,6 +1,8 @@
 os: linux
 dist: focal
 language: generic
+vm:
+  size: large
 services:
   - docker
 
@@ -24,7 +26,7 @@ env:
     - DOCKER_ORG=zencash
     - IMAGE_NAME=sc-ci-base
 
-script: ci/script.sh
+script: travis_wait ci/script.sh
 
 jobs:
   include:
