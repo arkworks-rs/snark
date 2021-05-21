@@ -26,7 +26,9 @@ env:
     - DOCKER_ORG=zencash
     - IMAGE_NAME=sc-ci-base
 
-script: travis_wait ci/script.sh
+script: 
+  - ci/travis_keep_alive.sh
+  - ci/script.sh
 
 jobs:
   include:
