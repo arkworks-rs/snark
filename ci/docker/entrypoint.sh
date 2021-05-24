@@ -48,8 +48,14 @@ for target in $(tr "," "\n" <<< "${RUST_CROSS_TARGETS:-}"); do
 done
 
 rustup show
-
-echo -e "Username: $USERNAME, HOME: $HOME, UID: $CURRENT_UID, GID: $CURRENT_GID\n"
+cargo -vV
+echo
+lscpu
+echo
+free -h
+echo
+echo "Username: $USERNAME, HOME: $HOME, UID: $CURRENT_UID, GID: $CURRENT_GID"
+echo "CARGOARGS: ${CARGOARGS:-unset}, RUSTFLAGS: ${RUSTFLAGS:-unset}, RUST_CROSS_TARGETS: ${RUST_CROSS_TARGETS:-unset}, RUSTUP_TOOLCHAIN: ${RUSTUP_TOOLCHAIN:-unset}"
 
 # Fix ownership of everything in /build recursively
 chown -fR "$CURRENT_UID":"$CURRENT_GID" /build
