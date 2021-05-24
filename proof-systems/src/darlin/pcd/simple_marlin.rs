@@ -118,6 +118,7 @@ impl<'a, G, D> PCD for SimpleMarlinPCD<'a, G, D>
 
         // Verify the IOP/AHP 
         let (query_set, evaluations, labeled_comms, mut fs_rng) = Marlin::<G::ScalarField, InnerProductArgPC<G, D>, D>::verify_ahp(
+            &vk.1,
             &vk.0,
             self.usr_ins.as_slice(),
             &self.proof,

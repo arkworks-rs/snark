@@ -82,7 +82,7 @@ where
 
         // Verify sumchecks
         let (query_set, evaluations, labeled_comms, mut fs_rng)  = FinalDarlin::<G1, G2, D>::verify_ahp(
-            vk.final_darlin_vk, self.usr_ins.as_slice(), &self.final_darlin_proof
+            vk.dlog_vks.0, vk.final_darlin_vk, self.usr_ins.as_slice(), &self.final_darlin_proof
         ).map_err(|e| {
             end_timer!(succinct_time);
             PCDError::FailedSuccinctVerification(format!("{:?}", e))

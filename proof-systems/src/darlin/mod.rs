@@ -179,6 +179,7 @@ impl<'a, G1, G2, D>FinalDarlin<'a, G1, G2, D>
     /// Verifies only the IOP part of a `FinalDarlinProof`, i.e. a Marlin AHP 
     /// for the PCDCircuit with correctly combined system and user inputs.
     pub fn verify_ahp(
+        pc_vk:          &DLogVerifierKey<G1>,
         index_vk:       &FinalDarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>,
         usr_ins:        &[G1::ScalarField],
         proof:          &FinalDarlinProof<G1, G2, D>,
@@ -197,7 +198,7 @@ impl<'a, G1, G2, D>FinalDarlin<'a, G1, G2, D>
 
         // Verify AHP
         let res = Marlin::<G1::ScalarField, InnerProductArgPC<G1, D>, D>::verify_ahp(
-            index_vk, public_inputs.as_slice(), &proof.proof
+            pc_vk, index_vk, public_inputs.as_slice(), &proof.proof
         )?;
 
         Ok(res)
