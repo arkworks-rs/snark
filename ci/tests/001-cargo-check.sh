@@ -3,5 +3,7 @@
 
 set -xeo pipefail
 
-cargo $CARGOARGS check
-cargo $CARGOARGS check --all-features --tests
+retval=0
+cargo $CARGOARGS check || retval="$?"
+cargo $CARGOARGS check --all-features --tests || retval="$?"
+exit "$retval"
