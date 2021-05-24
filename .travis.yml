@@ -20,6 +20,8 @@ services:
 # RUSTUP_TOOLCHAIN another way to override the used Rust version, although CARGOARGS takes precedence, see:
 # https://rust-lang.github.io/rustup/overrides.html
 # RUSTFLAGS global rust compiler flags to set.
+# By default empty env vars like RUSTFLAGS='' are not passed through to the docker container,
+# if you want to pass empty vars set them to space like RUSTFLAGS=' '.
 
 env:
   global:
