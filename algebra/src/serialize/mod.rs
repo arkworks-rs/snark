@@ -171,6 +171,7 @@ impl_uint!(u8);
 impl_uint!(u16);
 impl_uint!(u32);
 impl_uint!(u64);
+impl_uint!(u128);
 
 // Serialize usize with 8 bytes
 impl CanonicalSerialize for usize {

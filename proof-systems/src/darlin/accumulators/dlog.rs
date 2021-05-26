@@ -21,13 +21,46 @@ use digest::Digest;
 use std::marker::PhantomData;
 
 /// This implements the public aggregator for the IPA/DLOG commitment scheme.
-#[derive(Clone, Debug, Eq, PartialEq, CanonicalSerialize, CanonicalDeserialize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DLogItem<G: AffineCurve> {
     /// Final committer key after the DLOG reduction.
     pub(crate) g_final:     Commitment<G>,
 
     /// Challenges of the DLOG reduction.
     pub(crate) xi_s:        SuccinctCheckPolynomial<G::ScalarField>,
+}
+
+impl<G: AffineCurve> CanonicalSerialize for DLogItem<G> {
+    fn serialize<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
+
+        // GFinal will always be 1 segment and without any shift
+        CanonicalSerialize::serialize(&self.g_final.comm[0], &mut writer)?;
+
+        CanonicalSerialize::serialize(&self.xi_s, &mut writer)
+    }
+
+    fn serialized_size(&self) -> usize {
+
+        self.g_final.comm[0].serialized_size() + self.xi_s.serialized_size()
+    }
+}
+
+impl<G: AffineCurve> CanonicalDeserialize for DLogItem<G> {
+    fn deserialize<R: Read>(mut reader: R) -> Result<Self, SerializationError>
+    {
+        // GFinal will always be 1 segment and without any shift
+        let g_final = Commitment {
+            comm: vec![CanonicalDeserialize::deserialize(&mut reader)?],
+            shifted_comm: None
+        };
+
+        let xi_s = CanonicalDeserialize::deserialize(&mut reader)?;
+
+        Ok(Self {
+            g_final,
+            xi_s
+        })
+    }
 }
 
 impl<G: AffineCurve> SemanticallyValid for DLogItem<G> {

@@ -38,7 +38,7 @@ mod test {
     use super::*;
     use algebra::{curves::tweedle::{
         dee::Affine as DeeAffine, dum::Affine as DumAffine,
-    }, UniformRand, ToConstraintField, serialize::test_canonical_serialize_deserialize, SemanticallyValid};
+    }, UniformRand, ToConstraintField, serialize::test_canonical_serialize_deserialize, SemanticallyValid, CanonicalSerialize, CanonicalDeserialize};
     use marlin::VerifierKey as MarlinVerifierKey;
     use crate::darlin::{
         pcd::GeneralPCD,
@@ -51,6 +51,9 @@ mod test {
     use blake2::Blake2s;
     use rand::{Rng, RngCore, SeedableRng, thread_rng};
     use rand_xorshift::XorShiftRng;
+    use std::path::Path;
+    use std::fs::File;
+    use crate::darlin::data_structures::FinalDarlinProof;
 
     /// Generic test for `accumulate_proofs` and `verify_aggregated_proofs`
     fn test_accumulation<G1: AffineCurve, G2: AffineCurve, D: Digest, R: RngCore>(
@@ -468,5 +471,66 @@ mod test {
             &verifier_key_g2,
             rng
         );
+    }
+
+    #[test]
+    fn test_final_darlin_size() {
+
+        // Set params
+        let num_constraints = 1 << 19;
+        let segment_size = 1 << 17;
+
+        //Generate keys
+        let params_g1 = TestIPAPCDee::setup(segment_size - 1).unwrap();
+        let params_g2 = TestIPAPCDum::setup(segment_size - 1).unwrap();
+
+        let generation_rng = &mut thread_rng();
+
+        let file_path = "./size_test_proof";
+        let proof;
+
+        if Path::new(file_path).exists() {
+
+            let fs = File::open(file_path).unwrap();
+            proof = FinalDarlinProof::deserialize(fs).unwrap();
+
+        } else {
+
+            let (iteration_pcds, _) = generate_final_darlin_test_data::<_, _, Blake2s, _>(
+                num_constraints - 1,
+                segment_size,
+                &params_g1,
+                &params_g2,
+                1,
+                generation_rng
+            );
+
+            proof = iteration_pcds[0].final_darlin_proof.clone();
+
+            let fs = File::create(file_path).unwrap();
+            proof.serialize(fs).unwrap();
+        }
+
+        test_canonical_serialize_deserialize(true, &proof);
+
+        println!("{} - FinalDarlinProof", proof.serialized_size());
+        println!("-- {} - MarlinProof", proof.proof.serialized_size());
+        println!("---- {} - commitments ({})",
+                 proof.proof.commitments.serialized_size() -
+                    (proof.proof.commitments.iter().flatten().collect::<Vec<_>>().len() * 4),
+                 proof.proof.commitments.iter().flatten().collect::<Vec<_>>().len()
+        );
+        println!("---- {} - evaluations ({})",
+                 proof.proof.evaluations.serialized_size() - 8,
+                 proof.proof.evaluations.len()
+        );
+        println!("---- {} - pc_proof", proof.proof.pc_proof.serialized_size());
+        println!("-- {} - FinalDarlinDeferredData", proof.deferred.serialized_size());
+        println!("---- {} - DLogAccumulatorG1", proof.deferred.pre_previous_acc.serialized_size());
+        println!("------ {} - G_final", proof.deferred.pre_previous_acc.g_final.serialized_size());
+        println!("------ {} - xi_s", proof.deferred.pre_previous_acc.xi_s.serialized_size());
+        println!("---- {} - DLogAccumulatorG2", proof.deferred.previous_acc.serialized_size());
+        println!("------ {} - G_final", proof.deferred.previous_acc.g_final.serialized_size());
+        println!("------ {} - xi_s", proof.deferred.previous_acc.xi_s.serialized_size());
     }
 }
