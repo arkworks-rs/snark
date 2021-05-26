@@ -473,6 +473,7 @@ mod test {
         );
     }
 
+    #[ignore]
     #[test]
     fn test_final_darlin_size() {
 
@@ -509,6 +510,7 @@ mod test {
 
             let fs = File::create(file_path).unwrap();
             proof.serialize(fs).unwrap();
+            let _ = std::fs::remove_file(file_path);
         }
 
         test_canonical_serialize_deserialize(true, &proof);
