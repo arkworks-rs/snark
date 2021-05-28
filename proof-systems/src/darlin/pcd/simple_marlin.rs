@@ -56,10 +56,8 @@ impl<G: AffineCurve, D: Digest> SemanticallyValid for MarlinProof<G, D> {
             self.prover_messages.len() == num_rounds &&// Check correct number of prover messages
             self.prover_messages.is_valid() && // Check prover messages are valid
             // Check opening proof
-            self.pc_proof.proof.is_valid() &&
-            self.pc_proof.batch_commitment.is_valid() &&
-            self.pc_proof.batch_values.len() == num_polys &&
-            self.pc_proof.batch_values.iter().all(|(_, v)| v.is_valid())
+            self.pc_proof.is_valid() &&
+            self.pc_proof.batch_values.len() == num_polys
     }
 }
 
@@ -118,6 +116,7 @@ impl<'a, G, D> PCD for SimpleMarlinPCD<'a, G, D>
 
         // Verify the IOP/AHP 
         let (query_set, evaluations, labeled_comms, mut fs_rng) = Marlin::<G::ScalarField, InnerProductArgPC<G, D>, D>::verify_ahp(
+            &vk.1,
             &vk.0,
             self.usr_ins.as_slice(),
             &self.proof,
