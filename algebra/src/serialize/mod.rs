@@ -39,20 +39,6 @@ pub trait CanonicalSerializeWithFlags: CanonicalSerialize {
 ///
 /// This trait can be derived if all fields of a struct implement
 /// `CanonicalSerialize` and the `derive` feature is enabled.
-///
-/// # Example
-/// ```
-/// // The `derive` feature must be set for the derivation to work.
-/// use algebra::serialize::*;
-///
-/// # #[cfg(feature = "derive")]
-/// #[derive(CanonicalSerialize)]
-/// struct TestStruct {
-///     a: u64,
-///     b: (u64, (u64, u64)),
-/// }
-/// ```
-///
 pub trait CanonicalSerialize {
     /// Serializes `self` into `writer`.
     /// It is left up to a particular type for how it strikes the
@@ -109,20 +95,6 @@ pub trait CanonicalDeserializeWithFlags: Sized {
 /// Deserializer in little endian format.
 /// This trait can be derived if all fields of a struct implement
 /// `CanonicalDeserialize` and the `derive` feature is enabled.
-///
-/// # Example
-/// ```
-/// // The `derive` feature must be set for the derivation to work.
-/// use algebra::serialize::*;
-///
-/// # #[cfg(feature = "derive")]
-/// #[derive(CanonicalDeserialize)]
-/// struct TestStruct {
-///     a: u64,
-///     b: (u64, (u64, u64)),
-/// }
-/// ```
-///
 pub trait CanonicalDeserialize: Sized {
     /// Reads `Self` from `reader`.
     fn deserialize<R: Read>(reader: R) -> Result<Self, SerializationError>;
