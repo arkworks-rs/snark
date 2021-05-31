@@ -356,7 +356,8 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
 }
 
 /// A composite dlog accumulator/item, comprised of several single dlog items
-/// from both groups of the EC cycle. 
+/// from both groups of the EC cycle.
+#[derive(Debug)]
 pub struct DualDLogItem<G1: AffineCurve, G2: AffineCurve>(
     pub(crate) Vec<DLogItem<G1>>,
     pub(crate) Vec<DLogItem<G2>>,

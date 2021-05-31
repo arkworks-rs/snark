@@ -53,7 +53,19 @@ mod test {
     use rand_xorshift::XorShiftRng;
     use std::path::Path;
     use std::fs::File;
+    use std::collections::HashSet;
     use crate::darlin::data_structures::FinalDarlinProof;
+
+    fn get_unique_random_proof_indices<R: RngCore>(pcds_len: usize, rng: &mut R) -> Vec<usize> {
+        let num_proofs_to_randomize: usize = rng.gen_range(1, pcds_len/2);
+        let mut indices = (0..num_proofs_to_randomize)
+            .map(|_| rng.gen_range(0, pcds_len))
+            .collect::<HashSet<usize>>()
+            .into_iter()
+            .collect::<Vec<usize>>();
+        indices.sort();
+        indices
+    }
 
     /// Generic test for `accumulate_proofs` and `verify_aggregated_proofs`
     fn test_accumulation<G1: AffineCurve, G2: AffineCurve, D: Digest, R: RngCore>(
@@ -102,10 +114,15 @@ mod test {
             rng
         ).unwrap());
 
-        // Randomize usr_ins for one marlin PCD and assert AHP verification fails
-        let idx: usize = rng.gen_range(0, pcds.len());
-        let original_pcd = pcds[idx].clone(); // Save correct pcd
-        pcds[idx].randomize_usr_ins(rng);
+        // Randomize usr_ins for some PCDs and assert AHP verification fails
+        let indices = get_unique_random_proof_indices(pcds.len(), rng);
+
+        // Save original pcds and randomize existing ones
+        let original_pcds = indices.iter().map(|&idx| {
+            let copy = pcds[idx].clone();
+            pcds[idx].randomize_usr_ins(rng);
+            copy
+        }).collect::<Vec<_>>();
 
         let result = verify_aggregated_proofs::<G1, G2, D, R>(
             pcds,
@@ -120,15 +137,17 @@ mod test {
         // Check AHP failed
         assert!(result.is_err());
 
-        // Since the AHP failed, we are able to determine which proof verification has failed
-        assert_eq!(result.unwrap_err().unwrap(), idx);
+        // Since the AHP failed, we are able to determine which proof verifications have failed
+        assert_eq!(result.unwrap_err().unwrap(), indices);
 
-        // Restore correct PCD
-        pcds[idx] = original_pcd;
+        // Restore correct PCDs
+        indices.into_iter().zip(original_pcds).for_each(|(idx, original_pcd)| pcds[idx] = original_pcd);
 
-        // Randomize sys_ins for one marlin PCD and assert AHP verification fails
-        let idx: usize = rng.gen_range(0, pcds.len());
-        pcds[idx].randomize_sys_ins(committer_key_g1, committer_key_g2, rng);
+        // Randomize sys_ins for some PCDs and assert AHP verification fails
+        let indices = get_unique_random_proof_indices(pcds.len(), rng);
+
+        // Randomize PCDs
+        indices.iter().for_each(|&idx| pcds[idx].randomize_sys_ins(committer_key_g1, committer_key_g2, rng));
 
         let result = verify_aggregated_proofs::<G1, G2, D, R>(
             pcds,
@@ -143,8 +162,8 @@ mod test {
         // Check AHP failed
         assert!(result.is_err());
 
-        // Since the AHP failed, we are able to determine which proof verification has failed
-        assert_eq!(result.unwrap_err().unwrap(), idx);
+        // Since the AHP failed, we are able to determine which proof verifications have failed
+        assert_eq!(result.unwrap_err().unwrap(), indices);
     }
 
     /// Generic test for `batch_verify_proofs`
@@ -168,11 +187,15 @@ mod test {
             rng
         ).unwrap());
 
-        // Pass wrong public inputs for one marlin PCD and check AHP verification fails
-        // Select randomly one pcds to which changing the input
-        let idx: usize = rng.gen_range(0, pcds.len());
-        let original_pcd = pcds[idx].clone(); // Save correct pcd
-        pcds[idx].randomize_usr_ins(rng);
+        // Randomize usr_ins for some PCDs and assert AHP verification fails
+        let indices = get_unique_random_proof_indices(pcds.len(), rng);
+
+        // Save original pcds and randomize existing ones
+        let original_pcds = indices.iter().map(|&idx| {
+            let copy = pcds[idx].clone();
+            pcds[idx].randomize_usr_ins(rng);
+            copy
+        }).collect::<Vec<_>>();
 
         let result = batch_verify_proofs::<G1, G2, D, R>(
             pcds,
@@ -185,15 +208,17 @@ mod test {
         // Check AHP failed
         assert!(result.is_err());
 
-        // Since the AHP failed, we are able to determine which proof verification has failed
-        assert_eq!(result.unwrap_err().unwrap(), idx);
+        // Since the AHP failed, we are able to determine which proof verifications have failed
+        assert_eq!(result.unwrap_err().unwrap(), indices);
 
-        // Restore correct PCD
-        pcds[idx] = original_pcd;
+        // Restore correct PCDs
+        indices.into_iter().zip(original_pcds).for_each(|(idx, original_pcd)| pcds[idx] = original_pcd);
 
-        // Randomize sys_ins for one marlin PCD and assert AHP verification fails
-        let idx: usize = rng.gen_range(0, pcds.len());
-        pcds[idx].randomize_sys_ins(verifier_key_g1, verifier_key_g2, rng);
+        // Randomize sys_ins for some PCDs and assert AHP verification fails
+        let indices = get_unique_random_proof_indices(pcds.len(), rng);
+
+        // Randomize PCDs
+        indices.iter().for_each(|&idx| pcds[idx].randomize_sys_ins(verifier_key_g1, verifier_key_g2, rng));
 
         let result = batch_verify_proofs::<G1, G2, D, R>(
             pcds,
@@ -206,8 +231,8 @@ mod test {
         // Check AHP failed
         assert!(result.is_err());
 
-        // Since the AHP failed, we are able to determine which proof verification has failed
-        assert_eq!(result.unwrap_err().unwrap(), idx);
+        // Since the AHP failed, we are able to determine which proof verifications have failed
+        assert_eq!(result.unwrap_err().unwrap(), indices);
     }
 
     type TestIPAPCDee = InnerProductArgPC<DeeAffine, Blake2s>;
