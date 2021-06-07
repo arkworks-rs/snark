@@ -4,7 +4,7 @@
 set -xeo pipefail
 
 retval=0
-cd algebra
+cd proof-systems
 cargo $CARGOARGS check || retval="$?"
-cargo $CARGOARGS check --all-features --tests || retval="$?"
+cargo $CARGOARGS build --all-features --tests --examples || retval="$?"
 exit "$retval"

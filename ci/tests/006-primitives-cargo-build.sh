@@ -4,6 +4,7 @@
 set -xeo pipefail
 
 retval=0
+cd primitives
 cargo $CARGOARGS check || retval="$?"
-cargo $CARGOARGS check --all-features --tests || retval="$?"
+cargo $CARGOARGS build --all-features --tests || retval="$?"
 exit "$retval"
