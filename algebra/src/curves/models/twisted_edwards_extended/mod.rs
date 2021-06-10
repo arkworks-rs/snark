@@ -842,7 +842,16 @@ impl<P: Parameters> CanonicalSerialize for GroupProjective<P> {
 
 impl<P: Parameters> CanonicalDeserialize for GroupAffine<P> {
     #[allow(unused_qualifications)]
-    fn deserialize<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+    fn deserialize<R: Read>(reader: R) -> Result<Self, SerializationError> {
+        let p = Self::deserialize_unchecked(reader)?;
+        if !p.is_zero() && !p.is_in_correct_subgroup_assuming_on_curve() {
+            return Err(SerializationError::InvalidData);
+        }
+        Ok(p)
+    }
+
+    #[allow(unused_qualifications)]
+    fn deserialize_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
         let (x, flags): (P::BaseField, EdwardsFlags) =
             CanonicalDeserializeWithFlags::deserialize_with_flags(&mut reader)?;
         if x == P::BaseField::zero() {
@@ -850,16 +859,13 @@ impl<P: Parameters> CanonicalDeserialize for GroupAffine<P> {
         } else {
             let p = GroupAffine::<P>::get_point_from_x(x, flags.is_positive())
                 .ok_or(SerializationError::InvalidData)?;
-            if !p.is_in_correct_subgroup_assuming_on_curve() {
-                return Err(SerializationError::InvalidData);
-            }
             Ok(p)
         }
     }
 
     #[allow(unused_qualifications)]
     fn deserialize_uncompressed<R: Read>(reader: R) -> Result<Self, SerializationError> {
-        let p = Self::deserialize_unchecked(reader)?;
+        let p = Self::deserialize_uncompressed_unchecked(reader)?;
 
         if !p.is_in_correct_subgroup_assuming_on_curve() {
             return Err(SerializationError::InvalidData);
@@ -868,7 +874,7 @@ impl<P: Parameters> CanonicalDeserialize for GroupAffine<P> {
     }
 
     #[allow(unused_qualifications)]
-    fn deserialize_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+    fn deserialize_uncompressed_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
         let x: P::BaseField = CanonicalDeserialize::deserialize(&mut reader)?;
         let y: P::BaseField = CanonicalDeserialize::deserialize(&mut reader)?;
 
@@ -885,14 +891,20 @@ impl<P: Parameters> CanonicalDeserialize for GroupProjective<P> {
     }
 
     #[allow(unused_qualifications)]
+    fn deserialize_unchecked<R: Read>(reader: R) -> Result<Self, SerializationError> {
+        let aff = <GroupAffine<P> as CanonicalDeserialize>::deserialize_unchecked(reader)?;
+        Ok(aff.into())
+    }
+
+    #[allow(unused_qualifications)]
     fn deserialize_uncompressed<R: Read>(reader: R) -> Result<Self, SerializationError> {
         let aff = <GroupAffine<P> as CanonicalDeserialize>::deserialize_uncompressed(reader)?;
         Ok(aff.into())
     }
 
     #[allow(unused_qualifications)]
-    fn deserialize_unchecked<R: Read>(reader: R) -> Result<Self, SerializationError> {
-        let aff = <GroupAffine<P> as CanonicalDeserialize>::deserialize_unchecked(reader)?;
+    fn deserialize_uncompressed_unchecked<R: Read>(reader: R) -> Result<Self, SerializationError> {
+        let aff = <GroupAffine<P> as CanonicalDeserialize>::deserialize_uncompressed_unchecked(reader)?;
         Ok(aff.into())
     }
 }
