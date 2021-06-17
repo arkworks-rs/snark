@@ -17,7 +17,6 @@ fn impl_serialize_field(
     serialized_size_body: &mut Vec<TokenStream>,
     serialize_without_metadata_body: &mut Vec<TokenStream>,
     serialize_uncompressed_body: &mut Vec<TokenStream>,
-    serialize_unchecked_body: &mut Vec<TokenStream>,
     uncompressed_size_body: &mut Vec<TokenStream>,
     idents: &mut Vec<Box<dyn ToTokens>>,
     ty: &Type,
@@ -33,7 +32,6 @@ fn impl_serialize_field(
                     serialized_size_body,
                     serialize_without_metadata_body,
                     serialize_uncompressed_body,
-                    serialize_unchecked_body,
                     uncompressed_size_body,
                     idents,
                     elem_ty,
@@ -51,9 +49,6 @@ fn impl_serialize_field(
             serialize_uncompressed_body.push(
                 quote! { CanonicalSerialize::serialize_uncompressed(&self.#(#idents).*, &mut writer)?; },
             );
-            serialize_unchecked_body.push(
-                quote! { CanonicalSerialize::serialize_unchecked(&self.#(#idents).*, &mut writer)?; },
-            );
             uncompressed_size_body.push(
                 quote! { size += CanonicalSerialize::uncompressed_size(&self.#(#idents).*); },
             );
@@ -70,7 +65,6 @@ fn impl_canonical_serialize(ast: &syn::DeriveInput) -> TokenStream {
     let mut serialized_size_body = Vec::<TokenStream>::new();
     let mut serialize_without_metadata_body = Vec::<TokenStream>::new();
     let mut serialize_uncompressed_body = Vec::<TokenStream>::new();
-    let mut serialize_unchecked_body = Vec::<TokenStream>::new();
     let mut uncompressed_size_body = Vec::<TokenStream>::new();
 
     match ast.data {
@@ -92,7 +86,6 @@ fn impl_canonical_serialize(ast: &syn::DeriveInput) -> TokenStream {
                     &mut serialized_size_body,
                     &mut serialize_without_metadata_body,
                     &mut serialize_uncompressed_body,
-                    &mut serialize_unchecked_body,
                     &mut uncompressed_size_body,
                     &mut idents,
                     &field.ty,
@@ -134,11 +127,6 @@ fn impl_canonical_serialize(ast: &syn::DeriveInput) -> TokenStream {
             }
 
             #[allow(unused_mut, unused_variables)]
-            fn serialize_unchecked<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
-                #(#serialize_unchecked_body)*
-                Ok(())
-            }
-            #[allow(unused_mut, unused_variables)]
             fn uncompressed_size(&self) -> usize {
                 let mut size = 0;
                 #(#uncompressed_size_body)*
@@ -155,31 +143,35 @@ pub fn derive_canonical_deserialize(input: proc_macro::TokenStream) -> proc_macr
     proc_macro::TokenStream::from(impl_canonical_deserialize(&ast))
 }
 
-/// Returns three TokenStreams, one for the compressed deserialize, one for the
-/// uncompressed, and one for the unchecked.
-fn impl_deserialize_field(ty: &Type) -> (TokenStream, TokenStream, TokenStream) {
+/// Returns four TokenStreams, one for the compressed deserialize, one for the unchecked-compressed,
+/// one for the uncompressed, and one for the uncompressed-unchecked.
+fn impl_deserialize_field(ty: &Type) -> (TokenStream, TokenStream, TokenStream, TokenStream) {
     // Check if type is a tuple.
     match ty {
         Type::Tuple(tuple) => {
             let mut compressed_fields = Vec::new();
-            let mut uncompressed_fields = Vec::new();
             let mut unchecked_fields = Vec::new();
+            let mut uncompressed_fields = Vec::new();
+            let mut uncompressed_unchecked_fields = Vec::new();
             for elem_ty in tuple.elems.iter() {
-                let (compressed, uncompressed, unchecked) = impl_deserialize_field(elem_ty);
+                let (compressed, unchecked, uncompressed, uncompressed_unchecked) = impl_deserialize_field(elem_ty);
                 compressed_fields.push(compressed);
-                uncompressed_fields.push(uncompressed);
                 unchecked_fields.push(unchecked);
+                uncompressed_fields.push(uncompressed);
+                uncompressed_unchecked_fields.push(uncompressed_unchecked);
             }
             (
                 quote! { (#(#compressed_fields)*), },
-                quote! { (#(#uncompressed_fields)*), },
                 quote! { (#(#unchecked_fields)*), },
+                quote! { (#(#uncompressed_fields)*), },
+                quote! { (#(#uncompressed_unchecked_fields)*), },
             )
         }
         _ => (
             quote! { CanonicalDeserialize::deserialize(&mut reader)?, },
-            quote! { CanonicalDeserialize::deserialize_uncompressed(&mut reader)?, },
             quote! { CanonicalDeserialize::deserialize_unchecked(&mut reader)?, },
+            quote! { CanonicalDeserialize::deserialize_uncompressed(&mut reader)?, },
+            quote! { CanonicalDeserialize::deserialize_uncompressed_unchecked(&mut reader)?, },
         ),
     }
 }
@@ -190,32 +182,36 @@ fn impl_canonical_deserialize(ast: &syn::DeriveInput) -> TokenStream {
     let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
 
     let deserialize_body;
-    let deserialize_uncompressed_body;
     let deserialize_unchecked_body;
+    let deserialize_uncompressed_body;
+    let deserialize_uncompressed_unchecked_body;
 
     match ast.data {
         Data::Struct(ref data_struct) => {
             let mut tuple = false;
             let mut compressed_field_cases = Vec::<TokenStream>::new();
-            let mut uncompressed_field_cases = Vec::<TokenStream>::new();
             let mut unchecked_field_cases = Vec::<TokenStream>::new();
+            let mut uncompressed_field_cases = Vec::<TokenStream>::new();
+            let mut uncompressed_unchecked_field_cases = Vec::<TokenStream>::new();
             for field in data_struct.fields.iter() {
                 match &field.ident {
                     None => {
                         tuple = true;
-                        let (compressed, uncompressed, unchecked) =
+                        let (compressed, unchecked, uncompressed, uncompressed_unchecked) =
                             impl_deserialize_field(&field.ty);
                         compressed_field_cases.push(compressed);
-                        uncompressed_field_cases.push(uncompressed);
                         unchecked_field_cases.push(unchecked);
+                        uncompressed_field_cases.push(uncompressed);
+                        uncompressed_unchecked_field_cases.push(uncompressed_unchecked);
                     }
                     // struct field without len_type
                     Some(ident) => {
-                        let (compressed_field, uncompressed_field, unchecked_field) =
+                        let (compressed_field, unchecked_field, uncompressed_field, uncompressed_unchecked_field) =
                             impl_deserialize_field(&field.ty);
                         compressed_field_cases.push(quote! { #ident: #compressed_field });
-                        uncompressed_field_cases.push(quote! { #ident: #uncompressed_field });
                         unchecked_field_cases.push(quote! { #ident: #unchecked_field });
+                        uncompressed_field_cases.push(quote! { #ident: #uncompressed_field });
+                        uncompressed_unchecked_field_cases.push(quote! { #ident: #uncompressed_unchecked_field });
                     }
                 }
             }
@@ -226,14 +222,19 @@ fn impl_canonical_deserialize(ast: &syn::DeriveInput) -> TokenStream {
                         #(#compressed_field_cases)*
                     ))
                 });
+                deserialize_unchecked_body = quote!({
+                    Ok(#name (
+                        #(#unchecked_field_cases)*
+                    ))
+                });
                 deserialize_uncompressed_body = quote!({
                     Ok(#name (
                         #(#uncompressed_field_cases)*
                     ))
                 });
-                deserialize_unchecked_body = quote!({
+                deserialize_uncompressed_unchecked_body = quote!({
                     Ok(#name (
-                        #(#unchecked_field_cases)*
+                        #(#uncompressed_unchecked_field_cases)*
                     ))
                 });
             } else {
@@ -242,14 +243,19 @@ fn impl_canonical_deserialize(ast: &syn::DeriveInput) -> TokenStream {
                         #(#compressed_field_cases)*
                     })
                 });
+                deserialize_unchecked_body = quote!({
+                    Ok(#name {
+                        #(#unchecked_field_cases)*
+                    })
+                });
                 deserialize_uncompressed_body = quote!({
                     Ok(#name {
                         #(#uncompressed_field_cases)*
                     })
                 });
-                deserialize_unchecked_body = quote!({
+                deserialize_uncompressed_unchecked_body = quote!({
                     Ok(#name {
-                        #(#unchecked_field_cases)*
+                        #(#uncompressed_unchecked_field_cases)*
                     })
                 });
             }
@@ -267,13 +273,16 @@ fn impl_canonical_deserialize(ast: &syn::DeriveInput) -> TokenStream {
                 #deserialize_body
             }
             #[allow(unused_mut,unused_variables)]
+            fn deserialize_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+                #deserialize_unchecked_body
+            }
+            #[allow(unused_mut,unused_variables)]
             fn deserialize_uncompressed<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
                 #deserialize_uncompressed_body
             }
-
             #[allow(unused_mut,unused_variables)]
-            fn deserialize_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
-                #deserialize_unchecked_body
+            fn deserialize_uncompressed_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+                #deserialize_uncompressed_unchecked_body
             }
         }
     };
