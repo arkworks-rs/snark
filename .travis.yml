@@ -35,6 +35,6 @@ script:
 jobs:
   include:
     - name: bionic_rust-1.51.0_latest
-      env: IMAGE_TAG=bionic_rust-1.51.0_latest TESTS='000,001,003,005,006,008,009,011,012,013,014,015,016'
+      env: IMAGE_TAG=bionic_rust-1.51.0_latest TESTS='000,001,003,005,006,008,009,011,012,013,014,015,016,017'
     - name: bionic_rust-nightly-2021-04-25_latest
       env: IMAGE_TAG=bionic_rust-nightly-2021-04-25_latest TESTS='002,004,007,010' CARGOARGS='+nightly-2021-04-25'
