@@ -8,7 +8,6 @@ cd algebra
 cargo $CARGOARGS check --features "parallel" || retval="$?"
 cargo $CARGOARGS check --features "fft" || retval="$?"
 cargo $CARGOARGS check --features "n_fold" || retval="$?"
-cargo $CARGOARGS check --features "llvm_asm" || retval="$?"
 cargo $CARGOARGS check --features "bls12_377" || retval="$?"
 cargo $CARGOARGS check --features "bls12_381" || retval="$?"
 cargo $CARGOARGS check --features "edwards_bls12" || retval="$?"

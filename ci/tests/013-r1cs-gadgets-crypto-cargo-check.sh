@@ -4,7 +4,7 @@
 set -xeo pipefail
 
 retval=0
-cd primitives
+cd r1cs/gadgets/crypto
 cargo $CARGOARGS check || retval="$?"
-cargo $CARGOARGS build --all-features --tests || retval="$?"
+cargo $CARGOARGS check --all-features --tests || retval="$?"
 exit "$retval"

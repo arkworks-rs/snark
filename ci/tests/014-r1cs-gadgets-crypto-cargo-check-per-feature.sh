@@ -5,9 +5,6 @@ set -xeo pipefail
 
 retval=0
 cd r1cs/gadgets/crypto
-cargo $CARGOARGS check || retval="$?"
-cargo $CARGOARGS build --all-features --tests || retval="$?"
-cargo $CARGOARGS check --features "llvm_asm" || retval="$?"
 cargo $CARGOARGS check --features "commitment" || retval="$?"
 cargo $CARGOARGS check --features "merkle_tree" || retval="$?"
 cargo $CARGOARGS check --features "prf" || retval="$?"

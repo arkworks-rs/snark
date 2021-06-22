@@ -3,4 +3,4 @@
 
 set -xeo pipefail
 
-cargo $CARGOARGS check --all-features --tests --benches
+cargo $CARGOARGS check --all-features --benches

@@ -4,4 +4,4 @@
 set -xeo pipefail
 
 cd proof-systems
-cargo $CARGOARGS check --all-features --tests --benches --examples
+cargo $CARGOARGS check --all-features --benches --examples

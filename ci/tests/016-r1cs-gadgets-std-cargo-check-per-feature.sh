@@ -5,9 +5,6 @@ set -xeo pipefail
 
 retval=0
 cd r1cs/gadgets/std
-cargo $CARGOARGS check || retval="$?"
-cargo $CARGOARGS build --all-features --tests || retval="$?"
-cargo $CARGOARGS check --features "llvm_asm" || retval="$?"
 cargo $CARGOARGS check --features "full" || retval="$?"
 cargo $CARGOARGS check --features "bls12_377" || retval="$?"
 cargo $CARGOARGS check --features "bn_382" || retval="$?"

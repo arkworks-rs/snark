@@ -5,7 +5,6 @@ set -xeo pipefail
 
 retval=0
 cd primitives
-cargo $CARGOARGS check --features "llvm_asm" || retval="$?"
 cargo $CARGOARGS check --features "commitment" || retval="$?"
 cargo $CARGOARGS check --features "merkle_tree" || retval="$?"
 cargo $CARGOARGS check --features "prf" || retval="$?"

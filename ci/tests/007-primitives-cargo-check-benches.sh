@@ -4,4 +4,4 @@
 set -xeo pipefail
 
 cd primitives
-cargo $CARGOARGS check --all-features --tests --benches
+cargo $CARGOARGS check --all-features --benches
