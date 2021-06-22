@@ -21,10 +21,6 @@ impl<F: PrimeField> CanonicalSerialize for Evaluations<F> {
     fn serialized_size(&self) -> usize {
         self.evals.serialized_size()
     }
-
-    fn serialize_without_metadata<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
-        CanonicalSerialize::serialize_uncompressed(&self.evals, writer)
-    }
 }
 
 impl<F: PrimeField> CanonicalDeserialize for Evaluations<F> {

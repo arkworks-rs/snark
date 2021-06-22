@@ -171,7 +171,11 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
     }
 
     fn group_membership_test(&self) -> bool {
-        self.is_on_curve() && self.is_in_correct_subgroup_assuming_on_curve()
+        self.is_on_curve() && if !self.is_zero() {
+            self.is_in_correct_subgroup_assuming_on_curve()
+        } else {
+            true
+        }
     }
 
     fn add_points(_: &mut [Vec<Self>]) {
@@ -330,7 +334,7 @@ impl<P: Parameters> FromCompressedBits for GroupAffine<P>
 
             //Check p belongs to the subgroup we expect
             Some(p) => {
-                if p.is_in_correct_subgroup_assuming_on_curve() {
+                if p.is_zero() || p.is_in_correct_subgroup_assuming_on_curve() {
                     Ok(p)
                 }
                 else {
@@ -867,7 +871,7 @@ impl<P: Parameters> CanonicalDeserialize for GroupAffine<P> {
     fn deserialize_uncompressed<R: Read>(reader: R) -> Result<Self, SerializationError> {
         let p = Self::deserialize_uncompressed_unchecked(reader)?;
 
-        if !p.is_in_correct_subgroup_assuming_on_curve() {
+        if !p.is_zero() && !p.is_in_correct_subgroup_assuming_on_curve() {
             return Err(SerializationError::InvalidData);
         }
         Ok(p)

@@ -166,7 +166,11 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
 
     #[inline]
     fn group_membership_test(&self) -> bool {
-        self.is_on_curve() && self.is_in_correct_subgroup_assuming_on_curve()
+        self.is_on_curve() && if !self.is_zero() {
+            self.is_in_correct_subgroup_assuming_on_curve()
+        } else {
+            true
+        }
     }
 
     fn add_points(to_add: &mut [Vec<Self>]) {
@@ -1046,7 +1050,7 @@ impl<P: Parameters> CanonicalDeserialize for GroupAffine<P> {
     ) -> Result<Self, SerializationError> {
         let p = Self::deserialize_uncompressed_unchecked(reader)?;
 
-        if !p.is_in_correct_subgroup_assuming_on_curve() {
+        if !p.is_zero() && !p.is_in_correct_subgroup_assuming_on_curve() {
             return Err(SerializationError::InvalidData);
         }
         Ok(p)
