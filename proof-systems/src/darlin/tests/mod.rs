@@ -57,9 +57,9 @@ mod test {
     use crate::darlin::data_structures::FinalDarlinProof;
 
     fn get_unique_random_proof_indices<R: RngCore>(pcds_len: usize, rng: &mut R) -> Vec<usize> {
-        let num_proofs_to_randomize: usize = rng.gen_range(1, pcds_len/2);
+        let num_proofs_to_randomize: usize = rng.gen_range(1..pcds_len/2);
         let mut indices = (0..num_proofs_to_randomize)
-            .map(|_| rng.gen_range(0, pcds_len))
+            .map(|_| rng.gen_range(0..pcds_len))
             .collect::<HashSet<usize>>()
             .into_iter()
             .collect::<Vec<usize>>();
