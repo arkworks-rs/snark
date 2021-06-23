@@ -20,10 +20,11 @@ license = "MIT/Apache-2.0"
 ################################# Dependencies ################################
 
 [dependencies]
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "misc_changes" }
-r1cs-core = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "misc_changes" }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "audit_fixes" }
+r1cs-core = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "audit_fixes" }
 derivative = "2.2.0"
-radix_trie = "0.1"
+radix_trie = "0.2.1"
+rand = { version = "0.8.4" }
 
 [features]
 llvm_asm = ["algebra/llvm_asm"]
@@ -40,6 +41,5 @@ mnt6_753 = [ "algebra/mnt6_753" ]
 tweedle = [ "algebra/tweedle" ]
 
 [dev-dependencies]
-rand = { version = "0.7" }
-rand_xorshift = { version = "0.2" }
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "misc_changes", features = ["bls12_381", "jubjub"] }
+rand_xorshift = { version = "0.3.0" }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "audit_fixes", features = ["bls12_381", "jubjub"] }

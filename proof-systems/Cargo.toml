@@ -20,18 +20,18 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "misc_changes", features = [ "parallel", "fft"] }
-r1cs-core = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "misc_changes" }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "audit_fixes", features = [ "parallel", "fft"] }
+r1cs-core = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "audit_fixes" }
 bench-utils = { path = "../bench-utils" }
 
-marlin = { git = "https://github.com/HorizenLabs/marlin", branch = "misc_changes", optional = true }
-poly-commit = { git = "https://github.com/HorizenLabs/poly-commit", branch = "misc_changes", optional = true }
+marlin = { git = "https://github.com/HorizenLabs/marlin", branch = "audit_fixes", optional = true }
+poly-commit = { git = "https://github.com/HorizenLabs/poly-commit", branch = "audit_fixes", optional = true }
 
 r1cs-std = { path = "../r1cs/gadgets/std", optional = true }
 
-rand = { version = "0.7" }
+rand = { version = "0.8.4" }
 rayon = { version = "1" }
-smallvec = { version = "0.6" }
+smallvec = { version = "1.6.1" }
 byteorder = { version = "1" }
 digest = { version = "0.8", optional = true }
 serde = { version = "1.0.117", features = ["derive"]}
@@ -40,10 +40,10 @@ derivative = { version = "2.2.0", optional = true }
 [dev-dependencies]
 csv = { version = "1" }
 criterion = "0.3"
-rand_xorshift = { version = "0.2" }
-blake2 = { version = "0.8", default-features = false }
+rand_xorshift = { version = "0.3.0" }
+blake2 = { version = "0.8.1", default-features = false }
 
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "misc_changes", features = ["full", "parallel", "fft"] }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "audit_fixes", features = ["full", "parallel", "fft"] }
 r1cs-crypto = { path = "../r1cs/gadgets/crypto", features = ["nizk"] }
 
 [features]

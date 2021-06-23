@@ -374,7 +374,7 @@ mod test {
             }
 
             // Test with random bytes
-            let mut byte_vals = vec![0u8; rng.gen_range(1, 200)];
+            let mut byte_vals = vec![0u8; rng.gen_range(1..200)];
             rng.fill_bytes(byte_vals.as_mut_slice());
             let bytes = UInt8::alloc_input_vec(cs.ns(|| format!("alloc random {}", i)), &byte_vals).unwrap();
             assert_eq!(byte_vals.len(), bytes.len());

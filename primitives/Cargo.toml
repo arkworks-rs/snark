@@ -20,13 +20,13 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "misc_changes", features = ["parallel"] }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "audit_fixes", features = ["parallel"] }
 bench-utils = { path = "../bench-utils" }
 
-digest = { version = "0.7", optional = true }
-blake2 = { version = "0.7", optional = true }
+digest = { version = "0.8", optional = true }
+blake2 = { version = "0.8.1", optional = true }
 
-rand = { version = "0.7" }
+rand = { version = "0.8.4" }
 derivative = "2.2.0"
 rayon = "1"
 hex = "0.4.0"
@@ -50,11 +50,11 @@ bn_382 = ["algebra/bn_382"]
 tweedle = ["algebra/tweedle"]
 
 [dev-dependencies]
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "misc_changes", features = ["edwards_sw6", "jubjub", "sw6", "bls12_377"] }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "audit_fixes", features = ["edwards_sw6", "jubjub", "sw6", "bls12_377"] }
 primitives = { path = "../primitives", features = ["mnt4_753", "mnt6_753", "bn_382", "tweedle"] }
 
 criterion = "0.3.2"
-rand_xorshift = { version = "0.2" }
+rand_xorshift = { version = "0.3.0" }
 
 ################################# Benchmarks ##################################
 
