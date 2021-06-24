@@ -30,6 +30,7 @@ fn poseidon_crh_eval_mnt4(c: &mut Criterion) {
                 h.update(MNT4753Fr::rand(&mut rng));
             }
             h.finalize().unwrap();
+            h.reset(None);
         })
     });
 }
@@ -46,6 +47,7 @@ fn poseidon_crh_eval_mnt6(c: &mut Criterion) {
                 h.update(MNT6753Fr::rand(&mut rng));
             }
             h.finalize().unwrap();
+            h.reset(None);
         })
     });
 }
@@ -62,6 +64,7 @@ fn poseidon_crh_eval_bn382fr(c: &mut Criterion) {
                 h.update(BN382Fr::rand(&mut rng));
             }
             h.finalize().unwrap();
+            h.reset(None);
         })
     });
 }
@@ -78,6 +81,7 @@ fn poseidon_crh_eval_bn382fq(c: &mut Criterion) {
                 h.update(BN382Fq::rand(&mut rng));
             }
             h.finalize().unwrap();
+            h.reset(None);
         })
     });
 }
@@ -94,6 +98,7 @@ fn poseidon_crh_eval_tweedlefr(c: &mut Criterion) {
                 h.update(tweedleFr::rand(&mut rng));
             }
             h.finalize().unwrap();
+            h.reset(None);
         })
     });
 }
@@ -110,6 +115,7 @@ fn poseidon_crh_eval_tweedlefq(c: &mut Criterion) {
                 h.update(tweedleFq::rand(&mut rng));
             }
             h.finalize().unwrap();
+            h.reset(None);
         })
     });
 }
