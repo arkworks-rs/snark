@@ -20,12 +20,12 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "development_tmp_fixes", features = [ "parallel", "fft"] }
-r1cs-core = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "development_tmp_fixes" }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "misc_changes", features = [ "parallel", "fft"] }
+r1cs-core = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "misc_changes" }
 bench-utils = { path = "../bench-utils" }
 
-marlin = { git = "https://github.com/HorizenLabs/marlin", branch = "dev_tmp", optional = true }
-poly-commit = { git = "https://github.com/HorizenLabs/poly-commit", branch = "dev_tmp", optional = true }
+marlin = { git = "https://github.com/HorizenLabs/marlin", branch = "misc_changes", optional = true }
+poly-commit = { git = "https://github.com/HorizenLabs/poly-commit", branch = "misc_changes", optional = true }
 
 r1cs-std = { path = "../r1cs/gadgets/std", optional = true }
 
@@ -43,11 +43,11 @@ criterion = "0.3"
 rand_xorshift = { version = "0.2" }
 blake2 = { version = "0.8", default-features = false }
 
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "development_tmp_fixes", features = ["full", "parallel", "fft"] }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "misc_changes", features = ["full", "parallel", "fft"] }
 r1cs-crypto = { path = "../r1cs/gadgets/crypto", features = ["nizk"] }
 
 [features]
-print-trace = [ "bench-utils/print-trace", "marlin/print-trace", "poly-commit/print-trace" ]
+print-trace = [ "bench-utils/print-trace" ]
 groth16 = []
 gm17 = []
 darlin = ["marlin", "poly-commit", "digest", "derivative", "r1cs-std"]
@@ -77,13 +77,13 @@ required-features = ["gm17", "r1cs-std/mnt4_753", "r1cs-std/mnt6_753" ]
 name = "gro16_bench"
 path = "src/groth16/benches/gro16_bench.rs"
 harness = false
-required-features = ["groth16", "algebra/bn_382"]
+required-features = ["groth16", "algebra/bn_382", "r1cs-std"]
 
 [[bench]]
 name = "bn382_gro16_test_circuits"
 path = "src/groth16/benches/bn382_gro16_test_circuits.rs"
 harness = false
-required-features = ["groth16", "algebra/bn_382"]
+required-features = ["groth16", "algebra/bn_382", "r1cs-std"]
 
 [[bench]]
 name = "darlin_batch_verification_bench"
