@@ -244,9 +244,8 @@ mod test {
 
         // Set params
         let max_proofs = 100;
-        let max_pow = 7usize;
-        let num_constraints = 1 << max_pow;
-        let segment_size = num_constraints;
+        let max_pow = 10usize;
+        let segment_size = 1 << max_pow;
 
         //Generate keys
         let params_g1 = TestIPAPCDee::setup(segment_size - 1).unwrap();
@@ -274,9 +273,10 @@ mod test {
         while generated_proofs < max_proofs {
             let iteration_num_proofs: usize = generation_rng.gen_range(1, max_proofs);
             generated_proofs += iteration_num_proofs;
-            let iteration_segment_size = 1 << (generation_rng.gen_range(2, max_pow));
+            let iteration_segment_size = 1 << (generation_rng.gen_range(5, max_pow));
+            let iteration_num_constraints = iteration_segment_size;
             let (mut iteration_pcds, mut iteration_vks) = generate_simple_marlin_test_data(
-                num_constraints - 1,
+                iteration_num_constraints - 1,
                 iteration_segment_size,
                 &params_g1,
                 iteration_num_proofs,
@@ -324,9 +324,8 @@ mod test {
 
         // Set params
         let max_proofs = 100;
-        let max_pow = 7usize;
-        let num_constraints = 1 << max_pow;
-        let segment_size = num_constraints;
+        let max_pow = 10usize;
+        let segment_size = 1 << max_pow;
 
         //Generate keys
         let params_g1 = TestIPAPCDee::setup(segment_size - 1).unwrap();
@@ -354,9 +353,10 @@ mod test {
         while generated_proofs < max_proofs {
             let iteration_num_proofs: usize = generation_rng.gen_range(1, max_proofs);
             generated_proofs += iteration_num_proofs;
-            let iteration_segment_size = 1 << (generation_rng.gen_range(2, max_pow));
+            let iteration_segment_size = 1 << (generation_rng.gen_range(5, max_pow));
+            let iteration_num_constraints = iteration_segment_size;
             let (mut iteration_pcds, mut iteration_vks) = generate_final_darlin_test_data(
-                num_constraints - 1,
+                iteration_num_constraints - 1,
                 iteration_segment_size,
                 &params_g1,
                 &params_g2,
@@ -405,9 +405,8 @@ mod test {
 
         // Set params
         let max_proofs = 100;
-        let max_pow = 7usize;
-        let num_constraints = 1 << max_pow;
-        let segment_size = num_constraints;
+        let max_pow = 10usize;
+        let segment_size = 1 << max_pow;
 
         //Generate keys
         let params_g1 = TestIPAPCDee::setup(segment_size - 1).unwrap();
@@ -435,13 +434,14 @@ mod test {
         while generated_proofs < max_proofs {
             let iteration_num_proofs: usize = generation_rng.gen_range(1, max_proofs);
             generated_proofs += iteration_num_proofs;
-            let iteration_segment_size = 1 << (generation_rng.gen_range(2, max_pow));
+            let iteration_segment_size = 1 << (generation_rng.gen_range(5, max_pow));
+            let iteration_num_constraints = iteration_segment_size;
 
             // Randomly choose if to generate a SimpleMarlinProof or a FinalDarlinProof
             let simple: bool = generation_rng.gen();
             if simple {
                 let (iteration_pcds, mut iteration_vks) = generate_simple_marlin_test_data(
-                    num_constraints - 1,
+                    iteration_num_constraints - 1,
                     iteration_segment_size,
                     &params_g1,
                     iteration_num_proofs,
@@ -458,7 +458,7 @@ mod test {
                 vks.append(&mut iteration_vks);
             } else {
                 let (iteration_pcds, mut iteration_vks) = generate_final_darlin_test_data(
-                    num_constraints - 1,
+                    iteration_num_constraints - 1,
                     iteration_segment_size,
                     &params_g1,
                     &params_g2,
