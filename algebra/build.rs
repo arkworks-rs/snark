@@ -2,12 +2,21 @@ use std::env;
 use std::fs;
 use std::path::Path;
 
+extern crate rustc_version;
+use rustc_version::{version_meta, Channel};
+
 use field_assembly::generate_macro_string;
 
 const NUM_LIMBS: usize = 8;
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
+
+    let is_nightly = version_meta().expect("nightly check failed").channel == Channel::Nightly;
+
+    if is_nightly {
+        println!("cargo:rustc-cfg=nightly");
+    }
 
     let should_use_asm = cfg!(all(
         feature = "llvm_asm",
