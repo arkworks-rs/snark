@@ -214,6 +214,11 @@ pub trait Field:
 
     /// Exponentiates this element by a number represented with `u64` limbs,
     /// least significant limb first.
+    /// WARNING: This implementation doesn't take costant time with respect
+    /// to the exponent, and therefore is susceptible to side-channel attacks.
+    /// Be sure to use it in applications where timing (or similar) attacks
+    /// are not possible.
+    /// TODO: Add a side-channel secure variant.
     fn pow<S: AsRef<[u64]>>(&self, exp: S) -> Self {
         let mut res = Self::one();
 

@@ -64,6 +64,11 @@ impl<P: Parameters> GroupAffine<P> {
         self.mul_bits(cofactor)
     }
 
+    /// WARNING: This implementation doesn't take costant time with respect
+    /// to the exponent, and therefore is susceptible to side-channel attacks.
+    /// Be sure to use it in applications where timing (or similar) attacks
+    /// are not possible.
+    /// TODO: Add a side-channel secure variant.
     pub(crate) fn mul_bits<S: AsRef<[u64]>>(&self, bits: BitIterator<S>) -> GroupProjective<P> {
         let mut res = GroupProjective::zero();
         for i in bits {
@@ -741,6 +746,11 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
         }
     }
 
+    /// WARNING: This implementation doesn't take costant time with respect
+    /// to the exponent, and therefore is susceptible to side-channel attacks.
+    /// Be sure to use it in applications where timing (or similar) attacks
+    /// are not possible.
+    /// TODO: Add a side-channel secure variant.
     fn mul_assign<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(&mut self, other: S) {
         let mut res = Self::zero();
 
