@@ -161,7 +161,7 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
             if x.is_zero() {
                 Some(Self::zero())
             } else {
-                Self::get_point_from_x(x, flags.is_positive())
+                Self::get_point_from_x_and_parity(x, flags.is_odd())
             }
         })
     }
