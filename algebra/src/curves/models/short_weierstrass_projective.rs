@@ -852,7 +852,7 @@ impl<P: Parameters> CanonicalSerialize for GroupAffine<P> {
             // Serialize 0.
             P::BaseField::zero().serialize_with_flags(writer, flags)
         } else {
-            let flags = SWFlags::from_y_sign(self.y > -self.y);
+            let flags = SWFlags::from_y_parity(self.y.is_odd());
             self.x.serialize_with_flags(writer, flags)
         }
     }
@@ -926,7 +926,7 @@ impl<P: Parameters> CanonicalDeserialize for GroupAffine<P> {
         if flags.is_infinity() {
             Ok(Self::zero())
         } else {
-            let p = GroupAffine::<P>::get_point_from_x(x, flags.is_positive().unwrap())
+            let p = GroupAffine::<P>::get_point_from_x_and_parity(x, flags.is_odd().unwrap())
                 .ok_or(SerializationError::InvalidData)?;
             Ok(p)
         }
