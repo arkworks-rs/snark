@@ -8,6 +8,13 @@ use crate::Error;
 /// works with leaves of size 1 field element.
 /// Leaves passed when creating a MerkleTree/MerklePath proof won't be
 /// hashed, it's responsibility of the caller to do it, if desired.
+/// WARNING. This Merkle Tree implementation:
+/// 1) Stores all the nodes in memory, so please retain from using it if
+///    the available amount of memory is limited compared to the number
+///    of leaves to be stored;
+/// 2) Leaves and nodes are hashed without using any kind of domain separation:
+///    while this is ok for use cases where the Merkle Trees have always the
+///    same height, it's not for all the others.
 pub struct NaiveMerkleTree<P: FieldBasedMerkleTreeParameters> {
     height:       usize,
     tree:         Vec<<P::H as FieldBasedHash>::Data>,

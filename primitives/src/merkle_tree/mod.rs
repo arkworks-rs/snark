@@ -83,6 +83,13 @@ impl<P: MerkleTreeConfig> MerkleTreePath<P> {
     }
 }
 
+/// WARNING. This Merkle Tree implementation:
+/// 1) Stores all the nodes in memory, so please retain from using it if
+///    the available amount of memory is limited compared to the number
+///    of leaves to be stored;
+/// 2) Leaves and nodes are hashed without using any kind of domain separation:
+///    while this is ok for use cases where the Merkle Trees have always the
+///    same height, it's not for all the others.
 pub struct MerkleHashTree<P: MerkleTreeConfig> {
     tree:         Vec<<P::H as FixedLengthCRH>::Output>,
     padding_tree: Vec<(

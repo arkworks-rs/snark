@@ -4,6 +4,13 @@ use std::marker::PhantomData;
 
 /// An implementation of FieldBasedMerkleTree, optimized in time and memory,
 /// and able to support any BatchFieldBasedHash and Merkle arity.
+/// WARNING. This Merkle Tree implementation:
+/// 1) Stores all the nodes in memory, so please retain from using it if
+///    the available amount of memory is limited compared to the number
+///    of leaves to be stored;
+/// 2) Leaves and nodes are hashed without using any kind of domain separation:
+///    while this is ok for use cases where the Merkle Trees have always the
+///    same height, it's not for all the others.
 /// TODO: Test with arity > 2
 #[derive(Clone)]
 pub struct FieldBasedOptimizedMHT<T: BatchFieldBasedMerkleTreeParameters>{
