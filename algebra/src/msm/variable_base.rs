@@ -5,11 +5,24 @@ pub struct VariableBaseMSM;
 
 impl VariableBaseMSM {
 
+    /// WARNING: This function allows scalars and bases to have different length
+    /// (as long as scalars.len() <= bases.len()): internally, bases are trimmed
+    /// to have the same length of the scalars; this may lead to potential message
+    /// malleability issue: e.g. MSM([s1, s2], [b1, b2]) == MSM([s1, s2], [b1, b2, b3]),
+    /// so use this function carefully.
     pub fn multi_scalar_mul_affine_c<G: AffineCurve>(
         bases: &[G],
         scalars: &[<G::ScalarField as PrimeField>::BigInt],
         c: usize
     ) -> G::Projective {
+
+        // Sanity checks
+        assert!(c != 0, "Invalid window size value: 0");
+        assert!(c <= 25, "Invalid window size value: {}. It must be smaller than 25", c);
+        assert!(
+            scalars.len() <= bases.len(),
+            "Invalid MSM length. Scalars len: {}, Bases len: {}", scalars.len(), bases.len()
+        );
 
         let cc = 1 << c;
 
@@ -83,11 +96,24 @@ impl VariableBaseMSM {
         }) + lowest
     }
 
+    /// WARNING: This function allows scalars and bases to have different length
+    /// (as long as scalars.len() <= bases.len()): internally, bases are trimmed
+    /// to have the same length of the scalars; this may lead to potential message
+    /// malleability issue: e.g. MSM([s1, s2], [b1, b2]) == MSM([s1, s2], [b1, b2, b3]),
+    /// so use this function carefully.
     pub fn msm_inner_c<G: AffineCurve>(
         bases: &[G],
         scalars: &[<G::ScalarField as PrimeField>::BigInt],
-        c:usize
+        c: usize
     ) -> G::Projective {
+
+        // Sanity checks
+        assert!(c != 0, "Invalid window size value: 0");
+        assert!(c <= 25, "Invalid window size value: {}. It must be smaller than 25", c);
+        assert!(
+            scalars.len() <= bases.len(),
+            "Invalid MSM length. Scalars len: {}, Bases len: {}", scalars.len(), bases.len()
+        );
 
         let num_bits =
             <G::ScalarField as PrimeField>::Params::MODULUS_BITS as usize;
