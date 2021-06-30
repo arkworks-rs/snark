@@ -315,7 +315,7 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
             &[batching_chal_pows.as_slice(), combined_check_poly.coeffs.as_slice()].concat(),
             None,
             None,
-        );
+        ).map_err(|e| Error::IncorrectInputLength(e.to_string()))?;
         end_timer!(hard_time);
 
         if !ProjectiveCurve::is_zero(&final_val) {

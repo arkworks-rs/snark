@@ -55,7 +55,7 @@ impl<G1, G2> FinalDarlinDeferredData<G1, G2>
             random_xi_s_g1.compute_coeffs().as_slice(),
             None,
             None,
-        );
+        ).unwrap();
 
         let acc_g1 = DLogItem::<G1> {
             g_final: Commitment::<G1> {comm: vec![g_final_g1.into_affine()], shifted_comm: None },
@@ -71,7 +71,7 @@ impl<G1, G2> FinalDarlinDeferredData<G1, G2>
             random_xi_s_g2.compute_coeffs().as_slice(),
             None,
             None,
-        );
+        ).unwrap();
 
         let acc_g2 = DLogItem::<G2> {
             g_final: Commitment::<G2> {comm: vec![g_final_g2.into_affine()], shifted_comm: None },

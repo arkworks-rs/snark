@@ -180,7 +180,7 @@ where
 
     let a_query = params.get_a_query_full()?;
     let r_g1 = params.delta_g1.mul(r);
-    let g_a = calculate_coeff(r_g1, a_query, &params.alpha_g1, &assignment);
+    let g_a = calculate_coeff(r_g1, a_query, &params.alpha_g1, &assignment)?;
 
     end_timer!(a_acc_time);
 
@@ -190,7 +190,7 @@ where
 
         let s_g1 = params.delta_g1.mul(s);
         let b_query = params.get_b_g1_query_full()?;
-        let g1_b = calculate_coeff(s_g1, b_query, &params.beta_g1, &assignment);
+        let g1_b = calculate_coeff(s_g1, b_query, &params.beta_g1, &assignment)?;
 
         end_timer!(b_g1_acc_time);
         g1_b
@@ -204,7 +204,7 @@ where
 
     let b_query = params.get_b_g2_query_full()?;
     let s_g2 = params.delta_g2.mul(s);
-    let g2_b = calculate_coeff(s_g2, b_query, &params.beta_g2, &assignment);
+    let g2_b = calculate_coeff(s_g2, b_query, &params.beta_g2, &assignment)?;
 
     end_timer!(b_g2_acc_time);
 
@@ -212,10 +212,10 @@ where
     let c_acc_time = start_timer!(|| "Compute C");
 
     let h_query = params.get_h_query_full()?;
-    let h_acc = VariableBaseMSM::multi_scalar_mul(&h_query, &h_assignment);
+    let h_acc = VariableBaseMSM::multi_scalar_mul(&h_query, &h_assignment)?;
 
     let l_aux_source = params.get_l_query_full()?;
-    let l_aux_acc = VariableBaseMSM::multi_scalar_mul(l_aux_source, &aux_assignment);
+    let l_aux_acc = VariableBaseMSM::multi_scalar_mul(l_aux_source, &aux_assignment)?;
 
     let s_g_a = g_a.mul(&s);
     let r_g1_b = g1_b.mul(&r);
@@ -243,14 +243,14 @@ fn calculate_coeff<G: AffineCurve>(
     query: &[G],
     vk_param: &G,
     assignment: &[<G::ScalarField as PrimeField>::BigInt],
-) -> G::Projective {
+) -> Result<G::Projective, SynthesisError> {
     let el = query[0];
-    let acc = VariableBaseMSM::multi_scalar_mul(&query[1..], assignment);
+    let acc = VariableBaseMSM::multi_scalar_mul(&query[1..], assignment)?;
 
     let mut res = initial;
     res.add_assign_mixed(&el);
     res += &acc;
     res.add_assign_mixed(vk_param);
 
-    res
+    Ok(res)
 }

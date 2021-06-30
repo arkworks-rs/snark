@@ -73,7 +73,7 @@ fn variable_msm(c: &mut Criterion) {
              || format!("****************{}*******************", samples),
              || format!("--->START TIMESTAMP: {:?}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs())
         );
-                               VariableBaseMSM::multi_scalar_mul(g.as_slice(), v.as_slice());
+                               VariableBaseMSM::multi_scalar_mul(g.as_slice(), v.as_slice()).unwrap();
                                add_to_trace!(
              || format!("****************{}*******************", samples),
              || format!("--->END TIMESTAMP: {:?}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs())
