@@ -15,7 +15,7 @@ use crate::darlin::{
     },
 };
 use poly_commit::ipa_pc::Commitment;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::marker::PhantomData;
 
 #[derive(Derivative)]
@@ -29,6 +29,10 @@ impl<G: AffineCurve, D: Digest> Deref for MarlinProof<G, D> {
     fn deref(&self) -> &Self::Target {
         &self.0
     }
+}
+
+impl<G: AffineCurve, D: Digest> DerefMut for MarlinProof<G, D> {
+    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
 }
 
 impl<G: AffineCurve, D: Digest> SemanticallyValid for MarlinProof<G, D> {
