@@ -33,27 +33,6 @@ pub fn get_keys<G1: AffineCurve, G2: AffineCurve, D: Digest>(
     (ck_g1, vk_g1, ck_g2, vk_g2)
 }
 
-#[allow(dead_code)]
-/// Extract smaller DLogCommitterKey and DLogVerifierKey from UniversalParams struct
-/// for negative tests
-pub fn get_keys_small<G1: AffineCurve, G2: AffineCurve, D: Digest>(
-    params_g1: &UniversalParams<G1>,
-    params_g2: &UniversalParams<G2>,
-) -> (DLogCommitterKey<G1>, DLogVerifierKey<G1>, DLogCommitterKey<G2>, DLogVerifierKey<G2>)
-{
-    let (ck_g1, vk_g1) = InnerProductArgPC::<G1, D>::trim(
-        params_g1,
-        16,
-    ).unwrap();
-
-    let (ck_g2, vk_g2) = InnerProductArgPC::<G2, D>::trim(
-        params_g2,
-        16,
-    ).unwrap();
-
-    (ck_g1, vk_g1, ck_g2, vk_g2)
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -98,8 +77,6 @@ mod test {
         verifier_key_g2: &DLogVerifierKey<G2>,
         fake_pcds: Option<&[GeneralPCD<'a, G1, G2, D>]>,
         fake_vks: Option<&[MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>]>,
-        verifier_key_g1_small: Option<&DLogVerifierKey<G1>>,
-        verifier_key_g2_small: Option<&DLogVerifierKey<G2>>,
         rng: &mut R
     )
         where
@@ -138,20 +115,6 @@ mod test {
             verifier_key_g2,
             rng
         ).unwrap());
-
-        // Use a smaller vk derived from the same universal params and check verification fails
-        if verifier_key_g1_small.is_some() && verifier_key_g2_small.is_some() {
-
-            assert!(!verify_aggregated_proofs::<G1, G2, D, R>(
-                pcds,
-                vks,
-                &proof_g1,
-                &proof_g2,
-                verifier_key_g1_small.unwrap(),
-                verifier_key_g2_small.unwrap(),
-                rng
-            ).unwrap());
-        }
 
         // Randomize usr_ins for some PCDs and assert AHP verification fails
         let indices = get_unique_random_proof_indices(pcds.len(), rng);
@@ -248,8 +211,6 @@ mod test {
         verifier_key_g2: &DLogVerifierKey<G2>,
         fake_pcds: Option<&[GeneralPCD<'a, G1, G2, D>]>,
         fake_vks: Option<&[MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>]>,
-        verifier_key_g1_small: Option<&DLogVerifierKey<G1>>,
-        verifier_key_g2_small: Option<&DLogVerifierKey<G2>>,
         rng: &mut R
     )
         where
@@ -264,18 +225,6 @@ mod test {
             verifier_key_g2,
             rng
         ).unwrap());
-
-        // Use a smaller vk derived from the same universal params and check verification fails
-        if verifier_key_g1_small.is_some() && verifier_key_g2_small.is_some() {
-
-            assert!(!batch_verify_proofs::<G1, G2, D, R>(
-                pcds,
-                vks,
-                verifier_key_g1_small.unwrap(),
-                verifier_key_g2_small.unwrap(),
-                rng
-            ).unwrap());
-        }
 
         // Randomize usr_ins for some PCDs and assert AHP verification fails
         let indices = get_unique_random_proof_indices(pcds.len(), rng);
@@ -382,11 +331,6 @@ mod test {
             committer_key_g2, verifier_key_g2
         ) = get_keys::<_, _, Blake2s>(&params_g1, &params_g2);
 
-        let (
-            _, verifier_key_g1_small,
-            _, verifier_key_g2_small
-        ) = get_keys_small::<_, _, Blake2s>(&params_g1, &params_g2);
-
         //Generate fake params
         let mut params_g1_fake = TestIPAPCDee::setup_from_seed(segment_size - 1, b"FAKE PROTOCOL").unwrap();
         params_g1_fake.copy_params(&params_g1);
@@ -460,8 +404,6 @@ mod test {
             &verifier_key_g2,
             Some(simple_marlin_pcds_fake.as_slice()),
             Some(simple_marlin_vks_fake.as_slice()),
-            Some(&verifier_key_g1_small),
-            Some(&verifier_key_g2_small),
             rng
         );
 
@@ -473,8 +415,6 @@ mod test {
             &verifier_key_g2,
             Some(simple_marlin_pcds_fake.as_slice()),
             Some(simple_marlin_vks_fake.as_slice()),
-            Some(&verifier_key_g1_small),
-            Some(&verifier_key_g2_small),
             rng
         );
     }
@@ -496,11 +436,6 @@ mod test {
             committer_key_g1, verifier_key_g1,
             committer_key_g2, verifier_key_g2
         ) = get_keys::<_, _, Blake2s>(&params_g1, &params_g2);
-
-        let (
-            _, verifier_key_g1_small,
-            _, verifier_key_g2_small
-        ) = get_keys_small::<_, _, Blake2s>(&params_g1, &params_g2);
 
         //Generate fake params
         let mut params_g1_fake = TestIPAPCDee::setup_from_seed(segment_size - 1, b"FAKE PROTOCOL").unwrap();
@@ -579,8 +514,6 @@ mod test {
             &verifier_key_g2,
             Some(final_darlin_pcds_fake.as_slice()),
             Some(final_darlin_vks_fake.as_slice()),
-            Some(&verifier_key_g1_small),
-            Some(&verifier_key_g2_small),
             rng
         );
 
@@ -592,8 +525,6 @@ mod test {
             &verifier_key_g2,
             Some(final_darlin_pcds_fake.as_slice()),
             Some(final_darlin_vks_fake.as_slice()),
-            Some(&verifier_key_g1_small),
-            Some(&verifier_key_g2_small),
             rng
         );
     }
@@ -615,11 +546,6 @@ mod test {
             committer_key_g1, verifier_key_g1,
             committer_key_g2, verifier_key_g2
         ) = get_keys::<_, _, Blake2s>(&params_g1, &params_g2);
-
-        let (
-            _, verifier_key_g1_small,
-            _, verifier_key_g2_small
-        ) = get_keys_small::<_, _, Blake2s>(&params_g1, &params_g2);
 
         //Generate fake params
         let mut params_g1_fake = TestIPAPCDee::setup_from_seed(segment_size - 1, b"FAKE PROTOCOL").unwrap();
@@ -727,8 +653,6 @@ mod test {
             &verifier_key_g2,
             Some(pcds_fake.as_slice()),
             Some(vks_fake.as_slice()),
-            Some(&verifier_key_g1_small),
-            Some(&verifier_key_g2_small),
             rng
         );
 
@@ -740,8 +664,6 @@ mod test {
             &verifier_key_g2,
             Some(pcds_fake.as_slice()),
             Some(vks_fake.as_slice()),
-            Some(&verifier_key_g1_small),
-            Some(&verifier_key_g2_small),
             rng
         );
     }
