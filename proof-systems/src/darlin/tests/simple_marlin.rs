@@ -104,7 +104,7 @@ pub fn generate_test_pcd<'a, G: AffineCurve, D: Digest + 'a, R: RngCore>(
         a: Some(a),
         b: Some(b),
         num_constraints,
-        num_variables: num_constraints/2,
+        num_variables: num_constraints,
     };
 
     let proof = Marlin::<G::ScalarField, InnerProductArgPC<G, D>, D>::prove(
@@ -141,7 +141,7 @@ pub fn generate_test_data<'a, G: AffineCurve, D: Digest + 'a, R: RngCore>(
         a: None,
         b: None,
         num_constraints,
-        num_variables: num_constraints/2,
+        num_variables: num_constraints,
     };
 
     let (index_pk, index_vk) = Marlin::<G::ScalarField, InnerProductArgPC<G, D>, D>::index(

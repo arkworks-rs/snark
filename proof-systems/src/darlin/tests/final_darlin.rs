@@ -360,7 +360,7 @@ pub fn generate_test_data<'a, G1: AffineCurve, G2: AffineCurve, D: Digest + 'a, 
 
     let info = CircuitInfo::<G1, G2> {
         num_constraints,
-        num_variables: num_constraints/2,
+        num_variables: num_constraints,
         dummy_deferred,
     };
 
