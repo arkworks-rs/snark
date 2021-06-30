@@ -18,5 +18,5 @@ include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
 license = "MIT/Apache-2.0"
 
 [dependencies]
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "misc_changes" }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "negative_tests" }
 smallvec = { version = "0.6" }
