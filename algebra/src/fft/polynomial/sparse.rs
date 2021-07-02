@@ -104,14 +104,12 @@ impl<F: PrimeField> SparsePolynomial<F> {
     pub fn evaluate_over_domain_by_ref(&self, domain: Box<dyn EvaluationDomain<F>>) -> Evaluations<F> {
         let poly: DenseOrSparsePolynomial<'_, F> = self.into();
         DenseOrSparsePolynomial::<F>::evaluate_over_domain(poly, domain)
-        // unimplemented!("current implementation does not produce evals in correct order")
     }
 
     /// Evaluate `self` over `domain`.
     pub fn evaluate_over_domain(self, domain: Box<dyn EvaluationDomain<F>>) -> Evaluations<F> {
         let poly: DenseOrSparsePolynomial<'_, F> = self.into();
         DenseOrSparsePolynomial::<F>::evaluate_over_domain(poly, domain)
-        // unimplemented!("current implementation does not produce evals in correct order")
     }
 }
 

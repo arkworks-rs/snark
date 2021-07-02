@@ -69,7 +69,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
             new_elem_pos.push(initial_idx);
 
             initial_idx += size;
-            size /= rate;
+            size /= T::MERKLE_ARITY;
             final_idx = initial_idx + size;
         }
 

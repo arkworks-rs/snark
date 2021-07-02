@@ -54,32 +54,25 @@ impl<P: MerkleTreeConfig> MerkleTreePath<P> {
             return Err(MerkleTreeError::IncorrectPathLength(self.path.len(), P::HEIGHT as usize))?
         }
         // Check that the given leaf matches the leaf in the membership proof.
-        let mut buffer = vec![0u8; P::H::INPUT_SIZE_BITS/8];
+        let mut prev = hash_leaf::<P::H, L>(parameters, leaf)?;
 
-        if !self.path.is_empty() {
+        // Check levels between leaf level and root.
+        for &(ref sibling_hash, direction) in &self.path {
 
-            let mut prev = hash_leaf::<P::H, L>(parameters, leaf, &mut buffer)?;
-
-            // Check levels between leaf level and root.
-            for &(ref sibling_hash, direction) in &self.path {
-
-            // Check if the previous hash matches the correct current hash.
-            prev = {
-                    if direction {
-                        hash_inner_node::<P::H>(parameters, sibling_hash, &prev, &mut buffer)
-                    } else {
-                        hash_inner_node::<P::H>(parameters, &prev, sibling_hash, &mut buffer)
-                    }
-                }?;
-            }
-
-            if root_hash != &prev {
-                return Ok(false);
-            }
-            Ok(true)
-        } else {
-            return Err(MerkleTreeError::IncorrectPathLength(0, P::HEIGHT as usize))?
+        // Check if the previous hash matches the correct current hash.
+        prev = {
+                if direction {
+                    hash_inner_node::<P::H>(parameters, sibling_hash, &prev)
+                } else {
+                    hash_inner_node::<P::H>(parameters, &prev, sibling_hash)
+                }
+            }?;
         }
+
+        if root_hash != &prev {
+            return Ok(false);
+        }
+        Ok(true)
     }
 }
 
@@ -140,14 +133,12 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
 
         // Compute and store the hash values for each leaf.
         let last_level_index = level_indices.pop().unwrap();
-        let mut buffer = vec![0u8; P::H::INPUT_SIZE_BITS/8];
         for (i, leaf) in leaves.iter().enumerate() {
-            tree[last_level_index + i] = hash_leaf::<P::H, _>(&parameters, leaf, &mut buffer)?;
+            tree[last_level_index + i] = hash_leaf::<P::H, _>(&parameters, leaf)?;
         }
 
         // Compute the hash values for every node in the tree.
         let mut upper_bound = last_level_index;
-        let mut buffer = vec![0u8; P::H::INPUT_SIZE_BITS/8];
         level_indices.reverse();
         for &start_index in &level_indices {
             // Iterate over the current level.
@@ -160,7 +151,6 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
                     &parameters,
                     &tree[left_index],
                     &tree[right_index],
-                    &mut buffer,
                 )?;
             }
             upper_bound = start_index;
@@ -171,7 +161,7 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
         let mut padding_tree = Vec::new();
         let mut cur_hash = tree[0].clone();
         while cur_height <= Self::HEIGHT as usize {
-            cur_hash = hash_inner_node::<P::H>(&parameters, &cur_hash, &empty_hash, &mut buffer)?;
+            cur_hash = hash_inner_node::<P::H>(&parameters, &cur_hash, &empty_hash)?;
             padding_tree.push((cur_hash.clone(), empty_hash.clone()));
             cur_height += 1;
         }
@@ -201,8 +191,7 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
         let prove_time = start_timer!(|| "MerkleTree::GenProof");
         let mut path = Vec::new();
 
-        let mut buffer = vec![0u8; P::H::INPUT_SIZE_BITS/8];
-        let leaf_hash = hash_leaf::<P::H, _>(&self.parameters, leaf, &mut buffer)?;
+        let leaf_hash = hash_leaf::<P::H, _>(&self.parameters, leaf)?;
         let tree_height = tree_height(self.tree.len());
         let tree_index = convert_index_to_last_level(index, tree_height);
 
@@ -335,9 +324,10 @@ pub(crate) fn hash_inner_node<H: FixedLengthCRH>(
     parameters: &H::Parameters,
     left: &H::Output,
     right: &H::Output,
-    buffer: &mut [u8],
 ) -> Result<H::Output, Error> {
     use std::io::Cursor;
+
+    let mut buffer = vec![0u8; H::INPUT_SIZE_BITS/8];
     let mut writer = Cursor::new(buffer);
     // Construct left input.
     left.write(&mut writer)?;
@@ -353,9 +343,10 @@ pub(crate) fn hash_inner_node<H: FixedLengthCRH>(
 pub(crate) fn hash_leaf<H: FixedLengthCRH, L: ToBytes>(
     parameters: &H::Parameters,
     leaf: &L,
-    buffer: &mut [u8],
 ) -> Result<H::Output, Error> {
     use std::io::Cursor;
+    let mut buffer = vec![0u8; H::INPUT_SIZE_BITS/8];
+
     let mut writer = Cursor::new(buffer);
     leaf.write(&mut writer)?;
 

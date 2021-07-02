@@ -182,6 +182,7 @@ pub trait EvaluationDomain<F: PrimeField>: Debug + Send + Sync
     /// another (sub)domain with size size_s, this returns the actual index into this domain.
     fn reindex_by_subdomain(&self, other_size: usize, index: usize) -> usize {
         assert!(self.size() >= other_size);
+        assert!(other_size > 0);
         // Let this subgroup be G, and the subgroup we're re-indexing by be S.
         // Since its a subgroup, the 0th element of S is at index 0 in G, the first element of S is at
         // index |G|/|S|, the second at 2*|G|/|S|, etc.
@@ -197,6 +198,7 @@ pub trait EvaluationDomain<F: PrimeField>: Debug + Send + Sync
             // The +1 is because index 0 of G is S_0, so the position is offset by at least one.
             // The floor(i / x) term is because after x elements in G \ S, there is one more element from S
             // that will have appeared in G.
+            assert!(period > 1);
             let i = index - other_size;
             let x = period - 1;
             i + (i / x) + 1
