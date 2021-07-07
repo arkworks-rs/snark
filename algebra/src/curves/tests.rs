@@ -320,8 +320,8 @@ pub fn sw_jacobian_curve_serialization_test<P: SWModelParameters>() {
 
     for _ in 0..ITERATIONS {
         let a = GroupProjective::<P>::rand(rng);
-        let mut a = a.into_affine();
         {
+            let mut a = a.into_affine();
             let mut serialized = vec![0; buf_size];
             let mut cursor = Cursor::new(&mut serialized[..]);
             CanonicalSerialize::serialize(&a, &mut cursor).unwrap();
@@ -329,9 +329,12 @@ pub fn sw_jacobian_curve_serialization_test<P: SWModelParameters>() {
             let mut cursor = Cursor::new(&serialized[..]);
             let b = <GroupAffine<P> as CanonicalDeserialize>::deserialize(&mut cursor).unwrap();
             assert_eq!(a, b);
+            a.y = -a.y;
+            assert_ne!(a, b);
         }
 
         {
+            let mut a = a.into_affine();
             a.y = -a.y;
             let mut serialized = vec![0; buf_size];
             let mut cursor = Cursor::new(&mut serialized[..]);
@@ -339,6 +342,8 @@ pub fn sw_jacobian_curve_serialization_test<P: SWModelParameters>() {
             let mut cursor = Cursor::new(&serialized[..]);
             let b = <GroupAffine<P> as CanonicalDeserialize>::deserialize(&mut cursor).unwrap();
             assert_eq!(a, b);
+            a.y = -a.y;
+            assert_ne!(a, b);
         }
 
         {
@@ -365,6 +370,7 @@ pub fn sw_jacobian_curve_serialization_test<P: SWModelParameters>() {
         }
 
         {
+            let mut a = a.into_affine();
             let mut serialized = vec![0; a.uncompressed_size()];
             let mut cursor = Cursor::new(&mut serialized[..]);
             a.serialize_uncompressed(&mut cursor).unwrap();
@@ -372,9 +378,12 @@ pub fn sw_jacobian_curve_serialization_test<P: SWModelParameters>() {
             let mut cursor = Cursor::new(&serialized[..]);
             let b = GroupAffine::<P>::deserialize_uncompressed(&mut cursor).unwrap();
             assert_eq!(a, b);
+            a.y = -a.y;
+            assert_ne!(a, b);
         }
 
         {
+            let mut a = a.into_affine();
             a.y = -a.y;
             let mut serialized = vec![0; a.uncompressed_size()];
             let mut cursor = Cursor::new(&mut serialized[..]);
@@ -382,6 +391,8 @@ pub fn sw_jacobian_curve_serialization_test<P: SWModelParameters>() {
             let mut cursor = Cursor::new(&serialized[..]);
             let b = GroupAffine::<P>::deserialize_uncompressed(&mut cursor).unwrap();
             assert_eq!(a, b);
+            a.y = -a.y;
+            assert_ne!(a, b);
         }
 
         {
@@ -432,8 +443,8 @@ pub fn sw_projective_curve_serialization_test<P: SWModelParameters>() {
 
     for _ in 0..ITERATIONS {
         let a = GroupProjective::<P>::rand(rng);
-        let mut a = a.into_affine();
         {
+            let mut a = a.into_affine();
             let mut serialized = vec![0; buf_size];
             let mut cursor = Cursor::new(&mut serialized[..]);
             CanonicalSerialize::serialize(&a, &mut cursor).unwrap();
@@ -441,9 +452,12 @@ pub fn sw_projective_curve_serialization_test<P: SWModelParameters>() {
             let mut cursor = Cursor::new(&serialized[..]);
             let b = <GroupAffine<P> as CanonicalDeserialize>::deserialize(&mut cursor).unwrap();
             assert_eq!(a, b);
+            a.y = -a.y;
+            assert_ne!(a, b);
         }
 
         {
+            let mut a = a.into_affine();
             a.y = -a.y;
             let mut serialized = vec![0; buf_size];
             let mut cursor = Cursor::new(&mut serialized[..]);
@@ -451,6 +465,8 @@ pub fn sw_projective_curve_serialization_test<P: SWModelParameters>() {
             let mut cursor = Cursor::new(&serialized[..]);
             let b = <GroupAffine<P> as CanonicalDeserialize>::deserialize(&mut cursor).unwrap();
             assert_eq!(a, b);
+            a.y = -a.y;
+            assert_ne!(a, b);
         }
 
         {
@@ -477,6 +493,7 @@ pub fn sw_projective_curve_serialization_test<P: SWModelParameters>() {
         }
 
         {
+            let mut a = a.into_affine();
             let mut serialized = vec![0; a.uncompressed_size()];
             let mut cursor = Cursor::new(&mut serialized[..]);
             a.serialize_uncompressed(&mut cursor).unwrap();
@@ -484,9 +501,12 @@ pub fn sw_projective_curve_serialization_test<P: SWModelParameters>() {
             let mut cursor = Cursor::new(&serialized[..]);
             let b = GroupAffine::<P>::deserialize_uncompressed(&mut cursor).unwrap();
             assert_eq!(a, b);
+            a.y = -a.y;
+            assert_ne!(a, b);
         }
 
         {
+            let mut a = a.into_affine();
             a.y = -a.y;
             let mut serialized = vec![0; a.uncompressed_size()];
             let mut cursor = Cursor::new(&mut serialized[..]);
@@ -494,6 +514,8 @@ pub fn sw_projective_curve_serialization_test<P: SWModelParameters>() {
             let mut cursor = Cursor::new(&serialized[..]);
             let b = GroupAffine::<P>::deserialize_uncompressed(&mut cursor).unwrap();
             assert_eq!(a, b);
+            a.y = -a.y;
+            assert_ne!(a, b);
         }
 
         {
