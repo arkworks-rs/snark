@@ -41,6 +41,10 @@ pub(crate) fn get_accumulators<G1, G2, D: Digest>(
 {
     let accumulators_time = start_timer!(|| "Compute accumulators");
 
+    if pcds.len() == 0 || vks.len() == 0 || pcds.len() != vks.len() {
+        return Err(None);
+    }
+
     let (accs, failing_indices): (Vec<_>, Vec<_>) = pcds
         .into_par_iter()
         .zip(vks)
