@@ -1,5 +1,5 @@
 use algebra::Field;
-use crate::{BatchFieldBasedMerkleTreeParameters, BatchFieldBasedHash, FieldBasedMerkleTree, FieldBasedMerkleTreePath, FieldBasedMHTPath, FieldBasedHash, FieldBasedHashParameters, check_precomputed_parameters};
+use crate::{Error, BatchFieldBasedMerkleTreeParameters, BatchFieldBasedHash, FieldBasedMerkleTree, FieldBasedMerkleTreePath, FieldBasedMHTPath, FieldBasedHash, FieldBasedHashParameters, check_precomputed_parameters, MerkleTreeError};
 use std::marker::PhantomData;
 
 /// An implementation of FieldBasedMerkleTree, optimized in time and memory,
@@ -27,24 +27,13 @@ pub struct FieldBasedOptimizedMHT<T: BatchFieldBasedMerkleTreeParameters>{
 
 impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
 
-    /// Creates a new tree given its `height` and `processing_step`, used to tune
-    /// the memory usage of the tree. In particular, `processing_step` defines the
+    /// Creates a new tree given its `height` and `processing_step`, that defines the
     /// number of leaves to store before triggering the computation of the hashes
-    /// of the upper level.
-    /// Decreasing `processing_step` leads to less memory consumption but
-    /// significantly worsen performances, as the computation of upper levels' hashes
-    /// is triggered more often, along with a batch hash that may perform poorly when
-    /// there are few elements to batch; of course, conversely, increasing
-    /// `processing_step` increases the memory usage too but improves performances.
-    /// Meaningful values for `processing_step` are between 1 (i.e. update upper levels
-    /// at each leaf), leading to best memory efficiency but worse performances, and
-    /// the maximum number of leaves (or the mean number of leaves you plan to add),
-    /// leading to worse memory efficiency but best performances (upper levels hashes
-    /// are computed just once, but all the leaves must be kept in memory).
-    /// You can edit the `mht_poseidon_tuning` benchmarks in `primitives/src/benches/poseidon_mht.rs`
-    /// to properly tune the `processing_step` parameter according to your use case.
+    /// of the upper levels. Changing this parameter will affect the performances of
+    /// the batch hash: you can edit the `mht_poseidon_tuning` benchmarks in
+    /// `primitives/src/benches/poseidon_mht.rs` to properly tune the `processing_step`
+    /// parameter according to your use case.
     pub fn init(height: usize, processing_step: usize) -> Self {
-        //let height = height + 1;
         assert!(check_precomputed_parameters::<T>(height));
 
         let rate = <<T::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
@@ -65,6 +54,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
         let mut initial_idx = 0;
         let mut final_idx = last_level_size;
 
+        // Compute indexes
         while size >= 1 {
             initial_pos.push(initial_idx);
             final_pos.push(final_idx);
@@ -78,11 +68,14 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
 
         let tree_size = *final_pos.last().unwrap();
 
+        // Initialize to zero all tree nodes
         let mut array_nodes = Vec::with_capacity(tree_size);
         for _i in 0..tree_size {
             array_nodes.push(<T::Data as Field>::zero());
         }
 
+        // Decide optimal processing block size based on the number of available
+        // threads and the chosen processing step
         let cpus = rayon::current_num_threads();
         let mut chunk_size = processing_step / (cpus * rate);
         let mut processing_block_size = chunk_size * cpus * rate;
@@ -113,32 +106,58 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
         }
     }
 
+    /// Recursively update the nodes in the tree affected by some changes in the value of their children,
+    /// starting from the leaves (as long as the number of affected nodes at a certain level is bigger
+    /// equal than the rate of the hash function, therefore this function doesn't necessarily update
+    /// all the nodes up until the root).
     fn compute_subtree(&mut self) {
         for i in 0..=self.height  {
+
+            // Enter only if the number of nodes to process at this level is bigger than the rate
             if (self.new_elem_pos[i] - self.processed_pos[i]) >= self.rate {
-                let num_groups_leaves = (self.new_elem_pos[i] - self.processed_pos[i]) / self.rate;
-                let last_pos_to_process = self.processed_pos[i] + num_groups_leaves * self.rate;
 
+                // The number of chunks of rate nodes to be processed
+                let num_groups_nodes = (self.new_elem_pos[i] - self.processed_pos[i]) / self.rate;
+
+                // Take as input vec all the nodes in the current level and all their parents
+                // (i.e. all the nodes at the next level)
                 let (input_vec, output_vec) =
-                    self.array_nodes[self.initial_pos[i]..self.final_pos[i + 1]].split_at_mut(self.final_pos[i] - self.initial_pos[i]);
+                    self.array_nodes[self.initial_pos[i]..self.final_pos[i + 1]]
+                        .split_at_mut(self.final_pos[i] - self.initial_pos[i]);
 
-                let new_pos_parent = self.new_elem_pos[i + 1] + num_groups_leaves;
+                // The position of the last node in this level that will be affected by the changes.
+                // It's recomputed in this way as num_groups_nodes may have a remainder if
+                // the number of nodes to process it's not multiple of the rate.
+                let last_pos_to_process = self.processed_pos[i] + num_groups_nodes * self.rate;
 
+                // The position of the last node at parent level that will be affected by the changes.
+                let new_pos_parent = self.new_elem_pos[i + 1] + num_groups_nodes;
+
+                // From the input and the output vectors, use last_pos_to_process and new_pos_parent
+                // to isolate the nodes in this level and at parent level that are affected
+                // by changes, leaving the other ones out of the computation.
                 Self::batch_hash(
                     &mut input_vec[(self.processed_pos[i] - self.initial_pos[i])..(last_pos_to_process - self.initial_pos[i])],
                     &mut output_vec[(self.new_elem_pos[i + 1] - self.initial_pos[i + 1])..(new_pos_parent - self.initial_pos[i + 1])],
                     i + 1,
                 );
-                self.new_elem_pos[i + 1] += num_groups_leaves;
-                self.processed_pos[i] += num_groups_leaves * self.rate;
+
+                // Update new_elem_pos and processed_pos (in a consistent way as we did with
+                // new_pos_parent and last_pos_to_process.
+                self.new_elem_pos[i + 1] += num_groups_nodes;
+                self.processed_pos[i] += num_groups_nodes * self.rate;
             }
         }
+    }
+
+    pub fn get_leaves(&self) -> &[T::Data] {
+        &self.array_nodes[self.initial_pos[0]..self.new_elem_pos[0]]
     }
 
     fn batch_hash(input: &mut [T::Data], output: &mut [T::Data], parent_level: usize) {
 
         let mut i = 0;
-        let empty = T::EMPTY_HASH_CST.unwrap().nodes[parent_level - 1];
+        let empty = T::ZERO_NODE_CST.unwrap().nodes[parent_level - 1];
 
         // Stores the chunk that must be hashed, i.e. the ones containing at least one non-empty node
         let mut to_hash = Vec::new();
@@ -147,12 +166,11 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
         // placed (assuming that it can happen to have non-consecutive all-empty chunks)
         let mut output_pos = Vec::new();
 
-        // If the element of each chunk of "rate" size are all equals this means that the nodes
-        // are all empty nodes (with overwhelming probability), therefore we already have the output,
-        // otherwise it must be computed.
+        // If the element of each chunk of "rate" size are all equals to the empty node at that level,
+        // therefore we already have the output, otherwise it must be computed.
         input.chunks(T::MERKLE_ARITY).for_each(|input_chunk| {
             if input_chunk.iter().all(|&item| item == empty) {
-                output[i] = T::EMPTY_HASH_CST.unwrap().nodes[parent_level];
+                output[i] = T::ZERO_NODE_CST.unwrap().nodes[parent_level];
             } else {
                 to_hash.extend_from_slice(input_chunk);
                 output_pos.push(i);
@@ -178,14 +196,10 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBased
     type Parameters = T;
     type MerklePath = FieldBasedMHTPath<T>;
 
-    /// Note: `Field` implements the `Copy` trait, therefore invoking this function won't
-    /// cause a moving of ownership for `leaf`, but just a copy. Another copy is
-    /// performed below in `self.array_nodes[self.new_elem_pos_subarray[0]] = leaf;`
-    /// We can reduce this to one copy by passing a reference to leaf, but from an
-    /// interface point of view this is not logically correct: someone calling this
-    /// functions will likely not use the `leaf` anymore in most of the cases
-    /// (in the other cases he can just clone it).
-    fn append(&mut self, leaf: T::Data) -> &mut Self {
+    fn append(&mut self, leaf: T::Data) -> Result<&mut Self, Error> {
+        if self.processed_pos[0] == self.final_pos[0] {
+            Err(MerkleTreeError::MaximumLeavesReached(self.height))?
+        }
         if self.new_elem_pos[0] < self.final_pos[0] {
             self.array_nodes[self.new_elem_pos[0]] = leaf;
             self.new_elem_pos[0] += 1;
@@ -198,7 +212,8 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBased
         if (self.new_elem_pos[0] - self.processed_pos[0]) >= self.processing_step {
             self.compute_subtree();
         }
-        self
+
+        Ok(self)
     }
 
     fn finalize(&self) -> Self {
@@ -219,7 +234,6 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBased
     }
 
     fn reset(&mut self) -> &mut Self {
-
         for i in 0..self.new_elem_pos.len() {
             self.new_elem_pos[i] = self.initial_pos[i];
             self.processed_pos[i] = self.initial_pos[i];
@@ -288,7 +302,7 @@ mod test {
             mnt4753::Fr as MNT4753Fr, mnt6753::Fr as MNT6753Fr
         },
         UniformRand,
-        ToBytes, to_bytes, FromBytes,
+        ToBytes, to_bytes, FromBytes, SemanticallyValid
     };
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
@@ -302,7 +316,7 @@ mod test {
         parameters::{
             MNT4753_MHT_POSEIDON_PARAMETERS, MNT6753_MHT_POSEIDON_PARAMETERS
         }
-    }, FieldBasedMerkleTreePrecomputedEmptyConstants, FieldBasedMHTPath};
+    }, FieldBasedMerkleTreePrecomputedZeroConstants, FieldBasedMHTPath};
 
     // OptimizedMHT definitions for tests below
     #[derive(Clone, Debug)]
@@ -312,7 +326,7 @@ mod test {
         type Data = MNT4753Fr;
         type H = MNT4PoseidonHash;
         const MERKLE_ARITY: usize = 2;
-        const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> =
+        const ZERO_NODE_CST: Option<FieldBasedMerkleTreePrecomputedZeroConstants<'static, Self::H>> =
             Some(MNT4753_MHT_POSEIDON_PARAMETERS);
     }
 
@@ -331,7 +345,7 @@ mod test {
         type Data = MNT6753Fr;
         type H = MNT6PoseidonHash;
         const MERKLE_ARITY: usize = 2;
-        const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> =
+        const ZERO_NODE_CST: Option<FieldBasedMerkleTreePrecomputedZeroConstants<'static, Self::H>> =
             Some(MNT6753_MHT_POSEIDON_PARAMETERS);
     }
 
@@ -345,30 +359,98 @@ mod test {
 
     #[test]
     fn merkle_tree_test_mnt4() {
-        let expected_output = MNT4753Fr::new(BigInteger768([8181981188982771303, 9834648934716236448, 6420360685258842467, 14258691490360951478, 10642011566662929522, 16918207755479993617, 3581400602871836321, 14012664850056020974, 16755211538924649257, 4039951447678776727, 12365175056998155257, 119677729692145]));
-        let height = 20;
+        let expected_output = MNT4753Fr::new(BigInteger768([
+            11737642701305799951,
+            16779001331075430197,
+            11819169129328038354,
+            11423404101688341353,
+            13644857877536036127,
+            136974075146428157,
+            13736146501659167139,
+            15457726208981564885,
+            16287955982068396368,
+            2574770790166887043,
+            15847921958357229891,
+            431926751316706
+        ]));
+        let height = 10;
         let num_leaves = 2usize.pow(height as u32);
+
         let mut tree = MNT4PoseidonMHT::init(height, num_leaves);
+
+        let mut naive_mt = NaiveMNT4PoseidonMHT::new(height);
+
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+        let mut leaves = Vec::new();
         for _ in 0..num_leaves {
-            tree.append(MNT4753Fr::rand(&mut rng));
+            let leaf = MNT4753Fr::rand(&mut rng);
+            tree.append(leaf.clone()).unwrap();
+            leaves.push(leaf);
         }
+
+        // Exceeding maximum leaves will result in an error
+        assert!(tree.append(MNT4753Fr::rand(&mut rng)).is_err());
+
         tree.finalize_in_place();
-        assert_eq!(tree.root().unwrap(), expected_output, "Output of the Merkle tree computation for MNT4 does not match to the expected value.");
+        naive_mt.append(leaves.as_slice()).unwrap();
+
+        let naive_root = naive_mt.root();
+        let optimized_root = tree.root().unwrap();
+        assert_eq!(naive_root, optimized_root);
+        assert_eq!(
+            tree.root().unwrap(),
+            expected_output,
+            "Output of the Merkle tree computation for MNT4 does not match to the expected value."
+        );
     }
 
     #[test]
     fn merkle_tree_test_mnt6() {
-        let expected_output = MNT6753Fr::new(BigInteger768([18065863015580309240, 1059485854425188866, 1479096878827665107, 6899132209183155323, 1829690180552438097, 7395327616910893705, 16132683753083562833, 8528890579558218842, 9345795575555751752, 8161305655297462527, 6222078223269068637, 401142754883827]));
-        let height = 20;
+        let expected_output = MNT6753Fr::new(BigInteger768([
+            8485425859071260580,
+            10496086997731513209,
+            4252500720562453591,
+            2141019788822111914,
+            14051983083211686650,
+            1024951982785915663,
+            15435931545111578451,
+            10317608288193115884,
+            14391757241795953360,
+            10971839229749467698,
+            17614506209597433225,
+            374251447408225
+        ]));
+        let height = 10;
         let num_leaves = 2usize.pow(height as u32);
+
         let mut tree = MNT6PoseidonMHT::init(height, num_leaves);
+
+        let mut naive_mt = NaiveMNT6PoseidonMHT::new(height);
+
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
+
+        let mut leaves = Vec::new();
         for _ in 0..num_leaves {
-            tree.append(MNT6753Fr::rand(&mut rng));
+            let leaf = MNT6753Fr::rand(&mut rng);
+            tree.append(leaf.clone()).unwrap();
+            leaves.push(leaf);
         }
+
+        // Exceeding maximum leaves will result in an error
+        assert!(tree.append(MNT6753Fr::rand(&mut rng)).is_err());
+
         tree.finalize_in_place();
-        assert_eq!(tree.root().unwrap(), expected_output, "Output of the Merkle tree computation for MNT6 does not match to the expected value.");
+        naive_mt.append(leaves.as_slice()).unwrap();
+
+        let naive_root = naive_mt.root();
+        let optimized_root = tree.root().unwrap();
+        assert_eq!(naive_root, optimized_root);
+        assert_eq!(
+            tree.root().unwrap(),
+            expected_output,
+            "Output of the Merkle tree computation for MNT6 does not match to the expected value."
+        );
     }
 
     #[test]
@@ -392,7 +474,7 @@ mod test {
 
             // Push them in a Poseidon Merkle Tree and get the root
             let mut mt = MNT4PoseidonMHT::init(max_height, num_leaves);
-            leaves[0..num_leaves].iter().for_each(|&leaf| { mt.append(leaf); });
+            leaves[0..num_leaves].iter().for_each(|&leaf| { mt.append(leaf).unwrap(); });
             let root = mt.finalize_in_place().root().unwrap();
 
             assert_eq!(naive_root, root);
@@ -418,7 +500,7 @@ mod test {
 
             // Push them in a Poseidon Merkle Tree and get the root
             let mut mt = MNT4PoseidonMHT::init(max_height, num_leaves);
-            leaves[..].iter().for_each(|&leaf| { mt.append(leaf); });
+            leaves[..].iter().for_each(|&leaf| { mt.append(leaf).unwrap(); });
             let root = mt.finalize_in_place().root().unwrap();
 
             assert_eq!(naive_root, root);
@@ -447,7 +529,7 @@ mod test {
 
             // Push them in a Poseidon Merkle Tree and get the root
             let mut mt = MNT6PoseidonMHT::init(max_height, num_leaves);
-            leaves[..].iter().for_each(|&leaf| { mt.append(leaf); });
+            leaves[..].iter().for_each(|&leaf| { mt.append(leaf).unwrap(); });
             let root = mt.finalize_in_place().root().unwrap();
 
             assert_eq!(naive_root, root);
@@ -474,7 +556,7 @@ mod test {
 
             // Push them in a Poseidon Merkle Tree and get the root
             let mut mt = MNT6PoseidonMHT::init(max_height, num_leaves);
-            leaves[0..num_leaves].iter().for_each(|&leaf| { mt.append(leaf); });
+            leaves[0..num_leaves].iter().for_each(|&leaf| { mt.append(leaf).unwrap(); });
             let root = mt.finalize_in_place().root().unwrap();
 
             assert_eq!(naive_root, root);
@@ -493,7 +575,7 @@ mod test {
         // Generate random leaves, half of which empty
         for _ in 0..num_leaves/2 {
             let leaf = MNT4753Fr::rand(&mut rng);
-            tree.append(leaf);
+            tree.append(leaf).unwrap();
             leaves.push(leaf);
         }
         for _ in num_leaves/2..num_leaves {
@@ -514,10 +596,12 @@ mod test {
 
             // Create and verify a FieldBasedMHTPath
             let path = tree.get_merkle_path(i).unwrap();
+            assert!(path.is_valid());
             assert!(path.verify(tree.height(), &leaves[i], &root).unwrap());
 
             // Create and verify a Naive path
             let naive_path = naive_tree.generate_proof(i, &leaves[i]).unwrap();
+            assert!(naive_path.is_valid());
             assert!(naive_path.verify(naive_tree.height(), &leaves[i], &naive_root ).unwrap());
 
             // Assert the two paths are equal
@@ -530,7 +614,7 @@ mod test {
                 assert!(path.is_leftmost());
             }
             else if i == (num_leaves / 2) - 1 { // non-empty rightmost check
-                assert!(path.is_non_empty_rightmost());
+                assert!(path.are_right_leaves_empty());
             }
             else if i == num_leaves - 1 { //rightmost check
                 assert!(path.is_rightmost());
@@ -540,7 +624,7 @@ mod test {
                 assert!(!path.is_rightmost());
 
                 if i < (num_leaves / 2) - 1 {
-                    assert!(!path.is_non_empty_rightmost());
+                    assert!(!path.are_right_leaves_empty());
                 }
             }
 
@@ -555,7 +639,7 @@ mod test {
     }
 
     #[test]
-    fn merkle_tree_path_is_non_empty_rightmost_test_mnt4() {
+    fn merkle_tree_path_are_right_leaves_empty_test_mnt4() {
 
         let height = 6;
         let num_leaves = 2usize.pow(height as u32);
@@ -565,11 +649,11 @@ mod test {
         // Generate random leaves
         for i in 0..num_leaves {
             let leaf = MNT4753Fr::rand(&mut rng);
-            tree.append(leaf);
+            tree.append(leaf).unwrap();
 
             let tree_copy = tree.finalize();
             let path = tree_copy.get_merkle_path(i).unwrap();
-            assert!(path.is_non_empty_rightmost());
+            assert!(path.are_right_leaves_empty());
         }
     }
 
@@ -585,7 +669,7 @@ mod test {
         // Generate random leaves, half of which empty
         for _ in 0..num_leaves/2 {
             let leaf = MNT6753Fr::rand(&mut rng);
-            tree.append(leaf);
+            tree.append(leaf).unwrap();
             leaves.push(leaf);
         }
         for _ in num_leaves/2..num_leaves {
@@ -606,10 +690,12 @@ mod test {
 
             // Create and verify a FieldBasedMHTPath
             let path = tree.get_merkle_path(i).unwrap();
+            assert!(path.is_valid());
             assert!(path.verify(tree.height(), &leaves[i], &root).unwrap());
 
             // Create and verify a Naive path
             let naive_path = naive_tree.generate_proof(i, &leaves[i]).unwrap();
+            assert!(naive_path.is_valid());
             assert!(naive_path.verify(naive_tree.height(), &leaves[i], &naive_root ).unwrap());
 
             // Assert the two paths are equal
@@ -622,7 +708,7 @@ mod test {
                 assert!(path.is_leftmost());
             }
             else if i == (num_leaves / 2) - 1 { // non-empty rightmost check
-                assert!(path.is_non_empty_rightmost());
+                assert!(path.are_right_leaves_empty());
             }
             else if i == num_leaves - 1 { //rightmost check
                 assert!(path.is_rightmost());
@@ -632,7 +718,7 @@ mod test {
                 assert!(!path.is_rightmost());
 
                 if i < (num_leaves / 2) - 1 {
-                    assert!(!path.is_non_empty_rightmost());
+                    assert!(!path.are_right_leaves_empty());
                 }
             }
 

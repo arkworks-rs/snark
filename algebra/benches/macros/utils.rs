@@ -1,22 +1,20 @@
 macro_rules! n_fold {
     ($tmp:ident, $v:ident, $func:ident, $count:ident) => {
-        const ITERS: usize = 1000;
 
         #[cfg(not(feature = "n_fold"))]
         $tmp.$func(&$v[$count].1);
         #[cfg(feature = "n_fold")]
-        for _ in 0..ITERS {
+        for _ in 0..1000 {
             $tmp.$func(&$v[$count].1);
         }
     };
 
     ($tmp:ident, $func:ident) => {
-        const ITERS: usize = 1000;
 
         #[cfg(not(feature = "n_fold"))]
         $tmp.$func();
         #[cfg(feature = "n_fold")]
-        for _ in 0..ITERS {
+        for _ in 0..1000 {
             $tmp.$func();
         }
     };

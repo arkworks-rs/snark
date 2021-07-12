@@ -79,7 +79,7 @@ for FieldBasedBinaryMerkleTreePathGadget<P, HGadget, ConstraintF>
 
     /// Enforces correct reconstruction of the root of the Merkle Tree
     /// from `self` and `leaf`.
-    fn enforce_merkle_path<CS: ConstraintSystem<ConstraintF>>(
+    fn enforce_root_from_leaf<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         leaf: &HGadget::DataGadget,
@@ -189,7 +189,7 @@ impl<P, HGadget, ConstraintF> FieldBasedMerkleTreeGadget<P, HGadget, ConstraintF
                 let mut children = vec![];
                 children.push(nodes[0].clone());
                 children.push(nodes[1].clone());
-                let parent_hash = HGadget::check_evaluation_gadget(
+                let parent_hash = HGadget::enforce_hash_constant_length(
                     cs.ns(|| format!("hash_children_pair_{}_of_level_{}", i, level)),
                     children.as_slice(),
                 )?;
@@ -224,7 +224,7 @@ pub(crate) fn hash_inner_node_gadget<H, HG, ConstraintF, CS>(
         H: FieldBasedHash<Data = ConstraintF>,
         HG: FieldBasedHashGadget<H, ConstraintF>,
 {
-    HG::check_evaluation_gadget(cs, &[left_child, right_child])
+    HG::enforce_hash_constant_length(cs, &[left_child, right_child])
 }
 
 impl<P, HGadget, ConstraintF> AllocGadget<FieldBasedBinaryMHTPath<P>, ConstraintF>
@@ -387,7 +387,7 @@ mod test {
         type Data = Fr;
         type H = MNT4PoseidonHash;
         const MERKLE_ARITY: usize = 2;
-        const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>> = None;
+        const ZERO_NODE_CST: Option<FieldBasedMerkleTreePrecomputedZeroConstants<'static, Self::H>> = None;
     }
 
     type MNT4753FieldBasedMerkleTree = NaiveMerkleTree<MNT4753FieldBasedMerkleTreeParams>;
@@ -441,8 +441,8 @@ mod test {
                 .unwrap();
 
             // Enforce Merkle Path test
-            let root_1 = cw.enforce_merkle_path(
-                &mut cs.ns(|| format!("enforce_merkle_path_{}", i)),
+            let root_1 = cw.enforce_root_from_leaf(
+                &mut cs.ns(|| format!("enforce_root_from_leaf_{}", i)),
                 &leaf_g,
             ).unwrap();
 

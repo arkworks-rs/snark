@@ -1,9 +1,11 @@
 use crate::{curves::{edwards_bls12::*, tests::curve_tests, AffineCurve, ProjectiveCurve, models::twisted_edwards_extended::tests::montgomery_conversion_test}, groups::tests::group_test, SemanticallyValid};
 use rand;
+use crate::curves::tests::edwards_tests;
 
 #[test]
 fn test_projective_curve() {
     curve_tests::<EdwardsProjective>();
+    edwards_tests::<EdwardsParameters>()
 }
 
 #[test]

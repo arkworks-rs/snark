@@ -57,6 +57,12 @@ pub mod eq;
 pub mod select;
 pub mod to_field_gadget_vec;
 
+pub mod multieq;
+pub use multieq::*;
+
+pub mod sha256;
+pub use sha256::*;
+
 pub mod prelude {
     pub use crate::{
         alloc::*,

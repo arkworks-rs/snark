@@ -1,4 +1,9 @@
-use crate::{bytes::{FromBytes, ToBytes}, fields::{Field, PrimeField, SquareRootField}, groups::Group, SemanticallyValid, FromBytesChecked, bits::{ToBits, FromCompressedBits}, ToCompressedBits};
+use crate::{
+    bytes::{FromBytes, ToBytes},
+    fields::{Field, PrimeField, SquareRootField},
+    groups::Group, SemanticallyValid, FromBytesChecked, bits::{FromCompressedBits, ToCompressedBits},
+    CanonicalSerialize, CanonicalDeserialize
+};
 use crate::UniformRand;
 use std::{
     fmt::{Debug, Display},
@@ -131,6 +136,8 @@ pub trait ProjectiveCurve:
     + FromBytes
     + Serialize
     + for <'a> Deserialize<'a>
+    + CanonicalSerialize
+    + CanonicalDeserialize
     + SemanticallyValid
     + FromBytesChecked
     + Copy
@@ -225,6 +232,8 @@ pub trait AffineCurve:
     + FromBytes
     + Serialize
     + for <'a> Deserialize<'a>
+    + CanonicalSerialize
+    + CanonicalDeserialize
     + SemanticallyValid
     + FromBytesChecked
     + ToCompressedBits
@@ -260,24 +269,7 @@ pub trait AffineCurve:
     /// Returns a group element if the set of bytes forms a valid group element,
     /// otherwise returns None. This function is primarily intended for sampling
     /// random group elements from a hash-function or RNG output.
-    fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
-
-        let fe = match <Self::BaseField as Field>::BasePrimeField::from_random_bytes(bytes) {
-            Some(fe) => fe,
-            None => return None
-        };
-
-        //Get point from chunks
-        let mut fe_bits = fe.write_bits();
-        fe_bits.push(false); //We don't want an infinity point
-        fe_bits.push(false); //We decide to choose the even y coordinate
-        match Self::decompress(fe_bits) {
-            Ok(point) => {
-                Some(point)
-            },
-            Err(_) => None
-        }
-    }
+    fn from_random_bytes(bytes: &[u8]) -> Option<Self>;
 
     /// Checks that the current point is on curve and is in the
     /// prime order subgroup

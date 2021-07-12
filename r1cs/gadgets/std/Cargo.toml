@@ -20,16 +20,18 @@ license = "MIT/Apache-2.0"
 ################################# Dependencies ################################
 
 [dependencies]
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "nonnative" }
-r1cs-core = { path = "../../core"}
-derivative = "1"
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "development_tmp" }
+r1cs-core = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "development_tmp" }
+derivative = "2.2.0"
 radix_trie = "0.1"
+hex = "0.4"
 
 num-traits = { version = "0.2", default-features = false, optional = true }
 num-bigint = { version = "0.3.0", default-features = false, optional = true }
 num-integer = { version = "0.1.44", default-features = false, optional = true }
 
 [features]
+default = ["nonnative", "full"]
 llvm_asm = ["algebra/llvm_asm"]
 
 full = [ "bls12_377", "bn_382", "edwards_bls12", "edwards_sw6", "jubjub", "mnt4_753", "mnt6_753", "tweedle" ]
@@ -50,4 +52,4 @@ density-optimized = []
 paste = "1.0"
 rand = { version = "0.7" }
 rand_xorshift = { version = "0.2" }
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "nonnative", features = ["full"] }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "development_tmp", features = ["bls12_381", "jubjub"] }

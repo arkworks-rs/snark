@@ -291,6 +291,44 @@ impl FromBytes for Vec<u8> {
     }
 }
 
+impl<T1: ToBytes, T2: ToBytes> ToBytes for (T1, T2) {
+    fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
+        self.0.write(&mut writer)?;
+        self.1.write(writer)
+    }
+}
+
+impl<T1: FromBytes, T2: FromBytes> FromBytes for (T1, T2) {
+    fn read<R: Read>(mut reader: R) -> IoResult<Self> {
+        let t1 = T1::read(&mut reader)?;
+        let t2 = T2::read(&mut reader)?;
+
+        Ok((t1, t2))
+    }
+}
+
+impl<T: ToBytes> ToBytes for Option<T> {
+    fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
+        let is_some = self.is_some();
+        is_some.write(&mut writer)?;
+        if is_some {
+            self.as_ref().unwrap().write(&mut writer)?;
+        }
+        Ok(())
+    }
+}
+
+impl<T: FromBytes> FromBytes for Option<T> {
+    fn read<R: Read>(mut reader: R) -> IoResult<Self> {
+        let is_some = bool::read(&mut reader)?;
+        let mut obj = None;
+        if is_some {
+            obj = Some(T::read(&mut reader)?);
+        }
+        Ok(obj)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::ToBytes;

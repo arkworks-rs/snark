@@ -1,3 +1,91 @@
+macro_rules! impl_prime_field_serializer {
+    ($field: ident, $params: ident, $byte_size: expr) => {
+        impl<P: $params> CanonicalSerializeWithFlags for $field<P> {
+            fn serialize_with_flags<W: Write, F: Flags>(
+                &self,
+                mut writer: W,
+                flags: F,
+            ) -> Result<(), SerializationError> {
+                // All reasonable `Flags` should be less than 8 bits in size
+                // (256 values are enough for anyone!)
+                if F::BIT_SIZE > 8 {
+                    return Err(SerializationError::NotEnoughSpace);
+                }
+
+                // Calculate the number of bytes required to represent a field element
+                // serialized with `flags`. If `F::BIT_SIZE < 8`,
+                // this is at most `$byte_size + 1`
+                let output_byte_size = buffer_byte_size(P::MODULUS_BITS as usize + F::BIT_SIZE);
+
+                // Write out `self` to a temporary buffer.
+                // The size of the buffer is $byte_size + 1 because `F::BIT_SIZE`
+                // is at most 8 bits.
+                let mut bytes = [0u8; $byte_size + 1];
+                self.write(&mut bytes[..$byte_size])?;
+
+                // Mask out the bits of the last byte that correspond to the flag.
+                bytes[output_byte_size - 1] |= flags.u8_bitmask();
+
+                writer.write_all(&bytes[..output_byte_size])?;
+                Ok(())
+            }
+
+            // Let `m = 8 * n` for some `n` be the smallest multiple of 8 greater
+            // than `P::MODULUS_BITS`.
+            // If `(m - P::MODULUS_BITS) >= F::BIT_SIZE` , then this method returns `n`;
+            // otherwise, it returns `n + 1`.
+            fn serialized_size_with_flags<F: Flags>(&self) -> usize {
+                buffer_byte_size(P::MODULUS_BITS as usize + F::BIT_SIZE)
+            }
+        }
+
+        impl<P: $params> CanonicalSerialize for $field<P> {
+            #[inline]
+            fn serialize<W: Write>(
+                &self,
+                writer: W,
+            ) -> Result<(), SerializationError> {
+                self.serialize_with_flags(writer, EmptyFlags)
+            }
+
+            #[inline]
+            fn serialized_size(&self) -> usize {
+                self.serialized_size_with_flags::<EmptyFlags>()
+            }
+        }
+
+        impl<P: $params> CanonicalDeserializeWithFlags for $field<P> {
+            fn deserialize_with_flags<R: Read, F: Flags>(
+                mut reader: R,
+            ) -> Result<(Self, F), SerializationError> {
+                // All reasonable `Flags` should be less than 8 bits in size
+                // (256 values are enough for anyone!)
+                if F::BIT_SIZE > 8 {
+                    return Err(SerializationError::NotEnoughSpace);
+                }
+                // Calculate the number of bytes required to represent a field element
+                // serialized with `flags`. If `F::BIT_SIZE < 8`,
+                // this is at most `$byte_size + 1`
+                let output_byte_size = buffer_byte_size(P::MODULUS_BITS as usize + F::BIT_SIZE);
+
+                let mut masked_bytes = [0; $byte_size + 1];
+                reader.read_exact(&mut masked_bytes[..output_byte_size])?;
+
+                let flags = F::from_u8_remove_flags(&mut masked_bytes[output_byte_size - 1])
+                    .ok_or(SerializationError::UnexpectedFlags)?;
+
+                Ok((Self::read(&masked_bytes[..])?, flags))
+            }
+        }
+
+        impl<P: $params> CanonicalDeserialize for $field<P> {
+            fn deserialize<R: Read>(reader: R) -> Result<Self, SerializationError> {
+                Self::deserialize_with_flags::<R, EmptyFlags>(reader).map(|(r, _)| r)
+            }
+        }
+    };
+}
+
 macro_rules! impl_Fp {
     ($Fp:ident, $FpParameters:ident, $BigInteger:ident, $BigIntegerType:ty, $limbs:expr) => {
         pub trait $FpParameters: FpParameters<BigInt = $BigIntegerType> {}
@@ -30,7 +118,6 @@ macro_rules! impl_Fp {
         }
 
         impl<P: $FpParameters> $Fp<P> {
-
             #[inline]
             fn reduce(&mut self) {
                 if !self.is_valid() {
@@ -164,6 +251,53 @@ macro_rules! impl_Fp {
             }
 
             #[inline]
+            fn from_random_bytes_with_flags<F: Flags>(bytes: &[u8]) -> Option<(Self, F)> {
+                if F::BIT_SIZE > 8 {
+                    return None
+                } else {
+                    let mut result_bytes = [0u8; $limbs * 8 + 1];
+                    // Copy the input into a temporary buffer.
+                    result_bytes.iter_mut().zip(bytes).for_each(|(result, input)| {
+                        *result = *input;
+                    });
+                    // This mask retains everything in the last limb
+                    // that is below `P::MODULUS_BITS`.
+                    let last_limb_mask = (u64::MAX >> P::REPR_SHAVE_BITS).to_le_bytes();
+                    let mut last_bytes_mask = [0u8; 9];
+                    last_bytes_mask[..8].copy_from_slice(&last_limb_mask);
+
+
+                    // Length of the buffer containing the field element and the flag.
+                    let output_byte_size = buffer_byte_size(P::MODULUS_BITS as usize + F::BIT_SIZE);
+                    // Location of the flag is the last byte of the serialized
+                    // form of the field element.
+                    let flag_location = output_byte_size - 1;
+
+                    // At which byte is the flag located in the last limb?
+                    let flag_location_in_last_limb = flag_location - (8 * ($limbs - 1));
+
+                    // Take all but the last 9 bytes.
+                    let last_bytes = &mut result_bytes[8 * ($limbs - 1)..];
+
+                    // The mask only has the last `F::BIT_SIZE` bits set
+                    let flags_mask = u8::MAX.checked_shl(8 - (F::BIT_SIZE as u32)).unwrap_or(0);
+
+                    // Mask away the remaining bytes, and try to reconstruct the
+                    // flag
+                    let mut flags: u8 = 0;
+                    for (i, (b, m)) in last_bytes.iter_mut().zip(&last_bytes_mask).enumerate() {
+                        if i == flag_location_in_last_limb {
+                            flags = *b & flags_mask
+                        }
+                        *b &= m;
+                    }
+                    CanonicalDeserialize::deserialize(&result_bytes[..($limbs * 8)])
+                        .ok()
+                        .and_then(|f| F::from_u8(flags).map(|flag| (f, flag)))
+                }
+            }
+
+            #[inline]
             fn frobenius_map(&mut self, _: usize) {
                 // No-op: No effect in a prime field.
             }
@@ -200,27 +334,6 @@ macro_rules! impl_Fp {
             fn into_repr_raw(&self) -> $BigIntegerType {
                 let r = *self;
                 r.0
-            }
-
-            #[inline]
-            fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
-                let mut result_bytes = [0u8; $limbs * 8];
-                for (result_byte, in_byte) in result_bytes.iter_mut().zip(bytes.iter()) {
-                    *result_byte = *in_byte;
-                }
-                $BigInteger::read(result_bytes.as_ref())
-                    .ok()
-                    .and_then(|mut res|
-                    {
-                        res.as_mut()[$limbs-1] &= 0xffffffffffffffff >> P::REPR_SHAVE_BITS;
-                        let result = Self::new(res);
-                        if result.is_valid() {
-                            Some(result)
-                        } else {
-                            None
-                        }
-                    }
-                )
             }
 
             #[inline]
@@ -289,6 +402,8 @@ macro_rules! impl_Fp {
         impl_prime_field_from_int!($Fp, u8, $FpParameters);
 
         impl_prime_field_standard_sample!($Fp, $FpParameters);
+
+        impl_prime_field_serializer!($Fp, $FpParameters, $limbs * 8);
 
         impl<P: $FpParameters> ToBytes for $Fp<P> {
             #[inline]

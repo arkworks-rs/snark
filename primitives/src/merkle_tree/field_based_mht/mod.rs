@@ -7,11 +7,6 @@ pub use self::naive::*;
 pub mod optimized;
 pub use self::optimized::*;
 
-#[cfg(feature = "smt")]
-pub mod smt;
-#[cfg(feature = "smt")]
-pub use self::smt::*;
-
 pub mod parameters;
 pub use self::parameters::*;
 
@@ -30,14 +25,19 @@ pub trait FieldBasedMerkleTreeParameters: 'static + Clone {
     /// The arity of the Merkle Tree
     const MERKLE_ARITY: usize;
     /// The pre-computed hashes of the empty nodes for the different levels of the Merkle Tree
-    const EMPTY_HASH_CST: Option<FieldBasedMerkleTreePrecomputedEmptyConstants<'static, Self::H>>;
+    const ZERO_NODE_CST: Option<FieldBasedMerkleTreePrecomputedZeroConstants<'static, Self::H>>;
 }
 
 /// Pre-computed hashes of the empty nodes for the different levels of the Merkle Tree
-pub struct FieldBasedMerkleTreePrecomputedEmptyConstants<'a, H: FieldBasedHash> {
+#[derive(Derivative)]
+#[derivative(
+    Debug(bound = ""),
+    Eq(bound = ""),
+    PartialEq(bound = ""),
+)]
+pub struct FieldBasedMerkleTreePrecomputedZeroConstants<'a, H: FieldBasedHash> {
     pub nodes: &'a [H::Data],
     pub merkle_arity: usize,
-    pub max_height: usize,
 }
 
 /// For optimized Merkle Tree implementations, it provides the possibility to specify
@@ -51,9 +51,9 @@ pub trait BatchFieldBasedMerkleTreeParameters: FieldBasedMerkleTreeParameters {
 
 pub(crate) fn check_precomputed_parameters<T: FieldBasedMerkleTreeParameters>(tree_height: usize) -> bool
 {
-    match T::EMPTY_HASH_CST {
+    match T::ZERO_NODE_CST {
         Some(supported_params) => {
-            tree_height <= supported_params.max_height &&
+            tree_height <= supported_params.nodes.len() &&
                 T::MERKLE_ARITY == supported_params.merkle_arity &&
                 T::MERKLE_ARITY == <<T::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R
         }
@@ -75,7 +75,7 @@ pub trait FieldBasedMerkleTree: Clone {
 
     /// Append a new leaf to the Merkle Tree. The moment in which the root will be computed
     /// is transparent to the user and obeys to pre-defined internal policies.
-    fn append(&mut self, leaf: <Self::Parameters as FieldBasedMerkleTreeParameters>::Data) -> &mut Self;
+    fn append(&mut self, leaf: <Self::Parameters as FieldBasedMerkleTreeParameters>::Data) -> Result<&mut Self, Error>;
 
     /// Force the computation of the root whatever its internal state and return an updated copy
     /// of the Merkle Tree. This function is idempotent, i.e. calling it multiple times will give
@@ -125,18 +125,21 @@ pub trait FieldBasedMerkleTreePath:
     /// Return a new instance of the struct implementing this trait given the raw `path`
     fn new(path: Self::Path) -> Self;
 
+    /// Compute the root of a Merkle Tree starting from a Merkle Path for a given `leaf`
+    fn compute_root(&self, leaf: &<Self::H as FieldBasedHash>::Data) -> <Self::H as FieldBasedHash>::Data;
+
     /// Verify the Merkle Path for `leaf` given the `root` of a Merkle Tree with height `height`.
     fn verify(
         &self,
         height: usize,
         leaf: &<Self::H as FieldBasedHash>::Data,
-        root: &<Self::H as FieldBasedHash>::Data
+        expected_root: &<Self::H as FieldBasedHash>::Data
     ) -> Result<bool, Error> {
         let path_len = self.get_length();
         if path_len != height {
             Err(MerkleTreeError::IncorrectPathLength(path_len, height))?
         }
-        self.verify_without_length_check(leaf, root)
+        Ok(self.verify_without_length_check(leaf, expected_root))
     }
 
     /// Verify the Merkle Path for `leaf` given the `root` of a Merkle Tree. Doesn't check if the
@@ -145,12 +148,31 @@ pub trait FieldBasedMerkleTreePath:
     fn verify_without_length_check(
         &self,
         leaf: &<Self::H as FieldBasedHash>::Data,
-        root: &<Self::H as FieldBasedHash>::Data
-    ) -> Result<bool, Error>;
+        expected_root: &<Self::H as FieldBasedHash>::Data
+    ) -> bool
+    {
+        let actual_root = self.compute_root(leaf);
+        &actual_root == expected_root
+    }
 
     /// Returns the underlying raw path
-    fn get_raw_path(&self) -> Self::Path;
+    fn get_raw_path(&self) -> &Self::Path;
 
     /// Returns the length of the underlying raw path
     fn get_length(&self) -> usize;
+
+    /// Returns true if `self` is a Merkle Path for the left most leaf of a Merkle Tree,
+    /// false, otherwise.
+    fn is_leftmost(&self) -> bool;
+
+    /// Returns true if `self` is a Merkle Path for the right most leaf of a Merkle Tree,
+    /// false, otherwise.
+    fn is_rightmost(&self) -> bool;
+
+    /// Returns true if `self` is a Merkle Path for a leaf whose right leaves are all empty.
+    fn are_right_leaves_empty(&self) -> bool;
+
+    /// Returns the index of the leaf, corresponding to the `self` Merkle Path, in the
+    /// corresponding Merkle Tree.
+    fn leaf_index(&self) -> usize;
 }

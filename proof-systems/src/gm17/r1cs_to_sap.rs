@@ -1,4 +1,4 @@
-use algebra_utils::fft::domain::get_best_evaluation_domain;
+use algebra::fft::domain::get_best_evaluation_domain;
 use algebra::{Field, PairingEngine};
 
 use crate::gm17::{generator::KeypairAssembly, prover::ProvingAssignment};
@@ -24,7 +24,7 @@ impl R1CStoSAP {
 
         // Evaluate all Lagrange polynomials
         let coefficients_time = start_timer!(|| "Evaluate Lagrange coefficients");
-        let u = domain.evaluate_all_lagrange_polynomials(*t);
+        let u = domain.evaluate_all_lagrange_coefficients(*t);
         end_timer!(coefficients_time);
 
         let sap_num_variables =

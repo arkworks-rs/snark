@@ -141,17 +141,16 @@ mod test {
         let parameters = ();
         let primitive_result = Blake2sCommitment::commit(&parameters, &input, &randomness).unwrap();
 
-        let mut input_bytes = vec![];
-        for (byte_i, input_byte) in input.iter().enumerate() {
-            let cs = cs.ns(|| format!("input_byte_gadget_{}", byte_i));
-            input_bytes.push(UInt8::alloc(cs, || Ok(*input_byte)).unwrap());
-        }
+        let input_bytes = UInt8::alloc_input_vec(
+            cs.ns(|| "alloc input bytes as public input"),
+            &input
+        ).unwrap();
 
-        let mut randomness_bytes = vec![];
-        for (byte_i, random_byte) in randomness.iter().enumerate() {
-            let cs = cs.ns(|| format!("randomness_byte_gadget_{}", byte_i));
-            randomness_bytes.push(UInt8::alloc(cs, || Ok(*random_byte)).unwrap());
-        }
+        let randomness_bytes = UInt8::alloc_input_vec(
+            cs.ns(|| "alloc randomness bytes as public input"),
+            &randomness
+        ).unwrap();
+
         let randomness_bytes = Blake2sRandomnessGadget(randomness_bytes);
 
         let gadget_parameters =

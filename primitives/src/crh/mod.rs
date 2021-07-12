@@ -41,15 +41,26 @@ pub trait FieldBasedHash {
     type Data: Field;
     type Parameters: FieldBasedHashParameters<Fr = Self::Data>;
 
+    /// Initialize a Field Hash accepting inputs of constant length `input_size`:
+    /// any attempt to finalize the hash after having updated the Self instance
+    /// with a number of inputs not equal to `input_size` should result in an error.
     /// Initialize the hash to a null state, or with `personalization` if specified.
-    fn init(personalization: Option<&[Self::Data]>) -> Self;
+    fn init_constant_length(input_size: usize, personalization: Option<&[Self::Data]>) -> Self;
+
+    /// Initialize a Field Hash accepting inputs of variable length.
+    /// It is able to serve two different modes, selected by the boolean `mod_rate`:
+    /// - `mod_rate` = False is for the ususal variable length hash, whereas 
+    /// - `mod_rate` = True allows the input only to be a multiple of the rate (and hence
+    /// should throw an error when trying to finalize with a non-multiple of rate input). 
+    /// This mode allows an optimized handling of padding, saving constraints in SNARK applications;
+    fn init_variable_length(mod_rate: bool, personalization: Option<&[Self::Data]>) -> Self;
 
     /// Update the hash with `input`.
     fn update(&mut self, input: Self::Data) -> &mut Self;
 
     /// Return the hash. This method is idempotent, and calling it multiple times will
-    /// give the same result. It's also possible to `update` with more inputs in between.
-    fn finalize(&self) -> Self::Data;
+    /// give the same result.
+    fn finalize(&self) -> Result<Self::Data, Error>;
 
     /// Reset self to its initial state, allowing to change `personalization` too if needed.
     fn reset(&mut self, personalization: Option<&[Self::Data]>) -> &mut Self;
@@ -86,9 +97,9 @@ pub trait BatchFieldBasedHash {
         assert_ne!(input_array.len(), 0, "Input data array does not contain any data.");
 
         Ok(input_array.par_chunks(rate).map(|chunk| {
-            let mut digest = <Self::BaseHash as FieldBasedHash>::init(None);
+            let mut digest = <Self::BaseHash as FieldBasedHash>::init_constant_length(rate, None);
             chunk.iter().for_each(|input| { digest.update(input.clone()); } );
-            digest.finalize()
+            digest.finalize().unwrap()
         }).collect::<Vec<_>>())
     }
 
@@ -103,9 +114,9 @@ pub trait BatchFieldBasedHash {
         let rate = <<Self::BaseHash as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
         input_array.par_chunks(rate).zip(output_array.par_iter_mut())
             .for_each(|(inputs, output)| {
-                let mut digest = <Self::BaseHash as FieldBasedHash>::init(None);
+                let mut digest = <Self::BaseHash as FieldBasedHash>::init_constant_length(rate, None);
                 inputs.iter().for_each(|input| { digest.update(input.clone()); } );
-                *output = digest.finalize();
+                *output = digest.finalize().unwrap();
             });
     }
 }
@@ -151,9 +162,8 @@ mod test {
     };
 
     use rand_xorshift::XorShiftRng;
-    use rand::{SeedableRng, thread_rng};
-    use crate::{FieldBasedHash, AlgebraicSponge};
-    use std::collections::HashSet;
+    use rand::SeedableRng;
+    use crate::{FieldBasedHash, FieldBasedHashParameters};
 
     struct DummyMNT4BatchPoseidonHash;
 
@@ -162,96 +172,65 @@ mod test {
         type BaseHash = MNT4PoseidonHash;
     }
 
-    pub(crate) fn field_based_hash_test<H: FieldBasedHash>(
-        personalization: Option<&[H::Data]>,
+    pub(crate) fn constant_length_field_based_hash_test<H: FieldBasedHash>(
+        digest: &mut H,
         inputs: Vec<H::Data>,
-        expected_output: H::Data
-    )
-    {
-        // Test H(inputs) == expected_output
-        let mut digest = H::init(personalization);
-        inputs.iter().for_each(|fe| { digest.update(fe.clone()); });
-        let output = digest.finalize();
-        assert_eq!(output, expected_output, "Outputs do not match");
-
+    ) {
         let inputs_len = inputs.len();
-        if inputs_len > 1 {
-            let final_elem = inputs[inputs_len - 1].clone();
-            // Test finalize() holding the state and allowing updates in between different calls to it
-            digest.reset(None);
-            inputs.into_iter().take(inputs_len - 1).for_each(|fe| { digest.update(fe); });
 
-            digest.finalize();
-            digest.update(final_elem);
-            assert_eq!(output, digest.finalize());
+        let final_elem = inputs[inputs_len - 1].clone();
 
-            //Test finalize() being idempotent
-            assert_eq!(output, digest.finalize());
-        }
+        digest.reset(None);
+        inputs.into_iter().take(inputs_len - 1).for_each(|fe| { digest.update(fe); });
+
+        // Test call to finalize() with too few inputs with respect to the declared size
+        // results in an error.
+        assert!(digest.finalize().is_err(), "Success call to finalize despite smaller number of inputs");
+
+        //Test finalize() being idempotent
+        digest.update(final_elem);
+        let output = digest.finalize().unwrap();
+        assert_eq!(output, digest.finalize().unwrap(), "Two subsequent calls to finalize gave different results");
+
+        // Test call to finalize() with too much inputs with respect to the declared size
+        // results in an error.
+        digest.update(final_elem);
+        assert!(digest.finalize().is_err(), "Success call to finalize despite bigger number of inputs");
     }
 
-    pub(crate) fn algebraic_sponge_test<H: AlgebraicSponge<F>, F: PrimeField>(
-        to_absorb: Vec<F>,
-        expected_squeeze: F
-    )
-    {
-        let mut sponge = H::init();
+    pub(crate) fn variable_length_field_based_hash_test<H: FieldBasedHash>(
+        digest: &mut H,
+        inputs: Vec<H::Data>,
+        mod_rate: bool,
+    ) {
+        let rate = <H::Parameters as FieldBasedHashParameters>::R;
 
-        // Absorb all field elements
-        sponge.absorb(to_absorb);
+        let pad_inputs = |mut inputs: Vec<H::Data>| -> Vec<H::Data> {
+            inputs.push(H::Data::one());
+            inputs.append(&mut vec![H::Data::zero(); rate - (inputs.len() % rate)]);
+            inputs
+        };
 
-        // Squeeze and check the output
-        assert_eq!(expected_squeeze, sponge.squeeze(1)[0]);
+        if mod_rate {
+            constant_length_field_based_hash_test(digest, inputs);
+        } else {
 
-        // Check that calling squeeze() multiple times without absorbing
-        // changes the output
-        let mut prev = expected_squeeze;
-        for _ in 0..100 {
-            let curr = sponge.squeeze(1)[0];
-            assert!(prev != curr);
-            prev = curr;
+            // Check padding is added correctly and that the hash is collision free when input
+            // is not modulus rate
+            let output = digest.finalize().unwrap();
+            let padded_inputs = pad_inputs(inputs.clone());
+            digest.reset(None);
+            padded_inputs.iter().for_each(|fe| { digest.update(fe.clone()); });
+            assert_ne!(output, digest.finalize().unwrap(), "Incorrect padding: collision detected");
+
+            // Check padding is added correctly and that the hash is collision free also when input
+            // happens to be modulus rate
+            let output = digest.finalize().unwrap();
+            let padded_inputs = pad_inputs(padded_inputs);
+            digest.reset(None);
+            padded_inputs.into_iter().for_each(|fe| { digest.update(fe); });
+            assert_ne!(output, digest.finalize().unwrap(), "Incorrect padding: collision detected");
         }
-
-        let rng = &mut thread_rng();
-
-        // Check squeeze() outputs the correct number of field elements
-        // all different from each others
-        let mut set = HashSet::new();
-        for i in 0..=10 {
-            sponge.absorb(vec![F::rand(rng); i]);
-            let outs = sponge.squeeze(i);
-            assert_eq!(i, outs.len());
-
-            // HashSet::insert(val) returns false if val was already present, so to check
-            // that all the elements output by the sponge are different, we assert insert()
-            // returning always true
-            outs.into_iter().for_each(|f| assert!(set.insert(f)));
-        }
-
-        //Test edge cases. Assumption: R = 2
-        sponge.reset();
-
-        // Absorb nothing. Check that the internal state is not changed.
-        let prev_state = sponge.get_state().to_vec();
-        sponge.absorb(vec![]);
-        assert_eq!(prev_state, sponge.get_state());
-
-        // Squeeze nothing. Check that the internal state is not changed.
-        let prev_state = sponge.get_state().to_vec();
-        sponge.squeeze(0);
-        assert_eq!(prev_state, sponge.get_state());
-
-        // Absorb up to rate elements and trigger a permutation. Assert that calling squeeze()
-        // afterwards won't trigger another permutation.
-        sponge.absorb(vec![F::rand(rng); 2]);
-        let prev_state = sponge.get_state().to_vec();
-        sponge.squeeze(1);
-        let curr_state = sponge.get_state().to_vec();
-        assert_eq!(prev_state, curr_state);
-
-        // The next squeeze() should instead change the state
-        sponge.squeeze(1);
-        assert!(curr_state != sponge.get_state());
     }
 
     #[ignore]

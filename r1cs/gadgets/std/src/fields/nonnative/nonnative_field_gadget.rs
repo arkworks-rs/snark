@@ -1,4 +1,8 @@
-use algebra::{BigInteger, FpParameters, PrimeField};
+use algebra::{BigInteger, FpParameters, PrimeField, ProjectiveCurve};
+
+use algebra::curves::short_weierstrass_jacobian::GroupProjective as SWProjective;
+use algebra::curves::bn_382::g1::Bn382G1Parameters;
+
 use crate::{
     fields::fp::FpGadget,
     fields::nonnative::{
@@ -16,7 +20,7 @@ use std::cmp::{max, min};
 use std::marker::PhantomData;
 use std::{borrow::Borrow, vec, vec::Vec};
 
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Debug, Eq, PartialEq)]
 #[must_use]
 pub struct NonNativeFieldGadget<SimulationF: PrimeField, ConstraintF: PrimeField> {
     /// The limbs, each of which is a ConstraintF gadget.
@@ -32,7 +36,8 @@ pub struct NonNativeFieldGadget<SimulationF: PrimeField, ConstraintF: PrimeField
     pub simulation_phantom: PhantomData<SimulationF>,
 }
 
-impl<SimulationF: PrimeField, ConstraintF: PrimeField> NonNativeFieldGadget<SimulationF, ConstraintF>
+impl<SimulationF: PrimeField, ConstraintF: PrimeField> 
+    NonNativeFieldGadget<SimulationF, ConstraintF>
 {
     /// Obtain the value of limbs
     pub fn limbs_to_value(limbs: Vec<ConstraintF>) -> SimulationF {
@@ -282,6 +287,63 @@ impl<SimulationF: PrimeField, ConstraintF: PrimeField> NonNativeFieldGadget<Simu
                 * (other_reduced.num_of_additions_over_normal_form + ConstraintF::one()),
             simulation_phantom: PhantomData,
         })
+    }
+}
+
+//impl<SimulationF: PrimeField, ConstraintF: PrimeField, P: SWModelParameters, F: FieldGadget<P::BaseField, ConstraintF>> 
+impl<SimulationF: PrimeField, ConstraintF: PrimeField> 
+    NonNativeFieldGadget<SimulationF, ConstraintF>
+{
+    fn simulated_mul_bits_fixed_base<'a, CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        base: &'a SWProjective<Bn382G1Parameters>,
+        mut cs: CS,
+        result: &Self,
+        bits: &[Boolean],
+    ) -> Result<Self, SynthesisError>{
+
+        let to_sub = SWProjective::<Bn382G1Parameters>::zero();
+
+        let t = base.clone();
+        let sigma = base.clone();
+        let result = result.clone();
+
+        let mut bit_vec = Vec::new();
+        bit_vec.extend_from_slice(bits);
+        //Simply add padding. This should be safe, since the padding bit will be part of the
+        //circuit. (It is also done elsewhere).
+        if bits.len() % 2 != 0 {
+            bit_vec.push(Boolean::constant(false))
+        }
+
+        for (i, bits) in bit_vec.chunks(2).enumerate() {
+            let ti = t.clone();
+            let two_ti = ti.double();
+            let mut table = [
+                sigma,
+                sigma + &ti,
+                sigma + &two_ti,
+                sigma + &ti + &two_ti,
+            ];
+
+            //Compute constants
+            SWProjective::batch_normalization(&mut table);
+            let x_coords = [table[0].x, table[1].x, table[2].x, table[3].x];
+            let y_coords = [table[0].y, table[1].y, table[2].y, table[3].y];
+            let precomp = Boolean::and(cs.ns(|| format!("b0 AND b1_{}", i)), &bits[0], &bits[1])?;
+
+            // //Lookup x and y
+            // let x = FpGadget::two_bit_lookup_lc(cs.ns(|| format!("Lookup x_{}", i)), &precomp, &[bits[0], bits[1]],  &x_coords)?;
+            // let y = FpGadget::two_bit_lookup_lc(cs.ns(|| format!("Lookup y_{}", i)), &precomp, &[bits[0], bits[1]],  &y_coords)?;
+
+            // //Perform addition
+            // let adder = SWProjective::new(x, y, Boolean::constant(false));
+            // result = result.add(cs.ns(||format!("Add_{}", i)), &adder)?;
+            // t = t.double().double();
+            // to_sub += &sigma;
+        }
+        // result = result.sub_constant(cs.ns(|| "result - sigma*n_div_2"), &to_sub)?;
+        Ok(result)
     }
 }
 

@@ -376,6 +376,12 @@ pub enum Boolean {
 }
 
 impl Boolean {
+    pub fn is_constant(&self) -> bool {
+        match *self {
+            Boolean::Constant(_) => true,
+            _ => false,
+        }
+    }
     pub fn get_value(&self) -> Option<bool> {
         match *self {
             Boolean::Constant(c) => Some(c),
@@ -451,13 +457,19 @@ impl Boolean {
                 Ok(field_element)
             })?;
 
-            let fe_bits = fe.to_bits(cs.ns(|| format!("Convert fe to bits {}", i)))?;
+            // Let's use the length-restricted variant of the ToBitsGadget to remove the
+            // padding: the padding bits are not constrained to be zero, so any field element
+            // passed as input (as long as it has the last bits set to the proper value) can
+            // satisfy the constraints. This kind of freedom might not be desiderable in
+            // recursive SNARK circuits, where the public inputs of the inner circuit are
+            // usually involved in other kind of constraints inside the wrap circuit.
+            let to_skip = modulus_size - bit_chunk.len();
+            let fe_bits = fe.to_bits_with_length_restriction(
+                cs.ns(|| format!("Convert fe to bits {}", i)),
+                to_skip
+            )?;
 
-            // Since bit serialization/deserialization functions assumes a big-endian representation,
-            // padding is added at the beginning of the bit vector, so we need to know the exact size
-            // of the padding in order to correctly get rid of the padding zeros.
-            let to_remove = modulus_size - bit_chunk.len();
-            allocated_bits.extend_from_slice(&fe_bits[to_remove..]);
+            allocated_bits.extend_from_slice(fe_bits.as_slice());
         }
         Ok(allocated_bits.to_vec())
     }
@@ -692,6 +704,230 @@ impl Boolean {
         assert!(current_run.is_empty());
 
         Ok(())
+    }
+
+    /// Computes (a and b) xor ((not a) and c)
+    pub fn sha256_ch<'a, ConstraintF, CS>(
+        mut cs: CS,
+        a: &'a Self,
+        b: &'a Self,
+        c: &'a Self,
+    ) -> Result<Self, SynthesisError>
+    where
+        ConstraintF: PrimeField,
+        CS: ConstraintSystem<ConstraintF>,
+    {
+        let ch_value = match (a.get_value(), b.get_value(), c.get_value()) {
+            (Some(a), Some(b), Some(c)) => {
+                // (a and b) xor ((not a) and c)
+                Some((a & b) ^ ((!a) & c))
+            }
+            _ => None,
+        };
+
+        match (a, b, c) {
+            (&Boolean::Constant(_), &Boolean::Constant(_), &Boolean::Constant(_)) => {
+                // They're all constants, so we can just compute the value.
+
+                return Ok(Boolean::Constant(ch_value.expect("they're all constants")));
+            }
+            (&Boolean::Constant(false), _, c) => {
+                // If a is false
+                // (a and b) xor ((not a) and c)
+                // equals
+                // (false) xor (c)
+                // equals
+                // c
+                return Ok(c.clone());
+            }
+            (a, &Boolean::Constant(false), c) => {
+                // If b is false
+                // (a and b) xor ((not a) and c)
+                // equals
+                // ((not a) and c)
+                return Boolean::and(cs, &a.not(), &c);
+            }
+            (a, b, &Boolean::Constant(false)) => {
+                // If c is false
+                // (a and b) xor ((not a) and c)
+                // equals
+                // (a and b)
+                return Boolean::and(cs, &a, &b);
+            }
+            (a, b, &Boolean::Constant(true)) => {
+                // If c is true
+                // (a and b) xor ((not a) and c)
+                // equals
+                // (a and b) xor (not a)
+                // equals
+                // not (a and (not b))
+                return Ok(Boolean::and(cs, &a, &b.not())?.not());
+            }
+            (a, &Boolean::Constant(true), c) => {
+                // If b is true
+                // (a and b) xor ((not a) and c)
+                // equals
+                // a xor ((not a) and c)
+                // equals
+                // not ((not a) and (not c))
+                return Ok(Boolean::and(cs, &a.not(), &c.not())?.not());
+            }
+            (&Boolean::Constant(true), _, _) => {
+                // If a is true
+                // (a and b) xor ((not a) and c)
+                // equals
+                // b xor ((not a) and c)
+                // So we just continue!
+            }
+            (&Boolean::Is(_), &Boolean::Is(_), &Boolean::Is(_))
+            | (&Boolean::Is(_), &Boolean::Is(_), &Boolean::Not(_))
+            | (&Boolean::Is(_), &Boolean::Not(_), &Boolean::Is(_))
+            | (&Boolean::Is(_), &Boolean::Not(_), &Boolean::Not(_))
+            | (&Boolean::Not(_), &Boolean::Is(_), &Boolean::Is(_))
+            | (&Boolean::Not(_), &Boolean::Is(_), &Boolean::Not(_))
+            | (&Boolean::Not(_), &Boolean::Not(_), &Boolean::Is(_))
+            | (&Boolean::Not(_), &Boolean::Not(_), &Boolean::Not(_)) => {}
+        }
+
+        let ch = cs.alloc(
+            || "ch",
+            || {
+                ch_value
+                    .get()
+                    .map(|v| if v { ConstraintF::one() } else { ConstraintF::zero() })
+            },
+        )?;
+
+        // a(b - c) = ch - c
+        cs.enforce(
+            || "ch computation",
+            |_| b.lc(CS::one(), ConstraintF::one()) - &c.lc(CS::one(), ConstraintF::one()),
+            |_| a.lc(CS::one(), ConstraintF::one()),
+            |lc| lc + ch - &c.lc(CS::one(), ConstraintF::one()),
+        );
+
+        Ok(AllocatedBit {
+            value: ch_value,
+            variable: ch,
+        }
+        .into())
+    }
+
+    /// Computes (a and b) xor (a and c) xor (b and c)
+    pub fn sha256_maj<'a, ConstraintF, CS>(
+        mut cs: CS,
+        a: &'a Self,
+        b: &'a Self,
+        c: &'a Self,
+    ) -> Result<Self, SynthesisError>
+    where
+        ConstraintF: PrimeField,
+        CS: ConstraintSystem<ConstraintF>,
+    {
+        let maj_value = match (a.get_value(), b.get_value(), c.get_value()) {
+            (Some(a), Some(b), Some(c)) => {
+                // (a and b) xor (a and c) xor (b and c)
+                Some((a & b) ^ (a & c) ^ (b & c))
+            }
+            _ => None,
+        };
+
+        match (a, b, c) {
+            (&Boolean::Constant(_), &Boolean::Constant(_), &Boolean::Constant(_)) => {
+                // They're all constants, so we can just compute the value.
+
+                return Ok(Boolean::Constant(maj_value.expect("they're all constants")));
+            }
+            (&Boolean::Constant(false), b, c) => {
+                // If a is false,
+                // (a and b) xor (a and c) xor (b and c)
+                // equals
+                // (b and c)
+                return Boolean::and(cs, b, c);
+            }
+            (a, &Boolean::Constant(false), c) => {
+                // If b is false,
+                // (a and b) xor (a and c) xor (b and c)
+                // equals
+                // (a and c)
+                return Boolean::and(cs, a, c);
+            }
+            (a, b, &Boolean::Constant(false)) => {
+                // If c is false,
+                // (a and b) xor (a and c) xor (b and c)
+                // equals
+                // (a and b)
+                return Boolean::and(cs, a, b);
+            }
+            (a, b, &Boolean::Constant(true)) => {
+                // If c is true,
+                // (a and b) xor (a and c) xor (b and c)
+                // equals
+                // (a and b) xor (a) xor (b)
+                // equals
+                // not ((not a) and (not b))
+                return Ok(Boolean::and(cs, &a.not(), &b.not())?.not());
+            }
+            (a, &Boolean::Constant(true), c) => {
+                // If b is true,
+                // (a and b) xor (a and c) xor (b and c)
+                // equals
+                // (a) xor (a and c) xor (c)
+                return Ok(Boolean::and(cs, &a.not(), &c.not())?.not());
+            }
+            (&Boolean::Constant(true), b, c) => {
+                // If a is true,
+                // (a and b) xor (a and c) xor (b and c)
+                // equals
+                // (b) xor (c) xor (b and c)
+                return Ok(Boolean::and(cs, &b.not(), &c.not())?.not());
+            }
+            (&Boolean::Is(_), &Boolean::Is(_), &Boolean::Is(_))
+            | (&Boolean::Is(_), &Boolean::Is(_), &Boolean::Not(_))
+            | (&Boolean::Is(_), &Boolean::Not(_), &Boolean::Is(_))
+            | (&Boolean::Is(_), &Boolean::Not(_), &Boolean::Not(_))
+            | (&Boolean::Not(_), &Boolean::Is(_), &Boolean::Is(_))
+            | (&Boolean::Not(_), &Boolean::Is(_), &Boolean::Not(_))
+            | (&Boolean::Not(_), &Boolean::Not(_), &Boolean::Is(_))
+            | (&Boolean::Not(_), &Boolean::Not(_), &Boolean::Not(_)) => {}
+        }
+
+        let maj = cs.alloc(
+            || "maj",
+            || {
+                maj_value
+                    .get()
+                    .map(|v| if v { ConstraintF::one() } else { ConstraintF::zero() })
+            },
+        )?;
+
+        // ¬(¬a ∧ ¬b) ∧ ¬(¬a ∧ ¬c) ∧ ¬(¬b ∧ ¬c)
+        // (1 - ((1 - a) * (1 - b))) * (1 - ((1 - a) * (1 - c))) * (1 - ((1 - b) * (1 - c)))
+        // (a + b - ab) * (a + c - ac) * (b + c - bc)
+        // -2abc + ab + ac + bc
+        // a (-2bc + b + c) + bc
+        //
+        // (b) * (c) = (bc)
+        // (2bc - b - c) * (a) = bc - maj
+
+        let bc = Self::and(cs.ns(|| "b and c"), b, c)?;
+
+        cs.enforce(
+            || "maj computation",
+            |_| {
+                bc.lc(CS::one(), ConstraintF::one()) + &bc.lc(CS::one(), ConstraintF::one())
+                    - &b.lc(CS::one(), ConstraintF::one())
+                    - &c.lc(CS::one(), ConstraintF::one())
+            },
+            |_| a.lc(CS::one(), ConstraintF::one()),
+            |_| bc.lc(CS::one(), ConstraintF::one()) - maj,
+        );
+
+        Ok(AllocatedBit {
+            value: maj_value,
+            variable: maj,
+        }
+        .into())
     }
 }
 
@@ -930,7 +1166,7 @@ mod test {
     use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
     use algebra::{fields::bls12_381::Fr, BitIterator, Field, PrimeField, UniformRand, ToBits};
     use r1cs_core::ConstraintSystem;
-    use rand::SeedableRng;
+    use rand::{SeedableRng, Rng};
     use rand_xorshift::XorShiftRng;
     use std::str::FromStr;
 
@@ -977,8 +1213,17 @@ mod test {
         //Random test
         let samples = 100;
         for i in 0..samples {
+            // Test with random field
             let bit_vals = Fr::rand(rng).write_bits();
             let bits = Boolean::alloc_input_vec(cs.ns(|| format!("alloc value {}", i)), &bit_vals).unwrap();
+            assert_eq!(bit_vals.len(), bits.len());
+            for (native_bit, gadget_bit) in bit_vals.into_iter().zip(bits) {
+                assert_eq!(gadget_bit.get_value().unwrap(), native_bit);
+            }
+
+            // Test with random bools
+            let bit_vals = vec![rng.gen_bool(0.5); rng.gen_range(1, 1600)];
+            let bits = Boolean::alloc_input_vec(cs.ns(|| format!("alloc random value {}", i)), &bit_vals).unwrap();
             assert_eq!(bit_vals.len(), bits.len());
             for (native_bit, gadget_bit) in bit_vals.into_iter().zip(bits) {
                 assert_eq!(gadget_bit.get_value().unwrap(), native_bit);

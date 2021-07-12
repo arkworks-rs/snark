@@ -1,12 +1,13 @@
 use crate::Error;
 
 pub trait ToBits {
-    /// Serialize `self` into a bit vector.
+    /// Serialize `self` into a bit vector using a BigEndian bit order representation.
     fn write_bits(&self) -> Vec<bool>;
 }
 
 pub trait FromBits: Sized {
-    /// Reads `self` from `bits`
+    /// Reads `self` from `bits`, where `bits` are expected to be
+    /// in a BigEndian bit order representation.
     fn read_bits(bits: Vec<bool>) -> Result<Self, Error>;
 }
 
@@ -24,6 +25,7 @@ pub enum BitSerializationError {
     UndefinedSqrt,
     NotPrimeOrder,
     NotOnCurve,
+    NotInCorrectSubgroup,
     InvalidFlags,
 }
 
@@ -34,6 +36,7 @@ impl std::fmt::Display for BitSerializationError {
             BitSerializationError::UndefinedSqrt => "square root doesn't exist in field".to_owned(),
             BitSerializationError::NotPrimeOrder => "point is not in the prime order subgroup".to_owned(),
             BitSerializationError::NotOnCurve => "point is not on curve".to_owned(),
+            BitSerializationError::NotInCorrectSubgroup => "point is not in the correct subgroup".to_owned(),
             BitSerializationError::InvalidFlags => "illegal flags combination".to_owned(),
         };
         write!(f, "{}", msg)

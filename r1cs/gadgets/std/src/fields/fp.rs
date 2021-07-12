@@ -9,7 +9,7 @@ use std::borrow::Borrow;
 
 use crate::{boolean::AllocatedBit, prelude::*, Assignment};
 
-#[derive(Debug, Hash)]
+#[derive(Debug)]
 pub struct FpGadget<F: PrimeField> {
     pub value:    Option<F>,
     pub variable: ConstraintVar<F>,

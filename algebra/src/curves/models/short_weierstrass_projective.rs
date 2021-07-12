@@ -1,16 +1,16 @@
 use rand::{Rng, distributions::{Standard, Distribution}};
-use crate::{UniformRand, ToCompressedBits, FromCompressedBits, Error, BitSerializationError, SemanticallyValid, FromBytesChecked};
-use crate::curves::models::SWModelParameters as Parameters;
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
     io::{Read, Result as IoResult, Write, Error as IoError, ErrorKind},
     marker::PhantomData,
 };
-
 use crate::{
     bytes::{FromBytes, ToBytes},
-    curves::{AffineCurve, ProjectiveCurve},
+    curves::{AffineCurve, ProjectiveCurve, models::SWModelParameters as Parameters},
     fields::{BitIterator, Field, PrimeField, SquareRootField},
+    CanonicalSerialize, SerializationError, CanonicalSerializeWithFlags, CanonicalDeserialize,
+    CanonicalDeserializeWithFlags, UniformRand, SemanticallyValid, Error, FromBytesChecked,
+    BitSerializationError, FromCompressedBits, ToCompressedBits, SWFlags
 };
 use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use serde::{Serialize, Deserialize};
@@ -156,6 +156,20 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
             P::AFFINE_GENERATOR_COEFFS.1,
             false,
         )
+    }
+
+    fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
+        P::BaseField::from_random_bytes_with_flags::<SWFlags>(bytes).and_then(|(x, flags)| {
+            // if x is valid and is zero and only the infinity flag is set, then parse this
+            // point as infinity. For all other choices, get the original point.
+            if x.is_zero() && flags.is_infinity() {
+                Some(Self::zero())
+            } else if let Some(y_is_positive) = flags.is_positive() {
+                Self::get_point_from_x(x, y_is_positive) // Unwrap is safe because it's not zero.
+            } else {
+                None
+            }
+        })
     }
 
     #[inline]
@@ -312,16 +326,15 @@ impl<P: Parameters> FromBytes for GroupAffine<P> {
 
 impl<P: Parameters> FromBytesChecked for GroupAffine<P> {
     #[inline]
-    fn read_checked<R: Read>(reader: R) -> IoResult<Self> {
-        Self::read(reader)
-            .map_err(|e| IoError::new(ErrorKind::InvalidData, e))
-            .and_then(|p| {
-                if !p.group_membership_test() {
-                    return Err(IoError::new(ErrorKind::InvalidData, "invalid point: group membership test failed"));
-                }
-                Ok(p)
-            }
-        )
+    fn read_checked<R: Read>(mut reader: R) -> IoResult<Self> {
+        let x = P::BaseField::read_checked(&mut reader)?;
+        let y = P::BaseField::read_checked(&mut reader)?;
+        let infinity = bool::read(reader)?;
+        let point = Self::new(x, y, infinity);
+        if !point.group_membership_test() {
+            return Err(IoError::new(ErrorKind::InvalidData, "invalid point: group membership test failed"));
+        }
+        Ok(point)
     }
 }
 
@@ -335,13 +348,10 @@ impl<P: Parameters> ToCompressedBits for GroupAffine<P>
         let p = if self.infinity {P::BaseField::zero()} else {self.x};
         let mut res = p.write_bits();
 
-        // Is this the point at infinity? If so, set the most significant bit.
+        // Add infinity flag
         res.push(self.infinity);
 
-        // Is the y-coordinate the odd one of the two associated with the
-        // x-coordinate? If so, set the third-most significant bit so long as this is not
-        // the point at infinity.
-
+        // Add parity coordinate (set by default to false if self is infinity)
         res.push(!self.infinity && self.y.is_odd());
 
         res
@@ -377,7 +387,7 @@ impl<P: Parameters> FromCompressedBits for GroupAffine<P>
                             Ok(p)
                         }
                         else {
-                            let e = BitSerializationError::NotPrimeOrder;
+                            let e = BitSerializationError::NotInCorrectSubgroup;
                             Err(Box::new(e))
                         }
                     }
@@ -474,17 +484,15 @@ impl<P: Parameters> FromBytes for GroupProjective<P> {
 }
 
 impl<P: Parameters> FromBytesChecked for GroupProjective<P> {
-    #[inline]
-    fn read_checked<R: Read>(reader: R) -> IoResult<Self> {
-        Self::read(reader)
-            .map_err(|e| IoError::new(ErrorKind::InvalidData, e))
-            .and_then(|p| {
-                if !p.group_membership_test() {
-                    return Err(IoError::new(ErrorKind::InvalidData, "invalid point: group membership test failed"));
-                }
-                Ok(p)
-            }
-        )
+    fn read_checked<R: Read>(mut reader: R) -> IoResult<Self> {
+        let x = P::BaseField::read_checked(&mut reader)?;
+        let y = P::BaseField::read_checked(&mut reader)?;
+        let z = P::BaseField::read_checked(reader)?;
+        let point = Self::new(x, y, z);
+        if !point.group_membership_test() {
+            return Err(IoError::new(ErrorKind::InvalidData, "invalid point: group membership test failed"));
+        }
+        Ok(point)
     }
 }
 
@@ -813,7 +821,7 @@ impl<P: Parameters> From<GroupAffine<P>> for GroupProjective<P> {
 }
 
 // The projective point X, Y, Z is represented in the affine
-// coordinates as X/Z^2, Y/Z^3.
+// coordinates as X/Z, Y/Z.
 impl<P: Parameters> From<GroupProjective<P>> for GroupAffine<P> {
     fn from(p: GroupProjective<P>) -> GroupAffine<P> {
         if p.is_zero() {
@@ -828,5 +836,130 @@ impl<P: Parameters> From<GroupProjective<P>> for GroupAffine<P> {
             let y = p.y * &z_inv;
             GroupAffine::new(x, y, false)
         }
+    }
+}
+
+impl<P: Parameters> CanonicalSerialize for GroupAffine<P> {
+    #[allow(unused_qualifications)]
+    #[inline]
+    fn serialize<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
+        if self.is_zero() {
+            let flags = SWFlags::infinity();
+            // Serialize 0.
+            P::BaseField::zero().serialize_with_flags(writer, flags)
+        } else {
+            let flags = SWFlags::from_y_sign(self.y > -self.y);
+            self.x.serialize_with_flags(writer, flags)
+        }
+    }
+
+    #[inline]
+    fn serialized_size(&self) -> usize {
+        P::BaseField::zero().serialized_size_with_flags::<SWFlags>()
+    }
+
+    #[allow(unused_qualifications)]
+    #[inline]
+    fn serialize_uncompressed<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
+        let flags = if self.is_zero() {
+            SWFlags::infinity()
+        } else {
+            SWFlags::default()
+        };
+        CanonicalSerialize::serialize(&self.x, &mut writer)?;
+        self.y.serialize_with_flags(&mut writer, flags)?;
+        Ok(())
+    }
+
+    #[inline]
+    fn uncompressed_size(&self) -> usize {
+        self.x.serialized_size() + self.y.serialized_size_with_flags::<SWFlags>()
+    }
+}
+
+impl<P: Parameters> CanonicalSerialize for GroupProjective<P> {
+    #[allow(unused_qualifications)]
+    #[inline]
+    fn serialize<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
+        let aff = GroupAffine::<P>::from(self.clone());
+        CanonicalSerialize::serialize(&aff, writer)
+    }
+
+    #[inline]
+    fn serialized_size(&self) -> usize {
+        let aff = GroupAffine::<P>::from(self.clone());
+        aff.serialized_size()
+    }
+
+    #[allow(unused_qualifications)]
+    #[inline]
+    fn serialize_uncompressed<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
+        let aff = GroupAffine::<P>::from(self.clone());
+        aff.serialize_uncompressed(writer)
+    }
+
+    #[inline]
+    fn uncompressed_size(&self) -> usize {
+        let aff = GroupAffine::<P>::from(self.clone());
+        aff.uncompressed_size()
+    }
+}
+
+impl<P: Parameters> CanonicalDeserialize for GroupAffine<P> {
+    #[allow(unused_qualifications)]
+    fn deserialize<R: Read>(reader: R) -> Result<Self, SerializationError> {
+        let (x, flags): (P::BaseField, SWFlags) =
+            CanonicalDeserializeWithFlags::deserialize_with_flags(reader)?;
+        if flags.is_infinity() {
+            Ok(Self::zero())
+        } else {
+            let p = GroupAffine::<P>::get_point_from_x(x, flags.is_positive().unwrap())
+                .ok_or(SerializationError::InvalidData)?;
+            if !p.is_in_correct_subgroup_assuming_on_curve() {
+                return Err(SerializationError::InvalidData);
+            }
+            Ok(p)
+        }
+    }
+
+    #[allow(unused_qualifications)]
+    fn deserialize_uncompressed<R: Read>(
+        reader: R,
+    ) -> Result<Self, SerializationError> {
+        let p = Self::deserialize_unchecked(reader)?;
+
+        if !p.is_in_correct_subgroup_assuming_on_curve() {
+            return Err(SerializationError::InvalidData);
+        }
+        Ok(p)
+    }
+
+    #[allow(unused_qualifications)]
+    fn deserialize_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+        let x: P::BaseField = CanonicalDeserialize::deserialize(&mut reader)?;
+        let (y, flags): (P::BaseField, SWFlags) =
+            CanonicalDeserializeWithFlags::deserialize_with_flags(&mut reader)?;
+        let p = GroupAffine::<P>::new(x, y, flags.is_infinity());
+        Ok(p)
+    }
+}
+
+impl<P: Parameters> CanonicalDeserialize for GroupProjective<P> {
+    #[allow(unused_qualifications)]
+    fn deserialize<R: Read>(reader: R) -> Result<Self, SerializationError> {
+        let aff = <GroupAffine<P> as CanonicalDeserialize>::deserialize(reader)?;
+        Ok(aff.into())
+    }
+
+    #[allow(unused_qualifications)]
+    fn deserialize_uncompressed<R: Read>(reader: R) -> Result<Self, SerializationError> {
+        let aff = GroupAffine::<P>::deserialize_uncompressed(reader)?;
+        Ok(aff.into())
+    }
+
+    #[allow(unused_qualifications)]
+    fn deserialize_unchecked<R: Read>(reader: R) -> Result<Self, SerializationError> {
+        let aff = GroupAffine::<P>::deserialize_unchecked(reader)?;
+        Ok(aff.into())
     }
 }

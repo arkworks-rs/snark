@@ -4,20 +4,11 @@ use primitives::crh::parameters::{
 };
 use crate::crh::{
     sbox::InverseSBoxGadget,
-    poseidon::{
-        PoseidonHashGadget, PoseidonSpongeGadget,
-    },
+    poseidon::PoseidonHashGadget,
 };
 
 type MNT4InverseSBoxGadget = InverseSBoxGadget<MNT4753Fr, MNT4InversePoseidonSBox>;
 pub type MNT4PoseidonHashGadget = PoseidonHashGadget<
-    MNT4753Fr,
-    MNT4753PoseidonParameters,
-    MNT4InversePoseidonSBox,
-    MNT4InverseSBoxGadget
->;
-
-pub type MNT4PoseidonSpongeGadget = PoseidonSpongeGadget<
     MNT4753Fr,
     MNT4753PoseidonParameters,
     MNT4InversePoseidonSBox,

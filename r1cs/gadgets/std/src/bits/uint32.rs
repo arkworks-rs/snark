@@ -115,6 +115,36 @@ impl UInt32 {
         Self { value, bits }
     }
 
+    pub fn into_bits_be(self) -> Vec<Boolean> {
+        let mut ret = self.bits;
+        ret.reverse();
+        ret
+    }
+
+    pub fn from_bits_be(bits: &[Boolean]) -> Self {
+        assert_eq!(bits.len(), 32);
+
+        let mut value = Some(0u32);
+        for b in bits {
+            value.as_mut().map(|v| *v <<= 1);
+
+            match b.get_value() {
+                Some(true) => {
+                    value.as_mut().map(|v| *v |= 1);
+                }
+                Some(false) => {}
+                None => {
+                    value = None;
+                }
+            }
+        }
+
+        UInt32 {
+            value,
+            bits: bits.iter().rev().cloned().collect(),
+        }
+    }
+
     pub fn rotr(&self, by: usize) -> Self {
         let by = by % 32;
 
@@ -131,6 +161,94 @@ impl UInt32 {
             bits:  new_bits,
             value: self.value.map(|v| v.rotate_right(by as u32)),
         }
+    }
+
+    pub fn shr(&self, by: usize) -> Self {
+        let by = by % 32;
+
+        let fill = Boolean::constant(false);
+
+        let new_bits = self
+            .bits
+            .iter() // The bits are least significant first
+            .skip(by) // Skip the bits that will be lost during the shift
+            .chain(Some(&fill).into_iter().cycle()) // Rest will be zeros
+            .take(32) // Only 32 bits needed!
+            .cloned()
+            .collect();
+
+        UInt32 {
+            bits: new_bits,
+            value: self.value.map(|v| v >> by as u32),
+        }
+    }
+
+    fn triop<ConstraintF, CS, F, U>(
+        mut cs: CS,
+        a: &Self,
+        b: &Self,
+        c: &Self,
+        tri_fn: F,
+        circuit_fn: U,
+    ) -> Result<Self, SynthesisError>
+    where
+        ConstraintF: PrimeField,
+        CS: ConstraintSystem<ConstraintF>,
+        F: Fn(u32, u32, u32) -> u32,
+        U: Fn(&mut CS, usize, &Boolean, &Boolean, &Boolean) -> Result<Boolean, SynthesisError>,
+    {
+        let new_value = match (a.value, b.value, c.value) {
+            (Some(a), Some(b), Some(c)) => Some(tri_fn(a, b, c)),
+            _ => None,
+        };
+
+        let bits = a
+            .bits
+            .iter()
+            .zip(b.bits.iter())
+            .zip(c.bits.iter())
+            .enumerate()
+            .map(|(i, ((a, b), c))| circuit_fn(&mut cs, i, a, b, c))
+            .collect::<Result<_, _>>()?;
+
+        Ok(UInt32 {
+            bits,
+            value: new_value,
+        })
+    }
+
+    /// Compute the `ch` value `(a and b) xor ((not a) and c)`
+    /// during SHA256.
+    pub fn sha256_ch<ConstraintF, CS>(cs: CS, a: &Self, b: &Self, c: &Self) -> Result<Self, SynthesisError>
+    where
+        ConstraintF: PrimeField,
+        CS: ConstraintSystem<ConstraintF>,
+    {
+        Self::triop(
+            cs,
+            a,
+            b,
+            c,
+            |a, b, c| (a & b) ^ ((!a) & c),
+            |cs, i, a, b, c| Boolean::sha256_ch(cs.ns(|| format!("ch {}", i)), a, b, c),
+        )
+    }
+
+    /// Compute the `maj` value (a and b) xor (a and c) xor (b and c)
+    /// during SHA256.
+    pub fn sha256_maj<ConstraintF, CS>(cs: CS, a: &Self, b: &Self, c: &Self) -> Result<Self, SynthesisError>
+    where
+        ConstraintF: PrimeField,
+        CS: ConstraintSystem<ConstraintF>,
+    {
+        Self::triop(
+            cs,
+            a,
+            b,
+            c,
+            |a, b, c| (a & b) ^ (a & c) ^ (b & c),
+            |cs, i, a, b, c| Boolean::sha256_maj(cs.ns(|| format!("maj {}", i)), a, b, c),
+        )
     }
 
     /// XOR this `UInt32` with another `UInt32`

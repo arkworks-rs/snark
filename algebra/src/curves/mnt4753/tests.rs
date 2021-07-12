@@ -2,6 +2,7 @@ use crate::{curves::{
     mnt4753::{
         G1Affine, G1Projective, G2Affine, G2Projective,
         MNT4,
+        g1::MNT4G1Parameters, g2::MNT4G2Parameters,
     },
     tests::curve_tests,
     AffineCurve, PairingEngine,
@@ -10,10 +11,12 @@ use crate::{curves::{
 }, ProjectiveCurve, Field, PrimeField, ToBits, FromCompressedBits, SemanticallyValid};
 use rand;
 use std::ops::AddAssign;
+use crate::curves::tests::sw_projective_tests;
 
 #[test]
 fn test_g1_projective_curve() {
     curve_tests::<G1Projective>();
+    sw_projective_tests::<MNT4G1Parameters>()
 }
 
 #[test]
@@ -200,6 +203,7 @@ fn test_g1_compression_decompression() {
 #[test]
 fn test_g2_projective_curve() {
     curve_tests::<G2Projective>();
+    sw_projective_tests::<MNT4G2Parameters>()
 }
 
 #[test]

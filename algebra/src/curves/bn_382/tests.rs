@@ -2,7 +2,7 @@ use crate::{
     biginteger::BigInteger384,
     curves::{
         models::SWModelParameters, bn_382::*,
-        tests::curve_tests,
+        tests::{curve_tests, sw_jacobian_tests},
         AffineCurve, PairingEngine, ProjectiveCurve,
     },
     groups::tests::group_test,
@@ -19,6 +19,7 @@ use rand_xorshift::XorShiftRng;
 #[test]
 fn test_g1_projective_curve() {
     curve_tests::<G1Projective>();
+    sw_jacobian_tests::<g1::Bn382G1Parameters>()
 }
 
 #[test]
@@ -39,6 +40,7 @@ fn test_g1_generator() {
 #[test]
 fn test_g2_projective_curve() {
     curve_tests::<G2Projective>();
+    sw_jacobian_tests::<g2::Bn382G2Parameters>()
 }
 
 #[test]

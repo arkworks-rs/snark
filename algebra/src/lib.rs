@@ -11,6 +11,11 @@
 #[macro_use]
 extern crate derivative;
 
+#[cfg(feature = "derive")]
+#[allow(unused_imports)]
+#[macro_use]
+extern crate algebra_derive;
+
 #[cfg_attr(test, macro_use)]
 pub mod bytes;
 pub use self::bytes::*;
@@ -31,6 +36,10 @@ pub use self::fields::*;
 pub mod groups;
 pub use self::groups::*;
 
+#[macro_use]
+pub mod serialize;
+pub use self::serialize::*;
+
 pub mod validity;
 pub use self::validity::*;
 
@@ -40,20 +49,19 @@ pub use self::rand::*;
 mod to_field_vec;
 pub use to_field_vec::ToConstraintField;
 
+#[cfg(feature = "parallel")]
+pub mod msm;
+#[cfg(feature = "parallel")]
+pub use self::msm::*;
+
+#[cfg(feature = "fft")]
+pub mod fft;
+#[cfg(feature = "fft")]
+pub use self::fft::*;
+
 pub type Error = Box<dyn std::error::Error>;
 
-/// Returns the base-2 logarithm of `x`.
-/// ```
-/// use algebra::log2;
-///
-/// assert_eq!(log2(16), 4);
-/// assert_eq!(log2(17), 5);
-/// assert_eq!(log2(1), 0);
-/// assert_eq!(log2(0), 0);
-/// assert_eq!(log2(usize::MAX), (std::mem::size_of::<usize>() * 8) as u32);
-/// assert_eq!(log2(1 << 15), 15);
-/// assert_eq!(log2(2usize.pow(18)), 18);
-/// ```
+/// Returns the ceiling of the base-2 logarithm of `x`.
 #[inline]
 pub fn log2(x: usize) -> u32 {
     if x == 0 {
@@ -66,18 +74,6 @@ pub fn log2(x: usize) -> u32 {
 }
 
 /// Returns the floor of the base-2 logarithm of `x`.
-/// ```
-/// use algebra::log2_floor;
-///    assert_eq!(log2_floor(0), 0);
-///    assert_eq!(log2_floor(1), 0);
-///    assert_eq!(log2_floor(2), 1);
-///    assert_eq!(log2_floor(3), 1);
-///    assert_eq!(log2_floor(4), 2);
-///    assert_eq!(log2_floor(5), 2);
-///    assert_eq!(log2_floor(6), 2);
-///    assert_eq!(log2_floor(7), 2);
-///    assert_eq!(log2_floor(8), 3);
-/// ```
 #[inline]
 pub fn log2_floor(x: usize) -> u32 {
     if x == 0 {

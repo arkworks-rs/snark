@@ -5,7 +5,7 @@ use algebra::{
     groups::Group, AffineCurve, Field, PairingEngine, PrimeField,
     ProjectiveCurve, UniformRand,
 };
-use algebra_utils::msm::VariableBaseMSM;
+use algebra::msm::VariableBaseMSM;
 
 use crate::groth16::{push_constraints, r1cs_to_qap::R1CStoQAP, Parameters, Proof};
 

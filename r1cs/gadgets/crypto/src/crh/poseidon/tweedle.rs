@@ -1,46 +1,25 @@
-use algebra::fields::tweedle::{
-    Fq as TweedleFq,
-    Fr as TweedleFr,
-};
+use algebra::fields::tweedle::{Fq, Fr};
 use primitives::crh::parameters::{
-    TweedleFqPoseidonParameters,
-    TweedleFrPoseidonParameters,
-    TweedleFqQuinticSbox,
-    TweedleFrQuinticSbox
+    TweedleFqPoseidonParameters, TweedleFqQuinticSbox,
+    TweedleFrPoseidonParameters, TweedleFrQuinticSbox,
 };
 use crate::crh::{
     sbox::QuinticSBoxGadget,
-    poseidon::{
-        PoseidonHashGadget, PoseidonSpongeGadget,
-    },
+    poseidon::PoseidonHashGadget,
 };
 
-type TweedleFqQuinticSBoxGadget = QuinticSBoxGadget<TweedleFq, TweedleFqQuinticSbox>;
+type TweedleFqQuinticSboxGadget = QuinticSBoxGadget<Fq, TweedleFqQuinticSbox>;
 pub type TweedleFqPoseidonHashGadget = PoseidonHashGadget<
-    TweedleFq,
+    Fq,
     TweedleFqPoseidonParameters,
     TweedleFqQuinticSbox,
-    TweedleFqQuinticSBoxGadget,
+    TweedleFqQuinticSboxGadget
 >;
 
-pub type TweedleFqPoseidonSpongeGadget = PoseidonSpongeGadget<
-    TweedleFq,
-    TweedleFqPoseidonParameters,
-    TweedleFqQuinticSbox,
-    TweedleFqQuinticSBoxGadget,
->;
-
-type TweedleFrQuinticSBoxGadget = QuinticSBoxGadget<TweedleFr, TweedleFrQuinticSbox>;
+type TweedleFrQuinticSboxGadget = QuinticSBoxGadget<Fr, TweedleFrQuinticSbox>;
 pub type TweedleFrPoseidonHashGadget = PoseidonHashGadget<
-    TweedleFr,
+    Fr,
     TweedleFrPoseidonParameters,
     TweedleFrQuinticSbox,
-    TweedleFrQuinticSBoxGadget,
->;
-
-pub type TweedleFrPoseidonSpongeGadget = PoseidonSpongeGadget<
-    TweedleFr,
-    TweedleFrPoseidonParameters,
-    TweedleFrQuinticSbox,
-    TweedleFrQuinticSBoxGadget,
+    TweedleFrQuinticSboxGadget
 >;
