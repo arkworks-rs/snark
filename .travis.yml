@@ -1,0 +1,42 @@
+os: linux
+dist: focal
+language: generic
+vm:
+  size: large
+services:
+  - docker
+
+# env variable definitions
+# DOCKER_ORG, IMAGE_NAME and IMAGE_TAG will determine which docker image is being used,
+# see https://github.com/HorizenOfficial/sc-ci-base-docker#currently-available-tags-only-latest-shown
+# for details on available tags.
+# TESTS configures which test scripts to run from the ci/tests folder. The format is either comma
+# separated substrings, matching on the filename ('001,002' evaluates to 001*.sh and 002*.sh), or '*'
+# which evaluates to *.sh (all .sh files).
+# CARGOARGS is passed like this 'cargo $CARGOARGS check|test|build' to all cargo commands in the test scripts.
+# Additionally at container startup the version of Rust specified by CARGOARGS is also installed
+# using rustup should it not yet be installed in the container flavor.
+# RUST_CROSS_TARGETS comma separated list of targets to install, will be installed for all toolchains.
+# RUSTUP_TOOLCHAIN another way to override the used Rust version, although CARGOARGS takes precedence, see:
+# https://rust-lang.github.io/rustup/overrides.html
+# RUSTFLAGS global rust compiler flags to set.
+# By default empty env vars like RUSTFLAGS='' are not passed through to the docker container,
+# if you want to pass empty vars set them to space like RUSTFLAGS=' '.
+
+env:
+  global:
+    - DOCKER_ORG=zencash
+    - IMAGE_NAME=sc-ci-base
+
+script: 
+  - ci/travis_keep_alive.sh
+  - ci/script.sh
+
+jobs:
+  include:
+    - name: bionic_rust-1.51.0_latest-STAGE1
+      env: IMAGE_TAG=bionic_rust-1.51.0_latest TESTS='000,001,003,005,006,008,009,011,012,013,014,015,016'
+    - name: bionic_rust-1.51.0_latest-STAGE2
+      env: IMAGE_TAG=bionic_rust-1.51.0_latest TESTS='017'
+    - name: bionic_rust-nightly-2021-04-25_latest
+      env: IMAGE_TAG=bionic_rust-nightly-2021-04-25_latest TESTS='002,004,007,010' CARGOARGS='+nightly-2021-04-25'
