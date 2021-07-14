@@ -227,11 +227,11 @@ fn field_canonical_serialization_test<F: Field>(buf_size: usize) {
         {
             let mut serialized = vec![0u8; buf_size + 1];
             let mut cursor = Cursor::new(&mut serialized[..]);
-            a.serialize_with_flags(&mut cursor, SWFlags::from_y_sign(true))
+            a.serialize_with_flags(&mut cursor, SWFlags::from_y_parity(true))
                 .unwrap();
             let mut cursor = Cursor::new(&serialized[..]);
             let (b, flags) = F::deserialize_with_flags::<_, SWFlags>(&mut cursor).unwrap();
-            assert_eq!(flags.is_positive(), Some(true));
+            assert_eq!(flags.is_odd(), Some(true));
             assert!(!flags.is_infinity());
             assert_eq!(a, b);
         }
