@@ -123,6 +123,7 @@ pub trait EvaluationDomain<F: PrimeField>: Debug + Send + Sync
     /// Returns the evaluations of the product over the domain.
     #[must_use]
     fn mul_polynomials_in_evaluation_domain(&self, self_evals: &[F], other_evals: &[F]) -> Vec<F> {
+        // TODO: possible crash
         assert_eq!(self_evals.len(), other_evals.len());
         let mut result = self_evals.to_vec();
         result.par_iter_mut().zip(other_evals).for_each(|(a,b)| *a *= b);
@@ -181,6 +182,7 @@ pub trait EvaluationDomain<F: PrimeField>: Debug + Send + Sync
     /// Given an index which assumes the first elements of this domain are the elements of
     /// another (sub)domain with size size_s, this returns the actual index into this domain.
     fn reindex_by_subdomain(&self, other_size: usize, index: usize) -> usize {
+        // TODO: possible crash
         assert!(self.size() >= other_size);
         assert!(other_size > 0);
         // Let this subgroup be G, and the subgroup we're re-indexing by be S.
@@ -198,6 +200,7 @@ pub trait EvaluationDomain<F: PrimeField>: Debug + Send + Sync
             // The +1 is because index 0 of G is S_0, so the position is offset by at least one.
             // The floor(i / x) term is because after x elements in G \ S, there is one more element from S
             // that will have appeared in G.
+            // TODO: possible crash
             assert!(period > 1);
             let i = index - other_size;
             let x = period - 1;

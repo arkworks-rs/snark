@@ -256,6 +256,7 @@ impl MNT6 {
     }
 
     pub fn final_exponentiation(value: &Fq6) -> GT {
+        // TODO: possible crash
         let value_inv = value.inverse().unwrap();
         let value_to_first_chunk = MNT6::final_exponentiation_first_chunk(value, &value_inv);
         let value_inv_to_first_chunk = MNT6::final_exponentiation_first_chunk(&value_inv, value);

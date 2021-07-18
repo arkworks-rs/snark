@@ -116,6 +116,7 @@ impl<P: MNT6Parameters> MNT6p<P> {
             let gamma = {
                 let sx_squared = s.x.square();
                 let three_sx_squared_plus_a = sx_squared.double().add(&sx_squared).add(&P::TWIST_COEFF_A);
+                // TODO: possible crash
                 let two_sy_inv = s.y.double().inverse().unwrap();
                 three_sx_squared_plus_a.mul(&two_sy_inv) // the F3-slope of the tangent at S=(s.x,s.y)
             };
@@ -135,6 +136,7 @@ impl<P: MNT6Parameters> MNT6p<P> {
 
             if n != 0 {
                 //Addition/substraction step depending on the sign of n
+                // TODO: possible crash
                 let sx_minus_x_inv = s.x.sub(&value.x).inverse().unwrap();
                 let numerator = if n > 0  { s.y.sub(&value.y) } else { s.y.add(&value.y) };
                 let gamma = numerator.mul(&sx_minus_x_inv); //the F3 slope of the chord Q'R'
@@ -224,6 +226,7 @@ impl<P: MNT6Parameters> MNT6p<P> {
     }
 
     pub fn final_exponentiation(value: &Fp6<P::Fp6Params>) -> Fp6<P::Fp6Params> {
+        // TODO: possible crash
         let value_inv = value.inverse().unwrap();
         // "easy part" of the exponentiation
         let value_to_first_chunk = Self::final_exponentiation_first_chunk(value, &value_inv);

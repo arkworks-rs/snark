@@ -91,6 +91,7 @@ impl SW6 {
             let old_rx_square = old_rx.square();
             let old_rx_square_3 = old_rx_square.double() + &old_rx_square;
             let old_rx_square_3_a = old_rx_square_3 + &SW6G2Parameters::COEFF_A;
+            // TODO: possible crash
             let old_ry_double_inverse = old_ry.double().inverse().unwrap();
 
             let gamma = old_rx_square_3_a * &old_ry_double_inverse;
@@ -111,6 +112,7 @@ impl SW6 {
                 old_rx = rx;
                 old_ry = ry;
 
+                // TODO: possible crash
                 let gamma = (old_ry - &qy) * &((old_rx - &qx).inverse().unwrap());
                 let gamma_twist = gamma * &TWIST;
                 let gamma_qx = gamma * &qx;
@@ -130,6 +132,7 @@ impl SW6 {
     }
 
     fn final_exponentiation(value: &Fq6) -> GT {
+        // TODO: possible crash
         let value_inv = value.inverse().unwrap();
         let value_to_first_chunk = SW6::final_exponentiation_first(value, &value_inv);
         let value_inv_to_first_chunk = SW6::final_exponentiation_first(&value_inv, value);

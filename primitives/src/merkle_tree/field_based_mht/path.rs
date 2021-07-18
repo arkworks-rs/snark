@@ -64,6 +64,7 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedMerkleTreePath for FieldBasedM
         // Rate may also be smaller than the arity actually, but this assertion
         // is reasonable and simplify the design. Should be also enforced by the
         // MerkleTree that creates this instance, but let's do it again.
+        // TODO: possible crash
         assert_eq!(<<Self::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R, T::MERKLE_ARITY);
 
         let mut digest = <Self::H as FieldBasedHash>::init_constant_length(T::MERKLE_ARITY, None);
@@ -119,6 +120,7 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedMerkleTreePath for FieldBasedM
 
     #[inline]
     fn are_right_leaves_empty(&self) -> bool {
+        // TODO: possible crash
         assert!(check_precomputed_parameters::<T>(self.path.len()));
 
         let mut height = 0usize;
@@ -128,6 +130,7 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedMerkleTreePath for FieldBasedM
             if direction != T::MERKLE_ARITY - 1 {
 
                 // Save the empty node for this height
+                // TODO: possible crash
                 let empty_node = T::ZERO_NODE_CST.unwrap().nodes[height].clone();
 
                 // If its following siblings are not the empty nodes, then the node
@@ -231,6 +234,7 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedMerkleTreePath for FieldBasedB
         // Rate may also be smaller than the arity actually, but this assertion
         // is reasonable and simplify the design. Should be also enforced by the
         // MerkleTree that creates this instance, but let's do it again.
+        // TODO: possible crash
         assert_eq!(<<Self::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R, T::MERKLE_ARITY);
         let mut digest = <Self::H as FieldBasedHash>::init_constant_length(2, None);
         let mut prev_node = leaf.clone();
@@ -244,6 +248,7 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedMerkleTreePath for FieldBasedB
             };
 
             // Compute the parent node
+            // TODO: possible crash
             prev_node = digest
                 .update(left)
                 .update(right)
@@ -286,6 +291,7 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedMerkleTreePath for FieldBasedB
 
     #[inline]
     fn are_right_leaves_empty(&self) -> bool {
+        // TODO: possible crash
         assert!(check_precomputed_parameters::<T>(self.path.len()));
 
         let mut height = 0usize;
@@ -297,6 +303,7 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedMerkleTreePath for FieldBasedB
                 // If its following sibling is not the empty node, then the node
                 // cannot be the non empty rightmost at this height and for the
                 // whole tree
+                // TODO: possible crash
                 if sibling != T::ZERO_NODE_CST.unwrap().nodes[height] {
                     return false;
                 }
@@ -361,6 +368,7 @@ impl<T: FieldBasedMerkleTreeParameters> From<FieldBasedMHTPath<T>> for FieldBase
     fn from(other: FieldBasedMHTPath<T>) -> Self {
         let mut converted = Vec::with_capacity(other.path.len());
         for (nodes, position) in other.path {
+            // TODO: possible crash
             assert!(nodes.len() == 1);
             assert!(position == 0 || position == 1);
 

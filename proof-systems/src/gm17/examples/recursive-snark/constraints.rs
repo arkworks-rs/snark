@@ -97,8 +97,14 @@ impl<F: Field> ConstraintSynthesizer<F> for InnerCircuit<F> {
         self,
         cs: &mut CS,
     ) -> Result<(), SynthesisError> {
-        assert!(self.inputs.len() >= 2);
-        assert!(self.num_constraints >= self.inputs.len());
+        // TODO: check error message
+        if self.inputs.len() < 2 {
+            return Err(SynthesisError::Other("input length verification failed".to_owned()))
+        }
+        // TODO: check error message
+        if self.num_constraints < self.inputs.len() {
+            return Err(SynthesisError::Other("num constraints verification failed".to_owned()))
+        }
 
         let mut variables: Vec<_> = Vec::with_capacity(self.inputs.len());
         for (i, input) in self.inputs.into_iter().enumerate() {

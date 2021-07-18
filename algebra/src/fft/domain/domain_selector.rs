@@ -37,6 +37,7 @@ pub fn get_best_evaluation_domain<F: PrimeField>(num_coeffs: usize) -> Option<Bo
     }
 
     //Return best domain or None if no suitable domain has been found
+    // TODO: possible crash
     match index {
         0 => Some(Box::new(BasicRadix2Domain::<F>::new(num_coeffs).unwrap())),
         1 => Some(Box::new(MixedRadix2Domain::<F>::new(num_coeffs).unwrap())),

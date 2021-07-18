@@ -119,7 +119,10 @@ where
         leaf: impl ToBytesGadget<ConstraintF>,
         should_enforce: &Boolean,
     ) -> Result<(), SynthesisError> {
-        debug_assert!(self.path.len() == P::HEIGHT);
+        // TODO: check error message
+        if self.path.len() != P::HEIGHT {
+            return Err(SynthesisError::Other("path length verification failed".to_owned()));
+        }
 
         // Check that the hash of the given leaf matches the leaf hash in the membership
         // proof.

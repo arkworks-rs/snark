@@ -175,7 +175,10 @@ impl<P, HGadget, ConstraintF> FieldBasedMerkleTreeGadget<P, HGadget, ConstraintF
         should_enforce: &Boolean,
         height: usize,
     ) -> Result<(), SynthesisError> {
-        debug_assert!(leaves.len() == 2_usize.pow(height as u32));
+        // TODO: check error message
+        if leaves.len() != 2_usize.pow(height as u32) {
+            return Err(SynthesisError::Other("leaves length verifiaction failed".to_owned()));
+        }
 
         let mut prev_level_nodes = leaves.to_vec();
         //Iterate over all levels except the root
@@ -199,7 +202,10 @@ impl<P, HGadget, ConstraintF> FieldBasedMerkleTreeGadget<P, HGadget, ConstraintF
         }
         //At this point, we should have only the root in prev_level_nodes
         //Enforce equality with the root
-        debug_assert!(prev_level_nodes.len() == 1);
+        // TODO: check error message
+        if prev_level_nodes.len() != 1 {
+            return Err(SynthesisError::Other("prev level nodes length verification failed".to_owned()));
+        }
 
         //Enforce equality with the root
 
@@ -322,7 +328,10 @@ for FieldBasedBinaryMerkleTreePathGadget<P, HGadget, ConstraintF>
     fn is_eq<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS, other: &Self) -> Result<Boolean, SynthesisError> {
         let mut v = Vec::new();
         let len = self.path.len();
-        assert_eq!(self.path.len(), other.path.len());
+        // TODO: check error message
+        if self.path.len() != other.path.len() {
+            return Err(SynthesisError::Other("paths length verification failed".to_owned()));
+        }
         for i in 0..len {
             let b1_i = &self.path[i].0.is_eq(cs.ns(|| format!("b1_{}", i)), &other.path[i].0)?;
             let b2_i = &self.path[i].1.is_eq(cs.ns(|| format!("b2_{}", i)), &other.path[i].1)?;
@@ -339,7 +348,10 @@ for FieldBasedBinaryMerkleTreePathGadget<P, HGadget, ConstraintF>
         should_enforce: &Boolean
     ) -> Result<(), SynthesisError> {
         let len = self.path.len();
-        assert_eq!(self.path.len(), other.path.len());
+        // TODO: check error message
+        if self.path.len() != other.path.len() {
+            return Err(SynthesisError::Other("paths length verification failed".to_owned()));
+        }
         for i in 0..len {
             &self.path[i].0.conditional_enforce_equal(cs.ns(|| format!("conditional_eq_1_{}", i)), &other.path[i].0, should_enforce)?;
             &self.path[i].1.conditional_enforce_equal(cs.ns(|| format!("conditional_eq_2_{}", i)), &other.path[i].1, should_enforce)?;
@@ -354,7 +366,10 @@ for FieldBasedBinaryMerkleTreePathGadget<P, HGadget, ConstraintF>
         should_enforce: &Boolean
     ) -> Result<(), SynthesisError> {
         let len = self.path.len();
-        assert_eq!(self.path.len(), other.path.len());
+        // TODO: check error message
+        if self.path.len() != other.path.len() {
+            return Err(SynthesisError::Other("paths length verification failed".to_owned()));
+        }
         for i in 0..len {
             &self.path[i].0.conditional_enforce_not_equal(cs.ns(|| format!("conditional_neq_1_{}", i)), &other.path[i].0, should_enforce)?;
             &self.path[i].1.conditional_enforce_not_equal(cs.ns(|| format!("conditional_neq_2_{}", i)), &other.path[i].1, should_enforce)?;

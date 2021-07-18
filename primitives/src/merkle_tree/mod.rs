@@ -215,6 +215,7 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
 
     #[inline]
     pub fn root(&self) -> <P::H as FixedLengthCRH>::Output {
+        // TODO: possible crash
         self.root.clone().unwrap()
     }
 

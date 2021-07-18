@@ -226,6 +226,7 @@ impl<P: MNT4Parameters> MNT4p<P> {
     }
 
     pub fn final_exponentiation(value: &Fp4<P::Fp4Params>) -> Fp4<P::Fp4Params> {
+        // TODO: possible crash
         let value_inv = value.inverse().unwrap();
         // the "easy part"
         let value_to_first_chunk = Self::final_exponentiation_first_chunk(value, &value_inv);

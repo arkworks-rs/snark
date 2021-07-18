@@ -354,6 +354,7 @@ macro_rules! impl_Fp {
 
             #[inline]
             fn full_root_of_unity() -> Self {
+                // TODO: possible crash
                 $Fp::<P>(P::FULL_ROOT_OF_UNITY.unwrap(), PhantomData)
             }
         }

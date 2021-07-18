@@ -63,10 +63,19 @@ where
                 input_in_bits.push(Boolean::constant(false));
             }
         }
-        assert!(input_in_bits.len() % CHUNK_SIZE == 0);
-        assert_eq!(parameters.params.generators.len(), W::NUM_WINDOWS);
+        // TODO: check error message
+        if input_in_bits.len() % CHUNK_SIZE != 0 {
+            return Err(SynthesisError::Other("input in bits length verification failed".to_owned()));
+        }
+        // TODO: check error message
+        if parameters.params.generators.len() != W::NUM_WINDOWS {
+            return Err(SynthesisError::Other("generators length verification failed".to_owned()));
+        }
         for generators in parameters.params.generators.iter() {
-            assert_eq!(generators.len(), W::WINDOW_SIZE);
+            // TODO: check error message
+            if generators.len() != W::WINDOW_SIZE {
+                return Err(SynthesisError::Other("generators length verification failed".to_owned()));
+            }
         }
 
         // Allocate new variable for the result.

@@ -138,6 +138,7 @@ impl<P: FieldBasedMerkleTreeParameters> NaiveMerkleTree<P> {
 
     #[inline]
     pub fn root(&self) -> <P::H as FieldBasedHash>::Data {
+        // TODO: possible crash
         self.root.clone().unwrap()
     }
 
@@ -409,7 +410,7 @@ mod test {
         tree.append(&leaves).unwrap();
         let root1 = tree.root();
 
-        let mut tree = MNT4PoseidonMHT::init(TEST_HEIGHT, num_leaves);
+        let mut tree = MNT4PoseidonMHT::init(TEST_HEIGHT, num_leaves).unwrap();
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
         for _ in 0..num_leaves {
             tree.append(MNT4753Fr::rand(&mut rng)).unwrap();

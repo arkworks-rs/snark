@@ -164,7 +164,10 @@ for Gm17VerifierGadget<PairingE, ConstraintF, P>
                 }
             // Check that the input and the query in the verification are of the
             // same length.
-            assert!(input_len == pvk.query.len() && public_inputs.next().is_none());
+            // TODO: check error string
+            if input_len != pvk.query.len() || public_inputs.next().is_some() {
+                return Err(SynthesisError::Other("input and query length verification failed".to_owned()));
+            }
             g_psi
         };
 

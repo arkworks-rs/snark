@@ -15,7 +15,7 @@ pub use self::sbox::*;
 pub mod poseidon;
 pub use self::poseidon::*;
 
-use crate::Error;
+use crate::{Error, CryptoError};
 use rayon::prelude::*;
 
 pub trait FixedLengthCRH {
@@ -93,12 +93,17 @@ pub trait BatchFieldBasedHash {
     fn batch_evaluate(input_array: &[Self::Data]) -> Result<Vec<Self::Data>, Error> {
 
         let rate = <<Self::BaseHash as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
-        assert_eq!(input_array.len() % rate, 0, "The length of the input data array is not a multiple of the rate.");
-        assert_ne!(input_array.len(), 0, "Input data array does not contain any data.");
+        if input_array.len() % rate != 0 {
+            return Err(Box::new(CryptoError::Other("The length of the input data array is not a multiple of the rate".to_owned())));
+        }
+        if input_array.len() == 0 {
+            return Err(Box::new(CryptoError::Other("Input data array does not contain any data".to_owned())));
+        }
 
         Ok(input_array.par_chunks(rate).map(|chunk| {
             let mut digest = <Self::BaseHash as FieldBasedHash>::init_constant_length(rate, None);
             chunk.iter().for_each(|input| { digest.update(input.clone()); } );
+            // TODO: possible crash
             digest.finalize().unwrap()
         }).collect::<Vec<_>>())
     }
@@ -116,6 +121,7 @@ pub trait BatchFieldBasedHash {
             .for_each(|(inputs, output)| {
                 let mut digest = <Self::BaseHash as FieldBasedHash>::init_constant_length(rate, None);
                 inputs.iter().for_each(|input| { digest.update(input.clone()); } );
+                // TODO: possible crash
                 *output = digest.finalize().unwrap();
             });
     }

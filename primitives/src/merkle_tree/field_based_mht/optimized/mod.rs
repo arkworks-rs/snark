@@ -40,16 +40,25 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
     /// the batch hash: you can edit the `mht_poseidon_tuning` benchmarks in
     /// `primitives/src/benches/poseidon_mht.rs` to properly tune the `processing_step`
     /// parameter according to your use case.
-    pub fn init(height: usize, processing_step: usize) -> Self {
-        assert!(check_precomputed_parameters::<T>(height));
+    pub fn init(height: usize, processing_step: usize) -> Result<Self, Error> {
+        // TODO: check error message
+        if !check_precomputed_parameters::<T>(height) {
+            return Err(Box::new(MerkleTreeError::Other("precomputed parameters check failed".to_owned())));
+        }
 
         let rate = <<T::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
         // Rate may also be smaller than the arity actually, but this assertion
         // is reasonable and simplify the design.
-        assert_eq!(rate, T::MERKLE_ARITY);
+        // TODO: check error message
+        if rate != T::MERKLE_ARITY {
+            return Err(Box::new(MerkleTreeError::Other("rate check failed".to_owned())));
+        }
 
         let last_level_size = T::MERKLE_ARITY.pow(height as u32);
-        assert!(processing_step > 0 && processing_step <= last_level_size);
+        // TODO: check error message
+        if processing_step <= 0 || processing_step > last_level_size {
+            return Err(Box::new(MerkleTreeError::Other("processing step check failed".to_owned())));
+        }
 
         let mut initial_pos = Vec::new();
         let mut final_pos = Vec::new();
@@ -98,7 +107,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
             processing_block_size = last_level_size;
         }
 
-        Self {
+        Ok(Self {
             root: { <T::Data as Field>::zero() },
             array_nodes: { array_nodes },
             processing_step: { processing_block_size },
@@ -110,7 +119,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
             height,
             finalized: false,
             _tree_parameters: PhantomData,
-        }
+        })
     }
 
     /// Recursively update the nodes in the tree affected by some changes in the value of their children,
@@ -243,6 +252,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBased
         copy.new_elem_pos[0] = copy.final_pos[0];
         copy.compute_subtree();
         copy.finalized = true;
+        // TODO: possible crash
         copy.root = *copy.array_nodes.last().unwrap();
         copy
     }
@@ -251,6 +261,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBased
         self.new_elem_pos[0] = self.final_pos[0];
         self.compute_subtree();
         self.finalized = true;
+        // TODO: possible crash
         self.root = *self.array_nodes.last().unwrap();
         self
     }
@@ -314,10 +325,13 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBased
                 }
 
                 // Sanity check: the last node_index must be the one of the root
-                assert_eq!(self.array_nodes[node_index], self.root);
-                Some(
-                    FieldBasedMHTPath::<T>::new(merkle_path)
-                )
+                if self.array_nodes[node_index] == self.root {
+                    Some(
+                        FieldBasedMHTPath::<T>::new(merkle_path)
+                    )
+                } else {
+                    None
+                }
             },
             false => None,
         }
@@ -390,7 +404,7 @@ mod test {
     )
     {
         // Init in memory optimized tree
-        let mut tree = FieldBasedOptimizedMHT::<T>::init(height, num_leaves);
+        let mut tree = FieldBasedOptimizedMHT::<T>::init(height, num_leaves).unwrap();
 
         // Init naive merkle tree used as comparison
         let mut naive_mt = NaiveMerkleTree::<T>::new(height);
@@ -429,7 +443,7 @@ mod test {
     )
     {
         // Init in memory optimized tree
-        let mut tree = FieldBasedOptimizedMHT::<T>::init(height, num_leaves);
+        let mut tree = FieldBasedOptimizedMHT::<T>::init(height, num_leaves).unwrap();
 
         // Create leaves at random
         let leaves = (0..num_leaves).map(|_| T::Data::rand(&mut rng)).collect::<Vec<_>>();
@@ -468,11 +482,11 @@ mod test {
         // HEIGHT > 1
         {
             // Generate empty tree and attempt to finalize
-            let tree = FieldBasedOptimizedMHT::<T>::init(5, 1);
+            let tree = FieldBasedOptimizedMHT::<T>::init(5, 1).unwrap();
             tree.finalize();
 
             // Generate tree with only 1 leaf and attempt to finalize
-            let mut tree = FieldBasedOptimizedMHT::<T>::init(5, 1);
+            let mut tree = FieldBasedOptimizedMHT::<T>::init(5, 1).unwrap();
             assert!(tree.append(T::Data::rand(rng)).is_ok());
             tree.finalize();
         }
@@ -480,17 +494,17 @@ mod test {
         // HEIGHT == 1
         {
             // Generate empty tree and attempt to finalize
-            let tree = FieldBasedOptimizedMHT::<T>::init(1, 2);
+            let tree = FieldBasedOptimizedMHT::<T>::init(1, 2).unwrap();
             tree.finalize();
 
             // Generate tree with only 1 leaf and attempt to finalize
-            let mut tree = FieldBasedOptimizedMHT::<T>::init(1, 2);
+            let mut tree = FieldBasedOptimizedMHT::<T>::init(1, 2).unwrap();
             assert!(tree.append(T::Data::rand(rng)).is_ok());
             tree.finalize();
 
             // Generate tree with exactly 2 leaves and attempt to finalize.
             // Assert error if trying to add another leaf
-            let mut tree = FieldBasedOptimizedMHT::<T>::init(1, 2);
+            let mut tree = FieldBasedOptimizedMHT::<T>::init(1, 2).unwrap();
             assert!(tree.append(T::Data::rand(rng)).is_ok());
             assert!(tree.append(T::Data::rand(rng)).is_ok());
             assert!(tree.append(T::Data::rand(rng)).is_err());
@@ -500,7 +514,7 @@ mod test {
         // HEIGHT == 0
         {
             // Generate empty tree and attempt to finalize
-            let mut tree = FieldBasedOptimizedMHT::<T>::init(0, 1);
+            let mut tree = FieldBasedOptimizedMHT::<T>::init(0, 1).unwrap();
             tree.finalize_in_place();
             assert_eq!(tree.root().unwrap(), T::Data::zero());
 
@@ -510,7 +524,7 @@ mod test {
             assert_eq!(tree.root().unwrap(), T::Data::zero());
 
             // Generate tree and add one leaf. Assert adding one more leaf causes an error.
-            let mut tree = FieldBasedOptimizedMHT::<T>::init(0, 1);
+            let mut tree = FieldBasedOptimizedMHT::<T>::init(0, 1).unwrap();
             let fe = T::Data::rand(rng);
             assert!(tree.append(fe).is_ok());
             assert!(tree.append(T::Data::rand(rng)).is_err());
@@ -596,7 +610,7 @@ mod test {
             let naive_root = naive_mt.root();
 
             // Push them in a Poseidon Merkle Tree and get the root
-            let mut mt = FieldBasedOptimizedMHT::<T>::init(max_height, num_leaves);
+            let mut mt = FieldBasedOptimizedMHT::<T>::init(max_height, num_leaves).unwrap();
             leaves[0..num_leaves].iter().for_each(|&leaf| { mt.append(leaf).unwrap(); });
             let root = mt.finalize_in_place().root().unwrap();
 
@@ -622,7 +636,7 @@ mod test {
             let naive_root = naive_mt.root();
 
             // Push them in a Poseidon Merkle Tree and get the root
-            let mut mt = FieldBasedOptimizedMHT::<T>::init(max_height, num_leaves);
+            let mut mt = FieldBasedOptimizedMHT::<T>::init(max_height, num_leaves).unwrap();
             leaves[..].iter().for_each(|&leaf| { mt.append(leaf).unwrap(); });
             let root = mt.finalize_in_place().root().unwrap();
 
@@ -654,7 +668,7 @@ mod test {
         mut rng: &mut R,
     ) {
         let mut leaves = Vec::with_capacity(num_leaves);
-        let mut tree = FieldBasedOptimizedMHT::<T>::init(height, num_leaves);
+        let mut tree = FieldBasedOptimizedMHT::<T>::init(height, num_leaves).unwrap();
 
         // Generate random leaves, half of which empty
         for _ in 0..num_leaves/2 {
@@ -727,7 +741,7 @@ mod test {
         mut rng: &mut R,
     )
     {
-        let mut tree = FieldBasedOptimizedMHT::<T>::init(height, num_leaves);
+        let mut tree = FieldBasedOptimizedMHT::<T>::init(height, num_leaves).unwrap();
 
         // Generate random leaves
         for i in 0..num_leaves {

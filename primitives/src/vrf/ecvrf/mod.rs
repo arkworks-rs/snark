@@ -247,9 +247,9 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
                 let mut digest = FH::init_constant_length(4, None);
                 digest
                     .update(message)
-                    .update(pk.0.to_field_elements().unwrap()[0])
-                    .update(a.to_field_elements().unwrap()[0])
-                    .update(b.to_field_elements().unwrap()[0])
+                    .update(pk.0.to_field_elements()?[0])
+                    .update(a.to_field_elements()?[0])
+                    .update(b.to_field_elements()?[0])
                     .finalize()
             }?;
 
@@ -284,7 +284,6 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
     )
         -> Result<Self::Data, Error>
     {
-
         //Compute mh = hash_to_curve(message)
         let message_on_curve = GH::evaluate(group_hash_params, to_bytes!(&message).unwrap().as_slice())?;
 
@@ -305,9 +304,9 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
 
             digest
                 .update(message.clone())
-                .update(pk.0.to_field_elements().unwrap()[0])
-                .update(u.to_field_elements().unwrap()[0])
-                .update(v.to_field_elements().unwrap()[0])
+                .update(pk.0.to_field_elements()?[0])
+                .update(u.to_field_elements()?[0])
+                .update(v.to_field_elements()?[0])
                 .finalize()
         }?;
 
@@ -315,7 +314,7 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
         match proof.c == c_prime {
             false => Err(Box::new(CryptoError::FailedVerification)),
             true => {
-                let gamma_coords = proof.gamma.to_field_elements().unwrap();
+                let gamma_coords = proof.gamma.to_field_elements()?;
 
                 //Compute VRF output
                 let output = {

@@ -29,7 +29,13 @@ impl<P: TEModelParameters> InjectiveMap<TEAffine<P>> for TECompressor {
     type Output = <P as ModelParameters>::BaseField;
 
     fn injective_map(ge: &TEAffine<P>) -> Result<Self::Output, CryptoError> {
-        debug_assert!(ge.is_in_correct_subgroup_assuming_on_curve());
+        // TODO: check error message
+        if !ge.is_in_correct_subgroup_assuming_on_curve() {
+            return Err(CryptoError::InvalidElement(format!(
+                "{}",
+                ge
+            )));
+        }
         Ok(ge.x)
     }
 }
@@ -39,7 +45,13 @@ impl<P: TEModelParameters> InjectiveMap<TEProjective<P>> for TECompressor {
 
     fn injective_map(ge: &TEProjective<P>) -> Result<Self::Output, CryptoError> {
         let ge = ge.into_affine();
-        debug_assert!(ge.is_in_correct_subgroup_assuming_on_curve());
+        // TODO: check error message
+        if !ge.is_in_correct_subgroup_assuming_on_curve() {
+            return Err(CryptoError::InvalidElement(format!(
+                "{}",
+                ge
+            )));
+        }
         Ok(ge.x)
     }
 }

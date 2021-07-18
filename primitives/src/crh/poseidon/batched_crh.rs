@@ -21,6 +21,7 @@ impl<F, P, SB> PoseidonBatchHash<F, P, SB>
 
         // Sanity checks
         let array_length = input_array.len() / P::R;
+        // TODO: possible crash
         assert_eq!(input_array.len() % P::R, 0, "The length of the input data array is not a multiple of the rate.");
         assert_ne!(input_array.len(), 0, "Input data array does not contain any data.");
 
@@ -162,6 +163,7 @@ impl<F, P, SB> BatchFieldBasedHash for PoseidonBatchHash<F, P, SB>
         // Output:
         // The output will be placed in the output_array taking input length / P::R
 
+        // TODO: possible crash
         assert_eq!(
             output_array.len(),
             input_array.len() / P::R,

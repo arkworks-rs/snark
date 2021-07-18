@@ -46,14 +46,14 @@ pub trait ConstraintSystem<F: Field>: Sized {
 
     /// Create a new (sub)namespace and enter into it. Not intended
     /// for downstream use; use `namespace` instead.
-    fn push_namespace<NR, N>(&mut self, name_fn: N)
+    fn push_namespace<NR, N>(&mut self, name_fn: N) -> Result<(), SynthesisError>
     where
         NR: Into<String>,
         N: FnOnce() -> NR;
 
     /// Exit out of the existing namespace. Not intended for
     /// downstream use; use `namespace` instead.
-    fn pop_namespace(&mut self);
+    fn pop_namespace(&mut self) -> Result<(), SynthesisError>;
 
     /// Gets the "root" constraint system, bypassing the namespacing.
     /// Not intended for downstream use; use `namespace` instead.
@@ -65,7 +65,8 @@ pub trait ConstraintSystem<F: Field>: Sized {
         NR: Into<String>,
         N: FnOnce() -> NR,
     {
-        self.get_root().push_namespace(name_fn);
+        // TODO: deal with error
+        self.get_root().push_namespace(name_fn).unwrap_or(());
 
         Namespace(self.get_root(), PhantomData)
     }
@@ -133,17 +134,17 @@ impl<F: Field, CS: ConstraintSystem<F>> ConstraintSystem<F> for Namespace<'_, F,
     // never a root constraint system.
 
     #[inline]
-    fn push_namespace<NR, N>(&mut self, _: N)
+    fn push_namespace<NR, N>(&mut self, _: N) -> Result<(), SynthesisError>
     where
         NR: Into<String>,
         N: FnOnce() -> NR,
     {
-        panic!("only the root's push_namespace should be called");
+        Err(SynthesisError::Other("only the root's push_namespace should be called".to_owned()))
     }
-
     #[inline]
-    fn pop_namespace(&mut self) {
-        panic!("only the root's pop_namespace should be called");
+    fn pop_namespace(&mut self) -> Result<(), SynthesisError>
+    {
+        Err(SynthesisError::Other("only the root's pop_namespace should be called".to_owned()))
     }
 
     #[inline]
@@ -160,7 +161,8 @@ impl<F: Field, CS: ConstraintSystem<F>> ConstraintSystem<F> for Namespace<'_, F,
 impl<F: Field, CS: ConstraintSystem<F>> Drop for Namespace<'_, F, CS> {
     #[inline]
     fn drop(&mut self) {
-        self.get_root().pop_namespace()
+        // TODO: deal with error
+        self.get_root().pop_namespace().unwrap_or(());
     }
 }
 
@@ -207,17 +209,20 @@ impl<F: Field, CS: ConstraintSystem<F>> ConstraintSystem<F> for &mut CS {
     }
 
     #[inline]
-    fn push_namespace<NR, N>(&mut self, name_fn: N)
+    fn push_namespace<NR, N>(&mut self, name_fn: N) -> Result<(), SynthesisError>
     where
         NR: Into<String>,
         N: FnOnce() -> NR,
     {
-        (**self).push_namespace(name_fn)
+        (**self).push_namespace(name_fn)?;
+        Ok(())
     }
 
     #[inline]
-    fn pop_namespace(&mut self) {
-        (**self).pop_namespace()
+    fn pop_namespace(&mut self) -> Result<(), SynthesisError>
+    {
+        (**self).pop_namespace()?;
+        Ok(())
     }
 
     #[inline]

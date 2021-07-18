@@ -379,7 +379,7 @@ impl<F: PrimeField> ToBits for F {
             tmp.push(b);
         }
 
-        assert_eq!(tmp.len(), num_bits as usize);
+        debug_assert_eq!(tmp.len(), num_bits as usize);
 
         tmp
     }

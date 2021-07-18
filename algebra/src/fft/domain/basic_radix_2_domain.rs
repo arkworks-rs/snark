@@ -119,6 +119,7 @@ impl<F: PrimeField> BasicRadix2Domain<F> {
             r
         }
         let n = a.len() as u32;
+        // TODO: possible crash
         assert_eq!(n, 1 << log_n);
 
         // reindex a[0..n] as described above
@@ -182,6 +183,7 @@ impl<F: PrimeField> BasicRadix2Domain<F> {
         log_n: u32,
         log_cpus: u32,
     ) {
+        // TODO: possible crash
         assert!(log_n >= log_cpus);
 
         let num_cpus = 1 << log_cpus;

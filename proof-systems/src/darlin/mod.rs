@@ -191,7 +191,10 @@ impl<'a, G1, G2, D>FinalDarlin<'a, G1, G2, D>
     ), FinalDarlinError>
     {
         // Get "system inputs"
-        let mut public_inputs = proof.deferred.to_field_elements().unwrap();
+        // TODO: check error message
+        let mut public_inputs = proof.deferred.to_field_elements().map_err(|e| {
+            FinalDarlinError::Other(format!("{}", e).to_owned())
+        })?;
 
         // Append user inputs
         public_inputs.extend_from_slice(usr_ins);
