@@ -7,6 +7,7 @@ use std::{borrow::Borrow, fmt::Debug};
 pub mod curves;
 
 pub use self::curves::short_weierstrass::{bls12, bn, mnt};
+pub mod nonnative;
 
 pub trait GroupGadget<G: Group, ConstraintF: Field>:
     Sized
