@@ -213,6 +213,30 @@ for GroupAffineNonNativeGadget<P, ConstraintF, SimulationF, F>
         Ok(Self::new(x_3, y_3, Boolean::Constant(false)))
     }
 
+    /// Variable base exponentiation.
+    /// Inputs must be specified in *little-endian* form.
+    /// If the addition law is incomplete for the identity element,
+    /// `result` must not be the identity element.
+    fn mul_bits<'a, CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        result: &Self,
+        bits: impl Iterator<Item = &'a Boolean>,
+    ) -> Result<Self, SynthesisError> {
+        let mut power = self.clone();
+        let mut result = result.clone();
+        for (i, bit) in bits.enumerate() {
+            let new_encoded = result.add(&mut cs.ns(|| format!("Add {}-th power", i)), &power)?;
+            result = Self::conditionally_select(
+                &mut cs.ns(|| format!("Select {}", i)),
+                bit.borrow(),
+                &new_encoded,
+                &result,
+            )?;
+            power.double_in_place(&mut cs.ns(|| format!("{}-th Doubling", i)))?;
+        }
+        Ok(result)
+    }
 
     #[inline]
     fn mul_bits_fixed_base<'a, CS: ConstraintSystem<ConstraintF>>(
