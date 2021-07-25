@@ -696,7 +696,7 @@ mod test {
         }
         println!("Generated query set");
 
-        let mut fs_rng = <InnerProductArgPC<G, D> as PolynomialCommitment<G::ScalarField>>::RandomOracle::new();
+        let mut fs_rng = <InnerProductArgPC<G, D> as PolynomialCommitment<G::ScalarField>>::RandomOracle::from_seed(b"TEST_SEED");
         let proof = InnerProductArgPC::<G, D>::batch_open(
             &ck,
             &polynomials,
