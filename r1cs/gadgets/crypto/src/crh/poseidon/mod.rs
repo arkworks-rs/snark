@@ -170,10 +170,7 @@ impl<
     {
 
         // Check that the length of the state vector is t
-        // TODO: check error message
-        if state.len() != P::T {
-            return Err(SynthesisError::Other("state length verification failed".to_owned()));
-        }
+        assert_eq!(state.len(), P::T);
 
         // Destination state vector
         let mut new_state = Vec::new();
@@ -217,9 +214,8 @@ impl<ConstraintF, P, SB, SBG> FieldBasedHashGadget<PoseidonHash<ConstraintF, P, 
     // Assumption:
     //     capacity c = 1
     {
-        // TODO: check error message
         if input.len() == 0 {
-            return Err(SynthesisError::Other("Input data array does not contain any data".to_owned()));
+            Err(SynthesisError::Other("Input data array does not contain any data".to_owned()))?
         }
 
         let mut state = Vec::new();

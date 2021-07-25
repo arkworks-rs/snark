@@ -89,13 +89,13 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for PedersenCRH<G, W> {
         }
 
         if parameters.generators.len() != W::NUM_WINDOWS {
-            return Err(Box::new(CryptoError::Other(format!(
+            Err(Box::new(CryptoError::Other(format!(
                 "Incorrect pp of size {:?}x{:?} for window params {:?}x{:?}",
                 parameters.generators[0].len(),
                 parameters.generators.len(),
                 W::WINDOW_SIZE,
                 W::NUM_WINDOWS
-            ).to_owned())));
+            ).to_owned())))?
 
         }
 

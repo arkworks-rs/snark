@@ -213,10 +213,7 @@ impl R1CStoQAP {
         domain.coset_ifft_in_place(&mut ab);
 
         // we drop the leading coefficient, as deg(h(Z)) = n-2.
-        // TODO: check error message
-        if ab.pop().unwrap() != zero {
-            return Err(SynthesisError::Other("leading coefficient verification failed".to_owned()));
-        }
+        assert!(ab.pop().unwrap() == zero);
         Ok(ab)
     }
 }

@@ -86,11 +86,10 @@ impl<G: Group, W: PedersenWindow> CommitmentScheme for PedersenCommitment<G, W> 
         let commit_time = start_timer!(|| "PedersenCOMM::Commit");
         // If the input is too long, return an error.
         if input.len() > W::WINDOW_SIZE * W::NUM_WINDOWS {
-            // TODO: check error message
-            return Err(Box::new(CryptoError::Other(format!(
+            Err(Box::new(CryptoError::Other(format!(
                 "incorrect input length: {:?}",
                 input.len()
-            ).to_owned())));
+            ).to_owned())))?
         }
         // Pad the input to the necessary length.
         let mut padded_input = Vec::with_capacity(input.len());

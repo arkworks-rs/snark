@@ -14,7 +14,6 @@ use poly_commit::ipa_pc::{
 };
 use digest::Digest;
 use rand::RngCore;
-use crate::darlin::error::FinalDarlinError;
 
 /// The `FinalDarlinDeferredData`, assuming that the final node is in G1.
 /// This node serves an ordinary Marlin proof plus the dlog accumulators
@@ -120,10 +119,9 @@ impl<G1, G2> ToConstraintField<G1::ScalarField> for FinalDarlinDeferredData<G1, 
             // write_bits() outputs a Big Endian bit order representation of fe and the same
             // expects [bool].to_field_elements(): therefore we need to take the last 128 bits,
             // e.g. we need to skip the first MODULUS_BITS - 128 bits.
-            // TODO: check error message
-            if <[bool] as ToConstraintField<G2::ScalarField>>::to_field_elements(&bits[to_skip..])?[0] != fe {
-                return Err(Box::new(FinalDarlinError::Other("bool to field elements representation failed".to_owned())));
-            }
+            debug_assert!(
+                <[bool] as ToConstraintField<G2::ScalarField>>::to_field_elements(&bits[to_skip..]).unwrap()[0] == fe
+            );
             xi_s_bits.extend_from_slice(&bits[to_skip..]);
         }
         fes.append(&mut xi_s_bits.to_field_elements()?);
@@ -152,10 +150,9 @@ impl<G1, G2> ToConstraintField<G1::ScalarField> for FinalDarlinDeferredData<G1, 
             // write_bits() outputs a Big Endian bit order representation of fe and the same
             // expects [bool].to_field_elements(): therefore we need to take the last 128 bits,
             // e.g. we need to skip the first MODULUS_BITS - 128 bits.
-            // TODO: check error message
-            if <[bool] as ToConstraintField<G1::ScalarField>>::to_field_elements(&bits[to_skip..])?[0] != fe {
-                return Err(Box::new(FinalDarlinError::Other("bool to field elements representation failed".to_owned())));
-            }
+            debug_assert!(
+                <[bool] as ToConstraintField<G1::ScalarField>>::to_field_elements(&bits[to_skip..]).unwrap()[0] == fe
+            );
             xi_s_bits.extend_from_slice(&bits[to_skip..]);
         }
         fes.append(&mut xi_s_bits.to_field_elements()?);

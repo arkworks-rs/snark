@@ -191,9 +191,8 @@ impl<'a, G1, G2, D>FinalDarlin<'a, G1, G2, D>
     ), FinalDarlinError>
     {
         // Get "system inputs"
-        // TODO: check error message
-        let mut public_inputs = proof.deferred.to_field_elements().map_err(|e| {
-            FinalDarlinError::Other(format!("{}", e).to_owned())
+        let mut public_inputs = proof.deferred.to_field_elements().map_err(|_| {
+            FinalDarlinError::Other("Unable to convert proof.deferred to native field elements".to_owned())
         })?;
 
         // Append user inputs

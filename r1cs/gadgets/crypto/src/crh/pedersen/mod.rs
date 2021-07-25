@@ -54,13 +54,17 @@ where
                 padded_input.push(UInt8::constant(0u8));
             }
         }
-        // TODO: check error message
         if padded_input.len() * 8 != W::WINDOW_SIZE * W::NUM_WINDOWS {
-            return Err(SynthesisError::Other("padded input length verification failed".to_owned()));
+            Err(SynthesisError::Other("padded input length verification failed".to_owned()))?
         }
-        // TODO: check error message
         if parameters.params.generators.len() != W::NUM_WINDOWS {
-            return Err(SynthesisError::Other("generators length verification failed".to_owned()));
+            Err(SynthesisError::Other(format!(
+                "Incorrect pp of size {:?}x{:?} for window params {:?}x{:?}",
+                parameters.params.generators[0].len(),
+                parameters.params.generators.len(),
+                W::WINDOW_SIZE,
+                W::NUM_WINDOWS
+            ).to_owned()))?
         }
 
         // Allocate new variable for the result.

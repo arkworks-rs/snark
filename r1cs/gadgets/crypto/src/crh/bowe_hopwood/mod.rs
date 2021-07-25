@@ -65,16 +65,24 @@ where
         }
         // TODO: check error message
         if input_in_bits.len() % CHUNK_SIZE != 0 {
-            return Err(SynthesisError::Other("input in bits length verification failed".to_owned()));
+            Err(SynthesisError::Other(format!(
+                "Input is not multiple of the chunk size. Input len: {}, chunk size: {}",
+                input_in_bits.len(),
+                CHUNK_SIZE,
+            ).to_owned()))?
         }
-        // TODO: check error message
         if parameters.params.generators.len() != W::NUM_WINDOWS {
-            return Err(SynthesisError::Other("generators length verification failed".to_owned()));
+            Err(SynthesisError::Other(format!(
+                "Incorrect pp of size {:?} for window params {:?}x{:?}x{}",
+                parameters.params.generators.len(),
+                W::WINDOW_SIZE,
+                W::NUM_WINDOWS,
+                CHUNK_SIZE
+            ).to_owned()))?
         }
         for generators in parameters.params.generators.iter() {
-            // TODO: check error message
             if generators.len() != W::WINDOW_SIZE {
-                return Err(SynthesisError::Other("generators length verification failed".to_owned()));
+                Err(SynthesisError::Other("generators length verification failed".to_owned()))?
             }
         }
 
