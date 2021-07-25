@@ -798,7 +798,7 @@ fn test_bilinearity() {
         ),
     );
 
-    assert_eq!(MNT6::pairing(a, b), Fq6::new(
+    assert_eq!(MNT6::pairing(a, b).unwrap(), Fq6::new(
         Fq3::new(
             Fq::from_repr(BigInteger768([
                 0x4973db8f9e0c6a01,
@@ -896,9 +896,9 @@ fn test_bilinearity() {
     let sa = a * &s;
     let sb = b * &s;
 
-    let ans1 = MNT6::pairing(sa, b);
-    let ans2 = MNT6::pairing(a, sb);
-    let ans3 = MNT6::pairing(a, b).pow(s.into_repr());
+    let ans1 = MNT6::pairing(sa, b).unwrap();
+    let ans2 = MNT6::pairing(a, sb).unwrap();
+    let ans3 = MNT6::pairing(a, b).unwrap().pow(s.into_repr());
 
     assert_eq!(ans1, ans2);
     assert_eq!(ans2, ans3);

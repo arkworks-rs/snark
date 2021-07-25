@@ -332,7 +332,7 @@ pub trait PrimeField: Field<BasePrimeField = Self> + FromStr {
     fn root_of_unity() -> Self;
 
     ///Returns the full root of unity
-    fn full_root_of_unity() -> Self;
+    fn full_root_of_unity() -> Option<Self>;
 
     /// Return the a QNR^T
     fn qnr_to_t() -> Self {

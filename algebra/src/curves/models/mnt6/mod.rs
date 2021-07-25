@@ -1,6 +1,4 @@
-use crate::{Fp3, BigInteger768 as BigInteger, PrimeField, SquareRootField, Fp3Parameters,
-            Fp6Parameters, SWModelParameters, ModelParameters, PairingEngine, Fp6,
-            Field};
+use crate::{Error, Fp3, BigInteger768 as BigInteger, PrimeField, SquareRootField, Fp3Parameters, Fp6Parameters, SWModelParameters, ModelParameters, PairingEngine, Fp6, Field};
 use std::marker::PhantomData;
 use std::ops::{Add, Mul, Sub};
 
@@ -100,7 +98,7 @@ impl<P: MNT6Parameters> MNT6p<P> {
     //     s.y = the y-coordinate of internal state S,
     //     gamma = the F3-slope of the tangent/P-chord at S,
     //     gamma_x = the F3-slope times the x-coordinate s.x of S.
-    fn ate_precompute_g2(value: &G2Affine<P>) -> G2Prepared<P> {
+    fn ate_precompute_g2(value: &G2Affine<P>) -> Result<G2Prepared<P>, Error> {
 
         let mut g2p = G2Prepared {
             q: *value,
@@ -116,7 +114,9 @@ impl<P: MNT6Parameters> MNT6p<P> {
             let gamma = {
                 let sx_squared = s.x.square();
                 let three_sx_squared_plus_a = sx_squared.double().add(&sx_squared).add(&P::TWIST_COEFF_A);
-                // TODO: possible crash
+                if value.y.is_zero() {
+                    Err(format!("Invalid Q-point value"))?
+                }
                 let two_sy_inv = s.y.double().inverse().unwrap();
                 three_sx_squared_plus_a.mul(&two_sy_inv) // the F3-slope of the tangent at S=(s.x,s.y)
             };
@@ -136,7 +136,9 @@ impl<P: MNT6Parameters> MNT6p<P> {
 
             if n != 0 {
                 //Addition/substraction step depending on the sign of n
-                // TODO: possible crash
+                if s.x == value.x {
+                    Err(format!("Invalid Q-point value"))?
+                }
                 let sx_minus_x_inv = s.x.sub(&value.x).inverse().unwrap();
                 let numerator = if n > 0  { s.y.sub(&value.y) } else { s.y.add(&value.y) };
                 let gamma = numerator.mul(&sx_minus_x_inv); //the F3 slope of the chord Q'R'
@@ -155,7 +157,8 @@ impl<P: MNT6Parameters> MNT6p<P> {
                 s.y = new_sy;
             }
         }
-        g2p
+
+        Ok(g2p)
     }
 
 
@@ -225,14 +228,16 @@ impl<P: MNT6Parameters> MNT6p<P> {
         f
     }
 
-    pub fn final_exponentiation(value: &Fp6<P::Fp6Params>) -> Fp6<P::Fp6Params> {
-        // TODO: possible crash
+    pub fn final_exponentiation(value: &Fp6<P::Fp6Params>) -> Result<Fp6<P::Fp6Params>, Error> {
+        if value.is_zero() {
+            Err(format!("Invalid exponentiation value: 0"))?
+        }
         let value_inv = value.inverse().unwrap();
         // "easy part" of the exponentiation
         let value_to_first_chunk = Self::final_exponentiation_first_chunk(value, &value_inv);
         let value_inv_to_first_chunk = Self::final_exponentiation_first_chunk(&value_inv, value);
         // "hard part"
-        Self::final_exponentiation_last_chunk(&value_to_first_chunk, &value_inv_to_first_chunk)
+        Ok(Self::final_exponentiation_last_chunk(&value_to_first_chunk, &value_inv_to_first_chunk))
     }
 
     fn final_exponentiation_first_chunk(elt: &Fp6<P::Fp6Params>, elt_inv: &Fp6<P::Fp6Params>) -> Fp6<P::Fp6Params> {
@@ -290,7 +295,7 @@ impl<P: MNT6Parameters> PairingEngine for MNT6p<P>
     type Fqe = Fp3<P::Fp3Params>;
     type Fqk = Fp6<P::Fp6Params>;
 
-    fn miller_loop<'a, I>(i: I) -> Self::Fqk
+    fn miller_loop<'a, I>(i: I) -> Option<Self::Fqk>
         where
             I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>,
     {
@@ -298,11 +303,14 @@ impl<P: MNT6Parameters> PairingEngine for MNT6p<P>
         for &(ref p, ref q) in i {
             result *= &Self::ate_miller_loop(p, q);
         }
-        result
+        Some(result)
     }
 
     fn final_exponentiation(r: &Self::Fqk) -> Option<Self::Fqk> {
-        Some(Self::final_exponentiation(r))
+        match Self::final_exponentiation(r) {
+            Ok(v) => Some(v),
+            Err(_) => None
+        }
     }
 }
 

@@ -99,8 +99,7 @@ impl<F: Field> DensePolynomial<F> {
         if self.is_zero() {
             0
         } else {
-            // TODO: possible crash
-            assert!(self.coeffs.last().map_or(false, |coeff| !coeff.is_zero()));
+            debug_assert!(self.coeffs.last().map_or(false, |coeff| !coeff.is_zero()));
             self.coeffs.len() - 1
         }
     }

@@ -97,7 +97,7 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send + Eq + Par
 
     /// Perform a miller loop with some number of (G1, G2) pairs.
     #[must_use]
-    fn miller_loop<'a, I>(i: I) -> Self::Fqk
+    fn miller_loop<'a, I>(i: I) -> Option<Self::Fqk>
         where
             I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>;
 
@@ -107,16 +107,19 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send + Eq + Par
 
     /// Computes a product of pairings.
     #[must_use]
-    fn product_of_pairings<'a, I>(i: I) -> Self::Fqk
+    fn product_of_pairings<'a, I>(i: I) -> Option<Self::Fqk>
         where
             I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>,
     {
-        Self::final_exponentiation(&Self::miller_loop(i)).unwrap()
+        match Self::miller_loop(i) {
+            Some(v) => Self::final_exponentiation(&v),
+            None => None
+        }
     }
 
     /// Performs multiple pairing operations
     #[must_use]
-    fn pairing<G1, G2>(p: G1, q: G2) -> Self::Fqk
+    fn pairing<G1, G2>(p: G1, q: G2) -> Option<Self::Fqk>
         where
             G1: Into<Self::G1Affine>,
             G2: Into<Self::G2Affine>,

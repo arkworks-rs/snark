@@ -41,23 +41,24 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
     /// `primitives/src/benches/poseidon_mht.rs` to properly tune the `processing_step`
     /// parameter according to your use case.
     pub fn init(height: usize, processing_step: usize) -> Result<Self, Error> {
-        // TODO: check error message
         if !check_precomputed_parameters::<T>(height) {
-            return Err(Box::new(MerkleTreeError::Other("precomputed parameters check failed".to_owned())));
+            Err(Box::new(MerkleTreeError::Other(format!(
+                "Unsupported height. Max supported height is: {}",
+                T::ZERO_NODE_CST.unwrap().nodes.len()
+            ).to_owned())))?
         }
 
         let rate = <<T::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
         // Rate may also be smaller than the arity actually, but this assertion
         // is reasonable and simplify the design.
-        // TODO: check error message
-        if rate != T::MERKLE_ARITY {
-            return Err(Box::new(MerkleTreeError::Other("rate check failed".to_owned())));
-        }
+        assert_eq!(rate, T::MERKLE_ARITY);
 
         let last_level_size = T::MERKLE_ARITY.pow(height as u32);
-        // TODO: check error message
         if processing_step <= 0 || processing_step > last_level_size {
-            return Err(Box::new(MerkleTreeError::Other("processing step check failed".to_owned())));
+            Err(Box::new(MerkleTreeError::Other(format!(
+                "Invalid processing step. Must be between 1 and {}",
+                last_level_size
+            ).to_owned())))?
         }
 
         let mut initial_pos = Vec::new();
@@ -126,7 +127,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
     /// starting from the leaves (as long as the number of affected nodes at a certain level is bigger
     /// equal than the rate of the hash function, therefore this function doesn't necessarily update
     /// all the nodes up until the root).
-    fn compute_subtree(&mut self) {
+    fn compute_subtree(&mut self) -> Result<(), Error> {
         if self.height != 0 {
             for i in 0..=self.height  {
 
@@ -157,7 +158,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
                         &mut input_vec[(self.processed_pos[i] - self.initial_pos[i])..(last_pos_to_process - self.initial_pos[i])],
                         &mut output_vec[(self.new_elem_pos[i + 1] - self.initial_pos[i + 1])..(new_pos_parent - self.initial_pos[i + 1])],
                         i + 1,
-                    );
+                    )?;
 
                     // Update new_elem_pos and processed_pos (in a consistent way as we did with
                     // new_pos_parent and last_pos_to_process.
@@ -166,13 +167,15 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
                 }
             }
         }
+
+        Ok(())
     }
 
     pub fn get_leaves(&self) -> &[T::Data] {
         &self.array_nodes[self.initial_pos[0]..self.new_elem_pos[0]]
     }
 
-    fn batch_hash(input: &mut [T::Data], output: &mut [T::Data], parent_level: usize) {
+    fn batch_hash(input: &mut [T::Data], output: &mut [T::Data], parent_level: usize) -> Result<(), Error> {
 
         let mut i = 0;
         let empty = T::ZERO_NODE_CST.unwrap().nodes[parent_level - 1];
@@ -202,11 +205,13 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
             <T::BH as BatchFieldBasedHash>::batch_evaluate_in_place(
                 to_hash.as_mut_slice(),
                 to_hash_out.as_mut_slice()
-            );
+            )?;
 
             // Put the hashes in the correct positions in the output vec
             to_hash_out.iter().enumerate().for_each(|(i, &h)| output[output_pos[i]] = h);
         }
+
+        Ok(())
     }
 }
 
@@ -235,13 +240,13 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBased
 
         // With the previous update we reached the maximum capacity for the leaves
         if self.new_elem_pos[0] == self.final_pos[0] {
-            self.compute_subtree();
+            self.compute_subtree()?;
         }
 
         // There is still room, but we can start updating the tree, according to
         // how we set processing_step parameter
         if (self.new_elem_pos[0] - self.processed_pos[0]) >= self.processing_step {
-            self.compute_subtree();
+            self.compute_subtree()?;
         }
 
         Ok(self)
@@ -250,18 +255,16 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBased
     fn finalize(&self) -> Self {
         let mut copy = (*self).clone();
         copy.new_elem_pos[0] = copy.final_pos[0];
-        copy.compute_subtree();
+        copy.compute_subtree().unwrap();
         copy.finalized = true;
-        // TODO: possible crash
         copy.root = *copy.array_nodes.last().unwrap();
         copy
     }
 
     fn finalize_in_place(&mut self) -> &mut Self {
         self.new_elem_pos[0] = self.final_pos[0];
-        self.compute_subtree();
+        self.compute_subtree().unwrap();
         self.finalized = true;
-        // TODO: possible crash
         self.root = *self.array_nodes.last().unwrap();
         self
     }
@@ -325,13 +328,10 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBased
                 }
 
                 // Sanity check: the last node_index must be the one of the root
-                if self.array_nodes[node_index] == self.root {
-                    Some(
-                        FieldBasedMHTPath::<T>::new(merkle_path)
-                    )
-                } else {
-                    None
-                }
+                debug_assert_eq!(self.array_nodes[node_index], self.root);
+                Some(
+                    FieldBasedMHTPath::<T>::new(merkle_path)
+                )
             },
             false => None,
         }
@@ -427,7 +427,7 @@ mod test {
         tree.finalize_in_place();
 
         let optimized_root = tree.root().unwrap();
-        let naive_root = naive_mt.root();
+        let naive_root = naive_mt.root().unwrap();
         assert_eq!(naive_root, optimized_root);
         assert_eq!(
             tree.root().unwrap(),
@@ -607,7 +607,7 @@ mod test {
             leaves.extend_from_slice(vec![<T::Data as Field>::zero(); max_leaves - num_leaves].as_slice());
             let mut naive_mt = NaiveMerkleTree::<T>::new(max_height);
             naive_mt.append(leaves.as_slice()).unwrap();
-            let naive_root = naive_mt.root();
+            let naive_root = naive_mt.root().unwrap();
 
             // Push them in a Poseidon Merkle Tree and get the root
             let mut mt = FieldBasedOptimizedMHT::<T>::init(max_height, num_leaves).unwrap();
@@ -633,7 +633,7 @@ mod test {
             leaves.extend_from_slice(vec![<T::Data as Field>::zero(); max_leaves - num_leaves].as_slice());
             let mut naive_mt = NaiveMerkleTree::<T>::new(max_height);
             naive_mt.append(leaves.as_slice()).unwrap();
-            let naive_root = naive_mt.root();
+            let naive_root = naive_mt.root().unwrap();
 
             // Push them in a Poseidon Merkle Tree and get the root
             let mut mt = FieldBasedOptimizedMHT::<T>::init(max_height, num_leaves).unwrap();
@@ -686,7 +686,7 @@ mod test {
         let mut naive_tree = NaiveMerkleTree::<T>::new(height);
         naive_tree.append(leaves.as_slice()).unwrap();
         let root = tree.root().unwrap();
-        let naive_root = naive_tree.root();
+        let naive_root = naive_tree.root().unwrap();
         assert_eq!(root, naive_root);
 
         for i in 0..num_leaves {

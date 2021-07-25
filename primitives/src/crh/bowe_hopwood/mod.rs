@@ -105,9 +105,12 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for BoweHopwoodPedersenCRH<G, W
             }
         }
 
-        // TODO: check error message
         if padded_input.len() % CHUNK_SIZE != 0 {
-            return Err(Box::new(CryptoError::Other("padded input length verification failed".to_owned())));
+            Err(Box::new(CryptoError::Other(format!(
+                "Input is not multiple of the chunk size. Input len: {}, chunk size: {}",
+                padded_input.len(),
+                CHUNK_SIZE,
+            ).to_owned())))?
         }
 
         if parameters.generators.len() != W::NUM_WINDOWS {

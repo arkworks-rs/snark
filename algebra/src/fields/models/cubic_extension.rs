@@ -110,8 +110,7 @@ impl<P: CubicExtParameters> CubicExtField<P> {
         let mut self_to_p2 = *self;
         self_to_p2.frobenius_map(2);
         self_to_p *= &(self_to_p2 * self);
-        // TODO: possible crash
-        assert!(self_to_p.c1.is_zero() && self_to_p.c2.is_zero());
+        debug_assert!(self_to_p.c1.is_zero() && self_to_p.c2.is_zero());
         self_to_p.c0
     }
 }
@@ -583,7 +582,6 @@ impl<'a, P: CubicExtParameters> MulAssign<&'a Self> for CubicExtField<P> {
 impl<'a, P: CubicExtParameters> DivAssign<&'a Self> for CubicExtField<P> {
     #[inline]
     fn div_assign(&mut self, other: &Self) {
-        // TODO: possible crash
         self.mul_assign(&other.inverse().unwrap());
     }
 }

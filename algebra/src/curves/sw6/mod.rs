@@ -1,5 +1,6 @@
 use crate::field_new;
 use crate::{
+    Error,
     biginteger::BigInteger832,
     curves::PairingEngine,
     fields::{
@@ -37,28 +38,34 @@ impl PairingEngine for SW6 {
     type Fqe = Fq3;
     type Fqk = Fq6;
 
-    fn miller_loop<'a, I>(i: I) -> Self::Fqk
+    fn miller_loop<'a, I>(i: I) -> Option<Self::Fqk>
     where
         I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>
     {
         let mut result = Self::Fqk::one();
         for &(ref p, ref q) in i {
-            result *= &SW6::ate_miller_loop(p, q);
+            result *= match SW6::ate_miller_loop(p, q) {
+                Ok(v) => v,
+                Err(_) => { return None; }
+            };
         }
-        result
+        Some(result)
     }
 
     fn final_exponentiation(r: &Self::Fqk) -> Option<Self::Fqk> {
-        Some(SW6::final_exponentiation(r))
+        match SW6::final_exponentiation(r) {
+            Ok(v) => Some(v),
+            Err(_) => None
+        }
     }
 }
 
 impl SW6 {
-    pub fn ate_pairing(p: &G1Affine, q: &G2Affine) -> GT {
-        SW6::final_exponentiation(&SW6::ate_miller_loop(p, q))
+    pub fn ate_pairing(p: &G1Affine, q: &G2Affine) -> Result<GT, Error> {
+        SW6::final_exponentiation(&SW6::ate_miller_loop(p, q)?)
     }
 
-    fn ate_miller_loop(p: &G1Affine, q: &G2Affine) -> Fq6 {
+    fn ate_miller_loop(p: &G1Affine, q: &G2Affine) -> Result<Fq6, Error> {
         use crate::curves::{models::SWModelParameters, sw6::g2::SW6G2Parameters};
 
         let px = p.x;
@@ -88,10 +95,13 @@ impl SW6 {
             old_rx = rx;
             old_ry = ry;
 
+            if old_ry.is_zero() {
+                Err(format!("Incorrect values for miller loop: p={}, q={}", p, q))?
+            }
+
             let old_rx_square = old_rx.square();
             let old_rx_square_3 = old_rx_square.double() + &old_rx_square;
             let old_rx_square_3_a = old_rx_square_3 + &SW6G2Parameters::COEFF_A;
-            // TODO: possible crash
             let old_ry_double_inverse = old_ry.double().inverse().unwrap();
 
             let gamma = old_rx_square_3_a * &old_ry_double_inverse;
@@ -112,7 +122,10 @@ impl SW6 {
                 old_rx = rx;
                 old_ry = ry;
 
-                // TODO: possible crash
+                if old_rx == qx {
+                    Err(format!("Incorrect values for miller loop: p={}, q={}", p, q))?
+                }
+
                 let gamma = (old_ry - &qy) * &((old_rx - &qx).inverse().unwrap());
                 let gamma_twist = gamma * &TWIST;
                 let gamma_qx = gamma * &qx;
@@ -128,15 +141,18 @@ impl SW6 {
                 f = f * &ell_rq_at_p;
             }
         }
-        f
+
+        Ok(f)
     }
 
-    fn final_exponentiation(value: &Fq6) -> GT {
-        // TODO: possible crash
+    fn final_exponentiation(value: &Fq6) -> Result<GT, Error> {
+        if value.is_zero() {
+            Err(format!("Invalid exponentiation value: 0"))?
+        }
         let value_inv = value.inverse().unwrap();
         let value_to_first_chunk = SW6::final_exponentiation_first(value, &value_inv);
         let value_inv_to_first_chunk = SW6::final_exponentiation_first(&value_inv, value);
-        SW6::final_exponentiation_last(&value_to_first_chunk, &value_inv_to_first_chunk)
+        Ok(SW6::final_exponentiation_last(&value_to_first_chunk, &value_inv_to_first_chunk))
     }
 
     fn final_exponentiation_first(elt: &Fq6, elt_inv: &Fq6) -> Fq6 {

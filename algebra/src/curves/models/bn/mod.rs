@@ -97,7 +97,7 @@ impl<P: BnParameters> PairingEngine for Bn<P>
     type Fqe = Fp2<P::Fp2Params>;
     type Fqk = Fp12<P::Fp12Params>;
 
-    fn miller_loop<'a, I>(i: I) -> Self::Fqk
+    fn miller_loop<'a, I>(i: I) -> Option<Self::Fqk>
     where
         I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>,
     {
@@ -147,7 +147,7 @@ impl<P: BnParameters> PairingEngine for Bn<P>
             Self::ell(&mut f, coeffs.next().unwrap(), &p.0);
         }
 
-        f
+        Some(f)
     }
 
     fn final_exponentiation(f: &Self::Fqk) -> Option<Self::Fqk> {

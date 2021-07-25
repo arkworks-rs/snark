@@ -50,7 +50,10 @@ impl<F: PrimeField> MixedRadix2Domain<F> {
             };
 
         let q_as_bigint = F::BigInt::from(q);
-        let mut group_gen = F::full_root_of_unity();
+        let mut group_gen = match F::full_root_of_unity() {
+            Some(v) => v,
+            None => return None,
+        };
         for _ in q_adicity..F::Params::SMALL_SUBGROUP_POWER.unwrap() {
             group_gen = group_gen.pow(&q_as_bigint);
         }
@@ -64,7 +67,12 @@ impl<F: PrimeField> MixedRadix2Domain<F> {
         let group_gen_inv = group_gen.inverse()?;
         let generator_inv = F::multiplicative_generator().inverse()?;
         Some(Self{
-            size, log_size_of_group, size_inv, group_gen, group_gen_inv, generator_inv,
+            size,
+            log_size_of_group,
+            size_inv,
+            group_gen,
+            group_gen_inv,
+            generator_inv,
         })
     }
 

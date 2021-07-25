@@ -103,7 +103,6 @@ pub trait BatchFieldBasedHash {
         Ok(input_array.par_chunks(rate).map(|chunk| {
             let mut digest = <Self::BaseHash as FieldBasedHash>::init_constant_length(rate, None);
             chunk.iter().for_each(|input| { digest.update(input.clone()); } );
-            // TODO: possible crash
             digest.finalize().unwrap()
         }).collect::<Vec<_>>())
     }
@@ -115,15 +114,24 @@ pub trait BatchFieldBasedHash {
     /// NOTE: The hashes are independent from each other, therefore the output is not some sort
     /// of aggregated hash but it's actually the hash result of each of the inputs, grouped in
     /// hash_rate chunks.
-    fn batch_evaluate_in_place(input_array: &mut[Self::Data], output_array: &mut[Self::Data]) {
+    fn batch_evaluate_in_place(input_array: &mut[Self::Data], output_array: &mut[Self::Data]) -> Result<(), Error> {
         let rate = <<Self::BaseHash as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
+        if input_array.len() % rate != 0 {
+            return Err(Box::new(CryptoError::Other("The length of the input data array is not a multiple of the rate".to_owned())));
+        }
+        if input_array.len() == 0 {
+            return Err(Box::new(CryptoError::Other("Input data array does not contain any data".to_owned())));
+        }
+        if output_array.len() != input_array.len() / rate {
+            return Err(Box::new(CryptoError::Other("Input and output arrays size check failed".to_owned())));
+        }
         input_array.par_chunks(rate).zip(output_array.par_iter_mut())
             .for_each(|(inputs, output)| {
                 let mut digest = <Self::BaseHash as FieldBasedHash>::init_constant_length(rate, None);
                 inputs.iter().for_each(|input| { digest.update(input.clone()); } );
-                // TODO: possible crash
                 *output = digest.finalize().unwrap();
             });
+        Ok(())
     }
 }
 
@@ -230,8 +238,8 @@ mod test {
         let mut batch_hash_output_new = vec![MNT4753Fr::zero(); num_inputs/rate];
         let mut dummy_batch_hash_output_new = vec![MNT4753Fr::zero(); num_inputs/rate];
 
-        MNT4BatchPoseidonHash::batch_evaluate_in_place(inputs.as_mut_slice(), batch_hash_output_new.as_mut_slice());
-        DummyMNT4BatchPoseidonHash::batch_evaluate_in_place(inputs.as_mut_slice(), dummy_batch_hash_output_new.as_mut_slice());
+        MNT4BatchPoseidonHash::batch_evaluate_in_place(inputs.as_mut_slice(), batch_hash_output_new.as_mut_slice()).unwrap();
+        DummyMNT4BatchPoseidonHash::batch_evaluate_in_place(inputs.as_mut_slice(), dummy_batch_hash_output_new.as_mut_slice()).unwrap();
 
         assert_eq!(batch_hash_output_new, dummy_batch_hash_output_new);
         assert_eq!(batch_hash_output, batch_hash_output_new);

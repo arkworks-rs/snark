@@ -103,9 +103,12 @@ impl<G: Group, W: PedersenWindow> CommitmentScheme for PedersenCommitment<G, W> 
             }
             input = padded_input.as_slice();
         }
-        // TODO: check error message
         if parameters.generators.len() != W::NUM_WINDOWS {
-            return Err(Box::new(CryptoError::Other("generators length verification failed".to_owned())));
+            Err(Box::new(CryptoError::Other(format!(
+                "Number of generators: {} not enough for the selected window size: {}",
+                parameters.generators.len(),
+                W::NUM_WINDOWS
+            ).to_owned())))?
         }
 
         // Invoke Pedersen CRH here, to prevent code duplication.

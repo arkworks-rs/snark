@@ -468,7 +468,6 @@ impl<P: Parameters> Distribution<GroupProjective<P>> for Standard {
     #[inline]
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> GroupProjective<P> {
         let res = GroupProjective::prime_subgroup_generator() * &P::ScalarField::rand(rng);
-        // TODO: possible crash
         debug_assert!(res.into_affine().is_in_correct_subgroup_assuming_on_curve());
         res
     }

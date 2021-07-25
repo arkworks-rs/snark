@@ -73,9 +73,8 @@ impl FixedBaseMSM {
         v: &[T::ScalarField],
     ) -> Result<Vec<T>, Error> {
         let outerc = (scalar_size + window - 1) / window;
-        // TODO: check error message
         if outerc > table.len() {
-            Err(format!("invalid length validation"))?
+            Err(format!("Invalid table size"))?
         }
 
         Ok(v.par_iter().map(|e| Self::windowed_mul::<T>(outerc, window, table, e)).collect::<Vec<_>>())

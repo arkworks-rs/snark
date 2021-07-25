@@ -60,8 +60,7 @@ impl<F: Field> SparsePolynomial<F> {
         if self.is_zero() {
             0
         } else {
-            // TODO: possible crash
-            assert!(self.coeffs.last().map_or(false, |(_, c)| !c.is_zero()));
+            debug_assert!(self.coeffs.last().map_or(false, |(_, c)| !c.is_zero()));
             self.coeffs.last().unwrap().0
         }
     }
