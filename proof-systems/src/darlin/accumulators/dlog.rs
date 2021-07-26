@@ -696,7 +696,7 @@ mod test {
         }
         println!("Generated query set");
 
-        let mut fs_rng = <InnerProductArgPC<G, D> as PolynomialCommitment<G::ScalarField>>::RandomOracle::new();
+        let mut fs_rng = <InnerProductArgPC<G, D> as PolynomialCommitment<G::ScalarField>>::RandomOracle::from_seed(b"TEST_SEED");
         let proof = InnerProductArgPC::<G, D>::batch_open(
             &ck,
             &polynomials,
@@ -768,7 +768,7 @@ mod test {
             let mut proofs = Vec::new();
             let mut states = Vec::new();
 
-            let state = FiatShamirChaChaRng::<D>::new().get_state().clone();
+            let state = FiatShamirChaChaRng::<D>::from_seed(b"TEST_SEED").get_state().clone();
 
             verifier_data_vec.iter().for_each(|verifier_data| {
                 let len = verifier_data.vk.comm_key.len();
@@ -868,7 +868,7 @@ mod test {
             let mut proofs = Vec::new();
             let mut states = Vec::new();
 
-            let state = FiatShamirChaChaRng::<D>::new().get_state().clone();
+            let state = FiatShamirChaChaRng::<D>::from_seed(b"TEST_SEED").get_state().clone();
 
             verifier_data_vec.iter().for_each(|verifier_data| {
                 let len = verifier_data.vk.comm_key.len();
