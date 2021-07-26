@@ -23,7 +23,6 @@ pub use self::parameters::*;
 
 pub mod sbox;
 pub use self::sbox::*;
-use crate::{AlgebraicSponge, SpongeMode};
 
 pub trait PoseidonParameters: 'static + FieldBasedHashParameters + Clone {
     const T: usize;  // Number of S-Boxes

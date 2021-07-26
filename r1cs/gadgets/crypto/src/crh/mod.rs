@@ -19,7 +19,6 @@ pub use self::sbox::*;
 
 pub mod poseidon;
 pub use self::poseidon::*;
-use primitives::{AlgebraicSponge, SpongeMode};
 use r1cs_std::fields::fp::FpGadget;
 
 pub trait FixedLengthCRHGadget<H: FixedLengthCRH, ConstraintF: Field>: Sized {

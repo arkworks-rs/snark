@@ -121,34 +121,6 @@ pub trait BatchFieldBasedHash {
     }
 }
 
-#[derive(Clone, Debug)]
-pub enum SpongeMode {
-    Absorbing,
-    Squeezing,
-}
-
-/// the trait for algebraic sponge
-pub trait AlgebraicSponge<F: PrimeField>: Clone + From<Vec<F>> {
-    /// Initialize the sponge
-    fn init() -> Self;
-    /// Get the sponge internal state
-    fn get_state(&self) -> &[F];
-    /// Set the sponge internal state
-    fn set_state(&mut self, state: Vec<F>);
-    /// Get Sponge current operating mode
-    fn get_mode(&self) -> &SpongeMode;
-    /// Set Sponge operating mode
-    fn set_mode(&mut self, mode: SpongeMode);
-    /// Update the sponge with `elems`
-    fn absorb(&mut self, elems: Vec<F>);
-    /// Output `num` field elements from the sponge.
-    fn squeeze(&mut self, num: usize) -> Vec<F>;
-    /// Reset the sponge to its initial state
-    fn reset(&mut self) {
-        *self = Self::init();
-    }
-}
-
 #[cfg(test)]
 mod test {
 
