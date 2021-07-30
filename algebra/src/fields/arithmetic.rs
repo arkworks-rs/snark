@@ -1,3 +1,25 @@
+macro_rules! impl_montgomery_reduction {
+    ($limbs:expr) => {
+        #[inline]
+        #[unroll_for_loops]
+        fn montgomery_reduction(&mut self, r: &mut [u64; $limbs * 2]) {
+            let mut _carry2 = 0;
+            for i in 0..$limbs {
+                let k = r[i].wrapping_mul(P::INV);
+                let mut carry = 0;
+                fa::mac_with_carry(r[i], k, P::MODULUS.0[0], &mut carry);
+                for j in 1..$limbs {
+                    r[j + i] = fa::mac_with_carry(r[j + i], k, P::MODULUS.0[j], &mut carry);
+                }
+                r[$limbs + i] = fa::adc(r[$limbs + i], _carry2, &mut carry);
+                _carry2 = carry;
+            }
+            (self.0).0.copy_from_slice(&r[$limbs..]);
+            self.reduce();
+        }
+    }
+}
+
 /// This modular multiplication algorithm uses Montgomery
 /// reduction for efficient implementation. It also additionally
 /// uses the "no-carry optimization" outlined
@@ -57,20 +79,7 @@ macro_rules! impl_field_mul_assign {
                     }
                     r[$limbs + i] = carry;
                 }
-                // Montgomery reduction
-                let mut _carry2 = 0;
-                for i in 0..$limbs {
-                    let k = r[i].wrapping_mul(P::INV);
-                    let mut carry = 0;
-                    fa::mac_with_carry(r[i], k, P::MODULUS.0[0], &mut carry);
-                    for j in 1..$limbs {
-                        r[j + i] = fa::mac_with_carry(r[j + i], k, P::MODULUS.0[j], &mut carry);
-                    }
-                    r[$limbs + i] = fa::adc(r[$limbs + i], _carry2, &mut carry);
-                    _carry2 = carry;
-                }
-                (self.0).0.copy_from_slice(&r[$limbs..]);
-                self.reduce();
+                self.montgomery_reduction(&mut r)
             }
         }
     };
@@ -189,20 +198,7 @@ macro_rules! impl_field_square_in_place {
                 r[2 * i] = fa::mac_with_carry(r[2 * i], (self.0).0[i], (self.0).0[i], &mut carry);
                 r[2 * i + 1] = fa::adc(r[2 * i + 1], 0, &mut carry);
             }
-            // Montgomery reduction
-            let mut _carry2 = 0;
-            for i in 0..$limbs {
-                let k = r[i].wrapping_mul(P::INV);
-                let mut carry = 0;
-                fa::mac_with_carry(r[i], k, P::MODULUS.0[0], &mut carry);
-                for j in 1..$limbs {
-                    r[j + i] = fa::mac_with_carry(r[j + i], k, P::MODULUS.0[j], &mut carry);
-                }
-                r[$limbs + i] = fa::adc(r[$limbs + i], _carry2, &mut carry);
-                _carry2 = carry;
-            }
-            (self.0).0.copy_from_slice(&r[$limbs..]);
-            self.reduce();
+            self.montgomery_reduction(&mut r);
             self
         }
     };

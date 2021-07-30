@@ -63,6 +63,11 @@ pub trait Group:
         copy
     }
 
+    /// WARNING: This implementation doesn't take costant time with respect
+    /// to the exponent, and therefore is susceptible to side-channel attacks.
+    /// Be sure to use it in applications where timing (or similar) attacks
+    /// are not possible.
+    /// TODO: Add a side-channel secure variant.
     fn mul_assign<'a>(&mut self, other: &'a Self::ScalarField) {
         let mut res = Self::zero();
         for i in BitIterator::new(other.into_repr()) {

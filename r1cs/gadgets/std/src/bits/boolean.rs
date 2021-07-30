@@ -1222,7 +1222,7 @@ mod test {
             }
 
             // Test with random bools
-            let bit_vals = vec![rng.gen_bool(0.5); rng.gen_range(1, 1600)];
+            let bit_vals = vec![rng.gen_bool(0.5); rng.gen_range(1..1600)];
             let bits = Boolean::alloc_input_vec(cs.ns(|| format!("alloc random value {}", i)), &bit_vals).unwrap();
             assert_eq!(bit_vals.len(), bits.len());
             for (native_bit, gadget_bit) in bit_vals.into_iter().zip(bits) {

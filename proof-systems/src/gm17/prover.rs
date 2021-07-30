@@ -265,8 +265,8 @@ where
     // Compute A
     let a_acc_time = start_timer!(|| "Compute A");
     let (a_inputs_source, a_aux_source) = params.get_a_query(prover.num_inputs)?;
-    let a_inputs_acc = VariableBaseMSM::multi_scalar_mul(a_inputs_source, &input_assignment);
-    let a_aux_acc = VariableBaseMSM::multi_scalar_mul(a_aux_source, &aux_assignment);
+    let a_inputs_acc = VariableBaseMSM::multi_scalar_mul(a_inputs_source, &input_assignment)?;
+    let a_aux_acc = VariableBaseMSM::multi_scalar_mul(a_aux_source, &aux_assignment)?;
 
     let r_g = params.get_g_gamma_z()?.mul(r);
     let d1_g = params.get_g_gamma_z()?.mul(d1);
@@ -282,8 +282,8 @@ where
     let b_acc_time = start_timer!(|| "Compute B");
 
     let (b_inputs_source, b_aux_source) = params.get_b_query(prover.num_inputs)?;
-    let b_inputs_acc = VariableBaseMSM::multi_scalar_mul(b_inputs_source, &input_assignment);
-    let b_aux_acc = VariableBaseMSM::multi_scalar_mul(b_aux_source, &aux_assignment);
+    let b_inputs_acc = VariableBaseMSM::multi_scalar_mul(b_inputs_source, &input_assignment)?;
+    let b_aux_acc = VariableBaseMSM::multi_scalar_mul(b_aux_source, &aux_assignment)?;
 
     let r_h = params.get_h_gamma_z()?.mul(r);
     let d1_h = params.get_h_gamma_z()?.mul(d1);
@@ -303,14 +303,14 @@ where
 
     let c1_acc_time = start_timer!(|| "Compute C1");
     let (_, c1_aux_source) = params.get_c_query_1(0)?;
-    let c1_acc = VariableBaseMSM::multi_scalar_mul(c1_aux_source, &aux_assignment);
+    let c1_acc = VariableBaseMSM::multi_scalar_mul(c1_aux_source, &aux_assignment)?;
     end_timer!(c1_acc_time);
 
     let c2_acc_time = start_timer!(|| "Compute C2");
 
     let (c2_inputs_source, c2_aux_source) = params.get_c_query_2(prover.num_inputs)?;
-    let c2_inputs_acc = VariableBaseMSM::multi_scalar_mul(c2_inputs_source, &input_assignment);
-    let c2_aux_acc = VariableBaseMSM::multi_scalar_mul(c2_aux_source, &aux_assignment);
+    let c2_inputs_acc = VariableBaseMSM::multi_scalar_mul(c2_inputs_source, &input_assignment)?;
+    let c2_aux_acc = VariableBaseMSM::multi_scalar_mul(c2_aux_source, &aux_assignment)?;
 
     let c2_acc = c2_inputs_acc + &c2_aux_acc;
     end_timer!(c2_acc_time);
@@ -319,8 +319,8 @@ where
     let g_acc_time = start_timer!(|| "Compute G");
 
     let (g_inputs_source, g_aux_source) = params.get_g_gamma2_z_t(prover.num_inputs)?;
-    let g_inputs_acc = VariableBaseMSM::multi_scalar_mul(g_inputs_source, &h_input);
-    let g_aux_acc = VariableBaseMSM::multi_scalar_mul(g_aux_source, &h_aux);
+    let g_inputs_acc = VariableBaseMSM::multi_scalar_mul(g_inputs_source, &h_input)?;
+    let g_aux_acc = VariableBaseMSM::multi_scalar_mul(g_aux_source, &h_aux)?;
 
     let g_acc = g_inputs_acc + &g_aux_acc;
     end_timer!(g_acc_time);

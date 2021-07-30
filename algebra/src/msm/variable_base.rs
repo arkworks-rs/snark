@@ -1,15 +1,27 @@
-use crate::{AffineCurve, BigInteger, Field, FpParameters, PrimeField, ProjectiveCurve};
+use crate::{AffineCurve, BigInteger, Field, FpParameters, PrimeField, ProjectiveCurve, Error};
 use rayon::prelude::*;
 
 pub struct VariableBaseMSM;
 
 impl VariableBaseMSM {
 
+    /// WARNING: This function allows scalars and bases to have different length
+    /// (as long as scalars.len() <= bases.len()): internally, bases are trimmed
+    /// to have the same length of the scalars; this may lead to potential message
+    /// malleability issue: e.g. MSM([s1, s2], [b1, b2]) == MSM([s1, s2], [b1, b2, b3]),
+    /// so use this function carefully.
     pub fn multi_scalar_mul_affine_c<G: AffineCurve>(
         bases: &[G],
         scalars: &[<G::ScalarField as PrimeField>::BigInt],
         c: usize
-    ) -> G::Projective {
+    ) -> Result<G::Projective, Error> {
+
+        // Sanity checks
+        assert!(c != 0, "Invalid window size value: 0");
+        assert!(c <= 25, "Invalid window size value: {}. It must be smaller than 25", c);
+        if scalars.len() > bases.len() {
+            Err(format!("Invalid MSM length. Scalars len: {}, Bases len: {}", scalars.len(), bases.len()))?
+        }
 
         let cc = 1 << c;
 
@@ -74,20 +86,34 @@ impl VariableBaseMSM {
         let lowest = window_sums.first().unwrap();
 
         // We're traversing windows from high to low.
-        window_sums[1..].iter().rev().fold(zero, |mut total, sum_i| {
+        let result = window_sums[1..].iter().rev().fold(zero, |mut total, sum_i| {
             total += sum_i;
             for _ in 0..c {
                 total.double_in_place();
             }
             total
-        }) + lowest
+        }) + lowest;
+
+        Ok(result)
     }
 
+    /// WARNING: This function allows scalars and bases to have different length
+    /// (as long as scalars.len() <= bases.len()): internally, bases are trimmed
+    /// to have the same length of the scalars; this may lead to potential message
+    /// malleability issue: e.g. MSM([s1, s2], [b1, b2]) == MSM([s1, s2], [b1, b2, b3]),
+    /// so use this function carefully.
     pub fn msm_inner_c<G: AffineCurve>(
         bases: &[G],
         scalars: &[<G::ScalarField as PrimeField>::BigInt],
-        c:usize
-    ) -> G::Projective {
+        c: usize
+    ) -> Result<G::Projective, Error> {
+
+        // Sanity checks
+        assert!(c != 0, "Invalid window size value: 0");
+        assert!(c <= 25, "Invalid window size value: {}. It must be smaller than 25", c);
+        if scalars.len() > bases.len() {
+            Err(format!("Invalid MSM length. Scalars len: {}, Bases len: {}", scalars.len(), bases.len()))?
+        }
 
         let num_bits =
             <G::ScalarField as PrimeField>::Params::MODULUS_BITS as usize;
@@ -145,19 +171,21 @@ impl VariableBaseMSM {
         let lowest = window_sums.first().unwrap();
 
         // We're traversing windows from high to low.
-        window_sums[1..].iter().rev().fold(zero, |mut total, sum_i| {
+        let result = window_sums[1..].iter().rev().fold(zero, |mut total, sum_i| {
             total += sum_i;
             for _ in 0..c {
                 total.double_in_place();
             }
             total
-        }) + lowest
+        }) + lowest;
+
+        Ok(result)
     }
 
     pub fn msm_inner<G: AffineCurve>(
         bases: &[G],
         scalars: &[<G::ScalarField as PrimeField>::BigInt],
-    ) -> G::Projective
+    ) -> Result<G::Projective, Error>
     {
         let scal_len = scalars.len();
 
@@ -167,13 +195,13 @@ impl VariableBaseMSM {
             (2.0 / 3.0 * (f64::from(scalars.len() as u32)).log2() - 2.0).ceil() as usize
         };
 
-        return Self::msm_inner_c(bases, scalars, c);
+        Self::msm_inner_c(bases, scalars, c)
     }
 
     pub fn multi_scalar_mul<G: AffineCurve>(
         bases: &[G],
         scalars: &[<G::ScalarField as PrimeField>::BigInt],
-    ) -> G::Projective
+    ) -> Result<G::Projective, Error>
     where
         G::Projective: ProjectiveCurve<Affine = G>
     {
@@ -185,7 +213,7 @@ impl VariableBaseMSM {
             (2.0 / 3.0 * (f64::from(scalars.len() as u32)).log2() - 2.0).ceil() as usize
         };
 
-        return Self::multi_scalar_mul_affine_c(bases, scalars, c);
+        Self::multi_scalar_mul_affine_c(bases, scalars, c)
     }
 }
 
@@ -228,10 +256,10 @@ mod test {
             .collect::<Vec<_>>();
 
         let naive = naive_var_base_msm(g.as_slice(), v.as_slice());
-        let fast = VariableBaseMSM::msm_inner(g.as_slice(), v.as_slice());
+        let fast = VariableBaseMSM::msm_inner(g.as_slice(), v.as_slice()).unwrap();
 
-        let affine = VariableBaseMSM::multi_scalar_mul_affine_c(g.as_slice(), v.as_slice(), c);
-        let inner = VariableBaseMSM::msm_inner_c(g.as_slice(), v.as_slice(), c);
+        let affine = VariableBaseMSM::multi_scalar_mul_affine_c(g.as_slice(), v.as_slice(), c).unwrap();
+        let inner = VariableBaseMSM::msm_inner_c(g.as_slice(), v.as_slice(), c).unwrap();
 
         assert_eq!(naive, fast);
 

@@ -173,11 +173,11 @@ impl<'a, G1, G2, D> GeneralPCD<'a, G1, G2, D>
             Self::SimpleMarlin(simple_marlin) => {
                 // No sys ins (for now) for SimpleMarlin, so modify the usr_ins instead
                 let ins_len = simple_marlin.usr_ins.len();
-                simple_marlin.usr_ins = vec![G1::ScalarField::rand(rng); ins_len];
+                simple_marlin.usr_ins = (0..ins_len).map(|_| G1::ScalarField::rand(rng)).collect();
             },
             Self::FinalDarlin(final_darlin) => {
                 let ins_len = final_darlin.usr_ins.len();
-                final_darlin.usr_ins = vec![G1::ScalarField::rand(rng); ins_len];
+                final_darlin.usr_ins = (0..ins_len).map(|_| G1::ScalarField::rand(rng)).collect();
             }
         }
     }
@@ -193,7 +193,7 @@ impl<'a, G1, G2, D> GeneralPCD<'a, G1, G2, D>
             Self::SimpleMarlin(simple_marlin) => {
                 // No sys ins (for now) for SimpleMarlin, so modify the usr_ins instead
                 let ins_len = simple_marlin.usr_ins.len();
-                simple_marlin.usr_ins = vec![G1::ScalarField::rand(rng); ins_len];
+                simple_marlin.usr_ins = (0..ins_len).map(|_| G1::ScalarField::rand(rng)).collect();
             },
             Self::FinalDarlin(final_darlin) => {
                 final_darlin.final_darlin_proof.deferred = FinalDarlinDeferredData::<G1, G2>::generate_random::<R, D>(
