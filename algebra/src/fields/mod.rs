@@ -51,6 +51,9 @@ pub mod sw6;
 #[cfg(feature = "tweedle")]
 pub mod tweedle;
 
+#[cfg(feature = "secp256k1")]
+pub mod secp256k1;
+
 #[cfg(test)]
 pub mod tests;
 

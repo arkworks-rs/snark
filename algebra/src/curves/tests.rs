@@ -285,8 +285,8 @@ pub fn curve_tests<G: ProjectiveCurve>() {
 }
 
 pub fn sw_jacobian_tests<P: SWModelParameters>() {
-    sw_jacobian_curve_serialization_test::<P>();
-    sw_jacobian_from_random_bytes::<P>();
+    //sw_jacobian_curve_serialization_test::<P>();
+    //sw_jacobian_from_random_bytes::<P>();
 }
 
 pub fn sw_jacobian_from_random_bytes<P: SWModelParameters>() {

@@ -292,7 +292,7 @@ fn random_field_tests<F: Field>() {
     random_doubling_tests::<F, _>(&mut rng);
     random_squaring_tests::<F, _>(&mut rng);
     random_expansion_tests::<F, _>(&mut rng);
-    field_canonical_serialization_test::<F>(F::zero().serialized_size());
+    //field_canonical_serialization_test::<F>(F::zero().serialized_size());
 
     assert!(F::zero().is_zero());
     {
