@@ -20,8 +20,8 @@ license = "MIT/Apache-2.0"
 ################################# Dependencies ################################
 
 [dependencies]
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "audit_fixes" }
-r1cs-core = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "audit_fixes" }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "import_secp256k1" }
+r1cs-core = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "import_secp256k1" }
 derivative = "2.2.0"
 
 num-traits = { version = "0.2", default-features = false, optional = true }
@@ -53,4 +53,4 @@ density-optimized = []
 paste = "1.0"
 rand = { version = "0.8.4" }
 rand_xorshift = { version = "0.3.0" }
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "audit_fixes", features = ["bls12_381", "jubjub"] }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "import_secp256k1", features = ["bls12_381", "jubjub"] }
