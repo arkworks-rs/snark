@@ -15,13 +15,11 @@ pub struct GroupAffineNonNativeGadget<
     SimulationF: PrimeField + SquareRootField,
     F: FieldGadget<SimulationF, ConstraintF>,
 > {
-    pub x:   NonNativeFieldGadget::<SimulationF, ConstraintF>,
-    pub y:   NonNativeFieldGadget::<SimulationF, ConstraintF>,
+    pub x:   NonNativeFieldGadget<SimulationF, ConstraintF>,
+    pub y:   NonNativeFieldGadget<SimulationF, ConstraintF>,
     pub infinity:   Boolean,
     _params: PhantomData<P>,
-    _engine: PhantomData<ConstraintF>,
-    _simF: PhantomData<SimulationF>,
-    _F: PhantomData<F>
+    _f: PhantomData<F>
 }
 
 

@@ -50,7 +50,7 @@ r1cs-crypto = { path = "../r1cs/gadgets/crypto", features = ["nizk"] }
 print-trace = [ "bench-utils/print-trace" ]
 groth16 = []
 gm17 = []
-darlin = ["marlin", "poly-commit", "digest", "derivative", "r1cs-std"]
+#darlin = ["marlin", "poly-commit", "digest", "derivative", "r1cs-std"]
 llvm_asm = ["algebra/llvm_asm"]
 
 [[example]]
@@ -85,18 +85,18 @@ path = "src/groth16/benches/bn382_gro16_test_circuits.rs"
 harness = false
 required-features = ["groth16", "algebra/bn_382", "r1cs-std"]
 
-[[bench]]
-name = "darlin_batch_verification_bench"
-path = "src/darlin/benches/batch_verification.rs"
-harness = false
-required-features = [
-    "darlin", "llvm_asm", "algebra/tweedle",
-]
-
-[[bench]]
-name = "darlin_accumulate_verify_bench"
-path = "src/darlin/benches/accumulate_verify.rs"
-harness = false
-required-features = [
-    "darlin", "llvm_asm", "algebra/tweedle",
-]
+#[[bench]]
+#name = "darlin_batch_verification_bench"
+#path = "src/darlin/benches/batch_verification.rs"
+#harness = false
+#required-features = [
+#    "darlin", "llvm_asm", "algebra/tweedle",
+#]
+#
+#[[bench]]
+#name = "darlin_accumulate_verify_bench"
+#path = "src/darlin/benches/accumulate_verify.rs"
+#harness = false
+#required-features = [
+#    "darlin", "llvm_asm", "algebra/tweedle",
+#]

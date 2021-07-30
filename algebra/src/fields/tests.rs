@@ -236,6 +236,15 @@ fn field_canonical_serialization_test<F: Field>(buf_size: usize) {
             assert_eq!(a, b);
         }
 
+        {
+            let mut serialized = vec![0; buf_size - 1];
+            let mut cursor = Cursor::new(&mut serialized[..]);
+            CanonicalSerialize::serialize(&a, &mut cursor).unwrap_err();
+
+            let mut cursor = Cursor::new(&serialized[..]);
+            <F as CanonicalDeserialize>::deserialize(&mut cursor).unwrap_err();
+        }
+
         #[derive(Default, Clone, Copy, Debug)]
         struct DummyFlags;
         impl Flags for DummyFlags {
@@ -269,15 +278,6 @@ fn field_canonical_serialization_test<F: Field>(buf_size: usize) {
                 false
             });
         }
-
-        {
-            let mut serialized = vec![0; buf_size - 1];
-            let mut cursor = Cursor::new(&mut serialized[..]);
-            CanonicalSerialize::serialize(&a, &mut cursor).unwrap_err();
-
-            let mut cursor = Cursor::new(&serialized[..]);
-            <F as CanonicalDeserialize>::deserialize(&mut cursor).unwrap_err();
-        }
     }
 }
 
@@ -292,7 +292,7 @@ fn random_field_tests<F: Field>() {
     random_doubling_tests::<F, _>(&mut rng);
     random_squaring_tests::<F, _>(&mut rng);
     random_expansion_tests::<F, _>(&mut rng);
-    //field_canonical_serialization_test::<F>(F::zero().serialized_size());
+    field_canonical_serialization_test::<F>(F::zero().serialized_size());
 
     assert!(F::zero().is_zero());
     {

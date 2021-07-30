@@ -12,30 +12,31 @@ macro_rules! impl_prime_field_serializer {
                     return Err(SerializationError::NotEnoughSpace);
                 }
 
-                // Calculate the number of bytes required to represent a field element
-                // serialized with `flags`. If `F::BIT_SIZE < 8`,
-                // this is at most `$byte_size + 1`
+                // Get the minimum number of bytes required to represent the field element + the flags
                 let output_byte_size = buffer_byte_size(P::MODULUS_BITS as usize + F::BIT_SIZE);
 
                 // Write out `self` to a temporary buffer.
-                // The size of the buffer is $byte_size + 1 because `F::BIT_SIZE`
-                // is at most 8 bits.
-                let mut bytes = [0u8; $byte_size + 1];
+                // The size of the buffer is computed in this way because $byte_size
+                // may actually be bigger than output_byte_size: this happens when,
+                // for some reason, the number of bytes required to represent P::MODULUS_BITS
+                // is bigger than (P::MODULUS_BITS/8) + 1
+                let buffer_size = std::cmp::max($byte_size, output_byte_size);
+                let mut bytes = vec![0u8; buffer_size];
                 self.write(&mut bytes[..$byte_size])?;
 
                 // Mask out the bits of the last byte that correspond to the flag.
                 bytes[output_byte_size - 1] |= flags.u8_bitmask();
 
-                writer.write_all(&bytes[..output_byte_size])?;
+                writer.write_all(&bytes[..])?;
                 Ok(())
             }
 
-            // Let `m = 8 * n` for some `n` be the smallest multiple of 8 greater
-            // than `P::MODULUS_BITS`.
-            // If `(m - P::MODULUS_BITS) >= F::BIT_SIZE` , then this method returns `n`;
-            // otherwise, it returns `n + 1`.
+            // The size is computed in this way because $byte_size
+            // may actually be bigger than output_byte_size: this happens when,
+            // for some reason, the number of bytes required to represent P::MODULUS_BITS
+            // is bigger than (P::MODULUS_BITS/8) + 1
             fn serialized_size_with_flags<F: Flags>(&self) -> usize {
-                buffer_byte_size(P::MODULUS_BITS as usize + F::BIT_SIZE)
+                std::cmp::max($byte_size, buffer_byte_size(P::MODULUS_BITS as usize + F::BIT_SIZE))
             }
         }
 
@@ -63,18 +64,24 @@ macro_rules! impl_prime_field_serializer {
                 if F::BIT_SIZE > 8 {
                     return Err(SerializationError::NotEnoughSpace);
                 }
-                // Calculate the number of bytes required to represent a field element
-                // serialized with `flags`. If `F::BIT_SIZE < 8`,
-                // this is at most `$byte_size + 1`
+
+                // Get the minimum number of bytes required to represent the field element + the flags
                 let output_byte_size = buffer_byte_size(P::MODULUS_BITS as usize + F::BIT_SIZE);
 
-                let mut masked_bytes = [0; $byte_size + 1];
-                reader.read_exact(&mut masked_bytes[..output_byte_size])?;
+                // The size of the buffer is computed in this way because $byte_size
+                // may actually be bigger than output_byte_size: this happens when,
+                // for some reason, the number of bytes required to represent P::MODULUS_BITS
+                // is bigger than (P::MODULUS_BITS/8) + 1
+                let buffer_size = std::cmp::max($byte_size, output_byte_size);
+                let mut bytes = vec![0; buffer_size];
+                reader.read_exact(&mut bytes[..])?;
 
-                let flags = F::from_u8_remove_flags(&mut masked_bytes[output_byte_size - 1])
+                // Remove the flags in the expected position
+                let flags = F::from_u8_remove_flags(&mut bytes[output_byte_size - 1])
                     .ok_or(SerializationError::UnexpectedFlags)?;
 
-                Ok((Self::read(&masked_bytes[..])?, flags))
+                // Read the field element and return it along with the flags
+                Ok((Self::read(&bytes[..$byte_size])?, flags))
             }
         }
 
@@ -257,6 +264,8 @@ macro_rules! impl_Fp {
             }
 
             #[inline]
+            // TODO: Let byte_size = $limbs * 8. Generalize this function to the case in which
+            //       byte_size + 1 > output_byte_size
             fn from_random_bytes_with_flags<F: Flags>(bytes: &[u8]) -> Option<(Self, F)> {
                 if F::BIT_SIZE > 8 {
                     return None

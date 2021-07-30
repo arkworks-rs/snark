@@ -1,3 +1,5 @@
+use rayon::iter::Empty;
+
 /// Represents metadata to be appended to an object's serialization. For
 /// example, when serializing elliptic curve points, one can
 /// use a `Flag` to represent whether the serialization is the point
@@ -52,11 +54,14 @@ impl Flags for EmptyFlags {
 
     #[inline]
     fn from_u8(value: u8) -> Option<Self> {
-        if (value >> 7) == 0 {
+        /*if (value >> 7) == 0 {
             Some(EmptyFlags)
         } else {
             None
-        }
+        }*/
+        // NOTE: Commented implementation assumes that the last bit of the given byte is always 1.
+        // This might not be true everywhere, so let's directly return EmptyFlags.
+        Some(EmptyFlags)
     }
 }
 

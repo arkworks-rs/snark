@@ -1,5 +1,5 @@
 use crate::curves::secp256k1::{Projective, Affine, Secp256k1Parameters};
-use crate::curves::tests::{curve_tests, sw_jacobian_tests};
+use crate::curves::tests::{curve_tests, sw_jacobian_curve_serialization_test};
 use crate::curves::AffineCurve;
 use rand_xorshift::XorShiftRng;
 use rand::{SeedableRng, Rng};
@@ -8,7 +8,7 @@ use crate::groups::tests::group_test;
 #[test]
 fn test_secp256k1_projective_curve() {
     curve_tests::<Projective>();
-    sw_jacobian_tests::<Secp256k1Parameters>()
+    sw_jacobian_curve_serialization_test::<Secp256k1Parameters>();
 }
 
 #[test]
