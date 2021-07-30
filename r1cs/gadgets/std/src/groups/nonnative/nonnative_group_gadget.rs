@@ -460,9 +460,7 @@ impl<P, ConstraintF, SimulationF, F> GroupAffineNonNativeGadget<P, ConstraintF, 
             y,
             infinity,
             _params: PhantomData,
-            _engine: PhantomData,
-            _simF: PhantomData,
-            _F: PhantomData
+            _f: PhantomData
         }
     }
 
