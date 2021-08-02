@@ -948,7 +948,7 @@ impl<P: Parameters> CanonicalDeserialize for GroupAffine<P> {
     ) -> Result<Self, SerializationError> {
         let p = Self::deserialize_uncompressed_unchecked(reader)?;
 
-        if !p.is_zero() && !p.is_in_correct_subgroup_assuming_on_curve() {
+        if !p.group_membership_test() {
             return Err(SerializationError::InvalidData);
         }
         Ok(p)
