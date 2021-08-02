@@ -43,6 +43,7 @@ rand_xorshift = { version = "0.3.0" }
 paste = "1.0"
 criterion = "0.3"
 algebra = { path = "../algebra", features = ["full"] }
+hex-literal = "0.3.3"
 
 [features]
 parallel = [ "rayon" ]
