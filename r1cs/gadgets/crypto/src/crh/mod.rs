@@ -1,6 +1,4 @@
-use algebra::{
-    Field, PrimeField
-};
+use algebra::Field;
 use std::fmt::Debug;
 
 use primitives::crh::{
@@ -19,7 +17,6 @@ pub use self::sbox::*;
 
 pub mod poseidon;
 pub use self::poseidon::*;
-use r1cs_std::fields::fp::FpGadget;
 
 pub trait FixedLengthCRHGadget<H: FixedLengthCRH, ConstraintF: Field>: Sized {
     type OutputGadget: EqGadget<ConstraintF>

@@ -1,5 +1,5 @@
 use algebra::{
-    Field, PrimeField, bytes::ToBytes
+    Field, bytes::ToBytes
 };
 use rand::Rng;
 use std::hash::Hash;
@@ -125,7 +125,7 @@ pub trait BatchFieldBasedHash {
 mod test {
 
     use algebra::{
-        fields::mnt4753::Fr as MNT4753Fr, Field, PrimeField, UniformRand
+        fields::mnt4753::Fr as MNT4753Fr, Field, UniformRand
     };
 
     use super::BatchFieldBasedHash;

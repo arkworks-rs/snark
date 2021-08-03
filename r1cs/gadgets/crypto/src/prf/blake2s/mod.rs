@@ -77,7 +77,7 @@ const SIGMA: [[usize; 16]; 10] = [
 //
 
 fn mixing_g<ConstraintF: PrimeField, CS: ConstraintSystem<ConstraintF>>(
-    mut cs: CS,
+    cs: CS,
     v: &mut [UInt32],
     a: usize,
     b: usize,
@@ -86,6 +86,8 @@ fn mixing_g<ConstraintF: PrimeField, CS: ConstraintSystem<ConstraintF>>(
     x: &UInt32,
     y: &UInt32,
 ) -> Result<(), SynthesisError> {
+    let mut cs = MultiEq::new(cs);
+
     v[a] = UInt32::addmany(
         cs.ns(|| "mixing step 1"),
         &[v[a].clone(), v[b].clone(), x.clone()],
@@ -371,6 +373,7 @@ pub fn blake2s_gadget<ConstraintF: PrimeField, CS: ConstraintSystem<ConstraintF>
 }
 
 use primitives::prf::Blake2s;
+use r1cs_std::eq::MultiEq;
 
 pub struct Blake2sGadget;
 #[derive(Clone, Debug)]
@@ -533,7 +536,7 @@ mod test {
             .collect();
         blake2s_gadget(&mut cs, &input_bits).unwrap();
         assert!(cs.is_satisfied());
-        assert_eq!(cs.num_constraints(), 21792);
+        assert_eq!(cs.num_constraints(), 21552);
     }
 
     #[test]
@@ -596,7 +599,7 @@ mod test {
             .collect();
         blake2s_gadget(&mut cs, &input_bits).unwrap();
         assert!(cs.is_satisfied());
-        assert_eq!(cs.num_constraints(), 21792);
+        assert_eq!(cs.num_constraints(), 21552);
     }
 
     #[test]
@@ -608,9 +611,8 @@ mod test {
         assert_eq!(cs.num_constraints(), 0);
     }
 
-    #[ignore]
     #[test]
-    fn test_blake2s() {
+    fn native_test() {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         for input_len in (0..32).chain((32..256).filter(|a| a % 8 == 0)) {
