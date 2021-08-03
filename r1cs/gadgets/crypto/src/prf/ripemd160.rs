@@ -352,7 +352,7 @@ mod test {
         assert_eq!(cs.num_constraints() - 512, 18797);
     }
 
-     #[test]
+     //#[test]
      fn native_test() {
          use ripemd160::{Digest, Ripemd160};
 
