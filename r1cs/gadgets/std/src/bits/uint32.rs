@@ -195,75 +195,7 @@ impl UInt32 {
             value: self.value.map(|v| v >> by as u32),
         }
     }
-
-    pub fn triop<ConstraintF, CS, F, U>(
-        mut cs: CS,
-        a: &Self,
-        b: &Self,
-        c: &Self,
-        tri_fn: F,
-        circuit_fn: U,
-    ) -> Result<Self, SynthesisError>
-    where
-        ConstraintF: PrimeField,
-        CS: ConstraintSystem<ConstraintF>,
-        F: Fn(u32, u32, u32) -> u32,
-        U: Fn(&mut CS, usize, &Boolean, &Boolean, &Boolean) -> Result<Boolean, SynthesisError>,
-    {
-        let new_value = match (a.value, b.value, c.value) {
-            (Some(a), Some(b), Some(c)) => Some(tri_fn(a, b, c)),
-            _ => None,
-        };
-
-        let bits = a
-            .bits
-            .iter()
-            .zip(b.bits.iter())
-            .zip(c.bits.iter())
-            .enumerate()
-            .map(|(i, ((a, b), c))| circuit_fn(&mut cs, i, a, b, c))
-            .collect::<Result<_, _>>()?;
-
-        Ok(UInt32 {
-            bits,
-            value: new_value,
-        })
-    }
-
-    /// Compute the `ch` value `(a and b) xor ((not a) and c)`
-    /// during SHA256.
-    pub fn sha256_ch<ConstraintF, CS>(cs: CS, a: &Self, b: &Self, c: &Self) -> Result<Self, SynthesisError>
-    where
-        ConstraintF: PrimeField,
-        CS: ConstraintSystem<ConstraintF>,
-    {
-        Self::triop(
-            cs,
-            a,
-            b,
-            c,
-            |a, b, c| (a & b) ^ ((!a) & c),
-            |cs, i, a, b, c| Boolean::sha256_ch(cs.ns(|| format!("ch {}", i)), a, b, c),
-        )
-    }
-
-    /// Compute the `maj` value (a and b) xor (a and c) xor (b and c)
-    /// during SHA256.
-    pub fn sha256_maj<ConstraintF, CS>(cs: CS, a: &Self, b: &Self, c: &Self) -> Result<Self, SynthesisError>
-    where
-        ConstraintF: PrimeField,
-        CS: ConstraintSystem<ConstraintF>,
-    {
-        Self::triop(
-            cs,
-            a,
-            b,
-            c,
-            |a, b, c| (a & b) ^ (a & c) ^ (b & c),
-            |cs, i, a, b, c| Boolean::sha256_maj(cs.ns(|| format!("maj {}", i)), a, b, c),
-        )
-    }
-
+    
     /// XOR this `UInt32` with another `UInt32`
     pub fn xor<ConstraintF, CS>(&self, mut cs: CS, other: &Self) -> Result<Self, SynthesisError>
     where
