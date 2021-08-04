@@ -1,6 +1,6 @@
 //! An implementation of the [Groth][Groth16] zkSNARK.
 //! [Groth16]: https://eprint.iacr.org/2016/260.pdf
-use algebra::{Field, bytes::{
+use algebra::{Field, serialize::*, bytes::{
     ToBytes, FromBytes,
 }, PairingEngine, FromBytesChecked, SemanticallyValid};
 use r1cs_core::{SynthesisError, Index, LinearCombination};
@@ -26,7 +26,7 @@ mod test;
 pub use self::{generator::*, prover::*, verifier::*};
 
 /// A proof in the Groth16 SNARK.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, CanonicalSerialize, CanonicalDeserialize)]
 pub struct Proof<E: PairingEngine> {
     pub a: E::G1Affine,
     pub b: E::G2Affine,
@@ -142,7 +142,7 @@ fn read_affine_vec<G: AffineCurve, R: Read>(len: usize, mut reader: R) -> IoResu
 }
 
 /// A verification key in the Groth16 SNARK.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, CanonicalSerialize, CanonicalDeserialize)]
 pub struct VerifyingKey<E: PairingEngine> {
     pub alpha_g1_beta_g2:   E::Fqk,
     pub gamma_g2:           E::G2Affine,
@@ -292,7 +292,7 @@ pub(crate) fn push_constraints<F: Field>(
 }
 
 /// Full public (prover and verifier) parameters for the Groth16 zkSNARK.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, CanonicalSerialize, CanonicalDeserialize)]
 pub struct Parameters<E: PairingEngine> {
     pub vk:         VerifyingKey<E>,
     pub alpha_g1:   E::G1Affine,
