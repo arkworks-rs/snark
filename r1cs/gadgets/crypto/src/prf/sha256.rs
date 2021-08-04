@@ -278,31 +278,6 @@ mod test {
     use rand_xorshift::XorShiftRng;
 
     #[test]
-    fn test_blank_hash() {
-        let iv = get_sha256_iv();
-
-        let mut cs = TestConstraintSystem::<Fr>::new();
-        let mut input_bits: Vec<_> = (0..512).map(|_| Boolean::Constant(false)).collect();
-        input_bits[0] = Boolean::Constant(true);
-        let out = sha256_compression_function(&mut cs, &input_bits, &iv).unwrap();
-        let out_bits: Vec<_> = out.into_iter().flat_map(|e| e.into_bits_be()).collect();
-
-        assert!(cs.is_satisfied());
-        assert_eq!(cs.num_constraints(), 0);
-
-        let expected = hex::decode("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855").unwrap();
-
-        let mut out = out_bits.into_iter();
-        for b in expected.iter() {
-            for i in (0..8).rev() {
-                let c = out.next().unwrap().get_value().unwrap();
-
-                assert_eq!(c, (b >> i) & 1u8 == 1u8);
-            }
-        }
-    }
-
-    #[test]
     fn test_full_block() {
         let mut rng = XorShiftRng::from_seed([
             0x59, 0x62, 0xbe, 0x3d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06,
@@ -384,4 +359,66 @@ mod test {
              }
          }
      }
+
+    #[test]
+    fn compare_against_test_vectors() {
+        let test_inputs = [
+            "",
+            "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+            "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu",
+            "The quick brown fox jumps over the lazy dog",
+            "The quick brown fox jumps over the lazy dog."
+        ];
+
+        let test_outputs = [
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1",
+            "cf5b16a778af8380036ce59e7b0492370b249b11e8f07a51afac45037afee9d1",
+            "d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592",
+            "ef537f25c895bfa782526529a9b63d97aa631564d5d789c2b765448c8635fb6c"
+        ];
+
+        for (test_input, test_output) in test_inputs.iter().zip(test_outputs.iter()) {
+
+            let mut cs = TestConstraintSystem::<Fr>::new();
+            let mut input_bits = vec![];
+
+            for (byte_i, input_byte) in test_input.as_bytes().into_iter().enumerate() {
+                for bit_i in (0..8).rev() {
+                    let cs = cs.ns(|| format!("input bit {} {}", byte_i, bit_i));
+
+                    input_bits.push(
+                        AllocatedBit::alloc(cs, || Ok((input_byte >> bit_i) & 1u8 == 1u8))
+                            .unwrap()
+                            .into(),
+                    );
+                }
+            }
+
+            let r = sha256(&mut cs, &input_bits).unwrap();
+
+            assert!(cs.is_satisfied());
+
+            let expected_output = hex::decode(test_output).unwrap();
+
+            let mut s = expected_output
+                .iter()
+                .flat_map(|&byte| (0..8).rev().map(move |i| (byte >> i) & 1u8 == 1u8));
+
+            for b in r {
+                match b {
+                    Boolean::Is(b) => {
+                        assert!(s.next().unwrap() == b.get_value().unwrap());
+                    }
+                    Boolean::Not(b) => {
+                        assert!(s.next().unwrap() != b.get_value().unwrap());
+                    }
+                    Boolean::Constant(b) => {
+                        assert!(input_bits.len() == 0);
+                        assert!(s.next().unwrap() == b);
+                    }
+                }
+            }
+        }
+    }
 }

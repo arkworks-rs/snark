@@ -5,17 +5,18 @@
 use r1cs_std::boolean::Boolean;
 use r1cs_std::eq::MultiEq;
 use r1cs_std::uint32::UInt32;
+use r1cs_std::uint8::UInt8;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use algebra::PrimeField;
 
 /// Outputs K[round_idx] and K'[round_idx]
 fn get_round_constants(round_idx: usize) -> (UInt32, UInt32) {
     let (k, k_prime): (u32, u32) = match round_idx {
-        round_idx if round_idx <= 15 => (0x0, 0x50a28be6),
+        round_idx if round_idx <= 15 =>                    (0x00000000, 0x50a28be6),
         round_idx if round_idx >= 16 && round_idx <= 31 => (0x5a827999, 0x5c4dd124),
         round_idx if round_idx >= 32 && round_idx <= 47 => (0x6ed9eba1, 0x6d703ef3),
         round_idx if round_idx >= 48 && round_idx <= 63 => (0x8f1bbcdc, 0x7a6d76e9),
-        round_idx if round_idx >= 64 && round_idx <= 79 => (0xa953fd4e, 0x0),
+        round_idx if round_idx >= 64 && round_idx <= 79 => (0xa953fd4e, 0x00000000),
         _ => unreachable!()
     };
     (UInt32::constant(k), UInt32::constant(k_prime))
@@ -28,11 +29,11 @@ const IV: [u32; 5] = [
 
 /// Amount for first rotate left
 const S: [usize; 80] = [
-    1, 14, 15, 12, 5, 8, 7, 9, 11, 13, 14, 15, 6, 7, 9, 8,
+    11, 14, 15, 12, 5, 8, 7, 9, 11, 13, 14, 15, 6, 7, 9, 8,
     7, 6, 8, 13, 11, 9, 7, 15, 7, 12, 15, 9, 11, 7, 13, 12,
     11, 13, 6, 7, 14, 9, 13, 15, 14, 8, 13, 6, 5, 12, 7, 5,
     11, 12, 14, 15, 14, 15, 9, 8, 9, 14, 5, 6, 8, 6, 5, 12,
-    9, 15, 5, 11, 6, 8, 13, 12, 5, 12, 13, 14, 11, 8, 5, 6,
+    9, 15, 5, 11, 6, 8, 13, 12, 5, 12, 13, 14, 11, 8, 5, 6
 ];
 
 /// Amount for second rotate left
@@ -87,7 +88,7 @@ fn apply_round_function<ConstraintF, CS>(
             )
         },
         // f(j, a, b, c) = (a AND b) OR (NOT(a) AND c)  (16 <= j <= 31)
-        // Note: It's the same as the sha256_ch function e.g. (x AND y) XOR (NOT(x) AND z)
+        // Note: It's the same as the sha256_ch function e.g. (a AND b) XOR (NOT(a) AND c)
         // since the two logical expressions have the same truth table
         round_idx if round_idx >= 16 && round_idx <= 31 => {
             (
@@ -98,7 +99,7 @@ fn apply_round_function<ConstraintF, CS>(
         // f(j, a, b, c) = (a OR NOT(b)) XOR c (32 <= j <= 47)
         round_idx if round_idx >= 32 && round_idx <= 47 => {
             (
-                |a, b, c| (a | !b) ^ c,
+                |a, b, c| (a | (!b)) ^ c,
                 |cs, i, a, b, c| {
                     let t = Boolean::or(cs.ns(|| format!("A OR NOT B {}", i)), &a, &b.not())?;
                     Boolean::xor(cs.ns(|| format!("(A OR NOT B) XOR C {}", i)), &t, &c)
@@ -117,7 +118,7 @@ fn apply_round_function<ConstraintF, CS>(
         // Note: It's the same as the third round function but with permuted variables
         round_idx if round_idx >= 64 && round_idx <= 79 => {
             (
-                |a, b, c| (b | !c) ^ a,
+                |a, b, c| (b | (!c)) ^ a,
                 |cs, i, a, b, c| {
                     let t = Boolean::or(cs.ns(|| format!("B OR NOT C {}", i)), &b, &c.not())?;
                     Boolean::xor(cs.ns(|| format!("(B OR NOT C) XOR a {}", i)), &t, &a)
@@ -143,7 +144,7 @@ pub fn ripemd160_block_no_padding<ConstraintF, CS>(
     Ok(
         ripemd160_compression_function(&mut cs, &input, &get_ripemd160_iv())?
             .into_iter()
-            .flat_map(|e| e.into_bits_be())
+            .flat_map(|e| e.to_bits_le())
             .collect(),
     )
 }
@@ -157,14 +158,15 @@ pub fn ripemd160<ConstraintF, CS>(mut cs: CS, input: &[Boolean]) -> Result<Vec<B
 
     let mut padded = input.to_vec();
     let plen = padded.len() as u64;
-    // append a single '1' bit
-    padded.push(Boolean::constant(true));
+    // append 0x80
+    padded.append(&mut UInt8::constant(1).into_bits_be());
+
     // append K '0' bits, where K is the minimum number >= 0 such that L + 1 + K + 64 is a multiple of 512
     while (padded.len() + 64) % 512 != 0 {
         padded.push(Boolean::constant(false));
     }
-    // append L as a 64-bit big-endian integer, making the total post-processed length a multiple of 512 bits
-    for b in (0..64).rev().map(|i| (plen >> i) & 1 == 1) {
+    // append L as a 64-bit little-endian integer, making the total post-processed length a multiple of 512 bits
+    for b in (0..64).map(|i| (plen >> i) & 1 == 1) {
         padded.push(Boolean::constant(b));
     }
     assert!(padded.len() % 512 == 0);
@@ -174,7 +176,7 @@ pub fn ripemd160<ConstraintF, CS>(mut cs: CS, input: &[Boolean]) -> Result<Vec<B
         cur = ripemd160_compression_function(cs.ns(|| format!("block {}", i)), block, &cur)?;
     }
 
-    Ok(cur.into_iter().flat_map(|e| e.into_bits_be()).collect())
+    Ok(cur.into_iter().flat_map(|e| e.to_bits_le()).collect())
 }
 
 fn get_ripemd160_iv() -> Vec<UInt32> {
@@ -206,7 +208,7 @@ fn ripemd160_compression_function<ConstraintF, CS>(
 
     let x = input
         .chunks(32)
-        .map(|e| UInt32::from_bits_be(e))
+        .map(|e| UInt32::from_bits_le(e))
         .collect::<Vec<_>>();
 
     let mut cs = MultiEq::new(cs);
@@ -299,31 +301,6 @@ mod test {
     use rand::{RngCore, SeedableRng};
     use rand_xorshift::XorShiftRng;
 
-    /*#[test]
-    fn test_blank_hash() {
-        let iv = get_ripemd160_iv();
-
-        let mut cs = TestConstraintSystem::<Fr>::new();
-        let mut input_bits: Vec<_> = (0..512).map(|_| Boolean::Constant(false)).collect();
-        input_bits[0] = Boolean::Constant(true);
-        let out = ripemd160_compression_function(&mut cs, &input_bits, &iv).unwrap();
-        let out_bits: Vec<_> = out.into_iter().flat_map(|e| e.into_bits_be()).collect();
-
-        assert!(cs.is_satisfied());
-        assert_eq!(cs.num_constraints(), 0);
-
-        let expected = hex::decode("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855").unwrap();
-
-        let mut out = out_bits.into_iter();
-        for b in expected.iter() {
-            for i in (0..8).rev() {
-                let c = out.next().unwrap().get_value().unwrap();
-
-                assert_eq!(c, (b >> i) & 1u8 == 1u8);
-            }
-        }
-    }*/
-
     #[test]
     fn test_full_block() {
         let mut rng = XorShiftRng::from_seed([
@@ -352,7 +329,7 @@ mod test {
         assert_eq!(cs.num_constraints() - 512, 18797);
     }
 
-     //#[test]
+     #[test]
      fn native_test() {
          use ripemd160::{Digest, Ripemd160};
 
@@ -371,7 +348,7 @@ mod test {
              let mut input_bits = vec![];
 
              for (byte_i, input_byte) in data.into_iter().enumerate() {
-                 for bit_i in (0..8).rev() {
+                 for bit_i in 0..8 {
                      let cs = cs.ns(|| format!("input bit {} {}", byte_i, bit_i));
 
                      input_bits.push(
@@ -388,7 +365,7 @@ mod test {
 
              let mut s = hash_result
                  .iter()
-                 .flat_map(|&byte| (0..8).rev().map(move |i| (byte >> i) & 1u8 == 1u8));
+                 .flat_map(|&byte| (0..8).map(move |i| (byte >> i) & 1u8 == 1u8));
 
              for b in r {
                  match b {
@@ -406,4 +383,74 @@ mod test {
              }
          }
      }
+
+    #[test]
+    fn compare_against_test_vectors() {
+        let test_inputs = [
+            "",
+            "a",
+            "abc",
+            "message digest",
+            "abcdefghijklmnopqrstuvwxyz",
+            "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+            &(0..8).map(|_| "1234567890").collect::<String>(),
+            "The quick brown fox jumps over the lazy dog",
+            "The quick brown fox jumps over the lazy cog",
+        ];
+
+        let test_outputs = [
+            "9c1185a5c5e9fc54612808977ee8f548b2258d31",
+            "0bdc9d2d256b3ee9daae347be6f4dc835a467ffe",
+            "8eb208f7e05d987a9b044a8e98c6b087f15a0bfc",
+            "5d0689ef49d2fae572b881b123a85ffa21595f36",
+            "f71c27109c692c1b56bbdceb5b9d2865b3708dbc",
+            "12a053384a9c0c88e405a06c27dcf49ada62eb2b",
+            "b0e20b6e3116640286ed3a87a5713079b21f5189",
+            "9b752e45573d4b39f4dbd3323cab82bf63326bfb",
+            "37f332f68db77bd9d7edd4969571ad671cf9dd3b",
+            "132072df690933835eb8b6ad0b77e7b6f14acad7",
+        ];
+
+        for (test_input, test_output) in test_inputs.iter().zip(test_outputs.iter()) {
+            let mut cs = TestConstraintSystem::<Fr>::new();
+            let mut input_bits = vec![];
+
+            for (byte_i, input_byte) in test_input.as_bytes().into_iter().enumerate() {
+                for bit_i in 0..8 {
+                    let cs = cs.ns(|| format!("input bit {} {}", byte_i, bit_i));
+
+                    input_bits.push(
+                        AllocatedBit::alloc(cs, || Ok((input_byte >> bit_i) & 1u8 == 1u8))
+                            .unwrap()
+                            .into(),
+                    );
+                }
+            }
+
+            let r = ripemd160(&mut cs, &input_bits).unwrap();
+
+            assert!(cs.is_satisfied());
+
+            let expected_output = hex::decode(test_output).unwrap();
+            let mut s = expected_output
+                .iter()
+                .flat_map(|&byte| (0..8).map(move |i| (byte >> i) & 1u8 == 1u8));
+
+            for b in r {
+                match b {
+                    Boolean::Is(b) => {
+                        assert!(s.next().unwrap() == b.get_value().unwrap());
+                    }
+                    Boolean::Not(b) => {
+                        assert!(s.next().unwrap() != b.get_value().unwrap());
+                    }
+                    Boolean::Constant(b) => {
+                        assert!(input_bits.len() == 0);
+                        assert!(s.next().unwrap() == b);
+                    }
+                }
+            }
+        }
+    }
 }
