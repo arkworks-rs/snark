@@ -3,10 +3,10 @@
 //!
 //! [SHA-256]: https://tools.ietf.org/html/rfc6234
 
-use super::boolean::Boolean;
-use super::multieq::MultiEq;
-use super::uint32::UInt32;
-use crate::{ConstraintSystem, SynthesisError};
+use r1cs_std::boolean::Boolean;
+use r1cs_std::eq::MultiEq;
+use r1cs_std::uint32::UInt32;
+use r1cs_core::{ConstraintSystem, SynthesisError};
 use algebra::PrimeField;
 
 #[allow(clippy::unreadable_literal)]
@@ -91,10 +91,7 @@ where
 
     let mut w = input
         .chunks(32)
-        .map(|e| {
-            let chunk = UInt32::from_bits_le(e);
-            UInt32::into_bits_be(chunk)
-        })
+        .map(|e| UInt32::from_bits_be(e))
         .collect::<Vec<_>>();
 
     // We can save some constraints by combining some of
@@ -105,22 +102,22 @@ where
         let cs = &mut cs.ns(|| format!("w extension {}", i));
 
         // s0 := (w[i-15] rightrotate 7) xor (w[i-15] rightrotate 18) xor (w[i-15] rightshift 3)
-        let mut s0 = UInt32::rotr(&UInt32::from_bits_le(&w[i - 15]), 7);
-        s0 = s0.xor(cs.ns(|| "first xor for s0"), &UInt32::rotr(&UInt32::from_bits_le(&w[i - 15]), 18))?;
-        s0 = s0.xor(cs.ns(|| "second xor for s0"), &UInt32::shr(&UInt32::from_bits_le(&w[i - 15]), 3))?;
+        let mut s0 = UInt32::rotr(&w[i - 15], 7);
+        s0 = s0.xor(cs.ns(|| "first xor for s0"), &UInt32::rotr(&w[i - 15], 18))?;
+        s0 = s0.xor(cs.ns(|| "second xor for s0"), &UInt32::shr(&w[i - 15], 3))?;
 
         // s1 := (w[i-2] rightrotate 17) xor (w[i-2] rightrotate 19) xor (w[i-2] rightshift 10)
-        let mut s1 = UInt32::rotr(&UInt32::from_bits_le(&w[i - 2]), 17);
-        s1 = s1.xor(cs.ns(|| "first xor for s1"), &UInt32::rotr(&UInt32::from_bits_le(&w[i - 2]), 19))?;
-        s1 = s1.xor(cs.ns(|| "second xor for s1"), &UInt32::shr(&UInt32::from_bits_le(&w[i - 2]), 10))?;
+        let mut s1 = UInt32::rotr(&w[i - 2], 17);
+        s1 = s1.xor(cs.ns(|| "first xor for s1"), &UInt32::rotr(&w[i - 2], 19))?;
+        s1 = s1.xor(cs.ns(|| "second xor for s1"), &UInt32::shr(&w[i - 2], 10))?;
 
         let tmp = UInt32::addmany(
             cs.ns(|| "computation of w[i]"),
-            &[UInt32::from_bits_le(&w[i - 16]).clone(), s0, UInt32::from_bits_le(&w[i - 7]).clone(), s1],
+            &[w[i - 16].clone(), s0, w[i - 7].clone(), s1],
         )?;
 
         // w[i] := w[i-16] + s0 + w[i-7] + s1
-        w.push(tmp.to_bits_le());
+        w.push(tmp);
     }
 
     assert_eq!(w.len(), 64);
@@ -174,7 +171,7 @@ where
             s1,
             ch,
             UInt32::constant(ROUND_CONSTANTS[i]),
-            UInt32::from_bits_le(&w[i]).clone(),
+            w[i].clone(),
         ];
 
         // S0 := (a rightrotate 2) xor (a rightrotate 13) xor (a rightrotate 22)
@@ -274,36 +271,11 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{alloc::AllocGadget, boolean::AllocatedBit, test_constraint_system::TestConstraintSystem};
+    use r1cs_std::{alloc::AllocGadget, boolean::AllocatedBit, test_constraint_system::TestConstraintSystem};
     use algebra::fields::bls12_381::Fr;
  
     use rand::{RngCore, SeedableRng};
     use rand_xorshift::XorShiftRng;
-
-    #[test]
-    fn test_blank_hash() {
-        let iv = get_sha256_iv();
-
-        let mut cs = TestConstraintSystem::<Fr>::new();
-        let mut input_bits: Vec<_> = (0..512).map(|_| Boolean::Constant(false)).collect();
-        input_bits[0] = Boolean::Constant(true);
-        let out = sha256_compression_function(&mut cs, &input_bits, &iv).unwrap();
-        let out_bits: Vec<_> = out.into_iter().flat_map(|e| e.into_bits_be()).collect();
-
-        assert!(cs.is_satisfied());
-        assert_eq!(cs.num_constraints(), 0);
-
-        let expected = hex::decode("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855").unwrap();
-
-        let mut out = out_bits.into_iter();
-        for b in expected.iter() {
-            for i in (0..8).rev() {
-                let c = out.next().unwrap().get_value().unwrap();
-
-                assert_eq!(c, (b >> i) & 1u8 == 1u8);
-            }
-        }
-    }
 
     #[test]
     fn test_full_block() {
@@ -330,63 +302,123 @@ mod test {
         sha256_compression_function(cs.ns(|| "sha256"), &input_bits, &iv).unwrap();
 
         assert!(cs.is_satisfied());
-        //assert_eq!(cs.num_constraints() - 512, 25840);
-        println!("num_constraints:{}",cs.num_constraints());
+        assert_eq!(cs.num_constraints() - 512, 25840);
     }
 
-    // #[test]
-    // fn test_against_vectors() {
-    //     use sha2::{Digest, Sha256};
+     #[test]
+     fn native_test() {
+         use sha2::{Digest, Sha256};
 
-    //     let mut rng = XorShiftRng::from_seed([
-    //         0x59, 0x62, 0xbe, 0x3d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06,
-    //         0xbc, 0xe5,
-    //     ]);
+         let mut rng = XorShiftRng::from_seed([
+             0x59, 0x62, 0xbe, 0x3d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06,
+             0xbc, 0xe5,
+         ]);
 
-    //     for input_len in (0..32).chain((32..256).filter(|a| a % 8 == 0)) {
-    //         let mut h = Sha256::new();
-    //         let data: Vec<u8> = (0..input_len).map(|_| rng.next_u32() as u8).collect();
-    //         h.input(&data);
-    //         let hash_result = h.result();
+         for input_len in (0..32).chain((32..256).filter(|a| a % 8 == 0)) {
+             let mut h = Sha256::new();
+             let data: Vec<u8> = (0..input_len).map(|_| rng.next_u32() as u8).collect();
+             h.update(&data);
+             let hash_result = h.finalize();
 
-    //         let mut cs = TestConstraintSystem::<Bls12>::new();
-    //         let mut input_bits = vec![];
+             let mut cs = TestConstraintSystem::<Fr>::new();
+             let mut input_bits = vec![];
 
-    //         for (byte_i, input_byte) in data.into_iter().enumerate() {
-    //             for bit_i in (0..8).rev() {
-    //                 let cs = cs.ns(|| format!("input bit {} {}", byte_i, bit_i));
+             for (byte_i, input_byte) in data.into_iter().enumerate() {
+                 for bit_i in (0..8).rev() {
+                     let cs = cs.ns(|| format!("input bit {} {}", byte_i, bit_i));
 
-    //                 input_bits.push(
-    //                     AllocatedBit::alloc(cs, Some((input_byte >> bit_i) & 1u8 == 1u8))
-    //                         .unwrap()
-    //                         .into(),
-    //                 );
-    //             }
-    //         }
+                     input_bits.push(
+                         AllocatedBit::alloc(cs, || Ok((input_byte >> bit_i) & 1u8 == 1u8))
+                             .unwrap()
+                             .into(),
+                     );
+                 }
+             }
 
-    //         let r = sha256(&mut cs, &input_bits).unwrap();
+             let r = sha256(&mut cs, &input_bits).unwrap();
 
-    //         assert!(cs.is_satisfied());
+             assert!(cs.is_satisfied());
 
-    //         let mut s = hash_result
-    //             .as_ref()
-    //             .iter()
-    //             .flat_map(|&byte| (0..8).rev().map(move |i| (byte >> i) & 1u8 == 1u8));
+             let mut s = hash_result
+                 .iter()
+                 .flat_map(|&byte| (0..8).rev().map(move |i| (byte >> i) & 1u8 == 1u8));
 
-    //         for b in r {
-    //             match b {
-    //                 Boolean::Is(b) => {
-    //                     assert!(s.next().unwrap() == b.get_value().unwrap());
-    //                 }
-    //                 Boolean::Not(b) => {
-    //                     assert!(s.next().unwrap() != b.get_value().unwrap());
-    //                 }
-    //                 Boolean::Constant(b) => {
-    //                     assert!(input_len == 0);
-    //                     assert!(s.next().unwrap() == b);
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
+             for b in r {
+                 match b {
+                     Boolean::Is(b) => {
+                         assert!(s.next().unwrap() == b.get_value().unwrap());
+                     }
+                     Boolean::Not(b) => {
+                         assert!(s.next().unwrap() != b.get_value().unwrap());
+                     }
+                     Boolean::Constant(b) => {
+                         assert!(input_len == 0);
+                         assert!(s.next().unwrap() == b);
+                     }
+                 }
+             }
+         }
+     }
+
+    #[test]
+    fn compare_against_test_vectors() {
+        let test_inputs = [
+            "",
+            "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+            "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu",
+            "The quick brown fox jumps over the lazy dog",
+            "The quick brown fox jumps over the lazy dog."
+        ];
+
+        let test_outputs = [
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1",
+            "cf5b16a778af8380036ce59e7b0492370b249b11e8f07a51afac45037afee9d1",
+            "d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592",
+            "ef537f25c895bfa782526529a9b63d97aa631564d5d789c2b765448c8635fb6c"
+        ];
+
+        for (test_input, test_output) in test_inputs.iter().zip(test_outputs.iter()) {
+
+            let mut cs = TestConstraintSystem::<Fr>::new();
+            let mut input_bits = vec![];
+
+            for (byte_i, input_byte) in test_input.as_bytes().into_iter().enumerate() {
+                for bit_i in (0..8).rev() {
+                    let cs = cs.ns(|| format!("input bit {} {}", byte_i, bit_i));
+
+                    input_bits.push(
+                        AllocatedBit::alloc(cs, || Ok((input_byte >> bit_i) & 1u8 == 1u8))
+                            .unwrap()
+                            .into(),
+                    );
+                }
+            }
+
+            let r = sha256(&mut cs, &input_bits).unwrap();
+
+            assert!(cs.is_satisfied());
+
+            let expected_output = hex::decode(test_output).unwrap();
+
+            let mut s = expected_output
+                .iter()
+                .flat_map(|&byte| (0..8).rev().map(move |i| (byte >> i) & 1u8 == 1u8));
+
+            for b in r {
+                match b {
+                    Boolean::Is(b) => {
+                        assert!(s.next().unwrap() == b.get_value().unwrap());
+                    }
+                    Boolean::Not(b) => {
+                        assert!(s.next().unwrap() != b.get_value().unwrap());
+                    }
+                    Boolean::Constant(b) => {
+                        assert!(input_bits.len() == 0);
+                        assert!(s.next().unwrap() == b);
+                    }
+                }
+            }
+        }
+    }
 }

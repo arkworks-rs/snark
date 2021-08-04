@@ -7,6 +7,8 @@ use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
 
 pub mod blake2s;
+pub mod ripemd160;
+pub mod sha256;
 
 pub trait PRFGadget<P: PRF, ConstraintF: Field> {
     type OutputGadget: EqGadget<ConstraintF>

@@ -124,6 +124,11 @@ impl UInt8 {
             .collect())
     }
 
+    /// Turns this `UInt8` into its big-endian byte order representation.
+    pub fn into_bits_be(&self) -> Vec<Boolean> {
+        self.bits.iter().rev().cloned().collect()
+    }
+
     /// Turns this `UInt8` into its little-endian byte order representation.
     /// LSB-first means that we can easily get the corresponding field element
     /// via double and add.
