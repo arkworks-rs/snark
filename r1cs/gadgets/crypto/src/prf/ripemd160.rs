@@ -9,6 +9,8 @@ use r1cs_std::uint8::UInt8;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use algebra::PrimeField;
 
+use crate::sha256::{sha256_ch_boolean, triop};
+
 /// Outputs K[round_idx] and K'[round_idx]
 fn get_round_constants(round_idx: usize) -> (UInt32, UInt32) {
     let (k, k_prime): (u32, u32) = match round_idx {
@@ -93,7 +95,7 @@ fn apply_round_function<ConstraintF, CS>(
         round_idx if round_idx >= 16 && round_idx <= 31 => {
             (
                 |a, b, c| (a & b) | ((!a) & c),
-                |cs, i, a, b, c| Boolean::sha256_ch(cs.ns(|| format!("ch {}", i)), a, b, c)
+                |cs, i, a, b, c| sha256_ch_boolean(cs.ns(|| format!("ch {}", i)), a, b, c)
             )
         },
         // f(j, a, b, c) = (a OR NOT(b)) XOR c (32 <= j <= 47)
@@ -111,7 +113,7 @@ fn apply_round_function<ConstraintF, CS>(
         round_idx if round_idx >= 48 && round_idx <= 63 => {
             (
                 |a, b, c| (c & a) | ((!c) & b),
-                |cs, i, a, b, c| Boolean::sha256_ch(cs.ns(|| format!("permuted ch {}", i)), c, a, b)
+                |cs, i, a, b, c| sha256_ch_boolean(cs.ns(|| format!("permuted ch {}", i)), c, a, b)
             )
         },
         // f(j, a, b, c) = (b OR NOT(c)) XOR a (64 <= j <= 79)
@@ -128,7 +130,7 @@ fn apply_round_function<ConstraintF, CS>(
         _ => unreachable!()
     };
 
-    UInt32::triop(cs, a, b, c, tri_fn, circ_fn)
+    triop(cs, a, b, c, tri_fn, circ_fn)
 }
 
 pub fn ripemd160_block_no_padding<ConstraintF, CS>(

@@ -9,8 +9,8 @@ use crate::fields::fp::FpGadget;
 /// to be either zero or one.
 #[derive(Copy, Clone, Debug)]
 pub struct AllocatedBit {
-    variable: Variable,
-    value:    Option<bool>,
+    pub variable: Variable,
+    pub value:    Option<bool>,
 }
 
 impl AllocatedBit {

@@ -3,7 +3,8 @@
 //!
 //! [SHA-256]: https://tools.ietf.org/html/rfc6234
 
-use r1cs_std::boolean::Boolean;
+use r1cs_std::boolean::AllocatedBit;
+use r1cs_std::{Assignment, boolean::Boolean};
 use r1cs_std::eq::MultiEq;
 use r1cs_std::uint32::UInt32;
 use r1cs_core::{ConstraintSystem, SynthesisError};
@@ -163,7 +164,7 @@ where
         s1 = s1.xor(cs.ns(|| "second xor for s1"), &new_e.rotr(25))?;
 
         // ch := (e and f) xor ((not e) and g)
-        let ch = UInt32::sha256_ch(cs.ns(|| "ch"), &new_e, &f, &g)?;
+        let ch = sha256_ch_uint32(cs.ns(|| "ch"), &new_e, &f, &g)?;
 
         // temp1 := h + S1 + ch + k[i] + w[i]
         let temp1 = vec![
@@ -181,7 +182,7 @@ where
         s0 = s0.xor(cs.ns(|| "second xor for s0"), &new_a.rotr(22))?;
 
         // maj := (a and b) xor (a and c) xor (b and c)
-        let maj = UInt32::sha256_maj(cs.ns(|| "maj"), &new_a, &b, &c)?;
+        let maj = sha256_maj_uint32(cs.ns(|| "maj"), &new_a, &b, &c)?;
 
         // temp2 := S0 + maj
         let temp2 = vec![s0, maj];
