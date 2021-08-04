@@ -32,10 +32,10 @@ radix_trie = "0.2.1"
 rand = { version = "0.8.4" }
 
 [features]
-#default = ["nonnative", "full"]
+default = ["nonnative", "full"]
 llvm_asm = ["algebra/llvm_asm"]
 
-#full = [ "bls12_377", "bn_382", "edwards_bls12", "edwards_sw6", "jubjub", "mnt4_753", "mnt6_753", "tweedle" ]
+full = [ "bls12_377", "bn_382", "edwards_bls12", "edwards_sw6", "jubjub", "mnt4_753", "mnt6_753", "tweedle" ]
 
 bls12_377 = [ "algebra/bls12_377" ]
 bn_382 = [ "algebra/bn_382" ]
