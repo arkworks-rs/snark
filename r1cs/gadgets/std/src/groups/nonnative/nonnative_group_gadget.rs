@@ -2,37 +2,32 @@ use algebra::{AffineCurve, BitIterator, Field, PrimeField, ProjectiveCurve, SWMo
 
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
-use crate::{Assignment, ToBitsGadget, ToBytesGadget, alloc::{AllocGadget, ConstantGadget}, boolean::Boolean, fields::{FieldGadget, nonnative::nonnative_field_gadget::NonNativeFieldGadget}, prelude::EqGadget, select::{CondSelectGadget, TwoBitLookupGadget}, uint8::UInt8};
+use crate::{Assignment, ToBitsGadget, ToBytesGadget, alloc::{AllocGadget, ConstantGadget}, boolean::Boolean, fields::{FieldGadget, nonnative::nonnative_field_gadget::NonNativeFieldGadget}, groups::GroupGadget, prelude::EqGadget, select::{CondSelectGadget, TwoBitLookupGadget}, uint8::UInt8};
 use std::{borrow::Borrow, marker::PhantomData};
-
-use super::NonNativeGroupGadget;
 
 #[derive(Derivative)]
 #[derivative(Debug, Clone)]
 pub struct GroupAffineNonNativeGadget<
     P: SWModelParameters<BaseField = SimulationF>,
     ConstraintF: PrimeField,
-    SimulationF: PrimeField + SquareRootField,
-    F: FieldGadget<SimulationF, ConstraintF>,
+    SimulationF: PrimeField + SquareRootField
 > {
     pub x:   NonNativeFieldGadget<SimulationF, ConstraintF>,
     pub y:   NonNativeFieldGadget<SimulationF, ConstraintF>,
     pub infinity:   Boolean,
     _params: PhantomData<P>,
-    _f: PhantomData<F>
 }
 
 
-impl<P, ConstraintF, SimulationF, F> NonNativeGroupGadget<SWProjective<P>, ConstraintF, SimulationF>
-for GroupAffineNonNativeGadget<P, ConstraintF, SimulationF, F>
+impl<P, ConstraintF, SimulationF> GroupGadget<SWProjective<P>, ConstraintF>
+for GroupAffineNonNativeGadget<P, ConstraintF, SimulationF>
     where
         P: SWModelParameters<BaseField = SimulationF>,
         ConstraintF: PrimeField,
-        SimulationF: PrimeField + SquareRootField,
-        F: FieldGadget<SimulationF, ConstraintF>,
+        SimulationF: PrimeField + SquareRootField
 {
     type Value = SWProjective<P>;
-    type Variable = (F::Variable, F::Variable);
+    type Variable = ();
 
     fn add<CS: ConstraintSystem<ConstraintF>>(
         &self,
@@ -287,39 +282,134 @@ for GroupAffineNonNativeGadget<P, ConstraintF, SimulationF, F>
         result = result.sub_constant(cs.ns(|| "result - sigma*n_div_2"), &to_sub)?;
         Ok(result)
     }
+
+    fn get_value(&self) -> Option<<Self as GroupGadget<SWProjective<P>, ConstraintF>>::Value> { 
+        unimplemented!()
+    }
+
+    fn get_variable(&self) -> Self::Variable {
+        unimplemented!()
+    }
+
+    fn cost_of_add() -> usize {
+        unimplemented!()
+    }
+
+    fn cost_of_double() -> usize {
+        unimplemented!()
+    }
+
+    fn sub<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        other: &Self,
+    ) -> Result<Self, SynthesisError> {
+        let neg_other = other.negate(cs.ns(|| "Negate other"))?;
+        self.add(cs.ns(|| "Self - other"), &neg_other)
+    }
+
+    fn sub_constant<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        other: &SWProjective<P>,
+    ) -> Result<Self, SynthesisError> {
+        let neg_other = -(*other);
+        self.add_constant(cs.ns(|| "Self - other"), &neg_other)
+    }
+
+    fn precomputed_base_scalar_mul<'a, CS, I, B>(
+        &mut self,
+        mut cs: CS,
+        scalar_bits_with_base_powers: I,
+    ) -> Result<(), SynthesisError>
+    where
+        CS: ConstraintSystem<ConstraintF>,
+        I: Iterator<Item = (B, &'a SWProjective<P>)>,
+        B: Borrow<Boolean>,
+        ConstraintF: 'a,
+    {
+        for (i, (bit, base_power)) in scalar_bits_with_base_powers.enumerate() {
+            let new_encoded = self.add_constant(
+                &mut cs.ns(|| format!("Add {}-th base power", i)),
+                &base_power,
+            )?;
+            *self = Self::conditionally_select(
+                &mut cs.ns(|| format!("Conditional Select {}", i)),
+                bit.borrow(),
+                &new_encoded,
+                &self,
+            )?;
+        }
+        Ok(())
+    }
+
+    fn precomputed_base_3_bit_signed_digit_scalar_mul<'a, CS, I, J, B>(
+        _: CS,
+        _: &[B],
+        _: &[J],
+    ) -> Result<Self, SynthesisError>
+    where
+        CS: ConstraintSystem<ConstraintF>,
+        I: Borrow<[Boolean]>,
+        J: Borrow<[I]>,
+        B: Borrow<[SWProjective<P>]>,
+    {
+        Err(SynthesisError::AssignmentMissing)
+    }
+
+    fn precomputed_base_multiscalar_mul<'a, CS, T, I, B>(
+        mut cs: CS,
+        bases: &[B],
+        scalars: I,
+    ) -> Result<Self, SynthesisError>
+    where
+        CS: ConstraintSystem<ConstraintF>,
+        T: 'a + ToBitsGadget<ConstraintF> + ?Sized,
+        I: Iterator<Item = &'a T>,
+        B: Borrow<[SWProjective<P>]>,
+    {
+        let mut result = Self::zero(&mut cs.ns(|| "Declare Result"))?;
+        // Compute ∏(h_i^{m_i}) for all i.
+        for (i, (bits, base_powers)) in scalars.zip(bases).enumerate() {
+            let base_powers = base_powers.borrow();
+            let bits = bits.to_bits(&mut cs.ns(|| format!("Convert Scalar {} to bits", i)))?;
+            result.precomputed_base_scalar_mul(
+                cs.ns(|| format!("Chunk {}", i)),
+                bits.iter().zip(base_powers),
+            )?;
+        }
+        Ok(result)
+    }
 }
 
-impl<P, ConstraintF, SimulationF, F> PartialEq
-for GroupAffineNonNativeGadget<P, ConstraintF, SimulationF, F>
+impl<P, ConstraintF, SimulationF> PartialEq
+for GroupAffineNonNativeGadget<P, ConstraintF, SimulationF>
     where
         P: SWModelParameters<BaseField = SimulationF>,
         ConstraintF: PrimeField,
-        SimulationF: PrimeField + SquareRootField,
-        F: FieldGadget<SimulationF, ConstraintF>,
+        SimulationF: PrimeField + SquareRootField
 {
     fn eq(&self, other: &Self) -> bool {
         self.x == other.x && self.y == other.y
     }
 }
 
-impl<P, ConstraintF, SimulationF, F> Eq
-for GroupAffineNonNativeGadget<P, ConstraintF, SimulationF, F>
+impl<P, ConstraintF, SimulationF> Eq
+for GroupAffineNonNativeGadget<P, ConstraintF, SimulationF>
     where
         P: SWModelParameters<BaseField = SimulationF>,
         ConstraintF: PrimeField,
-        SimulationF: PrimeField + SquareRootField,
-        F: FieldGadget<SimulationF, ConstraintF>,
+        SimulationF: PrimeField + SquareRootField
 {
 }
 
 
-impl<P, ConstraintF, SimulationF, F> ToBitsGadget<ConstraintF>
-for GroupAffineNonNativeGadget<P, ConstraintF, SimulationF, F>
+impl<P, ConstraintF, SimulationF> ToBitsGadget<ConstraintF>
+for GroupAffineNonNativeGadget<P, ConstraintF, SimulationF>
     where
         P: SWModelParameters<BaseField = SimulationF>,
         ConstraintF: PrimeField,
-        SimulationF: PrimeField + SquareRootField,
-        F: FieldGadget<SimulationF, ConstraintF>,
+        SimulationF: PrimeField + SquareRootField
 {
     fn to_bits<CS: ConstraintSystem<ConstraintF>>(
         &self,
@@ -349,13 +439,12 @@ for GroupAffineNonNativeGadget<P, ConstraintF, SimulationF, F>
     }
 }
 
-impl<P, ConstraintF, SimulationF, F> ToBytesGadget<ConstraintF>
-for GroupAffineNonNativeGadget<P, ConstraintF, SimulationF, F>
+impl<P, ConstraintF, SimulationF> ToBytesGadget<ConstraintF>
+for GroupAffineNonNativeGadget<P, ConstraintF, SimulationF>
     where
         P: SWModelParameters<BaseField = SimulationF>,
         ConstraintF: PrimeField,
-        SimulationF: PrimeField + SquareRootField,
-        F: FieldGadget<SimulationF, ConstraintF>,
+        SimulationF: PrimeField + SquareRootField
 {
     fn to_bytes<CS: ConstraintSystem<ConstraintF>>(
         &self,
@@ -389,13 +478,12 @@ for GroupAffineNonNativeGadget<P, ConstraintF, SimulationF, F>
 
 
 
-impl<P, ConstraintF, SimulationF, F> EqGadget<ConstraintF>
-for GroupAffineNonNativeGadget<P, ConstraintF, SimulationF, F>
+impl<P, ConstraintF, SimulationF> EqGadget<ConstraintF>
+for GroupAffineNonNativeGadget<P, ConstraintF, SimulationF>
     where
         P: SWModelParameters<BaseField = SimulationF>,
         ConstraintF: PrimeField,
-        SimulationF: PrimeField + SquareRootField,
-        F: FieldGadget<SimulationF, ConstraintF>,
+        SimulationF: PrimeField + SquareRootField
 {
     fn is_eq<CS: ConstraintSystem<ConstraintF>>(
         &self,
@@ -446,12 +534,11 @@ for GroupAffineNonNativeGadget<P, ConstraintF, SimulationF, F>
 
 
 
-impl<P, ConstraintF, SimulationF, F> GroupAffineNonNativeGadget<P, ConstraintF, SimulationF, F>
+impl<P, ConstraintF, SimulationF> GroupAffineNonNativeGadget<P, ConstraintF, SimulationF>
     where
         P: SWModelParameters<BaseField = SimulationF>,
         ConstraintF: PrimeField,
-        SimulationF: PrimeField + SquareRootField,
-        F: FieldGadget<SimulationF, ConstraintF>,
+        SimulationF: PrimeField + SquareRootField
 
 {
     pub fn new(x: NonNativeFieldGadget<SimulationF, ConstraintF>, y: NonNativeFieldGadget<SimulationF, ConstraintF>, infinity: Boolean) -> Self {
@@ -460,7 +547,6 @@ impl<P, ConstraintF, SimulationF, F> GroupAffineNonNativeGadget<P, ConstraintF, 
             y,
             infinity,
             _params: PhantomData,
-            _f: PhantomData
         }
     }
 
@@ -549,13 +635,12 @@ impl<P, ConstraintF, SimulationF, F> GroupAffineNonNativeGadget<P, ConstraintF, 
 }
 
 
-impl<P, ConstraintF, SimulationF, F> CondSelectGadget<ConstraintF>
-for GroupAffineNonNativeGadget<P, ConstraintF, SimulationF, F>
+impl<P, ConstraintF, SimulationF> CondSelectGadget<ConstraintF>
+for GroupAffineNonNativeGadget<P, ConstraintF, SimulationF>
     where
         P: SWModelParameters<BaseField = SimulationF>,
         ConstraintF: PrimeField,
-        SimulationF: PrimeField + SquareRootField,
-        F: FieldGadget<SimulationF, ConstraintF>,
+        SimulationF: PrimeField + SquareRootField
 {
     #[inline]
     fn conditionally_select<CS: ConstraintSystem<ConstraintF>>(
@@ -572,20 +657,19 @@ for GroupAffineNonNativeGadget<P, ConstraintF, SimulationF, F>
     }
 
     fn cost() -> usize {
-        2 * <F as CondSelectGadget<ConstraintF>>::cost() +
+        2 * <NonNativeFieldGadget<SimulationF, ConstraintF> as CondSelectGadget<ConstraintF>>::cost() +
             <Boolean as CondSelectGadget<ConstraintF>>::cost()
     }
 }
 
 
 
-impl<P, ConstraintF, SimulationF, F> ConstantGadget<SWProjective<P>, ConstraintF>
-for GroupAffineNonNativeGadget<P, ConstraintF, SimulationF, F>
+impl<P, ConstraintF, SimulationF> ConstantGadget<SWProjective<P>, ConstraintF>
+for GroupAffineNonNativeGadget<P, ConstraintF, SimulationF>
     where
         P: SWModelParameters<BaseField = SimulationF>,
         ConstraintF: PrimeField,
-        SimulationF: PrimeField + SquareRootField,
-        F: FieldGadget<SimulationF, ConstraintF>,
+        SimulationF: PrimeField + SquareRootField
 {
     fn from_value<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
@@ -613,13 +697,12 @@ for GroupAffineNonNativeGadget<P, ConstraintF, SimulationF, F>
     }
 }
 
-impl<P, ConstraintF, SimulationF, F> AllocGadget<SWProjective<P>, ConstraintF>
-for GroupAffineNonNativeGadget<P, ConstraintF, SimulationF, F>
+impl<P, ConstraintF, SimulationF> AllocGadget<SWProjective<P>, ConstraintF>
+for GroupAffineNonNativeGadget<P, ConstraintF, SimulationF>
     where
         P: SWModelParameters<BaseField = SimulationF>,
         ConstraintF: PrimeField,
-        SimulationF: PrimeField + SquareRootField,
-        F: FieldGadget<SimulationF, ConstraintF>,
+        SimulationF: PrimeField + SquareRootField
 {
     #[inline]
     fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(
@@ -833,179 +916,3 @@ for GroupAffineNonNativeGadget<P, ConstraintF, SimulationF, F>
         Ok(Self::new(x, y, infinity))
     }
 }
-
-
-
-
-
-
-
-
-// impl<SimulationF: PrimeField + SquareRootField, ConstraintF: PrimeField>
-//     NonNativeFieldGadget<SimulationF, ConstraintF>
-// {
-//     pub fn simulated_add_ec_points<'a, CS: ConstraintSystem<ConstraintF>>(
-//         cs: CS,
-//         u1_times_g_x: &'a Self,
-//         u1_times_g_y: &'a Self,
-//         u2_times_pk_x: &'a Self,
-//         u2_times_pk_y: &'a Self,
-//     ) -> Result<(Self, Self), SynthesisError>{
-//         // let x_1_g = NonNativeFieldGadget::from_value(cs.ns(|| format!("init x_1_g")), &SimulationF::zero());
-//         // let y_1_g = NonNativeFieldGadget::from_value(cs.ns(|| format!("init x_1_g")), &SimulationF::zero());
-//         // Ok(x_1_g, y_1_g)
-//         unimplemented!()
-//     }
-
-//     pub fn simulated_mul_bits_variable_base<'a, CS: ConstraintSystem<ConstraintF>>(
-//         base_x: &'a Self,
-//         base_y: &'a Self,
-//         mut cs: CS,
-//         result_x: &Self,
-//         result_y: &Self,
-//         bits: &[Boolean],
-//     ) -> Result<(Self,Self), SynthesisError>{
-
-//         let mut to_sub_x = NonNativeFieldGadget::from_value(cs.ns(|| format!("to_sub_x")), &SimulationF::zero());
-//         let mut to_sub_y = NonNativeFieldGadget::from_value(cs.ns(|| format!("to_sub_y")), &SimulationF::zero());
-
-//         let mut t_x = base_x.clone();
-//         let sigma_x = base_x.clone();
-//         let mut t_y = base_y.clone();
-//         let sigma_y = base_y.clone();
-//         let mut result_x = result_x.clone();
-//         let mut result_y = result_y.clone();
-
-//         let mut bit_vec = Vec::new();
-//         bit_vec.extend_from_slice(bits);
-//         //Simply add padding. This should be safe, since the padding bit will be part of the
-//         //circuit. (It is also done elsewhere).
-//         if bits.len() % 2 != 0 {
-//             bit_vec.push(Boolean::constant(false))
-//         }
-
-//         for (i, bits) in bit_vec.chunks(2).enumerate() {
-//             let ti_x = t_x.clone();
-//             let two_ti_x = ti_x.double(cs.ns(|| format!("double ti_x")))?;
-//             let table_x = [
-//                 sigma_x.clone(),
-//                 sigma_x.add(cs.ns(|| format!("add ti_x")),&ti_x)?,
-//                 sigma_x.add(cs.ns(|| format!("add two_ti_x")),&two_ti_x)?,
-//                 sigma_x.add(cs.ns(|| format!("add ti_x and two_ti_x")),&ti_x)?.add(cs.ns(|| format!("add two_ti_x to ti_x")),&two_ti_x)?,
-//             ];
-//             let ti_y = t_y.clone();
-//             let two_ti_y = ti_y.double(cs.ns(|| format!("double ti_y")))?;
-//             let table_y = [
-//                 sigma_y.clone(),
-//                 sigma_y.add(cs.ns(|| format!("add ti_y")),&ti_y)?,
-//                 sigma_y.add(cs.ns(|| format!("add two_ti_y")),&two_ti_y)?,
-//                 sigma_y.add(cs.ns(|| format!("add ti_y and two_ti_y")),&ti_y)?.add(cs.ns(|| format!("add two_ti_y to ti_y")),&two_ti_y)?,
-//             ];
-
-//             //Compute constants
-//             //TODO: should I still need to use a batch normalization on the table values?
-//             // G::batch_normalization(&mut table_x);
-//             // G::batch_normalization(&mut table_y);
-//             let x_coords = [table_x[0].get_value().unwrap(), table_x[1].get_value().unwrap(), table_x[2].get_value().unwrap(), table_x[3].get_value().unwrap()];
-//             let y_coords = [table_y[0].get_value().unwrap(), table_y[1].get_value().unwrap(), table_y[2].get_value().unwrap(), table_y[3].get_value().unwrap()];
-//             let precomp = Boolean::and(cs.ns(|| format!("b0 AND b1_{}", i)), &bits[0], &bits[1])?;
-
-//             //Lookup x and y
-//             let x = Self::two_bit_lookup_lc(cs.ns(|| format!("Lookup x_{}", i)), &precomp, &[bits[0], bits[1]],  &x_coords)?;
-//             let y = Self::two_bit_lookup_lc(cs.ns(|| format!("Lookup y_{}", i)), &precomp, &[bits[0], bits[1]],  &y_coords)?;
-
-//             //Perform addition
-//             //TODO: what is the meaning here of the Boolean::constant(false)?
-//             // let adder_x = SimulationF::new(x, Boolean::constant(false));
-//             // let adder_y = SimulationF::new(y, Boolean::constant(false));
-//             // result_x = result_x.add(cs.ns(||format!("Add_x_{}", i)), &adder_x)?;
-//             // result_y = result_y.add(cs.ns(||format!("Add_y_{}", i)), &adder_y)?;
-//             result_x = result_x.add(cs.ns(||format!("Add_x_{}", i)), &x)?;
-//             result_y = result_y.add(cs.ns(||format!("Add_y_{}", i)), &y)?;
-//             t_x = t_x.double(cs.ns(|| format!("double t_x 1")))?.double(cs.ns(|| format!("double t_x 2")))?;
-//             t_y = t_y.double(cs.ns(|| format!("double t_y 1")))?.double(cs.ns(|| format!("double t_y 2")))?;
-//             to_sub_x = to_sub_x.add(cs.ns(|| format!("add sigma_x")), &sigma_x)?;
-//             to_sub_y = to_sub_y.add(cs.ns(|| format!("add sigma_y")), &sigma_y)?;
-//         }
-//         result_x = result_x.sub(cs.ns(|| "result_x - sigma_x*n_div_2"), &to_sub_x)?;
-//         result_y = result_y.sub(cs.ns(|| "result_y - sigma_y*n_div_2"), &to_sub_y)?;
-//         Ok((result_x,result_y))
-//     }
-
-//     pub fn simulated_mul_bits_fixed_base<'a, CS: ConstraintSystem<ConstraintF>>(
-//         base_x: &'a SimulationF,
-//         base_y: &'a SimulationF,
-//         mut cs: CS,
-//         result_x: &Self,
-//         result_y: &Self,
-//         bits: &[Boolean],
-//     ) -> Result<(Self,Self), SynthesisError>{
-
-//         let mut to_sub_x = SimulationF::zero();
-//         let mut to_sub_y = SimulationF::zero();
-
-//         let mut t_x = base_x.clone();
-//         let sigma_x = base_x.clone();
-//         let mut t_y = base_y.clone();
-//         let sigma_y = base_y.clone();
-//         let mut result_x = result_x.clone();
-//         let mut result_y = result_y.clone();
-
-//         let mut bit_vec = Vec::new();
-//         bit_vec.extend_from_slice(bits);
-//         //Simply add padding. This should be safe, since the padding bit will be part of the
-//         //circuit. (It is also done elsewhere).
-//         if bits.len() % 2 != 0 {
-//             bit_vec.push(Boolean::constant(false))
-//         }
-
-//         for (i, bits) in bit_vec.chunks(2).enumerate() {
-//             let ti_x = t_x.clone();
-//             let two_ti_x = ti_x.double();
-//             let table_x = [
-//                 sigma_x,
-//                 sigma_x + &ti_x,
-//                 sigma_x + &two_ti_x,
-//                 sigma_x + &ti_x + &two_ti_x,
-//             ];
-//             let ti_y = t_y.clone();
-//             let two_ti_y = ti_y.double();
-//             let table_y = [
-//                 sigma_y,
-//                 sigma_y + &ti_y,
-//                 sigma_y + &two_ti_y,
-//                 sigma_y + &ti_y + &two_ti_y,
-//             ];
-
-//             //Compute constants
-//             //TODO: should I still need to use a batch normalization on the table values?
-//             // G::batch_normalization(&mut table_x);
-//             // G::batch_normalization(&mut table_y);
-//             let x_coords = [table_x[0], table_x[1], table_x[2], table_x[3]];
-//             let y_coords = [table_y[0], table_y[1], table_y[2], table_y[3]];
-//             let precomp = Boolean::and(cs.ns(|| format!("b0 AND b1_{}", i)), &bits[0], &bits[1])?;
-
-//             //Lookup x and y
-//             let x = Self::two_bit_lookup_lc(cs.ns(|| format!("Lookup x_{}", i)), &precomp, &[bits[0], bits[1]],  &x_coords)?;
-//             let y = Self::two_bit_lookup_lc(cs.ns(|| format!("Lookup y_{}", i)), &precomp, &[bits[0], bits[1]],  &y_coords)?;
-
-//             //Perform addition
-//             //TODO: what is the meaning here of the Boolean::constant(false)?
-//             // let adder_x = SimulationF::new(x, Boolean::constant(false));
-//             // let adder_y = SimulationF::new(y, Boolean::constant(false));
-//             // result_x = result_x.add(cs.ns(||format!("Add_x_{}", i)), &adder_x)?;
-//             // result_y = result_y.add(cs.ns(||format!("Add_y_{}", i)), &adder_y)?;
-//             result_x = result_x.add(cs.ns(||format!("Add_x_{}", i)), &x)?;
-//             result_y = result_y.add(cs.ns(||format!("Add_y_{}", i)), &y)?;
-//             t_x = t_x.double().double();
-//             t_y = t_y.double().double();
-//             to_sub_x += &sigma_x;
-//             to_sub_y += &sigma_y;
-//         }
-//         result_x = result_x.sub_constant(cs.ns(|| "result_x - sigma_x*n_div_2"), &to_sub_x)?;
-//         result_y = result_y.sub_constant(cs.ns(|| "result_y - sigma_y*n_div_2"), &to_sub_y)?;
-//         Ok((result_x,result_y))
-//     }
-// }
-
-
