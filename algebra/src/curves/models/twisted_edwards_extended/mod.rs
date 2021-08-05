@@ -115,7 +115,7 @@ impl<P: Parameters> GroupAffine<P> {
     ///
     /// If and only if `parity` is set will the odd y-coordinate be selected.
     #[allow(dead_code)]
-    pub(crate) fn get_point_from_x_and_parity(x: P::BaseField, parity: bool) -> Option<Self> {
+    pub fn get_point_from_x_and_parity(x: P::BaseField, parity: bool) -> Option<Self> {
         let x2 = x.square();
         let one = P::BaseField::one();
         let numerator = P::mul_by_a(&x2) - &one;
