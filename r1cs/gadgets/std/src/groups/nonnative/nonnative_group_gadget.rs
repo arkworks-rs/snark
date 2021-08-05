@@ -2,10 +2,8 @@ use algebra::{AffineCurve, BitIterator, Field, PrimeField, ProjectiveCurve, SWMo
 
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
-use crate::{Assignment, ToBitsGadget, ToBytesGadget, alloc::{AllocGadget, ConstantGadget}, boolean::Boolean, fields::{FieldGadget, nonnative::nonnative_field_gadget::NonNativeFieldGadget}, prelude::EqGadget, select::{CondSelectGadget, TwoBitLookupGadget}, uint8::UInt8};
+use crate::{Assignment, ToBitsGadget, ToBytesGadget, alloc::{AllocGadget, ConstantGadget}, boolean::Boolean, fields::{FieldGadget, nonnative::nonnative_field_gadget::NonNativeFieldGadget}, groups::GroupGadget, prelude::EqGadget, select::{CondSelectGadget, TwoBitLookupGadget}, uint8::UInt8};
 use std::{borrow::Borrow, marker::PhantomData};
-
-use super::NonNativeGroupGadget;
 
 #[derive(Derivative)]
 #[derivative(Debug, Clone)]
@@ -21,7 +19,7 @@ pub struct GroupAffineNonNativeGadget<
 }
 
 
-impl<P, ConstraintF, SimulationF> NonNativeGroupGadget<SWProjective<P>, ConstraintF, SimulationF>
+impl<P, ConstraintF, SimulationF> GroupGadget<SWProjective<P>, ConstraintF>
 for GroupAffineNonNativeGadget<P, ConstraintF, SimulationF>
     where
         P: SWModelParameters<BaseField = SimulationF>,
@@ -282,6 +280,104 @@ for GroupAffineNonNativeGadget<P, ConstraintF, SimulationF>
             to_sub += &sigma;
         }
         result = result.sub_constant(cs.ns(|| "result - sigma*n_div_2"), &to_sub)?;
+        Ok(result)
+    }
+
+    fn get_value(&self) -> Option<<Self as GroupGadget<SWProjective<P>, ConstraintF>>::Value> { 
+        unimplemented!()
+    }
+
+    fn get_variable(&self) -> Self::Variable {
+        unimplemented!()
+    }
+
+    fn cost_of_add() -> usize {
+        unimplemented!()
+    }
+
+    fn cost_of_double() -> usize {
+        unimplemented!()
+    }
+
+    fn sub<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        other: &Self,
+    ) -> Result<Self, SynthesisError> {
+        let neg_other = other.negate(cs.ns(|| "Negate other"))?;
+        self.add(cs.ns(|| "Self - other"), &neg_other)
+    }
+
+    fn sub_constant<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        other: &SWProjective<P>,
+    ) -> Result<Self, SynthesisError> {
+        let neg_other = -(*other);
+        self.add_constant(cs.ns(|| "Self - other"), &neg_other)
+    }
+
+    fn precomputed_base_scalar_mul<'a, CS, I, B>(
+        &mut self,
+        mut cs: CS,
+        scalar_bits_with_base_powers: I,
+    ) -> Result<(), SynthesisError>
+    where
+        CS: ConstraintSystem<ConstraintF>,
+        I: Iterator<Item = (B, &'a SWProjective<P>)>,
+        B: Borrow<Boolean>,
+        ConstraintF: 'a,
+    {
+        for (i, (bit, base_power)) in scalar_bits_with_base_powers.enumerate() {
+            let new_encoded = self.add_constant(
+                &mut cs.ns(|| format!("Add {}-th base power", i)),
+                &base_power,
+            )?;
+            *self = Self::conditionally_select(
+                &mut cs.ns(|| format!("Conditional Select {}", i)),
+                bit.borrow(),
+                &new_encoded,
+                &self,
+            )?;
+        }
+        Ok(())
+    }
+
+    fn precomputed_base_3_bit_signed_digit_scalar_mul<'a, CS, I, J, B>(
+        _: CS,
+        _: &[B],
+        _: &[J],
+    ) -> Result<Self, SynthesisError>
+    where
+        CS: ConstraintSystem<ConstraintF>,
+        I: Borrow<[Boolean]>,
+        J: Borrow<[I]>,
+        B: Borrow<[SWProjective<P>]>,
+    {
+        Err(SynthesisError::AssignmentMissing)
+    }
+
+    fn precomputed_base_multiscalar_mul<'a, CS, T, I, B>(
+        mut cs: CS,
+        bases: &[B],
+        scalars: I,
+    ) -> Result<Self, SynthesisError>
+    where
+        CS: ConstraintSystem<ConstraintF>,
+        T: 'a + ToBitsGadget<ConstraintF> + ?Sized,
+        I: Iterator<Item = &'a T>,
+        B: Borrow<[SWProjective<P>]>,
+    {
+        let mut result = Self::zero(&mut cs.ns(|| "Declare Result"))?;
+        // Compute ∏(h_i^{m_i}) for all i.
+        for (i, (bits, base_powers)) in scalars.zip(bases).enumerate() {
+            let base_powers = base_powers.borrow();
+            let bits = bits.to_bits(&mut cs.ns(|| format!("Convert Scalar {} to bits", i)))?;
+            result.precomputed_base_scalar_mul(
+                cs.ns(|| format!("Chunk {}", i)),
+                bits.iter().zip(base_powers),
+            )?;
+        }
         Ok(result)
     }
 }
