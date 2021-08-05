@@ -146,14 +146,20 @@ impl UInt32 {
         }
     }
 
-    // TODO: Provide more refined implementation
     pub fn rotl(&self, by: usize) -> Self {
-        let mut tmp = self.clone();
-        tmp.bits = self.bits.iter().rev().cloned().collect();
-        let result = tmp.rotr(by);
+        let by = by % 32;
+
+        let new_bits = self
+            .bits
+            .iter()
+            .skip(32 - by)
+            .chain(self.bits.iter())
+            .take(32)
+            .cloned()
+            .collect();
 
         UInt32 {
-            bits:  result.bits.iter().rev().cloned().collect(),
+            bits:  new_bits,
             value: self.value.map(|v| v.rotate_left(by as u32)),
         }
     }
