@@ -38,25 +38,19 @@ impl PairingEngine for SW6 {
     type Fqe = Fq3;
     type Fqk = Fq6;
 
-    fn miller_loop<'a, I>(i: I) -> Option<Self::Fqk>
+    fn miller_loop<'a, I>(i: I) -> Result<Self::Fqk, Error>
     where
         I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>
     {
         let mut result = Self::Fqk::one();
         for &(ref p, ref q) in i {
-            result *= match SW6::ate_miller_loop(p, q) {
-                Ok(v) => v,
-                Err(_) => { return None; }
-            };
+            result *= SW6::ate_miller_loop(p, q)?;
         }
-        Some(result)
+        Ok(result)
     }
 
-    fn final_exponentiation(r: &Self::Fqk) -> Option<Self::Fqk> {
-        match SW6::final_exponentiation(r) {
-            Ok(v) => Some(v),
-            Err(_) => None
-        }
+    fn final_exponentiation(r: &Self::Fqk) -> Result<Self::Fqk, Error> {
+        SW6::final_exponentiation(r)
     }
 }
 

@@ -291,6 +291,7 @@ macro_rules! sqrt_impl {
                         check.square_in_place();
                     }
                     if !check.is_one() {
+                        eprintln!("Input is not a square root, but it passed the QR test");
                         return None;
                     }
                 }

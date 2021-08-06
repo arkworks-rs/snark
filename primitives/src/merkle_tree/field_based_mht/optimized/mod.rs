@@ -54,7 +54,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
         assert_eq!(rate, T::MERKLE_ARITY);
 
         let last_level_size = T::MERKLE_ARITY.pow(height as u32);
-        if processing_step <= 0 || processing_step > last_level_size {
+        if processing_step == 0 || processing_step > last_level_size {
             Err(Box::new(MerkleTreeError::Other(format!(
                 "Invalid processing step. Must be between 1 and {}",
                 last_level_size

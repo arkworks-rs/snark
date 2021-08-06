@@ -112,7 +112,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         };
 
         // Prepare the verification key (for proof verification)
-        let pvk = prepare_verifying_key(&params.vk);
+        let pvk = prepare_verifying_key(&params.vk)?;
         total_setup += start.elapsed();
 
         // proof_vec.truncate(0);

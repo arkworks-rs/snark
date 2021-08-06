@@ -365,10 +365,10 @@ impl<T: FieldBasedMerkleTreeParameters> TryFrom<FieldBasedMHTPath<T>> for FieldB
         let mut converted = Vec::with_capacity(other.path.len());
         for (nodes, position) in other.path {
             if nodes.len() != 1 {
-                Err(format!("FieldBasedMHTPath to FieldBasedBinaryMHTPath convert failed"))?
+                Err(format!("There must be only 1 node for each element in the path to be able to perform conversion to a binary path"))?
             }
             if position != 0 && position != 1 {
-                Err(format!("FieldBasedMHTPath to FieldBasedBinaryMHTPath convert failed"))?
+                Err(format!("Position must be only 0 or 1 for each element in the path to be able to perform conversion to a binary path"))?
             }
 
             converted.push((nodes[0], if position == 0 {false} else {true}));

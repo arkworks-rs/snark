@@ -124,12 +124,15 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for BoweHopwoodPedersenCRH<G, W
         }
         for generators in parameters.generators.iter() {
             if generators.len() != W::WINDOW_SIZE {
-                Err(Box::new(CryptoError::Other("generators length verification failed".to_owned())))?
+                Err(Box::new(CryptoError::Other(format!(
+                    "Number of generators: {} not enough for the selected window size: {}",
+                    parameters.generators.len(),
+                    W::NUM_WINDOWS
+                ))))?
             }
         }
-        if CHUNK_SIZE != 3 {
-            Err(Box::new(CryptoError::Other("chunk size verification failed".to_owned())))?
-        }
+
+        assert_eq!(CHUNK_SIZE, 3);
 
         // Compute sum of h_i^{sum of (1-2*c_{i,j,2})*(1+c_{i,j,0}+2*c_{i,j,1})*2^{4*(j-1)} for all j in segment} for all i. 
         // Described in section 5.4.1.7 in the Zcash protocol specification.

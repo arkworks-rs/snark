@@ -123,7 +123,12 @@ pub trait BatchFieldBasedHash {
             return Err(Box::new(CryptoError::Other("Input data array does not contain any data".to_owned())));
         }
         if output_array.len() != input_array.len() / rate {
-            return Err(Box::new(CryptoError::Other("Input and output arrays size check failed".to_owned())));
+            return Err(Box::new(CryptoError::Other(format!(
+                "Output array size must be equal to input_array_size/rate. Output array size: {}, Input array size: {}, Rate: {}",
+                output_array.len(),
+                input_array.len(),
+                rate
+            ))));
         }
         input_array.par_chunks(rate).zip(output_array.par_iter_mut())
             .for_each(|(inputs, output)| {

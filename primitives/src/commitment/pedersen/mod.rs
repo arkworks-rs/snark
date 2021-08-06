@@ -104,7 +104,7 @@ impl<G: Group, W: PedersenWindow> CommitmentScheme for PedersenCommitment<G, W> 
         }
         if parameters.generators.len() != W::NUM_WINDOWS {
             Err(Box::new(CryptoError::Other(format!(
-                "Number of generators: {} not enough for the selected window size: {}",
+                "Number of generators: {} not enough for the selected num windows: {}",
                 parameters.generators.len(),
                 W::NUM_WINDOWS
             ).to_owned())))?

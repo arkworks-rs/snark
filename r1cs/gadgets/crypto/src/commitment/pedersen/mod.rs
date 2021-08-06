@@ -70,7 +70,7 @@ where
         }
         if parameters.params.generators.len() != W::NUM_WINDOWS {
             Err(SynthesisError::Other(format!(
-                "Number of generators: {} not enough for the selected window size: {}",
+                "Number of generators: {} not enough for the selected num_windows: {}",
                 parameters.params.generators.len(),
                 W::NUM_WINDOWS
             ).to_owned()))?

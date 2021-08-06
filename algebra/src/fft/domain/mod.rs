@@ -185,10 +185,14 @@ pub trait EvaluationDomain<F: PrimeField>: Debug + Send + Sync
     /// another (sub)domain with size size_s, this returns the actual index into this domain.
     fn reindex_by_subdomain(&self, other_size: usize, index: usize) -> Result<usize, Error> {
         if self.size() < other_size {
-            Err(format!("Size check failed"))?
+            Err(format!(
+                "'self' domain size must be bigger than 'other' domain size. 'self' size: {}, 'other' size: {}",
+                self.size(),
+                other_size
+            ))?
         }
         if other_size == 0 {
-            Err(format!("Size check failed"))?
+            Err(format!("'other' size must be bigger than 0"))?
         }
         // Let this subgroup be G, and the subgroup we're re-indexing by be S.
         // Since its a subgroup, the 0th element of S is at index 0 in G, the first element of S is at

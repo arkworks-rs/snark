@@ -295,7 +295,7 @@ impl<P: MNT6Parameters> PairingEngine for MNT6p<P>
     type Fqe = Fp3<P::Fp3Params>;
     type Fqk = Fp6<P::Fp6Params>;
 
-    fn miller_loop<'a, I>(i: I) -> Option<Self::Fqk>
+    fn miller_loop<'a, I>(i: I) -> Result<Self::Fqk, Error>
         where
             I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>,
     {
@@ -303,14 +303,11 @@ impl<P: MNT6Parameters> PairingEngine for MNT6p<P>
         for &(ref p, ref q) in i {
             result *= &Self::ate_miller_loop(p, q);
         }
-        Some(result)
+        Ok(result)
     }
 
-    fn final_exponentiation(r: &Self::Fqk) -> Option<Self::Fqk> {
-        match Self::final_exponentiation(r) {
-            Ok(v) => Some(v),
-            Err(_) => None
-        }
+    fn final_exponentiation(r: &Self::Fqk) -> Result<Self::Fqk, Error> {
+        Self::final_exponentiation(r)
     }
 }
 

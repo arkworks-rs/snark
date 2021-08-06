@@ -21,8 +21,8 @@ impl<F, P, SB> PoseidonBatchHash<F, P, SB>
 
         // Sanity checks
         let array_length = input_array.len() / P::R;
-        debug_assert_eq!(input_array.len() % P::R, 0, "The length of the input data array is not a multiple of the rate.");
-        debug_assert_ne!(input_array.len(), 0, "Input data array does not contain any data.");
+        assert_eq!(input_array.len() % P::R, 0, "The length of the input data array is not a multiple of the rate.");
+        assert_ne!(input_array.len(), 0, "Input data array does not contain any data.");
 
         // Assign pre-computed values of the state vector equivalent to a permutation with zero element state vector
         let mut state_z = Vec::new();
@@ -187,9 +187,12 @@ impl<F, P, SB> BatchFieldBasedHash for PoseidonBatchHash<F, P, SB>
         }
 
         if output_array.len() != input_array.len() / P::R {
-            Err(Box::new(CryptoError::Other(
-                "The size of the output vector is equal to the size of the input vector divided by the rate".to_owned()
-            )))?
+            Err(Box::new(CryptoError::Other(format!(
+                "Output array size must be equal to input_array_size/rate. Output array size: {}, Input array size: {}, Rate: {}",
+                output_array.len(),
+                input_array.len(),
+                P::R
+            ))))?
         }
 
         let state = Self::apply_permutation(input_array);

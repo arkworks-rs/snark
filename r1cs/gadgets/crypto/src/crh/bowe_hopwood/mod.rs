@@ -82,7 +82,11 @@ where
         }
         for generators in parameters.params.generators.iter() {
             if generators.len() != W::WINDOW_SIZE {
-                Err(SynthesisError::Other("generators length verification failed".to_owned()))?
+                Err(SynthesisError::Other(format!(
+                    "Number of generators: {} not enough for the selected window size: {}",
+                    parameters.params.generators.len(),
+                    W::NUM_WINDOWS
+                )))?
             }
         }
 

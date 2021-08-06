@@ -1,4 +1,5 @@
 use crate::{
+    Error,
     bytes::{FromBytes, ToBytes},
     fields::{Field, PrimeField, SquareRootField},
     groups::Group, SemanticallyValid, FromBytesChecked, bits::{FromCompressedBits, ToCompressedBits},
@@ -97,29 +98,26 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send + Eq + Par
 
     /// Perform a miller loop with some number of (G1, G2) pairs.
     #[must_use]
-    fn miller_loop<'a, I>(i: I) -> Option<Self::Fqk>
+    fn miller_loop<'a, I>(i: I) -> Result<Self::Fqk, Error>
         where
             I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>;
 
     /// Perform final exponentiation of the result of a miller loop.
     #[must_use]
-    fn final_exponentiation(_: &Self::Fqk) -> Option<Self::Fqk>;
+    fn final_exponentiation(_: &Self::Fqk) -> Result<Self::Fqk, Error>;
 
     /// Computes a product of pairings.
     #[must_use]
-    fn product_of_pairings<'a, I>(i: I) -> Option<Self::Fqk>
+    fn product_of_pairings<'a, I>(i: I) -> Result<Self::Fqk, Error>
         where
             I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>,
     {
-        match Self::miller_loop(i) {
-            Some(v) => Self::final_exponentiation(&v),
-            None => None
-        }
+        Self::final_exponentiation(&Self::miller_loop(i)?)
     }
 
     /// Performs multiple pairing operations
     #[must_use]
-    fn pairing<G1, G2>(p: G1, q: G2) -> Option<Self::Fqk>
+    fn pairing<G1, G2>(p: G1, q: G2) -> Result<Self::Fqk, Error>
         where
             G1: Into<Self::G1Affine>,
             G2: Into<Self::G2Affine>,
