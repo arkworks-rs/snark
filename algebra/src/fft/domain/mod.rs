@@ -209,8 +209,9 @@ pub trait EvaluationDomain<F: PrimeField>: Debug + Send + Sync
             // The +1 is because index 0 of G is S_0, so the position is offset by at least one.
             // The floor(i / x) term is because after x elements in G \ S, there is one more element from S
             // that will have appeared in G.
-            // TODO: possible crash
-            assert!(period > 1);
+            if period <= 1 {
+                Err(format!("'period' must be bigger than 1"))?
+            }
             let i = index - other_size;
             let x = period - 1;
             Ok(i + (i / x) + 1)
