@@ -414,7 +414,7 @@ mod test {
         for _ in 0..num_leaves {
             tree.append(MNT4753Fr::rand(&mut rng)).unwrap();
         }
-        tree.finalize_in_place();
+        tree.finalize_in_place().unwrap();
         assert_eq!(tree.root().unwrap(), root1, "Outputs of the Merkle trees for MNT4 do not match.");
     }
 
