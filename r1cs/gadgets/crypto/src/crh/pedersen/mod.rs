@@ -54,8 +54,18 @@ where
                 padded_input.push(UInt8::constant(0u8));
             }
         }
-        assert_eq!(padded_input.len() * 8, W::WINDOW_SIZE * W::NUM_WINDOWS);
-        assert_eq!(parameters.params.generators.len(), W::NUM_WINDOWS);
+        if padded_input.len() * 8 != W::WINDOW_SIZE * W::NUM_WINDOWS {
+            Err(SynthesisError::Other("padded input length verification failed".to_owned()))?
+        }
+        if parameters.params.generators.len() != W::NUM_WINDOWS {
+            Err(SynthesisError::Other(format!(
+                "Incorrect pp of size {:?}x{:?} for window params {:?}x{:?}",
+                parameters.params.generators[0].len(),
+                parameters.params.generators.len(),
+                W::WINDOW_SIZE,
+                W::NUM_WINDOWS
+            ).to_owned()))?
+        }
 
         // Allocate new variable for the result.
         let input_in_bits: Vec<_> = padded_input

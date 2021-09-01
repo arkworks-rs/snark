@@ -332,7 +332,7 @@ pub trait PrimeField: Field<BasePrimeField = Self> + FromStr {
     fn root_of_unity() -> Self;
 
     ///Returns the full root of unity
-    fn full_root_of_unity() -> Self;
+    fn full_root_of_unity() -> Option<Self>;
 
     /// Return the a QNR^T
     fn qnr_to_t() -> Self {
@@ -379,7 +379,7 @@ impl<F: PrimeField> ToBits for F {
             tmp.push(b);
         }
 
-        assert_eq!(tmp.len(), num_bits as usize);
+        debug_assert_eq!(tmp.len(), num_bits as usize);
 
         tmp
     }

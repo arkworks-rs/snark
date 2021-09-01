@@ -119,7 +119,13 @@ where
         leaf: impl ToBytesGadget<ConstraintF>,
         should_enforce: &Boolean,
     ) -> Result<(), SynthesisError> {
-        debug_assert!(self.path.len() == P::HEIGHT);
+        if self.path.len() != P::HEIGHT {
+            return Err(SynthesisError::Other(format!(
+                "Path length must be equal to height. Path len: {}, Height: {}",
+                self.path.len(),
+                P::HEIGHT
+            ).to_owned()));
+        }
 
         // Check that the hash of the given leaf matches the leaf hash in the membership
         // proof.
@@ -288,7 +294,7 @@ mod test {
 
         let crh_parameters = Rc::new(H::setup(&mut rng).unwrap());
         let tree = JubJubMerkleTree::new(crh_parameters.clone(), leaves).unwrap();
-        let root = tree.root();
+        let root = tree.root().unwrap();
         let mut satisfied = true;
         for (i, leaf) in leaves.iter().enumerate() {
             let mut cs = TestConstraintSystem::<Fq>::new();

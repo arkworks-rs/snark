@@ -43,6 +43,7 @@ pub enum CryptoError {
     FailedVerification,
     InitializationError(String),
     HashingError(String),
+    Other(String),
 }
 
 impl std::fmt::Display for CryptoError {
@@ -54,6 +55,7 @@ impl std::fmt::Display for CryptoError {
             CryptoError::FailedVerification => "verification failed".to_owned(),
             CryptoError::InitializationError(message) => format!("{}", message),
             CryptoError::HashingError(message) => format!("Failed to compute the hash: {}", message),
+            CryptoError::Other(message) => format!("{}", message),
         };
         write!(f, "{}", msg)
     }

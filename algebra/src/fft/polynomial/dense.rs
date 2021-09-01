@@ -91,9 +91,6 @@ impl<F: Field> DensePolynomial<F> {
         // While there are zeros at the end of the coefficient vector, pop them off.
         result.truncate_leading_zeros();
 
-        // Check that either the coefficients vec is empty or that the last coeff is non-zero.
-        assert!(result.coeffs.last().map_or(true, |coeff| !coeff.is_zero()));
-
         result
     }
 
@@ -102,7 +99,7 @@ impl<F: Field> DensePolynomial<F> {
         if self.is_zero() {
             0
         } else {
-            assert!(self.coeffs.last().map_or(false, |coeff| !coeff.is_zero()));
+            debug_assert!(self.coeffs.last().map_or(false, |coeff| !coeff.is_zero()));
             self.coeffs.len() - 1
         }
     }
@@ -118,8 +115,9 @@ impl<F: Field> DensePolynomial<F> {
             powers_of_point.push(cur);
             cur *= &point;
         }
-        assert_eq!(powers_of_point.len(), self.coeffs.len());
         let zero = F::zero();
+        // Same length of powers_of_point and self.coeffs is
+        // guaranted by assertion in degree() call
         powers_of_point
             .into_par_iter()
             .zip(&self.coeffs)

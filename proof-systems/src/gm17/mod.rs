@@ -200,7 +200,7 @@ impl<E: PairingEngine> From<PreparedVerifyingKey<E>> for VerifyingKey<E> {
 
 impl<E: PairingEngine> From<VerifyingKey<E>> for PreparedVerifyingKey<E> {
     fn from(other: VerifyingKey<E>) -> Self {
-        prepare_verifying_key(&other)
+        prepare_verifying_key(&other).unwrap()
     }
 }
 

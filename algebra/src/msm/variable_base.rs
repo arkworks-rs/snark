@@ -17,8 +17,12 @@ impl VariableBaseMSM {
     ) -> Result<G::Projective, Error> {
 
         // Sanity checks
-        assert!(c != 0, "Invalid window size value: 0");
-        assert!(c <= 25, "Invalid window size value: {}. It must be smaller than 25", c);
+        if c == 0 {
+            Err(format!("Invalid window size value: 0"))?
+        }
+        if c > 25 {
+            Err(format!("Invalid window size value: {}. It must be smaller than 25", c))?
+        }
         if scalars.len() > bases.len() {
             Err(format!("Invalid MSM length. Scalars len: {}, Bases len: {}", scalars.len(), bases.len()))?
         }
@@ -109,8 +113,12 @@ impl VariableBaseMSM {
     ) -> Result<G::Projective, Error> {
 
         // Sanity checks
-        assert!(c != 0, "Invalid window size value: 0");
-        assert!(c <= 25, "Invalid window size value: {}. It must be smaller than 25", c);
+        if c == 0 {
+            Err(format!("Invalid window size value: 0"))?
+        }
+        if c > 25 {
+            Err(format!("Invalid window size value: {}. It must be smaller than 25", c))?
+        }
         if scalars.len() > bases.len() {
             Err(format!("Invalid MSM length. Scalars len: {}, Bases len: {}", scalars.len(), bases.len()))?
         }

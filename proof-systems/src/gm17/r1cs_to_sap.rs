@@ -200,7 +200,7 @@ impl R1CStoSAP {
 
         domain.coset_fft_in_place(&mut a);
 
-        let mut aa = domain.mul_polynomials_in_evaluation_domain(&a, &a);
+        let mut aa = domain.mul_polynomials_in_evaluation_domain(&a, &a)?;
         drop(a);
 
         let mut c = vec![zero; domain_size];

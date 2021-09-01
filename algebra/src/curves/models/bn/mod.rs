@@ -10,6 +10,7 @@ use crate::{
         Field, Fp2, PrimeField, SquareRootField,
         QuadExtParameters
     },
+    Error,
 };
 
 use std::marker::PhantomData;
@@ -97,7 +98,7 @@ impl<P: BnParameters> PairingEngine for Bn<P>
     type Fqe = Fp2<P::Fp2Params>;
     type Fqk = Fp12<P::Fp12Params>;
 
-    fn miller_loop<'a, I>(i: I) -> Self::Fqk
+    fn miller_loop<'a, I>(i: I) -> Result<Self::Fqk, Error>
     where
         I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>,
     {
@@ -147,10 +148,10 @@ impl<P: BnParameters> PairingEngine for Bn<P>
             Self::ell(&mut f, coeffs.next().unwrap(), &p.0);
         }
 
-        f
+        Ok(f)
     }
 
-    fn final_exponentiation(f: &Self::Fqk) -> Option<Self::Fqk> {
+    fn final_exponentiation(f: &Self::Fqk) -> Result<Self::Fqk, Error> {
         // Easy part: result = elt^((q^6-1)*(q^2+1)).
         // Follows, e.g., Beuchat et al page 9, by computing result as follows:
         //   elt^((q^6-1)*(q^2+1)) = (conj(elt) * elt^(-1))^(q^2+1)
@@ -159,8 +160,8 @@ impl<P: BnParameters> PairingEngine for Bn<P>
         let mut f1 = *f;
         f1.conjugate();
 
-        f.inverse().and_then(|mut f2| {
-            {
+        match f.inverse() {
+            Some(mut f2) => {
                 // f2 = f^(-1);
                 // r = f^(p^6 - 1)
                 let mut r = f1 * &f2;
@@ -209,8 +210,9 @@ impl<P: BnParameters> PairingEngine for Bn<P>
                 y15.frobenius_map(3);
                 let y16 = y15 * &y14;
 
-                Some(y16)
-            }
-        })
+                Ok(y16)
+            },
+            None => Err(format!("f is zero"))?,
+        }
     }
 }

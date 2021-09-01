@@ -175,7 +175,9 @@ impl<P, HGadget, ConstraintF> FieldBasedMerkleTreeGadget<P, HGadget, ConstraintF
         should_enforce: &Boolean,
         height: usize,
     ) -> Result<(), SynthesisError> {
-        debug_assert!(leaves.len() == 2_usize.pow(height as u32));
+        if leaves.len() != 2_usize.pow(height as u32) {
+            Err(SynthesisError::Other("Leaves number must be a power of 2".to_owned()))?
+        }
 
         let mut prev_level_nodes = leaves.to_vec();
         //Iterate over all levels except the root
@@ -322,7 +324,13 @@ for FieldBasedBinaryMerkleTreePathGadget<P, HGadget, ConstraintF>
     fn is_eq<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS, other: &Self) -> Result<Boolean, SynthesisError> {
         let mut v = Vec::new();
         let len = self.path.len();
-        assert_eq!(self.path.len(), other.path.len());
+        if self.path.len() != other.path.len() {
+            Err(SynthesisError::Other(format!(
+                "Paths length must be the same. Self len:{}, Other len: {}",
+                self.path.len(),
+                other.path.len()
+            ).to_owned()))?
+        }
         for i in 0..len {
             let b1_i = &self.path[i].0.is_eq(cs.ns(|| format!("b1_{}", i)), &other.path[i].0)?;
             let b2_i = &self.path[i].1.is_eq(cs.ns(|| format!("b2_{}", i)), &other.path[i].1)?;
@@ -339,7 +347,13 @@ for FieldBasedBinaryMerkleTreePathGadget<P, HGadget, ConstraintF>
         should_enforce: &Boolean
     ) -> Result<(), SynthesisError> {
         let len = self.path.len();
-        assert_eq!(self.path.len(), other.path.len());
+        if self.path.len() != other.path.len() {
+            Err(SynthesisError::Other(format!(
+                "Paths length must be the same. Self len:{}, Other len: {}",
+                self.path.len(),
+                other.path.len()
+            ).to_owned()))?
+        }
         for i in 0..len {
             &self.path[i].0.conditional_enforce_equal(cs.ns(|| format!("conditional_eq_1_{}", i)), &other.path[i].0, should_enforce)?;
             &self.path[i].1.conditional_enforce_equal(cs.ns(|| format!("conditional_eq_2_{}", i)), &other.path[i].1, should_enforce)?;
@@ -354,7 +368,13 @@ for FieldBasedBinaryMerkleTreePathGadget<P, HGadget, ConstraintF>
         should_enforce: &Boolean
     ) -> Result<(), SynthesisError> {
         let len = self.path.len();
-        assert_eq!(self.path.len(), other.path.len());
+        if self.path.len() != other.path.len() {
+            Err(SynthesisError::Other(format!(
+                "Paths length must be the same. Self len:{}, Other len: {}",
+                self.path.len(),
+                other.path.len()
+            ).to_owned()))?
+        }
         for i in 0..len {
             &self.path[i].0.conditional_enforce_not_equal(cs.ns(|| format!("conditional_neq_1_{}", i)), &other.path[i].0, should_enforce)?;
             &self.path[i].1.conditional_enforce_not_equal(cs.ns(|| format!("conditional_neq_2_{}", i)), &other.path[i].1, should_enforce)?;
@@ -400,7 +420,7 @@ mod test {
 
         let mut tree = MNT4753FieldBasedMerkleTree::new(TEST_HEIGHT);
         tree.append(leaves).unwrap();
-        let root = tree.root();
+        let root = tree.root().unwrap();
         let mut satisfied = true;
 
         //Merkle Path Gadget test
@@ -479,7 +499,7 @@ mod test {
 
         let mut tree = MNT4753FieldBasedMerkleTree::new(TEST_HEIGHT);
         tree.append(leaves).unwrap();
-        let root = tree.root();
+        let root = tree.root().unwrap();
 
         //Merkle Tree Gadget test
         let mut cs = TestConstraintSystem::<Fr>::new();

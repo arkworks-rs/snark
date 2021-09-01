@@ -95,7 +95,7 @@ impl<F: PrimeField> BasicRadix2Domain<F> {
             Self::serial_fft(a, omega, log_n);
         } else {
             Self::parallel_fft(a, worker, omega, log_n, log_cpus);
-        }                    
+        }
     }
 
     /// Computes the radix-2 FFT of a[0..n] over an FFT domain {z: z^n - 1 = 0} of size n=2^log_n, 
@@ -119,7 +119,7 @@ impl<F: PrimeField> BasicRadix2Domain<F> {
             r
         }
         let n = a.len() as u32;
-        assert_eq!(n, 1 << log_n);
+        debug_assert_eq!(n, 1 << log_n);
 
         // reindex a[0..n] as described above
         for k in 0..n {
@@ -182,7 +182,7 @@ impl<F: PrimeField> BasicRadix2Domain<F> {
         log_n: u32,
         log_cpus: u32,
     ) {
-        assert!(log_n >= log_cpus);
+        debug_assert!(log_n >= log_cpus);
 
         let num_cpus = 1 << log_cpus;
         let log_new_n = log_n - log_cpus;

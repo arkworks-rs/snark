@@ -49,7 +49,7 @@ mod test{
             generate_random_parameters::<E, _, _>(MySillyCircuit { a: None, b: None }, rng)
                 .unwrap();
 
-        let pvk = prepare_verifying_key::<E>(&params.vk);
+        let pvk = prepare_verifying_key::<E>(&params.vk).unwrap();
 
         for _ in 0..100 {
             let a = <E as PairingEngine>::Fr::rand(rng);

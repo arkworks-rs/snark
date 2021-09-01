@@ -44,9 +44,9 @@ pub fn verify_proof<E: PairingEngine>(
             (proof.c.into(), pvk.delta_g2_neg_pc.clone()),
         ]
             .iter(),
-    );
+    )?;
 
-    let test = E::final_exponentiation(&qap).ok_or(SynthesisError::UnexpectedIdentity)?;
+    let test = E::final_exponentiation(&qap)?;
 
     Ok(test == pvk.alpha_g1_beta_g2)
 }

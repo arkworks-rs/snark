@@ -214,8 +214,8 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
     }
 
     #[inline]
-    pub fn root(&self) -> <P::H as FixedLengthCRH>::Output {
-        self.root.clone().unwrap()
+    pub fn root(&self) -> Option<<P::H as FixedLengthCRH>::Output> {
+        self.root.clone()
     }
 
     pub fn generate_proof<L: ToBytes>(
@@ -445,7 +445,7 @@ mod test {
 
         let crh_parameters = Rc::new(H::setup(&mut rng).unwrap());
         let tree = MerkleHashTree::<P>::new(crh_parameters.clone(), &leaves).unwrap();
-        let root = tree.root();
+        let root = tree.root().unwrap();
         if P::HEIGHT > 0 {
             for (i, leaf) in leaves.iter().enumerate() {
                 // Positive test

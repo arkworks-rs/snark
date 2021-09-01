@@ -230,13 +230,13 @@ pub fn generate_parameters<E, C, R>(
     // Compute the A-query
     let a_time = start_timer!(|| "Calculate A");
     let mut a_query =
-        FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(scalar_bits, g1_window, &g1_table, &a);
+        FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(scalar_bits, g1_window, &g1_table, &a)?;
     end_timer!(a_time);
 
     // Compute the B-query in G1
     let b_g1_time = start_timer!(|| "Calculate B G1");
     let mut b_g1_query =
-        FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(scalar_bits, g1_window, &g1_table, &b);
+        FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(scalar_bits, g1_window, &g1_table, &b)?;
     end_timer!(b_g1_time);
 
     // Compute B window table
@@ -249,7 +249,7 @@ pub fn generate_parameters<E, C, R>(
     // Compute the B-query in G2
     let b_g2_time = start_timer!(|| "Calculate B G2");
     let mut b_g2_query =
-        FixedBaseMSM::multi_scalar_mul::<E::G2Projective>(scalar_bits, g2_window, &g2_table, &b);
+        FixedBaseMSM::multi_scalar_mul::<E::G2Projective>(scalar_bits, g2_window, &g2_table, &b)?;
     end_timer!(b_g2_time);
 
     // Compute the H-query
@@ -262,14 +262,14 @@ pub fn generate_parameters<E, C, R>(
             .into_par_iter()
             .map(|i| zt * &delta_inverse * &t.pow([i as u64]))
             .collect::<Vec<_>>(),
-    );
+    )?;
 
     end_timer!(h_time);
 
     // Compute the L-query
     let l_time = start_timer!(|| "Calculate L");
     let l_query =
-        FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(scalar_bits, g1_window, &g1_table, &l);
+        FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(scalar_bits, g1_window, &g1_table, &l)?;
     let mut l_query = l_query[assembly.num_inputs..].to_vec();
     end_timer!(l_time);
 
@@ -283,13 +283,13 @@ pub fn generate_parameters<E, C, R>(
         g1_window,
         &g1_table,
         &gamma_abc,
-    );
+    )?;
 
     drop(g1_table);
 
     end_timer!(verifying_key_time);
 
-    let alpha_g1_beta_g2 = E::pairing(alpha_g1, beta_g2);
+    let alpha_g1_beta_g2 = E::pairing(alpha_g1, beta_g2)?;
 
     let vk = VerifyingKey::<E> {
         alpha_g1_beta_g2,

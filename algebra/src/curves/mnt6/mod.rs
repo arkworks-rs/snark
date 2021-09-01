@@ -1,5 +1,6 @@
 use crate::field_new;
 use crate::{
+    Error,
     biginteger::BigInteger320,
     curves::{PairingEngine, ProjectiveCurve},
     fields::{
@@ -255,11 +256,14 @@ impl MNT6 {
         f
     }
 
-    pub fn final_exponentiation(value: &Fq6) -> GT {
+    pub fn final_exponentiation(value: &Fq6) -> Result<GT, Error> {
+        if value.is_zero() {
+            Err(format!("Invalid exponentiation value: 0"))?
+        }
         let value_inv = value.inverse().unwrap();
         let value_to_first_chunk = MNT6::final_exponentiation_first_chunk(value, &value_inv);
         let value_inv_to_first_chunk = MNT6::final_exponentiation_first_chunk(&value_inv, value);
-        MNT6::final_exponentiation_last_chunk(&value_to_first_chunk, &value_inv_to_first_chunk)
+        Ok(MNT6::final_exponentiation_last_chunk(&value_to_first_chunk, &value_inv_to_first_chunk))
     }
 
     fn final_exponentiation_first_chunk(elt: &Fq6, elt_inv: &Fq6) -> Fq6 {

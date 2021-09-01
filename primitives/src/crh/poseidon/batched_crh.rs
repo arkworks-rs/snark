@@ -1,7 +1,7 @@
 use algebra::PrimeField;
 use std::marker::PhantomData;
 use crate::crh::BatchFieldBasedHash;
-use crate::{Error, PoseidonParameters, PoseidonHash, BatchSBox};
+use crate::{Error, PoseidonParameters, PoseidonHash, BatchSBox, CryptoError};
 use rayon::prelude::*;
 
 pub struct PoseidonBatchHash<F: PrimeField, P: PoseidonParameters<Fr = F>, SB: BatchSBox<Field = F, Parameters = P>>
@@ -141,6 +141,18 @@ impl<F, P, SB> BatchFieldBasedHash for PoseidonBatchHash<F, P, SB>
         // Output:
         // The output is returned as an array of size input length / P::R
 
+        if input_array.len() % P::R != 0 {
+            Err(Box::new(CryptoError::Other(
+                "The length of the input data array is not a multiple of the rate.".to_owned()
+            )))?
+        }
+
+        if input_array.len() == 0 {
+            Err(Box::new(CryptoError::Other(
+                "Input data array does not contain any data.".to_owned()
+            )))?
+        }
+
         let state = Self::apply_permutation(input_array);
 
         // write the result of the hash extracted from the state vector to the output vector
@@ -151,7 +163,7 @@ impl<F, P, SB> BatchFieldBasedHash for PoseidonBatchHash<F, P, SB>
         Ok(output_array)
     }
 
-    fn batch_evaluate_in_place(input_array: &mut[F], output_array: &mut[F]) {
+    fn batch_evaluate_in_place(input_array: &mut[F], output_array: &mut[F]) -> Result<(), Error> {
 
         // Input:
         // This function calculates the hashes of inputs by groups of the rate P::R.
@@ -162,11 +174,26 @@ impl<F, P, SB> BatchFieldBasedHash for PoseidonBatchHash<F, P, SB>
         // Output:
         // The output will be placed in the output_array taking input length / P::R
 
-        assert_eq!(
-            output_array.len(),
-            input_array.len() / P::R,
-            "The size of the output vector is equal to the size of the input vector divided by the rate."
-        );
+        if input_array.len() % P::R != 0 {
+            Err(Box::new(CryptoError::Other(
+                "The length of the input data array is not a multiple of the rate.".to_owned()
+            )))?
+        }
+
+        if input_array.len() == 0 {
+            Err(Box::new(CryptoError::Other(
+                "Input data array does not contain any data.".to_owned()
+            )))?
+        }
+
+        if output_array.len() != input_array.len() / P::R {
+            Err(Box::new(CryptoError::Other(format!(
+                "Output array size must be equal to input_array_size/rate. Output array size: {}, Input array size: {}, Rate: {}",
+                output_array.len(),
+                input_array.len(),
+                P::R
+            ))))?
+        }
 
         let state = Self::apply_permutation(input_array);
 
@@ -174,6 +201,8 @@ impl<F, P, SB> BatchFieldBasedHash for PoseidonBatchHash<F, P, SB>
         for k in 0..input_array.len() / P::R {
             output_array[k] = state[k][0];
         }
+
+        Ok(())
     }
 }
 
@@ -265,7 +294,7 @@ mod test {
             let output_vec = (MNT4BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
 
             let mut output_vec_in_place = vec![MNT4753Fr::zero(); num_hashes];
-            MNT4BatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]);
+            MNT4BatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]).unwrap();
 
             // =============================================================================
             // Compare results
@@ -385,7 +414,7 @@ mod test {
             let output_vec = (MNT6BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
 
             let mut output_vec_in_place = vec![MNT6753Fr::zero(); num_hashes];
-            MNT6BatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]);
+            MNT6BatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]).unwrap();
 
             // =============================================================================
             // Compare results
@@ -561,7 +590,7 @@ mod test {
             let output_vec = (BN382FqBatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
 
             let mut output_vec_in_place = vec![BN382Fq::zero(); num_hashes];
-            BN382FqBatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]);
+            BN382FqBatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]).unwrap();
 
             // =============================================================================
             // Compare results
@@ -592,7 +621,7 @@ mod test {
             let output_vec = (BN382FrBatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
 
             let mut output_vec_in_place = vec![BN382Fr::zero(); num_hashes];
-            BN382FrBatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]);
+            BN382FrBatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]).unwrap();
 
             // =============================================================================
             // Compare results
@@ -740,7 +769,7 @@ mod test {
             let output_vec = (TweedleFqBatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
 
             let mut output_vec_in_place = vec![TweedleFq::zero(); num_hashes];
-            TweedleFqBatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]);
+            TweedleFqBatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]).unwrap();
 
             // =============================================================================
             // Compare results
@@ -771,7 +800,7 @@ mod test {
             let output_vec = (TweedleFrBatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
 
             let mut output_vec_in_place = vec![TweedleFr::zero(); num_hashes];
-            TweedleFrBatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]);
+            TweedleFrBatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]).unwrap();
 
             // =============================================================================
             // Compare results

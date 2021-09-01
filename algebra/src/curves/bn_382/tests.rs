@@ -67,8 +67,8 @@ fn test_bilinearity() {
     let sa = a * &s;
     let sb = b * &s;
 
-    let ans1 = Bn382::pairing(sa, b);
-    let ans2 = Bn382::pairing(a, sb);
+    let ans1 = Bn382::pairing(sa, b).unwrap();
+    let ans2 = Bn382::pairing(a, sb).unwrap();
 
     assert_eq!(ans1, ans2);
 
