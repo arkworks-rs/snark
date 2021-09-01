@@ -169,8 +169,8 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
             // point as infinity. For all other choices, get the original point.
             if x.is_zero() && flags.is_infinity() {
                 Some(Self::zero())
-            } else if let Some(y_is_positive) = flags.is_positive() {
-                Self::get_point_from_x(x, y_is_positive) // Unwrap is safe because it's not zero.
+            } else if let Some(y_is_odd) = flags.is_odd() {
+                Self::get_point_from_x_and_parity(x, y_is_odd) // Unwrap is safe because it's not zero.
             } else {
                 None
             }
@@ -862,7 +862,7 @@ impl<P: Parameters> CanonicalSerialize for GroupAffine<P> {
             // Serialize 0.
             P::BaseField::zero().serialize_with_flags(writer, flags)
         } else {
-            let flags = SWFlags::from_y_sign(self.y > -self.y);
+            let flags = SWFlags::from_y_parity(self.y.is_odd());
             self.x.serialize_with_flags(writer, flags)
         }
     }
@@ -936,7 +936,7 @@ impl<P: Parameters> CanonicalDeserialize for GroupAffine<P> {
         if flags.is_infinity() {
             Ok(Self::zero())
         } else {
-            let p = GroupAffine::<P>::get_point_from_x(x, flags.is_positive().unwrap())
+            let p = GroupAffine::<P>::get_point_from_x_and_parity(x, flags.is_odd().unwrap())
                 .ok_or(SerializationError::InvalidData)?;
             Ok(p)
         }
@@ -948,7 +948,7 @@ impl<P: Parameters> CanonicalDeserialize for GroupAffine<P> {
     ) -> Result<Self, SerializationError> {
         let p = Self::deserialize_uncompressed_unchecked(reader)?;
 
-        if !p.is_zero() && !p.is_in_correct_subgroup_assuming_on_curve() {
+        if !p.group_membership_test() {
             return Err(SerializationError::InvalidData);
         }
         Ok(p)
