@@ -290,7 +290,7 @@ impl<'a, P: QuadExtParameters> SquareRootField for QuadExtField<P>
                 let alpha = self
                     .norm()
                     .sqrt();
-                if two_inv.is_none() || alphagit.is_none() {
+                if two_inv.is_none() || alpha.is_none() {
                     return None;
                 }
                 let mut delta = (alpha.unwrap() + &self.c0) * &two_inv.unwrap();
