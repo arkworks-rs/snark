@@ -193,7 +193,10 @@ impl<G: AffineCurve, D: Digest> DLogItemAccumulator<G, D> {
             let mut seed_builder = <<InnerProductArgPC<G, D> as PolynomialCommitment<G::ScalarField>>::RandomOracle as FiatShamirRng>::Seed::new();
             seed_builder.add_bytes(&Self::PROTOCOL_NAME)?;
             seed_builder.add_bytes(&vk.hash)?;
-            // TODO: Shall we decompose this further when passing it to the seed builder ?
+
+            // NOTE: We assume the number of accumulators to be clear from the context.
+            // As we use constant length encoding of field elements, we may use add_bytes()
+            // without producing collisions in the serialization procedure.
             seed_builder.add_bytes(&previous_accumulators)?;
             seed_builder.finalize()
         };
