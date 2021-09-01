@@ -63,7 +63,6 @@ where
                 input_in_bits.push(Boolean::constant(false));
             }
         }
-        // TODO: check error message
         if input_in_bits.len() % CHUNK_SIZE != 0 {
             Err(SynthesisError::Other(format!(
                 "Input is not multiple of the chunk size. Input len: {}, chunk size: {}",
@@ -85,7 +84,7 @@ where
                 Err(SynthesisError::Other(format!(
                     "Number of generators: {} not enough for the selected window size: {}",
                     parameters.params.generators.len(),
-                    W::NUM_WINDOWS
+                    W::WINDOW_SIZE
                 )))?
             }
         }

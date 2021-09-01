@@ -154,7 +154,6 @@ for Groth16VerifierGadget<PairingE, ConstraintF, P>
                 }
             // Check that the input and the query in the verification are of the
             // same length.
-            // TODO: check error string
             if input_len != pvk.gamma_abc_g1.len() || public_inputs.next().is_some() {
                 Err(SynthesisError::Other(format!(
                     "Input and query must have the same length. Input len: {}, gamma_abc_g1 len: {}",

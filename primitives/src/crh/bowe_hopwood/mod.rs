@@ -127,7 +127,7 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for BoweHopwoodPedersenCRH<G, W
                 Err(Box::new(CryptoError::Other(format!(
                     "Number of generators: {} not enough for the selected window size: {}",
                     parameters.generators.len(),
-                    W::NUM_WINDOWS
+                    W::WINDOW_SIZE
                 ))))?
             }
         }

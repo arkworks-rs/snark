@@ -252,21 +252,27 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBased
         Ok(self)
     }
 
-    fn finalize(&self) -> Self {
+    fn finalize(&self) -> Result<Self, Error> {
         let mut copy = (*self).clone();
         copy.new_elem_pos[0] = copy.final_pos[0];
-        copy.compute_subtree().unwrap();
+        copy.compute_subtree()?;
         copy.finalized = true;
+        if copy.array_nodes.len() == 0 {
+            Err(MerkleTreeError::Other("Merkle tree is empty".to_owned()))?
+        }
         copy.root = *copy.array_nodes.last().unwrap();
-        copy
+        Ok(copy)
     }
 
-    fn finalize_in_place(&mut self) -> &mut Self {
+    fn finalize_in_place(&mut self) -> Result<&mut Self, Error> {
         self.new_elem_pos[0] = self.final_pos[0];
-        self.compute_subtree().unwrap();
+        self.compute_subtree()?;
         self.finalized = true;
+        if self.array_nodes.len() == 0 {
+            Err(MerkleTreeError::Other("Merkle tree is empty".to_owned()))?
+        }
         self.root = *self.array_nodes.last().unwrap();
-        self
+        Ok(self)
     }
 
     fn reset(&mut self) -> &mut Self {
@@ -424,7 +430,7 @@ mod test {
         assert!(tree.append(leaves[0].clone()).is_err());
 
         // Finalize tree and get roots of both
-        tree.finalize_in_place();
+        tree.finalize_in_place().unwrap();
 
         let optimized_root = tree.root().unwrap();
         let naive_root = naive_mt.root().unwrap();
@@ -455,7 +461,7 @@ mod test {
 
         // This is the root we should get after having reset the tree if all the nodes
         // have been zeroed.
-        let expected_root = tree.finalize().root().unwrap();
+        let expected_root = tree.finalize().unwrap().root().unwrap();
 
         // Finish filling the tree
         leaves[num_leaves/2..].iter().for_each(|leaf| {
@@ -463,7 +469,7 @@ mod test {
         });
 
         // Reset the tree
-        tree.finalize_in_place().reset();
+        tree.finalize_in_place().unwrap().reset();
 
         // Add the same leaves as we did initially
         leaves[..num_leaves/2].iter().for_each(|leaf| {
@@ -473,7 +479,7 @@ mod test {
         // Now, if all the nodes have been zeroed, than the assertion below will pass;
         // otherwise, this means that nodes still retained their old values, so the
         // computed root will be different.
-        assert_eq!(expected_root, tree.finalize().root().unwrap());
+        assert_eq!(expected_root, tree.finalize().unwrap().root().unwrap());
     }
 
     fn merkle_tree_test_edge_cases<T: BatchFieldBasedMerkleTreeParameters>() {
@@ -483,24 +489,24 @@ mod test {
         {
             // Generate empty tree and attempt to finalize
             let tree = FieldBasedOptimizedMHT::<T>::init(5, 1).unwrap();
-            tree.finalize();
+            tree.finalize().unwrap();
 
             // Generate tree with only 1 leaf and attempt to finalize
             let mut tree = FieldBasedOptimizedMHT::<T>::init(5, 1).unwrap();
             assert!(tree.append(T::Data::rand(rng)).is_ok());
-            tree.finalize();
+            tree.finalize().unwrap();
         }
 
         // HEIGHT == 1
         {
             // Generate empty tree and attempt to finalize
             let tree = FieldBasedOptimizedMHT::<T>::init(1, 2).unwrap();
-            tree.finalize();
+            tree.finalize().unwrap();
 
             // Generate tree with only 1 leaf and attempt to finalize
             let mut tree = FieldBasedOptimizedMHT::<T>::init(1, 2).unwrap();
             assert!(tree.append(T::Data::rand(rng)).is_ok());
-            tree.finalize();
+            tree.finalize().unwrap();
 
             // Generate tree with exactly 2 leaves and attempt to finalize.
             // Assert error if trying to add another leaf
@@ -508,19 +514,19 @@ mod test {
             assert!(tree.append(T::Data::rand(rng)).is_ok());
             assert!(tree.append(T::Data::rand(rng)).is_ok());
             assert!(tree.append(T::Data::rand(rng)).is_err());
-            tree.finalize();
+            tree.finalize().unwrap();
         }
 
         // HEIGHT == 0
         {
             // Generate empty tree and attempt to finalize
             let mut tree = FieldBasedOptimizedMHT::<T>::init(0, 1).unwrap();
-            tree.finalize_in_place();
+            tree.finalize_in_place().unwrap();
             assert_eq!(tree.root().unwrap(), T::Data::zero());
 
             // Check that reset() works properly also in this case
             tree.reset();
-            tree.finalize_in_place();
+            tree.finalize_in_place().unwrap();
             assert_eq!(tree.root().unwrap(), T::Data::zero());
 
             // Generate tree and add one leaf. Assert adding one more leaf causes an error.
@@ -528,14 +534,14 @@ mod test {
             let fe = T::Data::rand(rng);
             assert!(tree.append(fe).is_ok());
             assert!(tree.append(T::Data::rand(rng)).is_err());
-            tree.finalize_in_place();
+            tree.finalize_in_place().unwrap();
             assert_eq!(fe, tree.root().unwrap());
 
             // Check that reset() works properly also in this case
             tree.reset();
             let fe = T::Data::rand(rng);
             assert!(tree.append(fe).is_ok());
-            tree.finalize_in_place();
+            tree.finalize_in_place().unwrap();
             assert_eq!(fe, tree.root().unwrap());
         }
     }
@@ -612,7 +618,7 @@ mod test {
             // Push them in a Poseidon Merkle Tree and get the root
             let mut mt = FieldBasedOptimizedMHT::<T>::init(max_height, num_leaves).unwrap();
             leaves[0..num_leaves].iter().for_each(|&leaf| { mt.append(leaf).unwrap(); });
-            let root = mt.finalize_in_place().root().unwrap();
+            let root = mt.finalize_in_place().unwrap().root().unwrap();
 
             assert_eq!(naive_root, root);
         }
@@ -638,7 +644,7 @@ mod test {
             // Push them in a Poseidon Merkle Tree and get the root
             let mut mt = FieldBasedOptimizedMHT::<T>::init(max_height, num_leaves).unwrap();
             leaves[..].iter().for_each(|&leaf| { mt.append(leaf).unwrap(); });
-            let root = mt.finalize_in_place().root().unwrap();
+            let root = mt.finalize_in_place().unwrap().root().unwrap();
 
             assert_eq!(naive_root, root);
         }
@@ -682,7 +688,7 @@ mod test {
         }
 
         // Compute the root of the tree, and do the same for a NaiveMHT, used here as reference
-        tree.finalize_in_place();
+        tree.finalize_in_place().unwrap();
         let mut naive_tree = NaiveMerkleTree::<T>::new(height);
         naive_tree.append(leaves.as_slice()).unwrap();
         let root = tree.root().unwrap();
@@ -748,7 +754,7 @@ mod test {
             let leaf = T::Data::rand(&mut rng);
             tree.append(leaf).unwrap();
 
-            let tree_copy = tree.finalize();
+            let tree_copy = tree.finalize().unwrap();
             let path = tree_copy.get_merkle_path(i).unwrap();
             assert!(path.are_right_leaves_empty());
         }
