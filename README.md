@@ -34,7 +34,7 @@ rustup install stable
 After that, use `cargo`, the standard Rust build tool, to build the libraries:
 ```bash
 git clone https://github.com/arkworks-rs/snark.git
-cd algebra
+cd snark
 cargo build --release
 ```
 
