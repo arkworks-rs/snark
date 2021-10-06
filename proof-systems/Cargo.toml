@@ -20,12 +20,12 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "audit_fixes_005", features = [ "parallel", "fft"] }
-r1cs-core = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "audit_fixes_005" }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "proof_size_optimization", features = [ "parallel", "fft"] }
+r1cs-core = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "proof_size_optimization" }
 bench-utils = { path = "../bench-utils" }
 
-marlin = { git = "https://github.com/HorizenLabs/marlin", branch = "avoid_collision_in_fs_init", optional = true }
-poly-commit = { git = "https://github.com/HorizenLabs/poly-commit", branch = "issue#22/avoid_collisions_in_fs_init", optional = true }
+marlin = { git = "https://github.com/HorizenLabs/marlin", branch = "proof_size_optimization", optional = true }
+poly-commit = { git = "https://github.com/HorizenLabs/poly-commit", branch = "proof_size_optimization", optional = true }
 
 r1cs-std = { path = "../r1cs/gadgets/std", optional = true }
 
@@ -43,7 +43,7 @@ criterion = "0.3"
 rand_xorshift = { version = "0.3.0" }
 blake2 = { version = "0.8.1", default-features = false }
 
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "audit_fixes_005", features = ["full", "parallel", "fft"] }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", branch = "proof_size_optimization", features = ["full", "parallel", "fft"] }
 r1cs-crypto = { path = "../r1cs/gadgets/crypto", features = ["nizk"] }
 
 [features]

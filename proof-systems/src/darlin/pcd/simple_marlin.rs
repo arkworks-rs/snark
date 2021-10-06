@@ -60,8 +60,7 @@ impl<G: AffineCurve, D: Digest> SemanticallyValid for MarlinProof<G, D> {
             self.prover_messages.len() == num_rounds &&// Check correct number of prover messages
             self.prover_messages.is_valid() && // Check prover messages are valid
             // Check opening proof
-            self.pc_proof.is_valid() &&
-            self.pc_proof.batch_values.len() == num_polys
+            self.pc_proof.is_valid()
     }
 }
 

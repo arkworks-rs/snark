@@ -198,6 +198,10 @@ impl<G1, G2> ConstraintSynthesizer<G1::ScalarField> for TestCircuit<G1, G2>
             || self.d.ok_or(SynthesisError::AssignmentMissing)
         )?;
 
+        // TODO: This calculation is wrong, as enforce_equal allocates new variables.
+        //       However, fixing this may cause unit tests to crash since num_constraints
+        //       and num_variables are generated at random and an underflow may happen.
+        //       Fix both.
         for i in 0..(self.num_variables - 7 - (2 * deferred_len)) {
             let _ = cs.alloc(
                 || format!("var {}", i),
