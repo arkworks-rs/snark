@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::{Error, CryptoError};
 use algebra::{
     bytes::ToBytes, groups::Group, BitIterator, Field, FpParameters, PrimeField, ToConstraintField,
     UniformRand,
@@ -86,7 +86,10 @@ impl<G: Group, W: PedersenWindow> CommitmentScheme for PedersenCommitment<G, W> 
         let commit_time = start_timer!(|| "PedersenCOMM::Commit");
         // If the input is too long, return an error.
         if input.len() > W::WINDOW_SIZE * W::NUM_WINDOWS {
-            panic!("incorrect input length: {:?}", input.len());
+            Err(Box::new(CryptoError::Other(format!(
+                "incorrect input length: {:?}",
+                input.len()
+            ).to_owned())))?
         }
         // Pad the input to the necessary length.
         let mut padded_input = Vec::with_capacity(input.len());
@@ -99,7 +102,13 @@ impl<G: Group, W: PedersenWindow> CommitmentScheme for PedersenCommitment<G, W> 
             }
             input = padded_input.as_slice();
         }
-        assert_eq!(parameters.generators.len(), W::NUM_WINDOWS);
+        if parameters.generators.len() != W::NUM_WINDOWS {
+            Err(Box::new(CryptoError::Other(format!(
+                "Number of generators: {} not enough for the selected num windows: {}",
+                parameters.generators.len(),
+                W::NUM_WINDOWS
+            ).to_owned())))?
+        }
 
         // Invoke Pedersen CRH here, to prevent code duplication.
 

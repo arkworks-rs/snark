@@ -6,19 +6,19 @@ use crate::gm17::SynthesisError;
 
 use std::ops::{AddAssign, MulAssign, Neg};
 
-pub fn prepare_verifying_key<E: PairingEngine>(vk: &VerifyingKey<E>) -> PreparedVerifyingKey<E> {
-    PreparedVerifyingKey {
+pub fn prepare_verifying_key<E: PairingEngine>(vk: &VerifyingKey<E>) -> Result<PreparedVerifyingKey<E>, SynthesisError> {
+    Ok(PreparedVerifyingKey {
         vk:                vk.clone(),
         g_alpha:           vk.g_alpha_g1,
         h_beta:            vk.h_beta_g2,
         g_alpha_h_beta_ml: E::miller_loop(
             [(vk.g_alpha_g1.into(), vk.h_beta_g2.into())].iter(),
-        ),
+        )?,
         g_gamma_pc:        vk.g_gamma_g1.into(),
         h_gamma_pc:        vk.h_gamma_g2.into(),
         h_pc:              vk.h_g2.into(),
         query:             vk.query.clone(),
-    }
+    })
 }
 
 pub fn verify_proof<E: PairingEngine>(
@@ -54,11 +54,12 @@ pub fn verify_proof<E: PairingEngine>(
             (proof.c.into(), pvk.h_pc.clone()),
         ]
         .iter(),
-    );
+    )?;
+
     let mut test1_exp = test1_r2;
     test1_exp.mul_assign(&test1_r1);
 
-    let test1 = E::final_exponentiation(&test1_exp).unwrap();
+    let test1 = E::final_exponentiation(&test1_exp)?;
 
     // e(A, H^{gamma}) = e(G^{gamma}, B)
 
@@ -68,9 +69,9 @@ pub fn verify_proof<E: PairingEngine>(
             (pvk.g_gamma_pc.clone(), proof.b.neg().into()),
         ]
         .iter(),
-    );
+    )?;
 
-    let test2 = E::final_exponentiation(&test2_exp).unwrap();
+    let test2 = E::final_exponentiation(&test2_exp)?;
 
     Ok(test1 == E::Fqk::one() && test2 == E::Fqk::one())
 }

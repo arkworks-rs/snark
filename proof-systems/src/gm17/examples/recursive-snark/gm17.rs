@@ -180,7 +180,7 @@ fn run<C: CurvePair>(
         total_proving_inner += start.elapsed();
 
         // Verify inner proof.
-        let pvk = prepare_verifying_key(&params_inner.vk);
+        let pvk = prepare_verifying_key(&params_inner.vk)?;
         assert!(verify_proof(&pvk, &proof_inner, &inputs).unwrap());
 
         // Create parameters for our middle circuit
@@ -205,7 +205,7 @@ fn run<C: CurvePair>(
         };
         total_proving_middle += start.elapsed();
         {
-            let pvk = prepare_verifying_key(&params_middle.vk);
+            let pvk = prepare_verifying_key(&params_middle.vk)?;
             assert!(
                 verify_proof(&pvk, &proof_middle, &MiddleCircuit::<C>::inputs(&inputs)).unwrap()
             );
@@ -221,7 +221,7 @@ fn run<C: CurvePair>(
         };
 
         // Prepare the verification key (for proof verification)
-        let pvk = prepare_verifying_key(&params_outer.vk);
+        let pvk = prepare_verifying_key(&params_outer.vk)?;
         total_setup_outer += start.elapsed();
 
         // proof_vec.truncate(0);

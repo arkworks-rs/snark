@@ -80,12 +80,12 @@ pub trait FieldBasedMerkleTree: Clone {
     /// Force the computation of the root whatever its internal state and return an updated copy
     /// of the Merkle Tree. This function is idempotent, i.e. calling it multiple times will give
     /// the same result. It's also possible to `update` with more inputs in between.
-    fn finalize(&self) -> Self;
+    fn finalize(&self) -> Result<Self, Error>;
 
     /// Force the computation of the root whatever its internal state and return an updated copy
     /// of the Merkle Tree. It's more efficient than `finalize` because avoids a copy; however,
     /// once this function is called, it is not possible to further `update` the tree.
-    fn finalize_in_place(&mut self) -> &mut Self;
+    fn finalize_in_place(&mut self) -> Result<&mut Self, Error>;
 
     /// Resets the internal state of the tree, bringing it back to the initial one.
     fn reset(&mut self) -> &mut Self;

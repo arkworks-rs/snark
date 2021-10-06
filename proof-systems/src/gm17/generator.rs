@@ -228,7 +228,7 @@ where
         g_window,
         &g_table,
         &a.par_iter().map(|a| *a * &gamma).collect::<Vec<_>>(),
-    );
+    )?;
     end_timer!(a_time);
 
     // Compute the G_gamma-query
@@ -253,7 +253,7 @@ where
             .into_par_iter()
             .map(|i| gamma2_z_t * &(t.pow([i as u64])))
             .collect::<Vec<_>>(),
-    );
+    )?;
     end_timer!(g_gamma_time);
 
     // Compute the C_1-query
@@ -266,7 +266,7 @@ where
             .into_par_iter()
             .map(|i| c[i] * &gamma + &(a[i] * &alpha_beta))
             .collect::<Vec<_>>(),
-    );
+    )?;
     let (verifier_query, c_query_1) = result.split_at(assembly.num_inputs);
     end_timer!(c1_time);
 
@@ -281,7 +281,7 @@ where
             .into_par_iter()
             .map(|i| a[i] * &double_gamma2_z)
             .collect::<Vec<_>>(),
-    );
+    )?;
     drop(g_table);
     end_timer!(c2_time);
 
@@ -299,7 +299,7 @@ where
         h_gamma_window,
         &h_gamma_table,
         &a,
-    );
+    )?;
     end_timer!(b_time);
 
 

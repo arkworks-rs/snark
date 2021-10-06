@@ -5,7 +5,8 @@ use crate::{
     crh::*, field_based_mht::*,
 };
 use std::{
-    clone::Clone, io::{Write, Result as IoResult, Read}
+    clone::Clone, io::{Write, Result as IoResult, Read},
+    convert::TryFrom,
 };
 
 /// An implementation of the FieldBasedMerkleTreePath trait, for a given FieldBasedHash and
@@ -357,16 +358,22 @@ impl<T: FieldBasedMerkleTreeParameters> From<FieldBasedBinaryMHTPath<T>> for Fie
     }
 }
 
-impl<T: FieldBasedMerkleTreeParameters> From<FieldBasedMHTPath<T>> for FieldBasedBinaryMHTPath<T> {
-    fn from(other: FieldBasedMHTPath<T>) -> Self {
+impl<T: FieldBasedMerkleTreeParameters> TryFrom<FieldBasedMHTPath<T>> for FieldBasedBinaryMHTPath<T> {
+    type Error = Error;
+
+    fn try_from(other: FieldBasedMHTPath<T>) -> Result<Self, Self::Error> {
         let mut converted = Vec::with_capacity(other.path.len());
         for (nodes, position) in other.path {
-            assert!(nodes.len() == 1);
-            assert!(position == 0 || position == 1);
+            if nodes.len() != 1 {
+                Err(format!("There must be only 1 node for each element in the path to be able to perform conversion to a binary path"))?
+            }
+            if position != 0 && position != 1 {
+                Err(format!("Position must be only 0 or 1 for each element in the path to be able to perform conversion to a binary path"))?
+            }
 
             converted.push((nodes[0], if position == 0 {false} else {true}));
         }
-        FieldBasedBinaryMHTPath::<T>::new(converted)
+        Ok(FieldBasedBinaryMHTPath::<T>::new(converted))
     }
 }
 

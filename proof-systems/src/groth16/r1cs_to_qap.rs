@@ -181,7 +181,7 @@ impl R1CStoQAP {
         domain.coset_fft_in_place(&mut b);
 
         //compute the product of the evals of a(Z)*b(Z) on the coset of H
-        let mut ab = domain.mul_polynomials_in_evaluation_domain(&a, &b);
+        let mut ab = domain.mul_polynomials_in_evaluation_domain(&a, &b)?;
         drop(a);
         drop(b);
 

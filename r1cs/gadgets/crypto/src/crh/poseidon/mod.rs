@@ -214,7 +214,9 @@ impl<ConstraintF, P, SB, SBG> FieldBasedHashGadget<PoseidonHash<ConstraintF, P, 
     // Assumption:
     //     capacity c = 1
     {
-        assert_ne!(input.len(), 0, "Input data array does not contain any data.");
+        if input.len() == 0 {
+            Err(SynthesisError::Other("Input data array does not contain any data".to_owned()))?
+        }
 
         let mut state = Vec::new();
         for i in 0..P::T {

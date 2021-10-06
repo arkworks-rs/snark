@@ -91,8 +91,8 @@ fn test_bilinearity() {
     println!("sa\n{:?}\n", sa.into_affine());
     println!("sb\n{:?}\n", sb.into_affine());
 
-    let ans1 = Bls12_377::pairing(sa, b);
-    let ans2 = Bls12_377::pairing(a, sb);
+    let ans1 = Bls12_377::pairing(sa, b).unwrap();
+    let ans2 = Bls12_377::pairing(a, sb).unwrap();
 
     assert_eq!(ans1, ans2);
 

@@ -141,7 +141,7 @@ impl<F, P, SB> PoseidonHash<F, P, SB>
             while personalization_instance.pending.len() != 0 {
                 personalization_instance.update(F::zero());
             }
-            assert_eq!(personalization_instance.pending.len(), 0);
+            debug_assert_eq!(personalization_instance.pending.len(), 0);
 
             // Set the new initial state
             instance.state = personalization_instance.state;

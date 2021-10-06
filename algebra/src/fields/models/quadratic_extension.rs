@@ -286,19 +286,26 @@ impl<'a, P: QuadExtParameters> SquareRootField for QuadExtField<P>
             QuadraticResidue => {
                 let two_inv = P::BaseField::one()
                     .double()
-                    .inverse()
-                    .expect("Two should always have an inverse");
+                    .inverse();
                 let alpha = self
                     .norm()
-                    .sqrt()
-                    .expect("We are in the QR case, the norm should have a square root");
-                let mut delta = (alpha + &self.c0) * &two_inv;
-                if delta.legendre().is_qnr() {
-                    delta -= &alpha;
+                    .sqrt();
+                if two_inv.is_none() || alpha.is_none() {
+                    return None;
                 }
-                let c0 = delta.sqrt().expect("Delta must have a square root");
-                let c0_inv = c0.inverse().expect("c0 must have an inverse");
-                Some(Self::new(c0, self.c1 * &two_inv * &c0_inv))
+                let mut delta = (alpha.unwrap() + &self.c0) * &two_inv.unwrap();
+                if delta.legendre().is_qnr() {
+                    delta -= &alpha.unwrap();
+                }
+                let c0 = delta.sqrt();
+                if c0.is_none() {
+                    return None;
+                }
+                let c0_inv = c0.unwrap().inverse();
+                if c0_inv.is_none() {
+                    return None;
+                }
+                Some(Self::new(c0.unwrap(), self.c1 * &two_inv.unwrap() * &c0_inv.unwrap()))
             }
         }
     }

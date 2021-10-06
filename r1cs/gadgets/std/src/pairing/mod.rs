@@ -103,13 +103,13 @@ pub(crate) mod tests {
 
         let (ans1_g, ans1_n) = {
             let ans_g = P::pairing(cs.ns(|| "pair(sa, b)"), sa_prep_g, b_prep_g.clone()).unwrap();
-            let ans_n = E::pairing(sa, b);
+            let ans_n = E::pairing(sa, b).unwrap();
             (ans_g, ans_n)
         };
 
         let (ans2_g, ans2_n) = {
             let ans_g = P::pairing(cs.ns(|| "pair(a, sb)"), a_prep_g.clone(), sb_prep_g).unwrap();
-            let ans_n = E::pairing(a, sb);
+            let ans_n = E::pairing(a, sb).unwrap();
             (ans_g, ans_n)
         };
 
@@ -119,7 +119,7 @@ pub(crate) mod tests {
                 .collect::<Vec<_>>();
 
             let mut ans_g = P::pairing(cs.ns(|| "pair(a, b)"), a_prep_g, b_prep_g).unwrap();
-            let mut ans_n = E::pairing(a, b);
+            let mut ans_n = E::pairing(a, b).unwrap();
             ans_n = ans_n.pow(s.into_repr());
             ans_g = ans_g.pow(cs.ns(|| "pow"), &s_iter).unwrap();
 

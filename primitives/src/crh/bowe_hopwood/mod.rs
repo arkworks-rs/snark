@@ -1,4 +1,4 @@
-use crate::{Error, bytes_to_bits};
+use crate::{Error, bytes_to_bits, CryptoError};
 use rand::Rng;
 use rayon::prelude::*;
 use std::{
@@ -85,13 +85,13 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for BoweHopwoodPedersenCRH<G, W
         let eval_time = start_timer!(|| "BoweHopwoodPedersenCRH::Eval");
 
         if (input.len() * 8) > W::WINDOW_SIZE * W::NUM_WINDOWS * CHUNK_SIZE {
-            panic!(
+            return Err(Box::new(CryptoError::Other(format!(
                 "incorrect input length {:?} for window params {:?}x{:?}x{}",
                 input.len(),
                 W::WINDOW_SIZE,
                 W::NUM_WINDOWS,
                 CHUNK_SIZE,
-            );
+            ).to_owned())));
         }
 
         let mut padded_input = Vec::with_capacity(input.len());
@@ -105,20 +105,33 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for BoweHopwoodPedersenCRH<G, W
             }
         }
 
-        assert_eq!(padded_input.len() % CHUNK_SIZE, 0);
-
-        assert_eq!(
-            parameters.generators.len(),
-            W::NUM_WINDOWS,
-            "Incorrect pp of size {:?} for window params {:?}x{:?}x{}",
-            parameters.generators.len(),
-            W::WINDOW_SIZE,
-            W::NUM_WINDOWS,
-            CHUNK_SIZE,
-        );
-        for generators in parameters.generators.iter() {
-            assert_eq!(generators.len(), W::WINDOW_SIZE);
+        if padded_input.len() % CHUNK_SIZE != 0 {
+            Err(Box::new(CryptoError::Other(format!(
+                "Input is not multiple of the chunk size. Input len: {}, chunk size: {}",
+                padded_input.len(),
+                CHUNK_SIZE,
+            ).to_owned())))?
         }
+
+        if parameters.generators.len() != W::NUM_WINDOWS {
+            Err(Box::new(CryptoError::Other(format!(
+                "Incorrect pp of size {:?} for window params {:?}x{:?}x{}",
+                parameters.generators.len(),
+                W::WINDOW_SIZE,
+                W::NUM_WINDOWS,
+                CHUNK_SIZE
+            ).to_owned())))?
+        }
+        for generators in parameters.generators.iter() {
+            if generators.len() != W::WINDOW_SIZE {
+                Err(Box::new(CryptoError::Other(format!(
+                    "Number of generators: {} not enough for the selected window size: {}",
+                    parameters.generators.len(),
+                    W::WINDOW_SIZE
+                ))))?
+            }
+        }
+
         assert_eq!(CHUNK_SIZE, 3);
 
         // Compute sum of h_i^{sum of (1-2*c_{i,j,2})*(1+c_{i,j,0}+2*c_{i,j,1})*2^{4*(j-1)} for all j in segment} for all i. 

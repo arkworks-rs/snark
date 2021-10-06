@@ -51,8 +51,6 @@ impl<F: Field> SparsePolynomial<F> {
         while coeffs.last().map_or(false, |(_, c)| c.is_zero()) {
             coeffs.pop();
         }
-        // Check that either the coefficients vec is empty or that the last coeff is non-zero.
-        assert!(coeffs.last().map_or(true, |(_, c)| !c.is_zero()));
 
         Self { coeffs }
     }
@@ -62,7 +60,7 @@ impl<F: Field> SparsePolynomial<F> {
         if self.is_zero() {
             0
         } else {
-            assert!(self.coeffs.last().map_or(false, |(_, c)| !c.is_zero()));
+            debug_assert!(self.coeffs.last().map_or(false, |(_, c)| !c.is_zero()));
             self.coeffs.last().unwrap().0
         }
     }

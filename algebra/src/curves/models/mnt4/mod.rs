@@ -1,4 +1,4 @@
-use crate::{Fp2, BigInteger768 as BigInteger, PrimeField, SquareRootField, Fp2Parameters, Fp4Parameters, SWModelParameters, ModelParameters, PairingEngine, Fp4, Field};
+use crate::{Error, Fp2, BigInteger768 as BigInteger, PrimeField, SquareRootField, Fp2Parameters, Fp4Parameters, SWModelParameters, ModelParameters, PairingEngine, Fp4, Field};
 use std::marker::PhantomData;
 use std::ops::{Add, Mul, Sub};
 
@@ -55,15 +55,15 @@ pub trait MNT4Parameters: 'static {
     // scalar field of the curve
     type Fr: PrimeField + SquareRootField + Into<<Self::Fr as PrimeField>::BigInt>;
     // parameters of the quadratic extension field F2
-    type Fp2Params: Fp2Parameters<Fp = Self::Fp>;
+    type Fp2Params: Fp2Parameters<Fp=Self::Fp>;
     // paramters of the embedding field F4
-    type Fp4Params: Fp4Parameters<Fp2Params = Self::Fp2Params>;
+    type Fp4Params: Fp4Parameters<Fp2Params=Self::Fp2Params>;
     // parameters for E with defining field F
-    type G1Parameters: SWModelParameters<BaseField = Self::Fp, ScalarField = Self::Fr>;
+    type G1Parameters: SWModelParameters<BaseField=Self::Fp, ScalarField=Self::Fr>;
     // parameters for the quadratic twist E' over F2
     type G2Parameters: SWModelParameters<
-        BaseField = Fp2<Self::Fp2Params>,
-        ScalarField = <Self::G1Parameters as ModelParameters>::ScalarField,
+        BaseField=Fp2<Self::Fp2Params>,
+        ScalarField=<Self::G1Parameters as ModelParameters>::ScalarField,
     >;
 }
 
@@ -90,7 +90,7 @@ impl<P: MNT4Parameters> MNT4p<P> {
         let mut py_twist_squared = P::TWIST.square();
         py_twist_squared.mul_assign_by_basefield(&value.y);
 
-        G1Prepared {p: value.clone(), py_twist_squared}
+        G1Prepared { p: value.clone(), py_twist_squared }
     }
 
     // Takes as input a (non-zero) point Q from G2 in affine coordinates, and outputs the
@@ -100,7 +100,6 @@ impl<P: MNT4Parameters> MNT4p<P> {
     //     gamma = the F2-slope of the tangent/P-chord at S,
     //     gamma_x = the F2-slope times the x-coordinate s.x of S.
     fn ate_precompute_g2(value: &G2Affine<P>) -> G2Prepared<P> {
-
         let mut g2p = G2Prepared {
             q: value.clone(),
             coeffs: vec![],
@@ -127,7 +126,7 @@ impl<P: MNT4Parameters> MNT4p<P> {
                 let sx_minus_new_sx = s.x.sub(&new_sx);
                 gamma.mul(&sx_minus_new_sx).sub(&s.y) //y-coordinate after doubling
             };
-            let c = G2PreparedCoefficients{r_y: s.y, gamma, gamma_x};
+            let c = G2PreparedCoefficients { r_y: s.y, gamma, gamma_x };
             g2p.coeffs.push(c);
             s.x = new_sx;
             s.y = new_sy;
@@ -135,7 +134,7 @@ impl<P: MNT4Parameters> MNT4p<P> {
             if n != 0 {
                 //Addition/substraction step depending on the sign of n
                 let sx_minus_x_inv = s.x.sub(&value.x).inverse().unwrap();
-                let numerator = if n > 0  { s.y.sub(&value.y) } else { s.y.add(&value.y) };
+                let numerator = if n > 0 { s.y.sub(&value.y) } else { s.y.add(&value.y) };
                 let gamma = numerator.mul(&sx_minus_x_inv); // the F2-slope of chord Q' to R'
                 let gamma_x = gamma.mul(&value.x);
                 let new_sx = {
@@ -146,7 +145,7 @@ impl<P: MNT4Parameters> MNT4p<P> {
                     let sx_minus_new_sx = s.x.sub(&new_sx);
                     gamma.mul(&sx_minus_new_sx).sub(&s.y)
                 };
-                let c = G2PreparedCoefficients{r_y: s.y, gamma, gamma_x};
+                let c = G2PreparedCoefficients { r_y: s.y, gamma, gamma_x };
                 g2p.coeffs.push(c);
                 s.x = new_sx;
                 s.y = new_sy;
@@ -157,7 +156,6 @@ impl<P: MNT4Parameters> MNT4p<P> {
 
 
     pub fn ate_miller_loop(p: &G1Prepared<P>, q: &G2Prepared<P>) -> Fp4<P::Fp4Params> {
-
         let mut f = Fp4::<P::Fp4Params>::one();
 
         let mut idx: usize = 0;
@@ -187,7 +185,7 @@ impl<P: MNT4Parameters> MNT4p<P> {
 
             let g_rr_at_p = Fp4::<P::Fp4Params>::new(
                 p.py_twist_squared,
-                c.gamma_x - &gamma_twist_times_x  -&c.r_y,
+                c.gamma_x - &gamma_twist_times_x - &c.r_y,
             );
 
             // and cumulate it to f
@@ -225,13 +223,16 @@ impl<P: MNT4Parameters> MNT4p<P> {
         f
     }
 
-    pub fn final_exponentiation(value: &Fp4<P::Fp4Params>) -> Fp4<P::Fp4Params> {
+    pub fn final_exponentiation(value: &Fp4<P::Fp4Params>) -> Result<Fp4<P::Fp4Params>, Error> {
+        if value.is_zero() {
+            Err(format!("Invalid exponentiation value: 0"))?
+        }
         let value_inv = value.inverse().unwrap();
         // the "easy part"
         let value_to_first_chunk = Self::final_exponentiation_first_chunk(value, &value_inv);
         let value_inv_to_first_chunk = Self::final_exponentiation_first_chunk(&value_inv, value);
         // the "hard part"
-        Self::final_exponentiation_last_chunk(&value_to_first_chunk, &value_inv_to_first_chunk)
+        Ok(Self::final_exponentiation_last_chunk(&value_to_first_chunk, &value_inv_to_first_chunk))
     }
 
     fn final_exponentiation_first_chunk(elt: &Fp4<P::Fp4Params>, elt_inv: &Fp4<P::Fp4Params>) -> Fp4<P::Fp4Params> {
@@ -284,19 +285,19 @@ impl<P: MNT4Parameters> PairingEngine for MNT4p<P>
     type Fqe = Fp2<P::Fp2Params>;
     type Fqk = Fp4<P::Fp4Params>;
 
-    fn miller_loop<'a, I>(i: I) -> Self::Fqk
+    fn miller_loop<'a, I>(i: I) -> Result<Self::Fqk, Error>
         where
-            I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>,
+            I: IntoIterator<Item=&'a (Self::G1Prepared, Self::G2Prepared)>,
     {
         let mut result = Self::Fqk::one();
         for &(ref p, ref q) in i {
             result *= &Self::ate_miller_loop(p, q);
         }
-        result
+        Ok(result)
     }
 
-    fn final_exponentiation(r: &Self::Fqk) -> Option<Self::Fqk> {
-        Some(Self::final_exponentiation(r))
+    fn final_exponentiation(r: &Self::Fqk) -> Result<Self::Fqk, Error> {
+        Self::final_exponentiation(r)
     }
 }
 

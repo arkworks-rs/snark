@@ -353,8 +353,11 @@ macro_rules! impl_Fp {
             }
 
             #[inline]
-            fn full_root_of_unity() -> Self {
-                $Fp::<P>(P::FULL_ROOT_OF_UNITY.unwrap(), PhantomData)
+            fn full_root_of_unity() -> Option<Self> {
+                match P::FULL_ROOT_OF_UNITY {
+                    Some(v) => Some($Fp::<P>(v, PhantomData)),
+                    None => None
+                }
             }
         }
 

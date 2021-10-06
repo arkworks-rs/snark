@@ -29,7 +29,7 @@ macro_rules! pairing_bench {
                         G2Affine::from(G2::rand(&mut rng)).into(),
                     )
                 })
-                .map(|(p, q)| $curve::miller_loop(&[(p, q)]))
+                .map(|(p, q)| $curve::miller_loop(&[(p, q)]).unwrap())
                 .collect();
 
             let mut count = 0;

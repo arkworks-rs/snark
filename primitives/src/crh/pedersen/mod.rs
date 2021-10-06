@@ -1,4 +1,4 @@
-use crate::{Error, bytes_to_bits};
+use crate::{Error, bytes_to_bits, CryptoError};
 use rand::Rng;
 use rayon::prelude::*;
 use std::{
@@ -68,12 +68,12 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for PedersenCRH<G, W> {
         let eval_time = start_timer!(|| "PedersenCRH::Eval");
 
         if (input.len() * 8) > W::WINDOW_SIZE * W::NUM_WINDOWS {
-            panic!(
+            return Err(Box::new(CryptoError::Other(format!(
                 "incorrect input length {:?} for window params {:?}x{:?}",
                 input.len(),
                 W::WINDOW_SIZE,
                 W::NUM_WINDOWS
-            );
+            ).to_owned())));
         }
 
         let mut padded_input = Vec::with_capacity(input.len());
@@ -88,15 +88,16 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for PedersenCRH<G, W> {
             input = padded_input.as_slice();
         }
 
-        assert_eq!(
-            parameters.generators.len(),
-            W::NUM_WINDOWS,
-            "Incorrect pp of size {:?}x{:?} for window params {:?}x{:?}",
-            parameters.generators[0].len(),
-            parameters.generators.len(),
-            W::WINDOW_SIZE,
-            W::NUM_WINDOWS
-        );
+        if parameters.generators.len() != W::NUM_WINDOWS {
+            Err(Box::new(CryptoError::Other(format!(
+                "Incorrect pp of size {:?}x{:?} for window params {:?}x{:?}",
+                parameters.generators[0].len(),
+                parameters.generators.len(),
+                W::WINDOW_SIZE,
+                W::NUM_WINDOWS
+            ).to_owned())))?
+
+        }
 
         // Compute sum of h_i^{m_i} for all i.
         let result = bytes_to_bits(input)

@@ -91,7 +91,7 @@ impl<P: MNT6Parameters> FromBytes for G2Prepared<P> {
 
 impl<P: MNT6Parameters> From<G2Affine<P>> for G2Prepared<P> {
     fn from(point: G2Affine<P>) -> Self {
-        MNT6p::<P>::ate_precompute_g2(&point)
+        MNT6p::<P>::ate_precompute_g2(&point).unwrap()
     }
 }
 
