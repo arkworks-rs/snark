@@ -71,6 +71,11 @@ impl<P: Parameters> GroupAffine<P> {
         self.mul_bits(BitIterator::new(P::COFACTOR))
     }
 
+    /// WARNING: This implementation doesn't take costant time with respect
+    /// to the exponent, and therefore is susceptible to side-channel attacks.
+    /// Be sure to use it in applications where timing (or similar) attacks
+    /// are not possible.
+    /// TODO: Add a side-channel secure variant.
     #[must_use]
     pub(crate) fn mul_bits<S: AsRef<[u64]>>(
         &self,
@@ -618,6 +623,11 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
         self.z = f * &g;
     }
 
+    /// WARNING: This implementation doesn't take costant time with respect
+    /// to the exponent, and therefore is susceptible to side-channel attacks.
+    /// Be sure to use it in applications where timing (or similar) attacks
+    /// are not possible.
+    /// TODO: Add a side-channel secure variant.
     fn mul_assign<S: Into<<Self::ScalarField as PrimeField>::BigInt>>(&mut self, other: S) {
         let mut res = Self::zero();
 
@@ -871,7 +881,7 @@ impl<P: Parameters> CanonicalDeserialize for GroupAffine<P> {
     fn deserialize_uncompressed<R: Read>(reader: R) -> Result<Self, SerializationError> {
         let p = Self::deserialize_uncompressed_unchecked(reader)?;
 
-        if !p.is_zero() && !p.is_in_correct_subgroup_assuming_on_curve() {
+        if !p.group_membership_test() {
             return Err(SerializationError::InvalidData);
         }
         Ok(p)

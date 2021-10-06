@@ -514,7 +514,7 @@ pub(crate) mod tests {
         assert!(cs.is_satisfied());
 
         //Let's alter one random bit and check that the cs is not satisfied anymore
-        let random_bit: usize = rng.gen_range(leading_zeros , f_g_bits.len());
+        let random_bit: usize = rng.gen_range(leading_zeros..f_g_bits.len());
         let prev_value = f_g_bits[random_bit].get_value().unwrap();
         let new_value = if prev_value {
             ConstraintF::zero()

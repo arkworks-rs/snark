@@ -118,12 +118,18 @@ macro_rules! impl_Fp {
         }
 
         impl<P: $FpParameters> $Fp<P> {
+            /// Perform modular reduction on `self`.
+            /// NOTE: This function simply subtracts `P::MODULUS` from `self`,
+            /// so the modular reduction is correct if and only if `self` is
+            /// not larger than `2 * P::MODULUS`
             #[inline]
             fn reduce(&mut self) {
                 if !self.is_valid() {
                     self.0.sub_noborrow(&P::MODULUS);
                 }
             }
+
+            impl_montgomery_reduction!($limbs);
         }
 
         impl<P: $FpParameters> Field for $Fp<P> {
@@ -357,11 +363,13 @@ macro_rules! impl_Fp {
             fn legendre(&self) -> LegendreSymbol {
                 use crate::fields::LegendreSymbol::*;
 
+                if self.is_zero() {
+                    return Zero;
+                }
+
                 // s = self^((MODULUS - 1) // 2)
                 let s = self.pow(P::MODULUS_MINUS_ONE_DIV_TWO);
-                if s.is_zero() {
-                    Zero
-                } else if s.is_one() {
+                if s.is_one() {
                     QuadraticResidue
                 } else {
                     QuadraticNonResidue

@@ -55,6 +55,7 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedMerkleTreePath for FieldBasedM
         Self { path }
     }
 
+    /// NOTE: Check path semantic validity before calling this function.
     fn compute_root(
         &self,
         leaf: &<Self::H as FieldBasedHash>::Data
@@ -68,8 +69,6 @@ impl<T: FieldBasedMerkleTreeParameters> FieldBasedMerkleTreePath for FieldBasedM
         let mut digest = <Self::H as FieldBasedHash>::init_constant_length(T::MERKLE_ARITY, None);
         let mut prev_node = leaf.clone();
         for (sibling_nodes, position) in self.path.iter() {
-            assert_eq!(sibling_nodes.len(), T::MERKLE_ARITY - 1);
-            assert!(*position < T::MERKLE_ARITY);
 
             // Update the digest respecting the position of each sibling
             let mut sibling_idx = 0;

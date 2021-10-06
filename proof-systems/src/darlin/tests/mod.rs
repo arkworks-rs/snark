@@ -57,9 +57,9 @@ mod test {
     use crate::darlin::data_structures::FinalDarlinProof;
 
     fn get_unique_random_proof_indices<R: RngCore>(pcds_len: usize, rng: &mut R) -> Vec<usize> {
-        let num_proofs_to_randomize: usize = rng.gen_range(1, pcds_len/2);
+        let num_proofs_to_randomize: usize = rng.gen_range(1..pcds_len/2);
         let mut indices = (0..num_proofs_to_randomize)
-            .map(|_| rng.gen_range(0, pcds_len))
+            .map(|_| rng.gen_range(0..pcds_len))
             .collect::<HashSet<usize>>()
             .into_iter()
             .collect::<Vec<usize>>();
@@ -176,7 +176,7 @@ mod test {
 
         if fake_pcds.is_some() && fake_vks.is_some() {
 
-            let idx: usize = rng.gen_range(0, pcds.len());
+            let idx: usize = rng.gen_range(0..pcds.len());
             let original_pcd = pcds[idx].clone(); // Save correct pcd
             let original_vk = vks[idx].clone(); // Save correct pcd
             pcds[idx] = fake_pcds.unwrap()[idx].clone();
@@ -282,7 +282,7 @@ mod test {
 
         if fake_pcds.is_some() && fake_vks.is_some() {
 
-            let idx: usize = rng.gen_range(0, pcds.len());
+            let idx: usize = rng.gen_range(0..pcds.len());
             let original_pcd = pcds[idx].clone(); // Save correct pcd
             let original_vk = vks[idx].clone(); // Save correct pcd
             pcds[idx] = fake_pcds.unwrap()[idx].clone();
@@ -352,9 +352,9 @@ mod test {
         let mut simple_marlin_vks_fake = Vec::new();
         let generation_rng = &mut thread_rng();
         while generated_proofs < max_proofs {
-            let iteration_num_proofs: usize = generation_rng.gen_range(1, max_proofs);
+            let iteration_num_proofs: usize = generation_rng.gen_range(1..max_proofs);
             generated_proofs += iteration_num_proofs;
-            let iteration_segment_size = 1 << (generation_rng.gen_range(5, max_pow));
+            let iteration_segment_size = 1 << (generation_rng.gen_range(5..max_pow));
             let iteration_num_constraints = iteration_segment_size;
             let (mut iteration_pcds, mut iteration_vks) = generate_simple_marlin_test_data(
                 iteration_num_constraints - 1,
@@ -460,9 +460,9 @@ mod test {
         let mut final_darlin_vks_fake = Vec::new();
         let generation_rng = &mut thread_rng();
         while generated_proofs < max_proofs {
-            let iteration_num_proofs: usize = generation_rng.gen_range(1, max_proofs);
+            let iteration_num_proofs: usize = generation_rng.gen_range(1..max_proofs);
             generated_proofs += iteration_num_proofs;
-            let iteration_segment_size = 1 << (generation_rng.gen_range(5, max_pow));
+            let iteration_segment_size = 1 << (generation_rng.gen_range(5..max_pow));
             let iteration_num_constraints = iteration_segment_size;
             let (mut iteration_pcds, mut iteration_vks) = generate_final_darlin_test_data(
                 iteration_num_constraints - 1,
@@ -570,9 +570,9 @@ mod test {
         let mut pcds_fake = Vec::new();
         let mut vks_fake = Vec::new();
         while generated_proofs < max_proofs {
-            let iteration_num_proofs: usize = generation_rng.gen_range(1, max_proofs);
+            let iteration_num_proofs: usize = generation_rng.gen_range(1..max_proofs);
             generated_proofs += iteration_num_proofs;
-            let iteration_segment_size = 1 << (generation_rng.gen_range(5, max_pow));
+            let iteration_segment_size = 1 << (generation_rng.gen_range(5..max_pow));
             let iteration_num_constraints = iteration_segment_size;
 
             // Randomly choose if to generate a SimpleMarlinProof or a FinalDarlinProof
@@ -714,7 +714,7 @@ mod test {
         println!("-- {} - MarlinProof", proof.proof.serialized_size());
         println!("---- {} - commitments ({})",
                  proof.proof.commitments.serialized_size() -
-                     (proof.proof.commitments.iter().flatten().collect::<Vec<_>>().len() * 4),
+                    (proof.proof.commitments.iter().flatten().collect::<Vec<_>>().len() * 4),
                  proof.proof.commitments.iter().flatten().collect::<Vec<_>>().len()
         );
         println!("---- {} - evaluations ({})",

@@ -508,7 +508,7 @@ impl<ConstraintF: PrimeField> PRFGadget<Blake2s, ConstraintF> for Blake2sGadget 
 #[cfg(test)]
 mod test {
     use algebra::fields::bls12_377::fr::Fr;
-    use digest::{FixedOutput, Input};
+    use digest::{Digest, FixedOutput};
     use rand::{Rng, SeedableRng};
     use rand_xorshift::XorShiftRng;
     use primitives::prf::blake2s::Blake2s as B2SPRF;
@@ -614,11 +614,11 @@ mod test {
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
         for input_len in (0..32).chain((32..256).filter(|a| a % 8 == 0)) {
-            let mut h = Blake2s::new_keyed(&[], 32);
+            let mut h = Blake2s::new();
 
             let data: Vec<u8> = (0..input_len).map(|_| rng.gen()).collect();
 
-            h.process(&data);
+            h.input(&data);
 
             let hash_result = h.fixed_result();
 

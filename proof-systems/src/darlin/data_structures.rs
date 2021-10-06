@@ -49,13 +49,15 @@ impl<G1, G2> FinalDarlinDeferredData<G1, G2>
     {
         // Generate valid accumulator over G1 starting from random xi_s
         let log_key_len_g1 = algebra::log2(committer_key_g1.comm_key.len());
-        let random_xi_s_g1 = SuccinctCheckPolynomial::<G1::ScalarField>(vec![u128::rand(rng).into(); log_key_len_g1 as usize]);
+        let random_xi_s_g1 = SuccinctCheckPolynomial::<G1::ScalarField>(
+            (0..log_key_len_g1 as usize).map(|_| u128::rand(rng).into()).collect()
+        );
         let g_final_g1 = InnerProductArgPC::<G1, D>::cm_commit(
             committer_key_g1.comm_key.as_slice(),
             random_xi_s_g1.compute_coeffs().as_slice(),
             None,
             None,
-        );
+        ).unwrap();
 
         let acc_g1 = DLogItem::<G1> {
             g_final: Commitment::<G1> {comm: vec![g_final_g1.into_affine()], shifted_comm: None },
@@ -64,14 +66,16 @@ impl<G1, G2> FinalDarlinDeferredData<G1, G2>
 
         // Generate valid accumulator over G2 starting from random xi_s
         let log_key_len_g2 = algebra::log2(committer_key_g2.comm_key.len());
-        let random_xi_s_g2 = SuccinctCheckPolynomial::<G2::ScalarField>(vec![u128::rand(rng).into(); log_key_len_g2 as usize]);
+        let random_xi_s_g2 = SuccinctCheckPolynomial::<G2::ScalarField>(
+            (0..log_key_len_g2 as usize).map(|_| u128::rand(rng).into()).collect()
+        );
 
         let g_final_g2 = InnerProductArgPC::<G2, D>::cm_commit(
             committer_key_g2.comm_key.as_slice(),
             random_xi_s_g2.compute_coeffs().as_slice(),
             None,
             None,
-        );
+        ).unwrap();
 
         let acc_g2 = DLogItem::<G2> {
             g_final: Commitment::<G2> {comm: vec![g_final_g2.into_affine()], shifted_comm: None },

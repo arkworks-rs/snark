@@ -127,7 +127,9 @@ impl R1CStoQAP {
 
     //computes the coefficients of the quotient polynomial 
     // h(Z) = (a(Z)*b(Z)-c(Z))/v_H(Z) 
-    //from the witness assignments of the circuit.
+    //from the witness assignments of the circuit. 
+    //We have deg(h(Z))= deg(a(Z))+deg(b(Z)) - deg v_H(Z) <= |H|-1 + |H|-1 - |H|
+    //  = |H|-2.
     #[inline]
     pub(crate) fn witness_map<E: PairingEngine>(
         prover: &ProvingAssignment<E>,
@@ -140,11 +142,17 @@ impl R1CStoQAP {
 
         let full_input_assignment = [&prover.input_assignment[..], &prover.aux_assignment[..]].concat();
 
+        // including the copy-paste constraints for the public inputs, the full
+        // number of constraints equals 'num_constraints + num_inputs'.
         let domain =
            get_best_evaluation_domain::<E::Fr>(num_constraints + num_inputs)
                 .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
         let domain_size = domain.size();
-
+/*
+        println!("num_constraints: {}", num_constraints);
+        println!("num_inputs: {}", num_inputs);
+        println!("Domain H size: {}", domain_size);
+*/
         let mut a = vec![zero; domain_size];
         let mut b = vec![zero; domain_size];
         //compute the evaluations of a(Z), b(Z) on H
@@ -166,11 +174,13 @@ impl R1CStoQAP {
         domain.ifft_in_place(&mut a);
         domain.ifft_in_place(&mut b);
         //and their values on the double-sized FFT domain
-        //K = H v coset(H) 
+        //K = H v coset(H)
+        //actually, here we compute ONLY their evals over the
+        //coset of H (because we now that a(Z)*b(Z)-c(Z) will be zero on H).
         domain.coset_fft_in_place(&mut a);
         domain.coset_fft_in_place(&mut b);
 
-        //compute the product of a(Z)*b(Z) on K
+        //compute the product of the evals of a(Z)*b(Z) on the coset of H
         let mut ab = domain.mul_polynomials_in_evaluation_domain(&a, &b);
         drop(a);
         drop(b);
@@ -188,8 +198,8 @@ impl R1CStoQAP {
                 );
             });
 
-        //extrapolate c(Z) from H to K and 
-        //compute a(Z)*b(Z)-c(Z) on K
+        //extrapolate c(Z) from H to the coset of H and 
+        //compute a(Z)*b(Z)-c(Z) on this coset of H
         domain.ifft_in_place(&mut c);
         domain.coset_fft_in_place(&mut c);
 
@@ -198,10 +208,12 @@ impl R1CStoQAP {
             .for_each(|(ab_i, c_i)| *ab_i -= &c_i);
 
         // compute quotient polynomial (a(Z)*b(Z)-c(Z))/v_H(Z) 
-        // first the values on K by point-wise division
+        // from the coset evaluations 
         domain.divide_by_vanishing_poly_on_coset_in_place(&mut ab);
         domain.coset_ifft_in_place(&mut ab);
 
+        // we drop the leading coefficient, as deg(h(Z)) = n-2.
+        assert!(ab.pop().unwrap() == zero);
         Ok(ab)
     }
 }

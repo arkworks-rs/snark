@@ -35,7 +35,7 @@ script:
 jobs:
   include:
     - name: bionic_rust-1.51.0_latest-STAGE1
-      env: IMAGE_TAG=bionic_rust-1.51.0_latest TESTS='000,001,003,005,006,008,009,011,012,013,014,015,016'
+      env: IMAGE_TAG=bionic_rust-1.51.0_latest TESTS='000,001,003,005,006,008,009,011,012,013,014,015,016,018'
     - name: bionic_rust-1.51.0_latest-STAGE2
       env: IMAGE_TAG=bionic_rust-1.51.0_latest TESTS='017'
     - name: bionic_rust-nightly-2021-04-25_latest
