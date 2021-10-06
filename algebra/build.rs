@@ -23,7 +23,7 @@ fn main() {
         target_feature = "bmi2",
         target_feature = "adx",
         target_arch = "x86_64"
-    )) && is_nightly;
+    ));
     if should_use_asm {
         let out_dir = env::var_os("OUT_DIR").unwrap();
         let dest_path = Path::new(&out_dir).join("field_assembly.rs");

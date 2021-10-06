@@ -65,8 +65,8 @@ impl Flags for EmptyFlags {
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum SWFlags {
     Infinity,
-    PositiveY,
-    NegativeY,
+    OddY,
+    EvenY,
 }
 
 impl SWFlags {
@@ -76,11 +76,11 @@ impl SWFlags {
     }
 
     #[inline]
-    pub fn from_y_sign(is_positive: bool) -> Self {
-        if is_positive {
-            SWFlags::PositiveY
+    pub fn from_y_parity(is_odd: bool) -> Self {
+        if is_odd {
+            SWFlags::OddY
         } else {
-            SWFlags::NegativeY
+            SWFlags::EvenY
         }
     }
 
@@ -90,11 +90,11 @@ impl SWFlags {
     }
 
     #[inline]
-    pub fn is_positive(&self) -> Option<bool> {
+    pub fn is_odd(&self) -> Option<bool> {
         match self {
             SWFlags::Infinity => None,
-            SWFlags::PositiveY => Some(true),
-            SWFlags::NegativeY => Some(false),
+            SWFlags::OddY => Some(true),
+            SWFlags::EvenY => Some(false),
         }
     }
 }
@@ -102,8 +102,8 @@ impl SWFlags {
 impl Default for SWFlags {
     #[inline]
     fn default() -> Self {
-        // NegativeY doesn't change the serialization
-        SWFlags::NegativeY
+        // EvenY doesn't change the serialization
+        SWFlags::EvenY
     }
 }
 
@@ -115,7 +115,7 @@ impl Flags for SWFlags {
         let mut mask = 0;
         match self {
             SWFlags::Infinity => mask |= 1 << 6,
-            SWFlags::PositiveY => mask |= 1 << 7,
+            SWFlags::OddY => mask |= 1 << 7,
             _ => (),
         }
         mask
@@ -123,15 +123,15 @@ impl Flags for SWFlags {
 
     #[inline]
     fn from_u8(value: u8) -> Option<Self> {
-        let x_sign = (value >> 7) & 1 == 1;
+        let y_parity = (value >> 7) & 1 == 1;
         let is_infinity = (value >> 6) & 1 == 1;
-        match (x_sign, is_infinity) {
+        match (y_parity, is_infinity) {
             // This is invalid because we only want *one* way to serialize
             // the point at infinity.
             (true, true) => None,
             (false, true) => Some(SWFlags::Infinity),
-            (true, false) => Some(SWFlags::PositiveY),
-            (false, false) => Some(SWFlags::NegativeY),
+            (true, false) => Some(SWFlags::OddY),
+            (false, false) => Some(SWFlags::EvenY),
         }
     }
 }
@@ -140,25 +140,25 @@ impl Flags for SWFlags {
 /// The default flags (empty) should not change the binary representation.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum EdwardsFlags {
-    PositiveY,
-    NegativeY,
+    OddY,
+    EvenY,
 }
 
 impl EdwardsFlags {
     #[inline]
-    pub fn from_y_sign(is_positive: bool) -> Self {
-        if is_positive {
-            EdwardsFlags::PositiveY
+    pub fn from_y_parity(is_odd: bool) -> Self {
+        if is_odd {
+            EdwardsFlags::OddY
         } else {
-            EdwardsFlags::NegativeY
+            EdwardsFlags::EvenY
         }
     }
 
     #[inline]
-    pub fn is_positive(&self) -> bool {
+    pub fn is_odd(&self) -> bool {
         match self {
-            EdwardsFlags::PositiveY => true,
-            EdwardsFlags::NegativeY => false,
+            EdwardsFlags::OddY => true,
+            EdwardsFlags::EvenY => false,
         }
     }
 }
@@ -166,8 +166,8 @@ impl EdwardsFlags {
 impl Default for EdwardsFlags {
     #[inline]
     fn default() -> Self {
-        // NegativeY doesn't change the serialization
-        EdwardsFlags::NegativeY
+        // EvenY doesn't change the serialization
+        EdwardsFlags::EvenY
     }
 }
 
@@ -177,7 +177,7 @@ impl Flags for EdwardsFlags {
     #[inline]
     fn u8_bitmask(&self) -> u8 {
         let mut mask = 0;
-        if let Self::PositiveY = self {
+        if let Self::OddY = self {
             mask |= 1 << 7;
         }
         mask
@@ -185,11 +185,11 @@ impl Flags for EdwardsFlags {
 
     #[inline]
     fn from_u8(value: u8) -> Option<Self> {
-        let x_sign = (value >> 7) & 1 == 1;
-        if x_sign {
-            Some(Self::PositiveY)
+        let y_parity = (value >> 7) & 1 == 1;
+        if y_parity {
+            Some(Self::OddY)
         } else {
-            Some(Self::NegativeY)
+            Some(Self::EvenY)
         }
     }
 }

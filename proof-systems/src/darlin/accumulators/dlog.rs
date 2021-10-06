@@ -43,6 +43,26 @@ impl<G: AffineCurve> CanonicalSerialize for DLogItem<G> {
 
         self.g_final.comm[0].serialized_size() + self.xi_s.serialized_size()
     }
+
+    fn serialize_without_metadata<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
+        CanonicalSerialize::serialize_without_metadata(&self.g_final.comm[0], &mut writer)?;
+
+        CanonicalSerialize::serialize_without_metadata(&self.xi_s, &mut writer)
+    }
+
+    fn serialize_uncompressed<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
+
+        // GFinal will always be 1 segment and without any shift
+        CanonicalSerialize::serialize_uncompressed(&self.g_final.comm[0], &mut writer)?;
+
+        CanonicalSerialize::serialize_uncompressed(&self.xi_s, &mut writer)
+    }
+
+    fn uncompressed_size(&self) -> usize {
+
+        self.g_final.comm[0].uncompressed_size() + self.xi_s.uncompressed_size()
+    }
+
 }
 
 impl<G: AffineCurve> CanonicalDeserialize for DLogItem<G> {
@@ -55,6 +75,53 @@ impl<G: AffineCurve> CanonicalDeserialize for DLogItem<G> {
         };
 
         let xi_s = CanonicalDeserialize::deserialize(&mut reader)?;
+
+        Ok(Self {
+            g_final,
+            xi_s
+        })
+    }
+
+    fn deserialize_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+        // GFinal will always be 1 segment and without any shift
+        let g_final = Commitment {
+            comm: vec![CanonicalDeserialize::deserialize_unchecked(&mut reader)?],
+            shifted_comm: None
+        };
+
+        let xi_s = CanonicalDeserialize::deserialize_unchecked(&mut reader)?;
+
+        Ok(Self {
+            g_final,
+            xi_s
+        })
+    }
+
+    #[inline]
+    fn deserialize_uncompressed<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+        // GFinal will always be 1 segment and without any shift
+        let g_final = Commitment {
+            comm: vec![CanonicalDeserialize::deserialize_uncompressed(&mut reader)?],
+            shifted_comm: None
+        };
+
+        let xi_s = CanonicalDeserialize::deserialize_uncompressed(&mut reader)?;
+
+        Ok(Self {
+            g_final,
+            xi_s
+        })
+    }
+
+    #[inline]
+    fn deserialize_uncompressed_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+        // GFinal will always be 1 segment and without any shift
+        let g_final = Commitment {
+            comm: vec![CanonicalDeserialize::deserialize_uncompressed_unchecked(&mut reader)?],
+            shifted_comm: None
+        };
+
+        let xi_s = CanonicalDeserialize::deserialize_uncompressed_unchecked(&mut reader)?;
 
         Ok(Self {
             g_final,
@@ -82,9 +149,11 @@ impl<G: AffineCurve> Default for DLogItem<G> {
 }
 
 impl<G: AffineCurve> ToBytes for DLogItem<G> {
-    fn write<W: Write>(&self, mut writer: W) -> std::io::Result<()> {
-        self.g_final.write(&mut writer)?;
-        self.xi_s.0.write(&mut writer)
+    fn write<W: Write>(&self, writer: W) -> std::io::Result<()> {
+        use std::io::{Error, ErrorKind};
+
+        self.serialize_without_metadata(writer)
+            .map_err(|e| Error::new(ErrorKind::Other, format!{"{:?}", e}))
     }
 }
 
@@ -356,7 +425,8 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
 }
 
 /// A composite dlog accumulator/item, comprised of several single dlog items
-/// from both groups of the EC cycle. 
+/// from both groups of the EC cycle.
+#[derive(Debug)]
 pub struct DualDLogItem<G1: AffineCurve, G2: AffineCurve>(
     pub(crate) Vec<DLogItem<G1>>,
     pub(crate) Vec<DLogItem<G2>>,
@@ -364,8 +434,13 @@ pub struct DualDLogItem<G1: AffineCurve, G2: AffineCurve>(
 
 impl<G1: AffineCurve, G2: AffineCurve> ToBytes for DualDLogItem<G1, G2> {
     fn write<W: Write>(&self, mut writer: W) -> std::io::Result<()> {
-        self.0.write(&mut writer)?;
-        self.1.write(&mut writer)
+        use std::io::{Error, ErrorKind};
+
+        self.0.serialize_without_metadata(&mut writer)
+            .map_err(|e| Error::new(ErrorKind::Other, format!{"{:?}", e}))?;
+
+        self.1.serialize_without_metadata(writer)
+            .map_err(|e| Error::new(ErrorKind::Other, format!{"{:?}", e}))
     }
 }
 

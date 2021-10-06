@@ -55,26 +55,18 @@ pub trait CanonicalSerialize {
 
     fn serialized_size(&self) -> usize;
 
-    /// Like `serialize()`, but doesn't write (if present) any additional information
+    /// Like `serialize_uncompressed()`, but doesn't write (if present) any additional information
     /// required to reconstruct `self` (e.g. the length of a container type).
     /// For this reason, there isn't any deserialization counterpart function in
     /// CanonicalDeserialize trait.
     fn serialize_without_metadata<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
-        CanonicalSerialize::serialize(self, writer)
+        CanonicalSerialize::serialize_uncompressed(self, writer)
     }
 
     /// Serializes `self` into `writer` without compression.
     #[inline]
     fn serialize_uncompressed<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
         CanonicalSerialize::serialize(self, writer)
-    }
-
-    /// Serializes `self` into `writer` without compression, and without
-    /// performing validity checks. Should be used *only* when there is no
-    /// danger of adversarial manipulation of the output.
-    #[inline]
-    fn serialize_unchecked<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
-        self.serialize_uncompressed(writer)
     }
 
     #[inline]
@@ -99,6 +91,12 @@ pub trait CanonicalDeserialize: Sized {
     /// Reads `Self` from `reader`.
     fn deserialize<R: Read>(reader: R) -> Result<Self, SerializationError>;
 
+    /// Reads `Self` from `reader` without performing validity checks.
+    /// Should be used *only* when the input is trusted.
+    fn deserialize_unchecked<R: Read>(reader: R) -> Result<Self, SerializationError> {
+        CanonicalDeserialize::deserialize(reader)
+    }
+
     /// Reads `Self` from `reader` without compression.
     #[inline]
     fn deserialize_uncompressed<R: Read>(reader: R) -> Result<Self, SerializationError> {
@@ -108,7 +106,7 @@ pub trait CanonicalDeserialize: Sized {
     /// Reads `self` from `reader` without compression, and without performing
     /// validity checks. Should be used *only* when the input is trusted.
     #[inline]
-    fn deserialize_unchecked<R: Read>(reader: R) -> Result<Self, SerializationError> {
+    fn deserialize_uncompressed_unchecked<R: Read>(reader: R) -> Result<Self, SerializationError> {
         Self::deserialize_uncompressed(reader)
     }
 }
@@ -189,11 +187,6 @@ impl<'a, T: 'a + CanonicalSerialize> CanonicalSerialize for &'a T {
     }
 
     #[inline]
-    fn serialize_unchecked<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
-        CanonicalSerialize::serialize_unchecked(*self, writer)
-    }
-
-    #[inline]
     fn uncompressed_size(&self) -> usize {
         (*self).uncompressed_size()
     }
@@ -261,16 +254,6 @@ impl<T: CanonicalSerialize> CanonicalSerialize for [T] {
     }
 
     #[inline]
-    fn serialize_unchecked<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
-        let len = self.len() as u64;
-        CanonicalSerialize::serialize(&len, &mut writer)?;
-        for item in self.iter() {
-            item.serialize_unchecked(&mut writer)?;
-        }
-        Ok(())
-    }
-
-    #[inline]
     fn uncompressed_size(&self) -> usize {
         8 + self
             .iter()
@@ -301,11 +284,6 @@ impl<'a, T: 'a + CanonicalSerialize> CanonicalSerialize for &'a [T] {
     }
 
     #[inline]
-    fn serialize_unchecked<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
-        CanonicalSerialize::serialize_unchecked(*self, writer)
-    }
-
-    #[inline]
     fn uncompressed_size(&self) -> usize {
         (*self).uncompressed_size()
     }
@@ -333,11 +311,6 @@ impl<T: CanonicalSerialize> CanonicalSerialize for Vec<T> {
     }
 
     #[inline]
-    fn serialize_unchecked<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
-        self.as_slice().serialize_unchecked(writer)
-    }
-
-    #[inline]
     fn uncompressed_size(&self) -> usize {
         self.as_slice().uncompressed_size()
     }
@@ -355,6 +328,16 @@ impl<T: CanonicalDeserialize> CanonicalDeserialize for Vec<T> {
     }
 
     #[inline]
+    fn deserialize_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+        let len = <u64 as CanonicalDeserialize>::deserialize(&mut reader)?;
+        let mut values = Vec::new();
+        for _ in 0..len {
+            values.push(T::deserialize_unchecked(&mut reader)?);
+        }
+        Ok(values)
+    }
+
+    #[inline]
     fn deserialize_uncompressed<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
         let len = <u64 as CanonicalDeserialize>::deserialize(&mut reader)?;
         let mut values = Vec::new();
@@ -365,11 +348,11 @@ impl<T: CanonicalDeserialize> CanonicalDeserialize for Vec<T> {
     }
 
     #[inline]
-    fn deserialize_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+    fn deserialize_uncompressed_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
         let len = <u64 as CanonicalDeserialize>::deserialize(&mut reader)?;
         let mut values = Vec::new();
         for _ in 0..len {
-            values.push(T::deserialize_unchecked(&mut reader)?);
+            values.push(T::deserialize_uncompressed_unchecked(&mut reader)?);
         }
         Ok(values)
     }
@@ -414,12 +397,6 @@ macro_rules! impl_tuple {
             }
 
             #[inline]
-            fn serialize_unchecked<W: Write>(&self, mut _writer: W) -> Result<(), SerializationError> {
-                $(self.$no.serialize_unchecked(&mut _writer)?;)*
-                Ok(())
-            }
-
-            #[inline]
             fn uncompressed_size(&self) -> usize {
                 [$(
                     self.$no.uncompressed_size(),
@@ -438,6 +415,13 @@ macro_rules! impl_tuple {
             }
 
             #[inline]
+            fn deserialize_unchecked<R: Read>(mut _reader: R) -> Result<Self, SerializationError> {
+                Ok(($(
+                    $ty::deserialize_unchecked(&mut _reader)?,
+                )*))
+            }
+
+            #[inline]
             fn deserialize_uncompressed<R: Read>(mut _reader: R) -> Result<Self, SerializationError> {
                 Ok(($(
                     $ty::deserialize_uncompressed(&mut _reader)?,
@@ -445,9 +429,9 @@ macro_rules! impl_tuple {
             }
 
             #[inline]
-            fn deserialize_unchecked<R: Read>(mut _reader: R) -> Result<Self, SerializationError> {
+            fn deserialize_uncompressed_unchecked<R: Read>(mut _reader: R) -> Result<Self, SerializationError> {
                 Ok(($(
-                    $ty::deserialize_unchecked(&mut _reader)?,
+                    $ty::deserialize_uncompressed_unchecked(&mut _reader)?,
                 )*))
             }
         }
@@ -496,11 +480,6 @@ impl<'a, T: CanonicalSerialize + ToOwned> CanonicalSerialize for Cow<'a, T> {
         self.as_ref().serialize_uncompressed(writer)
     }
 
-    #[inline]
-    fn serialize_unchecked<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
-        self.as_ref().serialize_unchecked(writer)
-    }
-
     fn uncompressed_size(&self) -> usize {
         self.as_ref().uncompressed_size()
     }
@@ -517,6 +496,13 @@ impl<'a, T> CanonicalDeserialize for Cow<'a, T>
     }
 
     #[inline]
+    fn deserialize_unchecked<R: Read>(reader: R) -> Result<Self, SerializationError> {
+        Ok(Cow::Owned(<T as ToOwned>::Owned::deserialize_unchecked(
+            reader,
+        )?))
+    }
+
+    #[inline]
     fn deserialize_uncompressed<R: Read>(reader: R) -> Result<Self, SerializationError> {
         Ok(Cow::Owned(<T as ToOwned>::Owned::deserialize_uncompressed(
             reader,
@@ -524,8 +510,8 @@ impl<'a, T> CanonicalDeserialize for Cow<'a, T>
     }
 
     #[inline]
-    fn deserialize_unchecked<R: Read>(reader: R) -> Result<Self, SerializationError> {
-        Ok(Cow::Owned(<T as ToOwned>::Owned::deserialize_unchecked(
+    fn deserialize_uncompressed_unchecked<R: Read>(reader: R) -> Result<Self, SerializationError> {
+        Ok(Cow::Owned(<T as ToOwned>::Owned::deserialize_uncompressed_unchecked(
             reader,
         )?))
     }
@@ -573,16 +559,6 @@ impl<T: CanonicalSerialize> CanonicalSerialize for Option<T> {
     }
 
     #[inline]
-    fn serialize_unchecked<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
-        self.is_some().serialize_unchecked(&mut writer)?;
-        if let Some(item) = self {
-            item.serialize_unchecked(&mut writer)?;
-        }
-
-        Ok(())
-    }
-
-    #[inline]
     fn uncompressed_size(&self) -> usize {
         self.is_some().uncompressed_size()
             + if let Some(item) = self {
@@ -607,6 +583,18 @@ impl<T: CanonicalDeserialize> CanonicalDeserialize for Option<T> {
     }
 
     #[inline]
+    fn deserialize_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+        let is_some = bool::deserialize_unchecked(&mut reader)?;
+        let data = if is_some {
+            Some(T::deserialize_unchecked(&mut reader)?)
+        } else {
+            None
+        };
+
+        Ok(data)
+    }
+
+    #[inline]
     fn deserialize_uncompressed<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
         let is_some = bool::deserialize_uncompressed(&mut reader)?;
         let data = if is_some {
@@ -619,10 +607,10 @@ impl<T: CanonicalDeserialize> CanonicalDeserialize for Option<T> {
     }
 
     #[inline]
-    fn deserialize_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
-        let is_some = bool::deserialize_unchecked(&mut reader)?;
+    fn deserialize_uncompressed_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+        let is_some = bool::deserialize_uncompressed_unchecked(&mut reader)?;
         let data = if is_some {
-            Some(T::deserialize_unchecked(&mut reader)?)
+            Some(T::deserialize_uncompressed_unchecked(&mut reader)?)
         } else {
             None
         };
@@ -652,11 +640,6 @@ impl<T: CanonicalSerialize> CanonicalSerialize for Rc<T> {
     fn uncompressed_size(&self) -> usize {
         self.as_ref().uncompressed_size()
     }
-
-    #[inline]
-    fn serialize_unchecked<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
-        self.as_ref().serialize_unchecked(&mut writer)
-    }
 }
 
 impl<T: CanonicalDeserialize> CanonicalDeserialize for Rc<T> {
@@ -666,13 +649,18 @@ impl<T: CanonicalDeserialize> CanonicalDeserialize for Rc<T> {
     }
 
     #[inline]
+    fn deserialize_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+        Ok(Rc::new(T::deserialize_unchecked(&mut reader)?))
+    }
+
+    #[inline]
     fn deserialize_uncompressed<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
         Ok(Rc::new(T::deserialize_uncompressed(&mut reader)?))
     }
 
     #[inline]
-    fn deserialize_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
-        Ok(Rc::new(T::deserialize_unchecked(&mut reader)?))
+    fn deserialize_uncompressed_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+        Ok(Rc::new(T::deserialize_uncompressed_unchecked(&mut reader)?))
     }
 }
 
@@ -705,6 +693,11 @@ impl CanonicalDeserialize for bool {
     #[inline]
     fn deserialize_unchecked<R: Read>(reader: R) -> Result<Self, SerializationError> {
         Ok(u8::deserialize(reader)? == 1)
+    }
+
+    #[inline]
+    fn deserialize_uncompressed_unchecked<R: Read>(reader: R) -> Result<Self, SerializationError> {
+       Self::deserialize_unchecked(reader)
     }
 }
 
@@ -750,16 +743,6 @@ impl<K, V> CanonicalSerialize for BTreeMap<K, V>
         Ok(())
     }
 
-    fn serialize_unchecked<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
-        let len = self.len() as u64;
-        len.serialize_unchecked(&mut writer)?;
-        for (k, v) in self.iter() {
-            k.serialize_unchecked(&mut writer)?;
-            v.serialize_unchecked(&mut writer)?;
-        }
-        Ok(())
-    }
-
     fn uncompressed_size(&self) -> usize {
         8 + self
             .iter()
@@ -782,6 +765,18 @@ impl<K, V> CanonicalDeserialize for BTreeMap<K, V>
         Ok(map)
     }
 
+    fn deserialize_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+        let len = u64::deserialize_unchecked(&mut reader)?;
+        let mut map = BTreeMap::new();
+        for _ in 0..len {
+            map.insert(
+                K::deserialize_unchecked(&mut reader)?,
+                V::deserialize_unchecked(&mut reader)?,
+            );
+        }
+        Ok(map)
+    }
+
     fn deserialize_uncompressed<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
         let len = u64::deserialize_uncompressed(&mut reader)?;
         let mut map = BTreeMap::new();
@@ -794,13 +789,13 @@ impl<K, V> CanonicalDeserialize for BTreeMap<K, V>
         Ok(map)
     }
 
-    fn deserialize_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
-        let len = u64::deserialize_unchecked(&mut reader)?;
+    fn deserialize_uncompressed_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+        let len = u64::deserialize_uncompressed_unchecked(&mut reader)?;
         let mut map = BTreeMap::new();
         for _ in 0..len {
             map.insert(
-                K::deserialize_unchecked(&mut reader)?,
-                V::deserialize_unchecked(&mut reader)?,
+                K::deserialize_uncompressed_unchecked(&mut reader)?,
+                V::deserialize_uncompressed_unchecked(&mut reader)?,
             );
         }
         Ok(map)
@@ -842,15 +837,6 @@ impl<T: CanonicalSerialize> CanonicalSerialize for BTreeSet<T> {
         Ok(())
     }
 
-    fn serialize_unchecked<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
-        let len = self.len() as u64;
-        len.serialize_unchecked(&mut writer)?;
-        for elem in self.iter() {
-            elem.serialize_unchecked(&mut writer)?;
-        }
-        Ok(())
-    }
-
     fn uncompressed_size(&self) -> usize {
         8 + self
             .iter()
@@ -869,6 +855,15 @@ impl<T: CanonicalDeserialize + Ord> CanonicalDeserialize for BTreeSet<T> {
         Ok(set)
     }
 
+    fn deserialize_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+        let len = u64::deserialize_unchecked(&mut reader)?;
+        let mut set = BTreeSet::new();
+        for _ in 0..len {
+            set.insert(T::deserialize_unchecked(&mut reader)?);
+        }
+        Ok(set)
+    }
+
     fn deserialize_uncompressed<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
         let len = u64::deserialize_uncompressed(&mut reader)?;
         let mut set = BTreeSet::new();
@@ -878,28 +873,38 @@ impl<T: CanonicalDeserialize + Ord> CanonicalDeserialize for BTreeSet<T> {
         Ok(set)
     }
 
-    fn deserialize_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
-        let len = u64::deserialize_unchecked(&mut reader)?;
+    fn deserialize_uncompressed_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+        let len = u64::deserialize_uncompressed_unchecked(&mut reader)?;
         let mut set = BTreeSet::new();
         for _ in 0..len {
-            set.insert(T::deserialize_unchecked(&mut reader)?);
+            set.insert(T::deserialize_uncompressed_unchecked(&mut reader)?);
         }
         Ok(set)
     }
 }
 
+/// Positive test: Performs a serialize/deserialize (using all available variants), and checks:
+///                1) Serialized size is equal to the one returned by the `serialized_size()` function;
+///                2) Deserialized elem is equal to the original one;
+/// Negative test: Performs a serialize/deserialize (using all available variants), and checks:
+///                1) Serialization/deserialization to/from a buffer of insufficient length will result in an error;
+///                2) Modifying the serialized data and then deserialize will lead to a deserialization error or
+///                   to a elem different from the original one.
 #[allow(dead_code)]
 pub fn test_canonical_serialize_deserialize<
     T: PartialEq + std::fmt::Debug + CanonicalSerialize + CanonicalDeserialize,
 >(
     negative_test: bool,
     data: &T,
-) {
+)
+{
+    // serialize/deserialize
     {
         let buf_size = data.serialized_size();
 
-        let mut serialized = vec![0; buf_size];
-        CanonicalSerialize::serialize(data, &mut serialized[..]).unwrap();
+        let mut serialized = Vec::with_capacity(buf_size);
+        CanonicalSerialize::serialize(data, &mut serialized).unwrap();
+        assert_eq!(serialized.len(), buf_size);
         let de = T::deserialize(&serialized[..]).unwrap();
         assert_eq!(data, &de);
 
@@ -907,39 +912,71 @@ pub fn test_canonical_serialize_deserialize<
             let wrong_buf_size = buf_size - 1;
             T::deserialize(&serialized[..wrong_buf_size]).unwrap_err();
             CanonicalSerialize::serialize(data, &mut serialized[..wrong_buf_size]).unwrap_err();
+
+            let wrong_ser_data = serialized.into_iter().map(|b| !b).collect::<Vec<_>>();
+            let deser_result = T::deserialize(&wrong_ser_data[..]);
+            assert!(deser_result.is_err() || &deser_result.unwrap() != data);
         }
     }
 
+    // serialize/deserialize_unchecked
     {
-        let buf_size = data.uncompressed_size();
-
-        let mut serialized = vec![0; buf_size];
-        data.serialize_uncompressed(&mut serialized[..]).unwrap();
-        let de = T::deserialize_uncompressed(&serialized[..]).unwrap();
-        assert_eq!(data, &de);
-
-        if negative_test {
-            let wrong_buf_size = buf_size - 1;
-            T::deserialize_uncompressed(&serialized[..wrong_buf_size]).unwrap_err();
-            data.serialize_uncompressed(&mut serialized[..wrong_buf_size]).unwrap_err();
-        }
-    }
-
-    {
-        let buf_size = data.uncompressed_size();
-
-        let mut serialized = vec![0; buf_size];
-        data.serialize_unchecked(&mut serialized[..]).unwrap();
+        let buf_size = data.serialized_size();
+        let mut serialized = Vec::with_capacity(buf_size);
+        CanonicalSerialize::serialize(data, &mut serialized).unwrap();
+        assert_eq!(serialized.len(), buf_size);
         let de = T::deserialize_unchecked(&serialized[..]).unwrap();
         assert_eq!(data, &de);
 
         if negative_test {
             let wrong_buf_size = buf_size - 1;
             T::deserialize_unchecked(&serialized[..wrong_buf_size]).unwrap_err();
-            data.serialize_unchecked(&mut serialized[..wrong_buf_size]).unwrap_err();
+            CanonicalSerialize::serialize(data, &mut serialized[..wrong_buf_size]).unwrap_err();
+            let wrong_ser_data = serialized.into_iter().map(|b| !b).collect::<Vec<_>>();
+            let deser_result = T::deserialize_unchecked(&wrong_ser_data[..]);
+            assert!(deser_result.is_err() || &deser_result.unwrap() != data);
         }
     }
 
+    // serialize_uncompressed/deserialize_uncompressed
+    {
+        let buf_size = data.uncompressed_size();
+        let mut serialized = Vec::with_capacity(buf_size);
+        CanonicalSerialize::serialize_uncompressed(data, &mut serialized).unwrap();
+        assert_eq!(serialized.len(), buf_size);
+        let de = T::deserialize_uncompressed(&serialized[..]).unwrap();
+        assert_eq!(data, &de);
+
+        if negative_test {
+            let wrong_buf_size = buf_size - 1;
+            T::deserialize_uncompressed(&serialized[..wrong_buf_size]).unwrap_err();
+            CanonicalSerialize::serialize_uncompressed(data, &mut serialized[..wrong_buf_size]).unwrap_err();
+
+            let wrong_ser_data = serialized.into_iter().map(|b| !b).collect::<Vec<_>>();
+            let deser_result = T::deserialize_uncompressed(&wrong_ser_data[..]);
+            assert!(deser_result.is_err() || &deser_result.unwrap() != data);
+        }
+    }
+
+    // serialize_uncompressed/deserialize_uncompressed_unchecked
+    {
+        let buf_size = data.uncompressed_size();
+        let mut serialized = Vec::with_capacity(buf_size);
+        CanonicalSerialize::serialize_uncompressed(data, &mut serialized).unwrap();
+        assert_eq!(serialized.len(), buf_size);
+        let de = T::deserialize_uncompressed_unchecked(&serialized[..]).unwrap();
+        assert_eq!(data, &de);
+
+        if negative_test {
+            let wrong_buf_size = buf_size - 1;
+            T::deserialize_uncompressed_unchecked(&serialized[..wrong_buf_size]).unwrap_err();
+            CanonicalSerialize::serialize_uncompressed(data, &mut serialized[..wrong_buf_size]).unwrap_err();
+
+            let wrong_ser_data = serialized.into_iter().map(|b| !b).collect::<Vec<_>>();
+            let deser_result = T::deserialize_uncompressed_unchecked(&wrong_ser_data[..]);
+            assert!(deser_result.is_err() || &deser_result.unwrap() != data);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1004,17 +1041,19 @@ mod test {
         fn uncompressed_size(&self) -> usize {
             (&[100u8, 200u8]).uncompressed_size()
         }
-
-        #[inline]
-        fn serialize_unchecked<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
-            (&[100u8, 200u8]).serialize_unchecked(&mut writer)
-        }
     }
 
     impl CanonicalDeserialize for Dummy {
         #[inline]
         fn deserialize<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
             let result = u8::deserialize(&mut reader)?;
+            assert_eq!(result, 100u8);
+            Ok(Dummy)
+        }
+
+        #[inline]
+        fn deserialize_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+            let result = u8::deserialize_unchecked(&mut reader)?;
             assert_eq!(result, 100u8);
             Ok(Dummy)
         }
@@ -1028,8 +1067,8 @@ mod test {
         }
 
         #[inline]
-        fn deserialize_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
-            let result = Vec::<u8>::deserialize_unchecked(&mut reader)?;
+        fn deserialize_uncompressed_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+            let result = Vec::<u8>::deserialize_uncompressed_unchecked(&mut reader)?;
             assert_eq!(result.as_slice(), &[100u8, 200u8]);
 
             Ok(Dummy)
@@ -1059,18 +1098,18 @@ mod test {
     #[test]
     fn test_tuple() {
         test_canonical_serialize_deserialize(false, &());
-        test_canonical_serialize_deserialize(true, &(123u64, Dummy));
-        test_canonical_serialize_deserialize(true, &(123u64, 234u32, Dummy));
+        test_canonical_serialize_deserialize(false, &(123u64, Dummy));
+        test_canonical_serialize_deserialize(false, &(123u64, 234u32, Dummy));
     }
 
     #[test]
     fn test_tuple_vec() {
-        test_canonical_serialize_deserialize(true, &vec![
+        test_canonical_serialize_deserialize(false, &vec![
             (Dummy, Dummy, Dummy),
             (Dummy, Dummy, Dummy),
             (Dummy, Dummy, Dummy),
         ]);
-        test_canonical_serialize_deserialize(true, &vec![
+        test_canonical_serialize_deserialize(false, &vec![
             (86u8, 98u64, Dummy),
             (86u8, 98u64, Dummy),
             (86u8, 98u64, Dummy),
@@ -1079,22 +1118,22 @@ mod test {
 
     #[test]
     fn test_option() {
-        test_canonical_serialize_deserialize(true, &Some(Dummy));
-        test_canonical_serialize_deserialize(true, &None::<Dummy>);
+        test_canonical_serialize_deserialize(false, &Some(Dummy));
+        test_canonical_serialize_deserialize(false, &None::<Dummy>);
 
-        test_canonical_serialize_deserialize(true, &Some(10u64));
-        test_canonical_serialize_deserialize(true, &None::<u64>);
+        test_canonical_serialize_deserialize(false, &Some(10u64));
+        test_canonical_serialize_deserialize(false, &None::<u64>);
     }
 
     #[test]
     fn test_rc() {
-        test_canonical_serialize_deserialize(true, &Rc::new(Dummy));
+        test_canonical_serialize_deserialize(false, &Rc::new(Dummy));
     }
 
     #[test]
     fn test_bool() {
         test_canonical_serialize_deserialize(true, &true);
-        test_canonical_serialize_deserialize(true, &false);
+        test_canonical_serialize_deserialize(false, &false);
 
         let valid_mutation = |data: &[u8]| -> bool {
             return data.len() == 1 && data[0] > 1;
@@ -1110,7 +1149,7 @@ mod test {
         let mut map = BTreeMap::new();
         map.insert(0u64, Dummy);
         map.insert(5u64, Dummy);
-        test_canonical_serialize_deserialize(true, &map);
+        test_canonical_serialize_deserialize(false, &map);
         let mut map = BTreeMap::new();
         map.insert(10u64, vec![1u8, 2u8, 3u8]);
         map.insert(50u64, vec![4u8, 5u8, 6u8]);
@@ -1122,7 +1161,7 @@ mod test {
         let mut set = BTreeSet::new();
         set.insert(Dummy);
         set.insert(Dummy);
-        test_canonical_serialize_deserialize(true, &set);
+        test_canonical_serialize_deserialize(false, &set);
         let mut set = BTreeSet::new();
         set.insert(vec![1u8, 2u8, 3u8]);
         set.insert(vec![4u8, 5u8, 6u8]);

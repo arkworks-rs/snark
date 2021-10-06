@@ -53,16 +53,30 @@ mod test {
     use rand_xorshift::XorShiftRng;
     use std::path::Path;
     use std::fs::File;
+    use std::collections::HashSet;
     use crate::darlin::data_structures::FinalDarlinProof;
 
+    fn get_unique_random_proof_indices<R: RngCore>(pcds_len: usize, rng: &mut R) -> Vec<usize> {
+        let num_proofs_to_randomize: usize = rng.gen_range(1, pcds_len/2);
+        let mut indices = (0..num_proofs_to_randomize)
+            .map(|_| rng.gen_range(0, pcds_len))
+            .collect::<HashSet<usize>>()
+            .into_iter()
+            .collect::<Vec<usize>>();
+        indices.sort();
+        indices
+    }
+
     /// Generic test for `accumulate_proofs` and `verify_aggregated_proofs`
-    fn test_accumulation<G1: AffineCurve, G2: AffineCurve, D: Digest, R: RngCore>(
-        pcds: &mut [GeneralPCD<G1, G2, D>],
-        vks: &[MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>],
+    fn test_accumulation<'a, G1: AffineCurve, G2: AffineCurve, D: Digest, R: RngCore>(
+        pcds: &mut [GeneralPCD<'a, G1, G2, D>],
+        vks: &mut [MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>],
         committer_key_g1: &DLogCommitterKey<G1>,
         committer_key_g2: &DLogCommitterKey<G2>,
         verifier_key_g1: &DLogVerifierKey<G1>,
         verifier_key_g2: &DLogVerifierKey<G2>,
+        fake_pcds: Option<&[GeneralPCD<'a, G1, G2, D>]>,
+        fake_vks: Option<&[MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>]>,
         rng: &mut R
     )
         where
@@ -102,10 +116,15 @@ mod test {
             rng
         ).unwrap());
 
-        // Randomize usr_ins for one marlin PCD and assert AHP verification fails
-        let idx: usize = rng.gen_range(0, pcds.len());
-        let original_pcd = pcds[idx].clone(); // Save correct pcd
-        pcds[idx].randomize_usr_ins(rng);
+        // Randomize usr_ins for some PCDs and assert AHP verification fails
+        let indices = get_unique_random_proof_indices(pcds.len(), rng);
+
+        // Save original pcds and randomize existing ones
+        let original_pcds = indices.iter().map(|&idx| {
+            let copy = pcds[idx].clone();
+            pcds[idx].randomize_usr_ins(rng);
+            copy
+        }).collect::<Vec<_>>();
 
         let result = verify_aggregated_proofs::<G1, G2, D, R>(
             pcds,
@@ -120,15 +139,21 @@ mod test {
         // Check AHP failed
         assert!(result.is_err());
 
-        // Since the AHP failed, we are able to determine which proof verification has failed
-        assert_eq!(result.unwrap_err().unwrap(), idx);
+        // Since the AHP failed, we are able to determine which proof verifications have failed
+        assert_eq!(result.unwrap_err().unwrap(), indices);
 
-        // Restore correct PCD
-        pcds[idx] = original_pcd;
+        // Restore correct PCDs
+        indices.into_iter().zip(original_pcds).for_each(|(idx, original_pcd)| pcds[idx] = original_pcd);
 
-        // Randomize sys_ins for one marlin PCD and assert AHP verification fails
-        let idx: usize = rng.gen_range(0, pcds.len());
-        pcds[idx].randomize_sys_ins(committer_key_g1, committer_key_g2, rng);
+        // Randomize sys_ins for some PCDs and assert AHP verification fails
+        let indices = get_unique_random_proof_indices(pcds.len(), rng);
+
+        // Save original pcds and randomize existing ones
+        let original_pcds = indices.iter().map(|&idx| {
+            let copy = pcds[idx].clone();
+            pcds[idx].randomize_sys_ins(committer_key_g1, committer_key_g2, rng);
+            copy
+        }).collect::<Vec<_>>();
 
         let result = verify_aggregated_proofs::<G1, G2, D, R>(
             pcds,
@@ -143,16 +168,49 @@ mod test {
         // Check AHP failed
         assert!(result.is_err());
 
-        // Since the AHP failed, we are able to determine which proof verification has failed
-        assert_eq!(result.unwrap_err().unwrap(), idx);
+        // Since the AHP failed, we are able to determine which proof verifications have failed
+        assert_eq!(result.unwrap_err().unwrap(), indices);
+
+        // Restore correct PCDs
+        indices.into_iter().zip(original_pcds).for_each(|(idx, original_pcd)| pcds[idx] = original_pcd);
+
+        if fake_pcds.is_some() && fake_vks.is_some() {
+
+            let idx: usize = rng.gen_range(0, pcds.len());
+            let original_pcd = pcds[idx].clone(); // Save correct pcd
+            let original_vk = vks[idx].clone(); // Save correct pcd
+            pcds[idx] = fake_pcds.unwrap()[idx].clone();
+            vks[idx] = fake_vks.unwrap()[idx].clone();
+
+            let result = verify_aggregated_proofs::<G1, G2, D, R>(
+                pcds,
+                vks,
+                &proof_g1,
+                &proof_g2,
+                verifier_key_g1,
+                verifier_key_g2,
+                rng
+            );
+
+            // Check accumulation verification failed in hard part
+            assert!((result.is_err() && result.clone().unwrap_err().is_none()) || (result.is_ok() && !result.clone().unwrap()));
+
+            // Restore correct PCD
+            pcds[idx] = original_pcd;
+
+            // Restore correct PCD
+            vks[idx] = original_vk;
+        }
     }
 
     /// Generic test for `batch_verify_proofs`
-    fn test_batch_verification<G1: AffineCurve, G2: AffineCurve, D: Digest, R: RngCore>(
-        pcds: &mut [GeneralPCD<G1, G2, D>],
-        vks: &[MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>],
+    fn test_batch_verification<'a, G1: AffineCurve, G2: AffineCurve, D: Digest, R: RngCore>(
+        pcds: &mut [GeneralPCD<'a, G1, G2, D>],
+        vks: &mut [MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>],
         verifier_key_g1: &DLogVerifierKey<G1>,
         verifier_key_g2: &DLogVerifierKey<G2>,
+        fake_pcds: Option<&[GeneralPCD<'a, G1, G2, D>]>,
+        fake_vks: Option<&[MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>]>,
         rng: &mut R
     )
         where
@@ -168,11 +226,15 @@ mod test {
             rng
         ).unwrap());
 
-        // Pass wrong public inputs for one marlin PCD and check AHP verification fails
-        // Select randomly one pcds to which changing the input
-        let idx: usize = rng.gen_range(0, pcds.len());
-        let original_pcd = pcds[idx].clone(); // Save correct pcd
-        pcds[idx].randomize_usr_ins(rng);
+        // Randomize usr_ins for some PCDs and assert AHP verification fails
+        let indices = get_unique_random_proof_indices(pcds.len(), rng);
+
+        // Save original pcds and randomize existing ones
+        let original_pcds = indices.iter().map(|&idx| {
+            let copy = pcds[idx].clone();
+            pcds[idx].randomize_usr_ins(rng);
+            copy
+        }).collect::<Vec<_>>();
 
         let result = batch_verify_proofs::<G1, G2, D, R>(
             pcds,
@@ -185,15 +247,21 @@ mod test {
         // Check AHP failed
         assert!(result.is_err());
 
-        // Since the AHP failed, we are able to determine which proof verification has failed
-        assert_eq!(result.unwrap_err().unwrap(), idx);
+        // Since the AHP failed, we are able to determine which proof verifications have failed
+        assert_eq!(result.unwrap_err().unwrap(), indices);
 
-        // Restore correct PCD
-        pcds[idx] = original_pcd;
+        // Restore correct PCDs
+        indices.into_iter().zip(original_pcds).for_each(|(idx, original_pcd)| pcds[idx] = original_pcd);
 
-        // Randomize sys_ins for one marlin PCD and assert AHP verification fails
-        let idx: usize = rng.gen_range(0, pcds.len());
-        pcds[idx].randomize_sys_ins(verifier_key_g1, verifier_key_g2, rng);
+        // Randomize sys_ins for some PCDs and assert AHP verification fails
+        let indices = get_unique_random_proof_indices(pcds.len(), rng);
+
+        // Save original pcds and randomize existing ones
+        let original_pcds = indices.iter().map(|&idx| {
+            let copy = pcds[idx].clone();
+            pcds[idx].randomize_sys_ins(verifier_key_g1, verifier_key_g2, rng);
+            copy
+        }).collect::<Vec<_>>();
 
         let result = batch_verify_proofs::<G1, G2, D, R>(
             pcds,
@@ -206,8 +274,40 @@ mod test {
         // Check AHP failed
         assert!(result.is_err());
 
-        // Since the AHP failed, we are able to determine which proof verification has failed
-        assert_eq!(result.unwrap_err().unwrap(), idx);
+        // Since the AHP failed, we are able to determine which proof verifications have failed
+        assert_eq!(result.unwrap_err().unwrap(), indices);
+
+        // Restore correct PCDs
+        indices.into_iter().zip(original_pcds).for_each(|(idx, original_pcd)| pcds[idx] = original_pcd);
+
+        if fake_pcds.is_some() && fake_vks.is_some() {
+
+            let idx: usize = rng.gen_range(0, pcds.len());
+            let original_pcd = pcds[idx].clone(); // Save correct pcd
+            let original_vk = vks[idx].clone(); // Save correct pcd
+            pcds[idx] = fake_pcds.unwrap()[idx].clone();
+            vks[idx] = fake_vks.unwrap()[idx].clone();
+
+            let result = batch_verify_proofs::<G1, G2, D, R>(
+                pcds,
+                vks,
+                verifier_key_g1,
+                verifier_key_g2,
+                rng
+            );
+
+            // Check not failed in succinct part
+            assert!(!result.is_err() || result.clone().unwrap_err().is_none());
+
+            // Check batch verification failed in hard part
+            assert!(!result.unwrap());
+
+            // Restore correct PCD
+            pcds[idx] = original_pcd;
+
+            // Restore correct PCD
+            vks[idx] = original_vk;
+        }
     }
 
     type TestIPAPCDee = InnerProductArgPC<DeeAffine, Blake2s>;
@@ -219,9 +319,8 @@ mod test {
 
         // Set params
         let max_proofs = 100;
-        let max_pow = 7usize;
-        let num_constraints = 1 << max_pow;
-        let segment_size = num_constraints;
+        let max_pow = 10usize;
+        let segment_size = 1 << max_pow;
 
         //Generate keys
         let params_g1 = TestIPAPCDee::setup(segment_size - 1).unwrap();
@@ -231,6 +330,10 @@ mod test {
             committer_key_g1, verifier_key_g1,
             committer_key_g2, verifier_key_g2
         ) = get_keys::<_, _, Blake2s>(&params_g1, &params_g2);
+
+        //Generate fake params
+        let mut params_g1_fake = TestIPAPCDee::setup_from_seed(segment_size - 1, b"FAKE PROTOCOL").unwrap();
+        params_g1_fake.copy_params(&params_g1);
 
         test_canonical_serialize_deserialize(true, &committer_key_g1);
         test_canonical_serialize_deserialize(true, &committer_key_g2);
@@ -245,13 +348,16 @@ mod test {
         let mut generated_proofs = 0;
         let mut pcds = Vec::new();
         let mut simple_marlin_vks = Vec::new();
+        let mut pcds_fake = Vec::new();
+        let mut simple_marlin_vks_fake = Vec::new();
         let generation_rng = &mut thread_rng();
         while generated_proofs < max_proofs {
             let iteration_num_proofs: usize = generation_rng.gen_range(1, max_proofs);
             generated_proofs += iteration_num_proofs;
-            let iteration_segment_size = 1 << (generation_rng.gen_range(2, max_pow));
+            let iteration_segment_size = 1 << (generation_rng.gen_range(5, max_pow));
+            let iteration_num_constraints = iteration_segment_size;
             let (mut iteration_pcds, mut iteration_vks) = generate_simple_marlin_test_data(
-                num_constraints - 1,
+                iteration_num_constraints - 1,
                 iteration_segment_size,
                 &params_g1,
                 iteration_num_proofs,
@@ -264,10 +370,26 @@ mod test {
 
             pcds.append(&mut iteration_pcds);
             simple_marlin_vks.append(&mut iteration_vks);
+
+            let (mut iteration_pcds_fake, mut iteration_vks_fake) = generate_simple_marlin_test_data(
+                iteration_num_constraints - 1,
+                iteration_segment_size,
+                &params_g1_fake,
+                iteration_num_proofs,
+                generation_rng
+            );
+
+            pcds_fake.append(&mut iteration_pcds_fake);
+            simple_marlin_vks_fake.append(&mut iteration_vks_fake);
         }
 
         // Collect PCDs
         let mut simple_marlin_pcds = pcds
+            .into_iter()
+            .map(|simple_marlin_pcd| GeneralPCD::SimpleMarlin::<DeeAffine, DumAffine, Blake2s>(simple_marlin_pcd))
+            .collect::<Vec<_>>();
+
+        let simple_marlin_pcds_fake = pcds_fake
             .into_iter()
             .map(|simple_marlin_pcd| GeneralPCD::SimpleMarlin(simple_marlin_pcd))
             .collect::<Vec<_>>();
@@ -275,20 +397,24 @@ mod test {
         println!("Test accumulation");
         test_accumulation::<DeeAffine, DumAffine, Blake2s, _>(
             simple_marlin_pcds.clone().as_mut_slice(),
-            simple_marlin_vks.as_slice(),
+            simple_marlin_vks.clone().as_mut_slice(),
             &committer_key_g1,
             &committer_key_g2,
             &verifier_key_g1,
             &verifier_key_g2,
+            Some(simple_marlin_pcds_fake.as_slice()),
+            Some(simple_marlin_vks_fake.as_slice()),
             rng
         );
 
         println!("Test batch verification");
         test_batch_verification::<DeeAffine, DumAffine, Blake2s, _>(
             simple_marlin_pcds.as_mut_slice(),
-            simple_marlin_vks.as_slice(),
+            simple_marlin_vks.as_mut_slice(),
             &verifier_key_g1,
             &verifier_key_g2,
+            Some(simple_marlin_pcds_fake.as_slice()),
+            Some(simple_marlin_vks_fake.as_slice()),
             rng
         );
     }
@@ -299,9 +425,8 @@ mod test {
 
         // Set params
         let max_proofs = 100;
-        let max_pow = 7usize;
-        let num_constraints = 1 << max_pow;
-        let segment_size = num_constraints;
+        let max_pow = 10usize;
+        let segment_size = 1 << max_pow;
 
         //Generate keys
         let params_g1 = TestIPAPCDee::setup(segment_size - 1).unwrap();
@@ -311,6 +436,12 @@ mod test {
             committer_key_g1, verifier_key_g1,
             committer_key_g2, verifier_key_g2
         ) = get_keys::<_, _, Blake2s>(&params_g1, &params_g2);
+
+        //Generate fake params
+        let mut params_g1_fake = TestIPAPCDee::setup_from_seed(segment_size - 1, b"FAKE PROTOCOL").unwrap();
+        params_g1_fake.copy_params(&params_g1);
+        let mut params_g2_fake = TestIPAPCDum::setup_from_seed(segment_size - 1, b"FAKE PROTOCOL").unwrap();
+        params_g2_fake.copy_params(&params_g2);
 
         test_canonical_serialize_deserialize(true, &committer_key_g1);
         test_canonical_serialize_deserialize(true, &committer_key_g2);
@@ -325,13 +456,16 @@ mod test {
         let mut generated_proofs = 0;
         let mut pcds = Vec::new();
         let mut final_darlin_vks = Vec::new();
+        let mut pcds_fake = Vec::new();
+        let mut final_darlin_vks_fake = Vec::new();
         let generation_rng = &mut thread_rng();
         while generated_proofs < max_proofs {
             let iteration_num_proofs: usize = generation_rng.gen_range(1, max_proofs);
             generated_proofs += iteration_num_proofs;
-            let iteration_segment_size = 1 << (generation_rng.gen_range(2, max_pow));
+            let iteration_segment_size = 1 << (generation_rng.gen_range(5, max_pow));
+            let iteration_num_constraints = iteration_segment_size;
             let (mut iteration_pcds, mut iteration_vks) = generate_final_darlin_test_data(
-                num_constraints - 1,
+                iteration_num_constraints - 1,
                 iteration_segment_size,
                 &params_g1,
                 &params_g2,
@@ -345,6 +479,18 @@ mod test {
 
             pcds.append(&mut iteration_pcds);
             final_darlin_vks.append(&mut iteration_vks);
+
+            let (mut iteration_pcds_fake, mut iteration_vks_fake) = generate_final_darlin_test_data(
+                iteration_num_constraints - 1,
+                iteration_segment_size,
+                &params_g1_fake,
+                &params_g2_fake,
+                iteration_num_proofs,
+                generation_rng
+            );
+
+            pcds_fake.append(&mut iteration_pcds_fake);
+            final_darlin_vks_fake.append(&mut iteration_vks_fake);
         }
 
         // Collect PCDs
@@ -353,23 +499,32 @@ mod test {
             .map(|final_darlin_pcd| GeneralPCD::FinalDarlin(final_darlin_pcd))
             .collect::<Vec<_>>();
 
+        let final_darlin_pcds_fake = pcds_fake
+            .into_iter()
+            .map(|final_darlin_pcd| GeneralPCD::FinalDarlin(final_darlin_pcd))
+            .collect::<Vec<_>>();
+
         println!("Test accumulation");
         test_accumulation::<DeeAffine, DumAffine, Blake2s, _>(
             final_darlin_pcds.clone().as_mut_slice(),
-            final_darlin_vks.as_slice(),
+            final_darlin_vks.as_mut_slice(),
             &committer_key_g1,
             &committer_key_g2,
             &verifier_key_g1,
             &verifier_key_g2,
+            Some(final_darlin_pcds_fake.as_slice()),
+            Some(final_darlin_vks_fake.as_slice()),
             rng
         );
 
         println!("Test batch verification");
         test_batch_verification::<DeeAffine, DumAffine, Blake2s, _>(
             final_darlin_pcds.as_mut_slice(),
-            final_darlin_vks.as_slice(),
+            final_darlin_vks.as_mut_slice(),
             &verifier_key_g1,
             &verifier_key_g2,
+            Some(final_darlin_pcds_fake.as_slice()),
+            Some(final_darlin_vks_fake.as_slice()),
             rng
         );
     }
@@ -380,9 +535,8 @@ mod test {
 
         // Set params
         let max_proofs = 100;
-        let max_pow = 7usize;
-        let num_constraints = 1 << max_pow;
-        let segment_size = num_constraints;
+        let max_pow = 10usize;
+        let segment_size = 1 << max_pow;
 
         //Generate keys
         let params_g1 = TestIPAPCDee::setup(segment_size - 1).unwrap();
@@ -392,6 +546,12 @@ mod test {
             committer_key_g1, verifier_key_g1,
             committer_key_g2, verifier_key_g2
         ) = get_keys::<_, _, Blake2s>(&params_g1, &params_g2);
+
+        //Generate fake params
+        let mut params_g1_fake = TestIPAPCDee::setup_from_seed(segment_size - 1, b"FAKE PROTOCOL").unwrap();
+        params_g1_fake.copy_params(&params_g1);
+        let mut params_g2_fake = TestIPAPCDum::setup_from_seed(segment_size - 1, b"FAKE PROTOCOL").unwrap();
+        params_g2_fake.copy_params(&params_g2);
 
         test_canonical_serialize_deserialize(true, &committer_key_g1);
         test_canonical_serialize_deserialize(true, &committer_key_g2);
@@ -407,16 +567,19 @@ mod test {
         let mut generated_proofs = 0;
         let mut pcds = Vec::new();
         let mut vks = Vec::new();
+        let mut pcds_fake = Vec::new();
+        let mut vks_fake = Vec::new();
         while generated_proofs < max_proofs {
             let iteration_num_proofs: usize = generation_rng.gen_range(1, max_proofs);
             generated_proofs += iteration_num_proofs;
-            let iteration_segment_size = 1 << (generation_rng.gen_range(2, max_pow));
+            let iteration_segment_size = 1 << (generation_rng.gen_range(5, max_pow));
+            let iteration_num_constraints = iteration_segment_size;
 
             // Randomly choose if to generate a SimpleMarlinProof or a FinalDarlinProof
             let simple: bool = generation_rng.gen();
             if simple {
                 let (iteration_pcds, mut iteration_vks) = generate_simple_marlin_test_data(
-                    num_constraints - 1,
+                    iteration_num_constraints - 1,
                     iteration_segment_size,
                     &params_g1,
                     iteration_num_proofs,
@@ -431,9 +594,23 @@ mod test {
 
                 pcds.append(&mut iteration_pcds);
                 vks.append(&mut iteration_vks);
+
+                let (iteration_pcds_fake, mut iteration_vks_fake) = generate_simple_marlin_test_data(
+                    iteration_num_constraints - 1,
+                    iteration_segment_size,
+                    &params_g1_fake,
+                    iteration_num_proofs,
+                    generation_rng
+                );
+
+                let mut iteration_pcds_fake = iteration_pcds_fake.into_iter().map(|pcd| GeneralPCD::SimpleMarlin(pcd)).collect::<Vec<_>>();
+
+                pcds_fake.append(&mut iteration_pcds_fake);
+                vks_fake.append(&mut iteration_vks_fake);
+
             } else {
                 let (iteration_pcds, mut iteration_vks) = generate_final_darlin_test_data(
-                    num_constraints - 1,
+                    iteration_num_constraints - 1,
                     iteration_segment_size,
                     &params_g1,
                     &params_g2,
@@ -449,26 +626,44 @@ mod test {
 
                 pcds.append(&mut iteration_pcds);
                 vks.append(&mut iteration_vks);
+
+                let (iteration_pcds_fake, mut iteration_vks_fake) = generate_final_darlin_test_data(
+                    iteration_num_constraints - 1,
+                    iteration_segment_size,
+                    &params_g1_fake,
+                    &params_g2_fake,
+                    iteration_num_proofs,
+                    generation_rng
+                );
+
+                let mut iteration_pcds_fake = iteration_pcds_fake.into_iter().map(|pcd| GeneralPCD::FinalDarlin(pcd)).collect::<Vec<_>>();
+
+                pcds_fake.append(&mut iteration_pcds_fake);
+                vks_fake.append(&mut iteration_vks_fake);
             }
         }
 
         println!("Test accumulation");
         test_accumulation::<DeeAffine, DumAffine, Blake2s, _>(
             pcds.clone().as_mut_slice(),
-            vks.as_slice(),
+            vks.as_mut_slice(),
             &committer_key_g1,
             &committer_key_g2,
             &verifier_key_g1,
             &verifier_key_g2,
+            Some(pcds_fake.as_slice()),
+            Some(vks_fake.as_slice()),
             rng
         );
 
         println!("Test batch verification");
         test_batch_verification::<DeeAffine, DumAffine, Blake2s, _>(
             pcds.as_mut_slice(),
-            vks.as_slice(),
+            vks.as_mut_slice(),
             &verifier_key_g1,
             &verifier_key_g2,
+            Some(pcds_fake.as_slice()),
+            Some(vks_fake.as_slice()),
             rng
         );
     }
@@ -519,7 +714,7 @@ mod test {
         println!("-- {} - MarlinProof", proof.proof.serialized_size());
         println!("---- {} - commitments ({})",
                  proof.proof.commitments.serialized_size() -
-                    (proof.proof.commitments.iter().flatten().collect::<Vec<_>>().len() * 4),
+                     (proof.proof.commitments.iter().flatten().collect::<Vec<_>>().len() * 4),
                  proof.proof.commitments.iter().flatten().collect::<Vec<_>>().len()
         );
         println!("---- {} - evaluations ({})",

@@ -26,7 +26,7 @@ use rayon::prelude::*;
 /// Given a set of PCDs, their corresponding Marlin verification keys, and the DLogCommitterKey(s)
 /// over two groups of a curve cycle, compute and return the associated accumulators via the
 /// succinct verification of them. 
-/// In case of failure, return the index of the proof that has caused the failure (if it's possible 
+/// In case of failure, return the indices of the proofs that have caused the failure (if it's possible
 /// to establish it). 
 /// The PCDs are allowed to use different size restrictions of the DLogCommitterKey `g1_ck` and `g2_ck`.
 pub(crate) fn get_accumulators<G1, G2, D: Digest>(
@@ -34,46 +34,51 @@ pub(crate) fn get_accumulators<G1, G2, D: Digest>(
     vks:       &[MarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>],
     g1_ck:     &DLogCommitterKey<G1>,
     g2_ck:     &DLogCommitterKey<G2>,
-) -> Result<(Vec<DLogItem<G1>>, Vec<DLogItem<G2>>), Option<usize>>
+) -> Result<(Vec<DLogItem<G1>>, Vec<DLogItem<G2>>), Option<Vec<usize>>>
     where
         G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
         G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
 {
     let accumulators_time = start_timer!(|| "Compute accumulators");
-    let accs = pcds
+
+    let (accs, failing_indices): (Vec<_>, Vec<_>) = pcds
         .into_par_iter()
         .zip(vks)
         .enumerate()
-        .map(|(i, (pcd, vk))|
-            {
-                // recall that we use FinalDarlinVerifierKeys to handle 
-                // polymorphic verification of final Darlin/simpleM arlin PCDs
-                let vk = DualPCDVerifierKey::<G1, G2, D>{
-                    final_darlin_vk: vk,
-                    dlog_vks: (g1_ck, g2_ck)
-                };
-                // No need to trim the vk here to the specific segment size used
-                // to generate the proof for this pcd, as the IPA succinct_check
-                // function doesn't use vk.comm_key at all.
-                pcd.succinct_verify(&vk).map_err(|_| Some(i))
-            }
-        ).collect::<Result<Vec<_>, _>>().map_err(|e| {
-            end_timer!(accumulators_time);
-            e
-        })?;
-
-    let accs_g1 = accs.iter().flat_map(|acc| acc.0.clone()).collect::<Vec<_>>();
-    let accs_g2 = accs.into_iter().flat_map(|acc| acc.1).collect::<Vec<_>>();
-
+        .map(|(i, (pcd, vk))| {
+            // recall that we use FinalDarlinVerifierKeys to handle
+            // polymorphic verification of final Darlin/simpleM arlin PCDs
+            let vk = DualPCDVerifierKey::<G1, G2, D>{
+                final_darlin_vk: vk,
+                dlog_vks: (g1_ck, g2_ck)
+            };
+            // No need to trim the vk here to the specific segment size used
+            // to generate the proof for this pcd, as the IPA succinct_check
+            // function doesn't use vk.comm_key at all.
+            pcd.succinct_verify(&vk).map_err(|_| i)
+        }).partition(Result::is_ok);
     end_timer!(accumulators_time);
 
-    Ok((accs_g1, accs_g2))
+    let accs = accs.into_iter().map(Result::unwrap).collect::<Vec<_>>();
+    let mut failing_indices = failing_indices.into_iter().map(Result::unwrap_err).collect::<Vec<_>>();
+
+    if failing_indices.is_empty() {
+        // All succinct verifications passed: collect and return the accumulators
+        let accs_g1 = accs.iter().flat_map(|acc| acc.0.clone()).collect::<Vec<_>>();
+        let accs_g2 = accs.into_iter().flat_map(|acc| acc.1).collect::<Vec<_>>();
+        Ok((accs_g1, accs_g2))
+    } else {
+        // Otherwise, collect and return as error the indices of all the failing proofs
+        // sorted in ascending order
+        failing_indices.sort();
+        Err(Some(failing_indices))
+    }
 }
 
 /// Given a set of PCDs, their corresponding Marlin verification keys, and the DLogCommitterKey(s)
 /// from both groups of our EC cycle, compute and return an accumulation proof(s) for 
 /// the dlog accumulators/"items".
-/// In case of failure, returns the index of the proof which caused it (if possible). 
+/// In case of failure, returns the indices of the proofs which caused it (if possible).
 /// The PCDs are allowed to use different size restrictions of the DLogCommitterKey 
 /// `g1_ck` and `g2_ck`.
 pub fn accumulate_proofs<G1, G2, D: Digest>(
@@ -85,7 +90,7 @@ pub fn accumulate_proofs<G1, G2, D: Digest>(
     (
         Option<AccumulationProof<G1>>,
         Option<AccumulationProof<G2>>,
-    ), Option<usize>>
+    ), Option<Vec<usize>>>
     where
         G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
         G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
@@ -135,7 +140,7 @@ pub fn accumulate_proofs<G1, G2, D: Digest>(
 /// Verifies a set of PCDs which is augmented by an accumulation proof for their
 /// dlog items. (This is cheaper than batch verification, as it doesn't need to
 /// do any batching of witnesses.)
-/// In case of failure, returns the index of the proof which caused it (if possible). 
+/// In case of failure, returns the indices of the proofs which caused it (if possible).
 /// The PCDs are allowed to use different size restrictions of the DLogCommitterKey 
 /// `g1_ck` and `g2_ck`.
 pub fn verify_aggregated_proofs<G1, G2, D: Digest, R: RngCore>(
@@ -146,7 +151,7 @@ pub fn verify_aggregated_proofs<G1, G2, D: Digest, R: RngCore>(
     g1_vk:                  &DLogVerifierKey<G1>,
     g2_vk:                  &DLogVerifierKey<G2>,
     rng:                    &mut R
-) -> Result<bool, Option<usize>>
+) -> Result<bool, Option<Vec<usize>>>
     where
         G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
         G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
@@ -194,7 +199,7 @@ pub fn verify_aggregated_proofs<G1, G2, D: Digest, R: RngCore>(
 /// Batch verification of PCDs consisting of FinalDarlin/SimpleMarlin PCDs. 
 /// The succinct parts are processed in serial, the dlog items (in both of the groups G1 
 /// and G2) are verified in batch.
-/// In case of failure, returns the index of the proof which caused it (if possible). 
+/// In case of failure, returns the indices of the proofs which caused it (if possible).
 /// The PCDs are allowed to use different size restrictions of the DLogCommitterKey 
 /// `g1_ck` and `g2_ck`.
 pub fn batch_verify_proofs<G1, G2, D: Digest, R: RngCore>(
@@ -203,7 +208,7 @@ pub fn batch_verify_proofs<G1, G2, D: Digest, R: RngCore>(
     g1_vk:                  &DLogVerifierKey<G1>,
     g2_vk:                  &DLogVerifierKey<G2>,
     rng:                    &mut R
-) -> Result<bool, Option<usize>>
+) -> Result<bool, Option<Vec<usize>>>
     where
         G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
         G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
