@@ -11,7 +11,7 @@ use poly_commit::{ipa_pc::{
     Commitment,
     VerifierKey, CommitterKey,
     SuccinctCheckPolynomial,
-}, rng::FiatShamirRng, LabeledCommitment, Error, PolynomialCommitment};
+}, rng::{FiatShamirRng, FiatShamirRngSeed}, LabeledCommitment, Error, PolynomialCommitment};
 use crate::darlin::accumulators::{
     ItemAccumulator, AccumulationProof,
 };
@@ -189,9 +189,18 @@ impl<G: AffineCurve, D: Digest> DLogItemAccumulator<G, D> {
         let poly_time = start_timer!(|| "Compute Bullet Polys evaluations");
 
         // Initialize Fiat-Shamir rng
-        let mut fs_rng = <InnerProductArgPC<G, D> as PolynomialCommitment<G::ScalarField>>::RandomOracle::from_seed(
-            &to_bytes![&Self::PROTOCOL_NAME, vk.hash.clone(), previous_accumulators.as_slice()].unwrap()
-        );
+        let fs_rng_init_seed = {
+            let mut seed_builder = <<InnerProductArgPC<G, D> as PolynomialCommitment<G::ScalarField>>::RandomOracle as FiatShamirRng>::Seed::new();
+            seed_builder.add_bytes(&Self::PROTOCOL_NAME)?;
+            seed_builder.add_bytes(&vk.hash)?;
+
+            // NOTE: We assume the number of accumulators to be clear from the context.
+            // As we use constant length encoding of field elements, we may use add_bytes()
+            // without producing collisions in the serialization procedure.
+            seed_builder.add_bytes(&previous_accumulators)?;
+            seed_builder.finalize()
+        };
+        let mut fs_rng = <InnerProductArgPC<G, D> as PolynomialCommitment<G::ScalarField>>::RandomOracle::from_seed(fs_rng_init_seed);
 
         // Sample a new challenge z
         let z = fs_rng.squeeze_128_bits_challenge::<G::ScalarField>();
@@ -340,9 +349,15 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
         let accumulate_time = start_timer!(|| "Accumulate");
 
         // Initialize Fiat-Shamir rng
-        let mut fs_rng = <InnerProductArgPC<G, D> as PolynomialCommitment<G::ScalarField>>::RandomOracle::from_seed(
-            &to_bytes![&Self::PROTOCOL_NAME, ck.hash.clone(), accumulators.as_slice()].unwrap()
-        );
+        let fs_rng_init_seed = {
+            let mut seed_builder = <<InnerProductArgPC<G, D> as PolynomialCommitment<G::ScalarField>>::RandomOracle as FiatShamirRng>::Seed::new();
+            seed_builder.add_bytes(&Self::PROTOCOL_NAME)?;
+            seed_builder.add_bytes(&ck.hash)?;
+            // TODO: Shall we decompose this further when passing it to the seed builder ?
+            seed_builder.add_bytes(&accumulators)?;
+            seed_builder.finalize()
+        };
+        let mut fs_rng = <InnerProductArgPC<G, D> as PolynomialCommitment<G::ScalarField>>::RandomOracle::from_seed(fs_rng_init_seed);
 
         // Sample a new challenge z
         let z = fs_rng.squeeze_128_bits_challenge::<G::ScalarField>();
@@ -533,6 +548,13 @@ mod test {
     use digest::Digest;
     use blake2::Blake2s;
 
+    fn get_test_fs_rng<G: AffineCurve, D: Digest>() -> <InnerProductArgPC<G, D> as PolynomialCommitment<G::ScalarField>>::RandomOracle
+    {
+        let mut seed_builder = <<InnerProductArgPC<G, D> as PolynomialCommitment<G::ScalarField>>::RandomOracle as FiatShamirRng>::Seed::new();
+        seed_builder.add_bytes(b"TEST_SEED").unwrap();
+        let fs_rng_seed = seed_builder.finalize();
+        <InnerProductArgPC<G, D> as PolynomialCommitment<G::ScalarField>>::RandomOracle::from_seed(fs_rng_seed)
+    }
 
     #[derive(Copy, Clone, Default)]
     struct TestInfo {
@@ -696,7 +718,7 @@ mod test {
         }
         println!("Generated query set");
 
-        let mut fs_rng = <InnerProductArgPC<G, D> as PolynomialCommitment<G::ScalarField>>::RandomOracle::from_seed(b"TEST_SEED");
+        let mut fs_rng = get_test_fs_rng::<G, D>();
         let proof = InnerProductArgPC::<G, D>::batch_open(
             &ck,
             &polynomials,
@@ -768,7 +790,7 @@ mod test {
             let mut proofs = Vec::new();
             let mut states = Vec::new();
 
-            let state = FiatShamirChaChaRng::<D>::from_seed(b"TEST_SEED").get_state().clone();
+            let state = get_test_fs_rng::<G, D>().get_state().clone();
 
             verifier_data_vec.iter().for_each(|verifier_data| {
                 let len = verifier_data.vk.comm_key.len();
@@ -868,7 +890,7 @@ mod test {
             let mut proofs = Vec::new();
             let mut states = Vec::new();
 
-            let state = FiatShamirChaChaRng::<D>::from_seed(b"TEST_SEED").get_state().clone();
+            let state = get_test_fs_rng::<G, D>().get_state().clone();
 
             verifier_data_vec.iter().for_each(|verifier_data| {
                 let len = verifier_data.vk.comm_key.len();
@@ -917,7 +939,6 @@ mod test {
         dee::Affine as TweedleDee,
         dum::Affine as TweedleDum,
     };
-    use poly_commit::rng::FiatShamirChaChaRng;
 
     #[test]
     fn test_tweedle_accumulate_verify() {
