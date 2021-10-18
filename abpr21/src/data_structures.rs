@@ -8,7 +8,7 @@ use ark_std::{
 
 
 
-/// A proof in the BPR20 SNARK.
+/// A proof in the [\[ABPR21\]](https://eprint.iacr.org/2020/1306) zkSNARK.
 #[derive(Clone, Debug, PartialEq, CanonicalSerialize, CanonicalDeserialize)]
 pub struct Proof<E: PairingEngine> {
     /// The `A` element in `G1`.
@@ -45,7 +45,7 @@ impl<E: PairingEngine> Default for Proof<E> {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-/// A verification key in the BPR20 SNARK.
+/// A verification key in the ABPR21 SNARK.
 #[derive(Clone, Debug, PartialEq, CanonicalSerialize, CanonicalDeserialize)]
 pub struct VerifyingKey<E: PairingEngine> {
     /// The `alpha * G`, where `G` is the generator of `E::G1`.
@@ -135,7 +135,7 @@ impl<E: PairingEngine> ToBytes for PreparedVerifyingKey<E> {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-/// The prover key for for the BPR20 zkSNARK.
+/// The prover key for for the ABPR21 zkSNARK.
 #[derive(Clone, Debug, PartialEq, CanonicalSerialize, CanonicalDeserialize)]
 pub struct ProvingKey<E: PairingEngine> {
     /// The underlying verification key.

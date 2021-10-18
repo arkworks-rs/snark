@@ -59,7 +59,7 @@ where
 {
     type D<F> = GeneralEvaluationDomain<F>;
 
-    let setup_time = start_timer!(|| "BPR20::Generator");
+    let setup_time = start_timer!(|| "ABPR21::Generator");
     let cs = ConstraintSystem::new_ref();
     cs.set_optimization_goal(OptimizationGoal::Constraints);
     cs.set_mode(SynthesisMode::Setup);

@@ -26,8 +26,8 @@ use std::{
 // We're going to use the BLS12-377 pairing-friendly elliptic curve.
 use ark_bls12_377::{Bls12_377, Fr};
 
-// We're going to use the BPR20 proving system.
-use ark_bpr20::{
+// We're going to use the ABPR21 proving system.
+use ark_abpr21::{
     create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
 };
 
@@ -125,7 +125,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         verifying_avg.subsec_nanos() as f64 / 1_000_000_000f64 + (verifying_avg.as_secs() as f64);
 
     println!(
-        "=== Benchmarking BPR20 with {} constraints: ====",
+        "=== Benchmarking ABPR21 with {} constraints: ====",
         num_constraints
     );
     println!("Average setup time: {:?} seconds", setup_avg);

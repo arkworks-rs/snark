@@ -61,7 +61,7 @@ where
 {
     type D<F> = GeneralEvaluationDomain<F>;
 
-    let prover_time = start_timer!(|| "BPR20::Prover");
+    let prover_time = start_timer!(|| "ABPR21::Prover");
     let cs = ConstraintSystem::new_ref();
 
     // Set the optimization goal

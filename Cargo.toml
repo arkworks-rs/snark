@@ -3,6 +3,9 @@
 members = [
     "relations",
     "snark",
+
+    # concrete SNARKs
+    "abpr21",
 ]
 
 [profile.release]

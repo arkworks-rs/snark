@@ -1,12 +1,12 @@
 [package]
-name = "ark-bpr20"
-version = "0.1.0"
-authors = [ "arkworks contributors" ]
-description = "An implementation of the BPR 2020 zkSNARK proof system"
+name = "ark-abpr21"
+version = "0.3.0"
+authors = [ " Amine-Baghery" ]
+description = "An implementation of the ABPR21 zkSNARK proof system"
 homepage = "https://arkworks.rs"
-repository = "https://github.com/arkworks-rs/groth16"
-documentation = "https://docs.rs/ark-groth16/"
-keywords = [ "zero-knowledge", "cryptography", "zkSNARK", "SNARK", "Groth", "Simulation Extractability"]
+repository = "https://github.com/arkworks-rs/snark/abpr21"
+documentation = "https://docs.rs/ark-abpr21/"
+keywords = ["zero-knowledge", "cryptography", "zkSNARK", "SE-zkSNARK", "simulation-extractability"]
 categories = [ "cryptography" ]
 include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
 license = "MIT/Apache-2.0"
@@ -57,13 +57,12 @@ r1cs = [ "ark-crypto-primitives/r1cs", "ark-r1cs-std", "tracing", "derivative" ]
 print-trace = [ "ark-std/print-trace" ]
 
 [[example]]
-name = "bpr20"
-path = "examples/snark-scalability/bpr20.rs"
+name = "abpr21"
+path = "examples/snark-scalability/abpr21.rs"
 required-features = ["std"]
 
 [[bench]]
-name = "bpr20-benches"
+name = "abpr21-benches"
 path = "benches/bench.rs"
 harness = false
 required-features = ["std"]
-

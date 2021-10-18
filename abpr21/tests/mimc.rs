@@ -144,8 +144,8 @@ impl<'a, F: Field> ConstraintSynthesizer<F> for MiMCDemo<'a, F> {
 
 #[test]
 fn test_mimc_bpr_20() {
-    // We're going to use the BPR20 proving system.
-    use ark_bpr20::{
+    // We're going to use the ABPR21 proving system.
+    use ark_abpr21::{
         create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
     };
 
@@ -201,7 +201,7 @@ fn test_mimc_bpr_20() {
                 constants: &constants,
             };
 
-            // Create a bpr20 proof with our parameters.
+            // Create a ABPR21 proof with our parameters.
             let proof = create_random_proof(c, &params, rng).unwrap();
             assert!(verify_proof(&pvk, &proof, &[image]).unwrap());
 
