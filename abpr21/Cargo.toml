@@ -1,7 +1,7 @@
 [package]
 name = "ark-abpr21"
 version = "0.3.0"
-authors = [ " Amine-Baghery" ]
+authors = [ "arkworks contributors, Oussame Amine, Karim Baghery" ]
 description = "An implementation of the ABPR21 zkSNARK proof system"
 homepage = "https://arkworks.rs"
 repository = "https://github.com/arkworks-rs/snark/abpr21"
@@ -40,14 +40,6 @@ ark-mnt4-298 = { version = "^0.3.0", default-features = false, features = ["r1cs
 ark-mnt6-298 = { version = "^0.3.0", default-features = false, features = ["r1cs"] }
 ark-mnt4-753 = { version = "^0.3.0", default-features = false, features = ["r1cs", "curve"] }
 ark-mnt6-753 = { version = "^0.3.0", default-features = false, features = ["r1cs"] }
-
-[profile.release]
-opt-level = 3
-panic = 'abort'
-
-[profile.dev]
-opt-level = 0
-panic = 'abort'
 
 [features]
 default = ["parallel"]
