@@ -1,0 +1,69 @@
+[package]
+name = "ark-bpr20"
+version = "0.1.0"
+authors = [ "arkworks contributors" ]
+description = "An implementation of the BPR 2020 zkSNARK proof system"
+homepage = "https://arkworks.rs"
+repository = "https://github.com/arkworks-rs/groth16"
+documentation = "https://docs.rs/ark-groth16/"
+keywords = [ "zero-knowledge", "cryptography", "zkSNARK", "SNARK", "Groth", "Simulation Extractability"]
+categories = [ "cryptography" ]
+include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
+license = "MIT/Apache-2.0"
+edition = "2018"
+
+################################# Dependencies ################################
+
+[dependencies]
+ark-ff = { version = "^0.3.0", default-features = false }
+ark-ec = { version = "^0.3.0", default-features = false }
+ark-serialize = { version = "^0.3.0", default-features = false, features = [ "derive" ] }
+ark-poly = { version = "^0.3.0", default-features = false }
+ark-std = { version = "^0.3.0", default-features = false }
+ark-relations = { version = "^0.3.0", default-features = false }
+ark-crypto-primitives = { version = "^0.3.0", default-features = false }
+ark-r1cs-std = { version = "^0.3.0", default-features = false, optional = true }
+
+tracing = { version = "0.1", default-features = false, features = [ "attributes" ], optional = true }
+derivative = { version = "2.0", features = ["use_core"], optional = true}
+
+rayon = { version = "1", optional = true }
+blake2 = "0.9"
+easy-parallel = "3.1.0"
+
+[dev-dependencies]
+csv = { version = "1" }
+ark-bls12-381 = { version = "^0.3.0", default-features = false, features = ["curve"] }
+ark-bls12-377 = { version = "^0.3.0", default-features = false, features = ["curve"] }
+ark-cp6-782 = { version = "^0.3.0", default-features = false }
+ark-mnt4-298 = { version = "^0.3.0", default-features = false, features = ["r1cs", "curve"] }
+ark-mnt6-298 = { version = "^0.3.0", default-features = false, features = ["r1cs"] }
+ark-mnt4-753 = { version = "^0.3.0", default-features = false, features = ["r1cs", "curve"] }
+ark-mnt6-753 = { version = "^0.3.0", default-features = false, features = ["r1cs"] }
+
+[profile.release]
+opt-level = 3
+panic = 'abort'
+
+[profile.dev]
+opt-level = 0
+panic = 'abort'
+
+[features]
+default = ["parallel"]
+std = ["ark-ff/std", "ark-ec/std", "ark-poly/std", "ark-relations/std", "ark-crypto-primitives/std", "ark-std/std" ]
+parallel = ["std", "ark-ff/parallel", "ark-poly/parallel", "ark-ec/parallel", "ark-crypto-primitives/parallel", "ark-std/parallel", "rayon"]
+r1cs = [ "ark-crypto-primitives/r1cs", "ark-r1cs-std", "tracing", "derivative" ]
+print-trace = [ "ark-std/print-trace" ]
+
+[[example]]
+name = "bpr20"
+path = "examples/snark-scalability/bpr20.rs"
+required-features = ["std"]
+
+[[bench]]
+name = "bpr20-benches"
+path = "benches/bench.rs"
+harness = false
+required-features = ["std"]
+
