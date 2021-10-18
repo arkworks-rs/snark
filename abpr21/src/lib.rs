@@ -15,10 +15,6 @@
 #[macro_use]
 extern crate ark_std;
 
-#[cfg(feature = "r1cs")]
-#[macro_use]
-extern crate derivative;
-
 /// Reduce an R1CS instance to a *Quadratic Arithmetic Program* instance.
 pub(crate) mod r1cs_to_qap;
 
@@ -33,10 +29,6 @@ pub mod prover;
 
 /// Verify proofs for the ABPR21 zkSNARK construction.
 pub mod verifier;
-
-/// Constraints for the ABPR21 verifier.
-#[cfg(feature = "r1cs")]
-pub mod constraints;
 
 #[cfg(test)]
 mod test;
