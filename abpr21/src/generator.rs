@@ -142,14 +142,11 @@ where
     // Generate the R1CS proving key
     let proving_key_time = start_timer!(|| "Generate the R1CS proving key");
 
-
-
     let alpha_g1 = g1_generator.mul(&alpha.into_repr());
     let beta_g1 = g1_generator.mul(&beta.into_repr());
     let beta_g2 = g2_generator.mul(&beta.into_repr());
     let delta_g1 = g1_generator.mul(&delta.into_repr());
     let delta_g2 = g2_generator.mul(&delta.into_repr());
-
 
     // Compute the A-query
     let a_time = start_timer!(|| "Calculate A");

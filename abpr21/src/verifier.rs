@@ -1,6 +1,6 @@
 use ark_ec::msm::FixedBaseMSM;
 use ark_ec::{AffineCurve, PairingEngine, ProjectiveCurve};
-use ark_ff::{PrimeField, to_bytes,};
+use ark_ff::{to_bytes, PrimeField};
 
 use super::{PreparedVerifyingKey, Proof, VerifyingKey};
 
@@ -36,7 +36,6 @@ pub fn prepare_inputs<E: PairingEngine>(
     Ok(g_ic)
 }
 
-
 /// Verify a proof `proof` against the prepared verification key `pvk` and prepared public
 /// inputs. This should be preferred over [`verify_proof`] if the instance's public inputs are
 /// known in advance.
@@ -45,11 +44,10 @@ pub fn verify_proof_with_prepared_inputs<E: PairingEngine>(
     proof: &Proof<E>,
     prepared_inputs: &E::G1Projective,
 ) -> R1CSResult<bool> {
-
     let hash = Blake2b::new()
-    .chain(to_bytes!(&proof.a).unwrap())
-    .chain(to_bytes!(&proof.b).unwrap())
-    .chain(to_bytes!(&proof.delta_prime).unwrap());
+        .chain(to_bytes!(&proof.a).unwrap())
+        .chain(to_bytes!(&proof.b).unwrap())
+        .chain(to_bytes!(&proof.delta_prime).unwrap());
     let mut output = [0u8; 64];
     output.copy_from_slice(&hash.finalize());
 
@@ -58,7 +56,6 @@ pub fn verify_proof_with_prepared_inputs<E: PairingEngine>(
     let mut delta_prime_delta_m = pvk.vk.delta_g2.mul(m_fr);
     delta_prime_delta_m.add_assign_mixed(&proof.delta_prime);
 
-
     let qap = E::miller_loop(
         [
             (proof.a.into(), proof.b.into()),
@@ -66,7 +63,10 @@ pub fn verify_proof_with_prepared_inputs<E: PairingEngine>(
                 prepared_inputs.into_affine().into(),
                 pvk.gamma_g2_neg_pc.clone(),
             ),
-            (proof.c.into(), delta_prime_delta_m.into_affine().neg().into()),
+            (
+                proof.c.into(),
+                delta_prime_delta_m.into_affine().neg().into(),
+            ),
         ]
         .iter(),
     );
@@ -87,10 +87,6 @@ pub fn verify_proof<E: PairingEngine>(
     verify_proof_with_prepared_inputs(pvk, proof, &prepared_inputs)
 }
 
-
-
-
-
 /// Verify a vector of proofs `proofs` against the prepared verification key `pvk` and prepared public
 /// inputs vector.
 pub fn vec_verify_proof_with_prepared_inputs<E: PairingEngine>(
@@ -98,71 +94,74 @@ pub fn vec_verify_proof_with_prepared_inputs<E: PairingEngine>(
     proofs: &Vec<Proof<E>>,
     prepared_inputs: &Vec<E::G1Projective>,
 ) -> R1CSResult<bool> {
-
-
     let num_proofs = proofs.len();
     let mut m_fr: Vec<E::Fr> = Vec::with_capacity(num_proofs as usize);
-    
+
     let start = ark_std::time::Instant::now();
     for proof in proofs.iter() {
         let hash = Blake2b::new()
-        .chain(to_bytes!(&proof.a).unwrap())
-        .chain(to_bytes!(&proof.b).unwrap())
-        .chain(to_bytes!(&proof.delta_prime).unwrap());
+            .chain(to_bytes!(&proof.a).unwrap())
+            .chain(to_bytes!(&proof.b).unwrap())
+            .chain(to_bytes!(&proof.delta_prime).unwrap());
         let mut output = [0u8; 64];
         output.copy_from_slice(&hash.finalize());
         m_fr.push(E::Fr::from_le_bytes_mod_order(&output));
-        
     }
 
     let scalar_bits = E::Fr::size_in_bits();
 
     let delta_g2_window = FixedBaseMSM::get_mul_window_size(num_proofs);
-    let delta_g2_table =
-        FixedBaseMSM::get_window_table::<E::G2Projective>(scalar_bits, delta_g2_window, pvk.vk.delta_g2.into_projective());
-    let elem_g2 =
-        FixedBaseMSM::multi_scalar_mul::<E::G2Projective>(scalar_bits, delta_g2_window, &delta_g2_table, &m_fr);
+    let delta_g2_table = FixedBaseMSM::get_window_table::<E::G2Projective>(
+        scalar_bits,
+        delta_g2_window,
+        pvk.vk.delta_g2.into_projective(),
+    );
+    let elem_g2 = FixedBaseMSM::multi_scalar_mul::<E::G2Projective>(
+        scalar_bits,
+        delta_g2_window,
+        &delta_g2_table,
+        &m_fr,
+    );
 
     println!(
         "Hashing + Exponentiation (G2) time is {}ns per proof doing {} exponentiations",
         start.elapsed().as_nanos() / num_proofs as u128,
         num_proofs
     );
-   
 
-
-    
     let mut bool_results: Vec<_> = Vec::new();
-    for ((x,y),z) in elem_g2.iter().zip(proofs.iter()).zip(prepared_inputs.iter()){
-       // x -> [m_fr * delta]_2    ;;  y -> proof  ;;  z -> prepared_inputs 
+    for ((x, y), z) in elem_g2
+        .iter()
+        .zip(proofs.iter())
+        .zip(prepared_inputs.iter())
+    {
+        // x -> [m_fr * delta]_2    ;;  y -> proof  ;;  z -> prepared_inputs
 
         let tmp1 = E::final_exponentiation(&E::miller_loop(
             [
                 (y.a.into(), y.b.into()),
+                (z.into_affine().into(), pvk.gamma_g2_neg_pc.clone()),
                 (
-                    z.into_affine().into(),
-                    pvk.gamma_g2_neg_pc.clone(),
+                    y.c.into(),
+                    (*x + y.delta_prime.into_projective())
+                        .neg()
+                        .into_affine()
+                        .into(),
                 ),
-                (y.c.into(), (*x + y.delta_prime.into_projective()).neg().into_affine().into()),
             ]
             .iter(),
-        )).unwrap();
+        ))
+        .unwrap();
         let tmp2 = pvk.vk.alpha_g1_beta_g2;
-        let tmp =  tmp1 == tmp2 ;
+        let tmp = tmp1 == tmp2;
 
         bool_results.push(tmp);
-
     }
-    
-    let result = bool_results.iter().fold(true, |total, next| {total && *next});
+
+    let result = bool_results.iter().fold(true, |total, next| total && *next);
     //println!("result is {:?}", result);
-    
 
-    
     Ok(result)
-    
-    
-
 }
 
 /// Verify a vector of proofs `proofs` against the prepared verification key `pvk`,
@@ -174,7 +173,7 @@ pub fn vec_verify_proof<E: PairingEngine>(
 ) -> R1CSResult<bool> {
     //let pvk = prepare_verifying_key(vk);
     let mut prepared_inputs: Vec<_> = Vec::new();
-    for (_,pub_input) in public_inputs.iter().enumerate(){
+    for (_, pub_input) in public_inputs.iter().enumerate() {
         let pvk = prepare_verifying_key(vk);
         prepared_inputs.push(prepare_inputs(&pvk, pub_input)?);
     }

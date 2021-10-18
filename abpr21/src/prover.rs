@@ -1,6 +1,6 @@
 use crate::{r1cs_to_qap::R1CStoQAP, Proof, ProvingKey};
 use ark_ec::{msm::VariableBaseMSM, AffineCurve, PairingEngine, ProjectiveCurve};
-use ark_ff::{Field, PrimeField, UniformRand, Zero, One, to_bytes};
+use ark_ff::{to_bytes, Field, One, PrimeField, UniformRand, Zero};
 use ark_poly::GeneralEvaluationDomain;
 use ark_relations::r1cs::{
     ConstraintSynthesizer, ConstraintSystem, OptimizationGoal, Result as R1CSResult,
@@ -29,7 +29,7 @@ where
     let r = E::Fr::rand(rng);
     let s = E::Fr::rand(rng);
     let mut zeta = E::Fr::zero();
-    while zeta.is_zero(){
+    while zeta.is_zero() {
         zeta = E::Fr::rand(rng);
     }
 
@@ -89,24 +89,18 @@ where
     let aux_assignment = cfg_iter!(prover.witness_assignment)
         .map(|s| s.into_repr())
         .collect::<Vec<_>>();
-    
- 
-    
+
     let delta_prime_g1 = pk.delta_g1.clone().mul(zeta).into_affine();
     let delta_prime_g2 = pk.vk.delta_g2.clone().mul(zeta).into_affine();
 
+    let r_s_delta_g1 = delta_prime_g1.mul((&(r * s)).into_repr());
 
-    let r_s_delta_g1 = delta_prime_g1.mul((&(r*s)).into_repr());
-    
     end_timer!(c_acc_time);
 
     let input_assignment = prover.instance_assignment[1..]
         .iter()
         .map(|s| s.into_repr())
         .collect::<Vec<_>>();
-
-    
-    
 
     let assignment = [&input_assignment[..], &aux_assignment[..]].concat();
     drop(aux_assignment);
@@ -146,25 +140,27 @@ where
 
     //Compute the hash message
     let hash = Blake2b::new()
-    .chain(to_bytes!(&g_a.into_affine()).unwrap())
-    .chain(to_bytes!(&g2_b.into_affine()).unwrap())
-    .chain(to_bytes!(&delta_prime_g2).unwrap());
+        .chain(to_bytes!(&g_a.into_affine()).unwrap())
+        .chain(to_bytes!(&g2_b.into_affine()).unwrap())
+        .chain(to_bytes!(&delta_prime_g2).unwrap());
     let mut output = [0u8; 64];
     output.copy_from_slice(&hash.finalize());
-    
+
     let m_fr = E::Fr::from_le_bytes_mod_order(&output);
     //println!("m_fr prover {0}", m_fr);
-    let factor = zeta * (zeta + m_fr).inverse().unwrap();   
+    let factor = zeta * (zeta + m_fr).inverse().unwrap();
     let zeta_m_inv = (zeta + m_fr).inverse().unwrap();
 
-    let h_assignment = cfg_into_iter!(h).map(|s| (s*zeta_m_inv).into()).collect::<Vec<_>>();
+    let h_assignment = cfg_into_iter!(h)
+        .map(|s| (s * zeta_m_inv).into())
+        .collect::<Vec<_>>();
     let h_acc = VariableBaseMSM::multi_scalar_mul(&pk.h_query, &h_assignment);
     let aux_assignment_unscaled = cfg_iter!(prover.witness_assignment)
-        .map(|s| (*s*zeta_m_inv).into()) 
+        .map(|s| (*s * zeta_m_inv).into())
         .collect::<Vec<_>>();
 
     let l_aux_acc = VariableBaseMSM::multi_scalar_mul(&pk.l_query, &aux_assignment_unscaled);
-    
+
     let mut g_c = s_g_a.mul(&factor.into_repr());
     g_c += &r_g1_b.mul(&factor.into_repr());
     g_c -= &r_s_delta_g1.mul(&factor.into_repr());
@@ -173,8 +169,7 @@ where
     end_timer!(c_time);
 
     end_timer!(prover_time);
-    
-    
+
     Ok(Proof {
         a: g_a.into_affine(),
         b: g2_b.into_affine(),
@@ -182,7 +177,6 @@ where
         delta_prime: delta_prime_g2,
     })
 }
-
 
 fn calculate_coeff<G: AffineCurve>(
     initial: G::Projective,

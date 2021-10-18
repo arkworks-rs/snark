@@ -95,6 +95,4 @@ impl<E: PairingEngine> SNARK<E::Fr> for ABPR21<E> {
     }
 }
 
-
-
 impl<E: PairingEngine> CircuitSpecificSetupSNARK<E::Fr> for ABPR21<E> {}

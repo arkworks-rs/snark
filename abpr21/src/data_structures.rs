@@ -6,8 +6,6 @@ use ark_std::{
     vec::Vec,
 };
 
-
-
 /// A proof in the [\[ABPR21\]](https://eprint.iacr.org/2020/1306) zkSNARK.
 #[derive(Clone, Debug, PartialEq, CanonicalSerialize, CanonicalDeserialize)]
 pub struct Proof<E: PairingEngine> {
@@ -60,7 +58,7 @@ pub struct VerifyingKey<E: PairingEngine> {
     pub gamma_abc_g1: Vec<E::G1Affine>,
     /// The element `e(alpha * G, beta * H)` in `E::GT`.
     pub alpha_g1_beta_g2: E::Fqk,
-    /// The element `zt*delta^{-1}` in `E::G1` 
+    /// The element `zt*delta^{-1}` in `E::G1`
     pub zt_delta_g1: E::G1Affine,
 }
 
