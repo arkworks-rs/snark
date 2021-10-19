@@ -6,7 +6,7 @@ use super::{PreparedVerifyingKey, Proof, VerifyingKey};
 
 use ark_relations::r1cs::{Result as R1CSResult, SynthesisError};
 
-use core::ops::{AddAssign, Neg};
+use ark_std::{ops::{AddAssign, Neg}, vec::Vec};
 
 use blake2::{Blake2b, Digest};
 
@@ -87,26 +87,25 @@ pub fn verify_proof<E: PairingEngine>(
     verify_proof_with_prepared_inputs(pvk, proof, &prepared_inputs)
 }
 
-/// Verify a vector of proofs `proofs` against the prepared verification key `pvk` and prepared public
+/// Verify a list of proofs `proofs` against the prepared verification key `pvk` and prepared public
 /// inputs vector.
-pub fn vec_verify_proof_with_prepared_inputs<E: PairingEngine>(
+pub fn verify_proofs_with_prepared_inputs<E: PairingEngine>(
     pvk: &PreparedVerifyingKey<E>,
-    proofs: &Vec<Proof<E>>,
-    prepared_inputs: &Vec<E::G1Projective>,
+    proofs: &[Proof<E>],
+    prepared_inputs: &[E::G1Projective],
 ) -> R1CSResult<bool> {
-    let num_proofs = proofs.len();
-    let mut m_fr: Vec<E::Fr> = Vec::with_capacity(num_proofs as usize);
+    let verifier_time = start_timer!(|| "ABPR21::BatchVerifier w/ prepared inputs");
 
-    let start = ark_std::time::Instant::now();
-    for proof in proofs.iter() {
+    let num_proofs = proofs.len();
+    let m_fr: Vec<_> = proofs.iter().map(|proof| {
         let hash = Blake2b::new()
             .chain(to_bytes!(&proof.a).unwrap())
             .chain(to_bytes!(&proof.b).unwrap())
             .chain(to_bytes!(&proof.delta_prime).unwrap());
         let mut output = [0u8; 64];
         output.copy_from_slice(&hash.finalize());
-        m_fr.push(E::Fr::from_le_bytes_mod_order(&output));
-    }
+        E::Fr::from_le_bytes_mod_order(&output)
+    }).collect();
 
     let scalar_bits = E::Fr::size_in_bits();
 
@@ -123,60 +122,40 @@ pub fn vec_verify_proof_with_prepared_inputs<E: PairingEngine>(
         &m_fr,
     );
 
-    println!(
-        "Hashing + Exponentiation (G2) time is {}ns per proof doing {} exponentiations",
-        start.elapsed().as_nanos() / num_proofs as u128,
-        num_proofs
-    );
-
-    let mut bool_results: Vec<_> = Vec::new();
-    for ((x, y), z) in elem_g2
-        .iter()
+    let result = cfg_iter!(elem_g2)
         .zip(proofs.iter())
         .zip(prepared_inputs.iter())
-    {
-        // x -> [m_fr * delta]_2    ;;  y -> proof  ;;  z -> prepared_inputs
-
-        let tmp1 = E::final_exponentiation(&E::miller_loop(
-            [
-                (y.a.into(), y.b.into()),
-                (z.into_affine().into(), pvk.gamma_g2_neg_pc.clone()),
-                (
-                    y.c.into(),
-                    (*x + y.delta_prime.into_projective())
-                        .neg()
-                        .into_affine()
-                        .into(),
-                ),
-            ]
-            .iter(),
-        ))
-        .unwrap();
-        let tmp2 = pvk.vk.alpha_g1_beta_g2;
-        let tmp = tmp1 == tmp2;
-
-        bool_results.push(tmp);
-    }
-
-    let result = bool_results.iter().fold(true, |total, next| total && *next);
-    //println!("result is {:?}", result);
-
+        .map(|((x, y), z)| {
+            // x -> [m_fr * delta]_2    ;;  y -> proof  ;;  z -> prepared_inputs
+            let tmp1 = E::final_exponentiation(&E::miller_loop(
+                [
+                    (y.a.into(), y.b.into()),
+                    (z.into_affine().into(), pvk.gamma_g2_neg_pc.clone()),
+                    (
+                        y.c.into(),
+                        (*x + y.delta_prime.into_projective())
+                            .neg()
+                            .into_affine()
+                            .into(),
+                    ),
+                ]
+                .iter(),
+            ))
+            .unwrap();
+            tmp1 == pvk.vk.alpha_g1_beta_g2
+        }).all(ark_std::convert::identity);
+    end_timer!(verifier_time);
     Ok(result)
 }
 
 /// Verify a vector of proofs `proofs` against the prepared verification key `pvk`,
 /// with respect to the instances `public_inputs`'s.
-pub fn vec_verify_proof<E: PairingEngine>(
+pub fn verify_proofs<E: PairingEngine>(
     vk: &VerifyingKey<E>,
-    proofs: &Vec<Proof<E>>,
-    public_inputs: &Vec<Vec<E::Fr>>,
+    proofs: &[Proof<E>],
+    public_inputs: &[Vec<E::Fr>],
 ) -> R1CSResult<bool> {
-    //let pvk = prepare_verifying_key(vk);
-    let mut prepared_inputs: Vec<_> = Vec::new();
-    for (_, pub_input) in public_inputs.iter().enumerate() {
-        let pvk = prepare_verifying_key(vk);
-        prepared_inputs.push(prepare_inputs(&pvk, pub_input)?);
-    }
     let pvk = prepare_verifying_key(vk);
-    vec_verify_proof_with_prepared_inputs(&pvk, proofs, &prepared_inputs)
+    let prepared_inputs = cfg_iter!(public_inputs).map(|inp| prepare_inputs(&pvk, inp)).collect::<Result<Vec<_>, _>>()?;
+    verify_proofs_with_prepared_inputs(&pvk, proofs, &prepared_inputs)
 }

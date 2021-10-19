@@ -28,7 +28,7 @@ tracing = { version = "0.1", default-features = false, features = [ "attributes"
 derivative = { version = "2.0", features = ["use_core"], optional = true}
 
 rayon = { version = "1", optional = true }
-blake2 = "0.9"
+blake2 = { version = "0.9", default-features = false }
 
 [dev-dependencies]
 csv = { version = "1" }
@@ -42,7 +42,7 @@ ark-mnt6-753 = { version = "^0.3.0", default-features = false, features = ["r1cs
 
 [features]
 default = ["parallel"]
-std = ["ark-ff/std", "ark-ec/std", "ark-poly/std", "ark-relations/std", "ark-crypto-primitives/std", "ark-std/std" ]
+std = ["ark-ff/std", "ark-ec/std", "ark-poly/std", "ark-relations/std", "ark-crypto-primitives/std", "ark-std/std", "blake2/std" ]
 parallel = ["std", "ark-ff/parallel", "ark-poly/parallel", "ark-ec/parallel", "ark-crypto-primitives/parallel", "ark-std/parallel", "rayon"]
 r1cs = [ "ark-crypto-primitives/r1cs", "ark-r1cs-std", "tracing", "derivative" ]
 print-trace = [ "ark-std/print-trace" ]
