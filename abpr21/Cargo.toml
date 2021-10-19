@@ -29,7 +29,6 @@ derivative = { version = "2.0", features = ["use_core"], optional = true}
 
 rayon = { version = "1", optional = true }
 blake2 = "0.9"
-easy-parallel = "3.1.0"
 
 [dev-dependencies]
 csv = { version = "1" }
