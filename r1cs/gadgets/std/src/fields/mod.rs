@@ -270,11 +270,9 @@ pub(crate) mod tests {
         let zero_native = zero.get_value().unwrap();
         zero.enforce_equal(&mut cs.ns(|| "zero_equals?"), &zero)
             .unwrap();
-        assert_eq!(zero, zero);
 
         let one = F::one(cs.ns(|| "one")).unwrap();
         let one_native = one.get_value().unwrap();
-        assert_eq!(one, one);
         one.enforce_equal(&mut cs.ns(|| "one_equals?"), &one)
             .unwrap();
         assert_ne!(one, zero);
@@ -288,12 +286,8 @@ pub(crate) mod tests {
         let two = one.add(cs.ns(|| "one_plus_one"), &one).unwrap();
         two.enforce_equal(&mut cs.ns(|| "two_equals?"), &two)
             .unwrap();
-        assert_eq!(two, two);
         assert_ne!(zero, two);
         assert_ne!(one, two);
-
-        // a == a
-        assert_eq!(a, a);
 
         // a + 0 = a
         let a_plus_zero = a.add(cs.ns(|| "a_plus_zero"), &zero).unwrap();

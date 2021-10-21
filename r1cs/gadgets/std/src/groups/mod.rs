@@ -196,10 +196,6 @@ pub(crate) mod test {
         let b = GG::alloc(&mut cs.ns(|| "generate_b"), || Ok(b)).unwrap();
 
         let zero = GG::zero(cs.ns(|| "Zero")).unwrap();
-        assert_eq!(zero, zero);
-
-        // a == a
-        assert_eq!(a, a);
 
         // a + 0 = a
         assert_eq!(a.add(cs.ns(|| "a_plus_zero"), &zero).unwrap(), a);
@@ -252,10 +248,6 @@ pub(crate) mod test {
         let b = GG::alloc(&mut cs.ns(|| "generate_b"), || Ok(b)).unwrap();
 
         let zero = GG::zero(cs.ns(|| "Zero")).unwrap();
-        assert_eq!(zero, zero);
-
-        // a == a
-        assert_eq!(a, a);
 
         // a + b = b + a
         let a_b = a.add(cs.ns(|| "a_plus_b"), &b).unwrap();
