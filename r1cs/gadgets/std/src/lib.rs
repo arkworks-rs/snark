@@ -49,6 +49,9 @@ pub mod groups;
 
 pub mod pairing;
 
+pub mod instantiated;
+pub use instantiated::*;
+
 pub mod alloc;
 pub mod eq;
 pub mod select;
@@ -59,22 +62,31 @@ pub mod prelude {
         alloc::*,
         bits::{boolean::Boolean, uint32::UInt32, uint8::UInt8, ToBitsGadget, FromBitsGadget, ToBytesGadget},
         eq::*,
-        fields::FieldGadget,
+        fields::{
+            FieldGadget, quadratic_extension::*, cubic_extension::*,
+        },
         groups::GroupGadget,
         pairing::PairingGadget,
         select::*,
     };
 }
 
+use algebra::Field;
+use r1cs_core::{ConstraintSystem, SynthesisError};
+
 pub trait Assignment<T> {
-    fn get(self) -> Result<T, r1cs_core::SynthesisError>;
+    fn get(self) -> Result<T, SynthesisError>;
 }
 
 impl<T> Assignment<T> for Option<T> {
-    fn get(self) -> Result<T, r1cs_core::SynthesisError> {
+    fn get(self) -> Result<T, SynthesisError> {
         match self {
             Some(v) => Ok(v),
-            None => Err(r1cs_core::SynthesisError::AssignmentMissing),
+            None => Err(SynthesisError::AssignmentMissing),
         }
     }
+}
+
+pub trait FromGadget<T, ConstraintF: Field>: Sized {
+    fn from<CS: ConstraintSystem<ConstraintF>>(other: T, cs: CS) -> Result<Self, SynthesisError>;
 }

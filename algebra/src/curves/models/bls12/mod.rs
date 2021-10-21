@@ -1,15 +1,12 @@
-use crate::{
-    curves::{
-        models::{ModelParameters, SWModelParameters},
-        PairingCurve, PairingEngine,
-    },
-    fields::{
-        fp12_2over3over2::{Fp12, Fp12Parameters},
-        fp2::Fp2Parameters,
-        fp6_3over2::Fp6Parameters,
-        BitIterator, Field, Fp2, PrimeField, SquareRootField,
-    },
-};
+use crate::{curves::{
+    models::{ModelParameters, SWModelParameters}, PairingEngine
+}, fields::{
+    models::quadratic_extension::QuadExtParameters,
+    fp12_2over3over2::{Fp12, Fp12Parameters, Fp12ParamsWrapper},
+    fp2::Fp2Parameters,
+    fp6_3over2::Fp6Parameters,
+    BitIterator, Field, Fp2, PrimeField, SquareRootField,
+}, Error};
 
 use std::marker::PhantomData;
 
@@ -58,13 +55,13 @@ impl<P: Bls12Parameters> Bls12<P> {
 
         match P::TWIST_TYPE {
             TwistType::M => {
-                c2.mul_by_fp(&p.y);
-                c1.mul_by_fp(&p.x);
+                c2.mul_assign_by_basefield(&p.y);
+                c1.mul_assign_by_basefield(&p.x);
                 f.mul_by_014(&c0, &c1, &c2);
             },
             TwistType::D => {
-                c0.mul_by_fp(&p.y);
-                c1.mul_by_fp(&p.x);
+                c0.mul_assign_by_basefield(&p.y);
+                c1.mul_assign_by_basefield(&p.x);
                 f.mul_by_034(&c0, &c1, &c2);
             },
         }
@@ -80,44 +77,24 @@ impl<P: Bls12Parameters> Bls12<P> {
 }
 
 impl<P: Bls12Parameters> PairingEngine for Bls12<P>
-where
-    G1Affine<P>: PairingCurve<
-        BaseField = <P::G1Parameters as ModelParameters>::BaseField,
-        ScalarField = <P::G1Parameters as ModelParameters>::ScalarField,
-        Projective = G1Projective<P>,
-        PairWith = G2Affine<P>,
-        Prepared = G1Prepared<P>,
-        PairingResult = Fp12<P::Fp12Params>,
-    >,
-    G2Affine<P>: PairingCurve<
-        BaseField = <P::G2Parameters as ModelParameters>::BaseField,
-        ScalarField = <P::G1Parameters as ModelParameters>::ScalarField,
-        Projective = G2Projective<P>,
-        PairWith = G1Affine<P>,
-        Prepared = G2Prepared<P>,
-        PairingResult = Fp12<P::Fp12Params>,
-    >,
 {
     type Fr = <P::G1Parameters as ModelParameters>::ScalarField;
     type G1Projective = G1Projective<P>;
     type G1Affine = G1Affine<P>;
+    type G1Prepared = G1Prepared<P>;
     type G2Projective = G2Projective<P>;
     type G2Affine = G2Affine<P>;
+    type G2Prepared = G2Prepared<P>;
     type Fq = P::Fp;
     type Fqe = Fp2<P::Fp2Params>;
     type Fqk = Fp12<P::Fp12Params>;
 
-    fn miller_loop<'a, I>(i: I) -> Self::Fqk
-    where
-        I: IntoIterator<
-            Item = &'a (
-                &'a <Self::G1Affine as PairingCurve>::Prepared,
-                &'a <Self::G2Affine as PairingCurve>::Prepared,
-            ),
-        >,
+    fn miller_loop<'a, I>(i: I) -> Result<Self::Fqk, Error>
+        where
+            I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>,
     {
         let mut pairs = vec![];
-        for &(p, q) in i {
+        for (p, q) in i {
             if !p.is_zero() && !q.is_zero() {
                 pairs.push((p, q.ell_coeffs.iter()));
             }
@@ -143,10 +120,10 @@ where
             f.conjugate();
         }
 
-        f
+        Ok(f)
     }
 
-    fn final_exponentiation(f: &Self::Fqk) -> Option<Self::Fqk> {
+    fn final_exponentiation(f: &Self::Fqk) -> Result<Self::Fqk, Error> {
         // Computing the final exponentation following
         // https://eprint.iacr.org/2016/130.pdf.
         // We don't use their "faster" formula because it is difficult to make
@@ -155,7 +132,7 @@ where
 
         // f1 = r.conjugate() = f^(p^6)
         let mut f1 = *f;
-        f1.frobenius_map(6);
+        f1.conjugate();
 
         match f.inverse() {
             Some(mut f2) => {
@@ -174,12 +151,12 @@ where
 
                 // Hard part of the final exponentation is below:
                 // From https://eprint.iacr.org/2016/130.pdf, Table 1
-                let mut y0 = r.cyclotomic_square();
+                let mut y0 = Fp12ParamsWrapper::<P::Fp12Params>::cyclotomic_square(&r);
                 y0.conjugate();
 
                 let mut y5 = Self::exp_by_x(r);
 
-                let mut y1 = y5.cyclotomic_square();
+                let mut y1 = Fp12ParamsWrapper::<P::Fp12Params>::cyclotomic_square(&y5);
                 let mut y3 = y0 * &y5;
                 y0 = Self::exp_by_x(y3);
                 let y2 = Self::exp_by_x(y0);
@@ -200,9 +177,9 @@ where
                 y5 *= &y0;
                 y5 *= &y4;
                 y5 *= &y1;
-                Some(y5)
+                Ok(y5)
             },
-            None => None,
+            None => Err(format!("f is zero"))?,
         }
     }
 }

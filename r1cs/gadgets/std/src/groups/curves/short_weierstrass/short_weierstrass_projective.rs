@@ -42,11 +42,14 @@ impl<P, ConstraintF, F> AffineGadget<P, ConstraintF, F>
     #[inline]
     /// Incomplete addition: neither `self` nor `other` can be the neutral
     /// element.
-    pub fn add_unsafe<CS: ConstraintSystem<ConstraintF>>(
+    /// If `safe` is set, enforce in the circuit exceptional cases not occurring.
+    fn add_internal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
-    ) -> Result<Self, SynthesisError> {
+        safe: bool,
+    ) -> Result<Self, SynthesisError>
+    {
         // lambda = (B.y - A.y)/(B.x - A.x)
         // C.x = lambda^2 - A.x - B.x
         // C.y = lambda(A.x - C.x) - A.y
@@ -59,13 +62,22 @@ impl<P, ConstraintF, F> AffineGadget<P, ConstraintF, F>
         // addition of negative point: if B.y = -A.y and B.x = A.x then no
         // lambda can satisfy the first equation unless B.y - A.y = 0. But
         // then this reduces to doubling.
-
         let x2_minus_x1 = other.x.sub(cs.ns(|| "x2 - x1"), &self.x)?;
         let y2_minus_y1 = other.y.sub(cs.ns(|| "y2 - y1"), &self.y)?;
 
-        let lambda = F::alloc(cs.ns(|| "lambda"), || {
-            Ok(y2_minus_y1.get_value().get()? * &x2_minus_x1.get_value().get()?.inverse().get()?)
-        })?;
+        let lambda = if safe {
+            // Check that A.x - B.x != 0, which can be done by
+            // enforcing I * (B.x - A.x) = 1
+            // This is done below when we calculate inv (by F::inverse)
+            let inv = x2_minus_x1.inverse(cs.ns(|| "compute inv"))?;
+            F::alloc(cs.ns(|| "lambda"), || {
+                Ok(y2_minus_y1.get_value().get()? * &inv.get_value().get()?)
+            })
+        } else {
+            F::alloc(cs.ns(|| "lambda"), || {
+                Ok(y2_minus_y1.get_value().get()? * &x2_minus_x1.get_value().get()?.inverse().get()?)
+            })
+        }?;
 
         let x_3 = F::alloc(&mut cs.ns(|| "x_3"), || {
             let lambda_val = lambda.get_value().get()?;
@@ -98,6 +110,17 @@ impl<P, ConstraintF, F> AffineGadget<P, ConstraintF, F>
         lambda.mul_equals(cs.ns(|| ""), &x1_minus_x3, &y3_plus_y1)?;
 
         Ok(Self::new(x_3, y_3, Boolean::Constant(false)))
+    }
+
+    #[inline]
+    /// Incomplete, unsafe, addition: neither `self` nor `other` can be the neutral
+    /// element.
+    pub fn add_unsafe<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+        other: &Self,
+    ) -> Result<Self, SynthesisError> {
+        self.add_internal(cs, other, false)
     }
 }
 
@@ -156,70 +179,19 @@ for AffineGadget<P, ConstraintF, F>
     }
 
     #[inline]
+    fn is_zero<CS: ConstraintSystem<ConstraintF>>(&self, _: CS) -> Result<Boolean, SynthesisError>{
+        Ok(self.infinity)
+    }
+
+    #[inline]
     /// Incomplete addition: neither `self` nor `other` can be the neutral
     /// element.
     fn add<CS: ConstraintSystem<ConstraintF>>(
         &self,
-        mut cs: CS,
+        cs: CS,
         other: &Self,
     ) -> Result<Self, SynthesisError> {
-        // lambda = (B.y - A.y)/(B.x - A.x)
-        // C.x = lambda^2 - A.x - B.x
-        // C.y = lambda(A.x - C.x) - A.y
-        //
-        // Special cases:
-        //
-        // doubling: if B.y = A.y and B.x = A.x then lambda is unbound and
-        // C = (lambda^2, lambda^3)
-        //
-        // addition of negative point: if B.y = -A.y and B.x = A.x then no
-        // lambda can satisfy the first equation unless B.y - A.y = 0. But
-        // then this reduces to doubling.
-        //
-        // So we need to check that A.x - B.x != 0, which can be done by
-        // enforcing I * (B.x - A.x) = 1
-        // This is done below when we calculate inv (by F::inverse)
-
-        let x2_minus_x1 = other.x.sub(cs.ns(|| "x2 - x1"), &self.x)?;
-        let y2_minus_y1 = other.y.sub(cs.ns(|| "y2 - y1"), &self.y)?;
-
-        let inv = x2_minus_x1.inverse(cs.ns(|| "compute inv"))?;
-
-        let lambda = F::alloc(cs.ns(|| "lambda"), || {
-            Ok(y2_minus_y1.get_value().get()? * &inv.get_value().get()?)
-        })?;
-
-        let x_3 = F::alloc(&mut cs.ns(|| "x_3"), || {
-            let lambda_val = lambda.get_value().get()?;
-            let x1 = self.x.get_value().get()?;
-            let x2 = other.x.get_value().get()?;
-            Ok((lambda_val.square() - &x1) - &x2)
-        })?;
-
-        let y_3 = F::alloc(&mut cs.ns(|| "y_3"), || {
-            let lambda_val = lambda.get_value().get()?;
-            let x_1 = self.x.get_value().get()?;
-            let y_1 = self.y.get_value().get()?;
-            let x_3 = x_3.get_value().get()?;
-            Ok(lambda_val * &(x_1 - &x_3) - &y_1)
-        })?;
-
-        // Check lambda
-        lambda.mul_equals(cs.ns(|| "check lambda"), &x2_minus_x1, &y2_minus_y1)?;
-
-        // Check x3
-        let x3_plus_x1_plus_x2 = x_3
-            .add(cs.ns(|| "x3 + x1"), &self.x)?
-            .add(cs.ns(|| "x3 + x1 + x2"), &other.x)?;
-        lambda.mul_equals(cs.ns(|| "check x3"), &lambda, &x3_plus_x1_plus_x2)?;
-
-        // Check y3
-        let y3_plus_y1 = y_3.add(cs.ns(|| "y3 + y1"), &self.y)?;
-        let x1_minus_x3 = self.x.sub(cs.ns(|| "x1 - x3"), &x_3)?;
-
-        lambda.mul_equals(cs.ns(|| ""), &x1_minus_x3, &y3_plus_y1)?;
-
-        Ok(Self::new(x_3, y_3, Boolean::Constant(false)))
+        self.add_internal(cs, other, true)
     }
 
     /// Incomplete addition: neither `self` nor `other` can be the neutral
@@ -324,16 +296,39 @@ for AffineGadget<P, ConstraintF, F>
         // Check lambda
         lambda.mul_equals(cs.ns(|| "check lambda"), &two_y, &three_x_squared_plus_a)?;
 
-        let x = lambda
-            .square(cs.ns(|| "lambda^2"))?
-            .sub(cs.ns(|| "lambda^2 - x"), &self.x)?
-            .sub(cs.ns(|| "lambda^2 - 2x"), &self.x)?;
+        // Allocate fresh x and y as a temporary workaround to reduce the R1CS density.
+        let x = F::alloc(
+            cs.ns(|| "new x"),
+            || {
+                let lambda_val = lambda.get_value().get()?;
+                let x_val = self.x.get_value().get()?;
+                Ok((lambda_val * &lambda_val) - &x_val - &x_val)
+            }
+        )?;
 
-        let y = self
-            .x
-            .sub(cs.ns(|| "x - self.x"), &x)?
-            .mul(cs.ns(|| "times lambda"), &lambda)?
-            .sub(cs.ns(|| "plus self.y"), &self.y)?;
+        // lambda * lambda = new_x + 2_old_x
+        let new_x_plus_two_x = self.x
+            .add(cs.ns(|| "2old_x"), &self.x)?
+            .add(cs.ns(|| "new_x + 2old_x"), &x)?;
+        lambda.mul_equals(cs.ns(|| "check new x"), &lambda, &new_x_plus_two_x)?;
+
+        let y = F::alloc(
+            cs.ns(|| "new y"),
+            || {
+                let lambda_val = lambda.get_value().get()?;
+                let x_val = self.x.get_value().get()?;
+                let y_val = self.y.get_value().get()?;
+                let new_x_val = x.get_value().get()?;
+                Ok(((x_val - &new_x_val) * &lambda_val) - &y_val)
+            }
+        )?;
+
+        //lambda * (old_x - new_x) = new_y + old_y
+        let old_x_minus_new_x = self.x
+            .sub(cs.ns(|| "old_x - new_x"), &x)?;
+        let old_y_plus_new_y = self.y
+            .add(cs.ns(|| "old_y + new_y"), &y)?;
+        lambda.mul_equals(cs.ns(|| "check new y"), &old_x_minus_new_x, &old_y_plus_new_y)?;
 
         *self = Self::new(x, y, Boolean::constant(false));
         Ok(())
@@ -568,65 +563,49 @@ impl<P, ConstraintF, F> EqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F
         ConstraintF: Field,
         F: FieldGadget<P::BaseField, ConstraintF>,
 {
-}
+    fn is_eq<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        other: &Self
+    ) -> Result<Boolean, SynthesisError> {
+        let b0 = self.x.is_eq(cs.ns(|| "x"), &other.x)?;
+        let b1 = self.y.is_eq(cs.ns(|| "y"),&other.y)?;
+        let coordinates_equal = Boolean::and(cs.ns(|| "x AND y"), &b0, &b1)?;
+        let both_are_zero = Boolean::and(
+            cs.ns(|| "self.infinity AND other.infinity"),
+            &self.infinity,
+            &other.infinity
+        )?;
+        Boolean::or(cs.ns(|| "coordinates_equal OR both_are_zero"), &coordinates_equal, &both_are_zero)
 
-impl<P, ConstraintF, F> ConditionalEqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
-    where
-        P: SWModelParameters,
-        ConstraintF: Field,
-        F: FieldGadget<P::BaseField, ConstraintF>,
-{
+    }
+
     #[inline]
     fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
-        condition: &Boolean,
+        should_enforce: &Boolean
     ) -> Result<(), SynthesisError> {
-        self.x.conditional_enforce_equal(
-            &mut cs.ns(|| "X Coordinate Conditional Equality"),
-            &other.x,
-            condition,
-        )?;
-        self.y.conditional_enforce_equal(
-            &mut cs.ns(|| "Y Coordinate Conditional Equality"),
-            &other.y,
-            condition,
-        )?;
-        self.infinity.conditional_enforce_equal(
-            &mut cs.ns(|| "Infinity Conditional Equality"),
-            &other.infinity,
-            condition,
-        )?;
+        self
+            .is_eq(cs.ns(|| "is_eq(self, other)"), &other)?
+            .conditional_enforce_equal(
+                cs.ns(|| "enforce condition"),
+                &Boolean::constant(true), &should_enforce
+            )?;
         Ok(())
     }
 
-    fn cost() -> usize {
-        2 * <F as ConditionalEqGadget<ConstraintF>>::cost()
-    }
-}
-
-impl<P, ConstraintF, F> NEqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
-    where
-        P: SWModelParameters,
-        ConstraintF: Field,
-        F: FieldGadget<P::BaseField, ConstraintF>,
-{
     #[inline]
-    fn enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
+    fn conditional_enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
+        should_enforce: &Boolean
     ) -> Result<(), SynthesisError> {
-        self.x
-            .enforce_not_equal(&mut cs.ns(|| "X Coordinate Inequality"), &other.x)?;
-        self.y
-            .enforce_not_equal(&mut cs.ns(|| "Y Coordinate Inequality"), &other.y)?;
-        Ok(())
-    }
-
-    fn cost() -> usize {
-        2 * <F as NEqGadget<ConstraintF>>::cost()
+        let is_equal = self.is_eq(cs.ns(|| "is_eq(self, other)"), other)?;
+        Boolean::and(cs.ns(|| "is_equal AND should_enforce"), &is_equal, should_enforce)?
+            .enforce_equal(cs.ns(|| "is_equal AND should_enforce == false"), &Boolean::Constant(false))
     }
 }
 
@@ -637,6 +616,9 @@ for AffineGadget<P, ConstraintF, F>
         ConstraintF: Field,
         F: FieldGadget<P::BaseField, ConstraintF>,
 {
+    /// On curve test is performed on x and y coordinates regardless of the infinity flag.
+    /// NOTE: Depending on the curve, this might be inconsistent with our default values
+    /// for x and y if infinity is true.
     #[inline]
     fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
@@ -707,6 +689,10 @@ for AffineGadget<P, ConstraintF, F>
         Ok(Self::new(x, y, infinity))
     }
 
+    /// On curve and group membership test is performed on x and y coordinates regardless
+    /// of the infinity flag.
+    /// NOTE: Depending on the curve, this might be inconsistent with our default values
+    /// for x and y if infinity is true.
     #[inline]
     fn alloc_checked<FN, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
@@ -794,18 +780,6 @@ for AffineGadget<P, ConstraintF, F>
             value_gen
         )?;
 
-        // Check that y^2 = x^3 + ax +b: it's a cheap check so we do it anyway
-        // We do this by checking that y^2 - b = x * (x^2 +a)
-        let b = P::COEFF_B;
-        let a = P::COEFF_A;
-
-        let x2 = ge.x.square(&mut cs.ns(|| "x^2"))?;
-        let y2 = ge.y.square(&mut cs.ns(|| "y^2"))?;
-
-        let x2_plus_a = x2.add_constant(cs.ns(|| "x^2 + a"), &a)?;
-        let y2_minus_b = y2.add_constant(cs.ns(|| "y^2 - b"), &b.neg())?;
-
-        x2_plus_a.mul_equals(cs.ns(|| "on curve check"), &ge.x, &y2_minus_b)?;
         Ok(ge)
     }
 

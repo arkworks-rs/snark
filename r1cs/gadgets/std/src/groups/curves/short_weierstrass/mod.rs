@@ -1,4 +1,5 @@
 pub mod bls12;
+pub mod bn;
 pub mod mnt;
 
 pub mod short_weierstrass_jacobian;

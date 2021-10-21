@@ -49,7 +49,12 @@ where
         input: &[UInt8],
         r: &Self::RandomnessGadget,
     ) -> Result<Self::OutputGadget, SynthesisError> {
-        assert!((input.len() * 8) <= (W::WINDOW_SIZE * W::NUM_WINDOWS));
+        if (input.len() * 8) > (W::WINDOW_SIZE * W::NUM_WINDOWS) {
+            Err(SynthesisError::Other(format!(
+                "incorrect input length: {:?}",
+                input.len()
+            ).to_owned()))?
+        }
 
         let mut padded_input = input.to_vec();
         // Pad if input length is less than `W::WINDOW_SIZE * W::NUM_WINDOWS`.
@@ -60,8 +65,16 @@ where
             }
         }
 
-        assert_eq!(padded_input.len() * 8, W::WINDOW_SIZE * W::NUM_WINDOWS);
-        assert_eq!(parameters.params.generators.len(), W::NUM_WINDOWS);
+        if padded_input.len() * 8 != W::WINDOW_SIZE * W::NUM_WINDOWS {
+            Err(SynthesisError::Other("padded input length verification failed".to_owned()))?
+        }
+        if parameters.params.generators.len() != W::NUM_WINDOWS {
+            Err(SynthesisError::Other(format!(
+                "Number of generators: {} not enough for the selected num_windows: {}",
+                parameters.params.generators.len(),
+                W::NUM_WINDOWS
+            ).to_owned()))?
+        }
 
         // Allocate new variable for commitment output.
         let input_in_bits: Vec<_> = padded_input
@@ -190,7 +203,7 @@ mod test {
     use algebra::curves::{jubjub::JubJubProjective as JubJub, ProjectiveCurve};
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
-        groups::jubjub::JubJubGadget, prelude::*, test_constraint_system::TestConstraintSystem,
+        instantiated::jubjub::JubJubGadget, prelude::*, test_constraint_system::TestConstraintSystem,
     };
 
     #[test]
@@ -218,14 +231,13 @@ mod test {
         let primitive_result =
             PedersenCommitment::<JubJub, Window>::commit(&parameters, &input, &randomness).unwrap();
 
-        let mut input_bytes = vec![];
-        for (byte_i, input_byte) in input.iter().enumerate() {
-            let cs = cs.ns(|| format!("input_byte_gadget_{}", byte_i));
-            input_bytes.push(UInt8::alloc(cs, || Ok(*input_byte)).unwrap());
-        }
+        let input_bytes = UInt8::alloc_input_vec(
+            cs.ns(|| "alloc input bytes as public input"),
+            &input
+        ).unwrap();
 
         let randomness =
-            <TestCOMMGadget as CommitmentGadget<TestCOMM, Fq>>::RandomnessGadget::alloc(
+            <TestCOMMGadget as CommitmentGadget<TestCOMM, Fq>>::RandomnessGadget::alloc_input(
                 &mut cs.ns(|| "gadget_randomness"),
                 || Ok(&randomness),
             )

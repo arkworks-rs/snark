@@ -1,8 +1,6 @@
-use crate::{Fp3, BigInteger768 as BigInteger, PrimeField, SquareRootField, Fp3Parameters,
-            Fp6Parameters, SWModelParameters, ModelParameters, PairingEngine, Fp6, PairingCurve,
-            Field};
+use crate::{Error, Fp3, BigInteger768 as BigInteger, PrimeField, SquareRootField, Fp3Parameters, Fp6Parameters, SWModelParameters, ModelParameters, PairingEngine, Fp6, Field};
 use std::marker::PhantomData;
-use std::ops::{Add, Mul, Sub, MulAssign};
+use std::ops::{Add, Mul, Sub};
 
 
 // Ate pairing e: G_1 x G_2 -> G_T for MNT6 curves over prime fields
@@ -55,12 +53,14 @@ pub trait MNT6Parameters: 'static {
 
     // base field F of the curve
     type Fp: PrimeField + SquareRootField + Into<<Self::Fp as PrimeField>::BigInt>;
+    // scalar field of the curve
+    type Fr: PrimeField + SquareRootField + Into<<Self::Fr as PrimeField>::BigInt>;
     // parameters of the quadratic extension field F3
     type Fp3Params: Fp3Parameters<Fp = Self::Fp>;
     // paramters of the embedding field F6
     type Fp6Params: Fp6Parameters<Fp3Params = Self::Fp3Params>;
     // parameters for E with defining field F
-    type G1Parameters: SWModelParameters<BaseField = Self::Fp>;
+    type G1Parameters: SWModelParameters<BaseField = Self::Fp, ScalarField = Self::Fr>;
     // parameters for the quadratic twist E' over F3
     type G2Parameters: SWModelParameters<
         BaseField = Fp3<Self::Fp3Params>,
@@ -98,7 +98,7 @@ impl<P: MNT6Parameters> MNT6p<P> {
     //     s.y = the y-coordinate of internal state S,
     //     gamma = the F3-slope of the tangent/P-chord at S,
     //     gamma_x = the F3-slope times the x-coordinate s.x of S.
-    fn ate_precompute_g2(value: &G2Affine<P>) -> G2Prepared<P> {
+    fn ate_precompute_g2(value: &G2Affine<P>) -> Result<G2Prepared<P>, Error> {
 
         let mut g2p = G2Prepared {
             q: *value,
@@ -114,6 +114,9 @@ impl<P: MNT6Parameters> MNT6p<P> {
             let gamma = {
                 let sx_squared = s.x.square();
                 let three_sx_squared_plus_a = sx_squared.double().add(&sx_squared).add(&P::TWIST_COEFF_A);
+                if value.y.is_zero() {
+                    Err(format!("Invalid Q-point value"))?
+                }
                 let two_sy_inv = s.y.double().inverse().unwrap();
                 three_sx_squared_plus_a.mul(&two_sy_inv) // the F3-slope of the tangent at S=(s.x,s.y)
             };
@@ -133,6 +136,9 @@ impl<P: MNT6Parameters> MNT6p<P> {
 
             if n != 0 {
                 //Addition/substraction step depending on the sign of n
+                if s.x == value.x {
+                    Err(format!("Invalid Q-point value"))?
+                }
                 let sx_minus_x_inv = s.x.sub(&value.x).inverse().unwrap();
                 let numerator = if n > 0  { s.y.sub(&value.y) } else { s.y.add(&value.y) };
                 let gamma = numerator.mul(&sx_minus_x_inv); //the F3 slope of the chord Q'R'
@@ -151,7 +157,8 @@ impl<P: MNT6Parameters> MNT6p<P> {
                 s.y = new_sy;
             }
         }
-        g2p
+
+        Ok(g2p)
     }
 
 
@@ -221,13 +228,16 @@ impl<P: MNT6Parameters> MNT6p<P> {
         f
     }
 
-    pub fn final_exponentiation(value: &Fp6<P::Fp6Params>) -> Fp6<P::Fp6Params> {
+    pub fn final_exponentiation(value: &Fp6<P::Fp6Params>) -> Result<Fp6<P::Fp6Params>, Error> {
+        if value.is_zero() {
+            Err(format!("Invalid exponentiation value: 0"))?
+        }
         let value_inv = value.inverse().unwrap();
         // "easy part" of the exponentiation
         let value_to_first_chunk = Self::final_exponentiation_first_chunk(value, &value_inv);
         let value_inv_to_first_chunk = Self::final_exponentiation_first_chunk(&value_inv, value);
         // "hard part"
-        Self::final_exponentiation_last_chunk(&value_to_first_chunk, &value_inv_to_first_chunk)
+        Ok(Self::final_exponentiation_last_chunk(&value_to_first_chunk, &value_inv_to_first_chunk))
     }
 
     fn final_exponentiation_first_chunk(elt: &Fp6<P::Fp6Params>, elt_inv: &Fp6<P::Fp6Params>) -> Fp6<P::Fp6Params> {
@@ -236,14 +246,14 @@ impl<P: MNT6Parameters> MNT6p<P> {
 
         let mut elt_q3 = elt.clone();
         // elt^{q^3}
-        elt_q3.frobenius_map(3);
+        elt_q3.conjugate();
         // elt^{q^3-1}
-        let mut elt_q3_over_elt = elt_q3 * &elt_inv;
+        let mut elt_q3_over_elt = elt_q3 * elt_inv;
         let elt_q3_over_elt_clone = elt_q3_over_elt.clone();
         // elt^{(q^3-1)q}
         elt_q3_over_elt.frobenius_map(1);
         // elt^{(q^3-1)*(q+1)}
-        elt_q3_over_elt.mul_assign(&elt_q3_over_elt_clone);
+        elt_q3_over_elt *= &elt_q3_over_elt_clone;
 
         elt_q3_over_elt
     }
@@ -273,52 +283,31 @@ impl<P: MNT6Parameters> MNT6p<P> {
 }
 
 impl<P: MNT6Parameters> PairingEngine for MNT6p<P>
-    where
-        G1Affine<P>: PairingCurve<
-            BaseField = <P::G1Parameters as ModelParameters>::BaseField,
-            ScalarField = <P::G1Parameters as ModelParameters>::ScalarField,
-            Projective = G1Projective<P>,
-            PairWith = G2Affine<P>,
-            Prepared = G1Prepared<P>,
-            PairingResult = Fp6<P::Fp6Params>,
-        >,
-        G2Affine<P>: PairingCurve<
-            BaseField = <P::G2Parameters as ModelParameters>::BaseField,
-            ScalarField = <P::G1Parameters as ModelParameters>::ScalarField,
-            Projective = G2Projective<P>,
-            PairWith = G1Affine<P>,
-            Prepared = G2Prepared<P>,
-            PairingResult = Fp6<P::Fp6Params>,
-        >,
-
 {
     type Fr = <P::G1Parameters as ModelParameters>::ScalarField;
     type G1Projective = G1Projective<P>;
     type G1Affine = G1Affine<P>;
+    type G1Prepared = G1Prepared<P>;
     type G2Projective = G2Projective<P>;
     type G2Affine = G2Affine<P>;
+    type G2Prepared = G2Prepared<P>;
     type Fq = P::Fp;
     type Fqe = Fp3<P::Fp3Params>;
     type Fqk = Fp6<P::Fp6Params>;
 
-    fn miller_loop<'a, I>(i: I) -> Self::Fqk
+    fn miller_loop<'a, I>(i: I) -> Result<Self::Fqk, Error>
         where
-            I: IntoIterator<
-                Item = &'a (
-                    &'a <Self::G1Affine as PairingCurve>::Prepared,
-                    &'a <Self::G2Affine as PairingCurve>::Prepared,
-                ),
-            >,
+            I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>,
     {
         let mut result = Self::Fqk::one();
         for &(ref p, ref q) in i {
             result *= &Self::ate_miller_loop(p, q);
         }
-        result
+        Ok(result)
     }
 
-    fn final_exponentiation(r: &Self::Fqk) -> Option<Self::Fqk> {
-        Some(Self::final_exponentiation(r))
+    fn final_exponentiation(r: &Self::Fqk) -> Result<Self::Fqk, Error> {
+        Self::final_exponentiation(r)
     }
 }
 

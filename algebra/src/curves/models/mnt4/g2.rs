@@ -4,10 +4,10 @@ use crate::{Fp2, ToBytes, AffineCurve, FromBytes};
 use std::io::{Write, Result as IoResult, Read};
 use std::io;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use serde::{Serialize, Deserialize};
 
 pub type G2Affine<P> = GroupAffine<<P as MNT4Parameters>::G2Parameters>;
 pub type G2Projective<P> = GroupProjective<<P as MNT4Parameters>::G2Parameters>;
-
 
 #[derive(Derivative)]
 #[derivative(
@@ -16,6 +16,7 @@ Debug(bound = "P: MNT4Parameters"),
 PartialEq(bound = "P: MNT4Parameters"),
 Eq(bound = "P: MNT4Parameters")
 )]
+#[derive(Serialize, Deserialize)]
 pub struct G2PreparedCoefficients<P: MNT4Parameters>{
     pub r_y:         Fp2<P::Fp2Params>,
     pub gamma:       Fp2<P::Fp2Params>,
@@ -50,6 +51,9 @@ Debug(bound = "P: MNT4Parameters"),
 PartialEq(bound = "P: MNT4Parameters"),
 Eq(bound = "P: MNT4Parameters")
 )]
+#[derive(Serialize, Deserialize)]
+#[serde(bound(serialize = "P: MNT4Parameters"))]
+#[serde(bound(deserialize = "P: MNT4Parameters"))]
 pub struct G2Prepared<P: MNT4Parameters>{
     pub q:      G2Affine<P>,
     pub coeffs: Vec<G2PreparedCoefficients<P>>,
@@ -83,14 +87,14 @@ impl<P: MNT4Parameters> FromBytes for G2Prepared<P> {
     }
 }
 
-impl<P: MNT4Parameters> G2Prepared<P> {
-    pub fn from_affine(point: &G2Affine<P>) -> Self {
+impl<P: MNT4Parameters> From<G2Affine<P>> for G2Prepared<P> {
+    fn from(point: G2Affine<P>) -> Self {
         MNT4p::<P>::ate_precompute_g2(&point)
     }
 }
 
 impl<P: MNT4Parameters> Default for G2Prepared<P> {
     fn default() -> Self {
-        Self::from_affine(&G2Affine::<P>::prime_subgroup_generator())
+        Self::from(G2Affine::<P>::prime_subgroup_generator())
     }
 }

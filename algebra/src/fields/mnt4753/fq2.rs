@@ -66,7 +66,7 @@ impl Fp2Parameters for Fq2Parameters {
     );
 
     /// Coefficients for the Frobenius automorphism.
-    const FROBENIUS_COEFF_FP2_C1: [Fq; 2] = [
+    const FROBENIUS_COEFF_FP2_C1: &'static[Fq] = &[
 
         //X^{q^0} = alpha^((q^0 - 1)/2)*X = 1*X
         field_new!(Fq, BigInteger([

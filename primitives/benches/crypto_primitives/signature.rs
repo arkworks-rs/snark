@@ -121,7 +121,7 @@ mod field_impl {
         c.bench_function("FieldSchnorrMNT4: Sign", move |b| {
             b.iter(|| {
                 let mut rng = &mut rand::thread_rng();
-                SchnorrMNT4Fr::sign(&mut rng, &pk, &sk, &[message]).unwrap()
+                SchnorrMNT4Fr::sign(&mut rng, &pk, &sk, message).unwrap()
             })
         });
     }
@@ -130,10 +130,10 @@ mod field_impl {
         let mut rng = &mut rand::thread_rng();
         let (pk, sk) = SchnorrMNT4Fr::keygen(&mut rng);
         let message = MNT4Fr::rand(rng);
-        let signature = SchnorrMNT4Fr::sign(&mut rng, &pk, &sk, &[message]).unwrap();
+        let signature = SchnorrMNT4Fr::sign(&mut rng, &pk, &sk, message).unwrap();
 
         c.bench_function("FieldSchnorrMNT4: Verify", move |b| {
-            b.iter(|| SchnorrMNT4Fr::verify(&pk, &[message], &signature).unwrap())
+            b.iter(|| SchnorrMNT4Fr::verify(&pk, message, &signature).unwrap())
         });
     }
 

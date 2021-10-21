@@ -1,5 +1,6 @@
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use std::io::{Read, Result as IoResult, Write};
+use std::io::{Read, Result as IoResult, Write, Error as IoError, ErrorKind};
+use crate::SemanticallyValid;
 
 pub trait ToBytes {
     /// Serializes `self` into `writer`.
@@ -7,8 +8,26 @@ pub trait ToBytes {
 }
 
 pub trait FromBytes: Sized {
+
     /// Reads `Self` from `reader`.
     fn read<R: Read>(reader: R) -> IoResult<Self>;
+}
+
+pub trait FromBytesChecked: Sized + FromBytes + SemanticallyValid {
+
+    /// If `Self` implements `SemanticallyValid` trait, may be more efficient to
+    /// perform semantic checks while deserializing, in order to return immediately
+    /// in case of errors. The function passes if and only if `reader` represents
+    /// a valid serialization of `Self`, and a semantically valid instance of `Self`.
+    fn read_checked<R: Read>(reader: R) -> IoResult<Self>
+    {
+        let read = Self::read(reader)?;
+        if read.is_valid() {
+            Ok(read)
+        } else {
+            Err(IoError::new(ErrorKind::InvalidData, "Semantic checks failed"))
+        }
+    }
 }
 
 macro_rules! array_bytes {
@@ -269,6 +288,44 @@ impl FromBytes for Vec<u8> {
         let mut buf = Vec::new();
         let _ = reader.read_to_end(&mut buf)?;
         Ok(buf)
+    }
+}
+
+impl<T1: ToBytes, T2: ToBytes> ToBytes for (T1, T2) {
+    fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
+        self.0.write(&mut writer)?;
+        self.1.write(writer)
+    }
+}
+
+impl<T1: FromBytes, T2: FromBytes> FromBytes for (T1, T2) {
+    fn read<R: Read>(mut reader: R) -> IoResult<Self> {
+        let t1 = T1::read(&mut reader)?;
+        let t2 = T2::read(&mut reader)?;
+
+        Ok((t1, t2))
+    }
+}
+
+impl<T: ToBytes> ToBytes for Option<T> {
+    fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
+        let is_some = self.is_some();
+        is_some.write(&mut writer)?;
+        if is_some {
+            self.as_ref().unwrap().write(&mut writer)?;
+        }
+        Ok(())
+    }
+}
+
+impl<T: FromBytes> FromBytes for Option<T> {
+    fn read<R: Read>(mut reader: R) -> IoResult<Self> {
+        let is_some = bool::read(&mut reader)?;
+        let mut obj = None;
+        if is_some {
+            obj = Some(T::read(&mut reader)?);
+        }
+        Ok(obj)
     }
 }
 

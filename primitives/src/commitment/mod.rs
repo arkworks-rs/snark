@@ -1,8 +1,11 @@
 use algebra::UniformRand;
 use rand::Rng;
 use std::{fmt::Debug, hash::Hash};
-
 use algebra::bytes::ToBytes;
+
+use serde::{
+    Serialize, Deserialize
+};
 
 pub mod blake2s;
 pub mod injective_map;
@@ -11,9 +14,9 @@ pub mod pedersen;
 use crate::Error;
 
 pub trait CommitmentScheme {
-    type Output: ToBytes + Clone + Default + Eq + Hash + Debug;
-    type Parameters: Clone;
-    type Randomness: Clone + ToBytes + Default + Eq + UniformRand + Debug;
+    type Output: ToBytes + Serialize + for<'a> Deserialize<'a> + Clone + Default + Eq + Hash + Debug;
+    type Parameters: Clone + Serialize + for<'a> Deserialize<'a>;
+    type Randomness: Clone + ToBytes + Serialize + for<'a> Deserialize<'a> + Default + Eq + UniformRand + Debug;
 
     fn setup<R: Rng>(r: &mut R) -> Result<Self::Parameters, Error>;
 

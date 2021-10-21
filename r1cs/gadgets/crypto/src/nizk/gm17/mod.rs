@@ -164,7 +164,13 @@ for Gm17VerifierGadget<PairingE, ConstraintF, P>
                 }
             // Check that the input and the query in the verification are of the
             // same length.
-            assert!(input_len == pvk.query.len() && public_inputs.next().is_none());
+            if input_len != pvk.query.len() || public_inputs.next().is_some() {
+                Err(SynthesisError::Other(format!(
+                    "Input and query must have the same length. Input len: {}, Query len: {}",
+                    input_len,
+                    pvk.query.len()
+                ).to_owned()))?
+            }
             g_psi
         };
 
@@ -463,7 +469,7 @@ mod test {
         BitIterator, PrimeField,
     };
     use r1cs_std::{
-        boolean::Boolean, pairing::bls12_377::PairingGadget as Bls12_377PairingGadget,
+        boolean::Boolean, instantiated::bls12_377::PairingGadget as Bls12_377PairingGadget,
         test_constraint_system::TestConstraintSystem,
     };
     use super::*;
@@ -564,9 +570,7 @@ mod test {
                     input_bits.reverse();
 
                     let input_bits =
-                        Vec::<Boolean>::alloc_input(cs.ns(|| format!("Input {}", i)), || {
-                            Ok(input_bits)
-                        })
+                        Boolean::alloc_input_vec(cs.ns(|| format!("Input {}", i)), input_bits.as_slice())
                             .unwrap();
                     input_gadgets.push(input_bits);
                 }

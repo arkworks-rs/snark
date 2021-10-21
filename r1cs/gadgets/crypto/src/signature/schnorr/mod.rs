@@ -164,38 +164,42 @@ for SchnorrSigGadgetPk<G, ConstraintF, GG>
     }
 }
 
-impl<G, ConstraintF, GG> ConditionalEqGadget<ConstraintF> for SchnorrSigGadgetPk<G, ConstraintF, GG>
-    where
-        G: Group,
-        ConstraintF: Field,
-        GG: GroupGadget<G, ConstraintF>,
-{
-    #[inline]
-    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
-        &self,
-        mut cs: CS,
-        other: &Self,
-        condition: &Boolean,
-    ) -> Result<(), SynthesisError> {
-        self.pub_key.conditional_enforce_equal(
-            &mut cs.ns(|| "PubKey equality"),
-            &other.pub_key,
-            condition,
-        )?;
-        Ok(())
-    }
-
-    fn cost() -> usize {
-        <GG as ConditionalEqGadget<ConstraintF>>::cost()
-    }
-}
-
 impl<G, ConstraintF, GG> EqGadget<ConstraintF> for SchnorrSigGadgetPk<G, ConstraintF, GG>
     where
         G: Group,
         ConstraintF: Field,
         GG: GroupGadget<G, ConstraintF>,
 {
+    #[inline]
+    fn is_eq<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+        other: &Self
+    ) -> Result<Boolean, SynthesisError> {
+        self.pub_key.is_eq(cs, &other.pub_key)
+    }
+
+    #[inline]
+    fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+        other: &Self,
+        condition: &Boolean,
+    ) -> Result<(), SynthesisError> {
+        self.pub_key
+            .conditional_enforce_equal(cs, &other.pub_key, condition)
+    }
+
+    #[inline]
+    fn conditional_enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+        other: &Self,
+        condition: &Boolean,
+    ) -> Result<(), SynthesisError> {
+        self.pub_key
+            .conditional_enforce_not_equal(cs, &other.pub_key, condition)
+    }
 }
 
 impl<G, ConstraintF, GG> ToBytesGadget<ConstraintF> for SchnorrSigGadgetPk<G, ConstraintF, GG>

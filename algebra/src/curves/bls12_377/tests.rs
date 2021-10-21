@@ -1,24 +1,22 @@
 #![allow(unused_imports)]
-use crate::{
-    curves::{
-        bls12_377::{
-            g1::Bls12_377G1Parameters, Bls12_377, G1Affine, G1Projective, G2Affine, G2Projective,
-        },
-        models::SWModelParameters,
-        tests::curve_tests,
-        AffineCurve, PairingEngine, ProjectiveCurve,
+use crate::{curves::{
+    bls12_377::{
+        g1::Bls12_377G1Parameters, g2::Bls12_377G2Parameters,
+        Bls12_377, G1Affine, G1Projective, G2Affine, G2Projective,
     },
-    fields::{
-        bls12_377::{Fq, Fq12, Fq2, Fr},
-        Field, FpParameters, PrimeField, SquareRootField,
-    },
-    groups::tests::group_test,
-};
+    models::SWModelParameters,
+    tests::{curve_tests, sw_jacobian_tests},
+    AffineCurve, PairingEngine, ProjectiveCurve,
+}, fields::{
+    bls12_377::{Fq, Fq12, Fq2, Fr},
+    Field, FpParameters, PrimeField, SquareRootField,
+}, groups::tests::group_test, SemanticallyValid};
 use std::ops::{AddAssign, MulAssign};
 
 #[test]
 fn test_g1_projective_curve() {
     curve_tests::<G1Projective>();
+    sw_jacobian_tests::<Bls12_377G1Parameters>()
 }
 
 #[test]
@@ -31,13 +29,13 @@ fn test_g1_projective_group() {
 #[test]
 fn test_g1_generator() {
     let generator = G1Affine::prime_subgroup_generator();
-    assert!(generator.is_on_curve());
-    assert!(generator.is_in_correct_subgroup_assuming_on_curve());
+    assert!(generator.is_valid());
 }
 
 #[test]
 fn test_g2_projective_curve() {
     curve_tests::<G2Projective>();
+    sw_jacobian_tests::<Bls12_377G2Parameters>()
 }
 
 #[test]
@@ -50,8 +48,7 @@ fn test_g2_projective_group() {
 #[test]
 fn test_g2_generator() {
     let generator = G2Affine::prime_subgroup_generator();
-    assert!(generator.is_on_curve());
-    assert!(generator.is_in_correct_subgroup_assuming_on_curve());
+    assert!(generator.is_valid());
 }
 
 //    #[test]
@@ -94,8 +91,8 @@ fn test_bilinearity() {
     println!("sa\n{:?}\n", sa.into_affine());
     println!("sb\n{:?}\n", sb.into_affine());
 
-    let ans1 = Bls12_377::pairing(sa, b);
-    let ans2 = Bls12_377::pairing(a, sb);
+    let ans1 = Bls12_377::pairing(sa, b).unwrap();
+    let ans2 = Bls12_377::pairing(a, sb).unwrap();
 
     assert_eq!(ans1, ans2);
 

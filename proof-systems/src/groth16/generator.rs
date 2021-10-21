@@ -1,8 +1,8 @@
-use algebra::{
-    groups::Group, msm::FixedBaseMSM, Field, PairingEngine, PrimeField, ProjectiveCurve,
-    UniformRand,
+use algebra::{groups::Group, Field, PairingEngine, PrimeField, ProjectiveCurve, UniformRand};
+use algebra::msm::FixedBaseMSM;
+use algebra::fft::domain::{
+    get_best_evaluation_domain, sample_element_outside_domain
 };
-use algebra::fft::EvaluationDomain;
 
 use r1cs_core::{
     ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable,
@@ -10,7 +10,7 @@ use r1cs_core::{
 use rand::Rng;
 use rayon::prelude::*;
 
-use crate::groth16::{r1cs_to_qap::R1CStoQAP, Parameters, VerifyingKey};
+use crate::groth16::{r1cs_to_qap::R1CStoQAP, Parameters, VerifyingKey, push_constraints};
 
 /// Generates a random common reference string for
 /// a circuit.
@@ -85,34 +85,22 @@ impl<E: PairingEngine> ConstraintSystem<E::Fr> for KeypairAssembly<E> {
             LB: FnOnce(LinearCombination<E::Fr>) -> LinearCombination<E::Fr>,
             LC: FnOnce(LinearCombination<E::Fr>) -> LinearCombination<E::Fr>,
     {
-        fn eval<E: PairingEngine>(
-            l: LinearCombination<E::Fr>,
-            constraints: &mut [Vec<(E::Fr, Index)>],
-            this_constraint: usize,
-        ) {
-            for (var, coeff) in l.as_ref() {
-                match var.get_unchecked() {
-                    Index::Input(i) => constraints[this_constraint].push((*coeff, Index::Input(i))),
-                    Index::Aux(i) => constraints[this_constraint].push((*coeff, Index::Aux(i))),
-                }
-            }
-        }
 
         self.at.push(vec![]);
         self.bt.push(vec![]);
         self.ct.push(vec![]);
 
-        eval::<E>(
+        push_constraints(
             a(LinearCombination::zero()),
             &mut self.at,
             self.num_constraints,
         );
-        eval::<E>(
+        push_constraints(
             b(LinearCombination::zero()),
             &mut self.bt,
             self.num_constraints,
         );
-        eval::<E>(
+        push_constraints(
             c(LinearCombination::zero()),
             &mut self.ct,
             self.num_constraints,
@@ -177,9 +165,11 @@ pub fn generate_parameters<E, C, R>(
     let domain_time = start_timer!(|| "Constructing evaluation domain");
 
     let domain_size = assembly.num_constraints + (assembly.num_inputs - 1) + 1;
-    let domain = EvaluationDomain::<E::Fr>::new(domain_size)
+    let domain = get_best_evaluation_domain::<E::Fr>(domain_size)
         .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
-    let t = domain.sample_element_outside_domain(rng);
+
+    //Sample element outside domain
+    let t = sample_element_outside_domain(&domain, rng);
 
     end_timer!(domain_time);
     ///////////////////////////////////////////////////////////////////////////
@@ -240,13 +230,13 @@ pub fn generate_parameters<E, C, R>(
     // Compute the A-query
     let a_time = start_timer!(|| "Calculate A");
     let mut a_query =
-        FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(scalar_bits, g1_window, &g1_table, &a);
+        FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(scalar_bits, g1_window, &g1_table, &a)?;
     end_timer!(a_time);
 
     // Compute the B-query in G1
     let b_g1_time = start_timer!(|| "Calculate B G1");
     let mut b_g1_query =
-        FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(scalar_bits, g1_window, &g1_table, &b);
+        FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(scalar_bits, g1_window, &g1_table, &b)?;
     end_timer!(b_g1_time);
 
     // Compute B window table
@@ -259,7 +249,7 @@ pub fn generate_parameters<E, C, R>(
     // Compute the B-query in G2
     let b_g2_time = start_timer!(|| "Calculate B G2");
     let mut b_g2_query =
-        FixedBaseMSM::multi_scalar_mul::<E::G2Projective>(scalar_bits, g2_window, &g2_table, &b);
+        FixedBaseMSM::multi_scalar_mul::<E::G2Projective>(scalar_bits, g2_window, &g2_table, &b)?;
     end_timer!(b_g2_time);
 
     // Compute the H-query
@@ -272,14 +262,14 @@ pub fn generate_parameters<E, C, R>(
             .into_par_iter()
             .map(|i| zt * &delta_inverse * &t.pow([i as u64]))
             .collect::<Vec<_>>(),
-    );
+    )?;
 
     end_timer!(h_time);
 
     // Compute the L-query
     let l_time = start_timer!(|| "Calculate L");
     let l_query =
-        FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(scalar_bits, g1_window, &g1_table, &l);
+        FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(scalar_bits, g1_window, &g1_table, &l)?;
     let mut l_query = l_query[assembly.num_inputs..].to_vec();
     end_timer!(l_time);
 
@@ -293,13 +283,13 @@ pub fn generate_parameters<E, C, R>(
         g1_window,
         &g1_table,
         &gamma_abc,
-    );
+    )?;
 
     drop(g1_table);
 
     end_timer!(verifying_key_time);
 
-    let alpha_g1_beta_g2 = E::pairing(alpha_g1, beta_g2);
+    let alpha_g1_beta_g2 = E::pairing(alpha_g1, beta_g2)?;
 
     let vk = VerifyingKey::<E> {
         alpha_g1_beta_g2,

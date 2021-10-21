@@ -63,10 +63,30 @@ where
                 input_in_bits.push(Boolean::constant(false));
             }
         }
-        assert!(input_in_bits.len() % CHUNK_SIZE == 0);
-        assert_eq!(parameters.params.generators.len(), W::NUM_WINDOWS);
+        if input_in_bits.len() % CHUNK_SIZE != 0 {
+            Err(SynthesisError::Other(format!(
+                "Input is not multiple of the chunk size. Input len: {}, chunk size: {}",
+                input_in_bits.len(),
+                CHUNK_SIZE,
+            ).to_owned()))?
+        }
+        if parameters.params.generators.len() != W::NUM_WINDOWS {
+            Err(SynthesisError::Other(format!(
+                "Incorrect pp of size {:?} for window params {:?}x{:?}x{}",
+                parameters.params.generators.len(),
+                W::WINDOW_SIZE,
+                W::NUM_WINDOWS,
+                CHUNK_SIZE
+            ).to_owned()))?
+        }
         for generators in parameters.params.generators.iter() {
-            assert_eq!(generators.len(), W::WINDOW_SIZE);
+            if generators.len() != W::WINDOW_SIZE {
+                Err(SynthesisError::Other(format!(
+                    "Number of generators: {} not enough for the selected window size: {}",
+                    parameters.params.generators.len(),
+                    W::WINDOW_SIZE
+                )))?
+            }
         }
 
         // Allocate new variable for the result.
@@ -139,7 +159,7 @@ mod test {
     use algebra::{curves::edwards_sw6::EdwardsProjective as Edwards, ProjectiveCurve};
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
-        alloc::AllocGadget, groups::curves::twisted_edwards::edwards_sw6::EdwardsSWGadget,
+        alloc::AllocGadget, instantiated::edwards_sw6::EdwardsSWGadget,
         test_constraint_system::TestConstraintSystem, uint8::UInt8,
     };
 

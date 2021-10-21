@@ -5,6 +5,7 @@ use crate::{bytes::ToBytes, curves::{
 }, FromBytes};
 use std::io::{Result as IoResult, Write, Read};
 use std::io;
+use serde::{Serialize, Deserialize};
 
 pub type G1Affine<P> = GroupAffine<<P as Bls12Parameters>::G1Parameters>;
 pub type G1Projective<P> = GroupProjective<<P as Bls12Parameters>::G1Parameters>;
@@ -16,15 +17,21 @@ pub type G1Projective<P> = GroupProjective<<P as Bls12Parameters>::G1Parameters>
     PartialEq(bound = "P: Bls12Parameters"),
     Eq(bound = "P: Bls12Parameters")
 )]
+#[derive(Serialize, Deserialize)]
+#[serde(bound(serialize = "P: Bls12Parameters"))]
+#[serde(bound(deserialize = "P: Bls12Parameters"))]
+#[serde(transparent)]
 pub struct G1Prepared<P: Bls12Parameters>(pub G1Affine<P>);
 
 impl<P: Bls12Parameters> G1Prepared<P> {
     pub fn is_zero(&self) -> bool {
         self.0.is_zero()
     }
+}
 
-    pub fn from_affine(p: G1Affine<P>) -> Self {
-        G1Prepared(p)
+impl<P: Bls12Parameters> From<G1Affine<P>> for G1Prepared<P> {
+    fn from(other: G1Affine<P>) -> Self {
+        G1Prepared(other)
     }
 }
 

@@ -1,7 +1,8 @@
 use crate::field_new;
 use crate::{
+    Error,
     biginteger::BigInteger320,
-    curves::{PairingCurve, PairingEngine, ProjectiveCurve},
+    curves::{PairingEngine, ProjectiveCurve},
     fields::{
         mnt6::{
             fq::{Fq, FqParameters},
@@ -24,27 +25,24 @@ pub use self::{
 
 pub type GT = Fq6;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct MNT6;
 
 impl PairingEngine for MNT6 {
     type Fr = Fr;
     type G1Projective = G1Projective;
     type G1Affine = G1Affine;
+    type G1Prepared = G1Prepared;
     type G2Projective = G2Projective;
     type G2Affine = G2Affine;
+    type G2Prepared = G2Prepared;
     type Fq = Fq;
     type Fqe = Fq3;
     type Fqk = Fq6;
 
     fn miller_loop<'a, I>(i: I) -> Self::Fqk
     where
-        I: IntoIterator<
-            Item = &'a (
-                &'a <Self::G1Affine as PairingCurve>::Prepared,
-                &'a <Self::G2Affine as PairingCurve>::Prepared,
-            ),
-        >,
+        I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>,
     {
         let mut result = Self::Fqk::one();
         for &(ref p, ref q) in i {
@@ -258,11 +256,14 @@ impl MNT6 {
         f
     }
 
-    pub fn final_exponentiation(value: &Fq6) -> GT {
+    pub fn final_exponentiation(value: &Fq6) -> Result<GT, Error> {
+        if value.is_zero() {
+            Err(format!("Invalid exponentiation value: 0"))?
+        }
         let value_inv = value.inverse().unwrap();
         let value_to_first_chunk = MNT6::final_exponentiation_first_chunk(value, &value_inv);
         let value_inv_to_first_chunk = MNT6::final_exponentiation_first_chunk(&value_inv, value);
-        MNT6::final_exponentiation_last_chunk(&value_to_first_chunk, &value_inv_to_first_chunk)
+        Ok(MNT6::final_exponentiation_last_chunk(&value_to_first_chunk, &value_inv_to_first_chunk))
     }
 
     fn final_exponentiation_first_chunk(elt: &Fq6, elt_inv: &Fq6) -> Fq6 {
@@ -272,7 +273,7 @@ impl MNT6 {
         let mut elt_q3 = elt.clone();
         elt_q3.frobenius_map(3);
         // elt_q3_over_elt = elt^(q^3-1)
-        let elt_q3_over_elt = elt_q3 * &elt_inv;
+        let elt_q3_over_elt = elt_q3 * elt_inv;
         // alpha = elt^((q^3-1) * q)
         let mut alpha = elt_q3_over_elt.clone();
         alpha.frobenius_map(1);

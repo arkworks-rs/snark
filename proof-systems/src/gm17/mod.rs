@@ -1,8 +1,9 @@
 //! An implementation of the [Groth-Maller][GM17] simulation extractable zkSNARK.
 //! [GM17]: https://eprint.iacr.org/2017/540
-use algebra::{bytes::ToBytes, PairingCurve, PairingEngine};
+use algebra::{bytes::ToBytes, PairingEngine};
 use r1cs_core::SynthesisError;
 use std::io::{self, Read, Result as IoResult, Write};
+use serde::{Serialize, Deserialize};
 
 /// Reduce an R1CS instance to a *Square Arithmetic Program* instance.
 pub mod r1cs_to_sap;
@@ -22,7 +23,7 @@ mod test;
 pub use self::{generator::*, prover::*, verifier::*};
 
 /// A proof in the GM17 SNARK.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Proof<E: PairingEngine> {
     pub a: E::G1Affine,
     pub b: E::G2Affine,
@@ -70,7 +71,7 @@ impl<E: PairingEngine> Proof<E> {
 }
 
 /// A verification key in the GM17 SNARK.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct VerifyingKey<E: PairingEngine> {
     pub h_g2:       E::G2Affine,
     pub g_alpha_g1: E::G1Affine,
@@ -134,7 +135,7 @@ impl<E: PairingEngine> VerifyingKey<E> {
 }
 
 /// Full public (prover and verifier) parameters for the GM17 zkSNARK.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Parameters<E: PairingEngine> {
     pub vk:           VerifyingKey<E>,
     pub a_query:      Vec<E::G1Affine>,
@@ -179,15 +180,15 @@ impl<E: PairingEngine> Parameters<E> {
 
 /// Preprocessed verification key parameters that enable faster verification
 /// at the expense of larger size in memory.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct PreparedVerifyingKey<E: PairingEngine> {
     pub vk:                VerifyingKey<E>,
     pub g_alpha:           E::G1Affine,
     pub h_beta:            E::G2Affine,
     pub g_alpha_h_beta_ml: E::Fqk,
-    pub g_gamma_pc:        <E::G1Affine as PairingCurve>::Prepared,
-    pub h_gamma_pc:        <E::G2Affine as PairingCurve>::Prepared,
-    pub h_pc:              <E::G2Affine as PairingCurve>::Prepared,
+    pub g_gamma_pc:        E::G1Prepared,
+    pub h_gamma_pc:        E::G2Prepared,
+    pub h_pc:              E::G2Prepared,
     pub query:             Vec<E::G1Affine>,
 }
 
@@ -199,7 +200,7 @@ impl<E: PairingEngine> From<PreparedVerifyingKey<E>> for VerifyingKey<E> {
 
 impl<E: PairingEngine> From<VerifyingKey<E>> for PreparedVerifyingKey<E> {
     fn from(other: VerifyingKey<E>) -> Self {
-        prepare_verifying_key(&other)
+        prepare_verifying_key(&other).unwrap()
     }
 }
 
@@ -210,9 +211,9 @@ impl<E: PairingEngine> Default for PreparedVerifyingKey<E> {
             g_alpha:           E::G1Affine::default(),
             h_beta:            E::G2Affine::default(),
             g_alpha_h_beta_ml: E::Fqk::default(),
-            g_gamma_pc:        <E::G1Affine as PairingCurve>::Prepared::default(),
-            h_gamma_pc:        <E::G2Affine as PairingCurve>::Prepared::default(),
-            h_pc:              <E::G2Affine as PairingCurve>::Prepared::default(),
+            g_gamma_pc:        E::G1Prepared::default(),
+            h_gamma_pc:        E::G2Prepared::default(),
+            h_pc:              E::G2Prepared::default(),
             query:             Vec::new(),
         }
     }

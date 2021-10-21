@@ -12,12 +12,6 @@ use crate::prelude::*;
 
 use std::{borrow::Borrow, marker::PhantomData};
 
-pub mod edwards_bls12;
-pub mod edwards_sw6;
-pub mod jubjub;
-#[cfg(test)]
-mod test;
-
 #[derive(Derivative)]
 #[derivative(Debug, Clone)]
 #[derivative(Debug(bound = "P: TEModelParameters, ConstraintF: Field"))]
@@ -275,6 +269,12 @@ mod affine_impl {
                 F::zero(cs.ns(|| "zero"))?,
                 F::one(cs.ns(|| "one"))?,
             ))
+        }
+
+        //TODO: Implement this using enforce_verdict
+        #[inline]
+        fn is_zero<CS: ConstraintSystem<ConstraintF>>(&self, _: CS) -> Result<Boolean, SynthesisError>{
+            unimplemented!()
         }
 
         /// Optimized constraints for checking Edwards point addition from ZCash
@@ -633,25 +633,6 @@ mod affine_impl {
                 value_gen
             )?;
 
-            let d = P::COEFF_D;
-            let a = P::COEFF_A;
-
-            // Check that ax^2 + y^2 = 1 + dx^2y^2: is a cheap check so we do it anyway
-            // We do this by checking that ax^2 - 1 = y^2 * (dx^2 - 1)
-            let x2 = ge.x.square(&mut cs.ns(|| "x^2"))?;
-            let y2 = ge.y.square(&mut cs.ns(|| "y^2"))?;
-
-            let one = P::BaseField::one();
-            let d_x2_minus_one = x2
-                .mul_by_constant(cs.ns(|| "d * x^2"), &d)?
-                .add_constant(cs.ns(|| "d * x^2 - 1"), &one.neg())?;
-
-            let a_x2_minus_one = x2
-                .mul_by_constant(cs.ns(|| "a * x^2"), &a)?
-                .add_constant(cs.ns(|| "a * x^2 - 1"), &one.neg())?;
-
-            d_x2_minus_one.mul_equals(cs.ns(|| "on curve check"), &y2, &a_x2_minus_one)?;
-
             Ok(ge)
         }
 
@@ -766,6 +747,12 @@ mod projective_impl {
                 F::zero(cs.ns(|| "zero"))?,
                 F::one(cs.ns(|| "one"))?,
             ))
+        }
+
+        //TODO: Implement this using enforce_verdict
+        #[inline]
+        fn is_zero<CS: ConstraintSystem<ConstraintF>>(&self, _: CS) -> Result<Boolean, SynthesisError>{
+            unimplemented!()
         }
 
         /// Optimized constraints for checking Edwards point addition from ZCash
@@ -1304,25 +1291,6 @@ mod projective_impl {
                 value_gen
             )?;
 
-            let d = P::COEFF_D;
-            let a = P::COEFF_A;
-
-            // Check that ax^2 + y^2 = 1 + dx^2y^2: is a cheap check so we do it anyway
-            // We do this by checking that ax^2 - 1 = y^2 * (dx^2 - 1)
-            let x2 = ge.x.square(&mut cs.ns(|| "x^2"))?;
-            let y2 = ge.y.square(&mut cs.ns(|| "y^2"))?;
-
-            let one = P::BaseField::one();
-            let d_x2_minus_one = x2
-                .mul_by_constant(cs.ns(|| "d * x^2"), &d)?
-                .add_constant(cs.ns(|| "d * x^2 - 1"), &one.neg())?;
-
-            let a_x2_minus_one = x2
-                .mul_by_constant(cs.ns(|| "a * x^2"), &a)?
-                .add_constant(cs.ns(|| "a * x^2 - 1"), &one.neg())?;
-
-            d_x2_minus_one.mul_equals(cs.ns(|| "on curve check"), &y2, &a_x2_minus_one)?;
-
             Ok(ge)
         }
 
@@ -1435,60 +1403,38 @@ where
     ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
-}
+    fn is_eq<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        other: &Self
+    ) -> Result<Boolean, SynthesisError> {
+        let b0 = self.x.is_eq(cs.ns(|| "x"), &other.x)?;
+        let b1 = self.y.is_eq(cs.ns(|| "y"),&other.y)?;
+        Boolean::and(cs.ns(|| "x AND y"), &b0, &b1)
+    }
 
-impl<P, ConstraintF, F> ConditionalEqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
-where
-    P: TEModelParameters,
-    ConstraintF: Field,
-    F: FieldGadget<P::BaseField, ConstraintF>,
-{
     #[inline]
     fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
-        condition: &Boolean,
+        should_enforce: &Boolean
     ) -> Result<(), SynthesisError> {
-        self.x.conditional_enforce_equal(
-            &mut cs.ns(|| "X Coordinate Conditional Equality"),
-            &other.x,
-            condition,
-        )?;
-        self.y.conditional_enforce_equal(
-            &mut cs.ns(|| "Y Coordinate Conditional Equality"),
-            &other.y,
-            condition,
-        )?;
+        self.x.conditional_enforce_equal(cs.ns(|| "x"),&other.x, should_enforce)?;
+        self.y.conditional_enforce_equal(cs.ns(|| "y"),&other.y, should_enforce)?;
         Ok(())
     }
 
-    fn cost() -> usize {
-        2 * <F as ConditionalEqGadget<ConstraintF>>::cost()
-    }
-}
-
-impl<P, ConstraintF, F> NEqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
-where
-    P: TEModelParameters,
-    ConstraintF: Field,
-    F: FieldGadget<P::BaseField, ConstraintF>,
-{
     #[inline]
-    fn enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
+    fn conditional_enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
+        should_enforce: &Boolean
     ) -> Result<(), SynthesisError> {
-        self.x
-            .enforce_not_equal(&mut cs.ns(|| "X Coordinate Inequality"), &other.x)?;
-        self.y
-            .enforce_not_equal(&mut cs.ns(|| "Y Coordinate Inequality"), &other.y)?;
-        Ok(())
-    }
-
-    fn cost() -> usize {
-        2 * <F as NEqGadget<ConstraintF>>::cost()
+        let is_equal = self.is_eq(cs.ns(|| "is_eq(self, other)"), other)?;
+        Boolean::and(cs.ns(|| "is_equal AND should_enforce"), &is_equal, should_enforce)?
+            .enforce_equal(cs.ns(|| "is_equal AND should_enforce == false"), &Boolean::Constant(false))
     }
 }
 
@@ -1547,4 +1493,69 @@ where
         Ok(x_bytes)
     }
 }
+
+#[cfg(test)]
+#[allow(dead_code)]
+pub(crate) fn test<ConstraintF, P, GG>()
+    where
+        ConstraintF: Field,
+        P: TEModelParameters,
+        GG: GroupGadget<TEAffine<P>, ConstraintF, Value = TEAffine<P>>,
+{
+    use crate::{
+        boolean::AllocatedBit, groups::test::group_test, prelude::*,
+        test_constraint_system::TestConstraintSystem,
+    };
+    use algebra::{Group, PrimeField, UniformRand};
+    use rand::{
+        thread_rng, Rng
+    };
+
+    group_test::<ConstraintF, TEAffine<P>, GG>();
+
+    let mut cs = TestConstraintSystem::new();
+
+    let a: TEAffine<P> = UniformRand::rand(&mut thread_rng());
+    let gadget_a = GG::alloc(&mut cs.ns(|| "a"), || Ok(a)).unwrap();
+    // Check mul_bits
+    let scalar: <TEAffine<P> as Group>::ScalarField = UniformRand::rand(&mut thread_rng());
+    let native_result = a.mul(&scalar);
+
+    let mut scalar: Vec<bool> = BitIterator::new(scalar.into_repr()).collect();
+    // Get the scalar bits into little-endian form.
+    scalar.reverse();
+    let input = Vec::<Boolean>::alloc(cs.ns(|| "Input"), || Ok(scalar)).unwrap();
+    let zero = GG::zero(cs.ns(|| "zero")).unwrap();
+    let result = gadget_a
+        .mul_bits(cs.ns(|| "mul_bits"), &zero, input.iter())
+        .unwrap();
+    let gadget_value = result.get_value().expect("Gadget_result failed");
+    assert_eq!(native_result, gadget_value);
+
+    assert!(cs.is_satisfied());
+
+    // Test the cost of allocation, conditional selection, and point addition.
+    let mut cs = TestConstraintSystem::new();
+
+    let bit = AllocatedBit::alloc(&mut cs.ns(|| "bool"), || Ok(true))
+        .unwrap()
+        .into();
+
+    let mut rng = thread_rng();
+    let a: TEAffine<P> = rng.gen();
+    let b: TEAffine<P> = rng.gen();
+    let gadget_a = GG::alloc(&mut cs.ns(|| "a"), || Ok(a)).unwrap();
+    let gadget_b = GG::alloc(&mut cs.ns(|| "b"), || Ok(b)).unwrap();
+    let alloc_cost = cs.num_constraints();
+    let _ =
+        GG::conditionally_select(&mut cs.ns(|| "cond_select"), &bit, &gadget_a, &gadget_b).unwrap();
+    let cond_select_cost = cs.num_constraints() - alloc_cost;
+
+    let _ = gadget_a.add(&mut cs.ns(|| "ab"), &gadget_b).unwrap();
+    let add_cost = cs.num_constraints() - cond_select_cost - alloc_cost;
+    assert_eq!(cond_select_cost, <GG as CondSelectGadget<_>>::cost());
+    assert_eq!(add_cost, GG::cost_of_add());
+    assert!(cs.is_satisfied());
+}
+
 

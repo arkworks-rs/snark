@@ -3,36 +3,20 @@ use crate::{
     biginteger::BigInteger320,
     bytes::ToBytes,
     curves::{
-        mnt6::{g1::MNT6G1Parameters, G1Affine, MNT6, TWIST_COEFF_A},
+        mnt6::{g1::MNT6G1Parameters, MNT6, TWIST_COEFF_A},
         models::{ModelParameters, SWModelParameters},
         short_weierstrass_projective::{GroupAffine, GroupProjective},
-        AffineCurve, PairingCurve, PairingEngine,
+        AffineCurve,
     },
-    fields::mnt6::{Fq, Fq3, Fq6, Fr},
+    fields::mnt6::{Fq, Fq3, Fr},
 };
 use std::io::{Result as IoResult, Write, Read};
 use std::io;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use serde::{Serialize, Deserialize};
 
 pub type G2Affine = GroupAffine<MNT6G2Parameters>;
 pub type G2Projective = GroupProjective<MNT6G2Parameters>;
-
-impl PairingCurve for G2Affine {
-    type Engine = MNT6;
-    type Prepared = G2Prepared;
-    type PairWith = G1Affine;
-    type PairingResult = Fq6;
-
-    #[inline(always)]
-    fn prepare(&self) -> Self::Prepared {
-        Self::Prepared::from_affine(self)
-    }
-
-    #[inline(always)]
-    fn pairing_with(&self, other: &Self::PairWith) -> Self::PairingResult {
-        MNT6::pairing(*other, *self)
-    }
-}
 
 #[derive(Copy, Clone, Default, PartialEq, Eq)]
 pub struct MNT6G2Parameters;
@@ -167,7 +151,7 @@ pub const G2_GENERATOR_Y_C2: Fq = field_new!(Fq, BigInteger320([
     0x2d3c3d195a1,
 ]));
 
-#[derive(Eq, PartialEq, Clone, Debug)]
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct G2Prepared {
     pub x:                     Fq3,
     pub y:                     Fq3,
@@ -226,15 +210,15 @@ impl FromBytes for G2Prepared {
     }
 }
 
-impl G2Prepared {
-    pub fn from_affine(point: &G2Affine) -> Self {
+impl From<G2Affine> for G2Prepared {
+    fn from(point: G2Affine) -> Self {
         MNT6::ate_precompute_g2(&point.into_projective())
     }
 }
 
 impl Default for G2Prepared {
     fn default() -> Self {
-        Self::from_affine(&G2Affine::prime_subgroup_generator())
+        Self::from(G2Affine::prime_subgroup_generator())
     }
 }
 

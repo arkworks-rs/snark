@@ -1,6 +1,9 @@
-use algebra::fft::EvaluationDomain;
+use algebra::msm::FixedBaseMSM;
+use algebra::fft::domain::{
+    get_best_evaluation_domain, sample_element_outside_domain,
+};
 use algebra::{
-    msm::FixedBaseMSM, UniformRand,
+    UniformRand,
     AffineCurve, Field, PairingEngine, PrimeField, ProjectiveCurve,
 };
 
@@ -178,10 +181,11 @@ where
     let domain_time = start_timer!(|| "Constructing evaluation domain");
 
     let domain_size = 2 * assembly.num_constraints + 2 * assembly.num_inputs - 1;
-    let domain = EvaluationDomain::<E::Fr>::new(domain_size)
+    let domain = get_best_evaluation_domain::<E::Fr>(domain_size)
         .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
-    let t = domain.sample_element_outside_domain(rng);
 
+    //Sample element outside domain
+    let t = sample_element_outside_domain(&domain, rng);
     end_timer!(domain_time);
     ///////////////////////////////////////////////////////////////////////////
 
@@ -224,7 +228,7 @@ where
         g_window,
         &g_table,
         &a.par_iter().map(|a| *a * &gamma).collect::<Vec<_>>(),
-    );
+    )?;
     end_timer!(a_time);
 
     // Compute the G_gamma-query
@@ -249,7 +253,7 @@ where
             .into_par_iter()
             .map(|i| gamma2_z_t * &(t.pow([i as u64])))
             .collect::<Vec<_>>(),
-    );
+    )?;
     end_timer!(g_gamma_time);
 
     // Compute the C_1-query
@@ -262,7 +266,7 @@ where
             .into_par_iter()
             .map(|i| c[i] * &gamma + &(a[i] * &alpha_beta))
             .collect::<Vec<_>>(),
-    );
+    )?;
     let (verifier_query, c_query_1) = result.split_at(assembly.num_inputs);
     end_timer!(c1_time);
 
@@ -277,7 +281,7 @@ where
             .into_par_iter()
             .map(|i| a[i] * &double_gamma2_z)
             .collect::<Vec<_>>(),
-    );
+    )?;
     drop(g_table);
     end_timer!(c2_time);
 
@@ -295,7 +299,7 @@ where
         h_gamma_window,
         &h_gamma_table,
         &a,
-    );
+    )?;
     end_timer!(b_time);
 
 

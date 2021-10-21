@@ -4,6 +4,7 @@ use crate::{Fp3, ToBytes, AffineCurve, FromBytes};
 use std::io::{Write, Result as IoResult, Read};
 use std::io;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use serde::{Serialize, Deserialize};
 
 pub type G2Affine<P> = GroupAffine<<P as MNT6Parameters>::G2Parameters>;
 pub type G2Projective<P> = GroupProjective<<P as MNT6Parameters>::G2Parameters>;
@@ -17,6 +18,7 @@ Debug(bound = "P: MNT6Parameters"),
 PartialEq(bound = "P: MNT6Parameters"),
 Eq(bound = "P: MNT6Parameters")
 )]
+#[derive(Serialize, Deserialize)]
 pub struct G2PreparedCoefficients<P: MNT6Parameters>{
     pub r_y:        Fp3<P::Fp3Params>,
     pub gamma:      Fp3<P::Fp3Params>,
@@ -51,6 +53,9 @@ Debug(bound = "P: MNT6Parameters"),
 PartialEq(bound = "P: MNT6Parameters"),
 Eq(bound = "P: MNT6Parameters")
 )]
+#[derive(Serialize, Deserialize)]
+#[serde(bound(serialize = "P: MNT6Parameters"))]
+#[serde(bound(deserialize = "P: MNT6Parameters"))]
 pub struct G2Prepared<P: MNT6Parameters>{
     pub q:      G2Affine<P>,
     pub coeffs: Vec<G2PreparedCoefficients<P>>,
@@ -84,14 +89,14 @@ impl<P: MNT6Parameters> FromBytes for G2Prepared<P> {
     }
 }
 
-impl<P: MNT6Parameters> G2Prepared<P> {
-    pub fn from_affine(point: &G2Affine<P>) -> Self {
-        MNT6p::<P>::ate_precompute_g2(&point)
+impl<P: MNT6Parameters> From<G2Affine<P>> for G2Prepared<P> {
+    fn from(point: G2Affine<P>) -> Self {
+        MNT6p::<P>::ate_precompute_g2(&point).unwrap()
     }
 }
 
 impl<P: MNT6Parameters> Default for G2Prepared<P> {
     fn default() -> Self {
-        Self::from_affine(&G2Affine::<P>::prime_subgroup_generator())
+        Self::from(G2Affine::<P>::prime_subgroup_generator())
     }
 }

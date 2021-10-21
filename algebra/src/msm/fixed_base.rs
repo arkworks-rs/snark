@@ -1,4 +1,4 @@
-use crate::{BigInteger, FpParameters, PrimeField, ProjectiveCurve};
+use crate::{BigInteger, FpParameters, PrimeField, ProjectiveCurve, Error};
 use rayon::prelude::*;
 
 pub struct FixedBaseMSM;
@@ -71,10 +71,12 @@ impl FixedBaseMSM {
         window: usize,
         table: &[Vec<T>],
         v: &[T::ScalarField],
-    ) -> Vec<T> {
+    ) -> Result<Vec<T>, Error> {
         let outerc = (scalar_size + window - 1) / window;
-        assert!(outerc <= table.len());
+        if outerc > table.len() {
+            Err(format!("Invalid table size"))?
+        }
 
-        v.par_iter().map(|e| Self::windowed_mul::<T>(outerc, window, table, e)).collect::<Vec<_>>()
+        Ok(v.par_iter().map(|e| Self::windowed_mul::<T>(outerc, window, table, e)).collect::<Vec<_>>())
     }
 }

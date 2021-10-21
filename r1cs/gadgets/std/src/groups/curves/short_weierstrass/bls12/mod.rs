@@ -12,8 +12,6 @@ use crate::{
 
 use std::fmt::Debug;
 
-pub mod bls12_377;
-
 pub type G1Gadget<P> = AffineGadget<
     <P as Bls12Parameters>::G1Parameters,
     <P as Bls12Parameters>::Fp,
@@ -31,7 +29,7 @@ pub struct G1PreparedGadget<P: Bls12Parameters>(pub G1Gadget<P>);
 
 impl<P: Bls12Parameters> G1PreparedGadget<P> {
     pub fn get_value(&self) -> Option<G1Prepared<P>> {
-        Some(G1Prepared::from_affine(
+        Some(G1Prepared::from(
             self.0.get_value().unwrap().into_affine(),
         ))
     }
@@ -132,7 +130,7 @@ impl<P: Bls12Parameters> G2PreparedGadget<P> {
         let a = r.y.inverse(cs.ns(|| "Inverse"))?;
         let mut b = r.x.square(cs.ns(|| "square x"))?;
         let b_tmp = b.clone();
-        b.mul_by_fp_constant_in_place(cs.ns(|| "mul by two_inv"), two_inv)?;
+        b.mul_by_base_field_constant_in_place(cs.ns(|| "mul by two_inv"), two_inv)?;
         b.add_in_place(cs.ns(|| "compute b"), &b_tmp)?;
 
         let c = a.mul(cs.ns(|| "compute c"), &b)?;

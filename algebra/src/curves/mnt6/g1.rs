@@ -3,33 +3,19 @@ use crate::{
     biginteger::BigInteger320,
     bytes::ToBytes,
     curves::{
-        mnt6::{G2Affine, MNT6},
+        mnt6::MNT6,
         models::{ModelParameters, SWModelParameters},
         short_weierstrass_projective::{GroupAffine, GroupProjective},
-        AffineCurve, PairingCurve, PairingEngine,
+        AffineCurve,
     },
-    fields::mnt6::{Fq, Fq3, Fq6, Fr},
+    fields::mnt6::{Fq, Fq3, Fr},
 };
 use std::io::{Result as IoResult, Write, Read};
 use std::io;
+use serde::{Serialize, Deserialize};
 
 pub type G1Affine = GroupAffine<MNT6G1Parameters>;
 pub type G1Projective = GroupProjective<MNT6G1Parameters>;
-
-impl PairingCurve for G1Affine {
-    type Engine = MNT6;
-    type Prepared = G1Prepared;
-    type PairWith = G2Affine;
-    type PairingResult = Fq6;
-
-    fn prepare(&self) -> Self::Prepared {
-        Self::Prepared::from_affine(self)
-    }
-
-    fn pairing_with(&self, other: &Self::PairWith) -> Self::PairingResult {
-        MNT6::pairing(*self, *other)
-    }
-}
 
 #[derive(Copy, Clone, Default, PartialEq, Eq)]
 pub struct MNT6G1Parameters;
@@ -94,7 +80,7 @@ pub const G1_GENERATOR_Y: Fq = field_new!(Fq, BigInteger320([
     0x3140fbc3593,
 ]));
 
-#[derive(Eq, PartialEq, Copy, Clone, Debug)]
+#[derive(Eq, PartialEq, Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct G1Prepared {
     pub x:       Fq,
     pub y:       Fq,
@@ -125,14 +111,14 @@ impl FromBytes for G1Prepared {
     }
 }
 
-impl G1Prepared {
-    pub fn from_affine(point: &G1Affine) -> Self {
-        MNT6::ate_precompute_g1(&point.into_projective())
+impl From<G1Affine> for G1Prepared {
+    fn from(other: G1Affine) -> Self {
+        MNT6::ate_precompute_g1(&other.into_projective())
     }
 }
 
 impl Default for G1Prepared {
     fn default() -> Self {
-        Self::from_affine(&G1Affine::prime_subgroup_generator())
+        Self::from(G1Affine::prime_subgroup_generator())
     }
 }

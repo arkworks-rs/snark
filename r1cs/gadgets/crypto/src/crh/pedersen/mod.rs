@@ -22,11 +22,11 @@ pub struct PedersenCRHGadgetParameters<
 }
 
 pub struct PedersenCRHGadget<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> {
-    #[doc(hideen)]
+    #[doc(hidden)]
     _group: PhantomData<*const G>,
-    #[doc(hideen)]
+    #[doc(hidden)]
     _group_gadget: PhantomData<*const GG>,
-    #[doc(hideen)]
+    #[doc(hidden)]
     _engine: PhantomData<ConstraintF>,
 }
 
@@ -54,8 +54,18 @@ where
                 padded_input.push(UInt8::constant(0u8));
             }
         }
-        assert_eq!(padded_input.len() * 8, W::WINDOW_SIZE * W::NUM_WINDOWS);
-        assert_eq!(parameters.params.generators.len(), W::NUM_WINDOWS);
+        if padded_input.len() * 8 != W::WINDOW_SIZE * W::NUM_WINDOWS {
+            Err(SynthesisError::Other("padded input length verification failed".to_owned()))?
+        }
+        if parameters.params.generators.len() != W::NUM_WINDOWS {
+            Err(SynthesisError::Other(format!(
+                "Incorrect pp of size {:?}x{:?} for window params {:?}x{:?}",
+                parameters.params.generators[0].len(),
+                parameters.params.generators.len(),
+                W::WINDOW_SIZE,
+                W::NUM_WINDOWS
+            ).to_owned()))?
+        }
 
         // Allocate new variable for the result.
         let input_in_bits: Vec<_> = padded_input
@@ -122,7 +132,7 @@ mod test {
     use algebra::curves::{jubjub::JubJubProjective as JubJub, ProjectiveCurve};
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
-        groups::curves::twisted_edwards::jubjub::JubJubGadget, prelude::*,
+        instantiated::jubjub::JubJubGadget, prelude::*,
         test_constraint_system::TestConstraintSystem,
     };
 

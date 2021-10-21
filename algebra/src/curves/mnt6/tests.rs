@@ -1,17 +1,15 @@
-use crate::{
-    curves::{
-        mnt6::{G1Affine, G1Projective, G2Affine, G2Projective, MNT6},
-        tests::curve_tests,
-        AffineCurve, PairingEngine,
-    },
-    fields::mnt6::fr::Fr,
-    groups::tests::group_test,
-};
+use crate::{curves::{
+    mnt6::{G1Affine, G1Projective, G2Affine, G2Projective, MNT6, g1::MNT6G1Parameters, g2::MNT6G2Parameters},
+    tests::curve_tests,
+    AffineCurve, PairingEngine,
+}, fields::mnt6::fr::Fr, groups::tests::group_test, SemanticallyValid};
 use rand;
+use crate::curves::tests::sw_projective_tests;
 
 #[test]
 fn test_g1_projective_curve() {
     curve_tests::<G1Projective>();
+    sw_projective_tests::<MNT6G1Parameters>()
 }
 
 #[test]
@@ -24,13 +22,13 @@ fn test_g1_projective_group() {
 #[test]
 fn test_g1_generator() {
     let generator = G1Affine::prime_subgroup_generator();
-    assert!(generator.is_on_curve());
-    assert!(generator.is_in_correct_subgroup_assuming_on_curve());
+    assert!(generator.is_valid());
 }
 
 #[test]
 fn test_g2_projective_curve() {
     curve_tests::<G2Projective>();
+    sw_projective_tests::<MNT6G2Parameters>()
 }
 
 #[test]
@@ -43,8 +41,7 @@ fn test_g2_projective_group() {
 #[test]
 fn test_g2_generator() {
     let generator = G2Affine::prime_subgroup_generator();
-    assert!(generator.is_on_curve());
-    assert!(generator.is_in_correct_subgroup_assuming_on_curve());
+    assert!(generator.is_valid());
 }
 
 #[test]
@@ -76,8 +73,9 @@ fn test_bilinearity() {
 
 #[test]
 fn test_product_of_pairings() {
-    use crate::curves::{ProjectiveCurve, PairingCurve};
-    use crate::UniformRand;
+    use crate::{
+        ProjectiveCurve, UniformRand
+    };
     let rng = &mut rand::thread_rng();
 
     let a = G1Projective::rand(rng).into_affine();
@@ -85,8 +83,6 @@ fn test_product_of_pairings() {
     let c = G1Projective::rand(rng).into_affine();
     let d = G2Projective::rand(rng).into_affine();
     let ans1 = MNT6::pairing(a, b) * &MNT6::pairing(c, d);
-    let ans2 = MNT6::product_of_pairings(&[
-        (&a.prepare(), &b.prepare()), (&c.prepare(), &d.prepare())
-    ]);
+    let ans2 = MNT6::product_of_pairings(&[(a.into(), b.into()), (c.into(), d.into())]);
     assert_eq!(ans1, ans2);
 }

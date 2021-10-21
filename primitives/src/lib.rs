@@ -1,13 +1,6 @@
 #[macro_use]
 extern crate bench_utils;
 
-#[cfg(any(
-    feature = "commitment",
-    feature = "merkle_tree",
-    feature = "prf",
-    feature = "signature",
-    feature = "vrf"
-))]
 #[macro_use]
 extern crate derivative;
 
@@ -48,6 +41,9 @@ pub enum CryptoError {
     InvalidElement(String),
     NotPrimeOrder(String),
     FailedVerification,
+    InitializationError(String),
+    HashingError(String),
+    Other(String),
 }
 
 impl std::fmt::Display for CryptoError {
@@ -57,6 +53,9 @@ impl std::fmt::Display for CryptoError {
             CryptoError::InvalidElement(elem) => format!("{} is invalid", elem),
             CryptoError::NotPrimeOrder(elem) => format!("element {} is not prime order", elem),
             CryptoError::FailedVerification => "verification failed".to_owned(),
+            CryptoError::InitializationError(message) => format!("{}", message),
+            CryptoError::HashingError(message) => format!("Failed to compute the hash: {}", message),
+            CryptoError::Other(message) => format!("{}", message),
         };
         write!(f, "{}", msg)
     }

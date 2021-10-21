@@ -47,7 +47,7 @@ fn ecvrf_prove(c: &mut Criterion) {
     c.bench_function("FieldSchnorrMNT4: Sign", move |b| {
         b.iter(|| {
             let mut rng = &mut rand::thread_rng();
-            EcVrfMNT4::prove(&mut rng, &pp, &pk, &sk, &[message]).unwrap()
+            EcVrfMNT4::prove(&mut rng, &pp, &pk, &sk, message).unwrap()
         })
     });
 }
@@ -57,10 +57,10 @@ fn ecvrf_verify(c: &mut Criterion) {
     let pp = <BHMNT6 as FixedLengthCRH>::setup(rng).unwrap();
     let (pk, sk) = EcVrfMNT4::keygen(&mut rng);
     let message = MNT4Fr::rand(rng);
-    let proof = EcVrfMNT4::prove(&mut rng, &pp, &pk, &sk, &[message]).unwrap();
+    let proof = EcVrfMNT4::prove(&mut rng, &pp, &pk, &sk, message).unwrap();
 
     c.bench_function("FieldSchnorrMNT4: Proof To Hash", move |b| {
-        b.iter(|| EcVrfMNT4::proof_to_hash(&pp, &pk, &[message], &proof).unwrap())
+        b.iter(|| EcVrfMNT4::proof_to_hash(&pp, &pk, message, &proof).unwrap())
     });
 }
 

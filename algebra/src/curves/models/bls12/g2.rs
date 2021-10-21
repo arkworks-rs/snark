@@ -4,9 +4,9 @@ use crate::{bytes::ToBytes, curves::{
     short_weierstrass_jacobian::{GroupAffine, GroupProjective},
     AffineCurve,
 }, fields::{BitIterator, Field, Fp2}, FromBytes};
-use std::io::{Result as IoResult, Write, Read};
+use std::io::{Result as IoResult, Write, Read, Error, ErrorKind};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-use std::io;
+use serde::{Serialize, Deserialize};
 
 pub type G2Affine<P> = GroupAffine<<P as Bls12Parameters>::G2Parameters>;
 pub type G2Projective<P> = GroupProjective<<P as Bls12Parameters>::G2Parameters>;
@@ -18,6 +18,9 @@ pub type G2Projective<P> = GroupProjective<<P as Bls12Parameters>::G2Parameters>
     PartialEq(bound = "P: Bls12Parameters"),
     Eq(bound = "P: Bls12Parameters")
 )]
+#[derive(Serialize, Deserialize)]
+#[serde(bound(serialize = "P: Bls12Parameters"))]
+#[serde(bound(deserialize = "P: Bls12Parameters"))]
 pub struct G2Prepared<P: Bls12Parameters> {
     // Stores the coefficients of the line evaluations as calculated in
     // https://eprint.iacr.org/2013/722.pdf
@@ -39,7 +42,7 @@ struct G2HomProjective<P: Bls12Parameters> {
 
 impl<P: Bls12Parameters> Default for G2Prepared<P> {
     fn default() -> Self {
-        Self::from_affine(G2Affine::<P>::prime_subgroup_generator())
+        Self::from(G2Affine::<P>::prime_subgroup_generator())
     }
 }
 
@@ -61,15 +64,15 @@ impl<P: Bls12Parameters> FromBytes for G2Prepared<P> {
         let mut ell_coeffs = vec![];
         for _ in 0..ell_coeffs_len {
             let c0 = Fp2::<P::Fp2Params>::read(&mut reader)
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+                .map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
             let c1 = Fp2::<P::Fp2Params>::read(&mut reader)
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+                .map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
             let c2 = Fp2::<P::Fp2Params>::read(&mut reader)
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+                .map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
             ell_coeffs.push((c0, c1, c2));
         }
         let infinity = bool::read(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+            .map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
         Ok(G2Prepared{ell_coeffs, infinity})
     }
 }
@@ -78,13 +81,15 @@ impl<P: Bls12Parameters> G2Prepared<P> {
     pub fn is_zero(&self) -> bool {
         self.infinity
     }
+}
 
-    pub fn from_affine(q: G2Affine<P>) -> Self {
+impl<P: Bls12Parameters> From<G2Affine<P>> for G2Prepared<P> {
+    fn from(q: G2Affine<P>) -> Self {
         let two_inv = P::Fp::one().double().inverse().unwrap();
         if q.is_zero() {
             return Self {
                 ell_coeffs: vec![],
-                infinity:   true,
+                infinity: true,
             };
         }
 
@@ -118,13 +123,13 @@ fn doubling_step<B: Bls12Parameters>(
     // homogeneous projective coordinates.
 
     let mut a = r.x * &r.y;
-    a.mul_by_fp(two_inv);
+    a.mul_assign_by_basefield(two_inv);
     let b = r.y.square();
     let c = r.z.square();
     let e = B::G2Parameters::COEFF_B * &(c.double() + &c);
     let f = e.double() + &e;
     let mut g = b + &f;
-    g.mul_by_fp(two_inv);
+    g.mul_assign_by_basefield(two_inv);
     let h = (r.y + &r.z).square() - &(b + &c);
     let i = e - &b;
     let j = r.x.square();

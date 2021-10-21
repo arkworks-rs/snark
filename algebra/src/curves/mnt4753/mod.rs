@@ -1,19 +1,19 @@
 use crate::field_new;
 use crate::{
-    curves::{PairingCurve, PairingEngine},
     fields::{
         mnt4753::{
             fq::{Fq, FqParameters},
             fq2::Fq2Parameters, fq4::Fq4Parameters,
-            Fq2, Fq4,
+            Fq2,
+            Fr,
         },
     FpParameters,
     },
     BigInteger768 as BigInteger
 };
 use crate::curves::models::mnt4::{MNT4Parameters, MNT4p,
-                                  G1Affine as MNT4G1Affine, G1Projective as MNT4G1Projective, G1Prepared,
-                                  G2Affine as MNT4G2Affine, G2Projective as MNT4G2Projective, G2Prepared,
+                                  G1Affine as MNT4G1Affine, G1Projective as MNT4G1Projective,
+                                  G2Affine as MNT4G2Affine, G2Projective as MNT4G2Projective,
 };
 use self::{g1::MNT4G1Parameters, g2::MNT4G2Parameters};
 
@@ -96,6 +96,7 @@ impl MNT4Parameters for MNT4_753Parameters {
     const FINAL_EXPONENT_LAST_CHUNK_W0_IS_NEG: bool = true;
 
     type Fp = Fq;
+    type Fr = Fr;
     type Fp2Params = Fq2Parameters;
     type Fp4Params = Fq4Parameters;
     type G1Parameters = MNT4G1Parameters;
@@ -107,36 +108,6 @@ pub type G1Affine = MNT4G1Affine<MNT4_753Parameters>;
 pub type G1Projective = MNT4G1Projective<MNT4_753Parameters>;
 pub type G2Affine = MNT4G2Affine<MNT4_753Parameters>;
 pub type G2Projective = MNT4G2Projective<MNT4_753Parameters>;
-
-impl PairingCurve for G1Affine {
-    type Engine = MNT4;
-    type Prepared = G1Prepared<MNT4_753Parameters>;
-    type PairWith = G2Affine;
-    type PairingResult = Fq4;
-
-    fn prepare(&self) -> Self::Prepared {
-        Self::Prepared::from_affine(self)
-    }
-
-    fn pairing_with(&self, other: &Self::PairWith) -> Self::PairingResult {
-        MNT4::pairing(*self, *other)
-    }
-}
-
-impl PairingCurve for G2Affine {
-    type Engine = MNT4;
-    type Prepared = G2Prepared<MNT4_753Parameters>;
-    type PairWith = G1Affine;
-    type PairingResult = Fq4;
-
-    fn prepare(&self) -> Self::Prepared {
-        Self::Prepared::from_affine(self)
-    }
-
-    fn pairing_with(&self, other: &Self::PairWith) -> Self::PairingResult {
-        MNT4::pairing(*other, *self)
-    }
-}
 
 // field element 0 in Montgomery representation
 pub const FQ_ZERO: Fq = field_new!(Fq, BigInteger([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
