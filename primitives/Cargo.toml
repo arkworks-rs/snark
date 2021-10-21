@@ -1,6 +1,6 @@
 [package]
 name = "primitives"
-version = "0.1.0"
+version = "0.3.0"
 authors = [
     "Sean Bowe",
     "Alessandro Chiesa",
@@ -10,7 +10,10 @@ authors = [
     "Howard Wu",
     "Daniele Di Benedetto <daniele@horizenlabs.io>",
     "Marcelo Kaihara <marcelo@horizenlabs.io>",
-    "Ulrich Haboeck <ulrich@horizenlabs.io>"
+    "Ulrich Haboeck <ulrich@horizenlabs.io>",
+    "Maksym Vereshchak <phoinic@gmail.com>",
+    "Luigi Varriale <luigi@horizenlabs.io>",
+    "cronicc <cronic@horizenlabs.io>"
 ]
 description = "A library of cryptographic primitives"
 include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
