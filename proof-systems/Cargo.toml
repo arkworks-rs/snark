@@ -1,0 +1,48 @@
+[package]
+name = "proof-systems"
+version = "0.1.0"
+authors = [
+    "Sean Bowe",
+    "Alessandro Chiesa",
+    "Matthew Green",
+    "Ian Miers",
+    "Pratyush Mishra",
+    "Howard Wu",
+    "Daniele Di Benedetto <daniele@horizenlabs.io>",
+    "Marcelo Kaihara <marcelo@horizenlabs.io>",
+    "Ulrich Haboeck <ulrich@horizenlabs.io>"
+]
+description = "A library of zk proof systems"
+include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
+license = "MIT/Apache-2.0"
+edition = "2018"
+
+################################# Dependencies ################################
+
+[dependencies]
+algebra = { path = "../algebra", features = [ "parallel", "fft" ] }
+r1cs-core = { path = "../r1cs/core" }
+bench-utils = { path = "../bench-utils" }
+
+rand = { version = "0.7" }
+rayon = { version = "1" }
+smallvec = { version = "0.6" }
+byteorder = { version = "1" }
+
+[dev-dependencies]
+csv = { version = "1" }
+
+[features]
+print-trace = [ "bench-utils/print-trace" ]
+groth16 = []
+gm17 = []
+
+[[example]]
+name = "groth16"
+path = "src/groth16/examples/snark-scalability/groth16.rs"
+required-features = ["groth16"]
+
+[[example]]
+name = "gm17"
+path = "src/gm17/examples/snark-scalability/gm17.rs"
+required-features = ["gm17"]

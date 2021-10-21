@@ -7,14 +7,12 @@ authors = [
     "Matthew Green",
     "Ian Miers",
     "Pratyush Mishra",
-    "Howard Wu"
+    "Howard Wu",
+    "Daniele Di Benedetto <daniele@horizenlabs.io>",
+    "Marcelo Kaihara <marcelo@horizenlabs.io>",
+    "Ulrich Haboeck <ulrich@horizenlabs.io>"
 ]
-description = "A helper library for profiling performance in ZEXE"
-homepage = "https://libzexe.org"
-repository = "https://github.com/scipr/zexe"
-documentation = "https://docs.rs/bench-utils/"
-keywords = ["profiling"]
-categories = ["development-tools::profiling"]
+description = "A helper library for profiling performance"
 include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
 license = "MIT/Apache-2.0"
 edition = "2018"

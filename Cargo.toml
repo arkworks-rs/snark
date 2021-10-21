@@ -1,19 +1,13 @@
 [workspace]
 
 members = [
-    "algebra-core",
     "algebra",
-    "algebra-benches",
     "bench-utils",
-    "cp-benches",
-    "crypto-primitives",
-    "dpc",
-    "ff-fft",
-    "gm17",
-    "groth16",
-    "r1cs-core",
-    "r1cs-std",
-    "algebra-core/algebra-core-derive",
+    "primitives",
+    "proof-systems",
+    "r1cs/core",
+    "r1cs/gadgets/std",
+    "r1cs/gadgets/crypto",
 ]
 
 [profile.release]
